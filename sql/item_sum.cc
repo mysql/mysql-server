@@ -449,8 +449,7 @@ void Item_sum::update_used_tables ()
     used_tables_cache&= PSEUDO_TABLE_BITS;
 
     /* the aggregate function is aggregated into its local context */
-    if (aggr_level == nest_level)
-      used_tables_cache |=  (1 << aggr_sel->join->tables) - 1;
+    used_tables_cache |=  (1 << aggr_sel->join->tables) - 1;
   }
 }
 
