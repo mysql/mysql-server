@@ -411,4 +411,12 @@ from t1;
 
 drop table t1;
 
+#
+# Bug #27164: Crash when mixing InnoDB and MyISAM Geospatial tables
+#
+CREATE TABLE t1(a POINT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+DROP TABLE t1;
+
 --echo End of 4.1 tests

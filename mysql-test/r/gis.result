@@ -718,4 +718,10 @@ point(b, b) IS NULL	linestring(b) IS NULL	polygon(b) IS NULL	multipoint(b) IS NU
 1	1	1	1	1	1	1
 0	1	1	1	1	1	1
 drop table t1;
+CREATE TABLE t1(a POINT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+a
+NULL
+DROP TABLE t1;
 End of 4.1 tests
