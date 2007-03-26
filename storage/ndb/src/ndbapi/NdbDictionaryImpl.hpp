@@ -602,7 +602,17 @@ public:
     RecHasAllKeys= 0x2,
 
     /* This NdbRecord is for an ordered index, not a table. */
-    RecIsIndex= 0x4
+    RecIsIndex= 0x4,
+
+    /* This NdbRecord has at least one blob. */
+    RecHasBlob= 0x8,
+
+    /*
+      The table has at least one blob (though the NdbRecord may not include
+      it). This is needed so that deleteTuple() can know to delete all blob
+      parts.
+    */
+    RecTableHasBlob= 0x10
   };
 
   /* Flag bits for individual columns in the NdbRecord. */
@@ -625,7 +635,9 @@ public:
     IsVar1ByteLen= 0x08,
     IsVar2ByteLen= 0x10,
     /* Flag for column that is a part of the distribution key. */
-    IsDistributionKey= 0x20
+    IsDistributionKey= 0x20,
+    /* Flag for blob columns. */
+    IsBlob= 0x40
   };
 
   struct Attr
@@ -685,6 +697,7 @@ public:
     tableId, fragmentCount etc. into the NdbRecord.
   */
   const NdbTableImpl *table;
+  const NdbTableImpl *base_table;
 
   Uint32 tableId;
   Uint32 tableVersion;

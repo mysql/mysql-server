@@ -4561,6 +4561,7 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
   }
   else
   {
+    base_table= table;
     tableNumKeys= 0;
     for (i= 0; i<table->m_columns.size(); i++)
     {
@@ -4597,11 +4598,22 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
                                       tableNumKeys*sizeof(Uint32));
 
   rec->table= table;
+  rec->base_table= base_table;
   rec->tableId= table->m_id;
   rec->tableVersion= table->m_version;
   rec->flags= 0;
   rec->noOfColumns= length;
   rec->m_no_of_distribution_keys= tableNumDistKeys;
+
+  /* Check for any blobs in the base table. */
+  for (i= 0; i<base_table->m_columns.size(); i++)
+  {
+    if (base_table->m_columns[i]->getBlobType())
+    {
+      rec->flags|= NdbRecord::RecTableHasBlob;
+      break;
+    }
+  }
 
   Uint32 max_offset= 0;
   Uint32 max_transid_ai_bytes= 0;
@@ -4615,13 +4627,6 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
       m_error.code= 4277;
       goto err;
     }
-    if (col->getBlobType())
-    {
-      /* Blobs are not yet supported for NdbRecord. */
-      m_error.code= 4275;
-      goto err;
-    }
-
     NdbRecord::Attr *recCol= &rec->columns[i];
 
     recCol->attrId= col->m_attrId;
@@ -4664,6 +4669,11 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
     }
     if (col->m_distributionKey)
       recCol->flags|= NdbRecord::IsDistributionKey;
+    if (col->getBlobType())
+    {
+      recCol->flags|= NdbRecord::IsBlob;
+      rec->flags|= NdbRecord::RecHasBlob;
+    }
   }
   rec->m_row_size= max_offset;
   rec->m_max_transid_ai_bytes= max_transid_ai_bytes;
@@ -4714,7 +4724,7 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
 
         if (recCol->flags & NdbRecord::IsDistributionKey)
         {
-          if (min_distkey_prefix_length <= key_idx)
+          if (min_distkey_prefix_length <= (Uint32)key_idx)
             min_distkey_prefix_length= key_idx+1;
           distkey_indexes[numIndexDistrKeys++]= i;
         }

@@ -28,6 +28,7 @@
 
 #include <stdlib.h>
 #include <NdbSqlUtil.hpp>
+#include <AttributeHeader.hpp>
 
 #include <signaldata/ScanTab.hpp>
 #include <signaldata/KeyInfo.hpp>
@@ -452,8 +453,50 @@ int
 NdbScanOperation::nextResult(const char * & out_row,
                              bool fetchAllowed, bool forceSend)
 {
-  /* ToDo: Also handle blobs, like in NdbRecAttr nextResult(). */
+  int res;
+  if ((res = nextResultNdbRecord(out_row, fetchAllowed, forceSend)) == 0) {
+    if (unlikely(theBlobList != NULL))
+    {
+      /* Handle blobs. */
 
+      /* First find the current row, and extract keyinfo. */
+      Uint32 idx= m_current_api_receiver;
+      assert(idx < m_api_receivers_count);
+      const NdbReceiver *receiver= m_api_receivers[m_current_api_receiver];
+      Uint32 infoword;                          // Not used for blobs
+      Uint32 key_length;
+      const char *key_data;
+      res= receiver->get_keyinfo20(infoword, key_length, key_data);
+      if (res == -1)
+        return -1;
+
+      NdbBlob* tBlob= theBlobList;
+      Uint32 blob_pos= 0;
+      while (tBlob != 0)
+      {
+        const char *blobhead_data;
+        Uint32 blobhead_size;
+        if (receiver->getBlobHead(blobhead_data, blobhead_size, blob_pos) == -1)
+          return -1;
+        tBlob->receiveHead(blobhead_data, blobhead_size);
+
+        if (tBlob->atNextResultNdbRecord(key_data, key_length*4) == -1)
+          return -1;
+        tBlob= tBlob->theNext;
+      }
+      /* Flush blob part ops on behalf of user. */
+      if (m_transConnection->executePendingBlobOps() == -1)
+        return -1;
+    }
+    return 0;
+  }
+  return res;
+}
+
+int
+NdbScanOperation::nextResultNdbRecord(const char * & out_row,
+                                      bool fetchAllowed, bool forceSend)
+{
   if (m_ordered)
     return ((NdbIndexScanOperation*)this)->next_result_ordered_ndbrecord
       (out_row, fetchAllowed, forceSend);
@@ -924,8 +967,6 @@ Remark:         Puts the the final data into ATTRINFO signal(s)  after this
 ***************************************************************************/
 int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
 				      Uint64 aTransactionId){
-  int res;
-
   if (theInterpretIndicator != 1 ||
       (theOperationType != OpenScanRequest &&
        theOperationType != OpenRangeScanRequest)) {
@@ -991,28 +1032,31 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   
   if (theStatus == UseNdbRecord)
   {
-    if (theParallelism > 0)
-    {
-      Uint32 rowsize= m_receivers[0]->ndbrecord_rowsize(m_attribute_record,
-                                                        key_size,
-                                                        m_read_range_no);
-      Uint32 bufsize= batch_size*rowsize;
-      char *buf= new char[bufsize*theParallelism];
-      if (!buf)
-      {
-        setErrorCodeAbort(4000); // "Memory allocation error"
-        return -1;
-      }
-      assert(!m_scan_buffer);
-      m_scan_buffer= buf;
+    Uint32 blobs_size= 0;
+    if (m_attribute_record->flags & NdbRecord::RecHasBlob)
+      blobs_size= calcBlobsSize();
 
-      for (Uint32 i = 0; i<theParallelism; i++)
-      {
-        m_receivers[i]->do_setup_ndbrecord(m_attribute_record, batch_size,
-                                           key_size, m_read_range_no,
-                                           rowsize, buf);
-        buf+= bufsize;
-      }
+    assert(theParallelism > 0);
+    Uint32 rowsize= m_receivers[0]->ndbrecord_rowsize(m_attribute_record,
+                                                      key_size,
+                                                      m_read_range_no,
+                                                      blobs_size);
+    Uint32 bufsize= batch_size*rowsize;
+    char *buf= new char[bufsize*theParallelism];
+    if (!buf)
+    {
+      setErrorCodeAbort(4000); // "Memory allocation error"
+      return -1;
+    }
+    assert(!m_scan_buffer);
+    m_scan_buffer= buf;
+
+    for (Uint32 i = 0; i<theParallelism; i++)
+    {
+      m_receivers[i]->do_setup_ndbrecord(m_attribute_record, batch_size,
+                                         key_size, m_read_range_no,
+                                         rowsize, buf);
+      buf+= bufsize;
     }
   }
   else
@@ -1026,6 +1070,39 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   return 0;
 }
 
+/* Compute extra space needed after rows for storing blob heads. */
+Uint32
+NdbScanOperation::calcBlobsSize()
+{
+  const NdbRecord *record= m_attribute_record;
+  NdbBlob *currentBlob= theBlobList;
+  Uint32 size= 0;
+
+  for (Uint32 i= 0; i<record->noOfColumns; i++)
+  {
+    const NdbRecord::Attr *col;
+    Uint32 attrId;
+
+    col= &record->columns[i];
+
+    /* Skip column if result_mask says so. And skip pseudo columns. */
+    attrId= col->attrId;
+    if ((attrId & AttributeHeader::PSEUDO) ||
+        !BitmaskImpl::get((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5,
+                          m_read_mask, attrId))
+      continue;
+
+    if (col->flags & NdbRecord::IsBlob)
+    {
+      assert(currentBlob != NULL);
+      size+= sizeof(Uint32) + currentBlob->getHeadInlineSize();
+      currentBlob= currentBlob->theNext;
+    }
+  }
+  assert(currentBlob == NULL);
+
+  return size;
+}
 
 /*****************************************************************************
 int doSend()
@@ -1335,6 +1412,8 @@ NdbScanOperation::takeOverScanOpNdbRecord(OperationType opType,
   op->theDistrKeyIndicator_= 1;
   op->theDistributionKey= fragment;
 
+  op->m_attribute_row= row;
+  record->copyMask(op->m_read_mask, mask);
   switch (opType)
   {
     case ReadRequest:
@@ -1343,22 +1422,36 @@ NdbScanOperation::takeOverScanOpNdbRecord(OperationType opType,
         Apart from taking over the row lock, we also support reading again,
         though typical usage will probably use an empty mask to read nothing.
       */
-      op->m_attribute_row= row;
-      record->copyMask(op->m_read_mask, mask);
       op->theReceiver.getValues(record, row);
+
+      if (unlikely(record->flags & NdbRecord::RecHasBlob))
+      {
+        if (op->getBlobHandlesNdbRecord(pTrans) == -1)
+          return NULL;
+      }
+
       break;
     case UpdateRequest:
-      op->m_attribute_row= row;
-      record->copyMask(op->m_read_mask, mask);
+      if (unlikely(record->flags & NdbRecord::RecHasBlob))
+      {
+        if (op->getBlobHandlesNdbRecord(pTrans) == -1)
+          return NULL;
+      }
+
       break;
     case DeleteRequest:
+      /* Create blob handles if any, to properly delete all blob parts. */
+      if (unlikely(record->flags & NdbRecord::RecTableHasBlob))
+      {
+        if (op->getBlobHandlesDelete(pTrans) == -1)
+          return NULL;
+      }
       break;
     default:
       assert(false);
       return NULL;
   }
 
-  /* ToDo: Handle blobs, like in takeOverScanOp(). */
   return op;
 }
 

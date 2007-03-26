@@ -88,8 +88,11 @@ private:
                           Uint32 key_size, Uint32 read_range_no,
                           Uint32 rowsize, char *buf);
   Uint32 ndbrecord_rowsize(const NdbRecord *ndb_record, Uint32 key_size,
-                           Uint32 read_range_no);
+                           Uint32 read_range_no, Uint32 blobs_size);
 
+  void receiveBlobHead(const NdbRecord *record, Uint32 record_pos,
+                       const Uint32 *src, Uint32 byteSize,
+                       Uint32 & blob_pos);
   int execKEYINFO20(Uint32 info, const Uint32* ptr, Uint32 len);
   int execTRANSID_AI(const Uint32* ptr, Uint32 len); 
   int execTCOPCONF(Uint32 len);
@@ -187,6 +190,7 @@ private:
   /* get_keyinfo20)_ returns keyinfo from KEYINFO20 signal. */
   int get_keyinfo20(Uint32 & scaninfo, Uint32 & length,
                     const char * & data_ptr) const;
+  int getBlobHead(const char * & data, Uint32 & size, Uint32 & pos) const;
 };
 
 #ifdef NDB_NO_DROPPED_SIGNAL

@@ -621,11 +621,12 @@ ErrorBundle ErrorCodes[] = {
   { 4280, DMEC, AE, "Error returned from application scanIndex() callback" },
   { 4281, DMEC, AE, "Too many keys specified for key bound in scanIndex" },
   { 4282, DMEC, AE, "range_no not strictly increasing in ordered multi-range index scan" },
-  { 4283, DMEC, AE, "key_record and result_record in index scan are not for the same index" },
+  { 4283, DMEC, AE, "key_record in index scan is not an index ndbrecord" },
   { 4284, DMEC, AE, "Cannot mix NdbRecAttr and NdbRecord operations for scan take-over" },
   { 4285, DMEC, AE, "NULL NdbRecord pointer" },
   { 4286, DMEC, AE, "Invalid range_no (must be < 4096)" },
-  { 4287, DMEC, AE, "The key_record and attribute_record in primary key operation do not belong to the same table" }
+  { 4287, DMEC, AE, "The key_record and attribute_record in primary key operation do not belong to the same table" },
+  { 4288, DMEC, AE, "Blob handle for column not available" }
 };
 
 static

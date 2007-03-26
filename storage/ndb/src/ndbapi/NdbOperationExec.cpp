@@ -16,6 +16,7 @@
 #include <ndb_global.h>
 #include <NdbOperation.hpp>
 #include <NdbTransaction.hpp>
+#include <NdbBlob.hpp>
 #include "NdbApiSignal.hpp"
 #include <Ndb.hpp>
 #include <NdbRecAttr.hpp>
@@ -605,6 +606,8 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
       (tOpType == UpdateRequest))
   {
     updRow= m_attribute_row;
+    NdbBlob *currentBlob= theBlobList;
+
     for (Uint32 i= 0; i<attr_rec->noOfColumns; i++)
     {
       const NdbRecord::Attr *col;
@@ -621,14 +624,37 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
         no_disk_flag= 0;
 
       Uint32 length;
-      if (col->is_null(updRow))
-        length= 0;
-      else if (!col->get_var_length(key_row, length))
+      const char *data;
+
+      if (likely(!(col->flags & NdbRecord::IsBlob)))
       {
-        /* Hm, corrupt varchar length. */
-        setErrorCodeAbort(4209);
-        return -1;
+        if (col->is_null(updRow))
+          length= 0;
+        else if (!col->get_var_length(key_row, length))
+        {
+          /* Hm, corrupt varchar length. */
+          setErrorCodeAbort(4209);
+          return -1;
+        }
+        data= &updRow[col->offset];
       }
+      else
+      {
+        /*
+          Blob column.
+          For insert and write, we need to set the value of the blob head
+          (cannot leave it unset in case the blob is non-nullable).
+          For update, do nothing, as another operation will be injected to
+          update the blob head.
+        */
+        NdbBlob *bh= currentBlob;
+        currentBlob= currentBlob->theNext;
+        if (tOpType == UpdateRequest)
+          continue;
+
+        bh->getBlobHeadData(data, length);
+      }
+
       res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
                                        attrId, length,
                                        &attrInfoPtr, &remain);
@@ -637,7 +663,7 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
       if (length > 0)
       {
         res= insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
-                                          &updRow[col->offset], col->maxSize,
+                                          data, length,
                                           &attrInfoPtr, &remain);
         if(res)
           return res;
@@ -661,6 +687,11 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
       if (col->flags & NdbRecord::IsDisk)
         no_disk_flag= 0;
 
+      /*
+        Read the column.
+        For blobs, we actually read the blob head, and treat it as a special
+        case in the receiver.
+      */
       res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
                                        attrId, 0,
                                        &attrInfoPtr, &remain);
@@ -866,7 +897,7 @@ NdbOperation::insertKEYINFO_NdbRecord(Uint32 connectPtr,
 
   memcpy(*dstPtr, value, size);
   if((size%4) != 0)
-    memset(((char *)*dstPtr)+size, 0, 3-(size%4));
+    memset(((char *)*dstPtr)+size, 0, 4-(size%4));
   Uint32 sizeInWords= (size+3)/4;
   *dstPtr+= sizeInWords;
   *remain-= sizeInWords;
@@ -926,7 +957,7 @@ NdbOperation::insertATTRINFOData_NdbRecord(Uint32 connectPtr,
 
   memcpy(*dstPtr, value, size);
   if((size%4) != 0)
-    memset(((char *)*dstPtr)+size, 0, 3-(size%4));
+    memset(((char *)*dstPtr)+size, 0, 4-(size%4));
   Uint32 sizeInWords= (size+3)/4;
   *dstPtr+= sizeInWords;
   *remain-= sizeInWords;

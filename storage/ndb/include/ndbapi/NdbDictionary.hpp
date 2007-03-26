@@ -1422,7 +1422,13 @@ public:
       from the index itself.
     */
     const Column *column;
-    /* Offset of data from start of a row. */
+    /*
+      Offset of data from start of a row.
+      
+      For reading blobs, the blob handle (NdbBlob *) will be writted into the
+      row, not the actual blob data. So at least sizeof(NdbBlob *) must be
+      available in the row.
+    */
     Uint32 offset;
     /*
       Offset from start of row of byte containing NULL bit.
