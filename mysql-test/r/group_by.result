@@ -1141,4 +1141,9 @@ EXPLAIN SELECT 1 FROM t2 WHERE a IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	256	Using where
+SHOW VARIABLES LIKE 'old';
+Variable_name	Value
+old	OFF
+SET @@old = off;
+ERROR HY000: Variable 'old' is a read only variable
 DROP TABLE t1, t2;
