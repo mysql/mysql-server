@@ -2765,6 +2765,25 @@ SELECT COUNT(*), a
 DROP TABLE t1,t2;
 
 #
+# Bug #27229: GROUP_CONCAT in subselect with COUNT() as an argument 
+#  
+
+CREATE TABLE t1 (a int, b int);
+CREATE TABLE t2 (m int, n int);
+INSERT INTO t1 VALUES (2,2), (2,2), (3,3), (3,3), (3,3), (4,4);
+INSERT INTO t2 VALUES (1,11), (2,22), (3,32), (4,44), (4,44);
+
+SELECT COUNT(*) c, a,
+       (SELECT GROUP_CONCAT(COUNT(a)) FROM t2 WHERE m = a)
+  FROM t1 GROUP BY a;
+
+SELECT COUNT(*) c, a,
+       (SELECT GROUP_CONCAT(COUNT(a)+1) FROM t2 WHERE m = a)
+  FROM t1 GROUP BY a;
+
+DROP table t1,t2;
+
+#
 # Bug#20835 (literal string with =any values)
 #
 CREATE TABLE t1 (s1 char(1));
