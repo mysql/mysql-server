@@ -1411,7 +1411,10 @@ public:
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *work_part_info;
 #endif
-  
+
+  /* pass up the count of "leaf" tables in a JOIN out of setup_tables() */
+  byte leaf_count;
+
   THD();
   ~THD();
 

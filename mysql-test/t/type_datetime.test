@@ -113,6 +113,12 @@ insert into t1 values ("00-00-00"), ("00-00-00 00:00:00");
 select * from t1;
 drop table t1;
 
+#
+# Bug #16546 DATETIME+0 not always coerced the same way 
+#
+select cast('2006-12-05 22:10:10' as datetime) + 0;
+
+
 # End of 4.1 tests
 
 #

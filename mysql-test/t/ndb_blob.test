@@ -97,6 +97,11 @@ update t1 set d=null where a=1;
 commit;
 select a from t1 where d is null;
 
+# bug#24028 - does not occur on MySQL level
+# bug#17986 - not seen by us anymore but could show as warning here
+delete from t1 where a=45567;
+commit;
+
 # pk delete
 delete from t1 where a=1;
 delete from t1 where a=2;
