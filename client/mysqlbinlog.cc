@@ -834,7 +834,7 @@ static int dump_remote_log_entries(const char* logname)
     }
     if (len < 8 && net->read_pos[0] == 254)
       break; // end of data
-    DBUG_PRINT("info",( "len= %u, net->read_pos[5] = %d\n",
+    DBUG_PRINT("info",( "len: %lu  net->read_pos[5]: %d\n",
 			len, net->read_pos[5]));
     Log_event *ev = Log_event::read_log_event((const char*) net->read_pos + 1 ,
 					      len - 1, &error_msg, old_format);

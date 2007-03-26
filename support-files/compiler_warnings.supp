@@ -1,0 +1,56 @@
+#
+# cmd-line-utils is not important in 4.1
+#
+.*/cmd-line-utils/readline/* : .*comparison is always true.*
+.*/cmd-line-utils/readline/* : .*discards qualifiers from pointer target type.*
+.*/cmd-line-utils/readline/* : .*may be used uninitialized in this.*
+
+#
+# not important in 4.1
+#
+my_tempnam.c: .*the use of `tempnam' is dangerous, better use `mkstemp'.*
+
+#
+# bdb is not critical to keep up to date
+#
+.*/bdb/.* : .*discards qualifiers from pointer target type.*
+.*/bdb/.* : .*unused parameter.*
+.*/bdb/.* : .*may be used uninitialized.*
+.*/bdb/.* : .*empty body in an if-statement.*
+db_vrfy.c : .*comparison is always false due to limited range of data type.*
+
+#
+# Ignore all conversion warnings on windows 64
+# (Is safe as we are not yet supporting strings >= 2G)
+#
+.* : conversion from '__int64' to .*int'.*
+.* : conversion from '__int64' to 'uint8'.*
+.* : conversion from '__int64' to 'uint32'.*
+.* : conversion from '__int64' to 'u.*long'.*
+.* : conversion from '__int64' to 'long'.*
+.* : conversion from '__int64' to 'off_t'.*
+.* : conversion from '.*size_t' to .*int'.*
+.* : conversion from '.*size_t' to 'TaoCrypt::word32'.*
+.* : conversion from '.*size_t' to 'u.*long'.*
+.* : conversion from '.*size_t' to 'uint32'.*
+.* : conversion from '.*size_t' to 'off_t'.*
+.* : conversion from '.*size_t' to 'size_s'.*
+
+#
+# innobase is not critical in 4.1 to be kept up-to-date
+#
+.*/innobase/.* : .*unused parameter.*
+.*/innobase/.* : .*may be used uninitialized in.*
+
+#
+# The following should be fixed by the ndb team
+#
+.*/ndb/.* : .*used uninitialized in this function.*
+.*/ndb/.* : .*unused variable.*
+.*/ndb/.* : .*defined but not used.*
+.*/ndb/.* : .*format.*expects type.*
+.*/ndb/.* : .*has virtual functions but non-virtual destructor.*
+.*/ndb/.* : .*comparison between signed and unsigned integer expressions.*
+.*/ndb/.* : .*deprecated conversion from string constant to.*
+.*/ndb/.* : .*enumeration value.*not handled in switch.*
+.*/ndb/.* : .*enumeral and non-enumeral type in conditional expression.*

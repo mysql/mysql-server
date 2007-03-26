@@ -902,7 +902,7 @@ my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
   */
   if ((tmp < TIMESTAMP_MIN_VALUE) || (tmp > TIMESTAMP_MAX_VALUE))
     tmp= 0;
-end:
+
   return (my_time_t) tmp;
 } /* my_system_gmt_sec */
 

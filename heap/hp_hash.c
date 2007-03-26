@@ -120,7 +120,7 @@ byte *hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *key,
       {
 	switch (nextflag) {
 	case 0:					/* Search after key */
-	  DBUG_PRINT("exit",("found key at %d",pos->ptr_to_rec));
+	  DBUG_PRINT("exit",("found key at %lu", (ulong) pos->ptr_to_rec));
 	  info->current_hash_ptr=pos;
 	  DBUG_RETURN(info->current_ptr= pos->ptr_to_rec);
 	case 1:					/* Search next */

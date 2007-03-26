@@ -2654,7 +2654,7 @@ int main(int argc, char **argv)
   default_charset= (char *)mysql_universal_client_charset;
   bzero((char*) &ignore_table, sizeof(ignore_table));
 
-  MY_INIT("mysqldump");
+  MY_INIT(argv[0]);
   if (get_options(&argc, &argv))
   {
     my_end(0);

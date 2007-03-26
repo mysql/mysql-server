@@ -1029,8 +1029,9 @@ ulong _mi_rec_unpack(register MI_INFO *info, register byte *to, byte *from,
     DBUG_RETURN(found_length);
 err:
   my_errno=HA_ERR_RECORD_DELETED;
-  DBUG_PRINT("error",("to_end: %lx -> %lx  from_end: %lx -> %lx",
-		      to,to_end,from,from_end));
+  DBUG_PRINT("error",("to_end: 0x%lx -> 0x%lx  from_end: 0x%lx -> 0x%lx",
+		      (ulong) to, (ulong) to_end, (ulong) from,
+                      (ulong) from_end));
   DBUG_DUMP("from",(byte*) info->rec_buff,info->s->base.min_pack_length);
   DBUG_RETURN(MY_FILE_ERROR);
 } /* _mi_rec_unpack */
