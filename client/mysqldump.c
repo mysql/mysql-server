@@ -1857,7 +1857,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       dynstr_append_checked(&insert_pat, insert_option);
       dynstr_append_checked(&insert_pat, "INTO ");
       dynstr_append_checked(&insert_pat, result_table);
-      if (opt_complete_insert)
+      if (complete_insert)
         dynstr_append_checked(&insert_pat, " (");
       else
       {
@@ -1881,7 +1881,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
           dynstr_append_checked(&insert_pat, ", ");
       }
       init=1;
-      if (opt_complete_insert)
+      if (complete_insert)
         dynstr_append_checked(&insert_pat,
                       quote_name(row[SHOW_FIELDNAME], name_buff, 0));
       if (!opt_no_create_info)
@@ -2039,7 +2039,7 @@ continue_xml:
       check_io(sql_file);
     }
   }
-  if (opt_complete_insert)
+  if (complete_insert)
   {
     dynstr_append_checked(&insert_pat, ") VALUES ");
     if (!extended_insert)
