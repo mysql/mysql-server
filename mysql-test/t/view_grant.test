@@ -1040,5 +1040,63 @@ DROP DATABASE mysqltest_db2;
 DROP USER mysqltest_u1@localhost;
 DROP USER mysqltest_u2@localhost;
 
+#
+# Bug#26813: The SUPER privilege is wrongly required to alter a view created
+#            by another user.
+#
+connection root;
+CREATE DATABASE db26813;
+USE db26813;
+CREATE TABLE t1(f1 INT, f2 INT);
+CREATE VIEW v1 AS SELECT f1 FROM t1;
+CREATE VIEW v2 AS SELECT f1 FROM t1;
+CREATE VIEW v3 AS SELECT f1 FROM t1;
+CREATE USER u26813@localhost;
+GRANT DROP ON db26813.v1 TO u26813@localhost;
+GRANT CREATE VIEW ON db26813.v2 TO u26813@localhost;
+GRANT DROP, CREATE VIEW ON db26813.v3 TO u26813@localhost;
+GRANT SELECT ON db26813.t1 TO u26813@localhost;
+
+connect (u1,localhost,u26813,,db26813);
+connection u1;
+--error 1142
+ALTER VIEW v1 AS SELECT f2 FROM t1;
+--error 1142
+ALTER VIEW v2 AS SELECT f2 FROM t1;
+ALTER VIEW v3 AS SELECT f2 FROM t1;
+
+connection root;
+SHOW CREATE VIEW v3;
+
+DROP USER u26813@localhost;
+DROP DATABASE db26813;
+disconnect u1;
 
 --echo End of 5.0 tests.
+
+
+#
+# Test that ALTER VIEW accepts DEFINER and ALGORITHM, see bug#16425.
+#
+connection default;
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (i INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+ALTER VIEW v1 AS SELECT * FROM t1;
+SHOW CREATE VIEW v1;
+ALTER DEFINER=no_such@user_1 VIEW v1 AS SELECT * FROM t1;
+SHOW CREATE VIEW v1;
+ALTER ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t1;
+SHOW CREATE VIEW v1;
+ALTER ALGORITHM=TEMPTABLE DEFINER=no_such@user_2 VIEW v1 AS SELECT * FROM t1;
+SHOW CREATE VIEW v1;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo End of 5.1 tests.
