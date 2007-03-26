@@ -123,24 +123,24 @@ printusage()
     << "metadata" << endl
     << "  -pk2len N   length of PK2 [" << d.m_pk2len << "/" << g_max_pk2len <<"]" << endl
     << "  -oneblob    only 1 blob attribute [default 2]" << endl
-    << "testcases for test/skip" << endl
+    << "test cases for test/skip" << endl
     << "  k           primary key ops" << endl
     << "  i           hash index ops" << endl
     << "  s           table scans" << endl
     << "  r           ordered index scans" << endl
     << "  p           performance test" << endl
-    << "additional flags for test/skip" << endl
+    << "operations for test/skip" << endl
     << "  u           update existing blob value" << endl
     << "  n           normal insert and update" << endl
     << "  w           insert and update using writeTuple" << endl
+    << "blob operation styles for test/skip" << endl
     << "  0           getValue / setValue" << endl
     << "  1           setActiveHook" << endl
     << "  2           readData / writeData" << endl
-    << "bug tests (no blob test)" << endl
+    << "example: -test kn0 (need all 3 parts)" << endl
+    << "bug tests" << endl
     << "  -bug 4088   ndb api hang with mixed ops on index table" << endl
     << "  -bug 27018  middle partial part write clobbers rest of part" << endl
-    << "  -bug nnnn   delete + write gives 626" << endl
-    << "  -bug nnnn   acc crash on delete and long key" << endl
     ;
 }
 
@@ -1028,6 +1028,32 @@ deletePk()
   return 0;
 }
 
+static int
+deleteNoPk()
+{
+  DBG("--- deleteNoPk ---");
+  Tup no_tup; // bug#24028
+  no_tup.m_pk1 = 0xb1ffb1ff;
+  sprintf(no_tup.m_pk2, "%-*.*s", g_opt.m_pk2len, g_opt.m_pk2len,  "b1ffb1ff");
+  CHK((g_con = g_ndb->startTransaction()) != 0);
+  Tup& tup =  no_tup;
+  DBG("deletePk pk1=" << hex << tup.m_pk1);
+  CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
+  CHK(g_opr->deleteTuple() == 0);
+  CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+  if (g_opt.m_pk2len != 0)
+    CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+  CHK(g_con->execute(Commit) == -1); // fail
+  // BUG: error should be on op but is on con now
+  DBG("con: " << g_con->getNdbError());
+  DBG("opr: " << g_opr->getNdbError());
+  CHK(g_con->getNdbError().code == 626 || g_opr->getNdbError().code == 626);
+  g_ndb->closeTransaction(g_con);
+  g_opr = 0;
+  g_con = 0;
+  return 0;
+}
+
 // hash index ops
 
 static int
@@ -1383,6 +1409,7 @@ testmain()
           CHK(readPk(style) == 0);
         }
         CHK(deletePk() == 0);
+        CHK(deleteNoPk() == 0);
         CHK(verifyBlob() == 0);
       }
       if (testcase('w')) {
@@ -1397,6 +1424,7 @@ testmain()
           CHK(readPk(style) == 0);
         }
         CHK(deletePk() == 0);
+        CHK(deleteNoPk() == 0);
         CHK(verifyBlob() == 0);
       }
     }
@@ -1854,18 +1882,6 @@ bugtest_27018()
     g_ndb->closeTransaction(g_con);
   }
 
-  return 0;
-}
-
-static int
-bugtest_2222()
-{
-  return 0;
-}
-
-static int
-bugtest_3333()
-{
   return 0;
 }
 
