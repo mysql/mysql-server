@@ -1088,7 +1088,7 @@ bool Item_splocal::set_value(THD *thd, sp_rcontext *ctx, Item **it)
   Item_case_expr methods
 *****************************************************************************/
 
-Item_case_expr::Item_case_expr(int case_expr_id)
+Item_case_expr::Item_case_expr(uint case_expr_id)
   :Item_sp_variable( C_STRING_WITH_LEN("case_expr")),
    m_case_expr_id(case_expr_id)
 {
@@ -1125,6 +1125,8 @@ Item_case_expr::this_item_addr(THD *thd, Item **)
 
 void Item_case_expr::print(String *str)
 {
+  if (str->reserve(MAX_INT_WIDTH + sizeof("case_expr@")))
+    return;                                    /* purecov: inspected */
   VOID(str->append(STRING_WITH_LEN("case_expr@")));
   str->qs_append(m_case_expr_id);
 }
