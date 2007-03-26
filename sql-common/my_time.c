@@ -350,10 +350,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
       l_time->year > 9999 || l_time->month > 12 ||
       l_time->day > 31 || l_time->hour > 23 ||
       l_time->minute > 59 || l_time->second > 59 ||
-      (!(flags & TIME_FUZZY_DATE) &&
-       (l_time->month == 0 || l_time->day == 0)) ||
-      (l_time->year == 0 && l_time->month == 0 && l_time->day == 0 && 
-       (l_time->hour != 0 || l_time->minute != 0 || l_time->second != 0)))
+      (!(flags & TIME_FUZZY_DATE) && (l_time->month == 0 || l_time->day == 0)))
   {
     /* Only give warning for a zero date if there is some garbage after */
     if (!not_zero_date)                         /* If zero date */
