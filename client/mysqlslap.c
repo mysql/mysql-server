@@ -118,6 +118,8 @@ unsigned long long primary_keys_number_of;
 
 static char *host= NULL, *opt_password= NULL, *user= NULL,
             *user_supplied_query= NULL,
+            *user_supplied_pre_statements= NULL,
+            *user_supplied_post_statements= NULL,
             *default_engine= NULL,
             *opt_mysql_unix_port= NULL;
 
@@ -222,6 +224,8 @@ struct conclusions {
 };
 
 static option_string *engine_options= NULL;
+static statement *pre_statements= NULL; 
+static statement *post_statements= NULL; 
 static statement *create_statements= NULL, 
                  *query_statements= NULL;
 
@@ -248,6 +252,7 @@ pthread_handler_t run_task(void *p);
 void statement_cleanup(statement *stmt);
 void option_cleanup(option_string *stmt);
 void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr);
+static int run_statements(MYSQL *mysql, statement *stmt);
 
 static const char ALPHANUMERICS[]=
   "0123456789ABCDEFGHIJKLMNOPQRSTWXYZabcdefghijklmnopqrstuvwxyz";
@@ -388,6 +393,8 @@ int main(int argc, char **argv)
 
   statement_cleanup(create_statements);
   statement_cleanup(query_statements);
+  statement_cleanup(pre_statements);
+  statement_cleanup(post_statements);
   option_cleanup(engine_options);
 
 #ifdef HAVE_SMEM
@@ -443,7 +450,13 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
     if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
       generate_primary_key_list(mysql, eptr);
 
+    if (pre_statements)
+      run_statements(mysql, pre_statements);
+
     run_scheduler(sptr, query_statements, current, client_limit); 
+    
+    if (post_statements)
+      run_statements(mysql, post_statements);
 
     /* We are finished with this run */
     if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
@@ -570,6 +583,16 @@ static struct my_option my_long_options[] =
   {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
     (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
     0},
+  {"post-query", OPT_SLAP_POST_QUERY,
+    "Query to run or file containing query to run after executing.",
+    (gptr*) &user_supplied_post_statements, 
+    (gptr*) &user_supplied_post_statements,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"pre-query", OPT_SLAP_PRE_QUERY, 
+    "Query to run or file containing query to run before executing.",
+    (gptr*) &user_supplied_pre_statements, 
+    (gptr*) &user_supplied_pre_statements,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"preserve-schema", OPT_MYSQL_PRESERVE_SCHEMA,
     "Preserve the schema from the mysqlslap run, this happens unless "
       "--auto-generate-sql or --create are used.",
@@ -1332,6 +1355,66 @@ get_options(int *argc,char ***argv)
     }
   }
 
+  if (user_supplied_pre_statements && my_stat(user_supplied_pre_statements, &sbuf, MYF(0)))
+  {
+    File data_file;
+    if (!MY_S_ISREG(sbuf.st_mode))
+    {
+      fprintf(stderr,"%s: User query supplied file was not a regular file\n",
+              my_progname);
+      exit(1);
+    }
+    if ((data_file= my_open(user_supplied_pre_statements, O_RDWR, MYF(0))) == -1)
+    {
+      fprintf(stderr,"%s: Could not open query supplied file\n", my_progname);
+      exit(1);
+    }
+    tmp_string= (char *)my_malloc(sbuf.st_size + 1,
+                                  MYF(MY_ZEROFILL|MY_FAE|MY_WME));
+    my_read(data_file, tmp_string, sbuf.st_size, MYF(0));
+    tmp_string[sbuf.st_size]= '\0';
+    my_close(data_file,MYF(0));
+    if (user_supplied_pre_statements)
+      actual_queries= parse_delimiter(tmp_string, &pre_statements,
+                                      delimiter[0]);
+    my_free((gptr)tmp_string, MYF(0));
+  } 
+  else if (user_supplied_pre_statements)
+  {
+    actual_queries= parse_delimiter(user_supplied_pre_statements, &pre_statements,
+                                    delimiter[0]);
+  }
+
+  if (user_supplied_post_statements && my_stat(user_supplied_post_statements, &sbuf, MYF(0)))
+  {
+    File data_file;
+    if (!MY_S_ISREG(sbuf.st_mode))
+    {
+      fprintf(stderr,"%s: User query supplied file was not a regular file\n",
+              my_progname);
+      exit(1);
+    }
+    if ((data_file= my_open(user_supplied_post_statements, O_RDWR, MYF(0))) == -1)
+    {
+      fprintf(stderr,"%s: Could not open query supplied file\n", my_progname);
+      exit(1);
+    }
+    tmp_string= (char *)my_malloc(sbuf.st_size + 1,
+                                  MYF(MY_ZEROFILL|MY_FAE|MY_WME));
+    my_read(data_file, tmp_string, sbuf.st_size, MYF(0));
+    tmp_string[sbuf.st_size]= '\0';
+    my_close(data_file,MYF(0));
+    if (user_supplied_post_statements)
+      parse_delimiter(tmp_string, &post_statements,
+                      delimiter[0]);
+    my_free((gptr)tmp_string, MYF(0));
+  } 
+  else if (user_supplied_post_statements)
+  {
+    parse_delimiter(user_supplied_post_statements, &post_statements,
+                    delimiter[0]);
+  }
+
   if (verbose >= 2)
     printf("Parsing engines to use.\n");
 
@@ -1364,7 +1447,7 @@ generate_primary_key_list(MYSQL *mysql, option_string *engine_stmt)
   MYSQL_RES *result;
   MYSQL_ROW row;
   unsigned long long counter;
-  DBUG_ENTER("create_schema");
+  DBUG_ENTER("generate_primary_key_list");
 
   /* 
     Blackhole is a special case, this allows us to test the upper end 
@@ -1545,6 +1628,25 @@ drop_schema(MYSQL *mysql, const char *db)
 }
 
 static int
+run_statements(MYSQL *mysql, statement *stmt) 
+{
+  statement *ptr;
+  DBUG_ENTER("run_statements");
+
+  for (ptr= stmt; ptr && ptr->length; ptr= ptr->next)
+  {
+    if (run_query(mysql, ptr->string, ptr->length))
+    {
+      fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
+              my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
+      exit(1);
+    }
+  }
+
+  DBUG_RETURN(0);
+}
+
+static int
 run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 {
   uint x;
@@ -1569,7 +1671,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
   pthread_mutex_unlock(&sleeper_mutex);
   for (x= 0; x < concur; x++)
   {
-    /* nowucreate the thread */
+    /* now you create the thread */
     if (pthread_create(&mainthread, &attr, run_task, 
                        (void *)&con) != 0)
     {
