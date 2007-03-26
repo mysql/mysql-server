@@ -305,10 +305,7 @@ inline
 Int32
 NdbRecAttr::medium_value() const
 {
-  Uint32 tmp = *(Uint32*)theRef;
-  if (tmp & (0x1<<23))
-    tmp|= (0xFF<<24);
-  return (Int32)tmp;
+  return sint3korr((unsigned char *)theRef);
 }
 
 inline
@@ -336,7 +333,7 @@ inline
 Uint32
 NdbRecAttr::u_medium_value() const
 {
-  return *(Uint32*)theRef;
+  return uint3korr((unsigned char*)theRef);
 }
 
 inline
