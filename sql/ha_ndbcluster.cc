@@ -3159,15 +3159,15 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
 #ifdef WORDS_BIGENDIAN
             /* lsw is stored first */
             Uint32 *buf= (Uint32 *)(*value).rec->aRef();
-            ((Field_bit *) *field)->store((((longlong)*buf)
-                                           & 0x000000000FFFFFFFF)
-                                          |
-                                          ((((longlong)*(buf+1)) << 32)
-                                           & 0xFFFFFFFF00000000),
-                                          TRUE);
+            field_bit->Field_bit::store((((longlong)*buf)
+                                         & 0x000000000FFFFFFFF)
+                                        |
+                                        ((((longlong)*(buf+1)) << 32)
+                                         & 0xFFFFFFFF00000000),
+                                        TRUE);
 #else
-            ((Field_bit *) *field)->store((longlong)
-                                          (*value).rec->u_64_value(), TRUE);
+            field_bit->Field_bit::store((longlong)
+                                        (*value).rec->u_64_value(), TRUE);
 #endif
           }
           /*
