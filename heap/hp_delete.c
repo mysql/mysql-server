@@ -24,7 +24,7 @@ int heap_delete(HP_INFO *info, const byte *record)
   HP_SHARE *share=info->s;
   HP_KEYDEF *keydef, *end, *p_lastinx;
   DBUG_ENTER("heap_delete");
-  DBUG_PRINT("enter",("info: %lx  record: %lx",info,record));
+  DBUG_PRINT("enter",("info: %lx  record: %lx", (ulong) info, (ulong) record));
 
   test_active(info);
 
@@ -143,7 +143,7 @@ int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
     info->current_hash_ptr=last_ptr;
     info->current_ptr = last_ptr ? last_ptr->ptr_to_rec : 0;
     DBUG_PRINT("info",("Corrected current_ptr to point at: %lx",
-		       info->current_ptr));
+		       (ulong) info->current_ptr));
   }
   empty=pos;
   if (gpos)

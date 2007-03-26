@@ -253,7 +253,9 @@ int main(int argc,char *argv[])
         'Unknown Error' (without regard to case).
       */
       if (msg &&
-          my_strnncoll(&my_charset_latin1, msg, 13, "Unknown Error", 13) &&
+          my_strnncoll(&my_charset_latin1,
+                       (const uchar *) msg, 13,
+                       (const uchar *) "Unknown Error", 13) &&
           (!unknown_error || strcmp(msg, unknown_error)))
       {
 	found=1;

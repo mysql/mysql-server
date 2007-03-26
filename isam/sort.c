@@ -542,7 +542,7 @@ my_string name;
 #if O_TEMPORARY == 0 && !defined(CANT_DELETE_OPEN_FILES)
     VOID(my_delete(name,MYF(MY_WME | ME_NOINPUT)));
 #endif
-  DBUG_PRINT("exit",("stream: %lx",stream));
+  DBUG_PRINT("exit",("stream: 0x%lx", (long) stream));
   DBUG_RETURN (stream);
 } /* opentemp */
 

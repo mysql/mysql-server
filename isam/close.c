@@ -23,9 +23,9 @@ int nisam_close(register N_INFO *info)
   int error=0,flag;
   ISAM_SHARE *share=info->s;
   DBUG_ENTER("nisam_close");
-  DBUG_PRINT("enter",("base: %lx  reopen: %u  locks: %u",
-		      info,(uint) share->reopen,
-		      (uint) (share->w_locks+share->r_locks)));
+  DBUG_PRINT("enter",("base: 0x%lx  reopen: %u  locks: %u",
+                      (long) info, (uint) share->reopen,
+                      (uint) (share->w_locks + share->r_locks)));
 
   pthread_mutex_lock(&THR_LOCK_isam);
   if (info->lock_type == F_EXTRA_LCK)

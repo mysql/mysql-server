@@ -54,7 +54,7 @@ void Item_subselect::init(st_select_lex *select_lex,
 {
 
   DBUG_ENTER("Item_subselect::init");
-  DBUG_PRINT("subs", ("select_lex 0x%xl", (ulong) select_lex));
+  DBUG_PRINT("subs", ("select_lex: 0x%lx", (ulong) select_lex));
   unit= select_lex->master_unit();
 
   if (unit->item)

@@ -55,7 +55,7 @@ my_off_t my_seek(File fd, my_off_t pos, int whence,
   if (newpos == (os_off_t) -1)
   {
     my_errno=errno;
-    DBUG_PRINT("error",("lseek: %lu, errno: %d",newpos,errno));
+    DBUG_PRINT("error",("lseek: %lu  errno: %d", (ulong) newpos, errno));
     DBUG_RETURN(MY_FILEPOS_ERROR);
   }
   if ((my_off_t) newpos != pos)
