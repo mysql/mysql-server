@@ -9196,17 +9196,21 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     Item::Type type=item->type();
     if (not_all_columns)
     {
-      if (item->with_sum_func && type != Item::SUM_FUNC_ITEM &&
-          (type == Item::SUBSELECT_ITEM ||
-           (item->used_tables() & ~PSEUDO_TABLE_BITS)))
+      if (item->with_sum_func && type != Item::SUM_FUNC_ITEM)
       {
-	/*
-	  Mark that the we have ignored an item that refers to a summary
-	  function. We need to know this if someone is going to use
-	  DISTINCT on the result.
-	*/
-	param->using_indirect_summary_function=1;
-	continue;
+        if (item->used_tables() & OUTER_REF_TABLE_BIT)
+          item->update_used_tables();
+        if (type == Item::SUBSELECT_ITEM ||
+            (item->used_tables() & ~OUTER_REF_TABLE_BIT))
+        {
+	  /*
+	    Mark that the we have ignored an item that refers to a summary
+	    function. We need to know this if someone is going to use
+	    DISTINCT on the result.
+	  */
+	  param->using_indirect_summary_function=1;
+	  continue;
+        }
       }
       if (item->const_item() && (int) hidden_field_count <= 0)
         continue; // We don't have to store this
@@ -9391,6 +9395,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     table->s->default_values= table->record[1]+alloc_length;
   }
   copy_func[0]=0;				// End marker
+  param->func_count= copy_func - param->items_to_copy; 
 
   recinfo=param->start_recinfo;
   null_flags=(uchar*) table->record[0];
@@ -13571,6 +13576,7 @@ count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
 	if (!sum_item->quick_group)
 	  param->quick_group=0;			// UDF SUM function
 	param->sum_func_count++;
+        param->func_count++;
 
 	for (uint i=0 ; i < sum_item->arg_count ; i++)
 	{
