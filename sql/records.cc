@@ -150,7 +150,8 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   info->file= table->file;
   info->forms= &info->table;		/* Only one table */
   
-  if (table->s->tmp_table == TMP_TABLE && !table->sort.addon_field)
+  if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE &&
+      !table->sort.addon_field)
     VOID(table->file->extra(HA_EXTRA_MMAP));
   
   if (table->sort.addon_field)

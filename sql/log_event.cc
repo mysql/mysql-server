@@ -75,8 +75,7 @@ public:
 
   ~Write_on_release_cache()
   {
-    if (!my_b_copy_to_file(m_cache, m_file))
-      reinit_io_cache(m_cache, WRITE_CACHE, 0L, FALSE, TRUE);
+    copy_event_cache_to_file_and_reinit(m_cache, m_file);
     if (m_flags | FLUSH_F)
       fflush(m_file);
   }
@@ -6333,10 +6332,8 @@ void Rows_log_event::print_helper(FILE *file,
 
   if (get_flags(STMT_END_F))
   {
-    my_b_copy_to_file(head, file);
-    my_b_copy_to_file(body, file);
-    reinit_io_cache(head, WRITE_CACHE, 0, FALSE, TRUE);
-    reinit_io_cache(body, WRITE_CACHE, 0, FALSE, TRUE);
+    copy_event_cache_to_file_and_reinit(head, file);
+    copy_event_cache_to_file_and_reinit(body, file);
   }
 }
 #endif
