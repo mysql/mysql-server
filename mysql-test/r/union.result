@@ -554,7 +554,7 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varbinary(20) NOT NULL default ''
+  `a` varbinary(2) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT 12 as a UNION select 12.2 as a;
@@ -655,7 +655,7 @@ f
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f` varbinary(24) default NULL
+  `f` varbinary(12) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT y from t2 UNION select da from t2;
@@ -1381,4 +1381,12 @@ a
 SELECT a FROM (SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY c) AS test;
 ERROR 42S22: Unknown column 'c' in 'order clause'
 DROP TABLE t1;
+(select 1 into @var) union (select 1);
+ERROR HY000: Incorrect usage of UNION and INTO
+(select 1) union (select 1 into @var);
+select @var;
+@var
+1
+(select 2) union (select 1 into @var);
+ERROR 42000: Result consisted of more than one row
 End of 5.0 tests

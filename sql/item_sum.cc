@@ -61,6 +61,7 @@ bool Item_sum::init_sum_func_check(THD *thd)
   /* Save a pointer to object to be used in items for nested set functions */
   thd->lex->in_sum_func= this;
   nest_level= thd->lex->current_select->nest_level;
+  nest_level_tables_count= thd->lex->current_select->join->tables;
   ref_by= 0;
   aggr_level= -1;
   max_arg_level= -1;
@@ -176,6 +177,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     */
     set_if_bigger(in_sum_func->max_sum_func_level, aggr_level);
   }
+  update_used_tables();
   thd->lex->in_sum_func= in_sum_func;
   return FALSE;
 }
@@ -267,12 +269,13 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
          sl= sl->master_unit()->outer_select() )
       sl->master_unit()->item->with_sum_func= 1;
   }
+  thd->lex->current_select->mark_as_dependent(aggr_sl);
   return FALSE;
 }
 
 
-Item_sum::Item_sum(List<Item> &list)
-  :arg_count(list.elements)
+Item_sum::Item_sum(List<Item> &list) :arg_count(list.elements), 
+  forced_const(FALSE)
 {
   if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
   {
@@ -296,7 +299,10 @@ Item_sum::Item_sum(List<Item> &list)
 
 Item_sum::Item_sum(THD *thd, Item_sum *item):
   Item_result_field(thd, item), arg_count(item->arg_count),
-  quick_group(item->quick_group)
+  nest_level(item->nest_level), aggr_level(item->aggr_level),
+  quick_group(item->quick_group), used_tables_cache(item->used_tables_cache),
+  forced_const(item->forced_const), 
+  nest_level_tables_count(item->nest_level_tables_count)
 {
   if (arg_count <= 2)
     args=tmp_args;
@@ -426,6 +432,26 @@ case DECIMAL_RESULT:
 }
 
 
+void Item_sum::update_used_tables ()
+{
+  if (!forced_const)
+  {
+    used_tables_cache= 0;
+    for (uint i=0 ; i < arg_count ; i++)
+    {
+      args[i]->update_used_tables();
+      used_tables_cache|= args[i]->used_tables();
+    }
+
+    used_tables_cache&= PSEUDO_TABLE_BITS;
+
+    /* the aggregate function is aggregated into its local context */
+    if (aggr_level == nest_level)
+      used_tables_cache |=  (1 << nest_level_tables_count) - 1;
+  }
+}
+
+
 String *
 Item_sum_num::val_str(String *str)
 {
@@ -485,7 +511,7 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
 Item_sum_hybrid::Item_sum_hybrid(THD *thd, Item_sum_hybrid *item)
   :Item_sum(thd, item), value(item->value), hybrid_type(item->hybrid_type),
   hybrid_field_type(item->hybrid_field_type), cmp_sign(item->cmp_sign),
-  used_table_cache(item->used_table_cache), was_values(item->was_values)
+  was_values(item->was_values)
 {
   /* copy results from old value */
   switch (hybrid_type) {
@@ -1073,7 +1099,6 @@ void Item_sum_count::cleanup()
   DBUG_ENTER("Item_sum_count::cleanup");
   count= 0;
   Item_sum_int::cleanup();
-  used_table_cache= ~(table_map) 0;
   DBUG_VOID_RETURN;
 }
 
@@ -1096,8 +1121,10 @@ void Item_sum_avg::fix_length_and_dec()
     f_scale=  args[0]->decimals;
     dec_bin_size= my_decimal_get_binary_size(f_precision, f_scale);
   }
-  else
+  else {
     decimals= min(args[0]->decimals + prec_increment, NOT_FIXED_DEC);
+    max_length= args[0]->max_length + prec_increment;
+  }
 }
 
 
@@ -1554,7 +1581,7 @@ void Item_sum_hybrid::cleanup()
 {
   DBUG_ENTER("Item_sum_hybrid::cleanup");
   Item_sum::cleanup();
-  used_table_cache= ~(table_map) 0;
+  forced_const= FALSE;
 
   /*
     by default it is TRUE to avoid TRUE reporting by
