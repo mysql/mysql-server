@@ -21,6 +21,7 @@
 #include <AttributeHeader.hpp>
 #include <NdbTransaction.hpp>
 #include <TransporterFacade.hpp>
+#include <NdbBlob.hpp>
 #include <signaldata/TcKeyConf.hpp>
 
 NdbReceiver::NdbReceiver(Ndb *aNdb) :
@@ -84,13 +85,10 @@ NdbReceiver::release(){
       tRecAttr = tRecAttr->next();
       m_ndb->releaseRecAttr(tSaveRecAttr);
     }
-    m_recattr.theFirstRecAttr = NULL;
-    m_recattr.theCurrentRecAttr = NULL;
   }
-  else
-  {
-    m_record.m_row_buffer= NULL;
-  }      
+  m_using_ndb_record= false;
+  m_recattr.theFirstRecAttr = NULL;
+  m_recattr.theCurrentRecAttr = NULL;
 }
   
 NdbRecAttr *
@@ -278,7 +276,7 @@ NdbReceiver::do_setup_ndbrecord(const NdbRecord *ndb_record, Uint32 batch_size,
 
 Uint32
 NdbReceiver::ndbrecord_rowsize(const NdbRecord *ndb_record, Uint32 key_size,
-                               Uint32 read_range_no)
+                               Uint32 read_range_no, Uint32 blobs_size)
 {
   Uint32 rowsize= ndb_record->m_row_size;
   /* Room for range_no. */
@@ -290,6 +288,8 @@ NdbReceiver::ndbrecord_rowsize(const NdbRecord *ndb_record, Uint32 key_size,
   */
   if (key_size)
     rowsize+= 8 + key_size*4;
+  /* Space for reading blob heads. */
+  rowsize+= blobs_size;
   /* Ensure 4-byte alignment. */
   rowsize= (rowsize+3) & 0xfffffffc;
   return rowsize;
@@ -373,6 +373,57 @@ static void setRecToNULL(const NdbRecord::Attr *col,
   row[col->nullbit_byte_offset]|= 1 << col->nullbit_bit_in_byte;
 }
 
+void
+NdbReceiver::receiveBlobHead(const NdbRecord *record, Uint32 record_pos,
+                             const Uint32 *src, Uint32 byteSize,
+                             Uint32 & blob_pos)
+{
+  /*
+    Blob head. We do not have room for this in the row, instead we pass
+    it to the blob handle, the pointer to which is stored in the row.
+  */
+  NdbBlob *bh;
+  /*
+    For scans, we store blob heads after the row, to be handed to the
+    NdbBlob object in NdbScanOperation::nextResult().
+  */
+  const NdbRecord::Attr *col= &record->columns[record_pos];
+  if (m_type == NDB_SCANRECEIVER)
+  {
+    blob_pos+= sizeof(Uint32);
+    memcpy(m_record.m_row + m_record.m_row_offset - blob_pos,
+           &byteSize, sizeof(Uint32));
+    if (byteSize > 0)
+    {
+      blob_pos+= byteSize;
+      memcpy(m_record.m_row + m_record.m_row_offset - blob_pos,
+           src, byteSize);
+    }
+  }
+  else
+  {
+    memcpy(&bh, &m_record.m_row[col->offset], sizeof(bh));
+    bh->receiveHead((const char *)src, byteSize);
+  }
+}
+
+int
+NdbReceiver::getBlobHead(const char * & data, Uint32 & size, Uint32 & pos) const
+{
+  assert(m_using_ndb_record);
+  Uint32 idx= m_current_row;
+  if (idx == 0)
+    return -1;                                  // No rows fetched yet
+  const char *row_end= m_record.m_row_buffer + idx*m_record.m_row_offset;
+
+  pos+= sizeof(Uint32);
+  memcpy(&size, row_end - pos, sizeof(Uint32));
+  pos+= size;
+  data= row_end - pos;
+
+  return 0;
+}
+
 int
 NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
 {
@@ -382,6 +433,7 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
     Uint32 tmp= m_received_result_length + aLength;
     const NdbRecord *rec= m_record.m_ndb_record;
     Uint32 rec_pos= 0;
+    Uint32 blob_pos= 0;
 
     while (aLength > 0)
     {
@@ -409,26 +461,40 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
              rec->columns[rec_pos].attrId < attrId)
         rec_pos++;
 
+      const NdbRecord::Attr *col= &rec->columns[rec_pos];
+
       /* We should never get back an attribute not originally requested. */
       assert(rec_pos < rec->noOfColumns &&
-             rec->columns[rec_pos].attrId == attrId);
+             col->attrId == attrId);
 
-      if (attrSize == 0)
+      /* The fast path is for a plain offset/length column (not blob eg). */
+      if (likely(!(col->flags & NdbRecord::IsBlob)))
       {
-        setRecToNULL(&rec->columns[rec_pos], m_record.m_row);
+        if (attrSize == 0)
+        {
+          setRecToNULL(col, m_record.m_row);
+        }
+        else
+        {
+          assert(attrSize <= col->maxSize);
+          Uint32 sizeInWords= (attrSize+3)>>2;
+          /* Not sure how to deal with this, shouldn't happen. */
+          if (unlikely(sizeInWords > aLength))
+          {
+            sizeInWords= aLength;
+            attrSize= 4*aLength;
+          }
+
+          assignToRec(col, m_record.m_row, aDataPtr, attrSize);
+          aDataPtr+= sizeInWords;
+          aLength-= sizeInWords;
+        }
       }
       else
       {
-        assert(attrSize <= rec->columns[rec_pos].maxSize);
+        /* Blob head. */
+        receiveBlobHead(rec, rec_pos, aDataPtr, attrSize, blob_pos);
         Uint32 sizeInWords= (attrSize+3)>>2;
-        /* Not sure how to deal with this, shouldn't happen. */
-        if (unlikely(sizeInWords > aLength))
-        {
-          sizeInWords= aLength;
-          attrSize= 4*aLength;
-        }
-
-        assignToRec(&rec->columns[rec_pos], m_record.m_row, aDataPtr, attrSize);
         aDataPtr+= sizeInWords;
         aLength-= sizeInWords;
       }

@@ -421,6 +421,15 @@ public:
    * operation and is maintained automatically.
    *
    * See NdbBlob for details.
+   *
+   * For NdbRecord operation, this method can be used to fetch the blob
+   * handle for an NdbRecord operation that references the blob, but extra
+   * blob columns can not be added with this call (it will return 0).
+   *
+   * For reading with NdbRecord, the NdbRecord entry for each blob must
+   * reserve space in the row for sizeof(NdbBlob *). The blob handle
+   * will be stored there, providing an alternative way of obtaining the
+   * blob handle.
    */
   virtual NdbBlob* getBlobHandle(const char* anAttrName);
   virtual NdbBlob* getBlobHandle(Uint32 anAttrId);
@@ -996,7 +1005,11 @@ protected:
   int branch_reg_reg(Uint32 type, Uint32, Uint32, Uint32);
   int branch_col(Uint32 type, Uint32, const void *, Uint32, bool, Uint32 Label);
   int branch_col_null(Uint32 type, Uint32 col, Uint32 Label);
-  
+  NdbBlob *linkInBlobHandle(NdbTransaction *aCon,
+                            const NdbColumnImpl *column,
+                            NdbBlob * & lastPtr);
+  int getBlobHandlesNdbRecord(NdbTransaction* aCon);
+  int getBlobHandlesDelete(NdbTransaction* aCon);  
   // Handle ATTRINFO signals   
   int insertATTRINFO(Uint32 aData);
   int insertATTRINFOloop(const Uint32* aDataPtr, Uint32 aLength);

@@ -187,17 +187,6 @@ public:
   int nextResult(const char * & out_row,
                  bool fetchAllowed = true, bool forceSend = false);
 
-  /*
-    Fetch the next row, copying out the row from internal buffers into a
-    user-supplied row and NdbRecord describing row format.
-    This makes it possible to receive the rows in a different NdbRecord format
-    from the one used internally to buffer rows or specified in
-    NdbTransaction::scanTable/scanIndex.
-  */
-  int nextResult(NdbRecord *record,
-                 char * out_row,
-                 bool fetchAllowed = true, bool forceSend = false);
-
   /**
    * Close scan
    */
@@ -290,6 +279,8 @@ protected:
   virtual ~NdbScanOperation();
 
   int nextResultImpl(bool fetchAllowed = true, bool forceSend = false);
+  int nextResultNdbRecord(const char * & out_row,
+                          bool fetchAllowed, bool forceSend);
   virtual void release();
   
   int close_impl(class TransporterFacade*, bool forceSend,
@@ -319,6 +310,7 @@ protected:
   Uint32 m_keyInfo;
 
   int getFirstATTRINFOScan();
+  Uint32 calcBlobsSize();
   int doSendScan(int ProcessorId);
   int prepareSendScan(Uint32 TC_ConnectPtr, Uint64 TransactionId);
   

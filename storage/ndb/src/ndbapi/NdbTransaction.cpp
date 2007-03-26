@@ -2083,7 +2083,8 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
                               const NdbRecord *key_record,
                               const char *key_row,
                               const NdbRecord *attribute_record,
-                              const char *attribute_row)
+                              const char *attribute_row,
+                              const unsigned char *mask)
 {
   NdbOperation *op;
   /*
@@ -2095,8 +2096,8 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
   */
   if (key_record->flags & NdbRecord::RecIsIndex)
   {
-    op= getNdbIndexOperation(key_record->table->m_index, key_record->table,
-                             NULL, true);
+    op= getNdbIndexOperation(key_record->table->m_index,
+                             key_record->base_table, NULL, true);
   }
   else
   {
@@ -2108,7 +2109,7 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
     op= getNdbOperation(key_record->table, NULL, true);
   }
   if(!op)
-    return op;
+    return NULL;
 
   op->theStatus= NdbOperation::UseNdbRecord;
   op->theOperationType= type;
@@ -2118,6 +2119,13 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
   op->m_key_row= key_row;
   op->m_attribute_record= attribute_record;
   op->m_attribute_row= attribute_row;
+  attribute_record->copyMask(op->m_read_mask, mask);
+
+  if (unlikely(attribute_record->flags & NdbRecord::RecHasBlob))
+  {
+    if (op->getBlobHandlesNdbRecord(this) == -1)
+      return NULL;
+  }
 
   return op;
 }
@@ -2137,14 +2145,13 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
 
   NdbOperation *op= setupRecordOp(NdbOperation::ReadRequest,
                                   lock_mode, key_rec, key_row,
-                                  result_rec, NULL);
+                                  result_rec, result_row, result_mask);
   if (!op)
     return NULL;
 
   op->m_abortOption= AO_IgnoreError;
-  if (lock_mode != NdbOperation::LM_CommittedRead)
+  if (op->theLockMode != NdbOperation::LM_CommittedRead)
     theSimpleState= 0;
-  result_rec->copyMask(op->m_read_mask, result_mask);
 
   /* Setup the record/row for receiving the results. */
   op->theReceiver.getValues(result_rec, result_row);
@@ -2165,13 +2172,12 @@ NdbTransaction::insertTuple(const NdbRecord *rec, const char *row,
 
   NdbOperation *op= setupRecordOp(NdbOperation::InsertRequest,
                                   NdbOperation::LM_Exclusive, rec, row,
-                                  rec, row);
+                                  rec, row, mask);
   if (!op)
     return NULL;
 
   op->m_abortOption = AbortOnError;
   theSimpleState= 0;
-  rec->copyMask(op->m_read_mask, mask);
 
   return op;
 }
@@ -2190,13 +2196,12 @@ NdbTransaction::updateTuple(const NdbRecord *key_rec, const char *key_row,
 
   NdbOperation *op= setupRecordOp(NdbOperation::UpdateRequest,
                                   NdbOperation::LM_Exclusive, key_rec, key_row,
-                                  attr_rec, attr_row);
+                                  attr_rec, attr_row, mask);
   if(!op)
     return op;
 
   op->m_abortOption = AbortOnError;
   theSimpleState= 0;
-  attr_rec->copyMask(op->m_read_mask, mask);
 
   return op;
 }
@@ -2213,12 +2218,19 @@ NdbTransaction::deleteTuple(const NdbRecord *key_rec, const char *key_row)
 
   NdbOperation *op= setupRecordOp(NdbOperation::DeleteRequest,
                                   NdbOperation::LM_Exclusive, key_rec, key_row,
-                                  key_rec, NULL);
+                                  key_rec, NULL, NULL);
   if(!op)
     return op;
 
   op->m_abortOption = AbortOnError;
   theSimpleState= 0;
+
+  /* Create blob handles if any, to properly delete all blob parts. */
+  if (unlikely(key_rec->flags & NdbRecord::RecTableHasBlob))
+  {
+    if (op->getBlobHandlesDelete(this) == -1)
+      return NULL;
+  }
 
   return op;
 }
@@ -2237,13 +2249,12 @@ NdbTransaction::writeTuple(const NdbRecord *key_rec, const char *key_row,
 
   NdbOperation *op= setupRecordOp(NdbOperation::WriteRequest,
                                   NdbOperation::LM_Exclusive, key_rec, key_row,
-                                  attr_rec, attr_row);
+                                  attr_rec, attr_row, mask);
   if(!op)
     return op;
 
   op->m_abortOption = AbortOnError;
   theSimpleState= 0;
-  attr_rec->copyMask(op->m_read_mask, mask);
 
   return op;
 }
@@ -2263,6 +2274,7 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
   */
   NdbIndexScanOperation *op_idx;
   NdbScanOperation *op;
+  NdbBlob *lastBlob;
   int res;
 
   op_idx= getNdbScanOperation(result_record->table);
@@ -2277,6 +2289,9 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
   if (res==-1)
     goto giveup_err;
 
+  result_record->copyMask(op->m_read_mask, result_mask);
+
+  lastBlob= NULL;
   for (Uint32 i= 0; i<result_record->noOfColumns; i++)
   {
     const NdbRecord::Attr *col;
@@ -2287,11 +2302,19 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
 
     /* Skip column if result_mask says so. But cannot mask pseudo columns. */
     attrId= col->attrId;
-    if ( result_mask &&
-         !(attrId & AttributeHeader::PSEUDO) &&
-         !(result_mask[attrId>>3] & (1<<(attrId & 7))) )
-    {
+    if (!(attrId & AttributeHeader::PSEUDO) &&
+        !BitmaskImpl::get((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5,
+                          op->m_read_mask, attrId))
       continue;
+
+    /* Create blob handle for any blob column. */
+    if (col->flags & NdbRecord::IsBlob)
+    {
+      const NdbColumnImpl *column= result_record->base_table->getColumn(attrId);
+      NdbBlob *blob= op->linkInBlobHandle(this, column, lastBlob);
+      if (blob == NULL)
+        goto giveup_err;
+      op->m_keyInfo= 1;                         // Need keyinfo for blob scan
     }
 
     AttributeHeader::init(&ah, attrId, 0);
@@ -2414,6 +2437,7 @@ NdbTransaction::scanIndex(
   NdbIndexScanOperation *op;
   const NdbTableImpl *index_table_impl; // The index schema object
   const NdbTableImpl *table_impl;       // The table schema object
+  NdbBlob *lastBlob;
   int res;
   Uint32 i,j;
   Uint32 previous_range_no;
@@ -2430,9 +2454,7 @@ NdbTransaction::scanIndex(
     setOperationErrorCodeAbort(4279);
     return NULL;
   }
-  if (!(key_record->flags & NdbRecord::RecIsIndex) ||
-      !(result_record->flags & NdbRecord::RecIsIndex) ||
-      key_record->tableId != result_record->tableId)
+  if (!(key_record->flags & NdbRecord::RecIsIndex))
   {
     setOperationErrorCodeAbort(4283);
     return NULL;
@@ -2454,10 +2476,12 @@ NdbTransaction::scanIndex(
   res= op->readTuples(lock_mode, scan_flags, parallel, batch);
   if (res==-1)
     goto giveup_err;
+  result_record->copyMask(op->m_read_mask, result_mask);
 
   /* Fix theStatus as set in readTuples(). */
   op->theStatus= NdbOperation::UseNdbRecord;
 
+  lastBlob= NULL;
   for (i= 0; i<result_record->noOfColumns; i++)
   {
     const NdbRecord::Attr *col;
@@ -2478,6 +2502,16 @@ NdbTransaction::scanIndex(
          !(result_mask[attrId>>3] & (1<<(attrId & 7))) )
     {
       continue;
+    }
+
+    /* Create blob handle for any blob column. */
+    if (col->flags & NdbRecord::IsBlob)
+    {
+      const NdbColumnImpl *column= key_record->base_table->getColumn(attrId);
+      NdbBlob *blob= op->linkInBlobHandle(this, column, lastBlob);
+      if (blob == NULL)
+        goto giveup_err;
+      op->m_keyInfo= 1;                         // Need keyinfo for blob scan
     }
 
     AttributeHeader::init(&ah, attrId, 0);

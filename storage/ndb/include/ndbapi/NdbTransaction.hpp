@@ -621,15 +621,13 @@ public:
 
     The key_record describes the index to be scanned. It must be a
     primary key record for the index, ie. it must specify exactly the
-    key columns of the index.
+    key columns of the index. And it must be created from the index to
+    be scanned (not from the underlying table).
 
     The result_record describes the rows to be returned from the scan. For an
     ordered index scan, result_record must be a key record for the index to
     be scanned, that is it must include at least all of the column in the
     index.
-
-    Both the key_record and the result_record must be created from the Index
-    to be scanned, not from the underlying table.
 
     The call uses a callback function as a flexible way of specifying multiple
     range bounds. The callback will be called once for each bound to define
@@ -810,7 +808,8 @@ private:
                               const NdbRecord *key_record,
                               const char *key_row,
                               const NdbRecord *attribute_record,
-                              const char *attribute_row);
+                              const char *attribute_row,
+                              const unsigned char *mask);
 
   void		handleExecuteCompletion();
   
