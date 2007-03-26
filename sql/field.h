@@ -504,6 +504,7 @@ public:
     {}
   int store_decimal(const my_decimal *);
   my_decimal *val_decimal(my_decimal *);
+  uint32 max_display_length() { return field_length; }
 };
 
 
@@ -532,7 +533,6 @@ public:
   void overflow(bool negative);
   bool zero_pack() const { return 0; }
   void sql_type(String &str) const;
-  uint32 max_display_length() { return field_length; }
 };
 
 
@@ -783,7 +783,6 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return sizeof(float); }
   void sql_type(String &str) const;
-  uint32 max_display_length() { return 24; }
 };
 
 
@@ -825,7 +824,6 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return sizeof(double); }
   void sql_type(String &str) const;
-  uint32 max_display_length() { return 53; }
   uint size_of() const { return sizeof(*this); }
 };
 
