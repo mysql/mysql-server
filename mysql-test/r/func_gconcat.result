@@ -728,3 +728,13 @@ f2	group_concat(f1)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	1
 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	2
 drop table t1;
+CREATE TABLE t1(a TEXT, b CHAR(20));
+INSERT INTO t1 VALUES ("one.1","one.1"),("two.2","two.2"),("one.3","one.3");
+SELECT GROUP_CONCAT(DISTINCT UCASE(a)) FROM t1;
+GROUP_CONCAT(DISTINCT UCASE(a))
+ONE.1,TWO.2,ONE.3
+SELECT GROUP_CONCAT(DISTINCT UCASE(b)) FROM t1;
+GROUP_CONCAT(DISTINCT UCASE(b))
+ONE.1,TWO.2,ONE.3
+DROP TABLE t1;
+End of 5.0 tests
