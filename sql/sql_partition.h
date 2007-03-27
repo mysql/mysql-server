@@ -77,9 +77,9 @@ void get_full_part_id_from_key(const TABLE *table, byte *buf,
                                KEY *key_info,
                                const key_range *key_spec,
                                part_id_range *part_spec);
-bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
+bool mysql_unpack_partition(THD *thd, const char *part_buf,
                             uint part_info_len,
-                            uchar *part_state, uint part_state_len,
+                            const char *part_state, uint part_state_len,
                             TABLE *table, bool is_create_table_ind,
                             handlerton *default_db_type);
 void make_used_partitions_str(partition_info *part_info, String *parts_str);

@@ -168,7 +168,7 @@ Event_parse_data::init_body(THD *thd)
                       (long) body_begin, (long) thd->lex->ptr));
 
   body.length= thd->lex->ptr - body_begin;
-  const uchar *body_end= body_begin + body.length - 1;
+  const char *body_end= body_begin + body.length - 1;
 
   /* Trim nuls or close-comments ('*'+'/') or spaces at the end */
   while (body_begin < body_end)
@@ -1919,7 +1919,7 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
   event_change_security_context(thd, definer_user, definer_host, dbname,
                                 &save_ctx);
   thd->lex= &lex;
-  mysql_init_query(thd, (uchar*) thd->query, thd->query_length);
+  mysql_init_query(thd, thd->query, thd->query_length);
   if (MYSQLparse((void *)thd) || thd->is_fatal_error)
   {
     DBUG_PRINT("error", ("error during compile or thd->is_fatal_error: %d",

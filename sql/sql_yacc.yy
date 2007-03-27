@@ -2695,7 +2695,7 @@ sp_proc_stmt_statement:
               else
                 i->m_query.length= lex->tok_end - sp->m_tmp_query;
               i->m_query.str= strmake_root(YYTHD->mem_root,
-                                           (char *)sp->m_tmp_query,
+                                           sp->m_tmp_query,
                                            i->m_query.length);
               sp->add_instr(i);
             }
@@ -9299,7 +9299,7 @@ param_marker:
             my_error(ER_VIEW_SELECT_VARIABLE, MYF(0));
             MYSQL_YYABORT;
           }
-          item= new Item_param((uint) (lex->tok_start - (uchar *) thd->query));
+          item= new Item_param((uint) (lex->tok_start - thd->query));
           if (!($$= item) || lex->param_list.push_back(item))
           {
             my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
@@ -10135,7 +10135,7 @@ option_type_value:
               if (!(qbuff.str= alloc_root(YYTHD->mem_root, qbuff.length + 5)))
                 MYSQL_YYABORT;
 
-              strmake(strmake(qbuff.str, "SET ", 4), (char *)sp->m_tmp_query,
+              strmake(strmake(qbuff.str, "SET ", 4), sp->m_tmp_query,
                       qbuff.length);
               qbuff.length+= 4;
               i->m_query= qbuff;
@@ -11354,18 +11354,16 @@ view_select_aux:
 	{
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
-          char *stmt_beg= (lex->sphead ?
-                           (char *)lex->sphead->m_tmp_query :
-                           thd->query);
+          const char *stmt_beg= (lex->sphead ?
+                                 lex->sphead->m_tmp_query : thd->query);
 	  lex->create_view_select_start= $2 - stmt_beg;
 	}
 	| '(' remember_name select_paren ')' union_opt
 	{
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
-          char *stmt_beg= (lex->sphead ?
-                           (char *)lex->sphead->m_tmp_query :
-                           thd->query);
+          const char *stmt_beg= (lex->sphead ?
+                                 lex->sphead->m_tmp_query : thd->query);
 	  lex->create_view_select_start= $2 - stmt_beg;
 	}
 	;
