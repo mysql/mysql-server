@@ -604,7 +604,10 @@ int ha_heap::create(const char *name, TABLE *table_arg,
       seg->length=  (uint) key_part->length;
       seg->flag=    key_part->key_part_flag;
 
-      seg->charset= field->charset();
+      if (field->flags & (ENUM_FLAG | SET_FLAG))
+        seg->charset= &my_charset_bin;
+      else
+        seg->charset= field->charset();
       if (field->null_ptr)
       {
 	seg->null_bit= field->null_bit;
