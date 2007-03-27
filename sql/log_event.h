@@ -2160,14 +2160,7 @@ public:
 #endif
 
   /* Member functions to implement superclass interface */
-  virtual int get_data_size()
-  { 
-    DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
-                    return 6 + 1 + no_bytes_in_map(&m_cols) + 
-                    (m_rows_cur - m_rows_buf);); 
-    return ROWS_HEADER_LEN + 1 + no_bytes_in_map(&m_cols) + 
-      (m_rows_cur - m_rows_buf); 
-  }
+  virtual int get_data_size();
 
   MY_BITMAP const *get_cols() const { return &m_cols; }
   my_size_t get_width() const       { return m_width; }
@@ -2178,9 +2171,14 @@ public:
   virtual bool write_data_body(IO_CACHE *file);
   virtual const char *get_db() { return m_table->s->db.str; }
 #endif
+  /*
+    Check that malloc() succeeded in allocating memory for the rows
+    buffer and the COLS vector. Checking that an Update_rows_log_event
+    is valid is done in the Update_rows_log_event::is_valid()
+    function.
+  */
   virtual bool is_valid() const
   {
-    /* that's how we check malloc() succeeded */
     return m_rows_buf && m_cols.bitmap;
   }
 
@@ -2213,10 +2211,20 @@ protected:
   ulong       m_table_id;	/* Table ID */
   MY_BITMAP   m_cols;		/* Bitmap denoting columns available */
   ulong       m_width;          /* The width of the columns bitmap */
+  /*
+    Bitmap for columns available in the after image, if present. These
+    fields are only available for Update_rows events. Observe that the
+    width of both the before image COLS vector and the after image
+    COLS vector is the same: the number of columns of the table on the
+    master.
+  */
+  MY_BITMAP   m_cols_ai;
+
   ulong       m_master_reclength; /* Length of record on master side */
 
-  /* Bit buffer in the same memory as the class */
+  /* Bit buffers in the same memory as the class */
   uint32    m_bitbuf[128/(sizeof(uint32)*8)];
+  uint32    m_bitbuf_ai[128/(sizeof(uint32)*8)];
 
   byte    *m_rows_buf;		/* The rows in packed format */
   byte    *m_rows_cur;		/* One-after the end of the data */
@@ -2376,9 +2384,19 @@ public:
   };
 
 #ifndef MYSQL_CLIENT
-  Update_rows_log_event(THD*, TABLE*, ulong table_id, 
-			MY_BITMAP const *cols, bool is_transactional);
+  Update_rows_log_event(THD*, TABLE*, ulong table_id,
+			MY_BITMAP const *cols_bi,
+			MY_BITMAP const *cols_ai,
+                        bool is_transactional);
+
+  Update_rows_log_event(THD*, TABLE*, ulong table_id,
+			MY_BITMAP const *cols,
+                        bool is_transactional);
+
+  void init(MY_BITMAP const *cols);
 #endif
+
+  virtual ~Update_rows_log_event();
 
 #ifdef HAVE_REPLICATION
   Update_rows_log_event(const char *buf, uint event_len, 
@@ -2397,6 +2415,11 @@ public:
                                   cols, fields, before_record, after_record);
   }
 #endif
+
+  virtual bool is_valid() const
+  {
+    return Rows_log_event::is_valid() && m_cols_ai.bitmap;
+  }
 
 private:
   virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
