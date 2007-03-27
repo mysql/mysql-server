@@ -4,6 +4,8 @@
 # Query cache is abbreviated as "QC"
 
 -- source include/have_query_cache.inc
+# embedded can't make more than one connection, which this test needs
+-- source include/not_embedded.inc
 
 connect (con1,localhost,root,,test,$MASTER_MYPORT,);
 connection default;
