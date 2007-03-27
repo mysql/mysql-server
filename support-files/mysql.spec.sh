@@ -319,10 +319,7 @@ then
   cp -fp config.log "$MYSQL_MAXCONFLOG_DEST"
 fi
 
-( cd mysql-test
-  perl ./mysql-test-run.pl --force --report-features
-  perl ./mysql-test-run.pl --force --ps-protocol
-  true )
+make test-bt
 
 # Save mysqld-max
 ./libtool --mode=execute cp sql/mysqld sql/mysqld-max
