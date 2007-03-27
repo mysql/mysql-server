@@ -67,6 +67,7 @@ private:
   enum ErrorCode
   {
     ZNODE_ALREADY_STARTING_ERROR = 305,
+    ZNODE_START_DISALLOWED_ERROR = 309,
     InitialStartRequired = 320
   };
 };
