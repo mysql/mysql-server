@@ -6955,7 +6955,6 @@ select bug20777(0) as 'lower bounds unsigned bigint';
 select bug20777(18446744073709551615) as 'upper bounds unsigned bigint';
 select bug20777(18446744073709551616) as 'upper bounds unsigned bigint + 1';
 select bug20777(-1) as 'lower bounds unsigned bigint - 1';
-select bug20777(1.84e+19) as 'submitter value, 1.84e19';
 
 create table examplebug20777 as select 
   0 as 'i',
