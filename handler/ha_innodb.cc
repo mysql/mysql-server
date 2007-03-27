@@ -2402,8 +2402,6 @@ ha_innobase::open(
 
 	user_thd = NULL;
 
-	last_query_id = (ulong)-1;
-
 	if (!(share=get_share(name))) {
 
 		DBUG_RETURN(1);
@@ -3446,13 +3444,6 @@ no_commit:
 
 	num_write_row++;
 
-	if (last_query_id != user_thd->query_id) {
-		prebuilt->sql_stat_start = TRUE;
-		last_query_id = user_thd->query_id;
-
-		innobase_release_stat_resources(prebuilt->trx);
-	}
-
 	if (table->next_number_field && record == table->record[0]) {
 		/* This is the case where the table has an
 		auto-increment column */
@@ -3607,13 +3598,6 @@ calc_row_difference(
 	for (i = 0; i < n_fields; i++) {
 		field = table->field[i];
 
-		/* if (thd->query_id != field->query_id) { */
-			/* TODO: check that these fields cannot have
-			changed! */
-
-		/*	goto skip_field;
-		}*/
-
 		o_ptr = (byte*) old_row + get_field_offset(table, field);
 		n_ptr = (byte*) new_row + get_field_offset(table, field);
 
@@ -3745,13 +3729,6 @@ ha_innobase::update_row(
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
 		table->timestamp_field->set_time();
 
-	if (last_query_id != user_thd->query_id) {
-		prebuilt->sql_stat_start = TRUE;
-		last_query_id = user_thd->query_id;
-
-		innobase_release_stat_resources(trx);
-	}
-
 	if (prebuilt->upd_node) {
 		uvect = prebuilt->upd_node->update;
 	} else {
@@ -3802,13 +3779,6 @@ ha_innobase::delete_row(
 
 	ut_a(prebuilt->trx == trx);
 
-	if (last_query_id != user_thd->query_id) {
-		prebuilt->sql_stat_start = TRUE;
-		last_query_id = user_thd->query_id;
-
-		innobase_release_stat_resources(trx);
-	}
-
 	if (!prebuilt->upd_node) {
 		row_get_prebuilt_update_vector(prebuilt);
 	}
@@ -3843,15 +3813,6 @@ ha_innobase::unlock_row(void)
 /*=========================*/
 {
 	DBUG_ENTER("ha_innobase::unlock_row");
-
-	if (UNIV_UNLIKELY(last_query_id != user_thd->query_id)) {
-		ut_print_timestamp(stderr);
-		sql_print_error("last_query_id is %lu != user_thd_query_id is "
-				"%lu", (ulong) last_query_id,
-				(ulong) user_thd->query_id);
-		mem_analyze_corruption(prebuilt->trx);
-		ut_error;
-	}
 
 	/* Consistent read does not take any locks, thus there is
 	nothing to unlock. */
@@ -4059,13 +4020,6 @@ ha_innobase::index_read(
 	ut_a(prebuilt->trx == thd_to_trx(current_thd, ht));
 
 	ha_statistic_increment(&SSV::ha_read_key_count);
-
-	if (last_query_id != user_thd->query_id) {
-		prebuilt->sql_stat_start = TRUE;
-		last_query_id = user_thd->query_id;
-
-		innobase_release_stat_resources(prebuilt->trx);
-	}
 
 	index = prebuilt->index;
 
