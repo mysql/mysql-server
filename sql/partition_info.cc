@@ -753,7 +753,11 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
   }
   if (unlikely(set_up_defaults_for_partitioning(file, info, (uint)0)))
     goto end;
-  tot_partitions= get_tot_partitions();
+  if (!(tot_partitions= get_tot_partitions()))
+  {
+    my_error(ER_PARTITION_NOT_DEFINED_ERROR, MYF(0), "partitions");
+    goto end;
+  }
   if (unlikely(tot_partitions > MAX_PARTITIONS))
   {
     my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
