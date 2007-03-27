@@ -81,7 +81,8 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
                             uint part_info_len,
                             uchar *part_state, uint part_state_len,
                             TABLE *table, bool is_create_table_ind,
-                            handlerton *default_db_type);
+                            handlerton *default_db_type,
+                            bool *work_part_info_used);
 void make_used_partitions_str(partition_info *part_info, String *parts_str);
 uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
                                        bool left_endpoint,

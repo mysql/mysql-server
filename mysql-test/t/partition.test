@@ -1463,4 +1463,19 @@ SELECT t2.id FROM t2 WHERE t2.id IN (SELECT id FROM t1 WHERE status = 'Verified'
 
 drop table t1, t2;
 
+#
+# Bug #27084 partitioning by list seems failing when using case 
+#
+CREATE TABLE `t1` ( `a` varchar(1)) ENGINE=MyISAM
+ PARTITION BY LIST (CASE a WHEN 'a' THEN 1
+ WHEN 'b' THEN 2
+ WHEN 'c' THEN 3
+ END)  (
+ PARTITION a VALUES IN (1), 
+ PARTITION b VALUES IN (2),
+ PARTITION c VALUES IN (3)
+);
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests

@@ -1106,18 +1106,7 @@ public:
   Item *find_item(String *str);
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   bool check_partition_func_processor(byte *bool_arg) { return FALSE;}
-  void cleanup()
-  {
-    uint i;
-    DBUG_ENTER("Item_func_case::cleanup");
-    Item_func::cleanup();
-    for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
-    {
-      delete cmp_items[i];
-      cmp_items[i]= 0;
-    }
-    DBUG_VOID_RETURN;
-  }
+  void cleanup();
 };
 
 /*
