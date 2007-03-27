@@ -311,6 +311,19 @@ void Dbtc::execINCL_NODEREQ(Signal* signal)
   hostptr.p->hostStatus = HS_ALIVE;
   signal->theData[0] = cownref;
   c_alive_nodes.set(hostptr.i);
+
+  if (ERROR_INSERTED(8039))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    Uint32 save = signal->theData[0];
+    signal->theData[0] = 9999;
+    sendSignal(numberToRef(CMVMI, hostptr.i), 
+	       GSN_NDB_TAMPER, signal, 1, JBB);
+    signal->theData[0] = save;
+    sendSignalWithDelay(tblockref, GSN_INCL_NODECONF, signal, 5000, 1);
+    return;
+  }
+
   sendSignal(tblockref, GSN_INCL_NODECONF, signal, 1, JBB);
 }
 
