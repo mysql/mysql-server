@@ -135,6 +135,17 @@ else
   fi
 fi
 
+# Check that no previous MySQL installation exist
+if test -f "$ldata/mysql/db.frm"
+then
+  echo "FATAL ERROR: Found already existing MySQL system tables"
+  echo "in $ldata."
+  echo "If you are upgrading from a previous MySQL version you"
+  echo "should run '$bindir/mysql_upgrade', "
+  echo "to upgrade all tables for this version of MySQL"
+  exit 1;
+fi
+
 # Find SQL scripts needed for bootstrap
 fill_help_tables="fill_help_tables.sql"
 create_system_tables="mysql_system_tables.sql"
@@ -181,7 +192,6 @@ then
 fi
 
 # Find executables and paths
-mdata=$ldata/mysql
 mysqld=$execdir/mysqld
 mysqld_opt=""
 scriptdir=$bindir
@@ -264,12 +274,6 @@ if test -w / -a ! -z "$user"; then
   chown $user $ldata $ldata/mysql $ldata/test;
 fi
 
-# Check is "db" table already exist
-if test ! -f $mdata/db.frm
-then
-  db_table_already_exist="yes"
-fi
-
 if test -n "$user"; then
   args="$args --user=$user"
 fi
@@ -321,16 +325,6 @@ then
     echo "$bindir/mysqladmin -u root password 'new-password'"
     echo "$bindir/mysqladmin -u root -h $hostname password 'new-password'"
     echo "See the manual for more instructions."
-
-    # Print message about upgrading unless we have created a new db table.
-    if test -z "$db_table_already_exist"
-    then
-      echo
-      echo "NOTE: If you are upgrading from a previous MySQL verision you "
-      echo "should run '$bindir/mysql_upgrade', to make sure all tables have "
-     echo "been upgraded for this version of MySQL"
-    fi
-    echo
 
     if test "$in_rpm" = "0"
     then
