@@ -308,13 +308,13 @@ bool innobase_show_status(handlerton *hton, THD* thd,
 
 /*********************************************************************
 Commits a transaction in an InnoDB database. */
-
+static
 void
 innobase_commit_low(
 /*================*/
 	trx_t*	trx);	/* in: transaction handle */
 
-SHOW_VAR innodb_status_variables[]= {
+static SHOW_VAR innodb_status_variables[]= {
   {"buffer_pool_pages_data",
   (char*) &export_vars.innodb_buffer_pool_pages_data,	  SHOW_LONG},
   {"buffer_pool_pages_dirty",
@@ -1762,7 +1762,7 @@ innobase_flush_logs(handlerton *hton)
 
 /*********************************************************************
 Commits a transaction in an InnoDB database. */
-
+static
 void
 innobase_commit_low(
 /*================*/
@@ -1950,6 +1950,7 @@ retry:
 	DBUG_RETURN(0);
 }
 
+#if 0
 /* TODO: put the
 MySQL-4.1 functionality back to 5.0. This is needed to get InnoDB Hot Backup
 to work. */
@@ -1962,7 +1963,7 @@ transaction inside InnoDB but does NOT flush InnoDB log files to disk.
 To flush you have to call innobase_commit_complete(). We have separated
 flushing to eliminate the bottleneck of LOCK_log in log.cc which disabled
 InnoDB's group commit capability. */
-
+static
 int
 innobase_report_binlog_offset_and_commit(
 /*=====================================*/
@@ -1992,7 +1993,6 @@ innobase_report_binlog_offset_and_commit(
 	return(0);
 }
 
-#if 0
 /***********************************************************************
 This function stores the binlog offset and flushes logs. */
 static
@@ -2023,12 +2023,11 @@ innobase_store_binlog_offset_and_flush_log(
 	/* Synchronous flush of the log buffer to disk */
 	log_buffer_flush_to_disk();
 }
-#endif
 
 /*********************************************************************
 This is called after MySQL has written the binlog entry for the current
 transaction. Flushes the InnoDB log files to disk if required. */
-
+static
 int
 innobase_commit_complete(
 /*=====================*/
@@ -2054,6 +2053,7 @@ innobase_commit_complete(
 
 	return(0);
 }
+#endif
 
 /*********************************************************************
 Rolls back a transaction or the latest SQL statement. */
@@ -2107,7 +2107,7 @@ innobase_rollback(
 
 /*********************************************************************
 Rolls back a transaction */
-
+static
 int
 innobase_rollback_trx(
 /*==================*/
@@ -6521,7 +6521,7 @@ ha_innobase::transactional_table_lock(
 
 /****************************************************************************
 Here we export InnoDB status variables to MySQL.  */
-
+static
 int
 innodb_export_status()
 /*==================*/
@@ -6627,7 +6627,7 @@ innodb_show_status(
 
 /****************************************************************************
 Implements the SHOW MUTEX STATUS command. . */
-
+static
 bool
 innodb_mutex_show_status(
 /*=====================*/
@@ -7716,12 +7716,12 @@ static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-SHOW_VAR innodb_status_variables_export[]= {
+static SHOW_VAR innodb_status_variables_export[]= {
   {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
   {NullS, NullS, SHOW_LONG}
 };
 
-struct st_mysql_storage_engine innobase_storage_engine=
+static struct st_mysql_storage_engine innobase_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(innobase)
