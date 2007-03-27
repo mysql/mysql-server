@@ -6110,9 +6110,6 @@ upper bounds unsigned bigint + 1
 select bug20777(-1) as 'lower bounds unsigned bigint - 1';
 lower bounds unsigned bigint - 1
 0
-select bug20777(1.84e+19) as 'submitter value, 1.84e19';
-submitter value, 1.84e19
-9223372036854775808
 create table examplebug20777 as select 
 0 as 'i',
 bug20777(9223372036854775806) as '2**63-2',
