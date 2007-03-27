@@ -2948,7 +2948,7 @@ mysql_fetch_lengths(MYSQL_RES *res)
 
 
 int STDCALL
-mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
+mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
 {
   DBUG_ENTER("mysql_option");
   DBUG_PRINT("enter",("option: %d",(int) option));
