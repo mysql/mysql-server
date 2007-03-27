@@ -765,18 +765,20 @@ void ndbapi_tuples(Ndb *ndb, char *str, bool *res)
 * str: a random string of scan opearation and condition
 * return: true stands for ndbapi ok, false stands for ndbapi failed
 */
+template class Vector<bool>;
 bool compare_cal_ndb(char *str, Ndb *ndb)
 {
-  bool res_cal[TUPLE_NUM], res_ndb[TUPLE_NUM];
+  Vector<bool> res_cal;
+  Vector<bool> res_ndb;
 
   for(int i = 0; i < TUPLE_NUM; i++)
   {
-    res_cal[i] = false;
-    res_ndb[i] = false;
+    res_cal.push_back(false);
+    res_ndb.push_back(false);
   }
 
-  check_all_tuples(str, res_cal);
-  ndbapi_tuples(ndb, str, res_ndb);
+  check_all_tuples(str, res_cal.getBase());
+  ndbapi_tuples(ndb, str, res_ndb.getBase());
 
   for(int i = 0; i < TUPLE_NUM; i++)
   {
