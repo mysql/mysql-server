@@ -1846,12 +1846,11 @@ innobase_commit(
 	/* Update the info whether we should skip XA steps that eat CPU time */
 	trx->support_xa = (ibool)(thd->variables.innodb_support_xa);
 
-	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the kernel mutex, we have to release the search system latch
-	first to obey the latching order. */
+	/* Since we will reserve the kernel mutex, we have to release
+	the search system latch first to obey the latching order. */
 
 	if (trx->has_search_latch) {
-			  trx_search_latch_release_if_reserved(trx);
+		trx_search_latch_release_if_reserved(trx);
 	}
 
 	/* The flag trx->active_trans is set to 1 in
@@ -1938,13 +1937,14 @@ retry:
 		trx_mark_sql_stat_end(trx);
 	}
 
+	if (trx->declared_to_be_inside_innodb) {
+		/* Release our possible ticket in the FIFO */
+
+		srv_conc_force_exit_innodb(trx);
+	}
+
 	/* Tell the InnoDB server that there might be work for utility
 	threads: */
-	if (trx->declared_to_be_inside_innodb) {
-			  /* Release our possible ticket in the FIFO */
-
-			  srv_conc_force_exit_innodb(trx);
-	}
 	srv_active_wake_master_thread();
 
 	DBUG_RETURN(0);
