@@ -44,16 +44,20 @@ netware_build_files =           client/mysql.def client/mysqladmin.def \
                                 storage/myisam/myisam_ftdump.def
 
 link_sources:
-	set -x; \
 	for f in $(netware_build_files); do \
 	  rm -f ../$$f; \
 	  org=`echo $$f | sed -e 's/.*\/\(.*\)/\1/g'`; \
 	  @LN_CP_F@ $(srcdir)/$$org ../$$f; \
 	done
+	echo timestamp > link_sources
+
+BUILT_SOURCES =                 link_sources
+CLEANFILES = 			$(BUILT_SOURCES)
+
 else
 
 BUILT_SOURCES =                 libmysql.imp
-DISTCLEANFILES =                $(BUILT_SOURCES)
+CLEANFILES = 			$(BUILT_SOURCES)
 
 # Create the libmysql.imp from libmysql/libmysql.def
 libmysql.imp: $(top_srcdir)/libmysql/libmysql.def

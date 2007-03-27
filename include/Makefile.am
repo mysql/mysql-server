@@ -16,7 +16,7 @@
 # MA 02111-1307, USA
 
 # FIXME 'abi_check' should be in BUILT_SOURCES, disabled for now
-BUILT_SOURCES =		$(HEADERS_GEN)
+BUILT_SOURCES =		$(HEADERS_GEN) link_sources
 HEADERS_GEN =		mysql_version.h my_config.h
 HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
 			my_list.h my_alloc.h typelib.h
@@ -48,9 +48,10 @@ EXTRA_DIST =            mysql_h.ic
 DISTCLEANFILES =	sched.h $(CLEANFILES)
 
 link_sources:
-	-$(RM) -fr readline
+	-$(RM) -f readline openssl
 	@readline_h_ln_cmd@
 	@yassl_h_ln_cmd@
+	echo timestamp > link_sources
 
 my_config.h: ../config.h
 	$(CP) ../config.h my_config.h
