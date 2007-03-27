@@ -1561,8 +1561,10 @@ extern bool check_reserved_words(LEX_STRING *name);
 /* strfunc.cc */
 ulonglong find_set(TYPELIB *lib, const char *x, uint length, CHARSET_INFO *cs,
 		   char **err_pos, uint *err_len, bool *set_warning);
-uint find_type(TYPELIB *lib, const char *find, uint length, bool part_match);
-uint find_type2(TYPELIB *lib, const char *find, uint length, CHARSET_INFO *cs);
+uint find_type(const TYPELIB *lib, const char *find, uint length,
+               bool part_match);
+uint find_type2(const TYPELIB *lib, const char *find, uint length,
+                CHARSET_INFO *cs);
 void unhex_type2(TYPELIB *lib);
 uint check_word(TYPELIB *lib, const char *val, const char *end,
 		const char **end_of_word);
