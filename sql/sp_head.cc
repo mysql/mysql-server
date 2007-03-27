@@ -541,15 +541,14 @@ void
 sp_head::init_strings(THD *thd, LEX *lex)
 {
   DBUG_ENTER("sp_head::init_strings");
-  const uchar *endp;                            /* Used to trim the end */
+  const char *endp;                            /* Used to trim the end */
   /* During parsing, we must use thd->mem_root */
   MEM_ROOT *root= thd->mem_root;
 
   if (m_param_begin && m_param_end)
   {
     m_params.length= m_param_end - m_param_begin;
-    m_params.str= strmake_root(root,
-                               (char *)m_param_begin, m_params.length);
+    m_params.str= strmake_root(root, m_param_begin, m_params.length);
   }
 
   /* If ptr has overrun end_of_query then end_of_query is the end */
@@ -561,9 +560,9 @@ sp_head::init_strings(THD *thd, LEX *lex)
   endp= skip_rear_comments(m_body_begin, endp);
 
   m_body.length= endp - m_body_begin;
-  m_body.str= strmake_root(root, (char *)m_body_begin, m_body.length);
+  m_body.str= strmake_root(root, m_body_begin, m_body.length);
   m_defstr.length= endp - lex->buf;
-  m_defstr.str= strmake_root(root, (char *)lex->buf, m_defstr.length);
+  m_defstr.str= strmake_root(root, lex->buf, m_defstr.length);
   DBUG_VOID_RETURN;
 }
 
