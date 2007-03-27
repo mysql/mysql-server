@@ -3622,6 +3622,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     {
       ndbout_c("fragptr.p->fragStatus: %d",
 	       fragptr.p->fragStatus);
+      CRASH_INSERTION(5046);
     }
     ndbassert(fragptr.p->fragStatus == Fragrecord::ACTIVE_CREATION);
     fragptr.p->m_copy_started_state = Fragrecord::AC_NR_COPY;
@@ -9997,6 +9998,39 @@ Dblqh::calculateHash(Uint32 tableId, const Uint32* src)
   
   return md5_hash(Tmp, keyLen);
 }//Dblqh::calculateHash()
+
+/**
+ * PREPARE COPY FRAG REQ
+ */
+void
+Dblqh::execPREPARE_COPY_FRAG_REQ(Signal* signal)
+{
+  jamEntry();
+  PrepareCopyFragReq req = *(PrepareCopyFragReq*)signal->getDataPtr();
+
+  CRASH_INSERTION(5045);
+
+  tabptr.i = req.tableId;
+  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
+  ndbrequire(getFragmentrec(signal, req.fragId));
+  fragptr.p->m_copy_started_state = Fragrecord::AC_IGNORED;
+  fragptr.p->fragStatus = Fragrecord::ACTIVE_CREATION;
+  fragptr.p->logFlag = Fragrecord::STATE_FALSE;
+  
+  /**
+   *
+   */
+  
+  PrepareCopyFragConf* conf = (PrepareCopyFragConf*)signal->getDataPtrSend();
+  conf->senderData = req.senderData;
+  conf->senderRef = reference();
+  conf->tableId = req.tableId;
+  conf->fragId = req.fragId;
+  conf->copyNodeId = req.copyNodeId;
+  conf->startingNodeId = req.startingNodeId;
+  sendSignal(req.senderRef, GSN_PREPARE_COPY_FRAG_CONF,
+	     signal, PrepareCopyFragConf::SignalLength, JBB);
+}
 
 /* *************************************** */
 /*  COPY_FRAGREQ: Start copying a fragment */

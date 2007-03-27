@@ -303,6 +303,9 @@ Dblqh::Dblqh(Block_context& ctx):
   addRecSignal(GSN_UPDATE_FRAG_DIST_KEY_ORD, 
 	       &Dblqh::execUPDATE_FRAG_DIST_KEY_ORD);
   
+  addRecSignal(GSN_PREPARE_COPY_FRAG_REQ,
+	       &Dblqh::execPREPARE_COPY_FRAG_REQ);
+  
   initData();
 
 #ifdef VM_TRACE

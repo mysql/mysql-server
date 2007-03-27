@@ -3139,6 +3139,81 @@ void Dbdih::toCopyFragLab(Signal* signal,
   TakeOverRecordPtr takeOverPtr;
   RETURN_IF_TAKE_OVER_INTERRUPTED(takeOverPtrI, takeOverPtr);
 
+  /**
+   * Inform starting node that TakeOver is about to start
+   */
+  Uint32 nodeId = takeOverPtr.p->toStartingNode;
+
+  if (getNodeInfo(nodeId).m_version >= NDBD_PREPARE_COPY_FRAG_VERSION)
+  {
+    jam();
+    TabRecordPtr tabPtr;
+    tabPtr.i = takeOverPtr.p->toCurrentTabref;
+    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+
+    FragmentstorePtr fragPtr;
+    getFragstore(tabPtr.p, takeOverPtr.p->toCurrentFragid, fragPtr);
+    Uint32 nodes[MAX_REPLICAS];
+    extractNodeInfo(fragPtr.p, nodes);
+    
+    PrepareCopyFragReq* req= (PrepareCopyFragReq*)signal->getDataPtrSend();
+    req->senderRef = reference();
+    req->senderData = takeOverPtrI;
+    req->tableId = takeOverPtr.p->toCurrentTabref;
+    req->fragId = takeOverPtr.p->toCurrentFragid;
+    req->copyNodeId = nodes[0]; // Src
+    req->startingNodeId = takeOverPtr.p->toStartingNode; // Dst
+    Uint32 ref = calcLqhBlockRef(takeOverPtr.p->toStartingNode);
+    
+    sendSignal(ref, GSN_PREPARE_COPY_FRAG_REQ, signal, 
+	       PrepareCopyFragReq::SignalLength, JBB);
+    
+    takeOverPtr.p->toMasterStatus = TakeOverRecord::PREPARE_COPY;
+    return;
+  }
+  
+  toStartCopyFrag(signal, takeOverPtr);
+}
+
+void
+Dbdih::execPREPARE_COPY_FRAG_REF(Signal* signal)
+{
+  jamEntry();
+  PrepareCopyFragRef ref = *(PrepareCopyFragRef*)signal->getDataPtr();
+
+  TakeOverRecordPtr takeOverPtr;
+  RETURN_IF_TAKE_OVER_INTERRUPTED(ref.senderData, takeOverPtr);
+
+  ndbrequire(takeOverPtr.p->toMasterStatus == TakeOverRecord::PREPARE_COPY);
+  
+  /**
+   * Treat this as copy frag ref
+   */
+  CopyFragRef * cfref = (CopyFragRef*)signal->getDataPtrSend();
+  cfref->userPtr = ref.senderData;
+  cfref->startingNodeId = ref.startingNodeId;
+  cfref->errorCode = ref.errorCode;
+  cfref->tableId = ref.tableId;
+  cfref->fragId = ref.fragId;
+  cfref->sendingNodeId = ref.copyNodeId;
+  takeOverPtr.p->toMasterStatus = TakeOverRecord::COPY_FRAG;
+  execCOPY_FRAGREF(signal);
+}
+
+void
+Dbdih::execPREPARE_COPY_FRAG_CONF(Signal* signal)
+{
+  PrepareCopyFragConf conf = *(PrepareCopyFragConf*)signal->getDataPtr();
+
+  TakeOverRecordPtr takeOverPtr;
+  RETURN_IF_TAKE_OVER_INTERRUPTED(conf.senderData, takeOverPtr);
+  
+  toStartCopyFrag(signal, takeOverPtr);
+}
+
+void
+Dbdih::toStartCopyFrag(Signal* signal, TakeOverRecordPtr takeOverPtr)
+{
   CreateReplicaRecordPtr createReplicaPtr;
   createReplicaPtr.i = 0;
   ptrAss(createReplicaPtr, createReplicaRecord);
@@ -3162,8 +3237,8 @@ void Dbdih::toCopyFragLab(Signal* signal,
   createReplicaPtr.p->hotSpareUse = true;
   createReplicaPtr.p->dataNodeId = takeOverPtr.p->toStartingNode;
 
-  prepareSendCreateFragReq(signal, takeOverPtrI);
-}//Dbdih::toCopyFragLab()
+  prepareSendCreateFragReq(signal, takeOverPtr.i);
+}//Dbdih::toStartCopy()
 
 void Dbdih::prepareSendCreateFragReq(Signal* signal, Uint32 takeOverPtrI)
 {
@@ -4555,12 +4630,21 @@ void Dbdih::checkTakeOverInMasterStartNodeFailure(Signal* signal,
     ok = true;
     jam();
     //-----------------------------------------------------------------------
-    // The starting node will discover the problem. We will receive either
+    // The copying node will discover the problem. We will receive either
     // COPY_FRAGREQ or COPY_FRAGCONF and then we can release the take over
     // record and end the process. If the copying node should also die then
     // we will try to send prepare create fragment and will then discover
     // that the starting node has failed.
     //-----------------------------------------------------------------------
+    break;
+  case TakeOverRecord::PREPARE_COPY:
+    ok = true;
+    jam();
+    /**
+     * We're waiting for the starting node...which just died...
+     *  endTakeOver
+     */
+    endTakeOver(takeOverPtr.i);
     break;
   case TakeOverRecord::COPY_ACTIVE:
     ok = true;
