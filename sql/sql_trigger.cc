@@ -976,7 +976,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         LEX_STRING *trg_definer= it_definer++;
 
         thd->variables.sql_mode= (ulong)*trg_sql_mode;
-        lex_start(thd, (uchar*)trg_create_str->str, trg_create_str->length);
+        lex_start(thd, trg_create_str->str, trg_create_str->length);
 
 	thd->spcont= 0;
         if (MYSQLparse((void *)thd) || thd->is_fatal_error)

@@ -217,7 +217,7 @@ public:
   */
   bool do_not_create;
 
-  const uchar *body_begin;
+  const char *body_begin;
 
   LEX_STRING dbname;
   LEX_STRING name;
