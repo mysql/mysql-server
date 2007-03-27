@@ -6744,7 +6744,7 @@ typedef struct my_uca_scanner_handler_st
   int (*next)(my_uca_scanner *scanner);
 } my_uca_scanner_handler;
 
-static uint16 nochar[]= {0};
+static uint16 nochar[]= {0,0};
 
 
 #ifdef HAVE_CHARSET_ucs2
@@ -6769,13 +6769,33 @@ static void my_uca_scanner_init_ucs2(my_uca_scanner *scanner,
                                      CHARSET_INFO *cs __attribute__((unused)),
                                      const uchar *str, uint length)
 {
-  /* Note, no needs to initialize scanner->wbeg */
-  scanner->sbeg= str;
-  scanner->send= str + length - 2;
   scanner->wbeg= nochar; 
-  scanner->uca_length= cs->sort_order;
-  scanner->uca_weight= cs->sort_order_big;
-  scanner->contractions= cs->contractions;
+  if (length)
+  {
+    scanner->sbeg= str;
+    scanner->send= str + length - 2;
+    scanner->uca_length= cs->sort_order;
+    scanner->uca_weight= cs->sort_order_big;
+    scanner->contractions= cs->contractions;
+  }
+  else
+  {
+    /*
+      Sometimes this function is called with
+      str=NULL and length=0, which should be
+      considered as an empty string.
+      
+      The above initialization is unsafe for such cases,
+      because scanner->send is initialized to (NULL-2), which is 0xFFFFFFFE.
+      Then we fall into an endless loop in my_uca_scanner_next_ucs2().
+      
+      Do special initialization for the case when length=0.
+      Initialize scanner->sbeg to an address greater than scanner->send.
+      Next call of my_uca_scanner_next_ucs2() will correctly return with -1.
+    */
+    scanner->sbeg= (uchar*) &nochar[1];
+    scanner->send= (uchar*) &nochar[0];
+  }
 }
 
 
