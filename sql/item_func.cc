@@ -4988,6 +4988,8 @@ longlong Item_func_row_count::val_int()
 }
 
 
+
+
 Item_func_sp::Item_func_sp(Name_resolution_context *context_arg, sp_name *name)
   :Item_func(), context(context_arg), m_name(name), m_sp(NULL), sp_result_field(NULL)
 {
