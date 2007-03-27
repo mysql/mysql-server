@@ -3022,7 +3022,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
     mysql->reconnect= *(my_bool *) arg;
     break;
   case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:
-    if (!arg || test(*(uint*) arg))
+    if (*(my_bool*) arg)
       mysql->options.client_flag|= CLIENT_SSL_VERIFY_SERVER_CERT;
     else
       mysql->options.client_flag&= ~CLIENT_SSL_VERIFY_SERVER_CERT;
