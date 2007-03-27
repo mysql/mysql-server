@@ -5069,7 +5069,7 @@ Item_func_sp::init_result_field(THD *thd)
 {
   DBUG_ENTER("Item_func_sp::init_result_field");
 
-  LEX_STRING empty_name= { STRING_WITH_LEN("") };
+  LEX_STRING empty_name= { C_STRING_WITH_LEN("") };
   
   TABLE_SHARE *share;
 
