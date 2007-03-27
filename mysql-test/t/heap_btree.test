@@ -204,4 +204,22 @@ CREATE TABLE t1 (a INT, UNIQUE USING BTREE(a)) ENGINE=MEMORY;
 INSERT INTO t1 VALUES(NULL),(NULL);
 DROP TABLE t1;
 
+#
+# Bug#24985 - UTF8 ENUM primary key on MEMORY using BTREE
+#             causes incorrect duplicate entries
+#
+CREATE TABLE t1 (
+  c1 ENUM('1', '2'),
+  UNIQUE USING BTREE(c1)
+) ENGINE= MEMORY DEFAULT CHARSET= utf8;
+INSERT INTO t1 VALUES('1'), ('2');
+DROP TABLE t1;
+CREATE TABLE t1 (
+  c1 SET('1', '2'),
+  UNIQUE USING BTREE(c1)
+) ENGINE= MEMORY DEFAULT CHARSET= utf8;
+INSERT INTO t1 VALUES('1'), ('2');
+DROP TABLE t1;
+
+--echo End of 4.1 tests
 --echo End of 5.0 tests
