@@ -923,7 +923,7 @@ int ha_archive::index_read(byte *buf, const byte *key,
 int ha_archive::index_read_idx(byte *buf, uint index, const byte *key,
                                  uint key_len, enum ha_rkey_function find_flag)
 {
-  int rc= 0;
+  int rc;
   bool found= 0;
   KEY *mkey= &table->s->key_info[index];
   current_k_offset= mkey->key_part->offset;
@@ -933,22 +933,10 @@ int ha_archive::index_read_idx(byte *buf, uint index, const byte *key,
 
   DBUG_ENTER("ha_archive::index_read_idx");
 
-  /* 
-    All of the buffer must be written out or we won't see all of the
-    data 
-  */
-  pthread_mutex_lock(&share->mutex);
-  azflush(&(share->archive_write), Z_SYNC_FLUSH);
-  pthread_mutex_unlock(&share->mutex);
+  rc= rnd_init(TRUE);
 
-  /*
-    Set the position of the local read thread to the beginning postion.
-  */
-  if (read_data_header(&archive))
-  {
-    rc= HA_ERR_CRASHED_ON_USAGE;
+  if (rc)
     goto error;
-  }
 
   while (!(get_row(&archive, buf)))
   {
