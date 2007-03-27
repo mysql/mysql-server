@@ -2937,3 +2937,7 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
+libmysqld/link_sources
+libmysql/link_sources
+include/link_sources
+client/link_sources

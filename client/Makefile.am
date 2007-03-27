@@ -36,6 +36,10 @@ noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h \
 
 EXTRA_DIST =			get_password.c CMakeLists.txt
 
+BUILT_SOURCES =			link_sources
+
+CLEANFILES =			$(BUILT_SOURCES)
+
 bin_PROGRAMS =			mysql \
 				mysqladmin \
 				mysqlbinlog \
@@ -108,6 +112,7 @@ link_sources:
          done; \
          rm -f $(srcdir)/my_user.c; \
          @LN_CP_F@ $(top_srcdir)/sql-common/my_user.c my_user.c;
+	echo timestamp > link_sources;
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

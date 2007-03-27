@@ -17,10 +17,10 @@ noinst_PROGRAMS = mysql
 bin_PROGRAMS    = mysqltest_embedded mysql_client_test_embedded
 client_sources  = $(mysqltest_embedded_SOURCES) $(mysql_SOURCES)
 tests_sources   = $(mysql_client_test_embedded_SOURCES)
-CLEANFILES      = $(client_sources) $(tests_sources)
+BUILT_SOURCES   = link_sources
+CLEANFILES      = $(client_sources) $(tests_sources) $(BUILT_SOURCES)
 
 link_sources:
-	set -x; \
 	for f in $(client_sources); do \
 	  rm -f $$f; \
 	  @LN_CP_F@ $(top_srcdir)/client/$$f $$f; \
@@ -29,6 +29,7 @@ link_sources:
 	  rm -f $$f; \
 	  @LN_CP_F@ $(top_srcdir)/tests/$$f $$f; \
 	done
+	echo timestamp > link_sources
 
 DEFS = 		-DEMBEDDED_LIBRARY
 INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include -I$(srcdir) \

@@ -2257,11 +2257,10 @@ AC_SUBST(tools_dirs)
 #MYSQL_CHECK_CPU
 
 libmysqld_dirs=
-linked_libmysqld_targets=
 if test "$with_embedded_server" = "yes"
 then
   libmysqld_dirs=libmysqld
-  linked_libmysqld_targets="linked_libmysqld_sources linked_libmysqldex_sources"
+
   AC_CONFIG_FILES(libmysqld/Makefile libmysqld/examples/Makefile)
   # We can't build embedded library without building the server, because
   # we depend on libmysys, libmystrings, libmyisam, etc.
@@ -2271,7 +2270,6 @@ fi
 # mysql_config --libmysqld-libs will print out something like
 # -L/path/to/lib/mysql -lmysqld -lmyisam -lmysys -lmystrings -ldbug ...
 AC_SUBST([libmysqld_dirs])
-AC_SUBST([linked_libmysqld_targets])
 
 # Shall we build the docs?
 AC_ARG_WITH(docs,
@@ -2446,7 +2444,6 @@ thread_dirs=
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
 sql_client_dirs=
-linked_client_targets="linked_libmysql_sources"
 
 AM_CONDITIONAL(THREAD_SAFE_CLIENT, test "$THREAD_SAFE_CLIENT" != "no")
 
@@ -2455,7 +2452,6 @@ then
   sql_client_dirs="strings regex mysys dbug extra libmysql client"
 else
   sql_client_dirs="strings regex mysys dbug extra libmysql libmysql_r client"
-  linked_client_targets="$linked_client_targets linked_libmysql_r_sources"
   AC_CONFIG_FILES(libmysql_r/Makefile)
   AC_DEFINE([THREAD_SAFE_CLIENT], [1], [Should the client be thread safe])
 fi
@@ -2467,18 +2463,14 @@ AC_SUBST(CLIENT_THREAD_LIBS)
 AC_SUBST(NON_THREADED_LIBS)
 AC_SUBST(STATIC_NSS_FLAGS)
 AC_SUBST(sql_client_dirs)
-AC_SUBST(linked_client_targets)
 
-# If configuring for NetWare, set up to link sources from and build the netware directory
+# If configuring for NetWare, build the netware directory
 netware_dir=
-linked_netware_sources=
 if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null
 then
   netware_dir="netware"
-  linked_netware_sources="linked_netware_sources"
 fi
 AC_SUBST(netware_dir)
-AC_SUBST(linked_netware_sources)
 AM_CONDITIONAL(HAVE_NETWARE, test "$netware_dir" = "netware")
 
 if test "$with_server" != "no" -o "$THREAD_SAFE_CLIENT" != "no"
