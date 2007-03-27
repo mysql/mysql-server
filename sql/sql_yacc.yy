@@ -1847,7 +1847,7 @@ ev_sql_stmt:
             */
             if (lex->sphead)
             {
-              my_error(ER_EVENT_RECURSIVITY_FORBIDDEN, MYF(0));
+              my_error(ER_EVENT_RECURSION_FORBIDDEN, MYF(0));
               MYSQL_YYABORT;
             }
               

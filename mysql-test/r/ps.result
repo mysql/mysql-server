@@ -2285,7 +2285,7 @@ drop user pstest_xyz@localhost;
 deallocate prepare abc;
 drop event if exists xyz;
 create function func_1() returns int begin create event xyz on schedule at now() do select 123; return 1; end|
-ERROR HY000: Recursivity of EVENT DDL statements is forbidden when body is present
+ERROR HY000: Recursion of EVENT DDL statements is forbidden when body is present
 select func_1(), func_1(), func_1() from dual;
 ERROR 42000: FUNCTION test.func_1 does not exist
 drop function func_1;

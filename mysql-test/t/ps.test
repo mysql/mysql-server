@@ -2324,7 +2324,7 @@ drop event if exists xyz;
 #drop event xyz;
 #drop procedure proc_1;
 delimiter |;
---error ER_EVENT_RECURSIVITY_FORBIDDEN
+--error ER_EVENT_RECURSION_FORBIDDEN
 create function func_1() returns int begin create event xyz on schedule at now() do select 123; return 1; end|
 delimiter ;|
 --error ER_SP_DOES_NOT_EXIST

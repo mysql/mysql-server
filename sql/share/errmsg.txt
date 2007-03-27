@@ -5978,8 +5978,8 @@ ER_BASE64_DECODE_ERROR
 ER_NO_TRIGGERS_ON_SYSTEM_SCHEMA
         eng "Triggers can not be created on system tables"
         ger "Trigger können nicht auf Systemtabellen erzeugt werden"
-ER_EVENT_RECURSIVITY_FORBIDDEN
-        eng "Recursivity of EVENT DDL statements is forbidden when body is present"
+ER_EVENT_RECURSION_FORBIDDEN
+        eng "Recursion of EVENT DDL statements is forbidden when body is present"
         ger "Rekursivität von EVENT-DDL-Anweisungen ist unzulässig wenn ein Hauptteil (Body) existiert"
 ER_EVENTS_DB_ERROR
         eng "Cannot proceed because system tables used by Event Scheduler were found damaged at server start"

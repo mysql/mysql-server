@@ -17,7 +17,7 @@ DROP EVENT ДОЛЕН_регистър_утф8;
 SET NAMES latin1;
 set @a=3;
 CREATE PROCEDURE p_16 () CREATE EVENT e_16 ON SCHEDULE EVERY @a SECOND DO SET @a=5;
-ERROR HY000: Recursivity of EVENT DDL statements is forbidden when body is present
+ERROR HY000: Recursion of EVENT DDL statements is forbidden when body is present
 create event e_55 on schedule at 99990101000000 do drop table t;
 ERROR HY000: Incorrect AT value: '99990101000000'
 create event e_55 on schedule every 10 hour starts 99990101000000 do drop table t;

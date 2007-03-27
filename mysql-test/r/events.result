@@ -73,7 +73,7 @@ DROP EVENT event_starts_test;
 create table test_nested(a int);
 create event e_43 on schedule every 1 second do set @a = 5;
 alter event e_43 do alter event e_43 do set @a = 4;
-ERROR HY000: Recursivity of EVENT DDL statements is forbidden when body is present
+ERROR HY000: Recursion of EVENT DDL statements is forbidden when body is present
 alter event e_43 do
 begin
 alter event e_43 on schedule every 5 minute;
@@ -367,7 +367,7 @@ root	localhost	events_test	Connect	User lock	select get_lock("test_lock2_1", 20)
 drop event закачка21;
 create table t_16 (s1 int);
 create trigger t_16_bi before insert on t_16 for each row create event  e_16 on schedule every 1 second do set @a=5;
-ERROR HY000: Recursivity of EVENT DDL statements is forbidden when body is present
+ERROR HY000: Recursion of EVENT DDL statements is forbidden when body is present
 drop table t_16;
 create event white_space
 on schedule every 10 hour
