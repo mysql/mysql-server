@@ -461,7 +461,7 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   DBUG_ENTER("mysql_create_db");
 
   /* do not create 'information_schema' db */
-  if (!my_strcasecmp(system_charset_info, db, information_schema_name.str))
+  if (!my_strcasecmp(system_charset_info, db, INFORMATION_SCHEMA_NAME.str))
   {
     my_error(ER_DB_CREATE_EXISTS, MYF(0), db);
     DBUG_RETURN(-1);
@@ -1126,154 +1126,256 @@ err:
 }
 
 
-/*
-  Change the current database.
+/**
+  @brief Internal implementation: switch current database to a valid one.
 
-  SYNOPSIS
-    mysql_change_db()
-    thd			thread handle
-    name		database name
-    no_access_check	if TRUE, don't do access check. In this
-                        case name may be ""
-
-  DESCRIPTION
-    Check that the database name corresponds to a valid and
-    existent database, check access rights (unless called with
-    no_access_check), and set the current database. This function
-    is called to change the current database upon user request
-    (COM_CHANGE_DB command) or temporarily, to execute a stored
-    routine.
-
-  NOTES
-    This function is not the only way to switch the database that
-    is currently employed. When the replication slave thread
-    switches the database before executing a query, it calls
-    thd->set_db directly. However, if the query, in turn, uses
-    a stored routine, the stored routine will use this function,
-    even if it's run on the slave.
-
-    This function allocates the name of the database on the system
-    heap: this is necessary to be able to uniformly change the
-    database from any module of the server. Up to 5.0 different
-    modules were using different memory to store the name of the
-    database, and this led to memory corruption: a stack pointer
-    set by Stored Procedures was used by replication after the
-    stack address was long gone.
-
-    This function does not send anything, including error
-    messages, to the client. If that should be sent to the client,
-    call net_send_error after this function.
-
-  RETURN VALUES
-    0	OK
-    1	error
+  @param thd            Thread context.
+  @param new_db_name    Name of the database to switch to. The function will
+                        take ownership of the name (the caller must not free
+                        the allocated memory). If the name is NULL, we're
+                        going to switch to NULL db.
+  @param new_db_access  Privileges of the new database.
+  @param new_db_charset Character set of the new database.
 */
 
-bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
+static void mysql_change_db_impl(THD *thd,
+                                 LEX_STRING *new_db_name,
+                                 ulong new_db_access,
+                                 CHARSET_INFO *new_db_charset)
 {
-  int db_length;
-  char *db_name;
-  bool system_db= 0;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  ulong db_access;
-  Security_context *sctx= thd->security_ctx;
-  LINT_INIT(db_access);
-#endif
-  DBUG_ENTER("mysql_change_db");
-  DBUG_PRINT("enter",("name: '%s'",name));
+  /* 1. Change current database in THD. */
 
-  if (name == NULL || name[0] == '\0' && no_access_check == FALSE)
+  if (new_db_name == NULL)
   {
-    my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
-    DBUG_RETURN(1);				/* purecov: inspected */
+    /*
+      THD::set_db() does all the job -- it frees previous database name and
+      sets the new one.
+    */
+
+    thd->set_db(NULL, 0);
   }
-  else if (name[0] == '\0')
+  else if (new_db_name == &INFORMATION_SCHEMA_NAME)
   {
-    /* Called from SP to restore the original database, which was NULL */
-    DBUG_ASSERT(no_access_check);
-    system_db= 1;
-    db_name= NULL;
-    db_length= 0;
-    goto end;
+    /*
+      Here we must use THD::set_db(), because we want to copy
+      INFORMATION_SCHEMA_NAME constant.
+    */
+
+    thd->set_db(INFORMATION_SCHEMA_NAME.str, INFORMATION_SCHEMA_NAME.length);
   }
+  else
+  {
+    /*
+      Here we already have a copy of database name to be used in THD. So,
+      we just call THD::reset_db(). Since THD::reset_db() does not releases
+      the previous database name, we should do it explicitly.
+    */
+
+    x_free(thd->db);
+
+    thd->reset_db(new_db_name->str, new_db_name->length);
+  }
+
+  /* 2. Update security context. */
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  thd->security_ctx->db_access= new_db_access;
+#endif
+
+  /* 3. Update db-charset environment variables. */
+
+  thd->db_charset= new_db_charset;
+  thd->variables.collation_database= new_db_charset;
+}
+
+
+/**
+  @brief Change the current database.
+
+  @param thd          thread handle
+  @param name         database name
+  @param force_switch if this flag is set (TRUE), mysql_change_db() will
+                      switch to NULL db if the specified database is not
+                      available anymore. Corresponding warning will be
+                      thrown in this case. This flag is used to change
+                      database in stored-routine-execution code.
+
+  @details Check that the database name corresponds to a valid and existent
+  database, check access rights (unless called with no_access_check), and
+  set the current database. This function is called to change the current
+  database upon user request (COM_CHANGE_DB command) or temporarily, to
+  execute a stored routine.
+
+  This function is not the only way to switch the database that is
+  currently employed. When the replication slave thread switches the
+  database before executing a query, it calls thd->set_db directly.
+  However, if the query, in turn, uses a stored routine, the stored routine
+  will use this function, even if it's run on the slave.
+
+  This function allocates the name of the database on the system heap: this
+  is necessary to be able to uniformly change the database from any module
+  of the server. Up to 5.0 different modules were using different memory to
+  store the name of the database, and this led to memory corruption:
+  a stack pointer set by Stored Procedures was used by replication after
+  the stack address was long gone.
+
+  @return Operation status
+    @retval FALSE Success
+    @retval TRUE  Error
+*/
+
+bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
+{
+  LEX_STRING new_db_file_name;
+
+  Security_context *sctx= thd->security_ctx;
+  ulong db_access= sctx->db_access;
+
+  DBUG_ENTER("mysql_change_db");
+  DBUG_PRINT("enter",("name: '%s'", new_db_name->str));
+
+  if (new_db_name == NULL ||
+      new_db_name->length == 0 ||
+      new_db_name->str == NULL)
+  {
+    if (force_switch)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                          ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR));
+
+      /* Change db to NULL. */
+
+      mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
+
+      DBUG_RETURN(FALSE);
+    }
+    else
+    {
+      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+
+      DBUG_RETURN(TRUE);
+    }
+  }
+
+  if (my_strcasecmp(system_charset_info, new_db_name->str,
+                    INFORMATION_SCHEMA_NAME.str) == 0)
+  {
+    /* Switch database to INFORMATION_SCHEMA. */
+
+    mysql_change_db_impl(thd, &INFORMATION_SCHEMA_NAME, SELECT_ACL,
+                         system_charset_info);
+
+    DBUG_RETURN(FALSE);
+  }
+
   /*
     Now we need to make a copy because check_db_name requires a
-    non-constant argument. TODO: fix check_db_name.
+    non-constant argument. Actually, it takes database file name.
+
+    TODO: fix check_db_name().
   */
-  if ((db_name= my_strdup(name, MYF(MY_WME))) == NULL)
-    DBUG_RETURN(1);                             /* the error is set */
-  db_length= strlen(db_name);
-  if (check_db_name(db_name))
+
+  new_db_file_name.str= my_strdup(new_db_name->str, MYF(MY_WME));
+  new_db_file_name.length= new_db_name->length;
+
+  if (new_db_file_name.str == NULL)
+    DBUG_RETURN(TRUE);                             /* the error is set */
+
+  /*
+    NOTE: if check_db_name() fails, we should throw an error in any case,
+    even if we are called from sp_head::execute().
+
+    It's next to impossible however to get this error when we are called
+    from sp_head::execute(). But let's switch database to NULL in this case
+    to be sure.
+  */
+
+  if (check_db_name(new_db_file_name.str))
   {
-    my_error(ER_WRONG_DB_NAME, MYF(0), db_name);
-    my_free(db_name, MYF(0));
-    DBUG_RETURN(1);
-  }
-  DBUG_PRINT("info",("Use database: %s", db_name));
-  if (!my_strcasecmp(system_charset_info, db_name, information_schema_name.str))
-  {
-    system_db= 1;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    db_access= SELECT_ACL;
-#endif
-    goto end;
+    my_error(ER_WRONG_DB_NAME, MYF(0), new_db_file_name.str);
+    my_free(new_db_file_name.str, MYF(0));
+
+    if (force_switch)
+    {
+      /* Change db to NULL. */
+
+      mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
+    }
+
+    DBUG_RETURN(TRUE);
   }
 
+  DBUG_PRINT("info",("Use database: %s", new_db_file_name.str));
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (!no_access_check)
+  if (!force_switch) /* FIXME: this is BUG#27337. */
   {
-    if (test_all_bits(sctx->master_access, DB_ACLS))
-      db_access=DB_ACLS;
-    else
-      db_access= (acl_get(sctx->host, sctx->ip, sctx->priv_user, db_name, 0) |
-                  sctx->master_access);
-    if (!(db_access & DB_ACLS) && (!grant_option ||
-                                   check_grant_db(thd,db_name)))
+    db_access=
+      test_all_bits(sctx->master_access, DB_ACLS) ?
+      DB_ACLS :
+      acl_get(sctx->host,
+              sctx->ip,
+              sctx->priv_user,
+              new_db_file_name.str,
+              FALSE) | sctx->master_access;
+
+    if (!force_switch &&
+        !(db_access & DB_ACLS) &&
+        (!grant_option || check_grant_db(thd, new_db_file_name.str)))
     {
       my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                sctx->priv_user,
                sctx->priv_host,
-               db_name);
+               new_db_file_name.str);
       mysql_log.write(thd, COM_INIT_DB, ER(ER_DBACCESS_DENIED_ERROR),
-                      sctx->priv_user, sctx->priv_host, db_name);
-      my_free(db_name, MYF(0));
-      DBUG_RETURN(1);
+                      sctx->priv_user, sctx->priv_host, new_db_file_name.str);
+      my_free(new_db_file_name.str, MYF(0));
+      DBUG_RETURN(TRUE);
     }
   }
 #endif
 
-  if (check_db_dir_existence(db_name))
+  if (check_db_dir_existence(new_db_file_name.str))
   {
-    my_error(ER_BAD_DB_ERROR, MYF(0), db_name);
-    my_free(db_name, MYF(0));
-    DBUG_RETURN(1);
+    if (force_switch)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                          ER_BAD_DB_ERROR, ER(ER_BAD_DB_ERROR),
+                          new_db_file_name.str);
+
+      my_free(new_db_file_name.str, MYF(0));
+
+      /* Change db to NULL. */
+
+      mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
+
+      DBUG_RETURN(FALSE);
+    }
+    else
+    {
+      my_error(ER_BAD_DB_ERROR, MYF(0), new_db_file_name.str);
+      my_free(new_db_file_name.str, MYF(0));
+      DBUG_RETURN(TRUE);
+    }
   }
 
-end:
-  x_free(thd->db);
-  DBUG_ASSERT(db_name == NULL || db_name[0] != '\0');
-  thd->reset_db(db_name, db_length);            // THD::~THD will free this
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (!no_access_check)
-    sctx->db_access= db_access;
-#endif
-  if (system_db)
-  {
-    thd->db_charset= system_charset_info;
-    thd->variables.collation_database= system_charset_info;
-  }
-  else
-  {
-    HA_CREATE_INFO create;
+  /*
+    NOTE: in mysql_change_db_impl() new_db_file_name is assigned to THD
+    attributes and will be freed in THD::~THD().
+  */
 
-    load_db_opt_by_name(thd, db_name, &create);
+  {
+    HA_CREATE_INFO db_options;
 
-    thd->db_charset= create.default_table_charset ?
-      create.default_table_charset :
-      thd->variables.collation_server;
-    thd->variables.collation_database= thd->db_charset;
+    load_db_opt_by_name(thd, new_db_name->str, &db_options);
+
+    mysql_change_db_impl(thd, &new_db_file_name, db_access,
+                         db_options.default_table_charset ?
+                         db_options.default_table_charset :
+                         thd->variables.collation_server);
   }
-  DBUG_RETURN(0);
+
+  DBUG_RETURN(FALSE);
 }
 
 

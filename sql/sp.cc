@@ -441,14 +441,14 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   {
     sp_head *sp= newlex.sphead;
 
-    if (dbchanged && (ret= mysql_change_db(thd, old_db.str, 1)))
+    if (dbchanged && (ret= mysql_change_db(thd, &old_db, TRUE)))
       goto end;
     delete sp;
     ret= SP_PARSE_ERROR;
   }
   else
   {
-    if (dbchanged && (ret= mysql_change_db(thd, old_db.str, 1)))
+    if (dbchanged && (ret= mysql_change_db(thd, &old_db, TRUE)))
       goto end;
     *sphp= newlex.sphead;
     (*sphp)->set_definer(&definer_user_name, &definer_host_name);
@@ -1896,7 +1896,7 @@ sp_use_new_db(THD *thd, LEX_STRING new_db, LEX_STRING *old_db,
     DBUG_RETURN(0);
   }
 
-  ret= mysql_change_db(thd, new_db.str, no_access_check);
+  ret= mysql_change_db(thd, &new_db, no_access_check);
 
   *dbchangedp= ret == 0;
   DBUG_RETURN(ret);
