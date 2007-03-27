@@ -3683,6 +3683,7 @@ Rotate_log_event::do_shall_skip(RELAY_LOG_INFO *rli)
     return Log_event::EVENT_SKIP_IGNORE;
   }
   DBUG_ASSERT(0);
+  return Log_event::EVENT_SKIP_NOT;             // To keep compiler happy
 }
 
 #endif
