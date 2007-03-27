@@ -693,7 +693,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
 bool do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db,
                       char *new_table_name, char *new_table_alias,
                       bool skip_error);
-bool mysql_change_db(THD *thd,const char *name,bool no_access_check);
+bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name,
+                     bool force_switch);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
 bool is_update_query(enum enum_sql_command command);
@@ -937,7 +938,7 @@ void append_definer(THD *thd, String *buffer, const LEX_STRING *definer_user,
 
 
 /* information schema */
-extern LEX_STRING information_schema_name;
+extern LEX_STRING INFORMATION_SCHEMA_NAME;
 LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
                             const char* str, uint length,
                             bool allocate_lex_string);
@@ -955,7 +956,7 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place);
 #define is_schema_db(X) \
-  !my_strcasecmp(system_charset_info, information_schema_name.str, (X))
+  !my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str, (X))
 
 /* sql_prepare.cc */
 
