@@ -70,6 +70,7 @@ link_sources:
 	  @LN_CP_F@ $(top_srcdir)/sql/net_serv.cc net.c ; \
 	  rm -f password.c; \
 	  @LN_CP_F@ $(top_srcdir)/sql/password.c password.c
+	  echo timestamp > link_sources
 
 # This part requires GNUmake
 #
