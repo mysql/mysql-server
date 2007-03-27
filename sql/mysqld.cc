@@ -280,7 +280,11 @@ static TYPELIB tc_heuristic_recover_typelib=
 };
 
 static const char *thread_handling_names[]=
-{ "one-thread-per-connection", "no-threads", "pool-of-threads", NullS};
+{ "one-thread-per-connection", "no-threads",
+#if HAVE_POOL_OF_THREADS == 1
+  "pool-of-threads",
+#endif
+  NullS};
 
 TYPELIB thread_handling_typelib=
 {
@@ -7860,16 +7864,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_THREAD_HANDLING:
   {
-    if ((global_system_variables.thread_handling=
-         find_type(argument, &thread_handling_typelib, 2)) <= 0 ||
-        (global_system_variables.thread_handling == SCHEDULER_POOL_OF_THREADS
-         && !HAVE_POOL_OF_THREADS))
-    {
-      /* purecov: begin tested */
-      fprintf(stderr,"Unknown/unsupported thread-handling: %s\n",argument);
-      exit(1);
-      /* purecov: end */
-    }
+    global_system_variables.thread_handling=
+      find_type_or_exit(argument, &thread_handling_typelib, opt->name);
     break;
   }
   case OPT_FT_BOOLEAN_SYNTAX:
