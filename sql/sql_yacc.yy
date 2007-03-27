@@ -1577,7 +1577,7 @@ sp_name:
 	      my_error(ER_SP_WRONG_NAME, MYF(0), $3.str);
 	      MYSQL_YYABORT;
 	    }
-	    $$= new sp_name($1, $3);
+	    $$= new sp_name($1, $3, true);
 	    $$->init_qname(YYTHD);
 	  }
 	| ident
@@ -1591,7 +1591,7 @@ sp_name:
 	    }
             if (thd->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
-	    $$= new sp_name(db, $1);
+	    $$= new sp_name(db, $1, false);
             if ($$)
 	      $$->init_qname(YYTHD);
 	  }
@@ -5052,7 +5052,7 @@ simple_expr:
 	| ident '.' ident '(' opt_expr_list ')'
 	  {
 	    LEX *lex= Lex;
-	    sp_name *name= new sp_name($1, $3);
+	    sp_name *name= new sp_name($1, $3, true);
 
 	    name->init_qname(YYTHD);
 	    sp_add_used_routine(lex, YYTHD, name, TYPE_ENUM_FUNCTION);
@@ -5167,7 +5167,7 @@ simple_expr:
               LEX_STRING db;
               if (thd->copy_db_to(&db.str, &db.length))
                 MYSQL_YYABORT;
-              sp_name *name= new sp_name(db, $1);
+              sp_name *name= new sp_name(db, $1, false);
               if (name)
                 name->init_qname(thd);
 
