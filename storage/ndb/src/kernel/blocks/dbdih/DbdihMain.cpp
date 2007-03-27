@@ -2118,7 +2118,6 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
   blocklist[3] = numberToRef(BACKUP, getOwnNodeId());
   blocklist[4] = numberToRef(SUMA, getOwnNodeId());
   
-  Uint32 i = 0;
   for (Uint32 i = 0; blocklist[i] != 0; i++)
   {
     if (TstartNode_or_blockref == blocklist[i])
