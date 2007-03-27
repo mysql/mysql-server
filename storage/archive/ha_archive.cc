@@ -1486,6 +1486,7 @@ int ha_archive::info(uint flag)
 
   if (flag & HA_STATUS_AUTO)
   {
+    init_archive_reader();
     azflush(&archive, Z_SYNC_FLUSH);
     stats.auto_increment_value= archive.auto_increment;
   }
