@@ -517,7 +517,7 @@ void Dbtup::execNDB_STTOR(Signal* signal)
 /*****************************************/
     signal->theData[0] = ZREPORT_MEMORY_USAGE;
     signal->theData[1] = 0;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);    
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 2);
     break;
   default:
     jam();
