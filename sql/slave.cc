@@ -1722,7 +1722,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
   }
   if (ev)
   {
-    int type_code = ev->get_type_code();
+    int const type_code= ev->get_type_code();
     int exec_res= 0;
 
     /*
@@ -1828,7 +1828,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
        used to read info about the relay log's format; it will be deleted when
        the SQL thread does not need it, i.e. when this thread terminates.
     */
-    if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
+    if (type_code != FORMAT_DESCRIPTION_EVENT)
     {
       DBUG_PRINT("info", ("Deleting the event after it has been executed"));
       delete ev;
