@@ -417,8 +417,7 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
       2-byte lenght. 
     */
     if (max_length/collation.collation->mbmaxlen > 255 && 
-        max_length/collation.collation->mbmaxlen < UINT_MAX16 &&
-        convert_blob_length)
+        convert_blob_length < UINT_MAX16 && convert_blob_length)
       return new Field_varstring(convert_blob_length, maybe_null,
                                  name, table,
                                  collation.collation);
