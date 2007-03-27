@@ -813,17 +813,14 @@ void
 Suma::execINCL_NODEREQ(Signal* signal){
   jamEntry();
   
-  //const Uint32 senderRef = signal->theData[0];
+  const Uint32 senderRef = signal->theData[0];
   const Uint32 nodeId  = signal->theData[1];
 
   ndbrequire(!c_alive_nodes.get(nodeId));
   c_alive_nodes.set(nodeId);
   
-#if 0 // if we include this DIH's got to be prepared, later if needed...
   signal->theData[0] = reference();
-  
   sendSignal(senderRef, GSN_INCL_NODECONF, signal, 1, JBB);
-#endif
 }
 
 void
@@ -951,6 +948,15 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
   if (tCase == 8008)
   {
     CLEAR_ERROR_INSERT_VALUE;
+  }
+
+  if (tCase == 8010)
+  {
+    char buf1[255], buf2[255];
+    c_subscriber_nodes.getText(buf1);
+    c_connected_nodes.getText(buf2);
+    infoEvent("c_subscriber_nodes: %s", buf1);
+    infoEvent("c_connected_nodes: %s", buf2);
   }
 
   if (tCase == 8009)

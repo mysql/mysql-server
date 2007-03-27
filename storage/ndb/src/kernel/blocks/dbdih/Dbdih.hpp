@@ -74,7 +74,6 @@
 #define ZWRONG_FAILURE_NUMBER_ERROR 302
 #define ZWRONG_START_NODE_ERROR 303
 #define ZNO_REPLICA_FOUND_ERROR 304
-#define ZNODE_START_DISALLOWED_ERROR 309
 
 // --------------------------------------
 // Codes from LQH
