@@ -6437,8 +6437,6 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
   :Item(thd, item), enum_set_typelib(0), fld_type(get_real_type(item))
 {
   DBUG_ASSERT(item->fixed);
-
-  max_length= display_length(item);
   maybe_null= item->maybe_null;
   collation.set(item->collation);
   get_full_info(item);
@@ -6610,11 +6608,17 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     {
       int delta1= max_length_orig - decimals_orig;
       int delta2= item->max_length - item->decimals;
-      if (fld_type == MYSQL_TYPE_DECIMAL)
-        max_length= max(delta1, delta2) + decimals;
-      else
-        max_length= min(max(delta1, delta2) + decimals,
-                        (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7);
+      max_length= max(delta1, delta2) + decimals;
+      if (fld_type == MYSQL_TYPE_FLOAT && max_length > FLT_DIG + 2) 
+      {
+        max_length= FLT_DIG + 6;
+        decimals= NOT_FIXED_DEC;
+      } 
+      if (fld_type == MYSQL_TYPE_DOUBLE && max_length > DBL_DIG + 2) 
+      {
+        max_length= DBL_DIG + 7;
+        decimals= NOT_FIXED_DEC;
+      }
     }
     else
       max_length= (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7;
