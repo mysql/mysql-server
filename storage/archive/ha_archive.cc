@@ -991,7 +991,6 @@ int ha_archive::rnd_init(bool scan)
   /* We rewind the file so that we can read from the beginning if scan */
   if (scan)
   {
-    scan_rows= share->rows_recorded;
     DBUG_PRINT("info", ("archive will retrieve %llu rows", 
                         (unsigned long long) scan_rows));
     stats.records= 0;
@@ -1000,17 +999,18 @@ int ha_archive::rnd_init(bool scan)
       If dirty, we lock, and then reset/flush the data.
       I found that just calling azflush() doesn't always work.
     */
+    pthread_mutex_lock(&share->mutex);
+    scan_rows= share->rows_recorded;
     if (share->dirty == TRUE)
     {
-      pthread_mutex_lock(&share->mutex);
       if (share->dirty == TRUE)
       {
         DBUG_PRINT("ha_archive", ("archive flushing out rows for scan"));
         azflush(&(share->archive_write), Z_SYNC_FLUSH);
         share->dirty= FALSE;
       }
-      pthread_mutex_unlock(&share->mutex);
     }
+    pthread_mutex_unlock(&share->mutex);
 
     if (read_data_header(&archive))
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
