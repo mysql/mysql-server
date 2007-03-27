@@ -126,7 +126,7 @@ public:
 
   create_field m_return_field_def; /* This is used for FUNCTIONs only. */
 
-  const uchar *m_tmp_query;	// Temporary pointer to sub query string
+  const char *m_tmp_query;	// Temporary pointer to sub query string
   st_sp_chistics *m_chistics;
   ulong m_sql_mode;		// For SHOW CREATE and execution
   LEX_STRING m_qname;		// db.name
@@ -174,7 +174,7 @@ public:
   */
   HASH m_sroutines;
   // Pointers set during parsing
-  const uchar *m_param_begin, *m_param_end, *m_body_begin;
+  const char *m_param_begin, *m_param_end, *m_body_begin;
 
   /*
     Security context for stored routine which should be run under
