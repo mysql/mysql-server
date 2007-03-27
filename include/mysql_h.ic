@@ -638,7 +638,7 @@ extern TYPELIB * copy_typelib(MEM_ROOT * root, TYPELIB * from);
 # 415 "mysql_com.h"
 extern void create_random_string(char * to, unsigned int, struct rand_struct * rand_st);
 # 30 "typelib.h"
-extern int find_type(char * x, TYPELIB * typelib, unsigned int);
+extern int find_type(char * x, const TYPELIB * typelib, unsigned int);
 # 429 "mysql_com.h"
 extern void get_salt_from_password(unsigned char * res, char const * password);
 # 422 "mysql_com.h"
