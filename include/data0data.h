@@ -373,7 +373,7 @@ dtuple_convert_back_big_rec(
 				freed in this function */
 /******************************************************************
 Frees the memory in a big rec vector. */
-
+UNIV_INLINE
 void
 dtuple_big_rec_free(
 /*================*/
