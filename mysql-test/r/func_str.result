@@ -1953,5 +1953,14 @@ A	B	tire
 		0
 #	#	1
 ##	##	2
+SELECT REPEAT('0', CAST(0 AS UNSIGNED));
+REPEAT('0', CAST(0 AS UNSIGNED))
+
+SELECT REPEAT('0', -2);
+REPEAT('0', -2)
+
+SELECT REPEAT('0', 2);
+REPEAT('0', 2)
+00
 DROP TABLE t1;
 End of 5.0 tests
