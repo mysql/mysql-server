@@ -4695,6 +4695,12 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
         DBUG_RETURN(0);
       }
       break;
+    case MYSQL_TYPE_FLOAT:
+    case MYSQL_TYPE_DOUBLE:
+      if ((item= new Item_float(fields_info->field_name, 0.0, NOT_FIXED_DEC, 
+                           fields_info->field_length)) == NULL)
+        DBUG_RETURN(NULL);
+      break;
     case MYSQL_TYPE_DECIMAL:
       if (!(item= new Item_decimal((longlong) fields_info->value, false)))
       {
@@ -4711,6 +4717,9 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
                      strlen(fields_info->field_name), cs);
       break;
     default:
+      /* Don't let unimplemented types pass through. Could be a grave error. */
+      DBUG_ASSERT(fields_info->field_type == MYSQL_TYPE_STRING);
+
       /* this should be changed when Item_empty_string is fixed(in 4.1) */
       if (!(item= new Item_empty_string("", 0, cs)))
       {
