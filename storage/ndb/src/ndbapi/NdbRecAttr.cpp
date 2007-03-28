@@ -50,20 +50,20 @@ NdbRecAttr::setup(const NdbColumnImpl* anAttrInfo, char* aValue)
   theAttrId = anAttrInfo->m_attrId;
   m_size_in_bytes = tAttrByteSize;
   theValue = aValue;
+  m_getVarValue = NULL; // set in getVarValue() only
 
   if (theStorageX)
     delete[] theStorageX;
+  theStorageX = NULL; // "safety first"
   
   // check alignment to signal data
   // a future version could check alignment per data type as well
   
   if (aValue != NULL && (UintPtr(aValue)&3) == 0 && (tAttrByteSize&3) == 0) {
-    theStorageX = NULL;
     theRef = aValue;
     return 0;
   }
   if (tAttrByteSize <= 32) {
-    theStorageX = NULL;
     theStorage[0] = 0;
     theStorage[1] = 0;
     theStorage[2] = 0;
@@ -120,10 +120,23 @@ NdbRecAttr::clone() const {
 }
 
 bool
-NdbRecAttr::receive_data(const Uint32 * data, Uint32 sz)
+NdbRecAttr::receive_data(const Uint32 * data32, Uint32 sz)
 {
+  const unsigned char* data = (const unsigned char*)data32;
   if(sz)
   {
+    if (unlikely(m_getVarValue != NULL)) {
+      // ONLY for blob V2 implementation
+      assert(m_column->getType() == NdbDictionary::Column::Longvarchar ||
+             m_column->getType() == NdbDictionary::Column::Longvarbinary);
+      assert(sz >= 2);
+      Uint32 len = data[0] + (data[1] << 8);
+      assert(len == sz - 2);
+      assert(len < (1 << 16));
+      *m_getVarValue = len;
+      data += 2;
+      sz -= 2;
+    }
     if(!copyoutRequired())
       memcpy(theRef, data, sz);
     else

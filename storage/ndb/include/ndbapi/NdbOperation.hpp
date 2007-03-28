@@ -1031,6 +1031,12 @@ protected:
   // Blobs in this operation
   NdbBlob* theBlobList;
 
+  // ONLY for blob V2 implementation (not virtual, only PK ops)
+  NdbRecAttr*
+  getVarValue(const NdbColumnImpl*, char* aBareValue, Uint16* aLenLoc);
+  int
+  setVarValue(const NdbColumnImpl*, const char* aBareValue, const Uint16&  aLen);
+
   /*
    * Abort option per operation, used by blobs.
    * See also comments on enum AbortOption.

@@ -357,7 +357,8 @@ public:
   NdbBlob *getBlobHandle(const char *colName, int n);
   NdbBlob *getBlobHandle(const NdbColumnImpl *, int n);
   Uint32 get_blob_part_no();
-  int readBlobParts(char* buf, NdbBlob* blob, Uint32 part, Uint32 count);
+  int readBlobParts(char* buf, NdbBlob* blob,
+                    Uint32 part, Uint32 count, Uint16* lenLoc);
   int receive_event();
   const bool tableNameChanged() const;
   const bool tableFrmChanged() const;
