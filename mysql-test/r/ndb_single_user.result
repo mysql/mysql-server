@@ -53,4 +53,7 @@ update t1 set b=b+100 where a=4;
 ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from ndbcluster
 COMMIT;
 ERROR HY000: Got error 4350 'Transaction already aborted' from ndbcluster
+create table t2 (a int) engine myisam;
+alter table t2 add column (b int);
+drop table t2;
 drop table t1;
