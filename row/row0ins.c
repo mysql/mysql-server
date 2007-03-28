@@ -275,8 +275,9 @@ row_ins_sec_index_entry_by_modify(
 		}
 
 		err = btr_cur_pessimistic_update(BTR_KEEP_SYS_FLAG, cursor,
-						 &dummy_big_rec, update,
+						 &heap, &dummy_big_rec, update,
 						 0, thr, mtr);
+		ut_ad(!dummy_big_rec);
 	}
 func_exit:
 	mem_heap_free(heap);
@@ -297,6 +298,7 @@ row_ins_clust_index_entry_by_modify(
 				depending on whether mtr holds just a leaf
 				latch or also a tree latch */
 	btr_cur_t*	cursor,	/* in: B-tree cursor */
+	mem_heap_t**	heap,	/* in/out: pointer to memory heap, or NULL */
 	big_rec_t**	big_rec,/* out: possible big rec vector of fields
 				which have to be stored externally by the
 				caller */
@@ -307,7 +309,6 @@ row_ins_clust_index_entry_by_modify(
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	mem_heap_t*	heap;
 	rec_t*		rec;
 	upd_t*		update;
 	ulint		err;
@@ -321,7 +322,9 @@ row_ins_clust_index_entry_by_modify(
 	ut_ad(rec_get_deleted_flag(rec,
 				   dict_table_is_comp(cursor->index->table)));
 
-	heap = mem_heap_create(1024);
+	if (!*heap) {
+		*heap = mem_heap_create(1024);
+	}
 
 	/* Build an update vector containing all the fields to be modified;
 	NOTE that this vector may NOT contain system columns trx_id or
@@ -329,7 +332,7 @@ row_ins_clust_index_entry_by_modify(
 
 	update = row_upd_build_difference_binary(cursor->index, entry, ext_vec,
 						 n_ext_vec, rec,
-						 thr_get_trx(thr), heap);
+						 thr_get_trx(thr), *heap);
 	if (mode == BTR_MODIFY_LEAF) {
 		/* Try optimistic updating of the record, keeping changes
 		within the page */
@@ -346,15 +349,13 @@ row_ins_clust_index_entry_by_modify(
 		ut_a(mode == BTR_MODIFY_TREE);
 		if (buf_LRU_buf_pool_running_out()) {
 
-			err = DB_LOCK_TABLE_FULL;
+			return(DB_LOCK_TABLE_FULL);
 
-			goto func_exit;
 		}
-		err = btr_cur_pessimistic_update(0, cursor, big_rec, update,
+		err = btr_cur_pessimistic_update(0, cursor,
+						 heap, big_rec, update,
 						 0, thr, mtr);
 	}
-func_exit:
-	mem_heap_free(heap);
 
 	return(err);
 }
@@ -2009,9 +2010,6 @@ row_ins_index_entry_low(
 	big_rec_t*	big_rec			= NULL;
 	mtr_t		mtr;
 	mem_heap_t*	heap			= NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets			= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	log_free_check();
 
@@ -2107,7 +2105,7 @@ row_ins_index_entry_low(
 
 		if (dict_index_is_clust(index)) {
 			err = row_ins_clust_index_entry_by_modify(
-				mode, &cursor, &big_rec, entry,
+				mode, &cursor, &heap, &big_rec, entry,
 				ext_vec, n_ext_vec, thr, &mtr);
 		} else {
 			ut_ad(!n_ext_vec);
@@ -2137,13 +2135,14 @@ function_exit:
 	mtr_commit(&mtr);
 
 	if (UNIV_LIKELY_NULL(big_rec)) {
-		rec_t*		rec;
+		rec_t*	rec;
+		ulint*	offsets;
 		mtr_start(&mtr);
 
 		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
 					    BTR_MODIFY_TREE, &cursor, 0, &mtr);
 		rec = btr_cur_get_rec(&cursor);
-		offsets = rec_get_offsets(rec, index, offsets,
+		offsets = rec_get_offsets(rec, index, NULL,
 					  ULINT_UNDEFINED, &heap);
 
 		err = btr_store_big_rec_extern_fields(
