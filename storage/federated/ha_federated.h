@@ -43,6 +43,8 @@
   The example implements the minimum of what you will probably need.
 */
 typedef struct st_federated_share {
+  MEM_ROOT mem_root;
+
   bool parsed;
   /* this key is unique db/tablename */
   const char *share_key;
@@ -67,6 +69,7 @@ typedef struct st_federated_share {
   char *sport;
   int share_key_length;
   ushort port;
+
   uint table_name_length, server_name_length, connect_string_length, use_count;
   pthread_mutex_t mutex;
   THR_LOCK lock;
