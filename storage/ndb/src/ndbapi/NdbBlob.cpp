@@ -334,8 +334,8 @@ NdbBlob::init()
   thePendingBlobOps = 0;
   theActiveHook = NULL;
   theActiveHookArg = NULL;
+  thePartLen = 0;
   theInlineData = NULL;
-  thePartData = NULL;
   theHeadInlineRecAttr = NULL;
   theHeadInlineReadOp = NULL;
   theHeadInlineUpdateFlag = false;
@@ -798,6 +798,53 @@ NdbBlob::setPartPkidValue(NdbOperation* anOp, Uint32 pkid)
 }
 
 int
+NdbBlob::getPartDataValue(NdbOperation* anOp, char* buf, Uint16* aLenLoc)
+{
+  DBUG_ENTER("NdbBlob::getPartDataValue");
+  assert(aLenLoc != NULL);
+  Uint32 bcNo = theBtColumnNo[BtColumnData];
+  if (unlikely(theBlobVersion == NDB_BLOB_V1)) {
+    if (anOp->getValue(bcNo, buf) == NULL) {
+      setErrorCode(anOp);
+      DBUG_RETURN(-1);
+    }
+    // in V1 length is full size and is not returned via NDB API
+    *aLenLoc = thePartSize;
+  } else {
+    const NdbColumnImpl* bc = theBlobTable->getColumn(bcNo);
+    assert(bc != NULL);
+    if (anOp->getVarValue(bc, buf, aLenLoc) == NULL) {
+      setErrorCode(anOp);
+      DBUG_RETURN(-1);
+    }
+    // in V2 length is set when next execute returns
+  }
+  DBUG_RETURN(0);
+}
+
+int
+NdbBlob::setPartDataValue(NdbOperation* anOp, const char* buf, const Uint16& aLen)
+{
+  DBUG_ENTER("NdbBlob::setPartDataValue");
+  assert(aLen != 0);
+  Uint32 bcNo = theBtColumnNo[BtColumnData];
+  if (unlikely(theBlobVersion == NDB_BLOB_V1)) {
+    if (anOp->setValue(bcNo, buf) == -1) {
+      setErrorCode(anOp);
+      DBUG_RETURN(-1);
+    }
+  } else {
+    const NdbColumnImpl* bc = theBlobTable->getColumn(bcNo);
+    assert(bc != NULL);
+    if (anOp->setVarValue(bc, buf, aLen) == -1) {
+      setErrorCode(anOp);
+      DBUG_RETURN(-1);
+    }
+  }
+  DBUG_RETURN(0);
+}
+
+int
 NdbBlob::getHeadInlineValue(NdbOperation* anOp)
 {
   DBUG_ENTER("NdbBlob::getHeadInlineValue");
@@ -1048,14 +1095,15 @@ NdbBlob::truncate(Uint64 length)
         Uint32 off = getPartOffset(length);
         if (off != 0) {
           assert(off < thePartSize);
-          if (readParts(thePartBuf.data, part1, 1) == -1)
+          Uint16 len = 0;
+          if (readPart(thePartBuf.data, part1, len) == -1)
             DBUG_RETURN(-1);
           if (executePendingBlobReads() == -1)
             DBUG_RETURN(-1);
-          DBUG_PRINT("info", ("part %u varsize old=%u new=%u",
-                              part1, getPartVarsize(thePartBuf.data), off));
-          setPartVarsize(thePartBuf.data, off);
-          if (updateParts(thePartBuf.data, part1, 1) == -1)
+          assert(len != 0);
+          DBUG_PRINT("info", ("part %u length old=%u new=%u",
+                              part1, (Uint32)len, off));
+          if (updatePart(thePartBuf.data, part1, off) == -1)
             DBUG_RETURN(-1);
         }
       }
@@ -1098,29 +1146,6 @@ NdbBlob::setPos(Uint64 pos)
   }
   thePos = pos;
   DBUG_RETURN(0);
-}
-
-// blob part length bytes
-
-inline Uint32
-NdbBlob::getPartVarsize(const char* buf)
-{
-  assert(theBlobVersion != NDB_BLOB_V1);
-  const unsigned char* p = (const unsigned char*)buf;
-  Uint32 sz = p[0] + (p[1] << 8);
-  assert(sz <= thePartSize);
-  return sz;
-}
-
-inline void
-NdbBlob::setPartVarsize(char* buf, Uint32 sz)
-{
-  assert(theBlobVersion != NDB_BLOB_V1);
-  unsigned char* p = (unsigned char*)buf;
-  p[0] = sz & 0xff;
-  p[1] = (sz >> 8) & 0xff;
-  assert(sz <= thePartSize);
-  assert(sz == getPartVarsize(buf));
 }
 
 // read/write
@@ -1171,21 +1196,17 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
     if (off != 0) {
       DBUG_PRINT("info", ("partial first block pos=%llu len=%u", pos, len));
       Uint32 part = (pos - theInlineSize) / thePartSize;
-      if (readParts(thePartBuf.data, part, 1) == -1)
+      Uint16 sz = 0;
+      if (readPart(thePartBuf.data, part, sz) == -1)
         DBUG_RETURN(-1);
       // need result now
       if (executePendingBlobReads() == -1)
         DBUG_RETURN(-1);
-      Uint32 n = thePartSize - off;
+      assert(sz >= off);
+      Uint32 n = sz - off;
       if (n > len)
         n = len;
-      if (unlikely(theBlobVersion == NDB_BLOB_V1))
-        ;
-      else {
-        Uint32 sz = getPartVarsize(thePartBuf.data);
-        assert(off + n <= sz);
-      }
-      memcpy(buf, thePartData + off, n);
+      memcpy(buf, thePartBuf.data + off, n);
       pos += n;
       buf += n;
       len -= n;
@@ -1197,39 +1218,12 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
     if (len >= thePartSize) {
       Uint32 part = (pos - theInlineSize) / thePartSize;
       Uint32 count = len / thePartSize;
-      if (unlikely(theBlobVersion == NDB_BLOB_V1)) {
-        if (readParts(buf, part, count) == -1)
-          DBUG_RETURN(-1);
-        Uint32 n = thePartSize * count;
-        pos += n;
-        buf += n;
-        len -= n;
-      } else {
-        /*
-         * wl3717_todo
-         * Currently in V2 the user buffer cannot be used directly
-         * and the reads cannot be parallelized or postponed.
-         * This is major lossage.
-         *
-         * Suggested fix is a new getValue() method which
-         * returns length bytes and data into separate buffers.
-         *
-         * Reading event data must be adjusted similarly.
-         */
-        for (unsigned i = 0; i < count; i++) {
-          if (readParts(thePartBuf.data, part + i, 1) == -1)
-            DBUG_RETURN(-1);
-          if (executePendingBlobReads() == -1)
-            DBUG_RETURN(-1);
-          Uint32 sz = getPartVarsize(thePartBuf.data);
-          assert(sz == thePartSize);
-          memcpy(buf, thePartData, thePartSize);
-          Uint32 n = thePartSize;
-          pos += n;
-          buf += n;
-          len -= n;
-        }
-      }
+      if (readParts(buf, part, count) == -1)
+        DBUG_RETURN(-1);
+      Uint32 n = thePartSize * count;
+      pos += n;
+      buf += n;
+      len -= n;
     }
   }
   if (len > 0) {
@@ -1237,18 +1231,14 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
     DBUG_PRINT("info", ("partial last block pos=%llu len=%u", pos, len));
     assert((pos - theInlineSize) % thePartSize == 0 && len < thePartSize);
     Uint32 part = (pos - theInlineSize) / thePartSize;
-    if (readParts(thePartBuf.data, part, 1) == -1)
+    Uint16 sz = 0;
+    if (readPart(thePartBuf.data, part, sz) == -1)
       DBUG_RETURN(-1);
     // need result now
     if (executePendingBlobReads() == -1)
       DBUG_RETURN(-1);
-    if (unlikely(theBlobVersion == NDB_BLOB_V1))
-      ;
-    else {
-      Uint32 sz = getPartVarsize(thePartBuf.data);
-      assert(len <= sz);
-    }
-    memcpy(buf, thePartData, len);
+    assert(len <= sz);
+    memcpy(buf, thePartBuf.data, len);
     Uint32 n = len;
     pos += n;
     buf += n;
@@ -1317,26 +1307,24 @@ NdbBlob::writeDataPrivate(const char* buf, Uint32 bytes)
       if (executePendingBlobWrites() == -1)
         DBUG_RETURN(-1);
       Uint32 part = (pos - theInlineSize) / thePartSize;
-      if (readParts(thePartBuf.data, part, 1) == -1)
+      Uint16 sz = 0;
+      if (readPart(thePartBuf.data, part, sz) == -1)
         DBUG_RETURN(-1);
       // need result now
       if (executePendingBlobReads() == -1)
         DBUG_RETURN(-1);
+      DBUG_PRINT("info", ("part len=%u", (Uint32)sz));
+      assert(sz >= off);
       Uint32 n = thePartSize - off;
       if (n > len)
         n = len;
-      if (unlikely(theBlobVersion == NDB_BLOB_V1))
-        // no need to set fill chars on existing part (bug#27018)
-        ;
-      else {
-        if (pos + n > theLength) {
-          // this is last part and we are extending it
-          Uint32 sz = off + n;
-          setPartVarsize(thePartBuf.data, sz);
-        }
+      Uint16 newsz = sz;
+      if (pos + n > theLength) {
+        // this is last part and we are extending it
+        newsz = off + n;
       }
-      memcpy(thePartData + off, buf, n);
-      if (updateParts(thePartBuf.data, part, 1) == -1)
+      memcpy(thePartBuf.data + off, buf, n);
+      if (updatePart(thePartBuf.data, part, newsz) == -1)
         DBUG_RETURN(-1);
       pos += n;
       buf += n;
@@ -1350,32 +1338,11 @@ NdbBlob::writeDataPrivate(const char* buf, Uint32 bytes)
       Uint32 part = (pos - theInlineSize) / thePartSize;
       Uint32 count = len / thePartSize;
       for (unsigned i = 0; i < count; i++) {
-        const char* tmpbuf;
-        if (unlikely(theBlobVersion == NDB_BLOB_V1)) {
-          tmpbuf = buf;
-        } else {
-          /*
-           * wl3717_todo
-           * Currently in V2 the user buffer cannot be used directly.
-           * The writes are still parallelized and can be postponed.
-           * This is minor lossage.
-           *
-           * However this relies on data being converted to signals
-           * immediately which is not true after NdbRecord.
-           *
-           * Suggested fix is a new setValue() method which takes
-           * variable length and data buffer separately.
-           */
-          Uint32 sz = thePartSize;
-          setPartVarsize(thePartBuf.data, sz);
-          memcpy(thePartData, buf, thePartSize);
-          tmpbuf = thePartBuf.data;
-        }
         if (part + i < getPartCount()) {
-          if (updateParts(tmpbuf, part + i, 1) == -1)
+          if (updateParts(buf, part + i, 1) == -1)
             DBUG_RETURN(-1);
         } else {
-          if (insertParts(tmpbuf, part + i, 1) == -1)
+          if (insertParts(buf, part + i, 1) == -1)
             DBUG_RETURN(-1);
         }
         Uint32 n = thePartSize;
@@ -1394,28 +1361,27 @@ NdbBlob::writeDataPrivate(const char* buf, Uint32 bytes)
       // flush writes to guarantee correct read
       if (executePendingBlobWrites() == -1)
         DBUG_RETURN(-1);
-      if (readParts(thePartBuf.data, part, 1) == -1)
+      Uint16 sz = 0;
+      if (readPart(thePartBuf.data, part, sz) == -1)
         DBUG_RETURN(-1);
       // need result now
       if (executePendingBlobReads() == -1)
         DBUG_RETURN(-1);
-      // keep old part varsize (in V2)
-      memcpy(thePartData, buf, len);
-      if (updateParts(thePartBuf.data, part, 1) == -1)
+      memcpy(thePartBuf.data, buf, len);
+      // no length change
+      if (updatePart(thePartBuf.data, part, sz) == -1)
         DBUG_RETURN(-1);
     } else {
-      memcpy(thePartData, buf, len);
+      memcpy(thePartBuf.data, buf, len);
       if (unlikely(theBlobVersion == NDB_BLOB_V1)) {
-        memset(thePartData + len, theFillChar, thePartSize - len);
-      } else {
-        Uint32 sz = len;
-        setPartVarsize(thePartBuf.data, sz);
+        memset(thePartBuf.data + len, theFillChar, thePartSize - len);
       }
+      Uint16 sz = len;
       if (part < getPartCount()) {
-        if (updateParts(thePartBuf.data, part, 1) == -1)
+        if (updatePart(thePartBuf.data, part, sz) == -1)
           DBUG_RETURN(-1);
       } else {
-        if (insertParts(thePartBuf.data, part, 1) == -1)
+        if (insertPart(thePartBuf.data, part, sz) == -1)
           DBUG_RETURN(-1);
       }
     }
@@ -1434,17 +1400,43 @@ NdbBlob::writeDataPrivate(const char* buf, Uint32 bytes)
   DBUG_RETURN(0);
 }
 
+/*
+ * Operations on parts.
+ *
+ * - multi-part read/write operates only on full parts
+ * - single-part read/write uses length
+ * - single-part read requires caller to exec pending ops
+ */
+
 int
 NdbBlob::readParts(char* buf, Uint32 part, Uint32 count)
 {
   DBUG_ENTER("NdbBlob::readParts");
   DBUG_PRINT("info", ("part=%u count=%u", part, count));
-  int ret;
-  if (theEventBlobVersion == -1)
-    ret = readTableParts(buf, part, count);
-  else
-    ret = readEventParts(buf, part, count);
-  DBUG_RETURN(ret);
+  if (theEventBlobVersion == -1) {
+    if (readTableParts(buf, part, count) == -1)
+      DBUG_RETURN(-1);
+  } else {
+    if (readEventParts(buf, part, count) == -1)
+      DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
+}
+
+int
+NdbBlob::readPart(char* buf, Uint32 part, Uint16& len)
+{
+  DBUG_ENTER("NdbBlob::readPart");
+  DBUG_PRINT("info", ("part=%u", part));
+  if (theEventBlobVersion == -1) {
+    if (readTablePart(buf, part, len) == -1)
+      DBUG_RETURN(-1);
+  } else {
+    if (readEventPart(buf, part, len) == -1)
+      DBUG_RETURN(-1);
+  }
+  DBUG_PRINT("info", ("part=%u len=%u", part, (Uint32)len));
+  DBUG_RETURN(0);
 }
 
 int
@@ -1453,20 +1445,29 @@ NdbBlob::readTableParts(char* buf, Uint32 part, Uint32 count)
   DBUG_ENTER("NdbBlob::readTableParts");
   Uint32 n = 0;
   while (n < count) {
-    NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTable);
-    if (tOp == NULL ||
-        tOp->committedRead() == -1 ||
-        setPartKeyValue(tOp, part + n) == -1 ||
-        tOp->getValue(theBtColumnNo[BtColumnData], buf) == NULL) {
-      setErrorCode(tOp);
+    // length is not checked but a non-stack buffer is needed
+    if (readTablePart(buf + n * thePartSize, part + n, thePartLen) == -1)
       DBUG_RETURN(-1);
-    }
-    tOp->m_abortOption = NdbOperation::AbortOnError;
-    buf += thePartSize;
     n++;
-    thePendingBlobOps |= (1 << NdbOperation::ReadRequest);
-    theNdbCon->thePendingBlobOps |= (1 << NdbOperation::ReadRequest);
   }
+  DBUG_RETURN(0);
+}
+
+int
+NdbBlob::readTablePart(char* buf, Uint32 part, Uint16& len)
+{
+  DBUG_ENTER("NdbBlob::readTablePart");
+  NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTable);
+  if (tOp == NULL ||
+      tOp->committedRead() == -1 ||
+      setPartKeyValue(tOp, part) == -1 ||
+      getPartDataValue(tOp, buf, &len) == -1) {
+    setErrorCode(tOp);
+    DBUG_RETURN(-1);
+  }
+  tOp->m_abortOption = NdbOperation::AbortOnError;
+  thePendingBlobOps |= (1 << NdbOperation::ReadRequest);
+  theNdbCon->thePendingBlobOps |= (1 << NdbOperation::ReadRequest);
   DBUG_RETURN(0);
 }
 
@@ -1474,8 +1475,19 @@ int
 NdbBlob::readEventParts(char* buf, Uint32 part, Uint32 count)
 {
   DBUG_ENTER("NdbBlob::readEventParts");
-  int ret = theEventOp->readBlobParts(buf, this, part, count);
-  if (ret != 0) {
+  // length not asked for - event code checks each part is full
+  if (theEventOp->readBlobParts(buf, this, part, count, (Uint16*)0) == -1) {
+    setErrorCode(theEventOp);
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
+}
+
+int
+NdbBlob::readEventPart(char* buf, Uint32 part, Uint16& len)
+{
+  DBUG_ENTER("NdbBlob::readEventPart");
+  if (theEventOp->readBlobParts(buf, this, part, 1, &len) == -1) {
     setErrorCode(theEventOp);
     DBUG_RETURN(-1);
   }
@@ -1489,21 +1501,32 @@ NdbBlob::insertParts(const char* buf, Uint32 part, Uint32 count)
   DBUG_PRINT("info", ("part=%u count=%u", part, count));
   Uint32 n = 0;
   while (n < count) {
-    NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTable);
-    if (tOp == NULL ||
-        tOp->insertTuple() == -1 ||
-        setPartKeyValue(tOp, part + n) == -1 ||
-        setPartPkidValue(tOp, theHead.pkid) == -1 ||
-        tOp->setValue(theBtColumnNo[BtColumnData], buf) == -1) {
-      setErrorCode(tOp);
+    // use non-stack variable for safety
+    thePartLen = thePartSize;
+    if (insertPart(buf + n * thePartSize, part + n, thePartLen) == -1)
       DBUG_RETURN(-1);
-    }
-    tOp->m_abortOption = NdbOperation::AbortOnError;
-    buf += thePartSize;
     n++;
-    thePendingBlobOps |= (1 << NdbOperation::InsertRequest);
-    theNdbCon->thePendingBlobOps |= (1 << NdbOperation::InsertRequest);
   }
+  DBUG_RETURN(0);
+}
+
+int
+NdbBlob::insertPart(const char* buf, Uint32 part, const Uint16& len)
+{
+  DBUG_ENTER("NdbBlob::insertPart");
+  DBUG_PRINT("info", ("part=%u len=%u", part, (Uint32)len));
+  NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTable);
+  if (tOp == NULL ||
+      tOp->insertTuple() == -1 ||
+      setPartKeyValue(tOp, part) == -1 ||
+      setPartPkidValue(tOp, theHead.pkid) == -1 ||
+      setPartDataValue(tOp, buf, len) == -1) {
+    setErrorCode(tOp);
+    DBUG_RETURN(-1);
+  }
+  tOp->m_abortOption = NdbOperation::AbortOnError;
+  thePendingBlobOps |= (1 << NdbOperation::InsertRequest);
+  theNdbCon->thePendingBlobOps |= (1 << NdbOperation::InsertRequest);
   DBUG_RETURN(0);
 }
 
@@ -1514,21 +1537,32 @@ NdbBlob::updateParts(const char* buf, Uint32 part, Uint32 count)
   DBUG_PRINT("info", ("part=%u count=%u", part, count));
   Uint32 n = 0;
   while (n < count) {
-    NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTable);
-    if (tOp == NULL ||
-        tOp->updateTuple() == -1 ||
-        setPartKeyValue(tOp, part + n) == -1 ||
-        setPartPkidValue(tOp, theHead.pkid) == -1 ||
-        tOp->setValue(theBtColumnNo[BtColumnData], buf) == -1) {
-      setErrorCode(tOp);
+    // use non-stack variable for safety
+    thePartLen = thePartSize;
+    if (updatePart(buf + n * thePartSize, part + n, thePartLen) == -1)
       DBUG_RETURN(-1);
-    }
-    tOp->m_abortOption = NdbOperation::AbortOnError;
-    buf += thePartSize;
     n++;
-    thePendingBlobOps |= (1 << NdbOperation::UpdateRequest);
-    theNdbCon->thePendingBlobOps |= (1 << NdbOperation::UpdateRequest);
   }
+  DBUG_RETURN(0);
+}
+
+int
+NdbBlob::updatePart(const char* buf, Uint32 part, const Uint16& len)
+{
+  DBUG_ENTER("NdbBlob::updatePart");
+  DBUG_PRINT("info", ("part=%u len=%u", part, (Uint32)len));
+  NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTable);
+  if (tOp == NULL ||
+      tOp->updateTuple() == -1 ||
+      setPartKeyValue(tOp, part) == -1 ||
+      setPartPkidValue(tOp, theHead.pkid) == -1 ||
+      setPartDataValue(tOp, buf, len) == -1) {
+    setErrorCode(tOp);
+    DBUG_RETURN(-1);
+  }
+  tOp->m_abortOption = NdbOperation::AbortOnError;
+  thePendingBlobOps |= (1 << NdbOperation::UpdateRequest);
+  theNdbCon->thePendingBlobOps |= (1 << NdbOperation::UpdateRequest);
   DBUG_RETURN(0);
 }
 
@@ -1931,8 +1965,8 @@ NdbBlob::prepareColumn()
   thePackKeyBuf.alloc(max(theTable->m_keyLenInWords, theAccessTable->m_keyLenInWords) << 2);
   theHeadInlineBuf.alloc(theHeadSize + theInlineSize);
   theInlineData = theHeadInlineBuf.data + theHeadSize;
-  thePartBuf.alloc(theVarsizeBytes + thePartSize);
-  thePartData = thePartBuf.data + theVarsizeBytes;
+  // no length bytes
+  thePartBuf.alloc(thePartSize);
   DBUG_RETURN(0);
 }
 
@@ -2370,19 +2404,6 @@ NdbBlob::setErrorCode(NdbOperation* anOp, bool invalidFlag)
 }
 
 void
-NdbBlob::setErrorCode(NdbTransaction* aCon, bool invalidFlag)
-{
-  int code = 0;
-  if (theNdbCon != NULL && (code = theNdbCon->theError.code) != 0)
-    ;
-  else if ((code = theNdb->theError.code) != 0)
-    ;
-  else
-    code = NdbBlobImpl::ErrUnknown;
-  setErrorCode(code, invalidFlag);
-}
-
-void
 NdbBlob::setErrorCode(NdbEventOperationImpl* anOp, bool invalidFlag)
 {
   int code = 0;
@@ -2406,26 +2427,3 @@ NdbBlob::blobsNextBlob()
 {
   return theNext;
 }
-
-// debug
-
-#ifdef VM_TRACE
-inline int
-NdbBlob::getOperationType() const
-{
-  return theNdbOp != NULL ? theNdbOp->theOperationType : -1;
-}
-
-NdbOut&
-operator<<(NdbOut& out, const NdbBlob& blob)
-{
-  ndbout << dec << "o=" << blob.getOperationType();
-  ndbout << dec << " s=" << (Uint32) blob.theState;
-  ndbout << dec << " n=" << blob.theNullFlag;;
-  ndbout << dec << " l=" << blob.theLength;
-  ndbout << dec << " p=" << blob.thePos;
-  ndbout << dec << " u=" << (Uint32)blob.theHeadInlineUpdateFlag;
-  ndbout << dec << " g=" << (Uint32)blob.theGetSetBytes;
-  return out;
-}
-#endif

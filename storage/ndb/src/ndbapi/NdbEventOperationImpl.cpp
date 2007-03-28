@@ -487,7 +487,7 @@ NdbEventOperationImpl::get_blob_part_no()
 
 int
 NdbEventOperationImpl::readBlobParts(char* buf, NdbBlob* blob,
-                                     Uint32 part, Uint32 count)
+                                     Uint32 part, Uint32 count, Uint16* lenLoc)
 {
   DBUG_ENTER_EVENT("NdbEventOperationImpl::readBlobParts");
   DBUG_PRINT_EVENT("info", ("part=%u count=%u post/pre=%d",
@@ -521,7 +521,7 @@ NdbEventOperationImpl::readBlobParts(char* buf, NdbBlob* blob,
     /*
      * Hack part no directly out of buffer since it is not returned
      * in pre data (PK buglet).  For part data use receive_event().
-     * This means extra copy.
+     * This means extra copy. XXX fix
      */
     blob_op->m_data_item = data;
     int r = blob_op->receive_event();
@@ -529,28 +529,29 @@ NdbEventOperationImpl::readBlobParts(char* buf, NdbBlob* blob,
     // XXX should be: no = blob->theBlobEventPartValue
     Uint32 no = blob_op->get_blob_part_no();
 
-    /*
-     * wl3717_todo
-     * NdbBlob::readData V2 wants one part at a time, including
-     * length bytes.  This will be fixed later.
-     */
-    const char* src = blob->theBlobEventDataBuf.data;
-    Uint32 sz = 0;
-    if (unlikely(blob_op->theBlobVersion == 1)) {
-      sz = blob->thePartSize;
-    } else {
-      const uchar* p = (const uchar*)blob->theBlobEventDataBuf.data;
-      sz = 2 + p[0] + (p[1] << 8);
-      assert(count == 1);
-    }
-
     DBUG_PRINT_EVENT("info", ("part_data=%p part no=%u part sz=%u", data, no, sz));
 
     if (part <= no && no < part + count)
     {
       DBUG_PRINT_EVENT("info", ("part within read range"));
+
+      const char* src = blob->theBlobEventDataBuf.data;
+      Uint32 sz = 0;
+      if (unlikely(blob_op->theBlobVersion == 1)) {
+        sz = blob->thePartSize;
+      } else {
+        const uchar* p = (const uchar*)blob->theBlobEventDataBuf.data;
+        sz = p[0] + (p[1] << 8);
+        src += 2;
+      }
       memcpy(buf + (no - part) * sz, src, sz);
       nparts++;
+      if (lenLoc != NULL) {
+        assert(count == 1);
+        *lenLoc = sz;
+      } else {
+        assert(sz == blob->thePartSize);
+      }
     }
     else
     {

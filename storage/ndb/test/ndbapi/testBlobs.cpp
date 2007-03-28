@@ -117,7 +117,7 @@ printusage()
     << "  -batch N    number of pk ops in batch [" << d.m_batch << "]" << endl
     << "  -core       dump core on error" << endl
     << "  -dbg        print program debug" << endl
-    << "  -debug opt  print program debug and ndb api DBUG" << endl
+    << "  -debug opt  also ndb api DBUG (if no ':' becomes d:t:F:L:o,opt)" << endl
     << "  -fac        fetch across commit in scan delete [" << d.m_fac << "]" << endl
     << "  -full       read/write only full blob values" << endl
     << "  -loop N     loop N times 0=forever [" << d.m_loop << "]" << endl
@@ -306,12 +306,14 @@ createTable()
 // tuples
 
 struct Bval {
+  const Bcol& m_bcol;
   char* m_val;
   unsigned m_len;
   char* m_buf; // read/write buffer
   unsigned m_buflen;
   int m_error_code; // for testing expected error code
-  Bval() :
+  Bval(const Bcol& bcol) :
+    m_bcol(bcol),
     m_val(0),
     m_len(0),
     m_buf(0),
@@ -347,8 +349,13 @@ operator<<(NdbOut& out, const Bval& v)
 {
   if (g_opt.m_min && v.m_val != 0) {
     out << "[" << v.m_len << "]";
-    for (uint i = 0; i < v.m_len; i++)
+    for (uint i = 0; i < v.m_len; i++) {
+      const Bcol& b = v.m_bcol;
+      if (i == b.m_inline ||
+          (i > b.m_inline && (i - b.m_inline) % b.m_partsize == 0))
+        out.print("|");
       out.print("%c", v.m_val[i]);
+    }
   }
   return out;
 }
@@ -360,7 +367,9 @@ struct Tup {
   Bval m_blob1;
   Bval m_blob2;
   Tup() :
-    m_exists(false)
+    m_exists(false),
+    m_blob1(g_opt.m_blob1),
+    m_blob2(g_opt.m_blob2)
     {}
   ~Tup() { }
   // alloc buffers of max size
@@ -570,7 +579,7 @@ writeBlobData(NdbBlob* h, const Bval& v)
   bool null = (v.m_val == 0);
   bool isNull;
   unsigned len;
-  DBG("write " <<  h->getColumn()->getName() << " len=" << v.m_len << " null=" << null);
+  DBG("write " <<  h->getColumn()->getName() << " len=" << v.m_len << " null=" << null << " " << v);
   int error_code = v.m_error_code;
   if (null) {
     CHK(h->setNull() == 0 || h->getNdbError().code == error_code);
@@ -839,6 +848,7 @@ verifyBlobTable(const Bcol& b, const Bval& v, Uint32 pk1, bool exists)
       ;
     else {
       unsigned sz = getvarsize(data);
+      DBG("varsize " << sz);
       CHK(sz <= b.m_partsize);
       data += 2;
       if (part + 1 < partcount)
@@ -2080,6 +2090,13 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
   if (g_opt.m_debug != 0) {
+    if (strchr(g_opt.m_debug, ':') == 0) {
+      const char* s = "d:t:F:L:o,";
+      char* t = new char [strlen(s) + strlen(g_opt.m_debug) + 1];
+      strcpy(t, s);
+      strcat(t, g_opt.m_debug);
+      g_opt.m_debug = t;
+    }
     DBUG_PUSH(g_opt.m_debug);
     ndbout.m_out = new FileOutputStream(DBUG_FILE);
   }

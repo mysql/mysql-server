@@ -355,13 +355,13 @@ private:
   Buf theHeadInlineBuf;
   Buf theHeadInlineCopyBuf;     // for writeTuple
   Buf thePartBuf;
+  Uint16 thePartLen;
   Buf theBlobEventDataBuf;
   Uint32 theBlobEventDistValue;
   Uint32 theBlobEventPartValue;
   Uint32 theBlobEventPkidValue;
   Head theHead;
   char* theInlineData;
-  char* thePartData;
   NdbRecAttr* theHeadInlineRecAttr;
   NdbOperation* theHeadInlineReadOp;
   bool theHeadInlineUpdateFlag;
@@ -405,19 +405,24 @@ private:
   int setAccessKeyValue(NdbOperation* anOp);
   int setPartKeyValue(NdbOperation* anOp, Uint32 part);
   int setPartPkidValue(NdbOperation* anOp, Uint32 pkid);
+  int getPartDataValue(NdbOperation* anOp, char* buf, Uint16* aLenLoc);
+  int setPartDataValue(NdbOperation* anOp, const char* buf, const Uint16& aLen);
   int getHeadInlineValue(NdbOperation* anOp);
   void getHeadFromRecAttr();
   int setHeadInlineValue(NdbOperation* anOp);
   // data operations
-  Uint32 getPartVarsize(const char* buf);
-  void setPartVarsize(char* buf, Uint32 sz);
   int readDataPrivate(char* buf, Uint32& bytes);
   int writeDataPrivate(const char* buf, Uint32 bytes);
   int readParts(char* buf, Uint32 part, Uint32 count);
+  int readPart(char* buf, Uint32 part, Uint16& len);
   int readTableParts(char* buf, Uint32 part, Uint32 count);
+  int readTablePart(char* buf, Uint32 part, Uint16& len);
   int readEventParts(char* buf, Uint32 part, Uint32 count);
+  int readEventPart(char* buf, Uint32 part, Uint16& len);
   int insertParts(const char* buf, Uint32 part, Uint32 count);
+  int insertPart(const char* buf, Uint32 part, const Uint16& len);
   int updateParts(const char* buf, Uint32 part, Uint32 count);
+  int updatePart(const char* buf, Uint32 part, const Uint16& len);
   int deleteParts(Uint32 part, Uint32 count);
   int deletePartsUnknown(Uint32 part);
   // pending ops
@@ -437,12 +442,7 @@ private:
   // errors
   void setErrorCode(int anErrorCode, bool invalidFlag = false);
   void setErrorCode(NdbOperation* anOp, bool invalidFlag = false);
-  void setErrorCode(NdbTransaction* aCon, bool invalidFlag = false);
   void setErrorCode(NdbEventOperationImpl* anOp, bool invalidFlag = false);
-#ifdef VM_TRACE
-  int getOperationType() const;
-  friend class NdbOut& operator<<(NdbOut&, const NdbBlob&);
-#endif
   // list stuff
   void next(NdbBlob* obj) { theNext= obj;}
   NdbBlob* next() { return theNext;}
