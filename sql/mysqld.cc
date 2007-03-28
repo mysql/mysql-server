@@ -599,7 +599,6 @@ pthread_mutex_t  LOCK_server_started;
 pthread_cond_t  COND_server_started;
 
 int mysqld_server_started= 0;
-static uint thr_kill_signal;
 
 File_parser_dummy_hook file_parser_dummy_hook;
 
@@ -633,6 +632,7 @@ struct rand_struct sql_rand; // used by sql_class.cc:THD::THD()
 #ifndef EMBEDDED_LIBRARY
 struct passwd *user_info;
 static pthread_t select_thread;
+static uint thr_kill_signal;
 #endif
 
 /* OS specific variables */
