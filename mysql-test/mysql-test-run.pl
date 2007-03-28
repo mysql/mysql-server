@@ -2798,10 +2798,7 @@ sub initialize_servers () {
     }
     else
     {
-      if ($opt_verbose)
-      {
-	mtr_report("No need to create '$opt_vardir' it already exists");
-      }
+      mtr_verbose("No need to create '$opt_vardir' it already exists");
     }
   }
   else
