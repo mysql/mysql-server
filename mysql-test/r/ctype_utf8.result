@@ -854,6 +854,18 @@ select * from t1 where soundex(a) = soundex('test');
 id	a
 1	Test
 drop table t1;
+select soundex(_utf8 0xE99885E8A788E99A8FE697B6E69BB4E696B0E79A84E696B0E997BB);
+soundex(_utf8 0xE99885E8A788E99A8FE697B6E69BB4E696B0E79A84E696B0E997BB)
+阅000
+select hex(soundex(_utf8 0xE99885E8A788E99A8FE697B6E69BB4E696B0E79A84E696B0E997BB));
+hex(soundex(_utf8 0xE99885E8A788E99A8FE697B6E69BB4E696B0E79A84E696B0E997BB))
+E99885303030
+select soundex(_utf8 0xD091D092D093);
+soundex(_utf8 0xD091D092D093)
+Б000
+select hex(soundex(_utf8 0xD091D092D093));
+hex(soundex(_utf8 0xD091D092D093))
+D091303030
 SET collation_connection='utf8_general_ci';
 create table t1 select repeat('a',4000) a;
 delete from t1;
