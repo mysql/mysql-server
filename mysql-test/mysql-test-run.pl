@@ -849,20 +849,22 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Check im suport
   # --------------------------------------------------------------------------
-  if (!$opt_extern)
+  if ($opt_extern)
   {
-    if ( $mysql_version_id < 50000 ) {
-      # Instance manager is not supported until 5.0
-      $opt_skip_im= 1;
-
-    }
-
-    if ( $glob_win32 ) {
-      mtr_report("Disable Instance manager - not supported on Windows");
-      $opt_skip_im= 1;
-    }
-
+    mtr_report("Disable instance manager when running with extern mysqld");
+    $opt_skip_im= 1;
   }
+  elsif ( $mysql_version_id < 50000 )
+  {
+    # Instance manager is not supported until 5.0
+    $opt_skip_im= 1;
+  }
+  elsif ( $glob_win32 )
+  {
+    mtr_report("Disable Instance manager - testing not supported on Windows");
+    $opt_skip_im= 1;
+  }
+
   # --------------------------------------------------------------------------
   # Record flag
   # --------------------------------------------------------------------------
@@ -1055,8 +1057,6 @@ sub command_line_setup () {
   # UNIX domain socket's path far below PATH_MAX, so try to avoid long
   # socket path names.
   $sockdir = tempdir(CLEANUP => 0) if ( length($sockdir) > 80 );
-
-  # Put this into a hash, will be a C struct
 
   $master->[0]=
   {
@@ -1329,7 +1329,7 @@ sub collect_mysqld_features () {
 
   #
   # Execute "mysqld --no-defaults --help --verbose" to get a
-  # of all features and settings
+  # list of all features and settings
   #
   my $list= `$exe_mysqld --no-defaults --verbose --help`;
 
@@ -1392,6 +1392,40 @@ sub collect_mysqld_features () {
 
 }
 
+
+sub run_query($$) {
+  my ($mysqld, $query)= @_;
+
+  my $args;
+  mtr_init_args(\$args);
+
+  mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--user=%s", $opt_user);
+  mtr_add_arg($args, "--port=%d", $mysqld->{'port'});
+  mtr_add_arg($args, "--socket=%s", $mysqld->{'path_sock'});
+  mtr_add_arg($args, "--silent"); # Tab separated output
+  mtr_add_arg($args, "-e '%s'", $query);
+
+  my $cmd= "$exe_mysql " . join(' ', @$args);
+  mtr_verbose("cmd: $cmd");
+  return `$cmd`;
+}
+
+
+sub collect_mysqld_features_from_running_server ()
+{
+  my $list= run_query($master->[0], "use mysql; SHOW VARIABLES");
+
+  foreach my $line (split('\n', $list))
+  {
+    # Put variables into hash
+    if ( $line =~ /^([\S]+)[ \t]+(.*?)\r?$/ )
+    {
+      print "$1=\"$2\"\n";
+      $mysqld_variables{$1}= $2;
+    }
+  }
+}
 
 sub executable_setup_im () {
 
@@ -1486,7 +1520,6 @@ sub executable_setup () {
   $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
   $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
   $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
-  $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
 
   if (!$opt_extern)
   {
