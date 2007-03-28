@@ -8793,12 +8793,12 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   
     enum enum_field_types type;
     /*
-      DATE/TIME fields have STRING_RESULT result type. To preserve
-      type they needed to be handled separately.
+      DATE/TIME and GEOMETRY fields have STRING_RESULT result type. 
+      To preserve type they needed to be handled separately.
     */
     if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
         type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE ||
-        type == MYSQL_TYPE_TIMESTAMP)
+        type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_GEOMETRY)
       new_field= item->tmp_table_field_from_field_type(table);
     /* 
       Make sure that the blob fits into a Field_varstring which has 
