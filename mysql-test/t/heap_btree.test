@@ -236,3 +236,4 @@ INSERT INTO t1 VALUES(NULL),(NULL);
 DROP TABLE t1;
 
 --echo End of 5.0 tests
+

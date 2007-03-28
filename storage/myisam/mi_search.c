@@ -926,11 +926,16 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
   /*
     Keys are compressed the following way:
 
-    prefix length    Packed length of prefix for the prev key. (1 or 3 bytes)
+    prefix length    Packed length of prefix common with prev key (1 or 3 bytes)
     for each key segment:
       [is null]        Null indicator if can be null (1 byte, zero means null)
       [length]         Packed length if varlength (1 or 3 bytes)
+      key segment      'length' bytes of key segment value
     pointer          Reference to the data file (last_keyseg->length).
+
+    get_key_length() is a macro. It gets the prefix length from 'page'
+    and puts it into 'length'. It increments 'page' by 1 or 3, depending
+    on the packed length of the prefix length.
   */
   get_key_length(length,page);
   if (length)
@@ -945,34 +950,44 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(0);                                 /* Wrong key */
     }
-    from=key;  from_end=key+length;
+    /* Key is packed against prev key, take prefix from prev key. */
+    from= key;
+    from_end= key + length;
   }
   else
   {
-    from=page; from_end=page_end;               /* Not packed key */
+    /* Key is not packed against prev key, take all from page buffer. */
+    from= page;
+    from_end= page_end;
   }
 
   /*
-    The trouble is that key is split in two parts:
-     The first part is in from ...from_end-1.
-     The second part starts at page
+    The trouble is that key can be split in two parts:
+      The first part (prefix) is in from .. from_end - 1.
+      The second part starts at page.
+    The split can be at every byte position. So we need to check for
+    the end of the first part before using every byte.
   */
   for (keyseg=keyinfo->seg ; keyseg->type ;keyseg++)
   {
     if (keyseg->flag & HA_NULL_PART)
     {
+      /* If prefix is used up, switch to rest. */
       if (from == from_end) { from=page;  from_end=page_end; }
       if (!(*key++ = *from++))
         continue;                               /* Null part */
     }
     if (keyseg->flag & (HA_VAR_LENGTH_PART | HA_BLOB_PART | HA_SPACE_PACK))
     {
-      /* Get length of dynamic length key part */
+      /* If prefix is used up, switch to rest. */
       if (from == from_end) { from=page;  from_end=page_end; }
+      /* Get length of dynamic length key part */
       if ((length= (*key++ = *from++)) == 255)
       {
+        /* If prefix is used up, switch to rest. */
         if (from == from_end) { from=page;  from_end=page_end; }
         length= (uint) ((*key++ = *from++)) << 8;
+        /* If prefix is used up, switch to rest. */
         if (from == from_end) { from=page;  from_end=page_end; }
         length+= (uint) ((*key++ = *from++));
       }
@@ -992,14 +1007,26 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
     key+=length;
     from+=length;
   }
+  /*
+    Last segment (type == 0) contains length of data pointer.
+    If we have mixed key blocks with data pointer and key block pointer,
+    we have to copy both.
+  */
   length=keyseg->length+nod_flag;
   if ((tmp=(uint) (from_end-from)) <= length)
   {
+    /* Remaining length is less or equal max possible length. */
     memcpy(key+tmp,page,length-tmp);            /* Get last part of key */
     *page_pos= page+length-tmp;
   }
   else
   {
+    /*
+      Remaining length is greater than max possible length.
+      This can happen only if we switched to the new key bytes already.
+      'page_end' is calculated with MI_MAX_KEY_BUFF. So it can be far
+      behind the real end of the key.
+    */
     if (from_end != page_end)
     {
       DBUG_PRINT("error",("Error when unpacking key"));
@@ -1007,6 +1034,7 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(0);                                 /* Error */
     }
+    /* Copy data pointer and, if appropriate, key block pointer. */
     memcpy((byte*) key,(byte*) from,(size_t) length);
     *page_pos= from+length;
   }
