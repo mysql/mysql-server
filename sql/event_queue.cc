@@ -749,7 +749,7 @@ Event_queue::dump_internal_status()
                                             mutex_last_attempted_lock_at_line);
   printf("WOC             : %s\n", waiting_on_cond? "YES":"NO");
 
-  TIME time;
+  MYSQL_TIME time;
   my_tz_UTC->gmt_sec_to_TIME(&time, next_activation_at);
   printf("Next activation : %04d-%02d-%02d %02d:%02d:%02d\n",
          time.year, time.month, time.day, time.hour, time.minute, time.second);
