@@ -5906,12 +5906,7 @@ unpack_row(RELAY_LOG_INFO const *rli,
         /*
           We only unpack the field if it was non-null
         */
-#ifndef DBUG_OFF
-        const char *const old_ptr= pack_ptr;
-#endif
         pack_ptr= f->unpack(f->ptr, pack_ptr);
-        DBUG_PRINT("debug", ("Unpacking field '%s' from %d bytes",
-                             f->field_name, pack_ptr - old_ptr));
       }
 
       bitmap_set_bit(rw_set, f->field_index);
