@@ -149,13 +149,25 @@ test-force-mem:
 
 test-bt:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	@PERL@ ./mysql-test-run.pl --force --comment=normal --report-features
+	@PERL@ ./mysql-test-run.pl --comment=normal --force --timer \
+	--skip-ndbcluster --report-features
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	@PERL@ ./mysql-test-run.pl --force --comment=ps --ps-protocol
+	@PERL@ ./mysql-test-run.pl  --comment=ps    --force --timer \
+	--skip-ndbcluster --ps-protocol
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	@PERL@ ./mysql-test-run.pl --comment=normal+rowrepl --force --timer \
+	--skip-ndbcluster --mysqld=--binlog-format=row
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	@PERL@ ./mysql-test-run.pl --comment=ps+rowrepl+NDB --force --timer \
+	--ps-protocol --mysqld=--binlog-format=row
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	@PERL@ ./mysql-test-run.pl --comment=NDB            --force --timer \
+	--with-ndbcluster-only
 
 test-bt-debug:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	@PERL@ ./mysql-test-run.pl --force --comment=debug --report-features
+	@PERL@ ./mysql-test-run.pl --comment=debug  --force --timer \
+	--skip-ndbcluster --skip-rpl --report-features
 
 # Keep these for a while
 test-pl:	test
