@@ -2769,6 +2769,7 @@ static int my_strnncoll_utf8_cs(CHARSET_INFO *cs,
   const uchar *te=t+tlen;
   int save_diff = 0;
   int diff;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
 
   while ( s < se && t < te )
   {
@@ -2812,6 +2813,7 @@ static int my_strnncollsp_utf8_cs(CHARSET_INFO *cs,
   const uchar *se= s+slen;
   const uchar *te= t+tlen;
   int save_diff = 0;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
   
   while ( s < se && t < te )
   {

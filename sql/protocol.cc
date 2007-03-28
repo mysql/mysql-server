@@ -961,7 +961,7 @@ bool Protocol_text::store(Field *field)
 */
 
 
-bool Protocol_text::store(TIME *tm)
+bool Protocol_text::store(MYSQL_TIME *tm)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -984,7 +984,7 @@ bool Protocol_text::store(TIME *tm)
 }
 
 
-bool Protocol_text::store_date(TIME *tm)
+bool Protocol_text::store_date(MYSQL_TIME *tm)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -1003,7 +1003,7 @@ bool Protocol_text::store_date(TIME *tm)
         we support 0-6 decimals for time.
 */
 
-bool Protocol_text::store_time(TIME *tm)
+bool Protocol_text::store_time(MYSQL_TIME *tm)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -1176,7 +1176,7 @@ bool Protocol_binary::store(Field *field)
 }
 
 
-bool Protocol_binary::store(TIME *tm)
+bool Protocol_binary::store(MYSQL_TIME *tm)
 {
   char buff[12],*pos;
   uint length;
@@ -1202,7 +1202,7 @@ bool Protocol_binary::store(TIME *tm)
   return packet->append(buff, length+1, PACKET_BUFFER_EXTRA_ALLOC);
 }
 
-bool Protocol_binary::store_date(TIME *tm)
+bool Protocol_binary::store_date(MYSQL_TIME *tm)
 {
   tm->hour= tm->minute= tm->second=0;
   tm->second_part= 0;
@@ -1210,7 +1210,7 @@ bool Protocol_binary::store_date(TIME *tm)
 }
 
 
-bool Protocol_binary::store_time(TIME *tm)
+bool Protocol_binary::store_time(MYSQL_TIME *tm)
 {
   char buff[13], *pos;
   uint length;

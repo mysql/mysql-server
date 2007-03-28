@@ -109,7 +109,8 @@ static char  *opt_password=0,*current_user=0,
              *lines_terminated=0, *enclosed=0, *opt_enclosed=0, *escaped=0,
              *where=0, *order_by=0,
              *opt_compatible_mode_str= 0,
-             *err_ptr= 0;
+             *err_ptr= 0,
+             *log_error_file= NULL;
 static char **defaults_argv= 0;
 static char compatible_mode_normal_str[255];
 static ulong opt_compatible_mode= 0;
@@ -120,7 +121,9 @@ static my_string opt_mysql_unix_port=0;
 static int   first_error=0;
 static DYNAMIC_STRING extended_row;
 #include <sslopt-vars.h>
-FILE  *md_result_file= 0;
+FILE *md_result_file= 0;
+FILE *stderror_file=0;
+
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
 #endif
@@ -307,6 +310,9 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"lock-tables", 'l', "Lock all tables for read.", (gptr*) &lock_tables,
    (gptr*) &lock_tables, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"log-error", OPT_ERROR_LOG_FILE, "Append warnings and errors to given file.",
+   (gptr*) &log_error_file, (gptr*) &log_error_file, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"master-data", OPT_MASTER_DATA,
    "This causes the binary log position and filename to be appended to the "
    "output. If equal to 1, will print it as a CHANGE MASTER command; if equal"
@@ -790,14 +796,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       break;
     }
   case (int) OPT_MYSQL_PROTOCOL:
-    {
-      if ((opt_protocol= find_type(argument, &sql_protocol_typelib,0)) <= 0)
-      {
-        fprintf(stderr, "Unknown option to protocol: %s\n", argument);
-        exit(1);
-      }
-      break;
-    }
+    opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
+                                    opt->name);
+    break;
   }
   return 0;
 }
@@ -4118,6 +4119,16 @@ int main(int argc, char **argv)
     free_resources(0);
     exit(exit_code);
   }
+
+  if (log_error_file)
+  {
+    if(!(stderror_file= freopen(log_error_file, "a+", stderr)))
+    {
+      free_resources(0);
+      exit(EX_MYSQLERR);
+    }
+  }
+
   if (connect_to_db(current_host, current_user, opt_password))
   {
     free_resources(0);
@@ -4181,5 +4192,9 @@ err:
   if (!path)
     write_footer(md_result_file);
   free_resources();
+
+  if (stderror_file)
+    fclose(stderror_file);
+
   return(first_error);
 } /* main */

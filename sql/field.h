@@ -98,7 +98,7 @@ public:
   virtual int  store(double nr)=0;
   virtual int  store(longlong nr, bool unsigned_val)=0;
   virtual int  store_decimal(const my_decimal *d)=0;
-  virtual int store_time(TIME *ltime, timestamp_type t_type);
+  virtual int store_time(MYSQL_TIME *ltime, timestamp_type t_type);
   virtual double val_real(void)=0;
   virtual longlong val_int(void)=0;
   virtual my_decimal *val_decimal(my_decimal *);
@@ -347,8 +347,8 @@ public:
   }
   void copy_from_tmp(int offset);
   uint fill_cache_field(struct st_cache_field *copy);
-  virtual bool get_date(TIME *ltime,uint fuzzydate);
-  virtual bool get_time(TIME *ltime);
+  virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  virtual bool get_time(MYSQL_TIME *ltime);
   virtual CHARSET_INFO *charset(void) const { return &my_charset_bin; }
   virtual CHARSET_INFO *sort_charset(void) const { return charset(); }
   virtual bool has_charset(void) const { return FALSE; }
@@ -564,7 +564,7 @@ public:
   int  store(const char *to, uint length, CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
-  int store_time(TIME *ltime, timestamp_type t_type);
+  int store_time(MYSQL_TIME *ltime, timestamp_type t_type);
   int  store_decimal(const my_decimal *);
   double val_real(void);
   longlong val_int(void);
@@ -907,8 +907,8 @@ public:
     longget(tmp,ptr);
     return tmp;
   }
-  bool get_date(TIME *ltime,uint fuzzydate);
-  bool get_time(TIME *ltime);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
   timestamp_auto_set_type get_auto_set_type() const;
 };
 
@@ -981,7 +981,7 @@ public:
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
-  int store_time(TIME *ltime, timestamp_type type);
+  int store_time(MYSQL_TIME *ltime, timestamp_type type);
   int reset(void) { ptr[0]=ptr[1]=ptr[2]=0; return 0; }
   double val_real(void);
   longlong val_int(void);
@@ -993,8 +993,8 @@ public:
   void sql_type(String &str) const;
   bool can_be_compared_as_longlong() const { return TRUE; }
   bool zero_pack() const { return 1; }
-  bool get_date(TIME *ltime,uint fuzzydate);
-  bool get_time(TIME *ltime);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
 };
 
 
@@ -1013,7 +1013,7 @@ public:
   enum_field_types type() const { return MYSQL_TYPE_TIME;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_INT24; }
   enum Item_result cmp_type () const { return INT_RESULT; }
-  int store_time(TIME *ltime, timestamp_type type);
+  int store_time(MYSQL_TIME *ltime, timestamp_type type);
   int store(const char *to,uint length,CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);
@@ -1021,9 +1021,9 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
-  bool get_date(TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
   bool send_binary(Protocol *protocol);
-  bool get_time(TIME *ltime);
+  bool get_time(MYSQL_TIME *ltime);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 3; }
@@ -1054,7 +1054,7 @@ public:
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
-  int store_time(TIME *ltime, timestamp_type type);
+  int store_time(MYSQL_TIME *ltime, timestamp_type type);
   int reset(void)
   {
     ptr[0]=ptr[1]=ptr[2]=ptr[3]=ptr[4]=ptr[5]=ptr[6]=ptr[7]=0;
@@ -1070,8 +1070,8 @@ public:
   void sql_type(String &str) const;
   bool can_be_compared_as_longlong() const { return TRUE; }
   bool zero_pack() const { return 1; }
-  bool get_date(TIME *ltime,uint fuzzydate);
-  bool get_time(TIME *ltime);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
 };
 
 
