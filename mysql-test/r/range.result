@@ -701,4 +701,32 @@ d8c4177d225791924.30714720
 d8c4177d2380fc201.39666693
 d8c4177d24ccef970.14957924
 DROP TABLE t1;
+create table t1 (
+c1  char(10), c2  char(10), c3  char(10), c4  char(10),
+c5  char(10), c6  char(10), c7  char(10), c8  char(10),
+c9  char(10), c10 char(10), c11 char(10), c12 char(10),
+c13 char(10), c14 char(10), c15 char(10), c16 char(10),
+index(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12,c13,c14,c15,c16)
+);
+insert into t1 (c1) values ('1'),('1'),('1'),('1');
+select * from t1 where
+c1 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
+and c2 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
+and c3 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
+and c4 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
+and c5 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
+and c6 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
+and c7 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
+and c8 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
+and c9 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
+and c10 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
+and c11 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
+and c12 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
+and c13 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
+and c14 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
+and c15 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
+and c16 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
+;
+c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16
+drop table t1;
 End of 4.1 tests
