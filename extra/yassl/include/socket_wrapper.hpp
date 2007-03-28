@@ -28,8 +28,9 @@
 
 #include <assert.h>
 
-#include "openssl/ssl.h"                        /* for socket_t */
-#if !defined(_WIN32) && !defined(_WIN64)
+#ifdef _WIN32
+    #include <winsock2.h>
+#else 
     #include <sys/time.h>
     #include <sys/types.h>
     #include <sys/socket.h>

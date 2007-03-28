@@ -39,7 +39,6 @@
 #include "coding.hpp"           // HexDecoder
 #include "helpers.hpp"          // for placement new hack
 #include <stdio.h>
-#include <assert.h>
 
 #ifdef _WIN32
     #include <windows.h>    // FindFirstFile etc..
