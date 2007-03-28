@@ -2274,8 +2274,10 @@ String *Item_func_repeat::val_str(String *str)
   if (args[0]->null_value || args[1]->null_value)
     goto err;				// string and/or delim are null
   null_value= 0;
-  if ((count <= 0) && !args[1]->unsigned_flag)	// For nicer SQL code
+
+  if (count <= 0 && (count == 0 || !args[1]->unsigned_flag))
     return &my_empty_string;
+
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   /* Bounds check on count:  If this is triggered, we will error. */
   if ((ulonglong) count > INT_MAX32)
