@@ -189,6 +189,7 @@ enum {  /* ERR Constants */
     ERR_TXT_STRING = 1,
     EVP_R_BAD_DECRYPT = 2
 };
+
 /*
   Allow type used by SSL_set_fd to be changed, default to int
   in order to be compatible with OpenSSL
