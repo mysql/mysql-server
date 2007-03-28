@@ -162,6 +162,8 @@ retry:
 #endif
 	}
 
+	UNIV_MEM_ALLOC(ret, n + sizeof(ut_mem_block_t));
+
 	((ut_mem_block_t*)ret)->size = n + sizeof(ut_mem_block_t);
 	((ut_mem_block_t*)ret)->magic_n = UT_MEM_MAGIC_N;
 
