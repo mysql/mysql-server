@@ -1115,4 +1115,30 @@ select repeat('a', cast(2 as unsigned int));
 select rpad('abc', cast(5 as unsigned integer), 'x');
 select lpad('abc', cast(5 as unsigned integer), 'x');
 
+
+#
+# Bug #25197 :repeat function returns null when using table field directly as count
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE `t1` (
+  `id` varchar(20) NOT NULL,
+  `tire` tinyint(3) unsigned NOT NULL,
+  PRIMARY KEY (`id`)
+);
+
+INSERT INTO `t1` (`id`, `tire`) VALUES ('A', 0), ('B', 1),('C', 2);
+
+SELECT REPEAT( '#', tire ) AS A,
+       REPEAT( '#', tire % 999 ) AS B, tire FROM `t1`;
+
+SELECT REPEAT('0', CAST(0 AS UNSIGNED));
+SELECT REPEAT('0', -2);
+SELECT REPEAT('0', 2);
+
+DROP TABLE t1;
+
 --echo End of 5.0 tests
