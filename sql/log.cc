@@ -283,7 +283,7 @@ err:
 #ifdef __NT__
 static int eventSource = 0;
 
-void setup_windows_event_source()
+static void setup_windows_event_source()
 {
   HKEY    hRegKey= NULL;
   DWORD   dwError= 0;
@@ -2228,7 +2228,7 @@ static bool test_if_number(register const char *str,
 } /* test_if_number */
 
 
-void print_buffer_to_file(enum loglevel level, const char *buffer)
+static void print_buffer_to_file(enum loglevel level, const char *buffer)
 {
   time_t skr;
   struct tm tm_tmp;
@@ -2325,23 +2325,15 @@ void MYSQL_LOG::signal_update()
 }
 
 #ifdef __NT__
-void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
-                                 uint length, int buffLen)
+static void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
+                                        uint length, int buffLen)
 {
   HANDLE event;
-  char   *buffptr;
-  LPCSTR *buffmsgptr;
+  char   *buffptr= buff;
   DBUG_ENTER("print_buffer_to_nt_eventlog");
 
-  buffptr= buff;
-  if (length > (uint)(buffLen-5))
-  {
-    char *newBuff= new char[length + 5];
-    strcpy(newBuff, buff);
-    buffptr= newBuff;
-  }
-  strmov(buffptr+length, "\r\n\r\n");
-  buffmsgptr= (LPCSTR*) &buffptr;               // Keep windows happy
+  /* Add ending CR/LF's to string, overwrite last chars if necessary */
+  strmov(buffptr+min(length, buffLen-5), "\r\n\r\n");
 
   setup_windows_event_source();
   if ((event= RegisterEventSource(NULL,"MySQL")))
@@ -2349,23 +2341,19 @@ void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
     switch (level) {
       case ERROR_LEVEL:
         ReportEvent(event, EVENTLOG_ERROR_TYPE, 0, MSG_DEFAULT, NULL, 1, 0,
-                    buffmsgptr, NULL);
+                    (LPCSTR*)&buffptr, NULL);
         break;
       case WARNING_LEVEL:
         ReportEvent(event, EVENTLOG_WARNING_TYPE, 0, MSG_DEFAULT, NULL, 1, 0,
-                    buffmsgptr, NULL);
+                    (LPCSTR*) &buffptr, NULL);
         break;
       case INFORMATION_LEVEL:
         ReportEvent(event, EVENTLOG_INFORMATION_TYPE, 0, MSG_DEFAULT, NULL, 1,
-                    0, buffmsgptr, NULL);
+                    0, (LPCSTR*) &buffptr, NULL);
         break;
     }
     DeregisterEventSource(event);
   }
-
-  /* if we created a string buffer, then delete it */
-  if (buffptr != buff)
-    delete[] buffptr;
 
   DBUG_VOID_RETURN;
 }
@@ -2404,7 +2392,7 @@ void vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
   uint length;
   DBUG_ENTER("vprint_msg_to_log");
 
-  length= my_vsnprintf(buff, sizeof(buff)-5, format, args);
+  length= my_vsnprintf(buff, sizeof(buff), format, args);
   print_buffer_to_file(level, buff);
 
 #ifdef __NT__
