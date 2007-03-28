@@ -839,6 +839,24 @@ lily
 river
 drop table t1;
 deallocate prepare stmt;
+set names latin1;
+set character_set_connection=ucs2;
+select soundex(''),soundex('he'),soundex('hello all folks'),soundex('#3556 in bugdb');
+soundex('')	soundex('he')	soundex('hello all folks')	soundex('#3556 in bugdb')
+	H000	H4142	I51231
+select hex(soundex('')),hex(soundex('he')),hex(soundex('hello all folks')),hex(soundex('#3556 in bugdb'));
+hex(soundex(''))	hex(soundex('he'))	hex(soundex('hello all folks'))	hex(soundex('#3556 in bugdb'))
+	0048003000300030	00480034003100340032	004900350031003200330031
+select 'mood' sounds like 'mud';
+'mood' sounds like 'mud'
+1
+select hex(soundex(_ucs2 0x041004110412));
+hex(soundex(_ucs2 0x041004110412))
+0410003000300030
+select hex(soundex(_ucs2 0x00BF00C0));
+hex(soundex(_ucs2 0x00BF00C0))
+00C0003000300030
+set names latin1;
 create table t1(a blob, b text charset utf8, c text charset ucs2);
 select data_type, character_octet_length, character_maximum_length
 from information_schema.columns where table_name='t1';

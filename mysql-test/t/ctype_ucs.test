@@ -573,6 +573,20 @@ drop table t1;
 deallocate prepare stmt;
 
 #
+# Bug#22638 SOUNDEX broken for international characters
+#
+set names latin1;
+set character_set_connection=ucs2;
+select soundex(''),soundex('he'),soundex('hello all folks'),soundex('#3556 in bugdb');
+select hex(soundex('')),hex(soundex('he')),hex(soundex('hello all folks')),hex(soundex('#3556 in bugdb'));
+select 'mood' sounds like 'mud';
+# Cyrillic A, BE, VE
+select hex(soundex(_ucs2 0x041004110412));
+# Make sure that "U+00BF INVERTED QUESTION MARK" is not considered as letter
+select hex(soundex(_ucs2 0x00BF00C0));
+set names latin1;
+
+#
 # Bug #14290: character_maximum_length for text fields
 #
 create table t1(a blob, b text charset utf8, c text charset ucs2);
