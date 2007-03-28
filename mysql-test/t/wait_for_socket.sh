@@ -61,7 +61,7 @@ fi
 
 ###########################################################################
 
-client_args="--silent --socket=$socket_path --connect_timeout=1 "
+client_args="--no-defaults --silent --socket=$socket_path --connect_timeout=1 "
 
 [ -n "$username" ] && client_args="$client_args --user=$username "
 [ -n "$password" ] && client_args="$client_args --password=$password "
