@@ -661,12 +661,6 @@ SELECT * FROM t1 GROUP by t1.a
 HAVING (MAX(t1.b) > (SELECT MAX(t2.b) FROM t2 WHERE t2.c < t1.c
 HAVING MAX(t2.b+t1.a) < 10));
 a	b	c
-SELECT a, AVG(b), (SELECT t.c FROM t1 AS t WHERE t1.a=t.a AND t.b=AVG(t1.b))
-AS test FROM t1 GROUP BY a;
-a	AVG(b)	test
-1	4.0000	NULL
-2	2.0000	k
-3	2.5000	NULL
 SELECT a,b,c FROM t1 WHERE b in (9,3,4) ORDER BY b,c;
 a	b	c
 1	3	c
