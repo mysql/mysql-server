@@ -16,6 +16,21 @@
 
 /*
   The servers are saved in the system table "servers"
+  
+  Currently, when the user performs an ALTER SERVER or a DROP SERVER
+  operation, it will cause all open tables which refer to the named
+  server connection to be flushed. This may cause some undesirable
+  behaviour with regard to currently running transactions. It is 
+  expected that the DBA knows what s/he is doing when s/he performs
+  the ALTER SERVER or DROP SERVER operation.
+  
+  TODO:
+  It is desirable for us to implement a callback mechanism instead where
+  callbacks can be registered for specific server protocols. The callback
+  will be fired when such a server name has been created/altered/dropped
+  or when statistics are to be gathered such as how many actual connections.
+  Storage engines etc will be able to make use of the callback so that
+  currently running transactions etc will not be disrupted.
 */
 
 #include "mysql_priv.h"
@@ -25,14 +40,42 @@
 #include "sp_head.h"
 #include "sp.h"
 
-static my_bool servers_load(THD *thd, TABLE_LIST *tables);
-HASH servers_cache;
-pthread_mutex_t servers_cache_mutex;                // To init the hash
-uint servers_cache_initialised=FALSE;
-/* Version of server table. incremented by servers_load */
-static uint servers_version=0;
+/*
+  We only use 1 mutex to guard the data structures - THR_LOCK_servers.
+  Read locked when only reading data and write-locked for all other access.
+*/
+
+static HASH servers_cache;
 static MEM_ROOT mem;
 static rw_lock_t THR_LOCK_servers;
+
+static bool get_server_from_table_to_cache(TABLE *table);
+
+/* insert functions */
+static int insert_server(THD *thd, FOREIGN_SERVER *server_options);
+static int insert_server_record(TABLE *table, FOREIGN_SERVER *server);
+static int insert_server_record_into_cache(FOREIGN_SERVER *server);
+static void prepare_server_struct_for_insert(LEX_SERVER_OPTIONS *server_options,
+                                             FOREIGN_SERVER *server);
+/* drop functions */ 
+static int delete_server_record(TABLE *table,
+                                char *server_name,
+                                int server_name_length);
+static int delete_server_record_in_cache(LEX_SERVER_OPTIONS *server_options);
+
+/* update functions */
+static void prepare_server_struct_for_update(LEX_SERVER_OPTIONS *server_options,
+                                             FOREIGN_SERVER *existing,
+                                             FOREIGN_SERVER *altered);
+static int update_server(THD *thd, FOREIGN_SERVER *existing, 
+					     FOREIGN_SERVER *altered);
+static int update_server_record(TABLE *table, FOREIGN_SERVER *server);
+static int update_server_record_in_cache(FOREIGN_SERVER *existing,
+                                         FOREIGN_SERVER *altered);
+/* utility functions */
+static void merge_server_struct(FOREIGN_SERVER *from, FOREIGN_SERVER *to);
+
+
 
 static byte *servers_cache_get_key(FOREIGN_SERVER *server, uint *length,
 			       my_bool not_used __attribute__((unused)))
@@ -45,6 +88,7 @@ static byte *servers_cache_get_key(FOREIGN_SERVER *server, uint *length,
   *length= (uint) server->server_name_length;
   DBUG_RETURN((byte*) server->server_name);
 }
+
 
 /*
   Initialize structures responsible for servers used in federated
@@ -65,34 +109,26 @@ static byte *servers_cache_get_key(FOREIGN_SERVER *server, uint *length,
     1	Could not initialize servers
 */
 
-my_bool servers_init(bool dont_read_servers_table)
+bool servers_init(bool dont_read_servers_table)
 {
   THD  *thd;
-  my_bool return_val= 0;
+  bool return_val= FALSE;
   DBUG_ENTER("servers_init");
 
   /* init the mutex */
-  if (pthread_mutex_init(&servers_cache_mutex, MY_MUTEX_INIT_FAST))
-    DBUG_RETURN(1);
-
   if (my_rwlock_init(&THR_LOCK_servers, NULL))
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
 
   /* initialise our servers cache */
   if (hash_init(&servers_cache, system_charset_info, 32, 0, 0,
                 (hash_get_key) servers_cache_get_key, 0, 0))
   {
-    return_val= 1; /* we failed, out of memory? */
+    return_val= TRUE; /* we failed, out of memory? */
     goto end;
   }
 
   /* Initialize the mem root for data */
   init_alloc_root(&mem, ACL_ALLOC_BLOCK_SIZE, 0);
-
-  /*
-    at this point, the cache is initialised, let it be known
-  */
-  servers_cache_initialised= TRUE;
 
   if (dont_read_servers_table)
     goto end;
@@ -101,7 +137,7 @@ my_bool servers_init(bool dont_read_servers_table)
     To be able to run this from boot, we allocate a temporary THD
   */
   if (!(thd=new THD))
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
   /*
@@ -131,18 +167,12 @@ end:
     TRUE   Error
 */
 
-static my_bool servers_load(THD *thd, TABLE_LIST *tables)
+static bool servers_load(THD *thd, TABLE_LIST *tables)
 {
   TABLE *table;
   READ_RECORD read_record_info;
-  my_bool return_val= TRUE;
+  bool return_val= TRUE;
   DBUG_ENTER("servers_load");
-
-  if (!servers_cache_initialised)
-    DBUG_RETURN(0);
-
-  /* need to figure out how to utilise this variable */
-  servers_version++; /* servers updated */
 
   /* first, send all cached rows to sleep with the fishes, oblivion!
      I expect this crappy comment replaced */
@@ -157,7 +187,7 @@ static my_bool servers_load(THD *thd, TABLE_LIST *tables)
       goto end;
   }
 
-  return_val=0;
+  return_val= FALSE;
 
 end:
   end_read_record(&read_record_info);
@@ -184,10 +214,10 @@ end:
     TRUE   Failure
 */
 
-my_bool servers_reload(THD *thd)
+bool servers_reload(THD *thd)
 {
   TABLE_LIST tables[1];
-  my_bool return_val= 1;
+  bool return_val= TRUE;
   DBUG_ENTER("servers_reload");
 
   if (thd->locked_tables)
@@ -197,10 +227,9 @@ my_bool servers_reload(THD *thd)
     close_thread_tables(thd);
   }
 
-  /*
-    To avoid deadlocks we should obtain table locks before
-    obtaining servers_cache->lock mutex.
-  */
+  DBUG_PRINT("info", ("locking servers_cache"));
+  rw_wrlock(&THR_LOCK_servers);
+
   bzero((char*) tables, sizeof(tables));
   tables[0].alias= tables[0].table_name= (char*) "servers";
   tables[0].db= (char*) "mysql";
@@ -213,12 +242,6 @@ my_bool servers_reload(THD *thd)
     goto end;
   }
 
-  DBUG_PRINT("info", ("locking servers_cache"));
-  VOID(pthread_mutex_lock(&servers_cache_mutex));
-
-  //old_servers_cache= servers_cache;
-  //old_mem=mem;
-
   if ((return_val= servers_load(thd, tables)))
   {					// Error. Revert to old list
     /* blast, for now, we have no servers, discuss later way to preserve */
@@ -227,13 +250,13 @@ my_bool servers_reload(THD *thd)
     servers_free();
   }
 
-  DBUG_PRINT("info", ("unlocking servers_cache"));
-  VOID(pthread_mutex_unlock(&servers_cache_mutex));
-
 end:
   close_thread_tables(thd);
+  DBUG_PRINT("info", ("unlocking servers_cache"));
+  rw_unlock(&THR_LOCK_servers);
   DBUG_RETURN(return_val);
 }
+
 
 /*
   Initialize structures responsible for servers used in federated
@@ -261,7 +284,8 @@ end:
     1	could not insert server struct into global servers cache
 */
 
-my_bool get_server_from_table_to_cache(TABLE *table)
+static bool 
+get_server_from_table_to_cache(TABLE *table)
 {
   /* alloc a server struct */
   char *ptr;
@@ -309,68 +333,6 @@ my_bool get_server_from_table_to_cache(TABLE *table)
   DBUG_RETURN(FALSE);
 }
 
-/*
-  SYNOPSIS
-    server_exists_in_table()
-      THD   *thd - thread pointer
-      LEX_SERVER_OPTIONS *server_options - pointer to Lex->server_options
-
-  NOTES
-    This function takes a LEX_SERVER_OPTIONS struct, which is very much the
-    same type of structure as a FOREIGN_SERVER, it contains the values parsed
-    in any one of the [CREATE|DELETE|DROP] SERVER statements. Using the
-    member "server_name", index_read_idx either founds the record and returns
-    1, or doesn't find the record, and returns 0
-
-  RETURN VALUES
-    0   record not found
-    1	record found
-*/
-
-my_bool server_exists_in_table(THD *thd, LEX_SERVER_OPTIONS *server_options)
-{
-  int result= 1;
-  int error= 0;
-  TABLE_LIST tables;
-  TABLE *table;
-  DBUG_ENTER("server_exists");
-
-  bzero((char*) &tables, sizeof(tables));
-  tables.db= (char*) "mysql";
-  tables.alias= tables.table_name= (char*) "servers";
-
-  /* need to open before acquiring THR_LOCK_plugin or it will deadlock */
-  if (! (table= open_ltable(thd, &tables, TL_WRITE)))
-    DBUG_RETURN(TRUE);
-
-  table->use_all_columns();
-
-  rw_wrlock(&THR_LOCK_servers);
-  VOID(pthread_mutex_lock(&servers_cache_mutex));
-
-  /* set the field that's the PK to the value we're looking for */
-  table->field[0]->store(server_options->server_name,
-                         server_options->server_name_length,
-                         system_charset_info);
-
-  if ((error= table->file->index_read_idx(table->record[0], 0,
-                                   (byte *)table->field[0]->ptr, HA_WHOLE_KEY,
-                                   HA_READ_KEY_EXACT)))
-  {
-    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-    {
-      table->file->print_error(error, MYF(0));
-      result= -1;
-    }
-    result= 0;
-    DBUG_PRINT("info",("record for server '%s' not found!",
-                       server_options->server_name));
-  }
-
-  VOID(pthread_mutex_unlock(&servers_cache_mutex));
-  rw_unlock(&THR_LOCK_servers);
-  DBUG_RETURN(result);
-}
 
 /*
   SYNOPSIS
@@ -382,15 +344,18 @@ my_bool server_exists_in_table(THD *thd, LEX_SERVER_OPTIONS *server_options)
     This function takes a server object that is has all members properly
     prepared, ready to be inserted both into the mysql.servers table and
     the servers cache.
+	
+    THR_LOCK_servers must be write locked.
 
   RETURN VALUES
     0  - no error
     other - error code
 */
 
-int insert_server(THD *thd, FOREIGN_SERVER *server)
+static int 
+insert_server(THD *thd, FOREIGN_SERVER *server)
 {
-  int error= 0;
+  int error= -1;
   TABLE_LIST tables;
   TABLE *table;
 
@@ -402,13 +367,7 @@ int insert_server(THD *thd, FOREIGN_SERVER *server)
 
   /* need to open before acquiring THR_LOCK_plugin or it will deadlock */
   if (! (table= open_ltable(thd, &tables, TL_WRITE)))
-    DBUG_RETURN(TRUE);
-
-  /* lock mutex to make sure no changes happen */
-  VOID(pthread_mutex_lock(&servers_cache_mutex));
-
-  /* lock table */
-  rw_wrlock(&THR_LOCK_servers);
+    goto end;
 
   /* insert the server into the table */
   if ((error= insert_server_record(table, server)))
@@ -419,11 +378,9 @@ int insert_server(THD *thd, FOREIGN_SERVER *server)
     goto end;
 
 end:
-  /* unlock the table */
-  rw_unlock(&THR_LOCK_servers);
-  VOID(pthread_mutex_unlock(&servers_cache_mutex));
   DBUG_RETURN(error);
 }
+
 
 /*
   SYNOPSIS
@@ -434,13 +391,16 @@ end:
     This function takes a FOREIGN_SERVER pointer to an allocated (root mem)
     and inserts it into the global servers cache
 
+    THR_LOCK_servers must be write locked.
+
   RETURN VALUE
     0   - no error
     >0  - error code
 
 */
 
-int insert_server_record_into_cache(FOREIGN_SERVER *server)
+static int 
+insert_server_record_into_cache(FOREIGN_SERVER *server)
 {
   int error=0;
   DBUG_ENTER("insert_server_record_into_cache");
@@ -461,6 +421,7 @@ int insert_server_record_into_cache(FOREIGN_SERVER *server)
   DBUG_RETURN(error);
 }
 
+
 /*
   SYNOPSIS
     store_server_fields()
@@ -478,7 +439,8 @@ int insert_server_record_into_cache(FOREIGN_SERVER *server)
 
 */
 
-void store_server_fields(TABLE *table, FOREIGN_SERVER *server)
+static void 
+store_server_fields(TABLE *table, FOREIGN_SERVER *server)
 {
 
   table->use_all_columns();
@@ -539,6 +501,7 @@ void store_server_fields(TABLE *table, FOREIGN_SERVER *server)
 
   */
 
+static
 int insert_server_record(TABLE *table, FOREIGN_SERVER *server)
 {
   int error;
@@ -605,9 +568,11 @@ int insert_server_record(TABLE *table, FOREIGN_SERVER *server)
 
 int drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
 {
-  int error= 0;
+  int error;
   TABLE_LIST tables;
   TABLE *table;
+  LEX_STRING name= { server_options->server_name, 
+                     server_options->server_name_length };
 
   DBUG_ENTER("drop_server");
   DBUG_PRINT("info", ("server name server->server_name %s",
@@ -617,28 +582,35 @@ int drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
   tables.db= (char*) "mysql";
   tables.alias= tables.table_name= (char*) "servers";
 
-  /* need to open before acquiring THR_LOCK_plugin or it will deadlock */
-  if (! (table= open_ltable(thd, &tables, TL_WRITE)))
-    DBUG_RETURN(TRUE);
-
   rw_wrlock(&THR_LOCK_servers);
-  VOID(pthread_mutex_lock(&servers_cache_mutex));
 
-
-  if ((error= delete_server_record(table,
-                                   server_options->server_name,
-                                   server_options->server_name_length)))
-    goto end;
-
-
+  /* hit the memory hit first */
   if ((error= delete_server_record_in_cache(server_options)))
     goto end;
 
+  if (! (table= open_ltable(thd, &tables, TL_WRITE)))
+  {
+    error= my_errno;
+    goto end;
+  }
+
+  error= delete_server_record(table, name.str, name.length);
+
+  /* close the servers table before we call closed_cached_connection_tables */
+  close_thread_tables(thd);
+
+  if (close_cached_connection_tables(thd, TRUE, &name))
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_UNKNOWN_ERROR, "Server connection in use");
+  }
+
 end:
-  VOID(pthread_mutex_unlock(&servers_cache_mutex));
   rw_unlock(&THR_LOCK_servers);
   DBUG_RETURN(error);
 }
+
+
 /*
 
   SYNOPSIS
@@ -657,10 +629,10 @@ end:
 
 */
 
-int delete_server_record_in_cache(LEX_SERVER_OPTIONS *server_options)
+static int 
+delete_server_record_in_cache(LEX_SERVER_OPTIONS *server_options)
 {
-
-  int error= 0;
+  int error= ER_FOREIGN_SERVER_DOESNT_EXIST;
   FOREIGN_SERVER *server;
   DBUG_ENTER("delete_server_record_in_cache");
 
@@ -676,7 +648,7 @@ int delete_server_record_in_cache(LEX_SERVER_OPTIONS *server_options)
     DBUG_PRINT("info", ("server_name %s length %d not found!",
                         server_options->server_name,
                         server_options->server_name_length));
-    // what should be done if not found in the cache?
+    goto end;
   }
   /*
     We succeded in deletion of the server to the table, now delete
@@ -686,13 +658,14 @@ int delete_server_record_in_cache(LEX_SERVER_OPTIONS *server_options)
                      server->server_name,
                      server->server_name_length));
 
-  if (server)
-    VOID(hash_delete(&servers_cache, (byte*) server));
+  VOID(hash_delete(&servers_cache, (byte*) server));
+  
+  error= 0;
 
-  servers_version++; /* servers updated */
-
+end:
   DBUG_RETURN(error);
 }
+
 
 /*
 
@@ -713,6 +686,8 @@ int delete_server_record_in_cache(LEX_SERVER_OPTIONS *server_options)
     table for the particular server via the call to update_server_record,
     and in the servers_cache via update_server_record_in_cache. 
 
+    THR_LOCK_servers must be write locked.
+
   RETURN VALUE
     0 - no error
     >0 - error code
@@ -721,7 +696,7 @@ int delete_server_record_in_cache(LEX_SERVER_OPTIONS *server_options)
 
 int update_server(THD *thd, FOREIGN_SERVER *existing, FOREIGN_SERVER *altered)
 {
-  int error= 0;
+  int error;
   TABLE *table;
   TABLE_LIST tables;
   DBUG_ENTER("update_server");
@@ -731,18 +706,25 @@ int update_server(THD *thd, FOREIGN_SERVER *existing, FOREIGN_SERVER *altered)
   tables.alias= tables.table_name= (char*)"servers";
 
   if (!(table= open_ltable(thd, &tables, TL_WRITE)))
-    DBUG_RETURN(1);
+  {
+    error= my_errno;
+    goto end;
+  }
 
-  rw_wrlock(&THR_LOCK_servers);
   if ((error= update_server_record(table, altered)))
     goto end;
 
-  update_server_record_in_cache(existing, altered);
+  error= update_server_record_in_cache(existing, altered);
+
+  /*
+	Perform a reload so we don't have a 'hole' in our mem_root
+  */
+  servers_load(thd, &tables);
 
 end:
-  rw_unlock(&THR_LOCK_servers);
   DBUG_RETURN(error);
 }
+
 
 /*
 
@@ -759,6 +741,8 @@ end:
     updated server. Then, the existing record is deleted from the servers_cache
     HASH, then the updated record inserted, in essence replacing the old
     record.
+
+    THR_LOCK_servers must be write locked.
 
   RETURN VALUE
     0 - no error
@@ -790,12 +774,12 @@ int update_server_record_in_cache(FOREIGN_SERVER *existing,
   {
     DBUG_PRINT("info", ("had a problem inserting server %s at %lx",
                         altered->server_name, (long unsigned int) altered));
-    error= 1;
+    error= ER_OUT_OF_RESOURCES;
   }
 
-  servers_version++; /* servers updated */
   DBUG_RETURN(error);
 }
+
 
 /*
 
@@ -829,15 +813,16 @@ void merge_server_struct(FOREIGN_SERVER *from, FOREIGN_SERVER *to)
     to->password= strdup_root(&mem, from->password);
   if (to->port == -1)
     to->port= from->port;
-  if (!to->socket)
+  if (!to->socket && from->socket)
     to->socket= strdup_root(&mem, from->socket);
-  if (!to->scheme)
+  if (!to->scheme && from->scheme)
     to->scheme= strdup_root(&mem, from->scheme);
   if (!to->owner)
     to->owner= strdup_root(&mem, from->owner);
 
   DBUG_VOID_RETURN;
 }
+
 
 /*
 
@@ -861,7 +846,9 @@ void merge_server_struct(FOREIGN_SERVER *from, FOREIGN_SERVER *to)
 
 */
 
-int update_server_record(TABLE *table, FOREIGN_SERVER *server)
+
+static int 
+update_server_record(TABLE *table, FOREIGN_SERVER *server)
 {
   int error=0;
   DBUG_ENTER("update_server_record");
@@ -876,10 +863,7 @@ int update_server_record(TABLE *table, FOREIGN_SERVER *server)
                                    HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-    {
       table->file->print_error(error, MYF(0));
-      error= 1;
-    }
     DBUG_PRINT("info",("server not found!"));
     error= ER_FOREIGN_SERVER_DOESNT_EXIST;
   }
@@ -899,6 +883,7 @@ end:
   DBUG_RETURN(error);
 }
 
+
 /*
 
   SYNOPSIS
@@ -914,11 +899,11 @@ end:
 
 */
 
-int delete_server_record(TABLE *table,
-                         char *server_name,
-                         int server_name_length)
+static int 
+delete_server_record(TABLE *table,
+                     char *server_name, int server_name_length)
 {
-  int error= 0;
+  int error;
   DBUG_ENTER("delete_server_record");
   table->use_all_columns();
 
@@ -930,10 +915,7 @@ int delete_server_record(TABLE *table,
                                    HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-    {
       table->file->print_error(error, MYF(0));
-      error= 1;
-    }
     DBUG_PRINT("info",("server not found!"));
     error= ER_FOREIGN_SERVER_DOESNT_EXIST;
   }
@@ -962,27 +944,34 @@ int delete_server_record(TABLE *table,
 
 int create_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
 {
-  int error;
+  int error= ER_FOREIGN_SERVER_EXISTS;
   FOREIGN_SERVER *server;
 
   DBUG_ENTER("create_server");
   DBUG_PRINT("info", ("server_options->server_name %s",
                       server_options->server_name));
 
+  rw_wrlock(&THR_LOCK_servers);
+
+  /* hit the memory first */
+  if (hash_search(&servers_cache, (byte*) server_options->server_name,
+				   server_options->server_name_length))
+    goto end;
+
   server= (FOREIGN_SERVER *)alloc_root(&mem,
                                        sizeof(FOREIGN_SERVER));
 
-  if ((error= prepare_server_struct_for_insert(server_options, server)))
-    goto end;
+  prepare_server_struct_for_insert(server_options, server);
 
-  if ((error= insert_server(thd, server)))
-    goto end;
+  error= insert_server(thd, server);
 
   DBUG_PRINT("info", ("error returned %d", error));
 
 end:
+  rw_unlock(&THR_LOCK_servers);
   DBUG_RETURN(error);
 }
+
 
 /*
 
@@ -1000,36 +989,43 @@ end:
 
 int alter_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
 {
-  int error= 0;
+  int error= ER_FOREIGN_SERVER_DOESNT_EXIST;
   FOREIGN_SERVER *altered, *existing;
+  LEX_STRING name= { server_options->server_name, 
+                     server_options->server_name_length };
   DBUG_ENTER("alter_server");
   DBUG_PRINT("info", ("server_options->server_name %s",
                       server_options->server_name));
 
+  rw_wrlock(&THR_LOCK_servers);
+
+  if (!(existing= (FOREIGN_SERVER *) hash_search(&servers_cache,
+                                                 (byte*) name.str,
+                                                 name.length)))
+    goto end;
+
   altered= (FOREIGN_SERVER *)alloc_root(&mem,
                                         sizeof(FOREIGN_SERVER));
 
-  VOID(pthread_mutex_lock(&servers_cache_mutex));
+  prepare_server_struct_for_update(server_options, existing, altered);
 
-  if (!(existing= (FOREIGN_SERVER *) hash_search(&servers_cache,
-                                                 (byte*) server_options->server_name,
-                                               server_options->server_name_length)))
+  error= update_server(thd, existing, altered);
+
+  /* close the servers table before we call closed_cached_connection_tables */
+  close_thread_tables(thd);
+
+  if (close_cached_connection_tables(thd, FALSE, &name))
   {
-    error= ER_FOREIGN_SERVER_DOESNT_EXIST;
-    goto end;
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_UNKNOWN_ERROR, "Server connection in use");
   }
-
-  if ((error= prepare_server_struct_for_update(server_options, existing, altered)))
-    goto end;
-
-  if ((error= update_server(thd, existing, altered)))
-    goto end;
 
 end:
   DBUG_PRINT("info", ("error returned %d", error));
-  VOID(pthread_mutex_unlock(&servers_cache_mutex));
+  rw_unlock(&THR_LOCK_servers);
   DBUG_RETURN(error);
 }
+
 
 /*
 
@@ -1041,18 +1037,16 @@ end:
   NOTES
 
   RETURN VALUE
-    0 - no error
+    none
 
 */
 
-int prepare_server_struct_for_insert(LEX_SERVER_OPTIONS *server_options,
-                                     FOREIGN_SERVER *server)
+static void
+prepare_server_struct_for_insert(LEX_SERVER_OPTIONS *server_options,
+                                 FOREIGN_SERVER *server)
 {
-  int error;
   char *unset_ptr= (char*)"";
   DBUG_ENTER("prepare_server_struct");
-
-  error= 0;
 
   /* these two MUST be set */
   server->server_name= strdup_root(&mem, server_options->server_name);
@@ -1083,7 +1077,7 @@ int prepare_server_struct_for_insert(LEX_SERVER_OPTIONS *server_options,
   server->owner= server_options->owner ?
     strdup_root(&mem, server_options->owner) : unset_ptr;
 
-  DBUG_RETURN(error);
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -1099,13 +1093,12 @@ int prepare_server_struct_for_insert(LEX_SERVER_OPTIONS *server_options,
 
 */
 
-int prepare_server_struct_for_update(LEX_SERVER_OPTIONS *server_options,
-                                     FOREIGN_SERVER *existing,
-                                     FOREIGN_SERVER *altered)
+static void
+prepare_server_struct_for_update(LEX_SERVER_OPTIONS *server_options,
+                                 FOREIGN_SERVER *existing,
+                                 FOREIGN_SERVER *altered)
 {
-  int error;
   DBUG_ENTER("prepare_server_struct_for_update");
-  error= 0;
 
   altered->server_name= strdup_root(&mem, server_options->server_name);
   altered->server_name_length= server_options->server_name_length;
@@ -1156,7 +1149,7 @@ int prepare_server_struct_for_update(LEX_SERVER_OPTIONS *server_options,
     (strcmp(server_options->owner, existing->owner))) ?
       strdup_root(&mem, server_options->owner) : 0;
 
-  DBUG_RETURN(error);
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -1175,15 +1168,64 @@ int prepare_server_struct_for_update(LEX_SERVER_OPTIONS *server_options,
 void servers_free(bool end)
 {
   DBUG_ENTER("servers_free");
-  if (!servers_cache_initialised)
+  if (!hash_inited(&servers_cache))
     DBUG_VOID_RETURN;
-  VOID(pthread_mutex_destroy(&servers_cache_mutex));
-  servers_cache_initialised=0;
+  if (!end)
+  {
+    free_root(&mem, MYF(MY_MARK_BLOCKS_FREE));
+	my_hash_reset(&servers_cache);
+    DBUG_VOID_RETURN;
+  }
+  rwlock_destroy(&THR_LOCK_servers);
   free_root(&mem,MYF(0));
   hash_free(&servers_cache);
   DBUG_VOID_RETURN;
 }
 
+
+/*
+  SYNOPSIS
+
+  clone_server(MEM_ROOT *mem_root, FOREIGN_SERVER *orig, FOREIGN_SERVER *buff)
+
+  Create a clone of FOREIGN_SERVER. If the supplied mem_root is of
+  thd->mem_root then the copy is automatically disposed at end of statement.
+
+  NOTES
+
+  ARGS
+   MEM_ROOT pointer (strings are copied into this mem root) 
+   FOREIGN_SERVER pointer (made a copy of)
+   FOREIGN_SERVER buffer (if not-NULL, this pointer is returned)
+
+  RETURN VALUE
+   FOREIGN_SEVER pointer (copy of one supplied FOREIGN_SERVER)
+*/
+
+static FOREIGN_SERVER *clone_server(MEM_ROOT *mem, const FOREIGN_SERVER *server,
+                                    FOREIGN_SERVER *buffer)
+{
+  DBUG_ENTER("sql_server.cc:clone_server");
+
+  if (!buffer)
+    buffer= (FOREIGN_SERVER *) alloc_root(mem, sizeof(FOREIGN_SERVER));
+
+  buffer->server_name= strmake_root(mem, server->server_name,
+                                    server->server_name_length);
+  buffer->port= server->port;
+  buffer->server_name_length= server->server_name_length;
+  
+  /* TODO: We need to examine which of these can really be NULL */
+  buffer->db= server->db ? strdup_root(mem, server->db) : NULL;
+  buffer->scheme= server->scheme ? strdup_root(mem, server->scheme) : NULL;
+  buffer->username= server->username? strdup_root(mem, server->username): NULL;
+  buffer->password= server->password? strdup_root(mem, server->password): NULL;
+  buffer->socket= server->socket ? strdup_root(mem, server->socket) : NULL;
+  buffer->owner= server->owner ? strdup_root(mem, server->owner) : NULL;
+  buffer->host= server->host ? strdup_root(mem, server->host) : NULL;
+
+ DBUG_RETURN(buffer);
+}
 
 
 /*
@@ -1199,11 +1241,11 @@ void servers_free(bool end)
 
 */
 
-FOREIGN_SERVER *get_server_by_name(const char *server_name)
+FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
+                                   FOREIGN_SERVER *buff)
 {
-  ulong error_num=0;
   uint server_name_length;
-  FOREIGN_SERVER *server= 0;
+  FOREIGN_SERVER *server;
   DBUG_ENTER("get_server_by_name");
   DBUG_PRINT("info", ("server_name %s", server_name));
 
@@ -1212,12 +1254,11 @@ FOREIGN_SERVER *get_server_by_name(const char *server_name)
   if (! server_name || !strlen(server_name))
   {
     DBUG_PRINT("info", ("server_name not defined!"));
-    error_num= 1;
     DBUG_RETURN((FOREIGN_SERVER *)NULL);
   }
 
   DBUG_PRINT("info", ("locking servers_cache"));
-  VOID(pthread_mutex_lock(&servers_cache_mutex));
+  rw_rdlock(&THR_LOCK_servers);
   if (!(server= (FOREIGN_SERVER *) hash_search(&servers_cache,
                                                (byte*) server_name,
                                                server_name_length)))
@@ -1226,8 +1267,12 @@ FOREIGN_SERVER *get_server_by_name(const char *server_name)
                         server_name, server_name_length));
     server= (FOREIGN_SERVER *) NULL;
   }
+  /* otherwise, make copy of server */
+  else
+    server= clone_server(mem, server, buff);
+
   DBUG_PRINT("info", ("unlocking servers_cache"));
-  VOID(pthread_mutex_unlock(&servers_cache_mutex));
+  rw_unlock(&THR_LOCK_servers);
   DBUG_RETURN(server);
 
 }
