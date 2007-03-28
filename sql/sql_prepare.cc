@@ -1668,7 +1668,7 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   enum enum_sql_command sql_command= lex->sql_command;
   int res= 0;
   DBUG_ENTER("check_prepared_statement");
-  DBUG_PRINT("enter",("command: %d, param_count: %u",
+  DBUG_PRINT("enter",("command: %d  param_count: %u",
                       sql_command, stmt->param_count));
 
   lex->first_lists_tables_same();
