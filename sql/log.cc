@@ -4216,38 +4216,6 @@ static bool test_if_number(register const char *str,
 } /* test_if_number */
 
 
-static void print_buffer_to_file(enum loglevel level, const char *buffer)
-{
-  time_t skr;
-  struct tm tm_tmp;
-  struct tm *start;
-  DBUG_ENTER("print_buffer_to_file");
-  DBUG_PRINT("enter",("buffer: %s", buffer));
-
-  VOID(pthread_mutex_lock(&LOCK_error_log));
-
-  skr=time(NULL);
-  localtime_r(&skr, &tm_tmp);
-  start=&tm_tmp;
-
-  fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d [%s] %s\n",
-          start->tm_year % 100,
-          start->tm_mon+1,
-          start->tm_mday,
-          start->tm_hour,
-          start->tm_min,
-          start->tm_sec,
-          (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
-           "Warning" : "Note"),
-          buffer);
-
-  fflush(stderr);
-
-  VOID(pthread_mutex_unlock(&LOCK_error_log));
-  DBUG_VOID_RETURN;
-}
-
-
 void sql_perror(const char *message)
 {
 #ifdef HAVE_STRERROR
@@ -4380,6 +4348,38 @@ int vprint_msg_to_log(enum loglevel level __attribute__((unused)),
   DBUG_RETURN(0);
 }
 #else /*!EMBEDDED_LIBRARY*/
+static void print_buffer_to_file(enum loglevel level, const char *buffer)
+{
+  time_t skr;
+  struct tm tm_tmp;
+  struct tm *start;
+  DBUG_ENTER("print_buffer_to_file");
+  DBUG_PRINT("enter",("buffer: %s", buffer));
+
+  VOID(pthread_mutex_lock(&LOCK_error_log));
+
+  skr=time(NULL);
+  localtime_r(&skr, &tm_tmp);
+  start=&tm_tmp;
+
+  fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d [%s] %s\n",
+          start->tm_year % 100,
+          start->tm_mon+1,
+          start->tm_mday,
+          start->tm_hour,
+          start->tm_min,
+          start->tm_sec,
+          (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
+           "Warning" : "Note"),
+          buffer);
+
+  fflush(stderr);
+
+  VOID(pthread_mutex_unlock(&LOCK_error_log));
+  DBUG_VOID_RETURN;
+}
+
+
 int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 {
   char   buff[1024];
