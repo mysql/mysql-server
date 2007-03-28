@@ -403,9 +403,9 @@ const char *my_thread_name(void)
 
 static uint get_thread_lib(void)
 {
+#ifdef _CS_GNU_LIBPTHREAD_VERSION
   char buff[64];
     
-#ifdef _CS_GNU_LIBPTHREAD_VERSION
   confstr(_CS_GNU_LIBPTHREAD_VERSION, buff, sizeof(buff));
 
   if (!strncasecmp(buff, "NPTL", 4))
