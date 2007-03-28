@@ -1537,6 +1537,7 @@ row_upd_clust_rec(
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr)	/* in: mtr; gets committed here */
 {
+	mem_heap_t*	heap	= NULL;
 	big_rec_t*	big_rec	= NULL;
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
@@ -1593,12 +1594,11 @@ row_upd_clust_rec(
 				    dict_table_is_comp(index->table)));
 
 	err = btr_cur_pessimistic_update(BTR_NO_LOCKING_FLAG, btr_cur,
-					 &big_rec, node->update,
+					 &heap, &big_rec, node->update,
 					 node->cmpl_info, thr, mtr);
 	mtr_commit(mtr);
 
 	if (err == DB_SUCCESS && big_rec) {
-		mem_heap_t*	heap		= NULL;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		rec_t*		rec;
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
@@ -1612,10 +1612,11 @@ row_upd_clust_rec(
 			rec_get_offsets(rec, index, offsets_,
 					ULINT_UNDEFINED, &heap),
 			big_rec, mtr);
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
 		mtr_commit(mtr);
+	}
+
+	if (UNIV_LIKELY_NULL(heap)) {
+		mem_heap_free(heap);
 	}
 
 	if (big_rec) {

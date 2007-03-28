@@ -995,7 +995,7 @@ btr_cur_add_ext(
 /*============*/
 	const ulint*	ext,	/* in: numbers of externally stored fields
 				so far */
-	ulint*		n_ext,	/* in: number of externally stored fields
+	ulint*		n_ext,	/* in/out: number of externally stored fields
 				so far */
 	const big_rec_t*big_rec,/* in: additional externally stored fields */
 	mem_heap_t**	heap)	/* out: memory heap */
@@ -2070,6 +2070,7 @@ btr_cur_pessimistic_update(
 	ulint		flags,	/* in: undo logging, locking, and rollback
 				flags */
 	btr_cur_t*	cursor,	/* in: cursor on the record to update */
+	mem_heap_t**	heap,	/* in/out: pointer to memory heap, or NULL */
 	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
 				be stored externally by the caller, or NULL */
 	upd_t*		update,	/* in: update vector; this is allowed also
@@ -2089,7 +2090,6 @@ btr_cur_pessimistic_update(
 	rec_t*		rec;
 	page_cur_t*	page_cursor;
 	dtuple_t*	new_entry;
-	mem_heap_t*	heap;
 	ulint		err;
 	ulint		optim_err;
 	dulint		roll_ptr;
@@ -2157,15 +2157,17 @@ btr_cur_pessimistic_update(
 		}
 	}
 
-	heap = mem_heap_create(1024);
-	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
+	if (!*heap) {
+		*heap = mem_heap_create(1024);
+	}
+	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, heap);
 
 	trx = thr_get_trx(thr);
 
-	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
+	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, *heap);
 
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
-						     FALSE, heap);
+						     FALSE, *heap);
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
@@ -2181,7 +2183,7 @@ btr_cur_pessimistic_update(
 		updated the primary key to another value, and then
 		update it back again. */
 
-		ut_a(big_rec_vec == NULL);
+		ut_ad(big_rec_vec == NULL);
 
 		btr_rec_free_updated_extern_fields(index, rec, page_zip,
 						   offsets, update, mtr);
@@ -2190,11 +2192,10 @@ btr_cur_pessimistic_update(
 	/* We have to set appropriate extern storage bits in the new
 	record to be inserted: we have to remember which fields were such */
 
-	ext_vect = mem_heap_alloc(heap, sizeof(ulint) * 2
+	ext_vect = mem_heap_alloc(*heap, sizeof(ulint) * 2
 				  * dict_index_get_n_fields(index));
 	ut_ad(!page_is_comp(page) || !rec_get_node_ptr_flag(rec));
-	offsets = rec_get_offsets(rec, index, offsets,
-				  ULINT_UNDEFINED, &heap);
+	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, heap);
 	n_ext_vect = btr_push_update_extern_fields(ext_vect, offsets, update);
 
 	if (page_zip_rec_needs_ext(rec_get_converted_size(index, new_entry,
@@ -2211,7 +2212,7 @@ btr_cur_pessimistic_update(
 		}
 
 		ext_vect = (ulint*) btr_cur_add_ext(ext_vect, &n_ext_vect,
-						    big_rec_vec, &heap);
+						    big_rec_vec, heap);
 	}
 
 	/* Store state of explicit locks on rec on the page infimum record,
@@ -2245,7 +2246,7 @@ btr_cur_pessimistic_update(
 						   rec, block);
 
 		offsets = rec_get_offsets(rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
+					  ULINT_UNDEFINED, heap);
 
 		if (!rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
 			/* The new inserted record owns its possible externally
@@ -2282,7 +2283,7 @@ btr_cur_pessimistic_update(
 		stored fields */
 
 		offsets = rec_get_offsets(rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
+					  ULINT_UNDEFINED, heap);
 		btr_cur_unmark_extern_fields(page_zip,
 					     rec, index, offsets, mtr);
 	}
@@ -2304,7 +2305,6 @@ return_after_reservations:
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
-	mem_heap_free(heap);
 
 	if (n_extents > 0) {
 		fil_space_release_free_extents(index->space, n_reserved);
