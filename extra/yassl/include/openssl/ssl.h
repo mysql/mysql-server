@@ -190,11 +190,17 @@ enum {  /* ERR Constants */
     EVP_R_BAD_DECRYPT = 2
 };
 
-
+/*
+  Allow type used by SSL_set_fd to be changed, default to int
+  in order to be compatible with OpenSSL
+ */
+#ifndef YASSL_SOCKET_T_DEFINED
+typedef int YASSL_SOCKET_T;
+#endif
 
 SSL_CTX* SSL_CTX_new(SSL_METHOD*);
 SSL* SSL_new(SSL_CTX*);
-int  SSL_set_fd (SSL*, int);
+int  SSL_set_fd (SSL*, YASSL_SOCKET_T);
 int  SSL_connect(SSL*);
 int  SSL_write(SSL*, const void*, int);
 int  SSL_read(SSL*, void*, int);
