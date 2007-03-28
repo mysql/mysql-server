@@ -97,9 +97,21 @@ update t1 set b=b+100 where a=4;
 --error 1296
 COMMIT;
 
+# Bug #25275 SINGLE USER MODE prevents ALTER on non-ndb
+# tables for other mysqld nodes
+--connection server2
+create table t2 (a int) engine myisam;
+alter table t2 add column (b int);
+
+# exit single user mode
 --exec $NDB_MGM --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -e "exit single user mode" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults >> $NDB_TOOLS_OUTPUT
 
 # cleanup
+--connection server2
+drop table t2;
 --connection server1
 drop table t1;
+
+# End of 5.0 tests
+
