@@ -1519,6 +1519,7 @@ sub executable_setup () {
   $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
   $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
   $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
+  $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
 
   if (!$opt_extern)
   {
