@@ -506,6 +506,7 @@ mem_heap_block_free(
 
 	mem_erase_buf((byte*)block, len);
 #endif
+	UNIV_MEM_FREE(block, len);
 
 	if (type == MEM_HEAP_DYNAMIC) {
 
