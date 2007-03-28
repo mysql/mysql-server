@@ -658,7 +658,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
 	  goto end;
 	}
       }
-      DBUG_PRINT("lock",("write locked by thread: %ld, type: %d",
+      DBUG_PRINT("lock",("write locked by thread: %ld  type: %d",
 			 lock->read.data->owner->info->thread_id, data->type));
     }
     wait_queue= &lock->write_wait;
