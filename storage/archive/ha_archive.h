@@ -71,6 +71,7 @@ class ha_archive: public handler
   uint current_key_len;
   uint current_k_offset;
   archive_record_buffer *record_buffer;
+  bool archive_reader_open;
 
   archive_record_buffer *create_record_buffer(unsigned int length);
   void destroy_record_buffer(archive_record_buffer *r);
@@ -119,6 +120,7 @@ public:
   ARCHIVE_SHARE *get_share(const char *table_name, int *rc);
   int free_share();
   int init_archive_writer();
+  int init_archive_reader();
   bool auto_repair() const { return 1; } // For the moment we just do this
   int read_data_header(azio_stream *file_to_read);
   void position(const byte *record);
