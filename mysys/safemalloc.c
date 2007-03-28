@@ -150,11 +150,11 @@ gptr _mymalloc(uint size, const char *filename, uint lineno, myf MyFlags)
       char buff[SC_MAXWIDTH];
       my_errno=errno;
       sprintf(buff,"Out of memory at line %d, '%s'", lineno, filename);
-      my_message(EE_OUTOFMEMORY,buff,MYF(ME_BELL+ME_WAITTANG));
+      my_message(EE_OUTOFMEMORY, buff, MYF(ME_BELL+ME_WAITTANG+ME_NOREFRESH));
       sprintf(buff,"needed %d byte (%ldk), memory in use: %ld bytes (%ldk)",
 	      size, (size + 1023L) / 1024L,
 	      sf_malloc_max_memory, (sf_malloc_max_memory + 1023L) / 1024L);
-      my_message(EE_OUTOFMEMORY,buff,MYF(ME_BELL+ME_WAITTANG));
+      my_message(EE_OUTOFMEMORY, buff, MYF(ME_BELL+ME_WAITTANG+ME_NOREFRESH));
     }
     DBUG_PRINT("error",("Out of memory, in use: %ld at line %d, '%s'",
 			sf_malloc_max_memory,lineno, filename));
