@@ -652,15 +652,3 @@ dtuple_convert_back_big_rec(
 
 	mem_heap_free(vector->heap);
 }
-
-/******************************************************************
-Frees the memory in a big rec vector. */
-
-void
-dtuple_big_rec_free(
-/*================*/
-	big_rec_t*	vector)	/* in, own: big rec vector; it is
-				freed in this function */
-{
-	mem_heap_free(vector->heap);
-}
