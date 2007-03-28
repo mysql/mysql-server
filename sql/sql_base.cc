@@ -1328,10 +1328,10 @@ void close_temporary_tables(THD *thd)
           due to special characters in the names
         */
         append_identifier(thd, &s_query, table->s->db.str, strlen(table->s->db.str));
-        s_query.q_append('.');
+        s_query.append('.');
         append_identifier(thd, &s_query, table->s->table_name.str,
                           strlen(table->s->table_name.str));
-        s_query.q_append(',');
+        s_query.append(',');
         next= table->next;
         close_temporary(table, 1, 1);
       }
