@@ -85,7 +85,6 @@ row_undo_mod_clust_low(
 	mtr_t*		mtr,	/* in: mtr */
 	ulint		mode)	/* in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
-	big_rec_t*	dummy_big_rec;
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
 	ulint		err;
@@ -106,14 +105,22 @@ row_undo_mod_clust_low(
 						btr_cur, node->update,
 						node->cmpl_info, thr, mtr);
 	} else {
+		mem_heap_t*	heap		= NULL;
+		big_rec_t*	dummy_big_rec;
+
 		ut_ad(mode == BTR_MODIFY_TREE);
 
 		err = btr_cur_pessimistic_update(
 			BTR_NO_LOCKING_FLAG
 			| BTR_NO_UNDO_LOG_FLAG
 			| BTR_KEEP_SYS_FLAG,
-			btr_cur, &dummy_big_rec, node->update,
+			btr_cur, &heap, &dummy_big_rec, node->update,
 			node->cmpl_info, thr, mtr);
+
+		ut_a(!dummy_big_rec);
+		if (UNIV_LIKELY_NULL(heap)) {
+			mem_heap_free(heap);
+		}
 	}
 
 	return(err);
@@ -467,8 +474,9 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			ut_a(mode == BTR_MODIFY_TREE);
 			err = btr_cur_pessimistic_update(
 				BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG,
-				btr_cur, &dummy_big_rec,
+				btr_cur, &heap, &dummy_big_rec,
 				update, 0, thr, &mtr);
+			ut_a(!dummy_big_rec);
 		}
 
 		mem_heap_free(heap);

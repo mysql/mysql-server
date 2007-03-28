@@ -262,6 +262,7 @@ btr_cur_pessimistic_update(
 	ulint		flags,	/* in: undo logging, locking, and rollback
 				flags */
 	btr_cur_t*	cursor,	/* in: cursor on the record to update */
+	mem_heap_t**	heap,	/* in/out: pointer to memory heap, or NULL */
 	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
 				be stored externally by the caller, or NULL */
 	upd_t*		update,	/* in: update vector; this is allowed also
