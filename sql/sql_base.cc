@@ -858,6 +858,7 @@ void free_io_cache(TABLE *table)
   DBUG_VOID_RETURN;
 }
 
+
 /*
   Close all tables which aren't in use by any thread
 
@@ -965,6 +966,71 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     thd->proc_info=0;
     pthread_mutex_unlock(&thd->mysys_var->mutex);
   }
+  DBUG_RETURN(result);
+}
+
+
+/*
+  Close all tables which match specified connection string or
+  if specified string is NULL, then any table with a connection string.
+*/
+
+bool close_cached_connection_tables(THD *thd, bool if_wait_for_refresh,
+                                    LEX_STRING *connection, bool have_lock)
+{
+  uint idx;
+  TABLE_LIST tmp, *tables= NULL;
+  bool result= FALSE;
+  DBUG_ENTER("close_cached_connections");
+  DBUG_ASSERT(thd);
+
+  bzero(&tmp, sizeof(TABLE_LIST));
+  
+  if (!have_lock)
+    VOID(pthread_mutex_lock(&LOCK_open));
+  
+  for (idx= 0; idx < table_def_cache.records; idx++)
+  {
+    TABLE_SHARE *share= (TABLE_SHARE *) hash_element(&table_def_cache, idx);
+
+    /* Ignore if table is not open or does not have a connect_string */
+    if (!share->connect_string.length || !share->ref_count)
+      continue;
+
+    /* Compare the connection string */
+    if (connection &&
+        (connection->length > share->connect_string.length ||
+         (connection->length < share->connect_string.length &&
+          (share->connect_string.str[connection->length] != '/' &&
+           share->connect_string.str[connection->length] != '\\')) ||
+         strncasecmp(connection->str, share->connect_string.str,
+                     connection->length)))
+      continue;
+
+    /* close_cached_tables() only uses these elements */
+    tmp.db= share->db.str;
+    tmp.table_name= share->table_name.str;
+    tmp.next_local= tables;
+
+    tables= (TABLE_LIST *) memdup_root(thd->mem_root, (char*)&tmp, 
+                                       sizeof(TABLE_LIST));
+  }
+
+  if (tables)
+    result= close_cached_tables(thd, FALSE, tables, TRUE);
+  
+  if (!have_lock)
+    VOID(pthread_mutex_unlock(&LOCK_open));
+  
+  if (if_wait_for_refresh)
+  {
+    pthread_mutex_lock(&thd->mysys_var->mutex);
+    thd->mysys_var->current_mutex= 0;
+    thd->mysys_var->current_cond= 0;
+    thd->proc_info=0;
+    pthread_mutex_unlock(&thd->mysys_var->mutex);
+  }
+
   DBUG_RETURN(result);
 }
 
