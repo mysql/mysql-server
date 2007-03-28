@@ -195,12 +195,6 @@ inline void reset_floating_point_exceptions()
 
 } /* cplusplus */
 
-
-#if defined(HAVE_LINUXTHREADS)
-#define THR_KILL_SIGNAL SIGINT
-#else
-#define THR_KILL_SIGNAL SIGUSR2		// Can't use this with LinuxThreads
-#endif
 #define MYSQL_KILL_SIGNAL SIGTERM
 
 #ifdef HAVE_GLIBC2_STYLE_GETHOSTBYNAME_R
@@ -638,6 +632,7 @@ struct rand_struct sql_rand; // used by sql_class.cc:THD::THD()
 #ifndef EMBEDDED_LIBRARY
 struct passwd *user_info;
 static pthread_t select_thread;
+static uint thr_kill_signal;
 #endif
 
 /* OS specific variables */
@@ -788,7 +783,7 @@ static void close_connections(void)
     DBUG_PRINT("info",("Waiting for select thread"));
 
 #ifndef DONT_USE_THR_ALARM
-    if (pthread_kill(select_thread,THR_CLIENT_ALARM))
+    if (pthread_kill(select_thread, thr_client_alarm))
       break;					// allready dead
 #endif
     set_timespec(abstime, 2);
@@ -2294,7 +2289,9 @@ static void init_signals(void)
   DBUG_ENTER("init_signals");
 
   if (test_flags & TEST_SIGINT)
-    my_sigset(THR_KILL_SIGNAL,end_thread_signal);
+  {
+    my_sigset(thr_kill_signal, end_thread_signal);
+  }
   my_sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
@@ -2349,10 +2346,13 @@ static void init_signals(void)
 #ifdef SIGTSTP
   sigaddset(&set,SIGTSTP);
 #endif
-  sigaddset(&set,THR_SERVER_ALARM);
+  if (thd_lib_detected != THD_LIB_LT)
+    sigaddset(&set,THR_SERVER_ALARM);
   if (test_flags & TEST_SIGINT)
-    sigdelset(&set,THR_KILL_SIGNAL);		// May be SIGINT
-  sigdelset(&set,THR_CLIENT_ALARM);		// For alarms
+  {
+    // May be SIGINT
+    sigdelset(&set, thr_kill_signal);
+  }
   sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
@@ -2415,23 +2415,19 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
   */
   init_thr_alarm(thread_scheduler.max_threads +
 		 global_system_variables.max_insert_delayed_threads + 10);
-#if SIGINT != THR_KILL_SIGNAL
-  if (test_flags & TEST_SIGINT)
+  if (thd_lib_detected != THD_LIB_LT && (test_flags & TEST_SIGINT))
   {
     (void) sigemptyset(&set);			// Setup up SIGINT for debug
     (void) sigaddset(&set,SIGINT);		// For debugging
     (void) pthread_sigmask(SIG_UNBLOCK,&set,NULL);
   }
-#endif
   (void) sigemptyset(&set);			// Setup up SIGINT for debug
 #ifdef USE_ONE_SIGNAL_HAND
   (void) sigaddset(&set,THR_SERVER_ALARM);	// For alarms
 #endif
 #ifndef IGNORE_SIGHUP_SIGQUIT
   (void) sigaddset(&set,SIGQUIT);
-#if THR_CLIENT_ALARM != SIGHUP
   (void) sigaddset(&set,SIGHUP);
-#endif
 #endif
   (void) sigaddset(&set,SIGTERM);
   (void) sigaddset(&set,SIGTSTP);
@@ -3625,6 +3621,13 @@ int main(int argc, char **argv)
 {
   MY_INIT(argv[0]);		// init my_sys library & pthreads
   /* nothing should come before this line ^^^ */
+
+  /* Set signal used to kill MySQL */
+#if defined(SIGUSR2)
+  thr_kill_signal= thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2;
+#else
+  thr_kill_signal= SIGINT;
+#endif
 
   /*
     Perform basic logger initialization logger. Should be called after
