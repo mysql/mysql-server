@@ -267,7 +267,7 @@ my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
 my_decimal *Item::val_decimal_from_date(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed == 1);
-  TIME ltime;
+  MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE))
   {
     my_decimal_set_zero(decimal_value);
@@ -280,7 +280,7 @@ my_decimal *Item::val_decimal_from_date(my_decimal *decimal_value)
 my_decimal *Item::val_decimal_from_time(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed == 1);
-  TIME ltime;
+  MYSQL_TIME ltime;
   if (get_time(&ltime))
   {
     my_decimal_set_zero(decimal_value);
@@ -315,7 +315,7 @@ longlong Item::val_int_from_decimal()
 
 int Item::save_time_in_field(Field *field)
 {
-  TIME ltime;
+  MYSQL_TIME ltime;
   if (get_time(&ltime))
     return set_field_to_null(field);
   field->set_notnull();
@@ -325,7 +325,7 @@ int Item::save_time_in_field(Field *field)
 
 int Item::save_date_in_field(Field *field)
 {
-  TIME ltime;
+  MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE))
     return set_field_to_null(field);
   field->set_notnull();
@@ -853,22 +853,40 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
 
 
 /*
-  Get the value of the function as a TIME structure.
+  Get the value of the function as a MYSQL_TIME structure.
   As a extra convenience the time structure is reset on error!
  */
 
-bool Item::get_date(TIME *ltime,uint fuzzydate)
+bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 {
-  char buff[40];
-  String tmp(buff,sizeof(buff), &my_charset_bin),*res;
-  if (!(res=val_str(&tmp)) ||
-      str_to_datetime_with_warn(res->ptr(), res->length(),
-                                ltime, fuzzydate) <= MYSQL_TIMESTAMP_ERROR)
+  if (result_type() == STRING_RESULT)
   {
-    bzero((char*) ltime,sizeof(*ltime));
-    return 1;
+    char buff[40];
+    String tmp(buff,sizeof(buff), &my_charset_bin),*res;
+    if (!(res=val_str(&tmp)) ||
+        str_to_datetime_with_warn(res->ptr(), res->length(),
+                                  ltime, fuzzydate) <= MYSQL_TIMESTAMP_ERROR)
+      goto err;
+  }
+  else
+  {
+    longlong value= val_int();
+    int was_cut;
+    if (number_to_datetime(value, ltime, fuzzydate, &was_cut) == LL(-1))
+    {
+      char buff[22], *end;
+      end= longlong10_to_str(value, buff, -10);
+      make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                   buff, (int) (end-buff), MYSQL_TIMESTAMP_NONE,
+                                   NullS);
+      goto err;
+    }
   }
   return 0;
+
+err:
+  bzero((char*) ltime,sizeof(*ltime));
+  return 1;
 }
 
 /*
@@ -876,7 +894,7 @@ bool Item::get_date(TIME *ltime,uint fuzzydate)
   As a extra convenience the time structure is reset on error!
  */
 
-bool Item::get_time(TIME *ltime)
+bool Item::get_time(MYSQL_TIME *ltime)
 {
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
@@ -1868,7 +1886,7 @@ String *Item_field::str_result(String *str)
   return result_field->val_str(str,&str_value);
 }
 
-bool Item_field::get_date(TIME *ltime,uint fuzzydate)
+bool Item_field::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 {
   if ((null_value=field->is_null()) || field->get_date(ltime,fuzzydate))
   {
@@ -1878,7 +1896,7 @@ bool Item_field::get_date(TIME *ltime,uint fuzzydate)
   return 0;
 }
 
-bool Item_field::get_date_result(TIME *ltime,uint fuzzydate)
+bool Item_field::get_date_result(MYSQL_TIME *ltime,uint fuzzydate)
 {
   if ((null_value=result_field->is_null()) ||
       result_field->get_date(ltime,fuzzydate))
@@ -1889,7 +1907,7 @@ bool Item_field::get_date_result(TIME *ltime,uint fuzzydate)
   return 0;
 }
 
-bool Item_field::get_time(TIME *ltime)
+bool Item_field::get_time(MYSQL_TIME *ltime)
 {
   if ((null_value=field->is_null()) || field->get_time(ltime))
   {
@@ -2416,7 +2434,7 @@ void Item_param::set_decimal(const char *str, ulong length)
 
 
 /*
-  Set parameter value from TIME value.
+  Set parameter value from MYSQL_TIME value.
 
   SYNOPSIS
     set_time()
@@ -2430,7 +2448,7 @@ void Item_param::set_decimal(const char *str, ulong length)
     the fact that even wrong value sent over binary protocol fits into
     MAX_DATE_STRING_REP_LENGTH buffer.
 */
-void Item_param::set_time(TIME *tm, timestamp_type time_type,
+void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
                           uint32 max_length_arg)
 { 
   DBUG_ENTER("Item_param::set_time");
@@ -2445,7 +2463,8 @@ void Item_param::set_time(TIME *tm, timestamp_type time_type,
   {
     char buff[MAX_DATE_STRING_REP_LENGTH];
     uint length= my_TIME_to_str(&value.time, buff);
-    make_truncated_value_warning(current_thd, buff, length, time_type, 0);
+    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                 buff, length, time_type, 0);
     set_zero_time(&value.time, MYSQL_TIMESTAMP_ERROR);
   }
 
@@ -2647,7 +2666,7 @@ int Item_param::save_in_field(Field *field, bool no_conversions)
 }
 
 
-bool Item_param::get_time(TIME *res)
+bool Item_param::get_time(MYSQL_TIME *res)
 {
   if (state == TIME_VALUE)
   {
@@ -2662,7 +2681,7 @@ bool Item_param::get_time(TIME *res)
 }
 
 
-bool Item_param::get_date(TIME *res, uint fuzzydate)
+bool Item_param::get_date(MYSQL_TIME *res, uint fuzzydate)
 {
   if (state == TIME_VALUE)
   {
@@ -3088,7 +3107,7 @@ String* Item_ref_null_helper::val_str(String* s)
 }
 
 
-bool Item_ref_null_helper::get_date(TIME *ltime, uint fuzzydate)
+bool Item_ref_null_helper::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 {  
   return (owner->was_null|= null_value= (*ref)->get_date(ltime, fuzzydate));
 }
@@ -4923,7 +4942,7 @@ bool Item::send(Protocol *protocol, String *buffer)
   case MYSQL_TYPE_DATE:
   case MYSQL_TYPE_TIMESTAMP:
   {
-    TIME tm;
+    MYSQL_TIME tm;
     get_date(&tm, TIME_FUZZY_DATE);
     if (!null_value)
     {
@@ -4936,7 +4955,7 @@ bool Item::send(Protocol *protocol, String *buffer)
   }
   case MYSQL_TYPE_TIME:
   {
-    TIME tm;
+    MYSQL_TIME tm;
     get_time(&tm);
     if (!null_value)
       result= protocol->store_time(&tm);
@@ -5488,7 +5507,7 @@ bool Item_ref::is_null()
 }
 
 
-bool Item_ref::get_date(TIME *ltime,uint fuzzydate)
+bool Item_ref::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 {
   return (null_value=(*ref)->get_date_result(ltime,fuzzydate));
 }
@@ -5587,7 +5606,7 @@ bool Item_direct_ref::is_null()
 }
 
 
-bool Item_direct_ref::get_date(TIME *ltime,uint fuzzydate)
+bool Item_direct_ref::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 {
   return (null_value=(*ref)->get_date(ltime,fuzzydate));
 }
