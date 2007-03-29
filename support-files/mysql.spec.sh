@@ -354,12 +354,7 @@ then
   cp -fp config.log "$MYSQL_MAXCONFLOG_DEST"
 fi
 
-( cd mysql-test
-  MTR_BUILD_THREAD=auto
-  export MTR_BUILD_THREAD
-  perl ./mysql-test-run.pl --force --report-features
-  perl ./mysql-test-run.pl --force --ps-protocol
-  true )
+make test-bt
 
 # Save mysqld-max
 ./libtool --mode=execute cp sql/mysqld sql/mysqld-max
@@ -418,12 +413,7 @@ then
   cp -fp config.log "$MYSQL_CONFLOG_DEST"
 fi
 
-( cd mysql-test
-  MTR_BUILD_THREAD=auto
-  export MTR_BUILD_THREAD
-  perl ./mysql-test-run.pl --force --report-features
-  perl ./mysql-test-run.pl --force --ps-protocol
-  true )
+make test-bt
 
 %install
 RBR=$RPM_BUILD_ROOT
