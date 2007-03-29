@@ -3888,7 +3888,8 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     break;
   case HA_EXTRA_WRITE_CAN_REPLACE:
     DBUG_PRINT("info", ("HA_EXTRA_WRITE_CAN_REPLACE"));
-    if (!m_has_unique_index)
+    if (!m_has_unique_index ||
+        current_thd->slave_thread) /* always set if slave, quick fix for bug 27378 */
     {
       DBUG_PRINT("info", ("Turning ON use of write instead of insert"));
       m_use_write= TRUE;
