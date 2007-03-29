@@ -244,7 +244,7 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
   if (ltime_utc >= (my_time_t) thd->query_start())
     return;
 
-  if (on_completion == ON_COMPLETION_DROP)
+  if (on_completion == Event_basic::ON_COMPLETION_DROP)
   {
     switch (thd->lex->sql_command) {
     case SQLCOM_CREATE_EVENT:
@@ -261,9 +261,9 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
 
     do_not_create= TRUE;
   }
-  else if (status == ENABLED)
+  else if (status == Event_basic::ENABLED)
   {
-    status= DISABLED;
+    status= Event_basic::DISABLED;
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                  ER_EVENT_EXEC_TIME_IN_THE_PAST,
                  ER(ER_EVENT_EXEC_TIME_IN_THE_PAST));
