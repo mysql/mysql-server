@@ -95,7 +95,8 @@ DEFS =			-DUNDEF_THREADS_HACK \
 			-DDEFAULT_MYSQL_HOME="\"$(prefix)\"" \
 			-DDATADIR="\"$(localstatedir)\""
 
-sql_src=log_event.h mysql_priv.h log_event.cc my_decimal.h my_decimal.cc
+sql_src=log_event.h mysql_priv.h rpl_constants.h \
+	log_event.cc my_decimal.h my_decimal.cc
 strings_src=decimal.c
 EXTRA_DIST =		get_password.c CMakeLists.txt echo.c
 

@@ -2,13 +2,12 @@ create table t1 (a int, b int) engine=innodb;
 begin;
 insert into t1 values (1,2);
 commit;
-show binlog events;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	105	Server ver: #, Binlog ver: #
-master-bin.000001	105	Query	1	212	use `test`; create table t1 (a int, b int) engine=innodb
-master-bin.000001	212	Query	1	280	use `test`; BEGIN
-master-bin.000001	280	Query	1	90	use `test`; insert into t1 values (1,2)
-master-bin.000001	370	Xid	1	397	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int, b int) engine=innodb
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (1,2)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 drop table t1;
 drop table if exists t1, t2;
 reset master;
@@ -20,7 +19,7 @@ commit;
 begin;
 insert t2 values (5);
 commit;
-show binlog events from 105;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int) engine=innodb
 master-bin.000001	#	Query	1	#	use `test`; create table t2 (a int) engine=innodb
@@ -36,7 +35,7 @@ create table t1 (n int) engine=innodb;
 begin;
 commit;
 drop table t1;
-show binlog events in 'master-bin.000001' from 105;
+show binlog events in 'master-bin.000001' from 106;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (n int) engine=innodb
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
@@ -142,7 +141,7 @@ master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(2 + 4)
 master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(1 + 4)
 master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
 master-bin.000001	#	Rotate	1	#	master-bin.000002;pos=4
-show binlog events in 'master-bin.000002' from 105;
+show binlog events in 'master-bin.000002' from 106;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Query	1	#	use `test`; drop table t1
 reset master;
@@ -164,7 +163,7 @@ INSERT INTO user SET host='localhost', user='@#@', password=password('Just a tes
 UPDATE user SET password=password('Another password') WHERE host='localhost' AND user='@#@';
 DELETE FROM user WHERE host='localhost' AND user='@#@';
 use test;
-show binlog events from 105;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (id tinyint auto_increment primary key)
 master-bin.000001	#	Intvar	1	#	INSERT_ID=127
@@ -183,7 +182,7 @@ set @@session.auto_increment_increment=1, @@session.auto_increment_offset=1;
 insert delayed into t1 values (207);
 insert delayed into t1 values (null);
 insert delayed into t1 values (300);
-show binlog events from 105;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (id tinyint auto_increment primary key)
 master-bin.000001	#	Intvar	1	#	INSERT_ID=127
