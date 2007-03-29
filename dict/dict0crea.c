@@ -705,6 +705,9 @@ dict_truncate_index_tree(
 				/* out: new root page number, or
 				FIL_NULL on failure */
 	dict_table_t*	table,	/* in: the table the index belongs to */
+	ulint		space,	/* in: 0=truncate,
+				nonzero=create the index tree in the
+				given tablespace */
 	btr_pcur_t*	pcur,	/* in/out: persistent cursor pointing to
 				record in the clustered index of
 				SYS_INDEXES table. The cursor may be
@@ -714,14 +717,13 @@ dict_truncate_index_tree(
 				committed and restarted in this call. */
 {
 	ulint		root_page_no;
-	ulint		space;
+	ibool		drop = !space;
 	ulint		zip_size;
 	ulint		type;
 	dulint		index_id;
 	rec_t*		rec;
 	const byte*	ptr;
 	ulint		len;
-	ulint		comp;
 	dict_index_t*	index;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -733,13 +735,13 @@ dict_truncate_index_tree(
 
 	root_page_no = mtr_read_ulint(ptr, MLOG_4BYTES, mtr);
 
-	if (root_page_no == FIL_NULL) {
+	if (drop && root_page_no == FIL_NULL) {
 		/* The tree has been freed. */
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "  InnoDB: Trying to TRUNCATE"
 			" a missing index of table %s!\n", table->name);
-		return(FIL_NULL);
+		drop = FALSE;
 	}
 
 	ptr = rec_get_nth_field_old(rec,
@@ -747,7 +749,10 @@ dict_truncate_index_tree(
 
 	ut_ad(len == 4);
 
-	space = mtr_read_ulint(ptr, MLOG_4BYTES, mtr);
+	if (drop) {
+		space = mtr_read_ulint(ptr, MLOG_4BYTES, mtr);
+	}
+
 	zip_size = fil_space_get_zip_size(space);
 
 	if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
@@ -769,6 +774,11 @@ dict_truncate_index_tree(
 	ut_ad(len == 8);
 	index_id = mach_read_from_8(ptr);
 
+	if (!drop) {
+
+		goto create;
+	}
+
 	/* We free all the pages but the root page first; this operation
 	may span several mini-transactions */
 
@@ -779,10 +789,10 @@ dict_truncate_index_tree(
 	appropriate field in the SYS_INDEXES record: this mini-transaction
 	marks the B-tree totally truncated */
 
-	comp = page_is_comp(btr_page_get(space, zip_size, root_page_no,
-					 RW_X_LATCH, mtr));
+	btr_page_get(space, zip_size, root_page_no, RW_X_LATCH, mtr);
 
 	btr_free_root(space, zip_size, root_page_no, mtr);
+create:
 	/* We will temporarily write FIL_NULL to the PAGE_NO field
 	in SYS_INDEXES, so that the database will not get into an
 	inconsistent state in case it crashes between the mtr_commit()
