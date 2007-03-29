@@ -9170,7 +9170,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->s->table_name= table->s->path= tmpname;
   table->s->db= "";
   table->s->blob_ptr_size= mi_portable_sizeof_char_ptr;
-  table->s->tmp_table= TMP_TABLE;
+  table->s->tmp_table= NON_TRANSACTIONAL_TMP_TABLE;
   table->s->db_low_byte_first=1;                // True for HEAP and MyISAM
   table->s->table_charset= param->table_charset;
   table->s->keys_for_keyread.init();
