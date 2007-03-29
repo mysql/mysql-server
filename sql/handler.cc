@@ -165,7 +165,7 @@ plugin_ref ha_lock_engine(THD *thd, handlerton *hton)
   {
     st_plugin_int **plugin= hton2plugin + hton->slot;
     
-#ifdef DBUG_OFF;
+#ifdef DBUG_OFF
     return my_plugin_lock(thd, plugin);
 #else
     return my_plugin_lock(thd, &plugin);

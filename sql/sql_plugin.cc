@@ -628,6 +628,11 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc CALLER_INFO_PROTO)
 
     plugin= pi;
 #else
+    /*
+      For debugging, we do an additional malloc which allows the
+      memory manager and/or valgrind to track locked references and
+      double unlocks to aid resolving reference counting.problems.
+    */
     if (!(plugin= (plugin_ref) my_malloc_ci(sizeof(pi), MYF(MY_WME))))
       DBUG_RETURN(NULL);
 
@@ -927,7 +932,6 @@ static void intern_plugin_unlock(LEX *lex, plugin_ref plugin)
   if (!pi->plugin_dl)
     DBUG_VOID_RETURN;
 #else
-  *(long *) plugin= -1; /* salt the ground, we're debugging */
   my_free((gptr) plugin, MYF(MY_WME));
 #endif
 
@@ -1085,7 +1089,7 @@ static byte *get_bookmark_hash_key(const byte *buff, uint *length,
   From there we load up the dynamic types (assuming we have not been told to
   skip this part).
 
-  Finally we inializie everything, aka the dynamic that have yet to initialize.
+  Finally we initialize everything, aka the dynamic that have yet to initialize.
 */
 int plugin_init(int *argc, char **argv, int flags)
 {
@@ -1240,7 +1244,7 @@ static bool register_builtin(struct st_mysql_plugin *plugin,
                              struct st_plugin_int *tmp,
                              struct st_plugin_int **ptr)
 {
-  DBUG_ENTER("plugin_register_builtin");
+  DBUG_ENTER("register_builtin");
 
   tmp->plugin= plugin;
   tmp->name.str= (char *)plugin->name;
@@ -1262,8 +1266,10 @@ static bool register_builtin(struct st_mysql_plugin *plugin,
 }
 
 
+#ifdef NOT_USED_YET
 /*
   Register a plugin at run time. (note, this doesn't initialize a plugin)
+  Will be useful for embedded applications.
 
   SYNOPSIS
     plugin_register_builtin()
@@ -1298,6 +1304,7 @@ end:
 
   DBUG_RETURN(result);;
 }
+#endif /* NOT_USED_YET */
 
 
 /*
@@ -1523,15 +1530,12 @@ void plugin_shutdown(void)
     /*
       Now we can deallocate all memory.
     */
-#if defined(SAFE_MUTEX) && !defined(DBUG_OFF)
+
     /* neccessary to avoid safe_mutex_assert_owner() trap */
     pthread_mutex_lock(&LOCK_plugin);
-#endif
     cleanup_variables(NULL, &global_system_variables, true);
     cleanup_variables(NULL, &max_system_variables, true);
-#if defined(SAFE_MUTEX) && !defined(DBUG_OFF)
     pthread_mutex_unlock(&LOCK_plugin);
-#endif
 
     initialized= 0;
     pthread_mutex_destroy(&LOCK_plugin);
