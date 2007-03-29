@@ -22,7 +22,7 @@ commit;
 # first COMMIT must be Query_log_event, second - Xid_log_event
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events from 102;
+show binlog events from 103;
 drop table t1,t2;
 
 #
@@ -44,10 +44,10 @@ commit;
 drop table t1;
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events in 'master-bin.000001' from 102;
+show binlog events in 'master-bin.000001' from 103;
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events in 'master-bin.000002' from 102;
+show binlog events in 'master-bin.000002' from 103;
 
 # Test of a too big SET INSERT_ID: see if the truncated value goes
 # into binlog (right), or the too big value (wrong); we look at the
@@ -69,7 +69,7 @@ create table if not exists t3 like tt1;
 
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events from 102;
+show binlog events from 103;
 drop table t1,t2,t3,tt1;
 
 -- source extra/binlog_tests/binlog_insert_delayed.test

@@ -22,6 +22,7 @@
 #endif
 
 #include <my_bitmap.h>
+#include "rpl_constants.h"
 
 #define LOG_READ_EOF    -1
 #define LOG_READ_BOGUS  -2
@@ -198,7 +199,7 @@ struct sql_ex_info
 #define TABLE_MAP_HEADER_LEN   8
 #define EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN (4 + 4 + 4 + 1)
 #define EXECUTE_LOAD_QUERY_HEADER_LEN  (QUERY_HEADER_LEN + EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN)
-
+#define INCIDENT_HEADER_LEN    2
 /* 
   Max number of possible extra bytes in a replication event compared to a
   packet (i.e. a query) sent from client to master;
@@ -471,6 +472,11 @@ enum Log_event_type
   WRITE_ROWS_EVENT = 20,
   UPDATE_ROWS_EVENT = 21,
   DELETE_ROWS_EVENT = 22,
+
+  /*
+    Something out of the ordinary happened on the master
+   */
+  INCIDENT_EVENT= 23,
 
   /*
     Add new events here - right above this comment!
@@ -2205,6 +2211,96 @@ private:
                              char const *row_start, char const **row_end);
   virtual int do_exec_row(TABLE *table);
 #endif
+};
+
+
+/**
+   Class representing an incident, an occurance out of the ordinary,
+   that happened on the master.
+
+   The event is used to inform the slave that something out of the
+   ordinary happened on the master that might cause the database to be
+   in an inconsistent state.
+
+   <table id="IncidentFormat">
+   <caption>Incident event format</caption>
+   <tr>
+     <th>Symbol</th>
+     <th>Size<br/>(bytes)</th>
+     <th>Description</th>
+   </tr>
+   <tr>
+     <td>INCIDENT</td>
+     <td align="right">2</td>
+     <td>Incident number as an unsigned integer</td>
+   </tr>
+   <tr>
+     <td>MSGLEN</td>
+     <td align="right">1</td>
+     <td>Message length as an unsigned integer</td>
+   </tr>
+   <tr>
+     <td>MESSAGE</td>
+     <td align="right">MSGLEN</td>
+     <td>The message, if present. Not null terminated.</td>
+   </tr>
+   </table>
+ */
+class Incident_log_event : public Log_event {
+public:
+#ifndef MYSQL_CLIENT
+  Incident_log_event(THD *thd_arg, Incident incident)
+    : Log_event(thd_arg, 0, FALSE), m_incident(incident)
+  {
+    DBUG_ENTER("Incident_log_event::Incident_log_event");
+    DBUG_PRINT("enter", ("m_incident: %d", m_incident));
+    m_message.str= NULL;                    /* Just as a precaution */
+    m_message.length= 0;
+    DBUG_VOID_RETURN;
+  }
+
+  Incident_log_event(THD *thd_arg, Incident incident, LEX_STRING const msg)
+    : Log_event(thd_arg, 0, FALSE), m_incident(incident)
+  {
+    DBUG_ENTER("Incident_log_event::Incident_log_event");
+    DBUG_PRINT("enter", ("m_incident: %d", m_incident));
+    m_message= msg;
+    DBUG_VOID_RETURN;
+  }
+#endif
+
+#ifndef MYSQL_CLIENT
+  void pack_info(Protocol*);
+#endif
+
+  Incident_log_event(const char *buf, uint event_len,
+                     const Format_description_log_event *descr_event);
+
+  virtual ~Incident_log_event();
+
+#ifdef MYSQL_CLIENT
+  virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int exec_event(struct st_relay_log_info *rli);
+#endif
+
+  virtual bool write_data_header(IO_CACHE *file);
+  virtual bool write_data_body(IO_CACHE *file);
+
+  virtual Log_event_type get_type_code() { return INCIDENT_EVENT; }
+
+  virtual bool is_valid() const { return 1; }
+  virtual int get_data_size() {
+    return INCIDENT_HEADER_LEN + 1 + m_message.length;
+  }
+
+private:
+  const char *description() const;
+
+  Incident m_incident;
+  LEX_STRING m_message;
 };
 
 #endif /* _log_event_h */

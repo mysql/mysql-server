@@ -42,13 +42,13 @@ select count(*) from t1;
 show binlog events;
 --replace_column 2 # 5 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-show binlog events from 102 limit 1;
+show binlog events from 103 limit 1;
 --replace_column 2 # 5 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-show binlog events from 102 limit 2;
+show binlog events from 103 limit 2;
 --replace_column 2 # 5 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-show binlog events from 102 limit 2,1;
+show binlog events from 103 limit 2,1;
 flush logs;
 
 # We need an extra update before doing save_master_pos.

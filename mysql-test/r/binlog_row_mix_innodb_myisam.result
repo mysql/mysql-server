@@ -6,7 +6,7 @@ begin;
 insert into t1 values(1);
 insert into t2 select * from t1;
 commit;
-show binlog events from 102;
+show binlog events from 103;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
@@ -23,7 +23,7 @@ insert into t2 select * from t1;
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
-show binlog events from 102;
+show binlog events from 103;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
@@ -43,7 +43,7 @@ rollback to savepoint my_savepoint;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 commit;
-show binlog events from 102;
+show binlog events from 103;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
@@ -72,7 +72,7 @@ select a from t1 order by a;
 a
 5
 7
-show binlog events from 102;
+show binlog events from 103;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
@@ -98,7 +98,7 @@ insert into t2 select * from t1;
 select get_lock("a",10);
 get_lock("a",10)
 1
-show binlog events from 102;
+show binlog events from 103;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
@@ -111,7 +111,7 @@ delete from t2;
 reset master;
 insert into t1 values(9);
 insert into t2 select * from t1;
-show binlog events from 102;
+show binlog events from 103;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
@@ -124,7 +124,7 @@ reset master;
 insert into t1 values(10);
 begin;
 insert into t2 select * from t1;
-show binlog events from 102;
+show binlog events from 103;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
@@ -133,7 +133,7 @@ master-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 insert into t1 values(11);
 commit;
-show binlog events from 102;
+show binlog events from 103;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
@@ -152,7 +152,7 @@ begin;
 insert into t1 values(12);
 insert into t2 select * from t1;
 commit;
-show binlog events from 102;
+show binlog events from 103;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
@@ -167,7 +167,7 @@ begin;
 insert into t1 values(13);
 insert into t2 select * from t1;
 rollback;
-show binlog events from 102;
+show binlog events from 103;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 delete from t1;
 delete from t2;
@@ -179,7 +179,7 @@ insert into t1 values(15);
 insert into t2 select * from t1;
 rollback to savepoint my_savepoint;
 commit;
-show binlog events from 102;
+show binlog events from 103;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
@@ -200,7 +200,7 @@ select a from t1 order by a;
 a
 16
 18
-show binlog events from 102;
+show binlog events from 103;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
@@ -252,7 +252,7 @@ insert into t2 values (3);
 select get_lock("lock1",60);
 get_lock("lock1",60)
 1
-show binlog events from 102;
+show binlog events from 103;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
@@ -355,7 +355,7 @@ SELECT * from t2;
 a	b
 100	100
 DROP TABLE t1,t2;
-show binlog events from 102;
+show binlog events from 103;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F

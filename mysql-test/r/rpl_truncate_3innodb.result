@@ -31,13 +31,13 @@ a	b
 DROP TABLE t1;
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	102	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	102	Query	1	210	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB
-master-bin.000001	210	Query	1	97	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
-master-bin.000001	307	Xid	1	334	COMMIT /* xid= */
-master-bin.000001	334	Query	1	80	use `test`; TRUNCATE TABLE t1
-master-bin.000001	414	Xid	1	441	COMMIT /* xid= */
-master-bin.000001	441	Query	1	517	use `test`; DROP TABLE t1
+master-bin.000001	4	Format_desc	1	103	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	103	Query	1	211	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB
+master-bin.000001	211	Query	1	97	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
+master-bin.000001	308	Xid	1	335	COMMIT /* xid= */
+master-bin.000001	335	Query	1	80	use `test`; TRUNCATE TABLE t1
+master-bin.000001	415	Xid	1	442	COMMIT /* xid= */
+master-bin.000001	442	Query	1	518	use `test`; DROP TABLE t1
 **** On Master ****
 SET SESSION BINLOG_FORMAT=MIXED;
 SET GLOBAL  BINLOG_FORMAT=MIXED;
@@ -65,13 +65,13 @@ a	b
 DROP TABLE t1;
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	102	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	102	Query	1	210	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB
-master-bin.000001	210	Query	1	97	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
-master-bin.000001	307	Xid	1	334	COMMIT /* xid= */
-master-bin.000001	334	Query	1	80	use `test`; TRUNCATE TABLE t1
-master-bin.000001	414	Xid	1	441	COMMIT /* xid= */
-master-bin.000001	441	Query	1	517	use `test`; DROP TABLE t1
+master-bin.000001	4	Format_desc	1	103	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	103	Query	1	211	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB
+master-bin.000001	211	Query	1	97	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
+master-bin.000001	308	Xid	1	335	COMMIT /* xid= */
+master-bin.000001	335	Query	1	80	use `test`; TRUNCATE TABLE t1
+master-bin.000001	415	Xid	1	442	COMMIT /* xid= */
+master-bin.000001	442	Query	1	518	use `test`; DROP TABLE t1
 **** On Master ****
 SET SESSION BINLOG_FORMAT=ROW;
 SET GLOBAL  BINLOG_FORMAT=ROW;
@@ -99,14 +99,14 @@ a	b
 DROP TABLE t1;
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	102	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	102	Query	1	210	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB
-master-bin.000001	210	Table_map	1	40	table_id: # (test.t1)
-master-bin.000001	250	Write_rows	1	87	table_id: # flags: STMT_END_F
-master-bin.000001	297	Xid	1	324	COMMIT /* xid= */
-master-bin.000001	324	Query	1	80	use `test`; TRUNCATE TABLE t1
-master-bin.000001	404	Xid	1	431	COMMIT /* xid= */
-master-bin.000001	431	Query	1	507	use `test`; DROP TABLE t1
+master-bin.000001	4	Format_desc	1	103	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	103	Query	1	211	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB
+master-bin.000001	211	Table_map	1	40	table_id: # (test.t1)
+master-bin.000001	251	Write_rows	1	87	table_id: # flags: STMT_END_F
+master-bin.000001	298	Xid	1	325	COMMIT /* xid= */
+master-bin.000001	325	Query	1	80	use `test`; TRUNCATE TABLE t1
+master-bin.000001	405	Xid	1	432	COMMIT /* xid= */
+master-bin.000001	432	Query	1	508	use `test`; DROP TABLE t1
 **** On Master ****
 SET SESSION BINLOG_FORMAT=STATEMENT;
 SET GLOBAL  BINLOG_FORMAT=STATEMENT;
@@ -134,13 +134,13 @@ a	b
 DROP TABLE t1;
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	102	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	102	Query	1	210	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB
-master-bin.000001	210	Query	1	97	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
-master-bin.000001	307	Xid	1	334	COMMIT /* xid= */
-master-bin.000001	334	Query	1	77	use `test`; DELETE FROM t1
-master-bin.000001	411	Xid	1	438	COMMIT /* xid= */
-master-bin.000001	438	Query	1	514	use `test`; DROP TABLE t1
+master-bin.000001	4	Format_desc	1	103	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	103	Query	1	211	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB
+master-bin.000001	211	Query	1	97	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
+master-bin.000001	308	Xid	1	335	COMMIT /* xid= */
+master-bin.000001	335	Query	1	77	use `test`; DELETE FROM t1
+master-bin.000001	412	Xid	1	439	COMMIT /* xid= */
+master-bin.000001	439	Query	1	515	use `test`; DROP TABLE t1
 **** On Master ****
 SET SESSION BINLOG_FORMAT=MIXED;
 SET GLOBAL  BINLOG_FORMAT=MIXED;
@@ -168,13 +168,13 @@ a	b
 DROP TABLE t1;
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	102	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	102	Query	1	210	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB
-master-bin.000001	210	Query	1	97	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
-master-bin.000001	307	Xid	1	334	COMMIT /* xid= */
-master-bin.000001	334	Query	1	77	use `test`; DELETE FROM t1
-master-bin.000001	411	Xid	1	438	COMMIT /* xid= */
-master-bin.000001	438	Query	1	514	use `test`; DROP TABLE t1
+master-bin.000001	4	Format_desc	1	103	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	103	Query	1	211	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB
+master-bin.000001	211	Query	1	97	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
+master-bin.000001	308	Xid	1	335	COMMIT /* xid= */
+master-bin.000001	335	Query	1	77	use `test`; DELETE FROM t1
+master-bin.000001	412	Xid	1	439	COMMIT /* xid= */
+master-bin.000001	439	Query	1	515	use `test`; DROP TABLE t1
 **** On Master ****
 SET SESSION BINLOG_FORMAT=ROW;
 SET GLOBAL  BINLOG_FORMAT=ROW;
@@ -203,12 +203,12 @@ a	b
 DROP TABLE t1;
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	102	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	102	Query	1	210	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB
-master-bin.000001	210	Table_map	1	40	table_id: # (test.t1)
-master-bin.000001	250	Write_rows	1	87	table_id: # flags: STMT_END_F
-master-bin.000001	297	Xid	1	324	COMMIT /* xid= */
-master-bin.000001	324	Table_map	1	40	table_id: # (test.t1)
-master-bin.000001	364	Delete_rows	1	87	table_id: # flags: STMT_END_F
-master-bin.000001	411	Xid	1	438	COMMIT /* xid= */
-master-bin.000001	438	Query	1	514	use `test`; DROP TABLE t1
+master-bin.000001	4	Format_desc	1	103	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	103	Query	1	211	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB
+master-bin.000001	211	Table_map	1	40	table_id: # (test.t1)
+master-bin.000001	251	Write_rows	1	87	table_id: # flags: STMT_END_F
+master-bin.000001	298	Xid	1	325	COMMIT /* xid= */
+master-bin.000001	325	Table_map	1	40	table_id: # (test.t1)
+master-bin.000001	365	Delete_rows	1	87	table_id: # flags: STMT_END_F
+master-bin.000001	412	Xid	1	439	COMMIT /* xid= */
+master-bin.000001	439	Query	1	515	use `test`; DROP TABLE t1

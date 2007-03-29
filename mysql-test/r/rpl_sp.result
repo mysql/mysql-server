@@ -381,7 +381,7 @@ return 0;
 end|
 use mysqltest;
 set @a:= mysqltest2.f1();
-show binlog events in 'master-bin.000001' from 102;
+show binlog events in 'master-bin.000001' from 103;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	drop database if exists mysqltest1
 master-bin.000001	#	Query	1	#	create database mysqltest1
