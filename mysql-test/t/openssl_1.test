@@ -96,4 +96,11 @@ drop table t1;
 --error 1
 --exec $MYSQL_TEST --ssl-cert= --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
-
+#
+# Bug#25309 SSL connections without CA certificate broken since MySQL 5.0.23
+#
+# Test that we can open encrypted connection to server without
+# verification of servers certificate by setting both ca certificate
+# and ca path to NULL
+#
+--exec $MYSQL --ssl --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1
