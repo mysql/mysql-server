@@ -2,6 +2,30 @@
 mysql-5.1.15-ndb-6.1.X
 ==================================================
 
+mysql-5.1.15-ndb-6.1.6 (2007-03-30)
+
+  Bug #27529 Slave crashes on lots of updates
+  Bug #27512 Inconsistent tuples when using variable size and >16Gb datamemory
+  Bug #27378 update becomes delete on slave
+  Bug #27466 nf during nr can leave cluster in inconsistent state
+  Bug #27444 DataMemory missing from report in cluster logs
+  Bug #27044 replicated with unique field ndb table allows duplicate key inserts
+  Bug #26286 row-based logging scales worse than statement-based logging
+  Bug #19896 Last_Errno: 4294967295, Error in Write_rows event: (error number 4 billion ?)
+  Bug #27320 ndb handler does not reset extra flags on reset()
+  Bug #27283 Race condition in GCP Master take-over
+  Bug #26825 MySQL Server Crashes in high load
+  Bug #27286 Rare racecondition in nodeid allocation on master failure
+  Bug #27291 Setting LockPagesInMainMemory to zero doesn't work
+  Bug #20185 Node failure might cause other node failure
+  Bug #27203 ScanDelete+Scan+Insert could cause node crash
+  Bug #27169 xtra word sent in SUMA::resend_bucket causing crash of mysqld(event listener)
+  Bug #27005 Node failure + API failure can crash SUMA resend
+  Bug #27087 Unoptimal handling of failed API in SUMA
+  Bug #27102 Node can crash during flush of undo during restart with filesystem error
+  Bug #27003 Failure during noderestart could crash/hang alive node (and hence cluster)
+  (not reported) correct event buffer status reporting
+
 mysql-5.1.15-ndb-6.1.5 (2007-03-15)
 
   Bug #26997 - mysqld segfault when in single user mode
