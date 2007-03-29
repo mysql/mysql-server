@@ -294,7 +294,7 @@ private:
   check_if_in_the_past(THD *thd, my_time_t ltime_utc);
 
   Event_parse_data(const Event_parse_data &);	/* Prevent use of these */
-  void Event_parse_data::check_originator_id(THD *thd);
+  void check_originator_id(THD *thd);
   void operator=(Event_parse_data &);
 };
 
