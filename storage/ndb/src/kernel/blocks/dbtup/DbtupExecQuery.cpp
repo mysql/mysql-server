@@ -2851,11 +2851,11 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     Ptr<Page> pagePtr = req_struct->m_varpart_page_ptr;
     Var_page* pageP= (Var_page*)pagePtr.p;
     Uint32 idx, alloc, needed;
-    Uint32 *refptr = org->get_var_part_ptr(regTabPtr);
+    Var_part_ref *refptr = (Var_part_ref*)org->get_var_part_ptr(regTabPtr);
     ndbassert(bits & Tuple_header::CHAINED_ROW);
 
     Local_key ref;
-    ref.assref(*refptr);
+    refptr->copyout(&ref);
     idx= ref.m_page_idx;
     if (! (copy_bits & Tuple_header::CHAINED_ROW))
     {
@@ -2878,7 +2878,7 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     }
     copy_bits |= Tuple_header::MM_GROWN;
     if (unlikely(realloc_var_part(regFragPtr, regTabPtr, pagePtr, 
-				  (Var_part_ref*)refptr, alloc, needed)))
+				  refptr, alloc, needed)))
       return -1;
   }
   req_struct->m_tuple_ptr->m_header_bits = copy_bits;
@@ -2945,9 +2945,10 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
   PagePtr page_ptr;
   if (tablePtr.p->m_attributes[MM].m_no_of_varsize)
   {
-    tablePtr.p->m_offsets[MM].m_fix_header_size += Tuple_header::HeaderSize+1;
+    const Uint32 XXX = Tuple_header::HeaderSize+Var_part_ref::SZ32;
+    tablePtr.p->m_offsets[MM].m_fix_header_size += XXX;
     ret = alloc_page(tablePtr.p, fragPtr.p, &page_ptr, tmp.m_page_no);
-    tablePtr.p->m_offsets[MM].m_fix_header_size -= Tuple_header::HeaderSize+1;
+    tablePtr.p->m_offsets[MM].m_fix_header_size -= XXX;
   } 
   else
   {
