@@ -46,7 +46,6 @@ try
             case "WITH_INNOBASE_STORAGE_ENGINE":
             case "WITH_PARTITION_STORAGE_ENGINE":
             case "__NT__":
-            case "CYBOZU":
             case "DISABLE_GRANT_OPTIONS":
                     configfile.WriteLine("SET (" + args.Item(i) + " TRUE)");
                     break;
