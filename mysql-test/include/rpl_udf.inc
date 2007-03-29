@@ -34,6 +34,7 @@ eval CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
 --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
 --error ER_CANT_FIND_DL_ENTRY
 eval CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+--replace_column 3 UDF_LIB
 SELECT * FROM mysql.func;
 --disable_info
 
@@ -105,7 +106,7 @@ DROP TABLE t1;
 --echo "Running on the master"
 --enable_info
 CREATE FUNCTION myfuncsql_int(i INT) RETURNS INTEGER DETERMINISTIC RETURN i; 
-CREATE FUNCTION myfuncsql_double(d DOUBLE) RETURNS INTEGER DETERMINISTIC RETURN d * 0.95; 
+CREATE FUNCTION myfuncsql_double(d DOUBLE) RETURNS INTEGER DETERMINISTIC RETURN d * 2.00; 
 SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%';
 --disable_info
 
