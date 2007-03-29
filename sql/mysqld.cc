@@ -599,7 +599,9 @@ pthread_mutex_t  LOCK_server_started;
 pthread_cond_t  COND_server_started;
 
 int mysqld_server_started= 0;
+#ifndef EMBEDDED_LIBRARY
 static uint thr_kill_signal;
+#endif
 
 File_parser_dummy_hook file_parser_dummy_hook;
 
