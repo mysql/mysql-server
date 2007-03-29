@@ -53,21 +53,6 @@ void safe_print_str(const char* name, const char* val, int max_len)
 #define SIGRETURN_FRAME_OFFSET 23
 #endif
 
-static my_bool is_nptl;
-
-/* Check if we are using NPTL or LinuxThreads on Linux */
-void check_thread_lib(void)
-{
-  char buf[5];
-
-#ifdef _CS_GNU_LIBPTHREAD_VERSION
-  confstr(_CS_GNU_LIBPTHREAD_VERSION, buf, sizeof(buf));
-  is_nptl = !strncasecmp(buf, "NPTL", sizeof(buf));
-#else
-  is_nptl = 0;
-#endif
-}
-
 #if defined(__alpha__) && defined(__GNUC__)
 /*
   The only way to backtrace without a symbol table on alpha
@@ -173,8 +158,8 @@ terribly wrong...\n");
 #endif  /* __alpha__ */
 
   /* We are 1 frame above signal frame with NPTL and 2 frames above with LT */
-  sigreturn_frame_count = is_nptl ? 1 : 2;
-  
+  sigreturn_frame_count = thd_lib_detected == THD_LIB_LT ? 2 : 1;
+
   while (fp < (uchar**) stack_bottom)
   {
 #if defined(__i386__) || defined(__x86_64__)

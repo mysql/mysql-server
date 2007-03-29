@@ -196,7 +196,8 @@ extern "C" {
 /* The deflate compression method (the only one supported in this version) */
 
 #define Z_NULL  0  /* for initializing zalloc, zfree, opaque */
-#define AZ_BUFSIZE 16384
+#define AZ_BUFSIZE_READ 32768
+#define AZ_BUFSIZE_WRITE 16384
 
 
 typedef struct azio_stream {
@@ -204,8 +205,8 @@ typedef struct azio_stream {
   int      z_err;   /* error code for last stream operation */
   int      z_eof;   /* set if end of input file */
   File     file;   /* .gz file */
-  Byte     inbuf[AZ_BUFSIZE];  /* input buffer */
-  Byte     outbuf[AZ_BUFSIZE]; /* output buffer */
+  Byte     inbuf[AZ_BUFSIZE_READ];  /* input buffer */
+  Byte     outbuf[AZ_BUFSIZE_WRITE]; /* output buffer */
   uLong    crc;     /* crc32 of uncompressed data */
   char     *msg;    /* error message */
   int      transparent; /* 1 if input file is not a .gz file */
