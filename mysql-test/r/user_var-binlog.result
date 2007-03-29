@@ -6,7 +6,7 @@ INSERT INTO t1 VALUES(@`a b`);
 set @var1= "';aaa";
 SET @var2=char(ascii('a'));
 insert into t1 values (@var1),(@var2);
-show binlog events from 102;
+show binlog events from 105;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	User var	1	#	@`a b`=_latin1 0x68656C6C6F COLLATE latin1_swedish_ci
 master-bin.000001	#	Query	1	#	use `test`; INSERT INTO t1 VALUES(@`a b`)

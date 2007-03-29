@@ -6,7 +6,7 @@ CREATE TABLE t1(f1 blob);
 PREPARE stmt1 FROM 'INSERT INTO t1 VALUES(?)';
 SET @var1= x'8300';
 EXECUTE stmt1 USING @var1;
-SHOW BINLOG EVENTS FROM 102;
+SHOW BINLOG EVENTS FROM 105;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t1(f1 blob)
 master-bin.000001	#	User var	1	#	@`var1`=_binary 0x8300 COLLATE binary
@@ -30,17 +30,17 @@ HEX(s1)	HEX(s2)	d
 466F6F2773206120426172	ED40ED41ED42	47.93
 DROP PROCEDURE bug18293|
 DROP TABLE t4|
-SHOW BINLOG EVENTS FROM 406|
+SHOW BINLOG EVENTS FROM 409|
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	406	Query	1	572	use `test`; CREATE TABLE t4 (s1 CHAR(50) CHARACTER SET latin1,
+master-bin.000001	409	Query	1	575	use `test`; CREATE TABLE t4 (s1 CHAR(50) CHARACTER SET latin1,
 s2 CHAR(50) CHARACTER SET cp932,
 d DECIMAL(10,2))
-master-bin.000001	572	Query	1	820	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE bug18293 (IN ins1 CHAR(50),
+master-bin.000001	575	Query	1	823	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE bug18293 (IN ins1 CHAR(50),
 IN ins2 CHAR(50) CHARACTER SET cp932,
 IN ind DECIMAL(10,2))
 BEGIN
 INSERT INTO t4 VALUES (ins1, ins2, ind);
 END
-master-bin.000001	820	Query	1	1039	use `test`; INSERT INTO t4 VALUES ( NAME_CONST('ins1',_latin1 0x466F6F2773206120426172),  NAME_CONST('ins2',_cp932 0xED40ED41ED42),  NAME_CONST('ind',47.93))
-master-bin.000001	1039	Query	1	1128	use `test`; DROP PROCEDURE bug18293
-master-bin.000001	1128	Query	1	1207	use `test`; DROP TABLE t4
+master-bin.000001	823	Query	1	1042	use `test`; INSERT INTO t4 VALUES ( NAME_CONST('ins1',_latin1 0x466F6F2773206120426172),  NAME_CONST('ins2',_cp932 0xED40ED41ED42),  NAME_CONST('ind',47.93))
+master-bin.000001	1042	Query	1	1131	use `test`; DROP PROCEDURE bug18293
+master-bin.000001	1131	Query	1	1210	use `test`; DROP TABLE t4

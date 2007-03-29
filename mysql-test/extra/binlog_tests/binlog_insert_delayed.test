@@ -25,7 +25,7 @@ inc $count;
 # the way
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/
-show binlog events from 102;
+show binlog events from 105;
 
 insert delayed into t1 values (null),(null),(null),(null);
 inc $count; inc $count; inc $count; inc $count;
