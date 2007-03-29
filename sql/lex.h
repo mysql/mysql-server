@@ -467,6 +467,7 @@ static SYMBOL symbols[] = {
   { "SIGNED",		SYM(SIGNED_SYM)},
   { "SIMPLE",		SYM(SIMPLE_SYM)},
   { "SLAVE",            SYM(SLAVE)},
+  { "SLAVESIDE_DISABLE",		SYM(SLAVESIDE_DISABLE_SYM)}, 
   { "SNAPSHOT",         SYM(SNAPSHOT_SYM)},
   { "SMALLINT",		SYM(SMALLINT)},
   { "SOCKET",		SYM(SOCKET_SYM)},
