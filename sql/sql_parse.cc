@@ -720,7 +720,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 			&LOCK_status);
     thd->convert_string(&tmp, system_charset_info,
 			packet, packet_length-1, thd->charset());
-    if (!mysql_change_db(thd, tmp.str, FALSE))
+    if (!mysql_change_db(thd, &tmp, FALSE))
     {
       general_log_print(thd, command, "%s",thd->db);
       send_ok(thd);
@@ -4208,8 +4208,8 @@ create_sp_error:
                xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
-    thd->options&= ~(OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE |
-                     OPTION_KEEP_LOG);
+    thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
+    thd->no_trans_update.all= FALSE;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     xid_cache_delete(&thd->transaction.xid_state);
     thd->transaction.xid_state.xa_state=XA_NOTR;
@@ -5023,8 +5023,10 @@ void mysql_reset_thd_for_next_command(THD *thd)
     in ha_rollback_trans() about some tables couldn't be rolled back.
   */
   if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
-    thd->options&= ~(OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG);
-
+  {
+    thd->options&= ~OPTION_KEEP_LOG;
+    thd->no_trans_update.all= FALSE;
+  }
   DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
   thd->tmp_table_used= 0;
   if (!thd->in_sub_stmt)

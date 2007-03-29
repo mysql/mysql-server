@@ -712,7 +712,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
           }
         }
         if (!transactional_table)
-          thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+          thd->no_trans_update.all= TRUE;
       }
     }
     if (transactional_table)
@@ -1322,7 +1322,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
             goto err;
           info->deleted++;
           if (!table->file->has_transactions())
-            thd->no_trans_update= 1;
+            thd->no_trans_update.stmt= TRUE;
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                                 TRG_ACTION_AFTER, TRUE))
@@ -2638,7 +2638,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (info.handle_duplicates == DUP_REPLACE &&
       (!table->triggers || !table->triggers->has_delete_triggers()))
     table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
-  thd->no_trans_update= 0;
+  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |
