@@ -498,6 +498,17 @@ sub collect_one_test_case($$$$$$$) {
   {
     mtr_options_from_test_file($tinfo,"$testdir/${tname}.test");
 
+    if ( defined $::used_default_engine )
+    {
+      # Different default engine is used
+      # tag test to require that engine
+      $tinfo->{'ndb_test'}= 1
+	if ( $::used_default_engine =~ /^ndb/i );
+
+      $tinfo->{'innodb_test'}= 1
+	if ( $::used_default_engine =~ /^innodb/i );
+    }
+
     if ( $tinfo->{'big_test'} and ! $::opt_big_test )
     {
       $tinfo->{'skip'}= 1;
