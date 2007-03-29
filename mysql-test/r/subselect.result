@@ -3946,6 +3946,7 @@ SELECT a FROM t1 t0
 WHERE (SELECT COUNT(t0.b) FROM t1 t WHERE t.b>20) GROUP BY a;
 ERROR HY000: Invalid use of group function
 SET @@sql_mode=default;
+DROP TABLE t1;
 CREATE TABLE t1 (s1 char(1));
 INSERT INTO t1 VALUES ('a');
 SELECT * FROM t1 WHERE _utf8'a' = ANY (SELECT s1 FROM t1);
