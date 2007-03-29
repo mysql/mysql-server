@@ -19,7 +19,7 @@
 
 enum enum_events_table_field
 {
-  ET_FIELD_DB = 0,
+  ET_FIELD_DB = 0, 
   ET_FIELD_NAME,
   ET_FIELD_BODY,
   ET_FIELD_DEFINER,
@@ -35,6 +35,7 @@ enum enum_events_table_field
   ET_FIELD_ON_COMPLETION,
   ET_FIELD_SQL_MODE,
   ET_FIELD_COMMENT,
+  ET_FIELD_ORIGINATOR,
   ET_FIELD_COUNT /* a cool trick to count the number of fields :) */
 };
 

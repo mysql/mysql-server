@@ -94,7 +94,7 @@ const TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] =
   },
   {
     { C_STRING_WITH_LEN("status") },
-    { C_STRING_WITH_LEN("enum('ENABLED','DISABLED')") },
+    { C_STRING_WITH_LEN("enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')") },
     {NULL, 0}
   },
   {
@@ -118,6 +118,11 @@ const TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] =
     { C_STRING_WITH_LEN("comment") },
     { C_STRING_WITH_LEN("char(64)") },
     { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("originator") },
+    { C_STRING_WITH_LEN("int(10)") },
+    {NULL, 0}
   }
 };
 
@@ -169,6 +174,9 @@ mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
   fields[ET_FIELD_ON_COMPLETION]->store((longlong)et->on_completion, TRUE);
 
   fields[ET_FIELD_STATUS]->store((longlong)et->status, TRUE);
+
+  fields[ET_FIELD_ORIGINATOR]->store((longlong)et->originator, TRUE);
+
 
   /*
     Change the SQL_MODE only if body was present in an ALTER EVENT and of course
@@ -535,7 +543,6 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     goto err;
   }
 
-
   DBUG_PRINT("info", ("name: %.*s", parse_data->name.length,
              parse_data->name.str));
 
@@ -602,6 +609,8 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   */
   if ((ret= mysql_event_fill_row(thd, table, parse_data, FALSE)))
     goto err; 
+
+  table->field[ET_FIELD_STATUS]->store((longlong)parse_data->status, TRUE);
 
   /* Close active transaction only if We are going to modify disk */
   if (end_active_trans(thd))

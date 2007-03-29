@@ -2420,10 +2420,25 @@ Slave SQL thread aborted. Can't execute init_slave query");
         /* Print any warnings issued */
         List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
         MYSQL_ERROR *err;
+        /*
+          Added controlled slave thread cancel for replication
+          of user-defined variables.
+        */
+        bool udf_error = false;
         while ((err= it++))
+        {
+          if (err->code == ER_CANT_OPEN_LIBRARY)
+            udf_error = true;
           sql_print_warning("Slave: %s Error_code: %d",err->msg, err->code);
-
-        sql_print_error("\
+        }
+        if (udf_error)
+          sql_print_error("Error loading user-defined library, slave SQL "
+            "thread aborted. Install the missing library, and restart the "
+            "slave SQL thread with \"SLAVE START\". We stopped at log '%s' "
+            "position %s", RPL_LOG_NAME, llstr(rli->group_master_log_pos, 
+            llbuff));
+        else
+          sql_print_error("\
 Error running query, slave SQL thread aborted. Fix the problem, and restart \
 the slave SQL thread with \"SLAVE START\". We stopped at log \
 '%s' position %s", RPL_LOG_NAME, llstr(rli->group_master_log_pos, llbuff));
