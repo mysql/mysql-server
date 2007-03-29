@@ -930,7 +930,7 @@ try_again:
 	file = CreateFile((LPCTSTR) name,
 			  access,
 			  FILE_SHARE_READ | FILE_SHARE_WRITE,
-			  /* file can be read ansd written also
+			  /* file can be read and written also
 			  by other processes */
 			  NULL,	/* default security attributes */
 			  create_flag,
@@ -1509,7 +1509,7 @@ os_file_rename(
 		return(TRUE);
 	}
 
-	os_file_handle_error(oldpath, "rename");
+	os_file_handle_error_no_exit(oldpath, "rename");
 
 	return(FALSE);
 #else
@@ -1518,7 +1518,7 @@ os_file_rename(
 	ret = rename((const char*)oldpath, (const char*)newpath);
 
 	if (ret != 0) {
-		os_file_handle_error(oldpath, "rename");
+		os_file_handle_error_no_exit(oldpath, "rename");
 
 		return(FALSE);
 	}
