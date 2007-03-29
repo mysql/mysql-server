@@ -6777,25 +6777,24 @@ static void my_uca_scanner_init_ucs2(my_uca_scanner *scanner,
     scanner->uca_length= cs->sort_order;
     scanner->uca_weight= cs->sort_order_big;
     scanner->contractions= cs->contractions;
+    return;
   }
-  else
-  {
-    /*
-      Sometimes this function is called with
-      str=NULL and length=0, which should be
-      considered as an empty string.
+
+  /*
+    Sometimes this function is called with
+    str=NULL and length=0, which should be
+    considered as an empty string.
+    
+    The above initialization is unsafe for such cases,
+    because scanner->send is initialized to (NULL-2), which is 0xFFFFFFFE.
+    Then we fall into an endless loop in my_uca_scanner_next_ucs2().
       
-      The above initialization is unsafe for such cases,
-      because scanner->send is initialized to (NULL-2), which is 0xFFFFFFFE.
-      Then we fall into an endless loop in my_uca_scanner_next_ucs2().
-      
-      Do special initialization for the case when length=0.
-      Initialize scanner->sbeg to an address greater than scanner->send.
-      Next call of my_uca_scanner_next_ucs2() will correctly return with -1.
-    */
-    scanner->sbeg= (uchar*) &nochar[1];
-    scanner->send= (uchar*) &nochar[0];
-  }
+    Do special initialization for the case when length=0.
+    Initialize scanner->sbeg to an address greater than scanner->send.
+    Next call of my_uca_scanner_next_ucs2() will correctly return with -1.
+  */
+  scanner->sbeg= (uchar*) &nochar[1];
+  scanner->send= (uchar*) &nochar[0];
 }
 
 
