@@ -4052,6 +4052,26 @@ err2:
 }
 
 
+static bool check_grant_db_routine(THD *thd, const char *db, HASH *hash)
+{
+  Security_context *sctx= thd->security_ctx;
+
+  for (uint idx= 0; idx < hash->records; ++idx)
+  {
+    GRANT_NAME *item= (GRANT_NAME*) hash_element(hash, idx);
+
+    if (strcmp(item->user, sctx->priv_user) == 0 &&
+        strcmp(item->db, db) == 0 &&
+        compare_hostname(&item->host, sctx->host, sctx->ip))
+    {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
+
 /*
   Check if a user has the right to access a database
   Access is accepted if he has a grant for any table/routine in the database
@@ -4063,9 +4083,10 @@ bool check_grant_db(THD *thd,const char *db)
   Security_context *sctx= thd->security_ctx;
   char helping [NAME_LEN+USERNAME_LENGTH+2];
   uint len;
-  bool error= 1;
+  bool error= TRUE;
 
   len= (uint) (strmov(strmov(helping, sctx->priv_user) + 1, db) - helping) + 1;
+
   rw_rdlock(&LOCK_grant);
 
   for (uint idx=0 ; idx < column_priv_hash.records ; idx++)
@@ -4076,11 +4097,17 @@ bool check_grant_db(THD *thd,const char *db)
 	!memcmp(grant_table->hash_key,helping,len) &&
         compare_hostname(&grant_table->host, sctx->host, sctx->ip))
     {
-      error=0;					// Found match
+      error= FALSE; /* Found match. */
       break;
     }
   }
+
+  if (error)
+    error= check_grant_db_routine(thd, db, &proc_priv_hash) &&
+           check_grant_db_routine(thd, db, &func_priv_hash);
+
   rw_unlock(&LOCK_grant);
+
   return error;
 }
 
