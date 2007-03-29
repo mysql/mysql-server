@@ -30,6 +30,10 @@ create database mysqltest2;
 create table mysqltest2.t2 (id int);
 GRANT SELECT ON mysqltest2.t2 TO mysqltest4@localhost IDENTIFIED BY 'pass';
 insert into mysql.user (user, host) values ("mysqltest5", "somehost");
+Warnings:
+Warning	1364	Field 'ssl_cipher' doesn't have a default value
+Warning	1364	Field 'x509_issuer' doesn't have a default value
+Warning	1364	Field 'x509_subject' doesn't have a default value
 GRANT SELECT ON *.* TO mysqltest6@localhost;
 GRANT INSERT ON *.* TO mysqltest6@localhost;
 GRANT INSERT ON test.* TO mysqltest6@localhost;
