@@ -2293,7 +2293,7 @@ fil_discard_tablespace(
 
 	ibuf_delete_for_discarded_space(id);
 
-	return(TRUE);
+	return(success);
 }
 
 /***********************************************************************
