@@ -490,7 +490,7 @@ enum Log_event_type
   /*
     Something out of the ordinary happened on the master
    */
-  INCIDENT_EVENT= 23,
+  INCIDENT_EVENT= 26,
 
   /*
     Add new events here - right above this comment!
