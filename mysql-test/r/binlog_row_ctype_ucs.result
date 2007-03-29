@@ -3,10 +3,10 @@ create table t2 (c char(30)) charset=ucs2;
 set @v=convert('abc' using ucs2);
 reset master;
 insert into t2 values (@v);
-show binlog events from 105;
+show binlog events from 106;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	105	Table_map	1	144	table_id: # (test.t2)
-master-bin.000001	144	Write_rows	1	234	table_id: # flags: STMT_END_F
+master-bin.000001	106	Table_map	1	145	table_id: # (test.t2)
+master-bin.000001	145	Write_rows	1	235	table_id: # flags: STMT_END_F
 flush logs;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
