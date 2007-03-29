@@ -582,7 +582,7 @@ TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
     goto end;
 
   /* A temporary table does not have locks. */
-  if (table->s->tmp_table == TMP_TABLE)
+  if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
     goto end;
 
   /* Get command lock or LOCK TABLES lock. Maybe empty for INSERT DELAYED. */
@@ -607,7 +607,7 @@ TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
     if (haystack->placeholder())
       continue;
     table2= haystack->table;
-    if (table2->s->tmp_table == TMP_TABLE)
+    if (table2->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
       continue;
 
     /* All tables in list must be in lock. */
@@ -695,7 +695,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
   uint system_count= 0;
   for (i=tables=lock_count=0 ; i < count ; i++)
   {
-    if (table_ptr[i]->s->tmp_table != TMP_TABLE)
+    if (table_ptr[i]->s->tmp_table != NON_TRANSACTIONAL_TMP_TABLE)
     {
       tables+=table_ptr[i]->file->lock_count();
       lock_count++;
@@ -737,7 +737,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
     TABLE *table;
     enum thr_lock_type lock_type;
 
-    if ((table=table_ptr[i])->s->tmp_table == TMP_TABLE)
+    if ((table=table_ptr[i])->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
       continue;
     lock_type= table->reginfo.lock_type;
     if (lock_type >= TL_WRITE_ALLOW_WRITE)

@@ -49,7 +49,7 @@ insert into t1 values (1),(2),(3);
 save_master_pos;
 connection slave;
 stop slave;
-change master to master_log_pos=102;
+change master to master_log_pos=105;
 start slave;
 sync_with_master;
 select * from t1 ORDER BY n;

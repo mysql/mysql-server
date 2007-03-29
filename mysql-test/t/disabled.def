@@ -25,7 +25,6 @@ rpl_ndb_ddl              : BUG#18946 result file needs update + test needs to ch
 rpl_ndb_innodb2ndb       : Bug #19710  Cluster replication to partition table fails on DELETE FROM statement
 rpl_ndb_myisam2ndb       : Bug #19710  Cluster replication to partition table fails on DELETE FROM statement
 rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
-rpl_multi_engine         : BUG#22583 2006-09-23 lars
 synchronization          : Bug#24529  	Test 'synchronization' fails on Mac pushbuild; Also on Linux 64 bit.
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
