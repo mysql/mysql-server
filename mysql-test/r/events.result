@@ -229,10 +229,10 @@ Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	E
 events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED	1
 ALTER TABLE mysql.event ADD dummy INT FIRST;
 SHOW EVENTS;
-ERROR HY000: Column count of mysql.event is wrong. Expected 17, found 18. Table probably corrupted
+ERROR HY000: Column count of mysql.event is wrong. Expected 18, found 19. Table probably corrupted
 ALTER TABLE mysql.event DROP dummy, ADD dummy2 VARCHAR(64) FIRST;
 SHOW EVENTS;
-ERROR HY000: Column count of mysql.event is wrong. Expected 17, found 18. Table probably corrupted
+ERROR HY000: Column count of mysql.event is wrong. Expected 18, found 19. Table probably corrupted
 ALTER TABLE mysql.event DROP dummy2;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
@@ -281,7 +281,7 @@ SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
 ALTER TABLE mysql.event DROP comment, DROP starts;
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
-ERROR HY000: Column count of mysql.event is wrong. Expected 17, found 15. Table probably corrupted
+ERROR HY000: Column count of mysql.event is wrong. Expected 18, found 16. Table probably corrupted
 DROP TABLE mysql.event;
 CREATE TABLE mysql.event like event_like;
 INSERT INTO  mysql.event SELECT * FROM event_like;
