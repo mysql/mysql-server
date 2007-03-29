@@ -2665,6 +2665,7 @@ row_truncate_table_for_mysql(
 	btr_pcur_t	pcur;
 	mtr_t		mtr;
 	dulint		new_id;
+	ulint		recreate_space = 0;
 	pars_info_t*	info = NULL;
 
 	/* How do we prevent crashes caused by ongoing operations on
@@ -2689,17 +2690,23 @@ row_truncate_table_for_mysql(
 	reallocated, the allocator will remove the ibuf entries for
 	it.
 
-	TODO: when we truncate *.ibd files (analogous to DISCARD
-	TABLESPACE), we will have to remove we remove all entries for
-	the table in the insert buffer tree!
+	When we truncate *.ibd files by recreating them (analogous to
+	DISCARD TABLESPACE), we remove all entries for the table in the
+	insert buffer tree.  This is not strictly necessary, because
+	in 6) we will assign a new tablespace identifier, but we can
+	free up some space in the system tablespace.
 
 	4) Linear readahead and random readahead: we use the same
-	method as in 3) to discard ongoing operations. (This will only
-	be relevant for TRUNCATE TABLE by DISCARD TABLESPACE.)
+	method as in 3) to discard ongoing operations. (This is only
+	relevant for TRUNCATE TABLE by DISCARD TABLESPACE.)
 
 	5) FOREIGN KEY operations: if
 	table->n_foreign_key_checks_running > 0, we do not allow the
-	TRUNCATE. We also reserve the data dictionary latch. */
+	TRUNCATE. We also reserve the data dictionary latch.
+
+	6) Crash recovery: To prevent the application of pre-truncation
+	redo log records on the truncated tablespace, we will assign
+	a new tablespace identifier to the truncated tablespace. */
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(table);
@@ -2790,6 +2797,51 @@ row_truncate_table_for_mysql(
 
 	trx->table_id = table->id;
 
+	if (table->space && !table->dir_path_of_temp_table) {
+		/* Discard and create the single-table tablespace. */
+		ulint	space	= table->space;
+		ulint	zip_size= fil_space_get_zip_size(space);
+
+		if (zip_size != ULINT_UNDEFINED
+		    && fil_discard_tablespace(space)) {
+
+			dict_index_t*	index;
+
+			space = 0;
+
+			if (fil_create_new_single_table_tablespace(
+				    &space, table->name, FALSE, zip_size,
+				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					"  InnoDB: TRUNCATE TABLE %s failed to"
+					" create a new tablespace\n",
+					table->name);
+				table->ibd_file_missing = 1;
+				err = DB_ERROR;
+				goto funct_exit;
+			}
+
+			recreate_space = space;
+
+			/* Replace the space_id in the data dictionary cache.
+			The persisent data dictionary (SYS_TABLES.SPACE
+			and SYS_INDEXES.SPACE) are updated later in this
+			function. */
+			table->space = space;
+			index = dict_table_get_first_index(table);
+			do {
+				index->space = space;
+				index = dict_table_get_next_index(index);
+			} while (index);
+
+			mtr_start(&mtr);
+			fsp_header_init(space,
+					FIL_IBD_FILE_INITIAL_SIZE, &mtr);
+			mtr_commit(&mtr);
+		}
+	}
+
 	/* scan SYS_INDEXES for all indexes of the table */
 	heap = mem_heap_create(800);
 
@@ -2834,7 +2886,8 @@ row_truncate_table_for_mysql(
 
 		/* This call may commit and restart mtr
 		and reposition pcur. */
-		root_page_no = dict_truncate_index_tree(table, &pcur, &mtr);
+		root_page_no = dict_truncate_index_tree(table, recreate_space,
+							&pcur, &mtr);
 
 		rec = btr_pcur_get_rec(&pcur);
 
@@ -2866,17 +2919,20 @@ next_rec:
 
 	info = pars_info_create();
 
+	pars_info_add_int4_literal(info, "space", (lint) table->space);
 	pars_info_add_dulint_literal(info, "old_id", table->id);
 	pars_info_add_dulint_literal(info, "new_id", new_id);
 
 	err = que_eval_sql(info,
 			   "PROCEDURE RENUMBER_TABLESPACE_PROC () IS\n"
 			   "BEGIN\n"
-			   "UPDATE SYS_TABLES SET ID = :new_id\n"
+			   "UPDATE SYS_TABLES"
+			   " SET ID = :new_id, SPACE = :space\n"
 			   " WHERE ID = :old_id;\n"
 			   "UPDATE SYS_COLUMNS SET TABLE_ID = :new_id\n"
 			   " WHERE TABLE_ID = :old_id;\n"
-			   "UPDATE SYS_INDEXES SET TABLE_ID = :new_id\n"
+			   "UPDATE SYS_INDEXES"
+			   " SET TABLE_ID = :new_id, SPACE = :space\n"
 			   " WHERE TABLE_ID = :old_id;\n"
 			   "COMMIT WORK;\n"
 			   "END;\n"
