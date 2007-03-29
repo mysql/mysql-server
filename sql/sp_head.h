@@ -59,9 +59,10 @@ public:
     calling set_routine_type().
   */
   LEX_STRING m_sroutines_key;
+  bool       m_explicit_name;                   /**< Prepend the db name? */
 
-  sp_name(LEX_STRING db, LEX_STRING name)
-    : m_db(db), m_name(name)
+  sp_name(LEX_STRING db, LEX_STRING name, bool use_explicit_name)
+    : m_db(db), m_name(name), m_explicit_name(use_explicit_name)
   {
     m_qname.str= m_sroutines_key.str= 0;
     m_qname.length= m_sroutines_key.length= 0;
@@ -79,6 +80,7 @@ public:
     m_name.length= m_qname.length= key_len - 1;
     m_db.str= 0;
     m_db.length= 0;
+    m_explicit_name= false;
   }
 
   // Init. the qualified name from the db and name.
