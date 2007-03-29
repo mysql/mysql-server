@@ -217,14 +217,13 @@ int main(int argc, char *argv[])
 
   azclose(&writer_handle);
   azclose(&reader_handle);
-  exit(0);
   unlink(TEST_FILENAME);
 
   /* Start size tests */
   printf("About to run 2/4/8 gig tests now, you may want to hit CTRL-C\n");
-  size_test(TWOGIG, 2097152L);
-  size_test(FOURGIG, 4194304L);
-  size_test(EIGHTGIG, 8388608L);
+  size_test(TWOGIG, 2088992L);
+  size_test(FOURGIG, 4177984L);
+  size_test(EIGHTGIG, 8355968L);
 
   return 0;
 }
@@ -234,6 +233,7 @@ int size_test(unsigned long long length, unsigned long long rows_to_test_for)
   azio_stream writer_handle, reader_handle;
   unsigned long long write_length;
   unsigned long long read_length= 0;
+  unsigned long long count;
   unsigned int ret;
   char buffer[BUFFER_LEN];
   int error;
@@ -244,8 +244,10 @@ int size_test(unsigned long long length, unsigned long long rows_to_test_for)
     return 0;
   }
 
-  for (write_length= 0; write_length < length ; write_length+= ret)
+  for (count= 0, write_length= 0; write_length < length ; 
+       write_length+= ret)
   {
+    count++;
     ret= azwrite(&writer_handle, test_string, BUFFER_LEN);
     if (ret != BUFFER_LEN)
     {
@@ -257,7 +259,7 @@ int size_test(unsigned long long length, unsigned long long rows_to_test_for)
       azflush(&writer_handle,  Z_SYNC_FLUSH);
     }
   }
-  assert(write_length == length);
+  assert(write_length != count * BUFFER_LEN); /* Number of rows time BUFFER_LEN */
   azflush(&writer_handle,  Z_SYNC_FLUSH);
 
   printf("Reading back data\n");
@@ -279,7 +281,7 @@ int size_test(unsigned long long length, unsigned long long rows_to_test_for)
     }
   }
 
-  assert(read_length == length);
+  assert(read_length == write_length);
   assert(writer_handle.rows == rows_to_test_for);
   azclose(&writer_handle);
   azclose(&reader_handle);
