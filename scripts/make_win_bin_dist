@@ -302,6 +302,7 @@ cp mysql-test/std_data/*.cnf        $DESTDIR/mysql-test/std_data/
 cp mysql-test/std_data/*.dat        $DESTDIR/mysql-test/std_data/
 cp mysql-test/std_data/*.frm        $DESTDIR/mysql-test/std_data/
 cp mysql-test/std_data/*.pem        $DESTDIR/mysql-test/std_data/
+cp mysql-test/std_data/*.MY*        $DESTDIR/mysql-test/std_data/
 cp mysql-test/t/*.opt $DESTDIR/mysql-test/t/
 cp mysql-test/t/*.sh $DESTDIR/mysql-test/t/
 cp mysql-test/t/*.slave-mi $DESTDIR/mysql-test/t/
