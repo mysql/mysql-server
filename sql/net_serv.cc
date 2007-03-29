@@ -818,7 +818,7 @@ my_real_read(NET *net, ulong *complen)
         {
           my_bool interrupted = vio_should_retry(net->vio);
 
-	  DBUG_PRINT("info",("vio_read returned %ld,  errno: %d",
+	  DBUG_PRINT("info",("vio_read returned %ld  errno: %d",
 			     length, vio_errno(net->vio)));
 #if !defined(__WIN__) || defined(MYSQL_SERVER)
 	  /*

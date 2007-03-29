@@ -714,9 +714,9 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   }
 #endif
   if (!my_strcasecmp(system_charset_info, dbname,
-                     information_schema_name.str))
+                     INFORMATION_SCHEMA_NAME.str))
   {
-    dbname= information_schema_name.str;
+    dbname= INFORMATION_SCHEMA_NAME.str;
     create.default_table_charset= system_charset_info;
   }
   else
@@ -2196,7 +2196,7 @@ LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
 
 
 /* INFORMATION_SCHEMA name */
-LEX_STRING information_schema_name= { C_STRING_WITH_LEN("information_schema")};
+LEX_STRING INFORMATION_SCHEMA_NAME= { C_STRING_WITH_LEN("information_schema")};
 
 /* This is only used internally, but we need it here as a forward reference */
 extern ST_SCHEMA_TABLE schema_tables[];
@@ -2412,11 +2412,11 @@ int make_db_list(THD *thd, List<char> *files,
     */
     if (!idx_field_vals->db_value ||
         !wild_case_compare(system_charset_info, 
-                           information_schema_name.str,
+                           INFORMATION_SCHEMA_NAME.str,
                            idx_field_vals->db_value))
     {
       *with_i_schema= 1;
-      if (files->push_back(thd->strdup(information_schema_name.str)))
+      if (files->push_back(thd->strdup(INFORMATION_SCHEMA_NAME.str)))
         return 1;
     }
     return (find_files(thd, files, NullS, mysql_data_home,
@@ -2430,11 +2430,11 @@ int make_db_list(THD *thd, List<char> *files,
   */
   if (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND)
   {
-    if (!my_strcasecmp(system_charset_info, information_schema_name.str,
+    if (!my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str,
                        idx_field_vals->db_value))
     {
       *with_i_schema= 1;
-      return files->push_back(thd->strdup(information_schema_name.str));
+      return files->push_back(thd->strdup(INFORMATION_SCHEMA_NAME.str));
     }
     return files->push_back(thd->strdup(idx_field_vals->db_value));
   }
@@ -2443,7 +2443,7 @@ int make_db_list(THD *thd, List<char> *files,
     Create list of existing databases. It is used in case
     of select from information schema table
   */
-  if (files->push_back(thd->strdup(information_schema_name.str)))
+  if (files->push_back(thd->strdup(INFORMATION_SCHEMA_NAME.str)))
     return 1;
   *with_i_schema= 1;
   return (find_files(thd, files, NullS,
@@ -5036,8 +5036,8 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
      We have to make non const db_name & table_name
      because of lower_case_table_names
   */
-  make_lex_string(thd, &db, information_schema_name.str,
-                  information_schema_name.length, 0);
+  make_lex_string(thd, &db, INFORMATION_SCHEMA_NAME.str,
+                  INFORMATION_SCHEMA_NAME.length, 0);
   make_lex_string(thd, &table, schema_table->table_name,
                   strlen(schema_table->table_name), 0);
   if (schema_table->old_format(thd, schema_table) ||   /* Handle old syntax */

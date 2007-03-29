@@ -518,7 +518,7 @@ int my_fstat(int Filedes, MY_STAT *stat_area,
              myf MyFlags __attribute__((unused)))
 {
   DBUG_ENTER("my_fstat");
-  DBUG_PRINT("my",("fd: %d MyFlags: %d",Filedes,MyFlags));
+  DBUG_PRINT("my",("fd: %d  MyFlags: %d", Filedes, MyFlags));
   DBUG_RETURN(fstat(Filedes, (struct stat *) stat_area));
 }
 
@@ -527,7 +527,7 @@ MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags)
 {
   int m_used;
   DBUG_ENTER("my_stat");
-  DBUG_PRINT("my", ("path: '%s', stat_area: 0x%lx, MyFlags: %d", path,
+  DBUG_PRINT("my", ("path: '%s'  stat_area: 0x%lx  MyFlags: %d", path,
                     (long) stat_area, my_flags));
 
   if ((m_used= (stat_area == NULL)))

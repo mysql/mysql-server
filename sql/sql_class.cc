@@ -830,7 +830,8 @@ void THD::add_changed_table(const char *key, long key_length)
     {
       list_include(prev_changed, curr, changed_table_dup(key, key_length));
       DBUG_PRINT("info", 
-		 ("key_length %ld %u", key_length, (*prev_changed)->key_length));
+		 ("key_length: %ld  %u", key_length,
+                  (*prev_changed)->key_length));
       DBUG_VOID_RETURN;
     }
     else if (cmp == 0)
@@ -840,7 +841,7 @@ void THD::add_changed_table(const char *key, long key_length)
       {
 	list_include(prev_changed, curr, changed_table_dup(key, key_length));
 	DBUG_PRINT("info", 
-		   ("key_length %ld %u", key_length,
+		   ("key_length:  %ld  %u", key_length,
 		    (*prev_changed)->key_length));
 	DBUG_VOID_RETURN;
       }
@@ -852,7 +853,7 @@ void THD::add_changed_table(const char *key, long key_length)
     }
   }
   *prev_changed = changed_table_dup(key, key_length);
-  DBUG_PRINT("info", ("key_length %ld %u", key_length,
+  DBUG_PRINT("info", ("key_length: %ld  %u", key_length,
 		      (*prev_changed)->key_length));
   DBUG_VOID_RETURN;
 }

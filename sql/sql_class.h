@@ -1356,7 +1356,11 @@ public:
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       charset_is_character_set_filesystem;
   bool       enable_slow_log;   /* enable slow log for current statement */
-  bool	     no_trans_update, abort_on_warning;
+  struct {
+    bool all:1;
+    bool stmt:1;
+  } no_trans_update;
+  bool	     abort_on_warning;
   bool 	     got_warning;       /* Set on call to push_warning() */
   bool	     no_warnings_for_error; /* no warnings on call to my_error() */
   /* set during loop of derived table processing */
@@ -1587,7 +1591,7 @@ public:
   inline bool really_abort_on_warning()
   {
     return (abort_on_warning &&
-            (!no_trans_update ||
+            (!no_trans_update.stmt ||
              (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
   }
   void set_status_var_init();
