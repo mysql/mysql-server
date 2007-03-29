@@ -1,0 +1,34 @@
+source include/have_openssl.inc;
+source include/master-slave.inc;
+
+# Start replication with ssl_verify_server_cert turned on
+connection slave;
+stop slave;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval change master to
+ master_host="localhost",
+ master_ssl=1 ,
+ master_ssl_ca ='$MYSQL_TEST_DIR/std_data/cacert.pem',
+ master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem',
+ master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem',
+ master_ssl_verify_server_cert=1;
+start slave;
+
+connection master;
+create table t1 (t int);
+insert into t1 values (1);
+
+sync_slave_with_master;
+
+echo on slave;
+#checking that replication is ok
+select * from t1;
+
+#checking show slave status
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_MYPORT
+--replace_column 1 # 6 # 7 # 8 # 9 # 10 # 11 # 16 # 22 # 23 # 33 #
+query_vertical show slave status;
+
+connection master;
+drop table t1;
+sync_slave_with_master;

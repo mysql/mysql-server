@@ -51,3 +51,4 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
