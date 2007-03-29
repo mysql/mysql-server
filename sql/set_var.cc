@@ -3086,12 +3086,14 @@ static bool set_option_autocommit(THD *thd, set_var *var)
       thd->options&= ~(ulonglong) (OPTION_BEGIN |
                                    OPTION_STATUS_NO_TRANS_UPDATE |
                                    OPTION_KEEP_LOG);
+      thd->no_trans_update.all= FALSE;
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
       if (ha_commit(thd))
 	return 1;
     }
     else
     {
+      thd->no_trans_update.all= FALSE;
       thd->options&= ~(ulonglong) (OPTION_STATUS_NO_TRANS_UPDATE);
       thd->server_status&= ~SERVER_STATUS_AUTOCOMMIT;
     }

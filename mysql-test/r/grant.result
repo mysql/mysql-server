@@ -260,29 +260,29 @@ GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' IDENTIFIED BY PASSWORD '*2470C0C
 GRANT SELECT, INSERT, UPDATE ON `test`.* TO 'mysqltest_1'@'localhost'
 drop user mysqltest_1@localhost;
 SET NAMES koi8r;
-CREATE DATABASE ÂÄ;
-USE ÂÄ;
-CREATE TABLE ÔÁÂ (ËÏÌ int);
-GRANT SELECT ON ÂÄ.* TO ÀÚÅÒ@localhost;
-SHOW GRANTS FOR ÀÚÅÒ@localhost;
-Grants for ÀÚÅÒ@localhost
-GRANT USAGE ON *.* TO 'ÀÚÅÒ'@'localhost'
-GRANT SELECT ON `ÂÄ`.* TO 'ÀÚÅÒ'@'localhost'
-REVOKE SELECT ON ÂÄ.* FROM ÀÚÅÒ@localhost;
-GRANT SELECT ON ÂÄ.ÔÁÂ TO ÀÚÅÒ@localhost;
-SHOW GRANTS FOR ÀÚÅÒ@localhost;
-Grants for ÀÚÅÒ@localhost
-GRANT USAGE ON *.* TO 'ÀÚÅÒ'@'localhost'
-GRANT SELECT ON `ÂÄ`.`ÔÁÂ` TO 'ÀÚÅÒ'@'localhost'
-REVOKE SELECT ON ÂÄ.ÔÁÂ FROM ÀÚÅÒ@localhost;
-GRANT SELECT (ËÏÌ) ON ÂÄ.ÔÁÂ TO ÀÚÅÒ@localhost;
-SHOW GRANTS FOR ÀÚÅÒ@localhost;
-Grants for ÀÚÅÒ@localhost
-GRANT USAGE ON *.* TO 'ÀÚÅÒ'@'localhost'
-GRANT SELECT (ËÏÌ) ON `ÂÄ`.`ÔÁÂ` TO 'ÀÚÅÒ'@'localhost'
-REVOKE SELECT (ËÏÌ) ON ÂÄ.ÔÁÂ FROM ÀÚÅÒ@localhost;
-DROP USER ÀÚÅÒ@localhost;
-DROP DATABASE ÂÄ;
+CREATE DATABASE ï¾‚ï¾„;
+USE ï¾‚ï¾„;
+CREATE TABLE ï¾”ï¾ï¾‚ (ï¾‹ï¾ï¾Œ int);
+GRANT SELECT ON ï¾‚ï¾„.* TO ï¾€ï¾šï¾…ï¾’@localhost;
+SHOW GRANTS FOR ï¾€ï¾šï¾…ï¾’@localhost;
+Grants for ï¾€ï¾šï¾…ï¾’@localhost
+GRANT USAGE ON *.* TO 'ï¾€ï¾šï¾…ï¾’'@'localhost'
+GRANT SELECT ON `ï¾‚ï¾„`.* TO 'ï¾€ï¾šï¾…ï¾’'@'localhost'
+REVOKE SELECT ON ï¾‚ï¾„.* FROM ï¾€ï¾šï¾…ï¾’@localhost;
+GRANT SELECT ON ï¾‚ï¾„.ï¾”ï¾ï¾‚ TO ï¾€ï¾šï¾…ï¾’@localhost;
+SHOW GRANTS FOR ï¾€ï¾šï¾…ï¾’@localhost;
+Grants for ï¾€ï¾šï¾…ï¾’@localhost
+GRANT USAGE ON *.* TO 'ï¾€ï¾šï¾…ï¾’'@'localhost'
+GRANT SELECT ON `ï¾‚ï¾„`.`ï¾”ï¾ï¾‚` TO 'ï¾€ï¾šï¾…ï¾’'@'localhost'
+REVOKE SELECT ON ï¾‚ï¾„.ï¾”ï¾ï¾‚ FROM ï¾€ï¾šï¾…ï¾’@localhost;
+GRANT SELECT (ï¾‹ï¾ï¾Œ) ON ï¾‚ï¾„.ï¾”ï¾ï¾‚ TO ï¾€ï¾šï¾…ï¾’@localhost;
+SHOW GRANTS FOR ï¾€ï¾šï¾…ï¾’@localhost;
+Grants for ï¾€ï¾šï¾…ï¾’@localhost
+GRANT USAGE ON *.* TO 'ï¾€ï¾šï¾…ï¾’'@'localhost'
+GRANT SELECT (ï¾‹ï¾ï¾Œ) ON `ï¾‚ï¾„`.`ï¾”ï¾ï¾‚` TO 'ï¾€ï¾šï¾…ï¾’'@'localhost'
+REVOKE SELECT (ï¾‹ï¾ï¾Œ) ON ï¾‚ï¾„.ï¾”ï¾ï¾‚ FROM ï¾€ï¾šï¾…ï¾’@localhost;
+DROP USER ï¾€ï¾šï¾…ï¾’@localhost;
+DROP DATABASE ï¾‚ï¾„;
 SET NAMES latin1;
 USE test;
 CREATE TABLE t1 (a int );
@@ -613,22 +613,22 @@ set @user123="non-existent";
 select * from mysql.db where user=@user123;
 Host	Db	User	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Create_tmp_table_priv	Lock_tables_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Execute_priv	Event_priv	Trigger_priv
 set names koi8r;
-create database ÂÄ;
-grant select on ÂÄ.* to root@localhost;
-select hex(Db) from mysql.db where Db='ÂÄ';
+create database ï¾‚ï¾„;
+grant select on ï¾‚ï¾„.* to root@localhost;
+select hex(Db) from mysql.db where Db='ï¾‚ï¾„';
 hex(Db)
 D0B1D0B4
 show grants for root@localhost;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
-GRANT SELECT ON `ÂÄ`.* TO 'root'@'localhost'
+GRANT SELECT ON `ï¾‚ï¾„`.* TO 'root'@'localhost'
 flush privileges;
 show grants for root@localhost;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
-GRANT SELECT ON `ÂÄ`.* TO 'root'@'localhost'
-drop database ÂÄ;
-revoke all privileges on ÂÄ.* from root@localhost;
+GRANT SELECT ON `ï¾‚ï¾„`.* TO 'root'@'localhost'
+drop database ï¾‚ï¾„;
+revoke all privileges on ï¾‚ï¾„.* from root@localhost;
 show grants for root@localhost;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
@@ -1059,4 +1059,51 @@ DROP DATABASE bug23556;
 DROP USER bug23556@localhost;
 GRANT PROCESS ON * TO user@localhost;
 ERROR 3D000: No database selected
+DROP DATABASE IF EXISTS mysqltest1;
+DROP DATABASE IF EXISTS mysqltest2;
+DROP DATABASE IF EXISTS mysqltest3;
+DROP DATABASE IF EXISTS mysqltest4;
+CREATE DATABASE mysqltest1;
+CREATE DATABASE mysqltest2;
+CREATE DATABASE mysqltest3;
+CREATE DATABASE mysqltest4;
+CREATE PROCEDURE mysqltest1.p_def() SQL SECURITY DEFINER
+SELECT 1;
+CREATE PROCEDURE mysqltest2.p_inv() SQL SECURITY INVOKER
+SELECT 1;
+CREATE FUNCTION mysqltest3.f_def() RETURNS INT SQL SECURITY DEFINER
+RETURN 1;
+CREATE FUNCTION mysqltest4.f_inv() RETURNS INT SQL SECURITY INVOKER
+RETURN 1;
+GRANT EXECUTE ON PROCEDURE mysqltest1.p_def TO mysqltest_1@localhost;
+GRANT EXECUTE ON PROCEDURE mysqltest2.p_inv TO mysqltest_1@localhost;
+GRANT EXECUTE ON FUNCTION mysqltest3.f_def TO mysqltest_1@localhost;
+GRANT EXECUTE ON FUNCTION mysqltest4.f_inv TO mysqltest_1@localhost;
+GRANT ALL PRIVILEGES ON test.* TO mysqltest_1@localhost;
+
+---> connection: bug9504_con1
+use mysqltest1;
+use mysqltest2;
+use mysqltest3;
+use mysqltest4;
+use test;
+CALL mysqltest1.p_def();
+1
+1
+CALL mysqltest2.p_inv();
+1
+1
+SELECT mysqltest3.f_def();
+mysqltest3.f_def()
+1
+SELECT mysqltest4.f_inv();
+mysqltest4.f_inv()
+1
+
+---> connection: default
+DROP DATABASE mysqltest1;
+DROP DATABASE mysqltest2;
+DROP DATABASE mysqltest3;
+DROP DATABASE mysqltest4;
+DROP USER mysqltest_1@localhost;
 End of 5.0 tests
