@@ -3205,6 +3205,29 @@ INSERT INTO t1 VALUES(1,0xff00fef0);
 </mysqldump>
 DROP TABLE t1;
 #
+# Bug #23491: MySQLDump prefix function call in a view by database name
+#
+create database bug23491_original;
+create database bug23491_restore;
+use bug23491_original;
+create table t1 (c1 int);
+create view v1 as select * from t1;
+create procedure p1() select 1;
+create function f1() returns int return 1;
+create view v2 as select f1();
+create function f2() returns int return f1();
+create view v3 as select bug23491_original.f1();
+use bug23491_restore;
+show create view bug23491_restore.v2;
+View	Create View
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `f1`() AS `f1()`
+show create view bug23491_restore.v3;
+View	Create View
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `bug23491_original`.`f1`() AS `bug23491_original.f1()`
+drop database bug23491_original;
+drop database bug23491_restore;
+use test;
+#
 # Bug#26346:  	stack + buffer overrun in mysqldump
 #
 CREATE TABLE t1(a int);

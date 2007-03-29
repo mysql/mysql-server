@@ -1466,6 +1466,38 @@ CREATE TABLE t1 (a int) ENGINE=merge UNION=(t2, t3);
 DROP TABLE t1, t2, t3;
 
 --echo #
+--echo # Bug #23491: MySQLDump prefix function call in a view by database name
+--echo #
+
+# Setup
+create database bug23491_original;
+create database bug23491_restore;
+use bug23491_original;
+create table t1 (c1 int);
+create view v1 as select * from t1;
+create procedure p1() select 1;
+create function f1() returns int return 1;
+create view v2 as select f1();
+create function f2() returns int return f1();
+create view v3 as select bug23491_original.f1();
+
+# Backup.
+--exec $MYSQL_DUMP --skip-comments -uroot --opt --routines bug23491_original > $MYSQLTEST_VARDIR/tmp/bug23491_backup.sql;
+
+# Restore.
+--exec $MYSQL bug23491_restore < $MYSQLTEST_VARDIR/tmp/bug23491_backup.sql;
+
+# Verify
+use bug23491_restore;
+show create view bug23491_restore.v2;
+show create view bug23491_restore.v3;
+
+# Cleanup
+drop database bug23491_original;
+drop database bug23491_restore;
+use test;
+
+--echo #
 --echo # End of 5.0 tests
 --echo #
 
