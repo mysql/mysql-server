@@ -475,3 +475,13 @@ ALTER TABLE t1 MODIFY a VARCHAR(30) character set utf8 collate utf8_turkish_ci;
 SELECT a, length(a) la, @l:=lower(a) l, length(@l) ll, @u:=upper(a) u, length(@u) lu
 FROM t1 ORDER BY id;
 DROP TABLE t1;
+
+#
+# Bug #27079 Crash while grouping empty ucs2 strings
+#
+CREATE TABLE t1 (
+ c1 text character set ucs2 collate ucs2_polish_ci NOT NULL
+) ENGINE=MyISAM;
+insert into t1 values (''),('a');
+SELECT COUNT(*), c1 FROM t1 GROUP BY c1;
+DROP TABLE IF EXISTS t1;

@@ -28,10 +28,76 @@ create table t2 like t1;
 eval load data local infile '$MYSQLTEST_VARDIR/master-data/test/rpl_misc_functions.outfile' into table t2;
 # compare them with the replica; the SELECT below should return no row
 select * from t1, t2 where (t1.id=t2.id) and not(t1.i=t2.i and t1.r1=t2.r1 and t1.r2=t2.r2 and t1.p=t2.p);
-stop slave;
-drop table t1;
 
 connection master;
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# BUG#25543 test calling rand() multiple times on the master in
+# a stored procedure.
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (col_a double default NULL);
+
+DELIMITER |;
+
+# Use a SP that calls rand() multiple times
+CREATE PROCEDURE test_replication_sp1()
+BEGIN
+ INSERT INTO t1 VALUES (rand()), (rand());
+ INSERT INTO t1 VALUES (rand());
+END|
+
+# Use a SP that calls another SP to call rand() multiple times
+CREATE PROCEDURE test_replication_sp2()
+BEGIN
+  CALL test_replication_sp1();
+  CALL test_replication_sp1();
+END|
+
+# Use a SF that calls rand() multiple times
+CREATE FUNCTION test_replication_sf() RETURNS DOUBLE DETERMINISTIC
+BEGIN
+ RETURN (rand() + rand());
+END|
+
+DELIMITER ;|
+
+# Exercise the functions and procedures then compare the results on
+# the master to those on the slave.
+CALL test_replication_sp1();
+CALL test_replication_sp2();
+INSERT INTO t1 VALUES (test_replication_sf());
+INSERT INTO t1 VALUES (test_replication_sf());
+INSERT INTO t1 VALUES (test_replication_sf());
+
+# Record the results of the query on the master
+--exec $MYSQL --port=$MASTER_MYPORT test -e "SELECT * FROM test.t1" > $MYSQLTEST_VARDIR/tmp/rpl_rand_master.sql
+
+--sync_slave_with_master
+
+# Record the results of the query on the slave
+--exec $MYSQL --port=$SLAVE_MYPORT test -e "SELECT * FROM test.t1" > $MYSQLTEST_VARDIR/tmp/rpl_rand_slave.sql
+
+# Compare the results from the master to the slave.
+--exec diff $MYSQLTEST_VARDIR/tmp/rpl_rand_master.sql $MYSQLTEST_VARDIR/tmp/rpl_rand_slave.sql
+
+# Cleanup
+connection master;
+--disable_warnings
+DROP PROCEDURE IF EXISTS test_replication_sp1;
+DROP PROCEDURE IF EXISTS test_replication_sp2;
+DROP FUNCTION IF EXISTS test_replication_sf;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+--sync_slave_with_master
+
+# If all is good, when can cleanup our dump files.
+--system rm $MYSQLTEST_VARDIR/tmp/rpl_rand_master.sql
+--system rm $MYSQLTEST_VARDIR/tmp/rpl_rand_slave.sql
