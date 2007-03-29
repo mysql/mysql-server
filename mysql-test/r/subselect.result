@@ -3924,3 +3924,26 @@ c	a	(SELECT GROUP_CONCAT(COUNT(a)+1) FROM t2 WHERE m = a)
 3	3	4
 1	4	2,2
 DROP table t1,t2;
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (2,22),(1,11),(2,22);
+SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 0 GROUP BY a;
+a
+1
+2
+SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 1 GROUP BY a;
+a
+SELECT a FROM t1 t0
+WHERE (SELECT COUNT(t0.b) FROM t1 t WHERE t.b>20) GROUP BY a;
+a
+1
+2
+SET @@sql_mode='ansi';
+SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 0 GROUP BY a;
+ERROR HY000: Invalid use of group function
+SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 1 GROUP BY a;
+ERROR HY000: Invalid use of group function
+SELECT a FROM t1 t0
+WHERE (SELECT COUNT(t0.b) FROM t1 t WHERE t.b>20) GROUP BY a;
+ERROR HY000: Invalid use of group function
+SET @@sql_mode=default;
+DROP TABLE t1;
