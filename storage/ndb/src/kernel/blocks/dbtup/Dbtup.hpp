@@ -1286,9 +1286,35 @@ typedef Ptr<HostBuffer> HostBufferPtr;
    */
   struct Var_part_ref 
   {
+#if NDB_SIZEOF_CHARP == 4
     Uint32 m_ref;
-  };
+    STATIC_CONST( SZ32 = 1 );
 
+    void copyout(Local_key* dst) const {
+      dst->m_page_no = m_ref >> MAX_TUPLES_BITS;
+      dst->m_page_idx = m_ref & MAX_TUPLES_PER_PAGE;
+    }
+
+    void assign(const Local_key* src) {
+      m_ref = (src->m_page_no << MAX_TUPLES_BITS) | src->m_page_idx;
+    }
+#else
+    Uint32 m_page_no;
+    Uint32 m_page_idx;
+    STATIC_CONST( SZ32 = 2 );
+
+    void copyout(Local_key* dst) const {
+      dst->m_page_no = m_page_no;
+      dst->m_page_idx = m_page_idx;
+    }
+
+    void assign(const Local_key* src) {
+      m_page_no = src->m_page_no;
+      m_page_idx = src->m_page_idx;
+    }
+#endif    
+  };
+  
   struct Tuple_header
   {
     union {
@@ -2928,12 +2954,13 @@ Uint32*
 Dbtup::get_ptr(Ptr<Page>* pagePtr, Var_part_ref ref)
 {
   PagePtr tmp;
-  Uint32 page_idx= ref.m_ref & MAX_TUPLES_PER_PAGE;
-  tmp.i= ref.m_ref >> MAX_TUPLES_BITS;
+  Local_key key;
+  ref.copyout(&key);
+  tmp.i = key.m_page_no;
   
   c_page_pool.getPtr(tmp);
   memcpy(pagePtr, &tmp, sizeof(tmp));
-  return ((Var_page*)tmp.p)->get_ptr(page_idx);
+  return ((Var_page*)tmp.p)->get_ptr(key.m_page_idx);
 }
 
 inline
