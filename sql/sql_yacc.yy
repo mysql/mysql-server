@@ -780,6 +780,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  MASTER_SSL_CIPHER_SYM
 %token  MASTER_SSL_KEY_SYM
 %token  MASTER_SSL_SYM
+%token  MASTER_SSL_VERIFY_SERVER_CERT_SYM
 %token  MASTER_SYM
 %token  MASTER_USER_SYM
 %token  MATCH                         /* SQL-2003-R */
@@ -1528,6 +1529,11 @@ master_def:
          {
            Lex->mi.ssl_key= $3.str;
 	 }
+       | MASTER_SSL_VERIFY_SERVER_CERT_SYM EQ ulong_num
+         {
+           Lex->mi.ssl_verify_server_cert= $3 ?
+               LEX_MASTER_INFO::SSL_ENABLE : LEX_MASTER_INFO::SSL_DISABLE;
+         }
        |
          master_file_def
        ;
