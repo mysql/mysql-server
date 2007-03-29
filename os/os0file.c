@@ -318,7 +318,7 @@ os_file_get_last_error(
 
 	fflush(stderr);
 
-	if (err == ENOSPC ) {
+	if (err == ENOSPC) {
 		return(OS_FILE_DISK_FULL);
 #ifdef POSIX_ASYNC_IO
 	} else if (err == EAGAIN) {
@@ -337,15 +337,20 @@ os_file_get_last_error(
 }
 
 /********************************************************************
-Does error handling when a file operation fails. */
+Does error handling when a file operation fails.
+Conditionally exits (calling exit(3)) based on should_exit value and the
+error type */
+
 static
 ibool
-os_file_handle_error(
-/*=================*/
-				/* out: TRUE if we should retry the
-				operation */
-	const char*	name,	/* in: name of a file or NULL */
-	const char*	operation)/* in: operation */
+os_file_handle_error_cond_exit(
+/*===========================*/
+					/* out: TRUE if we should retry the
+					operation */
+	const char*	name,		/* in: name of a file or NULL */
+	const char*	operation,	/* in: operation */
+	ibool		should_exit)	/* in: call exit(3) if unknown error
+					and this parameter is TRUE */
 {
 	ulint	err;
 
@@ -376,11 +381,9 @@ os_file_handle_error(
 		fflush(stderr);
 
 		return(FALSE);
-
 	} else if (err == OS_FILE_AIO_RESOURCES_RESERVED) {
 
 		return(TRUE);
-
 	} else if (err == OS_FILE_ALREADY_EXISTS
 		   || err == OS_FILE_PATH_ERROR) {
 
@@ -392,14 +395,47 @@ os_file_handle_error(
 
 		fprintf(stderr, "InnoDB: File operation call: '%s'.\n",
 			operation);
-		fprintf(stderr, "InnoDB: Cannot continue operation.\n");
 
-		fflush(stderr);
+		if (should_exit) {
+			fprintf(stderr, "InnoDB: Cannot continue operation.\n");
 
-		exit(1);
+			fflush(stderr);
+
+			exit(1);
+		}
 	}
 
 	return(FALSE);
+}
+
+/********************************************************************
+Does error handling when a file operation fails. */
+static
+ibool
+os_file_handle_error(
+/*=================*/
+				/* out: TRUE if we should retry the
+				operation */
+	const char*	name,	/* in: name of a file or NULL */
+	const char*	operation)/* in: operation */
+{
+	/* exit in case of unknown error */
+	return(os_file_handle_error_cond_exit(name, operation, TRUE));
+}
+
+/********************************************************************
+Does error handling when a file operation fails. */
+static
+ibool
+os_file_handle_error_no_exit(
+/*=========================*/
+				/* out: TRUE if we should retry the
+				operation */
+	const char*	name,	/* in: name of a file or NULL */
+	const char*	operation)/* in: operation */
+{
+	/* don't exit in case of unknown error */
+	return(os_file_handle_error_cond_exit(name, operation, FALSE));
 }
 
 #undef USE_FILE_LOCK
@@ -444,68 +480,6 @@ os_file_lock(
 	return(0);
 }
 #endif /* USE_FILE_LOCK */
-
-/********************************************************************
-Does error handling when a file operation fails. */
-static
-ibool
-os_file_handle_error_no_exit(
-/*=========================*/
-				/* out: TRUE if we should retry the
-				operation */
-	const char*	name,	/* in: name of a file or NULL */
-	const char*	operation)/* in: operation */
-{
-	ulint	err;
-
-	err = os_file_get_last_error(FALSE);
-
-	if (err == OS_FILE_DISK_FULL) {
-		/* We only print a warning about disk full once */
-
-		if (os_has_said_disk_full) {
-
-			return(FALSE);
-		}
-
-		if (name) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: Encountered a problem with"
-				" file %s\n", name);
-		}
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Disk is full. Try to clean the disk"
-			" to free space.\n");
-
-		os_has_said_disk_full = TRUE;
-
-		fflush(stderr);
-
-		return(FALSE);
-
-	} else if (err == OS_FILE_AIO_RESOURCES_RESERVED) {
-
-		return(TRUE);
-
-	} else if (err == OS_FILE_ALREADY_EXISTS
-		   || err == OS_FILE_PATH_ERROR) {
-
-		return(FALSE);
-	} else {
-		if (name) {
-			fprintf(stderr, "InnoDB: File name %s\n", name);
-		}
-
-		fprintf(stderr, "InnoDB: File operation call: '%s'.\n",
-			operation);
-		return (FALSE);
-	}
-
-	return(FALSE);		/* not reached */
-}
 
 /********************************************************************
 Creates the seek mutexes used in positioned reads and writes. */
