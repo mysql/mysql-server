@@ -31,7 +31,7 @@ commit;
 
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events from 102;
+show binlog events from 103;
 
 delete from t1;
 delete from t2;
@@ -45,7 +45,7 @@ rollback;
 
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events from 102;
+show binlog events from 103;
 
 delete from t1;
 delete from t2;
@@ -61,7 +61,7 @@ commit;
 
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events from 102;
+show binlog events from 103;
 
 delete from t1;
 delete from t2;
@@ -79,7 +79,7 @@ select a from t1 order by a; # check that savepoints work :)
 
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events from 102;
+show binlog events from 103;
 
 # and when ROLLBACK is not explicit?
 delete from t1;
@@ -101,7 +101,7 @@ connection con2;
 select get_lock("a",10);
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events from 102;
+show binlog events from 103;
 
 # and when not in a transact1on?
 delete from t1;
@@ -113,7 +113,7 @@ insert into t2 select * from t1;
 
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events from 102;
+show binlog events from 103;
 
 # Check that when the query updat1ng the MyISAM table is the first in the
 # transaction, we log it immediately.
@@ -126,13 +126,13 @@ begin;
 insert into t2 select * from t1;
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events from 102;
+show binlog events from 103;
 insert into t1 values(11);
 commit;
 
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events from 102;
+show binlog events from 103;
 
 
 # Check that things work like before this BEGIN/ROLLBACK code was added,
@@ -151,7 +151,7 @@ commit;
 
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events from 102;
+show binlog events from 103;
 
 delete from t1;
 delete from t2;
@@ -164,7 +164,7 @@ rollback;
 
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events from 102;
+show binlog events from 103;
 
 delete from t1;
 delete from t2;
@@ -180,7 +180,7 @@ commit;
 
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events from 102;
+show binlog events from 103;
 
 delete from t1;
 delete from t2;
@@ -198,7 +198,7 @@ select a from t1 order by a; # check that savepoints work :)
 
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events from 102;
+show binlog events from 103;
 
 # Test for BUG#5714, where a MyISAM update in the transaction used to
 # release row-level locks in InnoDB
@@ -259,7 +259,7 @@ connection con3;
 select get_lock("lock1",60);
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events from 102;
+show binlog events from 103;
 do release_lock("lock1");
 drop table t0,t2;
 
@@ -326,7 +326,7 @@ SELECT * from t2;
 DROP TABLE t1,t2;
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events from 102;
+show binlog events from 103;
 
 # Test for BUG#16559 (ROLLBACK should always have a zero error code in
 # binlog). Has to be here and not earlier, as the SELECTs influence

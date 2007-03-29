@@ -6021,3 +6021,5 @@ ER_NATIVE_FCT_NAME_COLLISION
         eng "This function '%-.64s' has the same name as a native function."
 ER_BINLOG_PURGE_EMFILE
         eng "Too many files opened, please execute the command again"
+ER_SLAVE_INCIDENT
+        eng "The incident %s occured on the master. Message: %-.64s"

@@ -10,7 +10,7 @@ set @v=convert('abc' using ucs2);
 reset master;
 insert into t2 values (@v);
 --replace_regex /table_id: [0-9]+/table_id: #/
-show binlog events from 102;
+show binlog events from 103;
 # more important than SHOW BINLOG EVENTS, mysqlbinlog (where we
 # absolutely need variables names to be quoted and strings to be
 # escaped).

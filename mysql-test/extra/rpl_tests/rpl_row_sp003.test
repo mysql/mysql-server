@@ -65,7 +65,7 @@ sync_slave_with_master;
 connection slave;
 SELECT * FROM test.t1;
 connection master;
-#show binlog events from 719;
+#show binlog events from 720;
 
 DROP PROCEDURE IF EXISTS test.p1;
 DROP PROCEDURE IF EXISTS test.p2;
