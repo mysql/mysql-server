@@ -4275,7 +4275,6 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
-  case MYSQL_TYPE_GEOMETRY:
     if (this->type() == Item::TYPE_HOLDER)
       return new Field_blob(max_length, maybe_null, name, table,
                           collation.collation, 1);
@@ -4283,6 +4282,10 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
       return new Field_blob(max_length, maybe_null, name, table,
                           collation.collation);
     break;					// Blob handled outside of case
+  case MYSQL_TYPE_GEOMETRY:
+    return new Field_geom(max_length, maybe_null, name, table,
+                          (Field::geometry_type)
+                          ((Item_geometry_func *)this)->get_geometry_type());
   }
 }
 

@@ -479,3 +479,14 @@ create table t1 (g geometry not null);
 insert into t1 values(default);
 drop table t1;
 
+#
+# Bug #27300: create view with geometry functions lost columns types 
+#
+CREATE TABLE t1 (a GEOMETRY);
+CREATE VIEW v1 AS SELECT GeomFromwkb(ASBINARY(a)) FROM t1;
+CREATE VIEW v2 AS SELECT a FROM t1;
+DESCRIBE v1;
+DESCRIBE v2;
+
+DROP VIEW v1,v2;
+DROP TABLE t1;
