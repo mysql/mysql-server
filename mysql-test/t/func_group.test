@@ -834,5 +834,4 @@ SELECT a,AVG(DISTINCT b) AS average FROM t1 GROUP BY a HAVING average > 50;
 
 DROP TABLE t1;
 
-###
 --echo End of 5.0 tests
