@@ -6921,7 +6921,7 @@ function_call_generic:
 
           builder= find_qualified_function_builder(thd);
           DBUG_ASSERT(builder);
-          item= builder->create(thd, $1, $3, $5);
+          item= builder->create(thd, $1, $3, true, $5);
 
           if (! ($$= item))
           {
