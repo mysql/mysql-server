@@ -735,12 +735,11 @@ public:
   virtual bool get_date_result(TIME *ltime,uint fuzzydate)
   { return get_date(ltime,fuzzydate); }
   /*
-    This function is used only in Item_func_isnull/Item_func_isnotnull
-    (implementations of IS NULL/IS NOT NULL clauses). Item_func_is{not}null
-    calls this method instead of one of val/result*() methods, which
-    normally will set null_value. This allows to determine nullness of
-    a complex expression without fully evaluating it.
-    Any new item which can be NULL must implement this call.
+    The method allows to determine nullness of a complex expression 
+    without fully evaluating it, instead of calling val/result*() then 
+    checking null_value. Used in Item_func_isnull/Item_func_isnotnull
+    and Item_sum_count/Item_sum_count_distinct.
+    Any new item which can be NULL must implement this method.
   */
   virtual bool is_null() { return 0; }
 
