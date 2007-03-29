@@ -236,13 +236,14 @@ Dbtup::commit_operation(Signal* signal,
   }
   else
   {
-    Uint32 *ref= tuple_ptr->get_var_part_ptr(regTabPtr);
+    Var_part_ref *ref= (Var_part_ref*)tuple_ptr->get_var_part_ptr(regTabPtr);
     memcpy(tuple_ptr, copy, 4*(Tuple_header::HeaderSize+fixsize));
     
-    Local_key tmp; tmp.assref(*ref);
-    
+    Local_key tmp; 
+    ref->copyout(&tmp);
+
     PagePtr vpagePtr;
-    Uint32 *dst= get_ptr(&vpagePtr, *(Var_part_ref*)ref);
+    Uint32 *dst= get_ptr(&vpagePtr, *ref);
     Var_page* vpagePtrP = (Var_page*)vpagePtr.p;
     Uint32 *src= copy->get_var_part_ptr(regTabPtr);
     Uint32 sz= ((mm_vars + 1) << 1) + (((Uint16*)src)[mm_vars]);
