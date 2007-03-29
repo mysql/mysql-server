@@ -188,30 +188,28 @@ drop table t1;
 # Test all MBR* functions and their non-MBR-prefixed aliases,
 # using shifted squares to verify the spatial relations.
 
-# Primary key is needed for NDB with binlog; bug ARCHIVE doesn't
-# support AUTO_INCREMENT, so specify id values explicitly
-CREATE TABLE t1 (id INT UNSIGNED NOT NULL PRIMARY KEY, name VARCHAR(100), square GEOMETRY);
+CREATE TABLE t1 (name VARCHAR(100), square GEOMETRY);
 
-INSERT INTO t1 VALUES( 1, "center", GeomFromText('POLYGON (( 0 0, 0 2, 2 2, 2 0, 0 0))'));
+INSERT INTO t1 VALUES("center", GeomFromText('POLYGON (( 0 0, 0 2, 2 2, 2 0, 0 0))'));
 
-INSERT INTO t1 VALUES( 2, "small",  GeomFromText('POLYGON (( 0 0, 0 1, 1 1, 1 0, 0 0))'));
-INSERT INTO t1 VALUES( 3, "big",    GeomFromText('POLYGON (( 0 0, 0 3, 3 3, 3 0, 0 0))'));
+INSERT INTO t1 VALUES("small",  GeomFromText('POLYGON (( 0 0, 0 1, 1 1, 1 0, 0 0))'));
+INSERT INTO t1 VALUES("big",    GeomFromText('POLYGON (( 0 0, 0 3, 3 3, 3 0, 0 0))'));
 
-INSERT INTO t1 VALUES( 4, "up",     GeomFromText('POLYGON (( 0 1, 0 3, 2 3, 2 1, 0 1))'));
-INSERT INTO t1 VALUES( 5, "up2",    GeomFromText('POLYGON (( 0 2, 0 4, 2 4, 2 2, 0 2))'));
-INSERT INTO t1 VALUES( 6, "up3",    GeomFromText('POLYGON (( 0 3, 0 5, 2 5, 2 3, 0 3))'));
+INSERT INTO t1 VALUES("up",     GeomFromText('POLYGON (( 0 1, 0 3, 2 3, 2 1, 0 1))'));
+INSERT INTO t1 VALUES("up2",    GeomFromText('POLYGON (( 0 2, 0 4, 2 4, 2 2, 0 2))'));
+INSERT INTO t1 VALUES("up3",    GeomFromText('POLYGON (( 0 3, 0 5, 2 5, 2 3, 0 3))'));
 
-INSERT INTO t1 VALUES( 7, "down",   GeomFromText('POLYGON (( 0 -1, 0  1, 2  1, 2 -1, 0 -1))'));
-INSERT INTO t1 VALUES( 8, "down2",  GeomFromText('POLYGON (( 0 -2, 0  0, 2  0, 2 -2, 0 -2))'));
-INSERT INTO t1 VALUES( 9, "down3",  GeomFromText('POLYGON (( 0 -3, 0 -1, 2 -1, 2 -3, 0 -3))'));
+INSERT INTO t1 VALUES("down",   GeomFromText('POLYGON (( 0 -1, 0  1, 2  1, 2 -1, 0 -1))'));
+INSERT INTO t1 VALUES("down2",  GeomFromText('POLYGON (( 0 -2, 0  0, 2  0, 2 -2, 0 -2))'));
+INSERT INTO t1 VALUES("down3",  GeomFromText('POLYGON (( 0 -3, 0 -1, 2 -1, 2 -3, 0 -3))'));
 
-INSERT INTO t1 VALUES(10, "right",  GeomFromText('POLYGON (( 1 0, 1 2, 3 2, 3 0, 1 0))'));
-INSERT INTO t1 VALUES(11, "right2", GeomFromText('POLYGON (( 2 0, 2 2, 4 2, 4 0, 2 0))'));
-INSERT INTO t1 VALUES(12, "right3", GeomFromText('POLYGON (( 3 0, 3 2, 5 2, 5 0, 3 0))'));
+INSERT INTO t1 VALUES("right",  GeomFromText('POLYGON (( 1 0, 1 2, 3 2, 3 0, 1 0))'));
+INSERT INTO t1 VALUES("right2", GeomFromText('POLYGON (( 2 0, 2 2, 4 2, 4 0, 2 0))'));
+INSERT INTO t1 VALUES("right3", GeomFromText('POLYGON (( 3 0, 3 2, 5 2, 5 0, 3 0))'));
 
-INSERT INTO t1 VALUES(13, "left",   GeomFromText('POLYGON (( -1 0, -1 2,  1 2,  1 0, -1 0))'));
-INSERT INTO t1 VALUES(14, "left2",  GeomFromText('POLYGON (( -2 0, -2 2,  0 2,  0 0, -2 0))'));
-INSERT INTO t1 VALUES(15, "left3",  GeomFromText('POLYGON (( -3 0, -3 2, -1 2, -1 0, -3 0))'));
+INSERT INTO t1 VALUES("left",   GeomFromText('POLYGON (( -1 0, -1 2,  1 2,  1 0, -1 0))'));
+INSERT INTO t1 VALUES("left2",  GeomFromText('POLYGON (( -2 0, -2 2,  0 2,  0 0, -2 0))'));
+INSERT INTO t1 VALUES("left3",  GeomFromText('POLYGON (( -3 0, -3 2, -1 2, -1 0, -3 0))'));
 
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrcontains  FROM t1 a1 JOIN t1 a2 ON MBRContains(   a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrdisjoint  FROM t1 a1 JOIN t1 a2 ON MBRDisjoint(   a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
