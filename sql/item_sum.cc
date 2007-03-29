@@ -149,6 +149,8 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     if (register_sum_func(thd, ref))
       return TRUE;
     invalid= aggr_level < 0 && !(allow_sum_func & (1 << nest_level));
+    if (!invalid && thd->variables.sql_mode & MODE_ANSI)
+      invalid= aggr_level < 0 && max_arg_level < nest_level;
   }
   if (!invalid && aggr_level < 0)
   {
@@ -164,8 +166,9 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     Additionally we have to check whether possible nested set functions
     are acceptable here: they are not, if the level of aggregation of
     some of them is less than aggr_level.
-  */ 
-  invalid= aggr_level <= max_sum_func_level;
+  */
+  if (!invalid) 
+    invalid= aggr_level <= max_sum_func_level;
   if (invalid)  
   {
     my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
