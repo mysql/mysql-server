@@ -1810,7 +1810,6 @@ select a,hex(s1) from t1;
 select hex(s1) from t2;
 
 drop table t2,t1;
-
 # Ensure that <tablename>_ibfk_0 is not mistreated as a
 # generated foreign key identifier.  (Bug #16387)
 
