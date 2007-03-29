@@ -539,7 +539,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   {
     Uint32 fix_tupheader = regTabPtr.p->m_offsets[MM].m_fix_header_size;
     if(regTabPtr.p->m_attributes[MM].m_no_of_varsize != 0)
-      fix_tupheader += Tuple_header::HeaderSize + 1;
+      fix_tupheader += Tuple_header::HeaderSize + Var_part_ref::SZ32;
     ndbassert(fix_tupheader > 0);
     Uint32 noRowsPerPage = ZWORDS_ON_PAGE / fix_tupheader;
     Uint32 noAllocatedPages =
