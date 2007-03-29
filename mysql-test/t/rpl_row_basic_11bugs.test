@@ -25,7 +25,7 @@ CREATE TABLE t2 (a INT, b INT);
 SHOW TABLES;
 INSERT INTO t2 VALUES (3,3), (4,4);
 --replace_regex /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 102;
+SHOW BINLOG EVENTS FROM 105;
 sync_slave_with_master;
 --echo **** On Slave ****
 SHOW DATABASES;
@@ -117,5 +117,69 @@ sync_slave_with_master;
 SELECT HEX(a),b FROM t1;
 
 connection master;
-DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
+sync_slave_with_master;
+
+# BUG#22583: RBR between MyISAM and non-MyISAM tables containing a BIT
+# field does not work
+
+--echo ================ Test for BUG#22583 ================
+--disable_query_log
+--source include/master-slave-reset.inc
+--enable_query_log
+
+--echo **** On Master **** 
+connection master;
+CREATE TABLE t1_myisam (k INT, a BIT(1), b BIT(9)) ENGINE=MYISAM;
+CREATE TABLE t1_innodb (k INT, a BIT(1), b BIT(9)) ENGINE=INNODB;
+CREATE TABLE t2_myisam (k INT, a BIT(1) NOT NULL, b BIT(4) NOT NULL) ENGINE=MYISAM;
+CREATE TABLE t2_innodb (k INT, a BIT(1) NOT NULL, b BIT(4) NOT NULL) ENGINE=INNODB;
+--echo **** On Slave **** 
+sync_slave_with_master;
+ALTER TABLE t1_myisam ENGINE=INNODB;
+ALTER TABLE t1_innodb ENGINE=MYISAM;
+ALTER TABLE t2_myisam ENGINE=INNODB;
+ALTER TABLE t2_innodb ENGINE=MYISAM;
+
+--echo **** On Master **** 
+connection master;
+INSERT INTO t1_myisam VALUES(1, b'0', 257);
+INSERT INTO t1_myisam VALUES(2, b'1', 256);
+INSERT INTO t1_innodb VALUES(1, b'0', 257);
+INSERT INTO t1_innodb VALUES(2, b'1', 256);
+SELECT k, HEX(a),HEX(b) FROM t1_myisam;
+SELECT k, HEX(a),HEX(b) FROM t1_innodb;
+INSERT INTO t2_myisam VALUES(1, b'0', 9);
+INSERT INTO t2_myisam VALUES(2, b'1', 8);
+INSERT INTO t2_innodb VALUES(1, b'0', 9);
+INSERT INTO t2_innodb VALUES(2, b'1', 8);
+SELECT k, HEX(a),HEX(b) FROM t2_myisam;
+SELECT k, HEX(a),HEX(b) FROM t2_innodb;
+--echo **** On Slave **** 
+sync_slave_with_master;
+SELECT k, HEX(a),HEX(b) FROM t1_myisam;
+SELECT k, HEX(a),HEX(b) FROM t1_innodb;
+SELECT k, HEX(a),HEX(b) FROM t2_myisam;
+SELECT k, HEX(a),HEX(b) FROM t2_innodb;
+
+--echo **** On Master **** 
+connection master;
+UPDATE t1_myisam SET a=0 WHERE k=2;
+SELECT k, HEX(a),HEX(b) FROM t1_myisam;
+UPDATE t1_innodb SET a=0 WHERE k=2;
+SELECT k, HEX(a),HEX(b) FROM t1_innodb;
+UPDATE t2_myisam SET a=0 WHERE k=2;
+SELECT k, HEX(a),HEX(b) FROM t2_myisam;
+UPDATE t2_innodb SET a=0 WHERE k=2;
+SELECT k, HEX(a),HEX(b) FROM t2_innodb;
+--echo **** On Slave **** 
+sync_slave_with_master;
+SELECT k, HEX(a),HEX(b) FROM t1_myisam;
+SELECT k, HEX(a),HEX(b) FROM t1_innodb;
+SELECT k, HEX(a),HEX(b) FROM t2_myisam;
+SELECT k, HEX(a),HEX(b) FROM t2_innodb;
+
+--echo **** On Master **** 
+connection master;
+DROP TABLE IF EXISTS t1_myisam, t1_innodb, t2_myisam, t2_innodb;
 sync_slave_with_master;

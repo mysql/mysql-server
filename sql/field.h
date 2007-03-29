@@ -193,9 +193,9 @@ public:
   */
   virtual void sql_type(String &str) const =0;
   virtual uint size_of() const =0;		// For new field
-  inline bool is_null(uint row_offset=0)
+  inline bool is_null(my_ptrdiff_t row_offset= 0)
   { return null_ptr ? (null_ptr[row_offset] & null_bit ? 1 : 0) : table->null_row; }
-  inline bool is_real_null(uint row_offset=0)
+  inline bool is_real_null(my_ptrdiff_t row_offset= 0)
     { return null_ptr ? (null_ptr[row_offset] & null_bit ? 1 : 0) : 0; }
   inline bool is_null_in_record(const uchar *record)
   {
@@ -210,9 +210,9 @@ public:
       return 0;
     return test(null_ptr[offset] & null_bit);
   }
-  inline void set_null(int row_offset=0)
+  inline void set_null(my_ptrdiff_t row_offset= 0)
     { if (null_ptr) null_ptr[row_offset]|= null_bit; }
-  inline void set_notnull(int row_offset=0)
+  inline void set_notnull(my_ptrdiff_t row_offset= 0)
     { if (null_ptr) null_ptr[row_offset]&= (uchar) ~null_bit; }
   inline bool maybe_null(void) { return null_ptr != 0 || table->maybe_null; }
   inline bool real_maybe_null(void) { return null_ptr != 0; }

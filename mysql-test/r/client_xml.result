@@ -7,7 +7,7 @@ insert into t1 values (1, 2, 'a&b a<b a>b');
 <?xml version="1.0"?>
 
 <resultset statement="select * from t1
-">
+" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <row>
 	<field name="a&amp;b">1</field>
 	<field name="a&lt;b">2</field>
@@ -34,7 +34,7 @@ insert into t1 values (1, 2, 'a&b a<b a>b');
 <?xml version="1.0"?>
 
 <resultset statement="select count(*) from t1
-">
+" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <row>
 	<field name="count(*)">1</field>
   </row>
@@ -42,7 +42,7 @@ insert into t1 values (1, 2, 'a&b a<b a>b');
 <?xml version="1.0"?>
 
 <resultset statement="select 1 &lt; 2 from dual
-">
+" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <row>
 	<field name="1 &lt; 2">1</field>
   </row>
@@ -50,7 +50,7 @@ insert into t1 values (1, 2, 'a&b a<b a>b');
 <?xml version="1.0"?>
 
 <resultset statement="select 1 &gt; 2 from dual
-">
+" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <row>
 	<field name="1 &gt; 2">0</field>
   </row>
@@ -58,7 +58,7 @@ insert into t1 values (1, 2, 'a&b a<b a>b');
 <?xml version="1.0"?>
 
 <resultset statement="select 1 &amp; 3 from dual
-">
+" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <row>
 	<field name="1 &amp; 3">1</field>
   </row>
@@ -66,7 +66,7 @@ insert into t1 values (1, 2, 'a&b a<b a>b');
 <?xml version="1.0"?>
 
 <resultset statement="select null from dual
-">
+" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <row>
 	<field name="NULL" xsi:nil="true" />
   </row>
