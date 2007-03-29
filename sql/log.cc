@@ -2296,7 +2296,7 @@ void MYSQL_LOG::signal_update()
 
 #ifdef __NT__
 static void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
-                                        uint length, int buffLen)
+                                        size_t length, size_t buffLen)
 {
   HANDLE event;
   char   *buffptr= buff;
@@ -2390,7 +2390,7 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer)
 void vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 {
   char   buff[1024];
-  uint length;
+  size_t length;
   DBUG_ENTER("vprint_msg_to_log");
 
   length= my_vsnprintf(buff, sizeof(buff), format, args);
