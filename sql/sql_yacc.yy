@@ -1931,7 +1931,7 @@ sp_name:
 	      my_error(ER_SP_WRONG_NAME, MYF(0), $3.str);
 	      MYSQL_YYABORT;
 	    }
-	    $$= new sp_name($1, $3);
+	    $$= new sp_name($1, $3, true);
 	    $$->init_qname(YYTHD);
 	  }
 	| ident
@@ -1945,7 +1945,7 @@ sp_name:
 	    }
             if (thd->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
-	    $$= new sp_name(db, $1);
+	    $$= new sp_name(db, $1, false);
             if ($$)
 	      $$->init_qname(YYTHD);
 	  }
@@ -6923,7 +6923,7 @@ function_call_generic:
 
           builder= find_qualified_function_builder(thd);
           DBUG_ASSERT(builder);
-          item= builder->create(thd, $1, $3, $5);
+          item= builder->create(thd, $1, $3, true, $5);
 
           if (! ($$= item))
           {
