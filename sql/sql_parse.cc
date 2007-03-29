@@ -3922,7 +3922,6 @@ create_sp_error:
 	    if (check_access(thd, DELETE_ACL, "mysql", 0, 1, 0, 0))
 	      goto error;
 
-	    /* Does NOT write to binlog */
 	    if (!(res = mysql_drop_function(thd, &lex->spname->m_name)))
 	    {
 	      send_ok(thd);

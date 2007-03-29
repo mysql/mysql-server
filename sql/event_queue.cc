@@ -197,7 +197,8 @@ Event_queue::create_event(THD *thd, Event_queue_element *new_element)
   DBUG_PRINT("enter", ("thd: 0x%lx et=%s.%s", (long) thd,
              new_element->dbname.str, new_element->name.str));
 
-  if (new_element->status == Event_queue_element::DISABLED)
+  if ((new_element->status == Event_queue_element::DISABLED) 
+      || (new_element->status == Event_queue_element::SLAVESIDE_DISABLED))
     delete new_element;
   else
   {
@@ -233,7 +234,8 @@ Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
   DBUG_ENTER("Event_queue::update_event");
   DBUG_PRINT("enter", ("thd: 0x%lx  et=[%s.%s]", (long) thd, dbname.str, name.str));
 
-  if (new_element->status == Event_queue_element::DISABLED)
+  if ((new_element->status == Event_queue_element::DISABLED) ||
+      (new_element->status == Event_queue_element::SLAVESIDE_DISABLED))
   {
     DBUG_PRINT("info", ("The event is disabled."));
     /*
