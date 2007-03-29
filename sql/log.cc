@@ -2499,7 +2499,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
       /*
         Set 'created' to 0, so that in next relay logs this event does not
         trigger cleaning actions on the slave in
-        Format_description_log_event::exec_event().
+        Format_description_log_event::apply_event_impl().
       */
       description_event_for_queue->created= 0;
       /* Don't set log_pos in event header */
@@ -3206,8 +3206,10 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   {
     tc_log_page_waits++;
     pthread_mutex_lock(&LOCK_prep_xids);
-    while (prepared_xids)
+    while (prepared_xids) {
+      DBUG_PRINT("info", ("prepared_xids=%lu", prepared_xids));
       pthread_cond_wait(&COND_prep_xids, &LOCK_prep_xids);
+    }
     pthread_mutex_unlock(&LOCK_prep_xids);
   }
 
@@ -5061,8 +5063,10 @@ void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid)
 {
   pthread_mutex_lock(&LOCK_prep_xids);
   DBUG_ASSERT(prepared_xids > 0);
-  if (--prepared_xids == 0)
+  if (--prepared_xids == 0) {
+    DBUG_PRINT("info", ("prepared_xids=%lu", prepared_xids));
     pthread_cond_signal(&COND_prep_xids);
+  }
   pthread_mutex_unlock(&LOCK_prep_xids);
   rotate_and_purge(0);     // as ::write() did not rotate
 }

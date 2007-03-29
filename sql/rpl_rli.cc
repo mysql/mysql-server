@@ -29,14 +29,15 @@ int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
 
 
 st_relay_log_info::st_relay_log_info()
-  :no_storage(FALSE), info_fd(-1), cur_log_fd(-1), save_temporary_tables(0),
+  :no_storage(FALSE), replicate_same_server_id(::replicate_same_server_id),
+   info_fd(-1), cur_log_fd(-1), save_temporary_tables(0),
    cur_log_old_open_count(0), group_master_log_pos(0), log_space_total(0),
    ignore_log_space_limit(0), last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), slave_run_id(0), sql_thd(0), last_slave_errno(0),
    inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
    until_log_pos(0), retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
-   unsafe_to_stop_at(0)
+   last_event_start_time(0)
 {
   DBUG_ENTER("st_relay_log_info::st_relay_log_info");
 
@@ -1001,6 +1002,22 @@ bool st_relay_log_info::is_until_satisfied()
     log_pos= group_relay_log_pos;
   }
 
+#ifndef DBUG_OFF
+  {
+    char buf[32];
+    DBUG_PRINT("info", ("group_master_log_name='%s', group_master_log_pos=%s",
+                        group_master_log_name, llstr(group_master_log_pos, buf)));
+    DBUG_PRINT("info", ("group_relay_log_name='%s', group_relay_log_pos=%s",
+                        group_relay_log_name, llstr(group_relay_log_pos, buf)));
+    DBUG_PRINT("info", ("(%s) log_name='%s', log_pos=%s",
+                        until_condition == UNTIL_MASTER_POS ? "master" : "relay",
+                        log_name, llstr(log_pos, buf)));
+    DBUG_PRINT("info", ("(%s) until_log_name='%s', until_log_pos=%s",
+                        until_condition == UNTIL_MASTER_POS ? "master" : "relay",
+                        until_log_name, llstr(until_log_pos, buf)));
+  }
+#endif
+
   if (until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_UNKNOWN)
   {
     /*
@@ -1056,29 +1073,18 @@ void st_relay_log_info::cached_charset_invalidate()
 }
 
 
-bool st_relay_log_info::cached_charset_compare(char *charset)
+bool st_relay_log_info::cached_charset_compare(char *charset) const
 {
   DBUG_ENTER("st_relay_log_info::cached_charset_compare");
 
   if (bcmp(cached_charset, charset, sizeof(cached_charset)))
   {
-    memcpy(cached_charset, charset, sizeof(cached_charset));
+    memcpy(const_cast<char*>(cached_charset), charset, sizeof(cached_charset));
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
 
-
-void st_relay_log_info::transaction_end(THD* thd)
-{
-  DBUG_ENTER("st_relay_log_info::transaction_end");
-
-  /*
-    Nothing to do here right now.
-   */
-
-  DBUG_VOID_RETURN;
-}
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 void st_relay_log_info::cleanup_context(THD *thd, bool error)
@@ -1106,7 +1112,7 @@ void st_relay_log_info::cleanup_context(THD *thd, bool error)
   m_table_map.clear_tables();
   close_thread_tables(thd);
   clear_tables_to_lock();
-  unsafe_to_stop_at= 0;
+  last_event_start_time= 0;
   DBUG_VOID_RETURN;
 }
 

@@ -4,6 +4,6 @@ path=`dirname $0`
 . "$path/SETUP.sh" "$@" --with-debug=full
 
 extra_flags="$pentium_cflags $debug_cflags"
-extra_configs="$pentium_configs $debug_configs $max_configs $error_inject"
+extra_configs="$pentium_configs $debug_configs $max_configs $error_inject --with-experimental-collations"
 
 . "$path/FINISH.sh"
