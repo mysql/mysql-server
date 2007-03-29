@@ -33,15 +33,15 @@ c1	c2	c3
 row3	C	3
 row4	D	4
 SHOW SLAVE STATUS;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-<Slave_IO_State>	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	<Read_Master_Log_Pos>	<Relay_Log_File>	<Relay_Log_Pos>	master-bin.000001	Yes	Yes				<Replicate_Ignore_Table>			0		0	<Exec_Master_Log_Pos>	<Relay_Log_Space>	None		0	No						<Seconds_Behind_Master>
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master	Master_SSL_Verify_Server_Cert
+<Slave_IO_State>	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	<Read_Master_Log_Pos>	<Relay_Log_File>	<Relay_Log_Pos>	master-bin.000001	Yes	Yes				<Replicate_Ignore_Table>			0		0	<Exec_Master_Log_Pos>	<Relay_Log_Space>	None		0	No						<Seconds_Behind_Master>	No
 STOP SLAVE;
 CHANGE MASTER TO
 master_log_file = 'master-bin.000001',
 master_log_pos = <the_pos> ;
 SHOW SLAVE STATUS;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-<Slave_IO_State>	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	<Read_Master_Log_Pos>	<Relay_Log_File>	<Relay_Log_Pos>	master-bin.000001	No	No				<Replicate_Ignore_Table>			0		0	<Exec_Master_Log_Pos>	<Relay_Log_Space>	None		0	No						<Seconds_Behind_Master>
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master	Master_SSL_Verify_Server_Cert
+<Slave_IO_State>	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	<Read_Master_Log_Pos>	<Relay_Log_File>	<Relay_Log_Pos>	master-bin.000001	No	No				<Replicate_Ignore_Table>			0		0	<Exec_Master_Log_Pos>	<Relay_Log_Space>	None		0	No						<Seconds_Behind_Master>	No
 START SLAVE;
 SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
@@ -68,6 +68,6 @@ SELECT * FROM t1;
 c1	c2	c3
 row2	new on slave	2
 SHOW SLAVE STATUS;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-<Slave_IO_State>	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	<Read_Master_Log_Pos>	<Relay_Log_File>	<Relay_Log_Pos>	master-bin.000001	Yes	Yes				<Replicate_Ignore_Table>			0		0	<Exec_Master_Log_Pos>	<Relay_Log_Space>	None		0	No						<Seconds_Behind_Master>
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master	Master_SSL_Verify_Server_Cert
+<Slave_IO_State>	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	<Read_Master_Log_Pos>	<Relay_Log_File>	<Relay_Log_Pos>	master-bin.000001	Yes	Yes				<Replicate_Ignore_Table>			0		0	<Exec_Master_Log_Pos>	<Relay_Log_Space>	None		0	No						<Seconds_Behind_Master>	No
 DROP TABLE IF EXISTS t1;
