@@ -964,6 +964,31 @@ static Item_result field_types_result_type [FIELDTYPE_NUM]=
 
 
 /*
+  Test if the given string contains important data:
+  not spaces for character string,
+  or any data for binary string.
+
+  SYNOPSIS
+    test_if_important_data()
+    cs          Character set
+    str         String to test
+    strend      String end
+
+  RETURN
+    FALSE - If string does not have important data
+    TRUE  - If string has some important data
+*/
+
+static bool
+test_if_important_data(CHARSET_INFO *cs, const char *str, const char *strend)
+{
+  if (cs != &my_charset_bin)
+    str+= cs->cset->scan(cs, str, strend, MY_SEQ_SPACES);
+  return (str < strend);
+}
+
+
+/*
   Detect Item_result by given field type of UNION merge result
 
   SYNOPSIS
@@ -1051,64 +1076,113 @@ void Field_num::prepend_zeros(String *value)
 }
 
 /*
-  Test if given number is a int (or a fixed format float with .000)
+  Test if given number is a int.
 
   SYNOPSIS
-    test_if_int()
+    Field_num::check_int
+    cs          Character set
     str		String to test
     end		Pointer to char after last used digit
-    cs		Character set
+    length      String length
+    error       Error returned by strntoull10rnd()
 
-  NOTES
-    This is called after one has called my_strntol() or similar function.
-    This is only used to give warnings in ALTER TABLE or LOAD DATA...
-
-  TODO
-    Make this multi-byte-character safe
+  NOTE
+    This is called after one has called strntoull10rnd() function.
 
   RETURN
-    0	OK
-    1	error.  A warning is pushed if field_name != 0
+    0	ok
+    1	error: empty string or wrong integer.
+    2   error: garbage at the end of string.
 */
 
-bool Field::check_int(const char *str, int length, const char *int_end,
-                      CHARSET_INFO *cs)
+int Field_num::check_int(CHARSET_INFO *cs, const char *str, int length, 
+                         const char *int_end, int error)
 {
-  const char *end;
-  if (str == int_end)
+  /* Test if we get an empty string or wrong integer */
+  if (str == int_end || error == MY_ERRNO_EDOM)
   {
     char buff[128];
-    String tmp(buff,(uint32) sizeof(buff), system_charset_info);
+    String tmp(buff, (uint32) sizeof(buff), system_charset_info);
     tmp.copy(str, length, system_charset_info);
     push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD, 
                         ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                         "integer", tmp.c_ptr(), field_name,
                         (ulong) table->in_use->row_count);
-    return 1;					// Empty string
+    return 1;
   }
-  end= str+length;
-  if ((str= int_end) == end)
-    return 0;					// OK; All digits was used
-
-  /* Allow end .0000 */
-  if (*str == '.')
+  /* Test if we have garbage at the end of the given string. */
+  if (test_if_important_data(cs, int_end, str + length))
   {
-    for (str++ ; str != end && *str == '0'; str++)
-      ;
-  }
-  /* Allow end space */
-  for ( ; str != end ; str++)
-  {
-    if (!my_isspace(cs,*str))
-    {
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
-      return 1;
-    }
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+    return 2;
   }
   return 0;
 }
 
+
+/*
+  Conver a string to an integer then check bounds.
+  
+  SYNOPSIS
+    Field_num::get_int
+    cs            Character set
+    from          String to convert
+    len           Length of the string
+    rnd           OUT longlong value
+    unsigned_max  max unsigned value
+    signed_min    min signed value
+    signed_max    max signed value
+
+  DESCRIPTION
+    The function calls strntoull10rnd() to get an integer value then
+    check bounds and errors returned. In case of any error a warning
+    is raised.
+
+  RETURN
+    0   ok
+    1   error
+*/
+
+bool Field_num::get_int(CHARSET_INFO *cs, const char *from, uint len,
+                        longlong *rnd, ulonglong unsigned_max, 
+                        longlong signed_min, longlong signed_max)
+{
+  char *end;
+  int error;
+  
+  *rnd= (longlong) cs->cset->strntoull10rnd(cs, from, len, unsigned_flag, &end,
+                                            &error);
+  if (unsigned_flag)
+  {
+
+    if (((ulonglong) *rnd > unsigned_max) && (*rnd= (longlong) unsigned_max) ||
+        error == MY_ERRNO_ERANGE)
+    {
+      goto out_of_range;
+    }
+  }
+  else
+  {
+    if (*rnd < signed_min)
+    {
+      *rnd= signed_min;
+      goto out_of_range;
+    }
+    else if (*rnd > signed_max)
+    {
+      *rnd= signed_max;
+      goto out_of_range;
+    }
+  }
+  if (table->in_use->count_cuted_fields && check_int(cs, from, len, end, error))
+    return 1;
+  return 0;
+
+out_of_range:
+  set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+  return 1;
+}
 
 /*
   Process decimal library return codes and issue warnings for overflow and
@@ -2505,45 +2579,11 @@ void Field_new_decimal::sql_type(String &str) const
 
 int Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  char *end;
   int error;
-
-  if (unsigned_flag)
-  {
-    ulonglong tmp= cs->cset->strntoull10rnd(cs, from, len, 1, &end, &error);
-    if (error == MY_ERRNO_ERANGE || tmp > 255)
-    {
-      set_if_smaller(tmp, 255);
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
-      error= 1;
-    else
-      error= 0;
-    ptr[0]= (char) tmp;
-  }
-  else
-  {
-    longlong tmp= cs->cset->strntoull10rnd(cs, from, len, 0, &end, &error);
-    if (tmp < -128)
-    {
-      tmp= -128;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (tmp >= 128)
-    {
-      tmp= 127;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
-      error= 1;
-    else
-      error= 0;
-    ptr[0]= (char) tmp;
-  }
+  longlong rnd;
+  
+  error= get_int(cs, from, len, &rnd, 255, -128, 127);
+  ptr[0]= unsigned_flag ? (char) (ulonglong) rnd : (char) rnd;
   return error;
 }
 
@@ -2708,59 +2748,20 @@ void Field_tiny::sql_type(String &res) const
 
 int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  char *end;
+  int store_tmp;
   int error;
-
-  if (unsigned_flag)
-  {
-    ulonglong tmp= cs->cset->strntoull10rnd(cs, from, len, 1, &end, &error);
-    if (error == MY_ERRNO_ERANGE || tmp > UINT_MAX16)
-    {
-      set_if_smaller(tmp, UINT_MAX16);
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
-      error= 1;
-    else
-      error= 0;
+  longlong rnd;
+  
+  error= get_int(cs, from, len, &rnd, UINT_MAX16, INT_MIN16, INT_MAX16);
+  store_tmp= unsigned_flag ? (int) (ulonglong) rnd : (int) rnd;
 #ifdef WORDS_BIGENDIAN
-    if (table->s->db_low_byte_first)
-    {
-      int2store(ptr,tmp);
-    }
-    else
-#endif
-      shortstore(ptr,(short) tmp);
+  if (table->s->db_low_byte_first)
+  {
+    int2store(ptr, store_tmp);
   }
   else
-  {
-    longlong tmp= cs->cset->strntoull10rnd(cs, from, len, 0, &end, &error);
-    if (tmp < INT_MIN16)
-    {
-      tmp= INT_MIN16;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (tmp > INT_MAX16)
-    {
-      tmp=INT_MAX16;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
-      error= 1;
-    else
-      error= 0;
-#ifdef WORDS_BIGENDIAN
-    if (table->s->db_low_byte_first)
-    {
-      int2store(ptr,tmp);
-    }
-    else
 #endif
-      shortstore(ptr,(short) tmp);
-  }
+    shortstore(ptr, (short) store_tmp);
   return error;
 }
 
@@ -2988,45 +2989,13 @@ void Field_short::sql_type(String &res) const
 
 int Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  char *end;
+  int store_tmp;
   int error;
-
-  if (unsigned_flag)
-  {
-    ulonglong tmp= cs->cset->strntoull10rnd(cs, from, len, 1, &end, &error);
-    if (error == MY_ERRNO_ERANGE || tmp > UINT_MAX24)
-    {
-      set_if_smaller(tmp, UINT_MAX24);
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
-      error= 1;
-    else
-      error= 0;
-    int3store(ptr,tmp);
-  }
-  else
-  {
-    longlong tmp= cs->cset->strntoull10rnd(cs, from, len, 0, &end, &error);
-    if (tmp < INT_MIN24)
-    {
-      tmp= INT_MIN24;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (tmp > INT_MAX24)
-    {
-      tmp=INT_MAX24;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
-      error= 1;
-    else
-      error= 0;
-    int3store(ptr,tmp);
-  }
+  longlong rnd;
+  
+  error= get_int(cs, from, len, &rnd, UINT_MAX24, INT_MIN24, INT_MAX24);
+  store_tmp= unsigned_flag ? (int) (ulonglong) rnd : (int) rnd;
+  int3store(ptr, store_tmp);
   return error;
 }
 
@@ -3205,45 +3174,10 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   long store_tmp;
   int error;
-  char *end;
-
-  if (unsigned_flag)
-  {
-    ulonglong tmp= cs->cset->strntoull10rnd(cs, from, len, 1, &end, &error);
-    if (error == MY_ERRNO_ERANGE || tmp > (ulonglong) UINT_MAX32)
-    {
-      set_if_smaller(tmp, (ulonglong) UINT_MAX32);
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
-      error= 1;
-    else
-      error= 0;
-    store_tmp= (long) tmp;
-  }
-  else
-  {
-    longlong tmp= cs->cset->strntoull10rnd(cs, from, len, 0, &end, &error);
-    if (tmp < INT_MIN32)
-    {
-      tmp= INT_MIN32;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (tmp > INT_MAX32)
-    {
-      tmp=INT_MAX32;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
-      error= 1;
-    else
-      error= 0;
-    store_tmp= (long) tmp;
-  }
-    
+  longlong rnd;
+  
+  error= get_int(cs, from, len, &rnd, UINT_MAX32, INT_MIN32, INT_MAX32);
+  store_tmp= unsigned_flag ? (long) (ulonglong) rnd : (long) rnd;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
@@ -3489,7 +3423,8 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     error= 1;
   }
-  else if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
+  else if (table->in_use->count_cuted_fields && 
+           check_int(cs, from, len, end, error))
     error= 1;
   else
     error= 0;
@@ -5007,16 +4942,25 @@ int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
 {
   char *end;
   int error;
-  long nr= my_strntol(cs, from, len, 10, &end, &error);
+  longlong nr= cs->cset->strntoull10rnd(cs, from, len, 0, &end, &error);
 
-  if (nr < 0 || nr >= 100 && nr <= 1900 || nr > 2155 || error)
+  if (nr < 0 || nr >= 100 && nr <= 1900 || nr > 2155 || 
+      error == MY_ERRNO_ERANGE)
   {
     *ptr=0;
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
   }
-  if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
+  if (table->in_use->count_cuted_fields && 
+      (error= check_int(cs, from, len, end, error)))
+  {
+    if (error == 1)  /* empty or incorrect string */
+    {
+      *ptr= 0;
+      return 1;
+    }
     error= 1;
+  }
 
   if (nr != 0 || len != 4)
   {
@@ -5903,31 +5847,6 @@ report_data_too_long(Field_str *field)
     field->set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
   else
     field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
-}
-
-
-/*
-  Test if the given string contains important data:
-  not spaces for character string,
-  or any data for binary string.
-
-  SYNOPSIS
-    test_if_important_data()
-    cs          Character set
-    str         String to test
-    strend      String end
-
-  RETURN
-    FALSE - If string does not have important data
-    TRUE  - If string has some important data
-*/
-
-static bool
-test_if_important_data(CHARSET_INFO *cs, const char *str, const char *strend)
-{
-  if (cs != &my_charset_bin)
-    str+= cs->cset->scan(cs, str, strend, MY_SEQ_SPACES);
-  return (str < strend);
 }
 
 
