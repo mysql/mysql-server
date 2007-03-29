@@ -167,7 +167,7 @@ class Create_sp_func : public Create_qfunc
 {
 public:
   virtual Item* create(THD *thd, LEX_STRING db, LEX_STRING name,
-                       List<Item> *item_list);
+                       bool use_explicit_name, List<Item> *item_list);
 
   static Create_sp_func s_singleton;
 
@@ -2316,7 +2316,7 @@ Create_qfunc::create(THD *thd, LEX_STRING name, List<Item> *item_list)
   if (thd->copy_db_to(&db.str, &db.length))
     return NULL;
 
-  return create(thd, db, name, item_list);
+  return create(thd, db, name, false, item_list);
 }
 
 
@@ -2433,7 +2433,7 @@ Create_sp_func Create_sp_func::s_singleton;
 
 Item*
 Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
-                       List<Item> *item_list)
+                       bool use_explicit_name, List<Item> *item_list)
 {
   int arg_count= 0;
   Item *func= NULL;
@@ -2458,7 +2458,7 @@ Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
   if (item_list != NULL)
     arg_count= item_list->elements;
 
-  qname= new (thd->mem_root) sp_name(db, name);
+  qname= new (thd->mem_root) sp_name(db, name, use_explicit_name);
   qname->init_qname(thd);
   sp_add_used_routine(lex, thd, qname, TYPE_ENUM_FUNCTION);
 
