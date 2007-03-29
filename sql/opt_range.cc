@@ -84,7 +84,7 @@ static int sel_cmp(Field *f,char *a,char *b,uint8 a_flag,uint8 b_flag);
 
 static char is_null_string[2]= {1,0};
 
-
+class RANGE_OPT_PARAM;
 /*
   A construction block of the SEL_ARG-graph.
   
@@ -356,8 +356,7 @@ public:
     return new SEL_ARG(field, part, min_value, arg->max_value,
 		       min_flag, arg->max_flag, maybe_flag | arg->maybe_flag);
   }
-  SEL_ARG *clone(struct st_qsel_param *param, SEL_ARG *new_parent, 
-                  SEL_ARG **next);
+  SEL_ARG *clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent, SEL_ARG **next);
 
   bool copy_min(SEL_ARG* arg)
   {						// Get overlapping range
@@ -551,7 +550,7 @@ public:
     }
     return !field->key_cmp(min_val, max_val);
   }
-  SEL_ARG *clone_tree(struct st_qsel_param *param);
+  SEL_ARG *clone_tree(RANGE_OPT_PARAM *param);
 };
 
 class SEL_IMERGE;
@@ -631,6 +630,8 @@ public:
     using_real_indexes==TRUE
   */
   uint real_keynr[MAX_KEY];
+  /* Number of SEL_ARG objects allocated by SEL_ARG::clone_tree operations */
+  uint alloced_sel_args; 
 };
 
 class PARAM : public RANGE_OPT_PARAM
@@ -659,8 +660,6 @@ public:
   /* Number of ranges in the last checked tree->key */
   uint n_ranges;
   uint8 first_null_comp; /* first null component if any, 0 - otherwise */
-  /* Number of SEL_ARG objects allocated by SEL_ARG::clone_tree operations */
-  uint alloced_sel_args; 
 };
 
 class TABLE_READ_PLAN;
@@ -722,8 +721,9 @@ static void print_quick(QUICK_SELECT_I *quick, const key_map *needed_reg);
 static SEL_TREE *tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
 static SEL_TREE *tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
 static SEL_ARG *sel_add(SEL_ARG *key1,SEL_ARG *key2);
-static SEL_ARG *key_or(PARAM *param, SEL_ARG *key1,SEL_ARG *key2);
-static SEL_ARG *key_and(PARAM *param, SEL_ARG *key1,SEL_ARG *key2,uint clone_flag);
+static SEL_ARG *key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2);
+static SEL_ARG *key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2,
+                        uint clone_flag);
 static bool get_range(SEL_ARG **e1,SEL_ARG **e2,SEL_ARG *root1);
 bool get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
 			   SEL_ARG *key_tree,char *min_key,uint min_key_flag,
@@ -1599,7 +1599,8 @@ SEL_ARG::SEL_ARG(Field *field_,uint8 part_,char *min_value_,char *max_value_,
   left=right= &null_element;
 }
 
-SEL_ARG *SEL_ARG::clone(PARAM *param, SEL_ARG *new_parent, SEL_ARG **next_arg)
+SEL_ARG *SEL_ARG::clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent, 
+                        SEL_ARG **next_arg)
 {
   SEL_ARG *tmp;
 
@@ -1709,7 +1710,7 @@ static int sel_cmp(Field *field, char *a,char *b,uint8 a_flag,uint8 b_flag)
 }
 
 
-SEL_ARG *SEL_ARG::clone_tree(PARAM *param)
+SEL_ARG *SEL_ARG::clone_tree(RANGE_OPT_PARAM *param)
 {
   SEL_ARG tmp_link,*next_arg,*root;
   next_arg= &tmp_link;
@@ -2609,6 +2610,7 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   range_par->using_real_indexes= FALSE;
   range_par->remove_jump_scans= FALSE;
   range_par->real_keynr[0]= 0;
+  range_par->alloced_sel_args= 0;
 
   thd->no_errors=1;				// Don't warn about NULL
   thd->mem_root=&alloc;
@@ -6156,7 +6158,8 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
 /* And key trees where key1->part < key2 -> part */
 
 static SEL_ARG *
-and_all_keys(PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
+and_all_keys(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, 
+             uint clone_flag)
 {
   SEL_ARG *next;
   ulong use_count=key1->use_count;
@@ -6202,8 +6205,10 @@ and_all_keys(PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
 
   SYNOPSIS
     key_and()
-      key1   First argument, root of its RB-tree
-      key2   Second argument, root of its RB-tree
+      param   Range analysis context (needed to track if we have allocated
+              too many SEL_ARGs)
+      key1    First argument, root of its RB-tree
+      key2    Second argument, root of its RB-tree
 
   RETURN
     RB-tree root of the resulting SEL_ARG graph.
@@ -6211,7 +6216,7 @@ and_all_keys(PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
 */
 
 static SEL_ARG *
-key_and(PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
+key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
 {
   if (!key1)
     return key2;
@@ -6350,7 +6355,7 @@ get_range(SEL_ARG **e1,SEL_ARG **e2,SEL_ARG *root1)
 
 
 static SEL_ARG *
-key_or(PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
+key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
 {
   if (!key1)
   {
