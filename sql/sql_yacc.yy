@@ -10833,7 +10833,8 @@ grant_ident:
 	| table_ident
 	  {
 	    LEX *lex=Lex;
-	    if (!lex->current_select->add_table_to_list(lex->thd, $1,NULL,0))
+	    if (!lex->current_select->add_table_to_list(lex->thd, $1,NULL,
+                                                        TL_OPTION_UPDATING))
 	      MYSQL_YYABORT;
 	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant =  TABLE_ACLS & ~GRANT_ACL;
