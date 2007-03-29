@@ -87,6 +87,7 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t3  ***
@@ -144,6 +145,7 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t4  ***
@@ -201,6 +203,7 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t5  ***
@@ -257,6 +260,7 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=3;
 *** Drop t6  ***
 DROP TABLE t6;
@@ -364,6 +368,7 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t10  ***
@@ -420,6 +425,7 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t11  ***
@@ -605,6 +611,7 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Try to insert in master ****
@@ -735,6 +742,7 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 ** DROP table t17 ***
