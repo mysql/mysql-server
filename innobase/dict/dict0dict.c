@@ -628,7 +628,8 @@ dict_table_get_on_id(
 		CREATE, for example, we already have the mutex! */
 
 #ifdef UNIV_SYNC_DEBUG
-		ut_ad(mutex_own(&(dict_sys->mutex)));
+		ut_ad(mutex_own(&(dict_sys->mutex))
+		      || trx->dict_operation_lock_mode == RW_X_LATCH);
 #endif /* UNIV_SYNC_DEBUG */
 
 		return(dict_table_get_on_id_low(table_id, trx));
