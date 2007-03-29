@@ -305,6 +305,7 @@ our $path_sql_dir;
 our @data_dir_lst;
 
 our $used_binlog_format;
+our $used_default_engine;
 our $debug_compiled_binaries;
 our $glob_tot_real_time= 0;
 
@@ -520,7 +521,7 @@ sub command_line_setup () {
              'compress'                 => \$opt_compress,
              'bench'                    => \$opt_bench,
              'small-bench'              => \$opt_small_bench,
-             'with-ndbcluster'          => \$opt_with_ndbcluster,
+             'with-ndbcluster|ndb'      => \$opt_with_ndbcluster,
              'vs-config'            => \$opt_vs_config,
 
              # Control what test suites or cases to run
@@ -777,6 +778,26 @@ sub command_line_setup () {
     mtr_report("Using binlog format '$used_binlog_format'");
   }
 
+
+  # --------------------------------------------------------------------------
+  # Find out default storage engine being used(if any)
+  # --------------------------------------------------------------------------
+  if ( $opt_with_ndbcluster )
+  {
+    # --ndb or --with-ndbcluster turns on --default-storage-engine=ndbcluster
+    push(@opt_extra_mysqld_opt, "--default-storage-engine=ndbcluster");
+  }
+
+  foreach my $arg ( @opt_extra_mysqld_opt )
+  {
+    if ( $arg =~ /default-storage-engine=(\S+)/ )
+    {
+      $used_default_engine= $1;
+    }
+  }
+  mtr_report("Using default engine '$used_default_engine'")
+    if defined $used_default_engine;
+
   # --------------------------------------------------------------------------
   # Check if we should speed up tests by trying to run on tmpfs
   # --------------------------------------------------------------------------
@@ -849,20 +870,22 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Check im suport
   # --------------------------------------------------------------------------
-  if (!$opt_extern)
+  if ($opt_extern)
   {
-    if ( $mysql_version_id < 50000 ) {
-      # Instance manager is not supported until 5.0
-      $opt_skip_im= 1;
-
-    }
-
-    if ( $glob_win32 ) {
-      mtr_report("Disable Instance manager - not supported on Windows");
-      $opt_skip_im= 1;
-    }
-
+    mtr_report("Disable instance manager when running with extern mysqld");
+    $opt_skip_im= 1;
   }
+  elsif ( $mysql_version_id < 50000 )
+  {
+    # Instance manager is not supported until 5.0
+    $opt_skip_im= 1;
+  }
+  elsif ( $glob_win32 )
+  {
+    mtr_report("Disable Instance manager - testing not supported on Windows");
+    $opt_skip_im= 1;
+  }
+
   # --------------------------------------------------------------------------
   # Record flag
   # --------------------------------------------------------------------------
@@ -900,10 +923,6 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Ndb cluster flags
   # --------------------------------------------------------------------------
-  if ( $opt_with_ndbcluster and !$opt_bench)
-  {
-    mtr_error("Can only use --with-ndbcluster together with --bench");
-  }
 
   if ( $opt_ndbconnectstring )
   {
@@ -1055,8 +1074,6 @@ sub command_line_setup () {
   # UNIX domain socket's path far below PATH_MAX, so try to avoid long
   # socket path names.
   $sockdir = tempdir(CLEANUP => 0) if ( length($sockdir) > 80 );
-
-  # Put this into a hash, will be a C struct
 
   $master->[0]=
   {
@@ -1329,7 +1346,7 @@ sub collect_mysqld_features () {
 
   #
   # Execute "mysqld --no-defaults --help --verbose" to get a
-  # of all features and settings
+  # list of all features and settings
   #
   my $list= `$exe_mysqld --no-defaults --verbose --help`;
 
@@ -1392,6 +1409,40 @@ sub collect_mysqld_features () {
 
 }
 
+
+sub run_query($$) {
+  my ($mysqld, $query)= @_;
+
+  my $args;
+  mtr_init_args(\$args);
+
+  mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--user=%s", $opt_user);
+  mtr_add_arg($args, "--port=%d", $mysqld->{'port'});
+  mtr_add_arg($args, "--socket=%s", $mysqld->{'path_sock'});
+  mtr_add_arg($args, "--silent"); # Tab separated output
+  mtr_add_arg($args, "-e '%s'", $query);
+
+  my $cmd= "$exe_mysql " . join(' ', @$args);
+  mtr_verbose("cmd: $cmd");
+  return `$cmd`;
+}
+
+
+sub collect_mysqld_features_from_running_server ()
+{
+  my $list= run_query($master->[0], "use mysql; SHOW VARIABLES");
+
+  foreach my $line (split('\n', $list))
+  {
+    # Put variables into hash
+    if ( $line =~ /^([\S]+)[ \t]+(.*?)\r?$/ )
+    {
+      print "$1=\"$2\"\n";
+      $mysqld_variables{$1}= $2;
+    }
+  }
+}
 
 sub executable_setup_im () {
 
@@ -2798,10 +2849,7 @@ sub initialize_servers () {
     }
     else
     {
-      if ($opt_verbose)
-      {
-	mtr_report("No need to create '$opt_vardir' it already exists");
-      }
+      mtr_verbose("No need to create '$opt_vardir' it already exists");
     }
   }
   else
@@ -5006,7 +5054,7 @@ Options to control what engine/variation to run
   skip-ssl              Dont start server with support for ssl connections
   bench                 Run the benchmark suite
   small-bench           Run the benchmarks with --small-tests --small-tables
-  with-ndbcluster       Use cluster as default table type for benchmark
+  ndb|with-ndbcluster   Use cluster as default table type
   vs-config             Visual Studio configuration used to create executables
                         (default: MTR_VS_CONFIG environment variable)
 
