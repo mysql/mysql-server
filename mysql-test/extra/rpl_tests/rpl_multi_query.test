@@ -25,6 +25,6 @@ select * from mysqltest.t1;
 connection master;
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/
-show binlog events from 102;
+show binlog events from 103;
 drop database mysqltest;
 sync_slave_with_master;

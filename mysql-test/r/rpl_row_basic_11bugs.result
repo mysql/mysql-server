@@ -24,11 +24,11 @@ SHOW TABLES;
 Tables_in_test_ignore
 t2
 INSERT INTO t2 VALUES (3,3), (4,4);
-SHOW BINLOG EVENTS FROM 102;
+SHOW BINLOG EVENTS FROM 103;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	102	Query	1	195	use `test`; CREATE TABLE t1 (a INT, b INT)
-master-bin.000001	195	Table_map	1	235	table_id: # (test.t1)
-master-bin.000001	235	Write_rows	1	282	table_id: # flags: STMT_END_F
+master-bin.000001	103	Query	1	196	use `test`; CREATE TABLE t1 (a INT, b INT)
+master-bin.000001	196	Table_map	1	236	table_id: # (test.t1)
+master-bin.000001	236	Write_rows	1	283	table_id: # flags: STMT_END_F
 **** On Slave ****
 SHOW DATABASES;
 Database
@@ -54,10 +54,10 @@ DELETE FROM t1 WHERE a = 0;
 UPDATE t1 SET a=99 WHERE a = 0;
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	102	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	102	Query	1	188	use `test`; CREATE TABLE t1 (a INT)
-master-bin.000001	188	Table_map	1	227	table_id: # (test.t1)
-master-bin.000001	227	Write_rows	1	266	table_id: # flags: STMT_END_F
+master-bin.000001	4	Format_desc	1	103	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	103	Query	1	189	use `test`; CREATE TABLE t1 (a INT)
+master-bin.000001	189	Table_map	1	228	table_id: # (test.t1)
+master-bin.000001	228	Write_rows	1	267	table_id: # flags: STMT_END_F
 DROP TABLE t1;
 ================ Test for BUG#17620 ================
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;

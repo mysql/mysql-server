@@ -18,8 +18,9 @@
 
 /* Pull in 'byte', 'my_off_t', and 'uint32' */
 #include <my_global.h>
-
 #include <my_bitmap.h>
+
+#include "rpl_constants.h"
 
 /* Forward declarations */
 class handler;
@@ -319,6 +320,9 @@ public:
      */
     transaction new_trans(THD *);
     void        new_trans(THD *, transaction *);
+
+    int record_incident(THD*, Incident incident);
+    int record_incident(THD*, Incident incident, LEX_STRING message);
 
 private:
     explicit injector();

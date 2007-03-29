@@ -321,7 +321,7 @@ static bool write_str(IO_CACHE *file, char *str, uint length)
   read_str()
 */
 
-static inline int read_str(char **buf, char *buf_end, char **str,
+static inline int read_str(const char **buf, const char *buf_end, const char **str,
 			   uint8 *len)
 {
   if (*buf + ((uint) (uchar) **buf) >= buf_end)
@@ -434,6 +434,7 @@ const char* Log_event::get_type_str()
   case DELETE_ROWS_EVENT: return "Delete_rows";
   case BEGIN_LOAD_QUERY_EVENT: return "Begin_load_query";
   case EXECUTE_LOAD_QUERY_EVENT: return "Execute_load_query";
+  case INCIDENT_EVENT: return "Incident";
   default: return "Unknown";				/* impossible */
   }
 }
@@ -1011,7 +1012,10 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     ev = new Begin_load_query_log_event(buf, event_len, description_event);
     break;
   case EXECUTE_LOAD_QUERY_EVENT:
-    ev = new Execute_load_query_log_event(buf, event_len, description_event);
+    ev= new Execute_load_query_log_event(buf, event_len, description_event);
+    break;
+  case INCIDENT_EVENT:
+    ev = new Incident_log_event(buf, event_len, description_event);
     break;
   default:
     DBUG_PRINT("error",("Unknown evernt code: %d",(int) buf[EVENT_TYPE_OFFSET]));
@@ -2420,6 +2424,7 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
                       post_header_len[DELETE_ROWS_EVENT-1]= 6;);
       post_header_len[BEGIN_LOAD_QUERY_EVENT-1]= post_header_len[APPEND_BLOCK_EVENT-1];
       post_header_len[EXECUTE_LOAD_QUERY_EVENT-1]= EXECUTE_LOAD_QUERY_HEADER_LEN;
+      post_header_len[INCIDENT_EVENT-1]= INCIDENT_HEADER_LEN;
     }
     break;
 
@@ -5291,7 +5296,7 @@ bool sql_ex_info::write_data(IO_CACHE* file)
   sql_ex_info::init()
 */
 
-char* sql_ex_info::init(char* buf,char* buf_end,bool use_new_format)
+char *sql_ex_info::init(char *buf, char *buf_end, bool use_new_format)
 {
   cached_new_format = use_new_format;
   if (use_new_format)
@@ -5304,11 +5309,12 @@ char* sql_ex_info::init(char* buf,char* buf_end,bool use_new_format)
       the case when we have old format because we will be reusing net buffer
       to read the actual file before we write out the Create_file event.
     */
-    if (read_str(&buf, buf_end, &field_term, &field_term_len) ||
-	read_str(&buf, buf_end, &enclosed,   &enclosed_len) ||
-	read_str(&buf, buf_end, &line_term,  &line_term_len) ||
-	read_str(&buf, buf_end, &line_start, &line_start_len) ||
-	read_str(&buf, buf_end, &escaped,    &escaped_len))
+    const char *ptr= buf;
+    if (read_str(&ptr, buf_end, (const char **) &field_term, &field_term_len) ||
+	read_str(&ptr, buf_end, (const char **) &enclosed,   &enclosed_len) ||
+	read_str(&ptr, buf_end, (const char **) &line_term,  &line_term_len) ||
+	read_str(&ptr, buf_end, (const char **) &line_start, &line_start_len) ||
+	read_str(&ptr, buf_end, (const char **) &escaped,    &escaped_len))
       return 0;
     opt_flags = *buf++;
   }
@@ -7336,4 +7342,114 @@ void Update_rows_log_event::print(FILE *file,
   Rows_log_event::print_helper(file, print_event_info, "Update_rows");
 }
 #endif
+
+
+Incident_log_event::Incident_log_event(const char *buf, uint event_len,
+                                       const Format_description_log_event *descr_event)
+  : Log_event(buf, descr_event)
+{
+  DBUG_ENTER("Incident_log_event::Incident_log_event");
+  uint8 const common_header_len=
+    descr_event->common_header_len;
+  uint8 const post_header_len=
+    descr_event->post_header_len[INCIDENT_EVENT-1];
+
+  DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
+                     event_len, common_header_len, post_header_len));
+
+  m_incident= static_cast<Incident>(uint2korr(buf + common_header_len));
+  char const *ptr= buf + common_header_len + post_header_len;
+  char const *const str_end= buf + event_len;
+  uint8 len;
+  const char *str;
+  read_str(&ptr, str_end, &str, &len);
+  m_message.str= const_cast<char*>(str);
+  m_message.length= len;
+  DBUG_PRINT("info", ("m_incident: %d", m_incident));
+  DBUG_VOID_RETURN;
+}
+
+
+Incident_log_event::~Incident_log_event()
+{
+}
+
+
+const char *
+Incident_log_event::description() const
+{
+  static const char *const description[]= {
+    "NOTHING",                                  // Not used
+    "LOST_EVENTS"
+  };
+
+  DBUG_PRINT("info", ("m_incident: %d", m_incident));
+
+  DBUG_ASSERT(0 <= m_incident);
+  DBUG_ASSERT((my_size_t) m_incident <= sizeof(description)/sizeof(*description));
+
+  return description[m_incident];
+}
+
+
+#ifndef MYSQL_CLIENT
+void Incident_log_event::pack_info(Protocol *protocol)
+{
+  char buf[256];
+  my_size_t bytes;
+  if (m_message.length > 0)
+    bytes= my_snprintf(buf, sizeof(buf), "#%d (%s)",
+                       m_incident, description());
+  else
+    bytes= my_snprintf(buf, sizeof(buf), "#%d (%s): %s",
+                       m_incident, description(), m_message.str);
+  protocol->store(buf, bytes, &my_charset_bin);
+}
+#endif
+
+
+#ifdef MYSQL_CLIENT
+void
+Incident_log_event::print(FILE *file,
+                          PRINT_EVENT_INFO *print_event_info)
+{
+  if (print_event_info->short_form)
+    return;
+
+  Write_on_release_cache cache(&print_event_info->head_cache, file);
+  print_header(&cache, print_event_info, FALSE);
+  my_b_printf(&cache, "\n# Incident: %s", description());
+}
+#endif
+
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+int
+Incident_log_event::exec_event(st_relay_log_info *rli)
+{
+  DBUG_ENTER("Incident_log_event::exec_event");
+  slave_print_msg(ERROR_LEVEL, rli, ER_SLAVE_INCIDENT,
+                  ER(ER_SLAVE_INCIDENT),
+                  description(),
+                  m_message.length > 0 ? m_message.str : "<none>");
+  DBUG_RETURN(1);
+}
+#endif
+
+bool
+Incident_log_event::write_data_header(IO_CACHE *file)
+{
+  DBUG_ENTER("Incident_log_event::write_data_header");
+  DBUG_PRINT("enter", ("m_incident: %d", m_incident));
+  byte buf[sizeof(int16)];
+  int2store(buf, (int16) m_incident);
+  DBUG_RETURN(my_b_safe_write(file, buf, sizeof(buf)));
+}
+
+bool
+Incident_log_event::write_data_body(IO_CACHE *file)
+{
+  DBUG_ENTER("Incident_log_event::write_data_body");
+  DBUG_RETURN(write_str(file, m_message.str, m_message.length));
+}
+
 

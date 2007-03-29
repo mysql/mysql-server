@@ -25,7 +25,7 @@ CREATE TABLE t2 (a INT, b INT);
 SHOW TABLES;
 INSERT INTO t2 VALUES (3,3), (4,4);
 --replace_regex /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 102;
+SHOW BINLOG EVENTS FROM 103;
 sync_slave_with_master;
 --echo **** On Slave ****
 SHOW DATABASES;

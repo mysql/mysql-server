@@ -19,7 +19,7 @@ n
 3
 4
 5
-show binlog events from 102;
+show binlog events from 103;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	drop database if exists mysqltest
 master-bin.000001	#	Query	1	#	create database mysqltest
