@@ -644,7 +644,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
 
 ok:
   if (dbchanged)
-    (void) mysql_change_db(thd, old_db.str, 1);
+    (void) mysql_change_db(thd, &old_db, 1);
   /*
     This statement may cause a spooky valgrind warning at startup
     inside init_key_cache on my system (ahristov, 2006/08/10) 
@@ -654,7 +654,7 @@ ok:
 
 err:
   if (dbchanged)
-    (void) mysql_change_db(thd, old_db.str, 1);
+    (void) mysql_change_db(thd, &old_db, 1);
   if (table)
     close_thread_tables(thd);
   DBUG_RETURN(TRUE);

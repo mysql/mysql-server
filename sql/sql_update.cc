@@ -535,7 +535,7 @@ int mysql_update(THD *thd,
         if (!error)
 	{
 	  updated++;
-          thd->no_trans_update= !transactional_table;
+          thd->no_trans_update.stmt= !transactional_table;
 
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
