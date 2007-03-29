@@ -29,12 +29,13 @@ int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
 
 MASTER_INFO::MASTER_INFO()
   :ssl(0), fd(-1),  io_thd(0), inited(0),
-   abort_slave(0),slave_running(0), slave_run_id(0)
+   abort_slave(0),slave_running(0), slave_run_id(0),
+   ssl_verify_server_cert(0)
 {
   host[0] = 0; user[0] = 0; password[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
   ssl_cipher[0]= 0; ssl_key[0]= 0;
-  
+
   bzero((char*) &file, sizeof(file));
   pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
@@ -80,12 +81,21 @@ void init_master_info_with_options(MASTER_INFO* mi)
     strmake(mi->ssl_cipher, master_ssl_cipher, sizeof(mi->ssl_cipher)-1);
   if (master_ssl_key)
     strmake(mi->ssl_key, master_ssl_key, sizeof(mi->ssl_key)-1);
+  /* Intentionally init ssl_verify_server_cert to 0, no option available  */
+  mi->ssl_verify_server_cert= 0;
   DBUG_VOID_RETURN;
 }
 
 
-#define LINES_IN_MASTER_INFO_WITH_SSL 14
+enum {
+  LINES_IN_MASTER_INFO_WITH_SSL= 14,
 
+  /* 5.1.16 added value of master_ssl_verify_server_cert */
+  LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT= 15,
+
+  /* Number of lines currently used when saving master info file */
+  LINES_IN_MASTER_INFO= LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT
+};
 
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
                      const char* slave_info_fname,
@@ -184,7 +194,8 @@ file '%s')", fname);
     }
 
     mi->fd = fd;
-    int port, connect_retry, master_log_pos, ssl= 0, lines;
+    int port, connect_retry, master_log_pos, lines;
+    int ssl= 0, ssl_verify_server_cert= 0;
     char *first_non_digit;
 
     /*
@@ -195,7 +206,8 @@ file '%s')", fname);
        file since versions before 4.1.x could generate files with more
        lines than needed.
        If first line doesn't contain a number or contain number less than
-       14 then such file is treated like file from pre 4.1.1 version.
+       LINES_IN_MASTER_INFO_WITH_SSL then such file is treated like file
+       from pre 4.1.1 version.
        There is no ambiguity when reading an old master.info, as before
        4.1.1, the first line contained the binlog's name, which is either
        empty or has an extension (contains a '.'), so can't be confused
@@ -219,7 +231,8 @@ file '%s')", fname);
 
     if (mi->master_log_name[0]!='\0' &&
         *first_non_digit=='\0' && lines >= LINES_IN_MASTER_INFO_WITH_SSL)
-    {                                          // Seems to be new format
+    {
+      /* Seems to be new format => read master log name from next line */
       if (init_strvar_from_file(mi->master_log_name,
             sizeof(mi->master_log_name), &mi->file, ""))
         goto errwithmsg;
@@ -245,19 +258,31 @@ file '%s')", fname);
        slave will try connect to master, so in this case warning
        is printed.
      */
-    if (lines >= LINES_IN_MASTER_INFO_WITH_SSL &&
-        (init_intvar_from_file(&ssl, &mi->file, master_ssl) ||
-         init_strvar_from_file(mi->ssl_ca, sizeof(mi->ssl_ca),
-                               &mi->file, master_ssl_ca) ||
-         init_strvar_from_file(mi->ssl_capath, sizeof(mi->ssl_capath),
-                               &mi->file, master_ssl_capath) ||
-         init_strvar_from_file(mi->ssl_cert, sizeof(mi->ssl_cert),
-                               &mi->file, master_ssl_cert) ||
-         init_strvar_from_file(mi->ssl_cipher, sizeof(mi->ssl_cipher),
-                               &mi->file, master_ssl_cipher) ||
-         init_strvar_from_file(mi->ssl_key, sizeof(mi->ssl_key),
-                              &mi->file, master_ssl_key)))
-      goto errwithmsg;
+    if (lines >= LINES_IN_MASTER_INFO_WITH_SSL)
+    {
+      if (init_intvar_from_file(&ssl, &mi->file, master_ssl) ||
+          init_strvar_from_file(mi->ssl_ca, sizeof(mi->ssl_ca),
+                                &mi->file, master_ssl_ca) ||
+          init_strvar_from_file(mi->ssl_capath, sizeof(mi->ssl_capath),
+                                &mi->file, master_ssl_capath) ||
+          init_strvar_from_file(mi->ssl_cert, sizeof(mi->ssl_cert),
+                                &mi->file, master_ssl_cert) ||
+          init_strvar_from_file(mi->ssl_cipher, sizeof(mi->ssl_cipher),
+                                &mi->file, master_ssl_cipher) ||
+          init_strvar_from_file(mi->ssl_key, sizeof(mi->ssl_key),
+                                &mi->file, master_ssl_key))
+        goto errwithmsg;
+
+      /*
+        Starting from 5.1.16 ssl_verify_server_cert might be
+        in the file
+      */
+      if (lines >= LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT &&
+          init_intvar_from_file(&ssl_verify_server_cert, &mi->file, 0))
+        goto errwithmsg;
+
+    }
+
 #ifndef HAVE_OPENSSL
     if (ssl)
       sql_print_warning("SSL information in the master info file "
@@ -273,6 +298,7 @@ file '%s')", fname);
     mi->port= (uint) port;
     mi->connect_retry= (uint) connect_retry;
     mi->ssl= (my_bool) ssl;
+    mi->ssl_verify_server_cert= ssl_verify_server_cert;
   }
   DBUG_PRINT("master_info",("log_file_name: %s  position: %ld",
                             mi->master_log_name,
@@ -315,6 +341,7 @@ int flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache)
 {
   IO_CACHE* file = &mi->file;
   char lbuf[22];
+
   DBUG_ENTER("flush_master_info");
   DBUG_PRINT("enter",("master_pos: %ld", (long) mi->master_log_pos));
 
@@ -352,13 +379,14 @@ int flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache)
   */
 
   my_b_seek(file, 0L);
-  my_b_printf(file, "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n",
-              LINES_IN_MASTER_INFO_WITH_SSL,
+  my_b_printf(file,
+              "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n",
+              LINES_IN_MASTER_INFO,
               mi->master_log_name, llstr(mi->master_log_pos, lbuf),
               mi->host, mi->user,
               mi->password, mi->port, mi->connect_retry,
               (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
-              mi->ssl_cipher, mi->ssl_key);
+              mi->ssl_cipher, mi->ssl_key, mi->ssl_verify_server_cert);
   DBUG_RETURN(-flush_io_cache(file));
 }
 

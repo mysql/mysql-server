@@ -1248,6 +1248,8 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
                                              sizeof(mi->ssl_key)));
   field_list.push_back(new Item_return_int("Seconds_Behind_Master", 10,
                                            MYSQL_TYPE_LONGLONG));
+  field_list.push_back(new Item_empty_string("Master_SSL_Verify_Server_Cert",
+                                             3));
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -1354,7 +1356,10 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
                                  max(0, time_diff) : 0));
     }
     else
+    {
       protocol->store_null();
+    }
+    protocol->store(mi->ssl_verify_server_cert? "Yes":"No", &my_charset_bin);
 
     pthread_mutex_unlock(&mi->rli.data_lock);
     pthread_mutex_unlock(&mi->data_lock);
@@ -3092,12 +3097,16 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
 
 #ifdef HAVE_OPENSSL
   if (mi->ssl)
+  {
     mysql_ssl_set(mysql,
                   mi->ssl_key[0]?mi->ssl_key:0,
                   mi->ssl_cert[0]?mi->ssl_cert:0,
                   mi->ssl_ca[0]?mi->ssl_ca:0,
                   mi->ssl_capath[0]?mi->ssl_capath:0,
                   mi->ssl_cipher[0]?mi->ssl_cipher:0);
+    mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
+                  &mi->ssl_verify_server_cert);
+  }
 #endif
 
   mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset_info->csname);
