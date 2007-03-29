@@ -770,19 +770,34 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
 	     LOG_READ_TOO_LARGE);
     goto end;
   }
-  packet->append(buf, sizeof(buf));
+
+  /* Append the log event header to packet */
+  if (packet->append(buf, sizeof(buf)))
+  {
+    /* Failed to allocate packet */
+    result= LOG_READ_MEM;
+    goto end;
+  }
   data_len-= LOG_EVENT_MINIMAL_HEADER_LEN;
   if (data_len)
   {
+    /* Append rest of event, read directly from file into packet */
     if (packet->append(file, data_len))
     {
       /*
-	Here if we hit EOF it's really an error: as data_len is >=0
-        there's supposed to be more bytes available. 
-	EOF means we are reading the event partially, which should
-	never happen: either we read badly or the binlog is truncated.
+        Fatal error occured when appending rest of the event
+        to packet, possible failures:
+	1. EOF occured when reading from file, it's really an error
+           as data_len is >=0 there's supposed to be more bytes available.
+           file->error will have been set to number of bytes left to read
+        2. Read was interrupted, file->error would normally be set to -1
+        3. Failed to allocate memory for packet, my_errno
+           will be ENOMEM(file->error shuold be 0, but since the
+           memory allocation occurs before the call to read it might
+           be uninitialized)
       */
-      result= file->error >= 0 ? LOG_READ_TRUNC: LOG_READ_IO;
+      result= (my_errno == ENOMEM ? LOG_READ_MEM :
+               (file->error >= 0 ? LOG_READ_TRUNC: LOG_READ_IO));
       /* Implicit goto end; */
     }
   }
