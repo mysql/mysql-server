@@ -6,7 +6,7 @@
 ##################################################################
 
 --disable_warnings
-DROP EVENT IF EXISTS justonce;
+DROP EVENT IF EXISTS test.justonce;
 drop table if exists t1,t2;
 --enable_warnings
 
@@ -23,8 +23,10 @@ CURRENT_TIMESTAMP,
 INSERT INTO t1 (c) VALUES ('manually');
 
 # then, we create the event
-CREATE EVENT justonce ON SCHEDULE AT NOW() + INTERVAL 2 SECOND DO INSERT INTo t1
+CREATE EVENT test.justonce ON SCHEDULE AT NOW() + INTERVAL 2 SECOND DO INSERT INTO t1
 (c) VALUES ('from justonce');
+
+SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'justonce';
 
 # wait 3 seconds, so the event can trigger
 --real_sleep 3
@@ -37,13 +39,14 @@ SELECT * FROM t1;
 --disable_info
 
 sync_slave_with_master;
-connection slave;
 
 --echo "in the slave"
 --enable_info
 --replace_column 3 TIMESTAMP
 SELECT * FROM t1;
 --disable_info
+
+SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'justonce';
 
 # Create an event on the slave and check to see what the originator is.
 --disable_warnings
@@ -52,7 +55,7 @@ DROP EVENT IF EXISTS test.slave_once;
 
 CREATE EVENT test.slave_once ON SCHEDULE EVERY 5 MINUTE DO 
 INSERT INTO t1(c) VALUES ('from slave_once');
-SELECT db, name, status, originator FROM mysql.event;
+SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_once';
 
 --disable_warnings
 DROP EVENT IF EXISTS test.slave_once;
@@ -61,39 +64,40 @@ DROP EVENT IF EXISTS test.slave_once;
 connection master;
 
 # BUG#20384 - disable events on slave
+--disable_warnings
 DROP EVENT IF EXISTS test.justonce;
+--enable_warnings
+
 CREATE EVENT test.er ON SCHEDULE EVERY 3 SECOND DO 
 INSERT INTO t1(c) VALUES ('from er');
-SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'er';
+SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
 
 sync_slave_with_master;
-connection slave;
+
 --echo "in the slave"
-SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'er';
+SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
 
 connection master;
 --echo "in the master"
 ALTER EVENT test.er ON SCHEDULE EVERY 5 SECOND DO INSERT into t1(c) VALUES ('from alter er');
-SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'er';
+SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
 
 sync_slave_with_master;
-connection slave;
+
 --echo "in the slave"
-SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'er';
+SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
 
 connection master;
 --echo "in the master"
 DROP EVENT test.er;
---replace column 8 DATETIME
-SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'er';
+SELECT db, name, status, originator FROM mysql.event WHERE db = 'test';
 
 --disable_info
 
 sync_slave_with_master;
-connection slave;
+
 --echo "in the slave"
---replace column 8 DATETIME
-SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'er';
+SELECT db, name, status, originator FROM mysql.event WHERE db = 'test';
 
 --echo "in the master"
 connection master;

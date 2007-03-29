@@ -658,7 +658,8 @@ void Event_parse_data::check_originator_id(THD *thd)
       (thd->system_thread == SYSTEM_THREAD_SLAVE_IO))
   {
     DBUG_PRINT("info", ("Invoked object status set to SLAVESIDE_DISABLED."));
-    if (status == Event_basic::ENABLED)
+    if ((status == Event_basic::ENABLED) ||
+        (status == Event_basic::DISABLED))
       status = Event_basic::SLAVESIDE_DISABLED;
     originator = thd->server_id;
   }
@@ -1589,6 +1590,13 @@ Event_queue_element::update_timing_fields(THD *thd)
     fields[ET_FIELD_STATUS]->store((longlong)status, TRUE);
     status_changed= FALSE;
   }
+
+  /* 
+    Turn off row binlogging of event timing updates. These are not used
+    for RBR of events replicated to the slave.
+  */
+  if (thd->current_stmt_binlog_row_based)
+    thd->clear_current_stmt_binlog_row_based();
 
   if ((table->file->ha_update_row(table->record[1], table->record[0])))
     ret= TRUE;
