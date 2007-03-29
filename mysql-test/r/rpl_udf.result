@@ -1,0 +1,310 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+set binlog_format=row;
+drop table if exists t1;
+"*** Test 1) Test UDFs via loadable libraries ***
+"Running on the master"
+CREATE FUNCTION myfunc_double RETURNS REAL SONAME "UDF_EXAMPLE_LIB";
+affected rows: 0
+CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+affected rows: 0
+CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+ERROR HY000: Can't find symbol 'myfunc_nonexist' in library
+SELECT * FROM mysql.func;
+name	ret	dl	type
+myfunc_double	1	udf_example.dll	function
+myfunc_int	2	udf_example.dll	function
+affected rows: 2
+"Running on the slave"
+SELECT * FROM mysql.func;
+name	ret	dl	type
+myfunc_double	1	udf_example.dll	function
+myfunc_int	2	udf_example.dll	function
+affected rows: 2
+"Running on the master"
+CREATE TABLE t1(sum INT, price FLOAT(24)) ENGINE=MyISAM;
+affected rows: 0
+INSERT INTO t1 VALUES(myfunc_int(100), myfunc_double(50.00));
+affected rows: 1
+INSERT INTO t1 VALUES(myfunc_int(10), myfunc_double(5.00));
+affected rows: 1
+INSERT INTO t1 VALUES(myfunc_int(200), myfunc_double(25.00));
+affected rows: 1
+INSERT INTO t1 VALUES(myfunc_int(1), myfunc_double(500.00));
+affected rows: 1
+SELECT * FROM t1 ORDER BY sum;
+sum	price
+1	48.5
+10	48.75
+100	48.6
+200	49
+affected rows: 4
+"Running on the slave"
+SELECT * FROM t1 ORDER BY sum;
+sum	price
+1	48.5
+10	48.75
+100	48.6
+200	49
+affected rows: 4
+SELECT myfunc_int(25);
+myfunc_int(25)
+25
+affected rows: 1
+SELECT myfunc_double(75.00);
+myfunc_double(75.00)
+50.00
+affected rows: 1
+"Running on the master"
+DROP FUNCTION myfunc_double;
+affected rows: 0
+DROP FUNCTION myfunc_int;
+affected rows: 0
+SELECT * FROM mysql.func;
+name	ret	dl	type
+affected rows: 0
+"Running on the slave"
+SELECT * FROM mysql.func;
+name	ret	dl	type
+affected rows: 0
+"Running on the master"
+DROP TABLE t1;
+affected rows: 0
+"*** Test 2) Test UDFs with SQL body ***
+"Running on the master"
+CREATE FUNCTION myfuncsql_int(i INT) RETURNS INTEGER DETERMINISTIC RETURN i;
+affected rows: 0
+CREATE FUNCTION myfuncsql_double(d DOUBLE) RETURNS INTEGER DETERMINISTIC RETURN d * 0.95;
+affected rows: 0
+SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%';
+db	name	type	param_list	body	comment
+test	myfuncsql_double	FUNCTION	d DOUBLE	RETURN d * 0.95	
+test	myfuncsql_int	FUNCTION	i INT	RETURN i	
+affected rows: 2
+"Running on the slave"
+SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%';
+db	name	type	param_list	body	comment
+test	myfuncsql_double	FUNCTION	d DOUBLE	RETURN d * 0.95	
+test	myfuncsql_int	FUNCTION	i INT	RETURN i	
+affected rows: 2
+"Running on the master"
+CREATE TABLE t1(sum INT, price FLOAT(24)) ENGINE=MyISAM;
+affected rows: 0
+INSERT INTO t1 VALUES(myfuncsql_int(100), myfuncsql_double(50.00));
+affected rows: 1
+INSERT INTO t1 VALUES(myfuncsql_int(10), myfuncsql_double(5.00));
+affected rows: 1
+INSERT INTO t1 VALUES(myfuncsql_int(200), myfuncsql_double(25.00));
+affected rows: 1
+INSERT INTO t1 VALUES(myfuncsql_int(1), myfuncsql_double(500.00));
+affected rows: 1
+SELECT * FROM t1 ORDER BY sum;
+sum	price
+1	475
+10	5
+100	47
+200	24
+affected rows: 4
+"Running on the slave"
+SELECT * FROM t1 ORDER BY sum;
+sum	price
+1	475
+10	5
+100	47
+200	24
+affected rows: 4
+"Running on the master"
+ALTER FUNCTION myfuncsql_int COMMENT "This was altered.";
+affected rows: 0
+ALTER FUNCTION myfuncsql_double COMMENT "This was altered.";
+affected rows: 0
+SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%';
+db	name	type	param_list	body	comment
+test	myfuncsql_double	FUNCTION	d DOUBLE	RETURN d * 0.95	This was altered.
+test	myfuncsql_int	FUNCTION	i INT	RETURN i	This was altered.
+affected rows: 2
+"Running on the slave"
+SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%';
+db	name	type	param_list	body	comment
+test	myfuncsql_double	FUNCTION	d DOUBLE	RETURN d * 0.95	This was altered.
+test	myfuncsql_int	FUNCTION	i INT	RETURN i	This was altered.
+affected rows: 2
+SELECT myfuncsql_int(25);
+myfuncsql_int(25)
+25
+affected rows: 1
+SELECT myfuncsql_double(75.00);
+myfuncsql_double(75.00)
+71
+affected rows: 1
+"Running on the master"
+DROP FUNCTION myfuncsql_double;
+affected rows: 0
+DROP FUNCTION myfuncsql_int;
+affected rows: 0
+SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%';
+db	name	type	param_list	body	comment
+affected rows: 0
+"Running on the slave"
+SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%';
+db	name	type	param_list	body	comment
+affected rows: 0
+"Running on the master"
+DROP TABLE t1;
+affected rows: 0
+set binlog_format=statement;
+drop table if exists t1;
+"*** Test 1) Test UDFs via loadable libraries ***
+"Running on the master"
+CREATE FUNCTION myfunc_double RETURNS REAL SONAME "UDF_EXAMPLE_LIB";
+affected rows: 0
+CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+affected rows: 0
+CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+ERROR HY000: Can't find symbol 'myfunc_nonexist' in library
+SELECT * FROM mysql.func;
+name	ret	dl	type
+myfunc_int	2	udf_example.dll	function
+myfunc_double	1	udf_example.dll	function
+affected rows: 2
+"Running on the slave"
+SELECT * FROM mysql.func;
+name	ret	dl	type
+myfunc_int	2	udf_example.dll	function
+myfunc_double	1	udf_example.dll	function
+affected rows: 2
+"Running on the master"
+CREATE TABLE t1(sum INT, price FLOAT(24)) ENGINE=MyISAM;
+affected rows: 0
+INSERT INTO t1 VALUES(myfunc_int(100), myfunc_double(50.00));
+affected rows: 1
+INSERT INTO t1 VALUES(myfunc_int(10), myfunc_double(5.00));
+affected rows: 1
+INSERT INTO t1 VALUES(myfunc_int(200), myfunc_double(25.00));
+affected rows: 1
+INSERT INTO t1 VALUES(myfunc_int(1), myfunc_double(500.00));
+affected rows: 1
+SELECT * FROM t1 ORDER BY sum;
+sum	price
+1	48.5
+10	48.75
+100	48.6
+200	49
+affected rows: 4
+"Running on the slave"
+SELECT * FROM t1 ORDER BY sum;
+sum	price
+1	48.5
+10	48.75
+100	48.6
+200	49
+affected rows: 4
+SELECT myfunc_int(25);
+myfunc_int(25)
+25
+affected rows: 1
+SELECT myfunc_double(75.00);
+myfunc_double(75.00)
+50.00
+affected rows: 1
+"Running on the master"
+DROP FUNCTION myfunc_double;
+affected rows: 0
+DROP FUNCTION myfunc_int;
+affected rows: 0
+SELECT * FROM mysql.func;
+name	ret	dl	type
+affected rows: 0
+"Running on the slave"
+SELECT * FROM mysql.func;
+name	ret	dl	type
+affected rows: 0
+"Running on the master"
+DROP TABLE t1;
+affected rows: 0
+"*** Test 2) Test UDFs with SQL body ***
+"Running on the master"
+CREATE FUNCTION myfuncsql_int(i INT) RETURNS INTEGER DETERMINISTIC RETURN i;
+affected rows: 0
+CREATE FUNCTION myfuncsql_double(d DOUBLE) RETURNS INTEGER DETERMINISTIC RETURN d * 0.95;
+affected rows: 0
+SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%';
+db	name	type	param_list	body	comment
+test	myfuncsql_double	FUNCTION	d DOUBLE	RETURN d * 0.95	
+test	myfuncsql_int	FUNCTION	i INT	RETURN i	
+affected rows: 2
+"Running on the slave"
+SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%';
+db	name	type	param_list	body	comment
+test	myfuncsql_double	FUNCTION	d DOUBLE	RETURN d * 0.95	
+test	myfuncsql_int	FUNCTION	i INT	RETURN i	
+affected rows: 2
+"Running on the master"
+CREATE TABLE t1(sum INT, price FLOAT(24)) ENGINE=MyISAM;
+affected rows: 0
+INSERT INTO t1 VALUES(myfuncsql_int(100), myfuncsql_double(50.00));
+affected rows: 1
+INSERT INTO t1 VALUES(myfuncsql_int(10), myfuncsql_double(5.00));
+affected rows: 1
+INSERT INTO t1 VALUES(myfuncsql_int(200), myfuncsql_double(25.00));
+affected rows: 1
+INSERT INTO t1 VALUES(myfuncsql_int(1), myfuncsql_double(500.00));
+affected rows: 1
+SELECT * FROM t1 ORDER BY sum;
+sum	price
+1	475
+10	5
+100	47
+200	24
+affected rows: 4
+"Running on the slave"
+SELECT * FROM t1 ORDER BY sum;
+sum	price
+1	475
+10	5
+100	47
+200	24
+affected rows: 4
+"Running on the master"
+ALTER FUNCTION myfuncsql_int COMMENT "This was altered.";
+affected rows: 0
+ALTER FUNCTION myfuncsql_double COMMENT "This was altered.";
+affected rows: 0
+SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%';
+db	name	type	param_list	body	comment
+test	myfuncsql_double	FUNCTION	d DOUBLE	RETURN d * 0.95	This was altered.
+test	myfuncsql_int	FUNCTION	i INT	RETURN i	This was altered.
+affected rows: 2
+"Running on the slave"
+SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%';
+db	name	type	param_list	body	comment
+test	myfuncsql_double	FUNCTION	d DOUBLE	RETURN d * 0.95	This was altered.
+test	myfuncsql_int	FUNCTION	i INT	RETURN i	This was altered.
+affected rows: 2
+SELECT myfuncsql_int(25);
+myfuncsql_int(25)
+25
+affected rows: 1
+SELECT myfuncsql_double(75.00);
+myfuncsql_double(75.00)
+71
+affected rows: 1
+"Running on the master"
+DROP FUNCTION myfuncsql_double;
+affected rows: 0
+DROP FUNCTION myfuncsql_int;
+affected rows: 0
+SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%';
+db	name	type	param_list	body	comment
+affected rows: 0
+"Running on the slave"
+SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%';
+db	name	type	param_list	body	comment
+affected rows: 0
+"Running on the master"
+DROP TABLE t1;
+affected rows: 0
