@@ -53,8 +53,6 @@ void safe_print_str(const char* name, const char* val, int max_len)
 #define SIGRETURN_FRAME_OFFSET 23
 #endif
 
-static my_bool is_nptl;
-
 #if defined(__alpha__) && defined(__GNUC__)
 /*
   The only way to backtrace without a symbol table on alpha
