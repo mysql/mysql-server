@@ -429,3 +429,16 @@ then
 else
   AC_MSG_RESULT(no)
 fi
+
+
+# Shall we build experimental collations
+AC_ARG_WITH(experimental-collations,
+    [],
+    [with_exp_coll=$withval],
+    [with_exp_coll=no]
+)
+
+if test "$with_exp_coll" = "yes"
+then
+  AC_DEFINE([HAVE_UTF8_GENERAL_CS], [1], [certain Japanese customer])
+fi
