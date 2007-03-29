@@ -175,7 +175,7 @@ static char is_null_string[2]= {1,0};
       Example:
         By induction: Let's take any interval on some keypart in the middle:
 
-           kp15=1 
+           kp15=c0
         
         Then let's AND it with this interval 'structure' from preceding and
         following keyparts:
@@ -184,18 +184,18 @@ static char is_null_string[2]= {1,0};
         
         We will obtain this SEL_ARG graph:
  
-             kp14     $      kp15     $      kp16
-                      $               $
-         +---------+  $   +--------+  $   +---------+
-         | kp14=c1 |--$-->| kp15=1 |--$-->| kp16=c3 |
-         +---------+  $   +--------+  $   +---------+
-              |       $               $              
-         +---------+  $   +--------+  $             
-         | kp14=c2 |--$-->| kp15=1 |  $             
-         +---------+  $   +--------+  $             
-                      $               $
+             kp14     $      kp15      $      kp16
+                      $                $
+         +---------+  $   +---------+  $   +---------+
+         | kp14=c1 |--$-->| kp15=c0 |--$-->| kp16=c3 |
+         +---------+  $   +---------+  $   +---------+
+              |       $                $              
+         +---------+  $   +---------+  $             
+         | kp14=c2 |--$-->| kp15=c0 |  $             
+         +---------+  $   +---------+  $             
+                      $                $
                       
-       Note that we had to duplicate "kp15=1" and there was no way to avoid
+       Note that we had to duplicate "kp15=c0" and there was no way to avoid
        that. 
        The induction step: AND the obtained expression with another "wrapping"
        expression like (*).
@@ -477,7 +477,7 @@ typedef struct st_qsel_param {
     max_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH];
   bool quick;				// Don't calulate possible keys
   COND *cond;
-  /* Numbr of SEL_ARG objects allocated by SEL_ARG::clone_tree operations */
+  /* Number of SEL_ARG objects allocated by SEL_ARG::clone_tree operations */
   uint alloced_sel_args; 
 } PARAM;
 
@@ -681,7 +681,8 @@ SEL_ARG *SEL_ARG::clone(PARAM *param, SEL_ARG *new_parent, SEL_ARG **next_arg)
     tmp->parent=new_parent;
     tmp->next_key_part=next_key_part;
     if (left != &null_element)
-      tmp->left=left->clone(param, tmp, next_arg);
+      if (!(tmp->left=left->clone(param, tmp, next_arg)))
+	return 0;				// OOM
 
     tmp->prev= *next_arg;			// Link into next/prev chain
     (*next_arg)->next=tmp;
