@@ -142,7 +142,6 @@ extern "C" {
 #define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
 #define HA_INNOBASE_RANGE_COUNT	  100
 
-ulong	innobase_large_page_size = 0;
 
 /* The default values for the following, type long or longlong, start-up
 parameters are declared in mysqld.cc: */
@@ -169,18 +168,27 @@ char*	innobase_unix_file_flush_method		= NULL;
 /* Below we have boolean-valued start-up parameters, and their default
 values */
 
+static
 ulong	innobase_fast_shutdown			= 1;
+#ifdef UNIV_LOG_ARCHIVE
+static
 my_bool innobase_log_archive			= FALSE;/* unused */
+#endif /* UNIG_LOG_ARCHIVE */
+static
 my_bool innobase_use_doublewrite		= TRUE;
+static
 my_bool innobase_use_checksums			= TRUE;
-my_bool innobase_use_large_pages		= FALSE;
-my_bool	innobase_use_native_aio			= FALSE;
+static
 my_bool	innobase_file_per_table			= FALSE;
+static
 my_bool innobase_locks_unsafe_for_binlog	= FALSE;
+static
 my_bool innobase_rollback_on_timeout		= FALSE;
+static
 my_bool innobase_create_status_file		= FALSE;
 
-static char *internal_innobase_data_file_path	= NULL;
+static
+char*	internal_innobase_data_file_path	= NULL;
 
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
@@ -188,6 +196,7 @@ srv_active_wake_master_thread after each fetch or search, we only do
 it every INNOBASE_WAKE_INTERVAL'th step. */
 
 #define INNOBASE_WAKE_INTERVAL	32
+static
 ulong	innobase_active_counter	= 0;
 
 static HASH	innobase_open_tables;
@@ -241,6 +250,7 @@ innobase_commit_low(
 /*================*/
 	trx_t*	trx);	/* in: transaction handle */
 
+static
 SHOW_VAR innodb_status_variables[]= {
   {"buffer_pool_pages_data",
   (char*) &export_vars.innodb_buffer_pool_pages_data,	  SHOW_LONG},
@@ -1315,14 +1325,6 @@ innobase_init(void *p)
         innobase_hton->flags=HTON_NO_FLAGS;
         innobase_hton->release_temporary_latches=innobase_release_temporary_latches;
 
-#ifdef HAVE_LARGE_PAGES
-        if (my_use_large_pages)
-        {
-                innobase_use_large_pages= 1;
-                innobase_large_page_size= opt_large_page_size;
-        }
-#endif
-
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
 #ifdef UNIV_DEBUG
@@ -1504,8 +1506,10 @@ innobase_init(void *p)
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
 	srv_use_checksums = (ibool) innobase_use_checksums;
 
-	os_use_large_pages = (ibool) innobase_use_large_pages;
-	os_large_page_size = (ulint) innobase_large_page_size;
+#ifdef HAVE_LARGE_PAGES
+        if ((os_use_large_pages = (ibool) my_use_large_pages))
+		os_large_page_size = (ulint) opt_large_page_size;
+#endif
 
 	row_rollback_on_timeout = (ibool) innobase_rollback_on_timeout;
 
@@ -4947,29 +4951,29 @@ ha_innobase::delete_all_rows(void)
 
 	DBUG_ENTER("ha_innobase::delete_all_rows");
 
-	if (ha_sql_command() != SQLCOM_TRUNCATE) {
-	fallback:
-		/* We only handle TRUNCATE TABLE t as a special case.
-		DELETE FROM t will have to use ha_innobase::delete_row(). */
-		DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
-	}
-
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created, and update prebuilt->trx */
 
 	update_thd(thd);
 
-	/* Truncate the table in InnoDB */
+	if (ha_sql_command() == SQLCOM_TRUNCATE) {
+		/* Truncate the table in InnoDB */
 
-	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
-	if (error == DB_ERROR) {
-		/* Cannot truncate; resort to ha_innobase::delete_row() */
-		goto fallback;
+		error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
+		if (error == DB_ERROR) {
+			/* Cannot truncate; resort to ha_innobase::delete_row() */
+			goto fallback;
+		}
+
+		error = convert_error_code_to_mysql(error, NULL);
+
+		DBUG_RETURN(error);
 	}
 
-	error = convert_error_code_to_mysql(error, NULL);
-
-	DBUG_RETURN(error);
+fallback:
+	/* We only handle TRUNCATE TABLE t as a special case.
+	DELETE FROM t will have to use ha_innobase::delete_row(). */
+	DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
 }
 
 /*********************************************************************
@@ -6767,17 +6771,21 @@ ha_innobase::store_lock(
 						ha_tx_isolation());
 	}
 
-	if (ha_sql_command() == SQLCOM_DROP_TABLE) {
+	DBUG_ASSERT(thd == ha_thd());
+	const bool in_lock_tables = thd_in_lock_tables(thd);
+	const uint sql_command = ha_sql_command();
+
+	if (sql_command == SQLCOM_DROP_TABLE) {
 
 		/* MySQL calls this function in DROP TABLE though this table
 		handle may belong to another thd that is running a query. Let
 		us in that case skip any changes to the prebuilt struct. */ 
 
-	} else if ((thd_in_lock_tables(thd) &&
+	} else if ((in_lock_tables &&
 		(lock_type == TL_READ || lock_type == TL_READ_HIGH_PRIORITY)) ||
 		lock_type == TL_READ_WITH_SHARED_LOCKS ||
 		lock_type == TL_READ_NO_INSERT ||
-		(ha_sql_command() != SQLCOM_SELECT
+		(sql_command != SQLCOM_SELECT
 			&& lock_type != TL_IGNORE)) {
 
 		/* The OR cases above are in this order:
@@ -6806,9 +6814,9 @@ ha_innobase::store_lock(
 			|| isolation_level == TRX_ISO_READ_COMMITTED)
 		&& isolation_level != TRX_ISO_SERIALIZABLE
 		&& (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT)
-		&& (ha_sql_command() == SQLCOM_INSERT_SELECT
-			|| ha_sql_command() == SQLCOM_UPDATE
-			|| ha_sql_command() == SQLCOM_CREATE_TABLE)) {
+		&& (sql_command == SQLCOM_INSERT_SELECT
+			|| sql_command == SQLCOM_UPDATE
+			|| sql_command == SQLCOM_CREATE_TABLE)) {
 
 			/* If we either have innobase_locks_unsafe_for_binlog
 			option set or this session is using READ COMMITTED
@@ -6821,7 +6829,7 @@ ha_innobase::store_lock(
 
 			prebuilt->select_lock_type = LOCK_NONE;
 			prebuilt->stored_select_lock_type = LOCK_NONE;
-		} else if (ha_sql_command() == SQLCOM_CHECKSUM) {
+		} else if (sql_command == SQLCOM_CHECKSUM) {
 			/* Use consistent read for checksum table */
 
 			prebuilt->select_lock_type = LOCK_NONE;
@@ -6851,7 +6859,7 @@ ha_innobase::store_lock(
 		(if it does not use a consistent read). */
 
 		if (lock_type == TL_READ
-		    && ha_sql_command() == SQLCOM_LOCK_TABLES) {
+		    && sql_command == SQLCOM_LOCK_TABLES) {
 			/* We come here if MySQL is processing LOCK TABLES
 			... READ LOCAL. MyISAM under that table lock type
 			reads the table as it was at the time the lock was
@@ -6878,23 +6886,23 @@ ha_innobase::store_lock(
 
 		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT
 		&& lock_type <= TL_WRITE)
-		&& !(thd_in_lock_tables(thd)
-			&& ha_sql_command() == SQLCOM_LOCK_TABLES)
+		&& !(in_lock_tables
+			&& sql_command == SQLCOM_LOCK_TABLES)
 		&& !thd_tablespace_op(thd)
-		&& ha_sql_command() != SQLCOM_TRUNCATE
-		&& ha_sql_command() != SQLCOM_OPTIMIZE
+		&& sql_command != SQLCOM_TRUNCATE
+		&& sql_command != SQLCOM_OPTIMIZE
 
 #ifdef __WIN__
-                /* For alter table on win32 for succesful operation
-                completion it is used TL_WRITE(=10) lock instead of
-                TL_WRITE_ALLOW_READ(=6), however here in innodb handler
-                TL_WRITE is lifted to TL_WRITE_ALLOW_WRITE, which causes
-                race condition when several clients do alter table
-                simultaneously (bug #17264). This fix avoids the problem. */
-                && ha_sql_command() != SQLCOM_ALTER_TABLE
+		/* For alter table on win32 for succesful operation
+		completion it is used TL_WRITE(=10) lock instead of
+		TL_WRITE_ALLOW_READ(=6), however here in innodb handler
+		TL_WRITE is lifted to TL_WRITE_ALLOW_WRITE, which causes
+		race condition when several clients do alter table
+		simultaneously (bug #17264). This fix avoids the problem. */
+		&& sql_command != SQLCOM_ALTER_TABLE
 #endif
 
-		&& ha_sql_command() != SQLCOM_CREATE_TABLE) {
+		&& sql_command != SQLCOM_CREATE_TABLE) {
 
 			lock_type = TL_WRITE_ALLOW_WRITE;
 		}
@@ -6910,7 +6918,7 @@ ha_innobase::store_lock(
 		(MySQL does have thd_in_lock_tables() TRUE there). */
 
 		if (lock_type == TL_READ_NO_INSERT
-		    && ha_sql_command() != SQLCOM_LOCK_TABLES) {
+		    && sql_command != SQLCOM_LOCK_TABLES) {
 
 			lock_type = TL_READ;
 		}
@@ -7652,9 +7660,11 @@ static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Where full logs should be archived.", NULL, NULL, NULL);
 
+#ifdef UNIV_LOG_ARCHIVE
 static MYSQL_SYSVAR_BOOL(log_archive, innobase_log_archive,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Set to 1 if you want to have logs archived.", NULL, NULL, FALSE);
+#endif /* UNIV_LOG_ARCHIVE */
 
 static MYSQL_SYSVAR_STR(log_group_home_dir, innobase_log_group_home_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -7784,7 +7794,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(locks_unsafe_for_binlog),
   MYSQL_SYSVAR(lock_wait_timeout),
   MYSQL_SYSVAR(log_arch_dir),
+#ifdef UNIV_LOG_ARCHIVE
   MYSQL_SYSVAR(log_archive),
+#endif /* UNIV_LOG_ARCHIVE */
   MYSQL_SYSVAR(log_buffer_size),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_files_in_group),
