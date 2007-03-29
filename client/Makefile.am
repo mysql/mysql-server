@@ -76,6 +76,7 @@ mysqlimport_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 mysqlshow_SOURCES=		mysqlshow.c
 
 mysqlslap_SOURCES=		mysqlslap.c
+mysqlslap_CFLAGS=		-DTHREAD -UUNDEF_THREADS_HACK
 mysqlslap_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
