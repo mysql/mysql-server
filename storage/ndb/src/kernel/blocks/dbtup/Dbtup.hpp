@@ -1286,7 +1286,12 @@ typedef Ptr<HostBuffer> HostBufferPtr;
    */
   struct Var_part_ref 
   {
-#if NDB_SIZEOF_CHARP == 4
+#ifdef NDB_32BIT_VAR_REF
+    /*
+      In versions prior to ndb 6.1.6, 6.2.1 and mysql 5.1.17
+      Running this code limits DataMemory to 16G, also online
+      upgrade not possible between versions
+     */
     Uint32 m_ref;
     STATIC_CONST( SZ32 = 1 );
 
