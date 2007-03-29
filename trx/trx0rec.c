@@ -120,9 +120,9 @@ UNIV_INLINE
 ulint
 trx_undo_left(
 /*==========*/
-			/* out: bytes left */
-	page_t* page,	/* in: undo log page */
-	byte*	ptr)	/* in: pointer to page */
+				/* out: bytes left */
+	const page_t*	page,	/* in: undo log page */
+	const byte*	ptr)	/* in: pointer to page */
 {
 	/* The '- 10' is a safety margin, in case we have some small
 	calculation error below */
@@ -161,10 +161,9 @@ trx_undo_page_report_insert(
 
 	ut_ad(first_free <= UNIV_PAGE_SIZE);
 
-	if (trx_undo_left(undo_page, ptr) < 30) {
+	if (trx_undo_left(undo_page, ptr) < 2 + 1 + 11 + 11) {
 
-		/* NOTE: the value 30 must be big enough such that the general
-		fields written below fit on the undo log page */
+		/* Not enough space for writing the general parameters */
 
 		return(0);
 	}
@@ -208,11 +207,6 @@ trx_undo_page_report_insert(
 			ut_memcpy(ptr, dfield_get_data(field), flen);
 			ptr += flen;
 		}
-	}
-
-	if (trx_undo_left(undo_page, ptr) < 2) {
-
-		return(0);
 	}
 
 	/*----------------------------------------*/
@@ -415,7 +409,6 @@ trx_undo_page_report_modify(
 	dict_table_t*	table;
 	ulint		first_free;
 	byte*		ptr;
-	ulint		len;
 	const byte*	field;
 	ulint		flen;
 	ulint		col_no;
@@ -457,17 +450,12 @@ trx_undo_page_report_modify(
 	}
 
 	type_cmpl |= cmpl_info * TRX_UNDO_CMPL_INFO_MULT;
-
-	mach_write_to_1(ptr, type_cmpl);
-
 	type_cmpl_ptr = ptr;
 
-	ptr++;
-	len = mach_dulint_write_much_compressed(ptr, trx->undo_no);
-	ptr += len;
+	*ptr++ = type_cmpl;
+	ptr += mach_dulint_write_much_compressed(ptr, trx->undo_no);
 
-	len = mach_dulint_write_much_compressed(ptr, table->id);
-	ptr += len;
+	ptr += mach_dulint_write_much_compressed(ptr, table->id);
 
 	/*----------------------------------------*/
 	/* Store the state of the info bits */
@@ -477,19 +465,17 @@ trx_undo_page_report_modify(
 	/* Store the values of the system columns */
 	field = rec_get_nth_field(rec, offsets,
 				  dict_index_get_sys_col_pos(
-					  index, DATA_TRX_ID), &len);
-	ut_ad(len == DATA_TRX_ID_LEN);
+					  index, DATA_TRX_ID), &flen);
+	ut_ad(flen == DATA_TRX_ID_LEN);
 
-	len = mach_dulint_write_compressed(ptr, trx_read_trx_id(field));
-	ptr += len;
+	ptr += mach_dulint_write_compressed(ptr, trx_read_trx_id(field));
 
 	field = rec_get_nth_field(rec, offsets,
 				  dict_index_get_sys_col_pos(
-					  index, DATA_ROLL_PTR), &len);
-	ut_ad(len == DATA_ROLL_PTR_LEN);
+					  index, DATA_ROLL_PTR), &flen);
+	ut_ad(flen == DATA_ROLL_PTR_LEN);
 
-	len = mach_dulint_write_compressed(ptr, trx_read_roll_ptr(field));
-	ptr += len;
+	ptr += mach_dulint_write_compressed(ptr, trx_read_roll_ptr(field));
 
 	/*----------------------------------------*/
 	/* Store then the fields required to uniquely determine the
@@ -504,8 +490,7 @@ trx_undo_page_report_modify(
 			return(0);
 		}
 
-		len = mach_write_compressed(ptr, flen);
-		ptr += len;
+		ptr += mach_write_compressed(ptr, flen);
 
 		if (flen != UNIV_SQL_NULL) {
 			if (trx_undo_left(undo_page, ptr) < flen) {
@@ -527,8 +512,7 @@ trx_undo_page_report_modify(
 			return(0);
 		}
 
-		len = mach_write_compressed(ptr, upd_get_n_fields(update));
-		ptr += len;
+		ptr += mach_write_compressed(ptr, upd_get_n_fields(update));
 
 		for (i = 0; i < upd_get_n_fields(update); i++) {
 
@@ -540,8 +524,7 @@ trx_undo_page_report_modify(
 				return(0);
 			}
 
-			len = mach_write_compressed(ptr, pos);
-			ptr += len;
+			ptr += mach_write_compressed(ptr, pos);
 
 			/* Save the old value of field */
 			field = rec_get_nth_field(rec, offsets, pos, &flen);
@@ -555,7 +538,7 @@ trx_undo_page_report_modify(
 				/* If a field has external storage, we add
 				to flen the flag */
 
-				len = mach_write_compressed(
+				ptr += mach_write_compressed(
 					ptr,
 					UNIV_EXTERN_STORAGE_FIELD + flen);
 
@@ -566,10 +549,8 @@ trx_undo_page_report_modify(
 
 				*type_cmpl_ptr |= TRX_UNDO_UPD_EXTERN;
 			} else {
-				len = mach_write_compressed(ptr, flen);
+				ptr += mach_write_compressed(ptr, flen);
 			}
-
-			ptr += len;
 
 			if (flen != UNIV_SQL_NULL) {
 				if (trx_undo_left(undo_page, ptr) < flen) {
@@ -590,10 +571,12 @@ trx_undo_page_report_modify(
 	in the purge of old versions where we use it to build and search the
 	delete marked index records, to look if we can remove them from the
 	index tree. Note that starting from 4.0.14 also externally stored
-	fields can be ordering in some index. But we always store at least
-	384 first bytes locally to the clustered index record, which means
-	we can construct the column prefix fields in the index from the
-	stored data. */
+	fields can be ordering in some index. Starting from 5.2, we no longer
+	store REC_MAX_INDEX_COL_LEN first bytes to the undo log record,
+	but we can construct the column prefix fields in the index by
+	fetching the first page of the BLOB that is pointed to by the
+	clustered index. This works also in crash recovery, because all pages
+	(including BLOBs) are recovered before anything is rolled back. */
 
 	if (!update || !(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
 		byte*	old_ptr = ptr;
@@ -616,31 +599,24 @@ trx_undo_page_report_modify(
 			const dict_col_t*	col
 				= dict_table_get_nth_col(table, col_no);
 
-			if (col->ord_part > 0) {
-
-				ulint	pos = dict_index_get_nth_col_pos(
-					index, col_no);
+			if (col->ord_part) {
+				ulint	pos;
 
 				/* Write field number to undo log */
-				if (trx_undo_left(undo_page, ptr) < 5) {
+				if (trx_undo_left(undo_page, ptr) < 5 + 5) {
 
 					return(0);
 				}
 
-				len = mach_write_compressed(ptr, pos);
-				ptr += len;
+				pos = dict_index_get_nth_col_pos(index,
+								 col_no);
+				ptr += mach_write_compressed(ptr, pos);
 
 				/* Save the old value of field */
 				field = rec_get_nth_field(rec, offsets, pos,
 							  &flen);
 
-				if (trx_undo_left(undo_page, ptr) < 5) {
-
-					return(0);
-				}
-
-				len = mach_write_compressed(ptr, flen);
-				ptr += len;
+				ptr += mach_write_compressed(ptr, flen);
 
 				if (flen != UNIV_SQL_NULL) {
 					if (trx_undo_left(undo_page, ptr)
