@@ -58,6 +58,15 @@ typedef struct st_relay_log_info
   */
   bool no_storage;
 
+  /*
+    If true, events with the same server id should be replicated. This
+    field is set on creation of a relay log info structure by copying
+    the value of ::replicate_same_server_id and can be overridden if
+    necessary. For example of when this is done, check sql_binlog.cc,
+    where the BINLOG statement can be used to execute "raw" events.
+   */
+  bool replicate_same_server_id;
+
   /*** The following variables can only be read when protect by data lock ****/
 
   /*
@@ -292,14 +301,19 @@ typedef struct st_relay_log_info
     When the 6 bytes are equal to 0 is used to mean "cache is invalidated".
   */
   void cached_charset_invalidate();
-  bool cached_charset_compare(char *charset);
-
-  void transaction_end(THD*);
+  bool cached_charset_compare(char *charset) const;
 
   void cleanup_context(THD *, bool);
   void clear_tables_to_lock();
 
-  time_t unsafe_to_stop_at;
+  /*
+    Used by row-based replication to detect that it should not stop at
+    this event, but give it a chance to send more events. The time
+    where the last event inside a group started is stored here. If the
+    variable is zero, we are not in a group (but may be in a
+    transaction).
+   */
+  time_t last_event_start_time;
 } RELAY_LOG_INFO;
 
 

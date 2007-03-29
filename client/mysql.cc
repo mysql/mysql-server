@@ -2517,7 +2517,8 @@ print_table_data_xml(MYSQL_RES *result)
 
   tee_fputs("<?xml version=\"1.0\"?>\n\n<resultset statement=\"", PAGER);
   xmlencode_print(glob_buffer.ptr(), (int)strlen(glob_buffer.ptr()));
-  tee_fputs("\">", PAGER);
+  tee_fputs("\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">",
+            PAGER);
 
   fields = mysql_fetch_fields(result);
   while ((cur = mysql_fetch_row(result)))

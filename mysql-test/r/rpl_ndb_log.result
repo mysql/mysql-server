@@ -32,16 +32,17 @@ master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	1	#	table_id: #
+master-bin.000001	#	Write_rows	1	#	table_id: #
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
-show binlog events from 102 limit 1;
+show binlog events from 105 limit 1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=NDB
-show binlog events from 102 limit 2;
+show binlog events from 105 limit 2;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=NDB
 master-bin.000001	#	Query	1	#	BEGIN
-show binlog events from 102 limit 2,1;
+show binlog events from 105 limit 2,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 flush logs;
@@ -71,6 +72,7 @@ master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	1	#	table_id: #
+master-bin.000001	#	Write_rows	1	#	table_id: #
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
 master-bin.000001	#	Rotate	1	#	master-bin.000002;pos=4
@@ -87,13 +89,13 @@ master-bin.000002	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000002	#	Query	1	#	COMMIT
 show binary logs;
 Log_name	File_size
-master-bin.000001	1740
-master-bin.000002	612
+master-bin.000001	1774
+master-bin.000002	616
 start slave;
 show binary logs;
 Log_name	File_size
-slave-bin.000001	1835
-slave-bin.000002	198
+slave-bin.000001	1869
+slave-bin.000002	201
 show binlog events in 'slave-bin.000001' from 4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
@@ -109,6 +111,7 @@ slave-bin.000001	#	Query	1	#	use `test`; create table t1 (word char(20) not null
 slave-bin.000001	#	Query	2	#	BEGIN
 slave-bin.000001	#	Table_map	2	#	table_id: # (test.t1)
 slave-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
+slave-bin.000001	#	Write_rows	2	#	table_id: #
 slave-bin.000001	#	Write_rows	2	#	table_id: #
 slave-bin.000001	#	Write_rows	2	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Query	2	#	COMMIT
@@ -126,7 +129,7 @@ slave-bin.000002	#	Write_rows	2	#	table_id: # flags: STMT_END_F
 slave-bin.000002	#	Query	2	#	COMMIT
 show slave status;
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-#	127.0.0.1	root	MASTER_PORT	1	master-bin.000002	612	#	#	master-bin.000002	Yes	Yes				#			0		0	612	#	None		0	No						#
+#	127.0.0.1	root	MASTER_PORT	1	master-bin.000002	616	#	#	master-bin.000002	Yes	Yes				#			0		0	616	#	None		0	No						#
 show binlog events in 'slave-bin.000005' from 4;
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Could not find target log
 DROP TABLE t1;

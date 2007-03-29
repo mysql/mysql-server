@@ -29,16 +29,17 @@ a	b
 DROP TABLE t1;
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	102	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	102	Query	1	219	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB
-master-bin.000001	219	Query	1	283	BEGIN
-master-bin.000001	283	Table_map	1	40	table_id: # (test.t1)
-master-bin.000001	323	Table_map	1	98	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	381	Write_rows	1	156	table_id: #
-master-bin.000001	439	Write_rows	1	203	table_id: # flags: STMT_END_F
-master-bin.000001	486	Query	1	551	COMMIT
-master-bin.000001	551	Query	1	631	use `test`; TRUNCATE TABLE t1
-master-bin.000001	631	Query	1	707	use `test`; DROP TABLE t1
+master-bin.000001	4	Format_desc	1	105	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	105	Query	1	222	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB
+master-bin.000001	222	Query	1	286	BEGIN
+master-bin.000001	286	Table_map	1	40	table_id: # (test.t1)
+master-bin.000001	326	Table_map	1	98	table_id: # (mysql.ndb_apply_status)
+master-bin.000001	384	Write_rows	1	157	table_id: #
+master-bin.000001	443	Write_rows	1	195	table_id: #
+master-bin.000001	481	Write_rows	1	233	table_id: # flags: STMT_END_F
+master-bin.000001	519	Query	1	584	COMMIT
+master-bin.000001	584	Query	1	664	use `test`; TRUNCATE TABLE t1
+master-bin.000001	664	Query	1	740	use `test`; DROP TABLE t1
 **** On Master ****
 CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB;
 INSERT INTO t1 VALUES (1,1), (2,2);
@@ -65,27 +66,30 @@ a	b
 DROP TABLE t1;
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	102	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	102	Query	1	219	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB
-master-bin.000001	219	Query	1	283	BEGIN
-master-bin.000001	283	Table_map	1	40	table_id: # (test.t1)
-master-bin.000001	323	Table_map	1	98	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	381	Write_rows	1	156	table_id: #
-master-bin.000001	439	Write_rows	1	203	table_id: # flags: STMT_END_F
-master-bin.000001	486	Query	1	551	COMMIT
-master-bin.000001	551	Query	1	631	use `test`; TRUNCATE TABLE t1
-master-bin.000001	631	Query	1	707	use `test`; DROP TABLE t1
-master-bin.000001	707	Query	1	824	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB
-master-bin.000001	824	Query	1	888	BEGIN
-master-bin.000001	888	Table_map	1	40	table_id: # (test.t1)
-master-bin.000001	928	Table_map	1	98	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	986	Write_rows	1	156	table_id: #
-master-bin.000001	1044	Write_rows	1	203	table_id: # flags: STMT_END_F
-master-bin.000001	1091	Query	1	1156	COMMIT
-master-bin.000001	1156	Query	1	1220	BEGIN
-master-bin.000001	1220	Table_map	1	40	table_id: # (test.t1)
-master-bin.000001	1260	Table_map	1	98	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	1318	Write_rows	1	156	table_id: #
-master-bin.000001	1376	Delete_rows	1	195	table_id: # flags: STMT_END_F
-master-bin.000001	1415	Query	1	1480	COMMIT
-master-bin.000001	1480	Query	1	1556	use `test`; DROP TABLE t1
+master-bin.000001	4	Format_desc	1	105	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	105	Query	1	222	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB
+master-bin.000001	222	Query	1	286	BEGIN
+master-bin.000001	286	Table_map	1	40	table_id: # (test.t1)
+master-bin.000001	326	Table_map	1	98	table_id: # (mysql.ndb_apply_status)
+master-bin.000001	384	Write_rows	1	157	table_id: #
+master-bin.000001	443	Write_rows	1	195	table_id: #
+master-bin.000001	481	Write_rows	1	233	table_id: # flags: STMT_END_F
+master-bin.000001	519	Query	1	584	COMMIT
+master-bin.000001	584	Query	1	664	use `test`; TRUNCATE TABLE t1
+master-bin.000001	664	Query	1	740	use `test`; DROP TABLE t1
+master-bin.000001	740	Query	1	857	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB
+master-bin.000001	857	Query	1	921	BEGIN
+master-bin.000001	921	Table_map	1	40	table_id: # (test.t1)
+master-bin.000001	961	Table_map	1	98	table_id: # (mysql.ndb_apply_status)
+master-bin.000001	1019	Write_rows	1	157	table_id: #
+master-bin.000001	1078	Write_rows	1	195	table_id: #
+master-bin.000001	1116	Write_rows	1	233	table_id: # flags: STMT_END_F
+master-bin.000001	1154	Query	1	1219	COMMIT
+master-bin.000001	1219	Query	1	1283	BEGIN
+master-bin.000001	1283	Table_map	1	40	table_id: # (test.t1)
+master-bin.000001	1323	Table_map	1	98	table_id: # (mysql.ndb_apply_status)
+master-bin.000001	1381	Write_rows	1	157	table_id: #
+master-bin.000001	1440	Delete_rows	1	191	table_id: #
+master-bin.000001	1474	Delete_rows	1	225	table_id: # flags: STMT_END_F
+master-bin.000001	1508	Query	1	1573	COMMIT
+master-bin.000001	1573	Query	1	1649	use `test`; DROP TABLE t1

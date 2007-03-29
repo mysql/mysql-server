@@ -28,7 +28,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	72956
+Read_Master_Log_Pos	72959
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -43,7 +43,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	72956
+Exec_Master_Log_Pos	72959
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -71,7 +71,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	72956
+Read_Master_Log_Pos	72959
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -86,7 +86,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	72956
+Exec_Master_Log_Pos	72959
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -114,7 +114,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	72956
+Read_Master_Log_Pos	72959
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -129,7 +129,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	72956
+Exec_Master_Log_Pos	72959
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -195,7 +195,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	73042
+Read_Master_Log_Pos	73045
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -210,7 +210,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	73042
+Exec_Master_Log_Pos	73045
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -234,7 +234,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	73118
+Read_Master_Log_Pos	73121
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -249,7 +249,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	73118
+Exec_Master_Log_Pos	73121
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -264,7 +264,7 @@ Seconds_Behind_Master	#
 flush logs;
 show master status;
 File	master-bin.000002
-Position	102
+Position	105
 Binlog_Do_DB	<Binlog_Ignore_DB>
 Binlog_Ignore_DB	
 set global max_binlog_size= @my_max_binlog_size;
