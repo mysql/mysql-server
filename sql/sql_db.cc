@@ -22,6 +22,7 @@
 #include "events.h"
 #include <my_dir.h>
 #include <m_ctype.h>
+#include "log.h"
 #ifdef __WIN__
 #include <direct.h>
 #endif
@@ -1420,7 +1421,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
     to be sure.
   */
 
-  if (check_db_name(new_db_file_name.str))
+  if (check_db_name(&new_db_file_name))
   {
     my_error(ER_WRONG_DB_NAME, MYF(0), new_db_file_name.str);
     my_free(new_db_file_name.str, MYF(0));
@@ -1454,8 +1455,9 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
                sctx->priv_user,
                sctx->priv_host,
                new_db_file_name.str);
-      mysql_log.write(thd, COM_INIT_DB, ER(ER_DBACCESS_DENIED_ERROR),
-                      sctx->priv_user, sctx->priv_host, new_db_file_name.str);
+      general_log_print(thd, COM_INIT_DB, ER(ER_DBACCESS_DENIED_ERROR),
+                        sctx->priv_user, sctx->priv_host,
+                        new_db_file_name.str);
       my_free(new_db_file_name.str, MYF(0));
       DBUG_RETURN(TRUE);
     }
@@ -1801,7 +1803,7 @@ bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
 
   /* Step9: Let's do "use newdb" if we renamed the current database */
   if (change_to_newdb)
-    error|= mysql_change_db(thd, new_db->str, 0);
+    error|= mysql_change_db(thd, new_db, 0);
 
 exit:
   pthread_mutex_lock(&LOCK_lock_db);
