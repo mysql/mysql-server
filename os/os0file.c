@@ -1099,6 +1099,51 @@ os_file_create_simple_no_error_handling(
 }
 
 /********************************************************************
+Tries to disable OS caching on an opened file descriptor. */
+
+void
+os_file_set_nocache(
+/*================*/
+	int		fd,		/* in: file descriptor to alter */
+	const char*	file_name,	/* in: used in the diagnostic message */
+	const char*	operation_name)	/* in: used in the diagnostic message,
+					we call os_file_set_nocache()
+					immediately after opening or creating
+					a file, so this is either "open" or
+					"create" */
+{
+	/* some versions of Solaris may not have DIRECTIO_ON */
+#if defined(UNIV_SOLARIS) && defined(DIRECTIO_ON)
+	if (directio(fd, DIRECTIO_ON) == -1) {
+		int	errno_save;
+		errno_save = (int)errno;
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: Failed to set DIRECTIO_ON "
+			"on file %s: %s: %s, continuing anyway\n",
+			file_name, operation_name, strerror(errno_save));
+	}
+#elif defined(O_DIRECT)
+	if (fcntl(fd, F_SETFL, O_DIRECT) == -1) {
+		int	errno_save;
+		errno_save = (int)errno;
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: Failed to set O_DIRECT "
+			"on file %s: %s: %s, continuing anyway\n",
+			file_name, operation_name, strerror(errno_save));
+		if (errno_save == EINVAL) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: O_DIRECT is known to result in "
+				"'Invalid argument' on Linux on tmpfs, "
+				"see MySQL Bug#26662\n");
+		}
+	}
+#endif
+}
+
+/********************************************************************
 Opens an existing file or creates a new. */
 
 os_file_t
@@ -1280,21 +1325,8 @@ try_again:
 		create_flag = create_flag | O_SYNC;
 	}
 #endif /* O_SYNC */
-#ifdef O_DIRECT
-	/* We let O_DIRECT only affect data files */
-	if (type != OS_LOG_FILE
-	    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
-# if 0
-		fprintf(stderr, "Using O_DIRECT for file %s\n", name);
-# endif
-		create_flag = create_flag | O_DIRECT;
-	}
-#endif /* O_DIRECT */
-	if (create_mode == OS_FILE_CREATE) {
-		file = open(name, create_flag, os_innodb_umask);
-	} else {
-		file = open(name, create_flag);
-	}
+
+	file = open(name, create_flag, os_innodb_umask);
 
 	if (file == -1) {
 		*success = FALSE;
@@ -1304,11 +1336,24 @@ try_again:
 					     "create" : "open");
 		if (retry) {
 			goto try_again;
+		} else {
+			return(file /* -1 */);
 		}
+	}
+	/* else */
+
+	*success = TRUE;
+
+	/* We disable OS caching (O_DIRECT) only on data files */
+	if (type != OS_LOG_FILE
+	    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
+		
+		os_file_set_nocache(file, name, mode_str);
+	}
+
 #ifdef USE_FILE_LOCK
-	} else if (create_mode != OS_FILE_OPEN_RAW
-		   && os_file_lock(file, name)) {
-		*success = FALSE;
+	if (create_mode != OS_FILE_OPEN_RAW && os_file_lock(file, name)) {
+
 		if (create_mode == OS_FILE_OPEN_RETRY) {
 			int i;
 			ut_print_timestamp(stderr);
@@ -1326,12 +1371,12 @@ try_again:
 			fputs("  InnoDB: Unable to open the first data file\n",
 			      stderr);
 		}
+
+		*success = FALSE;
 		close(file);
 		file = -1;
-#endif
-	} else {
-		*success = TRUE;
 	}
+#endif /* USE_FILE_LOCK */
 
 	return(file);
 #endif /* __WIN__ */
