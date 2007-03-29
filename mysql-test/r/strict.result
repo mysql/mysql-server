@@ -1346,3 +1346,44 @@ t1	CREATE TABLE `t1` (
   `i` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='123456789*123456789*123456789*123456789*123456789*123456789*'
 drop table t1;
+set sql_mode= 'traditional';
+create table t1(col1 tinyint, col2 tinyint unsigned, 
+col3 smallint, col4 smallint unsigned,
+col5 mediumint, col6 mediumint unsigned,
+col7 int, col8 int unsigned,
+col9 bigint, col10 bigint unsigned);
+insert into t1(col1) values('-');
+ERROR HY000: Incorrect integer value: '-' for column 'col1' at row 1
+insert into t1(col2) values('+');
+ERROR HY000: Incorrect integer value: '+' for column 'col2' at row 1
+insert into t1(col3) values('-');
+ERROR HY000: Incorrect integer value: '-' for column 'col3' at row 1
+insert into t1(col4) values('+');
+ERROR HY000: Incorrect integer value: '+' for column 'col4' at row 1
+insert into t1(col5) values('-');
+ERROR HY000: Incorrect integer value: '-' for column 'col5' at row 1
+insert into t1(col6) values('+');
+ERROR HY000: Incorrect integer value: '+' for column 'col6' at row 1
+insert into t1(col7) values('-');
+ERROR HY000: Incorrect integer value: '-' for column 'col7' at row 1
+insert into t1(col8) values('+');
+ERROR HY000: Incorrect integer value: '+' for column 'col8' at row 1
+insert into t1(col9) values('-');
+ERROR HY000: Incorrect integer value: '-' for column 'col9' at row 1
+insert into t1(col10) values('+');
+ERROR HY000: Incorrect integer value: '+' for column 'col10' at row 1
+drop table t1;
+set sql_mode='traditional';
+create table t1(a year);
+insert into t1 values ('-');
+ERROR HY000: Incorrect integer value: '-' for column 'a' at row 1
+insert into t1 values ('+');
+ERROR HY000: Incorrect integer value: '+' for column 'a' at row 1
+insert into t1 values ('');
+ERROR HY000: Incorrect integer value: '' for column 'a' at row 1
+insert into t1 values ('2000a');
+ERROR 01000: Data truncated for column 'a' at row 1
+insert into t1 values ('2E3x');
+ERROR 01000: Data truncated for column 'a' at row 1
+drop table t1;
+End of 5.0 tests

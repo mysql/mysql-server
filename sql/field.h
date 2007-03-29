@@ -306,8 +306,6 @@ public:
   virtual void set_derivation(enum Derivation derivation_arg) { }
   bool set_warning(MYSQL_ERROR::enum_warning_level, unsigned int code,
                    int cuted_increment);
-  bool check_int(const char *str, int length, const char *int_end,
-                 CHARSET_INFO *cs);
   void set_datetime_warning(MYSQL_ERROR::enum_warning_level, uint code, 
                             const char *str, uint str_len,
                             timestamp_type ts_type, int cuted_increment);
@@ -369,6 +367,11 @@ public:
   bool eq_def(Field *field);
   int store_decimal(const my_decimal *);
   my_decimal *val_decimal(my_decimal *);
+  int check_int(CHARSET_INFO *cs, const char *str, int length,
+                const char *int_end, int error);
+  bool get_int(CHARSET_INFO *cs, const char *from, uint len, 
+               longlong *rnd, ulonglong unsigned_max, 
+               longlong signed_min, longlong signed_max);
 };
 
 
