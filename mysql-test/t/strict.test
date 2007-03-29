@@ -1208,3 +1208,53 @@ create table t1 (i int)
 comment '123456789*123456789*123456789*123456789*123456789*123456789*';
 show create table t1;
 drop table t1;
+
+#
+# Bug #26359: Strings becoming truncated and converted to numbers under STRICT mode
+#
+set sql_mode= 'traditional';
+create table t1(col1 tinyint, col2 tinyint unsigned, 
+  col3 smallint, col4 smallint unsigned,
+  col5 mediumint, col6 mediumint unsigned,
+  col7 int, col8 int unsigned,
+  col9 bigint, col10 bigint unsigned);
+--error 1366
+insert into t1(col1) values('-');
+--error 1366
+insert into t1(col2) values('+');
+--error 1366
+insert into t1(col3) values('-');
+--error 1366
+insert into t1(col4) values('+');
+--error 1366
+insert into t1(col5) values('-');
+--error 1366
+insert into t1(col6) values('+');
+--error 1366
+insert into t1(col7) values('-');
+--error 1366
+insert into t1(col8) values('+');
+--error 1366
+insert into t1(col9) values('-');
+--error 1366
+insert into t1(col10) values('+');
+drop table t1;
+
+#
+# Bug #27176: Assigning a string to an year column has unexpected results
+#
+set sql_mode='traditional';
+create table t1(a year);
+--error 1366
+insert into t1 values ('-');
+--error 1366
+insert into t1 values ('+');
+--error 1366
+insert into t1 values ('');
+--error 1265
+insert into t1 values ('2000a');
+--error 1265
+insert into t1 values ('2E3x');
+drop table t1;
+
+--echo End of 5.0 tests
