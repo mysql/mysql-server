@@ -492,7 +492,7 @@ static int ndbcluster_reset_logs(THD *thd)
 static int
 ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
 {
-  if (!ndb_binlog_running)
+  if (!ndb_binlog_running || thd->slave_thread)
     return 0;
 
   DBUG_ENTER("ndbcluster_binlog_index_purge_file");
