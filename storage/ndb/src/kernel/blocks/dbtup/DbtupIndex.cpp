@@ -479,7 +479,7 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
 
   const Uint32 firstTupleNo = 0;
   const Uint32 tupheadsize = tablePtr.p->m_offsets[MM].m_fix_header_size +
-    (buildPtr.p->m_build_vs ? Tuple_header::HeaderSize + 1: 0);
+    (buildPtr.p->m_build_vs? Tuple_header::HeaderSize + Var_part_ref::SZ32: 0);
 
 #ifdef TIME_MEASUREMENT
   MicroSecondTimer start;
