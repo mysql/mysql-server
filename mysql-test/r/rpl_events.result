@@ -21,13 +21,13 @@ SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name 
 db	name	status	originator
 test	justonce	ENABLED	1
 "in the master"
-SELECT * FROM t1;
+SELECT * FROM t1 WHERE c = 'from justonce' OR c = 'manually' ORDER BY id;
 id	c	ts
 1	manually	TIMESTAMP
 2	from justonce	TIMESTAMP
 affected rows: 2
 "in the slave"
-SELECT * FROM t1;
+SELECT * FROM t1 WHERE c = 'from justonce' OR c = 'manually' ORDER BY id;
 id	c	ts
 1	manually	TIMESTAMP
 2	from justonce	TIMESTAMP
@@ -98,13 +98,13 @@ SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name 
 db	name	status	originator
 test	justonce	ENABLED	1
 "in the master"
-SELECT * FROM t1;
+SELECT * FROM t1 WHERE c = 'from justonce' OR c = 'manually' ORDER BY id;
 id	c	ts
 1	manually	TIMESTAMP
 2	from justonce	TIMESTAMP
 affected rows: 2
 "in the slave"
-SELECT * FROM t1;
+SELECT * FROM t1 WHERE c = 'from justonce' OR c = 'manually' ORDER BY id;
 id	c	ts
 1	manually	TIMESTAMP
 2	from justonce	TIMESTAMP
