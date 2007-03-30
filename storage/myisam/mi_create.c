@@ -573,6 +573,10 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 
   pthread_mutex_lock(&THR_LOCK_myisam);
 
+  /*
+    NOTE: For test_if_reopen() we need a real path name. Hence we need
+    MY_RETURN_REAL_PATH for every fn_format(filename, ...).
+  */
   if (ci->index_file_name)
   {
     char *iext= strrchr(ci->index_file_name, '.');
@@ -584,13 +588,14 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       if ((path= strrchr(ci->index_file_name, FN_LIBCHAR)))
         *path= '\0';
       fn_format(filename, name, ci->index_file_name, MI_NAME_IEXT,
-                MY_REPLACE_DIR | MY_UNPACK_FILENAME | MY_APPEND_EXT);
+                MY_REPLACE_DIR | MY_UNPACK_FILENAME |
+                MY_RETURN_REAL_PATH | MY_APPEND_EXT);
     }
     else
     {
       fn_format(filename, ci->index_file_name, "", MI_NAME_IEXT,
-                MY_UNPACK_FILENAME | (have_iext ? MY_REPLACE_EXT :
-                                      MY_APPEND_EXT));
+                MY_UNPACK_FILENAME | MY_RETURN_REAL_PATH |
+                (have_iext ? MY_REPLACE_EXT : MY_APPEND_EXT));
     }
     fn_format(linkname, name, "", MI_NAME_IEXT,
               MY_UNPACK_FILENAME|MY_APPEND_EXT);
@@ -603,10 +608,11 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   }
   else
   {
+    char *iext= strrchr(name, '.');
+    int have_iext= iext && !strcmp(iext, MI_NAME_IEXT);
     fn_format(filename, name, "", MI_NAME_IEXT,
-              (MY_UNPACK_FILENAME |
-               (flags & HA_DONT_TOUCH_DATA) ? MY_RETURN_REAL_PATH : 0) |
-                MY_APPEND_EXT);
+              MY_UNPACK_FILENAME | MY_RETURN_REAL_PATH |
+              (have_iext ? MY_REPLACE_EXT : MY_APPEND_EXT));
     linkname_ptr=0;
     /* Replace the current file */
     create_flag=MY_DELETE_OLD;
@@ -618,6 +624,9 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     A TRUNCATE command checks for the table in the cache only and could
     be fooled to believe, the table is not open.
     Pull the emergency brake in this situation. (Bug #8306)
+
+    NOTE: The filename is compared against unique_file_name of every
+    open table. Hence we need a real path here.
   */
   if (test_if_reopen(filename))
   {
