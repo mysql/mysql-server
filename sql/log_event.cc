@@ -7956,9 +7956,9 @@ Incident_log_event::print(FILE *file,
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int
-Incident_log_event::exec_event(st_relay_log_info *rli)
+Incident_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
 {
-  DBUG_ENTER("Incident_log_event::exec_event");
+  DBUG_ENTER("Incident_log_event::do_apply_event");
   slave_print_msg(ERROR_LEVEL, rli, ER_SLAVE_INCIDENT,
                   ER(ER_SLAVE_INCIDENT),
                   description(),
