@@ -566,7 +566,7 @@ connection master;
 # were written to the binary log.
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/
-show binlog events in 'master-bin.000001' from 102;
+show binlog events in 'master-bin.000001' from 106;
 
 
 # Restore log_bin_trust_function_creators to its original value.
