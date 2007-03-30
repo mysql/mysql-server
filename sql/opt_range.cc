@@ -283,7 +283,7 @@ public:
   enum leaf_color { BLACK,RED } color;
   enum Type { IMPOSSIBLE, MAYBE, MAYBE_KEY, KEY_RANGE } type;
 
-  enum { MAX_SEL_ARGS = 64000 };
+  enum { MAX_SEL_ARGS = 16000 };
 
   SEL_ARG() {}
   SEL_ARG(SEL_ARG &);
@@ -5941,8 +5941,8 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
       }
       result_keys.set_bit(key1 - tree1->keys);
 #ifdef EXTRA_DEBUG
-      if (*key1)
-        (*key1)->test_use_count(*key1);
+        if (*key1 && param->alloced_sel_args < SEL_ARG::MAX_SEL_ARGS) 
+          (*key1)->test_use_count(*key1);
 #endif
     }
   }
@@ -6100,7 +6100,8 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
         result=tree1;				// Added to tree1
         result_keys.set_bit(key1 - tree1->keys);
 #ifdef EXTRA_DEBUG
-        (*key1)->test_use_count(*key1);
+        if (param->alloced_sel_args < SEL_ARG::MAX_SEL_ARGS) 
+          (*key1)->test_use_count(*key1);
 #endif
       }
     }
