@@ -106,16 +106,82 @@ use testdb_1;
 create table t1 (f1 char(4));
 create view v1 as select f1 from t1;
 grant insert on v1 to testdb_2@localhost;
+create view v5 as select f1 from t1;
+grant show view on v5 to testdb_2@localhost;
+create definer=`no_such_user`@`no_such_host` view v6 as select f1 from t1;
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+use testdb_1;
+create view v6 as select f1 from t1;
+grant show view on v6 to testdb_2@localhost;
+create table t2 (f1 char(4));
+create definer=`no_such_user`@`no_such_host` view v7 as select * from t2;
+Warnings:
+Note	1449	There is no 'no_such_user'@'no_such_host' registered
+show fields from testdb_1.v6;
+Field	Type	Null	Key	Default	Extra
+f1	char(4)	YES		NULL	
+show create view testdb_1.v6;
+View	Create View
+v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v6` AS select `t1`.`f1` AS `f1` from `t1`
+show create view testdb_1.v7;
+View	Create View
+v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `testdb_1`.`t2`.`f1` AS `f1` from `t2`
+Warnings:
+Warning	1356	View 'testdb_1.v7' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+show fields from testdb_1.v7;
+Field	Type	Null	Key	Default	Extra
+f1	null	YES		NULL	
+Warnings:
+Note	1449	There is no 'no_such_user'@'no_such_host' registered
 create table t3 (f1 char(4), f2 char(4));
 create view v3 as select f1,f2 from t3;
 grant insert(f1), insert(f2) on v3 to testdb_2@localhost;
 create view v2 as select f1 from testdb_1.v1;
 create view v4 as select f1,f2 from testdb_1.v3;
+show fields from testdb_1.v5;
+Field	Type	Null	Key	Default	Extra
+f1	char(4)	YES		NULL	
+show create view testdb_1.v5;
+View	Create View
+v5	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_1`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v5` AS select `testdb_1`.`t1`.`f1` AS `f1` from `testdb_1`.`t1`
+show fields from testdb_1.v6;
+Field	Type	Null	Key	Default	Extra
+f1	char(4)	YES		NULL	
+show create view testdb_1.v6;
+View	Create View
+v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v6` AS select `testdb_1`.`t1`.`f1` AS `f1` from `testdb_1`.`t1`
+show fields from testdb_1.v7;
+Field	Type	Null	Key	Default	Extra
+f1	null	YES		NULL	
+Warnings:
+Note	1449	There is no 'no_such_user'@'no_such_host' registered
+show create view testdb_1.v7;
+View	Create View
+v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `testdb_1`.`t2`.`f1` AS `f1` from `t2`
+Warnings:
+Warning	1356	View 'testdb_1.v7' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 revoke insert(f1) on v3 from testdb_2@localhost;
+revoke show view on v5 from testdb_2@localhost;
+use testdb_1;
+revoke show view on v6 from testdb_2@localhost;
+show fields from testdb_1.v5;
+ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v5'
+show create view testdb_1.v5;
+ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v5'
+show fields from testdb_1.v6;
+ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v6'
+show create view testdb_1.v6;
+ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v6'
+show fields from testdb_1.v7;
+ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v7'
+show create view testdb_1.v7;
+ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v7'
 show create view v4;
 ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
 show fields from v4;
-ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+Field	Type	Null	Key	Default	Extra
+f1	null	YES		NULL	
+f2	char(4)	YES		NULL	
 show fields from v2;
 Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
@@ -140,7 +206,8 @@ where a.table_name = 'testdb_1.v1';
 view_definition
 select * from v2;
 ERROR HY000: View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
-drop view testdb_1.v1,v2, testdb_1.v3, v4;
+use test;
+drop view testdb_1.v1, v2, testdb_1.v3, v4;
 drop database testdb_1;
 drop user testdb_1@localhost;
 drop user testdb_2@localhost;
