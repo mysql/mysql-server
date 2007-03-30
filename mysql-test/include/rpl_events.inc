@@ -34,7 +34,7 @@ SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name 
 --echo "in the master"
 --enable_info
 --replace_column 3 TIMESTAMP
-SELECT * FROM t1;
+SELECT * FROM t1 WHERE c = 'from justonce' OR c = 'manually' ORDER BY id;
 --disable_info
 
 sync_slave_with_master;
@@ -42,7 +42,7 @@ sync_slave_with_master;
 --echo "in the slave"
 --enable_info
 --replace_column 3 TIMESTAMP
-SELECT * FROM t1;
+SELECT * FROM t1 WHERE c = 'from justonce' OR c = 'manually' ORDER BY id;
 --disable_info
 
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'justonce';
