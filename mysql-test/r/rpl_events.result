@@ -11,8 +11,7 @@ drop table if exists t1,t2;
 CREATE TABLE `t1` (
 `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
 `c` VARCHAR(50) NOT NULL,
-`ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE
-CURRENT_TIMESTAMP,
+`ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 INSERT INTO t1 (c) VALUES ('manually');
@@ -69,6 +68,18 @@ db	name	status	originator
 "in the slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test';
 db	name	status	originator
+CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND 
+DO INSERT INTO t1(c) VALUES ('from slave_terminate');
+SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_terminate';
+db	name	status	originator
+test	slave_terminate	ENABLED	2
+DROP EVENT test.slave_terminate;
+CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND 
+DISABLE ON SLAVE DO INSERT INTO t1(c) VALUES ('from slave_terminate');
+SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_terminate';
+db	name	status	originator
+test	slave_terminate	SLAVESIDE_DISABLED	2
+DROP EVENT test.slave_terminate;
 "in the master"
 DROP TABLE t1;
 set binlog_format=statement;
@@ -77,8 +88,7 @@ drop table if exists t1,t2;
 CREATE TABLE `t1` (
 `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
 `c` VARCHAR(50) NOT NULL,
-`ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE
-CURRENT_TIMESTAMP,
+`ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 INSERT INTO t1 (c) VALUES ('manually');
@@ -135,5 +145,17 @@ db	name	status	originator
 "in the slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test';
 db	name	status	originator
+CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND 
+DO INSERT INTO t1(c) VALUES ('from slave_terminate');
+SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_terminate';
+db	name	status	originator
+test	slave_terminate	ENABLED	2
+DROP EVENT test.slave_terminate;
+CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND 
+DISABLE ON SLAVE DO INSERT INTO t1(c) VALUES ('from slave_terminate');
+SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_terminate';
+db	name	status	originator
+test	slave_terminate	SLAVESIDE_DISABLED	2
+DROP EVENT test.slave_terminate;
 "in the master"
 DROP TABLE t1;
