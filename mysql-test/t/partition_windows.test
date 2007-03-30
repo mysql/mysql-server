@@ -1,0 +1,30 @@
+# Windows-specific partition tests
+--source include/windows.inc
+
+--source include/partition.inc
+
+# These tests contain Windows specific directory/file format.
+
+#
+# Bug 25141: Crash Server on Partitioning command
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS `example`;
+--enable_warnings
+
+--disable_abort_on_error
+CREATE TABLE `example` (
+  `ID_EXAMPLE` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `DESCRIPTION` varchar(30) NOT NULL,
+  `LEVEL` smallint(5) unsigned DEFAULT NULL,
+  PRIMARY KEY (`ID_EXAMPLE`)
+) ENGINE = MYISAM 
+PARTITION BY HASH(ID_EXAMPLE)(
+PARTITION p0 DATA DIRECTORY = 'C:/build/5.1/data/partitiontest/p0Data',
+PARTITION p1 DATA DIRECTORY = 'C:/build/5.1/data/partitiontest/p1Data',
+PARTITION p2 DATA DIRECTORY = 'C:/build/5.1/data/partitiontest/p2Data',
+PARTITION p3 DATA DIRECTORY = 'C:/build/5.1/data/partitiontest/p3Data'
+);
+--enable_abort_on_error
+
