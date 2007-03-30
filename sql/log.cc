@@ -162,7 +162,7 @@ static int binlog_rollback(THD *thd, bool all)
     table. Such cases should be rare (updating a
     non-transactional table inside a transaction...)
   */
-  if (unlikely(thd->options & OPTION_STATUS_NO_TRANS_UPDATE))
+  if (unlikely(thd->no_trans_update.all))
   {
     Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, FALSE);
     qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
@@ -217,7 +217,7 @@ static int binlog_savepoint_rollback(THD *thd, void *sv)
     non-transactional table. Otherwise, truncate the binlog cache starting
     from the SAVEPOINT command.
   */
-  if (unlikely(thd->options & OPTION_STATUS_NO_TRANS_UPDATE))
+  if (unlikely(thd->no_trans_update.all))
   {
     Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE, FALSE);
     DBUG_RETURN(mysql_bin_log.write(&qinfo));

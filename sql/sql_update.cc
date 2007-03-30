@@ -429,7 +429,7 @@ int mysql_update(THD *thd,
   query_id=thd->query_id;
 
   transactional_table= table->file->has_transactions();
-  thd->no_trans_update= 0;
+  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= test(!ignore &&
                               (thd->variables.sql_mode &
                                (MODE_STRICT_TRANS_TABLES |
@@ -452,7 +452,7 @@ int mysql_update(THD *thd,
       if (fill_record_n_invoke_before_triggers(thd, fields, values, 0,
                                                table->triggers,
                                                TRG_EVENT_UPDATE))
-	break; /* purecov: inspected */
+        break; /* purecov: inspected */
 
       found++;
 
@@ -470,12 +470,12 @@ int mysql_update(THD *thd,
             break;
           }
         }
-	if (!(error=table->file->update_row((byte*) table->record[1],
-					    (byte*) table->record[0])))
-	{
-	  updated++;
-          thd->no_trans_update= !transactional_table;
-
+        if (!(error=table->file->update_row((byte*) table->record[1],
+                                            (byte*) table->record[0])))
+        {
+          updated++;
+          thd->no_trans_update.stmt= !transactional_table;
+          
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                                 TRG_ACTION_AFTER, TRUE))
@@ -483,25 +483,25 @@ int mysql_update(THD *thd,
             error= 1;
             break;
           }
-	}
- 	else if (!ignore || error != HA_ERR_FOUND_DUPP_KEY)
-	{
+        }
+        else if (!ignore || error != HA_ERR_FOUND_DUPP_KEY)
+        {
           /*
             If (ignore && error == HA_ERR_FOUND_DUPP_KEY) we don't have to
             do anything; otherwise...
           */
           if (error != HA_ERR_FOUND_DUPP_KEY)
             thd->fatal_error(); /* Other handler errors are fatal */
-	  table->file->print_error(error,MYF(0));
-	  error= 1;
-	  break;
-	}
+          table->file->print_error(error,MYF(0));
+          error= 1;
+          break;
+        }
       }
-
+      
       if (!--limit && using_limit)
       {
-	error= -1;				// Simulate end of file
-	break;
+        error= -1;				// Simulate end of file
+        break;
       }
     }
     else
@@ -546,7 +546,7 @@ int mysql_update(THD *thd,
 	error=1;				// Rollback update
     }
     if (!transactional_table)
-      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+      thd->no_trans_update.all= TRUE;
   }
   free_underlaid_joins(thd, select_lex);
   if (transactional_table)
@@ -910,7 +910,7 @@ bool mysql_multi_update(THD *thd,
 				 handle_duplicates, ignore)))
     DBUG_RETURN(TRUE);
 
-  thd->no_trans_update= 0;
+  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= test(thd->variables.sql_mode &
                               (MODE_STRICT_TRANS_TABLES |
                                MODE_STRICT_ALL_TABLES));
@@ -1224,7 +1224,7 @@ multi_update::~multi_update()
     delete [] copy_field;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		// Restore this setting
   if (!trans_safe)
-    thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+    thd->no_trans_update.all= TRUE;
 }
 
 
@@ -1311,7 +1311,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
         else
         {
           if (!table->file->has_transactions())
-            thd->no_trans_update= 1;
+            thd->no_trans_update.stmt= TRUE;
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                                 TRG_ACTION_AFTER, TRUE))
@@ -1541,10 +1541,10 @@ bool multi_update::send_eof()
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_tables, FALSE);
       if (mysql_bin_log.write(&qinfo) && trans_safe)
-	local_error= 1;				// Rollback update
+        local_error= 1;				// Rollback update
     }
     if (!transactional_tables)
-      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+      thd->no_trans_update.all= TRUE;
   }
 
   if (transactional_tables)
