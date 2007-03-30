@@ -28,6 +28,7 @@ drop procedure db1_secret.dummy;
 use db1_secret;
 
 create table t1 ( u varchar(64), i int );
+insert into t1 values('test', 0);
 
 # A test procedure and function
 create procedure stamp(i int)
@@ -35,7 +36,16 @@ create procedure stamp(i int)
 --replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like 'stamp';
 
-create function db() returns varchar(64) return database();
+delimiter |;
+create function db() returns varchar(64)
+begin
+  declare v varchar(64);
+
+  select u into v from t1 limit 1;
+
+  return v;
+end|
+delimiter ;|
 --replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show function status like 'db';
 
@@ -63,14 +73,18 @@ call db1_secret.stamp(2);
 select db1_secret.db();
 
 # ...but not this
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 select * from db1_secret.t1;
 
 # ...and not this
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create procedure db1_secret.dummy() begin end;
---error 1305
+--error ER_SP_DOES_NOT_EXIST
 drop procedure db1_secret.dummy;
+--error ER_PROCACCESS_DENIED_ERROR
+drop procedure db1_secret.stamp;
+--error ER_PROCACCESS_DENIED_ERROR
+drop function db1_secret.db;
 
 
 #
@@ -83,14 +97,18 @@ call db1_secret.stamp(3);
 select db1_secret.db();
 
 # ...but not this
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 select * from db1_secret.t1;
 
 # ...and not this
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create procedure db1_secret.dummy() begin end;
---error 1305
+--error ER_SP_DOES_NOT_EXIST
 drop procedure db1_secret.dummy;
+--error ER_PROCACCESS_DENIED_ERROR
+drop procedure db1_secret.stamp;
+--error ER_PROCACCESS_DENIED_ERROR
+drop function db1_secret.db;
 
 
 #
@@ -121,9 +139,9 @@ select db();
 connection con2user1;
 
 # This should not work
---error 1044
+--error ER_TABLEACCESS_DENIED_ERROR
 call db1_secret.stamp(5);
---error 1044
+--error ER_TABLEACCESS_DENIED_ERROR
 select db1_secret.db();
 
 #
@@ -132,9 +150,9 @@ select db1_secret.db();
 connection con3anon;
 
 # This should not work
---error 1044
+--error ER_TABLEACCESS_DENIED_ERROR
 call db1_secret.stamp(6);
---error 1044
+--error ER_TABLEACCESS_DENIED_ERROR
 select db1_secret.db();
 
 #
@@ -165,7 +183,7 @@ use db2;
 create procedure p () insert into t2 values (1);
 
 # Check that this doesn't work.
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 call p();
 
 connect (con4user2,localhost,user2,,);
@@ -174,7 +192,7 @@ connection con4user2;
 use db2;
 
 # This should not work, since p is executed with definer's (user1's) rights.
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 call p();
 select * from t2;
 
@@ -207,9 +225,9 @@ alter procedure p modifies sql data;
 drop procedure p;
 
 # This should NOT work
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 alter procedure q modifies sql data;
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 drop procedure q;
 
 connection con1root;
@@ -260,30 +278,30 @@ connect (con4userc,localhost,userc,,);
 
 connection con2usera;
 call sptest.p1(1);
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 grant execute on procedure sptest.p1 to userb@localhost;
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 drop procedure sptest.p1;
 
 connection con3userb;
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 call sptest.p1(2);
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 grant execute on procedure sptest.p1 to userb@localhost;
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 drop procedure sptest.p1;
 
 connection con4userc;
 call sptest.p1(3);
 grant execute on procedure sptest.p1 to userb@localhost;
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 drop procedure sptest.p1;
 
 connection con3userb;
 call sptest.p1(4);
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 grant execute on procedure sptest.p1 to userb@localhost;
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 drop procedure sptest.p1;
 
 connection con1root;
@@ -332,7 +350,7 @@ delimiter ;//
 connect (user1,localhost,user1,,test);
 connection user1;
 use mysqltest;
--- error 1370
+-- error ER_PROCACCESS_DENIED_ERROR
 select bug_9503();
 
 connection root;
@@ -401,13 +419,13 @@ grant usage on *.* to mysqltest_1@localhost;
 
 connect (n1,localhost,mysqltest_1,,information_schema,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection n1;
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 call mysqltest_1.p1();
 disconnect n1;
 # Test also without a current database
 connect (n2,localhost,mysqltest_1,,*NO-ONE*,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection n2;
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 call mysqltest_1.p1();
 disconnect n2;
 
@@ -433,9 +451,9 @@ end;
 create user user_bug12812@localhost IDENTIFIED BY 'ABC'|
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (test_user_12812,localhost,user_bug12812,ABC,test)|
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 SELECT test.bug12812()|
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 CREATE VIEW v1 AS SELECT test.bug12812()|
 # Cleanup
 connection default|
@@ -489,7 +507,8 @@ drop database db_bug14834;
 
 
 #
-# BUG#14533: 'desc tbl' in stored procedure causes error 1142
+# BUG#14533: 'desc tbl' in stored procedure causes error
+# ER_TABLEACCESS_DENIED_ERROR
 #
 create database db_bug14533;
 use db_bug14533;

@@ -282,15 +282,6 @@ create view mysqltest.v3 as select b from mysqltest.t2;
 grant create view, update on mysqltest.v3 to mysqltest_1@localhost;
 drop view mysqltest.v3;
 create view mysqltest.v3 as select b from mysqltest.t2;
-grant create view, update, insert on mysqltest.v3 to mysqltest_1@localhost;
-drop view mysqltest.v3;
-create view mysqltest.v3 as select b from mysqltest.t2;
-ERROR 42000: create view command denied to user 'mysqltest_1'@'localhost' for column 'b' in table 'v3'
-create table mysqltest.v3 (b int);
-grant select(b) on mysqltest.v3 to mysqltest_1@localhost;
-drop table mysqltest.v3;
-create view mysqltest.v3 as select b from mysqltest.t2;
-ERROR 42000: create view command denied to user 'mysqltest_1'@'localhost' for column 'b' in table 'v3'
 create view v4 as select b+1 from mysqltest.t2;
 ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for column 'b' in table 't2'
 grant create view,update,select on test.* to mysqltest_1@localhost;
@@ -794,4 +785,92 @@ View	Create View
 v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `t1`.`f2` AS `f2` from `t1`
 DROP USER u26813@localhost;
 DROP DATABASE db26813;
+DROP DATABASE IF EXISTS mysqltest1;
+DROP DATABASE IF EXISTS mysqltest2;
+CREATE DATABASE mysqltest1;
+CREATE DATABASE mysqltest2;
+CREATE TABLE mysqltest1.t1(c1 INT);
+CREATE TABLE mysqltest1.t2(c2 INT);
+CREATE TABLE mysqltest1.t3(c3 INT);
+CREATE TABLE mysqltest1.t4(c4 INT);
+INSERT INTO mysqltest1.t1 VALUES (11), (12), (13), (14);
+INSERT INTO mysqltest1.t2 VALUES (21), (22), (23), (24);
+INSERT INTO mysqltest1.t3 VALUES (31), (32), (33), (34);
+INSERT INTO mysqltest1.t4 VALUES (41), (42), (43), (44);
+GRANT SELECT ON mysqltest1.t1 TO mysqltest_u1@localhost;
+GRANT INSERT ON mysqltest1.t2 TO mysqltest_u1@localhost;
+GRANT SELECT, UPDATE ON mysqltest1.t3 TO mysqltest_u1@localhost;
+GRANT SELECT, DELETE ON mysqltest1.t4 TO mysqltest_u1@localhost;
+GRANT ALL PRIVILEGES ON mysqltest2.* TO mysqltest_u1@localhost;
+
+---> connection: bug24040_con
+SELECT * FROM mysqltest1.t1;
+c1
+11
+12
+13
+14
+INSERT INTO mysqltest1.t2 VALUES(25);
+UPDATE mysqltest1.t3 SET c3 = 331 WHERE c3 = 31;
+DELETE FROM mysqltest1.t4 WHERE c4 = 44;
+CREATE VIEW v1 AS SELECT * FROM mysqltest1.t1;
+CREATE VIEW v2 AS SELECT * FROM mysqltest1.t2;
+CREATE VIEW v3 AS SELECT * FROM mysqltest1.t3;
+CREATE VIEW v4 AS SELECT * FROM mysqltest1.t4;
+SELECT * FROM v1;
+c1
+11
+12
+13
+14
+INSERT INTO v2 VALUES(26);
+UPDATE v3 SET c3 = 332 WHERE c3 = 32;
+DELETE FROM v4 WHERE c4 = 43;
+CREATE VIEW v12 AS SELECT c1, c2 FROM mysqltest1.t1, mysqltest1.t2;
+ERROR 42000: create view command denied to user 'mysqltest_u1'@'localhost' for column 'c2' in table 'v12'
+CREATE VIEW v13 AS SELECT c1, c3 FROM mysqltest1.t1, mysqltest1.t3;
+CREATE VIEW v14 AS SELECT c1, c4 FROM mysqltest1.t1, mysqltest1.t4;
+CREATE VIEW v21 AS SELECT c2, c1 FROM mysqltest1.t2, mysqltest1.t1;
+ERROR 42000: create view command denied to user 'mysqltest_u1'@'localhost' for column 'c1' in table 'v21'
+CREATE VIEW v23 AS SELECT c2, c3 FROM mysqltest1.t2, mysqltest1.t3;
+ERROR 42000: create view command denied to user 'mysqltest_u1'@'localhost' for column 'c3' in table 'v23'
+CREATE VIEW v24 AS SELECT c2, c4 FROM mysqltest1.t2, mysqltest1.t4;
+ERROR 42000: create view command denied to user 'mysqltest_u1'@'localhost' for column 'c4' in table 'v24'
+CREATE VIEW v31 AS SELECT c3, c1 FROM mysqltest1.t3, mysqltest1.t1;
+CREATE VIEW v32 AS SELECT c3, c2 FROM mysqltest1.t3, mysqltest1.t2;
+ERROR 42000: create view command denied to user 'mysqltest_u1'@'localhost' for column 'c2' in table 'v32'
+CREATE VIEW v34 AS SELECT c3, c4 FROM mysqltest1.t3, mysqltest1.t4;
+CREATE VIEW v41 AS SELECT c4, c1 FROM mysqltest1.t4, mysqltest1.t1;
+CREATE VIEW v42 AS SELECT c4, c2 FROM mysqltest1.t4, mysqltest1.t2;
+ERROR 42000: create view command denied to user 'mysqltest_u1'@'localhost' for column 'c2' in table 'v42'
+CREATE VIEW v43 AS SELECT c4, c3 FROM mysqltest1.t4, mysqltest1.t3;
+
+---> connection: default
+SELECT * FROM mysqltest1.t1;
+c1
+11
+12
+13
+14
+SELECT * FROM mysqltest1.t2;
+c2
+21
+22
+23
+24
+25
+26
+SELECT * FROM mysqltest1.t3;
+c3
+331
+332
+33
+34
+SELECT * FROM mysqltest1.t4;
+c4
+41
+42
+DROP DATABASE mysqltest1;
+DROP DATABASE mysqltest2;
+DROP USER mysqltest_u1@localhost;
 End of 5.0 tests.
