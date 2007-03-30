@@ -132,6 +132,12 @@ test-force-full:
 test-force-mem:
 	$(MAKE) 'force=--force --mem' test
 
+test-bt:
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	@PERL@ ./mysql-test-run.pl --force --comment=normal --report-features
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	@PERL@ ./mysql-test-run.pl --force --comment=ps --ps-protocol
+
 # Keep these for a while
 test-pl:	test
 test-full-pl:	test-full
