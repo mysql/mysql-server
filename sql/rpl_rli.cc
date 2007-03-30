@@ -969,7 +969,7 @@ err:
      strtol() conversions needed for log names comparison. We don't need to
      compare them each time this function is called, we only need to do this
      when current log name changes. If we have UNTIL_MASTER_POS condition we
-     need to do this only after Rotate_log_event::exec_event() (which is
+     need to do this only after Rotate_log_event::do_apply_event() (which is
      rare, so caching gives real benifit), and if we have UNTIL_RELAY_POS
      condition then we should invalidate cached comarison value after
      inc_group_relay_log_pos() which called for each group of events (so we
@@ -1093,12 +1093,12 @@ void st_relay_log_info::cleanup_context(THD *thd, bool error)
 
   DBUG_ASSERT(sql_thd == thd);
   /*
-    1) Instances of Table_map_log_event, if ::exec_event() was called on them,
+    1) Instances of Table_map_log_event, if ::do_apply_event() was called on them,
     may have opened tables, which we cannot be sure have been closed (because
     maybe the Rows_log_event have not been found or will not be, because slave
     SQL thread is stopping, or relay log has a missing tail etc). So we close
     all thread's tables. And so the table mappings have to be cancelled.
-    2) Rows_log_event::exec_event() may even have started statements or
+    2) Rows_log_event::do_apply_event() may even have started statements or
     transactions on them, which we need to rollback in case of error.
     3) If finding a Format_description_log_event after a BEGIN, we also need
     to rollback before continuing with the next events.
