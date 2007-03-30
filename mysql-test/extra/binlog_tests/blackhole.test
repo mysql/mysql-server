@@ -121,11 +121,7 @@ select * from t2;
 select * from t3;
 
 let $VERSION=`select version()`;
---replace_result $VERSION VERSION
---replace_column 2 # 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
-show binlog events;
-
+source include/show_binlog_events.inc;
 drop table t1,t2,t3;
 
 #
@@ -157,10 +153,7 @@ start transaction;
 insert into t1 values(2);
 rollback;
 set autocommit=1;
---replace_result $VERSION VERSION
---replace_column 2 # 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
-show binlog events;
+source include/show_binlog_events.inc;
 drop table if exists t1;
 
 # End of 5.0 tests
