@@ -144,8 +144,42 @@ static ha_rows _mi_record_pos(MI_INFO *info, const byte *key, uint key_len,
   if (!(nextflag & (SEARCH_FIND | SEARCH_NO_FIND | SEARCH_LAST)))
     key_len=USE_WHOLE_KEY;
 
+  /*
+    my_handler.c:mi_compare_text() has a flag 'skip_end_space'.
+    This is set in my_handler.c:ha_key_cmp() in dependence on the
+    compare flags 'nextflag' and the column type.
+
+    TEXT columns are of type HA_KEYTYPE_VARTEXT. In this case the
+    condition is skip_end_space= ((nextflag & (SEARCH_FIND |
+    SEARCH_UPDATE)) == SEARCH_FIND).
+
+    SEARCH_FIND is used for an exact key search. The combination
+    SEARCH_FIND | SEARCH_UPDATE is used in write/update/delete
+    operations with a comment like "Not real duplicates", whatever this
+    means. From the condition above we can see that 'skip_end_space' is
+    always false for these operations. The result is that trailing space
+    counts in key comparison and hence, emtpy strings ('', string length
+    zero, but not NULL) compare less that strings starting with control
+    characters and these in turn compare less than strings starting with
+    blanks.
+
+    When estimating the number of records in a key range, we request an
+    exact search for the minimum key. This translates into a plain
+    SEARCH_FIND flag. Using this alone would lead to a 'skip_end_space'
+    compare. Empty strings would be expected above control characters.
+    Their keys would not be found because they are located below control
+    characters.
+
+    This is the reason that we add the SEARCH_UPDATE flag here. It makes
+    the key estimation compare in the same way like key write operations
+    do. Olny so we will find the keys where they have been inserted.
+
+    Adding the flag unconditionally does not hurt as it is used in the
+    above mentioned condition only. So it can safely be used together
+    with other flags.
+  */
   pos=_mi_search_pos(info,keyinfo,key_buff,key_len,
-		     nextflag | SEARCH_SAVE_BUFF,
+		     nextflag | SEARCH_SAVE_BUFF | SEARCH_UPDATE,
 		     info->s->state.key_root[inx]);
   if (pos >= 0.0)
   {
