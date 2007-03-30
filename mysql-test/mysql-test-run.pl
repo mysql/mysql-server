@@ -2549,10 +2549,16 @@ sub ndbcluster_wait_started($$){
 sub mysqld_wait_started($){
   my $mysqld= shift;
 
-  my $res= sleep_until_file_created($mysqld->{'path_pid'},
-				    $mysqld->{'start_timeout'},
-				    $mysqld->{'pid'});
-  return $res == 0;
+  my $pid_from_pidfile=
+    sleep_until_file_created($mysqld->{'path_pid'},
+                             $mysqld->{'start_timeout'},
+                             $mysqld->{'pid'});
+
+  # On platforms with pseudo threads we need to save
+  # the real pid of mysqld read from pidfile
+  $mysqld->{'real_pid'}= $pid_from_pidfile;
+
+  return $pid_from_pidfile == 0;
 }
 
 
@@ -4047,6 +4053,7 @@ sub stop_all_servers () {
 
       push(@kill_pids,{
 		       pid      => $mysqld->{'pid'},
+		       real_pid => $mysqld->{'real_pid'},
 		       pidfile  => $mysqld->{'path_pid'},
 		       sockfile => $mysqld->{'path_sock'},
 		       port     => $mysqld->{'port'},
@@ -4253,6 +4260,7 @@ sub run_testcase_stop_servers($$$) {
 
 	push(@kill_pids,{
 			 pid      => $mysqld->{'pid'},
+                         real_pid => $mysqld->{'real_pid'},
 			 pidfile  => $mysqld->{'path_pid'},
 			 sockfile => $mysqld->{'path_sock'},
 			 port     => $mysqld->{'port'},
@@ -4303,6 +4311,7 @@ sub run_testcase_stop_servers($$$) {
 
 	push(@kill_pids,{
 			 pid      => $mysqld->{'pid'},
+                         real_pid => $mysqld->{'real_pid'},
 			 pidfile  => $mysqld->{'path_pid'},
 			 sockfile => $mysqld->{'path_sock'},
 			 port     => $mysqld->{'port'},
