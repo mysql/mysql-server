@@ -337,11 +337,7 @@ then
   cp -fp mysql-debug-%{mysql_version}/config.log "$MYSQL_DEBUGCONFLOG_DEST"
 fi
 
-  MTR_BUILD_THREAD=auto
-  export MTR_BUILD_THREAD
-(cd mysql-debug-%{mysql_version}/mysql-test ; \
- ./mysql-test-run.pl --comment=debug --skip-rpl --skip-ndbcluster --force --report-features ; \
- true)
+(cd mysql-debug-%{mysql_version} ; make test-bt-debug)
 
 ##############################################################################
 #
@@ -370,15 +366,7 @@ then
   cp -fp  mysql-release-%{mysql_version}/config.log "$MYSQL_CONFLOG_DEST"
 fi
 
-  MTR_BUILD_THREAD=auto
-  export MTR_BUILD_THREAD
-cd mysql-release-%{mysql_version}/mysql-test
-./mysql-test-run.pl --comment=normal --force --skip-ndbcluster --timer --report-features || true
-./mysql-test-run.pl --comment=ps --ps-protocol --force --skip-ndbcluster --timer || true
-./mysql-test-run.pl --comment=normal+rowrepl --mysqld=--binlog-format=row --force --skip-ndbcluster --timer || true
-./mysql-test-run.pl --comment=ps+rowrepl+NDB --ps-protocol --mysqld=--binlog-format=row --force --timer || true
-./mysql-test-run.pl --comment=NDB --with-ndbcluster-only --force --timer || true
-cd ../..
+(cd mysql-release-%{mysql_version} ; make test-bt)
 
 ##############################################################################
 
