@@ -3905,6 +3905,48 @@ COUNT(*)	a
 2	2
 3	3
 DROP TABLE t1,t2;
+CREATE TABLE t1 (a int, b int);
+CREATE TABLE t2 (m int, n int);
+INSERT INTO t1 VALUES (2,2), (2,2), (3,3), (3,3), (3,3), (4,4);
+INSERT INTO t2 VALUES (1,11), (2,22), (3,32), (4,44), (4,44);
+SELECT COUNT(*) c, a,
+(SELECT GROUP_CONCAT(COUNT(a)) FROM t2 WHERE m = a)
+FROM t1 GROUP BY a;
+c	a	(SELECT GROUP_CONCAT(COUNT(a)) FROM t2 WHERE m = a)
+2	2	2
+3	3	3
+1	4	1,1
+SELECT COUNT(*) c, a,
+(SELECT GROUP_CONCAT(COUNT(a)+1) FROM t2 WHERE m = a)
+FROM t1 GROUP BY a;
+c	a	(SELECT GROUP_CONCAT(COUNT(a)+1) FROM t2 WHERE m = a)
+2	2	3
+3	3	4
+1	4	2,2
+DROP table t1,t2;
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (2,22),(1,11),(2,22);
+SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 0 GROUP BY a;
+a
+1
+2
+SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 1 GROUP BY a;
+a
+SELECT a FROM t1 t0
+WHERE (SELECT COUNT(t0.b) FROM t1 t WHERE t.b>20) GROUP BY a;
+a
+1
+2
+SET @@sql_mode='ansi';
+SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 0 GROUP BY a;
+ERROR HY000: Invalid use of group function
+SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 1 GROUP BY a;
+ERROR HY000: Invalid use of group function
+SELECT a FROM t1 t0
+WHERE (SELECT COUNT(t0.b) FROM t1 t WHERE t.b>20) GROUP BY a;
+ERROR HY000: Invalid use of group function
+SET @@sql_mode=default;
+DROP TABLE t1;
 CREATE TABLE t1 (s1 char(1));
 INSERT INTO t1 VALUES ('a');
 SELECT * FROM t1 WHERE _utf8'a' = ANY (SELECT s1 FROM t1);
