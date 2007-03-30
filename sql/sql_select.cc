@@ -8982,20 +8982,19 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   
     enum enum_field_types type;
     /*
-      DATE/TIME fields have STRING_RESULT result type. To preserve
-      type they needed to be handled separately.
+      DATE/TIME and GEOMETRY fields have STRING_RESULT result type. 
+      To preserve type they needed to be handled separately.
     */
     if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
         type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE ||
-        type == MYSQL_TYPE_TIMESTAMP)
+        type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_GEOMETRY)
       new_field= item->tmp_table_field_from_field_type(table, 1);
     /* 
       Make sure that the blob fits into a Field_varstring which has 
       2-byte lenght. 
     */
     else if (item->max_length/item->collation.collation->mbmaxlen > 255 &&
-             item->max_length/item->collation.collation->mbmaxlen < UINT_MAX16
-             && convert_blob_length)
+             convert_blob_length < UINT_MAX16 && convert_blob_length)
       new_field= new Field_varstring(convert_blob_length, maybe_null,
                                      item->name, table->s,
                                      item->collation.collation);

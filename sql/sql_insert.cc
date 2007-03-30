@@ -753,6 +753,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
      table->next_number_field->val_int() : 0));
   table->next_number_field=0;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  table->auto_increment_field_not_null= FALSE;
   if (duplic != DUP_ERROR || ignore)
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   if (duplic == DUP_REPLACE &&
@@ -2689,6 +2690,7 @@ select_insert::~select_insert()
   if (table)
   {
     table->next_number_field=0;
+    table->auto_increment_field_not_null= FALSE;
     table->file->ha_reset();
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
