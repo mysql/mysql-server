@@ -562,7 +562,7 @@ sub mtr_check_stop_servers ($) {
   # Return if no processes are defined
   return if ! @$spec;
 
-  mtr_verbose("mtr_check_stop_servers");
+  #mtr_report("mtr_check_stop_servers");
 
   mtr_ping_with_timeout(\@$spec);
 
@@ -605,10 +605,7 @@ sub mtr_check_stop_servers ($) {
   {
     if ( $srv->{'pid'} )
     {
-       # Add the process pid to list of pids to kill
-       # if the process has a "real_pid" use it
-       $mysqld_pids{$srv->{'real_pid'} ?
-		    $srv->{'real_pid'} : $srv->{'pid'}}= 1;
+      $mysqld_pids{$srv->{'pid'}}= 1;
     }
     else
     {
@@ -641,8 +638,12 @@ sub mtr_check_stop_servers ($) {
   # that for true Win32 processes, kill(0,$pid) will not return 1.
   # ----------------------------------------------------------------------
 
+  start_reap_all();                     # Avoid zombies
+
   my @mysqld_pids= keys %mysqld_pids;
   mtr_kill_processes(\@mysqld_pids);
+
+  stop_reap_all();                      # Get into control again
 
   # ----------------------------------------------------------------------
   # Now, we check if all we can find using kill(0,$pid) are dead,
@@ -653,15 +654,14 @@ sub mtr_check_stop_servers ($) {
     my $errors= 0;
     foreach my $srv ( @$spec )
     {
-      my $pid= $srv->{'real_pid'} ? $srv->{'real_pid'} : $srv->{'pid'};
-      if ( $pid )
+      if ( $srv->{'pid'} )
       {
-        if ( kill(0, $pid) )
+        if ( kill(0,$srv->{'pid'}) )
         {
           # FIXME In Cygwin there seem to be some fast reuse
           # of PIDs, so dying may not be the right thing to do.
           $errors++;
-          mtr_warning("can't kill process $pid");
+          mtr_warning("can't kill process $srv->{'pid'}");
         }
         else
         {
@@ -682,8 +682,6 @@ sub mtr_check_stop_servers ($) {
               mtr_warning("couldn't delete $file");
             }
           }
-	  # Reap the child
-	  waitpid($srv->{'pid'},&WNOHANG);
 	  $srv->{'pid'}= 0;
         }
       }
@@ -1065,10 +1063,7 @@ sub sleep_until_file_created ($$$) {
   {
     if ( -r $pidfile )
     {
-      # Read real pid from pidfile
-      my $real_pid= mtr_fromfile($pidfile);
-      mtr_verbose("pid: $pid, real_pid: $real_pid");
-      return $real_pid;
+      return $pid;
     }
 
     # Check if it died after the fork() was successful
