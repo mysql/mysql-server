@@ -103,40 +103,40 @@ a	b
 1	cp850_general_ci
 drop database mysqltest2;
 drop database mysqltest3;
-show binlog events from 105;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	drop database if exists mysqltest2
-master-bin.000001	#	Query	1	#	drop database if exists mysqltest3
-master-bin.000001	#	Query	1	#	create database mysqltest2 character set latin2
-master-bin.000001	#	Query	1	#	create database mysqltest3
-master-bin.000001	#	Query	1	#	drop database mysqltest3
-master-bin.000001	#	Query	1	#	create database mysqltest3
-master-bin.000001	#	Query	1	#	use `mysqltest2`; create table t1 (a int auto_increment primary key, b varchar(100))
-master-bin.000001	#	Intvar	1	#	INSERT_ID=1
-master-bin.000001	#	Query	1	#	use `mysqltest2`; insert into t1 (b) values(@@character_set_server)
-master-bin.000001	#	Intvar	1	#	INSERT_ID=2
-master-bin.000001	#	Query	1	#	use `mysqltest2`; insert into t1 (b) values(@@collation_server)
-master-bin.000001	#	Intvar	1	#	INSERT_ID=3
-master-bin.000001	#	Query	1	#	use `mysqltest2`; insert into t1 (b) values(@@character_set_client)
-master-bin.000001	#	Intvar	1	#	INSERT_ID=4
-master-bin.000001	#	Query	1	#	use `mysqltest2`; insert into t1 (b) values(@@character_set_connection)
-master-bin.000001	#	Intvar	1	#	INSERT_ID=5
-master-bin.000001	#	Query	1	#	use `mysqltest2`; insert into t1 (b) values(@@collation_connection)
-master-bin.000001	#	Query	1	#	use `mysqltest2`; truncate table t1
-master-bin.000001	#	Intvar	1	#	INSERT_ID=1
-master-bin.000001	#	Query	1	#	use `mysqltest2`; insert into t1 (b) values(@@collation_connection)
-master-bin.000001	#	Intvar	1	#	INSERT_ID=2
-master-bin.000001	#	Query	1	#	use `mysqltest2`; insert into t1 (b) values(LEAST("Müller","Muffler"))
-master-bin.000001	#	Intvar	1	#	INSERT_ID=3
-master-bin.000001	#	Query	1	#	use `mysqltest2`; insert into t1 (b) values(@@collation_connection)
-master-bin.000001	#	Intvar	1	#	INSERT_ID=4
-master-bin.000001	#	Query	1	#	use `mysqltest2`; insert into t1 (b) values(LEAST("Müller","Muffler"))
-master-bin.000001	#	Query	1	#	use `mysqltest2`; truncate table t1
-master-bin.000001	#	Intvar	1	#	INSERT_ID=1
-master-bin.000001	#	User var	1	#	@`a`=_cp850 0x4DFC6C6C6572 COLLATE cp850_general_ci
-master-bin.000001	#	Query	1	#	use `mysqltest2`; insert into t1 (b) values(collation(@a))
-master-bin.000001	#	Query	1	#	drop database mysqltest2
-master-bin.000001	#	Query	1	#	drop database mysqltest3
+master-bin.000001	#	Query	#	#	drop database if exists mysqltest2
+master-bin.000001	#	Query	#	#	drop database if exists mysqltest3
+master-bin.000001	#	Query	#	#	create database mysqltest2 character set latin2
+master-bin.000001	#	Query	#	#	create database mysqltest3
+master-bin.000001	#	Query	#	#	drop database mysqltest3
+master-bin.000001	#	Query	#	#	create database mysqltest3
+master-bin.000001	#	Query	#	#	use `mysqltest2`; create table t1 (a int auto_increment primary key, b varchar(100))
+master-bin.000001	#	Intvar	#	#	INSERT_ID=1
+master-bin.000001	#	Query	#	#	use `mysqltest2`; insert into t1 (b) values(@@character_set_server)
+master-bin.000001	#	Intvar	#	#	INSERT_ID=2
+master-bin.000001	#	Query	#	#	use `mysqltest2`; insert into t1 (b) values(@@collation_server)
+master-bin.000001	#	Intvar	#	#	INSERT_ID=3
+master-bin.000001	#	Query	#	#	use `mysqltest2`; insert into t1 (b) values(@@character_set_client)
+master-bin.000001	#	Intvar	#	#	INSERT_ID=4
+master-bin.000001	#	Query	#	#	use `mysqltest2`; insert into t1 (b) values(@@character_set_connection)
+master-bin.000001	#	Intvar	#	#	INSERT_ID=5
+master-bin.000001	#	Query	#	#	use `mysqltest2`; insert into t1 (b) values(@@collation_connection)
+master-bin.000001	#	Query	#	#	use `mysqltest2`; truncate table t1
+master-bin.000001	#	Intvar	#	#	INSERT_ID=1
+master-bin.000001	#	Query	#	#	use `mysqltest2`; insert into t1 (b) values(@@collation_connection)
+master-bin.000001	#	Intvar	#	#	INSERT_ID=2
+master-bin.000001	#	Query	#	#	use `mysqltest2`; insert into t1 (b) values(LEAST("Müller","Muffler"))
+master-bin.000001	#	Intvar	#	#	INSERT_ID=3
+master-bin.000001	#	Query	#	#	use `mysqltest2`; insert into t1 (b) values(@@collation_connection)
+master-bin.000001	#	Intvar	#	#	INSERT_ID=4
+master-bin.000001	#	Query	#	#	use `mysqltest2`; insert into t1 (b) values(LEAST("Müller","Muffler"))
+master-bin.000001	#	Query	#	#	use `mysqltest2`; truncate table t1
+master-bin.000001	#	Intvar	#	#	INSERT_ID=1
+master-bin.000001	#	User var	#	#	@`a`=_cp850 0x4DFC6C6C6572 COLLATE cp850_general_ci
+master-bin.000001	#	Query	#	#	use `mysqltest2`; insert into t1 (b) values(collation(@a))
+master-bin.000001	#	Query	#	#	drop database mysqltest2
+master-bin.000001	#	Query	#	#	drop database mysqltest3
 set global character_set_server=latin2;
 set global character_set_server=latin1;
 set global character_set_server=latin2;
