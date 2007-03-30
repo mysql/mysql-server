@@ -24,8 +24,7 @@ USE test_ignore;
 CREATE TABLE t2 (a INT, b INT);
 SHOW TABLES;
 INSERT INTO t2 VALUES (3,3), (4,4);
---replace_regex /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 105;
+source include/show_binlog_events.inc;
 sync_slave_with_master;
 --echo **** On Slave ****
 SHOW DATABASES;

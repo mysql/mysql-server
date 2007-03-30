@@ -23,8 +23,6 @@ delimiter ;/
 sync_slave_with_master;
 select * from mysqltest.t1;
 connection master;
---replace_column 2 # 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
-show binlog events from 105;
+source include/show_binlog_events.inc;
 drop database mysqltest;
 sync_slave_with_master;
