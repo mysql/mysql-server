@@ -2950,7 +2950,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   share= tmp_table->s;
   tmp_table->reginfo.lock_type=TL_WRITE;	 // Simulate locked
   share->tmp_table= (tmp_table->file->has_transactions() ? 
-                     TRANSACTIONAL_TMP_TABLE : TMP_TABLE);
+                     TRANSACTIONAL_TMP_TABLE : NON_TRANSACTIONAL_TMP_TABLE);
   share->table_cache_key= (char*) (tmp_table+1);
   share->db= share->table_cache_key;
   share->key_length= (uint) (strmov(((char*) (share->table_name=

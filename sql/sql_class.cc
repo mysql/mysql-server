@@ -613,6 +613,18 @@ void THD::cleanup_after_query()
     clear_next_insert_id= 0;
     next_insert_id= 0;
   }
+  /*
+    Reset rand_used so that detection of calls to rand() will save random 
+    seeds if needed by the slave.
+
+    Do not reset rand_used if inside a stored function or trigger because 
+    only the call to these operations is logged. Thus only the calling 
+    statement needs to detect rand() calls made by its substatements. These
+    substatements must not set rand_used to 0 because it would remove the
+    detection of rand() by the calling statement. 
+  */
+  if (!in_sub_stmt)
+    rand_used= 0;
   /* Free Items that were created during this execution */
   free_items();
   /* Reset where. */
