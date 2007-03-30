@@ -22,8 +22,8 @@ affected rows: 2
 "Running on the slave"
 SELECT * FROM mysql.func;
 name	ret	dl	type
-myfunc_double	1	udf_example.dll	function
-myfunc_int	2	udf_example.dll	function
+myfunc_double	1	udf_example.so	function
+myfunc_int	2	udf_example.so	function
 affected rows: 2
 "Running on the master"
 CREATE TABLE t1(sum INT, price FLOAT(24)) ENGINE=MyISAM;
@@ -174,8 +174,8 @@ affected rows: 2
 "Running on the slave"
 SELECT * FROM mysql.func;
 name	ret	dl	type
-myfunc_int	2	udf_example.dll	function
-myfunc_double	1	udf_example.dll	function
+myfunc_int	2	udf_example.so	function
+myfunc_double	1	udf_example.so	function
 affected rows: 2
 "Running on the master"
 CREATE TABLE t1(sum INT, price FLOAT(24)) ENGINE=MyISAM;
