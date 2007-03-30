@@ -6,11 +6,10 @@ insert into t2 values(1),(2);
 reset master;
 insert into t1 select * from t2;
 ERROR 23000: Duplicate entry '2' for key 'a'
-show binlog events;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	102	Server ver: VERSION, Binlog ver: 4
-master-bin.000001	102	Table_map	1	141	table_id: # (test.t1)
-master-bin.000001	141	Write_rows	1	175	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 select * from t1;
 a
 1
@@ -21,7 +20,6 @@ insert into t1 values(1),(1);
 reset master;
 create table t2(unique(a)) select a from t1;
 ERROR 23000: Duplicate entry '1' for key 'a'
-show binlog events;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	102	Server ver: VERSION, Binlog ver: 4
 drop table t1;

@@ -18,9 +18,7 @@ insert into t1 select * from t2;
 # The above should produce an error, but still be in the binlog;
 # verify the binlog :
 let $VERSION=`select version()`;
---replace_result $VERSION VERSION
---replace_regex /table_id: [0-9]+/table_id: #/
-show binlog events;
+source include/show_binlog_events.inc;
 select * from t1;
 drop table t1, t2;
 
@@ -33,9 +31,7 @@ reset master;
 create table t2(unique(a)) select a from t1;
 # The above should produce an error, *and* not appear in the binlog
 let $VERSION=`select version()`;
---replace_result $VERSION VERSION
---replace_regex /table_id: [0-9]+/table_id: #/
-show binlog events;
+source include/show_binlog_events.inc;
 drop table t1;
 
 # End of 4.1 tests

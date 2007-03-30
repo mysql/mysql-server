@@ -4,11 +4,11 @@ insert into t1 values (1,2);
 commit;
 show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	102	Server ver: #, Binlog ver: #
-master-bin.000001	102	Query	1	209	use `test`; create table t1 (a int, b int) engine=innodb
-master-bin.000001	209	Query	1	277	use `test`; BEGIN
-master-bin.000001	277	Query	1	90	use `test`; insert into t1 values (1,2)
-master-bin.000001	367	Xid	1	394	COMMIT /* XID */
+master-bin.000001	4	Format_desc	1	106	Server ver: #, Binlog ver: #
+master-bin.000001	106	Query	1	213	use `test`; create table t1 (a int, b int) engine=innodb
+master-bin.000001	213	Query	1	281	use `test`; BEGIN
+master-bin.000001	281	Query	1	90	use `test`; insert into t1 values (1,2)
+master-bin.000001	371	Xid	1	398	COMMIT /* XID */
 drop table t1;
 drop table if exists t1, t2;
 reset master;
@@ -20,23 +20,23 @@ commit;
 begin;
 insert t2 values (5);
 commit;
-show binlog events from 102;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int) engine=innodb
-master-bin.000001	#	Query	1	#	use `test`; create table t2 (a int) engine=innodb
-master-bin.000001	#	Query	1	#	use `test`; BEGIN
-master-bin.000001	#	Query	1	#	use `test`; insert t1 values (5)
-master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
-master-bin.000001	#	Query	1	#	use `test`; BEGIN
-master-bin.000001	#	Query	1	#	use `test`; insert t2 values (5)
-master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int) engine=innodb
+master-bin.000001	#	Query	#	#	use `test`; create table t2 (a int) engine=innodb
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert t1 values (5)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert t2 values (5)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 drop table t1,t2;
 reset master;
 create table t1 (n int) engine=innodb;
 begin;
 commit;
 drop table t1;
-show binlog events in 'master-bin.000001' from 102;
+show binlog events in 'master-bin.000001' from 106;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (n int) engine=innodb
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
@@ -142,7 +142,7 @@ master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(2 + 4)
 master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(1 + 4)
 master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
 master-bin.000001	#	Rotate	1	#	master-bin.000002;pos=4
-show binlog events in 'master-bin.000002' from 102;
+show binlog events in 'master-bin.000002' from 106;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Query	1	#	use `test`; drop table t1
 reset master;
@@ -164,46 +164,46 @@ INSERT INTO user SET host='localhost', user='@#@', password=password('Just a tes
 UPDATE user SET password=password('Another password') WHERE host='localhost' AND user='@#@';
 DELETE FROM user WHERE host='localhost' AND user='@#@';
 use test;
-show binlog events from 102;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	use `test`; create table t1 (id tinyint auto_increment primary key)
-master-bin.000001	#	Intvar	1	#	INSERT_ID=127
-master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(null)
-master-bin.000001	#	Query	1	#	use `test`; drop table t1
-master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int)
-master-bin.000001	#	Query	1	#	use `test`; create table if not exists t2 select * from t1
-master-bin.000001	#	Query	1	#	use `test`; create temporary table tt1 (a int)
-master-bin.000001	#	Query	1	#	use `test`; create table if not exists t3 like tt1
-master-bin.000001	#	Query	1	#	use `mysql`; INSERT INTO user SET host='localhost', user='@#@', password=password('Just a test')
-master-bin.000001	#	Query	1	#	use `mysql`; UPDATE user SET password=password('Another password') WHERE host='localhost' AND user='@#@'
-master-bin.000001	#	Query	1	#	use `mysql`; DELETE FROM user WHERE host='localhost' AND user='@#@'
+master-bin.000001	#	Query	#	#	use `test`; create table t1 (id tinyint auto_increment primary key)
+master-bin.000001	#	Intvar	#	#	INSERT_ID=127
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(null)
+master-bin.000001	#	Query	#	#	use `test`; drop table t1
+master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int)
+master-bin.000001	#	Query	#	#	use `test`; create table if not exists t2 select * from t1
+master-bin.000001	#	Query	#	#	use `test`; create temporary table tt1 (a int)
+master-bin.000001	#	Query	#	#	use `test`; create table if not exists t3 like tt1
+master-bin.000001	#	Query	#	#	use `mysql`; INSERT INTO user SET host='localhost', user='@#@', password=password('Just a test')
+master-bin.000001	#	Query	#	#	use `mysql`; UPDATE user SET password=password('Another password') WHERE host='localhost' AND user='@#@'
+master-bin.000001	#	Query	#	#	use `mysql`; DELETE FROM user WHERE host='localhost' AND user='@#@'
 drop table t1,t2,t3,tt1;
 create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
 set @@session.auto_increment_increment=1, @@session.auto_increment_offset=1;
 insert delayed into t1 values (207);
 insert delayed into t1 values (null);
 insert delayed into t1 values (300);
-show binlog events from 102;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	use `test`; create table t1 (id tinyint auto_increment primary key)
-master-bin.000001	#	Intvar	1	#	INSERT_ID=127
-master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(null)
-master-bin.000001	#	Query	1	#	use `test`; drop table t1
-master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int)
-master-bin.000001	#	Query	1	#	use `test`; create table if not exists t2 select * from t1
-master-bin.000001	#	Query	1	#	use `test`; create temporary table tt1 (a int)
-master-bin.000001	#	Query	1	#	use `test`; create table if not exists t3 like tt1
-master-bin.000001	#	Query	1	#	use `mysql`; INSERT INTO user SET host='localhost', user='@#@', password=password('Just a test')
-master-bin.000001	#	Query	1	#	use `mysql`; UPDATE user SET password=password('Another password') WHERE host='localhost' AND user='@#@'
-master-bin.000001	#	Query	1	#	use `mysql`; DELETE FROM user WHERE host='localhost' AND user='@#@'
-master-bin.000001	#	Query	1	#	use `test`; drop table t1,t2,t3,tt1
-master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int not null auto_increment, primary key (a)) engine=myisam
-master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; create table t1 (id tinyint auto_increment primary key)
+master-bin.000001	#	Intvar	#	#	INSERT_ID=127
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(null)
+master-bin.000001	#	Query	#	#	use `test`; drop table t1
+master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int)
+master-bin.000001	#	Query	#	#	use `test`; create table if not exists t2 select * from t1
+master-bin.000001	#	Query	#	#	use `test`; create temporary table tt1 (a int)
+master-bin.000001	#	Query	#	#	use `test`; create table if not exists t3 like tt1
+master-bin.000001	#	Query	#	#	use `mysql`; INSERT INTO user SET host='localhost', user='@#@', password=password('Just a test')
+master-bin.000001	#	Query	#	#	use `mysql`; UPDATE user SET password=password('Another password') WHERE host='localhost' AND user='@#@'
+master-bin.000001	#	Query	#	#	use `mysql`; DELETE FROM user WHERE host='localhost' AND user='@#@'
+master-bin.000001	#	Query	#	#	use `test`; drop table t1,t2,t3,tt1
+master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int not null auto_increment, primary key (a)) engine=myisam
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 insert delayed into t1 values (null),(null),(null),(null);
 insert delayed into t1 values (null),(null),(400),(null);
 11 == 11
@@ -226,12 +226,12 @@ drop table if exists t3;
 create table t3 (a int(11) NOT NULL AUTO_INCREMENT, b text, PRIMARY KEY (a) ) engine=innodb;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	342		
+master-bin.000001	346		
 insert into t3(b) values ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
 insert into t3(b) values ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
 insert into t3(b) values ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
 insert into t3(b) values ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
 show master status /* must show new binlog index after rotating */;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000002	102		
+master-bin.000002	106		
 drop table t3;
