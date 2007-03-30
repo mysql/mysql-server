@@ -2120,14 +2120,13 @@ static void init_signals(void)
 #ifdef SIGTSTP
   sigaddset(&set,SIGTSTP);
 #endif
-  sigaddset(&set,THR_SERVER_ALARM);
+  if (thd_lib_detected != THD_LIB_LT)
+    sigaddset(&set,THR_SERVER_ALARM);
   if (test_flags & TEST_SIGINT)
   {
     // May be SIGINT
     sigdelset(&set, thr_kill_signal);
   }
-  // For alarms
-  sigdelset(&set, thr_client_alarm);
   sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
@@ -3162,7 +3161,7 @@ int main(int argc, char **argv)
 #else
   thr_kill_signal= SIGINT;
 #endif
-
+  
 #ifdef _CUSTOMSTARTUPCONFIG_
   if (_cust_check_startup())
   {
