@@ -770,6 +770,17 @@ create table t1 (g geometry not null);
 insert into t1 values(default);
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1;
+CREATE TABLE t1 (a GEOMETRY);
+CREATE VIEW v1 AS SELECT GeomFromwkb(ASBINARY(a)) FROM t1;
+CREATE VIEW v2 AS SELECT a FROM t1;
+DESCRIBE v1;
+Field	Type	Null	Key	Default	Extra
+GeomFromwkb(ASBINARY(a))	geometry	YES		NULL	
+DESCRIBE v2;
+Field	Type	Null	Key	Default	Extra
+a	geometry	YES		NULL	
+DROP VIEW v1,v2;
+DROP TABLE t1;
 create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
 create view v1 as select * from t1;
 desc v1;

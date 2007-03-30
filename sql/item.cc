@@ -4363,13 +4363,16 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
-  case MYSQL_TYPE_GEOMETRY:
     if (this->type() == Item::TYPE_HOLDER)
       field= new Field_blob(max_length, maybe_null, name, collation.collation,
                             1);
     else
       field= new Field_blob(max_length, maybe_null, name, collation.collation);
     break;					// Blob handled outside of case
+  case MYSQL_TYPE_GEOMETRY:
+    return new Field_geom(max_length, maybe_null, name, table,
+                          (Field::geometry_type)
+                          ((Item_geometry_func *)this)->get_geometry_type());
   }
   if (field)
     field->init(table);

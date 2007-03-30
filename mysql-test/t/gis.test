@@ -481,6 +481,18 @@ insert into t1 values(default);
 drop table t1;
 
 #
+# Bug #27300: create view with geometry functions lost columns types 
+#
+CREATE TABLE t1 (a GEOMETRY);
+CREATE VIEW v1 AS SELECT GeomFromwkb(ASBINARY(a)) FROM t1;
+CREATE VIEW v2 AS SELECT a FROM t1;
+DESCRIBE v1;
+DESCRIBE v2;
+
+DROP VIEW v1,v2;
+DROP TABLE t1;
+
+#
 # Bug #11335 View redefines column types
 #
 create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
