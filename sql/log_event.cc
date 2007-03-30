@@ -7892,8 +7892,8 @@ Incident_log_event::Incident_log_event(const char *buf, uint event_len,
   m_incident= static_cast<Incident>(uint2korr(buf + common_header_len));
   char const *ptr= buf + common_header_len + post_header_len;
   char const *const str_end= buf + event_len;
-  uint8 len;
-  const char *str;
+  uint8 len= 0;                   // Assignment to keep compiler happy
+  const char *str= NULL;          // Assignment to keep compiler happy
   read_str(&ptr, str_end, &str, &len);
   m_message.str= const_cast<char*>(str);
   m_message.length= len;

@@ -16,14 +16,14 @@ CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
 ERROR HY000: Can't find symbol 'myfunc_nonexist' in library
 SELECT * FROM mysql.func;
 name	ret	dl	type
-myfunc_double	1	udf_example.dll	function
-myfunc_int	2	udf_example.dll	function
+myfunc_double	1	udf_example.so	function
+myfunc_int	2	udf_example.so	function
 affected rows: 2
 "Running on the slave"
 SELECT * FROM mysql.func;
 name	ret	dl	type
-myfunc_double	1	udf_example.dll	function
-myfunc_int	2	udf_example.dll	function
+myfunc_double	1	udf_example.so	function
+myfunc_int	2	udf_example.so	function
 affected rows: 2
 "Running on the master"
 CREATE TABLE t1(sum INT, price FLOAT(24)) ENGINE=MyISAM;
@@ -106,7 +106,7 @@ SELECT * FROM t1 ORDER BY sum;
 sum	price
 1	475
 10	5
-100	47
+100	48
 200	24
 affected rows: 4
 "Running on the slave"
@@ -114,7 +114,7 @@ SELECT * FROM t1 ORDER BY sum;
 sum	price
 1	475
 10	5
-100	47
+100	48
 200	24
 affected rows: 4
 "Running on the master"
@@ -168,14 +168,14 @@ CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
 ERROR HY000: Can't find symbol 'myfunc_nonexist' in library
 SELECT * FROM mysql.func;
 name	ret	dl	type
-myfunc_int	2	udf_example.dll	function
-myfunc_double	1	udf_example.dll	function
+myfunc_int	2	udf_example.so	function
+myfunc_double	1	udf_example.so	function
 affected rows: 2
 "Running on the slave"
 SELECT * FROM mysql.func;
 name	ret	dl	type
-myfunc_int	2	udf_example.dll	function
-myfunc_double	1	udf_example.dll	function
+myfunc_int	2	udf_example.so	function
+myfunc_double	1	udf_example.so	function
 affected rows: 2
 "Running on the master"
 CREATE TABLE t1(sum INT, price FLOAT(24)) ENGINE=MyISAM;
@@ -258,7 +258,7 @@ SELECT * FROM t1 ORDER BY sum;
 sum	price
 1	475
 10	5
-100	47
+100	48
 200	24
 affected rows: 4
 "Running on the slave"
@@ -266,7 +266,7 @@ SELECT * FROM t1 ORDER BY sum;
 sum	price
 1	475
 10	5
-100	47
+100	48
 200	24
 affected rows: 4
 "Running on the master"
