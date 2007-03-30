@@ -726,23 +726,136 @@ index(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12,c13,c14,c15,c16)
 );
 insert into t1 (c1) values ('1'),('1'),('1'),('1');
 select * from t1 where
-c1 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
-and c2 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
-and c3 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
-and c4 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
-and c5 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
-and c6 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
-and c7 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
-and c8 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
-and c9 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
-and c10 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
-and c11 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
-and c12 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
-and c13 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
-and c14 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
-and c15 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
-and c16 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh")
-;
+c1 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4",
+"abcdefg5", "123456785", "qwertyui5", "asddfg5",
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+and c2 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+"abcdefg5", "123456785", "qwertyui5", "asddfg5",
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+and c3 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+"abcdefg5", "123456785", "qwertyui5", "asddfg5",
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+and c4 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+"abcdefg5", "123456785", "qwertyui5", "asddfg5", 
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+and c5 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4",
+"abcdefg5", "123456785", "qwertyui5", "asddfg5",
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+and c6 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4",
+"abcdefg5", "123456785", "qwertyui5", "asddfg5",
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+and c7 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+"abcdefg5", "123456785", "qwertyui5", "asddfg5",
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+and c8 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+"abcdefg5", "123456785", "qwertyui5", "asddfg5",
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+and c9 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+"abcdefg5", "123456785", "qwertyui5", "asddfg5",
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+and c10 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+"abcdefg5", "123456785", "qwertyui5", "asddfg5",
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC");
 c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16
 drop table t1;
 End of 4.1 tests
