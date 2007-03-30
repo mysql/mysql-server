@@ -26,10 +26,10 @@ master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int) engine=innodb
 master-bin.000001	#	Query	#	#	use `test`; create table t2 (a int) engine=innodb
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert t1 values (5)
-master-bin.000001	#	Xid	#	#	COMMIT /* xid=17 */
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert t2 values (5)
-master-bin.000001	#	Xid	#	#	COMMIT /* xid=20 */
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 drop table t1,t2;
 reset master;
 create table t1 (n int) engine=innodb;

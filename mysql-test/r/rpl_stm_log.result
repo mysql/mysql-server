@@ -47,17 +47,16 @@ flush logs;
 stop slave;
 create table t2 (n int)ENGINE=MyISAM;
 insert into t2 values (1);
-show binlog events;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
-master-bin.000001	#	Query	1	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=MyISAM
-master-bin.000001	#	Intvar	1	#	INSERT_ID=1
-master-bin.000001	#	Query	1	#	use `test`; insert into t1 values (NULL)
-master-bin.000001	#	Query	1	#	use `test`; drop table t1
-master-bin.000001	#	Query	1	#	use `test`; create table t1 (word char(20) not null)ENGINE=MyISAM
-master-bin.000001	#	Begin_load_query	1	#	;file_id=1;block_len=581
-master-bin.000001	#	Execute_load_query	1	#	use `test`; load data infile '../std_data_ln/words.dat' into table t1 ignore 1 lines ;file_id=1
-master-bin.000001	#	Rotate	1	#	master-bin.000002;pos=4
+master-bin.000001	#	Query	#	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=MyISAM
+master-bin.000001	#	Intvar	#	#	INSERT_ID=1
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (NULL)
+master-bin.000001	#	Query	#	#	use `test`; drop table t1
+master-bin.000001	#	Query	#	#	use `test`; create table t1 (word char(20) not null)ENGINE=MyISAM
+master-bin.000001	#	Begin_load_query	#	#	;file_id=1;block_len=581
+master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../std_data_ln/words.dat' into table t1 ignore 1 lines ;file_id=1
+master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=4
 show binlog events in 'master-bin.000002';
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
@@ -103,12 +102,11 @@ insert into t1 values (NULL, 1);
 reset master;
 set insert_id=5;
 insert into t1 values (NULL, last_insert_id()), (NULL, last_insert_id());
-show binlog events;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
-master-bin.000001	#	Intvar	1	#	LAST_INSERT_ID=1
-master-bin.000001	#	Intvar	1	#	INSERT_ID=5
-master-bin.000001	#	Query	1	#	use `test`; insert into t1 values (NULL, last_insert_id()), (NULL, last_insert_id())
+master-bin.000001	#	Intvar	#	#	LAST_INSERT_ID=1
+master-bin.000001	#	Intvar	#	#	INSERT_ID=5
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (NULL, last_insert_id()), (NULL, last_insert_id())
 select * from t1;
 a	b
 1	1
