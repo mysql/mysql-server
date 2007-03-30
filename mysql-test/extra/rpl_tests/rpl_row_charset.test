@@ -113,9 +113,7 @@ select * from mysqltest2.t1 order by a;
 connection master;
 drop database mysqltest2;
 drop database mysqltest3;
---replace_column 2 # 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
-show binlog events from 102;
+source include/show_binlog_events.inc;
 sync_slave_with_master;
 
 # Check that we can change global.collation_server (since 5.0.3)

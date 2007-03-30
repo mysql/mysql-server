@@ -1270,7 +1270,7 @@ public:
     return first_successful_insert_id_in_prev_stmt;
   }
   /*
-    Used by Intvar_log_event::exec_event() and by "SET INSERT_ID=#"
+    Used by Intvar_log_event::do_apply_event() and by "SET INSERT_ID=#"
     (mysqlbinlog). We'll soon add a variant which can take many intervals in
     argument.
   */
