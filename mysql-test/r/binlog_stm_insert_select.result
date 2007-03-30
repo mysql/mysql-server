@@ -8,8 +8,8 @@ insert into t1 select * from t2;
 ERROR 23000: Duplicate entry '2' for key 'a'
 show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	105	Server ver: VERSION, Binlog ver: 4
-master-bin.000001	105	Query	1	199	use `test`; insert into t1 select * from t2
+master-bin.000001	4	Format_desc	1	106	Server ver: VERSION, Binlog ver: 4
+master-bin.000001	106	Query	1	200	use `test`; insert into t1 select * from t2
 select * from t1;
 a
 1
@@ -22,5 +22,5 @@ create table t2(unique(a)) select a from t1;
 ERROR 23000: Duplicate entry '1' for key 'a'
 show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	105	Server ver: VERSION, Binlog ver: 4
+master-bin.000001	4	Format_desc	1	106	Server ver: VERSION, Binlog ver: 4
 drop table t1;

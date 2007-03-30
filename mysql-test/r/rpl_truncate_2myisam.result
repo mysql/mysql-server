@@ -31,11 +31,11 @@ a	b
 DROP TABLE t1;
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	105	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	105	Query	1	213	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM
-master-bin.000001	213	Query	1	310	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
-master-bin.000001	310	Query	1	390	use `test`; TRUNCATE TABLE t1
-master-bin.000001	390	Query	1	466	use `test`; DROP TABLE t1
+master-bin.000001	4	Format_desc	1	106	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	106	Query	1	214	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM
+master-bin.000001	214	Query	1	311	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
+master-bin.000001	311	Query	1	391	use `test`; TRUNCATE TABLE t1
+master-bin.000001	391	Query	1	467	use `test`; DROP TABLE t1
 **** On Master ****
 SET SESSION BINLOG_FORMAT=MIXED;
 SET GLOBAL  BINLOG_FORMAT=MIXED;
@@ -63,11 +63,11 @@ a	b
 DROP TABLE t1;
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	105	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	105	Query	1	213	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM
-master-bin.000001	213	Query	1	310	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
-master-bin.000001	310	Query	1	390	use `test`; TRUNCATE TABLE t1
-master-bin.000001	390	Query	1	466	use `test`; DROP TABLE t1
+master-bin.000001	4	Format_desc	1	106	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	106	Query	1	214	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM
+master-bin.000001	214	Query	1	311	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
+master-bin.000001	311	Query	1	391	use `test`; TRUNCATE TABLE t1
+master-bin.000001	391	Query	1	467	use `test`; DROP TABLE t1
 **** On Master ****
 SET SESSION BINLOG_FORMAT=ROW;
 SET GLOBAL  BINLOG_FORMAT=ROW;
@@ -95,12 +95,12 @@ a	b
 DROP TABLE t1;
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	105	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	105	Query	1	213	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM
-master-bin.000001	213	Table_map	1	253	table_id: # (test.t1)
-master-bin.000001	253	Write_rows	1	300	table_id: # flags: STMT_END_F
-master-bin.000001	300	Query	1	380	use `test`; TRUNCATE TABLE t1
-master-bin.000001	380	Query	1	456	use `test`; DROP TABLE t1
+master-bin.000001	4	Format_desc	1	106	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	106	Query	1	214	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM
+master-bin.000001	214	Table_map	1	254	table_id: # (test.t1)
+master-bin.000001	254	Write_rows	1	301	table_id: # flags: STMT_END_F
+master-bin.000001	301	Query	1	381	use `test`; TRUNCATE TABLE t1
+master-bin.000001	381	Query	1	457	use `test`; DROP TABLE t1
 **** On Master ****
 SET SESSION BINLOG_FORMAT=STATEMENT;
 SET GLOBAL  BINLOG_FORMAT=STATEMENT;
@@ -128,11 +128,11 @@ a	b
 DROP TABLE t1;
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	105	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	105	Query	1	213	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM
-master-bin.000001	213	Query	1	310	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
-master-bin.000001	310	Query	1	387	use `test`; DELETE FROM t1
-master-bin.000001	387	Query	1	463	use `test`; DROP TABLE t1
+master-bin.000001	4	Format_desc	1	106	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	106	Query	1	214	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM
+master-bin.000001	214	Query	1	311	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
+master-bin.000001	311	Query	1	388	use `test`; DELETE FROM t1
+master-bin.000001	388	Query	1	464	use `test`; DROP TABLE t1
 **** On Master ****
 SET SESSION BINLOG_FORMAT=MIXED;
 SET GLOBAL  BINLOG_FORMAT=MIXED;
@@ -160,11 +160,11 @@ a	b
 DROP TABLE t1;
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	105	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	105	Query	1	213	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM
-master-bin.000001	213	Query	1	310	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
-master-bin.000001	310	Query	1	387	use `test`; DELETE FROM t1
-master-bin.000001	387	Query	1	463	use `test`; DROP TABLE t1
+master-bin.000001	4	Format_desc	1	106	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	106	Query	1	214	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM
+master-bin.000001	214	Query	1	311	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
+master-bin.000001	311	Query	1	388	use `test`; DELETE FROM t1
+master-bin.000001	388	Query	1	464	use `test`; DROP TABLE t1
 **** On Master ****
 SET SESSION BINLOG_FORMAT=ROW;
 SET GLOBAL  BINLOG_FORMAT=ROW;
@@ -193,10 +193,10 @@ a	b
 DROP TABLE t1;
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	105	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	105	Query	1	213	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM
-master-bin.000001	213	Table_map	1	253	table_id: # (test.t1)
-master-bin.000001	253	Write_rows	1	300	table_id: # flags: STMT_END_F
-master-bin.000001	300	Table_map	1	340	table_id: # (test.t1)
-master-bin.000001	340	Delete_rows	1	387	table_id: # flags: STMT_END_F
-master-bin.000001	387	Query	1	463	use `test`; DROP TABLE t1
+master-bin.000001	4	Format_desc	1	106	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	106	Query	1	214	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM
+master-bin.000001	214	Table_map	1	254	table_id: # (test.t1)
+master-bin.000001	254	Write_rows	1	301	table_id: # flags: STMT_END_F
+master-bin.000001	301	Table_map	1	341	table_id: # (test.t1)
+master-bin.000001	341	Delete_rows	1	388	table_id: # flags: STMT_END_F
+master-bin.000001	388	Query	1	464	use `test`; DROP TABLE t1

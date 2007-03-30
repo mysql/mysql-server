@@ -6055,3 +6055,5 @@ ER_EVENT_CANNOT_CREATE_IN_THE_PAST
         eng "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. Event has not been created"
 ER_EVENT_CANNOT_ALTER_IN_THE_PAST
         eng "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. Event has not been altered"
+ER_SLAVE_INCIDENT
+        eng "The incident %s occured on the master. Message: %-.64s"
