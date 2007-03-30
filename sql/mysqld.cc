@@ -635,6 +635,7 @@ struct rand_struct sql_rand; // used by sql_class.cc:THD::THD()
 #ifndef EMBEDDED_LIBRARY
 struct passwd *user_info;
 static pthread_t select_thread;
+static uint thr_kill_signal;
 #endif
 
 /* OS specific variables */
