@@ -30,7 +30,7 @@ create event e_55 on schedule at 20000101000000 do drop table t;
 Warnings:
 Note	1584	Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. Event has not been created
 show events;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
 create event e_55 on schedule at 20200101000000 starts 10000101000000 do drop table t;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'starts 10000101000000 do drop table t' at line 1
 create event e_55 on schedule at 20200101000000 ends 10000101000000 do drop table t;
