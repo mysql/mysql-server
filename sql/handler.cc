@@ -1598,7 +1598,6 @@ int handler::update_auto_increment()
   ulonglong nr;
   THD *thd= table->in_use;
   struct system_variables *variables= &thd->variables;
-  bool auto_increment_field_not_null;
   DBUG_ENTER("handler::update_auto_increment");
 
   /*
@@ -1606,14 +1605,11 @@ int handler::update_auto_increment()
     row was not inserted
   */
   thd->prev_insert_id= thd->next_insert_id;
-  auto_increment_field_not_null= table->auto_increment_field_not_null;
-  table->auto_increment_field_not_null= FALSE;
 
   if ((nr= table->next_number_field->val_int()) != 0 ||
-      auto_increment_field_not_null &&
+      table->auto_increment_field_not_null &&
       thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
   {
-    /* Clear flag for next row */
     /* Mark that we didn't generate a new value **/
     auto_increment_column_changed=0;
     adjust_next_insert_id_after_explicit_value(nr);
