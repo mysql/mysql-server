@@ -1115,7 +1115,7 @@ public:
   int  store(const char *to, uint length, CHARSET_INFO *charset);
   int  store(double nr) { return 1; }
   int  store(longlong nr) { return 1; }
-  int  reset(void) { return !maybe_null(); }
+  int  reset(void) { return !maybe_null() || Field_blob::reset(); }
 
   void get_key_image(char *buff,uint length, CHARSET_INFO *cs,imagetype type);
   void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
