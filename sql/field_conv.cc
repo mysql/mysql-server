@@ -173,7 +173,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
   if (field == field->table->next_number_field)
   {
     field->table->auto_increment_field_not_null= FALSE;
-    return 0;					// field is set in handler.cc
+    return 0;				  // field is set in fill_record()
   }
   if (current_thd->count_cuted_fields == CHECK_FIELD_WARN)
   {
