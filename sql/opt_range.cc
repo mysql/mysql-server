@@ -128,6 +128,89 @@ static char is_null_string[2]= {1,0};
    - get_quick_select()   - Walk the SEL_ARG, materialize the key intervals,
                             and create QUICK_RANGE_SELECT object that will
                             read records within these intervals.
+
+  4. SPACE COMPLEXITY NOTES 
+
+    SEL_ARG graph is a representation of an ordered disjoint sequence of
+    intervals over the ordered set of index tuple values.
+
+    For multi-part keys, one can construct a WHERE expression such that its
+    list of intervals will be of combinatorial size. Here is an example:
+     
+      (keypart1 IN (1,2, ..., n1)) AND 
+      (keypart2 IN (1,2, ..., n2)) AND 
+      (keypart3 IN (1,2, ..., n3))
+    
+    For this WHERE clause the list of intervals will have n1*n2*n3 intervals
+    of form
+     
+      (keypart1, keypart2, keypart3) = (k1, k2, k3), where 1 <= k{i} <= n{i}
+    
+    SEL_ARG graph structure aims to reduce the amount of required space by
+    "sharing" the elementary intervals when possible (the pic at the
+    beginning of this comment has examples of such sharing). The sharing may 
+    prevent combinatorial blowup:
+
+      There are WHERE clauses that have combinatorial-size interval lists but
+      will be represented by a compact SEL_ARG graph.
+      Example:
+        (keypartN IN (1,2, ..., n1)) AND 
+        ...
+        (keypart2 IN (1,2, ..., n2)) AND 
+        (keypart1 IN (1,2, ..., n3))
+
+    but not in all cases:
+
+    - There are WHERE clauses that do have a compact SEL_ARG-graph
+      representation but get_mm_tree() and its callees will construct a
+      graph of combinatorial size.
+      Example:
+        (keypart1 IN (1,2, ..., n1)) AND 
+        (keypart2 IN (1,2, ..., n2)) AND 
+        ...
+        (keypartN IN (1,2, ..., n3))
+
+    - There are WHERE clauses for which the minimal possible SEL_ARG graph
+      representation will have combinatorial size.
+      Example:
+        By induction: Let's take any interval on some keypart in the middle:
+
+           kp15=c0
+        
+        Then let's AND it with this interval 'structure' from preceding and
+        following keyparts:
+
+          (kp14=c1 AND kp16=c3) OR keypart14=c2) (*)
+        
+        We will obtain this SEL_ARG graph:
+ 
+             kp14     $      kp15      $      kp16
+                      $                $
+         +---------+  $   +---------+  $   +---------+
+         | kp14=c1 |--$-->| kp15=c0 |--$-->| kp16=c3 |
+         +---------+  $   +---------+  $   +---------+
+              |       $                $              
+         +---------+  $   +---------+  $             
+         | kp14=c2 |--$-->| kp15=c0 |  $             
+         +---------+  $   +---------+  $             
+                      $                $
+                      
+       Note that we had to duplicate "kp15=c0" and there was no way to avoid
+       that. 
+       The induction step: AND the obtained expression with another "wrapping"
+       expression like (*).
+       When the process ends because of the limit on max. number of keyparts 
+       we'll have:
+
+         WHERE clause length  is O(3*#max_keyparts)
+         SEL_ARG graph size   is O(2^(#max_keyparts/2))
+
+       (it is also possible to construct a case where instead of 2 in 2^n we
+        have a bigger constant, e.g. 4, and get a graph with 4^(31/2)= 2^31
+        nodes)
+
+    We avoid consuming too much memory by setting a limit on the number of
+    SEL_ARG object we can construct during one range analysis invocation.
 */
 
 class SEL_ARG :public Sql_alloc
@@ -157,6 +240,8 @@ public:
   SEL_ARG *next_key_part; 
   enum leaf_color { BLACK,RED } color;
   enum Type { IMPOSSIBLE, MAYBE, MAYBE_KEY, KEY_RANGE } type;
+
+  enum { MAX_SEL_ARGS = 16000 };
 
   SEL_ARG() {}
   SEL_ARG(SEL_ARG &);
@@ -227,7 +312,8 @@ public:
     return new SEL_ARG(field, part, min_value, arg->max_value,
 		       min_flag, arg->max_flag, maybe_flag | arg->maybe_flag);
   }
-  SEL_ARG *clone(SEL_ARG *new_parent,SEL_ARG **next);
+  SEL_ARG *clone(struct st_qsel_param *param, SEL_ARG *new_parent, 
+                  SEL_ARG **next);
 
   bool copy_min(SEL_ARG* arg)
   {						// Get overlapping range
@@ -365,7 +451,7 @@ public:
   {
     return parent->left == this ? &parent->left : &parent->right;
   }
-  SEL_ARG *clone_tree();
+  SEL_ARG *clone_tree(struct st_qsel_param *param);
 };
 
 
@@ -391,6 +477,8 @@ typedef struct st_qsel_param {
     max_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH];
   bool quick;				// Don't calulate possible keys
   COND *cond;
+  /* Number of SEL_ARG objects allocated by SEL_ARG::clone_tree operations */
+  uint alloced_sel_args; 
 } PARAM;
 
 static SEL_TREE * get_mm_parts(PARAM *param,COND *cond_func,Field *field,
@@ -413,8 +501,8 @@ static void print_quick(QUICK_SELECT *quick,const key_map* needed_reg);
 static SEL_TREE *tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
 static SEL_TREE *tree_or(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
 static SEL_ARG *sel_add(SEL_ARG *key1,SEL_ARG *key2);
-static SEL_ARG *key_or(SEL_ARG *key1,SEL_ARG *key2);
-static SEL_ARG *key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag);
+static SEL_ARG *key_or(PARAM *param, SEL_ARG *key1,SEL_ARG *key2);
+static SEL_ARG *key_and(PARAM *param, SEL_ARG *key1,SEL_ARG *key2,uint clone_flag);
 static bool get_range(SEL_ARG **e1,SEL_ARG **e2,SEL_ARG *root1);
 static bool get_quick_keys(PARAM *param,QUICK_SELECT *quick,KEY_PART *key,
 			   SEL_ARG *key_tree,char *min_key,uint min_key_flag,
@@ -423,6 +511,7 @@ static bool eq_tree(SEL_ARG* a,SEL_ARG *b);
 
 static SEL_ARG null_element(SEL_ARG::IMPOSSIBLE);
 static bool null_part_in_key(KEY_PART *key_part, const char *key, uint length);
+
 
 /***************************************************************************
 ** Basic functions for SQL_SELECT and QUICK_SELECT
@@ -568,12 +657,17 @@ SEL_ARG::SEL_ARG(Field *field_,uint8 part_,char *min_value_,char *max_value_,
   left=right= &null_element;
 }
 
-SEL_ARG *SEL_ARG::clone(SEL_ARG *new_parent,SEL_ARG **next_arg)
+SEL_ARG *SEL_ARG::clone(PARAM *param, SEL_ARG *new_parent, SEL_ARG **next_arg)
 {
   SEL_ARG *tmp;
+
+  /* Bail out if we have already generated too many SEL_ARGs */
+  if (++param->alloced_sel_args > MAX_SEL_ARGS)
+    return 0;
+
   if (type != KEY_RANGE)
   {
-    if (!(tmp= new SEL_ARG(type)))
+    if (!(tmp= new (param->mem_root) SEL_ARG(type)))
       return 0;					// out of memory
     tmp->prev= *next_arg;			// Link into next/prev chain
     (*next_arg)->next=tmp;
@@ -581,20 +675,21 @@ SEL_ARG *SEL_ARG::clone(SEL_ARG *new_parent,SEL_ARG **next_arg)
   }
   else
   {
-    if (!(tmp= new SEL_ARG(field,part, min_value,max_value,
-			   min_flag, max_flag, maybe_flag)))
+    if (!(tmp= new (param->mem_root) SEL_ARG(field,part, min_value,max_value,
+                                             min_flag, max_flag, maybe_flag)))
       return 0;					// OOM
     tmp->parent=new_parent;
     tmp->next_key_part=next_key_part;
     if (left != &null_element)
-      tmp->left=left->clone(tmp,next_arg);
+      if (!(tmp->left=left->clone(param, tmp, next_arg)))
+	return 0;				// OOM
 
     tmp->prev= *next_arg;			// Link into next/prev chain
     (*next_arg)->next=tmp;
     (*next_arg)= tmp;
 
     if (right != &null_element)
-      if (!(tmp->right= right->clone(tmp,next_arg)))
+      if (!(tmp->right= right->clone(param, tmp, next_arg)))
 	return 0;				// OOM
   }
   increment_use_count(1);
@@ -672,11 +767,12 @@ static int sel_cmp(Field *field, char *a,char *b,uint8 a_flag,uint8 b_flag)
 }
 
 
-SEL_ARG *SEL_ARG::clone_tree()
+SEL_ARG *SEL_ARG::clone_tree(PARAM *param)
 {
   SEL_ARG tmp_link,*next_arg,*root;
   next_arg= &tmp_link;
-  root= clone((SEL_ARG *) 0, &next_arg);
+  if (!(root= clone(param, (SEL_ARG *) 0, &next_arg)))
+    return 0;
   next_arg->next=0;				// Fix last link
   tmp_link.next->prev=0;			// Fix first link
   if (root)					// If not OOM
@@ -890,6 +986,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       param.real_keynr[param.keys++]=idx;
     }
     param.key_parts_end=key_parts;
+    param.alloced_sel_args= 0;
 
     if ((tree=get_mm_tree(&param,cond)))
     {
@@ -991,7 +1088,8 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
       while ((item=li++))
       {
 	SEL_TREE *new_tree=get_mm_tree(param,item);
-	if (param->thd->is_fatal_error)
+	if (param->thd->is_fatal_error || 
+            param->alloced_sel_args > SEL_ARG::MAX_SEL_ARGS)
 	  DBUG_RETURN(0);	// out of memory
 	tree=tree_and(param,tree,new_tree);
 	if (tree && tree->type == SEL_TREE::IMPOSSIBLE)
@@ -1524,7 +1622,7 @@ tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     tree1->type=SEL_TREE::KEY_SMALLER;
     DBUG_RETURN(tree1);
   }
-
+  
   /* Join the trees key per key */
   SEL_ARG **key1,**key2,**end;
   for (key1= tree1->keys,key2= tree2->keys,end=key1+param->keys ;
@@ -1537,12 +1635,13 @@ tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
 	flag|=CLONE_KEY1_MAYBE;
       if (*key2 && !(*key2)->simple_key())
 	flag|=CLONE_KEY2_MAYBE;
-      *key1=key_and(*key1,*key2,flag);
+      *key1=key_and(param, *key1, *key2, flag);
       if (*key1 && (*key1)->type == SEL_ARG::IMPOSSIBLE)
       {
 	tree1->type= SEL_TREE::IMPOSSIBLE;
 #ifdef EXTRA_DEBUG
-        (*key1)->test_use_count(*key1);
+        if (param->alloced_sel_args < SEL_ARG::MAX_SEL_ARGS) 
+          (*key1)->test_use_count(*key1);
 #endif
 	break;
       }
@@ -1574,12 +1673,13 @@ tree_or(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
   for (key1= tree1->keys,key2= tree2->keys,end=key1+param->keys ;
        key1 != end ; key1++,key2++)
   {
-    *key1=key_or(*key1,*key2);
+    *key1= key_or(param, *key1, *key2);
     if (*key1)
     {
       result=tree1;				// Added to tree1
 #ifdef EXTRA_DEBUG
-      (*key1)->test_use_count(*key1);
+      if (param->alloced_sel_args < SEL_ARG::MAX_SEL_ARGS) 
+        (*key1)->test_use_count(*key1);
 #endif
     }
   }
@@ -1590,14 +1690,14 @@ tree_or(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
 /* And key trees where key1->part < key2 -> part */
 
 static SEL_ARG *
-and_all_keys(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
+and_all_keys(PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
 {
   SEL_ARG *next;
   ulong use_count=key1->use_count;
 
   if (key1->elements != 1)
   {
-    key2->use_count+=key1->elements-1;
+    key2->use_count+=key1->elements-1; //psergey: why we don't count that key1 has n-k-p?
     key2->increment_use_count((int) key1->elements-1);
   }
   if (key1->type == SEL_ARG::MAYBE_KEY)
@@ -1609,7 +1709,7 @@ and_all_keys(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
   {
     if (next->next_key_part)
     {
-      SEL_ARG *tmp=key_and(next->next_key_part,key2,clone_flag);
+      SEL_ARG *tmp= key_and(param, next->next_key_part, key2, clone_flag);
       if (tmp && tmp->type == SEL_ARG::IMPOSSIBLE)
       {
 	key1=key1->tree_delete(next);
@@ -1618,6 +1718,8 @@ and_all_keys(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
       next->next_key_part=tmp;
       if (use_count)
 	next->increment_use_count(use_count);
+      if (param->alloced_sel_args > SEL_ARG::MAX_SEL_ARGS)
+        break;
     }
     else
       next->next_key_part=key2;
@@ -1644,7 +1746,7 @@ and_all_keys(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
 */
 
 static SEL_ARG *
-key_and(SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
+key_and(PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
 {
   if (!key1)
     return key2;
@@ -1660,9 +1762,9 @@ key_and(SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
     // key1->part < key2->part
     key1->use_count--;
     if (key1->use_count > 0)
-      if (!(key1= key1->clone_tree()))
+      if (!(key1= key1->clone_tree(param)))
 	return 0;				// OOM
-    return and_all_keys(key1,key2,clone_flag);
+    return and_all_keys(param, key1, key2, clone_flag);
   }
 
   if (((clone_flag & CLONE_KEY2_MAYBE) &&
@@ -1680,14 +1782,14 @@ key_and(SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
     if (key1->use_count > 1)
     {
       key1->use_count--;
-      if (!(key1=key1->clone_tree()))
+      if (!(key1=key1->clone_tree(param)))
 	return 0;				// OOM
       key1->use_count++;
     }
     if (key1->type == SEL_ARG::MAYBE_KEY)
     {						// Both are maybe key
-      key1->next_key_part=key_and(key1->next_key_part,key2->next_key_part,
-				 clone_flag);
+      key1->next_key_part=key_and(param, key1->next_key_part, 
+                                  key2->next_key_part, clone_flag);
       if (key1->next_key_part &&
 	  key1->next_key_part->type == SEL_ARG::IMPOSSIBLE)
 	return key1;
@@ -1698,7 +1800,7 @@ key_and(SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
       if (key2->next_key_part)
       {
 	key1->use_count--;			// Incremented in and_all_keys
-	return and_all_keys(key1,key2,clone_flag);
+	return and_all_keys(param, key1, key2, clone_flag);
       }
       key2->use_count--;			// Key2 doesn't have a tree
     }
@@ -1727,7 +1829,8 @@ key_and(SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
     }
     else if (get_range(&e2,&e1,key2))
       continue;
-    SEL_ARG *next=key_and(e1->next_key_part,e2->next_key_part,clone_flag);
+    SEL_ARG *next=key_and(param, e1->next_key_part, e2->next_key_part,
+                          clone_flag);
     e1->increment_use_count(1);
     e2->increment_use_count(1);
     if (!next || next->type != SEL_ARG::IMPOSSIBLE)
@@ -1775,7 +1878,7 @@ get_range(SEL_ARG **e1,SEL_ARG **e2,SEL_ARG *root1)
 
 
 static SEL_ARG *
-key_or(SEL_ARG *key1,SEL_ARG *key2)
+key_or(PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
 {
   if (!key1)
   {
@@ -1823,7 +1926,7 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
     {
       swap_variables(SEL_ARG *,key1,key2);
     }
-    if (key1->use_count > 0 || !(key1=key1->clone_tree()))
+    if (key1->use_count > 0 || !(key1=key1->clone_tree(param)))
       return 0;					// OOM
   }
 
@@ -1967,7 +2070,7 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
       {						// tmp.min. <= x <= tmp.max
 	tmp->maybe_flag|= key.maybe_flag;
 	key.increment_use_count(key1->use_count+1);
-	tmp->next_key_part=key_or(tmp->next_key_part,key.next_key_part);
+	tmp->next_key_part= key_or(param, tmp->next_key_part, key.next_key_part);
 	if (!cmp)				// Key2 is ready
 	  break;
 	key.copy_max_to_min(tmp);
@@ -1998,7 +2101,7 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
 	tmp->increment_use_count(key1->use_count+1);
 	/* Increment key count as it may be used for next loop */
 	key.increment_use_count(1);
-	new_arg->next_key_part=key_or(tmp->next_key_part,key.next_key_part);
+	new_arg->next_key_part= key_or(param, tmp->next_key_part, key.next_key_part);
 	key1=key1->insert(new_arg);
 	break;
       }
