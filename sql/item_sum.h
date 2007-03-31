@@ -233,6 +233,7 @@ public:
   Item_sum *next; /* next in the circular chain of registered objects  */
   uint arg_count;
   Item_sum *in_sum_func;  /* embedding set function if any */ 
+  st_select_lex * aggr_sel; /* select where the function is aggregated       */ 
   int8 nest_level;        /* number of the nesting level of the set function */
   int8 aggr_level;        /* nesting level of the aggregating subquery       */
   int8 max_arg_level;     /* max level of unbound column references          */
@@ -242,7 +243,6 @@ public:
 protected:  
   table_map used_tables_cache;
   bool forced_const;
-  byte nest_level_tables_count;
 
 public:  
 
@@ -365,6 +365,8 @@ public:
   bool init_sum_func_check(THD *thd);
   bool check_sum_func(THD *thd, Item **ref);
   bool register_sum_func(THD *thd, Item **ref);
+  st_select_lex *depended_from() 
+    { return (nest_level == aggr_level ? 0 : aggr_sel); }
 };
 
 

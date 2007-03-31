@@ -1092,7 +1092,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	key_alg opt_btree_or_rtree
 
 %type <string_list>
-	key_usage_list key_usage_list_inner using_list
+	key_usage_list using_list
 
 %type <key_part>
 	key_part
@@ -5907,19 +5907,15 @@ opt_key_definition:
 	    sel->use_index_ptr= &sel->use_index;
 	    sel->table_join_options|= TL_OPTION_FORCE_INDEX;
 	  }
-	| IGNORE_SYM key_or_index opt_for_join key_usage_list_inner
+	| IGNORE_SYM key_usage_list
 	  {
 	    SELECT_LEX *sel= Select;
-	    sel->ignore_index= *$4;
+	    sel->ignore_index= *$2;
 	    sel->ignore_index_ptr= &sel->ignore_index;
 	  };
 
 key_usage_list:
-	key_or_index key_usage_list_inner
-        { $$= $2; }
-	;
-
-key_usage_list_inner:
+        key_or_index opt_for_join      
 	{ Select->interval_list.empty(); }
         '(' key_list_or_empty ')'
         { $$= &Select->interval_list; }
