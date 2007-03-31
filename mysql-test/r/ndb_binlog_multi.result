@@ -13,6 +13,7 @@ master-bin1.000001	#	Query	#	#	BEGIN
 master-bin1.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin1.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
 master-bin1.000001	#	Write_rows	#	#	table_id: #
+master-bin1.000001	#	Write_rows	#	#	table_id: #
 master-bin1.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin1.000001	#	Query	#	#	COMMIT
 select * from t2 order by a;
@@ -35,6 +36,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t2
@@ -53,6 +55,7 @@ master-bin1.000001	#	Query	#	#	BEGIN
 master-bin1.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin1.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
 master-bin1.000001	#	Write_rows	#	#	table_id: #
+master-bin1.000001	#	Write_rows	#	#	table_id: #
 master-bin1.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin1.000001	#	Query	#	#	COMMIT
 SELECT @the_epoch2:=epoch,inserts,updates,deletes,schemaops FROM 
@@ -70,6 +73,7 @@ master-bin1.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY) E
 master-bin1.000001	#	Query	#	#	BEGIN
 master-bin1.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin1.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+master-bin1.000001	#	Write_rows	#	#	table_id: #
 master-bin1.000001	#	Write_rows	#	#	table_id: #
 master-bin1.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin1.000001	#	Query	#	#	COMMIT

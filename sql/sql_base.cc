@@ -1394,10 +1394,10 @@ void close_temporary_tables(THD *thd)
           due to special characters in the names
         */
         append_identifier(thd, &s_query, table->s->db.str, strlen(table->s->db.str));
-        s_query.q_append('.');
+        s_query.append('.');
         append_identifier(thd, &s_query, table->s->table_name.str,
                           strlen(table->s->table_name.str));
-        s_query.q_append(',');
+        s_query.append(',');
         next= table->next;
         close_temporary(table, 1, 1);
       }
@@ -3815,7 +3815,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 
   tmp_table->reginfo.lock_type= TL_WRITE;	 // Simulate locked
   share->tmp_table= (tmp_table->file->has_transactions() ? 
-                     TRANSACTIONAL_TMP_TABLE : TMP_TABLE);
+                     TRANSACTIONAL_TMP_TABLE : NON_TRANSACTIONAL_TMP_TABLE);
 
   if (link_in_list)
   {

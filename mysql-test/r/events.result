@@ -193,7 +193,7 @@ create event руут21 on schedule every '50:23:59:95' day_second COMMENT 'това е 1
 SHOW CREATE EVENT руут21;
 Event	sql_mode	time_zone	Create Event
 руут21		SYSTEM	CREATE EVENT `руут21` ON SCHEDULE EVERY '51 0:0:35' DAY_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE COMMENT 'това е 1251 коментар' DO select 1
-insert into mysql.event (db, name, body, definer, interval_value, interval_field) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND");
+insert into mysql.event (db, name, body, definer, interval_value, interval_field, originator) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND", 1);
 show create event root22;
 ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
 SHOW EVENTS;
@@ -225,18 +225,18 @@ drop event руут21;
 set names latin1;
 CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
 SHOW EVENTS;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
+events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED	1
 ALTER TABLE mysql.event ADD dummy INT FIRST;
 SHOW EVENTS;
-ERROR HY000: Column count of mysql.event is wrong. Expected 17, found 18. Table probably corrupted
+ERROR HY000: Column count of mysql.event is wrong. Expected 18, found 19. Table probably corrupted
 ALTER TABLE mysql.event DROP dummy, ADD dummy2 VARCHAR(64) FIRST;
 SHOW EVENTS;
-ERROR HY000: Column count of mysql.event is wrong. Expected 17, found 18. Table probably corrupted
+ERROR HY000: Column count of mysql.event is wrong. Expected 18, found 19. Table probably corrupted
 ALTER TABLE mysql.event DROP dummy2;
 SHOW EVENTS;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
+events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED	1
 CREATE TABLE event_like LIKE mysql.event;
 INSERT INTO event_like SELECT * FROM mysql.event;
 ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
@@ -258,10 +258,11 @@ event	CREATE TABLE `event` (
   `last_executed` datetime DEFAULT NULL,
   `starts` datetime DEFAULT NULL,
   `ends` datetime DEFAULT NULL,
-  `status` enum('ENABLED','DISABLED') NOT NULL DEFAULT 'ENABLED',
+  `status` enum('ENABLED','DISABLED','SLAVESIDE_DISABLED') NOT NULL DEFAULT 'ENABLED',
   `on_completion` enum('DROP','PRESERVE') NOT NULL DEFAULT 'DROP',
   `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE') NOT NULL DEFAULT '',
   `comment` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `originator` int(10) NOT NULL,
   `time_zone` char(64) CHARACTER SET latin1 NOT NULL DEFAULT 'SYSTEM',
   PRIMARY KEY (`db`,`name`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Events'
@@ -270,8 +271,8 @@ ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error l
 ALTER TABLE mysql.event MODIFY db char(64) character set utf8 collate utf8_bin default '';
 "This should work"
 SHOW EVENTS;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
+events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED	1
 ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
@@ -280,14 +281,14 @@ SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
 ALTER TABLE mysql.event DROP comment, DROP starts;
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
-ERROR HY000: Column count of mysql.event is wrong. Expected 17, found 15. Table probably corrupted
+ERROR HY000: Column count of mysql.event is wrong. Expected 18, found 16. Table probably corrupted
 DROP TABLE mysql.event;
 CREATE TABLE mysql.event like event_like;
 INSERT INTO  mysql.event SELECT * FROM event_like;
 DROP TABLE event_like;
 SHOW EVENTS;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
+events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED	1
 DROP EVENT intact_check;
 create event e_26 on schedule at '2017-01-01 00:00:00' disable do set @a = 5;
 select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
@@ -400,5 +401,5 @@ ERROR 42000: Incorrect database name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 SHOW EVENTS FROM ``;
 ERROR 42000: Incorrect database name ''
 SHOW EVENTS FROM `events\\test`;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
 drop database events_test;

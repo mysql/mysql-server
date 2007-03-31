@@ -2595,6 +2595,36 @@ end_with_restore_list:
     break;
   }
   case SQLCOM_REPLACE:
+#ifndef DBUG_OFF
+    if (mysql_bin_log.is_open())
+    {
+      /*
+        Generate an incident log event before writing the real event
+        to the binary log.  We put this event is before the statement
+        since that makes it simpler to check that the statement was
+        not executed on the slave (since incidents usually stop the
+        slave).
+
+        Observe that any row events that are generated will be
+        generated before.
+
+        This is only for testing purposes and will not be present in a
+        release build.
+      */
+
+      Incident incident= INCIDENT_NONE;
+      DBUG_PRINT("debug", ("Just before generate_incident()"));
+      DBUG_EXECUTE_IF("incident_database_resync_on_replace",
+                      incident= INCIDENT_LOST_EVENTS;);
+      if (incident)
+      {
+        Incident_log_event ev(thd, incident);
+        mysql_bin_log.write(&ev);
+        mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
+      }
+      DBUG_PRINT("debug", ("Just after generate_incident()"));
+    }
+#endif
   case SQLCOM_INSERT:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -3923,7 +3953,6 @@ create_sp_error:
 	    if (check_access(thd, DELETE_ACL, "mysql", 0, 1, 0, 0))
 	      goto error;
 
-	    /* Does NOT write to binlog */
 	    if (!(res = mysql_drop_function(thd, &lex->spname->m_name)))
 	    {
 	      send_ok(thd);
@@ -5194,6 +5223,7 @@ void mysql_init_multi_delete(LEX *lex)
   lex->query_tables_last= &lex->query_tables;
 }
 
+
 /*
   When you modify mysql_parse(), you may need to mofify
   mysql_test_parse_for_slave() in this same file.
@@ -5206,6 +5236,7 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
 
   mysql_init_query(thd, (uchar*) inBuf, length);
+
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex= thd->lex;

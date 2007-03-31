@@ -481,19 +481,17 @@ static int
 write_event_header_and_base64(Log_event *ev, FILE *result_file,
                               PRINT_EVENT_INFO *print_event_info)
 {
+  IO_CACHE *head= &print_event_info->head_cache;
+  IO_CACHE *body= &print_event_info->body_cache;
   DBUG_ENTER("write_event_header_and_base64");
-  /* Write header and base64 output to cache */
-  IO_CACHE result_cache;
-  if (open_cached_file(&result_cache, NULL, NULL, 0, MYF(MY_WME | MY_NABP)))
-    return 1;
 
-  ev->print_header(&result_cache, print_event_info, FALSE);
-  ev->print_base64(&result_cache, print_event_info, FALSE);
+  /* Write header and base64 output to cache */
+  ev->print_header(head, print_event_info, FALSE);
+  ev->print_base64(body, print_event_info, FALSE);
 
   /* Read data from cache and write to result file */
-  my_b_copy_to_file(&result_cache, result_file);
-  close_cached_file(&result_cache);
-  DBUG_RETURN(0);
+  DBUG_RETURN(copy_event_cache_to_file_and_reinit(head, result_file) ||
+              copy_event_cache_to_file_and_reinit(body, result_file));
 }
 
 
