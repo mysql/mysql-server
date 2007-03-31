@@ -12,10 +12,7 @@ a
 1
 2
 3
-SET @saved = @@debug;
-SET GLOBAL debug="d,incident_database_resync_on_replace";
 REPLACE INTO t1 VALUES (4);
-SET GLOBAL debug=@saved;
 SELECT * FROM t1;
 a
 1
