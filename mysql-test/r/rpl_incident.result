@@ -13,9 +13,9 @@ a
 2
 3
 SET @saved = @@debug;
-SET SESSION debug="d,incident_database_resync_on_replace";
+SET GLOBAL debug="d,incident_database_resync_on_replace";
 REPLACE INTO t1 VALUES (4);
-SET SESSION debug=@saved;
+SET GLOBAL debug=@saved;
 SELECT * FROM t1;
 a
 1
