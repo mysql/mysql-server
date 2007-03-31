@@ -20,7 +20,7 @@
 # ER_SERVER_SHUTDOWN (i.e. disconnection just rolls back transaction
 # and does not make slave to stop)
 flush logs;
---exec $MYSQL_BINLOG --start-position=516 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+--exec $MYSQL_BINLOG --start-position=520 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))

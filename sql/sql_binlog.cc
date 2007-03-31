@@ -163,9 +163,17 @@ void mysql_client_binlog_statement(THD* thd)
                           (ulong) uint4korr(bufptr+EVENT_LEN_OFFSET)));
 #endif
       ev->thd= thd;
-      if (IF_DBUG(int err= ) ev->exec_event(thd->rli_fake))
+      /*
+        We go directly to the application phase, since we don't need
+        to check if the event shall be skipped or not.
+
+        Neither do we have to update the log positions, since that is
+        not used at all: the rli_fake instance is used only for error
+        reporting.
+       */
+      if (IF_DBUG(int err= ) ev->apply_event(thd->rli_fake))
       {
-        DBUG_PRINT("error", ("exec_event() returned: %d", err));
+        DBUG_PRINT("info", ("apply_event() returned: %d", err));
         /*
           TODO: Maybe a better error message since the BINLOG statement
           now contains several events.

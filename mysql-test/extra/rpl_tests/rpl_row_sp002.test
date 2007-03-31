@@ -222,7 +222,7 @@ sync_with_master;
 select * from test.t3;
 
 connection master;
-#show binlog events from 1626;
+#show binlog events from 1627;
 
 
 # First lets cleanup

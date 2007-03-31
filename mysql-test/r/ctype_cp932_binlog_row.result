@@ -6,11 +6,11 @@ CREATE TABLE t1(f1 blob);
 PREPARE stmt1 FROM 'INSERT INTO t1 VALUES(?)';
 SET @var1= x'8300';
 EXECUTE stmt1 USING @var1;
-SHOW BINLOG EVENTS FROM 102;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t1(f1 blob)
-master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 blob)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 SELECT HEX(f1) FROM t1;
 HEX(f1)
 8300

@@ -11,8 +11,7 @@ get_lock("a",10)
 select get_lock("a",10);
 get_lock("a",10)
 1
-show binlog events;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
-master-bin.000001	#	Query	1	#	create database `drop-temp+table-test`
+master-bin.000001	#	Query	#	#	create database `drop-temp+table-test`
 drop database `drop-temp+table-test`;

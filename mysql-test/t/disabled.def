@@ -22,10 +22,10 @@ rpl_ndb_2innodb          : BUG#19227 2006-04-20 pekka pk delete apparently not r
 rpl_ndb_2myisam          : BUG#19227 Seems to pass currently
 rpl_ndb_dd_partitions    : BUG#19259 2006-04-21 rpl_ndb_dd_partitions fails on s/AMD
 rpl_ndb_ddl              : BUG#18946 result file needs update + test needs to checked
+rpl_ddl                  : BUG#26418 2007-03-01 mleich Slave out of sync after CREATE/DROP TEMPORARY TABLE + ROLLBACK on master
 rpl_ndb_innodb2ndb       : Bug #19710  Cluster replication to partition table fails on DELETE FROM statement
 rpl_ndb_myisam2ndb       : Bug #19710  Cluster replication to partition table fails on DELETE FROM statement
 rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
-rpl_multi_engine         : BUG#22583 2006-09-23 lars
 synchronization          : Bug#24529  	Test 'synchronization' fails on Mac pushbuild; Also on Linux 64 bit.
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
