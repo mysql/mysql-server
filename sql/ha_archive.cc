@@ -503,8 +503,8 @@ int ha_archive::init_archive_writer()
   We just implement one additional file extension.
 */
 static const char *ha_archive_exts[] = {
-  ARZ,
   ARM,
+  ARZ,
   NullS
 };
 
