@@ -12666,3 +12666,13 @@ t6	CREATE TABLE `t6` (
   KEY `a` (`a`)
 ) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
 DROP TABLE t1, t2, t4, t5, t6;
+drop table t1, t2, t4;
+create table t1 (i int) engine=archive;
+insert into t1 values (1);
+repair table t1 use_frm;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+select * from t1;
+i
+1
+drop table t1;
