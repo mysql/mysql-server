@@ -458,7 +458,7 @@ NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo, int n)
 }
 
 Uint32
-NdbEventOperationImpl::get_blob_part_no()
+NdbEventOperationImpl::get_blob_part_no(bool hasDist)
 {
   assert(theBlobVersion == 1 || theBlobVersion == 2);
   assert(theMainOp != NULL);
@@ -466,10 +466,11 @@ NdbEventOperationImpl::get_blob_part_no()
   assert(m_data_item != NULL);
   LinearSectionPtr (&ptr)[3] = m_data_item->ptr;
 
-  uint pos = 0; // PK and DIST to skip
+  uint pos = 0; // PK and possibly DIST to skip
 
   if (unlikely(theBlobVersion == 1)) {
     pos += AttributeHeader(ptr[0].p[0]).getDataSize();
+    assert(hasDist);
     pos += AttributeHeader(ptr[0].p[1]).getDataSize();
   } else {
     uint n = mainTable->m_noOfKeys;
@@ -477,7 +478,8 @@ NdbEventOperationImpl::get_blob_part_no()
     for (i = 0; i < n; i++) {
       pos += AttributeHeader(ptr[0].p[i]).getDataSize();
     }
-    pos += AttributeHeader(ptr[0].p[n]).getDataSize();
+    if (hasDist)
+      pos += AttributeHeader(ptr[0].p[n]).getDataSize();
   }
 
   assert(pos < ptr[1].sz);
@@ -494,6 +496,7 @@ NdbEventOperationImpl::readBlobParts(char* buf, NdbBlob* blob,
                       part, count, blob->theEventBlobVersion));
 
   NdbEventOperationImpl* blob_op = blob->theBlobEventOp;
+  const bool hasDist = (blob->theStripeSize != 0);
 
   EventBufData* main_data = m_data_item;
   DBUG_PRINT_EVENT("info", ("main_data=%p", main_data));
@@ -527,7 +530,7 @@ NdbEventOperationImpl::readBlobParts(char* buf, NdbBlob* blob,
     int r = blob_op->receive_event();
     assert(r > 0);
     // XXX should be: no = blob->theBlobEventPartValue
-    Uint32 no = blob_op->get_blob_part_no();
+    Uint32 no = blob_op->get_blob_part_no(hasDist);
 
     DBUG_PRINT_EVENT("info", ("part_data=%p part no=%u part sz=%u", data, no, sz));
 

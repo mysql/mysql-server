@@ -83,8 +83,8 @@ NdbBlob::getBlobTableName(char* btname, const NdbTableImpl* t, const NdbColumnIm
   DBUG_VOID_RETURN;
 }
 
-void
-NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnImpl* c)
+int
+NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnImpl* c, NdbError& error)
 {
   DBUG_ENTER("NdbBlob::getBlobTable");
   const int blobVersion = c->m_blobVersion;
@@ -131,6 +131,14 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
                       blobVersion,
                       bt.m_primaryTableId, (uint)bt.getFragmentType()));
   if (unlikely(blobVersion == NDB_BLOB_V1)) {
+    /*
+     * Stripe size 0 in V1 does not work as intended.
+     * No point to add support for it now.
+     */
+    if (c->getStripeSize() == 0) {
+      error.code = NdbBlobImpl::ErrTable;
+      DBUG_RETURN(-1);
+    }
     { NdbDictionary::Column bc("PK");
       bc.setType(NdbDictionary::Column::Unsigned);
       assert(t->m_keyLenInWords != 0);
@@ -176,15 +184,22 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
       uint i;
       for (i = 0; n < noOfKeys; i++) {
         assert(i < columns);
-        NdbColumnImpl* c = t->m_columns[i];
+        const NdbColumnImpl* c = t->getColumn(i);
         assert(c != NULL);
         if (c->m_pk) {
           bt.addColumn(*c);
+          if (c->getDistributionKey()) {
+            // addColumn might usefully return the column added..
+            NdbColumnImpl* bc = bt.getColumn(n);
+            assert(bc != NULL);
+            bc->setDistributionKey(true);
+          }
           n++;
         }
       }
     }
     // in V2 add NDB$ to avoid conflict with table PK
+    if (c->getStripeSize() != 0)
     { NdbDictionary::Column bc("NDB$DIST");
       bc.setType(NdbDictionary::Column::Unsigned);
       bc.setPrimaryKey(true);
@@ -194,12 +209,8 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
     { NdbDictionary::Column bc("NDB$PART");
       bc.setType(NdbDictionary::Column::Unsigned);
       bc.setPrimaryKey(true);
-      /*
-       * Cannot allow partial distribution key now because
-       * primary table PK may contain unsupported types.
-       * Must be fixed.  All PK types must be supported.
-       */
-      bc.setDistributionKey(true);
+      // wl3717_todo all PK types must be allowed as DK
+      bc.setDistributionKey(false);
       bt.addColumn(bc);
     }
     // in V2 add id sequence for use in blob event code
@@ -228,7 +239,7 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
       bt.addColumn(bc);
     }
   }
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 int
@@ -756,10 +767,23 @@ NdbBlob::setAccessKeyValue(NdbOperation* anOp)
 }
 
 int
+NdbBlob::setDistKeyValue(NdbOperation* anOp, Uint32 part)
+{
+  DBUG_ENTER("NdbBlob::setDistKeyValue");
+  if (theStripeSize != 0) {
+    Uint32 dist = getDistKey(part);
+    DBUG_PRINT("info", ("dist=%u", dist));
+    if (anOp->equal(theBtColumnNo[BtColumnDist], dist) == -1)
+      DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
+}
+
+int
 NdbBlob::setPartKeyValue(NdbOperation* anOp, Uint32 part)
 {
   DBUG_ENTER("NdbBlob::setPartKeyValue");
-  DBUG_PRINT("info", ("dist=%u part=%u packkey=", getDistKey(part), part));
+  DBUG_PRINT("info", ("part=%u packkey=", part));
   DBUG_DUMP("info", thePackKeyBuf.data, 4 * thePackKeyBuf.size);
   // TODO use attr ids after compatibility with 4.1.7 not needed
   if (unlikely(theBlobVersion == NDB_BLOB_V1)) {
@@ -772,7 +796,7 @@ NdbBlob::setPartKeyValue(NdbOperation* anOp, Uint32 part)
     }
   } else {
     if (setTableKeyValue(anOp) == -1 ||
-        anOp->equal(theBtColumnNo[BtColumnDist], getDistKey(part)) == -1 ||
+        setDistKeyValue(anOp, part) == -1 ||
         anOp->equal(theBtColumnNo[BtColumnPart], part) == -1) {
       setErrorCode(anOp);
       DBUG_RETURN(-1);
@@ -1820,6 +1844,7 @@ NdbBlob::atPrepare(NdbEventOperationImpl* anOp, NdbEventOperationImpl* aBlobOp, 
       buf = thePackKeyBuf.data;
       theBlobEventPkRecAttr = theBlobEventOp->getValue(bc, buf, version);
       //
+      assert(theStripeSize != 0);
       bc = theBlobTable->getColumn(theBtColumnNo[BtColumnDist]);
       buf = (char*)&theBlobEventDistValue;
       theBlobEventDistRecAttr = theBlobEventOp->getValue(bc, buf, version);
@@ -1861,9 +1886,11 @@ NdbBlob::atPrepare(NdbEventOperationImpl* anOp, NdbEventOperationImpl* aBlobOp, 
           n++;
         }
       }
-      bc = theBlobTable->getColumn(theBtColumnNo[BtColumnDist]);
-      buf = (char*)&theBlobEventDistValue;
-      theBlobEventDistRecAttr = theBlobEventOp->getValue(bc, buf, version);
+      if (theStripeSize != 0) {
+        bc = theBlobTable->getColumn(theBtColumnNo[BtColumnDist]);
+        buf = (char*)&theBlobEventDistValue;
+        theBlobEventDistRecAttr = theBlobEventOp->getValue(bc, buf, version);
+      }
       //
       bc = theBlobTable->getColumn(theBtColumnNo[BtColumnPart]);
       buf = (char*)&theBlobEventPartValue;
@@ -1877,7 +1904,7 @@ NdbBlob::atPrepare(NdbEventOperationImpl* anOp, NdbEventOperationImpl* aBlobOp, 
       buf = theBlobEventDataBuf.data;
       theBlobEventDataRecAttr = theBlobEventOp->getValue(bc, buf, version);
       if (unlikely(
-            theBlobEventDistRecAttr == NULL ||
+            (theStripeSize != 0 && theBlobEventDistRecAttr == NULL) ||
             theBlobEventPartRecAttr == NULL ||
             theBlobEventPkidRecAttr == NULL ||
             theBlobEventDataRecAttr == NULL
@@ -1896,7 +1923,12 @@ NdbBlob::prepareColumn()
 {
   DBUG_ENTER("prepareColumn");
   NdbDictionary::Column::Type partType = NdbDictionary::Column::Undefined;
+  //
   theBlobVersion = theColumn->m_blobVersion;
+  theInlineSize = theColumn->getInlineSize();
+  thePartSize = theColumn->getPartSize();
+  theStripeSize = theColumn->getStripeSize();
+  //
   if (unlikely(theBlobVersion == NDB_BLOB_V1)) {
     theHeadSize = (NDB_BLOB_V1_HEAD_SIZE << 2);
     theVarsizeBytes = 0;
@@ -1913,6 +1945,8 @@ NdbBlob::prepareColumn()
       setErrorCode(NdbBlobImpl::ErrUsage);
       DBUG_RETURN(-1);
     }
+    // in V1 stripe size is != 0 (except tinyblob)
+    assert(!(thePartSize != 0 && theStripeSize == 0));
     theBtColumnNo[BtColumnPk] = 0;
     theBtColumnNo[BtColumnDist] = 1;
     theBtColumnNo[BtColumnPart] = 2;
@@ -1931,26 +1965,24 @@ NdbBlob::prepareColumn()
       setErrorCode(NdbBlobImpl::ErrUsage);
       DBUG_RETURN(-1);
     }
-    uint noOfKeys = theTable->m_noOfKeys;
-    theBtColumnNo[BtColumnDist] = noOfKeys + 0;
-    theBtColumnNo[BtColumnPart] = noOfKeys + 1;
-    theBtColumnNo[BtColumnPkid] = noOfKeys + 2;
-    theBtColumnNo[BtColumnData] = noOfKeys + 3;
+    uint off = theTable->m_noOfKeys;
+    if (theStripeSize != 0) {
+      theBtColumnNo[BtColumnDist] = off;
+      off += 1;
+    }
+    theBtColumnNo[BtColumnPart] = off + 0;
+    theBtColumnNo[BtColumnPkid] = off + 1;
+    theBtColumnNo[BtColumnData] = off + 2;
   } else {
       setErrorCode(NdbBlobImpl::ErrUsage);
       DBUG_RETURN(-1);
   }
-  // sizes
-  theInlineSize = theColumn->getInlineSize();
-  thePartSize = theColumn->getPartSize();
-  theStripeSize = theColumn->getStripeSize();
   // sanity check
   assert(theColumn->m_attrSize * theColumn->m_arraySize == theHeadSize + theInlineSize);
   if (thePartSize > 0) {
     const NdbTableImpl* bt = NULL;
     const NdbColumnImpl* bc = NULL;
-    if (theStripeSize == 0 ||
-        (bt = theColumn->m_blobTable) == NULL ||
+    if ((bt = theColumn->m_blobTable) == NULL ||
         (bc = bt->getColumn(theBtColumnNo[BtColumnData])) == NULL ||
         bc->getType() != partType ||
         bc->getLength() != (int)thePartSize) {

@@ -356,7 +356,7 @@ public:
   NdbRecAttr *getValue(const NdbColumnImpl *, char *aValue, int n);
   NdbBlob *getBlobHandle(const char *colName, int n);
   NdbBlob *getBlobHandle(const NdbColumnImpl *, int n);
-  Uint32 get_blob_part_no();
+  Uint32 get_blob_part_no(bool hasDist);
   int readBlobParts(char* buf, NdbBlob* blob,
                     Uint32 part, Uint32 count, Uint16* lenLoc);
   int receive_event();

@@ -295,13 +295,13 @@ private:
   int theEventBlobVersion; // -1=normal blob 0=post event 1=pre event
   // define blob table
   static void getBlobTableName(char* btname, const NdbTableImpl* t, const NdbColumnImpl* c);
-  static void getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnImpl* c);
+  static int getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnImpl* c, struct NdbError& error);
   static void getBlobEventName(char* bename, const NdbEventImpl* e, const NdbColumnImpl* c);
   static void getBlobEvent(NdbEventImpl& be, const NdbEventImpl* e, const NdbColumnImpl* c);
   // compute blob table column number for faster access
   enum {
     BtColumnPk = 0,    /* V1 only */
-    BtColumnDist = 1,
+    BtColumnDist = 1,  /* if stripe size != 0 */
     BtColumnPart = 2,
     BtColumnPkid = 3,  /* V2 only */
     BtColumnData = 4
@@ -403,6 +403,7 @@ private:
   int getTableKeyValue(NdbOperation* anOp);
   int setTableKeyValue(NdbOperation* anOp);
   int setAccessKeyValue(NdbOperation* anOp);
+  int setDistKeyValue(NdbOperation* anOp, Uint32 part);
   int setPartKeyValue(NdbOperation* anOp, Uint32 part);
   int setPartPkidValue(NdbOperation* anOp, Uint32 pkid);
   int getPartDataValue(NdbOperation* anOp, char* buf, Uint16* aLenLoc);
