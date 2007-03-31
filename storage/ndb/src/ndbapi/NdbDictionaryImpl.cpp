@@ -205,7 +205,7 @@ NdbColumnImpl::init(Type t)
   case Blob:
     m_precision = 256;
     m_scale = 8000;
-    m_length = 4;
+    m_length = 0; // default no striping
     m_cs = NULL;
     m_arrayType = NDB_ARRAYTYPE_MEDIUM_VAR;
     m_blobVersion = NDB_BLOB_V2;
@@ -213,7 +213,7 @@ NdbColumnImpl::init(Type t)
   case Text:
     m_precision = 256;
     m_scale = 8000;
-    m_length = 4;
+    m_length = 0;
     m_cs = default_cs;
     m_arrayType = NDB_ARRAYTYPE_MEDIUM_VAR;
     m_blobVersion = NDB_BLOB_V2;
@@ -2344,7 +2344,11 @@ NdbDictionaryImpl::createBlobTables(NdbTableImpl& orig, NdbTableImpl &t)
     if (! c.getBlobType() || c.getPartSize() == 0)
       continue;
     NdbTableImpl bt;
-    NdbBlob::getBlobTable(bt, &t, &c);
+    NdbError error;
+    if (NdbBlob::getBlobTable(bt, &t, &c, error) == -1) {
+      m_error.code = error.code;
+      DBUG_RETURN(-1);
+    }
     NdbDictionary::Column::StorageType 
       d = NdbDictionary::Column::StorageTypeDisk;
     if (orig.m_columns[i]->getStorageType() == d)

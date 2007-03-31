@@ -79,6 +79,7 @@ struct Opts {
   const char* opstring;
   uint seed;
   int maxtab;
+  my_bool pk2binary;
   my_bool separate_events;
   uint tweak; // whatever's useful
   my_bool use_table;
@@ -105,7 +106,6 @@ static const char* g_csname = "latin1_swedish_ci";
 
 static uint g_blobinlinesize = 256;
 static uint g_blobpartsize = 2000;
-static uint g_blobstripesize = 2;
 static const uint g_maxblobsize = 100000;
 
 static NdbEventOperation* g_evt_op = 0;
@@ -209,6 +209,9 @@ struct Col {
   bool nullable;
   uint length;
   uint size;
+  uint inlinesize;
+  uint partsize;
+  uint stripesize;
   bool isblob() const {
     return
       type == NdbDictionary::Column::Text ||
@@ -216,14 +219,29 @@ struct Col {
   }
 };
 
-static const Col g_col[] = {
-  { 0, "pk1", NdbDictionary::Column::Unsigned, true, false, 1, 4 },
-  { 1, "pk2", NdbDictionary::Column::Char, true, false,  g_charlen, g_charlen },
-  { 2, "seq", NdbDictionary::Column::Unsigned,  false, false, 1, 4 },
-  { 3, "cc1", NdbDictionary::Column::Char, false, true, g_charlen, g_charlen },
-  { 4, "tx1", NdbDictionary::Column::Text, false, true, 0, 0 },
-  { 5, "tx2", NdbDictionary::Column::Text, false, true, 0, 0 },
-  { 6, "bl1", NdbDictionary::Column::Blob, false, true, 0, 0 } // tinyblob
+// not const, options may modify
+static Col g_col[] = {
+  { 0, "pk1", NdbDictionary::Column::Unsigned,
+       true, false,
+       1, 4, 0, 0, 0  },
+  { 1, "pk2", NdbDictionary::Column::Char,
+       true, false,
+       g_charlen, g_charlen, 0, 0, 0  },
+  { 2, "seq", NdbDictionary::Column::Unsigned,
+       false, true,
+       1, 4, 0, 0, 0  },
+  { 3, "cc1", NdbDictionary::Column::Char,
+       false, true,
+       g_charlen, g_charlen, 0, 0, 0  },
+  { 4, "tx1", NdbDictionary::Column::Text,
+       false, true,
+       0, 0, g_blobinlinesize, g_blobpartsize, 0 }, // V2 distribution
+  { 5, "tx2", NdbDictionary::Column::Text,
+       false, true,
+       0, 0, g_blobinlinesize, g_blobpartsize, 4 },
+  { 6, "bl1", NdbDictionary::Column::Blob, // tinyblob
+       false, true,
+       0, 0, g_blobinlinesize, 0, 0 }
 };
 
 static const uint g_maxcol = sizeof(g_col)/sizeof(g_col[0]);
@@ -240,7 +258,7 @@ ncol()
   return n;
 }
 
-static const Col&
+static Col&
 getcol(uint i)
 {
   if (i < ncol())
@@ -249,7 +267,7 @@ getcol(uint i)
   return g_col[0];
 }
 
-static const Col&
+static Col&
 getcol(const char* name)
 {
   uint i;
@@ -305,9 +323,7 @@ createtable(Tab& t)
     NdbDictionary::Column col(c.name);
     col.setType(c.type);
     col.setPrimaryKey(c.pk);
-    if (! c.pk)
-      col.setNullable(true);
-    col.setLength(c.length);
+    col.setNullable(c.nullable);
     switch (c.type) {
     case NdbDictionary::Column::Unsigned:
       break;
@@ -315,18 +331,21 @@ createtable(Tab& t)
       col.setLength(c.length);
       col.setCharset(cs);
       break;
+    case NdbDictionary::Column::Binary:
+      col.setLength(c.length);
+      break;
     case NdbDictionary::Column::Text:
       col.setBlobVersion(g_opts.blob_version);
-      col.setInlineSize(g_blobinlinesize);
-      col.setPartSize(g_blobpartsize);
-      col.setStripeSize(g_blobstripesize);
+      col.setInlineSize(c.inlinesize);
+      col.setPartSize(c.partsize);
+      col.setStripeSize(c.stripesize);
       col.setCharset(cs);
       break;
     case NdbDictionary::Column::Blob:
       col.setBlobVersion(g_opts.blob_version);
-      col.setInlineSize(g_blobinlinesize);
-      col.setPartSize(0);
-      col.setStripeSize(0);
+      col.setInlineSize(c.inlinesize);
+      col.setPartSize(c.partsize);
+      col.setStripeSize(c.stripesize);
       break;
     default:
       assert(false);
@@ -509,6 +528,7 @@ cmpcol(const Col& c, const Data& d1, const Data& d2)
         return 1;
       break;
     case NdbDictionary::Column::Char:
+    case NdbDictionary::Column::Binary:
       if (memcmp(d1.ptr[i].ch, d2.ptr[i].ch, c.size) != 0)
         return 1;
       break;
@@ -550,6 +570,7 @@ operator<<(NdbOut& out, const Data& d)
       out << *d.ptr[i].u32;
       break;
     case NdbDictionary::Column::Char:
+    case NdbDictionary::Column::Binary:
       {
         char buf[g_charlen + 1];
         memcpy(buf, d.ptr[i].ch, g_charlen);
@@ -1314,6 +1335,7 @@ makedata(const Col& c, Data& d, Uint32 pk1, Op::Type optype)
       }
       break;
     case NdbDictionary::Column::Char:
+    case NdbDictionary::Column::Binary:
       {
         char* p = d.ptr[i].ch;
         sprintf(p, "%-*u", g_charlen, pk1);
@@ -1347,6 +1369,7 @@ makedata(const Col& c, Data& d, Uint32 pk1, Op::Type optype)
       }
       break;
     case NdbDictionary::Column::Char:
+    case NdbDictionary::Column::Binary:
       {
         char* p = d.ptr[i].ch;
         uint u = urandom(g_charlen);
@@ -2242,6 +2265,9 @@ my_long_options[] =
   { "blob-version", 1018, "Blob version 1 or 2 (default 2)",
     (gptr*)&g_opts.blob_version, (gptr*)&g_opts.blob_version, 0,
     GET_INT, REQUIRED_ARG, 2, 0, 0, 0, 0, 0 },
+  { "pk2binary", 1019, "Make pk2 binary",
+    (gptr*)&g_opts.pk2binary, (gptr*)&g_opts.pk2binary, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0,
     0, 0, 0,
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
@@ -2256,9 +2282,6 @@ usage()
 static int
 checkopts()
 {
-  if (g_opts.blob_version < 1 || g_opts.blob_version > 2) {
-    return -1;
-  }
   if (g_opts.separate_events) {
     g_opts.no_blobs = true;
   }
@@ -2298,6 +2321,17 @@ checkopts()
   if (g_opts.maxpk > g_maxpk ||
       g_opts.maxtab > g_maxtab) {
     return -1;
+  }
+  if (g_opts.blob_version < 1 || g_opts.blob_version > 2) {
+    return -1;
+  }
+  if (g_opts.blob_version == 1 && ! g_opts.no_blobs) {
+    Col& c = getcol("tx1");
+    c.stripesize = 4;
+  }
+  if (g_opts.pk2binary) {
+    Col& c = getcol("pk2");
+    c.type = NdbDictionary::Column::Binary;
   }
   return 0;
 }
