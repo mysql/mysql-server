@@ -2734,6 +2734,7 @@ loop:
     }
     // distribution key not supported for Char attribute
     if (distKeys && col->m_distributionKey && col->m_cs != NULL) {
+#if 0 // wl3717_todo
       // we can allow this for non-var char where strxfrm does nothing
       if (col->m_type == NdbDictionary::Column::Char &&
           (col->m_cs->state & MY_CS_BINSORT))
@@ -2742,6 +2743,7 @@ loop:
         m_error.code= 745;
         DBUG_RETURN(-1);
       }
+#endif
     }
     // charset in upper half of precision
     if (col->getCharType()) {

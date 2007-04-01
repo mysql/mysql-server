@@ -23,6 +23,31 @@
 #include <OutputStream.hpp>
 #include <NdbTest.hpp>
 #include <NdbTick.h>
+#include <my_sys.h>
+
+struct Chr {
+  NdbDictionary::Column::Type m_type;
+  bool m_fixed;
+  bool m_binary;
+  uint m_len; // native
+  uint m_bytelen; // in bytes
+  uint m_totlen; // plus length bytes
+  const char* m_cs;
+  CHARSET_INFO* m_csinfo;
+  uint m_mblen;
+  bool m_caseins; // for latin letters
+  Chr() :
+    m_type(NdbDictionary::Column::Char),
+    m_fixed(false),
+    m_binary(false),
+    m_len(55),
+    m_bytelen(0),
+    m_totlen(0),
+    m_cs("utf8"),
+    m_csinfo(0),
+    m_caseins(true)
+  {}
+};
 
 struct Opt {
   unsigned m_batch;
@@ -44,12 +69,8 @@ struct Opt {
   const char* m_x1name;  // hash index
   const char* m_x2name;  // ordered index
   unsigned m_pk1off;
-  unsigned m_pk2len;
-  unsigned m_pk2totlen;
-  bool m_pk2fixed;
-  bool m_pk2binary;
+  Chr m_pk2chr;
   bool m_pk2part;
-  uint m_pk2type;
   bool m_oneblob;
   // perf
   const char* m_tnameperf;
@@ -77,10 +98,7 @@ struct Opt {
     m_x1name("TB1X1"),
     m_x2name("TB1X2"),
     m_pk1off(0x12340000),
-    m_pk2len(55),
-    m_pk2totlen(0),
-    m_pk2fixed(false),
-    m_pk2binary(false),
+    m_pk2chr(),
     m_pk2part(false),
     m_oneblob(false),
     // perf
@@ -88,11 +106,9 @@ struct Opt {
     m_rowsperf(10000),
     // bugs
     m_bug(0),
-    m_bugtest(0) {
-  }
+    m_bugtest(0)
+  {}
 };
-
-static const unsigned g_max_pk2len = 255;
 
 static void
 printusage()
@@ -104,7 +120,7 @@ printusage()
     << "  -core       dump core on error" << endl
     << "  -dbg        print program debug" << endl
     << "  -debug opt  also ndb api DBUG (if no ':' becomes d:t:F:L:o,opt)" << endl
-    << "  -fac        fetch across commit in scan delete [" << d.m_fac << "]" << endl
+    << "  -fac        fetch across commit in scan delete" << endl
     << "  -full       read/write only full blob values" << endl
     << "  -loop N     loop N times 0=forever [" << d.m_loop << "]" << endl
     << "  -min        small blob sizes" << endl
@@ -116,9 +132,10 @@ printusage()
     << "  -test xxx   only given tests (see list) [all tests]" << endl
     << "  -version N  blob version 1 or 2 [" << d.m_blob_version << "]" << endl
     << "metadata" << endl
-    << "  -pk2len N   length of PK2, zero omits PK2,PK3  [" << d.m_pk2len << "/" << g_max_pk2len <<"]" << endl
+    << "  -pk2len N   native length of PK2, zero omits PK2,PK3 [" << d.m_pk2chr.m_len << "]" << endl
     << "  -pk2fixed   PK2 is Char [default Varchar]" << endl
     << "  -pk2binary  PK2 is Binary or Varbinary" << endl
+    << "  -pk2cs      PK2 charset or collation [" << d.m_pk2chr.m_cs << "]" << endl
     << "  -pk2part    partition primary table by PK2" << endl
     << "  -oneblob    only 1 blob attribute [default 2]" << endl
     << "testcases for test/skip" << endl
@@ -131,6 +148,7 @@ printusage()
     << "  u           update existing blob value" << endl
     << "  n           normal insert and update" << endl
     << "  w           insert and update using writeTuple" << endl
+    << "  d           delete, can skip only for one subtest" << endl
     << "  0           getValue / setValue" << endl
     << "  1           setActiveHook" << endl
     << "  2           readData / writeData" << endl
@@ -272,6 +290,7 @@ createTable()
   NdbDictionary::Table tab(g_opt.m_tname);
   tab.setLogging(false);
   tab.setFragmentType(NdbDictionary::Object::FragAllLarge);
+  const Chr& pk2chr = g_opt.m_pk2chr;
   // col PK1 - Uint32
   { NdbDictionary::Column col("PK1");
     col.setType(NdbDictionary::Column::Unsigned);
@@ -289,12 +308,14 @@ createTable()
     col.setStripeSize(b.m_stripe);
     tab.addColumn(col);
   }
-  // col PK2 - Char or Varchar, charset binary
-  if (g_opt.m_pk2len != 0)
+  // col PK2 - Char or Varchar
+  if (pk2chr.m_len != 0)
   { NdbDictionary::Column col("PK2");
-    col.setType((NdbDictionary::Column::Type)g_opt.m_pk2type);
-    col.setLength(g_opt.m_pk2len);
+    col.setType(pk2chr.m_type);
     col.setPrimaryKey(true);
+    col.setLength(pk2chr.m_bytelen);
+    if (pk2chr.m_csinfo != 0)
+      col.setCharset(pk2chr.m_csinfo);
     if (g_opt.m_pk2part)
       col.setPartitionKey(true);
     tab.addColumn(col);
@@ -312,7 +333,7 @@ createTable()
     tab.addColumn(col);
   }
   // col PK3 - puts the Var* key PK2 between PK1 and PK3
-  if (g_opt.m_pk2len != 0)
+  if (pk2chr.m_len != 0)
   { NdbDictionary::Column col("PK3");
     col.setType(NdbDictionary::Column::Smallunsigned);
     col.setPrimaryKey(true);
@@ -321,7 +342,7 @@ createTable()
   // create table
   CHK(g_dic->createTable(tab) == 0);
   // unique hash index on PK2,PK3
-  if (g_opt.m_pk2len != 0)
+  if (g_opt.m_pk2chr.m_len != 0)
   { NdbDictionary::Index idx(g_opt.m_x1name);
     idx.setType(NdbDictionary::Index::UniqueHashIndex);
     idx.setLogging(false);
@@ -331,7 +352,7 @@ createTable()
     CHK(g_dic->createIndex(idx) == 0);
   }
   // ordered index on PK2
-  if (g_opt.m_pk2len != 0)
+  if (g_opt.m_pk2chr.m_len != 0)
   { NdbDictionary::Index idx(g_opt.m_x2name);
     idx.setType(NdbDictionary::Index::OrderedIndex);
     idx.setLogging(false);
@@ -343,6 +364,12 @@ createTable()
 }
 
 // tuples
+
+static unsigned
+urandom(unsigned n)
+{
+  return n == 0 ? 0 : random() % n;
+}
 
 struct Bval {
   const Bcol& m_bcol;
@@ -405,14 +432,16 @@ operator<<(NdbOut& out, const Bval& v)
 struct Tup {
   bool m_exists;        // exists in table
   Uint32 m_pk1;         // in V1 primary keys concatenated like keyinfo
-  char *m_pk2;
+  char* m_pk2;
+  char* m_pk2eq;        // equivalent (if case independent)
   Uint16 m_pk3;
   Bval m_bval1;
   Bval m_bval2;
   Uint32 m_frag;
   Tup() :
     m_exists(false),
-    m_pk2(new char [g_opt.m_pk2totlen]),
+    m_pk2(new char [g_opt.m_pk2chr.m_totlen + 1]), // nullterm for convenience
+    m_pk2eq(new char [g_opt.m_pk2chr.m_totlen + 1]),
     m_bval1(g_blob1),
     m_bval2(g_blob2),
     m_frag(~(Uint32)0)
@@ -420,6 +449,8 @@ struct Tup {
   ~Tup() {
     delete [] m_pk2;
     m_pk2 = 0;
+    delete [] m_pk2eq;
+    m_pk2eq = 0;
   }
   // alloc buffers of max size
   void alloc() {
@@ -431,18 +462,16 @@ struct Tup {
     m_bval1.copyfrom(tup.m_bval1);
     m_bval2.copyfrom(tup.m_bval2);
   }
+  // return pk2 or pk2eq at random
+  char* pk2() {
+    return urandom(2) == 0 ? m_pk2 : m_pk2eq;
+  }
 private:
   Tup(const Tup&);
   Tup& operator=(const Tup&);
 };
 
 static Tup* g_tups;
-
-static unsigned
-urandom(unsigned n)
-{
-  return n == 0 ? 0 : random() % n;
-}
 
 static void
 calcBval(const Bcol& b, Bval& v, bool keepsize)
@@ -462,7 +491,7 @@ calcBval(const Bcol& b, Bval& v, bool keepsize)
     delete [] v.m_val;
     v.m_val = new char [v.m_len + 1];
     for (unsigned i = 0; i < v.m_len; i++)
-      v.m_val[i] = 'a' + urandom(25);
+      v.m_val[i] = 'a' + urandom(26);
     v.m_val[v.m_len] = 0;
     v.m_buf = new char [v.m_len];
   }
@@ -481,29 +510,41 @@ calcBval(Tup& tup, bool keepsize)
 static void
 calcTups(bool keys, bool keepsize)
 {
-  for (unsigned k = 0; k < g_opt.m_rows; k++) {
+  for (uint k = 0; k < g_opt.m_rows; k++) {
     Tup& tup = g_tups[k];
     if (keys) {
       tup.m_pk1 = g_opt.m_pk1off + k;
       {
-        char* p = tup.m_pk2;
-        uint sz = urandom(g_opt.m_pk2len + 1);
-        if (! g_opt.m_pk2fixed) {
-          *(uchar*)p = sz;
-          p++;
-        }
+        const Chr& c = g_opt.m_pk2chr;
+        char* const p = tup.m_pk2;
+        char* const q = tup.m_pk2eq;
+        uint len = urandom(c.m_len + 1);
         uint i = 0;
-        while (i < sz) {
-          p[i] = 'a' + urandom(26);
+        if (! c.m_fixed) {
+          *(uchar*)&p[0] = *(uchar*)&q[0] = len;
           i++;
         }
-        while (i < g_opt.m_pk2len) {
-          if (g_opt.m_pk2fixed)
-            p[i] = 0x40;
+        while (i < len) {
+          // mixed case for distribution check
+          if (urandom(3) == 0) {
+            uint u = urandom(26);
+            p[i] = 'A' + u;
+            q[i] = c.m_caseins ? 'a' + u : 'A' + u;
+          } else {
+            uint u = urandom(26);
+            p[i] = 'a' + u;
+            q[i] = c.m_caseins ? 'A' + u : 'a' + u;
+          }
+          i++;
+        }
+        while (i < c.m_bytelen) {
+          if (c.m_fixed)
+            p[i] = q[i] = 0x20;
           else
-            p[i] = 'A' + urandom(26); //garbage
+            p[i] = q[i] = '#'; // garbage
           i++;
         }
+        p[i] = q[i] = 0; // convenience
       }
       tup.m_pk3 = (Uint16)k;
     }
@@ -823,8 +864,8 @@ verifyHeadInline(Tup& tup)
   CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
   CHK(g_opr->readTuple() == 0);
   CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
-  if (g_opt.m_pk2len != 0) {
-    CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+  if (g_opt.m_pk2chr.m_len != 0) {
+    CHK(g_opr->equal("PK2", tup.pk2()) == 0);
     CHK(g_opr->equal("PK3", (char*)&tup.m_pk3) == 0);
   }
   NdbRecAttr* ra1;
@@ -882,7 +923,7 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 m_frag, bool exists)
     CHK((ra_data = g_ops->getValue("DATA")) != 0);
   } else {
     CHK((ra_pk1 = g_ops->getValue("PK1")) != 0);
-    if (g_opt.m_pk2len != 0) {
+    if (g_opt.m_pk2chr.m_len != 0) {
       CHK((ra_pk2 = g_ops->getValue("PK2")) != 0);
       CHK((ra_pk3 = g_ops->getValue("PK3")) != 0);
     }
@@ -991,7 +1032,7 @@ insertPk(int style)
     CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
     CHK(g_opr->insertTuple() == 0);
     CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
-    if (g_opt.m_pk2len != 0) {
+    if (g_opt.m_pk2chr.m_len != 0) {
       CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
       CHK(g_opr->equal("PK3", (char*)&tup.m_pk3) == 0);
     }
@@ -1040,8 +1081,8 @@ readPk(int style)
     else
       CHK(g_opr->readTuple(NdbOperation::LM_CommittedRead) == 0);
     CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
-    if (g_opt.m_pk2len != 0) {
-      CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+    if (g_opt.m_pk2chr.m_len != 0) {
+      CHK(g_opr->equal("PK2", tup.pk2()) == 0);
       CHK(g_opr->equal("PK3", (char*)&tup.m_pk3) == 0);
     }
     CHK(getBlobHandles(g_opr) == 0);
@@ -1089,8 +1130,8 @@ updatePk(int style)
         CHK(g_opr->readTuple() == 0);
       }
       CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
-      if (g_opt.m_pk2len != 0) {
-        CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+      if (g_opt.m_pk2chr.m_len != 0) {
+        CHK(g_opr->equal("PK2", tup.pk2()) == 0);
         CHK(g_opr->equal("PK3", (char*)&tup.m_pk3) == 0);
       }
       CHK(getBlobHandles(g_opr) == 0);
@@ -1127,8 +1168,8 @@ writePk(int style)
     CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
     CHK(g_opr->writeTuple() == 0);
     CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
-    if (g_opt.m_pk2len != 0) {
-      CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+    if (g_opt.m_pk2chr.m_len != 0) {
+      CHK(g_opr->equal("PK2", tup.pk2()) == 0);
       CHK(g_opr->equal("PK3", (char*)&tup.m_pk3) == 0);
     }
     CHK(getBlobHandles(g_opr) == 0);
@@ -1165,8 +1206,8 @@ deletePk()
     CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
     CHK(g_opr->deleteTuple() == 0);
     CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
-    if (g_opt.m_pk2len != 0) {
-      CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+    if (g_opt.m_pk2chr.m_len != 0) {
+      CHK(g_opr->equal("PK2", tup.pk2()) == 0);
       CHK(g_opr->equal("PK3", (char*)&tup.m_pk3) == 0);
     }
     if (++n == g_opt.m_batch) {
@@ -1202,7 +1243,7 @@ readIdx(int style)
       CHK(g_opx->readTuple() == 0);
     else
       CHK(g_opx->readTuple(NdbOperation::LM_CommittedRead) == 0);
-    CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
+    CHK(g_opx->equal("PK2", tup.pk2()) == 0);
     CHK(g_opx->equal("PK3", (char*)&tup.m_pk3) == 0);
     CHK(getBlobHandles(g_opx) == 0);
     if (style == 0) {
@@ -1237,7 +1278,7 @@ updateIdx(int style)
     CHK((g_con = g_ndb->startTransaction()) != 0);
     CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
     CHK(g_opx->updateTuple() == 0);
-    CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
+    CHK(g_opx->equal("PK2", tup.pk2()) == 0);
     CHK(g_opx->equal("PK3", (char*)&tup.m_pk3) == 0);
     CHK(getBlobHandles(g_opx) == 0);
     if (style == 0) {
@@ -1267,7 +1308,7 @@ writeIdx(int style)
     CHK((g_con = g_ndb->startTransaction()) != 0);
     CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
     CHK(g_opx->writeTuple() == 0);
-    CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
+    CHK(g_opx->equal("PK2", tup.pk2()) == 0);
     CHK(g_opx->equal("PK3", (char*)&tup.m_pk3) == 0);
     CHK(getBlobHandles(g_opx) == 0);
     if (style == 0) {
@@ -1302,7 +1343,7 @@ deleteIdx()
     DBG("deleteIdx pk1=" << hex << tup.m_pk1);
     CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
     CHK(g_opx->deleteTuple() == 0);
-    CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
+    CHK(g_opx->equal("PK2", tup.pk2()) == 0);
     CHK(g_opx->equal("PK3", (char*)&tup.m_pk3) == 0);
     if (++n == g_opt.m_batch) {
       CHK(g_con->execute(Commit) == 0);
@@ -1339,7 +1380,7 @@ readScan(int style, bool idx)
   else
     CHK(g_ops->readTuples(NdbOperation::LM_CommittedRead) == 0);
   CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
-  if (g_opt.m_pk2len != 0) {
+  if (g_opt.m_pk2chr.m_len != 0) {
     CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
     CHK(g_ops->getValue("PK3", (char*)&tup.m_pk3) != 0);
   }
@@ -1356,7 +1397,7 @@ readScan(int style, bool idx)
   while (1) {
     int ret;
     tup.m_pk1 = (Uint32)-1;
-    memset(tup.m_pk2, 'x', g_opt.m_pk2len);
+    memset(tup.m_pk2, 'x', g_opt.m_pk2chr.m_len);
     CHK((ret = g_ops->nextResult(true)) == 0 || ret == 1);
     if (ret == 1)
       break;
@@ -1395,7 +1436,7 @@ updateScan(int style, bool idx)
   }
   CHK(g_ops->readTuples(NdbOperation::LM_Exclusive) == 0);
   CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
-  if (g_opt.m_pk2len != 0) {
+  if (g_opt.m_pk2chr.m_len != 0) {
     CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
     CHK(g_ops->getValue("PK3", (char*)&tup.m_pk3) != 0);
   }
@@ -1404,7 +1445,7 @@ updateScan(int style, bool idx)
   while (1) {
     int ret;
     tup.m_pk1 = (Uint32)-1;
-    memset(tup.m_pk2, 'x', g_opt.m_pk2len);
+    memset(tup.m_pk2, 'x', g_opt.m_pk2chr.m_len);
     CHK((ret = g_ops->nextResult(true)) == 0 || ret == 1);
     if (ret == 1)
       break;
@@ -1450,7 +1491,7 @@ deleteScan(bool idx)
   }
   CHK(g_ops->readTuples(NdbOperation::LM_Exclusive) == 0);
   CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
-  if (g_opt.m_pk2len != 0) {
+  if (g_opt.m_pk2chr.m_len != 0) {
     CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
     CHK(g_ops->getValue("PK3", (char*)&tup.m_pk3) != 0);
   }
@@ -1460,7 +1501,7 @@ deleteScan(bool idx)
   while (1) {
     int ret;
     tup.m_pk1 = (Uint32)-1;
-    memset(tup.m_pk2, 'x', g_opt.m_pk2len);
+    memset(tup.m_pk2, 'x', g_opt.m_pk2chr.m_len);
     CHK((ret = g_ops->nextResult(true)) == 0 || ret == 1);
     if (ret == 1)
       break;
@@ -1472,7 +1513,7 @@ deleteScan(bool idx)
       CHK(g_ops->deleteCurrentTuple() == 0);
       rows++;
       tup.m_pk1 = (Uint32)-1;
-      memset(tup.m_pk2, 'x', g_opt.m_pk2len);
+      memset(tup.m_pk2, 'x', g_opt.m_pk2chr.m_len);
       CHK((ret = g_ops->nextResult(false)) == 0 || ret == 1 || ret == 2);
       if (++n == g_opt.m_batch || ret == 2) {
         DBG("execute batch: n=" << n << " ret=" << ret);
@@ -1556,8 +1597,10 @@ testmain()
           CHK(verifyBlob() == 0);
           CHK(readPk(style) == 0);
         }
-        CHK(deletePk() == 0);
-        CHK(verifyBlob() == 0);
+        if (testcase('d')) {
+          CHK(deletePk() == 0);
+          CHK(verifyBlob() == 0);
+        }
       }
       if (testcase('w')) {
         calcTups(false, false);
@@ -1570,8 +1613,10 @@ testmain()
           CHK(verifyBlob() == 0);
           CHK(readPk(style) == 0);
         }
-        CHK(deletePk() == 0);
-        CHK(verifyBlob() == 0);
+        if (testcase('d')) {
+          CHK(deletePk() == 0);
+          CHK(verifyBlob() == 0);
+        }
       }
     }
     // hash index
@@ -1590,8 +1635,10 @@ testmain()
           CHK(verifyBlob() == 0);
           CHK(readIdx(style) == 0);
         }
-        CHK(deleteIdx() == 0);
-        CHK(verifyBlob() == 0);
+        if (testcase('d')) {
+          CHK(deleteIdx() == 0);
+          CHK(verifyBlob() == 0);
+        }
       }
       if (testcase('w')) {
         calcTups(false, false);
@@ -1604,8 +1651,10 @@ testmain()
           CHK(verifyBlob() == 0);
           CHK(readIdx(style) == 0);
         }
-        CHK(deleteIdx() == 0);
-        CHK(verifyBlob() == 0);
+        if (testcase('d')) {
+          CHK(deleteIdx() == 0);
+          CHK(verifyBlob() == 0);
+        }
       }
     }
     // scan table
@@ -1621,8 +1670,10 @@ testmain()
         CHK(updateScan(style, false) == 0);
         CHK(verifyBlob() == 0);
       }
-      CHK(deleteScan(false) == 0);
-      CHK(verifyBlob() == 0);
+      if (testcase('d')) {
+        CHK(deleteScan(false) == 0);
+        CHK(verifyBlob() == 0);
+      }
     }
     // scan index
     for (style = 0; style <= 2; style++) {
@@ -1637,8 +1688,10 @@ testmain()
         CHK(updateScan(style, true) == 0);
         CHK(verifyBlob() == 0);
       }
-      CHK(deleteScan(true) == 0);
-      CHK(verifyBlob() == 0);
+      if (testcase('d')) {
+        CHK(deleteScan(true) == 0);
+        CHK(verifyBlob() == 0);
+      }
     }
   }
   delete g_ndb;
@@ -1975,7 +2028,7 @@ bugtest_4088()
     // verify
     for (i = 0; i < pkcnt; i++) {
       CHK(pktup[i].m_pk1 == tup.m_pk1);
-      CHK(memcmp(pktup[i].m_pk2, tup.m_pk2, g_opt.m_pk2len) == 0);
+      CHK(memcmp(pktup[i].m_pk2, tup.m_pk2, g_opt.m_pk2chr.m_len) == 0);
     }
     CHK(memcmp(tup.m_bval1.m_val, tup.m_bval1.m_buf, 8 + g_blob1.m_inline) == 0);
   }
@@ -2007,7 +2060,7 @@ bugtest_27018()
     CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
     CHK(g_opr->updateTuple() == 0);
     CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
-    if (g_opt.m_pk2len != 0) {
+    if (g_opt.m_pk2chr.m_len != 0) {
       CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
       CHK(g_opr->equal("PK3", (char*)&tup.m_pk3) == 0);
     }
@@ -2024,7 +2077,7 @@ bugtest_27018()
     CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
     CHK(g_opr->readTuple() == 0);
     CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
-    if (g_opt.m_pk2len != 0) {
+    if (g_opt.m_pk2chr.m_len != 0) {
       CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
       CHK(g_opr->equal("PK3", (char*)&tup.m_pk3) == 0);
     }
@@ -2079,6 +2132,7 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
       strcat(cmdline, argv[i]);
     }
   }
+  Chr& pk2chr = g_opt.m_pk2chr;
   while (++argv, --argc > 0) {
     const char* arg = argv[0];
     if (strcmp(arg, "-batch") == 0) {
@@ -2166,18 +2220,23 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
     // metadata
     if (strcmp(arg, "-pk2len") == 0) {
       if (++argv, --argc > 0) {
-	g_opt.m_pk2len = atoi(argv[0]);
-        if (g_opt.m_pk2len <= g_max_pk2len)
-          continue;
+	pk2chr.m_len = atoi(argv[0]);
+        continue;
       }
     }
     if (strcmp(arg, "-pk2fixed") == 0) {
-      g_opt.m_pk2fixed = true;
+      pk2chr.m_fixed = true;
       continue;
     }
     if (strcmp(arg, "-pk2binary") == 0) {
-      g_opt.m_pk2binary = true;
+      pk2chr.m_binary = true;
       continue;
+    }
+    if (strcmp(arg, "-pk2cs") == 0) {
+      if (++argv, --argc > 0) {
+        pk2chr.m_cs = strdup(argv[0]);
+	continue;
+      }
     }
     if (strcmp(arg, "-pk2part") == 0) {
       g_opt.m_pk2part = true;
@@ -2201,9 +2260,12 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
           continue;
       }
     }
+    if (strcmp(arg, "-?") == 0 || strcmp(arg, "-h") == 0) {
+      printusage();
+      goto success;
+    }
     ndbout << "testOIBasic: unknown option " << arg << endl;
-    printusage();
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+    goto wrongargs;
   }
   if (g_opt.m_debug != 0) {
     if (strchr(g_opt.m_debug, ':') == 0) {
@@ -2216,7 +2278,7 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
     DBUG_PUSH(g_opt.m_debug);
     ndbout.m_out = new FileOutputStream(DBUG_FILE);
   }
-  if (g_opt.m_pk2len == 0) {
+  if (pk2chr.m_len == 0) {
     char b[100];
     b[0] = 0;
     if (g_opt.m_skip != 0)
@@ -2225,20 +2287,43 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
     strcat(b, "r");
     g_opt.m_skip = strdup(b);
   }
-  if (g_opt.m_pk2len != 0) {
-    if (g_opt.m_pk2fixed) {
-      if (g_opt.m_pk2binary)
-        g_opt.m_pk2type = NdbDictionary::Column::Binary;
+  if (pk2chr.m_len != 0) {
+    Chr& c = pk2chr;
+    if (c.m_binary) {
+      if (c.m_fixed)
+        c.m_type = NdbDictionary::Column::Binary;
       else
-        g_opt.m_pk2type = NdbDictionary::Column::Char;
-      g_opt.m_pk2totlen = g_opt.m_pk2len;
+        c.m_type = NdbDictionary::Column::Varbinary;
+      c.m_mblen = 1;
+      c.m_cs = 0;
     } else {
-      if (g_opt.m_pk2binary)
-        g_opt.m_pk2type = NdbDictionary::Column::Varbinary;
+      assert(c.m_cs != 0);
+      if (c.m_fixed)
+        c.m_type = NdbDictionary::Column::Char;
       else
-        g_opt.m_pk2type = NdbDictionary::Column::Varchar;
-      g_opt.m_pk2totlen = 1 + g_opt.m_pk2len;
+        c.m_type = NdbDictionary::Column::Varchar;
+      c.m_csinfo = get_charset_by_name(c.m_cs, MYF(0));
+      if (c.m_csinfo == 0)
+        c.m_csinfo = get_charset_by_csname(c.m_cs, MY_CS_PRIMARY, MYF(0));
+      if (c.m_csinfo == 0) {
+        ndbout << "unknown charset " << c.m_cs << endl;
+        goto wrongargs;
+      }
+      c.m_mblen = c.m_csinfo->mbmaxlen;;
+      if (c.m_mblen == 0)
+        c.m_mblen = 1;
     }
+    c.m_bytelen = c.m_len * c.m_mblen;
+    if (c.m_bytelen > 255) {
+      ndbout << "length of pk2 in bytes exceeds 255" << endl;
+      goto wrongargs;
+    }
+    if (c.m_fixed)
+      c.m_totlen = c.m_bytelen;
+    else
+      c.m_totlen = 1 + c.m_bytelen;
+    c.m_caseins = (c.m_csinfo->coll->strcasecmp(c.m_csinfo, "ABC", "abc") == 0);
+    ndbout << "charset: " << c.m_cs << " caseins: " << c.m_caseins << endl;
   }
   ndbout << cmdline << endl;
   g_ncc = new Ndb_cluster_connection();
@@ -2248,7 +2333,10 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
   }
   delete g_ncc;
   g_ncc = 0;
+success:
   return NDBT_ProgramExit(NDBT_OK);
+wrongargs:
+  return NDBT_ProgramExit(NDBT_WRONGARGS);
 }
 
 // vim: set sw=2 et:
