@@ -306,3 +306,16 @@ a	b	a	b	c
 1	1	1	2	1
 1	2	1	2	1
 DROP TABLE t1,t2;
+CREATE TABLE t1(
+a int, b int, c int, d int, e int, f int, g int, h int,
+PRIMARY KEY (a,b,c,d,e,f,g)
+);
+INSERT INTO t1 VALUES (1,2,3,4,5,6,7,99);
+SELECT h FROM t1 WHERE (a,b,c,d,e,f,g)=(1,2,3,4,5,6,7);
+h
+99
+SET @x:= (SELECT h FROM t1 WHERE (a,b,c,d,e,f,g)=(1,2,3,4,5,6,7));
+SELECT @x;
+@x
+99
+DROP TABLE t1;
