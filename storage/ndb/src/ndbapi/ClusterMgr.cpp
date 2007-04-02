@@ -232,11 +232,12 @@ ClusterMgr::threadMain( ){
     /**
      * Start of Secure area for use of Transporter
      */
-    if (m_cluster_state == CS_waiting_for_clean_cache)
+    if (m_cluster_state == CS_waiting_for_clean_cache &&
+        theFacade.m_globalDictCache)
     {
-      theFacade.m_globalDictCache.lock();
-      unsigned sz= theFacade.m_globalDictCache.get_size();
-      theFacade.m_globalDictCache.unlock();
+      theFacade.m_globalDictCache->lock();
+      unsigned sz= theFacade.m_globalDictCache->get_size();
+      theFacade.m_globalDictCache->unlock();
       if (sz)
         goto next;
       m_cluster_state = CS_waiting_for_first_connect;
@@ -533,11 +534,12 @@ ClusterMgr::reportNodeFailed(NodeId nodeId, bool disconnect){
   theNode.nfCompleteRep = false;
   if(noOfAliveNodes == 0)
   {
-    if (!global_flag_skip_invalidate_cache)
+    if (!global_flag_skip_invalidate_cache &&
+        theFacade.m_globalDictCache)
     {
-      theFacade.m_globalDictCache.lock();
-      theFacade.m_globalDictCache.invalidate_all();
-      theFacade.m_globalDictCache.unlock();
+      theFacade.m_globalDictCache->lock();
+      theFacade.m_globalDictCache->invalidate_all();
+      theFacade.m_globalDictCache->unlock();
       m_connect_count ++;
       m_cluster_state = CS_waiting_for_clean_cache;
     }
