@@ -658,7 +658,7 @@ InitConfigFileParser::store_in_properties(Vector<struct my_option>& options,
       if (options[i].var_type == GET_INT)
 	ctx.m_currentSection->put(options[i].name, (Uint32)value_int);
       else
-	ctx.m_currentSection->put(options[i].name, value_int);	
+	ctx.m_currentSection->put64(options[i].name, value_int);	
     }
   }
   return true;
