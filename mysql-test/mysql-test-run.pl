@@ -1980,7 +1980,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   my $cmdline_mysqlbinlog=
     mtr_native_path($exe_mysqlbinlog) .
-      " --no-defaults --disable-force-if-open --debug-info --local-load=$opt_tmpdir";
+      " --no-defaults --disable-force-if-open --debug-info";
   if ( !$opt_extern && $mysql_version_id >= 50000 )
   {
     $cmdline_mysqlbinlog .=" --character-sets-dir=$path_charsetsdir";
