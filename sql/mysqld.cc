@@ -416,6 +416,7 @@ char opt_ndb_constrbuf[1024];
 unsigned opt_ndb_constrbuf_len= 0;
 my_bool	opt_ndb_shm, opt_ndb_optimized_node_selection;
 ulong opt_ndb_cache_check_time, opt_ndb_wait_connected;
+ulong opt_ndb_cluster_connection_pool;
 const char *opt_ndb_mgmd;
 ulong opt_ndb_nodeid;
 ulong ndb_extra_logging;
@@ -4906,6 +4907,7 @@ enum options_mysqld
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
   OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
   OPT_NDB_WAIT_CONNECTED,
+  OPT_NDB_CLUSTER_CONNECTION_POOL,
   OPT_NDB_MGMD, OPT_NDB_NODEID,
   OPT_NDB_DISTRIBUTION,
   OPT_NDB_INDEX_STAT_ENABLE,
@@ -5629,18 +5631,21 @@ Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &global_system_variables.ndb_index_stat_enable,
    (gptr*) &max_system_variables.ndb_index_stat_enable,
    0, GET_BOOL, OPT_ARG, 0, 0, 1, 0, 0, 0},
-#endif
   {"ndb-use-copying-alter-table",
    OPT_NDB_USE_COPYING_ALTER_TABLE,
    "Force ndbcluster to always copy tables at alter table (should only be used if on-line alter table fails).",
    (gptr*) &global_system_variables.ndb_use_copying_alter_table,
    (gptr*) &global_system_variables.ndb_use_copying_alter_table,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},  
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   { "ndb-wait-connected", OPT_NDB_WAIT_CONNECTED,
     "Time (in seconds) for mysqld to wait for connection to cluster management and data nodes.",
     (gptr*) &opt_ndb_wait_connected, (gptr*) &opt_ndb_wait_connected,
     0, GET_ULONG, REQUIRED_ARG, 0, 0, LONG_TIMEOUT, 0, 0, 0},
+  { "ndb-cluster-connection-pool", OPT_NDB_CLUSTER_CONNECTION_POOL,
+    "Pool of cluster connections to cluster to be used by mysql server.",
+    (gptr*) &opt_ndb_cluster_connection_pool,
+    (gptr*) &opt_ndb_cluster_connection_pool,
+    0, GET_ULONG, REQUIRED_ARG, 1, 1, 63, 0, 0, 0},
 #endif
   {"new", 'n', "Use very new possible 'unsafe' functions.",
    (gptr*) &global_system_variables.new_mode,

@@ -592,7 +592,7 @@ MgmtSrvr::start(BaseString &error_string)
       DBUG_RETURN(false);
     }
   }
-  theFacade= new TransporterFacade();
+  theFacade= new TransporterFacade(0);
   
   if(theFacade == 0) {
     DEBUG("MgmtSrvr.cpp: theFacade is NULL.");

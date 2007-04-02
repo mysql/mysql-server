@@ -20,6 +20,7 @@
 #include <ndb_cluster_connection.hpp>
 #include <Vector.hpp>
 #include <NdbMutex.h>
+#include "DictCache.hpp"
 
 extern NdbMutex *g_ndb_connection_mutex;
 
@@ -35,7 +36,8 @@ extern "C" {
 
 class Ndb_cluster_connection_impl : public Ndb_cluster_connection
 {
-  Ndb_cluster_connection_impl(const char *connectstring);
+  Ndb_cluster_connection_impl(const char *connectstring,
+                              Ndb_cluster_connection *main_connection);
   ~Ndb_cluster_connection_impl();
 
   void do_test();
@@ -71,6 +73,8 @@ private:
   void connect_thread();
   void set_name(const char *name);
   
+  Ndb_cluster_connection *m_main_connection;
+  GlobalDictCache *m_globalDictCache;
   TransporterFacade *m_transporter_facade;
   ConfigRetriever *m_config_retriever;
   NdbThread *m_connect_thread;

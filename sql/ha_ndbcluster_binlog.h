@@ -111,6 +111,8 @@ extern int ndbcluster_util_inited;
 extern pthread_mutex_t ndbcluster_mutex;
 extern HASH ndbcluster_open_tables;
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
+extern Ndb_cluster_connection **g_ndb_cluster_connection_pool;
+extern ulong g_ndb_cluster_connection_pool_alloc;
 extern long ndb_number_of_storage_nodes;
 
 /*

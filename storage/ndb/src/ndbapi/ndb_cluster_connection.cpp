@@ -46,7 +46,14 @@ static int g_ndb_connection_count = 0;
  */
 
 Ndb_cluster_connection::Ndb_cluster_connection(const char *connect_string)
-  : m_impl(* new Ndb_cluster_connection_impl(connect_string))
+  : m_impl(* new Ndb_cluster_connection_impl(connect_string, 0))
+{
+}
+
+Ndb_cluster_connection::Ndb_cluster_connection(const char *connect_string,
+                                               Ndb_cluster_connection *
+                                               main_connection)
+  : m_impl(* new Ndb_cluster_connection_impl(connect_string, main_connection))
 {
 }
 
@@ -262,9 +269,12 @@ unsigned Ndb_cluster_connection::get_connect_count() const
  * Ndb_cluster_connection_impl
  */
 
-Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
-							 connect_string)
+Ndb_cluster_connection_impl::
+Ndb_cluster_connection_impl(const char *
+                            connect_string,
+                            Ndb_cluster_connection *main_connection)
   : Ndb_cluster_connection(*this),
+    m_main_connection(main_connection),
     m_optimized_node_selection(1),
     m_name(0),
     m_run_connect_thread(0),
@@ -304,8 +314,19 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
     NdbMgmHandle h= m_config_retriever->get_mgmHandle();
     ndb_mgm_set_name(h, m_name);
   }
-  m_transporter_facade= new TransporterFacade();
-  
+  if (!m_main_connection)
+  {
+    m_globalDictCache = new GlobalDictCache;
+    m_transporter_facade= new TransporterFacade(m_globalDictCache);
+  }
+  else
+  {
+    assert(m_main_connection->m_impl.m_globalDictCache != NULL);
+    m_globalDictCache = 0;
+    m_transporter_facade=
+      new TransporterFacade(m_main_connection->m_impl.m_globalDictCache);
+  }
+
   NdbMutex_Lock(g_ndb_connection_mutex);
   if(g_ndb_connection_count++ == 0){
     NdbDictionary::Column::FRAGMENT= 
@@ -342,6 +363,10 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
   if (m_transporter_facade != 0)
   {
     m_transporter_facade->stop_instance();
+  }
+  if (m_globalDictCache)
+  {
+    delete m_globalDictCache;
   }
   if (m_connect_thread)
   {
