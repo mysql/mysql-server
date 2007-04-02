@@ -55,8 +55,8 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   s->stream.zalloc = (alloc_func)0;
   s->stream.zfree = (free_func)0;
   s->stream.opaque = (voidpf)0;
-  memset(s->inbuf, 0, AZ_BUFSIZE);
-  memset(s->outbuf, 0, AZ_BUFSIZE);
+  memset(s->inbuf, 0, AZ_BUFSIZE_READ);
+  memset(s->outbuf, 0, AZ_BUFSIZE_WRITE);
   s->stream.next_in = s->inbuf;
   s->stream.next_out = s->outbuf;
   s->stream.avail_in = s->stream.avail_out = 0;
@@ -109,7 +109,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
       return Z_NULL;
     }
   }
-  s->stream.avail_out = AZ_BUFSIZE;
+  s->stream.avail_out = AZ_BUFSIZE_WRITE;
 
   errno = 0;
   s->file = fd < 0 ? my_open(path, Flags, MYF(0)) : fd;
@@ -159,7 +159,7 @@ void write_header(azio_stream *s)
   char buffer[AZHEADER_SIZE + AZMETA_BUFFER_SIZE];
   char *ptr= buffer;
 
-  s->block_size= AZ_BUFSIZE;
+  s->block_size= AZ_BUFSIZE_WRITE;
   s->version = (unsigned char)az_magic[1];
   s->minor_version = (unsigned char)az_magic[2];
 
@@ -224,7 +224,7 @@ int get_byte(s)
   if (s->stream.avail_in == 0) 
   {
     errno = 0;
-    s->stream.avail_in = my_read(s->file, (byte *)s->inbuf, AZ_BUFSIZE, MYF(0));
+    s->stream.avail_in = my_read(s->file, (byte *)s->inbuf, AZ_BUFSIZE_READ, MYF(0));
     if (s->stream.avail_in == 0) 
     {
       s->z_eof = 1;
@@ -260,7 +260,7 @@ void check_header(azio_stream *s)
   if (len < 2) {
     if (len) s->inbuf[0] = s->stream.next_in[0];
     errno = 0;
-    len = (uInt)my_read(s->file, (byte *)s->inbuf + len, AZ_BUFSIZE >> len, MYF(0));
+    len = (uInt)my_read(s->file, (byte *)s->inbuf + len, AZ_BUFSIZE_READ >> len, MYF(0));
     if (len == 0) s->z_err = Z_ERRNO;
     s->stream.avail_in += len;
     s->stream.next_in = s->inbuf;
@@ -455,7 +455,7 @@ unsigned int ZEXPORT azread ( azio_stream *s, voidp buf, unsigned int len, int *
     if (s->stream.avail_in == 0 && !s->z_eof) {
 
       errno = 0;
-      s->stream.avail_in = (uInt)my_read(s->file, (byte *)s->inbuf, AZ_BUFSIZE, MYF(0));
+      s->stream.avail_in = (uInt)my_read(s->file, (byte *)s->inbuf, AZ_BUFSIZE_READ, MYF(0));
       if (s->stream.avail_in == 0) 
       {
         s->z_eof = 1;
@@ -522,12 +522,13 @@ unsigned int azwrite (azio_stream *s, voidpc buf, unsigned int len)
     {
 
       s->stream.next_out = s->outbuf;
-      if (my_write(s->file, (byte *)s->outbuf, AZ_BUFSIZE, MYF(0)) != AZ_BUFSIZE) 
+      if (my_write(s->file, (byte *)s->outbuf, AZ_BUFSIZE_WRITE, 
+                   MYF(0)) != AZ_BUFSIZE_WRITE) 
       {
         s->z_err = Z_ERRNO;
         break;
       }
-      s->stream.avail_out = AZ_BUFSIZE;
+      s->stream.avail_out = AZ_BUFSIZE_WRITE;
     }
     s->in += s->stream.avail_in;
     s->out += s->stream.avail_out;
@@ -563,7 +564,7 @@ int do_flush (azio_stream *s, int flush)
 
   for (;;) 
   {
-    len = AZ_BUFSIZE - s->stream.avail_out;
+    len = AZ_BUFSIZE_WRITE - s->stream.avail_out;
 
     if (len != 0) 
     {
@@ -574,7 +575,7 @@ int do_flush (azio_stream *s, int flush)
         return Z_ERRNO;
       }
       s->stream.next_out = s->outbuf;
-      s->stream.avail_out = AZ_BUFSIZE;
+      s->stream.avail_out = AZ_BUFSIZE_WRITE;
     }
     if (done) break;
     s->out += s->stream.avail_out;
@@ -675,8 +676,8 @@ my_off_t azseek (s, offset, whence)
     /* There was a zmemzero here if inbuf was null -Brian */
     while (offset > 0)  
     {
-      uInt size = AZ_BUFSIZE;
-      if (offset < AZ_BUFSIZE) size = (uInt)offset;
+      uInt size = AZ_BUFSIZE_WRITE;
+      if (offset < AZ_BUFSIZE_WRITE) size = (uInt)offset;
 
       size = azwrite(s, s->inbuf, size);
       if (size == 0) return -1L;
@@ -719,8 +720,8 @@ my_off_t azseek (s, offset, whence)
   }
   while (offset > 0)  {
     int error;
-    unsigned int size = AZ_BUFSIZE;
-    if (offset < AZ_BUFSIZE) size = (int)offset;
+    unsigned int size = AZ_BUFSIZE_READ;
+    if (offset < AZ_BUFSIZE_READ) size = (int)offset;
 
     size = azread(s, s->outbuf, size, &error);
     if (error <= 0) return -1L;

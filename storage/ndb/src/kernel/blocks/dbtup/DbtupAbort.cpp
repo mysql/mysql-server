@@ -151,12 +151,14 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
 
 	ndbassert(tuple_ptr->m_header_bits & Tuple_header::CHAINED_ROW);
 	
-	Uint32 ref= * tuple_ptr->get_var_part_ptr(regTabPtr.p);
+	Var_part_ref *ref = 
+	  (Var_part_ref*)tuple_ptr->get_var_part_ptr(regTabPtr.p);
+
 	Local_key tmp; 
-	tmp.assref(ref); 
+	ref->copyout(&tmp);
 	
 	idx= tmp.m_page_idx;
-	var_part= get_ptr(&vpage, *(Var_part_ref*)&ref);
+	var_part= get_ptr(&vpage, *ref);
 	Var_page* pageP = (Var_page*)vpage.p;
 	Uint32 len= pageP->get_entry_len(idx) & ~Var_page::CHAIN;
 	Uint32 sz = ((((mm_vars + 1) << 1) + (((Uint16*)var_part)[mm_vars]) + 3)>> 2);
