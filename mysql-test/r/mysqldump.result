@@ -1567,29 +1567,17 @@ create table t3(a varchar(30) primary key, b int not null);
 test_sequence
 ------ Testing with illegal table names ------
 mysqldump: Couldn't find table: "\d-2-1.sql"
-
 mysqldump: Couldn't find table: "\t1"
-
 mysqldump: Couldn't find table: "\t1"
-
 mysqldump: Couldn't find table: "\\t1"
-
 mysqldump: Couldn't find table: "t\1"
-
 mysqldump: Couldn't find table: "t\1"
-
 mysqldump: Couldn't find table: "t/1"
-
 mysqldump: Couldn't find table: "T_1"
-
 mysqldump: Couldn't find table: "T%1"
-
 mysqldump: Couldn't find table: "T'1"
-
 mysqldump: Couldn't find table: "T_1"
-
 mysqldump: Couldn't find table: "T_"
-
 test_sequence
 ------ Testing with illegal database names ------
 mysqldump: Got error: 1049: Unknown database 'mysqldump_test_d' when selecting the database
@@ -3217,6 +3205,83 @@ INSERT INTO t1 VALUES(1,0xff00fef0);
 </database>
 </mysqldump>
 DROP TABLE t1;
+#
+# Bug#26346:  	stack + buffer overrun in mysqldump
+#
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (1), (2);
+mysqldump: Input filename or options too long: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+DROP TABLE t1;
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int);
+CREATE TABLE t1 (a int) ENGINE=merge UNION=(t2, t3);
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+DROP TABLE IF EXISTS `t1`;
+CREATE TABLE `t1` (
+  `a` int(11) default NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t2`,`t3`);
+DROP TABLE IF EXISTS `t2`;
+CREATE TABLE `t2` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+LOCK TABLES `t2` WRITE;
+/*!40000 ALTER TABLE `t2` DISABLE KEYS */;
+/*!40000 ALTER TABLE `t2` ENABLE KEYS */;
+UNLOCK TABLES;
+DROP TABLE IF EXISTS `t3`;
+CREATE TABLE `t3` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+LOCK TABLES `t3` WRITE;
+/*!40000 ALTER TABLE `t3` DISABLE KEYS */;
+/*!40000 ALTER TABLE `t3` ENABLE KEYS */;
+UNLOCK TABLES;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+DROP TABLE t1, t2, t3;
+#
+# Bug #23491: MySQLDump prefix function call in a view by database name
+#
+create database bug23491_original;
+create database bug23491_restore;
+use bug23491_original;
+create table t1 (c1 int);
+create view v1 as select * from t1;
+create procedure p1() select 1;
+create function f1() returns int return 1;
+create view v2 as select f1();
+create function f2() returns int return f1();
+create view v3 as select bug23491_original.f1();
+use bug23491_restore;
+show create view bug23491_restore.v2;
+View	Create View
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `f1`() AS `f1()`
+show create view bug23491_restore.v3;
+View	Create View
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `bug23491_original`.`f1`() AS `bug23491_original.f1()`
+drop database bug23491_original;
+drop database bug23491_restore;
+use test;
 #
 # End of 5.0 tests
 #

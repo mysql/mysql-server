@@ -1,24 +1,12 @@
 flush logs;
 set global expire_logs_days = 3;
-show variables like 'log%';
+show variables like 'log_bin%';
 Variable_name	Value
-log	ON
 log_bin	OFF
 log_bin_trust_function_creators	ON
-log_error	
-log_queries_not_using_indexes	OFF
-log_slave_updates	OFF
-log_slow_queries	OFF
-log_warnings	1
 flush logs;
-show variables like 'log%';
+show variables like 'log_bin%';
 Variable_name	Value
-log	ON
 log_bin	OFF
 log_bin_trust_function_creators	ON
-log_error	
-log_queries_not_using_indexes	OFF
-log_slave_updates	OFF
-log_slow_queries	OFF
-log_warnings	1
 set global expire_logs_days = 0;
