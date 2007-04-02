@@ -4597,14 +4597,14 @@ void Item_func_match::init_search(bool no_order)
     fields.push_back(new Item_string(" ",1, cmp_collation.collation));
     for (uint i=1; i < arg_count; i++)
       fields.push_back(args[i]);
-    concat=new Item_func_concat_ws(fields);
+    concat_ws=new Item_func_concat_ws(fields);
     /*
       Above function used only to get value and do not need fix_fields for it:
       Item_string - basic constant
       fields - fix_fields() was already called for this arguments
       Item_func_concat_ws - do not need fix_fields() to produce value
     */
-    concat->quick_fix_field();
+    concat_ws->quick_fix_field();
   }
 
   if (master)
@@ -4819,8 +4819,8 @@ double Item_func_match::val_real()
 
   if (key == NO_SUCH_KEY)
   {
-    String *a= concat->val_str(&value);
-    if ((null_value= (a == 0)))
+    String *a= concat_ws->val_str(&value);
+    if ((null_value= (a == 0)) || !a->length())
       DBUG_RETURN(0);
     DBUG_RETURN(ft_handler->please->find_relevance(ft_handler,
 				      (byte *)a->ptr(), a->length()));
