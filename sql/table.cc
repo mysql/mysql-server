@@ -1442,18 +1442,7 @@ File create_frm(THD *thd, my_string name, const char *db,
     fileinfo[3]= (uchar) ha_checktype(thd,create_info->db_type,0,0);
     fileinfo[4]=1;
     int2store(fileinfo+6,IO_SIZE);		/* Next block starts here */
-    /*
-      For each key (see unireg.cc::pack_keys()):
-        8 bytes for the key header
-        9 bytes for each key-part (MAX_REF_PARTS)
-        NAME_LEN bytes for the name
-        1 byte for the NAMES_SEP_CHAR (before the name)
-      For all keys:
-        6 bytes for the header
-        1 byte for the NAMES_SEP_CHAR (after the last name)
-        9 extra bytes (padding for safety? alignment?)
-    */
-    key_length= keys * (8 + MAX_REF_PARTS * 9 + NAME_LEN + 1) + 16;
+    key_length=keys*(7+NAME_LEN+MAX_REF_PARTS*9)+16;
     length= next_io_size((ulong) (IO_SIZE+key_length+reclength+
                                   create_info->extra_size));
     int4store(fileinfo+10,length);
