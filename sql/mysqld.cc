@@ -6742,7 +6742,7 @@ static int show_ssl_get_version(THD *thd, SHOW_VAR *var, char *buff)
   if( thd->vio_ok() && thd->net.vio->ssl_arg )
     var->value= const_cast<char*>(SSL_get_version((SSL*) thd->net.vio->ssl_arg));
   else
-    var->value= "";
+    var->value= (char *)"";
   return 0;
 }
 
@@ -6796,7 +6796,7 @@ static int show_ssl_get_cipher(THD *thd, SHOW_VAR *var, char *buff)
   if( thd->vio_ok() && thd->net.vio->ssl_arg )
     var->value= const_cast<char*>(SSL_get_cipher((SSL*) thd->net.vio->ssl_arg));
   else
-    var->value= "";
+    var->value= (char *)"";
   return 0;
 }
 
