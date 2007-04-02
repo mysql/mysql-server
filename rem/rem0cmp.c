@@ -597,7 +597,7 @@ cmp_dtuple_rec_with_match(
 				dtuple_byte = cmp_collate(dtuple_byte);
 			}
 
-			ret = dtuple_byte - rec_byte;
+			ret = (int) (dtuple_byte - rec_byte);
 			if (UNIV_UNLIKELY(ret)) {
 				if (ret < 0) {
 					ret = -1;

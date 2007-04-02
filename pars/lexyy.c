@@ -1017,7 +1017,7 @@ YY_RULE_SETUP
 			yylval = sym_tab_add_bound_lit(pars_sym_tab_global,
 				yytext + 1, &type);
 
-			return(type);
+			return((int) type);
 }
 	YY_BREAK
 case 4:
