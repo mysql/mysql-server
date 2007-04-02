@@ -28,8 +28,9 @@
 
 #include <assert.h>
 
-#include "openssl/ssl.h"                        /* for socket_t */
-#if !defined(_WIN32) && !defined(_WIN64)
+#ifdef _WIN32
+    #include <winsock2.h>
+#else 
     #include <sys/time.h>
     #include <sys/types.h>
     #include <sys/socket.h>
@@ -43,7 +44,10 @@ namespace yaSSL {
 
 typedef unsigned int uint;
 
-#if !defined( _WIN32) && !defined(_WIN64)
+#ifdef _WIN32
+    typedef SOCKET socket_t;
+#else
+    typedef int socket_t;
     const socket_t INVALID_SOCKET = -1;
     const int SD_RECEIVE   = 0;
     const int SD_SEND      = 1;

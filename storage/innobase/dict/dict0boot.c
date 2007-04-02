@@ -86,9 +86,7 @@ dict_hdr_flush_row_id(void)
 	dulint		id;
 	mtr_t		mtr;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	id = dict_sys->row_id;
 
