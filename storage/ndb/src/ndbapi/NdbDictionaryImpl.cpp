@@ -1520,7 +1520,7 @@ bool
 NdbDictionaryImpl::setTransporter(class TransporterFacade * tf)
 {
   if(tf != 0){
-    m_globalHash = &tf->m_globalDictCache;
+    m_globalHash = tf->m_globalDictCache;
     return m_receiver.setTransporter(tf);
   }
   
@@ -1532,7 +1532,7 @@ bool
 NdbDictionaryImpl::setTransporter(class Ndb* ndb, 
 				  class TransporterFacade * tf)
 {
-  m_globalHash = &tf->m_globalDictCache;
+  m_globalHash = tf->m_globalDictCache;
   if(m_receiver.setTransporter(ndb, tf)){
     return true;
   }

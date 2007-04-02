@@ -51,6 +51,10 @@ public:
    *                      management server
    */
   Ndb_cluster_connection(const char * connectstring = 0);
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  Ndb_cluster_connection(const char * connectstring,
+                         Ndb_cluster_connection *main_connection);
+#endif
   ~Ndb_cluster_connection();
 
   /**
