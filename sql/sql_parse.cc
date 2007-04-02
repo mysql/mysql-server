@@ -290,7 +290,8 @@ int check_user(THD *thd, enum enum_server_command command,
 	       bool check_count)
 {
   DBUG_ENTER("check_user");
-  
+  LEX_STRING db_str= { (char *) db, db ? strlen(db) : 0 };
+
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
   thd->main_security_ctx.master_access= GLOBAL_ACLS;       // Full rights
   /* Change database if necessary */
@@ -301,7 +302,7 @@ int check_user(THD *thd, enum enum_server_command command,
       function returns 0
     */
     thd->reset_db(NULL, 0);
-    if (mysql_change_db(thd, db, FALSE))
+    if (mysql_change_db(thd, &db_str, FALSE))
     {
       /* Send the error to the client */
       net_send_error(thd);
@@ -443,7 +444,7 @@ int check_user(THD *thd, enum enum_server_command command,
       /* Change database if necessary */
       if (db && db[0])
       {
-        if (mysql_change_db(thd, db, FALSE))
+        if (mysql_change_db(thd, &db_str, FALSE))
         {
           /* Send error to the client */
           net_send_error(thd);
@@ -1638,7 +1639,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 			&LOCK_status);
     thd->convert_string(&tmp, system_charset_info,
 			packet, strlen(packet), thd->charset());
-    if (!mysql_change_db(thd, tmp.str, FALSE))
+    if (!mysql_change_db(thd, &tmp, FALSE))
     {
       mysql_log.write(thd,command,"%s",thd->db);
       send_ok(thd);
@@ -1862,7 +1863,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     packet= pend+1;
 
     if (!my_strcasecmp(system_charset_info, table_list.db,
-                       information_schema_name.str))
+                       INFORMATION_SCHEMA_NAME.str))
     {
       ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, table_list.alias);
       if (schema_table)
@@ -3753,9 +3754,14 @@ end_with_restore_list:
     }
 #endif
   case SQLCOM_CHANGE_DB:
-    if (!mysql_change_db(thd,select_lex->db,FALSE))
+  {
+    LEX_STRING db_str= { (char *) select_lex->db, strlen(select_lex->db) };
+
+    if (!mysql_change_db(thd, &db_str, FALSE))
       send_ok(thd);
+
     break;
+  }
 
   case SQLCOM_LOAD:
   {
@@ -5436,7 +5442,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
       if (!no_errors)
         my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                  sctx->priv_user, sctx->priv_host,
-                 information_schema_name.str);
+                 INFORMATION_SCHEMA_NAME.str);
       return TRUE;
     }
     /*
@@ -6256,7 +6262,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->ignore_leaves= test(table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->derived=	    table->sel;
   if (!ptr->derived && !my_strcasecmp(system_charset_info, ptr->db,
-                                      information_schema_name.str))
+                                      INFORMATION_SCHEMA_NAME.str))
   {
     ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, ptr->table_name);
     if (!schema_table ||
@@ -6264,7 +6270,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
          lex->orig_sql_command == SQLCOM_END))  // not a 'show' command
     {
       my_error(ER_UNKNOWN_TABLE, MYF(0),
-               ptr->table_name, information_schema_name.str);
+               ptr->table_name, INFORMATION_SCHEMA_NAME.str);
       DBUG_RETURN(0);
     }
     ptr->schema_table_name= ptr->table_name;
