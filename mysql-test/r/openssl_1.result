@@ -51,3 +51,6 @@ SSL error: Unable to get private key from ''
 mysqltest: Could not open connection 'default': 2026 SSL connection error
 SSL error: Unable to get certificate from ''
 mysqltest: Could not open connection 'default': 2026 SSL connection error
+SHOW STATUS LIKE 'Ssl_cipher';
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-SHA
