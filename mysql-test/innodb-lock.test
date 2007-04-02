@@ -1,6 +1,4 @@
 -- source include/have_innodb.inc
-# Can't test this with embedded server
--- source include/not_embedded.inc
 
 #
 # Check and select innodb lock type

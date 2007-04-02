@@ -35,10 +35,6 @@ typedef struct st_innobase_share {
 struct row_prebuilt_struct;
 typedef struct row_prebuilt_struct row_prebuilt_t;
 
-my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
-						  uint full_name_len,
-						  ulonglong *unused);
-
 /* The class defining a handle to an Innodb table */
 class ha_innobase: public handler
 {
@@ -48,8 +44,6 @@ class ha_innobase: public handler
 	THD*		user_thd;	/* the thread handle of the user
 					currently using the handle; this is
 					set in external_lock function */
-	query_id_t	last_query_id;	/* the latest query id where the
-					handle was used */
 	THR_LOCK_DATA	lock;
 	INNOBASE_SHARE	*share;
 
@@ -186,14 +180,7 @@ class ha_innobase: public handler
 	my_bool register_query_cache_table(THD *thd, char *table_key,
 					   uint key_length,
 					   qc_engine_callback *call_back,
-					   ulonglong *engine_data)
-	{
-	  *call_back= innobase_query_caching_of_table_permitted;
-	  *engine_data= 0;
-	  return innobase_query_caching_of_table_permitted(thd, table_key,
-							   key_length,
-							   engine_data);
-	}
+					   ulonglong *engine_data);
 	static char *get_mysql_bin_log_name();
 	static ulonglong get_mysql_bin_log_pos();
 	bool primary_key_is_clustered() { return true; }
@@ -222,7 +209,8 @@ extern my_bool innobase_log_archive,
 	innobase_use_native_aio,
 	innobase_file_per_table, innobase_locks_unsafe_for_binlog,
 	innobase_rollback_on_timeout,
-	innobase_create_status_file;
+	innobase_create_status_file,
+	innobase_stats_on_metadata;
 extern "C" {
 extern ulong srv_buf_pool_curr_size;
 extern ulong srv_buf_pool_size;

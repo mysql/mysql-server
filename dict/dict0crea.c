@@ -261,7 +261,7 @@ dict_build_table_def_step(
 			&space, path_or_name, is_path,
 			dict_table_zip_size(table),
 			FIL_IBD_FILE_INITIAL_SIZE);
-		table->space = space;
+		table->space = (unsigned int) space;
 
 		if (error != DB_SUCCESS) {
 
@@ -820,7 +820,7 @@ create:
 
 	root_page_no = btr_create(type, space, zip_size, index_id, index, mtr);
 	if (index) {
-		index->page = root_page_no;
+		index->page = (unsigned int) root_page_no;
 	} else {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
