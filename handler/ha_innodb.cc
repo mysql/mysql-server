@@ -93,9 +93,6 @@ extern "C" {
 #include "../storage/innobase/include/ha_prototypes.h"
 }
 
-#define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
-#define HA_INNOBASE_RANGE_COUNT	  100
-
 ulong	innobase_large_page_size = 0;
 
 /* The default values for the following, type long or longlong, start-up
@@ -133,6 +130,7 @@ my_bool	innobase_file_per_table			= FALSE;
 my_bool innobase_locks_unsafe_for_binlog	= FALSE;
 my_bool innobase_rollback_on_timeout		= FALSE;
 my_bool innobase_create_status_file		= FALSE;
+my_bool innobase_stats_on_metadata		= TRUE;
 
 static char *internal_innobase_data_file_path	= NULL;
 
@@ -142,7 +140,7 @@ srv_active_wake_master_thread after each fetch or search, we only do
 it every INNOBASE_WAKE_INTERVAL'th step. */
 
 #define INNOBASE_WAKE_INTERVAL	32
-ulong	innobase_active_counter	= 0;
+static ulong	innobase_active_counter	= 0;
 
 static HASH	innobase_open_tables;
 
@@ -311,14 +309,13 @@ bool innobase_show_status(handlerton *hton, THD* thd,
 
 /*********************************************************************
 Commits a transaction in an InnoDB database. */
-
+static
 void
 innobase_commit_low(
 /*================*/
 	trx_t*	trx);	/* in: transaction handle */
 
-static
-SHOW_VAR innodb_status_variables[]= {
+static SHOW_VAR innodb_status_variables[]= {
   {"buffer_pool_pages_data",
   (char*) &export_vars.innodb_buffer_pool_pages_data,	  SHOW_LONG},
   {"buffer_pool_pages_dirty",
@@ -796,7 +793,7 @@ innobase_convert_from_table_id(
 	uint	errors;
 
 	strconvert(current_thd->charset(), from,
-		   &my_charset_filename, to, len, &errors);
+		   &my_charset_filename, to, (uint) len, &errors);
 }
 
 /**********************************************************************
@@ -815,7 +812,7 @@ innobase_convert_from_id(
 	uint	errors;
 
 	strconvert(current_thd->charset(), from,
-		   system_charset_info, to, len, &errors);
+		   system_charset_info, to, (uint) len, &errors);
 }
 
 /**********************************************************************
@@ -940,8 +937,9 @@ innobase_convert_string(
 	CHARSET_INFO*	from_cs,
 	uint*		errors)
 {
-	return(copy_and_convert((char*)to, to_length, to_cs,
-		       (const char*)from, from_length, from_cs, errors));
+  return(copy_and_convert((char*)to, (uint32) to_length, to_cs,
+                          (const char*)from, (uint32) from_length, from_cs,
+                          errors));
 }
 
 /*************************************************************************
@@ -1140,7 +1138,7 @@ holding any InnoDB semaphores. The calling thread is holding the
 query cache mutex, and this function will reserver the InnoDB kernel mutex.
 Thus, the 'rank' in sync0sync.h of the MySQL query cache mutex is above
 the InnoDB kernel mutex. */
-
+static
 my_bool
 innobase_query_caching_of_table_permitted(
 /*======================================*/
@@ -1299,9 +1297,9 @@ innobase_print_identifier(
 		output strings buffers must not be shared.  The function
 		only produces more output when the name contains other
 		characters than [0-9A-Z_a-z]. */
-		char*	temp_name = my_malloc(namelen + 1, MYF(MY_WME));
-		uint	qnamelen = namelen
-				+ (1 + sizeof srv_mysql50_table_name_prefix);
+          char*	temp_name = my_malloc((uint) namelen + 1, MYF(MY_WME));
+          uint	qnamelen = (uint) (namelen
+                                   + (1 + sizeof srv_mysql50_table_name_prefix));
 
 		if (temp_name) {
 			qname = my_malloc(qnamelen, MYF(MY_WME));
@@ -1635,6 +1633,8 @@ innobase_init(void *p)
 	srv_max_n_open_files = (ulint) innobase_open_files;
 	srv_innodb_status = (ibool) innobase_create_status_file;
 
+	srv_stats_on_metadata = (ibool) innobase_stats_on_metadata;
+
 	srv_print_verbose_log = mysqld_embedded ? 0 : 1;
 
 	/* Store the default charset-collation number of this MySQL
@@ -1743,7 +1743,7 @@ innobase_flush_logs(handlerton *hton)
 
 /*********************************************************************
 Commits a transaction in an InnoDB database. */
-
+static
 void
 innobase_commit_low(
 /*================*/
@@ -1827,12 +1827,11 @@ innobase_commit(
 	/* Update the info whether we should skip XA steps that eat CPU time */
 	trx->support_xa = (ibool)(thd->variables.innodb_support_xa);
 
-	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the kernel mutex, we have to release the search system latch
-	first to obey the latching order. */
+	/* Since we will reserve the kernel mutex, we have to release
+	the search system latch first to obey the latching order. */
 
 	if (trx->has_search_latch) {
-			  trx_search_latch_release_if_reserved(trx);
+		trx_search_latch_release_if_reserved(trx);
 	}
 
 	/* The flag trx->active_trans is set to 1 in
@@ -1919,18 +1918,20 @@ retry:
 		trx_mark_sql_stat_end(trx);
 	}
 
+	if (trx->declared_to_be_inside_innodb) {
+		/* Release our possible ticket in the FIFO */
+
+		srv_conc_force_exit_innodb(trx);
+	}
+
 	/* Tell the InnoDB server that there might be work for utility
 	threads: */
-	if (trx->declared_to_be_inside_innodb) {
-			  /* Release our possible ticket in the FIFO */
-
-			  srv_conc_force_exit_innodb(trx);
-	}
 	srv_active_wake_master_thread();
 
 	DBUG_RETURN(0);
 }
 
+#if 0
 /* TODO: put the
 MySQL-4.1 functionality back to 5.0. This is needed to get InnoDB Hot Backup
 to work. */
@@ -1943,7 +1944,7 @@ transaction inside InnoDB but does NOT flush InnoDB log files to disk.
 To flush you have to call innobase_commit_complete(). We have separated
 flushing to eliminate the bottleneck of LOCK_log in log.cc which disabled
 InnoDB's group commit capability. */
-
+static
 int
 innobase_report_binlog_offset_and_commit(
 /*=====================================*/
@@ -1973,7 +1974,6 @@ innobase_report_binlog_offset_and_commit(
 	return(0);
 }
 
-#if 0
 /***********************************************************************
 This function stores the binlog offset and flushes logs. */
 static
@@ -2004,12 +2004,11 @@ innobase_store_binlog_offset_and_flush_log(
 	/* Synchronous flush of the log buffer to disk */
 	log_buffer_flush_to_disk();
 }
-#endif
 
 /*********************************************************************
 This is called after MySQL has written the binlog entry for the current
 transaction. Flushes the InnoDB log files to disk if required. */
-
+static
 int
 innobase_commit_complete(
 /*=====================*/
@@ -2035,6 +2034,7 @@ innobase_commit_complete(
 
 	return(0);
 }
+#endif
 
 /*********************************************************************
 Rolls back a transaction or the latest SQL statement. */
@@ -2088,7 +2088,7 @@ innobase_rollback(
 
 /*********************************************************************
 Rolls back a transaction */
-
+static
 int
 innobase_rollback_trx(
 /*==================*/
@@ -2382,8 +2382,6 @@ ha_innobase::open(
 	normalize_table_name(norm_name, name);
 
 	user_thd = NULL;
-
-	last_query_id = (ulong)-1;
 
 	if (!(share=get_share(name))) {
 
@@ -2934,7 +2932,8 @@ ha_innobase::store_key_val_for_row(
 				true_len = (ulint) cs->cset->well_formed_len(cs,
 						(const char *) data,
 						(const char *) data + len,
-						key_len / cs->mbmaxlen,
+                                                (uint) (key_len /
+                                                        cs->mbmaxlen),
 						&error);
 			}
 
@@ -3003,7 +3002,8 @@ ha_innobase::store_key_val_for_row(
 						(const char *) blob_data,
 						(const char *) blob_data
 							+ blob_len,
-						key_len / cs->mbmaxlen,
+                                                (uint) (key_len /
+                                                        cs->mbmaxlen),
 						&error);
 			}
 
@@ -3075,7 +3075,8 @@ ha_innobase::store_key_val_for_row(
 							(const char *)src_start,
 							(const char *)src_start
 								+ key_len,
-							key_len / cs->mbmaxlen,
+                                                        (uint) (key_len /
+                                                                cs->mbmaxlen),
 							&error);
 				}
 			}
@@ -3349,8 +3350,7 @@ ha_innobase::write_row(
 		ut_error;
 	}
 
-	statistic_increment(thd->status_var.ha_write_count,
-		&LOCK_status);
+	ha_statistic_increment(&SSV::ha_write_count);
 
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
 		table->timestamp_field->set_time();
@@ -3424,13 +3424,6 @@ no_commit:
 	}
 
 	num_write_row++;
-
-	if (last_query_id != user_thd->query_id) {
-		prebuilt->sql_stat_start = TRUE;
-		last_query_id = user_thd->query_id;
-
-		innobase_release_stat_resources(prebuilt->trx);
-	}
 
 	if (table->next_number_field && record == table->record[0]) {
 		/* This is the case where the table has an
@@ -3586,13 +3579,6 @@ calc_row_difference(
 	for (i = 0; i < n_fields; i++) {
 		field = table->field[i];
 
-		/* if (thd->query_id != field->query_id) { */
-			/* TODO: check that these fields cannot have
-			changed! */
-
-		/*	goto skip_field;
-		}*/
-
 		o_ptr = (byte*) old_row + get_field_offset(table, field);
 		n_ptr = (byte*) new_row + get_field_offset(table, field);
 
@@ -3724,13 +3710,6 @@ ha_innobase::update_row(
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
 		table->timestamp_field->set_time();
 
-	if (last_query_id != user_thd->query_id) {
-		prebuilt->sql_stat_start = TRUE;
-		last_query_id = user_thd->query_id;
-
-		innobase_release_stat_resources(trx);
-	}
-
 	if (prebuilt->upd_node) {
 		uvect = prebuilt->upd_node->update;
 	} else {
@@ -3781,13 +3760,6 @@ ha_innobase::delete_row(
 
 	ut_a(prebuilt->trx == trx);
 
-	if (last_query_id != user_thd->query_id) {
-		prebuilt->sql_stat_start = TRUE;
-		last_query_id = user_thd->query_id;
-
-		innobase_release_stat_resources(trx);
-	}
-
 	if (!prebuilt->upd_node) {
 		row_get_prebuilt_update_vector(prebuilt);
 	}
@@ -3822,15 +3794,6 @@ ha_innobase::unlock_row(void)
 /*=========================*/
 {
 	DBUG_ENTER("ha_innobase::unlock_row");
-
-	if (UNIV_UNLIKELY(last_query_id != user_thd->query_id)) {
-		ut_print_timestamp(stderr);
-		sql_print_error("last_query_id is %lu != user_thd_query_id is "
-				"%lu", (ulong) last_query_id,
-				(ulong) user_thd->query_id);
-		mem_analyze_corruption(prebuilt->trx);
-		ut_error;
-	}
 
 	/* Consistent read does not take any locks, thus there is
 	nothing to unlock. */
@@ -4037,15 +4000,7 @@ ha_innobase::index_read(
 
 	ut_a(prebuilt->trx == thd_to_trx(current_thd, ht));
 
-	statistic_increment(current_thd->status_var.ha_read_key_count,
-		&LOCK_status);
-
-	if (last_query_id != user_thd->query_id) {
-		prebuilt->sql_stat_start = TRUE;
-		last_query_id = user_thd->query_id;
-
-		innobase_release_stat_resources(prebuilt->trx);
-	}
+	ha_statistic_increment(&SSV::ha_read_key_count);
 
 	index = prebuilt->index;
 
@@ -4143,12 +4098,11 @@ ha_innobase::change_active_index(
 			InnoDB */
 {
 	KEY*		key=0;
-	THD*		thd = current_thd;
-	statistic_increment(thd->status_var.ha_read_key_count, &LOCK_status);
+	ha_statistic_increment(&SSV::ha_read_key_count);
 	DBUG_ENTER("change_active_index");
 
-	ut_ad(user_thd == thd);
-	ut_a(prebuilt->trx == thd_to_trx(thd, ht));
+	ut_ad(user_thd == current_thd);
+	ut_a(prebuilt->trx == thd_to_trx(user_thd, ht));
 
 	active_index = keynr;
 
@@ -4275,8 +4229,7 @@ ha_innobase::index_next(
 	mysql_byte*	buf)	/* in/out: buffer for next row in MySQL
 				format */
 {
-	statistic_increment(current_thd->status_var.ha_read_next_count,
-		&LOCK_status);
+	ha_statistic_increment(&SSV::ha_read_next_count);
 
 	return(general_fetch(buf, ROW_SEL_NEXT, 0));
 }
@@ -4293,8 +4246,7 @@ ha_innobase::index_next_same(
 	const mysql_byte* key,	/* in: key value */
 	uint		keylen)	/* in: key value length */
 {
-	statistic_increment(current_thd->status_var.ha_read_next_count,
-		&LOCK_status);
+	ha_statistic_increment(&SSV::ha_read_next_count);
 
 	return(general_fetch(buf, ROW_SEL_NEXT, last_match_mode));
 }
@@ -4311,8 +4263,7 @@ ha_innobase::index_prev(
 	mysql_byte*	buf)	/* in/out: buffer for previous row in MySQL
 				format */
 {
-	statistic_increment(current_thd->status_var.ha_read_prev_count,
-		&LOCK_status);
+	ha_statistic_increment(&SSV::ha_read_prev_count);
 
 	return(general_fetch(buf, ROW_SEL_PREV, 0));
 }
@@ -4331,8 +4282,7 @@ ha_innobase::index_first(
 	int	error;
 
 	DBUG_ENTER("index_first");
-	statistic_increment(current_thd->status_var.ha_read_first_count,
-		&LOCK_status);
+	ha_statistic_increment(&SSV::ha_read_first_count);
 
 	error = index_read(buf, NULL, 0, HA_READ_AFTER_KEY);
 
@@ -4358,8 +4308,7 @@ ha_innobase::index_last(
 	int	error;
 
 	DBUG_ENTER("index_last");
-	statistic_increment(current_thd->status_var.ha_read_last_count,
-		&LOCK_status);
+	ha_statistic_increment(&SSV::ha_read_last_count);
 
 	error = index_read(buf, NULL, 0, HA_READ_BEFORE_KEY);
 
@@ -4429,8 +4378,7 @@ ha_innobase::rnd_next(
 	int	error;
 
 	DBUG_ENTER("rnd_next");
-	statistic_increment(current_thd->status_var.ha_read_rnd_next_count,
-		&LOCK_status);
+	ha_statistic_increment(&SSV::ha_read_rnd_next_count);
 
 	if (start_of_scan) {
 		error = index_first(buf);
@@ -4465,8 +4413,7 @@ ha_innobase::rnd_pos(
 	DBUG_ENTER("rnd_pos");
 	DBUG_DUMP("key", (char*) pos, ref_length);
 
-	statistic_increment(current_thd->status_var.ha_read_rnd_count,
-		&LOCK_status);
+	ha_statistic_increment(&SSV::ha_read_rnd_count);
 
 	ut_a(prebuilt->trx == thd_to_trx(current_thd, ht));
 
@@ -5561,15 +5508,17 @@ ha_innobase::info(
 	ib_table = prebuilt->table;
 
 	if (flag & HA_STATUS_TIME) {
-		/* In sql_show we call with this flag: update then statistics
-		so that they are up-to-date */
+		if (srv_stats_on_metadata) {
+			/* In sql_show we call with this flag: update then statistics
+			so that they are up-to-date */
 
-		prebuilt->trx->op_info = (char*)"updating table statistics";
+			prebuilt->trx->op_info = (char*)"updating table statistics";
 
-		dict_update_statistics(ib_table);
+			dict_update_statistics(ib_table);
 
-		prebuilt->trx->op_info = (char*)
-					  "returning various info to MySQL";
+			prebuilt->trx->op_info = (char*)
+						  "returning various info to MySQL";
+		}
 
 		my_snprintf(path, sizeof(path), "%s/%s%s",
 				mysql_data_home, ib_table->name, reg_ext);
@@ -6620,7 +6569,7 @@ innodb_show_status(
 
 /****************************************************************************
 Implements the SHOW MUTEX STATUS command. . */
-
+static
 bool
 innodb_mutex_show_status(
 /*=====================*/
@@ -6841,6 +6790,16 @@ ha_innobase::store_lock(
 		trx->isolation_level = innobase_map_isolation_level(
 						(enum_tx_isolation)
 						thd->variables.tx_isolation);
+
+		if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
+		    && trx->global_read_view) {
+
+			/* At low transaction isolation levels we let
+			each consistent read set its own snapshot */
+
+			read_view_close_for_mysql(trx);
+		}
+
 	}
 
 	const bool in_lock_tables = thd_in_lock_tables(thd);
@@ -7295,6 +7254,33 @@ ha_innobase::cmp_ref(
 	return(0);
 }
 
+/***********************************************************************
+Ask InnoDB if a query to a table can be cached. */
+
+my_bool
+ha_innobase::register_query_cache_table(
+/*====================================*/
+					/* out: TRUE if query caching
+					of the table is permitted */
+	THD*		thd,		/* in: user thread handle */
+	char*		table_key,	/* in: concatenation of database name,
+					the null character '\0',
+					and the table name */
+	uint		key_length,	/* in: length of the full name, i.e.
+					len(dbname) + len(tablename) + 1 */
+	qc_engine_callback*
+			call_back,	/* out: pointer to function for
+					checking if query caching
+					is permitted */
+	ulonglong	*engine_data)	/* in/out: data to call_back */
+{
+	*call_back = innobase_query_caching_of_table_permitted;
+	*engine_data = 0;
+	return(innobase_query_caching_of_table_permitted(thd, table_key,
+							 key_length,
+							 engine_data));
+}
+
 char*
 ha_innobase::get_mysql_bin_log_name()
 {
@@ -7744,8 +7730,7 @@ static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static
-SHOW_VAR innodb_status_variables_export[]= {
+static SHOW_VAR innodb_status_variables_export[]= {
   {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
   {NullS, NullS, SHOW_LONG}
 };

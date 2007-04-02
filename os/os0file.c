@@ -318,7 +318,7 @@ os_file_get_last_error(
 
 	fflush(stderr);
 
-	if (err == ENOSPC ) {
+	if (err == ENOSPC) {
 		return(OS_FILE_DISK_FULL);
 #ifdef POSIX_ASYNC_IO
 	} else if (err == EAGAIN) {
@@ -337,15 +337,20 @@ os_file_get_last_error(
 }
 
 /********************************************************************
-Does error handling when a file operation fails. */
+Does error handling when a file operation fails.
+Conditionally exits (calling exit(3)) based on should_exit value and the
+error type */
+
 static
 ibool
-os_file_handle_error(
-/*=================*/
-				/* out: TRUE if we should retry the
-				operation */
-	const char*	name,	/* in: name of a file or NULL */
-	const char*	operation)/* in: operation */
+os_file_handle_error_cond_exit(
+/*===========================*/
+					/* out: TRUE if we should retry the
+					operation */
+	const char*	name,		/* in: name of a file or NULL */
+	const char*	operation,	/* in: operation */
+	ibool		should_exit)	/* in: call exit(3) if unknown error
+					and this parameter is TRUE */
 {
 	ulint	err;
 
@@ -376,11 +381,9 @@ os_file_handle_error(
 		fflush(stderr);
 
 		return(FALSE);
-
 	} else if (err == OS_FILE_AIO_RESOURCES_RESERVED) {
 
 		return(TRUE);
-
 	} else if (err == OS_FILE_ALREADY_EXISTS
 		   || err == OS_FILE_PATH_ERROR) {
 
@@ -392,14 +395,47 @@ os_file_handle_error(
 
 		fprintf(stderr, "InnoDB: File operation call: '%s'.\n",
 			operation);
-		fprintf(stderr, "InnoDB: Cannot continue operation.\n");
 
-		fflush(stderr);
+		if (should_exit) {
+			fprintf(stderr, "InnoDB: Cannot continue operation.\n");
 
-		exit(1);
+			fflush(stderr);
+
+			exit(1);
+		}
 	}
 
 	return(FALSE);
+}
+
+/********************************************************************
+Does error handling when a file operation fails. */
+static
+ibool
+os_file_handle_error(
+/*=================*/
+				/* out: TRUE if we should retry the
+				operation */
+	const char*	name,	/* in: name of a file or NULL */
+	const char*	operation)/* in: operation */
+{
+	/* exit in case of unknown error */
+	return(os_file_handle_error_cond_exit(name, operation, TRUE));
+}
+
+/********************************************************************
+Does error handling when a file operation fails. */
+static
+ibool
+os_file_handle_error_no_exit(
+/*=========================*/
+				/* out: TRUE if we should retry the
+				operation */
+	const char*	name,	/* in: name of a file or NULL */
+	const char*	operation)/* in: operation */
+{
+	/* don't exit in case of unknown error */
+	return(os_file_handle_error_cond_exit(name, operation, FALSE));
 }
 
 #undef USE_FILE_LOCK
@@ -444,68 +480,6 @@ os_file_lock(
 	return(0);
 }
 #endif /* USE_FILE_LOCK */
-
-/********************************************************************
-Does error handling when a file operation fails. */
-static
-ibool
-os_file_handle_error_no_exit(
-/*=========================*/
-				/* out: TRUE if we should retry the
-				operation */
-	const char*	name,	/* in: name of a file or NULL */
-	const char*	operation)/* in: operation */
-{
-	ulint	err;
-
-	err = os_file_get_last_error(FALSE);
-
-	if (err == OS_FILE_DISK_FULL) {
-		/* We only print a warning about disk full once */
-
-		if (os_has_said_disk_full) {
-
-			return(FALSE);
-		}
-
-		if (name) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: Encountered a problem with"
-				" file %s\n", name);
-		}
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Disk is full. Try to clean the disk"
-			" to free space.\n");
-
-		os_has_said_disk_full = TRUE;
-
-		fflush(stderr);
-
-		return(FALSE);
-
-	} else if (err == OS_FILE_AIO_RESOURCES_RESERVED) {
-
-		return(TRUE);
-
-	} else if (err == OS_FILE_ALREADY_EXISTS
-		   || err == OS_FILE_PATH_ERROR) {
-
-		return(FALSE);
-	} else {
-		if (name) {
-			fprintf(stderr, "InnoDB: File name %s\n", name);
-		}
-
-		fprintf(stderr, "InnoDB: File operation call: '%s'.\n",
-			operation);
-		return (FALSE);
-	}
-
-	return(FALSE);		/* not reached */
-}
 
 /********************************************************************
 Creates the seek mutexes used in positioned reads and writes. */
@@ -930,7 +904,7 @@ try_again:
 	file = CreateFile((LPCTSTR) name,
 			  access,
 			  FILE_SHARE_READ | FILE_SHARE_WRITE,
-			  /* file can be read ansd written also
+			  /* file can be read and written also
 			  by other processes */
 			  NULL,	/* default security attributes */
 			  create_flag,
@@ -1125,6 +1099,51 @@ os_file_create_simple_no_error_handling(
 }
 
 /********************************************************************
+Tries to disable OS caching on an opened file descriptor. */
+
+void
+os_file_set_nocache(
+/*================*/
+	int		fd,		/* in: file descriptor to alter */
+	const char*	file_name,	/* in: used in the diagnostic message */
+	const char*	operation_name)	/* in: used in the diagnostic message,
+					we call os_file_set_nocache()
+					immediately after opening or creating
+					a file, so this is either "open" or
+					"create" */
+{
+	/* some versions of Solaris may not have DIRECTIO_ON */
+#if defined(UNIV_SOLARIS) && defined(DIRECTIO_ON)
+	if (directio(fd, DIRECTIO_ON) == -1) {
+		int	errno_save;
+		errno_save = (int)errno;
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: Failed to set DIRECTIO_ON "
+			"on file %s: %s: %s, continuing anyway\n",
+			file_name, operation_name, strerror(errno_save));
+	}
+#elif defined(O_DIRECT)
+	if (fcntl(fd, F_SETFL, O_DIRECT) == -1) {
+		int	errno_save;
+		errno_save = (int)errno;
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: Failed to set O_DIRECT "
+			"on file %s: %s: %s, continuing anyway\n",
+			file_name, operation_name, strerror(errno_save));
+		if (errno_save == EINVAL) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: O_DIRECT is known to result in "
+				"'Invalid argument' on Linux on tmpfs, "
+				"see MySQL Bug#26662\n");
+		}
+	}
+#endif
+}
+
+/********************************************************************
 Opens an existing file or creates a new. */
 
 os_file_t
@@ -1306,21 +1325,8 @@ try_again:
 		create_flag = create_flag | O_SYNC;
 	}
 #endif /* O_SYNC */
-#ifdef O_DIRECT
-	/* We let O_DIRECT only affect data files */
-	if (type != OS_LOG_FILE
-	    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
-# if 0
-		fprintf(stderr, "Using O_DIRECT for file %s\n", name);
-# endif
-		create_flag = create_flag | O_DIRECT;
-	}
-#endif /* O_DIRECT */
-	if (create_mode == OS_FILE_CREATE) {
-		file = open(name, create_flag, os_innodb_umask);
-	} else {
-		file = open(name, create_flag);
-	}
+
+	file = open(name, create_flag, os_innodb_umask);
 
 	if (file == -1) {
 		*success = FALSE;
@@ -1330,11 +1336,24 @@ try_again:
 					     "create" : "open");
 		if (retry) {
 			goto try_again;
+		} else {
+			return(file /* -1 */);
 		}
+	}
+	/* else */
+
+	*success = TRUE;
+
+	/* We disable OS caching (O_DIRECT) only on data files */
+	if (type != OS_LOG_FILE
+	    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
+		
+		os_file_set_nocache(file, name, mode_str);
+	}
+
 #ifdef USE_FILE_LOCK
-	} else if (create_mode != OS_FILE_OPEN_RAW
-		   && os_file_lock(file, name)) {
-		*success = FALSE;
+	if (create_mode != OS_FILE_OPEN_RAW && os_file_lock(file, name)) {
+
 		if (create_mode == OS_FILE_OPEN_RETRY) {
 			int i;
 			ut_print_timestamp(stderr);
@@ -1352,12 +1371,12 @@ try_again:
 			fputs("  InnoDB: Unable to open the first data file\n",
 			      stderr);
 		}
+
+		*success = FALSE;
 		close(file);
 		file = -1;
-#endif
-	} else {
-		*success = TRUE;
 	}
+#endif /* USE_FILE_LOCK */
 
 	return(file);
 #endif /* __WIN__ */
@@ -1509,7 +1528,7 @@ os_file_rename(
 		return(TRUE);
 	}
 
-	os_file_handle_error(oldpath, "rename");
+	os_file_handle_error_no_exit(oldpath, "rename");
 
 	return(FALSE);
 #else
@@ -1518,7 +1537,7 @@ os_file_rename(
 	ret = rename((const char*)oldpath, (const char*)newpath);
 
 	if (ret != 0) {
-		os_file_handle_error(oldpath, "rename");
+		os_file_handle_error_no_exit(oldpath, "rename");
 
 		return(FALSE);
 	}

@@ -375,8 +375,6 @@ trx_is_interrupted(
 /* Signal to a transaction */
 struct trx_sig_struct{
 	ulint		type;		/* signal type */
-	ulint		state;		/* TRX_SIG_WAITING or
-					TRX_SIG_BEING_HANDLED */
 	ulint		sender;		/* TRX_SIG_SELF or
 					TRX_SIG_OTHER_SESS */
 	que_thr_t*	receiver;	/* non-NULL if the sender of the signal
@@ -404,7 +402,7 @@ struct trx_struct{
 	const char*	op_info;	/* English text describing the
 					current operation, or an empty
 					string */
-	ulint		type;		/* TRX_USER, TRX_PURGE */
+	unsigned	is_purge:1;	/* 0=user transaction, 1=purge */
 	ulint		conc_state;	/* state of the trx from the point
 					of view of concurrency control:
 					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
@@ -675,12 +673,6 @@ struct trx_struct{
 					single operation of a
 					transaction, e.g., a parallel
 					query */
-/* Transaction types */
-#define	TRX_USER		1	/* normal user transaction */
-#define	TRX_PURGE		2	/* purge transaction: this is not
-					inserted to the trx list of trx_sys
-					and no rollback segment is assigned to
-					this */
 /* Transaction concurrency states */
 #define	TRX_NOT_STARTED		1
 #define	TRX_ACTIVE		2
@@ -742,9 +734,6 @@ struct trx_struct{
 					session */
 #define TRX_SIG_OTHER_SESS	2	/* sent by another session (which
 					must hold rights to this) */
-/* Signal states */
-#define	TRX_SIG_WAITING		1
-#define TRX_SIG_BEING_HANDLED	2
 
 /* Commit command node in a query graph */
 struct commit_node_struct{
