@@ -858,6 +858,7 @@ void free_io_cache(TABLE *table)
   DBUG_VOID_RETURN;
 }
 
+
 /*
   Close all tables which aren't in use by any thread
 
@@ -965,6 +966,71 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     thd->proc_info=0;
     pthread_mutex_unlock(&thd->mysys_var->mutex);
   }
+  DBUG_RETURN(result);
+}
+
+
+/*
+  Close all tables which match specified connection string or
+  if specified string is NULL, then any table with a connection string.
+*/
+
+bool close_cached_connection_tables(THD *thd, bool if_wait_for_refresh,
+                                    LEX_STRING *connection, bool have_lock)
+{
+  uint idx;
+  TABLE_LIST tmp, *tables= NULL;
+  bool result= FALSE;
+  DBUG_ENTER("close_cached_connections");
+  DBUG_ASSERT(thd);
+
+  bzero(&tmp, sizeof(TABLE_LIST));
+  
+  if (!have_lock)
+    VOID(pthread_mutex_lock(&LOCK_open));
+  
+  for (idx= 0; idx < table_def_cache.records; idx++)
+  {
+    TABLE_SHARE *share= (TABLE_SHARE *) hash_element(&table_def_cache, idx);
+
+    /* Ignore if table is not open or does not have a connect_string */
+    if (!share->connect_string.length || !share->ref_count)
+      continue;
+
+    /* Compare the connection string */
+    if (connection &&
+        (connection->length > share->connect_string.length ||
+         (connection->length < share->connect_string.length &&
+          (share->connect_string.str[connection->length] != '/' &&
+           share->connect_string.str[connection->length] != '\\')) ||
+         strncasecmp(connection->str, share->connect_string.str,
+                     connection->length)))
+      continue;
+
+    /* close_cached_tables() only uses these elements */
+    tmp.db= share->db.str;
+    tmp.table_name= share->table_name.str;
+    tmp.next_local= tables;
+
+    tables= (TABLE_LIST *) memdup_root(thd->mem_root, (char*)&tmp, 
+                                       sizeof(TABLE_LIST));
+  }
+
+  if (tables)
+    result= close_cached_tables(thd, FALSE, tables, TRUE);
+  
+  if (!have_lock)
+    VOID(pthread_mutex_unlock(&LOCK_open));
+  
+  if (if_wait_for_refresh)
+  {
+    pthread_mutex_lock(&thd->mysys_var->mutex);
+    thd->mysys_var->current_mutex= 0;
+    thd->mysys_var->current_cond= 0;
+    thd->proc_info=0;
+    pthread_mutex_unlock(&thd->mysys_var->mutex);
+  }
+
   DBUG_RETURN(result);
 }
 
@@ -2272,6 +2338,9 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->insert_values= 0;
   table->fulltext_searched= 0;
   table->file->ft_handler= 0;
+  /* Catch wrong handling of the auto_increment_field_not_null. */
+  DBUG_ASSERT(!table->auto_increment_field_not_null);
+  table->auto_increment_field_not_null= FALSE;
   if (table->timestamp_field)
     table->timestamp_field_type= table->timestamp_field->get_auto_set_type();
   table->pos_in_table_list= table_list;
@@ -5772,7 +5841,6 @@ bool setup_tables_and_check_access(THD *thd,
   TABLE_LIST *leaves_tmp= NULL;
   bool first_table= true;
 
-  thd->leaf_count= 0;
   if (setup_tables(thd, context, from_clause, tables,
                    &leaves_tmp, select_insert))
     return TRUE;
@@ -5790,7 +5858,6 @@ bool setup_tables_and_check_access(THD *thd,
       return TRUE;
     }
     first_table= 0;
-    thd->leaf_count++;
   }
   return FALSE;
 }
@@ -6174,6 +6241,11 @@ err_no_arena:
     values        values to fill with
     ignore_errors TRUE if we should ignore errors
 
+  NOTE
+    fill_record() may set table->auto_increment_field_not_null and a
+    caller should make sure that it is reset after their last call to this
+    function.
+
   RETURN
     FALSE   OK
     TRUE    error occured
@@ -6186,27 +6258,52 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   List_iterator_fast<Item> f(fields),v(values);
   Item *value, *fld;
   Item_field *field;
+  TABLE *table= 0;
   DBUG_ENTER("fill_record");
 
+  /*
+    Reset the table->auto_increment_field_not_null as it is valid for
+    only one row.
+  */
+  if (fields.elements)
+  {
+    /*
+      On INSERT or UPDATE fields are checked to be from the same table,
+      thus we safely can take table from the first field.
+    */
+    fld= (Item_field*)f++;
+    if (!(field= fld->filed_for_view_update()))
+    {
+      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), fld->name);
+      goto err;
+    }
+    table= field->field->table;
+    table->auto_increment_field_not_null= FALSE;
+    f.rewind();
+  }
   while ((fld= f++))
   {
     if (!(field= fld->filed_for_view_update()))
     {
       my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), fld->name);
-      DBUG_RETURN(TRUE);
+      goto err;
     }
     value=v++;
     Field *rfield= field->field;
-    TABLE *table= rfield->table;
+    table= rfield->table;
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
     if ((value->save_in_field(rfield, 0) < 0) && !ignore_errors)
     {
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
-      DBUG_RETURN(TRUE);
+      goto err;
     }
   }
   DBUG_RETURN(thd->net.report_error);
+err:
+  if (table)
+    table->auto_increment_field_not_null= FALSE;
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -6255,6 +6352,11 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
     values        list of fields
     ignore_errors TRUE if we should ignore errors
 
+  NOTE
+    fill_record() may set table->auto_increment_field_not_null and a
+    caller should make sure that it is reset after their last call to this
+    function.
+
   RETURN
     FALSE   OK
     TRUE    error occured
@@ -6265,19 +6367,38 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
 {
   List_iterator_fast<Item> v(values);
   Item *value;
+  TABLE *table= 0;
   DBUG_ENTER("fill_record");
 
   Field *field;
+  /*
+    Reset the table->auto_increment_field_not_null as it is valid for
+    only one row.
+  */
+  if (*ptr)
+  {
+    /*
+      On INSERT or UPDATE fields are checked to be from the same table,
+      thus we safely can take table from the first field.
+    */
+    table= (*ptr)->table;
+    table->auto_increment_field_not_null= FALSE;
+  }
   while ((field = *ptr++))
   {
     value=v++;
-    TABLE *table= field->table;
+    table= field->table;
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
     if (value->save_in_field(field, 0) == -1)
-      DBUG_RETURN(TRUE);
+      goto err;
   }
   DBUG_RETURN(thd->net.report_error);
+
+err:
+  if (table)
+    table->auto_increment_field_not_null= FALSE;
+  DBUG_RETURN(TRUE);
 }
 
 

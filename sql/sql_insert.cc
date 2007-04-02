@@ -753,6 +753,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
      table->next_number_field->val_int() : 0));
   table->next_number_field=0;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  table->auto_increment_field_not_null= FALSE;
   if (duplic != DUP_ERROR || ignore)
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   if (duplic == DUP_REPLACE &&
@@ -2466,14 +2467,12 @@ bool mysql_insert_select_prepare(THD *thd)
   DBUG_ASSERT(select_lex->leaf_tables != 0);
   lex->leaf_tables_insert= select_lex->leaf_tables;
   /* skip all leaf tables belonged to view where we are insert */
-  for (first_select_leaf_table= select_lex->leaf_tables->next_leaf,
-       thd->leaf_count --;
+  for (first_select_leaf_table= select_lex->leaf_tables->next_leaf;
        first_select_leaf_table &&
        first_select_leaf_table->belong_to_view &&
        first_select_leaf_table->belong_to_view ==
        lex->leaf_tables_insert->belong_to_view;
-       first_select_leaf_table= first_select_leaf_table->next_leaf,
-       thd->leaf_count --)
+       first_select_leaf_table= first_select_leaf_table->next_leaf)
   {}
   select_lex->leaf_tables= first_select_leaf_table;
   DBUG_RETURN(FALSE);
@@ -2691,6 +2690,7 @@ select_insert::~select_insert()
   if (table)
   {
     table->next_number_field=0;
+    table->auto_increment_field_not_null= FALSE;
     table->file->ha_reset();
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
