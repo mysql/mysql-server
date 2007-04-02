@@ -205,7 +205,7 @@ select hex(a) from t1;
 drop table t1;
 flush logs;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000010
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/log/master-bin.000010
 
 --echo End of 5.0 tests
 
