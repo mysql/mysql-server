@@ -1004,8 +1004,6 @@ void prepare_new_connection_state(THD* thd)
   if (thd->client_capabilities & CLIENT_COMPRESS)
     thd->net.compress=1;				// Use compression
 
-  plugin_thdvar_init(thd, true);
-
   thd->version= refresh_version;
   thd->proc_info= 0;
   thd->command= COM_SLEEP;

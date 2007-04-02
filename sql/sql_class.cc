@@ -408,7 +408,8 @@ void THD::init(void)
 {
   pthread_mutex_lock(&LOCK_global_system_variables);
   variables= global_system_variables;
-  plugin_thdvar_init(this, false);
+  variables.table_plugin= NULL;
+  plugin_thdvar_init(this);
   variables.time_format= date_time_format_copy((THD*) 0,
 					       variables.time_format);
   variables.date_format= date_time_format_copy((THD*) 0,

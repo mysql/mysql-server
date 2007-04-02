@@ -127,13 +127,18 @@ struct st_item_value_holder : public st_mysql_value
   hash and is used to mark a single offset for a thd local variable 
   even if plugins have been uninstalled and reinstalled, repeatedly.
   This structure is allocated from plugin_mem_root.
+  
+  The key format is as follows:
+    1 byte         - variable type code
+    name_len bytes - variable name
+    '\0'           - end of key
 */
 struct st_bookmark
 {
-  char *name;
   uint name_len;
   int offset;
   uint version;
+  char key[0];
 };
 
 
@@ -187,8 +192,8 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
 static bool register_builtin(struct st_mysql_plugin *plugin, 
                              struct st_plugin_int *tmp,
                              struct st_plugin_int **ptr);
-static void cleanup_variables(THD *thd, struct system_variables *vars, 
-                              bool free_memory);
+static void unlock_variables(THD *thd, struct system_variables *vars);
+static void cleanup_variables(THD *thd, struct system_variables *vars);
 static void plugin_opt_set_limits(struct my_option *options,
                                   const struct st_mysql_sys_var *opt);
 #define my_intern_plugin_lock(A,B) intern_plugin_lock(A,B CALLER_INFO)
@@ -789,7 +794,8 @@ err:
 }
 
 
-static void plugin_deinitialize(struct st_plugin_int *plugin, bool ref_check)
+static void plugin_deinitialize(struct st_plugin_int *plugin,
+                                bool ref_check= TRUE)
 {
   /*
     we don't want to hold the LOCK_plugin mutex as it may cause
@@ -905,7 +911,7 @@ static void reap_plugins(void)
 
   list= reap;
   while ((plugin= *(--list)))
-    plugin_deinitialize(plugin, true);
+    plugin_deinitialize(plugin);
   
   pthread_mutex_lock(&LOCK_plugin);
   
@@ -1080,7 +1086,7 @@ static byte *get_bookmark_hash_key(const byte *buff, uint *length,
 {
   struct st_bookmark *var= (st_bookmark *)buff;
   *length= var->name_len + 1;
-  return (byte*) var->name;
+  return (byte*) var->key;
 }
 
 
@@ -1220,7 +1226,7 @@ int plugin_init(int *argc, char **argv, int flags)
   while ((plugin_ptr= *(--reap)))
   {
     pthread_mutex_unlock(&LOCK_plugin);
-    plugin_deinitialize(plugin_ptr, true);
+    plugin_deinitialize(plugin_ptr);
     pthread_mutex_lock(&LOCK_plugin);
     plugin_del(plugin_ptr);
   }
@@ -1454,14 +1460,6 @@ void plugin_shutdown(void)
   {
     pthread_mutex_lock(&LOCK_plugin);
 
-    /*
-      release any plugin references held but don't yet free
-      memory for dynamic variables as some plugins may still
-      want to reference their global variables.
-    */
-    cleanup_variables(NULL, &global_system_variables, false);
-    cleanup_variables(NULL, &max_system_variables, false);
-
     reap_needed= true;
     
     /*
@@ -1473,6 +1471,7 @@ void plugin_shutdown(void)
     */
     while (reap_needed && (count= plugin_array.elements))
     {
+      reap_plugins();
       for (i= 0; i < count; i++)
       {
         plugin= dynamic_element(&plugin_array, i, struct st_plugin_int *);
@@ -1482,7 +1481,14 @@ void plugin_shutdown(void)
           reap_needed= true;
         }
       }
-      reap_plugins();
+      if (!reap_needed)
+      {
+        /*
+          release any plugin references held.
+        */
+        unlock_variables(NULL, &global_system_variables);
+        unlock_variables(NULL, &max_system_variables);
+      }
     }
 
     if (count > 0)
@@ -1510,6 +1516,10 @@ void plugin_shutdown(void)
       {
         sql_print_information("Plugin '%s' will be forced to shutdown", 
                               plugins[i]->name.str);
+        /*
+          We are forcing deinit on plugins so we don't want to do a ref_count
+          check until we have processed all the plugins.
+        */
         plugin_deinitialize(plugins[i], false);
       }
 
@@ -1533,8 +1543,8 @@ void plugin_shutdown(void)
 
     /* neccessary to avoid safe_mutex_assert_owner() trap */
     pthread_mutex_lock(&LOCK_plugin);
-    cleanup_variables(NULL, &global_system_variables, true);
-    cleanup_variables(NULL, &max_system_variables, true);
+    cleanup_variables(NULL, &global_system_variables);
+    cleanup_variables(NULL, &max_system_variables);
     pthread_mutex_unlock(&LOCK_plugin);
 
     initialized= 0;
@@ -2148,7 +2158,7 @@ static st_bookmark *register_var(const char *plugin, const char *name,
     result= (st_bookmark*) alloc_root(&plugin_mem_root, 
                                         sizeof(struct st_bookmark) + length);
     varname[0]= flags & PLUGIN_VAR_TYPEMASK;
-    result->name= (char *) memcpy(&result[1], varname, length);
+    memcpy(result->key, varname, length);
     result->name_len= length - 2;
     result->offset= -1;
     
@@ -2244,9 +2254,9 @@ static byte *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
       st_bookmark *v= (st_bookmark*) hash_element(&bookmark_hash,idx);
       
       if (v->version <= thd->variables.dynamic_variables_version ||
-          !(var= intern_find_sys_var(v->name + 1, v->name_len, true)) ||
+          !(var= intern_find_sys_var(v->key + 1, v->name_len, true)) ||
           !(pi= var->cast_pluginvar()) ||
-          v->name[0] != (pi->plugin_var->flags & PLUGIN_VAR_TYPEMASK))
+          v->key[0] != (pi->plugin_var->flags & PLUGIN_VAR_TYPEMASK))
         continue;
 
       /* Here we do anything special that may be required of the data types */
@@ -2283,27 +2293,33 @@ static byte *mysql_sys_var_ptr(void* a_thd, int offset)
 }
 
 
-void plugin_thdvar_init(THD *thd, bool lock_locals)
+void plugin_thdvar_init(THD *thd)
 {
   /* we are going to allocate these lazily */
   thd->variables.dynamic_variables_version= 0;
   thd->variables.dynamic_variables_size= 0;
   thd->variables.dynamic_variables_ptr= 0;
 
-  if (lock_locals)
-  {
-    DBUG_ASSERT(!(thd->variables.table_plugin));
-    thd->variables.table_plugin= 
+  DBUG_ASSERT(!(thd->variables.table_plugin));
+  thd->variables.table_plugin= 
         my_plugin_lock(NULL, &global_system_variables.table_plugin);
-  }
-  else
-  {
-    thd->variables.table_plugin= NULL;
-  }
 }
 
-static void cleanup_variables(THD *thd, struct system_variables *vars,
-                              bool free_memory)
+
+/*
+  Unlocks all system variables which hold a reference
+*/
+static void unlock_variables(THD *thd, struct system_variables *vars)
+{
+  intern_plugin_unlock(NULL, vars->table_plugin);
+  vars->table_plugin= NULL;
+}
+
+
+/*
+  Frees memory used by system variables
+*/
+static void cleanup_variables(THD *thd, struct system_variables *vars)
 {
   st_bookmark *v;
   sys_var_pluginvar *pivar;
@@ -2316,9 +2332,9 @@ static void cleanup_variables(THD *thd, struct system_variables *vars,
   {
     v= (st_bookmark*) hash_element(&bookmark_hash, idx);
     if (v->version > vars->dynamic_variables_version ||
-        !(var= intern_find_sys_var(v->name + 1, v->name_len, true)) ||
+        !(var= intern_find_sys_var(v->key + 1, v->name_len, true)) ||
         !(pivar= var->cast_pluginvar()) || 
-        v->name[0] != (pivar->plugin_var->flags & PLUGIN_VAR_TYPEMASK))
+        v->key[0] != (pivar->plugin_var->flags & PLUGIN_VAR_TYPEMASK))
       continue;
 
     flags= pivar->plugin_var->flags;
@@ -2333,16 +2349,10 @@ static void cleanup_variables(THD *thd, struct system_variables *vars,
   }       
   rw_unlock(&LOCK_system_variables_hash);
   
-  intern_plugin_unlock(NULL, vars->table_plugin);
-  vars->table_plugin= NULL;
-  
-  if (free_memory)
-  {
-    my_free(vars->dynamic_variables_ptr, MYF(MY_ALLOW_ZERO_PTR));
-    vars->dynamic_variables_ptr= NULL;
-    vars->dynamic_variables_size= 0;
-    vars->dynamic_variables_version= 0;
-  }
+  my_free(vars->dynamic_variables_ptr, MYF(MY_ALLOW_ZERO_PTR));
+  vars->dynamic_variables_ptr= NULL;
+  vars->dynamic_variables_size= 0;
+  vars->dynamic_variables_version= 0;
 }
 
 
@@ -2354,7 +2364,8 @@ void plugin_thdvar_cleanup(THD *thd)
 
   pthread_mutex_lock(&LOCK_plugin);
 
-  cleanup_variables(thd, &thd->variables, true);
+  unlock_variables(thd, &thd->variables);
+  cleanup_variables(thd, &thd->variables);
 
   if ((idx= thd->main_lex.plugins.elements))
   {
@@ -2828,7 +2839,7 @@ static int construct_options(MEM_ROOT *mem_root,
       optnamelen= namelen + optnamelen + 1;
     }
     else
-      optname= memdup_root(mem_root, v->name + 1, (optnamelen= v->name_len) + 1);
+      optname= memdup_root(mem_root, v->key + 1, (optnamelen= v->name_len) + 1);
 
     /* convert '_' to '-' */
     for (p= optname; *p; p++)
@@ -2970,7 +2981,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
         continue;
       
       if ((var= find_bookmark(tmp->plugin->name, o->name, o->flags)))
-        v= new (mem_root) sys_var_pluginvar(var->name + 1, o);
+        v= new (mem_root) sys_var_pluginvar(var->key + 1, o);
       else
       {
         len= strlen(tmp->plugin->name) + strlen(o->name) + 2;
