@@ -1130,7 +1130,7 @@ sp_head::execute(THD *thd)
       (It would generate an error from mysql_change_db() when old_db=="")
     */
     if (! thd->killed)
-      err_status|= mysql_change_db(thd, old_db.str, 1);
+      err_status|= mysql_change_db(thd, &old_db, TRUE);
   }
   m_flags&= ~IS_INVOKED;
   DBUG_PRINT("info",

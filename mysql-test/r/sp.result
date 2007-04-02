@@ -5969,6 +5969,21 @@ SUM(f2)	bug25373(f1)
 21.300000071526	NULL
 DROP FUNCTION bug25373|
 DROP TABLE t3|
+DROP DATABASE IF EXISTS mysqltest1|
+DROP DATABASE IF EXISTS mysqltest2|
+CREATE DATABASE mysqltest1|
+CREATE DATABASE mysqltest2|
+CREATE PROCEDURE mysqltest1.p1()
+DROP DATABASE mysqltest2|
+use mysqltest2|
+CALL mysqltest1.p1()|
+Warnings:
+Note	1049	Unknown database 'mysqltest2'
+SELECT DATABASE()|
+DATABASE()
+NULL
+DROP DATABASE mysqltest1|
+use test|
 drop table t1,t2;
 CREATE TABLE t1 (a int auto_increment primary key) engine=MyISAM;
 CREATE TABLE t2 (a int auto_increment primary key, b int) engine=innodb;
