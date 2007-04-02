@@ -126,7 +126,7 @@ extern bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
                                  const LEX_STRING *dl);
 extern bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name);
 extern bool plugin_register_builtin(struct st_mysql_plugin *plugin);
-extern void plugin_thdvar_init(THD *thd, bool lock_locals);
+extern void plugin_thdvar_init(THD *thd);
 extern void plugin_thdvar_cleanup(THD *thd);
 
 typedef my_bool (plugin_foreach_func)(THD *thd,
