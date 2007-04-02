@@ -28,7 +28,7 @@
 namespace yaSSL {
 
 
-#if defined(_WIN32) || defined(_WIN64)
+#ifdef _WIN32
     typedef unsigned int SOCKET_T;
 #else
     typedef int          SOCKET_T;

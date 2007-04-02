@@ -14,6 +14,113 @@ SELECT * FROM t4;
 a
 DROP TABLE t1;
 DROP TABLE t4;
+**** Test case for BUG#25482 ****
+**** Adding GRANTS on master ****
+create table test.t1(a int);
+create table test.t4(a int);
+GRANT SELECT ON test.t1 TO mysqltest1@localhost;
+GRANT INSERT ON test.t4 TO mysqltest2@localhost;
+GRANT select, update, insert, references on t1
+to mysqltest2@localhost;
+GRANT SELECT ON test.* TO mysqltest3@localhost;
+GRANT INSERT ON test.t4 TO mysqltest3@localhost;
+GRANT select(a), update(a), insert(a), references(a) on t4
+to mysqltest3@localhost;
+create database mysqltest2;
+create table mysqltest2.t2 (id int);
+GRANT SELECT ON mysqltest2.t2 TO mysqltest4@localhost IDENTIFIED BY 'pass';
+insert into mysql.user (user, host) values ("mysqltest5", "somehost");
+Warnings:
+Warning	1364	Field 'ssl_cipher' doesn't have a default value
+Warning	1364	Field 'x509_issuer' doesn't have a default value
+Warning	1364	Field 'x509_subject' doesn't have a default value
+GRANT SELECT ON *.* TO mysqltest6@localhost;
+GRANT INSERT ON *.* TO mysqltest6@localhost;
+GRANT INSERT ON test.* TO mysqltest6@localhost;
+GRANT INSERT ON test.t1 TO mysqltest6@localhost;
+show grants for mysqltest1@localhost;
+Grants for mysqltest1@localhost
+GRANT USAGE ON *.* TO 'mysqltest1'@'localhost'
+GRANT SELECT ON `test`.`t1` TO 'mysqltest1'@'localhost'
+show grants for mysqltest2@localhost;
+Grants for mysqltest2@localhost
+GRANT USAGE ON *.* TO 'mysqltest2'@'localhost'
+GRANT SELECT, INSERT, UPDATE, REFERENCES ON `test`.`t1` TO 'mysqltest2'@'localhost'
+GRANT INSERT ON `test`.`t4` TO 'mysqltest2'@'localhost'
+show grants for mysqltest3@localhost;
+Grants for mysqltest3@localhost
+GRANT USAGE ON *.* TO 'mysqltest3'@'localhost'
+GRANT SELECT ON `test`.* TO 'mysqltest3'@'localhost'
+GRANT SELECT (a), INSERT, INSERT (a), UPDATE (a), REFERENCES (a) ON `test`.`t4` TO 'mysqltest3'@'localhost'
+show grants for mysqltest4@localhost;
+Grants for mysqltest4@localhost
+GRANT USAGE ON *.* TO 'mysqltest4'@'localhost' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7'
+GRANT SELECT ON `mysqltest2`.`t2` TO 'mysqltest4'@'localhost'
+show grants for mysqltest6@localhost;
+Grants for mysqltest6@localhost
+GRANT SELECT, INSERT ON *.* TO 'mysqltest6'@'localhost'
+GRANT INSERT ON `test`.* TO 'mysqltest6'@'localhost'
+GRANT INSERT ON `test`.`t1` TO 'mysqltest6'@'localhost'
+flush privileges;
+show grants for mysqltest5@somehost;
+Grants for mysqltest5@somehost
+GRANT USAGE ON *.* TO 'mysqltest5'@'somehost'
+**** Checking grants on slave ****
+show grants for mysqltest2@localhost;
+Grants for mysqltest2@localhost
+GRANT USAGE ON *.* TO 'mysqltest2'@'localhost'
+GRANT INSERT ON `test`.`t4` TO 'mysqltest2'@'localhost'
+show grants for mysqltest3@localhost;
+Grants for mysqltest3@localhost
+GRANT USAGE ON *.* TO 'mysqltest3'@'localhost'
+GRANT SELECT ON `test`.* TO 'mysqltest3'@'localhost'
+GRANT SELECT (a), INSERT, INSERT (a), UPDATE (a), REFERENCES (a) ON `test`.`t4` TO 'mysqltest3'@'localhost'
+show grants for mysqltest4@localhost;
+Grants for mysqltest4@localhost
+GRANT USAGE ON *.* TO 'mysqltest4'@'localhost' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7'
+GRANT SELECT ON `mysqltest2`.`t2` TO 'mysqltest4'@'localhost'
+show grants for mysqltest5@somehost;
+Grants for mysqltest5@somehost
+GRANT USAGE ON *.* TO 'mysqltest5'@'somehost'
+show grants for mysqltest6@localhost;
+Grants for mysqltest6@localhost
+GRANT SELECT, INSERT ON *.* TO 'mysqltest6'@'localhost'
+GRANT INSERT ON `test`.* TO 'mysqltest6'@'localhost'
+show grants for mysqltest1@localhost;
+ERROR 42000: There is no such grant defined for user 'mysqltest1' on host 'localhost'
+**** Revoking grants on master ****
+REVOKE SELECT ON test.t1 FROM mysqltest1@localhost;
+REVOKE SELECT ON mysqltest2.t2 FROM mysqltest4@localhost;
+REVOKE select(a) on t4
+from mysqltest3@localhost;
+show grants for mysqltest1@localhost;
+Grants for mysqltest1@localhost
+GRANT USAGE ON *.* TO 'mysqltest1'@'localhost'
+show grants for mysqltest3@localhost;
+Grants for mysqltest3@localhost
+GRANT USAGE ON *.* TO 'mysqltest3'@'localhost'
+GRANT SELECT ON `test`.* TO 'mysqltest3'@'localhost'
+GRANT INSERT, INSERT (a), UPDATE (a), REFERENCES (a) ON `test`.`t4` TO 'mysqltest3'@'localhost'
+show grants for mysqltest4@localhost;
+Grants for mysqltest4@localhost
+GRANT USAGE ON *.* TO 'mysqltest4'@'localhost' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7'
+**** Checking grants on slave ****
+show grants for mysqltest1@localhost;
+ERROR 42000: There is no such grant defined for user 'mysqltest1' on host 'localhost'
+show grants for mysqltest3@localhost;
+Grants for mysqltest3@localhost
+GRANT USAGE ON *.* TO 'mysqltest3'@'localhost'
+GRANT SELECT ON `test`.* TO 'mysqltest3'@'localhost'
+GRANT INSERT, INSERT (a), UPDATE (a), REFERENCES (a) ON `test`.`t4` TO 'mysqltest3'@'localhost'
+show grants for mysqltest4@localhost;
+Grants for mysqltest4@localhost
+GRANT USAGE ON *.* TO 'mysqltest4'@'localhost' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7'
+drop table t1, t4, mysqltest2.t2;
+drop database mysqltest2;
+delete from mysql.user where user like "mysqltest%";
+delete from mysql.db where user like "mysqltest%";
+delete from mysql.tables_priv where user like "mysqltest%";
+delete from mysql.columns_priv where user like "mysqltest%";
 DROP TABLE IF EXISTS t5;
 CREATE TABLE t5 (
 word varchar(50) collate utf8_unicode_ci NOT NULL default ''

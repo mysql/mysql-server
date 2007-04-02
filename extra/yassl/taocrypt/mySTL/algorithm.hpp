@@ -27,8 +27,6 @@
 
 namespace mySTL {
 
-#undef max
-#undef min
 
 template<typename T>
 inline const T& max(const T& a, const T&b)

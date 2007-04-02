@@ -2348,7 +2348,7 @@ String *Item_func_repeat::val_str(String *str)
     goto err;				// string and/or delim are null
   null_value= 0;
 
-  if (count == 0 || count < 0 && !args[1]->unsigned_flag)
+  if (count <= 0 && (count == 0 || !args[1]->unsigned_flag))
     return &my_empty_string;
 
   /* Assumes that the maximum length of a String is < INT_MAX32. */

@@ -187,7 +187,7 @@ Pos	Instruction
 32	set v_dig@4 (v_dig@4 + 1)
 33	stmt 4 "update sudoku_work set dig = v_dig wh..."
 34	set v_tcounter@6 (v_tcounter@6 + 1)
-35	jump_if_not 37(37) (not(`test`.`sudoku_digit_ok`(v_row@7,v_col@8,v_dig@4)))
+35	jump_if_not 37(37) (not(`sudoku_digit_ok`(v_row@7,v_col@8,v_dig@4)))
 36	jump 15
 37	set v_i@3 (v_i@3 + 1)
 38	jump 15
