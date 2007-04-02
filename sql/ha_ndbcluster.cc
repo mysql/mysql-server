@@ -8415,6 +8415,8 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   struct timespec abstime;
   List<NDB_SHARE> util_open_tables;
   Thd_ndb *thd_ndb;
+  uint share_list_size= 0;
+  NDB_SHARE **share_list= NULL;
 
   my_thread_init();
   DBUG_ENTER("ndb_util_thread");
@@ -8499,8 +8501,6 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   ndbcluster_find_all_files(thd);
 #endif
 
-  uint share_list_size= 0;
-  NDB_SHARE **share_list= NULL;
   set_timespec(abstime, 0);
   for (;;)
   {
