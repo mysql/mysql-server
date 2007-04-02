@@ -919,7 +919,7 @@ port=1234
 EOF
 --exec $MYSQL_MY_PRINT_DEFAULTS -c $MYSQLTEST_VARDIR/tmp/tmp.cnf mysqltest1
 --exec $MYSQL_MY_PRINT_DEFAULTS -e $MYSQLTEST_VARDIR/tmp/tmp.cnf mysqltest1 mysqltest1
---remov_file $MYSQLTEST_VARDIR/tmp/tmp.cnf
+--remove_file $MYSQLTEST_VARDIR/tmp/tmp.cnf
 
 --echo #
 --echo # Test of fix to BUG 12597
@@ -1482,10 +1482,10 @@ create function f2() returns int return f1();
 create view v3 as select bug23491_original.f1();
 
 # Backup.
---exec $MYSQL_DUMP --skip-comments -uroot --opt --routines bug23491_original > $MYSQLTEST_VARDIR/tmp/bug23491_backup.sql;
+--exec $MYSQL_DUMP --skip-comments -uroot --opt --routines bug23491_original > $MYSQLTEST_VARDIR/tmp/bug23491_backup.sql
 
 # Restore.
---exec $MYSQL bug23491_restore < $MYSQLTEST_VARDIR/tmp/bug23491_backup.sql;
+--exec $MYSQL bug23491_restore < $MYSQLTEST_VARDIR/tmp/bug23491_backup.sql
 
 # Verify
 use bug23491_restore;
