@@ -104,23 +104,22 @@ select * from t2;
 a
 select * from t3;
 a
-show binlog events;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
-master-bin.000001	#	Query	1	#	use `test`; drop table t1,t2
-master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int) engine=blackhole
-master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	1	#	use `test`; create table t2 (a varchar(200)) engine=blackhole
-master-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	1	#	use `test`; alter table t1 add b int
-master-bin.000001	#	Query	1	#	use `test`; alter table t1 drop b
-master-bin.000001	#	Query	1	#	use `test`; create table t3 like t1
+master-bin.000001	#	Query	#	#	use `test`; drop table t1,t2
+master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int) engine=blackhole
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; create table t2 (a varchar(200)) engine=blackhole
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; alter table t1 add b int
+master-bin.000001	#	Query	#	#	use `test`; alter table t1 drop b
+master-bin.000001	#	Query	#	#	use `test`; create table t3 like t1
 drop table t1,t2,t3;
 CREATE TABLE t1(a INT, b INT) ENGINE=BLACKHOLE;
 DELETE FROM t1 WHERE a=10;
@@ -143,12 +142,11 @@ start transaction;
 insert into t1 values(2);
 rollback;
 set autocommit=1;
-show binlog events;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
-master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int) engine=blackhole
-master-bin.000001	#	Query	1	#	use `test`; BEGIN
-master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	1	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int) engine=blackhole
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
 drop table if exists t1;

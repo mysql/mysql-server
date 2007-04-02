@@ -7120,6 +7120,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
 
   SYNOPSIS
     check_row_equality()
+      thd        thread handle
       left_row   left term of the row equality to be processed     
       right_row  right term of the row equality to be processed
       cond_equal multiple equalities that must hold together with the predicate
@@ -7140,7 +7141,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
     FALSE   otherwise  
 */
  
-static bool check_row_equality(Item *left_row, Item_row *right_row,
+static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
                                COND_EQUAL *cond_equal, List<Item>* eq_list)
 { 
   uint n= left_row->cols();
@@ -7151,13 +7152,21 @@ static bool check_row_equality(Item *left_row, Item_row *right_row,
     Item *right_item= right_row->element_index(i);
     if (left_item->type() == Item::ROW_ITEM &&
         right_item->type() == Item::ROW_ITEM)
-      is_converted= check_row_equality((Item_row *) left_item,
-	                               (Item_row *) right_item,
-				       cond_equal, eq_list);
-    else 
+    {
+      is_converted= check_row_equality(thd, 
+                                       (Item_row *) left_item,
+                                       (Item_row *) right_item,
+			               cond_equal, eq_list);
+      if (!is_converted)
+        thd->lex->current_select->cond_count++;      
+    }
+    else
+    { 
       is_converted= check_simple_equality(left_item, right_item, 0, cond_equal);
-
-    if (!is_converted)  
+      thd->lex->current_select->cond_count++;
+    }  
+ 
+    if (!is_converted)
     {
       Item_func_eq *eq_item;
       if (!(eq_item= new Item_func_eq(left_item, right_item)))
@@ -7176,6 +7185,7 @@ static bool check_row_equality(Item *left_row, Item_row *right_row,
 
   SYNOPSIS
     check_equality()
+      thd        thread handle
       item       predicate to process     
       cond_equal multiple equalities that must hold together with the predicate
       eq_list    results of conversions of row equalities that are not simple
@@ -7200,7 +7210,7 @@ static bool check_row_equality(Item *left_row, Item_row *right_row,
            or, if the procedure fails by a fatal error.
 */
 
-static bool check_equality(Item *item, COND_EQUAL *cond_equal,
+static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
                            List<Item> *eq_list)
 {
   if (item->type() == Item::FUNC_ITEM &&
@@ -7211,9 +7221,13 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal,
 
     if (left_item->type() == Item::ROW_ITEM &&
         right_item->type() == Item::ROW_ITEM)
-      return check_row_equality((Item_row *) left_item,
+    {
+      thd->lex->current_select->cond_count--;
+      return check_row_equality(thd,
+                                (Item_row *) left_item,
                                 (Item_row *) right_item,
                                 cond_equal, eq_list);
+    }
     else 
       return check_simple_equality(left_item, right_item, item, cond_equal);
   } 
@@ -7226,6 +7240,7 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal,
 
   SYNOPSIS
     build_equal_items_for_cond()
+      thd        thread handle
       cond       condition(expression) where to make replacement
       inherited  path to all inherited multiple equality items
 
@@ -7288,7 +7303,7 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal,
     pointer to the transformed condition
 */
 
-static COND *build_equal_items_for_cond(COND *cond,
+static COND *build_equal_items_for_cond(THD *thd, COND *cond,
                                         COND_EQUAL *inherited)
 {
   Item_equal *item_equal;
@@ -7321,7 +7336,7 @@ static COND *build_equal_items_for_cond(COND *cond,
           structure here because it's restored before each
           re-execution of any prepared statement/stored procedure.
         */
-        if (check_equality(item, &cond_equal, &eq_list))
+        if (check_equality(thd, item, &cond_equal, &eq_list))
           li.remove();
       }
 
@@ -7356,7 +7371,7 @@ static COND *build_equal_items_for_cond(COND *cond,
     while ((item= li++))
     { 
       Item *new_item;
-      if ((new_item = build_equal_items_for_cond(item, inherited))!= item)
+      if ((new_item= build_equal_items_for_cond(thd, item, inherited)) != item)
       {
         /* This replacement happens only for standalone equalities */
         /*
@@ -7386,7 +7401,7 @@ static COND *build_equal_items_for_cond(COND *cond,
       for WHERE a=b AND c=d AND (b=c OR d=5)
       b=c is replaced by =(a,b,c,d).  
      */
-    if (check_equality(cond, &cond_equal, &eq_list))
+    if (check_equality(thd, cond, &cond_equal, &eq_list))
     {
       int n= cond_equal.current_level.elements + eq_list.elements;
       if (n == 0)
@@ -7449,7 +7464,7 @@ static COND *build_equal_items_for_cond(COND *cond,
 
   SYNOPSIS
     build_equal_items()
-    thd			Thread handler
+    thd			thread handle
     cond                condition to build the multiple equalities for
     inherited           path to all inherited multiple equality items
     join_list           list of join tables to which the condition refers to
@@ -7510,7 +7525,7 @@ static COND *build_equal_items(THD *thd, COND *cond,
 
   if (cond) 
   {
-    cond= build_equal_items_for_cond(cond, inherited);
+    cond= build_equal_items_for_cond(thd, cond, inherited);
     cond->update_used_tables();
     if (cond->type() == Item::COND_ITEM &&
         ((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)

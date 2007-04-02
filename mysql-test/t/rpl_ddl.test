@@ -22,13 +22,11 @@
 #         effects like failing 'sync_slave_with_master', crashes of the slave or
 #         abort of the test case etc..
 #
-#      3. The assignment of the DDL command to be tested to $my_stmt can
-#         be a bit difficult. "'" must be avoided, because the test
-#        routine "include/rpl_stmt_seq.inc" performs a
-#         eval SELECT CONCAT('######## ','$my_stmt','  ########') as "";
-#
 --source include/not_ndb_default.inc
---source include/have_innodb.inc
 --source include/master-slave.inc
-let $engine_type= "InnoDB";
+--source include/have_innodb.inc
+let $engine_type= InnoDB;
+let $temp_engine_type= MEMORY;
+let $show_binlog = 0;
+let $manipulate = 0;
 -- source extra/rpl_tests/rpl_ddl.test
