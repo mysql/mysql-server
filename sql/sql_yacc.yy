@@ -948,6 +948,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SIGNED_SYM
 %token  SIMPLE_SYM                    /* SQL-2003-N */
 %token  SLAVE
+%token  SLAVESIDE_DISABLE_SYM         
 %token  SMALLINT                      /* SQL-2003-R */
 %token  SNAPSHOT_SYM
 %token  SOCKET_SYM
@@ -1770,12 +1771,17 @@ ev_schedule_time: EVERY_SYM expr interval
 opt_ev_status: /* empty */ { $$= 0; }
         | ENABLE_SYM
           {
-            Lex->event_parse_data->status= Event_parse_data::ENABLED;
+            Lex->event_parse_data->status= Event_basic::ENABLED;
+            $$= 1;
+          }
+        | DISABLE_SYM ON SLAVE
+          {
+            Lex->event_parse_data->status= Event_basic::SLAVESIDE_DISABLED;
             $$= 1;
           }
         | DISABLE_SYM
           {
-            Lex->event_parse_data->status= Event_parse_data::DISABLED;
+            Lex->event_parse_data->status= Event_basic::DISABLED;
             $$= 1;
           }
       ;
@@ -1805,13 +1811,13 @@ ev_on_completion:
           ON COMPLETION_SYM PRESERVE_SYM
           {
             Lex->event_parse_data->on_completion=
-                                  Event_parse_data::ON_COMPLETION_PRESERVE;
+                                  Event_basic::ON_COMPLETION_PRESERVE;
             $$= 1;
           }
         | ON COMPLETION_SYM NOT_SYM PRESERVE_SYM
           {
             Lex->event_parse_data->on_completion=
-                                  Event_parse_data::ON_COMPLETION_DROP;
+                                  Event_basic::ON_COMPLETION_DROP;
             $$= 1;
           }
       ;
@@ -9998,6 +10004,7 @@ keyword_sp:
 	| SIMPLE_SYM		{}
 	| SHARE_SYM		{}
 	| SHUTDOWN		{}
+	| SLAVESIDE_DISABLE_SYM {} 
 	| SNAPSHOT_SYM		{}
 	| SOUNDS_SYM		{}
 	| SQL_CACHE_SYM		{}
