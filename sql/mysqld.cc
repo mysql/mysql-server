@@ -6729,12 +6729,20 @@ static int show_ssl_ctx_get_session_cache_mode(THD *thd, SHOW_VAR *var, char *bu
   return 0;
 }
 
-/* Functions relying on SSL */
+/*
+   Functions relying on SSL 
+   Note: In the show_ssl_* functions, we need to check if we have a
+         valid vio-object since this isn't always true, specifically
+         when session_status or global_status is requested from
+         inside an Event.
+ */
 static int show_ssl_get_version(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  var->value= const_cast<char*>(thd->net.vio->ssl_arg ?
-        SSL_get_version((SSL*) thd->net.vio->ssl_arg) : "");
+  if( thd->vio_ok() && thd->net.vio->ssl_arg )
+    var->value= const_cast<char*>(SSL_get_version((SSL*) thd->net.vio->ssl_arg));
+  else
+    var->value= "";
   return 0;
 }
 
@@ -6742,9 +6750,10 @@ static int show_ssl_session_reused(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  *((long *)buff)= (long)thd->net.vio->ssl_arg ?
-                         SSL_session_reused((SSL*) thd->net.vio->ssl_arg) :
-                         0;
+  if( thd->vio_ok() && thd->net.vio->ssl_arg )
+    *((long *)buff)= (long)SSL_session_reused((SSL*) thd->net.vio->ssl_arg);
+  else
+    *((long *)buff)= 0;
   return 0;
 }
 
@@ -6752,9 +6761,10 @@ static int show_ssl_get_default_timeout(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  *((long *)buff)= (long)thd->net.vio->ssl_arg ?
-                         SSL_get_default_timeout((SSL*)thd->net.vio->ssl_arg) :
-                         0;
+  if( thd->vio_ok() && thd->net.vio->ssl_arg )
+    *((long *)buff)= (long)SSL_get_default_timeout((SSL*)thd->net.vio->ssl_arg);
+  else
+    *((long *)buff)= 0;
   return 0;
 }
 
@@ -6762,9 +6772,10 @@ static int show_ssl_get_verify_mode(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  *((long *)buff)= (long)thd->net.vio->ssl_arg ?
-                         SSL_get_verify_mode((SSL*)thd->net.vio->ssl_arg) :
-                         0;
+  if( thd->net.vio && thd->net.vio->ssl_arg )
+    *((long *)buff)= (long)SSL_get_verify_mode((SSL*)thd->net.vio->ssl_arg);
+  else
+    *((long *)buff)= 0;
   return 0;
 }
 
@@ -6772,17 +6783,20 @@ static int show_ssl_get_verify_depth(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  *((long *)buff)= (long)thd->net.vio->ssl_arg ?
-                         SSL_get_verify_depth((SSL*)thd->net.vio->ssl_arg) :
-                         0;
+  if( thd->vio_ok() && thd->net.vio->ssl_arg )
+    *((long *)buff)= (long)SSL_get_verify_depth((SSL*)thd->net.vio->ssl_arg);
+  else
+    *((long *)buff)= 0;
   return 0;
 }
 
 static int show_ssl_get_cipher(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  var->value= const_cast<char*>(thd->net.vio->ssl_arg ?
-              SSL_get_cipher((SSL*) thd->net.vio->ssl_arg) : "");
+  if( thd->vio_ok() && thd->net.vio->ssl_arg )
+    var->value= const_cast<char*>(SSL_get_cipher((SSL*) thd->net.vio->ssl_arg));
+  else
+    var->value= "";
   return 0;
 }
 
@@ -6790,7 +6804,7 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
   var->value= buff;
-  if (thd->net.vio->ssl_arg)
+  if (thd->vio_ok() && thd->net.vio->ssl_arg)
   {
     int i;
     const char *p;
