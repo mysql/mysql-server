@@ -5035,7 +5035,7 @@ Item_func_sp::func_name() const
 {
   THD *thd= current_thd;
   /* Calculate length to avoid reallocation of string for sure */
-  uint len= ((m_name->m_db.length +
+  uint len= ((m_name->m_explicit_name ? m_name->m_db.length : 0 +
               m_name->m_name.length)*2 + //characters*quoting
              2 +                         // ` and `
              1 +                         // .
@@ -5045,8 +5045,11 @@ Item_func_sp::func_name() const
                system_charset_info);
 
   qname.length(0);
-  append_identifier(thd, &qname, m_name->m_db.str, m_name->m_db.length);
-  qname.append('.');
+  if (m_name->m_explicit_name)
+  {
+    append_identifier(thd, &qname, m_name->m_db.str, m_name->m_db.length);
+    qname.append('.');
+  }
   append_identifier(thd, &qname, m_name->m_name.str, m_name->m_name.length);
   return qname.ptr();
 }

@@ -38,14 +38,16 @@
     #include <netinet/in.h>
     #include <arpa/inet.h>
 #endif
-#include "openssl/ssl.h"                        /* for socket_t */
 
 
 namespace yaSSL {
 
 typedef unsigned int uint;
 
-#ifndef _WIN32
+#ifdef _WIN32
+    typedef SOCKET socket_t;
+#else
+    typedef int socket_t;
     const socket_t INVALID_SOCKET = -1;
     const int SD_RECEIVE   = 0;
     const int SD_SEND      = 1;

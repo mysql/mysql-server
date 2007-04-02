@@ -6,6 +6,16 @@ Mutex, the basic synchronization primitive
 Created 9/5/1995 Heikki Tuuri
 *******************************************************/
 
+#if defined(not_defined) && defined(__GNUC__) && defined(UNIV_INTEL_X86)
+/* %z0: Use the size of operand %0 which in our case is *m to determine
+instruction size, it should end up as xchgl. "1" in the input constraint,
+says that "in" has to go in the same place as "out".*/
+#define TAS(m, in, out) \
+	asm volatile ("xchg%z0 %2, %0" \
+	: "=g" (*(m)), "=r" (out) \
+	: "1" (in))	/* Note: "1" here refers to "=r" (out) */
+#endif
+
 /**********************************************************************
 Sets the waiters field in a mutex. */
 
@@ -85,20 +95,10 @@ mutex_test_and_set(
 
 	return(res);
 #elif defined(not_defined) && defined(__GNUC__) && defined(UNIV_INTEL_X86)
-	ulint*	lw;
 	ulint	res;
 
-	lw = &(mutex->lock_word);
+	TAS(&mutex->lock_word, 1, res);
 
-	/* In assembly we use the so-called AT & T syntax where
-	the order of operands is inverted compared to the ordinary Intel
-	syntax. The 'l' after the mnemonics denotes a 32-bit operation.
-	The line after the code tells which values come out of the asm
-	code, and the second line tells the input to the asm code. */
-
-	asm volatile("movl $1, %%eax; xchgl (%%ecx), %%eax" :
-	              "=eax" (res), "=m" (*lw) :
-	              "ecx" (lw));
 	return(res);
 #else
 	ibool	ret;
@@ -137,20 +137,9 @@ mutex_reset_lock_word(
         __asm   MOV     ECX, lw
         __asm   XCHG    EDX, DWORD PTR [ECX]                    
 #elif defined(not_defined) && defined(__GNUC__) && defined(UNIV_INTEL_X86)
-	ulint*	lw;
+	ulint	res;
 
-	lw = &(mutex->lock_word);
-
-	/* In assembly we use the so-called AT & T syntax where
-	the order of operands is inverted compared to the ordinary Intel
-	syntax. The 'l' after the mnemonics denotes a 32-bit operation. */
-
-	asm volatile("movl $0, %%eax; xchgl (%%ecx), %%eax" :
-	              "=m" (*lw) :
-	              "ecx" (lw) :
-		      "eax");	/* gcc does not seem to understand
-				that our asm code resets eax: tell it
-				explicitly that after the third ':' */
+	TAS(&mutex->lock_word, 0, res);
 #else
 	mutex->lock_word = 0;
 

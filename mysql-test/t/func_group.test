@@ -794,6 +794,16 @@ drop table bug22555;
 
 
 #
+# Bug #21976: Unnecessary warning with count(decimal)
+#
+
+create table t1 (a decimal(20));
+insert into t1 values (12345678901234567890);
+select count(a) from t1;
+select count(distinct a) from t1;
+drop table t1;
+
+#
 # Bug #23184: SELECT causes server crash
 # 
 CREATE TABLE t1 (a INT, b INT);
@@ -817,5 +827,4 @@ SELECT a,AVG(DISTINCT b) AS average FROM t1 GROUP BY a HAVING average > 50;
 
 DROP TABLE t1;
 
-###
 --echo End of 5.0 tests
