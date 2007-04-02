@@ -53,6 +53,7 @@ Master_SSL_Cert	MYSQL_TEST_DIR/std_data/client-cert.pem
 Master_SSL_Cipher	
 Master_SSL_Key	MYSQL_TEST_DIR/std_data/client-key.pem
 Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
 STOP SLAVE;
 select * from t1;
 t
@@ -91,3 +92,4 @@ Master_SSL_Cert	MYSQL_TEST_DIR/std_data/client-cert.pem
 Master_SSL_Cipher	
 Master_SSL_Key	MYSQL_TEST_DIR/std_data/client-key.pem
 Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No

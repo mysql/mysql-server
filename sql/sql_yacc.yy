@@ -780,6 +780,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  MASTER_SSL_CIPHER_SYM
 %token  MASTER_SSL_KEY_SYM
 %token  MASTER_SSL_SYM
+%token  MASTER_SSL_VERIFY_SERVER_CERT_SYM
 %token  MASTER_SYM
 %token  MASTER_USER_SYM
 %token  MATCH                         /* SQL-2003-R */
@@ -1529,6 +1530,11 @@ master_def:
          {
            Lex->mi.ssl_key= $3.str;
 	 }
+       | MASTER_SSL_VERIFY_SERVER_CERT_SYM EQ ulong_num
+         {
+           Lex->mi.ssl_verify_server_cert= $3 ?
+               LEX_MASTER_INFO::SSL_ENABLE : LEX_MASTER_INFO::SSL_DISABLE;
+         }
        |
          master_file_def
        ;
@@ -1931,7 +1937,7 @@ sp_name:
 	      my_error(ER_SP_WRONG_NAME, MYF(0), $3.str);
 	      MYSQL_YYABORT;
 	    }
-	    $$= new sp_name($1, $3);
+	    $$= new sp_name($1, $3, true);
 	    $$->init_qname(YYTHD);
 	  }
 	| ident
@@ -1945,7 +1951,7 @@ sp_name:
 	    }
             if (thd->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
-	    $$= new sp_name(db, $1);
+	    $$= new sp_name(db, $1, false);
             if ($$)
 	      $$->init_qname(YYTHD);
 	  }
@@ -6923,7 +6929,7 @@ function_call_generic:
 
           builder= find_qualified_function_builder(thd);
           DBUG_ASSERT(builder);
-          item= builder->create(thd, $1, $3, $5);
+          item= builder->create(thd, $1, $3, true, $5);
 
           if (! ($$= item))
           {
@@ -10840,7 +10846,8 @@ grant_ident:
 	| table_ident
 	  {
 	    LEX *lex=Lex;
-	    if (!lex->current_select->add_table_to_list(lex->thd, $1,NULL,0))
+	    if (!lex->current_select->add_table_to_list(lex->thd, $1,NULL,
+                                                        TL_OPTION_UPDATING))
 	      MYSQL_YYABORT;
 	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant =  TABLE_ACLS & ~GRANT_ACL;
