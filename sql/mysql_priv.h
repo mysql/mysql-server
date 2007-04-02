@@ -38,6 +38,7 @@
 #include <queues.h>
 #include "sql_bitmap.h"
 #include "sql_array.h"
+#include "sql_plugin.h"
 #include "scheduler.h"
 
 /* TODO convert all these three maps to Bitmap classes */
@@ -560,7 +561,6 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
 #include "sql_list.h"
 #include "sql_map.h"
 #include "my_decimal.h"
-#include "sql_plugin.h"
 #include "handler.h"
 #include "parse_file.h"
 #include "table.h"
