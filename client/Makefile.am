@@ -34,7 +34,7 @@ LDADD=				@CLIENT_EXTRA_LDFLAGS@ $(CLIENT_THREAD_LIBS) \
 noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h \
 				client_priv.h
 
-EXTRA_DIST =			get_password.c CMakeLists.txt
+EXTRA_DIST =			get_password.c CMakeLists.txt echo.c
 
 bin_PROGRAMS =			mysql \
 				mysqladmin \
@@ -76,6 +76,7 @@ mysqlimport_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 mysqlshow_SOURCES=		mysqlshow.c
 
 mysqlslap_SOURCES=		mysqlslap.c
+mysqlslap_CFLAGS=		-DTHREAD -UUNDEF_THREADS_HACK
 mysqlslap_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
@@ -96,7 +97,6 @@ DEFS =			-DUNDEF_THREADS_HACK \
 
 sql_src=log_event.h mysql_priv.h log_event.cc my_decimal.h my_decimal.cc
 strings_src=decimal.c
-EXTRA_DIST =		get_password.c CMakeLists.txt echo.c
 
 link_sources:
 	for f in $(sql_src) ; do \

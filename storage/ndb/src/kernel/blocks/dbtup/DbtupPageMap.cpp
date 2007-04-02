@@ -484,6 +484,13 @@ Uint32 Dbtup::leafPageRangeFull(Fragrecord*  const regFragPtr, PageRangePtr curr
       ptrCheckGuard(parentPageRangePtr, cnoOfPageRangeRec, pageRange);
       if (parentPageRangePtr.p->currentIndexPos < 3) {
         jam();
+
+        if (c_noOfFreePageRanges < tiprNoLevels) 
+        {
+          jam();
+          return RNIL;
+        }//if
+	
 /* ---------------------------------------------------------------- */
 /*       WE HAVE FOUND AN EMPTY ENTRY IN A PAGE RANGE RECORD.       */
 /*       ALLOCATE A NEW PAGE RANGE RECORD, FILL IN THE START RANGE, */
