@@ -8537,7 +8537,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     /* Lock mutex and fill list with pointers to all open tables */
     NDB_SHARE *share;
     pthread_mutex_lock(&ndbcluster_mutex);
-    uint i, record_count= ndbcluster_open_tables.records;
+    uint i, open_count, record_count= ndbcluster_open_tables.records;
     if (share_list_size < record_count)
     {
       NDB_SHARE ** new_share_list= new NDB_SHARE * [record_count];
@@ -8552,7 +8552,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       share_list_size= record_count;
       share_list= new_share_list;
     }
-    for (i= 0; i < record_count; i++)
+    for (i= 0, open_count= 0; i < record_count; i++)
     {
       share= (NDB_SHARE *)hash_element(&ndbcluster_open_tables, i);
 #ifdef HAVE_NDB_BINLOG
@@ -8567,12 +8567,12 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
                   i, share->table_name, share->use_count));
 
       /* Store pointer to table */
-      share_list[i]= share;
+      share_list[open_count++]= share;
     }
     pthread_mutex_unlock(&ndbcluster_mutex);
 
     /* Iterate through the open files list */
-    for (i= 0; i < record_count; i++)
+    for (i= 0; i < open_count; i++)
     {
       share= share_list[i];
 #ifdef HAVE_NDB_BINLOG
