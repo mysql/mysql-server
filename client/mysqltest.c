@@ -3534,7 +3534,7 @@ void do_connect(struct st_command *command)
 		  opt_ssl_capath, opt_ssl_cipher);
 #if MYSQL_VERSION_ID >= 50000
     /* Turn on ssl_verify_server_cert only if host is "localhost" */
-    opt_ssl_verify_server_cert= !strcmp(ds_connection_name.str, "localhost");
+    opt_ssl_verify_server_cert= !strcmp(ds_host.str, "localhost");
     mysql_options(&next_con->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &opt_ssl_verify_server_cert);
 #endif
@@ -6002,15 +6002,13 @@ int main(int argc, char **argv)
 
 #ifdef HAVE_OPENSSL
 
-#if MYSQL_VERSION_ID >= 50000
-  opt_ssl_verify_server_cert= TRUE; /* Always on in mysqltest */
-#endif
-
   if (opt_use_ssl)
   {
     mysql_ssl_set(&cur_con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
 #if MYSQL_VERSION_ID >= 50000
+    /* Turn on ssl_verify_server_cert only if host is "localhost" */
+    opt_ssl_verify_server_cert= opt_host && !strcmp(opt_host, "localhost");
     mysql_options(&cur_con->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &opt_ssl_verify_server_cert);
 #endif

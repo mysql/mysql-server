@@ -186,12 +186,12 @@ date	format	datetime
 2003-01-02 02:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f %p	2003-01-02 02:11:12.123450
 2003-01-02 12:11:12.12345 am	%Y-%m-%d %h:%i:%S.%f%p	2003-01-02 00:11:12.123450
 2003-01-02 11:11:12Pm	%Y-%m-%d %h:%i:%S%p	2003-01-02 23:11:12
-10:20:10	%H:%i:%s	0000-00-00 00:00:00
-10:20:10	%h:%i:%s.%f	0000-00-00 00:00:00
-10:20:10	%T	0000-00-00 00:00:00
-10:20:10AM	%h:%i:%s%p	0000-00-00 00:00:00
-10:20:10AM	%r	0000-00-00 00:00:00
-10:20:10.44AM	%h:%i:%s.%f%p	0000-00-00 00:00:00
+10:20:10	%H:%i:%s	0000-00-00 10:20:10
+10:20:10	%h:%i:%s.%f	0000-00-00 10:20:10
+10:20:10	%T	0000-00-00 10:20:10
+10:20:10AM	%h:%i:%s%p	0000-00-00 10:20:10
+10:20:10AM	%r	0000-00-00 10:20:10
+10:20:10.44AM	%h:%i:%s.%f%p	0000-00-00 10:20:10.440000
 15-01-2001 12:59:58	%d-%m-%Y %H:%i:%S	2001-01-15 12:59:58
 15 September 2001	%d %M %Y	2001-09-15 00:00:00
 15 SEPTEMB 2001	%d %M %Y	2001-09-15 00:00:00
@@ -208,13 +208,6 @@ Tuesday 52 2001	%W %V %X	2002-01-01 00:00:00
 15-01-2001	%d-%m-%Y %H:%i:%S	2001-01-15 00:00:00
 15-01-20	%d-%m-%y	2020-01-15 00:00:00
 15-2001-1	%d-%Y-%c	2001-01-15 00:00:00
-Warnings:
-Warning	1292	Truncated incorrect datetime value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect datetime value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect datetime value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect datetime value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect datetime value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect datetime value: '0000-00-00 10:20:10.440000'
 select date,format,DATE(str_to_date(date, format)) as date2 from t1;
 date	format	date2
 2003-01-02 10:11:12	%Y-%m-%d %H:%i:%S	2003-01-02
@@ -255,12 +248,12 @@ date	format	time
 2003-01-02 02:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f %p	02:11:12.123450
 2003-01-02 12:11:12.12345 am	%Y-%m-%d %h:%i:%S.%f%p	00:11:12.123450
 2003-01-02 11:11:12Pm	%Y-%m-%d %h:%i:%S%p	23:11:12
-10:20:10	%H:%i:%s	NULL
-10:20:10	%h:%i:%s.%f	NULL
-10:20:10	%T	NULL
-10:20:10AM	%h:%i:%s%p	NULL
-10:20:10AM	%r	NULL
-10:20:10.44AM	%h:%i:%s.%f%p	NULL
+10:20:10	%H:%i:%s	10:20:10
+10:20:10	%h:%i:%s.%f	10:20:10
+10:20:10	%T	10:20:10
+10:20:10AM	%h:%i:%s%p	10:20:10
+10:20:10AM	%r	10:20:10
+10:20:10.44AM	%h:%i:%s.%f%p	10:20:10.440000
 15-01-2001 12:59:58	%d-%m-%Y %H:%i:%S	12:59:58
 15 September 2001	%d %M %Y	00:00:00
 15 SEPTEMB 2001	%d %M %Y	00:00:00
@@ -277,13 +270,6 @@ Tuesday 52 2001	%W %V %X	00:00:00
 15-01-2001	%d-%m-%Y %H:%i:%S	00:00:00
 15-01-20	%d-%m-%y	00:00:00
 15-2001-1	%d-%Y-%c	00:00:00
-Warnings:
-Warning	1292	Truncated incorrect time value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect time value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect time value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect time value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect time value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect time value: '0000-00-00 10:20:10.440000'
 select date,format,concat(TIME(str_to_date(date, format))) as time2 from t1;
 date	format	time2
 2003-01-02 10:11:12	%Y-%m-%d %H:%i:%S	10:11:12
@@ -293,12 +279,12 @@ date	format	time2
 2003-01-02 02:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f %p	02:11:12.123450
 2003-01-02 12:11:12.12345 am	%Y-%m-%d %h:%i:%S.%f%p	00:11:12.123450
 2003-01-02 11:11:12Pm	%Y-%m-%d %h:%i:%S%p	23:11:12
-10:20:10	%H:%i:%s	NULL
-10:20:10	%h:%i:%s.%f	NULL
-10:20:10	%T	NULL
-10:20:10AM	%h:%i:%s%p	NULL
-10:20:10AM	%r	NULL
-10:20:10.44AM	%h:%i:%s.%f%p	NULL
+10:20:10	%H:%i:%s	10:20:10
+10:20:10	%h:%i:%s.%f	10:20:10
+10:20:10	%T	10:20:10
+10:20:10AM	%h:%i:%s%p	10:20:10
+10:20:10AM	%r	10:20:10
+10:20:10.44AM	%h:%i:%s.%f%p	10:20:10.440000
 15-01-2001 12:59:58	%d-%m-%Y %H:%i:%S	12:59:58
 15 September 2001	%d %M %Y	00:00:00
 15 SEPTEMB 2001	%d %M %Y	00:00:00
@@ -315,13 +301,6 @@ Tuesday 52 2001	%W %V %X	00:00:00
 15-01-2001	%d-%m-%Y %H:%i:%S	00:00:00
 15-01-20	%d-%m-%y	00:00:00
 15-2001-1	%d-%Y-%c	00:00:00
-Warnings:
-Warning	1292	Truncated incorrect time value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect time value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect time value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect time value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect time value: '0000-00-00 10:20:10'
-Warning	1292	Truncated incorrect time value: '0000-00-00 10:20:10.440000'
 select concat('',str_to_date('8:11:2.123456 03-01-02','%H:%i:%S.%f %y-%m-%d'));
 concat('',str_to_date('8:11:2.123456 03-01-02','%H:%i:%S.%f %y-%m-%d'))
 2003-01-02 08:11:02.123456
@@ -470,8 +449,6 @@ create table t1 select str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%
 str_to_date("10:11:12.0012", "%H:%i:%S.%f") as f2,
 str_to_date("2003-01-02", "%Y-%m-%d") as f3,
 str_to_date("02", "%d") as f4, str_to_date("02 10", "%d %H") as f5;
-Warnings:
-Warning	1265	Data truncated for column 'f4' at row 1
 describe t1;
 Field	Type	Null	Key	Default	Extra
 f1	datetime	YES		NULL	
@@ -481,7 +458,7 @@ f4	date	YES		NULL
 f5	time	YES		NULL	
 select * from t1;
 f1	f2	f3	f4	f5
-2003-01-02 10:11:12	10:11:12	2003-01-02	0000-00-00	58:00:00
+2003-01-02 10:11:12	10:11:12	2003-01-02	0000-00-02	58:00:00
 drop table t1;
 create table t1 select "02 10" as a, "%d %H" as b;
 select str_to_date(a,b) from t1;

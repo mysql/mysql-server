@@ -21,4 +21,12 @@ insert into t1 values (now());
 select if(y = now(), 1, 0) from t1;
 drop table t1;
 
-# End of 4.1 tests
+#
+# Bug #27176: Assigning a string to an year column has unexpected results
+#
+create table t1(a year);
+insert into t1 values (2000.5), ('2000.5'), ('2001a'), ('2.001E3');
+select * from t1;
+drop table t1;
+
+--echo End of 5.0 tests
