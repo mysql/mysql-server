@@ -413,7 +413,12 @@ JOIN::prepare(Item ***rref_pointer_array,
                                     tables_list, &select_lex->leaf_tables,
                                     FALSE, SELECT_ACL, SELECT_ACL))
       DBUG_RETURN(-1);
-  tables= thd->leaf_count;
+ 
+  TABLE_LIST *table_ptr;
+  for (table_ptr= select_lex->leaf_tables;
+       table_ptr;
+       table_ptr= table_ptr->next_leaf)
+    tables++;
 
   if (setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
@@ -8977,20 +8982,19 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   
     enum enum_field_types type;
     /*
-      DATE/TIME fields have STRING_RESULT result type. To preserve
-      type they needed to be handled separately.
+      DATE/TIME and GEOMETRY fields have STRING_RESULT result type. 
+      To preserve type they needed to be handled separately.
     */
     if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
         type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE ||
-        type == MYSQL_TYPE_TIMESTAMP)
+        type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_GEOMETRY)
       new_field= item->tmp_table_field_from_field_type(table, 1);
     /* 
       Make sure that the blob fits into a Field_varstring which has 
       2-byte lenght. 
     */
     else if (item->max_length/item->collation.collation->mbmaxlen > 255 &&
-             item->max_length/item->collation.collation->mbmaxlen < UINT_MAX16
-             && convert_blob_length)
+             convert_blob_length < UINT_MAX16 && convert_blob_length)
       new_field= new Field_varstring(convert_blob_length, maybe_null,
                                      item->name, table->s,
                                      item->collation.collation);
@@ -9417,13 +9421,19 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     {
       if (item->with_sum_func && type != Item::SUM_FUNC_ITEM)
       {
-	/*
-	  Mark that the we have ignored an item that refers to a summary
-	  function. We need to know this if someone is going to use
-	  DISTINCT on the result.
-	*/
-	param->using_indirect_summary_function=1;
-	continue;
+        if (item->used_tables() & OUTER_REF_TABLE_BIT)
+          item->update_used_tables();
+        if (type == Item::SUBSELECT_ITEM ||
+            (item->used_tables() & ~OUTER_REF_TABLE_BIT))
+        {
+	  /*
+	    Mark that the we have ignored an item that refers to a summary
+	    function. We need to know this if someone is going to use
+	    DISTINCT on the result.
+	  */
+	  param->using_indirect_summary_function=1;
+	  continue;
+        }
       }
       if (item->const_item() && (int) hidden_field_count <= 0)
         continue; // We don't have to store this
@@ -9608,6 +9618,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     share->default_values= table->record[1]+alloc_length;
   }
   copy_func[0]=0;				// End marker
+  param->func_count= copy_func - param->items_to_copy; 
 
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
@@ -13824,6 +13835,7 @@ count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
 	if (!sum_item->quick_group)
 	  param->quick_group=0;			// UDF SUM function
 	param->sum_func_count++;
+        param->func_count++;
 
 	for (uint i=0 ; i < sum_item->arg_count ; i++)
 	{

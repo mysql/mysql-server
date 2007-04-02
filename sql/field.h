@@ -1353,7 +1353,7 @@ public:
   int  store_decimal(const my_decimal *);
   void get_key_image(char *buff,uint length,imagetype type);
   uint size_of() const { return sizeof(*this); }
-  int  reset(void) { return !maybe_null(); }
+  int  reset(void) { return !maybe_null() || Field_blob::reset(); }
 };
 #endif /*HAVE_SPATIAL*/
 
