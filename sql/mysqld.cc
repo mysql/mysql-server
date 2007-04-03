@@ -7333,6 +7333,18 @@ static void mysql_init_variables(void)
   /* Allow Win32 and NetWare users to move MySQL anywhere */
   {
     char prg_dev[LIBLEN];
+#if defined __WIN__
+	char executing_path_name[LIBLEN];
+	if (!test_if_hard_path(my_progname))
+	{
+		// we don't want to use GetModuleFileName inside of my_path since
+		// my_path is a generic path dereferencing function and here we care
+		// only about the executing binary.
+		GetModuleFileName(NULL, executing_path_name, sizeof(executing_path_name));
+		my_path(prg_dev, executing_path_name, NULL);
+	}
+	else
+#endif
     my_path(prg_dev,my_progname,"mysql/bin");
     strcat(prg_dev,"/../");			// Remove 'bin' to get base dir
     cleanup_dirname(mysql_home,prg_dev);
