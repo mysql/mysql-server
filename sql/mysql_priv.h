@@ -366,7 +366,7 @@ MY_LOCALE *my_locale_by_number(uint number);
   Maximum length of time zone name that we support
   (Time zone name is char(64) in db). mysqlbinlog needs it.
 */
-#define MAX_TIME_ZONE_NAME_LENGTH  (NAME_LEN + 8)
+#define MAX_TIME_ZONE_NAME_LENGTH       (NAME_LEN + 1)
 
 /* The rest of the file is included in the server only */
 #ifndef MYSQL_CLIENT
