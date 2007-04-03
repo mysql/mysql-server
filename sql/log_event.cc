@@ -7892,8 +7892,8 @@ Incident_log_event::Incident_log_event(const char *buf, uint event_len,
   m_incident= static_cast<Incident>(uint2korr(buf + common_header_len));
   char const *ptr= buf + common_header_len + post_header_len;
   char const *const str_end= buf + event_len;
-  uint8 len;
-  const char *str;
+  uint8 len= 0;                   // Assignment to keep compiler happy
+  const char *str= NULL;          // Assignment to keep compiler happy
   read_str(&ptr, str_end, &str, &len);
   m_message.str= const_cast<char*>(str);
   m_message.length= len;
@@ -7956,9 +7956,9 @@ Incident_log_event::print(FILE *file,
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int
-Incident_log_event::exec_event(st_relay_log_info *rli)
+Incident_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
 {
-  DBUG_ENTER("Incident_log_event::exec_event");
+  DBUG_ENTER("Incident_log_event::do_apply_event");
   slave_print_msg(ERROR_LEVEL, rli, ER_SLAVE_INCIDENT,
                   ER(ER_SLAVE_INCIDENT),
                   description(),

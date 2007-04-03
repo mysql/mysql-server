@@ -15,8 +15,7 @@ drop table if exists t1,t2;
 eval CREATE TABLE `t1` (
   `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   `c` VARCHAR(50) NOT NULL,
-  `ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE
-CURRENT_TIMESTAMP,
+  `ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=$engine_type DEFAULT CHARSET=utf8;
 
@@ -35,7 +34,7 @@ SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name 
 --echo "in the master"
 --enable_info
 --replace_column 3 TIMESTAMP
-SELECT * FROM t1;
+SELECT * FROM t1 WHERE c = 'from justonce' OR c = 'manually' ORDER BY id;
 --disable_info
 
 sync_slave_with_master;
@@ -43,7 +42,7 @@ sync_slave_with_master;
 --echo "in the slave"
 --enable_info
 --replace_column 3 TIMESTAMP
-SELECT * FROM t1;
+SELECT * FROM t1 WHERE c = 'from justonce' OR c = 'manually' ORDER BY id;
 --disable_info
 
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'justonce';
@@ -98,6 +97,21 @@ sync_slave_with_master;
 
 --echo "in the slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test';
+
+# test the DISABLE ON SLAVE for setting event SLAVESIDE_DISABLED as status
+# on CREATE EVENT
+
+CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND 
+DO INSERT INTO t1(c) VALUES ('from slave_terminate');
+SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_terminate';
+
+DROP EVENT test.slave_terminate;
+
+CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND 
+DISABLE ON SLAVE DO INSERT INTO t1(c) VALUES ('from slave_terminate');
+SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_terminate';
+
+DROP EVENT test.slave_terminate;
 
 --echo "in the master"
 connection master;

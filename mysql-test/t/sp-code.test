@@ -447,3 +447,21 @@ DROP PROCEDURE p1;
 
 
 --echo End of 5.0 tests.
+
+#
+# Bug #26303: reserve() not called before qs_append() may lead to buffer
+# overflow
+#
+DELIMITER //;
+CREATE PROCEDURE p1() 
+BEGIN 
+  DECLARE dummy int default 0;
+
+  CASE 12 
+    WHEN 12 
+    THEN SET dummy = 0;
+  END CASE;
+END//
+DELIMITER ;//
+SHOW PROCEDURE CODE p1;
+DROP PROCEDURE p1;
