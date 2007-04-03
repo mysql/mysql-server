@@ -1440,7 +1440,7 @@ private:
   bool execute(Field **flp);
   bool execute_impl(THD *thd, Field *return_value_fld);
   Field *sp_result_field(void) const;
-
+  
 public:
 
   Item_func_sp(Name_resolution_context *context_arg, sp_name *name);
@@ -1450,6 +1450,8 @@ public:
 
   virtual ~Item_func_sp()
   {}
+
+  table_map used_tables() const { return RAND_TABLE_BIT; }
 
   void cleanup();
 
