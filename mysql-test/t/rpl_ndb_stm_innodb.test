@@ -1,0 +1,62 @@
+--source include/have_ndb.inc
+--source include/have_innodb.inc
+--source include/have_binlog_format_mixed_or_statement.inc
+--source include/master-slave.inc
+
+--connection master
+create table t1 (a int key, b int) engine innodb;
+create table t2 (a int key, b int) engine innodb;
+
+--sync_slave_with_master
+--connection slave
+alter table t1 engine ndb;
+alter table t2 engine ndb;
+
+# check binlog position without begin
+--connection master
+insert into t1 values (1,2);
+
+--sync_slave_with_master
+--connection slave
+--replace_column 1 <start_pos> 2 <end_pos>
+select @start_pos:=start_pos, @end_pos:=end_pos from mysql.ndb_apply_status;
+--let $start_pos = `select @start_pos`
+--let $end_pos = `select @end_pos`
+
+--connection master
+# here is actually a bug, since there is no begin statement, the
+# query is autocommitted, and end_pos shows end of the insert and not
+# end of the commit
+--replace_result $start_pos <start_pos>
+--replace_column 5 #
+--eval show binlog events from $start_pos limit 1
+--replace_result $start_pos <start_pos> $end_pos <end_pos>
+--replace_column 2 #
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
+--eval show binlog events from $start_pos limit 1,1
+
+# check binlog position with begin
+--connection master
+begin;
+insert into t1 values (2,3);
+insert into t2 values (3,4);
+commit;
+
+--sync_slave_with_master
+--connection slave
+--replace_column 1 <start_pos> 2 <end_pos>
+select @start_pos:=start_pos, @end_pos:=end_pos from mysql.ndb_apply_status;
+--let $start_pos = `select @start_pos`
+--let $end_pos = `select @end_pos`
+
+--connection master
+--replace_result $start_pos <start_pos>
+--replace_column 5 #
+--eval show binlog events from $start_pos limit 1
+--replace_result $start_pos <start_pos>
+--replace_column 2 # 4 # 5 #
+--eval show binlog events from $start_pos limit 1,2
+--replace_result $start_pos <start_pos> $end_pos <end_pos>
+--replace_column 2 #
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
+--eval show binlog events from $start_pos limit 3,1

@@ -1,0 +1,37 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1 (a int key, b int) engine innodb;
+create table t2 (a int key, b int) engine innodb;
+alter table t1 engine ndb;
+alter table t2 engine ndb;
+insert into t1 values (1,2);
+select @start_pos:=start_pos, @end_pos:=end_pos from mysql.ndb_apply_status;
+@start_pos:=start_pos	@end_pos:=end_pos
+<start_pos>	<end_pos>
+show binlog events from <start_pos> limit 1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	<start_pos>	Query	1	#	use `test`; insert into t1 values (1,2)
+show binlog events from <start_pos> limit 1,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Xid	1	445	COMMIT /* XID */
+begin;
+insert into t1 values (2,3);
+insert into t2 values (3,4);
+commit;
+select @start_pos:=start_pos, @end_pos:=end_pos from mysql.ndb_apply_status;
+@start_pos:=start_pos	@end_pos:=end_pos
+<start_pos>	<end_pos>
+show binlog events from <start_pos> limit 1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	<start_pos>	Query	1	#	use `test`; BEGIN
+show binlog events from <start_pos> limit 1,2;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (2,3)
+master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (3,4)
+show binlog events from <start_pos> limit 3,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Xid	1	<end_pos>	COMMIT /* XID */

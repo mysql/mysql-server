@@ -379,6 +379,7 @@ client/mysqltestmanager-pwgen
 client/mysqltestmanagerc
 client/mysys_priv.h
 client/readline.cpp
+client/rpl_constants.h
 client/select_test
 client/sql_string.cpp
 client/ssl_test
