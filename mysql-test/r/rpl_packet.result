@@ -14,6 +14,12 @@ INSERT INTO `t1`(`f1`) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 select count(*) from `DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________`.`t1` /* must be 1 */;
 count(*)
 1
+SHOW STATUS LIKE 'Slave_running';
+Variable_name	Value
+Slave_running	ON
+select * from information_schema.session_status where variable_name= 'SLAVE_RUNNING';
+VARIABLE_NAME	VARIABLE_VALUE
+SLAVE_RUNNING	1.0000000
 drop database DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________;
 SET @@global.max_allowed_packet=4096;
 SET @@global.net_buffer_length=4096;
