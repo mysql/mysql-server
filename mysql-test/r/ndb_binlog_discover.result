@@ -3,10 +3,15 @@ create table t1 (a int key) engine=ndb;
 reset master;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Incident	#	#	#1 (LOST_EVENTS)
+master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=4
+PURGE MASTER LOGS TO 'master-bin.000002';
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Query	#	#	BEGIN
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+master-bin.000002	#	Write_rows	#	#	table_id: #
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Query	#	#	COMMIT
 drop table t1;

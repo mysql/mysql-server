@@ -366,6 +366,7 @@ public:
   const bool tableFragmentationChanged() const;
   const bool tableRangeListChanged() const;
   Uint64 getGCI();
+  Uint32 getAnyValue() const;
   Uint64 getLatestGCI();
   bool execSUB_TABLE_DATA(NdbApiSignal * signal, 
                           LinearSectionPtr ptr[3]);
