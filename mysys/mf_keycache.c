@@ -410,9 +410,9 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
     DBUG_PRINT("exit",
 	       ("disk_blocks: %d  block_root: 0x%lx  hash_entries: %d\
  hash_root: 0x%lx  hash_links: %d  hash_link_root: 0x%lx",
-		keycache->disk_blocks, keycache->block_root,
-		keycache->hash_entries, keycache->hash_root,
-		keycache->hash_links, keycache->hash_link_root));
+		keycache->disk_blocks, (long) keycache->block_root,
+		keycache->hash_entries, (long) keycache->hash_root,
+		keycache->hash_links, (long) keycache->hash_link_root));
     bzero((gptr) keycache->changed_blocks,
 	  sizeof(keycache->changed_blocks[0]) * CHANGED_BLOCKS_HASH);
     bzero((gptr) keycache->file_blocks,
@@ -613,7 +613,7 @@ void change_key_cache_param(KEY_CACHE *keycache, uint division_limit,
 void end_key_cache(KEY_CACHE *keycache, my_bool cleanup)
 {
   DBUG_ENTER("end_key_cache");
-  DBUG_PRINT("enter", ("key_cache: 0x%lx", keycache));
+  DBUG_PRINT("enter", ("key_cache: 0x%lx", (long) keycache));
 
   if (!keycache->key_cache_inited)
     DBUG_VOID_RETURN;
@@ -632,7 +632,7 @@ void end_key_cache(KEY_CACHE *keycache, my_bool cleanup)
     keycache->blocks_changed= 0;
   }
 
-  DBUG_PRINT("status", ("used: %d  changed: %d  w_requests: %lu  "
+  DBUG_PRINT("status", ("used: %lu  changed: %lu  w_requests: %lu  "
                         "writes: %lu  r_requests: %lu  reads: %lu",
                         keycache->blocks_used, keycache->global_blocks_changed,
                         (ulong) keycache->global_cache_w_requests,
@@ -1058,7 +1058,7 @@ static void unreg_request(KEY_CACHE *keycache,
       if (block->temperature == BLOCK_WARM)
         keycache->warm_blocks--;
       block->temperature= BLOCK_HOT;
-      KEYCACHE_DBUG_PRINT("unreg_request", ("#warm_blocks=%u",
+      KEYCACHE_DBUG_PRINT("unreg_request", ("#warm_blocks: %lu",
                            keycache->warm_blocks));
     }
     link_block(keycache, block, hot, (my_bool)at_end);
@@ -1077,7 +1077,7 @@ static void unreg_request(KEY_CACHE *keycache,
         keycache->warm_blocks++;
         block->temperature= BLOCK_WARM;
       }
-      KEYCACHE_DBUG_PRINT("unreg_request", ("#warm_blocks=%u",
+      KEYCACHE_DBUG_PRINT("unreg_request", ("#warm_blocks: %lu",
                            keycache->warm_blocks));
     }
   }
@@ -1313,11 +1313,11 @@ static BLOCK_LINK *find_key_block(KEY_CACHE *keycache,
 
   DBUG_ENTER("find_key_block");
   KEYCACHE_THREAD_TRACE("find_key_block:begin");
-  DBUG_PRINT("enter", ("fd: %u  pos %lu  wrmode: %lu",
-                       (uint) file, (ulong) filepos, (uint) wrmode));
-  KEYCACHE_DBUG_PRINT("find_key_block", ("fd: %u  pos: %lu  wrmode: %lu",
+  DBUG_PRINT("enter", ("fd: %u  pos: %lu  wrmode: %d",
+                       (uint) file, (ulong) filepos, wrmode));
+  KEYCACHE_DBUG_PRINT("find_key_block", ("fd: %u  pos: %lu  wrmode: %d",
                                          (uint) file, (ulong) filepos,
-                                         (uint) wrmode));
+                                         wrmode));
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
   DBUG_EXECUTE("check_keycache2",
                test_key_cache(keycache, "start of find_key_block", 0););
@@ -1587,9 +1587,9 @@ restart:
   KEYCACHE_DBUG_ASSERT(page_status != -1);
   *page_st=page_status;
   KEYCACHE_DBUG_PRINT("find_key_block",
-                      ("fd: %u  pos %lu  block->status %u  page_status %lu",
+                      ("fd: %u  pos: %lu  block->status: %u  page_status: %d",
                        (uint) file, (ulong) filepos, block->status,
-                       (uint) page_status));
+                       page_status));
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
   DBUG_EXECUTE("check_keycache2",
@@ -2274,7 +2274,7 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
   BLOCK_LINK *cache_buff[FLUSH_CACHE],**cache;
   int last_errno= 0;
   DBUG_ENTER("flush_key_blocks_int");
-  DBUG_PRINT("enter",("file: %d  blocks_used: %d  blocks_changed: %d",
+  DBUG_PRINT("enter",("file: %d  blocks_used: %lu  blocks_changed: %lu",
               file, keycache->blocks_used, keycache->blocks_changed));
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
@@ -2474,7 +2474,7 @@ int flush_key_blocks(KEY_CACHE *keycache,
 {
   int res;
   DBUG_ENTER("flush_key_blocks");
-  DBUG_PRINT("enter", ("keycache: 0x%lx", keycache));
+  DBUG_PRINT("enter", ("keycache: 0x%lx", (long) keycache));
 
   if (keycache->disk_blocks <= 0)
     DBUG_RETURN(0);

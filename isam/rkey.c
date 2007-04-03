@@ -27,8 +27,8 @@ int nisam_rkey(N_INFO *info, byte *buf, int inx, const byte *key, uint key_len, 
   uchar *key_buff;
   ISAM_SHARE *share=info->s;
   DBUG_ENTER("nisam_rkey");
-  DBUG_PRINT("enter",("base: %lx  inx: %d  search_flag: %d",
-		      info,inx,search_flag));
+  DBUG_PRINT("enter",("base: 0x%lx  inx: %d  search_flag: %d",
+		      (long) info, inx, search_flag));
 
   if ((inx = _nisam_check_index(info,inx)) < 0)
     DBUG_RETURN(-1);

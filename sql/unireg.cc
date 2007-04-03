@@ -358,14 +358,14 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
     key_parts+=key->key_parts;
     DBUG_PRINT("loop",("flags: %d  key_parts: %d at %lx",
 		       key->flags,key->key_parts,
-		       key->key_part));
+		       (long) key->key_part));
     for (key_part=key->key_part,key_part_end=key_part+key->key_parts ;
 	 key_part != key_part_end ;
 	 key_part++)
 
     {
       uint offset;
-      DBUG_PRINT("loop",("field: %d  startpos: %lu  length: %ld",
+      DBUG_PRINT("loop",("field: %d  startpos: %lu  length: %d",
 			 key_part->fieldnr, key_part->offset + data_offset,
                          key_part->length));
       int2store(pos,key_part->fieldnr+1+FIELD_NAME_USED);

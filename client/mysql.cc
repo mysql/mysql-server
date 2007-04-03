@@ -440,7 +440,7 @@ int main(int argc,char *argv[])
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
 #ifdef HAVE_READLINE
-  initialize_readline(my_progname);
+  initialize_readline((char*) my_progname);
   if (!status.batch && !quick && !opt_html && !opt_xml)
   {
     /* read-history from file, default ~/.mysql_history*/
