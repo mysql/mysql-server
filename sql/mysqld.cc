@@ -435,7 +435,7 @@ ulong rpl_recovery_rank=0;
 
 double log_10[32];			/* 10 potences */
 double log_01[32];
-time_t server_start_time;
+time_t server_start_time, flush_status_time;
 
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
 char *default_tz_name;
@@ -1667,7 +1667,7 @@ void end_thread(THD *thd, bool put_in_cache)
       ! abort_loop && !kill_cached_threads)
   {
     /* Don't kill the thread, just put it in cache for reuse */
-    DBUG_PRINT("info", ("Adding thread to cache"))
+    DBUG_PRINT("info", ("Adding thread to cache"));
     cached_thread_count++;
     while (!abort_loop && ! wake_thread && ! kill_cached_threads)
       (void) pthread_cond_wait(&COND_thread_cache, &LOCK_thread_count);
@@ -2634,7 +2634,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   tzset();			// Set tzname
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
-  server_start_time= time((time_t*) 0);
+  server_start_time= flush_status_time= time((time_t*) 0);
   if (init_thread_environment())
     return 1;
   mysql_init_variables();
@@ -4772,6 +4772,7 @@ enum options_mysqld
   OPT_TABLE_LOCK_WAIT_TIMEOUT,
   OPT_PORT_OPEN_TIMEOUT,
   OPT_MERGE,
+  OPT_PROFILING,
   OPT_INNODB_ROLLBACK_ON_TIMEOUT,
   OPT_SECURE_FILE_PRIV
 };
@@ -5345,6 +5346,12 @@ Disable with --skip-ndbcluster (will save memory).",
    "Maximum time in seconds to wait for the port to become free. "
    "(Default: no wait)", (gptr*) &mysqld_port_timeout,
    (gptr*) &mysqld_port_timeout, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef ENABLED_PROFILING
+  {"profiling_history_size", OPT_PROFILING, "Limit of query profiling memory",
+   (gptr*) &global_system_variables.profiling_history_size,
+   (gptr*) &max_system_variables.profiling_history_size,
+   0, GET_ULONG, REQUIRED_ARG, 15, 0, 100, 0, 0, 0},
+#endif
   {"relay-log", OPT_RELAY_LOG,
    "The location and name to use for relay logs.",
    (gptr*) &opt_relay_logname, (gptr*) &opt_relay_logname, 0,
@@ -6371,6 +6378,7 @@ struct show_var_st status_vars[]= {
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_CONST},
   {"Threads_running",          (char*) &thread_running,         SHOW_INT_CONST},
   {"Uptime",                   (char*) 0,                       SHOW_STARTTIME},
+  {"Uptime_since_flush_status",(char*) 0,                       SHOW_FLUSHTIME},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -7677,6 +7685,7 @@ void refresh_status(THD *thd)
 
   /* Reset the counters of all key caches (default and named). */
   process_key_caches(reset_key_cache_counters);
+  flush_status_time= time((time_t*) 0);
   pthread_mutex_unlock(&LOCK_status);
 
   /*
