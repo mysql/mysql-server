@@ -31,4 +31,20 @@ create view v1 as select * from t1;
 drop view v1;
 drop table t1;
 
+#
+# Bug#25347: mysqlcheck -A -r doesn't repair table marked as crashed
+#
+create database d_bug25347;
+use d_bug25347;
+create table t_bug25347 (a int);
+create view v_bug25347 as select * from t_bug25347;
+--echo removing and creating
+--exec rm    $MYSQLTEST_VARDIR/master-data/d_bug25347/t_bug25347.MYI;
+--exec touch $MYSQLTEST_VARDIR/master-data/d_bug25347/t_bug25347.MYI;
+--exec $MYSQL_CHECK --repair --databases d_bug25347
+drop view v_bug25347;
+drop table t_bug25347;
+drop database d_bug25347;
+use test;
+
 --echo End of 5.0 tests
