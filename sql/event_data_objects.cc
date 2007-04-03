@@ -287,7 +287,7 @@ int
 Event_parse_data::init_execute_at(THD *thd)
 {
   my_bool not_used;
-  TIME ltime;
+  MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
   DBUG_ENTER("Event_parse_data::init_execute_at");
@@ -456,7 +456,7 @@ int
 Event_parse_data::init_starts(THD *thd)
 {
   my_bool not_used;
-  TIME ltime;
+  MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
   DBUG_ENTER("Event_parse_data::init_starts");
@@ -510,7 +510,7 @@ int
 Event_parse_data::init_ends(THD *thd)
 {
   my_bool not_used;
-  TIME ltime;
+  MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
   DBUG_ENTER("Event_parse_data::init_ends");
@@ -935,7 +935,7 @@ int
 Event_queue_element::load_from_row(THD *thd, TABLE *table)
 {
   char *ptr;
-  TIME time;
+  MYSQL_TIME time;
 
   DBUG_ENTER("Event_queue_element::load_from_row");
 
@@ -1120,7 +1120,7 @@ error:
 */
 static
 my_time_t
-add_interval(TIME *ltime, const Time_zone *time_zone,
+add_interval(MYSQL_TIME *ltime, const Time_zone *time_zone,
              interval_type scale, INTERVAL interval)
 {
   if (date_add_interval(ltime, scale, interval))
@@ -1213,8 +1213,8 @@ bool get_next_time(const Time_zone *time_zone, my_time_t *next,
   }
   DBUG_PRINT("info", ("seconds: %ld  months: %ld", (long) seconds, (long) months));
 
-  TIME local_start;
-  TIME local_now;
+  MYSQL_TIME local_start;
+  MYSQL_TIME local_now;
 
   /* Convert times from UTC to local. */
   {
@@ -1458,7 +1458,7 @@ Event_queue_element::compute_next_execution_time()
   {
     /*
       Both starts and m_ends are set and time_now is between them (incl.)
-      If last_executed is set then increase with m_expression. The new TIME is
+      If last_executed is set then increase with m_expression. The new MYSQL_TIME is
       after m_ends set execute_at to 0. And check for on_completion
       If not set then schedule for now.
     */
@@ -1600,7 +1600,7 @@ err:
 
 
 /*
-  Set the internal last_executed TIME struct to now. NOW is the
+  Set the internal last_executed MYSQL_TIME struct to now. NOW is the
   time according to thd->query_start(), so the THD's clock.
 
   SYNOPSIS
@@ -1667,7 +1667,7 @@ Event_queue_element::update_timing_fields(THD *thd)
 
   if (last_executed_changed)
   {
-    TIME time;
+    MYSQL_TIME time;
     my_tz_UTC->gmt_sec_to_TIME(&time, last_executed);
 
     fields[ET_FIELD_LAST_EXECUTED]->set_notnull();
@@ -1713,7 +1713,7 @@ append_datetime(String *buf, Time_zone *time_zone, my_time_t secs,
     Pass the buffer and the second param tells fills the buffer and
     returns the number of chars to copy.
   */
-  TIME time;
+  MYSQL_TIME time;
   time_zone->gmt_sec_to_TIME(&time, secs);
   buf->append(dtime_buff, my_datetime_to_str(&time, dtime_buff));
   buf->append(STRING_WITH_LEN("'"));

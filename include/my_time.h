@@ -51,8 +51,6 @@ typedef long my_time_t;
 
 /* two-digit years < this are 20..; >= this are 19.. */
 #define YY_PART_YEAR	   70
-/* apply above magic to years < this */
-#define YY_MAGIC_BELOW     200
 
 /* Flags to str_to_datetime */
 #define TIME_FUZZY_DATE		1
@@ -93,6 +91,7 @@ int check_time_range(struct st_mysql_time *, int *warning);
 
 long calc_daynr(uint year,uint month,uint day);
 uint calc_days_in_year(uint year);
+uint year_2000_handling(uint year);
 
 void init_time(void);
 
