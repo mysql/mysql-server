@@ -37,7 +37,7 @@ uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
     errno=0;					/* Linux doesn't reset this */
 #endif
 #ifndef HAVE_PREAD
-    off_t old_offset;
+    os_off_t old_offset;
 
     pthread_mutex_lock(&my_file_info[Filedes].mutex);
     /*
@@ -45,7 +45,7 @@ uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
       before seeking to the given offset
     */
 
-    error= (old_offset= (off_t)lseek(Filedes, 0L, MY_SEEK_CUR)) == -1L ||
+    error= (old_offset= lseek(Filedes, 0L, MY_SEEK_CUR)) == -1L ||
            lseek(Filedes, offset, MY_SEEK_SET) == -1L;
 
     if (!error)                                 /* Seek was successful */
@@ -116,7 +116,7 @@ uint my_pwrite(int Filedes, const byte *Buffer, uint Count, my_off_t offset,
   {
 #ifndef HAVE_PREAD
     int error= 0;
-    off_t old_offset;
+    os_off_t old_offset;
     writenbytes= (uint) -1;
     pthread_mutex_lock(&my_file_info[Filedes].mutex);
 
@@ -124,7 +124,7 @@ uint my_pwrite(int Filedes, const byte *Buffer, uint Count, my_off_t offset,
       As we cannot change the file pointer, we save the old position,
       before seeking to the given offset
     */
-    error= ((old_offset= (off_t)lseek(Filedes, 0L, MY_SEEK_CUR)) == -1L ||
+    error= ((old_offset= lseek(Filedes, 0L, MY_SEEK_CUR)) == -1L ||
             lseek(Filedes, offset, MY_SEEK_SET) == -1L);
 
     if (!error)                                 /* Seek was successful */

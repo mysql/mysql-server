@@ -635,6 +635,9 @@ bool ha_myisam::check_if_locking_is_allowed(uint sql_command,
 
 int ha_myisam::open(const char *name, int mode, uint test_if_locked)
 {
+  MI_KEYDEF *keyinfo;
+  MI_COLUMNDEF *recinfo= 0;
+  uint recs;
   uint i;
 
   /*
@@ -657,6 +660,26 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
 
   if (!(file=mi_open(name, mode, test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
     return (my_errno ? my_errno : -1);
+  if (!table->s->tmp_table) /* No need to perform a check for tmp table */
+  {
+    if ((my_errno= table2myisam(table, &keyinfo, &recinfo, &recs)))
+    {
+      /* purecov: begin inspected */
+      DBUG_PRINT("error", ("Failed to convert TABLE object to MyISAM "
+                           "key and column definition"));
+      goto err;
+      /* purecov: end */
+    }
+    if (check_definition(keyinfo, recinfo, table->s->keys, recs,
+                         file->s->keyinfo, file->s->rec,
+                         file->s->base.keys, file->s->base.fields, true))
+    {
+      /* purecov: begin inspected */
+      my_errno= HA_ERR_CRASHED;
+      goto err;
+      /* purecov: end */
+    }
+  }
   
   if (test_if_locked & (HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_TMP_TABLE))
     VOID(mi_extra(file, HA_EXTRA_NO_WAIT_LOCK, 0));
@@ -677,7 +700,18 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
         (struct st_mysql_ftparser *)parser->plugin->info;
     table->key_info[i].block_size= file->s->keyinfo[i].block_length;
   }
-  return (0);
+  my_errno= 0;
+  goto end;
+ err:
+  this->close();
+ end:
+  /*
+    Both recinfo and keydef are allocated by my_multi_malloc(), thus only
+    recinfo must be freed.
+  */
+  if (recinfo)
+    my_free((gptr) recinfo, MYF(0));
+  return my_errno;
 }
 
 int ha_myisam::close(void)
@@ -1022,6 +1056,22 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
   MYISAM_SHARE* share = file->s;
   ha_rows rows= file->state->records;
   DBUG_ENTER("ha_myisam::repair");
+
+  /*
+    Normally this method is entered with a properly opened table. If the
+    repair fails, it can be repeated with more elaborate options. Under
+    special circumstances it can happen that a repair fails so that it
+    closed the data file and cannot re-open it. In this case file->dfile
+    is set to -1. We must not try another repair without an open data
+    file. (Bug #25289)
+  */
+  if (file->dfile == -1)
+  {
+    sql_print_information("Retrying repair of: '%s' failed. "
+                          "Please try REPAIR EXTENDED or myisamchk",
+                          table->s->path.str);
+    DBUG_RETURN(HA_ADMIN_FAILED);
+  }
 
   param.db_name=    table->s->db.str;
   param.table_name= table->alias;

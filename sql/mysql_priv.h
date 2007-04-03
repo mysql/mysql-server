@@ -1445,6 +1445,9 @@ void close_system_tables(THD *thd, Open_tables_state *backup);
 TABLE *open_system_table_for_update(THD *thd, TABLE_LIST *one_table);
 
 bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables, bool have_lock = FALSE);
+bool close_cached_connection_tables(THD *thd, bool wait_for_refresh,
+                                    LEX_STRING *connect_string,
+                                    bool have_lock = FALSE);
 void copy_field_from_tmp_record(Field *field,int offset);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
                  bool ignore_errors);
