@@ -532,7 +532,7 @@ NdbEventOperationImpl::readBlobParts(char* buf, NdbBlob* blob,
     // XXX should be: no = blob->theBlobEventPartValue
     Uint32 no = blob_op->get_blob_part_no(hasDist);
 
-    DBUG_PRINT_EVENT("info", ("part_data=%p part no=%u part sz=%u", data, no, sz));
+    DBUG_PRINT_EVENT("info", ("part_data=%p part no=%u part", data, no));
 
     if (part <= no && no < part + count)
     {
@@ -2458,35 +2458,6 @@ end:
  * NUL event on main table.  The real event replaces it later.
  */
 
-// write attribute headers for concatened PK
-static void
-split_concatenated_pk(const NdbTableImpl* t, Uint32* ah_buffer,
-                      const Uint32* pk_buffer, Uint32 pk_sz)
-{
-  Uint32 sz = 0; // words parsed so far
-  Uint32 n;  // pk attr count
-  Uint32 i;
-  for (i = n = 0; i < t->m_columns.size() && n < t->m_noOfKeys; i++)
-  {
-    const NdbColumnImpl* c = t->getColumn(i);
-    assert(c != NULL);
-    if (! c->m_pk)
-      continue;
-
-    assert(sz < pk_sz);
-    Uint32 bytesize = c->m_attrSize * c->m_arraySize;
-    Uint32 lb, len;
-    bool ok = NdbSqlUtil::get_var_length(c->m_type, &pk_buffer[sz], bytesize,
-                                         lb, len);
-    assert(ok);
-
-    AttributeHeader ah(i, lb + len);
-    ah_buffer[n++] = ah.m_value;
-    sz += ah.getDataSize();
-  }
-  assert(n == t->m_noOfKeys && sz <= pk_sz);
-}
-
 int
 NdbEventBuffer::get_main_data(Gci_container* bucket,
                               EventBufData_hash::Pos& hpos,
@@ -2503,29 +2474,71 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
 
   // create LinearSectionPtr for main table key
   LinearSectionPtr ptr[3];
-  Uint32 ah_buffer[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
+
+  Uint32 pk_ah[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
+  Uint32* pk_data = blob_data->ptr[1].p;
+  Uint32 pk_size = 0;
 
   if (unlikely(blobVersion == 1)) {
-    ptr[0].sz = mainTable->m_noOfKeys;
-    ptr[0].p = ah_buffer;
-    // get sz of PK Unsigned [sz]
-    ptr[1].sz = AttributeHeader(blob_data->ptr[0].p[0]).getDataSize();
-    // get pointer to PK
-    ptr[1].p = blob_data->ptr[1].p;
-    split_concatenated_pk(mainTable, ptr[0].p, ptr[1].p, ptr[1].sz);
-  } else {
-    // blob part key is table key + dist + part
-    ptr[0].sz = mainTable->m_noOfKeys;
-    ptr[0].p = blob_data->ptr[0].p;
-    // count size of table PK
-    uint sz = 0;
-    uint i;
-    for (i = 0; i < mainTable->m_noOfKeys; i++) {
-      sz += AttributeHeader(blob_data->ptr[0].p[i]).getDataSize();
+    /*
+     * Blob PK attribute 0 is concatenated table PK null padded
+     * to fixed maximum size.  The actual size and attributes of
+     * table PK must be discovered.
+     */
+    Uint32 max_size = AttributeHeader(blob_data->ptr[0].p[0]).getDataSize();
+
+    Uint32 sz = 0; // words parsed so far
+    Uint32 n = 0;
+    Uint32 i;
+    for (i = 0; n < mainTable->m_noOfKeys; i++) {
+      const NdbColumnImpl* c = mainTable->getColumn(i);
+      assert(c != NULL);
+      if (! c->m_pk)
+        continue;
+
+      Uint32 bytesize = c->m_attrSize * c->m_arraySize;
+      Uint32 lb, len;
+      assert(sz < max_size);
+      bool ok = NdbSqlUtil::get_var_length(c->m_type, &pk_data[sz],
+                                           bytesize, lb, len);
+      assert(ok);
+
+      AttributeHeader ah(i, lb + len);
+      pk_ah[n] = ah.m_value;
+      sz += ah.getDataSize();
+      n++;
     }
-    ptr[1].sz = sz;
-    ptr[1].p = blob_data->ptr[1].p;
+    assert(n == mainTable->m_noOfKeys);
+    assert(sz <= max_size);
+    pk_size = sz;
+  } else {
+    /*
+     * Blob PK starts with separate table PKs.  Total size must be
+     * counted and blob attribute ids changed to table attribute ids.
+     */
+    Uint32 sz = 0; // count size
+    Uint32 n = 0;
+    Uint32 i;
+    for (i = 0; n < mainTable->m_noOfKeys; i++) {
+      const NdbColumnImpl* c = mainTable->getColumn(i);
+      assert(c != NULL);
+      if (! c->m_pk)
+        continue;
+
+      AttributeHeader ah(blob_data->ptr[0].p[n]);
+      ah.setAttributeId(i);
+      pk_ah[n] = ah.m_value;
+      sz += ah.getDataSize();
+      n++;
+    }
+    assert(n == mainTable->m_noOfKeys);
+    pk_size = sz;
   }
+
+  ptr[0].sz = mainTable->m_noOfKeys;
+  ptr[0].p = pk_ah;
+  ptr[1].sz = pk_size;
+  ptr[1].p = pk_data;
   ptr[2].sz = 0;
   ptr[2].p = 0;
 
