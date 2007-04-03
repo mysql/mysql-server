@@ -902,7 +902,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   double scan_time;
   DBUG_ENTER("test_quick_select");
   DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
-		      keys_to_use.to_ulonglong(), (ulong) prev_tables,
+		      (ulong) keys_to_use.to_ulonglong(), (ulong) prev_tables,
 		      (ulong) const_tables));
 
   delete quick;

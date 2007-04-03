@@ -26,7 +26,8 @@
 #endif
 
 	/* from my_init */
-my_string	home_dir=0,my_progname=0;
+my_string	home_dir=0;
+const char      *my_progname=0;
 char		NEAR curr_dir[FN_REFLEN]= {0},
 		NEAR home_dir_buff[FN_REFLEN]= {0};
 ulong		my_stream_opened=0,my_file_opened=0, my_tmp_file_created=0;

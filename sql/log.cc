@@ -2255,8 +2255,8 @@ void MYSQL_LOG::report_pos_in_innodb()
   if (is_open() && have_innodb == SHOW_OPTION_YES)
   {
     DBUG_PRINT("info", ("Reporting binlog info into InnoDB - "
-                        "name: '%s' position: %d",
-                        log_file_name, my_b_tell(&log_file)));
+                        "name: '%s' position: %lu",
+                        log_file_name, (ulong) my_b_tell(&log_file)));
     innobase_store_binlog_offset_and_flush_log(log_file_name,
                                                my_b_tell(&log_file));
   }

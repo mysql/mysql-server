@@ -156,9 +156,8 @@ bool foreign_key_prefix(Key *a, Key *b)
 
 THD::THD()
   :user_time(0), global_read_lock(0), is_fatal_error(0),
-   last_insert_id_used(0),
-   insert_id_used(0), rand_used(0), time_zone_used(0),
-   in_lock_tables(0), bootstrap(0)
+   rand_used(0), last_insert_id_used(0), insert_id_used(0),
+   time_zone_used(0), in_lock_tables(0), bootstrap(0)
 {
   current_arena= this;
   host= user= priv_user= db= ip=0;
@@ -616,7 +615,8 @@ void THD::add_changed_table(const char *key, long key_length)
     {
       list_include(prev_changed, curr, changed_table_dup(key, key_length));
       DBUG_PRINT("info", 
-		 ("key_length %u %u", key_length, (*prev_changed)->key_length));
+		 ("key_length: %ld  %u", key_length,
+                  (*prev_changed)->key_length));
       DBUG_VOID_RETURN;
     }
     else if (cmp == 0)
@@ -626,7 +626,7 @@ void THD::add_changed_table(const char *key, long key_length)
       {
 	list_include(prev_changed, curr, changed_table_dup(key, key_length));
 	DBUG_PRINT("info", 
-		   ("key_length %u %u", key_length,
+		   ("key_length: %ld  %u", key_length,
 		    (*prev_changed)->key_length));
 	DBUG_VOID_RETURN;
       }
@@ -638,7 +638,7 @@ void THD::add_changed_table(const char *key, long key_length)
     }
   }
   *prev_changed = changed_table_dup(key, key_length);
-  DBUG_PRINT("info", ("key_length %u %u", key_length,
+  DBUG_PRINT("info", ("key_length: %ld  %u", key_length,
 		      (*prev_changed)->key_length));
   DBUG_VOID_RETURN;
 }

@@ -589,7 +589,9 @@ void init_io_cache_share(IO_CACHE *read_cache, IO_CACHE_SHARE *cshare,
   DBUG_ENTER("init_io_cache_share");
   DBUG_PRINT("io_cache_share", ("read_cache: 0x%lx  share: 0x%lx  "
                                 "write_cache: 0x%lx  threads: %u",
-                                read_cache, cshare, write_cache, num_threads));
+                                (long) read_cache,
+                                (long) cshare,
+                                (long) write_cache, num_threads));
 
   DBUG_ASSERT(num_threads > 1);
   DBUG_ASSERT(read_cache->type == READ_CACHE);
@@ -651,7 +653,7 @@ void remove_io_thread(IO_CACHE *cache)
   pthread_mutex_lock(&cshare->mutex);
   DBUG_PRINT("io_cache_share", ("%s: 0x%lx",
                                 (cache == cshare->source_cache) ?
-                                "writer" : "reader", cache));
+                                "writer" : "reader", (long) cache));
 
   /* Remove from share. */
   total= --cshare->total_threads;
@@ -727,7 +729,8 @@ static int lock_io_cache(IO_CACHE *cache, my_off_t pos)
   cshare->running_threads--;
   DBUG_PRINT("io_cache_share", ("%s: 0x%lx  pos: %lu  running: %u",
                                 (cache == cshare->source_cache) ?
-                                "writer" : "reader", cache, (ulong) pos,
+                                "writer" : "reader",
+                                (long) cache, (ulong) pos,
                                 cshare->running_threads));
 
   if (cshare->source_cache)
@@ -866,7 +869,7 @@ static void unlock_io_cache(IO_CACHE *cache)
   DBUG_PRINT("io_cache_share", ("%s: 0x%lx  pos: %lu  running: %u",
                                 (cache == cshare->source_cache) ?
                                 "writer" : "reader",
-                                cache, (ulong) cshare->pos_in_file,
+                                (long) cache, (ulong) cshare->pos_in_file,
                                 cshare->total_threads));
 
   cshare->running_threads= cshare->total_threads;
