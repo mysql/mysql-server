@@ -136,6 +136,9 @@ delete from mysql.tables_priv where user like "mysqltest%";
 
 connection master;
 
+#BUG27606
+delete from mysql.tables_priv where user like "mysqltest%";
+
 #
 # bug#22877 replication character sets get out of sync
 # using replicate-wild-ignore-table
