@@ -33,10 +33,10 @@ sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
 
 /* Macros to look like lex */
 
-#define yyGet()		*(lex->ptr++)
-#define yyGetLast()	lex->ptr[-1]
-#define yyPeek()	lex->ptr[0]
-#define yyPeek2()	lex->ptr[1]
+#define yyGet()         ((uchar) *(lex->ptr++))
+#define yyGetLast()     ((uchar) lex->ptr[-1])
+#define yyPeek()        ((uchar) lex->ptr[0])
+#define yyPeek2()       ((uchar) lex->ptr[1])
 #define yyUnget()	lex->ptr--
 #define yySkip()	lex->ptr++
 #define yyLength()	((uint) (lex->ptr - lex->tok_start)-1)
@@ -127,7 +127,7 @@ st_parsing_options::reset()
   (We already do too much here)
 */
 
-void lex_start(THD *thd, const uchar *buf, uint length)
+void lex_start(THD *thd, const char *buf, uint length)
 {
   LEX *lex= thd->lex;
   DBUG_ENTER("lex_start");
@@ -238,9 +238,9 @@ void lex_end(LEX *lex)
 
 static int find_keyword(LEX *lex, uint len, bool function)
 {
-  const uchar *tok=lex->tok_start;
+  const char *tok= lex->tok_start;
 
-  SYMBOL *symbol= get_hash_symbol((const char *)tok,len,function);
+  SYMBOL *symbol= get_hash_symbol(tok, len, function);
   if (symbol)
   {
     lex->yylval->symbol.symbol=symbol;
@@ -305,16 +305,16 @@ static LEX_STRING get_token(LEX *lex,uint length)
 static LEX_STRING get_quoted_token(LEX *lex,uint length, char quote)
 {
   LEX_STRING tmp;
-  const uchar *from, *end;
-  uchar *to;
+  const char *from, *end;
+  char *to;
   yyUnget();			// ptr points now after last token char
   tmp.length=lex->yytoklen=length;
   tmp.str=(char*) lex->thd->alloc(tmp.length+1);
-  for (from= lex->tok_start, to= (uchar*) tmp.str, end= to+length ;
+  for (from= lex->tok_start, to= tmp.str, end= to+length ;
        to != end ;
        )
   {
-    if ((*to++= *from++) == (uchar) quote)
+    if ((*to++= *from++) == quote)
       from++;					// Skip double quotes
   }
   *to= 0;					// End null for safety
@@ -341,9 +341,7 @@ static char *get_text(LEX *lex)
     {
       int l;
       if (use_mb(cs) &&
-          (l = my_ismbchar(cs,
-                           (const char *)lex->ptr-1,
-                           (const char *)lex->end_of_query))) {
+          (l = my_ismbchar(cs, lex->ptr-1, lex->end_of_query))) {
 	lex->ptr += l-1;
 	continue;
       }
@@ -368,12 +366,12 @@ static char *get_text(LEX *lex)
 	yyUnget();
 
       /* Found end. Unescape and return string */
-      const uchar *str, *end;
-      uchar *start;
+      const char *str, *end;
+      char *start;
 
       str=lex->tok_start+1;
       end=lex->ptr-1;
-      if (!(start=(uchar*) lex->thd->alloc((uint) (end-str)+1)))
+      if (!(start= (char*) lex->thd->alloc((uint) (end-str)+1)))
 	return (char*) "";		// Sql_alloc has set error flag
       if (!found_escape)
       {
@@ -383,15 +381,14 @@ static char *get_text(LEX *lex)
       }
       else
       {
-	uchar *to;
+        char *to;
 
 	for (to=start ; str != end ; str++)
 	{
 #ifdef USE_MB
 	  int l;
 	  if (use_mb(cs) &&
-              (l = my_ismbchar(cs,
-                               (const char *)str, (const char *)end))) {
+              (l = my_ismbchar(cs, str, end))) {
 	      while (l--)
 		  *to++ = *str++;
 	      str--;
@@ -437,7 +434,7 @@ static char *get_text(LEX *lex)
 	*to=0;
 	lex->yytoklen=(uint) (to-start);
       }
-      return (char*) start;
+      return start;
     }
   }
   return 0;					// unexpected end of query
@@ -556,7 +553,6 @@ int MYSQLlex(void *arg, void *yythd)
 
   lex->yylval=yylval;			// The global state
 
-  lex->tok_end_prev= lex->tok_end;
   lex->tok_start_prev= lex->tok_start;
 
   lex->tok_start=lex->tok_end=lex->ptr;
@@ -640,16 +636,14 @@ int MYSQLlex(void *arg, void *yythd)
         break;
       }
     case MY_LEX_IDENT:
-      const uchar *start;
+      const char *start;
 #if defined(USE_MB) && defined(USE_MB_IDENT)
       if (use_mb(cs))
       {
 	result_state= IDENT_QUOTED;
         if (my_mbcharlen(cs, yyGetLast()) > 1)
         {
-          int l = my_ismbchar(cs,
-                              (const char *)lex->ptr-1,
-                              (const char *)lex->end_of_query);
+          int l = my_ismbchar(cs, lex->ptr-1, lex->end_of_query);
           if (l == 0) {
             state = MY_LEX_CHAR;
             continue;
@@ -661,9 +655,7 @@ int MYSQLlex(void *arg, void *yythd)
           if (my_mbcharlen(cs, c) > 1)
           {
             int l;
-            if ((l = my_ismbchar(cs,
-                              (const char *)lex->ptr-1,
-                              (const char *)lex->end_of_query)) == 0)
+            if ((l = my_ismbchar(cs, lex->ptr-1, lex->end_of_query)) == 0)
               break;
             lex->ptr += l-1;
           }
@@ -786,9 +778,7 @@ int MYSQLlex(void *arg, void *yythd)
           if (my_mbcharlen(cs, c) > 1)
           {
             int l;
-            if ((l = my_ismbchar(cs,
-                                 (const char *)lex->ptr-1,
-                                 (const char *)lex->end_of_query)) == 0)
+            if ((l = my_ismbchar(cs, lex->ptr-1, lex->end_of_query)) == 0)
               break;
             lex->ptr += l-1;
           }
@@ -1122,7 +1112,7 @@ int MYSQLlex(void *arg, void *yythd)
     Pointer to the last non-comment symbol of the statement.
 */
 
-const uchar *skip_rear_comments(const uchar *begin, const uchar *end)
+const char *skip_rear_comments(const char *begin, const char *end)
 {
   while (begin < end && (end[-1] <= ' ' || end[-1] == '*' ||
                          end[-1] == '/' || end[-1] == ';'))

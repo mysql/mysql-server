@@ -2850,7 +2850,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
 
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
-  lex_start(thd, (uchar*) thd->query, thd->query_length);
+  lex_start(thd, thd->query, thd->query_length);
   lex->stmt_prepare_mode= TRUE;
 
   error= MYSQLparse((void *)thd) || thd->is_fatal_error ||
