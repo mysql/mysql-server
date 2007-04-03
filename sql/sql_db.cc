@@ -1308,30 +1308,27 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
   DBUG_PRINT("info",("Use database: %s", new_db_file_name.str));
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (!force_switch) /* FIXME: this is BUG#27337. */
-  {
-    db_access=
-      test_all_bits(sctx->master_access, DB_ACLS) ?
-      DB_ACLS :
-      acl_get(sctx->host,
-              sctx->ip,
-              sctx->priv_user,
-              new_db_file_name.str,
-              FALSE) | sctx->master_access;
+  db_access=
+    test_all_bits(sctx->master_access, DB_ACLS) ?
+    DB_ACLS :
+    acl_get(sctx->host,
+            sctx->ip,
+            sctx->priv_user,
+            new_db_file_name.str,
+            FALSE) | sctx->master_access;
 
-    if (!force_switch &&
-        !(db_access & DB_ACLS) &&
-        (!grant_option || check_grant_db(thd, new_db_file_name.str)))
-    {
-      my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-               sctx->priv_user,
-               sctx->priv_host,
-               new_db_file_name.str);
-      mysql_log.write(thd, COM_INIT_DB, ER(ER_DBACCESS_DENIED_ERROR),
-                      sctx->priv_user, sctx->priv_host, new_db_file_name.str);
-      my_free(new_db_file_name.str, MYF(0));
-      DBUG_RETURN(TRUE);
-    }
+  if (!force_switch &&
+      !(db_access & DB_ACLS) &&
+      (!grant_option || check_grant_db(thd, new_db_file_name.str)))
+  {
+    my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
+             sctx->priv_user,
+             sctx->priv_host,
+             new_db_file_name.str);
+    mysql_log.write(thd, COM_INIT_DB, ER(ER_DBACCESS_DENIED_ERROR),
+                    sctx->priv_user, sctx->priv_host, new_db_file_name.str);
+    my_free(new_db_file_name.str, MYF(0));
+    DBUG_RETURN(TRUE);
   }
 #endif
 
