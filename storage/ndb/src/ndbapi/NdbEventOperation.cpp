@@ -122,6 +122,12 @@ NdbEventOperation::getGCI() const
   return m_impl.getGCI();
 }
 
+Uint32
+NdbEventOperation::getAnyValue() const
+{
+  return m_impl.getAnyValue();
+}
+
 Uint64
 NdbEventOperation::getLatestGCI() const
 {

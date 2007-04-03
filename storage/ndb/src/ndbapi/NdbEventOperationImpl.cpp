@@ -683,6 +683,12 @@ NdbEventOperationImpl::getGCI()
   return m_data_item->sdata->gci;
 }
 
+Uint32
+NdbEventOperationImpl::getAnyValue() const
+{
+  return m_data_item->sdata->anyValue;
+}
+
 Uint64
 NdbEventOperationImpl::getLatestGCI()
 {

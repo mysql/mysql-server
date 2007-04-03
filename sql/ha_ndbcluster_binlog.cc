@@ -3189,8 +3189,12 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
   NDB_SHARE *share= (NDB_SHARE*) pOp->getCustomData();
   if (share == ndb_apply_status_share)
     return 0;
-  TABLE *table= share->table;
 
+  uint originating_server_id= pOp->getAnyValue();
+  if (originating_server_id == 0)
+    originating_server_id= ::server_id;
+
+  TABLE *table= share->table;
   DBUG_ASSERT(trans.good());
   DBUG_ASSERT(table != 0);
 
@@ -3235,7 +3239,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         DBUG_ASSERT(ret == 0);
       }
       ndb_unpack_record(table, share->ndb_value[0], &b, table->record[0]);
-      IF_DBUG(int ret=) trans.write_row(::server_id,
+      IF_DBUG(int ret=) trans.write_row(originating_server_id,
                                         injector::transaction::table(table,
                                                                      TRUE),
                                         &b, n_fields, table->record[0]);
@@ -3275,7 +3279,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
       }
       ndb_unpack_record(table, share->ndb_value[n], &b, table->record[n]);
       DBUG_EXECUTE("info", print_records(table, table->record[n]););
-      IF_DBUG(int ret =) trans.delete_row(::server_id,
+      IF_DBUG(int ret =) trans.delete_row(originating_server_id,
                                           injector::transaction::table(table,
                                                                        TRUE),
                                           &b, n_fields, table->record[n]);
@@ -3305,7 +3309,8 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
           since table has a primary key, we can do a write
           using only after values
         */
-        trans.write_row(::server_id, injector::transaction::table(table, TRUE),
+        trans.write_row(originating_server_id,
+                        injector::transaction::table(table, TRUE),
                         &b, n_fields, table->record[0]);// after values
       }
       else
@@ -3325,7 +3330,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         }
         ndb_unpack_record(table, share->ndb_value[1], &b, table->record[1]);
         DBUG_EXECUTE("info", print_records(table, table->record[1]););
-        IF_DBUG(int ret =) trans.update_row(::server_id,
+        IF_DBUG(int ret =) trans.update_row(originating_server_id,
                                             injector::transaction::table(table,
                                                                          TRUE),
                                             &b, n_fields,
