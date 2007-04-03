@@ -41,4 +41,14 @@ test.t1                                            OK
 test.t1                                            OK
 drop view v1;
 drop table t1;
+create database d_bug25347;
+use d_bug25347;
+create table t_bug25347 (a int);
+create view v_bug25347 as select * from t_bug25347;
+removing and creating
+d_bug25347.t_bug25347                              OK
+drop view v_bug25347;
+drop table t_bug25347;
+drop database d_bug25347;
+use test;
 End of 5.0 tests
