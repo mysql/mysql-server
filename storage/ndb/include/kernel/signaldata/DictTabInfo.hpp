@@ -152,6 +152,7 @@ public:
     AttributeKeyFlag       = 1006, //Default noKey
     AttributeStorageType   = 1007, //Default NDB_STORAGETYPE_MEMORY
     AttributeNullableFlag  = 1008, //Default NotNullable
+    AttributeDynamic       = 1009, //Default not dynamic
     AttributeDKey          = 1010, //Default NotDKey
     AttributeExtType       = 1013, //Default ExtUnsigned
     AttributeExtPrecision  = 1014, //Default 0
@@ -410,6 +411,7 @@ public:
     Uint32 AttributeExtLength;
     Uint32 AttributeAutoIncrement;
     Uint32 AttributeStorageType;
+    Uint32 AttributeDynamic;
     char   AttributeDefaultValue[MAX_ATTR_DEFAULT_VALUE_SIZE];
     
     Attribute() {}

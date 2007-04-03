@@ -525,6 +525,49 @@ int runUseTableUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runUseTableUntilStopped2(NDBT_Context* ctx, NDBT_Step* step){
+  int records = ctx->getNumRecords();
+
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  const NdbDictionary::Table* pTab2 = 
+    NDBT_Table::discoverTableFromDb(pNdb, pTab->getName());
+  HugoTransactions hugoTrans(*pTab2);
+
+  while (ctx->isTestStopped() == false) 
+  {
+    //    g_info << i++ << ": ";    
+
+
+    // Delete and recreate Ndb object
+    // Otherwise you always get Invalid Schema Version
+    // It would be a nice feature to remove this two lines
+    //step->tearDown();
+    //step->setUp();
+
+
+    int res;
+    if ((res = hugoTrans.loadTable(pNdb, records)) != 0){
+      NdbError err = pNdb->getNdbError(res);
+      if(err.classification == NdbError::SchemaError){
+	pNdb->getDictionary()->invalidateTable(pTab->getName());
+      }
+      continue;
+    }
+    
+    UtilTransactions utilTrans(*pTab2);
+    if ((res = utilTrans.clearTable(pNdb,  records)) != 0){
+      NdbError err = pNdb->getNdbError(res);
+      if(err.classification == NdbError::SchemaError){
+	pNdb->getDictionary()->invalidateTable(pTab->getName());
+      }
+      continue;
+    }
+  }
+  g_info << endl;
+  return NDBT_OK;
+}
+
 
 int
 runCreateMaxTables(NDBT_Context* ctx, NDBT_Step* step)
@@ -1305,7 +1348,7 @@ runTableRename(NDBT_Context* ctx, NDBT_Step* step){
     if (oldTable) {
       NdbDictionary::Table newTable = *oldTable;
       newTable.setName(pTabNewName.c_str());
-      CHECK2(dict->alterTable(newTable) == 0,
+      CHECK2(dict->alterTable(*oldTable, newTable) == 0,
 	     "TableRename failed");
     }
     else {
@@ -1374,7 +1417,7 @@ runTableRenameNF(NDBT_Context* ctx, NDBT_Step* step){
     if (oldTable) {
       NdbDictionary::Table newTable = *oldTable;
       newTable.setName(pTabNewName.c_str());
-      CHECK2(dict->alterTable(newTable) == 0,
+      CHECK2(dict->alterTable(*oldTable, newTable) == 0,
 	     "TableRename failed");
     }
     else {
@@ -1471,7 +1514,7 @@ runTableRenameSR(NDBT_Context* ctx, NDBT_Step* step){
     if (oldTable) {
       NdbDictionary::Table newTable = *oldTable;
       newTable.setName(pTabNewName.c_str());
-      CHECK2(dict->alterTable(newTable) == 0,
+      CHECK2(dict->alterTable(*oldTable, newTable) == 0,
 	     "TableRename failed");
     }
     else {
@@ -1509,6 +1552,174 @@ runTableRenameSR(NDBT_Context* ctx, NDBT_Step* step){
     dict->dropTable(pTabNewName.c_str());
   }
  end:    
+  return result;
+}
+
+/*
+  Run online alter table add attributes.
+ */
+int
+runTableAddAttrs(NDBT_Context* ctx, NDBT_Step* step){
+
+  int result = NDBT_OK;
+
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* dict = pNdb->getDictionary();
+  int records = ctx->getNumRecords();
+  const int loops = ctx->getNumLoops();
+
+  ndbout << "|- " << ctx->getTab()->getName() << endl;  
+
+  NdbDictionary::Table myTab= *(ctx->getTab());
+
+  for (int l = 0; l < loops && result == NDBT_OK ; l++){
+    // Try to create table in db
+    if (myTab.createTableInDb(pNdb) != 0){
+      return NDBT_FAILED;
+    }
+    
+    // Verify that table is in db     
+    const NdbDictionary::Table* pTab2 = 
+      NDBT_Table::discoverTableFromDb(pNdb, myTab.getName());
+    if (pTab2 == NULL){
+      ndbout << myTab.getName() << " was not found in DB"<< endl;
+      return NDBT_FAILED;
+    }
+    ctx->setTab(pTab2);
+
+    /*
+      Check that table already has a varpart, otherwise add attr is
+      not possible.
+    */
+    const NdbDictionary::Column *col;
+    for (Uint32 i= 0; (col= pTab2->getColumn(i)) != 0; i++)
+    {
+      if (col->getStorageType() == NDB_STORAGETYPE_MEMORY &&
+          (col->getDynamic() || col->getArrayType() != NDB_ARRAYTYPE_FIXED))
+        break;
+    }
+    if (col == 0)
+    {
+      /* Alter table add attribute not applicable, just mark success. */
+      break;
+    }
+
+    // Load table
+    HugoTransactions hugoTrans(*ctx->getTab());
+    if (hugoTrans.loadTable(pNdb, records) != 0){
+      return NDBT_FAILED;
+    }
+
+    // Add attributes to table.
+    BaseString pTabName(pTab2->getName());
+    
+    const NdbDictionary::Table * oldTable = dict->getTable(pTabName.c_str());
+    if (oldTable) {
+      NdbDictionary::Table newTable= *oldTable;
+
+      NDBT_Attribute newcol1("NEWKOL1", NdbDictionary::Column::Unsigned, 1,
+                            false, true, 0,
+                            NdbDictionary::Column::StorageTypeMemory, true);
+      newTable.addColumn(newcol1);
+      NDBT_Attribute newcol2("NEWKOL2", NdbDictionary::Column::Char, 14,
+                            false, true, 0,
+                            NdbDictionary::Column::StorageTypeMemory, true);
+      newTable.addColumn(newcol2);
+      NDBT_Attribute newcol3("NEWKOL3", NdbDictionary::Column::Bit, 20,
+                            false, true, 0,
+                            NdbDictionary::Column::StorageTypeMemory, true);
+      newTable.addColumn(newcol3);
+      NDBT_Attribute newcol4("NEWKOL4", NdbDictionary::Column::Varbinary, 42,
+                            false, true, 0,
+                            NdbDictionary::Column::StorageTypeMemory, true);
+      newTable.addColumn(newcol4);
+
+      CHECK2(dict->alterTable(*oldTable, newTable) == 0,
+	     "TableAddAttrs failed");
+      /* Need to purge old version and reload new version after alter table. */
+      dict->invalidateTable(pTabName.c_str());
+    }
+    else {
+      result = NDBT_FAILED;
+    }
+    
+    // Drop table.
+    dict->dropTable(pTabName.c_str());
+  }
+ end:
+
+  return result;
+}
+
+/*
+  Run online alter table add attributes while running simultaneous
+  transactions on it in separate thread.
+ */
+int
+runTableAddAttrsDuring(NDBT_Context* ctx, NDBT_Step* step){
+
+  int result = NDBT_OK;
+
+  int records = ctx->getNumRecords();
+  const int loops = ctx->getNumLoops();
+
+  ndbout << "|- " << ctx->getTab()->getName() << endl;  
+
+  NdbDictionary::Table myTab= *(ctx->getTab());
+
+  const NdbDictionary::Column *col;
+  for (Uint32 i= 0; (col= myTab.getColumn(i)) != 0; i++)
+  {
+    if (col->getStorageType() == NDB_STORAGETYPE_MEMORY &&
+        (col->getDynamic() || col->getArrayType() != NDB_ARRAYTYPE_FIXED))
+      break;
+  }
+
+  //if 
+
+  for (int l = 0; l < loops && result == NDBT_OK ; l++){
+    ndbout << l << ": " << endl;    
+
+    Ndb* pNdb = GETNDB(step);
+    NdbDictionary::Dictionary* dict = pNdb->getDictionary();
+
+    /*
+      Check that table already has a varpart, otherwise add attr is
+      not possible.
+    */
+
+    // Add attributes to table.
+    ndbout << "Altering table" << endl;
+    
+    const NdbDictionary::Table * oldTable = dict->getTable(myTab.getName());
+    if (oldTable) {
+      NdbDictionary::Table newTable= *oldTable;
+      
+      char name[256];
+      BaseString::snprintf(name, sizeof(name), "NEWCOL%d", l);
+      NDBT_Attribute newcol1(name, NdbDictionary::Column::Unsigned, 1,
+                             false, true, 0,
+                             NdbDictionary::Column::StorageTypeMemory, true);
+      newTable.addColumn(newcol1);
+      //ToDo: check #loops, how many columns l
+      
+      CHECK2(dict->alterTable(*oldTable, newTable) == 0,
+	     "TableAddAttrsDuring failed");
+      
+      dict->invalidateTable(myTab.getName());
+      const NdbDictionary::Table * newTab = dict->getTable(myTab.getName());
+      HugoTransactions hugoTrans(* newTab);
+      hugoTrans.scanUpdateRecords(pNdb, records);
+    }
+    else {
+      result= NDBT_FAILED;
+      break;
+    }
+  }
+ end:
+
+  ctx->stopTest();
+
   return result;
 }
 
@@ -2256,7 +2467,18 @@ TESTCASE("Restart_NR2",
   STEP(runRestarts);
   STEP(runDictOps);
 }
-
+TESTCASE("TableAddAttrs",
+	 "Add attributes to an existing table using alterTable()"){
+  INITIALIZER(runTableAddAttrs);
+}
+TESTCASE("TableAddAttrsDuring",
+	 "Try to add attributes to the table when other thread is using it\n"
+	 "do this loop number of times\n"){
+  INITIALIZER(runCreateTheTable);
+  STEP(runTableAddAttrsDuring);
+  STEP(runUseTableUntilStopped2);
+  FINALIZER(runDropTheTable);
+}
 NDBT_TESTSUITE_END(testDict);
 
 int main(int argc, const char** argv){

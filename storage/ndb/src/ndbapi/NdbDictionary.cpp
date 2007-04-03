@@ -291,6 +291,16 @@ NdbDictionary::Column::getStorageType() const
   return (StorageType)m_impl.m_storageType;
 }
 
+void 
+NdbDictionary::Column::setDynamic(bool val){
+  m_impl.m_dynamic = val;
+}
+
+bool 
+NdbDictionary::Column::getDynamic() const {
+  return m_impl.m_dynamic;
+}
+
 /*****************************************************************
  * Table facade
  */
@@ -1442,8 +1452,9 @@ NdbDictionary::Dictionary::dropTable(const char * name){
 }
 
 int
-NdbDictionary::Dictionary::alterTable(const Table & t){
-  return m_impl.alterTable(NdbTableImpl::getImpl(t));
+NdbDictionary::Dictionary::alterTable(const Table & f, const Table & t)
+{
+  return m_impl.alterTable(NdbTableImpl::getImpl(f), NdbTableImpl::getImpl(t));
 }
 
 int
@@ -1902,6 +1913,9 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     out << " ST=" << (int)col.getStorageType() << "?";
     break;
   }
+
+  if(col.getDynamic())
+    out << " DYNAMIC";
 
   return out;
 }

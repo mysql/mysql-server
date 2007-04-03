@@ -402,6 +402,11 @@ public:
     ArrayType getArrayType() const;
     StorageType getStorageType() const;
 
+    /**
+     * Get if the column is dynamic (NULL values not stored)
+     */
+    bool getDynamic() const;
+
     /** @} *******************************************************************/
 
 
@@ -512,6 +517,11 @@ public:
 
     void setArrayType(ArrayType type);
     void setStorageType(StorageType type);
+
+    /**
+     * Set whether column is dynamic.
+     */
+    void setDynamic(bool);
 
     /** @} *******************************************************************/
 
@@ -1812,12 +1822,13 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**
      * Alter defined table given defined Table instance
-     * @param table Table to alter
+     * @param f Table to alter
+     * @param t New definition of table
      * @return  -2 (incompatible version) <br>
      *          -1 general error          <br>
      *           0 success                 
      */
-    int alterTable(const Table &table);
+    int alterTable(const Table & f, const Table & t);
 
     /**
      * Invalidate cached table object

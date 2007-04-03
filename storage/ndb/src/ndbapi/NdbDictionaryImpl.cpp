@@ -114,6 +114,7 @@ NdbColumnImpl::operator=(const NdbColumnImpl& col)
   m_arraySize = col.m_arraySize;
   m_arrayType = col.m_arrayType;
   m_storageType = col.m_storageType;
+  m_dynamic = col.m_dynamic;
   m_keyInfoPos = col.m_keyInfoPos;
   if (col.m_blobTable == NULL)
     m_blobTable = NULL;
@@ -260,6 +261,7 @@ NdbColumnImpl::init(Type t)
   m_autoIncrementInitialValue = 1;
   m_blobTable = NULL;
   m_storageType = NDB_STORAGETYPE_MEMORY;
+  m_dynamic = false;
 #ifdef VM_TRACE
   if(NdbEnv_GetEnv("NDB_DEFAULT_DISK", (char *)0, 0))
     m_storageType = NDB_STORAGETYPE_DISK;
@@ -312,6 +314,9 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
   }
 
   if (m_arrayType != col.m_arrayType || m_storageType != col.m_storageType){
+    DBUG_RETURN(false);
+  }
+  if(m_dynamic != col.m_dynamic){
     DBUG_RETURN(false);
   }
 
@@ -424,7 +429,6 @@ NdbTableImpl::~NdbTableImpl()
 
 void
 NdbTableImpl::init(){
-  m_changeMask= 0;
   m_id= RNIL;
   m_version = ~0;
   m_status = NdbDictionary::Object::Invalid;
@@ -432,18 +436,12 @@ NdbTableImpl::init(){
   m_primaryTableId= RNIL;
   m_internalName.clear();
   m_externalName.clear();
-  m_newExternalName.clear();
   m_mysqlName.clear();
   m_frm.clear();
-  m_newFrm.clear();
   m_ts_name.clear();
-  m_new_ts_name.clear();
   m_ts.clear();
-  m_new_ts.clear();
   m_fd.clear();
-  m_new_fd.clear();
   m_range.clear();
-  m_new_range.clear();
   m_fragmentType= NdbDictionary::Object::FragAllSmall;
   m_hashValueMask= 0;
   m_hashpointerValue= 0;
@@ -681,26 +679,15 @@ NdbTableImpl::assign(const NdbTableImpl& org)
 {
   DBUG_ENTER("NdbColumnImpl::assign");
   DBUG_PRINT("info", ("this: %p  &org: %p", this, &org));
-  /* m_changeMask intentionally not copied */
   m_primaryTableId = org.m_primaryTableId;
   m_internalName.assign(org.m_internalName);
   updateMysqlName();
-  // If the name has been explicitly set, use that name
-  // otherwise use the fetched name
-  if (!org.m_newExternalName.empty())
-    m_externalName.assign(org.m_newExternalName);
-  else
-    m_externalName.assign(org.m_externalName);
+  m_externalName.assign(org.m_externalName);
   m_frm.assign(org.m_frm.get_data(), org.m_frm.length());
   m_ts_name.assign(org.m_ts_name.get_data(), org.m_ts_name.length());
-  m_new_ts_name.assign(org.m_new_ts_name.get_data(),
-                       org.m_new_ts_name.length());
   m_ts.assign(org.m_ts.get_data(), org.m_ts.length());
-  m_new_ts.assign(org.m_new_ts.get_data(), org.m_new_ts.length());
   m_fd.assign(org.m_fd.get_data(), org.m_fd.length());
-  m_new_fd.assign(org.m_new_fd.get_data(), org.m_new_fd.length());
   m_range.assign(org.m_range.get_data(), org.m_range.length());
-  m_new_range.assign(org.m_new_range.get_data(), org.m_new_range.length());
 
   m_fragmentType = org.m_fragmentType;
   /*
@@ -765,16 +752,13 @@ NdbTableImpl::assign(const NdbTableImpl& org)
 
 void NdbTableImpl::setName(const char * name)
 {
-  m_newExternalName.assign(name);
+  m_externalName.assign(name);
 }
 
 const char * 
 NdbTableImpl::getName() const
 {
-  if (m_newExternalName.empty())
-    return m_externalName.c_str();
-  else
-    return m_newExternalName.c_str();
+  return m_externalName.c_str();
 }
 
 void
@@ -849,24 +833,18 @@ NdbTableImpl::validate(NdbError& error)
 const void*
 NdbTableImpl::getTablespaceNames() const
 {
-  if (m_new_ts_name.empty())
-    return m_ts_name.get_data();
-  else
-    return m_new_ts_name.get_data();
+  return m_ts_name.get_data();
 }
 
 Uint32
 NdbTableImpl::getTablespaceNamesLen() const
 {
-  if (m_new_ts_name.empty())
-    return m_ts_name.length();
-  else
-    return m_new_ts_name.length();
+  return m_ts_name.length();
 }
 
 void NdbTableImpl::setTablespaceNames(const void *data, Uint32 len)
 {
-  m_new_ts_name.assign(data, len);
+  m_ts_name.assign(data, len);
 }
 
 void NdbTableImpl::setFragmentCount(Uint32 count)
@@ -881,94 +859,70 @@ Uint32 NdbTableImpl::getFragmentCount() const
 
 void NdbTableImpl::setFrm(const void* data, Uint32 len)
 {
-  m_newFrm.assign(data, len);
+  m_frm.assign(data, len);
 }
 
 const void * 
 NdbTableImpl::getFrmData() const
 {
-  if (m_newFrm.empty())
-    return m_frm.get_data();
-  else
-    return m_newFrm.get_data();
+  return m_frm.get_data();
 }
 
 Uint32
 NdbTableImpl::getFrmLength() const 
 {
-  if (m_newFrm.empty())
-    return m_frm.length();
-  else
-    return m_newFrm.length();
+  return m_frm.length();
 }
 
 void NdbTableImpl::setFragmentData(const void* data, Uint32 len)
 {
-  m_new_fd.assign(data, len);
+  m_fd.assign(data, len);
 }
 
 const void * 
 NdbTableImpl::getFragmentData() const
 {
-  if (m_new_fd.empty())
-    return m_fd.get_data();
-  else
-    return m_new_fd.get_data();
+  return m_fd.get_data();
 }
 
 Uint32
 NdbTableImpl::getFragmentDataLen() const 
 {
-  if (m_new_fd.empty())
-    return m_fd.length();
-  else
-    return m_new_fd.length();
+  return m_fd.length();
 }
 
 void NdbTableImpl::setTablespaceData(const void* data, Uint32 len)
 {
-  m_new_ts.assign(data, len);
+  m_ts.assign(data, len);
 }
 
 const void * 
 NdbTableImpl::getTablespaceData() const
 {
-  if (m_new_ts.empty())
-    return m_ts.get_data();
-  else
-    return m_new_ts.get_data();
+  return m_ts.get_data();
 }
 
 Uint32
 NdbTableImpl::getTablespaceDataLen() const 
 {
-  if (m_new_ts.empty())
-    return m_ts.length();
-  else
-    return m_new_ts.length();
+  return m_ts.length();
 }
 
 void NdbTableImpl::setRangeListData(const void* data, Uint32 len)
 {
-  m_new_range.assign(data, len);
+  m_range.assign(data, len);
 }
 
 const void * 
 NdbTableImpl::getRangeListData() const
 {
-  if (m_new_range.empty())
-    return m_range.get_data();
-  else
-    return m_new_range.get_data();
+  return m_range.get_data();
 }
 
 Uint32
 NdbTableImpl::getRangeListDataLen() const 
 {
-  if (m_new_range.empty())
-    return m_range.length();
-  else
-    return m_new_range.length();
+  return m_range.length();
 }
 
 void
@@ -2182,6 +2136,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       col->m_arraySize = (attrDesc.AttributeArraySize + 31) >> 5;
     }
     col->m_storageType = attrDesc.AttributeStorageType;
+    col->m_dynamic = (attrDesc.AttributeDynamic != 0);
     
     col->m_pk = attrDesc.AttributeKeyFlag;
     col->m_distributionKey = (attrDesc.AttributeDKey != 0);
@@ -2254,10 +2209,6 @@ int
 NdbDictionaryImpl::createTable(NdbTableImpl &t)
 { 
   DBUG_ENTER("NdbDictionaryImpl::createTable");
-
-  // if the new name has not been set, use the copied name
-  if (t.m_newExternalName.empty())
-    t.m_newExternalName.assign(t.m_externalName);
 
   // create table
   if (m_receiver.createTable(m_ndb, t) != 0)
@@ -2354,33 +2305,25 @@ int
 NdbDictInterface::createTable(Ndb & ndb,
 			      NdbTableImpl & impl)
 {
+  int ret;
+
   DBUG_ENTER("NdbDictInterface::createTable");
-  DBUG_RETURN(createOrAlterTable(ndb, impl, false));
+
+
+  syncInternalName(ndb, impl);
+
+  UtilBufferWriter w(m_buffer);
+  ret= serializeTableDesc(ndb, impl, w);
+  if(ret != 0)
+    DBUG_RETURN(ret);
+
+  DBUG_RETURN(sendCreateTable(impl, w));
 }
 
-int NdbDictionaryImpl::alterTable(NdbTableImpl &impl)
+int NdbDictionaryImpl::alterTable(NdbTableImpl &old_impl,
+                                  NdbTableImpl &impl)
 {
-  BaseString internalName(impl.m_internalName);
-  const char * originalInternalName = internalName.c_str();
-
-  DBUG_ENTER("NdbDictionaryImpl::alterTable");
-  Ndb_local_table_info * local = 0;
-  if((local= get_local_table_info(originalInternalName)) == 0)
-  {
-    m_error.code = 709;
-    DBUG_RETURN(-1);
-  }
-
-  // Alter the table
-  int ret = alterTableGlobal(*local->m_table_impl, impl);
-  if(ret == 0)
-  {
-    m_globalHash->lock();
-    m_globalHash->release(local->m_table_impl, 1);
-    m_globalHash->unlock();
-    m_localHash.drop(originalInternalName);
-  }
-  DBUG_RETURN(ret);
+  return alterTableGlobal(old_impl, impl);
 }
 
 int NdbDictionaryImpl::alterTableGlobal(NdbTableImpl &old_impl,
@@ -2388,7 +2331,7 @@ int NdbDictionaryImpl::alterTableGlobal(NdbTableImpl &old_impl,
 {
   DBUG_ENTER("NdbDictionaryImpl::alterTableGlobal");
   // Alter the table
-  int ret = m_receiver.alterTable(m_ndb, impl);
+  int ret = m_receiver.alterTable(m_ndb, old_impl, impl);
   old_impl.m_status = NdbDictionary::Object::Invalid;
   if(ret == 0){
     DBUG_RETURN(ret);
@@ -2396,22 +2339,151 @@ int NdbDictionaryImpl::alterTableGlobal(NdbTableImpl &old_impl,
   ERR_RETURN(getNdbError(), ret);
 }
 
-int 
+int
 NdbDictInterface::alterTable(Ndb & ndb,
-			      NdbTableImpl & impl)
+                             const NdbTableImpl &old_impl,
+                             NdbTableImpl &impl)
 {
+  int ret;
+  Uint32 change_mask;
+
   DBUG_ENTER("NdbDictInterface::alterTable");
-  DBUG_RETURN(createOrAlterTable(ndb, impl, true));
+
+  syncInternalName(ndb, impl);
+
+  /* Check that alter request is valid and compute stuff to alter. */
+  ret= compChangeMask(old_impl, impl, change_mask);
+  if(ret != 0)
+    DBUG_RETURN(ret);
+
+  UtilBufferWriter w(m_buffer);
+  ret= serializeTableDesc(ndb, impl, w);
+  if(ret != 0)
+    DBUG_RETURN(ret);
+
+  DBUG_RETURN(sendAlterTable(impl, change_mask, w));
+}
+
+void
+NdbDictInterface::syncInternalName(Ndb & ndb, NdbTableImpl &impl)
+{
+  const BaseString internalName(
+    ndb.internalize_table_name(impl.m_externalName.c_str()));
+  impl.m_internalName.assign(internalName);
+  impl.updateMysqlName();
+}
+
+/*
+  Compare old and new Table descriptors.
+  Set the corresponding flag for any (supported) difference.
+  Error on any difference not supported for alter table.
+*/
+int
+NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
+                                 const NdbTableImpl &impl,
+                                 Uint32 &change_mask)
+{
+  bool found_varpart;
+  change_mask= 0;
+
+  /* These are the supported properties that may be altered. */
+  DBUG_PRINT("info", ("old_impl.m_internalName='%s' impl.m_internalName='%s'",
+                      old_impl.m_internalName.c_str(),
+                      impl.m_internalName.c_str()));
+  if(impl.m_internalName != old_impl.m_internalName)
+    AlterTableReq::setNameFlag(change_mask, true);
+  if(!impl.m_frm.equal(old_impl.m_frm))
+    AlterTableReq::setFrmFlag(change_mask, true);
+  if(!impl.m_fd.equal(old_impl.m_fd))
+    AlterTableReq::setFragDataFlag(change_mask, true);
+  if(!impl.m_ts_name.equal(old_impl.m_ts_name))
+    AlterTableReq::setTsNameFlag(change_mask, true);
+  if(!impl.m_range.equal(old_impl.m_range))
+    AlterTableReq::setRangeListFlag(change_mask, true);
+  if(!impl.m_ts.equal(old_impl.m_ts))
+    AlterTableReq::setTsFlag(change_mask, true);
+
+  /* No other property can be changed in alter table. */
+  Uint32 old_sz= old_impl.m_columns.size();
+  Uint32 sz= impl.m_columns.size();
+  if(impl.m_fragmentCount != old_impl.m_fragmentCount ||
+     impl.m_logging != old_impl.m_logging ||
+     impl.m_temporary != old_impl.m_temporary ||
+     impl.m_row_gci != old_impl.m_row_gci ||
+     impl.m_row_checksum != old_impl.m_row_checksum ||
+     impl.m_kvalue != old_impl.m_kvalue ||
+     impl.m_minLoadFactor != old_impl.m_minLoadFactor ||
+     impl.m_maxLoadFactor != old_impl.m_maxLoadFactor ||
+     impl.m_primaryTableId != old_impl.m_primaryTableId ||
+     impl.m_max_rows != old_impl.m_max_rows ||
+     impl.m_min_rows != old_impl.m_min_rows ||
+     impl.m_default_no_part_flag != old_impl.m_default_no_part_flag ||
+     impl.m_linear_flag != old_impl.m_linear_flag ||
+     impl.m_fragmentType != old_impl.m_fragmentType ||
+     impl.m_tablespace_name != old_impl.m_tablespace_name ||
+     impl.m_tablespace_id != old_impl.m_tablespace_id ||
+     impl.m_tablespace_version != old_impl.m_tablespace_version ||
+     impl.m_id != old_impl.m_id ||
+     impl.m_version != old_impl.m_version ||
+     sz < old_sz)
+    goto invalid_alter_table;
+
+  /*
+    Check for new columns.
+    We can add one or more new columns at the end, with some restrictions:
+     - All existing columns must be unchanged.
+     - The new column must be dynamic.
+     - The new column must be nullable.
+     - The new column must be memory based.
+     - The new column can not be a primary key or distribution key.
+     - There must already be at least one existing memory-stored dynamic or
+       variable-sized column (so that the varpart is already allocated).
+  */
+  found_varpart= false;
+  for(Uint32 i= 0; i<old_sz; i++)
+  {
+    const NdbColumnImpl *col= impl.m_columns[i];
+    if(!col->equal(*(old_impl.m_columns[i])))
+      goto invalid_alter_table;
+    if(col->m_storageType == NDB_STORAGETYPE_MEMORY &&
+       (col->m_dynamic || col->m_arrayType != NDB_ARRAYTYPE_FIXED))
+      found_varpart= true;
+  }
+
+  if(sz > old_sz)
+  {
+    if(!found_varpart)
+      goto invalid_alter_table;
+
+    for(Uint32 i=old_sz; i<sz; i++)
+    {
+      const NdbColumnImpl *col= impl.m_columns[i];
+      if(!col->m_dynamic || !col->m_nullable ||
+         col->m_storageType == NDB_STORAGETYPE_DISK ||
+         col->m_pk ||
+         col->m_distributionKey ||
+         col->m_autoIncrement                   // ToDo: allow this?
+         )
+        goto invalid_alter_table;
+    }
+    AlterTableReq::setAddAttrFlag(change_mask, true);
+  }
+
+  return 0;
+
+ invalid_alter_table:
+  m_error.code = 741;                           // "Unsupported alter table"
+  return -1;
 }
 
 int 
-NdbDictInterface::createOrAlterTable(Ndb & ndb,
+NdbDictInterface::serializeTableDesc(Ndb & ndb,
 				     NdbTableImpl & impl,
-				     bool alter)
+				     UtilBufferWriter & w)
 {
   unsigned i, err;
   char *ts_names[MAX_NDB_PARTITIONS];
-  DBUG_ENTER("NdbDictInterface::createOrAlterTable");
+  DBUG_ENTER("NdbDictInterface::serializeTableDesc");
 
   impl.computeAggregates();
 
@@ -2425,72 +2497,6 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     DBUG_RETURN(-1);
   }
   
-  // Check if any changes for alter table
-  
-  // Name change
-  if (!impl.m_newExternalName.empty()) {
-    if (alter)
-    {
-      AlterTableReq::setNameFlag(impl.m_changeMask, true);
-    }
-    impl.m_externalName.assign(impl.m_newExternalName);
-    impl.m_newExternalName.clear();
-  }
-  // Definition change (frm)
-  if (!impl.m_newFrm.empty())
-  {
-    if (alter)
-    {
-      AlterTableReq::setFrmFlag(impl.m_changeMask, true);
-    }
-    impl.m_frm.assign(impl.m_newFrm.get_data(), impl.m_newFrm.length());
-    impl.m_newFrm.clear();
-  }
-  // Change FragmentData (fragment identity, state, tablespace id)
-  if (!impl.m_new_fd.empty())
-  {
-    if (alter)
-    {
-      AlterTableReq::setFragDataFlag(impl.m_changeMask, true);
-    }
-    impl.m_fd.assign(impl.m_new_fd.get_data(), impl.m_new_fd.length());
-    impl.m_new_fd.clear();
-  }
-  // Change Tablespace Name Data
-  if (!impl.m_new_ts_name.empty())
-  {
-    if (alter)
-    {
-      AlterTableReq::setTsNameFlag(impl.m_changeMask, true);
-    }
-    impl.m_ts_name.assign(impl.m_new_ts_name.get_data(),
-                          impl.m_new_ts_name.length());
-    impl.m_new_ts_name.clear();
-  }
-  // Change Range/List Data
-  if (!impl.m_new_range.empty())
-  {
-    if (alter)
-    {
-      AlterTableReq::setRangeListFlag(impl.m_changeMask, true);
-    }
-    impl.m_range.assign(impl.m_new_range.get_data(),
-                          impl.m_new_range.length());
-    impl.m_new_range.clear();
-  }
-  // Change Tablespace Data
-  if (!impl.m_new_ts.empty())
-  {
-    if (alter)
-    {
-      AlterTableReq::setTsFlag(impl.m_changeMask, true);
-    }
-    impl.m_ts.assign(impl.m_new_ts.get_data(),
-                     impl.m_new_ts.length());
-    impl.m_new_ts.clear();
-  }
-
-
   /*
      TODO RONM: Here I need to insert checks for fragment array and
      range or list array
@@ -2499,10 +2505,6 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   //validate();
   //aggregate();
 
-  const BaseString internalName(
-    ndb.internalize_table_name(impl.m_externalName.c_str()));
-  impl.m_internalName.assign(internalName);
-  impl.updateMysqlName();
   DictTabInfo::Table *tmpTab;
 
   tmpTab = (DictTabInfo::Table*)NdbMem_Allocate(sizeof(DictTabInfo::Table));
@@ -2512,9 +2514,8 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     DBUG_RETURN(-1);
   }
   tmpTab->init();
-  BaseString::snprintf(tmpTab->TableName,
-	   sizeof(tmpTab->TableName),
-	   internalName.c_str());
+  BaseString::snprintf(tmpTab->TableName, sizeof(tmpTab->TableName),
+                       "%s", impl.m_internalName.c_str());
 
   Uint32 distKeys= 0;
   for(i = 0; i<sz; i++) {
@@ -2656,8 +2657,8 @@ loop:
     }
   }
   
-  UtilBufferWriter w(m_buffer);
   SimpleProperties::UnpackStatus s;
+  w.reset();
   s = SimpleProperties::pack(w, 
 			     tmpTab,
 			     DictTabInfo::TableMapping, 
@@ -2683,7 +2684,7 @@ loop:
 		       col->m_name.c_str(), i, col->m_distributionKey));
     DictTabInfo::Attribute tmpAttr; tmpAttr.init();
     BaseString::snprintf(tmpAttr.AttributeName, sizeof(tmpAttr.AttributeName), 
-	     col->m_name.c_str());
+	     "%s", col->m_name.c_str());
     tmpAttr.AttributeId = col->m_attrId;
     tmpAttr.AttributeKeyFlag = col->m_pk;
     tmpAttr.AttributeNullableFlag = col->m_nullable;
@@ -2702,6 +2703,7 @@ loop:
       tmpAttr.AttributeStorageType = NDB_STORAGETYPE_MEMORY;      
     else
       tmpAttr.AttributeStorageType = col->m_storageType;
+    tmpAttr.AttributeDynamic = (col->m_dynamic ? 1 : 0);
 
     if(col->getBlobType())
       tmpAttr.AttributeStorageType = NDB_STORAGETYPE_MEMORY;      
@@ -2741,8 +2743,8 @@ loop:
 
     tmpAttr.AttributeAutoIncrement = col->m_autoIncrement;
     BaseString::snprintf(tmpAttr.AttributeDefaultValue, 
-	     sizeof(tmpAttr.AttributeDefaultValue),
-	     col->m_defaultValue.c_str());
+                         sizeof(tmpAttr.AttributeDefaultValue),
+                         "%s", col->m_defaultValue.c_str());
     s = SimpleProperties::pack(w, 
 			       &tmpAttr,
 			       DictTabInfo::AttributeMapping, 
@@ -2750,52 +2752,68 @@ loop:
     w.add(DictTabInfo::AttributeEnd, 1);
   }
 
-  int ret;
-  
+  DBUG_RETURN(0);
+}
+
+int
+NdbDictInterface::sendAlterTable(const NdbTableImpl &impl,
+                                 Uint32 change_mask,
+                                 UtilBufferWriter &w)
+{
   LinearSectionPtr ptr[1];
   ptr[0].p = (Uint32*)m_buffer.get_data();
   ptr[0].sz = m_buffer.length() / 4;
   NdbApiSignal tSignal(m_reference);
   tSignal.theReceiversBlockNumber = DBDICT;
-  if (alter) {
-    tSignal.theVerId_signalNumber   = GSN_ALTER_TABLE_REQ;
-    tSignal.theLength = AlterTableReq::SignalLength;
+  tSignal.theVerId_signalNumber   = GSN_ALTER_TABLE_REQ;
+  tSignal.theLength = AlterTableReq::SignalLength;
 
-    AlterTableReq * req = CAST_PTR(AlterTableReq, tSignal.getDataPtrSend());
-    
-    req->senderRef = m_reference;
-    req->senderData = 0;
-    req->changeMask = impl.m_changeMask;
-    req->tableId = impl.m_id;
-    req->tableVersion = impl.m_version;;
+  AlterTableReq * req = CAST_PTR(AlterTableReq, tSignal.getDataPtrSend());
 
-    int errCodes[] = { AlterTableRef::NotMaster, AlterTableRef::Busy, 0 };
-    ret = dictSignal(&tSignal, ptr, 1,
-		     0, // master
-		     WAIT_ALTER_TAB_REQ,
-		     DICT_WAITFOR_TIMEOUT, 100,
-		     errCodes);
-    
-    if(m_error.code == AlterTableRef::InvalidTableVersion) {
-      // Clear caches and try again
-      DBUG_RETURN(INCOMPATIBLE_VERSION);
-    }
-  } else {
-    tSignal.theVerId_signalNumber   = GSN_CREATE_TABLE_REQ;
-    tSignal.theLength = CreateTableReq::SignalLength;
+  req->senderRef = m_reference;
+  req->senderData = 0;
+  req->changeMask = change_mask;
+  req->tableId = impl.m_id;
+  req->tableVersion = impl.m_version;
 
-    CreateTableReq * req = CAST_PTR(CreateTableReq, tSignal.getDataPtrSend());
-    req->senderRef = m_reference;
-    req->senderData = 0;
-    int errCodes[] = { CreateTableRef::Busy, CreateTableRef::NotMaster, 0 };
-    ret = dictSignal(&tSignal, ptr, 1,
-		     0, // master node
-		     WAIT_CREATE_INDX_REQ,
-		     DICT_WAITFOR_TIMEOUT, 100,
-		     errCodes);
+  int errCodes[] = { AlterTableRef::NotMaster, AlterTableRef::Busy, 0 };
+  int ret= dictSignal(&tSignal, ptr, 1,
+                      0,                        // master
+                      WAIT_ALTER_TAB_REQ,
+                      DICT_WAITFOR_TIMEOUT, 100,
+                      errCodes);
+
+  if(m_error.code == AlterTableRef::InvalidTableVersion) {
+    // Clear caches and try again
+    return(INCOMPATIBLE_VERSION);
   }
-  
-  DBUG_RETURN(ret);
+
+  return ret;
+}
+
+int
+NdbDictInterface::sendCreateTable(const NdbTableImpl &impl,
+                                  UtilBufferWriter &w)
+{
+  LinearSectionPtr ptr[1];
+  ptr[0].p = (Uint32*)m_buffer.get_data();
+  ptr[0].sz = m_buffer.length() / 4;
+  NdbApiSignal tSignal(m_reference);
+  tSignal.theReceiversBlockNumber = DBDICT;
+  tSignal.theVerId_signalNumber   = GSN_CREATE_TABLE_REQ;
+  tSignal.theLength = CreateTableReq::SignalLength;
+
+  CreateTableReq * req = CAST_PTR(CreateTableReq, tSignal.getDataPtrSend());
+  req->senderRef = m_reference;
+  req->senderData = 0;
+  int errCodes[]= { CreateTableRef::Busy, CreateTableRef::NotMaster, 0 };
+  int ret= dictSignal(&tSignal, ptr, 1,
+                      0,                        // master node
+                      WAIT_CREATE_INDX_REQ,
+                      DICT_WAITFOR_TIMEOUT, 100,
+                      errCodes);
+
+  return ret;
 }
 
 void
@@ -4738,7 +4756,7 @@ NdbDictInterface::create_file(const NdbFileImpl & file,
   DBUG_ENTER("NdbDictInterface::create_file"); 
   UtilBufferWriter w(m_buffer);
   DictFilegroupInfo::File f; f.init();
-  snprintf(f.FileName, sizeof(f.FileName), file.m_path.c_str());
+  snprintf(f.FileName, sizeof(f.FileName), "%s", file.m_path.c_str());
   f.FileType = file.m_type;
   f.FilegroupId = group.m_id;
   f.FilegroupVersion = group.m_version;
@@ -4866,7 +4884,8 @@ NdbDictInterface::create_filegroup(const NdbFilegroupImpl & group,
   DBUG_ENTER("NdbDictInterface::create_filegroup");
   UtilBufferWriter w(m_buffer);
   DictFilegroupInfo::Filegroup fg; fg.init();
-  snprintf(fg.FilegroupName, sizeof(fg.FilegroupName), group.m_name.c_str());
+  snprintf(fg.FilegroupName, sizeof(fg.FilegroupName),
+           "%s", group.m_name.c_str());
   switch(group.m_type){
   case NdbDictionary::Object::Tablespace:
   {
