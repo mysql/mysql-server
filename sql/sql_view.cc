@@ -679,7 +679,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   char md5[MD5_BUFF_LENGTH];
   bool can_be_merged;
   char dir_buff[FN_REFLEN], path_buff[FN_REFLEN];
-  const uchar *endp;
+  const char *endp;
   LEX_STRING dir, file, path;
   DBUG_ENTER("mysql_register_view");
 
@@ -763,9 +763,9 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view->query.str= (char*)str.ptr();
   view->query.length= str.length()-1; // we do not need last \0
   view->source.str= thd->query + thd->lex->create_view_select_start;
-  endp= (uchar*) view->source.str;
-  endp= skip_rear_comments(endp, (uchar*) (thd->query + thd->query_length));
-  view->source.length= endp - (uchar*) view->source.str;
+  endp= view->source.str;
+  endp= skip_rear_comments(endp, thd->query + thd->query_length);
+  view->source.length= endp - view->source.str;
   view->file_version= 1;
   view->calc_md5(md5);
   view->md5.str= md5;
@@ -974,7 +974,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     now Lex placed in statement memory
   */
   table->view= lex= thd->lex= (LEX*) new(thd->mem_root) st_lex_local;
-  lex_start(thd, (uchar*)table->query.str, table->query.length);
+  lex_start(thd, table->query.str, table->query.length);
   view_select= &lex->select_lex;
   view_select->select_number= ++thd->select_number;
   {

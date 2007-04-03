@@ -19,7 +19,6 @@ class sp_name;
 class Event_parse_data;
 class Event_db_repository;
 class Event_queue;
-class Event_queue_element;
 class Event_scheduler;
 
 /* Return codes */
@@ -38,6 +37,10 @@ enum enum_events_error_code
 int
 sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
 
+/**
+  @class Events -- a facade to the functionality of the Event Scheduler.
+
+*/
 
 class Events
 {
