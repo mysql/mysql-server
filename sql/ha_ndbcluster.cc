@@ -2712,6 +2712,9 @@ int ha_ndbcluster::write_row(byte *record)
     op->setValue(no_fields, part_func_value);
   }
 
+  if (thd->slave_thread)
+    op->setAnyValue(thd->server_id);
+
   m_rows_changed++;
 
   /*
@@ -2992,6 +2995,10 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       no_fields++;
     op->setValue(no_fields, part_func_value);
   }
+
+  if (thd->slave_thread)
+    op->setAnyValue(thd->server_id);
+
   // Execute update operation
   if (!cursor && execute_no_commit(this,trans,FALSE) != 0) {
     no_uncommitted_rows_execute_failure();
@@ -3047,6 +3054,9 @@ int ha_ndbcluster::delete_row(const byte *record)
 
     no_uncommitted_rows_update(-1);
 
+    if (thd->slave_thread)
+      ((NdbOperation *)trans->getLastDefinedOperation())->setAnyValue(thd->server_id);
+
     if (!m_primary_key_update)
       // If deleting from cursor, NoCommit will be handled in next_result
       DBUG_RETURN(0);
@@ -3076,6 +3086,9 @@ int ha_ndbcluster::delete_row(const byte *record)
       if ((error= set_primary_key_from_record(op, record)))
         DBUG_RETURN(error);
     }
+
+    if (thd->slave_thread)
+      op->setAnyValue(thd->server_id);
   }
 
   // Execute delete operation

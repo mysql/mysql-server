@@ -35,6 +35,7 @@ void Dbtup::freeAllAttrBuffers(Operationrec*  const regOperPtr)
   }//if
   regOperPtr->firstAttrinbufrec = RNIL;
   regOperPtr->lastAttrinbufrec = RNIL;
+  regOperPtr->m_any_value = 0;
 }//Dbtup::freeAllAttrBuffers()
 
 void Dbtup::freeAttrinbufrec(Uint32 anAttrBuf) 

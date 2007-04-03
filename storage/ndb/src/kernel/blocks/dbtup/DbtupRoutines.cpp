@@ -221,6 +221,18 @@ int Dbtup::readAttributes(KeyReqStruct *req_struct,
         return -1;
       }
     } else if(attributeId & AttributeHeader::PSEUDO) {
+      if (attributeId == AttributeHeader::ANY_VALUE)
+      {
+        jam();
+        Uint32 RlogSize = req_struct->log_size;
+        operPtr.p->m_any_value = inBuffer[inBufIndex];
+        * (clogMemBuffer + RlogSize) = inBuffer[inBufIndex - 1];
+        * (clogMemBuffer + RlogSize + 1) = inBuffer[inBufIndex];
+        inBufIndex++;
+        req_struct->out_buf_index = tmpAttrBufIndex;
+        req_struct->log_size = RlogSize + 2;
+        continue;
+      }
       jam();
       Uint32 sz= read_pseudo(attributeId,
                              req_struct,
@@ -778,6 +790,15 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
       req_struct->m_tuple_ptr->m_header_bits |= Tuple_header::DISK_PART;
       memcpy(req_struct->m_tuple_ptr->get_disk_ref_ptr(regTabPtr),
 	     inBuffer+inBufIndex+1, sz << 2);
+      inBufIndex += 1 + sz;
+      req_struct->in_buf_index = inBufIndex;
+    }
+    else if(attributeId == AttributeHeader::ANY_VALUE)
+    {
+      jam();
+      Uint32 sz= ahIn.getDataSize();
+      ndbrequire(sz == 1);
+      regOperPtr->m_any_value = * (inBuffer + inBufIndex + 1);
       inBufIndex += 1 + sz;
       req_struct->in_buf_index = inBufIndex;
     }
