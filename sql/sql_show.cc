@@ -44,7 +44,7 @@ static void
 append_algorithm(TABLE_LIST *table, String *buff);
 static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
-static bool schema_table_store_record(THD *thd, TABLE *table);
+bool schema_table_store_record(THD *thd, TABLE *table);
 
 
 /***************************************************************************
@@ -1353,7 +1353,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
 #if !defined(DONT_USE_THR_ALARM) && ! defined(SCO)
         if (pthread_kill(tmp->real_id,0))
-          tmp->proc_info="*** DEAD ***";        // This shouldn't happen
+          thd_proc_info(tmp, "*** DEAD ***");        // This shouldn't happen
 #endif
 #ifdef EXTRA_DEBUG
         thd_info->start_time= tmp->time_after_lock;
@@ -1494,6 +1494,10 @@ static bool show_status_array(THD *thd, const char *wild,
         }
         case SHOW_STARTTIME:
           nr= (long) (thd->query_start() - server_start_time);
+          end= int10_to_str(nr, buff, 10);
+          break;
+        case SHOW_FLUSHTIME:
+          nr= (long) (thd->query_start() - flush_status_time);
           end= int10_to_str(nr, buff, 10);
           break;
         case SHOW_QUESTION:
@@ -1847,7 +1851,7 @@ typedef struct st_index_field_values
     1	                  error
 */
 
-static bool schema_table_store_record(THD *thd, TABLE *table)
+bool schema_table_store_record(THD *thd, TABLE *table)
 {
   int error;
   if ((error= table->file->write_row(table->record[0])))
@@ -4323,6 +4327,8 @@ ST_SCHEMA_TABLE schema_tables[]=
     get_all_tables, 0, get_schema_key_column_usage_record, 4, 5, 0},
   {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
    fill_open_tables, make_old_format, 0, -1, -1, 1},
+  {"PROFILING", query_profile_statistics_info, create_schema_table,
+    fill_query_profile_statistics_info, NULL, NULL, -1, -1, false},
   {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0},
   {"SCHEMATA", schema_fields_info, create_schema_table,

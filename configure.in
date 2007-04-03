@@ -7,7 +7,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 5.0.38)
+AM_INIT_AUTOMAKE(mysql, 5.0.39)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -23,7 +23,7 @@ NDB_SHARED_LIB_VERSION=$NDB_SHARED_LIB_MAJOR_VERSION:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=38
+NDB_VERSION_BUILD=39
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -675,6 +675,20 @@ else
   AC_MSG_RESULT([no])
 fi
 
+# Add query profiler
+AC_ARG_ENABLE(profiling,
+    AS_HELP_STRING([--disable-profiling], [Build a version without query profiling code]),
+    [ ENABLED_PROFILING=$enableval ],
+    [ ENABLED_PROFILING=yes ])
+
+if test "$ENABLED_PROFILING" = "yes"
+then
+  AC_DEFINE([ENABLED_PROFILING], [1],
+            [If SHOW PROFILE should be enabled])
+  AC_MSG_RESULT([yes])
+else
+  AC_MSG_RESULT([no])
+fi
 
 # Use this to set the place used for unix socket used to local communication.
 AC_ARG_WITH(unix-socket-path,
@@ -1098,7 +1112,6 @@ case $SYSTEM_TYPE in
     fi
     ;;
   *darwin*)
-    AC_DEFINE([DEFAULT_SKIP_THREAD_PRIORITY], [1], [default to skip thread priority])
     if test "$ac_cv_prog_gcc" = "yes"
     then
       FLAGS="-D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DIGNORE_SIGHUP_SIGQUIT"
@@ -2533,14 +2546,12 @@ thread_dirs=
 
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
-sql_client_dirs=
+sql_client_dirs="strings regex mysys libmysql client"
 linked_client_targets="linked_libmysql_sources"
 
-if test "$THREAD_SAFE_CLIENT" = "no"
+if test "$THREAD_SAFE_CLIENT" != "no"
 then
-  sql_client_dirs="strings regex mysys dbug extra libmysql client"
-else
-  sql_client_dirs="strings regex mysys dbug extra libmysql libmysql_r client"
+  sql_client_dirs="libmysql_r $sql_client_dirs"
   linked_client_targets="$linked_client_targets linked_libmysql_r_sources"
   AC_CONFIG_FILES(libmysql_r/Makefile)
   AC_DEFINE([THREAD_SAFE_CLIENT], [1], [Should be client be thread safe])
@@ -2569,17 +2580,13 @@ AM_CONDITIONAL(HAVE_NETWARE, test "$netware_dir" = "netware")
 export CC CXX CFLAGS CXXFLAGS LD LDFLAGS AR
 ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' CXXFLAGS='$CXXFLAGS'"
 
-if test "$with_server" != "no" -o "$THREAD_SAFE_CLIENT" != "no"
+if test "$with_server" = "yes" -o "$THREAD_SAFE_CLIENT" != "no"
 then
   AC_DEFINE([THREAD], [1],
             [Define if you want to have threaded code. This may be undef on client code])
   # Avoid _PROGRAMS names
   THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o mf_keycache.o"
   AC_SUBST(THREAD_LOBJECTS)
-fi
-
-if test "$with_server" != "no"
-then
   server_scripts="mysqld_safe mysql_install_db"
   sql_server_dirs="strings mysys dbug extra regex"
 

@@ -42,6 +42,7 @@ COLLATION_CHARACTER_SET_APPLICABILITY
 COLUMNS
 COLUMN_PRIVILEGES
 KEY_COLUMN_USAGE
+PROFILING
 ROUTINES
 SCHEMATA
 SCHEMA_PRIVILEGES
@@ -730,7 +731,7 @@ CREATE TABLE t_crashme ( f1 BIGINT);
 CREATE VIEW a1 (t_CRASHME) AS SELECT f1 FROM t_crashme GROUP BY f1;
 CREATE VIEW a2 AS SELECT t_CRASHME FROM a1;
 count(*)
-101
+102
 drop view a2, a1;
 drop table t_crashme;
 select table_schema,table_name, column_name from
@@ -801,7 +802,7 @@ delete from mysql.db where user='mysqltest_4';
 flush privileges;
 SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	16
+information_schema	17
 mysql	17
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1094,8 +1095,8 @@ table_schema='information_schema' and
 (column_type = 'varchar(7)' or column_type = 'varchar(20)')
 group by column_type order by num;
 column_type	group_concat(table_schema, '.', table_name)	num
-varchar(20)	information_schema.COLUMNS	1
-varchar(7)	information_schema.ROUTINES,information_schema.VIEWS	2
+varchar(20)	information_schema.COLUMNS,information_schema.PROFILING	2
+varchar(7)	information_schema.PROFILING,information_schema.PROFILING,information_schema.PROFILING,information_schema.ROUTINES,information_schema.VIEWS	5
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;
 select CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH from
@@ -1192,6 +1193,7 @@ COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME
 COLUMNS	TABLE_SCHEMA
 COLUMN_PRIVILEGES	TABLE_SCHEMA
 KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
+PROFILING	QUERY_ID
 ROUTINES	ROUTINE_SCHEMA
 SCHEMATA	SCHEMA_NAME
 SCHEMA_PRIVILEGES	TABLE_SCHEMA
@@ -1223,6 +1225,7 @@ COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME
 COLUMNS	TABLE_SCHEMA
 COLUMN_PRIVILEGES	TABLE_SCHEMA
 KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
+PROFILING	QUERY_ID
 ROUTINES	ROUTINE_SCHEMA
 SCHEMATA	SCHEMA_NAME
 SCHEMA_PRIVILEGES	TABLE_SCHEMA
@@ -1305,6 +1308,7 @@ COLLATION_CHARACTER_SET_APPLICABILITY	information_schema.COLLATION_CHARACTER_SET
 COLUMNS	information_schema.COLUMNS	1
 COLUMN_PRIVILEGES	information_schema.COLUMN_PRIVILEGES	1
 KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
+PROFILING	information_schema.PROFILING	1
 ROUTINES	information_schema.ROUTINES	1
 SCHEMATA	information_schema.SCHEMATA	1
 SCHEMA_PRIVILEGES	information_schema.SCHEMA_PRIVILEGES	1
@@ -1315,3 +1319,10 @@ TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
 TRIGGERS	information_schema.TRIGGERS	1
 USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
 VIEWS	information_schema.VIEWS	1
+show global status like "Uptime_%";
+Variable_name	Value
+Uptime_since_flush_status	#
+flush status;
+show global status like "Uptime_%";
+Variable_name	Value
+Uptime_since_flush_status	#

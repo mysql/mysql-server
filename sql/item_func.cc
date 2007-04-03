@@ -3212,7 +3212,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
     Structure is now initialized.  Try to get the lock.
     Set up control struct to allow others to abort locks
   */
-  thd->proc_info="User lock";
+  thd_proc_info(thd, "User lock");
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &ull->cond;
 
@@ -3237,7 +3237,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
   }
   pthread_mutex_unlock(&LOCK_user_locks);
   pthread_mutex_lock(&thd->mysys_var->mutex);
-  thd->proc_info=0;
+  thd_proc_info(thd, 0);
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond=  0;
   pthread_mutex_unlock(&thd->mysys_var->mutex);
@@ -3318,7 +3318,7 @@ longlong Item_func_get_lock::val_int()
     Structure is now initialized.  Try to get the lock.
     Set up control struct to allow others to abort locks.
   */
-  thd->proc_info="User lock";
+  thd_proc_info(thd, "User lock");
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &ull->cond;
 
@@ -3356,7 +3356,7 @@ longlong Item_func_get_lock::val_int()
   pthread_mutex_unlock(&LOCK_user_locks);
 
   pthread_mutex_lock(&thd->mysys_var->mutex);
-  thd->proc_info=0;
+  thd_proc_info(thd, 0);
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond=  0;
   pthread_mutex_unlock(&thd->mysys_var->mutex);
