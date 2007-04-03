@@ -324,7 +324,7 @@ public:
     void        new_trans(THD *, transaction *);
 
     int record_incident(THD*, Incident incident);
-    int record_incident(THD*, Incident incident, LEX_STRING message);
+    int record_incident(THD*, Incident incident, LEX_STRING const message);
 
 private:
     explicit injector();

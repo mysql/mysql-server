@@ -198,7 +198,7 @@ int injector::record_incident(THD *thd, Incident incident)
   return 0;
 }
 
-int injector::record_incident(THD *thd, Incident incident, LEX_STRING message)
+int injector::record_incident(THD *thd, Incident incident, LEX_STRING const message)
 {
   Incident_log_event ev(thd, incident, message);
   if (int error= mysql_bin_log.write(&ev))

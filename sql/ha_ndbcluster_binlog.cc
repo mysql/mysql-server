@@ -3590,6 +3590,14 @@ restart:
     Main NDB Injector loop
   */
   {
+    /*
+      Always insert a GAP event as we cannot know what has happened in the cluster
+      while not being connected.
+    */
+    LEX_STRING const msg= { C_STRING_WITH_LEN("Cluster connect") };
+    inj->record_incident(thd, INCIDENT_LOST_EVENTS, msg);
+  }
+  {
     thd->proc_info= "Waiting for ndbcluster to start";
 
     pthread_mutex_lock(&injector_mutex);
