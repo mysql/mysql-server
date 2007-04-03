@@ -230,6 +230,8 @@ void Item_func::traverse_cond(Cond_traverser traverser,
       (*traverser)(this, argument);
     }
   }
+  else
+    (*traverser)(this, argument);
 }
 
 
