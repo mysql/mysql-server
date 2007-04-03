@@ -203,20 +203,20 @@ NdbColumnImpl::init(Type t)
     m_arrayType = NDB_ARRAYTYPE_FIXED;
     break;
   case Blob:
-    m_precision = 256;
-    m_scale = 8000;
-    m_length = 0; // default no striping
-    m_cs = NULL;
-    m_arrayType = NDB_ARRAYTYPE_MEDIUM_VAR;
-    m_blobVersion = NDB_BLOB_V2;
-    break;
   case Text:
     m_precision = 256;
     m_scale = 8000;
-    m_length = 0;
-    m_cs = default_cs;
+    m_length = 0; // default no striping
+    m_cs = m_type == Blob ? NULL : default_cs;
     m_arrayType = NDB_ARRAYTYPE_MEDIUM_VAR;
     m_blobVersion = NDB_BLOB_V2;
+#ifdef VM_TRACE
+    if (NdbEnv_GetEnv("NDB_DEFAULT_BLOB_V1", (char *)0, 0)) {
+      m_length = 4;
+      m_arrayType = NDB_ARRAYTYPE_FIXED;
+      m_blobVersion = NDB_BLOB_V1;
+    }
+#endif
     break;
   case Time:
   case Year:
