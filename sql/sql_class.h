@@ -521,6 +521,7 @@ struct system_variables
   ulong optimizer_prune_level;
   ulong optimizer_search_depth;
   ulong preload_buff_size;
+  ulong profiling_history_size;
   ulong query_cache_type;
   ulong read_buff_size;
   ulong read_rnd_buff_size;
@@ -1202,6 +1203,9 @@ public:
     Points to info-string that we show in SHOW PROCESSLIST
     You are supposed to update thd->proc_info only if you have coded
     a time-consuming piece that MySQL can get stuck in for a long time.
+
+    Set it using the  thd_proc_info(THD *thread, const char *message)
+    macro/function.
   */
   const char *proc_info;
 
@@ -1356,6 +1360,10 @@ public:
   List	     <MYSQL_ERROR> warn_list;
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
   uint	     total_warn_count;
+#ifdef ENABLED_PROFILING
+  PROFILING  profiling;
+#endif
+
   /*
     Id of current query. Statement can be reused to execute several queries
     query_id is global in context of the whole MySQL server.

@@ -284,7 +284,7 @@ GlobalDictCache::drop(NdbTableImpl * tab)
       ver.m_refCount--;
       ver.m_status = DROPPED;
       if(ver.m_refCount == 0){
-        DBUG_PRINT("info", ("refCount is zero, deleting m_impl"))
+        DBUG_PRINT("info", ("refCount is zero, deleting m_impl"));
 	delete ver.m_impl;
 	vers->erase(i);
       }
