@@ -203,6 +203,13 @@ public:
   Uint64 getGCI() const;
 
   /**
+   * Retrieve the AnyValue of the latest retrieved event
+   *
+   * @return AnyValue
+   */
+  Uint32 getAnyValue() const;
+
+  /**
    * Retrieve the complete GCI in the cluster (not necessarily
    * associated with an event)
    *

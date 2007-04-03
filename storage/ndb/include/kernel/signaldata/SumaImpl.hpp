@@ -303,7 +303,10 @@ struct SubTableData {
   Uint32 tableId;
   Uint32 requestInfo;
   Uint32 logType;
-  Uint32 changeMask;
+  union {
+    Uint32 changeMask;
+    Uint32 anyValue;
+  };
   Uint32 totalLen;
 
   static void setOperation(Uint32& ri, Uint32 val) { 

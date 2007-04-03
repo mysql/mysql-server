@@ -1048,10 +1048,11 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
     // send to backup directly for now
     fireTrigOrd->setGCI(req_struct->gci);
     fireTrigOrd->setHashValue(req_struct->hash_value);
+    fireTrigOrd->m_any_value = regOperPtr->m_any_value;
     EXECUTE_DIRECT(trigPtr->m_receiverBlock,
                    GSN_FIRE_TRIG_ORD,
                    signal,
-		   FireTrigOrd::SignalWithHashValueLength);
+		   FireTrigOrd::SignalLengthSuma);
     break;
   case (TriggerType::SUBSCRIPTION):
     jam();

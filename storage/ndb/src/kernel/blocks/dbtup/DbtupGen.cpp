@@ -683,6 +683,7 @@ void Dbtup::execTUPSEIZEREQ(Signal* signal)
   new (regOperPtr.p) Operationrec();
   regOperPtr.p->firstAttrinbufrec = RNIL;
   regOperPtr.p->lastAttrinbufrec = RNIL;
+  regOperPtr.p->m_any_value = 0;
   regOperPtr.p->op_struct.op_type = ZREAD;
   regOperPtr.p->op_struct.in_active_list = false;
   set_trans_state(regOperPtr.p, TRANS_DISCONNECTED);
