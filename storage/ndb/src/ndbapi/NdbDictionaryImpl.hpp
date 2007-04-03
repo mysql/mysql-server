@@ -22,6 +22,7 @@
 #include <BaseString.hpp>
 #include <Vector.hpp>
 #include <UtilBuffer.hpp>
+#include <SimpleProperties.hpp>
 #include <NdbDictionary.hpp>
 #include <Bitmask.hpp>
 #include <AttributeList.hpp>
@@ -98,6 +99,7 @@ public:
   Uint32 m_arraySize;           // length or maxlength+1/2 for Var* types
   Uint32 m_arrayType;           // NDB_ARRAYTYPE_FIXED or _VAR
   Uint32 m_storageType;         // NDB_STORAGETYPE_MEMORY or _DISK
+  bool m_dynamic;
   /*
    * NdbTableImpl: if m_pk, 0-based index of key in m_attrId order
    * NdbIndexImpl: m_column_no of primary table column
@@ -157,22 +159,15 @@ public:
   int aggregate(NdbError& error);
   int validate(NdbError& error);
 
-  Uint32 m_changeMask;
   Uint32 m_primaryTableId;
   BaseString m_internalName;
   BaseString m_externalName;
   BaseString m_mysqlName;
-  BaseString m_newExternalName; // Used for alter table
   UtilBuffer m_frm; 
-  UtilBuffer m_newFrm;       // Used for alter table
   UtilBuffer m_ts_name;      //Tablespace Names
-  UtilBuffer m_new_ts_name;  //Tablespace Names
   UtilBuffer m_ts;           //TablespaceData
-  UtilBuffer m_new_ts;       //TablespaceData
   UtilBuffer m_fd;           //FragmentData
-  UtilBuffer m_new_fd;       //FragmentData
   UtilBuffer m_range;        //Range Or List Array
-  UtilBuffer m_new_range;    //Range Or List Array
   NdbDictionary::Object::FragmentType m_fragmentType;
 
   /**
@@ -442,10 +437,20 @@ public:
 		 int timeout, Uint32 RETRIES,
 		 const int *errcodes = 0, int temporaryMask = 0);
 
-  int createOrAlterTable(class Ndb & ndb, NdbTableImpl &, bool alter);
-
   int createTable(class Ndb & ndb, NdbTableImpl &);
-  int alterTable(class Ndb & ndb, NdbTableImpl &);
+  int alterTable(class Ndb & ndb, const NdbTableImpl &, NdbTableImpl &);
+  void syncInternalName(Ndb & ndb, NdbTableImpl &impl);
+  int compChangeMask(const NdbTableImpl &old_impl,
+                     const NdbTableImpl &impl,
+                     Uint32 &change_mask);
+  int serializeTableDesc(Ndb & ndb,
+                         NdbTableImpl & impl,
+                         UtilBufferWriter & w);
+  int sendAlterTable(const NdbTableImpl &impl,
+                     Uint32 change_mask,
+                     UtilBufferWriter &w);
+  int sendCreateTable(const NdbTableImpl &impl, UtilBufferWriter &w);
+
   int dropTable(const NdbTableImpl &);
 
   int createIndex(class Ndb & ndb, const NdbIndexImpl &, const NdbTableImpl &);
@@ -583,7 +588,7 @@ public:
 
   int createTable(NdbTableImpl &t);
   int createBlobTables(NdbTableImpl& org, NdbTableImpl& created);
-  int alterTable(NdbTableImpl &t);
+  int alterTable(NdbTableImpl &old_impl, NdbTableImpl &impl);
   int dropTable(const char * name);
   int dropTable(NdbTableImpl &);
   int dropBlobTables(NdbTableImpl &);

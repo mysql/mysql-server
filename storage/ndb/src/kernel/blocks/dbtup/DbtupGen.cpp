@@ -40,6 +40,7 @@ void Dbtup::initData()
   cnoOfAttrbufrec = ZNO_OF_ATTRBUFREC;
   cnoOfFragrec = MAX_FRAG_PER_NODE;
   cnoOfFragoprec = MAX_FRAG_PER_NODE;
+  cnoOfAlterTabOps = MAX_FRAG_PER_NODE;
   cnoOfPageRangeRec = ZNO_OF_PAGE_RANGE_REC;
   c_maxTriggersPerTable = ZDEFAULT_MAX_NO_TRIGGERS_PER_TABLE;
   c_noOfBuildIndexRec = 32;
@@ -74,6 +75,7 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
   addRecSignal(GSN_STORED_PROCREQ, &Dbtup::execSTORED_PROCREQ);
   addRecSignal(GSN_TUPFRAGREQ, &Dbtup::execTUPFRAGREQ);
   addRecSignal(GSN_TUP_ADD_ATTRREQ, &Dbtup::execTUP_ADD_ATTRREQ);
+  addRecSignal(GSN_ALTER_TAB_REQ, &Dbtup::execALTER_TAB_REQ);
   addRecSignal(GSN_TUP_COMMITREQ, &Dbtup::execTUP_COMMITREQ);
   addRecSignal(GSN_TUP_ABORTREQ, &Dbtup::execTUP_ABORTREQ);
   addRecSignal(GSN_NDB_STTOR, &Dbtup::execNDB_STTOR);
@@ -102,6 +104,7 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
   attrbufrec = 0;
   fragoperrec = 0;
   fragrecord = 0;
+  alterTabOperRec = 0;
   hostBuffer = 0;
   pageRange = 0;
   tablerec = 0;
@@ -129,6 +132,10 @@ Dbtup::~Dbtup()
   deallocRecord((void **)&fragrecord,"Fragrecord",
 		sizeof(Fragrecord), 
 		cnoOfFragrec);
+
+  deallocRecord((void **)&alterTabOperRec,"AlterTabOperRec",
+                sizeof(alterTabOperRec),
+                cnoOfAlterTabOps);
   
   deallocRecord((void **)&hostBuffer,"HostBuffer",
 		sizeof(HostBuffer), 
@@ -381,6 +388,10 @@ void Dbtup::initRecords()
 					sizeof(Fragrecord), 
 					cnoOfFragrec);
   
+  alterTabOperRec = (AlterTabOperation*)allocRecord("AlterTabOperation",
+                                                    sizeof(AlterTabOperation),
+                                                    cnoOfAlterTabOps);
+
   hostBuffer = (HostBuffer*)allocRecord("HostBuffer",
 					sizeof(HostBuffer), 
 					MAX_NODES);
@@ -452,6 +463,7 @@ void Dbtup::initialiseRecordsLab(Signal* signal, Uint32 switchData,
     break;
   case 10:
     jam();
+    initializeAlterTabOperation();
     break;
   case 11:
     jam();
@@ -575,6 +587,24 @@ void Dbtup::initializeFragrecord()
   regFragPtr.p->nextfreefrag = RNIL;
   cfirstfreefrag = 0;
 }//Dbtup::initializeFragrecord()
+
+void Dbtup::initializeAlterTabOperation()
+{
+  AlterTabOperationPtr regAlterTabOpPtr;
+  for (regAlterTabOpPtr.i= 0;
+       regAlterTabOpPtr.i<cnoOfAlterTabOps;
+       regAlterTabOpPtr.i++)
+  {
+    refresh_watch_dog();
+    ptrAss(regAlterTabOpPtr, alterTabOperRec);
+    new (regAlterTabOpPtr.p) AlterTabOperation();
+    regAlterTabOpPtr.p->nextAlterTabOp= regAlterTabOpPtr.i+1;
+  }
+  regAlterTabOpPtr.i= cnoOfAlterTabOps-1;
+  ptrAss(regAlterTabOpPtr, alterTabOperRec);
+  regAlterTabOpPtr.p->nextAlterTabOp= RNIL;
+  cfirstfreeAlterTabOp= 0;
+}
 
 void Dbtup::initializeHostBuffer() 
 {
