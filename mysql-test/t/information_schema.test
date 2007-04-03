@@ -1059,7 +1059,8 @@ DROP EVENT IF EXISTS log_status;
 DELIMITER $$;
 
 CREATE EVENT log_status
- ON SCHEDULE EVERY 1 SECOND
+ ON SCHEDULE AT NOW()
+ ON COMPLETION PRESERVE
  DO
  BEGIN
   INSERT INTO thread_status SELECT variable_name, variable_value FROM
@@ -1071,11 +1072,11 @@ information_schema.global_status;
 DELIMITER ;$$
 
 SET GLOBAL event_scheduler=1;
-sleep 1;
+let $wait_condition=select count(variable_name) != 0 from server_status;
+let $wait_timeout=30;
+--source include/wait_condition.inc
 SELECT * FROM thread_status WHERE variable_name LIKE 'SSL%' LIMIT 1,2;
 SELECT variable_name FROM server_status LIMIT 1,2;
-
-
 
 DROP EVENT log_status;
 DROP TABLE thread_status;
