@@ -4366,7 +4366,9 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   DBUG_PRINT("transaction",("%s",
                             trans == thd_ndb->stmt ?
                             "stmt" : "all"));
-  DBUG_ASSERT(ndb && trans);
+  DBUG_ASSERT(ndb);
+  if (trans == NULL)
+    DBUG_RETURN(0);
 
   if (execute_commit(thd,trans) != 0)
   {
