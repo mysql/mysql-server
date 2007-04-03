@@ -175,11 +175,8 @@ void QUERY_PROFILE::set_query_source(char *query_source_arg,
 
 QUERY_PROFILE::~QUERY_PROFILE()
 {
-  PROFILE_ENTRY *entry;
-  List_iterator<PROFILE_ENTRY> it(entries);
-  while ((entry= it++) != NULL)
-    delete entry;
-  entries.empty();
+  while (! entries.is_empty())
+    delete entries.pop();
 
   if (query_source != NULL)
     my_free(query_source, MYF(0));
@@ -191,7 +188,6 @@ void QUERY_PROFILE::status(const char *status_arg,
 {
   THD *thd= profiling->thd;
   PROFILE_ENTRY *prof;
-  MEM_ROOT *saved_mem_root;
   DBUG_ENTER("QUERY_PROFILE::status");
 
   /* Blank status.  Just return, and thd->proc_info will be set blank later. */
@@ -210,22 +206,6 @@ void QUERY_PROFILE::status(const char *status_arg,
   if (unlikely((thd->query_id != server_query_id) && !thd->spcont))
     reset();
     
-  /*
-    In order to keep the profile information between queries (i.e. from
-    SELECT to the following SHOW PROFILE command) the following code is
-    necessary to keep the profile from getting freed automatically when
-    mysqld cleans up after the query.
-
-    The "entries" list allocates is memory from the current thd's mem_root.
-    We substitute our mem_root temporarily so that we intercept those
-    allocations into our own mem_root.
-    
-    The thd->mem_root structure is freed after each query is completed,
-    so temporarily override it.
-  */
-  saved_mem_root= thd->mem_root;
-  thd->mem_root= &profiling->mem_root;
-
   if (function_arg && file_arg) 
   {
     if ((profile_end= prof= new PROFILE_ENTRY(this, status_arg, function_arg, 
@@ -238,9 +218,6 @@ void QUERY_PROFILE::status(const char *status_arg,
       entries.push_back(prof);
   }
 
-  /* Restore mem_root */
-  thd->mem_root= saved_mem_root;
-
   DBUG_VOID_RETURN;
 }
 
@@ -252,11 +229,8 @@ void QUERY_PROFILE::reset()
     server_query_id= profiling->thd->query_id; /* despite name, is global */
     profile_start.collect();
 
-    PROFILE_ENTRY *entry;
-    List_iterator<PROFILE_ENTRY> it(entries);
-    while ((entry= it++) != NULL)
-      delete entry;
-    entries.empty();
+    while (! entries.is_empty())
+      delete entries.pop();
   }
   DBUG_VOID_RETURN;
 }
@@ -344,10 +318,14 @@ bool QUERY_PROFILE::show(uint options)
   struct rusage *last_rusage= &(profile_start.rusage);
 #endif
 
-  List_iterator<PROFILE_ENTRY> it(entries);
   PROFILE_ENTRY *entry;
-  while ((entry= it++) != NULL)
+  void *iterator;
+  for (iterator= entries.new_iterator(); 
+       iterator != NULL; 
+       iterator= entries.iterator_next(iterator))
   {
+    entry= entries.iterator_value(iterator);
+
 #ifdef HAVE_GETRUSAGE
     struct rusage *rusage= &(entry->rusage);
 #endif
@@ -463,24 +441,15 @@ bool QUERY_PROFILE::show(uint options)
 PROFILING::PROFILING()
   :profile_id_counter(0), keeping(1), current(NULL), last(NULL)
 {
-  init_sql_alloc(&mem_root,
-                 PROFILE_ALLOC_BLOCK_SIZE,
-                 PROFILE_ALLOC_PREALLOC_SIZE);
 }
 
 PROFILING::~PROFILING()
 {
-  QUERY_PROFILE *prof;
-
-  List_iterator<QUERY_PROFILE> it(history);
-  while ((prof= it++) != NULL)
-    delete prof;
-  history.empty();
+  while (! history.is_empty())
+    delete history.pop();
 
   if (current != NULL)
     delete current;
-
-  free_root(&mem_root, MYF(0));
 }
 
 void PROFILING::status_change(const char *status_arg,
@@ -505,7 +474,6 @@ void PROFILING::status_change(const char *status_arg,
 
 void PROFILING::store()
 {
-  MEM_ROOT *saved_mem_root;
   DBUG_ENTER("PROFILING::store");
 
   /* Already stored */
@@ -517,22 +485,8 @@ void PROFILING::store()
   }
 
   while (history.elements > thd->variables.profiling_history_size)
-  {
-    QUERY_PROFILE *tmp= history.pop();
-    delete tmp;
-  }
+    delete history.pop();
 
-  /* 
-    Switch out memory roots so that we're sure that we keep what we need 
-    
-    The "history" list implementation allocates its memory in the current 
-    thd's mem_root.  We substitute our mem_root temporarily so that we
-    intercept those allocations into our own mem_root.
-  */
-
-  saved_mem_root= thd->mem_root;
-  thd->mem_root= &mem_root;
-  
   if (current != NULL)
   {
     if (keeping && 
@@ -555,9 +509,6 @@ void PROFILING::store()
   
   DBUG_ASSERT(current == NULL);
   current= new QUERY_PROFILE(this, thd->query, thd->query_length);
-
-  /* Restore memory root */
-  thd->mem_root= saved_mem_root;
 
   DBUG_VOID_RETURN;
 }
@@ -598,9 +549,13 @@ bool PROFILING::show_profiles()
 
   unit->set_limit(sel);
   
-  List_iterator<QUERY_PROFILE> it(history);
-  while ((prof= it++) != NULL)
+  void *iterator;
+  for (iterator= history.new_iterator(); 
+       iterator != NULL; 
+       iterator= history.iterator_next(iterator))
   {
+    prof= history.iterator_value(iterator);
+
     String elapsed;
 
     PROFILE_ENTRY *ps= &prof->profile_start;
@@ -651,9 +606,13 @@ bool PROFILING::show(uint options, uint profiling_query_id)
   DBUG_ENTER("PROFILING::show");
   QUERY_PROFILE *prof;
 
-  List_iterator<QUERY_PROFILE> it(history);
-  while ((prof= it++) != NULL)
+  void *iterator;
+  for (iterator= history.new_iterator(); 
+       iterator != NULL; 
+       iterator= history.iterator_next(iterator))
   {
+    prof= history.iterator_value(iterator);
+
     if(prof->profiling_query_id == profiling_query_id)
       DBUG_RETURN(prof->show(options));
   }
@@ -681,11 +640,15 @@ int PROFILING::fill_statistics_info(THD *thd, struct st_table_list *tables, Item
   TABLE *table= tables->table;
   ulonglong row_number= 0;
 
-  List_iterator<QUERY_PROFILE> query_it(history);
   QUERY_PROFILE *query;
   /* Go through each query in this thread's stored history... */
-  while ((query= query_it++) != NULL)
+  void *history_iterator;
+  for (history_iterator= history.new_iterator(); 
+       history_iterator != NULL; 
+       history_iterator= history.iterator_next(history_iterator))
   {
+    query= history.iterator_value(history_iterator);
+
     PROFILE_ENTRY *ps= &(query->profile_start);
     double last_time= ps->time_usecs;
 #ifdef HAVE_GETRUSAGE
@@ -699,16 +662,20 @@ int PROFILING::fill_statistics_info(THD *thd, struct st_table_list *tables, Item
     */
     ulonglong seq;
 
-    List_iterator<PROFILE_ENTRY> step_it(query->entries);
+    void *entry_iterator;
     PROFILE_ENTRY *entry;
     /* ...and for each query, go through all its state-change steps. */
-    for (seq= 0, entry= step_it++; 
-         entry != NULL; 
+    for (seq= 0, entry_iterator= query->entries.new_iterator(); 
+         entry_iterator != NULL; 
+         entry_iterator= query->entries.iterator_next(entry_iterator),
 #ifdef HAVE_GETRUSAGE
          last_rusage= &(entry->rusage),
 #endif
-         seq++, last_time= entry->time_usecs, entry= step_it++, row_number++)
+         seq++, last_time= entry->time_usecs, row_number++)
     {
+      entry= query->entries.iterator_value(entry_iterator);
+
+
       /* Set default values for this row. */
       restore_record(table, s->default_values);
 
