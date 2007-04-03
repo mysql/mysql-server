@@ -181,6 +181,8 @@ int ndbcluster_find_all_files(THD *thd);
 
 void ndb_unpack_record(TABLE *table, NdbValue *value,
                        MY_BITMAP *defined, byte *buf);
+char *ndb_pack_varchar(const NDBCOL *col, char *buf,
+                       const char *str, int sz);
 
 NDB_SHARE *ndbcluster_get_share(const char *key,
                                 TABLE *table,
