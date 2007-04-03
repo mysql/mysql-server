@@ -7128,7 +7128,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             Check that the field is part of the table of the handler
             instance and that we expect a field with of this result type.
           */
-          if (context->table == field->table)
+          if (context->table->s == field->table->s)
           {       
             const NDBTAB *tab= (const NDBTAB *) context->ndb_table;
             DBUG_PRINT("info", ("FIELD_ITEM"));
