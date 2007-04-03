@@ -1963,6 +1963,9 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
     return -1;
   }
 
+  if (!nostart)
+    ndbout_c("Shutting down nodes with \"-n, no start\" option, to subsequently start the nodes.");
+
   result= ndb_mgm_restart3(m_mgmsrv, no_of_nodes, node_ids,
                            initialstart, nostart, abort, &need_disconnect);
 
@@ -2489,6 +2492,7 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   {
     flags = 0;
     result = ndb_mgm_start_backup(m_mgmsrv, 0, &backupId, &reply);
+    goto END_BACKUP;
   }
   else if (sz == 1 || (sz == 3 && args[1] == "WAIT" && args[2] == "COMPLETED"))
   {
@@ -2522,6 +2526,7 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   }
   result = ndb_mgm_start_backup(m_mgmsrv, flags, &backupId, &reply);
 
+END_BACKUP:
   if (result != 0) {
     ndbout << "Backup failed" << endl;
     printError();
