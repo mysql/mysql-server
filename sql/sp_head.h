@@ -95,7 +95,7 @@ public:
 
 
 bool
-check_routine_name(LEX_STRING name);
+check_routine_name(LEX_STRING *ident);
 
 class sp_head :private Query_arena
 {

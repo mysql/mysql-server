@@ -1926,9 +1926,8 @@ sp_name:
 	      my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
 	      MYSQL_YYABORT;
 	    }
-	    if (check_routine_name($3))
+	    if (check_routine_name(&$3))
             {
-	      my_error(ER_SP_WRONG_NAME, MYF(0), $3.str);
 	      MYSQL_YYABORT;
 	    }
 	    $$= new sp_name($1, $3);
@@ -1938,9 +1937,8 @@ sp_name:
 	  {
             THD *thd= YYTHD;
             LEX_STRING db;
-	    if (check_routine_name($1))
+	    if (check_routine_name(&$1))
             {
-	      my_error(ER_SP_WRONG_NAME, MYF(0), $1.str);
 	      MYSQL_YYABORT;
 	    }
             if (thd->copy_db_to(&db.str, &db.length))
@@ -4535,8 +4533,7 @@ field_spec:
 	type opt_attribute
 	{
 	  LEX *lex=Lex;
-	  if (add_field_to_list(lex->thd, $1.str,
-				(enum enum_field_types) $3,
+	  if (add_field_to_list(lex->thd, &$1, (enum enum_field_types) $3,
 				lex->length,lex->dec,lex->type,
 				lex->default_value, lex->on_update_value, 
                                 &lex->comment,
@@ -5492,7 +5489,7 @@ alter_list_item:
           type opt_attribute
           {
             LEX *lex=Lex;
-            if (add_field_to_list(lex->thd,$3.str,
+            if (add_field_to_list(lex->thd,&$3,
                                   (enum enum_field_types) $5,
                                   lex->length,lex->dec,lex->type,
                                   lex->default_value, lex->on_update_value,
@@ -9717,8 +9714,9 @@ user:
 	  $$->host.str= (char *) "%";
 	  $$->host.length= 1;
 
-	  if (check_string_length(&$$->user,
-                                  ER(ER_USERNAME), USERNAME_LENGTH))
+          if (check_string_char_length(&$$->user, ER(ER_USERNAME),
+                                       USERNAME_CHAR_LENGTH,
+                                       system_charset_info, 0))
 	    MYSQL_YYABORT;
 	}
 	| ident_or_text '@' ident_or_text
@@ -9728,10 +9726,11 @@ user:
 	      MYSQL_YYABORT;
 	    $$->user = $1; $$->host=$3;
 
-	    if (check_string_length(&$$->user,
-                                    ER(ER_USERNAME), USERNAME_LENGTH) ||
-	        check_string_length(&$$->host,
-                                    ER(ER_HOSTNAME), HOSTNAME_LENGTH))
+	    if (check_string_char_length(&$$->user, ER(ER_USERNAME),
+                                         USERNAME_CHAR_LENGTH,
+                                         system_charset_info, 0) ||
+	        check_string_byte_length(&$$->host, ER(ER_HOSTNAME),
+                                         HOSTNAME_LENGTH))
 	      MYSQL_YYABORT;
 	  }
 	| CURRENT_USER optional_braces

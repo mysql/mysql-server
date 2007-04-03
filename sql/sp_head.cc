@@ -408,9 +408,22 @@ sp_name::init_qname(THD *thd)
 */
 
 bool
-check_routine_name(LEX_STRING ident)
+check_routine_name(LEX_STRING *ident)
 {
-  return (!ident.str || !ident.str[0] || ident.str[ident.length-1] == ' ');
+  if (!ident || !ident->str || !ident->str[0] ||
+      ident->str[ident->length-1] == ' ')
+  {
+    my_error(ER_SP_WRONG_NAME, MYF(0), ident->str);
+    return TRUE;
+  }
+  if (check_string_char_length(ident, "", NAME_CHAR_LEN,
+                               system_charset_info, 1))
+  {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), ident->str);
+    return TRUE;
+  }
+
+  return FALSE;
 }
 
 /* ------------------------------------------------------------------ */
@@ -2121,7 +2134,7 @@ sp_head::show_create_procedure(THD *thd)
     sys_var_thd_sql_mode::symbolic_mode_representation(thd,
                                                        m_sql_mode,
                                                        &sql_mode_len);
-  field_list.push_back(new Item_empty_string("Procedure", NAME_LEN));
+  field_list.push_back(new Item_empty_string("Procedure", NAME_CHAR_LEN));
   field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
   // 1024 is for not to confuse old clients
   Item_empty_string *definition=
@@ -2192,7 +2205,7 @@ sp_head::show_create_function(THD *thd)
     sys_var_thd_sql_mode::symbolic_mode_representation(thd,
                                                        m_sql_mode,
                                                        &sql_mode_len);
-  field_list.push_back(new Item_empty_string("Function",NAME_LEN));
+  field_list.push_back(new Item_empty_string("Function",NAME_CHAR_LEN));
   field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
   Item_empty_string *definition=
     new Item_empty_string("Create Function", max(buffer.length(),1024));

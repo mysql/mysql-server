@@ -2541,6 +2541,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
   {
     DBUG_PRINT("info", ("key name: '%s'  type: %d", key->name ? key->name :
                         "(none)" , key->type));
+    LEX_STRING key_name_str;
     if (key->type == Key::FOREIGN_KEY)
     {
       fk_key_count++;
@@ -2562,7 +2563,10 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       my_error(ER_TOO_MANY_KEY_PARTS,MYF(0),tmp);
       DBUG_RETURN(-1);
     }
-    if (key->name && strlen(key->name) > NAME_LEN)
+    key_name_str.str= (char*) key->name;
+    key_name_str.length= key->name ? strlen(key->name) : 0;
+    if (check_string_char_length(&key_name_str, "", NAME_CHAR_LEN,
+                                 system_charset_info, 1))
     {
       my_error(ER_TOO_LONG_IDENT, MYF(0), key->name);
       DBUG_RETURN(-1);
@@ -4049,7 +4053,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
   if (end_active_trans(thd))
     DBUG_RETURN(1);
-  field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
+  field_list.push_back(item = new Item_empty_string("Table", NAME_CHAR_LEN*2));
   item->maybe_null = 1;
   field_list.push_back(item = new Item_empty_string("Op", 10));
   item->maybe_null = 1;
@@ -4631,7 +4635,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   /*
     Validate the source table
   */
-  if (table_ident->table.length > NAME_LEN ||
+  if (check_string_char_length(&table_ident->table, "", NAME_CHAR_LEN,
+                               system_charset_info, 1) ||
       (table_ident->table.length &&
        check_table_name(src_table,table_ident->table.length)))
   {
