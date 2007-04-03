@@ -72,6 +72,9 @@ PROFILE_ENTRY::PROFILE_ENTRY()
   time_usecs(0.0), allocated_status_memory(NULL)
 {
   collect();
+
+  /* The beginning of the query, before any state is set. */
+  set_status("(initialization)", NULL, NULL, 0);  
 }
 
 PROFILE_ENTRY::PROFILE_ENTRY(QUERY_PROFILE *profile_arg, const char *status_arg)
@@ -313,10 +316,7 @@ bool QUERY_PROFILE::show(uint options)
   SELECT_LEX_UNIT *unit= &thd->lex->unit;
   ha_rows idx= 0;
   unit->set_limit(sel);
-  double last_time= profile_start.time_usecs;
-#ifdef HAVE_GETRUSAGE
-  struct rusage *last_rusage= &(profile_start.rusage);
-#endif
+  PROFILE_ENTRY *previous= &profile_start;
 
   PROFILE_ENTRY *entry;
   void *iterator;
@@ -337,8 +337,18 @@ bool QUERY_PROFILE::show(uint options)
       break;
 
     protocol->prepare_for_resend();
-    protocol->store(entry->status, strlen(entry->status), system_charset_info);
-    protocol->store((double)(entry->time_usecs - last_time)/(1000.0*1000),
+
+    /*
+      This entry, n, has a point in time, T(n), and a status phrase, S(n).  The
+      status phrase S(n) describes the period of time that begins at T(n).  The
+      previous status phrase S(n-1) describes the period of time that starts at
+      T(n-1) and ends at T(n).  Since we want to describe the time that a status
+      phrase took T(n)-T(n-1), this line must describe the previous status.
+    */
+    protocol->store(previous->status, strlen(previous->status), 
+                    system_charset_info);
+    protocol->store((double)(entry->time_usecs - 
+                    previous->time_usecs)/(1000.0*1000),
                     (uint32) TIME_FLOAT_DIGITS-1, &elapsed);
 
     if (options & PROFILE_CPU)
@@ -346,10 +356,10 @@ bool QUERY_PROFILE::show(uint options)
 #ifdef HAVE_GETRUSAGE
       String cpu_utime, cpu_stime;
       protocol->store((double)(RUSAGE_DIFF_USEC(rusage->ru_utime,
-                      last_rusage->ru_utime))/(1000.0*1000),
+                      previous->rusage.ru_utime))/(1000.0*1000),
                       (uint32) TIME_FLOAT_DIGITS-1, &cpu_utime);
       protocol->store((double)(RUSAGE_DIFF_USEC(rusage->ru_stime,
-                      last_rusage->ru_stime))/(1000.0*1000),
+                      previous->rusage.ru_stime))/(1000.0*1000),
                       (uint32) TIME_FLOAT_DIGITS-1, &cpu_stime);
 #else
       protocol->store_null();
@@ -360,8 +370,8 @@ bool QUERY_PROFILE::show(uint options)
     if (options & PROFILE_CONTEXT)
     {
 #ifdef HAVE_GETRUSAGE
-      protocol->store((uint32)(rusage->ru_nvcsw - last_rusage->ru_nvcsw));
-      protocol->store((uint32)(rusage->ru_nivcsw - last_rusage->ru_nivcsw));
+      protocol->store((uint32)(rusage->ru_nvcsw - previous->rusage.ru_nvcsw));
+      protocol->store((uint32)(rusage->ru_nivcsw - previous->rusage.ru_nivcsw));
 #else
       protocol->store_null();
       protocol->store_null();
@@ -371,8 +381,8 @@ bool QUERY_PROFILE::show(uint options)
     if (options & PROFILE_BLOCK_IO)
     {
 #ifdef HAVE_GETRUSAGE
-      protocol->store((uint32)(rusage->ru_inblock - last_rusage->ru_inblock));
-      protocol->store((uint32)(rusage->ru_oublock - last_rusage->ru_oublock));
+      protocol->store((uint32)(rusage->ru_inblock - previous->rusage.ru_inblock));
+      protocol->store((uint32)(rusage->ru_oublock - previous->rusage.ru_oublock));
 #else
       protocol->store_null();
       protocol->store_null();
@@ -382,8 +392,8 @@ bool QUERY_PROFILE::show(uint options)
     if (options & PROFILE_IPC)
     {
 #ifdef HAVE_GETRUSAGE
-      protocol->store((uint32)(rusage->ru_msgsnd - last_rusage->ru_msgsnd));
-      protocol->store((uint32)(rusage->ru_msgrcv - last_rusage->ru_msgrcv));
+      protocol->store((uint32)(rusage->ru_msgsnd - previous->rusage.ru_msgsnd));
+      protocol->store((uint32)(rusage->ru_msgrcv - previous->rusage.ru_msgrcv));
 #else
       protocol->store_null();
       protocol->store_null();
@@ -393,8 +403,8 @@ bool QUERY_PROFILE::show(uint options)
     if (options & PROFILE_PAGE_FAULTS)
     {
 #ifdef HAVE_GETRUSAGE
-      protocol->store((uint32)(rusage->ru_majflt - last_rusage->ru_majflt));
-      protocol->store((uint32)(rusage->ru_minflt - last_rusage->ru_minflt));
+      protocol->store((uint32)(rusage->ru_majflt - previous->rusage.ru_majflt));
+      protocol->store((uint32)(rusage->ru_minflt - previous->rusage.ru_minflt));
 #else
       protocol->store_null();
       protocol->store_null();
@@ -404,7 +414,7 @@ bool QUERY_PROFILE::show(uint options)
     if (options & PROFILE_SWAPS)
     {
 #ifdef HAVE_GETRUSAGE
-      protocol->store((uint32)(rusage->ru_nswap - last_rusage->ru_nswap));
+      protocol->store((uint32)(rusage->ru_nswap - previous->rusage.ru_nswap));
 #else
       protocol->store_null();
 #endif
@@ -428,11 +438,7 @@ bool QUERY_PROFILE::show(uint options)
     if (protocol->write())
       DBUG_RETURN(TRUE);
 
-    last_time= entry->time_usecs;
-#ifdef HAVE_GETRUSAGE
-    last_rusage= &(entry->rusage);
-#endif
-
+    previous= entry;
   }
   send_eof(thd);
   DBUG_RETURN(FALSE);
@@ -648,12 +654,7 @@ int PROFILING::fill_statistics_info(THD *thd, struct st_table_list *tables, Item
        history_iterator= history.iterator_next(history_iterator))
   {
     query= history.iterator_value(history_iterator);
-
-    PROFILE_ENTRY *ps= &(query->profile_start);
-    double last_time= ps->time_usecs;
-#ifdef HAVE_GETRUSAGE
-    struct rusage *last_rusage= &(ps->rusage);
-#endif
+    PROFILE_ENTRY *previous= &(query->profile_start);
 
     /*
       Because we put all profiling info into a table that may be reordered, let
@@ -668,13 +669,9 @@ int PROFILING::fill_statistics_info(THD *thd, struct st_table_list *tables, Item
     for (seq= 0, entry_iterator= query->entries.new_iterator(); 
          entry_iterator != NULL; 
          entry_iterator= query->entries.iterator_next(entry_iterator),
-#ifdef HAVE_GETRUSAGE
-         last_rusage= &(entry->rusage),
-#endif
-         seq++, last_time= entry->time_usecs, row_number++)
+         seq++, previous=entry, row_number++)
     {
       entry= query->entries.iterator_value(entry_iterator);
-
 
       /* Set default values for this row. */
       restore_record(table, s->default_values);
@@ -685,16 +682,25 @@ int PROFILING::fill_statistics_info(THD *thd, struct st_table_list *tables, Item
       */
       table->field[0]->store((ulonglong) query->profiling_query_id);
       table->field[1]->store((ulonglong) seq); /* the step in the sequence */
-      table->field[2]->store(entry->status, strlen(entry->status), 
+      /*
+        This entry, n, has a point in time, T(n), and a status phrase, S(n).
+        The status phrase S(n) describes the period of time that begins at
+        T(n).  The previous status phrase S(n-1) describes the period of time
+        that starts at T(n-1) and ends at T(n).  Since we want to describe the
+        time that a status phrase took T(n)-T(n-1), this line must describe the
+        previous status.
+      */
+      table->field[2]->store(previous->status, strlen(previous->status), 
                              system_charset_info);
-      table->field[3]->store((double)(entry->time_usecs - last_time)/(1000*1000));
+      table->field[3]->store((double)(entry->time_usecs - 
+                             previous->time_usecs)/(1000*1000));
 
 #ifdef HAVE_GETRUSAGE
       table->field[4]->store((double)RUSAGE_DIFF_USEC(entry->rusage.ru_utime,
-                             last_rusage->ru_utime)/(1000.0*1000));
+                             previous->rusage.ru_utime)/(1000.0*1000));
       table->field[4]->set_notnull();
       table->field[5]->store((double)RUSAGE_DIFF_USEC(entry->rusage.ru_stime,
-                             last_rusage->ru_stime)/(1000.0*1000));
+                             previous->rusage.ru_stime)/(1000.0*1000));
 
       table->field[5]->set_notnull();
 #else
@@ -702,43 +708,52 @@ int PROFILING::fill_statistics_info(THD *thd, struct st_table_list *tables, Item
 #endif
       
 #ifdef HAVE_GETRUSAGE
-      table->field[6]->store((uint32)(entry->rusage.ru_nvcsw - last_rusage->ru_nvcsw));
+      table->field[6]->store((uint32)(entry->rusage.ru_nvcsw - 
+                             previous->rusage.ru_nvcsw));
       table->field[6]->set_notnull();
-      table->field[7]->store((uint32)(entry->rusage.ru_nivcsw - last_rusage->ru_nivcsw));
+      table->field[7]->store((uint32)(entry->rusage.ru_nivcsw - 
+                             previous->rusage.ru_nivcsw));
       table->field[7]->set_notnull();
 #else
       /* TODO: Add context switch info for non-BSD systems */
 #endif
 
 #ifdef HAVE_GETRUSAGE
-      table->field[8]->store((uint32)(entry->rusage.ru_inblock - last_rusage->ru_inblock));
+      table->field[8]->store((uint32)(entry->rusage.ru_inblock - 
+                             previous->rusage.ru_inblock));
       table->field[8]->set_notnull();
-      table->field[9]->store((uint32)(entry->rusage.ru_oublock - last_rusage->ru_oublock));
+      table->field[9]->store((uint32)(entry->rusage.ru_oublock - 
+                             previous->rusage.ru_oublock));
       table->field[9]->set_notnull();
 #else
       /* TODO: Add block IO info for non-BSD systems */
 #endif
     
 #ifdef HAVE_GETRUSAGE
-      table->field[10]->store((uint32)(entry->rusage.ru_msgsnd - last_rusage->ru_msgsnd), true);
+      table->field[10]->store((uint32)(entry->rusage.ru_msgsnd - 
+                             previous->rusage.ru_msgsnd), true);
       table->field[10]->set_notnull();
-      table->field[11]->store((uint32)(entry->rusage.ru_msgrcv - last_rusage->ru_msgrcv), true);
+      table->field[11]->store((uint32)(entry->rusage.ru_msgrcv - 
+                             previous->rusage.ru_msgrcv), true);
       table->field[11]->set_notnull();
 #else
       /* TODO: Add message info for non-BSD systems */
 #endif
     
 #ifdef HAVE_GETRUSAGE
-      table->field[12]->store((uint32)(entry->rusage.ru_majflt - last_rusage->ru_majflt), true);
+      table->field[12]->store((uint32)(entry->rusage.ru_majflt - 
+                             previous->rusage.ru_majflt), true);
       table->field[12]->set_notnull();
-      table->field[13]->store((uint32)(entry->rusage.ru_minflt - last_rusage->ru_minflt), true);
+      table->field[13]->store((uint32)(entry->rusage.ru_minflt - 
+                             previous->rusage.ru_minflt), true);
       table->field[13]->set_notnull();
 #else
       /* TODO: Add page fault info for non-BSD systems */
 #endif
 
 #ifdef HAVE_GETRUSAGE
-      table->field[14]->store((uint32)(entry->rusage.ru_nswap - last_rusage->ru_nswap), true);
+      table->field[14]->store((uint32)(entry->rusage.ru_nswap - 
+                             previous->rusage.ru_nswap), true);
       table->field[14]->set_notnull();
 #else
       /* TODO: Add swap info for non-BSD systems */
