@@ -113,7 +113,7 @@ show profiles;
 select * from t1;
 --replace_column 2 #
 show profiles;
---echo This ^^ should end in \"select * from t1;\"
+--echo This ^^ should end in "select * from t1;"
 
 delete from t1;
 insert into t1 values (1), (2), (3);
