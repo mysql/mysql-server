@@ -706,9 +706,11 @@ begin
   insert into test.t1 values (concat(x, "2"), y+2);
 end|
 
---system rm -f $MYSQLTEST_VARDIR/tmp/spout
+# Remove spout file if it exists
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/tmp/spout
 call into_outfile("ofile", 1)|
---system rm -f $MYSQLTEST_VARDIR/tmp/spout
+--remove_file $MYSQLTEST_VARDIR/tmp/spout
 delete from t1|
 drop procedure into_outfile|
 
@@ -723,9 +725,11 @@ begin
   insert into test.t1 values (concat(x, "2"), y+2);
 end|
 
---system rm -f $MYSQLTEST_VARDIR/tmp/spdump
+# Remove spdump file if it exists
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/tmp/spdump
 call into_dumpfile("dfile", 1)|
---system rm -f $MYSQLTEST_VARDIR/tmp/spdump
+--remove_file $MYSQLTEST_VARDIR/tmp/spdump
 delete from t1|
 drop procedure into_dumpfile|
 
