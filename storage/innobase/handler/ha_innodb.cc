@@ -5922,8 +5922,8 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
 	  FOREIGN_KEY_INFO f_key_info;
 	  LEX_STRING *name= 0;
           uint ulen;
-          char uname[NAME_LEN*3+1];           /* Unencoded name */
-          char db_name[NAME_LEN*3+1];
+          char uname[NAME_LEN+1];           /* Unencoded name */
+          char db_name[NAME_LEN+1];
 	  const char *tmp_buff;
 
 	  tmp_buff= foreign->id;
