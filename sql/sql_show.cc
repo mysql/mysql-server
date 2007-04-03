@@ -1800,7 +1800,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       else
         table->field[4]->store(command_name[tmp->command].str,
                                command_name[tmp->command].length, cs);
-      /* TIME */
+      /* MYSQL_TIME */
       table->field[5]->store((uint32)(tmp->start_time ?
                                       now - tmp->start_time : 0), TRUE);
       /* STATE */
@@ -2837,7 +2837,7 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
 				    const char *file_name)
 {
   const char *tmp_buff;
-  TIME time;
+  MYSQL_TIME time;
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_tables_record");
 
@@ -3396,7 +3396,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
 {
   String tmp_string;
   String sp_db, sp_name, definer;
-  TIME time;
+  MYSQL_TIME time;
   LEX *lex= thd->lex;
   CHARSET_INFO *cs= system_charset_info;
   get_field(thd->mem_root, proc_table->field[0], &sp_db);
@@ -3968,7 +3968,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
   TABLE* table= schema_table;
   CHARSET_INFO *cs= system_charset_info;
   PARTITION_INFO stat_info;
-  TIME time;
+  MYSQL_TIME time;
   file->get_dynamic_partition_info(&stat_info, part_id);
   table->field[12]->store((longlong) stat_info.records, TRUE);
   table->field[13]->store((longlong) stat_info.mean_rec_length, TRUE);
@@ -4306,7 +4306,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 {
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   CHARSET_INFO *scs= system_charset_info;
-  TIME time;
+  MYSQL_TIME time;
   Event_timed et;    
   DBUG_ENTER("fill_events_copy_to_schema_tab");
 
