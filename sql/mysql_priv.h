@@ -340,9 +340,6 @@ MY_LOCALE *my_locale_by_number(uint number);
 /* The following is used to detect a conflict with DISTINCT */
 #define SELECT_ALL              (ULL(1) << 24)    // SELECT, user, parser
 
-/* Set if we are updating a non-transaction safe table */
-#define OPTION_STATUS_NO_TRANS_UPDATE   (ULL(1) << 25) // THD, intern
-
 /* The following can be set when importing tables in a 'wrong order'
    to suppress foreign key checks */
 #define OPTION_NO_FOREIGN_KEY_CHECKS    (ULL(1) << 26) // THD, user, binlog
@@ -835,7 +832,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent);
 bool do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db,
                       char *new_table_name, char *new_table_alias,
                       bool skip_error);
-bool mysql_change_db(THD *thd,const char *name,bool no_access_check);
+bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name,
+                     bool force_switch);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
 bool is_update_query(enum enum_sql_command command);
@@ -1114,7 +1112,7 @@ void init_status_vars();
 void free_status_vars();
 
 /* information schema */
-extern LEX_STRING information_schema_name;
+extern LEX_STRING INFORMATION_SCHEMA_NAME;
 extern const LEX_STRING partition_keywords[];
 LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
                             const char* str, uint length,
@@ -1133,7 +1131,7 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place);
 #define is_schema_db(X) \
-  !my_strcasecmp(system_charset_info, information_schema_name.str, (X))
+  !my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str, (X))
 
 /* sql_prepare.cc */
 

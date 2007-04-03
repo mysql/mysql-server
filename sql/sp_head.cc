@@ -349,13 +349,13 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   bool save_abort_on_warning= thd->abort_on_warning;
-  bool save_no_trans_update= thd->no_trans_update;
+  bool save_no_trans_update_stmt= thd->no_trans_update.stmt;
 
   thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   thd->abort_on_warning=
     thd->variables.sql_mode &
     (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES);
-  thd->no_trans_update= 0;
+  thd->no_trans_update.stmt= FALSE;
 
   /* Save the value in the field. Convert the value if needed. */
 
@@ -363,7 +363,7 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 
   thd->count_cuted_fields= save_count_cuted_fields;
   thd->abort_on_warning= save_abort_on_warning;
-  thd->no_trans_update= save_no_trans_update;
+  thd->no_trans_update.stmt= save_no_trans_update_stmt;
 
   if (thd->net.report_error)
   {
@@ -1171,7 +1171,7 @@ sp_head::execute(THD *thd)
       (It would generate an error from mysql_change_db() when old_db=="")
     */
     if (! thd->killed)
-      err_status|= mysql_change_db(thd, old_db.str, 1);
+      err_status|= mysql_change_db(thd, &old_db, TRUE);
   }
   m_flags&= ~IS_INVOKED;
   DBUG_PRINT("info",
