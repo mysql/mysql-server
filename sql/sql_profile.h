@@ -84,6 +84,112 @@ class PROFILING;
 
 
 /**
+  Implements a persistent FIFO using server List method names.  Not
+  thread-safe.  Intended to be used on thread-local data only.  
+*/
+template <class T> class Queue
+{
+private:
+
+  struct queue_item
+  {
+    T *payload;
+    struct queue_item *next, *previous;
+  };
+
+  struct queue_item *first, *last;
+
+public:
+  Queue()
+  {
+    elements= 0;
+    first= last= NULL;
+  }
+
+  void empty()
+  {
+    struct queue_item *i, *after_i;
+    for (i= first; i != NULL; i= after_i)
+    {
+      after_i= i->next;
+      my_free((char *) i, MYF(0));
+    }
+    elements= 0;
+  }
+
+  ulong elements;                       /* The count of items in the Queue */
+
+  void push_back(T *payload)
+  {
+    struct queue_item *new_item;
+
+    new_item= (struct queue_item *) my_malloc(sizeof(struct queue_item), MYF(0));
+
+    new_item->payload= payload;
+
+    if (first == NULL)
+      first= new_item;
+    if (last != NULL)
+    {
+      DBUG_ASSERT(last->next == NULL);
+      last->next= new_item;
+    }
+    new_item->previous= last;
+    new_item->next= NULL;
+    last= new_item;
+
+    elements++;
+  }
+
+  T *pop()
+  {
+    struct queue_item *old_item= first;
+    T *ret= NULL;
+
+    if (first == NULL)
+    {
+      DBUG_PRINT("warning", ("tried to pop nonexistent item from Queue"));
+      return NULL;
+    }
+
+    ret= old_item->payload;
+    if (first->next != NULL)
+      first->next->previous= NULL;
+    else
+      last= NULL;
+    first= first->next;
+
+    my_free((char *)old_item, MYF(0));
+    elements--;
+
+    return ret;
+  }
+
+  bool is_empty()
+  {
+    DBUG_ASSERT(((elements > 0) && (first != NULL)) || ((elements == 0) || (first == NULL)));
+    return (elements == 0);
+  }
+
+  void *new_iterator()
+  {
+    return first;
+  }
+
+  void *iterator_next(void *current)
+  {
+    return ((struct queue_item *) current)->next;
+  }
+
+  T *iterator_value(void *current)
+  {
+    return ((struct queue_item *) current)->payload;
+  }
+
+};
+
+
+/**
   A single entry in a single profile.
 */
 class PROFILE_ENTRY
@@ -135,7 +241,7 @@ private:
   char *query_source;
   PROFILE_ENTRY profile_start;
   PROFILE_ENTRY *profile_end;
-  List<PROFILE_ENTRY> entries;
+  Queue<PROFILE_ENTRY> entries;
 
 
   QUERY_PROFILE(PROFILING *profiling_arg, char *query_source_arg, uint query_length_arg);
@@ -169,13 +275,12 @@ private:
     Not the system query_id, but a counter unique to profiling. 
   */
   query_id_t profile_id_counter;     
-  MEM_ROOT mem_root;
   THD *thd;
   bool keeping;
 
   QUERY_PROFILE *current;
   QUERY_PROFILE *last;
-  List<QUERY_PROFILE> history;
+  Queue<QUERY_PROFILE> history;
  
   query_id_t next_profile_id() { return(profile_id_counter++); }
 
