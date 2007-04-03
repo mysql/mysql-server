@@ -70,7 +70,7 @@ int _nisam_write_keypage(register N_INFO *info, register N_KEYDEF *keyinfo,
     my_errno=EINVAL;
     return(-1);
   }
-  DBUG_PRINT("page",("write page at: %lu",(long) page,buff));
+  DBUG_PRINT("page",("write page at: %lu", (long) page));
   DBUG_DUMP("buff",(byte*) buff,getint(buff));
 #endif
 
@@ -138,6 +138,6 @@ ulong _nisam_new(register N_INFO *info, N_KEYDEF *keyinfo)
 			(uint) keyinfo->base.block_length,0))
       pos= NI_POS_ERROR;
   }
-  DBUG_PRINT("exit",("Pos: %d",pos));
+  DBUG_PRINT("exit",("Pos: %lu", pos));
   DBUG_RETURN(pos);
 } /* _nisam_new */

@@ -1263,8 +1263,8 @@ CommandInterpreter::executeConnect(char* parameters)
   int retval;
   disconnect();
   if (!emptyString(parameters)) {
-    if (retval = ndb_mgm_set_connectstring(m_mgmsrv,
-				  BaseString(parameters).trim().c_str()))
+    if ((retval = ndb_mgm_set_connectstring(m_mgmsrv,
+                                            BaseString(parameters).trim().c_str())))
     {
       printError();
       return retval;

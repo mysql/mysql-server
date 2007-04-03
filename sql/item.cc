@@ -649,6 +649,8 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
       doesn't display each argument's characteristics.
     - if nargs is 1, then this error cannot happen.
   */
+  LINT_INIT(safe_args[0]);
+  LINT_INIT(safe_args[1]);
   if (nargs >=2 && nargs <= 3)
   {
     safe_args[0]= args[0];

@@ -30,7 +30,7 @@ uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
   int error;
   DBUG_ENTER("my_pread");
   DBUG_PRINT("my",("Fd: %d  Seek: %lu  Buffer: 0x%lx  Count: %u  MyFlags: %d",
-		   Filedes, (ulong) offset, Buffer, Count, MyFlags));
+		   Filedes, (ulong) offset, (long) Buffer, Count, MyFlags));
 
   for (;;)
   {
@@ -49,8 +49,8 @@ uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
     if (error)
     {
       my_errno=errno;
-      DBUG_PRINT("warning",("Read only %ld bytes off %ld from %d, errno: %d",
-			    readbytes,Count,Filedes,my_errno));
+      DBUG_PRINT("warning",("Read only %u bytes off %u from %d, errno: %d",
+			    readbytes, Count, Filedes, my_errno));
 #ifdef THREAD
       if ((readbytes == 0 || (int) readbytes == -1) && errno == EINTR)
       {
@@ -87,7 +87,7 @@ uint my_pwrite(int Filedes, const byte *Buffer, uint Count, my_off_t offset,
   ulong written;
   DBUG_ENTER("my_pwrite");
   DBUG_PRINT("my",("Fd: %d  Seek: %lu  Buffer: 0x%lx  Count: %d  MyFlags: %d",
-		   Filedes, (ulong) offset,Buffer, Count, MyFlags));
+		   Filedes, (ulong) offset, (long) Buffer, Count, MyFlags));
   errors=0; written=0L;
 
   for (;;)

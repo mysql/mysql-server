@@ -28,7 +28,7 @@ int myrg_extra(MYRG_INFO *info,enum ha_extra_function function,
   int error,save_error=0;
   MYRG_TABLE *file;
   DBUG_ENTER("myrg_extra");
-  DBUG_PRINT("info",("function: %d",(ulong) function));
+  DBUG_PRINT("info",("function: %lu",(ulong) function));
 
   if (function == HA_EXTRA_CACHE)
   {

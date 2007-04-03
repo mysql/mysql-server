@@ -692,8 +692,8 @@ int ha_ndbcluster::get_ndb_blobs_value(NdbBlob *last_ndb_blob)
         {
           char *buf= m_blobs_buffer + offset;
           uint32 len= 0xffffffff;  // Max uint32
-          DBUG_PRINT("value", ("read blob ptr=%x len=%u",
-                               (UintPtr)buf, (uint)blob_len));
+          DBUG_PRINT("value", ("read blob ptr: 0x%lx  len: %u",
+                               (ulong)buf, (uint)blob_len));
           if (ndb_blob->readData(buf, len) != 0)
             DBUG_RETURN(-1);
           DBUG_ASSERT(len == blob_len);
@@ -1484,7 +1484,7 @@ inline int ha_ndbcluster::next_result(byte *buf)
 	all pending update or delete operations should 
 	be sent to NDB
       */
-      DBUG_PRINT("info", ("ops_pending: %d", m_ops_pending));    
+      DBUG_PRINT("info", ("ops_pending: %lu", (ulong) m_ops_pending));
       if (m_ops_pending)
       {
 	//	if (current_thd->transaction.on)
@@ -2026,7 +2026,7 @@ int ha_ndbcluster::write_row(byte *record)
                 (ulong) next_val));
     if (ndb->setAutoIncrementValue((const NDBTAB *) m_table, next_val, TRUE))
       DBUG_PRINT("info", 
-		 ("Setting next auto increment value to %u", next_val));  
+		 ("Setting next auto increment value to %u", (uint) next_val));
   }
   m_skip_auto_increment= TRUE;
 
@@ -2417,7 +2417,7 @@ void ha_ndbcluster::print_results()
       break;
     }
     case NdbDictionary::Column::Int: {
-      fprintf(DBUG_FILE, "Int\t%lld", field->val_int());
+      fprintf(DBUG_FILE, "Int\t%ld", (long) field->val_int());
       break;
     }
     case NdbDictionary::Column::Unsigned: {
@@ -2787,7 +2787,7 @@ int ha_ndbcluster::close_scan()
       Take over any pending transactions to the 
       deleteing/updating transaction before closing the scan    
     */
-    DBUG_PRINT("info", ("ops_pending: %d", m_ops_pending));    
+    DBUG_PRINT("info", ("ops_pending: %lu", (ulong) m_ops_pending));    
     if (execute_no_commit(this,trans) != 0) {
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(trans));
@@ -3823,7 +3823,7 @@ static int create_ndb_column(NDBCOL &col,
     col.setAutoIncrement(TRUE);
     ulonglong value= info->auto_increment_value ?
       info->auto_increment_value : (ulonglong) 1;
-    DBUG_PRINT("info", ("Autoincrement key, initial: %llu", value));
+    DBUG_PRINT("info", ("Autoincrement key, initial: %lu", (ulong) value));
     col.setAutoIncrementInitialValue(value);
   }
   else
@@ -3926,7 +3926,8 @@ int ha_ndbcluster::create(const char *name,
   if (packfrm(data, length, &pack_data, &pack_length))
     DBUG_RETURN(2);
   
-  DBUG_PRINT("info", ("setFrm data=%x, len=%d", pack_data, pack_length));
+  DBUG_PRINT("info", ("setFrm data: 0x%lx  len: %u", (ulong) pack_data,
+                      pack_length));
   tab.setFrm(pack_data, pack_length);      
   my_free((char*)data, MYF(0));
   my_free((char*)pack_data, MYF(0));
@@ -3934,7 +3935,7 @@ int ha_ndbcluster::create(const char *name,
   for (i= 0; i < form->fields; i++) 
   {
     Field *field= form->field[i];
-    DBUG_PRINT("info", ("name: %s, type: %u, pack_length: %d", 
+    DBUG_PRINT("info", ("name: %s  type: %u  pack_length: %d", 
                         field->field_name, field->real_type(),
 			field->pack_length()));
     if ((my_errno= create_ndb_column(col, field, info)))
@@ -5221,14 +5222,14 @@ static int packfrm(const void *data, uint len,
   uint blob_len;
   frm_blob_struct* blob;
   DBUG_ENTER("packfrm");
-  DBUG_PRINT("enter", ("data: %x, len: %d", data, len));
+  DBUG_PRINT("enter", ("data: 0x%lx  len: %u", (ulong) data, len));
   
   error= 1;
   org_len= len;
   if (my_compress((byte*)data, &org_len, &comp_len))
     goto err;
   
-  DBUG_PRINT("info", ("org_len: %d, comp_len: %d", org_len, comp_len));
+  DBUG_PRINT("info", ("org_len: %lu  comp_len: %lu", org_len, comp_len));
   DBUG_DUMP("compressed", (char*)data, org_len);
   
   error= 2;
@@ -5248,7 +5249,8 @@ static int packfrm(const void *data, uint len,
   *pack_len= blob_len;
   error= 0;
   
-  DBUG_PRINT("exit", ("pack_data: %x, pack_len: %d", *pack_data, *pack_len));
+  DBUG_PRINT("exit", ("pack_data: 0x%lx  pack_len: %u", (ulong) *pack_data,
+                      *pack_len));
 err:
   DBUG_RETURN(error);
   
@@ -5262,13 +5264,13 @@ static int unpackfrm(const void **unpack_data, uint *unpack_len,
    byte *data;
    ulong complen, orglen, ver;
    DBUG_ENTER("unpackfrm");
-   DBUG_PRINT("enter", ("pack_data: %x", pack_data));
+   DBUG_PRINT("enter", ("pack_data: 0x%lx", (ulong) pack_data));
 
    complen=	uint4korr((char*)&blob->head.complen);
    orglen=	uint4korr((char*)&blob->head.orglen);
    ver=		uint4korr((char*)&blob->head.ver);
  
-   DBUG_PRINT("blob",("ver: %d complen: %d orglen: %d",
+   DBUG_PRINT("blob",("ver: %lu  complen: %lu  orglen: %lu",
  		     ver,complen,orglen));
    DBUG_DUMP("blob->data", (char*) blob->data, complen);
  
@@ -5287,7 +5289,8 @@ static int unpackfrm(const void **unpack_data, uint *unpack_len,
    *unpack_data= data;
    *unpack_len= complen;
 
-   DBUG_PRINT("exit", ("frmdata: %x, len: %d", *unpack_data, *unpack_len));
+   DBUG_PRINT("exit", ("frmdata: 0x%lx  len: %u", (ulong) *unpack_data,
+                       *unpack_len));
 
    DBUG_RETURN(0);
 }
@@ -5367,7 +5370,8 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
       * row_count= sum_rows;
     if(commit_count)
       * commit_count= sum_commits;
-    DBUG_PRINT("exit", ("records: %u commits: %u", sum_rows, sum_commits));
+    DBUG_PRINT("exit", ("records: %u  commits: %u", (uint) sum_rows,
+                        (uint) sum_commits));
     DBUG_RETURN(0);
 
 retry:

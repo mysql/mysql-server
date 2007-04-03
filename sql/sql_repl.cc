@@ -1017,7 +1017,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   {
     mi->master_log_pos= lex_mi->pos;
   }
-  DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
 
   if (lex_mi->host)
     strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
@@ -1129,7 +1129,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
     }
   }
   mi->rli.group_master_log_pos = mi->master_log_pos;
-  DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
 
   /*
     Coordinates in rli were spoilt by the 'if (need_relay_log_purge)' block,
