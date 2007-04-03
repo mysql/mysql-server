@@ -158,7 +158,7 @@ void PROFILE_ENTRY::collect()
 
 QUERY_PROFILE::QUERY_PROFILE(PROFILING *profiling_arg, char *query_source_arg,
                              uint query_length_arg)
-  :profiling(profiling_arg), server_query_id(-1), profiling_query_id(-1),
+  :profiling(profiling_arg), server_query_id(0), profiling_query_id(0),
   query_source(NULL)
 {
   profile_end= &profile_start;
@@ -445,7 +445,7 @@ bool QUERY_PROFILE::show(uint options)
 }
 
 PROFILING::PROFILING()
-  :profile_id_counter(0), keeping(1), current(NULL), last(NULL)
+  :profile_id_counter(1), keeping(1), current(NULL), last(NULL)
 {
 }
 
