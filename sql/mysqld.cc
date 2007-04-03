@@ -6513,10 +6513,11 @@ static int show_rpl_status(THD *thd, SHOW_VAR *var, char *buff)
 
 static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
 {
-  var->type= SHOW_CHAR;
+  var->type= SHOW_MY_BOOL;
   pthread_mutex_lock(&LOCK_active_mi);
-  var->value= const_cast<char*>((active_mi && active_mi->slave_running &&
-               active_mi->rli.slave_running) ? "ON" : "OFF");
+  var->value= buff;
+  *((my_bool *)buff)= (my_bool) (active_mi && active_mi->slave_running &&
+                                 active_mi->rli.slave_running);
   pthread_mutex_unlock(&LOCK_active_mi);
   return 0;
 }
