@@ -493,6 +493,9 @@ void PROFILING::store()
   while (history.elements > thd->variables.profiling_history_size)
     delete history.pop();
 
+  if (likely(((thd)->options & OPTION_PROFILING) == 0))
+    DBUG_VOID_RETURN;
+
   if (current != NULL)
   {
     if (keeping && 
@@ -519,11 +522,19 @@ void PROFILING::store()
   DBUG_VOID_RETURN;
 }
 
+/**
+  Store and clean up the old information and get ready to hold info about this
+  new query.  This is called very often so it must be very lightweight if
+  profiling is not active.
+*/
 void PROFILING::reset()
 {
   DBUG_ENTER("PROFILING::reset");
 
   store();
+
+  if (likely(((thd)->options & OPTION_PROFILING) == 0))
+    DBUG_VOID_RETURN;
 
   if (current != NULL)
     current->reset();

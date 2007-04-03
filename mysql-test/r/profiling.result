@@ -248,6 +248,7 @@ sum(id)
 12
 show profiles;
 Query_ID	Duration	Query
+15	#	select count(*) from t1
 16	#	insert into t1 select * from t1
 17	#	insert into t1 select * from t1
 18	#	insert into t1 select * from t1
@@ -277,7 +278,6 @@ Query_ID	Duration	Query
 42	#	insert into t1 values (1), (2), (3)
 43	#	insert into t1 values (1), (2), (3)
 44	#	select * from t1
-45	#	set session profiling = OFF
 set session profiling = ON;
 select @@profiling;
 @@profiling
