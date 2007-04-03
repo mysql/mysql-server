@@ -88,10 +88,7 @@ connection master;
 
 eval create table t2 (n int)ENGINE=$engine_type;
 insert into t2 values (1);
---replace_result $VERSION VERSION
---replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-show binlog events;
+source include/show_binlog_events.inc;
 --replace_result $VERSION VERSION
 --replace_column 2 # 5 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
@@ -142,10 +139,7 @@ insert into t1 values (NULL, 1);
 reset master;
 set insert_id=5;
 insert into t1 values (NULL, last_insert_id()), (NULL, last_insert_id());
---replace_result $VERSION VERSION
---replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-show binlog events;
+source include/show_binlog_events.inc;
 select * from t1;
 drop table t1;
 

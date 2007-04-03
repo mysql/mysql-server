@@ -7,13 +7,9 @@ CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3);
 SELECT * FROM t1;
 
-SET @saved = @@debug;
-SET SESSION debug="d,incident_database_resync_on_replace";
-
 # This will generate an incident log event and store it in the binary
 # log before the replace statement.
 REPLACE INTO t1 VALUES (4);
-SET SESSION debug=@saved;
 --save_master_pos
 SELECT * FROM t1;
 

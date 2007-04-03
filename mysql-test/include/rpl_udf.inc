@@ -45,6 +45,7 @@ sync_with_master;
 # Check to see that UDF CREATE statements were replicated
 --echo "Running on the slave"
 --enable_info
+--replace_column 3 UDF_LIB
 SELECT * FROM mysql.func;
 --disable_info
 
