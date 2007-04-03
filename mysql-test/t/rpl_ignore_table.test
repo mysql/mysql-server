@@ -124,9 +124,15 @@ drop table t1, t4, mysqltest2.t2;
 drop database mysqltest2;
 delete from mysql.user where user like "mysqltest%";
 delete from mysql.db where user like "mysqltest%";
-delete from mysql.tables_priv where user like "mysqltest%";
+#
+# BUG 27606 causes failure to replicate this statement
+# move it to slave instead
+#delete from mysql.tables_priv where user like "mysqltest%";
 delete from mysql.columns_priv where user like "mysqltest%";
 sync_slave_with_master;
+
+#BUG27606
+delete from mysql.tables_priv where user like "mysqltest%";
 
 connection master;
 
