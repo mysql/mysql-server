@@ -1836,19 +1836,20 @@ ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
-my_time_t TIME_to_timestamp(THD *thd, const TIME *t, my_bool *not_exist);
-bool str_to_time_with_warn(const char *str,uint length,TIME *l_time);
+my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *not_exist);
+bool str_to_time_with_warn(const char *str,uint length,MYSQL_TIME *l_time);
 timestamp_type str_to_datetime_with_warn(const char *str, uint length,
-                                         TIME *l_time, uint flags);
-void localtime_to_TIME(TIME *to, struct tm *from);
-void calc_time_from_sec(TIME *to, long seconds, long microseconds);
+                                         MYSQL_TIME *l_time, uint flags);
+void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
+void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds);
 
-void make_truncated_value_warning(THD *thd, const char *str_val,
+void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
+                                  const char *str_val,
 				  uint str_length, timestamp_type time_type,
                                   const char *field_name);
 
-bool date_add_interval(TIME *ltime, interval_type int_type, INTERVAL interval);
-bool calc_time_diff(TIME *l_time1, TIME *l_time2, int l_sign,
+bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL interval);
+bool calc_time_diff(MYSQL_TIME *l_time1, MYSQL_TIME *l_time2, int l_sign,
                     longlong *seconds_out, long *microseconds_out);
 
 extern LEX_STRING interval_type_to_name[];
@@ -1860,15 +1861,15 @@ extern DATE_TIME_FORMAT *date_time_format_copy(THD *thd,
 					       DATE_TIME_FORMAT *format);
 const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
 				     timestamp_type type);
-extern bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
+extern bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
 			   timestamp_type type, String *str);
-void make_datetime(const DATE_TIME_FORMAT *format, const TIME *l_time,
+void make_datetime(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
                    String *str);
-void make_date(const DATE_TIME_FORMAT *format, const TIME *l_time,
+void make_date(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
                String *str);
-void make_time(const DATE_TIME_FORMAT *format, const TIME *l_time,
+void make_time(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
                String *str);
-int my_time_compare(TIME *a, TIME *b);
+int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);
@@ -1888,7 +1889,7 @@ double my_double_round(double value, int dec, bool truncate);
 int get_quick_record(SQL_SELECT *select);
 
 int calc_weekday(long daynr,bool sunday_first_day_of_week);
-uint calc_week(TIME *l_time, uint week_behaviour, uint *year);
+uint calc_week(MYSQL_TIME *l_time, uint week_behaviour, uint *year);
 void find_date(char *pos,uint *vek,uint flag);
 TYPELIB *convert_strings_to_array_type(my_string *typelibs, my_string *end);
 TYPELIB *typelib(MEM_ROOT *mem_root, List<String> &strings);
