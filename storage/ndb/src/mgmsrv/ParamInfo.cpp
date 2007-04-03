@@ -705,7 +705,7 @@ const ParamInfo ParamInfoArray[] = {
     CI_USED,
     false,
     CI_INT,
-    "40",
+    "0",
     "20",
     STR_VALUE(MAX_INT_RNIL) },
   
