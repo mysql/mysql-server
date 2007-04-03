@@ -4148,7 +4148,7 @@ static int ndbcluster_update_apply_status(THD *thd, int do_update)
     r|= op->writeTuple();
   DBUG_ASSERT(r == 0);
   // server_id
-  r|= op->equal(0u, (Uint64)thd->server_id);
+  r|= op->equal(0u, (Uint32)thd->server_id);
   DBUG_ASSERT(r == 0);
   if (!do_update)
   {
