@@ -7811,16 +7811,16 @@ static void test_explain_bug()
                        "", "", "", 19, 0);
 
   verify_prepare_field(result, 2, "table", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", NAME_LEN, 0);
+                       "", "", "", NAME_CHAR_LEN, 0);
 
   verify_prepare_field(result, 3, "type", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", 10, 0);
 
   verify_prepare_field(result, 4, "possible_keys", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", NAME_LEN*MAX_KEY, 0);
+                       "", "", "", NAME_CHAR_LEN*MAX_KEY, 0);
 
   verify_prepare_field(result, 5, "key", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", NAME_LEN, 0);
+                       "", "", "", NAME_CHAR_LEN, 0);
 
   if (mysql_get_server_version(mysql) <= 50000)
   {
@@ -7830,11 +7830,11 @@ static void test_explain_bug()
   else
   {
     verify_prepare_field(result, 6, "key_len", "", MYSQL_TYPE_VAR_STRING, "", 
-                         "", "", NAME_LEN*MAX_KEY, 0);
+                         "", "", NAME_CHAR_LEN*MAX_KEY, 0);
   }
 
   verify_prepare_field(result, 7, "ref", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", NAME_LEN*16, 0);
+                       "", "", "", NAME_CHAR_LEN*16, 0);
 
   verify_prepare_field(result, 8, "rows", "", MYSQL_TYPE_LONGLONG,
                        "", "", "", 10, 0);

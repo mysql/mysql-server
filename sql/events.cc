@@ -568,7 +568,7 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
     if (et->get_create_event(thd, &show_str))
       goto err;
 
-    field_list.push_back(new Item_empty_string("Event", NAME_LEN));
+    field_list.push_back(new Item_empty_string("Event", NAME_CHAR_LEN));
 
     sql_mode_str=
       sys_var_thd_sql_mode::symbolic_mode_representation(thd, et->sql_mode,

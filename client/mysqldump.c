@@ -3454,7 +3454,7 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root)
 
 static int dump_selected_tables(char *db, char **table_names, int tables)
 {
-  char table_buff[NAME_LEN*+3];
+  char table_buff[NAME_LEN*2+3];
   DYNAMIC_STRING lock_tables_query;
   MEM_ROOT root;
   char **dump_tables, **pos, **end;
