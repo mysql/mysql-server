@@ -1774,7 +1774,7 @@ opt_ev_status: /* empty */ { $$= 0; }
             Lex->event_parse_data->status= Event_basic::ENABLED;
             $$= 1;
           }
-        | SLAVESIDE_DISABLE_SYM
+        | DISABLE_SYM ON SLAVE
           {
             Lex->event_parse_data->status= Event_basic::SLAVESIDE_DISABLED;
             $$= 1;

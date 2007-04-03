@@ -29,8 +29,6 @@
 #define SCHED_POLICY SCHED_OTHER
 #endif
 
-uint thd_lib_detected= 0;
-
 uint thd_lib_detected;
 
 #ifndef my_pthread_setprio

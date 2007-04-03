@@ -21,7 +21,7 @@ DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
 # Set the default storage engine to different values on master and
 # slave. We need to stop the slave for the server variable to take
 # effect, since the variable is only read on start-up.
-connection slave;
+sync_slave_with_master;
 --disable_query_log
 set @storage_engine = @@global.storage_engine;
 STOP SLAVE;
