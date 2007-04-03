@@ -2588,7 +2588,7 @@ public:
 #endif
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int exec_event(struct st_relay_log_info *rli);
+  virtual int do_apply_event(RELAY_LOG_INFO const *rli);
 #endif
 
   virtual bool write_data_header(IO_CACHE *file);

@@ -356,6 +356,8 @@ sys_var_thd_ulong	sys_net_retry_count("net_retry_count",
 					    &SV::net_retry_count,
 					    0, fix_net_retry_count);
 sys_var_thd_bool	sys_new_mode("new", &SV::new_mode);
+sys_var_bool_ptr_readonly sys_old_mode("old", 
+                                       &global_system_variables.old_mode);
 sys_var_thd_bool	sys_old_alter_table("old_alter_table",
 					    &SV::old_alter_table);
 sys_var_thd_bool	sys_old_passwords("old_passwords", &SV::old_passwords);
@@ -942,6 +944,7 @@ SHOW_VAR init_vars[]= {
   {sys_net_retry_count.name,  (char*) &sys_net_retry_count,	    SHOW_SYS},
   {sys_net_write_timeout.name,(char*) &sys_net_write_timeout,       SHOW_SYS},
   {sys_new_mode.name,         (char*) &sys_new_mode,                SHOW_SYS},
+  {sys_old_mode.name,         (char*) &sys_old_mode,                SHOW_SYS},
   {sys_old_alter_table.name,  (char*) &sys_old_alter_table,         SHOW_SYS},
   {sys_old_passwords.name,    (char*) &sys_old_passwords,           SHOW_SYS},
   {"open_files_limit",	      (char*) &open_files_limit,	    SHOW_LONG},

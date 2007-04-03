@@ -6838,7 +6838,9 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       copy_ptr->do_copy(copy_ptr);
     }
     prev_insert_id= to->file->next_insert_id;
-    if ((error=to->file->ha_write_row((byte*) to->record[0])))
+    error=to->file->write_row((byte*) to->record[0]);
+    to->auto_increment_field_not_null= FALSE;
+    if (error)
     {
       if (!ignore ||
           to->file->is_fatal_error(error, HA_CHECK_DUP))
