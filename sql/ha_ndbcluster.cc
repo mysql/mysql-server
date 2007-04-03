@@ -753,7 +753,7 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
         blob_ptr= (char*)"";
       }
 
-      DBUG_PRINT("value", ("set blob ptr=%p len=%u",
+      DBUG_PRINT("value", ("set blob ptr: %p  len: %u",
                            blob_ptr, blob_len));
       DBUG_DUMP("value", (char*)blob_ptr, min(blob_len, 26));
 
@@ -3659,8 +3659,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     {
       m_transaction_on= FALSE;
       /* Would be simpler if has_transactions() didn't always say "yes" */
-      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
-      thd->no_trans_update= TRUE;
+      thd->no_trans_update.all= thd->no_trans_update.stmt= TRUE;
     }
     else if (!thd->transaction.on)
       m_transaction_on= FALSE;
@@ -4411,7 +4410,7 @@ int ha_ndbcluster::create(const char *name,
   for (i= 0; i < form->s->fields; i++) 
   {
     Field *field= form->field[i];
-    DBUG_PRINT("info", ("name: %s, type: %u, pack_length: %d", 
+    DBUG_PRINT("info", ("name: %s  type: %u  pack_length: %d", 
                         field->field_name, field->real_type(),
                         field->pack_length()));
     if ((my_errno= create_ndb_column(col, field, create_info)))
@@ -5992,7 +5991,7 @@ static int packfrm(const void *data, uint len,
   uint blob_len;
   frm_blob_struct* blob;
   DBUG_ENTER("packfrm");
-  DBUG_PRINT("enter", ("data: 0x%lx, len: %d", (long) data, len));
+  DBUG_PRINT("enter", ("data: 0x%lx  len: %d", (long) data, len));
   
   error= 1;
   org_len= len;
@@ -6019,7 +6018,8 @@ static int packfrm(const void *data, uint len,
   *pack_len= blob_len;
   error= 0;
   
-  DBUG_PRINT("exit", ("pack_data: 0x%lx, pack_len: %d", (long) *pack_data, *pack_len));
+  DBUG_PRINT("exit", ("pack_data: 0x%lx  pack_len: %d", (long) *pack_data,
+                      *pack_len));
 err:
   DBUG_RETURN(error);
   
@@ -6058,7 +6058,8 @@ static int unpackfrm(const void **unpack_data, uint *unpack_len,
    *unpack_data= data;
    *unpack_len= complen;
 
-   DBUG_PRINT("exit", ("frmdata: 0x%lx, len: %d", (long) *unpack_data, *unpack_len));
+   DBUG_PRINT("exit", ("frmdata: 0x%lx  len: %d", (long) *unpack_data,
+                       *unpack_len));
 
    DBUG_RETURN(0);
 }
