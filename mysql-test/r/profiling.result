@@ -198,7 +198,7 @@ Query_ID	Duration	Query
 38	#	insert into t2 values (1), (2), (3)
 39	#	insert into t3 values (1), (2), (3)
 40	#	select * from t1
-This ^^ should end in "select * from t1;\"
+This ^^ should end in "select * from t1;"
 delete from t1;
 insert into t1 values (1), (2), (3);
 insert into t1 values (1), (2), (3);
