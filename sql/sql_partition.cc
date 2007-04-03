@@ -3700,9 +3700,9 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
      possible to retrace this given an item tree.
 */
 
-bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
-                            uint part_info_len,
-                            uchar *part_state, uint part_state_len,
+bool mysql_unpack_partition(THD *thd,
+                            const char *part_buf, uint part_info_len,
+                            const char *part_state, uint part_state_len,
                             TABLE* table, bool is_create_table_ind,
                             handlerton *default_db_type)
 {
