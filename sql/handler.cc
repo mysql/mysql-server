@@ -1753,7 +1753,6 @@ int handler::update_auto_increment()
   bool append= FALSE;
   THD *thd= table->in_use;
   struct system_variables *variables= &thd->variables;
-  bool auto_increment_field_not_null;
   DBUG_ENTER("handler::update_auto_increment");
 
   /*
@@ -1761,11 +1760,9 @@ int handler::update_auto_increment()
     than the interval, but not smaller.
   */
   DBUG_ASSERT(next_insert_id >= auto_inc_interval_for_cur_row.minimum());
-  auto_increment_field_not_null= table->auto_increment_field_not_null;
-  table->auto_increment_field_not_null= FALSE; // to reset for next row
 
   if ((nr= table->next_number_field->val_int()) != 0 ||
-      auto_increment_field_not_null &&
+      table->auto_increment_field_not_null &&
       thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
   {
     /*

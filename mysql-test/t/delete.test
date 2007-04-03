@@ -203,3 +203,21 @@ select * from t1 where a is null;
 delete from t1 where a is null;
 select count(*) from t1;
 drop table t1;
+
+#
+# Bug #26186: delete order by, sometimes accept unknown column
+#
+CREATE TABLE t1 (a INT); INSERT INTO t1 VALUES (1);
+
+--error ER_BAD_FIELD_ERROR
+DELETE FROM t1 ORDER BY x;
+
+# even columns from a table not used in query (and not even existing)
+--error ER_BAD_FIELD_ERROR
+DELETE FROM t1 ORDER BY t2.x;
+
+# subquery (as long as the subquery from is valid or DUAL)
+--error ER_BAD_FIELD_ERROR
+DELETE FROM t1 ORDER BY (SELECT x);
+
+DROP TABLE t1;

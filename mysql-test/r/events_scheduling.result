@@ -69,7 +69,7 @@ OK
 SELECT IF(LAST_EXECUTED-ENDS < 3, 'OK', 'ERROR') FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA=DATABASE() AND EVENT_NAME='start_n_end' AND ENDS IS NOT NULL;
 IF(LAST_EXECUTED-ENDS < 3, 'OK', 'ERROR')
 OK
-DROP EVENT start_n_end;
+DROP EVENT IF EXISTS events_test.start_n_end;
 "Already dropped because ended. Therefore an error."
 DROP EVENT only_one_time;
 ERROR HY000: Unknown event 'only_one_time'
