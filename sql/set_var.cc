@@ -2873,14 +2873,15 @@ static bool set_option_autocommit(THD *thd, set_var *var)
     if ((org_options & OPTION_NOT_AUTOCOMMIT))
     {
       /* We changed to auto_commit mode */
-      thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+      thd->options&= ~(ulong) OPTION_BEGIN;
+      thd->no_trans_update.all= FALSE;
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
       if (ha_commit(thd))
 	return 1;
     }
     else
     {
-      thd->options&= ~(ulong) (OPTION_STATUS_NO_TRANS_UPDATE);
+      thd->no_trans_update.all= FALSE;
       thd->server_status&= ~SERVER_STATUS_AUTOCOMMIT;
     }
   }

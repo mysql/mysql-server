@@ -316,7 +316,7 @@ cleanup:
 	error=1;
     }
     if (!transactional_table)
-      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+      thd->no_trans_update.all= TRUE;
   }
   free_underlaid_joins(thd, select_lex);
   if (transactional_table)
@@ -796,7 +796,7 @@ bool multi_delete::send_eof()
 	local_error=1;  // Log write failed: roll back the SQL statement
     }
     if (!transactional_tables)
-      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+      thd->no_trans_update.all= TRUE;
   }
   /* Commit or rollback the current SQL statement */
   if (transactional_tables)
