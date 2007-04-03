@@ -203,6 +203,8 @@ static const err_code_mapping err_map[]=
 
   { 284, HA_ERR_TABLE_DEF_CHANGED, 0 },
 
+  {4009, HA_ERR_NO_CONNECTION, 1 },
+
   { 0, 1, 0 },
 
   { -1, -1, 1 }
@@ -5042,14 +5044,11 @@ int ndbcluster_table_exists_in_engine(THD* thd, const char *db, const char *name
   dict->invalidateTable(name);
   if (!(tab= dict->getTable(name)))
   {
-    const NdbError err= dict->getNdbError();
-    if (err.code == 709)
-      DBUG_RETURN(0);
-    ERR_RETURN(err);
+    ERR_RETURN(dict->getNdbError());
   }
 
   DBUG_PRINT("info", ("Found table %s", tab->getName()));
-  DBUG_RETURN(1);
+  DBUG_RETURN(HA_ERR_TABLE_EXIST);
 }
 
 
@@ -5234,7 +5233,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
     DBUG_PRINT("info", ("%s existed on disk", name));     
     // The .ndb file exists on disk, but it's not in list of tables in ndb
     // Verify that handler agrees table is gone.
-    if (ndbcluster_table_exists_in_engine(thd, db, file_name) == 0)    
+    if (ndbcluster_table_exists_in_engine(thd, db, file_name) == HA_ERR_NO_SUCH_TABLE)
     {
       DBUG_PRINT("info", ("NDB says %s does not exists", file_name));     
       it.remove();
