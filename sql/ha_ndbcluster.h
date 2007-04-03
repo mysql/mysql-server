@@ -593,6 +593,11 @@ enum THD_NDB_OPTIONS
   TNO_NO_LOG_SCHEMA_OP= 1 << 0
 };
 
+enum THD_NDB_TRANS_OPTIONS
+{
+  TNTO_INJECTED_APPLY_STATUS= 1 << 0
+};
+
 struct Ndb_local_table_statistics {
   int no_uncommitted_rows_count;
   ulong last_count;
@@ -621,6 +626,7 @@ class Thd_ndb
   NdbTransaction *stmt;
   int error;
   uint32 options;
+  uint32 trans_options;
   List<NDB_SHARE> changed_tables;
   uint query_state;
   HASH open_tables;
