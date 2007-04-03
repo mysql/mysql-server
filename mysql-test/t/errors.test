@@ -41,4 +41,15 @@ set sql_mode='traditional';
 --error 1074
 create table t1 (a varchar(66000));
 
+#
+# Bug #27513: mysql 5.0.x + NULL pointer DoS
+#
+CREATE TABLE t1 (a INT);
+SELECT a FROM t1 WHERE a IN(1, (SELECT IF(1=0,1,2/0)));
+INSERT INTO t1 VALUES(1);
+SELECT a FROM t1 WHERE a IN(1, (SELECT IF(1=0,1,2/0)));
+INSERT INTO t1 VALUES(2),(3);
+SELECT a FROM t1 WHERE a IN(1, (SELECT IF(1=0,1,2/0)));
+DROP TABLE t1;
+
 # End of 5.0 tests
