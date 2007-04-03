@@ -953,8 +953,8 @@ static void ndbcluster_get_schema(NDB_SHARE *share,
 /*
   helper function to pack a ndb varchar
 */
-static char *ndb_pack_varchar(const NDBCOL *col, char *buf,
-                              const char *str, int sz)
+char *ndb_pack_varchar(const NDBCOL *col, char *buf,
+                       const char *str, int sz)
 {
   switch (col->getArrayType())
   {
