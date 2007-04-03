@@ -10662,6 +10662,36 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *create_info,
     if (field->flags & FIELD_IN_ADD_INDEX)
       ai=1;
   }
+
+  char tablespace_name[FN_LEN]; 
+  if (get_tablespace_name(current_thd, tablespace_name, FN_LEN))
+  {
+    if (create_info->tablespace) 
+    {
+      if (strcmp(create_info->tablespace, tablespace_name))
+      {
+        DBUG_PRINT("info", ("storage media is changed, old tablespace=%s, new tablespace=%s",
+          tablespace_name, create_info->tablespace));
+        DBUG_RETURN(COMPATIBLE_DATA_NO);
+      }
+    }
+    else
+    {
+      DBUG_PRINT("info", ("storage media is changed, old is DISK and tablespace=%s, new is MEM",
+        tablespace_name));
+      DBUG_RETURN(COMPATIBLE_DATA_NO);
+    }
+  }
+  else
+  {
+    if (create_info->storage_media != HA_SM_MEMORY)
+    {
+      DBUG_PRINT("info", ("storage media is changed, old is MEM, new is DISK and tablespace=%s",
+        create_info->tablespace));
+      DBUG_RETURN(COMPATIBLE_DATA_NO);
+    }
+  }
+
   if (table_changes != IS_EQUAL_YES)
     DBUG_RETURN(COMPATIBLE_DATA_NO);
   
