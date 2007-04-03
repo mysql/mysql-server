@@ -24,3 +24,5 @@ INSERT INTO `t1`(`f1`) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 SHOW STATUS LIKE 'Slave_running';
 Variable_name	Value
 Slave_running	OFF
+drop table t1;
+drop table t1;
