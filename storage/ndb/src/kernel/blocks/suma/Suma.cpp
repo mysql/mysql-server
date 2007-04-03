@@ -3469,6 +3469,7 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
   const Uint32 hashValue = trg->getHashValue();
   const Uint32 gci       = trg->getGCI();
   const Uint32 event     = trg->getTriggerEvent();
+  const Uint32 any_value = trg->getAnyValue();
   TablePtr tabPtr;
   tabPtr.i               = trigId & 0xFFFF;
 
@@ -3509,7 +3510,7 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
     data->requestInfo    = 0;
     SubTableData::setOperation(data->requestInfo, event);
     data->logType        = 0;
-    data->changeMask     = 0;
+    data->anyValue       = any_value;
     data->totalLen       = ptrLen;
     
     {
@@ -3527,13 +3528,15 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
   }
   else 
   {
+    const uint buffer_header_sz = 4;
     Uint32* dst;
-    Uint32 sz = f_trigBufferSize + b_trigBufferSize + 3;
+    Uint32 sz = f_trigBufferSize + b_trigBufferSize + buffer_header_sz;
     if((dst = get_buffer_ptr(signal, bucket, gci, sz)))
     {
       * dst++ = tableId;
       * dst++ = tabPtr.p->m_schemaVersion;
       * dst++ = (event << 16) | f_trigBufferSize;
+      * dst++ = any_value;
       memcpy(dst, f_buffer, f_trigBufferSize << 2);
       dst += f_trigBufferSize;
       memcpy(dst, b_buffer, b_trigBufferSize << 2);
@@ -5029,18 +5032,20 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint32 min_gci,
     } 
     else
     {
+      const uint buffer_header_sz = 4;
       g_cnt++;
       Uint32 table = * src++ ;
       Uint32 schemaVersion = * src++;
       Uint32 event = * src >> 16;
       Uint32 sz_1 = (* src ++) & 0xFFFF;
-      
-      ndbassert(sz - 3 >= sz_1);
+      Uint32 any_value = * src++;
+
+      ndbassert(sz - buffer_header_sz >= sz_1);
       
       LinearSectionPtr ptr[3];
       const Uint32 nptr= reformat(signal, ptr, 
 				  src, sz_1, 
-				  src + sz_1, sz - 3 - sz_1);
+				  src + sz_1, sz - buffer_header_sz - sz_1);
       Uint32 ptrLen= 0;
       for(Uint32 i =0; i < nptr; i++)
         ptrLen+= ptr[i].sz;
@@ -5058,7 +5063,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint32 min_gci,
 	data->requestInfo    = 0;
 	SubTableData::setOperation(data->requestInfo, event);
 	data->logType        = 0;
-	data->changeMask     = 0;
+	data->anyValue       = any_value;
 	data->totalLen       = ptrLen;
 	
 	{
