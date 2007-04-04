@@ -382,7 +382,7 @@ create table t1 (a int primary key) engine=ndb;
 select * from t1;
 a
 select * from t1;
-ERROR HY000: Can't lock file (errno: 157)
+ERROR HY000: Can't lock file (errno: 4009)
 use test;
 drop database test_only_ndb_tables;
 CREATE TABLE t9 (
