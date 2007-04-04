@@ -62,6 +62,9 @@ Created 5/24/1996 Heikki Tuuri
 					activated by the operation would
 					lead to a duplicate key in some
 					table */
+#define	DB_CANNOT_DROP_FOREIGN_INDEX 47 /* we cannot drop an index because
+					it is needed on foreign key 
+					constraint */
 
 /* The following are partial failure codes */
 #define DB_FAIL			1000

@@ -63,6 +63,20 @@ trx_undo_rec_get_undo_no(
 	return(mach_dulint_read_much_compressed(ptr));
 }
 
+/**************************************************************************
+Returns the start of the undo record data area. */
+UNIV_INLINE
+byte*
+trx_undo_rec_get_ptr(
+/*=================*/
+					/* out: compiler info */
+	trx_undo_rec_t*	undo_rec,	/* in: undo log record */
+	dulint		undo_no)	/* in: undo no read from node */
+{
+	return (((byte*) undo_rec) + 3
+		+ mach_dulint_get_much_compressed_size(undo_no));
+}
+
 /***************************************************************************
 Copies the undo record to the heap. */
 UNIV_INLINE

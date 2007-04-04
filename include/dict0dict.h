@@ -53,6 +53,15 @@ dict_remove_db_name(
 				/* out: table name */
 	const char*	name);	/* in: table name in the form
 				dbname '/' tablename */
+/**************************************************************************
+Returns a table object based on table id. */
+
+dict_table_t*
+dict_table_get_on_id(
+/*=================*/
+                                /* out: table, NULL if does not exist */
+        dulint  table_id,       /* in: table id */
+        trx_t*  trx);           /* in: transaction handle */
 /************************************************************************
 Decrements the count of open MySQL handles to a table. */
 
@@ -248,6 +257,14 @@ dict_table_rename_in_cache(
 					to preserve the original table name
 					in constraints which reference it */
 /**************************************************************************
+Removes an index from the dictionary cache. */
+
+void
+dict_index_remove_from_cache(
+/*=========================*/
+	dict_table_t*	table,	/* in: table */
+	dict_index_t*	index);	/* in, own: index */
+/**************************************************************************
 Change the id of a table object in the dictionary cache. This is used in
 DISCARD TABLESPACE. */
 
@@ -270,14 +287,34 @@ dict_foreign_add_to_cache(
 	ibool		check_charsets);/* in: TRUE=check charset
 					compatibility */
 /*************************************************************************
+Check if the index is referenced by a foreign key, if TRUE return the
+matching instance NULL otherwise. */
+
+dict_foreign_t*
+dict_table_get_referenced_constraint(
+/*=================================*/
+				/* out: pointer to foreign key struct if index
+				is defined for foreign key, otherwise NULL */
+	dict_table_t*	table,	/* in: InnoDB table */
+	dict_index_t*	index);	/* in: InnoDB index */
+/*************************************************************************
 Checks if a table is referenced by foreign keys. */
 
 ibool
-dict_table_referenced_by_foreign_key(
-/*=================================*/
-				/* out: TRUE if table is referenced by a
-				foreign key */
-	dict_table_t*	table);	/* in: InnoDB table */
+dict_table_is_referenced_by_foreign_key(
+/*====================================*/
+					/* out: TRUE if table is referenced
+					by a foreign key */
+	const dict_table_t*	table);	/* in: InnoDB table */
+/**************************************************************************
+Replace the index in the foreign key list that matches this index's
+definition with an equivalent index. */
+
+void
+dict_table_replace_index_in_foreign_list(
+/*=====================================*/
+	dict_table_t*	table,  /* in/out: table */
+	dict_index_t*	index);	/* in: index to be replaced */
 /**************************************************************************
 Determines whether a string starts with the specified keyword. */
 
@@ -289,6 +326,18 @@ dict_str_starts_with_keyword(
 	void*		mysql_thd,	/* in: MySQL thread handle */
 	const char*	str,		/* in: string to scan for keyword */
 	const char*	keyword);	/* in: keyword to look for */
+/*************************************************************************
+Checks if a index is defined for a foreign key constraint. Index is a part
+of a foreign key constraint if the index is referenced by foreign key
+or index is a foreign key index */
+
+dict_foreign_t*
+dict_table_get_foreign_constraint(
+/*==============================*/
+				/* out: pointer to foreign key struct if index
+				is defined for foreign key, otherwise NULL */
+	dict_table_t*	table,	/* in: InnoDB table */
+	dict_index_t*	index);	/* in: InnoDB index */
 /*************************************************************************
 Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function
@@ -350,24 +399,18 @@ dict_table_get(
 					/* in: whether to increment the open
 					handle count on the table */
 /**************************************************************************
-Returns a table object based on table id. */
+Returns a index object, based on table and index id, and memoryfixes it. */
 
-dict_table_t*
-dict_table_get_on_id(
-/*=================*/
-				/* out: table, NULL if does not exist */
-	dulint	table_id,	/* in: table id */
-	trx_t*	trx);		/* in: transaction handle */
-/**************************************************************************
-Returns a table object based on table id. */
-UNIV_INLINE
-dict_table_t*
-dict_table_get_on_id_low(
+dict_index_t*
+dict_index_get_on_id_low(
 /*=====================*/
-				/* out: table, NULL if does not exist */
-	dulint	table_id);	/* in: table id */
+					/* out: index, NULL if does not
+					exist */
+	dict_table_t*	table,		/* in: table */
+	dulint		index_id);	/* in: index id */
 /**************************************************************************
 Checks if a table is in the dictionary cache. */
+
 UNIV_INLINE
 dict_table_t*
 dict_table_check_if_in_cache_low(
@@ -384,6 +427,14 @@ dict_table_get_low(
 					/* out: table, NULL if not found */
 	const char*	table_name);	/* in: table name */
 /**************************************************************************
+Returns a table object based on table id. */
+UNIV_INLINE
+dict_table_t*
+dict_table_get_on_id_low(
+/*=====================*/
+				/* out: table, NULL if does not exist */
+	dulint	table_id);	/* in: table id */
+/**************************************************************************
 A noninlined version of dict_table_get_low. */
 
 dict_table_t*
@@ -392,23 +443,17 @@ dict_table_get_low_noninlined(
 					/* out: table, NULL if not found */
 	const char*	table_name);	/* in: table name */
 /**************************************************************************
-Returns an index object. */
-UNIV_INLINE
-dict_index_t*
-dict_table_get_index(
-/*=================*/
-				/* out: index, NULL if does not exist */
-	dict_table_t*	table,	/* in: table */
-	const char*	name);	/* in: index name */
-/**************************************************************************
-Returns an index object. */
+Returns an index object by matching on the name and column names and if
+more than index is found return the index with the higher id.*/
 
 dict_index_t*
-dict_table_get_index_noninline(
+dict_table_get_index_by_max_id(
 /*===========================*/
 				/* out: index, NULL if does not exist */
 	dict_table_t*	table,	/* in: table */
-	const char*	name);	/* in: index name */
+	const char*	name,	/* in: index name to find*/
+	const char**	column_names, /* in: column names to match */
+	ulint		n_cols);/* in: number of columns */
 /**************************************************************************
 Returns a column's name. */
 
@@ -855,6 +900,14 @@ dict_index_check_search_tuple(
 				/* out: TRUE if ok */
 	dict_index_t*	index,	/* in: index */
 	const dtuple_t*	tuple);	/* in: tuple used in a search */
+/**************************************************************************
+Check for duplicate index entries in a table [using the index name] */
+
+void
+dict_table_check_for_dup_indexes(
+/*=============================*/
+	dict_table_t*	table);	/* in: Check for dup indexes in this table */
+
 #endif /* UNIV_DEBUG */
 /**************************************************************************
 Builds a node pointer out of a physical record and a page number. */
@@ -1012,6 +1065,118 @@ dict_scan_to(
 				/* out: scanned up to this */
 	const char*	ptr,	/* in: scan from */
 	const char*	string);/* in: look for this */
+/*************************************************************************
+Removes an index from the cache */
+
+void
+dict_index_remove_from_cache(
+/*=========================*/
+	dict_table_t*	table,	/* in: table */
+	dict_index_t*	index);	/* in, own: index */
+/**************************************************************************
+Get index by name */
+
+dict_index_t*
+dict_table_get_index_on_name(
+/*=========================*/
+				/* out: index, NULL if does not exist */
+	dict_table_t*	table,	/* in: table */
+	const char*	name);	/* in: name of the index to find */
+/**************************************************************************
+Find and index that is equivalent to the one passed in and is not marked
+for deletion. */
+
+dict_index_t*
+dict_table_find_equivalent_index(
+/*=============================*/
+	dict_table_t*	table,  /* in/out: table */
+	dict_index_t*	index);	/* in: index to match */
+/**************************************************************************
+Find and return an index in the table that matches the index id.*/
+
+dict_index_t*
+dict_table_get_index_on_id_noninline(
+/*=================================*/
+				/* out: index, NULL if does not exist */
+	dict_table_t*	table,	/* in: table */
+	dulint		index_id);/* in: table id */
+/**************************************************************************
+In case there is more than one index with the same name return the index
+with the min(id). */
+
+dict_index_t*
+dict_table_get_index_on_name_and_min_id(
+/*====================================*/
+				/* out: index, NULL if does not exist */
+	dict_table_t*	table,	/* in: table */
+	const char*	name);	/* in: name of the index to find */
+/**************************************************************************
+Create and return an undo list. */
+
+void
+dict_undo_create_list(
+/*==================*/
+	trx_t*		trx);	/* in: create undo list for this trx.*/
+/**************************************************************************
+Create element of the undo list and append to the passed in list. */
+
+dict_undo_t*
+dict_undo_create_element(
+/*=====================*/	/* out: dict_undo_t element*/
+	trx_t*		trx);	/* in: create & add elem to this trx.*/
+/**************************************************************************
+Free all the nodes on the undo list and free list.*/
+
+void
+dict_undo_free_list(
+/*================*/
+	trx_t*		trx);	/* in: free this trx's undo list */
+/**************************************************************************
+Create and return a redo list. */
+
+void
+dict_redo_create_list(
+/*==================*/
+	trx_t*		trx);	/* in: create redo list for this trx.*/
+/**************************************************************************
+Create element of the redo list and append to the passed in transaction. */
+
+dict_redo_t*
+dict_redo_create_element(
+/*=====================*/	/* out: dict_redo_t element*/
+	trx_t*		trx);	/* in: create & add elem to this trx.*/
+/**************************************************************************
+Free all the nodes on the redo list and free list.*/
+
+void
+dict_redo_free_list(
+/*================*/
+	trx_t*		trx);	/* in: free this trx's redo list */
+/**************************************************************************
+Add the indexes to SYS_INDEX.*/
+
+ulint
+dict_rename_indexes(
+/*================*/
+	trx_t*		trx,/* in: transaction */
+	ibool		commit_flag); /* in: ignored for now */
+/**************************************************************************
+Remove the index from the transaction's REDO list.*/
+
+void
+dict_redo_remove_index(
+/*===================*/
+	trx_t*		trx,		/* in: transaction */
+	dict_index_t*	index);		/* in: index to remove */
+/**************************************************************************
+Get the index by name from the transaction's REDO list.*/
+
+dict_index_t*
+dict_redo_get_index_on_name(
+/*========================*/
+	trx_t*		trx,	/* in: transaction */
+	dict_table_t*	table,	/* in: the table the index belongs to */
+	const char*	name);	/* in: index name */
 /* Buffers for storing detailed information about the latest foreign key
 and unique key errors */
 extern FILE*	dict_foreign_err_file;
@@ -1049,6 +1214,10 @@ struct dict_sys_struct{
 	dict_table_t*	sys_indexes;	/* SYS_INDEXES table */
 	dict_table_t*	sys_fields;	/* SYS_FIELDS table */
 };
+
+#define	TEMP_TABLE_PREFIX	'/'	/* Table name prefix for temporary
+					internal tables. Used in fast index
+					creation etc. */
 
 #ifndef UNIV_NONINL
 #include "dict0dict.ic"

@@ -1,5 +1,4 @@
 /* Copyright (C) 2000-2005 MySQL AB & Innobase Oy
-
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -89,7 +88,9 @@ extern "C" {
 #include "../storage/innobase/include/sync0sync.h"
 #include "../storage/innobase/include/fil0fil.h"
 #include "../storage/innobase/include/trx0xa.h"
+#include "../storage/innobase/include/row0merge.h"
 #include "../storage/innobase/include/thr0loc.h"
+#include "../storage/innobase/include/dict0boot.h"
 #include "../storage/innobase/include/ha_prototypes.h"
 }
 
@@ -163,6 +164,14 @@ static int innobase_release_savepoint(handlerton *hton, THD* thd,
 static handler *innobase_create_handler(handlerton *hton,
                                         TABLE_SHARE *table,
                                         MEM_ROOT *mem_root);
+
+/********************************************************************
+Return alter table flags supported in an InnoDB database. */
+static
+uint
+innobase_alter_table_flags(
+/*=======================*/
+	uint	flags);
 
 static const char innobase_hton_name[]= "InnoDB";
 
@@ -491,7 +500,7 @@ innobase_release_temporary_latches(
 
 	if (!innodb_inited) {
 
-		return 0;
+		return(0);
 	}
 
 	trx = thd_to_trx(thd, hton);
@@ -499,7 +508,7 @@ innobase_release_temporary_latches(
 	if (trx) {
 		innobase_release_stat_resources(trx);
 	}
-	return 0;
+	return(0);
 }
 
 /************************************************************************
@@ -618,18 +627,21 @@ convert_error_code_to_mysql(
 
 		return(HA_ERR_NO_SAVEPOINT);
 	} else if (error == (int) DB_LOCK_TABLE_FULL) {
- 		/* Since we rolled back the whole transaction, we must
- 		tell it also to MySQL so that MySQL knows to empty the
- 		cached binlog for this transaction */
+		/* Since we rolled back the whole transaction, we must
+		tell it also to MySQL so that MySQL knows to empty the
+		cached binlog for this transaction */
 
- 		if (thd) {
- 			ha_rollback(thd);
- 		}
+		if (thd) {
+			ha_rollback(thd);
+		}
 
-    		return(HA_ERR_LOCK_TABLE_FULL);
-    	} else {
-    		return(-1);			// Unknown error
-    	}
+		return(HA_ERR_LOCK_TABLE_FULL);
+	} else if (error == (int) DB_CANNOT_DROP_FOREIGN_INDEX) {
+
+		return(HA_ERR_DROP_INDEX_FK);
+	} else {
+		return(-1);			// Unknown error
+	}
 }
 
 /*****************************************************************
@@ -1457,6 +1469,7 @@ innobase_init(void *p)
         innobase_hton->show_status=innobase_show_status;
         innobase_hton->flags=HTON_NO_FLAGS;
         innobase_hton->release_temporary_latches=innobase_release_temporary_latches;
+	innobase_hton->alter_table_flags = innobase_alter_table_flags;
 
 	 if (have_innodb != SHOW_OPTION_YES)
 	   DBUG_RETURN(0); // nothing else to do
@@ -1739,6 +1752,21 @@ innobase_flush_logs(handlerton *hton)
 	log_buffer_flush_to_disk();
 
 	DBUG_RETURN(result);
+}
+
+/********************************************************************
+Return alter table flags supported in an InnoDB database. */
+static
+uint
+innobase_alter_table_flags(
+/*=======================*/
+	uint	flags)
+{
+	return(HA_ONLINE_ADD_INDEX_NO_WRITES
+		| HA_ONLINE_DROP_INDEX_NO_WRITES
+		| HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES
+		| HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES
+		| HA_ONLINE_ADD_PK_INDEX_NO_WRITES);
 }
 
 /*********************************************************************
@@ -2307,7 +2335,7 @@ ha_innobase::bas_ext() const
 /*========================*/
 				/* out: file extension string */
 {
-  return ha_innobase_exts;
+  return(ha_innobase_exts);
 }
 
 
@@ -2690,7 +2718,7 @@ innobase_mysql_cmp(
 			return(0);
 		}
 	default:
-		assert(0);
+		ut_error;
 	}
 
 	return(0);
@@ -2794,7 +2822,7 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_LONG_BLOB:
 		return(DATA_BLOB);
 	default:
-		assert(0);
+		ut_error;
 	}
 
 	return(0);
@@ -3473,7 +3501,7 @@ no_commit:
 		/* We must use the handler code to update the auto-increment
 		value to be sure that we increment it correctly. */
 
-    		if ((error= update_auto_increment()))
+		if ((error= update_auto_increment()))
 			goto func_exit;
 		auto_inc_used = 1;
 
@@ -3726,7 +3754,7 @@ ha_innobase::update_row(
 	/* This is not a delete */
 	prebuilt->upd_node->is_delete = FALSE;
 
-	assert(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW);
+	ut_a(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW);
 
 	innodb_srv_conc_enter_innodb(trx);
 
@@ -3849,6 +3877,36 @@ ha_innobase::try_semi_consistent_read(bool yes)
 }
 
 /**********************************************************************
+Check if an index can be used by the optimizer. */
+
+bool
+ha_innobase::is_index_available(
+/*============================*/
+					/* out: true if available else false*/
+	uint		keynr)		/* in: index number to check */
+{
+	DBUG_ENTER("is_index_available");
+
+	if (table && keynr != MAX_KEY && table->s->keys > 0) {
+		dict_index_t*	index;
+		KEY*		key = table->key_info + keynr;
+
+		ut_ad(user_thd == current_thd);
+		ut_a(prebuilt->trx == (trx_t*) current_thd->ha_data[ht->slot]);
+
+		index = dict_table_get_index_on_name(
+			prebuilt->table, key->name);
+
+		if (!row_merge_is_index_usable(prebuilt->trx, index)) {
+
+			DBUG_RETURN(false);
+		}
+	}
+
+	DBUG_RETURN(true);
+}
+
+/**********************************************************************
 Initializes a handle to use an index. */
 
 int
@@ -3858,12 +3916,9 @@ ha_innobase::index_init(
 	uint	keynr,	/* in: key (index) number */
 	bool sorted)	/* in: 1 if result MUST be sorted according to index */
 {
-	int	error	= 0;
 	DBUG_ENTER("index_init");
 
-	error = change_active_index(keynr);
-
-	DBUG_RETURN(error);
+	DBUG_RETURN(change_active_index(keynr));
 }
 
 /**********************************************************************
@@ -3912,7 +3967,7 @@ convert_search_mode_to_innobase(
 		  innobase_mysql_cmp() to get PAGE_CUR_LE_OR_EXTENDS to
 		  work correctly. */
 
-		default:			assert(0);
+		default:			ut_error;
 	}
 
 	return(0);
@@ -4008,20 +4063,21 @@ ha_innobase::index_read(
 	necessarily prebuilt->index, but can also be the clustered index */
 
 	if (prebuilt->sql_stat_start) {
-		build_template(prebuilt, user_thd, table,
-							ROW_MYSQL_REC_FIELDS);
+		build_template(prebuilt, user_thd, table, ROW_MYSQL_REC_FIELDS);
 	}
 
 	if (key_ptr) {
 		/* Convert the search key value to InnoDB format into
 		prebuilt->search_tuple */
 
-		row_sel_convert_mysql_key_to_innobase(prebuilt->search_tuple,
-					(byte*) key_val_buff,
-					(ulint)upd_and_key_val_buff_len,
-					index,
-					(byte*) key_ptr,
-					(ulint) key_len, prebuilt->trx);
+		row_sel_convert_mysql_key_to_innobase(
+			prebuilt->search_tuple,
+			(byte*) key_val_buff,
+			(ulint)upd_and_key_val_buff_len,
+			index,
+			(byte*) key_ptr,
+			(ulint) key_len,
+			prebuilt->trx);
 	} else {
 		/* We position the cursor to the last or the first entry
 		in the index */
@@ -4034,10 +4090,12 @@ ha_innobase::index_read(
 	match_mode = 0;
 
 	if (find_flag == HA_READ_KEY_EXACT) {
+
 		match_mode = ROW_SEL_EXACT;
 
 	} else if (find_flag == HA_READ_PREFIX
-				|| find_flag == HA_READ_PREFIX_LAST) {
+		   || find_flag == HA_READ_PREFIX_LAST) {
+
 		match_mode = ROW_SEL_EXACT_PREFIX;
 	}
 
@@ -4050,18 +4108,24 @@ ha_innobase::index_read(
 	innodb_srv_conc_exit_innodb(prebuilt->trx);
 
 	if (ret == DB_SUCCESS) {
+
 		error = 0;
 		table->status = 0;
 
 	} else if (ret == DB_RECORD_NOT_FOUND) {
+
 		error = HA_ERR_KEY_NOT_FOUND;
 		table->status = STATUS_NOT_FOUND;
 
 	} else if (ret == DB_END_OF_INDEX) {
+
 		error = HA_ERR_KEY_NOT_FOUND;
 		table->status = STATUS_NOT_FOUND;
+
 	} else {
+
 		error = convert_error_code_to_mysql((int) ret, user_thd);
+
 		table->status = STATUS_NOT_FOUND;
 	}
 
@@ -4097,8 +4161,9 @@ ha_innobase::change_active_index(
 			index, even if it was internally generated by
 			InnoDB */
 {
-	KEY*		key=0;
+	KEY*		key = 0;
 	ha_statistic_increment(&SSV::ha_read_key_count);
+
 	DBUG_ENTER("change_active_index");
 
 	ut_ad(user_thd == current_thd);
@@ -4107,13 +4172,15 @@ ha_innobase::change_active_index(
 	active_index = keynr;
 
 	if (keynr != MAX_KEY && table->s->keys > 0) {
+
 		key = table->key_info + active_index;
 
-		prebuilt->index = dict_table_get_index_noninline(
+		prebuilt->index = dict_table_get_index_on_name(
 			prebuilt->table, key->name);
+
 	} else {
 		prebuilt->index = dict_table_get_first_index_noninline(
-							   prebuilt->table);
+			prebuilt->table);
 	}
 
 	if (!prebuilt->index) {
@@ -4126,7 +4193,7 @@ ha_innobase::change_active_index(
 		DBUG_RETURN(1);
 	}
 
-	assert(prebuilt->search_tuple != 0);
+	ut_a(prebuilt->search_tuple != 0);
 
 	dtuple_set_n_fields(prebuilt->search_tuple, prebuilt->index->n_fields);
 
@@ -4194,8 +4261,9 @@ ha_innobase::general_fetch(
 
 	innodb_srv_conc_enter_innodb(prebuilt->trx);
 
-	ret = row_search_for_mysql((byte*)buf, 0, prebuilt, match_mode,
-								direction);
+	ret = row_search_for_mysql(
+		(byte*)buf, 0, prebuilt, match_mode, direction);
+
 	innodb_srv_conc_exit_innodb(prebuilt->trx);
 
 	if (ret == DB_SUCCESS) {
@@ -4328,7 +4396,7 @@ int
 ha_innobase::rnd_init(
 /*==================*/
 			/* out: 0 or error number */
-	bool	scan)	/* in: ???????? */
+	bool	scan)	/* in: TRUE if table/index scan FALSE otherwise */
 {
 	int	err;
 
@@ -4382,9 +4450,11 @@ ha_innobase::rnd_next(
 
 	if (start_of_scan) {
 		error = index_first(buf);
+
 		if (error == HA_ERR_KEY_NOT_FOUND) {
 			error = HA_ERR_END_OF_FILE;
 		}
+
 		start_of_scan = 0;
 	} else {
 		error = general_fetch(buf, ROW_SEL_NEXT, 0);
@@ -4743,6 +4813,7 @@ create_clustered_index_when_no_primary(
 
 	index = dict_mem_index_create((char*) table_name,
 		(char*) "GEN_CLUST_INDEX", 0, DICT_CLUSTERED, 0);
+
 	error = row_create_index_for_mysql(index, trx, NULL);
 
 	error = convert_error_code_to_mysql(error, NULL);
@@ -5076,7 +5147,7 @@ ha_innobase::delete_table(
 
 	name_len = strlen(name);
 
-	assert(name_len < 1000);
+	ut_a(name_len < 1000);
 
 	/* Strangely, MySQL passes the table name without the '.frm'
 	extension, in contrast to ::create */
@@ -5186,7 +5257,90 @@ innobase_drop_database(
 	return;
 #endif
 }
+/*************************************************************************
+Renames an InnoDB table. */
+static
+int
+innobase_rename_table(
+/*==================*/
+				/* out: 0 or error code */
+	trx_t*		trx,	/* in: transaction */
+	const char*	from,	/* in: old name of the table */
+	const char*	to,	/* in: new name of the table */
+	ibool		commit_flag) /* in: if TRUE then commit */
+{
+	int	error;
+	char*	norm_to;
+	char*	norm_from;
 
+	if (lower_case_table_names) {
+		srv_lower_case_table_names = TRUE;
+	} else {
+		srv_lower_case_table_names = FALSE;
+	}
+
+	// Magic number 64 arbitrary
+	norm_to = (char*) my_malloc(strlen(to) + 64, MYF(0));
+	norm_from = (char*) my_malloc(strlen(from) + 64, MYF(0));
+
+	if (*to != TEMP_TABLE_PREFIX) {
+		normalize_table_name(norm_to, to);
+	} else {
+		strcpy(norm_to, to);
+	}
+
+	if (*from != TEMP_TABLE_PREFIX) {
+		normalize_table_name(norm_from, from);
+	} else {
+		strcpy(norm_from, from);
+	}
+
+	/* Serialize data dictionary operations with dictionary mutex:
+	no deadlocks can occur then in these operations */
+
+	row_mysql_lock_data_dictionary(trx);
+
+	error = row_rename_table_for_mysql(
+		norm_from, norm_to, trx, commit_flag);
+
+	if (error != DB_SUCCESS) {
+		FILE* ef = dict_foreign_err_file;
+
+		fputs("InnoDB: Rename from old name ", ef);
+
+		if (*norm_from != TEMP_TABLE_PREFIX) {
+			ut_print_name(ef, trx, TRUE, norm_from);
+		} else {
+			fputs(norm_from, ef);
+		}
+
+		fputs(" to ", ef);
+
+		if (*norm_to != TEMP_TABLE_PREFIX) {
+			ut_print_name(ef, trx, TRUE, norm_to);
+		} else {
+			fputs(norm_to, ef);
+		}
+
+		fputs(" failed!\n", ef);
+	}
+
+	row_mysql_unlock_data_dictionary(trx);
+
+	/* Flush the log to reduce probability that the .frm files and
+	the InnoDB data dictionary get out-of-sync if the user runs
+	with innodb_flush_log_at_trx_commit = 0 */
+
+	log_buffer_flush_to_disk();
+
+	/* Tell the InnoDB server that there might be work for
+	utility threads: */
+
+	my_free(norm_to, MYF(0));
+	my_free(norm_from, MYF(0));
+
+	return error;
+}
 /*************************************************************************
 Renames an InnoDB table. */
 
@@ -5197,13 +5351,9 @@ ha_innobase::rename_table(
 	const char*	from,	/* in: old name of the table */
 	const char*	to)	/* in: new name of the table */
 {
-	ulint	name_len1;
-	ulint	name_len2;
+	trx_t*	trx;
 	int	error;
 	trx_t*	parent_trx;
-	trx_t*	trx;
-	char	norm_from[1000];
-	char	norm_to[1000];
 
 	DBUG_ENTER("ha_innobase::rename_table");
 
@@ -5217,12 +5367,6 @@ ha_innobase::rename_table(
 
 	trx_search_latch_release_if_reserved(parent_trx);
 
-	if (lower_case_table_names) {
-		srv_lower_case_table_names = TRUE;
-	} else {
-		srv_lower_case_table_names = FALSE;
-	}
-
 	trx = trx_allocate_for_mysql();
 	trx->mysql_thd = current_thd;
 	trx->mysql_query_str = &((*current_thd).query);
@@ -5231,24 +5375,7 @@ ha_innobase::rename_table(
 		trx->check_foreigns = FALSE;
 	}
 
-	name_len1 = strlen(from);
-	name_len2 = strlen(to);
-
-	assert(name_len1 < 1000);
-	assert(name_len2 < 1000);
-
-	normalize_table_name(norm_from, from);
-	normalize_table_name(norm_to, to);
-
-	/* Rename the table in InnoDB */
-
-	error = row_rename_table_for_mysql(norm_from, norm_to, trx);
-
-	/* Flush the log to reduce probability that the .frm files and
-	the InnoDB data dictionary get out-of-sync if the user runs
-	with innodb_flush_log_at_trx_commit = 0 */
-
-	log_buffer_flush_to_disk();
+	error = innobase_rename_table(trx, from, to, TRUE);
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
@@ -5308,7 +5435,10 @@ ha_innobase::records_in_range(
 
 	key = table->key_info + active_index;
 
-	index = dict_table_get_index_noninline(prebuilt->table, key->name);
+	index = dict_table_get_index_on_name(prebuilt->table, key->name);
+
+	/* MySQL knows about this index and so we must be able to find it.*/
+	ut_a(index);
 
 	range_start = dtuple_create_for_mysql(&heap1, key->key_parts);
 	dict_index_copy_types(range_start, index, key->key_parts);
@@ -5391,8 +5521,11 @@ ha_innobase::estimate_rows_upper_bound(void)
 
 	index = dict_table_get_first_index_noninline(prebuilt->table);
 
-	local_data_file_length = ((ulonglong) index->stat_n_leaf_pages)
-							* UNIV_PAGE_SIZE;
+	ut_a(index->stat_n_leaf_pages > 0);
+
+	local_data_file_length =
+		((ulonglong) index->stat_n_leaf_pages) * UNIV_PAGE_SIZE;
+
 
 	/* Calculate a minimum length for a clustered index record and from
 	that an upper bound for the number of rows. Since we only calculate
@@ -5642,10 +5775,18 @@ ha_innobase::info(
 	}
 
 	if (flag & HA_STATUS_ERRKEY) {
+		dict_index_t* err_index;
+
 		ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
 
-		errkey = (unsigned int) row_get_mysql_key_number_for_index(
-			(dict_index_t*) trx_get_error_info(prebuilt->trx));
+		err_index = (dict_index_t*)trx_get_error_info(prebuilt->trx);
+
+		if (err_index) {
+			errkey = (unsigned int)
+				row_get_mysql_key_number_for_index(err_index);
+		} else {
+			errkey = (unsigned int) prebuilt->trx->error_key_num;
+		}
 	}
 
 	if (flag & HA_STATUS_AUTO && table->found_next_number_field) {
@@ -5677,7 +5818,7 @@ ha_innobase::info(
 
 	prebuilt->trx->op_info = (char*)"";
 
-  	DBUG_RETURN(0);
+	DBUG_RETURN(0);
 }
 
 /**************************************************************************
@@ -5948,7 +6089,7 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
           {
             length=7;
             tmp_buff= "CASCADE";
-          }	
+          }
           else if (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
           {
             length=8;
@@ -5966,8 +6107,8 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
           }
           f_key_info.delete_method= make_lex_string(thd, f_key_info.delete_method,
                                                     tmp_buff, length, 1);
- 
- 
+
+
           if (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)
           {
             length=7;
@@ -6050,7 +6191,7 @@ ha_innobase::referenced_by_foreign_key(void)
 /*========================================*/
 			/* out: > 0 if referenced by a FOREIGN KEY */
 {
-	if (dict_table_referenced_by_foreign_key(prebuilt->table)) {
+	if (dict_table_is_referenced_by_foreign_key(prebuilt->table)) {
 
 		return(1);
 	}
@@ -6472,7 +6613,7 @@ innodb_export_status()
 		srv_export_innodb_status();
 	}
 
-	return 0;
+	return(0);
 }
 
 /****************************************************************************
@@ -6679,7 +6820,7 @@ bool innobase_show_status(handlerton *hton, THD* thd,
 	case HA_ENGINE_MUTEX:
 		return innodb_mutex_show_status(hton, thd, stat_print);
 	default:
-		return FALSE;
+		return(FALSE);
 	}
 }
 
@@ -6694,7 +6835,7 @@ static mysql_byte* innobase_get_key(INNOBASE_SHARE* share, uint* length,
 {
 	*length=share->table_name_length;
 
-	return (mysql_byte*) share->table_name;
+	return((mysql_byte*) share->table_name);
 }
 
 static INNOBASE_SHARE* get_share(const char* table_name)
@@ -6719,7 +6860,7 @@ static INNOBASE_SHARE* get_share(const char* table_name)
 			pthread_mutex_unlock(&innobase_share_mutex);
 			my_free((gptr) share,0);
 
-			return 0;
+			return(0);
 		}
 
 		thr_lock_init(&share->lock);
@@ -6729,7 +6870,7 @@ static INNOBASE_SHARE* get_share(const char* table_name)
 	share->use_count++;
 	pthread_mutex_unlock(&innobase_share_mutex);
 
-	return share;
+	return(share);
 }
 
 static void free_share(INNOBASE_SHARE* share)
@@ -7178,7 +7319,7 @@ ha_innobase::get_error_message(int error, String *buf)
 	buf->copy(trx->detailed_error, strlen(trx->detailed_error),
 		system_charset_info);
 
-	return FALSE;
+	return(FALSE);
 }
 
 /***********************************************************************
@@ -7384,6 +7525,7 @@ is INSERT ON DUPLICATE KEY UPDATE.
 NOTE that storage/innobase/row/row0ins.c must contain the
 prototype for this function ! */
 extern "C"
+extern "C"
 ibool
 innobase_query_is_update(void)
 /*==========================*/
@@ -7504,7 +7646,7 @@ innobase_xa_prepare(
 
 	srv_active_wake_master_thread();
 
-	return error;
+	return(error);
 }
 
 /***********************************************************************
@@ -7549,6 +7691,976 @@ innobase_commit_by_xid(
 	} else {
 		return(XAER_NOTA);
 	}
+}
+
+/***********************************************************************
+This function checks that index keys are sensible. */
+static
+int
+innobase_check_index_keys(
+/*======================*/
+					/* out: 0 or error number */
+	TABLE*		table,		/* in: MySQL table */
+	dict_table_t* 	innodb_table,	/* in: InnoDB table */
+	trx_t*		trx,		/* in: transaction */
+	KEY*		key_info,	/* in: Indexes to be created */
+	ulint		num_of_keys)	/* in: Number of indexes to
+					be created */
+{
+	Field*		field;
+	ulint		key_num;
+	int		error = DB_SUCCESS;
+	ibool		is_unsigned;
+
+	ut_ad(table && innodb_table && trx && key_info && num_of_keys);
+
+	for (key_num = 0; key_num < num_of_keys; key_num++) {
+		KEY*		key;
+
+		key = &(key_info[key_num]);
+
+		/* Check that the same index name does not appear
+		twice in indexes to be created. */
+
+		for (ulint i = 0; i < key_num; i++) {
+			KEY*		key2;
+
+			key2 = &key_info[i];
+
+			if (0 == strcmp(key->name, key2->name)) {
+				ut_print_timestamp(stderr);
+
+				fputs("  InnoDB: Error: index ", stderr);
+				ut_print_name(stderr, trx, FALSE, key->name);
+				fputs(" appears twice in create index\n",
+								stderr);
+
+				error = ER_WRONG_NAME_FOR_INDEX;
+
+				return(error);
+			}
+		}
+
+		/* Check that MySQL does not try to create a column prefix index
+		field on an inappropriate data type and that the same colum does
+		not appear twice in the index. */
+
+		for (ulint i = 0; i < key->key_parts; i++) {
+			KEY_PART_INFO*	key_part1;
+			ulint		col_type;	/* Column type */
+
+			key_part1 = key->key_part + i;
+
+			field = key_part1->field;
+
+			col_type = get_innobase_type_from_mysql_type(
+					&is_unsigned, field);
+
+			if (DATA_BLOB == col_type
+			|| (key_part1->length < field->pack_length()
+				&& field->type() != MYSQL_TYPE_VARCHAR)
+			|| (field->type() == MYSQL_TYPE_VARCHAR
+				&& key_part1->length < field->pack_length()
+			          - ((Field_varstring*)field)->length_bytes)) {
+
+				if (col_type == DATA_INT
+				    || col_type == DATA_FLOAT
+				    || col_type == DATA_DOUBLE
+				    || col_type == DATA_DECIMAL) {
+					fprintf(stderr,
+"InnoDB: error: MySQL is trying to create a column prefix index field\n"
+"InnoDB: on an inappropriate data type. Table name %s, column name %s.\n",
+						innodb_table->name,
+						field->field_name);
+
+					error = ER_WRONG_KEY_COLUMN;
+				}
+			}
+
+			for (ulint j = 0; j < i; j++) {
+				KEY_PART_INFO*	key_part2;
+
+				key_part2 = key->key_part + j;
+
+				if (0 == strcmp(
+					key_part1->field->field_name,
+					key_part2->field->field_name)) {
+
+					ut_print_timestamp(stderr);
+
+					fputs("  InnoDB: Error: column ",
+								stderr);
+
+					ut_print_name(stderr, trx, FALSE,
+					key_part1->field->field_name);
+
+					fputs(" appears twice in ", stderr);
+
+					ut_print_name(stderr, trx, FALSE,
+								key->name);
+					fputs("\n"
+"  InnoDB: This is not allowed in InnoDB.\n",
+						stderr);
+
+					error = ER_WRONG_KEY_COLUMN;
+
+					return(error);
+				}
+			}
+		}
+
+	}
+
+	return(error);
+}
+
+/***********************************************************************
+Create index field definition for key part */
+static
+merge_index_field_t*
+innobase_create_index_field_def(
+/*============================*/
+					/* out: Index field definition for
+					this key part */
+	KEY_PART_INFO*	key_part,	/* in: Key definition */
+	mem_heap_t*	heap)		/* in: heap where memory is allocated */
+{
+	Field*			field;
+	merge_index_field_t*	index_field;
+	ibool			is_unsigned;
+	ulint			col_type;
+	ulint			len;
+
+	DBUG_ENTER("innobase_create_index_field_def");
+
+	ut_a(key_part && heap);
+
+	index_field = (merge_index_field_t*) mem_heap_alloc_noninline(
+						heap, 
+						sizeof(merge_index_field_t));
+
+	ut_a(index_field);
+
+	field = key_part->field;
+	ut_a(field);
+
+	col_type = get_innobase_type_from_mysql_type(&is_unsigned, field);
+
+	index_field->col_type = col_type;
+
+	if (DATA_BLOB == col_type
+	|| (key_part->length < field->pack_length()
+		&& field->type() != MYSQL_TYPE_VARCHAR)
+	|| (field->type() == MYSQL_TYPE_VARCHAR
+		&& key_part->length < field->pack_length()
+			- ((Field_varstring*)field)->length_bytes)) {
+
+		index_field->prefix_len = key_part->length;
+	} else {
+		index_field->prefix_len = 0;
+	}
+
+	len = strlen(field->field_name) + 1;
+	index_field->field_name = (char *)mem_heap_alloc_noninline(heap, len);
+	memcpy(index_field->field_name, field->field_name, len);
+
+	DBUG_RETURN(index_field);
+}
+
+/***********************************************************************
+Create index definition for key */
+static
+merge_index_def_t*
+innobase_create_index_def(
+/*======================*/
+				/* out: Index definition */
+	KEY*		key,	/* in: key definition */
+	mem_heap_t*	heap)	/* in: heap where memory is allocated */
+{
+	ulint			len;
+	merge_index_def_t*	index;
+	ulint			n_fields = key->key_parts;
+
+	DBUG_ENTER("innobase_create_index_def");
+
+	ut_a(key && heap);
+
+	index = (merge_index_def_t*) mem_heap_alloc_noninline(
+			heap, sizeof(merge_index_def_t));
+
+	index->fields = (merge_index_field_t**) mem_heap_alloc_noninline(
+			heap, sizeof(merge_index_field_t*) * n_fields);
+
+	index->ind_type = 0;
+	index->n_fields = n_fields;
+	len = strlen(key->name) + 2;
+	index->name = (char *)mem_heap_alloc_noninline(heap, len);
+
+	--len;
+
+	if (my_strcasecmp(system_charset_info, key->name, "PRIMARY")) {
+		*index->name = TEMP_TABLE_PREFIX;
+		memcpy(index->name + 1, key->name, len);
+	} else {
+		memcpy(index->name, key->name, len);
+	}
+
+	if (key->flags & HA_NOSAME) {
+		index->ind_type = index->ind_type | DICT_UNIQUE;
+	}
+
+	if (!my_strcasecmp(system_charset_info, key->name, "PRIMARY")) {
+		index->ind_type = index->ind_type | DICT_CLUSTERED;
+	}
+
+	for (ulint i = 0; i < n_fields; i++) {
+		KEY_PART_INFO*		key_part;
+
+		key_part = key->key_part + i;
+		index->fields[i] = innobase_create_index_field_def(
+					key_part, heap);
+	}
+
+	DBUG_RETURN(index);
+}
+
+/***********************************************************************
+Copy index field definition */
+static
+merge_index_field_t*
+innobase_copy_index_field_def(
+/*==========================*/
+				/* out: Index field definition for
+				this index */
+	dict_field_t*	field,	/* in: Index definition to copy*/
+	mem_heap_t*	heap)	/* in: heap where memory is allocated */
+{
+	merge_index_field_t*	index_field;
+	ulint			len;
+
+	DBUG_ENTER("innobase_copy_index_field_def");
+
+	ut_a(field && heap);
+
+	index_field = (merge_index_field_t*) mem_heap_alloc_noninline(
+						heap, 
+						sizeof(merge_index_field_t));
+
+	index_field->col_type = (field->col->prtype & 0xFFUL);
+	len = strlen(field->name) + 1;
+	index_field->field_name = (char *)mem_heap_alloc_noninline(heap, len);
+	memcpy(index_field->field_name, field->name, len);
+	index_field->prefix_len = field->prefix_len;
+
+	DBUG_RETURN(index_field);
+}
+
+/***********************************************************************
+Copy index definition for the index */
+static
+merge_index_def_t*
+innobase_copy_index_def(
+/*====================*/
+				/* out: Index definition */
+	dict_index_t*	index,	/* in: index definition to copy */
+	mem_heap_t*	heap)	/* in: heap where memory is allocated */
+{
+	merge_index_def_t*	new_index;
+	ulint			n_fields;
+	ulint			i;
+	ulint			len;
+
+	DBUG_ENTER("innobase_copy_index_def");
+
+	ut_a(index && heap);
+
+	if (!(index->type & DICT_CLUSTERED)) {
+		/* Note that from the secondary index we take only
+		those fields that user defined to be in the index.
+		In the internal representation more colums were
+		added and those colums are not copied.*/
+
+		n_fields = index->n_user_defined_cols;
+	} else {
+		n_fields = index->n_fields;
+	}
+
+	new_index = (merge_index_def_t*) mem_heap_alloc_noninline(
+					heap, sizeof(merge_index_def_t));
+
+	new_index->fields = (merge_index_field_t**) mem_heap_alloc_noninline(
+				heap, sizeof(merge_index_field_t*) * n_fields);
+
+	new_index->ind_type = index->type;
+	new_index->n_fields = n_fields;
+	len = strlen(index->name) + 1;
+	new_index->name = (char *)mem_heap_alloc_noninline(heap, len);
+	memcpy(new_index->name, index->name, len);
+
+	for (i = 0; i < n_fields; i++) {
+		dict_field_t* field = ((index->fields) + i);
+
+		new_index->fields[i] = innobase_copy_index_field_def(
+								field, heap);
+	}
+
+	DBUG_RETURN(new_index);
+}
+
+/***********************************************************************
+Create an index table where indexes are ordered as follows:
+
+IF a primary key is defined for the table THEN
+
+	1) New primary key
+	2) Original unique secondary indexes
+	3) New unique secondary indexes
+	4) Original secondary indexes
+	5) New secondary indexes
+
+ELSE
+
+	1) All new indexes in the order they arrive from MySQL
+
+ENDIF
+
+*/
+static
+merge_index_def_t**
+innobase_create_key_def(
+/*====================*/
+					/* out: key definitions or NULL */
+	trx_t*		trx,		/* in: trx */
+	dict_table_t*	table,		/* in: table definition */
+	mem_heap_t*	heap,		/* in: heap where space for key
+					definitions are allocated */
+	KEY*		key_info,	/* in: Indexes to be created */
+	ulint*		n_keys)		/* in/out: Number of indexes to
+					be created */
+{
+	ulint		n_indexes;	/* Number of indexes */
+	merge_index_def_t** indexdef;	/* Index definition */
+	merge_index_def_t** indexdefs;	/* Index definitions */
+
+	DBUG_ENTER("innobase_create_key_def");
+
+	ut_a(trx && table && heap && key_info && n_keys && *n_keys);
+
+	/* We do not need to count the original primary key */
+	n_indexes = *n_keys + UT_LIST_GET_LEN(table->indexes) - 1;
+
+	indexdef = indexdefs = (merge_index_def_t**) mem_heap_alloc_noninline(
+			heap, sizeof(merge_index_def_t*) * n_indexes);
+
+	/* Primary key if defined is always the first index defined for
+	the table */
+
+	if (!my_strcasecmp(system_charset_info, key_info->name, "PRIMARY")) {
+		dict_index_t*   index;
+
+		/* Create the PRIMARY key index definition */
+		*indexdef = innobase_create_index_def(key_info, heap);
+
+		row_mysql_lock_data_dictionary(trx);
+
+		/* Skip the clustered index */
+
+		index = dict_table_get_next_index_noninline(
+				dict_table_get_first_index_noninline(table));
+
+		/* Copy the definitions of all the secondary indexes */
+
+		++indexdef; /* Since we've copied the primary key info */
+		*n_keys = 1;
+
+		while (index) {
+
+			ut_a(!(index->type & DICT_CLUSTERED));
+
+			*indexdef = innobase_copy_index_def(index, heap);
+			index = dict_table_get_next_index_noninline(index);
+
+			++*n_keys;
+			++indexdef;
+		}
+
+		row_mysql_unlock_data_dictionary(trx);
+
+	} else {
+		ulint		i = 0;
+
+		/* Create definitions for new unique secondary indexes */
+
+		for (KEY* key = key_info; i < *n_keys; ++key, ++i, ++indexdef) {
+			*indexdef = innobase_create_index_def(key, heap);
+		}
+	}
+
+	DBUG_RETURN(indexdefs);
+}
+
+/***********************************************************************
+Create a temporary tablename using query id, thread id, and id */
+char*
+innobase_create_temporary_tablename(
+/*================================*/
+					/* out: New temporary tablename */
+	THD*		thd,		/* in: User thread */
+	const char*     table_name,	/* in: Old table name */
+	ulint		id)		/* in: id */
+{
+	char*	new_name;
+	ulint	old_len;
+	ulint	new_len;
+
+        old_len = strlen(table_name);
+	new_len = old_len + 1 + 64;
+
+	new_name = (char *)mem_alloc_noninline(new_len);
+
+	sprintf(new_name,"%c%s-%lx_%lx",
+		TEMP_TABLE_PREFIX, table_name, thd->thread_id, id);
+
+	fprintf(stderr, "NEW TABLE NAME: %s\n", new_name);
+
+	return(new_name);
+}
+
+/***********************************************************************
+Add a new index to a table */
+
+int
+ha_innobase::add_index(
+/*===================*/
+				/* out: 0 or error number */
+	TABLE*	table,		/* in: Table where indexes are created */
+	KEY*	key_info,	/* in: Indexes to be created */
+	uint	num_of_keys)	/* in: Number of indexes to be created */
+{
+	dict_index_t**	index;		/* Index to be created */
+	dict_table_t*	innodb_table;	/* InnoDB table in dictionary */
+	dict_table_t*	indexed_table;	/* Table where indexes are created */
+	merge_index_def_t** index_defs; /* Index definitions */
+	mem_heap_t*     heap;		/* Heap for index definitions */
+	trx_t*		trx;		/* Transaction */
+	trx_t*		parent_trx;
+	ulint		num_of_idx;
+	ulint		num_created;
+	ibool		dict_locked = FALSE;
+	ibool		new_primary = FALSE;
+	ibool		new_unique  = FALSE;
+	ulint		error = DB_SUCCESS;/* DB_SUCCESS or error code */
+
+	DBUG_ENTER("add_index");
+	ut_a(table && key_info && num_of_keys);
+
+	index = NULL;
+
+	parent_trx = check_trx_exists(ht, current_thd);
+	trx_search_latch_release_if_reserved(parent_trx);
+
+	trx = parent_trx;
+	ut_a(trx);
+
+	trx_start_if_not_started_noninline(trx);
+
+	trx->mysql_thd = current_thd;
+	trx->mysql_query_str = &((*current_thd).query);
+
+	if (current_thd->options & OPTION_NO_FOREIGN_KEY_CHECKS) {
+		trx->check_foreigns = FALSE;
+	}
+
+	if (current_thd->options & OPTION_RELAXED_UNIQUE_CHECKS) {
+		trx->check_unique_secondary = FALSE;
+	}
+
+	indexed_table = dict_table_get(prebuilt->table->name, FALSE);
+	innodb_table = indexed_table;
+
+	/* Check that index keys are sensible */
+
+	error = innobase_check_index_keys(
+		table, innodb_table, trx, key_info, num_of_keys);
+
+	if (error != DB_SUCCESS) {
+		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+
+		error = convert_error_code_to_mysql(error, current_thd);
+
+		DBUG_RETURN((int)error);
+	}
+
+	/* Create table containing all indexes to be built in this
+	alter table add index so that they are in the correct order
+	in the table. */
+
+	num_of_idx = num_of_keys;
+
+	heap = mem_heap_create_noninline(1024);
+
+	index_defs = innobase_create_key_def(
+		trx, innodb_table, heap, key_info, &num_of_idx);
+
+	/* If a new primary key is defined for the table we need
+	to drop all original secondary indexes from the table. These
+	indexes will be rebuilt below. */
+
+	if (index_defs[0]->ind_type & DICT_CLUSTERED) {
+		char*	new_table_name;
+
+		new_primary = TRUE;
+
+		new_table_name = innobase_create_temporary_tablename(
+			current_thd, (const char *)innodb_table->name, 17431);
+
+		row_mysql_lock_data_dictionary(trx);
+
+		/* Clone table and write UNDO log record */
+		indexed_table = row_merge_create_temporary_table(
+			new_table_name, innodb_table, trx, &error);
+
+		row_mysql_unlock_data_dictionary(trx);
+
+		mem_free_noninline(new_table_name);
+
+		if (error != DB_SUCCESS) {
+			mem_heap_free_noninline(heap);
+			trx_general_rollback_for_mysql(trx, FALSE, NULL);
+			error = convert_error_code_to_mysql(error, current_thd);
+
+			DBUG_RETURN((int)error);
+		}
+	} else if (!trx->dict_redo_list) {
+		dict_redo_create_list(trx);
+
+		ut_a(!trx->sync_cb);
+		trx->sync_cb = dict_rename_indexes;
+	}
+
+	/* Allocate memory for dictionary index definitions */
+
+	index = (dict_index_t**) mem_alloc_noninline(
+		sizeof(dict_index_t*) * num_of_idx);
+
+	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
+	or lock waits can happen in it during an index create operation.
+	Drop table etc. do this latching in row0mysql.c. */
+
+	row_mysql_lock_data_dictionary(trx);
+
+	num_created = 0;
+	dict_locked = TRUE;
+
+	/* Create the indexes in SYS_INDEXES and load into dictionary.*/
+
+	for (ulint i = 0; i < num_of_idx && error == DB_SUCCESS; i++) {
+
+		error = row_merge_create_index(
+			trx, &index[i], indexed_table, index_defs[i]);
+
+		if (index_defs[i]->ind_type & DICT_UNIQUE) {
+
+			new_unique = TRUE;
+		}
+
+		num_created++;
+	}
+
+	if (error == DB_SUCCESS) {
+		/* Raise version number of the table to track this table's
+		definition changes.*/
+
+		indexed_table->version_number++;
+
+		row_mysql_unlock_data_dictionary(trx);
+		dict_locked = FALSE;
+
+		/* Free index definition table */
+		mem_heap_free_noninline(heap);
+		heap = 0;
+
+		ut_a(trx->n_active_thrs == 0);
+		ut_a(UT_LIST_GET_LEN(trx->signals) == 0);
+
+		error = row_lock_table_for_merge(trx, innodb_table, LOCK_X);
+	}
+
+	/* Set an exclusive table lock for the new table if a primary
+	key is to be built.*/
+	if (error == DB_SUCCESS && new_primary) {
+
+		ut_ad(indexed_table != innodb_table);
+
+		error = row_lock_table_for_merge(trx, indexed_table, LOCK_X);
+	}
+
+	if (error == DB_SUCCESS) {
+
+		/* Read clustered index of the table and build indexes
+		based on this information using temporary files and merge
+		sort.*/
+		error = row_build_index_for_mysql(
+			trx, innodb_table, indexed_table, index, new_primary,
+			num_of_idx);
+	}
+
+#ifdef UNIV_DEBUG
+	/* TODO: At the moment we can't handle the following statement
+	in our debugging code below:
+
+	alter table t drop index b, add index (b);
+
+	The fix will have to parse the SQL and note that the index
+	being added has the same name as the the one being dropped and
+	ignore that in the dup index check.*/
+	//dict_table_check_for_dup_indexes(prebuilt->table);
+#endif
+
+	/* Free index definition table */
+	if (heap) {
+		mem_heap_free_noninline(heap);
+		heap = 0;
+	}
+
+	if (dict_locked) {
+		row_mysql_unlock_data_dictionary(trx);
+	}
+
+	/* After a error, remove all those index definitions from the
+	dictionary which were defined.*/
+
+	if (error != DB_SUCCESS) {
+		if (error == DB_DUPLICATE_KEY) {
+			prebuilt->trx->error_info = NULL;
+			prebuilt->trx->error_key_num = trx->error_key_num;
+		}
+
+		row_remove_indexes_for_mysql(
+			trx, indexed_table, index, num_created);
+	}
+
+	if (index) {
+		mem_free_noninline(index);
+		index = 0;
+	}
+
+	/* If a new primary key was defined for the table and
+	there was no error at this point, we can now rename the
+	old table as a temporary table, rename the new temporary
+	table as a old table and drop the old table. */
+
+	if (new_primary == TRUE && error == DB_SUCCESS) {
+		char*	old_name;
+		char*	tmp_table_name;
+
+		old_name = (char *)mem_alloc_noninline(
+			strlen(innodb_table->name) + 1);
+
+		strcpy(old_name, innodb_table->name);
+
+		tmp_table_name = innobase_create_temporary_tablename(
+			current_thd, (const char *)innodb_table->name, 232125);
+
+		trx_start_if_not_started_noninline(trx);
+
+		/* Write entry for UNDO */
+		error = row_undo_report_rename_table_dict_operation(
+			trx, old_name, indexed_table->name, tmp_table_name);
+
+		if (error == DB_SUCCESS) {
+			log_buffer_flush_to_disk();
+
+			/* Set the commit flag to FALSE, we will commit the
+			transaction ourselves, required for UNDO */
+			error = innobase_rename_table(
+				trx, innodb_table->name, tmp_table_name, FALSE);
+
+			if (error == DB_SUCCESS) {
+				error = innobase_rename_table(
+					trx, indexed_table->name, old_name,
+					FALSE);
+			}
+
+			row_prebuilt_free(prebuilt);
+			prebuilt = row_create_prebuilt(indexed_table);
+
+			row_mysql_lock_data_dictionary(trx);
+			prebuilt->table->n_mysql_handles_opened++;
+			row_mysql_unlock_data_dictionary(trx);
+
+			/* Drop the old table iff there are no views that
+			refer to the old table. If there are views that refer
+			to the old table then we will drop the table when
+			we free the prebuilts and there are no more references
+			to it. */
+			error = row_merge_drop_table(trx, innodb_table);
+		}
+
+		mem_free_noninline(old_name);
+		mem_free_noninline(tmp_table_name);
+	}
+
+	/* There might be work for utility threads.*/
+	srv_active_wake_master_thread();
+
+	error = convert_error_code_to_mysql(error, current_thd);
+
+	DBUG_RETURN((int)error);
+}
+
+/***********************************************************************
+Drop a index from a table */
+
+int
+ha_innobase::prepare_drop_index(
+/*============================*/
+				/* out: 0 or error number */
+	TABLE*	table,		/* in: Table where indexes are dropped */
+	uint*	key_num,	/* in: Key nums to be dropped */
+	uint	num_of_keys)	/* in: Number of keys to be dropped */
+{
+	trx_t*		trx;
+	THD*		thd;
+	ulint		error = DB_SUCCESS;
+
+	DBUG_ENTER("prepare_drop_index");
+	ut_ad(table && key_num && num_of_keys);
+
+	thd = current_thd;
+
+	/* Create a new transaction for prepare index drop if it
+	does not exists */
+
+	trx = check_trx_exists(ht, current_thd);
+	trx_search_latch_release_if_reserved(trx);
+
+	if (current_thd->options & OPTION_NO_FOREIGN_KEY_CHECKS) {
+		trx->check_foreigns = FALSE;
+	}
+
+	if (current_thd->options & OPTION_RELAXED_UNIQUE_CHECKS) {
+		trx->check_unique_secondary = FALSE;
+	}
+
+	/* Test and mark all the indexes to be dropped */
+
+	row_mysql_lock_data_dictionary(trx);
+
+	for (ulint n_key = 0; n_key < num_of_keys; n_key++) {
+		KEY*		key;
+		dict_index_t*	index;
+
+		key = table->key_info + key_num[n_key];
+		ut_a(key);
+
+		index = NULL;
+
+		if (key) {
+			index = dict_table_get_index_on_name_and_min_id(
+							prebuilt->table,
+							key->name);
+		}
+
+		if (!index) {
+			sql_print_error("InnoDB could not find key n:o %u "
+				"with name %s from dict cache for table %s",
+			       key_num[n_key], key ? key->name : "NULL",
+			       prebuilt->table->name);
+
+			error = 1;
+			goto func_exit;
+		}
+
+		index->to_be_dropped = TRUE;
+	}
+
+	/* We check for the foreign key constraints after marking the
+	candidate indexes for deletion because when we check for an
+	equivalent foreign index we don't want to select an index that is
+	later deleted. */
+	for (ulint n_key = 0; n_key < num_of_keys; n_key++) {
+		KEY*		key;
+		dict_index_t*	index;
+
+		key = table->key_info + key_num[n_key];
+
+		index = dict_table_get_index_on_name_and_min_id(
+			prebuilt->table, key->name);
+
+		ut_a(index);
+		ut_a(index->to_be_dropped);
+
+		/* If FOREIGN_KEY_CHECK = 1 you may not drop an index
+		defined for a foreign key constraint because
+		InnoDB requires that both tables contain indexes
+		for the constraint. Note that create index id on table
+		does a create index and drop index and we can ignore
+		here foreign keys because a new index for the foreign
+		key has already been created. */
+
+		if (trx->check_foreigns
+		    && thd->lex->sql_command != SQLCOM_CREATE_INDEX) {
+			dict_foreign_t* foreign;
+			ibool		ok_to_delete = TRUE;
+
+			/* Check if this index is referenced by some other
+			table */
+			foreign = dict_table_get_referenced_constraint(
+				prebuilt->table, index);
+
+			if (foreign) {
+
+				ok_to_delete = FALSE;
+
+			} else {
+
+				/* Check if this index references some
+				other table */
+				foreign = dict_table_get_foreign_constraint(
+					prebuilt->table, index);
+
+				if (foreign) {
+					ut_a(foreign->foreign_index == index);
+
+					/* Search for an equivalent index that
+					the foreign key contraint could use
+					if this index were to be deleted. */
+					if (!dict_table_find_equivalent_index(
+						prebuilt->table,
+						foreign->foreign_index)) {
+
+						ok_to_delete = FALSE;
+					}
+				}
+			}
+
+			if (!ok_to_delete) {
+
+				trx_set_detailed_error(
+					trx,
+					"Index needed in foreign key "
+					"constraint");
+
+				trx->error_info = index;
+
+				FILE* ef = dict_foreign_err_file;
+
+				error = DB_CANNOT_DROP_FOREIGN_INDEX;
+
+				mutex_enter_noninline(&dict_foreign_err_mutex);
+				rewind(ef);
+				ut_print_timestamp(ef);
+
+				fputs("  Cannot drop index ", ef);
+				ut_print_name(ef, trx, FALSE, index->name);
+				fputs("\nbecause it is referenced by ", ef);
+				ut_print_name(ef, trx, TRUE,
+						foreign->foreign_table_name);
+				putc('\n', ef);
+				mutex_exit_noninline(&dict_foreign_err_mutex);
+
+				break;
+			}
+		}
+	}
+
+func_exit:
+	if (error != DB_SUCCESS) {
+		/* Undo our changes since there was some sort of error */
+		for (ulint i = 0; i < num_of_keys; i++) {
+			KEY*		key;
+			dict_index_t*	index;
+
+			key = table->key_info + key_num[i];
+			ut_a(key);
+
+			index = dict_table_get_index_on_name_and_min_id(
+				prebuilt->table, key->name);
+
+			if (index) {
+				index->to_be_dropped = FALSE;
+			}
+		}
+	}
+
+	row_mysql_unlock_data_dictionary(trx);
+
+	error = convert_error_code_to_mysql(error, current_thd);
+
+	DBUG_RETURN((int)error);
+}
+
+/***********************************************************************
+Finalize a drop index */
+
+int
+ha_innobase::final_drop_index(
+/*==========================*/
+				/* out: 0 or error number */
+	TABLE*	table)		/* in: Table where indexes are dropped */
+{
+	dict_index_t*	index;		/* Index to be dropped */
+	trx_t*		trx;		/* Transaction */
+	ulint		error = DB_SUCCESS;/* DB_SUCCESS or error code */
+
+	DBUG_ENTER("final_drop_index");
+	ut_ad(table);
+
+	/* Create a new transaction for final index drop if it does not
+	 * exits*/
+
+	trx = check_trx_exists(ht, current_thd);
+	trx_search_latch_release_if_reserved(trx);
+
+	/* Drop indexes marked to be dropped */
+
+	row_mysql_lock_data_dictionary(trx);
+
+	index = dict_table_get_first_index_noninline(prebuilt->table);
+
+	while (index && error == DB_SUCCESS) {
+		dict_index_t*	next_index;
+
+		next_index = dict_table_get_next_index_noninline(index);
+
+		if (index->to_be_dropped == TRUE) {
+
+			error = row_merge_remove_index(
+				index, prebuilt->table, trx);
+		}
+
+		index = next_index;
+	}
+
+	prebuilt->table->version_number++;
+
+#ifdef UNIV_DEBUG
+	dict_table_check_for_dup_indexes(prebuilt->table);
+#endif
+
+	row_mysql_unlock_data_dictionary(trx);
+
+	/* Flush the log to reduce probability that the .frm files and
+	the InnoDB data dictionary get out-of-sync if the user runs
+	with innodb_flush_log_at_trx_commit = 0 */
+
+	log_buffer_flush_to_disk();
+
+#ifdef UNIV_DEBUG_INDEX_CREATE
+	row_merge_print_table(prebuilt->table);
+#endif
+
+	/* Tell the InnoDB server that there might be work for
+	utility threads: */
+
+	srv_active_wake_master_thread();
+
+	trx_commit_for_mysql(trx);
+
+	error = convert_error_code_to_mysql(error, current_thd);
+
+	DBUG_RETURN((int) error);
 }
 
 /***********************************************************************
@@ -7630,24 +8742,24 @@ bool ha_innobase::check_if_incompatible_data(
 {
 	if (table_changes != IS_EQUAL_YES) {
 
-		return COMPATIBLE_DATA_NO;
+		return(COMPATIBLE_DATA_NO);
 	}
 
 	/* Check that auto_increment value was not changed */
 	if ((info->used_fields & HA_CREATE_USED_AUTO) &&
 		info->auto_increment_value != 0) {
 
-		return COMPATIBLE_DATA_NO;
+		return(COMPATIBLE_DATA_NO);
 	}
 
 	/* Check that row format didn't change */
 	if ((info->used_fields & HA_CREATE_USED_AUTO) &&
 		get_row_type() != info->row_type) {
 
-		return COMPATIBLE_DATA_NO;
+		return(COMPATIBLE_DATA_NO);
 	}
 
-	return COMPATIBLE_DATA_YES;
+	return(COMPATIBLE_DATA_YES);
 }
 
 /***********************************************************************

@@ -383,6 +383,7 @@ dfield_print_also_hex(
 	const byte*	data;
 	ulint		len;
 	ulint		mtype;
+	ulint		prtype;
 	ulint		i;
 	ibool		print_also_hex;
 
@@ -396,6 +397,7 @@ dfield_print_also_hex(
 	}
 
 	mtype = dtype_get_mtype(dfield_get_type(dfield));
+	prtype = dtype_get_prtype(dfield_get_type(dfield));
 
 	if ((mtype == DATA_CHAR) || (mtype == DATA_VARCHAR)) {
 
@@ -403,11 +405,14 @@ dfield_print_also_hex(
 
 		for (i = 0; i < len; i++) {
 			int c = *data++;
+
 			if (!isprint(c)) {
 				print_also_hex = TRUE;
-				c = ' ';
+
+				fprintf(stderr, "\\x%02x", (unsigned char) c);
+			} else {
+				putc(c, stderr);
 			}
-			putc(c, stderr);
 		}
 
 		if (!print_also_hex) {
@@ -424,11 +429,120 @@ dfield_print_also_hex(
 
 			data++;
 		}
+	} else if (mtype == DATA_BINARY) {
+		data = dfield_get_data(dfield);
+		fputs(" Hex: ",stderr);
+
+		for (i = 0; i < len; i++) {
+			fprintf(stderr, "%02lx", (ulint)*data);
+			data++;
+		}
 	} else if (mtype == DATA_INT) {
-		ut_a(len == 4); /* only works for 32-bit integers */
-		fprintf(stderr, "%d", (int)mach_read_from_4(data));
+		dulint big_val;
+
+		if (len == 1) {
+			ulint	val;
+
+			val = (ulint)mach_read_from_1(data);
+
+			if (!(prtype & DATA_UNSIGNED)) {
+				val &= ~0x80;
+				fprintf(stderr, "%ld", (long) val);
+			} else {
+				fprintf(stderr, "%lu", (ulong) val);
+			}
+
+		} else if (len == 2) {
+			ulint	val;
+
+			val = (ulint)mach_read_from_2(data);
+
+			if (!(prtype & DATA_UNSIGNED)) {
+				val &= ~0x8000;
+				fprintf(stderr, "%ld", (long) val);
+			} else {
+				fprintf(stderr, "%lu", (ulong) val);
+			}
+
+		} else if (len == 3) {
+			ulint	val;
+
+			val = (ulint)mach_read_from_3(data);
+
+			if (!(prtype & DATA_UNSIGNED)) {
+				val &= ~0x800000;
+				fprintf(stderr, "%ld", (long) val);
+			} else {
+				fprintf(stderr, "%lu", (ulong) val);
+			}
+
+		} else if (len == 4) {
+			ulint	val;
+
+			val = (ulint)mach_read_from_4(data);
+
+			if (!(prtype & DATA_UNSIGNED)) {
+				val &= ~0x80000000;
+				fprintf(stderr, "%ld", (long) val);
+			} else {
+				fprintf(stderr, "%lu", (ulong) val);
+			}
+
+		} else if (len == 6) {
+			big_val = (dulint)mach_read_from_6(data);
+			fprintf(stderr, "{%lu %lu}",
+				ut_dulint_get_high(big_val),
+				ut_dulint_get_low(big_val));
+		} else if (len == 7) {
+			big_val = (dulint)mach_read_from_7(data);
+			fprintf(stderr, "{%lu %lu}",
+				ut_dulint_get_high(big_val),
+				ut_dulint_get_low(big_val));
+		} else if (len == 8) {
+			big_val = (dulint)mach_read_from_8(data);
+			fprintf(stderr, "{%lu %lu}",
+				ut_dulint_get_high(big_val),
+				ut_dulint_get_low(big_val));
+		} else {
+			fputs(" Hex: ",stderr);
+
+			for (i = 0; i < len; i++) {
+				fprintf(stderr, "%02lx", (ulint)*data);
+				data++;
+			}
+		}
+	} else if (mtype == DATA_SYS) {
+		dulint	id;
+
+		if (prtype & DATA_TRX_ID) {
+			id = mach_read_from_6(data);
+
+			fprintf(stderr, "trx_id {%lu %lu}",
+				ut_dulint_get_high(id), ut_dulint_get_low(id));
+		} else if (prtype & DATA_ROLL_PTR) {
+			id = mach_read_from_7(data);
+
+			fprintf(stderr, "roll_ptr {%lu %lu}",
+				ut_dulint_get_high(id), ut_dulint_get_low(id));
+		} else if (prtype & DATA_ROW_ID) {
+			id = mach_read_from_6(data);
+
+			fprintf(stderr, "row_id {%lu %lu}",
+				ut_dulint_get_high(id), ut_dulint_get_low(id));
+		} else {
+			id = mach_dulint_read_compressed(data);
+
+			fprintf(stderr, "mix_id {%lu %lu}",
+				ut_dulint_get_high(id), ut_dulint_get_low(id));
+		}
+
 	} else {
-		ut_error;
+		fputs(" Hex: ",stderr);
+
+		for (i = 0; i < len; i++) {
+			fprintf(stderr, "%02lx", (ulint)*data);
+			data++;
+		}
 	}
 }
 

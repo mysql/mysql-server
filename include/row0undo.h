@@ -51,6 +51,24 @@ row_undo_step(
 /*==========*/
 				/* out: query thread to run next or NULL */
 	que_thr_t*	thr);	/* in: query thread */
+/***************************************************************
+Build the dict undo list*/
+
+ulint
+row_undo_build_dict_undo_list(
+/*==========================*/
+				/* out: DB_SUCCESS or error code */
+	undo_node_t*	node);	/* in: row undo node */
+
+/***************************************************************
+Undo or redo a dictionary change */
+
+ulint
+row_undo_dictionary(
+/*================*/
+				/* out: DB_SUCCESS or error code */
+	trx_t*		trx,	/* in: the transaction */
+	dict_undo_t*	dict_undo); /* in: dict op to undo */
 
 /* A single query thread will try to perform the undo for all successive
 versions of a clustered index record, if the transaction has modified it
@@ -78,6 +96,20 @@ struct undo_node_struct{
 	dulint		undo_no;/* undo number of the record */
 	ulint		rec_type;/* undo log record type: TRX_UNDO_INSERT_REC,
 				... */
+	ulint		rec_sub_type; /* undo log record subtype:
+				used when rec_type is
+				TRX_UNDO_DICTIONARY_REC or 0*/
+	char*		new_table_name;/* table name in
+				TRX_UNDO_TABLE_CREATE_REC or
+				TRX_UNDO_TABLE_RENAME_REC or
+				TRX_UNDO_TABLE_DROP_REC or NULL */
+	char*		old_table_name;/* old table name in
+				TRX_UNDO_TABLE_RENAME_REC or NULL */
+	char*		tmp_table_name; /* intermediate table name used
+				during rename & drop operation in
+				ha_innobase::add_index().*/
+	dulint		index_id;/* index id in TRX_UNDO_INDEX_CREATE_REC
+				or ut_dulint_zero */
 	dulint		new_roll_ptr; /* roll ptr to restore to clustered index
 				record */
 	dulint		new_trx_id; /* trx id to restore to clustered index

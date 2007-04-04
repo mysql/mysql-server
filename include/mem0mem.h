@@ -73,6 +73,12 @@ heap creation. */
 Use this macro instead of the corresponding function! Macro for memory
 heap creation. */
 
+#define mem_heap_create_noninline(N)	mem_heap_create_func_noninline(\
+		(N), MEM_HEAP_DYNAMIC, __FILE__, __LINE__)
+/******************************************************************
+Use this macro instead of the corresponding function! Macro for memory
+heap creation. */
+
 #define mem_heap_create_in_buffer(N)	mem_heap_create_func(\
 		(N), MEM_HEAP_BUFFER, __FILE__, __LINE__)
 /******************************************************************
@@ -88,6 +94,12 @@ Use this macro instead of the corresponding function! Macro for memory
 heap freeing. */
 
 #define mem_heap_free(heap) mem_heap_free_func(\
+					  (heap), __FILE__, __LINE__)
+/******************************************************************
+Use this macro instead of the corresponding function! Macro for memory
+heap freeing. */
+
+#define mem_heap_free_noninline(heap) mem_heap_free_func_noninline(\
 					  (heap), __FILE__, __LINE__)
 /*********************************************************************
 NOTE: Use the corresponding macros instead of this function. Creates a
@@ -118,12 +130,56 @@ mem_heap_free_func(
 	mem_heap_t*	heap,		/* in, own: heap to be freed */
 	const char*	file_name,	/* in: file name where freed */
 	ulint		line);		/* in: line where freed */
+/*********************************************************************
+NOTE: Use the corresponding macros instead of this function. Creates a
+memory heap. For debugging purposes, takes also the file name and line as
+arguments. */
+
+mem_heap_t*
+mem_heap_create_func_noninline(
+/*===========================*/
+					/* out, own: memory heap, NULL if
+					did not succeed (only possible for
+					MEM_HEAP_BTR_SEARCH type heaps)*/
+	ulint		n,		/* in: desired start block size,
+					this means that a single user buffer
+					of size n will fit in the block,
+					0 creates a default size block;
+					if init_block is not NULL, n tells
+					its size in bytes */
+	ulint		type,		/* in: heap type */
+	const char*	file_name,	/* in: file name where created */
+	ulint		line);		/* in: line where created */
+/*********************************************************************
+NOTE: Use the corresponding macro instead of this function. Frees the space
+occupied by a memory heap. In the debug version erases the heap memory
+blocks. */
+
+void
+mem_heap_free_func_noninline(
+/*=========================*/
+	mem_heap_t*	heap,		/* in, own: heap to be freed */
+	const char*	file_name,	/* in: file name where freed */
+	ulint		line);		/* in: line where freed */
 /*******************************************************************
 Allocates n bytes of memory from a memory heap. */
 UNIV_INLINE
 void*
 mem_heap_alloc(
 /*===========*/
+				/* out: allocated storage, NULL if did not
+				succeed (only possible for
+				MEM_HEAP_BTR_SEARCH type heaps) */
+	mem_heap_t*	heap,	/* in: memory heap */
+	ulint		n);	/* in: number of bytes; if the heap is allowed
+				to grow into the buffer pool, this must be
+				<= MEM_MAX_ALLOC_IN_BUF */
+/*******************************************************************
+Allocates n bytes of memory from a memory heap. */
+
+void*
+mem_heap_alloc_noninline(
+/*=====================*/
 				/* out: allocated storage, NULL if did not
 				succeed (only possible for
 				MEM_HEAP_BTR_SEARCH type heaps) */
@@ -193,6 +249,12 @@ Macro for memory buffer allocation */
 
 #define mem_alloc_noninline(N)	  mem_alloc_func_noninline(\
 					  (N), __FILE__, __LINE__)
+/******************************************************************
+Use this macro instead of the corresponding function!
+Macro for memory buffer allocation */
+
+#define mem_free_noninline(N)    mem_free_func_noninline(\
+					  (N), __FILE__, __LINE__)
 /*******************************************************************
 NOTE: Use the corresponding macro instead of this function.
 Allocates a single buffer of memory from the dynamic memory of
@@ -234,6 +296,18 @@ UNIV_INLINE
 void
 mem_free_func(
 /*==========*/
+	void*		ptr,		/* in, own: buffer to be freed */
+	const char*	file_name,	/* in: file name where created */
+	ulint		line		/* in: line where created */
+);
+/*******************************************************************
+NOTE: Use the corresponding macro instead of this function.
+Frees a single buffer of storage from
+the dynamic memory of C compiler. Similar to free of C. */
+
+void
+mem_free_func_noninline(
+/*====================*/
 	void*		ptr,		/* in, own: buffer to be freed */
 	const char*	file_name,	/* in: file name where created */
 	ulint		line		/* in: line where created */

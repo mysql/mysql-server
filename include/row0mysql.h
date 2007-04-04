@@ -21,7 +21,7 @@ Created 9/17/2000 Heikki Tuuri
 
 extern ibool row_rollback_on_timeout;
 
-typedef struct row_prebuilt_struct row_prebuilt_t;
+/* typedef struct row_prebuilt_struct row_prebuilt_t; */
 
 /***********************************************************************
 Frees the blob heap in prebuilt when no longer needed. */
@@ -153,6 +153,14 @@ row_update_prebuilt_trx(
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct in MySQL
 					handle */
 	trx_t*		trx);		/* in: transaction handle */
+/************************************************************************
+Update a prebuilt struct for a MySQL table handle. */
+
+void
+row_update_prebuilt(
+/*================*/
+	row_prebuilt_t*	prebuilt,	/* in: Innobase table handle */
+	dict_table_t*   table);		/* in: table */
 /*************************************************************************
 Unlocks an AUTO_INC type lock possibly reserved by trx. */
 
@@ -188,6 +196,16 @@ row_lock_table_for_mysql(
 					prebuilt->select_lock_type */
 	ulint		mode);		/* in: lock mode of table
 					(ignored if table==NULL) */
+/*************************************************************************
+Sets a table lock on the table. */
+
+int
+row_lock_table_for_merge(
+/*=====================*/
+					/* out: error code or DB_SUCCESS */
+	trx_t*		trx,		/* in: lock table for this trx */
+	dict_table_t*	table,		/* in: table to lock */
+	ulint		mode);		/* in: lock mode of table */
 
 /*************************************************************************
 Does an insert for MySQL. */
@@ -413,6 +431,19 @@ row_drop_table_for_mysql(
 	ibool		drop_db);/* in: TRUE=dropping whole database */
 
 /*************************************************************************
+Drops a table for MySQL. If the name of the dropped table ends to
+characters INNODB_MONITOR, then this also stops printing of monitor
+output by the master thread. But does not commit the transaction, this
+is required for UNDOing dictionary records during recovery.*/
+
+int
+row_drop_table_for_mysql_no_commit(
+/*===============================*/
+				/* out: error code or DB_SUCCESS */
+	const char*	name,	/* in: table name */
+	trx_t*		trx,	/* in: transaction handle */
+	ibool		drop_db);/* in: TRUE=dropping whole database */
+/*************************************************************************
 Discards the tablespace of a table which stored in an .ibd file. Discarding
 means that this function deletes the .ibd file and assigns a new table id for
 the table. Also the flag table->ibd_file_missing is set TRUE. */
@@ -451,7 +482,8 @@ row_rename_table_for_mysql(
 					/* out: error code or DB_SUCCESS */
 	const char*	old_name,	/* in: old table name */
 	const char*	new_name,	/* in: new table name */
-	trx_t*		trx);		/* in: transaction handle */
+	trx_t*		trx,		/* in: transaction handle */
+	ibool		commit);	/* in: if TRUE then commit trx */
 /*************************************************************************
 Checks a table for corruption. */
 
@@ -462,7 +494,93 @@ row_check_table_for_mysql(
 	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in MySQL
 					handle */
 #endif /* !UNIV_HOTBACKUP */
+/*************************************************************************
+Build new indexes to a table by reading a cluster index,
+creating a temporary file containing index entries, merge sorting
+these index entries and inserting sorted index entries to indexes. */
 
+ulint
+row_build_index_for_mysql(
+/*====================*/
+					/* out: 0 or error code */
+	trx_t*		trx,		/* in: transaction */
+	dict_table_t*	old_table,	/* in: Table where rows are
+					read from */
+	dict_table_t*	new_table,	/* in: Table where indexes are
+					created. Note that old_table ==
+					new_table if we are creating a
+					secondary keys. */
+	dict_index_t**	index,		/* in: Indexes to be created */
+	ibool		new_primary,	/* in: new primary key
+					i.e. clustered index will be build
+					for this table */
+	ulint		num_of_keys);	/* in: Number of indexes to be
+					created */
+/*************************************************************************
+Create query graph for a index creation */
+
+ulint
+row_create_index_graph_for_mysql(
+/*=============================*/
+					/* out: DB_SUCCESS or error code */
+	trx_t*		trx,		/* in: trx */
+	dict_table_t*	table,		/* in: table */
+	dict_index_t*	index);		/* in: index */
+/*************************************************************************
+Remove those indexes which were created before a error happened in
+the index build */
+
+ulint
+row_remove_indexes_for_mysql(
+/*=========================*/
+					/* out: 0 or error code */
+	trx_t*		trx,		/* in: transaction */
+	dict_table_t*	table,		/* in: Table where index is created */
+	dict_index_t**	index,		/* in: Indexes to be created */
+	ulint		num_created);	/* in: Number of indexes created
+					before error and now must be removed */
+/***************************************************************************
+Writes information to an undo log about dictionary operation, create_table.
+This information is used in a rollback of the transaction. */
+
+ulint
+row_undo_report_create_table_dict_operation(
+/*========================================*/
+					/* out: DB_SUCCESS or error code */
+	trx_t*		trx,		/* in: transaction */
+	const char*	table_name);	/* in: table name created. */
+/***************************************************************************
+Writes information to an undo log about dictionary operation, rename_table.
+This information is used in a rollback of the transaction. */
+
+ulint
+row_undo_report_create_index_dict_operation(
+/*========================================*/
+					/* out: DB_SUCCESS or error code */
+	trx_t*		trx,		/* in: transaction */
+	dict_index_t*	index);		/* in: index created. */
+/***************************************************************************
+Writes information to an undo log about dictionary operation, rename_table.
+This information is used in a rollback of the transaction. */
+
+ulint
+row_undo_report_rename_table_dict_operation(
+/*========================================*/
+					/* out: DB_SUCCESS or error code */
+	trx_t*		trx,		/* in: transaction */
+	const char*	from_table_name,/* in: rename from table name. */
+	const char*	to_table_name,	/* in: rename to table table. */
+	const char*	tmp_table_name);/* in: intermediate table name */
+/***************************************************************************
+Writes information to an undo log about dictionary operation, drop table. 
+This information is used in a rollback of the transaction. */
+
+ulint
+row_undo_report_drop_table_dict_operation(
+/*======================================*/
+					/* out: DB_SUCCESS or error code */
+	trx_t*		trx,		/* in: query thread */
+	const char*	table_name);	/* in: table name dropped */
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.
 This template struct is used to speed up row transformations between
@@ -512,16 +630,18 @@ struct mysql_row_templ_struct {
 
 #define ROW_PREBUILT_ALLOCATED	78540783
 #define ROW_PREBUILT_FREED	26423527
+#define ROW_PREBUILT_OBSOLETE	12367541
 
 /* A struct for (sometimes lazily) prebuilt structures in an Innobase table
 handle used within MySQL; these are used to save CPU time. */
 
 struct row_prebuilt_struct {
 	ulint		magic_n;	/* this magic number is set to
-					ROW_PREBUILT_ALLOCATED when created
-					and to ROW_PREBUILT_FREED when the
-					struct has been freed; used in
-					debugging */
+					ROW_PREBUILT_ALLOCATED when created,
+					or ROW_PREBUILT_FREED when the
+					struct has been freed or
+					ROW_PREBUILT_OBSOLETE when struct
+					needs a rebuilt */
 	dict_table_t*	table;		/* Innobase table handle */
 	trx_t*		trx;		/* current transaction handle */
 	ibool		sql_stat_start;	/* TRUE when we start processing of
@@ -668,10 +788,12 @@ struct row_prebuilt_struct {
 					fetched row in fetch_cache */
 	ulint		n_fetch_cached;	/* number of not yet fetched rows
 					in fetch_cache */
-	mem_heap_t*	blob_heap;	/* in SELECTS BLOB fie lds are copied
+	mem_heap_t*	blob_heap;	/* in SELECTS BLOB fields are copied
 					to this heap */
 	mem_heap_t*	old_vers_heap;	/* memory heap where a previous
 					version is built in consistent read */
+	UT_LIST_NODE_T(row_prebuilt_t)	prebuilts;
+					/* list node of table->prebuilts */
 	ulint		magic_n2;	/* this should be the same as
 					magic_n */
 };

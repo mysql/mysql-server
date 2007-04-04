@@ -131,6 +131,105 @@ trx_undo_left(
 }
 
 /**************************************************************************
+Get the pointer to where the data for the undo log record will be written.*/
+static
+byte*
+trx_undo_page_get_ptr(
+/*==================*/
+					/* out: ptr to where the undo log
+					record data will be written,
+					0 if not enough space.*/
+	page_t*		undo_page,	/* in: undo log page */
+	ulint		need)		/* in: need these man bytes */
+{
+	byte*		ptr;		/* pointer within undo_page */
+	ulint		first_free;	/* offset within undo page */
+
+	ut_ad(undo_page);
+
+	ut_ad(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
+			       + TRX_UNDO_PAGE_TYPE) == TRX_UNDO_INSERT);
+
+	first_free = mach_read_from_2(
+		undo_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_FREE);
+
+	/* Start writing the undo information from the first free
+	bytes in the undo page */
+	ptr = undo_page + first_free;
+
+	ut_ad(first_free <= UNIV_PAGE_SIZE);
+
+	/* NOTE: the value need must be big enough such that the
+	general fields written below fit on the undo log page */
+
+	if (UNIV_UNLIKELY(trx_undo_left(undo_page, ptr) < need)) {
+
+		/* Error, not enough space */
+		ptr = 0;
+
+	} else {
+		/* Reserve 2 bytes for the pointer to the next undo log
+		record */
+		ptr += 2;
+	}
+
+	return(ptr);
+}
+
+/**************************************************************************
+Set the next and previous pointers in the undo page for the undo record
+that was written to ptr. Update the first free value by the number of bytes
+written for this undo record.*/
+static
+ulint
+trx_undo_page_set_next_prev_and_add(
+/*================================*/
+					/* out: offset of the inserted entry
+					on the page if succeeded, 0 if fail */
+	page_t*		undo_page,	/* in/out: undo log page */
+	byte*		ptr,		/* in: ptr up to where data has been
+					written on this undo page. */
+	mtr_t*		mtr)		/* in: mtr */
+{
+	ulint		first_free;	/* offset within undo_page */
+	ulint		end_of_rec;	/* offset within undo_page */
+	byte*		ptr_to_first_free;
+					/* pointer within undo_page
+					that points to the next free
+					offset value within undo_page.*/
+
+	ut_ad(ptr > undo_page);
+	ut_ad(ptr < undo_page + UNIV_PAGE_SIZE);
+
+	if (UNIV_UNLIKELY(trx_undo_left(undo_page, ptr) < 2)) {
+
+		return(0);
+	}
+
+	ptr_to_first_free = undo_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_FREE;
+
+	first_free = mach_read_from_2(ptr_to_first_free);
+
+	/* Write offset of the previous undo log record */
+	mach_write_to_2(ptr, first_free);
+	ptr += 2;
+
+	end_of_rec = ptr - undo_page;
+
+	/* Write offset of the next undo log record */
+	mach_write_to_2(undo_page + first_free, end_of_rec);
+
+	/* Update the offset to first free undo record */
+	mach_write_to_2(ptr_to_first_free, end_of_rec);
+
+	/* Write this log entry to the UNDO log */
+	trx_undof_page_add_undo_rec_log(undo_page, first_free,
+					end_of_rec, mtr);
+
+	return(first_free);
+}
+
+/**************************************************************************
 Reports in the undo log of an insert of a clustered index record. */
 static
 ulint
@@ -147,9 +246,6 @@ trx_undo_page_report_insert(
 {
 	ulint		first_free;
 	byte*		ptr;
-	ulint		len;
-	const dfield_t*	field;
-	ulint		flen;
 	ulint		i;
 
 	ut_ad(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
@@ -172,31 +268,24 @@ trx_undo_page_report_insert(
 	ptr += 2;
 
 	/* Store first some general parameters to the undo log */
-	mach_write_to_1(ptr, TRX_UNDO_INSERT_REC);
-	ptr++;
-
-	len = mach_dulint_write_much_compressed(ptr, trx->undo_no);
-	ptr += len;
-
-	len = mach_dulint_write_much_compressed(ptr, (index->table)->id);
-	ptr += len;
+	*ptr++ = TRX_UNDO_INSERT_REC;
+	ptr += mach_dulint_write_much_compressed(ptr, trx->undo_no);
+	ptr += mach_dulint_write_much_compressed(ptr, index->table->id);
 	/*----------------------------------------*/
 	/* Store then the fields required to uniquely determine the record
 	to be inserted in the clustered index */
 
 	for (i = 0; i < dict_index_get_n_unique(index); i++) {
 
-		field = dtuple_get_nth_field(clust_entry, i);
-
-		flen = dfield_get_len(field);
+		const dfield_t*	field	= dtuple_get_nth_field(clust_entry, i);
+		ulint		flen	= dfield_get_len(field);
 
 		if (trx_undo_left(undo_page, ptr) < 5) {
 
 			return(0);
 		}
 
-		len = mach_write_compressed(ptr, flen);
-		ptr += len;
+		ptr += mach_write_compressed(ptr, flen);
 
 		if (flen != UNIV_SQL_NULL) {
 			if (trx_undo_left(undo_page, ptr) < flen) {
@@ -209,27 +298,192 @@ trx_undo_page_report_insert(
 		}
 	}
 
-	/*----------------------------------------*/
-	/* Write pointers to the previous and the next undo log records */
+	return(trx_undo_page_set_next_prev_and_add(undo_page, ptr, mtr));
+}
 
-	if (trx_undo_left(undo_page, ptr) < 2) {
+/**************************************************************************
+Reports in the undo log of an index create */
+static
+ulint
+trx_undo_page_report_index_create(
+/*==============================*/
+					/* out: offset of the inserted entry
+					on the page if succeed, 0 if fail */
+	page_t*		undo_page,	/* in: undo log page */
+	trx_t*		trx,		/* in: transaction */
+	dict_index_t*	index,		/* in: index */
+	mtr_t*		mtr)		/* in: mtr */
+{
+	byte*		ptr;
 
+	ut_ad(undo_page && trx && index && mtr);
+
+	/* Get the pointer to where we will write our undo data. */
+
+	ptr = trx_undo_page_get_ptr(undo_page, 1 + 11 + 1 + 11 + 11);
+
+	if (UNIV_UNLIKELY(!ptr)) {
 		return(0);
 	}
 
-	mach_write_to_2(ptr, first_free);
-	ptr += 2;
+	/* This is our internal dictionary undo log record. */
+	*ptr++ = TRX_UNDO_DICTIONARY_REC;
 
-	mach_write_to_2(undo_page + first_free, ptr - undo_page);
+	ptr += mach_dulint_write_much_compressed(ptr, trx->undo_no);
 
-	mach_write_to_2(undo_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_FREE,
-			ptr - undo_page);
+	/* The sub type (discriminator) of this undo dictionary record */
+	*ptr++ = TRX_UNDO_INDEX_CREATE_REC;
 
-	/* Write the log entry to the REDO log of this change in the UNDO
-	log */
-	trx_undof_page_add_undo_rec_log(undo_page, first_free,
-					ptr - undo_page, mtr);
-	return(first_free);
+	/* For index create, we need both the table id and the index id
+	to be stored in the undo log record.*/
+
+	ptr += mach_dulint_write_much_compressed(ptr, index->table->id);
+	ptr += mach_dulint_write_much_compressed(ptr, index->id);
+
+	return(trx_undo_page_set_next_prev_and_add(undo_page, ptr, mtr));
+}
+
+/**************************************************************************
+Reports in the undo log of a table create */
+static
+ulint
+trx_undo_page_report_table_create(
+/*==============================*/
+					/* out: offset of the inserted entry
+					on the page if succeed, 0 if fail */
+	page_t*		undo_page,	/* in: undo log page */
+	trx_t*		trx,		/* in: transaction */
+	const char*	table_name,	/* in: table name */
+	mtr_t*		mtr)		/* in: mtr */
+{
+	byte*		ptr;
+	ulint		name_len;
+
+	ut_ad(undo_page && trx && table_name && mtr);
+
+	name_len = strlen(table_name) + 1;
+
+	/* Get the pointer to where we will write our undo data */
+
+	ptr = trx_undo_page_get_ptr(undo_page, 1 + 11 + 1 + name_len);
+
+	if (UNIV_UNLIKELY(!ptr)) {
+		return(0);
+	}
+
+	/* The type (discriminator) of this undo log */
+	*ptr++ = TRX_UNDO_DICTIONARY_REC;
+
+	ptr += mach_dulint_write_much_compressed(ptr, trx->undo_no);
+
+	/* The sub type (discriminator) of this dictionary undo log */
+	*ptr++ = TRX_UNDO_TABLE_CREATE_REC;
+
+	/* For table create we need to store table name */
+	memcpy(ptr, table_name, name_len);
+	ptr += name_len;
+
+	return(trx_undo_page_set_next_prev_and_add(undo_page, ptr, mtr));
+}
+
+/**************************************************************************
+Reports in the undo log of a table drop */
+static
+ulint
+trx_undo_page_report_table_drop(
+/*============================*/
+					/* out: offset of the inserted entry
+					on the page if succeed, 0 if fail */
+	page_t*		undo_page,	/* in: undo log page */
+	trx_t*		trx,		/* in: transaction */
+	const char*	table_name,	/* in: table name */
+	mtr_t*		mtr)		/* in: mtr */
+{
+	byte*		ptr;
+	ulint		name_len;
+
+	ut_ad(undo_page && trx && table_name && mtr);
+
+	name_len = strlen(table_name) + 1;
+
+	/* Get the pointer to where we will write our undo data */
+
+	ptr = trx_undo_page_get_ptr(undo_page, 1 + 11 + 1 + name_len);
+
+	if (UNIV_UNLIKELY(!ptr)) {
+		return(0);
+	}
+
+	*ptr++ = TRX_UNDO_DICTIONARY_REC;
+
+	ptr += mach_dulint_write_much_compressed(ptr, trx->undo_no);
+
+	/* The sub type (discriminator) of this dictionary undo log */
+	*ptr++ = TRX_UNDO_TABLE_DROP_REC;
+
+	/* For table drop we need to store a table name */
+	memcpy(ptr, table_name, name_len);
+	ptr += name_len;
+
+	return(trx_undo_page_set_next_prev_and_add(undo_page, ptr, mtr));
+}
+
+/**************************************************************************
+Reports in the undo log of a table rename */
+static
+ulint
+trx_undo_page_report_table_rename(
+/*==============================*/
+					/* out: offset of the inserted entry
+					on the page if succeed, 0 if fail */
+	page_t*		undo_page,	/* in: undo log page */
+	trx_t*		trx,		/* in: transaction */
+	const char*	new_table_name,	/* in: new table name */
+	const char*	old_table_name,	/* in: old table name */
+	const char*	tmp_table_name,	/* in: the temp name */
+	mtr_t*		mtr)		/* in: mtr */
+{
+	byte*		ptr;
+	ulint		new_name_len;
+	ulint		old_name_len;
+	ulint		tmp_name_len;
+
+	ut_ad(undo_page && trx && new_table_name && old_table_name && mtr);
+
+	new_name_len = strlen(new_table_name) + 1;
+	old_name_len = strlen(old_table_name) + 1;
+	tmp_name_len = strlen(tmp_table_name) + 1;
+
+	/* Get the pointer to where we will write our undo data. */
+
+	ptr = trx_undo_page_get_ptr(undo_page, 1 + 11 + 1
+				    + new_name_len + old_name_len
+				    + tmp_name_len);
+
+	if (UNIV_UNLIKELY(!ptr)) {
+		return(0);
+	}
+
+	/* The type (discriminator) of this undo log */
+	*ptr++ = TRX_UNDO_DICTIONARY_REC;
+	ptr += mach_dulint_write_much_compressed(ptr, trx->undo_no);
+
+	/* The sub type (discriminator) of this dictionary undo log */
+	*ptr++ = TRX_UNDO_TABLE_RENAME_REC;
+
+	/* For table rename we need to store the new table name and
+	the old table name */
+
+	memcpy(ptr, new_table_name, new_name_len);
+	ptr += new_name_len;
+
+	memcpy(ptr, old_table_name, old_name_len);
+	ptr += old_name_len;
+
+	memcpy(ptr, tmp_table_name, tmp_name_len);
+	ptr += tmp_name_len;
+
+	return(trx_undo_page_set_next_prev_and_add(undo_page, ptr, mtr));
 }
 
 /**************************************************************************
@@ -251,7 +505,6 @@ trx_undo_rec_get_pars(
 	dulint*		table_id)	/* out: table id */
 {
 	byte*		ptr;
-	ulint		len;
 	ulint		type_cmpl;
 
 	ptr = undo_rec + 2;
@@ -270,12 +523,10 @@ trx_undo_rec_get_pars(
 	*cmpl_info = type_cmpl / TRX_UNDO_CMPL_INFO_MULT;
 
 	*undo_no = mach_dulint_read_much_compressed(ptr);
-	len = mach_dulint_get_much_compressed_size(*undo_no);
-	ptr += len;
+	ptr += mach_dulint_get_much_compressed_size(*undo_no);
 
 	*table_id = mach_dulint_read_much_compressed(ptr);
-	len = mach_dulint_get_much_compressed_size(*table_id);
-	ptr += len;
+	ptr += mach_dulint_get_much_compressed_size(*table_id);
 
 	return(ptr);
 }
@@ -671,8 +922,6 @@ trx_undo_update_rec_get_sys_cols(
 	dulint*	roll_ptr,	/* out: roll ptr */
 	ulint*	info_bits)	/* out: info bits state */
 {
-	ulint	len;
-
 	/* Read the state of the info bits */
 	*info_bits = mach_read_from_1(ptr);
 	ptr += 1;
@@ -680,12 +929,10 @@ trx_undo_update_rec_get_sys_cols(
 	/* Read the values of the system columns */
 
 	*trx_id = mach_dulint_read_compressed(ptr);
-	len = mach_dulint_get_compressed_size(*trx_id);
-	ptr += len;
+	ptr += mach_dulint_get_compressed_size(*trx_id);
 
 	*roll_ptr = mach_dulint_read_compressed(ptr);
-	len = mach_dulint_get_compressed_size(*roll_ptr);
-	ptr += len;
+	ptr += mach_dulint_get_compressed_size(*roll_ptr);
 
 	return(ptr);
 }
@@ -1139,6 +1386,189 @@ trx_undo_report_row_operation(
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
+	return(DB_SUCCESS);
+}
+
+/***************************************************************************
+Writes information to an undo log about dictionary operation e.g.
+rename_table, create_table, create_index, drop table. This information
+is used in a rollback of the transaction. */
+
+ulint
+trx_undo_report_dict_operation(
+/*===========================*/
+					/* out: DB_SUCCESS or error code */
+	ulint		op_type,	/* in: TRX_UNDO_TABLE_CREATE_OP,
+					TRX_UNDO_TABLE_RENAME_OP,
+					TRX_UNDO_TABLE_DROP_OP, or
+					TRX_UNDO_INDEX_CREATE_OP */
+	trx_t*		trx,		/* in: trx */
+	dict_index_t*	index,		/* in:
+					if TRX_UNDO_INDEX_CREATE_OP
+					index to be created*/
+	const char*	table_name,	/* in: table name or NULL, used in
+					create table, rename table and
+					drop table*/
+	const char*	old_table_name,	/* in: old table name or NULL.
+					used in rename table */
+	const char*	tmp_table_name, /* in: the intermediate name used
+					for renaming */
+	dulint*		roll_ptr)	/* out: rollback pointer to the
+					inserted undo log record */
+{
+	trx_undo_t*	undo;
+	buf_block_t*	undo_block;
+	ulint		offset;
+	ulint		page_no;
+	trx_rseg_t*	rseg;
+	mtr_t		mtr;
+
+	ut_ad(trx);
+
+#ifdef UNIV_DEBUG
+	switch (op_type) {
+	case TRX_UNDO_TABLE_RENAME_OP:
+		ut_ad(old_table_name);
+	case TRX_UNDO_TABLE_DROP_OP:
+	case TRX_UNDO_TABLE_CREATE_OP:
+		ut_ad(table_name);
+		break;
+
+	case TRX_UNDO_INDEX_CREATE_OP:
+		ut_ad(index);
+		break;
+	default:
+		ut_error;
+	}
+#endif
+
+	rseg = trx->rseg;
+
+	mutex_enter(&(trx->undo_mutex));
+
+	/* If the undo log is not assigned yet, assign one */
+
+	if (trx->insert_undo == NULL) {
+
+		trx_undo_assign_undo(trx, TRX_UNDO_INSERT);
+	}
+
+	undo = trx->insert_undo;
+
+	if (undo == NULL) {
+		/* Did not succeed: out of space */
+		mutex_exit(&(trx->undo_mutex));
+
+		return(DB_OUT_OF_FILE_SPACE);
+	}
+
+	page_no = undo->last_page_no;
+
+	mtr_start(&mtr);
+
+	for (;;) {
+		undo_block = buf_page_get_gen(undo->space, undo->zip_size,
+					     page_no, RW_X_LATCH,
+					     undo->guess_block, BUF_GET,
+					     __FILE__, __LINE__, &mtr);
+
+#ifdef UNIV_SYNC_DEBUG
+		buf_block_dbg_add_level(undo_block, SYNC_TRX_UNDO_PAGE);
+#endif /* UNIV_SYNC_DEBUG */
+
+		switch (op_type) {
+
+		case TRX_UNDO_TABLE_CREATE_OP:
+			offset = trx_undo_page_report_table_create(
+				undo_block->frame, trx, table_name, &mtr);
+			break;
+
+		case TRX_UNDO_INDEX_CREATE_OP:
+			offset = trx_undo_page_report_index_create(
+				undo_block->frame, trx, index, &mtr);
+			break;
+
+		case TRX_UNDO_TABLE_RENAME_OP:
+			offset = trx_undo_page_report_table_rename(
+				undo_block->frame, trx, table_name,
+				old_table_name, tmp_table_name, &mtr);
+			break;
+
+		case TRX_UNDO_TABLE_DROP_OP:
+			offset = trx_undo_page_report_table_drop(
+				undo_block->frame, trx, table_name, &mtr);
+			break;
+
+		default:
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: [Error]: Undefined op_type = %lu "
+				"at trx_undo_report_dict_operation\n",
+				(ulong) op_type);
+
+			mutex_enter(&kernel_mutex);
+			trx_print(stderr, trx, 1024);
+			mutex_exit(&kernel_mutex);
+
+			return(DB_ERROR);
+		}
+
+		if (offset == 0) {
+			/* The record did not fit on the page. We erase the
+			end segment of the undo log page and write a log
+			record of it: this is to ensure that in the debug
+			version the replicate page constructed using the log
+			records stays identical to the original page */
+
+			trx_undo_erase_page_end(undo_block->frame, &mtr);
+		}
+
+		mtr_commit(&mtr);
+
+		if (offset != 0) {
+			/* Success */
+
+			break;
+		}
+
+		ut_ad(page_no == undo->last_page_no);
+
+		/* We have to extend the undo log by one page */
+
+		mtr_start(&mtr);
+
+		/* When we add a page to an undo log, this is analogous to
+		a pessimistic insert in a B-tree, and we must reserve the
+		counterpart of the tree latch, which is the rseg mutex. */
+
+		mutex_enter(&(rseg->mutex));
+
+		page_no = trx_undo_add_page(trx, undo, &mtr);
+
+		mutex_exit(&(rseg->mutex));
+
+		if (page_no == FIL_NULL) {
+			/* Did not succeed: out of space */
+
+			mutex_exit(&(trx->undo_mutex));
+			mtr_commit(&mtr);
+
+			return(DB_OUT_OF_FILE_SPACE);
+		}
+	}
+
+	undo->empty = FALSE;
+	undo->top_page_no = page_no;
+	undo->top_offset  = offset;
+	undo->top_undo_no = trx->undo_no;
+	undo->guess_block = undo_block;
+
+	UT_DULINT_INC(trx->undo_no);
+
+	mutex_exit(&(trx->undo_mutex));
+
+	*roll_ptr = trx_undo_build_roll_ptr(TRUE, rseg->id, page_no, offset);
+
 	return(DB_SUCCESS);
 }
 

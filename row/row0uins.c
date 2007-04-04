@@ -28,6 +28,7 @@ Created 2/25/1997 Heikki Tuuri
 #include "que0que.h"
 #include "ibuf0ibuf.h"
 #include "log0log.h"
+#include "row0merge.h"
 
 /*******************************************************************
 Removes a clustered index record. The pcur in node was positioned on the
@@ -52,6 +53,25 @@ row_undo_ins_remove_clust_rec(
 	ut_a(success);
 
 	if (ut_dulint_cmp(node->table->id, DICT_INDEXES_ID) == 0) {
+		trx_t*	trx;
+		ibool	thawed_dictionary = FALSE;
+		ibool	locked_dictionary = FALSE;
+
+		trx = node->trx;
+
+		if (trx->dict_operation_lock_mode == RW_S_LATCH) {
+			row_mysql_unfreeze_data_dictionary(trx);
+
+			thawed_dictionary = TRUE;
+		}
+
+		if (trx->dict_operation_lock_mode == 0
+		    || trx->dict_operation_lock_mode != RW_X_LATCH) {
+
+			row_mysql_lock_data_dictionary(trx);
+
+			locked_dictionary = TRUE;
+		}
 
 		/* Drop the index tree associated with the row in
 		SYS_INDEXES table: */
@@ -65,6 +85,14 @@ row_undo_ins_remove_clust_rec(
 		success = btr_pcur_restore_position(BTR_MODIFY_LEAF,
 						    &(node->pcur), &mtr);
 		ut_a(success);
+
+		if (locked_dictionary) {
+			row_mysql_unlock_data_dictionary(trx);
+		}
+
+		if (thawed_dictionary) {
+			row_mysql_freeze_data_dictionary(trx);
+		}
 	}
 
 	btr_cur = btr_pcur_get_btr_cur(&(node->pcur));
@@ -212,6 +240,36 @@ retry:
 }
 
 /***************************************************************
+Parses the rec_type undo record. */
+
+byte*
+row_undo_ins_parse_rec_type_and_table_id(
+/*=====================================*/
+					/* out: ptr to next field to parse */
+	undo_node_t*	node,		/* in: row undo node */
+	dulint*		table_id)	/* out: table id */
+{
+	byte*		ptr;
+	dulint		undo_no;
+	ulint		type;
+	ulint		dummy;
+	ibool		dummy_extern;
+
+	ut_ad(node && node->trx);
+
+	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &dummy,
+				    &dummy_extern, &undo_no, table_id);
+
+	node->rec_type = type;
+
+	if (node->rec_type == TRX_UNDO_DICTIONARY_REC) {
+		node->trx->dict_operation = TRUE;
+	}
+
+	return ptr;
+}
+
+/***************************************************************
 Parses the row reference and other info in a fresh insert undo record. */
 static
 void
@@ -219,39 +277,67 @@ row_undo_ins_parse_undo_rec(
 /*========================*/
 	undo_node_t*	node)	/* in: row undo node */
 {
-	dict_index_t*	clust_index;
 	byte*		ptr;
-	dulint		undo_no;
 	dulint		table_id;
-	ulint		type;
-	ulint		dummy;
-	ibool		dummy_extern;
 
 	ut_ad(node);
 
-	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &dummy,
-				    &dummy_extern, &undo_no, &table_id);
-	ut_ad(type == TRX_UNDO_INSERT_REC);
-	node->rec_type = type;
+	ptr = row_undo_ins_parse_rec_type_and_table_id(node, &table_id);
 
-	node->table = dict_table_get_on_id(table_id, node->trx);
+	ut_ad(node->rec_type == TRX_UNDO_INSERT_REC
+	      || node->rec_type == TRX_UNDO_DICTIONARY_REC);
 
-	if (node->table == NULL) {
+	if (node->rec_type == TRX_UNDO_INSERT_REC) {
 
-		return;
+		trx_t*	trx;
+		ibool	thawed_dictionary = FALSE;
+		ibool	locked_dictionary = FALSE;
+
+		trx = node->trx;
+
+		/* If it's sytem table then we have to acquire the
+		dictionary lock in X mode.*/
+
+		if (ut_dulint_cmp(table_id, DICT_FIELDS_ID) <= 0) {
+			if (trx->dict_operation_lock_mode == RW_S_LATCH) {
+				row_mysql_unfreeze_data_dictionary(trx);
+
+				thawed_dictionary = TRUE;
+			}
+
+			if (trx->dict_operation_lock_mode == 0
+			|| trx->dict_operation_lock_mode != RW_X_LATCH) {
+
+				row_mysql_lock_data_dictionary(trx);
+
+				locked_dictionary = TRUE;
+			}
+		}
+
+		node->table = dict_table_get_on_id(table_id, trx);
+
+		/* If we can't find the table or .ibd file is missing,
+		we skip the UNDO.*/
+		if (node->table == NULL || node->table->ibd_file_missing) {
+
+			node->table = NULL;
+		} else {
+			dict_index_t*	clust_index;
+
+			clust_index = dict_table_get_first_index(node->table);
+
+			ptr = trx_undo_rec_get_row_ref(
+				ptr, clust_index, &node->ref, node->heap);
+		}
+
+		if (locked_dictionary) {
+			row_mysql_unlock_data_dictionary(trx);
+		}
+
+		if (thawed_dictionary) {
+			row_mysql_freeze_data_dictionary(trx);
+		}
 	}
-
-	if (node->table->ibd_file_missing) {
-		/* We skip undo operations to missing .ibd files */
-		node->table = NULL;
-
-		return;
-	}
-
-	clust_index = dict_table_get_first_index(node->table);
-
-	ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &(node->ref),
-				       node->heap);
 }
 
 /***************************************************************
@@ -265,44 +351,49 @@ row_undo_ins(
 				/* out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 	undo_node_t*	node)	/* in: row undo node */
 {
-	dtuple_t*	entry;
-	ibool		found;
-	ulint		err;
+	ulint		err = DB_SUCCESS;
 
 	ut_ad(node);
 	ut_ad(node->state == UNDO_NODE_INSERT);
 
 	row_undo_ins_parse_undo_rec(node);
 
-	if (node->table == NULL) {
-		found = FALSE;
-	} else {
-		found = row_undo_search_clust_to_pcur(node);
-	}
+	/* Dictionary records are undone in a separate function */
 
-	if (!found) {
+	if (node->rec_type == TRX_UNDO_DICTIONARY_REC) {
+
+		err = row_undo_build_dict_undo_list(node);
+
+	} else if (!node->table || !row_undo_search_clust_to_pcur(node)) {
+
 		trx_undo_rec_release(node->trx, node->undo_no);
 
-		return(DB_SUCCESS);
-	}
+	} else {
 
-	node->index = dict_table_get_next_index(
-		dict_table_get_first_index(node->table));
+		/* Iterate over all the indexes and undo the insert.*/
 
-	while (node->index != NULL) {
-		entry = row_build_index_entry(node->row, node->ext,
-					      node->index, node->heap);
-		err = row_undo_ins_remove_sec(node->index, entry);
+		/* Skip the clustered index (the first index) */
+		node->index = dict_table_get_next_index(
+			dict_table_get_first_index(node->table));
 
-		if (err != DB_SUCCESS) {
+		while (node->index != NULL) {
+			dtuple_t*	entry;
 
-			return(err);
+			entry = row_build_index_entry(node->row, node->ext,
+						      node->index, node->heap);
+
+			err = row_undo_ins_remove_sec(node->index, entry);
+
+			if (err != DB_SUCCESS) {
+
+				return(err);
+			}
+
+			node->index = dict_table_get_next_index(node->index);
 		}
 
-		node->index = dict_table_get_next_index(node->index);
+		err = row_undo_ins_remove_clust_rec(node);
 	}
-
-	err = row_undo_ins_remove_clust_rec(node);
 
 	return(err);
 }

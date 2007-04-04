@@ -52,15 +52,16 @@ row_get_rec_roll_ptr(
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets);/* in: rec_get_offsets(rec, index) */
 /*********************************************************************
-When an insert to a table is performed, this function builds the entry which
-has to be inserted to an index on the table. */
+When an insert or purge to a table is performed, this function builds
+the entry to be inserted into or purged from an index on the table. */
 
 dtuple_t*
 row_build_index_entry(
 /*==================*/
-				/* out: index entry which should be inserted */
-	const dtuple_t*	row,	/* in: row which should be inserted to the
-				table */
+				/* out: index entry which should be
+				inserted or purged */
+	const dtuple_t*	row,	/* in: row which should be
+				inserted or purged */
 	row_ext_t*	ext,	/* in: externally stored column prefixes,
 				or NULL */
 	dict_index_t*	index,	/* in: index on the table */

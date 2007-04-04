@@ -93,6 +93,13 @@ row_ins_step(
 /*=========*/
 				/* out: query thread to run next or NULL */
 	que_thr_t*	thr);	/* in: query thread */
+/***************************************************************
+Creates an entry template for each index of a table. */
+
+void
+ins_node_create_entry_list(
+/*=======================*/
+	ins_node_t*	node);	/* in: row insert node */
 
 /* Insert node structure */
 
@@ -112,6 +119,11 @@ struct ins_node_struct{
 				this should be reset to NULL */
 	UT_LIST_BASE_NODE_T(dtuple_t)
 			entry_list;/* list of entries, one for each index */
+	ulint		table_version_number;
+				/* entry_list is created for this version
+				of the table. If this version is not same
+				as table->version_number, entry_list must
+				be re-created. */
 	byte*		row_id_buf;/* buffer for the row id sys field in row */
 	dulint		trx_id;	/* trx id or the last trx which executed the
 				node */
