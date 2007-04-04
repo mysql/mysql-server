@@ -3571,8 +3571,8 @@ end_with_restore_list:
         res= TRUE; // cannot happen
       else
       {
-        if ((thd->options & OPTION_KEEP_LOG) &&
-            thd->no_trans_update.all && !thd->slave_thread)
+        if (((thd->options & OPTION_KEEP_LOG) || thd->no_trans_update.all) &&
+            !thd->slave_thread)
           push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                        ER_WARNING_NOT_COMPLETE_ROLLBACK,
                        ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
