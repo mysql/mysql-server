@@ -4452,6 +4452,8 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     thd			Thread handler
     privilege		requested privilege
     all_tables		global table list of query
+    no_errors           FALSE/TRUE - report/don't report error to
+                            the client (using my_error() call).
 
   RETURN
     0 - OK
@@ -4459,7 +4461,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
 */
 
 bool check_single_table_access(THD *thd, ulong privilege, 
-                               TABLE_LIST *all_tables)
+                               TABLE_LIST *all_tables, bool no_errors)
 {
   Security_context * backup_ctx= thd->security_ctx;
 
@@ -4475,12 +4477,12 @@ bool check_single_table_access(THD *thd, ulong privilege,
     db_name= all_tables->db;
 
   if (check_access(thd, privilege, db_name,
-		   &all_tables->grant.privilege, 0, 0,
+		   &all_tables->grant.privilege, 0, no_errors,
                    test(all_tables->schema_table)))
     goto deny;
 
   /* Show only 1 table for check_grant */
-  if (grant_option && check_grant(thd, privilege, all_tables, 0, 1, 0))
+  if (grant_option && check_grant(thd, privilege, all_tables, 0, 1, no_errors))
     goto deny;
 
   thd->security_ctx= backup_ctx;
@@ -4508,7 +4510,7 @@ deny:
 
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
 {
-  if (check_single_table_access (thd,privilege,all_tables))
+  if (check_single_table_access (thd,privilege,all_tables, FALSE))
     return 1;
 
   /* Check rights on tables of subselects and implictly opened tables */
@@ -4521,7 +4523,7 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
     */
     if (view && subselects_tables->belong_to_view == view)
     {
-      if (check_single_table_access (thd, privilege, subselects_tables))
+      if (check_single_table_access (thd, privilege, subselects_tables, FALSE))
         return 1;
       subselects_tables= subselects_tables->next_global;
     }

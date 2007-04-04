@@ -19,7 +19,16 @@ revoke alter on mysqltest_1.* from mysqltest_1@localhost;
 alter table t1 drop partition p3;
 ERROR 42000: ALTER command denied to user 'mysqltest_1'@'localhost' for table 't1'
 revoke select,alter,drop on mysqltest_1.* from mysqltest_1@localhost;
-drop user mysqltest_1@localhost;
 drop table t1;
+create table t1 (s1 int);
+insert into t1 values (1);
+grant alter on mysqltest_1.* to mysqltest_1@localhost;
+alter table t1 partition by list (s1) (partition p1 values in (2));
+ERROR HY000: Table has no partition for some existing values
+grant select, alter on mysqltest_1.* to mysqltest_1@localhost;
+alter table t1 partition by list (s1) (partition p1 values in (2));
+ERROR HY000: Table has no partition for value 1
+drop table t1;
+drop user mysqltest_1@localhost;
 drop schema mysqltest_1;
 End of 5.1 tests
