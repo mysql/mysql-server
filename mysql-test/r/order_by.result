@@ -937,4 +937,29 @@ x1	x2
 	4
 1	
 2	
+SELECT a, a IN (1,2) FROM t1 ORDER BY a IN (1,2);
+a	a IN (1,2)
+3	0
+4	0
+2	1
+1	1
+SELECT a FROM t1 ORDER BY a IN (1,2);
+a
+3
+4
+2
+1
+SELECT a+10 FROM t1 ORDER BY a IN (1,2);
+a+10
+13
+14
+12
+11
+SELECT a, IF(a IN (1,2), a, a+10) FROM t1
+ORDER BY IF(a IN (3,4), a, a+10);
+a	IF(a IN (1,2), a, a+10)
+3	13
+4	14
+1	1
+2	2
 DROP TABLE t1;

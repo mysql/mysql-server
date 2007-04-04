@@ -645,6 +645,12 @@ SELECT IF(a IN (1,2), a, '') as x1, IF(a NOT IN (1,2), a, '') as x2
 SELECT IF(a IN (1,2), a, '') as x1, IF(a NOT IN (1,2), a, '') as x2
   FROM t1 GROUP BY x1, IF(a NOT IN (1,2), a, '');
 
+# The remaining queries are for better coverage
+SELECT a, a IN (1,2) FROM t1 ORDER BY a IN (1,2);
+SELECT a FROM t1 ORDER BY a IN (1,2);
+SELECT a+10 FROM t1 ORDER BY a IN (1,2);
+SELECT a, IF(a IN (1,2), a, a+10) FROM t1
+  ORDER BY IF(a IN (3,4), a, a+10);   
 
 DROP TABLE t1;
 
