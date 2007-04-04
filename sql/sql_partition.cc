@@ -1892,12 +1892,15 @@ static int add_partition_options(File fptr, partition_element *p_elem)
     err+= add_keyword_int(fptr,"MAX_ROWS",(longlong)p_elem->part_max_rows);
   if (p_elem->part_min_rows)
     err+= add_keyword_int(fptr,"MIN_ROWS",(longlong)p_elem->part_min_rows);
-  if (p_elem->data_file_name)
-    err+= add_keyword_string(fptr, "DATA DIRECTORY", TRUE, 
-                             p_elem->data_file_name);
-  if (p_elem->index_file_name)
-    err+= add_keyword_string(fptr, "INDEX DIRECTORY", TRUE, 
-                             p_elem->index_file_name);
+  if (!(current_thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
+  {
+    if (p_elem->data_file_name)
+      err+= add_keyword_string(fptr, "DATA DIRECTORY", TRUE, 
+                               p_elem->data_file_name);
+    if (p_elem->index_file_name)
+      err+= add_keyword_string(fptr, "INDEX DIRECTORY", TRUE, 
+                               p_elem->index_file_name);
+  }
   if (p_elem->part_comment)
     err+= add_keyword_string(fptr, "COMMENT", TRUE, p_elem->part_comment);
   return err + add_engine(fptr,p_elem->engine_type);
