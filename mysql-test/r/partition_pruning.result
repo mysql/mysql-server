@@ -677,13 +677,12 @@ f_int1	f_int2
 9	9
 drop table t1;
 create table t1 (a char(10) binary)
-partition by list(length(a))
-(partition p1 values in (1),
-partition p2 values in (2),
-partition p3 values in (3),
-partition p4 values in (4),
-partition p5 values in (5)
-);
+partition by list(ascii(a))
+(partition p1 values in (ascii('a')),
+partition p2 values in (ascii('b')),
+partition p3 values in (ascii('c')),
+partition p4 values in (ascii('d')),
+partition p5 values in (ascii('e')));
 insert into t1 values ('a'),('bb'),('ccc'),('dddd'),('eeEee');
 select * from t1 where a>='a' and a <= 'dddd';
 a
@@ -848,22 +847,57 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 drop table t1;
 create table t1 (a int) 
-partition by range((a & 0xFF) << 56) (
-partition p0 values less than (0x40 << 56),
-partition p1 values less than (0x80 << 56),
-partition p2 values less than (0xFF << 56)
+partition by range(a) (
+partition p0 values less than (64),
+partition p1 values less than (128),
+partition p2 values less than (255)
+);
+create table t2 (a int)
+partition by range(a+0) (
+partition p0 values less than (64),
+partition p1 values less than (128),
+partition p2 values less than (255)
 );
 insert into t1 values (0x20), (0x20), (0x41), (0x41), (0xFE), (0xFE);
+insert into t2 values (0x20), (0x20), (0x41), (0x41), (0xFE), (0xFE);
 explain partitions select * from t1 where a=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t2 where a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t1 where a=0xFE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	2	Using where
-explain partitions select * from t1 where a>0xFE and a<= 0xFF;
+explain partitions select * from t2 where a=0xFE;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p2	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 where a > 0xFE AND a <= 0xFF;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain partitions select * from t2 where a > 0xFE AND a <= 0xFF;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain partitions select * from t1 where a >= 0xFE AND a <= 0xFF;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t2 where a >= 0xFE AND a <= 0xFF;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p2	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 where a < 64 AND a >= 63;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t2 where a < 64 AND a >= 63;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 where a <= 64 AND a >= 63;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t2 where a <= 64 AND a >= 63;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1	ALL	NULL	NULL	NULL	NULL	4	Using where
 drop table t1;
+drop table t2;
 create table t1(a bigint unsigned not null) partition by range(a+0) (
 partition p1 values less than (10),
 partition p2 values less than (20),

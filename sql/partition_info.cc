@@ -880,7 +880,6 @@ bool partition_info::set_up_charset_field_preps()
   Field *field, **ptr;
   char **char_ptrs;
   unsigned i;
-  bool found;
   size_t size;
   uint tot_fields= 0;
   uint tot_part_fields= 0;
@@ -893,7 +892,6 @@ bool partition_info::set_up_charset_field_preps()
   {
     ptr= part_field_array;
     /* Set up arrays and buffers for those fields */
-    i= 0;
     while ((field= *(ptr++)))
     {
       if (field_is_partition_charset(field))
@@ -929,7 +927,7 @@ bool partition_info::set_up_charset_field_preps()
     }
     part_charset_field_array[i]= NULL;
   }
-  if (is_sub_partitioned() && list_of_subpart_fields &&
+  if (is_sub_partitioned() && !list_of_subpart_fields &&
       check_part_func_fields(subpart_field_array, FALSE))
   {
     /* Set up arrays and buffers for those fields */
@@ -937,7 +935,10 @@ bool partition_info::set_up_charset_field_preps()
     while ((field= *(ptr++)))
     {
       if (field_is_partition_charset(field))
+      {
         tot_subpart_fields++;
+        tot_fields++;
+      }
     }
     size= tot_subpart_fields * sizeof(char*);
     if (!(char_ptrs= (char**)sql_calloc(size)))
@@ -953,7 +954,6 @@ bool partition_info::set_up_charset_field_preps()
     i= 0;
     while ((field= *(ptr++)))
     {
-      unsigned j= 0;
       CHARSET_INFO *cs;
       char *field_buf;
       LINT_INIT(field_buf);
@@ -962,28 +962,16 @@ bool partition_info::set_up_charset_field_preps()
         continue;
       cs= ((Field_str*)field)->charset();
       size= field->pack_length();
-      found= FALSE;
-      for (j= 0; j < tot_part_fields; j++)
-      {
-        if (field == part_charset_field_array[i])
-          found= TRUE;
-      }
-      if (!found)
-      {
-        tot_fields++;
-        if (!(field_buf= sql_calloc(size)))
-          goto error;
-      }
+      if (!(field_buf= sql_calloc(size)))
+        goto error;
+      subpart_charset_field_array[i]= field;
       subpart_field_buffers[i++]= field_buf;
     }
-    if (!(char_ptrs= (char**)sql_calloc(size)))
-      goto error;
-    restore_subpart_field_ptrs= char_ptrs;
+    subpart_charset_field_array[i]= NULL;
   }
   if (tot_fields)
   {
-    uint j,k,l;
-
+    uint k;
     size= tot_fields*sizeof(char**);
     if (!(char_ptrs= (char**)sql_calloc(size)))
       goto error;
@@ -1001,11 +989,12 @@ bool partition_info::set_up_charset_field_preps()
       full_part_field_buffers[i]= part_field_buffers[i];
     }
     k= tot_part_fields;
-    l= 0;
     for (i= 0; i < tot_subpart_fields; i++)
     {
+      uint j;
+      bool found= FALSE;
       field= subpart_charset_field_array[i];
-      found= FALSE;
+
       for (j= 0; j < tot_part_fields; j++)
       {
         if (field == part_charset_field_array[i])
@@ -1013,12 +1002,12 @@ bool partition_info::set_up_charset_field_preps()
       }
       if (!found)
       {
-        full_part_charset_field_array[l]= subpart_charset_field_array[k];
-        full_part_field_buffers[l]= subpart_field_buffers[k];
-        k++; l++;
+        full_part_charset_field_array[k]= subpart_charset_field_array[i];
+        full_part_field_buffers[k]= subpart_field_buffers[i];
+        k++;
       }
     }
-    full_part_charset_field_array[tot_fields]= NULL;
+    full_part_charset_field_array[k]= NULL;
   }
   DBUG_RETURN(FALSE);
 error:
