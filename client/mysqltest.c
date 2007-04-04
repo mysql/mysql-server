@@ -276,7 +276,7 @@ enum enum_commands {
   Q_IF,
   Q_DISABLE_PARSING, Q_ENABLE_PARSING,
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
-  Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT,
+  Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT, Q_SKIP,
   Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
 
   Q_UNKNOWN,			       /* Unknown command.   */
@@ -358,6 +358,7 @@ const char *command_names[]=
   "die",
   /* Don't execute any more commands, compare result */
   "exit",
+  "skip",
   "chmod",
   "append_file",
   "cat_file",
@@ -6257,6 +6258,9 @@ int main(int argc, char **argv)
       case Q_EXIT:
         /* Stop processing any more commands */
         abort_flag= 1;
+        break;
+      case Q_SKIP:
+        abort_not_supported_test("%s", command->first_argument);
         break;
 
       case Q_RESULT:
