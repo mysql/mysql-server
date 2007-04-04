@@ -221,6 +221,7 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
 {
   /* read the mysql mapped error code */
   int error= ndberr->mysql_code;
+
   switch (error)
   {
     /* errors for which we do not add warnings, just return mapped error code
@@ -239,6 +240,7 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
   default:
     break;
   }
+
   /*
     Push the NDB error message as warning
     - Used to be able to use SHOW WARNINGS toget more info on what the error is

@@ -3439,7 +3439,6 @@ bool mysql_create_table_internal(THD *thd,
       error= 0;
       goto err;
     }
-    DBUG_PRINT("info",("1"));
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
     goto err;
   }
@@ -3451,7 +3450,6 @@ bool mysql_create_table_internal(THD *thd,
     {
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
         goto warn;
-      DBUG_PRINT("info",("2"));
       my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
       goto unlock_and_end;
     }
