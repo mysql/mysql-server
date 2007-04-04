@@ -5781,7 +5781,7 @@ bool setup_tables_and_check_access(THD *thd,
   {
     if (leaves_tmp->belong_to_view && 
         check_single_table_access(thd, first_table ? want_access_first :
-                                  want_access,  leaves_tmp))
+                                  want_access, leaves_tmp, FALSE))
     {
       tables->hide_view_error(thd);
       return TRUE;
