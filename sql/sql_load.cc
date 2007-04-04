@@ -222,7 +222,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       DBUG_RETURN(TRUE);
   }
 
-  mark_fields_used_by_triggers_for_insert_stmt(thd, table, handle_duplicates);
+  prepare_triggers_for_insert_stmt(thd, table, handle_duplicates);
 
   uint tot_length=0;
   bool use_blobs= 0, use_vars= 0;

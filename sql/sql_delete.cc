@@ -209,7 +209,19 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   thd->proc_info="updating";
 
   if (table->triggers)
+  {
     table->triggers->mark_fields_used(thd, TRG_EVENT_DELETE);
+    if (table->triggers->has_triggers(TRG_EVENT_DELETE,
+                                      TRG_ACTION_AFTER))
+    {
+      /*
+	The table has AFTER DELETE triggers that might access to subject table
+	and therefore might need delete to be done immediately. So we turn-off
+	the batching.
+      */
+      (void) table->file->extra(HA_EXTRA_DELETE_CANNOT_BATCH);
+    }
+  }
 
   while (!(error=info.read_record(&info)) && !thd->killed &&
 	 !thd->net.report_error)
@@ -526,7 +538,19 @@ multi_delete::initialize_tables(JOIN *join)
       else
 	normal_tables= 1;
       if (tbl->triggers)
+      {
         tbl->triggers->mark_fields_used(thd, TRG_EVENT_DELETE);
+	if (tbl->triggers->has_triggers(TRG_EVENT_DELETE,
+                                      TRG_ACTION_AFTER))
+	{
+	  /*
+	    The table has AFTER DELETE triggers that might access to subject 
+	    table and therefore might need delete to be done immediately. 
+	    So we turn-off the batching.
+	  */
+	  (void) tbl->file->extra(HA_EXTRA_DELETE_CANNOT_BATCH);
+	}
+      }
     }
     else if ((tab->type != JT_SYSTEM && tab->type != JT_CONST) &&
              walk == delete_tables)
