@@ -5643,6 +5643,90 @@ t3_id_1	t3_id_2	t4_id
 DROP PROCEDURE p1|
 DROP VIEW v1, v2|
 DROP TABLE t3, t4|
+drop function if exists bug20777|
+drop table if exists examplebug20777|
+create function bug20777(f1 bigint unsigned) returns bigint unsigned
+begin
+set f1 = (f1 - 10); set f1 = (f1 10);
+return f1;
+end|
+select bug20777(9223372036854775803) as '9223372036854775803   2**63-5';
+9223372036854775803   2**63-5
+9223372036854775803
+select bug20777(9223372036854775804) as '9223372036854775804   2**63-4';
+9223372036854775804   2**63-4
+9223372036854775804
+select bug20777(9223372036854775805) as '9223372036854775805   2**63-3';
+9223372036854775805   2**63-3
+9223372036854775805
+select bug20777(9223372036854775806) as '9223372036854775806   2**63-2';
+9223372036854775806   2**63-2
+9223372036854775806
+select bug20777(9223372036854775807) as '9223372036854775807   2**63-1';
+9223372036854775807   2**63-1
+9223372036854775807
+select bug20777(9223372036854775808) as '9223372036854775808   2**63+0';
+9223372036854775808   2**63+0
+9223372036854775808
+select bug20777(9223372036854775809) as '9223372036854775809   2**63+1';
+9223372036854775809   2**63+1
+9223372036854775809
+select bug20777(9223372036854775810) as '9223372036854775810   2**63+2';
+9223372036854775810   2**63+2
+9223372036854775810
+select bug20777(-9223372036854775808) as 'lower bounds signed bigint';
+lower bounds signed bigint
+0
+select bug20777(9223372036854775807) as 'upper bounds signed bigint';
+upper bounds signed bigint
+9223372036854775807
+select bug20777(0) as 'lower bounds unsigned bigint';
+lower bounds unsigned bigint
+0
+select bug20777(18446744073709551615) as 'upper bounds unsigned bigint';
+upper bounds unsigned bigint
+18446744073709551615
+select bug20777(18446744073709551616) as 'upper bounds unsigned bigint 1';
+upper bounds unsigned bigint 1
+18446744073709551615
+select bug20777(-1) as 'lower bounds unsigned bigint - 1';
+lower bounds unsigned bigint - 1
+0
+create table examplebug20777 as select 
+0 as 'i',
+bug20777(9223372036854775806) as '2**63-2',
+bug20777(9223372036854775807) as '2**63-1',
+bug20777(9223372036854775808) as '2**63',
+bug20777(9223372036854775809) as '2**63+1',
+bug20777(18446744073709551614) as '2**64-2',
+bug20777(18446744073709551615) as '2**64-1', 
+bug20777(18446744073709551616) as '2**64',
+bug20777(0) as '0',
+bug20777(-1) as '-1';
+insert into examplebug20777 values (1, 9223372036854775806, 9223372036854775807, 223372036854775808, 9223372036854775809, 18446744073709551614, 18446744073709551615, 8446744073709551616, 0, -1);
+show create table examplebug20777;
+Table	Create Table
+examplebug20777	CREATE TABLE `examplebug20777` (
+  `i` int(1) NOT NULL DEFAULT '0',
+  `2**63-2` bigint(20) unsigned DEFAULT NULL,
+  `2**63-1` bigint(20) unsigned DEFAULT NULL,
+  `2**63` bigint(20) unsigned DEFAULT NULL,
+  `2**63+1` bigint(20) unsigned DEFAULT NULL,
+  `2**64-2` bigint(20) unsigned DEFAULT NULL,
+  `2**64-1` bigint(20) unsigned DEFAULT NULL,
+  `2**64` bigint(20) unsigned DEFAULT NULL,
+  `0` bigint(20) unsigned DEFAULT NULL,
+  `-1` bigint(20) unsigned DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select * from examplebug20777 order by i;
+i	2**63-2	2**63-1	2**63	2**63+1	2**64-2	2**64-1	2**64	0	-1
+0	9223372036854775806	9223372036854775807	9223372036854775808	9223372036854775809	18446744073709551614	18446744073709551615	18446744073709551615	0	0
+1	9223372036854775806	9223372036854775807	223372036854775808	9223372036854775809	18446744073709551614	18446744073709551615	8446744073709551616	0	0
+drop table examplebug20777;
+select bug20777(18446744073709551613)+1;
+bug20777(18446744073709551613)+1
+18446744073709551614
+drop function bug20777;
 End of 5.0 tests
 Begin of 5.1 tests
 drop function if exists pi;
@@ -6061,89 +6145,44 @@ SUM(f2)	bug25373(f1)
 21.300000071526	NULL
 DROP FUNCTION bug25373|
 DROP TABLE t3|
-drop function if exists bug20777|
-drop table if exists examplebug20777|
-create function bug20777(f1 bigint unsigned) returns bigint unsigned
-begin
-set f1 = (f1 - 10); set f1 = (f1 + 10);
-return f1;
-end|
-select bug20777(9223372036854775803) as '9223372036854775803   2**63-5';
-9223372036854775803   2**63-5
-9223372036854775803
-select bug20777(9223372036854775804) as '9223372036854775804   2**63-4';
-9223372036854775804   2**63-4
-9223372036854775804
-select bug20777(9223372036854775805) as '9223372036854775805   2**63-3';
-9223372036854775805   2**63-3
-9223372036854775805
-select bug20777(9223372036854775806) as '9223372036854775806   2**63-2';
-9223372036854775806   2**63-2
-9223372036854775806
-select bug20777(9223372036854775807) as '9223372036854775807   2**63-1';
-9223372036854775807   2**63-1
-9223372036854775807
-select bug20777(9223372036854775808) as '9223372036854775808   2**63+0';
-9223372036854775808   2**63+0
-9223372036854775808
-select bug20777(9223372036854775809) as '9223372036854775809   2**63+1';
-9223372036854775809   2**63+1
-9223372036854775809
-select bug20777(9223372036854775810) as '9223372036854775810   2**63+2';
-9223372036854775810   2**63+2
-9223372036854775810
-select bug20777(-9223372036854775808) as 'lower bounds signed bigint';
-lower bounds signed bigint
-0
-select bug20777(9223372036854775807) as 'upper bounds signed bigint';
-upper bounds signed bigint
-9223372036854775807
-select bug20777(0) as 'lower bounds unsigned bigint';
-lower bounds unsigned bigint
-0
-select bug20777(18446744073709551615) as 'upper bounds unsigned bigint';
-upper bounds unsigned bigint
-18446744073709551615
-select bug20777(18446744073709551616) as 'upper bounds unsigned bigint + 1';
-upper bounds unsigned bigint + 1
-18446744073709551615
-select bug20777(-1) as 'lower bounds unsigned bigint - 1';
-lower bounds unsigned bigint - 1
-0
-create table examplebug20777 as select 
-0 as 'i',
-bug20777(9223372036854775806) as '2**63-2',
-bug20777(9223372036854775807) as '2**63-1',
-bug20777(9223372036854775808) as '2**63',
-bug20777(9223372036854775809) as '2**63+1',
-bug20777(18446744073709551614) as '2**64-2',
-bug20777(18446744073709551615) as '2**64-1', 
-bug20777(18446744073709551616) as '2**64',
-bug20777(0) as '0',
-bug20777(-1) as '-1';
-insert into examplebug20777 values (1, 9223372036854775806, 9223372036854775807, 223372036854775808, 9223372036854775809, 18446744073709551614, 18446744073709551615, 8446744073709551616, 0, -1);
-show create table examplebug20777;
-Table	Create Table
-examplebug20777	CREATE TABLE `examplebug20777` (
-  `i` int(1) NOT NULL DEFAULT '0',
-  `2**63-2` bigint(20) unsigned DEFAULT NULL,
-  `2**63-1` bigint(20) unsigned DEFAULT NULL,
-  `2**63` bigint(20) unsigned DEFAULT NULL,
-  `2**63+1` bigint(20) unsigned DEFAULT NULL,
-  `2**64-2` bigint(20) unsigned DEFAULT NULL,
-  `2**64-1` bigint(20) unsigned DEFAULT NULL,
-  `2**64` bigint(20) unsigned DEFAULT NULL,
-  `0` bigint(20) unsigned DEFAULT NULL,
-  `-1` bigint(20) unsigned DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-select * from examplebug20777 order by i;
-i	2**63-2	2**63-1	2**63	2**63+1	2**64-2	2**64-1	2**64	0	-1
-0	9223372036854775806	9223372036854775807	9223372036854775808	9223372036854775809	18446744073709551614	18446744073709551615	18446744073709551615	0	0
-1	9223372036854775806	9223372036854775807	223372036854775808	9223372036854775809	18446744073709551614	18446744073709551615	8446744073709551616	0	0
-drop table examplebug20777;
-select bug20777(18446744073709551613)+1;
-bug20777(18446744073709551613)+1
-18446744073709551614
-drop function bug20777;
-End of 5.0 tests.
+DROP DATABASE IF EXISTS mysqltest1|
+DROP DATABASE IF EXISTS mysqltest2|
+CREATE DATABASE mysqltest1|
+CREATE DATABASE mysqltest2|
+CREATE PROCEDURE mysqltest1.p1()
+DROP DATABASE mysqltest2|
+use mysqltest2|
+CALL mysqltest1.p1()|
+Warnings:
+Note	1049	Unknown database 'mysqltest2'
+SELECT DATABASE()|
+DATABASE()
+NULL
+DROP DATABASE mysqltest1|
+use test|
 drop table t1,t2;
+CREATE TABLE t1 (a int auto_increment primary key) engine=MyISAM;
+CREATE TABLE t2 (a int auto_increment primary key, b int) engine=innodb;
+set @a=0;
+CREATE function bug27354() RETURNS int deterministic
+begin
+insert into t1 values (null);
+set @a=@a+1;
+return @a;
+end|
+update t2 set b=1 where a=bug27354();
+select count(t_1.a),count(t_2.a) from t1 as t_1, t2 as t_2 /* must be 0,0 */;
+count(t_1.a)	count(t_2.a)
+0	0
+insert into t2 values (1,1),(2,2),(3,3);
+update t2 set b=-b where a=bug27354();
+select * from t2 /* must return 1,-1 ... */;
+a	b
+1	-1
+2	-2
+3	-3
+select count(*) from t1 /* must be 3 */;
+count(*)
+3
+drop table t1,t2;
+drop function   bug27354;
