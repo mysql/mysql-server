@@ -129,6 +129,7 @@ int main(int argc, char** argv){
   }
 
   Ndb_cluster_connection con(opt_connect_str);
+  con.set_name("ndb_select_all");
   if(con.connect(12, 5, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;
