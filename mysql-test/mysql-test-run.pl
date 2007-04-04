@@ -724,8 +724,6 @@ sub command_line_setup () {
   {
     $mysqld_variables{'port'}= 3306;
     $mysqld_variables{'master-port'}= 3306;
-    $opt_skip_ndbcluster= 1;
-    $opt_skip_im= 1;
   }
 
   if ( $opt_comment )
@@ -1235,6 +1233,7 @@ sub command_line_setup () {
   {
     # Turn off features not supported when running with extern server
     $opt_skip_rpl= 1;
+    $opt_skip_ndbcluster= 1;
 
     # Setup master->[0] with the settings for the extern server
     $master->[0]->{'path_sock'}=  $opt_socket ? $opt_socket : "/tmp/mysql.sock";
@@ -2011,10 +2010,7 @@ sub environment_setup () {
     $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
 
   }
-  if (!$opt_extern)
-  {
-    $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
-  }
+  $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
 
   # ----------------------------------------------------
   # Setup env so childs can execute my_print_defaults
