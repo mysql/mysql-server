@@ -292,7 +292,7 @@ private:
   State theState;
   void setState(State newState);
   // quick and dirty support for events (consider subclassing)
-  int theEventBlobVersion; // -1=normal blob 0=post event 1=pre event
+  int theEventBlobVersion; // -1=data op 0=post event 1=pre event
   // define blob table
   static void getBlobTableName(char* btname, const NdbTableImpl* t, const NdbColumnImpl* c);
   static int getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnImpl* c, struct NdbError& error);
@@ -365,6 +365,10 @@ private:
   NdbRecAttr* theHeadInlineRecAttr;
   NdbOperation* theHeadInlineReadOp;
   bool theHeadInlineUpdateFlag;
+  // partition id for data events
+  Uint32 noPartitionId() { return ~(Uint32)0; }
+  Uint32 thePartitionId;
+  NdbRecAttr* thePartitionIdRecAttr;
   // length and read/write position
   int theNullFlag;
   Uint64 theLength;

@@ -350,6 +350,8 @@ NdbBlob::init()
   theHeadInlineRecAttr = NULL;
   theHeadInlineReadOp = NULL;
   theHeadInlineUpdateFlag = false;
+  thePartitionId = noPartitionId();
+  thePartitionIdRecAttr = NULL;
   theNullFlag = -1;
   theLength = 0;
   thePos = 0;
@@ -713,6 +715,7 @@ NdbBlob::setTableKeyValue(NdbOperation* anOp)
 {
   DBUG_ENTER("NdbBlob::setTableKeyValue");
   DBUG_DUMP("info", theKeyBuf.data, 4 * theTable->m_keyLenInWords);
+  const bool isBlobPartOp = (anOp->m_currentTable == theBlobTable);
   const Uint32* data = (const Uint32*)theKeyBuf.data;
   const unsigned columns = theTable->m_columns.size();
   uint n = 0;
@@ -720,12 +723,14 @@ NdbBlob::setTableKeyValue(NdbOperation* anOp)
   unsigned pos = 0;
   for (unsigned i = 0;  n < noOfKeys; i++) {
     assert(i < columns);
-    NdbColumnImpl* c = theTable->m_columns[i];
+    const NdbColumnImpl* c = theTable->getColumn(i);
     assert(c != NULL);
     if (c->m_pk) {
       unsigned len = c->m_attrSize * c->m_arraySize;
-      if (anOp->m_currentTable == theBlobTable)
-        c = theBlobTable->m_columns[n];
+      if (isBlobPartOp) {
+        c = theBlobTable->getColumn(n);
+        assert(c != NULL);
+      }
       if (anOp->equal_impl(c, (const char*)&data[pos]) == -1) {
         setErrorCode(anOp);
         DBUG_RETURN(-1);
@@ -734,10 +739,6 @@ NdbBlob::setTableKeyValue(NdbOperation* anOp)
       n++;
     }
   }
-#if wl3717_todo // decide partition stuff later
-  if (theNdbOp->theDistrKeyIndicator_)
-    anOp->setPartitionId(theNdbOp->getPartitionId());
-#endif
   assert(pos == theKeyBuf.size / 4);
   DBUG_RETURN(0);
 }
@@ -873,7 +874,9 @@ NdbBlob::getHeadInlineValue(NdbOperation* anOp)
 {
   DBUG_ENTER("NdbBlob::getHeadInlineValue");
   theHeadInlineRecAttr = anOp->getValue_impl(theColumn, theHeadInlineBuf.data);
-  if (theHeadInlineRecAttr == NULL) {
+  thePartitionIdRecAttr = anOp->getValue(NdbDictionary::Column::FRAGMENT);
+  if (theHeadInlineRecAttr == NULL ||
+      thePartitionIdRecAttr == NULL) {
     setErrorCode(anOp);
     DBUG_RETURN(-1);
   }
@@ -890,6 +893,17 @@ NdbBlob::getHeadFromRecAttr()
   if (theNullFlag == 0) {
     unpackBlobHead();
     theLength = theHead.length;
+    if (theEventBlobVersion == -1) {
+      Uint32 id = thePartitionIdRecAttr->u_32_value();
+      DBUG_PRINT("info", ("table partition id: %u", id));
+      if (thePartitionId == noPartitionId()) {
+        DBUG_PRINT("info", ("discovered here"));
+        // setting even in non-partitioned case
+        thePartitionId = id;
+      } else {
+        assert(thePartitionId == id);
+      }
+    }
   } else {
     theLength = 0;
   }
@@ -1430,6 +1444,10 @@ NdbBlob::writeDataPrivate(const char* buf, Uint32 bytes)
  * - multi-part read/write operates only on full parts
  * - single-part read/write uses length
  * - single-part read requires caller to exec pending ops
+ *
+ * In V1 parts are striped.  In V2 they are either striped
+ * or use table row partition.  The latter case applies both
+ * to default and user-defined partitioning.
  */
 
 int
@@ -1488,6 +1506,10 @@ NdbBlob::readTablePart(char* buf, Uint32 part, Uint16& len)
       getPartDataValue(tOp, buf, &len) == -1) {
     setErrorCode(tOp);
     DBUG_RETURN(-1);
+  }
+  if (thePartitionId != noPartitionId() &&
+      theStripeSize == 0) {
+    tOp->setPartitionId(thePartitionId);
   }
   tOp->m_abortOption = NdbOperation::AbortOnError;
   thePendingBlobOps |= (1 << NdbOperation::ReadRequest);
@@ -1548,6 +1570,10 @@ NdbBlob::insertPart(const char* buf, Uint32 part, const Uint16& len)
     setErrorCode(tOp);
     DBUG_RETURN(-1);
   }
+  if (thePartitionId != noPartitionId() &&
+      theStripeSize == 0) {
+    tOp->setPartitionId(thePartitionId);
+  }
   tOp->m_abortOption = NdbOperation::AbortOnError;
   thePendingBlobOps |= (1 << NdbOperation::InsertRequest);
   theNdbCon->thePendingBlobOps |= (1 << NdbOperation::InsertRequest);
@@ -1584,6 +1610,10 @@ NdbBlob::updatePart(const char* buf, Uint32 part, const Uint16& len)
     setErrorCode(tOp);
     DBUG_RETURN(-1);
   }
+  if (thePartitionId != noPartitionId() &&
+      theStripeSize == 0) {
+    tOp->setPartitionId(thePartitionId);
+  }
   tOp->m_abortOption = NdbOperation::AbortOnError;
   thePendingBlobOps |= (1 << NdbOperation::UpdateRequest);
   theNdbCon->thePendingBlobOps |= (1 << NdbOperation::UpdateRequest);
@@ -1603,6 +1633,10 @@ NdbBlob::deleteParts(Uint32 part, Uint32 count)
         setPartKeyValue(tOp, part + n) == -1) {
       setErrorCode(tOp);
       DBUG_RETURN(-1);
+    }
+    if (thePartitionId != noPartitionId() &&
+        theStripeSize == 0) {
+      tOp->setPartitionId(thePartitionId);
     }
     tOp->m_abortOption = NdbOperation::AbortOnError;
     n++;
@@ -1639,6 +1673,10 @@ NdbBlob::deletePartsUnknown(Uint32 part)
           setPartKeyValue(tOp, part + count + n) == -1) {
         setErrorCode(tOp);
         DBUG_RETURN(-1);
+      }
+      if (thePartitionId != noPartitionId() &&
+          theStripeSize == 0) {
+        tOp->setPartitionId(thePartitionId);
       }
       tOp->m_abortOption= NdbOperation::AO_IgnoreError;
       n++;
@@ -1724,6 +1762,7 @@ NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl
 {
   DBUG_ENTER("NdbBlob::atPrepare");
   assert(theState == Idle);
+  init();
   // ndb api stuff
   theNdb = anOp->theNdb;
   theNdbCon = aCon;     // for scan, this is the real transaction (m_transConnection)
@@ -1736,6 +1775,11 @@ NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl
     DBUG_RETURN(-1);
   DBUG_PRINT("info", ("this=%p op=%p con=%p version=%d",
                       this, theNdbOp, theNdbCon, theBlobVersion));
+  // check if mysql or user has set partition id
+  if (theNdbOp->theDistrKeyIndicator_) {
+    thePartitionId = theNdbOp->getPartitionId();
+    DBUG_PRINT("info", ("op partition id: %u", thePartitionId));
+  }
   // extra buffers
   theAccessKeyBuf.alloc(theAccessTable->m_keyLenInWords << 2);
   theHeadInlineCopyBuf.alloc(theHeadSize + theInlineSize);
@@ -1812,6 +1856,7 @@ NdbBlob::atPrepare(NdbEventOperationImpl* anOp, NdbEventOperationImpl* aBlobOp, 
   DBUG_ENTER("NdbBlob::atPrepare [event]");
   DBUG_PRINT("info", ("this=%p op=%p version=%d", this, anOp, theBlobVersion));
   assert(theState == Idle);
+  init();
   assert(version == 0 || version == 1);
   theEventBlobVersion = version;
   // ndb api stuff
@@ -2044,7 +2089,10 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
             setErrorCode(NdbBlobImpl::ErrAbort);
             DBUG_RETURN(-1);
           }
-          DBUG_PRINT("info", ("add op to update head+inline"));
+          if (thePartitionId != noPartitionId()) {
+            tOp->setPartitionId(thePartitionId);
+          }
+          DBUG_PRINT("info", ("added op to update head+inline"));
       }
     }
   }
@@ -2073,13 +2121,16 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
         setErrorCode(tOp);
         DBUG_RETURN(-1);
       }
+      if (thePartitionId != noPartitionId()) {
+        tOp->setPartitionId(thePartitionId);
+      }
       if (isWriteOp()) {
         tOp->m_abortOption = NdbOperation::AO_IgnoreError;
       }
       theHeadInlineReadOp = tOp;
       // execute immediately
       batch = true;
-      DBUG_PRINT("info", ("add op before to read head+inline"));
+      DBUG_PRINT("info", ("added op before to read head+inline"));
     }
   }
   if (isIndexOp()) {
@@ -2293,6 +2344,9 @@ NdbBlob::postExecute(NdbTransaction::ExecType anExecType)
       setErrorCode(NdbBlobImpl::ErrAbort);
       DBUG_RETURN(-1);
     }
+    if (thePartitionId != noPartitionId()) {
+      tOp->setPartitionId(thePartitionId);
+    }
     tOp->m_abortOption = NdbOperation::AbortOnError;
     DBUG_PRINT("info", ("added op to update head+inline"));
   }
@@ -2322,6 +2376,9 @@ NdbBlob::preCommit()
             setHeadInlineValue(tOp) == -1) {
           setErrorCode(NdbBlobImpl::ErrAbort);
           DBUG_RETURN(-1);
+        }
+        if (thePartitionId != noPartitionId()) {
+          tOp->setPartitionId(thePartitionId);
         }
         tOp->m_abortOption = NdbOperation::AbortOnError;
         DBUG_PRINT("info", ("added op to update head+inline"));
@@ -2354,6 +2411,8 @@ NdbBlob::atNextResult()
     if (unpackKeyValue(theTable, theKeyBuf) == -1)
       DBUG_RETURN(-1);
   }
+  // discard previous partition id before reading new one
+  thePartitionId = noPartitionId();
   getHeadFromRecAttr();
   if (setPos(0) == -1)
     DBUG_RETURN(-1);
