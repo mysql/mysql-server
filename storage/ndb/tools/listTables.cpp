@@ -307,6 +307,7 @@ int main(int argc, char** argv){
   _tabname = argv[0];
 
   ndb_cluster_connection = new Ndb_cluster_connection(opt_connect_str);
+  ndb_cluster_connection->set_name("ndb_show_tables");
   if (ndb_cluster_connection->connect(12,5,1))
     fatal("Unable to connect to management server.");
   if (ndb_cluster_connection->wait_until_ready(30,0) < 0)
