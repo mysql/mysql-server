@@ -277,6 +277,9 @@ let $A = changed value of A;
 # Content of $B is: initial value of B
 let $B = changed value of B;
 # Content of $A is: changed value of A
+var2: content of variable 1
+var3: content of variable 1 content of variable 1
+length of var3 is longer than 0
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
 mysqltest: At line 1: Could not open file ./non_existingFile
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/recursive.sql": At line 1: Source directives are nesting too deep
