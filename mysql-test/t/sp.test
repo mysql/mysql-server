@@ -7022,9 +7022,54 @@ SELECT SUM(f2), bug25373(f1) FROM t3 GROUP BY bug25373(f1) WITH ROLLUP|
 DROP FUNCTION bug25373|
 DROP TABLE t3|
 #
-# NOTE: The delimiter is `|`, and not `;`. It is changed to `;`
-#       at the end of the file!
-#
+# Bug#20777: Function w BIGINT UNSIGNED shows diff. behaviour --ps-protocol
+--disable_warnings
+drop function if exists bug20777|
+drop table if exists examplebug20777|
+--enabled_warnings
+create function bug20777(f1 bigint unsigned) returns bigint unsigned
+begin
+  set f1 = (f1 - 10); set f1 = (f1 + 10);
+return f1;
+end|
+delimiter ;|
+select bug20777(9223372036854775803) as '9223372036854775803   2**63-5';
+select bug20777(9223372036854775804) as '9223372036854775804   2**63-4';
+select bug20777(9223372036854775805) as '9223372036854775805   2**63-3';
+select bug20777(9223372036854775806) as '9223372036854775806   2**63-2';
+select bug20777(9223372036854775807) as '9223372036854775807   2**63-1';
+select bug20777(9223372036854775808) as '9223372036854775808   2**63+0';
+select bug20777(9223372036854775809) as '9223372036854775809   2**63+1';
+select bug20777(9223372036854775810) as '9223372036854775810   2**63+2';
+select bug20777(-9223372036854775808) as 'lower bounds signed bigint';
+select bug20777(9223372036854775807) as 'upper bounds signed bigint';
+select bug20777(0) as 'lower bounds unsigned bigint';
+select bug20777(18446744073709551615) as 'upper bounds unsigned bigint';
+select bug20777(18446744073709551616) as 'upper bounds unsigned bigint + 1';
+select bug20777(-1) as 'lower bounds unsigned bigint - 1';
+
+create table examplebug20777 as select 
+  0 as 'i',
+  bug20777(9223372036854775806) as '2**63-2',
+  bug20777(9223372036854775807) as '2**63-1',
+  bug20777(9223372036854775808) as '2**63',
+  bug20777(9223372036854775809) as '2**63+1',
+  bug20777(18446744073709551614) as '2**64-2',
+  bug20777(18446744073709551615) as '2**64-1', 
+  bug20777(18446744073709551616) as '2**64',
+  bug20777(0) as '0',
+  bug20777(-1) as '-1';
+insert into examplebug20777 values (1, 9223372036854775806, 9223372036854775807, 223372036854775808, 9223372036854775809, 18446744073709551614, 18446744073709551615, 8446744073709551616, 0, -1);
+show create table examplebug20777;
+select * from examplebug20777 order by i;
+
+drop table examplebug20777;
+select bug20777(18446744073709551613)+1;
+drop function bug20777;
+delimiter |;
+
+###
+--echo End of 5.0 tests.
 
 #
 # BUG#NNNN: New bug synopsis
@@ -7033,8 +7078,13 @@ DROP TABLE t3|
 #drop procedure if exists bugNNNN|
 #--enable_warnings
 #create procedure bugNNNN...
-
+#
 # Add bugs above this line. Use existing tables t1 and t2 when
-# practical, or create table t3, t4 etc temporarily (and drop them).
+# practical, or create table t3,t4 etc temporarily (and drop them).
+# NOTE: The delimiter is `|`, and not `;`. It is changed to `;`
+#       at the end of the file!
+#
+
 delimiter ;|
 drop table t1,t2;
+

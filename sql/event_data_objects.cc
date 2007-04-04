@@ -81,7 +81,7 @@ Event_queue_element_for_exec::~Event_queue_element_for_exec()
 
   RETURN VALUE
     Address or NULL in case of error
-  
+
   NOTE
     Created on THD's mem_root
 */
@@ -169,13 +169,13 @@ Event_parse_data::init_body(THD *thd)
                       (long) body_begin, (long) thd->lex->ptr));
 
   body.length= thd->lex->ptr - body_begin;
-  const uchar *body_end= body_begin + body.length - 1;
+  const char *body_end= body_begin + body.length - 1;
 
   /* Trim nuls or close-comments ('*'+'/') or spaces at the end */
   while (body_begin < body_end)
   {
 
-    if ((*body_end == '\0') || 
+    if ((*body_end == '\0') ||
         (my_isspace(thd->variables.character_set_client, *body_end)))
     { /* consume NULs and meaningless whitespace */
       --body.length;
@@ -187,7 +187,7 @@ Event_parse_data::init_body(THD *thd)
        consume closing comments
 
        This is arguably wrong, but it's the best we have until the parser is
-       changed to be smarter.   FIXME PARSER 
+       changed to be smarter.   FIXME PARSER
 
        See also the sp_head code, where something like this is done also.
 
@@ -297,7 +297,7 @@ Event_parse_data::init_execute_at(THD *thd)
 
   if (item_execute_at->fix_fields(thd, &item_execute_at))
     goto wrong_value;
-  
+
   /* no starts and/or ends in case of execute_at */
   DBUG_PRINT("info", ("starts_null && ends_null should be 1 is %d",
                       (starts_null && ends_null)));
@@ -728,7 +728,7 @@ Event_basic::load_string_fields(Field **fields, ...)
       ret= TRUE;
       break;
     }
-    field_value->length= strlen(field_value->str);  
+    field_value->length= strlen(field_value->str);
 
     field_name= (enum enum_events_table_field) va_arg(args, int);
   }
@@ -804,7 +804,7 @@ Event_timed::Event_timed():
 */
 
 Event_timed::~Event_timed()
-{    
+{
 }
 
 
@@ -1423,7 +1423,6 @@ Event_queue_element::compute_next_execution_time()
     DBUG_PRINT("info", ("Dropped: %d", dropped));
     status= Event_queue_element::DISABLED;
     status_changed= TRUE;
-    dropped= TRUE;
 
     goto ret;
   }
@@ -1615,7 +1614,7 @@ Event_queue_element::mark_last_executed(THD *thd)
 
   last_executed= (my_time_t) thd->query_start();
   last_executed_changed= TRUE;
-  
+
   execution_count++;
 }
 
@@ -1812,7 +1811,7 @@ Event_timed::get_create_event(THD *thd, String *buf)
 */
 
 int
-Event_job_data::get_fake_create_event(THD *thd, String *buf)
+Event_job_data::get_fake_create_event(String *buf)
 {
   DBUG_ENTER("Event_job_data::get_create_event");
   /* FIXME: "EVERY 3337 HOUR" is asking for trouble. */
@@ -1903,7 +1902,7 @@ done:
   RETURN VALUE
     0                       success
     EVEX_COMPILE_ERROR      error during compilation
-    EVEX_MICROSECOND_UNSUP  mysql.event was tampered 
+    EVEX_MICROSECOND_UNSUP  mysql.event was tampered
 */
 
 int
@@ -1928,7 +1927,7 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
 
   show_create.length(0);
 
-  switch (get_fake_create_event(thd, &show_create)) {
+  switch (get_fake_create_event(&show_create)) {
   case EVEX_MICROSECOND_UNSUP:
     DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
   case 0:
@@ -1970,16 +1969,17 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
   event_change_security_context(thd, definer_user, definer_host, dbname,
                                 &save_ctx);
   thd->lex= &lex;
-  mysql_init_query(thd, (uchar*) thd->query, thd->query_length);
+  mysql_init_query(thd, thd->query, thd->query_length);
   if (MYSQLparse((void *)thd) || thd->is_fatal_error)
   {
     DBUG_PRINT("error", ("error during compile or thd->is_fatal_error: %d",
                           thd->is_fatal_error));
     lex.unit.cleanup();
 
-    sql_print_error("SCHEDULER: Error during compilation of %s.%s or "
-                    "thd->is_fatal_error: %d",
-                    dbname.str, name.str, thd->is_fatal_error);
+    sql_print_error("Event Scheduler: "
+                    "%serror during compilation of %s.%s",
+                    thd->is_fatal_error ? "fatal " : "",
+                    dbname.str, name.str);
 
     ret= EVEX_COMPILE_ERROR;
     goto done;
@@ -2093,7 +2093,7 @@ event_change_security_context(THD *thd, LEX_STRING user, LEX_STRING host,
   thd->security_ctx= &thd->main_security_ctx;
 #endif
   DBUG_RETURN(FALSE);
-} 
+}
 
 
 /*
