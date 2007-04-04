@@ -33,7 +33,7 @@ partitions 2;
 #
 # Partition by key list, wrong result type
 #
---error ER_PARTITION_FUNC_NOT_ALLOWED_ERROR
+--error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -109,7 +109,7 @@ partitions 3
 #
 # Partition by hash, invalid result type
 #
---error ER_PARTITION_FUNC_NOT_ALLOWED_ERROR
+--error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -533,7 +533,7 @@ partitions 2
 #
 # Partition by range, wrong result type of partition function
 #
---error ER_PARTITION_FUNC_NOT_ALLOWED_ERROR
+--error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -790,7 +790,7 @@ partition by hash (extract(hour from convert_tz(a, '+00:00', '+00:00')));
 create table t1 (a int)
 partition by range (a + (select count(*) from t1))
 (partition p1 values less than (1));
--- error ER_PARTITION_FUNC_NOT_ALLOWED_ERROR
+-- error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
 create table t1 (a char(10))
 partition by hash (extractvalue(a,'a'));
 
