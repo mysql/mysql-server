@@ -110,6 +110,11 @@ public:
                                 const char *old_table,
                                 const char *new_db,
                                 const char *new_table);
+  bool has_triggers(trg_event_type event_type, 
+                    trg_action_time_type action_time)
+  {
+    return (bodies[event_type][action_time]);
+  }
   bool has_delete_triggers()
   {
     return (bodies[TRG_EVENT_DELETE][TRG_ACTION_BEFORE] ||
