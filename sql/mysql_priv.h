@@ -842,7 +842,7 @@ bool is_update_query(enum enum_sql_command command);
 bool alloc_query(THD *thd, const char *packet, uint packet_length);
 void mysql_init_select(LEX *lex);
 void mysql_reset_thd_for_next_command(THD *thd);
-void mysql_init_query(THD *thd, uchar *buf, uint length);
+void mysql_init_query(THD *thd, const char *buf, uint length);
 bool mysql_new_select(LEX *lex, bool move_down);
 void create_select_for_variable(const char *var_name);
 void mysql_init_multi_delete(LEX *lex);
@@ -1566,8 +1566,10 @@ extern bool check_reserved_words(LEX_STRING *name);
 /* strfunc.cc */
 ulonglong find_set(TYPELIB *lib, const char *x, uint length, CHARSET_INFO *cs,
 		   char **err_pos, uint *err_len, bool *set_warning);
-uint find_type(TYPELIB *lib, const char *find, uint length, bool part_match);
-uint find_type2(TYPELIB *lib, const char *find, uint length, CHARSET_INFO *cs);
+uint find_type(const TYPELIB *lib, const char *find, uint length,
+               bool part_match);
+uint find_type2(const TYPELIB *lib, const char *find, uint length,
+                CHARSET_INFO *cs);
 void unhex_type2(TYPELIB *lib);
 uint check_word(TYPELIB *lib, const char *val, const char *end,
 		const char **end_of_word);

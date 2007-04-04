@@ -32,16 +32,6 @@
 #define LOCK_QUEUE_DATA()   lock_data(SCHED_FUNC, __LINE__)
 #define UNLOCK_QUEUE_DATA() unlock_data(SCHED_FUNC, __LINE__)
 
-struct event_queue_param
-{
-  THD *thd;
-  Event_queue *queue;
-  pthread_mutex_t LOCK_loaded;
-  pthread_cond_t COND_loaded;
-  bool loading_finished;
-};
-
-
 /*
   Compares the execute_at members of two Event_queue_element instances.
   Used as callback for the prioritized queue when shifting
@@ -62,7 +52,7 @@ struct event_queue_param
     execute_at.second_part is not considered during comparison
 */
 
-static int 
+static int
 event_queue_element_compare_q(void *vptr, byte* a, byte *b)
 {
   my_time_t lhs = ((Event_queue_element *)a)->execute_at;
@@ -148,7 +138,7 @@ Event_queue::init_queue(THD *thd)
                     0 /*max_on_top*/, event_queue_element_compare_q,
                     NULL, EVENT_QUEUE_EXTENT))
   {
-    sql_print_error("SCHEDULER: Can't initialize the execution queue");
+    sql_print_error("Event Scheduler: Can't initialize the execution queue");
     goto err;
   }
 
@@ -183,7 +173,7 @@ Event_queue::deinit_queue()
 }
 
 
-/*
+/**
   Adds an event to the queue.
 
   SYNOPSIS
@@ -210,7 +200,7 @@ Event_queue::create_event(THD *thd, Event_queue_element *new_element)
     LOCK_QUEUE_DATA();
     queue_insert_safe(&queue, (byte *) new_element);
     dbug_dump_queue(thd->query_start());
-    pthread_cond_broadcast(&COND_queue_state);  
+    pthread_cond_broadcast(&COND_queue_state);
     UNLOCK_QUEUE_DATA();
   }
   DBUG_VOID_RETURN;
@@ -258,7 +248,7 @@ Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
   {
     DBUG_PRINT("info", ("new event in the queue: 0x%lx", (long) new_element));
     queue_insert_safe(&queue, (byte *) new_element);
-    pthread_cond_broadcast(&COND_queue_state);  
+    pthread_cond_broadcast(&COND_queue_state);
   }
 
   dbug_dump_queue(thd->query_start());
@@ -289,7 +279,7 @@ Event_queue::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
   find_n_remove_event(dbname, name);
   dbug_dump_queue(thd->query_start());
   UNLOCK_QUEUE_DATA();
-  
+
   /*
     We don't signal here because the scheduler will catch the change
     next time it wakes up.
@@ -311,7 +301,7 @@ Event_queue::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 
   RETURN VALUE
     >=0  Number of dropped events
-    
+
   NOTE
     Expected is the caller to acquire lock on LOCK_event_queue
 */
@@ -343,7 +333,7 @@ Event_queue::drop_matching_events(THD *thd, LEX_STRING pattern,
       i++;
   }
   /*
-    We don't call pthread_cond_broadcast(&COND_queue_state);  
+    We don't call pthread_cond_broadcast(&COND_queue_state);
     If we remove the top event:
     1. The queue is empty. The scheduler will wake up at some time and
        realize that the queue is empty. If create_event() comes inbetween
@@ -465,7 +455,8 @@ Event_queue::empty_queue()
   uint i;
   DBUG_ENTER("Event_queue::empty_queue");
   DBUG_PRINT("enter", ("Purging the queue. %u element(s)", queue.elements));
-  sql_print_information("SCHEDULER: Purging queue. %u events", queue.elements);
+  sql_print_information("Event Scheduler: Purging the queue. %u events",
+                        queue.elements);
   /* empty the queue */
   for (i= 0; i < queue.elements; ++i)
   {
@@ -598,7 +589,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
     if (top->status == Event_queue_element::DISABLED)
     {
       DBUG_PRINT("info", ("removing from the queue"));
-      sql_print_information("SCHEDULER: Last execution of %s.%s. %s",
+      sql_print_information("Event Scheduler: Last execution of %s.%s. %s",
                             top->dbname.str, top->name.str,
                             top->dropped? "Dropping.":"");
       delete top;
