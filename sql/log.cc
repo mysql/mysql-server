@@ -569,11 +569,21 @@ bool Log_to_csv_event_handler::
 
   if (query_start_arg)
   {
+    /*
+      A TIME field can not hold the full longlong range; query_time or
+      lock_time may be truncated without warning here, if greater than
+      839 hours (~35 days)
+    */
+    TIME t;
+    t.neg= 0;
+
     /* fill in query_time field */
-    if (table->field[2]->store(query_time, TRUE))
+    calc_time_from_sec(&t, (long) min(query_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
+    if (table->field[2]->store_time(&t, MYSQL_TIMESTAMP_TIME))
       goto err;
     /* lock_time */
-    if (table->field[3]->store(lock_time, TRUE))
+    calc_time_from_sec(&t, (long) min(lock_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
+    if (table->field[3]->store_time(&t, MYSQL_TIMESTAMP_TIME))
       goto err;
     /* rows_sent */
     if (table->field[4]->store((longlong) thd->sent_row_count, TRUE))
