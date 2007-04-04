@@ -147,11 +147,11 @@ public:
   void count_only_length();
   void count_real_length();
   void count_decimal_length();
-  inline bool get_arg0_date(TIME *ltime, uint fuzzy_date)
+  inline bool get_arg0_date(MYSQL_TIME *ltime, uint fuzzy_date)
   {
     return (null_value=args[0]->get_date(ltime, fuzzy_date));
   }
-  inline bool get_arg0_time(TIME *ltime)
+  inline bool get_arg0_time(MYSQL_TIME *ltime)
   {
     return (null_value=args[0]->get_time(ltime));
   }
@@ -1443,7 +1443,7 @@ private:
   bool execute();
   bool execute_impl(THD *thd);
   bool init_result_field(THD *thd);
-
+  
 public:
 
   Item_func_sp(Name_resolution_context *context_arg, sp_name *name);
@@ -1453,6 +1453,8 @@ public:
 
   virtual ~Item_func_sp()
   {}
+
+  table_map used_tables() const { return RAND_TABLE_BIT; }
 
   void cleanup();
 

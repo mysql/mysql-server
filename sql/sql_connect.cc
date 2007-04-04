@@ -315,6 +315,7 @@ int check_user(THD *thd, enum enum_server_command command,
 	       bool check_count)
 {
   DBUG_ENTER("check_user");
+  LEX_STRING db_str= { (char *) db, db ? strlen(db) : 0 };
   
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
   thd->main_security_ctx.master_access= GLOBAL_ACLS;       // Full rights
@@ -326,7 +327,7 @@ int check_user(THD *thd, enum enum_server_command command,
       function returns 0
     */
     thd->reset_db(NULL, 0);
-    if (mysql_change_db(thd, db, FALSE))
+    if (mysql_change_db(thd, &db_str, FALSE))
     {
       /* Send the error to the client */
       net_send_error(thd);
@@ -472,7 +473,7 @@ int check_user(THD *thd, enum enum_server_command command,
       /* Change database if necessary */
       if (db && db[0])
       {
-        if (mysql_change_db(thd, db, FALSE))
+        if (mysql_change_db(thd, &db_str, FALSE))
         {
           /* Send error to the client */
           net_send_error(thd);
