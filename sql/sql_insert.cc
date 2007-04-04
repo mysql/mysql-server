@@ -340,14 +340,12 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
   return 0;
 }
 
-
+/*
   Prepare triggers  for INSERT-like statement.
 
   SYNOPSIS
     prepare_triggers_for_insert_stmt()
-      thd     The current thread
       table   Table to which insert will happen
-      duplic  Type of duplicate handling for insert which will happen
 
   NOTE
     Prepare triggers for INSERT-like statement by marking fields
@@ -355,8 +353,7 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
     cannot be done if there are BEFORE UPDATE/DELETE triggers.
 */
 
-void prepare_triggers_for_insert_stmt(THD *thd, TABLE *table,
-                                      enum_duplicates duplic)
+void prepare_triggers_for_insert_stmt(TABLE *table)
 {
   if (table->triggers)
   {
@@ -380,12 +377,11 @@ void prepare_triggers_for_insert_stmt(THD *thd, TABLE *table,
       */ 
       (void) table->file->extra(HA_EXTRA_UPDATE_CANNOT_BATCH);
     }
-    mark_fields_used_by_triggers_for_insert_stmt(thd, table, duplic);
   }
+  table->mark_columns_needed_for_insert();
 }
 
 
-/*
 bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                   List<Item> &fields,
                   List<List_item> &values_list,
@@ -584,7 +580,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     error= 1;
   }
 
-  table->mark_columns_needed_for_insert();
+  prepare_triggers_for_insert_stmt(table);
+
 
   if (table_list->prepare_where(thd, 0, TRUE) ||
       table_list->prepare_check_option(thd))
@@ -2602,7 +2599,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
         table_list->prepare_check_option(thd));
 
   if (!res)
-    table->mark_columns_needed_for_insert();
+     prepare_triggers_for_insert_stmt(table);
 
   DBUG_RETURN(res);
 }

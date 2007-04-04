@@ -226,7 +226,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       DBUG_RETURN(TRUE);
   }
 
-  table->mark_columns_needed_for_insert();
+  prepare_triggers_for_insert_stmt(table);
 
   uint tot_length=0;
   bool use_blobs= 0, use_vars= 0;
