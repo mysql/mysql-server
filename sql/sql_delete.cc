@@ -216,7 +216,20 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 
   init_ftfuncs(thd, select_lex, 1);
   thd->proc_info="updating";
-  will_batch= !table->file->start_bulk_delete();
+  if (table->triggers && 
+      table->triggers->has_triggers(TRG_EVENT_DELETE,
+                                    TRG_ACTION_AFTER))
+  {
+    /*
+      The table has AFTER DELETE triggers that might access to subject table
+      and therefore might need delete to be done immediately. So we turn-off
+      the batching.
+    */
+    (void) table->file->extra(HA_EXTRA_DELETE_CANNOT_BATCH);
+    will_batch= FALSE;
+  }
+  else
+    will_batch= !table->file->start_bulk_delete();
 
 
   table->mark_columns_needed_for_delete();
@@ -552,6 +565,17 @@ multi_delete::initialize_tables(JOIN *join)
 	transactional_tables= 1;
       else
 	normal_tables= 1;
+      if (tbl->triggers &&
+          tbl->triggers->has_triggers(TRG_EVENT_DELETE,
+                                      TRG_ACTION_AFTER))
+      {
+	/*
+          The table has AFTER DELETE triggers that might access to subject 
+          table and therefore might need delete to be done immediately. 
+          So we turn-off the batching.
+        */
+	(void) tbl->file->extra(HA_EXTRA_DELETE_CANNOT_BATCH);
+      }
       tbl->prepare_for_position();
       tbl->mark_columns_needed_for_delete();
     }
