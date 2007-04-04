@@ -447,7 +447,7 @@ int mysql_update(THD *thd,
   thd->proc_info="Updating";
 
   transactional_table= table->file->has_transactions();
-  thd->no_trans_update= 0;
+  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= test(!ignore &&
                               (thd->variables.sql_mode &
                                (MODE_STRICT_TRANS_TABLES |
@@ -474,7 +474,7 @@ int mysql_update(THD *thd,
       if (fill_record_n_invoke_before_triggers(thd, fields, values, 0,
                                                table->triggers,
                                                TRG_EVENT_UPDATE))
-	break; /* purecov: inspected */
+        break; /* purecov: inspected */
 
       found++;
 
@@ -535,7 +535,7 @@ int mysql_update(THD *thd,
         if (!error)
 	{
 	  updated++;
-          thd->no_trans_update= !transactional_table;
+          thd->no_trans_update.stmt= !transactional_table;
 
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
@@ -661,11 +661,11 @@ int mysql_update(THD *thd,
                             transactional_table, FALSE) &&
           transactional_table)
       {
-	error=1;				// Rollback update
+        error=1;				// Rollback update
       }
     }
     if (!transactional_table)
-      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+      thd->no_trans_update.all= TRUE;
   }
   free_underlaid_joins(thd, select_lex);
   if (transactional_table)
@@ -1030,7 +1030,7 @@ bool mysql_multi_update(THD *thd,
 				 handle_duplicates, ignore)))
     DBUG_RETURN(TRUE);
 
-  thd->no_trans_update= 0;
+  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= test(thd->variables.sql_mode &
                               (MODE_STRICT_TRANS_TABLES |
                                MODE_STRICT_ALL_TABLES));
@@ -1344,7 +1344,7 @@ multi_update::~multi_update()
     delete [] copy_field;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		// Restore this setting
   if (!trans_safe)
-    thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+    thd->no_trans_update.all= TRUE;
 }
 
 
@@ -1405,40 +1405,40 @@ bool multi_update::send_data(List<Item> &not_used_values)
           else if (error == VIEW_CHECK_ERROR)
             DBUG_RETURN(1);
         }
-	if (!updated++)
-	{
-	  /*
-	    Inform the main table that we are going to update the table even
-	    while we may be scanning it.  This will flush the read cache
-	    if it's used.
-	  */
-	  main_table->file->extra(HA_EXTRA_PREPARE_FOR_UPDATE);
-	}
-	if ((error=table->file->ha_update_row(table->record[1],
-					      table->record[0])))
-	{
-	  updated--;
+        if (!updated++)
+        {
+          /*
+            Inform the main table that we are going to update the table even
+            while we may be scanning it.  This will flush the read cache
+            if it's used.
+          */
+          main_table->file->extra(HA_EXTRA_PREPARE_FOR_UPDATE);
+        }
+        if ((error=table->file->ha_update_row(table->record[1],
+                                              table->record[0])))
+        {
+          updated--;
           if (!ignore ||
               table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
-	  {
+          {
             /*
               If (ignore && error == is ignorable) we don't have to
               do anything; otherwise...
             */
             if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
               thd->fatal_error(); /* Other handler errors are fatal */
-	    table->file->print_error(error,MYF(0));
-	    DBUG_RETURN(1);
-	  }
-	}
+            table->file->print_error(error,MYF(0));
+            DBUG_RETURN(1);
+          }
+        }
         else
         {
           if (!table->file->has_transactions())
-            thd->no_trans_update= 1;
+            thd->no_trans_update.stmt= TRUE;
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                                 TRG_ACTION_AFTER, TRUE))
-	    DBUG_RETURN(1);
+            DBUG_RETURN(1);
         }
       }
     }
@@ -1674,7 +1674,7 @@ bool multi_update::send_eof()
       }
     }
     if (!transactional_tables)
-      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+     thd->no_trans_update.all= TRUE;
   }
 
   if (transactional_tables)

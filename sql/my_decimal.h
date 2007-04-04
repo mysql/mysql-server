@@ -296,7 +296,7 @@ int string2my_decimal(uint mask, const String *str, my_decimal *d)
 }
 
 
-my_decimal *date2my_decimal(TIME *ltime, my_decimal *dec);
+my_decimal *date2my_decimal(MYSQL_TIME *ltime, my_decimal *dec);
 
 
 #endif /*defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY) */
