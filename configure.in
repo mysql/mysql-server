@@ -791,6 +791,7 @@ AC_CHECK_FUNC(p2open, , AC_CHECK_LIB(gen, p2open))
 AC_CHECK_FUNC(bind, , AC_CHECK_LIB(bind, bind))
 # Check if crypt() exists in libc or libcrypt, sets LIBS if needed
 AC_SEARCH_LIBS(crypt, crypt, AC_DEFINE(HAVE_CRYPT, 1, [crypt]))
+AC_SEARCH_LIBS(inet_aton, [socket nsl resolv])
 
 # For the sched_yield() function on Solaris
 AC_CHECK_FUNC(sched_yield, , AC_CHECK_LIB(posix4, sched_yield))
