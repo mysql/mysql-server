@@ -6053,3 +6053,5 @@ ER_DUP_ENTRY_WITH_KEY_NAME 23000 S1009
 ER_BINLOG_PURGE_EMFILE
         eng "Too many files opened, please execute the command again"
         ger "Zu viele offene Dateien, bitte führen Sie den Befehl noch einmal aus"
+ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT
+        eng "Table has no partition for some existing values"
