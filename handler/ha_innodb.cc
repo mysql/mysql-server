@@ -8151,7 +8151,7 @@ ha_innobase::add_index(
 	ibool		new_unique  = FALSE;
 	ulint		error = DB_SUCCESS;/* DB_SUCCESS or error code */
 
-	DBUG_ENTER("add_index");
+	DBUG_ENTER("ha_innobase::add_index");
 	ut_a(table && key_info && num_of_keys);
 
 	index = NULL;
@@ -8424,7 +8424,7 @@ ha_innobase::prepare_drop_index(
 	THD*		thd;
 	ulint		error = DB_SUCCESS;
 
-	DBUG_ENTER("prepare_drop_index");
+	DBUG_ENTER("ha_innobase::prepare_drop_index");
 	ut_ad(table && key_num && num_of_keys);
 
 	thd = current_thd;
@@ -8604,7 +8604,7 @@ ha_innobase::final_drop_index(
 	trx_t*		trx;		/* Transaction */
 	ulint		error = DB_SUCCESS;/* DB_SUCCESS or error code */
 
-	DBUG_ENTER("final_drop_index");
+	DBUG_ENTER("ha_innobase::final_drop_index");
 	ut_ad(table);
 
 	/* Create a new transaction for final index drop if it does not
