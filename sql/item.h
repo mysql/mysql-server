@@ -839,8 +839,7 @@ public:
     german character for double s is equal to 2 s.
 
     The default is that an item is not allowed
-    in a partition function. However all mathematical functions, string
-    manipulation functions, date functions are allowed. Allowed functions
+    in a partition function. Allowed functions
     can never depend on server version, they cannot depend on anything
     related to the environment. They can also only depend on a set of
     fields in the table itself. They cannot depend on other tables and
@@ -1425,7 +1424,7 @@ public:
   bool is_null() { return 1; }
   void print(String *str) { str->append(STRING_WITH_LEN("NULL")); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE;}
 };
 
 class Item_null_result :public Item_null
@@ -1610,6 +1609,7 @@ public:
   uint decimal_precision() const
   { return (uint)(max_length - test(value < 0)); }
   bool eq(const Item *, bool binary_cmp) const;
+  bool check_partition_func_processor(byte *bool_arg) { return FALSE;}
 };
 
 
@@ -1627,6 +1627,7 @@ public:
   void print(String *str);
   Item_num *neg ();
   uint decimal_precision() const { return max_length; }
+  bool check_partition_func_processor(byte *bool_arg) { return FALSE;}
 };
 
 
@@ -1669,6 +1670,7 @@ public:
   uint decimal_precision() const { return decimal_value.precision(); }
   bool eq(const Item *, bool binary_cmp) const;
   void set_decimal_value(my_decimal *value_par);
+  bool check_partition_func_processor(byte *bool_arg) { return FALSE;}
 };
 
 
@@ -1729,7 +1731,6 @@ public:
   {}
   void print(String *str) { str->append(func_name); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
 };
 
 
@@ -1807,7 +1808,7 @@ public:
   void print(String *str);
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(byte *bool_arg) { return FALSE;}
 };
 
 
@@ -1822,7 +1823,7 @@ public:
   {}
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   void print(String *str) { str->append(func_name); }
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
+  bool check_partition_func_processor(byte *bool_arg) { return TRUE;}
 };
 
 
@@ -1835,7 +1836,6 @@ public:
                                                     &my_charset_bin)
   { max_length=19;}
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
 };
 
 class Item_empty_string :public Item_string
@@ -1858,7 +1858,6 @@ public:
     unsigned_flag=1;
   }
   enum_field_types field_type() const { return int_field_type; }
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
 };
 
 
@@ -1882,7 +1881,7 @@ public:
   void cleanup() {}
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(byte *bool_arg) { return FALSE;}
 };
 
 
@@ -2119,7 +2118,6 @@ public:
   }
   Item *clone_item();
   virtual Item *real_item() { return ref; }
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
 };
 
 #ifdef MYSQL_SERVER

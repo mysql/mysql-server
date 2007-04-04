@@ -539,13 +539,12 @@ drop table t1;
 
 #  part2: bug in pruning code
 create table t1 (a char(10) binary)
-partition by list(length(a))
- (partition p1 values in (1),
-  partition p2 values in (2),
-  partition p3 values in (3),
-  partition p4 values in (4),
-  partition p5 values in (5)
-);
+partition by list(ascii(a))
+ (partition p1 values in (ascii('a')),
+  partition p2 values in (ascii('b')),
+  partition p3 values in (ascii('c')),
+  partition p4 values in (ascii('d')),
+  partition p5 values in (ascii('e')));
 insert into t1 values ('a'),('bb'),('ccc'),('dddd'),('eeEee');
 select * from t1 where a>='a' and a <= 'dddd';
 explain partitions select * from t1 where a>='a' and a <= 'dddd';
@@ -692,20 +691,47 @@ explain partitions select * from t1 where a = 18446744073709551000;
 explain partitions select * from t1 where a = 18446744073709551613;
 explain partitions select * from t1 where a = 18446744073709551614;
 drop table t1;
-
-create table t1 (a int) 
-  partition by range((a & 0xFF) << 56) (
-  partition p0 values less than (0x40 << 56),
-  partition p1 values less than (0x80 << 56),
-  partition p2 values less than (0xFF << 56)
+#
+# Test all variants of usage for interval_via_mapping
+# and interval_via_walking
+#
+# t1 will use interval_via_mapping since it uses a
+# monotonic function, whereas t2 will use
+# interval_via_walking since the intervals are short
+# and the function isn't monotonic (it is, but it isn't
+# discovered in this version).
+#
+  create table t1 (a int)
+  partition by range(a) (
+  partition p0 values less than (64),
+  partition p1 values less than (128),
+  partition p2 values less than (255)
 );
 
-insert into t1 values (0x20), (0x20), (0x41), (0x41), (0xFE), (0xFE); 
+create table t2 (a int)
+  partition by range(a+0) (
+  partition p0 values less than (64),
+  partition p1 values less than (128),
+  partition p2 values less than (255)
+);
+  
+insert into t1 values (0x20), (0x20), (0x41), (0x41), (0xFE), (0xFE);
+insert into t2 values (0x20), (0x20), (0x41), (0x41), (0xFE), (0xFE);
 explain partitions select * from t1 where a=0;
+explain partitions select * from t2 where a=0;
 explain partitions select * from t1 where a=0xFE;
-explain partitions select * from t1 where a>0xFE and a<= 0xFF;
+explain partitions select * from t2 where a=0xFE;
+explain partitions select * from t1 where a > 0xFE AND a <= 0xFF;
+explain partitions select * from t2 where a > 0xFE AND a <= 0xFF;
+explain partitions select * from t1 where a >= 0xFE AND a <= 0xFF;
+explain partitions select * from t2 where a >= 0xFE AND a <= 0xFF;
+explain partitions select * from t1 where a < 64 AND a >= 63;
+explain partitions select * from t2 where a < 64 AND a >= 63;
+explain partitions select * from t1 where a <= 64 AND a >= 63;
+explain partitions select * from t2 where a <= 64 AND a >= 63;
 drop table t1;
-
+drop table t2;
+  
 create table t1(a bigint unsigned not null) partition by range(a+0) (
   partition p1 values less than (10),
   partition p2 values less than (20),

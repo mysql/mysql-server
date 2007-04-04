@@ -2890,6 +2890,8 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   }
   if (unsigned_flag)
     part_func_value-= 0x8000000000000000ULL;
+  if (left_endpoint && !include_endpoint)
+    part_func_value++;
   while (max_part_id > min_part_id)
   {
     loc_part_id= (max_part_id + min_part_id + 1) >> 1;
