@@ -101,7 +101,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     {
       cache_size= (extra_arg ? *(ulong*) extra_arg :
 		   my_default_record_cache_size);
-      if (!(init_io_cache(&info->rec_cache,info->dfile,
+      if (!(init_io_cache(&info->rec_cache, info->dfile.file,
 			 (uint) min(info->state->data_file_length+1,
 				    cache_size),
 			  READ_CACHE,0L,(pbool) (info->lock_type != F_UNLCK),
@@ -137,7 +137,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     if (!(info->opt_flag &
 	  (READ_CACHE_USED | WRITE_CACHE_USED | OPT_NO_ROWS)) &&
 	!share->state.header.uniques)
-      if (!(init_io_cache(&info->rec_cache,info->dfile, cache_size,
+      if (!(init_io_cache(&info->rec_cache, info->dfile.file, cache_size,
 			 WRITE_CACHE,info->state->data_file_length,
 			  (pbool) (info->lock_type != F_UNLCK),
 			  MYF(share->write_flag & MY_WAIT_IF_FULL))))
@@ -250,7 +250,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 	}
       }
       share->state.state= *info->state;
-      error=_ma_state_info_write(share->kfile,&share->state,1 | 2);
+      error=_ma_state_info_write(share->kfile.file, &share->state, (1 | 2));
     }
     break;
   case HA_EXTRA_FORCE_REOPEN:
@@ -264,8 +264,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 #ifdef __WIN__
     /* Close the isam and data files as Win32 can't drop an open table */
     pthread_mutex_lock(&share->intern_lock);
-    if (flush_key_blocks(share->key_cache, share->kfile,
-			 (function == HA_EXTRA_FORCE_REOPEN ?
+    if (flush_pagecache_blocks(share->pagecache, &share->kfile,
+                               (function == HA_EXTRA_FORCE_REOPEN ?
 			  FLUSH_RELEASE : FLUSH_IGNORE_CHANGED)))
     {
       error=my_errno;
@@ -285,9 +285,9 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 	error=my_errno;
       info->lock_type = F_UNLCK;
     }
-    if (share->kfile >= 0)
+    if (share->kfile.file >= 0)
       _ma_decrement_open_count(info);
-    if (share->kfile >= 0 && my_close(share->kfile,MYF(0)))
+    if (share->kfile.file >= 0 && my_close(share->kfile,MYF(0)))
       error=my_errno;
     {
       LIST *list_element ;
@@ -298,20 +298,21 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 	MARIA_HA *tmpinfo=(MARIA_HA*) list_element->data;
 	if (tmpinfo->s == info->s)
 	{
-	  if (tmpinfo->dfile >= 0 && my_close(tmpinfo->dfile,MYF(0)))
+	  if (tmpinfo->dfile.file >= 0 &&
+              my_close(tmpinfo->dfile.file, MYF(0)))
 	    error = my_errno;
-	  tmpinfo->dfile= -1;
+	  tmpinfo->dfile.file= -1;
 	}
       }
     }
-    share->kfile= -1;				/* Files aren't open anymore */
+    share->kfile.file= -1;				/* Files aren't open anymore */
     pthread_mutex_unlock(&share->intern_lock);
 #endif
     pthread_mutex_unlock(&THR_LOCK_maria);
     break;
   case HA_EXTRA_FLUSH:
     if (!share->temporary)
-      flush_key_blocks(share->key_cache, share->kfile, FLUSH_KEEP);
+      flush_pagecache_blocks(share->pagecache, &share->kfile, FLUSH_KEEP);
 #ifdef HAVE_PWRITE
     _ma_decrement_open_count(info);
 #endif
@@ -453,6 +454,6 @@ int maria_reset(MARIA_HA *info)
 
 int _ma_sync_table_files(const MARIA_HA *info)
 {
-  return (my_sync(info->dfile, MYF(0)) ||
-          my_sync(info->s->kfile, MYF(0)));
+  return (my_sync(info->dfile.file, MYF(0)) ||
+          my_sync(info->s->kfile.file, MYF(0)));
 }

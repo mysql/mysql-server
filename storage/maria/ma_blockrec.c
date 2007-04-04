@@ -342,7 +342,7 @@ my_bool _ma_once_init_block_row(MARIA_SHARE *share, File data_file)
 my_bool _ma_once_end_block_row(MARIA_SHARE *share)
 {
   int res= _ma_bitmap_end(share);
-  if (flush_key_blocks(share->key_cache, share->bitmap.file,
+  if (flush_pagecache_blocks(share->pagecache, (PAGECACHE_FILE*)&share->bitmap,
                        share->temporary ? FLUSH_IGNORE_CHANGED :
                        FLUSH_RELEASE))
     res= 1;
@@ -845,11 +845,14 @@ static my_bool get_head_or_tail_page(MARIA_HA *info,
   else
   {
     byte *dir;
+    /* TODO: lock the page */
     /* Read old page */
-    if (!(res->buff= key_cache_read(info->s->key_cache,
-                                    info->dfile,
-                                    (my_off_t) block->page * block_size, 0,
-                                    buff, block_size, block_size, 0)))
+    DBUG_ASSERT(info->s->pagecache->block_size == block_size);
+    if (!(res->buff= pagecache_read(info->s->pagecache,
+                                    &info->dfile,
+                                    (my_off_t) block->page, 0,
+                                    buff, PAGECACHE_PLAIN_PAGE,
+                                    PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
       DBUG_RETURN(1);
     DBUG_ASSERT((res->buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == page_type);
     if (!(dir= find_free_position(buff, block_size, &res->offset,
@@ -912,6 +915,7 @@ static my_bool write_tail(MARIA_HA *info,
                        (ulong) block->page, length));
 
   info->keybuff_used= 1;
+  /* page will be pinned & locked by get_head_or_tail_page */
   if (get_head_or_tail_page(info, block, info->keyread_buff, length,
                             TAIL_PAGE, &row_pos))
     DBUG_RETURN(1);
@@ -936,9 +940,15 @@ static my_bool write_tail(MARIA_HA *info,
   position= (my_off_t) block->page * block_size;
   if (info->state->data_file_length <= position)
     info->state->data_file_length= position + block_size;
-  DBUG_RETURN(key_cache_write(share->key_cache,
-                              info->dfile, position, 0,
-                              row_pos.buff, block_size, block_size, 1));
+  /* TODO: left the page pinned (or pin it if it is new) and unlock\
+     the page (do not lock if it is new */
+  DBUG_ASSERT(share->pagecache->block_size == block_size);
+  DBUG_RETURN(pagecache_write(share->pagecache,
+                              &info->dfile, block->page, 0,
+                              row_pos.buff,PAGECACHE_PLAIN_PAGE,
+                              PAGECACHE_LOCK_LEFT_UNLOCKED,
+                              PAGECACHE_PIN_LEFT_PINNED,
+                              PAGECACHE_WRITE_DELAY, 0));
 }
 
 
@@ -969,7 +979,7 @@ static my_bool write_full_pages(MARIA_HA *info,
   DBUG_PRINT("enter", ("length: %lu  page: %lu  page_count: %lu",
                        (ulong) length, (ulong) block->page,
                        (ulong) block->page_count));
-  
+
   info->keybuff_used= 1;
   page=       block->page;
   page_count= block->page_count;
@@ -1001,9 +1011,18 @@ static my_bool write_full_pages(MARIA_HA *info,
     memcpy(buff + LSN_SIZE + PAGE_TYPE_SIZE, data, copy_length);
     length-= copy_length;
 
-    if (key_cache_write(share->key_cache,
-                        info->dfile, (my_off_t) page * block_size, 0,
-                        buff, block_size, block_size, 1))
+    /*
+      TODO: replace PAGECACHE_PLAIN_PAGE with PAGECACHE_LSN_PAGE when
+      LSN on the pages will be implemented
+    */
+    DBUG_ASSERT(share->pagecache->block_size == block_size);
+    if (pagecache_write(share->pagecache,
+                        &info->dfile, page, 0,
+                        buff, PAGECACHE_PLAIN_PAGE,
+                        PAGECACHE_LOCK_LEFT_UNLOCKED,
+                        PAGECACHE_PIN_LEFT_PINNED,
+                        PAGECACHE_WRITE_DELAY,
+                        0))
       DBUG_RETURN(1);
     page++;
     block->used= BLOCKUSED_USED;
@@ -1133,7 +1152,7 @@ static my_bool write_block_record(MARIA_HA *info, const byte *record,
     To avoid double copying of data, we copy as many columns that fits into
     the page. The rest goes into info->packed_row.
 
-    Using an extra buffer, instead of doing continous writes to different
+    Using an extra buffer, instead of doing continuous writes to different
     pages, uses less code and we don't need to have to do a complex call
     for every data segment we want to store.
   */
@@ -1363,14 +1382,14 @@ static my_bool write_block_record(MARIA_HA *info, const byte *record,
         - Bitmap code allocated a tail page we don't need.
         - The last full page allocated needs to be changed to a tail page
         (Because we put more data than we thought on the head page)
-       
-        The reserved pages in bitmap_blocks for the main page has one of 
+
+        The reserved pages in bitmap_blocks for the main page has one of
         the following allocations:
         - Full pages, with following blocks:
         # * full pages
         empty page  ; To be used if we change last full to tail page. This
         has 'count' = 0.
-        tail page  (optional, if last full page was part full) 
+        tail page  (optional, if last full page was part full)
         - One tail page
       */
 
@@ -1485,9 +1504,13 @@ static my_bool write_block_record(MARIA_HA *info, const byte *record,
   position= (my_off_t) head_block->page * block_size;
   if (info->state->data_file_length <= position)
     info->state->data_file_length= position + block_size;
-  if (key_cache_write(share->key_cache,
-                      info->dfile, position, 0,
-                      page_buff, share->block_size, share->block_size, 1))
+  DBUG_ASSERT(share->pagecache->block_size == block_size);
+  if (pagecache_write(share->pagecache,
+                      &info->dfile, head_block->page, 0,
+                      page_buff, PAGECACHE_PLAIN_PAGE,
+                      PAGECACHE_LOCK_LEFT_UNLOCKED,
+                      PAGECACHE_PIN_LEFT_PINNED,
+                      PAGECACHE_WRITE_DELAY, 0))
     goto disk_err;
 
   if (tmp_data_used)
@@ -1557,7 +1580,8 @@ MARIA_RECORD_POS _ma_write_init_block_record(MARIA_HA *info,
 
   calc_record_size(info, record, &info->cur_row);
   if (_ma_bitmap_find_place(info, &info->cur_row, blocks))
-    DBUG_RETURN(HA_OFFSET_ERROR);               /* Error reding bitmap */
+    DBUG_RETURN(HA_OFFSET_ERROR);               /* Error reading bitmap */
+  /* page will be pinned & locked by get_head_or_tail_page */
   if (get_head_or_tail_page(info, blocks->block, info->buff,
                             info->s->base.min_row_length, HEAD_PAGE, &row_pos))
     DBUG_RETURN(HA_OFFSET_ERROR);
@@ -1665,9 +1689,11 @@ my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS record_pos,
   calc_record_size(info, record, new_row);
   page= ma_recordpos_to_page(record_pos);
 
-  if (!(buff= key_cache_read(info->s->key_cache,
-                             info->dfile, (my_off_t) page * block_size, 0,
-                             info->buff, block_size, block_size, 0)))
+  DBUG_ASSERT(info->s->pagecache->block_size == block_size);
+  if (!(buff= pagecache_read(info->s->pagecache,
+                             &info->dfile, (my_off_t) page, 0,
+                             info->buff, PAGECACHE_PLAIN_PAGE,
+                             PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
     DBUG_RETURN(1);
   org_empty_size= uint2korr(buff + EMPTY_SPACE_OFFSET);
   rownr= ma_recordpos_to_offset(record_pos);
@@ -1779,14 +1805,15 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
   uint number_of_records, empty_space, length;
   uint block_size= share->block_size;
   byte *buff, *dir;
-  my_off_t position;
   DBUG_ENTER("delete_head_or_tail");
 
   info->keybuff_used= 1;
-  if (!(buff= key_cache_read(share->key_cache,
-                             info->dfile, page * block_size, 0,
+  DBUG_ASSERT(info->s->pagecache->block_size == block_size);
+  if (!(buff= pagecache_read(share->pagecache,
+                             &info->dfile, page, 0,
                              info->keyread_buff,
-                             block_size, block_size, 0)))
+                             PAGECACHE_PLAIN_PAGE,
+                             PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
     DBUG_RETURN(1);
 
   number_of_records= (uint) ((uchar *) buff)[DIR_ENTRY_OFFSET];
@@ -1825,10 +1852,13 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
   {
     int2store(buff + EMPTY_SPACE_OFFSET, empty_space);
     buff[PAGE_TYPE_OFFSET]|= (byte) PAGE_CAN_BE_COMPACTED;
-    position= (my_off_t) page * block_size;
-    if (key_cache_write(share->key_cache,
-                        info->dfile, position, 0,
-                        buff, block_size, block_size, 1))
+    DBUG_ASSERT(share->pagecache->block_size == block_size);
+    if (pagecache_write(share->pagecache,
+                        &info->dfile, page, 0,
+                        buff, PAGECACHE_PLAIN_PAGE,
+                        PAGECACHE_LOCK_LEFT_UNLOCKED,
+                        PAGECACHE_PIN_LEFT_PINNED,
+                        PAGECACHE_WRITE_DELAY, 0))
       DBUG_RETURN(1);
   }
   else
@@ -2032,10 +2062,11 @@ static byte *read_next_extent(MARIA_HA *info, MARIA_EXTENT_CURSOR *extent,
     info->cur_row.empty_bits= info->cur_row.empty_bits_buffer;
   }
 
-  if (!(buff= key_cache_read(share->key_cache,
-                             info->dfile, extent->page * share->block_size, 0,
-                             info->buff,
-                             share->block_size, share->block_size, 0)))
+  DBUG_ASSERT(share->pagecache->block_size == share->block_size);
+  if (!(buff= pagecache_read(share->pagecache,
+                             &info->dfile, extent->page, 0,
+                             info->buff, PAGECACHE_PLAIN_PAGE,
+                             PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
   {
     /* check if we tried to read over end of file (ie: bad data in record) */
     if ((extent->page + 1) * share->block_size > info->state->data_file_length)
@@ -2441,18 +2472,18 @@ int _ma_read_block_record(MARIA_HA *info, byte *record,
                           MARIA_RECORD_POS record_pos)
 {
   byte *data, *end_of_data, *buff;
-  my_off_t page;
   uint offset;
   uint block_size= info->s->block_size;
   DBUG_ENTER("_ma_read_block_record");
   DBUG_PRINT("enter", ("rowid: %lu", (long) record_pos));
 
-  page=   ma_recordpos_to_page(record_pos) * block_size;
   offset= ma_recordpos_to_offset(record_pos);
-  
-  if (!(buff= key_cache_read(info->s->key_cache,
-                             info->dfile, page, 0, info->buff,
-                             block_size, block_size, 1)))
+
+  DBUG_ASSERT(info->s->pagecache->block_size == block_size);
+  if (!(buff= pagecache_read(info->s->pagecache,
+                             &info->dfile, ma_recordpos_to_page(record_pos), 0,
+                             info->buff, PAGECACHE_PLAIN_PAGE,
+                             PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
     DBUG_RETURN(1);
   DBUG_ASSERT((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == HEAD_PAGE);
   if (!(data= get_record_position(buff, block_size, offset, &end_of_data)))
@@ -2639,11 +2670,11 @@ restart_bitmap_scan:
           page= (info->scan.bitmap_page + 1 +
                  (data - info->scan.bitmap_buff) / 6 * 16 + bit_pos - 1);
           info->scan.row_base_page= ma_recordpos(page, 0);
-          if (!(key_cache_read(info->s->key_cache,
-                               info->dfile,
-                               (my_off_t) page * block_size,
-                               0, info->scan.page_buff,
-                               block_size, block_size, 0)))
+          if (!(pagecache_read(info->s->pagecache,
+                               &info->dfile,
+                               page, 0, info->scan.page_buff,
+                               PAGECACHE_PLAIN_PAGE,
+                               PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
             DBUG_RETURN(my_errno);
           if (((info->scan.page_buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) !=
                HEAD_PAGE) ||
@@ -2679,8 +2710,10 @@ restart_bitmap_scan:
   {
     DBUG_RETURN((my_errno= HA_ERR_END_OF_FILE));
   }
-  if (!(key_cache_read(info->s->key_cache, info->dfile, filepos,
-                       0, info->scan.bitmap_buff, block_size, block_size, 0)))
+  if (!(pagecache_read(info->s->pagecache, &info->dfile,
+                       info->scan.bitmap_page,
+                       0, info->scan.bitmap_buff, PAGECACHE_PLAIN_PAGE,
+                       PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
     DBUG_RETURN(my_errno);
   /* Skip scanning 'bits' in bitmap scan code */
   info->scan.bitmap_pos= info->scan.bitmap_buff - 6;

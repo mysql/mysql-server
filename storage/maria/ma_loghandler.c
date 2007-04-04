@@ -1367,6 +1367,7 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
   {
     PAGECACHE_FILE file;
     file.file= buffer->file;
+    DBUG_ASSERT(log_descriptor.pagecache->block_size == TRANSLOG_PAGE_SIZE);
     if (pagecache_write(log_descriptor.pagecache,
                         &file,
                         (LSN_OFFSET(buffer->offset) + i) / TRANSLOG_PAGE_SIZE,

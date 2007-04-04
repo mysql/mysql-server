@@ -63,7 +63,8 @@ int maria_panic(enum ha_panic_function flag)
       if (info->s->options & HA_OPTION_READ_ONLY_DATA)
 	break;
 #endif
-      if (flush_key_blocks(info->s->key_cache, info->s->kfile, FLUSH_RELEASE))
+      if (flush_pagecache_blocks(info->s->pagecache, &info->s->kfile,
+                                 FLUSH_RELEASE))
 	error=my_errno;
       if (info->opt_flag & WRITE_CACHE_USED)
 	if (flush_io_cache(&info->rec_cache))
@@ -82,29 +83,32 @@ int maria_panic(enum ha_panic_function flag)
 	  error=my_errno;
       }
 #ifdef CANT_OPEN_FILES_TWICE
-      if (info->s->kfile >= 0 && my_close(info->s->kfile,MYF(0)))
+      if (info->s->kfile.file >= 0 && my_close(info->s->kfile.file, MYF(0)))
 	error = my_errno;
-      if (info->dfile >= 0 && my_close(info->dfile,MYF(0)))
+      if (info->dfile.file >= 0 && my_close(info->dfile.file, MYF(0)))
 	error = my_errno;
-      info->s->kfile=info->dfile= -1;	/* Files aren't open anymore */
+      info->s->kfile.file= info->dfile.file= -1;/* Files aren't open anymore */
       break;
 #endif
     case HA_PANIC_READ:			/* Restore to before WRITE */
 #ifdef CANT_OPEN_FILES_TWICE
       {					/* Open closed files */
 	char name_buff[FN_REFLEN];
-	if (info->s->kfile < 0)
-	  if ((info->s->kfile= my_open(fn_format(name_buff,info->filename,"",
-					      N_NAME_IEXT,4),info->mode,
-				    MYF(MY_WME))) < 0)
+	if (info->s->kfile.file < 0)
+	  if ((info->s->kfile.file= my_open(fn_format(name_buff,
+                                                      info->filename, "",
+                                                      N_NAME_IEXT,4),
+                                            info->mode,
+                                            MYF(MY_WME))) < 0)
 	    error = my_errno;
-	if (info->dfile < 0)
+	if (info->dfile.file < 0)
 	{
-	  if ((info->dfile= my_open(fn_format(name_buff,info->filename,"",
-					      N_NAME_DEXT,4),info->mode,
-				    MYF(MY_WME))) < 0)
+	  if ((info->dfile.file= my_open(fn_format(name_buff, info->filename,
+                                                   "", N_NAME_DEXT, 4),
+                                         info->mode,
+                                         MYF(MY_WME))) < 0)
 	    error = my_errno;
-	  info->rec_cache.file=info->dfile;
+	  info->rec_cache.file= info->dfile.file;
 	}
       }
 #endif

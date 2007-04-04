@@ -176,10 +176,10 @@ typedef struct st_maria_pack
 
 typedef struct st_maria_file_bitmap
 {
+  File file; /* should be first for compatibility with PAGECACHE_FILE */
   uchar *map;
   ulonglong page;                      /* Page number for current bitmap */
   uint used_size;                      /* Size of bitmap that is not 0 */
-  File file;
 
   my_bool changed;
 
@@ -214,7 +214,7 @@ typedef struct st_maria_share
 						   symlinks */
    *index_file_name;
   byte *file_map;			/* mem-map of file if possible */
-  KEY_CACHE *key_cache;			/* ref to the current key cache */
+  PAGECACHE *pagecache;			/* ref to the current key cache */
   MARIA_DECODE_TREE *decode_trees;
   uint16 *decode_tables;
   my_bool (*once_init)(struct st_maria_share *, File);
@@ -250,7 +250,7 @@ typedef struct st_maria_share
   uint unique_name_length;
   uint32 ftparsers;			/* Number of distinct ftparsers
 						   + 1 */
-  File kfile;				/* Shared keyfile */
+  PAGECACHE_FILE kfile;			/* Shared keyfile */
   File data_file;			/* Shared data file */
   int mode;				/* mode of file on open */
   uint reopen;				/* How many times reopened */
@@ -381,7 +381,7 @@ struct st_maria_info
   */
   ulong packed_length, blob_length;	/* Length of found, packed record */
   my_size_t rec_buff_size;
-  int dfile;				/* The datafile */
+  PAGECACHE_FILE dfile;			/* The datafile */
   uint opt_flag;			/* Optim. for space/speed */
   uint update;				/* If file changed since open */
   int lastinx;				/* Last used index */
@@ -845,7 +845,8 @@ int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param);
 #ifdef THREAD
 pthread_handler_t _ma_thr_find_all_keys(void *arg);
 #endif
-int _ma_flush_blocks(HA_CHECK *param, KEY_CACHE *key_cache, File file);
+int _ma_flush_blocks(HA_CHECK *param, PAGECACHE *pagecache,
+                     PAGECACHE_FILE *file);
 
 int _ma_sort_write_record(MARIA_SORT_PARAM *sort_param);
 int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,

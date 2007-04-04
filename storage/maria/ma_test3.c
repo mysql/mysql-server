@@ -41,7 +41,7 @@
 
 
 const char *filename= "test3";
-uint tests=10,forks=10,key_cacheing=0;
+uint tests=10,forks=10,pagecacheing=0;
 
 static void get_options(int argc, char *argv[]);
 void start_test(int id);
@@ -140,10 +140,10 @@ static void get_options(int argc, char **argv)
       tests=atoi(++pos);
       break;
     case 'K':				/* Use key cacheing */
-      key_cacheing=1;
+      pagecacheing=1;
       break;
     case 'A':				/* All flags */
-      key_cacheing=1;
+      pagecacheing=1;
       break;
    case '?':
     case 'I':
@@ -178,8 +178,8 @@ void start_test(int id)
     fprintf(stderr,"Can't open isam-file: %s\n",filename);
     exit(1);
   }
-  if (key_cacheing && rnd(2) == 0)
-    init_key_cache(maria_key_cache, KEY_CACHE_BLOCK_SIZE, 65536L, 0, 0);
+  if (pagecacheing && rnd(2) == 0)
+    init_pagecache(maria_pagecache, 65536L, 0, 0, MARIA_KEY_BLOCK_LENGTH);
   printf("Process %d, pid: %d\n",id,getpid()); fflush(stdout);
 
   for (error=i=0 ; i < tests && !error; i++)

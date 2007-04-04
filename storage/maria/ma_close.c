@@ -36,7 +36,7 @@ int maria_close(register MARIA_HA *info)
   if (info->lock_type == F_EXTRA_LCK)
     info->lock_type=F_UNLCK;			/* HA_EXTRA_NO_USER_CHANGE */
 
-  if (share->reopen == 1 && share->kfile >= 0)
+  if (share->reopen == 1 && share->kfile.file >= 0)
     _ma_decrement_open_count(info);
 
   if (info->lock_type != F_UNLCK)
@@ -73,16 +73,17 @@ int maria_close(register MARIA_HA *info)
   (share->end)(info);
 
   if (info->s->data_file_type == BLOCK_RECORD)
-    info->dfile= -1;                /* Closed in ma_end_once_block_row */
+    info->dfile.file= -1;           /* Closed in ma_end_once_block_row */
   if (flag)
   {
-    if (share->kfile >= 0)
+    if (share->kfile.file >= 0)
     {
       if ((*share->once_end)(share))
         error= my_errno;
-      if (flush_key_blocks(share->key_cache, share->kfile,
-                           share->temporary ? FLUSH_IGNORE_CHANGED :
-                           FLUSH_RELEASE))
+      if (flush_pagecache_blocks(share->pagecache, &share->kfile,
+                                 (share->temporary ?
+                                  FLUSH_IGNORE_CHANGED :
+                                  FLUSH_RELEASE)))
         error= my_errno;
 
       /*
@@ -92,8 +93,8 @@ int maria_close(register MARIA_HA *info)
         may be using the file at this point
       */
       if (share->mode != O_RDONLY && maria_is_crashed(info))
-	_ma_state_info_write(share->kfile, &share->state, 1);
-      if (my_close(share->kfile, MYF(0)))
+	_ma_state_info_write(share->kfile.file, &share->state, 1);
+      if (my_close(share->kfile.file, MYF(0)))
         error= my_errno;
     }
 #ifdef HAVE_MMAP
@@ -120,7 +121,7 @@ int maria_close(register MARIA_HA *info)
     my_free((gptr)info->ftparser_param, MYF(0));
     info->ftparser_param= 0;
   }
-  if (info->dfile >= 0 && my_close(info->dfile,MYF(0)))
+  if (info->dfile.file >= 0 && my_close(info->dfile.file, MYF(0)))
     error = my_errno;
 
   my_free((gptr) info,MYF(0));

@@ -69,7 +69,7 @@ int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
   if (!(buff= (uchar *) my_malloc(length, MYF(MY_WME))))
     DBUG_RETURN(my_errno= HA_ERR_OUT_OF_MEM);
 
-  if (flush_key_blocks(share->key_cache,share->kfile, FLUSH_RELEASE))
+  if (flush_pagecache_blocks(share->pagecache, &share->kfile, FLUSH_RELEASE))
     goto err;
 
   do
@@ -77,7 +77,8 @@ int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
     /* Read the next block of index file into the preload buffer */
     if ((my_off_t) length > (key_file_length-pos))
       length= (ulong) (key_file_length-pos);
-    if (my_pread(share->kfile, (byte*) buff, length, pos, MYF(MY_FAE|MY_FNABP)))
+    if (my_pread(share->kfile.file, (byte*) buff, length, pos,
+                 MYF(MY_FAE|MY_FNABP)))
       goto err;
 
     if (ignore_leaves)
@@ -87,9 +88,15 @@ int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
       {
         if (_ma_test_if_nod(buff))
         {
-          if (key_cache_insert(share->key_cache,
-                               share->kfile, pos, DFLT_INIT_HITS,
-                              (byte*) buff, block_length))
+          DBUG_ASSERT(share->pagecache->block_size == block_length);
+          if (pagecache_write(share->pagecache,
+                              &share->kfile, pos / block_length,
+                              DFLT_INIT_HITS,
+                              (byte*) buff,
+                              PAGECACHE_PLAIN_PAGE,
+                              PAGECACHE_LOCK_LEFT_UNLOCKED,
+                              PAGECACHE_PIN_LEFT_PINNED,
+                              PAGECACHE_WRITE_DONE, 0))
 	    goto err;
 	}
         pos+= block_length;
@@ -99,9 +106,14 @@ int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
     }
     else
     {
-      if (key_cache_insert(share->key_cache,
-                           share->kfile, pos, DFLT_INIT_HITS,
-                           (byte*) buff, length))
+      if (pagecache_write(share->pagecache,
+                          &share->kfile, pos / block_length,
+                          DFLT_INIT_HITS,
+                          (byte*) buff,
+                          PAGECACHE_PLAIN_PAGE,
+                          PAGECACHE_LOCK_LEFT_UNLOCKED,
+                          PAGECACHE_PIN_LEFT_PINNED,
+                          PAGECACHE_WRITE_DONE, 0))
 	goto err;
       pos+= length;
     }

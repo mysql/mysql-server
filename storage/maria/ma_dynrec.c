@@ -74,7 +74,7 @@ my_bool _ma_dynmap_file(MARIA_HA *info, my_off_t size)
                           info->s->mode==O_RDONLY ? PROT_READ :
                           PROT_READ | PROT_WRITE,
                           MAP_SHARED | MAP_NORESERVE,
-                          info->dfile, 0L);
+                          info->dfile.file, 0L);
   if (info->s->file_map == (byte*) MAP_FAILED)
   {
     info->s->file_map= NULL;
@@ -128,7 +128,7 @@ void _ma_remap_file(MARIA_HA *info, my_off_t size)
 uint _ma_mmap_pread(MARIA_HA *info, byte *Buffer,
                     uint Count, my_off_t offset, myf MyFlags)
 {
-  DBUG_PRINT("info", ("maria_read with mmap %d\n", info->dfile));
+  DBUG_PRINT("info", ("maria_read with mmap %d\n", info->dfile.file));
   if (info->s->concurrent_insert)
     rw_rdlock(&info->s->mmap_lock);
 
@@ -150,7 +150,7 @@ uint _ma_mmap_pread(MARIA_HA *info, byte *Buffer,
   {
     if (info->s->concurrent_insert)
       rw_unlock(&info->s->mmap_lock);
-    return my_pread(info->dfile, Buffer, Count, offset, MyFlags);
+    return my_pread(info->dfile.file, Buffer, Count, offset, MyFlags);
   }
 }
 
@@ -160,7 +160,7 @@ uint _ma_mmap_pread(MARIA_HA *info, byte *Buffer,
 uint _ma_nommap_pread(MARIA_HA *info, byte *Buffer,
                       uint Count, my_off_t offset, myf MyFlags)
 {
-  return my_pread(info->dfile, Buffer, Count, offset, MyFlags);
+  return my_pread(info->dfile.file, Buffer, Count, offset, MyFlags);
 }
 
 
@@ -183,7 +183,7 @@ uint _ma_nommap_pread(MARIA_HA *info, byte *Buffer,
 uint _ma_mmap_pwrite(MARIA_HA *info, byte *Buffer,
                      uint Count, my_off_t offset, myf MyFlags)
 {
-  DBUG_PRINT("info", ("maria_write with mmap %d\n", info->dfile));
+  DBUG_PRINT("info", ("maria_write with mmap %d\n", info->dfile.file));
   if (info->s->concurrent_insert)
     rw_rdlock(&info->s->mmap_lock);
 
@@ -206,7 +206,7 @@ uint _ma_mmap_pwrite(MARIA_HA *info, byte *Buffer,
     info->s->nonmmaped_inserts++;
     if (info->s->concurrent_insert)
       rw_unlock(&info->s->mmap_lock);
-    return my_pwrite(info->dfile, Buffer, Count, offset, MyFlags);
+    return my_pwrite(info->dfile.file, Buffer, Count, offset, MyFlags);
   }
 
 }
@@ -217,7 +217,7 @@ uint _ma_mmap_pwrite(MARIA_HA *info, byte *Buffer,
 uint _ma_nommap_pwrite(MARIA_HA *info, byte *Buffer,
                       uint Count, my_off_t offset, myf MyFlags)
 {
-  return my_pwrite(info->dfile, Buffer, Count, offset, MyFlags);
+  return my_pwrite(info->dfile.file, Buffer, Count, offset, MyFlags);
 }
 
 
@@ -354,7 +354,8 @@ static int _ma_find_writepos(MARIA_HA *info,
     *filepos=info->s->state.dellink;
     block_info.second_read=0;
     info->rec_cache.seek_not_done=1;
-    if (!(_ma_get_block_info(&block_info,info->dfile,info->s->state.dellink) &
+    if (!(_ma_get_block_info(&block_info, info->dfile.file,
+                             info->s->state.dellink) &
 	   BLOCK_DELETED))
     {
       DBUG_PRINT("error",("Delete link crashed"));
@@ -413,7 +414,7 @@ static bool unlink_deleted_block(MARIA_HA *info, MARIA_BLOCK_INFO *block_info)
     MARIA_BLOCK_INFO tmp;
     tmp.second_read=0;
     /* Unlink block from the previous block */
-    if (!(_ma_get_block_info(&tmp,info->dfile,block_info->prev_filepos)
+    if (!(_ma_get_block_info(&tmp, info->dfile.file, block_info->prev_filepos)
 	  & BLOCK_DELETED))
       DBUG_RETURN(1);				/* Something is wrong */
     mi_sizestore(tmp.header+4,block_info->next_filepos);
@@ -423,7 +424,8 @@ static bool unlink_deleted_block(MARIA_HA *info, MARIA_BLOCK_INFO *block_info)
     /* Unlink block from next block */
     if (block_info->next_filepos != HA_OFFSET_ERROR)
     {
-      if (!(_ma_get_block_info(&tmp,info->dfile,block_info->next_filepos)
+      if (!(_ma_get_block_info(&tmp, info->dfile.file,
+                               block_info->next_filepos)
 	    & BLOCK_DELETED))
 	DBUG_RETURN(1);				/* Something is wrong */
       mi_sizestore(tmp.header+12,block_info->prev_filepos);
@@ -474,7 +476,7 @@ static my_bool update_backward_delete_link(MARIA_HA *info,
   if (delete_block != HA_OFFSET_ERROR)
   {
     block_info.second_read=0;
-    if (_ma_get_block_info(&block_info,info->dfile,delete_block)
+    if (_ma_get_block_info(&block_info, info->dfile.file, delete_block)
 	& BLOCK_DELETED)
     {
       char buff[8];
@@ -510,7 +512,7 @@ static my_bool delete_dynamic_record(MARIA_HA *info, MARIA_RECORD_POS filepos,
   do
   {
     /* Remove block at 'filepos' */
-    if ((b_type= _ma_get_block_info(&block_info,info->dfile,filepos))
+    if ((b_type= _ma_get_block_info(&block_info, info->dfile.file, filepos))
 	& (BLOCK_DELETED | BLOCK_ERROR | BLOCK_SYNC_ERROR |
 	   BLOCK_FATAL_ERROR) ||
 	(length=(uint) (block_info.filepos-filepos) +block_info.block_len) <
@@ -522,7 +524,7 @@ static my_bool delete_dynamic_record(MARIA_HA *info, MARIA_RECORD_POS filepos,
     /* Check if next block is a delete block */
     del_block.second_read=0;
     remove_next_block=0;
-    if (_ma_get_block_info(&del_block,info->dfile,filepos+length) &
+    if (_ma_get_block_info(&del_block, info->dfile.file, filepos + length) &
 	BLOCK_DELETED && del_block.block_len+length <
         MARIA_DYN_MAX_BLOCK_LENGTH)
     {
@@ -682,7 +684,7 @@ int _ma_write_part_record(MARIA_HA *info,
     if (next_block < info->state->data_file_length &&
 	info->s->state.dellink != HA_OFFSET_ERROR)
     {
-      if ((_ma_get_block_info(&del_block,info->dfile,next_block)
+      if ((_ma_get_block_info(&del_block, info->dfile.file, next_block)
 	   & BLOCK_DELETED) &&
 	  res_length + del_block.block_len < MARIA_DYN_MAX_BLOCK_LENGTH)
       {
@@ -763,7 +765,7 @@ static my_bool update_dynamic_record(MARIA_HA *info, MARIA_RECORD_POS filepos,
     if (filepos != info->s->state.dellink)
     {
       block_info.next_filepos= HA_OFFSET_ERROR;
-      if ((error= _ma_get_block_info(&block_info,info->dfile,filepos))
+      if ((error= _ma_get_block_info(&block_info, info->dfile.file, filepos))
 	  & (BLOCK_DELETED | BLOCK_ERROR | BLOCK_SYNC_ERROR |
 	     BLOCK_FATAL_ERROR))
       {
@@ -804,7 +806,7 @@ static my_bool update_dynamic_record(MARIA_HA *info, MARIA_RECORD_POS filepos,
 
 	  MARIA_BLOCK_INFO del_block;
 	  del_block.second_read=0;
-	  if (_ma_get_block_info(&del_block,info->dfile,
+	  if (_ma_get_block_info(&del_block, info->dfile.file,
 				 block_info.filepos + block_info.block_len) &
 	      BLOCK_DELETED)
 	  {
@@ -1370,7 +1372,7 @@ int _ma_read_dynamic_record(MARIA_HA *info, byte *buf,
   {
     LINT_INIT(to);
     LINT_INIT(left_length);
-    file=info->dfile;
+    file= info->dfile.file;
     block_of_record= 0;   /* First block of record is numbered as zero. */
     block_info.second_read= 0;
     do
@@ -1534,7 +1536,7 @@ my_bool _ma_cmp_dynamic_record(register MARIA_HA *info,
     block_info.next_filepos=filepos;
     while (reclength > 0)
     {
-      if ((b_type= _ma_get_block_info(&block_info,info->dfile,
+      if ((b_type= _ma_get_block_info(&block_info, info->dfile.file,
 				    block_info.next_filepos))
 	  & (BLOCK_DELETED | BLOCK_ERROR | BLOCK_SYNC_ERROR |
 	     BLOCK_FATAL_ERROR))
@@ -1561,7 +1563,7 @@ my_bool _ma_cmp_dynamic_record(register MARIA_HA *info,
       if (!reclength && info->s->calc_checksum)
         cmp_length--;        /* 'record' may not contain checksum */
 
-      if (_ma_cmp_buffer(info->dfile,record,block_info.filepos,
+      if (_ma_cmp_buffer(info->dfile.file, record, block_info.filepos,
 			 cmp_length))
       {
 	my_errno=HA_ERR_RECORD_CHANGED;
@@ -1680,7 +1682,7 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
       {						/* Check if changed */
 	info_read=1;
 	info->rec_cache.seek_not_done=1;
-	if (_ma_state_info_read_dsk(share->kfile,&share->state,1))
+	if (_ma_state_info_read_dsk(share->kfile.file, &share->state, 1))
 	  goto panic;
       }
       if (filepos >= info->state->data_file_length)
@@ -1705,7 +1707,7 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
 	  flush_io_cache(&info->rec_cache))
 	DBUG_RETURN(my_errno);
       info->rec_cache.seek_not_done=1;
-      b_type= _ma_get_block_info(&block_info,info->dfile,filepos);
+      b_type= _ma_get_block_info(&block_info, info->dfile.file, filepos);
     }
 
     if (b_type & (BLOCK_DELETED | BLOCK_ERROR | BLOCK_SYNC_ERROR |
@@ -1779,8 +1781,9 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
             block_info.filepos + block_info.data_len &&
             flush_io_cache(&info->rec_cache))
           goto err;
-	/* VOID(my_seek(info->dfile,filepos,MY_SEEK_SET,MYF(0))); */
-	if (my_read(info->dfile,(byte*) to,block_info.data_len,MYF(MY_NABP)))
+	/* VOID(my_seek(info->dfile.file, filepos, MY_SEEK_SET, MYF(0))); */
+	if (my_read(info->dfile.file, (byte*)to, block_info.data_len,
+                    MYF(MY_NABP)))
 	{
 	  if (my_errno == -1)
 	    my_errno= HA_ERR_WRONG_IN_RECORD;	/* Unexpected end of file */

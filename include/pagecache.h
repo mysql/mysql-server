@@ -66,8 +66,6 @@ enum pagecache_write_mode
 {
   /* do not write immediately, i.e. it will be dirty page */
   PAGECACHE_WRITE_DELAY,
-  /* write page to the file and put it to the cache */
-  PAGECACHE_WRITE_NOW,
   /* page already is in the file. (key cache insert analogue) */
   PAGECACHE_WRITE_DONE
 };
@@ -162,6 +160,9 @@ typedef struct st_pagecache
   my_bool in_init;		/* Set to 1 in MySQL during init/resize     */
 } PAGECACHE;
 
+/* The default key cache */
+extern PAGECACHE dflt_pagecache_var, *dflt_pagecache;
+
 extern int init_pagecache(PAGECACHE *pagecache, my_size_t use_mem,
                           uint division_limit, uint age_threshold,
                           uint block_size);
@@ -184,16 +185,22 @@ extern byte *pagecache_valid_read(PAGECACHE *pagecache,
                                   PAGECACHE_PAGE_LINK *link,
                                   pagecache_disk_read_validator validator,
                                   gptr validator_data);
-extern my_bool pagecache_write(PAGECACHE *pagecache,
-                               PAGECACHE_FILE *file,
-                               pgcache_page_no_t pageno,
-                               uint level,
-                               byte *buff,
-                               enum pagecache_page_type type,
-                               enum pagecache_page_lock lock,
-                               enum pagecache_page_pin pin,
-                               enum pagecache_write_mode write_mode,
-                               PAGECACHE_PAGE_LINK *link);
+
+#define  pagecache_write(P,F,N,L,B,T,O,I,M,K) \
+   pagecache_write_part(P,F,N,L,B,T,O,I,M,K,0,(P)->block_size)
+
+extern my_bool pagecache_write_part(PAGECACHE *pagecache,
+                                    PAGECACHE_FILE *file,
+                                    pgcache_page_no_t pageno,
+                                    uint level,
+                                    byte *buff,
+                                    enum pagecache_page_type type,
+                                    enum pagecache_page_lock lock,
+                                    enum pagecache_page_pin pin,
+                                    enum pagecache_write_mode write_mode,
+                                    PAGECACHE_PAGE_LINK *link,
+                                    uint offset,
+                                    uint size);
 extern void pagecache_unlock_page(PAGECACHE *pagecache,
                                   PAGECACHE_FILE *file,
                                   pgcache_page_no_t pageno,
@@ -223,6 +230,19 @@ extern my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
                                                          LEX_STRING *str,
                                                          LSN *max_lsn);
 extern int reset_pagecache_counters(const char *name, PAGECACHE *pagecache);
+
+
+/* Functions to handle multiple key caches */
+extern my_bool multi_pagecache_init(void);
+extern void multi_pagecache_free(void);
+extern PAGECACHE *multi_pagecache_search(byte *key, uint length,
+                                         PAGECACHE *def);
+extern my_bool multi_pagecache_set(const byte *key, uint length,
+				   PAGECACHE *pagecache);
+extern void multi_pagecache_change(PAGECACHE *old_data,
+				   PAGECACHE *new_data);
+extern int reset_pagecache_counters(const char *name,
+                                    PAGECACHE *pagecache);
 
 C_MODE_END
 #endif /* _keycache_h */

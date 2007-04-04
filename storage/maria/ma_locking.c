@@ -50,7 +50,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
 
   error=0;
   pthread_mutex_lock(&share->intern_lock);
-  if (share->kfile >= 0)		/* May only be false on windows */
+  if (share->kfile.file >= 0)		/* May only be false on windows */
   {
     switch (lock_type) {
     case F_UNLCK:
@@ -62,9 +62,9 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
       --share->tot_locks;
       if (info->lock_type == F_WRLCK && !share->w_locks)
       {
-        if (!share->delay_key_write && flush_key_blocks(share->key_cache,
-                                                        share->kfile,
-                                                        FLUSH_KEEP))
+        if (!share->delay_key_write &&
+            flush_pagecache_blocks(share->pagecache, &share->kfile,
+                                   FLUSH_KEEP))
         {
           error= my_errno;
           maria_print_error(info->s, HA_ERR_CRASHED);
@@ -72,7 +72,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
           maria_mark_crashed(info);
         }
         if (share->data_file_type == BLOCK_RECORD &&
-            flush_key_blocks(share->key_cache, info->dfile, FLUSH_KEEP))
+            flush_pagecache_blocks(share->pagecache, &info->dfile, FLUSH_KEEP))
         {
           error= my_errno;
           maria_print_error(info->s, HA_ERR_CRASHED);
@@ -111,7 +111,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
 	  share->state.process= share->last_process=share->this_process;
 	  share->state.unique=   info->last_unique=  info->this_unique;
 	  share->state.update_count= info->last_loop= ++info->this_loop;
-          if (_ma_state_info_write(share->kfile, &share->state, 1))
+          if (_ma_state_info_write(share->kfile.file, &share->state, 1))
 	    error=my_errno;
 	  share->changed=0;
 	  if (maria_flush)
@@ -147,7 +147,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
       }
       if (!share->r_locks && !share->w_locks)
       {
-	if (_ma_state_info_read_dsk(share->kfile, &share->state, 1))
+	if (_ma_state_info_read_dsk(share->kfile.file, &share->state, 1))
 	{
 	  error=my_errno;
 	  break;
@@ -175,7 +175,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
 	{
 	  if (!share->r_locks)
 	  {
-	    if (_ma_state_info_read_dsk(share->kfile, &share->state, 1))
+	    if (_ma_state_info_read_dsk(share->kfile.file, &share->state, 1))
 	    {
 	      error=my_errno;
 	      break;
@@ -203,7 +203,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
        a crash on windows if the table is renamed and 
        later on referenced by the merge table.
      */
-    if( info->owned_by_merge && (info->s)->kfile < 0 )
+    if( info->owned_by_merge && (info->s)->kfile.file < 0 )
     {
       error = HA_ERR_NO_SUCH_TABLE;
     }
@@ -348,7 +348,7 @@ int _ma_readinfo(register MARIA_HA *info, int lock_type, int check_keybuffer)
     MARIA_SHARE *share=info->s;
     if (!share->tot_locks)
     {
-      if (_ma_state_info_read_dsk(share->kfile, &share->state, 1))
+      if (_ma_state_info_read_dsk(share->kfile.file, &share->state, 1))
       {
 	int error=my_errno ? my_errno : -1;
 	my_errno=error;
@@ -390,13 +390,13 @@ int _ma_writeinfo(register MARIA_HA *info, uint operation)
       share->state.process= share->last_process=   share->this_process;
       share->state.unique=  info->last_unique=	   info->this_unique;
       share->state.update_count= info->last_loop= ++info->this_loop;
-      if ((error= _ma_state_info_write(share->kfile, &share->state, 1)))
+      if ((error= _ma_state_info_write(share->kfile.file, &share->state, 1)))
 	olderror=my_errno;
 #ifdef __WIN__
       if (maria_flush)
       {
-	_commit(share->kfile);
-	_commit(info->dfile);
+	_commit(share->kfile.file);
+	_commit(info->dfile.file);
       }
 #endif
       my_errno=olderror;
@@ -420,7 +420,8 @@ int _ma_test_if_changed(register MARIA_HA *info)
   {						/* Keyfile has changed */
     DBUG_PRINT("info",("index file changed"));
     if (share->state.process != share->this_process)
-      VOID(flush_key_blocks(share->key_cache, share->kfile, FLUSH_RELEASE));
+      VOID(flush_pagecache_blocks(share->pagecache, &share->kfile,
+                                  FLUSH_RELEASE));
     share->last_process=share->state.process;
     info->last_unique=	share->state.unique;
     info->last_loop=	share->state.update_count;
@@ -472,7 +473,7 @@ int _ma_mark_file_changed(MARIA_HA *info)
     {
       mi_int2store(buff,share->state.open_count);
       buff[2]=1;				/* Mark that it's changed */
-      DBUG_RETURN(my_pwrite(share->kfile,buff,sizeof(buff),
+      DBUG_RETURN(my_pwrite(share->kfile.file, buff, sizeof(buff),
                             sizeof(share->state.header),
                             MYF(MY_NABP)));
     }
@@ -501,9 +502,9 @@ int _ma_decrement_open_count(MARIA_HA *info)
     {
       share->state.open_count--;
       mi_int2store(buff,share->state.open_count);
-      write_error=my_pwrite(share->kfile,buff,sizeof(buff),
-			    sizeof(share->state.header),
-			    MYF(MY_NABP));
+      write_error= my_pwrite(share->kfile.file, buff, sizeof(buff),
+                             sizeof(share->state.header),
+                             MYF(MY_NABP));
     }
     if (!lock_error)
       lock_error=maria_lock_database(info,old_lock);

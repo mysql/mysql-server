@@ -146,37 +146,40 @@ struct st_translog_reader_data
 };
 
 
-my_bool translog_init(const char *directory, uint32 log_file_max_size,
-                      uint32 server_version, uint32 server_id,
-                      PAGECACHE *pagecache, uint flags);
+extern my_bool translog_init(const char *directory, uint32 log_file_max_size,
+			     uint32 server_version, uint32 server_id,
+			     PAGECACHE *pagecache, uint flags);
 
-my_bool translog_write_record(LSN *lsn,
-                              enum translog_record_type type,
-                              SHORT_TRANSACTION_ID short_trid,
-                              void *tcb,
-                              translog_size_t part1_length,
-                              byte *part1_buff, ...);
+extern my_bool translog_write_record(LSN *lsn,
+				     enum translog_record_type type,
+				     SHORT_TRANSACTION_ID short_trid,
+				     void *tcb,
+				     translog_size_t part1_length,
+				     byte *part1_buff, ...);
 
-void translog_destroy();
+extern void translog_destroy();
 
-translog_size_t translog_read_record_header(LSN lsn,
-                                            TRANSLOG_HEADER_BUFFER *buff);
+extern translog_size_t translog_read_record_header(LSN lsn,
+						   TRANSLOG_HEADER_BUFFER
+						   *buff);
 
-void translog_free_record_header(TRANSLOG_HEADER_BUFFER *buff);
+extern void translog_free_record_header(TRANSLOG_HEADER_BUFFER *buff);
 
-translog_size_t translog_read_record(LSN lsn,
-                                     translog_size_t offset,
-                                     translog_size_t length,
-                                     byte *buffer,
-                                     struct st_translog_reader_data *data);
+extern translog_size_t translog_read_record(LSN lsn,
+					    translog_size_t offset,
+					    translog_size_t length,
+					    byte *buffer,
+					    struct st_translog_reader_data
+					    *data);
 
-my_bool translog_flush(LSN lsn);
+extern my_bool translog_flush(LSN lsn);
 
-my_bool translog_init_scanner(LSN lsn,
-                              my_bool fixed_horizon,
-                              struct st_translog_scanner_data *scanner);
+extern my_bool translog_init_scanner(LSN lsn,
+				     my_bool fixed_horizon,
+				     struct st_translog_scanner_data *scanner);
 
-translog_size_t translog_read_next_record_header(TRANSLOG_SCANNER_DATA
-                                                 *scanner,
-                                                 TRANSLOG_HEADER_BUFFER *buff);
+extern translog_size_t translog_read_next_record_header(TRANSLOG_SCANNER_DATA
+							*scanner,
+							TRANSLOG_HEADER_BUFFER
+							*buff);
 

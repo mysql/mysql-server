@@ -29,14 +29,20 @@ byte *_ma_fetch_keypage(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   DBUG_ENTER("_ma_fetch_keypage");
   DBUG_PRINT("enter",("page: %ld", (long) page));
 
-  tmp= key_cache_read(info->s->key_cache, info->s->kfile, page, level, buff,
-                      info->s->block_size, info->s->block_size,
-                      return_buffer);
+  DBUG_ASSERT(info->s->pagecache->block_size == keyinfo->block_length &&
+              info->s->pagecache->block_size == info->s->block_size);
+  /*
+    TODO: replace PAGECACHE_PLAIN_PAGE with PAGECACHE_LSN_PAGE when
+    LSN on the pages will be implemented
+  */
+  tmp= pagecache_read(info->s->pagecache, &info->s->kfile,
+                      page / keyinfo->block_length, level, buff,
+                      PAGECACHE_PLAIN_PAGE, PAGECACHE_LOCK_LEFT_UNLOCKED, 0);
   if (tmp == info->buff)
     info->keybuff_used=1;
   else if (!tmp)
   {
-    DBUG_PRINT("error",("Got errno: %d from key_cache_read",my_errno));
+    DBUG_PRINT("error",("Got errno: %d from pagecache_read",my_errno));
     info->last_keypage=HA_OFFSET_ERROR;
     maria_print_error(info->s, HA_ERR_CRASHED);
     my_errno=HA_ERR_CRASHED;
@@ -63,7 +69,6 @@ byte *_ma_fetch_keypage(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 		      my_off_t page, int level, byte *buff)
 {
-  reg3 uint length;
   DBUG_ENTER("_ma_write_keypage");
 
 #ifndef FAST					/* Safety check */
@@ -71,7 +76,8 @@ int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
       page+keyinfo->block_length > info->state->key_file_length ||
       (page & (MARIA_MIN_KEY_BLOCK_LENGTH-1)))
   {
-    DBUG_PRINT("error",("Trying to write inside key status region: key_start: %lu  length: %lu  page: %lu",
+    DBUG_PRINT("error",("Trying to write inside key status region: "
+                        "key_start: %lu  length: %lu  page: %lu",
 			(long) info->s->base.keystart,
 			(long) info->state->key_file_length,
 			(long) page));
@@ -82,21 +88,18 @@ int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   DBUG_DUMP("buff",(byte*) buff,maria_getint(buff));
 #endif
 
-  if ((length=keyinfo->block_length) > IO_SIZE*2 &&
-      info->state->key_file_length != page+length)
-    length= ((maria_getint(buff)+IO_SIZE-1) & (uint) ~(IO_SIZE-1));
-#ifdef HAVE_purify
-  {
-    length=maria_getint(buff);
-    bzero((byte*) buff+length,keyinfo->block_length-length);
-    length=keyinfo->block_length;
-  }
-#endif
-  DBUG_RETURN((key_cache_write(info->s->key_cache,
-                         info->s->kfile,page, level, (byte*) buff,length,
-			 (uint) keyinfo->block_length,
-			 (int) ((info->lock_type != F_UNLCK) ||
-				info->s->delay_key_write))));
+  DBUG_ASSERT(info->s->pagecache->block_size == keyinfo->block_length);
+  DBUG_ASSERT(info->s->pagecache->block_size == info->s->block_size);
+  /*
+    TODO: replace PAGECACHE_PLAIN_PAGE with PAGECACHE_LSN_PAGE when
+    LSN on the pages will be implemented
+  */
+  DBUG_RETURN(pagecache_write(info->s->pagecache,
+                              &info->s->kfile, page / keyinfo->block_length,
+                              level, buff, PAGECACHE_PLAIN_PAGE,
+                              PAGECACHE_LOCK_LEFT_UNLOCKED,
+                              PAGECACHE_PIN_LEFT_PINNED,
+                              PAGECACHE_WRITE_DELAY, 0));
 } /* maria_write_keypage */
 
 
@@ -107,18 +110,31 @@ int _ma_dispose(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, my_off_t pos,
 {
   my_off_t old_link;
   char buff[8];
+  uint offset;
+  pgcache_page_no_t page_no;
   DBUG_ENTER("_ma_dispose");
   DBUG_PRINT("enter",("pos: %ld", (long) pos));
 
   old_link= info->s->state.key_del;
   info->s->state.key_del= pos;
+  page_no= pos / keyinfo->block_length;
+  offset= pos % keyinfo->block_length;
   mi_sizestore(buff,old_link);
   info->s->state.changed|= STATE_NOT_SORTED_PAGES;
-  DBUG_RETURN(key_cache_write(info->s->key_cache,
-                              info->s->kfile, pos , level, buff,
-			      sizeof(buff),
-			      (uint) keyinfo->block_length,
-			      (int) (info->lock_type != F_UNLCK)));
+
+  DBUG_ASSERT(info->s->pagecache->block_size == keyinfo->block_length &&
+              info->s->pagecache->block_size == info->s->block_size);
+  /*
+    TODO: replace PAGECACHE_PLAIN_PAGE with PAGECACHE_LSN_PAGE when
+    LSN on the pages will be implemented
+  */
+  DBUG_RETURN(pagecache_write_part(info->s->pagecache,
+                                   &info->s->kfile, page_no, level, buff,
+                                   PAGECACHE_PLAIN_PAGE,
+                                   PAGECACHE_LOCK_LEFT_UNLOCKED,
+                                   PAGECACHE_PIN_LEFT_PINNED,
+                                   PAGECACHE_WRITE_DELAY, 0,
+                                   offset, sizeof(buff)));
 } /* _ma_dispose */
 
 
@@ -143,11 +159,17 @@ my_off_t _ma_new(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, int level)
   }
   else
   {
-    if (!key_cache_read(info->s->key_cache,
-                        info->s->kfile, pos, level,
-			buff,
-			(uint) sizeof(buff),
-			(uint) keyinfo->block_length,0))
+    DBUG_ASSERT(info->s->pagecache->block_size == keyinfo->block_length &&
+                info->s->pagecache->block_size == info->s->block_size);
+    /*
+      TODO: replace PAGECACHE_PLAIN_PAGE with PAGECACHE_LSN_PAGE when
+      LSN on the pages will be implemented
+    */
+    DBUG_ASSERT(info->s->pagecache->block_size == keyinfo->block_length);
+    if (!pagecache_read(info->s->pagecache,
+                        &info->s->kfile, pos / keyinfo->block_length, level,
+			buff, PAGECACHE_PLAIN_PAGE,
+                        PAGECACHE_LOCK_LEFT_UNLOCKED, 0))
       pos= HA_OFFSET_ERROR;
     else
       info->s->state.key_del= mi_sizekorr(buff);
