@@ -960,6 +960,8 @@ private:
   ha_rows m_bulk_insert_rows;
   ha_rows m_rows_changed;
   bool m_bulk_insert_not_flushed;
+  bool m_delete_cannot_batch;
+  bool m_update_cannot_batch;
   ha_rows m_ops_pending;
   bool m_skip_auto_increment;
   bool m_blobs_pending;
