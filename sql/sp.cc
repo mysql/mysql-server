@@ -384,7 +384,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   if ((ret= sp_use_new_db(thd, name->m_db, &old_db, 1, &dbchanged)))
     goto end;
 
-  lex_start(thd, (uchar*)defstr.c_ptr(), defstr.length());
+  lex_start(thd, defstr.c_ptr(), defstr.length());
 
   thd->spcont= 0;
   if (MYSQLparse(thd) || thd->is_fatal_error || newlex.sphead == NULL)

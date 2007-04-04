@@ -236,9 +236,9 @@ typedef struct st_table_share
   bool log_table;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   bool auto_partitioned;
-  const uchar *partition_info;
+  const char *partition_info;
   uint  partition_info_len;
-  const uchar *part_state;
+  const char *part_state;
   uint part_state_len;
   handlerton *default_part_db_type;
 #endif

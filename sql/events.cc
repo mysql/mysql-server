@@ -49,7 +49,7 @@
   counterpart.
   1. CREATE EVENT the_name ON SCHEDULE EVERY 1 SECOND DISABLE DO SELECT 1;
   2. DROP EVENT the_name
-  
+
   In other words, the first one will create a row in mysql.event . In the
   second step because there will be a line, disk based drop will pass and
   the scheduler will remove the memory counterpart. The reason is that
@@ -309,7 +309,7 @@ Events::Events()
     TRUE   Error (Reported)
 
   NOTES
-    In case there is an event with the same name (db) and 
+    In case there is an event with the same name (db) and
     IF NOT EXISTS is specified, an warning is put into the stack.
 */
 
@@ -362,7 +362,6 @@ Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists)
   pthread_mutex_unlock(&LOCK_event_metadata);
 
   DBUG_RETURN(ret);
-  
 }
 
 
@@ -380,7 +379,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists)
     TRUE   Error
 
   NOTES
-    et contains data about dbname and event name. 
+    et contains data about dbname and event name.
     new_name is the new name of the event, if not null this means
     that RENAME TO was specified in the query
 */
@@ -420,7 +419,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to)
                                                    new_element)))
     {
       DBUG_ASSERT(ret == OP_LOAD_ERROR);
-      delete new_element;   
+      delete new_element;
     }
     else /* Binlog the alter event. */
     {
@@ -492,7 +491,7 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
 }
 
 
-/*
+/**
   Drops all events from a schema
 
   SYNOPSIS
@@ -505,8 +504,8 @@ void
 Events::drop_schema_events(THD *thd, char *db)
 {
   LEX_STRING const db_lex= { db, strlen(db) };
-  
-  DBUG_ENTER("Events::drop_schema_events");  
+
+  DBUG_ENTER("Events::drop_schema_events");
   DBUG_PRINT("enter", ("dropping events from %s", db));
   if (unlikely(check_system_tables_error))
   {
@@ -690,7 +689,7 @@ Events::init()
   if (check_system_tables(thd))
   {
     check_system_tables_error= TRUE;
-    sql_print_error("SCHEDULER: The system tables are damaged. "
+    sql_print_error("Event Scheduler: The system tables are damaged. "
                     "The scheduler subsystem will be unusable during this run.");
     goto end;
   }
@@ -698,7 +697,7 @@ Events::init()
 
   if (event_queue->init_queue(thd) || load_events_from_db(thd))
   {
-    sql_print_error("SCHEDULER: Error while loading from disk.");
+    sql_print_error("Event Scheduler: Error while loading from disk.");
     goto end;
   }
 
@@ -745,7 +744,7 @@ Events::deinit()
 }
 
 
-/*
+/**
   Inits Events mutexes
 
   SYNOPSIS
@@ -803,7 +802,7 @@ Events::dump_internal_status()
 }
 
 
-/*
+/**
   Starts execution of events by the scheduler
 
   SYNOPSIS
@@ -911,7 +910,7 @@ Events::check_system_tables(THD *thd)
 
   if ((ret= simple_open_n_lock_tables(thd, &tables)))
   {
-    sql_print_error("SCHEDULER: Cannot open mysql.db");
+    sql_print_error("Event Scheduler: Cannot open mysql.db");
     ret= TRUE;
   }
   ret= table_check_intact(tables.table, MYSQL_DB_FIELD_COUNT,
@@ -926,7 +925,7 @@ Events::check_system_tables(THD *thd)
 
   if (simple_open_n_lock_tables(thd, &tables))
   {
-    sql_print_error("SCHEDULER: Cannot open mysql.user");
+    sql_print_error("Event Scheduler: Cannot open mysql.user");
     ret= TRUE;
   }
   else
@@ -960,7 +959,7 @@ Events::check_system_tables(THD *thd)
 
   RETURN VALUE
     0  OK
-   !0  Error (EVEX_OPEN_TABLE_FAILED, EVEX_MICROSECOND_UNSUP, 
+   !0  Error (EVEX_OPEN_TABLE_FAILED, EVEX_MICROSECOND_UNSUP,
               EVEX_COMPILE_ERROR) - in all these cases mysql.event was
               tampered.
 
@@ -982,7 +981,7 @@ Events::load_events_from_db(THD *thd)
 
   if ((ret= db_repository->open_event_table(thd, TL_READ, &table)))
   {
-    sql_print_error("SCHEDULER: Table mysql.event is damaged. Can not open");
+    sql_print_error("Event Scheduler: Table mysql.event is damaged. Can not open");
     DBUG_RETURN(EVEX_OPEN_TABLE_FAILED);
   }
 
@@ -999,8 +998,9 @@ Events::load_events_from_db(THD *thd)
 
     if ((ret= et->load_from_row(thd, table)))
     {
-      sql_print_error("SCHEDULER: Error while loading from mysql.event. "
-                      "Table probably corrupted");
+      sql_print_error("Event Scheduler: "
+                      "Error while reading from mysql.event. "
+                      "The table is probably corrupted");
       break;
     }
     if (et->status != Event_queue_element::ENABLED)
@@ -1013,7 +1013,7 @@ Events::load_events_from_db(THD *thd)
     /* let's find when to be executed */
     if (et->compute_next_execution_time())
     {
-      sql_print_error("SCHEDULER: Error while computing execution time of %s.%s."
+      sql_print_error("Event Scheduler: Error while computing execution time of %s.%s."
                       " Skipping", et->dbname.str, et->name.str);
       continue;
     }
@@ -1030,11 +1030,11 @@ Events::load_events_from_db(THD *thd)
       */
       switch (ret= temp_job_data.compile(thd, thd->mem_root)) {
       case EVEX_MICROSECOND_UNSUP:
-        sql_print_error("SCHEDULER: mysql.event is tampered. MICROSECOND is not "
+        sql_print_error("Event Scheduler: mysql.event is tampered. MICROSECOND is not "
                         "supported but found in mysql.event");
         break;
       case EVEX_COMPILE_ERROR:
-        sql_print_error("SCHEDULER: Error while compiling %s.%s. Aborting load",
+        sql_print_error("Event Scheduler: Error while compiling %s.%s. Aborting load",
                         et->dbname.str, et->name.str);
         break;
       default:
@@ -1066,8 +1066,8 @@ end:
   else
   {
     ret= 0;
-    sql_print_information("SCHEDULER: Loaded %d event%s", count,
-                          (count == 1)?"":"s");
+    sql_print_information("Event Scheduler: Loaded %d event%s",
+                          count, (count == 1)?"":"s");
   }
 
   close_thread_tables(thd);

@@ -1042,5 +1042,46 @@ select user,db from information_schema.processlist;
 connection default;
 drop user user3148@localhost;
 
+
+
+#
+# Bug #26174 Server Crash: INSERT ... SELECT ... FROM I_S.GLOBAL_STATUS in Event
+#
+--disable_warnings
+DROP TABLE IF EXISTS thread_status;
+CREATE TABLE thread_status (variable_name VARCHAR(64),
+variable_value DECIMAL(22,7));
+CREATE TABLE server_status (variable_name VARCHAR(64),
+variable_value DECIMAL(22,7));
+DROP EVENT IF EXISTS log_status;
+--enable_warnings
+
+DELIMITER $$;
+
+CREATE EVENT log_status
+ ON SCHEDULE AT NOW()
+ ON COMPLETION PRESERVE
+ DO
+ BEGIN
+  INSERT INTO thread_status SELECT variable_name, variable_value FROM
+information_schema.session_status;
+  INSERT INTO server_status SELECT variable_name, variable_value FROM
+information_schema.global_status;
+ END$$
+
+DELIMITER ;$$
+
+SET GLOBAL event_scheduler=1;
+let $wait_condition=select count(variable_name) != 0 from server_status;
+let $wait_timeout=30;
+--source include/wait_condition.inc
+SELECT * FROM thread_status WHERE variable_name LIKE 'SSL%' LIMIT 1,2;
+SELECT variable_name FROM server_status LIMIT 1,2;
+
+DROP EVENT log_status;
+DROP TABLE thread_status;
+DROP TABLE server_status;
+SET GLOBAL event_scheduler=0;
+
 --echo End of 5.1 tests.
 
