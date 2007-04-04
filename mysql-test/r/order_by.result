@@ -963,8 +963,8 @@ x1	x2
 	3
 	4
 1	
-2
-DROP TABLE t1;	
+2	
+DROP TABLE t1;
 create table t1 (a int not null, b  int not null, c int not null);
 insert t1 values (1,1,1),(1,1,2),(1,2,1);
 select a, b from t1 group by a, b order by sum(c);
