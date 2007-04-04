@@ -37,7 +37,7 @@ struct Chr {
   uint m_mblen;
   bool m_caseins; // for latin letters
   Chr() :
-    m_type(NdbDictionary::Column::Char),
+    m_type(NdbDictionary::Column::Varchar),
     m_fixed(false),
     m_binary(false),
     m_len(55),
@@ -462,8 +462,14 @@ struct Tup {
     m_bval1.copyfrom(tup.m_bval1);
     m_bval2.copyfrom(tup.m_bval2);
   }
-  // return pk2 or pk2eq at random
+  /*
+   * in V2 return pk2 or pk2eq at random
+   * in V1 mixed cases do not work in general due to key packing
+   * luckily they do work via mysql
+   */
   char* pk2() {
+    if (g_opt.m_blob_version == 1)
+      return m_pk2;
     return urandom(2) == 0 ? m_pk2 : m_pk2eq;
   }
 private:
@@ -903,7 +909,7 @@ getvarsize(const char* buf)
 }
 
 static int
-verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 m_frag, bool exists)
+verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
 {
   const Bcol& b = v.m_bcol;
   DBG("verify " << b.m_btname << " pk1=" << hex << pk1);
@@ -974,11 +980,10 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 m_frag, bool exists)
         CHK(sz == m);
     }
     CHK(memcmp(data, v.m_val + n, m) == 0);
-    if (b.m_stripe == 0) {
-      Uint32 frag = ra_frag->u_32_value();
-      CHK(frag == frag);
-      DBG("verified frag id " << frag);
-    }
+    Uint32 frag2 = ra_frag->u_32_value();
+    DBG("frags main=" << frag << " blob=" << frag2 << " stripe=" << b.m_stripe);
+    if (b.m_stripe == 0)
+      CHK(frag == frag2);
   }
   for (unsigned i = 0; i < partcount; i++)
     CHK(seen[i] == 1);
@@ -2264,7 +2269,7 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
       printusage();
       goto success;
     }
-    ndbout << "testOIBasic: unknown option " << arg << endl;
+    ndbout << "unknown option " << arg << endl;
     goto wrongargs;
   }
   if (g_opt.m_debug != 0) {
@@ -2322,8 +2327,21 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
       c.m_totlen = c.m_bytelen;
     else
       c.m_totlen = 1 + c.m_bytelen;
-    c.m_caseins = (c.m_csinfo->coll->strcasecmp(c.m_csinfo, "ABC", "abc") == 0);
-    ndbout << "charset: " << c.m_cs << " caseins: " << c.m_caseins << endl;
+    c.m_caseins = false;
+    if (c.m_cs != 0) {
+      CHARSET_INFO* info = c.m_csinfo;
+      const char* p = "ABCxyz";
+      const char* q = "abcXYZ";
+      int e;
+      if ((*info->cset->well_formed_len)(info, p, p + 6, 999, &e) != 6) {
+        ndbout << "charset does not contain ascii" << endl;
+        goto wrongargs;
+      }
+      if ((*info->coll->strcasecmp)(info, p, q) == 0) {
+        c.m_caseins = true;
+      }
+      ndbout << "charset: " << c.m_cs << " caseins: " << c.m_caseins << endl;
+    }
   }
   ndbout << cmdline << endl;
   g_ncc = new Ndb_cluster_connection();
