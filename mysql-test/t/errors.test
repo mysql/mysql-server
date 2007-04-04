@@ -40,6 +40,7 @@ create table t1 (a int(256));
 set sql_mode='traditional';
 --error 1074
 create table t1 (a varchar(66000));
+set sql_mode=default;
 
 #
 # Bug #27513: mysql 5.0.x + NULL pointer DoS
