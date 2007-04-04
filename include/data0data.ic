@@ -279,8 +279,13 @@ dtuple_create(
 		ulint	i;
 
 		for (i = 0; i < n_fields; i++) {
-			(tuple->fields + i)->data = &data_error;
-			dfield_get_type(tuple->fields + i)->mtype = DATA_ERROR;
+			dfield_t*       field;
+
+			field = dtuple_get_nth_field(tuple, i);
+
+			dfield_set_len(field, UNIV_SQL_NULL);
+			field->data = &data_error;
+			dfield_get_type(field)->mtype = DATA_ERROR;
 		}
 	}
 #endif

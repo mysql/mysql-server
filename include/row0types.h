@@ -36,4 +36,6 @@ typedef	struct purge_node_struct purge_node_t;
 
 typedef struct row_ext_struct row_ext_t;
 
+typedef struct row_prebuilt_struct row_prebuilt_t;
+
 #endif

@@ -425,7 +425,8 @@ trx_rollback_or_clean_all_without_sess(
 	dict_table_t*	table;
 	ib_longlong	rows_to_undo;
 	const char*	unit		= "";
-	int		err;
+	int		err = DB_SUCCESS;
+	ibool		dictionary_locked = FALSE;
 
 	mutex_enter(&kernel_mutex);
 
@@ -530,8 +531,10 @@ loop:
 
 	trx->mysql_process_no = os_proc_get_number();
 
+	/* TODO: Doesn't seem right */
 	if (trx->dict_operation) {
 		row_mysql_lock_data_dictionary(trx);
+		dictionary_locked = TRUE;
 	}
 
 	que_run_threads(thr);
@@ -552,7 +555,8 @@ loop:
 
 	mutex_exit(&kernel_mutex);
 
-	if (trx->dict_operation) {
+	if (trx->dict_operation && !ut_dulint_is_zero(trx->table_id)) {
+
 		/* If the transaction was for a dictionary operation, we
 		drop the relevant table, if it still exists */
 
@@ -573,9 +577,35 @@ loop:
 
 			ut_a(err == (int) DB_SUCCESS);
 		}
+	} else if (trx->dict_undo_list) {
+
+		dict_undo_t*	dict_undo;
+
+		ut_a(trx->dict_undo_list);
+
+		dict_undo = UT_LIST_GET_FIRST(*trx->dict_undo_list);
+
+		fputs("InnoDB: UNDO dict entries\n", stderr);
+
+		while (dict_undo && err == DB_SUCCESS) {
+
+			dict_undo = UT_LIST_GET_NEXT(node, dict_undo);
+
+			if (dict_undo) {
+				err = row_undo_dictionary(trx, dict_undo);
+			}
+		}
+
+		ut_a(err == (int) DB_SUCCESS);
+
+		dict_undo_free_list(trx);
+
+		mutex_enter(&kernel_mutex);
+		trx_commit_off_kernel(trx);
+		mutex_exit(&kernel_mutex);
 	}
 
-	if (trx->dict_operation) {
+	if (dictionary_locked) {
 		row_mysql_unlock_data_dictionary(trx);
 	}
 
@@ -1245,7 +1275,11 @@ trx_finish_rollback_off_kernel(
 	}
 #endif /* UNIV_DEBUG */
 
-	trx_commit_off_kernel(trx);
+	/* If there are dict UNDO records that need to be undone then
+	we commit the transaction after these dictionary changes are undone.*/
+	if (!trx->dict_undo_list) {
+		trx_commit_off_kernel(trx);
+	}
 
 	/* Remove all TRX_SIG_TOTAL_ROLLBACK signals from the signal queue and
 	send reply messages to them */

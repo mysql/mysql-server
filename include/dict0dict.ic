@@ -647,28 +647,3 @@ dict_table_get_on_id_low(
 	return(table);
 }
 
-/**************************************************************************
-Returns an index object. */
-UNIV_INLINE
-dict_index_t*
-dict_table_get_index(
-/*=================*/
-				/* out: index, NULL if does not exist */
-	dict_table_t*	table,	/* in: table */
-	const char*	name)	/* in: index name */
-{
-	dict_index_t*	index	= NULL;
-
-	index = dict_table_get_first_index(table);
-
-	while (index != NULL) {
-		if (ut_strcmp(name, index->name) == 0) {
-
-			break;
-		}
-
-		index = dict_table_get_next_index(index);
-	}
-
-	return(index);
-}

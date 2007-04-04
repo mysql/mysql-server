@@ -26,6 +26,7 @@ Created 1/8/1997 Heikki Tuuri
 #include "row0umod.h"
 #include "row0mysql.h"
 #include "srv0srv.h"
+#include "row0merge.h"
 
 /* How to undo row operations?
 (1) For an insert, we have stored a prefix of the clustered index record
@@ -124,6 +125,7 @@ row_undo_node_create(
 
 	undo->state = UNDO_NODE_FETCH_NEXT;
 	undo->trx = trx;
+	undo->rec_sub_type = TRX_UNDO_NULL_REC;
 
 	btr_pcur_init(&(undo->pcur));
 
@@ -350,3 +352,352 @@ row_undo_step(
 
 	return(thr);
 }
+
+/***************************************************************
+Parses the info in a fresh insert undo record containing a
+dictionary change. */
+static
+ulint
+row_undo_dictionary_parse_undo_rec(
+/*===============================*/
+				/* out: DB_SUCCESS or DB_ERROR */
+	undo_node_t*	node)	/* in: row undo node */
+{
+	byte*		ptr;
+	dulint		table_id;
+	dulint		index_id;
+	ulint		len;
+
+	ut_ad(node);
+
+	node->rec_type = trx_undo_rec_get_type(node->undo_rec);
+	node->undo_no = trx_undo_rec_get_undo_no(node->undo_rec);
+
+	ptr = trx_undo_rec_get_ptr(node->undo_rec, node->undo_no);
+
+	ut_a(node->rec_type == TRX_UNDO_DICTIONARY_REC);
+
+	/* Read dictionary rec sub type */
+	node->rec_sub_type = mach_read_from_1(ptr);
+	ptr++;
+
+	/* Parse subtype parameters */
+
+	switch (node->rec_sub_type) {
+
+	case TRX_UNDO_INDEX_CREATE_REC:
+
+		table_id = mach_dulint_read_much_compressed(ptr);
+		len = mach_dulint_get_much_compressed_size(table_id);
+		ptr += len;
+
+		index_id = mach_dulint_read_much_compressed(ptr);
+		len = mach_dulint_get_much_compressed_size(index_id);
+		ptr += len;
+
+		node->table = dict_table_get_on_id(table_id, node->trx);
+		node->index = NULL;
+
+		if (!node->table) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: [Error]: Table %lu %lu not found "
+				"in index create undo rec\n",
+				(ulong) ut_dulint_get_high(table_id),
+				(ulong) ut_dulint_get_low(table_id));
+			goto err_exit;
+		} else if (ut_dulint_is_zero(index_id)) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: [Error]: Index id missing from "
+				"index create undo rec\n");
+err_exit:
+			mutex_enter(&kernel_mutex);
+			trx_print(stderr, node->trx, 1024);
+			mutex_exit(&kernel_mutex);
+
+			return(DB_ERROR);
+		} else {
+			node->index = dict_index_get_on_id_low(
+				node->table, index_id);
+		}
+
+		if (node->table->ibd_file_missing || !node->index) {
+			/* We skip undo operations to missing .ibd files
+			and missing indexes */
+			node->table = NULL;
+			node->index = NULL;
+
+			return(DB_SUCCESS);
+		}
+
+		break;
+
+	case TRX_UNDO_TABLE_CREATE_REC:
+	case TRX_UNDO_TABLE_DROP_REC:
+		len = strlen((char *)ptr) + 1;
+
+		node->new_table_name = mem_heap_strdup(node->heap, (char *)ptr);
+		ptr += len;
+
+		ut_ad(*node->new_table_name == TEMP_TABLE_PREFIX);
+		break;
+
+	case TRX_UNDO_TABLE_RENAME_REC:
+		len = strlen((char *)ptr) + 1;
+
+		node->new_table_name = mem_heap_strdup(node->heap, (char *)ptr);
+		ptr += len;
+
+		ut_ad(*node->new_table_name == TEMP_TABLE_PREFIX);
+
+		len = strlen((char *)ptr) + 1;
+
+		node->old_table_name = mem_heap_strdup(node->heap, (char *)ptr);
+		ptr += len;
+
+		len = strlen((char *)ptr) + 1;
+
+		node->tmp_table_name = mem_heap_strdup(node->heap, (char *)ptr);
+		ptr += len;
+
+		ut_ad(*node->tmp_table_name == TEMP_TABLE_PREFIX);
+		break;
+
+	default:
+		ut_print_timestamp(stderr);
+
+		fprintf(stderr,
+			"  InnoDB: [Error]: Undefined rec_sub_type = %lu at "
+			"row_undo_dictionary_parse_undo_rec\n", 
+			(ulong)node->rec_sub_type);
+
+		mutex_enter(&kernel_mutex);
+		trx_print(stderr, node->trx, 1024);
+		mutex_exit(&kernel_mutex);
+
+		return(DB_ERROR);
+	}
+
+	return(DB_SUCCESS);
+}
+
+/***************************************************************
+ Currently we gather all the information that is required to do the 
+ UNDO. The actual UNDO is done later in row_undo_dictionary().*/
+
+ulint
+row_undo_build_dict_undo_list(
+/*==========================*/
+				/* out: DB_SUCCESS or error code */
+	undo_node_t*	node)	/* in: row undo node */
+{
+	trx_t*		trx;
+	dict_undo_t*	dict_undo;
+	ulint		err = DB_SUCCESS;
+	ibool		locked_dictionary = FALSE;
+	ibool		thawed_dictionary = FALSE;
+
+	ut_ad(node);
+	ut_ad(node->state == UNDO_NODE_INSERT);
+	ut_a(node->trx->dict_operation);
+
+	err = row_undo_dictionary_parse_undo_rec(node);
+
+	if (err != DB_SUCCESS) {
+
+		goto func_exit;
+	}
+
+	trx = node->trx;
+
+	if (trx->dict_operation_lock_mode == RW_S_LATCH) {
+		row_mysql_unfreeze_data_dictionary(trx);
+
+		thawed_dictionary = TRUE;
+	}
+
+	if (trx->dict_operation_lock_mode == 0
+	    || trx->dict_operation_lock_mode != RW_X_LATCH) {
+
+		row_mysql_lock_data_dictionary(trx);
+
+		locked_dictionary = TRUE;
+	}
+
+	/* We will do our own deletes */
+	trx->table_id = ut_dulint_create(0, 0);
+
+	if (trx->dict_undo_list == NULL) {
+		dict_undo_create_list(trx);
+	}
+
+	/* Create an element and append to the list */
+	dict_undo = dict_undo_create_element(trx);
+
+	dict_undo->op_type = node->rec_sub_type;
+
+	switch (node->rec_sub_type) {
+
+	case TRX_UNDO_INDEX_CREATE_REC:
+
+		if (node->table && node->index) {
+			ut_a(node->index->table == node->table);
+
+			dict_undo->data.index = node->index;
+		} else {
+			dict_undo->data.index = NULL;
+		}
+
+		break;
+
+	case TRX_UNDO_TABLE_DROP_REC:
+	case TRX_UNDO_TABLE_CREATE_REC:
+
+		dict_undo->data.table.old_table = dict_table_get_low(
+			node->new_table_name);
+
+		break;
+
+	case TRX_UNDO_TABLE_RENAME_REC:
+
+		dict_undo->data.table.old_table = dict_table_get_low(
+			node->old_table_name);
+
+		dict_undo->data.table.tmp_table = dict_table_get_low(
+			node->tmp_table_name);
+
+		dict_undo->data.table.new_table = dict_table_get_low(
+			node->new_table_name);
+
+		if (dict_undo->data.table.tmp_table
+		      && dict_undo->data.table.old_table
+		      && dict_undo->data.table.new_table) {
+
+			/* This can't happen */
+			ut_error;
+		}
+
+		break;
+
+	default:
+
+		ut_error;
+
+		break;
+	}
+
+	if (locked_dictionary) {
+		row_mysql_unlock_data_dictionary(trx);
+	}
+
+	if (thawed_dictionary) {
+		row_mysql_freeze_data_dictionary(trx);
+	}
+
+func_exit:
+	trx_undo_rec_release(node->trx, node->undo_no);
+
+	return(err);
+}
+
+ulint
+row_undo_dictionary(
+/*================*/
+					/* out: DB_SUCCESS or error code */
+	trx_t*		trx,		/* in: transaction */
+	dict_undo_t*	dict_undo)	/* in: dict undo info */
+{
+	ulint		err = DB_SUCCESS;
+
+	switch (dict_undo->op_type) {
+	case TRX_UNDO_INDEX_CREATE_REC:
+
+		err = row_merge_remove_index(
+			dict_undo->data.index, dict_undo->data.index->table,
+			trx);
+
+		break;
+
+	/* TODO: We are REDOing the DROP ? */
+	case TRX_UNDO_TABLE_DROP_REC:
+	case TRX_UNDO_TABLE_CREATE_REC:
+
+		if (dict_undo->data.table.old_table) {
+
+			err = row_drop_table_for_mysql_no_commit(
+				dict_undo->data.table.old_table->name,
+				trx, FALSE);
+		}
+
+		break;
+
+	case TRX_UNDO_TABLE_RENAME_REC:
+		if (!dict_undo->data.table.new_table) {
+
+			/* Old name to tmp name succeeded and new name to old
+			name succeeded too. We have to be very careful here as
+			the user could loose the entire table if not done
+			carefully.*/
+			ut_ad(dict_undo->data.table.old_table);
+
+			err = row_rename_table_for_mysql(
+				dict_undo->data.table.old_table->name,
+				dict_undo->data.table.new_table->name,
+				trx, FALSE);
+
+			if (err == DB_SUCCESS) {
+				err = row_rename_table_for_mysql(
+					dict_undo->data.table.tmp_table->name,
+					dict_undo->data.table.old_table->name,
+					trx, FALSE);
+			}
+
+			if (err == DB_SUCCESS) {
+
+				err = row_drop_table_for_mysql_no_commit(
+					dict_undo->data.table.new_table->name,
+					trx, FALSE);
+			}
+
+		} else if (dict_undo->data.table.old_table) {
+			/* Rename to tmp failed.*/
+
+			ut_ad(!dict_undo->data.table.tmp_table);
+
+			if (dict_undo->data.table.new_table) {
+
+				err = row_drop_table_for_mysql_no_commit(
+					dict_undo->data.table.new_table->name,
+					trx, FALSE);
+			}
+
+		} else if (dict_undo->data.table.tmp_table) {
+			/* Rename to tmp was OK. We need to UNDO it.*/
+
+			ut_ad(!dict_undo->data.table.old_table);
+
+			err = row_rename_table_for_mysql(
+				dict_undo->data.table.tmp_table->name,
+				dict_undo->data.table.old_table->name,
+				trx, FALSE);
+
+			if (dict_undo->data.table.new_table) {
+
+				err = row_drop_table_for_mysql_no_commit(
+					dict_undo->data.table.new_table->name,
+					trx, FALSE);
+			}
+
+		} else {
+			/* Shouldn't happen */
+			ut_error;
+		}
+
+	default:
+		ut_error;
+	}
+
+	return(err);
+}
+

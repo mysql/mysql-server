@@ -227,7 +227,7 @@ row_purge_remove_sec_if_poss_low(
 		/* Not found */
 
 		/* fputs("PURGE:........sec entry not found\n", stderr); */
-		/* dtuple_print(entry); */
+		/* dtuple_print(stderr, entry); */
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);

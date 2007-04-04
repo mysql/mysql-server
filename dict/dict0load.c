@@ -477,31 +477,11 @@ dict_load_columns(
 }
 
 /************************************************************************
-Report that an index field or index for a table has been delete marked. */
-static
-void
-dict_load_report_deleted_index(
-/*===========================*/
-	const char*	name,	/* in: table name */
-	ulint		field)	/* in: index field, or ULINT_UNDEFINED */
-{
-	fprintf(stderr, "InnoDB: Error: data dictionary entry"
-		" for table %s is corrupt!\n", name);
-	if (field != ULINT_UNDEFINED) {
-		fprintf(stderr,
-			"InnoDB: Index field %lu is delete marked.\n", field);
-	} else {
-		fputs("InnoDB: An index is delete marked.\n", stderr);
-	}
-}
-
-/************************************************************************
 Loads definitions for index fields. */
 static
 void
 dict_load_fields(
 /*=============*/
-	dict_table_t*	table,	/* in: table */
 	dict_index_t*	index,	/* in: index whose fields to load */
 	mem_heap_t*	heap)	/* in: memory heap for temporary storage */
 {
@@ -543,13 +523,18 @@ dict_load_fields(
 		rec = btr_pcur_get_rec(&pcur);
 
 		ut_a(btr_pcur_is_on_user_rec(&pcur, &mtr));
+
+		/* There could be delete marked records in SYS_FIELDS
+		because SYS_FIELDS.INDEX_ID can be updated
+		by ALTER TABLE ADD INDEX. */
+
 		if (rec_get_deleted_flag(rec, 0)) {
-			dict_load_report_deleted_index(table->name, i);
+
+			goto next_rec;
 		}
 
 		field = rec_get_nth_field_old(rec, 0, &len);
 		ut_ad(len == 8);
-		ut_a(ut_memcmp(buf, field, len) == 0);
 
 		field = rec_get_nth_field_old(rec, 1, &len);
 		ut_a(len == 4);
@@ -584,6 +569,7 @@ dict_load_fields(
 							  (char*) field, len),
 					 prefix_len);
 
+next_rec:
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
 
@@ -662,16 +648,9 @@ dict_load_indexes(
 
 		if (ut_memcmp(buf, field, len) != 0) {
 			break;
-		}
-
-		if (rec_get_deleted_flag(rec, 0)) {
-			dict_load_report_deleted_index(table->name,
-						       ULINT_UNDEFINED);
-
-			btr_pcur_close(&pcur);
-			mtr_commit(&mtr);
-
-			return(FALSE);
+		} else if (rec_get_deleted_flag(rec, 0)) {
+			/* Skip delete marked records */
+			goto next_rec;
 		}
 
 		field = rec_get_nth_field_old(rec, 1, &len);
@@ -714,12 +693,15 @@ dict_load_indexes(
 		if ((type & DICT_CLUSTERED) == 0
 		    && NULL == dict_table_get_first_index(table)) {
 
-			fprintf(stderr,
-				"InnoDB: Error: trying to load index %s"
-				" for table %s\n"
-				"InnoDB: but the first index"
-				" is not clustered!\n",
-				name_buf, table->name);
+			if (*table->name != TEMP_TABLE_PREFIX) {
+
+				fprintf(stderr,
+					"InnoDB: Error: trying to"
+					" load index %s for table %s\n"
+					"InnoDB: but the first index"
+					" is not clustered!\n",
+					name_buf, table->name);
+			}
 
 			btr_pcur_close(&pcur);
 			mtr_commit(&mtr);
@@ -741,10 +723,11 @@ dict_load_indexes(
 						      space, type, n_fields);
 			index->id = id;
 
-			dict_load_fields(table, index, heap);
+			dict_load_fields(index, heap);
 			dict_index_add_to_cache(table, index, page_no);
 		}
 
+next_rec:
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
 

@@ -127,6 +127,10 @@ trx_create(
 	trx->must_flush_log_later = FALSE;
 
 	trx->dict_operation = FALSE;
+	trx->table_id = ut_dulint_create(0, 0);
+	trx->dict_undo_list = NULL;
+	trx->dict_redo_list = NULL;
+	trx->sync_cb = NULL;
 
 	trx->mysql_thd = NULL;
 	trx->mysql_query_str = NULL;
@@ -153,6 +157,7 @@ trx_create(
 	trx->undo_no_arr = NULL;
 
 	trx->error_state = DB_SUCCESS;
+	trx->error_key_num = 0;
 	trx->detailed_error[0] = '\0';
 
 	trx->sess = sess;
@@ -349,6 +354,8 @@ trx_free(
 	trx->global_read_view = NULL;
 
 	ut_a(trx->read_view == NULL);
+	ut_a(trx->dict_undo_list == NULL);
+	ut_a(trx->dict_redo_list == NULL);
 
 	mem_free(trx);
 }
@@ -739,6 +746,10 @@ trx_commit_off_kernel(
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&kernel_mutex));
+
+	/* Can't commit if we have dictionary UNDO records */
+	ut_a(!trx->dict_undo_list);
+	ut_a(!trx->dict_redo_list);
 
 	trx->must_flush_log_later = FALSE;
 
@@ -1558,6 +1569,14 @@ trx_commit_for_mysql(
 
 	ut_a(trx);
 
+	if (trx->sync_cb) {
+		ulint	err;
+
+		err = trx->sync_cb(trx, TRUE);
+		ut_a(err);
+		trx->sync_cb = NULL;
+	}
+
 	trx->op_info = "committing";
 
 	/* If we are doing the XA recovery of prepared transactions, then
@@ -1575,7 +1594,7 @@ trx_commit_for_mysql(
 
 		trx->sess = trx_dummy_sess;
 	}
-	
+
 	mutex_exit(&kernel_mutex);
 
 	trx_start_if_not_started(trx);

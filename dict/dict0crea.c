@@ -540,7 +540,11 @@ dict_build_index_def_step(
 	ut_ad((UT_LIST_GET_LEN(table->indexes) > 0)
 	      || dict_index_is_clust(index));
 
-	index->id = dict_hdr_get_new_id(DICT_HDR_INDEX_ID);
+	/* For fast index creation we have already allocated an index id
+	for this index so that we could write an UNDO log record for it.*/
+	if (ut_dulint_is_zero(index->id)) {
+		index->id = dict_hdr_get_new_id(DICT_HDR_INDEX_ID);
+	}
 
 	/* Inherit the space id from the table; we store all indexes of a
 	table in the same tablespace */
@@ -551,6 +555,9 @@ dict_build_index_def_step(
 	node->ind_row = row;
 
 	ins_node_set_new_row(node->ind_def, row);
+
+	/* Note that the index was created by this transaction. */
+	index->trx_id = trx->id;
 
 	return(DB_SUCCESS);
 }

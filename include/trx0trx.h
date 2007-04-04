@@ -450,8 +450,19 @@ struct trx_struct{
 					table.	This is a hint that the table
 					may need to be dropped in crash
 					recovery. */
-	dulint		table_id;	/* table id if the preceding field is
-					TRUE */
+	dict_undo_list_t*
+			dict_undo_list;	/* List of undo records are created
+					during recovery.*/
+	dict_redo_list_t*
+			dict_redo_list;	/* List of indexes created by this
+					transaction.*/
+	ulint		(*sync_cb)(trx_t*, ibool);
+					/* Transaction synchronization
+					callback, if ibool parameter is TRUE
+					then callback invoked for commit else
+					rollback.*/
+	dulint		table_id;	/* Table to drop iff dict_operation
+					is TRUE.*/
 	/*------------------------------*/
 	int		active_trans;	/* 1 - if a transaction in MySQL
 					is active. 2 - if prepare_commit_mutex
@@ -567,6 +578,9 @@ struct trx_struct{
 	void*		error_info;	/* if the error number indicates a
 					duplicate key error, a pointer to
 					the problematic index is stored here */
+	ulint		error_key_num;	/* if the index creation fails to a
+					duplicate key error, a mysql key
+					number of that index is stored here */
 	sess_t*		sess;		/* session of the trx, NULL if none */
 	ulint		que_state;	/* TRX_QUE_RUNNING, TRX_QUE_LOCK_WAIT,
 					... */

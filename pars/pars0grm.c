@@ -1,4 +1,4 @@
-/* A Bison parser, made by GNU Bison 1.875d.  */
+/* A Bison parser, made by GNU Bison 2.0.  */
 
 /* Skeleton parser for Yacc-like parsing with Bison,
    Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
@@ -292,7 +292,7 @@ typedef int YYSTYPE;
 /* Copy the second part of user declarations.  */
 
 
-/* Line 214 of yacc.c.  */
+/* Line 213 of yacc.c.  */
 #line 297 "pars0grm.tab.c"
 
 #if ! defined (yyoverflow) || YYERROR_VERBOSE
@@ -308,14 +308,10 @@ typedef int YYSTYPE;
 
 # ifdef YYSTACK_USE_ALLOCA
 #  if YYSTACK_USE_ALLOCA
-#   define YYSTACK_ALLOC alloca
-#  endif
-# else
-#  if defined (alloca) || defined (_ALLOCA_H)
-#   define YYSTACK_ALLOC alloca
-#  else
 #   ifdef __GNUC__
 #    define YYSTACK_ALLOC __builtin_alloca
+#   else
+#    define YYSTACK_ALLOC alloca
 #   endif
 #  endif
 # endif
@@ -1059,19 +1055,52 @@ do								\
     }								\
 while (0)
 
+
 #define YYTERROR	1
 #define YYERRCODE	256
 
-/* YYLLOC_DEFAULT -- Compute the default location (before the actions
-   are run).  */
 
+/* YYLLOC_DEFAULT -- Set CURRENT to span from RHS[1] to RHS[N].
+   If N is 0, then set CURRENT to the empty location which ends
+   the previous symbol: RHS[0] (always defined).  */
+
+#define YYRHSLOC(Rhs, K) ((Rhs)[K])
 #ifndef YYLLOC_DEFAULT
-# define YYLLOC_DEFAULT(Current, Rhs, N)		\
-   ((Current).first_line   = (Rhs)[1].first_line,	\
-    (Current).first_column = (Rhs)[1].first_column,	\
-    (Current).last_line    = (Rhs)[N].last_line,	\
-    (Current).last_column  = (Rhs)[N].last_column)
+# define YYLLOC_DEFAULT(Current, Rhs, N)				\
+    do									\
+      if (N)								\
+	{								\
+	  (Current).first_line   = YYRHSLOC (Rhs, 1).first_line;	\
+	  (Current).first_column = YYRHSLOC (Rhs, 1).first_column;	\
+	  (Current).last_line    = YYRHSLOC (Rhs, N).last_line;		\
+	  (Current).last_column  = YYRHSLOC (Rhs, N).last_column;	\
+	}								\
+      else								\
+	{								\
+	  (Current).first_line   = (Current).last_line   =		\
+	    YYRHSLOC (Rhs, 0).last_line;				\
+	  (Current).first_column = (Current).last_column =		\
+	    YYRHSLOC (Rhs, 0).last_column;				\
+	}								\
+    while (0)
 #endif
+
+
+/* YY_LOCATION_PRINT -- Print the location on the stream.
+   This macro was not mandated originally: define only if we know
+   we won't break user code: when these are the locations we know.  */
+
+#ifndef YY_LOCATION_PRINT
+# if YYLTYPE_IS_TRIVIAL
+#  define YY_LOCATION_PRINT(File, Loc)			\
+     fprintf (File, "%d.%d-%d.%d",			\
+              (Loc).first_line, (Loc).first_column,	\
+              (Loc).last_line,  (Loc).last_column)
+# else
+#  define YY_LOCATION_PRINT(File, Loc) ((void) 0)
+# endif
+#endif
+
 
 /* YYLEX -- calling `yylex' with the right arguments.  */
 
@@ -1095,19 +1124,13 @@ do {						\
     YYFPRINTF Args;				\
 } while (0)
 
-# define YYDSYMPRINT(Args)			\
-do {						\
-  if (yydebug)					\
-    yysymprint Args;				\
-} while (0)
-
-# define YYDSYMPRINTF(Title, Token, Value, Location)		\
+# define YY_SYMBOL_PRINT(Title, Type, Value, Location)		\
 do {								\
   if (yydebug)							\
     {								\
       YYFPRINTF (stderr, "%s ", Title);				\
       yysymprint (stderr, 					\
-                  Token, Value);	\
+                  Type, Value);	\
       YYFPRINTF (stderr, "\n");					\
     }								\
 } while (0)
@@ -1174,8 +1197,7 @@ do {					\
 int yydebug;
 #else /* !YYDEBUG */
 # define YYDPRINTF(Args)
-# define YYDSYMPRINT(Args)
-# define YYDSYMPRINTF(Title, Token, Value, Location)
+# define YY_SYMBOL_PRINT(Title, Type, Value, Location)
 # define YY_STACK_PRINT(Bottom, Top)
 # define YY_REDUCE_PRINT(Rule)
 #endif /* !YYDEBUG */
@@ -1192,10 +1214,6 @@ int yydebug;
    Do not make this value too large; the results are undefined if
    SIZE_MAX < YYSTACK_BYTES (YYMAXDEPTH)
    evaluated with infinite-precision integer arithmetic.  */
-
-#if defined (YYMAXDEPTH) && YYMAXDEPTH == 0
-# undef YYMAXDEPTH
-#endif
 
 #ifndef YYMAXDEPTH
 # define YYMAXDEPTH 10000
@@ -1278,15 +1296,15 @@ yysymprint (yyoutput, yytype, yyvaluep)
   (void) yyvaluep;
 
   if (yytype < YYNTOKENS)
-    {
-      YYFPRINTF (yyoutput, "token %s (", yytname[yytype]);
-# ifdef YYPRINT
-      YYPRINT (yyoutput, yytoknum[yytype], *yyvaluep);
-# endif
-    }
+    YYFPRINTF (yyoutput, "token %s (", yytname[yytype]);
   else
     YYFPRINTF (yyoutput, "nterm %s (", yytname[yytype]);
 
+
+# ifdef YYPRINT
+  if (yytype < YYNTOKENS)
+    YYPRINT (yyoutput, yytoknum[yytype], *yyvaluep);
+# endif
   switch (yytype)
     {
       default:
@@ -1302,16 +1320,21 @@ yysymprint (yyoutput, yytype, yyvaluep)
 
 #if defined (__STDC__) || defined (__cplusplus)
 static void
-yydestruct (int yytype, YYSTYPE *yyvaluep)
+yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep)
 #else
 static void
-yydestruct (yytype, yyvaluep)
+yydestruct (yymsg, yytype, yyvaluep)
+    const char *yymsg;
     int yytype;
     YYSTYPE *yyvaluep;
 #endif
 {
   /* Pacify ``unused variable'' warnings.  */
   (void) yyvaluep;
+
+  if (!yymsg)
+    yymsg = "Deleting";
+  YY_SYMBOL_PRINT (yymsg, yytype, yyvaluep, yylocationp);
 
   switch (yytype)
     {
@@ -1340,10 +1363,10 @@ int yyparse ();
 
 
 
-/* The lookahead symbol.  */
+/* The look-ahead symbol.  */
 int yychar;
 
-/* The semantic value of the lookahead symbol.  */
+/* The semantic value of the look-ahead symbol.  */
 YYSTYPE yylval;
 
 /* Number of syntax errors so far.  */
@@ -1379,7 +1402,7 @@ yyparse ()
   int yyresult;
   /* Number of tokens to shift before error messages enabled.  */
   int yyerrstatus;
-  /* Lookahead token as an internal (translated) token number.  */
+  /* Look-ahead token as an internal (translated) token number.  */
   int yytoken = 0;
 
   /* Three stacks and their tools:
@@ -1430,6 +1453,8 @@ yyparse ()
   yyssp = yyss;
   yyvsp = yyvs;
 
+
+  yyvsp[0] = yylval;
 
   goto yysetstate;
 
@@ -1520,18 +1545,18 @@ yyparse ()
 yybackup:
 
 /* Do appropriate processing given the current state.  */
-/* Read a lookahead token if we need one and don't already have one.  */
+/* Read a look-ahead token if we need one and don't already have one.  */
 /* yyresume: */
 
-  /* First try to decide what to do without reference to lookahead token.  */
+  /* First try to decide what to do without reference to look-ahead token.  */
 
   yyn = yypact[yystate];
   if (yyn == YYPACT_NINF)
     goto yydefault;
 
-  /* Not known => get a lookahead token if don't already have one.  */
+  /* Not known => get a look-ahead token if don't already have one.  */
 
-  /* YYCHAR is either YYEMPTY or YYEOF or a valid lookahead symbol.  */
+  /* YYCHAR is either YYEMPTY or YYEOF or a valid look-ahead symbol.  */
   if (yychar == YYEMPTY)
     {
       YYDPRINTF ((stderr, "Reading a token: "));
@@ -1546,7 +1571,7 @@ yybackup:
   else
     {
       yytoken = YYTRANSLATE (yychar);
-      YYDSYMPRINTF ("Next token is", yytoken, &yylval, &yylloc);
+      YY_SYMBOL_PRINT ("Next token is", yytoken, &yylval, &yylloc);
     }
 
   /* If the proper action on seeing token YYTOKEN is to reduce or to
@@ -1566,8 +1591,8 @@ yybackup:
   if (yyn == YYFINAL)
     YYACCEPT;
 
-  /* Shift the lookahead token.  */
-  YYDPRINTF ((stderr, "Shifting token %s, ", yytname[yytoken]));
+  /* Shift the look-ahead token.  */
+  YY_SYMBOL_PRINT ("Shifting", yytoken, &yylval, &yylloc);
 
   /* Discard the token being shifted unless it is eof.  */
   if (yychar != YYEOF)
@@ -1618,277 +1643,277 @@ yyreduce:
     {
         case 25:
 #line 166 "pars0grm.y"
-    { yyval = que_node_list_add_last(NULL, yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0])); ;}
     break;
 
   case 26:
 #line 168 "pars0grm.y"
-    { yyval = que_node_list_add_last(yyvsp[-1], yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last((yyvsp[-1]), (yyvsp[0])); ;}
     break;
 
   case 27:
 #line 172 "pars0grm.y"
-    { yyval = yyvsp[0];;}
+    { (yyval) = (yyvsp[0]);;}
     break;
 
   case 28:
 #line 174 "pars0grm.y"
-    { yyval = pars_func(yyvsp[-3], yyvsp[-1]); ;}
+    { (yyval) = pars_func((yyvsp[-3]), (yyvsp[-1])); ;}
     break;
 
   case 29:
 #line 175 "pars0grm.y"
-    { yyval = yyvsp[0];;}
+    { (yyval) = (yyvsp[0]);;}
     break;
 
   case 30:
 #line 176 "pars0grm.y"
-    { yyval = yyvsp[0];;}
+    { (yyval) = (yyvsp[0]);;}
     break;
 
   case 31:
 #line 177 "pars0grm.y"
-    { yyval = yyvsp[0];;}
+    { (yyval) = (yyvsp[0]);;}
     break;
 
   case 32:
 #line 178 "pars0grm.y"
-    { yyval = yyvsp[0];;}
+    { (yyval) = (yyvsp[0]);;}
     break;
 
   case 33:
 #line 179 "pars0grm.y"
-    { yyval = yyvsp[0];;}
+    { (yyval) = (yyvsp[0]);;}
     break;
 
   case 34:
 #line 180 "pars0grm.y"
-    { yyval = yyvsp[0];;}
+    { (yyval) = (yyvsp[0]);;}
     break;
 
   case 35:
 #line 181 "pars0grm.y"
-    { yyval = yyvsp[0];;}
+    { (yyval) = (yyvsp[0]);;}
     break;
 
   case 36:
 #line 182 "pars0grm.y"
-    { yyval = pars_op('+', yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = pars_op('+', (yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 37:
 #line 183 "pars0grm.y"
-    { yyval = pars_op('-', yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = pars_op('-', (yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 38:
 #line 184 "pars0grm.y"
-    { yyval = pars_op('*', yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = pars_op('*', (yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 39:
 #line 185 "pars0grm.y"
-    { yyval = pars_op('/', yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = pars_op('/', (yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 40:
 #line 186 "pars0grm.y"
-    { yyval = pars_op('-', yyvsp[0], NULL); ;}
+    { (yyval) = pars_op('-', (yyvsp[0]), NULL); ;}
     break;
 
   case 41:
 #line 187 "pars0grm.y"
-    { yyval = yyvsp[-1]; ;}
+    { (yyval) = (yyvsp[-1]); ;}
     break;
 
   case 42:
 #line 188 "pars0grm.y"
-    { yyval = pars_op('=', yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = pars_op('=', (yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 43:
 #line 189 "pars0grm.y"
-    { yyval = pars_op('<', yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = pars_op('<', (yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 44:
 #line 190 "pars0grm.y"
-    { yyval = pars_op('>', yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = pars_op('>', (yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 45:
 #line 191 "pars0grm.y"
-    { yyval = pars_op(PARS_GE_TOKEN, yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = pars_op(PARS_GE_TOKEN, (yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 46:
 #line 192 "pars0grm.y"
-    { yyval = pars_op(PARS_LE_TOKEN, yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = pars_op(PARS_LE_TOKEN, (yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 47:
 #line 193 "pars0grm.y"
-    { yyval = pars_op(PARS_NE_TOKEN, yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = pars_op(PARS_NE_TOKEN, (yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 48:
 #line 194 "pars0grm.y"
-    { yyval = pars_op(PARS_AND_TOKEN, yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = pars_op(PARS_AND_TOKEN, (yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 49:
 #line 195 "pars0grm.y"
-    { yyval = pars_op(PARS_OR_TOKEN, yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = pars_op(PARS_OR_TOKEN, (yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 50:
 #line 196 "pars0grm.y"
-    { yyval = pars_op(PARS_NOT_TOKEN, yyvsp[0], NULL); ;}
+    { (yyval) = pars_op(PARS_NOT_TOKEN, (yyvsp[0]), NULL); ;}
     break;
 
   case 51:
 #line 198 "pars0grm.y"
-    { yyval = pars_op(PARS_NOTFOUND_TOKEN, yyvsp[-2], NULL); ;}
+    { (yyval) = pars_op(PARS_NOTFOUND_TOKEN, (yyvsp[-2]), NULL); ;}
     break;
 
   case 52:
 #line 200 "pars0grm.y"
-    { yyval = pars_op(PARS_NOTFOUND_TOKEN, yyvsp[-2], NULL); ;}
+    { (yyval) = pars_op(PARS_NOTFOUND_TOKEN, (yyvsp[-2]), NULL); ;}
     break;
 
   case 53:
 #line 204 "pars0grm.y"
-    { yyval = &pars_to_char_token; ;}
+    { (yyval) = &pars_to_char_token; ;}
     break;
 
   case 54:
 #line 205 "pars0grm.y"
-    { yyval = &pars_to_number_token; ;}
+    { (yyval) = &pars_to_number_token; ;}
     break;
 
   case 55:
 #line 206 "pars0grm.y"
-    { yyval = &pars_to_binary_token; ;}
+    { (yyval) = &pars_to_binary_token; ;}
     break;
 
   case 56:
 #line 208 "pars0grm.y"
-    { yyval = &pars_binary_to_number_token; ;}
+    { (yyval) = &pars_binary_to_number_token; ;}
     break;
 
   case 57:
 #line 209 "pars0grm.y"
-    { yyval = &pars_substr_token; ;}
+    { (yyval) = &pars_substr_token; ;}
     break;
 
   case 58:
 #line 210 "pars0grm.y"
-    { yyval = &pars_concat_token; ;}
+    { (yyval) = &pars_concat_token; ;}
     break;
 
   case 59:
 #line 211 "pars0grm.y"
-    { yyval = &pars_instr_token; ;}
+    { (yyval) = &pars_instr_token; ;}
     break;
 
   case 60:
 #line 212 "pars0grm.y"
-    { yyval = &pars_length_token; ;}
+    { (yyval) = &pars_length_token; ;}
     break;
 
   case 61:
 #line 213 "pars0grm.y"
-    { yyval = &pars_sysdate_token; ;}
+    { (yyval) = &pars_sysdate_token; ;}
     break;
 
   case 62:
 #line 214 "pars0grm.y"
-    { yyval = &pars_rnd_token; ;}
+    { (yyval) = &pars_rnd_token; ;}
     break;
 
   case 63:
 #line 215 "pars0grm.y"
-    { yyval = &pars_rnd_str_token; ;}
+    { (yyval) = &pars_rnd_str_token; ;}
     break;
 
   case 67:
 #line 226 "pars0grm.y"
-    { yyval = pars_stored_procedure_call(yyvsp[-4]); ;}
+    { (yyval) = pars_stored_procedure_call((yyvsp[-4])); ;}
     break;
 
   case 68:
 #line 231 "pars0grm.y"
-    { yyval = pars_procedure_call(yyvsp[-3], yyvsp[-1]); ;}
+    { (yyval) = pars_procedure_call((yyvsp[-3]), (yyvsp[-1])); ;}
     break;
 
   case 69:
 #line 235 "pars0grm.y"
-    { yyval = &pars_replstr_token; ;}
+    { (yyval) = &pars_replstr_token; ;}
     break;
 
   case 70:
 #line 236 "pars0grm.y"
-    { yyval = &pars_printf_token; ;}
+    { (yyval) = &pars_printf_token; ;}
     break;
 
   case 71:
 #line 237 "pars0grm.y"
-    { yyval = &pars_assert_token; ;}
+    { (yyval) = &pars_assert_token; ;}
     break;
 
   case 72:
 #line 241 "pars0grm.y"
-    { yyval = yyvsp[-2]; ;}
+    { (yyval) = (yyvsp[-2]); ;}
     break;
 
   case 73:
 #line 245 "pars0grm.y"
-    { yyval = que_node_list_add_last(NULL, yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0])); ;}
     break;
 
   case 74:
 #line 247 "pars0grm.y"
-    { yyval = que_node_list_add_last(yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last((yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 75:
 #line 251 "pars0grm.y"
-    { yyval = NULL; ;}
+    { (yyval) = NULL; ;}
     break;
 
   case 76:
 #line 252 "pars0grm.y"
-    { yyval = que_node_list_add_last(NULL, yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0])); ;}
     break;
 
   case 77:
 #line 254 "pars0grm.y"
-    { yyval = que_node_list_add_last(yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last((yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 78:
 #line 258 "pars0grm.y"
-    { yyval = NULL; ;}
+    { (yyval) = NULL; ;}
     break;
 
   case 79:
 #line 259 "pars0grm.y"
-    { yyval = que_node_list_add_last(NULL, yyvsp[0]);;}
+    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0]));;}
     break;
 
   case 80:
 #line 260 "pars0grm.y"
-    { yyval = que_node_list_add_last(yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last((yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 81:
 #line 264 "pars0grm.y"
-    { yyval = yyvsp[0]; ;}
+    { (yyval) = (yyvsp[0]); ;}
     break;
 
   case 82:
 #line 266 "pars0grm.y"
-    { yyval = pars_func(&pars_count_token,
+    { (yyval) = pars_func(&pars_count_token,
 				          que_node_list_add_last(NULL,
 					    sym_tab_add_int_lit(
 						pars_sym_tab_global, 1))); ;}
@@ -1896,74 +1921,74 @@ yyreduce:
 
   case 83:
 #line 271 "pars0grm.y"
-    { yyval = pars_func(&pars_count_token,
+    { (yyval) = pars_func(&pars_count_token,
 					    que_node_list_add_last(NULL,
 						pars_func(&pars_distinct_token,
 						     que_node_list_add_last(
-								NULL, yyvsp[-1])))); ;}
+								NULL, (yyvsp[-1]))))); ;}
     break;
 
   case 84:
 #line 277 "pars0grm.y"
-    { yyval = pars_func(&pars_sum_token,
+    { (yyval) = pars_func(&pars_sum_token,
 						que_node_list_add_last(NULL,
-									yyvsp[-1])); ;}
+									(yyvsp[-1]))); ;}
     break;
 
   case 85:
 #line 283 "pars0grm.y"
-    { yyval = NULL; ;}
+    { (yyval) = NULL; ;}
     break;
 
   case 86:
 #line 284 "pars0grm.y"
-    { yyval = que_node_list_add_last(NULL, yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0])); ;}
     break;
 
   case 87:
 #line 286 "pars0grm.y"
-    { yyval = que_node_list_add_last(yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last((yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 88:
 #line 290 "pars0grm.y"
-    { yyval = pars_select_list(&pars_star_denoter,
+    { (yyval) = pars_select_list(&pars_star_denoter,
 								NULL); ;}
     break;
 
   case 89:
 #line 293 "pars0grm.y"
-    { yyval = pars_select_list(yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = pars_select_list((yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 90:
 #line 294 "pars0grm.y"
-    { yyval = pars_select_list(yyvsp[0], NULL); ;}
+    { (yyval) = pars_select_list((yyvsp[0]), NULL); ;}
     break;
 
   case 91:
 #line 298 "pars0grm.y"
-    { yyval = NULL; ;}
+    { (yyval) = NULL; ;}
     break;
 
   case 92:
 #line 299 "pars0grm.y"
-    { yyval = yyvsp[0]; ;}
+    { (yyval) = (yyvsp[0]); ;}
     break;
 
   case 93:
 #line 303 "pars0grm.y"
-    { yyval = NULL; ;}
+    { (yyval) = NULL; ;}
     break;
 
   case 94:
 #line 305 "pars0grm.y"
-    { yyval = &pars_update_token; ;}
+    { (yyval) = &pars_update_token; ;}
     break;
 
   case 95:
 #line 309 "pars0grm.y"
-    { yyval = NULL; ;}
+    { (yyval) = NULL; ;}
     break;
 
   case 96:
@@ -1973,368 +1998,368 @@ yyreduce:
 
   case 97:
 #line 315 "pars0grm.y"
-    { yyval = &pars_asc_token; ;}
+    { (yyval) = &pars_asc_token; ;}
     break;
 
   case 98:
 #line 316 "pars0grm.y"
-    { yyval = &pars_asc_token; ;}
+    { (yyval) = &pars_asc_token; ;}
     break;
 
   case 99:
 #line 317 "pars0grm.y"
-    { yyval = &pars_desc_token; ;}
+    { (yyval) = &pars_desc_token; ;}
     break;
 
   case 100:
 #line 321 "pars0grm.y"
-    { yyval = NULL; ;}
+    { (yyval) = NULL; ;}
     break;
 
   case 101:
 #line 323 "pars0grm.y"
-    { yyval = pars_order_by(yyvsp[-1], yyvsp[0]); ;}
+    { (yyval) = pars_order_by((yyvsp[-1]), (yyvsp[0])); ;}
     break;
 
   case 102:
 #line 332 "pars0grm.y"
-    { yyval = pars_select_statement(yyvsp[-6], yyvsp[-4], yyvsp[-3],
-								yyvsp[-2], yyvsp[-1], yyvsp[0]); ;}
+    { (yyval) = pars_select_statement((yyvsp[-6]), (yyvsp[-4]), (yyvsp[-3]),
+								(yyvsp[-2]), (yyvsp[-1]), (yyvsp[0])); ;}
     break;
 
   case 103:
 #line 338 "pars0grm.y"
-    { yyval = yyvsp[0]; ;}
+    { (yyval) = (yyvsp[0]); ;}
     break;
 
   case 104:
 #line 343 "pars0grm.y"
-    { yyval = pars_insert_statement(yyvsp[-4], yyvsp[-1], NULL); ;}
+    { (yyval) = pars_insert_statement((yyvsp[-4]), (yyvsp[-1]), NULL); ;}
     break;
 
   case 105:
 #line 345 "pars0grm.y"
-    { yyval = pars_insert_statement(yyvsp[-1], NULL, yyvsp[0]); ;}
+    { (yyval) = pars_insert_statement((yyvsp[-1]), NULL, (yyvsp[0])); ;}
     break;
 
   case 106:
 #line 349 "pars0grm.y"
-    { yyval = pars_column_assignment(yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = pars_column_assignment((yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 107:
 #line 353 "pars0grm.y"
-    { yyval = que_node_list_add_last(NULL, yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0])); ;}
     break;
 
   case 108:
 #line 355 "pars0grm.y"
-    { yyval = que_node_list_add_last(yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last((yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 109:
 #line 361 "pars0grm.y"
-    { yyval = yyvsp[0]; ;}
+    { (yyval) = (yyvsp[0]); ;}
     break;
 
   case 110:
 #line 367 "pars0grm.y"
-    { yyval = pars_update_statement_start(FALSE,
-								yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = pars_update_statement_start(FALSE,
+								(yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 111:
 #line 373 "pars0grm.y"
-    { yyval = pars_update_statement(yyvsp[-1], NULL, yyvsp[0]); ;}
+    { (yyval) = pars_update_statement((yyvsp[-1]), NULL, (yyvsp[0])); ;}
     break;
 
   case 112:
 #line 378 "pars0grm.y"
-    { yyval = pars_update_statement(yyvsp[-1], yyvsp[0], NULL); ;}
+    { (yyval) = pars_update_statement((yyvsp[-1]), (yyvsp[0]), NULL); ;}
     break;
 
   case 113:
 #line 383 "pars0grm.y"
-    { yyval = pars_update_statement_start(TRUE,
-								yyvsp[0], NULL); ;}
+    { (yyval) = pars_update_statement_start(TRUE,
+								(yyvsp[0]), NULL); ;}
     break;
 
   case 114:
 #line 389 "pars0grm.y"
-    { yyval = pars_update_statement(yyvsp[-1], NULL, yyvsp[0]); ;}
+    { (yyval) = pars_update_statement((yyvsp[-1]), NULL, (yyvsp[0])); ;}
     break;
 
   case 115:
 #line 394 "pars0grm.y"
-    { yyval = pars_update_statement(yyvsp[-1], yyvsp[0], NULL); ;}
+    { (yyval) = pars_update_statement((yyvsp[-1]), (yyvsp[0]), NULL); ;}
     break;
 
   case 116:
 #line 399 "pars0grm.y"
-    { yyval = pars_row_printf_statement(yyvsp[0]); ;}
+    { (yyval) = pars_row_printf_statement((yyvsp[0])); ;}
     break;
 
   case 117:
 #line 404 "pars0grm.y"
-    { yyval = pars_assignment_statement(yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = pars_assignment_statement((yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 118:
 #line 410 "pars0grm.y"
-    { yyval = pars_elsif_element(yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = pars_elsif_element((yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 119:
 #line 414 "pars0grm.y"
-    { yyval = que_node_list_add_last(NULL, yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0])); ;}
     break;
 
   case 120:
 #line 416 "pars0grm.y"
-    { yyval = que_node_list_add_last(yyvsp[-1], yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last((yyvsp[-1]), (yyvsp[0])); ;}
     break;
 
   case 121:
 #line 420 "pars0grm.y"
-    { yyval = NULL; ;}
+    { (yyval) = NULL; ;}
     break;
 
   case 122:
 #line 422 "pars0grm.y"
-    { yyval = yyvsp[0]; ;}
+    { (yyval) = (yyvsp[0]); ;}
     break;
 
   case 123:
 #line 423 "pars0grm.y"
-    { yyval = yyvsp[0]; ;}
+    { (yyval) = (yyvsp[0]); ;}
     break;
 
   case 124:
 #line 430 "pars0grm.y"
-    { yyval = pars_if_statement(yyvsp[-5], yyvsp[-3], yyvsp[-2]); ;}
+    { (yyval) = pars_if_statement((yyvsp[-5]), (yyvsp[-3]), (yyvsp[-2])); ;}
     break;
 
   case 125:
 #line 436 "pars0grm.y"
-    { yyval = pars_while_statement(yyvsp[-4], yyvsp[-2]); ;}
+    { (yyval) = pars_while_statement((yyvsp[-4]), (yyvsp[-2])); ;}
     break;
 
   case 126:
 #line 444 "pars0grm.y"
-    { yyval = pars_for_statement(yyvsp[-8], yyvsp[-6], yyvsp[-4], yyvsp[-2]); ;}
+    { (yyval) = pars_for_statement((yyvsp[-8]), (yyvsp[-6]), (yyvsp[-4]), (yyvsp[-2])); ;}
     break;
 
   case 127:
 #line 448 "pars0grm.y"
-    { yyval = pars_exit_statement(); ;}
+    { (yyval) = pars_exit_statement(); ;}
     break;
 
   case 128:
 #line 452 "pars0grm.y"
-    { yyval = pars_return_statement(); ;}
+    { (yyval) = pars_return_statement(); ;}
     break;
 
   case 129:
 #line 457 "pars0grm.y"
-    { yyval = pars_open_statement(
-						ROW_SEL_OPEN_CURSOR, yyvsp[0]); ;}
+    { (yyval) = pars_open_statement(
+						ROW_SEL_OPEN_CURSOR, (yyvsp[0])); ;}
     break;
 
   case 130:
 #line 463 "pars0grm.y"
-    { yyval = pars_open_statement(
-						ROW_SEL_CLOSE_CURSOR, yyvsp[0]); ;}
+    { (yyval) = pars_open_statement(
+						ROW_SEL_CLOSE_CURSOR, (yyvsp[0])); ;}
     break;
 
   case 131:
 #line 469 "pars0grm.y"
-    { yyval = pars_fetch_statement(yyvsp[-2], yyvsp[0], NULL); ;}
+    { (yyval) = pars_fetch_statement((yyvsp[-2]), (yyvsp[0]), NULL); ;}
     break;
 
   case 132:
 #line 471 "pars0grm.y"
-    { yyval = pars_fetch_statement(yyvsp[-2], NULL, yyvsp[0]); ;}
+    { (yyval) = pars_fetch_statement((yyvsp[-2]), NULL, (yyvsp[0])); ;}
     break;
 
   case 133:
 #line 476 "pars0grm.y"
-    { yyval = pars_column_def(yyvsp[-4], yyvsp[-3], yyvsp[-2], yyvsp[-1], yyvsp[0]); ;}
+    { (yyval) = pars_column_def((yyvsp[-4]), (yyvsp[-3]), (yyvsp[-2]), (yyvsp[-1]), (yyvsp[0])); ;}
     break;
 
   case 134:
 #line 480 "pars0grm.y"
-    { yyval = que_node_list_add_last(NULL, yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0])); ;}
     break;
 
   case 135:
 #line 482 "pars0grm.y"
-    { yyval = que_node_list_add_last(yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last((yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 136:
 #line 486 "pars0grm.y"
-    { yyval = NULL; ;}
+    { (yyval) = NULL; ;}
     break;
 
   case 137:
 #line 488 "pars0grm.y"
-    { yyval = yyvsp[-1]; ;}
+    { (yyval) = (yyvsp[-1]); ;}
     break;
 
   case 138:
 #line 492 "pars0grm.y"
-    { yyval = NULL; ;}
+    { (yyval) = NULL; ;}
     break;
 
   case 139:
 #line 494 "pars0grm.y"
-    { yyval = &pars_int_token;
+    { (yyval) = &pars_int_token;
 					/* pass any non-NULL pointer */ ;}
     break;
 
   case 140:
 #line 499 "pars0grm.y"
-    { yyval = NULL; ;}
+    { (yyval) = NULL; ;}
     break;
 
   case 141:
 #line 501 "pars0grm.y"
-    { yyval = &pars_int_token;
+    { (yyval) = &pars_int_token;
 					/* pass any non-NULL pointer */ ;}
     break;
 
   case 142:
 #line 506 "pars0grm.y"
-    { yyval = NULL; ;}
+    { (yyval) = NULL; ;}
     break;
 
   case 143:
 #line 508 "pars0grm.y"
-    { yyval = &pars_int_token;
+    { (yyval) = &pars_int_token;
 					/* pass any non-NULL pointer */ ;}
     break;
 
   case 144:
 #line 515 "pars0grm.y"
-    { yyval = pars_create_table(yyvsp[-4], yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = pars_create_table((yyvsp[-4]), (yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 145:
 #line 519 "pars0grm.y"
-    { yyval = que_node_list_add_last(NULL, yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0])); ;}
     break;
 
   case 146:
 #line 521 "pars0grm.y"
-    { yyval = que_node_list_add_last(yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last((yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 147:
 #line 525 "pars0grm.y"
-    { yyval = NULL; ;}
+    { (yyval) = NULL; ;}
     break;
 
   case 148:
 #line 526 "pars0grm.y"
-    { yyval = &pars_unique_token; ;}
+    { (yyval) = &pars_unique_token; ;}
     break;
 
   case 149:
 #line 530 "pars0grm.y"
-    { yyval = NULL; ;}
+    { (yyval) = NULL; ;}
     break;
 
   case 150:
 #line 531 "pars0grm.y"
-    { yyval = &pars_clustered_token; ;}
+    { (yyval) = &pars_clustered_token; ;}
     break;
 
   case 151:
 #line 539 "pars0grm.y"
-    { yyval = pars_create_index(yyvsp[-8], yyvsp[-7], yyvsp[-5], yyvsp[-3], yyvsp[-1]); ;}
+    { (yyval) = pars_create_index((yyvsp[-8]), (yyvsp[-7]), (yyvsp[-5]), (yyvsp[-3]), (yyvsp[-1])); ;}
     break;
 
   case 152:
 #line 544 "pars0grm.y"
-    { yyval = pars_commit_statement(); ;}
+    { (yyval) = pars_commit_statement(); ;}
     break;
 
   case 153:
 #line 549 "pars0grm.y"
-    { yyval = pars_rollback_statement(); ;}
+    { (yyval) = pars_rollback_statement(); ;}
     break;
 
   case 154:
 #line 553 "pars0grm.y"
-    { yyval = &pars_int_token; ;}
+    { (yyval) = &pars_int_token; ;}
     break;
 
   case 155:
 #line 554 "pars0grm.y"
-    { yyval = &pars_int_token; ;}
+    { (yyval) = &pars_int_token; ;}
     break;
 
   case 156:
 #line 555 "pars0grm.y"
-    { yyval = &pars_char_token; ;}
+    { (yyval) = &pars_char_token; ;}
     break;
 
   case 157:
 #line 556 "pars0grm.y"
-    { yyval = &pars_binary_token; ;}
+    { (yyval) = &pars_binary_token; ;}
     break;
 
   case 158:
 #line 557 "pars0grm.y"
-    { yyval = &pars_blob_token; ;}
+    { (yyval) = &pars_blob_token; ;}
     break;
 
   case 159:
 #line 562 "pars0grm.y"
-    { yyval = pars_parameter_declaration(yyvsp[-2],
-							PARS_INPUT, yyvsp[0]); ;}
+    { (yyval) = pars_parameter_declaration((yyvsp[-2]),
+							PARS_INPUT, (yyvsp[0])); ;}
     break;
 
   case 160:
 #line 565 "pars0grm.y"
-    { yyval = pars_parameter_declaration(yyvsp[-2],
-							PARS_OUTPUT, yyvsp[0]); ;}
+    { (yyval) = pars_parameter_declaration((yyvsp[-2]),
+							PARS_OUTPUT, (yyvsp[0])); ;}
     break;
 
   case 161:
 #line 570 "pars0grm.y"
-    { yyval = NULL; ;}
+    { (yyval) = NULL; ;}
     break;
 
   case 162:
 #line 571 "pars0grm.y"
-    { yyval = que_node_list_add_last(NULL, yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0])); ;}
     break;
 
   case 163:
 #line 573 "pars0grm.y"
-    { yyval = que_node_list_add_last(yyvsp[-2], yyvsp[0]); ;}
+    { (yyval) = que_node_list_add_last((yyvsp[-2]), (yyvsp[0])); ;}
     break;
 
   case 164:
 #line 578 "pars0grm.y"
-    { yyval = pars_variable_declaration(yyvsp[-2], yyvsp[-1]); ;}
+    { (yyval) = pars_variable_declaration((yyvsp[-2]), (yyvsp[-1])); ;}
     break;
 
   case 168:
 #line 590 "pars0grm.y"
-    { yyval = pars_cursor_declaration(yyvsp[-3], yyvsp[-1]); ;}
+    { (yyval) = pars_cursor_declaration((yyvsp[-3]), (yyvsp[-1])); ;}
     break;
 
   case 169:
 #line 595 "pars0grm.y"
-    { yyval = pars_function_declaration(yyvsp[-1]); ;}
+    { (yyval) = pars_function_declaration((yyvsp[-1])); ;}
     break;
 
   case 175:
 #line 616 "pars0grm.y"
-    { yyval = pars_procedure_definition(yyvsp[-9], yyvsp[-7],
-								yyvsp[-1]); ;}
+    { (yyval) = pars_procedure_definition((yyvsp[-9]), (yyvsp[-7]),
+								(yyvsp[-1])); ;}
     break;
 
 
@@ -2441,7 +2466,7 @@ yyerrlab:
 
   if (yyerrstatus == 3)
     {
-      /* If just tried and failed to reuse lookahead token after an
+      /* If just tried and failed to reuse look-ahead token after an
 	 error, discard it.  */
 
       if (yychar <= YYEOF)
@@ -2451,23 +2476,22 @@ yyerrlab:
 	  if (yychar == YYEOF)
 	     for (;;)
 	       {
+
 		 YYPOPSTACK;
 		 if (yyssp == yyss)
 		   YYABORT;
-		 YYDSYMPRINTF ("Error: popping", yystos[*yyssp], yyvsp, yylsp);
-		 yydestruct (yystos[*yyssp], yyvsp);
+		 yydestruct ("Error: popping",
+                             yystos[*yyssp], yyvsp);
 	       }
         }
       else
 	{
-	  YYDSYMPRINTF ("Error: discarding", yytoken, &yylval, &yylloc);
-	  yydestruct (yytoken, &yylval);
+	  yydestruct ("Error: discarding", yytoken, &yylval);
 	  yychar = YYEMPTY;
-
 	}
     }
 
-  /* Else will try to reuse lookahead token after shifting the error
+  /* Else will try to reuse look-ahead token after shifting the error
      token.  */
   goto yyerrlab1;
 
@@ -2484,7 +2508,7 @@ yyerrorlab:
      goto yyerrorlab;
 #endif
 
-  yyvsp -= yylen;
+yyvsp -= yylen;
   yyssp -= yylen;
   yystate = *yyssp;
   goto yyerrlab1;
@@ -2514,8 +2538,8 @@ yyerrlab1:
       if (yyssp == yyss)
 	YYABORT;
 
-      YYDSYMPRINTF ("Error: popping", yystos[*yyssp], yyvsp, yylsp);
-      yydestruct (yystos[yystate], yyvsp);
+
+      yydestruct ("Error: popping", yystos[yystate], yyvsp);
       YYPOPSTACK;
       yystate = *yyssp;
       YY_STACK_PRINT (yyss, yyssp);
@@ -2524,10 +2548,11 @@ yyerrlab1:
   if (yyn == YYFINAL)
     YYACCEPT;
 
-  YYDPRINTF ((stderr, "Shifting error token, "));
-
   *++yyvsp = yylval;
 
+
+  /* Shift the error token. */
+  YY_SYMBOL_PRINT ("Shifting", yystos[yyn], yyvsp, yylsp);
 
   yystate = yyn;
   goto yynewstate;
@@ -2544,6 +2569,9 @@ yyacceptlab:
 | yyabortlab -- YYABORT comes here.  |
 `-----------------------------------*/
 yyabortlab:
+  yydestruct ("Error: discarding lookahead",
+              yytoken, &yylval);
+  yychar = YYEMPTY;
   yyresult = 1;
   goto yyreturn;
 
