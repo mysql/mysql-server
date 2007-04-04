@@ -85,13 +85,9 @@ class ha_innobase: public handler
 	const char *index_type(uint key_number) { return "BTREE"; }
 	const char** bas_ext() const;
 	ulonglong table_flags() const { return int_table_flags; }
-	ulong index_flags(uint idx, uint part, bool all_parts) const
-	{
-	  return (HA_READ_NEXT |
-		  HA_READ_PREV |
-		  HA_READ_ORDER |
-		  HA_READ_RANGE |
-		  HA_KEYREAD_ONLY);
+	ulong index_flags(uint idx, uint part, bool all_parts) const {
+		return(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
+		       | HA_READ_RANGE | HA_KEYREAD_ONLY);
 	}
 	uint max_supported_keys()	   const { return MAX_KEY; }
 				/* An InnoDB page must store >= 2 keys;
@@ -117,6 +113,7 @@ class ha_innobase: public handler
 	void try_semi_consistent_read(bool yes);
 	void unlock_row();
 
+	bool is_index_available(uint index);
 	int index_init(uint index, bool sorted);
 	int index_end();
 	int index_read(byte * buf, const byte * key,
@@ -185,6 +182,10 @@ class ha_innobase: public handler
 	static ulonglong get_mysql_bin_log_pos();
 	bool primary_key_is_clustered() { return true; }
 	int cmp_ref(const byte *ref1, const byte *ref2);
+	int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
+	int prepare_drop_index(TABLE *table_arg, uint *key_num,
+			       uint num_of_keys);
+	int final_drop_index(TABLE *table_arg);
 	bool check_if_incompatible_data(HA_CREATE_INFO *info,
 					uint table_changes);
 };

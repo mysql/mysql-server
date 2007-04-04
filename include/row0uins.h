@@ -28,6 +28,15 @@ row_undo_ins(
 				/* out: DB_SUCCESS */
 	undo_node_t*	node);	/* in: row undo node */
 
+/***************************************************************
+Parses the rec_type undo record. */
+
+byte*
+row_undo_ins_parse_rec_type_and_table_id(
+/*=====================================*/
+					/* out: ptr to next field to parse */
+	undo_node_t*	node,		/* in: row undo node */
+	dulint*		table_id);	/* out: table id */
 
 #ifndef UNIV_NONINL
 #include "row0uins.ic"

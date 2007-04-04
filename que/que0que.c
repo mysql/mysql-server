@@ -336,6 +336,9 @@ que_fork_start_command(
 
 	fork->last_sel_node = NULL;
 
+	suspended_thr = NULL;
+	completed_thr = NULL;
+
 	/* Choose the query thread to run: usually there is just one thread,
 	but in a parallelized select, which necessarily is non-scrollable,
 	there may be several to choose from */

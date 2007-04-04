@@ -103,7 +103,7 @@ ins_node_create(
 
 /***************************************************************
 Creates an entry template for each index of a table. */
-static
+
 void
 ins_node_create_entry_list(
 /*=======================*/

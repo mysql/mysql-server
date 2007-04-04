@@ -24,6 +24,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "lock0types.h"
 #include "hash0hash.h"
 #include "que0types.h"
+#include "row0types.h"
 
 /* Type flags of an index: OR'ing of the flags is allowed to define a
 combination of types */
@@ -31,7 +32,8 @@ combination of types */
 #define DICT_UNIQUE	2	/* unique index */
 #define	DICT_UNIVERSAL	4	/* index which can contain records from any
 				other index */
-#define	DICT_IBUF	8	/* insert buffer tree */
+#define	DICT_IBUF 	8	/* insert buffer tree */
+#define DICT_NOT_READY  16	/* this index is being build */
 
 /* Types for a table object */
 #define DICT_TABLE_ORDINARY		1
@@ -185,7 +187,7 @@ struct dict_index_struct{
 	dulint		id;	/* id of the index */
 	mem_heap_t*	heap;	/* memory heap */
 	ulint		type;	/* index type */
-	const char*	name;	/* index name */
+	char*		name;	/* index name */
 	const char*	table_name; /* table name */
 	dict_table_t*	table;	/* back pointer to table */
 	unsigned	space:32;
@@ -207,6 +209,10 @@ struct dict_index_struct{
 	unsigned	n_nullable:10;/* number of nullable fields */
 	unsigned	cached:1;/* TRUE if the index object is in the
 				dictionary cache */
+	unsigned	to_be_dropped:1;
+				/* TRUE if this index is marked to be
+				dropped in ha_innobase::prepare_drop_index(),
+				otherwise FALSE */
 	dict_field_t*	fields;	/* array of field descriptions */
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/* list of indexes of the table */
@@ -224,6 +230,9 @@ struct dict_index_struct{
 				index tree */
 	rw_lock_t	lock;	/* read-write lock protecting the upper levels
 				of the index tree */
+	dulint		trx_id; /* id of the transaction that created this
+				index. It can be zero which implies that
+				it was created on database startup.*/
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/* magic number */
 # define DICT_INDEX_MAGIC_N	76789786
@@ -290,6 +299,14 @@ struct dict_table_struct{
 				innodb_file_per_table is defined in my.cnf;
 				in Unix this is usually /tmp/..., in Windows
 				\temp\... */
+	unsigned	version_number:32;
+				/* version number of this table definition.
+				Version number is 0 when table is created.
+				Every schema change implemented without
+				creating a new table and copying rows from
+				the old table to new table will increase this
+				number. For example adding or removing index,
+				adding or removing a column. */
 	unsigned	space:32;
 				/* space where the clustered index of the
 				table is placed */
@@ -303,6 +320,8 @@ struct dict_table_struct{
 				calls DISCARD TABLESPACE on this
 				table, and reset to FALSE in IMPORT
 				TABLESPACE */
+	unsigned	to_be_dropped:1; /* if set then this table will
+				dropped when n_mysql_handles_opened is 0 */
 	unsigned	cached:1;/* TRUE if the table object has been added
 				to the dictionary cache */
 	unsigned	flags:8;/* DICT_TF_COMPACT, ... */
@@ -406,6 +425,10 @@ struct dict_table_struct{
 				SELECT MAX(auto inc column) */
 	ib_longlong	autoinc;/* autoinc counter value to give to the
 				next inserted row */
+	/*----------------------*/
+	UT_LIST_BASE_NODE_T(row_prebuilt_t) prebuilts;
+				/* base node for the prebuilts defined
+				for the table */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/* magic number */
 # define DICT_TABLE_MAGIC_N	76333786

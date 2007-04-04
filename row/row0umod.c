@@ -426,7 +426,15 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	log_free_check();
 	mtr_start(&mtr);
 
-	found = row_search_index_entry(index, entry, mode, &pcur, &mtr);
+	/* Check if the index was created after this transaction was
+	started because then this index will not have the changes made
+	by this transaction.*/
+	if (*index->name != TEMP_TABLE_PREFIX) {
+		found = row_search_index_entry(index, entry, mode, &pcur, &mtr);
+	} else {
+
+		return(err);
+	}
 
 	if (!found) {
 		fputs("InnoDB: error in sec index entry del undo in\n"

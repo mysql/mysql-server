@@ -62,6 +62,7 @@ dict_mem_table_create(
 	table->n_foreign_key_checks_running = 0;
 
 	table->cached = FALSE;
+	table->to_be_dropped = 0;
 
 	table->cols = mem_heap_alloc(heap, (n_cols + DATA_N_SYS_COLS)
 				     * sizeof(dict_col_t));
@@ -75,6 +76,7 @@ dict_mem_table_create(
 	UT_LIST_INIT(table->locks);
 	UT_LIST_INIT(table->foreign_list);
 	UT_LIST_INIT(table->referenced_list);
+	UT_LIST_INIT(table->prebuilts);
 
 #ifdef UNIV_DEBUG
 	table->does_not_fit_in_memory = FALSE;
@@ -236,6 +238,7 @@ dict_mem_index_create(
 	heap = mem_heap_create(DICT_HEAP_SIZE);
 	index = mem_heap_alloc(heap, sizeof(dict_index_t));
 
+	index->id = ut_dulint_create(0, 0);
 	index->heap = heap;
 
 	index->type = type;
@@ -253,6 +256,8 @@ dict_mem_index_create(
 	index->stat_n_diff_key_vals = NULL;
 
 	index->cached = FALSE;
+	index->to_be_dropped = FALSE;
+	index->trx_id = ut_dulint_create(0, 0);
 	memset(&index->lock, 0, sizeof index->lock);
 #ifdef UNIV_DEBUG
 	index->magic_n = DICT_INDEX_MAGIC_N;

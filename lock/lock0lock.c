@@ -3678,7 +3678,9 @@ lock_table_enqueue_waiting(
 
 	trx = thr_get_trx(thr);
 
-	if (trx->dict_operation) {
+	/* We have little choice here during index merge operations, and so
+	we suppress the printing of the message.*/
+	if (trx->dict_operation && *table->name != TEMP_TABLE_PREFIX) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: a table lock wait happens"
 		      " in a dictionary operation!\n"

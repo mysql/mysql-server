@@ -497,17 +497,6 @@ os_io_init_simple(void)
 	}
 }
 
-#if !defined(UNIV_HOTBACKUP) && !defined(__NETWARE__)
-/*************************************************************************
-Creates a temporary file that will be deleted on close.
-This function is defined in ha_innodb.cc. */
-
-int
-innobase_mysql_tmpfile(void);
-/*========================*/
-			/* out: temporary file descriptor, or < 0 on error */
-#endif /* !UNIV_HOTBACKUP && !__NETWARE__ */
-
 /***************************************************************************
 Creates a temporary file.  This function is like tmpfile(3), but
 the temporary file is created in the MySQL temporary directory.

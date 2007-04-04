@@ -26,6 +26,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "pars0sym.h"
 #include "que0que.h"
 #include "rem0cmp.h"
+#include "row0merge.h"
 #ifndef UNIV_HOTBACKUP
 # include "m_ctype.h" /* my_isspace() */
 #endif /* !UNIV_HOTBACKUP */
@@ -367,19 +368,6 @@ dict_table_get_next_index_noninline(
 }
 
 /**************************************************************************
-Returns an index object. */
-
-dict_index_t*
-dict_table_get_index_noninline(
-/*===========================*/
-				/* out: index, NULL if does not exist */
-	dict_table_t*	table,	/* in: table */
-	const char*	name)	/* in: index name */
-{
-	return(dict_table_get_index(table, name));
-}
-
-/**************************************************************************
 Returns a column's name. */
 
 const char*
@@ -537,6 +525,33 @@ dict_table_autoinc_update(
 	}
 
 	mutex_exit(&(table->autoinc_mutex));
+}
+
+/**************************************************************************
+Looks for an index with the given table and index id.
+NOTE that we do not reserve the dictionary mutex. */
+dict_index_t*
+dict_index_get_on_id_low(
+/*=====================*/
+				/* out: index or NULL if not found from cache */
+	dict_table_t*	table,	/* in: table */
+	dulint		id)	/* in: index id */
+{
+	dict_index_t*	index;
+
+	index = dict_table_get_first_index(table);
+
+	while (index) {
+		if (0 == ut_dulint_cmp(id, index->id)) {
+			/* Found */
+
+			return(index);
+		}
+
+		index = dict_table_get_next_index(index);
+	}
+
+	return(NULL);
 }
 
 /************************************************************************
@@ -806,7 +821,7 @@ dict_table_get(
 					does not exist */
 	const char*	table_name,	/* in: table name */
 	ibool		inc_mysql_count)
-     					/* in: whether to increment the open
+					/* in: whether to increment the open
 					handle count on the table */
 {
 	dict_table_t*	table;
@@ -1358,20 +1373,6 @@ dict_index_add_to_cache(
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
 	ut_ad(mem_heap_validate(index->heap));
-
-#ifdef UNIV_DEBUG
-	{
-		dict_index_t*	index2;
-		index2 = UT_LIST_GET_FIRST(table->indexes);
-
-		while (index2 != NULL) {
-			ut_ad(ut_strcmp(index->name, index2->name) != 0);
-
-			index2 = UT_LIST_GET_NEXT(indexes, index2);
-		}
-	}
-#endif /* UNIV_DEBUG */
-
 	ut_a(!dict_index_is_clust(index)
 	     || UT_LIST_GET_LEN(table->indexes) == 0);
 
@@ -1412,7 +1413,10 @@ dict_index_add_to_cache(
 		dict_index_get_nth_field(new_index, i)->col->ord_part = 1;
 	}
 
-	new_index->page = (unsigned int) page_no;
+	new_index->stat_index_size = 1;
+	new_index->stat_n_leaf_pages = 1;
+
+	new_index->page = page_no;
 	rw_lock_create(&new_index->lock, SYNC_INDEX_TREE);
 
 	if (!UNIV_UNLIKELY(new_index->type & DICT_UNIVERSAL)) {
@@ -1497,7 +1501,7 @@ dict_index_find_cols(
 		/* It is an error not to find a matching column. */
 		ut_error;
 
-	found:
+found:
 		;
 	}
 }
@@ -1873,18 +1877,92 @@ dict_index_build_internal_non_clust(
 Checks if a table is referenced by foreign keys. */
 
 ibool
-dict_table_referenced_by_foreign_key(
-/*=================================*/
-				/* out: TRUE if table is referenced by a
-				foreign key */
-	dict_table_t*	table)	/* in: InnoDB table */
+dict_table_is_referenced_by_foreign_key(
+/*====================================*/
+					/* out: TRUE if table is referenced
+					by a foreign key */
+	const dict_table_t*	table)	/* in: InnoDB table */
 {
-	if (UT_LIST_GET_LEN(table->referenced_list) > 0) {
+	return(UT_LIST_GET_LEN(table->referenced_list) > 0);
+}
 
-		return(TRUE);
+/*************************************************************************
+Check if the index is referenced by a foreign key, if TRUE return foreign
+else return NULL */
+
+dict_foreign_t*
+dict_table_get_referenced_constraint(
+/*=================================*/
+				/* out: pointer to foreign key struct if index
+				is defined for foreign key, otherwise NULL */
+	dict_table_t*	table,	/* in: InnoDB table */
+	dict_index_t*	index)	/* in: InnoDB index */
+{
+	dict_foreign_t*	foreign  = NULL;
+
+	ut_ad(index && table);
+
+	/* If the referenced list is empty, nothing to do */
+
+	if (UT_LIST_GET_LEN(table->referenced_list) == 0) {
+
+		return(NULL);
 	}
 
-	return(FALSE);
+	foreign = UT_LIST_GET_FIRST(table->referenced_list);
+
+	while (foreign) {
+		if (foreign->referenced_index == index
+		    || foreign->referenced_index == index) {
+
+			return(foreign);
+		}
+
+		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
+	}
+
+	return(NULL);
+}
+
+/*************************************************************************
+Checks if a index is defined for a foreign key constraint. Index is a part
+of a foreign key constraint if the index is referenced by foreign key
+or index is a foreign key index. */
+
+dict_foreign_t*
+dict_table_get_foreign_constraint(
+/*==============================*/
+				/* out: pointer to foreign key struct if index
+				is defined for foreign key, otherwise NULL */
+	dict_table_t*	table,	/* in: InnoDB table */
+	dict_index_t*	index)	/* in: InnoDB index */
+{
+	dict_foreign_t*	foreign  = NULL;
+
+	ut_ad(index && table);
+
+	/* If list empty then nothgin to do */
+
+	if (UT_LIST_GET_LEN(table->foreign_list) == 0) {
+
+		return(NULL);
+	}
+
+	/* Check whether this index is defined for a foreign key */
+
+	foreign = UT_LIST_GET_FIRST(table->foreign_list);
+
+	while (foreign) {
+		if (foreign->foreign_index == index
+		    || foreign->referenced_index == index) {
+
+			return(foreign);
+		}
+
+		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
+	}
+
+	return(NULL);
 }
 
 /*************************************************************************
@@ -1967,7 +2045,8 @@ dict_foreign_find(
 
 /*************************************************************************
 Tries to find an index whose first fields are the columns in the array,
-in the same order. */
+in the same order and is not marked for deletion and is not the same
+as types_idx. */
 static
 dict_index_t*
 dict_foreign_find_index(
@@ -1986,16 +2065,23 @@ dict_foreign_find_index(
 				be declared NOT NULL */
 {
 	dict_index_t*	index;
-	dict_field_t*	field;
-	const char*	col_name;
-	ulint		i;
 
 	index = dict_table_get_first_index(table);
 
 	while (index != NULL) {
-		if (dict_index_get_n_fields(index) >= n_cols) {
+		/* Ignore matches that refer to the same instance
+		or the index is to be dropped */
+		if (index->to_be_dropped || types_idx == index) {
+
+			goto next_rec;
+
+		} else if (dict_index_get_n_fields(index) >= n_cols) {
+			ulint		i;
 
 			for (i = 0; i < n_cols; i++) {
+				dict_field_t*	field;
+				const char*	col_name;
+
 				field = dict_index_get_nth_field(index, i);
 
 				col_name = dict_table_get_col_name(
@@ -2036,10 +2122,71 @@ dict_foreign_find_index(
 			}
 		}
 
+next_rec:
 		index = dict_table_get_next_index(index);
 	}
 
 	return(NULL);
+}
+
+/*************************************************************************
+Tries to find an index whose fields match exactly, in the same order. If
+more than one index is found then return the index with the higher id.*/
+static
+dict_index_t*
+dict_find_index_by_max_id(
+/*======================*/
+				/* out: matching index, NULL if not found */
+	dict_table_t*	table,	/* in: table */
+	const char*	name,	/* in: the index name to find */
+	const char**	columns,/* in: array of column names */
+	ulint		n_cols)	/* in: number of columns */
+{
+	dict_index_t*	index;
+	dict_index_t*	found;
+
+	found = NULL;
+	index = dict_table_get_first_index(table);
+
+	while (index != NULL) {
+		if (ut_strcmp(index->name, name) == 0
+		    && dict_index_get_n_ordering_defined_by_user(index)
+		    == n_cols) {
+
+			ulint		i;
+
+			for (i = 0; i < n_cols; i++) {
+				dict_field_t*	field;
+				const char*	col_name;
+
+				field = dict_index_get_nth_field(index, i);
+
+				col_name = dict_table_get_col_name(
+					table, dict_col_get_no(field->col));
+
+				if (0 != innobase_strcasecmp(
+					    columns[i], col_name)) {
+
+					break;
+				}
+			}
+
+			if (i == n_cols) {
+				/* We found a matching index, select
+				the index with the higher id*/
+
+				if (!found
+				    || ut_dulint_cmp(index->id, found->id) > 0) {
+
+					found = index;
+				}
+			}
+		}
+
+		index = dict_table_get_next_index(index);
+	}
+
+	return(found);
 }
 
 /**************************************************************************
@@ -4013,6 +4160,7 @@ dict_index_print_low(
 {
 	ib_longlong	n_vals;
 	ulint		i;
+	const char*	type_string;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -4021,6 +4169,14 @@ dict_index_print_low(
 			index->n_user_defined_cols];
 	} else {
 		n_vals = index->stat_n_diff_key_vals[1];
+	}
+
+	if (index->type & DICT_CLUSTERED) {
+		type_string = "clustered index";
+	} else if (index->type & DICT_UNIQUE) {
+		type_string = "unique index";
+	} else {
+		type_string = "secondary index";
 	}
 
 	fprintf(stderr,
@@ -4261,6 +4417,7 @@ dict_print_info_on_foreign_keys(
 
 /************************************************************************
 Displays the names of the index and the table. */
+
 void
 dict_index_name_print(
 /*==================*/
@@ -4273,3 +4430,417 @@ dict_index_name_print(
 	fputs(" of table ", file);
 	ut_print_name(file, trx, TRUE, index->table_name);
 }
+
+/**************************************************************************
+Get index by name */
+
+dict_index_t*
+dict_table_get_index_on_name(
+/*=========================*/
+				/* out: index, NULL if does not exist */
+	dict_table_t*	table,	/* in: table */
+	const char*	name)	/* in: name of the index to find */
+{
+	dict_index_t*	index;
+
+	index = dict_table_get_first_index(table);
+
+	while (index != NULL) {
+		if (ut_strcmp(index->name, name) == 0) {
+
+			return(index);
+		}
+
+		index = dict_table_get_next_index(index);
+	}
+
+	return(NULL);
+
+}
+
+/**************************************************************************
+Find and index that is equivalent to the one passed in. */
+
+dict_index_t*
+dict_table_find_equivalent_index(
+/*=============================*/
+	dict_table_t*	table,  /* in/out: table */
+	dict_index_t*	index)	/* in: index to match */
+{
+	ulint		i;
+	const char**	column_names;
+	dict_index_t*	equiv_index;
+
+	if (UT_LIST_GET_LEN(table->foreign_list) == 0) {
+
+		return(NULL);
+	}
+
+	column_names = mem_alloc(index->n_fields * sizeof *column_names);
+
+	/* Convert the column names to the format & type accepted by the find
+	index function */
+	for (i = 0; i < index->n_fields; i++) {
+		column_names[i] = index->fields[i].name;
+	}
+
+	equiv_index = dict_foreign_find_index(
+		table, (const char**)column_names, index->n_fields,
+		index, TRUE, FALSE);
+
+	mem_free(column_names);
+
+	return(equiv_index);
+}
+
+/**************************************************************************
+Replace the index passed in with another equivalent index in the tables
+foreign key list. */
+
+void
+dict_table_replace_index_in_foreign_list(
+/*=====================================*/
+	dict_table_t*	table,  /* in/out: table */
+	dict_index_t*	index)	/* in: index to be replaced */
+{
+	dict_index_t*	new_index;
+
+	new_index = dict_table_find_equivalent_index(table, index);
+
+	/* If match found */
+	if (new_index) {
+		dict_foreign_t*	foreign;
+
+		ut_a(new_index != index);
+
+		foreign = UT_LIST_GET_FIRST(table->foreign_list);
+
+		/* If the list is not empty then this should hold */
+		ut_a(foreign);
+
+		/* Iterate over the foreign index list and replace the index
+		passed in with the new index */
+		while (foreign) {
+
+			if (foreign->foreign_index == index) {
+				foreign->foreign_index = new_index;
+			}
+
+			foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
+		}
+	}
+}
+
+/**************************************************************************
+In case there is more than one index with the same name return the index
+with the min(id). */
+
+dict_index_t*
+dict_table_get_index_on_name_and_min_id(
+/*=====================================*/
+				/* out: index, NULL if does not exist */
+	dict_table_t*	table,	/* in: table */
+	const char*	name)	/* in: name of the index to find */
+{
+	dict_index_t*	index;
+	dict_index_t*	min_index; /* Index with matching name and min(id) */
+
+	min_index = NULL;
+	index = dict_table_get_first_index(table);
+
+	while (index != NULL) {
+		if (ut_strcmp(index->name, name) == 0) {
+			if (!min_index
+			    || ut_dulint_cmp(index->id, min_index->id) < 0) {
+
+				min_index = index;
+			}
+		}
+
+		index = dict_table_get_next_index(index);
+	}
+
+	return(min_index);
+
+}
+
+/**************************************************************************
+Returns an index object by matching on the name and column names and
+if more than one index matches return the index with the max id */
+
+dict_index_t*
+dict_table_get_index_by_max_id(
+/*===========================*/
+				/* out: index, NULL if does not exist */
+	dict_table_t*	table,	/* in: table */
+	const char*	name,	/* in: index name to find*/
+	const char**	column_names, /* in: column names to match */
+	ulint		n_cols)	/* in: number of columns */
+{
+	/* Find an exact match with the passed in index */
+	return(dict_find_index_by_max_id(table, name, column_names, n_cols));
+}
+
+/**************************************************************************
+Check for duplicate index entries in a table [using the index name] */
+#ifdef UNIV_DEBUG
+
+void
+dict_table_check_for_dup_indexes(
+/*=============================*/
+	dict_table_t*	table)	/* in: Check for dup indexes in this table */
+{
+	/* Check for duplicates, ignoring indexes that are marked
+	as to be dropped */
+
+	dict_index_t*	index1;
+	dict_index_t*	index2;
+
+	/* The primary index _must_ exist */
+	ut_a(UT_LIST_GET_LEN(table->indexes) > 0);
+
+	index1 = UT_LIST_GET_FIRST(table->indexes);
+	index2 = UT_LIST_GET_NEXT(indexes, index1);
+
+	while (index1 && index2) {
+
+		while (index2) {
+
+			if (!index2->to_be_dropped) {
+				ut_ad(ut_strcmp(index1->name, index2->name));
+			}
+
+			index2 = UT_LIST_GET_NEXT(indexes, index2);
+		}
+
+		index1 = UT_LIST_GET_NEXT(indexes, index1);
+		index2 = UT_LIST_GET_NEXT(indexes, index1);
+	}
+}
+#endif /* UNIV_DEBUG */
+
+/**************************************************************************
+Create an undo list for the trx.*/
+
+void
+dict_undo_create_list(
+/*==================*/
+	trx_t*		trx)		/* out: dict_undo_t list */
+{
+	ut_a(!trx->dict_undo_list);
+
+	trx->dict_undo_list = mem_alloc(sizeof(*trx->dict_undo_list));
+
+	UT_LIST_INIT(*trx->dict_undo_list);
+}
+
+/**************************************************************************
+Create an dict_undo_t element and append to the undo list of the trx.*/
+
+dict_undo_t*
+dict_undo_create_element(
+/*=====================*/		/* out: dict_undo_t element*/
+	trx_t*		trx)		/* in: create & add elem to this trx */
+{
+	dict_undo_t*	dict_undo;
+
+	ut_a(trx->dict_undo_list);
+
+	dict_undo = mem_alloc(sizeof(*dict_undo));
+	memset(dict_undo, '\0', sizeof(*dict_undo));
+
+	UT_LIST_ADD_LAST(node, *trx->dict_undo_list, dict_undo);
+
+	return(dict_undo);
+}
+
+/**************************************************************************
+Free all the nodes on the undo list and free list.*/
+
+void
+dict_undo_free_list(
+/*================*/
+	trx_t*		trx)
+{
+	dict_undo_t*	dict_undo;
+
+	ut_a(trx->dict_undo_list);
+
+	dict_undo = UT_LIST_GET_FIRST(*trx->dict_undo_list);
+
+	while (dict_undo) {
+
+		UT_LIST_REMOVE(node, *trx->dict_undo_list, dict_undo);
+
+		mem_free(dict_undo);
+
+		dict_undo = UT_LIST_GET_FIRST(*trx->dict_undo_list);
+	}
+
+	mem_free(trx->dict_undo_list);
+
+	trx->dict_undo_list = NULL;
+}
+
+/**************************************************************************
+Create an undo list for the trx.*/
+
+void
+dict_redo_create_list(
+/*==================*/
+	trx_t*		trx)		/* out: dict_undo_t list */
+{
+	ut_a(!trx->dict_redo_list);
+
+	trx->dict_redo_list = mem_alloc(sizeof(*trx->dict_redo_list));
+
+	UT_LIST_INIT(*trx->dict_redo_list);
+}
+
+/**************************************************************************
+Create an dict_undo_t element and append to the undo list of the trx.*/
+
+dict_redo_t*
+dict_redo_create_element(
+/*=====================*/		/* out: dict_undo_t element*/
+	trx_t*		trx)		/* in: create & add elem to this trx */
+{
+	dict_redo_t*	dict_redo;
+
+	ut_a(trx->dict_redo_list);
+
+	dict_redo = mem_alloc(sizeof(*dict_redo));
+	memset(dict_redo, '\0', sizeof(*dict_redo));
+
+	UT_LIST_ADD_LAST(node, *trx->dict_redo_list, dict_redo);
+
+	return(dict_redo);
+}
+
+/**************************************************************************
+Free all the nodes on the undo list and free list.*/
+
+void
+dict_redo_free_list(
+/*================*/
+	trx_t*		trx)
+{
+	dict_redo_t*	dict_redo;
+
+	ut_a(trx->dict_redo_list);
+
+	dict_redo = UT_LIST_GET_FIRST(*trx->dict_redo_list);
+
+	while (dict_redo) {
+
+		UT_LIST_REMOVE(node, *trx->dict_redo_list, dict_redo);
+
+		mem_free(dict_redo);
+
+		dict_redo = UT_LIST_GET_FIRST(*trx->dict_redo_list);
+	}
+
+	mem_free(trx->dict_redo_list);
+
+	trx->dict_redo_list = NULL;
+}
+
+/**************************************************************************
+Get the index by name from the transaction's REDO list.*/
+
+dict_index_t*
+dict_redo_get_index_on_name(
+/*========================*/
+	trx_t*		trx,		/* in: transaction */
+	dict_table_t*	table,		/* in: table the index belongs to */
+	const char*	name)		/* in: index name */
+{
+	dict_redo_t*	dict_redo;
+
+	ut_a(trx->dict_redo_list);
+
+	dict_redo = UT_LIST_GET_FIRST(*trx->dict_redo_list);
+
+	while (dict_redo) {
+
+		if (dict_redo->index->table == table
+		    && ut_strcmp(dict_redo->index->name, name) == 0) {
+
+			return(dict_redo->index);
+		}
+
+		dict_redo = UT_LIST_GET_NEXT(node, dict_redo);
+	}
+
+	return(NULL);
+}
+
+/**************************************************************************
+Remove the index from the transaction's REDO list.*/
+
+void
+dict_redo_remove_index(
+/*===================*/
+	trx_t*		trx,		/* in: transaction */
+	dict_index_t*	index)		/* in: index to remove */
+{
+	dict_redo_t*	dict_redo;
+
+	ut_a(trx->dict_redo_list);
+
+	dict_redo = UT_LIST_GET_FIRST(*trx->dict_redo_list);
+
+	while (dict_redo) {
+
+		if (dict_redo->index == index) {
+			UT_LIST_REMOVE(node, *trx->dict_redo_list, dict_redo);
+
+			break;
+		}
+
+		dict_redo = UT_LIST_GET_NEXT(node, dict_redo);
+	}
+
+}
+
+/**************************************************************************
+Add the indexes to SYS_INDEX.*/
+
+ulint
+dict_rename_indexes(
+/*================*/
+	trx_t*		trx,		/* in: transaction */
+	ibool		commit_flag)	/* in: UNUSED */
+{
+	dict_redo_t*	dict_redo;
+	ulint		err = DB_SUCCESS;
+
+	ut_a(trx->dict_redo_list);
+	ut_a(commit_flag);
+
+	dict_redo = UT_LIST_GET_FIRST(*trx->dict_redo_list);
+
+	while (dict_redo && err == DB_SUCCESS) {
+		dict_index_t*	index;
+
+		index = dict_redo->index;
+
+		ut_a(index->table);
+		ut_a(!ut_dulint_is_zero(index->id));
+		ut_a(index->space == index->table->space);
+#ifdef UNIV_DEBUG
+		fprintf(stderr, "Renaming index: %s\n", index->name);
+#endif /* UNIV_DEBUG */
+
+		err = row_merge_rename_index(trx, index->table, index);
+
+		dict_redo = UT_LIST_GET_NEXT(node, dict_redo);
+	}
+
+	/* We free the list anyway - even if there is an error of some sort,
+	let the UNDO code handle the errors.*/
+	dict_redo_free_list(trx);
+
+	return(err);
+}
+

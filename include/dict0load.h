@@ -13,6 +13,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "univ.i"
 #include "dict0types.h"
 #include "ut0byte.h"
+#include "mem0mem.h"
 
 /************************************************************************
 In a crash recovery we already have all the tablespace objects created.
