@@ -1129,19 +1129,16 @@ int multi_update::prepare(List<Item> &not_used_values,
       table->no_keyread=1;
       table->used_keys.clear_all();
       table->pos_in_table_list= tl;
-      if (table->triggers)
+      if (table->triggers &&
+          table->triggers->has_triggers(TRG_EVENT_UPDATE,
+                                        TRG_ACTION_AFTER))
       {
-	table->triggers->mark_fields_used(thd, TRG_EVENT_UPDATE);
-	if (table->triggers->has_triggers(TRG_EVENT_UPDATE,
-					  TRG_ACTION_AFTER))
-	{
-	  /*
-	    The table has AFTER UPDATE triggers that might access to subject 
-	    table and therefore might need update to be done immediately. 
-	    So we turn-off the batching.
-	  */ 
-	  (void) table->file->extra(HA_EXTRA_UPDATE_CANNOT_BATCH);
-	}
+	/*
+           The table has AFTER UPDATE triggers that might access to subject 
+           table and therefore might need update to be done immediately. 
+           So we turn-off the batching.
+	*/ 
+	(void) table->file->extra(HA_EXTRA_UPDATE_CANNOT_BATCH);
       }
     }
   }
