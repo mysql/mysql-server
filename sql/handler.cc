@@ -2865,9 +2865,9 @@ ha_find_files(THD *thd,const char *db,const char *path,
   Ask handler if the table exists in engine
 
   RETURN
-    0                   Table does not exist
-    1                   Table exists
-    #                   Error code
+    HA_ERR_NO_SUCH_TABLE     Table does not exist
+    HA_ERR_TABLE_EXIST       Table exists
+    #                        Error code
 
 */
 struct st_table_exists_in_engine_args
@@ -2891,7 +2891,7 @@ static my_bool table_exists_in_engine_handlerton(THD *thd, st_plugin_int *plugin
 
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
 {
-  int error= 0;
+  int error= HA_ERR_NO_SUCH_TABLE;
   DBUG_ENTER("ha_table_exists_in_engine");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
   st_table_exists_in_engine_args args= {db, name};
