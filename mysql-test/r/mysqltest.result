@@ -268,6 +268,9 @@ mysqltest: At line 1: Missing assignment operator in let
 1
 # Execute: echo $success ;
 1 
+var2: content of variable 1
+var3: content of variable 1 content of variable 1
+length of var3 is longer than 0
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
 mysqltest: At line 1: Could not open file ./non_existingFile
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/recursive.sql": At line 1: Source directives are nesting too deep
