@@ -1989,8 +1989,8 @@ row_merge_create_temporary_table(
 				col->mtype, col->prtype, col->len);
 		}
 
-		mem_heap_free(heap);
 		*error = row_create_table_for_mysql(new_table, trx);
+		mem_heap_free(heap);
 	}
 
 	return(new_table);
