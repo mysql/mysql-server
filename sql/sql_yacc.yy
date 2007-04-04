@@ -3956,8 +3956,7 @@ part_bit_expr:
             }
             Lex->part_info->curr_part_elem->has_null_value= TRUE;
           }
-          else if (part_expr->result_type() != INT_RESULT &&
-                   !part_expr->null_value)
+          else if (part_expr->result_type() != INT_RESULT)
           {
             yyerror(ER(ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR));
             YYABORT;
