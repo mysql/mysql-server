@@ -1328,6 +1328,7 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
   MYSQL_RES *res;
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
+  DYNAMIC_STRING ds_query;
   DBUG_ENTER("var_query_set");
   LINT_INIT(res);
 
@@ -1337,13 +1338,17 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
     die("Syntax error in query, missing '`'");
   ++query;
 
-  if (mysql_real_query(mysql, query, (int)(end - query)) ||
+  /* Eval the query, thus replacing all environment variables */
+  init_dynamic_string(&ds_query, 0, (end - query) + 32, 256);
+  do_eval(&ds_query, query, end, FALSE);
+
+  if (mysql_real_query(mysql, ds_query.str, ds_query.length) ||
       !(res = mysql_store_result(mysql)))
   {
-    *end = 0;
-    die("Error running query '%s': %d %s", query,
+    die("Error running query '%s': %d %s", ds_query.str,
 	mysql_errno(mysql), mysql_error(mysql));
   }
+  dynstr_free(&ds_query);
 
   if ((row = mysql_fetch_row(res)) && row[0])
   {
