@@ -6,11 +6,15 @@ CREATE DATABASE IF NOT EXISTS events_test;
 USE events_test;
 
 SET GLOBAL event_scheduler=OFF;
+--echo Try agian to make sure it's allowed
+SET GLOBAL event_scheduler=OFF;
 SHOW VARIABLES LIKE 'event_scheduler';
 SET GLOBAL event_scheduler=1;
 SHOW VARIABLES LIKE 'event_scheduler';
 SET GLOBAL event_scheduler=0;
 SHOW VARIABLES LIKE 'event_scheduler';
+SET GLOBAL event_scheduler=ON;
+--echo Try again to make sure it's allowed
 SET GLOBAL event_scheduler=ON;
 SHOW VARIABLES LIKE 'event_scheduler';
 --error ER_WRONG_VALUE_FOR_VAR

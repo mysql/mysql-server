@@ -61,7 +61,7 @@ public:
     sys_vars++;
   }
   virtual bool check(THD *thd, set_var *var);
-  bool check_enum(THD *thd, set_var *var, TYPELIB *enum_names);
+  bool check_enum(THD *thd, set_var *var, const TYPELIB *enum_names);
   bool check_set(THD *thd, set_var *var, TYPELIB *enum_names);
   virtual bool update(THD *thd, set_var *var)=0;
   virtual void set_default(THD *thd_arg, enum_var_type type) {}
@@ -450,8 +450,8 @@ public:
   }
   void set_default(THD *thd, enum_var_type type);
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
-  static byte *symbolic_mode_representation(THD *thd, ulonglong sql_mode,
-                                            ulong *length);
+  static bool symbolic_mode_representation(THD *thd, ulonglong sql_mode,
+                                           LEX_STRING *rep);
 };
 
 
