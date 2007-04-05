@@ -4203,7 +4203,10 @@ static int scanEventTable(Ndb* pNdb,
         el.type = NdbDictionary::Object::TableEvent;
         el.state = NdbDictionary::Object::StateOnline;
         el.store = NdbDictionary::Object::StorePermanent;
-        el.name = strdup(event_name->aRef());
+        Uint32 len = strlen(event_name->aRef());
+        el.name = new char[len+1];
+        memcpy(el.name, event_name->aRef(), len);
+        el.name[len] = 0;
       }
       rows++;
     }
