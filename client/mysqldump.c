@@ -818,11 +818,15 @@ static int get_options(int *argc, char ***argv)
                 (hash_get_key) get_table_key,
                 (hash_free_key) free_table_ent, 0))
     return(EX_EOM);
-  /* Don't copy cluster internal log tables */
+  /* Don't copy internal log tables */
   if (my_hash_insert(&ignore_table,
                      (byte*) my_strdup("mysql.apply_status", MYF(MY_WME))) ||
       my_hash_insert(&ignore_table,
-                     (byte*) my_strdup("mysql.schema", MYF(MY_WME))))
+                     (byte*) my_strdup("mysql.schema", MYF(MY_WME))) ||
+      my_hash_insert(&ignore_table,
+                     (byte*) my_strdup("mysql.general_log", MYF(MY_WME))) ||
+      my_hash_insert(&ignore_table,
+                     (byte*) my_strdup("mysql.slow_log", MYF(MY_WME))))
     return(EX_EOM);
 
   if ((ho_error= handle_options(argc, argv, my_long_options, get_one_option)))
@@ -3291,8 +3295,12 @@ static int dump_all_tables_in_db(char *database)
     init_dynamic_string(&query, "LOCK TABLES ", 256, 1024);
     for (numrows= 0 ; (table= getTableName(1)) ; numrows++)
     {
-      dynstr_append(&query, quote_name(table, table_buff, 1));
-      dynstr_append(&query, " READ /*!32311 LOCAL */,");
+      char *end= strmov(afterdot, table);
+      if (include_table(hash_key,end - hash_key))
+      {
+        dynstr_append(&query, quote_name(table, table_buff, 1));
+        dynstr_append(&query, " READ /*!32311 LOCAL */,");
+      }
     }
     if (numrows && mysql_real_query(mysql, query.str, query.length-1))
       DB_error(mysql, "when using LOCK TABLES");
