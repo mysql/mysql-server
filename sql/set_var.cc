@@ -3683,7 +3683,7 @@ byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type,
   ulonglong val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
                   thd->variables.*offset);
   (void) symbolic_mode_representation(thd, val, &sql_mode);
-  return sql_mode.str;
+  return (byte *) sql_mode.str;
 }
 
 
