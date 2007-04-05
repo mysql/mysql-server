@@ -37,7 +37,6 @@ extern pthread_attr_t connection_attrib;
 
 
 Event_db_repository *Event_worker_thread::db_repository;
-Events *Event_worker_thread::events_facade;
 
 
 static
@@ -80,11 +79,11 @@ Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
   prefix.length(0);
   prefix.append("Event Scheduler: [");
 
-  append_identifier(thd, &prefix, et->definer.str, et->definer.length);
+  prefix.append(et->definer.str, et->definer.length, system_charset_info);
   prefix.append("][", 2);
-  append_identifier(thd,&prefix, et->dbname.str, et->dbname.length);
+  prefix.append(et->dbname.str, et->dbname.length, system_charset_info);
   prefix.append('.');
-  append_identifier(thd,&prefix, et->name.str, et->name.length);
+  prefix.append(et->name.str, et->name.length, system_charset_info);
   prefix.append("] ", 2);
 
   List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
@@ -95,7 +94,6 @@ Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
     err_msg.length(0);
     err_msg.append(prefix);
     err_msg.append(err->msg, strlen(err->msg), system_charset_info);
-    err_msg.append("]");
     DBUG_ASSERT(err->level < 3);
     (sql_print_message_handlers[err->level])("%*s", err_msg.length(),
                                               err_msg.c_ptr());
@@ -239,7 +237,7 @@ event_scheduler_thread(void *arg)
 }
 
 
-/*
+/**
   Function that executes an event in a child thread. Setups the
   environment for the event execution and cleans after that.
 
@@ -266,7 +264,7 @@ event_worker_thread(void *arg)
 }
 
 
-/*
+/**
   Function that executes an event in a child thread. Setups the
   environment for the event execution and cleans after that.
 
@@ -315,17 +313,27 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
 
   print_warnings(thd, job_data);
 
-  sql_print_information("Event Scheduler: "
-                        "[%s.%s of %s] executed in thread %lu. "
-                        "RetCode=%d", job_data->dbname.str, job_data->name.str,
-                        job_data->definer.str, thd->thread_id, ret);
-  if (ret == EVEX_COMPILE_ERROR)
+  switch (ret) {
+  case 0:
     sql_print_information("Event Scheduler: "
-                          "COMPILE ERROR for event %s.%s of %s",
+                          "[%s].[%s.%s] executed successfully in thread %lu.",
+                          job_data->definer.str,
                           job_data->dbname.str, job_data->name.str,
-                          job_data->definer.str);
-  else if (ret == EVEX_MICROSECOND_UNSUP)
-    sql_print_information("Event Scheduler: MICROSECOND is not supported");
+                          thd->thread_id);
+    break;
+  case EVEX_COMPILE_ERROR:
+    sql_print_information("Event Scheduler: "
+                          "[%s].[%s.%s] event compilation failed.",
+                          job_data->definer.str,
+                          job_data->dbname.str, job_data->name.str);
+    break;
+  default:
+    sql_print_information("Event Scheduler: "
+                          "[%s].[%s.%s] event execution failed.",
+                          job_data->definer.str,
+                          job_data->dbname.str, job_data->name.str);
+    break;
+  }
 
 end:
   delete job_data;
@@ -349,66 +357,34 @@ end:
       problem. However, this comes at the price of introduction bi-directional
       association between class Events and class Event_worker_thread.
     */
-    events_facade->drop_event(thd, event->dbname, event->name, FALSE);
+    Events::drop_event(thd, event->dbname, event->name, FALSE);
   }
   DBUG_PRINT("info", ("Done with Event %s.%s", event->dbname.str,
              event->name.str));
 
   delete event;
   deinit_event_thread(thd);
-  pthread_exit(0);
+  /*
+    Do not pthread_exit since we want local destructors for stack objects
+    to be invoked.
+  */
 }
 
 
-/*
-  Performs initialization of the scheduler data, outside of the
-  threading primitives.
-
-  SYNOPSIS
-    Event_scheduler::init_scheduler()
-*/
-
-void
-Event_scheduler::init_scheduler(Event_queue *q)
-{
-  LOCK_DATA();
-  queue= q;
-  started_events= 0;
-  scheduler_thd= NULL;
-  state= INITIALIZED;
-  UNLOCK_DATA();
-}
-
-
-void
-Event_scheduler::deinit_scheduler() {}
-
-
-/*
-  Inits scheduler's threading primitives.
-
-  SYNOPSIS
-    Event_scheduler::init_mutexes()
-*/
-
-void
-Event_scheduler::init_mutexes()
+Event_scheduler::Event_scheduler(Event_queue *queue_arg)
+  :state(UNINITIALIZED),
+  scheduler_thd(NULL),
+  queue(queue_arg),
+  started_events(0)
 {
   pthread_mutex_init(&LOCK_scheduler_state, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_state, NULL);
 }
 
 
-/*
-  Deinits scheduler's threading primitives.
-
-  SYNOPSIS
-    Event_scheduler::deinit_mutexes()
-*/
-
-void
-Event_scheduler::deinit_mutexes()
+Event_scheduler::~Event_scheduler()
 {
+  stop();                                    /* does nothing if not running */
   pthread_mutex_destroy(&LOCK_scheduler_state);
   pthread_cond_destroy(&COND_state);
 }
@@ -638,6 +614,9 @@ Event_scheduler::is_running()
 /**
   Stops the scheduler (again). Waits for acknowledgement from the
   scheduler that it has stopped - synchronous stopping.
+
+  Already running events will not be stopped. If the user needs
+  them stopped manual intervention is needed.
 
   SYNOPSIS
     Event_scheduler::stop()

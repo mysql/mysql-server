@@ -1,14 +1,18 @@
 # Can't test with embedded server that doesn't support grants
 -- source include/not_embedded.inc
-
-use mysqltest_events_test;
---sleep 2
+#
+# We need this file primarily to make sure that the scheduler is restarted
+# and enabled after we have restored mysql.event table.
+# This is the final step of the "cleanup".
+#
+# Make sure also that events are executed OK after restart, just in case.
+use events_test;
+# Make sure the scheduler was started successfully
+select @@event_scheduler;
+let $wait_condition=select count(distinct name)=3 from execution_log;
+--source include/wait_condition.inc
 --echo "Should get 3 rows : abc1, abc2, abc3
 select distinct name from execution_log order by name;
-
-drop event abc1;
-drop event abc2;
-drop event abc3;
 drop table execution_log;
-
-drop database mysqltest_events_test;
+# Will drop all events
+drop database events_test;
