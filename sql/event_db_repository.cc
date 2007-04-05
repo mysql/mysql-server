@@ -310,38 +310,52 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
 
   DBUG_PRINT("info", ("Using prefix scanning on PK"));
   event_table->file->ha_index_init(0, 1);
-  event_table->field[ET_FIELD_DB]->store(db, strlen(db), scs);
   key_info= event_table->key_info;
+
+  if (key_info->key_parts == 0 ||
+      key_info->key_part[0].field != event_table->field[ET_FIELD_DB])
+  {
+    /* Corrupted table: no index or index on a wrong column */
+    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), "event");
+    ret= 1;
+    goto end;
+  }
+
+  event_table->field[ET_FIELD_DB]->store(db, strlen(db), scs);
   key_len= key_info->key_part[0].store_length;
 
   if (!(key_buf= (byte *)alloc_root(thd->mem_root, key_len)))
   {
-    ret= 1;
     /* Don't send error, it would be done by sql_alloc_error_handler() */
+    ret= 1;
+    goto end;
   }
-  else
+
+  key_copy(key_buf, event_table->record[0], key_info, key_len);
+  if (!(ret= event_table->file->index_read(event_table->record[0], key_buf,
+                                           (key_part_map)1, HA_READ_PREFIX)))
   {
-    key_copy(key_buf, event_table->record[0], key_info, key_len);
-    if (!(ret= event_table->file->index_read(event_table->record[0], key_buf,
-                                             (key_part_map)1, HA_READ_PREFIX)))
+    DBUG_PRINT("info",("Found rows. Let's retrieve them. ret=%d", ret));
+    do
     {
-      DBUG_PRINT("info",("Found rows. Let's retrieve them. ret=%d", ret));
-      do
-      {
-        ret= copy_event_to_schema_table(thd, schema_table, event_table);
-        if (ret == 0)
-          ret= event_table->file->index_next_same(event_table->record[0],
-                                                  key_buf, key_len);
-      } while (ret == 0);
-    }
-    DBUG_PRINT("info", ("Scan finished. ret=%d", ret));
+      ret= copy_event_to_schema_table(thd, schema_table, event_table);
+      if (ret == 0)
+        ret= event_table->file->index_next_same(event_table->record[0],
+                                                key_buf, key_len);
+    } while (ret == 0);
   }
-  event_table->file->ha_index_end();
+  DBUG_PRINT("info", ("Scan finished. ret=%d", ret));
+
   /*  ret is guaranteed to be != 0 */
   if (ret == HA_ERR_END_OF_FILE || ret == HA_ERR_KEY_NOT_FOUND)
-    DBUG_RETURN(FALSE);
+    ret= 0;
+  else
+    event_table->file->print_error(ret, MYF(0));
 
-  DBUG_RETURN(TRUE);
+end:
+  event_table->file->ha_index_end();
+
+  DBUG_RETURN(test(ret));
 }
 
 
