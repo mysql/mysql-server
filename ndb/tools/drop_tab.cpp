@@ -61,6 +61,7 @@ int main(int argc, char** argv){
   }
 
   Ndb_cluster_connection con(opt_connect_str);
+  con.set_name("ndb_drop_table");
   if(con.connect(12, 5, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;
