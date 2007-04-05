@@ -417,9 +417,7 @@ ibuf_data_sizes_update(
 {
 	ulint	old_size;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&ibuf_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	old_size = data->size;
 
@@ -1576,9 +1574,7 @@ ibuf_data_enough_free_for_insert(
 				/* out: TRUE if enough free pages in list */
 	ibuf_data_t*	data)	/* in: ibuf data for the space */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&ibuf_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	/* We want a big margin of free pages, because a B-tree can sometimes
 	grow in size also if records are deleted from it, as the node pointers
@@ -1604,16 +1600,9 @@ ibuf_data_too_much_free(
 				/* out: TRUE if enough free pages in list */
 	ibuf_data_t*	data)	/* in: ibuf data for the space */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&ibuf_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
-	if (data->free_list_len >= 3 + data->size / 2 + 3 * data->height) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return(data->free_list_len >= 3 + data->size / 2 + 3 * data->height);
 }
 
 /*************************************************************************
@@ -3451,9 +3440,7 @@ ibuf_validate_low(void)
 	ibuf_data_t*	data;
 	ulint		sum_sizes;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&ibuf_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	sum_sizes = 0;
 
