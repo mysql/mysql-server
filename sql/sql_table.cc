@@ -3488,6 +3488,7 @@ bool mysql_create_table_internal(THD *thd,
   {
     bool create_if_not_exists =
       create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS;
+
     if (ha_table_exists_in_engine(thd, db, table_name))
     {
       DBUG_PRINT("info", ("Table with same name already existed in handler"));
@@ -4618,6 +4619,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   char tmp_path[FN_REFLEN];
 #endif
+  char ts_name[FN_LEN];
   TABLE_LIST src_tables_list, dst_tables_list;
   DBUG_ENTER("mysql_create_like_table");
 
@@ -4697,6 +4699,18 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
 
   if (simple_open_n_lock_tables(thd, &src_tables_list))
     DBUG_RETURN(TRUE);
+
+  /*
+    For bug#25875, Newly created table through CREATE TABLE .. LIKE
+                   has no ndb_dd attributes;
+    Add something to get possible tablespace info from src table,
+    it can get valid tablespace name only for disk-base ndb table
+  */
+  if ((src_tables_list.table->file->get_tablespace_name(thd, ts_name, FN_LEN)))
+  {
+    create_info->tablespace= ts_name;
+    create_info->storage_media= HA_SM_DISK;
+  }
 
   /*
     Validate the destination table
