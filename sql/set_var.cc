@@ -4020,7 +4020,7 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
     new_state=
     (enum Events::enum_opt_event_scheduler) var->save_result.ulong_value;
 
-  res= Events::start_or_stop_event_scheduler(new_state);
+  res= Events::switch_event_scheduler_state(new_state);
 
   DBUG_RETURN((bool) res);
 }

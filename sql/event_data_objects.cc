@@ -99,7 +99,9 @@ Event_parse_data::new_instance(THD *thd)
 */
 
 Event_parse_data::Event_parse_data()
-  :on_completion(ON_COMPLETION_DROP), status(ENABLED), do_not_create(FALSE),
+  :on_completion(Event_basic::ON_COMPLETION_DROP),
+  status(Event_basic::ENABLED),
+  do_not_create(FALSE),
    item_starts(NULL), item_ends(NULL), item_execute_at(NULL),
    starts_null(TRUE), ends_null(TRUE), execute_at_null(TRUE),
    item_expression(NULL), expression(0)
@@ -241,7 +243,7 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
   if (ltime_utc >= (my_time_t) thd->query_start())
     return;
 
-  if (on_completion == ON_COMPLETION_DROP)
+  if (on_completion == Event_basic::ON_COMPLETION_DROP)
   {
     switch (thd->lex->sql_command) {
     case SQLCOM_CREATE_EVENT:
@@ -258,9 +260,9 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
 
     do_not_create= TRUE;
   }
-  else if (status == ENABLED)
+  else if (status == Event_basic::ENABLED)
   {
-    status= DISABLED;
+    status= Event_basic::DISABLED;
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                  ER_EVENT_EXEC_TIME_IN_THE_PAST,
                  ER(ER_EVENT_EXEC_TIME_IN_THE_PAST));
@@ -589,6 +591,7 @@ Event_parse_data::check_parse_data(THD *thd)
 
   ret= init_execute_at(thd) || init_interval(thd) || init_starts(thd) ||
        init_ends(thd);
+  check_originator_id(thd);
   DBUG_RETURN(ret);
 }
 
@@ -632,6 +635,31 @@ Event_parse_data::init_definer(THD *thd)
   DBUG_PRINT("info",("definer [%s] initted", definer.str));
 
   DBUG_VOID_RETURN;
+}
+
+
+/**
+  Set the originator id of the event to the server_id if executing on
+  the master or set to the server_id of the master if executing on 
+  the slave. If executing on slave, also set status to SLAVESIDE_DISABLED.
+
+  SYNOPSIS
+    Event_parse_data::check_originator_id()
+*/
+void Event_parse_data::check_originator_id(THD *thd)
+{
+  /* Disable replicated events on slave. */
+  if ((thd->system_thread == SYSTEM_THREAD_SLAVE_SQL) ||
+      (thd->system_thread == SYSTEM_THREAD_SLAVE_IO))
+  {
+    DBUG_PRINT("info", ("Invoked object status set to SLAVESIDE_DISABLED."));
+    if ((status == Event_basic::ENABLED) ||
+        (status == Event_basic::DISABLED))
+      status = Event_basic::SLAVESIDE_DISABLED;
+    originator = thd->server_id;
+  }
+  else
+    originator = server_id;
 }
 
 
@@ -1004,8 +1032,23 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
     goto error;
 
   DBUG_PRINT("load_from_row", ("Event [%s] is [%s]", name.str, ptr));
-  status= (ptr[0]=='E'? Event_queue_element::ENABLED:
-                        Event_queue_element::DISABLED);
+
+  /* Set event status (ENABLED | SLAVESIDE_DISABLED | DISABLED) */
+  switch (ptr[0])
+  {
+  case 'E' :
+    status = Event_queue_element::ENABLED;
+    break;
+  case 'S' :
+    status = Event_queue_element::SLAVESIDE_DISABLED;
+    break;
+  case 'D' :
+    status = Event_queue_element::DISABLED;
+    break;
+  }
+  if ((ptr= get_field(&mem_root, table->field[ET_FIELD_ORIGINATOR])) == NullS)
+    goto error;
+  originator = table->field[ET_FIELD_ORIGINATOR]->val_int(); 
 
   /* ToDo : Andrey . Find a way not to allocate ptr on event_mem_root */
   if ((ptr= get_field(&mem_root,
@@ -1356,7 +1399,7 @@ Event_queue_element::compute_next_execution_time()
                        (long) starts, (long) ends, (long) last_executed,
                        (long) this));
 
-  if (status == Event_queue_element::DISABLED)
+  if (status != Event_queue_element::ENABLED)
   {
     DBUG_PRINT("compute_next_execution_time",
                ("Event %s is DISABLED", name.str));
@@ -1708,6 +1751,8 @@ Event_timed::get_create_event(THD *thd, String *buf)
 
   if (status == Event_timed::ENABLED)
     buf->append(STRING_WITH_LEN("ENABLE"));
+  else if (status == Event_timed::SLAVESIDE_DISABLED)
+    buf->append(STRING_WITH_LEN("DISABLE ON SLAVE"));
   else
     buf->append(STRING_WITH_LEN("DISABLE"));
 
@@ -1765,7 +1810,7 @@ Event_job_data::get_fake_create_event(String *buf)
 */
 
 int
-Event_job_data::execute(THD *thd)
+Event_job_data::execute(THD *thd, bool drop)
 {
   Security_context save_ctx;
   /* this one is local and not needed after exec */
@@ -1804,6 +1849,17 @@ Event_job_data::execute(THD *thd)
     DBUG_PRINT("error", ("%s@%s has no rights on %s", definer_user.str,
                definer_host.str, dbname.str));
     ret= -99;
+  }
+  if (drop)
+  {
+    sql_print_information("Event Scheduler: Dropping %s.%s",
+                          dbname.str, name.str);
+    /*
+      We must do it here since here we're under the right authentication
+      ID of the event definer
+    */
+    if (Events::drop_event(thd, dbname, name, FALSE))
+      ret= 1;
   }
 
   event_restore_security_context(thd, &save_ctx);

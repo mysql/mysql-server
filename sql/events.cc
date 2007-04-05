@@ -1041,14 +1041,14 @@ Events::dump_internal_status()
 */
 
 bool
-Events::start_or_stop_event_scheduler(enum_opt_event_scheduler start_or_stop)
+Events::switch_event_scheduler_state(enum_opt_event_scheduler new_state)
 {
   bool ret= FALSE;
 
-  DBUG_ENTER("Events::start_or_stop_event_scheduler");
+  DBUG_ENTER("Events::switch_event_scheduler_state");
 
-  DBUG_ASSERT(start_or_stop == Events::EVENTS_ON ||
-              start_or_stop == Events::EVENTS_OFF);
+  DBUG_ASSERT(new_state == Events::EVENTS_ON ||
+              new_state == Events::EVENTS_OFF);
 
   /*
     If the scheduler was disabled because there are no/bad
@@ -1068,7 +1068,7 @@ Events::start_or_stop_event_scheduler(enum_opt_event_scheduler start_or_stop)
     goto end;
   }
 
-  if (start_or_stop == EVENTS_ON)
+  if (new_state == EVENTS_ON)
     ret= scheduler->start();
   else
     ret= scheduler->stop();
@@ -1079,7 +1079,7 @@ Events::start_or_stop_event_scheduler(enum_opt_event_scheduler start_or_stop)
     goto end;
   }
 
-  opt_event_scheduler= start_or_stop;
+  opt_event_scheduler= new_state;
 
 end:
   pthread_mutex_unlock(&LOCK_event_metadata);

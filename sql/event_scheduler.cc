@@ -309,7 +309,7 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
 
   thd->enable_slow_log= TRUE;
 
-  ret= job_data->execute(thd);
+  ret= job_data->execute(thd, event->dropped);
 
   print_warnings(thd, job_data);
 
@@ -338,27 +338,6 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
 end:
   delete job_data;
 
-  if (event->dropped)
-  {
-    sql_print_information("Event Scheduler: Dropping %s.%s",
-                          event->dbname.str, event->name.str);
-    /*
-      Using db_repository can lead to a race condition because we access
-      the table without holding LOCK_metadata.
-      Scenario:
-      1. CREATE EVENT xyz AT ...    (conn thread)
-      2. execute xyz                (worker)
-      3. CREATE EVENT XYZ EVERY ... (conn thread)
-      4. drop xyz                   (worker)
-      5. XYZ was just created on disk but `drop xyz` of the worker dropped it.
-         A consequent load to create Event_queue_element will fail.
-
-      If all operations are performed under LOCK_metadata there is no such
-      problem. However, this comes at the price of introduction bi-directional
-      association between class Events and class Event_worker_thread.
-    */
-    Events::drop_event(thd, event->dbname, event->name, FALSE);
-  }
   DBUG_PRINT("info", ("Done with Event %s.%s", event->dbname.str,
              event->name.str));
 
