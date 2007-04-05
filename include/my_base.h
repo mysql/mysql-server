@@ -160,7 +160,15 @@ enum ha_extra_function {
     Off by default.
   */
   HA_EXTRA_WRITE_CAN_REPLACE,
-  HA_EXTRA_WRITE_CANNOT_REPLACE
+  HA_EXTRA_WRITE_CANNOT_REPLACE,
+  /*
+    Inform handler that delete_row()/update_row() cannot batch deletes/updates
+    and should perform them immediately. This may be needed when table has 
+    AFTER DELETE/UPDATE triggers which access to subject table.
+    These flags are reset by the handler::extra(HA_EXTRA_RESET) call.
+  */
+  HA_EXTRA_DELETE_CANNOT_BATCH,
+  HA_EXTRA_UPDATE_CANNOT_BATCH
 };
 
 	/* The following is parameter to ha_panic() */
