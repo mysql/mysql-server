@@ -387,7 +387,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
 
   if (check_db_dir_existence(parse_data->dbname.str))
   {
-    my_error(ER_BAD_DB_ERROR, MYF(0));
+    my_error(ER_BAD_DB_ERROR, MYF(0), parse_data->dbname.str);
     DBUG_RETURN(TRUE);
   }
 
@@ -508,7 +508,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
     /* Check that the target database exists */
     if (check_db_dir_existence(new_dbname->str))
     {
-      my_error(ER_BAD_DB_ERROR, MYF(0));
+      my_error(ER_BAD_DB_ERROR, MYF(0), new_dbname->str);
       DBUG_RETURN(TRUE);
     }
   }
@@ -1116,7 +1116,7 @@ Events::load_events_from_db(THD *thd)
   DBUG_ENTER("Events::load_events_from_db");
   DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
 
-  if ((ret= db_repository->open_event_table(thd, TL_WRITE, &table)))
+  if (db_repository->open_event_table(thd, TL_WRITE, &table))
   {
     sql_print_error("Event Scheduler: Failed to open table mysql.event");
     DBUG_RETURN(TRUE);
@@ -1137,8 +1137,8 @@ Events::load_events_from_db(THD *thd)
     if (et->load_from_row(thd, table))
     {
       sql_print_error("Event Scheduler: "
-                      "Error while reading from mysql.event. "
-                      "The table is probably corrupted");
+                      "Error while loading events from mysql.event. "
+                      "The table probably contains bad data or is corrupted");
       delete et;
       goto end;
     }
