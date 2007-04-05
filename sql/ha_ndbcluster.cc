@@ -3926,8 +3926,6 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
 int ha_ndbcluster::reset()
 {
   DBUG_ENTER("ha_ndbcluster::reset");
-  m_delete_cannot_batch= FALSE;
-  m_update_cannot_batch= FALSE;
   cond_clear();
   /*
     Regular partition pruning will set the bitmap appropriately.
@@ -3941,6 +3939,8 @@ int ha_ndbcluster::reset()
   m_ignore_dup_key= FALSE;
   m_use_write= FALSE;
   m_ignore_no_key= FALSE;
+  m_delete_cannot_batch= FALSE;
+  m_update_cannot_batch= FALSE;
 
   DBUG_RETURN(0);
 }
