@@ -3408,6 +3408,8 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     DBUG_PRINT("info", ("HA_EXTRA_UPDATE_CANNOT_BATCH"));
     m_update_cannot_batch= TRUE;
     break;
+  default:
+    break;
   }
   
   DBUG_RETURN(0);
