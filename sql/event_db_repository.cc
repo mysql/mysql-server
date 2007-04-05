@@ -147,7 +147,7 @@ const TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] =
     EVEX_GENERAL_ERROR      Bad data
     EVEX_GET_FIELD_FAILED   Field count does not match. table corrupted?
 
-  DESCRIPTION 
+  DESCRIPTION
     Used both when an event is created and when it is altered.
 */
 
@@ -186,7 +186,7 @@ mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
   /*
     Change the SQL_MODE only if body was present in an ALTER EVENT and of course
     always during CREATE EVENT.
-  */ 
+  */
   if (et->body.str)
   {
     fields[ET_FIELD_SQL_MODE]->store((longlong)thd->variables.sql_mode, TRUE);
@@ -245,7 +245,7 @@ mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
     fields[ET_FIELD_TRANSIENT_INTERVAL]->set_null();
     fields[ET_FIELD_STARTS]->set_null();
     fields[ET_FIELD_ENDS]->set_null();
-    
+
     TIME time;
     my_tz_UTC->gmt_sec_to_TIME(&time, et->execute_at);
 
@@ -261,7 +261,7 @@ mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
       this is an error if the action is create. something is borked
     */
   }
-    
+
   ((Field_timestamp *)fields[ET_FIELD_MODIFIED])->set_time();
 
   if (et->comment.str)
@@ -331,12 +331,12 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
         ret= copy_event_to_schema_table(thd, schema_table, event_table);
         if (ret == 0)
           ret= event_table->file->index_next_same(event_table->record[0],
-                                                  key_buf, key_len); 
+                                                  key_buf, key_len);
       } while (ret == 0);
     }
     DBUG_PRINT("info", ("Scan finished. ret=%d", ret));
   }
-  event_table->file->ha_index_end(); 
+  event_table->file->ha_index_end();
   /*  ret is guaranteed to be != 0 */
   if (ret == HA_ERR_END_OF_FILE || ret == HA_ERR_KEY_NOT_FOUND)
     DBUG_RETURN(FALSE);
@@ -497,7 +497,7 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
     check_parse_params()
       thd         Thread context
       parse_data  Event's data
-  
+
   RETURN VALUE
     FALSE  OK
     TRUE   Error (reported)
@@ -543,7 +543,7 @@ check_parse_params(THD *thd, Event_parse_data *parse_data)
     0                   OK
     EVEX_GENERAL_ERROR  Failure
 
-  DESCRIPTION 
+  DESCRIPTION
     Creates an event. Relies on mysql_event_fill_row which is shared with
     ::update_event. The name of the event is inside "et".
 */
@@ -637,7 +637,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     handle it here
   */
   if ((ret= mysql_event_fill_row(thd, table, parse_data, FALSE)))
-    goto err; 
+    goto err;
 
   table->field[ET_FIELD_STATUS]->store((longlong)parse_data->status, TRUE);
 
@@ -656,7 +656,7 @@ ok:
     (void) mysql_change_db(thd, old_db.str, 1);
   /*
     This statement may cause a spooky valgrind warning at startup
-    inside init_key_cache on my system (ahristov, 2006/08/10) 
+    inside init_key_cache on my system (ahristov, 2006/08/10)
   */
   close_thread_tables(thd);
   DBUG_RETURN(FALSE);
@@ -923,14 +923,14 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
 */
 
 void
-Event_db_repository::drop_events_by_field(THD *thd,  
+Event_db_repository::drop_events_by_field(THD *thd,
                                           enum enum_events_table_field field,
                                           LEX_STRING field_value)
 {
   int ret= 0;
   TABLE *table= NULL;
   READ_RECORD read_record_info;
-  DBUG_ENTER("Event_db_repository::drop_events_by_field");  
+  DBUG_ENTER("Event_db_repository::drop_events_by_field");
   DBUG_PRINT("enter", ("field=%d field_value=%s", field, field_value.str));
 
   if (open_event_table(thd, TL_WRITE, &table))
