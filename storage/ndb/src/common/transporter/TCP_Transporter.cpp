@@ -152,6 +152,8 @@ TCP_Transporter::initTransporter() {
 
 void
 TCP_Transporter::setSocketOptions(){
+  int sockOptKeepAlive  = 1;
+
   if (setsockopt(theSocket, SOL_SOCKET, SO_RCVBUF,
                  (char*)&sockOptRcvBufSize, sizeof(sockOptRcvBufSize)) < 0) {
 #ifdef DEBUG_TRANSPORTER
@@ -166,6 +168,11 @@ TCP_Transporter::setSocketOptions(){
 #endif
   }//if
   
+  if (setsockopt(theSocket, SOL_SOCKET, SO_KEEPALIVE,
+                 (char*)&sockOptKeepAlive, sizeof(sockOptKeepAlive)) < 0) {
+    ndbout_c("The setsockopt SO_KEEPALIVE error code = %d", InetErrno);
+  }//if
+
   //-----------------------------------------------
   // Set the TCP_NODELAY option so also small packets are sent
   // as soon as possible
