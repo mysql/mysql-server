@@ -255,9 +255,7 @@ log_block_init(
 {
 	ulint	no;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	no = log_block_convert_lsn_to_no(lsn);
 
@@ -279,9 +277,7 @@ log_block_init_in_old_format(
 {
 	ulint	no;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	no = log_block_convert_lsn_to_no(lsn);
 

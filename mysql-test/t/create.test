@@ -660,6 +660,7 @@ create table t1(a set("a,b","c,d") not null);
 
 # End of 4.1 tests
 
+
 #
 # Bug #14155: Maximum value of MAX_ROWS handled incorrectly on 64-bit
 # platforms
@@ -678,7 +679,7 @@ drop table t1;
 create table t1 (upgrade int);
 drop table t1;
 
-# End of 5.0 tests
+--echo End of 5.0 tests
 
 #
 # Test of behaviour with CREATE ... SELECT
@@ -734,3 +735,5 @@ drop database mysqltest;
 USE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
 --error 1102
 SHOW CREATE DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+
+--echo End of 5.1 tests

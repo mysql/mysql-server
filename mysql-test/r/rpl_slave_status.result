@@ -52,6 +52,7 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	NULL
+Master_SSL_Verify_Server_Cert	No
 drop table t1;
 delete from mysql.user where user='rpl';
 drop table t1;

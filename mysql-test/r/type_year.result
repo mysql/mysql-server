@@ -34,3 +34,15 @@ select if(y = now(), 1, 0) from t1;
 if(y = now(), 1, 0)
 1
 drop table t1;
+create table t1(a year);
+insert into t1 values (2000.5), ('2000.5'), ('2001a'), ('2.001E3');
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 3
+select * from t1;
+a
+2001
+2001
+2001
+2001
+drop table t1;
+End of 5.0 tests

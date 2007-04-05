@@ -41,7 +41,6 @@ enum { DES_BLOCK_SIZE = 8, DES_KEY_SIZE = 32 };
 
 class BasicDES {
 public:
-    BasicDES() {}
     void SetKey(const byte*, word32, CipherDir dir);
     void RawProcessBlock(word32&, word32&) const;
 protected:
