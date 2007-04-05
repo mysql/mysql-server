@@ -36,6 +36,7 @@ int maria_delete_all_rows(MARIA_HA *info)
     goto err;
 
   info->state->records=info->state->del=state->split=0;
+  state->changed= 0;                            /* File is optimized */
   state->dellink = HA_OFFSET_ERROR;
   state->sortkey=  (ushort) ~0;
   info->state->key_file_length=share->base.keystart;

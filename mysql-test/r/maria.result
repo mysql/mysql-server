@@ -348,11 +348,11 @@ t1	1	c_2	2	a	A	5	NULL	NULL		BTREE
 explain select * from t1,t2 where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
+1	SIMPLE	t1	ref	a	a	4	test.t2.a	3	
 explain select * from t1,t2 force index(a) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
+1	SIMPLE	t1	ref	a	a	4	test.t2.a	3	
 explain select * from t1 force index(a),t2 force index(a) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
@@ -364,10 +364,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t1,t2 force index(c) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
+1	SIMPLE	t1	ref	a	a	4	test.t2.a	3	
 explain select * from t1 where a=0 or a=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
+1	SIMPLE	t1	range	a	a	4	NULL	4	Using where
 explain select * from t1 force index (a) where a=0 or a=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	a	a	4	NULL	4	Using where
@@ -430,9 +430,6 @@ select * from t1 where a='807780' and b='477' and c='165';
 a	b	c
 807780	477	165
 drop table t1;
-DROP TABLE IF EXISTS t1;
-Warnings:
-Note	1051	Unknown table 't1'
 CREATE TABLE t1 (a varchar(150) NOT NULL, KEY (a));
 INSERT t1 VALUES ("can \tcan");
 INSERT t1 VALUES ("can   can");
@@ -517,8 +514,8 @@ select c1 from t1 order by c1 limit 1;
 c1
 a
 drop table t1;
-create table t1 (a int not null, primary key(a));
-create table t2 (a int not null, b int not null, primary key(a,b));
+create table t1 (a int not null, primary key(a)) ROW_FORMAT=FIXED;
+create table t2 (a int not null, b int not null, primary key(a,b)) ROW_FORMAT=FIXED;
 insert into t1 values (1),(2),(3),(4),(5),(6);
 insert into t2 values (1,1),(2,1);
 lock tables t1 read local, t2 read local;
@@ -532,8 +529,8 @@ a	a	b
 1	1	1
 2	2	1
 drop table t1,t2;
-CREATE TABLE t1 (c1 varchar(250) NOT NULL);
-CREATE TABLE t2 (c1 varchar(250) NOT NULL, PRIMARY KEY (c1));
+CREATE TABLE t1 (c1 varchar(250) NOT NULL) ROW_FORMAT=DYNAMIC;
+CREATE TABLE t2 (c1 varchar(250) NOT NULL, PRIMARY KEY (c1)) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES ('test000001'), ('test000002'), ('test000003');
 INSERT INTO t2 VALUES ('test000002'), ('test000003'), ('test000004');
 LOCK TABLES t1 READ LOCAL, t2 READ LOCAL;
@@ -590,7 +587,7 @@ t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
 alter table t1 enable keys;
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	1	a	1	a	A	1000	NULL	NULL	YES	BTREE	
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
 alter table t1 engine=heap;
 alter table t1 disable keys;
 Warnings:
@@ -715,7 +712,7 @@ t1	1	a	4	d	A	4	NULL	NULL	YES	BTREE
 delete from t1;
 analyze table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
+test.t1	analyze	status	Table is already up to date
 show index from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE	
@@ -800,7 +797,7 @@ CREATE TABLE t1 (
 PRIMARY KEY  (`_id`),
 UNIQUE KEY `sequence_name_index` (`name`(50)),
 KEY (`length_`)
-) ENGINE=maria DEFAULT CHARSET=latin1;
+) DEFAULT CHARSET=latin1;
 INSERT INTO t1 VALUES
 (1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample1',''),
 (2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample2',''),
@@ -825,19 +822,19 @@ _id
 DELETE FROM t1 WHERE _id < 8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Dynamic	2	#	#	#	#	140	#	#	#	#	#	#		
+t1	MARIA	10	Paged	2	#	#	#	#	0	#	#	#	#	#	#		
 CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	status	OK
+test.t1	optimize	status	Table is already up to date
 CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Dynamic	2	#	#	#	#	0	#	#	#	#	#	#		
+t1	MARIA	10	Paged	2	#	#	#	#	0	#	#	#	#	#	#		
 SELECT _id FROM t1;
 _id
 8
@@ -859,7 +856,7 @@ CREATE TABLE t1 (
 PRIMARY KEY  (`_id`),
 UNIQUE KEY `sequence_name_index` (`name`(50)),
 KEY (`length_`)
-) ENGINE=maria DEFAULT CHARSET=latin1;
+) DEFAULT CHARSET=latin1;
 INSERT INTO t1 VALUES
 (1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample1',''),
 (2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample2',''),
@@ -884,7 +881,7 @@ _id
 DELETE FROM t1 WHERE _id < 8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Dynamic	2	#	#	#	#	140	#	#	#	#	#	#		
+t1	MARIA	10	Paged	2	#	#	#	#	0	#	#	#	#	#	#		
 CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -896,7 +893,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Dynamic	2	#	#	#	#	140	#	#	#	#	#	#		
+t1	MARIA	10	Paged	2	#	#	#	#	0	#	#	#	#	#	#		
 SELECT _id FROM t1;
 _id
 8
@@ -1503,7 +1500,7 @@ create table t1 (v varchar(65535));
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. You have to change some columns to TEXT or BLOBs
 set @save_concurrent_insert=@@concurrent_insert;
 set global concurrent_insert=1;
-create table t1 (a int);
+create table t1 (a int) ROW_FORMAT=FIXED;
 insert into t1 values (1),(2),(3),(4),(5);
 lock table t1 read local;
 insert into t1 values(6),(7);
@@ -1530,7 +1527,7 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-create table t1 (a int, b varchar(30) default "hello");
+create table t1 (a int, b varchar(30) default "hello") ROW_FORMAT=DYNAMIC;
 insert into t1 (a) values (1),(2),(3),(4),(5);
 lock table t1 read local;
 insert into t1 (a) values(6),(7);
@@ -1570,7 +1567,7 @@ alter table t1 disable keys;
 alter table t1 enable keys;
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	1	a	1	a	A	8	NULL	NULL	YES	BTREE	
+t1	1	a	1	a	A	8	NULL	NULL	YES	BTREE	disabled
 drop table t1;
 show create table t1;
 show create table t1;
@@ -1592,13 +1589,12 @@ create table t3 (c1 int) pack_keys=default;
 create table t4 (c1 int) pack_keys=2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2' at line 1
 drop table t1, t2, t3;
-End of 5.0 tests
 create table t1 (a int not null, key `a` (a) key_block_size=1024);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
-  KEY `a` (`a`) KEY_BLOCK_SIZE=1024
+  KEY `a` (`a`) KEY_BLOCK_SIZE=8192
 ) ENGINE=MARIA DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a int not null, key `a` (a) key_block_size=2048);
@@ -1606,7 +1602,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
-  KEY `a` (`a`) KEY_BLOCK_SIZE=2048
+  KEY `a` (`a`) KEY_BLOCK_SIZE=8192
 ) ENGINE=MARIA DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a varchar(2048), key `a` (a));
@@ -1626,7 +1622,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(2048) DEFAULT NULL,
-  KEY `a` (`a`(1000)) KEY_BLOCK_SIZE=4096
+  KEY `a` (`a`(1000)) KEY_BLOCK_SIZE=8192
 ) ENGINE=MARIA DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a int not null, b varchar(2048), key (a), key(b)) key_block_size=1024;
@@ -1637,8 +1633,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` varchar(2048) DEFAULT NULL,
-  KEY `a` (`a`),
-  KEY `b` (`b`(1000)) KEY_BLOCK_SIZE=4096
+  KEY `a` (`a`) KEY_BLOCK_SIZE=8192,
+  KEY `b` (`b`(1000)) KEY_BLOCK_SIZE=8192
 ) ENGINE=MARIA DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=1024
 alter table t1 key_block_size=2048;
 show create table t1;
@@ -1646,8 +1642,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` varchar(2048) DEFAULT NULL,
-  KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
-  KEY `b` (`b`(1000)) KEY_BLOCK_SIZE=4096
+  KEY `a` (`a`) KEY_BLOCK_SIZE=8192,
+  KEY `b` (`b`(1000)) KEY_BLOCK_SIZE=8192
 ) ENGINE=MARIA DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=2048
 alter table t1 add c int, add key (c);
 show create table t1;
@@ -1656,9 +1652,9 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` varchar(2048) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
-  KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
-  KEY `b` (`b`(1000)) KEY_BLOCK_SIZE=4096,
-  KEY `c` (`c`)
+  KEY `a` (`a`) KEY_BLOCK_SIZE=8192,
+  KEY `b` (`b`(1000)) KEY_BLOCK_SIZE=8192,
+  KEY `c` (`c`) KEY_BLOCK_SIZE=8192
 ) ENGINE=MARIA DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=2048
 alter table t1 key_block_size=0;
 alter table t1 add d int, add key (d);
@@ -1669,9 +1665,9 @@ t1	CREATE TABLE `t1` (
   `b` varchar(2048) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   `d` int(11) DEFAULT NULL,
-  KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
-  KEY `b` (`b`(1000)) KEY_BLOCK_SIZE=4096,
-  KEY `c` (`c`) KEY_BLOCK_SIZE=2048,
+  KEY `a` (`a`) KEY_BLOCK_SIZE=8192,
+  KEY `b` (`b`(1000)) KEY_BLOCK_SIZE=8192,
+  KEY `c` (`c`) KEY_BLOCK_SIZE=8192,
   KEY `d` (`d`)
 ) ENGINE=MARIA DEFAULT CHARSET=latin1
 drop table t1;
@@ -1695,7 +1691,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` varchar(2048) DEFAULT NULL,
-  KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
+  KEY `a` (`a`),
   KEY `b` (`b`(1000))
 ) ENGINE=MARIA DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=8192
 drop table t1;
@@ -1705,7 +1701,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
-  KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
+  KEY `a` (`a`) KEY_BLOCK_SIZE=8192,
   KEY `b` (`b`) KEY_BLOCK_SIZE=8192
 ) ENGINE=MARIA DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=16384
 drop table t1;
@@ -1714,7 +1710,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
-  KEY `a` (`a`) KEY_BLOCK_SIZE=1024
+  KEY `a` (`a`) KEY_BLOCK_SIZE=8192
 ) ENGINE=MARIA DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a varchar(2048), key `a` (a) key_block_size=1000000000000000000);
@@ -1732,7 +1728,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
-  KEY `a` (`a`) KEY_BLOCK_SIZE=2048
+  KEY `a` (`a`) KEY_BLOCK_SIZE=8192
 ) ENGINE=MARIA DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a int not null, key key_block_size=1024 (a));
@@ -1784,5 +1780,4 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
-End of 5.1 tests
 set global storage_engine=MyISAM;

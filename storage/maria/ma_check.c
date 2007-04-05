@@ -135,7 +135,9 @@ int maria_chk_status(HA_CHECK *param, register MARIA_HA *info)
   return 0;
 }
 
-	/* Check delete links */
+/*
+  Check delete links in row data
+*/
 
 int maria_chk_del(HA_CHECK *param, register MARIA_HA *info, uint test_flag)
 {
@@ -146,6 +148,10 @@ int maria_chk_del(HA_CHECK *param, register MARIA_HA *info, uint test_flag)
   DBUG_ENTER("maria_chk_del");
 
   LINT_INIT(old_link);
+
+  if (info->s->data_file_type == BLOCK_RECORD)
+    DBUG_RETURN(0);                             /* No delete links here */
+
   param->record_checksum=0;
   delete_link_length=((info->s->options & HA_OPTION_PACK_RECORD) ? 20 :
 		      info->s->rec_reflength+1);
@@ -2144,6 +2150,7 @@ err:
     restore_data_file_type(share);
   share->state.changed|= (STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES |
 			  STATE_NOT_ANALYZED);
+  share->state.changed&= ~STATE_NOT_OPTIMIZED_ROWS;
   DBUG_RETURN(got_error);
 }
 
@@ -2919,7 +2926,8 @@ err:
   }
   else if (key_map == share->state.key_map)
     share->state.changed&= ~STATE_NOT_OPTIMIZED_KEYS;
-  share->state.changed|=STATE_NOT_SORTED_PAGES;
+  share->state.changed|= STATE_NOT_SORTED_PAGES;
+  share->state.changed&= ~STATE_NOT_OPTIMIZED_ROWS;
 
   my_free(sort_param.rec_buff, MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
@@ -3439,7 +3447,8 @@ err:
   }
   else if (key_map == share->state.key_map)
     share->state.changed&= ~STATE_NOT_OPTIMIZED_KEYS;
-  share->state.changed|=STATE_NOT_SORTED_PAGES;
+  share->state.changed|= STATE_NOT_SORTED_PAGES;
+  share->state.changed&= ~STATE_NOT_OPTIMIZED_ROWS;
 
   pthread_cond_destroy (&sort_info.cond);
   pthread_mutex_destroy(&sort_info.mutex);

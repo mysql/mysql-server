@@ -37,6 +37,7 @@ class ha_maria :public handler
   MARIA_HA *file;
   ulonglong int_table_flags;
   char *data_file_name, *index_file_name;
+  enum data_file_type data_file_type;
   bool can_enable_indexes;
   int repair(THD * thd, HA_CHECK &param, bool optimize);
 
@@ -62,7 +63,9 @@ public:
   { return HA_MAX_KEY_LENGTH; }
   uint max_supported_key_part_length() const
   { return HA_MAX_KEY_LENGTH; }
+  enum row_type get_row_type() const;
   uint checksum() const;
+  virtual double scan_time();
 
   virtual bool check_if_locking_is_allowed(uint sql_command,
                                            ulong type, TABLE * table,
@@ -98,6 +101,7 @@ public:
   }
   int ft_read(byte * buf);
   int rnd_init(bool scan);
+  int rnd_end(void);
   int rnd_next(byte * buf);
   int rnd_pos(byte * buf, byte * pos);
   int restart_rnd_next(byte * buf, byte * pos);

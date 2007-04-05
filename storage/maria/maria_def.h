@@ -441,6 +441,7 @@ struct st_maria_info
 #define STATE_NOT_ANALYZED	8
 #define STATE_NOT_OPTIMIZED_KEYS 16
 #define STATE_NOT_SORTED_PAGES	32
+#define STATE_NOT_OPTIMIZED_ROWS 64
 
 /* options to maria_read_cache */
 

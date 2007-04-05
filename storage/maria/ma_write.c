@@ -1066,6 +1066,7 @@ void maria_flush_bulk_insert(MARIA_HA *info, uint inx)
 
 void maria_end_bulk_insert(MARIA_HA *info)
 {
+  DBUG_ENTER("maria_end_bulk_insert");
   if (info->bulk_insert)
   {
     uint i;
@@ -1079,4 +1080,5 @@ void maria_end_bulk_insert(MARIA_HA *info)
     my_free((void *)info->bulk_insert, MYF(0));
     info->bulk_insert=0;
   }
+  DBUG_VOID_RETURN;
 }

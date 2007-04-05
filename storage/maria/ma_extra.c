@@ -44,6 +44,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
   int error=0;
   ulong cache_size;
   MARIA_SHARE *share=info->s;
+  my_bool block_records=   share->data_file_type == BLOCK_RECORD;
+
   DBUG_ENTER("maria_extra");
   DBUG_PRINT("enter",("function: %d",(int) function));
 
@@ -64,6 +66,9 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 		   HA_STATE_PREV_FOUND);
     break;
   case HA_EXTRA_CACHE:
+    if (block_records)
+      break;                                    /* Not supported */
+
     if (info->lock_type == F_UNLCK &&
 	(share->options & HA_OPTION_PACK_RECORD))
     {
@@ -127,9 +132,11 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
   case HA_EXTRA_WRITE_CACHE:
     if (info->lock_type == F_UNLCK)
     {
-      error=1;			/* Not possibly if not locked */
+      error=1;                        	/* Not possibly if not locked */
       break;
     }
+    if (block_records)
+      break;                            /* Not supported */
 
     cache_size= (extra_arg ? *(ulong*) extra_arg :
 		 my_default_record_cache_size);
@@ -353,6 +360,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     break;
   case HA_EXTRA_MMAP:
 #ifdef HAVE_MMAP
+    if (block_records)
+      break;                                    /* Not supported */
     pthread_mutex_lock(&share->intern_lock);
     /*
       Memory map the data file if it is not already mapped and if there
@@ -394,9 +403,11 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 
 
 /*
-    Start/Stop Inserting Duplicates Into a Table, WL#1648.
- */
-static void maria_extra_keyflag(MARIA_HA *info, enum ha_extra_function function)
+  Start/Stop Inserting Duplicates Into a Table, WL#1648.
+*/
+
+static void maria_extra_keyflag(MARIA_HA *info,
+                                enum ha_extra_function function)
 {
   uint  idx;
 

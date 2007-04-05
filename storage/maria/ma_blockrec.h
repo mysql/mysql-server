@@ -70,7 +70,7 @@ enum en_page_type { UNALLOCATED_PAGE, HEAD_PAGE, TAIL_PAGE, BLOB_PAGE, MAX_PAGE_
 /* Fixed part of Max possible header size; See table in ma_blockrec.c */
 #define MAX_FIXED_HEADER_SIZE (FLAG_SIZE + 3 + ROW_EXTENT_SIZE + 3)
 #define TRANS_MAX_FIXED_HEADER_SIZE (MAX_FIXED_HEADER_SIZE + \
-                                     FLAG_SIZE + TRANSID_SIZE + VERPTR_SIZE + \
+                                     TRANSID_SIZE + VERPTR_SIZE + \
                                      TRANSID_SIZE)
 
 /* We use 1 byte in record header to store number of directory entries */
@@ -90,6 +90,7 @@ enum en_page_type { UNALLOCATED_PAGE, HEAD_PAGE, TAIL_PAGE, BLOB_PAGE, MAX_PAGE_
 
 static inline MARIA_RECORD_POS ma_recordpos(ulonglong page, uint offset)
 {
+  DBUG_ASSERT(offset <= 255);
   return (MARIA_RECORD_POS) ((page << 8) | offset);
 }
 

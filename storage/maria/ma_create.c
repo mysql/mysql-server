@@ -43,7 +43,7 @@ int maria_create(const char *name, enum data_file_type record_type,
 {
   register uint i,j;
   File dfile,file;
-  int errpos,save_errno, create_mode= O_RDWR | O_TRUNC;
+  int errpos,save_errno, create_mode= O_RDWR | O_TRUNC, res;
   myf create_flag;
   uint length,max_key_length,packed,pack_bytes,pointer,real_length_diff,
        key_length,info_length,key_segs,options,min_key_length_skip,
@@ -155,35 +155,41 @@ int maria_create(const char *name, enum data_file_type record_type,
 	       type == FIELD_SKIP_ENDSPACE)
       {
         max_field_lengths+= rec->length > 255 ? 2 : 1;
-	min_pack_length++;
+        if (record_type != BLOCK_RECORD)
+          min_pack_length++;
         packed++;
       }
       else if (type == FIELD_VARCHAR)
       {
 	varchar_length+= rec->length-1;          /* Used for min_pack_length */
 	pack_reclength++;
-        min_pack_length++;
+        if (record_type != BLOCK_RECORD)
+          min_pack_length++;
         max_field_lengths++;
         packed++;
+        rec->fill_length= 1;
         /* We must test for 257 as length includes pack-length */
         if (test(rec->length >= 257))
 	{
 	  long_varchar_count++;
           max_field_lengths++;
+          rec->fill_length= 2;
 	}
       }
-      else if (type != FIELD_SKIP_ZERO)
+      else if (type == FIELD_SKIP_ZERO)
+        packed++;
+      else
       {
-	min_pack_length+=rec->length;
+        if (record_type != BLOCK_RECORD || !rec->null_bit)
+          min_pack_length+= rec->length;
         rec->empty_pos= 0;
         rec->empty_bit= 0;
       }
-      else
-        packed++;
     }
     else					/* FIELD_NORMAL */
     {
-      min_pack_length+=rec->length;
+      if (record_type != BLOCK_RECORD || !rec->null_bit)
+        min_pack_length+= rec->length;
       if (!rec->null_bit)
       {
         share.base.fixed_not_null_fields++;
@@ -203,6 +209,8 @@ int maria_create(const char *name, enum data_file_type record_type,
       if (rec->type == (int) FIELD_SKIP_ZERO && rec->length == 1)
       {
 	rec->type=(int) FIELD_NORMAL;
+        rec->empty_pos= 0;
+        rec->empty_bit= 0;
 	packed--;
 	min_pack_length++;
 	break;
@@ -364,7 +372,7 @@ int maria_create(const char *name, enum data_file_type record_type,
             keyseg->type != HA_KEYTYPE_VARBINARY2)
         {
           my_errno=HA_WRONG_CREATE_OPTION;
-          goto err;
+          goto err_no_lock;
         }
       }
       keydef->keysegs+=sp_segs;
@@ -373,7 +381,7 @@ int maria_create(const char *name, enum data_file_type record_type,
       min_key_length_skip+=SPLEN*2*SPDIMS;
 #else
       my_errno= HA_ERR_UNSUPPORTED;
-      goto err;
+      goto err_no_lock;
 #endif /*HAVE_SPATIAL*/
     }
     else if (keydef->flag & HA_FULLTEXT)
@@ -389,7 +397,7 @@ int maria_create(const char *name, enum data_file_type record_type,
             keyseg->type != HA_KEYTYPE_VARTEXT2)
         {
           my_errno=HA_WRONG_CREATE_OPTION;
-          goto err;
+          goto err_no_lock;
         }
         if (!(keyseg->flag & HA_BLOB_PART) &&
 	    (keyseg->type == HA_KEYTYPE_VARTEXT1 ||
@@ -514,7 +522,7 @@ int maria_create(const char *name, enum data_file_type record_type,
     if (keydef->keysegs > HA_MAX_KEY_SEG)
     {
       my_errno=HA_WRONG_CREATE_OPTION;
-      goto err;
+      goto err_no_lock;
     }
     /*
       key_segs may be 0 in the case when we only want to be able to
@@ -525,10 +533,10 @@ int maria_create(const char *name, enum data_file_type record_type,
 	key_segs)
       share.state.rec_per_key_part[key_segs-1]=1L;
     length+=key_length;
-    if (length >= min(HA_MAX_KEY_BUFF, MARIA_MAX_KEY_LENGTH))
+    if (length >= HA_MAX_KEY_BUFF)
     {
       my_errno=HA_WRONG_CREATE_OPTION;
-      goto err;
+      goto err_no_lock;
     }
     keydef->block_length= maria_block_size;
     keydef->keylength= (uint16) key_length;
@@ -572,7 +580,7 @@ int maria_create(const char *name, enum data_file_type record_type,
                     "indexes and/or unique constraints.",
                     MYF(0), name + dirname_length(name));
     my_errno= HA_WRONG_CREATE_OPTION;
-    goto err;
+    goto err_no_lock;
   }
 
   bmove(share.state.header.file_version,(byte*) maria_file_magic,4);
@@ -645,11 +653,16 @@ int maria_create(const char *name, enum data_file_type record_type,
     share.base.max_data_file_length= (my_off_t) ci->data_file_length;
   }
 
-  share.base.min_block_length=
-    (share.base.pack_reclength+3 < MARIA_EXTEND_BLOCK_LENGTH &&
-     ! share.base.blobs) ?
-    max(share.base.pack_reclength,MARIA_MIN_BLOCK_LENGTH) :
-    MARIA_EXTEND_BLOCK_LENGTH;
+  if (record_type == BLOCK_RECORD)
+    share.base.min_block_length= share.base.min_row_length;
+  else
+  {
+    share.base.min_block_length=
+      (share.base.pack_reclength+3 < MARIA_EXTEND_BLOCK_LENGTH &&
+       ! share.base.blobs) ?
+      max(share.base.pack_reclength,MARIA_MIN_BLOCK_LENGTH) :
+      MARIA_EXTEND_BLOCK_LENGTH;
+  }
   if (! (flags & HA_DONT_TOUCH_DATA))
     share.state.create_time= (long) time((time_t*) 0);
 
@@ -868,17 +881,24 @@ int maria_create(const char *name, enum data_file_type record_type,
   if (record_type == BLOCK_RECORD)
   {
     /* Store columns in a more efficent order */
-    MARIA_COLUMNDEF **tmp, **pos;
-    if (!(tmp= (MARIA_COLUMNDEF**) my_malloc(share.base.fields *
+    MARIA_COLUMNDEF **col_order, **pos;
+    if (!(col_order= (MARIA_COLUMNDEF**) my_malloc(share.base.fields *
                                              sizeof(MARIA_COLUMNDEF*),
                                              MYF(MY_WME))))
       goto err;
-    for (rec= recinfo, pos= tmp ; rec != rec_end ; rec++, pos++)
+    for (rec= recinfo, pos= col_order ; rec != rec_end ; rec++, pos++)
       *pos= rec;
-    qsort(tmp, share.base.fields, sizeof(*tmp), (qsort_cmp) compare_columns);
+    qsort(col_order, share.base.fields, sizeof(*col_order),
+          (qsort_cmp) compare_columns);
     for (i=0 ; i < share.base.fields ; i++)
-      if (_ma_recinfo_write(file, tmp[i]))
+    {
+      if (_ma_recinfo_write(file, col_order[i]))
+      {
+        my_free((gptr) col_order, MYF(0));
         goto err;
+      }
+    }
+    my_free((gptr) col_order, MYF(0));
   }
   else
   {
@@ -917,8 +937,9 @@ int maria_create(const char *name, enum data_file_type record_type,
   }
   errpos=0;
   pthread_mutex_unlock(&THR_LOCK_maria);
+  res= 0;
   if (my_close(file,MYF(0)))
-    goto err;
+    res= my_errno;
   /*
     RECOVERY TODO
     Write a log record describing the CREATE operation (just the file
@@ -933,10 +954,12 @@ int maria_create(const char *name, enum data_file_type record_type,
     will clean up the frm, so we needn't write anything to the log.
   */
   my_free((char*) rec_per_key_part,MYF(0));
-  DBUG_RETURN(0);
+  DBUG_RETURN(res);
 
 err:
   pthread_mutex_unlock(&THR_LOCK_maria);
+
+err_no_lock:
   save_errno=my_errno;
   switch (errpos) {
   case 3:

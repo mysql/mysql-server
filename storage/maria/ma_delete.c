@@ -104,7 +104,8 @@ int maria_delete(MARIA_HA *info,const byte *record)
 
   info->update= HA_STATE_CHANGED+HA_STATE_DELETED+HA_STATE_ROW_CHANGED;
   info->state->records--;
-
+  share->state.changed|= STATE_NOT_OPTIMIZED_ROWS;
+  
   mi_sizestore(lastpos, info->cur_row.lastpos);
   VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
   allow_break();			/* Allow SIGHUP & SIGINT */
