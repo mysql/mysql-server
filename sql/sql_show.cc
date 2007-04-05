@@ -3760,8 +3760,7 @@ static bool store_trigger(THD *thd, TABLE *table, const char *db,
                           LEX_STRING *definer_buffer)
 {
   CHARSET_INFO *cs= system_charset_info;
-  byte *sql_mode_str;
-  ulong sql_mode_len;
+  LEX_STRING sql_mode_rep;
 
   restore_record(table, s->default_values);
   table->field[1]->store(db, strlen(db), cs);
@@ -3777,11 +3776,9 @@ static bool store_trigger(THD *thd, TABLE *table, const char *db,
   table->field[14]->store(STRING_WITH_LEN("OLD"), cs);
   table->field[15]->store(STRING_WITH_LEN("NEW"), cs);
 
-  sql_mode_str=
-    sys_var_thd_sql_mode::symbolic_mode_representation(thd,
-                                                       sql_mode,
-                                                       &sql_mode_len);
-  table->field[17]->store((const char*)sql_mode_str, sql_mode_len, cs);
+  sys_var_thd_sql_mode::symbolic_mode_representation(thd, sql_mode,
+                                                     &sql_mode_rep);
+  table->field[17]->store(sql_mode_rep.str, sql_mode_rep.length, cs);
   table->field[18]->store((const char *)definer_buffer->str, definer_buffer->length, cs);
   return schema_table_store_record(thd, table);
 }
@@ -4307,13 +4304,13 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   CHARSET_INFO *scs= system_charset_info;
   TIME time;
   Event_timed et;    
-  DBUG_ENTER("fill_events_copy_to_schema_tab");
+  DBUG_ENTER("copy_event_to_schema_table");
 
   restore_record(sch_table, s->default_values);
 
   if (et.load_from_row(thd, event_table))
   {
-    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0));
+    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), event_table->alias);
     DBUG_RETURN(1);
   }
 
@@ -4348,13 +4345,11 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   /* SQL_MODE */
   {
-    byte *sql_mode_str;
-    ulong sql_mode_len= 0;
-    sql_mode_str=
-           sys_var_thd_sql_mode::symbolic_mode_representation(thd, et.sql_mode,
-                                                              &sql_mode_len);
+    LEX_STRING sql_mode;
+    sys_var_thd_sql_mode::symbolic_mode_representation(thd, et.sql_mode,
+                                                       &sql_mode);
     sch_table->field[ISE_SQL_MODE]->
-                                store((const char*)sql_mode_str, sql_mode_len, scs);
+                                store(sql_mode.str, sql_mode.length, scs);
   }
 
   int not_used=0;

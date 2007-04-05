@@ -18,7 +18,6 @@
 
 #define EVEX_GET_FIELD_FAILED   -2
 #define EVEX_COMPILE_ERROR      -3
-#define EVEX_GENERAL_ERROR      -4
 #define EVEX_BAD_PARAMS         -5
 #define EVEX_MICROSECOND_UNSUP  -6
 
@@ -172,8 +171,6 @@ public:
   LEX_STRING definer_host;
 
   ulong sql_mode;
-
-  uint execution_count;
 
   Event_job_data();
   virtual ~Event_job_data();
