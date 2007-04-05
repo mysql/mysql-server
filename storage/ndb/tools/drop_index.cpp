@@ -61,6 +61,7 @@ int main(int argc, char** argv){
   }
   
   Ndb_cluster_connection con(opt_connect_str);
+  con.set_name("ndb_drop_index");
   if(con.connect(12, 5, 1) != 0)
   {
     return NDBT_ProgramExit(NDBT_FAILED);
