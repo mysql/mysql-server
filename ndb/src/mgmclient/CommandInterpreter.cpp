@@ -2026,6 +2026,9 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
     return -1;
   }
 
+  if (!nostart)
+    ndbout_c("Shutting down nodes with \"-n, no start\" option, to subsequently start the nodes.");
+
   result= ndb_mgm_restart3(m_mgmsrv, no_of_nodes, node_ids,
                            initialstart, nostart, abort, &need_disconnect);
 
