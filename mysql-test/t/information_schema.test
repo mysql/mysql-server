@@ -1049,36 +1049,42 @@ drop user user3148@localhost;
 #
 --disable_warnings
 DROP TABLE IF EXISTS thread_status;
-CREATE TABLE thread_status (variable_name VARCHAR(64),
-variable_value DECIMAL(22,7));
-CREATE TABLE server_status (variable_name VARCHAR(64),
-variable_value DECIMAL(22,7));
-DROP EVENT IF EXISTS log_status;
+DROP TABLE IF EXISTS server_status;
+DROP EVENT IF EXISTS event_status;
+
 --enable_warnings
+
+SET GLOBAL event_scheduler=1;
 
 DELIMITER $$;
 
-CREATE EVENT log_status
+CREATE EVENT event_status
  ON SCHEDULE AT NOW()
- ON COMPLETION PRESERVE
+ ON COMPLETION NOT PRESERVE
  DO
- BEGIN
-  INSERT INTO thread_status SELECT variable_name, variable_value FROM
-information_schema.session_status;
-  INSERT INTO server_status SELECT variable_name, variable_value FROM
-information_schema.global_status;
- END$$
+BEGIN
+  CREATE TABLE thread_status
+  SELECT variable_name, variable_value
+  FROM information_schema.session_status
+  WHERE variable_name LIKE 'SSL_ACCEPTS' OR
+  variable_name LIKE 'SSL_CALLBACK_CACHE_HITS';
+
+  CREATE TABLE server_status
+  SELECT variable_name
+  FROM information_schema.global_status
+  WHERE variable_name LIKE 'ABORTED_CONNECTS' OR
+  variable_name LIKE 'BINLOG_CACHE_DISK_USE';
+END$$
 
 DELIMITER ;$$
 
-SET GLOBAL event_scheduler=1;
-let $wait_condition=select count(variable_name) != 0 from server_status;
+let $wait_condition=select count(*) = 0 from information_schema.events where event_name='event_status';
 let $wait_timeout=30;
 --source include/wait_condition.inc
-SELECT * FROM thread_status WHERE variable_name LIKE 'SSL%' LIMIT 1,2;
-SELECT variable_name FROM server_status LIMIT 1,2;
 
-DROP EVENT log_status;
+SELECT variable_name, variable_value FROM thread_status;
+SELECT variable_name FROM server_status;
+
 DROP TABLE thread_status;
 DROP TABLE server_status;
 SET GLOBAL event_scheduler=0;
