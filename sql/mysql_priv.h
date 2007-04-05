@@ -844,6 +844,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
                   bool ignore);
 int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
                                            TABLE_LIST *table_list);
+void prepare_triggers_for_insert_stmt(THD *thd, TABLE *table,
+                                      enum_duplicates duplic);
 void mark_fields_used_by_triggers_for_insert_stmt(THD *thd, TABLE *table,
                                                   enum_duplicates duplic);
 bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
