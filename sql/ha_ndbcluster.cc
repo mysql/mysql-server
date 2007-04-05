@@ -203,6 +203,8 @@ static const err_code_mapping err_map[]=
 
   { 284, HA_ERR_TABLE_DEF_CHANGED, 0 },
 
+  {4009, HA_ERR_NO_CONNECTION, 1 },
+
   { 0, 1, 0 },
 
   { -1, -1, 1 }
@@ -5068,14 +5070,11 @@ int ndbcluster_table_exists_in_engine(THD* thd, const char *db, const char *name
   dict->invalidateTable(name);
   if (!(tab= dict->getTable(name)))
   {
-    const NdbError err= dict->getNdbError();
-    if (err.code == 709)
-      DBUG_RETURN(0);
-    ERR_RETURN(err);
+    ERR_RETURN(dict->getNdbError());
   }
 
   DBUG_PRINT("info", ("Found table %s", tab->getName()));
-  DBUG_RETURN(1);
+  DBUG_RETURN(HA_ERR_TABLE_EXIST);
 }
 
 
@@ -5260,7 +5259,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
     DBUG_PRINT("info", ("%s existed on disk", name));     
     // The .ndb file exists on disk, but it's not in list of tables in ndb
     // Verify that handler agrees table is gone.
-    if (ndbcluster_table_exists_in_engine(thd, db, file_name) == 0)    
+    if (ndbcluster_table_exists_in_engine(thd, db, file_name) == HA_ERR_NO_SUCH_TABLE)
     {
       DBUG_PRINT("info", ("NDB says %s does not exists", file_name));     
       it.remove();
@@ -6695,7 +6694,8 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     DBUG_RETURN(NULL);
   }
 
-  List<NDB_SHARE> util_open_tables;
+  uint share_list_size= 0;
+  NDB_SHARE **share_list= NULL;
   set_timespec(abstime, 0);
   for (;;)
   {
@@ -6725,7 +6725,22 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     /* Lock mutex and fill list with pointers to all open tables */
     NDB_SHARE *share;
     pthread_mutex_lock(&ndbcluster_mutex);
-    for (uint i= 0; i < ndbcluster_open_tables.records; i++)
+    uint i, record_count= ndbcluster_open_tables.records;
+    if (share_list_size < record_count)
+    {
+      NDB_SHARE ** new_share_list= new NDB_SHARE * [record_count];
+      if (!new_share_list)
+      {
+        sql_print_warning("ndb util thread: malloc failure, "
+                          "query cache not maintained properly");
+        pthread_mutex_unlock(&ndbcluster_mutex);
+        goto next;                               // At least do not crash
+      }
+      delete [] share_list;
+      share_list_size= record_count;
+      share_list= new_share_list;
+    }
+    for (i= 0; i < record_count; i++)
     {
       share= (NDB_SHARE *)hash_element(&ndbcluster_open_tables, i);
       share->use_count++; /* Make sure the table can't be closed */
@@ -6734,14 +6749,14 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
                   i, share->table_name, share->use_count));
 
       /* Store pointer to table */
-      util_open_tables.push_back(share);
+      share_list[i]= share;
     }
     pthread_mutex_unlock(&ndbcluster_mutex);
 
-    /* Iterate through the  open files list */
-    List_iterator_fast<NDB_SHARE> it(util_open_tables);
-    while ((share= it++))
+    /* Iterate through the open files list */
+    for (i= 0; i < record_count; i++)
     {
+      share= share_list[i];
       /* Split tab- and dbname */
       char buf[FN_REFLEN];
       char *tabname, *db;
@@ -6790,10 +6805,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       /* Decrease the use count and possibly free share */
       free_share(share);
     }
-
-    /* Clear the list of open tables */
-    util_open_tables.empty();
-
+next:
     /* Calculate new time to wake up */
     int secs= 0;
     int msecs= ndb_cache_check_time;
@@ -6816,6 +6828,8 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     }
   }
 
+  if (share_list)
+    delete [] share_list;
   thd->cleanup();
   delete thd;
   delete ndb;
