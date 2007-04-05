@@ -547,9 +547,7 @@ trx_in_trx_list(
 {
 	trx_t*	trx;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(kernel_mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
@@ -576,9 +574,7 @@ trx_sys_flush_max_trx_id(void)
 	trx_sysf_t*	sys_header;
 	mtr_t		mtr;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	mtr_start(&mtr);
 
@@ -799,9 +795,7 @@ trx_sysf_rseg_find_free(
 	ulint		page_no;
 	ulint		i;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(kernel_mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	sys_header = trx_sysf_get(mtr);
 

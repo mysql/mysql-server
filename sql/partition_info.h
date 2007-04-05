@@ -156,7 +156,7 @@ public:
   char *part_func_string;
   char *subpart_func_string;
 
-  uchar *part_state;
+  const char *part_state;
 
   partition_element *curr_part_elem;
   partition_element *current_partition;

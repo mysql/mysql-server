@@ -590,41 +590,6 @@ mem_strdupl(
 }
 
 /**************************************************************************
-Makes a NUL-terminated quoted copy of a NUL-terminated string. */
-UNIV_INLINE
-char*
-mem_strdupq(
-/*========*/
-				/* out, own: a quoted copy of the string,
-				must be deallocated with mem_free */
-	const char*	str,	/* in: string to be copied */
-	char		q)	/* in: quote character */
-{
-	char*		dst;
-	char*		d;
-	const char*	s	= str;
-	size_t		len	= strlen(str) + 3;
-	/* calculate the number of quote characters in the string */
-	while((s = strchr(s, q)) != NULL) {
-		s++;
-		len++;
-	}
-	/* allocate the quoted string, and copy it */
-	d = dst = mem_alloc(len);
-	*d++ = q;
-	s = str;
-	while(*s) {
-		if ((*d++ = *s++) == q) {
-			*d++ = q;
-		}
-	}
-	*d++ = q;
-	*d++ = '\0';
-	ut_ad((ssize_t) len == d - dst);
-	return(dst);
-}
-
-/**************************************************************************
 Makes a NUL-terminated copy of a nonterminated string,
 allocated from a memory heap. */
 UNIV_INLINE

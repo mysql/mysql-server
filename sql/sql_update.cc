@@ -201,8 +201,10 @@ int mysql_update(THD *thd,
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     else
     {
-      bitmap_set_bit(table->write_set,
-                     table->timestamp_field->field_index);
+      if (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
+          table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH)
+        bitmap_set_bit(table->write_set,
+                       table->timestamp_field->field_index);
     }
   }
 
@@ -452,7 +454,20 @@ int mysql_update(THD *thd,
                               (thd->variables.sql_mode &
                                (MODE_STRICT_TRANS_TABLES |
                                 MODE_STRICT_ALL_TABLES)));
-  will_batch= !table->file->start_bulk_update();
+  if (table->triggers &&
+      table->triggers->has_triggers(TRG_EVENT_UPDATE,
+                                    TRG_ACTION_AFTER))
+  {
+    /*
+      The table has AFTER UPDATE triggers that might access to subject 
+      table and therefore might need update to be done immediately. 
+      So we turn-off the batching.
+    */ 
+    (void) table->file->extra(HA_EXTRA_UPDATE_CANNOT_BATCH);
+    will_batch= FALSE;
+  }
+  else
+    will_batch= !table->file->start_bulk_update();
 
   /*
     We can use compare_record() to optimize away updates if
@@ -1121,6 +1136,17 @@ int multi_update::prepare(List<Item> &not_used_values,
       table->no_keyread=1;
       table->covering_keys.clear_all();
       table->pos_in_table_list= tl;
+      if (table->triggers &&
+          table->triggers->has_triggers(TRG_EVENT_UPDATE,
+                                        TRG_ACTION_AFTER))
+      {
+	/*
+           The table has AFTER UPDATE triggers that might access to subject 
+           table and therefore might need update to be done immediately. 
+           So we turn-off the batching.
+	*/ 
+	(void) table->file->extra(HA_EXTRA_UPDATE_CANNOT_BATCH);
+      }
     }
   }
 

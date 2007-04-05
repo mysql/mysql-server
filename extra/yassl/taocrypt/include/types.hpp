@@ -46,13 +46,16 @@ typedef unsigned int   word32;
     #define WORD64_AVAILABLE
     #define WORD64_IS_DISTINCT_TYPE
     typedef unsigned __int64 word64;
+    #define W64LIT(x) x##ui64
 #elif SIZEOF_LONG == 8
     #define WORD64_AVAILABLE
     typedef unsigned long word64;
+    #define W64LIT(x) x##LL
 #elif SIZEOF_LONG_LONG == 8 
     #define WORD64_AVAILABLE
     #define WORD64_IS_DISTINCT_TYPE
     typedef unsigned long long word64;
+    #define W64LIT(x) x##LL
 #endif
 
 

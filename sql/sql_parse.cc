@@ -983,7 +983,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     /* init structures for VIEW processing */
     table_list.select_lex= &(thd->lex->select_lex);
-    mysql_init_query(thd, (uchar*)"", 0);
+    mysql_init_query(thd, "", 0);
     thd->lex->
       select_lex.table_list.link_in_list((byte*) &table_list,
                                          (byte**) &table_list.next_local);
@@ -5011,7 +5011,7 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
 ****************************************************************************/
 
 void
-mysql_init_query(THD *thd, uchar *buf, uint length)
+mysql_init_query(THD *thd, const char *buf, uint length)
 {
   DBUG_ENTER("mysql_init_query");
   lex_start(thd, buf, length);
@@ -5235,7 +5235,7 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
 
-  mysql_init_query(thd, (uchar*) inBuf, length);
+  mysql_init_query(thd, inBuf, length);
 
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
@@ -5315,7 +5315,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
   bool error= 0;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
-  mysql_init_query(thd, (uchar*) inBuf, length);
+  mysql_init_query(thd, inBuf, length);
   if (!MYSQLparse((void*) thd) && ! thd->is_fatal_error &&
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
     error= 1;                  /* Ignore question */

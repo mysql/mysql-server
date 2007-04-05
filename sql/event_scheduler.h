@@ -15,6 +15,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/*
+  This file is internal to Events module. Please do not include it directly.
+  All public declarations of Events module are in events.h and
+  event_data_objects.h.
+*/
+
 
 class Event_queue;
 class Event_job_data;
@@ -31,7 +37,7 @@ void
 deinit_event_thread(THD *thd);
 
 
-class Event_worker_thread 
+class Event_worker_thread
 {
 public:
   static void
@@ -74,7 +80,7 @@ public:
   bool
   run(THD *thd);
 
-  void 
+  void
   init_scheduler(Event_queue *queue);
 
   void
@@ -99,7 +105,7 @@ private:
 
   /* helper functions */
   bool
-  execute_top(THD *thd, Event_queue_element_for_exec *event_name);
+  execute_top(Event_queue_element_for_exec *event_name);
 
   /* helper functions for working with mutexes & conditionals */
   void

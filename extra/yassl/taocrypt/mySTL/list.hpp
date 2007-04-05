@@ -231,7 +231,7 @@ void list<T>::push_front(T t)
 template<typename T> 
 void list<T>::pop_front()
 {
-    node* local_front = head_;
+    node* front = head_;
 
     if (head_ == 0)
         return;
@@ -241,8 +241,8 @@ void list<T>::pop_front()
         head_ = head_->next_;
         head_->prev_ = 0;
     }
-    destroy(local_front);
-    FreeMemory(local_front);
+    destroy(front);
+    FreeMemory(front);
     --sz_;
 }
 
@@ -303,13 +303,13 @@ T list<T>::back() const
 template<typename T>
 typename list<T>::node* list<T>::look_up(T t)
 {
-    node* local_list = head_;
+    node* list = head_;
 
-    if (local_list == 0) return 0;
+    if (list == 0) return 0;
 
-    for (; local_list; local_list = local_list->next_)
-        if (local_list->value_ == t)
-            return local_list;
+    for (; list; list = list->next_)
+        if (list->value_ == t)
+            return list;
 
     return 0;
 }
