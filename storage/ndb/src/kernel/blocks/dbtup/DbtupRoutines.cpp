@@ -886,8 +886,8 @@ Dbtup::readDynBigFixedSizeShrunkenNotNULL(Uint32* outBuffer,
   //Uint16 *offset_array= req_struct->m_var_data[MM].m_dyn_offset_arr_ptr;
   Uint16* offset_array = (Uint16*)(bm_ptr + bm_len);
   Uint16 data_offset= offset_array[bit_count];
-  ndbrequire(vsize_in_bytes <= offset_array[bit_count+1] - data_offset);
-
+  ndbrequire(vsize_in_bytes <= Uint32(offset_array[bit_count+1]- data_offset));
+  
   /*
     In the expanded format, we share the read code with static varsized, just
     using different data base pointer and offset/lenght arrays.
