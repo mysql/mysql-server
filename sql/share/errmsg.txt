@@ -5884,8 +5884,8 @@ ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
         eng "Column count of mysql.%s is wrong. Expected %d, found %d. The table is probably corrupted"
         ger "Spaltenanzahl von mysql.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
 ER_CANNOT_LOAD_FROM_TABLE
-        eng "Cannot load from mysql.%s. The table is probably corrupted. Please see the error log for details"
-        ger "Kann mysql.%s nicht einlesen. Tabelle ist wahrscheinlich beschädigt, siehe Fehlerlog"
+        eng "Cannot load from mysql.%s. The table is probably corrupted"
+        ger "Kann mysql.%s nicht einlesen. Tabelle ist wahrscheinlich beschädigt"
 ER_EVENT_CANNOT_DELETE
         eng "Failed to delete the event from mysql.event"
         ger "Löschen des Events aus mysql.event fehlgeschlagen"
