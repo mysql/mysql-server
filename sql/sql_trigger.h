@@ -113,7 +113,7 @@ public:
   bool has_triggers(trg_event_type event_type, 
                     trg_action_time_type action_time)
   {
-    return (bodies[event_type][action_time]);
+    return (bodies[event_type][action_time] != NULL);
   }
   bool has_delete_triggers()
   {
