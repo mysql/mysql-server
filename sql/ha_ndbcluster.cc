@@ -2523,8 +2523,13 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       ERR_RETURN(op->getNdbError());
   }
 
-  // Execute update operation
-  if (!cursor && execute_no_commit(this,trans,false) != 0) {
+  /*
+    Execute update operation if we are not doing a scan for update
+    and there exist UPDATE AFTER triggers
+  */
+
+  if ((!cursor || m_update_cannot_batch) && 
+      execute_no_commit(this,trans,false) != 0) {
     no_uncommitted_rows_execute_failure();
     DBUG_RETURN(ndb_err(trans));
   }
@@ -2565,7 +2570,7 @@ int ha_ndbcluster::delete_row(const byte *record)
 
     no_uncommitted_rows_update(-1);
 
-    if (!m_primary_key_update)
+    if (!(m_primary_key_update || m_delete_cannot_batch))
       // If deleting from cursor, NoCommit will be handled in next_result
       DBUG_RETURN(0);
   }
@@ -3406,6 +3411,16 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     DBUG_PRINT("info", ("Turning OFF use of write instead of insert"));
     m_use_write= FALSE;
     break;
+  case HA_EXTRA_DELETE_CANNOT_BATCH:
+    DBUG_PRINT("info", ("HA_EXTRA_DELETE_CANNOT_BATCH"));
+    m_delete_cannot_batch= TRUE;
+    break;
+  case HA_EXTRA_UPDATE_CANNOT_BATCH:
+    DBUG_PRINT("info", ("HA_EXTRA_UPDATE_CANNOT_BATCH"));
+    m_update_cannot_batch= TRUE;
+    break;
+  default:
+    break;
   }
   
   DBUG_RETURN(0);
@@ -3422,6 +3437,8 @@ int ha_ndbcluster::reset()
   m_retrieve_primary_key= FALSE;
   m_ignore_dup_key= FALSE;
   m_use_write= FALSE;
+  m_delete_cannot_batch= FALSE;
+  m_update_cannot_batch= FALSE;
   DBUG_RETURN(0);
 }
 
@@ -4788,6 +4805,8 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_bulk_insert_rows((ha_rows) 1024),
   m_rows_changed((ha_rows) 0),
   m_bulk_insert_not_flushed(FALSE),
+  m_delete_cannot_batch(FALSE),
+  m_update_cannot_batch(FALSE),
   m_ops_pending(0),
   m_skip_auto_increment(TRUE),
   m_blobs_pending(0),
@@ -7127,7 +7146,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             Check that the field is part of the table of the handler
             instance and that we expect a field with of this result type.
           */
-          if (context->table == field->table)
+          if (context->table->s == field->table->s)
           {       
             const NDBTAB *tab= (const NDBTAB *) context->ndb_table;
             DBUG_PRINT("info", ("FIELD_ITEM"));
