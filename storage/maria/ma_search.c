@@ -189,7 +189,7 @@ int _ma_bin_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo, byte *page,
   totlength=keyinfo->keylength+(nod_flag=_ma_test_if_nod(page));
   start=0; mid=1;
   save_end=end=(int) ((maria_getint(page)-2-nod_flag)/totlength-1);
-  DBUG_PRINT("test",("maria_getint: %d  end: %d",maria_getint(page),end));
+  DBUG_PRINT("test",("page_length: %d  end: %d",maria_getint(page),end));
   page+=2+nod_flag;
 
   while (start != end)
@@ -971,12 +971,12 @@ uint _ma_get_binary_pack_key(register MARIA_KEYDEF *keyinfo, uint nod_flag,
     {
       /* Get length of dynamic length key part */
       if (from == from_end) { from=page;  from_end=page_end; }
-      if ((length= (*key++ = *from++)) == 255)
+      if ((length= (uint) (uchar) (*key++ = *from++)) == 255)
       {
         if (from == from_end) { from=page;  from_end=page_end; }
-        length= (uint) ((*key++ = *from++)) << 8;
+        length= ((uint) (uchar) ((*key++ = *from++))) << 8;
         if (from == from_end) { from=page;  from_end=page_end; }
-        length+= (uint) ((*key++ = *from++));
+        length+= (uint) (uchar) ((*key++ = *from++));
       }
     }
     else
@@ -988,6 +988,7 @@ uint _ma_get_binary_pack_key(register MARIA_KEYDEF *keyinfo, uint nod_flag,
       length-=tmp;
       from=page; from_end=page_end;
     }
+    DBUG_ASSERT((int) length >= 0);
     DBUG_PRINT("info",("key: 0x%lx  from: 0x%lx  length: %u",
 		       (long) key, (long) from, length));
     memmove((byte*) key, (byte*) from, (size_t) length);

@@ -1,4 +1,18 @@
 # -*- cperl -*-
+# Copyright (C) 2004-2006 MySQL AB
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 # This is a library file used by the Perl version of mysql-test-run,
 # and is part of the translation of the Bourne shell script with the
@@ -220,7 +234,8 @@ sub spawn_parent_impl {
       my $ret_pid= waitpid($pid,0);
       if ( $ret_pid != $pid )
       {
-        mtr_error("$path ($pid) got lost somehow");
+        mtr_error("waitpid($pid, 0) returned $ret_pid " .
+		  "when waiting for '$path'");
       }
 
       return mtr_process_exit_status($?);

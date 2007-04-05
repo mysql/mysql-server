@@ -77,14 +77,14 @@ int maria_status(MARIA_HA *info, register MARIA_INFO *x, uint flag)
     x->create_time=share->state.create_time;
     x->reflength= maria_get_pointer_length(share->base.max_data_file_length,
                                         maria_data_pointer_size);
-    x->record_offset= ((share->options &
-			(HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)) ?
-		       0L : share->base.pack_reclength);
+    x->record_offset= (info->s->data_file_type == STATIC_RECORD ?
+                       share->base.pack_reclength: 0);
     x->sortkey= -1;				/* No clustering */
     x->rec_per_key	= share->state.rec_per_key_part;
     x->key_map	 	= share->state.key_map;
     x->data_file_name   = share->data_file_name;
     x->index_file_name  = share->index_file_name;
+    x->data_file_type   = share->data_file_type;
   }
   if ((flag & HA_STATUS_TIME) && !my_fstat(info->dfile,&state,MYF(0)))
     x->update_time=state.st_mtime;

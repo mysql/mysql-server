@@ -599,7 +599,6 @@ bool read_ddl_log_entry(uint read_entry, DDL_LOG_ENTRY *ddl_log_entry)
 
 static bool init_ddl_log()
 {
-  bool error= FALSE;
   char file_name[FN_REFLEN];
   DBUG_ENTER("init_ddl_log");
 
@@ -6805,7 +6804,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
            uint key_nr= to->file->get_dup_key(error);
            if ((int) key_nr >= 0)
            {
-             const char *err_msg= ER(ER_DUP_ENTRY);
+             const char *err_msg= ER(ER_DUP_ENTRY_WITH_KEY_NAME);
              if (key_nr == 0 &&
                  (to->key_info[0].key_part[0].field->flags &
                   AUTO_INCREMENT_FLAG))

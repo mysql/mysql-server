@@ -20,14 +20,13 @@
 
 ha_checksum _ma_checksum(MARIA_HA *info, const byte *record)
 {
-  uint i;
   ha_checksum crc=0;
-  MARIA_COLUMNDEF *rec=info->s->rec;
+  MARIA_COLUMNDEF *rec= info->s->rec, *rec_end= rec+ info->s->base.fields;
 
   if (info->s->base.null_bytes)
     crc= my_checksum(crc, record, info->s->base.null_bytes);
 
-  for (i=info->s->base.fields ; i-- ; )
+  for ( ; rec != rec_end ; rec++)
   {
     const byte *pos= record + rec->offset;
     ulong length;

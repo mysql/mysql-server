@@ -27,6 +27,8 @@
 #include <my_dir.h>
 #include <sql_common.h>
 
+static Log_event* next_event(RELAY_LOG_INFO* rli);
+
 #ifdef HAVE_REPLICATION
 
 #include "rpl_tblmap.h"

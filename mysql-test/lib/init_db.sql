@@ -114,6 +114,20 @@ REPLACE INTO user VALUES ('127.0.0.1'  ,'root','','Y','Y','Y','Y','Y','Y','Y','Y
 INSERT  INTO user (host,user) VALUES ('localhost','');
 INSERT  INTO user (host,user) VALUES ('@HOSTNAME@%','');
 
+CREATE TABLE servers (
+  Server_name char(64) NOT NULL DEFAULT '',
+  Host char(64) NOT NULL DEFAULT '',
+  Db char(64) NOT NULL DEFAULT '',
+  Username char(64) NOT NULL DEFAULT '',
+  Password char(64) NOT NULL DEFAULT '',
+  Port INT(4) NOT NULL DEFAULT '0',
+  Socket char(64) NOT NULL DEFAULT '',
+  Wrapper char(64) NOT NULL DEFAULT '',
+  Owner char(64) NOT NULL DEFAULT '',
+  PRIMARY KEY (Server_name))
+  CHARACTER SET utf8 comment='MySQL Foreign Servers table';
+
+INSERT INTO servers VALUES ('test','localhost','test','root','', 0,'','mysql','root');
 
 CREATE TABLE func (
   name char(64) binary DEFAULT '' NOT NULL,

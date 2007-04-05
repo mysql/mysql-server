@@ -1,6 +1,8 @@
 #
-# Test bugs in the MARIA code
+# Testing of potential probelms in Maria
+# This code was initially taken from myisam.test
 #
+
 -- source include/have_maria.inc
 
 let $default=`select @@global.storage_engine`;
@@ -48,7 +50,7 @@ while ($1)
 }
 SET SQL_WARNINGS=1;
 --enable_warnings
-enable_query_log;
+--enable_query_log
 check table t1;
 repair table t1;
 delete from t1 where (a & 1);
@@ -404,7 +406,7 @@ check table t1;
 drop table t1;
 
 #
-# two bugs in maria-space-stripping feature
+# Test space-stripping features
 #
 create table t1 ( a text not null, key a (a(20)));
 insert into t1 values ('aaa   '),('aaa'),('aa');
@@ -417,7 +419,7 @@ select concat(a,'.') from t1;
 drop table t1;
 
 #
-# Third bug in the same code (BUG#2295)
+# More space testing
 #
 
 create table t1(a text not null, b text not null, c text not null, index (a(10),b(10),c(10)));
@@ -428,9 +430,9 @@ select * from t1 where a='807780' and b='477' and c='165';
 drop table t1;
 
 #
-# space-stripping in _mi_prefix_search: BUG#5284
+# Space-stripping in prefix_search
 #
-DROP TABLE IF EXISTS t1;
+
 CREATE TABLE t1 (a varchar(150) NOT NULL, KEY (a));
 INSERT t1 VALUES ("can \tcan"); 
 INSERT t1 VALUES ("can   can"); 
@@ -442,6 +444,7 @@ DROP TABLE t1;
 #
 # Verify blob handling
 #
+
 create table t1 (a blob);
 insert into t1 values('a '),('a');
 select concat(a,'.') from t1 where a='a';
@@ -458,9 +461,9 @@ create table t1 (a int not null auto_increment primary key, b text not null, uni
 insert into t1 (b) values ('a'),('b'),('c');
 select concat(b,'.') from t1;
 update t1 set b='b ' where a=2;
---error 1062
+--error 1582
 update t1 set b='b  ' where a > 1;
---error 1062
+--error 1582
 insert into t1 (b) values ('b');
 select * from t1;
 delete from t1 where b='b';
@@ -468,7 +471,7 @@ select a,concat(b,'.') from t1;
 drop table t1;
 
 #
-# Test keys with 0 segments. (Bug #3203)
+# Test keys with 0 segments
 #
 create table t1 (a int not null);
 create table t2 (a int not null, primary key (a));
@@ -482,7 +485,7 @@ explain select distinct t1.a from t1,t2 order by t2.a;
 drop table t1,t2;
 
 #
-# Bug#14616 - Freshly imported table returns error 124 when using LIMIT
+# Test freshly imported table and LIMIT
 #
 create table t1 (
   c1 varchar(32),
@@ -494,16 +497,18 @@ select c1 from t1 order by c1 limit 1;
 drop table t1;
 
 #
-# Bug #14400  Join could miss concurrently inserted row
+# Test join that could miss concurrently inserted row
+# Note that for the moment Maria only supports multiple writers if we have
+# static or dynamic row format
 #
 # Partial key.
-create table t1 (a int not null, primary key(a));
-create table t2 (a int not null, b int not null, primary key(a,b));
+create table t1 (a int not null, primary key(a)) ROW_FORMAT=FIXED;
+create table t2 (a int not null, b int not null, primary key(a,b)) ROW_FORMAT=FIXED;
 insert into t1 values (1),(2),(3),(4),(5),(6);
 insert into t2 values (1,1),(2,1);
 lock tables t1 read local, t2 read local;
 select straight_join * from t1,t2 force index (primary) where t1.a=t2.a;
-connect (root,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 insert into t2 values(2,0);
 disconnect root;
 connection default;
@@ -511,8 +516,8 @@ select straight_join * from t1,t2 force index (primary) where t1.a=t2.a;
 drop table t1,t2;
 #
 # Full key.
-CREATE TABLE t1 (c1 varchar(250) NOT NULL);
-CREATE TABLE t2 (c1 varchar(250) NOT NULL, PRIMARY KEY (c1));
+CREATE TABLE t1 (c1 varchar(250) NOT NULL) ROW_FORMAT=DYNAMIC;
+CREATE TABLE t2 (c1 varchar(250) NOT NULL, PRIMARY KEY (c1)) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES ('test000001'), ('test000002'), ('test000003');
 INSERT INTO t2 VALUES ('test000002'), ('test000003'), ('test000004');
 LOCK TABLES t1 READ LOCAL, t2 READ LOCAL;
@@ -526,8 +531,6 @@ connection default;
 SELECT t1.c1 AS t1c1, t2.c1 AS t2c1 FROM t1, t2
   WHERE t1.c1 = t2.c1 HAVING t1c1 != t2c1;
 DROP TABLE t1,t2;
-
-# End of 4.0 tests
 
 #
 # Test RTREE index
@@ -566,13 +569,16 @@ insert t1 select * from t2;
 show keys from t1;
 alter table t1 enable keys;
 show keys from t1;
+#TODO after we have repair: delete the following --disable-warnings
+--disable_warnings
 alter table t1 engine=heap;
+--enable_warnings
 alter table t1 disable keys;
 show keys from t1;
 drop table t1,t2;
 
 #
-# index search for NULL in blob. Bug #4816
+# Index search for NULL in blob
 #
 create table t1 ( a tinytext, b char(1), index idx (a(1),b) );
 insert into t1 values (null,''), (null,'');
@@ -581,7 +587,7 @@ select count(*) from t1 where a is null;
 drop table t1;
 
 #
-# bug9188 - Corruption Can't open file: 'table.MYI' (errno: 145)
+# Test corruption Can't open file: 'table.MYI' (errno: 145)
 #
 create table t1 (c1 int, c2 varchar(4) not null default '',
                  key(c2(3))) default charset=utf8;
@@ -592,9 +598,9 @@ drop table t1;
 
 
 #
-# Bug#12296 - CHECKSUM TABLE reports 0 for the table
-# This happened if the first record was marked as deleted.
+# Test CHECKSUM TABLE
 #
+
 create table t1 (c1 int);
 insert into t1 values (1),(2),(3),(4);
 checksum table t1;
@@ -607,7 +613,7 @@ checksum table t2;
 drop table t1, t2;
 
 #
-# BUG#12232: New maria_stats_method variable.
+# maria_stats_method variable.
 #
 
 show variables like 'maria_stats_method';
@@ -677,7 +683,9 @@ show index from t1;
 set maria_stats_method=DEFAULT;
 drop table t1;
 
-# BUG#13814 - key value packed incorrectly for TINYBLOBs
+#
+# Test key value packing for TINYBLOBs
+#
 
 create table t1(
   cip INT NOT NULL,
@@ -695,8 +703,9 @@ select * from t1 where bob is null and cip=1;
 drop table t1;
 
 #
-# Bug#14980 - COUNT(*) incorrect on MARIA table with certain INDEX
+# Test COUNT(*) table with different INDEX
 #
+
 create table t1 (
   id1 int not null auto_increment,
   id2 int not null default '0',
@@ -713,9 +722,9 @@ select count(id1) from t1 where id2 = 10;
 drop table t1;
 
 #
-# BUG##20357 - Got error 124 from storage engine using MIN and MAX functions
-#              in queries
+# Test MIN and MAX functions in queries
 #
+
 CREATE TABLE t1(a TINYINT, KEY(a));
 INSERT INTO t1 VALUES(1);
 SELECT MAX(a) FROM t1 IGNORE INDEX(a);
@@ -725,7 +734,7 @@ SELECT MAX(a) FROM t1 IGNORE INDEX(a);
 DROP TABLE t1;
 
 #
-# BUG#18036 - update of table joined to self reports table as crashed
+# Test update of table joined to self
 #
 CREATE TABLE t1(a CHAR(9), b VARCHAR(7));
 INSERT INTO t1(a) VALUES('xxxxxxxxx'),('xxxxxxxxx');
@@ -734,7 +743,7 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 #
-# Bug#8283 - OPTIMIZE TABLE causes data loss
+# OPTIMIZE TABLE with multiple threads
 #
 SET @@maria_repair_threads=2;
 SHOW VARIABLES LIKE 'maria_repair%';
@@ -756,7 +765,7 @@ CREATE TABLE t1 (
   PRIMARY KEY  (`_id`),
   UNIQUE KEY `sequence_name_index` (`name`(50)),
   KEY (`length_`)
-) ENGINE=maria DEFAULT CHARSET=latin1;
+) DEFAULT CHARSET=latin1;
 #
 INSERT INTO t1 VALUES
   (1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample1',''),
@@ -798,7 +807,7 @@ CREATE TABLE t1 (
   PRIMARY KEY  (`_id`),
   UNIQUE KEY `sequence_name_index` (`name`(50)),
   KEY (`length_`)
-) ENGINE=maria DEFAULT CHARSET=latin1;
+) DEFAULT CHARSET=latin1;
 #
 INSERT INTO t1 VALUES
   (1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample1',''),
@@ -825,6 +834,7 @@ DROP TABLE t1;
 #
 SET @@maria_repair_threads=1;
 SHOW VARIABLES LIKE 'maria_repair%';
+
 #
 # Test varchar
 #
@@ -854,7 +864,7 @@ create table t1 (v varchar(65535));
 #
 set @save_concurrent_insert=@@concurrent_insert;
 set global concurrent_insert=1;
-create table t1 (a int);
+create table t1 (a int) ROW_FORMAT=FIXED;
 insert into t1 values (1),(2),(3),(4),(5);
 lock table t1 read local;
 connect (con1,localhost,root,,);
@@ -879,7 +889,7 @@ drop table t1;
 disconnect con1;
 
 # Same test with dynamic record length
-create table t1 (a int, b varchar(30) default "hello");
+create table t1 (a int, b varchar(30) default "hello") ROW_FORMAT=DYNAMIC;
 insert into t1 (a) values (1),(2),(3),(4),(5);
 lock table t1 read local;
 connect (con1,localhost,root,,);
@@ -904,9 +914,10 @@ drop table t1;
 disconnect con1;
 set global concurrent_insert=@save_concurrent_insert;
 
+#
+# ANALYZE TABLE and ALTER TABLE .. ENABLE INDEX
+#
 
-# BUG#9622 - ANALYZE TABLE and ALTER TABLE .. ENABLE INDEX produce
-# different statistics on the same table with NULL values.
 create table t1 (a int, key(a));
 
 insert into t1 values (1),(2),(3),(4),(NULL),(NULL),(NULL),(NULL);
@@ -920,7 +931,7 @@ show keys from t1;
 drop table t1;
 
 #
-# Bug#8706 - temporary table with data directory option fails
+# Test temporary table with data directory option
 #
 connect (session1,localhost,root,,);
 connect (session2,localhost,root,,);
@@ -957,7 +968,7 @@ drop table t1;
 --echo End of 4.1 tests
 
 #
-# Bug#10056 - PACK_KEYS option take values greater than 1 while creating table
+# Test if PACK_KEYS option takes values greater than 1 while creating table
 #
 create table t1 (c1 int) pack_keys=0;
 create table t2 (c1 int) pack_keys=1;
@@ -965,8 +976,6 @@ create table t3 (c1 int) pack_keys=default;
 --error 1064
 create table t4 (c1 int) pack_keys=2;
 drop table t1, t2, t3;
-
---echo End of 5.0 tests
 
 #
 # Test of key_block_size
@@ -1033,7 +1042,7 @@ create table t1 (a int not null, key `a` key_block_size=1024 (a));
 
 
 #
-# Bug#22119 - Changing MI_KEY_BLOCK_LENGTH makes a wrong myisamchk
+# Test of changing MI_KEY_BLOCK_LENGTH
 #
 CREATE TABLE t1 (
   c1 INT,
@@ -1075,8 +1084,6 @@ DELETE FROM t1 WHERE c1 >= 10;
 CHECK TABLE t1;
 DROP TABLE t1;
 
---echo End of 5.1 tests
+# End of 5.2 tests
 
 eval set global storage_engine=$default;
-
-# End of 5.2 tests

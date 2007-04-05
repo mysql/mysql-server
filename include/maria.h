@@ -122,22 +122,23 @@ typedef struct st_maria_isaminfo	/* Struct from h_info */
   my_off_t data_file_length;            /* Length of data file */
   my_off_t max_data_file_length, index_file_length;
   my_off_t max_index_file_length, delete_length;
-  ulong reclength;                      /* Recordlength */
-  ulong mean_reclength;                 /* Mean recordlength (if packed) */
   ulonglong auto_increment;
   ulonglong key_map;                    /* Which keys are used */
-  char *data_file_name, *index_file_name;
-  uint keys;                            /* Number of keys in use */
-  uint options;                         /* HA_OPTION_... used */
-  int errkey,                           /* With key was dupplicated on err */
-    sortkey;                            /* clustered by this key */
-  File filenr;                          /* (uniq) filenr for datafile */
   time_t create_time;                   /* When table was created */
   time_t check_time;
   time_t update_time;
-  uint reflength;
   ulong record_offset;
   ulong *rec_per_key;                   /* for sql optimizing */
+  ulong reclength;                      /* Recordlength */
+  ulong mean_reclength;                 /* Mean recordlength (if packed) */
+  char *data_file_name, *index_file_name;
+  enum data_file_type data_file_type;
+  uint keys;                            /* Number of keys in use */
+  uint options;                         /* HA_OPTION_... used */
+  uint reflength;
+  int errkey,                           /* With key was dupplicated on err */
+    sortkey;                            /* clustered by this key */
+  File filenr;                          /* (uniq) filenr for datafile */
 } MARIA_INFO;
 
 

@@ -937,7 +937,7 @@ static my_bool find_mid(MARIA_HA *info, ulong pages, uint position)
   MARIA_BITMAP_BLOCK *block;
   block= dynamic_element(&info->bitmap_blocks, position, MARIA_BITMAP_BLOCK *);
 
-  while (allocate_full_pages(bitmap, pages, block, 1))
+  while (!allocate_full_pages(bitmap, pages, block, 1))
   {
     if (move_to_next_bitmap(info, bitmap))
       return 1;
@@ -1101,6 +1101,9 @@ static my_bool write_rest_of_head(MARIA_HA *info, uint position,
   MARIA_SHARE *share= info->s;
   uint full_page_size= FULL_PAGE_SIZE(share->block_size);
   MARIA_BITMAP_BLOCK *block;
+  DBUG_ENTER("write_rest_of_head");
+  DBUG_PRINT("enter", ("position: %u  rest_length: %lu", position,
+                       rest_length));
 
   if (position == 0)
   {
@@ -1114,8 +1117,8 @@ static my_bool write_rest_of_head(MARIA_HA *info, uint position,
       pages++;
       rest_length= 0;
     }
-    if (find_mid(info, rest_length / full_page_size, 1))
-      return 1;
+    if (find_mid(info, pages, 1))
+      DBUG_RETURN(1);
     /*
       Insert empty block after full pages, to allow write_block_record() to
       split segment into used + free page
@@ -1127,7 +1130,7 @@ static my_bool write_rest_of_head(MARIA_HA *info, uint position,
   if (rest_length)
   {
     if (find_tail(info, rest_length, ELEMENTS_RESERVED_FOR_MAIN_PART - 1))
-      return 1;
+      DBUG_RETURN(1);
   }
   else
   {
@@ -1138,7 +1141,7 @@ static my_bool write_rest_of_head(MARIA_HA *info, uint position,
     block->page_count= 0;
     block->used= 0;
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -1510,6 +1513,9 @@ my_bool _ma_reset_full_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
 
   For the first block (head block) the logic is same as for a tail block
 
+  Note that we may have 'filler blocks' that are used to split a block
+  in half; These can be recognized by that they have page_count == 0.
+
   RETURN
     0  ok
     1  error (Couldn't write or read bitmap page)
@@ -1548,6 +1554,9 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
   /* Handle all full pages and tail pages (for head page and blob) */
   for (block++; block < end; block++)
   {
+    if (!block->page_count)
+      continue;                               /* Skip 'filler blocks' */
+
     if (block->used & BLOCKUSED_TAIL)
     {
       if (block->used & BLOCKUSED_USED)

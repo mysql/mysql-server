@@ -195,6 +195,14 @@ const char *ha_maria::index_type(uint key_number)
 }
 
 
+double ha_maria::scan_time()
+{
+  if (file->s->data_file_type == BLOCK_RECORD)
+    return ulonglong2double(stats.data_file_length - file->s->block_size) / max(file->s->block_size / 2, IO_SIZE) + 2;
+  return handler::scan_time();
+}
+
+
 #ifdef HAVE_REPLICATION
 int ha_maria::net_read_dump(NET * net)
 {
@@ -329,7 +337,7 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
   if (!(test_if_locked & HA_OPEN_WAIT_IF_LOCKED))
     VOID(maria_extra(file, HA_EXTRA_WAIT_LOCK, 0));
-  if (!table->s->db_record_offset)
+  if (file->s->data_file_type != STATIC_RECORD)
     int_table_flags |= HA_REC_NOT_IN_SEQ;
   if (file->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     int_table_flags |= HA_HAS_CHECKSUM;
@@ -704,6 +712,16 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool optimize)
   param.out_flag= 0;
   strmov(fixed_name, file->filename);
 
+#ifndef TO_BE_FIXED
+  /* QQ: Until we have repair for block format, lie that it succeded */
+  if (file->s->data_file_type == BLOCK_RECORD)
+  {
+    if (optimize)
+      DBUG_RETURN(analyze(thd, (HA_CHECK_OPT*) 0));
+    DBUG_RETURN(HA_ADMIN_OK);
+  }
+#endif
+
   // Don't lock tables if we have used LOCK TABLE
   if (!thd->locked_tables &&
       maria_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
@@ -715,7 +733,8 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool optimize)
   if (!optimize ||
       ((file->state->del || share->state.split != file->state->records) &&
        (!(param.testflag & T_QUICK) ||
-        !(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))))
+        (share->state.changed & (STATE_NOT_OPTIMIZED_KEYS |
+                                 STATE_NOT_OPTIMIZED_ROWS)))))
   {
     ulonglong key_map= ((local_testflag & T_CREATE_MISSING_KEYS) ?
                         maria_get_mask_all_keys_active(share->base.keys) :
@@ -1125,6 +1144,8 @@ void ha_maria::start_bulk_insert(ha_rows rows)
 
   can_enable_indexes= maria_is_all_keys_active(file->s->state.key_map,
                                                file->s->base.keys);
+  /* TODO: Remove when we have repair() working */
+  can_enable_indexes= 0;
 
   if (!(specialflag & SPECIAL_SAFE_MODE))
   {
@@ -1163,10 +1184,12 @@ void ha_maria::start_bulk_insert(ha_rows rows)
 
 int ha_maria::end_bulk_insert()
 {
+  int err;
+  DBUG_ENTER("ha_maria::end_bulk_insert");
   maria_end_bulk_insert(file);
-  int err= maria_extra(file, HA_EXTRA_NO_CACHE, 0);
-  return err ? err : can_enable_indexes ?
-    enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE) : 0;
+  err= maria_extra(file, HA_EXTRA_NO_CACHE, 0);
+  DBUG_RETURN(err ? err : can_enable_indexes ?
+              enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE) : 0);
 }
 
 
@@ -1336,6 +1359,14 @@ int ha_maria::rnd_init(bool scan)
 }
 
 
+int ha_maria::rnd_end()
+{
+  /* Safe to call even if we don't have started a scan */
+  maria_scan_end(file);
+  return 0;
+}
+
+
 int ha_maria::rnd_next(byte *buf)
 {
   statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
@@ -1499,6 +1530,29 @@ void ha_maria::update_create_info(HA_CREATE_INFO *create_info)
 }
 
 
+enum row_type ha_maria::get_row_type() const
+{
+  switch (file->s->data_file_type) {
+  case STATIC_RECORD:     return ROW_TYPE_FIXED;
+  case DYNAMIC_RECORD:    return ROW_TYPE_DYNAMIC;
+  case BLOCK_RECORD:      return ROW_TYPE_PAGES;
+  case COMPRESSED_RECORD: return ROW_TYPE_COMPRESSED;
+  default:                return ROW_TYPE_NOT_USED;
+  }
+}
+
+
+static enum data_file_type maria_row_type(HA_CREATE_INFO *info)
+{
+  switch (info->row_type) {
+  case ROW_TYPE_FIXED:   return STATIC_RECORD;
+  case ROW_TYPE_DYNAMIC: return DYNAMIC_RECORD;
+  default:               return BLOCK_RECORD;
+  }
+}
+
+
+
 int ha_maria::create(const char *name, register TABLE *table_arg,
                      HA_CREATE_INFO *info)
 {
@@ -1518,6 +1572,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
   DBUG_ENTER("ha_maria::create");
 
   type= HA_KEYTYPE_BINARY;                      // Keep compiler happy
+  row_type= maria_row_type(info);
   if (!(my_multi_malloc(MYF(MY_WME),
                         &recinfo, (share->fields * 2 + 2) *
                         sizeof(MARIA_COLUMNDEF),
@@ -1652,7 +1707,8 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
       recinfo_pos->type= FIELD_BLOB;
     else if (found->type() == MYSQL_TYPE_VARCHAR)
       recinfo_pos->type= FIELD_VARCHAR;
-    else if (!(options & HA_OPTION_PACK_RECORD))
+    else if (!(options & HA_OPTION_PACK_RECORD) ||
+             (found->zero_pack() && (found->flags & PRI_KEY_FLAG)))
       recinfo_pos->type= FIELD_NORMAL;
     else if (found->zero_pack())
       recinfo_pos->type= FIELD_SKIP_ZERO;
@@ -1700,19 +1756,6 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
     create_flags |= HA_CREATE_CHECKSUM;
   if (options & HA_OPTION_DELAY_KEY_WRITE)
     create_flags |= HA_CREATE_DELAY_KEY_WRITE;
-
-  switch (info->row_type) {
-  case ROW_TYPE_FIXED:
-    row_type= STATIC_RECORD;
-    break;
-  case ROW_TYPE_DYNAMIC:
-    row_type= DYNAMIC_RECORD;
-    break;
-  default:
-  case ROW_TYPE_PAGES:
-    row_type= BLOCK_RECORD;
-    break;
-  }
 
   /* TODO: Check that the following fn_format is really needed */
   error=
@@ -1843,6 +1886,7 @@ bool ha_maria::check_if_incompatible_data(HA_CREATE_INFO *info,
   if (info->auto_increment_value != stats.auto_increment_value ||
       info->data_file_name != data_file_name ||
       info->index_file_name != index_file_name ||
+      maria_row_type(info) != data_file_type ||
       table_changes == IS_EQUAL_NO ||
       table_changes & IS_EQUAL_PACK_LENGTH) // Not implemented yet
     return COMPATIBLE_DATA_NO;

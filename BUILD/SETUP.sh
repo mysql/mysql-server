@@ -92,9 +92,13 @@ if [ "x$warning_mode" != "xpedantic" ]; then
 # Both C and C++ warnings
   warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W"
   warnings="$warnings -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare"
-  warnings="$warnings -Wwrite-strings"
+  warnings="$warnings -Wwrite-strings -Wunused-function -Wunused-label -Wunused-value -Wunused-variable"
+
+# For more warnings, uncomment the following line
+# warnings="$global_warnings -Wshadow"
+
 # C warnings
-  c_warnings="$warnings -Wunused"
+  c_warnings="$warnings -Wunused-parameter"
 # C++ warnings
   cxx_warnings="$warnings -Woverloaded-virtual -Wsign-promo -Wreorder"
   cxx_warnings="$warnings -Wctor-dtor-privacy -Wnon-virtual-dtor"
@@ -117,9 +121,8 @@ valgrind_flags="-USAFEMALLOC -UFORCE_INIT_OF_VARS -DHAVE_purify "
 valgrind_flags="$valgrind_flags -DMYSQL_SERVER_SUFFIX=-valgrind-max"
 #
 # Used in -debug builds
-debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS"
+debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "
 debug_cflags="$debug_cflags -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC -DSAFE_MUTEX"
-debug_cflags="$debug_cflags -DMY_LF_EXTRA_DEBUG"
 error_inject="--with-error-inject "
 #
 # Base C++ flags for all builds
@@ -140,9 +143,19 @@ fi
 #
 base_configs="--prefix=$prefix --enable-assembler "
 base_configs="$base_configs --with-extra-charsets=complex "
-base_configs="$base_configs --enable-thread-safe-client --with-readline "
+base_configs="$base_configs --enable-thread-safe-client "
 base_configs="$base_configs --with-big-tables"
 
+if test -d "$path/../cmd-line-utils/readline"
+then
+    base_configs="$base_configs --with-readline"
+elif test -d "$path/../cmd-line-utils/libedit"
+then
+    base_configs="$base_configs --with-libedit"
+fi
+
+static_link="--with-mysqld-ldflags=-all-static "
+static_link="$static_link --with-client-ldflags=-all-static"
 # we need local-infile in all binaries for rpl000001
 # if you need to disable local-infile in the client, write a build script
 # and unset local_infile_configs
@@ -182,7 +195,13 @@ fi
 # (http://samba.org/ccache) is installed, use it.
 # We use 'grep' and hope 'grep' will work as expected
 # (returns 0 if finds lines)
-if ccache -V > /dev/null 2>&1 && test "$CCACHE_GCOV_VERSION_ENABLED" == "1"
+if test "$USING_GCOV" != "1"
+then
+  # Not using gcov; Safe to use ccache
+  CCACHE_GCOV_VERSION_ENABLED=1
+fi
+
+if ccache -V > /dev/null 2>&1 && test "$CCACHE_GCOV_VERSION_ENABLED" = "1"
 then
   echo "$CC" | grep "ccache" > /dev/null || CC="ccache $CC"
   echo "$CXX" | grep "ccache" > /dev/null || CXX="ccache $CXX"

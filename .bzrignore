@@ -2961,3 +2961,12 @@ unittest/mysys/mf_pagecache_consist_64kHC-t-big
 unittest/mysys/mf_pagecache_consist_64kRD-t-big
 unittest/mysys/mf_pagecache_consist_64kWR-t-big
 unittest/mysys/mf_pagecache_single_64k-t-big
+storage/maria/unittest/mf_pagecache_consist_1k-t-big
+storage/maria/unittest/mf_pagecache_consist_1kHC-t-big
+storage/maria/unittest/mf_pagecache_consist_1kRD-t-big
+storage/maria/unittest/mf_pagecache_consist_1kWR-t-big
+storage/maria/unittest/mf_pagecache_consist_64k-t-big
+storage/maria/unittest/mf_pagecache_consist_64kHC-t-big
+storage/maria/unittest/mf_pagecache_consist_64kRD-t-big
+storage/maria/unittest/mf_pagecache_consist_64kWR-t-big
+storage/maria/unittest/mf_pagecache_single_64k-t-big
