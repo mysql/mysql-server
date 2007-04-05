@@ -2109,9 +2109,6 @@ sp_head::show_create_procedure(THD *thd)
   DBUG_ENTER("sp_head::show_create_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 
-  LINT_INIT(sql_mode_str);
-  LINT_INIT(sql_mode_len);
-
   if (check_show_routine_access(thd, this, &full_access))
     DBUG_RETURN(1);
 
