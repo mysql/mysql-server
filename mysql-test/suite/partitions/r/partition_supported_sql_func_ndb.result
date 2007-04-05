@@ -10,11 +10,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with abs(col1)
 -------------------------------------------------------------------------
-create table t1 (col1 int) engine='INNODB' 
+create table t1 (col1 int) engine='NDB' 
 partition by range(abs(col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 int) engine='INNODB' 
+create table t2 (col1 int) engine='NDB' 
 partition by list(abs(col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -23,14 +23,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 int) engine='INNODB' 
+create table t3 (col1 int) engine='NDB' 
 partition by hash(abs(col1));
-create table t4 (colint int, col1 int) engine='INNODB' 
+create table t4 (colint int, col1 int) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(abs(col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 int) engine='INNODB' 
+create table t5 (colint int, col1 int) engine='NDB' 
 partition by list(colint)
 subpartition by hash(abs(col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -40,7 +40,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 int) engine='INNODB' 
+create table t6 (colint int, col1 int) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (abs(15)),
 partition p1 values less than maxvalue);
@@ -387,12 +387,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(abs(col1)) 
 (partition p0 values less than (15),
@@ -615,7 +615,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (abs(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (abs(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	15
@@ -1686,11 +1686,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with ascii(col1)
 -------------------------------------------------------------------------
-create table t1 (col1 char(1)) engine='INNODB' 
+create table t1 (col1 char(1)) engine='NDB' 
 partition by range(ascii(col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 char(1)) engine='INNODB' 
+create table t2 (col1 char(1)) engine='NDB' 
 partition by list(ascii(col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -1699,14 +1699,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 char(1)) engine='INNODB' 
+create table t3 (col1 char(1)) engine='NDB' 
 partition by hash(ascii(col1));
-create table t4 (colint int, col1 char(1)) engine='INNODB' 
+create table t4 (colint int, col1 char(1)) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(ascii(col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 char(1)) engine='INNODB' 
+create table t5 (colint int, col1 char(1)) engine='NDB' 
 partition by list(colint)
 subpartition by hash(ascii(col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -1716,7 +1716,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 char(1)) engine='INNODB' 
+create table t6 (colint int, col1 char(1)) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (ascii('5')),
 partition p1 values less than maxvalue);
@@ -1817,12 +1817,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(ascii(col1)) 
 (partition p0 values less than (15),
@@ -1922,7 +1922,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` char(1) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (ascii(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (ascii(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	8
@@ -2186,11 +2186,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with cast(ceiling(col1) as signed integer)
 -------------------------------------------------------------------------
-create table t1 (col1 float(7,4)) engine='INNODB' 
+create table t1 (col1 float(7,4)) engine='NDB' 
 partition by range(cast(ceiling(col1) as signed integer)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 float(7,4)) engine='INNODB' 
+create table t2 (col1 float(7,4)) engine='NDB' 
 partition by list(cast(ceiling(col1) as signed integer)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -2199,14 +2199,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 float(7,4)) engine='INNODB' 
+create table t3 (col1 float(7,4)) engine='NDB' 
 partition by hash(cast(ceiling(col1) as signed integer));
-create table t4 (colint int, col1 float(7,4)) engine='INNODB' 
+create table t4 (colint int, col1 float(7,4)) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(cast(ceiling(col1) as signed integer)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 float(7,4)) engine='INNODB' 
+create table t5 (colint int, col1 float(7,4)) engine='NDB' 
 partition by list(colint)
 subpartition by hash(cast(ceiling(col1) as signed integer)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -2216,7 +2216,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 float(7,4)) engine='INNODB' 
+create table t6 (colint int, col1 float(7,4)) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (cast(ceiling(15) as signed integer)),
 partition p1 values less than maxvalue);
@@ -2317,12 +2317,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(cast(ceiling(col1) as signed integer)) 
 (partition p0 values less than (15),
@@ -2422,7 +2422,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` float(7,4) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (cast(ceiling(col1) as signed integer)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (cast(ceiling(col1) as signed integer)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	15.6540
@@ -2684,11 +2684,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with cast(floor(col1) as signed)
 -------------------------------------------------------------------------
-create table t1 (col1 float(7,4)) engine='INNODB' 
+create table t1 (col1 float(7,4)) engine='NDB' 
 partition by range(cast(floor(col1) as signed)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 float(7,4)) engine='INNODB' 
+create table t2 (col1 float(7,4)) engine='NDB' 
 partition by list(cast(floor(col1) as signed)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -2697,14 +2697,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 float(7,4)) engine='INNODB' 
+create table t3 (col1 float(7,4)) engine='NDB' 
 partition by hash(cast(floor(col1) as signed));
-create table t4 (colint int, col1 float(7,4)) engine='INNODB' 
+create table t4 (colint int, col1 float(7,4)) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(cast(floor(col1) as signed)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 float(7,4)) engine='INNODB' 
+create table t5 (colint int, col1 float(7,4)) engine='NDB' 
 partition by list(colint)
 subpartition by hash(cast(floor(col1) as signed)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -2714,7 +2714,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 float(7,4)) engine='INNODB' 
+create table t6 (colint int, col1 float(7,4)) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (cast(floor(15.123) as signed)),
 partition p1 values less than maxvalue);
@@ -2815,12 +2815,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(cast(floor(col1) as signed)) 
 (partition p0 values less than (15),
@@ -2920,7 +2920,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` float(7,4) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (cast(floor(col1) as signed)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (cast(floor(col1) as signed)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	15.6540
@@ -3182,11 +3182,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with cast(mod(col1,10) as signed)
 -------------------------------------------------------------------------
-create table t1 (col1 float(7,4)) engine='INNODB' 
+create table t1 (col1 float(7,4)) engine='NDB' 
 partition by range(cast(mod(col1,10) as signed)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 float(7,4)) engine='INNODB' 
+create table t2 (col1 float(7,4)) engine='NDB' 
 partition by list(cast(mod(col1,10) as signed)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -3195,14 +3195,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 float(7,4)) engine='INNODB' 
+create table t3 (col1 float(7,4)) engine='NDB' 
 partition by hash(cast(mod(col1,10) as signed));
-create table t4 (colint int, col1 float(7,4)) engine='INNODB' 
+create table t4 (colint int, col1 float(7,4)) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(cast(mod(col1,10) as signed)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 float(7,4)) engine='INNODB' 
+create table t5 (colint int, col1 float(7,4)) engine='NDB' 
 partition by list(colint)
 subpartition by hash(cast(mod(col1,10) as signed)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -3212,7 +3212,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 float(7,4)) engine='INNODB' 
+create table t6 (colint int, col1 float(7,4)) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (cast(mod(15,10) as signed)),
 partition p1 values less than maxvalue);
@@ -3313,12 +3313,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(cast(mod(col1,10) as signed)) 
 (partition p0 values less than (15),
@@ -3418,7 +3418,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` float(7,4) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (cast(mod(col1,10) as signed)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (cast(mod(col1,10) as signed)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	5.1230
@@ -3682,11 +3682,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with ord(col1)
 -------------------------------------------------------------------------
-create table t1 (col1 char(3)) engine='INNODB' 
+create table t1 (col1 char(3)) engine='NDB' 
 partition by range(ord(col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 char(3)) engine='INNODB' 
+create table t2 (col1 char(3)) engine='NDB' 
 partition by list(ord(col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -3695,14 +3695,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 char(3)) engine='INNODB' 
+create table t3 (col1 char(3)) engine='NDB' 
 partition by hash(ord(col1));
-create table t4 (colint int, col1 char(3)) engine='INNODB' 
+create table t4 (colint int, col1 char(3)) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(ord(col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 char(3)) engine='INNODB' 
+create table t5 (colint int, col1 char(3)) engine='NDB' 
 partition by list(colint)
 subpartition by hash(ord(col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -3712,7 +3712,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 char(3)) engine='INNODB' 
+create table t6 (colint int, col1 char(3)) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (ord('a')),
 partition p1 values less than maxvalue);
@@ -3813,12 +3813,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(ord(col1)) 
 (partition p0 values less than (15),
@@ -3918,7 +3918,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` char(3) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (ord(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (ord(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	8
@@ -4180,11 +4180,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with day(col1)
 -------------------------------------------------------------------------
-create table t1 (col1 date) engine='INNODB' 
+create table t1 (col1 date) engine='NDB' 
 partition by range(day(col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 date) engine='INNODB' 
+create table t2 (col1 date) engine='NDB' 
 partition by list(day(col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -4193,14 +4193,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 date) engine='INNODB' 
+create table t3 (col1 date) engine='NDB' 
 partition by hash(day(col1));
-create table t4 (colint int, col1 date) engine='INNODB' 
+create table t4 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(day(col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 date) engine='INNODB' 
+create table t5 (colint int, col1 date) engine='NDB' 
 partition by list(colint)
 subpartition by hash(day(col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -4210,7 +4210,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 date) engine='INNODB' 
+create table t6 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (day('2006-12-21')),
 partition p1 values less than maxvalue);
@@ -4311,12 +4311,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(day(col1)) 
 (partition p0 values less than (15),
@@ -4416,7 +4416,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (day(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (day(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	2006-02-05
@@ -4676,11 +4676,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with dayofmonth(col1)
 -------------------------------------------------------------------------
-create table t1 (col1 date) engine='INNODB' 
+create table t1 (col1 date) engine='NDB' 
 partition by range(dayofmonth(col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 date) engine='INNODB' 
+create table t2 (col1 date) engine='NDB' 
 partition by list(dayofmonth(col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -4689,14 +4689,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 date) engine='INNODB' 
+create table t3 (col1 date) engine='NDB' 
 partition by hash(dayofmonth(col1));
-create table t4 (colint int, col1 date) engine='INNODB' 
+create table t4 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(dayofmonth(col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 date) engine='INNODB' 
+create table t5 (colint int, col1 date) engine='NDB' 
 partition by list(colint)
 subpartition by hash(dayofmonth(col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -4706,7 +4706,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 date) engine='INNODB' 
+create table t6 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (dayofmonth('2006-12-24')),
 partition p1 values less than maxvalue);
@@ -4807,12 +4807,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(dayofmonth(col1)) 
 (partition p0 values less than (15),
@@ -4912,7 +4912,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (dayofmonth(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (dayofmonth(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	2006-02-05
@@ -5172,11 +5172,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with dayofweek(col1)
 -------------------------------------------------------------------------
-create table t1 (col1 date) engine='INNODB' 
+create table t1 (col1 date) engine='NDB' 
 partition by range(dayofweek(col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 date) engine='INNODB' 
+create table t2 (col1 date) engine='NDB' 
 partition by list(dayofweek(col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -5185,14 +5185,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 date) engine='INNODB' 
+create table t3 (col1 date) engine='NDB' 
 partition by hash(dayofweek(col1));
-create table t4 (colint int, col1 date) engine='INNODB' 
+create table t4 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(dayofweek(col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 date) engine='INNODB' 
+create table t5 (colint int, col1 date) engine='NDB' 
 partition by list(colint)
 subpartition by hash(dayofweek(col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -5202,7 +5202,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 date) engine='INNODB' 
+create table t6 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (dayofweek('2006-12-24')),
 partition p1 values less than maxvalue);
@@ -5303,12 +5303,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(dayofweek(col1)) 
 (partition p0 values less than (15),
@@ -5408,7 +5408,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (dayofweek(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (dayofweek(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	2006-02-03
@@ -5680,11 +5680,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with dayofyear(col1)
 -------------------------------------------------------------------------
-create table t1 (col1 date) engine='INNODB' 
+create table t1 (col1 date) engine='NDB' 
 partition by range(dayofyear(col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 date) engine='INNODB' 
+create table t2 (col1 date) engine='NDB' 
 partition by list(dayofyear(col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -5693,14 +5693,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 date) engine='INNODB' 
+create table t3 (col1 date) engine='NDB' 
 partition by hash(dayofyear(col1));
-create table t4 (colint int, col1 date) engine='INNODB' 
+create table t4 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(dayofyear(col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 date) engine='INNODB' 
+create table t5 (colint int, col1 date) engine='NDB' 
 partition by list(colint)
 subpartition by hash(dayofyear(col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -5710,7 +5710,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 date) engine='INNODB' 
+create table t6 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (dayofyear('2006-12-25')),
 partition p1 values less than maxvalue);
@@ -5811,12 +5811,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(dayofyear(col1)) 
 (partition p0 values less than (15),
@@ -5916,7 +5916,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (dayofyear(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (dayofyear(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	2006-02-03
@@ -6178,11 +6178,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with dayofyear(col1)
 -------------------------------------------------------------------------
-create table t1 (col1 char(30)) engine='INNODB' 
+create table t1 (col1 char(30)) engine='NDB' 
 partition by range(dayofyear(col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 char(30)) engine='INNODB' 
+create table t2 (col1 char(30)) engine='NDB' 
 partition by list(dayofyear(col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -6191,14 +6191,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 char(30)) engine='INNODB' 
+create table t3 (col1 char(30)) engine='NDB' 
 partition by hash(dayofyear(col1));
-create table t4 (colint int, col1 char(30)) engine='INNODB' 
+create table t4 (colint int, col1 char(30)) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(dayofyear(col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 char(30)) engine='INNODB' 
+create table t5 (colint int, col1 char(30)) engine='NDB' 
 partition by list(colint)
 subpartition by hash(dayofyear(col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -6208,7 +6208,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 char(30)) engine='INNODB' 
+create table t6 (colint int, col1 char(30)) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (dayofyear('2006-12-25')),
 partition p1 values less than maxvalue);
@@ -6309,12 +6309,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(dayofyear(col1)) 
 (partition p0 values less than (15),
@@ -6414,7 +6414,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` char(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (dayofyear(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (dayofyear(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	2006-02-03
@@ -6676,11 +6676,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with extract(month from col1)
 -------------------------------------------------------------------------
-create table t1 (col1 date) engine='INNODB' 
+create table t1 (col1 date) engine='NDB' 
 partition by range(extract(month from col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 date) engine='INNODB' 
+create table t2 (col1 date) engine='NDB' 
 partition by list(extract(month from col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -6689,14 +6689,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 date) engine='INNODB' 
+create table t3 (col1 date) engine='NDB' 
 partition by hash(extract(month from col1));
-create table t4 (colint int, col1 date) engine='INNODB' 
+create table t4 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(extract(month from col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 date) engine='INNODB' 
+create table t5 (colint int, col1 date) engine='NDB' 
 partition by list(colint)
 subpartition by hash(extract(month from col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -6706,7 +6706,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 date) engine='INNODB' 
+create table t6 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (extract(year from '1998-11-23')),
 partition p1 values less than maxvalue);
@@ -6807,12 +6807,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(extract(month from col1)) 
 (partition p0 values less than (15),
@@ -6912,7 +6912,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (extract(month from col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (extract(month from col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	2006-02-03
@@ -7174,11 +7174,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with hour(col1)
 -------------------------------------------------------------------------
-create table t1 (col1 time) engine='INNODB' 
+create table t1 (col1 time) engine='NDB' 
 partition by range(hour(col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 time) engine='INNODB' 
+create table t2 (col1 time) engine='NDB' 
 partition by list(hour(col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -7187,14 +7187,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 time) engine='INNODB' 
+create table t3 (col1 time) engine='NDB' 
 partition by hash(hour(col1));
-create table t4 (colint int, col1 time) engine='INNODB' 
+create table t4 (colint int, col1 time) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(hour(col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 time) engine='INNODB' 
+create table t5 (colint int, col1 time) engine='NDB' 
 partition by list(colint)
 subpartition by hash(hour(col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -7204,7 +7204,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 time) engine='INNODB' 
+create table t6 (colint int, col1 time) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (hour('18:30')),
 partition p1 values less than maxvalue);
@@ -7305,12 +7305,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(hour(col1)) 
 (partition p0 values less than (15),
@@ -7410,7 +7410,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` time DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (hour(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (hour(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	09:09:15
@@ -7678,11 +7678,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with microsecond(col1)
 -------------------------------------------------------------------------
-create table t1 (col1 time) engine='INNODB' 
+create table t1 (col1 time) engine='NDB' 
 partition by range(microsecond(col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 time) engine='INNODB' 
+create table t2 (col1 time) engine='NDB' 
 partition by list(microsecond(col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -7691,14 +7691,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 time) engine='INNODB' 
+create table t3 (col1 time) engine='NDB' 
 partition by hash(microsecond(col1));
-create table t4 (colint int, col1 time) engine='INNODB' 
+create table t4 (colint int, col1 time) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(microsecond(col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 time) engine='INNODB' 
+create table t5 (colint int, col1 time) engine='NDB' 
 partition by list(colint)
 subpartition by hash(microsecond(col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -7708,7 +7708,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 time) engine='INNODB' 
+create table t6 (colint int, col1 time) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (microsecond('10:30:10.000010')),
 partition p1 values less than maxvalue);
@@ -7809,12 +7809,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(microsecond(col1)) 
 (partition p0 values less than (15),
@@ -7914,7 +7914,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` time DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (microsecond(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (microsecond(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	05:30:34
@@ -8168,11 +8168,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with minute(col1)
 -------------------------------------------------------------------------
-create table t1 (col1 time) engine='INNODB' 
+create table t1 (col1 time) engine='NDB' 
 partition by range(minute(col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 time) engine='INNODB' 
+create table t2 (col1 time) engine='NDB' 
 partition by list(minute(col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -8181,14 +8181,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 time) engine='INNODB' 
+create table t3 (col1 time) engine='NDB' 
 partition by hash(minute(col1));
-create table t4 (colint int, col1 time) engine='INNODB' 
+create table t4 (colint int, col1 time) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(minute(col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 time) engine='INNODB' 
+create table t5 (colint int, col1 time) engine='NDB' 
 partition by list(colint)
 subpartition by hash(minute(col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -8198,7 +8198,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 time) engine='INNODB' 
+create table t6 (colint int, col1 time) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (minute('18:30')),
 partition p1 values less than maxvalue);
@@ -8299,12 +8299,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(minute(col1)) 
 (partition p0 values less than (15),
@@ -8404,7 +8404,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` time DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (minute(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (minute(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	10:24:23
@@ -8678,11 +8678,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with second(col1)
 -------------------------------------------------------------------------
-create table t1 (col1 time) engine='INNODB' 
+create table t1 (col1 time) engine='NDB' 
 partition by range(second(col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 time) engine='INNODB' 
+create table t2 (col1 time) engine='NDB' 
 partition by list(second(col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -8691,14 +8691,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 time) engine='INNODB' 
+create table t3 (col1 time) engine='NDB' 
 partition by hash(second(col1));
-create table t4 (colint int, col1 time) engine='INNODB' 
+create table t4 (colint int, col1 time) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(second(col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 time) engine='INNODB' 
+create table t5 (colint int, col1 time) engine='NDB' 
 partition by list(colint)
 subpartition by hash(second(col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -8708,7 +8708,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 time) engine='INNODB' 
+create table t6 (colint int, col1 time) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (second('18:30:14')),
 partition p1 values less than maxvalue);
@@ -8809,12 +8809,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(second(col1)) 
 (partition p0 values less than (15),
@@ -8914,7 +8914,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` time DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (second(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (second(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	09:09:15
@@ -9188,11 +9188,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with second(col1)
 -------------------------------------------------------------------------
-create table t1 (col1 char(30)) engine='INNODB' 
+create table t1 (col1 char(30)) engine='NDB' 
 partition by range(second(col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 char(30)) engine='INNODB' 
+create table t2 (col1 char(30)) engine='NDB' 
 partition by list(second(col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -9201,14 +9201,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 char(30)) engine='INNODB' 
+create table t3 (col1 char(30)) engine='NDB' 
 partition by hash(second(col1));
-create table t4 (colint int, col1 char(30)) engine='INNODB' 
+create table t4 (colint int, col1 char(30)) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(second(col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 char(30)) engine='INNODB' 
+create table t5 (colint int, col1 char(30)) engine='NDB' 
 partition by list(colint)
 subpartition by hash(second(col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -9218,7 +9218,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 char(30)) engine='INNODB' 
+create table t6 (colint int, col1 char(30)) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (second('18:30:14')),
 partition p1 values less than maxvalue);
@@ -9319,12 +9319,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(second(col1)) 
 (partition p0 values less than (15),
@@ -9424,7 +9424,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` char(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (second(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (second(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	09:09:15.000002
@@ -9698,11 +9698,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with month(col1)
 -------------------------------------------------------------------------
-create table t1 (col1 date) engine='INNODB' 
+create table t1 (col1 date) engine='NDB' 
 partition by range(month(col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 date) engine='INNODB' 
+create table t2 (col1 date) engine='NDB' 
 partition by list(month(col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -9711,14 +9711,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 date) engine='INNODB' 
+create table t3 (col1 date) engine='NDB' 
 partition by hash(month(col1));
-create table t4 (colint int, col1 date) engine='INNODB' 
+create table t4 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(month(col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 date) engine='INNODB' 
+create table t5 (colint int, col1 date) engine='NDB' 
 partition by list(colint)
 subpartition by hash(month(col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -9728,7 +9728,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 date) engine='INNODB' 
+create table t6 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (month('2006-10-14')),
 partition p1 values less than maxvalue);
@@ -9829,12 +9829,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(month(col1)) 
 (partition p0 values less than (15),
@@ -9934,7 +9934,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (month(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (month(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	2006-02-03
@@ -10202,11 +10202,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with quarter(col1)
 -------------------------------------------------------------------------
-create table t1 (col1 date) engine='INNODB' 
+create table t1 (col1 date) engine='NDB' 
 partition by range(quarter(col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 date) engine='INNODB' 
+create table t2 (col1 date) engine='NDB' 
 partition by list(quarter(col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -10215,14 +10215,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 date) engine='INNODB' 
+create table t3 (col1 date) engine='NDB' 
 partition by hash(quarter(col1));
-create table t4 (colint int, col1 date) engine='INNODB' 
+create table t4 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(quarter(col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 date) engine='INNODB' 
+create table t5 (colint int, col1 date) engine='NDB' 
 partition by list(colint)
 subpartition by hash(quarter(col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -10232,7 +10232,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 date) engine='INNODB' 
+create table t6 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (quarter('2006-10-14')),
 partition p1 values less than maxvalue);
@@ -10333,12 +10333,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(quarter(col1)) 
 (partition p0 values less than (15),
@@ -10438,7 +10438,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (quarter(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (quarter(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	2006-02-03
@@ -10704,11 +10704,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with time_to_sec(col1)-(time_to_sec(col1)-20)
 -------------------------------------------------------------------------
-create table t1 (col1 time) engine='INNODB' 
+create table t1 (col1 time) engine='NDB' 
 partition by range(time_to_sec(col1)-(time_to_sec(col1)-20)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 time) engine='INNODB' 
+create table t2 (col1 time) engine='NDB' 
 partition by list(time_to_sec(col1)-(time_to_sec(col1)-20)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -10717,14 +10717,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 time) engine='INNODB' 
+create table t3 (col1 time) engine='NDB' 
 partition by hash(time_to_sec(col1)-(time_to_sec(col1)-20));
-create table t4 (colint int, col1 time) engine='INNODB' 
+create table t4 (colint int, col1 time) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(time_to_sec(col1)-(time_to_sec(col1)-20)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 time) engine='INNODB' 
+create table t5 (colint int, col1 time) engine='NDB' 
 partition by list(colint)
 subpartition by hash(time_to_sec(col1)-(time_to_sec(col1)-20)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -10734,7 +10734,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 time) engine='INNODB' 
+create table t6 (colint int, col1 time) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (time_to_sec('18:30:14')-(time_to_sec('17:59:59'))),
 partition p1 values less than maxvalue);
@@ -10835,12 +10835,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(time_to_sec(col1)-(time_to_sec(col1)-20)) 
 (partition p0 values less than (15),
@@ -10940,7 +10940,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` time DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (time_to_sec(col1)-(time_to_sec(col1)-20)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (time_to_sec(col1)-(time_to_sec(col1)-20)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	10:33:11
@@ -11212,11 +11212,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with to_days(col1)-to_days('2006-01-01')
 -------------------------------------------------------------------------
-create table t1 (col1 date) engine='INNODB' 
+create table t1 (col1 date) engine='NDB' 
 partition by range(to_days(col1)-to_days('2006-01-01')) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 date) engine='INNODB' 
+create table t2 (col1 date) engine='NDB' 
 partition by list(to_days(col1)-to_days('2006-01-01')) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -11225,14 +11225,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 date) engine='INNODB' 
+create table t3 (col1 date) engine='NDB' 
 partition by hash(to_days(col1)-to_days('2006-01-01'));
-create table t4 (colint int, col1 date) engine='INNODB' 
+create table t4 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(to_days(col1)-to_days('2006-01-01')) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 date) engine='INNODB' 
+create table t5 (colint int, col1 date) engine='NDB' 
 partition by list(colint)
 subpartition by hash(to_days(col1)-to_days('2006-01-01')) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -11242,7 +11242,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 date) engine='INNODB' 
+create table t6 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (to_days('2006-02-02')-to_days('2006-01-01')),
 partition p1 values less than maxvalue);
@@ -11343,12 +11343,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(to_days(col1)-to_days('2006-01-01')) 
 (partition p0 values less than (15),
@@ -11448,7 +11448,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (to_days(col1)-to_days('2006-01-01')) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (to_days(col1)-to_days('2006-01-01')) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	2006-02-06
@@ -11712,11 +11712,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with weekday(col1)
 -------------------------------------------------------------------------
-create table t1 (col1 date) engine='INNODB' 
+create table t1 (col1 date) engine='NDB' 
 partition by range(weekday(col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 date) engine='INNODB' 
+create table t2 (col1 date) engine='NDB' 
 partition by list(weekday(col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -11725,14 +11725,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 date) engine='INNODB' 
+create table t3 (col1 date) engine='NDB' 
 partition by hash(weekday(col1));
-create table t4 (colint int, col1 date) engine='INNODB' 
+create table t4 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(weekday(col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 date) engine='INNODB' 
+create table t5 (colint int, col1 date) engine='NDB' 
 partition by list(colint)
 subpartition by hash(weekday(col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -11742,7 +11742,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 date) engine='INNODB' 
+create table t6 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (weekday('2006-10-14')),
 partition p1 values less than maxvalue);
@@ -11843,12 +11843,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(weekday(col1)) 
 (partition p0 values less than (15),
@@ -11948,7 +11948,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (weekday(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (weekday(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	2006-02-03
@@ -12212,11 +12212,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with weekofyear(col1)
 -------------------------------------------------------------------------
-create table t1 (col1 date) engine='INNODB' 
+create table t1 (col1 date) engine='NDB' 
 partition by range(weekofyear(col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 date) engine='INNODB' 
+create table t2 (col1 date) engine='NDB' 
 partition by list(weekofyear(col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -12225,14 +12225,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 date) engine='INNODB' 
+create table t3 (col1 date) engine='NDB' 
 partition by hash(weekofyear(col1));
-create table t4 (colint int, col1 date) engine='INNODB' 
+create table t4 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(weekofyear(col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 date) engine='INNODB' 
+create table t5 (colint int, col1 date) engine='NDB' 
 partition by list(colint)
 subpartition by hash(weekofyear(col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -12242,7 +12242,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 date) engine='INNODB' 
+create table t6 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (weekofyear('2006-02-14')),
 partition p1 values less than maxvalue);
@@ -12343,12 +12343,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(weekofyear(col1)) 
 (partition p0 values less than (15),
@@ -12448,7 +12448,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (weekofyear(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (weekofyear(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	2006-02-03
@@ -12720,11 +12720,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with year(col1)-1990
 -------------------------------------------------------------------------
-create table t1 (col1 date) engine='INNODB' 
+create table t1 (col1 date) engine='NDB' 
 partition by range(year(col1)-1990) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 date) engine='INNODB' 
+create table t2 (col1 date) engine='NDB' 
 partition by list(year(col1)-1990) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -12733,14 +12733,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 date) engine='INNODB' 
+create table t3 (col1 date) engine='NDB' 
 partition by hash(year(col1)-1990);
-create table t4 (colint int, col1 date) engine='INNODB' 
+create table t4 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(year(col1)-1990) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 date) engine='INNODB' 
+create table t5 (colint int, col1 date) engine='NDB' 
 partition by list(colint)
 subpartition by hash(year(col1)-1990) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -12750,7 +12750,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 date) engine='INNODB' 
+create table t6 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (year('2005-10-14')-1990),
 partition p1 values less than maxvalue);
@@ -12851,12 +12851,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(year(col1)-1990) 
 (partition p0 values less than (15),
@@ -12956,7 +12956,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (year(col1)-1990) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (year(col1)-1990) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	2006-02-03
@@ -13224,11 +13224,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with yearweek(col1)-200600
 -------------------------------------------------------------------------
-create table t1 (col1 date) engine='INNODB' 
+create table t1 (col1 date) engine='NDB' 
 partition by range(yearweek(col1)-200600) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 date) engine='INNODB' 
+create table t2 (col1 date) engine='NDB' 
 partition by list(yearweek(col1)-200600) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -13237,14 +13237,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 date) engine='INNODB' 
+create table t3 (col1 date) engine='NDB' 
 partition by hash(yearweek(col1)-200600);
-create table t4 (colint int, col1 date) engine='INNODB' 
+create table t4 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 subpartition by hash(yearweek(col1)-200600) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 date) engine='INNODB' 
+create table t5 (colint int, col1 date) engine='NDB' 
 partition by list(colint)
 subpartition by hash(yearweek(col1)-200600) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -13254,7 +13254,7 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 date) engine='INNODB' 
+create table t6 (colint int, col1 date) engine='NDB' 
 partition by range(colint) 
 (partition p0 values less than (yearweek('2006-10-14')-200600),
 partition p1 values less than maxvalue);
@@ -13355,12 +13355,12 @@ drop table if exists t33 ;
 drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
+create table t11 engine='NDB' as select * from t1;
+create table t22 engine='NDB' as select * from t2;
+create table t33 engine='NDB' as select * from t3;
+create table t44 engine='NDB' as select * from t4;
+create table t55 engine='NDB' as select * from t5;
+create table t66 engine='NDB' as select * from t6;
 alter table t11
 partition by range(yearweek(col1)-200600) 
 (partition p0 values less than (15),
@@ -13460,7 +13460,7 @@ Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
   `col1` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (yearweek(col1)-200600) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=NDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (yearweek(col1)-200600) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = NDB, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = NDB, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = NDB, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = NDB, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = NDB, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = NDB) */
 select * from t55 order by colint;
 colint	col1
 1	2006-02-03

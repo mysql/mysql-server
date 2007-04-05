@@ -2956,3 +2956,8 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
+mysql-test/suite/partitions/t/partition.test
+mysql-test/suite/partitions/r/dif
+mysql-test/suite/partitions/r/partition.result
+mysql-test/suite/partitions/r/partition_t55.out
+mysql-test/suite/partitions/r/partition_t55.refout
