@@ -1,9 +1,41 @@
 # Can't test with embedded server that doesn't support grants
 -- source include/not_embedded.inc
 
-use mysqltest_events_test;
---sleep 1.5
---echo "Should get 0 rows because the queue aborted run
-select distinct name from execution_log order by name;
-delete from mysql.event where name like 'bad%';
---echo "Now restart the server again"
+use events_test;
+# Event scheduler should be disabled: the system tables are damaged
+select @@event_scheduler;
+# Try various Event Scheduler operation and check the output.
+--error ER_EVENTS_DB_ERROR
+show events;
+--error ER_EVENTS_DB_ERROR
+select event_name from information_schema.events;
+--error ER_EVENTS_DB_ERROR
+show create event intact_check;
+--error ER_EVENTS_DB_ERROR
+drop event no_such_event;
+--error ER_EVENTS_DB_ERROR
+create event intact_check_1 on schedule every 5 hour do select 5;
+--error ER_EVENTS_DB_ERROR
+alter event intact_check_1 on schedule every 8 hour do select 8;
+--error ER_EVENTS_DB_ERROR
+alter event intact_check_1 rename to intact_check_2;
+--error ER_EVENTS_DB_ERROR
+drop event intact_check_1;
+--error ER_EVENTS_DB_ERROR
+drop event intact_check_2;
+--error ER_EVENTS_DB_ERROR
+drop event intact_check;
+--error ER_EVENTS_DB_ERROR
+set global event_scheduler=on;
+--error ER_EVENTS_DB_ERROR
+set global event_scheduler=off;
+show variables like 'event_scheduler';
+--echo Make sure that we still can create and drop databases,
+--echo and no warnings are produced.
+drop database if exists mysqltest_database_not_exists;
+create database mysqltest_db1;
+drop database mysqltest_db1;
+--echo Restore the original mysql.event table
+drop table mysql.event;
+rename table event_like to mysql.event;
+--echo Now let's restart the server again
