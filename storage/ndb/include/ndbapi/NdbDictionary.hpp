@@ -545,6 +545,7 @@ public:
     static const Column * RECORDS_IN_RANGE;
     static const Column * ROWID;
     static const Column * ROW_GCI;
+    static const Column * ANY_VALUE;
     
     int getSizeInBytes() const;
 #endif

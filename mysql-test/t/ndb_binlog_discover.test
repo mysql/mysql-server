@@ -30,4 +30,7 @@ while ($mysql_errno)
 --enable_query_log
 
 --source include/show_binlog_events.inc
+PURGE MASTER LOGS TO 'master-bin.000002';
+
+--source include/show_binlog_events.inc
 drop table t1;

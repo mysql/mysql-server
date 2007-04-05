@@ -771,6 +771,7 @@ struct Operationrec {
   union {
     Uint32 firstAttrinbufrec; //Used until copyAttrinfo
   };
+  Uint32 m_any_value;
   union {
     Uint32 lastAttrinbufrec; //Used until copyAttrinfo
     Uint32 nextPool;

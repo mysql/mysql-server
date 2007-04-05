@@ -53,7 +53,7 @@ class FireTrigOrd {
 public:
   STATIC_CONST( SignalLength = 8 );
   STATIC_CONST( SignalWithGCILength = 9 );
-  STATIC_CONST( SignalWithHashValueLength = 10 );
+  STATIC_CONST( SignalLengthSuma = 11 );
 
 private:
   Uint32 m_connectionPtr;
@@ -66,6 +66,7 @@ private:
   Uint32 fragId;
   Uint32 m_gci;
   Uint32 m_hashValue;
+  Uint32 m_any_value;
   // Public methods
 public:
   Uint32 getConnectionPtr() const;
@@ -86,6 +87,8 @@ public:
   void setGCI(Uint32);
   Uint32 getHashValue() const;
   void setHashValue(Uint32);
+  Uint32 getAnyValue() const;
+  void setAnyValue(Uint32);
 };
 
 inline
@@ -194,6 +197,18 @@ inline
 void FireTrigOrd::setHashValue(Uint32 flag)
 {
   m_hashValue = flag;
+}
+
+inline
+Uint32 FireTrigOrd::getAnyValue() const
+{
+  return m_any_value;
+}
+
+inline
+void FireTrigOrd::setAnyValue(Uint32 any_value)
+{
+  m_any_value = any_value;
 }
 
 

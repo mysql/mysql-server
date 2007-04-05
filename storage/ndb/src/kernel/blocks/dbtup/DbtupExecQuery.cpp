@@ -127,6 +127,7 @@ void Dbtup::copyAttrinfo(Operationrec * regOperPtr,
   regOperPtr->storedProcedureId= RNIL;
   regOperPtr->firstAttrinbufrec= RNIL;
   regOperPtr->lastAttrinbufrec= RNIL;
+  regOperPtr->m_any_value= 0;
 }
 
 void Dbtup::handleATTRINFOforTUPKEYREQ(Signal* signal,
@@ -837,6 +838,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
      else if(Roptype == ZDELETE)
      {
        jam();
+       req_struct.log_size= 0;
        if (handleDeleteReq(signal, regOperPtr,
 			   regFragPtr, regTabPtr, 
 			   &req_struct,
@@ -855,7 +857,6 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 					 regOperPtr, 
 					 regTabPtr);
        set_change_mask_state(regOperPtr, DELETE_CHANGES);
-       req_struct.log_size= 0;
        sendTUPKEYCONF(signal, &req_struct, regOperPtr);
        return;
      }
@@ -1608,7 +1609,14 @@ int Dbtup::handleDeleteReq(Signal* signal,
 
   if (setup_read(req_struct, regOperPtr, regFragPtr, regTabPtr, disk))
   {
-    return handleReadReq(signal, regOperPtr, regTabPtr, req_struct);
+    Uint32 RlogSize;
+    int ret= handleReadReq(signal, regOperPtr, regTabPtr, req_struct);
+    if (ret == 0 && (RlogSize= req_struct->log_size))
+    {
+      jam();
+      sendLogAttrinfo(signal, RlogSize, regOperPtr);
+    }
+    return ret;
   }
 
 error:

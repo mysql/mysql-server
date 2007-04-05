@@ -203,6 +203,7 @@ bool Dbtup::storedProcedureAttrInfo(Signal* signal,
   storedPtr.p->storedLinkLast = regOperPtr->lastAttrinbufrec;
   regOperPtr->firstAttrinbufrec = RNIL;
   regOperPtr->lastAttrinbufrec = RNIL;
+  regOperPtr->m_any_value = 0;
   set_trans_state(regOperPtr, TRANS_IDLE);
   signal->theData[0] = regOperPtr->userpointer;
   signal->theData[1] = storedPtr.i;
@@ -220,6 +221,7 @@ void Dbtup::storedSeizeAttrinbufrecErrorLab(Signal* signal,
   storedPtr.p->storedLinkFirst = regOperPtr->firstAttrinbufrec;
   regOperPtr->firstAttrinbufrec = RNIL;
   regOperPtr->lastAttrinbufrec = RNIL;
+  regOperPtr->m_any_value = 0;
   set_trans_state(regOperPtr, TRANS_ERROR_WAIT_STORED_PROCREQ);
   signal->theData[0] = regOperPtr->userpointer;
   signal->theData[1] = ZSTORED_SEIZE_ATTRINBUFREC_ERROR;
