@@ -99,7 +99,7 @@ public:
   destroy_mutexes();
 
   static bool
-  start_or_stop_event_scheduler(enum enum_opt_event_scheduler start_or_stop);
+  switch_event_scheduler_state(enum enum_opt_event_scheduler new_state);
 
   static bool
   create_event(THD *thd, Event_parse_data *parse_data, bool if_exists);

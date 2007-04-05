@@ -184,7 +184,7 @@ public:
   load_from_row(THD *thd, TABLE *table);
 
   int
-  execute(THD *thd);
+  execute(THD *thd, bool drop);
 
   int
   compile(THD *thd, MEM_ROOT *mem_root);

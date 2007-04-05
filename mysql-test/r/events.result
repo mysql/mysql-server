@@ -197,7 +197,7 @@ create event руут21 on schedule every '50:23:59:95' day_second COMMENT 'това е 1
 SHOW CREATE EVENT руут21;
 Event	sql_mode	time_zone	Create Event
 руут21		SYSTEM	CREATE EVENT `руут21` ON SCHEDULE EVERY '51 0:0:35' DAY_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE COMMENT 'това е 1251 коментар' DO select 1
-insert into mysql.event (db, name, body, definer, interval_value, interval_field) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND");
+insert into mysql.event (db, name, body, definer, interval_value, interval_field, originator) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND", 1);
 show create event root22;
 ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
 SHOW EVENTS;
@@ -231,8 +231,8 @@ Create a test event. Only event metadata is relevant,
 the actual schedule and body are not.
 CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
 SHOW EVENTS;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
+events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED	1
 Try to alter mysql.event: the server should fail to load
 event information after mysql.event was tampered with.
 
@@ -241,8 +241,8 @@ works as before
 
 ALTER TABLE mysql.event ADD dummy INT;
 SHOW EVENTS;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
+events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED	1
 SELECT event_name FROM INFORMATION_SCHEMA.events;
 event_name
 intact_check
@@ -330,7 +330,7 @@ ERROR HY000: Cannot load from mysql.event. The table is probably corrupted
 DROP EVENT no_such_event;
 ERROR HY000: Unknown event 'no_such_event'
 CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
-ERROR HY000: Column count of mysql.event is wrong. Expected 17, found 15. The table is probably corrupted
+ERROR HY000: Column count of mysql.event is wrong. Expected 18, found 16. The table is probably corrupted
 ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
 ERROR HY000: Unknown event 'intact_check_1'
 ALTER EVENT intact_check_1 RENAME TO intact_check_2;
@@ -400,7 +400,7 @@ Restore the original table.
 CREATE TABLE mysql.event like event_like;
 DROP TABLE event_like;
 SHOW EVENTS;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
 create event e_26 on schedule at '2017-01-01 00:00:00' disable do set @a = 5;
 select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
 db	name	body	definer	convert_tz(execute_at, 'UTC', 'SYSTEM')	on_completion
@@ -512,7 +512,7 @@ ERROR 42000: Incorrect database name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 SHOW EVENTS FROM ``;
 ERROR 42000: Incorrect database name ''
 SHOW EVENTS FROM `events\\test`;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
 
 LOCK TABLES mode.
 
