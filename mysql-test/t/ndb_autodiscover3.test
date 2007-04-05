@@ -1,11 +1,17 @@
 -- source include/have_ndb.inc
 -- source include/have_multi_ndb.inc
+-- source include/ndb_default_cluster.inc
 -- source include/not_embedded.inc
 
 
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
+
+# Workaround for Bug#27644
+# ndb: connecting api node/mysqld may "steal" node_id from running mysqld
+# - let ndb_waiter use a fixed node id so "steal" cannot happen
+--let connect_str = "nodeid=6;$NDB_CONNECTSTRING"
 
 #
 # Transaction ongoing while cluster is restarted
@@ -17,7 +23,7 @@ begin;
 insert into t1 values (1);
 
 --exec $NDB_MGM --no-defaults -e "all restart" >> $NDB_TOOLS_OUTPUT
---exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults -c $connect_str >> $NDB_TOOLS_OUTPUT
 
 --error 1297
 insert into t1 values (2);
@@ -35,7 +41,7 @@ insert into t2 values (1,1),(2,1),(3,1),(4,1),(5,1),(6,1),(7,1),(8,1),(9,1),(10,
 select * from t2 order by a limit 3;
 
 --exec $NDB_MGM --no-defaults -e "all restart -i" >> $NDB_TOOLS_OUTPUT
---exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults -c $connect_str >> $NDB_TOOLS_OUTPUT
 
 --connection server2
 create table t2 (a int key) engine=ndbcluster;
@@ -49,7 +55,7 @@ select * from t2 order by a limit 3;
 select * from t2 order by a limit 3;
 
 --exec $NDB_MGM --no-defaults -e "all restart -i" >> $NDB_TOOLS_OUTPUT
---exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults -c $connect_str >> $NDB_TOOLS_OUTPUT
 
 --connection server1
 show tables;
