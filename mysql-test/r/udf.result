@@ -159,7 +159,7 @@ EXPLAIN EXTENDED SELECT myfunc_int(fn(MIN(b))) as c FROM t1 GROUP BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 Warnings:
-Note	1003	select myfunc_int(`test`.`fn`(min(`test`.`t1`.`b`)) AS `fn(MIN(b))`) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
+Note	1003	select myfunc_int(`fn`(min(`test`.`t1`.`b`)) AS `fn(MIN(b))`) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
 EXPLAIN EXTENDED SELECT myfunc_int(test.fn(MIN(b))) as c FROM t1 GROUP BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort

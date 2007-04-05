@@ -206,6 +206,7 @@ TCP_Transporter::setSocketOptions(){
   set_get(theSocket, SOL_SOCKET, SO_RCVBUF, "SO_RCVBUF", sockOptRcvBufSize);
   set_get(theSocket, SOL_SOCKET, SO_SNDBUF, "SO_SNDBUF", sockOptSndBufSize);
   set_get(theSocket, IPPROTO_TCP, TCP_NODELAY, "TCP_NODELAY", sockOptNodelay);
+  set_get(theSocket, SOL_SOCKET, SO_KEEPALIVE, "SO_KEEPALIVE", 1);
 
   if (sockOptTcpMaxSeg)
   {

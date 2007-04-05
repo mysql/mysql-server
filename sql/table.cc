@@ -682,8 +682,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       if ((share->partition_info_len= partition_info_len))
       {
         if (!(share->partition_info=
-              (uchar*) memdup_root(&share->mem_root, next_chunk + 4,
-                                   partition_info_len + 1)))
+              memdup_root(&share->mem_root, next_chunk + 4,
+                          partition_info_len + 1)))
         {
           my_free(buff, MYF(0));
           goto err;
@@ -1528,7 +1528,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
     tmp= mysql_unpack_partition(thd, share->partition_info,
                                 share->partition_info_len,
-                                (uchar*)share->part_state,
+                                share->part_state,
                                 share->part_state_len,
                                 outparam, is_create_table,
                                 share->default_part_db_type);

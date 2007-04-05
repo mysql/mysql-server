@@ -78,7 +78,7 @@ Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
   char prefix_buf[5 * STRING_BUFFER_USUAL_SIZE];
   String prefix(prefix_buf, sizeof(prefix_buf), system_charset_info);
   prefix.length(0);
-  prefix.append("SCHEDULER: [");
+  prefix.append("Event Scheduler: [");
 
   append_identifier(thd, &prefix, et->definer.str, et->definer.length);
   prefix.append("][", 2);
@@ -240,7 +240,7 @@ event_scheduler_thread(void *arg)
 
 
 /*
-  Function that executes an event in a child thread. Setups the 
+  Function that executes an event in a child thread. Setups the
   environment for the event execution and cleans after that.
 
   SYNOPSIS
@@ -254,7 +254,7 @@ event_scheduler_thread(void *arg)
 pthread_handler_t
 event_worker_thread(void *arg)
 {
-  THD *thd; 
+  THD *thd;
   Event_queue_element_for_exec *event= (Event_queue_element_for_exec *)arg;
 
   thd= event->thd;
@@ -267,7 +267,7 @@ event_worker_thread(void *arg)
 
 
 /*
-  Function that executes an event in a child thread. Setups the 
+  Function that executes an event in a child thread. Setups the
   environment for the event execution and cleans after that.
 
   SYNOPSIS
@@ -304,7 +304,8 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
     goto end;
   }
 
-  sql_print_information("SCHEDULER: [%s.%s of %s] executing in thread %lu. ",
+  sql_print_information("Event Scheduler: "
+                        "[%s.%s of %s] executing in thread %lu. ",
                         job_data->dbname.str, job_data->name.str,
                         job_data->definer.str, thd->thread_id);
 
@@ -314,23 +315,25 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
 
   print_warnings(thd, job_data);
 
-  sql_print_information("SCHEDULER: [%s.%s of %s] executed in thread %lu. "
+  sql_print_information("Event Scheduler: "
+                        "[%s.%s of %s] executed in thread %lu. "
                         "RetCode=%d", job_data->dbname.str, job_data->name.str,
                         job_data->definer.str, thd->thread_id, ret);
   if (ret == EVEX_COMPILE_ERROR)
-    sql_print_information("SCHEDULER: COMPILE ERROR for event %s.%s of %s",
+    sql_print_information("Event Scheduler: "
+                          "COMPILE ERROR for event %s.%s of %s",
                           job_data->dbname.str, job_data->name.str,
                           job_data->definer.str);
   else if (ret == EVEX_MICROSECOND_UNSUP)
-    sql_print_information("SCHEDULER: MICROSECOND is not supported");
+    sql_print_information("Event Scheduler: MICROSECOND is not supported");
 
 end:
   delete job_data;
 
   if (event->dropped)
   {
-    sql_print_information("SCHEDULER: Dropping %s.%s", event->dbname.str,
-                          event->name.str);
+    sql_print_information("Event Scheduler: Dropping %s.%s",
+                          event->dbname.str, event->name.str);
     /*
       Using db_repository can lead to a race condition because we access
       the table without holding LOCK_metadata.
@@ -442,7 +445,7 @@ Event_scheduler::start()
 
   if (!(new_thd= new THD))
   {
-    sql_print_error("SCHEDULER: Cannot init manager event thread");
+    sql_print_error("Event Scheduler: Cannot initialize the scheduler thread");
     ret= TRUE;
     goto end;
   }
@@ -458,7 +461,7 @@ Event_scheduler::start()
   scheduler_thd= new_thd;
   DBUG_PRINT("info", ("Setting state go RUNNING"));
   state= RUNNING;
-  DBUG_PRINT("info", ("Forking new thread for scheduduler. THD: 0x%lx", (long) new_thd));
+  DBUG_PRINT("info", ("Forking new thread for scheduler. THD: 0x%lx", (long) new_thd));
   if (pthread_create(&th, &connection_attrib, event_scheduler_thread,
                     (void*)scheduler_param_value))
   {
@@ -501,7 +504,7 @@ Event_scheduler::run(THD *thd)
   int res= FALSE;
   DBUG_ENTER("Event_scheduler::run");
 
-  sql_print_information("SCHEDULER: Manager thread started with id %lu",
+  sql_print_information("Event Scheduler: scheduler thread started with id %lu",
                         thd->thread_id);
   /*
     Recalculate the values in the queue because there could have been stops
@@ -516,7 +519,8 @@ Event_scheduler::run(THD *thd)
     /* Gets a minimized version */
     if (queue->get_top_for_execution_if_time(thd, &event_name))
     {
-      sql_print_information("SCHEDULER: Serious error during getting next "
+      sql_print_information("Event Scheduler: "
+                            "Serious error during getting next "
                             "event to execute. Stopping");
       break;
     }
@@ -525,7 +529,7 @@ Event_scheduler::run(THD *thd)
                         "event_name=0x%lx", (long) event_name));
     if (event_name)
     {
-      if ((res= execute_top(thd, event_name)))
+      if ((res= execute_top(event_name)))
         break;
     }
     else
@@ -540,7 +544,7 @@ Event_scheduler::run(THD *thd)
   state= INITIALIZED;
   pthread_cond_signal(&COND_state);
   UNLOCK_DATA();
-  sql_print_information("SCHEDULER: Stopped");
+  sql_print_information("Event Scheduler: Stopped");
 
   DBUG_RETURN(res);
 }
@@ -559,7 +563,7 @@ Event_scheduler::run(THD *thd)
 */
 
 bool
-Event_scheduler::execute_top(THD *thd, Event_queue_element_for_exec *event_name)
+Event_scheduler::execute_top(Event_queue_element_for_exec *event_name)
 {
   THD *new_thd;
   pthread_t th;
@@ -631,7 +635,7 @@ Event_scheduler::is_running()
 }
 
 
-/*
+/**
   Stops the scheduler (again). Waits for acknowledgement from the
   scheduler that it has stopped - synchronous stopping.
 
@@ -657,8 +661,8 @@ Event_scheduler::stop()
 
   /* Guarantee we don't catch spurious signals */
   do {
-    DBUG_PRINT("info", ("Waiting for COND_started_or_stopped from the manager "
-                        "thread.  Current value of state is %s . "
+    DBUG_PRINT("info", ("Waiting for COND_started_or_stopped from "
+                        "the scheduler thread.  Current value of state is %s . "
                         "workers count=%d", scheduler_states_names[state].str,
                         workers_count()));
     /*
@@ -672,20 +676,23 @@ Event_scheduler::stop()
     */
 
     state= STOPPING;
-    DBUG_PRINT("info", ("Manager thread has id %lu", scheduler_thd->thread_id));
+    DBUG_PRINT("info", ("Scheduler thread has id %lu",
+                        scheduler_thd->thread_id));
     /* Lock from delete */
     pthread_mutex_lock(&scheduler_thd->LOCK_delete);
     /* This will wake up the thread if it waits on Queue's conditional */
-    sql_print_information("SCHEDULER: Killing manager thread %lu",
+    sql_print_information("Event Scheduler: Killing the scheduler thread, "
+                          "thread id %lu",
                           scheduler_thd->thread_id);
     scheduler_thd->awake(THD::KILL_CONNECTION);
     pthread_mutex_unlock(&scheduler_thd->LOCK_delete);
 
     /* thd could be 0x0, when shutting down */
-    sql_print_information("SCHEDULER: Waiting the manager thread to reply");
+    sql_print_information("Event Scheduler: "
+                          "Waiting for the scheduler thread to reply");
     COND_STATE_WAIT(thd, NULL, "Waiting scheduler to stop");
   } while (state == STOPPING);
-  DBUG_PRINT("info", ("Manager thread has cleaned up. Set state to INIT"));
+  DBUG_PRINT("info", ("Scheduler thread has cleaned up. Set state to INIT"));
   /*
     The rationale behind setting it to NULL here but not destructing it
     beforehand is because the THD will be deinited in event_scheduler_thread().
@@ -715,7 +722,7 @@ Event_scheduler::workers_count()
 {
   THD *tmp;
   uint count= 0;
-  
+
   DBUG_ENTER("Event_scheduler::workers_count");
   pthread_mutex_lock(&LOCK_thread_count);       // For unlink from list
   I_List_iterator<THD> it(threads);

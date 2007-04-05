@@ -68,5 +68,11 @@ connection slave;
 sleep 2;
 SHOW STATUS LIKE 'Slave_running';
 
+# cleanup
+#connection master;
+#drop table t1;
+#connection slave;
+#drop table t1;
+
 
 # End of tests

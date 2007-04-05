@@ -384,7 +384,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   if ((ret= sp_use_new_db(thd, name->m_db, &old_db, 1, &dbchanged)))
     goto end;
 
-  lex_start(thd, (uchar*)defstr.c_ptr(), defstr.length());
+  lex_start(thd, defstr.c_ptr(), defstr.length());
 
   thd->spcont= 0;
   if (MYSQLparse(thd) || thd->is_fatal_error || newlex.sphead == NULL)
@@ -1041,7 +1041,7 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any, bool no_error)
     lex_name.length= strlen(routine->table_name);
     lex_db.str= thd->strmake(routine->db, lex_db.length);
     lex_name.str= thd->strmake(routine->table_name, lex_name.length);
-    name= new sp_name(lex_db, lex_name);
+    name= new sp_name(lex_db, lex_name, true);
     name->init_qname(thd);
     sp_object_found= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, name,
                                      &thd->sp_proc_cache, FALSE) != NULL ||
