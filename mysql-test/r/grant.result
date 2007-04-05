@@ -260,29 +260,29 @@ GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' IDENTIFIED BY PASSWORD '*2470C0C
 GRANT SELECT, INSERT, UPDATE ON `test`.* TO 'mysqltest_1'@'localhost'
 drop user mysqltest_1@localhost;
 SET NAMES koi8r;
-CREATE DATABASE О╬┌О╬└;
-USE О╬┌О╬└;
-CREATE TABLE О╬■О╬│О╬┌ (О╬▀О╬▐О╬▄ int);
-GRANT SELECT ON О╬┌О╬└.* TO О╬─О╬ О╬┘О╬▓@localhost;
-SHOW GRANTS FOR О╬─О╬ О╬┘О╬▓@localhost;
-Grants for О╬─О╬ О╬┘О╬▓@localhost
-GRANT USAGE ON *.* TO 'О╬─О╬ О╬┘О╬▓'@'localhost'
-GRANT SELECT ON `О╬┌О╬└`.* TO 'О╬─О╬ О╬┘О╬▓'@'localhost'
-REVOKE SELECT ON О╬┌О╬└.* FROM О╬─О╬ О╬┘О╬▓@localhost;
-GRANT SELECT ON О╬┌О╬└.О╬■О╬│О╬┌ TO О╬─О╬ О╬┘О╬▓@localhost;
-SHOW GRANTS FOR О╬─О╬ О╬┘О╬▓@localhost;
-Grants for О╬─О╬ О╬┘О╬▓@localhost
-GRANT USAGE ON *.* TO 'О╬─О╬ О╬┘О╬▓'@'localhost'
-GRANT SELECT ON `О╬┌О╬└`.`О╬■О╬│О╬┌` TO 'О╬─О╬ О╬┘О╬▓'@'localhost'
-REVOKE SELECT ON О╬┌О╬└.О╬■О╬│О╬┌ FROM О╬─О╬ О╬┘О╬▓@localhost;
-GRANT SELECT (О╬▀О╬▐О╬▄) ON О╬┌О╬└.О╬■О╬│О╬┌ TO О╬─О╬ О╬┘О╬▓@localhost;
-SHOW GRANTS FOR О╬─О╬ О╬┘О╬▓@localhost;
-Grants for О╬─О╬ О╬┘О╬▓@localhost
-GRANT USAGE ON *.* TO 'О╬─О╬ О╬┘О╬▓'@'localhost'
-GRANT SELECT (О╬▀О╬▐О╬▄) ON `О╬┌О╬└`.`О╬■О╬│О╬┌` TO 'О╬─О╬ О╬┘О╬▓'@'localhost'
-REVOKE SELECT (О╬▀О╬▐О╬▄) ON О╬┌О╬└.О╬■О╬│О╬┌ FROM О╬─О╬ О╬┘О╬▓@localhost;
-DROP USER О╬─О╬ О╬┘О╬▓@localhost;
-DROP DATABASE О╬┌О╬└;
+CREATE DATABASE бд;
+USE бд;
+CREATE TABLE таб (кол int);
+GRANT SELECT ON бд.* TO юзер@localhost;
+SHOW GRANTS FOR юзер@localhost;
+Grants for юзер@localhost
+GRANT USAGE ON *.* TO 'юзер'@'localhost'
+GRANT SELECT ON `бд`.* TO 'юзер'@'localhost'
+REVOKE SELECT ON бд.* FROM юзер@localhost;
+GRANT SELECT ON бд.таб TO юзер@localhost;
+SHOW GRANTS FOR юзер@localhost;
+Grants for юзер@localhost
+GRANT USAGE ON *.* TO 'юзер'@'localhost'
+GRANT SELECT ON `бд`.`таб` TO 'юзер'@'localhost'
+REVOKE SELECT ON бд.таб FROM юзер@localhost;
+GRANT SELECT (кол) ON бд.таб TO юзер@localhost;
+SHOW GRANTS FOR юзер@localhost;
+Grants for юзер@localhost
+GRANT USAGE ON *.* TO 'юзер'@'localhost'
+GRANT SELECT (кол) ON `бд`.`таб` TO 'юзер'@'localhost'
+REVOKE SELECT (кол) ON бд.таб FROM юзер@localhost;
+DROP USER юзер@localhost;
+DROP DATABASE бд;
 SET NAMES latin1;
 USE test;
 CREATE TABLE t1 (a int );
@@ -613,22 +613,22 @@ set @user123="non-existent";
 select * from mysql.db where user=@user123;
 Host	Db	User	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Create_tmp_table_priv	Lock_tables_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Execute_priv	Event_priv	Trigger_priv
 set names koi8r;
-create database О╬┌О╬└;
-grant select on О╬┌О╬└.* to root@localhost;
-select hex(Db) from mysql.db where Db='О╬┌О╬└';
+create database бд;
+grant select on бд.* to root@localhost;
+select hex(Db) from mysql.db where Db='бд';
 hex(Db)
 D0B1D0B4
 show grants for root@localhost;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
-GRANT SELECT ON `О╬┌О╬└`.* TO 'root'@'localhost'
+GRANT SELECT ON `бд`.* TO 'root'@'localhost'
 flush privileges;
 show grants for root@localhost;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
-GRANT SELECT ON `О╬┌О╬└`.* TO 'root'@'localhost'
-drop database О╬┌О╬└;
-revoke all privileges on О╬┌О╬└.* from root@localhost;
+GRANT SELECT ON `бд`.* TO 'root'@'localhost'
+drop database бд;
+revoke all privileges on бд.* from root@localhost;
 show grants for root@localhost;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
