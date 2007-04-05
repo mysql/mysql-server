@@ -380,10 +380,10 @@ const ParamInfo ParamInfoArray[] = {
     "If set to yes, then NDB Cluster data will not be swapped out to disk",
     CI_USED,
     true,
-    CI_BOOL,
-    "false",
-    "false",
-    "true" },
+    CI_INT,
+    "0",
+    "1",
+    "2" },
 
   {
     CFG_DB_WATCHDOG_INTERVAL,
@@ -705,7 +705,7 @@ const ParamInfo ParamInfoArray[] = {
     CI_USED,
     false,
     CI_INT,
-    "40",
+    "0",
     "20",
     STR_VALUE(MAX_INT_RNIL) },
   
@@ -1108,6 +1108,18 @@ const ParamInfo ParamInfoArray[] = {
     "StringMemory",
     DB_TOKEN,
     "Default size of string memory (0 -> 5% of max 1-100 -> %of max, >100 -> actual bytes)",
+    CI_USED,
+    false,
+    CI_INT,
+    "0",
+    "0",
+    STR_VALUE(MAX_INT_RNIL) },
+
+  { 
+    CFG_DB_MEMREPORT_FREQUENCY,
+    "MemReportFrequency",
+    DB_TOKEN,
+    "Frequency of mem reports in seconds, 0 = only when passing %-limits",
     CI_USED,
     false,
     CI_INT,
