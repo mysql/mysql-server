@@ -905,6 +905,13 @@ update_timing_fields_for_event(THD *thd,
 
   DBUG_ENTER("Event_db_repository::update_timing_fields_for_event");
 
+  /*
+    Turn off row binlogging of event timing updates. These are not used
+    for RBR of events replicated to the slave.
+  */
+  if (thd->current_stmt_binlog_row_based)
+    thd->clear_current_stmt_binlog_row_based();
+
   if (open_event_table(thd, TL_WRITE, &table))
     goto end;
 
