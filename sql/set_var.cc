@@ -1686,7 +1686,7 @@ byte *sys_var_thd_bool::value_ptr(THD *thd, enum_var_type type,
 }
 
 
-bool sys_var::check_enum(THD *thd, set_var *var, TYPELIB *enum_names)
+bool sys_var::check_enum(THD *thd, set_var *var, const TYPELIB *enum_names)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
   const char *value;
@@ -3643,21 +3643,18 @@ bool sys_var_thd_table_type::update(THD *thd, set_var *var)
   SYNOPSIS
     thd   in  thread handler
     val   in  sql_mode value
-    len   out pointer on length of string
-
-  RETURN
-    pointer to string with sql_mode representation
+    rep   out pointer pointer to string with sql_mode representation
 */
 
-byte *sys_var_thd_sql_mode::symbolic_mode_representation(THD *thd,
-                                                         ulonglong val,
-                                                         ulong *len)
+bool
+sys_var_thd_sql_mode::
+symbolic_mode_representation(THD *thd, ulonglong val, LEX_STRING *rep)
 {
-  char buff[256];
+  char buff[STRING_BUFFER_USUAL_SIZE*8];
   String tmp(buff, sizeof(buff), &my_charset_latin1);
-  ulong length;
 
   tmp.length(0);
+
   for (uint i= 0; val; val>>= 1, i++)
   {
     if (val & 1)
@@ -3668,20 +3665,25 @@ byte *sys_var_thd_sql_mode::symbolic_mode_representation(THD *thd,
     }
   }
 
-  if ((length= tmp.length()))
-    length--;
-  *len= length;
-  return (byte*) thd->strmake(tmp.ptr(), length);
+  if (tmp.length())
+    tmp.length(tmp.length() - 1); /* trim the trailing comma */
+
+  rep->str= thd->strmake(tmp.ptr(), tmp.length());
+
+  rep->length= rep->str ? tmp.length() : 0;
+
+  return rep->length != tmp.length();
 }
 
 
 byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type,
 				      LEX_STRING *base)
 {
+  LEX_STRING sql_mode;
   ulonglong val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
                   thd->variables.*offset);
-  ulong length_unused;
-  return symbolic_mode_representation(thd, val, &length_unused);
+  (void) symbolic_mode_representation(thd, val, &sql_mode);
+  return sql_mode.str;
 }
 
 
@@ -4012,24 +4014,13 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
   int res;
   /* here start the thread if not running. */
   DBUG_ENTER("sys_var_event_scheduler::update");
-  if (Events::opt_event_scheduler == Events::EVENTS_DISABLED)
-  {
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--event-scheduler=DISABLED or --skip-grant-tables");
-    DBUG_RETURN(TRUE);
-  }
-
   DBUG_PRINT("info", ("new_value: %d", (int) var->save_result.ulong_value));
 
-  if (var->save_result.ulong_value == Events::EVENTS_ON)
-    res= Events::get_instance()->start_execution_of_events();
-  else if (var->save_result.ulong_value == Events::EVENTS_OFF)
-    res= Events::get_instance()->stop_execution_of_events();
-  else
-  {
-    assert(0);                                  // Impossible
-  }
-  if (res)
-    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0));
+  enum Events::enum_opt_event_scheduler
+    new_state=
+    (enum Events::enum_opt_event_scheduler) var->save_result.ulong_value;
+
+  res= Events::switch_event_scheduler_state(new_state);
 
   DBUG_RETURN((bool) res);
 }
@@ -4038,15 +4029,7 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
 byte *sys_var_event_scheduler::value_ptr(THD *thd, enum_var_type type,
                                          LEX_STRING *base)
 {
-  int state;
-  if (Events::opt_event_scheduler == Events::EVENTS_DISABLED)
-    state= Events::EVENTS_DISABLED;              // This should be DISABLED
-  else if (Events::get_instance()->is_execution_of_events_started())
-    state= Events::EVENTS_ON;                    // This should be ON
-  else
-    state= Events::EVENTS_OFF;                   // This should be OFF
-
-  return (byte*) Events::opt_typelib.type_names[state];
+  return (byte *) Events::get_opt_event_scheduler_str();
 }
 
 
