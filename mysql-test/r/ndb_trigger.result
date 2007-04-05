@@ -141,4 +141,175 @@ a	b
 drop trigger t4_au;
 drop trigger t4_ad;
 drop table t1, t2, t3, t4, t5;
+CREATE TABLE t1 (
+id INT NOT NULL PRIMARY KEY,
+xy INT
+) ENGINE=ndbcluster;
+INSERT INTO t1 VALUES (1, 0);
+CREATE TRIGGER t1_update AFTER UPDATE ON t1 FOR EACH ROW BEGIN REPLACE INTO t2 SELECT * FROM t1 WHERE t1.id = NEW.id; END //
+CREATE TABLE t2 (
+id INT NOT NULL PRIMARY KEY,
+xy INT
+) ENGINE=ndbcluster;
+INSERT INTO t2 VALUES (2, 0);
+CREATE TABLE t3 (id INT NOT NULL PRIMARY KEY) ENGINE=ndbcluster;
+INSERT INTO t3 VALUES (1);
+CREATE TABLE t4 LIKE t1;
+CREATE TRIGGER t4_update AFTER UPDATE ON t4 FOR EACH ROW BEGIN REPLACE INTO t5 SELECT * FROM t4 WHERE t4.id = NEW.id; END //
+CREATE TABLE t5 LIKE t2;
+UPDATE t1 SET xy = 3 WHERE id = 1;
+SELECT xy FROM t1 where id = 1;
+xy
+3
+SELECT xy FROM t2 where id = 1;
+xy
+3
+UPDATE t1 SET xy  = 4 WHERE id IN (SELECT id FROM t3 WHERE id = 1);
+SELECT xy FROM t1 where id = 1;
+xy
+4
+SELECT xy FROM t2 where id = 1;
+xy
+4
+INSERT INTO t4 SELECT * FROM t1;
+INSERT INTO t5 SELECT * FROM t2;
+UPDATE t1,t4 SET t1.xy = 3, t4.xy = 3 WHERE t1.id = 1 AND t4.id = 1;
+SELECT xy FROM t1 where id = 1;
+xy
+3
+SELECT xy FROM t2 where id = 1;
+xy
+3
+SELECT xy FROM t4 where id = 1;
+xy
+3
+SELECT xy FROM t5 where id = 1;
+xy
+3
+UPDATE t1,t4 SET t1.xy = 4, t4.xy = 4 WHERE t1.id IN (SELECT id FROM t3 WHERE id = 1) AND t4.id IN (SELECT id FROM t3 WHERE id = 1);
+SELECT xy FROM t1 where id = 1;
+xy
+4
+SELECT xy FROM t2 where id = 1;
+xy
+4
+SELECT xy FROM t4 where id = 1;
+xy
+4
+SELECT xy FROM t5 where id = 1;
+xy
+4
+INSERT INTO t1 VALUES (1,0) ON DUPLICATE KEY UPDATE xy = 5;
+SELECT xy FROM t1 where id = 1;
+xy
+5
+SELECT xy FROM t2 where id = 1;
+xy
+5
+DROP TRIGGER t1_update;
+DROP TRIGGER t4_update;
+CREATE TRIGGER t1_delete AFTER DELETE ON t1 FOR EACH ROW BEGIN REPLACE INTO t2 SELECT * FROM t1 WHERE t1.id > 4; END //
+CREATE TRIGGER t4_delete AFTER DELETE ON t4 FOR EACH ROW BEGIN REPLACE INTO t5 SELECT * FROM t4 WHERE t4.id > 4; END //
+INSERT INTO t1 VALUES (5, 0),(6,0);
+INSERT INTO t2 VALUES (5, 1),(6,1);
+INSERT INTO t3 VALUES (5);
+SELECT * FROM t1 order by id;
+id	xy
+1	5
+5	0
+6	0
+SELECT * FROM t2 order by id;
+id	xy
+1	5
+2	0
+5	1
+6	1
+DELETE FROM t1 WHERE id IN (SELECT id FROM t3 WHERE id = 5);
+SELECT * FROM t1 order by id;
+id	xy
+1	5
+6	0
+SELECT * FROM t2 order by id;
+id	xy
+1	5
+2	0
+5	1
+6	0
+INSERT INTO t1 VALUES (5,0);
+UPDATE t2 SET xy = 1 WHERE id = 6;
+TRUNCATE t4;
+INSERT INTO t4 SELECT * FROM t1;
+TRUNCATE t5;
+INSERT INTO t5 SELECT * FROM t2;
+SELECT * FROM t1 order by id;
+id	xy
+1	5
+5	0
+6	0
+SELECT * FROM t2 order by id;
+id	xy
+1	5
+2	0
+5	1
+6	1
+SELECT * FROM t4 order by id;
+id	xy
+1	5
+5	0
+6	0
+SELECT * FROM t5 order by id;
+id	xy
+1	5
+2	0
+5	1
+6	1
+DELETE FROM t1,t4 USING t1,t3,t4 WHERE t1.id IN (SELECT id FROM t3 WHERE id = 5) AND t4.id IN (SELECT id FROM t3 WHERE id = 5);
+SELECT * FROM t1 order by id;
+id	xy
+1	5
+6	0
+SELECT * FROM t2 order by id;
+id	xy
+1	5
+2	0
+5	1
+6	0
+SELECT * FROM t4 order by id;
+id	xy
+1	5
+6	0
+SELECT * FROM t5 order by id;
+id	xy
+1	5
+2	0
+5	1
+6	0
+INSERT INTO t1 VALUES (5, 0);
+REPLACE INTO t2 VALUES (6,1);
+SELECT * FROM t1 order by id;
+id	xy
+1	5
+5	0
+6	0
+SELECT * FROM t2 order by id;
+id	xy
+1	5
+2	0
+5	1
+6	1
+REPLACE INTO t1 VALUES (5, 1);
+SELECT * FROM t1 order by id;
+id	xy
+1	5
+5	1
+6	0
+SELECT * FROM t2 order by id;
+id	xy
+1	5
+2	0
+5	1
+6	0
+DROP TRIGGER t1_delete;
+DROP TRIGGER t4_delete;
+DROP TABLE t1, t2, t3, t4, t5;
 End of 5.1 tests

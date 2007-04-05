@@ -2948,7 +2948,7 @@ mysql_fetch_lengths(MYSQL_RES *res)
 
 
 int STDCALL
-mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
+mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
 {
   DBUG_ENTER("mysql_option");
   DBUG_PRINT("enter",("option: %d",(int) option));
@@ -3022,7 +3022,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
     mysql->reconnect= *(my_bool *) arg;
     break;
   case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:
-    if (!arg || test(*(uint*) arg))
+    if (*(my_bool*) arg)
       mysql->options.client_flag|= CLIENT_SSL_VERIFY_SERVER_CERT;
     else
       mysql->options.client_flag&= ~CLIENT_SSL_VERIFY_SERVER_CERT;

@@ -59,9 +59,10 @@ public:
     calling set_routine_type().
   */
   LEX_STRING m_sroutines_key;
+  bool       m_explicit_name;                   /**< Prepend the db name? */
 
-  sp_name(LEX_STRING db, LEX_STRING name)
-    : m_db(db), m_name(name)
+  sp_name(LEX_STRING db, LEX_STRING name, bool use_explicit_name)
+    : m_db(db), m_name(name), m_explicit_name(use_explicit_name)
   {
     m_qname.str= m_sroutines_key.str= 0;
     m_qname.length= m_sroutines_key.length= 0;
@@ -79,6 +80,7 @@ public:
     m_name.length= m_qname.length= key_len - 1;
     m_db.str= 0;
     m_db.length= 0;
+    m_explicit_name= false;
   }
 
   // Init. the qualified name from the db and name.
@@ -126,7 +128,7 @@ public:
 
   create_field m_return_field_def; /* This is used for FUNCTIONs only. */
 
-  const uchar *m_tmp_query;	// Temporary pointer to sub query string
+  const char *m_tmp_query;	// Temporary pointer to sub query string
   st_sp_chistics *m_chistics;
   ulong m_sql_mode;		// For SHOW CREATE and execution
   LEX_STRING m_qname;		// db.name
@@ -174,7 +176,7 @@ public:
   */
   HASH m_sroutines;
   // Pointers set during parsing
-  const uchar *m_param_begin, *m_param_end, *m_body_begin;
+  const char *m_param_begin, *m_param_end, *m_body_begin;
 
   /*
     Security context for stored routine which should be run under
