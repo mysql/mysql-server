@@ -684,6 +684,21 @@ class index_hint;
 typedef struct st_table_list
 {
   st_table_list() {}                          /* Remove gcc warning */
+
+  /**
+    Prepare TABLE_LIST that consists of one table instance to use in
+    simple_open_and_lock_tables
+  */
+  inline void init_one_table(const char *db_name_arg,
+                             const char *table_name_arg,
+                             enum thr_lock_type lock_type_arg)
+  {
+    bzero((char*) this, sizeof(*this));
+    db= (char*) db_name_arg;
+    table_name= alias= (char*) table_name_arg;
+    lock_type= lock_type_arg;
+  }
+
   /*
     List of tables local to a subquery (used by SQL_LIST). Considers
     views as leaves (unlike 'next_leaf' below). Created at parse time
@@ -1092,8 +1107,7 @@ typedef struct st_table_field_w_type
 
 my_bool
 table_check_intact(TABLE *table, const uint table_f_count,
-                   const TABLE_FIELD_W_TYPE *table_def,
-                   time_t *last_create_time, int error_num);
+                   const TABLE_FIELD_W_TYPE *table_def);
 
 static inline my_bitmap_map *tmp_use_all_columns(TABLE *table,
                                                  MY_BITMAP *bitmap)

@@ -890,7 +890,7 @@ static void close_connections(void)
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count); // For unlink from list
 
-  Events::get_instance()->deinit();
+  Events::deinit();
   end_slave();
 
   if (thread_count)
@@ -1335,7 +1335,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_bytes_sent);
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
-  Events::get_instance()->destroy_mutexes();
+  Events::destroy_mutexes();
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
 #ifndef HAVE_YASSL
@@ -3062,7 +3062,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_server_started, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_server_started,NULL);
   sp_cache_init();
-  Events::get_instance()->init_mutexes();
+  Events::init_mutexes();
   /* Parameter for threads created for connections */
   (void) pthread_attr_init(&connection_attrib);
   (void) pthread_attr_setdetachstate(&connection_attrib,
@@ -3841,21 +3841,15 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   create_shutdown_thread();
   create_maintenance_thread();
 
+  if (Events::init(opt_noacl))
+    unireg_abort(1);
+
   sql_print_information(ER(ER_STARTUP),my_progname,server_version,
                         ((unix_sock == INVALID_SOCKET) ? (char*) ""
                                                        : mysqld_unix_port),
                          mysqld_port,
                          MYSQL_COMPILATION_COMMENT);
 
-  if (!opt_noacl)
-  {
-    if (Events::get_instance()->init())
-      unireg_abort(1);
-  }
-  else
-  {
-    Events::opt_event_scheduler = Events::EVENTS_DISABLED; 
-  }
 
   /* Signal threads waiting for server to be started */
   pthread_mutex_lock(&LOCK_server_started);
@@ -7568,32 +7562,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
 #endif
   case OPT_EVENT_SCHEDULER:
-    if (!argument)
-      Events::opt_event_scheduler= Events::EVENTS_DISABLED;
-    else
-    {
-      int type;
-      /* 
-        type=     5          1   2      3   4
-             (DISABLE ) - (OFF | ON) - (0 | 1)
-      */
-      switch ((type=find_type(argument, &Events::opt_typelib, 1))) {
-      case 0:
-	fprintf(stderr, "Unknown option to event-scheduler: %s\n",argument);
-	exit(1);
-      case 5: /* OPT_DISABLED */
-        Events::opt_event_scheduler= Events::EVENTS_DISABLED;
-        break;
-      case 2: /* OPT_ON  */
-      case 4: /* 1   */
-        Events::opt_event_scheduler= Events::EVENTS_ON;
-        break;
-      case 1: /* OPT_OFF */
-      case 3: /*  0  */
-        Events::opt_event_scheduler= Events::EVENTS_OFF;
-        break;
-      }
-    }
+    if (Events::set_opt_event_scheduler(argument))
+      exit(1);
     break;
   case (int) OPT_SKIP_NEW:
     opt_specialflag|= SPECIAL_NO_NEW_FUNC;
