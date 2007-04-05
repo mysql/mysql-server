@@ -98,7 +98,8 @@ static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
 static my_bool view_protocol= 0, view_protocol_enabled= 0;
 static my_bool cursor_protocol= 0, cursor_protocol_enabled= 0;
 static my_bool parsing_disabled= 0;
-static my_bool display_result_vertically= FALSE, display_metadata= FALSE;
+static my_bool display_result_vertically= FALSE,
+  display_metadata= FALSE, display_result_sorted= FALSE;
 static my_bool disable_query_log= 0, disable_result_log= 0;
 static my_bool disable_warnings= 0, disable_ps_warnings= 0;
 static my_bool disable_info= 1;
@@ -265,7 +266,7 @@ enum enum_commands {
   Q_EXEC, Q_DELIMITER,
   Q_DISABLE_ABORT_ON_ERROR, Q_ENABLE_ABORT_ON_ERROR,
   Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
-  Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
+  Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL, Q_QUERY_SORTED,
   Q_START_TIMER, Q_END_TIMER,
   Q_CHARACTER_SET, Q_DISABLE_PS_PROTOCOL, Q_ENABLE_PS_PROTOCOL,
   Q_DISABLE_RECONNECT, Q_ENABLE_RECONNECT,
@@ -337,6 +338,7 @@ const char *command_names[]=
   "horizontal_results",
   "query_vertical",
   "query_horizontal",
+  "query_sorted",
   "start_timer",
   "end_timer",
   "character_set",
@@ -473,6 +475,7 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
                                int len);
 void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val);
 void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val);
+void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING* ds_input);
 
 void handle_error(struct st_command*,
                   unsigned int err_errno, const char *err_error,
@@ -5163,7 +5166,9 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
 {
   MYSQL *mysql= &cn->mysql;
   DYNAMIC_STRING *ds;
+  DYNAMIC_STRING *save_ds= NULL;
   DYNAMIC_STRING ds_result;
+  DYNAMIC_STRING ds_sorted;
   DYNAMIC_STRING ds_warnings;
   DYNAMIC_STRING eval_query;
   char *query;
@@ -5304,6 +5309,18 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     dynstr_free(&query_str);
   }
 
+  if (display_result_sorted)
+  {
+    /*
+       Collect the query output in a separate string
+       that can be sorted before it's added to the
+       global result string
+    */
+    init_dynamic_string(&ds_sorted, "", 1024, 1024);
+    save_ds= ds; /* Remember original ds */
+    ds= &ds_sorted;
+  }
+
   /*
     Find out how to run this query
 
@@ -5320,6 +5337,14 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   else
     run_query_normal(cn, command, flags, query, query_len,
 		     ds, &ds_warnings);
+
+  if (display_result_sorted)
+  {
+    /* Sort the result set and append it to result */
+    dynstr_append_sorted(save_ds, &ds_sorted);
+    ds= save_ds;
+    dynstr_free(&ds_sorted);
+  }
 
   if (sp_created)
   {
@@ -5763,37 +5788,24 @@ int main(int argc, char **argv)
       case Q_EVAL_RESULT:
         eval_result = 1; break;
       case Q_EVAL:
+      case Q_QUERY_VERTICAL:
+      case Q_QUERY_HORIZONTAL:
+      case Q_QUERY_SORTED:
 	if (command->query == command->query_buf)
         {
+          /* Skip the first part of command, i.e query_xxx */
 	  command->query= command->first_argument;
           command->first_word_len= 0;
         }
 	/* fall through */
-      case Q_QUERY_VERTICAL:
-      case Q_QUERY_HORIZONTAL:
-      {
-	my_bool old_display_result_vertically= display_result_vertically;
-
-	/* Remove "query_*" if this is first iteration */
-	if (command->query == command->query_buf)
-	  command->query= command->first_argument;
-
-	display_result_vertically= (command->type == Q_QUERY_VERTICAL);
-	if (save_file[0])
-	{
-	  strmake(command->require_file, save_file, sizeof(save_file));
-	  save_file[0]= 0;
-	}
-	run_query(cur_con, command, QUERY_REAP_FLAG|QUERY_SEND_FLAG);
-	display_result_vertically= old_display_result_vertically;
-        command->last_argument= command->end;
-        command_executed++;
-	break;
-      }
       case Q_QUERY:
       case Q_REAP:
       {
-        int flags;
+	my_bool old_display_result_vertically= display_result_vertically;
+	my_bool old_display_result_sorted= display_result_sorted;
+        /* Default is full query, both reap and send  */
+        int flags= QUERY_REAP_FLAG | QUERY_SEND_FLAG;
+
         if (q_send_flag)
         {
           /* Last command was an empty 'send' */
@@ -5804,11 +5816,10 @@ int main(int argc, char **argv)
         {
           flags= QUERY_REAP_FLAG;
         }
-        else
-        {
-          /* full query, both reap and send  */
-	  flags= QUERY_REAP_FLAG | QUERY_SEND_FLAG;
-        }
+
+        /* Check for special property for this query */
+        display_result_vertically= (command->type == Q_QUERY_VERTICAL);
+        display_result_sorted= (command->type == Q_QUERY_SORTED);
 
 	if (save_file[0])
 	{
@@ -5818,6 +5829,11 @@ int main(int argc, char **argv)
 	run_query(cur_con, command, flags);
 	command_executed++;
         command->last_argument= command->end;
+
+        /* Restore settings */
+	display_result_vertically= old_display_result_vertically;
+	display_result_sorted= old_display_result_sorted;
+
 	break;
       }
       case Q_SEND:
@@ -7426,4 +7442,74 @@ void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val)
   char buff[22]; /* This should be enough for any int */
   char *end= longlong10_to_str(val, buff, 10);
   replace_dynstr_append_mem(ds, buff, end - buff);
+}
+
+
+
+/*
+  Build a list of pointer to each line in ds_input, sort
+  the list and use the sorted list to append the strings
+  sorted to the output ds
+
+  SYNOPSIS
+  dynstr_append_sorted
+  ds - string where the sorted output will be appended
+  ds_input - string to be sorted
+
+*/
+
+static int comp_lines(const char **a, const char **b)
+{
+  return (strcmp(*a,*b));
+}
+
+void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
+{
+  unsigned i;
+  char *start= ds_input->str;
+  DYNAMIC_ARRAY lines;
+  DBUG_ENTER("dynstr_append_sorted");
+
+  if (!*start)
+    DBUG_VOID_RETURN;  /* No input */
+
+  my_init_dynamic_array(&lines, sizeof(const char*), 32, 32);
+
+  /* First line is result header, skip past it */
+  while (*start && *start != '\n')
+    start++;
+  start++; /* Skip past \n */
+  dynstr_append_mem(ds, ds_input->str, start - ds_input->str);
+
+  /* Insert line(s) in array */
+  while (*start)
+  {
+    char* line_end= (char*)start;
+
+    /* Find end of line */
+    while (*line_end && *line_end != '\n')
+      line_end++;
+    *line_end= 0;
+
+    /* Insert pointer to the line in array */
+    if (insert_dynamic(&lines, (gptr) &start))
+      die("Out of memory inserting lines to sort");
+
+    start= line_end+1;
+  }
+
+  /* Sort array */
+  qsort(lines.buffer, lines.elements,
+        sizeof(char**), (qsort_cmp)comp_lines);
+
+  /* Create new result */
+  for (i= 0; i < lines.elements ; i++)
+  {
+    const char **line= dynamic_element(&lines, i, const char**);
+    dynstr_append(ds, *line);
+    dynstr_append(ds, "\n");
+  }
+
+  delete_dynamic(&lines);
+  DBUG_VOID_RETURN;
 }
