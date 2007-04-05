@@ -58,6 +58,7 @@ STOP SLAVE;
 select * from t1;
 t
 1
+insert into t1 values (NULL);
 show slave status;
 Slave_IO_State	#
 Master_Host	127.0.0.1
