@@ -187,8 +187,14 @@ bool partition_info::set_up_default_partitions(handler *file,
     my_error(ER_PARTITIONS_MUST_BE_DEFINED_ERROR, MYF(0), error_string);
     goto end;
   }
-  if (no_parts == 0)
-    no_parts= file->get_default_no_partitions(info);
+
+  if ((no_parts == 0) &&
+      ((no_parts= file->get_default_no_partitions(info)) == 0))
+  {
+    my_error(ER_PARTITION_NOT_DEFINED_ERROR, MYF(0), "partitions");
+    goto end;
+  }
+
   if (unlikely(no_parts > MAX_PARTITIONS))
   {
     my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
