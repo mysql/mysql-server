@@ -1043,6 +1043,7 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
     status = Event_queue_element::SLAVESIDE_DISABLED;
     break;
   case 'D' :
+  default:
     status = Event_queue_element::DISABLED;
     break;
   }
