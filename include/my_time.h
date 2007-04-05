@@ -72,6 +72,8 @@ typedef long my_time_t;
 #define TIME_MAX_SECOND 59
 #define TIME_MAX_VALUE (TIME_MAX_HOUR*10000 + TIME_MAX_MINUTE*100 + \
                         TIME_MAX_SECOND)
+#define TIME_MAX_VALUE_SECONDS (TIME_MAX_HOUR * 3600L + \
+                                TIME_MAX_MINUTE * 60L + TIME_MAX_SECOND)
 
 my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
                    ulong flags, int *was_cut);

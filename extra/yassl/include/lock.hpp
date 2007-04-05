@@ -28,7 +28,7 @@ namespace yaSSL {
 
 
 #ifdef MULTI_THREADED
-   #if defined(_WIN32) || defined(_WIN64)
+    #ifdef _WIN32
         #include <windows.h>
 
         class Mutex {

@@ -32,9 +32,8 @@ sess_open(void)
 {
 	sess_t*	sess;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
+
 	sess = mem_alloc(sizeof(sess_t));
 
 	sess->state = SESS_ACTIVE;
@@ -54,9 +53,7 @@ sess_close(
 /*=======*/
 	sess_t*	sess)	/* in, own: session object */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(sess->trx == NULL);
 
 	mem_free(sess);
@@ -72,9 +69,8 @@ sess_try_close(
 			/* out: TRUE if closed */
 	sess_t*	sess)	/* in, own: session object */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
+
 	if (UT_LIST_GET_LEN(sess->graphs) == 0) {
 		sess_close(sess);
 

@@ -49,13 +49,11 @@ const uint AUTO = 0xFEEDBEEF;
 // Checking Policy should implement a check function that tests whether the
 // index is within the size limit of the array
 struct Check {
-    Check() {}
     void check(uint i, uint limit);
 };
 
 
 struct NoCheck {
-    NoCheck() {}
     void check(uint, uint);
 };
 
@@ -193,7 +191,6 @@ inline void checked_delete(T* p)
 // sets pointer to zero so safe for std conatiners
 struct del_ptr_zero
 {
-    del_ptr_zero() {}
     template <typename T>
     void operator()(T*& p) const
     {
