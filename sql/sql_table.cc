@@ -1922,6 +1922,7 @@ static int sort_keys(KEY *a, KEY *b)
     set_or_name   "SET" or "ENUM" string for warning message
     name	  name of the checked column
     typelib	  list of values for the column
+    dup_val_count  returns count of duplicate elements
 
   DESCRIPTION
     This function prints an warning for each value in list
@@ -1933,11 +1934,12 @@ static int sort_keys(KEY *a, KEY *b)
 
 void check_duplicates_in_interval(const char *set_or_name,
                                   const char *name, TYPELIB *typelib,
-                                  CHARSET_INFO *cs)
+                                  CHARSET_INFO *cs, unsigned int *dup_val_count)
 {
   TYPELIB tmp= *typelib;
   const char **cur_value= typelib->type_names;
   unsigned int *cur_length= typelib->type_lengths;
+  *dup_val_count= 0;  
   
   for ( ; tmp.count > 1; cur_value++, cur_length++)
   {
@@ -1950,6 +1952,7 @@ void check_duplicates_in_interval(const char *set_or_name,
 			  ER_DUPLICATED_VALUE_IN_TYPE,
 			  ER(ER_DUPLICATED_VALUE_IN_TYPE),
 			  name,*cur_value,set_or_name);
+      (*dup_val_count)++;
     }
   }
 }
@@ -2013,6 +2016,7 @@ int prepare_create_field(create_field *sql_field,
 			 int *timestamps, int *timestamps_with_niladic,
 			 longlong table_flags)
 {
+  unsigned int dup_val_count;
   DBUG_ENTER("prepare_field");
 
   /*
@@ -2088,7 +2092,7 @@ int prepare_create_field(create_field *sql_field,
     sql_field->unireg_check=Field::INTERVAL_FIELD;
     check_duplicates_in_interval("ENUM",sql_field->field_name,
                                  sql_field->interval,
-                                 sql_field->charset);
+                                 sql_field->charset, &dup_val_count);
     break;
   case MYSQL_TYPE_SET:
     sql_field->pack_flag=pack_length_to_packflag(sql_field->pack_length) |
@@ -2098,7 +2102,13 @@ int prepare_create_field(create_field *sql_field,
     sql_field->unireg_check=Field::BIT_FIELD;
     check_duplicates_in_interval("SET",sql_field->field_name,
                                  sql_field->interval,
-                                 sql_field->charset);
+                                 sql_field->charset, &dup_val_count);
+    /* Check that count of unique members is not more then 64 */
+    if (sql_field->interval->count -  dup_val_count > sizeof(longlong)*8)
+    {
+       my_error(ER_TOO_BIG_SET, MYF(0), sql_field->field_name);
+       DBUG_RETURN(1);
+    }
     break;
   case MYSQL_TYPE_DATE:			// Rest of string types
   case MYSQL_TYPE_NEWDATE:

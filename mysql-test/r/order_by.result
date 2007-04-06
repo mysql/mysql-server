@@ -906,6 +906,90 @@ ERROR 23000: Column 'val' in order clause is ambiguous
 SELECT p.a AS val, q.a AS val FROM t1 p, t1 q ORDER BY val > 1;
 ERROR 23000: Column 'val' in order clause is ambiguous
 DROP TABLE t1;
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (3), (2), (4), (1);
+SELECT a, IF(a IN (2,3), a, a+10) FROM t1
+ORDER BY IF(a IN (2,3), a, a+10);
+a	IF(a IN (2,3), a, a+10)
+2	2
+3	3
+1	11
+4	14
+SELECT a, IF(a NOT IN (2,3), a, a+10) FROM t1 
+ORDER BY IF(a NOT IN (2,3), a, a+10);
+a	IF(a NOT IN (2,3), a, a+10)
+1	1
+4	4
+2	12
+3	13
+SELECT a, IF(a IN (2,3), a, a+10) FROM t1 
+ORDER BY IF(a NOT IN (2,3), a, a+10);
+a	IF(a IN (2,3), a, a+10)
+1	11
+4	14
+2	2
+3	3
+SELECT a, IF(a BETWEEN 2 AND 3, a, a+10) FROM t1
+ORDER BY IF(a BETWEEN 2 AND 3, a, a+10);
+a	IF(a BETWEEN 2 AND 3, a, a+10)
+2	2
+3	3
+1	11
+4	14
+SELECT a, IF(a NOT BETWEEN 2 AND 3, a, a+10) FROM t1 
+ORDER BY IF(a NOT BETWEEN 2 AND 3, a, a+10);
+a	IF(a NOT BETWEEN 2 AND 3, a, a+10)
+1	1
+4	4
+2	12
+3	13
+SELECT a, IF(a BETWEEN 2 AND 3, a, a+10) FROM t1 
+ORDER BY IF(a NOT BETWEEN 2 AND 3, a, a+10);
+a	IF(a BETWEEN 2 AND 3, a, a+10)
+1	11
+4	14
+2	2
+3	3
+SELECT IF(a IN (1,2), a, '') as x1, IF(a NOT IN (1,2), a, '') as x2
+FROM t1 GROUP BY x1, x2;
+x1	x2
+	3
+	4
+1	
+2	
+SELECT IF(a IN (1,2), a, '') as x1, IF(a NOT IN (1,2), a, '') as x2
+FROM t1 GROUP BY x1, IF(a NOT IN (1,2), a, '');
+x1	x2
+	3
+	4
+1	
+2	
+SELECT a, a IN (1,2) FROM t1 ORDER BY a IN (1,2);
+a	a IN (1,2)
+3	0
+4	0
+2	1
+1	1
+SELECT a FROM t1 ORDER BY a IN (1,2);
+a
+3
+4
+2
+1
+SELECT a+10 FROM t1 ORDER BY a IN (1,2);
+a+10
+13
+14
+12
+11
+SELECT a, IF(a IN (1,2), a, a+10) FROM t1
+ORDER BY IF(a IN (3,4), a, a+10);
+a	IF(a IN (1,2), a, a+10)
+3	13
+4	14
+1	1
+2	2
+DROP TABLE t1;
 create table t1 (a int not null, b  int not null, c int not null);
 insert t1 values (1,1,1),(1,1,2),(1,2,1);
 select a, b from t1 group by a, b order by sum(c);
