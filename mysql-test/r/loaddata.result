@@ -156,3 +156,12 @@ select load_file("MYSQL_TEST_DIR/t/loaddata.test");
 load_file("MYSQL_TEST_DIR/t/loaddata.test")
 NULL
 drop table t1, t2;
+create table t1(f1 int);
+insert into t1 values(1),(null);
+create table t2(f2 int auto_increment primary key);
+select * from t2;
+f2
+1
+2
+SET @@SQL_MODE=@OLD_SQL_MODE;
+drop table t1,t2;
