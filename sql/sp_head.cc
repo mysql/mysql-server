@@ -992,6 +992,12 @@ sp_head::execute(THD *thd)
                m_first_instance->m_last_cached_sp == this) ||
               (m_recursion_level + 1 == m_next_cached_sp->m_recursion_level));
 
+  /*
+    NOTE: The SQL Standard does not specify the context that should be
+    preserved for stored routines. However, at SAP/Walldorf meeting it was
+    decided that current database should be preserved.
+  */
+
   if (m_db.length &&
       (err_status= sp_use_new_db(thd, m_db, &old_db, 0, &dbchanged)))
     goto done;

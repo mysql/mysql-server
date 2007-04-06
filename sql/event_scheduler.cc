@@ -154,8 +154,6 @@ deinit_event_thread(THD *thd)
   thread_running--;
   delete thd;
   pthread_mutex_unlock(&LOCK_thread_count);
-
-  my_thread_end();
 }
 
 
@@ -231,8 +229,7 @@ event_scheduler_thread(void *arg)
   if (!res)
     scheduler->run(thd);
 
-  deinit_event_thread(thd);
-  pthread_exit(0);
+  my_thread_end();
   DBUG_RETURN(0);                               // Against gcc warnings
 }
 
@@ -260,6 +257,7 @@ event_worker_thread(void *arg)
   Event_worker_thread worker_thread;
   worker_thread.run(thd, event);
 
+  my_thread_end();
   return 0;                                     // Can't return anything here
 }
 
@@ -494,12 +492,14 @@ Event_scheduler::run(THD *thd)
     }
     DBUG_PRINT("info", ("state=%s", scheduler_states_names[state].str));
   }
+
   LOCK_DATA();
-  DBUG_PRINT("info", ("Signalling back to the stopper COND_state"));
+  deinit_event_thread(thd);
+  scheduler_thd= NULL;
   state= INITIALIZED;
+  DBUG_PRINT("info", ("Signalling back to the stopper COND_state"));
   pthread_cond_signal(&COND_state);
   UNLOCK_DATA();
-  sql_print_information("Event Scheduler: Stopped");
 
   DBUG_RETURN(res);
 }
@@ -651,17 +651,7 @@ Event_scheduler::stop()
     COND_STATE_WAIT(thd, NULL, "Waiting scheduler to stop");
   } while (state == STOPPING);
   DBUG_PRINT("info", ("Scheduler thread has cleaned up. Set state to INIT"));
-  /*
-    The rationale behind setting it to NULL here but not destructing it
-    beforehand is because the THD will be deinited in event_scheduler_thread().
-    It's more clear when the post_init and the deinit is done in one function.
-    Here we just mark that the scheduler doesn't have a THD anymore. Though for
-    milliseconds the old thread could exist we can't use it anymore. When we
-    unlock the mutex in this function a little later the state will be
-    INITIALIZED. Therefore, a connection thread could enter the critical section
-    and will create a new THD object.
-  */
-  scheduler_thd= NULL;
+  sql_print_information("Event Scheduler: Stopped");
 end:
   UNLOCK_DATA();
   DBUG_RETURN(FALSE);
