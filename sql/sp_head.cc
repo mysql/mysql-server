@@ -2104,24 +2104,18 @@ sp_head::show_create_procedure(THD *thd)
   String buffer(buff, sizeof(buff), system_charset_info);
   int res;
   List<Item> field_list;
-  byte *sql_mode_str;
-  ulong sql_mode_len;
+  LEX_STRING sql_mode;
   bool full_access;
   DBUG_ENTER("sp_head::show_create_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 
-  LINT_INIT(sql_mode_str);
-  LINT_INIT(sql_mode_len);
-
   if (check_show_routine_access(thd, this, &full_access))
     DBUG_RETURN(1);
 
-  sql_mode_str=
-    sys_var_thd_sql_mode::symbolic_mode_representation(thd,
-                                                       m_sql_mode,
-                                                       &sql_mode_len);
+  sys_var_thd_sql_mode::symbolic_mode_representation(thd, m_sql_mode,
+                                                     &sql_mode);
   field_list.push_back(new Item_empty_string("Procedure", NAME_LEN));
-  field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
+  field_list.push_back(new Item_empty_string("sql_mode", sql_mode.length));
   // 1024 is for not to confuse old clients
   Item_empty_string *definition=
     new Item_empty_string("Create Procedure", max(buffer.length(),1024));
@@ -2133,7 +2127,7 @@ sp_head::show_create_procedure(THD *thd)
     DBUG_RETURN(1);
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
-  protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
+  protocol->store((char*) sql_mode.str, sql_mode.length, system_charset_info);
   if (full_access)
     protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   else
@@ -2176,23 +2170,18 @@ sp_head::show_create_function(THD *thd)
   String buffer(buff, sizeof(buff), system_charset_info);
   int res;
   List<Item> field_list;
-  byte *sql_mode_str;
-  ulong sql_mode_len;
+  LEX_STRING sql_mode;
   bool full_access;
   DBUG_ENTER("sp_head::show_create_function");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
-  LINT_INIT(sql_mode_str);
-  LINT_INIT(sql_mode_len);
 
   if (check_show_routine_access(thd, this, &full_access))
     DBUG_RETURN(1);
 
-  sql_mode_str=
-    sys_var_thd_sql_mode::symbolic_mode_representation(thd,
-                                                       m_sql_mode,
-                                                       &sql_mode_len);
+  sys_var_thd_sql_mode::symbolic_mode_representation(thd, m_sql_mode,
+                                                     &sql_mode);
   field_list.push_back(new Item_empty_string("Function",NAME_LEN));
-  field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
+  field_list.push_back(new Item_empty_string("sql_mode", sql_mode.length));
   Item_empty_string *definition=
     new Item_empty_string("Create Function", max(buffer.length(),1024));
   definition->maybe_null= TRUE;
@@ -2203,7 +2192,7 @@ sp_head::show_create_function(THD *thd)
     DBUG_RETURN(1);
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
-  protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
+  protocol->store(sql_mode.str, sql_mode.length, system_charset_info);
   if (full_access)
     protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   else

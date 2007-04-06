@@ -26,7 +26,6 @@
 #include "sp.h"
 #include "sp_cache.h"
 #include "events.h"
-#include "event_data_objects.h"
 #include "sql_trigger.h"
 
 /* Used in error handling only */
@@ -3181,13 +3180,16 @@ end_with_restore_list:
 
     switch (lex->sql_command) {
     case SQLCOM_CREATE_EVENT:
-      res= Events::get_instance()->
-            create_event(thd, lex->event_parse_data,
-                         lex->create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS);
+    {
+      bool if_not_exists= (lex->create_info.options &
+                           HA_LEX_CREATE_IF_NOT_EXISTS);
+      res= Events::create_event(thd, lex->event_parse_data, if_not_exists);
       break;
+    }
     case SQLCOM_ALTER_EVENT:
-      res= Events::get_instance()->update_event(thd, lex->event_parse_data,
-                                                lex->spname);
+      res= Events::update_event(thd, lex->event_parse_data,
+                                lex->spname ? &lex->spname->m_db : NULL,
+                                lex->spname ? &lex->spname->m_name : NULL);
       break;
     default:
       DBUG_ASSERT(0);
@@ -3205,39 +3207,16 @@ end_with_restore_list:
   }
   /* lex->unit.cleanup() is called outside, no need to call it here */
   break;
-  case SQLCOM_DROP_EVENT:
   case SQLCOM_SHOW_CREATE_EVENT:
-  {
-    DBUG_ASSERT(lex->spname);
-    if (! lex->spname->m_db.str)
-    {
-      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
-      goto error;
-    }
-    if (check_access(thd, EVENT_ACL, lex->spname->m_db.str, 0, 0, 0,
-                     is_schema_db(lex->spname->m_db.str)))
-      break;
-
-    if (lex->spname->m_name.length > NAME_LEN)
-    {
-      my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
-      /* this jumps to the end of the function and skips own messaging */
-      goto error;
-    }
-
-    if (lex->sql_command == SQLCOM_SHOW_CREATE_EVENT)
-      res= Events::get_instance()->show_create_event(thd, lex->spname->m_db,
-                                                     lex->spname->m_name);
-    else
-    {
-      if (!(res= Events::get_instance()->drop_event(thd,
-                                                    lex->spname->m_db,
-                                                    lex->spname->m_name,
-                                                    lex->drop_if_exists)))
-        send_ok(thd);
-    }
+    res= Events::show_create_event(thd, lex->spname->m_db,
+                                   lex->spname->m_name);
     break;
-  }
+  case SQLCOM_DROP_EVENT:
+    if (!(res= Events::drop_event(thd,
+                                  lex->spname->m_db, lex->spname->m_name,
+                                  lex->drop_if_exists)))
+      send_ok(thd);
+    break;
   case SQLCOM_CREATE_FUNCTION:                  // UDF function
   {
     if (check_access(thd,INSERT_ACL,"mysql",0,1,0,0))
