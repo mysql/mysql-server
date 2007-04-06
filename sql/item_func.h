@@ -1308,12 +1308,12 @@ public:
   FT_INFO *ft_handler;
   TABLE *table;
   Item_func_match *master;   // for master-slave optimization
-  Item *concat;              // Item_func_concat_ws
-  String value;              // value of concat
+  Item *concat_ws;           // Item_func_concat_ws
+  String value;              // value of concat_ws
   String search_value;       // key_item()'s value converted to cmp_collation
 
   Item_func_match(List<Item> &a, uint b): Item_real_func(a), key(0), flags(b),
-       join_key(0), ft_handler(0), table(0), master(0), concat(0) { }
+       join_key(0), ft_handler(0), table(0), master(0), concat_ws(0) { }
   void cleanup()
   {
     DBUG_ENTER("Item_func_match");
@@ -1321,7 +1321,7 @@ public:
     if (!master && ft_handler)
       ft_handler->please->close_search(ft_handler);
     ft_handler= 0;
-    concat= 0;
+    concat_ws= 0;
     DBUG_VOID_RETURN;
   }
   enum Functype functype() const { return FT_FUNC; }
