@@ -532,7 +532,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   Item_field *sql_field;
   TABLE *table= table_list->table;
   ulonglong id;
-  bool no_trans_update;
+  bool no_trans_update, err;
   DBUG_ENTER("read_fixed_length");
 
   id= 0;
@@ -624,7 +624,9 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       DBUG_RETURN(-1);
     }
 
-    if (write_record(thd, table, &info))
+    err= write_record(thd, table, &info);
+    table->auto_increment_field_not_null= FALSE;
+    if (err)
       DBUG_RETURN(1);
     thd->no_trans_update= no_trans_update;
    
@@ -669,7 +671,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   TABLE *table= table_list->table;
   uint enclosed_length;
   ulonglong id;
-  bool no_trans_update;
+  bool no_trans_update, err;
   DBUG_ENTER("read_sep_field");
 
   enclosed_length=enclosed.length();
@@ -716,8 +718,6 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
             DBUG_RETURN(1);
           }
           field->set_null();
-          if (field == table->next_number_field)
-            table->auto_increment_field_not_null= TRUE;
           if (!field->maybe_null())
           {
             if (field->type() == FIELD_TYPE_TIMESTAMP)
@@ -803,8 +803,9 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       DBUG_RETURN(-1);
     }
 
-
-    if (write_record(thd, table, &info))
+    err= write_record(thd, table, &info);
+    table->auto_increment_field_not_null= FALSE;
+    if (err)
       DBUG_RETURN(1);
     /*
       If auto_increment values are used, save the first one for
