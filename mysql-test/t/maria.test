@@ -677,6 +677,10 @@ insert into t1 values ('bce','def2', NULL, 'quux');
 analyze table t1;
 show index from t1;
 delete from t1;
+# This will give you different messages depending on if we are using
+# row base or stmt based replication as stmt base replication will use
+# truncate and row based will delete things row by row.
+--replace_result "Table is already up to date" "OK"
 analyze table t1;
 show index from t1;
 
@@ -1086,4 +1090,8 @@ DROP TABLE t1;
 
 # End of 5.2 tests
 
+--disable_result_log
+--disable_query_log
 eval set global storage_engine=$default;
+--enable_result_log
+--enable_query_log

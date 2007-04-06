@@ -1042,7 +1042,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   /* QQ: Until we have repair for block format, lie that it succeded */
   if (file->s->data_file_type == BLOCK_RECORD)
   {
-    if (optimize)
+    if (do_optimize)
       DBUG_RETURN(analyze(thd, (HA_CHECK_OPT*) 0));
     DBUG_RETURN(HA_ADMIN_OK);
   }

@@ -5073,7 +5073,7 @@ translog_size_t translog_read_record(LSN lsn,
 
 static void translog_force_current_buffer_to_finish()
 {
-  TRANSLOG_ADDRESS new_buff_begunning;
+  TRANSLOG_ADDRESS new_buff_beginning;
   uint16 old_buffer_no= log_descriptor.bc.buffer_no;
   uint16 new_buffer_no= (old_buffer_no + 1) % TRANSLOG_BUFFERS_NO;
   struct st_translog_buffer *new_buffer= (log_descriptor.buffers +
@@ -5086,7 +5086,6 @@ static void translog_force_current_buffer_to_finish()
   DBUG_PRINT("enter", ("Buffer #%u 0x%lx  "
                        "Buffer addr: (%lu,0x%lx)  "
                        "Page addr: (%lu,0x%lx)  "
-                       "New Buff: (%lu,0x%lx)  "
                        "size: %lu (%lu)  Pg: %u  left: %u",
                        (uint) log_descriptor.bc.buffer_no,
                        (ulong) log_descriptor.bc.buffer,
@@ -5095,16 +5094,15 @@ static void translog_force_current_buffer_to_finish()
                        (ulong) LSN_FILE_NO(log_descriptor.horizon),
                        (ulong) (LSN_OFFSET(log_descriptor.horizon) -
                                 log_descriptor.bc.current_page_fill),
-                       (ulong) LSN_FILE_NO(new_buff_begunning),
-                       (ulong) LSN_OFFSET(new_buff_begunning),
                        (ulong) log_descriptor.bc.buffer->size,
                        (ulong) (log_descriptor.bc.ptr -log_descriptor.bc.
                                 buffer->buffer),
                        (uint) log_descriptor.bc.current_page_fill,
                        (uint) left));
 
-  new_buff_begunning= log_descriptor.bc.buffer->offset;
-  new_buff_begunning+= log_descriptor.bc.buffer->size; /* increase offset */
+  LINT_INIT(current_page_fill);
+  new_buff_beginning= log_descriptor.bc.buffer->offset;
+  new_buff_beginning+= log_descriptor.bc.buffer->size; /* increase offset */
 
   DBUG_ASSERT(log_descriptor.bc.ptr !=NULL);
   DBUG_ASSERT(LSN_FILE_NO(log_descriptor.horizon) ==
@@ -5120,7 +5118,7 @@ static void translog_force_current_buffer_to_finish()
     DBUG_PRINT("info", ("left: %u", (uint) left));
 
     /* decrease offset */
-    new_buff_begunning-= log_descriptor.bc.current_page_fill;
+    new_buff_beginning-= log_descriptor.bc.current_page_fill;
     current_page_fill= log_descriptor.bc.current_page_fill;
 
     bzero(log_descriptor.bc.ptr, left);
@@ -5145,7 +5143,7 @@ static void translog_force_current_buffer_to_finish()
   write_counter= log_descriptor.bc.write_counter;
   previous_offset= log_descriptor.bc.previous_offset;
   translog_start_buffer(new_buffer, &log_descriptor.bc, new_buffer_no);
-  log_descriptor.bc.buffer->offset= new_buff_begunning;
+  log_descriptor.bc.buffer->offset= new_buff_beginning;
   log_descriptor.bc.write_counter= write_counter;
   log_descriptor.bc.previous_offset= previous_offset;
 

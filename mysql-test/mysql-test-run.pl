@@ -1238,19 +1238,6 @@ sub command_line_setup () {
   $path_ndb_testrun_log= "$opt_vardir/log/ndb_testrun.log";
 
   $path_snapshot= "$opt_tmpdir/snapshot_$opt_master_myport/";
-
-  if ( $opt_valgrind and $opt_debug )
-  {
-    # When both --valgrind and --debug is selected, send
-    # all output to the trace file, making it possible to
-    # see the exact location where valgrind complains
-    foreach my $mysqld (@{$master}, @{$slave})
-    {
-      my $sidx= $mysqld->{idx} ? "$mysqld->{idx}" : "";
-      $mysqld->{path_myerr}=
-	"$opt_vardir/log/" . $mysqld->{type} . "$sidx.trace";
-    }
-  }
 }
 
 #

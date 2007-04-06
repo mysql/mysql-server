@@ -309,13 +309,6 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 	for (j=0 ; j < share->keyinfo[i].keysegs; j++,pos++)
 	{
 	  disk_pos=_ma_keyseg_read(disk_pos, pos);
-          if (pos->flag & HA_BLOB_PART &&
-              ! (share->options & (HA_OPTION_COMPRESS_RECORD |
-                                   HA_OPTION_PACK_RECORD)))
-          {
-            my_errno= HA_ERR_CRASHED;
-            goto err;
-          }
 	  if (pos->type == HA_KEYTYPE_TEXT ||
               pos->type == HA_KEYTYPE_VARTEXT1 ||
               pos->type == HA_KEYTYPE_VARTEXT2)

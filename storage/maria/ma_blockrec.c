@@ -858,6 +858,7 @@ static my_bool get_head_or_tail_page(MARIA_HA *info,
 {
   uint block_size;
   DBUG_ENTER("get_head_or_tail_page");
+  DBUG_PRINT("enter", ("length: %u", length));
 
   block_size= info->s->block_size;
   if (block->org_bitmap_value == 0)             /* Empty block */
@@ -871,9 +872,8 @@ static my_bool get_head_or_tail_page(MARIA_HA *info,
       The rest of the code does not assume the block is zeroed above
       PAGE_OVERHEAD_SIZE
     */
-    bzero(buff+ PAGE_HEADER_SIZE + length,
-          block_size - length - PAGE_HEADER_SIZE - DIR_ENTRY_SIZE -
-          PAGE_SUFFIX_SIZE);
+    bzero(buff+ PAGE_HEADER_SIZE, block_size - PAGE_HEADER_SIZE);
+
     buff[PAGE_TYPE_OFFSET]= (byte) page_type;
     buff[DIR_ENTRY_OFFSET]= 1;
     res->buff= buff;
