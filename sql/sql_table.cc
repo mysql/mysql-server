@@ -3938,7 +3938,9 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
   /*
     Check if this is a table type that stores index and data separately,
-    like ISAM or MyISAM
+    like ISAM or MyISAM. We assume fixed order of engine file name
+    extentions array. First element of engine file name extentions array
+    is meta/index file extention. Second element - data file extention. 
   */
   ext= table->file->bas_ext();
   if (!ext[0] || !ext[1])
