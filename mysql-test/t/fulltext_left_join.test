@@ -87,3 +87,14 @@ SELECT t1.*, MATCH(t1.name) AGAINST('string') AS relevance
 DROP TABLE t1,t2;
 
 # End of 4.1 tests
+
+#
+# BUG#25729 - boolean full text search is confused by NULLs produced by LEFT
+#             JOIN
+#
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b INT, c TEXT, KEY(b));
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(b,c) VALUES(2,'castle'),(3,'castle');
+SELECT * FROM t1 LEFT JOIN t2 ON a=b WHERE MATCH(c) AGAINST('+castle' IN BOOLEAN MODE);
+DROP TABLE t1, t2;
