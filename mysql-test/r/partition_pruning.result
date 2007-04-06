@@ -846,7 +846,7 @@ explain partitions select * from t1 where a = 18446744073709551614;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 drop table t1;
-create table t1 (a int) 
+create table t1 (a int)
 partition by range(a) (
 partition p0 values less than (64),
 partition p1 values less than (128),
