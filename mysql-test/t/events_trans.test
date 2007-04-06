@@ -1,0 +1,159 @@
+#
+# Tests that require transactions
+#
+-- source include/have_innodb.inc
+--disable_warnings
+drop database if exists events_test;
+drop database if exists mysqltest_db2;
+drop database if exists mysqltest_no_such_database;
+--enable_warnings
+create database events_test;
+use events_test;
+
+--echo
+--echo Test that Events DDL issue an implicit COMMIT
+--echo
+--echo
+set autocommit=off;
+# Sanity check
+select @@autocommit;
+create table t1 (a varchar(255)) engine=innodb;
+# Basic: check that successful Events DDL commits pending transaction
+begin work;
+insert into t1 (a) values ("OK: create event");
+create event e1 on schedule every 1 day do select 1;
+rollback work;
+select * from t1;
+delete from t1;
+commit work;
+#
+begin work;
+insert into t1 (a) values ("OK: alter event");
+alter event e1 on schedule every 2 day do select 2;
+rollback work;
+select * from t1;
+delete from t1;
+commit work;
+#
+begin work;
+insert into t1 (a) values ("OK: alter event rename");
+alter event e1 rename to e2;
+rollback work;
+select * from t1;
+delete from t1;
+commit work;
+#
+begin work;
+insert into t1 (a) values ("OK: drop event");
+drop event e2;
+rollback work;
+select * from t1;
+delete from t1;
+commit work;
+#
+begin work;
+insert into t1 (a) values ("OK: drop event if exists");
+drop event if exists e2;
+rollback work;
+select * from t1;
+delete from t1;
+commit work;
+#
+create event e1 on schedule every 1 day do select 1;
+begin work;
+insert into t1 (a) values ("OK: create event if not exists");
+create event if not exists e1 on schedule every 2 day do select 2;
+rollback work;
+select * from t1;
+delete from t1;
+commit work;
+--echo
+--echo Now check various error conditions: make sure we issue an
+--echo implicit commit anyway
+--echo
+#
+begin work;
+insert into t1 (a) values ("OK: create event: event already exists");
+--error ER_EVENT_ALREADY_EXISTS
+create event e1 on schedule every 2 day do select 2;
+rollback work;
+select * from t1;
+delete from t1;
+commit work;
+#
+begin work;
+insert into t1 (a) values ("OK: alter event rename: rename to same name");
+--error ER_EVENT_SAME_NAME
+alter event e1 rename to e1;
+rollback work;
+select * from t1;
+delete from t1;
+commit work;
+#
+create event e2 on schedule every 3 day do select 3;
+begin work;
+insert into t1 (a) values ("OK: alter event rename: destination exists");
+--error ER_EVENT_ALREADY_EXISTS
+alter event e2 rename to e1;
+rollback work;
+select * from t1;
+delete from t1;
+commit work;
+#
+begin work;
+insert into t1 (a) values ("OK: create event: database does not exist");
+--error ER_BAD_DB_ERROR
+create event mysqltest_no_such_database.e1 on schedule every 1 day do select 1;
+rollback work;
+select * from t1;
+delete from t1;
+commit work;
+#
+# Privilege checks
+#
+grant create, insert, select, delete on mysqltest_db2.*
+  to mysqltest_user1@localhost;
+create database mysqltest_db2;
+connect (conn1,localhost,mysqltest_user1,,mysqltest_db2);
+set autocommit=off;
+# Sanity check
+select @@autocommit;
+create table t1 (a varchar(255)) engine=innodb;
+# Not enough privileges to CREATE EVENT
+begin work;
+insert into t1 (a) values ("OK: create event: insufficient privileges");
+--error ER_DBACCESS_DENIED_ERROR
+create event e1 on schedule every 1 day do select 1;
+rollback work;
+select * from t1;
+delete from t1;
+commit work;
+# Not enough privileges to ALTER EVENT
+begin work;
+insert into t1 (a) values ("OK: alter event: insufficient privileges");
+--error ER_DBACCESS_DENIED_ERROR
+alter event e1 on schedule every 1 day do select 1;
+rollback work;
+select * from t1;
+delete from t1;
+commit work;
+# Not enough privileges to DROP EVENT
+begin work;
+insert into t1 (a) values ("OK: drop event: insufficient privileges");
+--error ER_DBACCESS_DENIED_ERROR
+drop event e1;
+rollback work;
+select * from t1;
+delete from t1;
+commit work;
+# Cleanup
+disconnect conn1;
+connection default;
+drop user mysqltest_user1@localhost;
+drop database mysqltest_db2;
+
+#
+# Cleanup
+#
+drop database events_test;
+
