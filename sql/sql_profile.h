@@ -277,6 +277,7 @@ private:
   query_id_t profile_id_counter;     
   THD *thd;
   bool keeping;
+  bool enabled;
 
   QUERY_PROFILE *current;
   QUERY_PROFILE *last;
