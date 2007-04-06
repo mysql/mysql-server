@@ -168,10 +168,14 @@ QUERY_PROFILE::QUERY_PROFILE(PROFILING *profiling_arg, char *query_source_arg,
 void QUERY_PROFILE::set_query_source(char *query_source_arg, 
                                      uint query_length_arg)
 {
+  if (! profiling->enabled)
+    return;
+
   /* Truncate to avoid DoS attacks. */
   uint length= min(MAX_QUERY_LENGTH, query_length_arg); 
   /* TODO?: Provide a way to include the full text, as in  SHOW PROCESSLIST. */
 
+  DBUG_ASSERT(query_source == NULL);
   if (query_source_arg != NULL)
     query_source= my_strdup_with_length(query_source_arg, length, MYF(0));
 }
@@ -445,7 +449,7 @@ bool QUERY_PROFILE::show(uint options)
 }
 
 PROFILING::PROFILING()
-  :profile_id_counter(1), keeping(1), current(NULL), last(NULL)
+  :profile_id_counter(1), keeping(TRUE), enabled(FALSE), current(NULL), last(NULL)
 {
 }
 
@@ -464,7 +468,7 @@ void PROFILING::status_change(const char *status_arg,
 {
   DBUG_ENTER("PROFILING::status_change");
   
-  if (unlikely((thd->options & OPTION_PROFILING) != 0))
+  if (unlikely(enabled))
   {
     if (unlikely(current == NULL))
       reset();
@@ -499,6 +503,8 @@ void PROFILING::store()
   if (current != NULL)
   {
     if (keeping && 
+        (enabled) &&                                    /* ON at start? */
+        (((thd)->options & OPTION_PROFILING) != 0) &&   /* and ON at end? */
         (current->query_source != NULL) && 
         (current->query_source[0] != '\0') && 
         (!current->entries.is_empty())) 
@@ -517,7 +523,8 @@ void PROFILING::store()
   }
   
   DBUG_ASSERT(current == NULL);
-  current= new QUERY_PROFILE(this, thd->query, thd->query_length);
+  if (enabled)
+    current= new QUERY_PROFILE(this, thd->query, thd->query_length);
 
   DBUG_VOID_RETURN;
 }
@@ -534,7 +541,12 @@ void PROFILING::reset()
   store();
 
   if (likely(((thd)->options & OPTION_PROFILING) == 0))
+  {
+    enabled= FALSE;
     DBUG_VOID_RETURN;
+  }
+  else
+    enabled= TRUE;
 
   if (current != NULL)
     current->reset();
