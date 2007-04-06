@@ -104,3 +104,41 @@ drop table t1;
 # and ca path to NULL
 #
 --exec $MYSQL --ssl --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1
+--echo End of 5.0 tests
+
+#
+# Bug #26174 Server Crash: INSERT ... SELECT ... FROM I_S.GLOBAL_STATUS in
+# Event (see also information_schema.test for the other part of test for
+# this bug).
+#
+--disable_warnings
+DROP TABLE IF EXISTS thread_status;
+DROP EVENT IF EXISTS event_status;
+--enable_warnings
+
+SET GLOBAL event_scheduler=1;
+
+DELIMITER $$;
+
+CREATE EVENT event_status
+ ON SCHEDULE AT NOW()
+ ON COMPLETION NOT PRESERVE
+ DO
+BEGIN
+  CREATE TABLE thread_status
+  SELECT variable_name, variable_value
+  FROM information_schema.session_status
+  WHERE variable_name LIKE 'SSL_ACCEPTS' OR
+  variable_name LIKE 'SSL_CALLBACK_CACHE_HITS';
+END$$
+
+DELIMITER ;$$
+
+let $wait_condition=select count(*) = 0 from information_schema.events where event_name='event_status';
+--source include/wait_condition.inc
+
+SELECT variable_name, variable_value FROM thread_status;
+
+DROP TABLE thread_status;
+SET GLOBAL event_scheduler=0;
+--echo End of 5.1 tests
