@@ -366,7 +366,7 @@ MY_LOCALE *my_locale_by_number(uint number);
   Maximum length of time zone name that we support
   (Time zone name is char(64) in db). mysqlbinlog needs it.
 */
-#define MAX_TIME_ZONE_NAME_LENGTH 72
+#define MAX_TIME_ZONE_NAME_LENGTH       (NAME_LEN + 1)
 
 /* The rest of the file is included in the server only */
 #ifndef MYSQL_CLIENT
@@ -599,7 +599,7 @@ class THD;
 void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0);
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables);
 bool check_single_table_access(THD *thd, ulong privilege,
-			   TABLE_LIST *tables);
+			   TABLE_LIST *tables, bool no_errors);
 bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
 			  bool is_proc, bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
@@ -622,8 +622,11 @@ void get_default_definer(THD *thd, LEX_USER *definer);
 LEX_USER *create_default_definer(THD *thd);
 LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name);
 LEX_USER *get_current_user(THD *thd, LEX_USER *user);
-bool check_string_length(LEX_STRING *str,
-                         const char *err_msg, uint max_length);
+bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
+                              uint max_byte_length);
+bool check_string_char_length(LEX_STRING *str, const char *err_msg,
+                              uint max_char_length, CHARSET_INFO *cs,
+                              bool no_error);
 
 enum enum_mysql_completiontype {
   ROLLBACK_RELEASE=-2, ROLLBACK=1,  ROLLBACK_AND_CHAIN=7,
@@ -1165,7 +1168,7 @@ void mysql_ha_mark_tables_for_reopen(THD *thd, TABLE *table);
 /* sql_base.cc */
 #define TMP_TABLE_KEY_EXTRA 8
 void set_item_name(Item *item,char *pos,uint length);
-bool add_field_to_list(THD *thd, char *field_name, enum enum_field_types type,
+bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types type,
 		       char *length, char *decimal,
 		       uint type_modifier,
 		       Item *default_value, Item *on_update_value,
