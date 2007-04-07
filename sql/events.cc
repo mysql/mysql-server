@@ -694,7 +694,7 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
   if (et->get_create_event(thd, &show_str))
     DBUG_RETURN(TRUE);
 
-  field_list.push_back(new Item_empty_string("Event", NAME_LEN));
+  field_list.push_back(new Item_empty_string("Event", NAME_CHAR_LEN));
 
   if (sys_var_thd_sql_mode::symbolic_mode_representation(thd, et->sql_mode,
                                                          &sql_mode))
