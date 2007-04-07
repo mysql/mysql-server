@@ -565,7 +565,6 @@ fi
 %attr(755, root, root) %{_bindir}/myisamlog
 %attr(755, root, root) %{_bindir}/myisampack
 %attr(755, root, root) %{_bindir}/mysql_convert_table_format
-%attr(755, root, root) %{_bindir}/mysql_create_system_tables
 %attr(755, root, root) %{_bindir}/mysql_fix_extensions
 %attr(755, root, root) %{_bindir}/mysql_fix_privilege_tables
 %attr(755, root, root) %{_bindir}/mysql_install_db
@@ -726,7 +725,20 @@ fi
 # The spec file changelog only includes changes made to the spec file
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
-%changelog 
+%changelog
+* Sat Apr 07 2007 Kent Boortz <kent@mysql.com>
+
+- Removed man page for "mysql_create_system_tables"
+
+* Wed Mar 21 2007 Daniel Fischer <df@mysql.com>
+
+- Add debug server.
+
+* Mon Mar 19 2007 Daniel Fischer <df@mysql.com>
+
+- Remove Max RPMs; the server RPMs contain a mysqld compiled with all
+  features that previously only were built into Max.
+
 * Fri Mar 02 2007 Joerg Bruehe <joerg@mysql.com>
 
 - Add several man pages for NDB which are now created.
