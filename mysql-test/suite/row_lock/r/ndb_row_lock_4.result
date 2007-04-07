@@ -1,0 +1,139 @@
+DROP TABLE IF EXISTS t1, t2;
+SET autocommit=0;
+SET autocommit=0;
+connection default;
+CREATE TABLE t1 (k INT NOT NULL PRIMARY KEY, i INT, j INT, l INT) ENGINE=NDB;
+INSERT INTO t1 VALUES (1,123,1,123);
+INSERT INTO t1 VALUES (2,124,2,124);
+INSERT INTO t1 VALUES (3,125,3,125);
+INSERT INTO t1 VALUES (4,126,4,126);
+CREATE INDEX ixi ON t1 (i);
+CREATE TABLE t2 (k INT NOT NULL PRIMARY KEY, i INT, j INT, l INT) ENGINE=NDB;
+INSERT INTO t2 VALUES (1,123,1,123);
+INSERT INTO t2 VALUES (2,124,2,124);
+INSERT INTO t2 VALUES (3,125,3,125);
+INSERT INTO t2 VALUES (4,126,4,126);
+CREATE INDEX ixi ON t2 (i);
+COMMIT;
+SELECT @@global.tx_isolation;
+@@global.tx_isolation
+REPEATABLE-READ
+EXPLAIN SELECT t1.i,t2.i FROM t1,t2 WHERE t1.i<125 AND t2.i=t1.i LOCK IN SHARE MODE;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	ixi	ixi	5	NULL	10	Using where
+1	SIMPLE	t2	ref	ixi	ixi	5	test.t1.i	1	Using where
+SELECT t1.i,t2.i FROM t1,t2 WHERE t1.i<125 AND t2.i=t1.i LOCK IN SHARE MODE;
+i	i
+123	123
+124	124
+connection root1;
+UPDATE t1,t2 SET t1.i=225,t2.i=225 WHERE t1.i=125 AND t2.i=t1.i;
+SELECT * FROM t1 ORDER BY t1.k;
+k	i	j	l
+1	123	1	123
+2	124	2	124
+3	225	3	125
+4	126	4	126
+SELECT * FROM t2 ORDER BY t2.k;
+k	i	j	l
+1	123	1	123
+2	124	2	124
+3	225	3	125
+4	126	4	126
+connection default;
+UPDATE t1,t2 SET t1.i=223,t2.i=223 WHERE t1.i=123 AND t2.i=t1.i;
+SELECT * FROM t1 ORDER BY t1.k;
+k	i	j	l
+1	223	1	123
+2	124	2	124
+3	125	3	125
+4	126	4	126
+SELECT * FROM t2 ORDER BY t2.k;
+k	i	j	l
+1	223	1	123
+2	124	2	124
+3	125	3	125
+4	126	4	126
+connection root1;
+UPDATE t1,t2 SET t1.i=226,t2.i=226 WHERE t1.i=126 AND t2.i=t1.i;
+SELECT * FROM t1 ORDER BY t1.k;
+k	i	j	l
+1	123	1	123
+2	124	2	124
+3	225	3	125
+4	226	4	126
+SELECT * FROM t2 ORDER BY t2.k;
+k	i	j	l
+1	123	1	123
+2	124	2	124
+3	225	3	125
+4	226	4	126
+connection default;
+UPDATE t1,t2 SET t1.i=224,t2.i=224 WHERE t1.i=124 AND t2.i=t1.i;
+SELECT * FROM t1 ORDER BY t1.k;
+k	i	j	l
+1	223	1	123
+2	224	2	124
+3	125	3	125
+4	126	4	126
+SELECT * FROM t2 ORDER BY t2.k;
+k	i	j	l
+1	223	1	123
+2	224	2	124
+3	125	3	125
+4	126	4	126
+connection root1;
+DELETE FROM t1 WHERE t1.i=226;
+SELECT * FROM t1 ORDER BY t1.k;
+k	i	j	l
+1	123	1	123
+2	124	2	124
+3	225	3	125
+SELECT * FROM t2 ORDER BY t2.k;
+k	i	j	l
+1	123	1	123
+2	124	2	124
+3	225	3	125
+4	226	4	126
+connection default;
+DELETE FROM t1 WHERE t1.i=224;
+SELECT * FROM t1 ORDER BY t1.k;
+k	i	j	l
+1	223	1	123
+3	125	3	125
+4	126	4	126
+SELECT * FROM t2 ORDER BY t2.k;
+k	i	j	l
+1	223	1	123
+2	224	2	124
+3	125	3	125
+4	126	4	126
+COMMIT;
+connection root1;
+ROLLBACK;
+connection default;
+SELECT * FROM t1 ORDER BY t1.k;
+k	i	j	l
+1	223	1	123
+3	125	3	125
+4	126	4	126
+SELECT * FROM t2 ORDER BY t2.k;
+k	i	j	l
+1	223	1	123
+2	224	2	124
+3	125	3	125
+4	126	4	126
+connection root1;
+SELECT * FROM t1 ORDER BY t1.k;
+k	i	j	l
+1	223	1	123
+3	125	3	125
+4	126	4	126
+SELECT * FROM t2 ORDER BY t2.k;
+k	i	j	l
+1	223	1	123
+2	224	2	124
+3	125	3	125
+4	126	4	126
+connection default;
+DROP TABLE t1, t2;
