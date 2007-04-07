@@ -35,9 +35,9 @@ PARTITION BY RANGE (MONTH(SALES_DATE))
 (
 PARTITION p0 VALUES LESS THAN (2) ENGINE=INNODB
 data DIRECTORY='c:/tmp/'
-		index DIRECTORY = 'c:/tmp/',
+                index DIRECTORY = 'c:/tmp/',
 PARTITION p1 VALUES LESS THAN (3) ENGINE=INNODB
 data DIRECTORY='c:/tmp/'
-		index DIRECTORY = 'c:/tmp/'
+                index DIRECTORY = 'c:/tmp/'
 );
 drop table t1;
