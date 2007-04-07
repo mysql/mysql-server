@@ -1,0 +1,36 @@
+Test plan:
+Create 2 tables with a primary key and 3 integer columns. Both get the same rows (1,123,1,123),(2,124,2,124),(3,125,3,125),(4,126,4,126). The second and third column may get an index to have cases with, without and mutilple index. Create views on the tables. Create an update trigger. Create a stored procedure updating the table. Create a stored function updating the table and deliver the key as result.
+
+The test isself consists of 2 sessions (transactions) running in "parallel" (same user "root") accessing and locking the same tables on basis of a row lock. Expected is that both sessions(transactions) can update the table successfully.
+
+First session
+execute an explain to every select and one of the following selects on the first half of table t1:  
+- select <non index columns> ... where ... for update;
+- select <non index columns> ... where ... lock in share mode;
+- select <indexed columns> ... where ... for update;
+- select <indexed columns> ... where ... lock in share mode;
+- select <indexed columns> ... ignore index ... where ... for update;
+- select <indexed columns> ... ignore index ... where ... lock in share mode;
+- select ... where (select...) ... for update;
+- select ... where (select...) ... lock in share mode;
+- (select ... where) union (select ... where) for update;
+- (select ... where) union (select ... where) lock in...;
+- select <view> ... where ... for update;
+- select <view> ... where ... lock in ...;
+- select <join> ... where ... for update;
+- select <join> ... where ... lock in ...;
+Then executes
+- update
+- delete
+- trigger accessing table t1
+- stored procedure accessing table t1
+- stored function accessing table t1
+
+Second session
+executes the same on the last half of table t1
+
+call of mysqld with option
+--innodb_locks_unsafe_for_binlog
+
+As the tests above work with small tables (<10 rows) there must be at least one test with a big table (>1000 rows) doing a table scan.
+ 
