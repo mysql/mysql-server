@@ -405,6 +405,7 @@ public:
     negated= !negated;
     return this;
   }
+  bool eq(const Item *item, bool binary_cmp) const;
 };
 
 
