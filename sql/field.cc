@@ -8595,11 +8595,6 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     break;
   case FIELD_TYPE_SET:
     {
-      if (fld_interval_list->elements > sizeof(longlong)*8)
-      {
-        my_error(ER_TOO_BIG_SET, MYF(0), fld_name); /* purecov: inspected */
-        DBUG_RETURN(TRUE);
-      }
       pack_length= get_set_pack_length(fld_interval_list->elements);
 
       List_iterator<String> it(*fld_interval_list);
