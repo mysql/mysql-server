@@ -40,4 +40,4 @@ PARTITION p1 VALUES LESS THAN (3) ENGINE=INNODB
 data DIRECTORY='c:/tmp/'
                 index DIRECTORY = 'c:/tmp/'
 );
-drop table t1;
+DROP TABLE t1;
