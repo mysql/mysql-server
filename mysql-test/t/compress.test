@@ -10,6 +10,7 @@ connect (comp_con,localhost,root,,,,,COMPRESS);
 
 # Check compression turned on
 SHOW STATUS LIKE 'Compression';
+select * from information_schema.session_status where variable_name= 'COMPRESSION';
 
 # Source select test case
 -- source include/common-tests.inc

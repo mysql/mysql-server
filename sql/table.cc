@@ -2336,8 +2336,9 @@ uint calculate_key_len(TABLE *table, uint key, const byte *buf,
 bool check_db_name(LEX_STRING *org_name)
 {
   char *name= org_name->str;
+  uint name_length= org_name->length;
 
-  if (!org_name->length || org_name->length > NAME_LEN)
+  if (!name_length || name_length > NAME_LEN)
     return 1;
 
   if (lower_case_table_names && name != any_db)
@@ -2346,6 +2347,7 @@ bool check_db_name(LEX_STRING *org_name)
 #if defined(USE_MB) && defined(USE_MB_IDENT)
   if (use_mb(system_charset_info))
   {
+    name_length= 0;
     bool last_char_is_space= TRUE;
     char *end= name + org_name->length;
     while (name < end)
@@ -2356,12 +2358,14 @@ bool check_db_name(LEX_STRING *org_name)
       if (!len)
         len= 1;
       name+= len;
+      name_length++;
     }
-    return last_char_is_space;
+    return (last_char_is_space || name_length > NAME_CHAR_LEN);
   }
   else
 #endif
-    return org_name->str[org_name->length - 1] != ' '; /* purecov: inspected */
+    return ((org_name->str[org_name->length - 1] != ' ') ||
+            (name_length > NAME_CHAR_LEN)); /* purecov: inspected */
 }
 
 
@@ -2374,6 +2378,7 @@ bool check_db_name(LEX_STRING *org_name)
 
 bool check_table_name(const char *name, uint length)
 {
+  uint name_length= 0;  // name length in symbols
   const char *end= name+length;
   if (!length || length > NAME_LEN)
     return 1;
@@ -2394,14 +2399,16 @@ bool check_table_name(const char *name, uint length)
       if (len)
       {
         name += len;
+        name_length++;
         continue;
       }
     }
 #endif
     name++;
+    name_length++;
   }
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-  return last_char_is_space;
+  return (last_char_is_space || name_length > NAME_CHAR_LEN) ;
 #else
   return 0;
 #endif
@@ -2410,7 +2417,7 @@ bool check_table_name(const char *name, uint length)
 
 bool check_column_name(const char *name)
 {
-  const char *start= name;
+  uint name_length= 0;  // name length in symbols
   bool last_char_is_space= TRUE;
   
   while (*name)
@@ -2424,6 +2431,7 @@ bool check_column_name(const char *name)
       if (len)
       {
         name += len;
+        name_length++;
         continue;
       }
     }
@@ -2433,9 +2441,10 @@ bool check_column_name(const char *name)
     if (*name == NAMES_SEP_CHAR)
       return 1;
     name++;
+    name_length++;
   }
   /* Error if empty or too long column name */
-  return last_char_is_space || (uint) (name - start) > NAME_LEN;
+  return last_char_is_space || (uint) name_length > NAME_CHAR_LEN;
 }
 
 
