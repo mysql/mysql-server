@@ -1816,11 +1816,11 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     break;
   case NdbDictionary::Column::Blob:
     out << "Blob(" << col.getInlineSize() << "," << col.getPartSize()
-        << ";" << col.getStripeSize() << ")";
+        << "," << col.getStripeSize() << ")";
     break;
   case NdbDictionary::Column::Text:
     out << "Text(" << col.getInlineSize() << "," << col.getPartSize()
-        << ";" << col.getStripeSize() << ";" << csname << ")";
+        << "," << col.getStripeSize() << ";" << csname << ")";
     break;
   case NdbDictionary::Column::Time:
     out << "Time";
@@ -1900,6 +1900,18 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     break;
   default:
     out << " ST=" << (int)col.getStorageType() << "?";
+    break;
+  }
+
+  if (col.getAutoIncrement())
+    out << " AUTO_INCR";
+
+  switch (col.getType()) {
+  case NdbDictionary::Column::Blob:
+  case NdbDictionary::Column::Text:
+    out << " BV=" << col.getBlobVersion();
+    break;
+  default:
     break;
   }
 

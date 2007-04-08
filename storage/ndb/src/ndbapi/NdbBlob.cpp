@@ -188,12 +188,15 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
         assert(c != NULL);
         if (c->m_pk) {
           bt.addColumn(*c);
+          // addColumn might usefully return the column added..
+          NdbColumnImpl* bc = bt.getColumn(n);
+          assert(bc != NULL);
           if (c->getDistributionKey()) {
-            // addColumn might usefully return the column added..
-            NdbColumnImpl* bc = bt.getColumn(n);
-            assert(bc != NULL);
             bc->setDistributionKey(true);
           }
+          // confuses restore and wrong anyway
+          bc->setAutoIncrement(false);
+          bc->setDefaultValue("");
           n++;
         }
       }
