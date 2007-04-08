@@ -90,3 +90,10 @@ id	link	name	relevance
 1	1	string	0
 2	0	string	0
 DROP TABLE t1,t2;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b INT, c TEXT, KEY(b));
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(b,c) VALUES(2,'castle'),(3,'castle');
+SELECT * FROM t1 LEFT JOIN t2 ON a=b WHERE MATCH(c) AGAINST('+castle' IN BOOLEAN MODE);
+a	b	c
+DROP TABLE t1, t2;
