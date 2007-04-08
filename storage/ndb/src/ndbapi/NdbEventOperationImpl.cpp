@@ -540,7 +540,7 @@ NdbEventOperationImpl::readBlobParts(char* buf, NdbBlob* blob,
 
       const char* src = blob->theBlobEventDataBuf.data;
       Uint32 sz = 0;
-      if (unlikely(blob_op->theBlobVersion == 1)) {
+      if (blob->theFixedDataFlag) {
         sz = blob->thePartSize;
       } else {
         const uchar* p = (const uchar*)blob->theBlobEventDataBuf.data;

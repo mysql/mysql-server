@@ -1469,6 +1469,13 @@ NdbDictionaryImpl::getBlobTables(NdbTableImpl &t)
     // the blob column owns the blob table
     assert(c.m_blobTable == NULL);
     c.m_blobTable = bt;
+
+    // change storage type to that of PART column
+    const char* colName = c.m_blobVersion == 1 ? "DATA" : "NDB$DATA";
+    const NdbColumnImpl* bc = bt->getColumn(colName);
+    assert(bc != 0);
+    assert(c.m_storageType == NDB_STORAGETYPE_MEMORY);
+    c.m_storageType = bc->m_storageType;
   }
   DBUG_RETURN(0); 
 }
@@ -2322,12 +2329,27 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
   }
 
   // blob tables - use "t2" to get values set by kernel
-  if (t2->m_noOfBlobs != 0 && createBlobTables(t, *t2) != 0) {
-    int save_code = m_error.code;
-    (void)dropTableGlobal(*t2);
-    m_error.code = save_code;
-    delete t2;
-    DBUG_RETURN(-1);
+  if (t.m_noOfBlobs != 0) {
+
+    // fix up disk data in t2 columns
+    Uint32 i;
+    for (i = 0; i < t.m_columns.size(); i++) {
+      const NdbColumnImpl* c = t.m_columns[i];
+      NdbColumnImpl* c2 = t2->m_columns[i];
+      if (c->getBlobType()) {
+        // type was mangled before sending to DICT
+        assert(c2->m_storageType == NDB_STORAGETYPE_MEMORY);
+        c2->m_storageType = c->m_storageType;
+      }
+    }
+
+    if (createBlobTables(*t2) != 0) {
+      int save_code = m_error.code;
+      (void)dropTableGlobal(*t2);
+      m_error.code = save_code;
+      delete t2;
+      DBUG_RETURN(-1);
+    }
   }
 
   // not entered in cache
@@ -2336,13 +2358,15 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
 }
 
 int
-NdbDictionaryImpl::createBlobTables(NdbTableImpl& orig, NdbTableImpl &t)
+NdbDictionaryImpl::createBlobTables(const NdbTableImpl& t)
 {
   DBUG_ENTER("NdbDictionaryImpl::createBlobTables");
   for (unsigned i = 0; i < t.m_columns.size(); i++) {
-    NdbColumnImpl & c = *t.m_columns[i];
+    const NdbColumnImpl & c = *t.m_columns[i];
     if (! c.getBlobType() || c.getPartSize() == 0)
       continue;
+    DBUG_PRINT("info", ("col: %s array type: %u storage type: %u",
+                        c.m_name.c_str(), c.m_arrayType, c.m_storageType));
     NdbTableImpl bt;
     NdbError error;
     if (NdbBlob::getBlobTable(bt, &t, &c, error) == -1) {
@@ -2351,8 +2375,12 @@ NdbDictionaryImpl::createBlobTables(NdbTableImpl& orig, NdbTableImpl &t)
     }
     NdbDictionary::Column::StorageType 
       d = NdbDictionary::Column::StorageTypeDisk;
-    if (orig.m_columns[i]->getStorageType() == d)
-      bt.getColumn("DATA")->setStorageType(d);
+    if (t.m_columns[i]->getStorageType() == d) {
+      const char* colName = c.m_blobVersion == 1 ? "DATA" : "NDB$DATA";
+      NdbColumnImpl* bc = bt.getColumn(colName);
+      assert(bc != NULL);
+      bc->setStorageType(d);
+    }
     if (createTable(bt) != 0) {
       DBUG_RETURN(-1);
     }
@@ -2688,8 +2716,10 @@ loop:
     if(col == 0)
       continue;
     
-    DBUG_PRINT("info",("column: %s(%d) col->m_distributionKey: %d",
-		       col->m_name.c_str(), i, col->m_distributionKey));
+    DBUG_PRINT("info",("column: %s(%d) col->m_distributionKey: %d"
+                       " array type: %u storage type: %u",
+		       col->m_name.c_str(), i, col->m_distributionKey,
+                       col->m_arrayType, col->m_storageType));
     DictTabInfo::Attribute tmpAttr; tmpAttr.init();
     BaseString::snprintf(tmpAttr.AttributeName, sizeof(tmpAttr.AttributeName), 
 	     col->m_name.c_str());
@@ -2712,8 +2742,10 @@ loop:
     else
       tmpAttr.AttributeStorageType = col->m_storageType;
 
-    if(col->getBlobType())
+    if (col->getBlobType()) {
+      tmpAttr.AttributeArrayType = col->m_arrayType;
       tmpAttr.AttributeStorageType = NDB_STORAGETYPE_MEMORY;      
+    }
     
     // check type and compute attribute size and array size
     if (! tmpAttr.translateExtType()) {

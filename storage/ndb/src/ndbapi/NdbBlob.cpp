@@ -24,6 +24,7 @@
 #include <NdbScanOperation.hpp>
 #include <signaldata/TcKeyReq.hpp>
 #include <NdbEventOperationImpl.hpp>
+#include <NdbEnv.h>
 
 /*
  * Reading index table directly (as a table) is faster but there are
@@ -87,7 +88,7 @@ int
 NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnImpl* c, NdbError& error)
 {
   DBUG_ENTER("NdbBlob::getBlobTable");
-  const int blobVersion = c->m_blobVersion;
+  const int blobVersion = c->getBlobVersion();
   assert(blobVersion == NDB_BLOB_V1 || blobVersion == NDB_BLOB_V2);
   char btname[NdbBlobImpl::BlobTableNameSize];
   getBlobTableName(btname, t, c);
@@ -225,12 +226,19 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
     }
     // in V2 changes to Longvar* regardless of size
     { NdbDictionary::Column bc("NDB$DATA");
+      const Uint32 storageType = (Uint32)c->getStorageType();
       switch (c->m_type) {
       case NdbDictionary::Column::Blob:
-        bc.setType(NdbDictionary::Column::Longvarbinary);
+        if (storageType == NDB_STORAGETYPE_MEMORY)
+          bc.setType(NdbDictionary::Column::Longvarbinary);
+        else
+          bc.setType(NdbDictionary::Column::Binary);
         break;
       case NdbDictionary::Column::Text:
-        bc.setType(NdbDictionary::Column::Longvarchar);
+        if (storageType == NDB_STORAGETYPE_MEMORY)
+          bc.setType(NdbDictionary::Column::Longvarchar);
+        else
+          bc.setType(NdbDictionary::Column::Char);
         break;
       default:
         assert(false);
@@ -313,6 +321,7 @@ void
 NdbBlob::init()
 {
   theBlobVersion = 0;
+  theFixedDataFlag = false;
   theHeadSize = 0;
   theVarsizeBytes = 0;
   theState = Idle;
@@ -831,12 +840,12 @@ NdbBlob::getPartDataValue(NdbOperation* anOp, char* buf, Uint16* aLenLoc)
   DBUG_ENTER("NdbBlob::getPartDataValue");
   assert(aLenLoc != NULL);
   Uint32 bcNo = theBtColumnNo[BtColumnData];
-  if (unlikely(theBlobVersion == NDB_BLOB_V1)) {
+  if (theFixedDataFlag) {
     if (anOp->getValue(bcNo, buf) == NULL) {
       setErrorCode(anOp);
       DBUG_RETURN(-1);
     }
-    // in V1 length is full size and is not returned via NDB API
+    // length is full size and is not returned via NDB API
     *aLenLoc = thePartSize;
   } else {
     const NdbColumnImpl* bc = theBlobTable->getColumn(bcNo);
@@ -856,7 +865,7 @@ NdbBlob::setPartDataValue(NdbOperation* anOp, const char* buf, const Uint16& aLe
   DBUG_ENTER("NdbBlob::setPartDataValue");
   assert(aLen != 0);
   Uint32 bcNo = theBtColumnNo[BtColumnData];
-  if (unlikely(theBlobVersion == NDB_BLOB_V1)) {
+  if (theFixedDataFlag) {
     if (anOp->setValue(bcNo, buf) == -1) {
       setErrorCode(anOp);
       DBUG_RETURN(-1);
@@ -1130,7 +1139,8 @@ NdbBlob::truncate(Uint64 length)
       assert(part2 >= part1);
       if (part2 > part1 && deleteParts(part1 + 1, part2 - part1) == -1)
         DBUG_RETURN(-1);
-      if (unlikely(theBlobVersion == NDB_BLOB_V1))
+      if (theFixedDataFlag)
+        // wl3717_todo should change padding to be consistent
         ;
       else {
         Uint32 off = getPartOffset(length);
@@ -1414,7 +1424,7 @@ NdbBlob::writeDataPrivate(const char* buf, Uint32 bytes)
         DBUG_RETURN(-1);
     } else {
       memcpy(thePartBuf.data, buf, len);
-      if (unlikely(theBlobVersion == NDB_BLOB_V1)) {
+      if (theFixedDataFlag) {
         memset(thePartBuf.data + len, theFillChar, thePartSize - len);
       }
       Uint16 sz = len;
@@ -1776,8 +1786,9 @@ NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl
   // prepare blob column and table
   if (prepareColumn() == -1)
     DBUG_RETURN(-1);
-  DBUG_PRINT("info", ("this=%p op=%p con=%p version=%d",
-                      this, theNdbOp, theNdbCon, theBlobVersion));
+  DBUG_PRINT("info", ("this=%p op=%p con=%p version=%d fixed data=%d",
+                      this, theNdbOp, theNdbCon,
+                      theBlobVersion, theFixedDataFlag));
   // check if mysql or user has set partition id
   if (theNdbOp->theDistrKeyIndicator_) {
     thePartitionId = theNdbOp->getPartitionId();
@@ -1857,7 +1868,6 @@ int
 NdbBlob::atPrepare(NdbEventOperationImpl* anOp, NdbEventOperationImpl* aBlobOp, const NdbColumnImpl* aColumn, int version)
 {
   DBUG_ENTER("NdbBlob::atPrepare [event]");
-  DBUG_PRINT("info", ("this=%p op=%p version=%d", this, anOp, theBlobVersion));
   assert(theState == Idle);
   init();
   assert(version == 0 || version == 1);
@@ -1872,6 +1882,9 @@ NdbBlob::atPrepare(NdbEventOperationImpl* anOp, NdbEventOperationImpl* aBlobOp, 
   // prepare blob column and table
   if (prepareColumn() == -1)
     DBUG_RETURN(-1);
+  DBUG_PRINT("info", ("this=%p main op=%p blob op=%p version=%d fixed data=%d",
+                       this, anOp, aBlobOp,
+                       theBlobVersion, theFixedDataFlag));
   // tinyblob sanity
   assert((theBlobEventOp == NULL) == (theBlobTable == NULL));
   // extra buffers
@@ -1972,12 +1985,13 @@ NdbBlob::prepareColumn()
   DBUG_ENTER("prepareColumn");
   NdbDictionary::Column::Type partType = NdbDictionary::Column::Undefined;
   //
-  theBlobVersion = theColumn->m_blobVersion;
+  theBlobVersion = theColumn->getBlobVersion();
   theInlineSize = theColumn->getInlineSize();
   thePartSize = theColumn->getPartSize();
   theStripeSize = theColumn->getStripeSize();
   //
   if (unlikely(theBlobVersion == NDB_BLOB_V1)) {
+    theFixedDataFlag = true;
     theHeadSize = (NDB_BLOB_V1_HEAD_SIZE << 2);
     theVarsizeBytes = 0;
     switch (theColumn->getType()) {
@@ -2000,14 +2014,24 @@ NdbBlob::prepareColumn()
     theBtColumnNo[BtColumnPart] = 2;
     theBtColumnNo[BtColumnData] = 3;
   } else if (theBlobVersion == NDB_BLOB_V2) {
+    const Uint32 storageType = (Uint32)theColumn->getStorageType();
+    theFixedDataFlag = (storageType != NDB_STORAGETYPE_MEMORY);
     theHeadSize = (NDB_BLOB_V2_HEAD_SIZE << 2);
     theVarsizeBytes = 2;
     switch (theColumn->getType()) {
     case NdbDictionary::Column::Blob:
-      partType = NdbDictionary::Column::Longvarbinary;
+      if (theFixedDataFlag) {
+        partType = NdbDictionary::Column::Binary;
+        theFillChar = 0x0;
+      } else
+        partType = NdbDictionary::Column::Longvarbinary;
       break;
     case NdbDictionary::Column::Text:
-      partType = NdbDictionary::Column::Longvarchar;
+      if (theFixedDataFlag) {
+        partType = NdbDictionary::Column::Char;
+        theFillChar = 0x20;
+      } else
+        partType = NdbDictionary::Column::Longvarchar;
       break;
     default:
       setErrorCode(NdbBlobImpl::ErrUsage);
@@ -2479,6 +2503,11 @@ NdbBlob::setErrorCode(int anErrorCode, bool invalidFlag)
     theNdbOp->setErrorCode(theError.code);
   if (invalidFlag)
     setState(Invalid);
+#ifdef VM_TRACE
+  if (NdbEnv_GetEnv("NDB_BLOB_ABORT_ON_ERROR", (char*)0, 0)) {
+    abort();
+  }
+#endif
   DBUG_VOID_RETURN;
 }
 
