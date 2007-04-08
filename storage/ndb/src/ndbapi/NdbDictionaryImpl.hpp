@@ -98,6 +98,7 @@ public:
   Uint32 m_arraySize;           // length or maxlength+1/2 for Var* types
   Uint32 m_arrayType;           // NDB_ARRAYTYPE_FIXED or _VAR
   Uint32 m_storageType;         // NDB_STORAGETYPE_MEMORY or _DISK
+                                // for blob, storage type of NDB$DATA
   /*
    * NdbTableImpl: if m_pk, 0-based index of key in m_attrId order
    * NdbIndexImpl: m_column_no of primary table column
@@ -585,7 +586,7 @@ public:
   bool setTransporter(class TransporterFacade * tf);
 
   int createTable(NdbTableImpl &t);
-  int createBlobTables(NdbTableImpl& org, NdbTableImpl& created);
+  int createBlobTables(const NdbTableImpl& t);
   int alterTable(NdbTableImpl &t);
   int dropTable(const char * name);
   int dropTable(NdbTableImpl &);

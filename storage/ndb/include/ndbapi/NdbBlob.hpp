@@ -286,6 +286,15 @@ private:
   friend class NdbEventOperationImpl;
 #endif
   int theBlobVersion;
+  /*
+   * Disk data does not yet support Var* attrs.  In both V1 and V2,
+   * if the primary table blob attr is specified as disk attr then:
+   * - the primary table blob attr remains a memory attr
+   * - the blob parts "DATA" attr becomes a disk attr
+   * - the blob parts "DATA" attr is fixed size
+   * Use following flag.  It is always set for V1.
+   */
+  bool theFixedDataFlag;
   uint theHeadSize;
   uint theVarsizeBytes;
   // state
