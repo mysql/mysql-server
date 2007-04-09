@@ -128,3 +128,74 @@ delete from t1;
 select a, c, sha1(b), sha1(d) from t1 order by a, c;
 a	c	sha1(b)	sha1(d)
 drop table t1;
+create table t1 (
+a char(4),
+b int,
+primary key (a, b)
+)
+engine=ndb
+character set latin1
+partition by key (a)
+partitions 4;
+insert into t1 values ('aaa',1);
+insert into t1 values ('bbb',1);
+insert into t1 values ('bbb',2);
+select count(*) from t1 where a = 'aaa';
+count(*)
+1
+select count(*) from t1 where a = 'Aaa';
+count(*)
+1
+select count(*) from t1 where a = 'aAa';
+count(*)
+1
+select count(*) from t1 where a = 'aaA';
+count(*)
+1
+select count(*) from t1 where a = 'AAa';
+count(*)
+1
+select count(*) from t1 where a = 'AaA';
+count(*)
+1
+select count(*) from t1 where a = 'aAA';
+count(*)
+1
+select count(*) from t1 where a = 'AAA';
+count(*)
+1
+drop table t1;
+create table t1 (
+a varbinary(10),
+b int,
+primary key (a, b)
+)
+engine=ndb
+character set latin1
+partition by key (a)
+partitions 4;
+insert into t1 values ('aaa',1);
+insert into t1 values ('aaabbb',1);
+insert into t1 values ('aaabbb',2);
+insert into t1 values ('aaabbbccc',1);
+insert into t1 values ('aaabbbccc',2);
+insert into t1 values ('aaabbbccc',3);
+select count(*) from t1 where a = 'aaa';
+count(*)
+1
+select count(*) from t1 where a = 'Aaa';
+count(*)
+0
+select count(*) from t1 where a = 'aaabbb';
+count(*)
+2
+select count(*) from t1 where a = 'aaaBbb';
+count(*)
+0
+select count(*) from t1 where a = 'aaabbbccc';
+count(*)
+3
+select count(*) from t1 where a = 'aaabbbCcc';
+count(*)
+0
+drop table t1;

@@ -94,3 +94,58 @@ select a, c, sha1(b), sha1(d) from t1 order by a, c;
 
 # -- clean up --
 drop table t1;
+
+# == scan EQ distr key vs charset ==
+
+create table t1 (
+  a char(4),
+  b int,
+  primary key (a, b)
+)
+engine=ndb
+character set latin1
+partition by key (a)
+partitions 4;
+
+insert into t1 values ('aaa',1);
+insert into t1 values ('bbb',1);
+insert into t1 values ('bbb',2);
+
+# if current EQ optim was tried then some of these should fail
+select count(*) from t1 where a = 'aaa';
+select count(*) from t1 where a = 'Aaa';
+select count(*) from t1 where a = 'aAa';
+select count(*) from t1 where a = 'aaA';
+select count(*) from t1 where a = 'AAa';
+select count(*) from t1 where a = 'AaA';
+select count(*) from t1 where a = 'aAA';
+select count(*) from t1 where a = 'AAA';
+
+drop table t1;
+
+create table t1 (
+  a varbinary(10),
+  b int,
+  primary key (a, b)
+)
+engine=ndb
+character set latin1
+partition by key (a)
+partitions 4;
+
+insert into t1 values ('aaa',1);
+insert into t1 values ('aaabbb',1);
+insert into t1 values ('aaabbb',2);
+insert into t1 values ('aaabbbccc',1);
+insert into t1 values ('aaabbbccc',2);
+insert into t1 values ('aaabbbccc',3);
+
+# the EQ optim is done for binary types
+select count(*) from t1 where a = 'aaa';
+select count(*) from t1 where a = 'Aaa';
+select count(*) from t1 where a = 'aaabbb';
+select count(*) from t1 where a = 'aaaBbb';
+select count(*) from t1 where a = 'aaabbbccc';
+select count(*) from t1 where a = 'aaabbbCcc';
+
+drop table t1;
