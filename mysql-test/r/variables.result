@@ -637,6 +637,37 @@ set lc_time_names=0;
 select @@lc_time_names;
 @@lc_time_names
 en_US
+select @@global.lc_time_names, @@lc_time_names;
+@@global.lc_time_names	@@lc_time_names
+en_US	en_US
+set @@global.lc_time_names=fr_FR;
+select @@global.lc_time_names, @@lc_time_names;
+@@global.lc_time_names	@@lc_time_names
+fr_FR	en_US
+New connection
+select @@global.lc_time_names, @@lc_time_names;
+@@global.lc_time_names	@@lc_time_names
+fr_FR	fr_FR
+set @@lc_time_names=ru_RU;
+select @@global.lc_time_names, @@lc_time_names;
+@@global.lc_time_names	@@lc_time_names
+fr_FR	ru_RU
+Returnung to default connection
+select @@global.lc_time_names, @@lc_time_names;
+@@global.lc_time_names	@@lc_time_names
+fr_FR	en_US
+set lc_time_names=default;
+select @@global.lc_time_names, @@lc_time_names;
+@@global.lc_time_names	@@lc_time_names
+fr_FR	fr_FR
+set @@global.lc_time_names=default;
+select @@global.lc_time_names, @@lc_time_names;
+@@global.lc_time_names	@@lc_time_names
+en_US	fr_FR
+set @@lc_time_names=default;
+select @@global.lc_time_names, @@lc_time_names;
+@@global.lc_time_names	@@lc_time_names
+en_US	en_US
 set @test = @@query_prealloc_size;
 set @@query_prealloc_size = @test;
 select @@query_prealloc_size = @test;
