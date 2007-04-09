@@ -339,6 +339,8 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
   {
     if (cols[i]->m_distributionKey)
     {
+      // wl3717_todo
+      // char allowed now as dist key so this case should be tested
       partcols[j++] = cols[i];
     }
   }

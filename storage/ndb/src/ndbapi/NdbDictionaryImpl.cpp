@@ -2764,19 +2764,7 @@ loop:
       m_error.code= err;
       DBUG_RETURN(-1);
     }
-    // distribution key not supported for Char attribute
-    if (distKeys && col->m_distributionKey && col->m_cs != NULL) {
-#if 0 // wl3717_todo
-      // we can allow this for non-var char where strxfrm does nothing
-      if (col->m_type == NdbDictionary::Column::Char &&
-          (col->m_cs->state & MY_CS_BINSORT))
-        ;
-      else {
-        m_error.code= 745;
-        DBUG_RETURN(-1);
-      }
-#endif
-    }
+    // all PK types now allowed as dist key
     // charset in upper half of precision
     if (col->getCharType()) {
       tmpAttr.AttributeExtPrecision |= (col->m_cs->number << 16);

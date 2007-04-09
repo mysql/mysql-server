@@ -1228,7 +1228,7 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
     if(type == BoundEQ && tDistrKey && !m_multi_range)
     {
       theNoOfTupKeyLeft--;
-      return handle_distribution_key(valPtr, sizeInWords);
+      return handle_distribution_key(tAttrInfo, valPtr, sizeInWords);
     }
     return 0;
   } else {
