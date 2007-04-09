@@ -3038,7 +3038,10 @@ bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
 
 bool sys_var_thd_lc_time_names::update(THD *thd, set_var *var)
 {
-  thd->variables.lc_time_names= var->save_result.locale_value;
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.lc_time_names= var->save_result.locale_value;
+  else
+    thd->variables.lc_time_names= var->save_result.locale_value;
   return 0;
 }
 
@@ -3046,13 +3049,18 @@ bool sys_var_thd_lc_time_names::update(THD *thd, set_var *var)
 byte *sys_var_thd_lc_time_names::value_ptr(THD *thd, enum_var_type type,
 					  LEX_STRING *base)
 {
-  return (byte *)(thd->variables.lc_time_names->name);
+  return type == OPT_GLOBAL ?
+                 (byte *) global_system_variables.lc_time_names->name :
+                 (byte *) thd->variables.lc_time_names->name;
 }
 
 
 void sys_var_thd_lc_time_names::set_default(THD *thd, enum_var_type type)
 {
-  thd->variables.lc_time_names = &my_locale_en_US;
+  if (type == OPT_GLOBAL)
+    global_system_variables.lc_time_names= my_default_lc_time_names;
+  else
+    thd->variables.lc_time_names= global_system_variables.lc_time_names;
 }
 
 /*

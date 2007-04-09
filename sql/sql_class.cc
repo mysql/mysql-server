@@ -378,7 +378,6 @@ void THD::init(void)
   update_charset();
   reset_current_stmt_binlog_row_based();
   bzero((char *) &status_var, sizeof(status_var));
-  variables.lc_time_names = &my_locale_en_US;
 }
 
 
