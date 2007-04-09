@@ -182,8 +182,8 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
     VOID(tablename_to_filename(table_name, tbbuff, sizeof(tbbuff)));
 
   VOID(tablename_to_filename(db, dbbuff, sizeof(dbbuff)));
-  length= strxnmov(buff, bufflen, mysql_data_home, "/", dbbuff,
-                   "/", tbbuff, ext, NullS) - buff;
+  length= strxnmov(buff, bufflen, mysql_data_home, FN_ROOTDIR, dbbuff,
+                   FN_ROOTDIR, tbbuff, ext, NullS) - buff;
   DBUG_PRINT("exit", ("buff: '%s'", buff));
   DBUG_RETURN(length);
 }
