@@ -147,6 +147,7 @@ typedef struct my_locale_st
 
 extern MY_LOCALE my_locale_en_US;
 extern MY_LOCALE *my_locales[];
+extern MY_LOCALE *my_default_lc_time_names;
 
 MY_LOCALE *my_locale_by_name(const char *name);
 MY_LOCALE *my_locale_by_number(uint number);

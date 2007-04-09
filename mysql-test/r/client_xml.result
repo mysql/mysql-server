@@ -71,4 +71,18 @@ insert into t1 values (1, 2, 'a&b a<b a>b');
 	<field name="NULL" xsi:nil="true" />
   </row>
 </resultset>
+<?xml version="1.0"?>
+
+<resultset statement="select 1 limit 0
+" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"></resultset>
+--------------
+select 1 limit 0
+--------------
+
+<?xml version="1.0"?>
+
+<resultset statement="select 1 limit 0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"></resultset>
+Empty set
+
+Bye
 drop table t1;

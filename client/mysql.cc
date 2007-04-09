@@ -2104,6 +2104,17 @@ com_go(String *buffer,char *line __attribute__((unused)))
       if (!mysql_num_rows(result) && ! quick && !column_types_flag)
       {
 	strmov(buff, "Empty set");
+        if (opt_xml)
+        { 
+          /*
+            We must print XML header and footer
+            to produce a well-formed XML even if
+            the result set is empty (Bug#27608).
+          */
+          init_pager();
+          print_table_data_xml(result);
+          end_pager();
+        }
       }
       else
       {
