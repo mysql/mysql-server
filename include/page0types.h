@@ -42,10 +42,18 @@ struct page_zip_des_struct
 					columns on the page; the maximum
 					is 744 on a 16 KiB page */
 	unsigned	ssize:3;	/* 0 or compressed page size;
-					the size in bytes is 512<<ssize. */
+					the size in bytes is
+					PAGE_ZIP_MIN_SIZE << (ssize - 1). */
 };
 
 #define PAGE_ZIP_MIN_SIZE	1024	/* smallest page_zip_des_struct.size */
+
+/** Number of page compressions, indexed by page_zip_des_t::ssize */
+extern ulint	page_zip_compress_count[8];
+/** Number of successful page compressions, indexed by page_zip_des_t::ssize */
+extern ulint	page_zip_compress_ok[8];
+/** Number of page decompressions, indexed by page_zip_des_t::ssize */
+extern ulint	page_zip_decompress_count[8];
 
 /**************************************************************************
 Write data to the compressed page.  The data must already be written to

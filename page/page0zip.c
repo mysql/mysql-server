@@ -25,6 +25,13 @@ Created June 2005 by Marko Makela
 #include "log0recv.h"
 #include "zlib.h"
 
+/** Number of page compressions, indexed by page_zip_des_t::ssize */
+ulint	page_zip_compress_count[8];
+/** Number of successful page compressions, indexed by page_zip_des_t::ssize */
+ulint	page_zip_compress_ok[8];
+/** Number of page decompressions, indexed by page_zip_des_t::ssize */
+ulint	page_zip_decompress_count[8];
+
 /* Please refer to ../include/page0zip.ic for a description of the
 compressed page format. */
 
@@ -1062,6 +1069,8 @@ page_zip_compress(
 			n_fields, n_dense);
 	}
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+	page_zip_compress_count[page_zip->ssize]++;
+
 	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
 			  >= page_zip_get_size(page_zip))) {
 		return(FALSE);
@@ -1223,6 +1232,8 @@ zlib_error:
 	if (mtr) {
 		page_zip_compress_write_log(page_zip, page, index, mtr);
 	}
+
+	page_zip_compress_ok[page_zip->ssize]++;
 
 	return(TRUE);
 }
@@ -2588,6 +2599,7 @@ err_exit:
 
 	page_zip_fields_free(index);
 	mem_heap_free(heap);
+	page_zip_decompress_count[page_zip->ssize]++;
 
 	return(TRUE);
 }
