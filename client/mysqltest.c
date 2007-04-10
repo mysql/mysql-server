@@ -91,6 +91,7 @@ enum {
 static int record= 0, opt_sleep= -1;
 static char *opt_db= 0, *opt_pass= 0;
 const char *opt_user= 0, *opt_host= 0, *unix_sock= 0, *opt_basedir= "./";
+const char *opt_logdir= "";
 const char *opt_include= 0, *opt_charsets_dir;
 static int opt_port= 0;
 static int opt_max_connect_retries;
@@ -4263,6 +4264,8 @@ static struct my_option my_long_options[] =
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"include", 'i', "Include SQL before each test case.", (gptr*) &opt_include,
    (gptr*) &opt_include, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"logdir", 0, "Directory for log files", (gptr*) &opt_logdir,
+   (gptr*) &opt_logdir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"mark-progress", OPT_MARK_PROGRESS,
    "Write linenumber and elapsed time to <testname>.progress ",
    (gptr*) &opt_mark_progress, (gptr*) &opt_mark_progress, 0,
@@ -4565,15 +4568,18 @@ void dump_result_to_reject_file(char *buf, int size)
 void dump_result_to_log_file(char *buf, int size)
 {
   char log_file[FN_REFLEN];
-  str_to_file(fn_format(log_file, result_file_name, "", ".log",
+  str_to_file(fn_format(log_file, result_file_name, opt_logdir, ".log",
+                        *opt_logdir ? MY_REPLACE_DIR | MY_REPLACE_EXT :
                         MY_REPLACE_EXT),
               buf, size);
 }
 
 void dump_progress(void)
 {
-  char log_file[FN_REFLEN];
-  str_to_file(fn_format(log_file, result_file_name, "", ".progress",
+  char progress_file[FN_REFLEN];
+  str_to_file(fn_format(progress_file, result_file_name,
+                        opt_logdir, ".progress",
+                        *opt_logdir ? MY_REPLACE_DIR | MY_REPLACE_EXT :
                         MY_REPLACE_EXT),
               ds_progress.str, ds_progress.length);
 }
@@ -4582,7 +4588,8 @@ void dump_warning_messages(void)
 {
   char warn_file[FN_REFLEN];
 
-  str_to_file(fn_format(warn_file, result_file_name, "", ".warnings",
+  str_to_file(fn_format(warn_file, result_file_name, opt_logdir, ".warnings",
+                        *opt_logdir ? MY_REPLACE_DIR | MY_REPLACE_EXT :
                         MY_REPLACE_EXT),
               ds_warning_messages.str, ds_warning_messages.length);
 }
