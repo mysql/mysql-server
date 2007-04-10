@@ -2711,7 +2711,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 		      enum enum_duplicates handle_duplicates, bool ignore)
 {
   TABLE *table,*new_table;
-  int error;
+  int error= 0;
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN];
   char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
   char index_file[FN_REFLEN], data_file[FN_REFLEN];

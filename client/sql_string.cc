@@ -103,7 +103,7 @@ bool String::set(longlong num, CHARSET_INFO *cs)
   }
   else
   {
-    str_length=cs->cset->snprintf(cs,Ptr,l,"%d",num);
+    str_length=cs->cset->snprintf(cs,Ptr,l,"%ld", (long) num);
   }
   str_charset=cs;
   return FALSE;
@@ -121,7 +121,7 @@ bool String::set(ulonglong num, CHARSET_INFO *cs)
   }
   else
   {
-    str_length=cs->cset->snprintf(cs,Ptr,l,"%d",num);
+    str_length=cs->cset->snprintf(cs,Ptr,l,"%ld", (long) num);
   }
   str_charset=cs;
   return FALSE;

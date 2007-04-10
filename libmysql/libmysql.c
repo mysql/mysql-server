@@ -2124,7 +2124,7 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
   }
   stmt->bind= stmt->params + stmt->param_count;
   stmt->state= MYSQL_STMT_PREPARE_DONE;
-  DBUG_PRINT("info", ("Parameter count: %ld", stmt->param_count));
+  DBUG_PRINT("info", ("Parameter count: %u", stmt->param_count));
   DBUG_RETURN(0);
 }
 
@@ -2461,9 +2461,10 @@ static my_bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
 {
   NET *net= &stmt->mysql->net;
   DBUG_ENTER("store_param");
-  DBUG_PRINT("enter",("type: %d, buffer:%lx, length: %lu  is_null: %d",
+  DBUG_PRINT("enter",("type: %d  buffer: 0x%lx  length: %lu  is_null: %d",
 		      param->buffer_type,
-		      param->buffer ? param->buffer : "0", *param->length,
+		      (long) (param->buffer ? param->buffer : NullS),
+                      *param->length,
 		      *param->is_null));
 
   if (*param->is_null)
@@ -2499,7 +2500,7 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
   my_bool res;
 
   DBUG_ENTER("execute");
-  DBUG_PRINT("enter",("packet: %s, length :%d",packet ? packet :" ", length));
+  DBUG_PRINT("enter",("packet: %s, length :%lu", packet ? packet : " ", length));
 
   mysql->last_used_con= mysql;
   int4store(buff, stmt->stmt_id);		/* Send stmt id to server */
@@ -3239,8 +3240,8 @@ mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
   MYSQL_BIND *param;
   DBUG_ENTER("mysql_stmt_send_long_data");
   DBUG_ASSERT(stmt != 0);
-  DBUG_PRINT("enter",("param no : %d, data : %lx, length : %ld",
-		      param_number, data, length));
+  DBUG_PRINT("enter",("param no: %d  data: 0x%lx  length: %ld",
+		      param_number, (ulong) data, length));
 
   /*
     We only need to check for stmt->param_count, if it's not null
@@ -3960,7 +3961,7 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
   ulong       bind_count= stmt->field_count;
   uint        param_count= 0;
   DBUG_ENTER("mysql_stmt_bind_result");
-  DBUG_PRINT("enter",("field_count: %d", bind_count));
+  DBUG_PRINT("enter",("field_count: %lu", bind_count));
 
   if (!bind_count)
   {
