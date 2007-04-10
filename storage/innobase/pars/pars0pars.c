@@ -1859,10 +1859,9 @@ pars_sql(
 
 	heap = mem_heap_create(256);
 
-#ifdef UNIV_SYNC_DEBUG
 	/* Currently, the parser is not reentrant: */
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
+
 	pars_sym_tab_global = sym_tab_create(heap);
 
 	pars_sym_tab_global->string_len = strlen(str);

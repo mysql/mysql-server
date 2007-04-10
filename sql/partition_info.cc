@@ -187,8 +187,14 @@ bool partition_info::set_up_default_partitions(handler *file,
     my_error(ER_PARTITIONS_MUST_BE_DEFINED_ERROR, MYF(0), error_string);
     goto end;
   }
-  if (no_parts == 0)
-    no_parts= file->get_default_no_partitions(info);
+
+  if ((no_parts == 0) &&
+      ((no_parts= file->get_default_no_partitions(info)) == 0))
+  {
+    my_error(ER_PARTITION_NOT_DEFINED_ERROR, MYF(0), "partitions");
+    goto end;
+  }
+
   if (unlikely(no_parts > MAX_PARTITIONS))
   {
     my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
@@ -753,7 +759,11 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
   }
   if (unlikely(set_up_defaults_for_partitioning(file, info, (uint)0)))
     goto end;
-  tot_partitions= get_tot_partitions();
+  if (!(tot_partitions= get_tot_partitions()))
+  {
+    my_error(ER_PARTITION_NOT_DEFINED_ERROR, MYF(0), "partitions");
+    goto end;
+  }
   if (unlikely(tot_partitions > MAX_PARTITIONS))
   {
     my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
@@ -776,6 +786,8 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
       partition_element *part_elem= part_it++;
       if (part_elem->engine_type == NULL)
         part_elem->engine_type= default_engine_type;
+      if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
+        part_elem->data_file_name= part_elem->index_file_name= 0;
       if (!is_sub_partitioned())
       {
         if (check_table_name(part_elem->partition_name,
@@ -849,15 +861,27 @@ void partition_info::print_no_partition_found(TABLE *table)
 {
   char buf[100];
   char *buf_ptr= (char*)&buf;
-  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
+  TABLE_LIST table_list;
 
-  if (part_expr->null_value)
-    buf_ptr= (char*)"NULL";
+  bzero(&table_list, sizeof(table_list));
+  table_list.db= table->s->db.str;
+  table_list.table_name= table->s->table_name.str;
+
+  if (check_single_table_access(current_thd,
+                                SELECT_ACL, &table_list, TRUE))
+    my_message(ER_NO_PARTITION_FOR_GIVEN_VALUE,
+               ER(ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT), MYF(0));
   else
-    longlong2str(err_value, buf,
-                 part_expr->unsigned_flag ? 10 : -10);
-  my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0), buf_ptr);
-  dbug_tmp_restore_column_map(table->read_set, old_map);
+  {
+    my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
+    if (part_expr->null_value)
+      buf_ptr= (char*)"NULL";
+    else
+      longlong2str(err_value, buf,
+                   part_expr->unsigned_flag ? 10 : -10);
+    my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0), buf_ptr);
+    dbug_tmp_restore_column_map(table->read_set, old_map);
+  }
 }
 /*
   Set up buffers and arrays for fields requiring preparation

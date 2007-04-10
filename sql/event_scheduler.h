@@ -15,6 +15,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/**
+  @file
+  This file is internal to Events module. Please do not include it directly.
+  All public declarations of Events module are in events.h and
+  event_data_objects.h.
+*/
+
 
 class Event_queue;
 class Event_job_data;
@@ -31,14 +38,13 @@ void
 deinit_event_thread(THD *thd);
 
 
-class Event_worker_thread 
+class Event_worker_thread
 {
 public:
   static void
-  init(Events *events, Event_db_repository *db_repo)
+  init(Event_db_repository *db_repository_arg)
   {
-    db_repository= db_repo;
-    events_facade= events;
+    db_repository= db_repository_arg;
   }
 
   void
@@ -49,15 +55,15 @@ private:
   print_warnings(THD *thd, Event_job_data *et);
 
   static Event_db_repository *db_repository;
-  static Events *events_facade;
 };
 
 
 class Event_scheduler
 {
 public:
-  Event_scheduler():state(UNINITIALIZED){}
-  ~Event_scheduler(){}
+  Event_scheduler(Event_queue *event_queue_arg);
+  ~Event_scheduler();
+
 
   /* State changing methods follow */
 
@@ -74,17 +80,6 @@ public:
   bool
   run(THD *thd);
 
-  void 
-  init_scheduler(Event_queue *queue);
-
-  void
-  deinit_scheduler();
-
-  void
-  init_mutexes();
-
-  void
-  deinit_mutexes();
 
   /* Information retrieving methods follow */
   bool
@@ -99,7 +94,7 @@ private:
 
   /* helper functions */
   bool
-  execute_top(THD *thd, Event_queue_element_for_exec *event_name);
+  execute_top(Event_queue_element_for_exec *event_name);
 
   /* helper functions for working with mutexes & conditionals */
   void

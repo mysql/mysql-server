@@ -660,6 +660,7 @@ create table t1(a set("a,b","c,d") not null);
 
 # End of 4.1 tests
 
+
 #
 # Bug #14155: Maximum value of MAX_ROWS handled incorrectly on 64-bit
 # platforms
@@ -678,7 +679,7 @@ drop table t1;
 create table t1 (upgrade int);
 drop table t1;
 
-# End of 5.0 tests
+--echo End of 5.0 tests
 
 #
 # Test of behaviour with CREATE ... SELECT
@@ -734,3 +735,95 @@ drop database mysqltest;
 USE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
 --error 1102
 SHOW CREATE DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+
+#
+# Bug#21432 Database/Table name limited to 64 bytes, not chars, problems with multi-byte
+#
+set names utf8;
+
+create database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+use имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+select database();
+use test;
+
+select SCHEMA_NAME from information_schema.schemata
+where schema_name='имя_базы_в_кодировке_утф8_длиной_больше_чем_45';
+
+drop database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+create table имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48
+(
+  имя_поля_в_кодировке_утф8_длиной_больше_чем_45 int,
+  index имя_индекса_в_кодировке_утф8_длиной_больше_чем_48 (имя_поля_в_кодировке_утф8_длиной_больше_чем_45)
+);
+
+create view имя_вью_кодировке_утф8_длиной_больше_чем_42 as
+select имя_поля_в_кодировке_утф8_длиной_больше_чем_45
+from имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
+
+# database, table, field, key, view
+select * from имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
+
+select TABLE_NAME from information_schema.tables where
+table_schema='test';
+
+select COLUMN_NAME from information_schema.columns where
+table_schema='test';
+
+select INDEX_NAME from information_schema.statistics where
+table_schema='test';
+
+select TABLE_NAME from information_schema.views where
+table_schema='test';
+
+show create table имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
+show create view имя_вью_кодировке_утф8_длиной_больше_чем_42;
+
+# procedure, function, event, trigger
+
+create event имя_события_в_кодировке_утф8_длиной_больше_чем_48 on schedule every 2 year do select 1;
+select EVENT_NAME from information_schema.events
+where event_schema='test';
+drop event имя_события_в_кодировке_утф8_длиной_больше_чем_48;
+--error 1059
+create event
+очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_66
+on schedule every 2 year do select 1;
+
+create trigger имя_триггера_в_кодировке_утф8_длиной_больше_чем_49
+before insert on имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48 for each row set @a:=1;
+select TRIGGER_NAME from information_schema.triggers where
+trigger_schema='test';
+drop trigger имя_триггера_в_кодировке_утф8_длиной_больше_чем_49;
+--error 1059
+create trigger
+очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_66
+before insert on имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48 for each row set @a:=1;
+--error 1059
+drop trigger очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_66;
+
+create procedure имя_процедуры_в_кодировке_утф8_длиной_больше_чем_50()
+begin
+end;
+select ROUTINE_NAME from information_schema.routines where
+routine_schema='test';
+drop procedure имя_процедуры_в_кодировке_утф8_длиной_больше_чем_50;
+--error 1059
+create procedure очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_66()
+begin
+end;
+
+create function имя_функции_в_кодировке_утф8_длиной_больше_чем_49()
+   returns int
+return 0;
+select ROUTINE_NAME from information_schema.routines where
+routine_schema='test';
+drop function имя_функции_в_кодировке_утф8_длиной_больше_чем_49;
+--error 1059
+create function очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_66()
+   returns int
+return 0;
+
+drop view имя_вью_кодировке_утф8_длиной_больше_чем_42;
+drop table имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
+set names default;
+--echo End of 5.1 tests

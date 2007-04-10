@@ -2273,9 +2273,11 @@ int ndb_add_ndb_binlog_index(THD *thd, void *_row)
     break;
   }
 
-  // Set all fields non-null.
-  if(ndb_binlog_index->s->null_bytes > 0)
-    bzero(ndb_binlog_index->record[0], ndb_binlog_index->s->null_bytes);
+  /*
+    Intialize ndb_binlog_index->record[0]
+  */
+  empty_record(ndb_binlog_index);
+
   ndb_binlog_index->field[0]->store(row.master_log_pos);
   ndb_binlog_index->field[1]->store(row.master_log_file,
                                 strlen(row.master_log_file),
@@ -3909,9 +3911,11 @@ restart:
             IF_DBUG(int ret=) trans.use_table(::server_id, tbl);
             DBUG_ASSERT(ret == 0);
 
-            // Set all fields non-null.
-            if(table->s->null_bytes > 0)
-              bzero(table->record[0], table->s->null_bytes);
+	    /* 
+	       Intialize table->record[0] 
+	    */
+	    empty_record(table);
+
             table->field[0]->store((longlong)::server_id);
             table->field[1]->store((longlong)gci);
             table->field[2]->store("", 0, &my_charset_bin);
