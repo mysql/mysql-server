@@ -20,8 +20,6 @@
 #include "event_db_repository.h"
 #include "sp_head.h"
 
-/* That's a provisional solution */
-extern Event_db_repository events_event_db_repository;
 
 #define EVEX_MAX_INTERVAL_VALUE 1000000000L
 
@@ -81,7 +79,7 @@ Event_queue_element_for_exec::~Event_queue_element_for_exec()
 
   RETURN VALUE
     Address or NULL in case of error
-  
+
   NOTE
     Created on THD's mem_root
 */
@@ -101,8 +99,9 @@ Event_parse_data::new_instance(THD *thd)
 */
 
 Event_parse_data::Event_parse_data()
-  :on_completion(Event_basic::ON_COMPLETION_DROP), 
-   status(Event_basic::ENABLED), do_not_create(FALSE),
+  :on_completion(Event_basic::ON_COMPLETION_DROP),
+  status(Event_basic::ENABLED),
+  do_not_create(FALSE),
    item_starts(NULL), item_ends(NULL), item_execute_at(NULL),
    starts_null(TRUE), ends_null(TRUE), execute_at_null(TRUE),
    item_expression(NULL), expression(0)
@@ -169,13 +168,13 @@ Event_parse_data::init_body(THD *thd)
                       (long) body_begin, (long) thd->lex->ptr));
 
   body.length= thd->lex->ptr - body_begin;
-  const uchar *body_end= body_begin + body.length - 1;
+  const char *body_end= body_begin + body.length - 1;
 
   /* Trim nuls or close-comments ('*'+'/') or spaces at the end */
   while (body_begin < body_end)
   {
 
-    if ((*body_end == '\0') || 
+    if ((*body_end == '\0') ||
         (my_isspace(thd->variables.character_set_client, *body_end)))
     { /* consume NULs and meaningless whitespace */
       --body.length;
@@ -187,7 +186,7 @@ Event_parse_data::init_body(THD *thd)
        consume closing comments
 
        This is arguably wrong, but it's the best we have until the parser is
-       changed to be smarter.   FIXME PARSER 
+       changed to be smarter.   FIXME PARSER
 
        See also the sp_head code, where something like this is done also.
 
@@ -216,7 +215,7 @@ Event_parse_data::init_body(THD *thd)
     ++body_begin;
     --body.length;
   }
-  body.str= thd->strmake((char *)body_begin, body.length);
+  body.str= thd->strmake(body_begin, body.length);
 
   DBUG_VOID_RETURN;
 }
@@ -297,7 +296,7 @@ Event_parse_data::init_execute_at(THD *thd)
 
   if (item_execute_at->fix_fields(thd, &item_execute_at))
     goto wrong_value;
-  
+
   /* no starts and/or ends in case of execute_at */
   DBUG_PRINT("info", ("starts_null && ends_null should be 1 is %d",
                       (starts_null && ends_null)));
@@ -589,6 +588,7 @@ Event_parse_data::check_parse_data(THD *thd)
   init_name(thd, identifier);
 
   init_definer(thd);
+
   ret= init_execute_at(thd) || init_interval(thd) || init_starts(thd) ||
        init_ends(thd);
   check_originator_id(thd);
@@ -638,7 +638,7 @@ Event_parse_data::init_definer(THD *thd)
 }
 
 
-/*
+/**
   Set the originator id of the event to the server_id if executing on
   the master or set to the server_id of the master if executing on 
   the slave. If executing on slave, also set status to SLAVESIDE_DISABLED.
@@ -720,7 +720,7 @@ Event_basic::load_string_fields(Field **fields, ...)
 
   va_start(args, fields);
   field_name= (enum enum_events_table_field) va_arg(args, int);
-  while (field_name != ET_FIELD_COUNT)
+  while (field_name < ET_FIELD_COUNT)
   {
     field_value= va_arg(args, LEX_STRING *);
     if ((field_value->str= get_field(&mem_root, fields[field_name])) == NullS)
@@ -728,7 +728,7 @@ Event_basic::load_string_fields(Field **fields, ...)
       ret= TRUE;
       break;
     }
-    field_value->length= strlen(field_value->str);  
+    field_value->length= strlen(field_value->str);
 
     field_name= (enum enum_events_table_field) va_arg(args, int);
   }
@@ -804,7 +804,7 @@ Event_timed::Event_timed():
 */
 
 Event_timed::~Event_timed()
-{    
+{
 }
 
 
@@ -884,13 +884,19 @@ Event_job_data::load_from_row(THD *thd, TABLE *table)
   if (!table)
     goto error;
 
-  if (table->s->fields != ET_FIELD_COUNT)
+  if (table->s->fields < ET_FIELD_COUNT)
     goto error;
 
   LEX_STRING tz_name;
-  load_string_fields(table->field, ET_FIELD_DB, &dbname, ET_FIELD_NAME, &name,
-                     ET_FIELD_BODY, &body, ET_FIELD_DEFINER, &definer,
-                     ET_FIELD_TIME_ZONE, &tz_name, ET_FIELD_COUNT);
+  if (load_string_fields(table->field,
+                         ET_FIELD_DB, &dbname,
+                         ET_FIELD_NAME, &name,
+                         ET_FIELD_BODY, &body,
+                         ET_FIELD_DEFINER, &definer,
+                         ET_FIELD_TIME_ZONE, &tz_name,
+                         ET_FIELD_COUNT))
+    goto error;
+
   if (load_time_zone(thd, tz_name))
     goto error;
 
@@ -936,19 +942,24 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
 {
   char *ptr;
   TIME time;
+  LEX_STRING tz_name;
 
   DBUG_ENTER("Event_queue_element::load_from_row");
 
   if (!table)
     goto error;
 
-  if (table->s->fields != ET_FIELD_COUNT)
+  if (table->s->fields < ET_FIELD_COUNT)
     goto error;
 
-  LEX_STRING tz_name;
-  load_string_fields(table->field, ET_FIELD_DB, &dbname, ET_FIELD_NAME, &name,
-                     ET_FIELD_DEFINER, &definer,
-                     ET_FIELD_TIME_ZONE, &tz_name, ET_FIELD_COUNT);
+  if (load_string_fields(table->field,
+                         ET_FIELD_DB, &dbname,
+                         ET_FIELD_NAME, &name,
+                         ET_FIELD_DEFINER, &definer,
+                         ET_FIELD_TIME_ZONE, &tz_name,
+                         ET_FIELD_COUNT))
+    goto error;
+
   if (load_time_zone(thd, tz_name))
     goto error;
 
@@ -1032,6 +1043,7 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
     status = Event_queue_element::SLAVESIDE_DISABLED;
     break;
   case 'D' :
+  default:
     status = Event_queue_element::DISABLED;
     break;
   }
@@ -1080,7 +1092,11 @@ Event_timed::load_from_row(THD *thd, TABLE *table)
   if (Event_queue_element::load_from_row(thd, table))
     goto error;
 
-  load_string_fields(table->field, ET_FIELD_BODY, &body, ET_FIELD_COUNT);
+  if (load_string_fields(table->field,
+                         ET_FIELD_BODY, &body,
+                         ET_FIELD_COUNT))
+    goto error;
+
 
   ptr= strchr(definer.str, '@');
 
@@ -1423,7 +1439,6 @@ Event_queue_element::compute_next_execution_time()
     DBUG_PRINT("info", ("Dropped: %d", dropped));
     status= Event_queue_element::DISABLED;
     status_changed= TRUE;
-    dropped= TRUE;
 
     goto ret;
   }
@@ -1615,7 +1630,7 @@ Event_queue_element::mark_last_executed(THD *thd)
 
   last_executed= (my_time_t) thd->query_start();
   last_executed_changed= TRUE;
-  
+
   execution_count++;
 }
 
@@ -1636,10 +1651,8 @@ Event_queue_element::mark_last_executed(THD *thd)
 bool
 Event_queue_element::update_timing_fields(THD *thd)
 {
-  TABLE *table;
-  Field **fields;
-  Open_tables_state backup;
-  int ret= FALSE;
+  Event_db_repository *db_repository= Events::get_db_repository();
+  int ret;
 
   DBUG_ENTER("Event_queue_element::update_timing_fields");
 
@@ -1649,53 +1662,13 @@ Event_queue_element::update_timing_fields(THD *thd)
   if (!(status_changed || last_executed_changed))
     DBUG_RETURN(0);
 
-  thd->reset_n_backup_open_tables_state(&backup);
-
-  if (events_event_db_repository.open_event_table(thd, TL_WRITE, &table))
-  {
-    ret= TRUE;
-    goto done;
-  }
-  fields= table->field;
-  if ((ret= events_event_db_repository.
-                                 find_named_event(thd, dbname, name, table)))
-    goto done;
-
-  store_record(table,record[1]);
-  /* Don't update create on row update. */
-  table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
-
-  if (last_executed_changed)
-  {
-    TIME time;
-    my_tz_UTC->gmt_sec_to_TIME(&time, last_executed);
-
-    fields[ET_FIELD_LAST_EXECUTED]->set_notnull();
-    fields[ET_FIELD_LAST_EXECUTED]->store_time(&time,
-                                               MYSQL_TIMESTAMP_DATETIME);
-    last_executed_changed= FALSE;
-  }
-  if (status_changed)
-  {
-    fields[ET_FIELD_STATUS]->set_notnull();
-    fields[ET_FIELD_STATUS]->store((longlong)status, TRUE);
-    status_changed= FALSE;
-  }
-
-  /* 
-    Turn off row binlogging of event timing updates. These are not used
-    for RBR of events replicated to the slave.
-  */
-  if (thd->current_stmt_binlog_row_based)
-    thd->clear_current_stmt_binlog_row_based();
-
-  if ((table->file->ha_update_row(table->record[1], table->record[0])))
-    ret= TRUE;
-
-done:
-  close_thread_tables(thd);
-  thd->restore_backup_open_tables_state(&backup);
-
+  ret= db_repository->update_timing_fields_for_event(thd,
+                                                     dbname, name,
+                                                     last_executed_changed,
+                                                     last_executed,
+                                                     status_changed,
+                                                     (ulonglong) status);
+  last_executed_changed= status_changed= FALSE;
   DBUG_RETURN(ret);
 }
 
@@ -1780,7 +1753,7 @@ Event_timed::get_create_event(THD *thd, String *buf)
   if (status == Event_timed::ENABLED)
     buf->append(STRING_WITH_LEN("ENABLE"));
   else if (status == Event_timed::SLAVESIDE_DISABLED)
-    buf->append(STRING_WITH_LEN("SLAVESIDE_DISABLE"));
+    buf->append(STRING_WITH_LEN("DISABLE ON SLAVE"));
   else
     buf->append(STRING_WITH_LEN("DISABLE"));
 
@@ -1812,7 +1785,7 @@ Event_timed::get_create_event(THD *thd, String *buf)
 */
 
 int
-Event_job_data::get_fake_create_event(THD *thd, String *buf)
+Event_job_data::get_fake_create_event(String *buf)
 {
   DBUG_ENTER("Event_job_data::get_create_event");
   /* FIXME: "EVERY 3337 HOUR" is asking for trouble. */
@@ -1838,7 +1811,7 @@ Event_job_data::get_fake_create_event(THD *thd, String *buf)
 */
 
 int
-Event_job_data::execute(THD *thd)
+Event_job_data::execute(THD *thd, bool drop)
 {
   Security_context save_ctx;
   /* this one is local and not needed after exec */
@@ -1878,6 +1851,17 @@ Event_job_data::execute(THD *thd)
                definer_host.str, dbname.str));
     ret= -99;
   }
+  if (drop)
+  {
+    sql_print_information("Event Scheduler: Dropping %s.%s",
+                          dbname.str, name.str);
+    /*
+      We must do it here since here we're under the right authentication
+      ID of the event definer
+    */
+    if (Events::drop_event(thd, dbname, name, FALSE))
+      ret= 1;
+  }
 
   event_restore_security_context(thd, &save_ctx);
 done:
@@ -1903,7 +1887,7 @@ done:
   RETURN VALUE
     0                       success
     EVEX_COMPILE_ERROR      error during compilation
-    EVEX_MICROSECOND_UNSUP  mysql.event was tampered 
+    EVEX_MICROSECOND_UNSUP  mysql.event was tampered
 */
 
 int
@@ -1928,7 +1912,7 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
 
   show_create.length(0);
 
-  switch (get_fake_create_event(thd, &show_create)) {
+  switch (get_fake_create_event(&show_create)) {
   case EVEX_MICROSECOND_UNSUP:
     DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
   case 0:
@@ -1970,16 +1954,17 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
   event_change_security_context(thd, definer_user, definer_host, dbname,
                                 &save_ctx);
   thd->lex= &lex;
-  mysql_init_query(thd, (uchar*) thd->query, thd->query_length);
+  mysql_init_query(thd, thd->query, thd->query_length);
   if (MYSQLparse((void *)thd) || thd->is_fatal_error)
   {
     DBUG_PRINT("error", ("error during compile or thd->is_fatal_error: %d",
                           thd->is_fatal_error));
     lex.unit.cleanup();
 
-    sql_print_error("SCHEDULER: Error during compilation of %s.%s or "
-                    "thd->is_fatal_error: %d",
-                    dbname.str, name.str, thd->is_fatal_error);
+    sql_print_error("Event Scheduler: "
+                    "%serror during compilation of %s.%s",
+                    thd->is_fatal_error ? "fatal " : "",
+                    dbname.str, name.str);
 
     ret= EVEX_COMPILE_ERROR;
     goto done;
@@ -2093,7 +2078,7 @@ event_change_security_context(THD *thd, LEX_STRING user, LEX_STRING host,
   thd->security_ctx= &thd->main_security_ctx;
 #endif
   DBUG_RETURN(FALSE);
-} 
+}
 
 
 /*

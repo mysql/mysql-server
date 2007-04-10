@@ -408,9 +408,22 @@ sp_name::init_qname(THD *thd)
 */
 
 bool
-check_routine_name(LEX_STRING ident)
+check_routine_name(LEX_STRING *ident)
 {
-  return (!ident.str || !ident.str[0] || ident.str[ident.length-1] == ' ');
+  if (!ident || !ident->str || !ident->str[0] ||
+      ident->str[ident->length-1] == ' ')
+  {
+    my_error(ER_SP_WRONG_NAME, MYF(0), ident->str);
+    return TRUE;
+  }
+  if (check_string_char_length(ident, "", NAME_CHAR_LEN,
+                               system_charset_info, 1))
+  {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), ident->str);
+    return TRUE;
+  }
+
+  return FALSE;
 }
 
 /* ------------------------------------------------------------------ */
@@ -541,15 +554,14 @@ void
 sp_head::init_strings(THD *thd, LEX *lex)
 {
   DBUG_ENTER("sp_head::init_strings");
-  const uchar *endp;                            /* Used to trim the end */
+  const char *endp;                            /* Used to trim the end */
   /* During parsing, we must use thd->mem_root */
   MEM_ROOT *root= thd->mem_root;
 
   if (m_param_begin && m_param_end)
   {
     m_params.length= m_param_end - m_param_begin;
-    m_params.str= strmake_root(root,
-                               (char *)m_param_begin, m_params.length);
+    m_params.str= strmake_root(root, m_param_begin, m_params.length);
   }
 
   /* If ptr has overrun end_of_query then end_of_query is the end */
@@ -561,9 +573,9 @@ sp_head::init_strings(THD *thd, LEX *lex)
   endp= skip_rear_comments(m_body_begin, endp);
 
   m_body.length= endp - m_body_begin;
-  m_body.str= strmake_root(root, (char *)m_body_begin, m_body.length);
+  m_body.str= strmake_root(root, m_body_begin, m_body.length);
   m_defstr.length= endp - lex->buf;
-  m_defstr.str= strmake_root(root, (char *)lex->buf, m_defstr.length);
+  m_defstr.str= strmake_root(root, lex->buf, m_defstr.length);
   DBUG_VOID_RETURN;
 }
 
@@ -992,6 +1004,12 @@ sp_head::execute(THD *thd)
   DBUG_ASSERT((m_next_cached_sp == 0 &&
                m_first_instance->m_last_cached_sp == this) ||
               (m_recursion_level + 1 == m_next_cached_sp->m_recursion_level));
+
+  /*
+    NOTE: The SQL Standard does not specify the context that should be
+    preserved for stored routines. However, at SAP/Walldorf meeting it was
+    decided that current database should be preserved.
+  */
 
   if (m_db.length &&
       (err_status= sp_use_new_db(thd, m_db, &old_db, 0, &dbchanged)))
@@ -2105,24 +2123,18 @@ sp_head::show_create_procedure(THD *thd)
   String buffer(buff, sizeof(buff), system_charset_info);
   int res;
   List<Item> field_list;
-  byte *sql_mode_str;
-  ulong sql_mode_len;
+  LEX_STRING sql_mode;
   bool full_access;
   DBUG_ENTER("sp_head::show_create_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 
-  LINT_INIT(sql_mode_str);
-  LINT_INIT(sql_mode_len);
-
   if (check_show_routine_access(thd, this, &full_access))
     DBUG_RETURN(1);
 
-  sql_mode_str=
-    sys_var_thd_sql_mode::symbolic_mode_representation(thd,
-                                                       m_sql_mode,
-                                                       &sql_mode_len);
-  field_list.push_back(new Item_empty_string("Procedure", NAME_LEN));
-  field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
+  sys_var_thd_sql_mode::symbolic_mode_representation(thd, m_sql_mode,
+                                                     &sql_mode);
+  field_list.push_back(new Item_empty_string("Procedure", NAME_CHAR_LEN));
+  field_list.push_back(new Item_empty_string("sql_mode", sql_mode.length));
   // 1024 is for not to confuse old clients
   Item_empty_string *definition=
     new Item_empty_string("Create Procedure", max(buffer.length(),1024));
@@ -2134,7 +2146,7 @@ sp_head::show_create_procedure(THD *thd)
     DBUG_RETURN(1);
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
-  protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
+  protocol->store((char*) sql_mode.str, sql_mode.length, system_charset_info);
   if (full_access)
     protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   else
@@ -2177,23 +2189,18 @@ sp_head::show_create_function(THD *thd)
   String buffer(buff, sizeof(buff), system_charset_info);
   int res;
   List<Item> field_list;
-  byte *sql_mode_str;
-  ulong sql_mode_len;
+  LEX_STRING sql_mode;
   bool full_access;
   DBUG_ENTER("sp_head::show_create_function");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
-  LINT_INIT(sql_mode_str);
-  LINT_INIT(sql_mode_len);
 
   if (check_show_routine_access(thd, this, &full_access))
     DBUG_RETURN(1);
 
-  sql_mode_str=
-    sys_var_thd_sql_mode::symbolic_mode_representation(thd,
-                                                       m_sql_mode,
-                                                       &sql_mode_len);
-  field_list.push_back(new Item_empty_string("Function",NAME_LEN));
-  field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
+  sys_var_thd_sql_mode::symbolic_mode_representation(thd, m_sql_mode,
+                                                     &sql_mode);
+  field_list.push_back(new Item_empty_string("Function",NAME_CHAR_LEN));
+  field_list.push_back(new Item_empty_string("sql_mode", sql_mode.length));
   Item_empty_string *definition=
     new Item_empty_string("Create Function", max(buffer.length(),1024));
   definition->maybe_null= TRUE;
@@ -2204,7 +2211,7 @@ sp_head::show_create_function(THD *thd)
     DBUG_RETURN(1);
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
-  protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
+  protocol->store(sql_mode.str, sql_mode.length, system_charset_info);
   if (full_access)
     protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   else

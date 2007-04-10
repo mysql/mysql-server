@@ -367,7 +367,7 @@ MY_LOCALE *my_locale_by_number(uint number);
   Maximum length of time zone name that we support
   (Time zone name is char(64) in db). mysqlbinlog needs it.
 */
-#define MAX_TIME_ZONE_NAME_LENGTH 72
+#define MAX_TIME_ZONE_NAME_LENGTH       (NAME_LEN + 1)
 
 /* The rest of the file is included in the server only */
 #ifndef MYSQL_CLIENT
@@ -600,7 +600,7 @@ class THD;
 void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0);
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables);
 bool check_single_table_access(THD *thd, ulong privilege,
-			   TABLE_LIST *tables);
+			   TABLE_LIST *tables, bool no_errors);
 bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
 			  bool is_proc, bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
@@ -623,8 +623,11 @@ void get_default_definer(THD *thd, LEX_USER *definer);
 LEX_USER *create_default_definer(THD *thd);
 LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name);
 LEX_USER *get_current_user(THD *thd, LEX_USER *user);
-bool check_string_length(LEX_STRING *str,
-                         const char *err_msg, uint max_length);
+bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
+                              uint max_byte_length);
+bool check_string_char_length(LEX_STRING *str, const char *err_msg,
+                              uint max_char_length, CHARSET_INFO *cs,
+                              bool no_error);
 
 enum enum_mysql_completiontype {
   ROLLBACK_RELEASE=-2, ROLLBACK=1,  ROLLBACK_AND_CHAIN=7,
@@ -843,7 +846,7 @@ bool is_update_query(enum enum_sql_command command);
 bool alloc_query(THD *thd, const char *packet, uint packet_length);
 void mysql_init_select(LEX *lex);
 void mysql_reset_thd_for_next_command(THD *thd);
-void mysql_init_query(THD *thd, uchar *buf, uint length);
+void mysql_init_query(THD *thd, const char *buf, uint length);
 bool mysql_new_select(LEX *lex, bool move_down);
 void create_select_for_variable(const char *var_name);
 void mysql_init_multi_delete(LEX *lex);
@@ -1008,6 +1011,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
                   bool ignore);
 int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
                                            TABLE_LIST *table_list);
+void prepare_triggers_for_insert_stmt(TABLE *table);
 bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
                   SQL_LIST *order, ha_rows rows, ulonglong options,
@@ -1165,7 +1169,7 @@ void mysql_ha_mark_tables_for_reopen(THD *thd, TABLE *table);
 /* sql_base.cc */
 #define TMP_TABLE_KEY_EXTRA 8
 void set_item_name(Item *item,char *pos,uint length);
-bool add_field_to_list(THD *thd, char *field_name, enum enum_field_types type,
+bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types type,
 		       char *length, char *decimal,
 		       uint type_modifier,
 		       Item *default_value, Item *on_update_value,
@@ -1566,8 +1570,10 @@ extern bool check_reserved_words(LEX_STRING *name);
 /* strfunc.cc */
 ulonglong find_set(TYPELIB *lib, const char *x, uint length, CHARSET_INFO *cs,
 		   char **err_pos, uint *err_len, bool *set_warning);
-uint find_type(TYPELIB *lib, const char *find, uint length, bool part_match);
-uint find_type2(TYPELIB *lib, const char *find, uint length, CHARSET_INFO *cs);
+uint find_type(const TYPELIB *lib, const char *find, uint length,
+               bool part_match);
+uint find_type2(const TYPELIB *lib, const char *find, uint length,
+                CHARSET_INFO *cs);
 void unhex_type2(TYPELIB *lib);
 uint check_word(TYPELIB *lib, const char *val, const char *end,
 		const char **end_of_word);

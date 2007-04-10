@@ -42,7 +42,7 @@
     >0  Offset+1 in typelib for matched string
 */
 
-int find_type(my_string x, TYPELIB *typelib, uint full_name)
+int find_type(char *x, const TYPELIB *typelib, uint full_name)
 {
   int find,pos,findpos;
   reg1 my_string i;

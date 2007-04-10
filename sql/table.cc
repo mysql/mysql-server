@@ -250,7 +250,7 @@ void free_table_share(TABLE_SHARE *share)
   Currently these are:
 
   help_category, help_keyword, help_relation, help_topic,
-  proc,
+  proc, event
   time_zone, time_zone_leap_second, time_zone_name, time_zone_transition,
   time_zone_transition_type
 
@@ -283,7 +283,14 @@ inline bool is_system_table_name(const char *name, uint length)
            my_tolower(ci, name[0]) == 't' &&
            my_tolower(ci, name[1]) == 'i' &&
            my_tolower(ci, name[2]) == 'm' &&
-           my_tolower(ci, name[3]) == 'e'
+           my_tolower(ci, name[3]) == 'e' ||
+
+           /* mysql.event table */
+           my_tolower(ci, name[0]) == 'e' &&
+           my_tolower(ci, name[1]) == 'v' &&
+           my_tolower(ci, name[2]) == 'e' &&
+           my_tolower(ci, name[3]) == 'n' &&
+           my_tolower(ci, name[4]) == 't'
           )
          );
 }
@@ -682,8 +689,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       if ((share->partition_info_len= partition_info_len))
       {
         if (!(share->partition_info=
-              (uchar*) memdup_root(&share->mem_root, next_chunk + 4,
-                                   partition_info_len + 1)))
+              memdup_root(&share->mem_root, next_chunk + 4,
+                          partition_info_len + 1)))
         {
           my_free(buff, MYF(0));
           goto err;
@@ -1528,7 +1535,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
     tmp= mysql_unpack_partition(thd, share->partition_info,
                                 share->partition_info_len,
-                                (uchar*)share->part_state,
+                                share->part_state,
                                 share->part_state_len,
                                 outparam, is_create_table,
                                 share->default_part_db_type);
@@ -2329,8 +2336,9 @@ uint calculate_key_len(TABLE *table, uint key, const byte *buf,
 bool check_db_name(LEX_STRING *org_name)
 {
   char *name= org_name->str;
+  uint name_length= org_name->length;
 
-  if (!org_name->length || org_name->length > NAME_LEN)
+  if (!name_length || name_length > NAME_LEN)
     return 1;
 
   if (lower_case_table_names && name != any_db)
@@ -2339,6 +2347,7 @@ bool check_db_name(LEX_STRING *org_name)
 #if defined(USE_MB) && defined(USE_MB_IDENT)
   if (use_mb(system_charset_info))
   {
+    name_length= 0;
     bool last_char_is_space= TRUE;
     char *end= name + org_name->length;
     while (name < end)
@@ -2349,12 +2358,14 @@ bool check_db_name(LEX_STRING *org_name)
       if (!len)
         len= 1;
       name+= len;
+      name_length++;
     }
-    return last_char_is_space;
+    return (last_char_is_space || name_length > NAME_CHAR_LEN);
   }
   else
 #endif
-    return org_name->str[org_name->length - 1] != ' '; /* purecov: inspected */
+    return ((org_name->str[org_name->length - 1] != ' ') ||
+            (name_length > NAME_CHAR_LEN)); /* purecov: inspected */
 }
 
 
@@ -2367,6 +2378,7 @@ bool check_db_name(LEX_STRING *org_name)
 
 bool check_table_name(const char *name, uint length)
 {
+  uint name_length= 0;  // name length in symbols
   const char *end= name+length;
   if (!length || length > NAME_LEN)
     return 1;
@@ -2387,14 +2399,16 @@ bool check_table_name(const char *name, uint length)
       if (len)
       {
         name += len;
+        name_length++;
         continue;
       }
     }
 #endif
     name++;
+    name_length++;
   }
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-  return last_char_is_space;
+  return (last_char_is_space || name_length > NAME_CHAR_LEN) ;
 #else
   return 0;
 #endif
@@ -2403,7 +2417,7 @@ bool check_table_name(const char *name, uint length)
 
 bool check_column_name(const char *name)
 {
-  const char *start= name;
+  uint name_length= 0;  // name length in symbols
   bool last_char_is_space= TRUE;
   
   while (*name)
@@ -2417,6 +2431,7 @@ bool check_column_name(const char *name)
       if (len)
       {
         name += len;
+        name_length++;
         continue;
       }
     }
@@ -2426,159 +2441,150 @@ bool check_column_name(const char *name)
     if (*name == NAMES_SEP_CHAR)
       return 1;
     name++;
+    name_length++;
   }
   /* Error if empty or too long column name */
-  return last_char_is_space || (uint) (name - start) > NAME_LEN;
+  return last_char_is_space || (uint) name_length > NAME_CHAR_LEN;
 }
 
 
-/*
+/**
   Checks whether a table is intact. Should be done *just* after the table has
   been opened.
-  
-  SYNOPSIS
-    table_check_intact()
-      table             The table to check
-      table_f_count     Expected number of columns in the table
-      table_def         Expected structure of the table (column name and type)
-      last_create_time  The table->file->create_time of the table in memory
-                        we have checked last time
-      error_num         ER_XXXX from the error messages file. When 0 no error
-                        is sent to the client in case types does not match.
-                        If different col number either 
-                        ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE or 
-                        ER_COL_COUNT_DOESNT_MATCH_CORRUPTED is used
 
-  RETURNS
-    FALSE  OK
-    TRUE   There was an error
+  @param[in] table             The table to check
+  @param[in] table_f_count     Expected number of columns in the table
+  @param[in] table_def         Expected structure of the table (column name
+                               and type)
+
+  @retval  FALSE  OK
+  @retval  TRUE   There was an error. An error message is output
+                  to the error log.  We do not push an error
+                  message into the error stack because this
+                  function is currently only called at start up,
+                  and such errors never reach the user.
 */
 
 my_bool
 table_check_intact(TABLE *table, const uint table_f_count,
-                   const TABLE_FIELD_W_TYPE *table_def,
-                   time_t *last_create_time, int error_num)
+                   const TABLE_FIELD_W_TYPE *table_def)
 {
   uint i;
   my_bool error= FALSE;
   my_bool fields_diff_count;
   DBUG_ENTER("table_check_intact");
-  DBUG_PRINT("info",("table: %s  expected_count: %d  last_create_time: %ld",
-                     table->alias, table_f_count, *last_create_time));
-  
-  if ((fields_diff_count= (table->s->fields != table_f_count)) ||
-      (*last_create_time != table->file->stats.create_time))
-  {
-    DBUG_PRINT("info", ("I am suspecting, checking table"));
-    if (fields_diff_count)
-    {
-      /* previous MySQL version */
-      error= TRUE;
-      if (MYSQL_VERSION_ID > table->s->mysql_version)
-      {
-        my_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE, MYF(0), table->alias,
-                 table_f_count, table->s->fields, table->s->mysql_version,
-                 MYSQL_VERSION_ID);
-        sql_print_error(ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE),
-                        table->alias, table_f_count, table->s->fields,
-                        table->s->mysql_version, MYSQL_VERSION_ID);
-        DBUG_RETURN(error);
+  DBUG_PRINT("info",("table: %s  expected_count: %d",
+                     table->alias, table_f_count));
 
-      }
-      else if (MYSQL_VERSION_ID == table->s->mysql_version)
-      {
-        my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED,MYF(0), table->alias,
-                 table_f_count, table->s->fields);
-        sql_print_error(ER(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED), table->alias,
-                        table_f_count, table->s->fields);
-      }
-      else
-      {
-        /*
-          Moving from newer mysql to older one -> let's say not an error but
-          will check the definition afterwards. If a column was added at the
-          end then we don't care much since it's not in the middle.
-        */
-        error= FALSE;
-      }
-    }
-    /* definitely something has changed */
-    char buffer[255];
-    for (i=0 ; i < table_f_count; i++, table_def++)
-    {      
-      String sql_type(buffer, sizeof(buffer), system_charset_info);
-      sql_type.length(0);
-      /*
-        Name changes are not fatal, we use sequence numbers => no problem
-        for us but this can show tampered table or broken table.
-      */
-      if (i < table->s->fields)
-      {
-        Field *field= table->field[i];
-        if (strncmp(field->field_name, table_def->name.str,
-                                       table_def->name.length))
-        {
-          sql_print_error("(%s) Expected field %s at position %d, found %s",
-                          table->alias, table_def->name.str, i,
-                          field->field_name);
-        }
-                        
-        /*
-          If the type does not match than something is really wrong
-          Check up to length - 1. Why?
-          1. datetime -> datetim -> the same
-          2. int(11) -> int(11  -> the same
-          3. set('one','two') -> set('one','two'  
-             so for sets if the same prefix is there it's ok if more are
-             added as part of the set. The same is valid for enum. So a new
-             table running on a old server will be valid.
-        */ 
-        field->sql_type(sql_type);
-        if (strncmp(sql_type.c_ptr_safe(), table_def->type.str,
-                    table_def->type.length - 1))
-        {
-          sql_print_error("(%s) Expected field %s at position %d to have type "
-                          "%s, found %s", table->alias, table_def->name.str,
-                          i, table_def->type.str, sql_type.c_ptr_safe()); 
-          error= TRUE;
-        }
-        else if (table_def->cset.str && !field->has_charset())
-        {
-          sql_print_error("(%s) Expected field %s at position %d to have "
-                          "character set '%s' but found no such", table->alias,
-                          table_def->name.str, i, table_def->cset.str);        
-          error= TRUE;
-        }
-        else if (table_def->cset.str && 
-                 strcmp(field->charset()->csname, table_def->cset.str))
-        {
-          sql_print_error("(%s) Expected field %s at position %d to have "
-                          "character set '%s' but found '%s'", table->alias,
-                          table_def->name.str, i, table_def->cset.str,
-                          field->charset()->csname);
-          error= TRUE;
-        }
-      }
-      else
-      {
-        sql_print_error("(%s) Expected field %s at position %d to have type %s "
-                        " but no field found.", table->alias,
-                        table_def->name.str, i, table_def->type.str);
-        error= TRUE;        
-      }
-    }
-    if (!error)
-      *last_create_time= table->file->stats.create_time;
-    else if (!fields_diff_count && error_num)
-      my_error(error_num,MYF(0), table->alias, table_f_count, table->s->fields);
-  }
-  else
+  fields_diff_count= (table->s->fields != table_f_count);
+  if (fields_diff_count)
   {
-    DBUG_PRINT("info", ("Table seems ok without thorough checking."));
-    *last_create_time= table->file->stats.create_time;
+    DBUG_PRINT("info", ("Column count has changed, checking the definition"));
+
+    /* previous MySQL version */
+    if (MYSQL_VERSION_ID > table->s->mysql_version)
+    {
+      sql_print_error(ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE),
+                      table->alias, table_f_count, table->s->fields,
+                      table->s->mysql_version, MYSQL_VERSION_ID);
+      DBUG_RETURN(TRUE);
+    }
+    else if (MYSQL_VERSION_ID == table->s->mysql_version)
+    {
+      sql_print_error(ER(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED), table->alias,
+                      table_f_count, table->s->fields);
+      DBUG_RETURN(TRUE);
+    }
+    /*
+      Something has definitely changed, but we're running an older
+      version of MySQL with new system tables.
+      Let's check column definitions. If a column was added at
+      the end of the table, then we don't care much since such change
+      is backward compatible.
+    */
   }
-   
-  DBUG_RETURN(error);  
+  char buffer[STRING_BUFFER_USUAL_SIZE];
+  for (i=0 ; i < table_f_count; i++, table_def++)
+  {
+    String sql_type(buffer, sizeof(buffer), system_charset_info);
+    sql_type.length(0);
+    if (i < table->s->fields)
+    {
+      Field *field= table->field[i];
+
+      if (strncmp(field->field_name, table_def->name.str,
+                  table_def->name.length))
+      {
+        /*
+          Name changes are not fatal, we use ordinal numbers to access columns.
+          Still this can be a sign of a tampered table, output an error
+          to the error log.
+        */
+        sql_print_error("Incorrect definition of table %s.%s: "
+                        "expected column '%s' at position %d, found '%s'.",
+                        table->s->db.str, table->alias, table_def->name.str, i,
+                        field->field_name);
+      }
+      field->sql_type(sql_type);
+      /*
+        Generally, if column types don't match, then something is
+        wrong.
+
+        However, we only compare column definitions up to the
+        length of the original definition, since we consider the
+        following definitions compatible:
+
+        1. DATETIME and DATETIM
+        2. INT(11) and INT(11
+        3. SET('one', 'two') and SET('one', 'two', 'more')
+
+        For SETs or ENUMs, if the same prefix is there it's OK to
+        add more elements - they will get higher ordinal numbers and
+        the new table definition is backward compatible with the
+        original one.
+       */
+      if (strncmp(sql_type.c_ptr_safe(), table_def->type.str,
+                  table_def->type.length - 1))
+      {
+        sql_print_error("Incorrect definition of table %s.%s: "
+                        "expected column '%s' at position %d to have type "
+                        "%s, found type %s.", table->s->db.str, table->alias,
+                        table_def->name.str, i, table_def->type.str,
+                        sql_type.c_ptr_safe());
+        error= TRUE;
+      }
+      else if (table_def->cset.str && !field->has_charset())
+      {
+        sql_print_error("Incorrect definition of table %s.%s: "
+                        "expected the type of column '%s' at position %d "
+                        "to have character set '%s' but the type has no "
+                        "character set.", table->s->db.str, table->alias,
+                        table_def->name.str, i, table_def->cset.str);
+        error= TRUE;
+      }
+      else if (table_def->cset.str &&
+               strcmp(field->charset()->csname, table_def->cset.str))
+      {
+        sql_print_error("Incorrect definition of table %s.%s: "
+                        "expected the type of column '%s' at position %d "
+                        "to have character set '%s' but found "
+                        "character set '%s'.", table->s->db.str, table->alias,
+                        table_def->name.str, i, table_def->cset.str,
+                        field->charset()->csname);
+        error= TRUE;
+      }
+    }
+    else
+    {
+      sql_print_error("Incorrect definition of table %s.%s: "
+                      "expected column '%s' at position %d to have type %s "
+                      " but the column is not found.",
+                      table->s->db.str, table->alias,
+                      table_def->name.str, i, table_def->type.str);
+      error= TRUE;
+    }
+  }
+  DBUG_RETURN(error);
 }
 
 

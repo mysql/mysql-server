@@ -201,7 +201,8 @@ ErrorBundle ErrorCodes[] = {
   { 904,  HA_ERR_INDEX_FILE_FULL, IS, "Out of fragment records (increase MaxNoOfOrderedIndexes)" },
   { 905,  DMEC, IS, "Out of attribute records (increase MaxNoOfAttributes)" },
   { 1601, HA_ERR_RECORD_FILE_FULL, IS, "Out extents, tablespace full" },
-  
+  { 1602, DMEC, IS,"No datafile in tablespace" },
+
   /**
    * TimeoutExpired 
    */

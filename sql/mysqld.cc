@@ -888,7 +888,7 @@ static void close_connections(void)
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count); // For unlink from list
 
-  Events::get_instance()->deinit();
+  Events::deinit();
   end_slave();
 
   if (thread_count)
@@ -1333,7 +1333,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_bytes_sent);
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
-  Events::get_instance()->destroy_mutexes();
+  Events::destroy_mutexes();
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
 #ifndef HAVE_YASSL
@@ -3069,7 +3069,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_server_started, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_server_started,NULL);
   sp_cache_init();
-  Events::get_instance()->init_mutexes();
+  Events::init_mutexes();
   /* Parameter for threads created for connections */
   (void) pthread_attr_init(&connection_attrib);
   (void) pthread_attr_setdetachstate(&connection_attrib,
@@ -3855,21 +3855,15 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   create_shutdown_thread();
   create_maintenance_thread();
 
+  if (Events::init(opt_noacl))
+    unireg_abort(1);
+
   sql_print_information(ER(ER_STARTUP),my_progname,server_version,
                         ((unix_sock == INVALID_SOCKET) ? (char*) ""
                                                        : mysqld_unix_port),
                          mysqld_port,
                          MYSQL_COMPILATION_COMMENT);
 
-  if (!opt_noacl)
-  {
-    if (Events::get_instance()->init())
-      unireg_abort(1);
-  }
-  else
-  {
-    Events::opt_event_scheduler = Events::EVENTS_DISABLED; 
-  }
 
   /* Signal threads waiting for server to be started */
   pthread_mutex_lock(&LOCK_server_started);
@@ -6530,10 +6524,11 @@ static int show_rpl_status(THD *thd, SHOW_VAR *var, char *buff)
 
 static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
 {
-  var->type= SHOW_CHAR;
+  var->type= SHOW_MY_BOOL;
   pthread_mutex_lock(&LOCK_active_mi);
-  var->value= const_cast<char*>((active_mi && active_mi->slave_running &&
-               active_mi->rli.slave_running) ? "ON" : "OFF");
+  var->value= buff;
+  *((my_bool *)buff)= (my_bool) (active_mi && active_mi->slave_running &&
+                                 active_mi->rli.slave_running);
   pthread_mutex_unlock(&LOCK_active_mi);
   return 0;
 }
@@ -6749,12 +6744,20 @@ static int show_ssl_ctx_get_session_cache_mode(THD *thd, SHOW_VAR *var, char *bu
   return 0;
 }
 
-/* Functions relying on SSL */
+/*
+   Functions relying on SSL 
+   Note: In the show_ssl_* functions, we need to check if we have a
+         valid vio-object since this isn't always true, specifically
+         when session_status or global_status is requested from
+         inside an Event.
+ */
 static int show_ssl_get_version(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  var->value= const_cast<char*>(thd->net.vio->ssl_arg ?
-        SSL_get_version((SSL*) thd->net.vio->ssl_arg) : "");
+  if( thd->vio_ok() && thd->net.vio->ssl_arg )
+    var->value= const_cast<char*>(SSL_get_version((SSL*) thd->net.vio->ssl_arg));
+  else
+    var->value= (char *)"";
   return 0;
 }
 
@@ -6762,9 +6765,10 @@ static int show_ssl_session_reused(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  *((long *)buff)= (long)thd->net.vio->ssl_arg ?
-                         SSL_session_reused((SSL*) thd->net.vio->ssl_arg) :
-                         0;
+  if( thd->vio_ok() && thd->net.vio->ssl_arg )
+    *((long *)buff)= (long)SSL_session_reused((SSL*) thd->net.vio->ssl_arg);
+  else
+    *((long *)buff)= 0;
   return 0;
 }
 
@@ -6772,9 +6776,10 @@ static int show_ssl_get_default_timeout(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  *((long *)buff)= (long)thd->net.vio->ssl_arg ?
-                         SSL_get_default_timeout((SSL*)thd->net.vio->ssl_arg) :
-                         0;
+  if( thd->vio_ok() && thd->net.vio->ssl_arg )
+    *((long *)buff)= (long)SSL_get_default_timeout((SSL*)thd->net.vio->ssl_arg);
+  else
+    *((long *)buff)= 0;
   return 0;
 }
 
@@ -6782,9 +6787,10 @@ static int show_ssl_get_verify_mode(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  *((long *)buff)= (long)thd->net.vio->ssl_arg ?
-                         SSL_get_verify_mode((SSL*)thd->net.vio->ssl_arg) :
-                         0;
+  if( thd->net.vio && thd->net.vio->ssl_arg )
+    *((long *)buff)= (long)SSL_get_verify_mode((SSL*)thd->net.vio->ssl_arg);
+  else
+    *((long *)buff)= 0;
   return 0;
 }
 
@@ -6792,17 +6798,20 @@ static int show_ssl_get_verify_depth(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  *((long *)buff)= (long)thd->net.vio->ssl_arg ?
-                         SSL_get_verify_depth((SSL*)thd->net.vio->ssl_arg) :
-                         0;
+  if( thd->vio_ok() && thd->net.vio->ssl_arg )
+    *((long *)buff)= (long)SSL_get_verify_depth((SSL*)thd->net.vio->ssl_arg);
+  else
+    *((long *)buff)= 0;
   return 0;
 }
 
 static int show_ssl_get_cipher(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  var->value= const_cast<char*>(thd->net.vio->ssl_arg ?
-              SSL_get_cipher((SSL*) thd->net.vio->ssl_arg) : "");
+  if( thd->vio_ok() && thd->net.vio->ssl_arg )
+    var->value= const_cast<char*>(SSL_get_cipher((SSL*) thd->net.vio->ssl_arg));
+  else
+    var->value= (char *)"";
   return 0;
 }
 
@@ -6810,7 +6819,7 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
   var->value= buff;
-  if (thd->net.vio->ssl_arg)
+  if (thd->vio_ok() && thd->net.vio->ssl_arg)
   {
     int i;
     const char *p;
@@ -7350,6 +7359,18 @@ static void mysql_init_variables(void)
   /* Allow Win32 and NetWare users to move MySQL anywhere */
   {
     char prg_dev[LIBLEN];
+#if defined __WIN__
+	char executing_path_name[LIBLEN];
+	if (!test_if_hard_path(my_progname))
+	{
+		// we don't want to use GetModuleFileName inside of my_path since
+		// my_path is a generic path dereferencing function and here we care
+		// only about the executing binary.
+		GetModuleFileName(NULL, executing_path_name, sizeof(executing_path_name));
+		my_path(prg_dev, executing_path_name, NULL);
+	}
+	else
+#endif
     my_path(prg_dev,my_progname,"mysql/bin");
     strcat(prg_dev,"/../");			// Remove 'bin' to get base dir
     cleanup_dirname(mysql_home,prg_dev);
@@ -7588,32 +7609,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
 #endif
   case OPT_EVENT_SCHEDULER:
-    if (!argument)
-      Events::opt_event_scheduler= Events::EVENTS_DISABLED;
-    else
-    {
-      int type;
-      /* 
-        type=     5          1   2      3   4
-             (DISABLE ) - (OFF | ON) - (0 | 1)
-      */
-      switch ((type=find_type(argument, &Events::opt_typelib, 1))) {
-      case 0:
-	fprintf(stderr, "Unknown option to event-scheduler: %s\n",argument);
-	exit(1);
-      case 5: /* OPT_DISABLED */
-        Events::opt_event_scheduler= Events::EVENTS_DISABLED;
-        break;
-      case 2: /* OPT_ON  */
-      case 4: /* 1   */
-        Events::opt_event_scheduler= Events::EVENTS_ON;
-        break;
-      case 1: /* OPT_OFF */
-      case 3: /*  0  */
-        Events::opt_event_scheduler= Events::EVENTS_OFF;
-        break;
-      }
-    }
+    if (Events::set_opt_event_scheduler(argument))
+      exit(1);
     break;
   case (int) OPT_SKIP_NEW:
     opt_specialflag|= SPECIAL_NO_NEW_FUNC;

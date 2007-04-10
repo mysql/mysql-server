@@ -2999,8 +2999,13 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   if (thd->slave_thread)
     op->setAnyValue(thd->server_id);
 
-  // Execute update operation
-  if (!cursor && execute_no_commit(this,trans,FALSE) != 0) {
+  /*
+    Execute update operation if we are not doing a scan for update
+    and there exist UPDATE AFTER triggers
+  */
+
+  if ((!cursor || m_update_cannot_batch) && 
+      execute_no_commit(this,trans,false) != 0) {
     no_uncommitted_rows_execute_failure();
     DBUG_RETURN(ndb_err(trans));
   }
@@ -3057,7 +3062,7 @@ int ha_ndbcluster::delete_row(const byte *record)
     if (thd->slave_thread)
       ((NdbOperation *)trans->getLastDefinedOperation())->setAnyValue(thd->server_id);
 
-    if (!m_primary_key_update)
+    if (!(m_primary_key_update || m_delete_cannot_batch))
       // If deleting from cursor, NoCommit will be handled in next_result
       DBUG_RETURN(0);
   }
@@ -3121,11 +3126,22 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
   DBUG_ENTER("ndb_unpack_record");
 
-  // Set null flag(s)
-  bzero(buf, table->s->null_bytes);
+  /*
+    Set the filler bits of the null byte, since they are
+    not touched in the code below.
+    
+    The filler bits are the MSBs in the last null byte
+  */ 
+  if (table->s->null_bytes > 0)
+       buf[table->s->null_bytes - 1]|= 256U - (1U <<
+					       table->s->last_null_bit_pos);
+  /*
+    Set null flag(s)
+  */
   for ( ; field;
        p_field++, value++, field= *p_field)
   {
+    field->set_notnull(row_offset);       
     if ((*value).ptr)
     {
       if (!(field->flags & BLOB_FLAG))
@@ -3135,7 +3151,7 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
         {
           if (is_null > 0)
           {
-            DBUG_PRINT("info",("[%u] NULL",
+	    DBUG_PRINT("info",("[%u] NULL",
                                (*value).rec->getColumn()->getColumnNo()));
             field->set_null(row_offset);
           }
@@ -3898,6 +3914,14 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     DBUG_PRINT("info", ("Turning OFF use of write instead of insert"));
     m_use_write= FALSE;
     break;
+  case HA_EXTRA_DELETE_CANNOT_BATCH:
+    DBUG_PRINT("info", ("HA_EXTRA_DELETE_CANNOT_BATCH"));
+    m_delete_cannot_batch= TRUE;
+    break;
+  case HA_EXTRA_UPDATE_CANNOT_BATCH:
+    DBUG_PRINT("info", ("HA_EXTRA_UPDATE_CANNOT_BATCH"));
+    m_update_cannot_batch= TRUE;
+    break;
   default:
     break;
   }
@@ -3922,6 +3946,8 @@ int ha_ndbcluster::reset()
   m_ignore_dup_key= FALSE;
   m_use_write= FALSE;
   m_ignore_no_key= FALSE;
+  m_delete_cannot_batch= FALSE;
+  m_update_cannot_batch= FALSE;
 
   DBUG_RETURN(0);
 }
@@ -4140,6 +4166,8 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
 extern MASTER_INFO *active_mi;
 static int ndbcluster_update_apply_status(THD *thd, int do_update)
 {
+  return 0;
+
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
   NDBDICT *dict= ndb->getDictionary();
@@ -4440,7 +4468,9 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   DBUG_PRINT("transaction",("%s",
                             trans == thd_ndb->stmt ?
                             "stmt" : "all"));
-  DBUG_ASSERT(ndb && trans);
+  DBUG_ASSERT(ndb);
+  if (trans == NULL)
+    DBUG_RETURN(0);
 
 #ifdef HAVE_NDB_BINLOG
   if (thd->slave_thread)
@@ -5918,6 +5948,8 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_bulk_insert_rows((ha_rows) 1024),
   m_rows_changed((ha_rows) 0),
   m_bulk_insert_not_flushed(FALSE),
+  m_delete_cannot_batch(FALSE),
+  m_update_cannot_batch(FALSE),
   m_ops_pending(0),
   m_skip_auto_increment(TRUE),
   m_blobs_pending(0),
@@ -6442,7 +6474,7 @@ int ndb_create_table_from_engine(THD *thd, const char *db,
   LEX *old_lex= thd->lex, newlex;
   thd->lex= &newlex;
   newlex.current_select= NULL;
-  lex_start(thd, (const uchar*) "", 0);
+  lex_start(thd, "", 0);
   int res= ha_create_table_from_engine(thd, db, table_name);
   thd->lex= old_lex;
   return res;
@@ -10768,6 +10800,36 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *create_info,
     if (field->flags & FIELD_IN_ADD_INDEX)
       ai=1;
   }
+
+  char tablespace_name[FN_LEN]; 
+  if (get_tablespace_name(current_thd, tablespace_name, FN_LEN))
+  {
+    if (create_info->tablespace) 
+    {
+      if (strcmp(create_info->tablespace, tablespace_name))
+      {
+        DBUG_PRINT("info", ("storage media is changed, old tablespace=%s, new tablespace=%s",
+          tablespace_name, create_info->tablespace));
+        DBUG_RETURN(COMPATIBLE_DATA_NO);
+      }
+    }
+    else
+    {
+      DBUG_PRINT("info", ("storage media is changed, old is DISK and tablespace=%s, new is MEM",
+        tablespace_name));
+      DBUG_RETURN(COMPATIBLE_DATA_NO);
+    }
+  }
+  else
+  {
+    if (create_info->storage_media != HA_SM_MEMORY)
+    {
+      DBUG_PRINT("info", ("storage media is changed, old is MEM, new is DISK and tablespace=%s",
+        create_info->tablespace));
+      DBUG_RETURN(COMPATIBLE_DATA_NO);
+    }
+  }
+
   if (table_changes != IS_EQUAL_YES)
     DBUG_RETURN(COMPATIBLE_DATA_NO);
   

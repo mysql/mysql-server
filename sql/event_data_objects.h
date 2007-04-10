@@ -18,7 +18,6 @@
 
 #define EVEX_GET_FIELD_FAILED   -2
 #define EVEX_COMPILE_ERROR      -3
-#define EVEX_GENERAL_ERROR      -4
 #define EVEX_BAD_PARAMS         -5
 #define EVEX_MICROSECOND_UNSUP  -6
 
@@ -132,24 +131,6 @@ public:
 
   bool
   update_timing_fields(THD *thd);
-
-  static void *operator new(size_t size)
-  {
-    void *p;
-    DBUG_ENTER("Event_queue_element::new(size)");
-    p= my_malloc(size, MYF(0));
-    DBUG_PRINT("info", ("alloc_ptr: 0x%lx", (long) p));
-    DBUG_RETURN(p);
-  }
-
-  static void operator delete(void *ptr, size_t size)
-  {
-    DBUG_ENTER("Event_queue_element::delete(ptr,size)");
-    DBUG_PRINT("enter", ("free_ptr: 0x%lx", (long) ptr));
-    TRASH(ptr, size);
-    my_free((gptr) ptr, MYF(0));
-    DBUG_VOID_RETURN;
-  }
 };
 
 
@@ -196,8 +177,6 @@ public:
 
   ulong sql_mode;
 
-  uint execution_count;
-
   Event_job_data();
   virtual ~Event_job_data();
 
@@ -205,13 +184,13 @@ public:
   load_from_row(THD *thd, TABLE *table);
 
   int
-  execute(THD *thd);
+  execute(THD *thd, bool drop);
 
   int
   compile(THD *thd, MEM_ROOT *mem_root);
 private:
   int
-  get_fake_create_event(THD *thd, String *buf);
+  get_fake_create_event(String *buf);
 
   Event_job_data(const Event_job_data &);       /* Prevent use of these */
   void operator=(Event_job_data &);
@@ -231,7 +210,7 @@ public:
   */
   bool do_not_create;
 
-  const uchar *body_begin;
+  const char *body_begin;
 
   LEX_STRING dbname;
   LEX_STRING name;

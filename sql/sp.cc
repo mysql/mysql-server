@@ -384,7 +384,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   if ((ret= sp_use_new_db(thd, name->m_db, &old_db, 1, &dbchanged)))
     goto end;
 
-  lex_start(thd, (uchar*)defstr.c_ptr(), defstr.length());
+  lex_start(thd, defstr.c_ptr(), defstr.length());
 
   thd->spcont= 0;
   if (MYSQLparse(thd) || thd->is_fatal_error || newlex.sphead == NULL)
@@ -682,15 +682,15 @@ struct st_used_field
 
 static struct st_used_field init_fields[]=
 {
-  { "Db",       NAME_LEN, MYSQL_TYPE_STRING,    0},
-  { "Name",     NAME_LEN, MYSQL_TYPE_STRING,    0},
-  { "Type",            9, MYSQL_TYPE_STRING,    0},
-  { "Definer",        77, MYSQL_TYPE_STRING,    0},
-  { "Modified",        0, MYSQL_TYPE_TIMESTAMP, 0},
-  { "Created",         0, MYSQL_TYPE_TIMESTAMP, 0},
-  { "Security_type",   1, MYSQL_TYPE_STRING,    0},
-  { "Comment",  NAME_LEN, MYSQL_TYPE_STRING,    0},
-  { 0,                 0, MYSQL_TYPE_STRING,    0}
+  { "Db",       NAME_CHAR_LEN, MYSQL_TYPE_STRING,    0},
+  { "Name",     NAME_CHAR_LEN, MYSQL_TYPE_STRING,    0},
+  { "Type",                 9, MYSQL_TYPE_STRING,    0},
+  { "Definer",             77, MYSQL_TYPE_STRING,    0},
+  { "Modified",             0, MYSQL_TYPE_TIMESTAMP, 0},
+  { "Created",              0, MYSQL_TYPE_TIMESTAMP, 0},
+  { "Security_type",        1, MYSQL_TYPE_STRING,    0},
+  { "Comment",  NAME_CHAR_LEN, MYSQL_TYPE_STRING,    0},
+  { 0,                      0, MYSQL_TYPE_STRING,    0}
 };
 
 
@@ -1041,7 +1041,7 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any, bool no_error)
     lex_name.length= strlen(routine->table_name);
     lex_db.str= thd->strmake(routine->db, lex_db.length);
     lex_name.str= thd->strmake(routine->table_name, lex_name.length);
-    name= new sp_name(lex_db, lex_name);
+    name= new sp_name(lex_db, lex_name, true);
     name->init_qname(thd);
     sp_object_found= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, name,
                                      &thd->sp_proc_cache, FALSE) != NULL ||
@@ -1598,10 +1598,8 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
             rest of the server checks agains NAME_LEN bytes and not chars.
             Hence, the overrun happens only if the name is in length > 32 and
             uses multibyte (cyrillic, greek, etc.)
-
-            !! Change 3 with SYSTEM_CHARSET_MBMAXLEN when it's defined.
           */
-          char n[NAME_LEN*3*2+2];
+          char n[NAME_LEN*2+2];
 
           /* m_qname.str is not always \0 terminated */
           memcpy(n, name.m_qname.str, name.m_qname.length);
