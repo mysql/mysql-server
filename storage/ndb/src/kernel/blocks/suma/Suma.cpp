@@ -2394,6 +2394,16 @@ Suma::execSUB_START_REQ(Signal* signal){
     sendSubStartRef(signal, 1412);
     DBUG_VOID_RETURN;
   }
+
+  if (c_startup.m_restart_server_node_id == 0 && 
+      !c_connected_nodes.get(refToNode(subscriberRef)))
+    
+  {
+    jam();
+    sendSubStartRef(signal, SubStartRef::PartiallyConnected);
+    return;
+  }
+  
   DBUG_PRINT("info",("c_subscriberPool  size: %d free: %d",
 		     c_subscriberPool.getSize(),
 		     c_subscriberPool.getNoOfFree()));
