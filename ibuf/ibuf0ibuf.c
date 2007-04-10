@@ -150,9 +150,30 @@ ulint	ibuf_flush_count	= 0;
 #define IBUF_COUNT_N_PAGES	2000
 
 /* Buffered entry counts for file pages, used in debugging */
-static ulint*	ibuf_counts[IBUF_COUNT_N_SPACES];
+static ulint	ibuf_counts[IBUF_COUNT_N_SPACES][IBUF_COUNT_N_PAGES];
 
-static ibool	ibuf_counts_inited	= FALSE;
+/**********************************************************************
+Checks that the indexes to ibuf_counts[][] are within limits. */
+UNIV_INLINE
+void
+ibuf_count_check(
+/*=============*/
+	ulint	space_id,	/* in: space identifier */
+	ulint	page_no)	/* in: page number */
+{
+	if (space_id < IBUF_COUNT_N_SPACES && page_no < IBUF_COUNT_N_PAGES) {
+		return;
+	}
+
+	fprintf(stderr,
+		"InnoDB: UNIV_IBUF_DEBUG limits space_id and page_no\n"
+		"InnoDB: and breaks crash recovery.\n"
+		"InnoDB: space_id=%lu, should be 0<=space_id<%lu\n"
+		"InnoDB: page_no=%lu, should be 0<=page_no<%lu\n",
+		(ulint) space_id, (ulint) IBUF_COUNT_N_SPACES,
+		(ulint) page_no, (ulint) IBUF_COUNT_N_PAGES);
+	ut_error;
+}
 #endif
 
 /* The start address for an insert buffer bitmap page bitmap */
@@ -328,15 +349,9 @@ ibuf_count_get(
 	ulint	space,	/* in: space id */
 	ulint	page_no)/* in: page number */
 {
-	ut_ad(space < IBUF_COUNT_N_SPACES);
-	ut_ad(page_no < IBUF_COUNT_N_PAGES);
+	ibuf_count_check(space, page_no);
 
-	if (!ibuf_counts_inited) {
-
-		return(0);
-	}
-
-	return(*(ibuf_counts[space] + page_no));
+	return(ibuf_counts[space][page_no]);
 }
 
 /**********************************************************************
@@ -349,11 +364,10 @@ ibuf_count_set(
 	ulint	page_no,/* in: page number */
 	ulint	val)	/* in: value to set */
 {
-	ut_a(space < IBUF_COUNT_N_SPACES);
-	ut_a(page_no < IBUF_COUNT_N_PAGES);
+	ibuf_count_check(space, page_no);
 	ut_a(val < UNIV_PAGE_SIZE);
 
-	*(ibuf_counts[space] + page_no) = val;
+	ibuf_counts[space][page_no] = val;
 }
 #endif
 
@@ -378,22 +392,6 @@ ibuf_init_at_db_start(void)
 
 	ibuf->size = 0;
 
-#ifdef UNIV_IBUF_DEBUG
-	{
-		ulint	i, j;
-
-		for (i = 0; i < IBUF_COUNT_N_SPACES; i++) {
-
-			ibuf_counts[i] = mem_alloc(sizeof(ulint)
-						   * IBUF_COUNT_N_PAGES);
-			for (j = 0; j < IBUF_COUNT_N_PAGES; j++) {
-				ibuf_count_set(i, j, 0);
-			}
-		}
-
-		ibuf_counts_inited = TRUE;
-	}
-#endif
 	mutex_create(&ibuf_pessimistic_insert_mutex,
 		     SYNC_IBUF_PESS_INSERT_MUTEX);
 
