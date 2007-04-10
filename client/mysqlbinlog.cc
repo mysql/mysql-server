@@ -1042,7 +1042,7 @@ static int dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   uint logname_len;
   NET* net;
   int error= 0;
-  my_off_t old_off= min(start_position_mot, BIN_LOG_HEADER_SIZE);
+  my_off_t old_off= start_position_mot;
   char fname[FN_REFLEN+1];
   DBUG_ENTER("dump_remote_log_entries");
 
@@ -1160,6 +1160,18 @@ could be out of memory");
           len= 1; // fake Rotate, so don't increment old_off
         }
       }
+      else if (type == FORMAT_DESCRIPTION_EVENT)
+      {
+        /*
+          This could be an fake Format_description_log_event that server
+          (5.0+) automatically sends to a slave on connect, before sending
+          a first event at the requested position.  If this is the case,
+          don't increment old_off. Real Format_description_log_event always
+          starts from BIN_LOG_HEADER_SIZE position.
+        */
+        if (old_off != BIN_LOG_HEADER_SIZE)
+          len= 1;         // fake event, don't increment old_off
+      }
       if ((error= process_event(print_event_info, ev, old_off)))
       {
 	error= ((error < 0) ? 0 : 1);
@@ -1172,16 +1184,16 @@ could be out of memory");
       const char *old_fname= le->fname;
       uint old_len= le->fname_len;
       File file;
-      
+
       if ((file= load_processor.prepare_new_file_for_old_format(le,fname)) < 0)
       {
         error= 1;
         goto err;
       }
-      
+
       if ((error= process_event(print_event_info, ev, old_off)))
       {
- 	my_close(file,MYF(MY_WME));
+        my_close(file,MYF(MY_WME));
 	error= ((error < 0) ? 0 : 1);
         goto err;
       }
@@ -1196,15 +1208,8 @@ could be out of memory");
     /*
       Let's adjust offset for remote log as for local log to produce
       similar text and to have --stop-position to work identically.
-
-      Exception - the server sends Format_description_log_event
-      in the beginning of the dump, and only after it the event from
-      start_position. Let the old_off reflect it.
     */
-    if (old_off < start_position_mot)
-      old_off= start_position_mot;
-    else
-      old_off+= len-1;
+    old_off+= len-1;
   }
 
 err:
