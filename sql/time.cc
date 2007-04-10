@@ -96,7 +96,7 @@ int calc_weekday(long daynr,bool sunday_first_day_of_week)
 	next week is week 1.
 */
 
-uint calc_week(TIME *l_time, uint week_behaviour, uint *year)
+uint calc_week(MYSQL_TIME *l_time, uint week_behaviour, uint *year)
 {
   uint days;
   ulong daynr=calc_daynr(l_time->year,l_time->month,l_time->day);
@@ -214,7 +214,7 @@ ulong convert_month_to_period(ulong month)
 
 
 /*
-  Convert a timestamp string to a TIME value and produce a warning 
+  Convert a timestamp string to a MYSQL_TIME value and produce a warning 
   if string was truncated during conversion.
 
   NOTE
@@ -222,7 +222,7 @@ ulong convert_month_to_period(ulong month)
 */
 
 timestamp_type
-str_to_datetime_with_warn(const char *str, uint length, TIME *l_time,
+str_to_datetime_with_warn(const char *str, uint length, MYSQL_TIME *l_time,
                           uint flags)
 {
   int was_cut;
@@ -235,13 +235,14 @@ str_to_datetime_with_warn(const char *str, uint length, TIME *l_time,
                                       MODE_NO_ZERO_DATE))),
                            &was_cut);
   if (was_cut || ts_type <= MYSQL_TIMESTAMP_ERROR)
-    make_truncated_value_warning(current_thd, str, length, ts_type,  NullS);
+    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                 str, length, ts_type,  NullS);
   return ts_type;
 }
 
 
 /*
-  Convert a datetime from broken-down TIME representation to corresponding 
+  Convert a datetime from broken-down MYSQL_TIME representation to corresponding 
   TIMESTAMP value.
 
   SYNOPSIS
@@ -257,7 +258,7 @@ str_to_datetime_with_warn(const char *str, uint length, TIME *l_time,
      0 - t contains datetime value which is out of TIMESTAMP range.
      
 */
-my_time_t TIME_to_timestamp(THD *thd, const TIME *t, my_bool *in_dst_time_gap)
+my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *in_dst_time_gap)
 {
   my_time_t timestamp;
 
@@ -276,20 +277,20 @@ my_time_t TIME_to_timestamp(THD *thd, const TIME *t, my_bool *in_dst_time_gap)
 
 
 /*
-  Convert a time string to a TIME struct and produce a warning
+  Convert a time string to a MYSQL_TIME struct and produce a warning
   if string was cut during conversion.
 
   NOTE
     See str_to_time() for more info.
 */
 bool
-str_to_time_with_warn(const char *str, uint length, TIME *l_time)
+str_to_time_with_warn(const char *str, uint length, MYSQL_TIME *l_time)
 {
   int warning;
   bool ret_val= str_to_time(str, length, l_time, &warning);
   if (ret_val || warning)
-    make_truncated_value_warning(current_thd, str, length,
-                                 MYSQL_TIMESTAMP_TIME, NullS);
+    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                 str, length, MYSQL_TIMESTAMP_TIME, NullS);
   return ret_val;
 }
 
@@ -298,7 +299,7 @@ str_to_time_with_warn(const char *str, uint length, TIME *l_time)
   Convert a system time structure to TIME
 */
 
-void localtime_to_TIME(TIME *to, struct tm *from)
+void localtime_to_TIME(MYSQL_TIME *to, struct tm *from)
 {
   to->neg=0;
   to->second_part=0;
@@ -310,7 +311,7 @@ void localtime_to_TIME(TIME *to, struct tm *from)
   to->second=   (int) from->tm_sec;
 }
 
-void calc_time_from_sec(TIME *to, long seconds, long microseconds)
+void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds)
 {
   long t_seconds;
   // to->neg is not cleared, it may already be set to a useful value
@@ -684,7 +685,7 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
     MySQL doesn't support comparing of date/time/datetime strings that
     are not in arbutary order as dates are compared as strings in some
     context)
-    This functions don't check that given TIME structure members are
+    This functions don't check that given MYSQL_TIME structure members are
     in valid range. If they are not, return value won't reflect any 
     valid date either. Additionally, make_time doesn't take into
     account time->day member: it's assumed that days have been converted
@@ -692,7 +693,7 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
 ****************************************************************************/
 
 void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
-               const TIME *l_time, String *str)
+               const MYSQL_TIME *l_time, String *str)
 {
   uint length= (uint) my_time_to_str(l_time, (char*) str->ptr());
   str->length(length);
@@ -701,7 +702,7 @@ void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
 
 
 void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
-               const TIME *l_time, String *str)
+               const MYSQL_TIME *l_time, String *str)
 {
   uint length= (uint) my_date_to_str(l_time, (char*) str->ptr());
   str->length(length);
@@ -710,7 +711,7 @@ void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
 
 
 void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
-                   const TIME *l_time, String *str)
+                   const MYSQL_TIME *l_time, String *str)
 {
   uint length= (uint) my_datetime_to_str(l_time, (char*) str->ptr());
   str->length(length);
@@ -718,7 +719,8 @@ void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
 }
 
 
-void make_truncated_value_warning(THD *thd, const char *str_val,
+void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
+                                  const char *str_val,
 				  uint str_length, timestamp_type time_type,
                                   const char *field_name)
 {
@@ -757,14 +759,14 @@ void make_truncated_value_warning(THD *thd, const char *str_val,
       cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
                          ER(ER_WRONG_VALUE), type_str, str.c_ptr());
   }
-  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+  push_warning(thd, level,
                ER_TRUNCATED_WRONG_VALUE, warn_buff);
 }
 
 /* Daynumber from year 0 to 9999-12-31 */
 #define MAX_DAY_NUMBER 3652424L
 
-bool date_add_interval(TIME *ltime, interval_type int_type, INTERVAL interval)
+bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL interval)
 {
   long period, sign;
 
@@ -888,7 +890,7 @@ invalid_date:
   NOTE
     This function calculates difference between l_time1 and l_time2 absolute
     values. So one should set l_sign and correct result if he want to take
-    signs into account (i.e. for TIME values).
+    signs into account (i.e. for MYSQL_TIME values).
 
   RETURN VALUES
     Returns sign of difference.
@@ -898,7 +900,7 @@ invalid_date:
 */
 
 bool
-calc_time_diff(TIME *l_time1, TIME *l_time2, int l_sign, longlong *seconds_out,
+calc_time_diff(MYSQL_TIME *l_time1, MYSQL_TIME *l_time2, int l_sign, longlong *seconds_out,
                long *microseconds_out)
 {
   long days;
@@ -948,7 +950,7 @@ calc_time_diff(TIME *l_time1, TIME *l_time2, int l_sign, longlong *seconds_out,
 
 
 /*
-  Compares 2 TIME structures
+  Compares 2 MYSQL_TIME structures
 
   SYNOPSIS
     my_time_compare()
@@ -966,7 +968,7 @@ calc_time_diff(TIME *l_time1, TIME *l_time2, int l_sign, longlong *seconds_out,
 */
 
 int
-my_time_compare(TIME *a, TIME *b)
+my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b)
 {
   my_ulonglong a_t= TIME_to_ulonglong_datetime(a);
   my_ulonglong b_t= TIME_to_ulonglong_datetime(b);

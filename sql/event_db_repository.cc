@@ -218,7 +218,7 @@ mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
 
     if (!et->starts_null)
     {
-      TIME time;
+      MYSQL_TIME time;
       my_tz_UTC->gmt_sec_to_TIME(&time, et->starts);
 
       fields[ET_FIELD_STARTS]->set_notnull();
@@ -227,7 +227,7 @@ mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
 
     if (!et->ends_null)
     {
-      TIME time;
+      MYSQL_TIME time;
       my_tz_UTC->gmt_sec_to_TIME(&time, et->ends);
 
       fields[ET_FIELD_ENDS]->set_notnull();
@@ -246,7 +246,7 @@ mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
     fields[ET_FIELD_STARTS]->set_null();
     fields[ET_FIELD_ENDS]->set_null();
 
-    TIME time;
+    MYSQL_TIME time;
     my_tz_UTC->gmt_sec_to_TIME(&time, et->execute_at);
 
     fields[ET_FIELD_EXECUTE_AT]->set_notnull();
