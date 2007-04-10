@@ -979,7 +979,7 @@ NdbEventOperationImpl::printAll()
 NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_system_nodes(ndb->theImpl->theNoOfDBnodes),
   m_ndb(ndb),
-  m_latestGCI(0),
+  m_latestGCI(0), m_latest_complete_GCI(0),
   m_total_alloc(0),
   m_free_thresh(10),
   m_min_free_thresh(10),
@@ -1470,7 +1470,7 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
                                       , m_flush_gci
 #endif
                                       );
-
+  Uint32 idx = bucket - (Gci_container*)m_active_gci.getBase();
   if (unlikely(bucket == 0))
   {
     /**
@@ -1515,8 +1515,20 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
       }
       reportStatus();
       bzero(bucket, sizeof(Gci_container));
-      bucket->m_gci = gci + ACTIVE_GCI_DIRECTORY_SIZE;
-      bucket->m_gcp_complete_rep_count = m_system_nodes;
+      if (likely(idx < ACTIVE_GCI_DIRECTORY_SIZE))
+      {
+        /**
+         * Only "prepare" next GCI if we're in
+         *   the first 4 highest GCI's...else
+         *   this is somekind of "late" GCI...
+         *   which is only initialized to 0
+         *
+         *   This to make sure we dont get several buckets with same GCI
+         */
+        bucket->m_gci = gci + ACTIVE_GCI_DIRECTORY_SIZE;
+        bucket->m_gcp_complete_rep_count = m_system_nodes;
+      }
+      
       if(unlikely(m_latest_complete_GCI > gci))
       {
 	complete_outof_order_gcis();
