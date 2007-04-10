@@ -1140,6 +1140,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     STATUS_VAR current_global_status_var;
     ulong uptime;
     uint length;
+    ulonglong queries_per_second1000;
 #ifndef EMBEDDED_LIBRARY
     char buff[250];
     uint buff_len= sizeof(buff);
@@ -1152,19 +1153,23 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_STATUS],
 			&LOCK_status);
     calc_sum_of_all_status(&current_global_status_var);
-    uptime= (ulong) (thd->start_time - server_start_time);
+    if (!(uptime= (ulong) (thd->start_time - server_start_time)))
+      queries_per_second1000= 0;
+    else
+      queries_per_second1000= thd->query_id * LL(1000) / uptime;
+
     length= my_snprintf((char*) buff, buff_len - 1,
                         "Uptime: %lu  Threads: %d  Questions: %lu  "
                         "Slow queries: %lu  Opens: %lu  Flush tables: %lu  "
-                        "Open tables: %u  Queries per second avg: %.3f",
+                        "Open tables: %u  Queries per second avg: %u.%u",
                         uptime,
                         (int) thread_count, (ulong) thd->query_id,
                         current_global_status_var.long_query_count,
                         current_global_status_var.opened_tables,
                         refresh_version,
                         cached_open_tables(),
-                        (uptime ? (ulonglong2double(thd->query_id) /
-                                   (double) uptime) : (double) 0));
+                        (uint) (queries_per_second1000 / 1000),
+                        (uint) (queries_per_second1000 % 1000));
 #ifdef SAFEMALLOC
     if (sf_malloc_cur_memory)				// Using SAFEMALLOC
     {
