@@ -1,0 +1,118 @@
+drop database if exists events_test;
+drop database if exists mysqltest_no_such_database;
+create database events_test;
+use events_test;
+
+Test that Events DDL issue an implicit COMMIT
+
+
+set autocommit=off;
+select @@autocommit;
+@@autocommit
+0
+create table t1 (a varchar(255)) engine=innodb;
+begin work;
+insert into t1 (a) values ("OK: create event");
+create event e1 on schedule every 1 day do select 1;
+rollback work;
+select * from t1;
+a
+OK: create event
+delete from t1;
+commit work;
+begin work;
+insert into t1 (a) values ("OK: alter event");
+alter event e1 on schedule every 2 day do select 2;
+rollback work;
+select * from t1;
+a
+OK: alter event
+delete from t1;
+commit work;
+begin work;
+insert into t1 (a) values ("OK: alter event rename");
+alter event e1 rename to e2;
+rollback work;
+select * from t1;
+a
+OK: alter event rename
+delete from t1;
+commit work;
+begin work;
+insert into t1 (a) values ("OK: drop event");
+drop event e2;
+rollback work;
+select * from t1;
+a
+OK: drop event
+delete from t1;
+commit work;
+begin work;
+insert into t1 (a) values ("OK: drop event if exists");
+drop event if exists e2;
+Warnings:
+Note	1305	Event e2 does not exist
+rollback work;
+select * from t1;
+a
+OK: drop event if exists
+delete from t1;
+commit work;
+create event e1 on schedule every 1 day do select 1;
+begin work;
+insert into t1 (a) values ("OK: create event if not exists");
+create event if not exists e1 on schedule every 2 day do select 2;
+Warnings:
+Note	1526	Event 'e1' already exists
+rollback work;
+select * from t1;
+a
+OK: create event if not exists
+delete from t1;
+commit work;
+
+Now check various error conditions: make sure we issue an
+implicit commit anyway
+
+begin work;
+insert into t1 (a) values ("OK: create event: event already exists");
+create event e1 on schedule every 2 day do select 2;
+ERROR HY000: Event 'e1' already exists
+rollback work;
+select * from t1;
+a
+OK: create event: event already exists
+delete from t1;
+commit work;
+begin work;
+insert into t1 (a) values ("OK: alter event rename: rename to same name");
+alter event e1 rename to e1;
+ERROR HY000: Same old and new event name
+rollback work;
+select * from t1;
+a
+OK: alter event rename: rename to same name
+delete from t1;
+commit work;
+create event e2 on schedule every 3 day do select 3;
+begin work;
+insert into t1 (a) values ("OK: alter event rename: destination exists");
+alter event e2 rename to e1;
+ERROR HY000: Event 'e1' already exists
+rollback work;
+select * from t1;
+a
+OK: alter event rename: destination exists
+delete from t1;
+commit work;
+begin work;
+insert into t1 (a) values ("OK: create event: database does not exist");
+create event mysqltest_no_such_database.e1 on schedule every 1 day do select 1;
+ERROR 42000: Unknown database 'mysqltest_no_such_database'
+rollback work;
+select * from t1;
+a
+OK: create event: database does not exist
+delete from t1;
+commit work;
+drop database events_test;

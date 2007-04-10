@@ -3146,11 +3146,18 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
   DBUG_ENTER("ndb_unpack_record");
 
- // Set filler bits
+  /*
+    Set the filler bits of the null byte, since they are
+    not touched in the code below.
+    
+    The filler bits are the MSBs in the last null byte
+  */ 
   if (table->s->null_bytes > 0)
        buf[table->s->null_bytes - 1]|= 256U - (1U <<
 					       table->s->last_null_bit_pos);
-  // Set null flag(s)
+  /*
+    Set null flag(s)
+  */
   for ( ; field;
        p_field++, value++, field= *p_field)
   {
@@ -4179,6 +4186,8 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
 extern MASTER_INFO *active_mi;
 static int ndbcluster_update_apply_status(THD *thd, int do_update)
 {
+  return 0;
+
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
   NDBDICT *dict= ndb->getDictionary();

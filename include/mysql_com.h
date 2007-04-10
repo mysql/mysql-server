@@ -20,9 +20,13 @@
 #ifndef _mysql_com_h
 #define _mysql_com_h
 
-#define NAME_LEN	64		/* Field/table name length */
 #define HOSTNAME_LENGTH 60
-#define USERNAME_LENGTH 16
+#define SYSTEM_CHARSET_MBMAXLEN 3
+#define NAME_CHAR_LEN	64              /* Field/table name length */
+#define USERNAME_CHAR_LENGTH 16
+#define NAME_LEN                (NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN)
+#define USERNAME_LENGTH         (USERNAME_CHAR_LENGTH*SYSTEM_CHARSET_MBMAXLEN)
+
 #define SERVER_VERSION_LENGTH 60
 #define SQLSTATE_LENGTH 5
 

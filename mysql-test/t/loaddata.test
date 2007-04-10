@@ -140,6 +140,22 @@ eval select load_file("$MYSQL_TEST_DIR/t/loaddata.test");
 # cleanup
 drop table t1, t2;
 
+#
+# Bug#27586: Wrong autoinc value assigned by LOAD DATA in the
+#            NO_AUTO_VALUE_ON_ZERO mode
+#
+create table t1(f1 int);
+insert into t1 values(1),(null);
+create table t2(f2 int auto_increment primary key);
+disable_query_log;
+eval select * into outfile '$MYSQLTEST_VARDIR/tmp/t1' from t1;
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t1' into table t2;
+enable_query_log;
+select * from t2;
+--exec rm $MYSQLTEST_VARDIR/tmp/t1
+SET @@SQL_MODE=@OLD_SQL_MODE;
+drop table t1,t2;
 # End of 5.0 tests
 
 

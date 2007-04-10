@@ -1,19 +1,43 @@
 # Can't test with embedded server that doesn't support grants
 -- source include/not_embedded.inc
+#
+# Test that when the server is restarted, it checks mysql.event table,
+# and disables the scheduler if it's not up to date.
+#
+
+# Switch off the scheduler for now.
+set global event_scheduler=off;
 
 --disable_warnings
-create database if not exists mysqltest_events_test;
+drop database if exists events_test;
 --enable_warnings
-
-use mysqltest_events_test;
-set global event_scheduler=off;
+create database events_test;
+use events_test;
 create table execution_log(name char(10));
-create event abc1 on schedule every 1 second do insert into execution_log value('abc1');
-create event abc2 on schedule every 1 second do insert into execution_log value('abc2');
-create event abc3 on schedule every 1 second do insert into execution_log value('abc3');
---sleep 1.5
-select name from execution_log;
 
-insert into mysql.event values ('db1','bad','select 42','root@localhost',NULL,1000,'MICROSECOND','2006-05-05 17:39:11','2006-05-05 17:39:20','2016-05-05 15:39:24','2016-05-05 15:39:11',NULL,'ENABLED','DROP','','comment1',1,'SYSTEM');
-insert into mysql.event values ('db1','bad2','sect','root@localhost',NULL,1000,'SECOND','2006-05-05 17:39:11','2006-05-05 17:39:20','2016-05-05 15:39:24','2016-05-05 15:39:11',NULL,'ENABLED','DROP','','comment2',1,'SYSTEM');
+create event abc1 on schedule every 1 second do
+  insert into execution_log value('abc1');
+create event abc2 on schedule every 1 second do
+  insert into execution_log value('abc2');
+create event abc3 on schedule every 1 second do 
+  insert into execution_log value('abc3');
+#
+# There are various conditions when a server would regard mysql.event
+# table as damaged:
+# - the table has more column than specified in the compiled in value, but
+# the version of the server which created the table is the same
+# - the column count in the table is less than the compiled in value
+# - some column has an incompatible type specification (for what is an
+# incompatible type specification please refer to the comments in the source
+#
+# Unfortunately, in order to test a condition, we need to restart the
+# server. Therefore, here we test only one simple case: changing the data
+# type of the 'body' field to blob.
+#
+# First, let's do a backup to not depend on actual definition of mysql.event
+create table event_like like mysql.event;
+insert into event_like select * from mysql.event;
+# Now let's alter the table and restart the server
+alter table mysql.event
+  change column body  body longtext character set utf8 collate utf8_bin;
 --echo "Now we restart the server"

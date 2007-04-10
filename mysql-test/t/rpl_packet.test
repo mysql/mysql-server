@@ -29,6 +29,8 @@ connection slave;
 sync_with_master;
 eval select count(*) from `$db`.`t1` /* must be 1 */;
 
+SHOW STATUS LIKE 'Slave_running';
+select * from information_schema.session_status where variable_name= 'SLAVE_RUNNING';
 connection master;
 eval drop database $db;
 save_master_pos;
