@@ -2,7 +2,7 @@ dnl Define zlib paths to point at bundled zlib
 
 AC_DEFUN([MYSQL_USE_BUNDLED_ZLIB], [
 ZLIB_INCLUDES="-I\$(top_srcdir)/zlib"
-ZLIB_LIBS="\$(top_builddir)/zlib/libz.la"
+ZLIB_LIBS="\$(top_builddir)/zlib/libzlt.la"
 dnl Omit -L$pkglibdir as it's always in the list of mysql_config deps.
 ZLIB_DEPS="-lz"
 zlib_dir="zlib"
