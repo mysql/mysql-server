@@ -379,6 +379,7 @@ client/mysqltestmanager-pwgen
 client/mysqltestmanagerc
 client/mysys_priv.h
 client/readline.cpp
+client/rpl_constants.h
 client/select_test
 client/sql_string.cpp
 client/ssl_test
@@ -1347,10 +1348,15 @@ mysql-test/suite/funcs_1/r/myisam_trig_03e.warnings
 mysql-test/suite/funcs_1/r/myisam_views.warnings
 mysql-test/suite/funcs_1/r/ndb_trig_03e.warnings
 mysql-test/suite/funcs_1/r/ndb_views.warnings
+mysql-test/suite/partitions/r/dif
 mysql-test/suite/partitions/r/diff
+mysql-test/suite/partitions/r/partition.result
 mysql-test/suite/partitions/r/partition_bit_ndb.warnings
 mysql-test/suite/partitions/r/partition_special_innodb.warnings
 mysql-test/suite/partitions/r/partition_special_myisam.warnings
+mysql-test/suite/partitions/r/partition_t55.out
+mysql-test/suite/partitions/r/partition_t55.refout
+mysql-test/suite/partitions/t/partition.test
 mysql-test/t/index_merge.load
 mysql-test/t/tmp.test
 mysql-test/var
@@ -2956,4 +2962,3 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
-client/rpl_constants.h
