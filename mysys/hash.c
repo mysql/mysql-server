@@ -53,7 +53,7 @@ _hash_init(HASH *hash,CHARSET_INFO *charset,
 	   void (*free_element)(void*),uint flags CALLER_INFO_PROTO)
 {
   DBUG_ENTER("hash_init");
-  DBUG_PRINT("enter",("hash: 0x%lx  size: %d",hash,size));
+  DBUG_PRINT("enter",("hash: 0x%lx  size: %d", (long) hash, size));
 
   hash->records=0;
   if (my_init_dynamic_array_ci(&hash->array,sizeof(HASH_LINK),size,0))
@@ -109,7 +109,7 @@ static inline void hash_free_elements(HASH *hash)
 void hash_free(HASH *hash)
 {
   DBUG_ENTER("hash_free");
-  DBUG_PRINT("enter",("hash: 0x%lxd",hash));
+  DBUG_PRINT("enter",("hash: 0x%lxd", (long) hash));
 
   hash_free_elements(hash);
   hash->free= 0;
@@ -129,7 +129,7 @@ void hash_free(HASH *hash)
 void my_hash_reset(HASH *hash)
 {
   DBUG_ENTER("my_hash_reset");
-  DBUG_PRINT("enter",("hash: 0x%lxd",hash));
+  DBUG_PRINT("enter",("hash: 0x%lxd", (long) hash));
 
   hash_free_elements(hash);
   reset_dynamic(&hash->array);
@@ -645,7 +645,9 @@ my_bool hash_check(HASH *hash)
 	if ((rec_link=hash_rec_mask(hash,hash_info,blength,records)) != i)
 	{
 	  DBUG_PRINT("error",
-		     ("Record in wrong link at %d: Start %d  Record: 0x%lx  Record-link %d", idx,i,hash_info->data,rec_link));
+                     ("Record in wrong link at %d: "
+                      "Start %d  Record: 0x%lx  Record-link %d",
+                      idx, i, (long) hash_info->data, rec_link));
 	  error=1;
 	}
 	else
@@ -656,13 +658,13 @@ my_bool hash_check(HASH *hash)
   }
   if (found != records)
   {
-    DBUG_PRINT("error",("Found %ld of %ld records"));
+    DBUG_PRINT("error",("Found %u of %u records", found, records));
     error=1;
   }
   if (records)
     DBUG_PRINT("info",
-	       ("records: %ld   seeks: %d   max links: %d   hitrate: %.2f",
-		records,seek,max_links,(float) seek / (float) records));
+	       ("records: %u   seeks: %u   max links: %d   hitrate: %.2f",
+		records, seek, max_links, (float) seek / (float) records));
   return error;
 }
 #endif

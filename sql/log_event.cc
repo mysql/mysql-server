@@ -2043,8 +2043,8 @@ Rotate_log_event::Rotate_log_event(THD* thd_arg,
 #ifndef DBUG_OFF
   char buff[22];
   DBUG_ENTER("Rotate_log_event::Rotate_log_event(THD*,...)");
-  DBUG_PRINT("enter",("new_log_ident %s pos %s flags %lu", new_log_ident_arg,
-                      llstr(pos_arg, buff), flags));
+  DBUG_PRINT("enter",("new_log_ident: %s  pos: %s  flags: %u",
+                      new_log_ident_arg, llstr(pos_arg, buff), flags));
 #endif
   if (flags & DUP_NAME)
     new_log_ident= my_strdup_with_length((byte*) new_log_ident_arg,
@@ -2673,7 +2673,7 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
     memcpy(master_log, rli->group_master_log_name, master_log_len + 1);
     master_port = mi->port;
     master_pos = rli->group_master_log_pos;
-    DBUG_PRINT("info", ("master_log: %s  pos: %d", master_log,
+    DBUG_PRINT("info", ("master_log: %s  pos: %lu", master_log,
 			(ulong) master_pos));
   }
   else
