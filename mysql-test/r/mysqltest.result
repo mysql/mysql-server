@@ -530,4 +530,20 @@ hello
 hello
 mysqltest: At line 1: test of die
 Some output
+create table t1( a int, b char(255), c timestamp);
+insert into t1 values(1, 'Line 1', '2007-04-05'), (2, "Part 2", '2007-04-05');
+insert into t1 values(1, 'Line 1', '2007-04-05'), (2, "Part 3", '2007-04-05');
+select * from t1;
+a	b	c
+1	Line 1	2007-04-05 00:00:00
+2	Part 2	2007-04-05 00:00:00
+1	Line 1	2007-04-05 00:00:00
+2	Part 3	2007-04-05 00:00:00
+select * from t1;
+a	b	c
+1	Line 1	2007-04-05 00:00:00
+1	Line 1	2007-04-05 00:00:00
+2	Part 2	2007-04-05 00:00:00
+2	Part 3	2007-04-05 00:00:00
+select * from t1;
 End of tests
