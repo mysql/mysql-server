@@ -730,6 +730,12 @@ point(b, b) IS NULL	linestring(b) IS NULL	polygon(b) IS NULL	multipoint(b) IS NU
 1	1	1	1	1	1	1
 0	1	1	1	1	1	1
 drop table t1;
+CREATE TABLE t1(a POINT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+a
+NULL
+DROP TABLE t1;
 End of 4.1 tests
 create table t1 (s1 geometry not null,s2 char(100));
 create trigger t1_bu before update on t1 for each row set new.s1 = null;
@@ -763,3 +769,14 @@ create table t1 (g geometry not null);
 insert into t1 values(default);
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1;
+CREATE TABLE t1 (a GEOMETRY);
+CREATE VIEW v1 AS SELECT GeomFromwkb(ASBINARY(a)) FROM t1;
+CREATE VIEW v2 AS SELECT a FROM t1;
+DESCRIBE v1;
+Field	Type	Null	Key	Default	Extra
+GeomFromwkb(ASBINARY(a))	geometry	YES		NULL	
+DESCRIBE v2;
+Field	Type	Null	Key	Default	Extra
+a	geometry	YES		NULL	
+DROP VIEW v1,v2;
+DROP TABLE t1;
