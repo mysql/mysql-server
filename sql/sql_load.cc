@@ -493,6 +493,7 @@ err:
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
+  table->auto_increment_field_not_null= FALSE;
   thd->abort_on_warning= 0;
   DBUG_RETURN(error);
 }
@@ -589,8 +590,6 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       {
 	uint length;
 	byte save_chr;
-        if (field == table->next_number_field)
-          table->auto_increment_field_not_null= TRUE;
 	if ((length=(uint) (read_info.row_end-pos)) >
 	    field->field_length)
 	  length=field->field_length;

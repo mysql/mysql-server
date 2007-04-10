@@ -60,6 +60,27 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   if (mysql_prepare_delete(thd, table_list, &conds))
     DBUG_RETURN(TRUE);
 
+  /* check ORDER BY even if it can be ignored */
+  if (order && order->elements)
+  {
+    TABLE_LIST   tables;
+    List<Item>   fields;
+    List<Item>   all_fields;
+
+    bzero((char*) &tables,sizeof(tables));
+    tables.table = table;
+    tables.alias = table_list->alias;
+
+      if (select_lex->setup_ref_array(thd, order->elements) ||
+	  setup_order(thd, select_lex->ref_pointer_array, &tables,
+                    fields, all_fields, (ORDER*) order->first))
+    {
+      delete select;
+      free_underlaid_joins(thd, &thd->lex->select_lex);
+      DBUG_RETURN(TRUE);
+    }
+  }
+
   const_cond= (!conds || conds->const_item());
   safe_update=test(thd->options & OPTION_SAFE_UPDATES);
   if (safe_update && const_cond)
@@ -148,23 +169,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   {
     uint         length= 0;
     SORT_FIELD  *sortorder;
-    TABLE_LIST   tables;
-    List<Item>   fields;
-    List<Item>   all_fields;
     ha_rows examined_rows;
-
-    bzero((char*) &tables,sizeof(tables));
-    tables.table = table;
-    tables.alias = table_list->alias;
-
-      if (select_lex->setup_ref_array(thd, order->elements) ||
-	  setup_order(thd, select_lex->ref_pointer_array, &tables,
-                    fields, all_fields, (ORDER*) order->first))
-    {
-      delete select;
-      free_underlaid_joins(thd, &thd->lex->select_lex);
-      DBUG_RETURN(TRUE);
-    }
     
     if ((!select || table->quick_keys.is_clear_all()) && limit != HA_POS_ERROR)
       usable_index= get_index_for_order(table, (ORDER*)(order->first), limit);

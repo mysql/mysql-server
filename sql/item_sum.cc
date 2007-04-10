@@ -61,9 +61,9 @@ bool Item_sum::init_sum_func_check(THD *thd)
   /* Save a pointer to object to be used in items for nested set functions */
   thd->lex->in_sum_func= this;
   nest_level= thd->lex->current_select->nest_level;
-  nest_level_tables_count= thd->lex->current_select->join->tables;
   ref_by= 0;
   aggr_level= -1;
+  aggr_sel= NULL;
   max_arg_level= -1;
   max_sum_func_level= -1;
   return FALSE;
@@ -149,9 +149,14 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     if (register_sum_func(thd, ref))
       return TRUE;
     invalid= aggr_level < 0 && !(allow_sum_func & (1 << nest_level));
+    if (!invalid && thd->variables.sql_mode & MODE_ANSI)
+      invalid= aggr_level < 0 && max_arg_level < nest_level;
   }
   if (!invalid && aggr_level < 0)
+  {
     aggr_level= nest_level;
+    aggr_sel= thd->lex->current_select;
+  }
   /*
     By this moment we either found a subquery where the set function is
     to be aggregated  and assigned a value that is  >= 0 to aggr_level,
@@ -161,8 +166,9 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     Additionally we have to check whether possible nested set functions
     are acceptable here: they are not, if the level of aggregation of
     some of them is less than aggr_level.
-  */ 
-  invalid= aggr_level <= max_sum_func_level;
+  */
+  if (!invalid) 
+    invalid= aggr_level <= max_sum_func_level;
   if (invalid)  
   {
     my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
@@ -212,7 +218,6 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
 bool Item_sum::register_sum_func(THD *thd, Item **ref)
 {
   SELECT_LEX *sl;
-  SELECT_LEX *aggr_sl= NULL;
   nesting_map allow_sum_func= thd->lex->allow_sum_func;
   for (sl= thd->lex->current_select->master_unit()->outer_select() ;
        sl && sl->nest_level > max_arg_level;
@@ -222,7 +227,7 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
     {
       /* Found the most nested subquery where the function can be aggregated */
       aggr_level= sl->nest_level;
-      aggr_sl= sl;
+      aggr_sel= sl;
     }
   }
   if (sl && (allow_sum_func & (1 << sl->nest_level)))
@@ -233,21 +238,22 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
       The set function will be aggregated in this subquery.
     */   
     aggr_level= sl->nest_level;
-    aggr_sl= sl;
+    aggr_sel= sl;
+
   }
   if (aggr_level >= 0)
   {
     ref_by= ref;
-    /* Add the object to the list of registered objects assigned to aggr_sl */
-    if (!aggr_sl->inner_sum_func_list)
+    /* Add the object to the list of registered objects assigned to aggr_sel */
+    if (!aggr_sel->inner_sum_func_list)
       next= this;
     else
     {
-      next= aggr_sl->inner_sum_func_list->next;
-      aggr_sl->inner_sum_func_list->next= this;
+      next= aggr_sel->inner_sum_func_list->next;
+      aggr_sel->inner_sum_func_list->next= this;
     }
-    aggr_sl->inner_sum_func_list= this;
-    aggr_sl->with_sum_func= 1;
+    aggr_sel->inner_sum_func_list= this;
+    aggr_sel->with_sum_func= 1;
 
     /* 
       Mark Item_subselect(s) as containing aggregate function all the way up
@@ -265,11 +271,11 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
       has aggregate functions directly referenced (i.e. not through a sub-select).
     */
     for (sl= thd->lex->current_select; 
-         sl && sl != aggr_sl && sl->master_unit()->item;
+         sl && sl != aggr_sel && sl->master_unit()->item;
          sl= sl->master_unit()->outer_select() )
       sl->master_unit()->item->with_sum_func= 1;
   }
-  thd->lex->current_select->mark_as_dependent(aggr_sl);
+  thd->lex->current_select->mark_as_dependent(aggr_sel);
   return FALSE;
 }
 
@@ -299,10 +305,10 @@ Item_sum::Item_sum(List<Item> &list) :arg_count(list.elements),
 
 Item_sum::Item_sum(THD *thd, Item_sum *item):
   Item_result_field(thd, item), arg_count(item->arg_count),
+  aggr_sel(item->aggr_sel),
   nest_level(item->nest_level), aggr_level(item->aggr_level),
   quick_group(item->quick_group), used_tables_cache(item->used_tables_cache),
-  forced_const(item->forced_const), 
-  nest_level_tables_count(item->nest_level_tables_count)
+  forced_const(item->forced_const) 
 {
   if (arg_count <= 2)
     args=tmp_args;
@@ -414,8 +420,7 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
       2-byte lenght. 
     */
     if (max_length/collation.collation->mbmaxlen > 255 && 
-        max_length/collation.collation->mbmaxlen < UINT_MAX16 &&
-        convert_blob_length)
+        convert_blob_length < UINT_MAX16 && convert_blob_length)
       return new Field_varstring(convert_blob_length, maybe_null,
                                  name, table,
                                  collation.collation);
@@ -446,8 +451,7 @@ void Item_sum::update_used_tables ()
     used_tables_cache&= PSEUDO_TABLE_BITS;
 
     /* the aggregate function is aggregated into its local context */
-    if (aggr_level == nest_level)
-      used_tables_cache |=  (1 << nest_level_tables_count) - 1;
+    used_tables_cache |=  (1 << aggr_sel->join->tables) - 1;
   }
 }
 

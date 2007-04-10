@@ -18,6 +18,29 @@ create table t2 like t1;
 load data local infile 'MYSQLTEST_VARDIR/master-data/test/rpl_misc_functions.outfile' into table t2;
 select * from t1, t2 where (t1.id=t2.id) and not(t1.i=t2.i and t1.r1=t2.r1 and t1.r2=t2.r2 and t1.p=t2.p);
 id	i	r1	r2	p	id	i	r1	r2	p
-stop slave;
 drop table t1;
-drop table t1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (col_a double default NULL);
+CREATE PROCEDURE test_replication_sp1()
+BEGIN
+INSERT INTO t1 VALUES (rand()), (rand());
+INSERT INTO t1 VALUES (rand());
+END|
+CREATE PROCEDURE test_replication_sp2()
+BEGIN
+CALL test_replication_sp1();
+CALL test_replication_sp1();
+END|
+CREATE FUNCTION test_replication_sf() RETURNS DOUBLE DETERMINISTIC
+BEGIN
+RETURN (rand() + rand());
+END|
+CALL test_replication_sp1();
+CALL test_replication_sp2();
+INSERT INTO t1 VALUES (test_replication_sf());
+INSERT INTO t1 VALUES (test_replication_sf());
+INSERT INTO t1 VALUES (test_replication_sf());
+DROP PROCEDURE IF EXISTS test_replication_sp1;
+DROP PROCEDURE IF EXISTS test_replication_sp2;
+DROP FUNCTION IF EXISTS test_replication_sf;
+DROP TABLE IF EXISTS t1;
