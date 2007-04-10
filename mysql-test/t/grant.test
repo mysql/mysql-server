@@ -986,3 +986,15 @@ disconnect con1;
 connection default;
 
 --echo End of 5.0 tests
+
+#
+# Bug#21432: Database/Table name limited to 64 bytes, not chars, problems with multi-byte
+#
+set names utf8;
+grant select on test.* to юзер_юзер@localhost;
+--exec $MYSQL --default-character-set=utf8 --user=юзер_юзер -e "select user()"
+revoke all on test.* from юзер_юзер@localhost;
+drop user юзер_юзер@localhost;
+--error 1573
+grant select on test.* to очень_длинный_юзер@localhost;
+set names default;

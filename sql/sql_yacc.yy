@@ -780,6 +780,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  MASTER_SSL_CIPHER_SYM
 %token  MASTER_SSL_KEY_SYM
 %token  MASTER_SSL_SYM
+%token  MASTER_SSL_VERIFY_SERVER_CERT_SYM
 %token  MASTER_SYM
 %token  MASTER_USER_SYM
 %token  MATCH                         /* SQL-2003-R */
@@ -948,7 +949,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SIGNED_SYM
 %token  SIMPLE_SYM                    /* SQL-2003-N */
 %token  SLAVE
-%token  SLAVESIDE_DISABLE_SYM         
 %token  SMALLINT                      /* SQL-2003-R */
 %token  SNAPSHOT_SYM
 %token  SOCKET_SYM
@@ -1529,6 +1529,11 @@ master_def:
          {
            Lex->mi.ssl_key= $3.str;
 	 }
+       | MASTER_SSL_VERIFY_SERVER_CERT_SYM EQ ulong_num
+         {
+           Lex->mi.ssl_verify_server_cert= $3 ?
+               LEX_MASTER_INFO::SSL_ENABLE : LEX_MASTER_INFO::SSL_DISABLE;
+         }
        |
          master_file_def
        ;
@@ -1853,7 +1858,7 @@ ev_sql_stmt:
             */
             if (lex->sphead)
             {
-              my_error(ER_EVENT_RECURSIVITY_FORBIDDEN, MYF(0));
+              my_error(ER_EVENT_RECURSION_FORBIDDEN, MYF(0));
               MYSQL_YYABORT;
             }
               
@@ -1926,26 +1931,24 @@ sp_name:
 	      my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
 	      MYSQL_YYABORT;
 	    }
-	    if (check_routine_name($3))
+	    if (check_routine_name(&$3))
             {
-	      my_error(ER_SP_WRONG_NAME, MYF(0), $3.str);
 	      MYSQL_YYABORT;
 	    }
-	    $$= new sp_name($1, $3);
+	    $$= new sp_name($1, $3, true);
 	    $$->init_qname(YYTHD);
 	  }
 	| ident
 	  {
             THD *thd= YYTHD;
             LEX_STRING db;
-	    if (check_routine_name($1))
+	    if (check_routine_name(&$1))
             {
-	      my_error(ER_SP_WRONG_NAME, MYF(0), $1.str);
 	      MYSQL_YYABORT;
 	    }
             if (thd->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
-	    $$= new sp_name(db, $1);
+	    $$= new sp_name(db, $1, false);
             if ($$)
 	      $$->init_qname(YYTHD);
 	  }
@@ -2701,7 +2704,7 @@ sp_proc_stmt_statement:
               else
                 i->m_query.length= lex->tok_end - sp->m_tmp_query;
               i->m_query.str= strmake_root(YYTHD->mem_root,
-                                           (char *)sp->m_tmp_query,
+                                           sp->m_tmp_query,
                                            i->m_query.length);
               sp->add_instr(i);
             }
@@ -4535,8 +4538,7 @@ field_spec:
 	type opt_attribute
 	{
 	  LEX *lex=Lex;
-	  if (add_field_to_list(lex->thd, $1.str,
-				(enum enum_field_types) $3,
+	  if (add_field_to_list(lex->thd, &$1, (enum enum_field_types) $3,
 				lex->length,lex->dec,lex->type,
 				lex->default_value, lex->on_update_value, 
                                 &lex->comment,
@@ -5492,7 +5494,7 @@ alter_list_item:
           type opt_attribute
           {
             LEX *lex=Lex;
-            if (add_field_to_list(lex->thd,$3.str,
+            if (add_field_to_list(lex->thd,&$3,
                                   (enum enum_field_types) $5,
                                   lex->length,lex->dec,lex->type,
                                   lex->default_value, lex->on_update_value,
@@ -6923,7 +6925,7 @@ function_call_generic:
 
           builder= find_qualified_function_builder(thd);
           DBUG_ASSERT(builder);
-          item= builder->create(thd, $1, $3, $5);
+          item= builder->create(thd, $1, $3, true, $5);
 
           if (! ($$= item))
           {
@@ -9305,7 +9307,7 @@ param_marker:
             my_error(ER_VIEW_SELECT_VARIABLE, MYF(0));
             MYSQL_YYABORT;
           }
-          item= new Item_param((uint) (lex->tok_start - (uchar *) thd->query));
+          item= new Item_param((uint) (lex->tok_start - thd->query));
           if (!($$= item) || lex->param_list.push_back(item))
           {
             my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
@@ -9717,8 +9719,9 @@ user:
 	  $$->host.str= (char *) "%";
 	  $$->host.length= 1;
 
-	  if (check_string_length(&$$->user,
-                                  ER(ER_USERNAME), USERNAME_LENGTH))
+          if (check_string_char_length(&$$->user, ER(ER_USERNAME),
+                                       USERNAME_CHAR_LENGTH,
+                                       system_charset_info, 0))
 	    MYSQL_YYABORT;
 	}
 	| ident_or_text '@' ident_or_text
@@ -9728,10 +9731,11 @@ user:
 	      MYSQL_YYABORT;
 	    $$->user = $1; $$->host=$3;
 
-	    if (check_string_length(&$$->user,
-                                    ER(ER_USERNAME), USERNAME_LENGTH) ||
-	        check_string_length(&$$->host,
-                                    ER(ER_HOSTNAME), HOSTNAME_LENGTH))
+	    if (check_string_char_length(&$$->user, ER(ER_USERNAME),
+                                         USERNAME_CHAR_LENGTH,
+                                         system_charset_info, 0) ||
+	        check_string_byte_length(&$$->host, ER(ER_HOSTNAME),
+                                         HOSTNAME_LENGTH))
 	      MYSQL_YYABORT;
 	  }
 	| CURRENT_USER optional_braces
@@ -10004,7 +10008,6 @@ keyword_sp:
 	| SIMPLE_SYM		{}
 	| SHARE_SYM		{}
 	| SHUTDOWN		{}
-	| SLAVESIDE_DISABLE_SYM {} 
 	| SNAPSHOT_SYM		{}
 	| SOUNDS_SYM		{}
 	| SQL_CACHE_SYM		{}
@@ -10142,7 +10145,7 @@ option_type_value:
               if (!(qbuff.str= alloc_root(YYTHD->mem_root, qbuff.length + 5)))
                 MYSQL_YYABORT;
 
-              strmake(strmake(qbuff.str, "SET ", 4), (char *)sp->m_tmp_query,
+              strmake(strmake(qbuff.str, "SET ", 4), sp->m_tmp_query,
                       qbuff.length);
               qbuff.length+= 4;
               i->m_query= qbuff;
@@ -10840,7 +10843,8 @@ grant_ident:
 	| table_ident
 	  {
 	    LEX *lex=Lex;
-	    if (!lex->current_select->add_table_to_list(lex->thd, $1,NULL,0))
+	    if (!lex->current_select->add_table_to_list(lex->thd, $1,NULL,
+                                                        TL_OPTION_UPDATING))
 	      MYSQL_YYABORT;
 	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant =  TABLE_ACLS & ~GRANT_ACL;
@@ -11361,18 +11365,16 @@ view_select_aux:
 	{
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
-          char *stmt_beg= (lex->sphead ?
-                           (char *)lex->sphead->m_tmp_query :
-                           thd->query);
+          const char *stmt_beg= (lex->sphead ?
+                                 lex->sphead->m_tmp_query : thd->query);
 	  lex->create_view_select_start= $2 - stmt_beg;
 	}
 	| '(' remember_name select_paren ')' union_opt
 	{
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
-          char *stmt_beg= (lex->sphead ?
-                           (char *)lex->sphead->m_tmp_query :
-                           thd->query);
+          const char *stmt_beg= (lex->sphead ?
+                                 lex->sphead->m_tmp_query : thd->query);
 	  lex->create_view_select_start= $2 - stmt_beg;
 	}
 	;

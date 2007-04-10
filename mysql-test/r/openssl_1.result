@@ -51,3 +51,27 @@ SSL error: Unable to get private key from ''
 mysqltest: Could not open connection 'default': 2026 SSL connection error
 SSL error: Unable to get certificate from ''
 mysqltest: Could not open connection 'default': 2026 SSL connection error
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-SHA
+End of 5.0 tests
+DROP TABLE IF EXISTS thread_status;
+DROP EVENT IF EXISTS event_status;
+SET GLOBAL event_scheduler=1;
+CREATE EVENT event_status
+ON SCHEDULE AT NOW()
+ON COMPLETION NOT PRESERVE
+DO
+BEGIN
+CREATE TABLE thread_status
+SELECT variable_name, variable_value
+FROM information_schema.session_status
+WHERE variable_name LIKE 'SSL_ACCEPTS' OR
+variable_name LIKE 'SSL_CALLBACK_CACHE_HITS';
+END$$
+SELECT variable_name, variable_value FROM thread_status;
+variable_name	variable_value
+SSL_ACCEPTS	0.0000000
+SSL_CALLBACK_CACHE_HITS	0.0000000
+DROP TABLE thread_status;
+SET GLOBAL event_scheduler=0;
+End of 5.1 tests

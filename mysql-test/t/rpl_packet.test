@@ -29,6 +29,8 @@ connection slave;
 sync_with_master;
 eval select count(*) from `$db`.`t1` /* must be 1 */;
 
+SHOW STATUS LIKE 'Slave_running';
+select * from information_schema.session_status where variable_name= 'SLAVE_RUNNING';
 connection master;
 eval drop database $db;
 save_master_pos;
@@ -67,6 +69,12 @@ INSERT INTO `t1`(`f1`) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 connection slave; 
 sleep 2;
 SHOW STATUS LIKE 'Slave_running';
+
+# cleanup
+#connection master;
+#drop table t1;
+#connection slave;
+#drop table t1;
 
 
 # End of tests

@@ -1781,7 +1781,8 @@ int ha_partition::set_up_table_before_create(TABLE *table,
   }
   table->s->max_rows= part_elem->part_max_rows;
   table->s->min_rows= part_elem->part_min_rows;
-  partition_name= strrchr(partition_name_with_path, FN_LIBCHAR);
+  /* Here we have unified path so should always look for '/', not FN_LIBCHAR */
+  partition_name= strrchr(partition_name_with_path, '/');
   if ((part_elem->index_file_name &&
       (error= append_file_to_dir(thd,
                                  (const char**)&part_elem->index_file_name,

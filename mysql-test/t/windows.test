@@ -1,5 +1,6 @@
 # Windows-specific tests
 --source include/windows.inc
+-- source include/have_innodb.inc
 
 #
 # Bug 9148: Denial of service
@@ -49,3 +50,23 @@ execute abc;
 execute abc;
 deallocate prepare abc;
 
+#
+# Bug #26074 Mysql crash when creating partitions 
+#
+
+CREATE TABLE t1 (
+  `pkid` int(11) NOT NULL AUTO_INCREMENT,
+  `SALES_DATE` date NOT NULL DEFAULT '0000-00-00',
+  KEY `pkid` (`pkid`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+PARTITION BY RANGE (MONTH(SALES_DATE))
+(
+        PARTITION p0 VALUES LESS THAN (2) ENGINE=INNODB
+                data DIRECTORY='c:/tmp/'
+                index DIRECTORY = 'c:/tmp/',
+        PARTITION p1 VALUES LESS THAN (3) ENGINE=INNODB
+                data DIRECTORY='c:/tmp/'
+                index DIRECTORY = 'c:/tmp/'
+);
+
+DROP TABLE t1;

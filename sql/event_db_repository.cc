@@ -18,12 +18,6 @@
 #include "event_data_objects.h"
 #include "events.h"
 #include "sql_show.h"
-#include "sp.h"
-#include "sp_head.h"
-
-
-static
-time_t mysql_event_last_create_time= 0L;
 
 static
 const TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] =
@@ -132,26 +126,21 @@ const TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] =
 };
 
 
-/*
+/**
   Puts some data common to CREATE and ALTER EVENT into a row.
 
-  SYNOPSIS
-    mysql_event_fill_row()
-      thd        THD
-      table      The row to fill out
-      et         Event's data
-      is_update  CREATE EVENT or ALTER EVENT
+  Used both when an event is created and when it is altered.
 
-  RETURN VALUE
-    0                       OK
-    EVEX_GENERAL_ERROR      Bad data
-    EVEX_GET_FIELD_FAILED   Field count does not match. table corrupted?
+  @param   thd        THD
+  @param   table      The row to fill out
+  @param   et         Event's data
+  @param   is_update  CREATE EVENT or ALTER EVENT
 
-  DESCRIPTION 
-    Used both when an event is created and when it is altered.
+  @retval  FALSE success
+  @retval  TRUE error
 */
 
-static int
+static bool
 mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
                      my_bool is_update)
 {
@@ -164,6 +153,17 @@ mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
   DBUG_PRINT("info", ("dbname=[%s]", et->dbname.str));
   DBUG_PRINT("info", ("name  =[%s]", et->name.str));
   DBUG_PRINT("info", ("body  =[%s]", et->body.str));
+
+  if (table->s->fields < ET_FIELD_COUNT)
+  {
+    /*
+      Safety: this can only happen if someone started the server
+      and then altered mysql.event.
+    */
+    my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED, MYF(0), table->alias,
+             (int) ET_FIELD_COUNT, table->s->fields);
+    DBUG_RETURN(TRUE);
+  }
 
   if (fields[f_num= ET_FIELD_DEFINER]->
                               store(et->definer.str, et->definer.length, scs))
@@ -186,7 +186,7 @@ mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
   /*
     Change the SQL_MODE only if body was present in an ALTER EVENT and of course
     always during CREATE EVENT.
-  */ 
+  */
   if (et->body.str)
   {
     fields[ET_FIELD_SQL_MODE]->store((longlong)thd->variables.sql_mode, TRUE);
@@ -245,7 +245,7 @@ mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
     fields[ET_FIELD_TRANSIENT_INTERVAL]->set_null();
     fields[ET_FIELD_STARTS]->set_null();
     fields[ET_FIELD_ENDS]->set_null();
-    
+
     TIME time;
     my_tz_UTC->gmt_sec_to_TIME(&time, et->execute_at);
 
@@ -261,7 +261,7 @@ mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
       this is an error if the action is create. something is borked
     */
   }
-    
+
   ((Field_timestamp *)fields[ET_FIELD_MODIFIED])->set_time();
 
   if (et->comment.str)
@@ -271,11 +271,11 @@ mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
       goto err_truncate;
   }
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 
 err_truncate:
   my_error(ER_EVENT_DATA_TOO_LONG, MYF(0), fields[f_num]->field_name);
-  DBUG_RETURN(EVEX_GENERAL_ERROR);
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -310,38 +310,52 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
 
   DBUG_PRINT("info", ("Using prefix scanning on PK"));
   event_table->file->ha_index_init(0, 1);
-  event_table->field[ET_FIELD_DB]->store(db, strlen(db), scs);
   key_info= event_table->key_info;
+
+  if (key_info->key_parts == 0 ||
+      key_info->key_part[0].field != event_table->field[ET_FIELD_DB])
+  {
+    /* Corrupted table: no index or index on a wrong column */
+    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), "event");
+    ret= 1;
+    goto end;
+  }
+
+  event_table->field[ET_FIELD_DB]->store(db, strlen(db), scs);
   key_len= key_info->key_part[0].store_length;
 
   if (!(key_buf= (byte *)alloc_root(thd->mem_root, key_len)))
   {
-    ret= 1;
     /* Don't send error, it would be done by sql_alloc_error_handler() */
+    ret= 1;
+    goto end;
   }
-  else
+
+  key_copy(key_buf, event_table->record[0], key_info, key_len);
+  if (!(ret= event_table->file->index_read(event_table->record[0], key_buf,
+                                           (key_part_map)1, HA_READ_PREFIX)))
   {
-    key_copy(key_buf, event_table->record[0], key_info, key_len);
-    if (!(ret= event_table->file->index_read(event_table->record[0], key_buf,
-                                             (key_part_map)1, HA_READ_PREFIX)))
+    DBUG_PRINT("info",("Found rows. Let's retrieve them. ret=%d", ret));
+    do
     {
-      DBUG_PRINT("info",("Found rows. Let's retrieve them. ret=%d", ret));
-      do
-      {
-        ret= copy_event_to_schema_table(thd, schema_table, event_table);
-        if (ret == 0)
-          ret= event_table->file->index_next_same(event_table->record[0],
-                                                  key_buf, key_len); 
-      } while (ret == 0);
-    }
-    DBUG_PRINT("info", ("Scan finished. ret=%d", ret));
+      ret= copy_event_to_schema_table(thd, schema_table, event_table);
+      if (ret == 0)
+        ret= event_table->file->index_next_same(event_table->record[0],
+                                                key_buf, key_len);
+    } while (ret == 0);
   }
-  event_table->file->ha_index_end(); 
+  DBUG_PRINT("info", ("Scan finished. ret=%d", ret));
+
   /*  ret is guaranteed to be != 0 */
   if (ret == HA_ERR_END_OF_FILE || ret == HA_ERR_KEY_NOT_FOUND)
-    DBUG_RETURN(FALSE);
+    ret= 0;
+  else
+    event_table->file->print_error(ret, MYF(0));
 
-  DBUG_RETURN(TRUE);
+end:
+  event_table->file->ha_index_end();
+
+  DBUG_RETURN(test(ret));
 }
 
 
@@ -389,40 +403,33 @@ Event_db_repository::table_scan_all_for_i_s(THD *thd, TABLE *schema_table,
 }
 
 
-/*
+/**
   Fills I_S.EVENTS with data loaded from mysql.event. Also used by
   SHOW EVENTS
 
-  SYNOPSIS
-    Event_db_repository::fill_schema_events()
-      thd     Thread
-      tables  The schema table
-      db      If not NULL then get events only from this schema
+  The reason we reset and backup open tables here is that this
+  function may be called from any query that accesses
+  INFORMATION_SCHEMA - including a query that is issued from
+  a pre-locked statement, one that already has open and locked
+  tables.
 
-  RETURN VALUE
-    FALSE  OK
-    TRUE   Error
+  @retval FALSE  success
+  @retval TRUE   error
 */
 
-int
+bool
 Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *tables,
                                         const char *db)
 {
   TABLE *schema_table= tables->table;
   TABLE *event_table= NULL;
-  Open_tables_state backup;
   int ret= 0;
 
   DBUG_ENTER("Event_db_repository::fill_schema_events");
   DBUG_PRINT("info",("db=%s", db? db:"(null)"));
 
-  thd->reset_n_backup_open_tables_state(&backup);
   if (open_event_table(thd, TL_READ, &event_table))
-  {
-    sql_print_error("Table mysql.event is damaged.");
-    thd->restore_backup_open_tables_state(&backup);
-    DBUG_RETURN(1);
-  }
+    DBUG_RETURN(TRUE);
 
   /*
     1. SELECT I_S => use table scan. I_S.EVENTS does not guarantee order
@@ -439,163 +446,100 @@ Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *tables,
     ret= table_scan_all_for_i_s(thd, schema_table, event_table);
 
   close_thread_tables(thd);
-  thd->restore_backup_open_tables_state(&backup);
 
   DBUG_PRINT("info", ("Return code=%d", ret));
   DBUG_RETURN(ret);
 }
 
 
-/*
-  Open mysql.event table for read
+/**
+  Open mysql.event table for read.
 
-  SYNOPSIS
-    Events::open_event_table()
-    thd         [in]  Thread context
-    lock_type   [in]  How to lock the table
-    table       [out] We will store the open table here
+  It's assumed that the caller knows what they are doing:
+  - whether it was necessary to reset-and-backup the open tables state
+  - whether the requested lock does not lead to a deadlock
+  - whether this open mode would work under LOCK TABLES, or inside a
+  stored function or trigger.
 
-  RETURN VALUE
-    1   Cannot lock table
-    2   The table is corrupted - different number of fields
-    0   OK
+  @param[in]  thd  Thread context
+  @param[in]  lock_type  How to lock the table
+  @param[out] table  We will store the open table here
+
+  @retval TRUE open and lock failed - an error message is pushed into the
+               stack
+  @retval FALSE success
 */
 
-int
+bool
 Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
                                       TABLE **table)
 {
   TABLE_LIST tables;
   DBUG_ENTER("Event_db_repository::open_event_table");
 
-  bzero((char*) &tables, sizeof(tables));
-  tables.db= (char*) "mysql";
-  tables.table_name= tables.alias= (char*) "event";
-  tables.lock_type= lock_type;
+  tables.init_one_table("mysql", "event", lock_type);
 
   if (simple_open_n_lock_tables(thd, &tables))
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
 
-  if (table_check_intact(tables.table, ET_FIELD_COUNT,
-                         event_table_fields,
-                         &mysql_event_last_create_time,
-                         ER_CANNOT_LOAD_FROM_TABLE))
-  {
-    close_thread_tables(thd);
-    DBUG_RETURN(2);
-  }
   *table= tables.table;
   tables.table->use_all_columns();
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
-/*
-  Checks parameters which we got from the parsing phase.
+/**
+  Creates an event record in mysql.event table.
 
-  SYNOPSIS
-    check_parse_params()
-      thd         Thread context
-      parse_data  Event's data
-  
-  RETURN VALUE
-    FALSE  OK
-    TRUE   Error (reported)
-*/
+  Creates an event. Relies on mysql_event_fill_row which is shared with
+  ::update_event.
 
-static int
-check_parse_params(THD *thd, Event_parse_data *parse_data)
-{
-  DBUG_ENTER("check_parse_params");
+  @pre All semantic checks must be performed outside. This function
+  only creates a record on disk.
+  @pre The thread handle has no open tables.
 
-  if (parse_data->check_parse_data(thd))
-    DBUG_RETURN(EVEX_BAD_PARAMS);
+  @param[in,out]               THD
+  @param[in]     parse_data    Parsed event definition
+  @param[in]     create_if_not TRUE if IF NOT EXISTS clause was provided
+                               to CREATE EVENT statement
 
-  if (!parse_data->dbname.str ||
-      (thd->lex->sql_command == SQLCOM_ALTER_EVENT && thd->lex->spname &&
-       !thd->lex->spname->m_db.str))
-  {
-    my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
-    DBUG_RETURN(EVEX_BAD_PARAMS);
-  }
-
-  if (check_access(thd, EVENT_ACL, parse_data->dbname.str, 0, 0, 0,
-                   is_schema_db(parse_data->dbname.str)) ||
-      (thd->lex->sql_command == SQLCOM_ALTER_EVENT && thd->lex->spname &&
-       (check_access(thd, EVENT_ACL, thd->lex->spname->m_db.str, 0, 0, 0,
-                     is_schema_db(thd->lex->spname->m_db.str)))))
-    DBUG_RETURN(EVEX_BAD_PARAMS);
-
-  DBUG_RETURN(0);
-}
-
-
-/*
-  Creates an event in mysql.event
-
-  SYNOPSIS
-    Event_db_repository::create_event()
-      thd             [in]  THD
-      parse_data      [in]  Object containing info about the event
-      create_if_not   [in]  Whether to generate anwarning in case event exists
-
-  RETURN VALUE
-    0                   OK
-    EVEX_GENERAL_ERROR  Failure
-
-  DESCRIPTION 
-    Creates an event. Relies on mysql_event_fill_row which is shared with
-    ::update_event. The name of the event is inside "et".
+  @retval FALSE  success
+  @retval TRUE   error
 */
 
 bool
 Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
                                   my_bool create_if_not)
 {
-  int ret= 0;
+  int ret= 1;
   TABLE *table= NULL;
-  char old_db_buf[NAME_LEN+1];
-  LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
-  bool dbchanged= FALSE;
 
   DBUG_ENTER("Event_db_repository::create_event");
 
-  if (check_parse_params(thd, parse_data))
-    goto err;
-  if (parse_data->do_not_create)
-    goto ok;
-
   DBUG_PRINT("info", ("open mysql.event for update"));
+
   if (open_event_table(thd, TL_WRITE, &table))
-  {
-    my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
-    goto err;
-  }
+    goto end;
 
   DBUG_PRINT("info", ("name: %.*s", parse_data->name.length,
              parse_data->name.str));
 
   DBUG_PRINT("info", ("check existance of an event with the same name"));
-  if (!find_named_event(thd, parse_data->dbname, parse_data->name, table))
+  if (!find_named_event(parse_data->dbname, parse_data->name, table))
   {
     if (create_if_not)
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                           ER_EVENT_ALREADY_EXISTS, ER(ER_EVENT_ALREADY_EXISTS),
                           parse_data->name.str);
-      goto ok;
+      ret= 0;
     }
-    my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), parse_data->name.str);
-    goto err;
+    else
+      my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), parse_data->name.str);
+    goto end;
   }
 
-  DBUG_PRINT("info", ("non-existant, go forward"));
-
-  if ((ret= sp_use_new_db(thd, parse_data->dbname, &old_db, 0, &dbchanged)))
-  {
-    my_error(ER_BAD_DB_ERROR, MYF(0));
-    goto err;
-  }
+  DBUG_PRINT("info", ("non-existent, go forward"));
 
   restore_record(table, s->default_values);     // Get default values for fields
 
@@ -605,7 +549,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
       table->field[ET_FIELD_DB]->char_length())
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), parse_data->dbname.str);
-    goto err;
+    goto end;
   }
 
   if (system_charset_info->cset->
@@ -614,20 +558,13 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
       table->field[ET_FIELD_NAME]->char_length())
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), parse_data->name.str);
-    goto err;
+    goto end;
   }
 
   if (parse_data->body.length > table->field[ET_FIELD_BODY]->field_length)
   {
     my_error(ER_TOO_LONG_BODY, MYF(0), parse_data->name.str);
-    goto err;
-  }
-
-  if (!(parse_data->expression) && !(parse_data->execute_at))
-  {
-    DBUG_PRINT("error", ("neither expression nor execute_at are set!"));
-    my_error(ER_EVENT_NEITHER_M_EXPR_NOR_M_AT, MYF(0));
-    goto err;
+    goto end;
   }
 
   ((Field_timestamp *)table->field[ET_FIELD_CREATED])->set_time();
@@ -636,95 +573,71 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     mysql_event_fill_row() calls my_error() in case of error so no need to
     handle it here
   */
-  if ((ret= mysql_event_fill_row(thd, table, parse_data, FALSE)))
-    goto err; 
+  if (mysql_event_fill_row(thd, table, parse_data, FALSE))
+    goto end;
 
   table->field[ET_FIELD_STATUS]->store((longlong)parse_data->status, TRUE);
 
-  /* Close active transaction only if We are going to modify disk */
-  if (end_active_trans(thd))
-    goto err;
-
-  if (table->file->ha_write_row(table->record[0]))
+  if ((ret= table->file->ha_write_row(table->record[0])))
   {
-    my_error(ER_EVENT_STORE_FAILED, MYF(0), parse_data->name.str, ret);
-    goto err;
+    table->file->print_error(ret, MYF(0));
+    goto end;
   }
+  ret= 0;
 
-ok:
-  if (dbchanged)
-    (void) mysql_change_db(thd, old_db.str, 1);
-  /*
-    This statement may cause a spooky valgrind warning at startup
-    inside init_key_cache on my system (ahristov, 2006/08/10) 
-  */
-  close_thread_tables(thd);
-  DBUG_RETURN(FALSE);
-
-err:
-  if (dbchanged)
-    (void) mysql_change_db(thd, old_db.str, 1);
+end:
   if (table)
     close_thread_tables(thd);
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(test(ret));
 }
 
 
-/*
+/**
   Used to execute ALTER EVENT. Pendant to Events::update_event().
 
-  SYNOPSIS
-    Event_db_repository::update_event()
-      thd      THD
-      sp_name  the name of the event to alter
-      et       event's data
+  @param[in,out]  thd         thread handle
+  @param[in]      parse_data  parsed event definition
+  @paran[in[      new_dbname  not NULL if ALTER EVENT RENAME
+                              points at a new database name
+  @param[in]      new_name    not NULL if ALTER EVENT RENAME
+                              points at a new event name
 
-  RETURN VALUE
-    FALSE  OK
-    TRUE   Error (reported)
+  @pre All semantic checks are performed outside this function,
+  it only updates the event definition on disk.
+  @pre We don't have any tables open in the given thread.
 
-  NOTES
-    sp_name is passed since this is the name of the event to
-    alter in case of RENAME TO.
+  @retval FALSE success
+  @retval TRUE error (reported)
 */
 
 bool
 Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
-                                  LEX_STRING *new_dbname, LEX_STRING *new_name)
+                                  LEX_STRING *new_dbname,
+                                  LEX_STRING *new_name)
 {
   CHARSET_INFO *scs= system_charset_info;
   TABLE *table= NULL;
+  int ret= 1;
   DBUG_ENTER("Event_db_repository::update_event");
 
-  if (open_event_table(thd, TL_WRITE, &table))
-  {
-    my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
-    goto err;
-  }
+  /* None or both must be set */
+  DBUG_ASSERT(new_dbname && new_name || new_dbname == new_name);
 
-  if (check_parse_params(thd, parse_data) || parse_data->do_not_create)
-    goto err;
+  if (open_event_table(thd, TL_WRITE, &table))
+    goto end;
 
   DBUG_PRINT("info", ("dbname: %s", parse_data->dbname.str));
   DBUG_PRINT("info", ("name: %s", parse_data->name.str));
   DBUG_PRINT("info", ("user: %s", parse_data->definer.str));
-  if (new_dbname)
-    DBUG_PRINT("info", ("rename to: %s@%s", new_dbname->str, new_name->str));
 
   /* first look whether we overwrite */
   if (new_name)
   {
-    if (!sortcmp_lex_string(parse_data->name, *new_name, scs) &&
-        !sortcmp_lex_string(parse_data->dbname, *new_dbname, scs))
-    {
-      my_error(ER_EVENT_SAME_NAME, MYF(0), parse_data->name.str);
-      goto err;
-    }
-
-    if (!find_named_event(thd, *new_dbname, *new_name, table))
+    DBUG_PRINT("info", ("rename to: %s@%s", new_dbname->str, new_name->str));
+    if (!find_named_event(*new_dbname, *new_name, table))
     {
       my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), new_name->str);
-      goto err;
+      goto end;
     }
   }
   /*
@@ -733,10 +646,10 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
     overwrite the key and SE will tell us that it cannot find the already found
     row (copied into record[1] later
   */
-  if (find_named_event(thd, parse_data->dbname, parse_data->name, table))
+  if (find_named_event(parse_data->dbname, parse_data->name, table))
   {
     my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), parse_data->name.str);
-    goto err;
+    goto end;
   }
 
   store_record(table,record[1]);
@@ -749,7 +662,7 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
     handle it here
   */
   if (mysql_event_fill_row(thd, table, parse_data, TRUE))
-    goto err;
+    goto end;
 
   if (new_dbname)
   {
@@ -757,42 +670,32 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
     table->field[ET_FIELD_NAME]->store(new_name->str, new_name->length, scs);
   }
 
-  /* Close active transaction only if We are going to modify disk */
-  if (end_active_trans(thd))
-    goto err;
-
-  int res;
-  if ((res= table->file->ha_update_row(table->record[1], table->record[0])))
+  if ((ret= table->file->ha_update_row(table->record[1], table->record[0])))
   {
-    my_error(ER_EVENT_STORE_FAILED, MYF(0), parse_data->name.str, res);
-    goto err;
+    table->file->print_error(ret, MYF(0));
+    goto end;
   }
+  ret= 0;
 
-  /* close mysql.event or we crash later when loading the event from disk */
-  close_thread_tables(thd);
-  DBUG_RETURN(FALSE);
-
-err:
+end:
   if (table)
     close_thread_tables(thd);
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(test(ret));
 }
 
 
-/*
-  Drops an event
+/**
+  Delete event record from mysql.event table.
 
-  SYNOPSIS
-    Event_db_repository::drop_event()
-      thd             [in]  THD
-      db              [in]  Database name
-      name            [in]  Event's name
-      drop_if_exists  [in]  If set and the event not existing => warning
-                            onto the stack
+  @param[in,out] thd            thread handle
+  @param[in]     db             Database name
+  @param[in]     name           Event name
+  @param[in]     drop_if_exists DROP IF EXISTS clause was specified.
+                                If set, and the event does not exist,
+                                the error is downgraded to a warning.
 
-  RETURN VALUE
-    FALSE  OK
-    TRUE   Error (reported)
+  @retval FALSE success
+  @retval TRUE error (reported)
 */
 
 bool
@@ -800,66 +703,59 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
                                 bool drop_if_exists)
 {
   TABLE *table= NULL;
-  Open_tables_state backup;
-  int ret;
+  int ret= 1;
 
   DBUG_ENTER("Event_db_repository::drop_event");
   DBUG_PRINT("enter", ("%s@%s", db.str, name.str));
 
-  thd->reset_n_backup_open_tables_state(&backup);
-  if ((ret= open_event_table(thd, TL_WRITE, &table)))
+  if (open_event_table(thd, TL_WRITE, &table))
+    goto end;
+
+  if (!find_named_event(db, name, table))
   {
-    my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
-    goto done;
+    if ((ret= table->file->ha_delete_row(table->record[0])))
+      table->file->print_error(ret, MYF(0));
+    goto end;
   }
 
-  if (!(ret= find_named_event(thd, db, name, table)))
+  /* Event not found */
+  if (!drop_if_exists)
   {
-    /* Close active transaction only if we are actually going to modify disk */
-    if (!(ret= end_active_trans(thd)) &&
-        (ret= table->file->ha_delete_row(table->record[0])))
-      my_error(ER_EVENT_CANNOT_DELETE, MYF(0));
-  }
-  else
-  {
-    if (drop_if_exists)
-    {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                          ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
-                          "Event", name.str);
-      ret= 0;
-    } else
-      my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
+    my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
+    goto end;
   }
 
-done:
+  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
+                      "Event", name.str);
+  ret= 0;
+
+end:
   if (table)
     close_thread_tables(thd);
-  thd->restore_backup_open_tables_state(&backup);
 
-  DBUG_RETURN(ret);
+  DBUG_RETURN(test(ret));
 }
 
 
-/*
+/**
   Positions the internal pointer of `table` to the place where (db, name)
   is stored.
 
-  SYNOPSIS
-    Event_db_repository::find_named_event()
-      thd    Thread
-      db     Schema
-      name   Event name
-      table  Opened mysql.event
+  In case search succeeded, the table cursor points at the found row.
 
-  RETURN VALUE
-    FALSE  OK
-    TRUE   No such event
+  @param[in]      db     database name
+  @param[in]      name   event name
+  @param[in,out]  table  mysql.event table
+
+
+  @retval FALSE  an event with such db/name key exists
+  @reval  TRUE   no record found or an error occured.
 */
 
 bool
-Event_db_repository::find_named_event(THD *thd, LEX_STRING db, LEX_STRING name,
-                                     TABLE *table)
+Event_db_repository::find_named_event(LEX_STRING db, LEX_STRING name,
+                                      TABLE *table)
 {
   byte key[MAX_KEY_LENGTH];
   DBUG_ENTER("Event_db_repository::find_named_event");
@@ -911,39 +807,30 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
 }
 
 
-/*
-  Drops all events by field which has specific value of the field
+/**
+  Drops all events which have a specific value of a field.
 
-  SYNOPSIS
-    Event_db_repository::drop_events_by_field()
-      thd         Thread
-      table       mysql.event TABLE
-      field       Which field of the row to use for matching
-      field_value The value that should match
+  @pre The thread handle has no open tables.
+
+  @param[in,out] thd         Thread
+  @param[in,out] table       mysql.event TABLE
+  @param[in]     field       Which field of the row to use for matching
+  @param[in]     field_value The value that should match
 */
 
 void
-Event_db_repository::drop_events_by_field(THD *thd,  
+Event_db_repository::drop_events_by_field(THD *thd,
                                           enum enum_events_table_field field,
                                           LEX_STRING field_value)
 {
   int ret= 0;
   TABLE *table= NULL;
   READ_RECORD read_record_info;
-  DBUG_ENTER("Event_db_repository::drop_events_by_field");  
+  DBUG_ENTER("Event_db_repository::drop_events_by_field");
   DBUG_PRINT("enter", ("field=%d field_value=%s", field, field_value.str));
 
   if (open_event_table(thd, TL_WRITE, &table))
-  {
-    /*
-      Currently being used only for DROP DATABASE - In this case we don't need
-      error message since the OK packet has been sent. But for DROP USER we
-      could need it.
-
-      my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
-    */
     DBUG_VOID_RETURN;
-  }
 
   /* only enabled events are in memory, so we go now and delete the rest */
   init_read_record(&read_record_info, thd, table, NULL, 1, 0);
@@ -951,14 +838,20 @@ Event_db_repository::drop_events_by_field(THD *thd,
   {
     char *et_field= get_field(thd->mem_root, table->field[field]);
 
-    LEX_STRING et_field_lex= { et_field, strlen(et_field) };
-    DBUG_PRINT("info", ("Current event %s name=%s", et_field,
-               get_field(thd->mem_root, table->field[ET_FIELD_NAME])));
-
-    if (!sortcmp_lex_string(et_field_lex, field_value, system_charset_info))
+    /* et_field may be NULL if the table is corrupted or out of memory */
+    if (et_field)
     {
-      DBUG_PRINT("info", ("Dropping"));
-      ret= table->file->ha_delete_row(table->record[0]);
+      LEX_STRING et_field_lex= { et_field, strlen(et_field) };
+      DBUG_PRINT("info", ("Current event %s name=%s", et_field,
+                          get_field(thd->mem_root,
+                                    table->field[ET_FIELD_NAME])));
+
+      if (!sortcmp_lex_string(et_field_lex, field_value, system_charset_info))
+      {
+        DBUG_PRINT("info", ("Dropping"));
+        if ((ret= table->file->ha_delete_row(table->record[0])))
+          table->file->print_error(ret, MYF(0));
+      }
     }
   }
   end_read_record(&read_record_info);
@@ -968,20 +861,14 @@ Event_db_repository::drop_events_by_field(THD *thd,
 }
 
 
-/*
+/**
   Looks for a named event in mysql.event and then loads it from
-  the table, compiles and inserts it into the cache.
+  the table.
 
-  SYNOPSIS
-    Event_db_repository::load_named_event()
-      thd      [in]  Thread context
-      dbname   [in]  Event's db name
-      name     [in]  Event's name
-      etn      [out] The loaded event
+  @pre The given thread does not have open tables.
 
-  RETURN VALUE
-    FALSE  OK
-    TRUE   Error (reported)
+  @retval FALSE  success
+  @retval TRUE   error
 */
 
 bool
@@ -989,26 +876,176 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
                                       LEX_STRING name, Event_basic *etn)
 {
   TABLE *table= NULL;
-  int ret= 0;
-  Open_tables_state backup;
+  bool ret;
 
   DBUG_ENTER("Event_db_repository::load_named_event");
   DBUG_PRINT("enter",("thd: 0x%lx  name: %*s", (long) thd, name.length, name.str));
 
-  thd->reset_n_backup_open_tables_state(&backup);
+  if (!(ret= open_event_table(thd, TL_READ, &table)))
+  {
+    if ((ret= find_named_event(dbname, name, table)))
+      my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
+    else if ((ret= etn->load_from_row(thd, table)))
+      my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), "event");
 
-  if ((ret= open_event_table(thd, TL_READ, &table)))
-    my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
-  else if ((ret= find_named_event(thd, dbname, name, table)))
-    my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
-  else if ((ret= etn->load_from_row(thd, table)))
-    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), "event");
+    close_thread_tables(thd);
+  }
 
+
+  DBUG_RETURN(ret);
+}
+
+
+/**
+  Update the event record in mysql.event table with a changed status
+  and/or last execution time.
+
+  @pre The thread handle does not have open tables.
+*/
+
+bool
+Event_db_repository::
+update_timing_fields_for_event(THD *thd,
+                               LEX_STRING event_db_name,
+                               LEX_STRING event_name,
+                               bool update_last_executed,
+                               my_time_t last_executed,
+                               bool update_status,
+                               ulonglong status)
+{
+  TABLE *table= NULL;
+  Field **fields;
+  int ret= 1;
+
+  DBUG_ENTER("Event_db_repository::update_timing_fields_for_event");
+
+  /*
+    Turn off row binlogging of event timing updates. These are not used
+    for RBR of events replicated to the slave.
+  */
+  if (thd->current_stmt_binlog_row_based)
+    thd->clear_current_stmt_binlog_row_based();
+
+  if (open_event_table(thd, TL_WRITE, &table))
+    goto end;
+
+  fields= table->field;
+
+  if (find_named_event(event_db_name, event_name, table))
+    goto end;
+
+  store_record(table, record[1]);
+  /* Don't update create on row update. */
+  table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
+
+  if (update_last_executed)
+  {
+    TIME time;
+    my_tz_UTC->gmt_sec_to_TIME(&time, last_executed);
+
+    fields[ET_FIELD_LAST_EXECUTED]->set_notnull();
+    fields[ET_FIELD_LAST_EXECUTED]->store_time(&time,
+                                               MYSQL_TIMESTAMP_DATETIME);
+  }
+  if (update_status)
+  {
+    fields[ET_FIELD_STATUS]->set_notnull();
+    fields[ET_FIELD_STATUS]->store(status, TRUE);
+  }
+
+  if ((ret= table->file->ha_update_row(table->record[1], table->record[0])))
+  {
+    table->file->print_error(ret, MYF(0));
+    goto end;
+  }
+
+  ret= 0;
+
+end:
   if (table)
     close_thread_tables(thd);
 
-  thd->restore_backup_open_tables_state(&backup);
-  /* In this case no memory was allocated so we don't need to clean */
+  DBUG_RETURN(test(ret));
+}
 
-  DBUG_RETURN(ret);
+
+/**
+  Open mysql.db, mysql.user and mysql.event and check whether:
+    - mysql.db exists and is up to date (or from a newer version of MySQL),
+    - mysql.user has column Event_priv at an expected position,
+    - mysql.event exists and is up to date (or from a newer version of
+      MySQL)
+
+  This function is called only when the server is started.
+  @pre The passed in thread handle has no open tables.
+
+  @retval FALSE  OK
+  @retval TRUE   Error, an error message is output to the error log.
+*/
+
+bool
+Event_db_repository::check_system_tables(THD *thd)
+{
+  TABLE_LIST tables;
+  int ret= FALSE;
+  const unsigned int event_priv_column_position= 29;
+
+  DBUG_ENTER("Event_db_repository::check_system_tables");
+  DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
+
+
+  /* Check mysql.db */
+  tables.init_one_table("mysql", "db", TL_READ);
+
+  if (simple_open_n_lock_tables(thd, &tables))
+  {
+    ret= 1;
+    sql_print_error("Cannot open mysql.db");
+  }
+  else
+  {
+    if (table_check_intact(tables.table, MYSQL_DB_FIELD_COUNT,
+                           mysql_db_table_fields))
+      ret= 1;
+    /* in case of an error, the message is printed inside table_check_intact */
+
+    close_thread_tables(thd);
+  }
+  /* Check mysql.user */
+  tables.init_one_table("mysql", "user", TL_READ);
+
+  if (simple_open_n_lock_tables(thd, &tables))
+  {
+    ret= 1;
+    sql_print_error("Cannot open mysql.user");
+  }
+  else
+  {
+    if (tables.table->s->fields < event_priv_column_position ||
+        strncmp(tables.table->field[event_priv_column_position]->field_name,
+                STRING_WITH_LEN("Event_priv")))
+    {
+      sql_print_error("mysql.user has no `Event_priv` column at position %d",
+                      event_priv_column_position);
+      ret= 1;
+    }
+    close_thread_tables(thd);
+  }
+  /* Check mysql.event */
+  tables.init_one_table("mysql", "event", TL_READ);
+
+  if (simple_open_n_lock_tables(thd, &tables))
+  {
+    ret= 1;
+    sql_print_error("Cannot open mysql.event");
+  }
+  else
+  {
+    if (table_check_intact(tables.table, ET_FIELD_COUNT, event_table_fields))
+      ret= 1;
+    /* in case of an error, the message is printed inside table_check_intact */
+    close_thread_tables(thd);
+  }
+
+  DBUG_RETURN(test(ret));
 }

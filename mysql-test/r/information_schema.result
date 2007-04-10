@@ -706,7 +706,7 @@ Warnings:
 Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 show create table v3;
 View	Create View
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `test`.`sub1`(1) AS `c`
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `sub1`(1) AS `c`
 Warnings:
 Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v2;
@@ -1408,4 +1408,24 @@ select user,db from information_schema.processlist;
 user	db
 user3148	test
 drop user user3148@localhost;
+DROP TABLE IF EXISTS server_status;
+DROP EVENT IF EXISTS event_status;
+SET GLOBAL event_scheduler=1;
+CREATE EVENT event_status
+ON SCHEDULE AT NOW()
+ON COMPLETION NOT PRESERVE
+DO
+BEGIN
+CREATE TABLE server_status
+SELECT variable_name
+FROM information_schema.global_status
+WHERE variable_name LIKE 'ABORTED_CONNECTS' OR
+variable_name LIKE 'BINLOG_CACHE_DISK_USE';
+END$$
+SELECT variable_name FROM server_status;
+variable_name
+ABORTED_CONNECTS
+BINLOG_CACHE_DISK_USE
+DROP TABLE server_status;
+SET GLOBAL event_scheduler=0;
 End of 5.1 tests.
