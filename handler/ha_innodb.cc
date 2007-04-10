@@ -8775,14 +8775,29 @@ innobase_is_buddy_fill(
 {
 	TABLE*	table	= (TABLE *) tables->table;
 	int	status	= 0;
+	uint	y	= 0;
 
 	DBUG_ENTER("innobase_is_buddy_fill");
+
+	/* Determine log2(PAGE_ZIP_MIN_SIZE / 2 / BUF_BUDDY_LOW). */
+	for (uint r = PAGE_ZIP_MIN_SIZE / 2 / BUF_BUDDY_LOW; r >>= 1; y++);
+
 	mutex_enter_noninline(&buf_pool->mutex);
 
 	for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
 		table->field[0]->store(BUF_BUDDY_LOW << x);
 		table->field[1]->store(buf_buddy_relocated[x]);
-		table->field[2]->store(buf_buddy_used[x]);
+		if (x > y) {
+			const uint i = x - y;
+			table->field[2]->store(page_zip_compress_count[i]);
+			table->field[3]->store(page_zip_compress_ok[i]);
+			table->field[4]->store(page_zip_decompress_count[i]);
+		} else {
+			table->field[2]->store(0);
+			table->field[3]->store(0);
+			table->field[4]->store(0);
+		}
+		table->field[5]->store(buf_buddy_used[x]);
 
 		if (schema_table_store_record(thd, table)) {
 			status = 1;
@@ -8799,6 +8814,12 @@ static ST_FIELD_INFO innobase_is_buddy_fields[] =
 {
   {"SIZE", 5, MYSQL_TYPE_LONG, 0, 0, "Block Size"},
   {"RELOCATED", 21, MYSQL_TYPE_LONG, 0, 0, "Total Number of Relocations"},
+  {"COMPRESSED", 21, MYSQL_TYPE_LONG, 0, 0,
+   "Total Number of Compressions"},
+  {"COMPRESSED_OK", 21, MYSQL_TYPE_LONG, 0, 0,
+   "Total Number of Successful Compressions"},
+  {"DECOMPRESSED", 21, MYSQL_TYPE_LONG, 0, 0,
+   "Total Number of Decompressions"},
   {"USED", 21, MYSQL_TYPE_LONG, 0, 0, "Currently in Use"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
