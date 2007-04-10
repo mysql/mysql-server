@@ -119,7 +119,8 @@ struct SubStartRef {
     Undefined = 1,
     NF_FakeErrorREF = 11,
     Busy = 701,
-    NotMaster = 702
+    NotMaster = 702,
+    PartiallyConnected = 1421
   };
 
   STATIC_CONST( SignalLength = 7 );
