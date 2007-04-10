@@ -6180,7 +6180,7 @@ int main(int argc, char **argv)
         }
 
         /* Check for special property for this query */
-        display_result_vertically= (command->type == Q_QUERY_VERTICAL);
+        display_result_vertically|= (command->type == Q_QUERY_VERTICAL);
         display_result_sorted= (command->type == Q_QUERY_SORTED);
 
 	if (save_file[0])
