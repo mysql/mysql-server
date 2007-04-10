@@ -837,6 +837,7 @@ void die(const char *fmt, ...)
   */
   if (dying)
     cleanup_and_exit(1);
+  dying= 1;
 
   /* Print the error message */
   fprintf(stderr, "mysqltest: ");
