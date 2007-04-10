@@ -1,0 +1,7 @@
+--source include/have_ndb.inc
+let $engine= NDB;
+let $nbrows= 200;
+let $select= SELECT t1.i,t2.i FROM t1,t2 WHERE t1.i < t1.k % 2 = 0 AND t2.k=t1.k LOCK IN SHARE MODE;
+let $indext1= CREATE INDEX ixi ON t1 (i);
+let $indext2= CREATE INDEX ixi ON t2 (i);
+--source suite/row_lock/include/row_lock_big_tab_2.inc

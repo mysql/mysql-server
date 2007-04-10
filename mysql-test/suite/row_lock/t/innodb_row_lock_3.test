@@ -1,0 +1,9 @@
+--source include/have_innodb.inc
+SELECT @@global.innodb_table_locks into @table_locks;
+SET @@global.innodb_table_locks= OFF;
+let $engine= InnoDB;
+let $select= SELECT t1.i,t2.i FROM t1,t2 WHERE t1.i<125 AND t2.i=t1.i LOCK IN SHARE MODE;
+let $indext1= #CREATE INDEX ixi ON t1 (i);
+let $indext2= #CREATE INDEX ixi ON t2 (i);
+--source suite/row_lock/include/row_lock.inc
+SET @@global.innodb_table_locks= @table_locks;

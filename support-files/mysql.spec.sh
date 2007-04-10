@@ -14,7 +14,7 @@
 # Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
 # MA  02110-1301  USA.
 
-%define mysql_version		@VERSION@
+%define mysql_version   @VERSION@
 
 # use "rpmbuild --with static" or "rpm --define '_with_static 1'" (for RPM 3.x)
 # to enable static linking (off by default)
@@ -32,10 +32,10 @@
 %define release 0.glibc23
 %endif
 %define license GPL
-%define mysqld_user		mysql
-%define mysqld_group	mysql
-%define server_suffix -standard
-%define mysqldatadir /var/lib/mysql
+%define mysqld_user     mysql
+%define mysqld_group    mysql
+%define server_suffix   -community
+%define mysqldatadir    /var/lib/mysql
 
 # We don't package all files installed into the build root by intention -
 # See BUG#998 for details.
@@ -99,7 +99,7 @@ Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
 Requires: coreutils grep procps /usr/sbin/useradd /usr/sbin/groupadd /sbin/chkconfig
 Provides:	msqlormysql mysql-server mysql MySQL
-Obsoletes:	MySQL mysql mysql-server
+Obsoletes:	MySQL mysql mysql-server mysql-Max
 
 %description server
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -120,7 +120,7 @@ This package includes the MySQL server binary (incl. InnoDB) as well
 as related utilities to run and administrate a MySQL server.
 
 If you want to access and work with the database, you have to install
-package "MySQL-client" as well!
+the package "MySQL-client" as well!
 
 %package client
 Summary: MySQL - Client
@@ -141,8 +141,6 @@ Group:		Applications/Databases
 This package contains the ndbcluster storage engine. 
 It is necessary to have this package installed on all 
 computers that should store ndbcluster table data.
-Note that this storage engine can only be used in conjunction
-with the MySQL Max server.
 
 %{see_base}
 
@@ -210,29 +208,6 @@ Obsoletes: mysql-shared
 %description shared
 This package contains the shared libraries (*.so*) which certain
 languages and applications need to dynamically load and use MySQL.
-
-%package Max
-Summary: MySQL - server with extended functionality
-Group: Applications/Databases
-Provides: mysql-Max
-Obsoletes: mysql-Max
-Requires: MySQL-server >= @MYSQL_BASE_VERSION@
-
-%description Max 
-Optional MySQL server binary that supports additional features like:
-
- - Berkeley DB Storage Engine
- - Ndbcluster Storage Engine interface
- - Archive Storage Engine
- - CSV Storage Engine
- - Example Storage Engine
- - Federated Storage Engine
- - User Defined Functions (UDFs).
-
-To activate this binary, just install this package in addition to
-the standard MySQL package.
-
-Please note that this is a dynamically linked binary!
 
 #%package embedded
 #Requires: %{name}-devel
@@ -323,9 +298,6 @@ mkdir -p $RBR%{_libdir}/mysql
 PATH=${MYSQL_BUILD_PATH:-/bin:/usr/bin}
 export PATH
 
-# Build the Max binary (includes BDB and UDFs and therefore
-# cannot be linked statically against the patched glibc)
-
 # Use gcc for C and C++ code (to avoid a dependency on libstdc++ and
 # including exceptions into the code
 if [ -z "$CXX" -a -z "$CC" ]
@@ -334,76 +306,44 @@ then
 	export CXX="gcc"
 fi
 
-BuildMySQL "--enable-shared \
-		--with-extra-charsets=all \
-		--with-berkeley-db \
-		--with-innodb \
-		--with-ndbcluster \
-		--with-archive-storage-engine \
-		--with-csv-storage-engine \
-		--with-example-storage-engine \
-		--with-blackhole-storage-engine \
-		--with-federated-storage-engine \
-	        --with-big-tables \
-		--with-comment=\"MySQL Community Edition - Experimental (GPL)\" \
-		--with-server-suffix='-max'"
-
-# We might want to save the config log file
-if test -n "$MYSQL_MAXCONFLOG_DEST"
-then
-  cp -fp config.log "$MYSQL_MAXCONFLOG_DEST"
-fi
-
-make test-bt
-
-# Save mysqld-max
-./libtool --mode=execute cp sql/mysqld sql/mysqld-max
-./libtool --mode=execute nm --numeric-sort sql/mysqld-max > sql/mysqld-max.sym
-
-# Save the perror binary so it supports the NDB error codes (BUG#13740)
-./libtool --mode=execute cp extra/perror extra/perror.ndb
-
-# Install the ndb binaries
-(cd ndb; make install DESTDIR=$RBR)
-
-# Include libgcc.a in the devel subpackage (BUG 4921)
-if expr "$CC" : ".*gcc.*" > /dev/null ;
-then
-  libgcc=`$CC $CFLAGS --print-libgcc-file`
-  if [ -f $libgcc ]
-  then
-    %define have_libgcc 1
-    install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
-  fi
-fi
-
-# Save libraries
-(cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
-(cd libmysql_r/.libs; tar rf $RBR/shared-libs.tar *.so*)
-(cd ndb/src/.libs; tar rf $RBR/shared-libs.tar *.so*)
-
-# Now clean up
-make clean
-
 #
 # Only link statically on our i386 build host (which has a specially
 # patched static glibc installed) - ia64 and x86_64 run glibc-2.3 (unpatched)
 # so don't link statically there
 #
-BuildMySQL "--disable-shared \
+for servertype in '--with-debug=full' ' '
+do
+  BuildMySQL "\
 %if %{STATIC_BUILD}
+		--disable-shared \
 		--with-mysqld-ldflags='-all-static' \
 		--with-client-ldflags='-all-static' \
 		$USE_OTHER_LIBC_DIR \
 %else
+		--enable-shared \
 		--with-zlib-dir=bundled \
 %endif
 		--with-extra-charsets=complex \
-		--with-comment=\"MySQL Community Edition - Standard (GPL)\" \
+		--with-comment=\"MySQL Community Edition (GPL)\" \
 		--with-server-suffix='%{server_suffix}' \
 		--with-archive-storage-engine \
 		--with-innodb \
-		--with-big-tables"
+		--with-ndbcluster \
+		--with-csv-storage-engine \
+		--with-example-storage-engine \
+		--with-blackhole-storage-engine \
+		--with-federated-storage-engine \
+		--with-big-tables $servertype"
+  if test "$servertype" != ' '
+  then
+    # if this is not the regular build, we save the server binary
+    ./libtool --mode=execute cp sql/mysqld sql/mysqld-debug
+    ./libtool --mode=execute nm --numeric-sort sql/mysqld-debug > sql/mysqld-debug.sym
+    echo "# debug"
+    make test-bt
+    make clean
+  fi
+done
 
 ./libtool --mode=execute nm --numeric-sort sql/mysqld > sql/mysqld.sym
 
@@ -413,6 +353,7 @@ then
   cp -fp config.log "$MYSQL_CONFLOG_DEST"
 fi
 
+echo "# standard"
 make test-bt
 
 %install
@@ -428,22 +369,33 @@ install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
 install -d $RBR%{_sbindir}
 
-
 # Install all binaries stripped 
 make install-strip DESTDIR=$RBR benchdir_root=%{_datadir}
 
+# Install the ndb binaries
+(cd ndb; make install DESTDIR=$RBR)
+
+# Install the saved debug server
+install -s -m 755 $MBD/sql/mysqld-debug $RBR%{_sbindir}/mysqld-debug
+
 # Install shared libraries (Disable for architectures that don't support it)
-(cd $RBR%{_libdir}; tar xf $RBR/shared-libs.tar; rm -f $RBR/shared-libs.tar)
+# (cd $RBR%{_libdir}; tar xf $RBR/shared-libs.tar; rm -f $RBR/shared-libs.tar)
 
-# install saved mysqld-max
-install -s -m 755 $MBD/sql/mysqld-max $RBR%{_sbindir}/mysqld-max
-
-# install saved perror binary with NDB support (BUG#13740)
-install -s -m 755 $MBD/extra/perror.ndb $RBR%{_bindir}/perror
+# Include libgcc.a in the devel subpackage (BUG 4921)
+if expr "$CC" : ".*gcc.*" > /dev/null ;
+then
+  libgcc=`$CC $CFLAGS --print-libgcc-file`
+  if [ -f $libgcc ]
+  then
+    %define have_libgcc 1
+    install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
+  fi
+fi
 
 # install symbol files ( for stack trace resolution)
-install -m 644 $MBD/sql/mysqld-max.sym $RBR%{_libdir}/mysql/mysqld-max.sym
+# install -m 644 $MBD/sql/mysqld-max.sym $RBR%{_libdir}/mysql/mysqld-max.sym
 install -m 644 $MBD/sql/mysqld.sym $RBR%{_libdir}/mysql/mysqld.sym
+install -m 644 $MBD/sql/mysqld-debug.sym $RBR%{_libdir}/mysql/mysqld-debug.sym
 
 # Install logrotate and autostart
 install -m 644 $MBD/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
@@ -529,18 +481,11 @@ chmod -R og-rw $mysql_datadir/mysql
 # Allow safe_mysqld to start mysqld and print a message before we exit
 sleep 2
 
-
 %post ndb-storage
 mysql_clusterdir=/var/lib/mysql-cluster
 
 # Create cluster directory if needed
 if test ! -d $mysql_clusterdir; then mkdir -m 755 $mysql_clusterdir; fi
-
-
-%post Max
-# Restart mysqld, to use the new binary.
-echo "Restarting mysqld."
-%{_sysconfdir}/init.d/mysql restart > /dev/null 2>&1
 
 %preun server
 if test $1 = 0
@@ -611,7 +556,6 @@ fi
 %attr(755, root, root) %{_bindir}/myisamlog
 %attr(755, root, root) %{_bindir}/myisampack
 %attr(755, root, root) %{_bindir}/mysql_convert_table_format
-%attr(755, root, root) %{_bindir}/mysql_create_system_tables
 %attr(755, root, root) %{_bindir}/mysql_explain_log
 %attr(755, root, root) %{_bindir}/mysql_fix_extensions
 %attr(755, root, root) %{_bindir}/mysql_fix_privilege_tables
@@ -634,6 +578,7 @@ fi
 %attr(755, root, root) %{_bindir}/safe_mysqld
 
 %attr(755, root, root) %{_sbindir}/mysqld
+%attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/mysqlmanager
 %attr(755, root, root) %{_sbindir}/rcmysql
 %attr(644, root, root) %{_libdir}/mysql/mysqld.sym
@@ -762,11 +707,6 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysql-stress-test.pl.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql-test-run.pl.1*
 
-%files Max
-%defattr(-, root, root, 0755)
-%attr(755, root, root) %{_sbindir}/mysqld-max
-%attr(644, root, root) %{_libdir}/mysql/mysqld-max.sym
-
 #%files embedded
 #%defattr(-, root, root, 0755)
 # %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
@@ -774,7 +714,20 @@ fi
 # The spec file changelog only includes changes made to the spec file
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
-%changelog 
+%changelog
+* Sat Apr 07 2007 Kent Boortz <kent@mysql.com>
+
+- Removed man page for "mysql_create_system_tables"
+
+* Wed Mar 21 2007 Daniel Fischer <df@mysql.com>
+
+- Add debug server.
+
+* Mon Mar 19 2007 Daniel Fischer <df@mysql.com>
+
+- Remove Max RPMs; the server RPMs contain a mysqld compiled with all
+  features that previously only were built into Max.
+
 * Fri Mar 02 2007 Joerg Bruehe <joerg@mysql.com>
 
 - Add several man pages for NDB which are now created.

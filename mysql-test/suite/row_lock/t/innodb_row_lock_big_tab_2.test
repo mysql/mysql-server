@@ -1,0 +1,10 @@
+--source include/have_innodb.inc
+SELECT @@global.innodb_table_locks into @table_locks;
+SET @@global.innodb_table_locks= OFF;
+let $engine= InnoDB;
+let $nbrows= 40;
+let $select= SELECT t1.i,t2.i FROM t1,t2 WHERE t1.k % 2= 0 AND t1.k = t2.k LOCK IN SHARE MODE;
+let $indext1= CREATE INDEX ixi ON t1 (i);
+let $indext2= CREATE INDEX ixi ON t2 (i);
+--source suite/row_lock/include/row_lock_big_tab_2.inc
+SET @@global.innodb_table_locks= @table_locks;
