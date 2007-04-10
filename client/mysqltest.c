@@ -85,7 +85,7 @@ enum {
   OPT_SSL_CA, OPT_SSL_CAPATH, OPT_SSL_CIPHER, OPT_PS_PROTOCOL,
   OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
   OPT_SSL_VERIFY_SERVER_CERT, OPT_MAX_CONNECT_RETRIES,
-  OPT_MARK_PROGRESS, OPT_CHARSETS_DIR
+  OPT_MARK_PROGRESS, OPT_CHARSETS_DIR, OPT_LOG_DIR
 };
 
 static int record= 0, opt_sleep= -1;
@@ -855,6 +855,7 @@ void die(const char *fmt, ...)
   */
   if (dying)
     cleanup_and_exit(1);
+  dying= 1;
 
   /* Print the error message */
   fprintf(stderr, "mysqltest: ");
@@ -4264,7 +4265,7 @@ static struct my_option my_long_options[] =
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"include", 'i', "Include SQL before each test case.", (gptr*) &opt_include,
    (gptr*) &opt_include, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"logdir", 0, "Directory for log files", (gptr*) &opt_logdir,
+  {"logdir", OPT_LOG_DIR, "Directory for log files", (gptr*) &opt_logdir,
    (gptr*) &opt_logdir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"mark-progress", OPT_MARK_PROGRESS,
    "Write linenumber and elapsed time to <testname>.progress ",
@@ -6199,7 +6200,7 @@ int main(int argc, char **argv)
         }
 
         /* Check for special property for this query */
-        display_result_vertically= (command->type == Q_QUERY_VERTICAL);
+        display_result_vertically|= (command->type == Q_QUERY_VERTICAL);
         display_result_sorted= (command->type == Q_QUERY_SORTED);
 
 	if (save_file[0])
