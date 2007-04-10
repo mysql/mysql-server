@@ -944,14 +944,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     remote_opt= 1;
     break;
   case OPT_MYSQL_PROTOCOL:
-  {
-    if ((opt_protocol= find_type(argument, &sql_protocol_typelib,0)) <= 0)
-    {
-      fprintf(stderr, "Unknown option to protocol: %s\n", argument);
-      exit(1);
-    }
+    opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
+                                    opt->name);
     break;
-  }
   case OPT_START_DATETIME:
     start_datetime= convert_str_to_timestamp(start_datetime_str);
     break;
@@ -1104,7 +1099,7 @@ static int dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   uint logname_len;
   NET* net;
   int error= 0;
-  my_off_t old_off= start_position_mot;
+  my_off_t old_off= min(start_position_mot, BIN_LOG_HEADER_SIZE);
   char fname[FN_REFLEN+1];
   DBUG_ENTER("dump_remote_log_entries");
 
@@ -1167,7 +1162,7 @@ could be out of memory");
     }
     if (len < 8 && net->read_pos[0] == 254)
       break; // end of data
-    DBUG_PRINT("info",( "len: %lu, net->read_pos[5]: %d\n",
+    DBUG_PRINT("info",( "len: %lu  net->read_pos[5]: %d\n",
 			len, net->read_pos[5]));
     if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
                                         len - 1, &error_msg,
@@ -1256,10 +1251,17 @@ could be out of memory");
       }
     }
     /*
-      Let's adjust offset for remote log as for local log to produce 
-      similar text.
+      Let's adjust offset for remote log as for local log to produce
+      similar text and to have --stop-position to work identically.
+
+      Exception - the server sends Format_description_log_event
+      in the beginning of the dump, and only after it the event from
+      start_position. Let the old_off reflect it.
     */
-    old_off+= len-1;
+    if (old_off < start_position_mot)
+      old_off= start_position_mot;
+    else
+      old_off+= len-1;
   }
 
 err:

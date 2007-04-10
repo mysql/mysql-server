@@ -377,7 +377,7 @@ inline Query_cache_block * Query_cache_block_table::block()
 void Query_cache_block::init(ulong block_length)
 {
   DBUG_ENTER("Query_cache_block::init");
-  DBUG_PRINT("qcache", ("init block 0x%lx  length: %lu", (ulong) this,
+  DBUG_PRINT("qcache", ("init block: 0x%lx  length: %lu", (ulong) this,
 			block_length));
   length = block_length;
   used = 0;
@@ -3685,7 +3685,7 @@ void Query_cache::queries_dump()
       Query_cache_query_flags flags;
       memcpy(&flags, str+len, QUERY_CACHE_FLAGS_SIZE);
       str[len]= 0; // make zero ending DB name
-      DBUG_PRINT("qcache", ("F:%u C:%u L:%lu T:'%s' (%u) '%s' '%s'",
+      DBUG_PRINT("qcache", ("F: %u  C: %u L: %lu  T: '%s' (%u)  '%s'  '%s'",
 			    flags.client_long_flag,
 			    flags.character_set_client_num, 
                             (ulong)flags.limit,
@@ -4008,7 +4008,7 @@ my_bool Query_cache::check_integrity(bool locked)
       } while (block != bins[i].free_blocks);
       if (count != bins[i].number)
       {
-	DBUG_PRINT("error", ("bins[%d].number = %d, but bin have %d blocks",
+	DBUG_PRINT("error", ("bins[%d].number= %d, but bin have %d blocks",
 			     i, bins[i].number,  count));
 	result = 1;
       }
