@@ -278,7 +278,7 @@ enum enum_commands {
   Q_IF,
   Q_DISABLE_PARSING, Q_ENABLE_PARSING,
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
-  Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT,
+  Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT, Q_SKIP,
   Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
 
   Q_UNKNOWN,			       /* Unknown command.   */
@@ -360,6 +360,7 @@ const char *command_names[]=
   "die",
   /* Don't execute any more commands, compare result */
   "exit",
+  "skip",
   "chmod",
   "append_file",
   "cat_file",
@@ -815,27 +816,65 @@ void free_used_memory()
 }
 
 
+static void cleanup_and_exit(int exit_code)
+{
+  free_used_memory();
+  my_end(MY_CHECK_ERROR);
+
+  if (!silent)
+  {
+    switch (exit_code)
+    {
+    case 1:
+      printf("not ok\n");
+      break;
+    case 0:
+      printf("ok\n");
+      break;
+    case 62:
+      printf("skipped\n");
+    break;
+    default:
+      printf("unknown exit code: %d\n", exit_code);
+      DBUG_ASSERT(0);
+    }
+  }
+
+  exit(exit_code);
+}
+
 void die(const char *fmt, ...)
 {
+  static int dying= 0;
   va_list args;
   DBUG_ENTER("die");
   DBUG_PRINT("enter", ("start_lineno: %d", start_lineno));
 
+  /*
+    Protect against dying twice
+    first time 'die' is called, try to write log files
+    second time, just exit
+  */
+  if (dying)
+    cleanup_and_exit(1);
+
   /* Print the error message */
-  va_start(args, fmt);
+  fprintf(stderr, "mysqltest: ");
+  if (cur_file && cur_file != file_stack)
+    fprintf(stderr, "In included file \"%s\": ",
+            cur_file->file_name);
+  if (start_lineno > 0)
+    fprintf(stderr, "At line %u: ", start_lineno);
   if (fmt)
   {
-    fprintf(stderr, "mysqltest: ");
-    if (cur_file && cur_file != file_stack)
-      fprintf(stderr, "In included file \"%s\": ",
-              cur_file->file_name);
-    if (start_lineno > 0)
-      fprintf(stderr, "At line %u: ", start_lineno);
+    va_start(args, fmt);
     vfprintf(stderr, fmt, args);
-    fprintf(stderr, "\n");
-    fflush(stderr);
+    va_end(args);
   }
-  va_end(args);
+  else
+    fprintf(stderr, "unknown error");
+  fprintf(stderr, "\n");
+  fflush(stderr);
 
   /* Dump the result that has been accumulated so far to .log file */
   if (result_file_name && ds_res.length)
@@ -845,14 +884,7 @@ void die(const char *fmt, ...)
   if (result_file_name && ds_warning_messages.length)
     dump_warning_messages();
 
-  /* Clean up and exit */
-  free_used_memory();
-  my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
-
-  if (!silent)
-    printf("not ok\n");
-
-  exit(1);
+  cleanup_and_exit(1);
 }
 
 
@@ -885,14 +917,7 @@ void abort_not_supported_test(const char *fmt, ...)
   }
   va_end(args);
 
-  /* Clean up and exit */
-  free_used_memory();
-  my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
-
-  if (!silent)
-    printf("skipped\n");
-
-  exit(62);
+  cleanup_and_exit(62);
 }
 
 
@@ -1352,6 +1377,7 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
   MYSQL_RES *res;
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
+  DYNAMIC_STRING ds_query;
   DBUG_ENTER("var_query_set");
   LINT_INIT(res);
 
@@ -1361,13 +1387,17 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
     die("Syntax error in query, missing '`'");
   ++query;
 
-  if (mysql_real_query(mysql, query, (int)(end - query)) ||
+  /* Eval the query, thus replacing all environment variables */
+  init_dynamic_string(&ds_query, 0, (end - query) + 32, 256);
+  do_eval(&ds_query, query, end, FALSE);
+
+  if (mysql_real_query(mysql, ds_query.str, ds_query.length) ||
       !(res = mysql_store_result(mysql)))
   {
-    *end = 0;
-    die("Error running query '%s': %d %s", query,
+    die("Error running query '%s': %d %s", ds_query.str,
 	mysql_errno(mysql), mysql_error(mysql));
   }
+  dynstr_free(&ds_query);
 
   if ((row = mysql_fetch_row(res)) && row[0])
   {
@@ -6287,6 +6317,9 @@ int main(int argc, char **argv)
         /* Stop processing any more commands */
         abort_flag= 1;
         break;
+      case Q_SKIP:
+        abort_not_supported_test("%s", command->first_argument);
+        break;
 
       case Q_RESULT:
         die("result, deprecated command");
@@ -6398,14 +6431,9 @@ int main(int argc, char **argv)
     dump_warning_messages();
 
   timer_output();
-  free_used_memory();
-  my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
-
   /* Yes, if we got this far the test has suceeded! Sakila smiles */
-  if (!silent)
-    printf("ok\n");
-  exit(0);
-  return 0;				/* Keep compiler happy */
+  cleanup_and_exit(0);
+  return 0; /* Keep compiler happy too */
 }
 
 
