@@ -619,4 +619,39 @@ SELECT p.a AS val, q.a AS val FROM t1 p, t1 q ORDER BY val > 1;
 
 DROP TABLE t1;
 
+#
+# Bug #27532: ORDER/GROUP BY expressions with IN/BETWEEN and NOT IN/BETWEEN
+#                          
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (3), (2), (4), (1);
+
+SELECT a, IF(a IN (2,3), a, a+10) FROM t1
+  ORDER BY IF(a IN (2,3), a, a+10);
+SELECT a, IF(a NOT IN (2,3), a, a+10) FROM t1 
+  ORDER BY IF(a NOT IN (2,3), a, a+10);
+SELECT a, IF(a IN (2,3), a, a+10) FROM t1 
+  ORDER BY IF(a NOT IN (2,3), a, a+10);
+
+SELECT a, IF(a BETWEEN 2 AND 3, a, a+10) FROM t1
+  ORDER BY IF(a BETWEEN 2 AND 3, a, a+10);
+SELECT a, IF(a NOT BETWEEN 2 AND 3, a, a+10) FROM t1 
+  ORDER BY IF(a NOT BETWEEN 2 AND 3, a, a+10);
+SELECT a, IF(a BETWEEN 2 AND 3, a, a+10) FROM t1 
+  ORDER BY IF(a NOT BETWEEN 2 AND 3, a, a+10);
+
+SELECT IF(a IN (1,2), a, '') as x1, IF(a NOT IN (1,2), a, '') as x2
+  FROM t1 GROUP BY x1, x2;
+SELECT IF(a IN (1,2), a, '') as x1, IF(a NOT IN (1,2), a, '') as x2
+  FROM t1 GROUP BY x1, IF(a NOT IN (1,2), a, '');
+
+# The remaining queries are for better coverage
+SELECT a, a IN (1,2) FROM t1 ORDER BY a IN (1,2);
+SELECT a FROM t1 ORDER BY a IN (1,2);
+SELECT a+10 FROM t1 ORDER BY a IN (1,2);
+SELECT a, IF(a IN (1,2), a, a+10) FROM t1
+  ORDER BY IF(a IN (3,4), a, a+10);   
+
+DROP TABLE t1;
+
 # End of 4.1 tests
