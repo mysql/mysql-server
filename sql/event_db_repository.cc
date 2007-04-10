@@ -940,7 +940,7 @@ update_timing_fields_for_event(THD *thd,
 
   if (update_last_executed)
   {
-    TIME time;
+    MYSQL_TIME time;
     my_tz_UTC->gmt_sec_to_TIME(&time, last_executed);
 
     fields[ET_FIELD_LAST_EXECUTED]->set_notnull();
