@@ -574,7 +574,7 @@ bool Log_to_csv_event_handler::
       lock_time may be truncated without warning here, if greater than
       839 hours (~35 days)
     */
-    TIME t;
+    MYSQL_TIME t;
     t.neg= 0;
 
     /* fill in query_time field */

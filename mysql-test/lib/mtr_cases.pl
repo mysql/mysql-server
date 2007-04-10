@@ -534,7 +534,7 @@ sub collect_one_test_case($$$$$$$) {
 	 ! ( $tinfo->{'binlog_format'} eq $::used_binlog_format ) )
     {
       $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "Not running with binlog format '$tinfo->{'binlog_format'}'";
+      $tinfo->{'comment'}= "Requiring binlog format '$tinfo->{'binlog_format'}'";
       return;
     }
 
@@ -599,7 +599,7 @@ our @tags=
 (
  ["include/have_innodb.inc", "innodb_test", 1],
  ["include/have_binlog_format_row.inc", "binlog_format", "row"],
- ["include/have_binlog_format_statement.inc", "binlog_format", "stmt"],
+ ["include/have_binlog_format_statement.inc", "binlog_format", "statement"],
  ["include/have_binlog_format_mixed.inc", "binlog_format", "mixed"],
  ["include/big_test.inc", "big_test", 1],
  ["include/have_debug.inc", "need_debug", 1],
