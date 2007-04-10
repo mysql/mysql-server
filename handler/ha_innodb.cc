@@ -8766,7 +8766,7 @@ bool ha_innobase::check_if_incompatible_data(
 Fill the dynamic table information_schema.innodb_buddy. */
 static
 int
-innobase_is_buddy_fill(
+innobase_stat_zip_fill(
 /*===================*/
 				/* out: 0 on success, 1 on failure */
 	THD*		thd,	/* in: thread */
@@ -8777,7 +8777,7 @@ innobase_is_buddy_fill(
 	int	status	= 0;
 	uint	y	= 0;
 
-	DBUG_ENTER("innobase_is_buddy_fill");
+	DBUG_ENTER("innobase_stat_zip_fill");
 
 	/* Determine log2(PAGE_ZIP_MIN_SIZE / 2 / BUF_BUDDY_LOW). */
 	for (uint r = PAGE_ZIP_MIN_SIZE / 2 / BUF_BUDDY_LOW; r >>= 1; y++);
@@ -8810,7 +8810,7 @@ innobase_is_buddy_fill(
 }
 
 /* Fields of the dynamic table information_schema.innodb_buddy. */
-static ST_FIELD_INFO innobase_is_buddy_fields[] =
+static ST_FIELD_INFO innobase_stat_zip_fields[] =
 {
   {"SIZE", 5, MYSQL_TYPE_LONG, 0, 0, "Block Size"},
   {"RELOCATED", 21, MYSQL_TYPE_LONG, 0, 0, "Total Number of Relocations"},
@@ -8828,16 +8828,16 @@ static ST_FIELD_INFO innobase_is_buddy_fields[] =
 Bind the dynamic table information_schema.innodb_buddy. */
 static
 int
-innobase_is_buddy_init(
+innobase_stat_zip_init(
 /*===================*/
 			/* out: 0 on success */
 	void*	p)	/* in/out: table schema object */
 {
-	DBUG_ENTER("innobase_is_buddy_init");
+	DBUG_ENTER("innobase_stat_zip_init");
 	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
 
-	schema->fields_info = innobase_is_buddy_fields;
-	schema->fill_table = innobase_is_buddy_fill;
+	schema->fields_info = innobase_stat_zip_fields;
+	schema->fill_table = innobase_stat_zip_fill;
 
 	DBUG_RETURN(0);
 }
@@ -8846,12 +8846,12 @@ innobase_is_buddy_init(
 Unbind the dynamic table information_schema.innodb_buddy. */
 static
 int
-innobase_is_buddy_deinit(
+innobase_stat_zip_deinit(
 /*=====================*/
 			/* out: 0 on success */
 	void*	p)	/* in/out: table schema object */
 {
-	DBUG_ENTER("innobase_is_buddy_deinit");
+	DBUG_ENTER("innobase_stat_zip_deinit");
 	DBUG_RETURN(0);
 }
 
@@ -8871,7 +8871,7 @@ static SHOW_VAR innodb_status_variables_export[]= {
 static struct st_mysql_storage_engine innobase_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
-static struct st_mysql_information_schema innobase_is_buddy=
+static struct st_mysql_information_schema innobase_stat_zip=
 { MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
 
 mysql_declare_plugin(innobase)
@@ -8891,13 +8891,13 @@ mysql_declare_plugin(innobase)
 },
 {
   MYSQL_INFORMATION_SCHEMA_PLUGIN,
-  &innobase_is_buddy,
-  "INNODB_BUDDY",
+  &innobase_stat_zip,
+  "INNODB_ZIP",
   "Innobase Oy",
-  "Statistics for the InnoDB buddy allocator",
+  "Statistics for the InnoDB compressed buffer pool",
   PLUGIN_LICENSE_GPL,
-  innobase_is_buddy_init,
-  innobase_is_buddy_deinit,
+  innobase_stat_zip_init,
+  innobase_stat_zip_deinit,
   0x0100 /* 1.0 */,
   NULL, NULL, NULL
 }
