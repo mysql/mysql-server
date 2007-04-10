@@ -1805,7 +1805,8 @@ void Item_func_soundex::fix_length_and_dec()
 {
   collation.set(args[0]->collation);
   max_length=args[0]->max_length;
-  set_if_bigger(max_length,4);
+  set_if_bigger(max_length, 4 * collation.collation->mbminlen);
+  tmp_value.set_charset(collation.collation);
 }
 
 
@@ -1815,14 +1816,15 @@ void Item_func_soundex::fix_length_and_dec()
   else return 0
 */
 
-static char soundex_toupper(char ch)
+static int soundex_toupper(int ch)
 {
   return (ch >= 'a' && ch <= 'z') ? ch - 'a' + 'A' : ch;
 }
 
-static char get_scode(char *ptr)
+
+static char get_scode(int wc)
 {
-  uchar ch= soundex_toupper(*ptr);
+  int ch= soundex_toupper(wc);
   if (ch < 'A' || ch > 'Z')
   {
 					// Thread extended alfa (country spec)
@@ -1832,46 +1834,121 @@ static char get_scode(char *ptr)
 }
 
 
+static bool my_uni_isalpha(int wc)
+{
+  /*
+    Return true for all Basic Latin letters: a..z A..Z.
+    Return true for all Unicode characters with code higher than U+00C0:
+    - characters between 'z' and U+00C0 are controls and punctuations.
+    - "U+00C0 LATIN CAPITAL LETTER A WITH GRAVE" is the first letter after 'z'.
+  */
+  return (wc >= 'a' && wc <= 'z') ||
+         (wc >= 'A' && wc <= 'Z') ||
+         (wc >= 0xC0);
+}
+
+
 String *Item_func_soundex::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res  =args[0]->val_str(str);
   char last_ch,ch;
   CHARSET_INFO *cs= collation.collation;
+  my_wc_t wc;
+  uint nchars;
+  int rc;
 
-  if ((null_value=args[0]->null_value))
+  if ((null_value= args[0]->null_value))
     return 0; /* purecov: inspected */
 
-  if (tmp_value.alloc(max(res->length(),4)))
+  if (tmp_value.alloc(max(res->length(), 4 * cs->mbminlen)))
     return str; /* purecov: inspected */
   char *to= (char *) tmp_value.ptr();
-  char *from= (char *) res->ptr(), *end=from+res->length();
-  tmp_value.set_charset(cs);
+  char *to_end= to + tmp_value.alloced_length();
+  char *from= (char *) res->ptr(), *end= from + res->length();
   
-  while (from != end && !my_isalpha(cs,*from)) // Skip pre-space
-    from++; /* purecov: inspected */
-  if (from == end)
-    return &my_empty_string;		// No alpha characters.
-  *to++ = soundex_toupper(*from);	// Copy first letter
-  last_ch = get_scode(from);		// code of the first letter
-					// for the first 'double-letter check.
-					// Loop on input letters until
-					// end of input (null) or output
-					// letter code count = 3
-  for (from++ ; from < end ; from++)
+  for ( ; ; ) /* Skip pre-space */
   {
-    if (!my_isalpha(cs,*from))
-      continue;
-    ch=get_scode(from);
+    if ((rc= cs->cset->mb_wc(cs, &wc, (uchar*) from, (uchar*) end)) <= 0)
+      return &my_empty_string; /* EOL or invalid byte sequence */
+    
+    if (rc == 1 && cs->ctype)
+    {
+      /* Single byte letter found */
+      if (my_isalpha(cs, *from))
+      {
+        last_ch= get_scode(*from);       // Code of the first letter
+        *to++= soundex_toupper(*from++); // Copy first letter
+        break;
+      }
+      from++;
+    }
+    else
+    {
+      from+= rc;
+      if (my_uni_isalpha(wc))
+      {
+        /* Multibyte letter found */
+        wc= soundex_toupper(wc);
+        last_ch= get_scode(wc);     // Code of the first letter
+        if ((rc= cs->cset->wc_mb(cs, wc, (uchar*) to, (uchar*) to_end)) <= 0)
+        {
+          /* Extra safety - should not really happen */
+          DBUG_ASSERT(false);
+          return &my_empty_string;
+        }
+        to+= rc;
+        break;
+      }
+    }
+  }
+  
+  /*
+     last_ch is now set to the first 'double-letter' check.
+     loop on input letters until end of input
+  */
+  for (nchars= 1 ; ; )
+  {
+    if ((rc= cs->cset->mb_wc(cs, &wc, (uchar*) from, (uchar*) end)) <= 0)
+      break; /* EOL or invalid byte sequence */
+
+    if (rc == 1 && cs->ctype)
+    {
+      if (!my_isalpha(cs, *from++))
+        continue;
+    }
+    else
+    {
+      from+= rc;
+      if (!my_uni_isalpha(wc))
+        continue;
+    }
+    
+    ch= get_scode(wc);
     if ((ch != '0') && (ch != last_ch)) // if not skipped or double
     {
-       *to++ = ch;			// letter, copy to output
-       last_ch = ch;			// save code of last input letter
-    }					// for next double-letter check
+      // letter, copy to output
+      if ((rc= cs->cset->wc_mb(cs, (my_wc_t) ch,
+                               (uchar*) to, (uchar*) to_end)) <= 0)
+      {
+        // Extra safety - should not really happen
+        DBUG_ASSERT(false);
+        break;
+      }
+      to+= rc;
+      nchars++;
+      last_ch= ch;  // save code of last input letter
+    }               // for next double-letter check
   }
-  for (end=(char*) tmp_value.ptr()+4 ; to < end ; to++)
-    *to = '0';
-  *to=0;				// end string
+  
+  /* Pad up to 4 characters with DIGIT ZERO, if the string is shorter */
+  if (nchars < 4) 
+  {
+    uint nbytes= (4 - nchars) * cs->mbminlen;
+    cs->cset->fill(cs, to, nbytes, '0');
+    to+= nbytes;
+  }
+
   tmp_value.length((uint) (to-tmp_value.ptr()));
   return &tmp_value;
 }

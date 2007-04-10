@@ -412,7 +412,12 @@ JOIN::prepare(Item ***rref_pointer_array,
                                     &select_lex->leaf_tables, FALSE, 
                                     SELECT_ACL, SELECT_ACL))
       DBUG_RETURN(-1);
-  tables= thd->leaf_count;
+ 
+  TABLE_LIST *table_ptr;
+  for (table_ptr= select_lex->leaf_tables;
+       table_ptr;
+       table_ptr= table_ptr->next_leaf)
+    tables++;
 
   if (setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
@@ -6942,6 +6947,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
 
   SYNOPSIS
     check_row_equality()
+      thd        thread handle
       left_row   left term of the row equality to be processed     
       right_row  right term of the row equality to be processed
       cond_equal multiple equalities that must hold together with the predicate
@@ -6962,7 +6968,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
     FALSE   otherwise  
 */
  
-static bool check_row_equality(Item *left_row, Item_row *right_row,
+static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
                                COND_EQUAL *cond_equal, List<Item>* eq_list)
 { 
   uint n= left_row->cols();
@@ -6973,13 +6979,21 @@ static bool check_row_equality(Item *left_row, Item_row *right_row,
     Item *right_item= right_row->element_index(i);
     if (left_item->type() == Item::ROW_ITEM &&
         right_item->type() == Item::ROW_ITEM)
-      is_converted= check_row_equality((Item_row *) left_item,
-	                               (Item_row *) right_item,
-				       cond_equal, eq_list);
-    else 
+    {
+      is_converted= check_row_equality(thd, 
+                                       (Item_row *) left_item,
+                                       (Item_row *) right_item,
+			               cond_equal, eq_list);
+      if (!is_converted)
+        thd->lex->current_select->cond_count++;      
+    }
+    else
+    { 
       is_converted= check_simple_equality(left_item, right_item, 0, cond_equal);
-
-    if (!is_converted)  
+      thd->lex->current_select->cond_count++;
+    }  
+ 
+    if (!is_converted)
     {
       Item_func_eq *eq_item;
       if (!(eq_item= new Item_func_eq(left_item, right_item)))
@@ -6998,6 +7012,7 @@ static bool check_row_equality(Item *left_row, Item_row *right_row,
 
   SYNOPSIS
     check_equality()
+      thd        thread handle
       item       predicate to process     
       cond_equal multiple equalities that must hold together with the predicate
       eq_list    results of conversions of row equalities that are not simple
@@ -7022,7 +7037,7 @@ static bool check_row_equality(Item *left_row, Item_row *right_row,
            or, if the procedure fails by a fatal error.
 */
 
-static bool check_equality(Item *item, COND_EQUAL *cond_equal,
+static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
                            List<Item> *eq_list)
 {
   if (item->type() == Item::FUNC_ITEM &&
@@ -7033,9 +7048,13 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal,
 
     if (left_item->type() == Item::ROW_ITEM &&
         right_item->type() == Item::ROW_ITEM)
-      return check_row_equality((Item_row *) left_item,
+    {
+      thd->lex->current_select->cond_count--;
+      return check_row_equality(thd,
+                                (Item_row *) left_item,
                                 (Item_row *) right_item,
                                 cond_equal, eq_list);
+    }
     else 
       return check_simple_equality(left_item, right_item, item, cond_equal);
   } 
@@ -7048,6 +7067,7 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal,
 
   SYNOPSIS
     build_equal_items_for_cond()
+      thd        thread handle
       cond       condition(expression) where to make replacement
       inherited  path to all inherited multiple equality items
 
@@ -7110,7 +7130,7 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal,
     pointer to the transformed condition
 */
 
-static COND *build_equal_items_for_cond(COND *cond,
+static COND *build_equal_items_for_cond(THD *thd, COND *cond,
                                         COND_EQUAL *inherited)
 {
   Item_equal *item_equal;
@@ -7143,7 +7163,7 @@ static COND *build_equal_items_for_cond(COND *cond,
           structure here because it's restored before each
           re-execution of any prepared statement/stored procedure.
         */
-        if (check_equality(item, &cond_equal, &eq_list))
+        if (check_equality(thd, item, &cond_equal, &eq_list))
           li.remove();
       }
 
@@ -7178,7 +7198,7 @@ static COND *build_equal_items_for_cond(COND *cond,
     while ((item= li++))
     { 
       Item *new_item;
-      if ((new_item = build_equal_items_for_cond(item, inherited))!= item)
+      if ((new_item= build_equal_items_for_cond(thd, item, inherited)) != item)
       {
         /* This replacement happens only for standalone equalities */
         /*
@@ -7208,7 +7228,7 @@ static COND *build_equal_items_for_cond(COND *cond,
       for WHERE a=b AND c=d AND (b=c OR d=5)
       b=c is replaced by =(a,b,c,d).  
      */
-    if (check_equality(cond, &cond_equal, &eq_list))
+    if (check_equality(thd, cond, &cond_equal, &eq_list))
     {
       int n= cond_equal.current_level.elements + eq_list.elements;
       if (n == 0)
@@ -7271,7 +7291,7 @@ static COND *build_equal_items_for_cond(COND *cond,
 
   SYNOPSIS
     build_equal_items()
-    thd			Thread handler
+    thd			thread handle
     cond                condition to build the multiple equalities for
     inherited           path to all inherited multiple equality items
     join_list           list of join tables to which the condition refers to
@@ -7332,7 +7352,7 @@ static COND *build_equal_items(THD *thd, COND *cond,
 
   if (cond) 
   {
-    cond= build_equal_items_for_cond(cond, inherited);
+    cond= build_equal_items_for_cond(thd, cond, inherited);
     cond->update_used_tables();
     if (cond->type() == Item::COND_ITEM &&
         ((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
@@ -8788,20 +8808,19 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   
     enum enum_field_types type;
     /*
-      DATE/TIME fields have STRING_RESULT result type. To preserve
-      type they needed to be handled separately.
+      DATE/TIME and GEOMETRY fields have STRING_RESULT result type. 
+      To preserve type they needed to be handled separately.
     */
     if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
         type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE ||
-        type == MYSQL_TYPE_TIMESTAMP)
+        type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_GEOMETRY)
       new_field= item->tmp_table_field_from_field_type(table);
     /* 
       Make sure that the blob fits into a Field_varstring which has 
       2-byte lenght. 
     */
     else if (item->max_length/item->collation.collation->mbmaxlen > 255 &&
-             item->max_length/item->collation.collation->mbmaxlen < UINT_MAX16
-             && convert_blob_length)
+             convert_blob_length < UINT_MAX16 && convert_blob_length)
       new_field= new Field_varstring(convert_blob_length, maybe_null,
                                      item->name, table,
                                      item->collation.collation);
@@ -9169,7 +9188,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->s->table_name= table->s->path= tmpname;
   table->s->db= "";
   table->s->blob_ptr_size= mi_portable_sizeof_char_ptr;
-  table->s->tmp_table= TMP_TABLE;
+  table->s->tmp_table= NON_TRANSACTIONAL_TMP_TABLE;
   table->s->db_low_byte_first=1;                // True for HEAP and MyISAM
   table->s->table_charset= param->table_charset;
   table->s->keys_for_keyread.init();
@@ -9193,13 +9212,19 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     {
       if (item->with_sum_func && type != Item::SUM_FUNC_ITEM)
       {
-	/*
-	  Mark that the we have ignored an item that refers to a summary
-	  function. We need to know this if someone is going to use
-	  DISTINCT on the result.
-	*/
-	param->using_indirect_summary_function=1;
-	continue;
+        if (item->used_tables() & OUTER_REF_TABLE_BIT)
+          item->update_used_tables();
+        if (type == Item::SUBSELECT_ITEM ||
+            (item->used_tables() & ~OUTER_REF_TABLE_BIT))
+        {
+	  /*
+	    Mark that the we have ignored an item that refers to a summary
+	    function. We need to know this if someone is going to use
+	    DISTINCT on the result.
+	  */
+	  param->using_indirect_summary_function=1;
+	  continue;
+        }
       }
       if (item->const_item() && (int) hidden_field_count <= 0)
         continue; // We don't have to store this
@@ -9384,6 +9409,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     table->s->default_values= table->record[1]+alloc_length;
   }
   copy_func[0]=0;				// End marker
+  param->func_count= copy_func - param->items_to_copy; 
 
   recinfo=param->start_recinfo;
   null_flags=(uchar*) table->record[0];
@@ -13564,6 +13590,7 @@ count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
 	if (!sum_item->quick_group)
 	  param->quick_group=0;			// UDF SUM function
 	param->sum_func_count++;
+        param->func_count++;
 
 	for (uint i=0 ; i < sum_item->arg_count ; i++)
 	{

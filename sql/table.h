@@ -55,7 +55,8 @@ typedef struct st_grant_info
   ulong orig_want_privilege;
 } GRANT_INFO;
 
-enum tmp_table_type {NO_TMP_TABLE=0, TMP_TABLE=1, TRANSACTIONAL_TMP_TABLE=2,
+enum tmp_table_type {NO_TMP_TABLE=0,
+                     NON_TRANSACTIONAL_TMP_TABLE=1, TRANSACTIONAL_TMP_TABLE=2,
                      SYSTEM_TMP_TABLE=3};
 
 enum frm_type_enum
@@ -273,6 +274,11 @@ struct st_table {
   my_bool no_cache;
   /* To signal that we should reset query_id for tables and cols */
   my_bool clear_query_id;
+  /*
+    To indicate that a non-null value of the auto_increment field
+    was provided by the user or retrieved from the current record.
+    Used only in the MODE_NO_AUTO_VALUE_ON_ZERO mode.
+  */
   my_bool auto_increment_field_not_null;
   my_bool insert_or_update;             /* Can be used by the handler */
   my_bool alias_name_used;		/* true if table_name is alias */

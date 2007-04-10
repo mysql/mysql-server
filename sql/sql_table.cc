@@ -4058,7 +4058,9 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     {
       copy_ptr->do_copy(copy_ptr);
     }
-    if ((error=to->file->write_row((byte*) to->record[0])))
+    error=to->file->write_row((byte*) to->record[0]);
+    to->auto_increment_field_not_null= FALSE;
+    if (error)
     {
       if (!ignore ||
 	  (error != HA_ERR_FOUND_DUPP_KEY &&

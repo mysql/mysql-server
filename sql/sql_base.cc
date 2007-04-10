@@ -1640,6 +1640,9 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->used_keys= table->s->keys_for_keyread;
   table->fulltext_searched= 0;
   table->file->ft_handler= 0;
+  /* Catch wrong handling of the auto_increment_field_not_null. */
+  DBUG_ASSERT(!table->auto_increment_field_not_null);
+  table->auto_increment_field_not_null= FALSE;
   if (table->timestamp_field)
     table->timestamp_field_type= table->timestamp_field->get_auto_set_type();
   table->pos_in_table_list= table_list;
@@ -2950,7 +2953,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   share= tmp_table->s;
   tmp_table->reginfo.lock_type=TL_WRITE;	 // Simulate locked
   share->tmp_table= (tmp_table->file->has_transactions() ? 
-                     TRANSACTIONAL_TMP_TABLE : TMP_TABLE);
+                     TRANSACTIONAL_TMP_TABLE : NON_TRANSACTIONAL_TMP_TABLE);
   share->table_cache_key= (char*) (tmp_table+1);
   share->db= share->table_cache_key;
   share->key_length= (uint) (strmov(((char*) (share->table_name=
@@ -4886,7 +4889,6 @@ bool setup_tables_and_check_access(THD *thd,
   TABLE_LIST *leaves_tmp = NULL;
   bool first_table= true;
 
-  thd->leaf_count= 0;
   if (setup_tables (thd, context, from_clause, tables, conds, 
                     &leaves_tmp, select_insert))
     return TRUE;
@@ -4904,7 +4906,6 @@ bool setup_tables_and_check_access(THD *thd,
       return TRUE;
     }
     first_table= false;
-    thd->leaf_count++;
   }
   return FALSE;
 }
@@ -5295,6 +5296,11 @@ err_no_arena:
     values        values to fill with
     ignore_errors TRUE if we should ignore errors
 
+  NOTE
+    fill_record() may set table->auto_increment_field_not_null and a
+    caller should make sure that it is reset after their last call to this
+    function.
+
   RETURN
     FALSE   OK
     TRUE    error occured
@@ -5307,27 +5313,52 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   List_iterator_fast<Item> f(fields),v(values);
   Item *value, *fld;
   Item_field *field;
+  TABLE *table= 0;
   DBUG_ENTER("fill_record");
 
+  /*
+    Reset the table->auto_increment_field_not_null as it is valid for
+    only one row.
+  */
+  if (fields.elements)
+  {
+    /*
+      On INSERT or UPDATE fields are checked to be from the same table,
+      thus we safely can take table from the first field.
+    */
+    fld= (Item_field*)f++;
+    if (!(field= fld->filed_for_view_update()))
+    {
+      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), fld->name);
+      goto err;
+    }
+    table= field->field->table;
+    table->auto_increment_field_not_null= FALSE;
+    f.rewind();
+  }
   while ((fld= f++))
   {
     if (!(field= fld->filed_for_view_update()))
     {
       my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), fld->name);
-      DBUG_RETURN(TRUE);
+      goto err;
     }
     value=v++;
     Field *rfield= field->field;
-    TABLE *table= rfield->table;
+    table= rfield->table;
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
     if ((value->save_in_field(rfield, 0) < 0) && !ignore_errors)
     {
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
-      DBUG_RETURN(TRUE);
+      goto err;
     }
   }
   DBUG_RETURN(thd->net.report_error);
+err:
+  if (table)
+    table->auto_increment_field_not_null= FALSE;
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -5376,6 +5407,11 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
     values        list of fields
     ignore_errors TRUE if we should ignore errors
 
+  NOTE
+    fill_record() may set table->auto_increment_field_not_null and a
+    caller should make sure that it is reset after their last call to this
+    function.
+
   RETURN
     FALSE   OK
     TRUE    error occured
@@ -5386,19 +5422,38 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
 {
   List_iterator_fast<Item> v(values);
   Item *value;
+  TABLE *table= 0;
   DBUG_ENTER("fill_record");
 
   Field *field;
+  /*
+    Reset the table->auto_increment_field_not_null as it is valid for
+    only one row.
+  */
+  if (*ptr)
+  {
+    /*
+      On INSERT or UPDATE fields are checked to be from the same table,
+      thus we safely can take table from the first field.
+    */
+    table= (*ptr)->table;
+    table->auto_increment_field_not_null= FALSE;
+  }
   while ((field = *ptr++))
   {
     value=v++;
-    TABLE *table= field->table;
+    table= field->table;
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
     if (value->save_in_field(field, 0) == -1)
-      DBUG_RETURN(TRUE);
+      goto err;
   }
   DBUG_RETURN(thd->net.report_error);
+
+err:
+  if (table)
+    table->auto_increment_field_not_null= FALSE;
+  DBUG_RETURN(TRUE);
 }
 
 
