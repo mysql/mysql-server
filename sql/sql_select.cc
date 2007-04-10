@@ -13539,9 +13539,7 @@ create_distinct_group(THD *thd, Item **ref_pointer_array,
       ORDER *ord_iter;
       for (ord_iter= group; ord_iter; ord_iter= ord_iter->next)
         if ((*ord_iter->item)->eq(item, 1))
-          break;
-      if (ord_iter)
-        continue;
+          goto next_item;
       
       ORDER *ord=(ORDER*) thd->calloc(sizeof(ORDER));
       if (!ord)
@@ -13556,6 +13554,7 @@ create_distinct_group(THD *thd, Item **ref_pointer_array,
       *prev=ord;
       prev= &ord->next;
     }
+next_item:
     ref_pointer_array++;
   }
   *prev=0;
