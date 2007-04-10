@@ -26,7 +26,6 @@
 #include "sp.h"
 #include "sp_cache.h"
 #include "events.h"
-#include "event_data_objects.h"
 #include "sql_trigger.h"
 
 /* Used in error handling only */
@@ -3181,13 +3180,16 @@ end_with_restore_list:
 
     switch (lex->sql_command) {
     case SQLCOM_CREATE_EVENT:
-      res= Events::get_instance()->
-            create_event(thd, lex->event_parse_data,
-                         lex->create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS);
+    {
+      bool if_not_exists= (lex->create_info.options &
+                           HA_LEX_CREATE_IF_NOT_EXISTS);
+      res= Events::create_event(thd, lex->event_parse_data, if_not_exists);
       break;
+    }
     case SQLCOM_ALTER_EVENT:
-      res= Events::get_instance()->update_event(thd, lex->event_parse_data,
-                                                lex->spname);
+      res= Events::update_event(thd, lex->event_parse_data,
+                                lex->spname ? &lex->spname->m_db : NULL,
+                                lex->spname ? &lex->spname->m_name : NULL);
       break;
     default:
       DBUG_ASSERT(0);
@@ -3205,39 +3207,16 @@ end_with_restore_list:
   }
   /* lex->unit.cleanup() is called outside, no need to call it here */
   break;
-  case SQLCOM_DROP_EVENT:
   case SQLCOM_SHOW_CREATE_EVENT:
-  {
-    DBUG_ASSERT(lex->spname);
-    if (! lex->spname->m_db.str)
-    {
-      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
-      goto error;
-    }
-    if (check_access(thd, EVENT_ACL, lex->spname->m_db.str, 0, 0, 0,
-                     is_schema_db(lex->spname->m_db.str)))
-      break;
-
-    if (lex->spname->m_name.length > NAME_LEN)
-    {
-      my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
-      /* this jumps to the end of the function and skips own messaging */
-      goto error;
-    }
-
-    if (lex->sql_command == SQLCOM_SHOW_CREATE_EVENT)
-      res= Events::get_instance()->show_create_event(thd, lex->spname->m_db,
-                                                     lex->spname->m_name);
-    else
-    {
-      if (!(res= Events::get_instance()->drop_event(thd,
-                                                    lex->spname->m_db,
-                                                    lex->spname->m_name,
-                                                    lex->drop_if_exists)))
-        send_ok(thd);
-    }
+    res= Events::show_create_event(thd, lex->spname->m_db,
+                                   lex->spname->m_name);
     break;
-  }
+  case SQLCOM_DROP_EVENT:
+    if (!(res= Events::drop_event(thd,
+                                  lex->spname->m_db, lex->spname->m_name,
+                                  lex->drop_if_exists)))
+      send_ok(thd);
+    break;
   case SQLCOM_CREATE_FUNCTION:                  // UDF function
   {
     if (check_access(thd,INSERT_ACL,"mysql",0,1,0,0))
@@ -3996,11 +3975,6 @@ create_sp_error:
     }
   case SQLCOM_SHOW_CREATE_PROC:
     {
-      if (lex->spname->m_name.length > NAME_LEN)
-      {
-	my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
-	goto error;
-      }
       if (sp_show_create_procedure(thd, lex->spname) != SP_OK)
       {			/* We don't distinguish between errors for now */
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
@@ -4011,11 +3985,6 @@ create_sp_error:
     }
   case SQLCOM_SHOW_CREATE_FUNC:
     {
-      if (lex->spname->m_name.length > NAME_LEN)
-      {
-	my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
-	goto error;
-      }
       if (sp_show_create_function(thd, lex->spname) != SP_OK)
       {			/* We don't distinguish between errors for now */
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
@@ -4044,11 +4013,6 @@ create_sp_error:
     {
       sp_head *sp;
 
-      if (lex->spname->m_name.length > NAME_LEN)
-      {
-	my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
-	goto error;
-      }
       if (lex->sql_command == SQLCOM_SHOW_PROC_CODE)
         sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
                             &thd->sp_proc_cache, FALSE);
@@ -4473,6 +4437,8 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     thd			Thread handler
     privilege		requested privilege
     all_tables		global table list of query
+    no_errors           FALSE/TRUE - report/don't report error to
+                            the client (using my_error() call).
 
   RETURN
     0 - OK
@@ -4480,7 +4446,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
 */
 
 bool check_single_table_access(THD *thd, ulong privilege, 
-                               TABLE_LIST *all_tables)
+                               TABLE_LIST *all_tables, bool no_errors)
 {
   Security_context * backup_ctx= thd->security_ctx;
 
@@ -4496,12 +4462,12 @@ bool check_single_table_access(THD *thd, ulong privilege,
     db_name= all_tables->db;
 
   if (check_access(thd, privilege, db_name,
-		   &all_tables->grant.privilege, 0, 0,
+		   &all_tables->grant.privilege, 0, no_errors,
                    test(all_tables->schema_table)))
     goto deny;
 
   /* Show only 1 table for check_grant */
-  if (grant_option && check_grant(thd, privilege, all_tables, 0, 1, 0))
+  if (grant_option && check_grant(thd, privilege, all_tables, 0, 1, no_errors))
     goto deny;
 
   thd->security_ctx= backup_ctx;
@@ -4529,7 +4495,7 @@ deny:
 
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
 {
-  if (check_single_table_access (thd,privilege,all_tables))
+  if (check_single_table_access (thd,privilege,all_tables, FALSE))
     return 1;
 
   /* Check rights on tables of subselects and implictly opened tables */
@@ -4542,7 +4508,7 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
     */
     if (view && subselects_tables->belong_to_view == view)
     {
-      if (check_single_table_access (thd, privilege, subselects_tables))
+      if (check_single_table_access (thd, privilege, subselects_tables, FALSE))
         return 1;
       subselects_tables= subselects_tables->next_global;
     }
@@ -5332,7 +5298,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
 ** Return 0 if ok
 ******************************************************************************/
 
-bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
+bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
 		       char *length, char *decimals,
 		       uint type_modifier,
 		       Item *default_value, Item *on_update_value,
@@ -5345,14 +5311,15 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   LEX  *lex= thd->lex;
   DBUG_ENTER("add_field_to_list");
 
-  if (strlen(field_name) > NAME_LEN)
+  if (check_string_char_length(field_name, "", NAME_CHAR_LEN,
+                               system_charset_info, 1))
   {
-    my_error(ER_TOO_LONG_IDENT, MYF(0), field_name); /* purecov: inspected */
+    my_error(ER_TOO_LONG_IDENT, MYF(0), field_name->str); /* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
   }
   if (type_modifier & PRI_KEY_FLAG)
   {
-    lex->col_list.push_back(new key_part_spec(field_name,0));
+    lex->col_list.push_back(new key_part_spec(field_name->str, 0));
     lex->key_list.push_back(new Key(Key::PRIMARY, NullS,
                                     &default_key_create_info,
 				    0, lex->col_list));
@@ -5360,7 +5327,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   }
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
-    lex->col_list.push_back(new key_part_spec(field_name,0));
+    lex->col_list.push_back(new key_part_spec(field_name->str, 0));
     lex->key_list.push_back(new Key(Key::UNIQUE, NullS,
                                     &default_key_create_info, 0,
 				    lex->col_list));
@@ -5380,7 +5347,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
         !(((Item_func*)default_value)->functype() == Item_func::NOW_FUNC &&
          type == MYSQL_TYPE_TIMESTAMP))
     {
-      my_error(ER_INVALID_DEFAULT, MYF(0), field_name);
+      my_error(ER_INVALID_DEFAULT, MYF(0), field_name->str);
       DBUG_RETURN(1);
     }
     else if (default_value->type() == Item::NULL_ITEM)
@@ -5389,20 +5356,20 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       if ((type_modifier & (NOT_NULL_FLAG | AUTO_INCREMENT_FLAG)) ==
 	  NOT_NULL_FLAG)
       {
-	my_error(ER_INVALID_DEFAULT, MYF(0), field_name);
+	my_error(ER_INVALID_DEFAULT, MYF(0), field_name->str);
 	DBUG_RETURN(1);
       }
     }
     else if (type_modifier & AUTO_INCREMENT_FLAG)
     {
-      my_error(ER_INVALID_DEFAULT, MYF(0), field_name);
+      my_error(ER_INVALID_DEFAULT, MYF(0), field_name->str);
       DBUG_RETURN(1);
     }
   }
 
   if (on_update_value && type != MYSQL_TYPE_TIMESTAMP)
   {
-    my_error(ER_INVALID_ON_UPDATE, MYF(0), field_name);
+    my_error(ER_INVALID_ON_UPDATE, MYF(0), field_name->str);
     DBUG_RETURN(1);
   }
 
@@ -5418,7 +5385,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   }
 
   if (!(new_field= new create_field()) ||
-      new_field->init(thd, field_name, type, length, decimals, type_modifier,
+      new_field->init(thd, field_name->str, type, length, decimals, type_modifier,
                       default_value, on_update_value, comment, change,
                       interval_list, cs, uint_geom_type))
     DBUG_RETURN(1);
@@ -6970,26 +6937,62 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
 
 
 /*
-  Check that length of a string does not exceed some limit.
+  Check that byte length of a string does not exceed some limit.
 
   SYNOPSIS
-    check_string_length()
-      str         string to be checked
-      err_msg     error message to be displayed if the string is too long
-      max_length  max length
+  check_string_byte_length()
+      str              string to be checked
+      err_msg          error message to be displayed if the string is too long
+      max_byte_length  max length in bytes
 
   RETURN
     FALSE   the passed string is not longer than max_length
     TRUE    the passed string is longer than max_length
+
+  NOTE
+    The function is not used in existing code but can be useful later?
 */
 
-bool check_string_length(LEX_STRING *str, const char *err_msg,
-                         uint max_length)
+bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
+                              uint max_byte_length)
 {
-  if (str->length <= max_length)
+  if (str->length <= max_byte_length)
     return FALSE;
 
-  my_error(ER_WRONG_STRING_LENGTH, MYF(0), str->str, err_msg, max_length);
+  my_error(ER_WRONG_STRING_LENGTH, MYF(0), str->str, err_msg, max_byte_length);
 
+  return TRUE;
+}
+
+
+/*
+  Check that char length of a string does not exceed some limit.
+
+  SYNOPSIS
+  check_string_char_length()
+      str              string to be checked
+      err_msg          error message to be displayed if the string is too long
+      max_char_length  max length in symbols
+      cs               string charset
+
+  RETURN
+    FALSE   the passed string is not longer than max_char_length
+    TRUE    the passed string is longer than max_char_length
+*/
+
+
+bool check_string_char_length(LEX_STRING *str, const char *err_msg,
+                              uint max_char_length, CHARSET_INFO *cs,
+                              bool no_error)
+{
+  int well_formed_error;
+  uint res= cs->cset->well_formed_len(cs, str->str, str->str + str->length,
+                                      max_char_length, &well_formed_error);
+
+  if (!well_formed_error &&  str->length == res)
+    return FALSE;
+
+  if (!no_error)
+    my_error(ER_WRONG_STRING_LENGTH, MYF(0), str->str, err_msg, max_char_length);
   return TRUE;
 }

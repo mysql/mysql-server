@@ -15,7 +15,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#define EVEX_OPEN_TABLE_FAILED  -1
+/*
+  @file
+  This is a private header file of Events module. Please do not include it
+  directly. All public declarations of Events module should be stored in
+  events.h and event_data_objects.h.
+*/
 
 enum enum_events_table_field
 {
@@ -70,17 +75,28 @@ public:
   drop_schema_events(THD *thd, LEX_STRING schema);
 
   bool
-  find_named_event(THD *thd, LEX_STRING db, LEX_STRING name, TABLE *table);
+  find_named_event(LEX_STRING db, LEX_STRING name, TABLE *table);
 
   bool
   load_named_event(THD *thd, LEX_STRING dbname, LEX_STRING name, Event_basic *et);
 
-  int
+  bool
   open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
 
-  int
+  bool
   fill_schema_events(THD *thd, TABLE_LIST *tables, const char *db);
 
+  bool
+  update_timing_fields_for_event(THD *thd,
+                                 LEX_STRING event_db_name,
+                                 LEX_STRING event_name,
+                                 bool update_last_executed,
+                                 my_time_t last_executed,
+                                 bool update_status,
+                                 ulonglong status);
+public:
+  static bool
+  check_system_tables(THD *thd);
 private:
   void
   drop_events_by_field(THD *thd, enum enum_events_table_field field,
@@ -92,9 +108,7 @@ private:
   bool
   table_scan_all_for_i_s(THD *thd, TABLE *schema_table, TABLE *event_table);
 
-  static bool
-  check_system_tables(THD *thd);
-
+private:
   /* Prevent use of these */
   Event_db_repository(const Event_db_repository &);
   void operator=(Event_db_repository &);
