@@ -39,8 +39,9 @@ use d_bug25347;
 create table t_bug25347 (a int);
 create view v_bug25347 as select * from t_bug25347;
 --echo removing and creating
---exec rm    $MYSQLTEST_VARDIR/master-data/d_bug25347/t_bug25347.MYI;
---exec touch $MYSQLTEST_VARDIR/master-data/d_bug25347/t_bug25347.MYI;
+--remove_file $MYSQLTEST_VARDIR/master-data/d_bug25347/t_bug25347.MYI
+--write_file  $MYSQLTEST_VARDIR/master-data/d_bug25347/t_bug25347.MYI EOF
+EOF
 --exec $MYSQL_CHECK --repair --databases d_bug25347
 drop view v_bug25347;
 drop table t_bug25347;
