@@ -118,8 +118,8 @@ bool end_active_trans(THD *thd)
     if (ha_commit(thd))
       error=1;
   }
-  thd->options&= ~(OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE |
-                   OPTION_KEEP_LOG);
+  thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
+  thd->no_trans_update.all= FALSE;
   DBUG_RETURN(error);
 }
 
@@ -545,8 +545,8 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     */
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     res= ha_commit(thd);
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE |
-                             OPTION_KEEP_LOG);
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_KEEP_LOG);
+    thd->no_trans_update.all= FALSE;
     break;
   case COMMIT_RELEASE:
     do_release= 1; /* fall through */
@@ -563,8 +563,8 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_rollback(thd))
       res= -1;
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE |
-                             OPTION_KEEP_LOG);
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_KEEP_LOG);
+    thd->no_trans_update.all= FALSE;
     if (!res && (completion == ROLLBACK_AND_CHAIN))
       res= begin_trans(thd);
     break;
@@ -719,7 +719,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 			&LOCK_status);
     thd->convert_string(&tmp, system_charset_info,
 			packet, packet_length-1, thd->charset());
-    if (!mysql_change_db(thd, tmp.str, FALSE))
+    if (!mysql_change_db(thd, &tmp, FALSE))
     {
       general_log_print(thd, command, "%s",thd->db);
       send_ok(thd);
@@ -960,7 +960,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     packet= arg_end + 1;
 
     if (!my_strcasecmp(system_charset_info, table_list.db,
-                       information_schema_name.str))
+                       INFORMATION_SCHEMA_NAME.str))
     {
       ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, table_list.alias);
       if (schema_table)
@@ -2843,7 +2843,7 @@ end_with_restore_list:
 	we silently add IF EXISTS if TEMPORARY was used.
       */
       if (thd->slave_thread)
-	lex->drop_if_exists= 1;
+        lex->drop_if_exists= 1;
 
       /* So that DROP TEMPORARY TABLE gets to binlog at commit/rollback */
       thd->options|= OPTION_KEEP_LOG;
@@ -2900,9 +2900,14 @@ end_with_restore_list:
     }
 #endif
   case SQLCOM_CHANGE_DB:
-    if (!mysql_change_db(thd,select_lex->db,FALSE))
+  {
+    LEX_STRING db_str= { (char *) select_lex->db, strlen(select_lex->db) };
+
+    if (!mysql_change_db(thd, &db_str, FALSE))
       send_ok(thd);
+
     break;
+  }
 
   case SQLCOM_LOAD:
   {
@@ -3545,8 +3550,7 @@ end_with_restore_list:
         res= TRUE; // cannot happen
       else
       {
-        if ((thd->options &
-             (OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG)) &&
+        if (((thd->options & OPTION_KEEP_LOG) || thd->no_trans_update.all) &&
             !thd->slave_thread)
           push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                        ER_WARNING_NOT_COMPLETE_ROLLBACK,
@@ -4103,9 +4107,8 @@ create_sp_error:
     thd->transaction.xid_state.xa_state=XA_ACTIVE;
     thd->transaction.xid_state.xid.set(thd->lex->xid);
     xid_cache_insert(&thd->transaction.xid_state);
-    thd->options= ((thd->options & ~(OPTION_STATUS_NO_TRANS_UPDATE |
-                                     OPTION_KEEP_LOG)) |
-                   OPTION_BEGIN);
+    thd->options= ((thd->options & ~(OPTION_KEEP_LOG)) | OPTION_BEGIN);
+    thd->no_trans_update.all= FALSE;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     send_ok(thd);
     break;
@@ -4198,8 +4201,8 @@ create_sp_error:
                xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
-    thd->options&= ~(OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE |
-                     OPTION_KEEP_LOG);
+    thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
+    thd->no_trans_update.all= FALSE;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     xid_cache_delete(&thd->transaction.xid_state);
     thd->transaction.xid_state.xa_state=XA_NOTR;
@@ -4229,8 +4232,8 @@ create_sp_error:
       my_error(ER_XAER_RMERR, MYF(0));
     else
       send_ok(thd);
-    thd->options&= ~(OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE |
-                     OPTION_KEEP_LOG);
+    thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
+    thd->no_trans_update.all= FALSE;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     xid_cache_delete(&thd->transaction.xid_state);
     thd->transaction.xid_state.xa_state=XA_NOTR;
@@ -4467,7 +4470,10 @@ bool check_single_table_access(THD *thd, ulong privilege,
     goto deny;
 
   /* Show only 1 table for check_grant */
-  if (grant_option && check_grant(thd, privilege, all_tables, 0, 1, no_errors))
+  if (grant_option &&
+      !(all_tables->belong_to_view &&
+        (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)) &&
+      check_grant(thd, privilege, all_tables, 0, 1, no_errors))
     goto deny;
 
   thd->security_ctx= backup_ctx;
@@ -4736,7 +4742,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
       if (!no_errors)
         my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                  sctx->priv_user, sctx->priv_host,
-                 information_schema_name.str);
+                 INFORMATION_SCHEMA_NAME.str);
       return TRUE;
     }
     /*
@@ -5024,8 +5030,10 @@ void mysql_reset_thd_for_next_command(THD *thd)
     in ha_rollback_trans() about some tables couldn't be rolled back.
   */
   if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
-    thd->options&= ~(OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG);
-
+  {
+    thd->options&= ~OPTION_KEEP_LOG;
+    thd->no_trans_update.all= FALSE;
+  }
   DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
   thd->tmp_table_used= 0;
   if (!thd->in_sub_stmt)
@@ -5526,7 +5534,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->ignore_leaves= test(table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->derived=	    table->sel;
   if (!ptr->derived && !my_strcasecmp(system_charset_info, ptr->db,
-                                      information_schema_name.str))
+                                      INFORMATION_SCHEMA_NAME.str))
   {
     ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, ptr->table_name);
     if (!schema_table ||
@@ -5534,7 +5542,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
          (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0))
     {
       my_error(ER_UNKNOWN_TABLE, MYF(0),
-               ptr->table_name, information_schema_name.str);
+               ptr->table_name, INFORMATION_SCHEMA_NAME.str);
       DBUG_RETURN(0);
     }
     ptr->schema_table_name= ptr->table_name;

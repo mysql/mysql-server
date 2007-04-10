@@ -122,6 +122,23 @@ DELIMITER ;
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
+--- start and stop positions ---
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+SET INSERT_ID=4/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+insert into t1 values(null, "d")/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+
 --- start-datetime --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
@@ -477,6 +494,23 @@ insert into t1 values(null, "b")/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+
+--- start and stop positions ---
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+SET INSERT_ID=4/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+insert into t1 values(null, "d")/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
