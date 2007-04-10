@@ -117,7 +117,12 @@ if [ $BASE_SYSTEM != "netware" ] ; then
  chmod o-rwx $BASE/data $BASE/data/*
 fi
 
-# Copy files if they exists, warn for those that don't
+# Copy files if they exists, warn for those that don't.
+# Note that when listing files to copy, we might list the file name
+# twice, once in the directory location where it is build, and a
+# second time in the ".libs" location. In the case the firs one
+# is a wrapper script, the second one will overwrite it with the
+# binary file.
 copyfileto()
 {
   destdir=$1
@@ -168,6 +173,7 @@ if [ $BASE_SYSTEM = "netware" ] ; then
 # For all other platforms:
 else
   BIN_FILES="$BIN_FILES \
+    server-tools/instance-manager/.libs/mysqlmanager \
     client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \
     client/.libs/mysqlslap \
     client/.libs/mysqldump client/.libs/mysqlimport \
