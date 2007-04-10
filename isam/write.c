@@ -226,7 +226,7 @@ int _nisam_insert(register N_INFO *info, register N_KEYDEF *keyinfo,
   int key_offset;
   S_PARAM s_temp;
   DBUG_ENTER("_nisam_insert");
-  DBUG_PRINT("enter",("key_pos: %lx",key_pos));
+  DBUG_PRINT("enter",("key_pos: 0x%lx", (long) key_pos));
   DBUG_EXECUTE("key",_nisam_print_key(DBUG_FILE,keyinfo->seg,key););
 
   nod_flag=test_if_nod(anc_buff);
@@ -243,8 +243,9 @@ int _nisam_insert(register N_INFO *info, register N_KEYDEF *keyinfo,
   {
     DBUG_PRINT("test",("t_length: %d  ref_len: %d",
 		       t_length,s_temp.ref_length));
-    DBUG_PRINT("test",("n_ref_len: %d  n_length: %d  key: %lx",
-		       s_temp.n_ref_length,s_temp.n_length,s_temp.key));
+    DBUG_PRINT("test",("n_ref_len: %d  n_length: %d  key: 0x%lx",
+                       s_temp.n_ref_length, s_temp.n_length,
+                       (long) s_temp.key));
   }
 #endif
   key_offset = (uint)(endpos-key_pos);
@@ -430,7 +431,7 @@ uint _nisam_get_pack_key_length(N_KEYDEF *keyinfo, uint nod_flag, uchar *key_pos
       if (*start == *key_pos && diff_flag && start != key_end)
 	length++;				/* One new pos for ref.len */
 
-    DBUG_PRINT("test",("length: %d  key_pos: %lx",length,key_pos));
+    DBUG_PRINT("test",("length: %d  key_pos: 0x%lx",length,key_pos));
     if (n_length != 128)
     {						/* Not same key after */
       key=start+ref_length;
@@ -597,7 +598,7 @@ _nisam_get_pack_key_length(N_KEYDEF *keyinfo,
       if (*start == *key_pos && diff_flag && start != key_end)
 	length++;				/* One new pos for ref.len */
     }
-    DBUG_PRINT("test",("length: %d  key_pos: %lx",length,key_pos));
+    DBUG_PRINT("test",("length: %d  key_pos: 0x%lx", length, (long) key_pos));
 
     key=start+ref_length;
     while (n_length > 0 && key < key_end && *key == *key_pos)
@@ -696,7 +697,8 @@ uchar *_nisam_find_half_pos(N_INFO *info, N_KEYDEF *keyinfo, uchar *page, uchar 
     VOID((*keyinfo->get_key)(keyinfo,nod_flag,&page,key));
    } while (page < end);
 
-   DBUG_PRINT("exit",("returns: %lx  page: %lx  half: %lx",lastpos,page,end));
+   DBUG_PRINT("exit",("returns: 0x%lx  page: 0x%lx  half: 0x%lx",
+                      (long) lastpos, (long) page, (long) end));
    DBUG_RETURN(lastpos);
 } /* _nisam_find_half_pos */
 

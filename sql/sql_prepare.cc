@@ -1394,7 +1394,7 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
   enum enum_sql_command sql_command= lex->sql_command;
   int res= 0;
   DBUG_ENTER("send_prepare_results");
-  DBUG_PRINT("enter",("command: %d, param_count: %ld",
+  DBUG_PRINT("enter",("command: %d  param_count: %u",
                       sql_command, stmt->param_count));
 
   if ((&lex->select_lex != lex->all_selects_list ||

@@ -713,8 +713,8 @@ uint _nisam_rec_unpack(register N_INFO *info, register byte *to, byte *from,
     DBUG_RETURN((info->packed_length=found_length));
  err:
   my_errno=HA_ERR_RECORD_DELETED;
-  DBUG_PRINT("error",("to_end: %lx -> %lx  from_end: %lx -> %lx",
-		      to,to_end,from,from_end));
+  DBUG_PRINT("error",("to_end: 0x%lx -> 0x%lx  from_end: 0x%lx -> 0x%lx",
+                      (long) to, (long) to_end, (long) from, (long) from_end));
   DBUG_DUMP("from",(byte*) info->rec_buff,info->s->base.min_pack_length);
   DBUG_RETURN(MY_FILE_ERROR);
 } /* _nisam_rec_unpack */
