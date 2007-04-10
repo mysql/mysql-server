@@ -557,4 +557,19 @@ a	b	c
 2	Part 2	2007-04-05 00:00:00
 2	Part 3	2007-04-05 00:00:00
 select * from t1;
+select '';
+
+
+select "h";
+h
+h
+select "he";
+he
+he
+select "hep";
+hep
+hep
+select "hepp";
+hepp
+hepp
 End of tests
