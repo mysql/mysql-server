@@ -1685,5 +1685,23 @@ EOF
 
 --exec echo "echo Some output; exit; echo Not this;" | $MYSQL_TEST 2>&1
 
+# ----------------------------------------------------------------------------
+# test for query_sorted
+# ----------------------------------------------------------------------------
+
+create table t1( a int, b char(255), c timestamp);
+insert into t1 values(1, 'Line 1', '2007-04-05'), (2, "Part 2", '2007-04-05');
+insert into t1 values(1, 'Line 1', '2007-04-05'), (2, "Part 3", '2007-04-05');
+select * from t1;
+query_sorted select * from t1;
+disable_result_log;
+query_sorted select * from t1;
+enable_result_log;
+query_sorted select '';
+query_sorted select "h";
+query_sorted select "he";
+query_sorted select "hep";
+query_sorted select "hepp";
+
 
 --echo End of tests
