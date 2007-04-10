@@ -122,7 +122,7 @@ struct PrepareCopyFragRef
 
 struct PrepareCopyFragConf
 {
-  STATIC_CONST( SignalLength = 6 );
+  STATIC_CONST( SignalLength = 7 );
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -130,6 +130,7 @@ struct PrepareCopyFragConf
   Uint32 fragId;
   Uint32 copyNodeId;
   Uint32 startingNodeId;
+  Uint32 maxPageNo;
 };
 
 #endif

@@ -10010,16 +10010,50 @@ Dblqh::execPREPARE_COPY_FRAG_REQ(Signal* signal)
 
   CRASH_INSERTION(5045);
 
-  tabptr.i = req.tableId;
-  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
-  ndbrequire(getFragmentrec(signal, req.fragId));
-  fragptr.p->m_copy_started_state = Fragrecord::AC_IGNORED;
-  fragptr.p->fragStatus = Fragrecord::ACTIVE_CREATION;
-  fragptr.p->logFlag = Fragrecord::STATE_FALSE;
-  
-  /**
-   *
-   */
+  Uint32 max_page_no = 0;
+  if (getOwnNodeId() == req.copyNodeId)
+  {
+    jam();
+    //max_page_no = c_tup->get_max_page_no(req.tableId, req.fragId);
+  }
+  else
+  {
+    jam();
+    ndbrequire(getOwnNodeId() == req.startingNodeId);
+
+    tabptr.i = req.tableId;
+    ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
+
+    if (! DictTabInfo::isOrderedIndex(tabptr.p->tableType))
+    {
+      jam();
+      ndbrequire(getFragmentrec(signal, req.fragId));
+      fragptr.p->m_copy_started_state = Fragrecord::AC_IGNORED;
+      fragptr.p->fragStatus = Fragrecord::ACTIVE_CREATION;
+      fragptr.p->logFlag = Fragrecord::STATE_FALSE;
+      
+      /**
+       *
+       */
+      if (cstartType == NodeState::ST_SYSTEM_RESTART)
+      {
+        jam();
+        signal->theData[0] = fragptr.p->tabRef;
+        signal->theData[1] = fragptr.p->fragId;
+        sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
+      }
+    
+    
+      /**
+       *
+       */
+      Uint32 copyVersion = getNodeInfo(req.copyNodeId).m_version;
+      if (copyVersion >= NDBD_PREPARE_COPY_FRAG_VERSION)
+      {
+        jam();
+      }
+    }
+  }
   
   PrepareCopyFragConf* conf = (PrepareCopyFragConf*)signal->getDataPtrSend();
   conf->senderData = req.senderData;
@@ -10028,6 +10062,7 @@ Dblqh::execPREPARE_COPY_FRAG_REQ(Signal* signal)
   conf->fragId = req.fragId;
   conf->copyNodeId = req.copyNodeId;
   conf->startingNodeId = req.startingNodeId;
+  conf->maxPageNo = max_page_no;
   sendSignal(req.senderRef, GSN_PREPARE_COPY_FRAG_CONF,
 	     signal, PrepareCopyFragConf::SignalLength, JBB);
 }
