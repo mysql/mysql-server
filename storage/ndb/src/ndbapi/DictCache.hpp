@@ -67,7 +67,7 @@ public:
   ~GlobalDictCache();
   
   NdbTableImpl * get(NdbTableImpl *tab);
-  NdbTableImpl * get(const char * name);
+  NdbTableImpl * get(const char * name, int *error);
   
   NdbTableImpl* put(const char * name, NdbTableImpl *);
   void release(NdbTableImpl *, int invalidate = 0);

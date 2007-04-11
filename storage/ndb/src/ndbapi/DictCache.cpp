@@ -154,7 +154,7 @@ void GlobalDictCache::printCache()
 }
 
 NdbTableImpl *
-GlobalDictCache::get(const char * name)
+GlobalDictCache::get(const char * name, int *error)
 {
   DBUG_ENTER("GlobalDictCache::get");
   DBUG_PRINT("enter", ("name: %s", name));
@@ -165,6 +165,11 @@ GlobalDictCache::get(const char * name)
   versions = m_tableHash.getData(name, len);
   if(versions == 0){
     versions = new Vector<TableVersion>(2);
+    if (versions == NULL)
+    {
+      *error = -1;
+      DBUG_RETURN(0);
+    }
     m_tableHash.insertKey(name, len, 0, versions);
   }
 
@@ -211,7 +216,11 @@ GlobalDictCache::get(const char * name)
   tmp.m_impl = 0;
   tmp.m_status = RETREIVING;
   tmp.m_refCount = 1; // The one retreiving it
-  versions->push_back(tmp);
+  if (versions->push_back(tmp))
+  {
+    *error = -1;
+     DBUG_RETURN(0);
+  }
   DBUG_PRINT("info", ("No table found"));
   DBUG_RETURN(0);
 }

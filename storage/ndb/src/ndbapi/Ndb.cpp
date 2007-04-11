@@ -436,7 +436,11 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
 
   theRemainingStartTransactions--;
   NdbTransaction* tConNext = theTransactionList;
-  tConnection->init();
+  if (tConnection->init())
+  {
+    theError.code = tConnection->theError.code;
+    DBUG_RETURN(NULL);
+  }
   theTransactionList = tConnection;        // into a transaction list.
   tConnection->next(tConNext);   // Add the active connection object
   tConnection->setTransactionId(tFirstTransId);
@@ -1200,13 +1204,18 @@ const char * Ndb::getCatalogName() const
   return theImpl->m_dbname.c_str();
 }
 
-void Ndb::setCatalogName(const char * a_catalog_name)
+int Ndb::setCatalogName(const char * a_catalog_name)
 {
   // TODO can table_name_separator be escaped?
   if (a_catalog_name && ! strchr(a_catalog_name, table_name_separator)) {
-    theImpl->m_dbname.assign(a_catalog_name);
-    theImpl->update_prefix();
+    if (!theImpl->m_dbname.assign(a_catalog_name) ||
+        theImpl->update_prefix())
+    {
+      theError.code = 4000;
+      return -1;
+    }
   }
+  return 0;
 }
 
 const char * Ndb::getSchemaName() const
@@ -1214,12 +1223,16 @@ const char * Ndb::getSchemaName() const
   return theImpl->m_schemaname.c_str();
 }
 
-void Ndb::setSchemaName(const char * a_schema_name)
+int Ndb::setSchemaName(const char * a_schema_name)
 {
   // TODO can table_name_separator be escaped?
   if (a_schema_name && ! strchr(a_schema_name, table_name_separator)) {
-    theImpl->m_schemaname.assign(a_schema_name);
-    theImpl->update_prefix();
+    if (!theImpl->m_schemaname.assign(a_schema_name) ||
+        theImpl->update_prefix())
+    {
+      theError.code = 4000;
+      return -1;
+    }
   }
 }
 // </internal>
@@ -1229,9 +1242,9 @@ const char * Ndb::getDatabaseName() const
   return getCatalogName();
 }
  
-void Ndb::setDatabaseName(const char * a_catalog_name)
+int Ndb::setDatabaseName(const char * a_catalog_name)
 {
-  setCatalogName(a_catalog_name);
+  return setCatalogName(a_catalog_name);
 }
  
 const char * Ndb::getDatabaseSchemaName() const
@@ -1239,9 +1252,9 @@ const char * Ndb::getDatabaseSchemaName() const
   return getSchemaName();
 }
  
-void Ndb::setDatabaseSchemaName(const char * a_schema_name)
+int Ndb::setDatabaseSchemaName(const char * a_schema_name)
 {
-  setSchemaName(a_schema_name);
+  return setSchemaName(a_schema_name);
 }
 
 int Ndb::setDatabaseAndSchemaName(const NdbDictionary::Table* t)
@@ -1411,6 +1424,11 @@ const BaseString
 Ndb::getDatabaseFromInternalName(const char * internalName)
 {
   char * databaseName = new char[strlen(internalName) + 1];
+  if (databaseName == NULL)
+  {
+    errno = ENOMEM;
+    return BaseString(NULL);
+  }
   strcpy(databaseName, internalName);
   register char *ptr = databaseName;
    
@@ -1427,6 +1445,11 @@ const BaseString
 Ndb::getSchemaFromInternalName(const char * internalName)
 {
   char * schemaName = new char[strlen(internalName)];
+  if (schemaName == NULL)
+  {
+    errno = ENOMEM;
+    return BaseString(NULL);
+  }
   register const char *ptr1 = internalName;
    
   /* Scan name for the second table_name_separator */
