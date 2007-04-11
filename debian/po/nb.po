@@ -1,0 +1,179 @@
+# translation of mysql_nb.po to Norwegian Bokmål
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+#
+# Bjørn Steensrud <bjornst@powertech.no>, 2007.
+msgid ""
+msgstr ""
+"Project-Id-Version: mysql_nb\n"
+"Report-Msgid-Bugs-To: ch@debian.org\n"
+"POT-Creation-Date: 2007-02-16 22:27+0100\n"
+"PO-Revision-Date: 2007-02-18 12:13+0100\n"
+"Last-Translator: Bjørn Steensrud <bjornst@powertech.no>\n"
+"Language-Team: Norwegian Bokmål <i18n-nb@lister.ping.uio.no>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 1.11.2\n"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:1001
+msgid "Do you really want to downgrade?"
+msgstr "Er du sikker på at du vil nedgradere?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:1001
+msgid ""
+"WARNING: The file /var/lib/mysql/debian-*.flag exists. This indicates that a "
+"mysql-server package with a higher version has been installed before. It can "
+"not be guaranteed that this version can use its data."
+msgstr ""
+"ADVARSEL: Fila /var/lib/mysql/debian-*.flag finnes. Dette viser at en "
+"mysql-server-pakke med et høyere versjonsnummer har vært installert før. "
+"Det kan ikke garanteres at denne versjonen kan bruke data fra den høyere versjonen."
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "Important note for NIS/YP users!"
+msgstr "Viktig merknad for NIS/YP-brukere!"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid ""
+"To use mysql you must install an equivalent user and group to the following "
+"and ensure yourself that /var/lib/mysql has the right permissions (the uid/"
+"gid may be different)."
+msgstr ""
+"For å bruke MySQL må du installere en bruker og gruppe tilsvarende den "
+"nedenfor og se til at /var/lib/mysql har riktige rettigheter (uid/gid kan "
+"være forskjellig)."
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+msgstr "/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "/etc/group:       mysql:x:101:"
+msgstr "/etc/group:       mysql:x:101:"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+msgstr "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:3001
+msgid "Remove the databases used by all MySQL versions?"
+msgstr "Skal databasene brukt av alle MySQL-versjoner fjernes?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:3001
+msgid ""
+"The script is about to remove the data directory /var/lib/mysql. If it is "
+"planned to just install a higher MySQL version or if a different mysql-"
+"server package is already using it, the data should be kept."
+msgstr ""
+"Dette skriptet skal til å fjerne data-mappa /var/lib/mysql. Denne mappa "
+"bør beholdes hvis det bare skal installeres en høyere MySQL-versjon, "
+"eller hvis en annen mysql-server-pakke allerede bruker den."
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:4001
+msgid "Should MySQL start on boot?"
+msgstr "Skal MySQL startes ved maskinoppstart?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:4001
+msgid ""
+"The MySQL can start automatically on boot time or only if you manually type "
+"'/etc/init.d/mysql start'."
+msgstr ""
+"MySQL kan startes automatisk når maskinen starter, eller bare hvis du "
+"skriver «/etc/init.d/mysql start»."
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid "New password for MySQL \"root\" user:"
+msgstr "Nytt passord for MySQLs «root»-bruker:"
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid ""
+"It is highly recommended that you set a password for the MySQL "
+"administrative \"root\" user."
+msgstr ""
+"Det anbefales sterkt at du oppgir et passord for den administrative "
+"«root»-brukeren i MySQl."
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid "If you do not provide a password no changes will be made to the account."
+msgstr "Hvis du ikke oppgir et passord blir det ikke gjort noen endringer med kontoen."
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid "Unable to set password for MySQL \"root\" user"
+msgstr "Klarer ikke angi passord for MySQLs «root»-bruker"
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid ""
+"It seems an error occurred while setting the password for the MySQL "
+"administrative user.  This may have happened because the user already has a "
+"password, or because there was a problem communicating with the MySQL server."
+msgstr ""
+"Det ser ut til at det oppsto en feil mens det ble satt et passord for "
+"MySQLs administrative bruker. Dette kan være fordi brukeren allerede "
+"har et passord, eller fordi det var et kommunikasjonsproblem med "
+"MySQL-tjeneren."
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid ""
+"When installation finishes, you should verify that the account is properly "
+"protected with a password (see README.Debian for more information)."
+msgstr ""
+"Når installasjonen er ferdig bør det sjekkes at kontoen er ordentlig "
+"beskyttet med et passord (mer informasjon finnes i README.Debian)."
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:7001
+msgid "Support MySQL connections from hosts running Debian \"sarge\" or older?"
+msgstr ""
+"Skal MySQL-tilkoblinger støttes fra vertsmaskiner som kjører Debian «sarge» "
+"eller eldre?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:7001
+msgid ""
+"The way passwords were stored was not very secure. This has been improved "
+"with the drawback that clients (e.g. PHP) from hosts running Debian 3.1 "
+"Sarge will not be able to connect to account which are new or whose password "
+"have been changed. See /usr/share/doc/mysql-server-5.0/README.Debian."
+msgstr ""
+"Passord ble tidligere lagret på en lite sikker måte. Dette er nå forbedret, "
+"med den ulempen at klienter (f.eks. PHP) fra verter som kjører Debian 3.1 Sarge "
+"ikke vil kunne koble til en konto som er ny eller har fått endret passordet. "
+"Se /usr/share/doc/mysql-server-5.0/README.Debian."
+

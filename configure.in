@@ -2548,6 +2548,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile support-files/RHEL4-SElinux/Makefile dnl
  mysql-test/Makefile dnl
+ debian/Makefile dnl
  mysql-test/ndb/Makefile netware/Makefile sql-bench/Makefile dnl
  include/mysql_version.h plugin/Makefile win/Makefile)
 
