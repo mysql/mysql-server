@@ -1,0 +1,13 @@
+etc/init.d
+etc/logrotate.d
+usr/bin
+usr/lib
+usr/lib/mysql
+usr/sbin
+usr/share/man/man8
+usr/share/info
+usr/share/mysql
+usr/lib/pkgconfig
+var/run/mysqld
+var/lib/mysql-upgrade
+var/lib/mysql-cluster
