@@ -2919,7 +2919,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   if (!(my_default_lc_time_names=
         my_locale_by_name(lc_time_names_name)))
   {
-    sql_print_error("Unknown locale: '%s'", MYF(0), lc_time_names_name);
+    sql_print_error("Unknown locale: '%s'", lc_time_names_name);
     return 1;
   }
   global_system_variables.lc_time_names= my_default_lc_time_names;
