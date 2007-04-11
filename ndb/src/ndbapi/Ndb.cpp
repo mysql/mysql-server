@@ -1164,6 +1164,7 @@ int Ndb::setSchemaName(const char * a_schema_name)
       return -1;
     }
   }
+  return 0;
 }
  
 /*
