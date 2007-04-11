@@ -170,3 +170,21 @@ ROW(2,10) <=> ROW(3,4)
 SELECT ROW(NULL,10) <=> ROW(3,NULL);
 ROW(NULL,10) <=> ROW(3,NULL)
 0
+SELECT ROW(1,ROW(2,3)) IN (ROW(1,ROW(2,3)),ROW(1,1));
+ERROR 21000: Operand should contain 2 column(s)
+SELECT ROW(1,ROW(2,3)) IN (ROW(1,ROW(2,3)),ROW(1,1),ROW(1,ROW(2,3)));
+ERROR 21000: Operand should contain 2 column(s)
+SELECT ROW(1,ROW(2,3)) IN (ROW(1,ROW(2,3)),ROW(1,ROW(2,2,2)));
+ERROR 21000: Operand should contain 2 column(s)
+SELECT ROW(1,ROW(2,3,4)) IN (ROW(1,ROW(2,3,4)),ROW(1,ROW(2,2)));
+ERROR 21000: Operand should contain 3 column(s)
+SELECT ROW(1,ROW(2,3)) IN (ROW(1,ROW(2,3)),(SELECT 1,1));
+ERROR 21000: Operand should contain 2 column(s)
+SELECT ROW(1,ROW(2,3)) IN (ROW(1,ROW(2,3)),(SELECT 1,1),ROW(1,ROW(2,4)));
+ERROR 21000: Operand should contain 2 column(s)
+SELECT ROW(1,ROW(2,3)) IN ((SELECT 1,1),ROW(1,ROW(2,3)));
+ERROR 21000: Operand should contain 2 column(s)
+SELECT ROW(2,1) IN (ROW(21,2),ROW(ROW(1,1,3),0));
+ERROR 21000: Operand should contain 1 column(s)
+SELECT ROW(2,1) IN (ROW(ROW(1,1,3),0),ROW(21,2));
+ERROR 21000: Operand should contain 1 column(s)
