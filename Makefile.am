@@ -32,7 +32,8 @@ DIST_SUBDIRS =		. include @docs_dirs@ zlib \
 			@thread_dirs@ pstack \
 			@sql_union_dirs@ scripts @man_dirs@ tests SSL\
 			BUILD netware os2 @libmysqld_dirs@ \
-			@bench_dirs@ support-files @tools_dirs@ win
+			@bench_dirs@ support-files @tools_dirs@ win \
+			debian
 
 # Run these targets before any others, also make part of clean target,
 # to make sure we create new links after a clean.

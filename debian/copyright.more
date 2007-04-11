@@ -1,0 +1,60 @@
+#
+# Some random bits of interest.
+#
+
+#
+# Arjen about OpenSSL
+#
+http://bugs.mysql.com/?id=6924
+Updated by:       Arjen Lentz
+Date:             2005-11-05
+
+Linking with the client library is covered by the FLOSS exception which
+includes OpenSSL now. So that's clean. Indeed, the OpenSSL is not
+compliant with the FSF free software guidelines, however it *is*
+compliant with the OSI guidelines. And that's good enough for us.
+Christian is correct in saying that the author of a GPL app that links
+with MySQL may find themselves in a licensing headache (or may not
+realize that OpenSSL is involved) but that is their responsibility.
+The MySQL client can be linked with a number of other licenses, it
+would not be feasible for MySQL to take over the responsibility for
+"the next level" of how combinations of licenses work out. There are
+too many possibilities, and combinations of more just 2 licenses.
+
+
+#
+# Steve Langasek about OpenSSL vs libmysqlclient
+#
+Subject: Bug#291945: eleventh-hour transition for mysql-using packages related to apache
+Date: Sat, 12 Feb 2005 00:39:58 -0800
+From: Steve Langasek <vorlon@debian.org>
+
+> > > > that's great to hear!  i'm cc'ing the relevant wishlist bug i have open
+> > > > against mysql-server.  christian: any chance of getting an openssl enabled
+> > > > version of the mysql-client and mysql-server packages?
+
+> > > Yes, I will re-enable openssl in the next upload.
+
+> > Please make sure this does not introduce an openssl dependency to
+> > libmysqlclient itself; just because MySQL AB have granted a license
+> > exception for OpenSSL does not mean everyone who links to libmysqlclient
+> > has done so.
+
+> > I know of at least one GPL-without-exception package that is now using
+> > libmysqlclient12 in Debian.
+
+> Nice, so we should check that any linked GPL library directly (obviuolsy) or
+> indirectly (with N=1,2,3... levels of indirection) linked against
+> openssl adds the exception.
+
+No, we should simply not be linking libmysqlclient against OpenSSL.  The
+exemption was needed because there exists software that uses both
+libmysqlclient and libssl, but making libmysqlclient itself use libssl just
+because we now have the exemption will cause licensing problems for
+applications which currently do *not* depend on libssl.
+
+> This is a great reason to move asap all possible programs to gnutls,
+> indeed.
+
+There are plenty of reasons to move software to gnutls, but doing so is
+non-trivial.
