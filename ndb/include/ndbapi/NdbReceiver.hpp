@@ -38,7 +38,7 @@ public:
   };
   
   NdbReceiver(Ndb *aNdb);
-  void init(ReceiverType type, void* owner);
+  int init(ReceiverType type, void* owner);
   void release();
   ~NdbReceiver();
   
@@ -75,7 +75,7 @@ private:
    * At setup
    */
   class NdbRecAttr * getValue(const class NdbColumnImpl*, char * user_dst_ptr);
-  void do_get_value(NdbReceiver*, Uint32 rows, Uint32 key_size, Uint32 range);
+  int do_get_value(NdbReceiver*, Uint32 rows, Uint32 key_size, Uint32 range);
   void prepareSend();
   void calculate_batch_size(Uint32, Uint32, Uint32&, Uint32&, Uint32&);
 
