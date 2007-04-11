@@ -419,7 +419,7 @@ Ndb_cluster_connection_impl::set_name(const char *name)
   }
 }
 
-void
+int
 Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
 					       const ndb_mgm_configuration 
 					       &config)
@@ -465,7 +465,10 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
       break;
     }
     }
-    m_impl.m_all_nodes.push_back(Node(group,remoteNodeId));
+    if (m_impl.m_all_nodes.push_back(Node(group,remoteNodeId)))
+    {
+      DBUG_RETURN(-1);
+    }
     DBUG_PRINT("info",("saved %d %d", group,remoteNodeId));
     for (int i= m_impl.m_all_nodes.size()-2;
 	 i >= 0 && m_impl.m_all_nodes[i].group > m_impl.m_all_nodes[i+1].group;
@@ -512,7 +515,7 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
 
   do_test();
 #endif
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 void
@@ -595,7 +598,11 @@ int Ndb_cluster_connection::connect(int no_retries, int retry_delay_in_seconds,
       break;
 
     m_impl.m_transporter_facade->start_instance(nodeId, props);
-    m_impl.init_nodes_vector(nodeId, *props);
+    if (m_impl.init_nodes_vector(nodeId, *props))
+    {
+      ndbout_c("Ndb_cluster_connection::connect: malloc failure");
+      DBUG_RETURN(-1);
+    }
 
     for(unsigned i=0;
 	i<m_impl.m_transporter_facade->get_registry()->m_transporter_interface.size();
