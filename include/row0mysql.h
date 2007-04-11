@@ -460,6 +460,19 @@ row_check_table_for_mysql(
 					/* out: DB_ERROR or DB_SUCCESS */
 	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in MySQL
 					handle */
+/*************************************************************************
+Get the min of the maximum possible row sizes. */
+
+ulint
+page_get_free_space_of_empty_noninline(
+/*===================================*/
+					/* out: The (approx) maximum size
+					of a row, this is a conservative
+					estimate, since the size can be
+					slightly larger depending upon
+					the ROW_FORMAT setting.*/
+	dict_table_t*	table);		/* in: table for which max record
+					size required.*/
 
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.
