@@ -180,6 +180,16 @@ dulint	srv_archive_recovery_limit_lsn;
 
 ulint	srv_lock_wait_timeout	= 1024 * 1024 * 1024;
 
+/* This parameter is used to throttle the number of insert buffers that are
+merged in a batch. By increasing this parameter on a faster disk you can
+possibly reduce the number of I/O operations performed to complete the
+merge operation. The value of this parameter is used as is by the
+background loop when the system is idle (low load), on a busy system
+the parameter is scaled down by a factor of 4, this is to avoid putting
+a heavier load on the I/O sub system. */
+
+ulong	srv_insert_buffer_batch_size = 20;
+
 char*	srv_file_flush_method_str = NULL;
 ulint	srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
 ulint	srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
@@ -2270,7 +2280,8 @@ loop:
 			+ buf_pool->n_pages_written;
 		if (n_pend_ios < 3 && (n_ios - n_ios_old < 5)) {
 			srv_main_thread_op_info = "doing insert buffer merge";
-			ibuf_contract_for_n_pages(TRUE, 5);
+			ibuf_contract_for_n_pages(TRUE,
+					  srv_insert_buffer_batch_size / 4);
 
 			srv_main_thread_op_info = "flushing log";
 
@@ -2331,7 +2342,7 @@ loop:
 	even if the server were active */
 
 	srv_main_thread_op_info = "doing insert buffer merge";
-	ibuf_contract_for_n_pages(TRUE, 5);
+	ibuf_contract_for_n_pages(TRUE, srv_insert_buffer_batch_size / 4);
 
 	srv_main_thread_op_info = "flushing log";
 	log_buffer_flush_to_disk();
@@ -2469,7 +2480,8 @@ background_loop:
 	if (srv_fast_shutdown && srv_shutdown_state > 0) {
 		n_bytes_merged = 0;
 	} else {
-		n_bytes_merged = ibuf_contract_for_n_pages(TRUE, 20);
+		n_bytes_merged = ibuf_contract_for_n_pages(TRUE,
+					srv_insert_buffer_batch_size);
 	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
