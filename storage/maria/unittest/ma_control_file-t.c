@@ -264,7 +264,7 @@ static int test_binary_content()
     future change/breakage.
   */
 
-  char buffer[20];
+  char buffer[23];
   RET_ERR_UNLESS((fd= my_open(file_name,
                           O_BINARY | O_RDWR,
                           MYF(MY_WME))) >= 0);
