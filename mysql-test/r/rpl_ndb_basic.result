@@ -24,6 +24,33 @@ nid	nom	prenom
 select * from t1 order by nid;
 nid	nom	prenom
 1	XYZ2	ABC2
+delete from t1;
+insert into t1 values(1,"AA", "AA");
+insert into t1 values(2,"BB", "BB");
+insert into t1 values(3,"CC", "CC");
+insert into t1 values(4,"DD", "DD");
+begin;
+delete from t1 where nid = 1;
+insert into t1 values (1,"A2", "A2");
+update t1 set nom="B2" where nid = 2;
+delete from t1 where nid = 2;
+update t1 set nom = "D2" where nid = 4;
+delete from t1 where nid = 4;
+insert into t1 values (4, "D3", "D3");
+update t1 set nom = "D4" where nid = 4;
+insert into t1 values (5, "EE", "EE");
+delete from t1 where nid = 5;
+commit;
+select * from t1 order by 1;
+nid	nom	prenom
+1	A2	A2
+3	CC	CC
+4	D4	D3
+select * from t1 order by 1;
+nid	nom	prenom
+1	A2	A2
+3	CC	CC
+4	D4	D3
 DROP table t1;
 CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
 `nom` char(4) default NULL,
