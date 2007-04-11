@@ -176,7 +176,11 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection){
   tcKeyReq->scanInfo = 0;
   theKEYINFOptr = &tcKeyReq->keyInfo[0];
   theATTRINFOptr = &tcKeyReq->attrInfo[0];
-  theReceiver.init(NdbReceiver::NDB_OPERATION, this);
+  if (theReceiver.init(NdbReceiver::NDB_OPERATION, this))
+  {
+    // theReceiver sets the error code of its owner
+    return -1;
+  }
   return 0;
 }
 
