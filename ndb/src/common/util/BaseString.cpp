@@ -16,19 +16,36 @@
 /* -*- c-basic-offset: 4; -*- */
 #include <ndb_global.h>
 #include <BaseString.hpp>
-#include <basestring_vsnprintf.h>
+#include "basestring_vsnprintf.h"
 
 BaseString::BaseString()
 {
     m_chr = new char[1];
+    if (m_chr == NULL)
+    {
+      errno = ENOMEM;
+      m_len = 0;
+      return;
+    }
     m_chr[0] = 0;
     m_len = 0;
 }
 
 BaseString::BaseString(const char* s)
 {
+    if (s == NULL)
+    {
+      m_chr = NULL;
+      m_len = 0;
+    }
     const size_t n = strlen(s);
     m_chr = new char[n + 1];
+    if (m_chr == NULL)
+    {
+      errno = ENOMEM;
+      m_len = 0;
+      return;
+    }
     memcpy(m_chr, s, n + 1);
     m_len = n;
 }
@@ -37,7 +54,20 @@ BaseString::BaseString(const BaseString& str)
 {
     const char* const s = str.m_chr;
     const size_t n = str.m_len;
+    if (s == NULL)
+    {
+      m_chr = NULL;
+      m_len = 0;
+      return;
+    }
     char* t = new char[n + 1];
+    if (t == NULL)
+    {
+      errno = ENOMEM;
+      m_chr = NULL;
+      m_len = 0;
+      return;
+    }
     memcpy(t, s, n + 1);
     m_chr = t;
     m_len = n;
@@ -51,9 +81,23 @@ BaseString::~BaseString()
 BaseString&
 BaseString::assign(const char* s)
 {
-    const size_t n = strlen(s);
+    if (s == NULL)
+    {
+      m_chr = NULL;
+      m_len = 0;
+      return *this;
+    }
+    size_t n = strlen(s);
     char* t = new char[n + 1];
-    memcpy(t, s, n + 1);
+    if (t)
+    {
+      memcpy(t, s, n + 1);
+    }
+    else
+    {
+      errno = ENOMEM;
+      n = 0;
+    }
     delete[] m_chr;
     m_chr = t;
     m_len = n;
@@ -64,8 +108,16 @@ BaseString&
 BaseString::assign(const char* s, size_t n)
 {
     char* t = new char[n + 1];
-    memcpy(t, s, n);
-    t[n] = 0;
+    if (t)
+    {
+      memcpy(t, s, n);
+      t[n] = 0;
+    }
+    else
+    {
+      errno = ENOMEM;
+      n = 0;
+    }
     delete[] m_chr;
     m_chr = t;
     m_len = n;
@@ -83,10 +135,19 @@ BaseString::assign(const BaseString& str, size_t n)
 BaseString&
 BaseString::append(const char* s)
 {
-    const size_t n = strlen(s);
+    size_t n = strlen(s);
     char* t = new char[m_len + n + 1];
-    memcpy(t, m_chr, m_len);
-    memcpy(t + m_len, s, n + 1);
+    if (t)
+    {
+      memcpy(t, m_chr, m_len);
+      memcpy(t + m_len, s, n + 1);
+    }
+    else
+    {
+      errno = ENOMEM;
+      m_len = 0;
+      n = 0;
+    }
     delete[] m_chr;
     m_chr = t;
     m_len += n;
@@ -130,8 +191,14 @@ BaseString::assfmt(const char *fmt, ...)
     l = basestring_vsnprintf(buf, sizeof(buf), fmt, ap) + 1;
     va_end(ap);
     if(l > (int)m_len) {
+        char *t = new char[l];
+        if (t == NULL)
+        {
+          errno = ENOMEM;
+          return *this;
+        }
 	delete[] m_chr;
-	m_chr = new char[l];
+	m_chr = t;
     }
     va_start(ap, fmt);
     basestring_vsnprintf(m_chr, l, fmt, ap);
@@ -155,6 +222,11 @@ BaseString::appfmt(const char *fmt, ...)
     l = basestring_vsnprintf(buf, sizeof(buf), fmt, ap) + 1;
     va_end(ap);
     char *tmp = new char[l];
+    if (tmp == NULL)
+    {
+      errno = ENOMEM;
+      return *this;
+    }
     va_start(ap, fmt);
     basestring_vsnprintf(tmp, l, fmt, ap);
     va_end(ap);
@@ -242,9 +314,28 @@ BaseString::argify(const char *argv0, const char *src) {
     Vector<char *> vargv;
     
     if(argv0 != NULL)
-	vargv.push_back(strdup(argv0));
+    {
+      char *t = strdup(argv0);
+      if (t == NULL)
+      {
+        errno = ENOMEM;
+        return NULL;
+      }
+      if (vargv.push_back(t))
+      {
+        free(t);
+        return NULL;
+      }
+    }
     
     char *tmp = new char[strlen(src)+1];
+    if (tmp == NULL)
+    {
+      for(size_t i = 0; i < vargv.size(); i++)
+        free(vargv[i]);
+      errno = ENOMEM;
+      return NULL;
+    }
     char *dst = tmp;
     const char *end = src + strlen(src);
     /* Copy characters from src to destination, while compacting them
@@ -287,20 +378,48 @@ BaseString::argify(const char *argv0, const char *src) {
 	/* Make sure the string is properly terminated */
 	*dst++ = '\0';
 	src++;
-	
-	vargv.push_back(strdup(begin));
+
+        {
+          char *t = strdup(begin);
+          if (t == NULL)
+          {
+            delete[] tmp;
+            for(size_t i = 0; i < vargv.size(); i++)
+              free(vargv[i]);
+            errno = ENOMEM;
+            return NULL;
+          }
+          if (vargv.push_back(t))
+          {
+            free(t);
+            delete[] tmp;
+            for(size_t i = 0; i < vargv.size(); i++)
+              free(vargv[i]);
+            return NULL;
+          }
+        }
     }
  end:
     
     delete[] tmp;
-    vargv.push_back(NULL);
+    if (vargv.push_back(NULL))
+    {
+      for(size_t i = 0; i < vargv.size(); i++)
+        free(vargv[i]);
+      return NULL;
+    }
     
     /* Convert the C++ Vector into a C-vector of strings, suitable for
      * calling execv().
      */
     char **argv = (char **)malloc(sizeof(*argv) * (vargv.size()));
     if(argv == NULL)
+    {
+        for(size_t i = 0; i < vargv.size(); i++)
+          free(vargv[i]);
+        errno = ENOMEM;
 	return NULL;
+    }
     
     for(size_t i = 0; i < vargv.size(); i++){
 	argv[i] = vargv[i];
