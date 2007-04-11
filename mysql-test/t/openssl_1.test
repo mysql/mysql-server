@@ -104,3 +104,24 @@ drop table t1;
 # and ca path to NULL
 #
 --exec $MYSQL --ssl --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1
+
+
+#
+# Test to connect using a list of ciphers
+#
+--exec echo "SHOW STATUS LIKE 'Ssl_cipher';" > $MYSQLTEST_VARDIR/tmp/test.sql
+--exec $MYSQL_TEST --ssl-cipher=UNKNOWN-CIPHER:AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+
+
+# Test to connect using a specifi cipher
+#
+--exec echo "SHOW STATUS LIKE 'Ssl_cipher';" > $MYSQLTEST_VARDIR/tmp/test.sql
+--exec $MYSQL_TEST --ssl-cipher=AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+
+# Test to connect using an unknown cipher
+#
+--exec echo "SHOW STATUS LIKE 'Ssl_cipher';" > $MYSQLTEST_VARDIR/tmp/test.sql
+--error 1
+--exec $MYSQL_TEST --ssl-cipher=UNKNOWN-CIPHER < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+
+
