@@ -7,6 +7,9 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also update version.c in ndb
+#
+# When changing major version number please also check switch statement
+# in mysqlbinlog::check_master_version().
 AM_INIT_AUTOMAKE(mysql, 5.1.18-beta)
 AM_CONFIG_HEADER(config.h)
 
