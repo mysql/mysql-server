@@ -7817,29 +7817,22 @@ innobase_check_index_keys(
 /***********************************************************************
 Create index field definition for key part */
 static
-merge_index_field_t*
+void
 innobase_create_index_field_def(
 /*============================*/
-					/* out: Index field definition for
-					this key part */
-	KEY_PART_INFO*	key_part,	/* in: Key definition */
-	mem_heap_t*	heap)		/* in: heap where memory is allocated */
+	KEY_PART_INFO*		key_part,	/* in: MySQL key definition */
+	mem_heap_t*		heap,		/* in: memory heap */
+	merge_index_field_t*	index_field)	/* out: index field
+						definition for key_part */
 {
-	Field*			field;
-	merge_index_field_t*	index_field;
-	ibool			is_unsigned;
-	ulint			col_type;
-	ulint			len;
+	Field*		field;
+	ibool		is_unsigned;
+	ulint		col_type;
 
 	DBUG_ENTER("innobase_create_index_field_def");
 
-	ut_a(key_part && heap);
-
-	index_field = (merge_index_field_t*) mem_heap_alloc_noninline(
-						heap, 
-						sizeof(merge_index_field_t));
-
-	ut_a(index_field);
+	ut_ad(key_part);
+	ut_ad(index_field);
 
 	field = key_part->field;
 	ut_a(field);
@@ -7849,9 +7842,9 @@ innobase_create_index_field_def(
 	index_field->col_type = col_type;
 
 	if (DATA_BLOB == col_type
-	|| (key_part->length < field->pack_length()
+	    || (key_part->length < field->pack_length()
 		&& field->type() != MYSQL_TYPE_VARCHAR)
-	|| (field->type() == MYSQL_TYPE_VARCHAR
+	    || (field->type() == MYSQL_TYPE_VARCHAR
 		&& key_part->length < field->pack_length()
 			- ((Field_varstring*)field)->length_bytes)) {
 
@@ -7860,11 +7853,9 @@ innobase_create_index_field_def(
 		index_field->prefix_len = 0;
 	}
 
-	len = strlen(field->field_name) + 1;
-	index_field->field_name = (char *)mem_heap_alloc_noninline(heap, len);
-	memcpy(index_field->field_name, field->field_name, len);
+	index_field->field_name = mem_heap_strdup(heap, field->field_name);
 
-	DBUG_RETURN(index_field);
+	DBUG_VOID_RETURN;
 }
 
 /***********************************************************************
@@ -7888,8 +7879,8 @@ innobase_create_index_def(
 	index = (merge_index_def_t*) mem_heap_alloc_noninline(
 			heap, sizeof(merge_index_def_t));
 
-	index->fields = (merge_index_field_t**) mem_heap_alloc_noninline(
-			heap, sizeof(merge_index_field_t*) * n_fields);
+	index->fields = (merge_index_field_t*) mem_heap_alloc_noninline(
+		heap, n_fields * sizeof *index->fields);
 
 	index->ind_type = 0;
 	index->n_fields = n_fields;
@@ -7914,11 +7905,8 @@ innobase_create_index_def(
 	}
 
 	for (ulint i = 0; i < n_fields; i++) {
-		KEY_PART_INFO*		key_part;
-
-		key_part = key->key_part + i;
-		index->fields[i] = innobase_create_index_field_def(
-					key_part, heap);
+		innobase_create_index_field_def(&key->key_part[i], heap,
+						&index->fields[i]);
 	}
 
 	DBUG_RETURN(index);
@@ -7927,32 +7915,22 @@ innobase_create_index_def(
 /***********************************************************************
 Copy index field definition */
 static
-merge_index_field_t*
+void
 innobase_copy_index_field_def(
 /*==========================*/
-				/* out: Index field definition for
-				this index */
-	dict_field_t*	field,	/* in: Index definition to copy*/
-	mem_heap_t*	heap)	/* in: heap where memory is allocated */
+	const dict_field_t*	field,		/* in: definition to copy */
+	mem_heap_t*		heap,		/* in: memory heap */
+	merge_index_field_t*	index_field)	/* out: copied definition */
 {
-	merge_index_field_t*	index_field;
-	ulint			len;
-
 	DBUG_ENTER("innobase_copy_index_field_def");
-
-	ut_a(field && heap);
-
-	index_field = (merge_index_field_t*) mem_heap_alloc_noninline(
-						heap, 
-						sizeof(merge_index_field_t));
+	DBUG_ASSERT(field != NULL);
+	DBUG_ASSERT(index_field != NULL);
 
 	index_field->col_type = (field->col->prtype & 0xFFUL);
-	len = strlen(field->name) + 1;
-	index_field->field_name = (char *)mem_heap_alloc_noninline(heap, len);
-	memcpy(index_field->field_name, field->name, len);
+	index_field->field_name = mem_heap_strdup(heap, field->name);
 	index_field->prefix_len = field->prefix_len;
 
-	DBUG_RETURN(index_field);
+	DBUG_VOID_RETURN;
 }
 
 /***********************************************************************
@@ -7968,7 +7946,6 @@ innobase_copy_index_def(
 	merge_index_def_t*	new_index;
 	ulint			n_fields;
 	ulint			i;
-	ulint			len;
 
 	DBUG_ENTER("innobase_copy_index_def");
 
@@ -7988,20 +7965,16 @@ innobase_copy_index_def(
 	new_index = (merge_index_def_t*) mem_heap_alloc_noninline(
 					heap, sizeof(merge_index_def_t));
 
-	new_index->fields = (merge_index_field_t**) mem_heap_alloc_noninline(
-				heap, sizeof(merge_index_field_t*) * n_fields);
+	new_index->fields = (merge_index_field_t*) mem_heap_alloc_noninline(
+		heap, n_fields * sizeof *new_index->fields);
 
 	new_index->ind_type = index->type;
 	new_index->n_fields = n_fields;
-	len = strlen(index->name) + 1;
-	new_index->name = (char *)mem_heap_alloc_noninline(heap, len);
-	memcpy(new_index->name, index->name, len);
+	new_index->name = mem_heap_strdup(heap, index->name);
 
 	for (i = 0; i < n_fields; i++) {
-		dict_field_t* field = ((index->fields) + i);
-
-		new_index->fields[i] = innobase_copy_index_field_def(
-								field, heap);
+		innobase_copy_index_field_def(&index->fields[i], heap,
+					      &new_index->fields[i]);
 	}
 
 	DBUG_RETURN(new_index);
@@ -8154,9 +8127,11 @@ ha_innobase::add_index(
 	DBUG_ENTER("ha_innobase::add_index");
 	ut_a(table && key_info && num_of_keys);
 
+	update_thd(current_thd);
+
 	index = NULL;
 
-	parent_trx = check_trx_exists(ht, current_thd);
+	parent_trx = check_trx_exists(ht, user_thd);
 	trx_search_latch_release_if_reserved(parent_trx);
 
 	trx = parent_trx;
@@ -8164,14 +8139,14 @@ ha_innobase::add_index(
 
 	trx_start_if_not_started_noninline(trx);
 
-	trx->mysql_thd = current_thd;
-	trx->mysql_query_str = &((*current_thd).query);
+	trx->mysql_thd = user_thd;
+	trx->mysql_query_str = &user_thd->query;
 
-	if (current_thd->options & OPTION_NO_FOREIGN_KEY_CHECKS) {
+	if (user_thd->options & OPTION_NO_FOREIGN_KEY_CHECKS) {
 		trx->check_foreigns = FALSE;
 	}
 
-	if (current_thd->options & OPTION_RELAXED_UNIQUE_CHECKS) {
+	if (user_thd->options & OPTION_RELAXED_UNIQUE_CHECKS) {
 		trx->check_unique_secondary = FALSE;
 	}
 
@@ -8186,7 +8161,7 @@ ha_innobase::add_index(
 	if (error != DB_SUCCESS) {
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 
-		error = convert_error_code_to_mysql(error, current_thd);
+		error = convert_error_code_to_mysql(error, user_thd);
 
 		DBUG_RETURN((int)error);
 	}
@@ -8212,7 +8187,7 @@ ha_innobase::add_index(
 		new_primary = TRUE;
 
 		new_table_name = innobase_create_temporary_tablename(
-			current_thd, (const char *)innodb_table->name, 17431);
+			user_thd, (const char *)innodb_table->name, 17431);
 
 		row_mysql_lock_data_dictionary(trx);
 
@@ -8227,7 +8202,7 @@ ha_innobase::add_index(
 		if (error != DB_SUCCESS) {
 			mem_heap_free_noninline(heap);
 			trx_general_rollback_for_mysql(trx, FALSE, NULL);
-			error = convert_error_code_to_mysql(error, current_thd);
+			error = convert_error_code_to_mysql(error, user_thd);
 
 			DBUG_RETURN((int)error);
 		}
@@ -8360,7 +8335,7 @@ ha_innobase::add_index(
 		strcpy(old_name, innodb_table->name);
 
 		tmp_table_name = innobase_create_temporary_tablename(
-			current_thd, (const char *)innodb_table->name, 232125);
+			user_thd, (const char *)innodb_table->name, 232125);
 
 		trx_start_if_not_started_noninline(trx);
 
@@ -8404,7 +8379,7 @@ ha_innobase::add_index(
 	/* There might be work for utility threads.*/
 	srv_active_wake_master_thread();
 
-	error = convert_error_code_to_mysql(error, current_thd);
+	error = convert_error_code_to_mysql(error, user_thd);
 
 	DBUG_RETURN((int)error);
 }

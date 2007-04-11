@@ -85,6 +85,37 @@ struct merge_rec_list_struct {
 
 typedef struct merge_rec_list_struct merge_rec_list_t;
 
+/* Block size for I/O operations in merge sort */
+
+#define MERGE_BLOCK_SIZE	1048576	/* 1M */
+
+/* Intentional free space on every block */
+#define MERGE_BLOCK_SAFETY_MARGIN	128
+
+/* Enable faster index creation debug code */
+/* #define UNIV_DEBUG_INDEX_CREATE		1 */
+
+/* This block header structure is used to create linked list of the
+blocks to the disk. Every block contains one header.*/
+
+struct merge_block_header_struct {
+	ulint	n_records;		/* Number of records in the block. */
+	dulint  offset;			/* Offset of this block in the disk. */
+	dulint	next;			/* Offset to next block in the disk. */
+};
+
+typedef struct merge_block_header_struct merge_block_header_t;
+
+/* This block structure is used to hold index records in the disk
+and the memory */
+
+struct merge_block_struct {
+	merge_block_header_t	header;	/* Block header information */
+	char			data[MERGE_BLOCK_SIZE - sizeof(merge_block_header_t)];/* Data area i.e. heap */
+};
+
+typedef struct merge_block_struct merge_block_t;
+
 static
 dict_index_t*
 row_merge_dict_table_get_index(
@@ -101,7 +132,7 @@ row_merge_dict_table_get_index(
 		index_def->n_fields * sizeof(char*));
 
 	for (i = 0; i < index_def->n_fields; ++i) {
-		column_names[i] = index_def->fields[i]->field_name;
+		column_names[i] = index_def->fields[i].field_name;
 	}
 
 	index = dict_table_get_index_by_max_id(
@@ -2150,13 +2181,11 @@ row_merge_create_index(
 		for (i = 0; i < n_fields; i++) {
 			merge_index_field_t* ifield;
 
-			ifield = index_def->fields[i];
+			ifield = &index_def->fields[i];
 
-			/* TODO: [What's this comment] We assume all fields
-			should be sorted in ascending order, hence the '0' */
-
-			dict_mem_index_add_field(
-				*index, ifield->field_name, ifield->prefix_len);
+			dict_mem_index_add_field(*index,
+						 ifield->field_name,
+						 ifield->prefix_len);
 		}
 
 		/* Add the index to SYS_INDEXES, this will use the prototype
