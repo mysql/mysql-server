@@ -881,6 +881,7 @@ int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
         sql_print_error("ha_ndbcluster::get_ndb_blobs_value: "
                         "my_malloc(%u) failed", offset);
         DBUG_RETURN(-1);
+      }
       buffer_size= offset;
     }
   }
@@ -8739,12 +8740,6 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     DBUG_RETURN(NULL);
   }
   THD_CHECK_SENTRY(thd);
-  if (ndb == NULL)
-  {
-    thd->cleanup();
-    delete thd;
-    DBUG_RETURN(NULL);
-  }
   pthread_detach_this_thread();
   ndb_util_thread= pthread_self();
 
@@ -8917,14 +8912,13 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       pthread_mutex_lock(&share->mutex);
       lock= share->commit_count_lock;
       pthread_mutex_unlock(&share->mutex);
-      if (ndb->setDatabaseName(db))
-      {
-        goto loop_next;
-      }
       {
         /* Contact NDB to get commit count for table */
         Ndb* ndb= thd_ndb->ndb;
-        ndb->setDatabaseName(share->db);
+        if (ndb->setDatabaseName(share->db))
+        {
+          goto loop_next;
+        }
         Ndb_table_guard ndbtab_g(ndb->getDictionary(), share->table_name);
         if (ndbtab_g.get_table() &&
             ndb_get_table_statistics(NULL, FALSE, ndb,
