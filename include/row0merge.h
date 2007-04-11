@@ -21,37 +21,6 @@ Created 13/06/2005 Jan Lindstrom
 #include "btr0types.h"
 #include "row0mysql.h"
 
-/* Block size for I/O operations in merge sort */
-
-#define MERGE_BLOCK_SIZE	1048576	/* 1M */
-
-/* Intentional free space on every block */
-#define MERGE_BLOCK_SAFETY_MARGIN	128
-
-/* Enable faster index creation debug code */
-/* #define UNIV_DEBUG_INDEX_CREATE		1 */
-
-/* This block header structure is used to create linked list of the
-blocks to the disk. Every block contains one header.*/
-
-struct merge_block_header_struct {
-	ulint	n_records;		/* Number of records in the block. */
-	dulint  offset;			/* Offset of this block in the disk. */
-	dulint	next;			/* Offset to next block in the disk. */
-};
-
-typedef struct merge_block_header_struct merge_block_header_t;
-
-/* This block structure is used to hold index records in the disk
-and the memory */
-
-struct merge_block_struct {
-	merge_block_header_t	header;	/* Block header information */
-	char			data[MERGE_BLOCK_SIZE - sizeof(merge_block_header_t)];/* Data area i.e. heap */
-};
-
-typedef struct merge_block_struct merge_block_t;
-
 /* Information about temporary files used in merge sort are stored
 to this structure */
 
@@ -62,19 +31,6 @@ struct merge_file_struct {
 };
 
 typedef struct merge_file_struct merge_file_t;
-
-/* This structure holds parameters to thread which does a
-disk based merge sort and inserts index records */
-
-struct merge_thread_struct {
-	dict_index_t*	index;		/* in: Index to be created */
-	row_prebuilt_t*	prebuilt;	/* in: Prebuilt */
-	trx_t*		trx;		/* in: trx */
-	os_file_t	file;		/* in: File handle */
-	int		error;		/* out: error code or 0 */
-};
-
-typedef struct merge_thread_struct merge_thread_t;
 
 /* This structure holds index field definitions */
 
@@ -92,7 +48,7 @@ struct merge_index_def_struct {
 	ulint	n_fields;		/* Number of fields in index */
 	ulint	ind_type;		/* 0, DICT_UNIQUE or DICT_CLUSTERED */
 	char*	name;			/* Index name */
-	merge_index_field_t** fields;	/* Field definitions */
+	merge_index_field_t* fields;	/* Field definitions */
 };
 
 typedef struct merge_index_def_struct merge_index_def_t;
