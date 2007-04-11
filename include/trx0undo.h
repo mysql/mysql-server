@@ -222,13 +222,16 @@ trx_undo_lists_init(
 Assigns an undo log for a transaction. A new undo log is created or a cached
 undo log reused. */
 
-trx_undo_t*
+ulint
 trx_undo_assign_undo(
 /*=================*/
-			/* out: the undo log, NULL if did not succeed: out of
-			space */
-	trx_t*	trx,	/* in: transaction */
-	ulint	type);	/* in: TRX_UNDO_INSERT or TRX_UNDO_UPDATE */
+				/* out: DB_SUCCESS if undo log assign
+				 * successful, possible error codes are:
+				 * ER_TOO_MANY_CONCURRENT_TRXS
+				 * DB_OUT_OF_FILE_SPAC
+				 * DB_OUT_OF_MEMORY */
+	trx_t*		trx,	/* in: transaction */
+	ulint		type);	/* in: TRX_UNDO_INSERT or TRX_UNDO_UPDATE */
 /**********************************************************************
 Sets the state of the undo log segment at a transaction finish. */
 
