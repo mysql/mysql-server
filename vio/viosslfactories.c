@@ -249,8 +249,13 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
     DBUG_RETURN(0);
   }
 
-  /* Set the ciphers that can be used */
-  if (cipher && SSL_CTX_set_cipher_list(ssl_fd->ssl_context, cipher))
+  /*
+    Set the ciphers that can be used
+    NOTE: SSL_CTX_set_cipher_list will return 0 if
+    none of the provided ciphers could be selected
+  */
+  if (cipher &&
+      SSL_CTX_set_cipher_list(ssl_fd->ssl_context, cipher) == 0)
   {
     DBUG_PRINT("error", ("failed to set ciphers to use"));
     report_errors();
