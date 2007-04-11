@@ -816,7 +816,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
  InvalidSignal:
 #ifdef VM_TRACE
   ndbout_c("Ndbif: Error Ndb::handleReceivedSignal "
-	   "(tFirstDataPtr=%x, GSN=%d, theImpl->theWaiter.m_state=%d)"
+	   "(tFirstDataPtr=%p, GSN=%d, theImpl->theWaiter.m_state=%d)"
 	   " sender = (Block: %d Node: %d)",
            tFirstDataPtr,
 	   tSignalNumber,
