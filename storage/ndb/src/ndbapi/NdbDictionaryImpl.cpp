@@ -1275,7 +1275,7 @@ NdbEventImpl::~NdbEventImpl()
 
 int NdbEventImpl::setName(const char * name)
 {
-  !m_name.assign(name);
+  return !m_name.assign(name);
 }
 
 const char *NdbEventImpl::getName() const
