@@ -31,6 +31,7 @@ have disables the InnoDB inlining in this file. */
 #endif
 
 #include <mysql_priv.h>
+#include <mysqld_error.h>
 
 #ifdef WITH_INNOBASE_STORAGE_ENGINE
 
@@ -4508,6 +4509,24 @@ ha_innobase::position(
 }
 
 /*********************************************************************
+If it's a DB_TOO_BIG_RECORD error then set a suitable message to
+return to the client.*/
+static
+void
+innodb_check_for_record_too_big_error(
+	dict_table_t*	table,
+	int		error)
+{
+	if (error == (int)DB_TOO_BIG_RECORD) {
+		ulint		max_row_size;
+
+		max_row_size = page_get_free_space_of_empty_noninline(table);
+
+		my_error(ER_TOO_BIG_ROWSIZE, MYF(0), max_row_size);
+	}
+}
+
+/*********************************************************************
 Creates a table definition to an InnoDB database. */
 static
 int
@@ -4614,6 +4633,10 @@ create_table_def(
 	}
 
 	error = row_create_table_for_mysql(table, trx);
+
+	/* We need access to the table and so we do the error checking
+	and set the error message here, before the error translation.*/
+	innodb_check_for_record_too_big_error(table, error);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
@@ -4737,6 +4760,10 @@ create_index(
 	sure we don't create too long indexes. */
 	error = row_create_index_for_mysql(index, trx, field_lengths);
 
+	/* We need access to the table and so we do the error checking
+	and set the error message here, before the error translation.*/
+	innodb_check_for_record_too_big_error(index->table, error);
+
 	error = convert_error_code_to_mysql(error, NULL);
 
 	my_free((gptr) field_lengths, MYF(0));
@@ -4763,6 +4790,10 @@ create_clustered_index_when_no_primary(
 	index = dict_mem_index_create((char*) table_name,
 		(char*) "GEN_CLUST_INDEX", 0, DICT_CLUSTERED, 0);
 	error = row_create_index_for_mysql(index, trx, NULL);
+
+	/* We need access to the table and so we do the error checking
+	and set the error message here, before the error translation.*/
+	innodb_check_for_record_too_big_error(index->table, error);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
