@@ -1121,7 +1121,6 @@ row_merge_sort_linked_list_in_disk(
 {
 	merge_block_t*		block1;
 	merge_block_t*		block2;
-	merge_block_t*		tmp;
 	merge_block_t*		backup1;
 	merge_block_t*		backup2;
 	merge_block_header_t	header;
@@ -1135,16 +1134,12 @@ row_merge_sort_linked_list_in_disk(
 	dulint			list_tail;
 	dulint			offset;
 	ibool			list_is_empty;
-	int			selected;
 
 	ut_ad(index);
 
 	/* Allocate memory for blocks */
-	block1	= row_merge_block_create();
-	block2	= row_merge_block_create();
-	backup1	= block1;
-	backup2	= block2;
-	tmp	= NULL;
+	backup1 = block1 = row_merge_block_create();
+	backup2 = block2 = row_merge_block_create();
 
 	list_head = ut_dulint_create(0, 0);
 	list_tail = ut_dulint_create(0, 0);
@@ -1154,7 +1149,6 @@ row_merge_sort_linked_list_in_disk(
 	block_size = 1;	/* We start from block size 1 */
 
 	for (;;) {
-		tmp = NULL;
 		block1 = backup1;
 
 		row_merge_block_read(file, block1, list_head);
@@ -1165,7 +1159,7 @@ row_merge_sort_linked_list_in_disk(
 		num_of_merges = 0;	/* We count number of merges we do in
 					this pass */
 
-		while (block1) {
+		for (;;) {
 			num_of_merges++;
 
 			header = block1->header;
@@ -1213,9 +1207,8 @@ row_merge_sort_linked_list_in_disk(
 				/* Merge sort two lists by deciding whether
 				next element of merge comes from list1 or
 				list2. */
-
-				selected = 0;
-				tmp = NULL;
+				merge_block_t*	tmp;
+				ulint		selected;
 
 				if (list1_size == 0) {
 					/* First list is empty, next element
@@ -1243,8 +1236,8 @@ row_merge_sort_linked_list_in_disk(
 					/* Both lists contain a block and we
 					need to merge records on these block */
 
-					tmp = row_merge_block_merge(block1,
-								    &block2, index);
+					tmp = row_merge_block_merge(
+						block1, &block2, index);
 
 					block1 = tmp;
 					backup1 = tmp;
@@ -1289,18 +1282,17 @@ row_merge_sort_linked_list_in_disk(
 				}
 			}
 
-			/* Now we have processed block_size items from the disk.
-			Swap blocks using pointers. */
+			/* Now we have processed block_size items from
+			the disk.  Swap blocks using pointers. */
 
-			if (block2) {
-				tmp = block2;
-				block2 = block1;
-				block1 = tmp;
-				backup1 = block1;
-				backup2 = block2;
-			} else {
-				block1 = NULL;
+			if (!block2) {
+				break;
 			}
+
+			block2 = backup1;
+			block1 = backup2;
+			backup2 = block2;
+			backup1 = block1;
 		}
 
 
