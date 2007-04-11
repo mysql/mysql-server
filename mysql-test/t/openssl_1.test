@@ -97,6 +97,14 @@ drop table t1;
 --exec $MYSQL_TEST --ssl-cert= --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
 #
+# BUG#21611 Slave can't connect when master-ssl-cipher specified
+# - Apparently selecting a cipher doesn't work at all
+# - Usa a cipher that both yaSSL and OpenSSL supports
+#
+--exec echo "SHOW STATUS LIKE 'Ssl_cipher';" > $MYSQLTEST_VARDIR/tmp/test.sql
+--exec $MYSQL_TEST --ssl-cipher=DHE-RSA-AES256-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+
+#
 # Bug#25309 SSL connections without CA certificate broken since MySQL 5.0.23
 #
 # Test that we can open encrypted connection to server without
@@ -142,3 +150,24 @@ SELECT variable_name, variable_value FROM thread_status;
 DROP TABLE thread_status;
 SET GLOBAL event_scheduler=0;
 --echo End of 5.1 tests
+
+
+#
+# Test to connect using a list of ciphers
+#
+--exec echo "SHOW STATUS LIKE 'Ssl_cipher';" > $MYSQLTEST_VARDIR/tmp/test.sql
+--exec $MYSQL_TEST --ssl-cipher=UNKNOWN-CIPHER:AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+
+
+# Test to connect using a specifi cipher
+#
+--exec echo "SHOW STATUS LIKE 'Ssl_cipher';" > $MYSQLTEST_VARDIR/tmp/test.sql
+--exec $MYSQL_TEST --ssl-cipher=AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+
+# Test to connect using an unknown cipher
+#
+--exec echo "SHOW STATUS LIKE 'Ssl_cipher';" > $MYSQLTEST_VARDIR/tmp/test.sql
+--error 1
+--exec $MYSQL_TEST --ssl-cipher=UNKNOWN-CIPHER < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+
+
