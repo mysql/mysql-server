@@ -1830,12 +1830,9 @@ row_merge_remove_index(
 	dict_table_t*	table,	/* in: table */
 	trx_t*		trx)	/* in: transaction handle */
 {
-	que_thr_t*	thr;
-	que_t*		graph;
-	mem_heap_t*	sql_heap;
 	ulint		err;
-	char*		sql;
 	ibool		dict_lock = FALSE;
+	pars_info_t*	info = pars_info_create();
 
 	/* We use the private SQL parser of Innobase to generate the
 	query graphs needed in deleting the dictionary data from system
@@ -1844,81 +1841,39 @@ row_merge_remove_index(
 
 	static const char str1[] =
 		"PROCEDURE DROP_INDEX_PROC () IS\n"
-		"indexid CHAR;\n"
-		"tableid CHAR;\n"
-		"table_id_high INT;\n"
-		"table_id_low INT;\n"
-		"index_id_high INT;\n"
-		"index_id_low INT;\n"
 		"BEGIN\n"
-		"index_id_high := %lu;\n"
-		"index_id_low  := %lu;\n"
-		"table_id_high := %lu;\n"
-		"table_id_low  := %lu;\n"
-		"indexid := CONCAT(TO_BINARY(index_id_high, 4),"
-		" TO_BINARY(index_id_low, 4));\n"
-		"tableid := CONCAT(TO_BINARY(table_id_high, 4),"
-		" TO_BINARY(table_id_low, 4));\n"
-		"DELETE FROM SYS_FIELDS WHERE INDEX_ID = indexid;\n"
-		"DELETE FROM SYS_INDEXES WHERE ID = indexid\n"
-		"		AND TABLE_ID = tableid;\n"
+		"DELETE FROM SYS_FIELDS WHERE INDEX_ID = :indexid;\n"
+		"DELETE FROM SYS_INDEXES WHERE ID = :indexid\n"
+		"		AND TABLE_ID = :tableid;\n"
 		"END;\n";
 
 	ut_ad(index && table && trx);
 
+	pars_info_add_dulint_literal(info, "indexid", index->id);
+	pars_info_add_dulint_literal(info, "tableid", table->id);
+
 	trx_start_if_not_started(trx);
 	trx->op_info = "dropping index";
-
-	sql_heap = mem_heap_create(256);
-
-	sql = mem_heap_alloc(sql_heap, sizeof(str1) + 80);
-
-	sprintf(sql, "%s", str1);
-
-	sprintf(sql, sql, ut_dulint_get_high(index->id),
-		ut_dulint_get_low(index->id), ut_dulint_get_high(table->id),
-		ut_dulint_get_low(table->id));
 
 	if (trx->dict_operation_lock_mode == 0) {
 		row_mysql_lock_data_dictionary(trx);
 		dict_lock = TRUE;
 	}
 
-	graph = pars_sql(NULL, sql);
+	err = que_eval_sql(info, str1, FALSE, trx);
 
-	ut_a(graph);
-	mem_heap_free(sql_heap);
+	ut_a(err == DB_SUCCESS);
 
-	graph->trx = trx;
-	trx->graph = NULL;
+	/* Replace this index with another equivalent index for all
+	foreign key constraints on this table where this index is used */
 
-	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
+	dict_table_replace_index_in_foreign_list(table, index);
 
-	ut_a(thr = que_fork_start_command(graph));
-
-	que_run_threads(thr);
-
-	err = trx->error_state;
-
-	if (err != DB_SUCCESS) {
-		row_mysql_handle_errors(&err, trx, thr, NULL);
-
-		ut_error;
-	} else {
-		/* Replace this index with another equivalent index for all
-		foreign key constraints on this table where this index
-		is used */
-
-		dict_table_replace_index_in_foreign_list(table, index);
-
-		if (trx->dict_redo_list) {
-			dict_redo_remove_index(trx, index);
-		}
-
-		dict_index_remove_from_cache(table, index);
+	if (trx->dict_redo_list) {
+		dict_redo_remove_index(trx, index);
 	}
 
-	que_graph_free(graph);
+	dict_index_remove_from_cache(table, index);
 
 	if (dict_lock) {
 		row_mysql_unlock_data_dictionary(trx);
@@ -2049,13 +2004,9 @@ row_merge_rename_index(
 	dict_table_t*	table,		/* in: Table for index */
 	dict_index_t*	index)		/* in: Index to rename */
 {
-	que_thr_t*	thr;
-	char*		sql;
-	que_t*		graph;
-	ulint		name_len;
-	mem_heap_t*	sql_heap;
 	ibool		dict_lock = FALSE;
 	ulint		err = DB_SUCCESS;
+	pars_info_t*	info = pars_info_create();
 
 	/* Only rename from temp names */
 	ut_a(*index->name == TEMP_TABLE_PREFIX);
@@ -2065,23 +2016,9 @@ row_merge_rename_index(
 
 	static const char str1[] =
 		"PROCEDURE RENAME_INDEX_PROC () IS\n"
-		"indexid CHAR;\n"
-		"tableid CHAR;\n"
-		"table_id_high INT;\n"
-		"table_id_low INT;\n"
-		"index_id_high INT;\n"
-		"index_id_low INT;\n"
 		"BEGIN\n"
-		"index_id_high := %lu;\n"
-		"index_id_low  := %lu;\n"
-		"table_id_high := %lu;\n"
-		"table_id_low  := %lu;\n"
-		"indexid := CONCAT(TO_BINARY(index_id_high, 4),"
-		" TO_BINARY(index_id_low, 4));\n"
-		"tableid := CONCAT(TO_BINARY(table_id_high, 4),"
-		" TO_BINARY(table_id_low, 4));\n"
-		"UPDATE SYS_INDEXES SET NAME = '%s'\n"
-		" WHERE ID = indexid AND TABLE_ID = tableid;\n"
+		"UPDATE SYS_INDEXES SET NAME = :name\n"
+		" WHERE ID = :indexid AND TABLE_ID = :tableid;\n"
 		"END;\n";
 
 	table = index->table;
@@ -2091,42 +2028,20 @@ row_merge_rename_index(
 	trx_start_if_not_started(trx);
 	trx->op_info = "renaming index";
 
-	sql_heap = mem_heap_create(1024);
-
-	name_len = strlen(index->name);
-	sql = mem_heap_alloc(sql_heap, sizeof(str1) + 4 * 15 + name_len);
-
-	sprintf(sql, str1,
-		ut_dulint_get_high(index->id), ut_dulint_get_low(index->id),
-		ut_dulint_get_high(table->id), ut_dulint_get_low(table->id),
-		index->name + 1); /* Skip the TEMP_TABLE_PREFIX marker */
+	pars_info_add_str_literal(info, "name", index->name);
+	pars_info_add_dulint_literal(info, "indexid", index->id);
+	pars_info_add_dulint_literal(info, "tableid", table->id);
 
 	if (trx->dict_operation_lock_mode == 0) {
 		row_mysql_lock_data_dictionary(trx);
 		dict_lock = TRUE;
 	}
 
-	graph = pars_sql(NULL, sql);
-
-	ut_a(graph);
-	mem_heap_free(sql_heap);
-
-	graph->trx = trx;
-	trx->graph = NULL;
-
-	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
-
-	ut_a(thr = que_fork_start_command(graph));
-
-	que_run_threads(thr);
-
-	err = trx->error_state;
+	err = que_eval_sql(info, str1, FALSE, trx);
 
 	if (err == DB_SUCCESS) {
-		strcpy(index->name, index->name + 1);
+		index->name++;
 	}
-
-	que_graph_free(graph);
 
 	if (dict_lock) {
 		row_mysql_unlock_data_dictionary(trx);
