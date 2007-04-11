@@ -149,7 +149,7 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
   {
     /* We have to use warn_root, as mem_root is freed after each query */
     if ((err= new (&thd->warn_root) MYSQL_ERROR(thd, code, level, msg)))
-      thd->warn_list.push_back(err);
+      thd->warn_list.push_back(err, &thd->warn_root);
   }
   thd->warn_count[(uint) level]++;
   thd->total_warn_count++;
