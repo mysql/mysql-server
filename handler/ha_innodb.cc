@@ -4528,8 +4528,9 @@ return to the client.*/
 static
 void
 innodb_check_for_record_too_big_error(
-	dict_table_t*	table,
-	int		error)
+/*==================================*/
+	dict_table_t*	table,		/* in: table to check */
+	int		error)		/* in: error code to check */
 {
 	if (error == (int)DB_TOO_BIG_RECORD) {
 		ulint		max_row_size;
