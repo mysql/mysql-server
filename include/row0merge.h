@@ -52,35 +52,6 @@ struct merge_block_struct {
 
 typedef struct merge_block_struct merge_block_t;
 
-/* Records are stored in the memory for main memory linked list
-to this structure */
-
-struct merge_rec_struct {
-	struct merge_rec_struct *next;	/* Pointer to next record
-					in the list */
-	rec_t*		rec;		/* Record */
-};
-
-typedef struct merge_rec_struct merge_rec_t;
-
-/* This structure is head element for main memory linked list
-used for main memory linked list merge sort */
-
-struct merge_rec_list_struct {
-	merge_rec_t*	head;		/* Pointer to head of the
-					list */
-	merge_rec_t*	tail;		/* Pointer to tail of the
-					list */
-	ulint		n_records;	/* Number of records in
-					the list */
-	ulint		total_size;	/* Total size of all records in
-					the list */
-	mem_heap_t*	heap;		/* Heap where memory for this
-					list is allocated */
-};
-
-typedef struct merge_rec_list_struct merge_rec_list_t;
-
 /* Information about temporary files used in merge sort are stored
 to this structure */
 
@@ -138,7 +109,7 @@ row_merge_read_clustered_index(
 	trx_t*		trx,		/* in: transaction */
 	dict_table_t*	table,		/* in: table where index is created */
 	dict_index_t**	index,		/* in: indexes to be created */
-	merge_file_t**	files,		/* in: Files where to write index
+	merge_file_t*	files,		/* in: Files where to write index
 					entries */
 	ulint		num_of_idx);	/* in: number of indexes to be
 					created */
@@ -170,30 +141,12 @@ row_merge_sort_linked_list_in_disk(
 	int*		error);		/* out: 0 or error */
 
 /*************************************************************************
-Allocate and initialize memory for a merge file structure */
+Initialize memory for a merge file structure */
 
-merge_file_t*
-row_merge_create_file_structure(
-/*============================*/
-					/* out: pointer to merge file
-					structure */
-	mem_heap_t*	heap);		/* in: heap where merge file structure
-					is allocated */
-/*************************************************************************
-A thread which merge sorts given file and inserts sorted records to
-the index. */
-
-#ifndef __WIN__
-void *
-#else
-ulint
-#endif
-row_merge_sort_and_insert_thread(
-/*=============================*/
-				/* out: a dummy parameter */
-	void*	arg);		/* in: parameters */
-
-
+void
+row_merge_file_create(
+/*==================*/
+	merge_file_t*	merge_file);	/* out: merge file structure */
 /*************************************************************************
 Remove a index from system tables */
 
@@ -287,9 +240,8 @@ row_merge_is_index_usable(
 /*======================*/
 					/* out: TRUE if index can be used by
 					the transaction else FALSE*/
-	const trx_t*	trx,		/* in: transaction */
-	const dict_index_t*		/* in: index to check */
-			index);
+	const trx_t*		trx,	/* in: transaction */
+	const dict_index_t*	index);	/* in: index to check */
 /*************************************************************************
 If there are views that refer to the old table name then we "attach" to
 the new instance of the table else we drop it immediately.*/
@@ -302,4 +254,3 @@ row_merge_drop_table(
 	trx_t*		trx,		/* in: transaction */
 	dict_table_t*	table);		/* in: table instance to drop */
 #endif /* row0merge.h */
-

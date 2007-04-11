@@ -56,6 +56,35 @@ TODO:
 #include "mem0mem.h"
 #include "log0log.h"
 
+/* Records are stored in the memory for main memory linked list
+to this structure */
+
+struct merge_rec_struct {
+	struct merge_rec_struct *next;	/* Pointer to next record
+					in the list */
+	rec_t*		rec;		/* Record */
+};
+
+typedef struct merge_rec_struct merge_rec_t;
+
+/* This structure is head element for main memory linked list
+used for main memory linked list merge sort */
+
+struct merge_rec_list_struct {
+	merge_rec_t*	head;		/* Pointer to head of the
+					list */
+	merge_rec_t*	tail;		/* Pointer to tail of the
+					list */
+	ulint		n_records;	/* Number of records in
+					the list */
+	ulint		total_size;	/* Total size of all records in
+					the list */
+	mem_heap_t*	heap;		/* Heap where memory for this
+					list is allocated */
+};
+
+typedef struct merge_rec_list_struct merge_rec_list_t;
+
 static
 dict_index_t*
 row_merge_dict_table_get_index(
@@ -1394,7 +1423,7 @@ row_merge_read_clustered_index(
 	trx_t*		trx,		/* in: transaction */
 	dict_table_t*	table,		/* in: table where index is created */
 	dict_index_t**	index,		/* in: indexes to be created */
-	merge_file_t**	files,		/* in: Files where to write index
+	merge_file_t*	files,		/* in: Files where to write index
 					entries */
 	ulint		num_of_idx)	/* in: number of indexes to be
 					created */
@@ -1521,7 +1550,7 @@ row_merge_read_clustered_index(
 
 				if (!row_merge_sort_and_store(
 					    index[idx_num],
-					    files[idx_num],
+					    &files[idx_num],
 					    block,
 					    &(merge_list[idx_num]))) {
 
@@ -1531,7 +1560,7 @@ row_merge_read_clustered_index(
 				}
 
 				n_blocks++;
-				files[idx_num]->num_of_blocks++;
+				files[idx_num].num_of_blocks++;
 			}
 		}
 
@@ -1573,14 +1602,14 @@ next_record:
 			behind this one. This will create a
 			'linked list' of blocks to the disk. */
 
-			block->header.offset = files[idx_num]->offset;
+			block->header.offset = files[idx_num].offset;
 
 			block->header.next= ut_dulint_add(
-				files[idx_num]->offset, MERGE_BLOCK_SIZE);
+				files[idx_num].offset, MERGE_BLOCK_SIZE);
 
 			if (!row_merge_sort_and_store(
 				    index[idx_num],
-				    files[idx_num],
+				    &files[idx_num],
 				    block,
 				    &(merge_list[idx_num]))) {
 
@@ -1589,7 +1618,7 @@ next_record:
 				goto error_handling;
 			}
 
-			files[idx_num]->num_of_blocks++;
+			files[idx_num].num_of_blocks++;
 			n_blocks++;
 		}
 
@@ -1600,7 +1629,7 @@ next_record:
 		header->next = ut_dulint_create(0, 0);
 
 		row_merge_block_header_write(
-			files[idx_num]->file, header, header->offset);
+			files[idx_num].file, header, header->offset);
 	}
 
 #ifdef UNIV_DEBUG_INDEX_CREATE
@@ -1880,24 +1909,15 @@ row_merge_remove_index(
 /*************************************************************************
 Allocate and initialize memory for a merge file structure */
 
-merge_file_t*
-row_merge_create_file_structure(
-/*============================*/
-					/* out: pointer to merge file
-					structure */
-	mem_heap_t*	heap)		/* in: heap where merge file structure
-					is allocated */
+void
+row_merge_file_create(
+/*==================*/
+	merge_file_t*	merge_file)	/* out: merge file structure */
 {
-	merge_file_t*	merge_file;
-
-	merge_file = (merge_file_t*) mem_heap_alloc(heap, sizeof(merge_file_t));
-
 	merge_file->file = innobase_mysql_tmpfile();
 
 	merge_file->offset = ut_dulint_create(0, 0);
 	merge_file->num_of_blocks = 0;
-
-	return(merge_file);
 }
 
 #ifdef UNIV_DEBUG_INDEX_CREATE
@@ -2183,9 +2203,8 @@ Check if a transaction can use an index.*/
 ibool
 row_merge_is_index_usable(
 /*======================*/
-	const trx_t*	trx,	/* in: transaction */
-	const dict_index_t*	/* in: index to check */
-			index)
+	const trx_t*		trx,	/* in: transaction */
+	const dict_index_t*	index)	/* in: index to check */
 {
 	if (!trx->read_view) {
 		return(TRUE);

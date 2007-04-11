@@ -4485,8 +4485,7 @@ row_build_index_for_mysql(
 	ulint		num_of_keys)	/* in: Number of indexes to be
 					created */
 {
-	merge_file_t**	merge_files;
-	mem_heap_t*	file_heap;
+	merge_file_t*	merge_files;
 	ulint		index_num;
 	ulint		error = DB_SUCCESS;
 
@@ -4497,18 +4496,12 @@ row_build_index_for_mysql(
 	/* Allocate memory for merge file data structure and initialize
 	fields */
 
-	file_heap = mem_heap_create(
-		num_of_keys * (sizeof(merge_file_t) + sizeof(merge_file_t*)));
-
-	merge_files = mem_heap_alloc(
-		file_heap, num_of_keys * sizeof(merge_file_t*));
+	merge_files = mem_alloc(num_of_keys * sizeof *merge_files);
 
 	for (index_num = 0; index_num < num_of_keys; index_num++) {
 
-		merge_files[index_num] =
-			row_merge_create_file_structure(file_heap);
+		row_merge_file_create(&merge_files[index_num]);
 	}
-
 
 	/* Read clustered index of the table and create files for
 	secondary index entries for merge sort */
@@ -4531,7 +4524,7 @@ row_build_index_for_mysql(
 		/* Do a merge sort and insert from those files
 		which we have written at least one block */
 
-		if (merge_files[index_num]->num_of_blocks > 0) {
+		if (merge_files[index_num].num_of_blocks > 0) {
 			dulint offset = ut_dulint_create(0, 0);
 
 			/* Merge sort file using linked list merge
@@ -4539,7 +4532,7 @@ row_build_index_for_mysql(
 
 			offset = row_merge_sort_linked_list_in_disk(
 				index[index_num],
-				merge_files[index_num]->file,
+				merge_files[index_num].file,
 				(int *)&error);
 
 			if (error != DB_SUCCESS) {
@@ -4553,7 +4546,7 @@ row_build_index_for_mysql(
 				trx,
 				index[index_num],
 				new_table,
-				merge_files[index_num]->file,
+				merge_files[index_num].file,
 				ut_dulint_create(0,0));
 
 			if (error != DB_SUCCESS) {
@@ -4568,7 +4561,7 @@ func_exit:
 		row_merge_mark_prebuilt_obsolete(trx, old_table);
 	}
 
-	mem_heap_free(file_heap);
+	mem_free(merge_files);
 
 	return(error);
 }
