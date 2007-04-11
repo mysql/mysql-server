@@ -1,0 +1,10 @@
+mysql-dfsg-5.0 (5.0.18-9) unstable; urgency=low
+
+  Rotation of the binary logs is now configured in /etc/mysql/my.cnf with
+  "expire-logs-days" which defaults to 20 days. The old file
+  /etc/mysql/debian-log-rotate.conf should be removed together with
+  /etc/cron.daily/mysql-server after this value has been adjusted. Note that
+  the old variable defined the number of files whereas the new one defines 
+  a time span in days.
+
+ -- Christian Hammers <ch@debian.org>  Tue, 24 Jan 2006 22:18:21 +0100
