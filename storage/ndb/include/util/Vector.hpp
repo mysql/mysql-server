@@ -116,6 +116,7 @@ Vector<T>::push_back(const T & t){
   }
   m_items[m_size] = t;
   m_size++;
+  return 0;
 }
 
 template<class T>
