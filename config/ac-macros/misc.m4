@@ -790,3 +790,27 @@ esac
 AC_SUBST(AR)
 AC_SUBST(ARFLAGS)
 ])
+
+dnl
+dnl  Macro to check time_t range: according to C standard
+dnl  array index must be greater than 0 => if time_t is signed,
+dnl  the code in the macros below won't compile.
+dnl
+
+AC_DEFUN([MYSQL_CHECK_TIME_T],[
+    AC_MSG_CHECKING(if time_t is unsigned)
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+        [[
+#include <time.h>
+        ]],
+        [[
+        int array[(((time_t)-1) > 0) ? 1 : -1];
+        ]] )
+    ], [
+    AC_DEFINE([TIME_T_UNSIGNED], 1, [Define to 1 if time_t is unsigned])
+    AC_MSG_RESULT(yes)
+    ],
+    [AC_MSG_RESULT(no)]
+    )
+])
+
