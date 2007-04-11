@@ -2280,8 +2280,8 @@ loop:
 			+ buf_pool->n_pages_written;
 		if (n_pend_ios < 3 && (n_ios - n_ios_old < 5)) {
 			srv_main_thread_op_info = "doing insert buffer merge";
-			ibuf_contract_for_n_pages(TRUE,
-					  srv_insert_buffer_batch_size / 4);
+			ibuf_contract_for_n_pages(
+				TRUE, srv_insert_buffer_batch_size / 4);
 
 			srv_main_thread_op_info = "flushing log";
 
@@ -2480,8 +2480,8 @@ background_loop:
 	if (srv_fast_shutdown && srv_shutdown_state > 0) {
 		n_bytes_merged = 0;
 	} else {
-		n_bytes_merged = ibuf_contract_for_n_pages(TRUE,
-					srv_insert_buffer_batch_size);
+		n_bytes_merged = ibuf_contract_for_n_pages(
+			TRUE, srv_insert_buffer_batch_size);
 	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
