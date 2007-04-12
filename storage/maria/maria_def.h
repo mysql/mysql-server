@@ -852,3 +852,4 @@ int _ma_sort_write_record(MARIA_SORT_PARAM *sort_param);
 int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
                              ulong);
 int _ma_sync_table_files(const MARIA_HA *info);
+int _ma_initialize_data_file(File dfile, MARIA_SHARE *share);

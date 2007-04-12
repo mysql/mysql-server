@@ -585,7 +585,7 @@ static void calc_record_size(MARIA_HA *info, const byte *record,
       *null_field_lengths= rec->length;
       break;
     case FIELD_SKIP_ZERO:                       /* Fixed length field */
-      if (memcmp(record+ rec->null_pos, maria_zero_string,
+      if (memcmp(record+ rec->offset, maria_zero_string,
                  rec->length) == 0)
       {
         row->empty_bits[rec->empty_pos] |= rec->empty_bit;

@@ -65,6 +65,10 @@ int maria_delete_all_rows(MARIA_HA *info)
   if (my_chsize(info->dfile, 0, 0, MYF(MY_WME)) ||
       my_chsize(share->kfile, share->base.keystart, 0, MYF(MY_WME))  )
     goto err;
+
+  if (_ma_initialize_data_file(info->dfile, info->s))
+    goto err;
+
   /*
     RECOVERY TODO Consider updating ZeroDirtyPagesLSN here. It is
     not a necessity (it is one only in RENAME commands) but an optional

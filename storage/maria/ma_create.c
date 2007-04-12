@@ -773,17 +773,8 @@ int maria_create(const char *name, enum data_file_type record_type,
       goto err;
     errpos=3;
 
-    if (record_type == BLOCK_RECORD)
-    {
-      /* Write one bitmap page */
-      char buff[IO_SIZE];
-      uint i;
-      bzero(buff, sizeof(buff));
-      for (i= 0 ; i < maria_block_size ; i+= IO_SIZE)
-        if (my_write(dfile, (byte*) buff, sizeof(buff), MYF(MY_NABP)))
-          goto err;
-      share.state.state.data_file_length= maria_block_size;
-    }
+    if (_ma_initialize_data_file(dfile, &share))
+      goto err;
   }
   DBUG_PRINT("info", ("write state info and base info"));
   if (_ma_state_info_write(file, &share.state, 2) ||
@@ -1030,7 +1021,7 @@ static inline int sign(longlong a)
 }
 
 
-int compare_columns(MARIA_COLUMNDEF **a_ptr, MARIA_COLUMNDEF **b_ptr)
+static int compare_columns(MARIA_COLUMNDEF **a_ptr, MARIA_COLUMNDEF **b_ptr)
 {
   MARIA_COLUMNDEF *a= *a_ptr, *b= *b_ptr;
   enum en_fieldtype a_type, b_type;
@@ -1062,5 +1053,23 @@ int compare_columns(MARIA_COLUMNDEF **a_ptr, MARIA_COLUMNDEF **b_ptr)
 }
 
 
+/* Initialize data file */
 
-      
+int _ma_initialize_data_file(File dfile, MARIA_SHARE *share)
+{
+  if (share->data_file_type == BLOCK_RECORD)
+  {
+    /* Write one bitmap page */
+    byte buff[IO_SIZE];
+    uint i;
+    bzero((char*) buff, sizeof(buff));
+    if (my_seek(dfile, 0, SEEK_SET, 0))
+      return 1;
+    for (i= 0 ; i < maria_block_size ; i+= IO_SIZE)
+      if (my_write(dfile, buff, sizeof(buff), MYF(MY_NABP)))
+        return 1;
+    share->state.state.data_file_length= maria_block_size;
+    _ma_bitmap_delete_all(share);
+  }
+  return 0;
+}
