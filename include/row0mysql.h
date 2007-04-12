@@ -501,7 +501,7 @@ these index entries and inserting sorted index entries to indexes. */
 
 ulint
 row_build_index_for_mysql(
-/*====================*/
+/*=====================*/
 					/* out: 0 or error code */
 	trx_t*		trx,		/* in: transaction */
 	dict_table_t*	old_table,	/* in: Table where rows are
@@ -511,9 +511,6 @@ row_build_index_for_mysql(
 					new_table if we are creating a
 					secondary keys. */
 	dict_index_t**	index,		/* in: Indexes to be created */
-	ibool		new_primary,	/* in: new primary key
-					i.e. clustered index will be build
-					for this table */
 	ulint		num_of_keys);	/* in: Number of indexes to be
 					created */
 /*************************************************************************
