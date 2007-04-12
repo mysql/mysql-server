@@ -1,0 +1,125 @@
+
+*                     REMEMBER TO SET THE ROOT PASSWORD !!!
+============================================================================
+
+* MYSQL WON'T INSTALL?
+======================
+MySQL will only install if you have a non-numeric hostname that is resolvable
+via the /etc/hosts file. E.g. if the "hostname" command returns "myhostname"
+then there must be a line like "10.0.0.1 myhostname".
+
+On upgrades from MySQL 3.23, as shipped with Debian Woody, symlinks in place of
+/var/lib/mysql or /var/log/mysql gets accidently removed and have manually be
+restored.
+
+* MYSQL WON'T START OR STOP?
+============================
+You may never ever delete the special mysql user "debian-sys-maint". This
+user together with the credentials in /etc/mysql/debian.cnf are used by the
+init scripts to stop the server as they would require knowledge of the mysql
+root users password else.
+So in most of the times you can fix the situation by making sure that the
+debian.cnf file contains the right password, e.g. by setting a new one
+(remember to do a "flush privileges" then).
+
+* WHAT TO DO AFTER UPGRADES:
+============================
+ - running mysql_upgrade to be able to make use of possibly added new 
+   privilege columns. This script does not give any use more rights.
+
+* WHAT TO DO AFTER INSTALLATION:
+================================
+The MySQL manual describes certain steps to do at this stage in a separate
+chapter.  They are not necessary as the Debian packages does them
+automatically.
+
+The only thing that is left over for the admin is 
+ - setting the *passwords* !!!
+ - creating new users and databases
+ - read the rest of this text
+
+* DOWNGRADING TO 4.0 or 4.1:
+============================
+Unsupported. Period.
+But if you do and get problems or make interesting experiences, mail me, it
+might help others.
+Ok, if you really want, I would recommend to "mysqldump --opt" all tables,
+then purge 4.1, delete /var/lib/mysql, install 4.0 and insert the dumps.  Be
+carefully, though, with the "mysql" table, you might not simply overwrite that
+one as the password for the mysql "debian-sys-maint" user is stored in
+/etc/mysql/debian.cnf and needed by /etc/init.d/ to start mysql and check if
+it's alive. 
+
+* SOME APPLICATION CAN NO LONGER CONNECT:
+=========================================
+This application is probably linked against libmysqlclient12 or below and
+somebody has created a mysql user with new-style passwords.
+The old_passwords option which forces backwards compatibility, can be set 
+in /etc/mysql/conf.d/old_passwords.conf.
+If that does not help, the password can be set manually, the application that 
+inserted the user should be changed or the application that tries to connect 
+should be updated to libmysqlclient14 or -15. 
+Read http://dev.mysql.com/doc/refman/5.0/en/old-client.html
+
+* NETWORKING:
+=============
+For security reasons, the Debian package has enabled networking only on the
+loop-back device using "bind-address" in /etc/mysql/my.cnf.  Check with
+"netstat -tlnp" where it is listening. If your connection is aborted
+immediately see if "mysqld: all" or similar is in /etc/hosts.allow and read
+hosts_access(5).
+
+* WHERE IS THE DOCUMENTATION?:
+==============================
+Unfortunately due to licensing restrictions, debian currently not able
+to provide the mysql-doc package in any format.  For the most up to date
+documentation, please go to http://dev.mysql.com/doc.
+
+* PASSWORDS:
+============
+It is strongly recommended to set a password for the mysql root user (which
+is NOT the same as the "normal" root user) with the command:
+ /usr/bin/mysqladmin -u root password 'enter-your-good-new-password-here'
+If you already had a password set add " -p " before "-u" to the line above.
+
+If you are tired to type the password in every time or want to automate your
+scripts you can store it in the file $HOME/.my.cnf. It should be chmod 0600
+(-rw------- username username .my.cnf) to ensure that nobody else can read
+it.  Every other configuration parameter can be stored there, too. You will
+find an example below and more information in the MySQL manual in
+/usr/share/doc/mysql-doc or www.mysql.com.
+
+ATTENTION: It is necessary, that a .my.cnf from root always contains a "user"
+line wherever there is a "password" line, else, the Debian maintenance
+scripts, that use /etc/mysql/debian.cnf, will use the username
+"debian-sys-maint" but the password that is in root's .my.cnf. Also note,
+that every change you make in the /root/.my.cnf will affect the mysql cron
+script, too.
+
+        # an example of $HOME/.my.cnf
+	[client]
+	user		= your-mysql-username
+	password	= enter-your-good-new-password-here
+
+* BIG_ROWS FOR EVEN MORE ROWS IN A TABLE:
+=========================================
+If you ever run out of rows in a table there is the possibility of building
+the package with "-DBIG_ROWS" which, according to a MySQL employee on
+packagers@lists.mysql.com should lead to a 64bit row index (I guess > 2^32
+rows) but also to an approx. 5% performance loss.
+
+* NDB CLUSTER ENGINE:
+=====================
+NDB is the shared-nothing cluster engine since MySQL-4.1.
+This package contains the all three components, the mysql backend, the NDB
+Data Node and the NDB Management Node. The init scripts of the cluster
+daemons will silently exit unless their configuration is provided:
+ mysql-ndb:	needs "ndb-connectstring" in /etc/mysql/my.cnf
+ mysql-ndb-mgm: needs /etc/mysql/ndb_mgmd.cnf
+
+* EXPIRE_LOGS_DAYS AND LOG_BIN:
+===============================
+Having expire_logs_days enabled but log-bin not crashes the server. Using both
+or none of those options is safe. To prevent this happening during the nightly
+log rotation via /etc/logrotate.d/mysql the initscript checks for malicious
+combination of options. This is Debian bug #368547 and MySQL bug #17733.

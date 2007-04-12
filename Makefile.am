@@ -29,7 +29,7 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			mysql-test support-files sql-bench @tools_dirs@ \
 			win
 
-DIST_SUBDIRS =		$(SUBDIRS) BUILD
+DIST_SUBDIRS =		$(SUBDIRS) BUILD debian
 
 DISTCLEANFILES = ac_available_languages_fragment
 
