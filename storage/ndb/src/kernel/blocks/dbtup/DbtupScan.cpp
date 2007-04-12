@@ -61,11 +61,15 @@ Dbtup::execACC_SCANREQ(Signal* signal)
 	jam();
 	break;
       }
+
+#if BUG_27776_FIXED
       if (!AccScanReq::getNoDiskScanFlag(req->requestInfo)
 	  && tablePtr.p->m_no_of_disk_attributes)
       {
 	bits |= ScanOp::SCAN_DD;
       }
+#endif
+      
       bool mm = (bits & ScanOp::SCAN_DD);
       if (tablePtr.p->m_attributes[mm].m_no_of_varsize > 0) {
 	bits |= ScanOp::SCAN_VS;
@@ -593,7 +597,6 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
  
   const bool mm = (bits & ScanOp::SCAN_DD);
   const bool lcp = (bits & ScanOp::SCAN_LCP);
-  const bool dirty = (bits & ScanOp::SCAN_LOCK) == 0;
   
   Uint32 lcp_list = fragPtr.p->m_lcp_keep_list;
   Uint32 size = table.m_offsets[mm].m_fix_header_size +
@@ -764,8 +767,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	    jam();
 	    if (! (thbits & Tuple_header::FREE))
 	    {
-	      if (! ((thbits & Tuple_header::ALLOC) && dirty))
-		goto found_tuple;
+              goto found_tuple;
 	    } 
 	  }
 	  else
