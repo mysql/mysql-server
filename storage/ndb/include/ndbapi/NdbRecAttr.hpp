@@ -302,13 +302,6 @@ NdbRecAttr::int32_value() const
 }
 
 inline
-Int32
-NdbRecAttr::medium_value() const
-{
-  return sint3korr((unsigned char *)theRef);
-}
-
-inline
 short
 NdbRecAttr::short_value() const
 {
@@ -327,13 +320,6 @@ Uint32
 NdbRecAttr::u_32_value() const
 {
   return *(Uint32*)theRef;
-}
-
-inline
-Uint32
-NdbRecAttr::u_medium_value() const
-{
-  return uint3korr((unsigned char*)theRef);
 }
 
 inline
