@@ -20,6 +20,7 @@
 #include "mysql_priv.h"
 #include "sql_repl.h"
 #include "rpl_filter.h"
+#include "rpl_rli.h"
 
 #include <my_dir.h>
 #include <stdarg.h>

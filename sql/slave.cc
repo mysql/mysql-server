@@ -17,8 +17,9 @@
 
 #include <mysql.h>
 #include <myisam.h>
-#include "rpl_rli.h"
 #include "slave.h"
+#include "rpl_mi.h"
+#include "rpl_rli.h"
 #include "sql_repl.h"
 #include "rpl_filter.h"
 #include "repl_failsafe.h"
@@ -1731,11 +1732,12 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     /*
     */
 
-    DBUG_PRINT("info",("type_code=%d (%s), server_id=%d",
-                       type_code, ev->get_type_str(), ev->server_id));
-    DBUG_PRINT("info", ("thd->options={ %s%s}",
+    DBUG_PRINT("exec_event",("%s(type_code: %d; server_id: %d)",
+                       ev->get_type_str(), type_code, ev->server_id));
+    DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
                         FLAGSTR(thd->options, OPTION_NOT_AUTOCOMMIT),
-                        FLAGSTR(thd->options, OPTION_BEGIN)));
+                        FLAGSTR(thd->options, OPTION_BEGIN),
+                        rli->last_event_start_time));
 
 
 
@@ -1777,21 +1779,21 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     if (reason == Log_event::EVENT_SKIP_NOT)
       exec_res= ev->apply_event(rli);
 #ifndef DBUG_OFF
-    else
-    {
-      /*
-        This only prints information to the debug trace.
+    /*
+      This only prints information to the debug trace.
 
-        TODO: Print an informational message to the error log?
-       */
-      static const char *const explain[] = {
-        "event was not skipped",                  // EVENT_SKIP_NOT,
-        "event originated from this server",      // EVENT_SKIP_IGNORE,
-        "event skip counter was non-zero"         // EVENT_SKIP_COUNT
-      };
-      DBUG_PRINT("info", ("%s was skipped because %s",
-                          ev->get_type_str(), explain[reason]));
-    }
+      TODO: Print an informational message to the error log?
+    */
+    static const char *const explain[] = {
+      // EVENT_SKIP_NOT,
+      "not skipped",
+      // EVENT_SKIP_IGNORE,
+      "skipped because event originated from this server",
+      // EVENT_SKIP_COUNT
+      "skipped because event skip counter was non-zero"
+    };
+    DBUG_PRINT("skip_event", ("%s event was %s",
+                              ev->get_type_str(), explain[reason]));
 #endif
 
     DBUG_PRINT("info", ("apply_event error = %d", exec_res));
