@@ -19,10 +19,10 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	9308
+Master_Port	SLAVE_PORT
 Connect_Retry	60
 Master_Log_File	slave-bin.000001
-Read_Master_Log_Pos	468
+Read_Master_Log_Pos	#
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	slave-bin.000001
@@ -49,6 +49,7 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
 SELECT * FROM t1 ORDER BY a;
 a	b
 1	2
