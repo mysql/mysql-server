@@ -1386,4 +1386,9 @@ ERROR 01000: Data truncated for column 'a' at row 1
 insert into t1 values ('2E3x');
 ERROR 01000: Data truncated for column 'a' at row 1
 drop table t1;
+set sql_mode='traditional';
+create table t1 (f1 set('a','a'));
+ERROR HY000: Column 'f1' has duplicated value 'a' in SET
+create table t1 (f1 enum('a','a'));
+ERROR HY000: Column 'f1' has duplicated value 'a' in ENUM
 End of 5.0 tests
