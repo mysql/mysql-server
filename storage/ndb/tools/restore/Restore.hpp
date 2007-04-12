@@ -217,6 +217,9 @@ public:
       memcpy(&val.u32,data,4);
       v= val.u32;
       break;
+    case 24:
+      v= uint3korr((unsigned char*)data);
+      break;
     case 16:
       memcpy(&val.u16,data,2);
       v= val.u16;
