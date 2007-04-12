@@ -388,7 +388,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 	Uint32 length = (size * arraySize) / 8;
 
 	if (j == 0 && tup.getTable()->have_auto_inc(i))
-	  tup.getTable()->update_max_auto_val(dataPtr,size);
+	  tup.getTable()->update_max_auto_val(dataPtr,size*arraySize);
 
 	if (attr_desc->m_column->getPrimaryKey())
 	{
@@ -602,7 +602,7 @@ BackupRestore::logEntry(const LogEntry & tup)
     const char * dataPtr = attr->Data.string_value;
     
     if (tup.m_table->have_auto_inc(attr->Desc->attrId))
-      tup.m_table->update_max_auto_val(dataPtr,size);
+      tup.m_table->update_max_auto_val(dataPtr,size*arraySize);
 
     const Uint32 length = (size / 8) * arraySize;
     if (attr->Desc->m_column->getPrimaryKey())
