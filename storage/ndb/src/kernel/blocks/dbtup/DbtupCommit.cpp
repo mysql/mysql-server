@@ -107,8 +107,7 @@ void Dbtup::removeActiveOpList(Operationrec*  const regOperPtr,
   /**
    * Release copy tuple
    */
-  if(regOperPtr->op_struct.op_type != ZDELETE && 
-     !regOperPtr->m_copy_tuple_location.isNull())
+  if(!regOperPtr->m_copy_tuple_location.isNull())
     c_undo_buffer.free_copy_tuple(&regOperPtr->m_copy_tuple_location);
   
   if (regOperPtr->op_struct.in_active_list) {

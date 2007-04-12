@@ -46,6 +46,8 @@ public:
   STATIC_CONST( ROW_GCI      = 0xFFF5 );
   STATIC_CONST( FRAGMENT_VARSIZED_MEMORY = 0xFFF4 );
 
+  STATIC_CONST( COPY_ROWID   = 0xFFF1 );
+  
   // NOTE: in 5.1 ctors and init take size in bytes
 
   /** Initialize AttributeHeader at location aHeaderPtr */
