@@ -1,0 +1,92 @@
+#!/bin/bash -e
+
+. /usr/share/debconf/confmodule
+
+if [ -n "$DEBIAN_SCRIPT_DEBUG" ]; then set -v -x; DEBIAN_SCRIPT_TRACE=1; fi
+${DEBIAN_SCRIPT_TRACE:+ echo "#42#DEBUG# RUNNING $0 $*" 1>&2 }
+
+MYADMIN="/usr/bin/mysqladmin --defaults-file=/etc/mysql/debian.cnf"
+
+# Try to stop the server in a sane way. If it does not success let the admin
+# do it himself. No database directories should be removed while the server
+# is running!
+stop_server() {
+  set +e
+  if [ -x /usr/sbin/invoke-rc.d ]; then
+    invoke-rc.d mysql stop
+  else
+    /etc/init.d/mysql stop
+  fi
+  errno=$?
+  set -e
+
+  if [ "$?" != 0 ]; then
+    echo "Trying to stop the MySQL server resulted in exitcode $?." 1>&2
+    echo "Stop it yourself and try again!" 1>&2
+    exit 1
+  fi
+}
+
+case "$1" in
+  purge|remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+    if [ -n "`$MYADMIN ping 2>/dev/null`" ]; then
+      stop_server
+      sleep 2
+    fi
+  ;;
+  *)
+    echo "postrm called with unknown argument '$1'" 1>&2
+    exit 1
+  ;;
+esac
+
+#
+# - Do NOT purge logs or data if another mysql-sever* package is installed (#307473)
+# - Remove the mysql user only after all his owned files are purged.
+#   
+if [ "$1" = "purge" -a ! \( -x /usr/sbin/mysqld -o -L /usr/sbin/mysqld \) ]; then
+  # we remove the mysql user only after all his owned files are purged
+  rm -f /var/log/mysql.{log,err}{,.0,.[1234567].gz}
+  rm -rf /var/log/mysql
+
+  db_input high mysql-server-@MYVER@/postrm_remove_databases || true
+  db_go
+  db_get mysql-server-@MYVER@/postrm_remove_databases || true
+  if [ "$RET" = "true" ]; then
+    # never remove the debian.cnf when the databases are still existing
+    # else we ran into big trouble on the next install!
+    rm -f /etc/mysql/conf.d/old_passwords.cnf
+    rm -f /etc/mysql/debian.cnf
+    rm -rf /var/lib/mysql
+    rm -rf /var/run/mysqld
+    userdel mysql || true
+  fi
+
+  # (normally) Automatically added by dh_installinit
+  if [ "$1" = "purge" ] ; then
+        update-rc.d mysql remove >/dev/null || exit 0
+  fi
+  # (normally) End automatically added section
+fi
+
+# (normally) Automatically added by dh_installdebconf
+if [ "$1" = purge ] && [ -e /usr/share/debconf/confmodule ]; then
+        . /usr/share/debconf/confmodule
+        db_purge
+fi
+# (normally) End automatically added section
+
+# (normally) Automatically added by dh_installinit
+if [ "$1" = "purge" ] ; then
+        update-rc.d mysql-ndb-mgm remove >/dev/null || exit 0
+fi
+# (normally) End automatically added section
+# (normally) Automatically added by dh_installinit
+if [ "$1" = "purge" ] ; then
+        update-rc.d mysql-ndb remove >/dev/null || exit 0
+fi
+# (normally) End automatically added section
+
+# no DEBHELPER here, "update-rc.d remove" fails if mysql-server-@MYVER@ is installed
+
+exit 0
