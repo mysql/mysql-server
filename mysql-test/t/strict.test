@@ -1249,4 +1249,13 @@ insert into t1 values ('2000a');
 insert into t1 values ('2E3x');
 drop table t1;
 
+#
+# Bug#27069 set with identical elements are created
+#
+set sql_mode='traditional';
+--error 1291
+create table t1 (f1 set('a','a'));
+--error 1291
+create table t1 (f1 enum('a','a'));
+
 --echo End of 5.0 tests
