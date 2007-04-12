@@ -231,12 +231,12 @@ int simple_pin_test()
   ok((res= test(test_file(file1, file1_name, PAGE_SIZE*2, PAGE_SIZE*2,
                            simple_pin_test_file1))),
      "Simple pin page file with pin");
-  pagecache_unlock_page(&pagecache,
-                        &file1,
-                        0,
-                        PAGECACHE_LOCK_READ_UNLOCK,
-                        PAGECACHE_UNPIN,
-                        0);
+  pagecache_unlock(&pagecache,
+                   &file1,
+                   0,
+                   PAGECACHE_LOCK_READ_UNLOCK,
+                   PAGECACHE_UNPIN,
+                   0);
   if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
   {
     diag("Got error in flush_pagecache_blocks\n");
@@ -282,8 +282,8 @@ int simple_delete_forget_test()
                   PAGECACHE_PIN_LEFT_UNPINNED,
                   PAGECACHE_WRITE_DELAY,
                   0);
-  pagecache_delete_page(&pagecache, &file1, 0,
-                        PAGECACHE_LOCK_WRITE, 0);
+  pagecache_delete(&pagecache, &file1, 0,
+                   PAGECACHE_LOCK_WRITE, 0);
   flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
   ok((res= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
                           simple_delete_forget_test_file))),
@@ -324,8 +324,8 @@ int simple_delete_flush_test()
                   PAGECACHE_PIN_LEFT_PINNED,
                   PAGECACHE_WRITE_DELAY,
                   0);
-  pagecache_delete_page(&pagecache, &file1, 0,
-                        PAGECACHE_LOCK_LEFT_WRITELOCKED, 1);
+  pagecache_delete(&pagecache, &file1, 0,
+                   PAGECACHE_LOCK_LEFT_WRITELOCKED, 1);
   flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
   ok((res= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
                           simple_delete_flush_test_file))),

@@ -194,30 +194,30 @@ extern my_bool pagecache_write(PAGECACHE *pagecache,
                                enum pagecache_page_pin pin,
                                enum pagecache_write_mode write_mode,
                                PAGECACHE_PAGE_LINK *link);
-extern void pagecache_unlock_page(PAGECACHE *pagecache,
-                                  PAGECACHE_FILE *file,
-                                  pgcache_page_no_t pageno,
-                                  enum pagecache_page_lock lock,
-                                  enum pagecache_page_pin pin,
-                                  LSN first_REDO_LSN_for_page);
 extern void pagecache_unlock(PAGECACHE *pagecache,
-                             PAGECACHE_PAGE_LINK *link,
+                             PAGECACHE_FILE *file,
+                             pgcache_page_no_t pageno,
                              enum pagecache_page_lock lock,
                              enum pagecache_page_pin pin,
                              LSN first_REDO_LSN_for_page);
-extern void pagecache_unpin_page(PAGECACHE *pagecache,
-                                 PAGECACHE_FILE *file,
-                                 pgcache_page_no_t pageno);
+extern void pagecache_unlock_by_link(PAGECACHE *pagecache,
+                                     PAGECACHE_PAGE_LINK *link,
+                                     enum pagecache_page_lock lock,
+                                     enum pagecache_page_pin pin,
+                                     LSN first_REDO_LSN_for_page);
 extern void pagecache_unpin(PAGECACHE *pagecache,
-                            PAGECACHE_PAGE_LINK *link);
+                            PAGECACHE_FILE *file,
+                            pgcache_page_no_t pageno);
+extern void pagecache_unpin_by_link(PAGECACHE *pagecache,
+                                    PAGECACHE_PAGE_LINK *link);
 extern int flush_pagecache_blocks(PAGECACHE *keycache,
                                   PAGECACHE_FILE *file,
                                   enum flush_type type);
-extern my_bool pagecache_delete_page(PAGECACHE *pagecache,
-                                     PAGECACHE_FILE *file,
-                                     pgcache_page_no_t pageno,
-                                     enum pagecache_page_lock lock,
-                                     my_bool flush);
+extern my_bool pagecache_delete(PAGECACHE *pagecache,
+                                PAGECACHE_FILE *file,
+                                pgcache_page_no_t pageno,
+                                enum pagecache_page_lock lock,
+                                my_bool flush);
 extern void end_pagecache(PAGECACHE *keycache, my_bool cleanup);
 extern my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
                                                          LEX_STRING *str,

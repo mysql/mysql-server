@@ -135,8 +135,8 @@ err:
   DBUG_PRINT("err", ("try to flush"));
   if (page_locked)
   {
-    pagecache_delete_page(&pagecache, &file1, page_no,
-                          PAGECACHE_LOCK_LEFT_WRITELOCKED, 1);
+    pagecache_delete(&pagecache, &file1, page_no,
+                     PAGECACHE_LOCK_LEFT_WRITELOCKED, 1);
   }
   else
   {

@@ -280,7 +280,12 @@ enum cache_type
 
 enum flush_type
 {
-  FLUSH_KEEP, FLUSH_RELEASE, FLUSH_IGNORE_CHANGED, FLUSH_FORCE_WRITE
+  FLUSH_KEEP,           /* flush block and keep it in the cache */
+  FLUSH_RELEASE,        /* flush block and remove it from the cache */
+  FLUSH_IGNORE_CHANGED, /* remove block from the cache */
+  /* as my_disable_flush_pagecache_blocks is always 0, it is
+     strictly equivalent to FLUSH_KEEP */
+  FLUSH_FORCE_WRITE
 };
 
 typedef struct st_record_cache	/* Used when cacheing records */
