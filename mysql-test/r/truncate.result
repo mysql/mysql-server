@@ -53,3 +53,30 @@ a
 3
 4
 drop table t1;
+create table t1 (s1 int);
+insert into t1 (s1) values (1), (2), (3), (4), (5);
+create view v1 as select * from t1;
+truncate table v1;
+select count(*) from t1;
+count(*)
+0
+insert into t1 (s1) values (1), (2), (3), (4), (5);
+create view v2 as select * from t1 where s1 > 3;
+truncate table v2;
+select * from t1;
+s1
+1
+2
+3
+select * from v2;
+s1
+delete from t1;
+create table t2 (s1 int, s2 int);
+create view v3 as select a.s1, b.s2 from t1 a join t2 b on a.s1 = b.s1 where a.s1 > 3;
+truncate table v3;
+ERROR HY000: Can not delete from join view 'test.v3'
+create view v4 as select * from t1 limit 1,1;
+truncate table v4;
+ERROR HY000: The target table v4 of the TRUNCATE is not updatable
+drop view v1, v2, v3, v4;
+drop table t1, t2;
