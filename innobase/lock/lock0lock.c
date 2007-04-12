@@ -3259,12 +3259,6 @@ lock_deadlock_recursive(
 
 	*cost = *cost + 1;
 
-	if ((depth > LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK)
-		|| (*cost > LOCK_MAX_N_STEPS_IN_DEADLOCK_CHECK)) {
-
-		return(LOCK_VICTIM_IS_START);
-	}
-
 	lock = wait_lock;
 
 	if (lock_get_type(wait_lock) == LOCK_REC) {
@@ -3296,11 +3290,18 @@ lock_deadlock_recursive(
 
 		if (lock_has_to_wait(wait_lock, lock)) {
 
+			ibool	too_far
+				= depth > LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK
+				|| *cost > LOCK_MAX_N_STEPS_IN_DEADLOCK_CHECK;
+
 			lock_trx = lock->trx;
 
-			if (lock_trx == start) {
+			if (lock_trx == start || too_far) {
+
 				/* We came back to the recursion starting
-				point: a deadlock detected */
+				point: a deadlock detected; or we have
+				searched the waits-for graph too long */
+
 				FILE*	ef = lock_latest_err_file;
 				
 				rewind(ef);
@@ -3342,9 +3343,20 @@ lock_deadlock_recursive(
 				}
 #ifdef UNIV_DEBUG
 				if (lock_print_waits) {
-					fputs("Deadlock detected\n", stderr);
+					fputs("Deadlock detected"
+					      " or too long search\n",
+					      stderr);
 				}
 #endif /* UNIV_DEBUG */
+				if (too_far) {
+
+					fputs("TOO DEEP OR LONG SEARCH"
+					      " IN THE LOCK TABLE"
+					      " WAITS-FOR GRAPH\n", ef);
+
+					return(LOCK_VICTIM_IS_START);
+				}
+
 				if (ut_dulint_cmp(wait_lock->trx->undo_no,
 							start->undo_no) >= 0) {
 					/* Our recursion starting point

@@ -144,15 +144,46 @@ struct MBR
     return (xmin<x) && (xmax>x) && (ymin<y) && (ymax>y);
   }
 
+  /**
+    The dimension maps to an integer as:
+    - Polygon -> 2
+    - Horizontal or vertical line -> 1
+    - Point -> 0
+    - Invalid MBR -> -1
+  */
+  int dimension() const
+  {
+    int d= 0;
+
+    if (xmin > xmax)
+      return -1;
+    else if (xmin < xmax)
+      d++;
+
+    if (ymin > ymax)
+      return -1;
+    else if (ymin < ymax)
+      d++;
+
+    return d;
+  }
+
   int overlaps(const MBR *mbr)
   {
-    int lb= mbr->inner_point(xmin, ymin);
-    int rb= mbr->inner_point(xmax, ymin);
-    int rt= mbr->inner_point(xmax, ymax);
-    int lt= mbr->inner_point(xmin, ymax);
+    /*
+      overlaps() requires that some point inside *this is also inside
+      *mbr, and that both geometries and their intersection are of the
+      same dimension.
+    */
+    int d = dimension();
 
-    int a = lb+rb+rt+lt;
-    return (a>0) && (a<4) && (!within(mbr));
+    if (d != mbr->dimension() || d <= 0 || contains(mbr) || within(mbr))
+      return 0;
+
+    MBR intersection(max(xmin, mbr->xmin), max(ymin, mbr->ymin),
+                     min(xmax, mbr->xmax), min(ymax, mbr->ymax));
+
+    return (d == intersection.dimension());
   }
 };
 

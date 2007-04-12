@@ -230,6 +230,8 @@ void Item_func::traverse_cond(Cond_traverser traverser,
       (*traverser)(this, argument);
     }
   }
+  else
+    (*traverser)(this, argument);
 }
 
 
@@ -4615,14 +4617,14 @@ void Item_func_match::init_search(bool no_order)
     fields.push_back(new Item_string(" ",1, cmp_collation.collation));
     for (uint i=1; i < arg_count; i++)
       fields.push_back(args[i]);
-    concat=new Item_func_concat_ws(fields);
+    concat_ws=new Item_func_concat_ws(fields);
     /*
       Above function used only to get value and do not need fix_fields for it:
       Item_string - basic constant
       fields - fix_fields() was already called for this arguments
       Item_func_concat_ws - do not need fix_fields() to produce value
     */
-    concat->quick_fix_field();
+    concat_ws->quick_fix_field();
   }
 
   if (master)
@@ -4837,8 +4839,8 @@ double Item_func_match::val_real()
 
   if (key == NO_SUCH_KEY)
   {
-    String *a= concat->val_str(&value);
-    if ((null_value= (a == 0)))
+    String *a= concat_ws->val_str(&value);
+    if ((null_value= (a == 0)) || !a->length())
       DBUG_RETURN(0);
     DBUG_RETURN(ft_handler->please->find_relevance(ft_handler,
 				      (byte *)a->ptr(), a->length()));
@@ -4996,10 +4998,10 @@ longlong Item_func_row_count::val_int()
 }
 
 
-Item_func_sp::Item_func_sp(Name_resolution_context *context_arg,
-                           sp_name *name_arg)
-  :Item_func(), context(context_arg), m_name(name_arg), m_sp(NULL),
-   result_field(NULL)
+
+
+Item_func_sp::Item_func_sp(Name_resolution_context *context_arg, sp_name *name)
+  :Item_func(), context(context_arg), m_name(name), m_sp(NULL), sp_result_field(NULL)
 {
   maybe_null= 1;
   m_name->init_qname(current_thd);
@@ -5008,22 +5010,22 @@ Item_func_sp::Item_func_sp(Name_resolution_context *context_arg,
 
 
 Item_func_sp::Item_func_sp(Name_resolution_context *context_arg,
-                           sp_name *name_arg, List<Item> &list)
-  :Item_func(list), context(context_arg), m_name(name_arg), m_sp(NULL),
-   result_field(NULL)
+                           sp_name *name, List<Item> &list)
+  :Item_func(list), context(context_arg), m_name(name), m_sp(NULL),sp_result_field(NULL)
 {
   maybe_null= 1;
   m_name->init_qname(current_thd);
   dummy_table= (TABLE*) sql_calloc(sizeof(TABLE));
 }
+
 
 void
 Item_func_sp::cleanup()
 {
-  if (result_field)
+  if (sp_result_field)
   {
-    delete result_field;
-    result_field= NULL;
+    delete sp_result_field;
+    sp_result_field= NULL;
   }
   m_sp= NULL;
   dummy_table->s= NULL;
@@ -5035,7 +5037,7 @@ Item_func_sp::func_name() const
 {
   THD *thd= current_thd;
   /* Calculate length to avoid reallocation of string for sure */
-  uint len= ((m_name->m_db.length +
+  uint len= ((m_name->m_explicit_name ? m_name->m_db.length : 0 +
               m_name->m_name.length)*2 + //characters*quoting
              2 +                         // ` and `
              1 +                         // .
@@ -5045,89 +5047,127 @@ Item_func_sp::func_name() const
                system_charset_info);
 
   qname.length(0);
-  append_identifier(thd, &qname, m_name->m_db.str, m_name->m_db.length);
-  qname.append('.');
+  if (m_name->m_explicit_name)
+  {
+    append_identifier(thd, &qname, m_name->m_db.str, m_name->m_db.length);
+    qname.append('.');
+  }
   append_identifier(thd, &qname, m_name->m_name.str, m_name->m_name.length);
   return qname.ptr();
 }
 
 
-Field *
-Item_func_sp::sp_result_field(void) const
+
+/**
+  @brief Initialize the result field by creating a temporary dummy table
+    and assign it to a newly created field object. Meta data used to
+    create the field is fetched from the sp_head belonging to the stored
+    proceedure found in the stored procedure functon cache.
+  
+  @note This function should be called from fix_fields to init the result
+    field. It is some what related to Item_field.
+
+  @see Item_field
+
+  @param thd A pointer to the session and thread context.
+
+  @return Function return error status.
+  @retval TRUE is returned on an error
+  @retval FALSE is returned on success.
+*/
+bool
+Item_func_sp::init_result_field(THD *thd)
 {
-  Field *field;
-  DBUG_ENTER("Item_func_sp::sp_result_field");
-  DBUG_PRINT("info", ("sp: %s, flags: %x, level: %lu",
-                      (m_sp ? "YES" : "NO"),
-                      (m_sp ? m_sp->m_flags : (uint)0),
-                      (m_sp ? m_sp->m_recursion_level : (ulong)0)));
+  DBUG_ENTER("Item_func_sp::init_result_field");
+  
+  char *empty_name= (char *) "";
+  TABLE_SHARE *share;
 
-  if (!m_sp)
-  {
-    THD *thd= current_thd;
-    if (!(m_sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, m_name,
-                                &thd->sp_func_cache, TRUE)))
-    {
-      my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
-      DBUG_RETURN(0);
-    }
-  }
-  if (!dummy_table->s)
-  {
-    char *empty_name= (char *) "";
-    TABLE_SHARE *share;
-    dummy_table->s= share= &dummy_table->share_not_to_be_used;
-    dummy_table->alias = empty_name;
-    dummy_table->maybe_null = maybe_null;
-    dummy_table->in_use= current_thd;
-    dummy_table->copy_blobs= TRUE;
-    share->table_cache_key = empty_name;
-    share->table_name = empty_name;
-  }
-  if (!(field= m_sp->create_result_field(max_length, name, dummy_table)))
-    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+  DBUG_ASSERT(m_sp == NULL);
+  DBUG_ASSERT(sp_result_field == NULL);
+  DBUG_ASSERT(dummy_table->s == NULL);  
 
-  DBUG_RETURN(field);
+  if (!(m_sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, m_name,
+                               &thd->sp_func_cache, TRUE)))
+  {
+    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
+    context->process_error(thd);
+    DBUG_RETURN(TRUE);
+  }
+
+  /*
+     A Field need to be attached to a Table.
+     Below we "create" a dummy table by initializing 
+     the needed pointers.
+   */
+  dummy_table->s= share= &dummy_table->share_not_to_be_used;
+  dummy_table->alias = empty_name;
+  dummy_table->maybe_null = maybe_null;
+  dummy_table->in_use= thd;
+  dummy_table->copy_blobs= TRUE;
+  share->table_cache_key = empty_name;
+  share->table_name = empty_name;
+
+  if (!(sp_result_field= m_sp->create_result_field(max_length, name, dummy_table)))
+  {
+   DBUG_RETURN(TRUE);
+  }
+  
+  if (sp_result_field->pack_length() > sizeof(result_buf))
+  {
+    sp_result_field->move_field(sql_alloc(sp_result_field->pack_length()));
+  } else {
+    sp_result_field->move_field(result_buf);
+  }
+  
+  sp_result_field->null_ptr= (uchar *) &null_value;
+  sp_result_field->null_bit= 1;
+  
+
+  DBUG_RETURN(FALSE);
 }
 
+/**
+  @brief Initialize local members with values from the Field interface.
 
-/*
-  Execute function & store value in field
+  @note called from Item::fix_fields.
+*/
+void Item_func_sp::fix_length_and_dec()
+{
+  DBUG_ENTER("Item_func_sp::fix_length_and_dec");
 
-  RETURN
-   0  value <> NULL
-   1  value =  NULL  or error
+  DBUG_ASSERT(sp_result_field);
+  decimals= sp_result_field->decimals();
+  max_length= sp_result_field->field_length;
+  collation.set(sp_result_field->charset());
+  maybe_null= 1;
+  unsigned_flag= test(sp_result_field->flags & UNSIGNED_FLAG);
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  @brief Execute function & store value in field.
+
+  @return Function returns error status.
+  @retval FALSE on success.
+  @retval TRUE if an error occurred.
 */
 
 bool
-Item_func_sp::execute(Field **flp)
+Item_func_sp::execute()
 {
   THD *thd= current_thd;
-  Field *f;
-
+  
   /*
     Get field in virtual tmp table to store result. Create the field if
     invoked first time.
   */
-  
-  if (!(f= *flp))
-  {
-    if (!(*flp= f= sp_result_field()))
-    {
-      /* Error set by sp_result_field() */
-      null_value= 1;
-      return TRUE;
-    }
 
-    f->move_field((f->pack_length() > sizeof(result_buf)) ?
-                  sql_alloc(f->pack_length()) : result_buf);
-    f->null_ptr= (uchar *)&null_value;
-    f->null_bit= 1;
-  }
 
   /* Execute function and store the return value in the field. */
 
-  if (execute_impl(thd, f))
+  if (execute_impl(thd))
   {
     null_value= 1;
     context->process_error(thd);
@@ -5136,14 +5176,24 @@ Item_func_sp::execute(Field **flp)
 
   /* Check that the field (the value) is not NULL. */
 
-  null_value= f->is_null();
+  null_value= sp_result_field->is_null();
 
   return null_value;
 }
 
 
+/**
+   @brief Execute function and store the return value in the field.
+
+   @note This function was intended to be the concrete implementation of
+    the interface function execute. This was never realized.
+
+   @return The error state.
+   @retval FALSE on success
+   @retval TRUE if an error occurred.
+*/
 bool
-Item_func_sp::execute_impl(THD *thd, Field *return_value_fld)
+Item_func_sp::execute_impl(THD *thd)
 {
   bool err_status= TRUE;
   Sub_statement_state statement_state;
@@ -5160,7 +5210,7 @@ Item_func_sp::execute_impl(THD *thd, Field *return_value_fld)
     thd->security_ctx= context->security_ctx;
   }
 #endif
-  if (find_and_check_access(thd))
+  if (sp_check_access(thd))
     goto error;
 
   /*
@@ -5169,7 +5219,7 @@ Item_func_sp::execute_impl(THD *thd, Field *return_value_fld)
     function call into binlog.
   */
   thd->reset_sub_statement_state(&statement_state, SUB_STMT_FUNCTION);
-  err_status= m_sp->execute_function(thd, args, arg_count, return_value_fld);
+  err_status= m_sp->execute_function(thd, args, arg_count, sp_result_field); 
   thd->restore_sub_statement_state(&statement_state);
 
 error:
@@ -5184,15 +5234,9 @@ error:
 void
 Item_func_sp::make_field(Send_field *tmp_field)
 {
-  Field *field;
   DBUG_ENTER("Item_func_sp::make_field");
-  if ((field= sp_result_field()))
-  {
-    field->make_field(tmp_field);
-    delete field;
-    DBUG_VOID_RETURN;
-  }
-  init_make_field(tmp_field, MYSQL_TYPE_VARCHAR);  
+  DBUG_ASSERT(sp_result_field);
+  sp_result_field->make_field(tmp_field);
   DBUG_VOID_RETURN;
 }
 
@@ -5200,66 +5244,19 @@ Item_func_sp::make_field(Send_field *tmp_field)
 enum enum_field_types
 Item_func_sp::field_type() const
 {
-  Field *field;
   DBUG_ENTER("Item_func_sp::field_type");
-
-  if (result_field)
-    DBUG_RETURN(result_field->type());
-  if ((field= sp_result_field()))
-  {
-    enum_field_types result= field->type();
-    delete field;
-    DBUG_RETURN(result);
-  }
-  DBUG_RETURN(MYSQL_TYPE_VARCHAR);
+  DBUG_ASSERT(sp_result_field);
+  DBUG_RETURN(sp_result_field->type());
 }
-
 
 Item_result
 Item_func_sp::result_type() const
 {
-  Field *field;
   DBUG_ENTER("Item_func_sp::result_type");
   DBUG_PRINT("info", ("m_sp = %p", m_sp));
-
-  if (result_field)
-    DBUG_RETURN(result_field->result_type());
-  if ((field= sp_result_field()))
-  {
-    Item_result result= field->result_type();
-    delete field;
-    DBUG_RETURN(result);
-  }
-  DBUG_RETURN(STRING_RESULT);
+  DBUG_ASSERT(sp_result_field);
+  DBUG_RETURN(sp_result_field->result_type());
 }
-
-void
-Item_func_sp::fix_length_and_dec()
-{
-  Field *field;
-  DBUG_ENTER("Item_func_sp::fix_length_and_dec");
-
-  if (result_field)
-  {
-    decimals= result_field->decimals();
-    max_length= result_field->field_length;
-    collation.set(result_field->charset());
-    DBUG_VOID_RETURN;
-  }
-
-  if (!(field= sp_result_field()))
-  {
-    context->process_error(current_thd);
-    DBUG_VOID_RETURN;
-  }
-  decimals= field->decimals();
-  max_length= field->field_length;
-  collation.set(field->charset());
-  maybe_null= 1;
-  delete field;
-  DBUG_VOID_RETURN;
-}
-
 
 longlong Item_func_found_rows::val_int()
 {
@@ -5271,57 +5268,39 @@ longlong Item_func_found_rows::val_int()
 Field *
 Item_func_sp::tmp_table_field(TABLE *t_arg)
 {
-  Field *field= 0;
   DBUG_ENTER("Item_func_sp::tmp_table_field");
 
-  if (m_sp)
-    field= m_sp->create_result_field(max_length, (const char*) name, t_arg);
-  
-  if (!field) 
-    field= Item_func::tmp_table_field(t_arg);
-
-  if (!field)
-    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-
-  DBUG_RETURN(field);
+  DBUG_ASSERT(sp_result_field);
+  DBUG_RETURN(sp_result_field);
 }
 
 
-/*
-  Find the function and check access rights to the function
-
-  SYNOPSIS
-    find_and_check_access()
-    thd           thread handler
-
-  RETURN
-    FALSE    Access granted
-    TRUE     Requested access can't be granted or function doesn't exists
-
-  NOTES
-    Checks if requested access to function can be granted to user.
+/**
+  @brief Checks if requested access to function can be granted to user.
     If function isn't found yet, it searches function first.
     If function can't be found or user don't have requested access
     error is raised.
+
+  @param thd thread handler
+
+  @return Indication if the access was granted or not.
+  @retval FALSE Access is granted.
+  @retval TRUE Requested access can't be granted or function doesn't exists.
+    
 */
 
 bool
-Item_func_sp::find_and_check_access(THD *thd)
+Item_func_sp::sp_check_access(THD *thd)
 {
-  if (! m_sp && ! (m_sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, m_name,
-                                         &thd->sp_func_cache, TRUE)))
-  {
-    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
-    return TRUE;
-  }
-
+  DBUG_ENTER("Item_func_sp::sp_check_access");
+  DBUG_ASSERT(m_sp);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_routine_access(thd, EXECUTE_ACL,
 			   m_sp->m_db.str, m_sp->m_name.str, 0, FALSE))
-    return TRUE;
+    DBUG_RETURN(TRUE);
 #endif
 
-  return FALSE;
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -5329,9 +5308,25 @@ bool
 Item_func_sp::fix_fields(THD *thd, Item **ref)
 {
   bool res;
+  DBUG_ENTER("Item_func_sp::fix_fields");
   DBUG_ASSERT(fixed == 0);
+ 
+  /*
+    We must call init_result_field before Item_func::fix_fields() 
+    to make m_sp and result_field members available to fix_length_and_dec(),
+    which is called from Item_func::fix_fields().
+  */
+  res= init_result_field(thd);
+
+  if (res)
+    DBUG_RETURN(res);
+
   res= Item_func::fix_fields(thd, ref);
-  if (!res && thd->lex->view_prepare_mode)
+
+  if (res)
+    DBUG_RETURN(res);
+
+  if (thd->lex->view_prepare_mode)
   {
     /*
       Here we check privileges of the stored routine only during view
@@ -5343,15 +5338,17 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
       good idea especially if the view has SQL SECURITY DEFINER and
       the used stored procedure has SQL SECURITY DEFINER.
     */
-    res= find_and_check_access(thd);
+    res= sp_check_access(thd);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+    /*
+      Try to set and restore the security context to see whether it's valid
+    */
     Security_context *save_secutiry_ctx;
-    if (!res && !(res= set_routine_security_ctx(thd, m_sp, false,
-                                                &save_secutiry_ctx)))
-    {
+    res= set_routine_security_ctx(thd, m_sp, false, &save_secutiry_ctx);
+    if (!res)
       sp_restore_security_context(thd, save_secutiry_ctx);
-    }
+    
 #endif /* ! NO_EMBEDDED_ACCESS_CHECKS */
   }
-  return res;
+  DBUG_RETURN(res);
 }

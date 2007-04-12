@@ -29,6 +29,105 @@ DROP TABLE t4;
 
 
 #
+# Bug#25482 GRANT statements are not replicated if
+# you use "replicate-ignore-table"
+#
+
+--echo **** Test case for BUG#25482 ****
+--echo **** Adding GRANTS on master ****
+
+connection master;
+create table test.t1(a int);
+create table test.t4(a int);
+
+# Simple user that should not replicate
+GRANT SELECT ON test.t1 TO mysqltest1@localhost;
+
+# Partial replicate
+GRANT INSERT ON test.t4 TO mysqltest2@localhost;
+GRANT select, update, insert, references on t1
+  to mysqltest2@localhost;
+
+# Partial replicate 2
+GRANT SELECT ON test.* TO mysqltest3@localhost;
+GRANT INSERT ON test.t4 TO mysqltest3@localhost;
+GRANT select(a), update(a), insert(a), references(a) on t4
+  to mysqltest3@localhost;
+
+# Create another database and table
+create database mysqltest2;
+create table mysqltest2.t2 (id int);
+# Create a grant that should replicate
+GRANT SELECT ON mysqltest2.t2 TO mysqltest4@localhost IDENTIFIED BY 'pass';
+
+# Create a grant manually
+insert into mysql.user (user, host) values ("mysqltest5", "somehost");
+
+# Partial replicate 3 with *.*
+GRANT SELECT ON *.* TO mysqltest6@localhost;
+GRANT INSERT ON *.* TO mysqltest6@localhost;
+GRANT INSERT ON test.* TO mysqltest6@localhost;
+GRANT INSERT ON test.t1 TO mysqltest6@localhost;
+
+show grants for mysqltest1@localhost;
+show grants for mysqltest2@localhost;
+show grants for mysqltest3@localhost;
+show grants for mysqltest4@localhost;
+show grants for mysqltest6@localhost;
+
+flush privileges;
+show grants for mysqltest5@somehost;
+
+
+sync_slave_with_master;
+
+--echo **** Checking grants on slave ****
+
+# Check that grants are replicated to slave
+show grants for mysqltest2@localhost;
+show grants for mysqltest3@localhost;
+show grants for mysqltest4@localhost;
+show grants for mysqltest5@somehost;
+show grants for mysqltest6@localhost;
+
+# mysqltest1 should not be on slave
+--error 1141
+show grants for mysqltest1@localhost;
+
+--echo **** Revoking grants on master ****
+connection master;
+REVOKE SELECT ON test.t1 FROM mysqltest1@localhost;
+REVOKE SELECT ON mysqltest2.t2 FROM mysqltest4@localhost;
+REVOKE select(a) on t4
+ from mysqltest3@localhost;
+
+show grants for mysqltest1@localhost;
+show grants for mysqltest3@localhost;
+show grants for mysqltest4@localhost;
+
+sync_slave_with_master;
+
+--echo **** Checking grants on slave ****
+
+# mysqltest1 should not be on slave
+--error 1141
+show grants for mysqltest1@localhost;
+show grants for mysqltest3@localhost;
+show grants for mysqltest4@localhost;
+
+# Cleanup
+connection master;
+drop table t1, t4, mysqltest2.t2;
+drop database mysqltest2;
+delete from mysql.user where user like "mysqltest%";
+delete from mysql.db where user like "mysqltest%";
+delete from mysql.tables_priv where user like "mysqltest%";
+delete from mysql.columns_priv where user like "mysqltest%";
+sync_slave_with_master;
+
+connection master;
+
+#
 # bug#22877 replication character sets get out of sync
 # using replicate-wild-ignore-table
 #

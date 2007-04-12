@@ -771,3 +771,4 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 create table t1 (upgrade int);
 drop table t1;
+End of 5.0 tests

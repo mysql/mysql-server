@@ -37,7 +37,7 @@ gptr my_malloc(unsigned int size, myf my_flags)
     if (my_flags & MY_FAE)
       error_handler_hook=fatal_error_handler_hook;
     if (my_flags & (MY_FAE+MY_WME))
-      my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG),size);
+      my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG+ME_NOREFRESH),size);
     if (my_flags & MY_FAE)
       exit(1);
   }
