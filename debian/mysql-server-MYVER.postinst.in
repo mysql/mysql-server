@@ -1,0 +1,276 @@
+#!/bin/bash -e
+
+. /usr/share/debconf/confmodule
+
+if [ -n "$DEBIAN_SCRIPT_DEBUG" ]; then set -v -x; DEBIAN_SCRIPT_TRACE=1; fi
+${DEBIAN_SCRIPT_TRACE:+ echo "#42#DEBUG# RUNNING $0 $*" 1>&2 }
+ 
+export PATH=$PATH:/sbin:/usr/sbin:/bin:/usr/bin
+
+# This command can be used as pipe to syslog. With "-s" it also logs to stderr.
+ERR_LOGGER="logger -p daemon.err -t mysqld_safe -i"
+
+invoke() {
+  if [ -x /usr/sbin/invoke-rc.d ]; then
+    invoke-rc.d mysql $1
+  else
+    /etc/init.d/mysql $1
+  fi
+}
+
+MYSQL_BOOTSTRAP="/usr/sbin/mysqld --bootstrap --user=mysql --skip-grant-tables  --skip-bdb  --skip-innodb "
+
+test_mysql_access() {
+	mysql --no-defaults -u root -h localhost </dev/null >/dev/null 2>&1
+}
+
+# call with $1 = "online" to connect to the server, otherwise it bootstraps
+set_mysql_rootpw() {
+	# forget we ever saw the password.  don't use reset to keep the seen status
+	db_set mysql-server/root_password ""
+
+	tfile=`mktemp`
+	if [ ! -f "$tfile" ]; then
+		return 1
+	fi
+
+	# this avoids us having to call "test" or "[" on $rootpw
+	cat << EOF > $tfile
+USE mysql;
+UPDATE user SET password=PASSWORD("$rootpw") WHERE user='root';
+FLUSH PRIVILEGES;
+EOF
+	if grep -q 'PASSWORD("")' $tfile; then
+		retval=0
+	elif [ "$1" = "online" ]; then
+		mysql --no-defaults -u root -h localhost <$tfile >/dev/null
+		retval=$?
+	else
+		$MYSQL_BOOTSTRAP <$tfile
+		retval=$?
+	fi
+	rm -f $tfile
+	return $retval
+}
+
+# This is necessary because mysql_install_db removes the pid file in /var/run
+# and because changed configuration options should take effect immediately.
+# In case the server wasn't running at all it should be ok if the stop
+# script fails. I can't tell at this point because of the cleaned /var/run.
+set +e; invoke stop; set -e
+    
+case "$1" in
+  configure)
+    mysql_cnf=/etc/mysql/my.cnf
+    mysql_datadir=/usr/share/mysql
+    mysql_statedir=/var/lib/mysql
+    mysql_rundir=/var/run/mysqld
+    mysql_logdir=/var/log
+    mysql_cfgdir=/etc/mysql
+    mysql_newlogdir=/var/log/mysql
+    mysql_upgradedir=/var/lib/mysql-upgrade
+
+    # first things first, if the following symlink exists, it is a preserved
+    # copy the old data dir from a mysql upgrade that would have otherwise
+    # been replaced by an empty mysql dir.  this should restore it.
+    for dir in DATADIR LOGDIR; do
+        if [ "$dir" = "DATADIR" ]; then targetdir=$mysql_statedir; else targetdir=$mysql_newlogdir; fi
+        savelink="$mysql_upgradedir/$dir.link"
+        if [ -L "$savelink" ]; then
+            # If the targetdir was a symlink before we upgraded it is supposed
+            # to be either still be present or not existing anymore now.
+            if [ -L "$targetdir" ]; then
+                rm "$savelink"
+            elif [ ! -d "$targetdir" ]; then
+                mv "$savelink" "$targetdir"
+            else
+                # this should never even happen, but just in case...
+                mysql_tmp=`mktemp -d -t mysql-symlink-restore-XXXXXX`
+                echo "this is very strange!  see $mysql_tmp/README..." >&2
+                mv "$targetdir" "$mysql_tmp"
+                cat << EOF > "$mysql_tmp/README"
+
+if you're reading this, it's most likely because you had replaced /var/lib/mysql
+with a symlink, then upgraded to a new version of mysql, and then dpkg
+removed your symlink (see #182747 and others).  the mysql packages noticed
+that this happened, and as a workaround have restored it.  however, because
+/var/lib/mysql seems to have been re-created in the meantime, and because
+we don't want to rm -rf something we don't know as much about, we're going
+to leave this unexpected directory here.  if your database looks normal,
+and this is not a symlink to your database, you should be able to blow
+this all away.
+
+EOF
+            fi
+        fi
+	rmdir $mysql_upgradedir 2>/dev/null || true
+    done
+    
+    # Ensure the existence and right permissions for the database and
+    # log files.
+    if [ ! -d "$mysql_statedir"       -a ! -L "$mysql_statedir"       ]; then mkdir "$mysql_statedir"; fi
+    if [ ! -d "$mysql_statedir/mysql" -a ! -L "$mysql_statedir/mysql" ]; then mkdir "$mysql_statedir/mysql"; fi
+    if [ ! -d "$mysql_newlogdir"      -a ! -L "$mysql_newlogdir"      ]; then mkdir "$mysql_newlogdir"; fi
+    # When creating an ext3 jounal on an already mounted filesystem like e.g.
+    # /var/lib/mysql, you get a .journal file that is not modifyable by chown.
+    # The mysql_datadir must not be writable by the mysql user under any
+    # circumstances as it contains scripts that are executed by root.
+    set +e
+    chown -R 0.0 $mysql_datadir
+    chown -R mysql $mysql_statedir
+    chown -R mysql $mysql_rundir
+    chown -R mysql:adm $mysql_newlogdir;	chmod 2750 $mysql_newlogdir;
+    for i in log err; do
+      touch             $mysql_logdir/mysql.$i
+      chown mysql:adm   $mysql_logdir/mysql.$i
+      chmod 0640        $mysql_logdir/mysql.$i
+    done
+    set -e
+
+    # This is important to avoid dataloss when there is a removed
+    # mysql-server version from Woody lying around which used the same
+    # data directory and then somewhen gets purged by the admin.
+    db_set mysql-server/postrm_remove_database false || true
+
+    # So that mysql-server (4.0) can check if it's safe to install.
+    touch $mysql_statedir/debian-@VER@.flag
+
+    # On dist-upgrades, we ensure that the old_password setting is updated
+    # before passwords are changed. Except for that config files are taboo!
+    db_get mysql-server-@MYVER@/need_sarge_compat_done || true
+    if [ "$RET" = "false" ]; then
+ 	db_get mysql-server-@MYVER@/need_sarge_compat
+	echo -e "# created by debconf but save to be edited\n[mysqld]\nold_passwords = $RET" > /etc/mysql/conf.d/old_passwords.cnf
+    fi
+    db_set mysql-server-@MYVER@/need_sarge_compat_done true
+
+    # initiate databases. Output is not allowed by debconf :-(
+    # Debian: beware of the bashisms... 
+    # Debian: can safely run on upgrades with existing databases 
+    set +e
+    /bin/bash /usr/bin/mysql_install_db --rpm 2>&1 | $ERR_LOGGER
+    if [ "$?" != "0" ]; then
+      echo "ATTENTION: An error has occured. More info is in the syslog!"
+    fi
+    set -e
+    
+    ## On every reconfiguration the maintenance user is recreated.
+    #
+    # - It is easier to regenerate the password every time but as people
+    #   use fancy rsync scripts and file alteration monitors, the existing
+    #   password is used and existing files not touched.
+    # - The mysqld statement is like that in mysql_install_db because the
+    #   server is not already running. This has some implications:
+    # 	- The amount of newlines and semicolons in the query is important!
+    #   - GRANT is not possible with --skipt-grant-tables and "INSERT
+    #     (user,host..) VALUES" is not --ansi compliant
+    # - The echo is just for readability. ash's buildin has no "-e" so use /bin/echo.
+    # - The Super_priv, Show_db_priv, Create_tmp_table_priv and Lock_tables_priv
+    #   may not be present as old Woody 3.23 databases did not have it and the
+    #   admin might not already have run mysql_upgrade which adds them.
+    #   As the binlog cron scripts to need at least the Super_priv, I do first
+    #   the old query which always succeeds and then the new which may or may not.
+
+    # recreate the credentials file if not present or without mysql_upgrade stanza
+    dc=$mysql_cfgdir/debian.cnf; 
+    if [ -e "$dc" -a -n "`fgrep mysql_upgrade $dc 2>/dev/null`" ]; then
+        pass="`sed -n 's/password *= *// p' $dc | head -n 1`"
+    else
+	pass=`perl -e 'print map{("a".."z","A".."Z",0..9)[int(rand(62))]}(1..16)'`;
+        if [ ! -d "$mysql_cfgdir" ]; then install -o 0 -g 0 -m 0755 -d $mysql_cfgdir; fi
+        cat /dev/null > $dc
+        echo "# Automatically generated for Debian scripts. DO NOT TOUCH!" >>$dc
+        echo "[client]"                                                    >>$dc
+        echo "host     = localhost"                                        >>$dc
+        echo "user     = debian-sys-maint"                                 >>$dc
+        echo "password = $pass"                                            >>$dc
+        echo "socket   = $mysql_rundir/mysqld.sock"                        >>$dc
+        echo "[mysql_upgrade]"                                             >>$dc
+        echo "user     = debian-sys-maint"                                 >>$dc
+        echo "password = $pass"                                            >>$dc
+        echo "socket   = $mysql_rundir/mysqld.sock"                        >>$dc
+        echo "basedir  = /usr"                                             >>$dc
+    fi
+    # If this dir chmod go+w then the admin did it. But this file should not.
+    chown 0:0 $dc
+    chmod 0600 $dc
+
+    # update privilege and timezone tables
+    password_column_fix_query=`/bin/echo -e \
+	"USE mysql\n" \
+	"ALTER TABLE user CHANGE password Password varchar(41) collate utf8_bin NOT NULL default ''"`;
+    replace_query=`/bin/echo -e \
+	"USE mysql\n" \
+	"REPLACE INTO user SET " \
+	"  host='localhost', user='debian-sys-maint', password=password('$pass'), " \
+	"  Select_priv='Y', Insert_priv='Y', Update_priv='Y', Delete_priv='Y', " \
+	"  Create_priv='Y', Drop_priv='Y', Reload_priv='Y', Shutdown_priv='Y', " \
+	"  Process_priv='Y',  File_priv='Y', Grant_priv='Y', References_priv='Y', " \
+	"  Index_priv='Y', Alter_priv='Y' __EXTRA_PRIVS__"`;
+    extra_privs=`/bin/echo -e \
+	", Show_db_priv='Y' " \
+	", Super_priv='Y' " \
+	", Create_tmp_table_priv='Y' " \
+	", Lock_tables_priv='Y' " \
+	", Execute_priv='Y' " \
+	", Repl_slave_priv='Y' " \
+	", Repl_client_priv='Y' "`;
+
+    # Upgrade password column format before the root password gets set.
+    echo "$password_column_fix_query"                             | $MYSQL_BOOTSTRAP 2>&1 | $ERR_LOGGER
+
+    db_get mysql-server/root_password && rootpw="$RET"
+    if ! set_mysql_rootpw; then
+    	password_error="yes"
+    fi
+
+    echo "$replace_query" | sed "s/__EXTRA_PRIVS__//"             | $MYSQL_BOOTSTRAP 2>&1 | $ERR_LOGGER
+    set +e
+    echo "$replace_query" | sed "s/__EXTRA_PRIVS__/$extra_privs/" | $MYSQL_BOOTSTRAP 2>&1 | $ERR_LOGGER
+    set -e
+    mysql_tzinfo_to_sql /usr/share/zoneinfo/ 2>&1 | egrep -v 'Skipping it.$' | $MYSQL_BOOTSTRAP 2>&1 | $ERR_LOGGER
+
+    # The Sarge package "mysql-server" which used to include the mysqld daemon
+    # may still be in unselected-configured state (i.e. after a remove but not
+    # purge) in which case its now obsolete cronscript has to be moved away.
+    for i in /etc/cron.daily/mysql-server /etc/cron.daily/mysql-server-41 /etc/mysql/debian-log-rotate.conf; do
+      if [ -f $i ]; then mv $i $i.dpkg-old; fi 
+    done
+  ;;
+
+  abort-upgrade|abort-remove|abort-configure)
+  ;;
+
+  *)
+    echo "postinst called with unknown argument '$1'" 1>&2
+    exit 1
+  ;;
+esac
+
+#DEBHELPER#
+
+# here we check to see if we can connect as root without a password
+# this should catch upgrades from previous verisons where the root
+# password wasn't set.  if there is a password, or if the connection
+# fails for any other reason, nothing happens.
+if [ "$1" = "configure" ]; then
+	if test_mysql_access; then
+		db_input medium mysql-server/root_password || true
+		db_go
+		db_get mysql-server/root_password && rootpw="$RET"
+
+		if ! set_mysql_rootpw "online"; then
+			password_error="yes"
+		fi
+	fi
+
+	if [ "$password_error" = "yes" ]; then
+		db_input high mysql-server/error_setting_password || true
+		db_go
+	fi
+
+fi
+
+db_stop # in case invoke failes
+
+exit 0
