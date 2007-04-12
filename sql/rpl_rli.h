@@ -51,6 +51,17 @@ struct RPL_TABLE_LIST;
 
 typedef struct st_relay_log_info
 {
+  /**
+     Flags for the state of the replication.
+   */
+  enum enum_state_flag {
+    /** The replication thread is inside a statement */
+    IN_STMT,
+
+    /** Flag counter.  Should always be last */
+    STATE_FLAGS_COUNT
+  };
+
   /*
     If flag set, then rli does not store its state in any info file.
     This is the case only when we execute BINLOG SQL commands inside
@@ -314,6 +325,66 @@ typedef struct st_relay_log_info
     transaction).
    */
   time_t last_event_start_time;
+
+  /**
+    Helper function to do after statement completion.
+
+    This function is called from an event to complete the group by
+    either stepping the group position, if the "statement" is not
+    inside a transaction; or increase the event position, if the
+    "statement" is inside a transaction.
+
+    @param event_log_pos
+    Master log position of the event. The position is recorded in the
+    relay log info and used to produce information for <code>SHOW
+    SLAVE STATUS</code>.
+
+    @param event_creation_time
+    Timestamp for the creation of the event on the master side. The
+    time stamp is recorded in the relay log info and used to compute
+    the <code>Seconds_behind_master</code> field.
+  */
+  void stmt_done(my_off_t event_log_pos,
+                 time_t event_creation_time);
+
+
+  /**
+     Set the value of a replication state flag.
+
+     @param flag Flag to set
+   */
+  void set_flag(enum_state_flag flag)
+  {
+    m_flags |= (1UL << flag);
+  }
+
+  /**
+     Clear the value of a replication state flag.
+
+     @param flag Flag to clear
+   */
+  void clear_flag(enum_state_flag flag)
+  {
+    m_flags &= ~(1UL << flag);
+  }
+
+  /**
+     Is the replication inside a group?
+
+     Replication is inside a group if either:
+     - The OPTION_BEGIN flag is set, meaning we're inside a transaction
+     - The RLI_IN_STMT flag is set, meaning we're inside a statement
+
+     @retval true Replication thread is currently inside a group
+     @retval false Replication thread is currently not inside a group
+   */
+  bool is_in_group() const {
+    return (sql_thd->options & OPTION_BEGIN) ||
+      (m_flags & (1UL << IN_STMT));
+  }
+
+private:
+  uint32 m_flags;
 } RELAY_LOG_INFO;
 
 

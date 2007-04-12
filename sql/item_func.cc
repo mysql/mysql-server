@@ -22,6 +22,7 @@
 
 #include "mysql_priv.h"
 #include "slave.h"				// for wait_for_master_pos
+#include "rpl_mi.h"
 #include <m_ctype.h>
 #include <hash.h>
 #include <time.h>

@@ -17,6 +17,7 @@
 #include <m_ctype.h>
 #include <my_dir.h>
 #include "slave.h"
+#include "rpl_mi.h"
 #include "sql_repl.h"
 #include "rpl_filter.h"
 #include "repl_failsafe.h"

@@ -26,6 +26,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include "rpl_rli.h"
 #include <my_bitmap.h>
 #include "log_event.h"
 #include <m_ctype.h>
