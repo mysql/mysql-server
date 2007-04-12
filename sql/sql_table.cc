@@ -407,6 +407,7 @@ static int sort_keys(KEY *a, KEY *b)
     set_or_name   "SET" or "ENUM" string for warning message
     name	  name of the checked column
     typelib	  list of values for the column
+    dup_val_count  returns count of duplicate elements
 
   DESCRIPTION
     This function prints an warning for each value in list
@@ -418,11 +419,12 @@ static int sort_keys(KEY *a, KEY *b)
 
 void check_duplicates_in_interval(const char *set_or_name,
                                   const char *name, TYPELIB *typelib,
-                                  CHARSET_INFO *cs)
+                                  CHARSET_INFO *cs, unsigned int *dup_val_count)
 {
   TYPELIB tmp= *typelib;
   const char **cur_value= typelib->type_names;
   unsigned int *cur_length= typelib->type_lengths;
+  *dup_val_count= 0;  
   
   for ( ; tmp.count > 1; cur_value++, cur_length++)
   {
@@ -435,6 +437,7 @@ void check_duplicates_in_interval(const char *set_or_name,
 			  ER_DUPLICATED_VALUE_IN_TYPE,
 			  ER(ER_DUPLICATED_VALUE_IN_TYPE),
 			  name,*cur_value,set_or_name);
+      (*dup_val_count)++;
     }
   }
 }
@@ -498,6 +501,7 @@ int prepare_create_field(create_field *sql_field,
 			 int *timestamps, int *timestamps_with_niladic,
 			 uint table_flags)
 {
+  unsigned int dup_val_count;
   DBUG_ENTER("prepare_field");
 
   /*
@@ -573,7 +577,7 @@ int prepare_create_field(create_field *sql_field,
     sql_field->unireg_check=Field::INTERVAL_FIELD;
     check_duplicates_in_interval("ENUM",sql_field->field_name,
                                  sql_field->interval,
-                                 sql_field->charset);
+                                 sql_field->charset, &dup_val_count);
     break;
   case FIELD_TYPE_SET:
     sql_field->pack_flag=pack_length_to_packflag(sql_field->pack_length) |
@@ -583,7 +587,13 @@ int prepare_create_field(create_field *sql_field,
     sql_field->unireg_check=Field::BIT_FIELD;
     check_duplicates_in_interval("SET",sql_field->field_name,
                                  sql_field->interval,
-                                 sql_field->charset);
+                                 sql_field->charset, &dup_val_count);
+    /* Check that count of unique members is not more then 64 */
+    if (sql_field->interval->count -  dup_val_count > sizeof(longlong)*8)
+    {
+       my_error(ER_TOO_BIG_SET, MYF(0), sql_field->field_name);
+       DBUG_RETURN(1);
+    }
     break;
   case FIELD_TYPE_DATE:			// Rest of string types
   case FIELD_TYPE_NEWDATE:
@@ -1697,6 +1707,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
                           alias);
       DBUG_RETURN(FALSE);
     }
+    DBUG_PRINT("info",("1"));
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
     DBUG_RETURN(TRUE);
   }
@@ -1707,6 +1718,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     {
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
         goto warn;
+      DBUG_PRINT("info",("2"));
       my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
       goto end;
     }
@@ -1725,14 +1737,25 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   {
     bool create_if_not_exists =
       create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS;
-    if (ha_table_exists_in_engine(thd, db, table_name))
+    int retcode = ha_table_exists_in_engine(thd, db, table_name);
+    DBUG_PRINT("info", ("exists_in_engine: %u",retcode));
+    switch (retcode)
     {
-      DBUG_PRINT("info", ("Table with same name already existed in handler"));
+      case HA_ERR_NO_SUCH_TABLE:
+        /* Normal case, no table exists. we can go and create it */
+        break;
+      case HA_ERR_TABLE_EXIST:
+        DBUG_PRINT("info", ("Table existed in handler"));
 
-      if (create_if_not_exists)
-        goto warn;
-      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
-      goto end;
+        if (create_if_not_exists)
+          goto warn;
+        my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
+        goto end;
+        break;
+      default:
+        DBUG_PRINT("info", ("error: %u from storage engine", retcode));
+        my_error(retcode, MYF(0),table_name);
+        goto end;
     }
   }
 
@@ -2068,7 +2091,9 @@ static int prepare_for_repair(THD* thd, TABLE_LIST *table_list,
 
   /*
     Check if this is a table type that stores index and data separately,
-    like ISAM or MyISAM
+    like ISAM or MyISAM. We assume fixed order of engine file name
+    extentions array. First element of engine file name extentions array
+    is meta/index file extention. Second element - data file extention. 
   */
   if (!ext[0] || !ext[1])
     goto end;					// No data file

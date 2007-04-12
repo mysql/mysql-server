@@ -2438,14 +2438,14 @@ ha_find_files(THD *thd,const char *db,const char *path,
   Ask handler if the table exists in engine
 
   RETURN
-    0                   Table does not exist
-    1                   Table exists
-    #                   Error code
+    HA_ERR_NO_SUCH_TABLE     Table does not exist
+    HA_ERR_TABLE_EXIST       Table exists
+    #                        Error code
 
  */
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
 {
-  int error= 0;
+  int error= HA_ERR_NO_SUCH_TABLE;
   DBUG_ENTER("ha_table_exists_in_engine");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
 #ifdef HAVE_NDBCLUSTER_DB
