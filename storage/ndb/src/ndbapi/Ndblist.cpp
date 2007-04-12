@@ -74,7 +74,10 @@ Ndb::checkFailedNode()
 int 
 Ndb::createConIdleList(int aNrOfCon)
 {
-  theImpl->theConIdleList.fill(this, aNrOfCon);
+  if (theImpl->theConIdleList.fill(this, aNrOfCon))
+  {
+    return -1;
+  }
   return aNrOfCon; 
 }
 
@@ -90,7 +93,10 @@ Ndb::createConIdleList(int aNrOfCon)
 int 
 Ndb::createOpIdleList(int aNrOfOp)
 { 
-  theImpl->theOpIdleList.fill(this, aNrOfOp);
+  if (theImpl->theOpIdleList.fill(this, aNrOfOp))
+  {
+    return -1;
+  }
   return aNrOfOp; 
 }
 

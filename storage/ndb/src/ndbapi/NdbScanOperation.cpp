@@ -820,9 +820,12 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   req->requestInfo = reqInfo;
   
   for(Uint32 i = 0; i<theParallelism; i++){
-    m_receivers[i]->do_get_value(&theReceiver, batch_size, 
-				 key_size, 
-				 m_read_range_no);
+    if (m_receivers[i]->do_get_value(&theReceiver, batch_size, 
+                                     key_size, 
+                                     m_read_range_no))
+    {
+      return -1;
+    }
   }
   return 0;
 }

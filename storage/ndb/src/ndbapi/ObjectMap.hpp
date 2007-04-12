@@ -20,6 +20,9 @@
 //#include <NdbMutex.h>
 #include <NdbOut.hpp>
 
+#include <EventLogger.hpp>
+extern EventLogger g_eventLogger;
+
 //#define DEBUG_OBJECTMAP
 
 /**
@@ -48,24 +51,6 @@ private:
   NdbMutex * m_mutex;
   int expand(Uint32 newSize);
 };
-
-inline
-NdbObjectIdMap::NdbObjectIdMap(NdbMutex* mutex, Uint32 sz, Uint32 eSz) {
-  m_size = 0;
-  m_firstFree = InvalidId;
-  m_map = 0;
-  m_mutex = mutex;
-  m_expandSize = eSz;
-  expand(sz);
-#ifdef DEBUG_OBJECTMAP
-  ndbout_c("NdbObjectIdMap:::NdbObjectIdMap(%u)", sz);
-#endif
-}
-
-inline
-NdbObjectIdMap::~NdbObjectIdMap(){
-  free(m_map);
-}
 
 inline
 Uint32
@@ -100,8 +85,8 @@ NdbObjectIdMap::unmap(Uint32 id, void *object){
       m_map[i].m_next = m_firstFree;
       m_firstFree = i;
     } else {
-      ndbout_c("Error: NdbObjectIdMap::::unmap(%u, 0x%lx) obj=0x%lx",
-               id, (long) object, (long) obj);
+      g_eventLogger.error("NdbObjectIdMap::unmap(%u, 0x%x) obj=0x%x",
+                          id, (long) object, (long) obj);
       DBUG_PRINT("error",("NdbObjectIdMap::unmap(%u, 0x%lx) obj=0x%lx",
                           id, (long) object, (long) obj));
       return 0;
@@ -125,31 +110,4 @@ NdbObjectIdMap::getObject(Uint32 id){
   }
   return 0;
 }
-
-inline int
-NdbObjectIdMap::expand(Uint32 incSize){
-  NdbMutex_Lock(m_mutex);
-  Uint32 newSize = m_size + incSize;
-  MapEntry * tmp = (MapEntry*)realloc(m_map, newSize * sizeof(MapEntry));
-
-  if (likely(tmp != 0))
-  {
-    m_map = tmp;
-    
-    for(Uint32 i = m_size; i<newSize; i++){
-      m_map[i].m_next = i + 1;
-    }
-    m_firstFree = m_size;
-    m_map[newSize-1].m_next = InvalidId;
-    m_size = newSize;
-  }
-  else
-  {
-    NdbMutex_Unlock(m_mutex);
-    return -1;
-  }
-  NdbMutex_Unlock(m_mutex);
-  return 0;
-}
-
 #endif
