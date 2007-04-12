@@ -201,7 +201,7 @@ load data infile '../std_data_ln/loaddata6.dat' into table t1 character set koi8
 select hex(a) from t1;
 drop table t1;
 flush logs;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000009
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/log/master-bin.000009
 
 --echo End of 5.0 tests

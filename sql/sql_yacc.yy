@@ -1577,7 +1577,7 @@ sp_name:
 	      my_error(ER_SP_WRONG_NAME, MYF(0), $3.str);
 	      MYSQL_YYABORT;
 	    }
-	    $$= new sp_name($1, $3);
+	    $$= new sp_name($1, $3, true);
 	    $$->init_qname(YYTHD);
 	  }
 	| ident
@@ -1591,7 +1591,7 @@ sp_name:
 	    }
             if (thd->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
-	    $$= new sp_name(db, $1);
+	    $$= new sp_name(db, $1, false);
             if ($$)
 	      $$->init_qname(YYTHD);
 	  }
@@ -5041,7 +5041,7 @@ simple_expr:
 	| ident '.' ident '(' opt_expr_list ')'
 	  {
 	    LEX *lex= Lex;
-	    sp_name *name= new sp_name($1, $3);
+	    sp_name *name= new sp_name($1, $3, true);
 
 	    name->init_qname(YYTHD);
 	    sp_add_used_routine(lex, YYTHD, name, TYPE_ENUM_FUNCTION);
@@ -5156,7 +5156,7 @@ simple_expr:
               LEX_STRING db;
               if (thd->copy_db_to(&db.str, &db.length))
                 MYSQL_YYABORT;
-              sp_name *name= new sp_name(db, $1);
+              sp_name *name= new sp_name(db, $1, false);
               if (name)
                 name->init_qname(thd);
 
@@ -9050,7 +9050,8 @@ grant_ident:
 	| table_ident
 	  {
 	    LEX *lex=Lex;
-	    if (!lex->current_select->add_table_to_list(lex->thd, $1,NULL,0))
+	    if (!lex->current_select->add_table_to_list(lex->thd, $1,NULL,
+                                                        TL_OPTION_UPDATING))
 	      MYSQL_YYABORT;
 	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant =  TABLE_ACLS & ~GRANT_ACL;

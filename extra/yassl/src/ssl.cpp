@@ -58,6 +58,9 @@ int read_file(SSL_CTX* ctx, const char* file, int format, CertType type)
     if (format != SSL_FILETYPE_ASN1 && format != SSL_FILETYPE_PEM)
         return SSL_BAD_FILETYPE;
 
+    if (file == NULL || !file[0])
+      return SSL_BAD_FILE;
+
     FILE* input = fopen(file, "rb");
     if (!input)
         return SSL_BAD_FILE;
@@ -229,7 +232,7 @@ void SSL_free(SSL* ssl)
 }
 
 
-int SSL_set_fd(SSL* ssl, socket_t fd)
+int SSL_set_fd(SSL* ssl, YASSL_SOCKET_T fd)
 {
     ssl->useSocket().set_fd(fd);
     return SSL_SUCCESS;
@@ -950,7 +953,7 @@ void ERR_print_errors_fp(FILE* /*fp*/)
 
 char* ERR_error_string(unsigned long errNumber, char* buffer)
 {
-  static char* msg = (char*) "Please supply a buffer for error string";
+  static char* msg = (char*)"Please supply a buffer for error string";
 
     if (buffer) {
         SetErrorString(YasslError(errNumber), buffer);

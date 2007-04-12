@@ -464,6 +464,25 @@ inline word32 ByteReverse(word32 value)
 }
 
 
+#ifdef WORD64_AVAILABLE
+
+inline word64 ByteReverse(word64 value)
+{
+#ifdef TAOCRYPT_SLOW_WORD64
+	return (word64(ByteReverse(word32(value))) << 32) | 
+                   ByteReverse(word32(value>>32));
+#else
+	value = ((value & W64LIT(0xFF00FF00FF00FF00)) >> 8) |
+            ((value & W64LIT(0x00FF00FF00FF00FF)) << 8);
+	value = ((value & W64LIT(0xFFFF0000FFFF0000)) >> 16) |
+            ((value & W64LIT(0x0000FFFF0000FFFF)) << 16);
+	return rotlFixed(value, 32U);
+#endif
+}
+
+#endif // WORD64_AVAILABLE
+
+
 template <typename T>
 inline void ByteReverse(T* out, const T* in, word32 byteCount)
 {

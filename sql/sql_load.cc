@@ -222,7 +222,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       DBUG_RETURN(TRUE);
   }
 
-  mark_fields_used_by_triggers_for_insert_stmt(thd, table, handle_duplicates);
+  prepare_triggers_for_insert_stmt(thd, table, handle_duplicates);
 
   uint tot_length=0;
   bool use_blobs= 0, use_vars= 0;
@@ -532,7 +532,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   Item_field *sql_field;
   TABLE *table= table_list->table;
   ulonglong id;
-  bool no_trans_update_stmt;
+  bool no_trans_update_stmt, err;
   DBUG_ENTER("read_fixed_length");
 
   id= 0;
@@ -624,7 +624,9 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       DBUG_RETURN(-1);
     }
 
-    if (write_record(thd, table, &info))
+    err= write_record(thd, table, &info);
+    table->auto_increment_field_not_null= FALSE;
+    if (err)
       DBUG_RETURN(1);
     thd->no_trans_update.stmt= no_trans_update_stmt;
    
@@ -669,7 +671,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   TABLE *table= table_list->table;
   uint enclosed_length;
   ulonglong id;
-  bool no_trans_update_stmt;
+  bool no_trans_update_stmt, err;
   DBUG_ENTER("read_sep_field");
 
   enclosed_length=enclosed.length();
@@ -716,8 +718,6 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
             DBUG_RETURN(1);
           }
           field->set_null();
-          if (field == table->next_number_field)
-            table->auto_increment_field_not_null= TRUE;
           if (!field->maybe_null())
           {
             if (field->type() == FIELD_TYPE_TIMESTAMP)
@@ -803,8 +803,9 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       DBUG_RETURN(-1);
     }
 
-
-    if (write_record(thd, table, &info))
+    err= write_record(thd, table, &info);
+    table->auto_increment_field_not_null= FALSE;
+    if (err)
       DBUG_RETURN(1);
     /*
       If auto_increment values are used, save the first one for
