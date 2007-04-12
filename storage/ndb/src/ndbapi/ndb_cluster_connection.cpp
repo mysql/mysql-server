@@ -326,6 +326,8 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
       NdbColumnImpl::create_pseudo("NDB$ROWID");
     NdbDictionary::Column::ROW_GCI= 
       NdbColumnImpl::create_pseudo("NDB$ROW_GCI");
+    NdbDictionary::Column::COPY_ROWID= 
+      NdbColumnImpl::create_pseudo("NDB$COPY_ROWID");
   }
   NdbMutex_Unlock(g_ndb_connection_mutex);
 
@@ -391,6 +393,9 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
     NdbDictionary::Column::RECORDS_IN_RANGE= 0;
     NdbDictionary::Column::ROWID= 0;
     NdbDictionary::Column::ROW_GCI= 0;
+
+    delete NdbDictionary::Column::COPY_ROWID;
+    NdbDictionary::Column::COPY_ROWID = 0;
   }
   NdbMutex_Unlock(g_ndb_connection_mutex);
 
