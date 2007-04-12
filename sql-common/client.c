@@ -2596,24 +2596,32 @@ static void mysql_close_free(MYSQL *mysql)
   SYNOPSYS
     mysql_detach_stmt_list()
       stmt_list  pointer to mysql->stmts
+      func_name  name of calling function
 
   NOTE
     There is similar code in mysql_reconnect(), so changes here
     should also be reflected there.
 */
 
-void mysql_detach_stmt_list(LIST **stmt_list __attribute__((unused)))
+void mysql_detach_stmt_list(LIST **stmt_list __attribute__((unused)),
+                            const char *func_name)
 {
 #ifdef MYSQL_CLIENT
   /* Reset connection handle in all prepared statements. */
   LIST *element= *stmt_list;
+  char buff[MYSQL_ERRMSG_SIZE];
+  DBUG_ENTER("mysql_detach_stmt_list");
+
+  my_snprintf(buff, sizeof(buff)-1, ER(CR_STMT_CLOSED), func_name);
   for (; element; element= element->next)
   {
     MYSQL_STMT *stmt= (MYSQL_STMT *) element->data;
+    set_stmt_errmsg(stmt, buff, CR_STMT_CLOSED, unknown_sqlstate);
     stmt->mysql= 0;
     /* No need to call list_delete for statement here */
   }
   *stmt_list= 0;
+  DBUG_VOID_RETURN;
 #endif /* MYSQL_CLIENT */
 }
 
@@ -2634,7 +2642,7 @@ void STDCALL mysql_close(MYSQL *mysql)
     }
     mysql_close_free_options(mysql);
     mysql_close_free(mysql);
-    mysql_detach_stmt_list(&mysql->stmts);
+    mysql_detach_stmt_list(&mysql->stmts, "mysql_close");
 #ifndef TO_BE_DELETED
     /* free/close slave list */
     if (mysql->rpl_pivot)

@@ -784,7 +784,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char *save_db;
     uint passwd_len= (thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
                       *passwd++ : strlen(passwd));
-    uint dummy_errors, save_db_length, db_length, res;
+    uint dummy_errors, save_db_length, db_length;
+    int res;
     Security_context save_security_ctx= *thd->security_ctx;
     USER_CONN *save_user_connect;
 
@@ -831,6 +832,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       /* authentication failure, we shall restore old user */
       if (res > 0)
         my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      else
+        thd->clear_error();                     // Error already sent to client
       x_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
       thd->user_connect= save_user_connect;
