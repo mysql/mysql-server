@@ -1057,6 +1057,18 @@ class Ndb
   friend class NdbImpl;
   friend class Ndb_cluster_connection;
   friend class Ndb_cluster_connection_impl;
+  friend class Ndb_free_list_t<NdbRecAttr>;  
+  friend class Ndb_free_list_t<NdbApiSignal>;
+  friend class Ndb_free_list_t<NdbLabel>;
+  friend class Ndb_free_list_t<NdbBranch>;
+  friend class Ndb_free_list_t<NdbSubroutine>;
+  friend class Ndb_free_list_t<NdbCall>;
+  friend class Ndb_free_list_t<NdbBlob>;
+  friend class Ndb_free_list_t<NdbReceiver>;
+  friend class Ndb_free_list_t<NdbIndexScanOperation>;
+  friend class Ndb_free_list_t<NdbOperation>;
+  friend class Ndb_free_list_t<NdbIndexOperation>;
+  friend class Ndb_free_list_t<NdbTransaction>;
 #endif
 
 public:
@@ -1106,7 +1118,7 @@ public:
    *
    * @param aCatalogName is the new name of the current catalog
    */
-  void setCatalogName(const char * aCatalogName);
+  int setCatalogName(const char * aCatalogName);
 
   /**
    * The current schema name can be fetched by getSchemaName.
@@ -1120,7 +1132,7 @@ public:
    *
    * @param aSchemaName is the new name of the current schema
    */
-  void setSchemaName(const char * aSchemaName);
+  int setSchemaName(const char * aSchemaName);
 #endif
 
   /**
@@ -1135,7 +1147,7 @@ public:
    *
    * @param aDatabaseName is the new name of the current database
    */
-  void setDatabaseName(const char * aDatabaseName);
+  int setDatabaseName(const char * aDatabaseName);
 
   /**
    * The current database schema name can be fetched by getDatabaseSchemaName.
@@ -1149,7 +1161,7 @@ public:
    *
    * @param aDatabaseSchemaName is the new name of the current database schema
    */
-  void setDatabaseSchemaName(const char * aDatabaseSchemaName);
+  int setDatabaseSchemaName(const char * aDatabaseSchemaName);
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** Set database and schema name to match previously retrieved table
