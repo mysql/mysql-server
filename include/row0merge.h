@@ -26,7 +26,7 @@ to this structure */
 
 struct merge_file_struct {
 	os_file_t	file;			/* File descriptor */
-	dulint		offset;			/* File offset */
+	ulint		offset;			/* File offset */
 	ulint		num_of_blocks;		/* Number of blocks */
 };
 
@@ -81,16 +81,16 @@ row_merge_insert_index_tuples(
 	dict_index_t*	index,		/* in: index */
 	dict_table_t*	table,		/* in: table */
 	os_file_t	file,		/* in: file handle */
-	dulint		offset);	/* in: offset where to start
+	ulint		offset);	/* in: offset where to start
 					reading */
 /*****************************************************************
 Merge sort for linked list in the disk. */
 
-dulint
+ulint
 row_merge_sort_linked_list_in_disk(
 /*===============================*/
 					/* out: offset to first block in
-					the list or ut_dulint_max in
+					the list or ULINT_UNDEFINED in
 					case of error */
 	dict_index_t*	index,		/* in: index to be created */
 	os_file_t	file,		/* in: File handle */
