@@ -371,7 +371,7 @@ case "$mode" in
     ;;
   'status')
     # First, check to see if pid file exists
-    if [ -s "$server_pid_file" ] ; then 
+    if test -s "$server_pid_file" ; then 
       read mysqld_pid < $server_pid_file
       if kill -0 $mysqld_pid 2>/dev/null ; then 
         log_success_msg "MySQL running ($mysqld_pid)"
@@ -383,7 +383,16 @@ case "$mode" in
     else
       # Try to find appropriate mysqld process
       mysqld_pid=`pidof $sbindir/mysqld`
-      if [ -z $mysqld_pid ] ; then 
+      if test -z $mysqld_pid ; then 
+        if test "$use_mysqld_safe" = "0" ; then 
+          lockfile=/var/lock/subsys/mysqlmanager
+        else
+          lockfile=/var/lock/subsys/mysql
+        fi 
+        if test -f $lockfile ; then 
+          log_failure_msg "MySQL is not running, but lock exists"
+          exit 2
+        fi 
         log_failure_msg "MySQL is not running"
         exit 3
       else
