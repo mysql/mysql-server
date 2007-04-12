@@ -1214,6 +1214,10 @@ Dbtup::read_pseudo(Uint32 attrId,
       return 2;
     }
     return 0;
+  case AttributeHeader::COPY_ROWID:
+    outBuffer[0] = operPtr.p->m_copy_tuple_location.m_page_no;
+    outBuffer[0] = operPtr.p->m_copy_tuple_location.m_page_idx;
+    return 2;
   default:
     return 0;
   }
