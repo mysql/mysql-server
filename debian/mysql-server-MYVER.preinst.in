@@ -1,0 +1,167 @@
+#!/bin/bash -e
+#
+# summary of how this script can be called:
+#        * <new-preinst> install
+#        * <new-preinst> install <old-version>
+#        * <new-preinst> upgrade <old-version>
+#        * <old-preinst> abort-upgrade <new-version>
+#
+
+. /usr/share/debconf/confmodule
+
+if [ -n "$DEBIAN_SCRIPT_DEBUG" ]; then set -v -x; DEBIAN_SCRIPT_TRACE=1; fi
+${DEBIAN_SCRIPT_TRACE:+ echo "#42#DEBUG# RUNNING $0 $*" 1>&2 }
+
+export PATH=$PATH:/sbin:/usr/sbin:/bin:/usr/bin
+MYADMIN="/usr/bin/mysqladmin --defaults-file=/etc/mysql/debian.cnf"
+DATADIR=/var/lib/mysql
+LOGDIR=/var/log/mysql
+UPGRADEDIR=/var/lib/mysql-upgrade
+
+# Try to stop the server in a sane way. If it does not success let the admin
+# do it himself. No database directories should be removed while the server
+# is running! Another mysqld in e.g. a different chroot is fine for us.
+stop_server() {
+    if [ ! -x /etc/init.d/mysql ]; then return; fi
+
+    set +e
+    if [ -x /usr/sbin/invoke-rc.d ]; then
+      cmd="invoke-rc.d mysql stop"
+    else
+      cmd="/etc/init.d/mysql stop"
+    fi
+    $cmd
+    errno=$?
+    set -e
+   
+    # 0=ok, 100=no init script (fresh install)
+    if [ "$errno" != 0 -a "$errno" != 100 ]; then
+      echo "${cmd/ */} returned $errno" 1>&2
+      echo "There is a MySQL server running, but we failed in our attempts to stop it." 1>&2
+      echo "Stop it yourself and try again!" 1>&2
+      db_stop  	
+      exit 1
+    fi
+}
+
+################################ main() ##########################
+
+this_version=@VER@
+
+# Safe the user from stupidities.
+show_downgrade_warning=0
+for i in `ls $DATADIR/debian-*.flag 2>/dev/null`; do
+  found_version=`echo $i | sed 's/.*debian-\([0-9\.]\+\).flag/\1/'`
+  if dpkg --compare-versions "$this_version" '<<' "$found_version"; then
+    show_downgrade_warning=1
+    break;
+  fi
+done
+if [ "$show_downgrade_warning" = 1 ]; then
+  db_fset mysql-server-$this_version/really_downgrade seen false || true
+  db_input medium mysql-server-$this_version/really_downgrade || true
+  db_go
+  db_get mysql-server-$this_version/really_downgrade || true
+  if [ "$RET" = "true" ]; then
+    rm -f $DATADIR/debian-*.flag
+    touch $DATADIR/debian-$this_version.flag
+  else
+    echo "Aborting downgrade from (at least) $found_version to $this_version." 1>&2
+    db_stop
+    exit 1
+  fi
+fi
+
+# to be sure
+stop_server
+
+# If we use NIS then errors should be tolerated. It's up to the
+# user to ensure that the mysql user is correctly setup.
+# Beware that there are two ypwhich one of them needs the 2>/dev/null!
+if test -n "`which ypwhich 2>/dev/null`"  &&  ypwhich >/dev/null 2>&1; then
+  set +e
+fi
+
+#
+# Now we have to ensure the following state:
+# /etc/passwd: mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false
+# /etc/group:  mysql:x:101:
+# 
+# Sadly there could any state be present on the system so we have to
+# modify everything carefully i.e. not doing a chown before creating
+# the user etc...
+#
+
+# creating mysql group if he isn't already there
+if ! getent group mysql >/dev/null; then
+ 	# Adding system group: mysql.
+	addgroup --system mysql >/dev/null
+fi
+
+# creating mysql user if he isn't already there
+if ! getent passwd mysql >/dev/null; then
+	# Adding system user: mysql.
+	adduser \
+	  --system \
+	  --disabled-login \
+	  --ingroup mysql \
+	  --home $DATADIR \
+	  --gecos "MySQL Server" \
+	  --shell /bin/false \
+	  mysql  >/dev/null
+fi
+
+# end of NIS tolerance zone
+set -e
+
+# if there's a symlink, let's store where it's pointing, because otherwise
+# it's going to be lost in some situations
+for dir in DATADIR LOGDIR; do
+    checkdir=`eval echo "$"$dir`
+    if [ -L "$checkdir" ]; then
+	mkdir -p "$UPGRADEDIR"
+	cp -d "$checkdir" "$UPGRADEDIR/$dir.link"
+    fi
+done
+
+# creating mysql home directory
+if [ ! -d $DATADIR -a ! -L $DATADIR ]; then
+ 	mkdir $DATADIR
+fi
+
+# checking disc space
+if LC_ALL=C BLOCKSIZE= df --portability $DATADIR/. | tail -n 1 | awk '{ exit ($4>1000) }'; then
+  echo "ERROR: There's not enough space in $DATADIR/" 1>&2
+  db_stop
+  exit 1
+fi
+
+# Since the home directory was created before putting the user into
+# the mysql group and moreover we cannot guarantee that the 
+# permissions were correctly *before* calling this script, we fix them now.
+# In case we use NIS and no mysql user is present then this script should
+# better fail now than later..
+# The "set +e" is necessary as e.g. a ".journal" of a ext3 partition is
+# not chgrp'able (#318435).
+set +e
+chown mysql:mysql $DATADIR
+find $DATADIR -follow -not -group mysql -print0 2>/dev/null \
+  | xargs -0 --no-run-if-empty chgrp mysql
+set -e
+
+# Some files below /etc/ were possibly in the mysql-server-4.1/sarge package
+# before. They get overwritten by current ones to avoid unnecessary dpkg questions.
+while read md5 file; do
+  if [ "`md5sum $file 2>/dev/null`" = "$md5  $file" ]; then
+    cp /usr/share/mysql-common/internal-use-only/`echo $file | sed 's°/°_°g'` $file
+  fi
+done <<EOT
+6691f2fdc5c6d27ff0260eb79813e1bc  /etc/init.d/mysql
+b53b9552d44661361d39157c3c7c51d3  /etc/logrotate.d/mysql-server
+EOT
+
+db_stop
+
+#DEBHELPER#
+
+exit 0
