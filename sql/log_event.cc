@@ -995,6 +995,15 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     ev = new Format_description_log_event(buf, event_len, description_event); 
     break;
 #if defined(HAVE_REPLICATION) 
+  case PRE_GA_WRITE_ROWS_EVENT:
+    ev = new Write_rows_log_event_old(buf, event_len, description_event);
+    break;
+  case PRE_GA_UPDATE_ROWS_EVENT:
+    ev = new Update_rows_log_event_old(buf, event_len, description_event);
+    break;
+  case PRE_GA_DELETE_ROWS_EVENT:
+    ev = new Delete_rows_log_event_old(buf, event_len, description_event);
+    break;
   case WRITE_ROWS_EVENT:
     ev = new Write_rows_log_event(buf, event_len, description_event);
     break;
