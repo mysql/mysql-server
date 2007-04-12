@@ -407,7 +407,15 @@ insert into t1 values(7,'x');
 insert into t1 values(8,'x');
 delete from t1 where a = 0;
 commit;
+
+delete from t1;
+begin;
+insert into t1 values (1, 'x');
+select * from t1;
+rollback;
+
 set autocommit = 1;
+
 
 drop table t1;
 #############################
