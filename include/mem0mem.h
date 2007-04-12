@@ -213,6 +213,13 @@ mem_heap_empty(
 /*===========*/
 	mem_heap_t*	heap);	/* in: heap to empty */
 /*********************************************************************
+Empties a memory heap. The first memory block of the heap is not freed. */
+
+void
+mem_heap_empty_noninline(
+/*=====================*/
+	mem_heap_t*	heap);	/* in: heap to empty */
+/*********************************************************************
 Returns a pointer to the topmost element in a memory heap.
 The size of the element must be given. */
 UNIV_INLINE
