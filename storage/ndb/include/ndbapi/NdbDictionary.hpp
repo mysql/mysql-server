@@ -546,6 +546,7 @@ public:
     static const Column * ROWID;
     static const Column * ROW_GCI;
     static const Column * ANY_VALUE;
+    static const Column * COPY_ROWID;
     
     int getSizeInBytes() const;
 #endif
