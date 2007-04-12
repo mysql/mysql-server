@@ -177,10 +177,10 @@ row_merge_read(
 
 	ut_ad(size <= MERGE_BLOCK_SIZE);
 
-	return(os_file_read(file, buf,
-			    (ulint) (ofs & 0xFFFFFFFF),
-			    (ulint) (ofs >> 32),
-			    size));
+	return(UNIV_LIKELY(os_file_read(file, buf,
+					(ulint) (ofs & 0xFFFFFFFF),
+					(ulint) (ofs >> 32),
+					size)));
 }
 
 /************************************************************************
@@ -230,10 +230,10 @@ row_merge_write(
 
 	ut_ad(size <= MERGE_BLOCK_SIZE);
 
-	return(os_file_write("(merge)", file, buf,
-			     (ulint) (ofs & 0xFFFFFFFF),
-			     (ulint) (ofs >> 32),
-			     size));
+	return(UNIV_LIKELY(os_file_write("(merge)", file, buf,
+					 (ulint) (ofs & 0xFFFFFFFF),
+					 (ulint) (ofs >> 32),
+					 size)));
 }
 
 /************************************************************************
@@ -1180,16 +1180,9 @@ row_merge_sort_linked_list_in_disk(
 	merge_block_t*		block2;
 	merge_block_t*		backup1;
 	merge_block_t*		backup2;
-	merge_block_header_t	header;
 	merge_file_t		output;
 	ulint			block_size;
-	ulint			num_of_merges;
-	ulint			list1_size;
-	ulint			list2_size;
-	ulint			i;
 	ulint			list_head	= 0;
-	ulint			offset;
-	ibool			list_is_empty;
 
 	ut_ad(index);
 
@@ -1199,28 +1192,26 @@ row_merge_sort_linked_list_in_disk(
 
 	output.file = file;
 
-	block_size = 1;	/* We start from block size 1 */
-
-	for (;;) {
+	for (block_size = 1;; block_size *= 2) {
+		ibool	sorted		= TRUE;
+		ibool	list_is_empty	= TRUE;
 
 		block1 = backup1;
 
 		row_merge_block_read(file, list_head, block1);
 		ut_ad(row_merge_block_validate(block1, index));
-		list_is_empty = TRUE;
-		num_of_merges = 0;	/* We count number of merges we do in
-					this pass */
 
 		for (;;) {
-			num_of_merges++;
-
-			header = block1->header;
-			offset = header.offset;
-			list1_size = 0;
+			ulint	offset		= block1->header.offset;
+			ulint	list1_size	= 0;
+			ulint	list2_size	= block_size;
+			ulint	i;
 
 			/* Count how many list elements we have in the list. */
 
 			for (i = 0; i < block_size; i++) {
+				merge_block_header_t	header;
+
 				list1_size++;
 
 				/* Here read only the header to iterate the
@@ -1238,8 +1229,6 @@ row_merge_sort_linked_list_in_disk(
 					break;
 				}
 			}
-
-			list2_size = block_size;
 
 			/* If offset is zero we have reached end of the list in
 			the disk. */
@@ -1260,7 +1249,6 @@ row_merge_sort_linked_list_in_disk(
 				next element of merge comes from list1 or
 				list2. */
 				merge_block_t*	tmp;
-				ulint		selected;
 
 				if (list1_size == 0) {
 					/* First list is empty, next element
@@ -1270,19 +1258,16 @@ row_merge_sort_linked_list_in_disk(
 
 					if (!block2->header.next) {
 						block2 = NULL;
+						list2_size = 0;
+					} else {
+						list2_size--;
 					}
-
-					list2_size--;
-					selected = 2;
-
 				} else if (list2_size == 0 || !block2) {
 					/* Second list is empty, next record
 					must come from the first list. */
 
 					tmp = block1;
 					list1_size--;
-					selected = 1;
-
 				} else {
 					/* Both lists contain a block and we
 					need to merge records on these block */
@@ -1290,22 +1275,20 @@ row_merge_sort_linked_list_in_disk(
 					tmp = row_merge_block_merge(
 						block1, &block2, index);
 
-					block1 = tmp;
-					backup1 = tmp;
-					backup2 = block2;
-
 					if (tmp == NULL) {
 						goto error_handling;
 					}
 
+					block1 = backup1 = tmp;
+					backup2 = block2;
+
 					list1_size--;
-					selected = 1;
 				}
 
-				/* Store head and tail offsets of the disk list.
-				Note that only records on the blocks are
-				changed not the order of the blocks in the
-				disk. */
+				/* Store the head offset of the disk
+				list.  Note that only records in the
+				blocks are changed not the order of
+				the blocks in the disk. */
 
 				if (list_is_empty) {
 					list_is_empty = FALSE;
@@ -1325,10 +1308,6 @@ row_merge_sort_linked_list_in_disk(
 					row_merge_block_read(file,
 							     tmp->header.next,
 							     tmp);
-				} else {
-					if (selected == 2) {
-						block2 = NULL;
-					}
 				}
 			}
 
@@ -1343,21 +1322,16 @@ row_merge_sort_linked_list_in_disk(
 			block1 = backup2;
 			backup2 = block2;
 			backup1 = block1;
+
+			sorted = FALSE;
 		}
 
-
-		/* If we have done oly one merge, we have created a sorted
-		list */
-
-		if (num_of_merges <= 1) {
+		if (sorted) {
 
 			mem_free(backup1);
 			mem_free(backup2);
 
 			return(list_head);
-		} else {
-			/* Otherwise merge lists twice the size */
-			block_size *= 2;
 		}
 	}
 
