@@ -100,8 +100,8 @@ blocks to the disk. Every block contains one header.*/
 
 struct merge_block_header_struct {
 	ulint	n_records;		/* Number of records in the block. */
-	dulint  offset;			/* Offset of this block in the disk. */
-	dulint	next;			/* Offset to next block in the disk. */
+	ulint	offset;			/* Offset of this block */
+	ulint	next;			/* Offset of next block */
 };
 
 typedef struct merge_block_header_struct merge_block_header_t;
@@ -153,86 +153,118 @@ row_merge_block_create(void)
 {
 	merge_block_t*	mblock;
 
-	mblock = (merge_block_t*)mem_alloc(MERGE_BLOCK_SIZE);
+	mblock = mem_alloc(sizeof *mblock);
 
-	mblock->header.n_records = 0;
-	mblock->header.offset = ut_dulint_create(0, 0);
-	mblock->header.next = ut_dulint_create(0, 0);
+	memset(&mblock->header, 0, sizeof mblock->header);
 
 	return(mblock);
 }
 
 /************************************************************************
-Read a merge block from the disk */
+Read a merge block from the file system. */
 static
-void
+ibool
+row_merge_read(
+/*===========*/
+				/* out: TRUE if request was
+				successful, FALSE if fail */
+	os_file_t	file,	/* in: file handle */
+	ulint		offset,	/* in: offset where to read */
+	void*		buf,	/* out: data */
+	ulint		size)	/* in: number of bytes to read */
+{
+	ib_uint64_t	ofs = ((ib_uint64_t) offset) * MERGE_BLOCK_SIZE;
+
+	ut_ad(size <= MERGE_BLOCK_SIZE);
+
+	return(os_file_read(file, buf,
+			    (ulint) (ofs & 0xFFFFFFFF),
+			    (ulint) (ofs >> 32),
+			    size));
+}
+
+/************************************************************************
+Read a merge block from the file system. */
+static
+ibool
 row_merge_block_read(
 /*=================*/
 				/* out: TRUE if request was
 				successful, FALSE if fail */
-	os_file_t	file,	/* in: handle to a file */
-	void*		buf,	/* in/out: buffer where to read */
-	dulint		offset)	/* in: offset where to read */
+	os_file_t	file,	/* in: file handle */
+	ulint		offset,	/* in: offset where to read */
+	merge_block_t*	block)	/* out: merge block */
 {
-	ut_ad(buf);
-
-	os_file_read(file, buf, ut_dulint_get_low(offset),
-		     ut_dulint_get_high(offset), MERGE_BLOCK_SIZE);
+	return(row_merge_read(file, offset, block, sizeof *block));
 }
 
 /************************************************************************
 Read a merge block header from the disk */
 static
-void
+ibool
 row_merge_block_header_read(
 /*========================*/
 					/* out: TRUE if request was
 					successful, FALSE if fail */
 	os_file_t		file,	/* in: handle to a file */
-	merge_block_header_t*	header,	/* in/out: buffer where to read */
-	dulint			offset)	/* in: offset where to read */
+	ulint			offset,	/* in: offset where to read */
+	merge_block_header_t*	header)	/* out: merge block header */
 {
-	ut_ad(header);
+	return(row_merge_read(file, offset, header, sizeof *header));
+}
 
-	os_file_read(file, header, ut_dulint_get_low(offset),
-		     ut_dulint_get_high(offset),
-		     sizeof(merge_block_header_t));
+/************************************************************************
+Read a merge block from the file system. */
+static
+ibool
+row_merge_write(
+/*============*/
+				/* out: TRUE if request was
+				successful, FALSE if fail */
+	os_file_t	file,	/* in: file handle */
+	ulint		offset,	/* in: offset where to write */
+	const void*	buf,	/* in: data */
+	ulint		size)	/* in: number of bytes to write */
+{
+	ib_uint64_t	ofs = ((ib_uint64_t) offset) * MERGE_BLOCK_SIZE;
+
+	ut_ad(size <= MERGE_BLOCK_SIZE);
+
+	return(os_file_write("(merge)", file, buf,
+			     (ulint) (ofs & 0xFFFFFFFF),
+			     (ulint) (ofs >> 32),
+			     size));
 }
 
 /************************************************************************
 Write a merge block header to the disk */
 static
-void
+ibool
 row_merge_block_header_write(
 /*=========================*/
-					/* out: TRUE if request was
-					successful, FALSE if fail */
-	os_file_t		file,	/* in: handle to a file */
-	merge_block_header_t*	header,	/* in/out: buffer where to read */
-	dulint			offset)	/* in: offset where to read */
+						/* out: TRUE if request was
+						successful, FALSE if fail */
+	os_file_t			file,	/* in: handle to a file */
+	const merge_block_header_t*	header)	/* in: block header */
 {
-	ut_ad(header);
-
-	os_file_write("(merge)", file, header, ut_dulint_get_low(offset),
-		      ut_dulint_get_high(offset), sizeof(merge_block_header_t));
+	return(row_merge_write(file, header->offset, header, sizeof *header));
 }
 
 /************************************************************************
 Write a merge block to the disk */
 static
-void
+ibool
 row_merge_block_write(
 /*==================*/
-				/* out: TRUE if request was
-				successful, FALSE if fail */
-	os_file_t	file,	/* in: handle to a file */
-	void*		buf,	/* in: buffer where write from */
-	dulint		offset)	/* in: offset where write to */
+					/* out: TRUE if request was
+					successful, FALSE if fail */
+	os_file_t		file,	/* in: handle to a file */
+	ulint			offset,	/* in: file offset */
+	const merge_block_t*	block)	/* in: block header */
 {
-	ut_ad(buf);
+	ut_ad(offset == block->header.offset);
 
-	os_file_write("(merge)", file, buf, ut_dulint_get_low(offset),
-		      ut_dulint_get_high(offset), MERGE_BLOCK_SIZE);
+	return(row_merge_write(file, offset, block, sizeof *block));
 }
 
 /**************************************************************
@@ -328,7 +360,7 @@ row_merge_store_rec_to_block(
 		dest_data = ((char *)mblock + offset);
 	}
 
-	ut_ad(dest_data < ((char *)mblock + MERGE_BLOCK_SIZE));
+	ut_ad(dest_data < (char*) &mblock[1]);
 
 	extra_len = rec_offs_extra_size(offsets);
 	rec_len = rec_offs_size(offsets);
@@ -336,12 +368,12 @@ row_merge_store_rec_to_block(
 	/* 1. Store the extra_len */
 	storage_size = mach_write_compressed((byte *)dest_data, extra_len);
 	dest_data+=storage_size;
-	ut_ad(dest_data < ((char *)mblock + MERGE_BLOCK_SIZE));
+	ut_ad(dest_data < (char*) &mblock[1]);
 
 	/* 2. Store the record */
 	memcpy(dest_data, rec - extra_len, rec_len);
 	dest_data+=rec_len;
-	ut_ad(dest_data < ((char *)mblock + MERGE_BLOCK_SIZE));
+	ut_ad(dest_data < (char*) &mblock[1]);
 
 	mblock->header.n_records++;
 
@@ -389,7 +421,7 @@ row_merge_read_rec_from_block(
 		from_data = ((char *)mblock + tmp_offset);
 	}
 
-	ut_ad(from_data < ((char *)mblock + MERGE_BLOCK_SIZE));
+	ut_ad(from_data < (const char*) &mblock[1]);
 
 	mrec = mem_heap_alloc(heap, sizeof(merge_rec_t));
 
@@ -397,7 +429,7 @@ row_merge_read_rec_from_block(
 	extra_len = mach_read_compressed((byte *)from_data);
 	storage_len = mach_get_compressed_size(extra_len);
 	from_data+=storage_len;
-	ut_ad(from_data < ((char *)mblock + MERGE_BLOCK_SIZE));
+	ut_ad(from_data < (const char*) &mblock[1]);
 
 	/* 2. Read the record */
 	rec = (rec_t*)(from_data + extra_len);
@@ -408,7 +440,7 @@ row_merge_read_rec_from_block(
 	ut_ad(rec_validate(rec, sec_offs));
 
 	from_data+=data_len;
-	ut_ad(from_data < ((char *)mblock + MERGE_BLOCK_SIZE));
+	ut_ad(from_data < (const char*) &mblock[1]);
 
 	/* Return also start offset of the next data tuple */
 	*offset = ((char *)from_data - (char *)mblock);
@@ -480,7 +512,7 @@ pass is needed the whole output list must be sorted.
 In each pass, two lists of size block_size are merged into lists of
 size block_size*2. Initially block_size=1. Merge starts by pointing
 a temporary pointer list1 at the head of the list and also preparing
-an empty list list_tail which we will add elements to the end. Then:
+an empty list list_tail where elements will be appended. Then:
 
 	1) If list1 is NULL we terminate this pass.
 
@@ -510,7 +542,7 @@ an empty list list_tail which we will add elements to the end. Then:
 		lists, by advancing list1 or list2 to next element
 		and decreasing list1_size or list2_size.
 
-		5.3) Add tmp to the end of the list_tail
+		5.3) Append tmp to list_tail
 
 	6) At this point, we have advanced list1 until it is where
 	list2 started out and we have advanced list2 until it is
@@ -837,12 +869,9 @@ row_merge_block_validate(
 
 	fprintf(stderr,
 		"Block validate %lu records, "
-		"offset (%lu %lu), next (%lu %lu)\n",
+		"offset %lu, next %lu\n",
 		block->header.n_records,
-		ut_dulint_get_low(block->header.offset),
-		ut_dulint_get_high(block->header.offset),
-		ut_dulint_get_low(block->header.next),
-		ut_dulint_get_high(block->header.next));
+		block->header.offset, block->header.next);
 
 	ut_a(block->header.n_records > 0);
 
@@ -914,10 +943,8 @@ row_merge_block_merge(
 
 	/* Copy block offset and next block offset to new blocks */
 
-	new_block1->header.offset = block1->header.offset;
-	new_block1->header.next	  = block1->header.next;
-	new_block2->header.offset = tmp->header.offset;
-	new_block2->header.next   = tmp->header.next;
+	new_block1->header = block1->header;
+	new_block2->header = tmp->header;
 
 	/* Merge all records from both blocks */
 
@@ -1040,7 +1067,7 @@ row_merge_block_merge(
 		some cases these keys do not fit to two empty blocks
 		in a different order. Therefore, some empty space is
 		left to every block. However, it has not been prooven
-		that this empty space is enought in all cases. Therefore,
+		that this empty space is enough in all cases. Therefore,
 		here these overloaded records should be put on another
 		block. */
 	}
@@ -1087,18 +1114,17 @@ the list and in each pass it combines each adjacent pair of
 small sorted lists into one larger sorted list. When only a one
 pass is needed the whole output list must be sorted.
 
-Linked list resides at the disk where every block represents a
-item in the linked list and these items are single linked together
-with next offset found from block header. Offset is calculated
-from the start of the file. Thus whenever next item in the list
-is requested this item is read from the disk. Similarly every
-item is witten back to the disk when we have sorted two blocks
-in the memory.
+The linked list is stored in the file system.  File blocks represent
+items of linked list.  The list is singly linked by the next offset
+stored in block header. Offset is calculated from the start of the
+file. Thus whenever next item in the list is requested this item is
+read from the disk. Similarly every item is witten back to the disk
+when we have sorted two blocks in the memory.
 
 In each pass, two lists of size block_size are merged into lists of
 size block_size*2. Initially block_size=1. Merge starts by pointing
 a temporary pointer list1 at the head of the list and also preparing
-an empty list list_tail which we will add elements to the end. Then:
+an empty list list_tail where elements will be appended. Then:
 
 	1) If block1 is NULL we terminate this pass.
 
@@ -1128,7 +1154,7 @@ an empty list list_tail which we will add elements to the end. Then:
 		lists, by advancing list1 or list2 to next element
 		and decreasing list1_size or list2_size.
 
-		5.3) Add tmp to the end of the list_tail
+		5.3) Append tmp to list_tail
 
 	6) At this point, we have advanced list1 until it is where
 	list2 started out and we have advanced list2 until it is
@@ -1140,11 +1166,11 @@ As soon as a pass like this is performed with only one merge, the
 algorithm terminates. Otherwise, double the value of block_size
 and go back to the beginning. */
 
-dulint
+ulint
 row_merge_sort_linked_list_in_disk(
 /*===============================*/
 					/* out: offset to first block in
-					the list or ut_dulint_max in
+					the list or ULINT_UNDEFINED in
 					case of error */
 	dict_index_t*	index,		/* in: index to be created */
 	os_file_t	file,		/* in: File handle */
@@ -1161,9 +1187,8 @@ row_merge_sort_linked_list_in_disk(
 	ulint			list1_size;
 	ulint			list2_size;
 	ulint			i;
-	dulint			list_head;
-	dulint			list_tail;
-	dulint			offset;
+	ulint			list_head	= 0;
+	ulint			offset;
 	ibool			list_is_empty;
 
 	ut_ad(index);
@@ -1172,20 +1197,16 @@ row_merge_sort_linked_list_in_disk(
 	backup1 = block1 = row_merge_block_create();
 	backup2 = block2 = row_merge_block_create();
 
-	list_head = ut_dulint_create(0, 0);
-	list_tail = ut_dulint_create(0, 0);
-
 	output.file = file;
 
 	block_size = 1;	/* We start from block size 1 */
 
 	for (;;) {
+
 		block1 = backup1;
 
-		row_merge_block_read(file, block1, list_head);
+		row_merge_block_read(file, list_head, block1);
 		ut_ad(row_merge_block_validate(block1, index));
-		list_head = ut_dulint_create(0, 0);
-		list_tail = ut_dulint_create(0, 0);
 		list_is_empty = TRUE;
 		num_of_merges = 0;	/* We count number of merges we do in
 					this pass */
@@ -1205,15 +1226,15 @@ row_merge_sort_linked_list_in_disk(
 				/* Here read only the header to iterate the
 				list in the disk. */
 
-				row_merge_block_header_read(file, &header,
-							    offset);
+				row_merge_block_header_read(file, offset,
+							    &header);
 
 				offset = header.next;
 
 				/* If the offset is zero we have arrived to the
 				end of disk list */
 
-				if (ut_dulint_is_zero(offset)) {
+				if (!offset) {
 					break;
 				}
 			}
@@ -1223,11 +1244,11 @@ row_merge_sort_linked_list_in_disk(
 			/* If offset is zero we have reached end of the list in
 			the disk. */
 
-			if (ut_dulint_is_zero(offset)) {
+			if (!offset) {
 				block2 = NULL;
 			} else {
 				block2 = backup2;
-				row_merge_block_read(file, block2, offset);
+				row_merge_block_read(file, offset, block2);
 				ut_ad(row_merge_block_validate(block2, index));
 			}
 
@@ -1247,8 +1268,7 @@ row_merge_sort_linked_list_in_disk(
 
 					tmp = block2;
 
-					if (ut_dulint_is_zero(
-						    block2->header.next)) {
+					if (!block2->header.next) {
 						block2 = NULL;
 					}
 
@@ -1292,20 +1312,19 @@ row_merge_sort_linked_list_in_disk(
 					list_head = tmp->header.offset;
 				}
 
-				list_tail = tmp->header.offset;
-
 				ut_ad(row_merge_block_validate(tmp, index));
 
 				row_merge_block_write(
-					file, tmp, tmp->header.offset);
+					file, tmp->header.offset, tmp);
 
 
 				/* Now we can read the next record from the
 				selected list if it contains more records */
 
-				if (!ut_dulint_is_zero(tmp->header.next)) {
-					row_merge_block_read(file, tmp,
-							     tmp->header.next);
+				if (tmp->header.next) {
+					row_merge_block_read(file,
+							     tmp->header.next,
+							     tmp);
 				} else {
 					if (selected == 2) {
 						block2 = NULL;
@@ -1346,10 +1365,9 @@ error_handling:
 
 	/* In the sort phase we can have duplicate key error, inform this to
 	upper layer */
-	list_head = ut_dulint_max;
 	*error = DB_DUPLICATE_KEY;
 
-	return(list_head);
+	return(ULINT_UNDEFINED);
 }
 
 /************************************************************************
@@ -1383,13 +1401,10 @@ row_merge_sort_and_store(
 	create a 'linked list' of blocks to the disk. */
 
 	block->header.offset = file->offset;
-
-	block->header.next= ut_dulint_add(file->offset, MERGE_BLOCK_SIZE);
+	block->header.next = ++file->offset;
 
 	/* Thirdly, write block to the disk */
-	row_merge_block_write(file->file, block, file->offset);
-
-	file->offset= ut_dulint_add(file->offset, MERGE_BLOCK_SIZE);
+	row_merge_block_write(file->file, block->header.offset, block);
 
 	return(1);
 }
@@ -1461,7 +1476,6 @@ row_merge_read_clustered_index(
 						are stored for memory sort and
 						then written to the disk */
 	merge_rec_list_t**	merge_list;	/* Temporary list for records*/
-	merge_block_header_t*	header;		/* Block header */
 	rec_t*		rec;			/* Record in the persistent
 						cursor*/
 	btr_pcur_t	pcur;			/* Persistent cursor on the
@@ -1563,7 +1577,7 @@ row_merge_read_clustered_index(
 				new_mrec, rec_offs_size(sec_offs),
 				merge_list[idx_num]);
 
-			/* If we have enought data tuples to form a block
+			/* If we have enough data tuples to form a block
 			sort linked list and store it to the block and
 			write this block to the disk. Note that not all
 			data tuples in the list fit to the block.*/
@@ -1626,9 +1640,7 @@ next_record:
 			'linked list' of blocks to the disk. */
 
 			block->header.offset = files[idx_num].offset;
-
-			block->header.next= ut_dulint_add(
-				files[idx_num].offset, MERGE_BLOCK_SIZE);
+			block->header.next = files[idx_num].offset + 1;
 
 			if (!row_merge_sort_and_store(
 				    index[idx_num],
@@ -1645,14 +1657,11 @@ next_record:
 			n_blocks++;
 		}
 
-		/* To the last block header we set (0, 0) to next
-		offset to mark the end of the list. */
-
-		header = &(block->header);
-		header->next = ut_dulint_create(0, 0);
+		/* Write the last block. */
+		block->header.next = 0; /* end-of-list marker */
 
 		row_merge_block_header_write(
-			files[idx_num].file, header, header->offset);
+			files[idx_num].file, &block->header);
 	}
 
 #ifdef UNIV_DEBUG_INDEX_CREATE
@@ -1691,7 +1700,7 @@ row_merge_insert_index_tuples(
 	dict_index_t*	index,		/* in: index */
 	dict_table_t*	table,		/* in: table */
 	os_file_t	file,		/* in: file handle */
-	dulint		offset)		/* in: offset where to start
+	ulint		offset)		/* in: offset where to start
 					reading */
 {
 	merge_block_t*	block;
@@ -1701,7 +1710,6 @@ row_merge_insert_index_tuples(
 	mem_heap_t*	dtuple_heap;
 	mem_heap_t*	graph_heap;
 	ulint		error = DB_SUCCESS;
-	ibool		more_records = TRUE;
 	ibool		was_lock_wait = FALSE;
 
 	ut_ad(trx && index && table);
@@ -1721,11 +1729,12 @@ row_merge_insert_index_tuples(
 	block = row_merge_block_create();
 	rec_heap = mem_heap_create(128);
 	dtuple_heap = mem_heap_create(256);
-	row_merge_block_read(file, block, offset);
 
-	while (more_records) {
+	do {
 		ulint	n_rec;
 		ulint	tuple_offset;
+
+		row_merge_block_read(file, offset, block);
 
 		ut_ad(row_merge_block_validate(block, index));
 		tuple_offset = 0;
@@ -1773,13 +1782,7 @@ run_again:
 
 		/* If we have reached the end of the disk list we have
 		inserted all of the index entries to the index. */
-
-		if (ut_dulint_is_zero(offset)) {
-			more_records = FALSE;
-		} else {
-			row_merge_block_read(file, block, offset);
-		}
-	}
+	} while (offset);
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 	que_graph_free(thr->graph);
@@ -1894,7 +1897,7 @@ row_merge_file_create(
 {
 	merge_file->file = innobase_mysql_tmpfile();
 
-	merge_file->offset = ut_dulint_create(0, 0);
+	merge_file->offset = 0;
 	merge_file->num_of_blocks = 0;
 }
 

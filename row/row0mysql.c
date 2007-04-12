@@ -4522,12 +4522,10 @@ row_build_index_for_mysql(
 		which we have written at least one block */
 
 		if (merge_files[index_num].num_of_blocks > 0) {
-			dulint offset = ut_dulint_create(0, 0);
-
 			/* Merge sort file using linked list merge
 			sort for files. */
 
-			offset = row_merge_sort_linked_list_in_disk(
+			row_merge_sort_linked_list_in_disk(
 				index[index_num],
 				merge_files[index_num].file,
 				(int *)&error);
@@ -4535,8 +4533,7 @@ row_build_index_for_mysql(
 			if (error == DB_SUCCESS) {
 				error = row_merge_insert_index_tuples(
 					trx, index[index_num], new_table,
-					merge_files[index_num].file,
-					ut_dulint_zero);
+					merge_files[index_num].file, 0);
 			}
 
 			if (error != DB_SUCCESS) {
