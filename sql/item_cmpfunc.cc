@@ -125,7 +125,7 @@ static int cmp_row_type(Item* item1, Item* item2)
     0  otherwise
 */
 
-static int agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
+static int agg_cmp_type(Item_result *type, Item **items, uint nitems)
 {
   uint i;
   type[0]= items[0]->result_type();
@@ -145,6 +145,42 @@ static int agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
   return 0;
 }
 
+
+/*
+  Collects different types for comparison of first item with each other items
+
+  SYNOPSIS
+    collect_cmp_types()
+      items             Array of items to collect types from
+      nitems            Number of items in the array
+
+  DESCRIPTION
+    This function collects different result types for comparison of the first
+    item in the list with each of the remaining items in the 'items' array.
+
+  RETURN
+    0 - if row type incompatibility has been detected (see cmp_row_type)
+    Bitmap of collected types - otherwise
+*/
+
+static uint collect_cmp_types(Item **items, uint nitems)
+{
+  uint i;
+  uint found_types;
+  Item_result left_result= items[0]->result_type();
+  DBUG_ASSERT(nitems > 1);
+  found_types= 0;
+  for (i= 1; i < nitems ; i++)
+  {
+    if ((left_result == ROW_RESULT || 
+         items[i]->result_type() == ROW_RESULT) &&
+        cmp_row_type(items[0], items[i]))
+      return 0;
+    found_types|= 1<< (uint)item_cmp_type(left_result,
+                                           items[i]->result_type());
+  }
+  return found_types;
+}
 
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
                               const char *fname)
@@ -2069,24 +2105,8 @@ void Item_func_case::fix_length_and_dec()
     for (nagg= 0; nagg < ncases/2 ; nagg++)
       agg[nagg+1]= args[nagg*2];
     nagg++;
-    found_types= collect_cmp_types(agg, nagg);
-
-    for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
-    {
-      if (found_types & (1 << i) && !cmp_items[i])
-      {
-        DBUG_ASSERT((Item_result)i != ROW_RESULT);
-        if ((Item_result)i == STRING_RESULT &&
-            agg_arg_charsets(cmp_collation, agg, nagg, MY_COLL_CMP_CONV, 1))
-          return;
-        if (!(cmp_items[i]=
-            cmp_item::get_comparator((Item_result)i,
-                                     cmp_collation.collation)))
-          return;
-      }
-    }
-
-    found_types= collect_cmp_types(agg, nagg);
+    if (!(found_types= collect_cmp_types(agg, nagg)))
+      return;
 
     for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
     {
@@ -2790,7 +2810,8 @@ void Item_func_in::fix_length_and_dec()
   uint type_cnt= 0, i;
   Item_result cmp_type= STRING_RESULT;
   left_result_type= args[0]->result_type();
-  found_types= collect_cmp_types(args, arg_count);
+  if (!(found_types= collect_cmp_types(args, arg_count)))
+    return;
   
   for (arg= args + 1, arg_end= args + arg_count; arg != arg_end ; arg++)
   {
