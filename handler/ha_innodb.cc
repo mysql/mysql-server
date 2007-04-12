@@ -15,7 +15,7 @@
 
 /* This file defines the InnoDB handler: the interface between MySQL and InnoDB
 NOTE: You can only use noninlined InnoDB functions in this file, because we
-have disables the InnoDB inlining in this file. */
+have disabled the InnoDB inlining in this file. */
 
 /* TODO list for the InnoDB handler in 5.0:
   - Remove the flag trx->active_trans and look at the InnoDB
