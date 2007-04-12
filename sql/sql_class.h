@@ -21,8 +21,10 @@
 #endif
 
 #include "log.h"
-#include "rpl_rli.h"
 #include "rpl_tblmap.h"
+
+struct st_relay_log_info;
+typedef st_relay_log_info RELAY_LOG_INFO;
 
 class Query_log_event;
 class Load_log_event;
