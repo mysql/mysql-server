@@ -420,6 +420,7 @@ void THD::init_for_queries()
 void THD::change_user(void)
 {
   cleanup();
+  killed= NOT_KILLED;
   cleanup_done= 0;
   init();
   stmt_map.reset();
