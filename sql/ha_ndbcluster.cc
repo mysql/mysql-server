@@ -24,6 +24,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include "rpl_mi.h"
 
 #include <my_dir.h>
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
