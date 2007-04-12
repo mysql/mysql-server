@@ -81,6 +81,7 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
 {
   theListState = NotInList;
   theError.code = 0;
+  //theId = NdbObjectIdMap::InvalidId;
   theId = theNdb->theImpl->theNdbObjectIdMap.map(this);
 
 #define CHECK_SZ(mask, sz) assert((sizeof(mask)/sizeof(mask[0])) == sz)
@@ -106,7 +107,7 @@ void init();
 
 Remark:         Initialise connection object for new transaction. 
 *****************************************************************************/
-void	
+int
 NdbTransaction::init()
 {
   theListState            = NotInList;
@@ -147,6 +148,17 @@ NdbTransaction::init()
   //
   theBlobFlag = false;
   thePendingBlobOps = 0;
+  if (theId == NdbObjectIdMap::InvalidId)
+  {
+    theId = theNdb->theImpl->theNdbObjectIdMap.map(this);
+    if (theId == NdbObjectIdMap::InvalidId)
+    {
+      theError.code = 4000;
+      return -1;
+    }
+  }
+  return 0;
+
 }//NdbTransaction::init()
 
 /*****************************************************************************
