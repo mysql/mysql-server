@@ -1,0 +1,205 @@
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+create table t1 (a char(5) character set koi8r)
+partition by list (ascii(a) mod 3)
+subpartition by hash(ascii(a))
+subpartitions 3
+(partition p1 values in (1),
+partition p2 values in (2),
+partition p0 values in (0));
+insert into t1 values ('a');
+explain partitions select * from t1 where a = 'a';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p2_p2sp2	system	NULL	NULL	NULL	NULL	1	
+select * from t1 where a = 'a';
+a
+a
+drop table t1;
+create table t1 (a char(5) character set cp1251)
+partition by list (ascii(a)) (partition pn values in (null));
+drop table t1;
+create table t1 (col1 datetime)
+partition by range(datediff(col1,col1))
+(partition p0 values less than (10), partition p1 values less than (30));
+drop table t1;
+create table t1 (a char(5) character set big5)
+partition by list (ascii(a)) (partition pn values in (null));
+ERROR HY000: This partition function is not allowed
+create table t1 (a char(1))
+partition by list(ascii(a))
+(partition p1 values in (ascii('i')));
+drop table t1;
+create table t1 (s1 char(5) character set latin5)
+partition by list (ascii(s1))
+(partition p1 values in (1));
+set names utf8;
+drop table t1;
+create table t1 (col1 int)
+partition by range(greatest(col1,10))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(isnull(col1))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(least(col1,12))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(case when col1>0 then 10 else 20 end)
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(ifnull(col1,5))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(nullif(col1,5))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(bit_length(col1))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 char(5))
+partition by range(bit_length(col1))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(char_length(col1))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 char(5))
+partition by range(char_length(col1))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 char(5))
+partition by range(character_length(col1))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(find_in_set(col1,1))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 char(5))
+partition by range(find_in_set(col1,'1'))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(instr(col1,3))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 char(5))
+partition by range(instr(col1,'3'))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 char(5))
+partition by range(length(col1))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 char(5))
+partition by range(locate(1,col1))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(locate(1,col1))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 char(5))
+partition by range(octet_length(col1))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 char(5))
+partition by range(position(1 in col1))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(position(1 in col1))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 char(5))
+partition by range(strcmp(col1,2))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(strcmp(col1,2))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(crc32(col1))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(round(col1))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(sign(col1))
+(partition p0 values less than (2), partition p1 values less than (6));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 datetime)
+partition by range(period_add(col1,5))
+(partition p0 values less than (10), partition p1 values less than (30));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 datetime, col2 datetime)
+partition by range(period_diff(col1,col2))
+(partition p0 values less than (10), partition p1 values less than (30));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int, col2 int)
+partition by range(period_diff(col1,col2))
+(partition p0 values less than (10), partition p1 values less than (30));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 datetime)
+partition by range(timestampdiff(day,5,col1))
+(partition p0 values less than (10), partition p1 values less than (30));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 date)
+partition by range(unix_timestamp(col1))
+(partition p0 values less than (10), partition p1 values less than (30));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 datetime)
+partition by range(week(col1))
+(partition p0 values less than (10), partition p1 values less than (30));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 varchar(25))
+partition by range(cast(col1 as signed))
+(partition p0 values less than (10), partition p1 values less than (30));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 varchar(25))
+partition by range(convert(col1,unsigned))
+(partition p0 values less than (10), partition p1 values less than (30));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(col1 | 20)
+(partition p0 values less than (10), partition p1 values less than (30));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(col1 & 20)
+(partition p0 values less than (10), partition p1 values less than (30));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(col1 ^ 20)
+(partition p0 values less than (10), partition p1 values less than (30));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(col1 << 20)
+(partition p0 values less than (10), partition p1 values less than (30));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(col1 >> 20)
+(partition p0 values less than (10), partition p1 values less than (30));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(~col1)
+(partition p0 values less than (10), partition p1 values less than (30));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(bit_count(col1))
+(partition p0 values less than (10), partition p1 values less than (30));
+ERROR HY000: This partition function is not allowed
+create table t1 (col1 int)
+partition by range(inet_aton(col1))
+(partition p0 values less than (10), partition p1 values less than (30));
+ERROR HY000: This partition function is not allowed
