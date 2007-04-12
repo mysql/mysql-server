@@ -383,6 +383,11 @@ NdbColumnImpl::create_pseudo(const char * name){
     col->m_impl.m_attrId = AttributeHeader::ANY_VALUE;
     col->m_impl.m_attrSize = 4;
     col->m_impl.m_arraySize = 1;
+  } else if(!strcmp(name, "NDB$COPY_ROWID")){
+    col->setType(NdbDictionary::Column::Bigunsigned);
+    col->m_impl.m_attrId = AttributeHeader::COPY_ROWID;
+    col->m_impl.m_attrSize = 4;
+    col->m_impl.m_arraySize = 2;
   } else {
     abort();
   }
@@ -5288,3 +5293,4 @@ const NdbDictionary::Column * NdbDictionary::Column::RECORDS_IN_RANGE = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ROWID = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ROW_GCI = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ANY_VALUE = 0;
+const NdbDictionary::Column * NdbDictionary::Column::COPY_ROWID = 0;
