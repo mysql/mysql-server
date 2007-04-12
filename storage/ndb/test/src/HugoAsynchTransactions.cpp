@@ -188,14 +188,11 @@ HugoAsynchTransactions::pkUpdateRecordsAsynch(Ndb* pNdb,
 	  // Read
 	  // Define primary keys
 	  check = pOp->readTupleExclusive();
-	  for (a = 0; a < tab.getNoOfColumns(); a++) {
-	    if (tab.getColumn(a)->getPrimaryKey() == true) {
-	      if (equalForAttr(pOp, a, cReadRecords) != 0){
-		ERR(transactions[t]->getNdbError());
-		pNdb->closeTransaction(transactions[t]);
-		return NDBT_FAILED;
-	      }
-	    }
+          if (equalForRow(pOp, cReadRecords) != 0)
+          {
+            ERR(transactions[t]->getNdbError());
+            pNdb->closeTransaction(transactions[t]);
+            return NDBT_FAILED;
 	  }	    
 	  // Define attributes to read  
 	  for (a = 0; a < tab.getNoOfColumns(); a++) {
@@ -259,15 +256,12 @@ HugoAsynchTransactions::pkUpdateRecordsAsynch(Ndb* pNdb,
 	  }
 
 	  // Set search condition for the record
-	  for (a = 0; a < tab.getNoOfColumns(); a++) {
-	    if (tab.getColumn(a)->getPrimaryKey() == true) {
-	      if (equalForAttr(pOp, a, cRecords) != 0) {
-		ERR(transactions[t]->getNdbError());
-		pNdb->closeTransaction(transactions[t]);
-		return NDBT_FAILED;
-	      }
-	    }
-	  }
+          if (equalForRow(pOp, cReadRecords) != 0)
+          {
+            ERR(transactions[t]->getNdbError());
+            pNdb->closeTransaction(transactions[t]);
+            return NDBT_FAILED;
+	  }	    
 
 	  // Update the record
 	  for (a = 0; a < tab.getNoOfColumns(); a++) {
@@ -396,15 +390,12 @@ HugoAsynchTransactions::executeAsynchOperation(Ndb* pNdb,
 	  case NO_READ:
 	    // Define primary keys
 	    check = pOp->readTuple();
-	    for (a = 0; a < tab.getNoOfColumns(); a++) {
-	      if (tab.getColumn(a)->getPrimaryKey() == true) {
-		if (equalForAttr(pOp, a, cRecords) != 0){
-		  ERR(transactions[t]->getNdbError());
-		  pNdb->closeTransaction(transactions[t]);
-		  return NDBT_FAILED;
-		}
-	      }
-	    }	    
+            if (equalForRow(pOp, cRecords) != 0)
+            {
+              ERR(transactions[t]->getNdbError());
+              pNdb->closeTransaction(transactions[t]);
+              return NDBT_FAILED;
+            }	    
 	    // Define attributes to read  
 	    for (a = 0; a < tab.getNoOfColumns(); a++) {
 	      if ((rows[cIndex]->attributeStore(a) = 
@@ -425,15 +416,12 @@ HugoAsynchTransactions::executeAsynchOperation(Ndb* pNdb,
 	    }
 
 	    // Define primary keys
-	    for (a = 0; a < tab.getNoOfColumns(); a++) {
-	      if (tab.getColumn(a)->getPrimaryKey() == true){
-		if (equalForAttr(pOp, a, cRecords) != 0) {
-		  ERR(transactions[t]->getNdbError());
-		  pNdb->closeTransaction(transactions[t]);		
-		  return NDBT_FAILED;
-		}
-	      }
-	    }
+            if (equalForRow(pOp, cRecords) != 0)
+            {
+              ERR(transactions[t]->getNdbError());
+              pNdb->closeTransaction(transactions[t]);
+              return NDBT_FAILED;
+            }    
 	    break;
 	  default:
 	    // Should not happen...
