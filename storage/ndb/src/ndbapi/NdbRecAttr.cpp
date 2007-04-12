@@ -517,3 +517,15 @@ NdbRecAttr::double_value() const
   memcpy(&val,theRef,sizeof(val));
   return val;
 }
+
+Int32
+NdbRecAttr::medium_value() const
+{
+  return sint3korr((unsigned char *)theRef);
+}
+
+Uint32
+NdbRecAttr::u_medium_value() const
+{
+  return uint3korr((unsigned char*)theRef);
+}
