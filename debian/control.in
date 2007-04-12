@@ -1,0 +1,355 @@
+Source: mysql-@MYSRCVER@
+Section: misc
+Priority: optional
+Maintainer: Monty Taylor <mtaylor@mysql.com>
+Uploaders: Mads Martin Joergensen <mads@mysql.com>, MySQL Build Team <build-private@mysql.com>
+Build-Depends: libtool (>= 1.4.2-7), g++ (>= 4:3.3.5-3), procps | hurd,  debhelper (>= 4.1.16), file (>= 3.28-1), libncurses5-dev (>= 5.0-6), perl (>= 5.6.0), libwrap0-dev (>= 7.6-8.3), zlib1g-dev (>= 1:1.1.3-5), libreadline5-dev | libreadline-dev, psmisc, po-debconf, chrpath, automake1.8, doxygen, gs, dpatch, gawk, bison
+Standards-Version: 3.7.2
+
+Package: libmysqlclient@MYSOVER@
+Section: libs
+Architecture: any
+Depends: mysql-common (>= ${Source-Version}), ${shlibs:Depends}
+Conflicts: libmysqlclient@MYSOVER@off
+Replaces: libmysqlclient@MYSOVER@off
+Description: mysql database client library
+ The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
+ and robust SQL (Structured Query Language) database server. MySQL Server
+ is intended for mission-critical, heavy-load production systems as well
+ as for embedding into mass-deployed software. MySQL is a trademark of
+ MySQL AB.
+ .
+ The MySQL software has Dual Licensing, which means you can use the MySQL
+ software free of charge under the GNU General Public License
+ (http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+ licenses from MySQL AB if you do not wish to be bound by the terms of
+ the GPL. See the chapter "Licensing and Support" in the manual for
+ further info.
+ .
+ The MySQL web site (http://www.mysql.com/) provides the latest
+ news and information about the MySQL software. Also please see the
+ documentation and the manual for more information.
+ .
+ This package contains the shared libraries (*.so*) which certain
+ languages and applications need to dynamically load and use MySQL.
+
+Package: libmysqlclient@MYSOVER@-dev
+Architecture: any
+Section: libdevel
+Depends: libmysqlclient@MYSOVER@ (>= ${Source-Version}), zlib1g-dev, ${shlibs:Depends}
+Conflicts: libmysqlclient14-dev, libmysqlclient12-dev, libmysqlclient10-dev
+Provides: libmysqlclient-dev
+Description: mysql database development files
+ The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
+ and robust SQL (Structured Query Language) database server. MySQL Server
+ is intended for mission-critical, heavy-load production systems as well
+ as for embedding into mass-deployed software. MySQL is a trademark of
+ MySQL AB.
+ .
+ The MySQL software has Dual Licensing, which means you can use the MySQL
+ software free of charge under the GNU General Public License
+ (http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+ licenses from MySQL AB if you do not wish to be bound by the terms of
+ the GPL. See the chapter "Licensing and Support" in the manual for
+ further info.
+ .
+ The MySQL web site (http://www.mysql.com/) provides the latest
+ news and information about the MySQL software. Also please see the
+ documentation and the manual for more information.
+ .
+ This package contains the development header files and libraries
+ necessary to develop MySQL client applications.
+
+Package: libndbclient@NDBSOVER@
+Section: libs
+Architecture: any
+Depends: mysql-common (>= ${Source-Version}), libmysqlclient@MYSOVER@, ${shlibs:Depends}
+Description: mysql cluster NdbApi library
+ The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
+ and robust SQL (Structured Query Language) database server. MySQL Server
+ is intended for mission-critical, heavy-load production systems as well
+ as for embedding into mass-deployed software. MySQL is a trademark of
+ MySQL AB.
+ .
+ The MySQL software has Dual Licensing, which means you can use the MySQL
+ software free of charge under the GNU General Public License
+ (http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+ licenses from MySQL AB if you do not wish to be bound by the terms of
+ the GPL. See the chapter "Licensing and Support" in the manual for
+ further info.
+ .
+ The MySQL web site (http://www.mysql.com/) provides the latest
+ news and information about the MySQL software. Also please see the
+ documentation and the manual for more information.
+ .
+ This package contains the shared libraries (*.so*) which certain
+ languages and applications need to dynamically load and use MySQL NdbApi.
+
+Package: libndbclient@NDBSOVER@-dev
+Architecture: any
+Section: libdevel
+Depends: libndbclient@NDBSOVER@ (>= ${Source-Version}), zlib1g-dev, ${shlibs:Depends}
+Provides: libndbclient-dev
+Description: mysql cluster NdbApi development files
+ The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
+ and robust SQL (Structured Query Language) database server. MySQL Server
+ is intended for mission-critical, heavy-load production systems as well
+ as for embedding into mass-deployed software. MySQL is a trademark of
+ MySQL AB.
+ .
+ The MySQL software has Dual Licensing, which means you can use the MySQL
+ software free of charge under the GNU General Public License
+ (http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+ licenses from MySQL AB if you do not wish to be bound by the terms of
+ the GPL. See the chapter "Licensing and Support" in the manual for
+ further info.
+ .
+ The MySQL web site (http://www.mysql.com/) provides the latest
+ news and information about the MySQL software. Also please see the
+ documentation and the manual for more information.
+ .
+ This package contains the development header files and libraries
+ necessary to develop NdbApi client applications.
+
+Package: mysql-common
+Section: misc
+Architecture: all
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Conflicts: mysql-common-@MYOLDVER@
+Provides: mysql-common-@MYOLDVER@
+Replaces: mysql-common-@MYOLDVER@
+Description: mysql database common files (e.g. /etc/mysql/my.cnf)
+ The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
+ and robust SQL (Structured Query Language) database server. MySQL Server
+ is intended for mission-critical, heavy-load production systems as well
+ as for embedding into mass-deployed software. MySQL is a trademark of
+ MySQL AB.
+ .
+ The MySQL software has Dual Licensing, which means you can use the MySQL
+ software free of charge under the GNU General Public License
+ (http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+ licenses from MySQL AB if you do not wish to be bound by the terms of
+ the GPL. See the chapter "Licensing and Support" in the manual for
+ further info.
+ .
+ The MySQL web site (http://www.mysql.com/) provides the latest
+ news and information about the MySQL software. Also please see the
+ documentation and the manual for more information.
+ .
+ This package includes files needed by all versions of the client library.
+
+Package: mysql-client-@MYVER@
+Architecture: any
+Depends: debianutils (>=1.6), libdbi-perl, libdbd-mysql-perl (>= 1.2202), mysql-common (>= ${Source-Version}), libmysqlclient@MYSOVER@ (>= ${Source-Version}), ${perl:Depends}, ${shlibs:Depends}, ${misc:Depends}
+Provides: virtual-mysql-client, mysql-client, mysql-client-@MYOLDVER@
+Conflicts: mysql-client (<< ${Source-Version}), mysql-client-@MYOLDVER@
+Replaces: mysql-client (<< ${Source-Version}), mysql-server, mysql-client-@MYOLDVER@
+Description: mysql database client binaries
+ The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
+ and robust SQL (Structured Query Language) database server. MySQL Server
+ is intended for mission-critical, heavy-load production systems as well
+ as for embedding into mass-deployed software. MySQL is a trademark of
+ MySQL AB.
+ .
+ The MySQL software has Dual Licensing, which means you can use the MySQL
+ software free of charge under the GNU General Public License
+ (http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+ licenses from MySQL AB if you do not wish to be bound by the terms of
+ the GPL. See the chapter "Licensing and Support" in the manual for
+ further info.
+ .
+ The MySQL web site (http://www.mysql.com/) provides the latest
+ news and information about the MySQL software. Also please see the
+ documentation and the manual for more information.
+ .
+ This package contains the standard MySQL clients and administration tools. 
+
+Package: mysql-server-@MYVER@
+Architecture: any                                                               
+Suggests: tinyca
+Recommends: mailx
+Pre-Depends: mysql-common (>= ${Source-Version}), adduser (>= 3.40)
+Depends: mysql-client-@MYVER@ (>= ${Source-Version}), libdbi-perl, perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}, psmisc, passwd, lsb-base (>= 3.0-10)
+Conflicts: mysql-server (<< ${Source-Version}), mysql-server-@MYOLDVER@ (<< 5.0.26-3)
+Provides: mysql-server, virtual-mysql-server, mysql-server-@MYOLDVER@
+Replaces: mysql-server (<< ${Source-Version}), mysql-server-@MYOLDVER@
+Description: mysql database server binaries
+ The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
+ and robust SQL (Structured Query Language) database server. MySQL Server
+ is intended for mission-critical, heavy-load production systems as well
+ as for embedding into mass-deployed software. MySQL is a trademark of
+ MySQL AB.
+ .  
+ The MySQL software has Dual Licensing, which means you can use the MySQL
+ software free of charge under the GNU General Public License
+ (http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+ licenses from MySQL AB if you do not wish to be bound by the terms of
+ the GPL. See the chapter "Licensing and Support" in the manual for
+ further info.
+ . 
+ The MySQL web site (http://www.mysql.com/) provides the latest
+ news and information about the MySQL software. Also please see the
+ documentation and the manual for more information.
+ . 
+ This package includes the MySQL server binary (incl. InnoDB) as well
+ as related utilities to run and administrate a MySQL server.
+ .
+ If you want to access and work with the database, you have to install
+ package mysql-client-@MYVER@ as well!
+
+Package: mysql-test-@MYVER@
+Architecture: any                                                               
+Pre-Depends: mysql-common (>= ${Source-Version})
+Depends: mysql-client-@MYVER@ (>= ${Source-Version}), libdbd-mysql-perl, perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}
+Description: MySQL - test suite
+ The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
+ and robust SQL (Structured Query Language) database server. MySQL Server
+ is intended for mission-critical, heavy-load production systems as well
+ as for embedding into mass-deployed software. MySQL is a trademark of
+ MySQL AB.
+ .  
+ The MySQL software has Dual Licensing, which means you can use the MySQL
+ software free of charge under the GNU General Public License
+ (http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+ licenses from MySQL AB if you do not wish to be bound by the terms of
+ the GPL. See the chapter "Licensing and Support" in the manual for
+ further info.
+ . 
+ The MySQL web site (http://www.mysql.com/) provides the latest
+ news and information about the MySQL software. Also please see the
+ documentation and the manual for more information.
+ . 
+ This package contains the MySQL regression test suite.
+
+Package: mysql-storage-@MYVER@
+Architecture: any                                                               
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: MySQL - ndbcluster storage engine
+ The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
+ and robust SQL (Structured Query Language) database server. MySQL Server
+ is intended for mission-critical, heavy-load production systems as well
+ as for embedding into mass-deployed software. MySQL is a trademark of
+ MySQL AB.
+ .  
+ The MySQL software has Dual Licensing, which means you can use the MySQL
+ software free of charge under the GNU General Public License
+ (http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+ licenses from MySQL AB if you do not wish to be bound by the terms of
+ the GPL. See the chapter "Licensing and Support" in the manual for
+ further info.
+ . 
+ The MySQL web site (http://www.mysql.com/) provides the latest
+ news and information about the MySQL software. Also please see the
+ documentation and the manual for more information.
+ . 
+ This package contains the ndbcluster storage engine. 
+ It is necessary to have this package installed on all 
+ computers that should store ndbcluster table data.
+ Note that this storage engine can only be used in conjunction
+ with the MySQL Max server.
+
+Package: mysql-management-@MYVER@
+Architecture: any                                                               
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: MySQL - ndbcluster storage engine management
+ The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
+ and robust SQL (Structured Query Language) database server. MySQL Server
+ is intended for mission-critical, heavy-load production systems as well
+ as for embedding into mass-deployed software. MySQL is a trademark of
+ MySQL AB.
+ .  
+ The MySQL software has Dual Licensing, which means you can use the MySQL
+ software free of charge under the GNU General Public License
+ (http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+ licenses from MySQL AB if you do not wish to be bound by the terms of
+ the GPL. See the chapter "Licensing and Support" in the manual for
+ further info.
+ . 
+ The MySQL web site (http://www.mysql.com/) provides the latest
+ news and information about the MySQL software. Also please see the
+ documentation and the manual for more information.
+ . 
+ This package contains ndbcluster storage engine management.
+ It is necessary to have this package installed on at least 
+ one computer in the cluster.
+
+Package: mysql-tools-@MYVER@
+Architecture: any                                                               
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: MySQL - ndbcluster storage engine basic tools
+ The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
+ and robust SQL (Structured Query Language) database server. MySQL Server
+ is intended for mission-critical, heavy-load production systems as well
+ as for embedding into mass-deployed software. MySQL is a trademark of
+ MySQL AB.
+ .  
+ The MySQL software has Dual Licensing, which means you can use the MySQL
+ software free of charge under the GNU General Public License
+ (http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+ licenses from MySQL AB if you do not wish to be bound by the terms of
+ the GPL. See the chapter "Licensing and Support" in the manual for
+ further info.
+ . 
+ The MySQL web site (http://www.mysql.com/) provides the latest
+ news and information about the MySQL software. Also please see the
+ documentation and the manual for more information.
+ . 
+ This package contains ndbcluster storage engine basic tools.
+
+Package: mysql-extra-@MYVER@
+Architecture: any                                                               
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: MySQL - ndbcluster storage engine extra tools
+ The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
+ and robust SQL (Structured Query Language) database server. MySQL Server
+ is intended for mission-critical, heavy-load production systems as well
+ as for embedding into mass-deployed software. MySQL is a trademark of
+ MySQL AB.
+ .  
+ The MySQL software has Dual Licensing, which means you can use the MySQL
+ software free of charge under the GNU General Public License
+ (http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+ licenses from MySQL AB if you do not wish to be bound by the terms of
+ the GPL. See the chapter "Licensing and Support" in the manual for
+ further info.
+ . 
+ The MySQL web site (http://www.mysql.com/) provides the latest
+ news and information about the MySQL software. Also please see the
+ documentation and the manual for more information.
+ . 
+ This package contains some extra ndbcluster storage engine tools for 
+ the advanced user.  
+ .
+ They should be used with caution
+
+
+Package: mysql-server-@MYOLDVER@
+Architecture: any                                                               
+Section: oldlibs
+Priority: extra
+Depends: mysql-server-@MYVER@
+Description: mysql database server (transitional package)
+ MySQL is a fast, stable and true multi-user, multi-threaded SQL database
+ server. SQL (Structured Query Language) is the most popular database query
+ language in the world. The main goals of MySQL are speed, robustness and
+ ease of use.
+ .
+ This is an empty transitional package and can safely be removed.
+
+Package: mysql-server
+Architecture: all
+Depends: mysql-server-@MYVER@
+Description: mysql database server (meta package depending on the latest version)
+ This is an empty package that depends on the current "best" version of
+ mysql-server (currently mysql-server-@MYVER@), as determined by the MySQL
+ maintainers.  Install this package if in doubt about which MySQL version
+ you want, as this is the one we consider to be in the best shape.
+
+Package: mysql-client
+Architecture: all
+Depends: mysql-client-@MYVER@
+Description: mysql database client (meta package depending on the latest version)
+ This is an empty package that depends on the current "best" version of
+ mysql-client (currently mysql-client-@MYVER@), as determined by the MySQL
+ maintainers.  Install this package if in doubt about which MySQL version
+ you want, as this is the one we consider to be in the best shape.
