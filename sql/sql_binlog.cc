@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "mysql_priv.h"
+#include "rpl_rli.h"
 #include "base64.h"
 
 /*

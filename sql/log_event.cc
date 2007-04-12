@@ -22,6 +22,8 @@
 
 #include "mysql_priv.h"
 #include "slave.h"
+#include "rpl_rli.h"
+#include "rpl_mi.h"
 #include "rpl_filter.h"
 #include "rpl_utility.h"
 #include <my_dir.h>
@@ -30,6 +32,8 @@
 #include <my_bitmap.h>
 
 #define log_cs	&my_charset_latin1
+
+#define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
 /*
   Cache that will automatically be written to a dedicated file on
@@ -547,49 +551,7 @@ int Log_event::do_update_pos(RELAY_LOG_INFO *rli)
     Matz: I don't think we will need this check with this refactoring.
   */
   if (rli)
-  {
-    /*
-      If in a transaction, and if the slave supports transactions, just
-      inc_event_relay_log_pos(). We only have to check for OPTION_BEGIN
-      (not OPTION_NOT_AUTOCOMMIT) as transactions are logged with
-      BEGIN/COMMIT, not with SET AUTOCOMMIT= .
-
-      CAUTION: opt_using_transactions means
-      innodb || bdb ; suppose the master supports InnoDB and BDB,
-      but the slave supports only BDB, problems
-      will arise:
-      - suppose an InnoDB table is created on the master,
-      - then it will be MyISAM on the slave
-      - but as opt_using_transactions is true, the slave will believe he
-      is transactional with the MyISAM table. And problems will come
-      when one does START SLAVE; STOP SLAVE; START SLAVE; (the slave
-      will resume at BEGIN whereas there has not been any rollback).
-      This is the problem of using opt_using_transactions instead of a
-      finer "does the slave support
-      _the_transactional_handler_used_on_the_master_".
-
-      More generally, we'll have problems when a query mixes a
-      transactional handler and MyISAM and STOP SLAVE is issued in the
-      middle of the "transaction". START SLAVE will resume at BEGIN
-      while the MyISAM table has already been updated.
-    */
-    if ((thd->options & OPTION_BEGIN) && opt_using_transactions)
-      rli->inc_event_relay_log_pos();
-    else
-    {
-      rli->inc_group_relay_log_pos(log_pos);
-      flush_relay_log_info(rli);
-      /*
-         Note that Rotate_log_event::do_apply_event() does not call
-         this function, so there is no chance that a fake rotate event
-         resets last_master_timestamp.  Note that we update without
-         mutex (probably ok - except in some very rare cases, only
-         consequence is that value may take some time to display in
-         Seconds_Behind_Master - not critical).
-      */
-      rli->last_master_timestamp= when;
-    }
-  }
+    rli->stmt_done(log_pos, when);
 
   return 0;                                   // Cannot fail currently
 }
@@ -1039,6 +1001,10 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     break;
   }
 
+  DBUG_PRINT("read_event", ("%s(type_code: %d; event_len: %d)",
+                            ev ? ev->get_type_str() : "<unknown>",
+                            buf[EVENT_TYPE_OFFSET],
+                            event_len));
   /*
     is_valid() are small event-specific sanity tests which are
     important; for example there are some my_malloc() in constructors
@@ -3593,17 +3559,6 @@ bool Rotate_log_event::write(IO_CACHE* file)
 }
 #endif
 
-/**
-   Helper function to detect if the event is inside a group.
- */
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-static bool is_in_group(THD *const thd, RELAY_LOG_INFO *const rli)
-{
-  return (thd->options & OPTION_BEGIN) != 0 ||
-         (rli->last_event_start_time > 0);
-}
-#endif
-
 
 /*
   Rotate_log_event::do_apply_event()
@@ -3654,7 +3609,7 @@ int Rotate_log_event::do_update_pos(RELAY_LOG_INFO *rli)
     relay log, which shall not change the group positions.
   */
   if ((server_id != ::server_id || rli->replicate_same_server_id) &&
-      !is_in_group(thd, rli))
+      !rli->is_in_group())
   {
     DBUG_PRINT("info", ("old group_master_log_name: '%s'  "
                         "old group_master_log_pos: %lu",
@@ -3821,6 +3776,12 @@ void Intvar_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 #if defined(HAVE_REPLICATION)&& !defined(MYSQL_CLIENT)
 int Intvar_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
 {
+  /*
+    We are now in a statement until the associated query log event has
+    been processed.
+   */
+  const_cast<RELAY_LOG_INFO*>(rli)->set_flag(RELAY_LOG_INFO::IN_STMT);
+
   switch (type) {
   case LAST_INSERT_ID_EVENT:
     thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 1;
@@ -3921,6 +3882,12 @@ void Rand_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Rand_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
 {
+  /*
+    We are now in a statement until the associated query log event has
+    been processed.
+   */
+  const_cast<RELAY_LOG_INFO*>(rli)->set_flag(RELAY_LOG_INFO::IN_STMT);
+
   thd->rand.seed1= (ulong) seed1;
   thd->rand.seed2= (ulong) seed2;
   return 0;
@@ -4314,6 +4281,12 @@ int User_var_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
   user_var_name.length= name_len;
   double real_val;
   longlong int_val;
+
+  /*
+    We are now in a statement until the associated query log event has
+    been processed.
+   */
+  const_cast<RELAY_LOG_INFO*>(rli)->set_flag(RELAY_LOG_INFO::IN_STMT);
 
   if (is_null)
   {
@@ -6189,6 +6162,17 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
     /* A small test to verify that objects have consistent types */
     DBUG_ASSERT(sizeof(thd->options) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
+    /*
+      Now we are in a statement and will stay in a statement until we
+      see a STMT_END_F.
+
+      We set this flag here, before actually applying any rows, in
+      case the SQL thread is stopped and we need to detect that we're
+      inside a statement and halting abruptly might cause problems
+      when restarting.
+     */
+    const_cast<RELAY_LOG_INFO*>(rli)->set_flag(RELAY_LOG_INFO::IN_STMT);
+
     error= do_before_row_operations(table);
     while (error == 0 && row_start < (const char*) m_rows_end)
     {
@@ -6261,69 +6245,13 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
     DBUG_RETURN(error);
   }
 
-  if (get_flags(STMT_END_F))
-  {
-    /*
-      This is the end of a statement or transaction, so close (and
-      unlock) the tables we opened when processing the
-      Table_map_log_event starting the statement.
-
-      OBSERVER.  This will clear *all* mappings, not only those that
-      are open for the table. There is not good handle for on-close
-      actions for tables.
-
-      NOTE. Even if we have no table ('table' == 0) we still need to be
-      here, so that we increase the group relay log position. If we didn't, we
-      could have a group relay log position which lags behind "forever"
-      (assume the last master's transaction is ignored by the slave because of
-      replicate-ignore rules).
-    */
-    thd->binlog_flush_pending_rows_event(true);
-    /*
-      If this event is not in a transaction, the call below will, if some
-      transactional storage engines are involved, commit the statement into
-      them and flush the pending event to binlog.
-      If this event is in a transaction, the call will do nothing, but a
-      Xid_log_event will come next which will, if some transactional engines
-      are involved, commit the transaction and flush the pending event to the
-      binlog.
-    */
-    error= ha_autocommit_or_rollback(thd, 0);
-    /*
-      Now what if this is not a transactional engine? we still need to
-      flush the pending event to the binlog; we did it with
-      thd->binlog_flush_pending_rows_event(). Note that we imitate
-      what is done for real queries: a call to
-      ha_autocommit_or_rollback() (sometimes only if involves a
-      transactional engine), and a call to be sure to have the pending
-      event flushed.
-    */
-
-    thd->reset_current_stmt_binlog_row_based();
-    const_cast<RELAY_LOG_INFO*>(rli)->cleanup_context(thd, 0);
-
-    if (error == 0)
-    {
-      /*
-        Clear any errors pushed in thd->net.last_err* if for example "no key
-        found" (as this is allowed). This is a safety measure; apparently
-        those errors (e.g. when executing a Delete_rows_log_event of a
-        non-existing row, like in rpl_row_mystery22.test,
-        thd->net.last_error = "Can't find record in 't1'" and last_errno=1032)
-        do not become visible. We still prefer to wipe them out.
-      */
-      thd->clear_error();
-    }
-    else
-      slave_print_msg(ERROR_LEVEL, rli, error,
-                      "Error in %s event: commit of row events failed, "
-                      "table `%s`.`%s`",
-                      get_type_str(), table->s->db.str, 
-                      table->s->table_name.str);
-    DBUG_RETURN(error);
-  }
-
-  if (table && (table->s->primary_key == MAX_KEY) && !cache_stmt)
+  /*
+    This code would ideally be placed in do_update_pos() instead, but
+    since we have no access to table there, we do the setting of
+    last_event_start_time here instead.
+  */
+  if (table && (table->s->primary_key == MAX_KEY) &&
+      !cache_stmt && get_flags(STMT_END_F) == RLE_NO_FLAGS)
   {
     /*
       ------------ Temporary fix until WL#2975 is implemented ---------
@@ -6344,10 +6272,90 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
     const_cast<RELAY_LOG_INFO*>(rli)->last_event_start_time= time(0);
   }
 
-  DBUG_ASSERT(error == 0);
-  thd->clear_error();
-
   DBUG_RETURN(0);
+}
+
+int
+Rows_log_event::do_update_pos(RELAY_LOG_INFO *rli)
+{
+  DBUG_ENTER("Rows_log_event::do_update_pos");
+  int error= 0;
+
+  DBUG_PRINT("info", ("flags: %s",
+                      get_flags(STMT_END_F) ? "STMT_END_F " : ""));
+
+  if (get_flags(STMT_END_F))
+  {
+    /*
+      This is the end of a statement or transaction, so close (and
+      unlock) the tables we opened when processing the
+      Table_map_log_event starting the statement.
+
+      OBSERVER.  This will clear *all* mappings, not only those that
+      are open for the table. There is not good handle for on-close
+      actions for tables.
+
+      NOTE. Even if we have no table ('table' == 0) we still need to be
+      here, so that we increase the group relay log position. If we didn't, we
+      could have a group relay log position which lags behind "forever"
+      (assume the last master's transaction is ignored by the slave because of
+      replicate-ignore rules).
+    */
+    thd->binlog_flush_pending_rows_event(true);
+
+    /*
+      If this event is not in a transaction, the call below will, if some
+      transactional storage engines are involved, commit the statement into
+      them and flush the pending event to binlog.
+      If this event is in a transaction, the call will do nothing, but a
+      Xid_log_event will come next which will, if some transactional engines
+      are involved, commit the transaction and flush the pending event to the
+      binlog.
+    */
+    error= ha_autocommit_or_rollback(thd, 0);
+
+    /*
+      Now what if this is not a transactional engine? we still need to
+      flush the pending event to the binlog; we did it with
+      thd->binlog_flush_pending_rows_event(). Note that we imitate
+      what is done for real queries: a call to
+      ha_autocommit_or_rollback() (sometimes only if involves a
+      transactional engine), and a call to be sure to have the pending
+      event flushed.
+    */
+
+    thd->reset_current_stmt_binlog_row_based();
+    rli->cleanup_context(thd, 0);
+    if (error == 0)
+    {
+      /*
+        Indicate that a statement is finished.
+        Step the group log position if we are not in a transaction,
+        otherwise increase the event log position.
+       */
+      rli->stmt_done(log_pos, when);
+
+      /*
+        Clear any errors pushed in thd->net.last_err* if for example "no key
+        found" (as this is allowed). This is a safety measure; apparently
+        those errors (e.g. when executing a Delete_rows_log_event of a
+        non-existing row, like in rpl_row_mystery22.test,
+        thd->net.last_error = "Can't find record in 't1'" and last_errno=1032)
+        do not become visible. We still prefer to wipe them out.
+      */
+      thd->clear_error();
+    }
+    else
+      slave_print_msg(ERROR_LEVEL, rli, error,
+                      "Error in %s event: commit of row events failed",
+                      get_type_str());
+  }
+  else
+  {
+    rli->inc_event_relay_log_pos();
+  }
+
+  DBUG_RETURN(error);
 }
 
 #endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */
@@ -6431,7 +6439,9 @@ void Rows_log_event::print_helper(FILE *file,
   {
     bool const last_stmt_event= get_flags(STMT_END_F);
     print_header(head, print_event_info, !last_stmt_event);
-    my_b_printf(head, "\t%s: table id %lu\n", name, m_table_id);
+    my_b_printf(head, "\t%s: table id %lu%s\n",
+                name, m_table_id,
+                last_stmt_event ? " flags: STMT_END_F" : "");
     print_base64(body, print_event_info, !last_stmt_event);
   }
 

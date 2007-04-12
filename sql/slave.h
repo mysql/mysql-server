@@ -22,12 +22,17 @@
 #include "my_list.h"
 #include "rpl_filter.h"
 #include "rpl_tblmap.h"
-#include "rpl_rli.h"
-#include "rpl_mi.h"
 
 #define SLAVE_NET_TIMEOUT  3600
 
 #define MAX_SLAVE_ERROR    2000
+
+
+// Forward declarations
+struct st_relay_log_info;
+typedef st_relay_log_info RELAY_LOG_INFO;
+
+class MASTER_INFO;
 
 /*****************************************************************************
 
