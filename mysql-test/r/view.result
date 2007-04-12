@@ -2395,6 +2395,16 @@ Table	Op	Msg_type	Msg_text
 test.v1	optimize	error	'test.v1' is not BASE TABLE
 Warnings:
 Error	1347	'test.v1' is not BASE TABLE
+ANALYZE TABLE v1;
+Table	Op	Msg_type	Msg_text
+test.v1	analyze	error	'test.v1' is not BASE TABLE
+Warnings:
+Error	1347	'test.v1' is not BASE TABLE
+REPAIR TABLE v1;
+Table	Op	Msg_type	Msg_text
+test.v1	repair	error	'test.v1' is not BASE TABLE
+Warnings:
+Error	1347	'test.v1' is not BASE TABLE
 DROP VIEW v1;
 create definer = current_user() sql security invoker view v1 as select 1;
 show create view v1;
