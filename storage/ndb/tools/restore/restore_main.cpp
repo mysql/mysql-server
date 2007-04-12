@@ -783,8 +783,8 @@ main(int argc, char** argv)
       for(Uint32 j= 0; j < g_consumers.size(); j++)
 	if (!g_consumers[j]->table(* table))
 	{
-	  err << "Restore: Failed to restore table: ";
-          err << table->getTableName() << " ... Exiting " << endl;
+	  err << "Restore: Failed to restore table: `";
+          err << table->getTableName() << "` ... Exiting " << endl;
 	  exitHandler(NDBT_FAILED);
 	} 
     } else {
