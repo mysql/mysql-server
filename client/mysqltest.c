@@ -2573,7 +2573,7 @@ int do_save_master_pos()
 
     if (have_ndbcluster)
     {
-      ulonglong start_epoch= 0, applied_epoch= 0,
+      ulonglong start_epoch= 0, applied_epoch= 0, handled_epoch= 0,
 	latest_epoch=0, latest_trans_epoch=0,
 	latest_handled_binlog_epoch= 0, latest_received_binlog_epoch= 0,
 	latest_applied_binlog_epoch= 0;
@@ -2676,9 +2676,9 @@ int do_save_master_pos()
 	if (!row)
 	  die("result does not contain '%s' in '%s'",
 	      binlog, query);
-	if (latest_applied_binlog_epoch > applied_epoch)
+	if (latest_handled_binlog_epoch > handled_epoch)
 	  count= 0;
-	applied_epoch= latest_applied_binlog_epoch;
+	handled_epoch= latest_handled_binlog_epoch;
 	count++;
 	if (latest_handled_binlog_epoch >= start_epoch)
           do_continue= 0;
