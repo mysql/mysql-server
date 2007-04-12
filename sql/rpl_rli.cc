@@ -15,6 +15,7 @@
 
 #include "mysql_priv.h"
 
+#include "rpl_mi.h"
 #include "rpl_rli.h"
 #include <my_dir.h>    // For MY_STAT
 #include "sql_repl.h"  // For check_binlog_magic
@@ -37,7 +38,7 @@ st_relay_log_info::st_relay_log_info()
    inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
    until_log_pos(0), retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
-   last_event_start_time(0)
+   last_event_start_time(0), m_flags(0)
 {
   DBUG_ENTER("st_relay_log_info::st_relay_log_info");
 
@@ -1086,6 +1087,52 @@ bool st_relay_log_info::cached_charset_compare(char *charset) const
 }
 
 
+void st_relay_log_info::stmt_done(my_off_t const event_master_log_pos,
+                                  time_t event_creation_time)
+{
+  clear_flag(IN_STMT);
+
+  /*
+    If in a transaction, and if the slave supports transactions, just
+    inc_event_relay_log_pos(). We only have to check for OPTION_BEGIN
+    (not OPTION_NOT_AUTOCOMMIT) as transactions are logged with
+    BEGIN/COMMIT, not with SET AUTOCOMMIT= .
+
+    CAUTION: opt_using_transactions means innodb || bdb ; suppose the
+    master supports InnoDB and BDB, but the slave supports only BDB,
+    problems will arise: - suppose an InnoDB table is created on the
+    master, - then it will be MyISAM on the slave - but as
+    opt_using_transactions is true, the slave will believe he is
+    transactional with the MyISAM table. And problems will come when
+    one does START SLAVE; STOP SLAVE; START SLAVE; (the slave will
+    resume at BEGIN whereas there has not been any rollback).  This is
+    the problem of using opt_using_transactions instead of a finer
+    "does the slave support _transactional handler used on the
+    master_".
+
+    More generally, we'll have problems when a query mixes a
+    transactional handler and MyISAM and STOP SLAVE is issued in the
+    middle of the "transaction". START SLAVE will resume at BEGIN
+    while the MyISAM table has already been updated.
+  */
+  if ((sql_thd->options & OPTION_BEGIN) && opt_using_transactions)
+    inc_event_relay_log_pos();
+  else
+  {
+    inc_group_relay_log_pos(event_master_log_pos);
+    flush_relay_log_info(this);
+    /*
+      Note that Rotate_log_event::do_apply_event() does not call this
+      function, so there is no chance that a fake rotate event resets
+      last_master_timestamp.  Note that we update without mutex
+      (probably ok - except in some very rare cases, only consequence
+      is that value may take some time to display in
+      Seconds_Behind_Master - not critical).
+    */
+    last_master_timestamp= event_creation_time;
+  }
+}
+
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 void st_relay_log_info::cleanup_context(THD *thd, bool error)
 {
@@ -1112,6 +1159,7 @@ void st_relay_log_info::cleanup_context(THD *thd, bool error)
   m_table_map.clear_tables();
   close_thread_tables(thd);
   clear_tables_to_lock();
+  clear_flag(IN_STMT);
   last_event_start_time= 0;
   DBUG_VOID_RETURN;
 }

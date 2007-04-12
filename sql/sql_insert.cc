@@ -60,6 +60,7 @@
 #include "sql_select.h"
 #include "sql_show.h"
 #include "slave.h"
+#include "rpl_mi.h"
 
 #ifndef EMBEDDED_LIBRARY
 static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list);
