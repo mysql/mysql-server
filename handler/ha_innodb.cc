@@ -8074,29 +8074,26 @@ innobase_create_key_def(
 
 /***********************************************************************
 Create a temporary tablename using query id, thread id, and id */
+static
 char*
 innobase_create_temporary_tablename(
 /*================================*/
-					/* out: New temporary tablename */
-	THD*		thd,		/* in: User thread */
-	const char*     table_name,	/* in: Old table name */
-	ulint		id)		/* in: id */
+					/* out: temporary tablename */
+	mem_heap_t*	heap,		/* in: memory heap */
+	char		id,		/* in: identifier */
+	const char*     table_name)	/* in: table name */
 {
-	char*	new_name;
-	ulint	old_len;
-	ulint	new_len;
+	char*	name;
+	ulint	len;
 
-        old_len = strlen(table_name);
-	new_len = old_len + 1 + 64;
+	len = strlen(table_name) + 3;
 
-	new_name = (char *)mem_alloc_noninline(new_len);
+	name = (char*) mem_heap_alloc_noninline(heap, len);
+	name[0] = TEMP_TABLE_PREFIX;
+	name[1] = id;
+	memcpy(name + 2, table_name, len - 2);
 
-	sprintf(new_name,"%c%s-%lx_%lx",
-		TEMP_TABLE_PREFIX, table_name, thd->thread_id, id);
-
-	fprintf(stderr, "NEW TABLE NAME: %s\n", new_name);
-
-	return(new_name);
+	return(name);
 }
 
 /***********************************************************************
@@ -8120,16 +8117,16 @@ ha_innobase::add_index(
 	ulint		num_of_idx;
 	ulint		num_created;
 	ibool		dict_locked = FALSE;
-	ibool		new_primary = FALSE;
+	ibool		new_primary;
 	ibool		new_unique  = FALSE;
-	ulint		error = DB_SUCCESS;/* DB_SUCCESS or error code */
+	ulint		error;
 
 	DBUG_ENTER("ha_innobase::add_index");
 	ut_a(table && key_info && num_of_keys);
 
 	update_thd(current_thd);
 
-	index = NULL;
+	heap = mem_heap_create_noninline(1024);
 
 	parent_trx = check_trx_exists(ht, user_thd);
 	trx_search_latch_release_if_reserved(parent_trx);
@@ -8150,20 +8147,19 @@ ha_innobase::add_index(
 		trx->check_unique_secondary = FALSE;
 	}
 
-	indexed_table = dict_table_get(prebuilt->table->name, FALSE);
-	innodb_table = indexed_table;
+	innodb_table = indexed_table
+		= dict_table_get(prebuilt->table->name, FALSE);
 
 	/* Check that index keys are sensible */
 
 	error = innobase_check_index_keys(
 		table, innodb_table, trx, key_info, num_of_keys);
 
-	if (error != DB_SUCCESS) {
+	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
+err_exit:
+		mem_heap_free_noninline(heap);
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
-
-		error = convert_error_code_to_mysql(error, user_thd);
-
-		DBUG_RETURN((int)error);
+		DBUG_RETURN(convert_error_code_to_mysql(error, user_thd));
 	}
 
 	/* Create table containing all indexes to be built in this
@@ -8172,8 +8168,6 @@ ha_innobase::add_index(
 
 	num_of_idx = num_of_keys;
 
-	heap = mem_heap_create_noninline(1024);
-
 	index_defs = innobase_create_key_def(
 		trx, innodb_table, heap, key_info, &num_of_idx);
 
@@ -8181,13 +8175,11 @@ ha_innobase::add_index(
 	to drop all original secondary indexes from the table. These
 	indexes will be rebuilt below. */
 
-	if (index_defs[0]->ind_type & DICT_CLUSTERED) {
-		char*	new_table_name;
+	new_primary = 0 != (DICT_CLUSTERED & index_defs[0]->ind_type);
 
-		new_primary = TRUE;
-
-		new_table_name = innobase_create_temporary_tablename(
-			user_thd, (const char *)innodb_table->name, 17431);
+	if (new_primary) {
+		char*	new_table_name = innobase_create_temporary_tablename(
+			heap, '1', innodb_table->name);
 
 		row_mysql_lock_data_dictionary(trx);
 
@@ -8197,14 +8189,9 @@ ha_innobase::add_index(
 
 		row_mysql_unlock_data_dictionary(trx);
 
-		mem_free_noninline(new_table_name);
+		if (!indexed_table) {
 
-		if (error != DB_SUCCESS) {
-			mem_heap_free_noninline(heap);
-			trx_general_rollback_for_mysql(trx, FALSE, NULL);
-			error = convert_error_code_to_mysql(error, user_thd);
-
-			DBUG_RETURN((int)error);
+			goto err_exit;
 		}
 	} else if (!trx->dict_redo_list) {
 		dict_redo_create_list(trx);
@@ -8215,8 +8202,8 @@ ha_innobase::add_index(
 
 	/* Allocate memory for dictionary index definitions */
 
-	index = (dict_index_t**) mem_alloc_noninline(
-		sizeof(dict_index_t*) * num_of_idx);
+	index = (dict_index_t**) mem_heap_alloc_noninline(
+		heap, num_of_idx * sizeof *index);
 
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during an index create operation.
@@ -8251,9 +8238,7 @@ ha_innobase::add_index(
 		row_mysql_unlock_data_dictionary(trx);
 		dict_locked = FALSE;
 
-		/* Free index definition table */
-		mem_heap_free_noninline(heap);
-		heap = 0;
+		mem_heap_empty_noninline(heap);
 
 		ut_a(trx->n_active_thrs == 0);
 		ut_a(UT_LIST_GET_LEN(trx->signals) == 0);
@@ -8276,8 +8261,12 @@ ha_innobase::add_index(
 		based on this information using temporary files and merge
 		sort.*/
 		error = row_build_index_for_mysql(
-			trx, innodb_table, indexed_table, index, new_primary,
+			trx, innodb_table, indexed_table, index,
 			num_of_idx);
+
+		if (error == DB_SUCCESS && new_primary) {
+			row_merge_mark_prebuilt_obsolete(trx, innodb_table);
+		}
 	}
 
 #ifdef UNIV_DEBUG
@@ -8292,32 +8281,28 @@ ha_innobase::add_index(
 	//dict_table_check_for_dup_indexes(prebuilt->table);
 #endif
 
-	/* Free index definition table */
-	if (heap) {
-		mem_heap_free_noninline(heap);
-		heap = 0;
-	}
-
 	if (dict_locked) {
 		row_mysql_unlock_data_dictionary(trx);
 	}
 
-	/* After a error, remove all those index definitions from the
+	/* After an error, remove all those index definitions from the
 	dictionary which were defined.*/
 
-	if (error != DB_SUCCESS) {
-		if (error == DB_DUPLICATE_KEY) {
-			prebuilt->trx->error_info = NULL;
-			prebuilt->trx->error_key_num = trx->error_key_num;
-		}
-
+	switch (error) {
+	case DB_SUCCESS:
+		break;
+	case DB_DUPLICATE_KEY:
+		prebuilt->trx->error_info = NULL;
+		prebuilt->trx->error_key_num = trx->error_key_num;
+		/* fall through */
+	default:
 		row_remove_indexes_for_mysql(
 			trx, indexed_table, index, num_created);
-	}
-
-	if (index) {
-		mem_free_noninline(index);
-		index = 0;
+		if (indexed_table != innodb_table) {
+			row_merge_drop_table(trx, indexed_table);
+		}
+		mem_heap_free_noninline(heap);
+		DBUG_RETURN(convert_error_code_to_mysql(error, user_thd));
 	}
 
 	/* If a new primary key was defined for the table and
@@ -8325,17 +8310,11 @@ ha_innobase::add_index(
 	old table as a temporary table, rename the new temporary
 	table as a old table and drop the old table. */
 
-	if (new_primary == TRUE && error == DB_SUCCESS) {
-		char*	old_name;
-		char*	tmp_table_name;
-
-		old_name = (char *)mem_alloc_noninline(
-			strlen(innodb_table->name) + 1);
-
-		strcpy(old_name, innodb_table->name);
-
-		tmp_table_name = innobase_create_temporary_tablename(
-			user_thd, (const char *)innodb_table->name, 232125);
+	if (new_primary) {
+		char*	old_name	= mem_heap_strdup(
+			heap, innodb_table->name);
+		char*	tmp_table_name	= innobase_create_temporary_tablename(
+			heap, '2', innodb_table->name);
 
 		trx_start_if_not_started_noninline(trx);
 
@@ -8343,45 +8322,51 @@ ha_innobase::add_index(
 		error = row_undo_report_rename_table_dict_operation(
 			trx, old_name, indexed_table->name, tmp_table_name);
 
-		if (error == DB_SUCCESS) {
-			log_buffer_flush_to_disk();
+		if (error != DB_SUCCESS) {
 
-			/* Set the commit flag to FALSE, we will commit the
-			transaction ourselves, required for UNDO */
-			error = innobase_rename_table(
-				trx, innodb_table->name, tmp_table_name, FALSE);
-
-			if (error == DB_SUCCESS) {
-				error = innobase_rename_table(
-					trx, indexed_table->name, old_name,
-					FALSE);
-			}
-
-			row_prebuilt_free(prebuilt);
-			prebuilt = row_create_prebuilt(indexed_table);
-
-			row_mysql_lock_data_dictionary(trx);
-			prebuilt->table->n_mysql_handles_opened++;
-			row_mysql_unlock_data_dictionary(trx);
-
-			/* Drop the old table iff there are no views that
-			refer to the old table. If there are views that refer
-			to the old table then we will drop the table when
-			we free the prebuilts and there are no more references
-			to it. */
-			error = row_merge_drop_table(trx, innodb_table);
+			goto func_exit;
 		}
 
-		mem_free_noninline(old_name);
-		mem_free_noninline(tmp_table_name);
+		log_buffer_flush_to_disk();
+
+		/* Set the commit flag to FALSE, we will commit the
+		transaction ourselves, required for UNDO */
+		error = innobase_rename_table(trx, innodb_table->name,
+					      tmp_table_name, FALSE);
+		if (error != DB_SUCCESS) {
+
+			goto func_exit;
+		}
+
+		error = innobase_rename_table(trx, indexed_table->name,
+					      old_name, FALSE);
+		if (error != DB_SUCCESS) {
+
+			goto func_exit;
+		}
+
+		row_prebuilt_free(prebuilt);
+		prebuilt = row_create_prebuilt(indexed_table);
+
+		row_mysql_lock_data_dictionary(trx);
+		prebuilt->table->n_mysql_handles_opened++;
+		row_mysql_unlock_data_dictionary(trx);
+
+		/* Drop the old table if there are no open views
+		referring to it.  If there such views, we will drop
+		the table when we free the prebuilts and there are no
+		more references to it. */
+
+		error = row_merge_drop_table(trx, innodb_table);
 	}
 
+func_exit:
 	/* There might be work for utility threads.*/
+	mem_heap_free_noninline(heap);
+
 	srv_active_wake_master_thread();
 
-	error = convert_error_code_to_mysql(error, user_thd);
-
-	DBUG_RETURN((int)error);
+	DBUG_RETURN(convert_error_code_to_mysql(error, user_thd));
 }
 
 /***********************************************************************

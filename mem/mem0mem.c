@@ -84,6 +84,16 @@ UT_LIST_BASE_NODE_T(mem_block_t)	mem_block_list;
 
 #endif
 
+/*********************************************************************
+Empties a memory heap. The first memory block of the heap is not freed. */
+
+void
+mem_heap_empty_noninline(
+/*=====================*/
+	mem_heap_t*	heap)	/* in: heap to empty */
+{
+	return(mem_heap_empty(heap));
+}
 /*******************************************************************
 NOTE: Use the corresponding macro instead of this function.
 Allocates a single buffer of memory from the dynamic memory of
@@ -596,7 +606,7 @@ mem_heap_alloc_noninline(
 				to grow into the buffer pool, this must be
 				<= MEM_MAX_ALLOC_IN_BUF */
 {
-	return (mem_heap_alloc(heap, n));
+	return(mem_heap_alloc(heap, n));
 }
 
 /*********************************************************************

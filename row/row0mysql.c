@@ -4479,15 +4479,12 @@ row_build_index_for_mysql(
 					new_table if we are creating a
 					secondary keys. */
 	dict_index_t**	index,		/* in: Indexes to be created */
-	ibool		new_primary,	/* in: new primary key
-					i.e. clustered index will be build
-					for this table */
 	ulint		num_of_keys)	/* in: Number of indexes to be
 					created */
 {
 	merge_file_t*	merge_files;
 	ulint		index_num;
-	ulint		error = DB_SUCCESS;
+	ulint		error;
 
 	ut_ad(trx && old_table && new_table && index && num_of_keys);
 
@@ -4511,7 +4508,7 @@ row_build_index_for_mysql(
 
 	if (error != DB_SUCCESS) {
 
-		return(error);
+		goto func_exit;
 	}
 
 	trx_start_if_not_started(trx);
@@ -4535,19 +4532,12 @@ row_build_index_for_mysql(
 				merge_files[index_num].file,
 				(int *)&error);
 
-			if (error != DB_SUCCESS) {
-				trx->error_key_num = index_num;
-				goto func_exit;
+			if (error == DB_SUCCESS) {
+				error = row_merge_insert_index_tuples(
+					trx, index[index_num], new_table,
+					merge_files[index_num].file,
+					ut_dulint_zero);
 			}
-
-			/* Insert sorted index entries to the table. */
-
-			error = row_merge_insert_index_tuples(
-				trx,
-				index[index_num],
-				new_table,
-				merge_files[index_num].file,
-				ut_dulint_create(0,0));
 
 			if (error != DB_SUCCESS) {
 				trx->error_key_num = index_num;
@@ -4557,10 +4547,6 @@ row_build_index_for_mysql(
 	}
 
 func_exit:
-	if (error == DB_SUCCESS && new_primary) {
-		row_merge_mark_prebuilt_obsolete(trx, old_table);
-	}
-
 	mem_free(merge_files);
 
 	return(error);
