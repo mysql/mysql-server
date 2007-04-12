@@ -191,6 +191,7 @@ my_bool _ma_bitmap_end(MARIA_SHARE *share)
   _ma_flush_bitmap(share);
   pthread_mutex_destroy(&share->bitmap.bitmap_lock);
   my_free((byte*) share->bitmap.map, MYF(MY_ALLOW_ZERO_PTR));
+  share->bitmap.map= 0;
   return res;
 }
 
@@ -213,6 +214,19 @@ my_bool _ma_flush_bitmap(MARIA_SHARE *share)
     pthread_mutex_unlock(&share->bitmap.bitmap_lock);
   }
   return res;
+}
+
+
+void _ma_bitmap_delete_all(MARIA_SHARE *share)
+{
+  MARIA_FILE_BITMAP *bitmap= &share->bitmap;
+  if (bitmap->map)                              /* Not in create */
+  {
+    bzero(bitmap->map, share->block_size);
+    bitmap->changed= 0;
+    bitmap->page= 0;
+    bitmap->used_size= bitmap->total_size;
+  }
 }
 
 
