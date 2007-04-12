@@ -1148,14 +1148,16 @@ int ha_ndbcluster::build_index_list(Ndb *ndb, TABLE *tab, enum ILBP phase)
     {
       DBUG_PRINT("info", ("Get handle to index %s", index_name));
       const NDBINDEX *index= dict->getIndex(index_name, m_tabname);
-      if (!index) DBUG_RETURN(1);
+      if (!index)
+        ERR_RETURN(dict->getNdbError());
       m_index[i].index= (void *) index;
     }
     if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX)
     {
       DBUG_PRINT("info", ("Get handle to unique_index %s", unique_index_name));
       const NDBINDEX *index= dict->getIndex(unique_index_name, m_tabname);
-      if (!index) DBUG_RETURN(1);
+      if (!index)
+        ERR_RETURN(dict->getNdbError());
       m_index[i].unique_index= (void *) index;
       error= fix_unique_index_attr_order(m_index[i], index, key_info);
     }
