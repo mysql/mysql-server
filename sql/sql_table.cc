@@ -1929,10 +1929,11 @@ static int sort_keys(KEY *a, KEY *b)
     which has some duplicates on its right
 
   RETURN VALUES
-    void
+    0             ok
+    1             Error
 */
 
-void check_duplicates_in_interval(const char *set_or_name,
+bool check_duplicates_in_interval(const char *set_or_name,
                                   const char *name, TYPELIB *typelib,
                                   CHARSET_INFO *cs, unsigned int *dup_val_count)
 {
@@ -1948,6 +1949,13 @@ void check_duplicates_in_interval(const char *set_or_name,
     tmp.count--;
     if (find_type2(&tmp, (const char*)*cur_value, *cur_length, cs))
     {
+      if ((current_thd->variables.sql_mode &
+         (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
+      {
+        my_error(ER_DUPLICATED_VALUE_IN_TYPE, MYF(0),
+                 name,*cur_value,set_or_name);
+        return 1;
+      }
       push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_NOTE,
 			  ER_DUPLICATED_VALUE_IN_TYPE,
 			  ER(ER_DUPLICATED_VALUE_IN_TYPE),
@@ -1955,6 +1963,7 @@ void check_duplicates_in_interval(const char *set_or_name,
       (*dup_val_count)++;
     }
   }
+  return 0;
 }
 
 
@@ -2090,9 +2099,10 @@ int prepare_create_field(create_field *sql_field,
     if (sql_field->charset->state & MY_CS_BINSORT)
       sql_field->pack_flag|=FIELDFLAG_BINARY;
     sql_field->unireg_check=Field::INTERVAL_FIELD;
-    check_duplicates_in_interval("ENUM",sql_field->field_name,
-                                 sql_field->interval,
-                                 sql_field->charset, &dup_val_count);
+    if (check_duplicates_in_interval("ENUM",sql_field->field_name,
+                                     sql_field->interval,
+                                     sql_field->charset, &dup_val_count))
+      DBUG_RETURN(1);
     break;
   case MYSQL_TYPE_SET:
     sql_field->pack_flag=pack_length_to_packflag(sql_field->pack_length) |
@@ -2100,9 +2110,10 @@ int prepare_create_field(create_field *sql_field,
     if (sql_field->charset->state & MY_CS_BINSORT)
       sql_field->pack_flag|=FIELDFLAG_BINARY;
     sql_field->unireg_check=Field::BIT_FIELD;
-    check_duplicates_in_interval("SET",sql_field->field_name,
-                                 sql_field->interval,
-                                 sql_field->charset, &dup_val_count);
+    if (check_duplicates_in_interval("SET",sql_field->field_name,
+                                     sql_field->interval,
+                                     sql_field->charset, &dup_val_count))
+      DBUG_RETURN(1);
     /* Check that count of unique members is not more then 64 */
     if (sql_field->interval->count -  dup_val_count > sizeof(longlong)*8)
     {
