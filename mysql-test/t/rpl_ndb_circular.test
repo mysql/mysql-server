@@ -1,0 +1,57 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+# set up circular replication
+
+--connection slave
+RESET MASTER;
+--connection master
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$SLAVE_MYPORT,master_user="root"
+START SLAVE;
+
+# create the table on the "slave"
+--connection slave
+CREATE TABLE t1 (a int key, b int) ENGINE=ndb;
+#CREATE TABLE t2 (a int key, b int) ENGINE=ndb;
+--save_master_pos
+--connection master
+--sync_with_master
+# now we should have a table on the master as well
+SHOW TABLES;
+
+# insert some values on the slave and master
+--connection master
+INSERT INTO t1 VALUES (1,2);
+--connection slave
+INSERT INTO t1 VALUES (2,3);
+
+# ensure data has propagated both ways
+--connection slave
+--save_master_pos
+--connection master
+--sync_with_master
+--sync_slave_with_master
+
+# connect to slave and ensure data it there.
+--connection slave
+SELECT * FROM t1 ORDER BY a;
+#SELECT * FROM t2 ORDER BY a;
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical show slave status;
+# connect to master and ensure data it there.
+--connection master
+SELECT * FROM t1 ORDER BY a;
+#SELECT * FROM t2 ORDER BY a;
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical show slave status;
+
+# stop replication on "master" as not to replicate
+# shutdown circularly, eg drop table
+--connection master
+STOP SLAVE;
+
+# cleanup
+--connection master
+DROP TABLE t1;
