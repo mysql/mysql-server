@@ -261,12 +261,12 @@ else
   esac
 fi
 
-# Safeguard (relative paths, core dumps..)
-cd $basedir
-
 case "$mode" in
   'start')
     # Start daemon
+
+    # Safeguard (relative paths, core dumps..)
+    cd $basedir
 
     manager=$bindir/mysqlmanager
     if test -x $libexecdir/mysqlmanager
