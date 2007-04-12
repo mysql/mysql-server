@@ -841,6 +841,7 @@ public:
   }
 
 protected:
+
   /**
     Primitive to apply an event to the database.
 
@@ -2242,6 +2243,7 @@ private:
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(RELAY_LOG_INFO const *rli);
+  virtual int do_update_pos(RELAY_LOG_INFO *rli);
 
   /*
     Primitive to prepare for a sequence of row executions.
