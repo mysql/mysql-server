@@ -1,0 +1,215 @@
+#!/bin/bash -e
+#
+# summary of how this script can be called:
+#        * <new-preinst> install
+#        * <new-preinst> install <old-version>
+#        * <new-preinst> upgrade <old-version>
+#        * <old-preinst> abort-upgrade <new-version>
+#
+
+if [ -n "$DEBIAN_SCRIPT_DEBUG" ]; then set -v -x; DEBIAN_SCRIPT_TRACE=1; fi
+${DEBIAN_SCRIPT_TRACE:+ echo "#42#DEBUG# RUNNING $0 $*" 1>&2 }
+
+export PATH=$PATH:/sbin:/usr/sbin:/bin:/usr/bin
+
+# Try to stop the server in a sane way. If it does not success let the admin
+# do it himself. No database directories should be removed while the server
+# is running! Another mysqld in e.g. a different chroot is fine for us.
+stop_server() {
+    if [ ! -x /etc/init.d/mysql ]; then return; fi
+
+    set +e
+    if [ -x /usr/sbin/invoke-rc.d ]; then
+      cmd="invoke-rc.d mysql stop"
+    else
+      cmd="/etc/init.d/mysql stop"
+    fi
+    $cmd
+    errno=$?
+    set -e
+   
+    # 0=ok, 100=no init script (fresh install)
+    if [ "$errno" != 0 -a "$errno" != 100 ]; then
+      echo "${cmd/ */} returned $errno" 1>&2
+      echo "There is a MySQL server running, but we failed in our attempts to stop it." 1>&2
+      echo "Stop it yourself and try again!" 1>&2
+      exit 1
+    fi
+}
+
+start_server() {
+    if [ ! -x /etc/init.d/mysql ]; then return; fi
+
+    set +e
+    if [ -x /usr/sbin/invoke-rc.d ]; then
+      cmd="invoke-rc.d mysql start"
+    else
+      cmd="/etc/init.d/mysql start"
+    fi
+    $cmd
+    set -e
+}
+
+##### here's a bunch of helper functions for converting database formats ######
+
+cvt_get_param(){
+	/usr/sbin/mysqld --print-defaults \
+		| tr " " "\n" \
+		| grep -- "--$1" \
+		| tail -n 1 \
+		| cut -d= -f2
+}
+
+cvt_setup_stuff(){
+	mytmp=`mktemp -d -t mysql-ISAM-convert.XXXXXX`
+	cvt_log="$mytmp/conversion.log"
+	if [ ! -d "$mytmp" ]; then
+		echo "can't create temporary directory, oh well." >&2
+		exit 1
+	fi
+
+	chgrp mysql $mytmp
+	chmod g+rwx $mytmp
+	cvt_socket=${mytmp}/mysql.sock
+
+	cvt_mysqld="mysqld --skip-grant-tables --skip-networking --socket $cvt_socket"
+	cvt_mysql="mysql --socket $cvt_socket"
+	cvt_mysqladmin="mysqladmin --socket $cvt_socket"
+}
+
+cvt_get_databases(){
+	echo fetching database list ... >&2
+	$cvt_mysql -e 'show databases' | sed -n -e '2,$p'
+}
+
+cvt_get_tables(){
+	echo querying tables in $1 ... >&2
+	$cvt_mysql $1 -e 'show table status' | sed -n -e '2,$p' | \
+		cut -f 1,2 | grep -w 'ISAM$' | cut -f 1
+}
+
+cvt_convert_table(){
+	echo converting $1.$2 ... >&2
+	$cvt_mysql $1 -e "alter table $2 type=MyISAM"
+}
+
+cvt_wait_for_server(){
+	local count
+	echo -n waiting for server startup.. >&2
+	while ! $cvt_mysql </dev/null >/dev/null 2>&1; do
+		echo -n . >&2
+		sleep 1
+		count=".$count"
+		if [ -f $mytmp/mysql.done ]; then
+			echo "sorry... looks like the server crashed :(" >&2
+			return 1
+		elif [ "$count" = "...................." ]; then
+			echo "sorry... looks like the server didn't start :(" >&2
+			return 1
+		fi
+	done
+	echo ok. >&2
+}
+
+cvt_wait_for_exit(){
+	local count
+	echo -n waiting for server shutdown.. >&2
+	while [ ! -f $mytmp/mysql.done ]; do
+		echo -n . >&2
+		sleep 1
+		count=".$count"
+		if [ "$count" = "...................." ]; then
+			echo "hrm... guess it never started?" >&2
+			return 0
+		fi
+	done
+	echo ok. >&2
+}
+
+cvt_cleanup(){
+	local mysql_kids
+	rm -rf $mytmp
+	# kill any mysqld child processes left over.  there *shouldn't* be any,
+	# but let's not take chances with that
+	mysql_kids=`ps o 'pid command' --ppid $$ | grep -E '^[[:digit:]]+ mysqld ' | cut -d' ' -f1`
+	if [ "$mysql_kids" ]; then
+		echo "strange, some mysql processes left around. killing them now." >&2
+		kill $mysql_kids
+		sleep 10
+		mysql_kids=`ps o 'pid command' --ppid $$ | grep -E '^[[:digit:]]+ mysqld ' | cut -d' ' -f1`
+		if [ "$mysql_kids" ]; then
+			echo "okay, they're really not getting the hint..." >&2
+			kill -9 $mysql_kids
+		fi
+	fi
+}
+
+################################ main() ##########################
+
+# test if upgrading from non conffile state
+if [ "$1" = "upgrade" ] && [ -x /usr/sbin/mysqld ]; then
+	cvt_datadir=`cvt_get_param datadir`
+	# test for ISAM tables, which we must convert NOW
+	if [ -n "`find $cvt_datadir -name '*.ISM' 2>/dev/null`" ]; then
+		pidfile=`cvt_get_param pid-file`
+		if [ "$pidfile" ] && [ -f "$pidfile" ]; then
+			server_pid=`cat $pidfile`
+			if [ "$server_pid" ] && ps $server_pid >/dev/null 2>&1; then
+				server_running="yes"
+			fi
+		fi
+		# to be sure
+		stop_server
+
+		set +e
+		cat << EOF >&2
+----------------------------------------
+WARNING WARNING WARNING
+----------------------------------------
+
+It has been detected that are are using ISAM format on some of your
+mysql database tables.  This format has been deprecated and no longer
+supported.  to prevent these databases from essentially disappearing,
+an attempt at format conversion will now be made.  please check after
+your upgrade that all tables are present and accounted for.
+
+apologies for the noise, but we thought you'd appreciate it :)
+
+----------------------------------------
+WARNING WARNING WARNING
+----------------------------------------
+EOF
+		cvt_setup_stuff
+		($cvt_mysqld >$cvt_log 2>&1; touch $mytmp/mysql.done ) &
+
+		if cvt_wait_for_server; then
+			dbs=`cvt_get_databases`
+			for db in $dbs; do
+				tables=`cvt_get_tables $db`
+				for tbl in $tables; do
+					cvt_convert_table $db $tbl
+				done
+			done
+		else
+			cvt_error="yes"
+		fi
+
+		echo shutting down server... >&2
+		$cvt_mysqladmin shutdown
+		cvt_wait_for_exit
+		echo "all done!" >&2
+		if [ ! "$cvt_error" = "yes" ]; then
+			cvt_cleanup
+		else
+			echo "you might want to look in $mytmp..." >&2
+		fi
+
+		if [ "$server_running" ]; then
+			start_server
+		fi
+
+		set -e
+	fi
+fi
+
+exit 0

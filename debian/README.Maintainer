@@ -1,0 +1,99 @@
+###########################################################################
+# Here are some information that are only of interest to the Debiani      #
+#   maintainers of MySQL.                                                 # 
+###########################################################################
+
+#
+# Remarks to dependencies
+#
+libwrap0-dev (>= 7.6-8.3)
+	According to bug report 114582 where where build problems on
+	IA-64/sid with at least two prior versions.
+psmisc
+	/usr/bin/killall in the initscript
+
+zlib1g in libmysqlclient-dev:	
+	"mysql_config --libs" adds "-lz"
+
+Build-Dep:
+
+debhelper (>=4.1.16):
+	See po-debconf(7).
+
+autoconf (>= 2.13-20), automake1.7
+	Try to get rid of them.
+
+doxygen, tetex-bin, tetex-extra, gs
+	for ndb/docs/*tex
+
+mysql-server-5.0: Pre-Depends: mysql-common
+	This was necessary as mysql-server-5.0.preinst checks for unmodified
+	conffiles from mysql-server-4.1 and copies 5.0 ones over them to avoid
+	unnecessary dpkg questions. As mysql-server-5.0 is not unpacked at its 
+	pre-inst stage, it had to copy those files from a package that is 
+	definetly already unpacked which does not have to be the case with Depends.
+
+#
+# Remarks to the start scripts
+#
+
+## initscripts rely on mysqladmin from a different package
+We have the problem that "/etc/init.d/mysql stop" relies on mysqladmin which
+is in another package (mysql-client) and a passwordless access that's maybe
+only available if the user configured his /root/.my.cnf. Can this be a problem?
+* normal mode: not because the user is required to have it. Else:
+* purge/remove: not, same as normal mode
+* upgrade: not, same as normal mode
+* first install: not, it depends on mysql-client which at least is unpacked
+                 so mysqladmin is there (to ping). It is not yet configured
+		passwordles but if there's a server running then there's a
+                /root/.my.cnf. Anyways, we simply kill anything that's mysqld.
+
+## Passwordless access for the maintainer scripts
+Another issue is that the scripts needs passwordless access. To ensure this
+a debian-sys-maint user is configured which has process and shutdown privs.
+The file with the randomly (that's important!) generated password must be
+present as long as the databases remain installed because else a new install
+would have no access. This file should be used like:
+	mysqladmin --defaults-file=/etc/mysql/debian.cnf restart
+to avoid providing the password in plaintext on a commandline where it would 
+be visible to any user via the "ps" command.
+
+## When to start the daemon?
+We aim to give the admin full control on when MySQL is running.
+Issues to be faced here:
+OLD:
+        1. Debconf asks whether MySQL should be started on boot so update-rc.d is
+           only run if the answer has been yes. The admin is likely to forget
+           this decision but update-rc.d checks for an existing line in
+           /etc/runlevel.conf and leaves it intact.
+        2. On initial install, if the answer is yes, the daemon has to be started.
+        3. On upgrades it should only be started if it was already running, everything
+           else is confusing. Especiall relying on an debconf decision made month ago
+           is considered suboptimal. See bug #274264
+        Implementation so far:
+        prerm (called on upgrade before stopping the server): 
+          check for a running server and set flag if necessary
+        preinst (called on initial install and before unpacking when upgrading):
+          check for the debconf variable and set flag if necessary
+        postinst (called on initial install and after each upgrade after unpacking):
+          call update-rc.d if debconf says yes
+          call invoce-rc.d if the flag has been set
+        Problems remaining:
+          dpkg-reconfigure and setting mysql start on boot to yes did not start mysql
+          (ok "start on boot" literally does not mean "start now" so that might have been ok)
+NEW:
+        1. --- no debconf anymore for the sake of simplicity. We have runlevel.conf,
+           the admin should use it
+        2. On initial install the server is started.
+        3. On upgrades the server is started exactly if it was running before so the
+           runlevel configuration is irrelevant. It will be preserved by the mean of
+           update-rc.d's builtin check.
+        Implementation:
+        prerm (called on upgrade before stopping the server):
+          check for a running server and set flag if necessary
+        preinst (called on initial install and before unpacking when upgrading):
+          check for $1 beeing (initial) "install" and set flag
+        postinst (called on initial install and after each upgrade after unpacking):
+          call update-rc.d
+          call invoce-rc.d if the flag has been set
