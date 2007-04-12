@@ -83,6 +83,7 @@ NdbRecAttr::setup(const NdbColumnImpl* anAttrInfo, char* aValue)
     theRef = tRef;
     return 0;
   }
+  errno = ENOMEM;
   return -1;
 }
 
@@ -102,7 +103,11 @@ NdbRecAttr::copyout()
 NdbRecAttr *
 NdbRecAttr::clone() const {
   NdbRecAttr * ret = new NdbRecAttr(0);
-
+  if (ret == NULL)
+  {
+    errno = ENOMEM;
+    return NULL;
+  }
   ret->theAttrId = theAttrId;
   ret->theNULLind = theNULLind;
   ret->theAttrSize = theAttrSize;
@@ -116,6 +121,12 @@ NdbRecAttr::clone() const {
     ret->theValue = 0;
   } else {
     ret->theStorageX = new Uint64[((n + 7) >> 3)];
+    if (ret->theStorageX == NULL)
+    {
+      delete ret;
+      errno = ENOMEM;
+      return NULL;
+    }
     ret->theRef = (char*)ret->theStorageX;    
     ret->theValue = 0;
   }

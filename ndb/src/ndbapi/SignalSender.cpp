@@ -147,7 +147,10 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
 {
   SimpleSignal * s = t.check(m_jobBuffer);
   if(s != 0){
-    m_usedBuffer.push_back(s);
+    if (m_usedBuffer.push_back(s))
+    {
+      return 0;
+    }
     return s;
   }
   
@@ -162,7 +165,10 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
     
     SimpleSignal * s = t.check(m_jobBuffer);
     if(s != 0){
-      m_usedBuffer.push_back(s);
+      if (m_usedBuffer.push_back(s))
+      {
+        return 0;
+      }
       return s;
     }
     
