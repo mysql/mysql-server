@@ -1543,9 +1543,15 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
       old_field= trigger_table->field;
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+    Security_context *sctx= &sp_trigger->m_security_ctx;
     Security_context *save_ctx;
 
-    if (sp_change_security_context(thd, sp_trigger, &save_ctx))
+
+    if (sctx->change_security_context(thd,
+                                      &sp_trigger->m_definer_user,
+                                      &sp_trigger->m_definer_host,
+                                      &sp_trigger->m_db,
+                                      &save_ctx))
       return TRUE;
 
     /*
@@ -1570,7 +1576,7 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
                thd->security_ctx->priv_user, thd->security_ctx->host_or_ip,
                trigger_table->s->table_name.str);
 
-      sp_restore_security_context(thd, save_ctx);
+      sctx->restore_security_context(thd, save_ctx);
       return TRUE;
     }
 #endif // NO_EMBEDDED_ACCESS_CHECKS
@@ -1582,7 +1588,7 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
     thd->restore_sub_statement_state(&statement_state);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    sp_restore_security_context(thd, save_ctx);
+    sctx->restore_security_context(thd, save_ctx);
 #endif // NO_EMBEDDED_ACCESS_CHECKS
   }
 
