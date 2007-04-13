@@ -2429,7 +2429,7 @@ public:
     return Rows_log_event::is_valid() && m_cols_ai.bitmap;
   }
 
-private:
+protected:
   virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
 
 #ifdef MYSQL_CLIENT
@@ -2500,7 +2500,7 @@ public:
   }
 #endif
   
-private:
+protected:
   virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
 
 #ifdef MYSQL_CLIENT
@@ -2520,6 +2520,8 @@ private:
 #endif
 };
 
+
+#include "log_event_old.h"
 
 /**
    Class representing an incident, an occurance out of the ordinary,

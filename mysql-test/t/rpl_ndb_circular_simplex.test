@@ -50,8 +50,8 @@ sync_with_master;
 #SHOW BINLOG EVENTS;
 
 # Check that there is no error in replication
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 #
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--replace_column 1 # 7 # 8 # 9 # 23 # 33 #
 query_vertical SHOW SLAVE STATUS;
 
 # Check that we have the data on the master
