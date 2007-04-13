@@ -3,6 +3,8 @@
 # Grant tests not performed with embedded server
 -- source include/not_embedded.inc
 
+SET GLOBAL log_bin_trust_function_creators = 1;
+
 # Cleanup
 --disable_warnings
 drop table if exists t1;
