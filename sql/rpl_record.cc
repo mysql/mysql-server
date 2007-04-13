@@ -50,9 +50,10 @@
 
    @return The number of bytes written at @c row_data.
  */
+#if !defined(MYSQL_CLIENT)
 my_size_t
 pack_row(TABLE *table, MY_BITMAP const* cols,
-         byte *const row_data, const byte *record)
+         byte *row_data, const byte *record)
 {
   Field **p_field= table->field, *field;
   int const null_byte_count= (bitmap_bits_set(cols) + 7) / 8;
@@ -120,6 +121,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
 
   return static_cast<my_size_t>(pack_ptr - row_data);
 }
+#endif
 
 
 /**
@@ -158,7 +160,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
    master does not have a default value (and isn't nullable)
 
  */
-#ifdef HAVE_REPLICATION
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 int
 unpack_row(RELAY_LOG_INFO const *rli,
            TABLE *table, uint const colcnt,

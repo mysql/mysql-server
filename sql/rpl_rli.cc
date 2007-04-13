@@ -1087,8 +1087,8 @@ bool st_relay_log_info::cached_charset_compare(char *charset) const
 }
 
 
-void st_relay_log_info::stmt_done(my_off_t const event_master_log_pos,
-                                  my_time_t event_creation_time)
+void st_relay_log_info::stmt_done(my_off_t event_master_log_pos,
+                                  time_t event_creation_time)
 {
   clear_flag(IN_STMT);
 
