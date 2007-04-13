@@ -3,7 +3,7 @@
 #include "rpl_record_old.h"
 
 my_size_t
-pack_row_old(THD *thd, TABLE *table, MY_BITMAP const* cols,
+pack_row_old(TABLE *table, MY_BITMAP const* cols,
              byte *row_data, const byte *record)
 {
   Field **p_field= table->field, *field;
