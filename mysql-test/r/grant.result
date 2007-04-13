@@ -1106,16 +1106,6 @@ DROP DATABASE mysqltest2;
 DROP DATABASE mysqltest3;
 DROP DATABASE mysqltest4;
 DROP USER mysqltest_1@localhost;
-End of 5.0 tests
-set names utf8;
-grant select on test.* to юзер_юзер@localhost;
-user()
-юзер_юзер@localhost
-revoke all on test.* from юзер_юзер@localhost;
-drop user юзер_юзер@localhost;
-grant select on test.* to очень_длинный_юзер@localhost;
-ERROR HY000: String 'очень_длинный_юзер' is too long for user name (should be no longer than 16)
-set names default;
 DROP DATABASE IF EXISTS mysqltest1;
 DROP DATABASE IF EXISTS mysqltest2;
 CREATE DATABASE mysqltest1;
@@ -1191,3 +1181,13 @@ ERROR 42000: SELECT command denied to user 'mysqltest_2'@'localhost' for table '
 DROP DATABASE mysqltest1;
 DROP DATABASE mysqltest2;
 DROP USER mysqltest_1@localhost;
+End of 5.0 tests
+set names utf8;
+grant select on test.* to юзер_юзер@localhost;
+user()
+юзер_юзер@localhost
+revoke all on test.* from юзер_юзер@localhost;
+drop user юзер_юзер@localhost;
+grant select on test.* to очень_длинный_юзер@localhost;
+ERROR HY000: String 'очень_длинный_юзер' is too long for user name (should be no longer than 16)
+set names default;
