@@ -1068,6 +1068,150 @@ DROP DATABASE mysqltest4;
 DROP USER mysqltest_1@localhost;
 
 
+#
+# BUG#27337: Privileges are not restored properly.
+#
+# Actually, the patch for this bugs fixes two problems. So, here are two test
+# cases.
+
+# Test case 1: privileges are not restored properly after calling a stored
+# routine defined with SQL SECURITY INVOKER clause.
+
+# Prepare.
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+DROP DATABASE IF EXISTS mysqltest2;
+--enable_warnings
+
+CREATE DATABASE mysqltest1;
+CREATE DATABASE mysqltest2;
+
+GRANT ALL PRIVILEGES ON mysqltest1.* TO mysqltest_1@localhost;
+GRANT SELECT ON mysqltest2.* TO mysqltest_1@localhost;
+
+CREATE PROCEDURE mysqltest1.p1() SQL SECURITY INVOKER
+  SELECT 1;
+
+# Test.
+
+--connect (bug27337_con1,localhost,mysqltest_1,,mysqltest2)
+--echo
+--echo ---> connection: bug27337_con1
+
+--error ER_TABLEACCESS_DENIED_ERROR
+CREATE TABLE t1(c INT);
+
+CALL mysqltest1.p1();
+
+--error ER_TABLEACCESS_DENIED_ERROR
+CREATE TABLE t1(c INT);
+
+--disconnect bug27337_con1
+
+--connect (bug27337_con2,localhost,mysqltest_1,,mysqltest2)
+--echo
+--echo ---> connection: bug27337_con2
+
+--error ER_TABLEACCESS_DENIED_ERROR
+CREATE TABLE t1(c INT);
+
+SHOW TABLES;
+
+# Cleanup.
+
+--connection default
+--echo
+--echo ---> connection: default
+
+--disconnect bug27337_con2
+
+DROP DATABASE mysqltest1;
+DROP DATABASE mysqltest2;
+
+DROP USER mysqltest_1@localhost;
+
+# Test case 2: priveleges are not checked properly for prepared statements.
+
+# Prepare.
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+DROP DATABASE IF EXISTS mysqltest2;
+--enable_warnings
+
+CREATE DATABASE mysqltest1;
+CREATE DATABASE mysqltest2;
+
+CREATE TABLE mysqltest1.t1(c INT);
+CREATE TABLE mysqltest2.t2(c INT);
+
+GRANT SELECT ON mysqltest1.t1 TO mysqltest_1@localhost;
+GRANT SELECT ON mysqltest2.t2 TO mysqltest_2@localhost;
+
+# Test.
+
+--connect (bug27337_con1,localhost,mysqltest_1,,mysqltest1)
+--echo
+--echo ---> connection: bug27337_con1
+
+SHOW TABLES FROM mysqltest1;
+
+PREPARE stmt1 FROM 'SHOW TABLES FROM mysqltest1';
+
+EXECUTE stmt1;
+
+--connect (bug27337_con2,localhost,mysqltest_2,,mysqltest2)
+--echo
+--echo ---> connection: bug27337_con2
+
+SHOW COLUMNS FROM mysqltest2.t2;
+
+PREPARE stmt2 FROM 'SHOW COLUMNS FROM mysqltest2.t2';
+
+EXECUTE stmt2;
+
+--connection default
+--echo
+--echo ---> connection: default
+
+REVOKE SELECT ON mysqltest1.t1 FROM mysqltest_1@localhost;
+REVOKE SELECT ON mysqltest2.t2 FROM mysqltest_2@localhost;
+
+--connection bug27337_con1
+--echo
+--echo ---> connection: bug27337_con1
+
+--error ER_DBACCESS_DENIED_ERROR
+SHOW TABLES FROM mysqltest1;
+
+--error ER_DBACCESS_DENIED_ERROR
+EXECUTE stmt1;
+
+--connection bug27337_con2
+--echo
+--echo ---> connection: bug27337_con2
+
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW COLUMNS FROM mysqltest2.t2;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXECUTE stmt2;
+
+# Cleanup.
+
+--connection default
+--echo
+--echo ---> connection: default
+
+--disconnect bug27337_con2
+
+DROP DATABASE mysqltest1;
+DROP DATABASE mysqltest2;
+
+DROP USER mysqltest_1@localhost;
+
+
 --echo End of 5.0 tests
 
 #

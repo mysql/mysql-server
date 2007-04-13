@@ -2564,7 +2564,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   */
   thd->reset_n_backup_open_tables_state(&open_tables_state_backup);
 
-  if (lsel)
+  if (lsel && lsel->table_list.first)
   {
     TABLE_LIST *show_table_list= (TABLE_LIST*) lsel->table_list.first;
     bool res;
