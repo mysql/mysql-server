@@ -54,7 +54,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	item_geofunc.cc item_subselect.cc item_row.cc\
 	item_xmlfunc.cc \
 	key.cc lock.cc log.cc sql_state.c \
-	log_event.cc \
+	log_event.cc rpl_record.cc \
 	log_event_old.cc rpl_record_old.cc \
 	protocol.cc net_serv.cc opt_range.cc \
 	opt_sum.cc procedure.cc records.cc sql_acl.cc \
