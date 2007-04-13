@@ -1043,9 +1043,6 @@ public:
     return (length+max_row_length_blob(table,data));
   }
 
-  my_size_t pack_row(TABLE* table, MY_BITMAP const* cols, byte *row_data,
-                     const byte *data) const;
-
   int binlog_flush_pending_rows_event(bool stmt_end);
   void binlog_delete_pending_rows_event();
 

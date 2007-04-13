@@ -1334,8 +1334,7 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
     if ((mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) &&
         mi->rli.slave_running)
     {
-      long time_diff= ((long)((time_t)time((time_t*) 0)
-                              - mi->rli.last_master_timestamp)
+      long time_diff= ((long)(time(0) - mi->rli.last_master_timestamp)
                        - mi->clock_diff_with_master);
       /*
         Apparently on some systems time_diff can be <0. Here are possible
@@ -3461,7 +3460,7 @@ static Log_event* next_event(RELAY_LOG_INFO* rli)
           the events have old timestamps (then you get "many", 0, "many").
           Transient phases like this can't really be fixed.
         */
-        time_t save_timestamp= rli->last_master_timestamp;
+        my_time_t save_timestamp= rli->last_master_timestamp;
         rli->last_master_timestamp= 0;
 
         DBUG_ASSERT(rli->relay_log.get_open_count() ==

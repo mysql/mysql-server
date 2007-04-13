@@ -184,7 +184,7 @@ typedef struct st_relay_log_info
   ulonglong future_group_master_log_pos;
 #endif
 
-  time_t last_master_timestamp; 
+  my_time_t last_master_timestamp;
 
   void clear_slave_error();
   void clear_until_condition();
@@ -345,7 +345,7 @@ typedef struct st_relay_log_info
     the <code>Seconds_behind_master</code> field.
   */
   void stmt_done(my_off_t event_log_pos,
-                 time_t event_creation_time);
+                 my_time_t event_creation_time);
 
 
   /**
