@@ -1600,10 +1600,12 @@ int main(int argc, char** argv)
 #include "decimal.c"
 #include "my_decimal.cpp"
 #include "log_event.cpp"
+#include "log_event_old.cpp"
 #else
 #include "my_decimal.h"
 #include "decimal.c"
 #include "my_decimal.cc"
 #include "log_event.cc"
+#include "log_event_old.cc"
 #endif
 
