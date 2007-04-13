@@ -5,6 +5,7 @@ Variable_name	Value
 log	ON
 log_bin	OFF
 log_bin_trust_function_creators	ON
+log_bin_trust_routine_creators	ON
 log_error	
 log_output	TABLE
 log_queries_not_using_indexes	OFF
@@ -17,6 +18,7 @@ Variable_name	Value
 log	ON
 log_bin	OFF
 log_bin_trust_function_creators	ON
+log_bin_trust_routine_creators	ON
 log_error	
 log_output	TABLE
 log_queries_not_using_indexes	OFF
