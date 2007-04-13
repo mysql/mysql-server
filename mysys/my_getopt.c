@@ -97,18 +97,18 @@ void my_getopt_register_get_addr(gptr* (*func_addr)(const char *, uint,
   getopt_get_addr= func_addr;
 }
 
-int handle_options(int *argc, char ***argv, 
+int handle_options(int *argc, char ***argv,
 		   const struct my_option *longopts,
                    my_get_one_option get_one_option)
 {
-  uint opt_found, argvpos= 0, length, i;
+  uint opt_found, argvpos= 0, length;
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
           option_is_loose;
   char **pos, **pos_end, *optend, *prev_found,
        *opt_str, key_name[FN_REFLEN];
   const struct my_option *optp;
   gptr *value;
-  int error;
+  int error, i;
 
   LINT_INIT(opt_found);
   (*argc)--; /* Skip the program name */
@@ -224,12 +224,11 @@ int handle_options(int *argc, char ***argv,
 		/*
 		  We were called with a special prefix, we can reuse opt_found
 		*/
-		opt_str+= (special_opt_prefix_lengths[i] + 1);
+		opt_str+= special_opt_prefix_lengths[i] + 1;
+                length-= special_opt_prefix_lengths[i] + 1;
 		if (i == OPT_LOOSE)
 		  option_is_loose= 1;
-		if ((opt_found= findopt(opt_str, length -
-					(special_opt_prefix_lengths[i] + 1),
-					&optp, &prev_found)))
+		if ((opt_found= findopt(opt_str, length, &optp, &prev_found)))
 		{
 		  if (opt_found > 1)
 		  {
@@ -253,7 +252,7 @@ int handle_options(int *argc, char ***argv,
 		    break;
 		  case OPT_ENABLE:
 		    optend= (optend && *optend == '0' && !(*(optend + 1))) ?
- 		      disabled_my_option : (char*) "1";
+                      disabled_my_option : (char*) "1";
 		    break;
 		  case OPT_MAXIMUM:
 		    set_maximum_value= 1;
@@ -262,6 +261,7 @@ int handle_options(int *argc, char ***argv,
 		  }
 		  break; /* break from the inner loop, main loop continues */
 		}
+                i= -1; /* restart the loop */
 	      }
 	    }
 	  }

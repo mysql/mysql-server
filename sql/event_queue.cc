@@ -79,7 +79,7 @@ event_queue_element_compare_q(void *vptr, byte* a, byte *b)
 */
 
 Event_queue::Event_queue()
-  :mutex_last_unlocked_at_line(0), mutex_last_locked_at_line(0),
+  :mutex_last_locked_at_line(0), mutex_last_unlocked_at_line(0),
    mutex_last_attempted_lock_at_line(0),
    mutex_queue_data_locked(FALSE), mutex_queue_data_attempting_lock(FALSE)
 {

@@ -632,8 +632,8 @@ struct st_mysql_value
 {
   int (*value_type)(struct st_mysql_value *);
   const char *(*val_str)(struct st_mysql_value *, char *buffer, int *length);
-  int (*val_real)(struct st_mysql_value *, void *realbuf, int realsize);
-  int (*val_int)(struct st_mysql_value *, void *intbuf, int intsize);
+  int (*val_real)(struct st_mysql_value *, double *realbuf);
+  int (*val_int)(struct st_mysql_value *, long long *intbuf);
 };
 
 
@@ -651,8 +651,8 @@ long long thd_test_options(const MYSQL_THD thd, long long test_options);
 int thd_sql_command(const MYSQL_THD thd);
 const char *thd_proc_info(MYSQL_THD thd, const char *info);
 void **thd_ha_data(const MYSQL_THD thd, const struct handlerton *hton);
-char *thd_security_context(MYSQL_THD thd, char *buffer, int length,
-                           int max_query_len);
+char *thd_security_context(MYSQL_THD thd, char *buffer, unsigned int length,
+                           unsigned int max_query_len);
 
 
 #ifdef __cplusplus

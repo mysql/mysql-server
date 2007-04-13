@@ -2651,7 +2651,7 @@ static bool init_global_datetime_format(timestamp_type format_type,
 static int init_common_variables(const char *conf_file_name, int argc,
 				 char **argv, const char **groups)
 {
-  char buff[FN_REFLEN];
+  char buff[FN_REFLEN], *s;
   umask(((~my_umask) & 0666));
   my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();			// Set tzname
@@ -2857,15 +2857,13 @@ static int init_common_variables(const char *conf_file_name, int argc,
                       "--log-slow-queries option, log tables are used. "
                       "To enable logging to files use the --log-output option.");
 
-  if (!opt_logname)
-    opt_logname= make_default_log_name(buff, ".log");
-  sys_var_general_log_path.value= my_strdup(opt_logname, MYF(0));
-  sys_var_general_log_path.value_length= strlen(opt_logname);
+  s= opt_logname ? opt_logname : make_default_log_name(buff, ".log");
+  sys_var_general_log_path.value= my_strdup(s, MYF(0));
+  sys_var_general_log_path.value_length= strlen(s);
 
-  if (!opt_slow_logname)
-    opt_slow_logname= make_default_log_name(buff, "-slow.log");
-  sys_var_slow_log_path.value= my_strdup(opt_slow_logname, MYF(0));
-  sys_var_slow_log_path.value_length= strlen(opt_slow_logname);
+  s= opt_slow_logname ? opt_slow_logname : make_default_log_name(buff, "-slow.log");
+  sys_var_slow_log_path.value= my_strdup(s, MYF(0));
+  sys_var_slow_log_path.value_length= strlen(s);
 
   if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
     return 1;
@@ -3280,7 +3278,7 @@ server.");
     using_update_log=1;
   }
 
-  if (plugin_init(&defaults_argc, defaults_argv, 
+  if (plugin_init(&defaults_argc, defaults_argv,
                   (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
                   (opt_help ? PLUGIN_INIT_SKIP_INITIALIZATION : 0)))
   {
@@ -3295,25 +3293,28 @@ server.");
   if (defaults_argc > 1)
   {
     int ho_error;
-    struct my_option no_opts[] =
+    char **tmp_argv= defaults_argv;
+    struct my_option no_opts[]=
     {
       {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
     };
     /*
       We need to eat any 'loose' arguments first before we conclude
-      that there are unprocessed options
+      that there are unprocessed options.
+      But we need to preserve defaults_argv pointer intact for
+      free_defaults() to work. Thus we use a copy here.
     */
     my_getopt_skip_unknown= 0;
-    
-    if ((ho_error= handle_options(&defaults_argc, &defaults_argv, no_opts,
+
+    if ((ho_error= handle_options(&defaults_argc, &tmp_argv, no_opts,
                                   get_one_option)))
       unireg_abort(ho_error);
-    
+
     if (defaults_argc)
     {
       fprintf(stderr, "%s: Too many arguments (first extra is '%s').\n"
-              "Use --verbose --help to get a list of available options\n", 
-              my_progname, *defaults_argv);
+              "Use --verbose --help to get a list of available options\n",
+              my_progname, *tmp_argv);
       unireg_abort(1);
     }
   }

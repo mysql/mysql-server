@@ -27,8 +27,6 @@
     of it in the my_option structure list in mysqld.cc
   - Don't forget to initialize new fields in global_system_variables and
     max_system_variables!
-  - If the variable should show up in 'show variables' add it to the
-    init_vars[] struct in this file
 
   NOTES:
     - Be careful with var->save_result: sys_var::check() only updates
