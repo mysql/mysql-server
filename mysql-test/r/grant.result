@@ -1116,3 +1116,78 @@ drop user юзер_юзер@localhost;
 grant select on test.* to очень_длинный_юзер@localhost;
 ERROR HY000: String 'очень_длинный_юзер' is too long for user name (should be no longer than 16)
 set names default;
+DROP DATABASE IF EXISTS mysqltest1;
+DROP DATABASE IF EXISTS mysqltest2;
+CREATE DATABASE mysqltest1;
+CREATE DATABASE mysqltest2;
+GRANT ALL PRIVILEGES ON mysqltest1.* TO mysqltest_1@localhost;
+GRANT SELECT ON mysqltest2.* TO mysqltest_1@localhost;
+CREATE PROCEDURE mysqltest1.p1() SQL SECURITY INVOKER
+SELECT 1;
+
+---> connection: bug27337_con1
+CREATE TABLE t1(c INT);
+ERROR 42000: CREATE command denied to user 'mysqltest_1'@'localhost' for table 't1'
+CALL mysqltest1.p1();
+1
+1
+CREATE TABLE t1(c INT);
+ERROR 42000: CREATE command denied to user 'mysqltest_1'@'localhost' for table 't1'
+
+---> connection: bug27337_con2
+CREATE TABLE t1(c INT);
+ERROR 42000: CREATE command denied to user 'mysqltest_1'@'localhost' for table 't1'
+SHOW TABLES;
+Tables_in_mysqltest2
+
+---> connection: default
+DROP DATABASE mysqltest1;
+DROP DATABASE mysqltest2;
+DROP USER mysqltest_1@localhost;
+DROP DATABASE IF EXISTS mysqltest1;
+DROP DATABASE IF EXISTS mysqltest2;
+CREATE DATABASE mysqltest1;
+CREATE DATABASE mysqltest2;
+CREATE TABLE mysqltest1.t1(c INT);
+CREATE TABLE mysqltest2.t2(c INT);
+GRANT SELECT ON mysqltest1.t1 TO mysqltest_1@localhost;
+GRANT SELECT ON mysqltest2.t2 TO mysqltest_2@localhost;
+
+---> connection: bug27337_con1
+SHOW TABLES FROM mysqltest1;
+Tables_in_mysqltest1
+t1
+PREPARE stmt1 FROM 'SHOW TABLES FROM mysqltest1';
+EXECUTE stmt1;
+Tables_in_mysqltest1
+t1
+
+---> connection: bug27337_con2
+SHOW COLUMNS FROM mysqltest2.t2;
+Field	Type	Null	Key	Default	Extra
+c	int(11)	YES		NULL	
+PREPARE stmt2 FROM 'SHOW COLUMNS FROM mysqltest2.t2';
+EXECUTE stmt2;
+Field	Type	Null	Key	Default	Extra
+c	int(11)	YES		NULL	
+
+---> connection: default
+REVOKE SELECT ON mysqltest1.t1 FROM mysqltest_1@localhost;
+REVOKE SELECT ON mysqltest2.t2 FROM mysqltest_2@localhost;
+
+---> connection: bug27337_con1
+SHOW TABLES FROM mysqltest1;
+ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysqltest1'
+EXECUTE stmt1;
+ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysqltest1'
+
+---> connection: bug27337_con2
+SHOW COLUMNS FROM mysqltest2.t2;
+ERROR 42000: SELECT command denied to user 'mysqltest_2'@'localhost' for table 't2'
+EXECUTE stmt2;
+ERROR 42000: SELECT command denied to user 'mysqltest_2'@'localhost' for table 't2'
+
+---> connection: default
+DROP DATABASE mysqltest1;
+DROP DATABASE mysqltest2;
+DROP USER mysqltest_1@localhost;
