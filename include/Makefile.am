@@ -23,7 +23,7 @@ HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
 pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			my_xml.h mysql_embed.h \
 		  	my_pthread.h my_no_pthread.h \
-			errmsg.h my_global.h my_net.h \
+			decimal.h errmsg.h my_global.h my_net.h \
 			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
 			m_ctype.h mysql/plugin.h $(HEADERS_GEN)
@@ -34,7 +34,7 @@ noinst_HEADERS =	config-win.h config-netware.h \
 			my_nosys.h my_alarm.h queues.h rijndael.h sha1.h \
 			my_aes.h my_tree.h my_trie.h hash.h thr_alarm.h \
 			thr_lock.h t_ctype.h violite.h md5.h base64.h \
-			mysql_version.h.in my_handler.h my_time.h decimal.h \
+			mysql_version.h.in my_handler.h my_time.h \
 			my_vle.h my_user.h my_atomic.h atomic/nolock.h \
 			atomic/rwlock.h atomic/x86-gcc.h atomic/x86-msvc.h \
 			my_libwrap.h
