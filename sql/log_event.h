@@ -669,7 +669,7 @@ public:
     execution time, which guarantees good replication (otherwise, we
     could have a query and its event with different timestamps).
   */
-  my_time_t when;
+  time_t when;
   /* The number of seconds the query took to run on the master. */
   ulong exec_time;
   /* Number of bytes written by write() function */
@@ -2146,9 +2146,9 @@ public:
 
   virtual ~Rows_log_event();
 
-  void set_flags(flag_set flags) { m_flags |= flags; }
-  void clear_flags(flag_set flags) { m_flags &= ~flags; }
-  flag_set get_flags(flag_set flags) const { return m_flags & flags; }
+  void set_flags(flag_set flags_arg) { m_flags |= flags_arg; }
+  void clear_flags(flag_set flags_arg) { m_flags &= ~flags_arg; }
+  flag_set get_flags(flag_set flags_arg) const { return m_flags & flags_arg; }
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   virtual void pack_info(Protocol *protocol);

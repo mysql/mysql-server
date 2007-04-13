@@ -5753,8 +5753,7 @@ int Rows_log_event::get_data_size()
 
 
 #ifndef MYSQL_CLIENT
-int Rows_log_event::do_add_row_data(byte *const row_data,
-                                    my_size_t const length)
+int Rows_log_event::do_add_row_data(byte *row_data, my_size_t length)
 {
   /*
     When the table has a primary key, we would probably want, by default, to
