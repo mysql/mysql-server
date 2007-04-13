@@ -64,7 +64,7 @@ public:
       size  Number of elements in array 'types'
    */
   table_def(field_type *types, my_size_t size)
-    : m_type(types), m_size(size)
+    : m_size(size), m_type(types)
   {
   }
 

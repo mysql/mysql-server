@@ -6771,7 +6771,7 @@ ha_innobase::store_lock(
 						ha_tx_isolation());
 	}
 
-	DBUG_ASSERT(thd == ha_thd());
+	DBUG_ASSERT(thd == current_thd);
 	const bool in_lock_tables = thd_in_lock_tables(thd);
 	const uint sql_command = ha_sql_command();
 

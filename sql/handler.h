@@ -1516,6 +1516,10 @@ public:
 
   /* lock_count() can be more than one if the table is a MERGE */
   virtual uint lock_count(void) const { return 1; }
+  /*
+    NOTE that one can NOT rely on table->in_use in store_lock().  It may
+    refer to a different thread if called from mysql_lock_abort_for_thread().
+  */
   virtual THR_LOCK_DATA **store_lock(THD *thd,
 				     THR_LOCK_DATA **to,
 				     enum thr_lock_type lock_type)=0;

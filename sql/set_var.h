@@ -641,12 +641,12 @@ public:
 
 class sys_var_character_set_sv :public sys_var_character_set
 {
-  CHARSET_INFO **global_default;
   CHARSET_INFO *SV::*offset;
+  CHARSET_INFO **global_default;
 public:
   sys_var_character_set_sv(sys_var_chain *chain, const char *name_arg,
                             CHARSET_INFO *SV::*offset_arg,
-                            CHARSET_INFO **global_default_arg, 
+                            CHARSET_INFO **global_default_arg,
                             bool is_nullable= 0)
     : sys_var_character_set(name_arg, is_nullable),
       offset(offset_arg), global_default(global_default_arg)
@@ -668,8 +668,8 @@ public:
 
 class sys_var_collation_sv :public sys_var_collation
 {
-  CHARSET_INFO **global_default;
   CHARSET_INFO *SV::*offset;
+  CHARSET_INFO **global_default;
 public:
   sys_var_collation_sv(sys_var_chain *chain, const char *name_arg,
                                CHARSET_INFO *SV::*offset_arg,

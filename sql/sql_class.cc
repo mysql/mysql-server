@@ -227,8 +227,8 @@ int thd_sql_command(const THD *thd)
     pointer to string
 */
 extern "C"
-char *thd_security_context(THD *thd, char *buffer, int length,
-                           int max_query_len)
+char *thd_security_context(THD *thd, char *buffer, unsigned int length,
+                           unsigned int max_query_len)
 {
   String str(buffer, length, &my_charset_latin1);
   const Security_context *sctx= &thd->main_security_ctx;
@@ -293,13 +293,16 @@ THD::THD()
    user_time(0), in_sub_stmt(0),
    binlog_table_maps(0),
    global_read_lock(0), is_fatal_error(0),
-   rand_used(0), time_zone_used(0),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
    first_successful_insert_id_in_prev_stmt_for_binlog(0),
    first_successful_insert_id_in_cur_stmt(0),
-   in_lock_tables(0), bootstrap(0), derived_tables_processing(FALSE),
+   rand_used(0),
+   time_zone_used(0),
+   in_lock_tables(0),
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
+   bootstrap(0),
+   derived_tables_processing(FALSE),
    spcont(NULL)
 {
   ulong tmp;
@@ -1765,15 +1768,16 @@ void Query_arena::cleanup_stmt()
 }
 
 /*
-  Statement functions 
+  Statement functions
 */
 
 Statement::Statement(enum enum_state state_arg, ulong id_arg,
                      ulong alloc_block_size, ulong prealloc_size)
   :Query_arena(&main_mem_root, state_arg),
+  main_lex(),
   id(id_arg),
   mark_used_columns(MARK_COLUMNS_READ),
-  main_lex(), lex(&main_lex),
+  lex(&main_lex),
   query(0),
   query_length(0),
   cursor(0)
