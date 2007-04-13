@@ -656,6 +656,18 @@ public:
   }
   
   bool set_user(char *user_arg);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  bool
+  change_security_context(THD *thd,
+                          LEX_STRING *definer_user,
+                          LEX_STRING *definer_host,
+                          LEX_STRING *db,
+                          Security_context **backup);
+
+  void
+  restore_security_context(THD *thd, Security_context *backup);
+#endif
 };
 
 

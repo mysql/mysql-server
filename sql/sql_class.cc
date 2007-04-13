@@ -2119,6 +2119,102 @@ bool Security_context::set_user(char *user_arg)
   return user == 0;
 }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+/**
+  Initialize this security context from the passed in credentials
+  and activate it in the current thread.
+
+  @param[out]  backup  Save a pointer to the current security context
+                       in the thread. In case of success it points to the
+                       saved old context, otherwise it points to NULL.
+
+
+  During execution of a statement, multiple security contexts may
+  be needed:
+  - the security context of the authenticated user, used as the
+    default security context for all top-level statements
+  - in case of a view or a stored program, possibly the security
+    context of the definer of the routine, if the object is
+    defined with SQL SECURITY DEFINER option.
+
+  The currently "active" security context is parameterized in THD
+  member security_ctx. By default, after a connection is
+  established, this member points at the "main" security context
+  - the credentials of the authenticated user.
+
+  Later, if we would like to execute some sub-statement or a part
+  of a statement under credentials of a different user, e.g.
+  definer of a procedure, we authenticate this user in a local
+  instance of Security_context by means of this method (and
+  ultimately by means of acl_getroot_no_password), and make the
+  local instance active in the thread by re-setting
+  thd->security_ctx pointer.
+
+  Note, that the life cycle and memory management of the "main" and
+  temporary security contexts are different.
+  For the main security context, the memory for user/host/ip is
+  allocated on system heap, and the THD class frees this memory in
+  its destructor. The only case when contents of the main security
+  context may change during its life time is when someone issued
+  CHANGE USER command.
+  Memory management of a "temporary" security context is
+  responsibility of the module that creates it.
+
+  @retval TRUE  there is no user with the given credentials. The erro
+                is reported in the thread.
+  @retval FALSE success
+*/
+
+bool
+Security_context::
+change_security_context(THD *thd,
+                        LEX_STRING *definer_user,
+                        LEX_STRING *definer_host,
+                        LEX_STRING *db,
+                        Security_context **backup)
+{
+  bool needs_change;
+
+  DBUG_ENTER("Security_context::change_security_context");
+
+  DBUG_ASSERT(definer_user->str && definer_host->str);
+
+  *backup= NULL;
+  /*
+    The current security context may have NULL members
+    if we have just started the thread and not authenticated
+    any user. This use case is currently in events worker thread.
+  */
+  needs_change= (thd->security_ctx->priv_user == NULL ||
+                 strcmp(definer_user->str, thd->security_ctx->priv_user) ||
+                 thd->security_ctx->priv_host == NULL ||
+                 my_strcasecmp(system_charset_info, definer_host->str,
+                               thd->security_ctx->priv_host));
+  if (needs_change)
+  {
+    if (acl_getroot_no_password(this, definer_user->str, definer_host->str,
+                                definer_host->str, db->str))
+    {
+      my_error(ER_NO_SUCH_USER, MYF(0), definer_user->str,
+               definer_host->str);
+      DBUG_RETURN(TRUE);
+    }
+    *backup= thd->security_ctx;
+    thd->security_ctx= this;
+  }
+
+  DBUG_RETURN(FALSE);
+}
+
+
+void
+Security_context::restore_security_context(THD *thd,
+                                           Security_context *backup)
+{
+  if (backup)
+    thd->security_ctx= backup;
+}
+#endif
 
 /****************************************************************************
   Handling of open and locked tables states.
