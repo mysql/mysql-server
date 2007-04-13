@@ -669,7 +669,7 @@ public:
     execution time, which guarantees good replication (otherwise, we
     could have a query and its event with different timestamps).
   */
-  time_t when;
+  my_time_t when;
   /* The number of seconds the query took to run on the master. */
   ulong exec_time;
   /* Number of bytes written by write() function */
