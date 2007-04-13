@@ -54,6 +54,21 @@ for arg do
   esac
 done
 
+# Avoid too long command lines for cp (bug#27489)
+MCP() {
+  for i
+  do
+    last=$i
+  done
+  for i
+  do
+    if test "x$i" != "x$last"
+    then
+      cp -p $i $last
+    fi
+  done
+}
+
 # Remove vendor from $system
 system=`echo $system | sed -e 's/[a-z]*-\(.*\)/\1/g'`
 
@@ -117,7 +132,12 @@ if [ $BASE_SYSTEM != "netware" ] ; then
  chmod o-rwx $BASE/data $BASE/data/*
 fi
 
-# Copy files if they exists, warn for those that don't
+# Copy files if they exists, warn for those that don't.
+# Note that when listing files to copy, we might list the file name
+# twice, once in the directory location where it is build, and a
+# second time in the ".libs" location. In the case the firs one
+# is a wrapper script, the second one will overwrite it with the
+# binary file.
 copyfileto()
 {
   destdir=$1
@@ -168,6 +188,7 @@ if [ $BASE_SYSTEM = "netware" ] ; then
 # For all other platforms:
 else
   BIN_FILES="$BIN_FILES \
+    server-tools/instance-manager/.libs/mysqlmanager \
     client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \
     client/.libs/mysqlslap \
     client/.libs/mysqldump client/.libs/mysqlimport \
@@ -253,25 +274,25 @@ copyfileto $BASE/mysql-test \
 	 mysql-test/valgrind.supp \
          netware/mysql_test_run.nlm netware/install_test_db.ncf
 
-$CP mysql-test/lib/*.pl  $BASE/mysql-test/lib
-$CP mysql-test/t/*.def $BASE/mysql-test/t
-$CP mysql-test/include/*.inc $BASE/mysql-test/include
-$CP mysql-test/include/*.test $BASE/mysql-test/include
-$CP mysql-test/t/*.def $BASE/mysql-test/t
-$CP mysql-test/std_data/*.dat mysql-test/std_data/*.frm \
+MCP mysql-test/lib/*.pl  $BASE/mysql-test/lib
+MCP mysql-test/t/*.def $BASE/mysql-test/t
+MCP mysql-test/include/*.inc $BASE/mysql-test/include
+MCP mysql-test/include/*.test $BASE/mysql-test/include
+MCP mysql-test/t/*.def $BASE/mysql-test/t
+MCP mysql-test/std_data/*.dat mysql-test/std_data/*.frm \
     mysql-test/std_data/*.MYD mysql-test/std_data/*.MYI \
     mysql-test/std_data/*.pem mysql-test/std_data/Moscow_leap \
     mysql-test/std_data/des_key_file mysql-test/std_data/*.*001 \
     mysql-test/std_data/*.cnf mysql-test/std_data/*.MY* \
     $BASE/mysql-test/std_data
-$CP mysql-test/t/*.test $BASE/mysql-test/t
-$CP mysql-test/t/*.imtest mysql-test/t/*.disabled $BASE/mysql-test/t
-$CP mysql-test/t/*.opt mysql-test/t/*.slave-mi $BASE/mysql-test/t
-$CP mysql-test/t/*.sh mysql-test/t/*.sql $BASE/mysql-test/t
-$CP mysql-test/r/*.result  $BASE/mysql-test/r
-$CP mysql-test/r/*.require $BASE/mysql-test/r
-$CP mysql-test/extra/binlog_tests/*.test $BASE/mysql-test/extra/binlog_tests
-$CP mysql-test/extra/rpl_tests/*.test $BASE/mysql-test/extra/rpl_tests
+MCP mysql-test/t/*.test $BASE/mysql-test/t
+MCP mysql-test/t/*.imtest mysql-test/t/*.disabled $BASE/mysql-test/t
+MCP mysql-test/t/*.opt mysql-test/t/*.slave-mi $BASE/mysql-test/t
+MCP mysql-test/t/*.sh mysql-test/t/*.sql $BASE/mysql-test/t
+MCP mysql-test/r/*.result  $BASE/mysql-test/r
+MCP mysql-test/r/*.require $BASE/mysql-test/r
+MCP mysql-test/extra/binlog_tests/*.test $BASE/mysql-test/extra/binlog_tests
+MCP mysql-test/extra/rpl_tests/*.test $BASE/mysql-test/extra/rpl_tests
 
 if [ $BASE_SYSTEM != "netware" ] ; then
   chmod a+x $BASE/bin/*

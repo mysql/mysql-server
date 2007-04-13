@@ -2,8 +2,8 @@
 # t/partition_supported_sql_funcs_innodb.test                                  #
 #                                                                              #
 # Purpose:                                                                     #
-#  Tests around sql functions                                                  #
-#        INNODB branch                                                         #
+#  Tests which SQL functions are allowed in partinioning clauses with          #
+#  INNODB.                                                                     #
 #                                                                              #
 #------------------------------------------------------------------------------#
 # Original Author: HH                                                          #
@@ -18,16 +18,12 @@
 #       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
 #       THE SOURCED FILES ONLY.
 #
-# Please read the README at the end of include/partition.pre before changing
-# any of the variables.
-#
-
 #------------------------------------------------------------------------------#
 # General not engine specific settings and requirements
 
 ##### Options, for debugging support #####
 let $debug= 0;
-let $do_long_tests= 0;
+let $do_long_tests= 1;
 
 # The server must support partitioning.
 --source include/have_partition.inc

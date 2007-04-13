@@ -1,7 +1,7 @@
 ################################################################################
-# t/partition_supported_sql_funcs.inc   #                                                                              #
+# t/partition_supported_sql_funcs.inc                                          #           #                                                                              #
 # Purpose:                                                                     #
-#  Tests around sql functions                                                  #
+#  Tests frame for allowed sql functions                                       #
 #                                                                              #
 #                                                                              #
 #------------------------------------------------------------------------------#
@@ -83,24 +83,23 @@ eval insert into t3 values ($val1);
 eval insert into t3 values ($val2);
 eval insert into t3 values ($val3);
 
-eval insert into t4 values (1,$val1);
-eval insert into t4 values (2,$val2);
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval load data infile '$MYSQL_TEST_DIR/suite/partitions/include/$infile' into table t4;
 
-eval insert into t5 values (1,$val1);
-eval insert into t5 values (2,$val2);
-eval insert into t5 values (3,$val3);
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval load data infile '$MYSQL_TEST_DIR/suite/partitions/include/$infile' into table t5;
 
-eval insert into t6 values (1,$val2);
-eval insert into t6 values (2,$val3);
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval load data infile '$MYSQL_TEST_DIR/suite/partitions/include/$infile' into table t6;
 
-eval select $sqlfunc from t1;
+eval select $sqlfunc from t1 order by col1;
 
-select * from t1;
-select * from t2;
-select * from t3;
-select * from t4;
-select * from t5;
-select * from t6;
+select * from t1 order by col1;
+select * from t2 order by col1;
+select * from t3 order by col1;
+select * from t4 order by colint;
+select * from t5 order by colint;
+select * from t6 order by colint;
 
 if ($do_long_tests)
 {
@@ -111,12 +110,12 @@ if ($do_long_tests)
 	eval update t5 set col1=$val4 where col1=$val1;
 	eval update t6 set col1=$val4 where col1=$val1;
 
-	select * from t1;
-	select * from t2;
-	select * from t3;
-	select * from t4;
-	select * from t5;
-	select * from t6;
+	select * from t1 order by col1;
+	select * from t2 order by col1;
+	select * from t3 order by col1;
+	select * from t4 order by colint;
+	select * from t5 order by colint;
+	select * from t6 order by colint;
 }
 
 --echo -------------------------------------------------------------------------
@@ -175,46 +174,63 @@ partition by range(colint)
 (partition p0 values less than ($valsqlfunc),
  partition p1 values less than maxvalue);
 
-select * from t11;
-select * from t22;
-select * from t33;
-select * from t44;
-select * from t55;
-select * from t66;
+select * from t11 order by col1;
+select * from t22 order by col1;
+select * from t33 order by col1;
+select * from t44 order by colint;
+select * from t55 order by colint;
+select * from t66 order by colint;
  
 if ($do_long_tests)
 {
+        --echo ---------------------------
+        --echo ---- some alter table begin
+        --echo ---------------------------
 	eval alter table t11
 	reorganize partition p0,p1 into
 	(partition s1 values less than maxvalue);
-	select * from t11;
+	select * from t11 order by col1;
 
 	eval alter table t11
 	reorganize partition s1 into
 	(partition p0 values less than (15),
 	 partition p1 values less than maxvalue);
-	select * from t11;
+	select * from t11 order by col1;
+
+eval alter table t55
+partition by list(colint)
+subpartition by hash($sqlfunc) subpartitions 5 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+ partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+ partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+ partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+        show create table t55; 
+	select * from t55 order by colint;
 
 	eval alter table t66
 	reorganize partition p0,p1 into
 	(partition s1 values less than maxvalue);
-	select * from t66;
+	select * from t66 order by colint;
 
 	eval alter table t66
 	reorganize partition s1 into
 	(partition p0 values less than ($valsqlfunc),
 	 partition p1 values less than maxvalue);
-	select * from t66;
+	select * from t66 order by colint;
 	
 	eval alter table t66
         reorganize partition p0,p1 into
         (partition s1 values less than maxvalue);
-        select * from t66;
+        select * from t66 order by colint;
 
-        eval alter table t66
-        add partition s0 
-        (partition p0 values less than ($valsqlfunc);
-        select * fromt t66;
+	eval alter table t66
+        reorganize partition s1 into
+	(partition p0 values less than ($valsqlfunc),
+	 partition p1 values less than maxvalue);
+        select * from t66 order by colint;
 
 	let $t1=t1;
 	let $t2=t2;
@@ -233,6 +249,9 @@ if ($do_long_tests)
 	let $t6=t66;
 	--source suite/partitions/include/partition_supported_sql_funcs_delete.inc
 	# --source include/partition_supported_sql_funcs_delete.inc
+        --echo -------------------------
+        --echo ---- some alter table end
+        --echo -------------------------
 }
 --disable_warnings
 drop table if exists t1 ;
