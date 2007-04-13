@@ -571,6 +571,7 @@ sub command_line_setup () {
              'manual-debug'             => \$opt_manual_debug,
              'ddd'                      => \$opt_ddd,
              'client-ddd'               => \$opt_client_ddd,
+             'manual-ddd'               => \$opt_manual_ddd,
 	     'debugger=s'               => \$opt_debugger,
 	     'client-debugger=s'        => \$opt_client_debugger,
              'strace-client'            => \$opt_strace_client,
@@ -4847,8 +4848,7 @@ sub gdb_arguments {
   if ( $opt_manual_gdb )
   {
      print "\nTo start gdb for $type, type in another window:\n";
-     print "cd $glob_mysql_test_dir;\n";
-     print "gdb -x $gdb_init_file $$exe\n";
+     print "gdb -cd $glob_mysql_test_dir -x $gdb_init_file $$exe\n";
 
      # Indicate the exe should not be started
      $$exe= undef;
@@ -4912,8 +4912,7 @@ sub ddd_arguments {
   if ( $opt_manual_ddd )
   {
      print "\nTo start ddd for $type, type in another window:\n";
-     print "cd $glob_mysql_test_dir;\n";
-     print "ddd -x $gdb_init_file $$exe\n";
+     print "ddd -cd $glob_mysql_test_dir -x $gdb_init_file $$exe\n";
 
      # Indicate the exe should not be started
      $$exe= undef;
@@ -5131,6 +5130,8 @@ Options for debugging the product
   manual-debug          Let user manually start mysqld in debugger, before
                         running test(s)
   manual-gdb            Let user manually start mysqld in gdb, before running
+                        test(s)
+  manual-ddd            Let user manually start mysqld in ddd, before running
                         test(s)
   master-binary=PATH    Specify the master "mysqld" to use
   slave-binary=PATH     Specify the slave "mysqld" to use
