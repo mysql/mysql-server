@@ -1358,8 +1358,8 @@ void log_slow_statement(THD *thd)
 int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
                          enum enum_schema_tables schema_table_idx)
 {
-  DBUG_ENTER("prepare_schema_table");
   SELECT_LEX *schema_select_lex= NULL;
+  DBUG_ENTER("prepare_schema_table");
 
   switch (schema_table_idx) {
   case SCH_SCHEMATA:
@@ -1393,6 +1393,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       db.str= schema_select_lex->db= lex->select_lex.db;
       schema_select_lex->table_list.first= NULL;
       db.length= strlen(db.str);
+
       if (check_db_name(&db))
       {
         my_error(ER_WRONG_DB_NAME, MYF(0), db.str);
@@ -1403,32 +1404,23 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
 #endif
   case SCH_COLUMNS:
   case SCH_STATISTICS:
+  {
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     my_message(ER_NOT_ALLOWED_COMMAND,
                ER(ER_NOT_ALLOWED_COMMAND), MYF(0)); /* purecov: inspected */
     DBUG_RETURN(1);
 #else
-    if (table_ident)
-    {
-      TABLE_LIST **query_tables_last= lex->query_tables_last;
-      sel= new SELECT_LEX();
-      /* 'parent_lex' is used in init_query() so it must be before it. */
-      sel->parent_lex= lex;
-      sel->init_query();
-      if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ))
-        DBUG_RETURN(1);
-      lex->query_tables_last= query_tables_last;
-      TABLE_LIST *table_list= (TABLE_LIST*) sel->table_list.first;
-      char *db= table_list->db;
-      if (check_access(thd,SELECT_ACL | EXTRA_ACL,db,
-                       &table_list->grant.privilege, 0, 0,
-                       test(table_list->schema_table)))
-        DBUG_RETURN(1);				/* purecov: inspected */
-      if (grant_option && check_grant(thd, SELECT_ACL, table_list, 2,
-                                      UINT_MAX, 0))
-        DBUG_RETURN(1);
-      break;
-    }
+    DBUG_ASSERT(table_ident);
+    TABLE_LIST **query_tables_last= lex->query_tables_last;
+    schema_select_lex= new SELECT_LEX();
+    /* 'parent_lex' is used in init_query() so it must be before it. */
+    schema_select_lex->parent_lex= lex;
+    schema_select_lex->init_query();
+    if (!schema_select_lex->add_table_to_list(thd, table_ident, 0, 0, TL_READ))
+      DBUG_RETURN(1);
+    lex->query_tables_last= query_tables_last;
+    break;
+  }
 #endif
   case SCH_OPEN_TABLES:
   case SCH_VARIABLES:
@@ -1454,7 +1446,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     DBUG_RETURN(1);
   }
   TABLE_LIST *table_list= (TABLE_LIST*) select_lex->table_list.first;
-  table_list->schema_select_lex= sel;
+  table_list->schema_select_lex= schema_select_lex;
   table_list->schema_table_reformed= 1;
   DBUG_RETURN(0);
 }
@@ -4691,74 +4683,57 @@ bool check_global_access(THD *thd, ulong want_access)
 
 static bool check_show_access(THD *thd, TABLE_LIST *table)
 {
-  switch (get_schema_table_idx(table->schema_table))
-  {
+  switch (get_schema_table_idx(table->schema_table)) {
   case SCH_SCHEMATA:
     return (specialflag & SPECIAL_SKIP_SHOW_DB) &&
-           check_global_access(thd, SHOW_DB_ACL);
+      check_global_access(thd, SHOW_DB_ACL);
 
   case SCH_TABLE_NAMES:
   case SCH_TABLES:
   case SCH_VIEWS:
   case SCH_TRIGGERS:
+  case SCH_EVENTS:
+  {
+    const char *dst_db_name= table->schema_select_lex->db;
+
+    DBUG_ASSERT(dst_db_name);
+
+    if (check_access(thd, SELECT_ACL, dst_db_name,
+                     &thd->col_access, FALSE, FALSE,
+                     is_schema_db(dst_db_name)))
+      return TRUE;
+
+    if (!thd->col_access && check_grant_db(thd, dst_db_name))
     {
-      const char *dst_db_name= table->schema_select_lex->db;
-
-      DBUG_ASSERT(dst_db_name);
-
-      if (check_access(thd, SELECT_ACL, dst_db_name,
-                       &thd->col_access, FALSE, FALSE,
-                       is_schema_db(dst_db_name)))
-      {
-        return TRUE;
-      }
-
-      if (!thd->col_access && check_grant_db(thd, dst_db_name))
-      {
-        my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-                 thd->security_ctx->priv_user,
-                 thd->security_ctx->priv_host,
-                 dst_db_name);
-        return TRUE;
-      }
-
-      return FALSE;
+      my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
+               thd->security_ctx->priv_user,
+               thd->security_ctx->priv_host,
+               dst_db_name);
+      return TRUE;
     }
+
+    return FALSE;
+  }
 
   case SCH_COLUMNS:
   case SCH_STATISTICS:
-    {
-      TABLE_LIST *dst_table=
-        (TABLE_LIST *) table->schema_select_lex->table_list.first;
+  {
+    TABLE_LIST *dst_table;
+    dst_table= (TABLE_LIST *) table->schema_select_lex->table_list.first;
 
-      DBUG_ASSERT(dst_table);
+    DBUG_ASSERT(dst_table);
 
-      if (check_access(thd, SELECT_ACL | EXTRA_ACL,
-                       dst_table->db,
-                       &dst_table->grant.privilege,
-                       FALSE, FALSE,
-                       test(dst_table->schema_table)))
-      {
-        return FALSE;
-      }
+    if (check_access(thd, SELECT_ACL | EXTRA_ACL,
+                     dst_table->db,
+                     &dst_table->grant.privilege,
+                     FALSE, FALSE,
+                     test(dst_table->schema_table)))
+      return FALSE;
 
-      return grant_option &&
-             check_grant(thd, SELECT_ACL, dst_table, 2, UINT_MAX, FALSE);
-    }
-
-  case SCH_OPEN_TABLES:
-  case SCH_VARIABLES:
-  case SCH_STATUS:
-  case SCH_PROCEDURES:
-  case SCH_CHARSETS:
-  case SCH_COLLATIONS:
-  case SCH_COLLATION_CHARACTER_SET_APPLICABILITY:
-  case SCH_USER_PRIVILEGES:
-  case SCH_SCHEMA_PRIVILEGES:
-  case SCH_TABLE_PRIVILEGES:
-  case SCH_COLUMN_PRIVILEGES:
-  case SCH_TABLE_CONSTRAINTS:
-  case SCH_KEY_COLUMN_USAGE:
+    return (grant_option &&
+            check_grant(thd, SELECT_ACL, dst_table, 2, UINT_MAX, FALSE));
+  }
+  default:
     break;
   }
 
@@ -4826,7 +4801,16 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
        Remove SHOW_VIEW_ACL, because it will be checked during making view
      */
     tables->grant.orig_want_privilege= (want_access & ~SHOW_VIEW_ACL);
-    if (tables->derived || tables->schema_table ||
+
+    if (tables->schema_table_reformed)
+    {
+      if (check_show_access(thd, tables))
+        goto deny;
+
+      continue;
+    }
+
+    if (tables->derived ||
         (tables->table && (int)tables->table->s->tmp_table))
       continue;
     thd->security_ctx= sctx;
