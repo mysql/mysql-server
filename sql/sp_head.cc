@@ -1232,7 +1232,11 @@ set_routine_security_ctx(THD *thd, sp_head *sp, bool is_proc,
                          Security_context **save_ctx)
 {
   *save_ctx= 0;
-  if (sp_change_security_context(thd, sp, save_ctx))
+  if (sp->m_chistics->suid != SP_IS_NOT_SUID &&
+      sp->m_security_ctx.change_security_context(thd, &sp->m_definer_user,
+                                                 &sp->m_definer_host,
+                                                 &sp->m_db,
+                                                 save_ctx))
     return TRUE;
 
   /*
@@ -1249,7 +1253,7 @@ set_routine_security_ctx(THD *thd, sp_head *sp, bool is_proc,
       check_routine_access(thd, EXECUTE_ACL,
                            sp->m_db.str, sp->m_name.str, is_proc, FALSE))
   {
-    sp_restore_security_context(thd, *save_ctx);
+    sp->m_security_ctx.restore_security_context(thd, *save_ctx);
     *save_ctx= 0;
     return TRUE;
   }
@@ -1560,7 +1564,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  sp_restore_security_context(thd, save_security_ctx);
+  m_security_ctx.restore_security_context(thd, save_security_ctx);
 #endif
 
 err_with_cleanup:
@@ -1778,7 +1782,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (save_security_ctx)
-    sp_restore_security_context(thd, save_security_ctx);
+    m_security_ctx.restore_security_context(thd, save_security_ctx);
 #endif
 
   if (!save_spcont)
@@ -3418,44 +3422,6 @@ sp_instr_set_case_expr::opt_move(uint dst, List<sp_instr> *bp)
 
 /* ------------------------------------------------------------------ */
 
-/*
-  Security context swapping
-*/
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-bool
-sp_change_security_context(THD *thd, sp_head *sp, Security_context **backup)
-{
-  *backup= 0;
-  if (sp->m_chistics->suid != SP_IS_NOT_SUID &&
-      (strcmp(sp->m_definer_user.str,
-              thd->security_ctx->priv_user) ||
-       my_strcasecmp(system_charset_info, sp->m_definer_host.str,
-                     thd->security_ctx->priv_host)))
-  {
-    if (acl_getroot_no_password(&sp->m_security_ctx, sp->m_definer_user.str,
-                                sp->m_definer_host.str,
-                                sp->m_definer_host.str,
-                                sp->m_db.str))
-    {
-      my_error(ER_NO_SUCH_USER, MYF(0), sp->m_definer_user.str,
-               sp->m_definer_host.str);
-      return TRUE;
-    }
-    *backup= thd->security_ctx;
-    thd->security_ctx= &sp->m_security_ctx;
-  }
-  return FALSE;
-}
-
-void
-sp_restore_security_context(THD *thd, Security_context *backup)
-{
-  if (backup)
-    thd->security_ctx= backup;
-}
-
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 /*
   Structure that represent all instances of one table
