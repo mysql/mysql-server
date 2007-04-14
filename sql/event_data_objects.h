@@ -184,6 +184,8 @@ public:
 private:
   bool
   construct_sp_sql(THD *thd, String *sp_sql);
+  bool
+  construct_drop_event_sql(THD *thd, String *sp_sql);
 
   Event_job_data(const Event_job_data &);       /* Prevent use of these */
   void operator=(Event_job_data &);
