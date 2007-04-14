@@ -424,7 +424,8 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
       if (event_queue)
         event_queue->create_event(thd, new_element, &created);
       /* Binlog the create event. */
-      if (mysql_bin_log.is_open() && (thd->query_length > 0))
+      DBUG_ASSERT(thd->query && thd->query_length);
+      if (mysql_bin_log.is_open())
       {
         thd->clear_error();
         thd->binlog_query(THD::MYSQL_QUERY_TYPE,
@@ -549,7 +550,8 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
         event_queue->update_event(thd, parse_data->dbname, parse_data->name,
                                   new_element);
       /* Binlog the alter event. */
-      if (mysql_bin_log.is_open() && (thd->query_length > 0))
+      DBUG_ASSERT(thd->query && thd->query_length);
+      if (mysql_bin_log.is_open())
       {
         thd->clear_error();
         thd->binlog_query(THD::MYSQL_QUERY_TYPE,
@@ -628,7 +630,8 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
     if (event_queue)
       event_queue->drop_event(thd, dbname, name);
     /* Binlog the drop event. */
-    if (mysql_bin_log.is_open() && (thd->query_length > 0))
+    DBUG_ASSERT(thd->query && thd->query_length);
+    if (mysql_bin_log.is_open())
     {
       thd->clear_error();
       thd->binlog_query(THD::MYSQL_QUERY_TYPE,
