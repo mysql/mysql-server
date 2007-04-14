@@ -2,7 +2,7 @@ dnl Define zlib paths to point at bundled zlib
 
 AC_DEFUN([MYSQL_USE_BUNDLED_ZLIB], [
 ZLIB_INCLUDES="-I\$(top_srcdir)/zlib"
-ZLIB_LIBS="\$(top_builddir)/zlib/libz.la"
+ZLIB_LIBS="\$(top_builddir)/zlib/libzlt.la"
 dnl Omit -L$pkglibdir as it's always in the list of mysql_config deps.
 ZLIB_DEPS="-lz"
 zlib_dir="zlib"
@@ -10,16 +10,25 @@ AC_SUBST([zlib_dir])
 mysql_cv_compress="yes"
 ])
 
-dnl Auxiliary macro to check for zlib at given path
+dnl Auxiliary macro to check for zlib at given path.
+dnl We are strict with the server, as "archive" engine
+dnl needs zlibCompileFlags(), but for client only we
+dnl are less strict, and take the zlib we find.
 
 AC_DEFUN([MYSQL_CHECK_ZLIB_DIR], [
 save_CPPFLAGS="$CPPFLAGS"
 save_LIBS="$LIBS"
 CPPFLAGS="$ZLIB_INCLUDES $CPPFLAGS"
 LIBS="$LIBS $ZLIB_LIBS"
+if test X"$with_server" = Xno
+then
+  zlibsym=zlibVersion
+else
+  zlibsym=zlibCompileFlags
+fi
 AC_CACHE_VAL([mysql_cv_compress],
   [AC_TRY_LINK([#include <zlib.h>],
-    [return zlibCompileFlags();],
+    [return $zlibsym();],
     [mysql_cv_compress="yes"
     AC_MSG_RESULT([ok])],
     [mysql_cv_compress="no"])
