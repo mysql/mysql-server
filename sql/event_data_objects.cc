@@ -1792,6 +1792,33 @@ Event_job_data::construct_sp_sql(THD *thd, String *sp_sql)
 }
 
 
+/**
+  Get DROP EVENT statement to binlog the drop of ON COMPLETION NOT
+  PRESERVE event.
+*/
+
+bool
+Event_job_data::construct_drop_event_sql(THD *thd, String *sp_sql)
+{
+  LEX_STRING buffer;
+  const uint STATIC_SQL_LENGTH= 14;
+
+  DBUG_ENTER("Event_job_data::construct_drop_event_sql");
+
+  buffer.length= STATIC_SQL_LENGTH + name.length*2 + dbname.length*2;
+  if (! (buffer.str= (char*) thd->alloc(buffer.length)))
+    DBUG_RETURN(TRUE);
+
+  sp_sql->set(buffer.str, buffer.length, system_charset_info);
+  sp_sql->length(0);
+
+  sp_sql->append(C_STRING_WITH_LEN("DROP EVENT "));
+  append_identifier(thd, sp_sql, dbname.str, dbname.length);
+  sp_sql->append('.');
+  append_identifier(thd, sp_sql, name.str, name.length);
+
+  DBUG_RETURN(thd->is_fatal_error);
+}
 
 /**
   Compiles and executes the event (the underlying sp_head object)
@@ -1804,7 +1831,9 @@ bool
 Event_job_data::execute(THD *thd, bool drop)
 {
   String sp_sql;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context event_sctx, *save_sctx= NULL;
+#endif
   CHARSET_INFO *charset_connection;
   List<Item> empty_item_list;
   bool ret= TRUE;
@@ -1916,14 +1945,25 @@ Event_job_data::execute(THD *thd, bool drop)
 end:
   if (drop && !thd->is_fatal_error)
   {
-    sql_print_information("Event Scheduler: Dropping %s.%s",
-                          (const char *) dbname.str, (const char *) name.str);
     /*
       We must do it here since here we're under the right authentication
       ID of the event definer.
     */
-    if (Events::drop_event(thd, dbname, name, FALSE))
+    sql_print_information("Event Scheduler: Dropping %s.%s",
+                          (const char *) dbname.str, (const char *) name.str);
+    /*
+      Construct a query for the binary log, to ensure the event is dropped
+      on the slave
+    */
+    if (construct_drop_event_sql(thd, &sp_sql))
       ret= 1;
+    else
+    {
+      thd->query= sp_sql.c_ptr_safe();
+      thd->query_length= sp_sql.length();
+      if (Events::drop_event(thd, dbname, name, FALSE))
+        ret= 1;
+    }
   }
   if (thd->lex->sphead)                        /* NULL only if a parse error */
   {
