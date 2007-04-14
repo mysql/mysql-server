@@ -2,8 +2,8 @@
 # t/partition_supported_sql_funcs_myisam.test                                  #
 #                                                                              #
 # Purpose:                                                                     #
-#  Tests around sql functions                                                  #
-#        MyISAM branch                                                         #
+#  Tests which SQL functions are allowed in partinioning clauses with          #
+#  MYISAM.                                                                     #
 #                                                                              #
 #------------------------------------------------------------------------------#
 # Original Author: HH                                                          #
@@ -27,7 +27,7 @@
 
 ##### Options, for debugging support #####
 let $debug= 0;
-let $do_long_tests= 0;
+let $do_long_tests= 1;
 
 # The server must support partitioning.
 --source include/have_partition.inc
