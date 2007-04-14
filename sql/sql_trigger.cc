@@ -1544,10 +1544,11 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     Security_context *sctx= &sp_trigger->m_security_ctx;
-    Security_context *save_ctx;
+    Security_context *save_ctx= NULL;
 
 
-    if (sctx->change_security_context(thd,
+    if (sp_trigger->m_chistics->suid != SP_IS_NOT_SUID &&
+        sctx->change_security_context(thd,
                                       &sp_trigger->m_definer_user,
                                       &sp_trigger->m_definer_host,
                                       &sp_trigger->m_db,
