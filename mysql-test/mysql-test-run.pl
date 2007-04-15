@@ -1330,10 +1330,13 @@ sub collect_mysqld_features () {
   my $found_variable_list_start= 0;
 
   #
-  # Execute "mysqld --no-defaults --help --verbose" to get a
+  # Execute "mysqld --help --verbose" to get a list
   # of all features and settings
   #
-  my $list= `$exe_mysqld --no-defaults --verbose --help`;
+  # --no-defaults and --skip-grant-tables are to avoid loading
+  # system-wide configs and plugins
+  #
+  my $list= `$exe_mysqld --no-defaults --skip-grant-tables --verbose --help`;
 
   foreach my $line (split('\n', $list))
   {

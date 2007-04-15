@@ -1323,6 +1323,13 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   table= tables.table;
   init_read_record(&read_record_info, new_thd, table, NULL, 1, 0);
   table->use_all_columns();
+  /*
+    there're no other threads running yet, so we don't need a mutex.
+    but plugin_add() before is designed to work in multi-threaded
+    environment, and it uses safe_mutex_assert_owner(), so we lock
+    the mutex here to satisfy the assert
+  */
+  pthread_mutex_lock(&LOCK_plugin);
   while (!(error= read_record_info.read_record(&read_record_info)))
   {
     DBUG_PRINT("info", ("init plugin record"));
@@ -1333,11 +1340,12 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     LEX_STRING name= {(char *)str_name.ptr(), str_name.length()};
     LEX_STRING dl= {(char *)str_dl.ptr(), str_dl.length()};
 
-    free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
     if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
       sql_print_warning("Couldn't load plugin named '%s' with soname '%s'.",
                         str_name.c_ptr(), str_dl.c_ptr());
+    free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
   }
+  pthread_mutex_unlock(&LOCK_plugin);
   if (error > 0)
     sql_print_error(ER(ER_GET_ERRNO), my_errno);
   end_read_record(&read_record_info);

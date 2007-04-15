@@ -3220,15 +3220,16 @@ ha_innobase::write_row(
 	longlong	auto_inc;
 	longlong	dummy;
 	ibool		auto_inc_used= FALSE;
+        THD *thd=       ha_thd();
 
 	DBUG_ENTER("ha_innobase::write_row");
 
 	if (prebuilt->trx !=
-			*(trx_t**) ha_data()) {
+			*(trx_t**) ha_data(thd)) {
 	  sql_print_error("The transaction object for the table handle is at "
 			  "%p, but for the current thread it is at %p",
 			  prebuilt->trx,
-			  *(trx_t**) ha_data());
+			  *(trx_t**) ha_data(thd));
 
 		fputs("InnoDB: Dump of 200 bytes around prebuilt: ", stderr);
 		ut_print_buf(stderr, ((const byte*)prebuilt) - 100, 200);
@@ -3236,7 +3237,7 @@ ha_innobase::write_row(
 			"InnoDB: Dump of 200 bytes around transaction.all: ",
 			stderr);
 		ut_print_buf(stderr,
-		 ((byte*)(*(trx_t**) ha_data())) - 100,
+		 ((byte*)(*(trx_t**) ha_data(thd))) - 100,
 								200);
 		putc('\n', stderr);
 		ut_error;
@@ -3247,10 +3248,10 @@ ha_innobase::write_row(
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
 		table->timestamp_field->set_time();
 
-	if ((ha_sql_command() == SQLCOM_ALTER_TABLE
-			|| ha_sql_command() == SQLCOM_OPTIMIZE
-			|| ha_sql_command() == SQLCOM_CREATE_INDEX
-			|| ha_sql_command() == SQLCOM_DROP_INDEX)
+	if ((thd_sql_command(thd) == SQLCOM_ALTER_TABLE
+			|| thd_sql_command(thd) == SQLCOM_OPTIMIZE
+			|| thd_sql_command(thd) == SQLCOM_CREATE_INDEX
+			|| thd_sql_command(thd) == SQLCOM_DROP_INDEX)
 		&& num_write_row >= 10000) {
 		/* ALTER TABLE is COMMITted at every 10000 copied rows.
 		The IX table lock for the original table has to be re-issued.
@@ -3409,9 +3410,9 @@ no_commit:
 	performing those statements. */
 
 	if (error == DB_DUPLICATE_KEY && auto_inc_used
-		&& (ha_sql_command() == SQLCOM_REPLACE
-			|| ha_sql_command() == SQLCOM_REPLACE_SELECT
-			|| (ha_sql_command() == SQLCOM_LOAD
+		&& (thd_sql_command(thd) == SQLCOM_REPLACE
+			|| thd_sql_command(thd) == SQLCOM_REPLACE_SELECT
+			|| (thd_sql_command(thd) == SQLCOM_LOAD
 				&& prebuilt->trx->allow_duplicates
 				&& prebuilt->trx->replace_duplicates))) {
 
@@ -3613,7 +3614,7 @@ ha_innobase::update_row(
 	DBUG_ENTER("ha_innobase::update_row");
 
 	ut_a(prebuilt->trx ==
-		*(trx_t**) ha_data());
+		*(trx_t**) ha_data(ha_thd()));
 
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
 		table->timestamp_field->set_time();
@@ -3674,7 +3675,7 @@ ha_innobase::delete_row(
 	DBUG_ENTER("ha_innobase::delete_row");
 
 	ut_a(prebuilt->trx ==
-		*(trx_t**) ha_data());
+		*(trx_t**) ha_data(ha_thd()));
 
 	if (last_query_id != user_thd->query_id) {
 		prebuilt->sql_stat_start = TRUE;
@@ -3772,7 +3773,7 @@ ha_innobase::try_semi_consistent_read(bool yes)
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 
 	ut_a(prebuilt->trx ==
-		*(trx_t**) ha_data());
+		*(trx_t**) ha_data(ha_thd()));
 
 	/* Row read type is set to semi consistent read if this was
 	requested by the MySQL and either innodb_locks_unsafe_for_binlog
@@ -3939,7 +3940,7 @@ ha_innobase::index_read(
 	DBUG_ENTER("index_read");
 
 	ut_a(prebuilt->trx ==
-		*(trx_t**) ha_data());
+		*(trx_t**) ha_data(ha_thd()));
 
 	ha_statistic_increment(&SSV::ha_read_key_count);
 
@@ -4052,7 +4053,7 @@ ha_innobase::change_active_index(
 
 	ut_ad(user_thd == current_thd);
 	ut_a(prebuilt->trx ==
-		*(trx_t**) ha_data());
+		*(trx_t**) ha_data(ha_thd()));
 
 	active_index = keynr;
 
@@ -4142,7 +4143,7 @@ ha_innobase::general_fetch(
 	DBUG_ENTER("general_fetch");
 
 	ut_a(prebuilt->trx ==
-		*(trx_t**) ha_data());
+		*(trx_t**) ha_data(ha_thd()));
 
 	innodb_srv_conc_enter_innodb(prebuilt->trx);
 
@@ -4371,7 +4372,7 @@ ha_innobase::rnd_pos(
 	ha_statistic_increment(&SSV::ha_read_rnd_count);
 
 	ut_a(prebuilt->trx ==
-		*(trx_t**) ha_data());
+		*(trx_t**) ha_data(ha_thd()));
 
 	if (prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
@@ -4421,7 +4422,7 @@ ha_innobase::position(
 	uint		len;
 
 	ut_a(prebuilt->trx ==
-		*(trx_t**) ha_data());
+		*(trx_t**) ha_data(ha_thd()));
 
 	if (prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
@@ -4921,7 +4922,7 @@ ha_innobase::discard_or_import_tablespace(
 
 	ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
 	ut_a(prebuilt->trx ==
-		*(trx_t**) ha_data());
+		*(trx_t**) ha_data(ha_thd()));
 
 	dict_table = prebuilt->table;
 	trx = prebuilt->trx;
@@ -4956,7 +4957,7 @@ ha_innobase::delete_all_rows(void)
 
 	update_thd(thd);
 
-	if (ha_sql_command() == SQLCOM_TRUNCATE) {
+	if (thd_sql_command(thd) == SQLCOM_TRUNCATE) {
 		/* Truncate the table in InnoDB */
 
 		error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
@@ -5250,7 +5251,7 @@ ha_innobase::records_in_range(
 	DBUG_ENTER("records_in_range");
 
 	ut_a(prebuilt->trx ==
-		*(trx_t**) ha_data());
+		*(trx_t**) ha_data(ha_thd()));
 
 	prebuilt->trx->op_info = (char*)"estimating records in index range";
 
@@ -5686,7 +5687,7 @@ ha_innobase::check(
 
 	ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
 	ut_a(prebuilt->trx ==
-		*(trx_t**) ha_data());
+		*(trx_t**) ha_data(ha_thd()));
 
 	if (prebuilt->mysql_template == NULL) {
 		/* Build the template; we will use a dummy template
@@ -5988,7 +5989,7 @@ ha_innobase::can_switch_engines(void)
 	DBUG_ENTER("ha_innobase::can_switch_engines");
 
 	ut_a(prebuilt->trx ==
-		*(trx_t**) ha_data());
+		*(trx_t**) ha_data(ha_thd()));
 
 	prebuilt->trx->op_info =
 			"determining if there are foreign key constraints";
@@ -6154,7 +6155,7 @@ ha_innobase::start_stmt(
 		prebuilt->select_lock_type = LOCK_X;
 	} else {
 		if (trx->isolation_level != TRX_ISO_SERIALIZABLE
-			&& ha_sql_command() == SQLCOM_SELECT
+			&& thd_sql_command(thd) == SQLCOM_SELECT
 			&& lock_type == TL_READ) {
 
 			/* For other than temporary tables, we obtain
@@ -6296,7 +6297,7 @@ ha_innobase::external_lock(
 		if (prebuilt->select_lock_type != LOCK_NONE) {
 
 			if (thd_in_lock_tables(thd) &&
-				ha_sql_command() == SQLCOM_LOCK_TABLES &&
+				thd_sql_command(thd) == SQLCOM_LOCK_TABLES &&
 				THDVAR(thd, table_locks) &&
 				thd_test_options(thd, OPTION_NOT_AUTOCOMMIT)) {
 
@@ -6768,12 +6769,12 @@ ha_innobase::store_lock(
 	if (lock_type != TL_IGNORE
 	&& trx->n_mysql_tables_in_use == 0) {
 		trx->isolation_level = innobase_map_isolation_level(
-						ha_tx_isolation());
+                                    (enum_tx_isolation)thd_tx_isolation(thd));
 	}
 
 	DBUG_ASSERT(thd == current_thd);
 	const bool in_lock_tables = thd_in_lock_tables(thd);
-	const uint sql_command = ha_sql_command();
+	const uint sql_command = thd_sql_command(thd);
 
 	if (sql_command == SQLCOM_DROP_TABLE) {
 
