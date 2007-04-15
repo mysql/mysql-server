@@ -1491,19 +1491,9 @@ void handler::ha_statistic_increment(ulong SSV::*offset) const
   statistic_increment(table->in_use->status_var.*offset, &LOCK_status);
 }
 
-enum enum_tx_isolation  handler::ha_tx_isolation(void) const
+void **handler::ha_data(THD *thd) const
 {
-  return (enum_tx_isolation) ha_thd()->variables.tx_isolation;
-}
-
-uint handler::ha_sql_command(void) const
-{
-  return (uint) ha_thd()->lex->sql_command;
-}
-
-void **handler::ha_data(void) const
-{
-  return (void **) ha_thd()->ha_data + ht->slot;
+  return (void **) thd->ha_data + ht->slot;
 }
 
 THD *handler::ha_thd(void) const
