@@ -211,18 +211,24 @@ int thd_sql_command(const THD *thd)
   return (int) thd->lex->sql_command;
 }
 
+extern "C"
+int thd_tx_isolation(const THD *thd)
+{
+  return (int) thd->variables.tx_isolation;
+}
+
 
 /*
   Dumps a text description of a thread, its security context
   (user, host) and the current query.
-  
+
   SYNOPSIS
     thd_security_context()
     thd                 current thread context
     buffer              pointer to preferred result buffer
     length              length of buffer
     max_query_len       how many chars of query to copy (0 for all)
-  
+
   RETURN VALUES
     pointer to string
 */
@@ -234,13 +240,13 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   const Security_context *sctx= &thd->main_security_ctx;
   char header[64];
   int len;
-  
-  len= my_snprintf(header, sizeof(header), 
+
+  len= my_snprintf(header, sizeof(header),
                    "MySQL thread id %lu, query id %lu",
                    thd->thread_id, (ulong) thd->query_id);
   str.length(0);
   str.append(header, len);
-  
+
   if (sctx->host)
   {
     str.append(' ');

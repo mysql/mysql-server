@@ -898,9 +898,7 @@ class handler :public Sql_alloc
   virtual ulonglong table_flags(void) const =0;
 
   void ha_statistic_increment(ulong SSV::*offset) const;
-  enum enum_tx_isolation ha_tx_isolation(void) const;
-  uint ha_sql_command(void) const;
-  void **ha_data(void) const;
+  void **ha_data(THD *) const;
   THD *ha_thd(void) const;
 
   ha_rows estimation_rows_to_insert;
