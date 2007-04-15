@@ -2818,6 +2818,7 @@ SELECT tt.a, MAX(
   FROM t1 WHERE t1.a=tt.a GROUP BY a LIMIT 1)) as test 
   FROM t1 as tt GROUP BY tt.a;
 
+DROP TABLE t1;
 #
 # Bug #27348: SET FUNCTION used in  a subquery from WHERE condition 
 #  
