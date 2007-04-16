@@ -1041,6 +1041,8 @@ protected:
   Int8 m_abortOption;
 
   friend struct Ndb_free_list_t<NdbOperation>;
+
+  Uint32 repack_read(Uint32 len);
 };
 
 #ifdef NDB_NO_DROPPED_SIGNAL

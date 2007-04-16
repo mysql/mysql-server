@@ -1629,6 +1629,7 @@ private:
   NdbBlob*              getNdbBlob();// Get a blob handle etc
 
   void			releaseSignal(NdbApiSignal* anApiSignal);
+  void                  releaseSignals(Uint32, NdbApiSignal*, NdbApiSignal*);
   void                  releaseSignalsInList(NdbApiSignal** pList);
   void			releaseNdbScanRec(NdbReceiver* aNdbScanRec);
   void			releaseNdbLabel(NdbLabel* anNdbLabel);

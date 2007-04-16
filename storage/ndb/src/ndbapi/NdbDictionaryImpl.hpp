@@ -95,6 +95,7 @@ public:
   /**
    * Internal types and sizes, and aggregates
    */
+  Uint32 m_orgAttrSize;
   Uint32 m_attrSize;            // element size (size when arraySize==1)
   Uint32 m_arraySize;           // length or maxlength+1/2 for Var* types
   Uint32 m_arrayType;           // NDB_ARRAYTYPE_FIXED or _VAR

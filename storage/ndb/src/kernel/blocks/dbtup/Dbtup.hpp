@@ -344,7 +344,7 @@ friend class Suma;
 public:
 struct KeyReqStruct;
 friend struct KeyReqStruct; // CC
-typedef bool (Dbtup::* ReadFunction)(Uint32*,
+typedef bool (Dbtup::* ReadFunction)(Uint8*,
                                      KeyReqStruct*,
                                      AttributeHeader*,
                                      Uint32);
@@ -1516,6 +1516,7 @@ struct KeyReqStruct {
   TableDescriptor *attr_descr;
   Uint32          max_read;
   Uint32          out_buf_index;
+  Uint32          out_buf_bits;
   Uint32          in_buf_index;
   Uint32          in_buf_len;
   Uint32          attr_descriptor;
@@ -2047,7 +2048,7 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  bool readFixedSizeTHOneWordNotNULL(Uint32* outBuffer,
+  bool readFixedSizeTHOneWordNotNULL(Uint8* outBuffer,
                                      KeyReqStruct *req_struct,
                                      AttributeHeader* ahOut,
                                      Uint32  attrDes2);
@@ -2060,7 +2061,7 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  bool readFixedSizeTHTwoWordNotNULL(Uint32* outBuffer,
+  bool readFixedSizeTHTwoWordNotNULL(Uint8* outBuffer,
                                      KeyReqStruct *req_struct,
                                      AttributeHeader* ahOut,
                                      Uint32  attrDes2);
@@ -2073,7 +2074,7 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  bool readFixedSizeTHManyWordNotNULL(Uint32* outBuffer,
+  bool readFixedSizeTHManyWordNotNULL(Uint8* outBuffer,
                                       KeyReqStruct *req_struct,
                                       AttributeHeader* ahOut,
                                       Uint32  attrDes2);
@@ -2092,7 +2093,7 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  bool readFixedSizeTHOneWordNULLable(Uint32* outBuffer,
+  bool readFixedSizeTHOneWordNULLable(Uint8* outBuffer,
                                       KeyReqStruct *req_struct,
                                       AttributeHeader* ahOut,
                                       Uint32  attrDes2);
@@ -2105,7 +2106,7 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  bool readFixedSizeTHTwoWordNULLable(Uint32* outBuffer,
+  bool readFixedSizeTHTwoWordNULLable(Uint8* outBuffer,
                                       KeyReqStruct *req_struct,
                                       AttributeHeader* ahOut,
                                       Uint32  attrDes2);
@@ -2118,14 +2119,14 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  bool readFixedSizeTHManyWordNULLable(Uint32* outBuffer,
+  bool readFixedSizeTHManyWordNULLable(Uint8* outBuffer,
                                        KeyReqStruct *req_struct,
                                        AttributeHeader* ahOut,
                                        Uint32  attrDes2);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  bool readFixedSizeTHZeroWordNULLable(Uint32* outBuffer,
+  bool readFixedSizeTHZeroWordNULLable(Uint8* outBuffer,
                                        KeyReqStruct *req_struct,
                                        AttributeHeader* ahOut,
                                        Uint32  attrDes2);
@@ -2137,12 +2138,26 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  bool varsize_reader(Uint32* out_buffer,
+  bool varsize_reader(Uint8* out_buffer,
                       KeyReqStruct *req_struct,
                       AttributeHeader* ah_out,
                       Uint32  attr_des2,
-                      char * src_ptr,
+                      const void* src_ptr,
                       Uint32 vsize_in_bytes);
+  
+  bool xfrm_reader(Uint8* out_buffer,
+                   KeyReqStruct *req_struct,
+                   AttributeHeader* ah_out,
+                   Uint32  attr_des2,
+                   const void* src_ptr,
+                   Uint32 srcBytes);
+
+  bool bits_reader(Uint8* out_buffer,
+                   KeyReqStruct *req_struct,
+                   AttributeHeader* ah_out,
+                   const Uint32* bm_ptr, Uint32 bm_len,
+                   Uint32 bitPos, Uint32 bitCnt);
+  
   bool varsize_updater(Uint32* in_buffer,
                        KeyReqStruct *req_struct,
                        char *var_data_start,
@@ -2151,7 +2166,7 @@ private:
                        Uint32 check_offset);
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  bool readVarSizeNotNULL(Uint32* outBuffer,
+  bool readVarSizeNotNULL(Uint8* outBuffer,
                           KeyReqStruct *req_struct,
                           AttributeHeader* ahOut,
                           Uint32  attrDes2);
@@ -2164,7 +2179,7 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  bool readVarSizeNULLable(Uint32* outBuffer,
+  bool readVarSizeNULLable(Uint8* outBuffer,
                            KeyReqStruct *req_struct,
                            AttributeHeader* ahOut,
                            Uint32  attrDes2);
@@ -2177,27 +2192,27 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  bool readDynFixedSizeNotNULL(Uint32* outBuffer,
+  bool readDynFixedSizeNotNULL(Uint8* outBuffer,
                                KeyReqStruct *req_struct,
                                AttributeHeader* ahOut,
                                Uint32  attrDes2);
-  bool readDynFixedSizeNULLable(Uint32* outBuffer,
+  bool readDynFixedSizeNULLable(Uint8* outBuffer,
                                 KeyReqStruct *req_struct,
                                 AttributeHeader* ahOut,
                                 Uint32  attrDes2);
-  bool readDynFixedSizeExpandedNotNULL(Uint32* outBuffer,
+  bool readDynFixedSizeExpandedNotNULL(Uint8* outBuffer,
                                        KeyReqStruct *req_struct,
                                        AttributeHeader* ahOut,
                                        Uint32  attrDes2);
-  bool readDynFixedSizeShrunkenNotNULL(Uint32* outBuffer,
+  bool readDynFixedSizeShrunkenNotNULL(Uint8* outBuffer,
                                        KeyReqStruct *req_struct,
                                        AttributeHeader* ahOut,
                                        Uint32  attrDes2);
-  bool readDynFixedSizeExpandedNULLable(Uint32* outBuffer,
+  bool readDynFixedSizeExpandedNULLable(Uint8* outBuffer,
                                         KeyReqStruct *req_struct,
                                         AttributeHeader* ahOut,
                                         Uint32  attrDes2);
-  bool readDynFixedSizeShrunkenNULLable(Uint32* outBuffer,
+  bool readDynFixedSizeShrunkenNULLable(Uint8* outBuffer,
                                         KeyReqStruct *req_struct,
                                         AttributeHeader* ahOut,
                                         Uint32  attrDes2);
@@ -2213,27 +2228,27 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  bool readDynBigFixedSizeNotNULL(Uint32* outBuffer,
+  bool readDynBigFixedSizeNotNULL(Uint8* outBuffer,
                                   KeyReqStruct *req_struct,
                                   AttributeHeader* ahOut,
                                   Uint32  attrDes2);
-  bool readDynBigFixedSizeNULLable(Uint32* outBuffer,
+  bool readDynBigFixedSizeNULLable(Uint8* outBuffer,
                                    KeyReqStruct *req_struct,
                                    AttributeHeader* ahOut,
                                    Uint32  attrDes2);
-  bool readDynBigFixedSizeExpandedNotNULL(Uint32* outBuffer,
+  bool readDynBigFixedSizeExpandedNotNULL(Uint8* outBuffer,
                                           KeyReqStruct *req_struct,
                                           AttributeHeader* ahOut,
                                           Uint32  attrDes2);
-  bool readDynBigFixedSizeShrunkenNotNULL(Uint32* outBuffer,
+  bool readDynBigFixedSizeShrunkenNotNULL(Uint8* outBuffer,
                                           KeyReqStruct *req_struct,
                                           AttributeHeader* ahOut,
                                           Uint32  attrDes2);
-  bool readDynBigFixedSizeExpandedNULLable(Uint32* outBuffer,
+  bool readDynBigFixedSizeExpandedNULLable(Uint8* outBuffer,
                                            KeyReqStruct *req_struct,
                                            AttributeHeader* ahOut,
                                            Uint32  attrDes2);
-  bool readDynBigFixedSizeShrunkenNULLable(Uint32* outBuffer,
+  bool readDynBigFixedSizeShrunkenNULLable(Uint8* outBuffer,
                                            KeyReqStruct *req_struct,
                                            AttributeHeader* ahOut,
                                            Uint32  attrDes2);
@@ -2249,27 +2264,27 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  bool readDynBitsNotNULL(Uint32* outBuffer,
+  bool readDynBitsNotNULL(Uint8* outBuffer,
                           KeyReqStruct *req_struct,
                           AttributeHeader* ahOut,
                           Uint32  attrDes2);
-  bool readDynBitsNULLable(Uint32* outBuffer,
+  bool readDynBitsNULLable(Uint8* outBuffer,
                            KeyReqStruct *req_struct,
                            AttributeHeader* ahOut,
                            Uint32  attrDes2);
-  bool readDynBitsExpandedNotNULL(Uint32* outBuffer,
+  bool readDynBitsExpandedNotNULL(Uint8* outBuffer,
                                   KeyReqStruct *req_struct,
                                   AttributeHeader* ahOut,
                                   Uint32  attrDes2);
-  bool readDynBitsShrunkenNotNULL(Uint32* outBuffer,
+  bool readDynBitsShrunkenNotNULL(Uint8* outBuffer,
                                   KeyReqStruct *req_struct,
                                   AttributeHeader* ahOut,
                                   Uint32  attrDes2);
-  bool readDynBitsExpandedNULLable(Uint32* outBuffer,
+  bool readDynBitsExpandedNULLable(Uint8* outBuffer,
                                    KeyReqStruct *req_struct,
                                    AttributeHeader* ahOut,
                                    Uint32  attrDes2);
-  bool readDynBitsShrunkenNULLable(Uint32* outBuffer,
+  bool readDynBitsShrunkenNULLable(Uint8* outBuffer,
                                    KeyReqStruct *req_struct,
                                    AttributeHeader* ahOut,
                                    Uint32  attrDes2);
@@ -2285,27 +2300,27 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  bool readDynVarSizeNotNULL(Uint32* outBuffer,
+  bool readDynVarSizeNotNULL(Uint8* outBuffer,
                              KeyReqStruct *req_struct,
                              AttributeHeader* ahOut,
                              Uint32  attrDes2);
-  bool readDynVarSizeNULLable(Uint32* outBuffer,
+  bool readDynVarSizeNULLable(Uint8* outBuffer,
                               KeyReqStruct *req_struct,
                               AttributeHeader* ahOut,
                               Uint32  attrDes2);
-  bool readDynVarSizeExpandedNotNULL(Uint32* outBuffer,
+  bool readDynVarSizeExpandedNotNULL(Uint8* outBuffer,
                                      KeyReqStruct *req_struct,
                                      AttributeHeader* ahOut,
                                      Uint32  attrDes2);
-  bool readDynVarSizeShrunkenNotNULL(Uint32* outBuffer,
+  bool readDynVarSizeShrunkenNotNULL(Uint8* outBuffer,
                                      KeyReqStruct *req_struct,
                                      AttributeHeader* ahOut,
                                      Uint32  attrDes2);
-  bool readDynVarSizeExpandedNULLable(Uint32* outBuffer,
+  bool readDynVarSizeExpandedNULLable(Uint8* outBuffer,
                                       KeyReqStruct *req_struct,
                                       AttributeHeader* ahOut,
                                       Uint32  attrDes2);
-  bool readDynVarSizeShrunkenNULLable(Uint32* outBuffer,
+  bool readDynVarSizeShrunkenNULLable(Uint8* outBuffer,
                                       KeyReqStruct *req_struct,
                                       AttributeHeader* ahOut,
                                       Uint32  attrDes2);
@@ -2319,19 +2334,19 @@ private:
                                 KeyReqStruct *req_struct,
                                 Uint32  attrDes2);
 
-  bool readCharNotNULL(Uint32* outBuffer,
+  bool readCharNotNULL(Uint8* outBuffer,
                        KeyReqStruct *req_struct,
                        AttributeHeader* ahOut,
                        Uint32  attrDes2);
 
-  bool readCharNULLable(Uint32* outBuffer,
+  bool readCharNULLable(Uint8* outBuffer,
                         KeyReqStruct *req_struct,
                         AttributeHeader* ahOut,
                         Uint32  attrDes2);
 
-  bool readBitsNULLable(Uint32* outBuffer, KeyReqStruct *req_struct, AttributeHeader*, Uint32);
+  bool readBitsNULLable(Uint8* outBuffer, KeyReqStruct *req_struct, AttributeHeader*, Uint32);
   bool updateBitsNULLable(Uint32* inBuffer, KeyReqStruct *req_struct, Uint32);
-  bool readBitsNotNULL(Uint32* outBuffer, KeyReqStruct *req_struct, AttributeHeader*, Uint32);
+  bool readBitsNotNULL(Uint8* outBuffer, KeyReqStruct *req_struct, AttributeHeader*, Uint32);
   bool updateBitsNotNULL(Uint32* inBuffer, KeyReqStruct *req_struct, Uint32);
 
   bool updateFixedNULLable(Uint32* inBuffer, KeyReqStruct *req_struct, Uint32);
@@ -2341,17 +2356,17 @@ private:
   bool updateVarNotNull(Uint32* inBuffer, KeyReqStruct *req_struct, Uint32);
 
 
-  bool readDiskFixedSizeNotNULL(Uint32* outBuffer,
+  bool readDiskFixedSizeNotNULL(Uint8* outBuffer,
 				KeyReqStruct *req_struct,
 				AttributeHeader* ahOut,
 				Uint32  attrDes2);
   
-  bool readDiskFixedSizeNULLable(Uint32* outBuffer,
+  bool readDiskFixedSizeNULLable(Uint8* outBuffer,
 				 KeyReqStruct *req_struct,
 				 AttributeHeader* ahOut,
 				 Uint32  attrDes2);
-  bool readDiskVarSizeNULLable(Uint32* outBuffer, KeyReqStruct *req_struct, AttributeHeader*, Uint32);
-  bool readDiskVarSizeNotNULL(Uint32* outBuffer, KeyReqStruct *req_struct, AttributeHeader*, Uint32);
+  bool readDiskVarSizeNULLable(Uint8*, KeyReqStruct*, AttributeHeader*,Uint32);
+  bool readDiskVarSizeNotNULL(Uint8*, KeyReqStruct*, AttributeHeader*, Uint32);
 
   bool updateDiskFixedSizeNULLable(Uint32*, KeyReqStruct*, Uint32);
   bool updateDiskFixedSizeNotNULL(Uint32*, KeyReqStruct*, Uint32);
@@ -2359,8 +2374,8 @@ private:
   bool updateDiskVarSizeNULLable(Uint32*, KeyReqStruct *, Uint32);
   bool updateDiskVarSizeNotNULL(Uint32*, KeyReqStruct *, Uint32);
   
-  bool readDiskBitsNULLable(Uint32*, KeyReqStruct*, AttributeHeader*, Uint32);
-  bool readDiskBitsNotNULL(Uint32*, KeyReqStruct*, AttributeHeader*, Uint32);
+  bool readDiskBitsNULLable(Uint8*, KeyReqStruct*, AttributeHeader*, Uint32);
+  bool readDiskBitsNotNULL(Uint8*, KeyReqStruct*, AttributeHeader*, Uint32);
   bool updateDiskBitsNULLable(Uint32*, KeyReqStruct*, Uint32);
   bool updateDiskBitsNotNULL(Uint32*, KeyReqStruct*, Uint32);
 
@@ -2383,10 +2398,9 @@ private:
 //------------------------------------------------------------------
 //------------------------------------------------------------------
   bool nullFlagCheck(KeyReqStruct *req_struct, Uint32  attrDes2);
-  bool disk_nullFlagCheck(KeyReqStruct *req_struct, Uint32  attrDes2);
-  Uint32 read_pseudo(Uint32 attrId,
-                     KeyReqStruct *req_struct,
-                     Uint32* outBuffer);
+  bool disk_nullFlagCheck(KeyReqStruct *req_struct, Uint32 attrDes2);
+  Uint32 read_pseudo(const Uint32 *, Uint32, KeyReqStruct*, Uint32*);
+  Uint32 read_packed(const Uint32 *, Uint32, KeyReqStruct*, Uint32*);
 
   /* Fast bit counting (16 instructions on x86_64, gcc -O3). */
   static inline uint32_t count_bits(uint32_t x)

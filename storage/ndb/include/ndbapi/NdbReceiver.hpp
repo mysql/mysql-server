@@ -97,6 +97,8 @@ private:
   
   bool nextResult() const { return m_current_row < m_result_rows; }
   NdbRecAttr* copyout(NdbReceiver&);
+  Uint32 receive_packed(NdbRecAttr**, Uint32 bmlen, 
+                        const Uint32* aDataPtr, Uint32 aLength);
 };
 
 #ifdef NDB_NO_DROPPED_SIGNAL
