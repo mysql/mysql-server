@@ -1669,7 +1669,7 @@ dict_index_build_internal_clust(
 
 		new_index->n_uniq = REC_MAX_N_FIELDS;
 
-	} else if (index->type & DICT_UNIQUE) {
+	} else if (dict_index_is_unique(index)) {
 		/* Only the fields defined so far are needed to identify
 		the index entry uniquely */
 
@@ -1696,7 +1696,7 @@ dict_index_build_internal_clust(
 # error "DATA_ROLL_PTR != 2"
 #endif
 
-		if (!(index->type & DICT_UNIQUE)) {
+		if (!dict_index_is_unique(index)) {
 			dict_index_add_col(new_index, table,
 					   dict_table_get_sys_col(
 						   table, DATA_ROW_ID),
@@ -1855,7 +1855,7 @@ dict_index_build_internal_non_clust(
 
 	mem_free(indexed);
 
-	if ((index->type) & DICT_UNIQUE) {
+	if (dict_index_is_unique(index)) {
 		new_index->n_uniq = index->n_fields;
 	} else {
 		new_index->n_uniq = new_index->n_def;
@@ -4171,9 +4171,9 @@ dict_index_print_low(
 		n_vals = index->stat_n_diff_key_vals[1];
 	}
 
-	if (index->type & DICT_CLUSTERED) {
+	if (dict_index_is_clust(index)) {
 		type_string = "clustered index";
-	} else if (index->type & DICT_UNIQUE) {
+	} else if (dict_index_is_unique(index)) {
 		type_string = "unique index";
 	} else {
 		type_string = "secondary index";

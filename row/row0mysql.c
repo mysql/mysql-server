@@ -4200,7 +4200,7 @@ not_ok:
 			rec_print_new(stderr, rec, offsets);
 			putc('\n', stderr);
 			is_ok = FALSE;
-		} else if ((index->type & DICT_UNIQUE)
+		} else if (dict_index_is_unique(index)
 			   && !contains_null
 			   && matched_fields
 			   >= dict_index_get_n_ordering_defined_by_user(
