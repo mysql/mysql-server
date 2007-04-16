@@ -8158,6 +8158,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
   w.add(DictTabInfo::NoOfKeyAttr, indexPtr.p->noOfPrimkey);
   w.add(DictTabInfo::NoOfNullable, indexPtr.p->noOfNullAttr);
   w.add(DictTabInfo::KeyLength, indexPtr.p->tupKeyLength);
+  w.add(DictTabInfo::SingleUserMode, (Uint32)1);
   // write index key attributes
   for (k = 0; k < opPtr.p->m_attrList.sz; k++) {
     // insert the attributes in the order decided above in attrid_map

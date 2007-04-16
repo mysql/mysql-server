@@ -55,11 +55,12 @@ update t1 set b=b+100;
 update t1 set b=b+100 where a > 7;
 delete from t1;
 insert into t1 select * from t2;
+create unique index new_index on t1 (b,c);
 drop table t1;
 ERROR 42S02: Unknown table 't1'
-create index new_index on t1 (c);
+create index new_index_fail on t1 (c);
 ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from NDBCLUSTER
-insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0),(6,6,0),(7,7,0),(8,8,0),(9,9,0),(10,10,0);
+insert into t1 values (21,21,0),(22,22,0),(23,23,0),(24,24,0),(25,25,0),(26,26,0),(27,27,0),(28,28,0),(29,29,0),(210,210,0);
 ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from NDBCLUSTER
 select * from t1 where a = 1;
 ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from NDBCLUSTER

@@ -76,15 +76,18 @@ update t1 set b=b+100 where a > 7;
 # delete with full table scan
 delete from t1;
 insert into t1 select * from t2;
+# Bug #27710 Creating unique index fails during single user mode
+# - prior to bugfix this would fail
+create unique index new_index on t1 (b,c);
 
 # test some sql on other mysqld
 --connection server2
 --error 1051
 drop table t1;
 --error 1296
-create index new_index on t1 (c);
+create index new_index_fail on t1 (c);
 --error 1296
-insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0),(6,6,0),(7,7,0),(8,8,0),(9,9,0),(10,10,0);
+insert into t1 values (21,21,0),(22,22,0),(23,23,0),(24,24,0),(25,25,0),(26,26,0),(27,27,0),(28,28,0),(29,29,0),(210,210,0);
 --error 1296
 select * from t1 where a = 1;
 --error 1296
