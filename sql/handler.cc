@@ -77,6 +77,15 @@ static TYPELIB known_extensions= {0,"known_exts", NULL, NULL};
 uint known_extensions_id= 0;
 
 
+
+static plugin_ref ha_default_plugin(THD *thd)
+{
+  if (thd->variables.table_plugin)
+    return thd->variables.table_plugin;
+  return my_plugin_lock(thd, &global_system_variables.table_plugin);
+}
+
+
 /** @brief
   Return the default storage engine handlerton for thread
 
@@ -89,10 +98,11 @@ uint known_extensions_id= 0;
 */
 handlerton *ha_default_handlerton(THD *thd)
 {
-  return (thd->variables.table_type != NULL) ?
-          thd->variables.table_type :
-          (global_system_variables.table_type != NULL ?
-           global_system_variables.table_type : myisam_hton);
+  plugin_ref plugin= ha_default_plugin(thd);
+  DBUG_ASSERT(plugin);
+  handlerton *hton= plugin_data(plugin, handlerton*);
+  DBUG_ASSERT(hton);
+  return hton;
 }
 
 
@@ -105,26 +115,30 @@ handlerton *ha_default_handlerton(THD *thd)
     name        name of storage engine
   
   RETURN
-    pointer to handlerton
+    pointer to storage engine plugin handle
 */
-handlerton *ha_resolve_by_name(THD *thd, const LEX_STRING *name)
+plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name)
 {
   const LEX_STRING *table_alias;
-  st_plugin_int *plugin;
+  plugin_ref plugin;
 
 redo:
   /* my_strnncoll is a macro and gcc doesn't do early expansion of macro */
   if (thd && !my_charset_latin1.coll->strnncoll(&my_charset_latin1,
                            (const uchar *)name->str, name->length,
                            (const uchar *)STRING_WITH_LEN("DEFAULT"), 0))
-    return ha_default_handlerton(thd);
+    return ha_default_plugin(thd);
 
-  if ((plugin= plugin_lock(name, MYSQL_STORAGE_ENGINE_PLUGIN)))
+  if ((plugin= my_plugin_lock_by_name(thd, name, MYSQL_STORAGE_ENGINE_PLUGIN)))
   {
-    handlerton *hton= (handlerton *)plugin->data;
+    handlerton *hton= plugin_data(plugin, handlerton *);
     if (!(hton->flags & HTON_NOT_USER_SELECTABLE))
-      return hton;
-    plugin_unlock(plugin);
+      return plugin;
+      
+    /*
+      unlocking plugin immediately after locking is relatively low cost.
+    */
+    plugin_unlock(thd, plugin);
   }
 
   /*
@@ -145,19 +159,19 @@ redo:
 }
 
 
-const char *ha_get_storage_engine(enum legacy_db_type db_type)
+plugin_ref ha_lock_engine(THD *thd, handlerton *hton)
 {
-  switch (db_type) {
-  case DB_TYPE_DEFAULT:
-    return "DEFAULT";
-  default:
-    if (db_type > DB_TYPE_UNKNOWN && db_type < DB_TYPE_DEFAULT &&
-        installed_htons[db_type])
-      return hton2plugin[installed_htons[db_type]->slot]->name.str;
-    /* fall through */
-  case DB_TYPE_UNKNOWN:
-    return "UNKNOWN";
+  if (hton)
+  {
+    st_plugin_int **plugin= hton2plugin + hton->slot;
+    
+#ifdef DBUG_OFF
+    return my_plugin_lock(thd, plugin);
+#else
+    return my_plugin_lock(thd, &plugin);
+#endif
   }
+  return NULL;
 }
 
 
@@ -172,14 +186,16 @@ static handler *create_default(TABLE_SHARE *table, MEM_ROOT *mem_root)
 
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type)
 {
+  plugin_ref plugin;
   switch (db_type) {
   case DB_TYPE_DEFAULT:
     return ha_default_handlerton(thd);
-  case DB_TYPE_UNKNOWN:
-    return NULL;
   default:
-    if (db_type > DB_TYPE_UNKNOWN && db_type < DB_TYPE_DEFAULT)
-      return installed_htons[db_type];
+    if (db_type > DB_TYPE_UNKNOWN && db_type < DB_TYPE_DEFAULT &&
+        (plugin= ha_lock_engine(thd, installed_htons[db_type])))
+      return plugin_data(plugin, handlerton*);
+    /* fall through */
+  case DB_TYPE_UNKNOWN:
     return NULL;
   }
 }
@@ -199,7 +215,7 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
   {
     if (report_error)
     {
-      const char *engine_name= ha_get_storage_engine(database_type);
+      const char *engine_name= ha_resolve_storage_engine_name(hton);
       my_error(ER_FEATURE_DISABLED,MYF(0),engine_name,engine_name);
     }
     return NULL;
@@ -238,8 +254,7 @@ handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
     Here the call to current_thd() is ok as we call this function a lot of
     times but we enter this branch very seldom.
   */
-  DBUG_RETURN(get_new_handler(share, alloc,
-                              current_thd->variables.table_type));
+  DBUG_RETURN(get_new_handler(share, alloc, ha_default_handlerton(current_thd)));
 }
 
 
@@ -522,10 +537,10 @@ int ha_end()
   DBUG_RETURN(error);
 }
 
-static my_bool dropdb_handlerton(THD *unused1, st_plugin_int *plugin,
+static my_bool dropdb_handlerton(THD *unused1, plugin_ref plugin,
                                  void *path)
 {
-  handlerton *hton= (handlerton *)plugin->data;
+  handlerton *hton= plugin_data(plugin, handlerton *);
   if (hton->state == SHOW_OPTION_YES && hton->drop_database)
     hton->drop_database(hton, (char *)path);
   return FALSE;
@@ -538,10 +553,10 @@ void ha_drop_database(char* path)
 }
 
 
-static my_bool closecon_handlerton(THD *thd, st_plugin_int *plugin,
+static my_bool closecon_handlerton(THD *thd, plugin_ref plugin,
                                    void *unused)
 {
-  handlerton *hton= (handlerton *)plugin->data;
+  handlerton *hton= plugin_data(plugin, handlerton *);
   /*
     there's no need to rollback here as all transactions must
     be rolled back already
@@ -638,7 +653,7 @@ int ha_prepare(THD *thd)
       {
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                             ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
-                            hton2plugin[(*ht)->slot]->name.str);
+                            ha_resolve_storage_engine_name(*ht));
       }
     }
   }
@@ -886,10 +901,10 @@ struct xahton_st {
   int result;
 };
 
-static my_bool xacommit_handlerton(THD *unused1, st_plugin_int *plugin,
+static my_bool xacommit_handlerton(THD *unused1, plugin_ref plugin,
                                    void *arg)
 {
-  handlerton *hton= (handlerton *)plugin->data;
+  handlerton *hton= plugin_data(plugin, handlerton *);
   if (hton->state == SHOW_OPTION_YES && hton->recover)
   {
     hton->commit_by_xid(hton, ((struct xahton_st *)arg)->xid);
@@ -898,10 +913,10 @@ static my_bool xacommit_handlerton(THD *unused1, st_plugin_int *plugin,
   return FALSE;
 }
 
-static my_bool xarollback_handlerton(THD *unused1, st_plugin_int *plugin,
+static my_bool xarollback_handlerton(THD *unused1, plugin_ref plugin,
                                      void *arg)
 {
-  handlerton *hton= (handlerton *)plugin->data;
+  handlerton *hton= plugin_data(plugin, handlerton *);
   if (hton->state == SHOW_OPTION_YES && hton->recover)
   {
     hton->rollback_by_xid(hton, ((struct xahton_st *)arg)->xid);
@@ -1004,10 +1019,10 @@ struct xarecover_st
   bool dry_run;
 };
 
-static my_bool xarecover_handlerton(THD *unused, st_plugin_int *plugin,
+static my_bool xarecover_handlerton(THD *unused, plugin_ref plugin,
                                     void *arg)
 {
-  handlerton *hton= (handlerton *)plugin->data;
+  handlerton *hton= plugin_data(plugin, handlerton *);
   struct xarecover_st *info= (struct xarecover_st *) arg;
   int got;
 
@@ -1016,7 +1031,7 @@ static my_bool xarecover_handlerton(THD *unused, st_plugin_int *plugin,
     while ((got= hton->recover(hton, info->list, info->len)) > 0 )
     {
       sql_print_information("Found %d prepared transaction(s) in %s",
-                            got, hton2plugin[hton->slot]->name.str);
+                            got, ha_resolve_storage_engine_name(hton));
       for (int i=0; i < got; i ++)
       {
         my_xid x=info->list[i].get_my_xid();
@@ -1192,10 +1207,10 @@ bool mysql_xa_recover(THD *thd)
   thd:           the thread handle of the current connection
   return value:  always 0
 */
-static my_bool release_temporary_latches(THD *thd, st_plugin_int *plugin,
+static my_bool release_temporary_latches(THD *thd, plugin_ref plugin,
                                  void *unused)
 {
-  handlerton *hton= (handlerton *)plugin->data;
+  handlerton *hton= plugin_data(plugin, handlerton *);
 
   if (hton->state == SHOW_OPTION_YES && hton->release_temporary_latches)
     hton->release_temporary_latches(hton, thd);
@@ -1318,10 +1333,10 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv)
 }
 
 
-static my_bool snapshot_handlerton(THD *thd, st_plugin_int *plugin,
+static my_bool snapshot_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
-  handlerton *hton= (handlerton *)plugin->data;
+  handlerton *hton= plugin_data(plugin, handlerton *);
   if (hton->state == SHOW_OPTION_YES &&
       hton->start_consistent_snapshot)
   {
@@ -1349,10 +1364,10 @@ int ha_start_consistent_snapshot(THD *thd)
 }
 
 
-static my_bool flush_handlerton(THD *thd, st_plugin_int *plugin,
+static my_bool flush_handlerton(THD *thd, plugin_ref plugin,
                                 void *arg)
 {
-  handlerton *hton= (handlerton *)plugin->data;
+  handlerton *hton= plugin_data(plugin, handlerton *);
   if (hton->state == SHOW_OPTION_YES && hton->flush_logs && 
       hton->flush_logs(hton))
     return TRUE;
@@ -1397,7 +1412,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 
   /* DB_TYPE_UNKNOWN is used in ALTER TABLE when renaming only .frm files */
   if (table_type == NULL ||
-      ! (file=get_new_handler(&dummy_share, thd->mem_root, table_type)))
+      ! (file=get_new_handler((TABLE_SHARE*)0, thd->mem_root, table_type)))
     DBUG_RETURN(ENOENT);
 
   if (lower_case_table_names == 2 && !(file->ha_table_flags() & HA_FILE_BASED))
@@ -1438,6 +1453,8 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
     dummy_share.table_name.length= strlen(alias);
     dummy_table.alias= alias;
 
+    file->table_share= &dummy_share;
+    file->table= &dummy_table;
     file->print_error(error, 0);
     strmake(new_error, thd->net.last_error, sizeof(buff)-1);
 
@@ -1458,7 +1475,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 ****************************************************************************/
 handler *handler::clone(MEM_ROOT *mem_root)
 {
-  handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type);
+  handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
   if (new_handler && !new_handler->ha_open(table,
                                            table->s->normalized_path.str,
                                            table->db_stat,
@@ -1472,6 +1489,17 @@ handler *handler::clone(MEM_ROOT *mem_root)
 void handler::ha_statistic_increment(ulong SSV::*offset) const
 {
   statistic_increment(table->in_use->status_var.*offset, &LOCK_status);
+}
+
+void **handler::ha_data(THD *thd) const
+{
+  return (void **) thd->ha_data + ht->slot;
+}
+
+THD *handler::ha_thd(void) const
+{
+  DBUG_ASSERT(!table || !table->in_use || table->in_use == current_thd);
+  return (table && table->in_use) ? table->in_use : current_thd;
 }
 
 
@@ -1567,8 +1595,7 @@ int handler::read_first_row(byte * buf, uint primary_key)
   register int error;
   DBUG_ENTER("handler::read_first_row");
 
-  statistic_increment(table->in_use->status_var.ha_read_first_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_first_count);
 
   /*
     If there is very few deleted rows in the table, find the first row by
@@ -2778,11 +2805,11 @@ struct st_discover_args
   uint* frmlen;
 };
 
-static my_bool discover_handlerton(THD *thd, st_plugin_int *plugin,
+static my_bool discover_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
   st_discover_args *vargs= (st_discover_args *)arg;
-  handlerton *hton= (handlerton *)plugin->data;
+  handlerton *hton= plugin_data(plugin, handlerton *);
   if (hton->state == SHOW_OPTION_YES && hton->discover &&
       (!(hton->discover(hton, thd, vargs->db, vargs->name, 
                         vargs->frmblob, 
@@ -2827,11 +2854,11 @@ struct st_find_files_args
   List<char> *files;
 };
 
-static my_bool find_files_handlerton(THD *thd, st_plugin_int *plugin,
+static my_bool find_files_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
   st_find_files_args *vargs= (st_find_files_args *)arg;
-  handlerton *hton= (handlerton *)plugin->data;
+  handlerton *hton= plugin_data(plugin, handlerton *);
 
 
   if (hton->state == SHOW_OPTION_YES && hton->find_files)
@@ -2874,11 +2901,11 @@ struct st_table_exists_in_engine_args
   const char *name;
 };
 
-static my_bool table_exists_in_engine_handlerton(THD *thd, st_plugin_int *plugin,
+static my_bool table_exists_in_engine_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
   st_table_exists_in_engine_args *vargs= (st_table_exists_in_engine_args *)arg;
-  handlerton *hton= (handlerton *)plugin->data;
+  handlerton *hton= plugin_data(plugin, handlerton *);
 
   if (hton->state == SHOW_OPTION_YES && hton->table_exists_in_engine)
     if ((hton->table_exists_in_engine(hton, thd, vargs->db, vargs->name)) == 1)
@@ -2922,10 +2949,10 @@ struct binlog_func_st
 /** @brief
   Listing handlertons first to avoid recursive calls and deadlock
 */
-static my_bool binlog_func_list(THD *thd, st_plugin_int *plugin, void *arg)
+static my_bool binlog_func_list(THD *thd, plugin_ref plugin, void *arg)
 {
   hton_list_st *hton_list= (hton_list_st *)arg;
-  handlerton *hton= (handlerton *)plugin->data;
+  handlerton *hton= plugin_data(plugin, handlerton *);
   if (hton->state == SHOW_OPTION_YES && hton->binlog_func)
   {
     uint sz= hton_list->sz;
@@ -3012,10 +3039,10 @@ static my_bool binlog_log_query_handlerton2(THD *thd,
 }
 
 static my_bool binlog_log_query_handlerton(THD *thd,
-                                           st_plugin_int *plugin,
+                                           plugin_ref plugin,
                                            void *args)
 {
-  return binlog_log_query_handlerton2(thd, (handlerton *)plugin->data, args);
+  return binlog_log_query_handlerton2(thd, plugin_data(plugin, handlerton *), args);
 }
 
 void ha_binlog_log_query(THD *thd, handlerton *hton,
@@ -3307,11 +3334,11 @@ int handler::index_read_idx(byte * buf, uint index, const byte * key,
   RETURN VALUE
     pointer		pointer to TYPELIB structure
 */
-static my_bool exts_handlerton(THD *unused, st_plugin_int *plugin,
+static my_bool exts_handlerton(THD *unused, plugin_ref plugin,
                                void *arg)
 {
   List<char> *found_exts= (List<char> *) arg;
-  handlerton *hton= (handlerton *)plugin->data;
+  handlerton *hton= plugin_data(plugin, handlerton *);
   handler *file;
   if (hton->state == SHOW_OPTION_YES && hton->create &&
       (file= hton->create(hton, (TABLE_SHARE*) 0, current_thd->mem_root)))
@@ -3382,11 +3409,11 @@ static bool stat_print(THD *thd, const char *type, uint type_len,
 }
 
 
-static my_bool showstat_handlerton(THD *thd, st_plugin_int *plugin,
+static my_bool showstat_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
   enum ha_stat_type stat= *(enum ha_stat_type *) arg;
-  handlerton *hton= (handlerton *)plugin->data;
+  handlerton *hton= plugin_data(plugin, handlerton *);
   if (hton->state == SHOW_OPTION_YES && hton->show_status &&
       hton->show_status(hton, thd, stat_print, stat))
     return TRUE;

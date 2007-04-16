@@ -16,6 +16,15 @@
 #ifndef _my_plugin_h
 #define _my_plugin_h
 
+#ifdef __cplusplus
+class THD;
+class Item;
+#define MYSQL_THD THD*
+#else
+#define MYSQL_THD void*
+#endif
+
+
 /*************************************************************************
   Plugin API. Common for all plugin types.
 */
@@ -85,7 +94,261 @@ struct st_mysql_show_var {
 };
 
 #define SHOW_VAR_FUNC_BUFF_SIZE 1024
-typedef int (*mysql_show_var_func)(void *, struct st_mysql_show_var*, char *);
+typedef int (*mysql_show_var_func)(MYSQL_THD, struct st_mysql_show_var*, char *);
+
+
+/*
+  declarations for server variables and command line options
+*/
+
+
+#define PLUGIN_VAR_BOOL         0x0001
+#define PLUGIN_VAR_INT          0x0002
+#define PLUGIN_VAR_LONG         0x0003
+#define PLUGIN_VAR_LONGLONG     0x0004
+#define PLUGIN_VAR_STR          0x0005
+#define PLUGIN_VAR_ENUM         0x0006
+#define PLUGIN_VAR_SET          0x0007
+#define PLUGIN_VAR_UNSIGNED     0x0080
+#define PLUGIN_VAR_THDLOCAL     0x0100 /* Variable is per-connection */
+#define PLUGIN_VAR_READONLY     0x0200 /* Server variable is read only */
+#define PLUGIN_VAR_NOSYSVAR     0x0400 /* Not a server variable */
+#define PLUGIN_VAR_NOCMDOPT     0x0800 /* Not a command line option */
+#define PLUGIN_VAR_NOCMDARG     0x1000 /* No argument for cmd line */
+#define PLUGIN_VAR_RQCMDARG     0x0000 /* Argument required for cmd line */
+#define PLUGIN_VAR_OPCMDARG     0x2000 /* Argument optional for cmd line */
+#define PLUGIN_VAR_MEMALLOC     0x8000 /* String needs memory allocated */
+
+struct st_mysql_sys_var;
+struct st_mysql_value;
+
+/*
+  SYNOPSIS
+    (*mysql_var_check_func)()
+      thd               thread handle
+      var               dynamic variable being altered
+      save              pointer to temporary storage
+      value             user provided value
+  RETURN
+    0   user provided value is OK and the update func may be called.
+    any other value indicates error.
+  
+  This function should parse the user provided value and store in the
+  provided temporary storage any data as required by the update func.
+  There is sufficient space in the temporary storage to store a double.
+  Note that the update func may not be called if any other error occurs
+  so any memory allocated should be thread-local so that it may be freed
+  automatically at the end of the statement.
+*/
+
+typedef int (*mysql_var_check_func)(MYSQL_THD thd,
+                                    struct st_mysql_sys_var *var,
+                                    void *save, struct st_mysql_value *value);
+
+/*
+  SYNOPSIS
+    (*mysql_var_update_func)()
+      thd               thread handle
+      var               dynamic variable being altered
+      var_ptr           pointer to dynamic variable
+      save              pointer to temporary storage
+   RETURN
+     NONE
+   
+   This function should use the validated value stored in the temporary store
+   and persist it in the provided pointer to the dynamic variable.
+   For example, strings may require memory to be allocated.
+*/
+typedef void (*mysql_var_update_func)(MYSQL_THD thd,
+                                      struct st_mysql_sys_var *var,
+                                      void *var_ptr, void *save);
+
+
+/* the following declarations are for internal use only */
+
+
+#define PLUGIN_VAR_MASK \
+        (PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR | \
+         PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_NOCMDARG | \
+         PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC)
+
+#define MYSQL_PLUGIN_VAR_HEADER \
+  int flags;                    \
+  const char *name;             \
+  const char *comment;          \
+  mysql_var_check_func check;   \
+  mysql_var_update_func update
+
+#define MYSQL_SYSVAR_NAME(name) mysql_sysvar_ ## name
+#define MYSQL_SYSVAR(name) \
+  ((struct st_mysql_sys_var *)&(MYSQL_SYSVAR_NAME(name)))
+
+/*
+  for global variables, the value pointer is the first
+  element after the header, the default value is the second.
+  for thread variables, the value offset is the first
+  element after the header, the default value is the second.
+*/
+   
+
+#define DECLARE_MYSQL_SYSVAR_BASIC(name, type) struct { \
+  MYSQL_PLUGIN_VAR_HEADER;      \
+  type *value; type def_val;    \
+} MYSQL_SYSVAR_NAME(name)
+
+#define DECLARE_MYSQL_SYSVAR_SIMPLE(name, type) struct { \
+  MYSQL_PLUGIN_VAR_HEADER;      \
+  type *value; type def_val;    \
+  type min_val; type max_val;   \
+  type blk_sz;                  \
+} MYSQL_SYSVAR_NAME(name)
+
+#define DECLARE_MYSQL_SYSVAR_TYPELIB(name) struct { \
+  MYSQL_PLUGIN_VAR_HEADER;      \
+  unsigned long *value, def_val;\
+  TYPELIB *typelib;             \
+} MYSQL_SYSVAR_NAME(name)
+
+#define DECLARE_THDVAR_FUNC(type) \
+  type *(*resolve)(MYSQL_THD thd, int offset)
+
+#define DECLARE_MYSQL_THDVAR_BASIC(name, type) struct { \
+  MYSQL_PLUGIN_VAR_HEADER;      \
+  int offset;                   \
+  type def_val;                 \
+  DECLARE_THDVAR_FUNC(type);    \
+} MYSQL_SYSVAR_NAME(name)
+
+#define DECLARE_MYSQL_THDVAR_SIMPLE(name, type) struct { \
+  MYSQL_PLUGIN_VAR_HEADER;      \
+  int offset;                   \
+  type def_val; type min_val;   \
+  type max_val; type blk_sz;    \
+  DECLARE_THDVAR_FUNC(type);    \
+} MYSQL_SYSVAR_NAME(name)
+
+#define DECLARE_MYSQL_THDVAR_TYPELIB(name) struct { \
+  MYSQL_PLUGIN_VAR_HEADER;      \
+  int offset;                   \
+  unsigned long def_val;        \
+  DECLARE_THDVAR_FUNC(unsigned long); \
+  TYPELIB *typelib;             \
+} MYSQL_SYSVAR_NAME(name)
+
+
+/*
+  the following declarations are for use by plugin implementors
+*/
+
+#define MYSQL_SYSVAR_BOOL(name, varname, opt, comment, check, update, def) \
+DECLARE_MYSQL_SYSVAR_BASIC(name, char) = { \
+  PLUGIN_VAR_BOOL | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, &varname, def}
+
+#define MYSQL_SYSVAR_STR(name, varname, opt, comment, check, update, def) \
+DECLARE_MYSQL_SYSVAR_BASIC(name, char *) = { \
+  PLUGIN_VAR_STR | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, &varname, def}
+
+#define MYSQL_SYSVAR_INT(name, varname, opt, comment, check, update, def, min, max, blk) \
+DECLARE_MYSQL_SYSVAR_SIMPLE(name, int) = { \
+  PLUGIN_VAR_INT | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, &varname, def, min, max, blk }
+
+#define MYSQL_SYSVAR_UINT(name, varname, opt, comment, check, update, def, min, max, blk) \
+DECLARE_MYSQL_SYSVAR_SIMPLE(name, unsigned int) = { \
+  PLUGIN_VAR_INT | PLUGIN_VAR_UNSIGNED | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, &varname, def, min, max, blk }
+
+#define MYSQL_SYSVAR_LONG(name, varname, opt, comment, check, update, def, min, max, blk) \
+DECLARE_MYSQL_SYSVAR_SIMPLE(name, long) = { \
+  PLUGIN_VAR_LONG | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, &varname, def, min, max, blk }
+
+#define MYSQL_SYSVAR_ULONG(name, varname, opt, comment, check, update, def, min, max, blk) \
+DECLARE_MYSQL_SYSVAR_SIMPLE(name, unsigned long) = { \
+  PLUGIN_VAR_LONG | PLUGIN_VAR_UNSIGNED | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, &varname, def, min, max, blk }
+
+#define MYSQL_SYSVAR_LONGLONG(name, varname, opt, comment, check, update, def, min, max, blk) \
+DECLARE_MYSQL_SYSVAR_SIMPLE(name, longlong) = { \
+  PLUGIN_VAR_LONGLONG | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, &varname, def, min, max, blk }
+
+#define MYSQL_SYSVAR_ULONGLONG(name, varname, opt, comment, check, update, def, min, max, blk) \
+DECLARE_MYSQL_SYSVAR_SIMPLE(name, ulonglong) = { \
+  PLUGIN_VAR_LONGLONG | PLUGIN_VAR_UNSIGNED | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, &varname, def, min, max, blk }
+
+#define MYSQL_SYSVAR_ENUM(name, varname, opt, comment, check, update, def, typelib) \
+DECLARE_MYSQL_SYSVAR_TYPELIB(name) = { \
+  PLUGIN_VAR_ENUM | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, &varname, def, typelib }
+
+#define MYSQL_SYSVAR_SET(name, varname, opt, comment, check, update, def, typelib) \
+DECLARE_MYSQL_SYSVAR_TYPELIB(name) = { \
+  PLUGIN_VAR_SET | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, &varname, def, typelib }
+
+#define MYSQL_THDVAR_BOOL(name, opt, comment, check, update, def) \
+DECLARE_MYSQL_THDVAR_BASIC(name, char) = { \
+  PLUGIN_VAR_BOOL | PLUGIN_VAR_THDLOCAL | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, -1, def, NULL}
+
+#define MYSQL_THDVAR_STR(name, opt, comment, check, update, def) \
+DECLARE_MYSQL_THDVAR_BASIC(name, char *) = { \
+  PLUGIN_VAR_STR | PLUGIN_VAR_THDLOCAL | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, -1, def, NULL}
+
+#define MYSQL_THDVAR_INT(name, opt, comment, check, update, def, min, max, blk) \
+DECLARE_MYSQL_THDVAR_SIMPLE(name, int) = { \
+  PLUGIN_VAR_INT | PLUGIN_VAR_THDLOCAL | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, -1, def, min, max, blk, NULL }
+
+#define MYSQL_THDVAR_UINT(name, opt, comment, check, update, def, min, max, blk) \
+DECLARE_MYSQL_THDVAR_SIMPLE(name, unsigned int) = { \
+  PLUGIN_VAR_INT | PLUGIN_VAR_THDLOCAL | PLUGIN_VAR_UNSIGNED | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, -1, def, min, max, blk, NULL }
+
+#define MYSQL_THDVAR_LONG(name, opt, comment, check, update, def, min, max, blk) \
+DECLARE_MYSQL_THDVAR_SIMPLE(name, long) = { \
+  PLUGIN_VAR_LONG | PLUGIN_VAR_THDLOCAL | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, -1, def, min, max, blk, NULL }
+
+#define MYSQL_THDVAR_ULONG(name, opt, comment, check, update, def, min, max, blk) \
+DECLARE_MYSQL_THDVAR_SIMPLE(name, unsigned long) = { \
+  PLUGIN_VAR_LONG | PLUGIN_VAR_THDLOCAL | PLUGIN_VAR_UNSIGNED | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, -1, def, min, max, blk, NULL }
+
+#define MYSQL_THDVAR_LONGLONG(name, opt, comment, check, update, def, min, max, blk) \
+DECLARE_MYSQL_THDVAR_SIMPLE(name, longlong) = { \
+  PLUGIN_VAR_LONGLONG | PLUGIN_VAR_THDLOCAL | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, -1, def, min, max, blk, NULL }
+
+#define MYSQL_THDVAR_ULONGLONG(name, opt, comment, check, update, def, min, max, blk) \
+DECLARE_MYSQL_THDVAR_SIMPLE(name, ulonglong) = { \
+  PLUGIN_VAR_LONGLONG | PLUGIN_VAR_THDLOCAL | PLUGIN_VAR_UNSIGNED | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, -1, def, min, max, blk, NULL }
+
+#define MYSQL_THDVAR_ENUM(name, opt, comment, check, update, def, typelib) \
+DECLARE_MYSQL_THDVAR_TYPELIB(name) = { \
+  PLUGIN_VAR_ENUM | PLUGIN_VAR_THDLOCAL | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, -1, def, NULL, typelib }
+
+#define MYSQL_THDVAR_SET(name, opt, comment, check, update, def, typelib) \
+DECLARE_MYSQL_THDVAR_TYPELIB(name) = { \
+  PLUGIN_VAR_SET | PLUGIN_VAR_THDLOCAL | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, -1, def, NULL, typelib }
+
+/* accessor macros */
+
+#define SYSVAR(name) \
+  (*(MYSQL_SYSVAR_NAME(name).value))
+
+/* when thd == null, result points to global value */
+#define THDVAR(thd, name) \
+  (*(MYSQL_SYSVAR_NAME(name).resolve(thd, MYSQL_SYSVAR_NAME(name).offset)))
+
 
 /*
   Plugin description structure.
@@ -103,8 +366,8 @@ struct st_mysql_plugin
   int (*deinit)(void *);/* the function to invoke when plugin is unloaded */
   unsigned int version; /* plugin version (for SHOW PLUGINS)            */
   struct st_mysql_show_var *status_vars;
-  void * __reserved1;   /* placeholder for system variables             */
-  void * __reserved2;   /* placeholder for config options               */
+  struct st_mysql_sys_var **system_vars;
+  void * __reserved1;   /* reserved for dependency checking             */
 };
 
 /*************************************************************************
@@ -328,6 +591,8 @@ struct st_mysql_storage_engine
   int interface_version;
 };
 
+struct handlerton;
+
 /*
   Here we define only the descriptor structure, that is referred from
   st_mysql_plugin.
@@ -347,6 +612,53 @@ struct st_mysql_information_schema
 {
   int interface_version;
 };
+
+
+/*
+  st_mysql_value struct for reading values from mysqld.
+  Used by server variables framework to parse user-provided values.
+  Will be used for arguments when implementing UDFs.
+
+  Note that val_str() returns a string in temporary memory
+  that will be freed at the end of statement. Copy the string
+  if you need it to persist.
+*/
+
+#define MYSQL_VALUE_TYPE_STRING 0
+#define MYSQL_VALUE_TYPE_REAL   1
+#define MYSQL_VALUE_TYPE_INT    2
+
+struct st_mysql_value
+{
+  int (*value_type)(struct st_mysql_value *);
+  const char *(*val_str)(struct st_mysql_value *, char *buffer, int *length);
+  int (*val_real)(struct st_mysql_value *, double *realbuf);
+  int (*val_int)(struct st_mysql_value *, long long *intbuf);
+};
+
+
+/*************************************************************************
+  Miscellaneous functions for plugin implementors
+*/
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int thd_in_lock_tables(const MYSQL_THD thd);
+int thd_tablespace_op(const MYSQL_THD thd);
+long long thd_test_options(const MYSQL_THD thd, long long test_options);
+int thd_sql_command(const MYSQL_THD thd);
+const char *thd_proc_info(MYSQL_THD thd, const char *info);
+void **thd_ha_data(const MYSQL_THD thd, const struct handlerton *hton);
+int thd_tx_isolation(const MYSQL_THD thd);
+char *thd_security_context(MYSQL_THD thd, char *buffer, unsigned int length,
+                           unsigned int max_query_len);
+
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif
 

@@ -303,10 +303,9 @@ prepare stmt4 from ' show variables like ''sql_mode'' ';
 execute stmt4;
 Variable_name	Value
 sql_mode	
-prepare stmt4 from ' show engine bdb logs ';
-ERROR 42000: Unknown table engine 'bdb'
-prepare stmt4 from ' show engine foo logs ';
-ERROR 42000: Unknown table engine 'foo'
+prepare stmt4 from ' show engine myisam logs ';
+execute stmt4;
+Type	Name	Status
 prepare stmt4 from ' show grants for user ';
 prepare stmt4 from ' show create table t2 ';
 prepare stmt4 from ' show master status ';

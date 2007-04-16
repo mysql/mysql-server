@@ -252,6 +252,8 @@ set global general_log='OFF';
 set global slow_query_log='OFF';
 
 # check that alter table doesn't work for other engines
+set @save_storage_engine= @@session.storage_engine;
+set storage_engine= MEMORY;
 --error ER_UNSUPORTED_LOG_ENGINE
 alter table mysql.slow_log engine=ndb;
 --error ER_UNSUPORTED_LOG_ENGINE
@@ -260,6 +262,7 @@ alter table mysql.slow_log engine=innodb;
 alter table mysql.slow_log engine=archive;
 --error ER_UNSUPORTED_LOG_ENGINE
 alter table mysql.slow_log engine=blackhole;
+set storage_engine= @save_storage_engine;
 
 drop table mysql.slow_log;
 drop table mysql.general_log;

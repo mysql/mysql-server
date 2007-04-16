@@ -1606,6 +1606,149 @@ int log_loaded_block(IO_CACHE* file)
   return 0;
 }
 
+/*
+  Replication System Variables
+*/
+
+class sys_var_slave_skip_counter :public sys_var
+{
+public:
+  sys_var_slave_skip_counter(sys_var_chain *chain, const char *name_arg)
+    :sys_var(name_arg)
+  { chain_sys_var(chain); }
+  bool check(THD *thd, set_var *var);
+  bool update(THD *thd, set_var *var);
+  bool check_type(enum_var_type type) { return type != OPT_GLOBAL; }
+  /*
+    We can't retrieve the value of this, so we don't have to define
+    type() or value_ptr()
+  */
+};
+
+class sys_var_sync_binlog_period :public sys_var_long_ptr
+{
+public:
+  sys_var_sync_binlog_period(sys_var_chain *chain, const char *name_arg, 
+                             ulong *value_ptr)
+    :sys_var_long_ptr(chain, name_arg,value_ptr) {}
+  bool update(THD *thd, set_var *var);
+};
+
+static sys_var_chain vars = { NULL, NULL };
+
+static sys_var_bool_ptr	sys_relay_log_purge(&vars, "relay_log_purge",
+					    &relay_log_purge);
+static sys_var_long_ptr	sys_slave_net_timeout(&vars, "slave_net_timeout",
+					      &slave_net_timeout);
+static sys_var_long_ptr	sys_slave_trans_retries(&vars, "slave_transaction_retries",
+						&slave_trans_retries);
+static sys_var_sync_binlog_period sys_sync_binlog_period(&vars, "sync_binlog", &sync_binlog_period);
+static sys_var_slave_skip_counter sys_slave_skip_counter(&vars, "sql_slave_skip_counter");
+
+static int show_slave_skip_errors(THD *thd, SHOW_VAR *var, char *buff);
+
+
+static SHOW_VAR fixed_vars[]= {
+  {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_MY_BOOL},
+  {"relay_log_space_limit",   (char*) &relay_log_space_limit,       SHOW_LONGLONG},
+  {"slave_load_tmpdir",       (char*) &slave_load_tmpdir,           SHOW_CHAR_PTR},
+  {"slave_skip_errors",       (char*) &show_slave_skip_errors,      SHOW_FUNC},
+};
+
+static int show_slave_skip_errors(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type=SHOW_CHAR;
+  var->value= buff;
+  if (!use_slave_mask || bitmap_is_clear_all(&slave_error_mask))
+  {
+    var->value= const_cast<char *>("OFF");
+  }
+  else if (bitmap_is_set_all(&slave_error_mask))
+  {
+    var->value= const_cast<char *>("ALL");
+  }
+  else
+  {
+    /* 10 is enough assuming errors are max 4 digits */
+    int i;
+    var->value= buff;
+    for (i= 1;
+         i < MAX_SLAVE_ERROR &&
+         (buff - var->value) < SHOW_VAR_FUNC_BUFF_SIZE;
+         i++)
+    {
+      if (bitmap_is_set(&slave_error_mask, i))
+      {
+        buff= int10_to_str(i, buff, 10);
+        *buff++= ',';
+      }
+    }
+    if (var->value != buff)
+      buff--;				// Remove last ','
+    if (i < MAX_SLAVE_ERROR)
+      buff= strmov(buff, "...");  // Couldn't show all errors
+    *buff=0;
+  }
+  return 0;
+}
+
+bool sys_var_slave_skip_counter::check(THD *thd, set_var *var)
+{
+  int result= 0;
+  pthread_mutex_lock(&LOCK_active_mi);
+  pthread_mutex_lock(&active_mi->rli.run_lock);
+  if (active_mi->rli.slave_running)
+  {
+    my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
+    result=1;
+  }
+  pthread_mutex_unlock(&active_mi->rli.run_lock);
+  pthread_mutex_unlock(&LOCK_active_mi);
+  var->save_result.ulong_value= (ulong) var->value->val_int();
+  return result;
+}
+
+
+bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
+{
+  pthread_mutex_lock(&LOCK_active_mi);
+  pthread_mutex_lock(&active_mi->rli.run_lock);
+  /*
+    The following test should normally never be true as we test this
+    in the check function;  To be safe against multiple
+    SQL_SLAVE_SKIP_COUNTER request, we do the check anyway
+  */
+  if (!active_mi->rli.slave_running)
+  {
+    pthread_mutex_lock(&active_mi->rli.data_lock);
+    active_mi->rli.slave_skip_counter= var->save_result.ulong_value;
+    pthread_mutex_unlock(&active_mi->rli.data_lock);
+  }
+  pthread_mutex_unlock(&active_mi->rli.run_lock);
+  pthread_mutex_unlock(&LOCK_active_mi);
+  return 0;
+}
+
+
+bool sys_var_sync_binlog_period::update(THD *thd, set_var *var)
+{
+  sync_binlog_period= (ulong) var->save_result.ulonglong_value;
+  return 0;
+}
+
+int init_replication_sys_vars()
+{
+  mysql_append_static_vars(fixed_vars, sizeof(fixed_vars) / sizeof(SHOW_VAR));
+
+  if (mysql_add_sys_var_chain(vars.first, my_long_options))
+  {
+    /* should not happen */
+    fprintf(stderr, "failed to initialize replication system variables");
+    unireg_abort(1);
+  }
+  return 0;
+}
+
 #endif /* HAVE_REPLICATION */
 
 

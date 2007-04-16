@@ -3363,7 +3363,7 @@ void select_create::abort()
   {
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
-    handlerton *table_type=table->s->db_type;
+    handlerton *table_type=table->s->db_type();
     if (!table->s->tmp_table)
     {
       ulong version= table->s->version;
