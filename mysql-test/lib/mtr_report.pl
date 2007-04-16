@@ -295,6 +295,18 @@ sub mtr_report_stats ($) {
           }
         }
       }
+
+      if ( $::opt_check_testcases )
+      {
+        # Look for warnings produced by mysqltest in testname.warnings
+        foreach my $test_warning_file
+	  ( glob("$::glob_mysql_test_dir/r/*.warnings") )
+        {
+          $found_problems= 1;
+	  print WARN "Check myqltest warnings in $test_warning_file\n";
+        }
+      }
+
       if ( $found_problems )
       {
 	mtr_warning("Got errors/warnings while running tests, please examine",
