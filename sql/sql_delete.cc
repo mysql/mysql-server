@@ -394,6 +394,8 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 {
   Item *fake_conds= 0;
   SELECT_LEX *select_lex= &thd->lex->select_lex;
+  const char *operation = thd->lex->sql_command == SQLCOM_TRUNCATE ?
+                          "TRUNCATE" : "DELETE";
   DBUG_ENTER("mysql_prepare_delete");
   List<Item> all_fields;
 
@@ -408,14 +410,14 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
     DBUG_RETURN(TRUE);
   if (!table_list->updatable || check_key_in_view(thd, table_list))
   {
-    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, operation);
     DBUG_RETURN(TRUE);
   }
   {
     TABLE_LIST *duplicate;
     if ((duplicate= unique_table(thd, table_list, table_list->next_global, 0)))
     {
-      update_non_unique_table_error(table_list, "DELETE", duplicate);
+      update_non_unique_table_error(table_list, operation, duplicate);
       DBUG_RETURN(TRUE);
     }
   }
@@ -933,7 +935,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   if (!dont_send_ok)
   {
     enum legacy_db_type table_type;
-    mysql_frm_type(thd, path, &table_type);
+    if (mysql_frm_type(thd, path, &table_type) == FRMTYPE_VIEW)
+      goto trunc_by_del;
     if (table_type == DB_TYPE_UNKNOWN)
     {
       my_error(ER_NO_SUCH_TABLE, MYF(0),

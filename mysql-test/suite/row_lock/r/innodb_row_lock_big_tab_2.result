@@ -1,0 +1,113 @@
+SELECT @@global.innodb_table_locks into @table_locks;
+SET @@global.innodb_table_locks= OFF;
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v1;
+SET autocommit=0;
+SET autocommit=0;
+connection default;
+CREATE TABLE t1 (k INT NOT NULL PRIMARY KEY, i INT, j INT, l INT) ENGINE=InnoDB;
+CREATE INDEX ixi ON t1 (i);
+CREATE TABLE t2 (k INT NOT NULL PRIMARY KEY, i INT, j INT, l INT) ENGINE=InnoDB;
+CREATE INDEX ixi ON t2 (i);
+CREATE PROCEDURE fill_t1 (IN upb int)
+BEGIN
+DECLARE cnt int DEFAULT 0;
+WHILE cnt < upb DO
+INSERT INTO t1 VALUES (cnt, cnt+100, cnt, cnt+100);
+SET cnt= cnt+1;
+END WHILE; 
+END;
+|
+CREATE FUNCTION half_t1() RETURNS int
+BEGIN
+DECLARE res int DEFAULT 0;
+SELECT MOD(k,2) INTO res FROM t1;
+RETURN  res;
+END;
+|
+CREATE PROCEDURE fill_t2 (IN upb int)
+BEGIN
+DECLARE cnt int DEFAULT 0;
+WHILE cnt < upb DO
+INSERT INTO t2 VALUES (cnt, cnt+100, cnt, cnt+100);
+SET cnt= cnt+1;
+END WHILE; 
+END;
+|
+CREATE FUNCTION half_t2() RETURNS int
+BEGIN
+DECLARE res int DEFAULT 0;
+SELECT MOD(k,2) INTO res FROM t2;
+RETURN  res;
+END;
+|
+CALL fill_t1 (40);
+CALL fill_t2 (40);
+COMMIT;
+SELECT @@global.tx_isolation;
+@@global.tx_isolation
+REPEATABLE-READ
+EXPLAIN SELECT t1.i,t2.i FROM t1,t2 WHERE t1.k % 2= 0 AND t1.k = t2.k LOCK IN SHARE MODE;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	PRIMARY	ixi	5	NULL	40	Using where; Using index
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.k	1	
+SELECT t1.i,t2.i FROM t1,t2 WHERE t1.k % 2= 0 AND t1.k = t2.k LOCK IN SHARE MODE;
+i	i
+100	100
+102	102
+104	104
+106	106
+108	108
+110	110
+112	112
+114	114
+116	116
+118	118
+120	120
+122	122
+124	124
+126	126
+128	128
+130	130
+132	132
+134	134
+136	136
+138	138
+connection root1;
+DELETE FROM t1 WHERE t1.k % 2 = 1;
+SELECT * FROM t1 WHERE k < 20 ORDER BY t1.k;
+k	i	j	l
+0	100	0	100
+2	102	2	102
+4	104	4	104
+6	106	6	106
+8	108	8	108
+10	110	10	110
+12	112	12	112
+14	114	14	114
+16	116	16	116
+18	118	18	118
+SELECT * FROM t2 WHERE k < 20 ORDER BY t2.k;
+k	i	j	l
+0	100	0	100
+1	101	1	101
+2	102	2	102
+3	103	3	103
+4	104	4	104
+5	105	5	105
+6	106	6	106
+7	107	7	107
+8	108	8	108
+9	109	9	109
+10	110	10	110
+11	111	11	111
+12	112	12	112
+13	113	13	113
+14	114	14	114
+15	115	15	115
+16	116	16	116
+17	117	17	117
+18	118	18	118
+19	119	19	119
+connection default;
+UPDATE t1,t2 SET t1.i=3333,t2.i=4444 WHERE t1.k % 2 = 0 AND t1.k = t2.k;

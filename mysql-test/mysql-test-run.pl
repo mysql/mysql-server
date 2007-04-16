@@ -571,6 +571,7 @@ sub command_line_setup () {
              'manual-debug'             => \$opt_manual_debug,
              'ddd'                      => \$opt_ddd,
              'client-ddd'               => \$opt_client_ddd,
+             'manual-ddd'               => \$opt_manual_ddd,
 	     'debugger=s'               => \$opt_debugger,
 	     'client-debugger=s'        => \$opt_client_debugger,
              'strace-client'            => \$opt_strace_client,
@@ -725,8 +726,6 @@ sub command_line_setup () {
   {
     $mysqld_variables{'port'}= 3306;
     $mysqld_variables{'master-port'}= 3306;
-    $opt_skip_ndbcluster= 1;
-    $opt_skip_im= 1;
   }
 
   if ( $opt_comment )
@@ -1073,7 +1072,7 @@ sub command_line_setup () {
   # On some operating systems, there is a limit to the length of a
   # UNIX domain socket's path far below PATH_MAX, so try to avoid long
   # socket path names.
-  $sockdir = tempdir(CLEANUP => 0) if ( length($sockdir) > 80 );
+  $sockdir = tempdir(CLEANUP => 0) if ( length($sockdir) >= 80 );
 
   $master->[0]=
   {
@@ -1236,6 +1235,7 @@ sub command_line_setup () {
   {
     # Turn off features not supported when running with extern server
     $opt_skip_rpl= 1;
+    $opt_skip_ndbcluster= 1;
 
     # Setup master->[0] with the settings for the extern server
     $master->[0]->{'path_sock'}=  $opt_socket ? $opt_socket : "/tmp/mysql.sock";
@@ -2031,10 +2031,7 @@ sub environment_setup () {
     $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
 
   }
-  if (!$opt_extern)
-  {
-    $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
-  }
+  $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
 
   # ----------------------------------------------------
   # Setup env so childs can execute my_print_defaults
@@ -4854,8 +4851,7 @@ sub gdb_arguments {
   if ( $opt_manual_gdb )
   {
      print "\nTo start gdb for $type, type in another window:\n";
-     print "cd $glob_mysql_test_dir;\n";
-     print "gdb -x $gdb_init_file $$exe\n";
+     print "gdb -cd $glob_mysql_test_dir -x $gdb_init_file $$exe\n";
 
      # Indicate the exe should not be started
      $$exe= undef;
@@ -4919,8 +4915,7 @@ sub ddd_arguments {
   if ( $opt_manual_ddd )
   {
      print "\nTo start ddd for $type, type in another window:\n";
-     print "cd $glob_mysql_test_dir;\n";
-     print "ddd -x $gdb_init_file $$exe\n";
+     print "ddd -cd $glob_mysql_test_dir -x $gdb_init_file $$exe\n";
 
      # Indicate the exe should not be started
      $$exe= undef;
@@ -5138,6 +5133,8 @@ Options for debugging the product
   manual-debug          Let user manually start mysqld in debugger, before
                         running test(s)
   manual-gdb            Let user manually start mysqld in gdb, before running
+                        test(s)
+  manual-ddd            Let user manually start mysqld in ddd, before running
                         test(s)
   master-binary=PATH    Specify the master "mysqld" to use
   slave-binary=PATH     Specify the slave "mysqld" to use

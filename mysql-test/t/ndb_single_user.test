@@ -20,13 +20,67 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" --single-user >> $NDB_TOOLS_OUTPUT
 
 # verify that we are indeed in single user mode
+# and test that some operations give correct errors
 --connection server2
 --error 1005
 create table t1 (a int key, b int unique, c int) engine ndb;
+# Bug #27712 Single user mode. Creating logfile group and tablespace is allowed
+# - before bug fix these would succeed
+--error 1516
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+show warnings;
 
 # test some sql on first mysqld
 --connection server1
 create table t1 (a int key, b int unique, c int) engine ndb;
+# Check that we can create logfile group
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+--connection server2
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+show warnings;
+--error ER_DROP_FILEGROUP_FAILED
+DROP LOGFILE GROUP lg1 
+ENGINE =NDB;
+show warnings;
+--connection server1
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+--connection server2
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE NDB;
+show warnings;
+--connection server1
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE NDB;
+--connection server2
+--error ER_DROP_FILEGROUP_FAILED
+DROP TABLESPACE ts1
+ENGINE NDB;
+show warnings;
+--connection server1
+DROP TABLESPACE ts1
+ENGINE NDB;
+DROP LOGFILE GROUP lg1 
+ENGINE =NDB;
 insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0),(6,6,0),(7,7,0),(8,8,0),(9,9,0),(10,10,0);
 create table t2 as select * from t1;
 # read with pk
@@ -46,15 +100,18 @@ update t1 set b=b+100 where a > 7;
 # delete with full table scan
 delete from t1;
 insert into t1 select * from t2;
+# Bug #27710 Creating unique index fails during single user mode
+# - prior to bugfix this would fail
+create unique index new_index on t1 (b,c);
 
 # test some sql on other mysqld
 --connection server2
 --error 1051
 drop table t1;
 --error 1296
-create index new_index on t1 (c);
+create index new_index_fail on t1 (c);
 --error 1296
-insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0),(6,6,0),(7,7,0),(8,8,0),(9,9,0),(10,10,0);
+insert into t1 values (21,21,0),(22,22,0),(23,23,0),(24,24,0),(25,25,0),(26,26,0),(27,27,0),(28,28,0),(29,29,0),(210,210,0);
 --error 1296
 select * from t1 where a = 1;
 --error 1296
