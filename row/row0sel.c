@@ -3462,7 +3462,7 @@ row_search_for_mysql(
 	locks when locking delete-marked records. */
 
 	if (match_mode == ROW_SEL_EXACT
-	    && index->type & DICT_UNIQUE
+	    && dict_index_is_unique(index)
 	    && dtuple_get_n_fields(search_tuple)
 	    == dict_index_get_n_unique(index)
 	    && (dict_index_is_clust(index)
