@@ -160,6 +160,21 @@ dict_index_is_clust(
 
 	return(UNIV_UNLIKELY(index->type & DICT_CLUSTERED));
 }
+/************************************************************************
+Check whether the index is unique. */
+UNIV_INLINE
+ulint
+dict_index_is_unique(
+/*=================*/
+					/* out: nonzero for unique index,
+					zero for other indexes */
+	const dict_index_t*	index)	/* in: index */
+{
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	return(UNIV_UNLIKELY(index->type & DICT_UNIQUE));
+}
 
 /************************************************************************
 Gets the number of user-defined columns in a table in the dictionary
