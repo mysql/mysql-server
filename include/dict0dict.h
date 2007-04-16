@@ -562,6 +562,16 @@ dict_index_is_clust(
 					zero for other indexes */
 	const dict_index_t*	index)	/* in: index */
 	__attribute__((pure));
+/************************************************************************
+Check whether the index is unique. */
+UNIV_INLINE
+ulint
+dict_index_is_unique(
+/*=================*/
+					/* out: nonzero for unique index,
+					zero for other indexes */
+	const dict_index_t*	index)	/* in: index */
+	__attribute__((pure));
 
 /************************************************************************
 Gets the number of user-defined columns in a table in the dictionary
