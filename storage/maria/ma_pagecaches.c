@@ -2,7 +2,8 @@
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -21,55 +22,55 @@
   the cache.
 */
 
-#include "mysys_priv.h"
-#include <keycache.h>
+#include "maria_def.h"
+#include <pagecache.h>
 #include <hash.h>
 #include <m_string.h>
-#include "my_safehash.h"
+#include "../../mysys/my_safehash.h"
 
 /*****************************************************************************
-  Functions to handle the key cache objects
+  Functions to handle the pagecache objects
 *****************************************************************************/
 
 /* Variable to store all key cache objects */
-static SAFE_HASH key_cache_hash;
+static SAFE_HASH pagecache_hash;
 
 
-my_bool multi_keycache_init(void)
+my_bool multi_pagecache_init(void)
 {
-  return safe_hash_init(&key_cache_hash, 16, (byte*) dflt_key_cache);
+  return safe_hash_init(&pagecache_hash, 16, (byte*) dflt_pagecache);
 }
 
 
-void multi_keycache_free(void)
+void multi_pagecache_free(void)
 {
-  safe_hash_free(&key_cache_hash);
+  safe_hash_free(&pagecache_hash);
 }
 
 /*
   Get a key cache to be used for a specific table.
 
   SYNOPSIS
-    multi_key_cache_search()
+    multi_pagecache_search()
     key				key to find (usually table path)
     uint length			Length of key.
     def				Default value if no key cache
 
   NOTES
     This function is coded in such a way that we will return the
-    default key cache even if one never called multi_keycache_init.
+    default key cache even if one never called multi_pagecache_init.
     This will ensure that it works with old MyISAM clients.
 
   RETURN
     key cache to use
 */
 
-KEY_CACHE *multi_key_cache_search(byte *key, uint length,
-                                  KEY_CACHE *def)
+PAGECACHE *multi_pagecache_search(byte *key, uint length,
+                                  PAGECACHE *def)
 {
-  if (!key_cache_hash.hash.records)
+  if (!pagecache_hash.hash.records)
     return def;
-  return (KEY_CACHE*) safe_hash_search(&key_cache_hash, key, length,
+  return (PAGECACHE*) safe_hash_search(&pagecache_hash, key, length,
                                        (void*) def);
 }
 
@@ -79,10 +80,10 @@ KEY_CACHE *multi_key_cache_search(byte *key, uint length,
 
 
   SYONOPSIS
-    multi_key_cache_set()
+    multi_pagecache_set()
     key				key (path to table etc..)
     length			Length of key
-    key_cache			cache to assococite with the table
+    pagecache			cache to assococite with the table
 
   NOTES
     This can be used both to insert a new entry and change an existing
@@ -90,17 +91,15 @@ KEY_CACHE *multi_key_cache_search(byte *key, uint length,
 */
 
 
-my_bool multi_key_cache_set(const byte *key, uint length,
-			    KEY_CACHE *key_cache)
+my_bool multi_pagecache_set(const byte *key, uint length,
+			    PAGECACHE *pagecache)
 {
-  return safe_hash_set(&key_cache_hash, key, length, (byte*) key_cache);
+  return safe_hash_set(&pagecache_hash, key, length, (byte*) pagecache);
 }
 
 
-void multi_key_cache_change(KEY_CACHE *old_data,
-			    KEY_CACHE *new_data)
+void multi_pagecache_change(PAGECACHE *old_data,
+			    PAGECACHE *new_data)
 {
-  safe_hash_change(&key_cache_hash, (byte*) old_data, (byte*) new_data);
+  safe_hash_change(&pagecache_hash, (byte*) old_data, (byte*) new_data);
 }
-
-

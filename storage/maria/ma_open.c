@@ -109,8 +109,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     bzero((gptr) &share_buff,sizeof(share_buff));
     share_buff.state.rec_per_key_part=rec_per_key_part;
     share_buff.state.key_root=key_root;
-    share_buff.key_cache= multi_key_cache_search(name_buff, strlen(name_buff),
-                                                 maria_key_cache);
+    share_buff.pagecache= multi_pagecache_search(name_buff, strlen(name_buff),
+                                                 maria_pagecache);
 
     DBUG_EXECUTE_IF("maria_pretend_crashed_table_on_open",
                     if (strstr(name, "/t1"))
@@ -473,7 +473,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       goto err;
     errpos= 5;
 
-    share->kfile=kfile;
+    share->kfile.file= kfile;
     share->this_process=(ulong) getpid();
     share->last_process= share->state.process;
     share->base.key_parts=key_parts;
@@ -487,7 +487,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     share->block_size= share->base.block_size;
     my_afree((gptr) disk_cache);
     _ma_setup_functions(share);
-    if ((*share->once_init)(share, info.dfile))
+    if ((*share->once_init)(share, info.dfile.file))
       goto err;
     if (open_flags & HA_OPEN_MMAP)
     {
@@ -546,8 +546,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       goto err;
     }
     if (share->data_file_type == BLOCK_RECORD)
-      info.dfile= share->bitmap.file;
-    else if (_ma_open_datafile(&info, share, old_info->dfile))
+      info.dfile.file= share->bitmap.file;
+    else if (_ma_open_datafile(&info, share, old_info->dfile.file))
       goto err;
     errpos= 5;
     have_rtree= old_info->maria_rtree_recursion_state != NULL;
@@ -578,7 +578,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
   info.cur_row.lastpos= HA_OFFSET_ERROR;
   info.update= (short) (HA_STATE_NEXT_FOUND+HA_STATE_PREV_FOUND);
   info.opt_flag=READ_CHECK_USED;
-  info.this_unique= (ulong) info.dfile; /* Uniq number in process */
+  info.this_unique= (ulong) info.dfile.file; /* Uniq number in process */
   if (share->data_file_type == COMPRESSED_RECORD)
     info.this_unique= share->state.unique;
   info.this_loop=0;				/* Update counter */
@@ -655,7 +655,7 @@ err:
     /* fall through */
   case 5:
     if (share->data_file_type != BLOCK_RECORD)
-      VOID(my_close(info.dfile,MYF(0)));
+      VOID(my_close(info.dfile.file, MYF(0)));
     if (old_info)
       break;					/* Don't remove open table */
     (*share->once_end)(share);    
@@ -1228,15 +1228,16 @@ char *_ma_recinfo_read(char *ptr, MARIA_COLUMNDEF *recinfo)
 int _ma_open_datafile(MARIA_HA *info, MARIA_SHARE *share,
                       File file_to_dup __attribute__((unused)))
 {
-  info->dfile= my_open(share->data_file_name, share->mode | O_SHARE,
-                       MYF(MY_WME));
-  return info->dfile >= 0 ? 0 : 1;
+  info->dfile.file= my_open(share->data_file_name, share->mode | O_SHARE,
+                            MYF(MY_WME));
+  return info->dfile.file >= 0 ? 0 : 1;
 }
 
 
 int _ma_open_keyfile(MARIA_SHARE *share)
 {
-  if ((share->kfile=my_open(share->unique_file_name, share->mode | O_SHARE,
+  if ((share->kfile.file= my_open(share->unique_file_name,
+                                  share->mode | O_SHARE,
 			    MYF(MY_WME))) < 0)
     return 1;
   return 0;

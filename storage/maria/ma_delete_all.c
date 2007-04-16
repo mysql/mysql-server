@@ -52,7 +52,8 @@ int maria_delete_all_rows(MARIA_HA *info)
     If we are using delayed keys or if the user has done changes to the tables
     since it was locked then there may be key blocks in the key cache
   */
-  flush_key_blocks(share->key_cache, share->kfile, FLUSH_IGNORE_CHANGED);
+  flush_pagecache_blocks(share->pagecache, &share->kfile,
+                         FLUSH_IGNORE_CHANGED);
   /*
     RECOVERY TODO Log the two chsize and header modifications and force the
     log. So that if crash between the two chsize, we finish the work at
@@ -62,8 +63,8 @@ int maria_delete_all_rows(MARIA_HA *info)
     should be applied only if t1 exists and its ZeroDirtyPagesLSN is smaller
     than the records'. See more comments below.
   */
-  if (my_chsize(info->dfile, 0, 0, MYF(MY_WME)) ||
-      my_chsize(share->kfile, share->base.keystart, 0, MYF(MY_WME))  )
+  if (my_chsize(info->dfile.file, 0, 0, MYF(MY_WME)) ||
+      my_chsize(share->kfile.file, share->base.keystart, 0, MYF(MY_WME))  )
     goto err;
 
   if (_ma_initialize_data_file(info->dfile, info->s))

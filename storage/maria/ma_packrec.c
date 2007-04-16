@@ -740,7 +740,7 @@ int _ma_read_pack_record(MARIA_HA *info, byte *buf, MARIA_RECORD_POS filepos)
   if (filepos == HA_OFFSET_ERROR)
     DBUG_RETURN(-1);			/* _search() didn't find record */
 
-  file=info->dfile;
+  file= info->dfile.file;
   if (_ma_pack_get_block_info(info, &info->bit_buff, &block_info,
                               &info->rec_buff, &info->rec_buff_size, file,
                               filepos))
@@ -1349,7 +1349,7 @@ int _ma_read_rnd_pack_record(MARIA_HA *info,
     goto err;
   }
 
-  file= info->dfile;
+  file= info->dfile.file;
   if (info->opt_flag & READ_CACHE_USED)
   {
     if (_ma_read_cache(&info->rec_cache, (byte*) block_info.header,
@@ -1379,7 +1379,7 @@ int _ma_read_rnd_pack_record(MARIA_HA *info,
   }
   else
   {
-    if (my_read(info->dfile,(byte*) info->rec_buff + block_info.offset,
+    if (my_read(info->dfile.file, (byte*)info->rec_buff + block_info.offset,
 		block_info.rec_len-block_info.offset,
 		MYF(MY_NABP)))
       goto err;
@@ -1540,7 +1540,7 @@ my_bool _ma_memmap_file(MARIA_HA *info)
 
   if (!info->s->file_map)
   {
-    if (my_seek(info->dfile,0L,MY_SEEK_END,MYF(0)) <
+    if (my_seek(info->dfile.file, 0L, MY_SEEK_END, MYF(0)) <
         share->state.state.data_file_length+MEMMAP_EXTRA_MARGIN)
     {
       DBUG_PRINT("warning",("File isn't extended for memmap"));

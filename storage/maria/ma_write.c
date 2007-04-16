@@ -68,7 +68,7 @@ int maria_write(MARIA_HA *info, byte *record)
   my_bool fatal_error;
   DBUG_ENTER("maria_write");
   DBUG_PRINT("enter",("index_file: %d  data_file: %d",
-                      info->s->kfile,info->dfile));
+                      info->s->kfile.file, info->dfile.file));
 
   DBUG_EXECUTE_IF("maria_pretend_crashed_table_on_usage",
                   maria_print_error(info->s, HA_ERR_CRASHED);

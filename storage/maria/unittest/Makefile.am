@@ -26,19 +26,18 @@ LDADD=			$(top_builddir)/unittest/mytap/libmytap.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@ \
-			$(top_builddir)/storage/maria/ma_loghandler.o
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 noinst_PROGRAMS =	ma_control_file-t trnman-t lockman2-t \
-			mf_pagecache_single_1k-t mf_pagecache_single_8k-t \
-			mf_pagecache_single_64k-t-big \
-			mf_pagecache_consist_1k-t-big \
-			mf_pagecache_consist_64k-t-big \
-			mf_pagecache_consist_1kHC-t-big \
-			mf_pagecache_consist_64kHC-t-big \
-			mf_pagecache_consist_1kRD-t-big \
-			mf_pagecache_consist_64kRD-t-big \
-			mf_pagecache_consist_1kWR-t-big \
-			mf_pagecache_consist_64kWR-t-big \
+			ma_pagecache_single_1k-t ma_pagecache_single_8k-t \
+			ma_pagecache_single_64k-t-big \
+			ma_pagecache_consist_1k-t-big \
+			ma_pagecache_consist_64k-t-big \
+			ma_pagecache_consist_1kHC-t-big \
+			ma_pagecache_consist_64kHC-t-big \
+			ma_pagecache_consist_1kRD-t-big \
+			ma_pagecache_consist_64kRD-t-big \
+			ma_pagecache_consist_1kWR-t-big \
+			ma_pagecache_consist_64kWR-t-big \
 			ma_test_loghandler-t \
                         ma_test_loghandler_multigroup-t \
 			ma_test_loghandler_multithread-t \
@@ -49,36 +48,36 @@ ma_test_loghandler_multigroup_t_SOURCES= ma_test_loghandler_multigroup-t.c ma_ma
 ma_test_loghandler_multithread_t_SOURCES= ma_test_loghandler_multithread-t.c ma_maria_log_cleanup.c
 ma_test_loghandler_pagecache_t_SOURCES= ma_test_loghandler_pagecache-t.c ma_maria_log_cleanup.c
 
-mf_pagecache_single_src =	mf_pagecache_single.c $(top_srcdir)/mysys/mf_pagecache.c test_file.c
-mf_pagecache_consist_src =	mf_pagecache_consist.c $(top_srcdir)/mysys/mf_pagecache.c test_file.c
-mf_pagecache_common_cppflags =	-DEXTRA_DEBUG -DPAGECACHE_DEBUG -DMAIN
+ma_pagecache_single_src =	ma_pagecache_single.c test_file.c
+ma_pagecache_consist_src =	ma_pagecache_consist.c test_file.c
+ma_pagecache_common_cppflags =	-DEXTRA_DEBUG -DPAGECACHE_DEBUG -DMAIN
 
-mf_pagecache_single_1k_t_SOURCES =	$(mf_pagecache_single_src)
-mf_pagecache_single_8k_t_SOURCES =	$(mf_pagecache_single_src)
-mf_pagecache_single_64k_t_big_SOURCES =	$(mf_pagecache_single_src)
-mf_pagecache_single_1k_t_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=1024
-mf_pagecache_single_8k_t_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=8192
-mf_pagecache_single_64k_t_big_CPPFLAGS =	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=65536
+ma_pagecache_single_1k_t_SOURCES =	$(ma_pagecache_single_src)
+ma_pagecache_single_8k_t_SOURCES =	$(ma_pagecache_single_src)
+ma_pagecache_single_64k_t_big_SOURCES =	$(ma_pagecache_single_src)
+ma_pagecache_single_1k_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024
+ma_pagecache_single_8k_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=8192
+ma_pagecache_single_64k_t_big_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536
 
-mf_pagecache_consist_1k_t_big_SOURCES =	$(mf_pagecache_consist_src)
-mf_pagecache_consist_1k_t_big_CPPFLAGS =	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=1024
-mf_pagecache_consist_64k_t_big_SOURCES =	$(mf_pagecache_consist_src)
-mf_pagecache_consist_64k_t_big_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=65536
+ma_pagecache_consist_1k_t_big_SOURCES =	$(ma_pagecache_consist_src)
+ma_pagecache_consist_1k_t_big_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024
+ma_pagecache_consist_64k_t_big_SOURCES =	$(ma_pagecache_consist_src)
+ma_pagecache_consist_64k_t_big_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536
 
-mf_pagecache_consist_1kHC_t_big_SOURCES =	$(mf_pagecache_consist_src)
-mf_pagecache_consist_1kHC_t_big_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_HIGH_CONCURENCY
-mf_pagecache_consist_64kHC_t_big_SOURCES =	$(mf_pagecache_consist_src)
-mf_pagecache_consist_64kHC_t_big_CPPFLAGS =	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_HIGH_CONCURENCY
+ma_pagecache_consist_1kHC_t_big_SOURCES =	$(ma_pagecache_consist_src)
+ma_pagecache_consist_1kHC_t_big_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_HIGH_CONCURENCY
+ma_pagecache_consist_64kHC_t_big_SOURCES =	$(ma_pagecache_consist_src)
+ma_pagecache_consist_64kHC_t_big_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_HIGH_CONCURENCY
 
-mf_pagecache_consist_1kRD_t_big_SOURCES =	$(mf_pagecache_consist_src)
-mf_pagecache_consist_1kRD_t_big_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_READERS
-mf_pagecache_consist_64kRD_t_big_SOURCES =	$(mf_pagecache_consist_src)
-mf_pagecache_consist_64kRD_t_big_CPPFLAGS =	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_READERS
+ma_pagecache_consist_1kRD_t_big_SOURCES =	$(ma_pagecache_consist_src)
+ma_pagecache_consist_1kRD_t_big_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_READERS
+ma_pagecache_consist_64kRD_t_big_SOURCES =	$(ma_pagecache_consist_src)
+ma_pagecache_consist_64kRD_t_big_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_READERS
 
-mf_pagecache_consist_1kWR_t_big_SOURCES =	$(mf_pagecache_consist_src)
-mf_pagecache_consist_1kWR_t_big_CPPFLAGS = 	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_WRITERS
-mf_pagecache_consist_64kWR_t_big_SOURCES =	$(mf_pagecache_consist_src)
-mf_pagecache_consist_64kWR_t_big_CPPFLAGS =	$(mf_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_WRITERS
+ma_pagecache_consist_1kWR_t_big_SOURCES =	$(ma_pagecache_consist_src)
+ma_pagecache_consist_1kWR_t_big_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_WRITERS
+ma_pagecache_consist_64kWR_t_big_SOURCES =	$(ma_pagecache_consist_src)
+ma_pagecache_consist_64kWR_t_big_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_WRITERS
 
 # the generic lock manager may not be used in the end and lockman1-t crashes,
 # so we don't build lockman-t and lockman1-t 

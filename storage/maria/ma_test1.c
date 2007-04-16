@@ -32,7 +32,7 @@ static enum data_file_type record_type= DYNAMIC_RECORD;
 static uint insert_count, update_count, remove_count;
 static uint pack_keys=0, pack_seg=0, key_length;
 static uint unique_key=HA_NOSAME;
-static my_bool key_cacheing, null_fields, silent, skip_update, opt_unique,
+static my_bool pagecacheing, null_fields, silent, skip_update, opt_unique,
   verbose, skip_delete;
 static MARIA_COLUMNDEF recinfo[4];
 static MARIA_KEYDEF keyinfo[10];
@@ -50,9 +50,9 @@ int main(int argc,char *argv[])
   MY_INIT(argv[0]);
   my_init();
   maria_init();
-  if (key_cacheing)
-    init_key_cache(maria_key_cache,KEY_CACHE_BLOCK_SIZE,IO_SIZE*16,0,0);
   get_options(argc,argv);
+  if (pagecacheing)
+    init_pagecache(maria_pagecache, IO_SIZE*16, 0, 0, MARIA_KEY_BLOCK_LENGTH);
 
   exit(run_test("test1"));
 }
@@ -568,8 +568,8 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"key-blob", 'b', "Undocumented",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"key-cache", 'K', "Undocumented", (gptr*) &key_cacheing,
-   (gptr*) &key_cacheing, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"key-cache", 'K', "Undocumented", (gptr*) &pagecacheing,
+   (gptr*) &pagecacheing, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"key-length", 'k', "Undocumented", (gptr*) &key_length, (gptr*) &key_length,
    0, GET_UINT, REQUIRED_ARG, 6, 0, 0, 0, 0, 0},
   {"key-multiple", 'm', "Undocumented",
@@ -676,7 +676,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       record_type= DYNAMIC_RECORD;
     break;
   case 'K':                                     /* Use key cacheing */
-    key_cacheing=1;
+    pagecacheing=1;
     break;
   case 'V':
     printf("test1 Ver 1.2 \n");

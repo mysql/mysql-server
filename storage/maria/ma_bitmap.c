@@ -121,10 +121,13 @@
 static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
                                            MARIA_FILE_BITMAP *bitmap)
 {
-  return (key_cache_write(share->key_cache,
-                          bitmap->file, bitmap->page * bitmap->block_size, 0,
-                          (byte*) bitmap->map,
-                          bitmap->block_size, bitmap->block_size, 1));
+  DBUG_ASSERT(share->pagecache->block_size == bitmap->block_size);
+  return (pagecache_write(share->pagecache,
+                          (PAGECACHE_FILE*)&bitmap->file, bitmap->page, 0,
+                          (byte*) bitmap->map, PAGECACHE_PLAIN_PAGE,
+                          PAGECACHE_LOCK_LEFT_UNLOCKED,
+                          PAGECACHE_PIN_LEFT_PINNED,
+                          PAGECACHE_WRITE_DELAY, 0));
 }
 
 /*
@@ -411,10 +414,12 @@ my_bool _ma_read_bitmap_page(MARIA_SHARE *share, MARIA_FILE_BITMAP *bitmap,
     DBUG_RETURN(0);
   }
   bitmap->used_size= bitmap->total_size;
-  res= key_cache_read(share->key_cache,
-                      bitmap->file, position, 0,
+  DBUG_ASSERT(share->pagecache->block_size == bitmap->block_size);
+  res= pagecache_read(share->pagecache,
+                      (PAGECACHE_FILE*)&bitmap->file, page, 0,
                       (byte*) bitmap->map,
-                      bitmap->block_size, bitmap->block_size, 0) == 0;
+                      PAGECACHE_PLAIN_PAGE,
+                      PAGECACHE_LOCK_LEFT_UNLOCKED, 0) == 0;
 #ifndef DBUG_OFF
   if (!res)
     memcpy(bitmap->map+ bitmap->block_size, bitmap->map, bitmap->block_size);

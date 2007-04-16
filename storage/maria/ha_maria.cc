@@ -516,7 +516,7 @@ double ha_maria::scan_time()
 #ifdef HAVE_REPLICATION
 int ha_maria::net_read_dump(NET * net)
 {
-  int data_fd= file->dfile;
+  int data_fd= file->dfile.file;
   int error= 0;
 
   my_seek(data_fd, 0L, MY_SEEK_SET, MYF(MY_WME));
@@ -549,7 +549,7 @@ int ha_maria::dump(THD * thd, int fd)
   NET *net= &thd->net;
   uint block_size= share->block_size;
   my_off_t bytes_to_read= share->state.state.data_file_length;
-  int data_fd= file->dfile;
+  int data_fd= file->dfile.file;
   byte *buf= (byte *) my_malloc(block_size, MYF(MY_WME));
   if (!buf)
     return ENOMEM;
@@ -758,7 +758,7 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
     {
       uint old_testflag= param.testflag;
       param.testflag |= T_MEDIUM;
-      if (!(error= init_io_cache(&param.read_cache, file->dfile,
+      if (!(error= init_io_cache(&param.read_cache, file->dfile.file,
                                  my_default_record_cache_size, READ_CACHE,
                                  share->pack.header_length, 1, MYF(MY_WME))))
       {
@@ -1172,7 +1172,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
 
 int ha_maria::assign_to_keycache(THD * thd, HA_CHECK_OPT *check_opt)
 {
-  KEY_CACHE *new_key_cache= check_opt->key_cache;
+  PAGECACHE *new_pagecache= check_opt->pagecache;
   const char *errmsg= 0;
   int error= HA_ADMIN_OK;
   ulonglong map= ~(ulonglong) 0;
@@ -1193,7 +1193,7 @@ int ha_maria::assign_to_keycache(THD * thd, HA_CHECK_OPT *check_opt)
     map= kmap.to_ulonglong();
   }
 
-  if ((error= maria_assign_to_key_cache(file, map, new_key_cache)))
+  if ((error= maria_assign_to_pagecache(file, map, new_pagecache)))
   {
     char buf[STRING_BUFFER_USUAL_SIZE];
     my_snprintf(buf, sizeof(buf),

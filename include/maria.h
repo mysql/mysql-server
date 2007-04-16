@@ -27,8 +27,8 @@ extern "C" {
 #ifndef _m_ctype_h
 #include <m_ctype.h>
 #endif
-#ifndef _keycache_h
-#include "keycache.h"
+#ifndef _pagecache_h
+#include "pagecache.h"
 #endif
 #include "my_handler.h"
 #include "ft_global.h"
@@ -249,7 +249,7 @@ extern my_bool maria_flush, maria_single_user;
 extern my_bool maria_delay_key_write, maria_delay_rec_write;
 extern my_off_t maria_max_temp_length;
 extern ulong maria_bulk_insert_tree_size, maria_data_pointer_size;
-extern KEY_CACHE maria_key_cache_var, *maria_key_cache;
+extern PAGECACHE maria_pagecache_var, *maria_pagecache;
 
 
 	/* Prototypes for maria-functions */
@@ -418,10 +418,10 @@ my_bool maria_test_if_sort_rep(MARIA_HA *info, ha_rows rows, ulonglong key_map,
 int maria_init_bulk_insert(MARIA_HA *info, ulong cache_size, ha_rows rows);
 void maria_flush_bulk_insert(MARIA_HA *info, uint inx);
 void maria_end_bulk_insert(MARIA_HA *info);
-int maria_assign_to_key_cache(MARIA_HA *info, ulonglong key_map,
-			      KEY_CACHE *key_cache);
-void maria_change_key_cache(KEY_CACHE *old_key_cache,
-			    KEY_CACHE *new_key_cache);
+int maria_assign_to_pagecache(MARIA_HA *info, ulonglong key_map,
+			      PAGECACHE *key_cache);
+void maria_change_pagecache(PAGECACHE *old_key_cache,
+			    PAGECACHE *new_key_cache);
 int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves);
 
 /* fulltext functions */

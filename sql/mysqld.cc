@@ -558,6 +558,9 @@ FILE *stderror_file=0;
 
 I_List<THD> threads;
 I_List<NAMED_LIST> key_caches;
+#ifdef WITH_MARIA_STORAGE_ENGINE
+I_List<NAMED_LIST> pagecaches;
+#endif /* WITH_MARIA_STORAGE_ENGINE */
 Rpl_filter* rpl_filter;
 Rpl_filter* binlog_filter;
 
@@ -1226,7 +1229,13 @@ void clean_up(bool print_message)
     tc_log->close();
   xid_cache_free();
   delete_elements(&key_caches, (void (*)(const char*, gptr)) free_key_cache);
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  delete_elements(&pagecaches, (void (*)(const char*, gptr)) free_pagecache);
+#endif /* WITH_MARIA_STORAGE_ENGINE */
   multi_keycache_free();
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  multi_pagecache_free();
+#endif
   free_status_vars();
   end_thr_alarm(1);			/* Free allocated memory */
   my_free_open_file_info();
@@ -2199,6 +2208,10 @@ the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
   fprintf(stderr, "key_buffer_size=%lu\n", 
           (ulong) dflt_key_cache->key_cache_mem_size);
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  fprintf(stderr, "page_buffer_size=%lu\n",
+          (ulong) dflt_pagecache->mem_size);
+#endif /* WITH_MARIA_STORAGE_ENGINE */
   fprintf(stderr, "read_buffer_size=%ld\n", (long) global_system_variables.read_buff_size);
   fprintf(stderr, "max_used_connections=%lu\n", max_used_connections);
   fprintf(stderr, "max_threads=%u\n", thread_scheduler.max_threads);
@@ -2206,6 +2219,9 @@ and this may fail.\n\n");
   fprintf(stderr, "It is possible that mysqld could use up to \n\
 key_buffer_size + (read_buffer_size + sort_buffer_size)*max_threads = %lu K\n\
 bytes of memory\n", ((ulong) dflt_key_cache->key_cache_mem_size +
+#ifdef WITH_MARIA_STORAGE_ENGINE
+                     (ulong) dflt_pagecache->mem_size +
+#endif /* WITH_MARIA_STORAGE_ENGINE */
 		     (global_system_variables.read_buff_size +
 		      global_system_variables.sortbuff_size) *
 		     thread_scheduler.max_threads +
@@ -2760,6 +2776,16 @@ static int init_common_variables(const char *conf_file_name, int argc,
   defaults_argv=argv;
   get_options(argc,argv);
   set_server_version();
+
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  if (!(dflt_pagecache= get_or_create_pagecache(maria_pagecache_base.str,
+                                                maria_pagecache_base.length)))
+    exit(1);
+/*
+  maria_pagecache->param_buff_size= maria_pagecache_var.param_buff_size;
+  maria_pagecache->param_block_size= maria_block_size;
+*/
+#endif
 
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
 		     server_version, SYSTEM_TYPE,MACHINE_TYPE));
@@ -3439,6 +3465,9 @@ server.");
 
   /* call ha_init_key_cache() on all key caches to init them */
   process_key_caches(&ha_init_key_cache);
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  process_pagecaches(&ha_init_pagecache);
+#endif /* WITH_MARIA_STORAGE_ENGINE */
 
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT) && !defined(EMBEDDED_LIBRARY)
   if (locked_in_memory && !getuid())
@@ -6067,7 +6096,7 @@ log and this option does nothing anymore.",
    "this to get better index handling (for all reads and multiple writes) to "
    "as much as you can afford; 64M on a 256M machine that mainly runs MySQL "
    "is quite common.",
-   (gptr*) &maria_key_cache_var.param_buff_size, (gptr*) 0,
+   (gptr*) &maria_pagecache_var.param_buff_size, (gptr*) 0,
    0, (GET_ULL | GET_ASK_ADDR),
    REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, ~(ulong) 0, MALLOC_OVERHEAD,
    IO_SIZE, 0},
@@ -6261,6 +6290,33 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.optimizer_search_depth,
    (gptr*) &max_system_variables.optimizer_search_depth,
    0, GET_ULONG, OPT_ARG, MAX_TABLES+1, 0, MAX_TABLES+2, 0, 1, 0},
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  {"pagecache_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
+   "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
+   (gptr*) &dflt_pagecache_var.param_age_threshold,
+   (gptr*) 0,
+   0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, 
+   300, 100, ~0L, 0, 100, 0},
+  {"pagecache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,
+   "The default size of key cache blocks",
+   (gptr*) &dflt_pagecache_var.param_block_size,
+   (gptr*) 0,
+   0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG,
+   KEY_CACHE_BLOCK_SIZE , 512, 1024*16, MALLOC_OVERHEAD, 512, 0},
+  {"pagecache_buffer_size", OPT_KEY_BUFFER_SIZE,
+   "The size of the buffer used for index blocks for MyISAM tables. Increase this to get better index handling (for all reads and multiple writes) to as much as you can afford; 64M on a 256M machine that mainly runs MySQL is quite common.",
+   (gptr*) &dflt_pagecache_var.param_buff_size,
+   (gptr*) 0,
+   0, (GET_ULL | GET_ASK_ADDR),
+   REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, ~(ulong) 0, MALLOC_OVERHEAD,
+   IO_SIZE, 0},
+  {"pagecache_division_limit", OPT_KEY_CACHE_DIVISION_LIMIT,
+   "The minimum percentage of warm blocks in key cache",
+   (gptr*) &dflt_pagecache_var.param_division_limit,
+   (gptr*) 0,
+   0, (GET_ULONG | GET_ASK_ADDR) , REQUIRED_ARG, 100,
+   1, 100, 0, 1, 0},
+#endif /* WITH_MARIA_STORAGE_ENGINE */
   {"plugin_dir", OPT_PLUGIN_DIR,
    "Directory for plugins.",
    (gptr*) &opt_plugin_dir_ptr, (gptr*) &opt_plugin_dir_ptr, 0,
@@ -7163,19 +7219,20 @@ static void mysql_init_variables(void)
   threads.empty();
   thread_cache.empty();
   key_caches.empty();
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  pagecaches.empty();
+#endif /* WITH_MARIA_STORAGE_ENGINE */
   if (!(dflt_key_cache= get_or_create_key_cache(default_key_cache_base.str,
                                                 default_key_cache_base.length)))
     exit(1);
-#ifdef WITH_MARIA_STORAGE_ENGINE
-  if (!(maria_key_cache= get_or_create_key_cache(maria_key_cache_base.str,
-                                                 maria_key_cache_base.length)))
-    exit(1);
-  maria_key_cache->param_buff_size=      maria_key_cache_var.param_buff_size;
-  maria_key_cache->param_block_size=     maria_block_size;
-#endif
 
- /* set key_cache_hash.default_value = dflt_key_cache */
+  /* set key_cache_hash.default_value = dflt_key_cache */
   multi_keycache_init();
+
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  /* set pagecache_hash.default_value = dflt_pagecache */
+  multi_pagecache_init();
+#endif
 
   /* Set directory paths */
   strmake(language, LANGUAGE, sizeof(language)-1);
@@ -8310,6 +8367,9 @@ void refresh_status(THD *thd)
 
   /* Reset the counters of all key caches (default and named). */
   process_key_caches(reset_key_cache_counters);
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  process_pagecaches(reset_pagecache_counters);
+#endif /* WITH_MARIA_STORAGE_ENGINE */
   pthread_mutex_unlock(&LOCK_status);
 
   /*

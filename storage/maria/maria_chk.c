@@ -40,7 +40,7 @@ static const char *load_default_groups[]= { "maria_chk", 0 };
 static const char *set_collation_name, *opt_tmpdir;
 static CHARSET_INFO *set_collation;
 static long opt_maria_block_size;
-static long opt_key_cache_block_size;
+static long opt_pagecache_block_size;
 static const char *my_progname_short;
 static int stopwords_inited= 0;
 static MY_TMPDIR maria_chk_tmpdir;
@@ -301,9 +301,9 @@ static struct my_option my_long_options[] =
     (gptr*) &check_param.use_buffers, (gptr*) &check_param.use_buffers, 0,
     GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0},
-  { "key_cache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,  "",
-    (gptr*) &opt_key_cache_block_size,
-    (gptr*) &opt_key_cache_block_size, 0,
+  { "pagecache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,  "",
+    (gptr*) &opt_pagecache_block_size,
+    (gptr*) &opt_pagecache_block_size, 0,
     GET_LONG, REQUIRED_ARG, MARIA_KEY_BLOCK_LENGTH, MARIA_MIN_KEY_BLOCK_LENGTH,
     MARIA_MAX_KEY_BLOCK_LENGTH, 0, MARIA_MIN_KEY_BLOCK_LENGTH, 0},
   { "maria_block_size", OPT_MARIA_BLOCK_SIZE,  "",
@@ -793,7 +793,7 @@ static void get_options(register int *argc,register char ***argv)
     exit(1);
 
   check_param.tmpdir=&maria_chk_tmpdir;
-  check_param.key_cache_block_size= opt_key_cache_block_size;
+  check_param.pagecache_block_size= opt_pagecache_block_size;
 
   if (set_collation_name)
     if (!(set_collation= get_charset_by_name(set_collation_name,
@@ -1001,7 +1001,7 @@ static int maria_chk(HA_CHECK *param, my_string filename)
       use functions that only works on locked tables (like row caching).
     */
     maria_lock_database(info, F_EXTRA_LCK);
-    datafile=info->dfile;
+    datafile= info->dfile.file;
 
     if (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX))
     {
@@ -1055,13 +1055,13 @@ static int maria_chk(HA_CHECK *param, my_string filename)
 #ifndef TO_BE_REMOVED
 	if (param->out_flag & O_NEW_DATA)
 	{			/* Change temp file to org file */
-	  VOID(my_close(info->dfile,MYF(MY_WME))); /* Close new file */
+	  VOID(my_close(info->dfile.file, MYF(MY_WME))); /* Close new file */
 	  error|=maria_change_to_newfile(filename,MARIA_NAME_DEXT,DATA_TMP_EXT,
                                          MYF(0));
 	  if (_ma_open_datafile(info,info->s, -1))
 	    error=1;
 	  param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
-	  param->read_cache.file=info->dfile;
+	  param->read_cache.file= info->dfile.file;
 	}
 #endif
 	if (! error)
@@ -1080,7 +1080,7 @@ static int maria_chk(HA_CHECK *param, my_string filename)
                              /* what is the following parameter for ? */
 				(my_bool) !(param->testflag & T_REP),
 				update_index);
-	  datafile=info->dfile;	/* This is now locked */
+	  datafile= info->dfile.file;	/* This is now locked */
 	  if (!error && !update_index)
 	  {
 	    if (param->verbose)
@@ -1125,8 +1125,8 @@ static int maria_chk(HA_CHECK *param, my_string filename)
 	  !(param->testflag & (T_FAST | T_FORCE_CREATE)))
       {
 	if (param->testflag & (T_EXTEND | T_MEDIUM))
-	  VOID(init_key_cache(maria_key_cache,opt_key_cache_block_size,
-                              param->use_buffers, 0, 0));
+	  VOID(init_pagecache(maria_pagecache, param->use_buffers, 0, 0,
+                              opt_pagecache_block_size));
 	VOID(init_io_cache(&param->read_cache,datafile,
 			   (uint) param->read_buffer_length,
 			   READ_CACHE,
@@ -1139,7 +1139,7 @@ static int maria_chk(HA_CHECK *param, my_string filename)
 	if ((info->s->data_file_type != STATIC_RECORD) ||
 	    (param->testflag & (T_EXTEND | T_MEDIUM)))
 	  error|=maria_chk_data_link(param, info, param->testflag & T_EXTEND);
-	error|=_ma_flush_blocks(param, share->key_cache, share->kfile);
+	error|=_ma_flush_blocks(param, share->pagecache, &share->kfile);
 	VOID(end_io_cache(&param->read_cache));
       }
       if (!error)
@@ -1534,8 +1534,8 @@ static int maria_sort_records(HA_CHECK *param,
   if (share->state.key_root[sort_key] == HA_OFFSET_ERROR)
     DBUG_RETURN(0);				/* Nothing to do */
 
-  init_key_cache(maria_key_cache, opt_key_cache_block_size, param->use_buffers,
-                 0, 0);
+  init_pagecache(maria_pagecache, param->use_buffers,
+                 0, 0, opt_pagecache_block_size);
   if (init_io_cache(&info->rec_cache,-1,(uint) param->write_buffer_length,
 		   WRITE_CACHE,share->pack.header_length,1,
 		   MYF(MY_WME | MY_WAIT_IF_FULL)))
@@ -1566,8 +1566,9 @@ static int maria_sort_records(HA_CHECK *param,
     goto err;
   }
   if (share->pack.header_length)
-    if (maria_filecopy(param,new_file,info->dfile,0L,share->pack.header_length,
-		 "datafile-header"))
+    if (maria_filecopy(param, new_file, info->dfile.file, 0L,
+                       share->pack.header_length,
+                       "datafile-header"))
       goto err;
   info->rec_cache.file=new_file;		/* Use this file for cacheing*/
 
@@ -1575,7 +1576,7 @@ static int maria_sort_records(HA_CHECK *param,
   for (key=0 ; key < share->base.keys ; key++)
     share->keyinfo[key].flag|= HA_SORT_ALLOWS_SAME;
 
-  if (my_pread(share->kfile, temp_buff,
+  if (my_pread(share->kfile.file, temp_buff,
 	       (uint) keyinfo->block_length,
 	       share->state.key_root[sort_key],
 	       MYF(MY_NABP+MY_WME)))
@@ -1611,9 +1612,9 @@ static int maria_sort_records(HA_CHECK *param,
     goto err;
   }
 
-  VOID(my_close(info->dfile,MYF(MY_WME)));
+  VOID(my_close(info->dfile.file, MYF(MY_WME)));
   param->out_flag|=O_NEW_DATA;			/* Data in new file */
-  info->dfile=new_file;				/* Use new datafile */
+  info->dfile.file= new_file;				/* Use new datafile */
   info->state->del=0;
   info->state->empty=0;
   share->state.dellink= HA_OFFSET_ERROR;
@@ -1646,7 +1647,7 @@ err:
   my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
   sort_info.buff=0;
   share->state.sortkey=sort_key;
-  DBUG_RETURN(_ma_flush_blocks(param, share->key_cache, share->kfile) |
+  DBUG_RETURN(_ma_flush_blocks(param, share->pagecache, &share->kfile) |
 	      got_error);
 } /* sort_records */
 
@@ -1687,7 +1688,7 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
     if (nod_flag)
     {
       next_page= _ma_kpos(nod_flag, keypos);
-      if (my_pread(info->s->kfile,(byte*) temp_buff,
+      if (my_pread(info->s->kfile.file, (byte*)temp_buff,
 		  (uint) keyinfo->block_length, next_page,
 		   MYF(MY_NABP+MY_WME)))
       {
@@ -1728,7 +1729,7 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
   }
   /* Clear end of block to get better compression if the table is backuped */
   bzero((byte*) buff+used_length,keyinfo->block_length-used_length);
-  if (my_pwrite(info->s->kfile,(byte*) buff,(uint) keyinfo->block_length,
+  if (my_pwrite(info->s->kfile.file, (byte*)buff, (uint)keyinfo->block_length,
 		page,param->myf_rw))
   {
     _ma_check_print_error(param,"%d when updating keyblock",my_errno);

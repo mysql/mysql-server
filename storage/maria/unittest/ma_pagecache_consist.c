@@ -97,7 +97,7 @@ uint check_page(uchar *buff, ulong offset, int page_locked, int page_no,
     end+= sizeof(uint) + sizeof(uint);
     if (len + end > PAGE_SIZE)
     {
-      diag("incorrect field header #%u by offset %lu\n", i, offset + end + j);
+      diag("incorrect field header #%u by offset %lu\n", i, offset + end);
       goto err;
     }
     for(j= 0; j < len; j++)

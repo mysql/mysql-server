@@ -23,10 +23,10 @@
   Assign pages of the index file for a table to a key cache
 
   SYNOPSIS
-    maria_assign_to_key_cache()
+    maria_assign_to_pagecache()
       info          open table
       key_map       map of indexes to assign to the key cache
-      key_cache_ptr pointer to the key cache handle
+      pagecache_ptr pointer to the key cache handle
       assign_lock   Mutex to lock during assignment
 
   PREREQUESTS
@@ -46,22 +46,22 @@
     #  Error code
 */
 
-int maria_assign_to_key_cache(MARIA_HA *info,
-			   ulonglong key_map __attribute__((unused)),
-			   KEY_CACHE *key_cache)
+int maria_assign_to_pagecache(MARIA_HA *info,
+                              ulonglong key_map __attribute__((unused)),
+                              PAGECACHE *pagecache)
 {
   int error= 0;
   MARIA_SHARE* share= info->s;
-  DBUG_ENTER("maria_assign_to_key_cache");
+  DBUG_ENTER("maria_assign_to_pagecache");
   DBUG_PRINT("enter",
-             ("old_key_cache_handle: 0x%lx  new_key_cache_handle: 0x%lx",
-             (long) share->key_cache, (long) key_cache));
+             ("old_pagecache_handle: 0x%lx  new_pagecache_handle: 0x%lx",
+             (long) share->pagecache, (long) pagecache));
 
   /*
     Skip operation if we didn't change key cache. This can happen if we
     call this for all open instances of the same table
   */
-  if (share->key_cache == key_cache)
+  if (share->pagecache == pagecache)
     DBUG_RETURN(0);
 
   /*
@@ -76,7 +76,7 @@ int maria_assign_to_key_cache(MARIA_HA *info,
     in the old key cache.
   */
 
-  if (flush_key_blocks(share->key_cache, share->kfile, FLUSH_RELEASE))
+  if (flush_pagecache_blocks(share->pagecache, &share->kfile, FLUSH_RELEASE))
   {
     error= my_errno;
     maria_print_error(info->s, HA_ERR_CRASHED);
@@ -91,10 +91,10 @@ int maria_assign_to_key_cache(MARIA_HA *info,
     (This can never fail as there is never any not written data in the
     new key cache)
   */
-  (void) flush_key_blocks(key_cache, share->kfile, FLUSH_RELEASE);
+  (void) flush_pagecache_blocks(pagecache, &share->kfile, FLUSH_RELEASE);
 
   /*
-    ensure that setting the key cache and changing the multi_key_cache
+    ensure that setting the key cache and changing the multi_pagecache
     is done atomicly
   */
   pthread_mutex_lock(&share->intern_lock);
@@ -102,11 +102,11 @@ int maria_assign_to_key_cache(MARIA_HA *info,
     Tell all threads to use the new key cache
     This should be seen at the lastes for the next call to an maria function.
   */
-  share->key_cache= key_cache;
+  share->pagecache= pagecache;
 
   /* store the key cache in the global hash structure for future opens */
-  if (multi_key_cache_set(share->unique_file_name, share->unique_name_length,
-			  share->key_cache))
+  if (multi_pagecache_set(share->unique_file_name, share->unique_name_length,
+			  share->pagecache))
     error= my_errno;
   pthread_mutex_unlock(&share->intern_lock);
   DBUG_RETURN(error);
@@ -117,16 +117,16 @@ int maria_assign_to_key_cache(MARIA_HA *info,
   Change all MARIA entries that uses one key cache to another key cache
 
   SYNOPSIS
-    maria_change_key_cache()
-    old_key_cache	Old key cache
-    new_key_cache	New key cache
+    maria_change_pagecache()
+    old_pagecache	Old key cache
+    new_pagecache	New key cache
 
   NOTES
     This is used when we delete one key cache.
 
     To handle the case where some other threads tries to open an MARIA
     table associated with the to-be-deleted key cache while this operation
-    is running, we have to call 'multi_key_cache_change()' from this
+    is running, we have to call 'multi_pagecache_change()' from this
     function while we have a lock on the MARIA table list structure.
 
     This is safe as long as it's only MARIA that is using this specific
@@ -134,11 +134,11 @@ int maria_assign_to_key_cache(MARIA_HA *info,
 */
 
 
-void maria_change_key_cache(KEY_CACHE *old_key_cache,
-			 KEY_CACHE *new_key_cache)
+void maria_change_pagecache(PAGECACHE *old_pagecache,
+                            PAGECACHE *new_pagecache)
 {
   LIST *pos;
-  DBUG_ENTER("maria_change_key_cache");
+  DBUG_ENTER("maria_change_pagecache");
 
   /*
     Lock list to ensure that no one can close the table while we manipulate it
@@ -148,8 +148,8 @@ void maria_change_key_cache(KEY_CACHE *old_key_cache,
   {
     MARIA_HA *info= (MARIA_HA*) pos->data;
     MARIA_SHARE *share= info->s;
-    if (share->key_cache == old_key_cache)
-      maria_assign_to_key_cache(info, (ulonglong) ~0, new_key_cache);
+    if (share->pagecache == old_pagecache)
+      maria_assign_to_pagecache(info, (ulonglong) ~0, new_pagecache);
   }
 
   /*
@@ -157,7 +157,7 @@ void maria_change_key_cache(KEY_CACHE *old_key_cache,
     MARIA list structure to ensure that another thread is not trying to
     open a new table that will be associted with the old key cache
   */
-  multi_key_cache_change(old_key_cache, new_key_cache);
+  multi_pagecache_change(old_pagecache, new_pagecache);
   pthread_mutex_unlock(&THR_LOCK_maria);
   DBUG_VOID_RETURN;
 }

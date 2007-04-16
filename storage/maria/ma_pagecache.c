@@ -29,7 +29,7 @@
   to disk, if necessary. This is handled in find_block().
   With the new free list, the blocks can have three temperatures:
   hot, warm and cold (which is free). This is remembered in the block header
-  by the enum BLOCK_TEMPERATURE temperature variable. Remembering the
+  by the enum PCBLOCK_TEMPERATURE temperature variable. Remembering the
   temperature is necessary to correctly count the number of warm blocks,
   which is required to decide when blocks are allowed to become hot. Whenever
   a block is inserted to another (sub-)chain, we take the old and new
@@ -39,10 +39,9 @@
   as such gives the maximum number of in-use blocks at any time.
 */
 
-#include "mysys_priv.h"
+#include "maria_def.h"
 #include <m_string.h>
 #include <pagecache.h>
-#include "my_static.h"
 #include <my_bit.h>
 #include <errno.h>
 #include <stdarg.h>
@@ -94,7 +93,7 @@
 */
 #define SERIALIZED_READ_FROM_CACHE yes
 
-#define BLOCK_INFO(B) \
+#define PCBLOCK_INFO(B) \
   DBUG_PRINT("info", \
              ("block 0x%lx  file %lu  page %lu  s %0x  hshL 0x%lx  req %u/%u " \
               "wrlock: %c", \
@@ -111,7 +110,7 @@
               (uint)((B)->hash_link ? \
                      (B)->hash_link->requests : \
                        0), \
-              ((block->status & BLOCK_WRLOCK)?'Y':'N')))
+              ((block->status & PCBLOCK_WRLOCK)?'Y':'N')))
 
 /* TODO: put it to my_static.c */
 my_bool my_disable_flush_pagecache_blocks= 0;
@@ -147,13 +146,13 @@ struct st_pagecache_hash_link
 };
 
 /* simple states of a block */
-#define BLOCK_ERROR       1 /* an error occurred when performing disk i/o  */
-#define BLOCK_READ        2 /* the is page in the block buffer             */
-#define BLOCK_IN_SWITCH   4 /* block is preparing to read new page         */
-#define BLOCK_REASSIGNED  8 /* block does not accept requests for old page */
-#define BLOCK_IN_FLUSH   16 /* block is in flush operation                 */
-#define BLOCK_CHANGED    32 /* block buffer contains a dirty page          */
-#define BLOCK_WRLOCK     64 /* write locked block                          */
+#define PCBLOCK_ERROR       1 /* an error occurred when performing disk i/o  */
+#define PCBLOCK_READ        2 /* the is page in the block buffer             */
+#define PCBLOCK_IN_SWITCH   4 /* block is preparing to read new page         */
+#define PCBLOCK_REASSIGNED  8 /* block does not accept requests for old page */
+#define PCBLOCK_IN_FLUSH   16 /* block is in flush operation                 */
+#define PCBLOCK_CHANGED    32 /* block buffer contains a dirty page          */
+#define PCBLOCK_WRLOCK     64 /* write locked block                          */
 
 /* page status, returned by find_block */
 #define PAGE_READ               0
@@ -161,7 +160,7 @@ struct st_pagecache_hash_link
 #define PAGE_WAIT_TO_BE_READ    2
 
 /* block temperature determines in which (sub-)chain the block currently is */
-enum BLOCK_TEMPERATURE { BLOCK_COLD /*free*/ , BLOCK_WARM , BLOCK_HOT };
+enum PCBLOCK_TEMPERATURE { PCBLOCK_COLD /*free*/ , PCBLOCK_WARM , PCBLOCK_HOT };
 
 /* debug info */
 #ifndef DBUG_OFF
@@ -294,13 +293,16 @@ struct st_pagecache_block_link
   PAGECACHE_PIN_INFO *pin_list;
   PAGECACHE_LOCK_INFO *lock_list;
 #endif
-  enum BLOCK_TEMPERATURE temperature; /* block temperature: cold, warm, hot  */
+  enum PCBLOCK_TEMPERATURE temperature; /* block temperature: cold, warm, hot  */
   enum pagecache_page_type type; /* type of the block                        */
   uint hits_left;         /* number of hits left until promotion             */
   ulonglong last_hit_time; /* timestamp of the last hit                      */
   LSN rec_lsn;            /* LSN when first became dirty                    */
   KEYCACHE_CONDVAR *condvar; /* condition variable for 'no readers' event    */
 };
+
+PAGECACHE dflt_pagecache_var;
+PAGECACHE *dflt_pagecache= &dflt_pagecache_var;
 
 #ifdef PAGECACHE_DEBUG
 /* debug checks */
@@ -506,7 +508,7 @@ static long pagecache_thread_id;
 #define KEYCACHE_THREAD_TRACE(l)
 #endif /* defined(PAGECACHE_DEBUG) || !defined(DBUG_OFF) */
 
-#define BLOCK_NUMBER(p, b)                                                    \
+#define PCBLOCK_NUMBER(p, b)                                                    \
   ((uint) (((char*)(b)-(char *) p->block_root)/sizeof(PAGECACHE_BLOCK_LINK)))
 #define PAGECACHE_HASH_LINK_NUMBER(p, h)                                      \
   ((uint) (((char*)(h)-(char *) p->hash_link_root)/                           \
@@ -1096,9 +1098,9 @@ static void link_to_file_list(PAGECACHE *pagecache,
   if (unlink)
     unlink_changed(block);
   link_changed(block, &pagecache->file_blocks[FILE_HASH(*file)]);
-  if (block->status & BLOCK_CHANGED)
+  if (block->status & PCBLOCK_CHANGED)
   {
-    block->status&= ~BLOCK_CHANGED;
+    block->status&= ~PCBLOCK_CHANGED;
     block->rec_lsn= 0;
     pagecache->blocks_changed--;
     pagecache->global_blocks_changed--;
@@ -1117,7 +1119,7 @@ static inline void link_to_changed_list(PAGECACHE *pagecache,
   unlink_changed(block);
   link_changed(block,
                &pagecache->changed_blocks[FILE_HASH(block->hash_link->file)]);
-  block->status|=BLOCK_CHANGED;
+  block->status|=PCBLOCK_CHANGED;
   pagecache->blocks_changed++;
   pagecache->global_blocks_changed++;
 }
@@ -1165,7 +1167,7 @@ static void link_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block,
   PAGECACHE_BLOCK_LINK *ins;
   PAGECACHE_BLOCK_LINK **ptr_ins;
 
-  BLOCK_INFO(block);
+  PCBLOCK_INFO(block);
   KEYCACHE_DBUG_ASSERT(! (block->hash_link && block->hash_link->requests));
 #ifdef THREAD
   if (!hot && pagecache->waiting_for_block.last_thread)
@@ -1200,7 +1202,7 @@ static void link_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block,
 #if defined(PAGECACHE_DEBUG)
     KEYCACHE_DBUG_PRINT("link_block",
         ("linked,unlinked block %u  status=%x  #requests=%u  #available=%u",
-         BLOCK_NUMBER(pagecache, block), block->status,
+         PCBLOCK_NUMBER(pagecache, block), block->status,
          block->requests, pagecache->blocks_available));
 #endif
     return;
@@ -1231,7 +1233,7 @@ static void link_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block,
   pagecache->blocks_available++;
   KEYCACHE_DBUG_PRINT("link_block",
       ("linked block %u:%1u  status=%x  #requests=%u  #available=%u",
-       BLOCK_NUMBER(pagecache, block), at_end, block->status,
+       PCBLOCK_NUMBER(pagecache, block), at_end, block->status,
        block->requests, pagecache->blocks_available));
   KEYCACHE_DBUG_ASSERT((ulong) pagecache->blocks_available <=
                        pagecache->blocks_used);
@@ -1280,9 +1282,9 @@ static void unlink_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block)
   pagecache->blocks_available--;
   KEYCACHE_DBUG_PRINT("unlink_block",
     ("unlinked block 0x%lx (%u) status=%x   #requests=%u  #available=%u",
-     (ulong)block, BLOCK_NUMBER(pagecache, block), block->status,
+     (ulong)block, PCBLOCK_NUMBER(pagecache, block), block->status,
      block->requests, pagecache->blocks_available));
-  BLOCK_INFO(block);
+  PCBLOCK_INFO(block);
 #endif
   DBUG_VOID_RETURN;
 }
@@ -1306,9 +1308,9 @@ static void reg_requests(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block,
 {
   DBUG_ENTER("reg_requests");
   DBUG_PRINT("enter", ("block 0x%lx (%u) status=%x, reqs: %u",
-		       (ulong)block, BLOCK_NUMBER(pagecache, block),
+		       (ulong)block, PCBLOCK_NUMBER(pagecache, block),
                        block->status, block->requests));
-  BLOCK_INFO(block);
+  PCBLOCK_INFO(block);
   if (! block->requests)
     /* First request for the block unlinks it */
     unlink_block(pagecache, block);
@@ -1351,9 +1353,9 @@ static void unreg_request(PAGECACHE *pagecache,
 {
   DBUG_ENTER("unreg_request");
   DBUG_PRINT("enter", ("block 0x%lx (%u) status=%x, reqs: %u",
-		       (ulong)block, BLOCK_NUMBER(pagecache, block),
+		       (ulong)block, PCBLOCK_NUMBER(pagecache, block),
                        block->status, block->requests));
-  BLOCK_INFO(block);
+  PCBLOCK_INFO(block);
   DBUG_ASSERT(block->requests > 0);
   if (! --block->requests)
   {
@@ -1364,9 +1366,9 @@ static void unreg_request(PAGECACHE *pagecache,
       pagecache->warm_blocks > pagecache->min_warm_blocks;
     if (hot)
     {
-      if (block->temperature == BLOCK_WARM)
+      if (block->temperature == PCBLOCK_WARM)
         pagecache->warm_blocks--;
-      block->temperature= BLOCK_HOT;
+      block->temperature= PCBLOCK_HOT;
       KEYCACHE_DBUG_PRINT("unreg_request", ("#warm_blocks: %lu",
                            pagecache->warm_blocks));
     }
@@ -1381,10 +1383,10 @@ static void unreg_request(PAGECACHE *pagecache,
     {
       unlink_block(pagecache, block);
       link_block(pagecache, block, 0, 0);
-      if (block->temperature != BLOCK_WARM)
+      if (block->temperature != PCBLOCK_WARM)
       {
         pagecache->warm_blocks++;
-        block->temperature= BLOCK_WARM;
+        block->temperature= PCBLOCK_WARM;
       }
       KEYCACHE_DBUG_PRINT("unreg_request", ("#warm_blocks: %lu",
                            pagecache->warm_blocks));
@@ -1400,7 +1402,7 @@ static void unreg_request(PAGECACHE *pagecache,
 static inline void remove_reader(PAGECACHE_BLOCK_LINK *block)
 {
   DBUG_ENTER("remove_reader");
-  BLOCK_INFO(block);
+  PCBLOCK_INFO(block);
   DBUG_ASSERT(block->hash_link->requests > 0);
 #ifdef THREAD
   if (! --block->hash_link->requests && block->condvar)
@@ -1427,7 +1429,7 @@ static inline void wait_for_readers(PAGECACHE *pagecache
   {
     KEYCACHE_DBUG_PRINT("wait_for_readers: wait",
                         ("suspend thread %ld  block %u",
-                         thread->id, BLOCK_NUMBER(pagecache, block)));
+                         thread->id, PCBLOCK_NUMBER(pagecache, block)));
     block->condvar= &thread->suspend;
     pagecache_pthread_cond_wait(&thread->suspend, &pagecache->cache_lock);
     block->condvar= NULL;
@@ -1677,7 +1679,7 @@ restart:
       PAGE_READ         - if page already in the block,
       PAGE_TO_BE_READ   - if it is to be read yet by the current thread
       WAIT_TO_BE_READ   - if it is to be read by another thread
-    If an error occurs THE BLOCK_ERROR bit is set in the block status.
+    If an error occurs THE PCBLOCK_ERROR bit is set in the block status.
     It might happen that there are no blocks in LRU chain (in warm part) -
     all blocks  are unlinked for some read/write operations. Then the function
     waits until first of this operations links any block back.
@@ -1714,7 +1716,7 @@ restart:
 
   page_status= -1;
   if ((block= hash_link->block) &&
-      block->hash_link == hash_link && (block->status & BLOCK_READ))
+      block->hash_link == hash_link && (block->status & PCBLOCK_READ))
     page_status= PAGE_READ;
 
   if (wrmode && pagecache->resize_in_flush)
@@ -1729,7 +1731,7 @@ restart:
       unlink_hash(pagecache, hash_link);
       return 0;
     }
-    if (!(block->status & BLOCK_IN_FLUSH))
+    if (!(block->status & PCBLOCK_IN_FLUSH))
     {
       DBUG_ASSERT(hash_link->requests > 0);
       hash_link->requests--;
@@ -1741,7 +1743,7 @@ restart:
         have unfinished readers of other key parts in the block
         buffer. Still we are guaranteed not to have any readers
         of the key part we are writing into until the block is
-        removed from the cache as we set the BLOCK_REASSIGNED
+        removed from the cache as we set the PCBLOCK_REASSIGNED
         flag (see the code below that handles reading requests).
       */
       free_block(pagecache, block);
@@ -1780,20 +1782,20 @@ restart:
   }
 
   if (page_status == PAGE_READ &&
-      (block->status & (BLOCK_IN_SWITCH | BLOCK_REASSIGNED)))
+      (block->status & (PCBLOCK_IN_SWITCH | PCBLOCK_REASSIGNED)))
   {
     /* This is a request for a page to be removed from cache */
 
     KEYCACHE_DBUG_PRINT("find_block",
                         ("request for old page in block %u "
                          "wrmode: %d  block->status: %d",
-                         BLOCK_NUMBER(pagecache, block), wrmode,
+                         PCBLOCK_NUMBER(pagecache, block), wrmode,
                          block->status));
     /*
        Only reading requests can proceed until the old dirty page is flushed,
        all others are to be suspended, then resubmitted
     */
-    if (!wrmode && !(block->status & BLOCK_REASSIGNED))
+    if (!wrmode && !(block->status & PCBLOCK_REASSIGNED))
     {
       if (reg_req)
         reg_requests(pagecache, block, 1);
@@ -1829,7 +1831,7 @@ restart:
       /* Resubmit the request */
       goto restart;
     }
-    block->status&= ~BLOCK_IN_SWITCH;
+    block->status&= ~PCBLOCK_IN_SWITCH;
   }
   else
   {
@@ -1857,14 +1859,14 @@ restart:
           pagecache->blocks_used++;
         }
         pagecache->blocks_unused--;
-        DBUG_ASSERT((block->status & BLOCK_WRLOCK) == 0);
+        DBUG_ASSERT((block->status & PCBLOCK_WRLOCK) == 0);
         DBUG_ASSERT(block->pins == 0);
         block->status= 0;
 #ifndef DBUG_OFF
         block->type= PAGECACHE_EMPTY_PAGE;
 #endif
         block->requests= 1;
-        block->temperature= BLOCK_COLD;
+        block->temperature= PCBLOCK_COLD;
         block->hits_left= init_hits_left;
         block->last_hit_time= 0;
         link_to_file_list(pagecache, block, file, 0);
@@ -1875,7 +1877,7 @@ restart:
                             (ulong)block));
         KEYCACHE_DBUG_PRINT("find_block",
                             ("got free or never used block %u",
-                             BLOCK_NUMBER(pagecache, block)));
+                             PCBLOCK_NUMBER(pagecache, block)));
       }
       else
       {
@@ -1920,23 +1922,23 @@ restart:
             reg_requests(pagecache, block, 1);
           hash_link->block= block;
         }
-        BLOCK_INFO(block);
-        DBUG_ASSERT((block->status & BLOCK_WRLOCK) == 0);
+        PCBLOCK_INFO(block);
+        DBUG_ASSERT((block->status & PCBLOCK_WRLOCK) == 0);
         DBUG_ASSERT(block->pins == 0);
 
         if (block->hash_link != hash_link &&
-	    ! (block->status & BLOCK_IN_SWITCH) )
+	    ! (block->status & PCBLOCK_IN_SWITCH) )
         {
 	  /* this is a primary request for a new page */
-          DBUG_ASSERT((block->status & BLOCK_WRLOCK) == 0);
+          DBUG_ASSERT((block->status & PCBLOCK_WRLOCK) == 0);
           DBUG_ASSERT(block->pins == 0);
-          block->status|= (BLOCK_IN_SWITCH | BLOCK_WRLOCK);
+          block->status|= (PCBLOCK_IN_SWITCH | PCBLOCK_WRLOCK);
 
           KEYCACHE_DBUG_PRINT("find_block",
                               ("got block %u for new page",
-                               BLOCK_NUMBER(pagecache, block)));
+                               PCBLOCK_NUMBER(pagecache, block)));
 
-          if (block->status & BLOCK_CHANGED)
+          if (block->status & PCBLOCK_CHANGED)
           {
 	    /* The block contains a dirty page - push it out of the cache */
 
@@ -1958,7 +1960,7 @@ restart:
 	    pagecache->global_cache_write++;
           }
 
-          block->status|= BLOCK_REASSIGNED;
+          block->status|= PCBLOCK_REASSIGNED;
           if (block->hash_link)
           {
             /*
@@ -1979,8 +1981,8 @@ restart:
           }
           link_to_file_list(pagecache, block, file,
                             (my_bool)(block->hash_link ? 1 : 0));
-          BLOCK_INFO(block);
-          block->status= error? BLOCK_ERROR : 0;
+          PCBLOCK_INFO(block);
+          block->status= error? PCBLOCK_ERROR : 0;
 #ifndef DBUG_OFF
           block->type= PAGECACHE_EMPTY_PAGE;
 #endif
@@ -2000,7 +2002,7 @@ restart:
                                "block->status: %u", block->hash_link,
                                hash_link, block->status ));
           page_status= (((block->hash_link == hash_link) &&
-                         (block->status & BLOCK_READ)) ?
+                         (block->status & PCBLOCK_READ)) ?
                         PAGE_READ : PAGE_WAIT_TO_BE_READ);
         }
       }
@@ -2015,7 +2017,7 @@ restart:
                            "block->status: %u", block->hash_link,
                            hash_link, block->status ));
       page_status= (((block->hash_link == hash_link) &&
-                     (block->status & BLOCK_READ)) ?
+                     (block->status & PCBLOCK_READ)) ?
                     PAGE_READ : PAGE_WAIT_TO_BE_READ);
     }
   }
@@ -2047,7 +2049,7 @@ static void add_pin(PAGECACHE_BLOCK_LINK *block)
   DBUG_PRINT("enter", ("block 0x%lx pins: %u",
                        (ulong) block,
                        block->pins));
-  BLOCK_INFO(block);
+  PCBLOCK_INFO(block);
   block->pins++;
 #ifdef PAGECACHE_DEBUG
   {
@@ -2066,7 +2068,7 @@ static void remove_pin(PAGECACHE_BLOCK_LINK *block)
   DBUG_PRINT("enter", ("block 0x%lx pins: %u",
                        (ulong) block,
                        block->pins));
-  BLOCK_INFO(block);
+  PCBLOCK_INFO(block);
   DBUG_ASSERT(block->pins > 0);
   block->pins--;
 #ifdef PAGECACHE_DEBUG
@@ -2136,8 +2138,8 @@ static my_bool get_wrlock(PAGECACHE *pagecache,
                           (ulong)block,
                           file.file, block->hash_link->file.file,
                           pageno, block->hash_link->pageno));
-  BLOCK_INFO(block);
-  while (block->status & BLOCK_WRLOCK)
+  PCBLOCK_INFO(block);
+  while (block->status & PCBLOCK_WRLOCK)
   {
     /* Lock failed we will wait */
 #ifdef THREAD
@@ -2156,8 +2158,8 @@ static my_bool get_wrlock(PAGECACHE *pagecache,
 #else
     DBUG_ASSERT(0);
 #endif
-    BLOCK_INFO(block);
-    if ((block->status & (BLOCK_REASSIGNED | BLOCK_IN_SWITCH)) ||
+    PCBLOCK_INFO(block);
+    if ((block->status & (PCBLOCK_REASSIGNED | PCBLOCK_IN_SWITCH)) ||
         file.file != block->hash_link->file.file ||
         pageno != block->hash_link->pageno)
     {
@@ -2171,7 +2173,7 @@ static my_bool get_wrlock(PAGECACHE *pagecache,
   }
   DBUG_ASSERT(block->pins == 0);
   /* we are doing it by global cache mutex protection, so it is OK */
-  block->status|= BLOCK_WRLOCK;
+  block->status|= PCBLOCK_WRLOCK;
   DBUG_PRINT("info", ("WR lock set, block 0x%lx", (ulong)block));
   DBUG_RETURN(0);
 }
@@ -2192,17 +2194,17 @@ static my_bool get_wrlock(PAGECACHE *pagecache,
 static void release_wrlock(PAGECACHE_BLOCK_LINK *block)
 {
   DBUG_ENTER("release_wrlock");
-  BLOCK_INFO(block);
-  DBUG_ASSERT(block->status & BLOCK_WRLOCK);
+  PCBLOCK_INFO(block);
+  DBUG_ASSERT(block->status & PCBLOCK_WRLOCK);
   DBUG_ASSERT(block->pins > 0);
-  block->status&= ~BLOCK_WRLOCK;
+  block->status&= ~PCBLOCK_WRLOCK;
   DBUG_PRINT("info", ("WR lock reset, block 0x%lx", (ulong)block));
 #ifdef THREAD
   /* release all threads waiting for write lock */
   if (block->wqueue[COND_FOR_WRLOCK].last_thread)
     wqueue_release_queue(&block->wqueue[COND_FOR_WRLOCK]);
 #endif
-  BLOCK_INFO(block);
+  PCBLOCK_INFO(block);
   DBUG_VOID_RETURN;
 }
 
@@ -2229,12 +2231,12 @@ static my_bool make_lock_and_pin(PAGECACHE *pagecache,
 {
   DBUG_ENTER("make_lock_and_pin");
   DBUG_PRINT("enter", ("block: 0x%lx (%u), wrlock: %c pins: %u, lock %s, pin: %s",
-                       (ulong)block, BLOCK_NUMBER(pagecache, block),
-                       ((block->status & BLOCK_WRLOCK)?'Y':'N'),
+                       (ulong)block, PCBLOCK_NUMBER(pagecache, block),
+                       ((block->status & PCBLOCK_WRLOCK)?'Y':'N'),
                        block->pins,
                        page_cache_page_lock_str[lock],
                        page_cache_page_pin_str[pin]));
-  BLOCK_INFO(block);
+  PCBLOCK_INFO(block);
 #ifdef PAGECACHE_DEBUG
   DBUG_ASSERT(info_check_pin(block, pin) == 0 &&
               info_check_lock(block, lock, pin) == 0);
@@ -2291,16 +2293,16 @@ static my_bool make_lock_and_pin(PAGECACHE *pagecache,
     DBUG_ASSERT(0); /* Never should happened */
   }
 
-  BLOCK_INFO(block);
+  PCBLOCK_INFO(block);
   DBUG_RETURN(0);
 retry:
   DBUG_PRINT("INFO", ("Retry block 0x%lx", (ulong)block));
-  BLOCK_INFO(block);
+  PCBLOCK_INFO(block);
   DBUG_ASSERT(block->hash_link->requests > 0);
   block->hash_link->requests--;
   DBUG_ASSERT(block->requests > 0);
   unreg_request(pagecache, block, 1);
-  BLOCK_INFO(block);
+  PCBLOCK_INFO(block);
   DBUG_RETURN(1);
 
 }
@@ -2325,7 +2327,7 @@ retry:
     The function either reads a page data from file to the block buffer,
     or waits until another thread reads it. What page to read is determined
     by a block parameter - reference to a hash link for this page.
-    If an error occurs THE BLOCK_ERROR bit is set in the block status.
+    If an error occurs THE PCBLOCK_ERROR bit is set in the block status.
 */
 
 static void read_block(PAGECACHE *pagecache,
@@ -2360,13 +2362,13 @@ static void read_block(PAGECACHE *pagecache,
                                 block->hash_link->pageno, MYF(0));
     pagecache_pthread_mutex_lock(&pagecache->cache_lock);
     if (got_length < pagecache->block_size)
-      block->status|= BLOCK_ERROR;
+      block->status|= PCBLOCK_ERROR;
     else
-      block->status= (BLOCK_READ | (block->status & BLOCK_WRLOCK));
+      block->status= (PCBLOCK_READ | (block->status & PCBLOCK_WRLOCK));
 
     if (validator != NULL &&
         (*validator)(block->buffer, validator_data))
-      block->status|= BLOCK_ERROR;
+      block->status|= PCBLOCK_ERROR;
 
     DBUG_PRINT("read_block",
                ("primary request: new page in cache"));
@@ -2464,7 +2466,7 @@ void pagecache_unlock_page(PAGECACHE *pagecache,
   /* See NOTE for pagecache_unlock_page about registering requests */
   block= find_block(pagecache, file, pageno, 0, 0,
                     test(pin == PAGECACHE_PIN_LEFT_UNPINNED), &page_st);
-  BLOCK_INFO(block);
+  PCBLOCK_INFO(block);
   DBUG_ASSERT(block != 0 && page_st == PAGE_READ);
   if (first_REDO_LSN_for_page)
   {
@@ -2820,7 +2822,7 @@ restart:
     DBUG_ASSERT(block->type == PAGECACHE_EMPTY_PAGE ||
                 block->type == type);
     block->type= type;
-    if (block->status != BLOCK_ERROR && page_st != PAGE_READ)
+    if (block->status != PCBLOCK_ERROR && page_st != PAGE_READ)
     {
       DBUG_PRINT("info", ("read block 0x%lx", (ulong)block));
       /* The requested page is to be read into the block buffer */
@@ -2840,7 +2842,7 @@ restart:
       goto restart;
     }
 
-    if (! ((status= block->status) & BLOCK_ERROR))
+    if (! ((status= block->status) & PCBLOCK_ERROR))
     {
 #if !defined(SERIALIZED_READ_FROM_CACHE)
       pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
@@ -2870,7 +2872,7 @@ restart:
 
     pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
 
-    if (status & BLOCK_ERROR)
+    if (status & PCBLOCK_ERROR)
       DBUG_RETURN((byte *) 0);
 
     DBUG_RETURN(buff);
@@ -2960,14 +2962,14 @@ restart:
       goto restart;
     }
 
-    if (block->status & BLOCK_CHANGED)
+    if (block->status & PCBLOCK_CHANGED)
     {
       if (flush)
       {
         /* The block contains a dirty page - push it out of the cache */
-        
+
         KEYCACHE_DBUG_PRINT("find_block", ("block is dirty"));
-        
+
         pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
         /*
           The call is thread safe because only the current
@@ -2982,10 +2984,10 @@ restart:
                                 MYF(MY_NABP | MY_WAIT_IF_FULL));
         pagecache_pthread_mutex_lock(&pagecache->cache_lock);
         pagecache->global_cache_write++;
-        
+
         if (error)
         {
-          block->status|= BLOCK_ERROR;
+          block->status|= PCBLOCK_ERROR;
           goto err;
         }
       }
@@ -3087,45 +3089,39 @@ static struct write_pin_change write_pin_change_table[]=
    PAGECACHE_UNPIN} /*PAGECACHE_UNPIN*/
 };
 
-my_bool pagecache_write(PAGECACHE *pagecache,
-                        PAGECACHE_FILE *file,
-                        pgcache_page_no_t pageno,
-                        uint level,
-                        byte *buff,
-                        enum pagecache_page_type type,
-                        enum pagecache_page_lock lock,
-                        enum pagecache_page_pin pin,
-                        enum pagecache_write_mode write_mode,
-                        PAGECACHE_PAGE_LINK *link)
+my_bool pagecache_write_part(PAGECACHE *pagecache,
+                             PAGECACHE_FILE *file,
+                             pgcache_page_no_t pageno,
+                             uint level,
+                             byte *buff,
+                             enum pagecache_page_type type,
+                             enum pagecache_page_lock lock,
+                             enum pagecache_page_pin pin,
+                             enum pagecache_write_mode write_mode,
+                             PAGECACHE_PAGE_LINK *link,
+                             uint offset, uint size)
 {
-  reg1 PAGECACHE_BLOCK_LINK *block= NULL;
+  PAGECACHE_BLOCK_LINK *block= NULL;
   PAGECACHE_PAGE_LINK fake_link;
   int error= 0;
   int need_lock_change= write_lock_change_table[lock].need_lock_change;
-  DBUG_ENTER("pagecache_write");
-  DBUG_PRINT("enter", ("fd: %u  page: %lu level: %u t:%s l%s p%s m%s",
+  DBUG_ENTER("pagecache_write_part");
+  DBUG_PRINT("enter", ("fd: %u  page: %lu level: %u type: %s  lock: %s  "
+                       "pin: %s   mode: %s  offset: %u  size %u",
                        (uint) file->file, (ulong) pageno, level,
                        page_cache_page_type_str[type],
                        page_cache_page_lock_str[lock],
                        page_cache_page_pin_str[pin],
-                       page_cache_page_write_mode_str[write_mode]));
+                       page_cache_page_write_mode_str[write_mode],
+                       offset, size));
   DBUG_ASSERT(lock != PAGECACHE_LOCK_LEFT_READLOCKED &&
               lock != PAGECACHE_LOCK_READ_UNLOCK);
+  DBUG_ASSERT(offset + size <= pagecache->block_size);
   if (!link)
     link= &fake_link;
   else
     *link= 0;
 
-  if (write_mode == PAGECACHE_WRITE_NOW)
-  {
-    /* we allow direct write if we do not use long term lockings */
-    DBUG_ASSERT(lock == PAGECACHE_LOCK_LEFT_UNLOCKED);
-    /* Force writing from buff into disk */
-    pagecache->global_cache_write++;
-    if (pagecache_fwrite(pagecache, file, buff, pageno, type,
-                         MYF(MY_NABP | MY_WAIT_IF_FULL)))
-      DBUG_RETURN(1);
-  }
 restart:
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
@@ -3188,11 +3184,14 @@ restart:
 
     if (write_mode == PAGECACHE_WRITE_DONE)
     {
-      if ((block->status & BLOCK_ERROR) && page_st != PAGE_READ)
+      if ((block->status & PCBLOCK_ERROR) && page_st != PAGE_READ)
       {
         /* Copy data from buff */
-        bmove512(block->buffer, buff, pagecache->block_size);
-        block->status= (BLOCK_READ | (block->status & BLOCK_WRLOCK));
+        if (!(size & 511))
+          bmove512(block->buffer + offset, buff, size);
+        else
+          memcpy(block->buffer + offset, buff, size);
+        block->status= (PCBLOCK_READ | (block->status & PCBLOCK_WRLOCK));
         KEYCACHE_DBUG_PRINT("key_cache_insert",
                             ("primary request: new page in cache"));
 #ifdef THREAD
@@ -3204,20 +3203,16 @@ restart:
     }
     else
     {
-      if (write_mode == PAGECACHE_WRITE_NOW)
-      {
-        /* buff has been written to disk at start */
-        if ((block->status & BLOCK_CHANGED) &&
-            !(block->status & BLOCK_ERROR))
-          link_to_file_list(pagecache, block, &block->hash_link->file, 1);
-      }
-      else if (! (block->status & BLOCK_CHANGED))
+      if (! (block->status & PCBLOCK_CHANGED))
           link_to_changed_list(pagecache, block);
 
-      if (! (block->status & BLOCK_ERROR))
+      if (! (block->status & PCBLOCK_ERROR))
       {
-        bmove512(block->buffer, buff, pagecache->block_size);
-        block->status|= BLOCK_READ;
+        if (!(size & 511))
+          bmove512(block->buffer + offset, buff, size);
+        else
+          memcpy(block->buffer + offset, buff, size);
+        block->status|= PCBLOCK_READ;
       }
     }
 
@@ -3249,7 +3244,7 @@ restart:
       *link= (PAGECACHE_PAGE_LINK)block;
 
 
-    if (block->status & BLOCK_ERROR)
+    if (block->status & PCBLOCK_ERROR)
       error= 1;
 
     dec_counter_for_resize_op(pagecache);
@@ -3275,7 +3270,10 @@ end:
   DBUG_EXECUTE("exec",
                test_key_cache(pagecache, "end of key_cache_write", 1););
 #endif
-  BLOCK_INFO(block);
+  if (block)
+    PCBLOCK_INFO(block);
+  else
+    DBUG_PRINT("info", ("No block"));
   DBUG_RETURN(error);
 }
 
@@ -3291,22 +3289,22 @@ static void free_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block)
   KEYCACHE_THREAD_TRACE("free block");
   KEYCACHE_DBUG_PRINT("free_block",
                       ("block %u to be freed, hash_link %p",
-                       BLOCK_NUMBER(pagecache, block), block->hash_link));
+                       PCBLOCK_NUMBER(pagecache, block), block->hash_link));
   if (block->hash_link)
   {
     /*
       While waiting for readers to finish, new readers might request the
-      block. But since we set block->status|= BLOCK_REASSIGNED, they
+      block. But since we set block->status|= PCBLOCK_REASSIGNED, they
       will wait on block->wqueue[COND_FOR_SAVED]. They must be signalled
       later.
     */
-    block->status|= BLOCK_REASSIGNED;
+    block->status|= PCBLOCK_REASSIGNED;
     wait_for_readers(pagecache, block);
     unlink_hash(pagecache, block->hash_link);
   }
 
   unlink_changed(block);
-  DBUG_ASSERT((block->status & BLOCK_WRLOCK) == 0);
+  DBUG_ASSERT((block->status & PCBLOCK_WRLOCK) == 0);
   DBUG_ASSERT(block->pins == 0);
   block->status= 0;
 #ifndef DBUG_OFF
@@ -3321,9 +3319,9 @@ static void free_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block)
 
   /* Remove the free block from the LRU ring. */
   unlink_block(pagecache, block);
-  if (block->temperature == BLOCK_WARM)
+  if (block->temperature == PCBLOCK_WARM)
     pagecache->warm_blocks--;
-  block->temperature= BLOCK_COLD;
+  block->temperature= PCBLOCK_COLD;
   /* Insert the free block in the free list. */
   block->next_used= pagecache->free_block_list;
   pagecache->free_block_list= block;
@@ -3364,7 +3362,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
   /* Don't lock the cache during the flush */
   pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
   /*
-     As all blocks referred in 'cache' are marked by BLOCK_IN_FLUSH
+     As all blocks referred in 'cache' are marked by PCBLOCK_IN_FLUSH
      we are guarunteed no thread will change them
   */
   qsort((byte*) cache, count, sizeof(*cache), (qsort_cmp) cmp_sec_link);
@@ -3378,16 +3376,16 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
     {
       KEYCACHE_DBUG_PRINT("flush_cached_blocks",
                           ("block %u (0x%lx) pinned",
-                           BLOCK_NUMBER(pagecache, block), (ulong)block));
+                           PCBLOCK_NUMBER(pagecache, block), (ulong)block));
       DBUG_PRINT("info", ("block %u (0x%lx) pinned",
-                          BLOCK_NUMBER(pagecache, block), (ulong)block));
-      BLOCK_INFO(block);
+                          PCBLOCK_NUMBER(pagecache, block), (ulong)block));
+      PCBLOCK_INFO(block);
       last_errno= -1;
       unreg_request(pagecache, block, 1);
       continue;
     }
     /* if the block is not pinned then it is not write locked */
-    DBUG_ASSERT((block->status & BLOCK_WRLOCK) == 0);
+    DBUG_ASSERT((block->status & PCBLOCK_WRLOCK) == 0);
     DBUG_ASSERT(block->pins == 0);
 #ifndef DBUG_OFF
     {
@@ -3402,13 +3400,13 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
 
     KEYCACHE_DBUG_PRINT("flush_cached_blocks",
                         ("block %u (0x%lx) to be flushed",
-                         BLOCK_NUMBER(pagecache, block), (ulong)block));
+                         PCBLOCK_NUMBER(pagecache, block), (ulong)block));
     DBUG_PRINT("info", ("block %u (0x%lx) to be flushed",
-                        BLOCK_NUMBER(pagecache, block), (ulong)block));
-    BLOCK_INFO(block);
+                        PCBLOCK_NUMBER(pagecache, block), (ulong)block));
+    PCBLOCK_INFO(block);
     pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
     DBUG_PRINT("info", ("block %u (0x%lx) pins: %u",
-                        BLOCK_NUMBER(pagecache, block), (ulong)block,
+                        PCBLOCK_NUMBER(pagecache, block), (ulong)block,
                         block->pins));
     DBUG_ASSERT(block->pins == 1);
     error= pagecache_fwrite(pagecache, file,
@@ -3425,7 +3423,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
     pagecache->global_cache_write++;
     if (error)
     {
-      block->status|= BLOCK_ERROR;
+      block->status|= PCBLOCK_ERROR;
       if (!last_errno)
         last_errno= errno ? errno : -1;
     }
@@ -3446,7 +3444,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
     }
     else
     {
-      block->status&= ~BLOCK_IN_FLUSH;
+      block->status&= ~PCBLOCK_IN_FLUSH;
       link_to_file_list(pagecache, block, file, 1);
       unreg_request(pagecache, block, 1);
     }
@@ -3549,9 +3547,9 @@ restart:
            other threads to use it for new pages and interfere with
            our sequence ot flushing dirty file pages
         */
-        block->status|= BLOCK_IN_FLUSH;
+        block->status|= PCBLOCK_IN_FLUSH;
 
-        if (! (block->status & BLOCK_IN_SWITCH))
+        if (! (block->status & PCBLOCK_IN_SWITCH))
         {
 	  /*
 	    We care only for the blocks for which flushing was not
@@ -3654,7 +3652,7 @@ restart:
 #endif
         next= block->next_changed;
         if (block->hash_link->file.file == file->file &&
-            (! (block->status & BLOCK_CHANGED)
+            (! (block->status & PCBLOCK_CHANGED)
              || type == FLUSH_IGNORE_CHANGED))
         {
           reg_requests(pagecache, block, 1);
@@ -3803,13 +3801,13 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
         does it have to be == hash_link->block... ?
       */
       DBUG_ASSERT(block->hash_link != NULL);
-      DBUG_ASSERT(block->status & BLOCK_CHANGED);
+      DBUG_ASSERT(block->status & PCBLOCK_CHANGED);
       if (block->type != PAGECACHE_LSN_PAGE)
         continue; /* no need to store it */
       /*
         In the current pagecache, rec_lsn is not set correctly:
         1) it is set on pagecache_unlock(), too late (a page is dirty
-        (BLOCK_CHANGED) since the first pagecache_write()). So in this
+        (PCBLOCK_CHANGED) since the first pagecache_write()). So in this
         scenario:
         thread1:                       thread2:
         write_REDO
@@ -3973,7 +3971,7 @@ static void pagecache_dump(PAGECACHE *pagecache)
     {
       block= block->next_used;
       fprintf(pagecache_dump_file,
-              "block:%u, ", BLOCK_NUMBER(pagecache, block));
+              "block:%u, ", PCBLOCK_NUMBER(pagecache, block));
     }
     while (block != pagecache->used_last);
   }

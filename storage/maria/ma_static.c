@@ -40,8 +40,8 @@ my_off_t maria_max_temp_length= MAX_FILE_SIZE;
 ulong    maria_bulk_insert_tree_size=8192*1024;
 ulong    maria_data_pointer_size= 4;
 
-KEY_CACHE maria_key_cache_var;
-KEY_CACHE *maria_key_cache= &maria_key_cache_var;
+PAGECACHE maria_pagecache_var;
+PAGECACHE *maria_pagecache= &maria_pagecache_var;
 
 /* Enough for comparing if number is zero */
 byte maria_zero_string[]= {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};

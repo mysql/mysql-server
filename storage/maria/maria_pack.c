@@ -524,7 +524,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
     length=(uint) share->base.keystart;
     if (!(buff=my_malloc(length,MYF(MY_WME))))
       goto err;
-    if (my_pread(share->kfile,buff,length,0L,MYF(MY_WME | MY_NABP)) ||
+    if (my_pread(share->kfile.file, buff, length, 0L, MYF(MY_WME | MY_NABP)) ||
 	my_write(join_isam_file,buff,length,
 		 MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
     {
@@ -678,8 +678,8 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
     error|=my_close(new_file,MYF(MY_WME));
     if (!result_table)
     {
-      error|=my_close(isam_file->dfile,MYF(MY_WME));
-      isam_file->dfile= -1;		/* Tell maria_close file is closed */
+      error|=my_close(isam_file->dfile.file, MYF(MY_WME));
+      isam_file->dfile.file= -1;	/* Tell maria_close file is closed */
       isam_file->s->bitmap.file= -1;
     }
   }
@@ -2983,10 +2983,10 @@ static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,
   share->changed=1;			/* Force write of header */
   share->state.open_count=0;
   share->global_changed=0;
-  VOID(my_chsize(share->kfile, share->base.keystart, 0, MYF(0)));
+  VOID(my_chsize(share->kfile.file, share->base.keystart, 0, MYF(0)));
   if (share->base.keys)
     isamchk_neaded=1;
-  DBUG_RETURN(_ma_state_info_write(share->kfile,&share->state,1+2));
+  DBUG_RETURN(_ma_state_info_write(share->kfile.file, &share->state, (1 + 2)));
 }
 
 
