@@ -2570,6 +2570,8 @@ ha_innobase::close(void)
 {
 	DBUG_ENTER("ha_innobase::close");
 
+	innobase_release_temporary_latches(ht, current_thd);
+
 	row_prebuilt_free(prebuilt);
 
 	my_free((gptr) upd_buff, MYF(0));
@@ -6409,6 +6411,12 @@ ha_innobase::external_lock(
 	trx->n_mysql_tables_in_use--;
 	prebuilt->mysql_has_locked = FALSE;
 
+	/* Release a possible FIFO ticket and search latch. Since we
+	may reserve the kernel mutex, we have to release the search
+	system latch first to obey the latching order. */
+
+	innobase_release_stat_resources(trx);
+
 	/* If the MySQL lock count drops to zero we know that the current SQL
 	statement has ended */
 
@@ -6416,12 +6424,6 @@ ha_innobase::external_lock(
 
 		trx->mysql_n_tables_locked = 0;
 		prebuilt->used_in_HANDLER = FALSE;
-
-		/* Release a possible FIFO ticket and search latch. Since we
-		may reserve the kernel mutex, we have to release the search
-		system latch first to obey the latching order. */
-
-		innobase_release_stat_resources(trx);
 
 		if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 			if (trx->active_trans != 0) {
