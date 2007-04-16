@@ -633,15 +633,9 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc CALLER_INFO_PROTO)
 
 plugin_ref plugin_lock(THD *thd, plugin_ref *ptr CALLER_INFO_PROTO)
 {
-  LEX *lex= NULL;
+  LEX *lex= thd ? thd->lex : 0;
   plugin_ref rc;
   DBUG_ENTER("plugin_lock");
-  /*
-    thd->lex may point to a nested LEX or a stored procedure LEX.
-    main_lex is tightly coupled to the thread.
-  */
-  if (thd)
-    lex= !thd->lex ? &thd->main_lex : thd->lex;
   pthread_mutex_lock(&LOCK_plugin);
   rc= my_intern_plugin_lock_ci(lex, *ptr);
   pthread_mutex_unlock(&LOCK_plugin);
@@ -652,12 +646,10 @@ plugin_ref plugin_lock(THD *thd, plugin_ref *ptr CALLER_INFO_PROTO)
 plugin_ref plugin_lock_by_name(THD *thd, const LEX_STRING *name, int type
                                CALLER_INFO_PROTO)
 {
-  LEX *lex= NULL;
+  LEX *lex= thd ? thd->lex : 0;
   plugin_ref rc= NULL;
   st_plugin_int *plugin;
   DBUG_ENTER("plugin_lock");
-  if (thd)
-    lex= !thd->lex ? &thd->main_lex : thd->lex;
   pthread_mutex_lock(&LOCK_plugin);
   if ((plugin= plugin_find_internal(name, type)))
     rc= my_intern_plugin_lock_ci(lex, plugin_int_to_ref(plugin));
@@ -946,7 +938,7 @@ static void intern_plugin_unlock(LEX *lex, plugin_ref plugin)
 
 void plugin_unlock(THD *thd, plugin_ref plugin)
 {
-  LEX *lex= thd ? ( !thd->lex ? &thd->main_lex : thd->lex) : NULL;
+  LEX *lex= thd ? thd->lex : 0;
   DBUG_ENTER("plugin_unlock");
   if (!plugin)
     DBUG_VOID_RETURN;
@@ -965,7 +957,7 @@ void plugin_unlock(THD *thd, plugin_ref plugin)
 
 void plugin_unlock_list(THD *thd, plugin_ref *list, uint count)
 {
-  LEX *lex= thd ? ( !thd->lex ? &thd->main_lex : thd->lex) : NULL;
+  LEX *lex= thd ? thd->lex : 0;
   DBUG_ENTER("plugin_unlock_list");
   DBUG_ASSERT(list);
   pthread_mutex_lock(&LOCK_plugin);
@@ -2037,7 +2029,7 @@ sys_var *find_sys_var(THD *thd, const char *str, uint length)
       (pi= var->cast_pluginvar()))
   {
     rw_unlock(&LOCK_system_variables_hash);
-    LEX *lex= thd ? ( !thd->lex ? &thd->main_lex : thd->lex ) : NULL;
+    LEX *lex= thd ? thd->lex : 0;
     if (!(plugin= my_intern_plugin_lock(lex, plugin_int_to_ref(pi->plugin))))
       var= NULL; /* failed to lock it, it must be uninstalling */
     else
@@ -2361,18 +2353,18 @@ void plugin_thdvar_cleanup(THD *thd)
   unlock_variables(thd, &thd->variables);
   cleanup_variables(thd, &thd->variables);
 
-  if ((idx= thd->main_lex.plugins.elements))
+  if ((idx= thd->lex->plugins.elements))
   {
-    list= ((plugin_ref*) thd->main_lex.plugins.buffer) + idx - 1;
+    list= ((plugin_ref*) thd->lex->plugins.buffer) + idx - 1;
     DBUG_PRINT("info",("unlocking %d plugins", idx));
-    while ((char*) list >= thd->main_lex.plugins.buffer)
+    while ((char*) list >= thd->lex->plugins.buffer)
       intern_plugin_unlock(NULL, *list--);
   }
 
   reap_plugins();
   pthread_mutex_unlock(&LOCK_plugin);
 
-  reset_dynamic(&thd->main_lex.plugins);
+  reset_dynamic(&thd->lex->plugins);
 
   DBUG_VOID_RETURN;
 }

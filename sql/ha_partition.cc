@@ -2340,7 +2340,8 @@ err_handler:
 
 handler *ha_partition::clone(MEM_ROOT *mem_root)
 {
-  handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type);
+  handler *new_handler= get_new_handler(table->s, mem_root,
+                                        table->s->db_type());
   ((ha_partition*)new_handler)->m_part_info= m_part_info;
   ((ha_partition*)new_handler)->is_clone= TRUE;
   if (new_handler && !new_handler->ha_open(table,

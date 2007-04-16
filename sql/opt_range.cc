@@ -1552,8 +1552,8 @@ QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT()
 
 QUICK_RANGE::QUICK_RANGE()
   :min_key(0),max_key(0),min_length(0),max_length(0),
-  min_keypart_map(0), max_keypart_map(0),
-   flag(NO_MIN_RANGE | NO_MAX_RANGE)
+   flag(NO_MIN_RANGE | NO_MAX_RANGE),
+  min_keypart_map(0), max_keypart_map(0)
 {}
 
 SEL_ARG::SEL_ARG(SEL_ARG &arg) :Sql_alloc()
@@ -10008,11 +10008,12 @@ QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
                            ha_rows records_arg, uint key_infix_len_arg,
                            byte *key_infix_arg, MEM_ROOT *parent_alloc)
   :join(join_arg), index_info(index_info_arg),
-   group_prefix_len(group_prefix_len_arg), have_min(have_min_arg),
+   group_prefix_len(group_prefix_len_arg),
+   group_key_parts(group_key_parts_arg), have_min(have_min_arg),
    have_max(have_max_arg), seen_first_key(FALSE),
    min_max_arg_part(min_max_arg_part_arg), key_infix(key_infix_arg),
    key_infix_len(key_infix_len_arg), min_functions_it(NULL),
-   max_functions_it(NULL), group_key_parts(group_key_parts_arg)
+   max_functions_it(NULL)
 {
   head=       table;
   file=       head->file;

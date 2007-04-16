@@ -4406,10 +4406,9 @@ default_collation:
 storage_engines:
 	ident_or_text
 	{
-          LEX *lex= YYTHD->lex;
-          plugin_ref plugin;
+          plugin_ref plugin= ha_resolve_by_name(YYTHD, &$1);
 
-          if ((plugin= ha_resolve_by_name(YYTHD, &$1)))
+          if (plugin)
             $$= plugin_data(plugin, handlerton*);
           else
           {
@@ -4418,18 +4417,14 @@ storage_engines:
               my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
               MYSQL_YYABORT;
             }
-            if (lex->sql_command == SQLCOM_ALTER_TABLE)
-            {
-              TABLE_LIST *table= (TABLE_LIST *) lex->select_lex.table_list.first;
-              $$= ha_default_handlerton(YYTHD);
-              push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                  ER_WARN_USING_OTHER_HANDLER,
-                                  ER(ER_WARN_USING_OTHER_HANDLER),
-                                  ha_resolve_storage_engine_name($$),
-                                  table->table_name);
-            }
+            $$= 0;
+            push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                ER_UNKNOWN_STORAGE_ENGINE,
+                                ER(ER_UNKNOWN_STORAGE_ENGINE),
+                                $1.str);
           }
-	};
+	}
+        ;
 
 known_storage_engines:
 	ident_or_text

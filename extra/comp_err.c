@@ -241,7 +241,7 @@ static int create_header_files(struct errors *error_head)
     /* generating sql_state.h file */
     if (tmp_error->sql_code1[0] || tmp_error->sql_code2[0])
       fprintf(sql_statef,
-	      "%-40s,\"%s\", \"%s\",\n", tmp_error->er_name,
+	      "{ %-40s,\"%s\", \"%s\" },\n", tmp_error->er_name,
 	      tmp_error->sql_code1, tmp_error->sql_code2);
     /*generating er_name file */
     fprintf(er_namef, "{ \"%s\", %d },\n", tmp_error->er_name,
