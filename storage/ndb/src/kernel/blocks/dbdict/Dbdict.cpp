@@ -8338,6 +8338,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
   w.add(DictTabInfo::NoOfKeyAttr, indexPtr.p->noOfPrimkey);
   w.add(DictTabInfo::NoOfNullable, indexPtr.p->noOfNullAttr);
   w.add(DictTabInfo::KeyLength, indexPtr.p->tupKeyLength);
+  w.add(DictTabInfo::SingleUserMode, (Uint32)1);
   // write index key attributes
   for (k = 0; k < opPtr.p->m_attrList.sz; k++) {
     // insert the attributes in the order decided above in attrid_map
@@ -14264,6 +14265,15 @@ Dbdict::execCREATE_FILE_REQ(Signal* signal){
       break;
     }
 
+    if (checkSingleUserMode(senderRef))
+    {
+      ref->errorCode = CreateFileRef::SingleUser;
+      ref->status    = 0;
+      ref->errorKey  = 0;
+      ref->errorLine = __LINE__;
+      break;
+    }
+
     Ptr<SchemaTransaction> trans_ptr;
     if (! c_Trans.seize(trans_ptr)){
       ref->errorCode = CreateFileRef::Busy;
@@ -14363,6 +14373,15 @@ Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal){
     if (c_blockState != BS_IDLE){
       jam();
       ref->errorCode = CreateFilegroupRef::Busy;
+      ref->status    = 0;
+      ref->errorKey  = 0;
+      ref->errorLine = __LINE__;
+      break;
+    }
+
+    if (checkSingleUserMode(senderRef))
+    {
+      ref->errorCode = CreateFilegroupRef::SingleUser;
       ref->status    = 0;
       ref->errorKey  = 0;
       ref->errorLine = __LINE__;
@@ -14471,6 +14490,14 @@ Dbdict::execDROP_FILE_REQ(Signal* signal)
       break;
     }
 
+    if (checkSingleUserMode(senderRef))
+    {
+      ref->errorCode = DropFileRef::SingleUser;
+      ref->errorKey  = 0;
+      ref->errorLine = __LINE__;
+      break;
+    }
+
     Ptr<File> file_ptr;
     if (!c_file_hash.find(file_ptr, objId))
     {
@@ -14489,7 +14516,7 @@ Dbdict::execDROP_FILE_REQ(Signal* signal)
     Ptr<SchemaTransaction> trans_ptr;
     if (! c_Trans.seize(trans_ptr))
     {
-      ref->errorCode = CreateFileRef::Busy;
+      ref->errorCode = DropFileRef::Busy;
       ref->errorLine = __LINE__;
       break;
     }
@@ -14572,6 +14599,14 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
       break;
     }
     
+    if (checkSingleUserMode(senderRef))
+    {
+      ref->errorCode = DropFilegroupRef::SingleUser;
+      ref->errorKey  = 0;
+      ref->errorLine = __LINE__;
+      break;
+    }
+
     Ptr<Filegroup> filegroup_ptr;
     if (!c_filegroup_hash.find(filegroup_ptr, objId))
     {
@@ -14590,7 +14625,7 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
     Ptr<SchemaTransaction> trans_ptr;
     if (! c_Trans.seize(trans_ptr))
     {
-      ref->errorCode = CreateFilegroupRef::Busy;
+      ref->errorCode = DropFilegroupRef::Busy;
       ref->errorLine = __LINE__;
       break;
     }

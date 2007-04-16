@@ -66,7 +66,8 @@ struct DropFilegroupRef {
     NotMaster = 702,
     NoSuchFilegroup = 767,
     FilegroupInUse = 768,
-    InvalidSchemaObjectVersion = 774
+    InvalidSchemaObjectVersion = 774,
+    SingleUser = 299
   };
   
   Uint32 senderData;
@@ -152,7 +153,8 @@ struct DropFileRef {
     NotMaster = 702,
     NoSuchFile = 766,
     DropUndoFileNotSupported = 769,
-    InvalidSchemaObjectVersion = 774
+    InvalidSchemaObjectVersion = 774,
+    SingleUser = 299
   };
 
   Uint32 senderData;

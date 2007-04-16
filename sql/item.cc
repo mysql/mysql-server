@@ -1644,7 +1644,7 @@ void Item_ident_for_show::make_field(Send_field *tmp_field)
 Item_field::Item_field(Field *f)
   :Item_ident(0, NullS, *f->table_name, f->field_name),
    item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0), fixed_as_field(0)
+   have_privileges(0), any_privileges(0)
 {
   set_field(f);
   /*
@@ -1659,7 +1659,7 @@ Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
                        Field *f)
   :Item_ident(context_arg, f->table->s->db.str, *f->table_name, f->field_name),
    item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0), fixed_as_field(0)
+   have_privileges(0), any_privileges(0)
 {
   /*
     We always need to provide Item_field with a fully qualified field
@@ -1698,7 +1698,7 @@ Item_field::Item_field(Name_resolution_context *context_arg,
                        const char *field_name_arg)
   :Item_ident(context_arg, db_arg,table_name_arg,field_name_arg),
    field(0), result_field(0), item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0), fixed_as_field(0)
+   have_privileges(0), any_privileges(0)
 {
   SELECT_LEX *select= current_thd->lex->current_select;
   collation.set(DERIVATION_IMPLICIT);
@@ -1714,8 +1714,7 @@ Item_field::Item_field(THD *thd, Item_field *item)
    item_equal(item->item_equal),
    no_const_subst(item->no_const_subst),
    have_privileges(item->have_privileges),
-   any_privileges(item->any_privileges),
-   fixed_as_field(item->fixed_as_field)
+   any_privileges(item->any_privileges)
 {
   collation.set(DERIVATION_IMPLICIT);
 }
@@ -3483,6 +3482,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
   Item **ref= (Item **) not_found_item;
   SELECT_LEX *current_sel= (SELECT_LEX *) thd->lex->current_select;
   Name_resolution_context *outer_context= 0;
+  SELECT_LEX *select= 0;
   /* Currently derived tables cannot be correlated */
   if (current_sel->master_unit()->first_select()->linkage !=
       DERIVED_TABLE_TYPE)
@@ -3491,7 +3491,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
        outer_context;
        outer_context= outer_context->outer_context)
   {
-    SELECT_LEX *select= outer_context->select_lex;
+    select= outer_context->select_lex;
     Item_subselect *prev_subselect_item=
       last_checked_context->select_lex->master_unit()->item;
     last_checked_context= outer_context;
@@ -3534,45 +3534,28 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
         }
         if (*from_field != view_ref_found)
         {
-
           prev_subselect_item->used_tables_cache|= (*from_field)->table->map;
           prev_subselect_item->const_item_cache= 0;
+          set_field(*from_field);
           if (!last_checked_context->select_lex->having_fix_field &&
-              !fixed_as_field)
+              select->group_list.elements)
           {
             Item_outer_ref *rf;
-            Query_arena *arena= 0, backup;
             /*
-              Each outer field is replaced for an Item_outer_ref object.
-              This is done in order to get correct results when the outer
-              select employs a temporary table.
-              The original fields are saved in the inner_fields_list of the
-              outer select. This list is created by the following reasons:
-              1. We can't add field items to the outer select list directly
-                 because the outer select hasn't been fully fixed yet.
-              2. We need a location to refer to in the Item_ref object
-                 so the inner_fields_list is used as such temporary
-                 reference storage.
-              The new Item_outer_ref object replaces the original field and is
-              also saved in the inner_refs_list of the outer select. Here
-              it is only created. It can be fixed only after the original
-              field has been fixed and this is done in the fix_inner_refs()
-              function.
+              If an outer field is resolved in a grouping select then it
+              is replaced for an Item_outer_ref object. Otherwise an
+              Item_field object is used.
+              The new Item_outer_ref object is saved in the inner_refs_list of
+              the outer select. Here it is only created. It can be fixed only
+              after the original field has been fixed and this is done in the
+              fix_inner_refs() function.
             */
-            set_field(*from_field);
-            arena= thd->activate_stmt_arena_if_needed(&backup);
-            rf= new Item_outer_ref(context, this);
-            if (!rf)
-            {
-              if (arena)
-                thd->restore_active_arena(arena, &backup);
+            ;
+            if (!(rf= new Item_outer_ref(context, this)))
               return -1;
-            }
-            *reference= rf;
+            thd->change_item_tree(reference, rf);
             select->inner_refs_list.push_back(rf);
-            if (arena)
-              thd->restore_active_arena(arena, &backup);
-            fixed_as_field= 1;
+            rf->in_sum_func= thd->lex->in_sum_func;
           }
           if (thd->lex->in_sum_func &&
               thd->lex->in_sum_func->nest_level == 
@@ -3678,11 +3661,20 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     rf= (place == IN_HAVING ?
          new Item_ref(context, ref, (char*) table_name,
                       (char*) field_name, alias_name_used) :
+         (!select->group_list.elements ?
          new Item_direct_ref(context, ref, (char*) table_name,
-                             (char*) field_name, alias_name_used));
+                             (char*) field_name, alias_name_used) :
+         new Item_outer_ref(context, ref, (char*) table_name,
+                            (char*) field_name, alias_name_used)));
     *ref= save;
     if (!rf)
       return -1;
+
+    if (place != IN_HAVING && select->group_list.elements)
+    {
+      outer_context->select_lex->inner_refs_list.push_back((Item_outer_ref*)rf);
+      ((Item_outer_ref*)rf)->in_sum_func= thd->lex->in_sum_func;
+    }
     thd->change_item_tree(reference, rf);
     /*
       rf is Item_ref => never substitute other items (in this case)
@@ -5640,15 +5632,18 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
 
 bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
 {
-  DBUG_ASSERT(*ref);
-  /* outer_field->check_cols() will be made in Item_direct_ref::fix_fields */
-  outer_field->fixed_as_field= 1;
-  if (!outer_field->fixed &&
-      (outer_field->fix_fields(thd, reference)))
+  bool err;
+  /* outer_ref->check_cols() will be made in Item_direct_ref::fix_fields */
+  if ((*ref) && !(*ref)->fixed && ((*ref)->fix_fields(thd, reference)))
     return TRUE;
-  table_name= outer_field->table_name;
-  return Item_direct_ref::fix_fields(thd, reference);
+  err= Item_direct_ref::fix_fields(thd, reference);
+  if (!outer_ref)
+    outer_ref= *ref;
+  if ((*ref)->type() == Item::FIELD_ITEM)
+    table_name= ((Item_field*)outer_ref)->table_name;
+  return err;
 }
+
 
 /*
   Compare two view column references for equality.

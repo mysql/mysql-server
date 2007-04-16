@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#ifndef NDB_MGMAPI
 #include <ndb_opt_defaults.h>
 
 #include <NdbTCP.h>
@@ -26,6 +27,11 @@
 
 extern my_bool opt_ndb_shm;
 extern my_bool opt_core;
+
+#else
+#include "ConfigInfo.hpp"
+#include <mgmapi_config_parameters.h>
+#endif /* NDB_MGMAPI */
 
 #define MAX_LINE_LENGTH 255
 #define KEY_INTERNAL 0
@@ -47,6 +53,7 @@ extern my_bool opt_core;
 #define MGM_TOKEN "MGM"
 #define API_TOKEN "API"
 
+#ifndef NDB_MGMAPI
 const ConfigInfo::AliasPair
 ConfigInfo::m_sectionNameAliases[]={
   {API_TOKEN, "MYSQLD"},
@@ -219,6 +226,7 @@ const DepricationTransform f_deprication[] = {
   { MGM_TOKEN, "Id", "NodeId", 0, 1 },
   { 0, 0, 0, 0, 0}
 };
+#endif /* NDB_MGMAPI */
 
 /**
  * The default constructors create objects with suitable values for the
@@ -2256,7 +2264,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 
 const int ConfigInfo::m_NoOfParams = sizeof(m_ParamInfo) / sizeof(ParamInfo);
 
-
+#ifndef NDB_MGMAPI
 /****************************************************************************
  * Ctor
  ****************************************************************************/
@@ -3928,3 +3936,4 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
 }
 
 template class Vector<ConfigInfo::ConfigRuleSection>;
+#endif /* NDB_MGMAPI */

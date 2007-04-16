@@ -1,0 +1,259 @@
+#
+#    Translators, if you are not familiar with the PO format, gettext
+#    documentation is worth reading, especially sections dedicated to
+#    this format, e.g. by running:
+#         info -n '(gettext)PO Files'
+#         info -n '(gettext)Header Entry'
+#
+#    Some information specific to po-debconf are available at
+#            /usr/share/doc/po-debconf/README-trans
+#         or http://www.debian.org/intl/l10n/po-debconf/README-trans
+#
+#    Developers do not need to manually edit POT or PO files.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: mysql-dfsg-5.0\n"
+"Report-Msgid-Bugs-To: ch@debian.org\n"
+"POT-Creation-Date: 2007-02-16 22:27+0100\n"
+"PO-Revision-Date: 2007-02-18 12:49+0100\n"
+"Last-Translator: Miroslav Kure <kurem@debian.cz>\n"
+"Language-Team: Czech <debian-l10n-czech@lists.debian.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:1001
+msgid "Do you really want to downgrade?"
+msgstr "Opravdu chcete degradovat?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:1001
+msgid ""
+"WARNING: The file /var/lib/mysql/debian-*.flag exists. This indicates that a "
+"mysql-server package with a higher version has been installed before. It can "
+"not be guaranteed that this version can use its data."
+msgstr ""
+"VAROVÁNÍ: Existuje soubor /var/lib/mysql/debian-*.flag, což znamená, že již "
+"byl instalován balíček mysql-server s vyšší verzí. Nemůžeme zaručit, zda "
+"tato verze umí použít data z novějšího balíčku."
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "Important note for NIS/YP users!"
+msgstr "Důležitá poznámka pro uživatele NIS/YP!"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid ""
+"To use mysql you must install an equivalent user and group to the following "
+"and ensure yourself that /var/lib/mysql has the right permissions (the uid/"
+"gid may be different)."
+msgstr ""
+"Abyste mohli mysql používat, musíte do následujících souborů přidat "
+"ekvivalentního uživatele a skupinu a zajistit, že /var/lib/mysql má správná "
+"práva (uid/gid se mohou lišit)."
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid ""
+"/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+msgstr ""
+"/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "/etc/group:       mysql:x:101:"
+msgstr "/etc/group:       mysql:x:101:"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+msgstr "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:3001
+msgid "Remove the databases used by all MySQL versions?"
+msgstr "Odstranit databáze používané všemi verzemi MySQL?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:3001
+msgid ""
+"The script is about to remove the data directory /var/lib/mysql. If it is "
+"planned to just install a higher MySQL version or if a different mysql-"
+"server package is already using it, the data should be kept."
+msgstr ""
+"Skript se chystá odstranit datový adresář /var/lib/mysql. Jestliže pouze "
+"plánujete nainstalovat novější verzi MySQL, nebo pokud tato data souběžně "
+"využívá jiný balík mysql-server, měli byste data ponechat."
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:4001
+msgid "Should MySQL start on boot?"
+msgstr "Má se MySQL spustit při startu systému?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:4001
+msgid ""
+"The MySQL can start automatically on boot time or only if you manually type "
+"'/etc/init.d/mysql start'."
+msgstr ""
+"MySQL se může spouštět automaticky při startu systému, nebo ručně příkazem '/"
+"etc/init.d/mysql start'."
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid "New password for MySQL \"root\" user:"
+msgstr "Nové heslo MySQL uživatele \"root\":"
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid ""
+"It is highly recommended that you set a password for the MySQL "
+"administrative \"root\" user."
+msgstr "Nastavit heslo u správcovského účtu \"root\" je silně doporučeno."
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid ""
+"If you do not provide a password no changes will be made to the account."
+msgstr "Nezadáte-li heslo, žádné změny se s účtem neprovedou."
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid "Unable to set password for MySQL \"root\" user"
+msgstr "Nelze nastavit heslo MySQL uživatele \"root\""
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid ""
+"It seems an error occurred while setting the password for the MySQL "
+"administrative user.  This may have happened because the user already has a "
+"password, or because there was a problem communicating with the MySQL server."
+msgstr ""
+"Během nastavování hesla pro správcovského uživatele MySQL se vyskytla chyba. "
+"To se mohlo stát třeba proto, protože uživatel již měl neslo nastaveno, nebo "
+"protože nastal problém v komunikaci s MySQL serverem."
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid ""
+"When installation finishes, you should verify that the account is properly "
+"protected with a password (see README.Debian for more information)."
+msgstr ""
+"Po skončení instalace byste měli ověřit, že je účet chráněn heslem (více "
+"informací naleznete v souboru README.Debian)."
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:7001
+msgid "Support MySQL connections from hosts running Debian \"sarge\" or older?"
+msgstr ""
+"Podporovat MySQL připojení z počítačů používajících Debian Sarge nebo starší?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:7001
+msgid ""
+"The way passwords were stored was not very secure. This has been improved "
+"with the drawback that clients (e.g. PHP) from hosts running Debian 3.1 "
+"Sarge will not be able to connect to account which are new or whose password "
+"have been changed. See /usr/share/doc/mysql-server-5.0/README.Debian."
+msgstr ""
+"Způsob, jakým se dříve ukládala hesla, nebyl příliš bezpečný. To se nyní "
+"změnilo, ale nevýhodou je, že se klienti z Debianu 3.1 Sarge nebudou moci "
+"připojit na nové účty, nebo na účty, u nichž se změnilo heslo. Podrobnosti "
+"viz /usr/share/doc/mysql-server-5.0/README.Debian."
+
+#~ msgid "Cannot upgrade if ISAM tables are present!"
+#~ msgstr "Aktualizace nelze provést pokud jsou přítomny tabulky ISAM!"
+
+#~ msgid ""
+#~ "Recent versions of MySQL can no longer use the old ISAM table format and "
+#~ "it is necessary to convert your tables to e.g. MyISAM before upgrading by "
+#~ "using \"mysql_convert_table_format\" or \"ALTER TABLE x ENGINE=MyISAM\". "
+#~ "The installation of mysql-server-5.0 will now abort. In case your old "
+#~ "mysql-server-4.1 gets removed nevertheless just reinstall it to convert "
+#~ "those tables."
+#~ msgstr ""
+#~ "Poslední verze MySQL již nemohou používat starý formát tabulek ISAM a "
+#~ "před aktualizací je nutné převést tyto tabulky např. do formátu MyISAM "
+#~ "pomocí \"mysql_convert_table_format\" nebo \"ALTER TABLE x ENGINE=MyISAM"
+#~ "\". Instalace mysql-server-5.0 se nyní přeruší. V případě, že se mezitím "
+#~ "odinstaloval původní mysql-server-4.1, jednoduše jej znovu nainstalujte a "
+#~ "tabulky převeďte."
+
+#~ msgid "Update Hints"
+#~ msgstr "Poznámky k aktualizaci"
+
+#~ msgid ""
+#~ "You have to run \"mysql_upgrade\" after the upgrade, else tables can be  "
+#~ "corrupted! This script also enhances the privilege tables but is not  "
+#~ "supposed to give any user more rights that he had before,"
+#~ msgstr ""
+#~ "Po aktualizaci ještě musíte spustit \"mysql_upgrade\", protože jinak by "
+#~ "se tabulky mohly narušit! Tento skript také rozšiřuje tabulky privilegií, "
+#~ "ovšem neměl by uživatelům přidat více práv, než měli dosud."
+
+#~ msgid "Please also read http://www.mysql.com/doc/en/Upgrade.html"
+#~ msgstr "Také si přečtěte http://www.mysql.com/doc/en/Upgrade.html"
+
+#~ msgid ""
+#~ "MySQL will only install if you have a non-numeric hostname that is "
+#~ "resolvable via the /etc/hosts file. E.g. if the \"hostname\" command "
+#~ "returns \"myhostname\" then there must be a line like \"10.0.0.1 "
+#~ "myhostname\"."
+#~ msgstr ""
+#~ "MySQL se nainstaluje pouze v případě, že používáte nenumerické jméno "
+#~ "počítače, které se dá přeložit přes soubor /etc/hosts. Např. když příkaz "
+#~ "\"hostname\" vrátí \"diamond\", tak v /etc/hosts musí existovat obdobný "
+#~ "řádek jako \"10.0.0.1 diamond\"."
+
+#~ msgid ""
+#~ "A new mysql user \"debian-sys-maint\" will be created. This mysql account "
+#~ "is used in the start/stop and cron scripts. Don't delete."
+#~ msgstr ""
+#~ "Bude vytvořen nový mysql uživatel \"debian-sys-maint\". Tento mysql účet "
+#~ "se používá ve startovacích, ukončovacích a cronových skriptech. Nemažte "
+#~ "jej."
+
+#~ msgid ""
+#~ "Please remember to set a PASSWORD for the MySQL root user! If you use a /"
+#~ "root/.my.cnf, always write the \"user\" and the \"password\" lines in "
+#~ "there, never only the password!"
+#~ msgstr ""
+#~ "Nezapomeňte nastavit heslo pro účet administrátora MySQL! Používáte-li /"
+#~ "root/.my.cnf, vždy zde zadejte jak řádek \"user\", tak řádek \"password"
+#~ "\". Nikdy zde nezadávejte jenom heslo!"
+
+#~ msgid ""
+#~ "See /usr/share/doc/mysql-server-5.0/README.Debian for more information."
+#~ msgstr ""
+#~ "Více informací naleznete v /usr/share/doc/mysql-server-5.0/README.Debian."
+
+#~ msgid ""
+#~ "Should I remove the complete /var/lib/mysql directory tree which is used "
+#~ "by all MySQL versions, not necessarily only the one you are about to "
+#~ "purge?"
+#~ msgstr ""
+#~ "Mám odstranit kompletní adresářový strom /var/lib/mysql, který se používá "
+#~ "pro všechny verze MySQL, tedy ne nutně pouze pro verzi, kterou se "
+#~ "chystáte vyčistit?"
