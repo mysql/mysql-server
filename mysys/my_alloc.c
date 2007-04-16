@@ -133,6 +133,10 @@ void reset_root_defaults(MEM_ROOT *mem_root, uint block_size,
         mem->next= *prev;
         *prev= mem_root->pre_alloc= mem; 
       }
+      else
+      {
+        mem_root->pre_alloc= 0;
+      }
     }
   }
   else
