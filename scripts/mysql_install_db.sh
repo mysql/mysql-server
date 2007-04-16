@@ -135,17 +135,6 @@ else
   fi
 fi
 
-# Check that no previous MySQL installation exist
-if test -f "$ldata/mysql/db.frm"
-then
-  echo "FATAL ERROR: Found already existing MySQL system tables"
-  echo "in $ldata."
-  echo "If you are upgrading from a previous MySQL version you"
-  echo "should run '$bindir/mysql_upgrade', "
-  echo "to upgrade all tables for this version of MySQL"
-  exit 1;
-fi
-
 # Find SQL scripts needed for bootstrap
 fill_help_tables="fill_help_tables.sql"
 create_system_tables="mysql_system_tables.sql"

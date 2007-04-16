@@ -1,0 +1,3269 @@
+mysql-5.0 (5.0.38) enterprise; urgency=low
+
+  * Imported packaging work from Debian.
+  * Removed debian-start, mysqlreport and echo_stderr to align with official
+    packages.
+
+ -- Monty Taylor <mordred@inaugust.com>  Wed,  7 Mar 2007 07:52:55 +0800
+
+mysql-dfsg-5.0 (5.0.32-3etch1) testing-proposed-updates; urgency=high
+
+  * Backported upstream patch for a bug that crashed the server when using
+    certain join/group/limit combinations. 
+    Users of the Joomla CMS seemed to be affected by this. Closes: #403721
+  * The debian-start script that runs on every server start now first upgrades
+    the system tables (if neccessary) and then check them as it sometimes did
+    not work the other way around (e.g. for MediaWiki). The script now uses 
+    mysql_update instead of mysql_update_script as recommended. Closes: 409780
+  * The old_passwords setting that is set according to a Debconf question is
+    now written to /etc/mysql/conf.d/old_passwords.cnf instead directly to the
+    conffile /etc/mysql/my.cnf which would be fobidden by policy (thanks to
+    Robert Bihlmeyer). Closes: #409750
+  * Added bison to build dependencies.
+  * Synced Debconf translations with 5.0.32-7.
+
+ -- Christian Hammers <ch@debian.org>  Sun, 18 Feb 2007 22:33:05 +0100
+
+mysql-dfsg-5.0 (5.0.32-3) unstable; urgency=high
+
+  * mysql-server-5.0 pre-depends on adduser now and has --disabled-login
+    explicitly added to be on the safe side (thanks to the puiparts team).
+    Closes: #408362
+  * Corrections the terminology regarding NDB in the comments of all config
+    files and init scripts (thanks to Geert Vanderkelen of MySQL).
+  * Updated Swedish Debconf translation (thanks to Andreas Henriksson).
+    Closes: #407859
+  * Updated Czech Debconf translation (thanks to Miroslav Kure).
+    Closes: #407809
+
+ -- Christian Hammers <ch@debian.org>  Thu, 11 Jan 2007 11:18:47 +0100
+
+mysql-dfsg-5.0 (5.0.32-2) unstable; urgency=high
+
+  * The last upload suffered from a regression that made NDB totally
+    unusable and caused a dependency to libmysqlclient15-dev in the
+    mysql-server-5.0 package. The relevant 85_* patch was re-added again.
+    Closes: #406435
+  * Added lintian-overrides for an error that does not affect our packages.
+    There are now only warnings and not errors left.
+
+ -- Christian Hammers <ch@debian.org>  Tue,  9 Jan 2007 23:55:10 +0100
+
+mysql-dfsg-5.0 (5.0.32-1) unstable; urgency=high
+
+  * New upstream version.
+    * SECURITY: mysql_fix_privilege_tables.sql altered the 
+      table_privs.table_priv column to contain too few privileges, causing
+      loss of the CREATE VIEW and SHOW VIEW privileges. (MySQL Bug#20589)
+    * SECURITY (DoS): ALTER TABLE statements that performed both RENAME TO
+      and {ENABLE|DISABLE} KEYS operations caused a server crash. (MySQL
+      Bug#24089)
+    * SECURITY (DoS): LAST_DAY('0000-00-00') could cause a server crash.
+      (MySQL Bug#23653)
+    * SECURITY (DoS): Using EXPLAIN caused a server crash for queries that 
+      selected from INFORMATION_SCHEMA in a subquery in the FROM clause.
+      (MySQL Bug#22413)
+    * SECURITY (DoS): Invalidating the query cache (e.g. when using stored procedures) 
+      caused a server crash for INSERT INTO ... SELECT statements that 
+      selected from a view. (MySQL Bug#20045)
+    * Using mysql_upgrade with a password crashed the server. Closes: #406229
+    * yaSSL crashed on pre-Pentium Intel and Cyrix CPUs. (MySQL Bug#21765)
+      Closes: #383759
+    * Lots of small fixes to the NDB cluster storage engine.
+  * Updated Japanese Debconf template (thanks to Hideki Yamane).
+    Closes: #405793
+  * Fixed comment regarding "mycheck" in debian-start (thanks to
+    Enrico Zini). Closes: #405787
+
+ -- Christian Hammers <ch@debian.org>  Sat,  6 Jan 2007 14:26:20 +0100
+
+mysql-dfsg-5.0 (5.0.30-3) unstable; urgency=low
+
+  * Updated Brazilian Debconf translation (thanks to Andre Luis Lopes).
+    Closes: #403821
+  * Added Romanian Debconf translation (thanks to Stan Ioan-Eugen).
+    Closes: #403943
+  * Updated Spanish Debconf translation (thanks to Javier Fernandez-Sanguino
+    Pena). Closes: #404084
+  * Updated Galician Debconf translation (thanks to Jacobo Tarrio).
+    Closes: #404318
+  * Updated Dutch Debconf translation (thanks to Vincent Zweije).
+    Closes: #404566
+  * Updated Danish Debconf translation (thanks to Claus Hindsgaul).
+    Closes: #405018
+
+ -- Christian Hammers <ch@debian.org>  Thu, 21 Dec 2006 21:35:09 +0100
+
+mysql-dfsg-5.0 (5.0.30-2) unstable; urgency=high
+
+  * Fixed upstream regression in header files that lead to FTBFS for
+    mysql-admin, mysql-query-browser and probably other pacakges.
+    (thanks to Andreas Henriksson). Closes: #403081, #403082
+  * Fixed some upstream scripts by replacing /etc by /etc/mysql (thanks to
+    Julien Antony). Closes: #401083
+  * Updated French Debconf translation (thanks to Christian Perrier).
+    Closes: #401434
+  * Added Spanish Debconf translation (thanks to Javier Fernandez-Sanguino
+    Pena). Closes: #401953
+  * Marked a Debconf question that is just a dummy and only internally
+    used as not-needing-translation. Closes: #403163
+  * Fixed mysqlslowdump patch to not remove the usage() function (thanks 
+    to Monty Tailor).
+
+ -- Christian Hammers <ch@debian.org>  Sun,  3 Dec 2006 19:20:10 +0100
+
+mysql-dfsg-5.0 (5.0.30-1) unstable; urgency=low
+
+  * New upstream version (switch to the MySQL Enterprise branch).
+  * Upstream bugfix for the Innodb performance bug:
+    "Very poor performance with multiple queries running
+     concurrently (Bug#15815)".
+  * Upstream bugfix for a possible server crash:
+    "Selecting from a MERGE table could result in a server crash if the
+     underlying tables had fewer indexes than the MERGE table itself
+     (Bug#22937)"
+  * Upstream bugfies for *lot* of NDB problems.
+  * Upstream bugfix for Innodb optimizer bug. Closes: #397597
+  * Updated Italian Debconf translation (thanks to Luca Monducci).
+    Closes: #401305 
+  * Updated debian/watch file to MySQL Enterprise branch.
+
+ -- Christian Hammers <ch@debian.org>  Sat,  2 Dec 2006 16:36:38 +0100
+
+mysql-dfsg-5.0 (5.0.27-2) unstable; urgency=medium
+
+  * Disabled YaSSL x86 assembler as it was reported to crash applications
+    like pam-mysql or proftpd-mysql which are linked against libmysqlclient
+    on i486 and Cyrix (i586) CPUs. Closes: #385147
+  * Adjusted mysql-server-4.1 priority to extra and section to oldlibs
+    according to the ftp masters overrides.
+  * Updated German Debconf translation (thanks to Alwin Meschede).
+    Closes: #400809
+
+ -- Christian Hammers <ch@debian.org>  Wed, 22 Nov 2006 13:36:31 +0100
+
+mysql-dfsg-5.0 (5.0.27-1) unstable; urgency=medium
+
+  * New upstream version (but no codechange, the only difference to 5.0.26
+    was a patch to the ABI change which Debian already included.
+  * When dist-upgrading from mysql-server-4.1/sarge dpkg does not longer
+    ask unnecessary "config file has changed" questions regarding
+    /etc/init.d/mysql, /etc/logrotate.d/mysql-server and
+    /etc/mysql/debian-start just because these files previously belonged
+    to mysql-server-4.1 and not to mysql-server-5.0.
+    To archive this mysql-server-5.0 now pre-depends on mysql-common which
+    provides current versions of those files.
+  * The automatic run mysql_upgrade now works with non-standard datadir
+    settings, too (thanks to Benjami Villoslada). Closes: #394607
+  * Debconf now asks if the old_passwords option is really needed.
+  * Improved explanations of the old_passwords variable in my.cnf.
+  * Removed possibly leftover cron script from MySQL-4.1 (thanks to
+    Mario Oyorzabal Salgado). Closes: #390889
+  * Postrm ignores failed "userdel mysql".
+  * Updated Danish Debconf translation (thanks to Claus Hindsgaul).
+    Closes: #398784
+  * Added Euskarian Debconf translation (thanks to Piarres Beobide).
+    Closes: #399045
+  * Updated Japanese Debconf translation (thanks to Hideki Yamane).
+    Closes: #399074
+  * Updated German Debconf translation (thanks to Alwin Meschede).
+    Closes: #399087
+  * New Portuguese debconf translations from Miguel Figueiredo. 
+    Closes: #398186
+
+ -- Christian Hammers <ch@debian.org>  Tue,  7 Nov 2006 21:26:25 +0100
+
+mysql-dfsg-5.0 (5.0.26-3) unstable; urgency=high
+
+  [sean finney]
+  * Fix for the deadly ISAM trap.  Now during upgrades we will do our
+    very best to convert pre-existing ISAM format tables using the
+    binaries from the previous package.  Success is not guaranteed, but
+    this is probably as good as it gets.  Note that this also necessitates
+    re-introducing an (empty transitional) mysql-server-4.1 package.
+    Closes: #354544, #354850
+  * Remove a couple spurious and wrongly placed WARNING statements from
+    45_warn-CLI-passwords.dpatch.  thanks to Dan Jacobsen for pointing these
+    out.  Closes: #394262
+
+ -- sean finney <seanius@debian.org>  Fri, 03 Nov 2006 18:34:46 +0100
+
+mysql-dfsg-5.0 (5.0.26-2) unstable; urgency=high
+
+  * Fixed FTBFS for Alpha by applying an upstream patch (thanks to Falk
+    Hueffner). Closes: #395921
+
+ -- Christian Hammers <ch@debian.org>  Sat, 28 Oct 2006 20:13:46 +0200
+
+mysql-dfsg-5.0 (5.0.26-1) unstable; urgency=high
+
+  * SECURITY: 
+    This combined release of 5.0.25 and 5.0.26 fixes lot of possible server
+    crashs so it should get into Etch. Quoting the changelog (bug numbers are
+    bugs.mysql.com ones):
+    - character_set_results can be NULL to signify no conversion, but some
+      code did not check for NULL, resulting in a server crash. (Bug#21913)
+    - Using cursors with READ COMMITTED isolation level could cause InnoDB to
+      crash. (Bug#19834)
+    - Some prepared statements caused a server crash when executed a second
+      time. (Bug#21166)
+    - When DROP DATABASE or SHOW OPEN TABLES was issued while concurrently 
+      issuing DROP TABLE (or RENAME TABLE, CREATE TABLE LIKE or any other 
+      statement that required a name lock) in another connection, the server 
+      crashed. (Bug#21216)
+    - Use of zero-length variable names caused a server crash. (Bug#20908)
+    - For InnoDB tables, the server could crash when executing NOT IN () 
+      subqueries. (Bug#21077) 
+    - Repeated DROP TABLE statements in a stored procedure could sometimes
+      cause the server to crash. (Bug#19399)
+    - Performing an INSERT on a view that was defined using a SELECT that 
+      specified a collation and a column alias caused the server to crash 
+      (Bug#21086).
+    - A query of the form shown here caused the server to crash. (Bug#21007)
+    - NDB Cluster: Some queries involving joins on very large NDB tables could
+      crash the MySQL server. (Bug#21059)
+    - The character set was not being properly initialized for CAST() with a
+      type like CHAR(2) BINARY, which resulted in incorrect results or even a 
+      server crash. (Bug#17903)
+    - For certain queries, the server incorrectly resolved a reference to an
+      aggregate function and crashed. (Bug#20868)
+    - The server crashed when using the range access method to execut a
+      subquery with a ORDER BY DESC  clause. (Bug#20869)
+    - Triggers on tables in the mysql database caused a server crash. Triggers
+      for tables in this database now are disallowed. (Bug#18361)
+    - Using SELECT on a corrupt MyISAM table using the dynamic record format 
+      could cause a server crash. (Bug#19835) 
+    - Use of MIN() or MAX()  with GROUP BY on a ucs2  column could cause a
+      server crash. (Bug#20076)
+    - Selecting from a MERGE table could result in a server crash if the
+      underlying tables had fewer indexes than the MERGE table itself. 
+      (Bug#21617, Bug#22937)
+
+  * New upstream release.
+    - This bug would cause trouble for Sarge->Etch upgrades, it was supposed to
+      have been fixed in 5.0.16 but that apparently did not fix the whole
+      problem:
+      Using tables from MySQL 4.x in MySQL 5.x, in particular those with VARCHAR
+      fields and using INSERT DELAYED to update data in the table would result in
+      either data corruption or a server crash. (Bug#16611, Bug#16218, Bug#17294) 
+      Closes: #386337
+    - Fixes data corruption as an automatic client reconnect used to set
+      the wrong character set. Closes: #365050
+    - Fixes an undefined ulong type in an include file. Closes: #389102
+    - Fixes wrong output format when using Unicode characters. Closes: #355302
+    - Fixes mysql_upgrade when using a password. Closes: #371841
+ 
+  [Christian Hammers]
+  * Removed --sysconfdir from debian/rules as it puts /etc/mysql/ at the
+    end of the my.cnf search patch thus overriding $HOME/my.cnf
+    (thanks to Christoph Biedl). Closes: #394992
+  * The provided patch from bug #385947 was wrong, the variable is called
+    BLOCKSIZE not BLOCK_SIZE according to "strings `which df`" (thanks to
+    Bruno Muller). Closes: #385947
+
+  [sean finney]
+  * new dutch debconf translations from Vincent Zweije (closes: #392809).
+  * new japanese debconf translations from Hideki Yamane (closes: #391625).
+  * new italian debconf translations from Luca Monducci (closes: #391741).
+  * new french debconf translations from Christian Perrier (closes: #393334).
+  * ran debconf-updatepo to merge the fuzzies into svn.
+  * massage the following patches so they continue to apply cleanly:
+    - 44_scripts__mysql_config__libs.dpatch to cleanly apply.
+    - 45_warn-CLI-passwords.dpatch
+    - 96_TEMP__libmysqlclient_ssl_symbols.dpatch (note, this patch might
+      no longer be needed, but is retained "just in case" after massaging it)
+  * the following patches have been incorporated upstream:
+    - 70_kfreebsd.dpatch
+    - 80_hurd_mach.dpatch
+    - 87_ps_Hurd.dpatch
+    - 90_TEMP__client__mysql_upgrade__O_EXEC.dpatch
+    - 91_TEMP__client__mysql_upgrade__password.dpatch
+    - 92_TEMP__client__mysql_upgrade__defaultgroups.dpatch
+    - 94_TEMP__CVE-2006-4227.dpatch
+    - 95_TEMP__CVE-2006-4226.dpatch
+  * the udf_example.cc has disappeared from the source code, but there's
+    a udf_example.c which seems to be a good example to use instead :)
+  * update documentation in the configuration to no longer reference
+    using my.cnf in the DATADIR, as it's never been the recommended
+    method for debian systems and hasn't worked since 5.0 was released
+    anyway (closes: #393868).
+
+ -- Christian Hammers <ch@debian.org>  Wed, 25 Oct 2006 19:54:04 +0200
+
+mysql-dfsg-5.0 (5.0.24a-9) unstable; urgency=medium
+
+  * Having expire_logs_days enabled but log-bin not crashes the server. Using
+    both or none of those options is safe. To prevent this happening during the 
+    nightly log rotation via /etc/logrotate.d/mysql the initscript checks for 
+    malicious combination of options. See: #368547
+  * The Sarge package "mysql-server" which used to include the mysqld daemon
+    may still be in unselected-configured state (i.e. after a remove but not
+    purge) in which case its now obsolete cronscript has to be moved away
+    (thanks to Charles Lepple). Closes: #385669
+  * Updated Danish Debconf translation (thanks to Claus Hindsgaul).
+    Closes: #390315
+  * Updated Frensh Debconf translation (thanks to Christian Perrier).
+    Closes: #390980
+
+ -- Christian Hammers <ch@debian.org>  Tue,  3 Oct 2006 14:55:31 +0200
+
+mysql-dfsg-5.0 (5.0.24a-8) unstable; urgency=low
+
+  * (broken upload)
+
+ -- Christian Hammers <ch@debian.org>  Tue,  3 Oct 2006 14:55:31 +0200
+
+mysql-dfsg-5.0 (5.0.24a-7) unstable; urgency=low
+
+  * Stopped mysql_config from announcing unnecessary library dependencies
+    which until now cause "NEEDED" dependencies in the "readelf -d" output
+    of libraries who only depend on libmysqlclient.so (thanks to Michal
+    Cihar). Closes: #390692
+
+ -- Christian Hammers <ch@debian.org>  Sun,  1 Oct 2006 23:59:43 +0200
+
+mysql-dfsg-5.0 (5.0.24a-6) unstable; urgency=low
+
+  [sean finney]
+  * finally add support for setting a root password at install.
+    while this is not a random password as requested in one bug
+    report, we believe it is the best solution and provides a
+    means to set a random password via preseeding if it's really
+    desired (Closes: #316127, #298295).
+
+ -- sean finney <seanius@debian.org>  Sun, 01 Oct 2006 23:34:30 +0200
+
+mysql-dfsg-5.0 (5.0.24a-5) unstable; urgency=low
+
+  * Added ${shlibs:Depends} to debian/control section libmysqlclient-dev as it
+    contains the experimental /usr/lib/mysql/libndbclient.so.0.0.0.
+  * Bumped standards version to 3.7.2.
+  * Added LSB info section to init scripts.
+  * Rephrased Debconf templates as suggested by lintian.
+  * Added benchmark suite in /usr/share/mysql/sql-bench/.
+  * The mysql.timezone* tables are now filled by the postinst script (thanks
+    to Mark Sheppard). Closes: #388491
+  * Moved Debconf install notes to README.Debian. Displaying them with
+    medium priority was a bug anyway. Closes: #388941
+  * Replaced /usr/bin/mysql_upgrade by /usr/bin/mysql_upgrade_shell in
+    /etc/mysql/debian-start.sh as it works without errors (thanks to Javier
+    Kohen). Closes: #389443
+
+ -- Christian Hammers <ch@debian.org>  Wed, 20 Sep 2006 15:01:42 +0200
+
+mysql-dfsg-5.0 (5.0.24a-4) unstable; urgency=high
+
+  * libmysqlclient.so.15 from 5.0.24 accidentaly exports some symbols that are
+    historically exported by OpenSSL's libcrypto.so. This bug was supposed to
+    be fixed in 5.0.24a bug according to the mysql bug tracking system will
+    only be fixed in 5.0.25 so I backported the patch. People already reported
+    crashing apps due to this (thanks to Duncan Simpson). See also: #385348
+    Closes: #388262
+  * Fixed BLOCKSIZE to BLOCK_SIZE in initscript (thanks to Bruno Muller).
+    Closes: #385947
+  * Added hint to "--extended-insert=0" to mysqldump manpage (thanks to Martin
+    Schulze).
+  * Documented the meaning of "NDB" in README.Debian (thanks to Dan Jacobson).
+    Closes: #386274
+  * Added patch to build on hurd-i386 (thanks to Cyril Brulebois). Closes: #387369
+  * Fixed debian-start script to work together with the recend LSB modifications in
+    the initscript (thanks to wens). Closes: #387481
+  * Reverted tmpdir change in my.cnf back to /tmp to comply with FHS (thanks
+    to Alessandro Valente). Closes: #382778
+  * Added logcheck filter rule (thanks to Paul Wise). Closes: #381043
+  * I will definetly not disable InnoDB but added a note to the default my.cnf
+    that disabling it saves about 100MB virtual memory (thanks to Olivier
+    Berger). Closes: #384399
+  * Added thread_cache_size=8 to default my.cnf as this variable seems to have
+    a negligible memory footprint but can improve performance when lots of
+    threads connect simultaneously as often seen on web servers.
+
+ -- Christian Hammers <ch@debian.org>  Mon,  4 Sep 2006 00:21:50 +0200
+
+mysql-dfsg-5.0 (5.0.24a-3) unstable; urgency=low
+
+  * Fixed potential tempfile problem in the newly added mysqlreport script.
+
+ -- Christian Hammers <ch@debian.org>  Sun,  3 Sep 2006 23:17:24 +0200
+
+mysql-dfsg-5.0 (5.0.24a-2) unstable; urgency=low
+
+  * Added "mysqlreport" (GPL'ed) from hackmysql.com.
+  * Temporarily disabled expire_days option as it causes the server
+    to crash. See #368547
+  * Made output of init scripts LSB compliant (thanks to David Haerdeman).
+    Closes: #385874
+
+ -- Christian Hammers <ch@debian.org>  Sun,  3 Sep 2006 19:06:53 +0200
+
+mysql-dfsg-5.0 (5.0.24a-1) unstable; urgency=high
+
+  * New upstream version.
+  * The shared library in the 5.0.24 upstream release accidently exported 
+    some symbols that are also exported by the OpenSSL libraries (notably
+    BN_bin2bn) causing unexpected behaviour in applications using these 
+    functions (thanks to Peter Cernak). Closes: #385348
+  * Added note about possible crash on certain i486 clone CPUs.
+  * Made recipient address of startup mysqlcheck output configurable
+    (thanks to Mattias Guns). Closes: #385119
+
+ -- Christian Hammers <ch@debian.org>  Mon, 28 Aug 2006 01:22:12 +0200
+
+mysql-dfsg-5.0 (5.0.24-3) unstable; urgency=high
+
+  * SECURITY:
+    CVE-2006-4226:
+    When run on case-sensitive filesystems, MySQL allows remote
+    authenticated users to create or access a database when the database 
+    name differs only in case from a database for which they have
+    permissions.
+    CVE-2006-4227:
+    MySQL evaluates arguments of suid routines in the security context of
+    the routine's definer instead of the routine's caller, which allows
+    remote authenticated users to gain privileges through a routine that 
+    has been made available using GRANT EXECUTE.
+    Thanks to Stefan Fritsch for reporting. Closes: #384798
+
+ -- Christian Hammers <ch@debian.org>  Sat, 26 Aug 2006 04:55:17 +0200
+
+mysql-dfsg-5.0 (5.0.24-2) unstable; urgency=high
+
+  * 5.0.24-1 introduced an ABI incompatibility, which this patch reverts.
+    Programs compiled against 5.0.24-1 are not compatible with any other
+    version and needs a rebuild.
+    This bug already caused a lot of segfaults and crashes in various 
+    programs. Thanks to Chad MILLER from MySQL for quickly providing a patch.
+    The shlibdeps version has been increased to 5.0.24-2.
+    Closes: #384047, #384221, #383700
+
+ -- Christian Hammers <ch@debian.org>  Fri, 25 Aug 2006 21:47:35 +0200
+
+mysql-dfsg-5.0 (5.0.24-1) unstable; urgency=high
+ 
+  * SECURITY: Upstream fixes a security bug which allows a user to continue
+    accessing a table using a MERGE TABLE after the right to direct access to
+    the database has been revoked (CVE-2006-4031, MySQL bug #15195).
+    (Well they did not exactly fixed it, they documented the behaviour and
+    allow the admin to disable merge table alltogether...). Closes: #380271
+  * SECURITY: Applied patch that fixes a possibly insecure filehandling
+    in the recently added mysql_upgrade binary file (MySQL bug #10320).
+  * New upstream version.
+    - Fixes nasty MySQL bug #19618 that leads to crashes when using
+      "SELECT ... WHERE ... not in (1, -1)" (e.g. vbulletin was affected).
+    - Fixes upstream bug #16803 so that linking ~/.mysql_history to /dev/null
+      now has the desired effect of having no history.
+  * Really fixed the runlevels. Closes: #377651
+  * Added patch for broken upstream handling of "host=" to mysql_upgrade.c.
+  * Adjusted /etc/mysql/debian-start to new mysql_upgrade.c
+
+ -- Christian Hammers <ch@debian.org>  Tue,  8 Aug 2006 00:44:13 +0200
+
+mysql-dfsg-5.0 (5.0.22-5) unstable; urgency=low
+
+  * Added further line to the logcheck ignore files (thanks to Paul Wise).
+    Closes: #381038
+
+ -- Christian Hammers <ch@debian.org>  Wed,  2 Aug 2006 00:28:50 +0200
+
+mysql-dfsg-5.0 (5.0.22-4) unstable; urgency=low
+
+  * Upstream fixes a bug in the (never released) version 5.0.23 which could
+    maybe used to crash the server if the mysqlmanager daemon is in use
+    which is not yet the default in Debian. (CVE-2006-3486 *DISPUTED*)
+  * Changed runlevel priority of mysqld from 20 to 19 so that it gets started
+    before apache and proftpd etc. which might depend on an already running
+    database server (thanks to Martin Gruner). Closes: #377651
+  * Added patch which sets PATH_MAX in ndb (thanks to Cyril Brulebois).
+    Closes: #378949
+  * Activated YaSSL as licence issues are settled according to:
+    http://bugs.mysql.com/?id=16755. This also closes the FTBFS bug
+    regarding OpenSSL as it is discouraged to use now. Closes: #368639
+  * Removed SSL-MINI-HOWTO as the official documentation is good enough now.
+  * mysql_upgrade no longer gives --password on the commandline which would
+    be insecure (thanks to Dean Gaudet). Closes: #379199
+  * Adjusted debian/patches/45* to make consecutive builds in the same source
+    tree possible (thanks to Bob Tanner). Closes: #368661
+  * mysql-server-5.0 is now suggesting tinyca as yaSSL is enabled and tinyca
+    was found to be really cool :)
+  * Moved tempdir from /tmp to /var/tmp as it will more likely have enough
+    free space as /tmp is often on the root partition and /var or at least
+    /var/tmp is on a bigger one.
+
+ -- Christian Hammers <ch@debian.org>  Mon, 10 Jul 2006 23:30:26 +0200
+
+mysql-dfsg-5.0 (5.0.22-3) unstable; urgency=low
+
+  * Added patch for MySQL bug #19618: "select x from x
+    where x not in(1,-1)" may crash the server" (thanks to
+    Ruben Puettmann).
+
+ -- Christian Hammers <ch@debian.org>  Fri,  9 Jun 2006 01:41:44 +0200
+
+mysql-dfsg-5.0 (5.0.22-2) unstable; urgency=high
+
+  * Fixed debian-sys-maint related bug in postinst (thanks to
+    Jean-Christophe Dubacq). Closes: #369970
+  * The last upload was a security patch (which I did not know as I
+    uploaded before the announcement came). I now added the CVE id for
+    reference and set urgency to high as the last entry did not.
+
+ -- Christian Hammers <ch@debian.org>  Wed, 31 May 2006 01:04:11 +0200
+
+mysql-dfsg-5.0 (5.0.22-1) unstable; urgency=low
+
+  * SECURITY: This upstream release fixes an SQL-injection with multibyte 
+    encoding problem. (CVE-2006-2753)
+  * New upstream release.
+  * Upstream fixes REPAIR TABLE problem. Closes: #354300
+  * Upstream fixes problem that empty strings in varchar and text columns
+    are displayed as NULL. Closes: #368663
+
+ -- Christian Hammers <ch@debian.org>  Tue, 30 May 2006 23:43:24 +0200
+
+mysql-dfsg-5.0 (5.0.21-4) unstable; urgency=low
+
+  * Added "BLOCKSIZE=" to the diskfree check (thanks to Farzad FARID).
+    Closes: #367027, #367083
+  * Further fixed mysql_upgrade upstream script (thanks to Andreas Pakulat)
+    Closes: #366155
+  * Adjusted the /proc test in debian/rules from /proc/1 to /proc/self
+    to make building on grsec systems possible (thanks to K. Rosenegger).
+    Closes: #366824
+  * Updated Russion Debconf translation (thanks to Yuriy Talakan).
+    Closes: #367141
+  * Updated Czech Debconf translation (thanks to Kiroslav Kure).
+    Closes: #367160
+  * Updated Galician Debconf translation (thanks to Jacobo Tarrio).
+    Closes: #367384
+  * Updated Swedish Debconf translation (thanks to Daniel Nylander).
+    Closes: #368186
+
+ -- Christian Hammers <ch@debian.org>  Wed, 10 May 2006 08:45:42 +0200
+
+mysql-dfsg-5.0 (5.0.21-3) unstable; urgency=low
+
+  * Fixed FTBFS problem which was caused by a patch that modifies Makefile.am
+    as well as Makefile.in and was not deteced because my desktop was fast
+    enough to patch both files within the same second and so fooled automake.
+    (thanks to Blars Blarson for notifying me). Closes: #366534
+
+ -- Christian Hammers <ch@debian.org>  Sat,  6 May 2006 19:03:58 +0200
+
+mysql-dfsg-5.0 (5.0.21-2) unstable; urgency=low
+
+  * Fixed bug in postinst that did not correctly rewrite 
+    /etc/mysql/debian.cnf (thanks to Daniel Leidert). 
+    Closes: #365433, #366155
+
+ -- Christian Hammers <ch@debian.org>  Thu,  4 May 2006 02:37:03 +0200
+
+mysql-dfsg-5.0 (5.0.21-1) unstable; urgency=high
+
+  * SECURITY: New upstream release with some security relevant bugfixes:
+    * "Buffer over-read in check_connection with usernames lacking a
+      trailing null byte" (CVE-2006-1516)
+    * "Anonymous Login Handshake - Information Leakage" (CVE-2006-1517)
+    * "COM_TABLE_DUMP Information Leakage and Arbitrary command execution"
+       (CVE-2006-1518)
+    Closes: #365938, #365939
+  * Added diskfree check to the init script (thanks to Tim Baverstock).
+    Closes: #365460
+  * First amd64 upload!
+
+ -- Christian Hammers <ch@debian.org>  Sat, 29 Apr 2006 04:31:27 +0200
+  
+mysql-dfsg-5.0 (5.0.20a-2) unstable; urgency=low
+
+  * The new mysql-upgrade which is started from /etc/mysql/debian-start
+    does now use the debian-sys-maint user for authentication (thanks to
+    Philipp). Closes: #364991
+  * Wrote patch debian/patches/43* which adds a password option to
+    mysql_update. See MySQL bug #19400.
+  * Added "Provides: libmysqlclient-dev" to libmysqlclient15-dev as I saw no
+    obvious reasons against it (problems should be documented in
+    debian/README.Maintainer!) (thanks to Olaf van der Spek). Closes: #364899
+  * Updated Netherlands debconf translation (thanks to Vincent Zweije)
+    Closes: #364464
+  * Updated French debconf translation (thanks to Christian Perrier)
+    Closes: #364401
+  * Updated Danish debconf translation (thanks to Claus Hindsgaul)
+    Closes: #365135
+
+ -- Christian Hammers <ch@debian.org>  Wed, 26 Apr 2006 01:14:53 +0200
+
+mysql-dfsg-5.0 (5.0.20a-1) unstable; urgency=low
+
+  * New upstream release.
+  * Added the new mysql_upgrade script and added it to
+    /etc/mysql/debian-start (thanks to Alessandro Polverini). 
+    The script is currently very noise that is a known bug and will be
+    fixed in the next release!
+    Closes: #363458
+  * No longer creates the "test" database. This actuallay had been tried
+    to archive before (at least patches) exists but apparently was not the
+    case in the last versions (thanks to Olaf van der Spek). Closes: #362126
+  * Reformatted libmysqlclient15off.NEWS.Debian to changelog format
+    (thanks to Peter Palfrader). Closes: #363062
+
+ -- Christian Hammers <ch@debian.org>  Sat, 15 Apr 2006 13:05:22 +0200
+
+mysql-dfsg-5.0 (5.0.20-1) unstable; urgency=high
+
+  * Upstream contains a fix for a nasty bug (MySQL#18153) that users 
+    already experienced and that caused corrupted triggers after
+    REPAIR/OPTIMIZE/ALTER TABLE statements.
+    (thanks to Jerome Despatis for pointing out)
+  * Added patch for the "updates on multiple tables is buggy after 
+    upgrading from 4.1 to 5.0" problem which MySQL has been committed
+    for the upcoming 5.0.21 release. Closes #352704
+  * Added Netherlands debconf translation (thanks to Vincent Zweije).
+    Closes: #360443
+  * Added Galician debconf translation (thanks to Jacobo Tarrio).
+    Closes: #361257
+
+ -- Christian Hammers <ch@debian.org>  Fri,  7 Apr 2006 00:00:43 +0200
+
+mysql-dfsg-5.0 (5.0.19-3) unstable; urgency=high
+
+  [ Christian Hammers ]
+  * Fixed libmysqlclient15.README.Debian regarding package name changes
+    (thanks to Leppo).
+  * Moved libheap.a etc. back to /usr/lib/mysql/ as their names are just
+    too generic. Closes: #353924
+  [ Sean Finney ]
+  * updated danish debconf translation, thanks to Claus Hindsgaul
+    (closes: #357424).
+  [ Adam Conrad ]
+  * Send stderr from 'find' in preinst to /dev/null to tidy up chatter.
+  * Backport patch for CVE-2006-0903 from the upcoming release to resolve
+    a log bypass vulnerability when using non-binary logs (closes: #359701)
+
+ -- Adam Conrad <adconrad@0c3.net>  Tue,  4 Apr 2006 15:23:18 +1000
+
+mysql-dfsg-5.0 (5.0.19-2) unstable; urgency=medium
+
+  * New upstream release.
+  * Renamed package libmysqlclient15 to libmysqlclient15off due to
+    binary incompatible changes.
+    See /usr/share/doc/libmysqlclient15off/README.Debian
+  * Updated Czech debconf translation (thanks to Miroslav Kure).
+    Closes: #356503
+  * Updated French debconf translation (thanks to Christian Perrier).
+    Closes: #356332
+  * Improved README.Debian (thanks to Olaf van der Spek). Closes: #355702
+  * Fixed 5.0.18-8 changelog by saying in which package the NEWS.Debian
+    file is (thanks to Ross Boylan). Closes: #355978
+
+ -- Christian Hammers <ch@debian.org>  Fri, 17 Mar 2006 02:32:19 +0100
+
+mysql-dfsg-5.0 (5.0.19-1) experimental; urgency=medium
+
+  * New upstream release.
+  * SECURITY: CVE-2006-3081: A bug where str_to_date(1,NULL) lead to a 
+    server crash has been fixed. 
+    (this note has been added subsequently for reference)
+  * Renamed package libmysqlclient15 to libmysqlclient15off.
+    See /usr/share/doc/libmysqlclient15off/NEWS.Debian
+  * Updated Czech debconf translation (thanks to Miroslav Kure).
+    Closes: #356503
+  * Updated French debconf translation (thanks to Christian Perrier).
+    Closes: #356332
+  * Improved README.Debian (thanks to Olaf van der Spek). Closes: #355702
+  * Fixed 5.0.18-8 changelog by saying in which package the NEWS.Debian
+    file is (thanks to Ross Boylan). Closes: #355978
+
+ -- Christian Hammers <ch@debian.org>  Tue, 14 Mar 2006 22:56:13 +0100
+
+mysql-dfsg-5.0 (5.0.18-9) unstable; urgency=medium
+
+  [ Christian Hammers ]
+  * When using apt-get the check for left-over ISAM tables can abort the
+    installation of mysql-server-5.0 but not prevent the mysql-server-4.1
+    package from getting removed. The only thing I can do is reflect this
+    in the Debconf notice that is shown and suggest to reinstall
+    mysql-server-4.1 for converting. See: #354850
+  * Suggests removing of /etc/cron.daily/mysql-server in last NEWS message
+    (thanks to Mourad De Clerck). Closes: #354111
+  * Added versioned symbols for kfreebsd and Hurd, too (thanks to Aurelien
+    Jarno and Michael Bank). Closes: #353971 
+  * Added versioned symbols for kfreebsd, too (thanks to Aurelien Jarno).
+    Closes: #353971
+  [ Adam Conrad ]
+  * Add 39_scripts__mysqld_safe.sh__port_dir.dpatch to ensure that the
+    permissions on /var/run/mysqld are always correct, even on a tmpfs.
+
+ -- Christian Hammers <ch@debian.org>  Mon,  6 Mar 2006 21:42:13 +0100
+
+mysql-dfsg-5.0 (5.0.18-8) unstable; urgency=low
+
+  * The rotation of the binary logs is now configured via
+    expire-logs-days in /etc/mysql/my.cnf and handled completely
+    by the server and no longer in configured in debian-log-rotate.conf
+    and handled by a cron job. Thanks to David Johnson.
+    See /usr/share/doc/mysql-server-5.0/NEWS.Debian
+  * Ran aspell over some files in debian/ and learned a lot :)
+  * debian/rules: Added check if versioned symbols are really there.
+  * Updated SSL-MINI-HOWTO.
+  * Updated copyright (removed the parts regarding the now removed
+    BerkeleyDB table handler and mysql-doc package).
+  * Relocated a variable in preinst (thanks to Michael Heldebrant).
+    Closes: #349258, #352587, #351216
+  * Updated Danish debconf translation (thanks to Claus Hindsgaul).
+    Closes: #349013  
+  * Updated Swedish debconf translation (thanks to Daniel Nylander).
+    Closes: #349522
+  * Updated French debconf translation (thanks to Christian Perrier).
+    Closes: #349592
+  * Fixed typo in README.Debian (thanks to Vincent Ricard).
+  * Prolonged waiting time for mysqld in the init script. Closes: #352070
+
+ -- Christian Hammers <ch@debian.org>  Mon, 23 Jan 2006 23:13:46 +0100
+
+mysql-dfsg-5.0 (5.0.18-7) unstable; urgency=low
+
+  * Made mailx in debian-start.inc.sh optional and changed the dependency on it
+    on it to a mere recommendation. Closes: #316297
+  * the previous FTBFS patches for GNU/Hurd inadvertently led to configure
+    being regenerating, losing a couple trivial things like our versioned
+    symbols patch, causing many nasty problems (closes: #348854).
+
+ -- sean finney <seanius@debian.org>  Fri, 20 Jan 2006 20:59:27 +0100
+
+mysql-dfsg-5.0 (5.0.18-6) unstable; urgency=low
+
+  * Added version comment (thanks to Daniel van Eeden). 
+  * Added two patches to build on GNU/Hurd (thanks to Michael Bank).
+    Closes: #348182
+  * Abort upgrade if old and now unsupported ISAM tables are present
+    (thanks to David Coe). Closes: #345895
+
+ -- Christian Hammers <ch@debian.org>  Tue, 17 Jan 2006 19:25:59 +0100
+
+mysql-dfsg-5.0 (5.0.18-5) unstable; urgency=low
+
+  * Bump shlibdeps for libmysqlclient15 to (>= 5.0.15-1), which was
+    the first non-beta release from upstream, as well as being shortly
+    after we broke the ABI in Debian by introducing versioned symbols.
+
+ -- Adam Conrad <adconrad@0c3.net>  Fri, 13 Jan 2006 13:18:03 +1100
+
+mysql-dfsg-5.0 (5.0.18-4) unstable; urgency=low
+
+  * Munge our dependencies further to smooth upgrades even more, noting
+    that we really need 5.0 to conflict with 4.1, and stealing a page from
+    the book of mysql-common, it doesn't hurt to hint package managers in
+    the direction of "hey, this stuff is a complete replacement for 4.1"
+  * Change the description of mysql-server and mysql-client to remove the
+    references to it being "transition", and instead point out that it's
+    the way to get the "current best version" of each package installed.
+
+ -- Adam Conrad <adconrad@0c3.net>  Wed, 11 Jan 2006 11:39:45 +1100
+
+mysql-dfsg-5.0 (5.0.18-3) unstable; urgency=low
+
+  * Make the mysql-{client,server}-5.0 conflict against mysql-{client,server}
+    versioned, so they can be installed side-by-side and upgrade properly.
+  * Add myself to Uploaders; since I have access to the alioth repository.
+
+ -- Adam Conrad <adconrad@0c3.net>  Tue, 10 Jan 2006 19:15:48 +1100
+
+mysql-dfsg-5.0 (5.0.18-2) unstable; urgency=low
+
+  * Removed the transitional package that forced an upgrade from
+    mysql-server-4.1 to mysql-server-5.0 as I was convinced that
+    having a general "mysql-server" package with adjusted dependencies
+    is enough (thanks to Adam Conrad).
+  * Updated logcheck.ignore files (thanks to Jamie McCarthy). Closes: #340193
+
+ -- Christian Hammers <ch@debian.org>  Mon,  9 Jan 2006 21:54:53 +0100
+
+mysql-dfsg-5.0 (5.0.18-1) unstable; urgency=low
+
+  * New upstream version. 
+  * Added empty transitional packages that force an upgrade from the
+    server and client packages that have been present in Sarge.
+  * Fixed SSL-MINI-HOWTO (thanks to Jonas Smedegaard). Closes: #340589 
+
+ -- Christian Hammers <ch@debian.org>  Mon,  2 Jan 2006 21:17:51 +0100
+
+mysql-dfsg-5.0 (5.0.17-1) unstable; urgency=low
+
+  * Never released as Debian package.
+
+ -- Christian Hammers <ch@debian.org>  Thu, 22 Dec 2005 07:49:52 +0100
+
+mysql-dfsg-5.0 (5.0.16-1) unstable; urgency=low
+
+  * New upstream version.
+  * Removed the error logs from the logrotate script as Debian does
+    not use them anymore. Closes: #339628
+
+ -- Christian Hammers <ch@debian.org>  Tue, 22 Nov 2005 01:19:11 +0100
+
+mysql-dfsg-5.0 (5.0.15-2) unstable; urgency=medium
+
+  * Added 14_configure__gcc-atomic.h.diff to fix FTBFS on m68k
+    (thanks to Stephen R Marenka). Closes: #337082
+  * Removed dynamic linking against libstdc++ as it was not really
+    needed (thanks to Adam Conrad). Closes: #328613
+  * Fixed the "/var/lib/mysql is a symlink" workaround that accidently
+    left a stalled symlink (thanks to Thomas Lamy). Closes: #336759
+  * As the init script cannot distinguish between a broken startup and
+    one that just takes very long the "failed" message now says
+    "or took more than 6s" (thanks to Olaf van der Spek). Closes: #335547
+
+ -- Christian Hammers <ch@debian.org>  Thu,  3 Nov 2005 22:00:15 +0100
+
+mysql-dfsg-5.0 (5.0.15-1) unstable; urgency=low
+
+  * New upstream version. 5.0 has finally been declared STABLE!
+  * Added small patch to debian/rules that fixed sporadic build errors
+    where stdout and stderr were piped together, got mixed up and broke
+  * Added --with-big-tables to ./configure (thanks to tj.trevelyan).
+    Closes: #333090
+  * Added capability to parse "-rc" to debian/watch.
+  * Fixed cronscript (thanks to Andrew Deason). Closes: #335244
+  * Added Swedish debconf translation (thanks to Daniel Nylander).
+    Closes: #333670
+  * Added comment to README.Debian regarding applications that manually
+    set new-style passwords... Closes: #334444
+  * Sean Finney:
+    - Fix duplicate reference to [-e|--extended-insert]. Closes: #334957
+    - Fix default behavior for mysqldumpslow. Closes: #334517
+    - Reference documentation issue in mysql manpage. Closes: #335219
+
+ -- Christian Hammers <ch@debian.org>  Fri, 30 Sep 2005 00:10:39 +0200
+
+mysql-dfsg-5.0 (5.0.13rc-1) unstable; urgency=low
+
+  * New upstream release. Now "release-candidate"! 
+  * Removed any dynamic link dependencies to libndbclient.so.0 which
+    is due to its version only distributed as a static library.
+  * Sean Finney:
+    - FTBFS fix related to stripping rpath in debian/rules
+
+ -- Christian Hammers <ch@debian.org>  Mon, 26 Sep 2005 22:09:26 +0200
+
+mysql-dfsg-5.0 (5.0.12beta-5) unstable; urgency=low
+
+  * The recent FTBFS were probably result of a timing bug in the
+    debian/patches/75_*.dpatch file where Makefile.in got patched just
+    before the Makefile.shared which it depended on. For that reason
+    only some of the autobuilders failed. Closes: #330149
+  * Fixed chrpath removal (option -k had to be added).
+  * Corrected debconf dependency as requested by Joey Hess.
+
+ -- Christian Hammers <ch@debian.org>  Mon, 26 Sep 2005 18:37:07 +0200
+
+mysql-dfsg-5.0 (5.0.12beta-4) unstable; urgency=low
+
+  * Removed experimental shared library libndbclient.so.0.0.0 as it
+    is doomed to cause trouble as long as it is present in both MySQL 4.1
+    and 5.0 without real soname and its own package. We still have
+    libndbclient.a for developers. (thanks to Adam Conrad and 
+    mediaforest.net). Closes: #329772
+
+ -- Christian Hammers <ch@debian.org>  Fri, 23 Sep 2005 12:36:48 +0200
+
+mysql-dfsg-5.0 (5.0.12beta-3) unstable; urgency=medium
+
+  * Symbol versioning support!  wooooohoooooo!
+    (thanks to Steve Langasek) Closes: #236288
+  * Moved libndbcclient.so.0 to the -dev package as it is provided by
+    libmysqlclient14 and -15 which must be installable simultaneously.
+  * Removed mysql-*-doc suggestions.
+
+ -- Christian Hammers <ch@debian.org>  Tue, 20 Sep 2005 00:07:03 +0200
+
+mysql-dfsg-5.0 (5.0.12beta-2) unstable; urgency=low
+
+  * Added patch to build on GNU/kFreeBSD (thanks to Aurelien Jarno).
+    Closes: #327702
+  * Added patch that was already been present on the 4.1 branch which
+    makes the "status" command of the init script more sensible
+    (thanks to Stephen Gildea). Closes: #311836
+  * Added Vietnamese Debconf translation (thanks to Clytie Siddal).
+    Closes: #313006
+  * Updated German Debconf translation (thanks to Jens Seidel).
+    Closes: #313957
+  * Corrected commends in example debian-log-rotate.conf. The default is
+    unlike the mysql-sever-4.1 package which needed to stay backwards
+    compatible now 2 to avoid filling up the disk endlessly.
+  * Fixed watch file to be "-beta" aware.
+
+ -- Christian Hammers <ch@debian.org>  Thu, 15 Sep 2005 20:50:19 +0200
+
+mysql-dfsg-5.0 (5.0.12beta-1) unstable; urgency=medium
+
+  * Christian Hammers:
+    - New upstream release.
+    - Changed build-dep to libreadline5-dev as requested by Matthias Klose.
+      Closes: #326316
+    - Applied fix for changed output format of SHOW MASTER LOGS for
+      binary log rotation (thanks to Martin Krueger). Closes: #326427, #326427
+    - Removed explicit setting of $PATH as I saw no sense in it and
+      it introduced a bug (thanks to Quim Calpe). Closes: #326769
+    - Removed PID file creation from /etc/init.d/mysql-ndb as it does
+      not work with this daemon (thanks to Quim Calpe).
+    - Updated French Debconf translation (thanks to Christian Perrier).
+      Closes: #324805
+    - Moved conflicts line in debian/control from libmysqlclient15 to
+      libmysqlclient15-dev and removed some pre-sarge conflicts as
+      suggested by Adam Majer. Closes: #324623
+  * Sean Finney:
+    - For posterity, CAN-2005-2558 has been fixed since 5.0.7beta.
+
+ -- Christian Hammers <ch@debian.org>  Thu, 15 Sep 2005 19:58:22 +0200
+
+mysql-dfsg-5.0 (5.0.11beta-3) unstable; urgency=low
+
+  * Temporarily build only with -O2 to circumvent gcc internal errors
+    (thanks to Matthias Klose). Related to: #321165 
+
+ -- Christian Hammers <ch@debian.org>  Thu, 18 Aug 2005 15:44:04 +0200
+
+mysql-dfsg-5.0 (5.0.11beta-2) unstable; urgency=low
+
+  * Fixed README.Debian regarding the status of mysql-doc.
+  * Added "set +e" around chgrp in mysql-server-5.0.preinst to
+    not fail on .journal files (thanks to Christophe Nowicki).
+    Closes: #318435
+
+ -- Christian Hammers <ch@debian.org>  Sun, 14 Aug 2005 18:02:08 +0200
+
+mysql-dfsg-5.0 (5.0.11beta-1) unstable; urgency=low
+
+  * New upstream version. 
+  * Added Danish Debconf translations (thanks to Claus Hindsgaul).
+    Closes: #322384
+  * Updated Czech Debconf translations (thanks to Miroslav Kure).
+    Closes: #321765
+
+ -- Christian Hammers <ch@debian.org>  Sat, 13 Aug 2005 11:56:15 +0000
+
+mysql-dfsg-5.0 (5.0.10beta-1) unstable; urgency=low
+
+  * New upstream release.
+  * Christian Hammers:
+    - Added check for mounted /proc to debian/rules.
+  * Sean Finney:
+    - fix for fix_mysql_privilege_tables/mysql_fix_privilege_tables typo
+      in mysql-server-5.0's README.Debian (see #319838).
+
+ -- Christian Hammers <ch@debian.org>  Sun, 31 Jul 2005 00:30:45 +0200
+
+mysql-dfsg-5.0 (5.0.7beta-1) unstable; urgency=low
+
+  * Second try for new upstream release. 
+  * Renamed mysql-common-5.0 to mysql-common as future libmysqlclient16
+    from e.g. MySQL-5.1 would else introduce mysql-common-5.1 which makes
+    a simultanous installation of libmysqlclient14 impossible as that
+    depends on either mysql-common or mysql-common-5.0 but not on future
+    versions. Thus we decided to always let the newest MySQL version
+    provide mysql-common.
+  * Added ${misc:Depends} as suggested by debhelper manpage. 
+  * Raised standard in control file to 3.6.2.
+  * Removed DH_COMPAT from rules in faviour of debian/compat.
+  * Checkes for presence of init script before executing it in preinst.
+    Referres: 315959
+  * Added 60_includes_mysys.h__gcc40.dpatch for GCC-4.0 compatibility.
+
+ -- Christian Hammers <ch@debian.org>  Wed, 29 Jun 2005 00:39:05 +0200
+
+mysql-dfsg-5.0 (5.0.5beta-1) unstable; urgency=low
+
+  * New major release! Still beta so be carefull...
+  * Added federated storage engine.
+
+ -- Christian Hammers <ch@debian.org>  Wed,  8 Jun 2005 19:29:45 +0200
+
+mysql-dfsg-4.1 (4.1.12-1) unstable; urgency=low
+
+  * Christian Hammers:
+    - New upstream release.
+    - Disabled BerkeleyDB finally. It has been obsoleted by InnoDB.
+  * Sean Finney:
+    - Updated French translation from Christian Perrier (Closes: #310526).
+    - Updated Japanese translation from Hideki Yamane (Closes: #310263).
+    - Updated Russian translation from Yuriy Talakan (Closes: #310197).
+
+ -- Christian Hammers <ch@debian.org>  Sat,  4 Jun 2005 05:49:11 +0200
+
+mysql-dfsg-4.1 (4.1.11a-4) unstable; urgency=high
+
+  * Fixed FTBFS problem which was caused due to the fact that last uploads
+    BerkeleyDB patch was tried to applied on all architectures and not only
+    on those where BerkeleyDB is actually beeing built. Closes: #310296
+
+ -- Christian Hammers <ch@debian.org>  Mon, 23 May 2005 00:54:51 +0200
+
+mysql-dfsg-4.1 (4.1.11a-3) unstable; urgency=high
+
+  * Added patch from Piotr Roszatycki to compile the bundled db3 library
+    that is needed for the BerkeleyDB support with versioned symbols so
+    that mysqld no longer crashes when it gets linked together with the
+    Debian db3 version which happens when e.g. using libnss-db.
+    Closes: #308966
+
+ -- Christian Hammers <ch@debian.org>  Thu, 19 May 2005 01:41:14 +0200
+
+mysql-dfsg-4.1 (4.1.11a-2) unstable; urgency=high
+
+  * Okay, the hackery with /var/lib/dpkg/info/mysql-server.list will not
+    stand and is removed from the preinst of mysql-server.
+  * New workaround for the symlink problem that does not involve mucking
+    with dpkg's file lists is storing the symlinks in a temporary location
+    across upgrades.
+    As this sometimes fails since apt-get does not always call new.preinst
+    before old.postrm, some remarks were added to README.Debian and the
+    Debconf installation notes to minimize the inconvinience this causes.
+
+ -- sean finney <seanius@debian.org>  Sun, 15 May 2005 10:25:31 -0400
+
+mysql-dfsg-4.1 (4.1.11a-1) unstable; urgency=high
+
+  * Added the "a" to the version number to be able to upload a new
+    .orig.tar.gz file which now has the non-free Docs/ directory removed
+    as this has been forgotten in the 4.1.11 release (thanks to Goeran
+    Weinholt). Closes: #308691
+  * The Woody package listed /var/lib/mysql and /var/log/mysql in its
+    /var/lib/dpkg/info/mysql-server.list. These directories are often
+    replaced by symlinks to data partitions which triggers a dpkg bug
+    that causes these symlinks to be removed on upgrades. The new preinst
+    prevents this by removing the two lines from the .list file
+    (thanks to Andreas Barth and Jamin W. Collins). See dpkg bug #287978.
+  * Updated French Debconf translation (thanks to Christian Perrier).
+    Closes: #308353
+
+ -- Christian Hammers <ch@debian.org>  Thu, 12 May 2005 21:52:46 +0200
+
+mysql-dfsg-4.1 (4.1.11-3) unstable; urgency=high
+
+  * The "do you want to remove /var/lib/mysql when purging the package" flag
+    from old versions is removed once this package is beeing installed so
+    that purging an old Woody mysql-server package while having a
+    mysql-server-4.1 package installed can no longer lead to the removal of
+    all databases. Additionaly clarified the wording of this versions Debconf
+    template and added a check that skips this purge in the postrm script
+    if another mysql-server* package has /usr/sbin/mysqld installed.
+    (thanks to Adrian Bunk for spotting that problem) Closes: #307473
+  * Cronfile was not beeing installed as the filename was not in the
+    correct format for "dh_installcron --name" (thanks to Tomislav
+    Gountchev). Closes: #302712
+
+ -- Christian Hammers <ch@debian.org>  Sat, 23 Apr 2005 22:55:15 +0200
+
+mysql-dfsg-4.1 (4.1.11-2) unstable; urgency=low
+
+  * Sean Finney:
+    - don't freak out if we can't remove /etc/mysql during purge.
+    - debian/rules clean works again.
+  * Christian Hammers:
+    - Fixed typo in README.Debian (thanks to Joerg Rieger). Closes: #304897
+    - Completely removed the passwordless test user as it was not only
+      insecure but also lead to irritations as MySQL checks first the
+      permissions of this user and then those of a password having one.
+      See bug report from Hilko Bengen for details. Closes: #301741
+
+ -- Christian Hammers <ch@debian.org>  Sat, 16 Apr 2005 15:55:00 +0200
+
+mysql-dfsg-4.1 (4.1.11-1) unstable; urgency=low
+
+  * New upstream version. 
+  * Upstream fix for charset/collation problem. Closes: #282256
+  * Upstream fix for subselect crash. Closes: #297687
+  * Corrected minor issue in Debconf template regarding skip-networking
+    (thanks to Isaac Clerencia). Closes: #303417
+  * Made dependency to gawk unnecessary (thanks to Zoran Dzelajlija).
+    Closes: #302284
+  * Removed obsolete 50_innodb_mixlen.dpatch.
+  * Removed obsolete 51_CAN-2004-0957_db_grant_underscore.dpatch.
+
+ -- Christian Hammers <ch@debian.org>  Fri,  8 Apr 2005 00:23:53 +0200
+
+mysql-dfsg-4.1 (4.1.10a-7) unstable; urgency=low
+
+  * Sean Finney:
+    - fix for the mysteriously disappeared cronjob.  thanks to
+      Peter Palfrader <weasel@debian.org> for pointing out this omission.
+      (closes: #302712).
+
+ -- sean finney <seanius@debian.org>  Sat, 02 Apr 2005 16:54:13 -0500
+
+mysql-dfsg-4.1 (4.1.10a-6) unstable; urgency=high
+
+  * Sean Finney:
+    - the previous upload did not completely address the issue.  this one
+      should do so.  d'oh.
+
+ -- sean finney <seanius@debian.org>  Thu, 31 Mar 2005 03:35:50 +0000
+
+mysql-dfsg-4.1 (4.1.10a-5) unstable; urgency=high
+
+  * Sean Finney:
+    - the following security issue is addressed in this upload:
+      CAN-2004-0957 (grant privilege escalation on tables with underscores)
+      thanks to sergei at mysql for all his help with this.
+
+ -- sean finney <seanius@debian.org>  Wed, 30 Mar 2005 21:19:26 -0500
+
+mysql-dfsg-4.1 (4.1.10a-4) unstable; urgency=low
+
+  * Sean Finney:
+    - FTBFS fix for amd64/gcc-4.0.  Thanks to Andreas Jochens <aj@andaco.de>
+      for reporting this (closes: #301807).
+    - ANSI-compatible quoting fix in daily cron job.  thanks to 
+      Karl Hammar <karl@aspodata.se> for pointing out the problem in
+      the 4.0 branch.
+    - Added myself as a co-maintainer in the control file (closes: #295312).
+
+ -- sean finney <seanius@debian.org>  Tue, 29 Mar 2005 18:54:42 -0500
+
+mysql-dfsg-4.1 (4.1.10a-3) unstable; urgency=low
+
+  * BerkeleyDB is now disabled by default as its use is discouraged by MySQL.
+  * Added embedded server libraries as they finally do compile.
+    They are currently in libmysqlclient-dev as they are still 
+    experimental and only available as .a library (thanks to Keith Packard).
+    Closes: #297062
+  * Fixed obsolete "tail" syntax (thanks to Sven Mueller). Closes: #301413
+  * Added CAN numbers for the latest security bugfix upload.
+  * Updated manpage of mysqlmanager (thanks to Justin Pryzby). Closes: #299844
+  * Added comments to default configuration.
+
+ -- Christian Hammers <ch@debian.org>  Sun, 20 Mar 2005 17:40:18 +0100
+
+mysql-dfsg-4.1 (4.1.10a-2) unstable; urgency=low
+
+  * Disabled "--with-mysqld-ldflags=-all-static" as it causes sig11 crashes
+    if LDAP is used for groups in /etc/nsswitch.conf. Confirmed by Sean Finney
+    and Daniel Dehennin. Closes: #299382
+
+ -- Christian Hammers <ch@debian.org>  Mon, 14 Mar 2005 03:01:03 +0100
+
+mysql-dfsg-4.1 (4.1.10a-1) unstable; urgency=high
+
+  * SECURITY:
+    - The following security related updates are addressed: 
+      CAN-2005-0711 (temporary file creation with "CREATE TEMPORARY TABLE")
+      CAN-2005-0709 (arbitrary library injection in udf_init())
+      CAN-2005-0710 (arbitrary code execution via "CREATE FUNCTION")
+      Closes: #299029, #299031, #299065
+  * New Upstream Release.
+    - Fixes some server crash conditions.
+    - Upstream includes fix for TMPDIR overriding my.cnf tmpdir setting
+      Closes: #294347
+    - Fixes InnoDB error message. Closes: #298875
+    - Fixes resouce limiting. Closes: #285044
+  * Improved checking whether or not the server is alive in the init script
+    which should make it possible to run several mysqld instances in
+    different chroot environments. Closes: #297772
+  * Fixed cron script name as dots are not allowed (thanks to Michel
+    v/d Ven). Closes: #298447
+  * Added -O3 and --with-mysqld-ldflags=-all-static as MySQL recommends to
+    build the server binary statically in order to gain about 13% more
+    performance (thanks to Marcin Kowalski).
+  * Added patch to let mysqld_safe react to signals (thanks to Erich 
+    Schubert). Closes: #208364
+  * (Thanks to Sean Finney for doing a great share of work for this release!)
+
+ -- Christian Hammers <ch@debian.org>  Thu,  3 Mar 2005 02:36:39 +0100
+
+mysql-dfsg-4.1 (4.1.10-4) unstable; urgency=medium
+
+  * Fixed bug that prevented MySQL from starting after upgrades.
+    Closes: #297198, #296403
+  * Added comment about logging to syslog to the default my.cnf
+    and the logrotate script (thanks to Ryszard Lach). Closes: #295507
+
+ -- Christian Hammers <ch@debian.org>  Thu,  3 Mar 2005 00:28:02 +0100
+
+mysql-dfsg-4.1 (4.1.10-3) unstable; urgency=low
+
+  * Sean Finney: Cronjobs now exit silently when the server package
+    has been removed but not purged (thanks to Vineet Kumar).
+    Closes: #297404
+  * Fixed comments of /etc/mysql/debian-log-rotate.conf (thanks to
+    Philip Ross). Closes: #297467
+  * Made mysqld_safe reacting sane on signals (thanks to Erich Schubert).
+    Closes: #208364
+ 
+ -- Christian Hammers <ch@debian.org>  Tue,  1 Mar 2005 19:44:34 +0100
+
+mysql-dfsg-4.1 (4.1.10-2) unstable; urgency=low
+
+  * Converted to dpatch.
+  * debian/ is now maintained via Subversion on svn.debian.org. 
+
+ -- Christian Hammers <ch@debian.org>  Tue,  1 Mar 2005 02:16:36 +0100
+
+mysql-dfsg-4.1 (4.1.10-1) unstable; urgency=low
+
+  * New upstream version.
+  * Upstream fixed memleak bug. Closes: #205587
+  * Added debian/copyright.more for personal reference.
+  * Lowered default query cache size as suggested by Arjen from MySQL.
+  * Switched from log to log-bin as suggested by Arjen from MySQL.
+  * Fixed typo in my.cnf (thanks to Sebastian Feltel). Closes: #295247
+  * Replaced --defaults-extra-file by --defaults-file in Debian scripts
+    as former lets password/host etc be overwriteable by /root/.my.cnf.
+    Added socket to /etc/mysql/debian.cnf to let it work. (thanks to
+    SATOH Fumiyasu). Closes: #295170
+
+ -- Christian Hammers <ch@debian.org>  Tue, 15 Feb 2005 23:47:02 +0100
+
+mysql-dfsg-4.1 (4.1.9-4) unstable; urgency=low
+
+  * Improved the way mysqld is started and registered with update-rc.d
+    in cases where the admin modifies the runlevel configuration.
+    Most notably removed the debconf question whether or not mysql should
+    start on when booting. Closes: #274264
+  * Renamed configuration option old-passwords to the more preferred
+    naming convention old_passwords. Same for some others (thanks to
+    Patrice Pawlak). Closes: #293983
+
+ -- Christian Hammers <ch@debian.org>  Tue,  8 Feb 2005 02:21:18 +0100
+
+mysql-dfsg-4.1 (4.1.9-3) unstable; urgency=low
+
+  * Renamed ca_ES.po to ca.po to reach a broader audience (thanks to 
+    Christian Perrier). Closes: #293786 
+  * Expicitly disabled mysqlfs support as it has never been enabled by
+    configure during the autodetection but fails due to broken upstream
+    code when users try to build the package theirselves while having
+    liborbit-dev installed which triggers the mysqlfs autodetection
+    (thanks to Max Kellermann). Closes: #293431
+  * Added dependencies to gawk as one script does not work with original-awk
+    (thanks to Petr Ferschmann). Closes: #291634
+
+ -- Christian Hammers <ch@debian.org>  Sun,  6 Feb 2005 23:33:11 +0100
+
+mysql-dfsg-4.1 (4.1.9-2) unstable; urgency=high
+
+  * SECURITY:
+    For historical reasons /usr/share/mysql/ was owned and writable by
+    the user "mysql". This is a security problem as some scripts that
+    are run by root are in this directory and could be modified and used
+    by a malicious user who already has mysql privileges to gain full root
+    rights (thanks to Matt Brubeck). Closes: #293345
+  * Changed "skip-networking" to "bind-address 127.0.0.1" which is more
+    compatible and not less secure but maybe even more, as less people enable
+    networking for all interfaces (thanks to Arjen Lentz).
+  * Enabled InnoDB by default as recommended by Arjen Lentz from MySQL.
+  * Added remarks about hosts.allow to README.Debian (thanks to David
+    Chappell). Closes: #291300
+  * mysql-server-4.1 now provides mysql-server (thanks to Paul van den Berg).
+    Closes: #287735
+
+ -- Christian Hammers <ch@debian.org>  Wed,  2 Feb 2005 23:31:55 +0100
+
+mysql-dfsg-4.1 (4.1.9-1) unstable; urgency=low
+
+  * New upstream version.
+  * mysql-client-4.1 now provides "mysql-client" so that packages depending
+    on mysql-client (ca. 40) can now be used with MySQL-4.1, too.
+
+ -- Christian Hammers <ch@debian.org>  Sun, 23 Jan 2005 22:52:48 +0100
+
+mysql-dfsg-4.1 (4.1.8a-6) unstable; urgency=high
+
+  * SECURITY:
+    Javier Fernandez-Sanguino Pena from the Debian Security Audit Project
+    discovered a temporary file vulnerability in the mysqlaccess script of
+    MySQL that could allow an unprivileged user to let root overwrite
+    arbitrary files via a symlink attack and could also could unveil the
+    contents of a temporary file which might contain sensitive information.
+    (CAN-2005-0004, http://lists.mysql.com/internals/20600) Closes: #291122
+
+ -- Christian Hammers <ch@debian.org>  Tue, 18 Jan 2005 23:11:48 +0100
+
+mysql-dfsg-4.1 (4.1.8a-5) unstable; urgency=medium
+
+  * Fixed important upstream bug that causes from_unixtime(0) to return
+    NULL instead of "1970-01-01 00:00:00" which fails on NOT NULL columns.
+    Closes: #287792
+  * Fixes upstream bug in mysql_list_fields() . Closes: #282486
+  * Fixes bug that lead to double rotated logfiles when mysql-server 4.0
+    was previously installed (thanks to Olaf van der Spek). Closes: #289851
+  * Fixed typo in README.Debian (thanks to Mark Nipper). Closes: #289131
+  * Changed max_allowed_packet in my.cnf to 16M as in 4.0.x (thanks to
+    Olaf van der Spek). Closes: #289840
+  * Updated French debconf translation (thanks to Christian Perrier).
+    Closes: #287955
+
+ -- Christian Hammers <ch@debian.org>  Thu, 13 Jan 2005 01:29:05 +0100
+
+mysql-dfsg-4.1 (4.1.8a-4) unstable; urgency=low
+
+  * Broken patch again :-(
+
+ -- Christian Hammers <ch@debian.org>  Sun,  9 Jan 2005 23:47:55 +0100
+
+mysql-dfsg-4.1 (4.1.8a-3) unstable; urgency=low
+
+  * The mutex patch was a bit too x86 centric. This broke the alpha build.
+
+ -- Christian Hammers <ch@debian.org>  Sun,  9 Jan 2005 14:18:49 +0100
+
+mysql-dfsg-4.1 (4.1.8a-2) unstable; urgency=medium
+ 
+  * Some Makefiles that were patched by me got overwritten by the GNU
+    autotools, probably because I also patched ./configure. Fixed now,
+    the critical mutex patch is now back in again. Closes: #286961
+  * Added patch to make MySQL compile on ARM (thanks to Adam Majer).
+    Closes: #285071
+
+ -- Christian Hammers <ch@debian.org>  Thu,  6 Jan 2005 09:30:13 +0100
+
+mysql-dfsg-4.1 (4.1.8a-1) unstable; urgency=medium
+
+  * Upstream 4.1.8 had some problems in their GNU Autotools files so they
+    released 4.1.8a. Debian's 4.1.8 was fixed by running autoreconf but this
+    again overwrote MySQL changes to ltmain.sh which are supposed to fix some
+    problems on uncommon architectures (maybe the FTBFS on alpha, arm, m68k
+    and sparc?).
+  * libmysqlclient_r.so.14 from 4.1.8-3 also missed a link dependency to
+    libz which lead to unresolved symbols visible with "ldd -r" (thanks
+    to Laurent Bonnaud). Closes: #287573
+
+ -- Christian Hammers <ch@debian.org>  Wed, 29 Dec 2004 14:26:33 +0100
+
+mysql-dfsg-4.1 (4.1.8-3) unstable; urgency=low
+
+  * Fixed checking for error messages by forcing english language
+    output by adding LC_ALL=C to debian-start (thanks to Rene
+    Konasz) Closes: #285709
+  * Fixed bashisms in Debian scripts. Closes: #286863
+  * Updated Japanese Debconf translation (thanks to Hideki Yamane).
+    Closes: #287003
+  * Improved 4.0 to 4.1 upgrade if /var/lib/mysql is a symlink
+    (thanks to Thomas Lamy). Closes: #286560
+  * Added patch for FTBFS problem where no LinuxThreads can be found.
+    I don't know if this still applies but it should not hurt.
+    The patch is debian/patches/configure__AMD64-LinuxThreads-vs-NPTL.diff
+
+ -- Christian Hammers <ch@debian.org>  Sun, 26 Dec 2004 14:04:20 +0100
+
+mysql-dfsg-4.1 (4.1.8-2) unstable; urgency=low
+
+  * If /var/lib/mysql is a symlink then it is kept as such.
+  * Added the old-passwords option to the default my.cnf to stay
+    compatible to clients that are still compiled to libmysqlclient10
+    and libmysqlclient12 for licence reasons. 
+  * Adjusted tetex build-deps to ease backporting (thanks to Norbert
+    Tretkowski from backports.org).
+
+ -- Christian Hammers <ch@debian.org>  Tue, 21 Dec 2004 01:00:27 +0100
+
+mysql-dfsg-4.1 (4.1.8-1) unstable; urgency=medium
+
+  * New upstream version. Closes: #286175
+  * Added conflict to libmysqlclient-dev (thanks to Adam Majer).
+    Closes: #286538
+  * Added debconf-updatepo to debian/rules:clean.
+  * Updated Japanese Debconf translation (thanks to Hideki Yamane).
+    Closes: #285107
+  * Updated French Debconf translation (thanks to Christian Perrier).
+    Closes: #285977
+  * Renamed cz.po to cs.po (thanks to Miroslav Kure). Closes: #285438
+  * Aplied patch for changed server notice to debian-start (thanks to
+    Adam Majer). Closes: #286035
+  * Changed nice value in default my.cnf as nohup changed its behaviour
+    (thanks to Dariush Pietrzak). Closes: #285446
+  * Increased verbosity of preinst script in cases where it cannot stop
+    a running server (thanks to Jan Minar). Closes: #285982
+  * Splitted the code parts of /etc/mysql/debian-start to
+    /usr/share/mysql/debian-start.inc.sh (thanks to Jan Minar).
+    Closes: #285988
+
+ -- Christian Hammers <ch@debian.org>  Mon, 20 Dec 2004 00:33:21 +0100
+
+mysql-dfsg-4.1 (4.1.7-4) unstable; urgency=medium
+
+  * Removed OpenSSL support.
+    After a short discussion with MySQL, I decided to drop OpenSSL support as
+    1. MySQL started shipping their binaries without it, too and do not
+       seem to support it in favour of using a different library somewhen.
+    2. MySQL did not adjust their licence to grant permission to link
+       against OpenSSL.
+    3. Even if they did, third parties who use libmysqlclient.so often
+       do not realise licencing problems or even do not want OpenSSL.
+    (thanks to Jordi Mallach and the responders to MySQL bug #6924)
+    Closes: #283786
+  * debian/control: Improved depends and conflicts to mysql-4.0.
+
+ -- Christian Hammers <ch@debian.org>  Thu,  2 Dec 2004 22:02:28 +0100
+
+mysql-dfsg-4.1 (4.1.7-3) unstable; urgency=low
+
+  * Raised version to make it higher as the one in experimental. 
+
+ -- Christian Hammers <ch@debian.org>  Wed,  1 Dec 2004 21:09:20 +0100
+
+mysql-dfsg-4.1 (4.1.7-2) unstable; urgency=low
+
+  * Patched scripts/mysql_install_db so that it no longer creates a
+    passwordless test database during installation (thanks to Patrick
+    Schnorbus). Closes: #281158
+  * Added Czech debconf translation (thanks to Miroslav Kure).
+    Closes: #283222
+
+ -- Christian Hammers <ch@debian.org>  Wed,  1 Dec 2004 01:29:31 +0100
+
+mysql-dfsg-4.1 (4.1.7-1) unstable; urgency=low
+
+  * New upstream branch! 
+  * Adjusted debian/control to make this package suitable to get parallel
+    to version 4.0.x into unstable and sarge. The package names are
+    different so that "mysql-server" still defaults to the rock-stable
+    4.0 instead to this announced-to-be-stable 4.1.
+  * Added --with-mutex=i86/gcc-assemler to the Berkeley-DB configure
+    to prevent the use of NPLT threads when compiling under kernel 2.6
+    because the binaries are else not runable on kernel 2.4 hosts.
+    Closes: #278638, #274598 
+
+ -- Christian Hammers <ch@debian.org>  Sun, 31 Oct 2004 20:15:03 +0100
+
+mysql-dfsg (4.1.6-1) experimental; urgency=low
+
+  * New upstream version.
+  * Fixed symlinks in libmysqlclient-dev package. Closes: #277028
+  * This time I did not update the libtool files as they were pretty
+    up to date and I want to have a shorter diff file.
+
+ -- Christian Hammers <ch@debian.org>  Wed, 20 Oct 2004 00:07:58 +0200
+
+mysql-dfsg (4.1.5-3) experimental; urgency=low
+
+  * debian/postinst: mysql_install_db changed parameter from --IN-RPM
+    to --rpm which caused problems during installs. Closes: #276320
+
+ -- Christian Hammers <ch@debian.org>  Sat, 16 Oct 2004 20:36:46 +0200
+
+mysql-dfsg (4.1.5-2) experimental; urgency=low
+
+  * Activated support for ndb clustering (thanks to Kevin M. Rosenberg).
+    Closes: #275109
+
+ -- Christian Hammers <ch@debian.org>  Wed,  6 Oct 2004 01:58:00 +0200
+
+mysql-dfsg (4.1.5-1) experimental; urgency=low
+
+  * WARNING:
+    The upstream branch 4.1 is still considered BETA.
+    The Debian packages for 4.1 were done without big testing. If you miss
+    a new functionality or binary, contact me and I check add the relevant
+    configure option or include the program.
+  * New MAJOR upstream version.
+    Thanks to the great demand here's now the first MySQL 4.1 experimental
+    release. FEEDBACK IS WELCOME.
+  * 4.0->4.1 notes:
+    - debian/patches/alpha.diff could not be applied, I fix that later
+    - debian/patches/scripts__mysql_install_db.sh.diff was obsolete
+    - debian/patches/scripts__Makefile.in was neccessary due to a dependency
+      to the removed non-free Docs/ directory. Upstream has been contacted.
+    - Build-Deps: += automake1.7
+    - debian/rules: embedded servers examples did not compile, removed
+
+ -- Christian Hammers <ch@debian.org>  Sun, 26 Sep 2004 19:46:47 +0200
+
+mysql-dfsg (4.0.21-3) unstable; urgency=low
+
+  * Upstream tried to fix a security bug in mysqlhotcopy and broke it :-)
+    Applied a patch (see debian/patches) from Martin Pitt. Closes: #271632
+  * Between 4.0.20 and 4.0.21 the Debian specific changes in
+    /usr/bin/mysqld_safe that piped the error log to syslog got lost
+    and are now back again. 
+  * Fixed capitalization in debconf headings.
+  * Changed wording of the initscript status message to make heartbeat
+    happier. Closes: #271591
+
+ -- Christian Hammers <ch@debian.org>  Fri, 17 Sep 2004 18:42:25 +0200
+
+mysql-dfsg (4.0.21-2) unstable; urgency=medium
+
+  * The dependencies between mysql-client and libmysqlclient12 were
+    too loose, when upgrading only the client this can lead to non working
+    binaries due to relocation errors (thanks to Dominic Cleal).
+    Closes: #271803
+  * Fixed typo in mysqldump.1 manpage (thanks to Nicolas Francois).
+    Closes: #271334
+
+ -- Christian Hammers <ch@debian.org>  Wed, 15 Sep 2004 15:38:11 +0200
+
+mysql-dfsg (4.0.21-1) unstable; urgency=high
+
+  * SECURITY:
+    This upstream version fixes some security problems that might at least
+    allow a DoS attack on the server.
+    * Fixed an old bug in concurrent accesses to `MERGE' tables (even
+      one `MERGE' table and `MyISAM' tables), that could've resulted in
+      a crash or hang of the server. (Bug #2408)
+    * Fixed bug in privilege checking where, under some conditions, one
+      was able to grant privileges on the database, he has no privileges
+      on. (Bug #3933)
+    * Fixed crash in `MATCH ... AGAINST()' on a phrase search operator
+      with a missing closing double quote. (Bug #3870)
+    * Fixed potential memory overrun in `mysql_real_connect()' (which
+      required a compromised DNS server and certain operating systems).
+      (Bug #4017)
+  * New upstream version.
+    * Fixes bug that made x="foo" in WHERE sometimes the same as x="foo ".
+      Closes: #211618
+  * Updated Japanese Debconf translation (thanks to Hideki Yamane).
+    Closes: #271097
+
+ -- Christian Hammers <ch@debian.org>  Sat, 11 Sep 2004 23:15:44 +0200
+
+mysql-dfsg (4.0.20-14) unstable; urgency=low
+
+  * Dave Rolsky spottet that -DBIG_JOINS was not properly enabled.
+    It allowes joining 64 instead of an 32 tables to join.
+
+ -- Christian Hammers <ch@debian.org>  Thu,  9 Sep 2004 20:24:02 +0200
+
+mysql-dfsg (4.0.20-13) unstable; urgency=medium
+
+  * Fixed a bug in the initscript which caused the check for not properly
+    closed i.e. corrupt tables that is executed when the server starts
+    not to run in background as supposed.
+    Although the check does not repair anything on servers with several
+    thousand tables the script was reported to take some minutes which
+    is quite annoying. (Thanks to Jakob Goldbach). Closes: #270800
+
+ -- Christian Hammers <ch@debian.org>  Thu,  9 Sep 2004 17:11:05 +0200
+
+mysql-dfsg (4.0.20-12) unstable; urgency=medium
+
+  * Filter messages regarding table handles that do not support CHECK TABLE
+    in the script that checks for corrupted tables on every start which lead
+    to unnecessary mails (thanks to David Everly). Closes: #269811 
+  * Added a note to the corrupt-table-check mail which notes that a
+    false-positive is reported in the case that immediately after starting
+    the server a client starts using a table (thanks to Uwe Kappe).
+    Closes: #269985
+  * Added "quote-names" as default to the [mysqldump] section in
+    /etc/mysql/my.cnf as too many users stumble over dump files that
+    could not be read in again due to the valid use of reserved words
+    as table names. This has also be done by upstream in 4.1.1 and has
+    no known drawbacks. Closes: #269865
+  * Binary logs can now be rotated as well. Defaults to off, though, for
+    compatibilty reasons (thanks to Mark Ferlatte). Closes: #94230, #269110
+  * The mysql user "debian-sys-maint" now gets all possible rights which
+    makes binary logging possible and helps other package maintainer who
+    wants to use it to create package specific databases and users.
+  * Added example how to change daemon nice level via /etc/mysql/my.cnf
+  * Updated French debconf translations (thanks to Christian Perrier).
+    Closes: #265811
+  * Renamed options in the default config file that still had old names
+    (thanks to Yves Kreis). Closes: #266445
+  * Fixed spelling in debconf note.
+  * Added -l and -L to dh_shlibdeps.
+
+ -- Christian Hammers <ch@debian.org>  Fri,  3 Sep 2004 20:10:46 +0200
+
+mysql-dfsg (4.0.20-11) unstable; urgency=high
+
+  * SECURITY
+    This version fixes a security flaw in mysqlhotcopy which created
+    temporary files in /tmp which had predictable filenames and such
+    could be used for a tempfile run attack.
+    The issue has been recorded as CAN-2004-0457.
+
+ -- Christian Hammers <ch@debian.org>  Sat, 14 Aug 2004 18:27:19 +0200
+
+mysql-dfsg (4.0.20-10) unstable; urgency=low
+
+  * MySQL finally updated their copyright page and installed v1.5 of
+    the "Free/Libre and Open Source Software License (FLOSS) - Exception"
+    which will hopefully end the license hell they created by putting the
+    client libraries under GPL instead of LGPL which conflicts with PHP and
+    other software that used to link against MySQL.
+    The license text is not yet in any release MySQL version but visible
+    on their web site and copied into the debian/copyright file.
+    Special thanks to Zak Greant <zak@mysql.com> and the debian-legal list
+    for helping to solve this release critical problem.
+    Closes: #242449
+  * Updated Brazil debconf translation (thanks to Andre Luis Lopes).
+    Closes: #264233
+  * Updated Japanese debconf translation (thanks to Hideki Yamane).
+    Closes: #264620
+  * Fixed minor typo in debconf description (thanks to TROJETTE Mohammed
+    Adnene). Closes: #264840
+  * Improved init and preinst script which now detects stalled servers which
+    do no longer communicate but are present in the process list (thanks to
+    Henrik Johansson). Closes: #263215
+
+ -- Christian Hammers <ch@debian.org>  Mon,  9 Aug 2004 19:44:28 +0200
+
+mysql-dfsg (4.0.20-9) unstable; urgency=medium
+
+  * Partly reverted the last patch which gave the mysql-user
+    "debian-sys-maint" more rights as there are old versions of MySQL which
+    have fewer privlige columns. Now only those are set (thanks to Alan Tam).
+    Closes: #263111
+
+ -- Christian Hammers <ch@debian.org>  Tue,  3 Aug 2004 13:03:02 +0200
+
+mysql-dfsg (4.0.20-8) unstable; urgency=low
+
+  * The mysqlcheck that is started from the initscript will now be
+    backgrounded because it might else prevent the boot process to continue.
+    It also now notifies root by mail and syslog if a table is corrupt.
+  * The "debian-sys-maint" MySQL user now has almost full rights so that other
+    packages might use this account to create databases and user (thanks to
+    Andreas Barth). Closes: #262541
+  * Added paranoid rules for logcheck.
+
+ -- Christian Hammers <ch@debian.org>  Sun,  1 Aug 2004 21:00:55 +0200
+
+mysql-dfsg (4.0.20-8) unstable; urgency=low
+
+  * Upload stalled. Not released.
+
+ -- Christian Hammers <ch@debian.org>  Sun,  1 Aug 2004 20:27:55 +0200
+
+mysql-dfsg (4.0.20-7) unstable; urgency=medium
+
+  * Solved the upstream bug that error messages of the server are written
+    in a file that is then rotated away leaving mysqld logging effectively
+    to /dev/null. It now logs to a /usr/bin/logger process which puts the
+    messages into the syslog.
+    Modified files: /etc/init.d/mysql, /usr/bin/mysqld_safe and the 
+    logchecker files. Closes: #254070
+  * The initscript does no longer call mysqlcheck directly but via
+    /etc/mysql/debian-start which is a user customizable config script.
+  * Splitted the debconf "install and update notes" and only show them
+    when it is appropriate (thanks to Steve Langasek). Closes: #240515
+  * Added NEWS.Debian.
+  * Added hint to -DBIG_ROWS, which is currently not used, to README.Debian.
+  * Corrected typo in myisampack manpage (thanks to Marc Lehmann). 
+    Closes: #207090
+  * Added Catalan debconf translation (thanks to Aleix Badia i Bosch).
+    Closes: #236651
+
+ -- Christian Hammers <ch@debian.org>  Wed, 28 Jul 2004 01:41:51 +0200
+
+mysql-dfsg (4.0.20-6) unstable; urgency=low
+
+  * The build arch detected by configure was "pc-linux-gnu (i686)"
+    instead of "pc-linux-gnu (i386)". Was no problem AFAIK but
+    Adam Majer asked me to explicitly change it to i386. Closes: #261382
+  * Removed some unused shell scripts from /usr/share/mysql.
+  * Added lintian overrides.
+  * Removed rpath by using chrpath.
+
+ -- Christian Hammers <ch@debian.org>  Mon, 26 Jul 2004 00:17:12 +0200
+
+mysql-dfsg (4.0.20-5) unstable; urgency=medium
+
+  * The mysqlcheck in the init script is only called when the server
+    is really alive. Also, the mysql-user 'debian-sys-maint' now has
+    global select rights (thanks to Nathan Poznick). Closes: #261130 
+  * Moved the debconf question whether to remove the databases or not
+    from mysql-server.config to mysql-server.postrm so that it shows
+    up on purge time and not months earlier (thanks to Wouter Verhelst).
+    Closes: #251838
+
+ -- Christian Hammers <ch@debian.org>  Fri, 23 Jul 2004 22:41:13 +0200
+
+mysql-dfsg (4.0.20-4) unstable; urgency=low
+
+  * Added a "mysqlcheck -A --fast" to the 'start' section of the
+    init script to help admins detect corrupt tables after a server crash.
+    Currently it exists with an error message but leaves the server
+    running. Feedback appreciated!
+  * Made postinst script more robust by calling db_stop earlier and
+    so prevent pipe-deadlocks.
+  * Fixed minor typos in initscript (thanks to "C.Y.M."). Closes: 259518
+  * Added the undocumented "-DBIG_JOINS" that MySQL apparently uses in
+    their MAX binaries. It enables 62 instead of 30 tables in a "join".
+    (thanks to Dave Rolsky). Closes: #260843
+  * Added a "df --portability /var/lib/mysql/." check to the preinst
+    script as users experienced hard to kill hanging mysqlds in such
+    a situation (thanks to Vaidas Pilkauskas). Closes: #260306
+
+ -- Christian Hammers <ch@debian.org>  Fri, 23 Jul 2004 00:51:32 +0200
+
+mysql-dfsg (4.0.20-3) unstable; urgency=low
+
+  * Improved tolerance if the init script has been deleted (thanks to
+    Leonid Shulov for spotting the problem).
+  * Minor wording changes to README.Debian generalizing /root/ by $HOME
+    (thanks to Santiago Vila). Closes: #257725
+  * Added Japanese debconf translation (thanks to Hideki Yamane).
+    Closes: #256485
+  * Fixed commend in my.cnf regarding logfile directory (thanks to Jayen
+    Ashar). Closes: #253434
+  * Correted "ease to" by "ease of" in package description (thanks to
+    Johannes Berg). Closes: #253510 
+
+ -- Christian Hammers <ch@debian.org>  Fri,  9 Jul 2004 00:57:42 +0200
+
+mysql-dfsg (4.0.20-2) unstable; urgency=low
+
+  * Removed RPM .spec file from the included documentation as it is pretty
+    useless (thanks to Loic Minier).
+  * Added turkish debconf translation (thanks to Recai Oktas). Closes: #252802
+
+ -- Christian Hammers <ch@debian.org>  Sun,  6 Jun 2004 14:48:26 +0200
+
+mysql-dfsg (4.0.20-1) unstable; urgency=low
+
+  * New upstream version. 
+
+ -- Christian Hammers <ch@debian.org>  Mon, 31 May 2004 23:36:39 +0200
+
+mysql-dfsg (4.0.18-8) unstable; urgency=low
+
+  * Updated french translation (thanks to Christian Perrier). Closes: #246789
+
+ -- Christian Hammers <ch@debian.org>  Tue,  4 May 2004 23:26:54 +0200
+
+mysql-dfsg (4.0.18-7) unstable; urgency=low
+
+  * Added CVE ids for the recent security fixes.
+    4.0.18-4 is CAN-2004-0381 (mysqlbug) and
+    4.0.18-6 is CAN-2004-0388 (mysql_multi)
+
+ -- Christian Hammers <ch@debian.org>  Mon, 19 Apr 2004 18:32:03 +0200
+
+mysql-dfsg (4.0.18-6) unstable; urgency=medium
+
+  * SECURITY:
+    Fixed minor tempfile-run security problem in mysqld_multi.
+    Unprivileged users could create symlinks to files which were then
+    unknowingly overwritten by run when this script gets executed.
+    Upstream informed. Thanks to Martin Schulze for finding this.
+
+ -- Christian Hammers <ch@debian.org>  Wed,  7 Apr 2004 01:28:22 +0200
+
+mysql-dfsg (4.0.18-5) unstable; urgency=low
+
+  * Little improvements in debian scripts for last upload. 
+  * Added check to logrotate script for the case that a mysql
+    server is running but not be accessible with the username and
+    password from /etc/mysql/debian.conf (thanks to Jeffrey W. Baker).
+    Closes: 239421
+
+ -- Christian Hammers <ch@debian.org>  Sun,  4 Apr 2004 15:27:40 +0200
+
+mysql-dfsg (4.0.18-4) unstable; urgency=medium
+
+  * SECURITY: 
+    Aplied fix for unprobable tempfile-symlink security problem in 
+    mysqlbug reported by Shaun Colley on bugtraq on 2004-03-24.
+  * Updated french debconf translation (thanks to Christian Perrier).
+    Closes: #236878 
+  * Updated portugesian debconf translation (thanks to Nuno Senica).
+    Closes: #239168
+  * Updated german debconf translation (thanks to Alwin Meschede).
+    Closes: #241749
+  * Improved debconf template regarding fix_privileges_tables (thanks 
+    to Matt Zimmermann for suggestions). Closes: #219400
+  * Improved README.Debian regarding to password settings (thanks to
+    Yann Dirson). Closes: #241328
+
+ -- Christian Hammers <ch@debian.org>  Sat,  3 Apr 2004 19:52:15 +0200
+
+mysql-dfsg (4.0.18-3) unstable; urgency=medium
+
+  * Added Build-Depend to po-debconf to let it build everywhere.
+
+ -- Christian Hammers <ch@debian.org>  Wed, 31 Mar 2004 23:43:33 +0200
+
+mysql-dfsg (4.0.18-2) unstable; urgency=low
+
+  * Added a "2>/dev/null" to a "which" command as there are two
+    "which" versions in Debian of which one needs it. Closes: #235363
+
+ -- Christian Hammers <ch@debian.org>  Tue,  2 Mar 2004 23:31:28 +0100
+
+mysql-dfsg (4.0.18-1) unstable; urgency=low
+
+  * New upstream version.
+  * Should now compile and run on ia64 (thanks to Thorsten Werner and
+    David Mosberger-Tang). Closes: #226863 #228834 
+  * Converted init scripts to invoce-rc.d (thanks to Erich Schubert).
+    Closes: 232118 
+  * Secondlast upload changed logfile location. Closes: #182655
+  * Updated Brasilian translation (thanks to Andre Luis Lopes). Closes:
+    #219847
+
+ -- Christian Hammers <ch@debian.org>  Tue, 17 Feb 2004 23:44:58 +0100
+
+mysql-dfsg (4.0.17-2) unstable; urgency=low
+
+  * Improved manpage for mysqldumpslow.1 (thanks to Anthony DeRobertis).
+    Closes: #231039
+  * Improved stopping of crashed daemons in init script (thanks to
+    Matthias Urlichs). Closes: #230327
+
+ -- Christian Hammers <ch@debian.org>  Mon,  9 Feb 2004 21:54:29 +0100
+
+mysql-dfsg (4.0.17-1) unstable; urgency=low
+
+  * Made logging into /var/log/mysql/ the default. Closes: #225206
+ 
+  * New upstream version. Closes: #225028
+  * Turned on a 25MB query cache by default (thanks to Cyril Bouthors).
+    Closes: #226789
+  * Updated russian translation (thanks to Ilgiz Kalmetev). Closes: #219263
+  * Upstream fixes the problem that AND was not commutative (thanks for
+    Iain D Broadfoot for mentioning). Closes: #227927
+  * Fixed minor typo in my.cnf comments (thanks to James Renken). 
+    Closes: #221496
+  * Better documents regex. Closes: #214952
+  * Fixed minor germanism in debconf template (thanks to Marc Haber).
+    Closes: #224148
+  * Added explaining comment to my.cnf regarding quoted passwords 
+    (Thanks to Patrick von der Hagen). Closes: #224906
+  * Changed "find -exec" to "find -print0 | xargs -0" in preinst to
+    speed it up. Thanks to Cyril Bouthors. Closes: #220229
+
+ -- Christian Hammers <ch@debian.org>  Sun, 18 Jan 2004 16:16:25 +0100
+
+mysql-dfsg (4.0.16-2) unstable; urgency=low
+
+  * Tried to repair undefined weak symbols by adding a little Makefile
+    patch. Closes: #215973
+
+ -- Christian Hammers <ch@debian.org>  Mon, 27 Oct 2003 22:52:10 +0100
+
+mysql-dfsg (4.0.16-1) unstable; urgency=low
+
+  * New upstream release.
+    (Mostly little memory problems and other bugfixes it seems)
+  * Replaced "." by ":" in chown calls to comply with the env setting
+  	"_POSIX2_VERSION=2000112" (thanks to Robert Luberda). Closes: #217399
+  * Adjusted syntax in my.cnf to 4.x standard (thanks to Guillaume Plessis).
+    Closes: #217273
+  * Improved README.Debian password instructions (thanks to Levi Waldron).
+    Closes: #215046
+  * Improved NIS warning debconf-template (thanks to Jeff Breidenbach).
+    Closes: #215791
+  * Explicitly added libssl-dev to the libmysqlclient-dev package as it
+    is needed for mysql_config and the libmysqlclient package only depends
+    on libssl which has no unnumbered .so version (thanks to Simon Peter
+    and Davor Ocelic). Closes: #214436, #216162
+  * Added "-lwrap" to "mysql_config --libmysqld-libs" and filed it as
+    upstream bug #1650 (thanks to Noah Levitt). Closes: #214636
+
+ -- Christian Hammers <ch@debian.org>  Sat, 25 Oct 2003 01:09:27 +0200
+
+mysql-dfsg (4.0.15a-1) unstable; urgency=low
+
+  * Same package as 4.0.15-2 but I could not convince the Debian
+    installer to move the packages out of incoming.
+
+ -- Christian Hammers <ch@debian.org>  Tue,  7 Oct 2003 15:10:26 +0200
+
+mysql-dfsg (4.0.15-2) unstable; urgency=low
+
+  * Updated package description (thanks to Adrian Bunk). Closes: #210988 
+  * Fixed small typos in manpages (thanks to Nicolas Francois).
+    Closes: #211983
+  * More updates to package description (thanks to Matthias Lutz/ddtp).
+    Closes: #213456
+  * Updated standards to 3.6.1.
+  * Closes "new 4.0.15 available" bug. Closes: #213349
+  * Updated README.Debian with notes regarding the MySQL manual section
+    "2.4 Post-installation Setup and Testing" (thanks to Daniel B.).
+    Closes: #210841
+
+ -- Christian Hammers <ch@debian.org>  Fri,  3 Oct 2003 15:59:39 +0200
+
+mysql-dfsg (4.0.15-1) unstable; urgency=high
+
+  * SECURITY:
+    Users who are able to use the "ALTER TABLE" command on the "mysql"
+    database may be able to exploit this vulnerability to gain a shell with
+    the privileges of the mysql server (usually running as the 'mysql' user).
+    Closes: #210403
+  * Fixes small description typos (thanks to Oscar Jarkvik).
+  * Updated Brazilian Portuguese debconf translation. (thanks to Andre Luis
+    Lopes). Closes: 208030
+  * Replaced depricated '.' by ':' in chown (thanks to Matt Zimmerman).
+  * Fixed manpage typo (thanks to Marc Lehmann). Closes: #207090
+
+ -- Christian Hammers <ch@debian.org>  Fri,  3 Oct 2003 15:59:35 +0200
+
+mysql-dfsg (4.0.14-1) unstable; urgency=low
+
+  * New upstream version. 
+
+ -- Christian Hammers <ch@debian.org>  Sun, 24 Aug 2003 16:40:36 +0200
+
+mysql-dfsg (4.0.13-3) unstable; urgency=low
+
+  * Now start mysqld as default unless you choose not when configurig
+    with debconf priority low. So packages depending on the server when
+    installing can access it. Thanks Matt Zimmermann (Closes: #200277)
+  * Made mysql-server de-installable if the config and database files were
+    removed by hand before. Thanks to Ard van Breemen (Closes: #200304)
+
+ -- Christian Hammers <ch@debian.org>  Tue,  8 Jul 2003 22:30:40 +0200
+
+mysql-dfsg (4.0.13-2) unstable; urgency=low
+
+  * Added "nice" option for mysqld_safe to give mysqld a different priority.
+    Submitted to upstream as MySQL Bug #627. Closes: #192087
+  * Fixed possible unbound variable in init script. Closes: #194621
+  * Fixed french debconf translation (thx Christian Perrier) Closes: #194739
+  * Get rid of automake1.5 (for Eric Dorland). 
+
+ -- Christian Hammers <ch@debian.org>  Wed, 11 Jun 2003 18:58:32 +0200
+
+mysql-dfsg (4.0.13-1) unstable; urgency=medium
+
+  * New upstream version.
+    !!! Fixes a very bad natural join bug which justifies the urgency=medium.
+    !!! http://bugs.mysql.com/bug.php?id=291
+  * Fixed mysql_fix_privileges manpage (Frederic Briere) Closes: #191776
+  * preinst: "which" is more chatty normal executable than as builtin.
+    (Thanks to David B Harris). Closes: #188659
+
+ -- Christian Hammers <ch@debian.org>  Tue,  6 May 2003 22:03:45 +0200
+
+mysql-dfsg (4.0.12-3) unstable; urgency=medium
+
+  * Reincluded new way of creating my debian-sys-maint user from
+    an old release from experimental. Now works again with old
+    and new privilege table format. (Thanks to Vincent Danjean
+    for spotting the problem) Closes: #188201
+  * Reincluded hurd build dependency fix from 3.23 branch.
+    (Thanks to Robert Millan). Closes: #185929
+  * Fixed soname in libmysqlclient-dev.  Closes: #188160
+  * Remove /var/log/mysql/ when purging the package. Closes: #188064
+  * Removed /usr/share/doc/mysql/ from mysql-server. Closes: #188066
+  * Let group "adm" be able to read logfiles. Closes: #188067
+  * Do not call usermod on every upgrade. Closes: #188248
+    (Thanks to Philippe Troin for the last three)
+  * Fixed mysql-server.preinst so that it works on shells where 
+    which is a builtin, too. (Thanks to Erich Schubert) Closes: #181525
+
+ -- Christian Hammers <ch@debian.org>  Fri, 11 Apr 2003 11:32:45 +0200
+
+mysql-dfsg (4.0.12-2) unstable; urgency=low
+
+  *
+  * NEW MAJOR UPSTREAM RELEASE:
+  *
+    MySQL 4 has finally been declared as 'stable'. Hurray! Read changelogs.
+    Thanks to all testers, esp. Jose Luis Tallon, of the versions
+    that were in the "experimental" section before.
+  * Modified postinst script to run mysql_fix_privileges on every update.
+    IMPORTANT: Please report if this breaks anything, it is not supposed to.
+  * Wrote a SSL-MINI-HOWTO.txt!
+  * Added zlib1g-dev to libmysqlclient12-dev. Closes: 186656
+  * Changed section of libmysqlclient12-dev to libdevel.
+  * Added even more selfwritten manpages.
+  * Fixed typos.
+
+ -- Christian Hammers <ch@debian.org>  Sun,  6 Apr 2003 13:47:32 +0200
+
+mysql-dfsg (4.0.10.gamma-1) experimental; urgency=low
+
+  * New upstream version.
+  * They merged some of my patches from debian/patches. Whoa!
+  * This release should fix the error-logfile problem where mysqld
+    keeps the error.log open while logrotate removes it.
+
+ -- Christian Hammers <ch@debian.org>  Wed, 12 Feb 2003 22:39:48 +0100
+
+mysql-dfsg (4.0.9.gamma-1) experimental; urgency=low
+
+  * New upstream version. 
+  * Updated the GNU autoconf files to make building on MIPS work.
+    See bug #176829.
+
+ -- Christian Hammers <ch@debian.org>  Wed, 29 Jan 2003 22:07:44 +0100
+
+mysql-dfsg (4.0.8.gamma-1) experimental; urgency=low
+
+  * New upstream release. 
+  * Improved logging of init script. Closes: #174790
+  * We have now libmysqlclient.so.12 instead of .11.
+
+ -- Christian Hammers <ch@debian.org>  Thu,  9 Jan 2003 20:14:11 +0100
+
+mysql-dfsg (4.0.7.gamma-1) experimental; urgency=high
+
+  * SECURITY: This version fixes an upstream security release that is only
+              present in the 4.x branch which is currently only in the
+              experimental distribution and therefore will not get a DSA. 
+  * New upstream release.
+
+ -- Christian Hammers <ch@debian.org>  Sat, 28 Dec 2002 15:51:39 +0100
+
+mysql-dfsg (4.0.6.gamma-2) experimental; urgency=low
+
+  * Added --system to addgroup. Closes: #173866
+
+ -- Christian Hammers <ch@debian.org>  Sat, 21 Dec 2002 15:28:26 +0100
+
+mysql-dfsg (4.0.6.gamma-1) experimental; urgency=low
+
+  * New upstream version. Now Gamma!
+  * There are no longer changes to the .orig.tar.gz neccessary to make diff
+    happy. docs/ has still to be deleted, although, as it is non-free.
+  * Incorporated patches from unstable.
+  * Added mysqlmanager and a couple of other new scripts.
+  * Enabled libmysqld embedded server library.
+  * Enabled SSL and Virtual-IO support.
+    (CORBA based MySQL-FS seems to be not existing..)
+
+ -- Christian Hammers <ch@debian.org>  Fri, 20 Dec 2002 22:30:51 +0100
+
+mysql-dfsg (4.0.5a.beta-3) experimental; urgency=low
+
+  * Modified postinst to work with old and new mysql.user table format
+    and fixed spelling typo in postinst. Thanks to Roger Aich.
+  * Updated config.{guess,sub} to make the mipsel porters happy.
+    Thanks to Ryan Murray. Closes: #173553
+
+ -- Christian Hammers <ch@debian.org>  Wed, 18 Dec 2002 15:56:34 +0100
+
+mysql-dfsg (4.0.5a.beta-2) experimental; urgency=low
+
+  * Upstream removed option "--skip-gemini". So did I. Closes: 173142
+
+ -- Christian Hammers <ch@debian.org>  Tue, 17 Dec 2002 10:35:49 +0100
+
+mysql-dfsg (4.0.5a.beta-1) experimental; urgency=low
+
+  * First 4.x experimental package due to continuous user requests :-)
+    Please test and report!
+  * upstream: safe_mysqld has been renamed to mysqld_safe
+  * upstream: new library soname version libmysqlclient.so.11
+  * Renamed libmysqlclientXX-dev to libmysqlclient-dev as I don't plan to
+    support more than one development environment and this makes the 
+    dependencies easier.
+  * FIXME: Skipped parts of the debian/patches/alpha patch as the global.h 
+    is not existing.
+  * FIXME: How to get rid this? Old ltconfig patch already applied.
+    "lintian: binary-or-shlib-defines-rpath ./usr/bin/mysql /usr/lib/mysql"
+
+ -- Christian Hammers <ch@debian.org>  Sun,  1 Dec 2002 18:32:32 +0100
+
+mysql-dfsg (3.23.53-4) unstable; urgency=medium
+
+  * Fixed errno.h problem. Closes: #168533, #168535 
+
+ -- Christian Hammers <ch@debian.org>  Sun, 10 Nov 2002 18:32:08 +0100
+
+mysql-dfsg (3.23.53-3) unstable; urgency=medium
+
+  * Changed automake build-dep to unversioned automake1.4. Closes: #166391
+  * Fixed description. Closes: #167270
+    (Thanks to Soren Boll Overgaard)
+
+ -- Christian Hammers <ch@debian.org>  Tue,  5 Nov 2002 01:25:01 +0100
+ 
+mysql-dfsg (3.23.53-2) unstable; urgency=low
+
+  * Reverted user creation in init scripts. Closes: #166432
+    (Thanks to Birzan George Cristian) 
+
+ -- Christian Hammers <ch@debian.org>  Thu, 31 Oct 2002 15:36:25 +0100
+
+mysql-dfsg (3.23.53-1) unstable; urgency=low
+
+  * New upstream release. 
+
+ -- Christian Hammers <ch@debian.org>  Thu, 24 Oct 2002 23:04:16 +0200
+
+mysql-dfsg (3.23.52-3) unstable; urgency=low
+
+  * Substituted the first-install 'debian-sys-maint' user creation by
+    something ANSI SQL compliant. Closes: #163497
+    (Thanks to Karl Hammar)
+  * Tightend dependency to debhelper (>= 4.0.12) to be sure that
+    debconf-utils gets installed, too, as I use dh_installdebconf.
+  * Fixed upstream manpage bug in mysqldump.1. Closes: #159779
+    (Thanks to Colin Watson) 
+  * Added comment about MIN_WORD_LEN to mysql-server.README.Debian
+    (Thanks to Philipp Dreimann)
+  * Added a dependency for zlib1g-dev to libmysqlclient10-dev.
+    (Thanks to Jordi Mallach)
+
+ -- Christian Hammers <ch@debian.org>  Sun, 15 Sep 2002 17:14:44 +0200
+
+mysql-dfsg (3.23.52-2) unstable; urgency=low
+
+  * Fixed typo in preinst scripts.
+  * Removed bashism in init script.
+  * Fixed ambiguous debconf example. Closes: #158884
+
+ -- Christian Hammers <ch@debian.org>  Fri, 30 Aug 2002 00:51:29 +0200
+
+mysql-dfsg (3.23.52-1) unstable; urgency=low
+
+  * New upstream version. Closes: #157731
+  * Clearified the meaning of the debian-sys-maint special user in the
+    README.Debian file. Closes: #153702
+  * Wrote some words regarding the skip-networking in README.Debian.
+    Closes: #157038
+  * Added dependency to passwd. 
+  * Fixes typo and unnecessarily complication in is_mysql_alive().
+  * Added check for /etc/mysql/my.cnf in init script.
+
+ -- Christian Hammers <ch@debian.org>  Tue, 27 Aug 2002 01:53:32 +0200
+
+mysql-dfsg (3.23.51-4) unstable; urgency=low
+
+  * Added a compressed "nm mysqld" output to allow people to trace
+    core dumps with /usr/bin/resolve_stack_dump as suggested in the
+    INSTALL-SOURCE file. Thanks to atudor@labs.agilent.com for the hint.
+
+ -- Christian Hammers <ch@debian.org>  Wed, 24 Jul 2002 20:44:55 +0200
+
+mysql-dfsg (3.23.51-3) unstable; urgency=low
+
+  * Corrected copyright file: the MySQL client library is licenced under
+    the LGPL-2 not the GPL. From version 4.x it actually will be GPL this
+    is why parts of http://www.mysql.com/ already say so. Closes: #153591
+  * Corrected german translation.
+    Thanks to Roland Rosenfeld <roland@spinnaker.de>. Closes: #151903 
+
+ -- Christian Hammers <ch@debian.org>  Thu, 11 Jul 2002 20:32:28 +0200
+
+mysql-dfsg (3.23.51-2) unstable; urgency=low
+
+  * Improved NIS tolerance in preinst script. 
+
+ -- Christian Hammers <ch@debian.org>  Sun,  7 Jul 2002 04:43:28 +0200
+
+mysql-dfsg (3.23.51-1) unstable; urgency=medium
+
+  * New upstream version.
+  * I applied a patch that fixes a binary imcompatibility in
+    the shared libary libmysqlclient.so.10 between 3.23.50 and
+    some versions earlier. Upstream has been contacted and asked
+    for clarification. Closes: #149952
+  * Added support for NIS i.e. it shows a warning and fails if the
+    needed 'mysql' user does not exists but works if it does.
+    Closes: #143282, #147869
+  * Substituted $0 in init scripts by something really weird so that
+    "./S20mysql restart" works now, too. (BTW: S20? install file-rc!!!)
+    Closes: #148658
+  * Now postinst works even if /etc/init.d/mysql is removed. Closes: #151021
+  * Decided to leave "set +x" in postinst but wrote comment. Closes: #151022
+
+ -- Christian Hammers <ch@debian.org>  Sun,  7 Jul 2002 04:43:25 +0200
+
+mysql-dfsg (3.23.50-1) unstable; urgency=medium
+
+  * New upstream version.
+    Fixes a very annoying and important bug that lets all mysql programs
+    including perl scripts etc. segfault when using the read_default_group()
+    function. 3.23.50 is currently a pre-release and expected to be released
+    next week. I plan to propose it for woody as soon as its stability has
+    been proven. The following bug reports are all regarding this issue.
+    Closes: #144960, #145322, #136798, #138143,
+
+ -- Christian Hammers <ch@debian.org>  Sat, 18 May 2002 21:14:01 +0200
+
+mysql-dfsg (3.23.49x-1) unstable; urgency=low
+
+  * I had to split the package to seperate the manual as it is not GPL
+    like the rest of the software and docs but under a license that
+    e.g. forbids selling printed versions. 
+    .
+    The upstream authors were contacted a while ago but did not like to
+    change the situation.
+    .
+    The names of the resulting packages have not changed as the manual
+    already was in a seperate mysql-doc package due to it's size. 
+    The source packages are now splitted from one "mysql" to 
+    "mysql-dfsg" in main and "mysql-nonfree" in non-free.
+  * No code change! 
+    The "x" at the end of the version number ist just to be able to 
+    upload a new source package. ("a" was already taken by upstream 
+    for their binary upload correction)  
+
+ -- Christian Hammers <ch@debian.org>  Wed,  8 May 2002 02:01:41 +0200
+
+mysql (3.23.49-8) unstable; urgency=low
+
+  * Substituted $0 in init script to let e.g. "/etc# ./init.d/mysql restart"
+    works, too. Closes: #141555
+
+ -- Christian Hammers <ch@debian.org>  Sun,  7 Apr 2002 15:00:44 +0200
+
+mysql (3.23.49-7) unstable; urgency=low
+
+  * The Makefiles are totally broken for the --enable-local-infile
+    option. I now patched libmysql/libmysql.c#mysql_init() manually.
+    Closes: #138347 
+
+ -- Christian Hammers <ch@debian.org>  Fri, 29 Mar 2002 23:55:15 +0100
+
+mysql (3.23.49-6) unstable; urgency=low
+
+  * Moved mysqlcheck from server to client package. Closes: #139799
+  * Added manpage for mysqlhotcopy. Regarding: #87097 
+  * Added 'sharedscripts' directive to the logrotate script.
+  * Replaced grep by /usr/bin/getent to let the group/user checking work
+    on NIS/LDAP systems, too. Closes: #115677, #101529
+
+ -- Christian Hammers <ch@debian.org>  Fri, 22 Mar 2002 22:40:51 +0100
+
+mysql (3.23.49-5) unstable; urgency=low
+
+  * Added skip-innodb to default my.cnf.
+  * Enabled --enable-local-infile, it seems to be a new option that
+    defaults to disable a formerly enabled feaure. Closes: #137115
+
+ -- Christian Hammers <ch@debian.org>  Sat, 16 Mar 2002 00:29:10 +0100
+
+mysql (3.23.49-4) unstable; urgency=medium
+
+  * Recompiled against fixed libz.
+
+  * Enabled --enable-local-infile, it seems to be a new option that
+    defaults to disable a formerly enabled feaure. Closes: #137115
+  * Fixed README.compile_on_potato. Closes: #136529 
+  * Now a ext3 .jounal file in /var/lib/mysql does not prevent the
+    installation (happens when creating a jounal on an already mounted
+    partition). Closes: #137146
+
+ -- Christian Hammers <ch@debian.org>  Wed, 13 Mar 2002 13:34:24 +0100
+
+mysql (3.23.49-3) unstable; urgency=low
+
+  * Added Russian translation. Closes: #135846
+  * Fixed installation of .info documents. Closes: #135030
+
+ -- Christian Hammers <ch@debian.org>  Wed, 27 Feb 2002 23:36:35 +0100
+
+mysql (3.23.49-2) unstable; urgency=low
+
+  * Updated french translation and split template files. Closes: #134754 
+  * Fixed a small debian.cnf related bug in mysql-server.postinst.
+
+ -- Christian Hammers <ch@debian.org>  Tue, 19 Feb 2002 23:13:58 +0100
+
+mysql (3.23.49-1) unstable; urgency=low
+
+  * New upstream release.
+    (Mainly InnoDB related fixes)
+  * Exported a $HOME variable in the scripts so that /root/.my.cnf
+    is not read anymore. This will avoid problems when admins put 
+    only passwords but no usernames in this file. Closes: #132048
+  * New debian-sys-maint password algorithm (now ~96bit :-)) Closes: #133863
+  * Recreating debian-sys-main pwd on every install to help people who
+    accidently delete user or password files...
+  * Added /var/log/mysql so that user can put the binary logs in there as
+    mysql cannot write the .001 etc files itself in /var/log which is 
+    owned by root.
+
+ -- Christian Hammers <ch@debian.org>  Thu, 14 Feb 2002 22:17:45 +0100
+
+mysql (3.23.47-6) unstable; urgency=low
+
+  * Dropped a sentence about the new debian-sys-maint user in the
+    debconf note and updated the README.Debian.  Related: #132048
+  * Added more french translation. Closes: #132390 
+
+ -- Christian Hammers <ch@debian.org>  Wed,  6 Feb 2002 09:41:29 +0100
+
+mysql (3.23.47-5) unstable; urgency=low
+
+  * Fixed grammar error in template. Closes: #132238 
+  * Really fixed typo in logrotate script. Closes: #131711
+
+ -- Christian Hammers <ch@debian.org>  Tue,  5 Feb 2002 14:20:08 +0100
+
+mysql (3.23.47-4) unstable; urgency=medium
+
+  * Fixes typo in postinst that let init script fail. Closes: #131743
+  * Fixed bashism bug that failed on ash. Closes: #131697
+  * Fixed typo in logrotate script. Closes: #131711
+
+ -- Christian Hammers <ch@debian.org>  Thu, 31 Jan 2002 23:58:46 +0100
+
+mysql (3.23.47-3) unstable; urgency=low
+
+  * Added new Debian specific mysql user called 'debian-sys-maint' which
+    is used for pinging the server status, flushing the logs or shutting
+    down the server in maintenance scripts. The credentials of this user
+    are stored in the UID0-only readable file /etc/mysql/debian.cnf.
+    Closes: #129887, #130326, #99274
+  * Fixed unintended server startup at boottime. Closes: #122676, #130105
+  * New upstream fixes command line parsing bug: Closes: #128473
+  * Fixed manpage headers to let apropos work: Closes: #119122
+  * Added "status" options for /etc/init.d/mysql. Closes: #129020
+
+ -- Christian Hammers <ch@debian.org>  Sun, 27 Jan 2002 19:46:11 +0100
+
+mysql (3.23.47-2) unstable; urgency=low
+
+  * Enhanced init scripts by using mysqladmin instead of kill $pid.
+    Thanks to Aaron Brick. 
+
+ -- Christian Hammers <ch@debian.org>  Fri, 18 Jan 2002 01:42:23 +0100
+
+mysql (3.23.47-1) unstable; urgency=low
+
+  * New upstream release.
+  * Updated brazilian translation of debconf descriptions. Closes: #123332
+
+ -- Christian Hammers <ch@debian.org>  Sun,  6 Jan 2002 21:11:17 +0100
+
+mysql (3.23.46-3) unstable; urgency=low
+
+  * Fixed bug in postinst where a script was accidently called with
+    "bash -c <script> -IN_RPM" prevting the first argument to take effect
+    and then leading to failures on hosts with unresolvable hostnames.
+    Closes: #126147
+  * Small changes and comments in postinst. 
+
+ -- Christian Hammers <ch@debian.org>  Sat, 22 Dec 2001 14:03:02 +0100
+
+mysql (3.23.46-2) unstable; urgency=low
+
+  * Start/stop behaviour now configurable via debconf. Closes: #112174 
+
+ -- Christian Hammers <ch@debian.org>  Sun,  9 Dec 2001 21:38:54 +0100
+
+mysql (3.23.46-1) unstable; urgency=low
+
+  * New upstream release. 
+    Only few fixes, mainly innodb related. 
+
+ -- Christian Hammers <ch@debian.org>  Sun,  2 Dec 2001 03:08:48 +0100
+
+mysql (3.23.45-1) unstable; urgency=low
+
+  * New upstream version. 
+    Only few fixes, mainly innodb related. 
+  * Added debconf note regarding the skip-networking option.
+
+ -- Christian Hammers <ch@debian.org>  Sun, 25 Nov 2001 16:50:37 +0100
+
+mysql (3.23.44-2) unstable; urgency=low
+
+  * Finally removed debconf toggled "skip-networking" line add/remove 
+    code for /etc/mysql/my.cnf. I don't like editing a file that's tagged
+    as configuration file.
+    I disabled networking by default for security reasons. Better ideas?
+
+ -- Christian Hammers <ch@debian.org>  Fri, 16 Nov 2001 02:11:02 +0100
+
+mysql (3.23.44-1) unstable; urgency=low
+
+  * New upstream release.
+    - fixes replication bug (core dump)
+  * Made description better english :) Thanks to D. Welton. 
+
+ -- Christian Hammers <ch@debian.org>  Sun, 11 Nov 2001 15:44:07 +0100
+
+mysql (3.23.43-4) unstable; urgency=low
+
+  * Disabled statically linking. 
+
+ -- Christian Hammers <ch@debian.org>  Sat, 10 Nov 2001 03:15:56 +0100
+
+mysql (3.23.43-3) unstable; urgency=low
+
+  * Changed compiler settings after one user reported instabilities.
+    See #116631 for more information. 
+
+ -- Christian Hammers <ch@debian.org>  Tue, 30 Oct 2001 21:39:17 +0100
+
+mysql (3.23.43-2) unstable; urgency=low
+
+  * Patched sparc mutexes again. Closes: #113430 
+
+ -- Christian Hammers <ch@debian.org>  Sun,  7 Oct 2001 15:09:00 +0200
+
+mysql (3.23.43-1) unstable; urgency=low
+
+  * New upstream version.
+    - Fixed some unlikely(sic!) bugs and core dumps.
+    - Fixed a bug with BDB tables and UNIQUE columns that are NULL.
+    - [more minor bugs were fixed; see changelog]
+  * Adjusted build depends on libwrap0 for IA-64. Closes: #114582
+  * Added the mysqlcheck binary. Closes: #114490
+  * Fixed rules for arm architecture. Closes: #88186
+  * Renamed mysql_print_defaults to the original name my_print_defaults.
+    Isn't as descriptive but else I'd have to patch too much. Closes: #114492
+
+ -- Christian Hammers <ch@debian.org>  Fri,  5 Oct 2001 22:24:40 +0200
+
+mysql (3.23.42-2) unstable; urgency=low
+
+  * Applied patch for m68k compile. Closes: #112904 
+
+ -- Christian Hammers <ch@debian.org>  Sun, 23 Sep 2001 21:32:57 +0200
+
+mysql (3.23.42-1) unstable; urgency=low
+
+  * New upstream releae.
+    Fixes critical bug with InnoDB and large BLOBs. 
+
+ -- Christian Hammers <ch@debian.org>  Tue, 18 Sep 2001 22:25:47 +0200
+
+mysql (3.23.41-2) unstable; urgency=low
+
+  * Fixed shlibs.local problem. Closes: #111573 
+  * Replaced emacs by sensible-editor in mysqlbug.sh. Thanks Hans Ginzel.
+
+ -- Christian Hammers <ch@debian.org>  Sun,  9 Sep 2001 17:16:42 +0200
+
+mysql (3.23.41-1) unstable; urgency=low
+
+  * New upstream release
+  * Fixed build problem on ia64. Closes: #110624
+
+ -- Christian Hammers <ch@debian.org>  Tue, 14 Aug 2001 23:20:35 +0200
+
+mysql (3.23.40-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- Christian Hammers <ch@debian.org>  Sun,  5 Aug 2001 19:46:18 +0200
+
+mysql (3.23.39-5) unstable; urgency=low
+
+  * Added debconf template for brazil. Closes: #106934, #106752 
+  * Tightened dependencies on debconf.
+  * Adjusted mysql.err permissions in logrotate script to 0600. Closes: #105672
+
+ -- Christian Hammers <ch@debian.org>  Mon, 30 Jul 2001 00:10:12 +0200
+
+mysql (3.23.39-4.1) unstable; urgency=low
+
+  * Maintainer-requested NMU.
+  * Fixing thread mutexes on Sparc and Alpha
+    (closes: Bug#101783)
+  * Added --enable-assembler for sparc.  This should
+    allow mysql on sparc to use assembler versions of
+    some string functions (read: should speed up a bit).
+
+ -- Christopher C. Chimelis <chris@debian.org>  Fri, 13 Jul 2001 15:09:30 -0400
+  
+mysql (3.23.39-4) unstable; urgency=low
+
+  * Porting fixes.
+
+ -- Christian Hammers <ch@debian.org>  Mon,  9 Jul 2001 17:56:54 +0200
+
+mysql (3.23.39-3.1) unstable; urgency=low
+
+  * NMU (for porting)
+  * Update config.sub and config.guess for hppa, sh & s390.
+  * Add --with-client-ldflags=-lstdc++ to configure line.  Closes: #100884
+
+ -- Matthew Wilcox <willy@debian.org>  Sun,  8 Jul 2001 19:26:59 -0600
+
+mysql (3.23.39-3) unstable; urgency=low
+
+  * Disabled berkeley-db on sparc again. Mutexes aren't working again :-( 
+
+ -- Christian Hammers <ch@debian.org>  Sat,  7 Jul 2001 18:30:08 +0200
+
+mysql (3.23.39-2) unstable; urgency=low
+
+  * Bugfixed the m68k mutex patch. Thanks to Michael Fedrowitz. Closes: #103145 
+  * Removed config.cache files in bdb/ and innobase/. Closes: #103143
+
+ -- Christian Hammers <ch@debian.org>  Wed,  4 Jul 2001 22:06:58 +0200
+
+mysql (3.23.39-1) unstable; urgency=low
+
+  * New upstream release. Minor bugfixes only. 
+
+ -- Christian Hammers <ch@debian.org>  Thu, 14 Jun 2001 13:53:03 +0200
+
+mysql (3.23.38-4) unstable; urgency=low
+
+  * Added logcheck files. Closes: #99131
+    (I can't let the usermod away since I don't know of an easy way to
+    retrive "passwd" information in a shell script considering that 
+    people use different storage methods like LDAP/NIS instead of passwd.)
+
+ -- Christian Hammers <ch@debian.org>  Fri,  8 Jun 2001 21:04:25 +0200
+
+mysql (3.23.38-3) unstable; urgency=low
+
+  * Explicit pointet to /root/.my.cnf to let /etc/init.d/mysql stop
+    work in sudo environments with $HOME!=/root work, too. Closes: #98324
+  * Removes empty /etc/mysql on purge. Closes: #98164
+
+ -- Christian Hammers <ch@debian.org>  Tue, 22 May 2001 10:13:06 +0200
+
+mysql (3.23.38-2) unstable; urgency=low
+
+  * Added depends to libdbd-mysql-perl for mysql-server. Closes: #94306
+
+ -- Christian Hammers <ch@debian.org>  Sat, 19 May 2001 19:43:26 +0200
+
+mysql (3.23.38-1) unstable; urgency=low
+
+  * New upstream release. 
+  * Added Build-Depends to procps. Closes: #96768
+
+ -- Christian Hammers <ch@debian.org>  Sun, 13 May 2001 17:30:15 +0200
+
+mysql (3.23.37-5) unstable; urgency=low
+
+  * Applied mutex patch for bdb support on m68k. 
+    Thanks to Michael Fedrowitz for the patch.
+
+ -- Christian Hammers <ch@debian.org>  Mon,  7 May 2001 12:30:40 +0200
+
+mysql (3.23.37-4) unstable; urgency=low
+
+  * Enable bdb support for m68k architecture.
+
+ -- Christian Hammers <ch@debian.org>  Sat,  5 May 2001 16:47:36 +0200
+
+mysql (3.23.37-3) unstable; urgency=low
+
+  * Added thread-safe client library. Thanks to Shane Wegner. Closes: #95441 
+
+ -- Christian Hammers <ch@debian.org>  Sat, 28 Apr 2001 09:45:00 -0400
+
+mysql (3.23.37-2) unstable; urgency=low
+
+  * Added sparc to the list of BDB supporting architectures after some
+    tests on vore.debian.org and mails with Ben Collons.
+
+ -- Christian Hammers <ch@debian.org>  Fri, 27 Apr 2001 09:30:09 -0400
+
+mysql (3.23.37-1) unstable; urgency=low
+
+  * New upstream version. 
+  * Added gemini table support.
+  * Does anybody know how to enable SSL?
+  * Fixed ARM compilation problem. Closes: #88186
+
+ -- Christian Hammers <ch@debian.org>  Sat, 21 Apr 2001 11:48:46 -0400
+
+mysql (3.23.36-2) unstable; urgency=low
+
+  * Added patch by Christopher C. Chimelis <chris@debian.org> to make
+    Berkeley db3 work again on Alpha architecture. Closes: #92787
+
+ -- Christian Hammers <ch@debian.org>  Tue,  3 Apr 2001 23:41:46 +0200
+
+mysql (3.23.36-1) unstable; urgency=high
+
+  * New upstream version.
+  * SECURITY FIX: One could place database tables outside the database
+    directory by using '..' in one of the mysql helper programs where the
+    table name was not checked correctly. This could lead to root compromise
+    if the server would be running as root else you could at least do bad
+    things as user mysql.
+  * upstream: Fixed bug when thread creation failed.
+  * upstream: Fixed problem in Innobase with non-latin1 charsets
+  * upstream: Fixed a core-dump bug when using very complex query with DISTINGT
+  * upstream: many others so called minor bugs...
+  * fixes bug in init script. Closes: #90257 
+    (this report was agains some older problem that has been fixed too in .33)
+
+ -- Christian Hammers <ch@debian.org>  Fri, 30 Mar 2001 02:55:12 +0200
+
+mysql (3.23.35-1) unstable; urgency=medium
+
+  * New upstream relase.
+  * Fixes problem in ORDER BY clause. People using 3.33.34 should upgrade!
+  * Includes innobase support.
+    (Hope this is not such a catastrophe like berkeley db...)
+
+ -- Christian Hammers <ch@debian.org>  Fri, 16 Mar 2001 23:30:30 +0100
+
+mysql (3.23.33-3) unstable; urgency=low
+
+  * Forgot #!/bin/sh at top of mysql-doc.postinst. Closes: #89801 
+
+ -- Christian Hammers <ch@vore.debian.org>  Thu, 15 Mar 2001 20:38:35 -0500
+
+mysql (3.23.33-2) unstable; urgency=low
+
+  * Added some missing scripts and manpages. Closes: #84068
+  * Added dependency to perl-5.6. Closes: #81942 
+  * Added french templates somewhen ago. Closes: #83790
+  * Added patch to get db3 working on Alpha. Closes: #86033
+    Thanks to Christopher C. Chimelis <chris@debian.org>. The patch
+    itself is included as debian/patch.alpha, too.
+
+ -- Christian Hammers <ch@debian.org>  Sun, 18 Feb 2001 06:40:40 +0100
+
+mysql (3.23.33-1) unstable; urgency=high
+
+  * Fixes two security bugs that allowes crashing the server and maybe
+    gaining the UID of the process that is linked against libmysqlclient!
+
+ -- Christian Hammers <ch@debian.org>  Tue, 13 Feb 2001 23:01:18 +0100
+
+mysql (3.23.32-1) unstable; urgency=low
+
+  * New upstream releaes.
+    (just minor fixes)
+  * Added french and german debconf templates. 
+
+ -- Christian Hammers <ch@debian.org>  Sun,  4 Feb 2001 17:27:07 +0100
+
+mysql (3.23.31-1) unstable; urgency=high
+
+  * New upstream release.
+  * Fixes security bug that was announced at BUGTRAQ mailing list.
+    (Disappointingly not by mysql.com!). And allows a buffer overflow
+    and therefore access to the mysql UID and all databases when already
+    having a valid account. Closes: #82881
+
+ -- Christian Hammers <ch@debian.org>  Sat, 20 Jan 2001 11:14:36 +0100
+
+mysql (3.23.30-2) unstable; urgency=low
+
+  * Recompiled with new dpkg-dev. 
+
+ -- Christian Hammers <ch@debian.org>  Sun, 14 Jan 2001 22:20:55 +0100
+
+mysql (3.23.30-1) unstable; urgency=low
+
+  * New upstream release. 
+
+ -- Christian Hammers <ch@debian.org>  Sun,  7 Jan 2001 22:10:18 +0100
+
+mysql (3.23.28-10) testing unstable; urgency=low
+
+  * I must upload to "testing" to get it into woody, right?! 
+
+ -- Christian Hammers <ch@debian.org>  Fri, 29 Dec 2000 14:43:57 +0100
+
+mysql (3.23.28-9) unstable; urgency=low
+
+  * Made it a replacement for libmysqlclient9. 
+
+ -- Christian Hammers <ch@westend.com>  Mon, 25 Dec 2000 19:15:04 +0100
+
+mysql (3.23.28-8) unstable; urgency=low
+
+  * Applied patch from a user to get the skip-networking option working!
+    Approved from a mysql employee but please test anyways.
+    This finally: Closes: #79672, #78634, #79660, #79658
+
+ -- Christian Hammers <ch@debian.org>  Sat, 16 Dec 2000 14:01:36 +0100
+
+mysql (3.23.28-6) unstable; urgency=medium
+
+  * Fixed error in postinst. Closes: #79392, #79400, #79451, #79550
+  * Added .info files again on user request. Closes: #78988, #75737 
+
+ -- Christian Hammers <ch@debian.org>  Wed, 13 Dec 2000 21:18:24 +0100
+
+mysql (3.23.28-5) unstable; urgency=low
+
+  * Fixed a stupid bug in mysql-server.postinst regarding the 
+    configuration of skip-networking. Closes: #78639, 78634
+  * Used patched bdb which hopefully enables mutexes on Alpha. Closes: #78197
+  * Added dependency to adduser. Closes: #76798
+
+ -- Christian Hammers <ch@debian.org>  Sun, 10 Dec 2000 16:55:48 +0100
+
+mysql (3.23.28-4) unstable; urgency=low
+
+  [never uploaded]
+  * Fixed a stupid bug in mysql-server.postinst regarding the 
+    configuration of skip-networking. Closes: #78639, 78634
+  * Used patched bdb which hopefully enables mutexes on Alpha. Closes: #78197
+
+ -- Christian Hammers <ch@debian.org>  Sun,  3 Dec 2000 17:49:44 +0100
+
+mysql (3.23.28-3) unstable; urgency=low
+
+  * This time really fixed m68k build error. Closes: #78235 
+
+ -- Christian Hammers <ch@debian.org>  Sun,  3 Dec 2000 15:02:55 +0100
+
+mysql (3.23.28-2) unstable; urgency=low
+
+  * Adjusted rules file to make it buildable on m86k. Closes: #78235 
+
+ -- Christian Hammers <ch@debian.org>  Fri,  1 Dec 2000 20:07:26 +0100
+
+mysql (3.23.28-1) unstable; urgency=low
+
+  * New upstream vesrion. Now gamma! 
+  * Changed umask of mysql.log making it o-rw
+  * Disabled listening on network reachable TCP ports by default due to
+    security considerations.
+
+ -- Christian Hammers <ch@debian.org>  Thu, 23 Nov 2000 20:12:50 +0100
+
+mysql (3.23.27-1) unstable; urgency=low
+
+  * New upstream version.
+  * Closes: #75711
+
+ -- Christian Hammers <ch@debian.org>  Sun, 29 Oct 2000 14:29:51 +0100
+
+mysql (3.23.25-4) unstable; urgency=low
+
+  * Recompiled to get rid of the dependency for zlib1 (libc5).
+    Closes: #74952, #74939
+
+ -- Christian Hammers <ch@debian.org>  Tue, 17 Oct 2000 14:34:52 +0200
+
+mysql (3.23.25-3.1) unstable; urgency=low
+
+  * Maintainer-approved NMU.
+  * Includes patch to fix and enable db3 support on Alpha.
+  * Enable support for thread mutexes in db3 on sparc
+    (it works after all, according to Ben Collins)
+  * Removed atomic_ functions for Alpha since they are no
+    longer supported in the current glibc in woody.
+  * Cleaned up rules file a bit.
+
+ -- Christopher C. Chimelis <chris@debian.org>  Sat, 14 Oct 2000 04:22:02 -0400
+
+mysql (3.23.25-3) unstable; urgency=low
+
+  * Upstream decided not to include my_config.h,my_dir.h into the installed
+    header files. As this file contains at least informative material
+    and more important is checked by several autoconf scripts I
+    included it by hand again.
+  * Made building of berkeley db conditional to architecture until
+    I get response whether it works on sparc/alpha now.
+
+ -- Christian Hammers <ch@debian.org>  Wed, 11 Oct 2000 23:58:38 +0200
+
+mysql (3.23.25-2) unstable; urgency=medium
+
+  * Last build went terrible wrong.. Here's the changelog again:
+  * New upstream release.
+  * Shared library version was raised from 9 to 10.
+    Maintainers of packets using libmysqlclient9 must recompile!
+
+ -- Christian Hammers <ch@debian.org>  Wed, 11 Oct 2000 01:16:34 +0200
+
+mysql (3.23.25-1) unstable; urgency=low
+
+  * New upstream release.
+  * Shared library version was raised from 9 to 10.
+    Maintainers of packets using libmysqlclient9 must recompile!
+
+ -- Christian Hammers <ch@debian.org>  Sat,  7 Oct 2000 18:21:51 +0200
+
+mysql (3.23.24-2) unstable; urgency=low
+
+  * Applied upstream patch regarding quoting of mysqldump.
+  * Updated to db-3.1.17-patched (from www.mysql.com)
+
+ -- Christian Hammers <ch@debian.org>  Fri, 15 Sep 2000 18:58:14 +0200
+
+mysql (3.23.24-1) unstable; urgency=medium
+
+  * New upstream version with some important fixes.
+  * upstream: Last version corrupted CHAR/VARCHAR/BLOB columns with 
+    chararacters above ASCII 128! Check and repair all these tables. 
+  * upstream: fixed small memory leak
+  * upstream: fixed problem with BDB tables and reading on unique
+              (not primary) key.
+  * Disabled BDB tables on all architectures except i386 due to many
+    bug reports (see #71206).  -> HELP APPRECIATED <-
+
+ -- Christian Hammers <ch@debian.org>  Tue, 12 Sep 2000 06:18:54 +0200
+
+mysql (3.23.23-2) unstable; urgency=low
+
+  * Strange... "nohup nice" gives differnet results and let therefore
+    crash safe_mysqld when starting up. Apparently it seems to be
+    kernel dependand. Now fixed by another conditional. This
+    more or less Closes: #71057
+  * This bug was reported (accidently) in the following identical reports:
+    Closes: #71253, #71254, #71257, #71258, #71259, #71262, #71266, #71267
+    Closes: #71268, #71271, #71275, #71277, #71278, #71283, #71291
+
+ -- Christian Hammers <ch@debian.org>  Sat,  9 Sep 2000 20:13:50 +0200
+
+mysql (3.23.23-1) unstable; urgency=low
+
+  * New upstream version. Feature freeze!
+  * Fixed source build problem. Closes: #70707 
+
+ -- Christian Hammers <ch@debian.org>  Thu, 31 Aug 2000 10:03:35 +0200
+
+mysql (3.23.22b-1) unstable; urgency=low
+
+  * Reorganised docs. Now we have several small html files instead of
+    one with almost 2M. Closes: 70431
+  * Removed pdf,ps and html from source package shrinked it about 3M
+    (therefore the .orig.tar.gz is called 3.23.22b!)
+  * -> Last upload failed due to problems at the FTP site so here the 
+    -> changelog again:
+  * Fixes memory leak, commit/rollback, reserved word "MASTER" ...
+  * Added Berkeley DB3 source code to the Debian diff to be able to
+    compile with bdb transaction support! (Great feature!!!)
+  * Upstream correction of error message. Closes: #68939
+  * Upstream correction of reserved word "source".
+
+ -- Christian Hammers <ch@debian.org>  Fri, 25 Aug 2000 19:21:24 +0200
+
+mysql (3.23.22-1) unstable; urgency=low
+
+  * New upstream version.
+  * Fixes memory leak, commit/rollback, reserved word "MASTER" ...
+  * Added Berkeley DB3 source code to the Debian diff to be able to
+    compile with bdb transaction support! (Great feature!!!)
+  * Upstream correction of error message. Closes: #68939
+  * Upstream correction of reserved word "source".
+
+ -- Christian Hammers <ch@debian.org>  Sun, 20 Aug 2000 09:05:48 +0200
+
+mysql (3.23.21-4) unstable; urgency=low
+
+  * Added libmysqlclient9.shlibs and shlibs.local file. Closes: #68669
+
+ -- Christian Hammers <ch@debian.org>  Wed,  9 Aug 2000 14:22:49 +0200
+
+mysql (3.23.21-3) unstable; urgency=low
+
+  * Let "/etc/init.d/mysql restart" wait until the pid has been
+    removed before (but max 6 seconds) before restarting. Closes: 65070
+  * Added build dependencies. 
+
+ -- Christian Hammers <ch@debian.org>  Sun, 30 Jul 2000 16:16:48 +0200
+
+mysql (3.23.21-2) unstable; urgency=low
+
+  * Typo in safe_mysqld prevents start.
+
+ -- Christian Hammers <ch@debian.org>  Sat, 29 Jul 2000 13:40:50 +0200
+
+mysql (3.23.21-1) unstable; urgency=low
+
+  * New upstream version.
+
+ -- Christian Hammers <ch@debian.org>  Mon, 10 Jul 2000 22:54:17 +0200
+
+mysql (3.23.20-1) unstable; urgency=low
+
+  * MySQL finally got fully GPL'ed! This means that there is only one
+    souce package and only main/* binary packages from now on.
+  * Fixed symlink in libmysqlclient9-dev. Closes: 66452
+  * Apart from that the usual bug fixes for BETA software.
+
+ -- Christian Hammers <ch@debian.org>  Mon,  3 Jul 2000 20:05:38 +0200
+
+mysql-pd (3.23.16-1) unstable; urgency=low
+
+  * New upstream release. (Actually a brand new upstream branch!)
+  * Added mysql-common package as the configuration file can be used
+    by all versions of the mysql client library.
+    Did some more package reorganisations, too. See README.Debian file!
+  * libmysqlclient.so raised major version from 6 to 9.
+  * Minor beautifications in the debian/ directory.
+
+ -- Christian Hammers <ch@debian.org>  Sat, 27 May 2000 20:30:01 +0200
+
+mysql-gpl (3.22.30-2) frozen unstable; urgency=low
+
+  * Fixed path in libmysqlclient.la. Closes: #58875 
+
+ -- Christian Hammers <ch@debian.org>  Sat, 25 Jan 2020 20:27:29 -0700
+
+mysql-gpl (3.22.30-1) frozen unstable; urgency=low
+
+  * A small change in the libmysqlclient6 causes mysqladmin to print an
+    shared library error when displaying the defaults. Everything else
+    works fine so this error wasn't detected untill now. Closes: #58033
+  * TcX released a new MySQL version that includes another security patch,
+    this time against mysqlaccess. The author told me that it would be 
+    fine if I just included the new .c in this source since I don't want
+    go to 3.22.32 in frozen.
+  * ->Release Manager: Although the version number increased there is
+    no new coded except for the shared library. The rest is the same
+    as in mysql-server and mysql-client.
+
+ -- Christian Hammers <ch@debian.org>  Tue, 15 Feb 2000 23:26:54 +0100
+
+mysql-gpl (3.22.29-1) unstable; urgency=low
+
+  * New upstream version.
+
+ -- Christian Hammers <ch@debian.org>  Thu,  6 Jan 2000 20:37:23 +0100
+
+mysql-gpl (3.22.27a-3) unstable; urgency=low
+
+  * Use system readline instead of bundled version. Closes: #50069 
+    Any objections ?
+
+ -- Christian Hammers <ch@debian.org>  Sun, 14 Nov 1999 18:09:48 +0100
+
+mysql-gpl (3.22.27a-2) unstable; urgency=low
+
+  * Now building mysql-gpl-doc in binary-indep. 
+
+ -- Christian Hammers <ch@debian.org>  Sat, 23 Oct 1999 04:22:36 +0200
+
+mysql-gpl (3.22.27a-1) unstable; urgency=low
+
+  * Adjusted version number to allow new orig.tar.gz.
+    The old seems broken :-( People reported compilation problems.
+  * Changed mysql-gpl-doc to "Architecture: all". 
+
+ -- Christian Hammers <ch@debian.org>  Sun, 17 Oct 1999 13:01:35 +0200
+
+mysql-gpl (3.22.27-1) unstable; urgency=low
+
+  * New upstream release. Fixes charset problem.
+
+ -- Christian Hammers <ch@debian.org>  Mon, 11 Oct 1999 18:01:40 +0200
+
+mysql-gpl (3.22.26a-1) unstable; urgency=low
+
+  * New upstream version. Just some small bug fixes.
+  * FHS compliance.
+
+ -- Christian Hammers <ch@debian.org>  Sun,  3 Oct 1999 10:16:14 +0200
+
+mysql-gpl (3.22.25-2) unstable; urgency=low
+
+  * Added conflict to all old mysql-dev packages. (fixes: #42966) 
+
+ -- Christian Hammers <ch@debian.org>  Sun, 15 Aug 1999 11:35:46 +0200
+
+mysql-gpl (3.22.25-1) unstable; urgency=low
+
+  * New upstream version. (We are waiting for 3.23.x !)
+  * Fixes some upstream small bugs.
+
+ -- Christian Hammers <ch@debian.org>  Sun, 18 Jul 1999 22:02:06 +0200
+
+mysql-gpl (3.22.23b-4) unstable; urgency=low
+
+  * Rebuild for new perl. 
+
+ -- Christian Hammers <ch@debian.org>  Thu,  8 Jul 1999 01:09:57 +0200
+
+mysql-gpl (3.22.23b-3) unstable; urgency=low
+
+  * libmysqlclient had the wrong socket path.
+
+ -- Christian Hammers <ch@debian.org>  Sun, 03 Jul 1999 23:13:30 +0200
+
+mysql-gpl (3.22.23b-2) unstable; urgency=low
+
+  * Missed one replace tag to an very old version of mysql-devel.
+
+ -- Christian Hammers <ch@debian.org>  Sun, 27 Jun 1999 19:13:30 +0200
+
+mysql-gpl (3.22.23b-1) unstable; urgency=low
+
+  * New upstream minor version.
+  * Cleaned up the dependencies a bit.
+
+ -- Christian Hammers <ch@debian.org>  Sun, 27 Jun 1999 19:13:30 +0200
+
+mysql-gpl (3.22.22-1) unstable; urgency=low
+
+  * New upstream version. (closes Bug#36493,37340)
+  * New maintainer upload.
+  * Package reorganisation: We prepare for the GPL'ed server which will
+  *  be released soon and make the structure more clear to the user.
+
+ -- Christian Hammers <ch@debian.org>  Mon,  3 May 1999 20:43:41 +0200
+
+mysql (3.22.21-1) unstable; urgency=low
+
+  * Never released. TcX was too fast :-)
+
+ -- Christian Hammers <ch@debian.org>  Tue, 20 Apr 1999 17:22:04 +0200
+
+mysql-freebits (3.21.33b-3) unstable; urgency=low
+
+  * Recompile with libncurses
+
+ -- Scott Hanson <shanson@debian.org>  Sat, 31 Oct 1998 15:04:39 +0100
+
+mysql-freebits (3.21.33b-2) unstable; urgency=low
+
+  * Recompile with libstdc++2.9 (fixes #27792)
+
+ -- Scott Hanson <shanson@debian.org>  Mon, 12 Oct 1998 18:47:25 +0200
+
+mysql-freebits (3.21.33b-1) unstable; urgency=low
+
+  * New upstream version (probably the last for 3.21)
+
+ -- Scott Hanson <shanson@debian.org>  Tue,  8 Sep 1998 18:59:37 +0200
+
+mysql-freebits (3.21.33-4) unstable; urgency=low
+
+  * Separate out non-free source files, move mysql-base, mysql-dev, and
+  *  mysql-doc to main distribution
+  * Locale files /usr/share/mysql/ now in server, not base; therefore...
+  * Add conflict to mysql-server <=3.21.33-3
+
+ -- Scott Hanson <shanson@debian.org>  Fri, 31 Jul 1998 19:16:08 +0200
+
+mysql (3.21.33-3) unstable; urgency=low
+
+  * Release to unstable with moved socket (fixes #24574)
+  * Add conflict to old libdbd-mysql-perl package
+
+ -- Scott Hanson <shanson@debian.org>  Wed, 22 Jul 1998 22:17:43 +0200
+
+mysql (3.21.33-2) experimental; urgency=low
+
+  * Move socket from /tmp to /var/run (see #24574) 
+  * Release to experimental, since this breaks everything statically
+  *  linked to libmysqlclient!
+
+ -- Scott Hanson <shanson@debian.org>  Wed, 15 Jul 1998 19:37:01 +0200
+
+mysql (3.21.33-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- Scott Hanson <shanson@debian.org>  Sun, 12 Jul 1998 08:18:18 +0200
+
+mysql (3.21.32a-1) unstable; urgency=low
+
+  * New upstream release 
+  * Lintian bugs: ldconfig, missing manpage, call to perl5
+  * Lintian bug shlib-with-non-pic-code _not_ yet fixed 
+
+ -- Scott Hanson <shanson@debian.org>  Sat,  4 Jul 1998 07:57:13 +0200
+
+mysql (3.21.31-1) unstable frozen; urgency=low
+
+  * New upstream release for hamm and slink (bug fixes only)
+  * Fix unsecure use of temp file in mysqlbug (fixes #23606) 
+  * Added brief licensing information to control file
+
+ -- Scott Hanson <shanson@debian.org>  Tue, 16 Jun 1998 10:52:44 +0200
+
+mysql (3.21.30-3) unstable; urgency=low
+
+  * Restore missing shared library dependencies for mysql-server
+
+ -- Scott Hanson <shanson@debian.org>  Mon, 15 Jun 1998 07:51:58 +0200
+
+mysql (3.21.30-2) unstable; urgency=low
+
+  * Simplify debian/rules (fixes #17662)
+  * Edit manual.texi to add "Debian notes" to documentation
+  * Add note about passwords on command line (fixes #16471)
+  * Add note about getting privleges for users (fixes #22891)
+  * Correct "Possible license changes" heading (fixes #22711)
+  * Add uninstalled header files to /usr/doc/mysql-dev/examples (fixes #22627)
+  * Add udf_example.cc to /usr/doc/mysql-dev/examples (fixes #22710)
+
+ -- Scott Hanson <shanson@debian.org>  Sun,  7 Jun 1998 13:05:37 +0200
+
+mysql (3.21.30-1) unstable; urgency=low
+
+  * Stable upstream release
+
+ -- Scott Hanson <shanson@debian.org>  Tue, 12 May 1998 22:13:25 +0200
+
+mysql (3.21.29gamma-1) unstable; urgency=low
+
+  * New upstream release
+  * Do not create 'mysql' subdirectory for libs and headers (fixes #19020)
+  * Remove 'CXX=gcc' flag from configure (g++ now standard)
+      
+ -- Scott Hanson <shanson@debian.org>  Sun, 12 Apr 1998 18:38:03 +0200
+
+mysql (3.21.28gamma-1) unstable; urgency=low
+
+  * New upstream release
+  * Unstable-only release; hamm stays at 3.21.25 for now
+
+ -- Scott Hanson <shanson@debian.org>  Thu,  2 Apr 1998 21:33:51 +0200
+
+mysql (3.21.25gamma-3) unstable frozen; urgency=low
+
+  * Have mysql-base suggest perl >= 5.004 for mysqlaccess (fixes #19593)
+  * Fix shlibs to refer to mysql-base rather than the no-longer-existant mysql
+
+ -- Scott Hanson <shanson@debian.org>  Thu, 26 Mar 1998 18:22:59 +0100
+
+mysql (3.21.25gamma-2) unstable; urgency=low
+
+  * Restore libmysqlclient.so symlink to mysql-dev (fixes #19036)
+
+ -- Scott Hanson <shanson@debian.org>  Sun,  8 Mar 1998 10:46:43 +0100
+
+mysql (3.21.25gamma-1) unstable; urgency=low
+
+  * Check if running as root in init.d script (fixes #18577)
+  * New upstream release
+
+ -- Scott Hanson <shanson@debian.org>  Fri, 27 Feb 1998 20:01:30 +0100
+
+mysql (3.21.24gamma-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- Scott Hanson <shanson@debian.org>  Mon, 23 Feb 1998 08:14:17 +0100
+
+mysql (3.21.23beta-3) unstable; urgency=low
+
+  * Squashed errors found by lintian
+
+ -- Scott Hanson <shanson@debian.org>  Tue, 17 Feb 1998 20:19:01 +0100
+
+mysql (3.21.23beta-2) unstable; urgency=low
+
+  * Fixed overlaps with old mysql package (fixes #17843)
+
+ -- Scott Hanson <shanson@debian.org>  Thu,  5 Feb 1998 22:55:00 +0100
+
+mysql (3.21.23beta-1) unstable; urgency=low
+
+  * New upstream release
+  * Fix include lines in mysql.h (fixes #17827)
+  * Move /usr/include/mysql to mysql-dev
+
+ -- Scott Hanson <shanson@debian.org>  Wed,  4 Feb 1998 19:59:14 +0100
+
+mysql (3.21.22beta-3) unstable; urgency=low
+
+  * Correct descriptions in control file (fixes #17698)
+  * Clean up output of shutdown script
+
+ -- Scott Hanson <shanson@debian.org>  Sat, 31 Jan 1998 19:04:29 +0100
+
+mysql (3.21.22beta-2) unstable; urgency=low
+
+  * Split out mysql-dev and mysql-bench subpackages
+
+ -- Scott Hanson <shanson@debian.org>  Wed, 28 Jan 1998 19:52:27 +0100
+
+mysql (3.21.22beta-1) unstable; urgency=low
+
+  * New upstream release 
+  
+ -- Scott Hanson <shanson@debian.org>  Wed, 28 Jan 1998 18:59:09 +0100
+
+mysql (3.21.21a.beta-2) unstable; urgency=low
+
+  * Compile with libpthreads from libc6-dev_2.0.6-3 rather than statically 
+    linking to patched libpthreads (see changes to 3.20.29-2)
+  
+ -- Scott Hanson <shanson@debian.org>  Sun, 25 Jan 1998 13:17:15 +0100
+
+mysql (3.21.21a.beta-1) unstable; urgency=low
+
+  * Put initial database, mysql_install_db, safe_mysqld, isamlog and 
+    isamchk in mysql-server 	
+  * Correct upstream release number so source packages are correctly built
+
+ -- Scott Hanson <shanson@debian.org>  Mon, 19 Jan 1998 07:52:48 +0100
+
+mysql (3.21.21.beta-1) unstable; urgency=low
+
+  * Use debhelper where possible in rules
+  * Split binary packages into mysql-base, mysql-client, mysql-doc	
+  * New upstream release
+
+ -- Scott Hanson <shanson@debian.org>  Thu, 15 Jan 1998 08:12:17 +0100
+
+mysql (3.21.19.beta-1) unstable; urgency=low
+
+  * Offer to set root password in mysql_install_db
+  * Kill `pidof mysqld` on shutdown rather than use mysqladmin
+  * New upstream version
+
+ -- Scott Hanson <shanson@debian.org>  Fri,  9 Jan 1998 20:06:35 +0100
+
+mysql (3.21.17a.beta-2) unstable; urgency=low
+
+  * Remove perl stuff (it's going back into libdbd-mysql-perl)
+  * Remove conflict with libdbd-mysql-perl
+  * Do not compress *html files (fixes #16314)
+
+ -- Scott Hanson <shanson@debian.org>  Tue, 30 Dec 1997 07:34:20 +0100
+
+mysql (3.21.17a.beta-1) unstable; urgency=low
+
+  * Add conflict to libdbd-mysql-perl
+  * Use --pid-file option to place pid file in /var/run rather than patching 
+  * Add install-info to postinst and postrm
+  * Add filename to message shown by mysql_install_db (fixes #16621)
+  * New upstream version
+
+ -- Scott Hanson <shanson@debian.org>  Sun, 21 Dec 1997 19:41:45 +0100
+
+mysql (3.20.32a-5) unstable; urgency=low
+
+  * Move mysqld to /usr/lib/mysql, per policy discussion
+  * Adjust makefiles so perl libs get installed 
+
+ -- Scott Hanson <shanson@debian.org>  Wed,  3 Dec 1997 22:37:45 +0100
+
+mysql (3.20.32a-4) unstable; urgency=low
+
+  * Move mysqld to /usr/sbin to comply with FSSTND
+
+ -- Scott Hanson <shanson@debian.org>  Mon,  3 Nov 1997 20:12:29 +0100
+
+mysql (3.20.32a-3) unstable; urgency=low
+
+  * Comment out tests in mysql_install_db... for real this time!
+
+ -- Scott Hanson <shanson@debian.org>  Mon,  3 Nov 1997 07:32:53 +0100
+
+mysql (3.20.32a-2) unstable; urgency=low
+
+  * Comment out tests in mysql_install_db (fixes #14304)
+
+ -- Scott Hanson <shanson@debian.org>  Sat,  1 Nov 1997 18:45:25 +0100
+
+mysql (3.20.32a-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Scott Hanson <shanson@debian.org>  Wed, 29 Oct 1997 07:11:42 +0100
+
+mysql (3.20.29-2) unstable; urgency=low
+ 
+  * New maintainer
+  * Statically link mysqld to patched glibc-2.0.5 libpthread 
+    (works around #13586; see README.debian.glibc-2.0.5)
+  * Conflict with libpthread0 (fixes #13448)
+  * Don't link libg++, avoiding problems with glibc libpthread 
+
+ -- Scott Hanson <shanson@debian.org>  Thu, 16 Oct 1997 19:25:23 +0200
+
+mysql (3.20.29-1) unstable; urgency=low
+
+  * New upstream version
+  * Recompiled with libc6
+  * Include mysql-faq_toc.html (fixes #10885)
+  * Reworked /etc/init.d/mysql script (thanks to Heiko)
+  * Remove file /usr/lib/libmysqlclient.so.4 when package is removed.
+  * Use absolute path specification for conffile
+  * Use /usr/bin/perl instead of /bin/perl (fixes #10654)
+  * Do not depend on mysql (fixes #12427)
+  * Installed missing manpage for Mysql perl module
+  * Don't use debstd anymore
+  * Pristine source
+  * Set section to `non-free/devel'
+  * Upgraded to standards version 2.3.0.0
+
+ -- Christian Schwarz <schwarz@debian.org>  Fri, 12 Sep 1997 02:12:58 +0200
+
+mysql (3.20.16beta-2) unstable; urgency=low
+
+  * Uses /usr/bin/perl instead of /bin/perl (fixes bug #9731)
+  * Don't run mysqld with --log option
+  * Don't install regex manual pages
+  * Suggest package mysql-manual
+  * Fixed typo in changelog
+  * Upgrade to policy 2.1.3.2
+
+ -- Christian Schwarz <schwarz@debian.org>  Sun, 11 May 1997 14:19:26 +0200
+
+mysql (3.20.16beta-1) unstable; urgency=low
+
+  * Initial Release.
+
+ -- Christian Schwarz <schwarz@debian.org>  Sat, 12 Apr 1997 13:51:28 +0200
