@@ -1,8 +1,12 @@
 # Embedded server doesn't support external clients
 --source include/not_embedded.inc
 
-# Windows doesn't support execution of shell scripts (to fix!!)
---source include/not_windows.inc
+# Don't run this test if $MYSQL_FIX_SYSTEM_TABLES isn't set
+# to the location of mysql_fix_privilege_tables.sql
+if (`SELECT LENGTH("$MYSQL_FIX_SYSTEM_TABLES") <= 0`)
+{
+  skip Test need MYSQL_FIX_SYSTEM_TABLES;
+}
 
 #
 # This is the test for mysql_fix_privilege_tables
