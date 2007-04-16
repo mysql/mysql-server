@@ -116,20 +116,23 @@ struct merge_block_struct {
 
 typedef struct merge_block_struct merge_block_t;
 
+/**************************************************************************
+Search an index object by name and column names.  If several indexes match,
+return the index with the max id. */
 static
 dict_index_t*
 row_merge_dict_table_get_index(
 /*===========================*/
-	dict_table_t*	table,
-	const merge_index_def_t*
-			index_def)
+						/* out: matching index,
+						NULL if not found */
+	dict_table_t*		table,		/* in: table */
+	const merge_index_def_t*index_def)	/* in: index definition */
 {
 	ulint		i;
 	dict_index_t*	index;
 	const char**	column_names;
 
-	column_names = (const char**) mem_alloc_noninline(
-		index_def->n_fields * sizeof(char*));
+	column_names = mem_alloc(index_def->n_fields * sizeof *column_names);
 
 	for (i = 0; i < index_def->n_fields; ++i) {
 		column_names[i] = index_def->fields[i].field_name;
@@ -138,7 +141,7 @@ row_merge_dict_table_get_index(
 	index = dict_table_get_index_by_max_id(
 		table, index_def->name, column_names, index_def->n_fields);
 
-	mem_free_noninline(column_names);
+	mem_free(column_names);
 
 	return(index);
 }
