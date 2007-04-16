@@ -44,12 +44,16 @@ INITIAL_SIZE 16M
 UNDO_BUFFER_SIZE = 1M
 ENGINE=NDB;
 --connection server2
---error 1516
+--error ER_CREATE_FILEGROUP_FAILED
 CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M
 ENGINE NDB;
+show warnings;
+--error ER_DROP_FILEGROUP_FAILED
+DROP LOGFILE GROUP lg1 
+ENGINE =NDB;
 show warnings;
 --connection server1
 CREATE TABLESPACE ts1
@@ -57,6 +61,26 @@ ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M
 ENGINE NDB;
+--connection server2
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE NDB;
+show warnings;
+--connection server1
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE NDB;
+--connection server2
+--error ER_DROP_FILEGROUP_FAILED
+DROP TABLESPACE ts1
+ENGINE NDB;
+show warnings;
+--connection server1
+DROP TABLESPACE ts1
+ENGINE NDB;
+DROP LOGFILE GROUP lg1 
+ENGINE =NDB;
 insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0),(6,6,0),(7,7,0),(8,8,0),(9,9,0),(10,10,0);
 create table t2 as select * from t1;
 # read with pk
