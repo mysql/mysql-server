@@ -1,0 +1,290 @@
+# mysql-dfsg (debconf) translation to Catalan.
+# Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+# Aleix Badia i Bosch <abadia@ica.es> 2004
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: mysql-dfsg-4.1\n"
+"Report-Msgid-Bugs-To: ch@debian.org\n"
+"POT-Creation-Date: 2007-02-16 22:27+0100\n"
+"PO-Revision-Date: 2004-01-31 19:20GMT\n"
+"Last-Translator: Aleix Badia i Bosch <abadia@ica.es>\n"
+"Language-Team: Debian L10n Catalan <debian-l10n-catalan@lists.debian.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=ISO-8859-1\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:1001
+msgid "Do you really want to downgrade?"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:1001
+msgid ""
+"WARNING: The file /var/lib/mysql/debian-*.flag exists. This indicates that a "
+"mysql-server package with a higher version has been installed before. It can "
+"not be guaranteed that this version can use its data."
+msgstr ""
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "Important note for NIS/YP users!"
+msgstr "Nota important pels usuaris de NIS/YP"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+#, fuzzy
+msgid ""
+"To use mysql you must install an equivalent user and group to the following "
+"and ensure yourself that /var/lib/mysql has the right permissions (the uid/"
+"gid may be different)."
+msgstr ""
+"Per utilitzar la base de dades de MySQL heu d'afegir un usuari i grup "
+"equivalent al següent i assegurar-vos que el directori /var/lib/mysql tingui "
+"els permisos correctes."
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid ""
+"/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+msgstr ""
+"/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "/etc/group:       mysql:x:101:"
+msgstr "/etc/group:       mysql:x:101:"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+msgstr "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:3001
+msgid "Remove the databases used by all MySQL versions?"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:3001
+msgid ""
+"The script is about to remove the data directory /var/lib/mysql. If it is "
+"planned to just install a higher MySQL version or if a different mysql-"
+"server package is already using it, the data should be kept."
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:4001
+msgid "Should MySQL start on boot?"
+msgstr "Voleu que el MySQL s'iniciï a l'arrencada ?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:4001
+#, fuzzy
+msgid ""
+"The MySQL can start automatically on boot time or only if you manually type "
+"'/etc/init.d/mysql start'."
+msgstr ""
+"El MySQL es pot executar a l'arrencada o només si executeu manualment '/etc/"
+"init.d/mysql start'. Seleccioneu 'sí' si voleu que s'inicialitzi "
+"automàticament."
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid "New password for MySQL \"root\" user:"
+msgstr ""
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid ""
+"It is highly recommended that you set a password for the MySQL "
+"administrative \"root\" user."
+msgstr ""
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid ""
+"If you do not provide a password no changes will be made to the account."
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid "Unable to set password for MySQL \"root\" user"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid ""
+"It seems an error occurred while setting the password for the MySQL "
+"administrative user.  This may have happened because the user already has a "
+"password, or because there was a problem communicating with the MySQL server."
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid ""
+"When installation finishes, you should verify that the account is properly "
+"protected with a password (see README.Debian for more information)."
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:7001
+msgid "Support MySQL connections from hosts running Debian \"sarge\" or older?"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:7001
+msgid ""
+"The way passwords were stored was not very secure. This has been improved "
+"with the drawback that clients (e.g. PHP) from hosts running Debian 3.1 "
+"Sarge will not be able to connect to account which are new or whose password "
+"have been changed. See /usr/share/doc/mysql-server-5.0/README.Debian."
+msgstr ""
+
+#, fuzzy
+#~ msgid "Please also read http://www.mysql.com/doc/en/Upgrade.html"
+#~ msgstr ""
+#~ "Feu una ullada al document: http://www.mysql.com/doc/en/Upgrade.html"
+
+#, fuzzy
+#~ msgid ""
+#~ "MySQL will only install if you have a non-numeric hostname that is "
+#~ "resolvable via the /etc/hosts file. E.g. if the \"hostname\" command "
+#~ "returns \"myhostname\" then there must be a line like \"10.0.0.1 "
+#~ "myhostname\"."
+#~ msgstr ""
+#~ "El MySQL només s'instal·la en cas de tenir un nom d'ordinador central que "
+#~ "no sigui numèric  i que es pugui resoldre a través del fitxer /etc/hosts. "
+#~ "Ex. si l'ordre \"hostname\" retorna \"myhostname\", llavors hi ha d'haver "
+#~ "una línia com la següent \"10.0.0.1 myhostname\"."
+
+#, fuzzy
+#~ msgid ""
+#~ "A new mysql user \"debian-sys-maint\" will be created. This mysql account "
+#~ "is used in the start/stop and cron scripts. Don't delete."
+#~ msgstr ""
+#~ "Es crea un nou usuari de mysql \"debian-sys-maint\". S'utilitza per les "
+#~ "seqüències d'inicialització i aturada del cron, no el suprimiu."
+
+#, fuzzy
+#~ msgid ""
+#~ "Please remember to set a PASSWORD for the MySQL root user! If you use a /"
+#~ "root/.my.cnf, always write the \"user\" and the \"password\" lines in "
+#~ "there, never only the password!"
+#~ msgstr ""
+#~ "Recordeu posar una contrasenya al superusuari del MySQL. Si utilitzeu un "
+#~ "fitxer /root/.my.cnf, escriviu sempre allà les línies \"user\" i "
+#~ "\"password\".; mai només la contrasenya. Per a més informació feu una "
+#~ "ullada a /usr/share/doc/mysql-server/README.Debian."
+
+#, fuzzy
+#~ msgid ""
+#~ "Should I remove all databases below /var/lib/mysql as you are purging the "
+#~ "mysql-server package?"
+#~ msgstr ""
+#~ "Voleu suprimir totes les bases de dades en purgar el paquet mysql-server ?"
+
+#~ msgid ""
+#~ "Networking is disabled by default for security reasons. You can enable it "
+#~ "by commenting out the skip-networking option in /etc/mysql/my.cnf."
+#~ msgstr ""
+#~ "La xarxa està inhabilitada per defecte per a raons de seguretat. La podeu "
+#~ "habilitar descomentant l'opció de skip-networking del fitxer /etc/mysql/"
+#~ "my.cnf."
+
+#~ msgid "security and update notice"
+#~ msgstr "Avís de seguretat i actualització"
+
+#~ msgid "Please run mysql_fix_privilege_tables !"
+#~ msgstr "Executeu mysql_fix_privilege_tables"
+
+#~ msgid ""
+#~ "I will ensure secure permissions of /var/lib/mysql by replacing GIDs "
+#~ "other than root and mysql with mysql."
+#~ msgstr ""
+#~ "S'asseguren els permisos de seguretat de /var/lib/mysql canviant a mysql "
+#~ "tots els GIDs diferents a root i mysql."
+
+#~ msgid ""
+#~ "Instructions how to enable SSL support are in /usr/share/doc/mysql-server/"
+#~ msgstr ""
+#~ "Per habilitar el suport de SSL podeu seguir les instruccions de /usr/"
+#~ "share/doc/mysql-server/"
+
+#~ msgid "mysql_fix_privileges_tables will be executed"
+#~ msgstr "s'executa mysql_fix_privileges_tables"
+
+#~ msgid ""
+#~ "The latest MySQL versions have an enhanced, more fine grained, privilege "
+#~ "system. To make use of it, some new fields must be added to the tables "
+#~ "in  the \"mysql\" database. This is done by the "
+#~ "mysql_fix_privilege_tables script during this upgrade regardless of if "
+#~ "the server is currently running or not!"
+#~ msgstr ""
+#~ "Les últimes versions de MySQL tenen un sistema de privilegis més "
+#~ "elaborat. Per utilitzar-lo cal afegir nous camps a les taules de la base "
+#~ "de dades \"mysql\". Aquesta tasca la realitza la seqüència "
+#~ "mysql_fix_privilege_tables durant l'actualització independentment de si "
+#~ "el servidor s'està executant o no!"
+
+#~ msgid ""
+#~ "This script is not supposed to give any user more rights that he had "
+#~ "before, if you encounter such a case, please contact me."
+#~ msgstr ""
+#~ "Aquesta seqüència no assigna privilegis d'usuari diferents als que ja "
+#~ "tenia, en cas que us trobéssiu en aquesta situació, poseu-vos en contacte "
+#~ "amb mi."
+
+#~ msgid ""
+#~ "Should I remove everything below /var/lib/mysql when you purge the mysql-"
+#~ "server package with the \"dpkg --purge mysql-server\" command (i.e. "
+#~ "remove everything including the configuration) somewhen? (default is not)"
+#~ msgstr ""
+#~ "Voleu suprimir tots els continguts de /var/lib/mysql quan es purgui el "
+#~ "paquet mysql-server amb l'ordre \"dpkg --purge mysql-server\". (ex. "
+#~ "suprimir-ho tot inclòs la configuració) ? (per defecte no)"
+
+#~ msgid "Make MySQL reachable via network?"
+#~ msgstr "Voleu fer accessible el MySQL via xarxa ?"
+
+#~ msgid ""
+#~ "Should MySQL listen on a network reachable TCP port? This is not "
+#~ "necessary for use on a single computer and could be a security problem."
+#~ msgstr ""
+#~ "Voleu que el MySQL escolti a un port TCP accessible des de la xarxa ? "
+#~ "Aquesta opció no és imprescindible en ordinadors aïllats i podria "
+#~ "provocar un problema de seguretat."
+
+#~ msgid "Enable chroot mode?"
+#~ msgstr "Permetre el mode chroot ?"
+
+#~ msgid ""
+#~ "MySQL is able to jail itself into the /var/lib/mysql_jail directory so "
+#~ "that users cannot modify any files outside this directory. This improves "
+#~ "resistence against crackers, too, as they are not able to modify system "
+#~ "files."
+#~ msgstr ""
+#~ "El MySQL es pot executar en una entorn tancat al directori /var/lib/"
+#~ "mysql_jail perquè els usuaris no puguin modificar cap fitxer fora del "
+#~ "directori.Aquesta opció també augmenta la seguretat envers els crackers, "
+#~ "jaque no poden modificar els fitxers del sistema."
