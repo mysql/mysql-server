@@ -40,8 +40,7 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
                                     enum enum_enable_or_disable keys_onoff);
 
 static bool prepare_blob_field(THD *thd, create_field *sql_field);
-static bool check_engine(THD *thd, const char *table_name,
-                         HA_CREATE_INFO *create_info);
+static bool check_engine(THD *, const char *, HA_CREATE_INFO *);
 static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
                                List<create_field> *fields,
                                List<Key> *keys, bool tmp_table,
@@ -7097,7 +7096,7 @@ static bool check_engine(THD *thd, const char *table_name,
 
   if (req_engine && req_engine != *new_engine)
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                        ER_WARN_USING_OTHER_HANDLER,
                        ER(ER_WARN_USING_OTHER_HANDLER),
                        ha_resolve_storage_engine_name(*new_engine),

@@ -294,15 +294,16 @@ THD::THD()
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
    binlog_table_maps(0),
-   global_read_lock(0), is_fatal_error(0),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
    first_successful_insert_id_in_prev_stmt_for_binlog(0),
    first_successful_insert_id_in_cur_stmt(0),
+   stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
+   global_read_lock(0),
+   is_fatal_error(0),
    rand_used(0),
    time_zone_used(0),
    in_lock_tables(0),
-   stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
    bootstrap(0),
    derived_tables_processing(FALSE),
    spcont(NULL)
@@ -1836,7 +1837,7 @@ void Query_arena::cleanup_stmt()
 
 Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
                      enum enum_state state_arg, ulong id_arg)
-  :Query_arena(mem_root_arg, state_arg), main_lex(),
+  :Query_arena(mem_root_arg, state_arg),
   id(id_arg),
   mark_used_columns(MARK_COLUMNS_READ),
   lex(lex_arg),
