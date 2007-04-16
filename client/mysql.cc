@@ -808,7 +808,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
 #endif
   case OPT_CHARSETS_DIR:
-    strmov(mysql_charsets_dir, argument);
+    strmake(mysql_charsets_dir, argument, sizeof(mysql_charsets_dir) - 1);
     charsets_dir = mysql_charsets_dir;
     break;
   case  OPT_DEFAULT_CHARSET:
@@ -861,7 +861,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       if (argument && strlen(argument))
       {
 	default_pager_set= 1;
-	strmov(pager, argument);
+	strmake(pager, argument, sizeof(pager) - 1);
 	strmov(default_pager, pager);
       }
       else if (default_pager_set)
