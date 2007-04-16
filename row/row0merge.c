@@ -75,8 +75,10 @@ struct merge_rec_list_struct {
 					list */
 	merge_rec_t*	tail;		/* Pointer to tail of the
 					list */
+#ifdef UNIV_DEBUG
 	ulint		n_records;	/* Number of records in
 					the list */
+#endif /* UNIV_DEBUG */
 	ulint		total_size;	/* Total size of all records in
 					the list */
 	mem_heap_t*	heap;		/* Heap where memory for this
@@ -734,7 +736,7 @@ row_merge_create_list(void)
 
 	list_header->head		= NULL;
 	list_header->tail		= NULL;
-	list_header->n_records		= 0;
+	ut_d(list_header->n_records	= 0);
 	list_header->total_size		= sizeof(merge_rec_list_t);
 	list_header->heap		= heap;
 
@@ -765,7 +767,7 @@ row_merge_list_add(
 		list_header->tail = m_rec;
 	}
 
-	list_header->n_records++;
+	ut_d(list_header->n_records++);
 }
 
 /*****************************************************************
@@ -809,7 +811,7 @@ row_merge_write_list_to_block(
 						      sec_offs, output, offset);
 
 		m_rec = m_rec->next;
-		list->n_records--;
+		ut_d(list->n_records--);
 	}
 
 	/* Now create a new list and store rest of the records there.
@@ -1616,8 +1618,12 @@ next_record:
 
 		/* While we have items in the list write them
 		to the block */
+		ut_ad(!merge_list[idx_num]->head
+		      == !merge_list[idx_num]->tail);
+		ut_ad(!merge_list[idx_num]->n_records
+		      == !merge_list[idx_num]->head);
 
-		if (merge_list[idx_num]->n_records > 0) {
+		if (merge_list[idx_num]->head) {
 
 			/* Next block will be written directly
 			behind this one. This will create a
