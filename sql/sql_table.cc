@@ -662,16 +662,14 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
     frm_action= TRUE;
   else
   {
-    TABLE_SHARE dummy;
-
-    hton= ha_resolve_by_name(thd, &handler_name);
-    if (!hton)
+    plugin_ref plugin= ha_resolve_by_name(thd, &handler_name);
+    if (!plugin)
     {
       my_error(ER_ILLEGAL_HA, MYF(0), ddl_log_entry->handler_name);
       goto error;
     }
-    bzero(&dummy, sizeof(TABLE_SHARE));
-    file= get_new_handler(&dummy, &mem_root, hton);
+    hton= plugin_data(plugin, handlerton*);
+    file= get_new_handler((TABLE_SHARE*)0, &mem_root, hton);
     if (!file)
     {
       mem_alloc_error(sizeof(handler));
@@ -1635,7 +1633,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     TABLE_SHARE *share;
     table->db_type= NULL;
     if ((share= get_cached_table_share(table->db, table->table_name)))
-      table->db_type= share->db_type;
+      table->db_type= share->db_type();
 
     /* Disable drop of enabled log tables */
     if (share && share->log_table &&
@@ -5070,7 +5068,7 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
     See BUG#6236.
   */
   if (table->s->fields != create_list->elements ||
-      table->s->db_type != create_info->db_type ||
+      table->s->db_type() != create_info->db_type ||
       table->s->tmp_table ||
       create_info->used_fields & HA_CREATE_USED_ENGINE ||
       create_info->used_fields & HA_CREATE_USED_CHARSET ||
@@ -5529,7 +5527,7 @@ view_err:
     new_name= table_name;
   }
 
-  old_db_type= table->s->db_type;
+  old_db_type= table->s->db_type();
   if (!create_info->db_type)
   {
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -6043,7 +6041,7 @@ view_err:
   }
 
   if (thd->variables.old_alter_table
-      || (table->s->db_type != create_info->db_type)
+      || (table->s->db_type() != create_info->db_type)
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       || partition_changed
 #endif
@@ -6081,8 +6079,8 @@ view_err:
     uint  *idx_p;
     uint  *idx_end_p;
 
-    if (table->s->db_type->alter_table_flags)
-      alter_flags= table->s->db_type->alter_table_flags(alter_info->flags);
+    if (table->s->db_type()->alter_table_flags)
+      alter_flags= table->s->db_type()->alter_table_flags(alter_info->flags);
     DBUG_PRINT("info", ("alter_flags: %lu", alter_flags));
     /* Check dropped indexes. */
     for (idx_p= index_drop_buffer, idx_end_p= idx_p + index_drop_count;
@@ -7111,7 +7109,7 @@ static bool check_engine(THD *thd, const char *table_name,
     if (create_info->used_fields & HA_CREATE_USED_ENGINE)
     {
       my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-               hton2plugin[(*new_engine)->slot]->name.str, "TEMPORARY");
+               ha_resolve_storage_engine_name(*new_engine), "TEMPORARY");
       *new_engine= 0;
       return TRUE;
     }

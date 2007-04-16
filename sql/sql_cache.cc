@@ -2411,7 +2411,12 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
                         tables_used->engine_data))
         DBUG_RETURN(0);
 
-      if (tables_used->table->s->db_type->db_type == DB_TYPE_MRG_MYISAM)
+#ifdef WITH_MYISAMMRG_STORAGE_ENGINE      
+      /*
+        XXX FIXME: Some generic mechanism is required here instead of this
+        MYISAMMRG-specific implementation.
+      */
+      if (tables_used->table->s->db_type()->db_type == DB_TYPE_MRG_MYISAM)
       {
         ha_myisammrg *handler = (ha_myisammrg *) tables_used->table->file;
         MYRG_INFO *file = handler->myrg_info();
@@ -2434,6 +2439,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
             DBUG_RETURN(0);
         }
       }
+#endif
     }
   }
   DBUG_RETURN(n - counter);
@@ -3010,7 +3016,7 @@ static TABLE_COUNTER_TYPE process_and_count_tables(TABLE_LIST *tables_used,
       DBUG_PRINT("qcache", ("table: %s  db:  %s  type: %u",
                             tables_used->table->s->table_name.str,
                             tables_used->table->s->db.str,
-                            tables_used->table->s->db_type->db_type));
+                            tables_used->table->s->db_type()->db_type));
       if (tables_used->derived)
       {
         table_count--;
@@ -3035,12 +3041,18 @@ static TABLE_COUNTER_TYPE process_and_count_tables(TABLE_LIST *tables_used,
                     "other non-cacheable table(s)"));
         DBUG_RETURN(0);
       }
-      if (tables_used->table->s->db_type->db_type == DB_TYPE_MRG_MYISAM)
+#ifdef WITH_MYISAMMRG_STORAGE_ENGINE      
+      /*
+        XXX FIXME: Some generic mechanism is required here instead of this
+        MYISAMMRG-specific implementation.
+      */
+      if (tables_used->table->s->db_type()->db_type == DB_TYPE_MRG_MYISAM)
       {
         ha_myisammrg *handler = (ha_myisammrg *)tables_used->table->file;
         MYRG_INFO *file = handler->myrg_info();
         table_count+= (file->end_table - file->open_tables);
       }
+#endif
     }
   }
   DBUG_RETURN(table_count);

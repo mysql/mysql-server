@@ -38,6 +38,7 @@
 #include <queues.h>
 #include "sql_bitmap.h"
 #include "sql_array.h"
+#include "sql_plugin.h"
 #include "scheduler.h"
 
 /* TODO convert all these three maps to Bitmap classes */
@@ -549,11 +550,6 @@ inline THD *_current_thd(void)
 }
 #define current_thd _current_thd()
 
-/* below functions are required for plugins as THD class is opaque */
-my_bool thd_in_lock_tables(const THD *thd);
-my_bool thd_tablespace_op(const THD *thd);
-const char *thd_proc_info(THD *thd, const char *info);
-void **thd_ha_data(const THD *thd, const struct handlerton *hton);
 
 /*
   External variables
@@ -568,7 +564,6 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
 #include "sql_list.h"
 #include "sql_map.h"
 #include "my_decimal.h"
-#include "sql_plugin.h"
 #include "handler.h"
 #include "parse_file.h"
 #include "table.h"
@@ -1116,6 +1111,7 @@ int add_status_vars(SHOW_VAR *list);
 void remove_status_vars(SHOW_VAR *list);
 void init_status_vars();
 void free_status_vars();
+void reset_status_vars();
 
 /* information schema */
 extern LEX_STRING information_schema_name;
@@ -1710,6 +1706,7 @@ extern pthread_mutex_t LOCK_server_started;
 extern pthread_cond_t COND_server_started;
 extern int mysqld_server_started;
 extern rw_lock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
+extern rw_lock_t LOCK_system_variables_hash;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
 extern pthread_cond_t COND_global_read_lock;
 extern pthread_attr_t connection_attrib;
@@ -1718,7 +1715,7 @@ extern I_List<NAMED_LIST> key_caches;
 extern MY_BITMAP temp_pool;
 extern String my_empty_string;
 extern const String my_null_string;
-extern SHOW_VAR init_vars[], status_vars[], internal_vars[];
+extern SHOW_VAR status_vars[];
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 extern struct system_status_var global_status_var;
@@ -1740,11 +1737,6 @@ extern uint sql_command_flags[];
 extern TYPELIB log_output_typelib;
 
 /* optional things, have_* variables */
-
-extern SHOW_COMP_OPTION have_innodb;
-extern SHOW_COMP_OPTION have_csv_db;
-extern SHOW_COMP_OPTION have_ndbcluster;
-extern SHOW_COMP_OPTION have_partition_db;
 
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;

@@ -888,6 +888,8 @@ uint calculate_key_len(TABLE *, uint, const byte *, key_part_map);
 class handler :public Sql_alloc
 {
   friend class ha_partition;
+  friend int ha_delete_table(THD*,handlerton*,const char*,const char*,
+                             const char*,bool);
 
  protected:
   struct st_table_share *table_share;   /* The table definition */
@@ -906,7 +908,10 @@ class handler :public Sql_alloc
   virtual int rnd_init(bool scan) =0;
   virtual int rnd_end() { return 0; }
   virtual ulonglong table_flags(void) const =0;
+
   void ha_statistic_increment(ulong SSV::*offset) const;
+  void **ha_data(THD *) const;
+  THD *ha_thd(void) const;
 
   ha_rows estimation_rows_to_insert;
   virtual void start_bulk_insert(ha_rows rows) {}
@@ -1570,6 +1575,10 @@ public:
 
   /* lock_count() can be more than one if the table is a MERGE */
   virtual uint lock_count(void) const { return 1; }
+  /*
+    NOTE that one can NOT rely on table->in_use in store_lock().  It may
+    refer to a different thread if called from mysql_lock_abort_for_thread().
+  */
   virtual THR_LOCK_DATA **store_lock(THD *thd,
 				     THR_LOCK_DATA **to,
 				     enum thr_lock_type lock_type)=0;
@@ -1687,9 +1696,9 @@ extern ulong total_ha, total_ha_2pc;
 
 /* lookups */
 handlerton *ha_default_handlerton(THD *thd);
-handlerton *ha_resolve_by_name(THD *thd, const LEX_STRING *name);
+plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name);
+plugin_ref ha_lock_engine(THD *thd, handlerton *hton);
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type);
-const char *ha_get_storage_engine(enum legacy_db_type db_type);
 handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
                          handlerton *db_type);
 handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,

@@ -1917,8 +1917,8 @@ shutdown the MySQL server and restart it.", name, errno);
 }
 
 MYSQL_LOG::MYSQL_LOG()
-  : name(0),  log_type(LOG_UNKNOWN), log_state(LOG_CLOSED), write_error(FALSE),
-    inited(FALSE)
+  : name(0), write_error(FALSE), inited(FALSE), log_type(LOG_UNKNOWN),
+    log_state(LOG_CLOSED)
 {
   /*
     We don't want to initialize LOCK_Log here as such initialization depends on
