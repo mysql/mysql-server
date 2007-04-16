@@ -1,0 +1,193 @@
+# Romanian translation of mysql-dfsg.
+# Copyright (C) 2006 THE mysql-dfsg'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the mysql-dfsg package.
+#
+# Stan Ioan-Eugen <stan.ieugen@gmail.com>, 2006.
+msgid ""
+msgstr ""
+"Project-Id-Version: po-debconf://mysql-dfsg\n"
+"Report-Msgid-Bugs-To: ch@debian.org\n"
+"POT-Creation-Date: 2007-02-16 22:27+0100\n"
+"PO-Revision-Date: 2006-12-20 21:27+0200\n"
+"Last-Translator: stan ioan-eugen <stan.ieugen@gmail.com>\n"
+"Language-Team: romanian <debian-l10n-romanian@lists.debian.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 1.11.4\n"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:1001
+msgid "Do you really want to downgrade?"
+msgstr "Sunteţi sigur că doriţi să instalaţi o versiune mai veche?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:1001
+msgid ""
+"WARNING: The file /var/lib/mysql/debian-*.flag exists. This indicates that a "
+"mysql-server package with a higher version has been installed before. It can "
+"not be guaranteed that this version can use its data."
+msgstr ""
+"AVERTISMENT: Fişierul /var/lib/mysql/debian-*.flag există. Acest lucru "
+"indică faptul că anterior a fost instalată o versiune nouă a pachetului "
+"mysql-server. Nu se poate garanta că versiunea instalată acum poate folosi "
+"datele versiunii instalate anterior."
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "Important note for NIS/YP users!"
+msgstr "Notă importantă pentru utilizatorii NIS/YP!"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid ""
+"To use mysql you must install an equivalent user and group to the following "
+"and ensure yourself that /var/lib/mysql has the right permissions (the uid/"
+"gid may be different)."
+msgstr ""
+"Pentru a folosi mysql trebuie să adăugaţi un utilizator şi grup echivalent "
+"şi să vă asiguraţi că /var/lib/mysql are permisiunile stabilite corect (uid/"
+"gid pot aveavalori diferite)."
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid ""
+"/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+msgstr "/etc/passwd:\tmysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "/etc/group:       mysql:x:101:"
+msgstr "/etc/group:\tmysql:x:101:"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+msgstr "/var/lib/mysql:\tdrwxr-xr-x\tmysql\tmysql"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:3001
+msgid "Remove the databases used by all MySQL versions?"
+msgstr "Doriţi să ştergeţi bazele de date folosite de toate versiune MySQL?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:3001
+msgid ""
+"The script is about to remove the data directory /var/lib/mysql. If it is "
+"planned to just install a higher MySQL version or if a different mysql-"
+"server package is already using it, the data should be kept."
+msgstr ""
+"Scriptul urmează să şteargă directorul de date /var/lib/mysql. Dacă plănuiţi "
+"doar să instalaţi o versiune nouă MySQL sau datele sunt folosite de către un "
+"alt pachet mysql-server, atunci ar trebui păstraţi datele."
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:4001
+msgid "Should MySQL start on boot?"
+msgstr "Doriţi ca MySQL să pornească la initializarea sistemului?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:4001
+msgid ""
+"The MySQL can start automatically on boot time or only if you manually type "
+"'/etc/init.d/mysql start'."
+msgstr ""
+"MySQL poate porni automat la iniţializarea sistemului sau doar dacă rulaţi "
+"comanda „/etc/init.d/mysql start”."
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid "New password for MySQL \"root\" user:"
+msgstr "Noua parolă pentru utilizatorul „root” al MySQL:"
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid ""
+"It is highly recommended that you set a password for the MySQL "
+"administrative \"root\" user."
+msgstr "Este recomandat să stabiliţi o parolă pentru utilizatorul administrativ „root” al MySQL."
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid ""
+"If you do not provide a password no changes will be made to the account."
+msgstr "Dacă nu introduceţi nici o parolă, nici o schimbare nu va fi luată în considerare."
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid "Unable to set password for MySQL \"root\" user"
+msgstr "Nu s-a putut stabili parola pentru utilizatorul „root” al MySQL"
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid ""
+"It seems an error occurred while setting the password for the MySQL "
+"administrative user.  This may have happened because the user already has a "
+"password, or because there was a problem communicating with the MySQL server."
+msgstr "Se pare că a intervenit o eroare în stabilirea parolei pentru utilizatorul administrativ "
+"al MySQL. Acest lucru se poate întâmpla dacă utilizatorul are deja o parolă, sau a existat o "
+"problemă în comunicarea cu serverul MySQL."
+
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid ""
+"When installation finishes, you should verify that the account is properly "
+"protected with a password (see README.Debian for more information)."
+msgstr "După finalizarea instalării, ar trebui să verificaţi dacă contul este protejat"
+" cu o parolă (citiţi fişierul README.Debian pentru informaţii suplimentare)."
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:7001
+msgid "Support MySQL connections from hosts running Debian \"sarge\" or older?"
+msgstr "Suportaţi conexiuni MySQL de la staţii ce rulează sistemul Debian „sarge” sau mai vechi?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:7001
+msgid ""
+"The way passwords were stored was not very secure. This has been improved "
+"with the drawback that clients (e.g. PHP) from hosts running Debian 3.1 "
+"Sarge will not be able to connect to account which are new or whose password "
+"have been changed. See /usr/share/doc/mysql-server-5.0/README.Debian."
+msgstr "Modul în care erau păstrate parolele nu era foarte sigur. Acest lucru a fost îmbunătăţit"
+"cu dezajantajul că clienţii (de ex. PHP) de pe staţii ce rulează sistemul Debian 3.1 Sarge"
+"nu se vor putea conecta la conturi noi sau ale căror parole au fost schimbate. Citiţi "
+"/usr/share/doc/mysql-server-5.0/README.Debian."
+
+#~ msgid "Cannot upgrade if ISAM tables are present!"
+#~ msgstr "Nu se poate face actualizarea dacă sunt prezente tabele ISAM!"
+
+#~ msgid ""
+#~ "Recent versions of MySQL can no longer use the old ISAM table format and "
+#~ "it is necessary to convert your tables to e.g. MyISAM before upgrading by "
+#~ "using \"mysql_convert_table_format\" or \"ALTER TABLE x ENGINE=MyISAM\". "
+#~ "The installation of mysql-server-5.0 will now abort. In case your old "
+#~ "mysql-server-4.1 gets removed nevertheless just reinstall it to convert "
+#~ "those tables."
+#~ msgstr ""
+#~ "Versiunile recente MySQL nu mai pot folosi vechiul format de tabele ISAM "
+#~ "şieste necesar să convertiţi tabelele dumneavoastră de ex. la formatul "
+#~ "MyISAM înainte de a face actualizarea folosind comanda "
+#~ "„mysql_convert_table_format” sau „ALTER TABLE x ENGINE=MyISAM”. "
+#~ "Instalarea mysql-server-5.0 va eşua. În caz că ştergeţiversiunea "
+#~ "anterioară mysql-server-4.1 va trebui reinstalată pentru a converti "
+#~ "tabelele."

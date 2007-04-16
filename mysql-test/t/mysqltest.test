@@ -719,6 +719,21 @@ let $B = changed value of B;
 --echo # Content of \$A is: $A
 
 # ----------------------------------------------------------------------------
+# Test let from query with $variable
+# let $<var_name>=`<query with $variable>`;
+# ----------------------------------------------------------------------------
+
+let $var1=content of variable 1;
+let $var2= `select "$var1"`;
+let $var3= `select concat("$var1", " ", "$var2")`;
+echo var2: $var2;
+echo var3: $var3;
+if (`select length("$var3") > 0`)
+{
+  echo length of var3 is longer than 0;
+}
+
+# ----------------------------------------------------------------------------
 # Test to assign let from query
 # let $<var_name>=`<query>`;
 # ----------------------------------------------------------------------------
@@ -1723,6 +1738,24 @@ EOF
 # ----------------------------------------------------------------------------
 
 --exec echo "echo Some output; exit; echo Not this;" | $MYSQL_TEST 2>&1
+
+# ----------------------------------------------------------------------------
+# test for query_sorted
+# ----------------------------------------------------------------------------
+
+create table t1( a int, b char(255), c timestamp);
+insert into t1 values(1, 'Line 1', '2007-04-05'), (2, "Part 2", '2007-04-05');
+insert into t1 values(1, 'Line 1', '2007-04-05'), (2, "Part 3", '2007-04-05');
+select * from t1;
+query_sorted select * from t1;
+disable_result_log;
+query_sorted select * from t1;
+enable_result_log;
+query_sorted select '';
+query_sorted select "h";
+query_sorted select "he";
+query_sorted select "hep";
+query_sorted select "hepp";
 
 # ----------------------------------------------------------------------------
 # Some coverage tests

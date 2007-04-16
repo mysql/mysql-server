@@ -1,0 +1,6 @@
+mysql-dfsg-5.0 (5.0.24a-2) unstable; urgency=low
+
+ This package now includes "mysqlreport" from hackmysql.com which generates
+ a friendly report on the performance relevant variables from SHOW STATUS.
+
+ -- Christian Hammers <ch@debian.org>  Sun,  3 Sep 2006 16:26:41 +0200

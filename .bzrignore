@@ -352,6 +352,7 @@ client/.libs/mysqltest
 client/completion_hash.cpp
 client/decimal.c
 client/insert_test
+client/link_sources
 client/log_event.cc
 client/log_event.h
 client/mf_iocache.c
@@ -575,6 +576,7 @@ help
 help.c
 help.h
 include/check_abi
+include/link_sources
 include/my_config.h
 include/my_global.h
 include/mysql_h.ic
@@ -750,6 +752,7 @@ libmysql/.libs/libmysqlclient.so.15.0.0
 libmysql/conf_to_src
 libmysql/debug/libmysql.exp
 libmysql/libmysql.ver
+libmysql/link_sources
 libmysql/my_static.h
 libmysql/my_time.c
 libmysql/mysys_priv.h
@@ -1085,6 +1088,7 @@ libmysqld/item_uniq.cc
 libmysqld/key.cc
 libmysqld/lib_sql.cpp
 libmysqld/libmysql.c
+libmysqld/link_sources
 libmysqld/lock.cc
 libmysqld/log.cc
 libmysqld/log_event.cc
