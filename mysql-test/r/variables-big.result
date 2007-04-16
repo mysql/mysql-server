@@ -5,7 +5,7 @@ Id	User	Host	db	Command	Time	State	Info
 set session transaction_prealloc_size=1024*1024*1024*2;
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
-1	root	localhost	test	Query	2	NULL	show processlist
+1	root	localhost	test	Query	0	NULL	show processlist
 set session transaction_prealloc_size=1024*1024*1024*3;
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
