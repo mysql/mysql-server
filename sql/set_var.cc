@@ -317,10 +317,10 @@ static sys_var_long_ptr	sys_myisam_data_pointer_size(&vars, "myisam_data_pointer
 static sys_var_thd_ulonglong	sys_myisam_max_sort_file_size(&vars, "myisam_max_sort_file_size", &SV::myisam_max_sort_file_size, fix_myisam_max_sort_file_size, 1);
 static sys_var_thd_ulong       sys_myisam_repair_threads(&vars, "myisam_repair_threads", &SV::myisam_repair_threads);
 static sys_var_thd_ulong	sys_myisam_sort_buffer_size(&vars, "myisam_sort_buffer_size", &SV::myisam_sort_buff_size);
-static sys_var_bool_ptr	sys_myisam_use_mmap(&vars, "myisam_use_mmap", 
+static sys_var_bool_ptr	sys_myisam_use_mmap(&vars, "myisam_use_mmap",
                                             &opt_myisam_use_mmap);
 
-static sys_var_thd_enum        sys_myisam_stats_method(&vars, "myisam_stats_method",
+static sys_var_thd_enum         sys_myisam_stats_method(&vars, "myisam_stats_method",
                                                 &SV::myisam_stats_method,
                                                 &myisam_stats_method_typelib,
                                                 NULL);
@@ -337,16 +337,17 @@ static sys_var_thd_ulong	sys_net_retry_count(&vars, "net_retry_count",
 					    &SV::net_retry_count,
 					    0, fix_net_retry_count);
 static sys_var_thd_bool	sys_new_mode(&vars, "new", &SV::new_mode);
-static sys_var_bool_ptr_readonly sys_old_mode(&vars, "old", 
+static sys_var_bool_ptr_readonly sys_old_mode(&vars, "old",
                                        &global_system_variables.old_mode);
-static sys_var_thd_bool	sys_old_alter_table(&vars, "old_alter_table",
-					    &SV::old_alter_table);
-sys_var_thd_bool	sys_old_passwords(&vars, "old_passwords", &SV::old_passwords);
-static sys_var_thd_ulong       sys_optimizer_prune_level(&vars, "optimizer_prune_level",
+/* these two cannot be static */
+sys_var_thd_bool                sys_old_alter_table(&vars, "old_alter_table",
+                                            &SV::old_alter_table);
+sys_var_thd_bool                sys_old_passwords(&vars, "old_passwords", &SV::old_passwords);
+static sys_var_thd_ulong        sys_optimizer_prune_level(&vars, "optimizer_prune_level",
                                                   &SV::optimizer_prune_level);
-static sys_var_thd_ulong       sys_optimizer_search_depth(&vars, "optimizer_search_depth",
+static sys_var_thd_ulong        sys_optimizer_search_depth(&vars, "optimizer_search_depth",
                                                    &SV::optimizer_search_depth);
-static sys_var_thd_ulong       sys_preload_buff_size(&vars, "preload_buffer_size",
+static sys_var_thd_ulong        sys_preload_buff_size(&vars, "preload_buffer_size",
                                               &SV::preload_buff_size);
 static sys_var_thd_ulong	sys_read_buff_size(&vars, "read_buffer_size",
 					   &SV::read_buff_size);
@@ -615,7 +616,8 @@ static sys_var_have_variable sys_have_dlopen(&vars, "have_dynamic_loading", &hav
 static sys_var_have_variable sys_have_geometry(&vars, "have_geometry", &have_geometry);
 static sys_var_have_plugin sys_have_innodb(&vars, "have_innodb", C_STRING_WITH_LEN("innodb"), MYSQL_STORAGE_ENGINE_PLUGIN);
 static sys_var_have_plugin sys_have_ndbcluster(&vars, "have_ndbcluster", C_STRING_WITH_LEN("ndbcluster"), MYSQL_STORAGE_ENGINE_PLUGIN);
-static sys_var_have_variable sys_have_openssl(&vars, "have_openssl", &have_openssl);
+static sys_var_have_variable sys_have_openssl(&vars, "have_openssl", &have_ssl);
+static sys_var_have_variable sys_have_ssl(&vars, "have_ssl", &have_ssl);
 static sys_var_have_plugin sys_have_partition_db(&vars, "have_partitioning", C_STRING_WITH_LEN("partition"), MYSQL_STORAGE_ENGINE_PLUGIN);
 static sys_var_have_variable sys_have_query_cache(&vars, "have_query_cache",
                                            &have_query_cache);

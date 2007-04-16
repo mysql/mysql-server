@@ -182,8 +182,9 @@ public:
 class sys_var_bool_ptr_readonly :public sys_var_bool_ptr
 {
 public:
-  sys_var_bool_ptr_readonly(const char *name_arg, my_bool *value_arg)
-    :sys_var_bool_ptr(name_arg, value_arg)
+  sys_var_bool_ptr_readonly(sys_var_chain *chain, const char *name_arg,
+                            my_bool *value_arg)
+    :sys_var_bool_ptr(chain, name_arg, value_arg)
   {}
   bool is_readonly() const { return 1; }
 };

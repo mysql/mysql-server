@@ -968,11 +968,12 @@ public:
   Discrete_interval auto_inc_interval_for_cur_row;
 
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
-    :table_share(share_arg), estimation_rows_to_insert(0), ht(ht_arg),
+    :table_share(share_arg), table(0),
+    estimation_rows_to_insert(0), ht(ht_arg),
     ref(0), key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE), implicit_emptied(0),
-    pushed_cond(NULL), next_insert_id(0), insert_id_for_cur_row(0)
+    pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0)
     {}
   virtual ~handler(void)
   {

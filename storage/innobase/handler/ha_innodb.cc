@@ -5098,7 +5098,7 @@ innobase_drop_database(
   /* Get the transaction associated with the current thd, or create one
      if not yet created */
 
-  parent_trx = check_trx_exists(hton, ha_thd());
+  parent_trx = check_trx_exists(hton, current_thd);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
