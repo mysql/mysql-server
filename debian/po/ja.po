@@ -1,0 +1,278 @@
+#
+#    Translators, if you are not familiar with the PO format, gettext
+#    documentation is worth reading, especially sections dedicated to
+#    this format, e.g. by running:
+#         info -n '(gettext)PO Files'
+#         info -n '(gettext)Header Entry'
+#
+#    Some information specific to po-debconf are available at
+#            /usr/share/doc/po-debconf/README-trans
+#         or http://www.debian.org/intl/l10n/po-debconf/README-trans
+#
+#    Developers do not need to manually edit POT or PO files.
+#
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: mysql-dfsg-5.0 5.0.32-6\n"
+"Report-Msgid-Bugs-To: ch@debian.org\n"
+"POT-Creation-Date: 2007-02-16 22:27+0100\n"
+"PO-Revision-Date: 2007-02-18 22:25+0900\n"
+"Last-Translator: Hideki Yamane (Debian-JP) <henrich@debian.or.jp>\n"
+"Language-Team: Japanese <debian-japanese@lists.debian.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:1001
+msgid "Do you really want to downgrade?"
+msgstr "本当にダウングレードしますか?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:1001
+msgid ""
+"WARNING: The file /var/lib/mysql/debian-*.flag exists. This indicates that a "
+"mysql-server package with a higher version has been installed before. It can "
+"not be guaranteed that this version can use its data."
+msgstr ""
+"警告: /var/lib/mysql/debian-*.flag ファイルが存在しています。これは、以前によ"
+"り新しいバージョンの mysql-server パッケージがインストールされていたことを示"
+"します。データをこのバージョンで使えるかどうか、保証できません。"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "Important note for NIS/YP users!"
+msgstr "NIS/YP ユーザへ重要な注意!"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid ""
+"To use mysql you must install an equivalent user and group to the following "
+"and ensure yourself that /var/lib/mysql has the right permissions (the uid/"
+"gid may be different)."
+msgstr ""
+"mysql を利用するには 以下のユーザとグループを作成し、/var/lib/mysql が正しい"
+"権限になっているかどうかを確認する必要があります (おそらく uid/gid が違いま"
+"す)。"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid ""
+"/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+msgstr ""
+"/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "/etc/group:       mysql:x:101:"
+msgstr "/etc/group:       mysql:x:101:"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+msgstr "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:3001
+msgid "Remove the databases used by all MySQL versions?"
+msgstr "全バージョンの MySQL で利用されているデータベースを削除しますか?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:3001
+msgid ""
+"The script is about to remove the data directory /var/lib/mysql. If it is "
+"planned to just install a higher MySQL version or if a different mysql-"
+"server package is already using it, the data should be kept."
+msgstr ""
+"このスクリプトはデータのディレクトリ /var/lib/mysql を削除するためのもので"
+"す。単に新しいバージョンの MySQL をインストールしようとしている、あるいは別"
+"の mysql-server パッケージを既に使っている場合、データは保持する必要がありま"
+"す。"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:4001
+msgid "Should MySQL start on boot?"
+msgstr "MySQL をシステム起動時に開始しますか?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:4001
+msgid ""
+"The MySQL can start automatically on boot time or only if you manually type "
+"'/etc/init.d/mysql start'."
+msgstr ""
+"MySQL の起動方法について、システム起動時に自動的に開始するか、あるいは '/etc/"
+"init.d/mysql start' と手で入力した時のみ起動するかを選べます。"
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid "New password for MySQL \"root\" user:"
+msgstr "MySQL の \"root\" ユーザに対する新しいパスワード:"
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid ""
+"It is highly recommended that you set a password for the MySQL "
+"administrative \"root\" user."
+msgstr ""
+"MySQL を管理する \"root\" ユーザのパスワードを設定することを強くお勧めしま"
+"す。"
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid ""
+"If you do not provide a password no changes will be made to the account."
+msgstr "パスワードを入力しない場合、アカウントに対して変更は加えられません。"
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid "Unable to set password for MySQL \"root\" user"
+msgstr "MySQL の \"root\" ユーザのパスワードを設定できません"
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid ""
+"It seems an error occurred while setting the password for the MySQL "
+"administrative user.  This may have happened because the user already has a "
+"password, or because there was a problem communicating with the MySQL server."
+msgstr ""
+"MySQL の管理者ユーザに対してパスワードを設定しようとした際、エラーが発生した"
+"ようです。これは既に管理者ユーザにパスワードが設定されていたか、MySQL サーバ"
+"との接続に問題があったためだと思われます。"
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid ""
+"When installation finishes, you should verify that the account is properly "
+"protected with a password (see README.Debian for more information)."
+msgstr ""
+"インストールが終了した際、アカウントがパスワードできちんと保護されているかど"
+"うかを確認してください (詳細については README.Debian を参照してください)。"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:7001
+msgid "Support MySQL connections from hosts running Debian \"sarge\" or older?"
+msgstr ""
+"Debian \"Sarge\" あるいはそれよりも古いバージョンが稼働しているホストからの "
+"MySQL 接続をサポートしますか?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:7001
+msgid ""
+"The way passwords were stored was not very secure. This has been improved "
+"with the drawback that clients (e.g. PHP) from hosts running Debian 3.1 "
+"Sarge will not be able to connect to account which are new or whose password "
+"have been changed. See /usr/share/doc/mysql-server-5.0/README.Debian."
+msgstr ""
+"パスワードの保存方法は、あまり安全な方法で行われていませんでした。これは改善"
+"されましたが、Debian 3.1 Sarge が稼働しているホストからクライアント (PHP な"
+"ど) が新しいアカウントやパスワードが変更されたアカウントには接続できなくなる"
+"という欠点もでています。詳細については /usr/share/doc/mysql-server-5.0/"
+"README.Debian を参照してください。"
+
+#~ msgid "Cannot upgrade if ISAM tables are present!"
+#~ msgstr "ISAM テーブルがある場合はアップグレードできません!"
+
+#~ msgid ""
+#~ "Recent versions of MySQL can no longer use the old ISAM table format and "
+#~ "it is necessary to convert your tables to e.g. MyISAM before upgrading by "
+#~ "using \"mysql_convert_table_format\" or \"ALTER TABLE x ENGINE=MyISAM\". "
+#~ "The installation of mysql-server-5.0 will now abort. In case your old "
+#~ "mysql-server-4.1 gets removed nevertheless just reinstall it to convert "
+#~ "those tables."
+#~ msgstr ""
+#~ "MySQL の最近のバージョンでは以前の ISAM テーブル形式は利用できなくなってい"
+#~ "ます。そのため、例えば \"mysql_convert_table_format\" あるいは \"ALTER "
+#~ "TABLE x ENGINE=MyISAM\" としてアップグレード前に MyISAM にコンバートするこ"
+#~ "となどが必要です。mysql-server-5.0 のインストールを中断します。以前の "
+#~ "mysql-server-4.1 が削除されてしまった場合であっても、テーブルをコンバート"
+#~ "するために再インストールをしてください。"
+
+#~ msgid "Install Hints"
+#~ msgstr "インストールのヒント"
+
+#~ msgid ""
+#~ "On upgrades from MySQL 3.23, as shipped with Debian Woody, symlinks in "
+#~ "place of /var/lib/mysql or /var/log/mysql gets accidently removed and "
+#~ "have manually be restored."
+#~ msgstr ""
+#~ "Debian Woody でリリースされた MySQL 3.23 からのアップグレードでは、/var/"
+#~ "lib/mysql あるいは /var/log/mysql の代わりにシンボリックリンクは偶然にも削"
+#~ "除されてしまっているので、手動でのリストアが必要になります。"
+
+#~ msgid ""
+#~ "MySQL will only install if you have a non-numeric hostname that is "
+#~ "resolvable via the /etc/hosts file. E.g. if the \"hostname\" command "
+#~ "returns \"myhostname\" then there must be a line like \"10.0.0.1 "
+#~ "myhostname\"."
+#~ msgstr ""
+#~ "MySQL は /etc/hosts ファイル経由で解決できる「数字のみで構成されてない」ホ"
+#~ "スト名の場合のみ、インストールされます。つまり、\"hostname\" コマンドが "
+#~ "\"myhostname\" を返すなら、\"10.0.0.1 myhostname\" という行が /etc/hosts "
+#~ "ファイルにあるはずです。"
+
+#~ msgid ""
+#~ "A new mysql user \"debian-sys-maint\" will be created. This mysql account "
+#~ "is used in the start/stop and cron scripts. Don't delete."
+#~ msgstr ""
+#~ "新規に mysql ユーザとして \"debian-sys-maint\" が作成されます。この mysql "
+#~ "アカウントは start/stop 時と cron スクリプトで利用されます。消さないでくだ"
+#~ "さい。"
+
+#~ msgid ""
+#~ "Please remember to set a PASSWORD for the MySQL root user! If you use a /"
+#~ "root/.my.cnf, always write the \"user\" and the \"password\" lines in "
+#~ "there, never only the password!"
+#~ msgstr ""
+#~ "MySQL の root ユーザに対して「パスワードの設定」を忘れないでください! /"
+#~ "root/.my.cnf を使っている場合、このファイル中の \"user\" 行と \"password"
+#~ "\" 行を記述してください。決してパスワードだけではいけません!"
+
+#~ msgid ""
+#~ "See /usr/share/doc/mysql-server-5.0/README.Debian for more information."
+#~ msgstr ""
+#~ "詳細は /usr/share/doc/mysql-server-5.0/README.Debian を参照してください。"
+
+#~ msgid ""
+#~ "Should I remove the complete /var/lib/mysql directory tree which is used "
+#~ "by all MySQL versions, not necessarily only the one you are about to "
+#~ "purge?"
+#~ msgstr ""
+#~ "これから purge しようとしているバージョンだけでは無く、全てのバージョンの "
+#~ "MySQL が /var/lib/mysql ディレクトリを使用しています。このディレクトリを完"
+#~ "全に削除しますか?"
+
+#~ msgid "Update Hints"
+#~ msgstr "更新のヒント"
+
+#~ msgid ""
+#~ "Rarely, e.g. on new major versions, the privilege system is improved. To "
+#~ "make use of it mysql_fix_privilege_tables must be executed manually. The "
+#~ "script is not supposed to give any user more rights that he had before,"
+#~ msgstr ""
+#~ "まれに、つまりは新しいメジャーバージョンにおいて、特権システムが改善されま"
+#~ "す。これを行うには、mysql_fix_privilege_table を手動で実行する必要がありま"
+#~ "す。スクリプトは、どのようなユーザに対しても、以前に保持していた以上の権限"
+#~ "を与えるようにはなっていません。"
+
+#~ msgid "Please also read http://www.mysql.com/doc/en/Upgrade.html"
+#~ msgstr "http://www.mysql.com/doc/ja/Upgrade.html も参照してください"

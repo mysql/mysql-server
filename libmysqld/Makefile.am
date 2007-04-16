@@ -177,11 +177,11 @@ endif
 #libmysqld_la_LDFLAGS = -version-info @SHARED_LIB_VERSION@
 #CLEANFILES =		$(libmysqld_la_LIBADD) libmysqld.la
 
-# This is called from the toplevel makefile. If we can link now
-# to an existing file in source, we do that, else we assume it
-# will show up in the build tree eventually (generated file).
+BUILT_SOURCES = link_sources
+
+CLEANFILES = $(BUILT_SOURCES)
+
 link_sources:
-	  set -x; \
 	  for f in $(sqlsources); do \
 	    rm -f $$f; \
 	    if test -e $(top_srcdir)/sql/$$f ; \
@@ -215,12 +215,13 @@ link_sources:
 	    done; \
 	  fi; \
 	  rm -f client_settings.h; \
-	  @LN_CP_F@ $(top_srcdir)/libmysql/client_settings.h client_settings.h
+	  @LN_CP_F@ $(top_srcdir)/libmysql/client_settings.h \
+                                          client_settings.h; \
+	echo timestamp > link_sources
 
 
 clean-local:
-	rm -f `echo $(sqlsources) $(libmysqlsources) $(sqlstoragesources) $(storagesources) | sed "s;\.lo;.c;g"` \
-	       $(top_srcdir)/linked_libmysqld_sources; \
+	rm -f `echo $(sqlsources) $(libmysqlsources) $(sqlstoragesources) $(storagesources) | sed "s;\.lo;.c;g"`; \
 	rm -f client_settings.h
 
 # Don't update the files from bitkeeper

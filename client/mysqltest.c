@@ -85,7 +85,7 @@ enum {
   OPT_SSL_CA, OPT_SSL_CAPATH, OPT_SSL_CIPHER, OPT_PS_PROTOCOL,
   OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
   OPT_SSL_VERIFY_SERVER_CERT, OPT_MAX_CONNECT_RETRIES,
-  OPT_MARK_PROGRESS, OPT_CHARSETS_DIR, OPT_LOG_DIR, OPT_DEBUG_INFO
+  OPT_MARK_PROGRESS, OPT_CHARSETS_DIR, OPT_LOG_DIR
 };
 
 static int record= 0, opt_sleep= -1;
@@ -103,8 +103,8 @@ static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
 static my_bool view_protocol= 0, view_protocol_enabled= 0;
 static my_bool cursor_protocol= 0, cursor_protocol_enabled= 0;
 static my_bool parsing_disabled= 0;
-static my_bool info_flag;
-static my_bool display_result_vertically= FALSE, display_metadata= FALSE;
+static my_bool display_result_vertically= FALSE,
+  display_metadata= FALSE, display_result_sorted= FALSE;
 static my_bool disable_query_log= 0, disable_result_log= 0;
 static my_bool disable_warnings= 0;
 static my_bool disable_info= 1;
@@ -271,14 +271,14 @@ enum enum_commands {
   Q_EXEC, Q_DELIMITER,
   Q_DISABLE_ABORT_ON_ERROR, Q_ENABLE_ABORT_ON_ERROR,
   Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
-  Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
+  Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL, Q_QUERY_SORTED,
   Q_START_TIMER, Q_END_TIMER,
   Q_CHARACTER_SET, Q_DISABLE_PS_PROTOCOL, Q_ENABLE_PS_PROTOCOL,
   Q_DISABLE_RECONNECT, Q_ENABLE_RECONNECT,
   Q_IF,
   Q_DISABLE_PARSING, Q_ENABLE_PARSING,
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
-  Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT,
+  Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT, Q_SKIP,
   Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
 
   Q_UNKNOWN,			       /* Unknown command.   */
@@ -341,6 +341,7 @@ const char *command_names[]=
   "horizontal_results",
   "query_vertical",
   "query_horizontal",
+  "query_sorted",
   "start_timer",
   "end_timer",
   "character_set",
@@ -358,8 +359,10 @@ const char *command_names[]=
   "copy_file",
   "perl",
   "die",
+               
   /* Don't execute any more commands, compare result */
   "exit",
+  "skip",
   "chmod",
   "append_file",
   "cat_file",
@@ -412,11 +415,9 @@ struct st_command
 TYPELIB command_typelib= {array_elements(command_names),"",
 			  command_names, 0};
 
-static DYNAMIC_STRING ds_res, ds_progress, ds_warning_messages;
-static DYNAMIC_STRING global_ds_warnings, global_eval_query;
+DYNAMIC_STRING ds_res, ds_progress, ds_warning_messages;
 
 char builtin_echo[FN_REFLEN];
-
 
 void die(const char *fmt, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
@@ -487,6 +488,7 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
                                int len);
 void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val);
 void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val);
+void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING* ds_input);
 
 void handle_error(struct st_command*,
                   unsigned int err_errno, const char *err_error,
@@ -794,9 +796,6 @@ void free_used_memory()
   dynstr_free(&ds_res);
   dynstr_free(&ds_progress);
   dynstr_free(&ds_warning_messages);
-  dynstr_free(&global_ds_warnings);
-  dynstr_free(&global_eval_query);
-
   free_all_replace();
   my_free(opt_pass,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(default_argv);
@@ -815,27 +814,66 @@ void free_used_memory()
 }
 
 
+static void cleanup_and_exit(int exit_code)
+{
+  free_used_memory();
+  my_end(MY_CHECK_ERROR);
+
+  if (!silent)
+  {
+    switch (exit_code)
+    {
+    case 1:
+      printf("not ok\n");
+      break;
+    case 0:
+      printf("ok\n");
+      break;
+    case 62:
+      printf("skipped\n");
+    break;
+    default:
+      printf("unknown exit code: %d\n", exit_code);
+      DBUG_ASSERT(0);
+    }
+  }
+
+  exit(exit_code);
+}
+
 void die(const char *fmt, ...)
 {
+  static int dying= 0;
   va_list args;
   DBUG_ENTER("die");
   DBUG_PRINT("enter", ("start_lineno: %d", start_lineno));
 
+  /*
+    Protect against dying twice
+    first time 'die' is called, try to write log files
+    second time, just exit
+  */
+  if (dying)
+    cleanup_and_exit(1);
+  dying= 1;
+
   /* Print the error message */
-  va_start(args, fmt);
+  fprintf(stderr, "mysqltest: ");
+  if (cur_file && cur_file != file_stack)
+    fprintf(stderr, "In included file \"%s\": ",
+            cur_file->file_name);
+  if (start_lineno > 0)
+    fprintf(stderr, "At line %u: ", start_lineno);
   if (fmt)
   {
-    fprintf(stderr, "mysqltest: ");
-    if (cur_file && cur_file != file_stack)
-      fprintf(stderr, "In included file \"%s\": ",
-              cur_file->file_name);
-    if (start_lineno > 0)
-      fprintf(stderr, "At line %u: ", start_lineno);
+    va_start(args, fmt);
     vfprintf(stderr, fmt, args);
-    fprintf(stderr, "\n");
-    fflush(stderr);
+    va_end(args);
   }
-  va_end(args);
+  else
+    fprintf(stderr, "unknown error");
+  fprintf(stderr, "\n");
+  fflush(stderr);
 
   /* Dump the result that has been accumulated so far to .log file */
   if (result_file_name && ds_res.length)
@@ -845,14 +883,7 @@ void die(const char *fmt, ...)
   if (result_file_name && ds_warning_messages.length)
     dump_warning_messages();
 
-  /* Clean up and exit */
-  free_used_memory();
-  my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
-
-  if (!silent)
-    printf("not ok\n");
-
-  exit(1);
+  cleanup_and_exit(1);
 }
 
 
@@ -885,14 +916,7 @@ void abort_not_supported_test(const char *fmt, ...)
   }
   va_end(args);
 
-  /* Clean up and exit */
-  free_used_memory();
-  my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
-
-  if (!silent)
-    printf("skipped\n");
-
-  exit(62);
+  cleanup_and_exit(62);
 }
 
 
@@ -1352,6 +1376,7 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
   MYSQL_RES *res;
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
+  DYNAMIC_STRING ds_query;
   DBUG_ENTER("var_query_set");
   LINT_INIT(res);
 
@@ -1361,13 +1386,17 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
     die("Syntax error in query, missing '`'");
   ++query;
 
-  if (mysql_real_query(mysql, query, (int)(end - query)) ||
+  /* Eval the query, thus replacing all environment variables */
+  init_dynamic_string(&ds_query, 0, (end - query) + 32, 256);
+  do_eval(&ds_query, query, end, FALSE);
+
+  if (mysql_real_query(mysql, ds_query.str, ds_query.length) ||
       !(res = mysql_store_result(mysql)))
   {
-    *end = 0;
-    die("Error running query '%s': %d %s", query,
+    die("Error running query '%s': %d %s", ds_query.str,
 	mysql_errno(mysql), mysql_error(mysql));
   }
+  dynstr_free(&ds_query);
 
   if ((row = mysql_fetch_row(res)) && row[0])
   {
@@ -4232,8 +4261,6 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.", (gptr*) &info_flag,
-   (gptr*) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (gptr*) &opt_host, (gptr*) &opt_host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"include", 'i', "Include SQL before each test case.", (gptr*) &opt_include,
@@ -4241,7 +4268,7 @@ static struct my_option my_long_options[] =
   {"logdir", OPT_LOG_DIR, "Directory for log files", (gptr*) &opt_logdir,
    (gptr*) &opt_logdir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"mark-progress", OPT_MARK_PROGRESS,
-   "Write linenumber and elapsed time to <testname>.progress",
+   "Write linenumber and elapsed time to <testname>.progress ",
    (gptr*) &opt_mark_progress, (gptr*) &opt_mark_progress, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"max-connect-retries", OPT_MAX_CONNECT_RETRIES,
@@ -4543,17 +4570,18 @@ void dump_result_to_log_file(char *buf, int size)
 {
   char log_file[FN_REFLEN];
   str_to_file(fn_format(log_file, result_file_name, opt_logdir, ".log",
-                        *opt_logdir ? MY_REPLACE_DIR | MY_REPLACE_EXT:
+                        *opt_logdir ? MY_REPLACE_DIR | MY_REPLACE_EXT :
                         MY_REPLACE_EXT),
               buf, size);
 }
 
 void dump_progress(void)
 {
-  char log_file[FN_REFLEN];
-  str_to_file(fn_format(log_file, result_file_name, opt_logdir, ".progress",
-                        *opt_logdir ? MY_REPLACE_DIR | MY_REPLACE_EXT:
-                          MY_REPLACE_EXT),
+  char progress_file[FN_REFLEN];
+  str_to_file(fn_format(progress_file, result_file_name,
+                        opt_logdir, ".progress",
+                        *opt_logdir ? MY_REPLACE_DIR | MY_REPLACE_EXT :
+                        MY_REPLACE_EXT),
               ds_progress.str, ds_progress.length);
 }
 
@@ -4561,7 +4589,8 @@ void dump_warning_messages(void)
 {
   char warn_file[FN_REFLEN];
 
-  str_to_file(fn_format(warn_file, result_file_name, "", ".warnings",
+  str_to_file(fn_format(warn_file, result_file_name, opt_logdir, ".warnings",
+                        *opt_logdir ? MY_REPLACE_DIR | MY_REPLACE_EXT :
                         MY_REPLACE_EXT),
               ds_warning_messages.str, ds_warning_messages.length);
 }
@@ -5514,7 +5543,11 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
 {
   MYSQL *mysql= &cn->mysql;
   DYNAMIC_STRING *ds;
+  DYNAMIC_STRING *save_ds= NULL;
   DYNAMIC_STRING ds_result;
+  DYNAMIC_STRING ds_sorted;
+  DYNAMIC_STRING ds_warnings;
+  DYNAMIC_STRING eval_query;
   char *query;
   int query_len;
   my_bool view_created= 0, sp_created= 0;
@@ -5522,7 +5555,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
                            (flags & QUERY_REAP_FLAG));
   DBUG_ENTER("run_query");
 
-  init_dynamic_string(&global_ds_warnings, NULL, 0, 256);
+  init_dynamic_string(&ds_warnings, NULL, 0, 256);
 
   /* Scan for warning before sendign to server */
   scan_command_for_warnings(command);
@@ -5532,10 +5565,10 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   */
   if (command->type == Q_EVAL)
   {
-    init_dynamic_string(&global_eval_query, "", command->query_len+256, 1024);
-    do_eval(&global_eval_query, command->query, command->end, FALSE);
-    query = global_eval_query.str;
-    query_len = global_eval_query.length;
+    init_dynamic_string(&eval_query, "", command->query_len+256, 1024);
+    do_eval(&eval_query, command->query, command->end, FALSE);
+    query = eval_query.str;
+    query_len = eval_query.length;
   }
   else
   {
@@ -5607,7 +5640,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
         Collect warnings from create of the view that should otherwise
         have been produced when the SELECT was executed
       */
-      append_warnings(&global_ds_warnings, cur_con->util_mysql);
+      append_warnings(&ds_warnings, cur_con->util_mysql);
     }
 
     dynstr_free(&query_str);
@@ -5654,6 +5687,18 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     dynstr_free(&query_str);
   }
 
+  if (display_result_sorted)
+  {
+    /*
+       Collect the query output in a separate string
+       that can be sorted before it's added to the
+       global result string
+    */
+    init_dynamic_string(&ds_sorted, "", 1024, 1024);
+    save_ds= ds; /* Remember original ds */
+    ds= &ds_sorted;
+  }
+
   /*
     Find out how to run this query
 
@@ -5666,10 +5711,18 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   if (ps_protocol_enabled &&
       complete_query &&
       match_re(&ps_re, query))
-    run_query_stmt(mysql, command, query, query_len, ds, &global_ds_warnings);
+    run_query_stmt(mysql, command, query, query_len, ds, &ds_warnings);
   else
     run_query_normal(cn, command, flags, query, query_len,
-		     ds, &global_ds_warnings);
+		     ds, &ds_warnings);
+
+  if (display_result_sorted)
+  {
+    /* Sort the result set and append it to result */
+    dynstr_append_sorted(save_ds, &ds_sorted);
+    ds= save_ds;
+    dynstr_free(&ds_sorted);
+  }
 
   if (sp_created)
   {
@@ -5693,11 +5746,11 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     check_require(ds, command->require_file);
   }
 
-  dynstr_free(&global_ds_warnings);
+  dynstr_free(&ds_warnings);
   if (ds == &ds_result)
     dynstr_free(&ds_result);
   if (command->type == Q_EVAL)
-    dynstr_free(&global_eval_query);
+    dynstr_free(&eval_query);
   DBUG_VOID_RETURN;
 }
 
@@ -6117,37 +6170,24 @@ int main(int argc, char **argv)
       case Q_EVAL_RESULT:
         eval_result = 1; break;
       case Q_EVAL:
+      case Q_QUERY_VERTICAL:
+      case Q_QUERY_HORIZONTAL:
+      case Q_QUERY_SORTED:
 	if (command->query == command->query_buf)
         {
+          /* Skip the first part of command, i.e query_xxx */
 	  command->query= command->first_argument;
           command->first_word_len= 0;
         }
 	/* fall through */
-      case Q_QUERY_VERTICAL:
-      case Q_QUERY_HORIZONTAL:
-      {
-	my_bool old_display_result_vertically= display_result_vertically;
-
-	/* Remove "query_*" if this is first iteration */
-	if (command->query == command->query_buf)
-	  command->query= command->first_argument;
-
-	display_result_vertically= (command->type == Q_QUERY_VERTICAL);
-	if (save_file[0])
-	{
-	  strmake(command->require_file, save_file, sizeof(save_file));
-	  save_file[0]= 0;
-	}
-	run_query(cur_con, command, QUERY_REAP_FLAG|QUERY_SEND_FLAG);
-	display_result_vertically= old_display_result_vertically;
-        command->last_argument= command->end;
-        command_executed++;
-	break;
-      }
       case Q_QUERY:
       case Q_REAP:
       {
-        int flags;
+	my_bool old_display_result_vertically= display_result_vertically;
+	my_bool old_display_result_sorted= display_result_sorted;
+        /* Default is full query, both reap and send  */
+        int flags= QUERY_REAP_FLAG | QUERY_SEND_FLAG;
+
         if (q_send_flag)
         {
           /* Last command was an empty 'send' */
@@ -6158,11 +6198,10 @@ int main(int argc, char **argv)
         {
           flags= QUERY_REAP_FLAG;
         }
-        else
-        {
-          /* full query, both reap and send  */
-	  flags= QUERY_REAP_FLAG | QUERY_SEND_FLAG;
-        }
+
+        /* Check for special property for this query */
+        display_result_vertically|= (command->type == Q_QUERY_VERTICAL);
+        display_result_sorted= (command->type == Q_QUERY_SORTED);
 
 	if (save_file[0])
 	{
@@ -6172,6 +6211,11 @@ int main(int argc, char **argv)
 	run_query(cur_con, command, flags);
 	command_executed++;
         command->last_argument= command->end;
+
+        /* Restore settings */
+	display_result_vertically= old_display_result_vertically;
+	display_result_sorted= old_display_result_sorted;
+
 	break;
       }
       case Q_SEND:
@@ -6287,6 +6331,9 @@ int main(int argc, char **argv)
         /* Stop processing any more commands */
         abort_flag= 1;
         break;
+      case Q_SKIP:
+        abort_not_supported_test("%s", command->first_argument);
+        break;
 
       case Q_RESULT:
         die("result, deprecated command");
@@ -6398,14 +6445,9 @@ int main(int argc, char **argv)
     dump_warning_messages();
 
   timer_output();
-  free_used_memory();
-  my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
-
   /* Yes, if we got this far the test has suceeded! Sakila smiles */
-  if (!silent)
-    printf("ok\n");
-  exit(0);
-  return 0;				/* Keep compiler happy */
+  cleanup_and_exit(0);
+  return 0; /* Keep compiler happy too */
 }
 
 
@@ -7059,7 +7101,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
         if (back_ref_num >= 0 && back_ref_num <= (int)r.re_nsub)
         {
           regoff_t start_off, end_off;
-          if ((start_off= subs[back_ref_num].rm_so) > -1 &&
+          if ((start_off=subs[back_ref_num].rm_so) > -1 &&
               (end_off=subs[back_ref_num].rm_eo) > -1)
           {
             int block_len= (int) (end_off - start_off);
@@ -7783,4 +7825,74 @@ void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val)
   char buff[22]; /* This should be enough for any int */
   char *end= longlong10_to_str(val, buff, 10);
   replace_dynstr_append_mem(ds, buff, end - buff);
+}
+
+
+
+/*
+  Build a list of pointer to each line in ds_input, sort
+  the list and use the sorted list to append the strings
+  sorted to the output ds
+
+  SYNOPSIS
+  dynstr_append_sorted
+  ds - string where the sorted output will be appended
+  ds_input - string to be sorted
+
+*/
+
+static int comp_lines(const char **a, const char **b)
+{
+  return (strcmp(*a,*b));
+}
+
+void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
+{
+  unsigned i;
+  char *start= ds_input->str;
+  DYNAMIC_ARRAY lines;
+  DBUG_ENTER("dynstr_append_sorted");
+
+  if (!*start)
+    DBUG_VOID_RETURN;  /* No input */
+
+  my_init_dynamic_array(&lines, sizeof(const char*), 32, 32);
+
+  /* First line is result header, skip past it */
+  while (*start && *start != '\n')
+    start++;
+  start++; /* Skip past \n */
+  dynstr_append_mem(ds, ds_input->str, start - ds_input->str);
+
+  /* Insert line(s) in array */
+  while (*start)
+  {
+    char* line_end= (char*)start;
+
+    /* Find end of line */
+    while (*line_end && *line_end != '\n')
+      line_end++;
+    *line_end= 0;
+
+    /* Insert pointer to the line in array */
+    if (insert_dynamic(&lines, (gptr) &start))
+      die("Out of memory inserting lines to sort");
+
+    start= line_end+1;
+  }
+
+  /* Sort array */
+  qsort(lines.buffer, lines.elements,
+        sizeof(char**), (qsort_cmp)comp_lines);
+
+  /* Create new result */
+  for (i= 0; i < lines.elements ; i++)
+  {
+    const char **line= dynamic_element(&lines, i, const char**);
+    dynstr_append(ds, *line);
+    dynstr_append(ds, "\n");
+  }
+
+  delete_dynamic(&lines);
+  DBUG_VOID_RETURN;
 }
