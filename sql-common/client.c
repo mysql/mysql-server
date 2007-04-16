@@ -2604,7 +2604,7 @@ static void mysql_close_free(MYSQL *mysql)
 */
 
 void mysql_detach_stmt_list(LIST **stmt_list __attribute__((unused)),
-                            const char *func_name)
+                            const char *func_name __attribute__((unused)))
 {
 #ifdef MYSQL_CLIENT
   /* Reset connection handle in all prepared statements. */
@@ -2828,6 +2828,7 @@ MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
   result->field_count=	mysql->field_count;
   /* The rest of result members is bzeroed in malloc */
   mysql->fields=0;				/* fields is now in result */
+  clear_alloc_root(&mysql->field_alloc);
   /* just in case this was mistakenly called after mysql_stmt_execute() */
   mysql->unbuffered_fetch_owner= 0;
   DBUG_RETURN(result);				/* Data fetched */
@@ -2877,6 +2878,7 @@ static MYSQL_RES * cli_use_result(MYSQL *mysql)
   result->handle=	mysql;
   result->current_row=	0;
   mysql->fields=0;			/* fields is now in result */
+  clear_alloc_root(&mysql->field_alloc);
   mysql->status=MYSQL_STATUS_USE_RESULT;
   mysql->unbuffered_fetch_owner= &result->unbuffered_fetch_cancelled;
   DBUG_RETURN(result);			/* Data is read to be fetched */

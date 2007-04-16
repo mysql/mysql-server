@@ -2498,17 +2498,20 @@ wait_for_position:
   if (!(res= mysql_store_result(mysql)))
     die("mysql_store_result() returned NULL for '%s'", query_buf);
   if (!(row= mysql_fetch_row(res)))
+  {
+    mysql_free_result(res);
     die("empty result in %s", query_buf);
+  }
   if (!row[0])
   {
     /*
       It may be that the slave SQL thread has not started yet, though START
       SLAVE has been issued ?
     */
+    mysql_free_result(res);
     if (tries++ == 30)
       die("could not sync with master ('%s' returned NULL)", query_buf);
     sleep(1); /* So at most we will wait 30 seconds and make 31 tries */
-    mysql_free_result(res);
     goto wait_for_position;
   }
   mysql_free_result(res);
