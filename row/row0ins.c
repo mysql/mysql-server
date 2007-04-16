@@ -1813,7 +1813,7 @@ row_ins_duplicate_error_in_clust(
 	UT_NOT_USED(mtr);
 
 	ut_a(dict_index_is_clust(cursor->index));
-	ut_ad(cursor->index->type & DICT_UNIQUE);
+	ut_ad(dict_index_is_unique(cursor->index));
 
 	/* NOTE: For unique non-clustered indexes there may be any number
 	of delete marked records with the same value for the non-clustered
@@ -2052,8 +2052,8 @@ row_ins_index_entry_low(
 
 	n_unique = dict_index_get_n_unique(index);
 
-	if (index->type & DICT_UNIQUE && (cursor.up_match >= n_unique
-					  || cursor.low_match >= n_unique)) {
+	if (dict_index_is_unique(index) && (cursor.up_match >= n_unique
+					    || cursor.low_match >= n_unique)) {
 
 		if (dict_index_is_clust(index)) {
 			/* Note that the following may return also
@@ -2291,7 +2291,7 @@ row_ins_alloc_row_id_step(
 
 	ut_ad(node->state == INS_NODE_ALLOC_ROW_ID);
 
-	if (dict_table_get_first_index(node->table)->type & DICT_UNIQUE) {
+	if (dict_index_is_unique(dict_table_get_first_index(node->table))) {
 
 		/* No row id is stored if the clustered index is unique */
 

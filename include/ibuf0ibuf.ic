@@ -89,7 +89,7 @@ ibuf_should_try(
 						decide */
 {
 	if (!dict_index_is_clust(index)
-	    && (ignore_sec_unique || !(index->type & DICT_UNIQUE))) {
+	    && (ignore_sec_unique || !dict_index_is_unique(index))) {
 
 		ibuf_flush_count++;
 
