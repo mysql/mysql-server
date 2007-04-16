@@ -133,7 +133,7 @@ static uint ndbcluster_alter_table_flags(uint flags)
 }
 
 static int ndbcluster_inited= 0;
-static int ndbcluster_terminating= 0;
+int ndbcluster_terminating= 0;
 
 static Ndb* g_ndb= NULL;
 Ndb_cluster_connection* g_ndb_cluster_connection= NULL;

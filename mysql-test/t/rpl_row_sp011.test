@@ -105,7 +105,7 @@ sync_slave_with_master;
 diff_files $MYSQLTEST_VARDIR/tmp/sp011_master.sql $MYSQLTEST_VARDIR/tmp/sp011_slave.sql;
 
 # If all is good, when can cleanup our dump files.
-system rm $MYSQLTEST_VARDIR/tmp/sp011_master.sql;
-system rm $MYSQLTEST_VARDIR/tmp/sp011_slave.sql;
+--remove_file $MYSQLTEST_VARDIR/tmp/sp011_master.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/sp011_slave.sql
 
 # End of 5.0 test case
