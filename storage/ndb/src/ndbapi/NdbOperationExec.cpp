@@ -132,6 +132,11 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
 	tTotalCurrAI_Len = theTotalCurrAI_Len;
 	assert(theTotalCurrAI_Len);
       }
+      else if (tOpType != DeleteRequest)
+      {
+	assert(tOpType == ReadRequest || tOpType == ReadExclusive);
+        tTotalCurrAI_Len = repack_read(tTotalCurrAI_Len);
+      }
     } else {
       setErrorCodeAbort(4005);      
       return -1;
@@ -335,6 +340,78 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   theReceiver.prepareSend();
   return 0;
 }//NdbOperation::prepareSend()
+
+Uint32
+NdbOperation::repack_read(Uint32 len)
+{
+  Uint32 i;
+  Uint32 maxId = 0, check = 0;
+  Uint32 save = len;
+  Bitmask<MAXNROFATTRIBUTESINWORDS> mask;
+  NdbApiSignal *tSignal = theFirstATTRINFO;
+  NdbApiSignal* tFirst = theTCREQ;
+  TcKeyReq * const tcKeyReq = CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
+  Uint32 cols = m_currentTable->m_columns.size();
+
+  Uint32 *ptr = tcKeyReq->attrInfo;
+  for (i = 0; len && i < 5; i++, len--)
+  {
+    AttributeHeader tmp(* ptr++);
+    Uint32 id = tmp.getAttributeId();
+    mask.set(id);
+    maxId = (id > maxId) ? id : maxId;
+    check |= (id - maxId);
+  }
+
+  Uint32 cnt = 0;
+  while (len)
+  {
+    cnt++;
+    assert(tSignal);
+    ptr = tSignal->getDataPtrSend() + AttrInfo::HeaderLength;
+    for (i = 0; len && i<AttrInfo::DataLength; i++, len--)
+    {
+      AttributeHeader tmp(* ptr++);
+      Uint32 id = tmp.getAttributeId();
+      if (id >= NDB_MAX_ATTRIBUTES_IN_TABLE)
+      {
+        // Dont support == fallback
+        return save;
+      }
+      
+      mask.set(id);
+
+      maxId = (id > maxId) ? id : maxId;
+      check |= (id - maxId);
+    }
+    tSignal = tSignal->next();
+  }
+  const Uint32 newlen = 1 + (maxId >> 5);
+  const bool all = cols == save;
+  if (check == 0)
+  {
+    assert(1+ MAXNROFATTRIBUTESINWORDS <= TcKeyReq::MaxAttrInfo);
+    
+    theNdb->releaseSignals(cnt, theFirstATTRINFO, theCurrentATTRINFO);
+    theFirstATTRINFO = 0;
+    theCurrentATTRINFO = 0;
+    ptr = tcKeyReq->attrInfo;
+    if (all)
+    {
+      AttributeHeader::init(ptr, AttributeHeader::READ_ALL, cols);
+      return 1;
+    }
+    else  
+    {
+      AttributeHeader::init(ptr, AttributeHeader::READ_PACKED, 4*newlen);
+      memcpy(ptr + 1, &mask, 4*MAXNROFATTRIBUTESINWORDS);
+      return 1+newlen;
+    }
+  }
+  
+  return save;
+}
+
 
 /***************************************************************************
 int prepareSendInterpreted()

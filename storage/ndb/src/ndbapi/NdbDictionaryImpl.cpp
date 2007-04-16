@@ -2200,6 +2200,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
         DBUG_RETURN(743);
       }
     }
+    col->m_orgAttrSize = attrDesc.AttributeSize;
     col->m_attrSize = (1 << attrDesc.AttributeSize) / 8;
     col->m_arraySize = attrDesc.AttributeArraySize;
     col->m_arrayType = attrDesc.AttributeArrayType;
