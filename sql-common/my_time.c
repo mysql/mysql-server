@@ -453,7 +453,7 @@ err:
 
 
 /*
- Convert a time string to a TIME struct.
+ Convert a time string to a MYSQL_TIME struct.
 
   SYNOPSIS
    str_to_time()
@@ -639,11 +639,11 @@ fractional:
   l_time->second_part=  date[4];
   l_time->time_type= MYSQL_TIMESTAMP_TIME;
 
-  /* Check if the value is valid and fits into TIME range */
+  /* Check if the value is valid and fits into MYSQL_TIME range */
   if (check_time_range(l_time, warning))
     return 1;
   
-  /* Check if there is garbage at end of the TIME specification */
+  /* Check if there is garbage at end of the MYSQL_TIME specification */
   if (str != end)
   {
     do
@@ -660,11 +660,11 @@ fractional:
 
 
 /*
-  Check 'time' value to lie in the TIME range
+  Check 'time' value to lie in the MYSQL_TIME range
 
   SYNOPSIS:
     check_time_range()
-    time     pointer to TIME value
+    time     pointer to MYSQL_TIME value
     warning  set MYSQL_TIME_WARN_OUT_OF_RANGE flag if the value is out of range
 
   DESCRIPTION
@@ -727,7 +727,39 @@ void init_time(void)
 }
 
 
-	/* Calculate nr of day since year 0 in new date-system (from 1615) */
+/*
+  Handle 2 digit year conversions
+
+  SYNOPSIS
+  year_2000_handling()
+  year     2 digit year
+
+  RETURN
+    Year between 1970-2069
+*/
+
+uint year_2000_handling(uint year)
+{
+  if ((year=year+1900) < 1900+YY_PART_YEAR)
+    year+=100;
+  return year;
+}
+
+
+/*
+  Calculate nr of day since year 0 in new date-system (from 1615)
+
+  SYNOPSIS
+    calc_daynr()
+    year		 Year (exact 4 digit year, no year conversions)
+    month		 Month
+    day			 Day
+
+  NOTES: 0000-00-00 is a valid date, and will return 0
+
+  RETURN
+    Days since 0000-00-00
+*/
 
 long calc_daynr(uint year,uint month,uint day)
 {
@@ -737,11 +769,6 @@ long calc_daynr(uint year,uint month,uint day)
 
   if (year == 0 && month == 0 && day == 0)
     DBUG_RETURN(0);				/* Skip errors */
-  if (year < YY_MAGIC_BELOW)
-  {
-    if ((year=year+1900) < 1900+YY_PART_YEAR)
-      year+=100;
-  }
   delsum= (long) (365L * year+ 31*(month-1) +day);
   if (month <= 2)
       year--;
@@ -978,7 +1005,7 @@ void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type)
 /*
   Functions to convert time/date/datetime value to a string,
   using default format.
-  This functions don't check that given TIME structure members are
+  This functions don't check that given MYSQL_TIME structure members are
   in valid range. If they are not, return value won't reflect any
   valid date either. Additionally, make_time doesn't take into
   account time->day member: it's assumed that days have been converted
@@ -1064,7 +1091,7 @@ int my_TIME_to_str(const MYSQL_TIME *l_time, char *to)
 
   DESCRIPTION
     Convert a datetime value of formats YYMMDD, YYYYMMDD, YYMMDDHHMSS,
-    YYYYMMDDHHMMSS to broken-down TIME representation. Return value in
+    YYYYMMDDHHMMSS to broken-down MYSQL_TIME representation. Return value in
     YYYYMMDDHHMMSS format as side-effect.
 
     This function also checks if datetime value fits in DATETIME range.
@@ -1120,6 +1147,7 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
  ok:
   part1=(long) (nr/LL(1000000));
   part2=(long) (nr - (longlong) part1*LL(1000000));
+  time_res->neg=   0;
   time_res->year=  (int) (part1/10000L);  part1%=10000L;
   time_res->month= (int) part1 / 100;
   time_res->day=   (int) part1 % 100;
@@ -1156,7 +1184,7 @@ ulonglong TIME_to_ulonglong_datetime(const MYSQL_TIME *my_time)
 }
 
 
-/* Convert TIME value to integer in YYYYMMDD format */
+/* Convert MYSQL_TIME value to integer in YYYYMMDD format */
 
 ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *my_time)
 {
@@ -1166,7 +1194,7 @@ ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *my_time)
 
 
 /*
-  Convert TIME value to integer in HHMMSS format.
+  Convert MYSQL_TIME value to integer in HHMMSS format.
   This function doesn't take into account time->day member:
   it's assumed that days have been converted to hours already.
 */
@@ -1180,7 +1208,7 @@ ulonglong TIME_to_ulonglong_time(const MYSQL_TIME *my_time)
 
 
 /*
-  Convert struct TIME (date and time split into year/month/day/hour/...
+  Convert struct MYSQL_TIME (date and time split into year/month/day/hour/...
   to a number in format YYYYMMDDHHMMSS (DATETIME),
   YYYYMMDD (DATE)  or HHMMSS (TIME).
 
@@ -1194,7 +1222,7 @@ ulonglong TIME_to_ulonglong_time(const MYSQL_TIME *my_time)
     SELECT ?+1;
 
   NOTE
-    This function doesn't check that given TIME structure members are
+    This function doesn't check that given MYSQL_TIME structure members are
     in valid range. If they are not, return value won't reflect any
     valid date either.
 */

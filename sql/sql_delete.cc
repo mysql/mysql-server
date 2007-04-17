@@ -353,7 +353,7 @@ cleanup:
       }
     }
     if (!transactional_table)
-      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+      thd->no_trans_update.all= TRUE;
   }
   free_underlaid_joins(thd, select_lex);
   if (transactional_table)
@@ -858,7 +858,7 @@ bool multi_delete::send_eof()
       }
     }
     if (!transactional_tables)
-      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+      thd->no_trans_update.all= TRUE;
   }
   /* Commit or rollback the current SQL statement */
   if (transactional_tables)

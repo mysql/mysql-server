@@ -58,7 +58,7 @@ The options right now are
     MYSQL_SERVER_SUFFIX=<suffix>         Server suffix, default none
     COMPILATION_COMMENT=<comment>        Server comment, default "Source distribution"
     MYSQL_TCP_PORT=<port>                Server port, default 3306
-    CYBOZU
+    CYBOZU				 Default character set is UTF8
 
 So the command line could look like:
 
