@@ -3460,7 +3460,7 @@ static Log_event* next_event(RELAY_LOG_INFO* rli)
           the events have old timestamps (then you get "many", 0, "many").
           Transient phases like this can't really be fixed.
         */
-        my_time_t save_timestamp= rli->last_master_timestamp;
+        time_t save_timestamp= rli->last_master_timestamp;
         rli->last_master_timestamp= 0;
 
         DBUG_ASSERT(rli->relay_log.get_open_count() ==
