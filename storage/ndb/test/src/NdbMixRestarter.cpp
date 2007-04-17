@@ -245,12 +245,16 @@ loop:
       goto loop;
     
     if (action == RTM_RestartNode || action == RTM_RestartNodeInitial)
-      ndbout << "Restarting " << node->node_id << endl;
+      ndbout << "Restarting " << node->node_id;
     else
-      ndbout << "Stopping " << node->node_id << endl;
+      ndbout << "Stopping " << node->node_id;
     
     bool initial = 
       action == RTM_RestartNodeInitial || action == RTM_StopNodeInitial;
+
+    if (initial)
+      ndbout << " inital";
+    ndbout << endl;
     
     if (restartOneDbNode(node->node_id, initial, true, true))
       return NDBT_FAILED;
