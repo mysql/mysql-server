@@ -2,7 +2,8 @@
 # if federated can utilise the servers table
 # should work with embedded server after mysqltest is fixed
 -- source include/not_embedded.inc
-source include/federated.inc;
+-- source include/federated.inc;
+-- source include/big_test.inc
 
 connection slave;
 create database first_db;
@@ -299,7 +300,7 @@ begin
   DECLARE i INT;
   DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET e = e + 1;
   SET i = sleep(5);
-  WHILE v < 20000 do
+  WHILE v < 10000 do
     CREATE SERVER s
       FOREIGN DATA WRAPPER mysql
       OPTIONS (USER 'Remote', HOST '192.168.1.106', DATABASE 'test');
