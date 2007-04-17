@@ -278,15 +278,30 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
     ref_pointer_array Array of references to Items used in current select
 
   DESCRIPTION
-    The function fixes fields referenced from inner selects and
-    also fixes references (Item_ref objects) to these fields. Each field
-    is fixed as a usual hidden field of the current select - it is added
-    to the all_fields list and the pointer to it is saved in the
-    ref_pointer_array if latter is provided.
-    After the field has been fixed we proceed with fixing references
-    (Item_ref objects) to this field from inner subqueries. If the
-    ref_pointer_array is provided then Item_ref objects is set to
-    reference element in that array with the pointer to the field.
+    The function serves 3 purposes - adds fields referenced from inner
+    selects to the current select list, resolves which class to use
+    to access referenced item (Item_ref of Item_direct_ref) and fixes
+    references (Item_ref objects) to these fields.
+
+    If a field isn't already in the select list and the ref_pointer_array
+    is provided then it is added to the all_fields list and the pointer to
+    it is saved in the ref_pointer_array.
+
+    The class to access the outer field is determined by the following rules:
+    1. If the outer field isn't used under an aggregate function
+      then the Item_ref class should be used.
+    2. If the outer field is used under an aggregate function and this
+      function is aggregated in the select where the outer field was
+      resolved or in some more inner select then the Item_direct_ref
+      class should be used.
+    The resolution is done here and not at the fix_fields() stage as
+    it can be done only after sum functions are fixed and pulled up to
+    selects where they are have to be aggregated.
+    When the class is chosen it substitutes the original field in the
+    Item_outer_ref object.
+
+    After this we proceed with fixing references (Item_outer_ref objects) to
+    this field from inner subqueries.
 
   RETURN
     TRUE  an error occured
@@ -299,33 +314,64 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
 {
   Item_outer_ref *ref;
   bool res= FALSE;
+  bool direct_ref= FALSE;
+
   List_iterator<Item_outer_ref> ref_it(select->inner_refs_list);
   while ((ref= ref_it++))
   {
-    Item_field *item= ref->outer_field;
+    Item *item= ref->outer_ref;
+    Item **item_ref= ref->ref;
+    Item_ref *new_ref;
     /*
       TODO: this field item already might be present in the select list.
       In this case instead of adding new field item we could use an
       existing one. The change will lead to less operations for copying fields,
       smaller temporary tables and less data passed through filesort.
     */
-    if (ref_pointer_array)
+    if (ref_pointer_array && !ref->found_in_select_list)
     {
       int el= all_fields.elements;
-      ref_pointer_array[el]= (Item*)item;
+      ref_pointer_array[el]= item;
       /* Add the field item to the select list of the current select. */
-      all_fields.push_front((Item*)item);
+      all_fields.push_front(item);
       /*
         If it's needed reset each Item_ref item that refers this field with
         a new reference taken from ref_pointer_array.
       */
-      ref->ref= ref_pointer_array + el;
+      item_ref= ref_pointer_array + el;
     }
-    if (!ref->fixed && ref->fix_fields(thd, 0))
+
+    if (ref->in_sum_func)
     {
-      res= TRUE;
-      break;
+      Item_sum *sum_func;
+      if (ref->in_sum_func->nest_level > select->nest_level)
+        direct_ref= TRUE;
+      else
+      {
+        for (sum_func= ref->in_sum_func; sum_func &&
+             sum_func->aggr_level >= select->nest_level;
+             sum_func= sum_func->in_sum_func)
+        {
+          if (sum_func->aggr_level == select->nest_level)
+          {
+            direct_ref= TRUE;
+            break;
+          }
+        }
+      }
     }
+    new_ref= direct_ref ?
+              new Item_direct_ref(ref->context, item_ref, ref->field_name,
+                          ref->table_name, ref->alias_name_used) :
+              new Item_ref(ref->context, item_ref, ref->field_name,
+                          ref->table_name, ref->alias_name_used);
+    if (!new_ref)
+      return TRUE;
+    ref->outer_ref= new_ref;
+    ref->ref= &ref->outer_ref;
+
+    if (!ref->fixed && ref->fix_fields(thd, 0))
+      return TRUE;
     thd->used_tables|= item->used_tables();
   }
   return res;
@@ -478,10 +524,6 @@ JOIN::prepare(Item ***rref_pointer_array,
   if (having && having->with_sum_func)
     having->split_sum_func2(thd, ref_pointer_array, all_fields,
                             &having, TRUE);
-  if (select_lex->inner_refs_list.elements &&
-      fix_inner_refs(thd, all_fields, select_lex, ref_pointer_array))
-    DBUG_RETURN(-1);
-
   if (select_lex->inner_sum_func_list)
   {
     Item_sum *end=select_lex->inner_sum_func_list;
@@ -493,6 +535,10 @@ JOIN::prepare(Item ***rref_pointer_array,
                                 all_fields, item_sum->ref_by, FALSE);
     } while (item_sum != end);
   }
+
+  if (select_lex->inner_refs_list.elements &&
+      fix_inner_refs(thd, all_fields, select_lex, ref_pointer_array))
+    DBUG_RETURN(-1);
 
   if (setup_ftfuncs(select_lex)) /* should be after having->fix_fields */
     DBUG_RETURN(-1);
@@ -5214,7 +5260,9 @@ get_store_key(THD *thd, KEYUSE *keyuse, table_map used_tables,
   }
   else if (keyuse->val->type() == Item::FIELD_ITEM ||
            (keyuse->val->type() == Item::REF_ITEM &&
-            ((Item_ref*)keyuse->val)->ref_type() == Item_ref::OUTER_REF) )
+            ((Item_ref*)keyuse->val)->ref_type() == Item_ref::OUTER_REF &&
+            (*(Item_ref**)((Item_ref*)keyuse->val)->ref)->ref_type() ==
+             Item_ref::DIRECT_REF) )
     return new store_key_field(thd,
 			       key_part->field,
 			       key_buff + maybe_null,
@@ -13539,9 +13587,7 @@ create_distinct_group(THD *thd, Item **ref_pointer_array,
       ORDER *ord_iter;
       for (ord_iter= group; ord_iter; ord_iter= ord_iter->next)
         if ((*ord_iter->item)->eq(item, 1))
-          break;
-      if (ord_iter)
-        continue;
+          goto next_item;
       
       ORDER *ord=(ORDER*) thd->calloc(sizeof(ORDER));
       if (!ord)
@@ -13556,6 +13602,7 @@ create_distinct_group(THD *thd, Item **ref_pointer_array,
       *prev=ord;
       prev= &ord->next;
     }
+next_item:
     ref_pointer_array++;
   }
   *prev=0;

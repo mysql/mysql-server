@@ -389,6 +389,7 @@ Dbtup::commitRecord(Signal* signal,
 
   fragptr.p = regFragPtr;
   tabptr.p = regTabPtr;
+  Uint32 hashValue = firstOpPtr.p->hashValue;
 
   if (opType == ZINSERT_DELETE) {
     ljam();
@@ -411,6 +412,7 @@ Dbtup::commitRecord(Signal* signal,
 //--------------------------------------------------------------------
     Uint32 saveOpType = regOperPtr->optype;
     regOperPtr->optype = ZINSERT;
+    regOperPtr->hashValue = hashValue;
     operPtr.p = regOperPtr;
 
     checkDetachedTriggers(signal,
@@ -443,6 +445,8 @@ Dbtup::commitRecord(Signal* signal,
     befOpPtr.p->changeMask.clear();
     befOpPtr.p->changeMask.bitOR(attributeMask);
     befOpPtr.p->gci = regOperPtr->gci;
+    befOpPtr.p->optype = ZUPDATE;
+    befOpPtr.p->hashValue = hashValue;
     
     befOpPtr.p->optype = opType;
     operPtr.p = befOpPtr.p;
@@ -477,11 +481,13 @@ Dbtup::commitRecord(Signal* signal,
     Uint32 fragPageId = befOpPtr.p->fragPageId;
     Uint32 pageIndex  = befOpPtr.p->pageIndex;
 
+    befOpPtr.p->optype = ZDELETE;
     befOpPtr.p->realPageId = befOpPtr.p->realPageIdC;
     befOpPtr.p->pageOffset = befOpPtr.p->pageOffsetC;
     befOpPtr.p->fragPageId = befOpPtr.p->fragPageIdC;
     befOpPtr.p->pageIndex  = befOpPtr.p->pageIndexC;
     befOpPtr.p->gci = regOperPtr->gci;
+    befOpPtr.p->hashValue = hashValue;
 
     befOpPtr.p->optype = opType;
     operPtr.p = befOpPtr.p;
