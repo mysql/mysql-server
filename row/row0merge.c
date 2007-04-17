@@ -478,7 +478,7 @@ row_merge_cmp(
 	const ulint*	offsets2,	/* in: second record offsets */
 	dict_index_t*	index)		/* in: index */
 {
-	ut_ad(mrec1 && mrec2 && offsets1 && offsets2 && index && selected);
+	ut_ad(mrec1 && mrec2 && offsets1 && offsets2 && index);
 	ut_ad(rec_validate(mrec1->rec, offsets1));
 	ut_ad(rec_validate(mrec2->rec, offsets2));
 
@@ -490,8 +490,8 @@ Merge sort for linked list in memory.
 
 Merge sort takes the input list and makes log N passes along
 the list and in each pass it combines each adjacent pair of
-small sorted lists into one larger sorted list. When only a one
-pass is needed the whole output list must be sorted.
+small sorted lists into one larger sorted list. When only one
+pass is needed the whole output list must have been sorted.
 
 In each pass, two lists of size block_size are merged into lists of
 size block_size*2. Initially block_size=1. Merge starts by pointing
@@ -551,7 +551,6 @@ row_merge_sort_linked_list(
 	merge_rec_t*	list_head;
 	merge_rec_t*	list_tail;
 	ulint		block_size;
-	ulint		num_of_merges;
 	ulint		list1_size;
 	ulint		list2_size;
 	ulint		i;
@@ -566,22 +565,17 @@ row_merge_sort_linked_list(
 	*offsets1_ = (sizeof offsets1_) / sizeof *offsets1_;
 	*offsets2_ = (sizeof offsets2_) / sizeof *offsets2_;
 
-	block_size = 1;	/* We start from block size 1 */
-
 	list_head = list->head;
 
-	for (;;) {
+	for (block_size = 1;; block_size *= 2) {
 		list1 = list_head;
 		list_head = NULL;
 		list_tail = NULL;
-		num_of_merges = 0;	/* We count number of merges we do in
-					this pass */
 
-		while (list1) {
-			num_of_merges++;
-
+		for (;;) {
 			list2 = list1;
 			list1_size = 0;
+			list2_size = block_size;
 
 			/* Step at most block_size elements along from
 			list2. */
@@ -591,16 +585,15 @@ row_merge_sort_linked_list(
 				list2 = list2->next;
 
 				if (!list2) {
+					list2_size = 0;
 					break;
 				}
 			}
 
-			list2_size = block_size;
-
 			/* If list2 is not NULL, we have two lists to merge.
-			Otherwice, we have a sorted list. */
+			Otherwise, we have a sorted list. */
 
-			while (list1_size > 0 || (list2_size > 0 && list2)) {
+			while (list1_size || list2_size) {
 				merge_rec_t*	tmp;
 				/* Merge sort two lists by deciding whether
 				next element of merge comes from list1 or
@@ -612,7 +605,7 @@ row_merge_sort_linked_list(
 					goto pick2;
 				}
 
-				if (list2_size == 0 || !list2) {
+				if (list2_size == 0) {
 					/* Second list is empty, next element
 					must come from the first list. */
 					goto pick1;
@@ -647,7 +640,11 @@ pick1:
 pick2:
 					tmp = list2;
 					list2 = list2->next;
-					list2_size--;
+					if (list2) {
+						list2_size--;
+					} else {
+						list2_size = 0;
+					}
 					break;
 				}
 
@@ -662,24 +659,17 @@ pick2:
 				list_tail = tmp;
 			}
 
-			/* Now we have processed block_size items from list1. */
+			if (!list2) {
+				list->head = list_head;
+				list_tail->next = NULL;
+				success = TRUE;
+				goto func_exit;
+			}
 
 			list1 = list2;
 		}
 
 		list_tail->next = NULL;
-
-		/* If we have done oly one merge, we have created a sorted
-		list */
-
-		if (num_of_merges <= 1) {
-			list->head = list_head;
-			success = TRUE;
-			goto func_exit;
-		} else {
-			/* Otherwise merge lists twice the size */
-			block_size *= 2;
-		}
 	}
 
 func_exit:
@@ -1084,8 +1074,8 @@ Merge sort for linked list in the disk.
 
 Merge sort takes the input list and makes log N passes along
 the list and in each pass it combines each adjacent pair of
-small sorted lists into one larger sorted list. When only a one
-pass is needed the whole output list must be sorted.
+small sorted lists into one larger sorted list. When only one
+pass is needed the whole output list must have been sorted.
 
 The linked list is stored in the file system.  File blocks represent
 items of linked list.  The list is singly linked by the next offset
@@ -1166,7 +1156,6 @@ row_merge_sort_linked_list_in_disk(
 	output.file = file;
 
 	for (block_size = 1;; block_size *= 2) {
-		ibool	sorted		= TRUE;
 		ibool	list_is_empty	= TRUE;
 
 		block1 = backup1;
@@ -1224,7 +1213,7 @@ file_error:
 			}
 
 			/* If list2 is not empty, we have two lists to merge.
-			Otherwice, we have a sorted list. */
+			Otherwise, we have a sorted list. */
 
 			while (list1_size > 0 || (list2_size > 0 && block2)) {
 				/* Merge sort two lists by deciding whether
@@ -1300,30 +1289,23 @@ file_error:
 			the disk.  Swap blocks using pointers. */
 
 			if (!block2) {
-				break;
+
+				goto func_exit;
 			}
 
 			block2 = backup1;
 			block1 = backup2;
 			backup2 = block2;
 			backup1 = block1;
-
-			sorted = FALSE;
-		}
-
-		if (sorted) {
-
-			mem_free(backup1);
-			mem_free(backup2);
-
-			return(list_head);
 		}
 	}
 
 err_exit:
+	list_head = ULINT_UNDEFINED;
+func_exit:
 	mem_free(backup1);
 	mem_free(backup2);
-	return(ULINT_UNDEFINED);
+	return(list_head);
 }
 
 /************************************************************************
@@ -2126,4 +2108,3 @@ row_merge_drop_table(
 
 	return(err);
 }
-
