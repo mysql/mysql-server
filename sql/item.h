@@ -1220,7 +1220,6 @@ public:
   uint have_privileges;
   /* field need any privileges (for VIEW creation) */
   bool any_privileges;
-  bool fixed_as_field;
   Item_field(Name_resolution_context *context_arg,
              const char *db_arg,const char *table_name_arg,
 	     const char *field_name_arg);
@@ -1978,30 +1977,49 @@ public:
 };
 
 
+/*
+  Class for outer fields.
+  An object of this class is created when the select where the outer field was
+  resolved is a grouping one. After it has been fixed the ref field will point
+  to either an Item_ref or an Item_direct_ref object which will be used to
+  access the field.
+  See also comments for the fix_inner_refs() and the
+  Item_field::fix_outer_field() functions.
+*/
+
+class Item_sum;
 class Item_outer_ref :public Item_direct_ref
 {
 public:
-  Item_field *outer_field;
+  Item *outer_ref;
+  /* The aggregate function under which this outer ref is used, if any. */
+  Item_sum *in_sum_func;
+  /*
+    TRUE <=> that the outer_ref is already present in the select list
+    of the outer select.
+  */
+  bool found_in_select_list;
   Item_outer_ref(Name_resolution_context *context_arg,
                  Item_field *outer_field_arg)
     :Item_direct_ref(context_arg, 0, outer_field_arg->table_name,
-                          outer_field_arg->field_name),
-    outer_field(outer_field_arg)
+                     outer_field_arg->field_name),
+    outer_ref(outer_field_arg), in_sum_func(0),
+    found_in_select_list(0)
   {
-    ref= (Item**)&outer_field;
+    ref= &outer_ref;
     set_properties();
     fixed= 0;
   }
-  void cleanup()
-  {
-    ref= (Item**)&outer_field;
-    fixed= 0;
-    Item_direct_ref::cleanup();
-    outer_field->cleanup();
-  }
+  Item_outer_ref(Name_resolution_context *context_arg, Item **item,
+                 const char *table_name_arg, const char *field_name_arg,
+                 bool alias_name_used_arg)
+    :Item_direct_ref(context_arg, item, table_name_arg, field_name_arg,
+                     alias_name_used_arg),
+    outer_ref(0), in_sum_func(0), found_in_select_list(1)
+  {}
   void save_in_result_field(bool no_conversions)
   {
-    outer_field->save_org_in_field(result_field);
+    outer_ref->save_org_in_field(result_field);
   }
   bool fix_fields(THD *, Item **);
   table_map used_tables() const
