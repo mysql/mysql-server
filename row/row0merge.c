@@ -568,6 +568,8 @@ row_merge_sort_linked_list(
 	list_head = list->head;
 
 	for (block_size = 1;; block_size *= 2) {
+		ibool	sorted		= TRUE;
+
 		list1 = list_head;
 		list_head = NULL;
 		list_tail = NULL;
@@ -660,12 +662,17 @@ pick2:
 			}
 
 			if (!list2) {
+				if (!sorted) {
+					break;
+				}
+
 				list->head = list_head;
 				list_tail->next = NULL;
 				success = TRUE;
 				goto func_exit;
 			}
 
+			sorted = FALSE;
 			list1 = list2;
 		}
 
@@ -1156,6 +1163,7 @@ row_merge_sort_linked_list_in_disk(
 	output.file = file;
 
 	for (block_size = 1;; block_size *= 2) {
+		ibool	sorted		= TRUE;
 		ibool	list_is_empty	= TRUE;
 
 		block1 = backup1;
@@ -1289,10 +1297,13 @@ file_error:
 			the disk.  Swap blocks using pointers. */
 
 			if (!block2) {
-
-				goto func_exit;
+				if (sorted) {
+					goto func_exit;
+				}
+				break;
 			}
 
+			sorted = FALSE;
 			block2 = backup1;
 			block1 = backup2;
 			backup2 = block2;
