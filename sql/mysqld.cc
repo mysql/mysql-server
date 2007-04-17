@@ -7857,14 +7857,13 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       myisam_concurrent_insert= 0;      /* --skip-concurrent-insert */
     break;
   case OPT_TC_HEURISTIC_RECOVER:
-  {
     if ((tc_heuristic_recover=find_type(argument,
                                         &tc_heuristic_recover_typelib, 2)) <=0)
     {
       fprintf(stderr, "Unknown option to tc-heuristic-recover: %s\n",argument);
       exit(1);
     }
-  }
+    break;
   case OPT_MYISAM_STATS_METHOD:
   {
     ulong method_conv;
