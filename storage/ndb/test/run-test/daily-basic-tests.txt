@@ -607,6 +607,14 @@ max-time: 1500
 cmd: testDict
 args: -l 25 -n DictRestart T1
 
+max-time: 1500
+cmd: testDict
+args: -n TableAddAttrs T7
+
+max-time: 1500
+cmd: testDict
+args: -n TableAddAttrsDuring T7
+
 #
 # TEST NDBAPI
 #
