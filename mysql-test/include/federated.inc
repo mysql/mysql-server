@@ -5,6 +5,11 @@ source ./include/master-slave.inc;
 
 # remote table creation
 
+# We have to sync with master, to ensure slave had time to start properly
+# before we stop it. If not, we get errors about UNIX_TIMESTAMP() in the log.
+connection master;
+sync_slave_with_master;
+
 connection slave;
 #--replicate-ignore-db=federated
 stop slave;
