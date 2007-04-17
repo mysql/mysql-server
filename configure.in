@@ -2467,7 +2467,7 @@ then
   man_dirs="man"
   man1_files=`echo $man1_files`
   man8_files=`echo $man8_files`
-  rm -f $MANLISTFIL
+  rm -f $MANLISTFIL $TMPLISTFIL
 else
   man_dirs=""
   man1_files=""
