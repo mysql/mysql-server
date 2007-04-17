@@ -339,8 +339,6 @@ dtype_new_read_for_order_and_null_size(
 
 	type->len = mach_read_from_2(buf + 2);
 
-	mach_read_from_2(buf + 4);
-
 	charset_coll = mach_read_from_2(buf + 4) & 0x7fff;
 
 	if (dtype_is_string_type(type->mtype)) {
