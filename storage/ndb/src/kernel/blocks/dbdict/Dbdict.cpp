@@ -2659,24 +2659,62 @@ checkSchemaStatus(Uint32 tableType, Uint32 pass)
   case DictTabInfo::IndexTrigger:
     return false;
   case DictTabInfo::LogfileGroup:
-    return pass == 0;
+    return pass == 0 || pass == 9 || pass == 10;
   case DictTabInfo::Tablespace:
-    return pass == 1;
+    return pass == 1 || pass == 8 || pass == 11;
   case DictTabInfo::Datafile:
   case DictTabInfo::Undofile:
-    return pass == 2;
+    return pass == 2 || pass == 7 || pass == 12;
   case DictTabInfo::SystemTable:
   case DictTabInfo::UserTable:
-    return pass == 3;
+    return /* pass == 3 || pass == 6 || */ pass == 13;
   case DictTabInfo::UniqueHashIndex:
   case DictTabInfo::HashIndex:
   case DictTabInfo::UniqueOrderedIndex:
   case DictTabInfo::OrderedIndex:
-    return pass == 4;
+    return /* pass == 4 || pass == 5 || */ pass == 14;
   }
   
   return false;
 }
+
+static const Uint32 CREATE_OLD_PASS = 4;
+static const Uint32 DROP_OLD_PASS = 9;
+static const Uint32 CREATE_NEW_PASS = 14;
+static const Uint32 LAST_PASS = 14;
+
+NdbOut&
+operator<<(NdbOut& out, const SchemaFile::TableEntry entry)
+{
+  out << "[";
+  out << " state: " << entry.m_tableState;
+  out << " version: " << hex << entry.m_tableVersion << dec;
+  out << " type: " << entry.m_tableType;
+  out << " words: " << entry.m_info_words;
+  out << " gcp: " << entry.m_gcp;
+  out << " ]";
+  return out;
+}
+
+/**
+ * Pass 0  Create old LogfileGroup
+ * Pass 1  Create old Tablespace
+ * Pass 2  Create old Datafile/Undofile
+ * Pass 3  Create old Table           // NOT DONE DUE TO DIH
+ * Pass 4  Create old Index           // NOT DONE DUE TO DIH
+ 
+ * Pass 5  Drop old Index             // NOT DONE DUE TO DIH
+ * Pass 6  Drop old Table             // NOT DONE DUE TO DIH
+ * Pass 7  Drop old Datafile/Undofile
+ * Pass 8  Drop old Tablespace
+ * Pass 9  Drop old Logfilegroup
+ 
+ * Pass 10 Create new LogfileGroup
+ * Pass 11 Create new Tablespace
+ * Pass 12 Create new Datafile/Undofile
+ * Pass 13 Create new Table
+ * Pass 14 Create new Index
+ */
 
 void Dbdict::checkSchemaStatus(Signal* signal) 
 {
@@ -2692,287 +2730,132 @@ void Dbdict::checkSchemaStatus(Signal* signal)
     Uint32 tableId = c_restartRecord.activeTable;
     SchemaFile::TableEntry *newEntry = getTableEntry(newxsf, tableId);
     SchemaFile::TableEntry *oldEntry = getTableEntry(oldxsf, tableId);
-    SchemaFile::TableState schemaState = 
+    SchemaFile::TableState newSchemaState = 
       (SchemaFile::TableState)newEntry->m_tableState;
     SchemaFile::TableState oldSchemaState = 
       (SchemaFile::TableState)oldEntry->m_tableState;
 
     if (c_restartRecord.activeTable >= c_tableRecordPool.getSize()) {
       jam();
-      ndbrequire(schemaState == SchemaFile::INIT);
+      ndbrequire(newSchemaState == SchemaFile::INIT);
       ndbrequire(oldSchemaState == SchemaFile::INIT);
       continue;
     }//if
 
-    if(!::checkSchemaStatus(oldEntry->m_tableType, c_restartRecord.m_pass))
-      continue;
+//#define PRINT_SCHEMA_RESTART
+#ifdef PRINT_SCHEMA_RESTART
+    char buf[100];
+    snprintf(buf, sizeof(buf), "checkSchemaStatus: pass: %d table: %d", 
+             c_restartRecord.m_pass, tableId);
+#endif
     
-    if(!::checkSchemaStatus(newEntry->m_tableType, c_restartRecord.m_pass))
-      continue;
-    
-    switch(schemaState){
-    case SchemaFile::INIT:{
-      jam();
-      bool ok = false;
-      switch(oldSchemaState) {
-      case SchemaFile::INIT:
-	jam();
-      case SchemaFile::DROP_TABLE_COMMITTED:
-	jam();
-	ok = true;
-        jam();
-	break;
+    if (c_restartRecord.m_pass <= CREATE_OLD_PASS)
+    {
+      if (!::checkSchemaStatus(oldEntry->m_tableType, c_restartRecord.m_pass))
+        continue;
 
-      case SchemaFile::ADD_STARTED:
+      switch(oldSchemaState){
+      case SchemaFile::INIT: jam();
+      case SchemaFile::DROP_TABLE_COMMITTED: jam();
+      case SchemaFile::ADD_STARTED: jam();
+      case SchemaFile::DROP_TABLE_STARTED: jam();
+      case SchemaFile::TEMPORARY_TABLE_COMMITTED: jam();
+	continue;
+      case SchemaFile::TABLE_ADD_COMMITTED: jam();
+      case SchemaFile::ALTER_TABLE_COMMITTED: jam();
 	jam();
-      case SchemaFile::TABLE_ADD_COMMITTED:
-	jam();
-      case SchemaFile::DROP_TABLE_STARTED:
-	jam();
-      case SchemaFile::ALTER_TABLE_COMMITTED:
-	jam();
-	ok = true;
-        jam();
-	newEntry->m_tableState = SchemaFile::INIT;
-	restartDropTab(signal, tableId);
-	return;
-
-      case SchemaFile::TEMPORARY_TABLE_COMMITTED:
-        // Temporary table is never written to disk, so just set to INIT.
-        jam();
-	ok = true;
-	newEntry->m_tableState = SchemaFile::INIT;
-        break;
-      }//switch
-      ndbrequire(ok);
-      break;
-    }
-    case SchemaFile::ADD_STARTED:{
-      jam();
-      bool ok = false;
-      switch(oldSchemaState) {
-      case SchemaFile::INIT:
-	jam();
-      case SchemaFile::DROP_TABLE_COMMITTED:
-	jam();
-	ok = true;
-	break;
-      case SchemaFile::ADD_STARTED: 
-	jam();
-      case SchemaFile::DROP_TABLE_STARTED:
-	jam();
-      case SchemaFile::TABLE_ADD_COMMITTED:
-	jam();
-      case SchemaFile::ALTER_TABLE_COMMITTED:
-	jam();
-	ok = true;
-	//------------------------------------------------------------------
-	// Add Table was started but not completed. Will be dropped in all
-	// nodes. Update schema information (restore table version).
-	//------------------------------------------------------------------
-	newEntry->m_tableState = SchemaFile::INIT;
-	restartDropTab(signal, tableId);
-	return;
-      case SchemaFile::TEMPORARY_TABLE_COMMITTED:
-        jam();
-	ok = true;
-	newEntry->m_tableState = SchemaFile::INIT;
-        break;
-      }
-      ndbrequire(ok);
-      break;
-    }
-    case SchemaFile::TABLE_ADD_COMMITTED:{
-      jam();
-      bool ok = false;
-      switch(oldSchemaState) {
-      case SchemaFile::INIT:
-	jam();
-      case SchemaFile::ADD_STARTED:
-	jam();
-      case SchemaFile::DROP_TABLE_STARTED:
-	jam();
-      case SchemaFile::DROP_TABLE_COMMITTED:
-	jam();
-	ok = true;
-	//------------------------------------------------------------------
-	// Table was added in the master node but not in our node. We can
-	// retrieve the table definition from the master.
-	//------------------------------------------------------------------
-	restartCreateTab(signal, tableId, oldEntry, newEntry, false);
+#ifdef PRINT_SCHEMA_RESTART
+        ndbout_c("%s -> restartCreateTab", buf);
+        ndbout << *newEntry << " " << *oldEntry << endl;
+#endif
+	restartCreateTab(signal, tableId, oldEntry, oldEntry, true);        
         return;
-        break;
-      case SchemaFile::TABLE_ADD_COMMITTED:
-	jam();
-      case SchemaFile::ALTER_TABLE_COMMITTED:
-        jam();
-	ok = true;
-	//------------------------------------------------------------------
-	// Table was added in both our node and the master node. We can
-	// retrieve the table definition from our own disk.
-	//------------------------------------------------------------------
-	if(newEntry->m_tableVersion == oldEntry->m_tableVersion)
-        {
-	  jam();
-	  ndbrequire(newEntry->m_gcp == oldEntry->m_gcp);
-	  ndbrequire(newEntry->m_tableType == oldEntry->m_tableType);
-	  Uint32 type= oldEntry->m_tableType;
-          // On NR get index from master because index state is not on file
-          const bool file = c_systemRestart || !DictTabInfo::isIndex(type);
-	  newEntry->m_info_words= oldEntry->m_info_words;
-          restartCreateTab(signal, tableId, oldEntry, newEntry, file);
+      }
+    }
 
-          return;
-        } else {
-	  //------------------------------------------------------------------
-	  // Must be a new version of the table if anything differs. Both table
-	  // version and global checkpoint must be different.
-	  // This should not happen for the master node. This can happen after
-	  // drop table followed by add table or after change table.
-	  // Not supported in this version.
-	  //------------------------------------------------------------------
-          ndbrequire(c_masterNodeId != getOwnNodeId());
-	  ndbrequire(newEntry->m_tableVersion != oldEntry->m_tableVersion);
-          jam();
-	  
-	  restartCreateTab(signal, tableId, oldEntry, newEntry, false);
-          return;
-        }//if
-      case SchemaFile::TEMPORARY_TABLE_COMMITTED:
-        jam();
-        ok = true;
-        // For NR, we must re-create the table.
-        // For SR, we do nothing as the table was never saved to disk.
-        if(!c_systemRestart)
+    if (c_restartRecord.m_pass <= DROP_OLD_PASS)
+    {
+      if (!::checkSchemaStatus(oldEntry->m_tableType, c_restartRecord.m_pass))
+        continue;
+
+      switch(oldSchemaState){
+      case SchemaFile::INIT: jam();
+      case SchemaFile::DROP_TABLE_COMMITTED: jam();
+      case SchemaFile::TEMPORARY_TABLE_COMMITTED: jam();
+        continue;
+      case SchemaFile::ADD_STARTED: jam();
+      case SchemaFile::DROP_TABLE_STARTED: jam();
+#ifdef PRINT_SCHEMA_RESTART
+        ndbout_c("%s -> restartDropTab", buf);
+        ndbout << *newEntry << " " << *oldEntry << endl;
+#endif
+	restartDropTab(signal, tableId, oldEntry, newEntry);
+        return;
+      case SchemaFile::TABLE_ADD_COMMITTED: jam();
+      case SchemaFile::ALTER_TABLE_COMMITTED: jam();
+        if (! (* oldEntry == * newEntry))
         {
-          restartCreateTab(signal, tableId, oldEntry, newEntry, false);
+#ifdef PRINT_SCHEMA_RESTART
+          ndbout_c("%s -> restartDropTab", buf);
+          ndbout << *newEntry << " " << *oldEntry << endl;
+#endif
+          restartDropTab(signal, tableId, oldEntry, newEntry);
           return;
         }
-        break;
+        continue;
       }
-      ndbrequire(ok);
-      break;
     }
-    case SchemaFile::DROP_TABLE_STARTED:
-      jam();
-    case SchemaFile::DROP_TABLE_COMMITTED:{
-      jam();
-      bool ok = false;
-      switch(oldSchemaState){
-      case SchemaFile::INIT:
-	jam();
-      case SchemaFile::DROP_TABLE_COMMITTED:
-	jam();
-	ok = true;
-	break;
-      case SchemaFile::ADD_STARTED:
-	jam();
-      case SchemaFile::TABLE_ADD_COMMITTED:
-	jam();
-      case SchemaFile::DROP_TABLE_STARTED:
-	jam();
-      case SchemaFile::ALTER_TABLE_COMMITTED:
-	jam();
-	newEntry->m_tableState = SchemaFile::INIT;
-	restartDropTab(signal, tableId);
-	return;
-      case SchemaFile::TEMPORARY_TABLE_COMMITTED:
-        jam();
-        ok = true;
-	newEntry->m_tableState = SchemaFile::INIT;
-        break;
-      }
-      ndbrequire(ok);
-      break;
-    }
-    case SchemaFile::ALTER_TABLE_COMMITTED: {
-      jam();
-      bool ok = false;
-      switch(oldSchemaState) {
-      case SchemaFile::INIT:
-	jam();
-      case SchemaFile::ADD_STARTED:
-	jam();
-      case SchemaFile::DROP_TABLE_STARTED:
-	jam();
-      case SchemaFile::DROP_TABLE_COMMITTED:
-	jam();
-      case SchemaFile::TEMPORARY_TABLE_COMMITTED:
-        jam();
-        ok = true;
-        if(!c_systemRestart)
+
+    if (c_restartRecord.m_pass <= CREATE_NEW_PASS)
+    {
+      if (!::checkSchemaStatus(newEntry->m_tableType, c_restartRecord.m_pass))
+        continue;
+      
+      switch(newSchemaState){
+      case SchemaFile::INIT: jam();
+      case SchemaFile::DROP_TABLE_COMMITTED: jam();
+      case SchemaFile::TEMPORARY_TABLE_COMMITTED: jam();
+        * oldEntry = * newEntry;
+        continue;
+      case SchemaFile::ADD_STARTED: jam();
+      case SchemaFile::DROP_TABLE_STARTED: jam();
+        ndbrequire(false);
+        return;
+      case SchemaFile::TABLE_ADD_COMMITTED: jam();
+      case SchemaFile::ALTER_TABLE_COMMITTED: jam();
+        if (DictTabInfo::isIndex(newEntry->m_tableType) ||
+            DictTabInfo::isTable(newEntry->m_tableType))
         {
-          restartCreateTab(signal, tableId, oldEntry, newEntry, false);
+          bool file = * oldEntry == *newEntry &&
+            (!DictTabInfo::isIndex(newEntry->m_tableType) || c_systemRestart);
+
+#ifdef PRINT_SCHEMA_RESTART          
+          ndbout_c("%s -> restartCreateTab (file: %d)", buf, file);
+          ndbout << *newEntry << " " << *oldEntry << endl;
+#endif
+          restartCreateTab(signal, tableId, newEntry, newEntry, file);        
+          * oldEntry = * newEntry;
           return;
         }
-        break;
-      case SchemaFile::TABLE_ADD_COMMITTED:
-        jam();
-	ok = true;
-	//------------------------------------------------------------------
-	// Table was altered in the master node but not in our node. We can
-	// retrieve the altered table definition from the master.
-	//------------------------------------------------------------------
-	restartCreateTab(signal, tableId, oldEntry, newEntry, false);
-        return;
-        break;
-      case SchemaFile::ALTER_TABLE_COMMITTED:
-        jam();
-	ok = true;
-	
-	//------------------------------------------------------------------
-	// Table was altered in both our node and the master node. We can
-	// retrieve the table definition from our own disk.
-	//------------------------------------------------------------------
-	
-	// On NR get index from master because index state is not on file
-	Uint32 type= oldEntry->m_tableType;
-        const bool file = (* newEntry == * oldEntry) &&
-	  (c_systemRestart || !DictTabInfo::isIndex(type));
-	newEntry->m_info_words= oldEntry->m_info_words;
-	restartCreateTab(signal, tableId, oldEntry, newEntry, file);
-	return;
-      }
-      ndbrequire(ok);
-      break;
-    }
-    case SchemaFile::TEMPORARY_TABLE_COMMITTED: {
-      jam();
-      bool ok = false;
-      switch(oldSchemaState){
-      case SchemaFile::INIT:
-	jam();
-      case SchemaFile::DROP_TABLE_COMMITTED:
-	jam();
-      case SchemaFile::ADD_STARTED:
-	jam();
-      case SchemaFile::TABLE_ADD_COMMITTED:
-	jam();
-      case SchemaFile::DROP_TABLE_STARTED:
-	jam();
-      case SchemaFile::ALTER_TABLE_COMMITTED:
-	jam();
-      case SchemaFile::TEMPORARY_TABLE_COMMITTED:
-        jam();
-	ok = true;
-        if(!c_systemRestart)
+        else if (! (* oldEntry == *newEntry))
         {
-          restartCreateTab(signal, tableId, oldEntry, newEntry, false);
+#ifdef PRINT_SCHEMA_RESTART
+          ndbout_c("%s -> restartCreateTab", buf);
+          ndbout << *newEntry << " " << *oldEntry << endl;
+#endif
+          restartCreateTab(signal, tableId, oldEntry, newEntry, false);        
+          * oldEntry = * newEntry;
           return;
-        } else {
-          newEntry->m_tableState = SchemaFile::INIT;
-        }          
-	break;
+        }
+        * oldEntry = * newEntry;
+        continue;
       }
-      ndbrequire(ok);
-      break;
-    }
     }
   }
   
   c_restartRecord.m_pass++;
   c_restartRecord.activeTable= 0;
-  if(c_restartRecord.m_pass <= 4)
+  if(c_restartRecord.m_pass <= LAST_PASS)
   {
     checkSchemaStatus(signal);
   }
@@ -3299,7 +3182,33 @@ Dbdict::releaseCreateTableOp(Signal* signal, CreateTableRecordPtr createTabPtr)
 }
 
 void
-Dbdict::restartDropTab(Signal* signal, Uint32 tableId){
+Dbdict::restartDropTab(Signal* signal, Uint32 tableId,
+                       const SchemaFile::TableEntry * old_entry, 
+                       const SchemaFile::TableEntry * new_entry)
+{
+  switch(old_entry->m_tableType){
+  case DictTabInfo::UndefTableType:
+  case DictTabInfo::HashIndexTrigger:
+  case DictTabInfo::SubscriptionTrigger:
+  case DictTabInfo::ReadOnlyConstraint:
+  case DictTabInfo::IndexTrigger:
+    ndbrequire(false);
+  case DictTabInfo::SystemTable:
+  case DictTabInfo::UserTable:
+  case DictTabInfo::UniqueHashIndex:
+  case DictTabInfo::HashIndex:
+  case DictTabInfo::UniqueOrderedIndex:
+  case DictTabInfo::OrderedIndex:
+    break;
+  case DictTabInfo::Tablespace:
+  case DictTabInfo::LogfileGroup:
+  case DictTabInfo::Datafile:
+  case DictTabInfo::Undofile:
+    warningEvent("Dont drop object: %d", tableId);
+    c_restartRecord.activeTable++;
+    checkSchemaStatus(signal);
+    return;
+  }
 
   const Uint32 key = ++c_opRecordSequence;
 
@@ -3333,6 +3242,7 @@ Dbdict::restartDropTab_complete(Signal* signal,
   
   //@todo check error
 
+  releaseTableObject(c_restartRecord.activeTable);
   c_opDropTable.release(dropTabPtr);
 
   c_restartRecord.activeTable++;
