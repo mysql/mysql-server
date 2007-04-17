@@ -277,8 +277,7 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
 {
   /* needs to be first for thread_stack */
   char my_stack;
-  int ret;
-  Event_job_data *job_data= NULL;
+  Event_job_data job_data;
   bool res;
 
   thd->thread_stack= &my_stack;                // remember where our stack is
@@ -291,60 +290,43 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
   if (res)
     goto end;
 
-  if (!(job_data= new Event_job_data()))
-    goto end;
-  else if ((ret= db_repository->
-                  load_named_event(thd, event->dbname, event->name, job_data)))
+  if ((res= db_repository->load_named_event(thd, event->dbname, event->name,
+                                            &job_data)))
   {
-    DBUG_PRINT("error", ("Got %d from load_named_event", ret));
+    DBUG_PRINT("error", ("Got error from load_named_event"));
     goto end;
   }
 
   sql_print_information("Event Scheduler: "
-                        "[%s.%s of %s] executing in thread %lu. ",
-                        job_data->dbname.str, job_data->name.str,
-                        job_data->definer.str, thd->thread_id);
+                        "[%s].[%s.%s] started in thread %lu.",
+                        job_data.definer.str,
+                        job_data.dbname.str, job_data.name.str,
+                        thd->thread_id);
 
   thd->enable_slow_log= TRUE;
 
-  ret= job_data->execute(thd, event->dropped);
+  res= job_data.execute(thd, event->dropped);
 
-  print_warnings(thd, job_data);
+  print_warnings(thd, &job_data);
 
-  switch (ret) {
-  case 0:
-    sql_print_information("Event Scheduler: "
-                          "[%s].[%s.%s] executed successfully in thread %lu.",
-                          job_data->definer.str,
-                          job_data->dbname.str, job_data->name.str,
-                          thd->thread_id);
-    break;
-  case EVEX_COMPILE_ERROR:
-    sql_print_information("Event Scheduler: "
-                          "[%s].[%s.%s] event compilation failed.",
-                          job_data->definer.str,
-                          job_data->dbname.str, job_data->name.str);
-    break;
-  default:
+  if (res)
     sql_print_information("Event Scheduler: "
                           "[%s].[%s.%s] event execution failed.",
-                          job_data->definer.str,
-                          job_data->dbname.str, job_data->name.str);
-    break;
-  }
+                          job_data.definer.str,
+                          job_data.dbname.str, job_data.name.str);
+  else
+    sql_print_information("Event Scheduler: "
+                          "[%s].[%s.%s] executed successfully in thread %lu.",
+                          job_data.definer.str,
+                          job_data.dbname.str, job_data.name.str,
+                          thd->thread_id);
 
 end:
-  delete job_data;
-
   DBUG_PRINT("info", ("Done with Event %s.%s", event->dbname.str,
              event->name.str));
 
   delete event;
   deinit_event_thread(thd);
-  /*
-    Do not pthread_exit since we want local destructors for stack objects
-    to be invoked.
-  */
 }
 
 

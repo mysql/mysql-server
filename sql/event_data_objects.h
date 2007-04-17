@@ -17,7 +17,6 @@
 
 
 #define EVEX_GET_FIELD_FAILED   -2
-#define EVEX_COMPILE_ERROR      -3
 #define EVEX_BAD_PARAMS         -5
 #define EVEX_MICROSECOND_UNSUP  -6
 
@@ -169,8 +168,6 @@ public:
 class Event_job_data : public Event_basic
 {
 public:
-  sp_head *sphead;
-
   LEX_STRING body;
   LEX_STRING definer_user;
   LEX_STRING definer_host;
@@ -178,19 +175,17 @@ public:
   ulong sql_mode;
 
   Event_job_data();
-  virtual ~Event_job_data();
 
   virtual int
   load_from_row(THD *thd, TABLE *table);
 
-  int
+  bool
   execute(THD *thd, bool drop);
-
-  int
-  compile(THD *thd, MEM_ROOT *mem_root);
 private:
-  int
-  get_fake_create_event(String *buf);
+  bool
+  construct_sp_sql(THD *thd, String *sp_sql);
+  bool
+  construct_drop_event_sql(THD *thd, String *sp_sql);
 
   Event_job_data(const Event_job_data &);       /* Prevent use of these */
   void operator=(Event_job_data &);
