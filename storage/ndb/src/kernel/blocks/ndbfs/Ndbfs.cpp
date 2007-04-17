@@ -217,6 +217,8 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     releaseSections(signal);
   }
   file->reportTo(&theFromThreads);
+  if (getenv("NDB_TRACE_OPEN"))
+    ndbout_c("open(%s)", file->theFileName.c_str());
   
   Request* request = theRequestPool->get();
   request->action = Request::open;
