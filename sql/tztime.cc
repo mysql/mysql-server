@@ -77,7 +77,7 @@ typedef struct lsinfo
 
 /*
   Structure with information describing ranges of my_time_t shifted to local
-  time (my_time_t + offset). Used for local TIME -> my_time_t conversion.
+  time (my_time_t + offset). Used for local MYSQL_TIME -> my_time_t conversion.
   See comments for TIME_to_gmt_sec() for more info.
 */
 typedef struct revtinfo
@@ -292,9 +292,9 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
     be used if there are no transitions or we have moment in time before
     any transitions.
     Second task is to build "shifted my_time_t" -> my_time_t map used in
-    TIME -> my_time_t conversion.
+    MYSQL_TIME -> my_time_t conversion.
     Note: See description of TIME_to_gmt_sec() function first.
-    In order to perform TIME -> my_time_t conversion we need to build table
+    In order to perform MYSQL_TIME -> my_time_t conversion we need to build table
     which defines "shifted by tz offset and leap seconds my_time_t" ->
     my_time_t function wich is almost the same (except ranges of ambiguity)
     as reverse function to piecewise linear function used for my_time_t ->
@@ -531,14 +531,14 @@ static const uint year_lengths[2]=
       offset - local time zone offset
 
   DESCRIPTION
-    Convert my_time_t with offset to TIME struct. Differs from timesub
+    Convert my_time_t with offset to MYSQL_TIME struct. Differs from timesub
     (from elsie code) because doesn't contain any leap correction and
     TM_GMTOFF and is_dst setting and contains some MySQL specific
     initialization. Funny but with removing of these we almost have
     glibc's offtime function.
 */
 static void
-sec_to_TIME(TIME * tmp, my_time_t t, long offset)
+sec_to_TIME(MYSQL_TIME * tmp, my_time_t t, long offset)
 {
   long days;
   long rem;
@@ -594,7 +594,7 @@ sec_to_TIME(TIME * tmp, my_time_t t, long offset)
   tmp->month++;
   tmp->day= (uint)(days + 1);
 
-  /* filling MySQL specific TIME members */
+  /* filling MySQL specific MYSQL_TIME members */
   tmp->neg= 0; tmp->second_part= 0;
   tmp->time_type= MYSQL_TIMESTAMP_DATETIME;
 }
@@ -686,7 +686,7 @@ find_transition_type(my_time_t t, const TIME_ZONE_INFO *sp)
 
 /*
   Converts time in my_time_t representation (seconds in UTC since Epoch) to
-  broken down TIME representation in local time zone.
+  broken down MYSQL_TIME representation in local time zone.
 
   SYNOPSIS
     gmt_sec_to_TIME()
@@ -701,12 +701,12 @@ find_transition_type(my_time_t t, const TIME_ZONE_INFO *sp)
     (60th and 61st second, look how we calculate them as "hit" in this
     function).
     Under realistic assumptions about frequency of transitions the same array
-    can be used fot TIME -> my_time_t conversion. For this we need to
+    can be used fot MYSQL_TIME -> my_time_t conversion. For this we need to
     implement tweaked binary search which will take into account that some
-    TIME has two matching my_time_t ranges and some of them have none.
+    MYSQL_TIME has two matching my_time_t ranges and some of them have none.
 */
 static void
-gmt_sec_to_TIME(TIME *tmp, my_time_t sec_in_utc, const TIME_ZONE_INFO *sp)
+gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t sec_in_utc, const TIME_ZONE_INFO *sp)
 {
   const TRAN_TYPE_INFO *ttisp;
   const LS_INFO *lp;
@@ -809,11 +809,11 @@ sec_since_epoch(int year, int mon, int mday, int hour, int min ,int sec)
 
 
  /*
-  Works like sec_since_epoch but expects TIME structure as parameter.
+  Works like sec_since_epoch but expects MYSQL_TIME structure as parameter.
 */
 
 my_time_t
-sec_since_epoch_TIME(TIME *t)
+sec_since_epoch_TIME(MYSQL_TIME *t)
 {
   return sec_since_epoch(t->year, t->month, t->day,
                          t->hour, t->minute, t->second);
@@ -821,7 +821,7 @@ sec_since_epoch_TIME(TIME *t)
 
 
 /*
-  Converts local time in broken down TIME representation to my_time_t
+  Converts local time in broken down MYSQL_TIME representation to my_time_t
   representation.
 
   SYNOPSIS
@@ -863,7 +863,7 @@ sec_since_epoch_TIME(TIME *t)
 
     We use completely different approach. It is better since it is both
     faster than iterative implementations and fully determenistic. If you
-    look at my_time_t to TIME conversion then you'll find that it consist
+    look at my_time_t to MYSQL_TIME conversion then you'll find that it consist
     of two steps:
     The first is calculating shifted my_time_t value and the second - TIME
     calculation from shifted my_time_t value (well it is a bit simplified
@@ -893,7 +893,7 @@ sec_since_epoch_TIME(TIME *t)
     0 in case of error.
 */
 static my_time_t
-TIME_to_gmt_sec(const TIME *t, const TIME_ZONE_INFO *sp,
+TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
                 my_bool *in_dst_time_gap)
 {
   my_time_t local_t;
@@ -1020,20 +1020,20 @@ class Time_zone_system : public Time_zone
 {
 public:
   Time_zone_system() {}                       /* Remove gcc warning */
-  virtual my_time_t TIME_to_gmt_sec(const TIME *t,
+  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
                                     my_bool *in_dst_time_gap) const;
-  virtual void gmt_sec_to_TIME(TIME *tmp, my_time_t t) const;
+  virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
   virtual const String * get_name() const;
 };
 
 
 /*
-  Converts local time in system time zone in TIME representation
+  Converts local time in system time zone in MYSQL_TIME representation
   to its my_time_t representation.
 
   SYNOPSIS
     TIME_to_gmt_sec()
-      t               - pointer to TIME structure with local time in
+      t               - pointer to MYSQL_TIME structure with local time in
                         broken-down representation.
       in_dst_time_gap - pointer to bool which is set to true if datetime
                         value passed doesn't really exist (i.e. falls into
@@ -1041,7 +1041,7 @@ public:
 
   DESCRIPTION
     This method uses system function (localtime_r()) for conversion
-    local time in system time zone in TIME structure to its my_time_t
+    local time in system time zone in MYSQL_TIME structure to its my_time_t
     representation. Unlike the same function for Time_zone_db class
     it it won't handle unnormalized input properly. Still it will
     return lowest possible my_time_t in case of ambiguity or if we
@@ -1053,7 +1053,7 @@ public:
     Corresponding my_time_t value or 0 in case of error
 */
 my_time_t
-Time_zone_system::TIME_to_gmt_sec(const TIME *t, my_bool *in_dst_time_gap) const
+Time_zone_system::TIME_to_gmt_sec(const MYSQL_TIME *t, my_bool *in_dst_time_gap) const
 {
   long not_used;
   return my_system_gmt_sec(t, &not_used, in_dst_time_gap);
@@ -1066,7 +1066,7 @@ Time_zone_system::TIME_to_gmt_sec(const TIME *t, my_bool *in_dst_time_gap) const
 
   SYNOPSIS
     gmt_sec_to_TIME()
-      tmp - pointer to TIME structure to fill-in
+      tmp - pointer to MYSQL_TIME structure to fill-in
       t   - my_time_t value to be converted
 
   NOTE
@@ -1077,7 +1077,7 @@ Time_zone_system::TIME_to_gmt_sec(const TIME *t, my_bool *in_dst_time_gap) const
     the 1902 easily.
 */
 void
-Time_zone_system::gmt_sec_to_TIME(TIME *tmp, my_time_t t) const
+Time_zone_system::gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const
 {
   struct tm tmp_tm;
   time_t tmp_t= (time_t)t;
@@ -1107,26 +1107,26 @@ Time_zone_system::get_name() const
 /*
   Instance of this class represents UTC time zone. It uses system gmtime_r
   function for conversions and is always available. It is used only for
-  my_time_t -> TIME conversions in various UTC_...  functions, it is not
-  intended for TIME -> my_time_t conversions and shouldn't be exposed to user.
+  my_time_t -> MYSQL_TIME conversions in various UTC_...  functions, it is not
+  intended for MYSQL_TIME -> my_time_t conversions and shouldn't be exposed to user.
 */
 class Time_zone_utc : public Time_zone
 {
 public:
   Time_zone_utc() {}                          /* Remove gcc warning */
-  virtual my_time_t TIME_to_gmt_sec(const TIME *t,
+  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
                                     my_bool *in_dst_time_gap) const;
-  virtual void gmt_sec_to_TIME(TIME *tmp, my_time_t t) const;
+  virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
   virtual const String * get_name() const;
 };
 
 
 /*
-  Convert UTC time from TIME representation to its my_time_t representation.
+  Convert UTC time from MYSQL_TIME representation to its my_time_t representation.
 
   SYNOPSIS
     TIME_to_gmt_sec()
-      t               - pointer to TIME structure with local time
+      t               - pointer to MYSQL_TIME structure with local time
                         in broken-down representation.
       in_dst_time_gap - pointer to bool which is set to true if datetime
                         value passed doesn't really exist (i.e. falls into
@@ -1141,7 +1141,7 @@ public:
     0
 */
 my_time_t
-Time_zone_utc::TIME_to_gmt_sec(const TIME *t, my_bool *in_dst_time_gap) const
+Time_zone_utc::TIME_to_gmt_sec(const MYSQL_TIME *t, my_bool *in_dst_time_gap) const
 {
   /* Should be never called */
   DBUG_ASSERT(0);
@@ -1155,14 +1155,14 @@ Time_zone_utc::TIME_to_gmt_sec(const TIME *t, my_bool *in_dst_time_gap) const
 
   SYNOPSIS
     gmt_sec_to_TIME()
-      tmp - pointer to TIME structure to fill-in
+      tmp - pointer to MYSQL_TIME structure to fill-in
       t   - my_time_t value to be converted
 
   NOTE
     See note for apropriate Time_zone_system method.
 */
 void
-Time_zone_utc::gmt_sec_to_TIME(TIME *tmp, my_time_t t) const
+Time_zone_utc::gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const
 {
   struct tm tmp_tm;
   time_t tmp_t= (time_t)t;
@@ -1203,9 +1203,9 @@ class Time_zone_db : public Time_zone
 {
 public:
   Time_zone_db(TIME_ZONE_INFO *tz_info_arg, const String * tz_name_arg);
-  virtual my_time_t TIME_to_gmt_sec(const TIME *t,
+  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
                                     my_bool *in_dst_time_gap) const;
-  virtual void gmt_sec_to_TIME(TIME *tmp, my_time_t t) const;
+  virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
   virtual const String * get_name() const;
 private:
   TIME_ZONE_INFO *tz_info;
@@ -1239,7 +1239,7 @@ Time_zone_db::Time_zone_db(TIME_ZONE_INFO *tz_info_arg,
 
   SYNOPSIS
     TIME_to_gmt_sec()
-      t               - pointer to TIME structure with local time
+      t               - pointer to MYSQL_TIME structure with local time
                         in broken-down representation.
       in_dst_time_gap - pointer to bool which is set to true if datetime
                         value passed doesn't really exist (i.e. falls into
@@ -1253,7 +1253,7 @@ Time_zone_db::Time_zone_db(TIME_ZONE_INFO *tz_info_arg,
     Corresponding my_time_t value or 0 in case of error
 */
 my_time_t
-Time_zone_db::TIME_to_gmt_sec(const TIME *t, my_bool *in_dst_time_gap) const
+Time_zone_db::TIME_to_gmt_sec(const MYSQL_TIME *t, my_bool *in_dst_time_gap) const
 {
   return ::TIME_to_gmt_sec(t, tz_info, in_dst_time_gap);
 }
@@ -1265,11 +1265,11 @@ Time_zone_db::TIME_to_gmt_sec(const TIME *t, my_bool *in_dst_time_gap) const
 
   SYNOPSIS
     gmt_sec_to_TIME()
-      tmp - pointer to TIME structure to fill-in
+      tmp - pointer to MYSQL_TIME structure to fill-in
       t   - my_time_t value to be converted
 */
 void
-Time_zone_db::gmt_sec_to_TIME(TIME *tmp, my_time_t t) const
+Time_zone_db::gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const
 {
   ::gmt_sec_to_TIME(tmp, t, tz_info);
 }
@@ -1299,9 +1299,9 @@ class Time_zone_offset : public Time_zone
 {
 public:
   Time_zone_offset(long tz_offset_arg);
-  virtual my_time_t TIME_to_gmt_sec(const TIME *t,
+  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
                                     my_bool *in_dst_time_gap) const;
-  virtual void   gmt_sec_to_TIME(TIME *tmp, my_time_t t) const;
+  virtual void   gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
   virtual const String * get_name() const;
   /*
     This have to be public because we want to be able to access it from
@@ -1336,11 +1336,11 @@ Time_zone_offset::Time_zone_offset(long tz_offset_arg):
 
 /*
   Converts local time in time zone described as offset from UTC
-  from TIME representation to its my_time_t representation.
+  from MYSQL_TIME representation to its my_time_t representation.
 
   SYNOPSIS
     TIME_to_gmt_sec()
-      t               - pointer to TIME structure with local time
+      t               - pointer to MYSQL_TIME structure with local time
                         in broken-down representation.
       in_dst_time_gap - pointer to bool which should be set to true if
                         datetime  value passed doesn't really exist
@@ -1352,7 +1352,7 @@ Time_zone_offset::Time_zone_offset(long tz_offset_arg):
     Corresponding my_time_t value or 0 in case of error
 */
 my_time_t
-Time_zone_offset::TIME_to_gmt_sec(const TIME *t, my_bool *in_dst_time_gap) const
+Time_zone_offset::TIME_to_gmt_sec(const MYSQL_TIME *t, my_bool *in_dst_time_gap) const
 {
   my_time_t local_t;
   int shift= 0;
@@ -1397,11 +1397,11 @@ Time_zone_offset::TIME_to_gmt_sec(const TIME *t, my_bool *in_dst_time_gap) const
 
   SYNOPSIS
     gmt_sec_to_TIME()
-      tmp - pointer to TIME structure to fill-in
+      tmp - pointer to MYSQL_TIME structure to fill-in
       t   - my_time_t value to be converted
 */
 void
-Time_zone_offset::gmt_sec_to_TIME(TIME *tmp, my_time_t t) const
+Time_zone_offset::gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const
 {
   sec_to_TIME(tmp, t, offset);
 }
@@ -2564,7 +2564,7 @@ main(int argc, char **argv)
   my_bool localtime_negative;
   TIME_ZONE_INFO tz_info;
   struct tm tmp;
-  TIME time_tmp;
+  MYSQL_TIME time_tmp;
   time_t t, t1, t2;
   char fullname[FN_REFLEN+1];
   char *str_end;
