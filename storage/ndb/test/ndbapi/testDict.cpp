@@ -23,6 +23,7 @@
 #include <../../include/kernel/ndb_limits.h>
 #include <random.h>
 #include <NdbAutoPtr.hpp>
+#include <NdbMixRestarter.hpp>
  
 #define CHECK(b) if (!(b)) { \
   g_err << "ERR: "<< step->getName() \
@@ -2321,6 +2322,448 @@ runDictOps(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int
+runBug21755(NDBT_Context* ctx, NDBT_Step* step)
+{
+  char buf[256];
+  NdbRestarter res;
+  NdbDictionary::Table pTab0 = * ctx->getTab();
+  NdbDictionary::Table pTab1 = pTab0;
+
+  if (res.getNumDbNodes() < 2)
+    return NDBT_OK;
+
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  
+  if (pDic->createTable(pTab0))
+  {
+    ndbout << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  NdbDictionary::Index idx0;
+  BaseString::snprintf(buf, sizeof(buf), "%s-idx", pTab0.getName());  
+  idx0.setName(buf);
+  idx0.setType(NdbDictionary::Index::OrderedIndex);
+  idx0.setTable(pTab0.getName());
+  idx0.setStoredIndex(false);
+  for (Uint32 i = 0; i<pTab0.getNoOfColumns(); i++)
+  {
+    const NdbDictionary::Column * col = pTab0.getColumn(i);
+    if(col->getPrimaryKey()){
+      idx0.addIndexColumn(col->getName());
+    }
+  }
+  
+  if (pDic->createIndex(idx0))
+  {
+    ndbout << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  
+  BaseString::snprintf(buf, sizeof(buf), "%s-2", pTab1.getName());
+  pTab1.setName(buf);
+
+  if (pDic->createTable(pTab1))
+  {
+    ndbout << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  {
+    HugoTransactions t0 (*pDic->getTable(pTab0.getName()));
+    t0.loadTable(pNdb, 1000);
+  }
+
+  {
+    HugoTransactions t1 (*pDic->getTable(pTab1.getName()));
+    t1.loadTable(pNdb, 1000);
+  }
+  
+  int node = res.getRandomNotMasterNodeId(rand());
+  res.restartOneDbNode(node, false, true, true);
+  
+  if (pDic->dropTable(pTab1.getName()))
+  {
+    ndbout << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  BaseString::snprintf(buf, sizeof(buf), "%s-idx2", pTab0.getName());    
+  idx0.setName(buf);
+  if (pDic->createIndex(idx0))
+  {
+    ndbout << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  
+  res.waitNodesNoStart(&node, 1);
+  res.startNodes(&node, 1);
+  
+  if (res.waitClusterStarted())
+  {
+    return NDBT_FAILED;
+  }
+  
+  if (pDic->dropTable(pTab0.getName()))
+  {
+    ndbout << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  
+  return NDBT_OK;
+}
+
+struct RandSchemaOp
+{
+  struct Obj 
+  { 
+    BaseString m_name;
+    Uint32 m_type;
+    struct Obj* m_parent;
+    Vector<Obj*> m_dependant;
+  };
+
+  Vector<Obj*> m_objects;
+
+  int schema_op(Ndb*);
+  int validate(Ndb*);
+  int cleanup(Ndb*);
+
+  Obj* get_obj(Uint32 mask);
+  int create_table(Ndb*);
+  int create_index(Ndb*, Obj*);
+  int drop_obj(Ndb*, Obj*);
+
+  void remove_obj(Obj*);
+};
+
+template class Vector<RandSchemaOp::Obj*>;
+
+int
+RandSchemaOp::schema_op(Ndb* ndb)
+{
+  struct Obj* obj = 0;
+  Uint32 type = 0;
+loop:
+  switch((rand() >> 16) & 3){
+  case 0:
+    return create_table(ndb);
+  case 1:
+    if ((obj = get_obj(1 << NdbDictionary::Object::UserTable)) == 0)
+      goto loop;
+    return create_index(ndb, obj);
+  case 2:
+    type = (1 << NdbDictionary::Object::UserTable);
+    goto drop_object;
+  case 3:
+    type = 
+      (1 << NdbDictionary::Object::UniqueHashIndex) |
+      (1 << NdbDictionary::Object::OrderedIndex);    
+    goto drop_object;
+  default:
+    goto loop;
+  }
+
+drop_object:
+  if ((obj = get_obj(type)) == 0)
+    goto loop;
+  return drop_obj(ndb, obj);
+}
+
+RandSchemaOp::Obj*
+RandSchemaOp::get_obj(Uint32 mask)
+{
+  Vector<Obj*> tmp;
+  for (Uint32 i = 0; i<m_objects.size(); i++)
+  {
+    if ((1 << m_objects[i]->m_type) & mask)
+      tmp.push_back(m_objects[i]);
+  }
+
+  if (tmp.size())
+  {
+    return tmp[rand()%tmp.size()];
+  }
+  return 0;
+}
+
+int
+RandSchemaOp::create_table(Ndb* ndb)
+{
+  int numTables = NDBT_Tables::getNumTables();
+  int num = myRandom48(numTables);
+  NdbDictionary::Table pTab = * NDBT_Tables::getTable(num);
+  
+  NdbDictionary::Dictionary* pDict = ndb->getDictionary();
+
+  if (pDict->getTable(pTab.getName()))
+  {
+    char buf[100];
+    BaseString::snprintf(buf, sizeof(buf), "%s-%d", 
+                         pTab.getName(), rand());
+    pTab.setName(buf);
+    if (pDict->createTable(pTab))
+      return NDBT_FAILED;
+  }
+  else
+  {
+    if (NDBT_Tables::createTable(ndb, pTab.getName()))
+    {
+      return NDBT_FAILED;
+    }
+  }
+
+  ndbout_c("create table %s",  pTab.getName());
+  const NdbDictionary::Table* tab2 = pDict->getTable(pTab.getName());
+  HugoTransactions trans(*tab2);
+  trans.loadTable(ndb, 1000);
+
+  Obj *obj = new Obj;
+  obj->m_name.assign(pTab.getName());
+  obj->m_type = NdbDictionary::Object::UserTable;
+  obj->m_parent = 0;
+  m_objects.push_back(obj);
+  
+  return NDBT_OK;
+}
+
+int
+RandSchemaOp::create_index(Ndb* ndb, Obj* tab)
+{
+  NdbDictionary::Dictionary* pDict = ndb->getDictionary();
+  const NdbDictionary::Table * pTab = pDict->getTable(tab->m_name.c_str());
+
+  if (pTab == 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  bool ordered = (rand() >> 16) & 1;
+  bool stored = (rand() >> 16) & 1;
+
+  Uint32 type = ordered ? 
+    NdbDictionary::Index::OrderedIndex :
+    NdbDictionary::Index::UniqueHashIndex;
+  
+  char buf[255];
+  BaseString::snprintf(buf, sizeof(buf), "%s-%s", 
+                       pTab->getName(),
+                       ordered ? "OI" : "UI");
+  
+  if (pDict->getIndex(buf, pTab->getName()))
+  {
+    // Index exists...let it be ok
+    return NDBT_OK;
+  }
+  
+  ndbout_c("create index %s", buf);
+  NdbDictionary::Index idx0;
+  idx0.setName(buf);
+  idx0.setType((NdbDictionary::Index::Type)type);
+  idx0.setTable(pTab->getName());
+  idx0.setStoredIndex(ordered ? false : stored);
+
+  for (Uint32 i = 0; i<pTab->getNoOfColumns(); i++)
+  {
+    if (pTab->getColumn(i)->getPrimaryKey())
+      idx0.addColumn(pTab->getColumn(i)->getName());
+  }
+  if (pDict->createIndex(idx0))
+  {
+    ndbout << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  Obj *obj = new Obj;
+  obj->m_name.assign(buf);
+  obj->m_type = type;
+  obj->m_parent = tab;
+  m_objects.push_back(obj);
+  
+  tab->m_dependant.push_back(obj);
+  return NDBT_OK;
+}
+
+int
+RandSchemaOp::drop_obj(Ndb* ndb, Obj* obj)
+{
+  NdbDictionary::Dictionary* pDict = ndb->getDictionary();
+  
+  if (obj->m_type == NdbDictionary::Object::UserTable)
+  {
+    ndbout_c("drop table %s", obj->m_name.c_str());
+    /**
+     * Drop of table automatically drops all indexes
+     */
+    if (pDict->dropTable(obj->m_name.c_str()))
+    {
+      return NDBT_FAILED;
+    }
+    while(obj->m_dependant.size())
+    {
+      remove_obj(obj->m_dependant[0]);
+    }
+    remove_obj(obj);
+  }
+  else if (obj->m_type == NdbDictionary::Object::UniqueHashIndex ||
+           obj->m_type == NdbDictionary::Object::OrderedIndex)
+  {
+    ndbout_c("drop index %s", obj->m_name.c_str());
+    if (pDict->dropIndex(obj->m_name.c_str(),
+                         obj->m_parent->m_name.c_str()))
+    {
+      return NDBT_FAILED;
+    }
+    remove_obj(obj);
+  }
+  return NDBT_OK;
+}
+
+void
+RandSchemaOp::remove_obj(Obj* obj)
+{
+  Uint32 i;
+  if (obj->m_parent)
+  {
+    bool found = false;
+    for (i = 0; i<obj->m_parent->m_dependant.size(); i++)
+    {
+      if (obj->m_parent->m_dependant[i] == obj)
+      {
+        found = true;
+        obj->m_parent->m_dependant.erase(i);
+        break;
+      }
+    }
+    assert(found);
+  }
+
+  {
+    bool found = false;
+    for (i = 0; i<m_objects.size(); i++)
+    {
+      if (m_objects[i] == obj)
+      {
+        found = true;
+        m_objects.erase(i);
+        break;
+      }
+    }
+    assert(found);
+  }
+  delete obj;
+}
+
+int
+RandSchemaOp::validate(Ndb* ndb)
+{
+  NdbDictionary::Dictionary* pDict = ndb->getDictionary();
+  for (Uint32 i = 0; i<m_objects.size(); i++)
+  {
+    if (m_objects[i]->m_type == NdbDictionary::Object::UserTable)
+    {
+      const NdbDictionary::Table* tab2 = 
+        pDict->getTable(m_objects[i]->m_name.c_str());
+      HugoTransactions trans(*tab2);
+      trans.scanUpdateRecords(ndb, 1000);
+      trans.clearTable(ndb);
+      trans.loadTable(ndb, 1000);
+    }
+  }
+  
+  return NDBT_OK;
+}
+
+/*
+      SystemTable = 1,        ///< System table
+      UserTable = 2,          ///< User table (may be temporary)
+      UniqueHashIndex = 3,    ///< Unique un-ordered hash index
+      OrderedIndex = 6,       ///< Non-unique ordered index
+      HashIndexTrigger = 7,   ///< Index maintenance, internal
+      IndexTrigger = 8,       ///< Index maintenance, internal
+      SubscriptionTrigger = 9,///< Backup or replication, internal
+      ReadOnlyConstraint = 10,///< Trigger, internal
+      Tablespace = 20,        ///< Tablespace
+      LogfileGroup = 21,      ///< Logfile group
+      Datafile = 22,          ///< Datafile
+      Undofile = 23           ///< Undofile
+*/
+
+int
+RandSchemaOp::cleanup(Ndb* ndb)
+{
+  Int32 i;
+  for (i = m_objects.size() - 1; i >= 0; i--)
+  {
+    switch(m_objects[i]->m_type){
+    case NdbDictionary::Object::UniqueHashIndex:
+    case NdbDictionary::Object::OrderedIndex:        
+      if (drop_obj(ndb, m_objects[i]))
+        return NDBT_FAILED;
+      
+      break;
+    default:
+      break;
+    }
+  }
+
+  for (i = m_objects.size() - 1; i >= 0; i--)
+  {
+    switch(m_objects[i]->m_type){
+    case NdbDictionary::Object::UserTable:
+      if (drop_obj(ndb, m_objects[i]))
+        return NDBT_FAILED;
+      break;
+    default:
+      break;
+    }
+  }
+  
+  assert(m_objects.size() == 0);
+  return NDBT_OK;
+}
+
+int
+runDictRestart(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  int loops = ctx->getNumLoops();
+
+  NdbMixRestarter res;
+  
+  RandSchemaOp dict;
+  if (res.getNumDbNodes() < 2)
+    return NDBT_OK;
+
+  if (res.init(ctx, step))
+    return NDBT_FAILED;
+  
+  for (Uint32 i = 0; i<loops; i++)
+  {
+    for (Uint32 j = 0; j<10; j++)
+      if (dict.schema_op(pNdb))
+        return NDBT_FAILED;
+    
+    if (res.dostep(ctx, step))
+      return NDBT_FAILED;
+
+    if (dict.validate(pNdb))
+      return NDBT_FAILED;
+  }
+
+  if (res.finish(ctx, step))
+    return NDBT_FAILED;
+
+  if (dict.validate(pNdb))
+    return NDBT_FAILED;
+  
+  if (dict.cleanup(pNdb))
+    return NDBT_FAILED;
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testDict);
 TESTCASE("CreateAndDrop", 
 	 "Try to create and drop the table loop number of times\n"){
@@ -2478,6 +2921,14 @@ TESTCASE("TableAddAttrsDuring",
   STEP(runTableAddAttrsDuring);
   STEP(runUseTableUntilStopped2);
   FINALIZER(runDropTheTable);
+}
+TESTCASE("Bug21755",
+         ""){
+  INITIALIZER(runBug21755);
+}
+TESTCASE("DictRestart",
+         ""){
+  INITIALIZER(runDictRestart);
 }
 NDBT_TESTSUITE_END(testDict);
 
