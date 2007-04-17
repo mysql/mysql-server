@@ -229,7 +229,6 @@ static
 void
 rec_init_offsets(
 /*=============*/
-				/* out: the offsets */
 	const rec_t*	rec,	/* in: physical record */
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint*		offsets)/* in/out: array of offsets;

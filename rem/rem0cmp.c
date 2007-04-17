@@ -745,7 +745,7 @@ cmp_rec_rec_with_match(
 	ulint		cur_field;	/* current field number */
 	ulint		cur_bytes;	/* number of already matched
 					bytes in current field */
-	int		ret = 3333;	/* return value */
+	int		ret = 0;	/* return value */
 	ulint		comp;
 
 	ut_ad(rec1 && rec2 && index);
@@ -791,10 +791,8 @@ cmp_rec_rec_with_match(
 				if (rec_get_info_bits(rec1, comp)
 				    & REC_INFO_MIN_REC_FLAG) {
 
-					if (rec_get_info_bits(rec2, comp)
-					    & REC_INFO_MIN_REC_FLAG) {
-						ret = 0;
-					} else {
+					if (!(rec_get_info_bits(rec2, comp)
+					      & REC_INFO_MIN_REC_FLAG)) {
 						ret = -1;
 					}
 
@@ -813,8 +811,6 @@ cmp_rec_rec_with_match(
 			    || rec_offs_nth_extern(offsets2, cur_field)) {
 				/* We do not compare to an externally
 				stored field */
-
-				ret = 0;
 
 				goto order_resolved;
 			}
@@ -935,8 +931,9 @@ next_field:
 
 	ut_ad(cur_bytes == 0);
 
-	ret = 0;	/* If we ran out of fields, rec1 was equal to rec2 up
-			to the common fields */
+	/* If we ran out of fields, rec1 was equal to rec2 up
+	to the common fields */
+	ut_ad(ret == 0);
 order_resolved:
 
 	ut_ad((ret >= - 1) && (ret <= 1));
