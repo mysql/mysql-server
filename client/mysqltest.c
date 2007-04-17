@@ -2552,6 +2552,7 @@ int do_save_master_pos()
   MYSQL *mysql = &cur_con->mysql;
   const char *query;
   int rpl_parse;
+  DBUG_ENTER("do_save_master_pos");
 
   rpl_parse = mysql_rpl_parse_enabled(mysql);
   mysql_disable_rpl_parse(mysql);
@@ -2709,7 +2710,7 @@ int do_save_master_pos()
   if (rpl_parse)
     mysql_enable_rpl_parse(mysql);
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -3164,7 +3165,7 @@ struct st_connection * find_connection_by_name(const char *name)
 
 int select_connection_name(const char *name)
 {
-  DBUG_ENTER("select_connection2");
+  DBUG_ENTER("select_connection_name");
   DBUG_PRINT("enter",("name: '%s'", name));
 
   if (!(cur_con= find_connection_by_name(name)))
@@ -3187,7 +3188,7 @@ int select_connection(struct st_command *command)
   if (*p)
     *p++= 0;
   command->last_argument= p;
-  return select_connection_name(name);
+  DBUG_RETURN(select_connection_name(name));
 }
 
 
