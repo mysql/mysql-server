@@ -146,8 +146,10 @@ void  NDBT_Context::setProperty(const char* _name, Uint32 _val){
   NdbMutex_Lock(propertyMutexPtr);
   const bool b = props.put(_name, _val, true);
   assert(b == true);
+  NdbCondition_Broadcast(propertyCondPtr);
   NdbMutex_Unlock(propertyMutexPtr);
 }
+
 void
 NDBT_Context::decProperty(const char * name){
   NdbMutex_Lock(propertyMutexPtr);
@@ -159,6 +161,7 @@ NDBT_Context::decProperty(const char * name){
   NdbCondition_Broadcast(propertyCondPtr);
   NdbMutex_Unlock(propertyMutexPtr);
 }
+
 void
 NDBT_Context::incProperty(const char * name){
   NdbMutex_Lock(propertyMutexPtr);
@@ -173,6 +176,7 @@ void  NDBT_Context::setProperty(const char* _name, const char* _val){
   NdbMutex_Lock(propertyMutexPtr);
   const bool b = props.put(_name, _val);
   assert(b == true);
+  NdbCondition_Broadcast(propertyCondPtr);
   NdbMutex_Unlock(propertyMutexPtr);
 }
 
