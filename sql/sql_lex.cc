@@ -1834,6 +1834,7 @@ bool st_lex::can_use_merged()
   case SQLCOM_UPDATE_MULTI:
   case SQLCOM_DELETE:
   case SQLCOM_DELETE_MULTI:
+  case SQLCOM_TRUNCATE:
   case SQLCOM_INSERT:
   case SQLCOM_INSERT_SELECT:
   case SQLCOM_REPLACE:

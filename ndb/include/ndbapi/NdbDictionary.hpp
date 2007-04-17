@@ -358,7 +358,7 @@ public:
      * Set name of column
      * @param  name  Name of the column
      */
-    void setName(const char * name);
+    int setName(const char * name);
 
     /**
      * Set whether column is nullable or not
@@ -446,7 +446,7 @@ public:
     void setAutoIncrement(bool);
     bool getAutoIncrement() const;
     void setAutoIncrementInitialValue(Uint64 val);
-    void setDefaultValue(const char*);   
+    int setDefaultValue(const char*);   
     const char* getDefaultValue() const;
 
     static const Column * FRAGMENT;
@@ -661,13 +661,13 @@ public:
      * Name of table
      * @param  name  Name of table
      */
-    void setName(const char * name);
+    int setName(const char * name);
 
     /**
      * Add a column definition to a table
      * @note creates a copy
      */
-    void addColumn(const Column &);
+    int addColumn(const Column &);
     
     /**
      * @see NdbDictionary::Table::getLogging.
@@ -723,7 +723,7 @@ public:
     /**
      * Set frm file to store with this table
      */ 
-    void setFrm(const void* data, Uint32 len);
+    int setFrm(const void* data, Uint32 len);
 
     /**
      * Set table object type
@@ -875,26 +875,26 @@ public:
     /**
      * Set the name of an index
      */
-    void setName(const char * name);
+    int setName(const char * name);
 
     /**
      * Define the name of the table to be indexed
      */
-    void setTable(const char * name);
+    int setTable(const char * name);
 
     /**
      * Add a column to the index definition
      * Note that the order of columns will be in
      * the order they are added (only matters for ordered indexes).
      */
-    void addColumn(const Column & c);
+    int addColumn(const Column & c);
 
     /**
      * Add a column name to the index definition
      * Note that the order of indexes will be in
      * the order they are added (only matters for ordered indexes).
      */
-    void addColumnName(const char * name);
+    int addColumnName(const char * name);
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
@@ -903,7 +903,7 @@ public:
      * the order they are added (only matters for ordered indexes).
      * Depricated, use addColumnName instead.
      */
-    void addIndexColumn(const char * name);
+    int addIndexColumn(const char * name);
 #endif
 
     /**
@@ -911,7 +911,7 @@ public:
      * Note that the order of indexes will be in
      * the order they are added (only matters for ordered indexes).
      */
-    void addColumnNames(unsigned noOfNames, const char ** names);
+    int  addColumnNames(unsigned noOfNames, const char ** names);
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
@@ -920,7 +920,7 @@ public:
      * the order they are added (only matters for ordered indexes).
      * Depricated, use addColumnNames instead.
      */
-    void addIndexColumns(int noOfNames, const char ** names);
+    int addIndexColumns(int noOfNames, const char ** names);
 #endif
 
     /**

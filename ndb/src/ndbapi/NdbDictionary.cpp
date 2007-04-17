@@ -52,9 +52,9 @@ NdbDictionary::Column::operator=(const NdbDictionary::Column& column)
   return *this;
 }
 
-void 
+int
 NdbDictionary::Column::setName(const char * name){
-  m_impl.m_name.assign(name);
+  return !m_impl.m_name.assign(name);
 }
 
 const char* 
@@ -208,10 +208,10 @@ NdbDictionary::Column::setAutoIncrementInitialValue(Uint64 val){
   m_impl.m_autoIncrementInitialValue = val;
 }
 
-void
+int
 NdbDictionary::Column::setDefaultValue(const char* defaultValue)
 {
-  m_impl.m_defaultValue.assign(defaultValue);
+  return !m_impl.m_defaultValue.assign(defaultValue);
 }
 
 const char*
@@ -273,9 +273,9 @@ NdbDictionary::Table::operator=(const NdbDictionary::Table& table)
   return *this;
 }
 
-void 
+int
 NdbDictionary::Table::setName(const char * name){
-  m_impl.setName(name);
+  return m_impl.setName(name);
 }
 
 const char * 
@@ -288,18 +288,30 @@ NdbDictionary::Table::getTableId() const {
   return m_impl.m_tableId;
 }
 
-void 
+int
 NdbDictionary::Table::addColumn(const Column & c){
   NdbColumnImpl* col = new NdbColumnImpl;
+  if (col ==  NULL)
+  {
+    errno = ENOMEM;
+    return -1;
+  }
   (* col) = NdbColumnImpl::getImpl(c);
-  m_impl.m_columns.push_back(col);
+  if (m_impl.m_columns.push_back(col))
+  {
+    return -1;
+  }
   if(c.getPrimaryKey()){
     m_impl.m_noOfKeys++;
   }
   if (col->getBlobType()) {
     m_impl.m_noOfBlobs++;
   }
-  m_impl.buildColumnHash();
+  if (m_impl.buildColumnHash())
+  {
+    return -1;
+  }
+  return 0;
 }
 
 const NdbDictionary::Column*
@@ -442,9 +454,9 @@ NdbDictionary::Table::setSingleUserMode(enum NdbDictionary::Table::SingleUserMod
   m_impl.m_single_user_mode = (Uint8)mode;
 }
 
-void
+int
 NdbDictionary::Table::setFrm(const void* data, Uint32 len){
-  m_impl.m_frm.assign(data, len);
+  return m_impl.m_frm.assign(data, len);
 }
 
 NdbDictionary::Object::Status
@@ -491,6 +503,7 @@ NdbDictionary::Table::createTableInDb(Ndb* pNdb, bool equalOk) const {
 /*****************************************************************
  * Index facade
  */
+
 NdbDictionary::Index::Index(const char * name)
   : m_impl(* new NdbIndexImpl(* this))
 {
@@ -509,9 +522,9 @@ NdbDictionary::Index::~Index(){
   }
 }
 
-void 
+int
 NdbDictionary::Index::setName(const char * name){
-  m_impl.setName(name);
+  return m_impl.setName(name);
 }
 
 const char * 
@@ -519,9 +532,9 @@ NdbDictionary::Index::getName() const {
   return m_impl.getName();
 }
 
-void 
+int
 NdbDictionary::Index::setTable(const char * table){
-  m_impl.setTable(table);
+  return m_impl.setTable(table);
 }
 
 const char * 
@@ -556,39 +569,56 @@ NdbDictionary::Index::getIndexColumn(int no) const {
     return NULL;
 }
 
-void
+int
 NdbDictionary::Index::addColumn(const Column & c){
   NdbColumnImpl* col = new NdbColumnImpl;
+  if (col == NULL)
+  {
+    errno = ENOMEM;
+    return -1;
+  }
   (* col) = NdbColumnImpl::getImpl(c);
-  m_impl.m_columns.push_back(col);
+  if (m_impl.m_columns.push_back(col))
+  {
+    return -1;
+  }
+  return 0;
 }
 
-void
+int
 NdbDictionary::Index::addColumnName(const char * name){
   const Column c(name);
-  addColumn(c);
+  return addColumn(c);
 }
 
-void
+int
 NdbDictionary::Index::addIndexColumn(const char * name){
   const Column c(name);
-  addColumn(c);
+  return addColumn(c);
 }
 
-void
+int
 NdbDictionary::Index::addColumnNames(unsigned noOfNames, const char ** names){
   for(unsigned i = 0; i < noOfNames; i++) {
     const Column c(names[i]);
-    addColumn(c);
+    if (addColumn(c))
+    {
+      return -1;
+    }
   }
+  return 0;
 }
 
-void
+int
 NdbDictionary::Index::addIndexColumns(int noOfNames, const char ** names){
   for(int i = 0; i < noOfNames; i++) {
     const Column c(names[i]);
-    addColumn(c);
+    if (addColumn(c))
+    {
+      return -1;
+    }
   }
+  return 0;
 }
 
 void

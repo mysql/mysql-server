@@ -103,7 +103,7 @@ public:
   ~NdbTableImpl();
   
   void init();
-  void setName(const char * name);
+  int setName(const char * name);
   const char * getName() const;
 
   Uint32 m_changeMask;
@@ -120,7 +120,7 @@ public:
   Uint32 m_columnHashMask;
   Vector<Uint32> m_columnHash;
   Vector<NdbColumnImpl *> m_columns;
-  void buildColumnHash(); 
+  int buildColumnHash(); 
 
   /**
    * Fragment info
@@ -166,7 +166,7 @@ public:
    * Equality/assign
    */
   bool equal(const NdbTableImpl&) const;
-  void assign(const NdbTableImpl&);
+  int assign(const NdbTableImpl&);
 
   static NdbTableImpl & getImpl(NdbDictionary::Table & t);
   static NdbTableImpl & getImpl(const NdbDictionary::Table & t);
@@ -185,9 +185,9 @@ public:
   ~NdbIndexImpl();
 
   void init();
-  void setName(const char * name);
+  int setName(const char * name);
   const char * getName() const;
-  void setTable(const char * table);
+  int setTable(const char * table);
   const char * getTable() const;
   const NdbTableImpl * getIndexTable() const;
 
