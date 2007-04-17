@@ -591,6 +591,14 @@ max-time: 1500
 cmd: testDict
 args: -n Restart_NR2 T1 I3
 
+max-time: 500
+cmd: testDict
+args: -n Bug21755 T1
+
+max-time: 1500
+cmd: testDict
+args: -l 25 -n DictRestart T1
+
 #
 # TEST NDBAPI
 #
