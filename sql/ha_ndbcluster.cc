@@ -4202,8 +4202,6 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
 extern MASTER_INFO *active_mi;
 static int ndbcluster_update_apply_status(THD *thd, int do_update)
 {
-  return 0;
-
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
   NDBDICT *dict= ndb->getDictionary();
