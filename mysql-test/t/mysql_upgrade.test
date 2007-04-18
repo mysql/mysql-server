@@ -7,10 +7,6 @@
 select LENGTH("$MYSQL_UPGRADE")>0 as have_mysql_upgrade;
 --enable_query_log
 
-# Get version of the server so it can be masked out in the
-# error messages from mysql_upgrade
-let $VERSION=`select LEFT(version(), 6)`;
-
 #
 # Basic test that we can run mysql_upgrde and that it finds the
 # expected binaries it uses.
@@ -22,7 +18,7 @@ let $VERSION=`select LEFT(version(), 6)`;
 file_exists $MYSQLTEST_VARDIR/master-data/mysql_upgrade_info;
 
 --echo Run it again - should say already completed
---replace_result $VERSION VERSION
+--replace_result $MYSQL_SERVER_VERSION VERSION
 --error 1
 --exec $MYSQL_UPGRADE --skip-verbose 2>&1
 
