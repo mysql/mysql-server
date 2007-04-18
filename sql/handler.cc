@@ -416,6 +416,7 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
 {
   handlerton *hton;
   DBUG_ENTER("ha_initialize_handlerton");
+  DBUG_PRINT("plugin", ("initialize plugin: '%s'", plugin->name.str));
 
   hton= (handlerton *)my_malloc(sizeof(handlerton),
                                 MYF(MY_WME | MY_ZEROFILL));
