@@ -1311,22 +1311,30 @@ void var_set(const char *var_name, const char *var_name_end,
   DBUG_VOID_RETURN;
 }
 
+
+void var_set_string(const char* name, const char* value)
+{
+  var_set(name, name + strlen(name), value, value + strlen(value));
+}
+
+
+void var_set_int(const char* name, int value)
+{
+  char buf[21];
+  snprintf(buf, sizeof(buf), "%d", value);
+  var_set_string(name, buf);
+}
+
+
 /*
   Store an integer (typically the returncode of the last SQL)
-  statement in the mysqltest builtin variable $mysql_errno, by
-  simulating of a user statement "let $mysql_errno= <integer>"
+  statement in the mysqltest builtin variable $mysql_errno
 */
 
 void var_set_errno(int sql_errno)
 {
-  /* TODO MASV make easier */
-  const char *var_name= "$mysql_errno";
-  char var_val[21];
-  uint length= my_sprintf(var_val, (var_val, "%d", sql_errno));
-  var_set(var_name, var_name + 12, var_val, var_val + length);
-  return;
+  var_set_int("$mysql_errno", sql_errno);
 }
-
 
 /*
   Set variable from the result of a query
@@ -5989,6 +5997,8 @@ int main(int argc, char **argv)
   if (hash_init(&var_hash, charset_info,
                 1024, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
+
+  var_set_string("$MYSQL_SERVER_VERSION", MYSQL_SERVER_VERSION);
 
   memset(&master_pos, 0, sizeof(master_pos));
 
