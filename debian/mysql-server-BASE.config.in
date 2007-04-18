@@ -9,7 +9,7 @@ CNF=/etc/mysql/my.cnf
 
 # Beware that there are two ypwhich one of them needs the 2>/dev/null!
 if test -n "`which ypwhich 2>/dev/null`"  &&  ypwhich >/dev/null 2>&1; then
-  db_input high mysql-server-@MYVER@/nis_warning || true
+  db_input high mysql-server-@MYSQL_BASE_VERSION@/nis_warning || true
   db_go
 fi
 
@@ -34,6 +34,6 @@ if [ "$1" = "configure" ] &&
      egrep -q -i '^[[:space:]]*old.passwords[[:space:]]*=[[:space:]]*(1|true)' $CNF
    ) 
 then
-	db_input medium mysql-server-@MYVER@/need_sarge_compat || true
+	db_input medium mysql-server-@MYSQL_BASE_VERSION@/need_sarge_compat || true
 	db_go
 fi
