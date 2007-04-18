@@ -92,16 +92,19 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
 };
 
+static bool initialized= 0;
+
+/*
+  A mutex LOCK_plugin must be acquired before accessing the
+  following variables/structures.
+  We are always manipulating ref count, so a rwlock here is unneccessary.
+*/
+static pthread_mutex_t LOCK_plugin;
 static DYNAMIC_ARRAY plugin_dl_array;
 static DYNAMIC_ARRAY plugin_array;
 static HASH plugin_hash[MYSQL_MAX_PLUGIN_TYPE_NUM];
-/* we are always manipulating ref count, so a rwlock is unneccessary */
-static pthread_mutex_t LOCK_plugin;
-static bool initialized= 0;
 static bool reap_needed= false;
-
 static int plugin_array_version=0;
-
 
 /*
   write-lock on LOCK_system_variables_hash is required before modifying
