@@ -86,6 +86,14 @@
 #endif
 #endif /* _WIN32... */
 
+/* Make it easier to add conditionl code for windows */
+#ifdef __WIN__
+#define IF_WIN(A,B) (A)
+#else
+#define IF_WIN(A,B) (B)
+#endif
+
+
 /* Some defines to avoid ifdefs in the code */
 #ifndef NETWARE_YIELD
 #define NETWARE_YIELD
