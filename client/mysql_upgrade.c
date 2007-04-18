@@ -269,8 +269,8 @@ static void create_defaults_file(void)
     Create the option that should be added to
     tools in order to use this file
   */
-  snprintf(defaults_file_option, sizeof(defaults_file_option),
-          "--defaults-file=%s", defaults_file_path);
+  my_snprintf(defaults_file_option, sizeof(defaults_file_option),
+              "--defaults-file=%s", defaults_file_path);
   DBUG_PRINT("info", ("defaults_file_option: %s", defaults_file_option));
 
   DBUG_VOID_RETURN;
@@ -403,7 +403,7 @@ static void find_tool(char *tool_path, const char *tool_name)
       /* 2. my_progname contains relative path, prepend wd */
       char buf[FN_REFLEN];
       my_getwd(buf, FN_REFLEN, MYF(0));
-      snprintf(path, FN_REFLEN, "%s%s", buf, my_progname);
+      my_snprintf(path, FN_REFLEN, "%s%s", buf, my_progname);
     }
     else
     {
