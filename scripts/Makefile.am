@@ -65,7 +65,8 @@ EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			mysqlaccess.conf \
 			mysqlbug \
 			make_win_bin_dist \
-			mysql_system_tables_fix.sql
+			mysql_system_tables_fix.sql \
+			CMakeLists.txt
 
 dist_pkgdata_DATA =	fill_help_tables.sql \
 			mysql_fix_privilege_tables.sql \
