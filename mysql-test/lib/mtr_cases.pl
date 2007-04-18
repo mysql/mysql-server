@@ -340,6 +340,13 @@ sub collect_one_test_case($$$$$$$) {
 	next;
       }
 
+      $value= mtr_match_prefix($opt, "--slave-num=");
+      if ( defined $value )
+      {
+	$tinfo->{'slave_num'}= $value;
+	next;
+      }
+
       $value= mtr_match_prefix($opt, "--result-file=");
       if ( defined $value )
       {
