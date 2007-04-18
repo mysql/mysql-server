@@ -3,7 +3,9 @@ MYSQL_BUILD_CXXFLAGS=-DBIG_JOINS=1 -felide-constructors -fno-rtti -O2
 MYSQL_BUILD_CFLAGS=-DBIG_JOINS=1 -O2
 MYSQL_BUILD_CC=gcc
 MYSQL_BUILD_CXX=gcc
-# These two never pick up the flavor when we persist settings
+# we re-write state into this file. MYSQL_BASE_VERSION might get a suffix added
+# by debian/rules which could result in a nasty loop. VER is there to hold the 
+# original unadorned version from autoconf
 VER=@MYSQL_BASE_VERSION@
 OLDVER=@MYSQL_PREVIOUS_BASE_VERSION@
 MYSQL_BASE_VERSION=@MYSQL_BASE_VERSION@
