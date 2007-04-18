@@ -5444,8 +5444,9 @@ static void add_not_null_conds(JOIN *join)
   for (uint i=join->const_tables ; i < join->tables ; i++)
   {
     JOIN_TAB *tab=join->join_tab+i;
-    if ((tab->type == JT_REF || tab->type == JT_REF_OR_NULL) &&
-         !tab->table->maybe_null)
+    if ((tab->type == JT_REF || tab->type == JT_EQ_REF || 
+         tab->type == JT_REF_OR_NULL) &&
+        !tab->table->maybe_null)
     {
       for (uint keypart= 0; keypart < tab->ref.key_parts; keypart++)
       {
