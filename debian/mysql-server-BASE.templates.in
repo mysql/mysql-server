@@ -1,4 +1,4 @@
-Template: mysql-server-@MYVER@/really_downgrade
+Template: mysql-server-@MYSQL_BASE_VERSION@/really_downgrade
 Type: boolean
 Default: false
 _Description: Do you really want to downgrade?
@@ -6,7 +6,7 @@ _Description: Do you really want to downgrade?
  mysql-server package with a higher version has been installed before.
  It can not be guaranteed that this version can use its data.
 
-Template: mysql-server-@MYVER@/nis_warning
+Template: mysql-server-@MYSQL_BASE_VERSION@/nis_warning
 Type: note
 _Description: Important note for NIS/YP users!
  To use mysql you must install an equivalent user and group to the
@@ -19,7 +19,7 @@ _Description: Important note for NIS/YP users!
  .
  /var/lib/mysql:   drwxr-xr-x   mysql    mysql
 
-Template: mysql-server-@MYVER@/postrm_remove_databases
+Template: mysql-server-@MYSQL_BASE_VERSION@/postrm_remove_databases
 Type: boolean
 Default: false
 _Description: Remove the databases used by all MySQL versions?
@@ -27,7 +27,7 @@ _Description: Remove the databases used by all MySQL versions?
  If it is planned to just install a higher MySQL version or if a different
  mysql-server package is already using it, the data should be kept.
 
-Template: mysql-server-@MYVER@/start_on_boot
+Template: mysql-server-@MYSQL_BASE_VERSION@/start_on_boot
 Type: boolean
 Default: true
 _Description: Should MySQL start on boot?
@@ -54,16 +54,16 @@ _Description: Unable to set password for MySQL "root" user
  is properly protected with a password (see README.Debian for more
  information).
 
-Template: mysql-server-@MYVER@/need_sarge_compat
+Template: mysql-server-@MYSQL_BASE_VERSION@/need_sarge_compat
 Type: boolean
 Default: false
 _Description: Support MySQL connections from hosts running Debian "sarge" or older?
  The way passwords were stored was not very secure. This has been improved
  with the drawback that clients (e.g. PHP) from hosts running Debian 3.1 Sarge
  will not be able to connect to account which are new or whose password have
- been changed. See /usr/share/doc/mysql-server-@MYVER@/README.Debian.
+ been changed. See /usr/share/doc/mysql-server-@MYSQL_BASE_VERSION@/README.Debian.
 
-Template: mysql-server-@MYVER@/need_sarge_compat_done
+Template: mysql-server-@MYSQL_BASE_VERSION@/need_sarge_compat_done
 Type: boolean
 Default: false
 Description: for internal use
