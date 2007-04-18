@@ -32,7 +32,8 @@ DIST_SUBDIRS =		. include @docs_dirs@ zlib \
 			@thread_dirs@ pstack \
 			@sql_union_dirs@ scripts @man_dirs@ tests SSL\
 			BUILD netware os2 @libmysqld_dirs@ \
-			@bench_dirs@ support-files @tools_dirs@ win
+			@bench_dirs@ support-files @tools_dirs@ win \
+			debian
 
 # Run these targets before any others, also make part of clean target,
 # to make sure we create new links after a clean.
@@ -97,6 +98,7 @@ bin-dist:		all
 
 # Remove BK's "SCCS" subdirectories from source distribution
 # Create initial database files for Windows installations.
+# Create default debian control file for debian packaging needs
 dist-hook:
 	rm -rf `find $(distdir) -type d -name SCCS -print`
 	rm -f  `find $(distdir) -type l -print`
@@ -105,6 +107,7 @@ dist-hook:
 		--basedir=$(top_builddir) \
 		--datadir=$(distdir)/win/data \
 		--srcdir=$(top_srcdir)
+	debian/rules control-file && cp $(top_builddir)/debian/control $(distdir)/debian/control
 
 tags:
 	support-files/build-tags

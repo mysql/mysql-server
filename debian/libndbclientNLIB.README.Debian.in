@@ -1,0 +1,30 @@
+* Crashs on systems with Cyrix or other old i486 CPUs
+=====================================================
+
+As reported http://bugs.mysql.com/bug.php?id=21765 MySQL will segfault on very
+old CPUs that do not have support for the "cpuid" instruction.
+
+
+
+* Self-build binaries that are linked against libmysqlclient15 MUST be rebuild!
+===============================================================================
+
+This only affects binaries that are build on a Debian unstable/testing system
+before 2006-03-31 or version 5.0.19. "objdump -T myprogram | grep MYSQL_5.0"
+will give a couple of lines output in such a case.
+
+Until now libmysqlclient.so.15 had versioned symbols provided by a Debian
+patch. Now MySQL finally decided to adopt this patch but sadly chosed a
+different symbol name.
+
+Binaries linked against the old version of the library with my symbol name will
+not run with the new version with MySQL's symbol name ("version `MYSQL_5.0' not
+found"). The actual name /usr/lib/libmysqlclient.so.15 must stay because else
+binaries coming from systems other than Debian would never run on a Debian
+server.
+
+So the Debian package had to be renamed from "libmysqlclient15" to
+"libmysqlclient15off" and do now conflict with their former version.
+
+-- 2006-03-14, Christian Hammers <ch@debian.org>
+

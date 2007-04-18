@@ -1,0 +1,163 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# Piarres BEobide <pi@beobide.net>, 2006.
+msgid ""
+msgstr ""
+"Project-Id-Version: mysql-dfsg-5.0_5.0.26-3-debconf_eu\n"
+"Report-Msgid-Bugs-To: ch@debian.org\n"
+"POT-Creation-Date: 2007-02-16 22:27+0100\n"
+"PO-Revision-Date: 2007-02-19 09:33+0100\n"
+"Last-Translator: Piarres Beobide <pi@beobide.net>\n"
+"Language-Team: Euskara <Librezale@librezale.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Pootle 0.10.1\n"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:1001
+msgid "Do you really want to downgrade?"
+msgstr "Benetan bertsio zaharragora itzuli nahi duzu?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:1001
+msgid ""
+"WARNING: The file /var/lib/mysql/debian-*.flag exists. This indicates that a "
+"mysql-server package with a higher version has been installed before. It can "
+"not be guaranteed that this version can use its data."
+msgstr "Oharra: /var/lib/mysql/debian-*.flag dago.. Honek aurretik bertsio berriagoko mysql-zerbitzari bat instalatu dela adierazten du. Ezin da ziurtatu bertsio honek datu horiek erabili ahal izango dituenik."
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "Important note for NIS/YP users!"
+msgstr "NIS/YP erabiltzaileentzat ohar garrantzitsua!"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid ""
+"To use mysql you must install an equivalent user and group to the following "
+"and ensure yourself that /var/lib/mysql has the right permissions (the uid/"
+"gid may be different)."
+msgstr ""
+"Mysql erabili ahal izateko beharrezko erabiltzaile eta taldea sortu eta /var/"
+"lib/mysql-ek beharrezko baimenak dituela ziurtatu behar duzu (uid/gid-a "
+"ezberdina izan daiteke)"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid ""
+"/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+msgstr ""
+"/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "/etc/group:       mysql:x:101:"
+msgstr "/etc/group:       mysql:x:101:"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+msgstr "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:3001
+msgid "Remove the databases used by all MySQL versions?"
+msgstr "MySQL bertsio guztiek erabilitako databaseak ezabatu?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:3001
+msgid ""
+"The script is about to remove the data directory /var/lib/mysql. If it is "
+"planned to just install a higher MySQL version or if a different mysql-"
+"server package is already using it, the data should be kept."
+msgstr "Script-a /var/lib/mysql data direktorioa ezabatzera doa. MySQL bertsio berriago bat instalatu behar bada edo beste mysql-server pakete bat berau erabiltzen ari bada, datuak mantendu egingo dira."
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:4001
+msgid "Should MySQL start on boot?"
+msgstr "Sistema abiaraztean MySQL abiarazi behar al da?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:4001
+msgid ""
+"The MySQL can start automatically on boot time or only if you manually type "
+"'/etc/init.d/mysql start'."
+msgstr "MySQL abiaraztean automatikoki abiarazi daiteke edo eskuz /etc/init.d/mysql start' eginaz."
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid "New password for MySQL \"root\" user:"
+msgstr "MySQL \"root\" erabiltzailearen pasahitz berria:"
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid ""
+"It is highly recommended that you set a password for the MySQL "
+"administrative \"root\" user."
+msgstr ""
+"Oso gomendagarria da MySQL administratzaile \"root\" erabiltzaileari "
+"pasahitz bat ezartzea."
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid ""
+"If you do not provide a password no changes will be made to the account."
+msgstr "Ez baduzu pasahitzik ezartzen ez da aldaketarik egingo kontuan."
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid "Unable to set password for MySQL \"root\" user"
+msgstr "Ezinda MySQL \"root\" erabiltzailearen pasahitza ezarri"
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid ""
+"It seems an error occurred while setting the password for the MySQL "
+"administrative user.  This may have happened because the user already has a "
+"password, or because there was a problem communicating with the MySQL server."
+msgstr "Dirudienez errore bat gertatu da MySQL administratzaile kontuaren pasahitza ezartzean.  Hau erabiltzaileak dagoeneko pasahitz bat duelako edo MySQL zerbitzariarekiko konexioan erroreak daudelako gertatu daiteke."
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid ""
+"When installation finishes, you should verify that the account is properly "
+"protected with a password (see README.Debian for more information)."
+msgstr ""
+"Instalazio amaitzean, kontua pasahitzez babesturik dagoela ziurtatu beharko "
+"zenuke (README.Debian irakurri xehetasun gehiagotarako)"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:7001
+msgid "Support MySQL connections from hosts running Debian \"sarge\" or older?"
+msgstr "Debian \"sarge\" edo zaharragoak erabiltzen duten ostalarietatik MySQL konexioak onartu?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:7001
+msgid ""
+"The way passwords were stored was not very secure. This has been improved "
+"with the drawback that clients (e.g. PHP) from hosts running Debian 3.1 "
+"Sarge will not be able to connect to account which are new or whose password "
+"have been changed. See /usr/share/doc/mysql-server-5.0/README.Debian."
+msgstr "Pasahitzak biltegiratzeko modua ez da oso ziurra. Hau hobetua izan da baina Debian 3.1 Sarge erabiltzaileak ezingo dira kontu berri edo pasahitza aldatu duten kontuetara konektatu. Begiratu /usr/share/doc/mysql-server-5.0/README.Debian argibide gehiagorako."
