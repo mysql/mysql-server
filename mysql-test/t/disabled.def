@@ -38,5 +38,4 @@ synchronization          : Bug#24529  	Test 'synchronization' fails on Mac pushb
 plugin                   : Bug#25659 memory leak via "plugins" test
 rpl_ndb_dd_advance	 : Bug#25913 rpl_ndb_dd_advance fails randomly
 
-rpl_ndb_stm_innodb       : Bug#26783
 ndb_partition_error2	 : HF is not sure if the test can work as internded on all the platforms
