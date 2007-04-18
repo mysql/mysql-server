@@ -2108,10 +2108,10 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         log_query= 1;
         break;
       case SOT_DROP_TABLE:
+        log_query= 1;
         // invalidation already handled by binlog thread
         if (share && share->op)
         {
-          log_query= 1;
           break;
         }
         // fall through
