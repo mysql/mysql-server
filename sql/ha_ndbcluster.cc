@@ -350,7 +350,7 @@ Thd_ndb::Thd_ndb()
   count= 0;
   all= NULL;
   stmt= NULL;
-  error= 0;
+  m_error= FALSE;
   query_state&= NDB_QUERY_NORMAL;
   options= 0;
   (void) hash_init(&open_tables, &my_charset_bin, 5, 0, 0,
@@ -385,7 +385,7 @@ void
 Thd_ndb::init_open_tables()
 {
   count= 0;
-  error= 0;
+  m_error= FALSE;
   my_hash_reset(&open_tables);
 }
 
@@ -461,7 +461,7 @@ ha_rows ha_ndbcluster::records()
   }
 
   THD *thd= current_thd;
-  if (get_thd_ndb(thd)->error)
+  if (get_thd_ndb(thd)->m_error)
     local_info->no_uncommitted_rows_count= 0;
 
   DBUG_RETURN(retval + local_info->no_uncommitted_rows_count);
@@ -492,7 +492,7 @@ int ha_ndbcluster::records_update()
   }
   {
     THD *thd= current_thd;
-    if (get_thd_ndb(thd)->error)
+    if (get_thd_ndb(thd)->m_error)
       local_info->no_uncommitted_rows_count= 0;
   }
   if (result == 0)
@@ -505,7 +505,7 @@ void ha_ndbcluster::no_uncommitted_rows_execute_failure()
   if (m_ha_not_exact_count)
     return;
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_execute_failure");
-  get_thd_ndb(current_thd)->error= 1;
+  get_thd_ndb(current_thd)->m_error= TRUE;
   DBUG_VOID_RETURN;
 }
 
@@ -529,7 +529,7 @@ void ha_ndbcluster::no_uncommitted_rows_reset(THD *thd)
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_reset");
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   thd_ndb->count++;
-  thd_ndb->error= 0;
+  thd_ndb->m_error= FALSE;
   DBUG_VOID_RETURN;
 }
 
@@ -2713,9 +2713,13 @@ int ha_ndbcluster::write_row(byte *record)
     op->setValue(no_fields, part_func_value);
   }
 
-  if (thd->slave_thread)
-    op->setAnyValue(thd->server_id);
-
+  if (unlikely(m_slow_path))
+  {
+    if (!(thd->options & OPTION_BIN_LOG))
+      op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
+    else if (thd->slave_thread)
+      op->setAnyValue(thd->server_id);
+  }
   m_rows_changed++;
 
   /*
@@ -2997,9 +3001,13 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
     op->setValue(no_fields, part_func_value);
   }
 
-  if (thd->slave_thread)
-    op->setAnyValue(thd->server_id);
-
+  if (unlikely(m_slow_path))
+  {
+    if (!(thd->options & OPTION_BIN_LOG))
+      op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
+    else if (thd->slave_thread)
+      op->setAnyValue(thd->server_id);
+  }
   /*
     Execute update operation if we are not doing a scan for update
     and there exist UPDATE AFTER triggers
@@ -3060,9 +3068,15 @@ int ha_ndbcluster::delete_row(const byte *record)
 
     no_uncommitted_rows_update(-1);
 
-    if (thd->slave_thread)
-      ((NdbOperation *)trans->getLastDefinedOperation())->setAnyValue(thd->server_id);
-
+    if (unlikely(m_slow_path))
+    {
+      if (!(thd->options & OPTION_BIN_LOG))
+        ((NdbOperation *)trans->getLastDefinedOperation())->
+          setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
+      else if (thd->slave_thread)
+        ((NdbOperation *)trans->getLastDefinedOperation())->
+          setAnyValue(thd->server_id);
+    }
     if (!(m_primary_key_update || m_delete_cannot_batch))
       // If deleting from cursor, NoCommit will be handled in next_result
       DBUG_RETURN(0);
@@ -3093,8 +3107,13 @@ int ha_ndbcluster::delete_row(const byte *record)
         DBUG_RETURN(error);
     }
 
-    if (thd->slave_thread)
-      op->setAnyValue(thd->server_id);
+    if (unlikely(m_slow_path))
+    {
+      if (!(thd->options & OPTION_BIN_LOG))
+        op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
+      else if (thd->slave_thread)
+        op->setAnyValue(thd->server_id);
+    }
   }
 
   // Execute delete operation
@@ -4268,6 +4287,10 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         thd_ndb->stmt= trans;
 	thd_ndb->query_state&= NDB_QUERY_NORMAL;
         thd_ndb->trans_options= 0;
+        thd_ndb->m_slow_path= FALSE;
+        if (thd->slave_thread ||
+            !(thd->options & OPTION_BIN_LOG))
+          thd_ndb->m_slow_path= TRUE;
         trans_register_ha(thd, FALSE, ndbcluster_hton);
       } 
       else 
@@ -4285,6 +4308,10 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
           thd_ndb->all= trans; 
 	  thd_ndb->query_state&= NDB_QUERY_NORMAL;
           thd_ndb->trans_options= 0;
+          thd_ndb->m_slow_path= FALSE;
+          if (thd->slave_thread ||
+              !(thd->options & OPTION_BIN_LOG))
+            thd_ndb->m_slow_path= TRUE;
           trans_register_ha(thd, TRUE, ndbcluster_hton);
 
           /*
@@ -4325,9 +4352,13 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     // Start of transaction
     m_rows_changed= 0;
     m_ops_pending= 0;
+    m_slow_path= thd_ndb->m_slow_path;
 #ifdef HAVE_NDB_BINLOG
-    if (m_share == ndb_apply_status_share && thd->slave_thread)
-      thd_ndb->trans_options|= TNTO_INJECTED_APPLY_STATUS;
+    if (unlikely(m_slow_path))
+    {
+      if (m_share == ndb_apply_status_share && thd->slave_thread)
+        thd_ndb->trans_options|= TNTO_INJECTED_APPLY_STATUS;
+    }
 #endif
     // TODO remove double pointers...
     m_thd_ndb_share= thd_ndb->get_open_table(thd, m_table);
@@ -4474,8 +4505,12 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     DBUG_RETURN(0);
 
 #ifdef HAVE_NDB_BINLOG
-  if (thd->slave_thread)
-    ndbcluster_update_apply_status(thd, thd_ndb->trans_options & TNTO_INJECTED_APPLY_STATUS);
+  if (unlikely(thd_ndb->m_slow_path))
+  {
+    if (thd->slave_thread)
+      ndbcluster_update_apply_status
+        (thd, thd_ndb->trans_options & TNTO_INJECTED_APPLY_STATUS);
+  }
 #endif /* HAVE_NDB_BINLOG */
 
   if (execute_commit(thd,trans) != 0)
