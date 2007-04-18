@@ -364,6 +364,11 @@ pthread_handler_t handle_bootstrap(void *arg)
                       buff[length-1] == ';'))
       length--;
     buff[length]=0;
+
+    /* Skip lines starting with delimiter */
+    if (strncmp(buff, STRING_WITH_LEN("delimiter")) == 0)
+      continue;
+
     thd->query_length=length;
     thd->query= thd->memdup_w_gap(buff, length+1, 
 				  thd->db_length+1+QUERY_CACHE_FLAGS_SIZE);
