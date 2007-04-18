@@ -1337,3 +1337,5 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
+scripts/comp_sql
+scripts/mysql_fix_privilege_tables_sql.c
