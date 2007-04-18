@@ -505,7 +505,7 @@ static int extract_variable_from_show(DYNAMIC_STRING* ds, char* value)
   value_start++;
 
   /* Don't copy the ending newline */
-  if (value_start && (value_end= strchr(value_start, '\n')) == NULL)
+  if ((value_end= strchr(value_start, '\n')) == NULL)
     return 1; /* Unexpected result */
 
   strncpy(value, value_start, min(FN_REFLEN, value_end-value_start));
