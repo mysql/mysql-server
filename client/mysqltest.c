@@ -2535,17 +2535,20 @@ wait_for_position:
   if (!(res= mysql_store_result(mysql)))
     die("mysql_store_result() returned NULL for '%s'", query_buf);
   if (!(row= mysql_fetch_row(res)))
+  {
+    mysql_free_result(res);
     die("empty result in %s", query_buf);
+  }
   if (!row[0])
   {
     /*
       It may be that the slave SQL thread has not started yet, though START
       SLAVE has been issued ?
     */
+    mysql_free_result(res);
     if (tries++ == 30)
       die("could not sync with master ('%s' returned NULL)", query_buf);
     sleep(1); /* So at most we will wait 30 seconds and make 31 tries */
-    mysql_free_result(res);
     goto wait_for_position;
   }
   mysql_free_result(res);
@@ -2586,6 +2589,7 @@ int do_save_master_pos()
   MYSQL *mysql = &cur_con->mysql;
   const char *query;
   int rpl_parse;
+  DBUG_ENTER("do_save_master_pos");
 
   rpl_parse = mysql_rpl_parse_enabled(mysql);
   mysql_disable_rpl_parse(mysql);
@@ -2743,7 +2747,7 @@ int do_save_master_pos()
   if (rpl_parse)
     mysql_enable_rpl_parse(mysql);
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -3198,7 +3202,7 @@ struct st_connection * find_connection_by_name(const char *name)
 
 int select_connection_name(const char *name)
 {
-  DBUG_ENTER("select_connection2");
+  DBUG_ENTER("select_connection_name");
   DBUG_PRINT("enter",("name: '%s'", name));
 
   if (!(cur_con= find_connection_by_name(name)))
@@ -3221,7 +3225,7 @@ int select_connection(struct st_command *command)
   if (*p)
     *p++= 0;
   command->last_argument= p;
-  return select_connection_name(name);
+  DBUG_RETURN(select_connection_name(name));
 }
 
 

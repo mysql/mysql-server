@@ -334,8 +334,6 @@ void free_root(MEM_ROOT *root, myf MyFlags)
   DBUG_ENTER("free_root");
   DBUG_PRINT("enter",("root: 0x%lx  flags: %u", (long) root, (uint) MyFlags));
 
-  if (!root)					/* QQ: Should be deleted */
-    DBUG_VOID_RETURN; /* purecov: inspected */
   if (MyFlags & MY_MARK_BLOCKS_FREE)
   {
     mark_blocks_free(root);

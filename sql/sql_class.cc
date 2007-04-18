@@ -367,6 +367,7 @@ void THD::init(void)
   if (variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
     server_status|= SERVER_STATUS_NO_BACKSLASH_ESCAPES;
   options= thd_startup_options;
+  no_trans_update.stmt= no_trans_update.all= FALSE;
   open_options=ha_open_options;
   update_lock_default= (variables.low_priority_updates ?
 			TL_WRITE_LOW_PRIORITY :
@@ -419,6 +420,7 @@ void THD::init_for_queries()
 void THD::change_user(void)
 {
   cleanup();
+  killed= NOT_KILLED;
   cleanup_done= 0;
   init();
   stmt_map.reset();
@@ -437,6 +439,7 @@ void THD::cleanup(void)
   DBUG_ENTER("THD::cleanup");
   DBUG_ASSERT(cleanup_done == 0);
 
+  killed= KILL_CONNECTION;
 #ifdef ENABLE_WHEN_BINLOG_WILL_BE_ABLE_TO_PREPARE
   if (transaction.xid_state.xa_state == XA_PREPARED)
   {
@@ -841,7 +844,8 @@ void THD::add_changed_table(const char *key, long key_length)
     {
       list_include(prev_changed, curr, changed_table_dup(key, key_length));
       DBUG_PRINT("info", 
-		 ("key_length %ld %u", key_length, (*prev_changed)->key_length));
+		 ("key_length: %ld  %u", key_length,
+                  (*prev_changed)->key_length));
       DBUG_VOID_RETURN;
     }
     else if (cmp == 0)
@@ -851,7 +855,7 @@ void THD::add_changed_table(const char *key, long key_length)
       {
 	list_include(prev_changed, curr, changed_table_dup(key, key_length));
 	DBUG_PRINT("info", 
-		   ("key_length %ld %u", key_length,
+		   ("key_length:  %ld  %u", key_length,
 		    (*prev_changed)->key_length));
 	DBUG_VOID_RETURN;
       }
@@ -863,7 +867,7 @@ void THD::add_changed_table(const char *key, long key_length)
     }
   }
   *prev_changed = changed_table_dup(key, key_length);
-  DBUG_PRINT("info", ("key_length %ld %u", key_length,
+  DBUG_PRINT("info", ("key_length: %ld  %u", key_length,
 		      (*prev_changed)->key_length));
   DBUG_VOID_RETURN;
 }
