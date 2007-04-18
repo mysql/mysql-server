@@ -315,9 +315,12 @@ my_bool my_hash_insert(HASH *info,const byte *record)
   LINT_INIT(gpos); LINT_INIT(gpos2);
   LINT_INIT(ptr_to_rec); LINT_INIT(ptr_to_rec2);
 
-  if (HASH_UNIQUE & info->flags &&
-      hash_search(info, hash_key(info, record, &idx, 1), idx))
-    return(TRUE);				/* Duplicate entry */
+  if (HASH_UNIQUE & info->flags)
+  {
+    byte *key= (byte*) hash_key(info, record, &idx, 1);
+    if (hash_search(info, key, idx))
+      return(TRUE);				/* Duplicate entry */
+  }
 
   flag=0;
   if (!(empty=(HASH_LINK*) alloc_dynamic(&info->array)))
