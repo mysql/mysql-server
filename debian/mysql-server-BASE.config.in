@@ -1,0 +1,39 @@
+#!/bin/bash -e
+
+. /usr/share/debconf/confmodule
+
+if [ -n "$DEBIAN_SCRIPT_DEBUG" ]; then set -v -x; DEBIAN_SCRIPT_TRACE=1; fi
+${DEBIAN_SCRIPT_TRACE:+ echo "#42#DEBUG# RUNNING $0 $*" 1>&2 }
+
+CNF=/etc/mysql/my.cnf
+
+# Beware that there are two ypwhich one of them needs the 2>/dev/null!
+if test -n "`which ypwhich 2>/dev/null`"  &&  ypwhich >/dev/null 2>&1; then
+  db_input high mysql-server-@MYSQL_BASE_VERSION@/nis_warning || true
+  db_go
+fi
+
+# only ask this question on fresh installs and during "reconfiguration".  
+# there is also an additional check for empty root passwords in the
+# postinst script when the tools are available for us to use.
+if [ "$1" = "configure" ] && [ -z "$2" ] || [ "$1" = "reconfigure" ]; then
+	db_input medium mysql-server/root_password || true
+	db_go
+fi
+
+# If this is an upgrade of an already existing installation ask the user if
+# we may use the backwards incompatible but more secure password format.
+# This should not be shown at dpkg-reconfigure and except for the dist-upgrade,
+# config files are for the admin only!
+# Read: If mysql was already installed but not from Etch and it was either 4.0
+# or had old_passwords enabled before then the system is affected.
+if [ "$1" = "configure" ] && 
+   [ -f $CNF ] && 
+   (
+     [ ! -f /var/lib/mysql/debian-4.1.flag ] ||
+     egrep -q -i '^[[:space:]]*old.passwords[[:space:]]*=[[:space:]]*(1|true)' $CNF
+   ) 
+then
+	db_input medium mysql-server-@MYSQL_BASE_VERSION@/need_sarge_compat || true
+	db_go
+fi

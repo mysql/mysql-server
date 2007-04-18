@@ -261,12 +261,12 @@ else
   esac
 fi
 
-# Safeguard (relative paths, core dumps..)
-cd $basedir
-
 case "$mode" in
   'start')
     # Start daemon
+
+    # Safeguard (relative paths, core dumps..)
+    cd $basedir
 
     manager=$bindir/mysqlmanager
     if test -x $libexecdir/mysqlmanager
@@ -359,20 +359,52 @@ case "$mode" in
     fi
     ;;
 
-  'reload')
+  'reload'|'force-reload')
     if test -s "$server_pid_file" ; then
-      mysqld_pid=`cat $server_pid_file`
+      read mysqld_pid <  $server_pid_file
       kill -HUP $mysqld_pid && log_success_msg "Reloading service MySQL"
       touch $server_pid_file
     else
       log_failure_msg "MySQL PID file could not be found!"
+      exit 1
     fi
     ;;
-
-  *)
-    # usage
-    echo "Usage: $0  {start|stop|restart|reload}  [ MySQL server options ]"
-    exit 1
+  'status')
+    # First, check to see if pid file exists
+    if test -s "$server_pid_file" ; then 
+      read mysqld_pid < $server_pid_file
+      if kill -0 $mysqld_pid 2>/dev/null ; then 
+        log_success_msg "MySQL running ($mysqld_pid)"
+        exit 0
+      else
+        log_failure_msg "MySQL is not running, but PID file exists"
+        exit 1
+      fi
+    else
+      # Try to find appropriate mysqld process
+      mysqld_pid=`pidof $sbindir/mysqld`
+      if test -z $mysqld_pid ; then 
+        if test "$use_mysqld_safe" = "0" ; then 
+          lockfile=/var/lock/subsys/mysqlmanager
+        else
+          lockfile=/var/lock/subsys/mysql
+        fi 
+        if test -f $lockfile ; then 
+          log_failure_msg "MySQL is not running, but lock exists"
+          exit 2
+        fi 
+        log_failure_msg "MySQL is not running"
+        exit 3
+      else
+        log_failure_msg "MySQL is running but PID file could not be found"
+        exit 4
+      fi
+    fi
+    ;;
+    *)
+      # usage
+      echo "Usage: $0  {start|stop|restart|reload|force-reload|status}  [ MySQL server options ]"
+      exit 1
     ;;
 esac
 

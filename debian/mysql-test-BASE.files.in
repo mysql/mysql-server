@@ -1,0 +1,6 @@
+usr/share/mysql-test/*
+usr/bin/mysql_client_test
+usr/bin/mysqltestmanager
+usr/bin/mysqltestmanager-pwgen
+usr/bin/mysqltestmanagerc
+

@@ -1,0 +1,339 @@
+# Brazilian Portuguese (pt_BR) debconf template translation for
+# Debian's mysql-dfsg source package.
+# Debian-BR Project <debian-l10n-portuguese@lists.debian.org>
+# André Luís Lopes, <andrelop@debian.org> , 2004
+# André Luís Lopes, <andrelop@debian.org> , 2006
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: mysql-dfsg-5.0\n"
+"Report-Msgid-Bugs-To: ch@debian.org\n"
+"POT-Creation-Date: 2007-02-16 22:27+0100\n"
+"PO-Revision-Date: 2006-12-19 20:32-0200\n"
+"Last-Translator: André Luís Lopes <andrelop@debian.org>\n"
+"Language-Team: Debian-BR Project <debian-l10n-portuguese@lists.debian.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:1001
+msgid "Do you really want to downgrade?"
+msgstr "Você realmente quer atualizar?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:1001
+msgid ""
+"WARNING: The file /var/lib/mysql/debian-*.flag exists. This indicates that a "
+"mysql-server package with a higher version has been installed before. It can "
+"not be guaranteed that this version can use its data."
+msgstr ""
+"AVISO: O arquivo /var/lib/mysql/debian-*.flag existe. Isso indica que um "
+"pacote mysql-server com uma versão maior foi instalado antes. Não há como "
+"garantir que esta versão poderá usar seus dados."
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "Important note for NIS/YP users!"
+msgstr "Aviso importante para usuários NIS/YP!"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid ""
+"To use mysql you must install an equivalent user and group to the following "
+"and ensure yourself that /var/lib/mysql has the right permissions (the uid/"
+"gid may be different)."
+msgstr ""
+"Para utilizar o MySQL, você deve instalar um usuário e um grupo equivalentes "
+"ao usuário e grupo a seguir para se certificar de que o diretório /var/lib/"
+"mysql possua as permissões correctas (o uid/gid podem ser diferentes)."
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid ""
+"/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+msgstr ""
+"/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "/etc/group:       mysql:x:101:"
+msgstr "/etc/group:       mysql:x:101:"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+msgstr "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:3001
+msgid "Remove the databases used by all MySQL versions?"
+msgstr "Remover as bases de dados utilizadas por todas as versões do MySQL?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:3001
+msgid ""
+"The script is about to remove the data directory /var/lib/mysql. If it is "
+"planned to just install a higher MySQL version or if a different mysql-"
+"server package is already using it, the data should be kept."
+msgstr ""
+"O script está prestes a remover o diretório de dados /var/lib/mysql. Caso "
+"seja planejado somente instalar uma versão mais nova do MySQL ou caso um "
+"pacote mysql-server diferente já os esteja usando, os dados devem ser "
+"mantidos."
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:4001
+msgid "Should MySQL start on boot?"
+msgstr "O MySQL deve ser iniciado na inicialização da máquina?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:4001
+msgid ""
+"The MySQL can start automatically on boot time or only if you manually type "
+"'/etc/init.d/mysql start'."
+msgstr ""
+"O MySQL pode ser iniciado automaticamente na inicialização da máquina ou "
+"apenas caso você use o comando '/etc/init.d/mysql start' manualmente."
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid "New password for MySQL \"root\" user:"
+msgstr "Nova senha para o usuário \"root\" do MySQL:"
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid ""
+"It is highly recommended that you set a password for the MySQL "
+"administrative \"root\" user."
+msgstr ""
+"É altamente recomendado que você defina uma senha para o usuário "
+"administrativo \"root\" do MySQL."
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid ""
+"If you do not provide a password no changes will be made to the account."
+msgstr "Caso você não forneça uma senha, nenhuma mudança será feita na conta."
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid "Unable to set password for MySQL \"root\" user"
+msgstr "Impossível definir senha para o usuário \"root\" do MySQL"
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid ""
+"It seems an error occurred while setting the password for the MySQL "
+"administrative user.  This may have happened because the user already has a "
+"password, or because there was a problem communicating with the MySQL server."
+msgstr ""
+"Parece que um erro cocrreu durante a definição da senha para o usuário "
+"administrativo do MySQL. Isso pode ter acontecido devido ao usuário já "
+"possuir uma senha definida ou devido a ocorrência de um problema de "
+"comunicação com o servidor MySQL."
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid ""
+"When installation finishes, you should verify that the account is properly "
+"protected with a password (see README.Debian for more information)."
+msgstr ""
+"Quando a instalação finalizar, você deverá verificar se a conta está "
+"apropriadamente protegida com uma senha (consulte o arquivo README.Debian "
+"para maiores informações)."
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:7001
+msgid "Support MySQL connections from hosts running Debian \"sarge\" or older?"
+msgstr ""
+"Suportar conexões MySQL originadas de hosts executando o Debian \"sarge\" "
+"ou mais antigos ?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:7001
+msgid ""
+"The way passwords were stored was not very secure. This has been improved "
+"with the drawback that clients (e.g. PHP) from hosts running Debian 3.1 "
+"Sarge will not be able to connect to account which are new or whose password "
+"have been changed. See /usr/share/doc/mysql-server-5.0/README.Debian."
+msgstr ""
+"A maneira com que as senhas eram armazenadas não era muito segura. Isso foi "
+"melhorado, mas com o incômodo de que clientes (por exemplo, o PHP) em hosts "
+"executando o Debian 3.1 (Sarge) não serão capazes de conectar em contas "
+"novas ou para as quais as senhas tenham sido modificadas. Consulte /usr/"
+"share/doc/mysql-server-5.0/README.Debian."
+
+#~ msgid "internal"
+#~ msgstr "interno"
+
+#~ msgid "Only internally used."
+#~ msgstr "Somente utilizado internamente."
+
+#, fuzzy
+#~ msgid "Update Hints"
+#~ msgstr "Dicas de atualização"
+
+#, fuzzy
+#~ msgid ""
+#~ "Rarely, e.g. on new major versions, the privilege system is improved. To "
+#~ "make use of it mysql_fix_privilege_tables must be executed manually. The "
+#~ "script is not supposed to give any user more rights that he had before,"
+#~ msgstr ""
+#~ "Raramente, por exemplo, em novas versões maiores, o sistema de "
+#~ "privilégios é melhorado. Para fazer uso disso, o script "
+#~ "mysql_fix_privilege_tables deve ser executado manualmente. O script não "
+#~ "atribuirá a nenhum usuário mais direitos do que os mesmos já possuíam "
+#~ "anteriormente."
+
+#~ msgid "Please also read http://www.mysql.com/doc/en/Upgrade.html"
+#~ msgstr "Por favor, leia http://www.mysql.com/doc/en/Upgrade.html"
+
+#, fuzzy
+#~ msgid "Install Hints"
+#~ msgstr "Dicas de instalação"
+
+#, fuzzy
+#~ msgid ""
+#~ "MySQL will only install if you have a non-numeric hostname that is "
+#~ "resolvable via the /etc/hosts file. E.g. if the \"hostname\" command "
+#~ "returns \"myhostname\" then there must be a line like \"10.0.0.1 "
+#~ "myhostname\"."
+#~ msgstr ""
+#~ "O MySQL será instalado somente caso você possua um nome de host NÃO "
+#~ "NUMÉRICO que possa ser resolvido através do arquivo /etc/hosts, ou seja, "
+#~ "caso o comando \"hostname\" retorne \"myhostname\", uma linha como "
+#~ "\"10.0.0.1 myhostname\" deverá existir no arquivo /etc/hosts."
+
+#~ msgid ""
+#~ "A new mysql user \"debian-sys-maint\" will be created. This mysql account "
+#~ "is used in the start/stop and cron scripts. Don't delete."
+#~ msgstr ""
+#~ "Um novo usuário MySQL de nome \"debian-sys-maint\" será criado. Essa "
+#~ "conta MySQL é utilizada pelos scripts de inicialização/parada e pelos "
+#~ "scripts cron. Não remova esse usuário."
+
+#, fuzzy
+#~ msgid ""
+#~ "Please remember to set a PASSWORD for the MySQL root user! If you use a /"
+#~ "root/.my.cnf, always write the \"user\" and the \"password\" lines in "
+#~ "there, never only the password!"
+#~ msgstr ""
+#~ "Por favor, lembre-se de definir uma SENHA para o usuário root do MySQL ! "
+#~ "Caso você utilize um arquivo /root/.my.cnf, sempre inclua as linhas \"user"
+#~ "\" e \"password\" nesse arquivo, nunca somente a senha ! Consulte o "
+#~ "arquivo /usr/share/doc/mysql-server/README.Debian para mais informações."
+
+#~ msgid "Remove all databases?"
+#~ msgstr "Remover todas as bases de dados ?"
+
+#~ msgid ""
+#~ "Should I remove all databases below /var/lib/mysql as you are purging the "
+#~ "mysql-server package?"
+#~ msgstr ""
+#~ "Todas as base de dados sob o diretório /var/lib/mysql devem ser removidas "
+#~ "quando você remover o pacote pacote mysql-server ?"
+
+#~ msgid ""
+#~ "Networking is disabled by default for security reasons. You can enable it "
+#~ "by commenting out the skip-networking option in /etc/mysql/my.cnf."
+#~ msgstr ""
+#~ "O suporte ao funcionamento em rede está desativado por padrão por "
+#~ "questões de segurança. Você poderá ativá-lo comentando a opção 'skip-"
+#~ "networking' no arquivo /etc/mysql/my.cnf."
+
+#~ msgid "security and update notice"
+#~ msgstr "aviso de segurança e actualização"
+
+#~ msgid ""
+#~ "Should I remove everything below /var/lib/mysql when you purge the mysql-"
+#~ "server package with the \"dpkg --purge mysql-server\" command (i.e. "
+#~ "remove everything including the configuration) somewhen? (default is not)"
+#~ msgstr ""
+#~ "Devo remover tudo abaixo de /var/lib/mysql quando fizer o purge do pacote "
+#~ "mysql-server com o comando \"dpkg --purge mysql-server\" (ou seja, "
+#~ "remover tudo incluíndo a configuração)? (o padrão é não remover)"
+
+#~ msgid "Make MySQL reachable via network?"
+#~ msgstr "Fazer com que o MySQL seja acessível via rede?"
+
+#~ msgid ""
+#~ "Should MySQL listen on a network reachable TCP port? This is not "
+#~ "necessary for use on a single computer and could be a security problem."
+#~ msgstr ""
+#~ "O MySQL deve aguardar ligações numa porta TCP acessível via rede? Isto "
+#~ "não é necessário para uso num único computador e pode ser um problema de "
+#~ "segurança."
+
+#~ msgid "Enable chroot mode?"
+#~ msgstr "Activar o modo chroot?"
+
+#~ msgid ""
+#~ "MySQL is able to jail itself into the /var/lib/mysql_jail directory so "
+#~ "that users cannot modify any files outside this directory. This improves "
+#~ "resistence against crackers, too, as they are not able to modify system "
+#~ "files."
+#~ msgstr ""
+#~ "O MySQL é capaz de se prender no diretório /var/lib/mysql_jail, assim os "
+#~ "utilizadores não poderão modificar ficheiros fora deste directório. Isto "
+#~ "aumenta também a resistência contra crackers, pois eles não poderão "
+#~ "modificar arquivos de sistema."
+
+#~ msgid "Please run mysql_fix_privilege_tables !"
+#~ msgstr "Por favor execute mysql_fix_privilege_tables !"
+
+#~ msgid ""
+#~ "I will ensure secure permissions of /var/lib/mysql by replacing GIDs "
+#~ "other than root and mysql with mysql."
+#~ msgstr ""
+#~ "Permissões seguras para o diretório /var/lib/mysql serão asseguradas "
+#~ "substituíndo GIDs diferentes de root e mysql por mysql."
+
+#~ msgid ""
+#~ "Instructions how to enable SSL support are in /usr/share/doc/mysql-server/"
+#~ msgstr ""
+#~ "Instruções sobre como activar o suporte de SSL estão disponíveis no "
+#~ "directório /usr/share/doc/mysql-server/."
+
+#, fuzzy
+#~ msgid "mysql_fix_privileges_tables should be executed"
+#~ msgstr "mysql_fix_privileges_tables será executado"
+
+#, fuzzy
+#~ msgid ""
+#~ "The latest MySQL versions have an enhanced, more fine grained, privilege "
+#~ "system. To make use of it, some new fields must be added to the tables "
+#~ "in  the \"mysql\" database. This will not happen automatically."
+#~ msgstr ""
+#~ "As últimas versões do MySQL possuem um sistema de privilégios melhorado e "
+#~ "mais refinado. Para utilizá-lo, alguns novos campos devem ser adicionados "
+#~ "as tabelas na base de dados \"mysql\". Isto é feito pelo script "
+#~ "mysql_fix_privileges_tables durante esta actualização independente do "
+#~ "servidor estar a correr ou não !"
+
+#~ msgid ""
+#~ "This script is not supposed to give any user more rights that he had "
+#~ "before, if you encounter such a case, please contact me."
+#~ msgstr ""
+#~ "Este script não deverá fornecer mais direitos a um utilizador além dos "
+#~ "quais ele já possua anteriormente. SE encontrar um caso desses, por favor "
+#~ "entre em contacto com o mantainer deste pacote Debian."
