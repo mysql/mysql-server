@@ -649,7 +649,7 @@ plugin_ref plugin_lock_by_name(THD *thd, const LEX_STRING *name, int type
   LEX *lex= thd ? thd->lex : 0;
   plugin_ref rc= NULL;
   st_plugin_int *plugin;
-  DBUG_ENTER("plugin_lock");
+  DBUG_ENTER("plugin_lock_by_name");
   pthread_mutex_lock(&LOCK_plugin);
   if ((plugin= plugin_find_internal(name, type)))
     rc= my_intern_plugin_lock_ci(lex, plugin_int_to_ref(plugin));
@@ -2679,11 +2679,14 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
   st_mysql_sys_var *opt, **plugin_option;
   st_bookmark *v;
   DBUG_ENTER("construct_options");
+  DBUG_PRINT("plugin", ("plugin: '%s'  enabled: %d  can_disable: %d",
+                        tmp->plugin->name, **enabled, can_disable));
 
   /* support --skip-plugin-foo syntax */
   memcpy(name, plugin_name, namelen + 1);
   my_casedn_str(&my_charset_latin1, name);
   strxmov(name + namelen + 1, "plugin-", name, NullS);
+  /* Now we have namelen + 1 + 7 + namelen + 1 == namelen * 2 + 9. */
 
   for (p= name + namelen*2 + 8; p > name; p--)
     if (*p == '_')
@@ -2693,10 +2696,18 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
   {
     strxmov(name + namelen*2 + 10, "Enable ", plugin_name, " plugin. "
             "Disable with --skip-", name," (will save memory).", NullS);
+    /*
+      Now we have namelen * 2 + 10 (one char unused) + 7 + namelen + 9 +
+      20 + namelen + 20 + 1 == namelen * 4 + 67.
+    */
 
     options[0].comment= name + namelen*2 + 10;
   }
 
+  /*
+    NOTE: 'name' is one char above the allocated buffer!
+    NOTE: This code assumes that 'my_bool' and 'char' are of same size.
+  */
   *((my_bool *)(name -1))= **enabled;
   *enabled= (my_bool *)(name - 1);
 
@@ -2879,6 +2890,8 @@ static my_option *construct_help_options(MEM_ROOT *mem_root,
     DBUG_RETURN(NULL);
 
   bzero(opts, sizeof(my_option) * count);
+
+  dummy= TRUE; /* plugin is enabled. */
 
   can_disable=
       my_strcasecmp(&my_charset_latin1, p->name.str, "MyISAM") &&
