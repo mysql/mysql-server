@@ -288,6 +288,8 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
     regOperPtr.p->saved_change_mask[0] = prevOpPtr.p->saved_change_mask[0];
     regOperPtr.p->saved_change_mask[1] = prevOpPtr.p->saved_change_mask[1];
 
+    regOperPtr.p->m_any_value = prevOpPtr.p->m_any_value;
+
     prevOpPtr.p->op_struct.m_wait_log_buffer= 0;
     prevOpPtr.p->op_struct.m_load_diskpage_on_commit= 0;
 
