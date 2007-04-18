@@ -4013,15 +4013,14 @@ static PAGECACHE *create_pagecache(const char *name, uint length)
     {
       /*
 	Set default values for a key cache
-	The values in dflt_pagecache_var is set by my_getopt() at startup
+	The values in maria_pagecache_var is set by my_getopt() at startup
 	We don't set 'buff_size' as this is used to enable the key cache
       */
-      pagecache->param_buff_size=      (dflt_pagecache_var.param_buff_size ?
-                                        dflt_pagecache_var.param_buff_size:
+      pagecache->param_buff_size=      (maria_pagecache_var.param_buff_size ?
+                                        maria_pagecache_var.param_buff_size:
                                         KEY_CACHE_SIZE);
-      pagecache->param_block_size=     dflt_pagecache_var.param_block_size;
-      pagecache->param_division_limit= dflt_pagecache_var.param_division_limit;
-      pagecache->param_age_threshold=  dflt_pagecache_var.param_age_threshold;
+      pagecache->param_division_limit= maria_pagecache_var.param_division_limit;
+      pagecache->param_age_threshold=  maria_pagecache_var.param_age_threshold;
     }
   }
   DBUG_RETURN(pagecache);

@@ -52,7 +52,7 @@
 
 static void safe_hash_entry_free(SAFE_HASH_ENTRY *entry)
 {
-  DBUG_ENTER("free_assign_entry");
+  DBUG_ENTER("safe_hash_entry_free");
   my_free((gptr) entry, MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -99,7 +99,7 @@ static byte *safe_hash_entry_get(SAFE_HASH_ENTRY *entry, uint *length,
 my_bool safe_hash_init(SAFE_HASH *hash, uint elements,
                        byte *default_value)
 {
-  DBUG_ENTER("safe_hash");
+  DBUG_ENTER("safe_hash_init");
   if (hash_init(&hash->hash, &my_charset_bin, elements,
                 0, 0, (hash_get_key) safe_hash_entry_get,
                 (void (*)(void*)) safe_hash_entry_free, 0))
@@ -272,7 +272,7 @@ end:
 void safe_hash_change(SAFE_HASH *hash, byte *old_data, byte *new_data)
 {
   SAFE_HASH_ENTRY *entry, *next;
-  DBUG_ENTER("safe_hash_set");
+  DBUG_ENTER("safe_hash_change");
 
   rw_wrlock(&hash->mutex);
 
