@@ -97,7 +97,7 @@ int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
                               &info->s->kfile, page / keyinfo->block_length,
                               level, buff, PAGECACHE_PLAIN_PAGE,
                               PAGECACHE_LOCK_LEFT_UNLOCKED,
-                              PAGECACHE_PIN_LEFT_PINNED,
+                              PAGECACHE_PIN_LEFT_UNPINNED,
                               PAGECACHE_WRITE_DELAY, 0));
 } /* maria_write_keypage */
 
@@ -131,7 +131,7 @@ int _ma_dispose(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, my_off_t pos,
                                    &info->s->kfile, page_no, level, buff,
                                    PAGECACHE_PLAIN_PAGE,
                                    PAGECACHE_LOCK_LEFT_UNLOCKED,
-                                   PAGECACHE_PIN_LEFT_PINNED,
+                                   PAGECACHE_PIN_LEFT_UNPINNED,
                                    PAGECACHE_WRITE_DELAY, 0,
                                    offset, sizeof(buff)));
 } /* _ma_dispose */
@@ -142,7 +142,7 @@ int _ma_dispose(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, my_off_t pos,
 my_off_t _ma_new(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, int level)
 {
   my_off_t pos;
-  byte buff[8];
+  byte *buff;
   DBUG_ENTER("_ma_new");
 
   if ((pos= info->s->state.key_del) == HA_OFFSET_ERROR)
@@ -158,6 +158,7 @@ my_off_t _ma_new(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, int level)
   }
   else
   {
+    buff= alloca(info->s->block_size);
     DBUG_ASSERT(info->s->pagecache->block_size == keyinfo->block_length &&
                 info->s->pagecache->block_size == info->s->block_size);
     /*

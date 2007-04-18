@@ -992,7 +992,7 @@ static my_bool write_tail(MARIA_HA *info,
                               &info->dfile, block->page, 0,
                               row_pos.buff,PAGECACHE_PLAIN_PAGE,
                               PAGECACHE_LOCK_LEFT_UNLOCKED,
-                              PAGECACHE_PIN_LEFT_PINNED,
+                              PAGECACHE_PIN_LEFT_UNPINNED,
                               PAGECACHE_WRITE_DELAY, 0));
 }
 
@@ -1065,7 +1065,7 @@ static my_bool write_full_pages(MARIA_HA *info,
                         &info->dfile, page, 0,
                         buff, PAGECACHE_PLAIN_PAGE,
                         PAGECACHE_LOCK_LEFT_UNLOCKED,
-                        PAGECACHE_PIN_LEFT_PINNED,
+                        PAGECACHE_PIN_LEFT_UNPINNED,
                         PAGECACHE_WRITE_DELAY,
                         0))
       DBUG_RETURN(1);
@@ -1599,7 +1599,7 @@ static my_bool write_block_record(MARIA_HA *info, const byte *record,
                       &info->dfile, head_block->page, 0,
                       page_buff, PAGECACHE_PLAIN_PAGE,
                       PAGECACHE_LOCK_LEFT_UNLOCKED,
-                      PAGECACHE_PIN_LEFT_PINNED,
+                      PAGECACHE_PIN_LEFT_UNPINNED,
                       PAGECACHE_WRITE_DELAY, 0))
     goto disk_err;
 
@@ -1950,7 +1950,7 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                         &info->dfile, page, 0,
                         buff, PAGECACHE_PLAIN_PAGE,
                         PAGECACHE_LOCK_LEFT_UNLOCKED,
-                        PAGECACHE_PIN_LEFT_PINNED,
+                        PAGECACHE_PIN_LEFT_UNPINNED,
                         PAGECACHE_WRITE_DELAY, 0))
       DBUG_RETURN(1);
   }

@@ -194,7 +194,7 @@ static char *page_cache_page_pin_str[]=
   (char*)"pinned   -> unpinned"
 };
 #endif
-#ifdef PAGECACHE_DEBUG
+#ifndef DBUG_OFF
 typedef struct st_pagecache_pin_info
 {
   struct st_pagecache_pin_info *next, **prev;
@@ -289,7 +289,7 @@ struct st_pagecache_block_link
   byte *buffer;           /* buffer for the block page                       */
   uint status;            /* state of the block                              */
   uint pins;              /* pin counter                                     */
-#ifdef PAGECACHE_DEBUG
+#ifndef DBUG_OFF
   PAGECACHE_PIN_INFO *pin_list;
   PAGECACHE_LOCK_INFO *lock_list;
 #endif
@@ -301,10 +301,7 @@ struct st_pagecache_block_link
   KEYCACHE_CONDVAR *condvar; /* condition variable for 'no readers' event    */
 };
 
-PAGECACHE dflt_pagecache_var;
-PAGECACHE *dflt_pagecache= &dflt_pagecache_var;
-
-#ifdef PAGECACHE_DEBUG
+#ifndef DBUG_OFF
 /* debug checks */
 static my_bool info_check_pin(PAGECACHE_BLOCK_LINK *block,
                               enum pagecache_page_pin mode)
@@ -312,6 +309,9 @@ static my_bool info_check_pin(PAGECACHE_BLOCK_LINK *block,
   struct st_my_thread_var *thread= my_thread_var;
   PAGECACHE_PIN_INFO *info= info_find(block->pin_list, thread);
   DBUG_ENTER("info_check_pin");
+  DBUG_PRINT("enter", ("info_check_pin: thread: 0x%lx pin: %s",
+                       (ulong)thread,
+                       page_cache_page_pin_str[mode]));
   if (info)
   {
     if (mode == PAGECACHE_PIN_LEFT_UNPINNED)
@@ -2051,7 +2051,7 @@ static void add_pin(PAGECACHE_BLOCK_LINK *block)
                        block->pins));
   PCBLOCK_INFO(block);
   block->pins++;
-#ifdef PAGECACHE_DEBUG
+#ifndef DBUG_OFF
   {
     PAGECACHE_PIN_INFO *info=
       (PAGECACHE_PIN_INFO *)my_malloc(sizeof(PAGECACHE_PIN_INFO), MYF(0));
@@ -2071,7 +2071,7 @@ static void remove_pin(PAGECACHE_BLOCK_LINK *block)
   PCBLOCK_INFO(block);
   DBUG_ASSERT(block->pins > 0);
   block->pins--;
-#ifdef PAGECACHE_DEBUG
+#ifndef DBUG_OFF
   {
     PAGECACHE_PIN_INFO *info= info_find(block->pin_list, my_thread_var);
     DBUG_ASSERT(info != 0);
@@ -2081,7 +2081,7 @@ static void remove_pin(PAGECACHE_BLOCK_LINK *block)
 #endif
   DBUG_VOID_RETURN;
 }
-#ifdef PAGECACHE_DEBUG
+#ifndef DBUG_OFF
 static void info_add_lock(PAGECACHE_BLOCK_LINK *block, my_bool wl)
 {
   PAGECACHE_LOCK_INFO *info=
@@ -2237,10 +2237,8 @@ static my_bool make_lock_and_pin(PAGECACHE *pagecache,
                        page_cache_page_lock_str[lock],
                        page_cache_page_pin_str[pin]));
   PCBLOCK_INFO(block);
-#ifdef PAGECACHE_DEBUG
   DBUG_ASSERT(info_check_pin(block, pin) == 0 &&
               info_check_lock(block, lock, pin) == 0);
-#endif
   switch (lock)
   {
   case PAGECACHE_LOCK_WRITE:               /* free  -> write */

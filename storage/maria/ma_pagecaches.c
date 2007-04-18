@@ -38,7 +38,7 @@ static SAFE_HASH pagecache_hash;
 
 my_bool multi_pagecache_init(void)
 {
-  return safe_hash_init(&pagecache_hash, 16, (byte*) dflt_pagecache);
+  return safe_hash_init(&pagecache_hash, 16, (byte*) maria_pagecache);
 }
 
 

@@ -67,7 +67,7 @@ int maria_delete_all_rows(MARIA_HA *info)
       my_chsize(share->kfile.file, share->base.keystart, 0, MYF(MY_WME))  )
     goto err;
 
-  if (_ma_initialize_data_file(info->dfile, info->s))
+  if (_ma_initialize_data_file(info->dfile.file, info->s))
     goto err;
 
   /*

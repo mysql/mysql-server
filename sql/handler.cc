@@ -2796,13 +2796,12 @@ int ha_init_pagecache(const char *name, PAGECACHE *pagecache)
   {
     pthread_mutex_lock(&LOCK_global_system_variables);
     long tmp_buff_size= (long) pagecache->param_buff_size;
-    long tmp_block_size= (long) pagecache->param_block_size;
     uint division_limit= pagecache->param_division_limit;
     uint age_threshold=  pagecache->param_age_threshold;
     pthread_mutex_unlock(&LOCK_global_system_variables);
     DBUG_RETURN(!init_pagecache(pagecache,
 				tmp_buff_size, division_limit, age_threshold,
-				tmp_block_size));
+				MARIA_KEY_BLOCK_LENGTH));
   }
   DBUG_RETURN(0);
 }

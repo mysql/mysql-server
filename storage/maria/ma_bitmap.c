@@ -126,7 +126,7 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
                           (PAGECACHE_FILE*)&bitmap->file, bitmap->page, 0,
                           (byte*) bitmap->map, PAGECACHE_PLAIN_PAGE,
                           PAGECACHE_LOCK_LEFT_UNLOCKED,
-                          PAGECACHE_PIN_LEFT_PINNED,
+                          PAGECACHE_PIN_LEFT_UNPINNED,
                           PAGECACHE_WRITE_DELAY, 0));
 }
 
