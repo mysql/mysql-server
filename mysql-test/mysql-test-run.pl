@@ -58,7 +58,7 @@ $Devel::Trace::TRACE= 0;       # Don't trace boring init stuff
 use File::Path;
 use File::Basename;
 use File::Copy;
-use File::Temp qw / tempdir /;
+use File::Temp qw /tempdir/;
 use Cwd;
 use Getopt::Long;
 use Sys::Hostname;
@@ -113,6 +113,7 @@ our $glob_basedir;
 
 our $path_charsetsdir;
 our $path_client_bindir;
+our $path_share;
 our $path_language;
 our $path_timefile;
 our $path_snapshot;
@@ -703,6 +704,15 @@ sub command_line_setup () {
 				       vs_config_dirs('client', ''),
 				       "$glob_basedir/client",
 				       "$glob_basedir/bin");
+
+  # Look for language files and charsetsdir, use same share
+  $path_share=      mtr_path_exists("$glob_basedir/share/mysql",
+                                    "$glob_basedir/sql/share",
+                                    "$glob_basedir/share");
+
+  $path_language=      mtr_path_exists("$path_share/english");
+  $path_charsetsdir=   mtr_path_exists("$path_share/charsets");
+
 
   if (!$opt_extern)
   {
@@ -1351,7 +1361,7 @@ sub collect_mysqld_features () {
   # --no-defaults and --skip-grant-tables are to avoid loading
   # system-wide configs and plugins
   #
-  my $list= `$exe_mysqld --no-defaults --skip-grant-tables --verbose --help`;
+  my $list= `$exe_mysqld --no-defaults --language=$path_language --skip-grant-tables --verbose --help`;
 
   foreach my $line (split('\n', $list))
   {
@@ -1513,14 +1523,6 @@ sub executable_setup () {
       mtr_report("Using \"$exe_libtool\" when running valgrind or debugger");
     }
   }
-
-  # Look for language files and charsetsdir, use same share
-  my $path_share=      mtr_path_exists("$glob_basedir/share/mysql",
-				       "$glob_basedir/sql/share",
-				       "$glob_basedir/share");
-
-  $path_language=      mtr_path_exists("$path_share/english");
-  $path_charsetsdir=   mtr_path_exists("$path_share/charsets");
 
   # Look for my_print_defaults
   $exe_my_print_defaults=
