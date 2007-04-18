@@ -137,12 +137,12 @@ EOF
 
     # On dist-upgrades, we ensure that the old_password setting is updated
     # before passwords are changed. Except for that config files are taboo!
-    db_get mysql-server-@MYVER@/need_sarge_compat_done || true
+    db_get mysql-server-@MYSQL_BASE_VERSION@/need_sarge_compat_done || true
     if [ "$RET" = "false" ]; then
- 	db_get mysql-server-@MYVER@/need_sarge_compat
+ 	db_get mysql-server-@MYSQL_BASE_VERSION@/need_sarge_compat
 	echo -e "# created by debconf but save to be edited\n[mysqld]\nold_passwords = $RET" > /etc/mysql/conf.d/old_passwords.cnf
     fi
-    db_set mysql-server-@MYVER@/need_sarge_compat_done true
+    db_set mysql-server-@MYSQL_BASE_VERSION@/need_sarge_compat_done true
 
     # initiate databases. Output is not allowed by debconf :-(
     # Debian: beware of the bashisms... 
