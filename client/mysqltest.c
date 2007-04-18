@@ -1321,7 +1321,7 @@ void var_set_string(const char* name, const char* value)
 void var_set_int(const char* name, int value)
 {
   char buf[21];
-  snprintf(buf, sizeof(buf), "%d", value);
+  my_snprintf(buf, sizeof(buf), "%d", value);
   var_set_string(name, buf);
 }
 
