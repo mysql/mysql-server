@@ -165,5 +165,19 @@ SUFFIXES = .sh
 	@CHMOD@ +x $@-t
 	@MV@ $@-t $@
 
+
+BUILT_SOURCES = 	mysql_fix_privilege_tables_sql.c
+noinst_PROGRAMS = 	comp_sql
+
+#
+# Build mysql_fix_privilege_tables_sql.c from
+# mysql_fix_privileges_tables.sql using comp_sql
+#
+mysql_fix_privilege_tables_sql.c: comp_sql.c mysql_fix_privilege_tables.sql
+	$(MAKE) $(AM_MAKEFLAGS) comp_sql$(EXEEXT)
+	$(top_builddir)/scripts/comp_sql$(EXEEXT) \
+          mysql_fix_privilege_tables.sql $@
+
+
 # Don't update the files from bitkeeper
 %::SCCS/s.%
