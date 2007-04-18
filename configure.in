@@ -2900,7 +2900,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  cmd-line-utils/libedit/Makefile dnl
  win/Makefile dnl
  zlib/Makefile dnl
- debian/Makefile debian/defs.mk dnl
+ debian/Makefile debian/defs.mk debian/control dnl
  cmd-line-utils/readline/Makefile)
  AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
  AC_OUTPUT
