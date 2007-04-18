@@ -816,6 +816,17 @@ ALTER TABLE m1 ENGINE=MERGE UNION=(t1);
 SELECT * FROM m1;
 c1	c2	c3	c4	c5	c6	c7	c8	c9
 DROP TABLE t1, m1;
+CREATE TABLE t1 (a VARCHAR(255) CHARACTER SET latin1 COLLATE latin1_german2_ci,
+b INT, INDEX(a,b));
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+ALTER TABLE t3 ENGINE=MERGE UNION=(t1,t2);
+INSERT INTO t1 VALUES ('ss',1);
+INSERT INTO t2 VALUES ('ss',2),(0xDF,2);
+SELECT COUNT(*) FROM t3 WHERE a=0xDF AND b=2;
+COUNT(*)
+2
+DROP TABLE t1,t2,t3;
 create table t1 (b bit(1));
 create table t2 (b bit(1));
 create table tm (b bit(1)) engine = merge union = (t1,t2);

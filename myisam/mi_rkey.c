@@ -49,7 +49,7 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
     key_buff=info->lastkey+info->s->base.max_key_length;
     pack_key_length= key_len;
     bmove(key_buff,key,key_len);
-    last_used_keyseg= 0;
+    last_used_keyseg= info->s->keyinfo[inx].seg + info->last_used_keyseg;
   }
   else
   {
@@ -61,6 +61,7 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
 				 key_len, &last_used_keyseg);
     /* Save packed_key_length for use by the MERGE engine. */
     info->pack_key_length= pack_key_length;
+    info->last_used_keyseg= last_used_keyseg - info->s->keyinfo[inx].seg;
     DBUG_EXECUTE("key",_mi_print_key(DBUG_FILE, keyinfo->seg,
 				     key_buff, pack_key_length););
   }
