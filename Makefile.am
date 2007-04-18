@@ -42,7 +42,6 @@ bin-dist:		all
 
 # Remove BK's "SCCS" subdirectories from source distribution
 # Create initial database files for Windows installations.
-# Create default debian control file for debian packaging needs
 dist-hook:
 	rm -rf `find $(distdir) -type d -name SCCS -print`
 	rm -f  `find $(distdir) -type l -print`
@@ -51,7 +50,6 @@ dist-hook:
 		--basedir=$(top_builddir) \
 		--datadir=$(distdir)/win/data \
 		--srcdir=$(top_srcdir)
-	debian/rules control-file && cp $(top_builddir)/debian/control $(distdir)/debian/control
 
 tags:
 	support-files/build-tags
