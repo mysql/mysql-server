@@ -1085,6 +1085,7 @@ repl-tests/test-repl/sum-wlen-slave.master.re
 repl-tests/test-repl/sum-wlen-slave.master.reje
 replace/*.ds?
 replace/*.vcproj
+scripts/comp_sql
 scripts/fill_func_tables
 scripts/fill_func_tables.sql
 scripts/fill_help_tables
@@ -1102,6 +1103,7 @@ scripts/mysql_find_rows
 scripts/mysql_fix_extensions
 scripts/mysql_fix_privilege_tables
 scripts/mysql_fix_privilege_tables.sql
+scripts/mysql_fix_privilege_tables_sql.c
 scripts/mysql_install_db
 scripts/mysql_secure_installation
 scripts/mysql_setpermission
