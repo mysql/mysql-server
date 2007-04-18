@@ -13,7 +13,7 @@ TARGETDIR=../storage/innobase
 ln -sf $TARGETDIR/compile-innodb{,-debug} ../../BUILD
 
 cd ../../mysql-test/t
-ln -sf ../$TARGETDIR/mysql-test/*.test $TARGETDIR/mysql-test/*.opt .
+ln -sf ../$TARGETDIR/mysql-test/*.test ../$TARGETDIR/mysql-test/*.opt .
 cd ../r
 ln -sf ../$TARGETDIR/mysql-test/*.result .
 cd ../include
