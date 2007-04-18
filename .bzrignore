@@ -2957,3 +2957,10 @@ win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
 client/rpl_constants.h
+client/log_event_old.cc
+client/log_event_old.h
+client/rpl_record_old.cc
+client/rpl_record_old.h
+libmysqld/log_event_old.cc
+libmysqld/rpl_record.cc
+libmysqld/rpl_record_old.cc
