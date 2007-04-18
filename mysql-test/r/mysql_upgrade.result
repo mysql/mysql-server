@@ -1,14 +1,20 @@
 Run mysql_upgrade once
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.event                                        OK
 mysql.func                                         OK
+mysql.general_log                                  OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.servers                                      OK
+mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -21,14 +27,20 @@ This installation of MySQL is already upgraded to VERSION, use --force if you st
 Force should run it regardless of wether it's been run before
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.event                                        OK
 mysql.func                                         OK
+mysql.general_log                                  OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.servers                                      OK
+mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -41,14 +53,20 @@ GRANT ALL ON *.* TO mysqltest1@'%';
 Run mysql_upgrade with password protected account
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.event                                        OK
 mysql.func                                         OK
+mysql.general_log                                  OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.servers                                      OK
+mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
