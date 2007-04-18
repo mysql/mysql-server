@@ -353,6 +353,7 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
   {
     TABLE *table= field->table;
     ulong orig_sql_mode= thd->variables.sql_mode;
+    enum_check_fields orig_count_cuted_fields= thd->count_cuted_fields;
     my_bitmap_map *old_write_map;
     my_bitmap_map *old_read_map;
 
@@ -366,6 +367,7 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
     }
     /* For comparison purposes allow invalid dates like 2000-01-32 */
     thd->variables.sql_mode|= MODE_INVALID_DATES;
+    thd->count_cuted_fields= CHECK_FIELD_IGNORE;
     if (!(*item)->save_in_field(field, 1) && !((*item)->null_value))
     {
       Item *tmp= new Item_int_with_ref(field->val_int(), *item,
@@ -375,6 +377,7 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
       result= 1;					// Item was replaced
     }
     thd->variables.sql_mode= orig_sql_mode;
+    thd->count_cuted_fields= orig_count_cuted_fields;
     if (table)
     {
       dbug_tmp_restore_column_map(table->write_set, old_write_map);
@@ -2484,7 +2487,7 @@ byte *in_row::get_value(Item *item)
 void in_row::set(uint pos, Item *item)
 {
   DBUG_ENTER("in_row::set");
-  DBUG_PRINT("enter", ("pos %u item 0x%lx", pos, (ulong) item));
+  DBUG_PRINT("enter", ("pos: %u  item: 0x%lx", pos, (ulong) item));
   ((cmp_item_row*) base)[pos].store_value_by_template(&tmp, item);
   DBUG_VOID_RETURN;
 }

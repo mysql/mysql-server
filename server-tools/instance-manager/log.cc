@@ -134,7 +134,10 @@ void log_init()
 
 /*
   The function is intended to log error messages. It precedes a message
-  with date, time and [ERROR] tag and print it to the stderr.
+  with date, time and [ERROR] tag and print it to the stderr and stdout.
+
+  We want to print it on stdout to be able to know in which context we got the
+  error
 
   SYNOPSIS
     log_error()
@@ -146,7 +149,10 @@ void log_error(const char *format, ...)
 {
   va_list args;
   va_start(args, format);
+  log(stdout, "ERROR", format, args);
+  fflush(stdout);
   log(stderr, "ERROR", format, args);
+  fflush(stderr);
   va_end(args);
 }
 
