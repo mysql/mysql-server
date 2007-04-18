@@ -451,6 +451,19 @@ ALTER TABLE m1 ENGINE=MERGE UNION=(t1);
 SELECT * FROM m1;
 DROP TABLE t1, m1;
 
+#
+# BUG#24342 - Incorrect results with query over MERGE table
+#
+CREATE TABLE t1 (a VARCHAR(255) CHARACTER SET latin1 COLLATE latin1_german2_ci,
+                 b INT, INDEX(a,b));
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+ALTER TABLE t3 ENGINE=MERGE UNION=(t1,t2);
+INSERT INTO t1 VALUES ('ss',1);
+INSERT INTO t2 VALUES ('ss',2),(0xDF,2);
+SELECT COUNT(*) FROM t3 WHERE a=0xDF AND b=2;
+DROP TABLE t1,t2,t3;
+
 # End of 4.1 tests
 
 #
