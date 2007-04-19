@@ -1,3 +1,9 @@
+mysql-enterprise-5.0 (5.0.42unreleased) feisty; urgency=low
+
+  * Built unreleased version of 5.0.42 for assessment by Canonical.
+
+ -- Monty Taylor <mtaylor@blade09>  Thu, 19 Apr 2007 22:18:02 +0200
+
 mysql-5.0 (5.0.38) enterprise; urgency=low
 
   * Imported packaging work from Debian.
