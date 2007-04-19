@@ -31,9 +31,11 @@ drop table mysqltest.t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	102	#	ALTER DATABASE mysqltest CHARACTER SET latin1
+master-bin.000001	#	Query	102	#	use `mysqltest`; drop table `t1`
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	102	#	ALTER DATABASE mysqltest CHARACTER SET latin1
+master-bin.000001	#	Query	102	#	use `mysqltest`; drop table `t1`
 reset master;
 reset master;
 use test;
