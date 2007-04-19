@@ -2720,7 +2720,7 @@ void ha_ndbcluster::unpack_record(byte* buf)
 			  hidden_col->getName(),
                           llstr(rec->u_64_value(), buff)));
   }
-  print_results();
+  //print_results();
 #endif
   DBUG_VOID_RETURN;
 }
