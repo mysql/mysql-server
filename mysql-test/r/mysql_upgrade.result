@@ -58,5 +58,5 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 DROP USER mysqltest1@'%';
 Run mysql_upgrade with a non existing server socket
-mysqlcheck: Got error: 2002: Can't connect to local MySQL server through socket 'var/tmp/no_sock_here' (2) when trying to connect
+mysqlcheck: Got error: 2005: Unknown MySQL server host 'not_existing_host' (1) when trying to connect
 FATAL ERROR: Upgrade failed
