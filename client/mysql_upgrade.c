@@ -335,6 +335,10 @@ static int run_tool(char *tool_path, DYNAMIC_STRING *ds_res, ...)
 
   va_end(args);
 
+#ifdef __WIN__
+  dynstr_append(&ds_cmdline, "\"");
+#endif
+
   DBUG_PRINT("info", ("Running: %s", ds_cmdline.str));
   ret= run_command(ds_cmdline.str, ds_res);
   DBUG_PRINT("exit", ("ret: %d", ret));
@@ -354,11 +358,11 @@ static my_bool get_full_path_to_executable(char* path)
 {
   my_bool ret;
   DBUG_ENTER("get_full_path_to_executable");
-#ifdef WIN
-  ret= GetModuleFileName(NULL, path, FN_REFLEN) != 0;
+#ifdef __WIN__
+  ret= (GetModuleFileName(NULL, path, FN_REFLEN) == 0);
 #else
   /* my_readlink returns 0 if a symlink was read */
-  ret= my_readlink(path, "/proc/self/exe", MYF(0)) != 0;
+  ret= (my_readlink(path, "/proc/self/exe", MYF(0)) != 0);
   /* Might also want to try with /proc/$$/exe if the above fails */
 #endif
   DBUG_PRINT("exit", ("path: %s", path));
@@ -416,8 +420,7 @@ static void find_tool(char *tool_path, const char *tool_name)
     DBUG_PRINT("enter", ("path: %s", path));
 
     /* Chop off last char(since it might be a /) */
-    size_t pos= max((strlen(path)-1), 0);
-    path[pos]= 0;
+    path[max((strlen(path)-1), 0)]= 0;
 
     /* Chop off last dir part */
     dirname_part(path, path);

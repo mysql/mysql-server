@@ -20,9 +20,12 @@ TARGET_LINK_LIBRARIES(comp_sql dbug mysys strings)
 # Build comp_sql - used for embedding SQL in C or C++ programs
 GET_TARGET_PROPERTY(COMP_SQL_EXE comp_sql LOCATION)
 
-ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_SOURCE_DIR}/client/mysql_fix_privilege_tables_sql.c
+ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_SOURCE_DIR}/scripts/mysql_fix_privilege_tables_sql.c
                    COMMAND ${COMP_SQL_EXE}
-		   ${PROJECT_SOURCE_DIR}/scripts/mysql_fix_privilege_tables.sql
-		   ${PROJECT_SOURCE_DIR}/client/mysql_fix_privilege_tables_sql.c
+                   mysql_fix_privilege_tables.sql
+		           mysql_fix_privilege_tables_sql.c
                    DEPENDS comp_sql ${PROJECT_SOURCE_DIR}/scripts/mysql_fix_privilege_tables.sql)
 
+ADD_CUSTOM_TARGET(GenFixPrivs
+                  ALL
+                  DEPENDS ${PROJECT_SOURCE_DIR}/scripts/mysql_fix_privilege_tables_sql.c)
