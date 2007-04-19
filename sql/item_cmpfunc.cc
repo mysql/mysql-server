@@ -366,7 +366,8 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
       old_read_map= dbug_tmp_use_all_columns(table, table->read_set);
     }
     /* For comparison purposes allow invalid dates like 2000-01-32 */
-    thd->variables.sql_mode|= MODE_INVALID_DATES;
+    thd->variables.sql_mode= (orig_sql_mode & ~MODE_NO_ZERO_DATE) | 
+                             MODE_INVALID_DATES;
     thd->count_cuted_fields= CHECK_FIELD_IGNORE;
     if (!(*item)->save_in_field(field, 1) && !((*item)->null_value))
     {
