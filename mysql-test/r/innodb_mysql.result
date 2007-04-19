@@ -410,6 +410,7 @@ flush tables;
 select * from test;
 test1	test2
 tes	1234
+drop table test;
 set global query_cache_type=@save_qcache_type;
 set global query_cache_size=@save_qcache_size;
 End of 5.0 tests
