@@ -239,7 +239,12 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       my_errno=HA_ERR_UNSUPPORTED;
       goto err;
     }
-    if (share->base.block_size != maria_block_size)
+    /*
+      If page cache is not initialized, then assume we will create it
+      after the table is opened!
+    */
+    if (share->base.block_size != maria_block_size &&
+        share_buff.pagecache->inited != 0)
     {
       DBUG_PRINT("error", ("Wrong block size %u; Expected %u",
                            (uint) share->base.block_size,
@@ -301,7 +306,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     strmov(share->index_file_name,  index_name);
     strmov(share->data_file_name,   data_name);
 
-    share->block_size= maria_block_size;
+    share->block_size= share->base.block_size;
     {
       HA_KEYSEG *pos=share->keyparts;
       for (i=0 ; i < keys ; i++)
@@ -553,7 +558,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       goto err;
     }
     if (share->data_file_type == BLOCK_RECORD)
-      info.dfile.file= share->bitmap.file;
+      info.dfile= share->bitmap.file;
     else if (_ma_open_datafile(&info, share, old_info->dfile.file))
       goto err;
     errpos= 5;

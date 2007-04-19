@@ -190,9 +190,9 @@ typedef struct st_maria_file_bitmap
 {
   uchar *map;
   ulonglong page;                      /* Page number for current bitmap */
-  PAGECACHE_FILE page_cache;
   uint used_size;                      /* Size of bitmap head that is not 0 */
-  my_bool changed;                     /* Set to 1 if page needs to be flushed */
+  my_bool changed;                     /* 1 if page needs to be flushed */
+  PAGECACHE_FILE file;		       /* datafile where bitmap is stored */
 
 #ifdef THREAD
   pthread_mutex_t bitmap_lock;

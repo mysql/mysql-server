@@ -374,21 +374,20 @@ my_bool _ma_once_init_block_record(MARIA_SHARE *share, File data_file)
 my_bool _ma_once_end_block_record(MARIA_SHARE *share)
 {
   int res= _ma_bitmap_end(share);
-  if (share->bitmap.file >= 0)
+  if (share->bitmap.file.file >= 0)
   {
-    if (flush_pagecache_blocks(share->pagecache, (PAGECACHE_FILE*)&share->bitmap,
-    if (flush_key_blocks(share->key_cache, share->bitmap.file,
-                         share->temporary ? FLUSH_IGNORE_CHANGED :
-                         FLUSH_RELEASE))
+    if (flush_pagecache_blocks(share->pagecache, &share->bitmap.file,
+                               share->temporary ? FLUSH_IGNORE_CHANGED :
+                               FLUSH_RELEASE))
       res= 1;
-    if (my_close(share->bitmap.file, MYF(MY_WME)))
+    if (my_close(share->bitmap.file.file, MYF(MY_WME)))
       res= 1;
     /*
       Trivial assignment to guard against multiple invocations
       (May happen if file are closed but we want to keep the maria object
       around a bit longer)
     */
-    share->bitmap.file= -1;
+    share->bitmap.file.file= -1;
   }
   return res;
 }
@@ -450,7 +449,7 @@ void _ma_end_block_record(MARIA_HA *info)
     The following protects us from doing an extra, not allowed, close
     in maria_close()
   */
-  info->dfile= -1;
+  info->dfile.file= -1;
   DBUG_VOID_RETURN;
 }
 

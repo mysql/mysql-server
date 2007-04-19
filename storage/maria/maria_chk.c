@@ -39,8 +39,6 @@ static char **default_argv;
 static const char *load_default_groups[]= { "maria_chk", 0 };
 static const char *set_collation_name, *opt_tmpdir;
 static CHARSET_INFO *set_collation;
-static long opt_maria_block_size;
-static long opt_pagecache_block_size;
 static const char *my_progname_short;
 static int stopwords_inited= 0;
 static MY_TMPDIR maria_chk_tmpdir;
@@ -301,15 +299,6 @@ static struct my_option my_long_options[] =
     (gptr*) &check_param.use_buffers, (gptr*) &check_param.use_buffers, 0,
     GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0},
-  { "pagecache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,  "",
-    (gptr*) &opt_pagecache_block_size,
-    (gptr*) &opt_pagecache_block_size, 0,
-    GET_LONG, REQUIRED_ARG, MARIA_KEY_BLOCK_LENGTH, MARIA_MIN_KEY_BLOCK_LENGTH,
-    MARIA_MAX_KEY_BLOCK_LENGTH, 0, MARIA_MIN_KEY_BLOCK_LENGTH, 0},
-  { "maria_block_size", OPT_MARIA_BLOCK_SIZE,  "",
-    (gptr*) &opt_maria_block_size, (gptr*) &opt_maria_block_size, 0,
-    GET_LONG, REQUIRED_ARG, MARIA_KEY_BLOCK_LENGTH, MARIA_MIN_KEY_BLOCK_LENGTH,
-    MARIA_MAX_KEY_BLOCK_LENGTH, 0, MARIA_MIN_KEY_BLOCK_LENGTH, 0},
   { "read_buffer_size", OPT_READ_BUFFER_SIZE, "",
     (gptr*) &check_param.read_buffer_length,
     (gptr*) &check_param.read_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
@@ -793,14 +782,12 @@ static void get_options(register int *argc,register char ***argv)
     exit(1);
 
   check_param.tmpdir=&maria_chk_tmpdir;
-  check_param.pagecache_block_size= opt_pagecache_block_size;
 
   if (set_collation_name)
     if (!(set_collation= get_charset_by_name(set_collation_name,
                                              MYF(MY_WME))))
       exit(1);
 
-  maria_block_size=(uint) 1 << my_bit_log2(opt_maria_block_size);
   return;
 } /* get options */
 
@@ -873,6 +860,7 @@ static int maria_chk(HA_CHECK *param, my_string filename)
   share->options&= ~HA_OPTION_READ_ONLY_DATA; /* We are modifing it */
   share->tot_locks-= share->r_locks;
   share->r_locks=0;
+  maria_block_size= share->base.block_size;
 
   if (share->data_file_type == BLOCK_RECORD &&
       (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_FAST | T_STATISTICS |
@@ -944,8 +932,7 @@ static int maria_chk(HA_CHECK *param, my_string filename)
        maria_test_if_almost_full(info) ||
        info->s->state.header.file_version[3] != maria_file_magic[3] ||
        (set_collation &&
-        set_collation->number != share->state.header.language) ||
-       maria_block_size != MARIA_KEY_BLOCK_LENGTH))
+        set_collation->number != share->state.header.language)))
   {
     if (set_collation)
       param->language= set_collation->number;
@@ -975,211 +962,217 @@ static int maria_chk(HA_CHECK *param, my_string filename)
     param->total_records+=info->state->records;
     param->total_deleted+=info->state->del;
     descript(param, info, filename);
+    maria_close(info);                          /* Should always succeed */
+    return(0);
   }
+
+  if (!stopwords_inited++)
+    ft_init_stopwords();
+
+  if (!(param->testflag & T_READONLY))
+    lock_type = F_WRLCK;			/* table is changed */
   else
+    lock_type= F_RDLCK;
+  if (info->lock_type == F_RDLCK)
+    info->lock_type=F_UNLCK;			/* Read only table */
+  if (_ma_readinfo(info,lock_type,0))
   {
-    if (!stopwords_inited++)
-      ft_init_stopwords();
+    _ma_check_print_error(param,"Can't lock indexfile of '%s', error: %d",
+                          filename,my_errno);
+    param->error_printed=0;
+    error= 1;
+    goto end2;
+  }
+  /*
+    _ma_readinfo() has locked the table.
+    We mark the table as locked (without doing file locks) to be able to
+    use functions that only works on locked tables (like row caching).
+  */
+  maria_lock_database(info, F_EXTRA_LCK);
+  datafile= info->dfile.file;
+  if (init_pagecache(maria_pagecache, param->use_buffers, 0, 0,
+                     maria_block_size) == 0)
+  {
+    _ma_check_print_error(param, "Can't initialize page cache with %lu memory",
+                          (ulong) param->use_buffers);
+    error= 1;
+    goto end2;
+  }
 
-    if (!(param->testflag & T_READONLY))
-      lock_type = F_WRLCK;			/* table is changed */
-    else
-      lock_type= F_RDLCK;
-    if (info->lock_type == F_RDLCK)
-      info->lock_type=F_UNLCK;			/* Read only table */
-    if (_ma_readinfo(info,lock_type,0))
+  if (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX))
+  {
+    if (param->testflag & T_REP_ANY)
     {
-      _ma_check_print_error(param,"Can't lock indexfile of '%s', error: %d",
-		  filename,my_errno);
-      param->error_printed=0;
-      error= 1;
-      goto end2;
+      ulonglong tmp=share->state.key_map;
+      maria_copy_keys_active(share->state.key_map, share->base.keys,
+                             param->keys_in_use);
+      if (tmp != share->state.key_map)
+        info->update|=HA_STATE_CHANGED;
     }
-    /*
-      _ma_readinfo() has locked the table.
-      We mark the table as locked (without doing file locks) to be able to
-      use functions that only works on locked tables (like row caching).
-    */
-    maria_lock_database(info, F_EXTRA_LCK);
-    datafile= info->dfile.file;
-
-    if (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX))
+    if (rep_quick &&
+        maria_chk_del(param, info, param->testflag & ~T_VERBOSE))
     {
-      if (param->testflag & T_REP_ANY)
+      if (param->testflag & T_FORCE_CREATE)
       {
-	ulonglong tmp=share->state.key_map;
-	maria_copy_keys_active(share->state.key_map, share->base.keys,
-                            param->keys_in_use);
-	if (tmp != share->state.key_map)
-	  info->update|=HA_STATE_CHANGED;
+        rep_quick=0;
+        _ma_check_print_info(param,"Creating new data file\n");
       }
-      if (rep_quick &&
-          maria_chk_del(param, info, param->testflag & ~T_VERBOSE))
-      {
-	if (param->testflag & T_FORCE_CREATE)
-	{
-	  rep_quick=0;
-	  _ma_check_print_info(param,"Creating new data file\n");
-	}
-	else
-	{
-	  error=1;
-	  _ma_check_print_error(param,
-			       "Quick-recover aborted; Run recovery without switch 'q'");
-	}
-      }
-      if (!error)
-      {
-	if ((param->testflag & (T_REP_BY_SORT | T_REP_PARALLEL)) &&
-	    (maria_is_any_key_active(share->state.key_map) ||
-	     (rep_quick && !param->keys_in_use && !recreate)) &&
-	    maria_test_if_sort_rep(info, info->state->records,
-				info->s->state.key_map,
-				param->force_sort))
-	{
-          if (param->testflag & T_REP_BY_SORT)
-            error=maria_repair_by_sort(param,info,filename,rep_quick);
-          else
-            error=maria_repair_parallel(param,info,filename,rep_quick);
-	  state_updated=1;
-	}
-	else if (param->testflag & T_REP_ANY)
-	  error=maria_repair(param, info,filename,rep_quick);
-      }
-      if (!error && param->testflag & T_SORT_RECORDS)
-      {
-	/*
-	  The data file is nowadays reopened in the repair code so we should
-	  soon remove the following reopen-code
-	*/
-#ifndef TO_BE_REMOVED
-	if (param->out_flag & O_NEW_DATA)
-	{			/* Change temp file to org file */
-	  VOID(my_close(info->dfile.file, MYF(MY_WME))); /* Close new file */
-	  error|=maria_change_to_newfile(filename,MARIA_NAME_DEXT,DATA_TMP_EXT,
-                                         MYF(0));
-	  if (_ma_open_datafile(info,info->s, -1))
-	    error=1;
-	  param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
-	  param->read_cache.file= info->dfile.file;
-	}
-#endif
-	if (! error)
-	{
-	  uint key;
-	  /*
-	    We can't update the index in maria_sort_records if we have a
-	    prefix compressed or fulltext index
-	  */
-	  my_bool update_index=1;
-	  for (key=0 ; key < share->base.keys; key++)
-	    if (share->keyinfo[key].flag & (HA_BINARY_PACK_KEY|HA_FULLTEXT))
-	      update_index=0;
-
-	  error=maria_sort_records(param,info,filename,param->opt_sort_key,
-                             /* what is the following parameter for ? */
-				(my_bool) !(param->testflag & T_REP),
-				update_index);
-	  datafile= info->dfile.file;	/* This is now locked */
-	  if (!error && !update_index)
-	  {
-	    if (param->verbose)
-	      puts("Table had a compressed index;  We must now recreate the index");
-	    error=maria_repair_by_sort(param,info,filename,1);
-	  }
-	}
-      }
-      if (!error && param->testflag & T_SORT_INDEX)
-	error=maria_sort_index(param,info,filename);
-      if (!error)
-	share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
-				 STATE_CRASHED_ON_REPAIR);
       else
-	maria_mark_crashed(info);
+      {
+        error=1;
+        _ma_check_print_error(param,
+                              "Quick-recover aborted; Run recovery without switch 'q'");
+      }
     }
-    else if ((param->testflag & T_CHECK) || !(param->testflag & T_AUTO_INC))
+    if (!error)
     {
-      if (!(param->testflag & T_SILENT) || param->testflag & T_INFO)
-	printf("Checking MARIA file: %s\n",filename);
-      if (!(param->testflag & T_SILENT))
-	printf("Data records: %7s   Deleted blocks: %7s\n",
-	       llstr(info->state->records,llbuff),
-	       llstr(info->state->del,llbuff2));
-      error =maria_chk_status(param,info);
-      maria_intersect_keys_active(share->state.key_map, param->keys_in_use);
-      error =maria_chk_size(param,info);
-      if (!error || !(param->testflag & (T_FAST | T_FORCE_CREATE)))
-	error|=maria_chk_del(param, info,param->testflag);
-      if ((!error || (!(param->testflag & (T_FAST | T_FORCE_CREATE)) &&
-		      !param->start_check_pos)))
+      if ((param->testflag & (T_REP_BY_SORT | T_REP_PARALLEL)) &&
+          (maria_is_any_key_active(share->state.key_map) ||
+           (rep_quick && !param->keys_in_use && !recreate)) &&
+          maria_test_if_sort_rep(info, info->state->records,
+                                 info->s->state.key_map,
+                                 param->force_sort))
       {
-	error|=maria_chk_key(param, info);
-	if (!error && (param->testflag & (T_STATISTICS | T_AUTO_INC)))
-	  error=maria_update_state_info(param, info,
-				  ((param->testflag & T_STATISTICS) ?
-				   UPDATE_STAT : 0) |
-				  ((param->testflag & T_AUTO_INC) ?
-				   UPDATE_AUTO_INC : 0));
+        if (param->testflag & T_REP_BY_SORT)
+          error=maria_repair_by_sort(param,info,filename,rep_quick);
+        else
+          error=maria_repair_parallel(param,info,filename,rep_quick);
+        state_updated=1;
       }
-      if ((!rep_quick && !error) ||
-	  !(param->testflag & (T_FAST | T_FORCE_CREATE)))
+      else if (param->testflag & T_REP_ANY)
+        error=maria_repair(param, info,filename,rep_quick);
+    }
+    if (!error && param->testflag & T_SORT_RECORDS)
+    {
+      /*
+        The data file is nowadays reopened in the repair code so we should
+        soon remove the following reopen-code
+      */
+#ifndef TO_BE_REMOVED
+      if (param->out_flag & O_NEW_DATA)
+      {			/* Change temp file to org file */
+        VOID(my_close(info->dfile.file, MYF(MY_WME))); /* Close new file */
+        error|=maria_change_to_newfile(filename,MARIA_NAME_DEXT,DATA_TMP_EXT,
+                                       MYF(0));
+        if (_ma_open_datafile(info,info->s, -1))
+          error=1;
+        param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
+        param->read_cache.file= info->dfile.file;
+      }
+#endif
+      if (! error)
       {
-	if (param->testflag & (T_EXTEND | T_MEDIUM))
-	  VOID(init_pagecache(maria_pagecache, param->use_buffers, 0, 0,
-                              opt_pagecache_block_size));
-	VOID(init_io_cache(&param->read_cache,datafile,
-			   (uint) param->read_buffer_length,
-			   READ_CACHE,
-			   (param->start_check_pos ?
-			    param->start_check_pos :
-			    share->pack.header_length),
-			   1,
-			   MYF(MY_WME)));
-	maria_lock_memory(param);
-	if ((info->s->data_file_type != STATIC_RECORD) ||
-	    (param->testflag & (T_EXTEND | T_MEDIUM)))
-	  error|=maria_chk_data_link(param, info, param->testflag & T_EXTEND);
-	error|=_ma_flush_blocks(param, share->pagecache, &share->kfile);
-	VOID(end_io_cache(&param->read_cache));
+        uint key;
+        /*
+          We can't update the index in maria_sort_records if we have a
+          prefix compressed or fulltext index
+        */
+        my_bool update_index=1;
+        for (key=0 ; key < share->base.keys; key++)
+          if (share->keyinfo[key].flag & (HA_BINARY_PACK_KEY|HA_FULLTEXT))
+            update_index=0;
+
+        error=maria_sort_records(param,info,filename,param->opt_sort_key,
+                                 /* what is the following parameter for ? */
+                                 (my_bool) !(param->testflag & T_REP),
+                                 update_index);
+        datafile= info->dfile.file;	/* This is now locked */
+        if (!error && !update_index)
+        {
+          if (param->verbose)
+            puts("Table had a compressed index;  We must now recreate the index");
+          error=maria_repair_by_sort(param,info,filename,1);
+        }
       }
-      if (!error)
-      {
-	if ((share->state.changed & STATE_CHANGED) &&
-	    (param->testflag & T_UPDATE_STATE))
-	  info->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
-	share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
-				 STATE_CRASHED_ON_REPAIR);
-      }
-      else if (!maria_is_crashed(info) &&
-	       (param->testflag & T_UPDATE_STATE))
-      {						/* Mark crashed */
-	maria_mark_crashed(info);
-	info->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
-      }
+    }
+    if (!error && param->testflag & T_SORT_INDEX)
+      error=maria_sort_index(param,info,filename);
+    if (!error)
+      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
+                               STATE_CRASHED_ON_REPAIR);
+    else
+      maria_mark_crashed(info);
+  }
+  else if ((param->testflag & T_CHECK) || !(param->testflag & T_AUTO_INC))
+  {
+    if (!(param->testflag & T_SILENT) || param->testflag & T_INFO)
+      printf("Checking MARIA file: %s\n",filename);
+    if (!(param->testflag & T_SILENT))
+      printf("Data records: %7s   Deleted blocks: %7s\n",
+             llstr(info->state->records,llbuff),
+             llstr(info->state->del,llbuff2));
+    error =maria_chk_status(param,info);
+    maria_intersect_keys_active(share->state.key_map, param->keys_in_use);
+    error =maria_chk_size(param,info);
+    if (!error || !(param->testflag & (T_FAST | T_FORCE_CREATE)))
+      error|=maria_chk_del(param, info,param->testflag);
+    if ((!error || (!(param->testflag & (T_FAST | T_FORCE_CREATE)) &&
+                    !param->start_check_pos)))
+    {
+      error|=maria_chk_key(param, info);
+      if (!error && (param->testflag & (T_STATISTICS | T_AUTO_INC)))
+        error=maria_update_state_info(param, info,
+                                      ((param->testflag & T_STATISTICS) ?
+                                       UPDATE_STAT : 0) |
+                                      ((param->testflag & T_AUTO_INC) ?
+                                       UPDATE_AUTO_INC : 0));
+    }
+    if ((!rep_quick && !error) ||
+        !(param->testflag & (T_FAST | T_FORCE_CREATE)))
+    {
+      VOID(init_io_cache(&param->read_cache,datafile,
+                         (uint) param->read_buffer_length,
+                         READ_CACHE,
+                         (param->start_check_pos ?
+                          param->start_check_pos :
+                          share->pack.header_length),
+                         1,
+                         MYF(MY_WME)));
+      maria_lock_memory(param);
+      if ((info->s->data_file_type != STATIC_RECORD) ||
+          (param->testflag & (T_EXTEND | T_MEDIUM)))
+        error|=maria_chk_data_link(param, info, param->testflag & T_EXTEND);
+      error|=_ma_flush_blocks(param, share->pagecache, &share->kfile);
+      VOID(end_io_cache(&param->read_cache));
+    }
+    if (!error)
+    {
+      if ((share->state.changed & STATE_CHANGED) &&
+          (param->testflag & T_UPDATE_STATE))
+        info->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
+      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
+                               STATE_CRASHED_ON_REPAIR);
+    }
+    else if (!maria_is_crashed(info) &&
+             (param->testflag & T_UPDATE_STATE))
+    {						/* Mark crashed */
+      maria_mark_crashed(info);
+      info->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
     }
   }
+
   if ((param->testflag & T_AUTO_INC) ||
       ((param->testflag & T_REP_ANY) && info->s->base.auto_key))
     _ma_update_auto_increment_key(param, info,
                                   (my_bool) !test(param->testflag & T_AUTO_INC));
 
-  if (!(param->testflag & T_DESCRIPT))
-  {
-    if (info->update & HA_STATE_CHANGED && ! (param->testflag & T_READONLY))
-      error|=maria_update_state_info(param, info,
-			       UPDATE_OPEN_COUNT |
-			       (((param->testflag & T_REP_ANY) ?
-				 UPDATE_TIME : 0) |
-				(state_updated ? UPDATE_STAT : 0) |
-				((param->testflag & T_SORT_RECORDS) ?
-				 UPDATE_SORT : 0)));
-    info->update&= ~HA_STATE_CHANGED;
-  }
+  if (info->update & HA_STATE_CHANGED && ! (param->testflag & T_READONLY))
+    error|=maria_update_state_info(param, info,
+                                   UPDATE_OPEN_COUNT |
+                                   (((param->testflag & T_REP_ANY) ?
+                                     UPDATE_TIME : 0) |
+                                    (state_updated ? UPDATE_STAT : 0) |
+                                    ((param->testflag & T_SORT_RECORDS) ?
+                                     UPDATE_SORT : 0)));
+  info->update&= ~HA_STATE_CHANGED;
   maria_lock_database(info, F_UNLCK);
+
 end2:
+  end_pagecache(maria_pagecache, 1);
   if (maria_close(info))
   {
-    _ma_check_print_error(param,"%d when closing MARIA-table '%s'",my_errno,filename);
+    _ma_check_print_error(param,"%d when closing MARIA-table '%s'",
+                          my_errno,filename);
     DBUG_RETURN(1);
   }
   if (error == 0)
@@ -1533,8 +1526,6 @@ static int maria_sort_records(HA_CHECK *param,
   if (share->state.key_root[sort_key] == HA_OFFSET_ERROR)
     DBUG_RETURN(0);				/* Nothing to do */
 
-  init_pagecache(maria_pagecache, param->use_buffers,
-                 0, 0, opt_pagecache_block_size);
   if (init_io_cache(&info->rec_cache,-1,(uint) param->write_buffer_length,
 		   WRITE_CACHE,share->pack.header_length,1,
 		   MYF(MY_WME | MY_WAIT_IF_FULL)))

@@ -54,6 +54,8 @@ extern "C" {
 #define MARIA_KEY_BLOCK_LENGTH	8192		/* default key block length */
 #define MARIA_MIN_KEY_BLOCK_LENGTH	1024	/* Min key block length */
 #define MARIA_MAX_KEY_BLOCK_LENGTH	32768
+/* Minimal page cache when we only want to be able to scan a table */
+#define MARIA_MIN_PAGE_CACHE_SIZE	65536
 
 /*
   In the following macros '_keyno_' is 0 .. keys-1.

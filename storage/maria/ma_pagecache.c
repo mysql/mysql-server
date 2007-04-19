@@ -675,8 +675,11 @@ int init_pagecache(PAGECACHE *pagecache, my_size_t use_mem,
                             2 * sizeof(PAGECACHE_HASH_LINK) +
                             sizeof(PAGECACHE_HASH_LINK*) *
                             5/4 + block_size));
-  /* It doesn't make sense to have too few blocks (less than 8) */
-  if (blocks >= 8 && pagecache->disk_blocks < 0)
+  /*
+    We need to support page cache with just one block to be able to do
+    scanning of rows-in-block files
+  */
+  if (blocks >= 1)
   {
     for ( ; ; )
     {
@@ -3768,7 +3771,7 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
                                                   LEX_STRING *str,
                                                   LSN *max_lsn)
 {
-  my_bool error;
+  my_bool error= 0;
   ulong stored_list_size= 0;
   uint file_hash;
   char *ptr;
@@ -3836,7 +3839,7 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
   ptr= str->str;
   int8store(ptr, stored_list_size);
   ptr+= 8;
-  if (0 == stored_list_size)
+  if (!stored_list_size)
     goto end;
   for (file_hash= 0; file_hash < PAGECACHE_CHANGED_BLOCKS_HASH; file_hash++)
   {
@@ -3858,13 +3861,13 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
       set_if_bigger(*max_lsn, block->rec_lsn);
     }
   }
-  error= 0;
-  goto end;
-err:
-  error= 1;
 end:
   pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
   DBUG_RETURN(error);
+
+err:
+  error= 1;
+  goto end;
 }
 
 

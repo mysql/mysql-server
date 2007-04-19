@@ -51,8 +51,8 @@ int main(int argc,char *argv[])
   my_init();
   maria_init();
   get_options(argc,argv);
-  if (pagecacheing)
-    init_pagecache(maria_pagecache, IO_SIZE*16, 0, 0, MARIA_KEY_BLOCK_LENGTH);
+  /* Maria requires that we always have a page cache */
+  init_pagecache(maria_pagecache, IO_SIZE*16, 0, 0, maria_block_size);
 
   exit(run_test("test1"));
 }

@@ -1599,8 +1599,12 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
     if (((pos / block_size) % info->s->bitmap.pages_covered) == 0)
     {
       /* Bitmap page */
-      if (_ma_read_cache(&param->read_cache, bitmap_buff, pos,
-                       block_size, READING_NEXT))
+      if (pagecache_read(info->s->pagecache,
+                         &info->dfile,
+                         (pos / block_size), 1,
+                         bitmap_buff,
+                         PAGECACHE_PLAIN_PAGE,
+                         PAGECACHE_LOCK_LEFT_UNLOCKED, 0) == 0)
       {
         _ma_check_print_error(param,
                               "Page %9s:  Got error: %d when reading datafile",
@@ -1624,8 +1628,12 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
       continue;
     }
 
-    if (_ma_read_cache(&param->read_cache, page_buff, pos,
-                       block_size, READING_NEXT))
+    if (pagecache_read(info->s->pagecache,
+                       &info->dfile,
+                       (pos / block_size), 1,
+                       page_buff,
+                       PAGECACHE_PLAIN_PAGE,
+                       PAGECACHE_LOCK_LEFT_UNLOCKED, 0) == 0)
     {
       _ma_check_print_error(param,
                             "Page %9s:  Got error: %d when reading datafile",
@@ -1934,10 +1942,6 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
 
   if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     param->testflag|=T_CALC_CHECKSUM;
-
-  if (!param->using_global_keycache)
-    VOID(init_pagecache(maria_pagecache, param->use_buffers, 0, 0,
-                        param->pagecache_block_size));
 
   if (init_io_cache(&param->read_cache, info->dfile.file,
 		    (uint) param->read_buffer_length,
@@ -2308,8 +2312,6 @@ int _ma_flush_blocks(HA_CHECK *param, PAGECACHE *pagecache,
     _ma_check_print_error(param,"%d when trying to write bufferts",my_errno);
     return(1);
   }
-  if (!param->using_global_keycache)
-    end_pagecache(pagecache,1);
   return 0;
 } /* _ma_flush_blocks */
 
@@ -3602,7 +3604,6 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
   int parallel_flag;
   uint found_record,b_type,left_length;
   my_off_t pos;
-  byte *to;
   MARIA_BLOCK_INFO block_info;
   MARIA_SORT_INFO *sort_info=sort_param->sort_info;
   HA_CHECK *param=sort_info->param;
@@ -3652,6 +3653,8 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
       }
     }
   case DYNAMIC_RECORD:
+  {
+    byte *to;
     LINT_INIT(to);
     pos=sort_param->pos;
     searching=(sort_param->fix_datafile && (param->testflag & T_EXTEND));
@@ -3948,6 +3951,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
       pos=(sort_param->start_recpos+=MARIA_DYN_ALIGN_SIZE);
       searching=1;
     }
+  }
   case COMPRESSED_RECORD:
     for (searching=0 ;; searching=1, sort_param->pos++)
     {

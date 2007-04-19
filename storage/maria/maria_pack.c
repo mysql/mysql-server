@@ -505,13 +505,21 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   trees=fields=0;
   huff_trees=0;
   huff_counts=0;
+  maria_block_size= isam_file->s->block_size;
 
   /* Create temporary or join file */
-
   if (backup)
     VOID(fn_format(org_name,isam_file->filename,"",MARIA_NAME_DEXT,2));
   else
     VOID(fn_format(org_name,isam_file->filename,"",MARIA_NAME_DEXT,2+4+16));
+
+  if (init_pagecache(maria_pagecache, MARIA_MIN_PAGE_CACHE_SIZE, 0, 0,
+                     maria_block_size) == 0)
+  {
+    fprintf(stderr, "Can't initialize page cache\n");
+    goto err;
+  }
+
   if (!test_only && result_table)
   {
     /* Make a new indexfile based on first file in list */
@@ -681,7 +689,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
     {
       error|=my_close(isam_file->dfile.file, MYF(MY_WME));
       isam_file->dfile.file= -1;	/* Tell maria_close file is closed */
-      isam_file->s->bitmap.file= -1;
+      isam_file->s->bitmap.file.file= -1;
     }
   }
 
@@ -751,6 +759,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   DBUG_RETURN(0);
 
  err:
+  end_pagecache(maria_pagecache, 1);
   free_counts_and_tree_and_queue(huff_trees,trees,huff_counts,fields);
   if (new_file >= 0)
     VOID(my_close(new_file,MYF(0)));

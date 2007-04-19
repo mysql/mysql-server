@@ -131,7 +131,7 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
 {
   DBUG_ASSERT(share->pagecache->block_size == bitmap->block_size);
   return (pagecache_write(share->pagecache,
-                          (PAGECACHE_FILE*)&bitmap->file, bitmap->page, 0,
+                          &bitmap->file, bitmap->page, 0,
                           (byte*) bitmap->map, PAGECACHE_PLAIN_PAGE,
                           PAGECACHE_LOCK_LEFT_UNLOCKED,
                           PAGECACHE_PIN_LEFT_UNPINNED,
@@ -168,7 +168,7 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
   if (!(bitmap->map= (uchar*) my_malloc(size, MYF(MY_WME))))
     return 1;
 
-  bitmap->file= file;
+  bitmap->file.file= file;
   bitmap->changed= 0;
   bitmap->block_size= share->block_size;
   /* Size needs to be alligned on 6 */
@@ -195,10 +195,15 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
   pthread_mutex_init(&share->bitmap.bitmap_lock, MY_MUTEX_INIT_SLOW);
 
   /*
-    Start by reading first page (assume table scan)
-    Later code is simpler if it can assume we always have an active bitmap.
+    We can't read a page yet, as in some case we don't have an active
+    page cache yet.
+    Pretend we have a dummy, full and not changed bitmap page in memory.
  */
-  return _ma_read_bitmap_page(share, bitmap, (ulonglong) 0);
+  
+  bitmap->page= ~(ulonglong) 0;
+  bitmap->used_size= bitmap->total_size;
+  bfill(bitmap->map, share->block_size, 255);
+  return 0;
 }
 
 

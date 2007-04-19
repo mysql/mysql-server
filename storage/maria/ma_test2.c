@@ -50,7 +50,6 @@ static	int verbose=0,testflag=0,
 static int pack_seg=HA_SPACE_PACK,pack_type=HA_PACK_KEY,remove_count=-1;
 static int create_flag= 0, srand_arg= 0;
 static ulong pagecache_size=IO_SIZE*16;
-static uint pagecache_block_size= MARIA_KEY_BLOCK_LENGTH;
 static enum data_file_type record_type= DYNAMIC_RECORD;
 
 static uint keys=MARIA_KEYS,recant=1000;
@@ -219,8 +218,8 @@ int main(int argc, char *argv[])
     goto err;
   if (!silent)
     printf("- Writing key:s\n");
-  if (pagecacheing)
-    init_pagecache(maria_pagecache, pagecache_size, 0, 0, pagecache_block_size);
+  /* Maria requires that we always have a page cache */
+  init_pagecache(maria_pagecache, pagecache_size, 0, 0, maria_block_size);
   if (locking)
     maria_lock_database(file,F_WRLCK);
   if (write_cacheing)
@@ -282,12 +281,11 @@ int main(int argc, char *argv[])
       goto end;
     }
   }
-  /*
-    TODO: uncomment when resize will be implemented
+#ifdef REMOVE_WHEN_WE_HAVE_RESIZE
   if (pagecacheing)
-    resize_pagecache(maria_pagecache, pagecache_block_size,
+    resize_pagecache(maria_pagecache, maria_block_size,
                      pagecache_size * 2, 0, 0);
-  */
+#endif
   if (!silent)
     printf("- Delete\n");
   if (srand_arg)
@@ -862,13 +860,8 @@ end:
     if (rec_pointer_size)
       printf("Record pointer size:  %d\n",rec_pointer_size);
     printf("maria_block_size:    %lu\n", maria_block_size);
-    if (pagecacheing)
-    {
-      puts("Key cache used");
-      printf("pagecache_block_size: %u\n", pagecache_block_size);
-      if (write_cacheing)
-	puts("Key cache resized");
-    }
+    if (write_cacheing)
+      puts("Key cache resized");
     if (write_cacheing)
       puts("Write cacheing used");
     if (write_cacheing)
@@ -960,6 +953,7 @@ static void get_options(int argc, char **argv)
       }
       break;
     case 'e':				/* maria_block_length */
+    case 'E':
       if ((maria_block_size= atoi(++pos)) < MARIA_MIN_KEY_BLOCK_LENGTH ||
 	  maria_block_size > MARIA_MAX_KEY_BLOCK_LENGTH)
       {
@@ -967,15 +961,6 @@ static void get_options(int argc, char **argv)
 	exit(1);
       }
       maria_block_size= my_round_up_to_next_power(maria_block_size);
-      break;
-    case 'E':				/* maria_block_length */
-      if ((pagecache_block_size=atoi(++pos)) < MARIA_MIN_KEY_BLOCK_LENGTH ||
-	  pagecache_block_size > MARIA_MAX_KEY_BLOCK_LENGTH)
-      {
-	fprintf(stderr,"Wrong pagecache_block_size\n");
-	exit(1);
-      }
-      pagecache_block_size= my_round_up_to_next_power(pagecache_block_size);
       break;
     case 'f':
       if ((first_key=atoi(++pos)) < 0 || first_key >= MARIA_KEYS)

@@ -21,15 +21,15 @@
 
 byte *_ma_fetch_keypage(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                         my_off_t page, int level,
-                        byte *buff, int return_buffer)
+                        byte *buff,
+                        int return_buffer __attribute__ ((unused)))
 {
   byte *tmp;
   uint page_size;
   DBUG_ENTER("_ma_fetch_keypage");
   DBUG_PRINT("enter",("page: %ld", (long) page));
 
-  DBUG_ASSERT(info->s->pagecache->block_size == keyinfo->block_length &&
-              info->s->pagecache->block_size == info->s->block_size);
+  DBUG_ASSERT(info->s->pagecache->block_size == keyinfo->block_length);
   /*
     TODO: replace PAGECACHE_PLAIN_PAGE with PAGECACHE_LSN_PAGE when
     LSN on the pages will be implemented
@@ -88,7 +88,6 @@ int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 #endif
 
   DBUG_ASSERT(info->s->pagecache->block_size == keyinfo->block_length);
-  DBUG_ASSERT(info->s->pagecache->block_size == info->s->block_size);
   /*
     TODO: replace PAGECACHE_PLAIN_PAGE with PAGECACHE_LSN_PAGE when
     LSN on the pages will be implemented

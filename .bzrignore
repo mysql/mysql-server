@@ -2989,3 +2989,12 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
+storage/maria/unittest/ma_pagecache_consist_1k-t-big
+storage/maria/unittest/ma_pagecache_consist_1kHC-t-big
+storage/maria/unittest/ma_pagecache_consist_1kRD-t-big
+storage/maria/unittest/ma_pagecache_consist_1kWR-t-big
+storage/maria/unittest/ma_pagecache_consist_64k-t-big
+storage/maria/unittest/ma_pagecache_consist_64kHC-t-big
+storage/maria/unittest/ma_pagecache_consist_64kRD-t-big
+storage/maria/unittest/ma_pagecache_consist_64kWR-t-big
+storage/maria/unittest/ma_pagecache_single_64k-t-big

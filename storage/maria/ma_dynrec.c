@@ -1372,13 +1372,15 @@ int _ma_read_dynamic_record(MARIA_HA *info, byte *buf,
 {
   int block_of_record;
   uint b_type,left_length;
-  byte *to;
   MARIA_BLOCK_INFO block_info;
   File file;
   DBUG_ENTER("_ma_read_dynamic_record");
 
   if (filepos != HA_OFFSET_ERROR)
   {
+    byte *to;
+    uint left_length;
+
     LINT_INIT(to);
     LINT_INIT(left_length);
     file= info->dfile.file;
@@ -1390,13 +1392,14 @@ int _ma_read_dynamic_record(MARIA_HA *info, byte *buf,
       if (filepos == HA_OFFSET_ERROR)
         goto panic;
       if (info->opt_flag & WRITE_CACHE_USED &&
-	  info->rec_cache.pos_in_file < filepos + MARIA_BLOCK_INFO_HEADER_LENGTH &&
+	  (info->rec_cache.pos_in_file < filepos +
+           MARIA_BLOCK_INFO_HEADER_LENGTH) &&
 	  flush_io_cache(&info->rec_cache))
 	goto err;
       info->rec_cache.seek_not_done=1;
-      if ((b_type= _ma_get_block_info(&block_info, file, filepos))
-	  & (BLOCK_DELETED | BLOCK_ERROR | BLOCK_SYNC_ERROR |
-	     BLOCK_FATAL_ERROR))
+      if ((b_type= _ma_get_block_info(&block_info, file, filepos)) &
+	  (BLOCK_DELETED | BLOCK_ERROR | BLOCK_SYNC_ERROR |
+           BLOCK_FATAL_ERROR))
       {
 	if (b_type & (BLOCK_SYNC_ERROR | BLOCK_DELETED))
 	  my_errno=HA_ERR_RECORD_DELETED;

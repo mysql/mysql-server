@@ -75,7 +75,7 @@ typedef void *PAGECACHE_PAGE_LINK;
 /* file descriptor for Maria */
 typedef struct st_pagecache_file
 {
-  int file; /* it is for debugging purposes then it will be uint32 file_no */
+  File file;
 } PAGECACHE_FILE;
 
 /* page number for maria */
