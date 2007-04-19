@@ -102,6 +102,8 @@ case "$target_os" in
 	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
        osf*)
 	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+       *solaris*|*SunOS*)
+	 CFLAGS="$CFLAGS -DUNIV_SOLARIS";;
        sysv5uw7*)
 	 # Problem when linking on SCO
 	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
