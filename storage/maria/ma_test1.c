@@ -73,12 +73,12 @@ static int run_test(const char *filename)
   /* First define 2 columns */
   create_info.null_bytes= 1;
   recinfo[0].type= key_field;
-  recinfo[0].length= (key_field == FIELD_BLOB ? 4+maria_portable_sizeof_char_ptr :
+  recinfo[0].length= (key_field == FIELD_BLOB ? 4+portable_sizeof_char_ptr :
 		      key_length);
   if (key_field == FIELD_VARCHAR)
     recinfo[0].length+= HA_VARCHAR_PACKLENGTH(key_length);
   recinfo[1].type=extra_field;
-  recinfo[1].length= (extra_field == FIELD_BLOB ? 4 + maria_portable_sizeof_char_ptr : 24);
+  recinfo[1].length= (extra_field == FIELD_BLOB ? 4 + portable_sizeof_char_ptr : 24);
   if (extra_field == FIELD_VARCHAR)
     recinfo[1].length+= HA_VARCHAR_PACKLENGTH(recinfo[1].length);
   if (opt_unique)

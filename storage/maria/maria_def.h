@@ -60,7 +60,8 @@ typedef struct st_maria_state_info
     uchar language;			/* Language for indexes */
     uchar fulltext_keys;
     uchar data_file_type;
-    uchar org_data_file_type;           /* Used by mariapack to store dft */
+    /* Used by mariapack to store the original data_file_type */
+    uchar org_data_file_type;
   } header;
 
   MARIA_STATUS_INFO state;
@@ -75,7 +76,7 @@ typedef struct st_maria_state_info
   ulong *rec_per_key_part;
   ha_checksum checksum;                 /* Table checksum */
   my_off_t *key_root;			/* Start of key trees */
-  my_off_t key_del;			/* delete links for trees */
+  my_off_t key_del;			/* delete links for index pages */
   my_off_t rec_per_key_rows;		/* Rows when calculating rec_per_key */
 
   ulong sec_index_changed;		/* Updated when new sec_index */
@@ -107,6 +108,13 @@ typedef struct st_maria_state_info
 #define MARIA_COLUMNDEF_SIZE	(6+2+2+2+2+2+1+1)
 #define MARIA_BASE_INFO_SIZE	(5*8 + 6*4 + 11*2 + 6 + 5*2 + 1 + 16)
 #define MARIA_INDEX_BLOCK_MARGIN 16	/* Safety margin for .MYI tables */
+/* Internal management bytes needed to store 2 keys on an index page */
+#define MARIA_INDEX_MIN_OVERHEAD_SIZE (4 + (TRANSID_SIZE+1) * 2)
+
+/*
+  Basic information of the Maria table. This is stored on disk
+  and not changed (unless we do DLL changes).
+*/
 
 typedef struct st_ma_base_info
 {
@@ -127,7 +135,9 @@ typedef struct st_ma_base_info
   uint max_field_lengths;
   uint pack_fields;                     /* packed fields in table */
   uint varlength_fields;                /* char/varchar/blobs */
-  uint rec_reflength;                   /* = 2-8 */
+  /* Number of bytes in the index used to refer to a row (2-8) */
+  uint rec_reflength;
+  /* Number of bytes in the index used to refer to another index page (2-8) */
   uint key_reflength;                   /* = 2-8 */
   uint keys;                            /* same as in state.header */
   uint auto_key;                        /* Which key-1 is a auto key */
@@ -144,14 +154,17 @@ typedef struct st_ma_base_info
   uint extra_alloc_bytes;
   uint extra_alloc_procent;
   uint is_nulls_extended;               /* 1 if new null bytes */
-  uint min_row_length;
+  uint min_row_length;			/* Min possible length of a row */
   uint default_row_flag;                /* 0 or ROW_FLAG_NULLS_EXTENDED */
   uint block_size;
+  /* Size of initial record buffer */
   uint default_rec_buff_size;
+  /* Extra number of bytes the row format require in the record buffer */
   uint extra_rec_buff_size;
 
   /* The following are from the header */
   uint key_parts, all_key_parts;
+  /* If false, we disable logging, versioning etc */
   my_bool transactional;
 } MARIA_BASE_INFO;
 
@@ -177,8 +190,8 @@ typedef struct st_maria_file_bitmap
 {
   uchar *map;
   ulonglong page;                      /* Page number for current bitmap */
-  uint used_size;                      /* Size of bitmap that is not 0 */
-  File file;
+  uint used_size;                      /* Size of bitmap head that is not 0 */
+  File file;                           /* Datafile, where bitmap is stored */
 
   my_bool changed;
 
@@ -204,8 +217,7 @@ typedef struct st_maria_share
   MARIA_KEYDEF *keyinfo;		/* Key definitions */
   MARIA_UNIQUEDEF *uniqueinfo;		/* unique definitions */
   HA_KEYSEG *keyparts;			/* key part info */
-  MARIA_COLUMNDEF *rec;			/* Pointer to field information
-						*/
+  MARIA_COLUMNDEF *columndef;		/* Pointer to column information */
   MARIA_PACK pack;			/* Data about packed records */
   MARIA_BLOB *blobs;			/* Pointer to blobs */
   char *unique_file_name;		/* realpath() of index file */
@@ -216,25 +228,43 @@ typedef struct st_maria_share
   KEY_CACHE *key_cache;			/* ref to the current key cache */
   MARIA_DECODE_TREE *decode_trees;
   uint16 *decode_tables;
+  /* Called the first time the table instance is opened */
   my_bool (*once_init)(struct st_maria_share *, File);
+  /* Called when the last instance of the table is closed */
   my_bool (*once_end)(struct st_maria_share *);
+  /* Is called for every open of the table */
   my_bool (*init)(struct st_maria_info *);
+  /* Is called for every close of the table */
   void (*end)(struct st_maria_info *);
+  /* Called when we want to read a record from a specific position */
   int (*read_record)(struct st_maria_info *, byte *, MARIA_RECORD_POS);
+  /* Initialize a scan */
   my_bool (*scan_init)(struct st_maria_info *);
+  /* Read next record while scanning */
   int (*scan)(struct st_maria_info *, byte *, MARIA_RECORD_POS, my_bool);
+  /* End scan */
   void (*scan_end)(struct st_maria_info *);
+  /* Pre-write of row (some handlers may do the actual write here) */
   MARIA_RECORD_POS (*write_record_init)(struct st_maria_info *, const byte *);
+  /* Write record (or accept write_record_init) */
   my_bool (*write_record)(struct st_maria_info *, const byte *);
+  /* Called when write failed */
   my_bool (*write_record_abort)(struct st_maria_info *);
   my_bool (*update_record)(struct st_maria_info *, MARIA_RECORD_POS,
                            const byte *);
   my_bool (*delete_record)(struct st_maria_info *);
   my_bool (*compare_record)(struct st_maria_info *, const byte *);
-  ha_checksum(*calc_checksum) (struct st_maria_info *, const byte *);
+  /* calculate checksum for a row */
+  ha_checksum(*calc_checksum)(struct st_maria_info *, const byte *);
+  /*
+    Calculate checksum for a row during write. May be 0 if we calculate
+    the checksum in write_record_init()
+  */
   ha_checksum(*calc_write_checksum) (struct st_maria_info *, const byte *);
-  my_bool (*compare_unique) (struct st_maria_info *, MARIA_UNIQUEDEF *,
-                             const byte *record, MARIA_RECORD_POS pos);
+  /* Compare a row in memory with a row on disk */
+  my_bool (*compare_unique)(struct st_maria_info *, MARIA_UNIQUEDEF *,
+                            const byte *record, MARIA_RECORD_POS pos);
+  /* Mapings to read/write the data file */
   uint (*file_read)(MARIA_HA *, byte *, uint, my_off_t, myf);
   uint (*file_write)(MARIA_HA *, byte *, uint, my_off_t, myf);
   invalidator_by_filename invalidator;	/* query cache invalidator */
@@ -255,6 +285,7 @@ typedef struct st_maria_share
   uint reopen;				/* How many times reopened */
   uint w_locks, r_locks, tot_locks;	/* Number of read/write locks */
   uint block_size;			/* block_size of keyfile & data file*/
+  /* Fixed length part of a packed row in BLOCK_RECORD format */
   uint base_length;
   myf write_flag;
   enum data_file_type data_file_type;
@@ -342,7 +373,8 @@ struct st_maria_info
 {
   MARIA_SHARE *s;			/* Shared between open:s */
   MARIA_STATUS_INFO *state, save_state;
-  MARIA_ROW cur_row, new_row;
+  MARIA_ROW cur_row;                    /* The active row that we just read */
+  MARIA_ROW new_row;			/* Storage for a row during update */
   MARIA_BLOCK_SCAN scan;
   MARIA_BLOB *blobs;			/* Pointer to blobs */
   MARIA_BIT_BUFF bit_buff;
@@ -404,8 +436,8 @@ struct st_maria_info
   my_bool quick_mode;
   /* If info->keyread_buff can't be used for rnext */
   my_bool page_changed;
-  /* If info->keyread_buff has to be reread for rnext */
-  my_bool keybuff_used;
+  /* If info->keyread_buff has to be re-read for rnext */
+  my_bool keyread_buff_used;
   my_bool once_flags;			/* For MARIA_MRG */
 #ifdef __WIN__
   my_bool owned_by_merge;               /* This Maria table is part of a merge union */
@@ -419,7 +451,7 @@ struct st_maria_info
 
 /* Some defines used by maria-functions */
 
-#define USE_WHOLE_KEY	HA_MAX_KEY_BUFF*2 /* Use whole key in _search() */
+#define USE_WHOLE_KEY	65535         /* Use whole key in _search() */
 #define F_EXTRA_LCK	-1
 
 /* bits in opt_flag */
@@ -489,6 +521,7 @@ struct st_maria_info
   { length=mi_uint2korr((key)+1)+3; } \
 }
 
+#define maria_max_key_length() ((maria_block_size - MARIA_INDEX_MIN_OVERHEAD_SIZE)/2)
 #define get_pack_length(length) ((length) >= 255 ? 3 : 1)
 
 #define MARIA_MIN_BLOCK_LENGTH	20		/* Because of delete-link */
@@ -720,7 +753,11 @@ extern int _ma_ft_update(MARIA_HA *info, uint keynr, byte *keybuf,
                          const byte *oldrec, const byte *newrec,
                          my_off_t pos);
 
-/* Parameter to _ma_get_block_info */
+/*
+  Parameter to _ma_get_block_info
+  The dynamic row header is read into this struct. For an explanation of
+  the fields, look at the function _ma_get_block_info().
+*/
 
 typedef struct st_maria_block_info
 {
@@ -735,6 +772,7 @@ typedef struct st_maria_block_info
   uint second_read;
   uint offset;
 } MARIA_BLOCK_INFO;
+
 
 /* bits in return from _ma_get_block_info */
 
@@ -800,8 +838,8 @@ uint _ma_keydef_write(File file, MARIA_KEYDEF *keydef);
 char *_ma_keydef_read(char *ptr, MARIA_KEYDEF *keydef);
 uint _ma_uniquedef_write(File file, MARIA_UNIQUEDEF *keydef);
 char *_ma_uniquedef_read(char *ptr, MARIA_UNIQUEDEF *keydef);
-uint _ma_recinfo_write(File file, MARIA_COLUMNDEF *recinfo);
-char *_ma_recinfo_read(char *ptr, MARIA_COLUMNDEF *recinfo);
+uint _ma_columndef_write(File file, MARIA_COLUMNDEF *columndef);
+char *_ma_columndef_read(char *ptr, MARIA_COLUMNDEF *columndef);
 ulong _ma_calc_total_blob_length(MARIA_HA *info, const byte *record);
 ha_checksum _ma_checksum(MARIA_HA *info, const byte *buf);
 ha_checksum _ma_static_checksum(MARIA_HA *info, const byte *buf);

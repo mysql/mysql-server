@@ -453,7 +453,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       if (share->rec[i].type == (int) FIELD_BLOB)
       {
 	share->blobs[j].pack_length=
-	  share->rec[i].length-mi_portable_sizeof_char_ptr;;
+	  share->rec[i].length-portable_sizeof_char_ptr;;
 	share->blobs[j].offset=offset;
 	j++;
       }

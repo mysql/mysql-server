@@ -32,7 +32,7 @@ byte *_ma_fetch_keypage(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                       info->s->block_size, info->s->block_size,
                       return_buffer);
   if (tmp == info->buff)
-    info->keybuff_used=1;
+    info->keyread_buff_used=1;
   else if (!tmp)
   {
     DBUG_PRINT("error",("Got errno: %d from key_cache_read",my_errno));

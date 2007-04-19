@@ -55,8 +55,6 @@ extern "C" {
 #define MI_MIN_KEY_BLOCK_LENGTH	1024	/* Min key block length */
 #define MI_MAX_KEY_BLOCK_LENGTH	16384
 
-#define mi_portable_sizeof_char_ptr 8
-
 /*
   In the following macros '_keyno_' is 0 .. keys-1.
   If there can be more keys than bits in the key_map, the highest bit

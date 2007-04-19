@@ -177,7 +177,7 @@ int maria_update(register MARIA_HA *info, const byte *oldrec, byte *newrec)
     info->state->checksum+= (info->cur_row.checksum - old_checksum);
 
   /*
-    We can't yet have HA_STATE_ACTIVE here, as block_record dosn't support
+    We can't yet have HA_STATE_AKTIV here, as block_record dosn't support
     it
   */
   info->update= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED | key_changed);

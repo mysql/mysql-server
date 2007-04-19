@@ -20,29 +20,32 @@
 ha_checksum _ma_checksum(MARIA_HA *info, const byte *record)
 {
   ha_checksum crc=0;
-  MARIA_COLUMNDEF *rec= info->s->rec, *rec_end= rec+ info->s->base.fields;
+  MARIA_COLUMNDEF *column= info->s->columndef;
+  MARIA_COLUMNDEF *column_end= column+ info->s->base.fields;
 
   if (info->s->base.null_bytes)
     crc= my_checksum(crc, record, info->s->base.null_bytes);
 
-  for ( ; rec != rec_end ; rec++)
+  for ( ; column != column_end ; column++)
   {
-    const byte *pos= record + rec->offset;
+    const byte *pos= record + column->offset;
     ulong length;
 
-    switch (rec->type) {
+    switch (column->type) {
     case FIELD_BLOB:
     {
-      length= _ma_calc_blob_length(rec->length-
-					maria_portable_sizeof_char_ptr,
-					pos);
-      memcpy((char*) &pos, pos+rec->length- maria_portable_sizeof_char_ptr,
-	     sizeof(char*));
-      break;
+      uint blob_size_length= column->length- portable_sizeof_char_ptr;
+      length= _ma_calc_blob_length(blob_size_length, pos);
+      if (length)
+      {
+        memcpy((char*) &pos, pos + blob_size_length, sizeof(char*));
+        crc= my_checksum(crc, pos, length);
+      }
+      continue;
     }
     case FIELD_VARCHAR:
     {
-      uint pack_length= HA_VARCHAR_PACKLENGTH(rec->length-1);
+      uint pack_length= HA_VARCHAR_PACKLENGTH(column->length-1);
       if (pack_length == 1)
         length= (ulong) *(uchar*) pos;
       else
@@ -51,10 +54,10 @@ ha_checksum _ma_checksum(MARIA_HA *info, const byte *record)
       break;
     }
     default:
-      length= rec->length;
+      length= column->length;
       break;
     }
-    crc= my_checksum(crc, pos ? pos : "", length);
+    crc= my_checksum(crc, pos, length);
   }
   return crc;
 }

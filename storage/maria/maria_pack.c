@@ -307,9 +307,10 @@ static void usage(void)
   puts("and you are welcome to modify and redistribute it under the GPL license\n");
 
   puts("Pack a MARIA-table to take much less space.");
-  puts("Keys are not updated, you must run maria_chk -rq on the datafile");
+  puts("Keys are not updated, you must run maria_chk -rq on the index (.MAI) file");
   puts("afterwards to update the keys.");
-  puts("You should give the .MYI file as the filename argument.");
+  puts("You should give the .MAI file as the filename argument.");
+  puts("To unpack a packed table, run maria_chk -u on the table");
 
   VOID(printf("\nUsage: %s [OPTIONS] filename...\n", my_progname));
   my_print_help(my_long_options);
@@ -462,9 +463,9 @@ static bool open_isam_files(PACK_MRG_INFO *mrg,char **names,uint count)
     if (mrg->file[j]->s->base.reclength != mrg->file[j+1]->s->base.reclength ||
 	mrg->file[j]->s->base.fields != mrg->file[j+1]->s->base.fields)
       goto diff_file;
-    m1=mrg->file[j]->s->rec;
+    m1=mrg->file[j]->s->columndef;
     end=m1+mrg->file[j]->s->base.fields;
-    m2=mrg->file[j+1]->s->rec;
+    m2=mrg->file[j+1]->s->columndef;
     for ( ; m1 != end ; m1++,m2++)
     {
       if (m1->type != m2->type || m1->length != m2->length)
@@ -773,8 +774,8 @@ static HUFF_COUNTS *init_huff_count(MARIA_HA *info,my_off_t records)
     for (i=0 ; i < info->s->base.fields ; i++)
     {
       enum en_fieldtype type;
-      count[i].field_length=info->s->rec[i].length;
-      type= count[i].field_type= (enum en_fieldtype) info->s->rec[i].type;
+      count[i].field_length=info->s->columndef[i].length;
+      type= count[i].field_type= (enum en_fieldtype) info->s->columndef[i].type;
       if (type == FIELD_INTERVALL ||
 	  type == FIELD_CONSTANT ||
 	  type == FIELD_ZERO)
@@ -1003,7 +1004,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
         /* Calculate pos, end_pos, and max_length for variable length fields. */
 	if (count->field_type == FIELD_BLOB)
 	{
-	  uint field_length=count->field_length -maria_portable_sizeof_char_ptr;
+	  uint field_length=count->field_length -portable_sizeof_char_ptr;
 	  ulong blob_length= _ma_calc_blob_length(field_length, start_pos);
 	  memcpy_fixed((char*) &pos,  start_pos+field_length,sizeof(char*));
 	  end_pos=pos+blob_length;
@@ -2656,7 +2657,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 	case FIELD_BLOB:
 	{
 	  ulong blob_length= _ma_calc_blob_length(field_length-
-						 maria_portable_sizeof_char_ptr,
+						 portable_sizeof_char_ptr,
 						 start_pos);
           /* Empty blobs are encoded with a single 1 bit. */
 	  if (!blob_length)
@@ -2673,7 +2674,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
             DBUG_PRINT("fields", ("FIELD_BLOB %lu bytes, bits: %2u",
                                   blob_length, count->length_bits));
 	    write_bits(blob_length,count->length_bits);
-	    memcpy_fixed(&blob,end_pos-maria_portable_sizeof_char_ptr,
+	    memcpy_fixed(&blob,end_pos-portable_sizeof_char_ptr,
 			 sizeof(char*));
 	    blob_end=blob+blob_length;
             /* Encode the blob bytes. */
@@ -2952,6 +2953,7 @@ static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,
 
   options|= HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA;
   mi_int2store(share->state.header.options,options);
+  /* Save the original file type of we have to undo the packing later */
   share->state.header.org_data_file_type= share->state.header.data_file_type;
   share->state.header.data_file_type= COMPRESSED_RECORD;
 

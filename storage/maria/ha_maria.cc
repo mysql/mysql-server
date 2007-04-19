@@ -28,6 +28,7 @@
 
 #include "maria_def.h"
 #include "ma_rt_index.h"
+#include "ma_blockrec.h"
 
 ulong maria_recover_options= HA_RECOVER_NONE;
 
@@ -106,7 +107,6 @@ static void _ma_check_print_msg(HA_CHECK *param, const char *msg_type,
                     msgbuf);
   return;
 }
-
 
 
 /*
@@ -510,6 +510,26 @@ double ha_maria::scan_time()
   if (file->s->data_file_type == BLOCK_RECORD)
     return ulonglong2double(stats.data_file_length - file->s->block_size) / max(file->s->block_size / 2, IO_SIZE) + 2;
   return handler::scan_time();
+}
+
+/*
+  We need to be able to store at least two keys on an index page as the
+  splitting algorithms depends on this. (With only one key on a page
+  we also can't use any compression, which may make the index file much
+  larger)
+  We use HA_MAX_KEY_BUFF as this is a stack restriction imposed by the
+  handler interface.
+
+  We also need to reserve place for a record pointer (8) and 3 bytes
+  per key segment to store the length of the segment + possible null bytes.
+  These extra bytes are required here so that maria_create() will surely
+  accept any keys created which the returned key data storage length.
+*/
+
+uint ha_maria::max_supported_key_length() const
+{
+  uint tmp= (maria_max_key_length() - 8 - HA_MAX_KEY_SEG*3);
+  return min(HA_MAX_KEY_BUFF, tmp);
 }
 
 

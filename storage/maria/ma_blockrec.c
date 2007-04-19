@@ -16,16 +16,19 @@
 /*
   Storage of records in block
 
-  Maria will have a LSN at start of each page (including the bitmap page)
-  Maria will for each row have the additional information:
+  Some clarifactions about the abbrev used:
 
-  TRANSID               Transaction ID that last updated row (6 bytes)
-  VER_PTR               Version pointer that points on the UNDO entry that
-                        contains last version of the row versions (7 bytes)
+  NULL fields      -> Fields that may have contain a NULL value.
+  Not null fields  -> Fields that may not contain a NULL value.
+  Critical fields  -> Fields that can't be null and can't be dropped without
+		      causing a table reorganization.
+
+
+  Maria will have a LSN at start of each page (excluding the bitmap pages)
 
   The different page types that are in a data file are:
 
-  Bitmap pages     Map of free pages in the next extent (8129 page size
+  Bitmap pages     Map of free pages in the next extent (8192 page size
                    gives us 256M of mapped pages / bitmap)
   Head page        Start of rows are stored on this page.
                    A rowid always points to a head page
@@ -43,9 +46,9 @@
   Structure of data and tail page:
 
   The page has a row directory at end of page to allow us to do deletes
-  without having to reorganize the page.  It also allows us to store some
-  extra bytes after each row to allow them to grow without having to move
-  around other rows
+  without having to reorganize the page.  It also allows us to later store
+  some more bytes after each row to allow them to grow without having to move
+  around other rows.
 
   Page header:
 
@@ -59,7 +62,7 @@
 
   Row data
 
-  Row directory of NO entires, that consist of the following for each row
+  Row directory of NO entries, that consist of the following for each row
   (in reverse order; ie, first record is stored last):
 
   Position      2 bytes Position of row on page
@@ -69,7 +72,8 @@
   upmost bit of the length could be used for some states of the row (in
   other words, we should try to keep these reserved)
    
-  eof flag  1 byte   Reserved for full page read testing
+  eof flag  1 byte   Reserved for full page read testing. (Ie, did the
+		     previous write get the whole block on disk.
 
   ----------------
 
@@ -105,19 +109,27 @@
   Total length of length array  1-3 byte Only used if we have
                                          char/varchar/blob fields.
   Row checksum		        1 byte   Only if table created with checksums
-  Null_bits             ..      One bit for each NULL field
-  Empty_bits            ..      One bit for each NOT NULL field. This bit is
-                                0 if the value is 0 or empty string.
+  Null_bits             ..      One bit for each NULL field (a field that may
+				have the value NULL)
+  Empty_bits            ..      One bit for each field that may be 'empty'.
+				(Both for null and not null fields).
+                                This bit is 1 if the value for the field is
+                                0 or empty string.
 
   field_offsets                 2 byte/offset
-                                  For each 32 field, there is one offset that
-                                  points to where the field information starts
-                                  in the block. This is to provide fast access
-                                  to later field in the row when we only need
-                                  to return a small set of fields.
+                                  For each 32'th field, there is one offset
+                                  that points to where the field information
+                                  starts in the block. This is to provide
+                                  fast access to later field in the row
+                                  when we only need to return a small
+                                  set of fields.
+                                  TODO: Implement this.
 
-  Things marked above as 'optional' will only be present if the corresponding
-  bit is set in 'Flag' field.
+  Things marked above as 'optional' will only be present if the
+  corresponding bit is set in 'Flag' field.  Flag gives us a way to
+  get more space on a page when doing page compaction as we don't need
+  to store TRANSID that have committed before the smallest running
+  transaction we have in memory.
 
   Data in the following order:
   (Field order is precalculated when table is created)
@@ -176,11 +188,6 @@
   Nulls_extended_exists 3
   Row is split          7       This means that 'Number_of_row_extents' exists
 
-
-  This would be a way to get more space on a page when doing page
-  compaction as we don't need to store TRANSID that have committed
-  before the smallest running transaction we have in memory.
-
   Nulls_extended is the number of new DEFAULT NULL fields in the row
   compared to the number of DEFAULT NULL fields when the first version
   of the table was created.  If Nulls_extended doesn't exist in the row,
@@ -198,8 +205,10 @@
   fields. When storing a row, we will mark a dropped field either with a
   null in the null bit map or in the empty_bits and not store any data
   for it.
+  TODO: Add code for handling dropped fields.
 
-  One ROW_EXTENT is coded as:
+
+  A ROW EXTENT is range of pages. One ROW_EXTENT is coded as:
 
   START_PAGE            5 bytes
   PAGE_COUNT            2 bytes.  High bit is used to indicate tail page/
@@ -248,14 +257,36 @@
 #include "maria_def.h"
 #include "ma_blockrec.h"
 
+/*
+  Struct for having a cursor over a set of extent.
+  This is used to loop over all extents for a row when reading
+  the row data. It's also used to store the tail positions for
+  a read row to be used by a later update/delete command.
+*/
+
 typedef struct st_maria_extent_cursor
 {
+  /*
+    Pointer to packed byte array of extents for the row.
+    Format is described above in the header
+  */
   byte *extent;
-  byte *data_start;                             /* For error checking */
+  /* Where data starts on page; Only for debugging */
+  byte *data_start;
+  /* Position to all tails in the row. Updated when reading a row */
   MARIA_RECORD_POS *tail_positions;
+  /* Current page */
   my_off_t page;
-  uint extent_count, page_count;
-  uint tail;                      /* <> 0 if current extent is a tail page */
+  /* How many pages in the page region */
+  uint page_count;
+  /* Total number of extents (ie, entries in the 'extent' slot) */
+  uint extent_count;
+  /* <> 0 if current extent is a tail page; Set while using cursor */
+  uint tail;                      
+  /*
+    <> 1 if we are working on the first extent (ie, the one that is store in
+    the row header, not an extent that is stored as part of the row data).
+  */
   my_bool first_extent;
 } MARIA_EXTENT_CURSOR;
 
@@ -327,38 +358,47 @@ void _ma_init_block_record_data(void)
 }
 
 
-my_bool _ma_once_init_block_row(MARIA_SHARE *share, File data_file)
+my_bool _ma_once_init_block_record(MARIA_SHARE *share, File data_file)
 {
 
   share->base.max_data_file_length=
     (((ulonglong) 1 << ((share->base.rec_reflength-1)*8))-1) * 
     share->block_size;
 #if SIZEOF_OFF_T == 4
-    set_if_smaller(max_data_file_length, INT_MAX32);
+    set_if_smaller(share->base.max_data_file_length, INT_MAX32);
 #endif
   return _ma_bitmap_init(share, data_file);
 }
 
 
-my_bool _ma_once_end_block_row(MARIA_SHARE *share)
+my_bool _ma_once_end_block_record(MARIA_SHARE *share)
 {
   int res= _ma_bitmap_end(share);
-  if (flush_key_blocks(share->key_cache, share->bitmap.file,
-                       share->temporary ? FLUSH_IGNORE_CHANGED :
-                       FLUSH_RELEASE))
-    res= 1;
-  if (share->bitmap.file >= 0 && my_close(share->bitmap.file, MYF(MY_WME)))
-    res= 1;
+  if (share->bitmap.file >= 0)
+  {
+    if (flush_key_blocks(share->key_cache, share->bitmap.file,
+                         share->temporary ? FLUSH_IGNORE_CHANGED :
+                         FLUSH_RELEASE))
+      res= 1;
+    if (my_close(share->bitmap.file, MYF(MY_WME)))
+      res= 1;
+    /*
+      Trivial assignment to guard against multiple invocations
+      (May happen if file are closed but we want to keep the maria object
+      around a bit longer)
+    */
+    share->bitmap.file= -1;
+  }
   return res;
 }
 
 
 /* Init info->cur_row structure */
 
-my_bool _ma_init_block_row(MARIA_HA *info)
+my_bool _ma_init_block_record(MARIA_HA *info)
 {
   MARIA_ROW *row= &info->cur_row, *new_row= &info->new_row;
-  DBUG_ENTER("_ma_init_block_row");
+  DBUG_ENTER("_ma_init_block_record");
 
   if (!my_multi_malloc(MY_WME,
                        &row->empty_bits_buffer, info->s->base.pack_bytes,
@@ -398,12 +438,18 @@ my_bool _ma_init_block_row(MARIA_HA *info)
 }
 
 
-void _ma_end_block_row(MARIA_HA *info)
+void _ma_end_block_record(MARIA_HA *info)
 {
-  DBUG_ENTER("_ma_end_block_row");
+  DBUG_ENTER("_ma_end_block_record");
   my_free((gptr) info->cur_row.empty_bits_buffer, MYF(MY_ALLOW_ZERO_PTR));
   delete_dynamic(&info->bitmap_blocks);
   my_free((gptr) info->cur_row.extents, MYF(MY_ALLOW_ZERO_PTR));
+  /*
+    The data file is closed, when needed, in ma_once_end_block_record().
+    The following protects us from doing an extra, not allowed, close
+    in maria_close()
+  */
+  info->dfile= -1;
   DBUG_VOID_RETURN;
 }
 
@@ -412,7 +458,19 @@ void _ma_end_block_row(MARIA_HA *info)
   Helper functions
 ****************************************************************************/
 
-static inline uint empty_pos_after_row(byte *dir)
+/*
+  Return the next used byte on the page after a directory entry.
+  
+  SYNOPSIS
+    start_of_next_entry()
+    dir		Directory entry to be used
+
+  RETURN
+    #   Position in page where next entry starts.
+        Everything between the '*dir' and this are free to be used.
+*/  
+
+static inline uint start_of_next_entry(byte *dir)
 {
   byte *prev;
   /*
@@ -427,6 +485,18 @@ static inline uint empty_pos_after_row(byte *dir)
 }
 
 
+/*
+  Check that a region is all zero
+
+  SYNOPSIS
+    check_if_zero()
+    pos		Start of memory to check
+    length 	length of memory region
+
+  NOTES
+    Used mainly to detect rows with wrong extent information
+*/
+
 static my_bool check_if_zero(byte *pos, uint length)
 {
   byte *end;
@@ -438,7 +508,7 @@ static my_bool check_if_zero(byte *pos, uint length)
 
 
 /*
-  Find free postion in directory
+  Find free position in directory
 
   SYNOPSIS
   find_free_position()
@@ -450,7 +520,7 @@ static my_bool check_if_zero(byte *pos, uint length)
 		        all empty space, including the found block.
 
   NOTES
-    If there is a free directory entry (entry with postion == 0),
+    If there is a free directory entry (entry with position == 0),
     then use it and change it to be the size of the empty block
     after the previous entry. This guarantees that all row entries
     are stored on disk in inverse directory order, which makes life easier for
@@ -473,7 +543,7 @@ static my_bool check_if_zero(byte *pos, uint length)
 static byte *find_free_position(byte *buff, uint block_size, uint *res_rownr,
                                 uint *res_length, uint *empty_space)
 {
-  uint max_entry= (uint) ((uchar*) buff)[DIR_ENTRY_OFFSET];
+  uint max_entry= (uint) ((uchar*) buff)[DIR_COUNT_OFFSET];
   uint entry, length, first_pos;
   byte *dir, *end;
   DBUG_ENTER("find_free_position");
@@ -482,22 +552,23 @@ static byte *find_free_position(byte *buff, uint block_size, uint *res_rownr,
   dir= (buff + block_size - DIR_ENTRY_SIZE * max_entry - PAGE_SUFFIX_SIZE);
   end= buff + block_size - PAGE_SUFFIX_SIZE - DIR_ENTRY_SIZE;
 
-  first_pos= PAGE_HEADER_SIZE;
   *empty_space= uint2korr(buff + EMPTY_SPACE_OFFSET);
 
   /* Search after first empty position */
+  first_pos= PAGE_HEADER_SIZE;
   for (entry= 0 ; dir <= end ; end-= DIR_ENTRY_SIZE, entry++)
   {
-    if (end[0] == 0 && end[1] == 0)             /* Found not used entry */
+    uint tmp= uint2korr(end);
+    if (!tmp)             /* Found not used entry */
     {
-      length= empty_pos_after_row(end) - first_pos;
+      length= start_of_next_entry(end) - first_pos;
       int2store(end, first_pos);                /* Update dir entry */
       int2store(end + 2, length);
       *res_rownr= entry;
       *res_length= length;
       DBUG_RETURN(end);
     }
-    first_pos= uint2korr(end) + uint2korr(end + 2);
+    first_pos= tmp + uint2korr(end + 2);
   }
   /* No empty places in dir; create a new one */
   dir= end;
@@ -513,7 +584,7 @@ static byte *find_free_position(byte *buff, uint block_size, uint *res_rownr,
                 uint2korr(end + DIR_ENTRY_SIZE+ 2));
     *empty_space= uint2korr(buff + EMPTY_SPACE_OFFSET);
   }
-  buff[DIR_ENTRY_OFFSET]= (byte) (uchar) max_entry+1;
+  buff[DIR_COUNT_OFFSET]= (byte) (uchar) max_entry+1;
   length= (uint) (dir - buff - first_pos);
   DBUG_ASSERT(length <= *empty_space - DIR_ENTRY_SIZE);
   int2store(dir, first_pos);
@@ -551,7 +622,7 @@ static void calc_record_size(MARIA_HA *info, const byte *record,
 {
   MARIA_SHARE *share= info->s;
   byte *field_length_data;
-  MARIA_COLUMNDEF *rec, *end_field;
+  MARIA_COLUMNDEF *column, *end_column;
   uint *null_field_lengths= row->null_field_lengths;
   ulong *blob_lengths= row->blob_lengths;
 
@@ -562,56 +633,56 @@ static void calc_record_size(MARIA_HA *info, const byte *record,
   bzero(row->empty_bits_buffer, share->base.pack_bytes);
   row->empty_bits= row->empty_bits_buffer;
   field_length_data= row->field_lengths;
-  for (rec= share->rec + share->base.fixed_not_null_fields,
-       end_field= share->rec + share->base.fields;
-       rec < end_field; rec++, null_field_lengths++)
+  for (column= share->columndef + share->base.fixed_not_null_fields,
+       end_column= share->columndef + share->base.fields;
+       column < end_column; column++, null_field_lengths++)
   {
-    if ((record[rec->null_pos] & rec->null_bit))
+    if ((record[column->null_pos] & column->null_bit))
     {
-      if (rec->type != FIELD_BLOB)
+      if (column->type != FIELD_BLOB)
         *null_field_lengths= 0;
       else
         *blob_lengths++= 0;
       continue;
     }
-    switch ((enum en_fieldtype) rec->type) {
+    switch ((enum en_fieldtype) column->type) {
     case FIELD_CHECK:
     case FIELD_NORMAL:                          /* Fixed length field */
     case FIELD_ZERO:
-      DBUG_ASSERT(rec->empty_bit == 0);
+      DBUG_ASSERT(column->empty_bit == 0);
       /* fall through */
     case FIELD_SKIP_PRESPACE:                   /* Not packed */
-      row->normal_length+= rec->length;
-      *null_field_lengths= rec->length;
+      row->normal_length+= column->length;
+      *null_field_lengths= column->length;
       break;
     case FIELD_SKIP_ZERO:                       /* Fixed length field */
-      if (memcmp(record+ rec->offset, maria_zero_string,
-                 rec->length) == 0)
+      if (memcmp(record+ column->offset, maria_zero_string,
+                 column->length) == 0)
       {
-        row->empty_bits[rec->empty_pos] |= rec->empty_bit;
+        row->empty_bits[column->empty_pos] |= column->empty_bit;
         *null_field_lengths= 0;
       }
       else
       {
-        row->normal_length+= rec->length;
-        *null_field_lengths= rec->length;
+        row->normal_length+= column->length;
+        *null_field_lengths= column->length;
       }
       break;
     case FIELD_SKIP_ENDSPACE:                   /* CHAR */
     {
       const char *pos, *end;
-      for (pos= record + rec->offset, end= pos + rec->length;
+      for (pos= record + column->offset, end= pos + column->length;
            end > pos && end[-1] == ' '; end--)
         ;
       if (pos == end)                           /* If empty string */
       {
-        row->empty_bits[rec->empty_pos]|= rec->empty_bit;
+        row->empty_bits[column->empty_pos]|= column->empty_bit;
         *null_field_lengths= 0;
       }
       else
       {
         uint length= (end - pos);
-        if (rec->length <= 255)
+        if (column->length <= 255)
           *field_length_data++= (byte) (uchar) length;
         else
         {
@@ -626,11 +697,11 @@ static void calc_record_size(MARIA_HA *info, const byte *record,
     case FIELD_VARCHAR:
     {
       uint length, field_length_data_length;
-      const byte *field_pos= record + rec->offset;
+      const byte *field_pos= record + column->offset;
       /* 256 is correct as this includes the length byte */
 
       field_length_data[0]= field_pos[0];
-      if (rec->length <= 256)
+      if (column->length <= 256)
       {
         length= (uint) (uchar) *field_pos;
         field_length_data_length= 1;
@@ -644,7 +715,7 @@ static void calc_record_size(MARIA_HA *info, const byte *record,
       *null_field_lengths= length;
       if (!length)
       {
-        row->empty_bits[rec->empty_pos]|= rec->empty_bit;          
+        row->empty_bits[column->empty_pos]|= column->empty_bit;          
         break;
       }
       row->varchar_length+= length;
@@ -654,13 +725,13 @@ static void calc_record_size(MARIA_HA *info, const byte *record,
     }
     case FIELD_BLOB:
     {
-      const byte *field_pos= record + rec->offset;
-      uint size_length= rec->length - maria_portable_sizeof_char_ptr;
+      const byte *field_pos= record + column->offset;
+      uint size_length= column->length - portable_sizeof_char_ptr;
       ulong blob_length= _ma_calc_blob_length(size_length, field_pos);
 
       *blob_lengths++= blob_length;
       if (!blob_length)
-        row->empty_bits[rec->empty_pos]|= rec->empty_bit;
+        row->empty_bits[column->empty_pos]|= column->empty_bit;
       else
       {
         row->blob_length+= blob_length;
@@ -709,7 +780,7 @@ static void calc_record_size(MARIA_HA *info, const byte *record,
 static void compact_page(byte *buff, uint block_size, uint rownr,
                          my_bool extend_block)
 {
-  uint max_entry= (uint) ((uchar *) buff)[DIR_ENTRY_OFFSET];
+  uint max_entry= (uint) ((uchar *) buff)[DIR_COUNT_OFFSET];
   uint page_pos, next_free_pos, start_of_found_block, diff, end_of_found_block;
   byte *dir, *end;
   DBUG_ENTER("compact_page");
@@ -875,7 +946,7 @@ static my_bool get_head_or_tail_page(MARIA_HA *info,
     bzero(buff+ PAGE_HEADER_SIZE, block_size - PAGE_HEADER_SIZE);
 
     buff[PAGE_TYPE_OFFSET]= (byte) page_type;
-    buff[DIR_ENTRY_OFFSET]= 1;
+    buff[DIR_COUNT_OFFSET]= 1;
     res->buff= buff;
     res->empty_space= res->length= (block_size - PAGE_OVERHEAD_SIZE);
     res->data= (buff + PAGE_HEADER_SIZE);
@@ -956,12 +1027,18 @@ static my_bool write_tail(MARIA_HA *info,
   DBUG_PRINT("enter", ("page: %lu  length: %u",
                        (ulong) block->page, length));
 
-  info->keybuff_used= 1;
+  info->keyread_buff_used= 1;
   if (get_head_or_tail_page(info, block, info->keyread_buff, length,
                             TAIL_PAGE, &row_pos))
     DBUG_RETURN(1);
 
   memcpy(row_pos.data, row_part, length);
+  /*
+    Don't allocate smaller block than MIN_TAIL_SIZE (we want to give rows
+    some place to grow in the future)
+  */
+  if (length < MIN_TAIL_SIZE)
+    length= MIN_TAIL_SIZE;
   int2store(row_pos.dir + 2, length);
   empty_space= row_pos.empty_space - length;
   int2store(row_pos.buff + EMPTY_SPACE_OFFSET, empty_space);
@@ -969,10 +1046,10 @@ static my_bool write_tail(MARIA_HA *info,
   /*
     If there is less directory entries free than number of possible tails
     we can write for a row, we mark the page full to ensure that we don't
-    during _ma_bitmap_find_place() allocate more entires on the tail page
+    during _ma_bitmap_find_place() allocate more entries on the tail page
     than it can hold
   */
-  block->empty_space= ((uint) ((uchar*) row_pos.buff)[DIR_ENTRY_OFFSET] <=
+  block->empty_space= ((uint) ((uchar*) row_pos.buff)[DIR_COUNT_OFFSET] <=
                        MAX_ROWS_PER_PAGE - 1 - info->s->base.blobs ?
                        empty_space : 0);
   block->used= BLOCKUSED_USED | BLOCKUSED_TAIL;
@@ -1015,7 +1092,7 @@ static my_bool write_full_pages(MARIA_HA *info,
                        (ulong) length, (ulong) block->page,
                        (ulong) block->page_count));
   
-  info->keybuff_used= 1;
+  info->keyread_buff_used= 1;
   page=       block->page;
   page_count= block->page_count;
 
@@ -1134,7 +1211,7 @@ static my_bool write_block_record(MARIA_HA *info, const byte *record,
   byte *page_buff;
   MARIA_BITMAP_BLOCK *block, *head_block;
   MARIA_SHARE *share;
-  MARIA_COLUMNDEF *rec, *end_field;
+  MARIA_COLUMNDEF *column, *end_column;
   uint block_size, flag;
   ulong *blob_lengths;
   my_off_t position;
@@ -1219,16 +1296,17 @@ static my_bool write_block_record(MARIA_HA *info, const byte *record,
   }
 
   /* Copy fields that has fixed lengths (primary key etc) */
-  for (rec= share->rec, end_field= rec + share->base.fixed_not_null_fields;
-       rec < end_field; rec++)
+  for (column= share->columndef,
+         end_column= column + share->base.fixed_not_null_fields;
+       column < end_column; column++)
   {
-    if (!tmp_data_used && tmp_data + rec->length > end_of_data)
+    if (!tmp_data_used && tmp_data + column->length > end_of_data)
     {
       tmp_data_used= tmp_data;
       tmp_data= info->rec_buff;
     }
-    memcpy(tmp_data, record + rec->offset, rec->length);
-    tmp_data+= rec->length;
+    memcpy(tmp_data, record + column->offset, column->length);
+    tmp_data+= column->length;
   }
 
   /* Copy length of data for variable length fields */
@@ -1242,26 +1320,26 @@ static my_bool write_block_record(MARIA_HA *info, const byte *record,
   tmp_data+= row->field_lengths_length;
 
   /* Copy variable length fields and fields with null/zero */
-  for (end_field= share->rec + share->base.fields - share->base.blobs;
-       rec < end_field ;
-       rec++)
+  for (end_column= share->columndef + share->base.fields - share->base.blobs;
+       column < end_column ;
+       column++)
   {
     const byte *field_pos;
     ulong length;
-    if ((record[rec->null_pos] & rec->null_bit) ||
-        (row->empty_bits[rec->empty_pos] & rec->empty_bit))
+    if ((record[column->null_pos] & column->null_bit) ||
+        (row->empty_bits[column->empty_pos] & column->empty_bit))
       continue;
 
-    field_pos= record + rec->offset;
-    switch ((enum en_fieldtype) rec->type) {
+    field_pos= record + column->offset;
+    switch ((enum en_fieldtype) column->type) {
     case FIELD_NORMAL:                          /* Fixed length field */
     case FIELD_SKIP_PRESPACE:
     case FIELD_SKIP_ZERO:                       /* Fixed length field */
-      length= rec->length;
+      length= column->length;
       break;
     case FIELD_SKIP_ENDSPACE:                   /* CHAR */
       /* Char that is space filled */
-      if (rec->length <= 255)
+      if (column->length <= 255)
         length= (uint) (uchar) *field_length_data++;
       else
       {
@@ -1270,7 +1348,7 @@ static my_bool write_block_record(MARIA_HA *info, const byte *record,
       }
       break;
     case FIELD_VARCHAR:
-      if (rec->length <= 256)
+      if (column->length <= 256)
       {
         length= (uint) (uchar) *field_length_data++;
         field_pos++;                            /* Skip length byte */
@@ -1298,21 +1376,21 @@ static my_bool write_block_record(MARIA_HA *info, const byte *record,
 
   block= head_block + head_block->sub_blocks;   /* Point to first blob data */
 
-  end_field= rec + share->base.blobs;
+  end_column= column + share->base.blobs;
   blob_lengths= row->blob_lengths;
   if (!tmp_data_used)
   {
     /* Still room on page; Copy as many blobs we can into this page */
     data= tmp_data;
-    for (; rec < end_field && *blob_lengths < (ulong) (end_of_data - data);
-         rec++, blob_lengths++)
+    for (; column < end_column && *blob_lengths < (ulong) (end_of_data - data);
+         column++, blob_lengths++)
     {
       byte *tmp_pos;
       uint length;
       if (!*blob_lengths)                       /* Null or "" */
         continue;
-      length= rec->length - maria_portable_sizeof_char_ptr;
-      memcpy_fixed((byte*) &tmp_pos, record + rec->offset + length,
+      length= column->length - portable_sizeof_char_ptr;
+      memcpy_fixed((byte*) &tmp_pos, record + column->offset + length,
                    sizeof(char*));
       memcpy(data, tmp_pos, *blob_lengths);
       data+= *blob_lengths;
@@ -1342,7 +1420,7 @@ static my_bool write_block_record(MARIA_HA *info, const byte *record,
     int2store(page_buff + EMPTY_SPACE_OFFSET, row_pos->empty_space);
     /* Mark in bitmaps how the current page was actually used */
     head_block->empty_space= row_pos->empty_space;
-    if (page_buff[DIR_ENTRY_OFFSET] == (char) MAX_ROWS_PER_PAGE)
+    if (page_buff[DIR_COUNT_OFFSET] == (char) MAX_ROWS_PER_PAGE)
       head_block->empty_space= 0;               /* Page is full */
     head_block->used= BLOCKUSED_USED;
   }
@@ -1362,14 +1440,14 @@ static my_bool write_block_record(MARIA_HA *info, const byte *record,
 
   if (row_extents_in_use)
   {
-    if (rec != end_field)                       /* If blob fields */
+    if (column != end_column)                   /* If blob fields */
     {
-      MARIA_COLUMNDEF    *save_rec=          rec;
+      MARIA_COLUMNDEF    *save_column=       column;
       MARIA_BITMAP_BLOCK *save_block=        block;
       MARIA_BITMAP_BLOCK *end_block;
       ulong              *save_blob_lengths= blob_lengths;
 
-      for (; rec < end_field; rec++, blob_lengths++)
+      for (; column < end_column; column++, blob_lengths++)
       {
         byte *blob_pos;
         if (!*blob_lengths)                     /* Null or "" */
@@ -1377,8 +1455,8 @@ static my_bool write_block_record(MARIA_HA *info, const byte *record,
         if (block[block->sub_blocks - 1].used & BLOCKUSED_TAIL)
         {
           uint length;
-          length= rec->length - maria_portable_sizeof_char_ptr;
-          memcpy_fixed((byte *) &blob_pos, record + rec->offset + length,
+          length= column->length - portable_sizeof_char_ptr;
+          memcpy_fixed((byte *) &blob_pos, record + column->offset + length,
                        sizeof(char*));
           length= *blob_lengths % FULL_PAGE_SIZE(block_size);   /* tail size */
           if (write_tail(info, block + block->sub_blocks-1,
@@ -1395,7 +1473,7 @@ static my_bool write_block_record(MARIA_HA *info, const byte *record,
           block->used|= BLOCKUSED_USED;
         }
       }
-      rec= save_rec;
+      column= save_column;
       block= save_block;
       blob_lengths= save_blob_lengths;
     }
@@ -1593,15 +1671,15 @@ static my_bool write_block_record(MARIA_HA *info, const byte *record,
   }
 
   /* Write rest of blobs (data, but no tails as they are already written) */
-  for (; rec < end_field; rec++, blob_lengths++)
+  for (; column < end_column; column++, blob_lengths++)
   {
     byte *blob_pos;
     uint length;
     ulong blob_length;
     if (!*blob_lengths)                         /* Null or "" */
       continue;
-    length= rec->length - maria_portable_sizeof_char_ptr;
-    memcpy_fixed((byte*) &blob_pos, record + rec->offset + length,
+    length= column->length - portable_sizeof_char_ptr;
+    memcpy_fixed((byte*) &blob_pos, record + column->offset + length,
                  sizeof(char*));
     /* remove tail part */
     blob_length= *blob_lengths;
@@ -1705,7 +1783,7 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
 
   if (delete_head_or_tail(info,
                           ma_recordpos_to_page(info->cur_row.lastpos),
-                          ma_recordpos_to_offset(info->cur_row.lastpos), 1))
+                          ma_recordpos_to_dir_entry(info->cur_row.lastpos), 1))
     res= 1;
   for (block= blocks->block + 1, end= block + blocks->count - 1; block < end;
        block++)
@@ -1764,7 +1842,7 @@ my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS record_pos,
                              info->buff, block_size, block_size, 0)))
     DBUG_RETURN(1);
   org_empty_size= uint2korr(buff + EMPTY_SPACE_OFFSET);
-  rownr= ma_recordpos_to_offset(record_pos);
+  rownr= ma_recordpos_to_dir_entry(record_pos);
   dir= (buff + block_size - DIR_ENTRY_SIZE * rownr -
         DIR_ENTRY_SIZE - PAGE_SUFFIX_SIZE);
 
@@ -1785,8 +1863,8 @@ my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS record_pos,
     if (new_row->total_length > length)
     {
       /* See if there is empty space after */
-      if (rownr != (uint) ((uchar *) buff)[DIR_ENTRY_OFFSET] - 1)
-        empty= empty_pos_after_row(dir) - (offset + length);
+      if (rownr != (uint) ((uchar *) buff)[DIR_COUNT_OFFSET] - 1)
+        empty= start_of_next_entry(dir) - (offset + length);
       if (new_row->total_length > length + empty)
       {
         compact_page(buff, info->s->block_size, rownr, 1);
@@ -1876,14 +1954,14 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
   my_off_t position;
   DBUG_ENTER("delete_head_or_tail");
 
-  info->keybuff_used= 1;
+  info->keyread_buff_used= 1;
   if (!(buff= key_cache_read(share->key_cache,
                              info->dfile, page * block_size, 0,
                              info->keyread_buff,
                              block_size, block_size, 0)))
     DBUG_RETURN(1);
 
-  number_of_records= (uint) ((uchar *) buff)[DIR_ENTRY_OFFSET];
+  number_of_records= (uint) ((uchar *) buff)[DIR_COUNT_OFFSET];
 #ifdef SANITY_CHECKS
   if (record_number >= number_of_records ||
       record_number > ((block_size - LSN_SIZE - PAGE_TYPE_SIZE - 1 -
@@ -1911,7 +1989,7 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
       dir+= DIR_ENTRY_SIZE;
       empty_space+= DIR_ENTRY_SIZE;
     } while (dir < end && dir[0] == 0 && dir[1] == 0);
-    buff[DIR_ENTRY_OFFSET]= (byte) (uchar) number_of_records;
+    buff[DIR_COUNT_OFFSET]= (byte) (uchar) number_of_records;
   }
   empty_space+= length;
   if (number_of_records != 0)
@@ -1957,7 +2035,7 @@ static my_bool delete_tails(MARIA_HA *info, MARIA_RECORD_POS *tails)
   {
     if (delete_head_or_tail(info,
                             ma_recordpos_to_page(*tails),
-                            ma_recordpos_to_offset(*tails), 0))
+                            ma_recordpos_to_dir_entry(*tails), 0))
       res= 1;
   }
   DBUG_RETURN(res);
@@ -1978,7 +2056,7 @@ my_bool _ma_delete_block_record(MARIA_HA *info)
   DBUG_ENTER("_ma_delete_block_record");
   if (delete_head_or_tail(info,
                           ma_recordpos_to_page(info->cur_row.lastpos),
-                          ma_recordpos_to_offset(info->cur_row.lastpos),
+                          ma_recordpos_to_dir_entry(info->cur_row.lastpos),
                           1) ||
       delete_tails(info, info->cur_row.tail_positions))
     DBUG_RETURN(1);
@@ -2011,7 +2089,7 @@ my_bool _ma_delete_block_record(MARIA_HA *info)
 static byte *get_record_position(byte *buff, uint block_size,
                                  uint record_number, byte **end_of_data)
 {
-  uint number_of_records= (uint) ((uchar *) buff)[DIR_ENTRY_OFFSET];
+  uint number_of_records= (uint) ((uchar *) buff)[DIR_COUNT_OFFSET];
   byte *dir;
   byte *data;
   uint offset, length;
@@ -2254,7 +2332,7 @@ int _ma_read_block_record2(MARIA_HA *info, byte *record,
   uint flag, null_bytes, cur_null_bytes, row_extents, field_lengths;
   my_bool found_blob= 0;
   MARIA_EXTENT_CURSOR extent;
-  MARIA_COLUMNDEF *rec, *end_field;
+  MARIA_COLUMNDEF *column, *end_column;
   DBUG_ENTER("_ma_read_block_record2");
 
   LINT_INIT(field_lengths);
@@ -2347,15 +2425,16 @@ int _ma_read_block_record2(MARIA_HA *info, byte *record,
     Data now points to start of fixed length field data that can't be null
     or 'empty'. Note that these fields can't be split over blocks
   */
-  for (rec= share->rec, end_field= rec + share->base.fixed_not_null_fields;
-       rec < end_field; rec++)
+  for (column= share->columndef,
+         end_column= column + share->base.fixed_not_null_fields;
+       column < end_column; column++)
   {
-    uint rec_length= rec->length;
+    uint column_length= column->length;
     if (data >= end_of_data &&
         !(data= read_next_extent(info, &extent, &end_of_data)))
       goto err;
-    memcpy(record + rec->offset, data, rec_length);
-    data+= rec_length;
+    memcpy(record + column->offset, data, column_length);
+    data+= column_length;
   }
 
   /* Read array of field lengths. This may be stored in several extents */
@@ -2368,18 +2447,19 @@ int _ma_read_block_record2(MARIA_HA *info, byte *record,
   }
 
   /* Read variable length data. Each of these may be split over many extents */
-  for (end_field= share->rec + share->base.fields; rec < end_field; rec++)
+  for (end_column= share->columndef + share->base.fields;
+       column < end_column; column++)
   {
-    enum en_fieldtype type= (enum en_fieldtype) rec->type;
-    byte *field_pos= record + rec->offset;
+    enum en_fieldtype type= (enum en_fieldtype) column->type;
+    byte *field_pos= record + column->offset;
     /* First check if field is present in record */
-    if ((record[rec->null_pos] & rec->null_bit) ||
-        (info->cur_row.empty_bits[rec->empty_pos] & rec->empty_bit))
+    if ((record[column->null_pos] & column->null_bit) ||
+        (info->cur_row.empty_bits[column->empty_pos] & column->empty_bit))
     {
       if (type == FIELD_SKIP_ENDSPACE)
-        bfill(record + rec->offset, rec->length, ' ');
+        bfill(record + column->offset, column->length, ' ');
       else
-        bzero(record + rec->offset, rec->fill_length);
+        bzero(record + column->offset, column->fill_length);
       continue;
     }
     switch (type) {
@@ -2389,14 +2469,14 @@ int _ma_read_block_record2(MARIA_HA *info, byte *record,
       if (data >= end_of_data &&
           !(data= read_next_extent(info, &extent, &end_of_data)))
         goto err;
-      memcpy(field_pos, data, rec->length);
-      data+= rec->length;
+      memcpy(field_pos, data, column->length);
+      data+= column->length;
       break;
     case FIELD_SKIP_ENDSPACE:                   /* CHAR */
     {
       /* Char that is space filled */
       uint length;
-      if (rec->length <= 255)
+      if (column->length <= 255)
         length= (uint) (uchar) *field_length_data++;
       else
       {
@@ -2404,19 +2484,19 @@ int _ma_read_block_record2(MARIA_HA *info, byte *record,
         field_length_data+= 2;
       }
 #ifdef SANITY_CHECKS
-      if (length > rec->length)
+      if (length > column->length)
         goto err;
 #endif
       if (read_long_data(info, field_pos, length, &extent, &data,
                          &end_of_data))
         DBUG_RETURN(my_errno);
-      bfill(field_pos + length, rec->length - length, ' ');
+      bfill(field_pos + length, column->length - length, ' ');
       break;
     }
     case FIELD_VARCHAR:
     {
       ulong length;
-      if (rec->length <= 256)
+      if (column->length <= 256)
       {
         length= (uint) (uchar) (*field_pos++= *field_length_data++);
       }
@@ -2435,7 +2515,7 @@ int _ma_read_block_record2(MARIA_HA *info, byte *record,
     }
     case FIELD_BLOB:
     {
-      uint size_length= rec->length - maria_portable_sizeof_char_ptr;
+      uint size_length= column->length - portable_sizeof_char_ptr;
       ulong blob_length= _ma_calc_blob_length(size_length, field_length_data);
 
       if (!found_blob)
@@ -2443,17 +2523,17 @@ int _ma_read_block_record2(MARIA_HA *info, byte *record,
         /* Calculate total length for all blobs */
         ulong blob_lengths= 0;
         byte *length_data= field_length_data;
-        MARIA_COLUMNDEF *blob_field= rec;
+        MARIA_COLUMNDEF *blob_field= column;
 
         found_blob= 1;
-        for (; blob_field < end_field; blob_field++)
+        for (; blob_field < end_column; blob_field++)
         {
           uint size_length;
           if ((record[blob_field->null_pos] & blob_field->null_bit) ||
               (info->cur_row.empty_bits[blob_field->empty_pos] &
                blob_field->empty_bit))
             continue;
-          size_length= blob_field->length - maria_portable_sizeof_char_ptr;
+          size_length= blob_field->length - portable_sizeof_char_ptr;
           blob_lengths+= _ma_calc_blob_length(size_length, length_data);
           length_data+= size_length;
         }
@@ -2547,7 +2627,7 @@ int _ma_read_block_record(MARIA_HA *info, byte *record,
 
   info->cur_row.lastpos= record_pos;
   page=   ma_recordpos_to_page(record_pos) * block_size;
-  offset= ma_recordpos_to_offset(record_pos);
+  offset= ma_recordpos_to_dir_entry(record_pos);
   
   if (!(buff= key_cache_read(info->s->key_cache,
                              info->dfile, page, 0, info->buff,
@@ -2754,7 +2834,7 @@ restart_bitmap_scan:
           if (((info->scan.page_buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) !=
                HEAD_PAGE) ||
               (info->scan.number_of_rows=
-               (uint) (uchar) info->scan.page_buff[DIR_ENTRY_OFFSET]) == 0)
+               (uint) (uchar) info->scan.page_buff[DIR_COUNT_OFFSET]) == 0)
           {
             DBUG_PRINT("error", ("Wrong page header"));
             DBUG_RETURN((my_errno= HA_ERR_WRONG_IN_RECORD));
@@ -2818,7 +2898,7 @@ my_bool _ma_compare_block_record(MARIA_HA *info __attribute__ ((unused)),
 
 static void _ma_print_directory(byte *buff, uint block_size)
 {
-  uint max_entry= (uint) ((uchar *) buff)[DIR_ENTRY_OFFSET], row= 0;
+  uint max_entry= (uint) ((uchar *) buff)[DIR_COUNT_OFFSET], row= 0;
   uint end_of_prev_row= PAGE_HEADER_SIZE;
   byte *dir, *end;
 

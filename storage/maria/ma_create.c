@@ -35,9 +35,9 @@ static int compare_columns(MARIA_COLUMNDEF **a, MARIA_COLUMNDEF **b);
   Old options is used when recreating database, from maria_chk
 */
 
-int maria_create(const char *name, enum data_file_type record_type,
+int maria_create(const char *name, enum data_file_type datafile_type,
                  uint keys,MARIA_KEYDEF *keydefs,
-                 uint columns, MARIA_COLUMNDEF *recinfo,
+                 uint columns, MARIA_COLUMNDEF *columndef,
                  uint uniques, MARIA_UNIQUEDEF *uniquedefs,
                  MARIA_CREATE_INFO *ci,uint flags)
 {
@@ -55,12 +55,12 @@ int maria_create(const char *name, enum data_file_type record_type,
   ulong pack_reclength;
   ulonglong tot_length,max_rows, tmp;
   enum en_fieldtype type;
-  enum data_file_type org_record_type= record_type;
+  enum data_file_type org_datafile_type= datafile_type;
   MARIA_SHARE share;
   MARIA_KEYDEF *keydef,tmp_keydef;
   MARIA_UNIQUEDEF *uniquedef;
   HA_KEYSEG *keyseg,tmp_keyseg;
-  MARIA_COLUMNDEF *rec, *rec_end;
+  MARIA_COLUMNDEF *column, *end_column;
   ulong *rec_per_key_part;
   my_off_t key_root[HA_MAX_POSSIBLE_KEY];
   MARIA_CREATE_INFO tmp_create_info;
@@ -70,6 +70,7 @@ int maria_create(const char *name, enum data_file_type record_type,
   DBUG_PRINT("enter", ("keys: %u  columns: %u  uniques: %u  flags: %u",
                       keys, columns, uniques, flags));
 
+  DBUG_ASSERT(maria_block_size && maria_block_size % IO_SIZE == 0);
   LINT_INIT(dfile);
   LINT_INIT(file);
 
@@ -89,7 +90,7 @@ int maria_create(const char *name, enum data_file_type record_type,
 
   if (flags & HA_DONT_TOUCH_DATA)
   {
-    org_record_type= ci->org_data_file_type;
+    org_datafile_type= ci->org_data_file_type;
     if (!(ci->old_options & HA_OPTION_TEMP_COMPRESS_RECORD))
       options=ci->old_options &
 	(HA_OPTION_COMPRESS_RECORD | HA_OPTION_PACK_RECORD |
@@ -117,83 +118,85 @@ int maria_create(const char *name, enum data_file_type record_type,
     pack_reclength= max_field_lengths= 0;
   reclength= min_pack_length= ci->null_bytes;
 
-  for (rec= recinfo, rec_end= rec + columns ; rec != rec_end ; rec++)
+  for (column= columndef, end_column= column + columns ;
+       column != end_column ;
+       column++)
   {
     /* Fill in not used struct parts */
-    rec->offset= reclength;
-    rec->empty_pos= 0;
-    rec->empty_bit= 0;
-    rec->fill_length= rec->length;
+    column->offset= reclength;
+    column->empty_pos= 0;
+    column->empty_bit= 0;
+    column->fill_length= column->length;
 
-    reclength+= rec->length;
-    type= rec->type;
-    if (type == FIELD_SKIP_PRESPACE && record_type == BLOCK_RECORD)
+    reclength+= column->length;
+    type= column->type;
+    if (type == FIELD_SKIP_PRESPACE && datafile_type == BLOCK_RECORD)
       type= FIELD_NORMAL;                /* SKIP_PRESPACE not supported */
 
     if (type != FIELD_NORMAL && type != FIELD_CHECK)
     {
-      rec->empty_pos= packed/8;
-      rec->empty_bit= (1 << (packed & 7));
+      column->empty_pos= packed/8;
+      column->empty_bit= (1 << (packed & 7));
       if (type == FIELD_BLOB)
       {
         packed++;
 	share.base.blobs++;
 	if (pack_reclength != INT_MAX32)
 	{
-	  if (rec->length == 4+maria_portable_sizeof_char_ptr)
+	  if (column->length == 4+portable_sizeof_char_ptr)
 	    pack_reclength= INT_MAX32;
 	  else
           {
             /* Add max possible blob length */
-	    pack_reclength+= (1 << ((rec->length-
-                                     maria_portable_sizeof_char_ptr)*8));
+	    pack_reclength+= (1 << ((column->length-
+                                     portable_sizeof_char_ptr)*8));
           }
 	}
-        max_field_lengths+= (rec->length - maria_portable_sizeof_char_ptr);
+        max_field_lengths+= (column->length - portable_sizeof_char_ptr);
       }
       else if (type == FIELD_SKIP_PRESPACE ||
 	       type == FIELD_SKIP_ENDSPACE)
       {
-        max_field_lengths+= rec->length > 255 ? 2 : 1;
-        if (record_type != BLOCK_RECORD)
+        max_field_lengths+= column->length > 255 ? 2 : 1;
+        if (datafile_type != BLOCK_RECORD)
           min_pack_length++;
         packed++;
       }
       else if (type == FIELD_VARCHAR)
       {
-	varchar_length+= rec->length-1;          /* Used for min_pack_length */
+	varchar_length+= column->length-1; /* Used for min_pack_length */
 	pack_reclength++;
-        if (record_type != BLOCK_RECORD)
+        if (datafile_type != BLOCK_RECORD)
           min_pack_length++;
         max_field_lengths++;
         packed++;
-        rec->fill_length= 1;
+        column->fill_length= 1;
         /* We must test for 257 as length includes pack-length */
-        if (test(rec->length >= 257))
+        if (test(column->length >= 257))
 	{
 	  long_varchar_count++;
           max_field_lengths++;
-          rec->fill_length= 2;
+          column->fill_length= 2;
 	}
       }
       else if (type == FIELD_SKIP_ZERO)
         packed++;
       else
       {
-        if (record_type != BLOCK_RECORD || !rec->null_bit)
-          min_pack_length+= rec->length;
-        rec->empty_pos= 0;
-        rec->empty_bit= 0;
+        if (datafile_type != BLOCK_RECORD || !column->null_bit)
+          min_pack_length+= column->length;
+        column->empty_pos= 0;
+        column->empty_bit= 0;
       }
     }
     else					/* FIELD_NORMAL */
     {
-      if (record_type != BLOCK_RECORD || !rec->null_bit)
-        min_pack_length+= rec->length;
-      if (!rec->null_bit)
+      if (datafile_type != BLOCK_RECORD || !column->null_bit)
+        min_pack_length+= column->length;
+      if (!column->null_bit)
       {
         share.base.fixed_not_null_fields++;
-        share.base.fixed_not_null_fields_length+= rec->length;
+        share.base.fixed_not_null_fields_length+= column->length;
       }
     }
   }
@@ -203,14 +206,14 @@ int maria_create(const char *name, enum data_file_type record_type,
       Not optimal packing, try to remove a 1 byte length zero-field as
       this will get same record length, but smaller pack overhead
     */
-    while (rec != recinfo)
+    while (column != columndef)
     {
-      rec--;
-      if (rec->type == (int) FIELD_SKIP_ZERO && rec->length == 1)
+      column--;
+      if (column->type == (int) FIELD_SKIP_ZERO && column->length == 1)
       {
-	rec->type=(int) FIELD_NORMAL;
-        rec->empty_pos= 0;
-        rec->empty_bit= 0;
+	column->type=(int) FIELD_NORMAL;
+        column->empty_pos= 0;
+        column->empty_bit= 0;
 	packed--;
 	min_pack_length++;
 	break;
@@ -226,12 +229,12 @@ int maria_create(const char *name, enum data_file_type record_type,
   if (pack_reclength != INT_MAX32)
     pack_reclength+= max_field_lengths + long_varchar_count;
 
-  if (packed && record_type == STATIC_RECORD)
-    record_type= BLOCK_RECORD;
-  if (record_type == DYNAMIC_RECORD)
+  if (packed && datafile_type == STATIC_RECORD)
+    datafile_type= BLOCK_RECORD;
+  if (datafile_type == DYNAMIC_RECORD)
     options|= HA_OPTION_PACK_RECORD;	/* Must use packed records */
 
-  if (record_type == STATIC_RECORD)
+  if (datafile_type == STATIC_RECORD)
   {
     /* We can't use checksum with static length rows */
     flags&= ~HA_CREATE_CHECKSUM;
@@ -275,24 +278,24 @@ int maria_create(const char *name, enum data_file_type record_type,
   }
   else if (!ci->max_rows)
   {
-    if (record_type == BLOCK_RECORD)
+    if (datafile_type == BLOCK_RECORD)
     {
       uint rows_per_page= ((maria_block_size - PAGE_OVERHEAD_SIZE) /
                            (min_pack_length + extra_header_size +
                             DIR_ENTRY_SIZE));
       ulonglong data_file_length= ci->data_file_length;
-      if (data_file_length)
+      if (!data_file_length)
         data_file_length= ((((ulonglong) 1 << ((BLOCK_RECORD_POINTER_SIZE-1) *
                                                8)) -1));
       if (rows_per_page > 0)
       {
         set_if_smaller(rows_per_page, MAX_ROWS_PER_PAGE);
-        ci->max_rows= ci->data_file_length / maria_block_size * rows_per_page;
+        ci->max_rows= data_file_length / maria_block_size * rows_per_page;
       }
       else
-        ci->max_rows= ci->data_file_length / (min_pack_length +
-                                              extra_header_size +
-                                              DIR_ENTRY_SIZE);
+        ci->max_rows= data_file_length / (min_pack_length +
+                                          extra_header_size +
+                                          DIR_ENTRY_SIZE);
     }
     else
       ci->max_rows=(ha_rows) (ci->data_file_length/(min_pack_length +
@@ -301,7 +304,7 @@ int maria_create(const char *name, enum data_file_type record_type,
                                                      3 : 0)));
   }
   max_rows= (ulonglong) ci->max_rows;
-  if (record_type == BLOCK_RECORD)
+  if (datafile_type == BLOCK_RECORD)
   {
     /* The + 1 is for record position withing page */
     pointer= maria_get_pointer_length((ci->data_file_length /
@@ -314,7 +317,7 @@ int maria_create(const char *name, enum data_file_type record_type,
   }
   else
   {
-    if (record_type != STATIC_RECORD)
+    if (datafile_type != STATIC_RECORD)
       pointer= maria_get_pointer_length(ci->data_file_length,
                                         maria_data_pointer_size);
     else
@@ -324,7 +327,7 @@ int maria_create(const char *name, enum data_file_type record_type,
   }
 
   real_reclength=reclength;
-  if (record_type == STATIC_RECORD)
+  if (datafile_type == STATIC_RECORD)
   {
     if (reclength <= pointer)
       reclength=pointer+1;		/* reserve place for delete link */
@@ -533,7 +536,12 @@ int maria_create(const char *name, enum data_file_type record_type,
 	key_segs)
       share.state.rec_per_key_part[key_segs-1]=1L;
     length+=key_length;
-    if (length >= HA_MAX_KEY_BUFF)
+    /*
+      A key can't be longer than than half a index block (as we have
+      to be able to put at least 2 keys on an index block for the key
+      algorithms to work).
+    */
+    if (length > maria_max_key_length())
     {
       my_errno=HA_WRONG_CREATE_OPTION;
       goto err_no_lock;
@@ -592,8 +600,8 @@ int maria_create(const char *name, enum data_file_type record_type,
   mi_int2store(share.state.header.state_info_length,MARIA_STATE_INFO_SIZE);
   mi_int2store(share.state.header.base_info_length,MARIA_BASE_INFO_SIZE);
   mi_int2store(share.state.header.base_pos,base_pos);
-  share.state.header.data_file_type= record_type;
-  share.state.header.org_data_file_type= org_record_type;
+  share.state.header.data_file_type= datafile_type;
+  share.state.header.org_data_file_type= org_datafile_type;
   share.state.header.language= (ci->language ?
 				ci->language : default_charset_info->number);
 
@@ -653,7 +661,7 @@ int maria_create(const char *name, enum data_file_type record_type,
     share.base.max_data_file_length= (my_off_t) ci->data_file_length;
   }
 
-  if (record_type == BLOCK_RECORD)
+  if (datafile_type == BLOCK_RECORD)
     share.base.min_block_length= share.base.min_row_length;
   else
   {
@@ -869,21 +877,23 @@ int maria_create(const char *name, enum data_file_type record_type,
     }
   }
   DBUG_PRINT("info", ("write field definitions"));
-  if (record_type == BLOCK_RECORD)
+  if (datafile_type == BLOCK_RECORD)
   {
     /* Store columns in a more efficent order */
     MARIA_COLUMNDEF **col_order, **pos;
     if (!(col_order= (MARIA_COLUMNDEF**) my_malloc(share.base.fields *
-                                             sizeof(MARIA_COLUMNDEF*),
-                                             MYF(MY_WME))))
+                                                   sizeof(MARIA_COLUMNDEF*),
+                                                   MYF(MY_WME))))
       goto err;
-    for (rec= recinfo, pos= col_order ; rec != rec_end ; rec++, pos++)
-      *pos= rec;
+    for (column= columndef, pos= col_order ;
+         column != end_column ;
+         column++, pos++)
+      *pos= column;
     qsort(col_order, share.base.fields, sizeof(*col_order),
           (qsort_cmp) compare_columns);
     for (i=0 ; i < share.base.fields ; i++)
     {
-      if (_ma_recinfo_write(file, col_order[i]))
+      if (_ma_columndef_write(file, col_order[i]))
       {
         my_free((gptr) col_order, MYF(0));
         goto err;
@@ -894,7 +904,7 @@ int maria_create(const char *name, enum data_file_type record_type,
   else
   {
     for (i=0 ; i < share.base.fields ; i++)
-      if (_ma_recinfo_write(file, &recinfo[i]))
+      if (_ma_columndef_write(file, &columndef[i]))
         goto err;
   }
 
@@ -1026,9 +1036,9 @@ static int compare_columns(MARIA_COLUMNDEF **a_ptr, MARIA_COLUMNDEF **b_ptr)
   MARIA_COLUMNDEF *a= *a_ptr, *b= *b_ptr;
   enum en_fieldtype a_type, b_type;
 
-  a_type= (a->type == FIELD_NORMAL || a->type == FIELD_CHECK ?
+  a_type= ((a->type == FIELD_NORMAL || a->type == FIELD_CHECK) ?
            FIELD_NORMAL : a->type);
-  b_type= (b->type == FIELD_NORMAL || b->type == FIELD_CHECK ?
+  b_type= ((b->type == FIELD_NORMAL || b->type == FIELD_CHECK) ?
            FIELD_NORMAL : b->type);
 
   if (a_type == FIELD_NORMAL && !a->null_bit)
@@ -1059,15 +1069,8 @@ int _ma_initialize_data_file(File dfile, MARIA_SHARE *share)
 {
   if (share->data_file_type == BLOCK_RECORD)
   {
-    /* Write one bitmap page */
-    byte buff[IO_SIZE];
-    uint i;
-    bzero((char*) buff, sizeof(buff));
-    if (my_seek(dfile, 0, SEEK_SET, 0))
+    if (my_chsize(dfile, maria_block_size, 0, MYF(MY_WME)))
       return 1;
-    for (i= 0 ; i < maria_block_size ; i+= IO_SIZE)
-      if (my_write(dfile, buff, sizeof(buff), MYF(MY_NABP)))
-        return 1;
     share->state.state.data_file_length= maria_block_size;
     _ma_bitmap_delete_all(share);
   }

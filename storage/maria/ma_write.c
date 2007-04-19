@@ -356,7 +356,7 @@ int _ma_enlarge_root(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *key,
 				(byte*) 0, (byte*) 0, key,&s_temp);
   maria_putint(info->buff,t_length+2+nod_flag,nod_flag);
   (*keyinfo->store_key)(keyinfo,info->buff+2+nod_flag,&s_temp);
-  info->keybuff_used=info->page_changed=1;		/* info->buff is used */
+  info->keyread_buff_used=info->page_changed=1;		/* info->buff is used */
   if ((*root= _ma_new(info,keyinfo,DFLT_INIT_HITS)) == HA_OFFSET_ERROR ||
       _ma_write_keypage(info,keyinfo,*root,DFLT_INIT_HITS,info->buff))
     DBUG_RETURN(-1);
@@ -634,7 +634,7 @@ int _ma_split_page(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 
   if (info->s->keyinfo+info->lastinx == keyinfo)
     info->page_changed=1;			/* Info->buff is used */
-  info->keybuff_used=1;
+  info->keyread_buff_used=1;
   nod_flag=_ma_test_if_nod(buff);
   key_ref_length=2+nod_flag;
   if (insert_last_key)

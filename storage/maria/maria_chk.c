@@ -50,8 +50,8 @@ static const char *type_names[]=
   "impossible","char","binary", "short", "long", "float",
   "double","number","unsigned short",
   "unsigned long","longlong","ulonglong","int24",
-  "uint24","int8","varchar", "varbin","?",
-  "?"
+  "uint24","int8","varchar", "varbin", "varchar2", "varbin2", "bit",
+  "?","?"
 };
 
 static const char *prefix_packed_txt="packed ",
@@ -1224,7 +1224,7 @@ end2:
 
 static void descript(HA_CHECK *param, register MARIA_HA *info, my_string name)
 {
-  uint key,keyseg_nr,field,start;
+  uint key,keyseg_nr,field;
   reg3 MARIA_KEYDEF *keyinfo;
   reg2 HA_KEYSEG *keyseg;
   reg4 const char *text;
@@ -1430,43 +1430,42 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, my_string name)
     for (field=0 ; field < share->base.fields ; field++)
     {
       if (share->options & HA_OPTION_COMPRESS_RECORD)
-	type=share->rec[field].base_type;
+	type=share->columndef[field].base_type;
       else
-	type=(enum en_fieldtype) share->rec[field].type;
+	type=(enum en_fieldtype) share->columndef[field].type;
       end=strmov(buff,field_pack[type]);
       if (share->options & HA_OPTION_COMPRESS_RECORD)
       {
-	if (share->rec[field].pack_type & PACK_TYPE_SELECTED)
+	if (share->columndef[field].pack_type & PACK_TYPE_SELECTED)
 	  end=strmov(end,", not_always");
-	if (share->rec[field].pack_type & PACK_TYPE_SPACE_FIELDS)
+	if (share->columndef[field].pack_type & PACK_TYPE_SPACE_FIELDS)
 	  end=strmov(end,", no empty");
-	if (share->rec[field].pack_type & PACK_TYPE_ZERO_FILL)
+	if (share->columndef[field].pack_type & PACK_TYPE_ZERO_FILL)
 	{
-	  sprintf(end,", zerofill(%d)",share->rec[field].space_length_bits);
+	  sprintf(end,", zerofill(%d)",share->columndef[field].space_length_bits);
 	  end=strend(end);
 	}
       }
       if (buff[0] == ',')
 	strmov(buff,buff+2);
-      int10_to_str((long) share->rec[field].length,length,10);
+      int10_to_str((long) share->columndef[field].length,length,10);
       null_bit[0]=null_pos[0]=0;
-      if (share->rec[field].null_bit)
+      if (share->columndef[field].null_bit)
       {
-	sprintf(null_bit,"%d",share->rec[field].null_bit);
-	sprintf(null_pos,"%d",share->rec[field].null_pos+1);
+	sprintf(null_bit,"%d",share->columndef[field].null_bit);
+	sprintf(null_pos,"%d",share->columndef[field].null_pos+1);
       }
       printf("%-6d%-6u%-7s%-8s%-8s%-35s",field+1,
-             (uint) share->rec[field].offset+1,
+             (uint) share->columndef[field].offset+1,
              length, null_pos, null_bit, buff);
       if (share->options & HA_OPTION_COMPRESS_RECORD)
       {
-	if (share->rec[field].huff_tree)
+	if (share->columndef[field].huff_tree)
 	  printf("%3d    %2d",
-		 (uint) (share->rec[field].huff_tree-share->decode_trees)+1,
-		 share->rec[field].huff_tree->quick_table_bits);
+		 (uint) (share->columndef[field].huff_tree-share->decode_trees)+1,
+		 share->columndef[field].huff_tree->quick_table_bits);
       }
       VOID(putchar('\n'));
-      start+=share->rec[field].length;
     }
   }
   DBUG_VOID_RETURN;
@@ -1556,8 +1555,9 @@ static int maria_sort_records(HA_CHECK *param,
   fn_format(param->temp_filename,name,"", MARIA_NAME_DEXT,2+4+32);
   new_file= my_create(fn_format(param->temp_filename,
                                 param->temp_filename,"",
-                                DATA_TMP_EXT,2+4),
-                      0,param->tmpfile_createflag,
+                                DATA_TMP_EXT,
+                                MY_REPLACE_EXT | MY_UNPACK_FILENAME),
+                      0, param->tmpfile_createflag,
                       MYF(0));
   if (new_file < 0)
   {
