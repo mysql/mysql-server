@@ -1274,7 +1274,12 @@ public:
   }
   int reset(void) { bzero(ptr, packlength+sizeof(char*)); return 0; }
   void reset_fields() { bzero((char*) &value,sizeof(value)); }
-  void store_length(uint32 number);
+  static void store_length(char *ptr, uint packlength, uint32 number);
+  inline void store_length(uint32 number)
+  {
+    store_length(ptr, packlength, number);
+  }
+
   inline uint32 get_length(uint row_offset=0)
   { return get_length(ptr+row_offset); }
   uint32 get_length(const char *ptr);
@@ -1292,11 +1297,17 @@ public:
       memcpy(ptr,length,packlength);
       memcpy_fixed(ptr+packlength,&data,sizeof(char*));
     }
+  void set_ptr_offset(my_ptrdiff_t ptr_diff, uint32 length,char *data)
+    {
+      char *ptr_ofs= ADD_TO_PTR(ptr,ptr_diff,char*);
+      store_length(ptr_ofs, packlength, length);
+      memcpy_fixed(ptr_ofs+packlength,&data,sizeof(char*));
+    }
   inline void set_ptr(uint32 length,char *data)
     {
-      store_length(length);
-      memcpy_fixed(ptr+packlength,&data,sizeof(char*));
+      set_ptr_offset(0, length, data);
     }
+
   void get_key_image(char *buff,uint length, imagetype type);
   void set_key_image(char *buff,uint length);
   void sql_type(String &str) const;

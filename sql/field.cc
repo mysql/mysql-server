@@ -6969,7 +6969,7 @@ Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 }
 
 
-void Field_blob::store_length(uint32 number)
+void Field_blob::store_length(char *ptr, uint packlength, uint32 number)
 {
   switch (packlength) {
   case 1:
