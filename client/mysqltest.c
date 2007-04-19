@@ -52,14 +52,6 @@
 #include <sys/wait.h>
 #endif
 
-#ifndef WEXITSTATUS
-# ifdef __WIN__
-#  define WEXITSTATUS(stat_val) (stat_val)
-# else
-#  define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
-# endif
-#endif
-
 /* Use cygwin for --exec and --system before 5.0 */
 #if MYSQL_VERSION_ID < 50000
 #define USE_CYGWIN
@@ -81,11 +73,9 @@
  };
 
 enum {
-  OPT_SKIP_SAFEMALLOC=256, OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT,
-  OPT_SSL_CA, OPT_SSL_CAPATH, OPT_SSL_CIPHER, OPT_PS_PROTOCOL,
-  OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
-  OPT_SSL_VERIFY_SERVER_CERT, OPT_MAX_CONNECT_RETRIES,
-  OPT_MARK_PROGRESS, OPT_CHARSETS_DIR, OPT_LOG_DIR
+  OPT_SKIP_SAFEMALLOC=OPT_MAX_CLIENT_OPTION,
+  OPT_PS_PROTOCOL, OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
+  OPT_MAX_CONNECT_RETRIES, OPT_MARK_PROGRESS, OPT_LOG_DIR
 };
 
 static int record= 0, opt_sleep= -1;
