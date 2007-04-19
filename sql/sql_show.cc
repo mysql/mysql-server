@@ -2314,18 +2314,32 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             res= open_normal_and_derived_tables(thd, show_table_list,
                                                 MYSQL_LOCK_IGNORE_FLUSH);
             lex->sql_command= save_sql_command;
-            /*
-              We should use show_table_list->alias instead of 
-              show_table_list->table_name because table_name
-              could be changed during opening of I_S tables. It's safe
-              to use alias because alias contains original table name 
-              in this case.
+            /* 
+              They can drop table after table names list creation and
+              before table opening. We open non existing table and 
+              get ER_NO_SUCH_TABLE error. In this case we do not store
+              the record into I_S table and clear error.
             */
-            res= schema_table->process_table(thd, show_table_list, table,
-                                             res, orig_base_name,
-                                             show_table_list->alias);
-            close_tables_for_reopen(thd, &show_table_list);
-            DBUG_ASSERT(!lex->query_tables_own_last);
+            if (thd->net.last_errno == ER_NO_SUCH_TABLE)
+            {
+              res= 0;
+              thd->clear_error();
+            }
+            else
+            {
+              /*
+                We should use show_table_list->alias instead of 
+                show_table_list->table_name because table_name
+                could be changed during opening of I_S tables. It's safe
+                to use alias because alias contains original table name 
+                in this case.
+              */
+              res= schema_table->process_table(thd, show_table_list, table,
+                                               res, orig_base_name,
+                                               show_table_list->alias);
+              close_tables_for_reopen(thd, &show_table_list);
+              DBUG_ASSERT(!lex->query_tables_own_last);
+            }
             if (res)
               goto err;
           }
