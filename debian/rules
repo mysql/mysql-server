@@ -99,6 +99,7 @@ ifneq ($(ARCH_OS),hurd)
 	@if [ ! -d /proc/self ]; then echo "/proc IS NEEDED" 1>&2; exit 1; fi 
 endif
 
+	@cp debian/control debian/control.sav
 	( \
 	CC="$(MYSQL_BUILD_CC)"  \
 	CXX="$(MYSQL_BUILD_CXX)" \
@@ -151,6 +152,8 @@ endif
 		--with-ndb-docs \
 		$(MYSQL_BUILD_OPTS) \
 	)
+
+	@mv debian/control.sav debian/control
 
 	touch configure-stamp
 
