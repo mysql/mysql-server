@@ -853,9 +853,7 @@ int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
                               i, offset, (long) buf, len, (int)ptrdiff));
           DBUG_ASSERT(len == len64);
           // Ugly hack assumes only ptr needs to be changed
-          field_blob->ptr+= ptrdiff;
-          field_blob->set_ptr(len, buf);
-          field_blob->ptr-= ptrdiff;
+          field_blob->set_ptr_offset(ptrdiff, len, buf);
         }
         offset+= size;
       }
@@ -864,9 +862,7 @@ int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
         // have to set length even in this case
         char *buf= buffer + offset; // or maybe NULL
         uint32 len= 0;
-        field_blob->ptr+= ptrdiff;
-        field_blob->set_ptr(len, buf);
-        field_blob->ptr-= ptrdiff;
+        field_blob->set_ptr_offset(ptrdiff, len, buf);
         DBUG_PRINT("info", ("[%u] isNull=%d", i, isNull));
       }
     }

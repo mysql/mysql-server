@@ -1238,4 +1238,12 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (i) (PARTITION p01 VALUES LESS THAN (1000) ENGINE = MyISAM) */
 DROP TABLE t1, t2;
 set @@sql_mode=@org_mode;
+create table t1 (c1 varchar(255),c2 tinyint,primary key(c1))
+partition by key (c1) partitions 10 ;
+insert into t1 values ('aaa','1') on duplicate key update c2 = c2 + 1;
+insert into t1 values ('aaa','1') on duplicate key update c2 = c2 + 1;
+select * from t1;
+c1	c2
+aaa	2
+drop table t1;
 End of 5.1 tests
