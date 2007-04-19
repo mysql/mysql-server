@@ -1258,4 +1258,12 @@ create table t1 (f1 set('a','a'));
 --error 1291
 create table t1 (f1 enum('a','a'));
 
+#
+# Bug #22824: strict, datetime, NULL, wrong warning
+#
+set @@sql_mode='NO_ZERO_DATE';
+create table t1(a datetime not null);
+select count(*) from t1 where a is null;
+drop table t1;
+
 --echo End of 5.0 tests

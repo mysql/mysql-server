@@ -316,7 +316,8 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
   {
     /* For comparison purposes allow invalid dates like 2000-01-32 */
     ulong orig_sql_mode= thd->variables.sql_mode;
-    thd->variables.sql_mode|= MODE_INVALID_DATES;
+    thd->variables.sql_mode= (orig_sql_mode & ~MODE_NO_ZERO_DATE) | 
+                             MODE_INVALID_DATES;
     if (!(*item)->save_in_field(field, 1) && !((*item)->null_value))
     {
       Item *tmp=new Item_int_with_ref(field->val_int(), *item,
