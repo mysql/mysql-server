@@ -18,8 +18,8 @@ ifeq ("x$(MYSQL_FLAVOR)","x")
 endif
 
 ifneq ("x$(MYSQL_FLAVOR)","x")
-  export MYSQL_BASE_VERSION=$(MYSQL_FLAVOR)-$(MYSQL_BASE_VERSION)
-  export MYSQL_PREVIOUS_BASE_VERSION=$(MYSQL_FLAVOR)-$(MYSQL_PREVIOUS_BASE_VERSION)
+  MYSQL_BASE_VERSION:=$(MYSQL_FLAVOR)-$(MYSQL_BASE_VERSION)
+  MYSQL_PREVIOUS_BASE_VERSION:=$(MYSQL_FLAVOR)-$(MYSQL_PREVIOUS_BASE_VERSION)
 endif
 
 PACKAGE=mysql-$(MYSQL_BASE_VERSION)
@@ -210,8 +210,10 @@ clean: configure.in Makefile.am control-file
 	rm -f build-stamp
 
 	cp debian/defs.mk debian/defs.mk.sav
+	cp debian/control debian/control.sav
 	-make distclean
-	cp debian/defs.mk.sav debian/defs.mk
+	mv debian/defs.mk.sav debian/defs.mk
+	mv debian/control.sav debian/control
 
 	debconf-updatepo
 
