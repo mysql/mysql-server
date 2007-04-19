@@ -33,18 +33,12 @@
 
 #define MTEST_VERSION "3.2"
 
-#include <my_global.h>
-#include <mysql_embed.h>
-#include <my_sys.h>
-#include <m_string.h>
-#include <mysql.h>
+#include "client_priv.h"
 #include <mysql_version.h>
 #include <mysqld_error.h>
-#include <errmsg.h>
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
-#include <my_getopt.h>
 #include <stdarg.h>
 #include <violite.h>
 #include "my_regex.h" /* Our own version of regex */
