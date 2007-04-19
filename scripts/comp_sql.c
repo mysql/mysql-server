@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
   while(*end && *end != '.')
     end++;
   *end= 0;
-  fprintf(out, "const char* %s={\"\\\n", infile_name);
+  fprintf(out, "const char* %s={\n\"", infile_name);
 
   while (fgets(buff, sizeof(buff), in))
   {
@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
           Reached end of line, add escaped newline, escaped
           backslash and a newline to outfile
         */
-        fprintf(out, "\\n\\\n");
+        fprintf(out, "\\n \"\n\"");
         curr++;
       }
       else if (*curr == '\r')
