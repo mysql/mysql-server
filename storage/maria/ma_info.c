@@ -126,10 +126,14 @@ void _ma_report_error(int errcode, const char *file_name)
 
   if ((length= strlen(file_name)) > 64)
   {
+    /* we first remove the directory */
     uint dir_length= dirname_length(file_name);
     file_name+= dir_length;
     if ((length-= dir_length) > 64)
+    {
+      /* still too long, chop start of table name */
       file_name+= length - 64;
+    }
   }
   my_error(errcode, MYF(ME_NOREFRESH), file_name);
   DBUG_VOID_RETURN;

@@ -38,7 +38,7 @@ byte *_ma_fetch_keypage(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                       page / keyinfo->block_length, level, buff,
                       PAGECACHE_PLAIN_PAGE, PAGECACHE_LOCK_LEFT_UNLOCKED, 0);
   if (tmp == info->buff)
-    info->keybuff_used=1;
+    info->keyread_buff_used=1;
   else if (!tmp)
   {
     DBUG_PRINT("error",("Got errno: %d from pagecache_read",my_errno));

@@ -885,7 +885,7 @@ uint _ma_rec_pack(MARIA_HA *info, register byte *to, register const byte *from)
   uint		length,new_length,flag,bit,i;
   char		*pos,*end,*startpos,*packpos;
   enum en_fieldtype type;
-  reg3 MARIA_COLUMNDEF *rec;
+  reg3 MARIA_COLUMNDEF *column;
   MARIA_BLOB	*blob;
   DBUG_ENTER("_ma_rec_pack");
 
@@ -894,7 +894,7 @@ uint _ma_rec_pack(MARIA_HA *info, register byte *to, register const byte *from)
   startpos= packpos=to;
   to+= info->s->base.pack_bytes;
   blob= info->blobs;
-  rec= info->s->rec;
+  column= info->s->columndef;
   if (info->s->base.null_bytes)
   {
     memcpy(to, from, info->s->base.null_bytes);
@@ -902,10 +902,10 @@ uint _ma_rec_pack(MARIA_HA *info, register byte *to, register const byte *from)
     to+=   info->s->base.null_bytes;
   }
 
-  for (i=info->s->base.fields ; i-- > 0; from+= length,rec++)
+  for (i=info->s->base.fields ; i-- > 0; from+= length, column++)
   {
-    length=(uint) rec->length;
-    if ((type = (enum en_fieldtype) rec->type) != FIELD_NORMAL)
+    length=(uint) column->length;
+    if ((type = (enum en_fieldtype) column->type) != FIELD_NORMAL)
     {
       if (type == FIELD_BLOB)
       {
@@ -914,7 +914,7 @@ uint _ma_rec_pack(MARIA_HA *info, register byte *to, register const byte *from)
 	else
 	{
 	  char *temp_pos;
-	  size_t tmp_length=length-maria_portable_sizeof_char_ptr;
+	  size_t tmp_length=length-portable_sizeof_char_ptr;
 	  memcpy((byte*) to,from,tmp_length);
 	  memcpy_fixed(&temp_pos,from+tmp_length,sizeof(char*));
 	  memcpy(to+tmp_length,temp_pos,(size_t) blob->length);
@@ -946,10 +946,10 @@ uint _ma_rec_pack(MARIA_HA *info, register byte *to, register const byte *from)
 	    pos++;
 	}
 	new_length=(uint) (end-pos);
-	if (new_length +1 + test(rec->length > 255 && new_length > 127)
+	if (new_length +1 + test(column->length > 255 && new_length > 127)
 	    < length)
 	{
-	  if (rec->length > 255 && new_length > 127)
+	  if (column->length > 255 && new_length > 127)
 	  {
 	    to[0]=(char) ((new_length & 127)+128);
 	    to[1]=(char) (new_length >> 7);
@@ -967,7 +967,7 @@ uint _ma_rec_pack(MARIA_HA *info, register byte *to, register const byte *from)
       }
       else if (type == FIELD_VARCHAR)
       {
-        uint pack_length= HA_VARCHAR_PACKLENGTH(rec->length -1);
+        uint pack_length= HA_VARCHAR_PACKLENGTH(column->length -1);
 	uint tmp_length;
         if (pack_length == 1)
         {
@@ -1020,28 +1020,28 @@ my_bool _ma_rec_check(MARIA_HA *info,const char *record, byte *rec_buff,
   uint		length,new_length,flag,bit,i;
   char		*pos,*end,*packpos,*to;
   enum en_fieldtype type;
-  reg3 MARIA_COLUMNDEF *rec;
+  reg3 MARIA_COLUMNDEF *column;
   DBUG_ENTER("_ma_rec_check");
 
   packpos=rec_buff; to= rec_buff+info->s->base.pack_bytes;
-  rec=info->s->rec;
+  column= info->s->columndef;
   flag= *packpos; bit=1;
   record+= info->s->base.null_bytes;
   to+= info->s->base.null_bytes;
 
-  for (i=info->s->base.fields ; i-- > 0; record+= length, rec++)
+  for (i=info->s->base.fields ; i-- > 0; record+= length, column++)
   {
-    length=(uint) rec->length;
-    if ((type = (enum en_fieldtype) rec->type) != FIELD_NORMAL)
+    length=(uint) column->length;
+    if ((type = (enum en_fieldtype) column->type) != FIELD_NORMAL)
     {
       if (type == FIELD_BLOB)
       {
 	uint blob_length=
-	  _ma_calc_blob_length(length-maria_portable_sizeof_char_ptr,record);
+	  _ma_calc_blob_length(length-portable_sizeof_char_ptr,record);
 	if (!blob_length && !(flag & bit))
 	  goto err;
 	if (blob_length)
-	  to+=length - maria_portable_sizeof_char_ptr+ blob_length;
+	  to+=length - portable_sizeof_char_ptr+ blob_length;
       }
       else if (type == FIELD_SKIP_ZERO)
       {
@@ -1068,12 +1068,12 @@ my_bool _ma_rec_check(MARIA_HA *info,const char *record, byte *rec_buff,
 	    pos++;
 	}
 	new_length=(uint) (end-pos);
-	if (new_length +1 + test(rec->length > 255 && new_length > 127)
+	if (new_length +1 + test(column->length > 255 && new_length > 127)
 	    < length)
 	{
 	  if (!(flag & bit))
 	    goto err;
-	  if (rec->length > 255 && new_length > 127)
+	  if (column->length > 255 && new_length > 127)
 	  {
 	    if (to[0] != (char) ((new_length & 127)+128) ||
 		to[1] != (char) (new_length >> 7))
@@ -1089,7 +1089,7 @@ my_bool _ma_rec_check(MARIA_HA *info,const char *record, byte *rec_buff,
       }
       else if (type == FIELD_VARCHAR)
       {
-        uint pack_length= HA_VARCHAR_PACKLENGTH(rec->length -1);
+        uint pack_length= HA_VARCHAR_PACKLENGTH(column->length -1);
 	uint tmp_length;
         if (pack_length == 1)
         {
@@ -1141,10 +1141,10 @@ err:
 ulong _ma_rec_unpack(register MARIA_HA *info, register byte *to, byte *from,
 		     ulong found_length)
 {
-  uint flag,bit,length,rec_length,min_pack_length;
+  uint flag,bit,length,min_pack_length, column_length;
   enum en_fieldtype type;
   byte *from_end,*to_end,*packpos;
-  reg3 MARIA_COLUMNDEF *rec,*end_field;
+  reg3 MARIA_COLUMNDEF *column, *end_column;
   DBUG_ENTER("_ma_rec_unpack");
 
   to_end=to + info->s->base.reclength;
@@ -1163,27 +1163,27 @@ ulong _ma_rec_unpack(register MARIA_HA *info, register byte *to, byte *from,
     min_pack_length-= length;
   }
 
-  for (rec=info->s->rec , end_field=rec+info->s->base.fields ;
-       rec < end_field ; to+= rec_length, rec++)
+  for (column= info->s->columndef, end_column= column + info->s->base.fields;
+       column < end_column ; to+= column_length, column++)
   {
-    rec_length=rec->length;
-    if ((type = (enum en_fieldtype) rec->type) != FIELD_NORMAL &&
+    column_length= column->length;
+    if ((type = (enum en_fieldtype) column->type) != FIELD_NORMAL &&
 	(type != FIELD_CHECK))
     {
       if (type == FIELD_VARCHAR)
       {
-        uint pack_length= HA_VARCHAR_PACKLENGTH(rec_length-1);
+        uint pack_length= HA_VARCHAR_PACKLENGTH(column_length-1);
         if (pack_length == 1)
         {
           length= (uint) *(uchar*) from;
-          if (length > rec_length-1)
+          if (length > column_length-1)
             goto err;
           *to= *from++;
         }
         else
         {
           get_key_length(length, from);
-          if (length > rec_length-2)
+          if (length > column_length-2)
             goto err;
           int2store(to,length);
         }
@@ -1197,11 +1197,11 @@ ulong _ma_rec_unpack(register MARIA_HA *info, register byte *to, byte *from,
       if (flag & bit)
       {
 	if (type == FIELD_BLOB || type == FIELD_SKIP_ZERO)
-	  bzero((byte*) to,rec_length);
+	  bzero((byte*) to,column_length);
 	else if (type == FIELD_SKIP_ENDSPACE ||
 		 type == FIELD_SKIP_PRESPACE)
 	{
-	  if (rec->length > 255 && *from & 128)
+	  if (column->length > 255 && *from & 128)
 	  {
 	    if (from + 1 >= from_end)
 	      goto err;
@@ -1214,25 +1214,25 @@ ulong _ma_rec_unpack(register MARIA_HA *info, register byte *to, byte *from,
 	    length= (uchar) *from++;
 	  }
 	  min_pack_length--;
-	  if (length >= rec_length ||
+	  if (length >= column_length ||
 	      min_pack_length + length > (uint) (from_end - from))
 	    goto err;
 	  if (type == FIELD_SKIP_ENDSPACE)
 	  {
 	    memcpy(to,(byte*) from,(size_t) length);
-	    bfill((byte*) to+length,rec_length-length,' ');
+	    bfill((byte*) to+length,column_length-length,' ');
 	  }
 	  else
 	  {
-	    bfill((byte*) to,rec_length-length,' ');
-	    memcpy(to+rec_length-length,(byte*) from,(size_t) length);
+	    bfill((byte*) to,column_length-length,' ');
+	    memcpy(to+column_length-length,(byte*) from,(size_t) length);
 	  }
 	  from+=length;
 	}
       }
       else if (type == FIELD_BLOB)
       {
-	uint size_length=rec_length- maria_portable_sizeof_char_ptr;
+	uint size_length=column_length- portable_sizeof_char_ptr;
 	ulong blob_length= _ma_calc_blob_length(size_length,from);
         ulong from_left= (ulong) (from_end - from);
         if (from_left < size_length ||
@@ -1248,9 +1248,9 @@ ulong _ma_rec_unpack(register MARIA_HA *info, register byte *to, byte *from,
       {
 	if (type == FIELD_SKIP_ENDSPACE || type == FIELD_SKIP_PRESPACE)
 	  min_pack_length--;
-	if (min_pack_length + rec_length > (uint) (from_end - from))
+	if (min_pack_length + column_length > (uint) (from_end - from))
 	  goto err;
-	memcpy(to,(byte*) from,(size_t) rec_length); from+=rec_length;
+	memcpy(to,(byte*) from,(size_t) column_length); from+=column_length;
       }
       if ((bit= bit << 1) >= 256)
       {
@@ -1261,9 +1261,9 @@ ulong _ma_rec_unpack(register MARIA_HA *info, register byte *to, byte *from,
     {
       if (min_pack_length > (uint) (from_end - from))
 	goto err;
-      min_pack_length-=rec_length;
-      memcpy(to, (byte*) from, (size_t) rec_length);
-      from+=rec_length;
+      min_pack_length-=column_length;
+      memcpy(to, (byte*) from, (size_t) column_length);
+      from+=column_length;
     }
   }
   if (info->s->calc_checksum)
@@ -1622,7 +1622,7 @@ err:
 
 
 /*
-  Read record from datafile.
+  Read next record from datafile during table scan.
 
   SYNOPSIS
     _ma_read_rnd_dynamic_record()
@@ -1633,22 +1633,17 @@ err:
                                 record is found.
 
   NOTE
+    This is identical to _ma_read_dynamic_record(), except the following
+    cases:
 
-    If a write buffer is active, it needs to be flushed if its contents
-    intersects with the record to read. We always check if the position
-    of the first byte of the write buffer is lower than the position
-    past the last byte to read. In theory this is also true if the write
-    buffer is completely below the read segment. That is, if there is no
-    intersection. But this case is unusual. We flush anyway. Only if the
-    first byte in the write buffer is above the last byte to read, we do
-    not flush.
+    - If there is no active row at 'filepos', continue scanning for
+      an active row. (This is becasue the previous
+      _ma_read_rnd_dynamic_record() call stored the next block position
+      in filepos, but this position may not be a start block for a row
+    - We may have READ_CACHING enabled, in which case we use the cache
+      to read rows.
 
-    A dynamic record may need several reads. So this check must be done
-    before every read. Reading a dynamic record starts with reading the
-    block header. If the record does not fit into the free space of the
-    header, the block may be longer than the header. In this case a
-    second read is necessary. These one or two reads repeat for every
-    part of the record.
+   For other comments, check _ma_read_dynamic_record()
 
   RETURN
     0           OK

@@ -59,10 +59,9 @@ public:
   }
   uint max_supported_keys() const
   { return MARIA_MAX_KEY; }
-  uint max_supported_key_length() const
-  { return HA_MAX_KEY_LENGTH; }
+  uint max_supported_key_length() const;
   uint max_supported_key_part_length() const
-  { return HA_MAX_KEY_LENGTH; }
+  { return max_supported_key_length(); }
   enum row_type get_row_type() const;
   uint checksum() const;
   virtual double scan_time();

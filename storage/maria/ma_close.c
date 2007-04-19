@@ -69,10 +69,8 @@ int maria_close(register MARIA_HA *info)
   pthread_mutex_unlock(&share->intern_lock);
 
   my_free(info->rec_buff, MYF(MY_ALLOW_ZERO_PTR));
-  (share->end)(info);
+  (*share->end)(info);
 
-  if (info->s->data_file_type == BLOCK_RECORD)
-    info->dfile.file= -1;           /* Closed in ma_end_once_block_row */
   if (flag)
   {
     if (share->kfile.file >= 0)

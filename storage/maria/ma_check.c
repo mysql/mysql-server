@@ -944,7 +944,7 @@ static void record_pos_to_txt(MARIA_HA *info, my_off_t recpos,
   else
   {
     my_off_t page= ma_recordpos_to_page(recpos);
-    uint row= ma_recordpos_to_offset(recpos);
+    uint row= ma_recordpos_to_dir_entry(recpos);
     char *end= longlong10_to_str(page, buff, 10);
     *(end++)= ':';
     longlong10_to_str(row, end, 10);
@@ -1373,6 +1373,9 @@ end:
 
 /*
   Check if layout on a page is ok
+
+  NOTES
+    This is for rows-in-block format.
 */
 
 static int check_page_layout(HA_CHECK *param, MARIA_HA *info,
@@ -1445,6 +1448,8 @@ static int check_page_layout(HA_CHECK *param, MARIA_HA *info,
   Check all rows on head page
 
   NOTES
+    This is for rows-in-block format.
+
     Before this, we have already called check_page_layout(), so
     we know the block is logicaly correct (even if the rows may not be that)
 
@@ -1551,6 +1556,9 @@ static my_bool check_head_page(HA_CHECK *param, MARIA_HA *info, byte *record,
 }
 
 
+/*
+  Check if rows-in-block data file is consistent
+*/
 
 static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
                               byte *record)
@@ -1641,7 +1649,7 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
       DBUG_ASSERT(0);
       break;
     case HEAD_PAGE:
-      row_count= ((uchar*) page_buff)[DIR_ENTRY_OFFSET];
+      row_count= ((uchar*) page_buff)[DIR_COUNT_OFFSET];
       empty_space= uint2korr(page_buff + EMPTY_SPACE_OFFSET);
       param->used+= (PAGE_HEADER_SIZE + PAGE_SUFFIX_SIZE +
                      row_count * DIR_ENTRY_SIZE);
@@ -1650,7 +1658,7 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
       full_dir= row_count == MAX_ROWS_PER_PAGE;
       break;
     case TAIL_PAGE:
-      row_count= ((uchar*) page_buff)[DIR_ENTRY_OFFSET];
+      row_count= ((uchar*) page_buff)[DIR_COUNT_OFFSET];
       empty_space= uint2korr(page_buff + EMPTY_SPACE_OFFSET);
       param->used+= (PAGE_HEADER_SIZE + PAGE_SUFFIX_SIZE +
                      row_count * DIR_ENTRY_SIZE);
@@ -1715,7 +1723,7 @@ err:
 }
 
 
-	/* Check that record-link is ok */
+/* Check that record-link is ok */
 
 int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info,int extend)
 {
@@ -4590,7 +4598,7 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
   MARIA_SHARE share;
   MARIA_KEYDEF *keyinfo,*key,*key_end;
   HA_KEYSEG *keysegs,*keyseg;
-  MARIA_COLUMNDEF *recdef,*rec,*end;
+  MARIA_COLUMNDEF *columndef,*column,*end;
   MARIA_UNIQUEDEF *uniquedef,*u_ptr,*u_end;
   MARIA_STATUS_INFO status_info;
   uint unpack,key_parts;
@@ -4619,7 +4627,7 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
     my_afree((gptr) keyinfo);
     DBUG_RETURN(1);
   }
-  if (!(recdef=(MARIA_COLUMNDEF*)
+  if (!(columndef=(MARIA_COLUMNDEF*)
 	my_alloca(sizeof(MARIA_COLUMNDEF)*(share.base.fields+1))))
   {
     my_afree((gptr) keyinfo);
@@ -4629,22 +4637,24 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
   if (!(uniquedef=(MARIA_UNIQUEDEF*)
 	my_alloca(sizeof(MARIA_UNIQUEDEF)*(share.state.header.uniques+1))))
   {
-    my_afree((gptr) recdef);
+    my_afree((gptr) columndef);
     my_afree((gptr) keyinfo);
     my_afree((gptr) keysegs);
     DBUG_RETURN(1);
   }
 
   /* Copy the column definitions */
-  memcpy((byte*) recdef,(byte*) share.rec,
+  memcpy((byte*) columndef,(byte*) share.columndef,
 	 (size_t) (sizeof(MARIA_COLUMNDEF)*(share.base.fields+1)));
-  for (rec=recdef,end=recdef+share.base.fields; rec != end ; rec++)
+  for (column=columndef, end= columndef+share.base.fields;
+       column != end ;
+       column++)
   {
     if (unpack && !(share.options & HA_OPTION_PACK_RECORD) &&
-	rec->type != FIELD_BLOB &&
-	rec->type != FIELD_VARCHAR &&
-	rec->type != FIELD_CHECK)
-      rec->type=(int) FIELD_NORMAL;
+	column->type != FIELD_BLOB &&
+	column->type != FIELD_VARCHAR &&
+	column->type != FIELD_CHECK)
+      column->type=(int) FIELD_NORMAL;
   }
 
   /* Change the new key to point at the saved key segments */
@@ -4720,7 +4730,7 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
   */
   if (maria_create(filename, share.data_file_type,
                    share.base.keys - share.state.header.uniques,
-                   keyinfo, share.base.fields, recdef,
+                   keyinfo, share.base.fields, columndef,
                    share.state.header.uniques, uniquedef,
                    &create_info,
                    HA_DONT_TOUCH_DATA))
@@ -4761,7 +4771,7 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
 end:
   my_afree((gptr) uniquedef);
   my_afree((gptr) keyinfo);
-  my_afree((gptr) recdef);
+  my_afree((gptr) columndef);
   my_afree((gptr) keysegs);
   DBUG_RETURN(error);
 }

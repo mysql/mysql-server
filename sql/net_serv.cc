@@ -298,8 +298,8 @@ void net_clear(NET *net, my_bool clear_buffer)
       {
         DBUG_PRINT("info",("skipped %d bytes from file: %s",
                            count, vio_description(net->vio)));
-#if defined(EXTRA_DEBUG) && (MYSQL_VERSION_ID < 51000)
-        fprintf(stderr,"Error: net_clear() skipped %d bytes from file: %s\n",
+#if defined(EXTRA_DEBUG) && (MYSQL_VERSION_ID < 50100)
+        fprintf(stderr,"Note: net_clear() skipped %d bytes from file: %s\n",
                 count, vio_description(net->vio));
 #endif
       }

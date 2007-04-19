@@ -142,14 +142,13 @@ static maria_bit_type mask[]=
 my_bool _ma_once_init_pack_row(MARIA_SHARE *share, File dfile)
 {
   share->options|= HA_OPTION_READ_ONLY_DATA;
-  if (_ma_read_pack_info(share, dfile,
-                         (pbool)
-                         test(!(share->options &
-                                (HA_OPTION_PACK_RECORD |
-                                 HA_OPTION_TEMP_COMPRESS_RECORD)))))
-    return 1;
-  return 0;
+  return (_ma_read_pack_info(share, dfile,
+                             (pbool)
+                             test(!(share->options &
+                                    (HA_OPTION_PACK_RECORD |
+                                     HA_OPTION_TEMP_COMPRESS_RECORD)))));
 }
+
 
 my_bool _ma_once_end_pack_row(MARIA_SHARE *share)
 {
@@ -262,15 +261,16 @@ static my_bool _ma_read_pack_info(MARIA_SHARE *share, File file,
 	/* Read new info for each field */
   for (i=0 ; i < share->base.fields ; i++)
   {
-    share->rec[i].base_type=(enum en_fieldtype) get_bits(&bit_buff,5);
-    share->rec[i].pack_type=(uint) get_bits(&bit_buff,6);
-    share->rec[i].space_length_bits=get_bits(&bit_buff,5);
-    share->rec[i].huff_tree=share->decode_trees+(uint) get_bits(&bit_buff,
+    share->columndef[i].base_type=(enum en_fieldtype) get_bits(&bit_buff,5);
+    share->columndef[i].pack_type=(uint) get_bits(&bit_buff,6);
+    share->columndef[i].space_length_bits=get_bits(&bit_buff,5);
+    share->columndef[i].huff_tree=share->decode_trees+(uint) get_bits(&bit_buff,
 								huff_tree_bits);
-    share->rec[i].unpack= get_unpack_function(share->rec+i);
+    share->columndef[i].unpack= get_unpack_function(share->columndef + i);
     DBUG_PRINT("info", ("col: %2u  type: %2u  pack: %u  slbits: %2u",
-                        i, share->rec[i].base_type, share->rec[i].pack_type,
-                        share->rec[i].space_length_bits));
+                        i, share->columndef[i].base_type,
+                        share->columndef[i].pack_type,
+                        share->columndef[i].space_length_bits));
   }
   skip_to_next_byte(&bit_buff);
   /*
@@ -776,7 +776,7 @@ int _ma_pack_rec_unpack(register MARIA_HA *info, MARIA_BIT_BUFF *bit_buff,
     reclength-= info->s->base.null_bytes;
   }
   init_bit_buffer(bit_buff, (uchar*) from, reclength);
-  for (current_field=share->rec, end=current_field+share->base.fields ;
+  for (current_field=share->columndef, end=current_field+share->base.fields ;
        current_field < end ;
        current_field++,to=end_field)
   {
@@ -1080,7 +1080,7 @@ static void uf_blob(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
   else
   {
     ulong length=get_bits(bit_buff,rec->space_length_bits);
-    uint pack_length=(uint) (end-to)-maria_portable_sizeof_char_ptr;
+    uint pack_length=(uint) (end-to)-portable_sizeof_char_ptr;
     if (bit_buff->blob_pos+length > bit_buff->blob_end)
     {
       bit_buff->error=1;

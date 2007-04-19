@@ -18,11 +18,11 @@
 */
 
 #define LSN_SIZE		7
-#define DIRCOUNT_SIZE		1	/* Stores number of rows on page */
+#define DIR_COUNT_SIZE		1	/* Stores number of rows on page */
 #define EMPTY_SPACE_SIZE	2	/* Stores empty space on page */
 #define PAGE_TYPE_SIZE		1
 #define PAGE_SUFFIX_SIZE	0	/* Bytes for page suffix */
-#define PAGE_HEADER_SIZE	(LSN_SIZE + DIRCOUNT_SIZE + EMPTY_SPACE_SIZE +\
+#define PAGE_HEADER_SIZE	(LSN_SIZE + DIR_COUNT_SIZE + EMPTY_SPACE_SIZE +\
                                  PAGE_TYPE_SIZE)
 #define PAGE_OVERHEAD_SIZE	(PAGE_HEADER_SIZE + DIR_ENTRY_SIZE + \
                                  PAGE_SUFFIX_SIZE)
@@ -34,14 +34,18 @@
 #define ROW_EXTENT_COUNT_SIZE   2
 #define ROW_EXTENT_SIZE		(ROW_EXTENT_PAGE_SIZE + ROW_EXTENT_COUNT_SIZE)
 #define TAIL_BIT		0x8000	/* Bit in page_count to signify tail */
+/* Number of extents reserved MARIA_BITMAP_BLOCKS to store head part */
 #define ELEMENTS_RESERVED_FOR_MAIN_PART 4
+/* Fields before 'row->null_field_lengths' used by find_where_to_split_row */
 #define EXTRA_LENGTH_FIELDS		3
+
+/* Size for the different parts in the row header (and head page) */
 
 #define FLAG_SIZE		1
 #define TRANSID_SIZE		6
 #define VERPTR_SIZE		7
 #define DIR_ENTRY_SIZE		4
-#define FIELD_OFFSET_SIZE	2
+#define FIELD_OFFSET_SIZE	2      /* size of pointers to field starts */
 
 /* Minimum header size needed for a new row */
 #define BASE_ROW_HEADER_SIZE FLAG_SIZE
@@ -51,8 +55,8 @@
 enum en_page_type { UNALLOCATED_PAGE, HEAD_PAGE, TAIL_PAGE, BLOB_PAGE, MAX_PAGE_TYPE };
 
 #define PAGE_TYPE_OFFSET        LSN_SIZE
-#define DIR_ENTRY_OFFSET        LSN_SIZE+PAGE_TYPE_SIZE
-#define EMPTY_SPACE_OFFSET      (DIR_ENTRY_OFFSET + DIRCOUNT_SIZE)
+#define DIR_COUNT_OFFSET        LSN_SIZE+PAGE_TYPE_SIZE
+#define EMPTY_SPACE_OFFSET      (DIR_COUNT_OFFSET + DIR_COUNT_SIZE)
 
 #define PAGE_CAN_BE_COMPACTED   128             /* Bit in PAGE_TYPE */
 
@@ -64,10 +68,15 @@ enum en_page_type { UNALLOCATED_PAGE, HEAD_PAGE, TAIL_PAGE, BLOB_PAGE, MAX_PAGE_
 #define ROW_FLAG_EXTENTS                128
 #define ROW_FLAG_ALL			(1+2+4+8+128)
 
-/* Variables that affects how data pages are utilized */
+/******** Variables that affects how data pages are utilized ********/
+
+/* Minium size of tail segment */
 #define MIN_TAIL_SIZE           32
 
-/* Fixed part of Max possible header size; See table in ma_blockrec.c */
+/*
+  Fixed length part of Max possible header size; See row data structure
+  table in ma_blockrec.c.
+*/
 #define MAX_FIXED_HEADER_SIZE (FLAG_SIZE + 3 + ROW_EXTENT_SIZE + 3)
 #define TRANS_MAX_FIXED_HEADER_SIZE (MAX_FIXED_HEADER_SIZE + \
                                      TRANSID_SIZE + VERPTR_SIZE + \
@@ -77,21 +86,30 @@ enum en_page_type { UNALLOCATED_PAGE, HEAD_PAGE, TAIL_PAGE, BLOB_PAGE, MAX_PAGE_
 #define MAX_ROWS_PER_PAGE	255
 
 /* Bits for MARIA_BITMAP_BLOCKS->used */
+/* We stored data on disk in the block */
 #define BLOCKUSED_USED		 1
+/* Bitmap on disk is block->org_bitmap_value ; Happens only on update */
 #define BLOCKUSED_USE_ORG_BITMAP 2
+/* We stored tail data on disk for the block */
 #define BLOCKUSED_TAIL		 4
 
-/* defines that affects allocation (density) of data */
+/******* defines that affects allocation (density) of data *******/
 
-/* If we fill up a block to 75 %, don't create a new tail page for it */
+/*
+  If the tail part (from the main block or a blob) uses more than 75 % of
+  the size of page, store the tail on a full page instead of a shared
+ tail page.
+*/
 #define MAX_TAIL_SIZE(block_size) ((block_size) *3 / 4)
+
+extern uchar maria_bitmap_marker[2];
 
 /* Functions to convert MARIA_RECORD_POS to/from page:offset */
 
-static inline MARIA_RECORD_POS ma_recordpos(ulonglong page, uint offset)
+static inline MARIA_RECORD_POS ma_recordpos(ulonglong page, uint dir_entry)
 {
-  DBUG_ASSERT(offset <= 255);
-  return (MARIA_RECORD_POS) ((page << 8) | offset);
+  DBUG_ASSERT(dir_entry <= 255);
+  return (MARIA_RECORD_POS) ((page << 8) | dir_entry);
 }
 
 static inline my_off_t ma_recordpos_to_page(MARIA_RECORD_POS record_pos)
@@ -99,17 +117,17 @@ static inline my_off_t ma_recordpos_to_page(MARIA_RECORD_POS record_pos)
   return record_pos >> 8;
 }
 
-static inline my_off_t ma_recordpos_to_offset(MARIA_RECORD_POS record_pos)
+static inline my_off_t ma_recordpos_to_dir_entry(MARIA_RECORD_POS record_pos)
 {
   return record_pos & 255;
 }
 
 /* ma_blockrec.c */
 void _ma_init_block_record_data(void);
-my_bool _ma_once_init_block_row(MARIA_SHARE *share, File dfile);
-my_bool _ma_once_end_block_row(MARIA_SHARE *share);
-my_bool _ma_init_block_row(MARIA_HA *info);
-void _ma_end_block_row(MARIA_HA *info);
+my_bool _ma_once_init_block_record(MARIA_SHARE *share, File dfile);
+my_bool _ma_once_end_block_record(MARIA_SHARE *share);
+my_bool _ma_init_block_record(MARIA_HA *info);
+void _ma_end_block_record(MARIA_HA *info);
 
 my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS pos,
                                 const byte *record);
@@ -136,8 +154,6 @@ my_bool _ma_compare_block_record(register MARIA_HA *info,
 my_bool _ma_bitmap_init(MARIA_SHARE *share, File file);
 my_bool _ma_bitmap_end(MARIA_SHARE *share);
 my_bool _ma_flush_bitmap(MARIA_SHARE *share);
-my_bool _ma_read_bitmap_page(MARIA_SHARE *share, MARIA_FILE_BITMAP *bitmap,
-                             ulonglong page);
 my_bool _ma_bitmap_find_place(MARIA_HA *info, MARIA_ROW *row,
                               MARIA_BITMAP_BLOCKS *result_blocks);
 my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks);

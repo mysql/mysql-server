@@ -329,7 +329,7 @@ uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, byte *key)
   /* creating pageful of keys */
   maria_putint(info->buff,length+2,0);
   memcpy(info->buff+2, key_ptr, length);
-  info->keybuff_used=info->page_changed=1;           /* info->buff is used */
+  info->keyread_buff_used=info->page_changed=1;           /* info->buff is used */
   if ((root= _ma_new(info,keyinfo,DFLT_INIT_HITS)) == HA_OFFSET_ERROR ||
       _ma_write_keypage(info,keyinfo,root,DFLT_INIT_HITS,info->buff))
     DBUG_RETURN(-1);
