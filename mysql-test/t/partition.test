@@ -1492,4 +1492,15 @@ show create table t2;
 DROP TABLE t1, t2;
 set @@sql_mode=@org_mode;
 
+#
+# Bug #27123 partition + on duplicate key update + varchar = Can't find record in <table> 
+#
+create table t1 (c1 varchar(255),c2 tinyint,primary key(c1))
+   partition by key (c1) partitions 10 ;
+insert into t1 values ('aaa','1') on duplicate key update c2 = c2 + 1;
+insert into t1 values ('aaa','1') on duplicate key update c2 = c2 + 1;
+select * from t1;
+drop table t1;
+
+
 --echo End of 5.1 tests
