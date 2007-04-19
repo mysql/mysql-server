@@ -153,6 +153,7 @@ class ha_innobase: public handler
 								*max_key);
 	ha_rows estimate_rows_upper_bound();
 
+	void update_create_info(HA_CREATE_INFO* create_info);
   	int create(const char *name, register TABLE *form,
 					HA_CREATE_INFO *create_info);
 	int delete_all_rows();
