@@ -441,6 +441,7 @@ flush tables;
 select * from test;
 disconnect con2;
 connection default;
+drop table test;
 set global query_cache_type=@save_qcache_type;
 set global query_cache_size=@save_qcache_size;
 
