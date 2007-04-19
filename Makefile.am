@@ -90,7 +90,7 @@ EXTRA_DIST = 	include/btr0btr.h include/btr0btr.ic include/btr0cur.h include/btr
 		include/ut0list.h include/ut0list.ic \
 		include/ut0wqueue.h \
 		pars/make_bison.sh pars/make_flex.sh \
-		pars/pars0grm.y pars/pars0lex.l
+		pars/pars0grm.y pars/pars0lex.l \
 		CMakeLists.txt plug.in
 
 noinst_LIBRARIES =	libinnobase.a
