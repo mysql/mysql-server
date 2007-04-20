@@ -1,16 +1,16 @@
-mysql-enterprise-5.0 (5.0.42unreleased) feisty; urgency=low
+mysql-5.0 (5.0.42) UNRELEASED; urgency=low
 
-  * Built unreleased version of 5.0.42 for assessment by Canonical.
+  * Upgraded to 5.0.42 branch.
 
- -- Monty Taylor <mtaylor@blade09>  Thu, 19 Apr 2007 22:18:02 +0200
+ -- Monty Taylor <mtaylor@mysql.com>  Thu, 19 Apr 2007 22:18:02 +0200
 
-mysql-5.0 (5.0.38) enterprise; urgency=low
+mysql-5.0 (5.0.38) UNRELEASED; urgency=low
 
   * Imported packaging work from Debian.
   * Removed debian-start, mysqlreport and echo_stderr to align with official
     packages.
 
- -- Monty Taylor <mordred@inaugust.com>  Wed,  7 Mar 2007 07:52:55 +0800
+ -- Monty Taylor <mtaylor@mysql.com>  Wed,  7 Mar 2007 07:52:55 +0800
 
 mysql-dfsg-5.0 (5.0.32-3etch1) testing-proposed-updates; urgency=high
 
