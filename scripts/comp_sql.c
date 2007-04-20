@@ -106,6 +106,15 @@ int main(int argc, char *argv[])
         curr++;
       }
     }
+    if (*(curr-1) != '\n')
+    {
+      /*
+        Some compilers have a max string length,
+        insert a newline at every 512th char in long
+        strings
+      */
+      fprintf(out, "\"\n\"");
+    }
   }
 
   fprintf(out, "\\\n\"};\n");
