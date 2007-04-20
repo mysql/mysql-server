@@ -79,11 +79,12 @@ static uint get_thread_lib(void);
 
 my_bool my_thread_global_init(void)
 {
+  int pth_ret;
   thd_lib_detected= get_thread_lib();
 
-  if (pthread_key_create(&THR_KEY_mysys,0))
+  if ((pth_ret= pthread_key_create(&THR_KEY_mysys, NULL)) != 0)
   {
-    fprintf(stderr,"Can't initialize threads: error %d\n",errno);
+    fprintf(stderr,"Can't initialize threads: error %d\n", pth_ret);
     return 1;
   }
   
