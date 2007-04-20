@@ -459,6 +459,22 @@ AC_SUBST(MAKEINDEX)
 
 # icheck, used for ABI check
 AC_PATH_PROG(ICHECK, icheck, no)
+# "icheck" is also the name of a file system check program on Tru64.
+# Verify the program found is really the interface checker.
+if test "x$ICHECK" != "xno"
+then
+  AC_MSG_CHECKING(if $ICHECK works as expected)
+  echo "int foo;" > conftest.h
+  $ICHECK --canonify -o conftest.ic conftest.h 2>/dev/null
+  if test -f "conftest.ic"
+  then
+    AC_MSG_RESULT(yes)
+  else
+    AC_MSG_RESULT(no)
+    ICHECK=no
+  fi
+  rm -f conftest.ic conftest.h
+fi
 AC_SUBST(ICHECK)
 
 # Lock for PS
