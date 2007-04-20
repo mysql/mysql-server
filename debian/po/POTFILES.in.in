@@ -1,1 +1,1 @@
-[type: gettext/rfc822deb] mysql-server-@MYSQL_BASE_VERSION@.templates
+[type: gettext/rfc822deb] mysql-server-@MYSQL_BRANDED_BASE_VERSION@.templates

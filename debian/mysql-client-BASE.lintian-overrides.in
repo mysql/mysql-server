@@ -1,1 +1,1 @@
-mysql-client-@MYSQL_BASE_VERSION@: package-has-a-duplicate-relation
+mysql-client-@MYSQL_BRANDED_BASE_VERSION@: package-has-a-duplicate-relation
