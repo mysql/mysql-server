@@ -1,3 +1,12 @@
+##################################################
+# Author: Jeb
+# Date:   2007/04
+# Purpose: To create a tpcb database, tables and 
+#          stored procedures to load the database
+#          and run transactions against the DB
+##################################################
+
+
 CREATE DATABASE tpcb;
 
 --echo

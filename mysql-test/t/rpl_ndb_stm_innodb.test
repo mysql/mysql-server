@@ -5,6 +5,22 @@
 #            and ensuring that the ndb_apply_status
 #            table is updated.
 #############################################
+# Notes: 
+# include/select_ndb_apply_status.inc
+# Selects out the log name, start & end pos
+# from the ndb_apply_status table
+#
+# include/show_binlog_events2.inc
+# To select out 1 row from offset 1
+# from the start position in the binlog whose
+# name is = log_name
+#
+# include/tpcb.inc
+# Creates DATABASE tpcb, the tables and 
+# stored procedures for loading the DB
+# and for running transactions against DB.
+##############################################
+
 
 ## Includes ##
 
@@ -98,9 +114,11 @@ SHOW TABLES;
 --echo *** Test 2 ***
 --echo
 
+# Create database/tables and stored procdures
 connection master;
 --source include/tpcb.inc
 
+# Switch tables on slave to use NDB 
 --sync_slave_with_master
 USE tpcb;
 ALTER TABLE account ENGINE NDB;
@@ -110,6 +128,7 @@ ALTER TABLE history ENGINE NDB;
 
 --echo
 
+# Load DB tpcb and run some transactions
 connection master;
 --disable_query_log
 CALL tpcb.load();
@@ -140,7 +159,13 @@ connection master;
 --echo ** Test 3 **
 --echo
 
+# Flush logs on master which should force it
+# to switch to binlog #2
+
 FLUSH LOGS;
+
+# Run in some transaction to increase end pos in
+# binlog
 
 --disable_query_log
 SET AUTOCOMMIT=0;
@@ -172,10 +197,13 @@ connection master;
 --echo ** Test 4 **
 --echo
 
+# Reset both slave and master
+# This should reset binlog to #1
 --source include/master-slave-reset.inc
 
 --echo
 
+# Run in some transactions and check
 connection master;
 --disable_query_log
 SET AUTOCOMMIT=0;
@@ -196,6 +224,10 @@ SET AUTOCOMMIT=1;
 connection master;
 --source include/show_binlog_events2.inc
 
+# Since we are doing replication, it is a good
+# idea to check to make sure all data was 
+# Replicated correctly
+
 --echo
 --echo *** DUMP MASTER & SLAVE FOR COMPARE ********
 
@@ -208,7 +240,7 @@ DROP DATABASE tpcb;
 
 --sync_slave_with_master
 
-# Commenting out until decision on Bug#2796
+####### Commenting out until decision on Bug#2796 ###########
 
 #--source include/select_ndb_apply_status.inc
 
