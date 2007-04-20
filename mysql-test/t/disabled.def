@@ -18,6 +18,7 @@ ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t 
 ndb_load                 : BUG#17233 2006-05-04 tomas failed load data from infile causes mysqld dbug_assert, binlog not flushed
 
 partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when updating a range partitioned NDB table
+rpl_ndb_circular_simplex : BUG#27972 2007-04-20 mats Slave cannot start where it stopped
 rpl_ndb_2innodb          : BUG#19227 2006-04-20 pekka pk delete apparently not replicated
 rpl_ndb_2myisam          : BUG#19227 Seems to pass currently
 rpl_ndb_dd_partitions    : BUG#19259 2006-04-21 rpl_ndb_dd_partitions fails on s/AMD
