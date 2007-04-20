@@ -6061,6 +6061,21 @@ SUM(f2)	bug25373(f1)
 21.300000071526	NULL
 DROP FUNCTION bug25373|
 DROP TABLE t3|
+DROP DATABASE IF EXISTS mysqltest1|
+DROP DATABASE IF EXISTS mysqltest2|
+CREATE DATABASE mysqltest1|
+CREATE DATABASE mysqltest2|
+CREATE PROCEDURE mysqltest1.p1()
+DROP DATABASE mysqltest2|
+use mysqltest2|
+CALL mysqltest1.p1()|
+Warnings:
+Note	1049	Unknown database 'mysqltest2'
+SELECT DATABASE()|
+DATABASE()
+NULL
+DROP DATABASE mysqltest1|
+use test|
 drop function if exists bug20777|
 drop table if exists examplebug20777|
 create function bug20777(f1 bigint unsigned) returns bigint unsigned
@@ -6147,3 +6162,28 @@ bug20777(18446744073709551613)+1
 drop function bug20777;
 End of 5.0 tests.
 drop table t1,t2;
+CREATE TABLE t1 (a int auto_increment primary key) engine=MyISAM;
+CREATE TABLE t2 (a int auto_increment primary key, b int) engine=innodb;
+set @a=0;
+CREATE function bug27354() RETURNS int deterministic
+begin
+insert into t1 values (null);
+set @a=@a+1;
+return @a;
+end|
+update t2 set b=1 where a=bug27354();
+select count(t_1.a),count(t_2.a) from t1 as t_1, t2 as t_2 /* must be 0,0 */;
+count(t_1.a)	count(t_2.a)
+0	0
+insert into t2 values (1,1),(2,2),(3,3);
+update t2 set b=-b where a=bug27354();
+select * from t2 /* must return 1,-1 ... */;
+a	b
+1	-1
+2	-2
+3	-3
+select count(*) from t1 /* must be 3 */;
+count(*)
+3
+drop table t1,t2;
+drop function   bug27354;

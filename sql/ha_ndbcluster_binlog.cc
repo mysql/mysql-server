@@ -582,10 +582,30 @@ static int ndbcluster_binlog_end(THD *thd)
   ndbcluster_binlog_inited= 0;
 
 #ifdef HAVE_NDB_BINLOG
+  if (ndb_util_thread_running > 0)
+  {
+    /*
+      Wait for util thread to die (as this uses the injector mutex)
+      There is a very small change that ndb_util_thread dies and the
+      following mutex is freed before it's accessed. This shouldn't
+      however be a likely case as the ndbcluster_binlog_end is supposed to
+      be called before ndb_cluster_end().
+    */
+    pthread_mutex_lock(&LOCK_ndb_util_thread);
+    /* Ensure mutex are not freed if ndb_cluster_end is running at same time */
+    ndb_util_thread_running++;
+    ndbcluster_terminating= 1;
+    pthread_cond_signal(&COND_ndb_util_thread);
+    while (ndb_util_thread_running > 1)
+      pthread_cond_wait(&COND_ndb_util_ready, &LOCK_ndb_util_thread);
+    ndb_util_thread_running--;
+    pthread_mutex_unlock(&LOCK_ndb_util_thread);
+  }
+
   /* wait for injector thread to finish */
   ndbcluster_binlog_terminating= 1;
-  pthread_cond_signal(&injector_cond);
   pthread_mutex_lock(&injector_mutex);
+  pthread_cond_signal(&injector_cond);
   while (ndb_binlog_thread_running > 0)
     pthread_cond_wait(&injector_cond, &injector_mutex);
   pthread_mutex_unlock(&injector_mutex);

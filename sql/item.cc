@@ -267,7 +267,7 @@ my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
 my_decimal *Item::val_decimal_from_date(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed == 1);
-  TIME ltime;
+  MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE))
   {
     my_decimal_set_zero(decimal_value);
@@ -280,7 +280,7 @@ my_decimal *Item::val_decimal_from_date(my_decimal *decimal_value)
 my_decimal *Item::val_decimal_from_time(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed == 1);
-  TIME ltime;
+  MYSQL_TIME ltime;
   if (get_time(&ltime))
   {
     my_decimal_set_zero(decimal_value);
@@ -315,7 +315,7 @@ longlong Item::val_int_from_decimal()
 
 int Item::save_time_in_field(Field *field)
 {
-  TIME ltime;
+  MYSQL_TIME ltime;
   if (get_time(&ltime))
     return set_field_to_null(field);
   field->set_notnull();
@@ -325,7 +325,7 @@ int Item::save_time_in_field(Field *field)
 
 int Item::save_date_in_field(Field *field)
 {
-  TIME ltime;
+  MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE))
     return set_field_to_null(field);
   field->set_notnull();
@@ -853,22 +853,40 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
 
 
 /*
-  Get the value of the function as a TIME structure.
+  Get the value of the function as a MYSQL_TIME structure.
   As a extra convenience the time structure is reset on error!
  */
 
-bool Item::get_date(TIME *ltime,uint fuzzydate)
+bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 {
-  char buff[40];
-  String tmp(buff,sizeof(buff), &my_charset_bin),*res;
-  if (!(res=val_str(&tmp)) ||
-      str_to_datetime_with_warn(res->ptr(), res->length(),
-                                ltime, fuzzydate) <= MYSQL_TIMESTAMP_ERROR)
+  if (result_type() == STRING_RESULT)
   {
-    bzero((char*) ltime,sizeof(*ltime));
-    return 1;
+    char buff[40];
+    String tmp(buff,sizeof(buff), &my_charset_bin),*res;
+    if (!(res=val_str(&tmp)) ||
+        str_to_datetime_with_warn(res->ptr(), res->length(),
+                                  ltime, fuzzydate) <= MYSQL_TIMESTAMP_ERROR)
+      goto err;
+  }
+  else
+  {
+    longlong value= val_int();
+    int was_cut;
+    if (number_to_datetime(value, ltime, fuzzydate, &was_cut) == LL(-1))
+    {
+      char buff[22], *end;
+      end= longlong10_to_str(value, buff, -10);
+      make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                   buff, (int) (end-buff), MYSQL_TIMESTAMP_NONE,
+                                   NullS);
+      goto err;
+    }
   }
   return 0;
+
+err:
+  bzero((char*) ltime,sizeof(*ltime));
+  return 1;
 }
 
 /*
@@ -876,7 +894,7 @@ bool Item::get_date(TIME *ltime,uint fuzzydate)
   As a extra convenience the time structure is reset on error!
  */
 
-bool Item::get_time(TIME *ltime)
+bool Item::get_time(MYSQL_TIME *ltime)
 {
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
@@ -1644,7 +1662,7 @@ void Item_ident_for_show::make_field(Send_field *tmp_field)
 Item_field::Item_field(Field *f)
   :Item_ident(0, NullS, *f->table_name, f->field_name),
    item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0), fixed_as_field(0)
+   have_privileges(0), any_privileges(0)
 {
   set_field(f);
   /*
@@ -1659,7 +1677,7 @@ Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
                        Field *f)
   :Item_ident(context_arg, f->table->s->db.str, *f->table_name, f->field_name),
    item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0), fixed_as_field(0)
+   have_privileges(0), any_privileges(0)
 {
   /*
     We always need to provide Item_field with a fully qualified field
@@ -1698,7 +1716,7 @@ Item_field::Item_field(Name_resolution_context *context_arg,
                        const char *field_name_arg)
   :Item_ident(context_arg, db_arg,table_name_arg,field_name_arg),
    field(0), result_field(0), item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0), fixed_as_field(0)
+   have_privileges(0), any_privileges(0)
 {
   SELECT_LEX *select= current_thd->lex->current_select;
   collation.set(DERIVATION_IMPLICIT);
@@ -1714,8 +1732,7 @@ Item_field::Item_field(THD *thd, Item_field *item)
    item_equal(item->item_equal),
    no_const_subst(item->no_const_subst),
    have_privileges(item->have_privileges),
-   any_privileges(item->any_privileges),
-   fixed_as_field(item->fixed_as_field)
+   any_privileges(item->any_privileges)
 {
   collation.set(DERIVATION_IMPLICIT);
 }
@@ -1873,7 +1890,7 @@ String *Item_field::str_result(String *str)
   return result_field->val_str(str,&str_value);
 }
 
-bool Item_field::get_date(TIME *ltime,uint fuzzydate)
+bool Item_field::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 {
   if ((null_value=field->is_null()) || field->get_date(ltime,fuzzydate))
   {
@@ -1883,7 +1900,7 @@ bool Item_field::get_date(TIME *ltime,uint fuzzydate)
   return 0;
 }
 
-bool Item_field::get_date_result(TIME *ltime,uint fuzzydate)
+bool Item_field::get_date_result(MYSQL_TIME *ltime,uint fuzzydate)
 {
   if ((null_value=result_field->is_null()) ||
       result_field->get_date(ltime,fuzzydate))
@@ -1894,7 +1911,7 @@ bool Item_field::get_date_result(TIME *ltime,uint fuzzydate)
   return 0;
 }
 
-bool Item_field::get_time(TIME *ltime)
+bool Item_field::get_time(MYSQL_TIME *ltime)
 {
   if ((null_value=field->is_null()) || field->get_time(ltime))
   {
@@ -2421,7 +2438,7 @@ void Item_param::set_decimal(const char *str, ulong length)
 
 
 /*
-  Set parameter value from TIME value.
+  Set parameter value from MYSQL_TIME value.
 
   SYNOPSIS
     set_time()
@@ -2435,7 +2452,7 @@ void Item_param::set_decimal(const char *str, ulong length)
     the fact that even wrong value sent over binary protocol fits into
     MAX_DATE_STRING_REP_LENGTH buffer.
 */
-void Item_param::set_time(TIME *tm, timestamp_type time_type,
+void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
                           uint32 max_length_arg)
 { 
   DBUG_ENTER("Item_param::set_time");
@@ -2450,7 +2467,8 @@ void Item_param::set_time(TIME *tm, timestamp_type time_type,
   {
     char buff[MAX_DATE_STRING_REP_LENGTH];
     uint length= my_TIME_to_str(&value.time, buff);
-    make_truncated_value_warning(current_thd, buff, length, time_type, 0);
+    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                 buff, length, time_type, 0);
     set_zero_time(&value.time, MYSQL_TIMESTAMP_ERROR);
   }
 
@@ -2652,7 +2670,7 @@ int Item_param::save_in_field(Field *field, bool no_conversions)
 }
 
 
-bool Item_param::get_time(TIME *res)
+bool Item_param::get_time(MYSQL_TIME *res)
 {
   if (state == TIME_VALUE)
   {
@@ -2667,7 +2685,7 @@ bool Item_param::get_time(TIME *res)
 }
 
 
-bool Item_param::get_date(TIME *res, uint fuzzydate)
+bool Item_param::get_date(MYSQL_TIME *res, uint fuzzydate)
 {
   if (state == TIME_VALUE)
   {
@@ -3093,7 +3111,7 @@ String* Item_ref_null_helper::val_str(String* s)
 }
 
 
-bool Item_ref_null_helper::get_date(TIME *ltime, uint fuzzydate)
+bool Item_ref_null_helper::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 {  
   return (owner->was_null|= null_value= (*ref)->get_date(ltime, fuzzydate));
 }
@@ -3483,6 +3501,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
   Item **ref= (Item **) not_found_item;
   SELECT_LEX *current_sel= (SELECT_LEX *) thd->lex->current_select;
   Name_resolution_context *outer_context= 0;
+  SELECT_LEX *select= 0;
   /* Currently derived tables cannot be correlated */
   if (current_sel->master_unit()->first_select()->linkage !=
       DERIVED_TABLE_TYPE)
@@ -3491,7 +3510,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
        outer_context;
        outer_context= outer_context->outer_context)
   {
-    SELECT_LEX *select= outer_context->select_lex;
+    select= outer_context->select_lex;
     Item_subselect *prev_subselect_item=
       last_checked_context->select_lex->master_unit()->item;
     last_checked_context= outer_context;
@@ -3534,45 +3553,28 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
         }
         if (*from_field != view_ref_found)
         {
-
           prev_subselect_item->used_tables_cache|= (*from_field)->table->map;
           prev_subselect_item->const_item_cache= 0;
+          set_field(*from_field);
           if (!last_checked_context->select_lex->having_fix_field &&
-              !fixed_as_field)
+              select->group_list.elements)
           {
             Item_outer_ref *rf;
-            Query_arena *arena= 0, backup;
             /*
-              Each outer field is replaced for an Item_outer_ref object.
-              This is done in order to get correct results when the outer
-              select employs a temporary table.
-              The original fields are saved in the inner_fields_list of the
-              outer select. This list is created by the following reasons:
-              1. We can't add field items to the outer select list directly
-                 because the outer select hasn't been fully fixed yet.
-              2. We need a location to refer to in the Item_ref object
-                 so the inner_fields_list is used as such temporary
-                 reference storage.
-              The new Item_outer_ref object replaces the original field and is
-              also saved in the inner_refs_list of the outer select. Here
-              it is only created. It can be fixed only after the original
-              field has been fixed and this is done in the fix_inner_refs()
-              function.
+              If an outer field is resolved in a grouping select then it
+              is replaced for an Item_outer_ref object. Otherwise an
+              Item_field object is used.
+              The new Item_outer_ref object is saved in the inner_refs_list of
+              the outer select. Here it is only created. It can be fixed only
+              after the original field has been fixed and this is done in the
+              fix_inner_refs() function.
             */
-            set_field(*from_field);
-            arena= thd->activate_stmt_arena_if_needed(&backup);
-            rf= new Item_outer_ref(context, this);
-            if (!rf)
-            {
-              if (arena)
-                thd->restore_active_arena(arena, &backup);
+            ;
+            if (!(rf= new Item_outer_ref(context, this)))
               return -1;
-            }
-            *reference= rf;
+            thd->change_item_tree(reference, rf);
             select->inner_refs_list.push_back(rf);
-            if (arena)
-              thd->restore_active_arena(arena, &backup);
-            fixed_as_field= 1;
+            rf->in_sum_func= thd->lex->in_sum_func;
           }
           if (thd->lex->in_sum_func &&
               thd->lex->in_sum_func->nest_level == 
@@ -3678,11 +3680,20 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     rf= (place == IN_HAVING ?
          new Item_ref(context, ref, (char*) table_name,
                       (char*) field_name, alias_name_used) :
+         (!select->group_list.elements ?
          new Item_direct_ref(context, ref, (char*) table_name,
-                             (char*) field_name, alias_name_used));
+                             (char*) field_name, alias_name_used) :
+         new Item_outer_ref(context, ref, (char*) table_name,
+                            (char*) field_name, alias_name_used)));
     *ref= save;
     if (!rf)
       return -1;
+
+    if (place != IN_HAVING && select->group_list.elements)
+    {
+      outer_context->select_lex->inner_refs_list.push_back((Item_outer_ref*)rf);
+      ((Item_outer_ref*)rf)->in_sum_func= thd->lex->in_sum_func;
+    }
     thd->change_item_tree(reference, rf);
     /*
       rf is Item_ref => never substitute other items (in this case)
@@ -4931,7 +4942,7 @@ bool Item::send(Protocol *protocol, String *buffer)
   case MYSQL_TYPE_DATE:
   case MYSQL_TYPE_TIMESTAMP:
   {
-    TIME tm;
+    MYSQL_TIME tm;
     get_date(&tm, TIME_FUZZY_DATE);
     if (!null_value)
     {
@@ -4944,7 +4955,7 @@ bool Item::send(Protocol *protocol, String *buffer)
   }
   case MYSQL_TYPE_TIME:
   {
-    TIME tm;
+    MYSQL_TIME tm;
     get_time(&tm);
     if (!null_value)
       result= protocol->store_time(&tm);
@@ -5496,7 +5507,7 @@ bool Item_ref::is_null()
 }
 
 
-bool Item_ref::get_date(TIME *ltime,uint fuzzydate)
+bool Item_ref::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 {
   return (null_value=(*ref)->get_date_result(ltime,fuzzydate));
 }
@@ -5595,7 +5606,7 @@ bool Item_direct_ref::is_null()
 }
 
 
-bool Item_direct_ref::get_date(TIME *ltime,uint fuzzydate)
+bool Item_direct_ref::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 {
   return (null_value=(*ref)->get_date(ltime,fuzzydate));
 }
@@ -5640,15 +5651,18 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
 
 bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
 {
-  DBUG_ASSERT(*ref);
-  /* outer_field->check_cols() will be made in Item_direct_ref::fix_fields */
-  outer_field->fixed_as_field= 1;
-  if (!outer_field->fixed &&
-      (outer_field->fix_fields(thd, reference)))
+  bool err;
+  /* outer_ref->check_cols() will be made in Item_direct_ref::fix_fields */
+  if ((*ref) && !(*ref)->fixed && ((*ref)->fix_fields(thd, reference)))
     return TRUE;
-  table_name= outer_field->table_name;
-  return Item_direct_ref::fix_fields(thd, reference);
+  err= Item_direct_ref::fix_fields(thd, reference);
+  if (!outer_ref)
+    outer_ref= *ref;
+  if ((*ref)->type() == Item::FIELD_ITEM)
+    table_name= ((Item_field*)outer_ref)->table_name;
+  return err;
 }
+
 
 /*
   Compare two view column references for equality.

@@ -1,0 +1,37 @@
+SELECT @@global.innodb_table_locks into @table_locks;
+SET @@global.innodb_table_locks= OFF;
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v1;
+SET autocommit=0;
+SET autocommit=0;
+connection default;
+CREATE TABLE t1 (k INT NOT NULL PRIMARY KEY, i INT, j INT, l INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,123,1,123);
+INSERT INTO t1 VALUES (2,124,2,124);
+INSERT INTO t1 VALUES (3,125,3,125);
+INSERT INTO t1 VALUES (4,126,4,126);
+#CREATE INDEX ixi ON t1 (i);
+CREATE TABLE t2 (k INT NOT NULL PRIMARY KEY, i INT, j INT, l INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,123,1,123);
+INSERT INTO t2 VALUES (2,124,2,124);
+INSERT INTO t2 VALUES (3,125,3,125);
+INSERT INTO t2 VALUES (4,126,4,126);
+#CREATE INDEX ixi ON t2 (i);
+CREATE TRIGGER trig_t2 AFTER UPDATE ON t2
+FOR EACH ROW BEGIN
+UPDATE t1 SET l = NEW.i WHERE i = OLD.i;
+END;
+|
+COMMIT;
+SELECT @@global.tx_isolation;
+@@global.tx_isolation
+REPEATABLE-READ
+EXPLAIN SELECT t1.i FROM t1 WHERE t1.i< 125 FOR UPDATE;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+SELECT t1.i FROM t1 WHERE t1.i< 125 FOR UPDATE;
+i
+123
+124
+connection root1;
+UPDATE t2 SET t2.i=225 WHERE t2.i=125;

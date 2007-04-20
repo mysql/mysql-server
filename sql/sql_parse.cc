@@ -118,8 +118,8 @@ bool end_active_trans(THD *thd)
     if (ha_commit(thd))
       error=1;
   }
-  thd->options&= ~(OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE |
-                   OPTION_KEEP_LOG);
+  thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
+  thd->no_trans_update.all= FALSE;
   DBUG_RETURN(error);
 }
 
@@ -545,8 +545,8 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     */
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     res= ha_commit(thd);
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE |
-                             OPTION_KEEP_LOG);
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_KEEP_LOG);
+    thd->no_trans_update.all= FALSE;
     break;
   case COMMIT_RELEASE:
     do_release= 1; /* fall through */
@@ -563,8 +563,8 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_rollback(thd))
       res= -1;
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE |
-                             OPTION_KEEP_LOG);
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_KEEP_LOG);
+    thd->no_trans_update.all= FALSE;
     if (!res && (completion == ROLLBACK_AND_CHAIN))
       res= begin_trans(thd);
     break;
@@ -719,7 +719,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 			&LOCK_status);
     thd->convert_string(&tmp, system_charset_info,
 			packet, packet_length-1, thd->charset());
-    if (!mysql_change_db(thd, tmp.str, FALSE))
+    if (!mysql_change_db(thd, &tmp, FALSE))
     {
       general_log_print(thd, command, "%s",thd->db);
       send_ok(thd);
@@ -784,7 +784,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char *save_db;
     uint passwd_len= (thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
                       *passwd++ : strlen(passwd));
-    uint dummy_errors, save_db_length, db_length, res;
+    uint dummy_errors, save_db_length, db_length;
+    int res;
     Security_context save_security_ctx= *thd->security_ctx;
     USER_CONN *save_user_connect;
 
@@ -831,6 +832,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       /* authentication failure, we shall restore old user */
       if (res > 0)
         my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      else
+        thd->clear_error();                     // Error already sent to client
       x_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
       thd->user_connect= save_user_connect;
@@ -960,7 +963,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     packet= arg_end + 1;
 
     if (!my_strcasecmp(system_charset_info, table_list.db,
-                       information_schema_name.str))
+                       INFORMATION_SCHEMA_NAME.str))
     {
       ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, table_list.alias);
       if (schema_table)
@@ -1140,6 +1143,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     STATUS_VAR current_global_status_var;
     ulong uptime;
     uint length;
+    ulonglong queries_per_second1000;
 #ifndef EMBEDDED_LIBRARY
     char buff[250];
     uint buff_len= sizeof(buff);
@@ -1152,19 +1156,23 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_STATUS],
 			&LOCK_status);
     calc_sum_of_all_status(&current_global_status_var);
-    uptime= (ulong) (thd->start_time - server_start_time);
+    if (!(uptime= (ulong) (thd->start_time - server_start_time)))
+      queries_per_second1000= 0;
+    else
+      queries_per_second1000= thd->query_id * LL(1000) / uptime;
+
     length= my_snprintf((char*) buff, buff_len - 1,
                         "Uptime: %lu  Threads: %d  Questions: %lu  "
                         "Slow queries: %lu  Opens: %lu  Flush tables: %lu  "
-                        "Open tables: %u  Queries per second avg: %.3f",
+                        "Open tables: %u  Queries per second avg: %u.%u",
                         uptime,
                         (int) thread_count, (ulong) thd->query_id,
                         current_global_status_var.long_query_count,
                         current_global_status_var.opened_tables,
                         refresh_version,
                         cached_open_tables(),
-                        (uptime ? (ulonglong2double(thd->query_id) /
-                                   (double) uptime) : (double) 0));
+                        (uint) (queries_per_second1000 / 1000),
+                        (uint) (queries_per_second1000 % 1000));
 #ifdef SAFEMALLOC
     if (sf_malloc_cur_memory)				// Using SAFEMALLOC
     {
@@ -1350,8 +1358,9 @@ void log_slow_statement(THD *thd)
 int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
                          enum enum_schema_tables schema_table_idx)
 {
+  SELECT_LEX *schema_select_lex= NULL;
   DBUG_ENTER("prepare_schema_table");
-  SELECT_LEX *sel= 0;
+
   switch (schema_table_idx) {
   case SCH_SCHEMATA:
 #if defined(DONT_ALLOW_SHOW_COMMANDS)
@@ -1359,11 +1368,9 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
                ER(ER_NOT_ALLOWED_COMMAND), MYF(0));   /* purecov: inspected */
     DBUG_RETURN(1);
 #else
-    if ((specialflag & SPECIAL_SKIP_SHOW_DB) &&
-	check_global_access(thd, SHOW_DB_ACL))
-      DBUG_RETURN(1);
     break;
 #endif
+
   case SCH_TABLE_NAMES:
   case SCH_TABLES:
   case SCH_VIEWS:
@@ -1382,54 +1389,38 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       {
         DBUG_RETURN(1);
       }
-      db.str= lex->select_lex.db;
+      schema_select_lex= new SELECT_LEX();
+      db.str= schema_select_lex->db= lex->select_lex.db;
+      schema_select_lex->table_list.first= NULL;
       db.length= strlen(db.str);
+
       if (check_db_name(&db))
       {
         my_error(ER_WRONG_DB_NAME, MYF(0), db.str);
         DBUG_RETURN(1);
-      }
-      if (check_access(thd, SELECT_ACL, db.str, &thd->col_access, 0, 0,
-                       is_schema_db(db.str)))
-        DBUG_RETURN(1);			        /* purecov: inspected */
-      if (!thd->col_access && check_grant_db(thd, db.str))
-      {
-	my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-                 thd->security_ctx->priv_user, thd->security_ctx->priv_host,
-                 db.str);
-	DBUG_RETURN(1);
       }
       break;
     }
 #endif
   case SCH_COLUMNS:
   case SCH_STATISTICS:
+  {
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     my_message(ER_NOT_ALLOWED_COMMAND,
                ER(ER_NOT_ALLOWED_COMMAND), MYF(0)); /* purecov: inspected */
     DBUG_RETURN(1);
 #else
-    if (table_ident)
-    {
-      TABLE_LIST **query_tables_last= lex->query_tables_last;
-      sel= new SELECT_LEX();
-      /* 'parent_lex' is used in init_query() so it must be before it. */
-      sel->parent_lex= lex;
-      sel->init_query();
-      if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ))
-        DBUG_RETURN(1);
-      lex->query_tables_last= query_tables_last;
-      TABLE_LIST *table_list= (TABLE_LIST*) sel->table_list.first;
-      char *db= table_list->db;
-      if (check_access(thd,SELECT_ACL | EXTRA_ACL,db,
-                       &table_list->grant.privilege, 0, 0,
-                       test(table_list->schema_table)))
-        DBUG_RETURN(1);				/* purecov: inspected */
-      if (grant_option && check_grant(thd, SELECT_ACL, table_list, 2,
-                                      UINT_MAX, 0))
-        DBUG_RETURN(1);
-      break;
-    }
+    DBUG_ASSERT(table_ident);
+    TABLE_LIST **query_tables_last= lex->query_tables_last;
+    schema_select_lex= new SELECT_LEX();
+    /* 'parent_lex' is used in init_query() so it must be before it. */
+    schema_select_lex->parent_lex= lex;
+    schema_select_lex->init_query();
+    if (!schema_select_lex->add_table_to_list(thd, table_ident, 0, 0, TL_READ))
+      DBUG_RETURN(1);
+    lex->query_tables_last= query_tables_last;
+    break;
+  }
 #endif
   case SCH_OPEN_TABLES:
   case SCH_VARIABLES:
@@ -1455,7 +1446,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     DBUG_RETURN(1);
   }
   TABLE_LIST *table_list= (TABLE_LIST*) select_lex->table_list.first;
-  table_list->schema_select_lex= sel;
+  table_list->schema_select_lex= schema_select_lex;
   table_list->schema_table_reformed= 1;
   DBUG_RETURN(0);
 }
@@ -2843,7 +2834,7 @@ end_with_restore_list:
 	we silently add IF EXISTS if TEMPORARY was used.
       */
       if (thd->slave_thread)
-	lex->drop_if_exists= 1;
+        lex->drop_if_exists= 1;
 
       /* So that DROP TEMPORARY TABLE gets to binlog at commit/rollback */
       thd->options|= OPTION_KEEP_LOG;
@@ -2900,9 +2891,14 @@ end_with_restore_list:
     }
 #endif
   case SQLCOM_CHANGE_DB:
-    if (!mysql_change_db(thd,select_lex->db,FALSE))
+  {
+    LEX_STRING db_str= { (char *) select_lex->db, strlen(select_lex->db) };
+
+    if (!mysql_change_db(thd, &db_str, FALSE))
       send_ok(thd);
+
     break;
+  }
 
   case SQLCOM_LOAD:
   {
@@ -3545,8 +3541,7 @@ end_with_restore_list:
         res= TRUE; // cannot happen
       else
       {
-        if ((thd->options &
-             (OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG)) &&
+        if (((thd->options & OPTION_KEEP_LOG) || thd->no_trans_update.all) &&
             !thd->slave_thread)
           push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                        ER_WARNING_NOT_COMPLETE_ROLLBACK,
@@ -4103,9 +4098,8 @@ create_sp_error:
     thd->transaction.xid_state.xa_state=XA_ACTIVE;
     thd->transaction.xid_state.xid.set(thd->lex->xid);
     xid_cache_insert(&thd->transaction.xid_state);
-    thd->options= ((thd->options & ~(OPTION_STATUS_NO_TRANS_UPDATE |
-                                     OPTION_KEEP_LOG)) |
-                   OPTION_BEGIN);
+    thd->options= ((thd->options & ~(OPTION_KEEP_LOG)) | OPTION_BEGIN);
+    thd->no_trans_update.all= FALSE;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     send_ok(thd);
     break;
@@ -4198,8 +4192,8 @@ create_sp_error:
                xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
-    thd->options&= ~(OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE |
-                     OPTION_KEEP_LOG);
+    thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
+    thd->no_trans_update.all= FALSE;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     xid_cache_delete(&thd->transaction.xid_state);
     thd->transaction.xid_state.xa_state=XA_NOTR;
@@ -4229,8 +4223,8 @@ create_sp_error:
       my_error(ER_XAER_RMERR, MYF(0));
     else
       send_ok(thd);
-    thd->options&= ~(OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE |
-                     OPTION_KEEP_LOG);
+    thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
+    thd->no_trans_update.all= FALSE;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     xid_cache_delete(&thd->transaction.xid_state);
     thd->transaction.xid_state.xa_state=XA_NOTR;
@@ -4467,7 +4461,10 @@ bool check_single_table_access(THD *thd, ulong privilege,
     goto deny;
 
   /* Show only 1 table for check_grant */
-  if (grant_option && check_grant(thd, privilege, all_tables, 0, 1, no_errors))
+  if (grant_option &&
+      !(all_tables->belong_to_view &&
+        (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)) &&
+      check_grant(thd, privilege, all_tables, 0, 1, no_errors))
     goto deny;
 
   thd->security_ctx= backup_ctx;
@@ -4684,6 +4681,66 @@ bool check_global_access(THD *thd, ulong want_access)
 }
 
 
+static bool check_show_access(THD *thd, TABLE_LIST *table)
+{
+  switch (get_schema_table_idx(table->schema_table)) {
+  case SCH_SCHEMATA:
+    return (specialflag & SPECIAL_SKIP_SHOW_DB) &&
+      check_global_access(thd, SHOW_DB_ACL);
+
+  case SCH_TABLE_NAMES:
+  case SCH_TABLES:
+  case SCH_VIEWS:
+  case SCH_TRIGGERS:
+  case SCH_EVENTS:
+  {
+    const char *dst_db_name= table->schema_select_lex->db;
+
+    DBUG_ASSERT(dst_db_name);
+
+    if (check_access(thd, SELECT_ACL, dst_db_name,
+                     &thd->col_access, FALSE, FALSE,
+                     is_schema_db(dst_db_name)))
+      return TRUE;
+
+    if (!thd->col_access && check_grant_db(thd, dst_db_name))
+    {
+      my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
+               thd->security_ctx->priv_user,
+               thd->security_ctx->priv_host,
+               dst_db_name);
+      return TRUE;
+    }
+
+    return FALSE;
+  }
+
+  case SCH_COLUMNS:
+  case SCH_STATISTICS:
+  {
+    TABLE_LIST *dst_table;
+    dst_table= (TABLE_LIST *) table->schema_select_lex->table_list.first;
+
+    DBUG_ASSERT(dst_table);
+
+    if (check_access(thd, SELECT_ACL | EXTRA_ACL,
+                     dst_table->db,
+                     &dst_table->grant.privilege,
+                     FALSE, FALSE,
+                     test(dst_table->schema_table)))
+      return FALSE;
+
+    return (grant_option &&
+            check_grant(thd, SELECT_ACL, dst_table, 2, UINT_MAX, FALSE));
+  }
+  default:
+    break;
+  }
+
+  return FALSE;
+}
+
+
 /*
   Check the privilege for all used tables.
 
@@ -4736,7 +4793,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
       if (!no_errors)
         my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                  sctx->priv_user, sctx->priv_host,
-                 information_schema_name.str);
+                 INFORMATION_SCHEMA_NAME.str);
       return TRUE;
     }
     /*
@@ -4744,7 +4801,16 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
        Remove SHOW_VIEW_ACL, because it will be checked during making view
      */
     tables->grant.orig_want_privilege= (want_access & ~SHOW_VIEW_ACL);
-    if (tables->derived || tables->schema_table ||
+
+    if (tables->schema_table_reformed)
+    {
+      if (check_show_access(thd, tables))
+        goto deny;
+
+      continue;
+    }
+
+    if (tables->derived ||
         (tables->table && (int)tables->table->s->tmp_table))
       continue;
     thd->security_ctx= sctx;
@@ -5024,8 +5090,10 @@ void mysql_reset_thd_for_next_command(THD *thd)
     in ha_rollback_trans() about some tables couldn't be rolled back.
   */
   if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
-    thd->options&= ~(OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG);
-
+  {
+    thd->options&= ~OPTION_KEEP_LOG;
+    thd->no_trans_update.all= FALSE;
+  }
   DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
   thd->tmp_table_used= 0;
   if (!thd->in_sub_stmt)
@@ -5526,7 +5594,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->ignore_leaves= test(table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->derived=	    table->sel;
   if (!ptr->derived && !my_strcasecmp(system_charset_info, ptr->db,
-                                      information_schema_name.str))
+                                      INFORMATION_SCHEMA_NAME.str))
   {
     ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, ptr->table_name);
     if (!schema_table ||
@@ -5534,7 +5602,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
          (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0))
     {
       my_error(ER_UNKNOWN_TABLE, MYF(0),
-               ptr->table_name, information_schema_name.str);
+               ptr->table_name, INFORMATION_SCHEMA_NAME.str);
       DBUG_RETURN(0);
     }
     ptr->schema_table_name= ptr->table_name;

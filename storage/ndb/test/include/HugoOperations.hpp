@@ -83,6 +83,8 @@ public:
   int equalForAttr(NdbOperation*,
 		   int attrId, 
 		   int rowId);
+
+  int equalForRow(NdbOperation*, int rowid);
   
   int setValues(NdbOperation*, int rowId, int updateId);
   

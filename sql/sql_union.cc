@@ -745,6 +745,7 @@ bool st_select_lex::cleanup()
     error= (bool) ((uint) error | (uint) lex_unit->cleanup());
   }
   non_agg_fields.empty();
+  inner_refs_list.empty();
   DBUG_RETURN(error);
 }
 

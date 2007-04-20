@@ -81,6 +81,7 @@ NdbRecAttr::setup(const NdbColumnImpl* anAttrInfo, char* aValue)
     theRef = tRef;
     return 0;
   }
+  errno = ENOMEM;
   return -1;
 }
 
@@ -100,7 +101,11 @@ NdbRecAttr::copyout()
 NdbRecAttr *
 NdbRecAttr::clone() const {
   NdbRecAttr * ret = new NdbRecAttr(0);
-
+  if (ret == NULL)
+  {
+    errno = ENOMEM;
+    return NULL;
+  }
   ret->theAttrId = theAttrId;
   ret->m_size_in_bytes = m_size_in_bytes;
   ret->m_column = m_column;
@@ -112,6 +117,12 @@ NdbRecAttr::clone() const {
     ret->theValue = 0;
   } else {
     ret->theStorageX = new Uint64[((n + 7) >> 3)];
+    if (ret->theStorageX == NULL)
+    {
+      delete ret;
+      errno = ENOMEM;
+      return NULL;
+    }
     ret->theRef = (char*)ret->theStorageX;    
     ret->theValue = 0;
   }
@@ -505,4 +516,16 @@ NdbRecAttr::double_value() const
   double val;
   memcpy(&val,theRef,sizeof(val));
   return val;
+}
+
+Int32
+NdbRecAttr::medium_value() const
+{
+  return sint3korr((unsigned char *)theRef);
+}
+
+Uint32
+NdbRecAttr::u_medium_value() const
+{
+  return uint3korr((unsigned char*)theRef);
 }

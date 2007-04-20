@@ -520,10 +520,9 @@ HugoTransactions::loadTable(Ndb* pNdb,
                             bool oneTrans,
 			    int value,
 			    bool abort){
-  int             check, a;
+  int             check;
   int             retryAttempt = 0;
   int             retryMax = 5;
-  NdbOperation	  *pOp;
   bool            first_batch = true;
 
   const int org = batch;
@@ -667,10 +666,9 @@ HugoTransactions::loadTable(Ndb* pNdb,
 int
 HugoTransactions::fillTable(Ndb* pNdb, 
 			    int batch){
-  int             check, a, b;
+  int             check;
   int             retryAttempt = 0;
   int             retryMax = 5;
-  NdbOperation	  *pOp;
 
   const int org = batch;
   const int cols = tab.getNoOfColumns();
@@ -791,7 +789,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
   int                  reads = 0;
   int                  r = 0;
   int                  retryAttempt = 0;
-  int                  check, a;
+  int                  check;
 
   if (batch == 0) {
     g_info << "ERROR: Argument batch == 0 in pkReadRecords(). Not allowed." << endl;
@@ -910,8 +908,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
   int updated = 0;
   int                  r = 0;
   int                  retryAttempt = 0;
-  int                  check, a, b;
-  NdbOperation	       *pOp;
+  int                  check, b;
 
   allocRows(batch);
 
@@ -1097,14 +1094,10 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
    }
    
    // Define primary keys
-   for(a = 0; a<tab.getNoOfColumns(); a++){
-     if (tab.getColumn(a)->getPrimaryKey() == true){
-       if(equalForAttr(pOp, a, r) != 0){
-	 ERR(pTrans->getNdbError());
-	 closeTransaction(pNdb);
-	 return NDBT_FAILED;
-       }
-     }
+   if (equalForRow(pOp, r) != 0)
+   {
+     closeTransaction(pNdb);
+     return NDBT_FAILED;
    }
    
    // Read update value
@@ -1153,14 +1146,10 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
     }
 
     // PKs
-    for(a = 0; a<tab.getNoOfColumns(); a++){
-      if (tab.getColumn(a)->getPrimaryKey() == true){
-	if(equalForAttr(pUpdOp, a, r) != 0){
-	  ERR(pTrans->getNdbError());
-	  closeTransaction(pNdb);
-	  return NDBT_FAILED;
-	}
-      }
+    if (equalForRow(pOp, r) != 0)
+    {
+      closeTransaction(pNdb);
+      return NDBT_FAILED;
     }
 
     // Update col
@@ -1236,8 +1225,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
   int deleted = 0;
   int                  r = 0;
   int                  retryAttempt = 0;
-  int                  check, a;
-  NdbOperation	       *pOp;
+  int                  check;
 
   g_info << "|- Deleting records..." << endl;
   while (r < records){
@@ -1335,8 +1323,7 @@ HugoTransactions::lockRecords(Ndb* pNdb,
   // and lock som other records
   int                  r = 0;
   int                  retryAttempt = 0;
-  int                  check, a, b;
-  NdbOperation	       *pOp;
+  int                  check;
   NdbOperation::LockMode lm = NdbOperation::LM_Exclusive;
 
   // Calculate how many records to lock in each batch
@@ -1522,14 +1509,10 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
       }
       
       // Define primary keys
-      for(a = 0; a<tab.getNoOfColumns(); a++){
-	if (tab.getColumn(a)->getPrimaryKey() == true){
-	  if(equalForAttr(pOp, a, r+b) != 0){
-	    ERR(pTrans->getNdbError());
-	    closeTransaction(pNdb);
-	    return NDBT_FAILED;
-	  }
-	}
+      if (equalForRow(pOp, r+b) != 0)
+      {
+        closeTransaction(pNdb);
+        return NDBT_FAILED;
       }
       
       // Define attributes to read  
@@ -1663,14 +1646,10 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
       }	
       
       // Define primary keys
-      for(a = 0; a<tab.getNoOfColumns(); a++){
-	if (tab.getColumn(a)->getPrimaryKey() == true){
-	  if(equalForAttr(pOp, a, r+b) != 0){
-	    ERR(pTrans->getNdbError());
-	    closeTransaction(pNdb);
-	    return NDBT_FAILED;
-	  }
-	}
+      if (equalForRow(pOp, r+b) != 0)
+      {
+        closeTransaction(pNdb);
+        return NDBT_FAILED;
       }
       
       // Define attributes to read  
@@ -1733,16 +1712,13 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
 	return NDBT_FAILED;
       }
       
-      if(!ordered){
-	for(a = 0; a<tab.getNoOfColumns(); a++){
-	  if (tab.getColumn(a)->getPrimaryKey() == true){
-	    if(equalForAttr(pUpdOp, a, r+b) != 0){
-	      ERR(pTrans->getNdbError());
-	      closeTransaction(pNdb);
-	      return NDBT_FAILED;
-	    }
-	  }
-	}
+      if(!ordered)
+      {
+        if (equalForRow(pOp, r+b) != 0)
+        {
+          closeTransaction(pNdb);
+          return NDBT_FAILED;
+        }
       }
       
       for(a = 0; a<tab.getNoOfColumns(); a++){
