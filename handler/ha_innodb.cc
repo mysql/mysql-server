@@ -2568,9 +2568,14 @@ ha_innobase::close(void)
 /*====================*/
 				/* out: 0 */
 {
+	THD*	thd;
+
 	DBUG_ENTER("ha_innobase::close");
 
-	innobase_release_temporary_latches(ht, current_thd);
+	thd = current_thd;  // avoid calling current_thd twice, it may be slow
+	if (thd != NULL) {
+		innobase_release_temporary_latches(ht, thd);
+	}
 
 	row_prebuilt_free(prebuilt);
 
