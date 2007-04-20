@@ -1,5 +1,4 @@
 usr/bin/mysql_config
-usr/bin/comp_err
 usr/include/*
 usr/lib/libmysqlclient.a
 usr/lib/libmysqlclient.la
