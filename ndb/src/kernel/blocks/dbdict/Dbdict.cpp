@@ -6883,7 +6883,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
   w.add(DictTabInfo::NoOfKeyAttr, indexPtr.p->noOfPrimkey);
   w.add(DictTabInfo::NoOfNullable, indexPtr.p->noOfNullAttr);
   w.add(DictTabInfo::KeyLength, indexPtr.p->tupKeyLength);
-  w.add(DictTabInfo::SingleUserMode, (Uint32)1);
+  w.add(DictTabInfo::SingleUserMode, (Uint32)NDB_SUM_READ_WRITE);
   // write index key attributes
   AttributeRecordPtr aRecPtr;
   c_attributeRecordPool.getPtr(aRecPtr, tablePtr.p->firstAttribute);
