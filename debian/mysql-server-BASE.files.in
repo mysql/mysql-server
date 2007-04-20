@@ -26,7 +26,7 @@ usr/bin/resolveip
 usr/sbin/mysqld
 usr/sbin/mysqlmanager
 usr/lib/mysql/mysqld.sym
-usr/share/lintian/overrides/mysql-server-@MYSQL_BASE_VERSION@
+usr/share/lintian/overrides/mysql-server-@MYSQL_BRANDED_BASE_VERSION@
 usr/share/info/mysql.info
 usr/share/man/man1/mysqlman.1
 usr/share/man/man1/my_print_defaults.1
