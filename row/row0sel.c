@@ -3635,7 +3635,7 @@ shortcut_fails_too_big_rec:
 			offsets = rec_get_offsets(page_rec_get_next(rec),
 						  index, offsets,
 						  ULINT_UNDEFINED, &heap);
-                        err = sel_set_rec_lock(page_rec_get_next(rec),
+			err = sel_set_rec_lock(page_rec_get_next(rec),
 					       index, offsets,
 					       prebuilt->select_lock_type,
 					       LOCK_GAP, thr);
