@@ -95,6 +95,7 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_NO_RESULT_SET                        2053
 #define CR_NOT_IMPLEMENTED                      2054
 #define CR_SERVER_LOST_EXTENDED			2055
-#define CR_ERROR_LAST  /*Copy last error nr:*/  2055
+#define CR_STMT_CLOSED				2056
+#define CR_ERROR_LAST  /*Copy last error nr:*/  2056
 /* Add error numbers before CR_ERROR_LAST and change it accordingly. */
 

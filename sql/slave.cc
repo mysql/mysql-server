@@ -794,8 +794,10 @@ static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
   else
   {
     mi->clock_diff_with_master= 0; /* The "most sensible" value */
-    sql_print_warning("\"SELECT UNIX_TIMESTAMP()\" failed on master, \
-do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS");
+    sql_print_warning("\"SELECT UNIX_TIMESTAMP()\" failed on master, "
+                      "do not trust column Seconds_Behind_Master of SHOW "
+                      "SLAVE STATUS. Error: %s (%d)",
+                      mysql_error(mysql), mysql_errno(mysql));
   }
   if (master_res)
     mysql_free_result(master_res);

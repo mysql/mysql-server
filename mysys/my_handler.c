@@ -557,4 +557,3 @@ HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
   }
   return keyseg;
 }
-

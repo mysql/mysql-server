@@ -18,12 +18,9 @@
 #endif
 
 #include "thread_registry.h"
-
-#include <my_global.h>
 #include <thr_alarm.h>
-
 #include <signal.h>
-
+#include "log.h"
 
 #ifndef __WIN__
 /* Kick-off signal handler */
@@ -67,6 +64,8 @@ Thread_registry::~Thread_registry()
   /* Check that no one uses the repository. */
   pthread_mutex_lock(&LOCK_thread_registry);
 
+  if (head.next != &head)
+    log_error("Not all threads died properly\n");
   /* All threads must unregister */
   DBUG_ASSERT(head.next == &head);
 
