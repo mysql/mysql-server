@@ -315,6 +315,7 @@ static char *mysqld_user, *mysqld_chroot, *log_error_file_ptr;
 static char *opt_init_slave, *language_ptr, *opt_init_connect;
 static char *default_character_set_name;
 static char *character_set_filesystem_name;
+static char *lc_time_names_name;
 static char *my_bind_addr_str;
 static char *default_collation_name;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
@@ -494,6 +495,8 @@ MY_BITMAP temp_pool;
 CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 CHARSET_INFO *character_set_filesystem;
+
+MY_LOCALE *my_default_lc_time_names;
 
 SHOW_COMP_OPTION have_isam;
 SHOW_COMP_OPTION have_raid, have_ssl, have_symlink, have_query_cache;
@@ -2826,6 +2829,14 @@ static int init_common_variables(const char *conf_file_name, int argc,
     return 1;
   global_system_variables.character_set_filesystem= character_set_filesystem;
 
+  if (!(my_default_lc_time_names=
+        my_locale_by_name(lc_time_names_name)))
+  {
+    sql_print_error("Unknown locale: '%s'", lc_time_names_name);
+    return 1;
+  }
+  global_system_variables.lc_time_names= my_default_lc_time_names;
+  
   sys_init_connect.value_length= 0;
   if ((sys_init_connect.value= opt_init_connect))
     sys_init_connect.value_length= strlen(opt_init_connect);
@@ -4749,6 +4760,7 @@ enum options_mysqld
   OPT_DEFAULT_COLLATION,
   OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
   OPT_CHARACTER_SET_FILESYSTEM,
+  OPT_LC_TIME_NAMES,
   OPT_INIT_CONNECT,
   OPT_INIT_SLAVE,
   OPT_SECURE_AUTH,
@@ -5078,6 +5090,11 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "Client error messages in given language. May be given as a full path.",
    (gptr*) &language_ptr, (gptr*) &language_ptr, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
+  {"lc-time-names", OPT_LC_TIME_NAMES,
+   "Set the language used for the month names and the days of the week.",
+   (gptr*) &lc_time_names_name,
+   (gptr*) &lc_time_names_name,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"local-infile", OPT_LOCAL_INFILE,
    "Enable/disable LOAD DATA LOCAL INFILE (takes values 1|0).",
    (gptr*) &opt_local_infile,
@@ -6552,7 +6569,7 @@ static void mysql_init_variables(void)
   default_collation_name= compiled_default_collation_name;
   sys_charset_system.value= (char*) system_charset_info->csname;
   character_set_filesystem_name= (char*) "binary";
-
+  lc_time_names_name= (char*) "en_US";
 
   /* Set default values for some option variables */
   global_system_variables.table_type=   DB_TYPE_MYISAM;

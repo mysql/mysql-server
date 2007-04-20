@@ -505,6 +505,30 @@ set lc_time_names=0;
 select @@lc_time_names;
 
 #
+# Bug #22648 LC_TIME_NAMES: Setting GLOBAL has no effect
+#
+select @@global.lc_time_names, @@lc_time_names;
+set @@global.lc_time_names=fr_FR;
+select @@global.lc_time_names, @@lc_time_names;
+--echo New connection
+connect (con1,localhost,root,,);
+connection con1;
+select @@global.lc_time_names, @@lc_time_names;
+set @@lc_time_names=ru_RU;
+select @@global.lc_time_names, @@lc_time_names;
+disconnect con1;
+connection default;
+--echo Returnung to default connection
+select @@global.lc_time_names, @@lc_time_names;
+set lc_time_names=default;
+select @@global.lc_time_names, @@lc_time_names;
+set @@global.lc_time_names=default;
+select @@global.lc_time_names, @@lc_time_names;
+set @@lc_time_names=default;
+select @@global.lc_time_names, @@lc_time_names;
+
+
+#
 # Bug #13334: query_prealloc_size default less than minimum
 #
 set @test = @@query_prealloc_size;

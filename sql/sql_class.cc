@@ -344,7 +344,6 @@ void THD::init(void)
   total_warn_count= 0;
   update_charset();
   bzero((char *) &status_var, sizeof(status_var));
-  variables.lc_time_names = &my_locale_en_US;
 }
 
 
