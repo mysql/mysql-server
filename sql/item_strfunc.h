@@ -790,7 +790,7 @@ class Item_func_crc32 :public Item_int_func
 {
   String value;
 public:
-  Item_func_crc32(Item *a) :Item_int_func(a) {}
+  Item_func_crc32(Item *a) :Item_int_func(a) { unsigned_flag= 1; }
   const char *func_name() const { return "crc32"; }
   void fix_length_and_dec() { max_length=10; }
   longlong val_int();
