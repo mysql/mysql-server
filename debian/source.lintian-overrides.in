@@ -1,5 +1,5 @@
-maintainer-script-lacks-debhelper-token debian/mysql-server-@MYSQL_BASE_VERSION@.postinst
-maintainer-script-lacks-debhelper-token debian/mysql-server-@MYSQL_BASE_VERSION@.postrm
+maintainer-script-lacks-debhelper-token debian/mysql-server-@MYSQL_BRANDED_BASE_VERSION@.postinst
+maintainer-script-lacks-debhelper-token debian/mysql-server-@MYSQL_BRANDED_BASE_VERSION@.postrm
 outdated-autotools-helper-file bdb/dist/config.sub 2002-07-03
 outdated-autotools-helper-file bdb/dist/config.guess 2002-07-23
 bad-distribution-in-changes-file sarge
