@@ -43,5 +43,5 @@ diff_files $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_master.sql $MYSQLTEST_VARDIR/tmp
 
 # If all is good, we can remove the files
 
-system rm $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_master.sql;
-system rm $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_slave.sql;
+--remove_file $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_master.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_slave.sql

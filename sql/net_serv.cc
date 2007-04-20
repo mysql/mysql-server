@@ -298,8 +298,8 @@ void net_clear(NET *net, my_bool clear_buffer)
       {
         DBUG_PRINT("info",("skipped %d bytes from file: %s",
                            count, vio_description(net->vio)));
-#if defined(EXTRA_DEBUG) && (MYSQL_VERSION_ID < 51000)
-        fprintf(stderr,"Error: net_clear() skipped %d bytes from file: %s\n",
+#if defined(EXTRA_DEBUG)
+        fprintf(stderr,"Note: net_clear() skipped %d bytes from file: %s\n",
                 count, vio_description(net->vio));
 #endif
       }
@@ -818,7 +818,7 @@ my_real_read(NET *net, ulong *complen)
         {
           my_bool interrupted = vio_should_retry(net->vio);
 
-	  DBUG_PRINT("info",("vio_read returned %ld,  errno: %d",
+	  DBUG_PRINT("info",("vio_read returned %ld  errno: %d",
 			     length, vio_errno(net->vio)));
 #if !defined(__WIN__) || defined(MYSQL_SERVER)
 	  /*
@@ -903,9 +903,12 @@ my_real_read(NET *net, ulong *complen)
 			(int) net->buff[net->where_b + 3],
 			net->pkt_nr));
 #ifdef EXTRA_DEBUG
+            fflush(stdout);
 	    fprintf(stderr,"Error: Packets out of order (Found: %d, expected %d)\n",
 		    (int) net->buff[net->where_b + 3],
 		    (uint) (uchar) net->pkt_nr);
+            fflush(stderr);
+            DBUG_ASSERT(0);
 #endif
 	  }
 	  len= packet_error;

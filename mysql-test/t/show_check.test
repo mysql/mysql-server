@@ -392,7 +392,8 @@ SHOW TABLE STATUS like 't1';
 --error 1033
 show create table t1;
 drop table if exists t1;
-system rm -f $MYSQLTEST_VARDIR/master-data/test/t1.frm ;
+--error 1,0
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm
 
 #
 # BUG 12183 -  SHOW OPEN TABLES behavior doesn't match grammar
