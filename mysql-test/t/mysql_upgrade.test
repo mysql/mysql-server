@@ -52,6 +52,6 @@ DROP USER mysqltest1@'%';
 
 --echo Run mysql_upgrade with a non existing server socket
 --replace_result $MYSQLTEST_VARDIR var
---replace_regex /.*mysqlcheck.*: Got/mysqlcheck: Got/
+--replace_regex /.*mysqlcheck.*: Got/mysqlcheck: Got/ /\([0-9]*\)/(errno)/
 --error 1
---exec $MYSQL_UPGRADE --skip-verbose --force --socket=$MYSQLTEST_VARDIR/tmp/no_sock_here 2>&1
+--exec $MYSQL_UPGRADE --skip-verbose --force --host=not_existing_host 2>&1

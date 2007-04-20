@@ -17,14 +17,25 @@
 #include <sslopt-vars.h>
 #include "../scripts/mysql_fix_privilege_tables_sql.c"
 
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
+
+#ifndef WEXITSTATUS
+# ifdef __WIN__
+#  define WEXITSTATUS(stat_val) (stat_val)
+# else
+#  define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
+# endif
+#endif
+
 static char mysql_path[FN_REFLEN];
 static char mysqlcheck_path[FN_REFLEN];
-static char defaults_file_option[32+FN_REFLEN];
 
 static my_bool opt_force, opt_verbose;
 static char *opt_user= (char*)"root";
 
-static DYNAMIC_STRING ds_options;
+static DYNAMIC_STRING ds_args;
 
 static char *opt_password= 0;
 static my_bool tty_password= 0;
@@ -34,8 +45,6 @@ static char *default_dbug_option= (char*) "d:t:O,/tmp/mysql_upgrade.trace";
 #endif
 
 static char **defaults_argv;
-
-static File defaults_fd= -1;
 
 static my_bool not_used; /* Can't use GET_BOOL without a value pointer */
 
@@ -105,14 +114,10 @@ static struct my_option my_long_options[]=
 
 static void free_used_memory(void)
 {
-  /* Close the defaults file */
-  if (defaults_fd != -1)
-    my_close(defaults_fd, MYF(0));
-
   /* Free memory allocated by 'load_defaults' */
   free_defaults(defaults_argv);
 
-  dynstr_free(&ds_options);
+  dynstr_free(&ds_args);
 }
 
 
@@ -159,30 +164,30 @@ static void verbose(const char *fmt, ...)
 
 /*
   Add one option - passed to mysql_upgrade on command line
-  or by defaults file(my.cnf) - to a dynamic string that later
-  can be written to a temporary file. In this way we pass the
-  same arguments on to mysql and mysql_check
+  or by defaults file(my.cnf) - to a dynamic string, in
+  this way we pass the same arguments on to mysql and mysql_check
 */
 
 static void add_one_option(DYNAMIC_STRING* ds,
                            const struct my_option *opt,
                            const char* argument)
-{
-  dynstr_append(ds, opt->name);
 
+{
+  const char* eq= NullS;
+  const char* arg= NullS;
   if (opt->arg_type != NO_ARG)
   {
-    dynstr_append(ds, "=");
+    eq= "=";
     switch (opt->var_type & GET_TYPE_MASK) {
     case GET_STR:
-    case GET_STR_ALLOC:
-      dynstr_append(ds, argument);
+      arg= argument;
       break;
     default:
       die("internal error at %s: %d",__FILE__, __LINE__);
     }
   }
-  dynstr_append(ds, "\n");
+  dynstr_append_os_quoted(ds, "--", opt->name, eq, arg, NullS);
+  dynstr_append(&ds_args, " ");
 }
 
 
@@ -211,8 +216,8 @@ get_one_option(int optid, const struct my_option *opt,
     add_option= FALSE;
     if (argument)
     {
-      /* Add password to ds_options before overwriting the arg with x's */
-      add_one_option(&ds_options, opt, argument);
+      /* Add password to ds_args before overwriting the arg with x's */
+      add_one_option(&ds_args, opt, argument);
       while (*argument)
         *argument++= 'x';                       /* Destroy argument */
       tty_password= 0;
@@ -232,48 +237,11 @@ get_one_option(int optid, const struct my_option *opt,
     /*
       This is an option that is accpted by mysql_upgrade just so
       it can be passed on to "mysql" and "mysqlcheck"
-      Save it in the ds_options string
+      Save it in the ds_args string
     */
-    add_one_option(&ds_options, opt, argument);
+    add_one_option(&ds_args, opt, argument);
   }
   return 0;
-}
-
-
-/*
-  Write the options that should be passed on to
-  mysql and mysqlcheck to a temporary file
-*/
-
-static void create_defaults_file(void)
-{
-  static char defaults_file_path[FN_REFLEN];
-  DBUG_ENTER("create_defaults_file");
-
-  if ((defaults_fd= create_temp_file(defaults_file_path, NULL,
-                            "cnf", O_CREAT | O_SHARE,
-                            MYF(MY_WME))) < 0)
-    die("Failed to create temporary file for defaults");
-
-  DBUG_PRINT("info", ("Writing options: %s", ds_options.str));
-  if (my_write(defaults_fd, ds_options.str, ds_options.length,
-               MYF(MY_FNABP | MY_WME)))
-    die("Failed to write to '%s'", defaults_file_path);
-
-  /*
-     Dont close the temporary file yet, it will be used
-     by mysql and mysqlcheck
-  */
-
-  /*
-    Create the option that should be added to
-    tools in order to use this file
-  */
-  my_snprintf(defaults_file_option, sizeof(defaults_file_option),
-              "--defaults-file=%s", defaults_file_path);
-  DBUG_PRINT("info", ("defaults_file_option: %s", defaults_file_option));
-
-  DBUG_VOID_RETURN;
 }
 
 
@@ -466,7 +434,7 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
   DBUG_ENTER("run_query");
   DBUG_PRINT("enter", ("query: %s", query));
   if ((fd= create_temp_file(query_file_path, NULL,
-                            "sql", O_CREAT | O_SHARE,
+                            "sql", O_CREAT | O_SHARE | O_RDWR,
                             MYF(MY_WME))) < 0)
     die("Failed to create temporary file for defaults");
 
@@ -476,7 +444,7 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
 
   ret= run_tool(mysql_path,
                 ds_res,
-                defaults_file_option,
+                ds_args.str,
                 "--database=mysql",
                 "--batch", /* Turns off pager etc. */
                 force ? "--force": "--skip-force",
@@ -631,7 +599,7 @@ static int run_mysqlcheck_upgrade(void)
   verbose("Running 'mysqlcheck'...");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
-                  defaults_file_option,
+                  ds_args.str,
                   "--check-upgrade",
                   "--all-databases",
                   "--auto-repair",
@@ -747,7 +715,7 @@ int main(int argc, char **argv)
   setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
 #endif
 
-  if (init_dynamic_string(&ds_options, "[client]\n", 512, 256))
+  if (init_dynamic_string(&ds_args, "", 512, 256))
     die("Out of memory");
 
   load_defaults("my", load_default_groups, &argc, &argv);
@@ -760,27 +728,18 @@ int main(int argc, char **argv)
   {
     opt_password= get_tty_password(NullS);
     /* add password to defaults file */
-    dynstr_append(&ds_options, "password=");
-    dynstr_append(&ds_options, opt_password);
-    dynstr_append(&ds_options, "\n");
+    dynstr_append_os_quoted(&ds_args, "--password=", opt_password, NullS);
+    dynstr_append(&ds_args, " ");
   }
   /* add user to defaults file */
-  dynstr_append(&ds_options, "user=");
-  dynstr_append(&ds_options, opt_user);
-  dynstr_append(&ds_options, "\n");
+  dynstr_append_os_quoted(&ds_args, "--user=", opt_user, NullS);
+  dynstr_append(&ds_args, " ");
 
   /* Find mysql */
   find_tool(mysql_path, IF_WIN("mysql.exe", "mysql"));
 
   /* Find mysqlcheck */
   find_tool(mysqlcheck_path, IF_WIN("mysqlcheck.exe", "mysqlcheck"));
-
-  /*
-     Create the defaults file(a small my.cnf) which will pass
-     all arguments accepted by mysql_upgrade on to mysqlcheck
-     and mysql command line client
-   */
-  create_defaults_file();
 
   /*
     Read the mysql_upgrade_info file to check if mysql_upgrade
