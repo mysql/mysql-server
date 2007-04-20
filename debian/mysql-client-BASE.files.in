@@ -10,7 +10,7 @@ usr/bin/mysqlcheck
 usr/bin/mysqldump
 usr/bin/mysqlimport
 usr/bin/mysqlshow
-usr/share/lintian/overrides/mysql-client-@MYSQL_BASE_VERSION@
+usr/share/lintian/overrides/mysql-client-@MYSQL_BRANDED_BASE_VERSION@
 usr/share/man/man1/mysql.1
 usr/share/man/man1/mysqlaccess.1
 usr/share/man/man1/mysqladmin.1
