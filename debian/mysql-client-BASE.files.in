@@ -1,7 +1,6 @@
 usr/bin/msql2mysql
 usr/bin/mysql
 usr/bin/mysql_find_rows
-usr/bin/mysql_tableinfo
 usr/bin/mysql_waitpid
 usr/bin/mysqlaccess
 usr/bin/mysqladmin

@@ -133,7 +133,7 @@ endif
 		$(USE_STATIC_MYSQLD) \
 		--without-bench \
 		--with-zlib-dir=bundled \
-		--with-yassl \
+		--with-ssl \
 		--with-readline \
 		--with-extra-charsets=all \
 		--with-innodb \
