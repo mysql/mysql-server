@@ -206,6 +206,8 @@ INSERT INTO t1 (col1) VALUES (STR_TO_DATE('15.10.2004','%d.%m.%Y'));
 INSERT INTO t1 (col2) VALUES (STR_TO_DATE('15.10.2004 10.15','%d.%m.%Y %H.%i'));
 INSERT INTO t1 (col3) VALUES (STR_TO_DATE('15.10.2004 10.15','%d.%m.%Y %H.%i'));
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
+Warnings:
+Note	1265	Data truncated for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('31.0.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect date value: '2004-00-31 15:30:00' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
@@ -1386,4 +1388,9 @@ ERROR 01000: Data truncated for column 'a' at row 1
 insert into t1 values ('2E3x');
 ERROR 01000: Data truncated for column 'a' at row 1
 drop table t1;
+set sql_mode='traditional';
+create table t1 (f1 set('a','a'));
+ERROR HY000: Column 'f1' has duplicated value 'a' in SET
+create table t1 (f1 enum('a','a'));
+ERROR HY000: Column 'f1' has duplicated value 'a' in ENUM
 End of 5.0 tests

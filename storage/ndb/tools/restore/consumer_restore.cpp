@@ -813,7 +813,7 @@ BackupRestore::table(const TableS & table){
   BaseString tmp(name);
   Vector<BaseString> split;
   if(tmp.split(split, "/") != 3){
-    err << "Invalid table name format " << name << endl;
+    err << "Invalid table name format `" << name << "`" << endl;
     return false;
   }
 
@@ -881,7 +881,7 @@ BackupRestore::table(const TableS & table){
 
     if (dict->createTable(copy) == -1) 
     {
-      err << "Create table " << table.getTableName() << " failed: "
+      err << "Create table `" << table.getTableName() << "` failed: "
           << dict->getNdbError() << endl;
       if (dict->getNdbError().code == 771)
       {
@@ -898,12 +898,13 @@ BackupRestore::table(const TableS & table){
       }
       return false;
     }
-    info << "Successfully restored table " << table.getTableName()<< endl ;
+    info << "Successfully restored table `"
+         << table.getTableName() << "`" << endl;
   }  
   
   const NdbDictionary::Table* tab = dict->getTable(split[2].c_str());
   if(tab == 0){
-    err << "Unable to find table: " << split[2].c_str() << endl;
+    err << "Unable to find table: `" << split[2].c_str() << "`" << endl;
     return false;
   }
   if(m_restore_meta)
@@ -965,12 +966,15 @@ BackupRestore::endOfTables(){
   for(size_t i = 0; i<m_indexes.size(); i++){
     NdbTableImpl & indtab = NdbTableImpl::getImpl(* m_indexes[i]);
 
-    BaseString tmp(indtab.m_primaryTable.c_str());
     Vector<BaseString> split;
-    if(tmp.split(split, "/") != 3){
-      err << "Invalid table name format " << indtab.m_primaryTable.c_str()
-	  << endl;
-      return false;
+    {
+      BaseString tmp(indtab.m_primaryTable.c_str());
+      if (tmp.split(split, "/") != 3)
+      {
+        err << "Invalid table name format `" << indtab.m_primaryTable.c_str()
+            << "`" << endl;
+        return false;
+      }
     }
     
     m_ndb->setDatabaseName(split[0].c_str());
@@ -978,39 +982,41 @@ BackupRestore::endOfTables(){
     
     const NdbDictionary::Table * prim = dict->getTable(split[2].c_str());
     if(prim == 0){
-      err << "Unable to find base table \"" << split[2].c_str() 
-	  << "\" for index "
-	  << indtab.getName() << endl;
+      err << "Unable to find base table `" << split[2].c_str() 
+	  << "` for index `"
+	  << indtab.getName() << "`" << endl;
       return false;
     }
     NdbTableImpl& base = NdbTableImpl::getImpl(*prim);
     NdbIndexImpl* idx;
-    int id;
-    char idxName[255], buf[255];
-    if(sscanf(indtab.getName(), "%[^/]/%[^/]/%d/%s",
-	      buf, buf, &id, idxName) != 4){
-      err << "Invalid index name format " << indtab.getName() << endl;
-      return false;
+    Vector<BaseString> split_idx;
+    {
+      BaseString tmp(indtab.getName());
+      if (tmp.split(split_idx, "/") != 4)
+      {
+        err << "Invalid index name format `" << indtab.getName() << "`" << endl;
+        return false;
+      }
     }
     if(NdbDictInterface::create_index_obj_from_table(&idx, &indtab, &base))
     {
-      err << "Failed to create index " << idxName
-	  << " on " << split[2].c_str() << endl;
+      err << "Failed to create index `" << split_idx[3]
+	  << "` on " << split[2].c_str() << endl;
 	return false;
     }
-    idx->setName(idxName);
+    idx->setName(split_idx[3].c_str());
     if(dict->createIndex(* idx) != 0)
     {
       delete idx;
-      err << "Failed to create index " << idxName
-	  << " on " << split[2].c_str() << endl
+      err << "Failed to create index `" << split_idx[3].c_str()
+	  << "` on `" << split[2].c_str() << "`" << endl
 	  << dict->getNdbError() << endl;
 
       return false;
     }
     delete idx;
-    info << "Successfully created index " << idxName
-	 << " on " << split[2].c_str() << endl;
+    info << "Successfully created index `" << split_idx[3].c_str()
+	 << "` on `" << split[2].c_str() << "`" << endl;
   }
   return true;
 }
@@ -1122,7 +1128,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 	Uint32 length = attr_data->size;
 	
 	if (j == 0 && tup.getTable()->have_auto_inc(i))
-	  tup.getTable()->update_max_auto_val(dataPtr,size);
+	  tup.getTable()->update_max_auto_val(dataPtr,size*arraySize);
 	
 	if (attr_desc->m_column->getPrimaryKey())
 	{
@@ -1378,7 +1384,7 @@ BackupRestore::logEntry(const LogEntry & tup)
     const char * dataPtr = attr->Data.string_value;
     
     if (tup.m_table->have_auto_inc(attr->Desc->attrId))
-      tup.m_table->update_max_auto_val(dataPtr,size);
+      tup.m_table->update_max_auto_val(dataPtr,size*arraySize);
 
     const Uint32 length = (size / 8) * arraySize;
     if (attr->Desc->m_column->getPrimaryKey())

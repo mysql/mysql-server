@@ -13,4 +13,4 @@ partition_alter2_ndb           : cannot create t1
 partition_char_innodb          : crash. Bug? More investigations
 partition_sessions             : needs system_3_init.inc
 partition_engine_ndb           : cannot create t1
-
+partition_supported_sql_func_ndb : cannot create t1

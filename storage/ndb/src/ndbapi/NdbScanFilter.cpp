@@ -78,7 +78,11 @@ NdbScanFilter::~NdbScanFilter(){
 int
 NdbScanFilter::begin(Group group){
 
-  m_impl.m_stack2.push_back(m_impl.m_negative);
+  if (m_impl.m_stack2.push_back(m_impl.m_negative))
+  {
+    m_impl.m_operation->setErrorCodeAbort(4000);
+    return -1;
+  }
   switch(group){
   case NdbScanFilter::AND:
     INT_DEBUG(("Begin(AND)"));
@@ -127,7 +131,11 @@ NdbScanFilter::begin(Group group){
   }
 
   NdbScanFilterImpl::State tmp = m_impl.m_current;
-  m_impl.m_stack.push_back(m_impl.m_current);
+  if (m_impl.m_stack.push_back(m_impl.m_current))
+  {
+    m_impl.m_operation->setErrorCodeAbort(4000);
+    return -1;
+  }
   m_impl.m_current.m_group = group;
   m_impl.m_current.m_ownLabel = m_impl.m_label++;
   m_impl.m_current.m_popCount = 0;

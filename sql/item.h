@@ -730,9 +730,9 @@ public:
   /* Called for items that really have to be split */
   void split_sum_func2(THD *thd, Item **ref_pointer_array, List<Item> &fields,
                        Item **ref, bool skip_registered);
-  virtual bool get_date(TIME *ltime,uint fuzzydate);
-  virtual bool get_time(TIME *ltime);
-  virtual bool get_date_result(TIME *ltime,uint fuzzydate)
+  virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  virtual bool get_time(MYSQL_TIME *ltime);
+  virtual bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate)
   { return get_date(ltime,fuzzydate); }
   /*
     The method allows to determine nullness of a complex expression 
@@ -1316,7 +1316,6 @@ public:
   uint have_privileges;
   /* field need any privileges (for VIEW creation) */
   bool any_privileges;
-  bool fixed_as_field;
   Item_field(Name_resolution_context *context_arg,
              const char *db_arg,const char *table_name_arg,
 	     const char *field_name_arg);
@@ -1372,9 +1371,9 @@ public:
   }
   Field *get_tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
-  bool get_date(TIME *ltime,uint fuzzydate);
-  bool get_date_result(TIME *ltime,uint fuzzydate);
-  bool get_time(TIME *ltime);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
   bool is_null() { return field->is_null(); }
   void update_null_value();
   Item *get_tmp_table_item(THD *thd);
@@ -1498,7 +1497,7 @@ public:
       */
       CHARSET_INFO *final_character_set_of_str_value;
     } cs_info;
-    TIME     time;
+    MYSQL_TIME     time;
   } value;
 
   /* Cached values for virtual methods to save us one switch.  */
@@ -1530,8 +1529,8 @@ public:
   longlong val_int();
   my_decimal *val_decimal(my_decimal*);
   String *val_str(String*);
-  bool get_time(TIME *tm);
-  bool get_date(TIME *tm, uint fuzzydate);
+  bool get_time(MYSQL_TIME *tm);
+  bool get_date(MYSQL_TIME *tm, uint fuzzydate);
   int  save_in_field(Field *field, bool no_conversions);
 
   void set_null();
@@ -1540,7 +1539,7 @@ public:
   void set_decimal(const char *str, ulong length);
   bool set_str(const char *str, ulong length);
   bool set_longdata(const char *str, ulong length);
-  void set_time(TIME *tm, timestamp_type type, uint32 max_length_arg);
+  void set_time(MYSQL_TIME *tm, timestamp_type type, uint32 max_length_arg);
   bool set_from_user_var(THD *thd, const user_var_entry *entry);
   void reset();
   /*
@@ -1979,7 +1978,7 @@ public:
   bool val_bool();
   String *val_str(String* tmp);
   bool is_null();
-  bool get_date(TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   double val_result();
   longlong val_int_result();
   String *str_result(String* tmp);
@@ -2056,7 +2055,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
   bool is_null();
-  bool get_date(TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   virtual Ref_Type ref_type() { return DIRECT_REF; }
 };
 
@@ -2081,30 +2080,49 @@ public:
 };
 
 
+/*
+  Class for outer fields.
+  An object of this class is created when the select where the outer field was
+  resolved is a grouping one. After it has been fixed the ref field will point
+  to either an Item_ref or an Item_direct_ref object which will be used to
+  access the field.
+  See also comments for the fix_inner_refs() and the
+  Item_field::fix_outer_field() functions.
+*/
+
+class Item_sum;
 class Item_outer_ref :public Item_direct_ref
 {
 public:
-  Item_field *outer_field;
+  Item *outer_ref;
+  /* The aggregate function under which this outer ref is used, if any. */
+  Item_sum *in_sum_func;
+  /*
+    TRUE <=> that the outer_ref is already present in the select list
+    of the outer select.
+  */
+  bool found_in_select_list;
   Item_outer_ref(Name_resolution_context *context_arg,
                  Item_field *outer_field_arg)
     :Item_direct_ref(context_arg, 0, outer_field_arg->table_name,
-                          outer_field_arg->field_name),
-    outer_field(outer_field_arg)
+                     outer_field_arg->field_name),
+    outer_ref(outer_field_arg), in_sum_func(0),
+    found_in_select_list(0)
   {
-    ref= (Item**)&outer_field;
+    ref= &outer_ref;
     set_properties();
     fixed= 0;
   }
-  void cleanup()
-  {
-    ref= (Item**)&outer_field;
-    fixed= 0;
-    Item_direct_ref::cleanup();
-    outer_field->cleanup();
-  }
+  Item_outer_ref(Name_resolution_context *context_arg, Item **item,
+                 const char *table_name_arg, const char *field_name_arg,
+                 bool alias_name_used_arg)
+    :Item_direct_ref(context_arg, item, table_name_arg, field_name_arg,
+                     alias_name_used_arg),
+    outer_ref(0), in_sum_func(0), found_in_select_list(1)
+  {}
   void save_in_result_field(bool no_conversions)
   {
-    outer_field->save_org_in_field(result_field);
+    outer_ref->save_org_in_field(result_field);
   }
   bool fix_fields(THD *, Item **);
   table_map used_tables() const
@@ -2142,7 +2160,7 @@ public:
   String* val_str(String* s);
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
-  bool get_date(TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
   void print(String *str);
   /*
     we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE

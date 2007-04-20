@@ -8,14 +8,21 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
 drop table if exists t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
 --enable_warnings
 
+# Bug #27775 - mediumint auto inc not restored correctly
+#            - check mediumint
 CREATE TABLE `t1_c` (
-  `capgoaledatta` smallint(5) unsigned NOT NULL auto_increment,
+  `capgoaledatta` mediumint(5) unsigned NOT NULL auto_increment,
   `goaledatta` char(2) NOT NULL default '',
   `maturegarbagefa` varchar(32) NOT NULL default '',
   PRIMARY KEY  (`capgoaledatta`,`goaledatta`,`maturegarbagefa`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
-INSERT INTO `t1_c` VALUES (2,'3','q3plus.qt'),(4,'4','q3plus.qt'),(1,'3','q3.net'),(3,'4','q3.net'),(3,'20','threetrees.qt');
-
+INSERT INTO `t1_c` VALUES (2,'3','q3plus.qt'),(400,'4','q3plus.qt'),(1,'3','q3.net'),(3,'4','q3.net'),(3000,'20','threetrees.qt');
+#
+# Bug #27758 Restoring NDB backups makes table usable in SQL nodes
+# - space in key made table unusable after restore
+#
+# Bug #27775 - mediumint auto inc not restored correctly
+#            - check smallint
 CREATE TABLE `t2_c` (
   `capgotod` smallint(5) unsigned NOT NULL auto_increment,
   `gotod` smallint(5) unsigned NOT NULL default '0',
@@ -24,9 +31,9 @@ CREATE TABLE `t2_c` (
   `descrpooppo` varchar(64) default NULL,
   `svcutonsa` varchar(64) NOT NULL default '',
   PRIMARY KEY  (`capgotod`),
-  KEY `i_quadaddsvr` (`gotod`)
+  KEY `i quadaddsvr` (`gotod`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
-INSERT INTO `t2_c` VALUES (5,4,'','q3.net','addavp:MK_CASELECTOR=1','postorod rattoaa'),(2,1,'4','','addavp:MK_BRANDTAD=345','REDS Brandtad'),(3,2,'4','q3.net','execorder','fixedRatediPO REDS'),(1,1,'3','','addavp:MK_BRANDTAD=123','TEST Brandtad'),(6,5,'','told.q3.net','addavp:MK_BRANDTAD=123','Brandtad Toldzone'),(4,3,'3','q3.net','addavp:MK_POOLHINT=2','ratedi PO TEST');
+INSERT INTO `t2_c` VALUES (500,4,'','q3.net','addavp:MK_CASELECTOR=1','postorod rattoaa'),(2,1,'4','','addavp:MK_BRANDTAD=345','REDS Brandtad'),(3,2,'4','q3.net','execorder','fixedRatediPO REDS'),(1,1,'3','','addavp:MK_BRANDTAD=123','TEST Brandtad'),(6,5,'','told.q3.net','addavp:MK_BRANDTAD=123','Brandtad Toldzone'),(4,3,'3','q3.net','addavp:MK_POOLHINT=2','ratedi PO TEST');
 
 CREATE TABLE `t3_c` (
   `CapGoaledatta` smallint(5) unsigned NOT NULL default '0',
@@ -35,6 +42,8 @@ CREATE TABLE `t3_c` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 INSERT INTO `t3_c` VALUES (5,3),(2,4),(5,4),(1,3);
 
+# Bug #27775 - mediumint auto inc not restored correctly
+#            - check bigint
 CREATE TABLE `t4_c` (
   `capfa` bigint(20) unsigned NOT NULL auto_increment,
   `realm` varchar(32) NOT NULL default '',
@@ -46,7 +55,7 @@ CREATE TABLE `t4_c` (
   KEY `capfa` (`capfa`),
   KEY `i_quadentity` (`fa`,`realm`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
-INSERT INTO `t4_c` VALUES (18,'john.smith','q3.net','dessjohn.smith',0,NULL),(21,'quad_katt_with_brandtad','q3.net','acne',0,NULL),(22,'quad_katt_carattoaa','q3.net','acne',0,NULL),(26,'436462612809','sqasdt.q3.net','N/A',0,'6'),(19,'john','smith.qt','dessjohn',0,NULL),(33,'436643196120','sqasdt.q3.net','N/A',1,'6'),(28,'436642900019','sqasdt.q3.net','N/A',0,'6'),(30,'436462900209','sqasdt.q3.net','N/A',0,'6'),(16,'436640006666','sqasdt.q3.net','',0,NULL),(19,'dette','el-redun.com','dessdette',0,NULL),(12,'quad_kattPP','q3.net','acne',2,NULL),(14,'436640008888','sqasdt.q3.net','',0,NULL),(29,'463624900028','sqasdt.q3.net','N/A',0,'6'),(15,'436640099099','sqasdt.q3.net','',0,NULL),(13,'pap','q3plus.qt','acne',1,NULL),(19,'436642612091','sqasdt.q3.net','N/A',0,'6'),(12,'quad_katt','q3.net','acne',0,NULL),(11,'quad_kattVK','q3.net','acne',1,NULL),(32,'463641969502','sqasdt.q3.net','N/A',1,'6'),(20,'joe','q3.net','joedesswd',0,NULL),(29,'436642900034','sqasdt.q3.net','N/A',0,'6'),(25,'contind','armerde.qt','acne',1,NULL);
+INSERT INTO `t4_c` VALUES (18,'john.smith','q3.net','dessjohn.smith',0,NULL),(21,'quad_katt_with_brandtad','q3.net','acne',0,NULL),(2200,'quad_katt_carattoaa','q3.net','acne',0,NULL),(26,'436462612809','sqasdt.q3.net','N/A',0,'6'),(19,'john','smith.qt','dessjohn',0,NULL),(33,'436643196120','sqasdt.q3.net','N/A',1,'6'),(28,'436642900019','sqasdt.q3.net','N/A',0,'6'),(30,'436462900209','sqasdt.q3.net','N/A',0,'6'),(16,'436640006666','sqasdt.q3.net','',0,NULL),(19,'dette','el-redun.com','dessdette',0,NULL),(12,'quad_kattPP','q3.net','acne',2,NULL),(14,'436640008888','sqasdt.q3.net','',0,NULL),(29,'463624900028','sqasdt.q3.net','N/A',0,'6'),(15,'436640099099','sqasdt.q3.net','',0,NULL),(13,'pap','q3plus.qt','acne',1,NULL),(19,'436642612091','sqasdt.q3.net','N/A',0,'6'),(12,'quad_katt','q3.net','acne',0,NULL),(11,'quad_kattVK','q3.net','acne',1,NULL),(32000,'463641969502','sqasdt.q3.net','N/A',1,'6'),(20,'joe','q3.net','joedesswd',0,NULL),(290000000,'436642900034','sqasdt.q3.net','N/A',0,'6'),(25,'contind','armerde.qt','acne',1,NULL);
 
 CREATE TABLE `t5_c` (
   `capfa` bigint(20) unsigned NOT NULL default '0',
@@ -64,9 +73,11 @@ CREATE TABLE `t6_c` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 INSERT INTO `t6_c` VALUES (15,16,0),(19,20,0),(18326932092909551615,30,0),(26,29,0),(18326932092909551615,29,0),(19,18,0),(26,28,0),(12,14,0);
 
+# Bug #27775 - mediumint auto inc not restored correctly
+#            - check tinyint
 CREATE TABLE `t7_c` (
   `dardpo` char(15) NOT NULL default '',
-  `dardtestard` tinyint(3) unsigned NOT NULL default '0',
+  `dardtestard` tinyint(3) unsigned NOT NULL auto_increment,
   `FastFA` char(5) NOT NULL default '',
   `FastCode` char(6) NOT NULL default '',
   `Fastca` char(1) NOT NULL default '',
@@ -138,6 +149,9 @@ INSERT INTO `t9_c` VALUES ('3g4jh8gar2t','joe','q3.net','elredun.com','q3.net','
 #   seen by select below
 CREATE TABLE t10_c (a INT AUTO_INCREMENT KEY) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 INSERT INTO t10_c VALUES (1),(2),(3);
+# Bug #27775 - mediumint auto inc not restored correctly
+#            - check int
+insert into t10_c values (10000),(2000),(3000);
 
 create table t1 engine=myisam as select * from t1_c;
 create table t2 engine=myisam as select * from t2_c;
@@ -215,6 +229,18 @@ select count(*)
 
 # Bug #20820 cont'd
 select * from t10_c order by a;
+# Bug #27775 cont'd
+# - auto inc info should be correct
+--replace_column 1 X 2 X 3 X 4 X 5 X 6 X 7 X 8 X 9 X 10 X 12 X 13 X 14 X 15 X 16 X 17 X 18 X
+show table status like 't1_c';
+--replace_column 1 X 2 X 3 X 4 X 5 X 6 X 7 X 8 X 9 X 10 X 12 X 13 X 14 X 15 X 16 X 17 X 18 X
+show table status like 't2_c'; 
+--replace_column 1 X 2 X 3 X 4 X 5 X 6 X 7 X 8 X 9 X 10 X 12 X 13 X 14 X 15 X 16 X 17 X 18 X
+show table status like 't4_c'; 
+--replace_column 1 X 2 X 3 X 4 X 5 X 6 X 7 X 8 X 9 X 10 X 12 X 13 X 14 X 15 X 16 X 17 X 18 X
+show table status like 't7_c'; 
+--replace_column 1 X 2 X 3 X 4 X 5 X 6 X 7 X 8 X 9 X 10 X 12 X 13 X 14 X 15 X 16 X 17 X 18 X
+show table status like 't10_c';
 
 #
 # Try Partitioned tables as well
