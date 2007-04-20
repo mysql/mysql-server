@@ -6,12 +6,10 @@ Uploaders: Mads Martin Joergensen <mads@mysql.com>, MySQL Build Team <build-priv
 Build-Depends: libtool (>= 1.4.2-7), g++ (>= 4:3.3.5-3), procps | hurd,  debhelper (>= 4.1.16), file (>= 3.28-1), libncurses5-dev (>= 5.0-6), perl (>= 5.6.0), libwrap0-dev (>= 7.6-8.3), zlib1g-dev (>= 1:1.1.3-5), libreadline5-dev | libreadline-dev, psmisc, po-debconf, chrpath, automake1.8, doxygen, gs, dpatch, gawk, bison
 Standards-Version: 3.7.2
 
-Package: libmysqlclient@SHARED_LIB_MAJOR_VERSION@
+Package: libmysqlclient@SHARED_LIB_MAJOR_VERSION@ off
 Section: libs
 Architecture: any
 Depends: mysql-common (>= ${Source-Version}), ${shlibs:Depends}
-Conflicts: libmysqlclient@SHARED_LIB_MAJOR_VERSION@off
-Replaces: libmysqlclient@SHARED_LIB_MAJOR_VERSION@off
 Description: mysql database client library
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
  and robust SQL (Structured Query Language) database server. MySQL Server
