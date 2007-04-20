@@ -191,7 +191,7 @@ int str2my_decimal(uint mask, const char *from, uint length,
 }
 
 
-my_decimal *date2my_decimal(TIME *ltime, my_decimal *dec)
+my_decimal *date2my_decimal(MYSQL_TIME *ltime, my_decimal *dec)
 {
   longlong date;
   date = (ltime->year*100L + ltime->month)*100L + ltime->day;

@@ -133,7 +133,7 @@ static uint ndbcluster_alter_table_flags(uint flags)
 }
 
 static int ndbcluster_inited= 0;
-static int ndbcluster_terminating= 0;
+int ndbcluster_terminating= 0;
 
 static Ndb* g_ndb= NULL;
 Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
@@ -4260,8 +4260,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     {
       m_transaction_on= FALSE;
       /* Would be simpler if has_transactions() didn't always say "yes" */
-      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
-      thd->no_trans_update= TRUE;
+      thd->no_trans_update.all= thd->no_trans_update.stmt= TRUE;
     }
     else if (!thd->transaction.on)
       m_transaction_on= FALSE;
@@ -4965,7 +4964,7 @@ int ha_ndbcluster::create(const char *name,
   for (i= 0; i < form->s->fields; i++) 
   {
     Field *field= form->field[i];
-    DBUG_PRINT("info", ("name: %s, type: %u, pack_length: %d", 
+    DBUG_PRINT("info", ("name: %s  type: %u  pack_length: %d", 
                         field->field_name, field->real_type(),
                         field->pack_length()));
     if ((my_errno= create_ndb_column(col, field, create_info)))
