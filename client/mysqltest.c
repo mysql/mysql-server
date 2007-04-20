@@ -33,31 +33,17 @@
 
 #define MTEST_VERSION "3.2"
 
-#include <my_global.h>
-#include <mysql_embed.h>
-#include <my_sys.h>
-#include <m_string.h>
-#include <mysql.h>
+#include "client_priv.h"
 #include <mysql_version.h>
 #include <mysqld_error.h>
-#include <errmsg.h>
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
-#include <my_getopt.h>
 #include <stdarg.h>
 #include <violite.h>
 #include "my_regex.h" /* Our own version of regex */
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
-#endif
-
-#ifndef WEXITSTATUS
-# ifdef __WIN__
-#  define WEXITSTATUS(stat_val) (stat_val)
-# else
-#  define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
-# endif
 #endif
 
 /* Use cygwin for --exec and --system before 5.0 */
@@ -81,11 +67,9 @@
  };
 
 enum {
-  OPT_SKIP_SAFEMALLOC=256, OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT,
-  OPT_SSL_CA, OPT_SSL_CAPATH, OPT_SSL_CIPHER, OPT_PS_PROTOCOL,
-  OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
-  OPT_SSL_VERIFY_SERVER_CERT, OPT_MAX_CONNECT_RETRIES,
-  OPT_MARK_PROGRESS, OPT_CHARSETS_DIR, OPT_LOG_DIR
+  OPT_SKIP_SAFEMALLOC=OPT_MAX_CLIENT_OPTION,
+  OPT_PS_PROTOCOL, OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
+  OPT_MAX_CONNECT_RETRIES, OPT_MARK_PROGRESS, OPT_LOG_DIR
 };
 
 static int record= 0, opt_sleep= -1;
@@ -1329,22 +1313,30 @@ void var_set(const char *var_name, const char *var_name_end,
   DBUG_VOID_RETURN;
 }
 
+
+void var_set_string(const char* name, const char* value)
+{
+  var_set(name, name + strlen(name), value, value + strlen(value));
+}
+
+
+void var_set_int(const char* name, int value)
+{
+  char buf[21];
+  my_snprintf(buf, sizeof(buf), "%d", value);
+  var_set_string(name, buf);
+}
+
+
 /*
   Store an integer (typically the returncode of the last SQL)
-  statement in the mysqltest builtin variable $mysql_errno, by
-  simulating of a user statement "let $mysql_errno= <integer>"
+  statement in the mysqltest builtin variable $mysql_errno
 */
 
 void var_set_errno(int sql_errno)
 {
-  /* TODO MASV make easier */
-  const char *var_name= "$mysql_errno";
-  char var_val[21];
-  uint length= my_sprintf(var_val, (var_val, "%d", sql_errno));
-  var_set(var_name, var_name + 12, var_val, var_val + length);
-  return;
+  var_set_int("$mysql_errno", sql_errno);
 }
-
 
 /*
   Set variable from the result of a query
@@ -2527,17 +2519,20 @@ wait_for_position:
   if (!(res= mysql_store_result(mysql)))
     die("mysql_store_result() returned NULL for '%s'", query_buf);
   if (!(row= mysql_fetch_row(res)))
+  {
+    mysql_free_result(res);
     die("empty result in %s", query_buf);
+  }
   if (!row[0])
   {
     /*
       It may be that the slave SQL thread has not started yet, though START
       SLAVE has been issued ?
     */
+    mysql_free_result(res);
     if (tries++ == 30)
       die("could not sync with master ('%s' returned NULL)", query_buf);
     sleep(1); /* So at most we will wait 30 seconds and make 31 tries */
-    mysql_free_result(res);
     goto wait_for_position;
   }
   mysql_free_result(res);
@@ -2578,6 +2573,7 @@ int do_save_master_pos()
   MYSQL *mysql = &cur_con->mysql;
   const char *query;
   int rpl_parse;
+  DBUG_ENTER("do_save_master_pos");
 
   rpl_parse = mysql_rpl_parse_enabled(mysql);
   mysql_disable_rpl_parse(mysql);
@@ -2735,7 +2731,7 @@ int do_save_master_pos()
   if (rpl_parse)
     mysql_enable_rpl_parse(mysql);
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -3190,7 +3186,7 @@ struct st_connection * find_connection_by_name(const char *name)
 
 int select_connection_name(const char *name)
 {
-  DBUG_ENTER("select_connection2");
+  DBUG_ENTER("select_connection_name");
   DBUG_PRINT("enter",("name: '%s'", name));
 
   if (!(cur_con= find_connection_by_name(name)))
@@ -3213,7 +3209,7 @@ int select_connection(struct st_command *command)
   if (*p)
     *p++= 0;
   command->last_argument= p;
-  return select_connection_name(name);
+  DBUG_RETURN(select_connection_name(name));
 }
 
 
@@ -6010,6 +6006,8 @@ int main(int argc, char **argv)
   if (hash_init(&var_hash, charset_info,
                 1024, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
+
+  var_set_string("$MYSQL_SERVER_VERSION", MYSQL_SERVER_VERSION);
 
   memset(&master_pos, 0, sizeof(master_pos));
 

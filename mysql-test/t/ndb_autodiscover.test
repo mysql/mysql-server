@@ -24,7 +24,7 @@ create table t1(
 
 insert into t1 values(1, "Autodiscover");
 flush tables;
-system rm $MYSQLTEST_VARDIR/master-data/test/t1.frm ;
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm
 select * from t1;
 show status like 'handler_discover%';
 
@@ -33,13 +33,13 @@ show status like 'handler_discover%';
 #
 
 flush tables;
-system rm $MYSQLTEST_VARDIR/master-data/test/t1.frm ;
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm
 insert into t1 values (2, "Auto 2");
 show status like 'handler_discover%';
 insert into t1 values (3, "Discover 3");
 show status like 'handler_discover%';
 flush tables;
-system rm $MYSQLTEST_VARDIR/master-data/test/t1.frm ;
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm
 select * from t1 order by id;
 show status like 'handler_discover%';
 
@@ -48,7 +48,7 @@ show status like 'handler_discover%';
 #
 
 flush tables;
-system rm $MYSQLTEST_VARDIR/master-data/test/t1.frm ;
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm
 update t1 set name="Autodiscover" where id = 2;
 show status like 'handler_discover%';
 select * from t1 order by id;
@@ -59,7 +59,7 @@ show status like 'handler_discover%';
 #
 
 flush tables;
-system rm $MYSQLTEST_VARDIR/master-data/test/t1.frm ;
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm
 delete from  t1 where id = 3;
 select * from t1 order by id;
 show status like 'handler_discover%';
@@ -111,7 +111,7 @@ show status like 'handler_discover%';
 flush tables;
 
 # Remove the frm file from disk
-system rm $MYSQLTEST_VARDIR/master-data/test/t3.frm ;
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t3.frm
 
 --error 1050
 create table t3(
@@ -168,14 +168,14 @@ show status like 'handler_discover%';
 
 # Remove the frm file from disk
 flush tables;
-system rm $MYSQLTEST_VARDIR/master-data/test/t7.frm ;
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t7.frm
 
 show tables from test;
 show status like 'handler_discover%';
 
 # Remove the frm file from disk again
 flush tables;
-system rm $MYSQLTEST_VARDIR/master-data/test/t7.frm ;
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t7.frm
 
 --replace_column 6 # 7 # 8 # 9 # 12 # 13 # 15 # 18 #
 show table status;
@@ -290,8 +290,8 @@ insert into t9 values (9);
 system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t3 >> $NDB_TOOLS_OUTPUT ;
 system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t5 >> $NDB_TOOLS_OUTPUT ;
 # Remove t6, t7 from disk
-system rm $MYSQLTEST_VARDIR/master-data/test/t6.frm > /dev/null ; 
-system rm $MYSQLTEST_VARDIR/master-data/test/t7.frm > /dev/null ; 
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t6.frm
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t7.frm
 
 SHOW TABLES;
 
@@ -332,8 +332,8 @@ insert into t9 values (9);
 system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t3 > /dev/null  ;
 system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t5 > /dev/null  ;
 # Remove t6, t7 from disk
-system rm $MYSQLTEST_VARDIR/master-data/test/t6.frm > /dev/null ; 
-system rm $MYSQLTEST_VARDIR/master-data/test/t7.frm > /dev/null ; 
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t6.frm
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t7.frm
 
 
 SHOW TABLES LIKE 't6';
@@ -375,9 +375,9 @@ insert into t3 values (3, "ndb table 3");
 insert into t4 values (4);
 
 # Remove t1, t2, t3 from disk
-system rm $MYSQLTEST_VARDIR/master-data/test/t1.frm > /dev/null ; 
-system rm $MYSQLTEST_VARDIR/master-data/test/t2.frm > /dev/null ; 
-system rm $MYSQLTEST_VARDIR/master-data/test/t3.frm > /dev/null ; 
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t2.frm
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t3.frm
 flush tables;
 
 # Select from the table which only exists in NDB.
@@ -530,7 +530,7 @@ CREATE TABLE t9 (
 insert t9 values(1, 2), (2,3), (3, 4), (4, 5);
 
 #Don't drop the table, instead remove the frm file
-system rm $MYSQLTEST_VARDIR/master-data/test/t9.frm ;
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t9.frm
 
 # Now leave test case, when ndb_autodiscover2 will  run, this 
 # MySQL Server will have been restarted because it has a 
