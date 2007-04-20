@@ -444,7 +444,7 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
 
   ret= run_tool(mysql_path,
                 ds_res,
-                ds_args.str, // MASV... quoted?
+                ds_args.str,
                 "--database=mysql",
                 "--batch", /* Turns off pager etc. */
                 force ? "--force": "--skip-force",
