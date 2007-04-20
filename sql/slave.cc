@@ -1634,6 +1634,7 @@ int check_expected_error(THD* thd, RELAY_LOG_INFO const *rli,
   switch (expected_error) {
   case ER_NET_READ_ERROR:
   case ER_NET_ERROR_ON_WRITE:
+  case ER_QUERY_INTERRUPTED:
   case ER_SERVER_SHUTDOWN:
   case ER_NEW_ABORTING_CONNECTION:
     DBUG_RETURN(1);
