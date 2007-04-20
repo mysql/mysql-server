@@ -878,7 +878,7 @@ SHOW_VAR init_vars[]= {
 #ifdef HAVE_REPLICATION
   {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_MY_BOOL},
 #endif
-  {"log_slow_queries",        (char*) &opt_slow_log,                SHOW_BOOL},
+  {"log_slow_queries",        (char*) &opt_slow_log,                SHOW_MY_BOOL},
   {sys_log_warnings.name,     (char*) &sys_log_warnings,	    SHOW_SYS},
   {sys_long_query_time.name,  (char*) &sys_long_query_time, 	    SHOW_SYS},
   {sys_low_priority_updates.name, (char*) &sys_low_priority_updates, SHOW_SYS},
@@ -3095,16 +3095,15 @@ static bool set_option_autocommit(THD *thd, set_var *var)
     if ((org_options & OPTION_NOT_AUTOCOMMIT))
     {
       /* We changed to auto_commit mode */
-      thd->options&= ~(ulonglong) (OPTION_BEGIN |
-                                   OPTION_STATUS_NO_TRANS_UPDATE |
-                                   OPTION_KEEP_LOG);
+      thd->options&= ~(ulonglong) (OPTION_BEGIN | OPTION_KEEP_LOG);
+      thd->no_trans_update.all= FALSE;
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
       if (ha_commit(thd))
 	return 1;
     }
     else
     {
-      thd->options&= ~(ulonglong) (OPTION_STATUS_NO_TRANS_UPDATE);
+      thd->no_trans_update.all= FALSE;
       thd->server_status&= ~SERVER_STATUS_AUTOCOMMIT;
     }
   }

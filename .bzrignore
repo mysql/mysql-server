@@ -354,6 +354,8 @@ client/decimal.c
 client/insert_test
 client/log_event.cc
 client/log_event.h
+client/log_event_old.cc
+client/log_event_old.h
 client/mf_iocache.c
 client/mf_iocache.cc
 client/my_decimal.cc
@@ -379,6 +381,9 @@ client/mysqltestmanager-pwgen
 client/mysqltestmanagerc
 client/mysys_priv.h
 client/readline.cpp
+client/rpl_constants.h
+client/rpl_record_old.cc
+client/rpl_record_old.h
 client/select_test
 client/sql_string.cpp
 client/ssl_test
@@ -1087,6 +1092,7 @@ libmysqld/libmysql.c
 libmysqld/lock.cc
 libmysqld/log.cc
 libmysqld/log_event.cc
+libmysqld/log_event_old.cc
 libmysqld/md5.c
 libmysqld/mf_iocache.cc
 libmysqld/mini_client.cc
@@ -1109,6 +1115,8 @@ libmysqld/records.cc
 libmysqld/repl_failsafe.cc
 libmysqld/rpl_filter.cc
 libmysqld/rpl_injector.cc
+libmysqld/rpl_record.cc
+libmysqld/rpl_record_old.cc
 libmysqld/set_var.cc
 libmysqld/simple-test
 libmysqld/slave.cc
@@ -1347,10 +1355,15 @@ mysql-test/suite/funcs_1/r/myisam_trig_03e.warnings
 mysql-test/suite/funcs_1/r/myisam_views.warnings
 mysql-test/suite/funcs_1/r/ndb_trig_03e.warnings
 mysql-test/suite/funcs_1/r/ndb_views.warnings
+mysql-test/suite/partitions/r/dif
 mysql-test/suite/partitions/r/diff
+mysql-test/suite/partitions/r/partition.result
 mysql-test/suite/partitions/r/partition_bit_ndb.warnings
 mysql-test/suite/partitions/r/partition_special_innodb.warnings
 mysql-test/suite/partitions/r/partition_special_myisam.warnings
+mysql-test/suite/partitions/r/partition_t55.out
+mysql-test/suite/partitions/r/partition_t55.refout
+mysql-test/suite/partitions/t/partition.test
 mysql-test/t/index_merge.load
 mysql-test/t/tmp.test
 mysql-test/var
@@ -2956,11 +2969,3 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
-client/rpl_constants.h
-client/log_event_old.cc
-client/log_event_old.h
-client/rpl_record_old.cc
-client/rpl_record_old.h
-libmysqld/log_event_old.cc
-libmysqld/rpl_record.cc
-libmysqld/rpl_record_old.cc

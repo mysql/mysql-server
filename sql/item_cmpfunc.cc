@@ -69,26 +69,80 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
 
 
 /*
+  Compare row signature of two expressions
+
+  SYNOPSIS:
+    cmp_row_type()
+    item1          the first expression
+    item2         the second expression
+
+  DESCRIPTION
+    The function checks that two expressions have compatible row signatures
+    i.e. that the number of columns they return are the same and that if they
+    are both row expressions then each component from the first expression has 
+    a row signature compatible with the signature of the corresponding component
+    of the second expression.
+
+  RETURN VALUES
+    1  type incompatibility has been detected
+    0  otherwise
+*/
+
+static int cmp_row_type(Item* item1, Item* item2)
+{
+  uint n= item1->cols();
+  if (item2->check_cols(n))
+    return 1;
+  for (uint i=0; i<n; i++)
+  {
+    if (item2->element_index(i)->check_cols(item1->element_index(i)->cols()) ||
+        (item1->element_index(i)->result_type() == ROW_RESULT &&
+         cmp_row_type(item1->element_index(i), item2->element_index(i))))
+      return 1;
+  }
+  return 0;
+}
+
+
+/*
   Aggregates result types from the array of items.
 
-  SYNOPSIS
+  SYNOPSIS:
     agg_cmp_type()
-      items        array of items to aggregate the type from
-      nitems       number of items in the array
+    type   [out] the aggregated type
+    items        array of items to aggregate the type from
+    nitems       number of items in the array
 
   DESCRIPTION
     This function aggregates result types from the array of items. Found type
     supposed to be used later for comparison of values of these items.
     Aggregation itself is performed by the item_cmp_type() function.
+    The function also checks compatibility of row signatures for the
+    submitted items (see the spec for the cmp_row_type function). 
+
+  RETURN VALUES
+    1  type incompatibility has been detected
+    0  otherwise
 */
 
-static Item_result agg_cmp_type(Item **items, uint nitems)
+static int agg_cmp_type(Item_result *type, Item **items, uint nitems)
 {
   uint i;
-  Item_result type= items[0]->result_type();
+  type[0]= items[0]->result_type();
   for (i= 1 ; i < nitems ; i++)
-    type= item_cmp_type(type, items[i]->result_type());
-  return type;
+  {
+    type[0]= item_cmp_type(type[0], items[i]->result_type());
+    /*
+      When aggregating types of two row expressions we have to check
+      that they have the same cardinality and that each component
+      of the first row expression has a compatible row signature with
+      the signature of the corresponding component of the second row
+      expression.
+    */ 
+    if (type[0] == ROW_RESULT && cmp_row_type(items[0], items[i]))
+      return 1;     // error found: invalid usage of rows
+  }
+  return 0;
 }
 
 
@@ -105,7 +159,8 @@ static Item_result agg_cmp_type(Item **items, uint nitems)
     item in the list with each of the remaining items in the 'items' array.
 
   RETURN
-    Bitmap of collected types
+    0 - if row type incompatibility has been detected (see cmp_row_type)
+    Bitmap of collected types - otherwise
 */
 
 static uint collect_cmp_types(Item **items, uint nitems)
@@ -116,11 +171,16 @@ static uint collect_cmp_types(Item **items, uint nitems)
   DBUG_ASSERT(nitems > 1);
   found_types= 0;
   for (i= 1; i < nitems ; i++)
+  {
+    if ((left_result == ROW_RESULT || 
+         items[i]->result_type() == ROW_RESULT) &&
+        cmp_row_type(items[0], items[i]))
+      return 0;
     found_types|= 1<< (uint)item_cmp_type(left_result,
                                            items[i]->result_type());
+  }
   return found_types;
 }
-
 
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
                               const char *fname)
@@ -293,6 +353,7 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
   {
     TABLE *table= field->table;
     ulong orig_sql_mode= thd->variables.sql_mode;
+    enum_check_fields orig_count_cuted_fields= thd->count_cuted_fields;
     my_bitmap_map *old_write_map;
     my_bitmap_map *old_read_map;
 
@@ -306,6 +367,7 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
     }
     /* For comparison purposes allow invalid dates like 2000-01-32 */
     thd->variables.sql_mode|= MODE_INVALID_DATES;
+    thd->count_cuted_fields= CHECK_FIELD_IGNORE;
     if (!(*item)->save_in_field(field, 1) && !((*item)->null_value))
     {
       Item *tmp= new Item_int_with_ref(field->val_int(), *item,
@@ -315,6 +377,7 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
       result= 1;					// Item was replaced
     }
     thd->variables.sql_mode= orig_sql_mode;
+    thd->count_cuted_fields= orig_count_cuted_fields;
     if (table)
     {
       dbug_tmp_restore_column_map(table->write_set, old_write_map);
@@ -1355,7 +1418,8 @@ void Item_func_between::fix_length_and_dec()
   */
   if (!args[0] || !args[1] || !args[2])
     return;
-  cmp_type= agg_cmp_type(args, 3);
+  if ( agg_cmp_type(&cmp_type, args, 3))
+    return;
   if (cmp_type == STRING_RESULT &&
       agg_arg_charsets(cmp_collation, args, 3, MY_COLL_CMP_CONV, 1))
    return;
@@ -2044,7 +2108,8 @@ void Item_func_case::fix_length_and_dec()
     for (nagg= 0; nagg < ncases/2 ; nagg++)
       agg[nagg+1]= args[nagg*2];
     nagg++;
-    found_types= collect_cmp_types(agg, nagg);
+    if (!(found_types= collect_cmp_types(agg, nagg)))
+      return;
 
     for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
     {
@@ -2422,7 +2487,7 @@ byte *in_row::get_value(Item *item)
 void in_row::set(uint pos, Item *item)
 {
   DBUG_ENTER("in_row::set");
-  DBUG_PRINT("enter", ("pos %u item 0x%lx", pos, (ulong) item));
+  DBUG_PRINT("enter", ("pos: %u  item: 0x%lx", pos, (ulong) item));
   ((cmp_item_row*) base)[pos].store_value_by_template(&tmp, item);
   DBUG_VOID_RETURN;
 }
@@ -2748,7 +2813,8 @@ void Item_func_in::fix_length_and_dec()
   uint type_cnt= 0, i;
   Item_result cmp_type= STRING_RESULT;
   left_result_type= args[0]->result_type();
-  found_types= collect_cmp_types(args, arg_count);
+  if (!(found_types= collect_cmp_types(args, arg_count)))
+    return;
   
   for (arg= args + 1, arg_end= args + arg_count; arg != arg_end ; arg++)
   {

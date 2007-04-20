@@ -81,7 +81,7 @@ ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
 			   ${PROJECT_SOURCE_DIR}/sql/sql_builtin.cc
 			   ${PROJECT_SOURCE_DIR}/sql/lex_hash.h)
 TARGET_LINK_LIBRARIES(mysqld heap myisam myisammrg mysys yassl zlib dbug yassl 
-                      taocrypt strings vio regex wsock32)
+                      taocrypt strings vio regex wsock32 ws2_32)
 IF(WITH_ARCHIVE_STORAGE_ENGINE)
   TARGET_LINK_LIBRARIES(mysqld archive)
 ENDIF(WITH_ARCHIVE_STORAGE_ENGINE)

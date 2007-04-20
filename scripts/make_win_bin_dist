@@ -127,6 +127,15 @@ if [ -e $DESTDIR ] ; then
 fi
 
 # ----------------------------------------------------------------------
+# Adjust target name if needed, release with debug info has another name
+# ----------------------------------------------------------------------
+
+if [ x"$TARGET" = x"release" -a -f "client/relwithdebinfo/mysql.exe" ]
+then
+  TARGET="relwithdebinfo"
+fi
+
+# ----------------------------------------------------------------------
 # Copy executables, and client DLL (FIXME why?)
 # ----------------------------------------------------------------------
 
@@ -134,18 +143,27 @@ trap 'echo "Clearning up and exiting..." ; rm -fr $DESTDIR; exit 1' ERR
 
 mkdir $DESTDIR
 mkdir $DESTDIR/bin
-cp client/$TARGET/*.exe                        $DESTDIR/bin/
-cp extra/$TARGET/*.exe                         $DESTDIR/bin/
-cp storage/myisam/$TARGET/*.exe                $DESTDIR/bin/
-cp server-tools/instance-manager/$TARGET/*.exe $DESTDIR/bin/
-cp tests/$TARGET/*.exe                         $DESTDIR/bin/
-cp libmysql/$TARGET/*.exe                      $DESTDIR/bin/
-cp libmysql/$TARGET/libmysql.dll               $DESTDIR/bin/
+cp client/$TARGET/*.exe                                  $DESTDIR/bin/
+cp extra/$TARGET/*.exe                                   $DESTDIR/bin/
+cp storage/myisam/$TARGET/*.exe                          $DESTDIR/bin/
+cp server-tools/instance-manager/$TARGET/*.{exe,map}     $DESTDIR/bin/
+if [ x"$TARGET" != x"release" ]
+then
+  cp server-tools/instance-manager/$TARGET/*.pdb         $DESTDIR/bin/
+fi
+cp tests/$TARGET/*.exe                                   $DESTDIR/bin/
+cp libmysql/$TARGET/*.exe                                $DESTDIR/bin/
+cp libmysql/$TARGET/libmysql.dll                         $DESTDIR/bin/
 
 # FIXME really needed?!
 mv $DESTDIR/bin/comp_err.exe             $DESTDIR/bin/comp-err.exe
 
 cp sql/$TARGET/mysqld.exe                $DESTDIR/bin/mysqld$EXE_SUFFIX.exe
+cp sql/$TARGET/mysqld.map                $DESTDIR/bin/mysqld$EXE_SUFFIX.map
+if [ x"$TARGET" != x"release" ]
+then
+  cp sql/$TARGET/mysqld.pdb              $DESTDIR/bin/mysqld$EXE_SUFFIX.pdb
+fi
 
 if [ x"$PACK_DEBUG" = "" -a -f "sql/debug/mysqld.exe" -o \
      x"$PACK_DEBUG" = "yes" ] ; then
@@ -342,6 +360,9 @@ for i in `cd scripts && ls`; do \
 done
 
 cp -pR sql/share $DESTDIR/
+
+# The SQL initiation code is really expected to be in "share"
+mv $DESTDIR/scripts/*.sql $DESTDIR/share/ || true
 
 # ----------------------------------------------------------------------
 # Copy other files specified on command line DEST=SOURCE

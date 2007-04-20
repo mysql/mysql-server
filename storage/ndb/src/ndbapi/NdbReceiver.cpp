@@ -32,7 +32,7 @@ NdbReceiver::NdbReceiver(Ndb *aNdb) :
 {
   theCurrentRecAttr = theFirstRecAttr = 0;
   m_defined_rows = 0;
-  m_rows = new NdbRecAttr*[0];
+  m_rows = NULL;
 }
  
 NdbReceiver::~NdbReceiver()
@@ -45,19 +45,26 @@ NdbReceiver::~NdbReceiver()
   DBUG_VOID_RETURN;
 }
 
-void
+int
 NdbReceiver::init(ReceiverType type, void* owner)
 {
   theMagicNumber = 0x11223344;
   m_type = type;
   m_owner = owner;
-  if (m_id == NdbObjectIdMap::InvalidId) {
-    if (m_ndb)
-      m_id = m_ndb->theImpl->theNdbObjectIdMap.map(this);
-  }
-
   theFirstRecAttr = NULL;
   theCurrentRecAttr = NULL;
+  if (m_id == NdbObjectIdMap::InvalidId) {
+    if (m_ndb)
+    {
+      m_id = m_ndb->theImpl->theNdbObjectIdMap.map(this);
+      if (m_id == NdbObjectIdMap::InvalidId)
+      {
+        setErrorCode(4000);
+        return -1;
+      }
+    }
+  }
+  return 0;
 }
 
 void
@@ -146,7 +153,7 @@ NdbReceiver::calculate_batch_size(Uint32 key_size,
   return;
 }
 
-void
+int
 NdbReceiver::do_get_value(NdbReceiver * org, 
 			  Uint32 rows, 
 			  Uint32 key_size,
@@ -154,7 +161,11 @@ NdbReceiver::do_get_value(NdbReceiver * org,
   if(rows > m_defined_rows){
     delete[] m_rows;
     m_defined_rows = rows;
-    m_rows = new NdbRecAttr*[rows + 1]; 
+    if ((m_rows = new NdbRecAttr*[rows + 1]) == NULL)
+    {
+      setErrorCode(4000);
+      return -1;
+    }
   }
   m_rows[rows] = 0;
   
@@ -174,7 +185,7 @@ NdbReceiver::do_get_value(NdbReceiver * org,
     // Put key-recAttr fir on each row
     if(key_size && !getValue(&key, (char*)0)){
       abort();
-      return ; // -1
+      return -1;
     }
     
     if(range_no && 
@@ -193,7 +204,7 @@ NdbReceiver::do_get_value(NdbReceiver * org,
     
     if(tRecAttr){
       abort();
-      return ;// -1;
+      return -1;
     }
 
     // Store first recAttr for each row in m_rows[i]
@@ -205,7 +216,7 @@ NdbReceiver::do_get_value(NdbReceiver * org,
   } 
 
   prepareSend();
-  return;
+  return 0;
 }
 
 NdbRecAttr*
