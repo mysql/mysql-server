@@ -14,57 +14,51 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "client_priv.h"
-#include <my_dir.h>
-#include <my_list.h>
 #include <sslopt-vars.h>
+#include "../scripts/mysql_fix_privilege_tables_sql.c"
 
-#define UPGRADE_DEFAULTS_NAME "mysql_upgrade_defaults"
-#define MYSQL_UPGRADE_INFO_NAME "mysql_upgrade_info"
-#define MYSQL_FIX_PRIV_TABLES_NAME "mysql_fix_privilege_tables.sql"
-
-#define MY_PARENT       (1 << 0)
-#define MY_ISDIR        (1 << 1)
-#define MY_SEARCH_SELF  (1 << 2)
-
-#ifdef __WIN__
-const char *mysqlcheck_name= "mysqlcheck.exe";
-const char *mysql_name= "mysql.exe";
-const char *mysqld_name= "mysqld.exe";
-#define EXTRA_CLIENT_PATHS "client/release", "client/debug"
-#else
-const char *mysqlcheck_name= "mysqlcheck";
-const char *mysql_name= "mysql";
-const char *mysqld_name= "mysqld";
-#define EXTRA_CLIENT_PATHS "client"
-#endif /*__WIN__*/
-
-extern TYPELIB sql_protocol_typelib;
-
-static my_bool opt_force= 0, opt_verbose= 0, opt_compress= 0;
-static char *user= (char*) "root", *basedir= 0, *datadir= 0, *opt_password= 0;
-static char *current_host= 0;
-static char *opt_default_charset= 0, *opt_charsets_dir= 0;
-#ifdef HAVE_SMEM
-static char *shared_memory_base_name= 0;
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
 #endif
-static char *opt_protocol= 0;
-static my_string opt_mysql_port= 0, opt_mysql_unix_port= 0;
+
+#ifndef WEXITSTATUS
+# ifdef __WIN__
+#  define WEXITSTATUS(stat_val) (stat_val)
+# else
+#  define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
+# endif
+#endif
+
+static char mysql_path[FN_REFLEN];
+static char mysqlcheck_path[FN_REFLEN];
+
+static my_bool opt_force, opt_verbose;
+static char *opt_user= (char*)"root";
+
+static DYNAMIC_STRING ds_args;
+
+static char *opt_password= 0;
+static my_bool tty_password= 0;
+
 #ifndef DBUG_OFF
 static char *default_dbug_option= (char*) "d:t:O,/tmp/mysql_upgrade.trace";
 #endif
-static my_bool info_flag= 0, tty_password= 0;
 
 static char **defaults_argv;
+
+static my_bool not_used; /* Can't use GET_BOOL without a value pointer */
+
+#include <help_start.h>
 
 static struct my_option my_long_options[]=
 {
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"basedir", 'b', "Specifies the directory where MySQL is installed",
-   (gptr*) &basedir,
-   (gptr*) &basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"datadir", 'd', "Specifies the data directory", (gptr*) &datadir,
-   (gptr*) &datadir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"basedir", 'b', "Not used by mysql_upgrade. Only for backward compatibilty",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"datadir", 'd',
+   "Not used by mysql_upgrade. Only for backward compatibilty",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -72,629 +66,712 @@ static struct my_option my_long_options[]=
   {"debug", '#', "Output debug log", (gptr *) & default_dbug_option,
    (gptr *) & default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"debug-info", 'T', "Print some debug info at exit.", (gptr *) & info_flag,
-   (gptr *) & info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
-   "Set the default character set.", (gptr*) &opt_default_charset,
-   (gptr*) &opt_default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"force", 'f', "Force execution of mysqlcheck even if mysql_upgrade " 
-   "has already been executed for the current version of MySQL.",
-   (gptr*) &opt_force, (gptr*) &opt_force, 0, GET_BOOL, NO_ARG, 0, 0,
-   0, 0, 0, 0},
+   "Set the default character set.", 0,
+   0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory where character sets are.", (gptr*) &opt_charsets_dir,
-   (gptr*) &opt_charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Directory where character sets are.", 0,
+   0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", OPT_COMPRESS, "Use compression in server/client protocol.",
-   (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-   0, 0, 0},
-  {"host",'h', "Connect to host.", (gptr*) &current_host,
-   (gptr*) &current_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*)&not_used, (gptr*)&not_used, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"force", 'f', "Force execution of mysqlcheck even if mysql_upgrade "
+   "has already been executed for the current version of MySQL.",
+   (gptr*)&opt_force, (gptr*)&opt_force, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"host",'h', "Connect to host.", 0,
+   0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given"
-   " it's solicited on the tty.", 0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   " it's solicited on the tty.", (gptr*) &opt_password,(gptr*) &opt_password,
+   0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
-  {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, 
+  {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
-   (gptr*) &opt_mysql_port, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection.", 0,
+   0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL,
    "The protocol of connection (tcp,socket,pipe,memory).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
-   "Base name of shared memory.", (gptr*) &shared_memory_base_name, 
-   (gptr*) &shared_memory_base_name, 0, 
-   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Base name of shared memory.", 0,
+   0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"socket", 'S', "Socket file to use for connection.",
-   (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, 
-   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"user", 'u', "User for login if not current user.", (gptr*) &user,
-   (gptr*) &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login if not current user.", (gptr*) &opt_user,
+   (gptr*) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
-  {"verbose", 'v', "Display more output about the process", 
-   (gptr*) &opt_verbose, (gptr*) &opt_verbose, 0, 
-   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Display more output about the process",
+   (gptr*) &opt_verbose, (gptr*) &opt_verbose, 0,
+   GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
-};
-
-static const char *load_default_groups[]=
-{
-  "mysql_upgrade", 0
 };
 
 #include <help_end.h>
 
-static LIST *extra_defaults= NULL;
 
-typedef struct _extra_default
+static void free_used_memory(void)
 {
-  int id;
-  const char *name;
-  int n_len;
-  const char *value;
-  int v_len;
-} extra_default_t;
+  /* Free memory allocated by 'load_defaults' */
+  free_defaults(defaults_argv);
 
-static inline 
-void set_extra_default(int id, const struct my_option *opt)
+  dynstr_free(&ds_args);
+}
+
+
+static void die(const char *fmt, ...)
 {
-  switch (id) {
-  case 'b': case 'd':   /* these are ours */
-  case 'f':             /* --force is ours */
-  case 'u':             /* --user passed on cmdline */
-  case 'T':             /* --debug-info is not accepted by mysqlcheck */
-  case 'p':             /* --password may change yet */
-    /* so, do nothing */
-    break;
-  default:
-    {
-      LIST *l;
-      extra_default_t *d;
+  va_list args;
+  DBUG_ENTER("die");
 
-      /* 
-        Remove any earlier duplicates: they can
-        refer to invalid memory addresses (stale pointers) 
-      */
-      l= extra_defaults; 
-      while (l)
-      {
-        LIST *n= l->next;
+  /* Print the error message */
+  va_start(args, fmt);
+  if (fmt)
+  {
+    fprintf(stderr, "FATAL ERROR: ");
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+    fflush(stderr);
+  }
+  va_end(args);
 
-        d= l->data;
-        if (d->id == id) 
-        {
-          extra_defaults= list_delete(extra_defaults, l);
-          my_free((gptr)l, MYF(0));
-          my_free((gptr)d, MYF(0));
-        }
-        l= n;
-      }
+  free_used_memory();
+  my_end(MY_CHECK_ERROR);
+  exit(1);
+}
 
-      d= (extra_default_t *)my_malloc(sizeof(extra_default_t), 
-                           MYF(MY_FAE|MY_ZEROFILL));
-      d->id= id;
-      d->name= opt->name;
-      d->n_len= strlen(opt->name);
-      if (opt->arg_type != NO_ARG && opt->value)
-        switch (opt->var_type & GET_TYPE_MASK) {
-        case GET_BOOL:
-          if (*((int *)opt->value))
-          {
-            d->value= "true";
-            d->v_len= 4;
-          }
-          break;
-        case GET_STR: 
-        case GET_STR_ALLOC:
-          d->value= *opt->value;
-          d->v_len= strlen(d->value); 
-          break;
-        default:
-          my_printf_error(0, "Error: internal error at %s:%d", MYF(0), 
-                          __FILE__, __LINE__);
-          exit(1);
-        }
-      list_push(extra_defaults, d);
+
+static void verbose(const char *fmt, ...)
+{
+  va_list args;
+
+  if (!opt_verbose)
+    return;
+
+  /* Print the verbose message */
+  va_start(args, fmt);
+  if (fmt)
+  {
+    vfprintf(stdout, fmt, args);
+    fprintf(stdout, "\n");
+    fflush(stdout);
+  }
+  va_end(args);
+}
+
+
+/*
+  Add one option - passed to mysql_upgrade on command line
+  or by defaults file(my.cnf) - to a dynamic string, in
+  this way we pass the same arguments on to mysql and mysql_check
+*/
+
+static void add_one_option(DYNAMIC_STRING* ds,
+                           const struct my_option *opt,
+                           const char* argument)
+
+{
+  const char* eq= NullS;
+  const char* arg= NullS;
+  if (opt->arg_type != NO_ARG)
+  {
+    eq= "=";
+    switch (opt->var_type & GET_TYPE_MASK) {
+    case GET_STR:
+      arg= argument;
+      break;
+    default:
+      die("internal error at %s: %d",__FILE__, __LINE__);
     }
   }
+  dynstr_append_os_quoted(ds, "--", opt->name, eq, arg, NullS);
+  dynstr_append(&ds_args, " ");
 }
 
 
 static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__ ((unused)),
+get_one_option(int optid, const struct my_option *opt,
                char *argument)
 {
+  my_bool add_option= TRUE;
+
   switch (optid) {
+
   case '?':
-    puts
-      ("MySQL utility to upgrade database to the current server version");
-    puts("");
+    printf("MySQL utility for upgrading database to MySQL version %s\n",
+           MYSQL_SERVER_VERSION);
     my_print_help(my_long_options);
     exit(0);
+    break;
+
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
+    add_option= FALSE;
     break;
+
   case 'p':
     tty_password= 1;
+    add_option= FALSE;
     if (argument)
     {
-      char *start= argument;
-      my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
-      opt_password= my_strdup(argument, MYF(MY_FAE));
+      /* Add password to ds_args before overwriting the arg with x's */
+      add_one_option(&ds_args, opt, argument);
       while (*argument)
         *argument++= 'x';                       /* Destroy argument */
-      if (*start)
-        start[1]= 0;                            /* Cut length of argument */
       tty_password= 0;
     }
     break;
-#ifdef __WIN__
-  case 'W':
-    my_free(opt_protocol, MYF(MY_ALLOW_ZERO_PTR));
-    opt_protocol= my_strdup("pipe", MYF(MY_FAE));
+
+  case 'b': /* --basedir   */
+  case 'v': /* --verbose   */
+  case 'd': /* --datadir   */
+  case 'f': /* --force     */
+    add_option= FALSE;
     break;
-#endif
-  case OPT_MYSQL_PROTOCOL:
-    if (find_type(argument, &sql_protocol_typelib, 0) > 0)
-    {
-      my_free(opt_protocol, MYF(MY_ALLOW_ZERO_PTR));
-      opt_protocol= my_strdup(argument, MYF(MY_FAE));
-    }
-    else 
-    {
-      fprintf(stderr, "Unknown option to protocol: %s\n", argument);
-      exit(1); 
-    }
-    break;
-#include <sslopt-case.h>
-  default:;
   }
-  set_extra_default(opt->id, opt);
+
+  if (add_option)
+  {
+    /*
+      This is an option that is accpted by mysql_upgrade just so
+      it can be passed on to "mysql" and "mysqlcheck"
+      Save it in the ds_args string
+    */
+    add_one_option(&ds_args, opt, argument);
+  }
   return 0;
 }
 
 
-static int create_check_file(const char *path)
+static int run_command(char* cmd,
+                       DYNAMIC_STRING *ds_res)
 {
-  int ret;
-  File fd;
-  
-  fd= my_open(path, O_CREAT | O_WRONLY, MYF(MY_FAE | MY_WME));
-  if (fd < 0) {
-    ret= 1;
-    goto error;
+  char buf[512]= {0};
+  FILE *res_file;
+
+  if (!(res_file= popen(cmd, "r")))
+    die("popen(\"%s\", \"r\") failed", cmd);
+
+  while (fgets(buf, sizeof(buf), res_file))
+  {
+    DBUG_PRINT("info", ("buf: %s", buf));
+    if(ds_res)
+    {
+      /* Save the output of this command in the supplied string */
+      dynstr_append(ds_res, buf);
+    }
+    else
+    {
+      /* Print it directly on screen */
+      fprintf(stdout, "%s", buf);
+    }
   }
-  ret= my_write(fd, MYSQL_SERVER_VERSION, 
-                  sizeof(MYSQL_SERVER_VERSION) - 1,
-                  MYF(MY_WME | MY_FNABP));
-  ret|= my_close(fd, MYF(MY_FAE | MY_WME));
-error:
-  return ret;
+
+  return WEXITSTATUS(pclose(res_file));
 }
 
 
-static int create_defaults_file(const char *path, const char *forced_path)
+static int run_tool(char *tool_path, DYNAMIC_STRING *ds_res, ...)
 {
   int ret;
-  uint cnt;
-  File forced_file, defaults_file;
-  
-  DYNAMIC_STRING buf;
-  extra_default_t *d;
+  const char* arg;
+  va_list args;
+  DYNAMIC_STRING ds_cmdline;
 
-  DBUG_ENTER("create_defaults_file");
-  DBUG_PRINT("enter", ("path: %s, forced_path: %s", path, forced_path));
+  DBUG_ENTER("run_tool");
+  DBUG_PRINT("enter", ("tool_path: %s", tool_path));
 
-  /* Delete any previous defaults file generated by mysql_upgrade */
-  my_delete(path, MYF(0));
-  
-  defaults_file= my_open(path, O_BINARY | O_CREAT | O_WRONLY | O_EXCL,
-                         MYF(MY_FAE | MY_WME));
-  if (defaults_file < 0)
+  if (init_dynamic_string(&ds_cmdline, IF_WIN("\"", ""), FN_REFLEN, FN_REFLEN))
+    die("Out of memory");
+
+  dynstr_append_os_quoted(&ds_cmdline, tool_path, NullS);
+  dynstr_append(&ds_cmdline, " ");
+
+  va_start(args, ds_res);
+
+  while ((arg= va_arg(args, char *)))
   {
-    ret= 1;
-    goto out;
-  }
-
-  if (init_dynamic_string(&buf, NULL, my_getpagesize(), FN_REFLEN))
-  {
-    ret= 1;
-    goto error;
-  }
-
-  /* Copy forced_path file into the defaults_file being generated */
-  if (forced_path)
-  {
-    forced_file= my_open(forced_path, O_RDONLY, MYF(MY_FAE | MY_WME));
-    if (forced_file < 0)
-    {
-      ret= 1;
-      goto error;
-    }
-    DBUG_PRINT("info", ("Copying from %s to %s", forced_path, path));
-    do
-    {
-      cnt= my_read(forced_file, buf.str, buf.max_length, MYF(MY_WME));
-      if ((cnt == MY_FILE_ERROR)
-           || my_write(defaults_file, buf.str, cnt, MYF(MY_FNABP | MY_WME)))
-      {
-        ret= 1;
-        my_close(forced_file, MYF(0));
-        goto error;
-      }
-      DBUG_PRINT("info", ("%s", buf.str));
-    } while (cnt == buf.max_length);
-    my_close(forced_file, MYF(0));
+    /* Options should be os quoted */
+    if (strncmp(arg, "--", 2) == 0)
+      dynstr_append_os_quoted(&ds_cmdline, arg, NullS);
+    else
+      dynstr_append(&ds_cmdline, arg);
+    dynstr_append(&ds_cmdline, " ");
   }
 
-  /* Write all extra_default options into the [client] section */
-  dynstr_set(&buf, "\n[client]");
-  if (opt_password) 
-  {
-    if (dynstr_append(&buf, "\npassword=")
-       || dynstr_append(&buf, opt_password))
-    {
-      ret = 1;
-      goto error;
-    }
-  }
-  DBUG_PRINT("info", ("Writing extra_defaults to file"));
-  while (extra_defaults) 
-  {
-    int len;
-        
-    d= extra_defaults->data;
-    len= d->n_len + d->v_len + 1; 
-    if (buf.length + len >= buf.max_length)     /* to avoid realloc() */
-    {
-      
-      if (my_write(defaults_file, buf.str, buf.length, MYF(MY_FNABP | MY_WME)))
-      {
-        ret= 1;
-        goto error;
-      }
-      dynstr_set(&buf, NULL);
-    }
-    if (dynstr_append_mem(&buf, "\n", 1) ||
-        dynstr_append_mem(&buf, d->name, d->n_len) ||
-        (d->v_len && (dynstr_append_mem(&buf, "=", 1) ||
-                      dynstr_append_mem(&buf, d->value, d->v_len))))
-    {
-      ret= 1;
-      goto error;
-    }
-    DBUG_PRINT("info", ("%s", buf.str));
-    my_free((gptr)d, MYF(0));
-    list_pop(extra_defaults);                   /* pop off the head */
-  }
-  if (my_write(defaults_file, buf.str, buf.length, MYF(MY_FNABP | MY_WME)))
-  {
-    ret= 1;
-    goto error;
-  }
-  /* everything's all right */
-  ret= 0;
-error:
-  dynstr_free(&buf);
-  
-  if (defaults_file >= 0)
-    ret|= my_close(defaults_file, MYF(MY_WME));
-  
-  if (ret)
-    my_delete(path, MYF(0));
-  
-out:
+  va_end(args);
+
+#ifdef __WIN__
+  dynstr_append(&ds_cmdline, "\"");
+#endif
+
+  DBUG_PRINT("info", ("Running: %s", ds_cmdline.str));
+  ret= run_command(ds_cmdline.str, ds_res);
+  DBUG_PRINT("exit", ("ret: %d", ret));
+  dynstr_free(&ds_cmdline);
   DBUG_RETURN(ret);
 }
 
 
-/* Compare filenames */
-static int comp_names(struct fileinfo *a, struct fileinfo *b)
+/*
+  Try to get the full path to this exceutable
+
+  Return 0 if path found
+
+*/
+
+static my_bool get_full_path_to_executable(char* path)
 {
-  return (strcmp(a->name,b->name));
+  my_bool ret;
+  DBUG_ENTER("get_full_path_to_executable");
+#ifdef __WIN__
+  ret= (GetModuleFileName(NULL, path, FN_REFLEN) == 0);
+#else
+  /* my_readlink returns 0 if a symlink was read */
+  ret= (my_readlink(path, "/proc/self/exe", MYF(0)) != 0);
+  /* Might also want to try with /proc/$$/exe if the above fails */
+#endif
+  DBUG_PRINT("exit", ("path: %s", path));
+  DBUG_RETURN(ret);
 }
 
 
-static int find_file(const char *name, const char *root,
-                     uint flags, char *result, size_t len, ...)
+/*
+  Look for the tool in the same directory as mysql_upgrade.
+
+  When running in a not yet installed build the the program
+  will exist but it need to be invoked via it's libtool wrapper.
+  Check if the found tool can executed and if not look in the
+  directory one step higher up where the libtool wrapper normally
+  is found
+*/
+
+static void find_tool(char *tool_path, const char *tool_name)
 {
-  int ret= 1;
-  va_list va;
-  const char *subdir;
-  char *cp;
-  FILEINFO key;
+  char path[FN_REFLEN];
+  DYNAMIC_STRING ds_tmp;
+  DBUG_ENTER("find_tool");
+  DBUG_PRINT("enter", ("progname: %s", my_progname));
 
-  /* Init key with name of the file to look for */
-  key.name= (char*)name;
+  if (init_dynamic_string(&ds_tmp, "", 32, 32))
+    die("Out of memory");
 
-  DBUG_ASSERT(root != NULL);
-
-  cp= strmake(result, root, len);
-  if (cp[-1] != FN_LIBCHAR) 
-    *cp++= FN_LIBCHAR; 
-  
-  va_start(va, len);
-  subdir= (!(flags & MY_SEARCH_SELF)) ? va_arg(va, char *) : "";
-  while (subdir)
+  /* Initialize path with the full path to this program */
+  if (get_full_path_to_executable(path))
   {
-    MY_DIR *dir;
-    FILEINFO *match;
-    char *cp1;
-    
-    cp1= strnmov(cp, subdir, len - (cp - result) - 1);
-    
-    dir= my_dir(result, (flags & MY_ISDIR) ? MY_WANT_STAT : MYF(0));  
-    if (dir) 
-    { 
-      match= bsearch(&key, dir->dir_entry, dir->number_off_files, 
-                      sizeof(FILEINFO), (qsort_cmp)comp_names);
-      if (match)
-      {
-        ret= (flags & MY_ISDIR) ? !MY_S_ISDIR(match->mystat->st_mode) : 0;
-        if (!ret)
-        { 
-          if (cp1[-1] != FN_LIBCHAR)
-            *cp1++= FN_LIBCHAR;
-          
-          if (!(flags & MY_PARENT)) 
-            strnmov(cp1, name, len - (cp1 - result));
-          else
-            *cp1= '\0';
-          
-          my_dirend(dir);
-          break;
-        }
-      }
-      my_dirend(dir);
+    /*
+      Easy way to get full executable path failed, try
+      other methods
+    */
+    if (my_progname[0] == FN_LIBCHAR)
+    {
+      /* 1. my_progname contains full path */
+      strmake(path, my_progname, FN_REFLEN);
     }
-    subdir= va_arg(va, char *);
+    else if (my_progname[0] == '.')
+    {
+      /* 2. my_progname contains relative path, prepend wd */
+      char buf[FN_REFLEN];
+      my_getwd(buf, FN_REFLEN, MYF(0));
+      my_snprintf(path, FN_REFLEN, "%s%s", buf, my_progname);
+    }
+    else
+    {
+      /* 3. Just go for it and hope tool is in path */
+      path[0]= 0;
+    }
   }
-  va_end(va);
-  return ret;
+  do
+  {
+    DBUG_PRINT("enter", ("path: %s", path));
+
+    /* Chop off last char(since it might be a /) */
+    path[max((strlen(path)-1), 0)]= 0;
+
+    /* Chop off last dir part */
+    dirname_part(path, path);
+
+    /* Format name of the tool to search for */
+    fn_format(tool_path, tool_name,
+              path, "", MYF(MY_REPLACE_DIR));
+
+    verbose("Looking for '%s' in: %s", tool_name, tool_path);
+
+    /* Make sure the tool exists */
+    if (my_access(tool_path, F_OK) != 0)
+      die("Can't find '%s'", tool_path);
+
+    /*
+      Make sure it can be executed, otherwise try again
+      in higher level directory
+    */
+  }
+  while(run_tool(tool_path,
+                 &ds_tmp, /* Get output from command, discard*/
+                 "--help",
+                 "2>&1",
+                 IF_WIN("> NUL", "> /dev/null"),
+                 NULL));
+
+  dynstr_free(&ds_tmp);
+
+  DBUG_VOID_RETURN;
 }
+
+
+/*
+  Run query using "mysql"
+*/
+
+static int run_query(const char *query, DYNAMIC_STRING *ds_res,
+                     my_bool force)
+{
+  int ret;
+  File fd;
+  char query_file_path[FN_REFLEN];
+  DBUG_ENTER("run_query");
+  DBUG_PRINT("enter", ("query: %s", query));
+  if ((fd= create_temp_file(query_file_path, NULL,
+                            "sql", O_CREAT | O_SHARE | O_RDWR,
+                            MYF(MY_WME))) < 0)
+    die("Failed to create temporary file for defaults");
+
+  if (my_write(fd, query, strlen(query),
+               MYF(MY_FNABP | MY_WME)))
+    die("Failed to write to '%s'", query_file_path);
+
+  ret= run_tool(mysql_path,
+                ds_res,
+                ds_args.str,
+                "--database=mysql",
+                "--batch", /* Turns off pager etc. */
+                force ? "--force": "--skip-force",
+                ds_res ? "--silent": "",
+                "<",
+                query_file_path,
+                "2>&1",
+                NULL);
+
+  my_close(fd, MYF(0));
+
+  DBUG_RETURN(ret);
+}
+
+
+/*
+  Extract the value returned from result of "show variable like ..."
+*/
+
+static int extract_variable_from_show(DYNAMIC_STRING* ds, char* value)
+{
+  char *value_start, *value_end;
+  /*
+    The query returns "datadir\t<datadir>\n", skip past
+    the tab
+  */
+  if ((value_start= strchr(ds->str, '\t')) == NULL)
+    return 1; /* Unexpected result */
+  value_start++;
+
+  /* Don't copy the ending newline */
+  if ((value_end= strchr(value_start, '\n')) == NULL)
+    return 1; /* Unexpected result */
+
+  strncpy(value, value_start, min(FN_REFLEN, value_end-value_start));
+  return 0;
+}
+
+
+static int get_upgrade_info_file_name(char* name)
+{
+  DYNAMIC_STRING ds_datadir;
+  DBUG_ENTER("get_upgrade_info_file_name");
+
+  if (init_dynamic_string(&ds_datadir, NULL, 32, 32))
+    die("Out of memory");
+
+  if (run_query("show variables like 'datadir'",
+                &ds_datadir, FALSE) ||
+      extract_variable_from_show(&ds_datadir, name))
+  {
+    dynstr_free(&ds_datadir);
+    DBUG_RETURN(1); /* Query failed */
+  }
+
+  dynstr_free(&ds_datadir);
+
+  fn_format(name, "mysql_upgrade_info", name, "", MYF(0));
+  DBUG_PRINT("exit", ("name: %s", name));
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Read the content of mysql_upgrade_info file and
+  compare the version number form file against
+  version number wich mysql_upgrade was compiled for
+
+  NOTE
+  This is an optimization to avoid running mysql_upgrade
+  when it's already been performed for the particular
+  version of MySQL.
+
+  In case the MySQL server can't return the upgrade info
+  file it's always better to report that the upgrade hasn't
+  been performed.
+
+*/
+
+static int upgrade_already_done(void)
+{
+  FILE *in;
+  char upgrade_info_file[FN_REFLEN]= {0};
+  char buf[sizeof(MYSQL_SERVER_VERSION)+1];
+
+  if (get_upgrade_info_file_name(upgrade_info_file))
+    return 0; /* Could not get filename => not sure */
+
+  if (!(in= my_fopen(upgrade_info_file, O_RDONLY, MYF(0))))
+    return 0; /* Could not open file => not sure */
+
+  /*
+    Read from file, don't care if it fails since it
+    will be detected by the strncmp
+  */
+  bzero(buf, sizeof(buf));
+  fgets(buf, sizeof(buf), in);
+
+  my_fclose(in, MYF(0));
+
+  return (strncmp(buf, MYSQL_SERVER_VERSION,
+                  sizeof(MYSQL_SERVER_VERSION)-1)==0);
+}
+
+
+/*
+  Write mysql_upgrade_info file in servers data dir indicating that
+  upgrade has been done for this version
+
+  NOTE
+  This might very well fail but since it's just an optimization
+  to run mysql_upgrade only when necessary the error can be
+  ignored.
+
+*/
+
+static void create_mysql_upgrade_info_file(void)
+{
+  FILE *out;
+  char upgrade_info_file[FN_REFLEN]= {0};
+
+  if (get_upgrade_info_file_name(upgrade_info_file))
+    return; /* Could not get filename => skip */
+
+  if (!(out= my_fopen(upgrade_info_file, O_TRUNC | O_WRONLY, MYF(0))))
+  {
+    fprintf(stderr,
+            "Could not create the upgrade info file '%s' in "
+            "the MySQL Servers datadir, errno: %d\n",
+            upgrade_info_file, errno);
+    return;
+  }
+
+    /* Write new version to file, just print a message if it fails */
+  if (!fputs(MYSQL_SERVER_VERSION, out))
+    fprintf(stderr,
+            "Could not write to the upgrade info file '%s' in "
+            "the MySQL Servers datadir, errno: %d\n",
+            upgrade_info_file, errno);
+
+  my_fclose(out, MYF(0));
+}
+
+
+/*
+  Check and upgrade(if neccessary) all tables
+  in the server using "mysqlcheck --check-upgrade .."
+*/
+
+static int run_mysqlcheck_upgrade(void)
+{
+  verbose("Running 'mysqlcheck'...");
+  return run_tool(mysqlcheck_path,
+                  NULL, /* Send output from mysqlcheck directly to screen */
+                  ds_args.str,
+                  "--check-upgrade",
+                  "--all-databases",
+                  "--auto-repair",
+                  NULL);
+}
+
+
+static const char *expected_errors[]=
+{
+  "ERROR 1060", /* Duplicate column name */
+  "ERROR 1061", /* Duplicate key name */
+  "ERROR 1054", /* Unknown column */
+  0
+};
+
+
+static my_bool is_expected_error(const char* line)
+{
+  const char** error= expected_errors;
+  while (*error)
+  {
+    /*
+      Check if lines starting with ERROR
+      are in the list of expected errors
+    */
+    if (strncmp(line, "ERROR", 5) != 0 ||
+        strncmp(line, *error, strlen(*error)) == 0)
+      return 1; /* Found expected error */
+    error++;
+  }
+  return 0;
+}
+
+
+static char* get_line(char* line)
+{
+  while (*line && *line != '\n')
+    line++;
+  if (*line)
+    line++;
+  return line;
+}
+
+
+/* Print the current line to stderr */
+static void print_line(char* line)
+{
+  while (*line && *line != '\n')
+  {
+    fputc(*line, stderr);
+    line++;
+  }
+  fputc('\n', stderr);
+}
+
+
+/*
+  Update all system tables in MySQL Server to current
+  version using "mysql" to execute all the SQL commands
+  compiled into the mysql_fix_privilege_tables array
+*/
+
+static int run_sql_fix_privilege_tables(void)
+{
+  int found_real_errors= 0;
+  DYNAMIC_STRING ds_result;
+  DBUG_ENTER("run_sql_fix_privilege_tables");
+
+  if (init_dynamic_string(&ds_result, "", 512, 512))
+    die("Out of memory");
+
+  verbose("Running 'mysql_fix_privilege_tables'...");
+  run_query(mysql_fix_privilege_tables,
+            &ds_result, /* Collect result */
+            TRUE);
+
+  {
+    /*
+      Scan each line of the result for real errors
+      and ignore the expected one(s) like "Duplicate column name",
+      "Unknown column" and "Duplicate key name" since they just
+      indicate the system tables are already up to date
+    */
+    char *line= ds_result.str;
+    do
+    {
+      if (!is_expected_error(line))
+      {
+        /* Something unexpected failed, dump error line to screen */
+        found_real_errors++;
+        print_line(line);
+      }
+    } while ((line= get_line(line)) && *line);
+  }
+
+  dynstr_free(&ds_result);
+  return found_real_errors;
+}
+
+
+static const char *load_default_groups[]=
+{
+  "client", /* Read settings how to connect to server */
+  "mysql_upgrade", /* Read special settings for mysql_upgrade*/
+  0
+};
 
 
 int main(int argc, char **argv)
 {
-  int ret;
-  
-  char *forced_defaults_file;
-  char *forced_extra_defaults;
-  char *local_defaults_group_suffix;
-
-  char path[FN_REFLEN], upgrade_defaults_path[FN_REFLEN];
-  DYNAMIC_STRING cmdline;
-
   MY_INIT(argv[0]);
 #ifdef __NETWARE__
   setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
 #endif
 
-  /* Check if we are forced to use specific defaults */
-  get_defaults_options(argc, argv,
-                       &forced_defaults_file, &forced_extra_defaults,
-                       &local_defaults_group_suffix);
-  
+  if (init_dynamic_string(&ds_args, "", 512, 256))
+    die("Out of memory");
+
   load_defaults("my", load_default_groups, &argc, &argv);
-  defaults_argv= argv;
+  defaults_argv= argv; /* Must be freed by 'free_defaults' */
 
-  /* 
-     Must init_dynamic_string before handle_options because string is freed
-     at error label.
-   */
-  if (init_dynamic_string(&cmdline, NULL, 2 * FN_REFLEN + 128, FN_REFLEN) ||
-      handle_options(&argc, &argv, my_long_options, get_one_option))
-  {
-    ret= 1;
-    goto error;
-  }
+  if (handle_options(&argc, &argv, my_long_options, get_one_option))
+    die(NULL);
+
   if (tty_password)
+  {
     opt_password= get_tty_password(NullS);
-
-  if (!basedir)
-  {
-    my_getwd(path, sizeof(path), MYF(0));
-    basedir= my_strdup(path, MYF(0));
-    if (find_file("errmsg.sys", basedir, MYF(0), path, sizeof(path),
-                              "share/mysql/english", NullS)
-       || find_file(mysqld_name, basedir, MYF(0), path, sizeof(path),
-                              "bin", "libexec", NullS))
-    {
-      my_free((gptr)basedir, MYF(0));
-      basedir= (char *)DEFAULT_MYSQL_HOME;
-    }
+    /* add password to defaults file */
+    dynstr_append_os_quoted(&ds_args, "--password=", opt_password, NullS);
+    dynstr_append(&ds_args, " ");
   }
+  /* add user to defaults file */
+  dynstr_append_os_quoted(&ds_args, "--user=", opt_user, NullS);
+  dynstr_append(&ds_args, " ");
 
-  if (!datadir)
-  {
-    if (!find_file("mysql", basedir, MYF(MY_ISDIR|MY_PARENT), 
-                            path, sizeof(path),
-                            "data", "var", NullS))
-      datadir= my_strdup(path, MYF(0));
-    else
-      datadir= (char *)DATADIR;
-  }
-  if (find_file("user.frm", datadir, MYF(0), path, sizeof(path), 
-                          "mysql", NullS))
-  {
-    ret= 1;
-    fprintf(stderr,
-            "Can't find data directory. Please restart with"
-            " --datadir=path-to-writable-data-dir");
-    goto error;
-  }
+  /* Find mysql */
+  find_tool(mysql_path, IF_WIN("mysql.exe", "mysql"));
 
-  /*
-     Create the modified defaults file to be used by mysqlcheck
-     and mysql command line client
-   */
-  fn_format(upgrade_defaults_path, UPGRADE_DEFAULTS_NAME, datadir, "", MYF(0));
-  create_defaults_file(upgrade_defaults_path, forced_extra_defaults);
-
+  /* Find mysqlcheck */
+  find_tool(mysqlcheck_path, IF_WIN("mysqlcheck.exe", "mysqlcheck"));
 
   /*
     Read the mysql_upgrade_info file to check if mysql_upgrade
-    already has been done
-    Maybe this could be done a little earlier?
+    already has been run for this installation of MySQL
   */
-  if (!find_file(MYSQL_UPGRADE_INFO_NAME, datadir, MY_SEARCH_SELF, 
-                          path, sizeof(path), NULL, NullS)
-     && !opt_force)
+  if (!opt_force && upgrade_already_done())
   {
-    char buf[sizeof(MYSQL_SERVER_VERSION)];
-    int fd, cnt;
-   
-    fd= my_open(path, O_RDONLY, MYF(0));
-    cnt= my_read(fd, buf, sizeof(buf) - 1, MYF(0));
-    my_close(fd, MYF(0));
-    buf[cnt]= 0;
-    if (!strcmp(buf, MYSQL_SERVER_VERSION))
-    {
-      if (opt_verbose)
-        puts("mysql_upgrade has already been done for this version");
-      goto fix_priv_tables;
-    }
-  }
-
-
-  /* Find mysqlcheck */
-  if (find_file(mysqlcheck_name, basedir, MYF(0), path, sizeof(path),
-                "bin", EXTRA_CLIENT_PATHS, NullS))
-  {
-     ret= 1;
-     fprintf(stderr,
-             "Can't find program '%s'\n"
-             "Please restart with --basedir=mysql-install-directory",
-             mysqlcheck_name);
-     goto error;
-  }
-  else
-  {
-#ifdef __WIN__
-    /* Windows requires an extra pair of quotes around the entire string. */
-    dynstr_set(&cmdline, "\""); 
-#else
-    dynstr_set(&cmdline, "");
-#endif /* __WIN__ */
-    dynstr_append_os_quoted(&cmdline, path, NullS);
+    printf("This installation of MySQL is already upgraded to %s, "
+           "use --force if you still need to run mysql_upgrade\n",
+           MYSQL_SERVER_VERSION);
+    die(NULL);
   }
 
   /*
-    All settings have been written to the "upgrade_defaults_path"
-    instruct mysqlcheck to only read options from that file
+    Run "mysqlcheck" and "mysql_fix_privilege_tables.sql"
   */
-  dynstr_append(&cmdline, " ");
-  dynstr_append_os_quoted(&cmdline, "--defaults-file=",
-                          upgrade_defaults_path, NullS);
-  dynstr_append(&cmdline, " ");
-  dynstr_append_os_quoted(&cmdline, "--check-upgrade", NullS);
-  dynstr_append(&cmdline, " ");
-  dynstr_append_os_quoted(&cmdline, "--all-databases", NullS);
-  dynstr_append(&cmdline, " ");
-  dynstr_append_os_quoted(&cmdline, "--auto-repair", NullS);
-  dynstr_append(&cmdline, " ");
-  dynstr_append_os_quoted(&cmdline, "--user=", user, NullS);
-#ifdef __WIN__
-  dynstr_append(&cmdline, "\"");
-#endif /* __WIN__ */
-
-  /* Execute mysqlcheck */
-  if (opt_verbose)
-    printf("Running %s\n", cmdline.str);
-  DBUG_PRINT("info", ("Running: %s", cmdline.str));
-  ret= system(cmdline.str);
-  if (ret)
+  if (run_mysqlcheck_upgrade() ||
+      run_sql_fix_privilege_tables())
   {
-    fprintf(stderr, "Error executing '%s'\n", cmdline.str);
-    goto error;
+    /*
+      The upgrade failed to complete in some way or another,
+      significant error message should have been printed to the screen
+    */
+    die("Upgrade failed" );
   }
+  verbose("OK");
 
-  fn_format(path, MYSQL_UPGRADE_INFO_NAME, datadir, "", MYF(0));
-  ret= create_check_file(path);
-  if (ret)
-    goto error;
+  /* Create a file indicating upgrade has been performed */
+  create_mysql_upgrade_info_file();
 
-fix_priv_tables:
-  /* Find mysql */
-  if (find_file(mysql_name, basedir, MYF(0), path, sizeof(path), 
-                "bin", EXTRA_CLIENT_PATHS, NullS))
-  {
-    ret= 1;
-    fprintf(stderr,
-           "Could not find MySQL command-line client (mysql).\n"
-           "Please use --basedir to specify the directory"
-           " where MySQL is installed.");
-    goto error;
-  }
-  else
-  {
-#ifdef __WIN__
-    /* Windows requires an extra pair of quotes around the entire string. */
-    dynstr_set(&cmdline, "\"");
-#else
-    dynstr_set(&cmdline, "");
-#endif /* __WIN__ */
-    dynstr_append_os_quoted(&cmdline, path, NullS);
-  }
-
-  /* Find mysql_fix_privililege_tables.sql */
-  if (find_file(MYSQL_FIX_PRIV_TABLES_NAME, basedir, MYF(0), 
-                          path, sizeof(path), 
-                          "support_files", "share", "share/mysql", "scripts",
-                          NullS)
-     && find_file(MYSQL_FIX_PRIV_TABLES_NAME, "/usr/local/mysql", MYF(0),
-                          path, sizeof(path),
-                          "share/mysql", NullS))
-  {
-    ret= 1;
-    fprintf(stderr,
-           "Could not find file " MYSQL_FIX_PRIV_TABLES_NAME "\n"
-           "Please use --basedir to specify the directory"
-           " where MySQL is installed");
-    goto error;
-  }
-
-  /*
-    All settings have been written to the "upgrade_defaults_path",
-    instruct mysql to only read options from that file
-  */
-  dynstr_append(&cmdline, " ");
-  dynstr_append_os_quoted(&cmdline, "--defaults-file=",
-                          upgrade_defaults_path, NullS);
-  dynstr_append(&cmdline, " ");
-  dynstr_append_os_quoted(&cmdline, "--force", NullS);
-  dynstr_append(&cmdline, " ");
-  dynstr_append_os_quoted(&cmdline, "--no-auto-rehash", NullS);
-  dynstr_append(&cmdline, " ");
-  dynstr_append_os_quoted(&cmdline, "--batch", NullS);
-  dynstr_append(&cmdline, " ");
-  dynstr_append_os_quoted(&cmdline, "--user=", user, NullS);
-  dynstr_append(&cmdline, " ");
-  dynstr_append_os_quoted(&cmdline, "--database=mysql", NullS);
-  dynstr_append(&cmdline, " < ");
-  dynstr_append_os_quoted(&cmdline, path, NullS);
-#ifdef __WIN__
-  dynstr_append(&cmdline, "\"");
-#endif /* __WIN__ */
-
-  /* Execute "mysql --force < mysql_fix_privilege_tables.sql" */
-  if (opt_verbose)
-    printf("Running %s\n", cmdline.str);
-  DBUG_PRINT("info", ("Running: %s", cmdline.str));
-  ret= system(cmdline.str);
-  if (ret)
-    fprintf(stderr, "Error executing '%s'\n", cmdline.str);
-
-error:
-  dynstr_free(&cmdline);
-
-  /* Delete the generated defaults file */
-  my_delete(upgrade_defaults_path, MYF(0));
-
-  free_defaults(defaults_argv);
-  my_end(info_flag ? MY_CHECK_ERROR : 0);
-  return ret;
+  free_used_memory();
+  my_end(MY_CHECK_ERROR);
+  exit(0);
 }
 

@@ -3275,9 +3275,9 @@ sub do_after_run_mysqltest($)
 }
 
 
-sub run_testcase_mark_logs($)
+sub run_testcase_mark_logs($$)
 {
-  my ($log_msg)= @_;
+  my ($tinfo, $log_msg)= @_;
 
   # Write a marker to all log files
 
@@ -3288,6 +3288,12 @@ sub run_testcase_mark_logs($)
   foreach my $mysqld (@{$master}, @{$slave})
   {
     mtr_tofile($mysqld->{path_myerr}, $log_msg);
+  }
+
+  if ( $tinfo->{'component_id'} eq 'im')
+  {
+    mtr_tofile($instance_manager->{path_err}, $log_msg);
+    mtr_tofile($instance_manager->{path_log}, $log_msg);
   }
 
   # ndbcluster log file
@@ -3416,7 +3422,7 @@ sub run_testcase ($) {
   }
 
   # Write to all log files to indicate start of testcase
-  run_testcase_mark_logs("CURRENT_TEST: $tinfo->{name}\n");
+  run_testcase_mark_logs($tinfo, "CURRENT_TEST: $tinfo->{name}\n");
 
   my $died= mtr_record_dead_children();
   if ($died or $master_restart or $slave_restart)
@@ -3490,7 +3496,7 @@ sub run_testcase ($) {
   # Stop Instance Manager if we are processing an IM-test case.
   # ----------------------------------------------------------------------
   if ( $tinfo->{'component_id'} eq 'im' and
-       !mtr_im_stop($instance_manager, $tinfo->{'name'}) )
+       !mtr_im_stop($instance_manager, $tinfo->{'name'}))
   {
     mtr_error("Failed to stop Instance Manager.")
   }

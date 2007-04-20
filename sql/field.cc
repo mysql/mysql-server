@@ -1574,7 +1574,7 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
 }
 
 
-bool Field::get_date(TIME *ltime,uint fuzzydate)
+bool Field::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 {
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
@@ -1585,7 +1585,7 @@ bool Field::get_date(TIME *ltime,uint fuzzydate)
   return 0;
 }
 
-bool Field::get_time(TIME *ltime)
+bool Field::get_time(MYSQL_TIME *ltime)
 {
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
@@ -1602,7 +1602,7 @@ bool Field::get_time(TIME *ltime)
     Needs to be changed if/when we want to support different time formats
 */
 
-int Field::store_time(TIME *ltime, timestamp_type type_arg)
+int Field::store_time(MYSQL_TIME *ltime, timestamp_type type_arg)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   char buff[MAX_DATE_STRING_REP_LENGTH];
@@ -2550,7 +2550,7 @@ int Field_new_decimal::store_decimal(const my_decimal *decimal_value)
 }
 
 
-int Field_new_decimal::store_time(TIME *ltime, timestamp_type t_type)
+int Field_new_decimal::store_time(MYSQL_TIME *ltime, timestamp_type t_type)
 {
     my_decimal decimal_value;
     return store_value(date2my_decimal(ltime, &decimal_value));
@@ -4457,7 +4457,7 @@ timestamp_auto_set_type Field_timestamp::get_auto_set_type() const
 int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  TIME l_time;
+  MYSQL_TIME l_time;
   my_time_t tmp= 0;
   int error;
   bool have_smth_to_conv;
@@ -4528,7 +4528,7 @@ int Field_timestamp::store(double nr)
 int Field_timestamp::store(longlong nr, bool unsigned_val)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  TIME l_time;
+  MYSQL_TIME l_time;
   my_time_t timestamp= 0;
   int error;
   my_bool in_dst_time_gap;
@@ -4587,7 +4587,7 @@ longlong Field_timestamp::val_int(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   uint32 temp;
-  TIME time_tmp;
+  MYSQL_TIME time_tmp;
   THD  *thd= table ? table->in_use : current_thd;
 
 #ifdef WORDS_BIGENDIAN
@@ -4613,7 +4613,7 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   uint32 temp, temp2;
-  TIME time_tmp;
+  MYSQL_TIME time_tmp;
   THD *thd= table ? table->in_use : current_thd;
   char *to;
 
@@ -4682,7 +4682,7 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
 }
 
 
-bool Field_timestamp::get_date(TIME *ltime, uint fuzzydate)
+bool Field_timestamp::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 {
   long temp;
   THD *thd= table ? table->in_use : current_thd;
@@ -4706,7 +4706,7 @@ bool Field_timestamp::get_date(TIME *ltime, uint fuzzydate)
   return 0;
 }
 
-bool Field_timestamp::get_time(TIME *ltime)
+bool Field_timestamp::get_time(MYSQL_TIME *ltime)
 {
   return Field_timestamp::get_date(ltime,0);
 }
@@ -4714,7 +4714,7 @@ bool Field_timestamp::get_time(TIME *ltime)
 
 bool Field_timestamp::send_binary(Protocol *protocol)
 {
-  TIME tm;
+  MYSQL_TIME tm;
   Field_timestamp::get_date(&tm, 0);
   return protocol->store(&tm);
 }
@@ -4790,7 +4790,7 @@ void Field_timestamp::set_time()
 
 int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  TIME ltime;
+  MYSQL_TIME ltime;
   long tmp;
   int error= 0;
   int warning;
@@ -4805,9 +4805,12 @@ int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
   else
   {
     if (warning & MYSQL_TIME_WARN_TRUNCATED)
-      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
+    {
+      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                            WARN_DATA_TRUNCATED,
                            from, len, MYSQL_TIMESTAMP_TIME, 1);
+      error= 1;
+    }
     if (warning & MYSQL_TIME_WARN_OUT_OF_RANGE)
     {
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
@@ -4818,8 +4821,6 @@ int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
     if (ltime.month)
       ltime.day=0;
     tmp=(ltime.day*24L+ltime.hour)*10000L+(ltime.minute*100+ltime.second);
-    if (error > 1)
-      error= 2;
   }
   
   if (ltime.neg)
@@ -4829,7 +4830,7 @@ int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
 }
 
 
-int Field_time::store_time(TIME *ltime, timestamp_type time_type)
+int Field_time::store_time(MYSQL_TIME *ltime, timestamp_type time_type)
 {
   long tmp= ((ltime->month ? 0 : ltime->day * 24L) + ltime->hour) * 10000L +
             (ltime->minute * 100 + ltime->second);
@@ -4938,7 +4939,7 @@ String *Field_time::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  TIME ltime;
+  MYSQL_TIME ltime;
   val_buffer->alloc(19);
   long tmp=(long) sint3korr(ptr);
   ltime.neg= 0;
@@ -4962,7 +4963,7 @@ String *Field_time::val_str(String *val_buffer,
   DATE_FORMAT(time, "%l.%i %p")
 */
  
-bool Field_time::get_date(TIME *ltime, uint fuzzydate)
+bool Field_time::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 {
   long tmp;
   THD *thd= table ? table->in_use : current_thd;
@@ -4990,7 +4991,7 @@ bool Field_time::get_date(TIME *ltime, uint fuzzydate)
 }
 
 
-bool Field_time::get_time(TIME *ltime)
+bool Field_time::get_time(MYSQL_TIME *ltime)
 {
   long tmp=(long) sint3korr(ptr);
   ltime->neg=0;
@@ -5012,7 +5013,7 @@ bool Field_time::get_time(TIME *ltime)
 
 bool Field_time::send_binary(Protocol *protocol)
 {
-  TIME tm;
+  MYSQL_TIME tm;
   Field_time::get_time(&tm);
   tm.day= tm.hour/24;				// Move hours to days
   tm.hour-= tm.day*24;
@@ -5170,7 +5171,7 @@ void Field_year::sql_type(String &res) const
 int Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  TIME l_time;
+  MYSQL_TIME l_time;
   uint32 tmp;
   int error;
   THD *thd= table ? table->in_use : current_thd;
@@ -5227,7 +5228,7 @@ int Field_date::store(double nr)
 int Field_date::store(longlong nr, bool unsigned_val)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  TIME not_used;
+  MYSQL_TIME not_used;
   int error;
   longlong initial_nr= nr;
   THD *thd= table ? table->in_use : current_thd;
@@ -5268,7 +5269,7 @@ int Field_date::store(longlong nr, bool unsigned_val)
 bool Field_date::send_binary(Protocol *protocol)
 {
   longlong tmp= Field_date::val_int();
-  TIME tm;
+  MYSQL_TIME tm;
   tm.year= (uint32) tmp/10000L % 10000;
   tm.month= (uint32) tmp/100 % 100;
   tm.day= (uint32) tmp % 100;
@@ -5308,7 +5309,7 @@ String *Field_date::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  TIME ltime;
+  MYSQL_TIME ltime;
   val_buffer->alloc(field_length);
   int32 tmp;
 #ifdef WORDS_BIGENDIAN
@@ -5377,10 +5378,27 @@ void Field_date::sql_type(String &res) const
 ** In number context: YYYYMMDD
 ****************************************************************************/
 
+/*
+  Store string into a date field
+
+  SYNOPSIS
+    Field_newdate::store()
+    from                Date string
+    len                 Length of date field
+    cs                  Character set (not used)
+
+  RETURN
+    0  ok
+    1  Value was cut during conversion
+    2  Wrong date string
+    3  Datetime value that was cut (warning level NOTE)
+*/
+
 int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  TIME l_time;
+  long tmp;
+  MYSQL_TIME l_time;
   int error;
   THD *thd= table ? table->in_use : current_thd;
   enum enum_mysql_timestamp_type ret;
@@ -5391,20 +5409,23 @@ int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
                                MODE_INVALID_DATES))),
                             &error)) <= MYSQL_TIMESTAMP_ERROR)
   {
-    int3store(ptr,0L);
+    tmp= 0;
     error= 2;
   }
   else
   {
-    int3store(ptr, l_time.day + l_time.month*32 + l_time.year*16*32);
-    if(!error && (ret != MYSQL_TIMESTAMP_DATE))
-      return 2;
+    tmp= l_time.day + l_time.month*32 + l_time.year*16*32;
+    if (!error && (ret != MYSQL_TIMESTAMP_DATE))
+      error= 3;                                 // Datetime was cut (note)
   }
 
   if (error)
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
+    set_datetime_warning(error == 3 ? MYSQL_ERROR::WARN_LEVEL_NOTE :
+                         MYSQL_ERROR::WARN_LEVEL_WARN,
+                         WARN_DATA_TRUNCATED,
                          from, len, MYSQL_TIMESTAMP_DATE, 1);
 
+  int3store(ptr, tmp);
   return error;
 }
 
@@ -5425,7 +5446,7 @@ int Field_newdate::store(double nr)
 int Field_newdate::store(longlong nr, bool unsigned_val)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  TIME l_time;
+  MYSQL_TIME l_time;
   longlong tmp;
   int error;
   THD *thd= table ? table->in_use : current_thd;
@@ -5452,7 +5473,7 @@ int Field_newdate::store(longlong nr, bool unsigned_val)
 }
 
 
-int Field_newdate::store_time(TIME *ltime,timestamp_type time_type)
+int Field_newdate::store_time(MYSQL_TIME *ltime,timestamp_type time_type)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   long tmp;
@@ -5487,7 +5508,7 @@ int Field_newdate::store_time(TIME *ltime,timestamp_type time_type)
 
 bool Field_newdate::send_binary(Protocol *protocol)
 {
-  TIME tm;
+  MYSQL_TIME tm;
   Field_newdate::get_date(&tm,0);
   return protocol->store_date(&tm);
 }
@@ -5538,7 +5559,7 @@ String *Field_newdate::val_str(String *val_buffer,
 }
 
 
-bool Field_newdate::get_date(TIME *ltime,uint fuzzydate)
+bool Field_newdate::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 {
   uint32 tmp=(uint32) uint3korr(ptr);
   ltime->day=   tmp & 31;
@@ -5551,7 +5572,7 @@ bool Field_newdate::get_date(TIME *ltime,uint fuzzydate)
 }
 
 
-bool Field_newdate::get_time(TIME *ltime)
+bool Field_newdate::get_time(MYSQL_TIME *ltime)
 {
   return Field_newdate::get_date(ltime,0);
 }
@@ -5590,7 +5611,7 @@ void Field_newdate::sql_type(String &res) const
 int Field_datetime::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  TIME time_tmp;
+  MYSQL_TIME time_tmp;
   int error;
   ulonglong tmp= 0;
   enum enum_mysql_timestamp_type func_res;
@@ -5643,7 +5664,7 @@ int Field_datetime::store(double nr)
 int Field_datetime::store(longlong nr, bool unsigned_val)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  TIME not_used;
+  MYSQL_TIME not_used;
   int error;
   longlong initial_nr= nr;
   THD *thd= table ? table->in_use : current_thd;
@@ -5678,7 +5699,7 @@ int Field_datetime::store(longlong nr, bool unsigned_val)
 }
 
 
-int Field_datetime::store_time(TIME *ltime,timestamp_type time_type)
+int Field_datetime::store_time(MYSQL_TIME *ltime,timestamp_type time_type)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   longlong tmp;
@@ -5724,7 +5745,7 @@ int Field_datetime::store_time(TIME *ltime,timestamp_type time_type)
 
 bool Field_datetime::send_binary(Protocol *protocol)
 {
-  TIME tm;
+  MYSQL_TIME tm;
   Field_datetime::get_date(&tm, TIME_FUZZY_DATE);
   return protocol->store(&tm);
 }
@@ -5798,7 +5819,7 @@ String *Field_datetime::val_str(String *val_buffer,
   return val_buffer;
 }
 
-bool Field_datetime::get_date(TIME *ltime, uint fuzzydate)
+bool Field_datetime::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 {
   longlong tmp=Field_datetime::val_int();
   uint32 part1,part2;
@@ -5817,7 +5838,7 @@ bool Field_datetime::get_date(TIME *ltime, uint fuzzydate)
   return (!(fuzzydate & TIME_FUZZY_DATE) && (!ltime->month || !ltime->day)) ? 1 : 0;
 }
 
-bool Field_datetime::get_time(TIME *ltime)
+bool Field_datetime::get_time(MYSQL_TIME *ltime)
 {
   return Field_datetime::get_date(ltime,0);
 }
@@ -9354,10 +9375,13 @@ uint32 Field_blob::max_display_length()
 
   NOTE
     This function won't produce warning and increase cut fields counter
-    if count_cuted_fields == FIELD_CHECK_IGNORE for current thread.
+    if count_cuted_fields == CHECK_FIELD_IGNORE for current thread.
+
+    if count_cuted_fields == CHECK_FIELD_IGNORE then we ignore notes.
+    This allows us to avoid notes in optimisation, like convert_constant_item().
 
   RETURN VALUE
-    1 if count_cuted_fields == FIELD_CHECK_IGNORE
+    1 if count_cuted_fields == CHECK_FIELD_IGNORE and error level is not NOTE
     0 otherwise
 */
 
@@ -9377,7 +9401,7 @@ Field::set_warning(MYSQL_ERROR::enum_warning_level level, uint code,
                         thd->row_count);
     return 0;
   }
-  return 1;
+  return level >= MYSQL_ERROR::WARN_LEVEL_WARN;
 }
 
 
@@ -9405,9 +9429,10 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
                             timestamp_type ts_type, int cuted_increment)
 {
   THD *thd= table ? table->in_use : current_thd;
-  if (thd->really_abort_on_warning() ||
+  if ((thd->really_abort_on_warning() &&
+       level >= MYSQL_ERROR::WARN_LEVEL_WARN) ||
       set_warning(level, code, cuted_increment))
-    make_truncated_value_warning(thd, str, str_length, ts_type,
+    make_truncated_value_warning(thd, level, str, str_length, ts_type,
                                  field_name);
 }
 
@@ -9440,7 +9465,7 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
   {
     char str_nr[22];
     char *str_end= longlong10_to_str(nr, str_nr, -10);
-    make_truncated_value_warning(thd, str_nr, (uint) (str_end - str_nr), 
+    make_truncated_value_warning(thd, level, str_nr, (uint) (str_end - str_nr), 
                                  ts_type, field_name);
   }
 }
@@ -9473,7 +9498,7 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
     /* DBL_DIG is enough to print '-[digits].E+###' */
     char str_nr[DBL_DIG + 8];
     uint str_len= my_sprintf(str_nr, (str_nr, "%g", nr));
-    make_truncated_value_warning(thd, str_nr, str_len, ts_type,
+    make_truncated_value_warning(thd, level, str_nr, str_len, ts_type,
                                  field_name);
   }
 }

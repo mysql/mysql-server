@@ -715,7 +715,7 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
     The server will close all statements no matter was the attempt
     to change user successful or not.
   */
-  mysql_detach_stmt_list(&mysql->stmts);
+  mysql_detach_stmt_list(&mysql->stmts, "mysql_change_user");
   if (rc == 0)
   {
     /* Free old connect information */
@@ -2872,7 +2872,7 @@ int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt)
 
   if (!mysql)
   {
-    set_stmt_error(stmt, CR_SERVER_LOST, unknown_sqlstate);
+    /* Error is already set in mysql_detatch_stmt_list */
     DBUG_RETURN(1);
   }
 
