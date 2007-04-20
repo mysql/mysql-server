@@ -1,3 +1,9 @@
+mysql-5.1 (5.1.18) UNRELEASED; urgency=low
+
+  * Branched for 5.1.
+
+ -- Monty Taylor <mtaylor@mysql.com>  Fri, 20 Apr 2007 14:46:51 -0700
+
 mysql-5.0 (5.0.42) UNRELEASED; urgency=low
 
   * Upgraded to 5.0.42 branch.
