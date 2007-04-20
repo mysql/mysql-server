@@ -7109,6 +7109,44 @@ select bug20777(18446744073709551613)+1;
 drop function bug20777;
 delimiter |;
 
+
+#
+# BUG#5274: Stored procedure crash if length of CHAR variable too great.
+#
+
+# Prepare.
+
+--disable_warnings
+DROP FUNCTION IF EXISTS bug5274_f1|
+DROP FUNCTION IF EXISTS bug5274_f2|
+--enable_warnings
+
+# Test.
+
+CREATE FUNCTION bug5274_f1(p1 CHAR) RETURNS CHAR
+  RETURN CONCAT(p1, p1)|
+
+CREATE FUNCTION bug5274_f2() RETURNS CHAR
+BEGIN
+  DECLARE v1 INT DEFAULT 0;
+  DECLARE v2 CHAR DEFAULT 'x';
+
+  WHILE v1 < 30 DO
+    SET v1 = v1 + 1;
+    SET v2 = bug5274_f1(v2);
+  END WHILE;
+
+  RETURN v2;
+END|
+ 
+SELECT bug5274_f2()|
+
+# Cleanup.
+
+DROP FUNCTION bug5274_f1|
+DROP FUNCTION bug5274_f2|
+
+
 ###
 --echo End of 5.0 tests.
 
