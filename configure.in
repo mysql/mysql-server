@@ -23,6 +23,9 @@ MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|[[a-z]]*-.*$||"`
 MYSQL_BASE_VERSION=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|\.[[^.]]*$||"`
 MYSQL_VERSION_ID=`echo $MYSQL_NO_DASH_VERSION | sed -e 's|[[^0-9.]].*$||;s|$|.|' | sed -e 's/[[^0-9.]]//g; s/\./  /g; s/ \([[0-9]]\) / 0\\1 /g; s/ //g'`
 
+# Add previous major version for debian package upgrade path
+MYSQL_PREVIOUS_BASE_VERSION=4.1
+
 # The port should be constant for a LONG time
 MYSQL_TCP_PORT_DEFAULT=3306
 MYSQL_UNIX_ADDR_DEFAULT="/tmp/mysql.sock"
@@ -52,6 +55,7 @@ romanian russian serbian slovak spanish swedish ukrainian"
 AC_SUBST(MYSQL_NO_DASH_VERSION)
 AC_SUBST(MYSQL_BASE_VERSION)
 AC_SUBST(MYSQL_VERSION_ID)
+AC_SUBST(MYSQL_PREVIOUS_BASE_VERSION)
 AC_SUBST(PROTOCOL_VERSION)
 AC_DEFINE_UNQUOTED([PROTOCOL_VERSION], [$PROTOCOL_VERSION],
                    [mysql client protocol version])
@@ -2548,7 +2552,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile support-files/RHEL4-SElinux/Makefile dnl
  mysql-test/Makefile dnl
- debian/Makefile dnl
+ debian/Makefile debian/defs.mk debian/control dnl
  mysql-test/ndb/Makefile netware/Makefile sql-bench/Makefile dnl
  include/mysql_version.h plugin/Makefile win/Makefile)
 

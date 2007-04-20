@@ -83,6 +83,7 @@ const char *client_errors[]=
   "Attempt to read a row while there is no result set associated with the statement",
   "This feature is not implemented yet",
   "Lost connection to MySQL server at '%s', system error: %d",
+  "Statement closed indirectly because of a preceeding %s() call",
   ""
 };
 
@@ -147,6 +148,7 @@ const char *client_errors[]=
   "Attempt to read a row while there is no result set associated with the statement",
   "This feature is not implemented yet",
   "Lost connection to MySQL server at '%s', system error: %d",
+  "Statement closed indirectly because of a preceeding %s() call",
   ""
 };
 
@@ -209,6 +211,7 @@ const char *client_errors[]=
   "Attempt to read a row while there is no result set associated with the statement",
   "This feature is not implemented yet",
   "Lost connection to MySQL server at '%s', system error: %d",
+  "Statement closed indirectly because of a preceeding %s() call",
   ""
 };
 #endif
