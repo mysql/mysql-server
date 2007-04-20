@@ -24,7 +24,7 @@ MYSQL_BASE_VERSION=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|\.[[^.]]*$||"`
 MYSQL_VERSION_ID=`echo $MYSQL_NO_DASH_VERSION | sed -e 's|[[^0-9.]].*$||;s|$|.|' | sed -e 's/[[^0-9.]]//g; s/\./  /g; s/ \([[0-9]]\) / 0\\1 /g; s/ //g'`
 
 # Add previous major version for debian package upgrade path
-MYSQL_PREVIOUS_BASE_VERSION=4.1
+MYSQL_PREVIOUS_BASE_VERSION=5.0
 
 # The port should be constant for a LONG time
 MYSQL_TCP_PORT_DEFAULT=3306
