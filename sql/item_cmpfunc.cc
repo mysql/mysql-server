@@ -864,8 +864,18 @@ int Arg_comparator::compare_row()
     if (owner->null_value)
     {
       // NULL was compared
-      if (owner->abort_on_null)
-        return -1; // We do not need correct NULL returning
+      switch (owner->functype()) {
+      case Item_func::NE_FUNC:
+        break; // NE never aborts on NULL even if abort_on_null is set
+      case Item_func::LT_FUNC:
+      case Item_func::LE_FUNC:
+      case Item_func::GT_FUNC:
+      case Item_func::GE_FUNC:
+        return -1; // <, <=, > and >= always fail on NULL
+      default: // EQ_FUNC
+        if (owner->abort_on_null)
+          return -1; // We do not need correct NULL returning
+      }
       was_null= 1;
       owner->null_value= 0;
       res= 0;  // continue comparison (maybe we will meet explicit difference)
@@ -876,8 +886,8 @@ int Arg_comparator::compare_row()
   if (was_null)
   {
     /*
-      There was NULL(s) in comparison in some parts, but there was not
-      explicit difference in other parts, so we have to return NULL
+      There was NULL(s) in comparison in some parts, but there was no
+      explicit difference in other parts, so we have to return NULL.
     */
     owner->null_value= 1;
     return -1;
