@@ -1,6 +1,4 @@
 drop table if exists t1;
-Warnings:
-Note	1051	Unknown table 't1'
 create table t1 (a char(5) character set koi8r)
 partition by list (ascii(a) mod 3)
 subpartition by hash(ascii(a))
