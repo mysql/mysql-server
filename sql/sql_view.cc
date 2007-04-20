@@ -1270,13 +1270,18 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
         unit->slave= save_slave; // fix include_down initialisation
       }
 
+      /* 
+        We can safely ignore the VIEW's ORDER BY if we merge into union 
+        branch, as order is not important there.
+      */
+      if (!table->select_lex->master_unit()->is_union())
+        table->select_lex->order_list.push_back(&lex->select_lex.order_list);
       /*
 	This SELECT_LEX will be linked in global SELECT_LEX list
 	to make it processed by mysql_handle_derived(),
 	but it will not be included to SELECT_LEX tree, because it
 	will not be executed
-      */
-      table->select_lex->order_list.push_back(&lex->select_lex.order_list);
+      */ 
       goto ok;
     }
 
