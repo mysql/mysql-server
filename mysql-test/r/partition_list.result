@@ -295,3 +295,7 @@ select * from t1;
 a
 100
 drop table t1;
+create table t1 (a char(1))
+partition by list (ascii(ucase(a)))
+(partition p1 values in (2));
+ERROR HY000: This partition function is not allowed
