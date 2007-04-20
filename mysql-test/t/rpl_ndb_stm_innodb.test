@@ -240,7 +240,7 @@ DROP DATABASE tpcb;
 
 --sync_slave_with_master
 
-####### Commenting out until decision on Bug#2796 ###########
+####### Commenting out until decision on Bug#27960 ###########
 
 #--source include/select_ndb_apply_status.inc
 
