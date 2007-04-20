@@ -4,7 +4,6 @@ usr/bin/myisamchk
 usr/bin/myisamlog
 usr/bin/myisampack
 usr/bin/mysql_convert_table_format
-usr/bin/mysql_explain_log
 usr/bin/mysql_fix_extensions
 usr/bin/mysql_fix_privilege_tables
 usr/bin/mysql_install_db
@@ -34,7 +33,6 @@ usr/share/man/man1/myisam_ftdump.1
 usr/share/man/man1/myisamchk.1
 usr/share/man/man1/myisamlog.1
 usr/share/man/man1/myisampack.1
-usr/share/man/man1/mysql_explain_log.1
 usr/share/man/man8/mysqld.8
 usr/share/man/man1/mysqld_multi.1
 usr/share/man/man1/mysqld_safe.1
@@ -47,4 +45,3 @@ usr/share/man/man1/mysql_tzinfo_to_sql.1
 usr/share/man/man1/mysql_zap.1
 usr/share/man/man1/perror.1
 usr/share/man/man1/replace.1
-usr/share/man/man1/safe_mysqld.1
