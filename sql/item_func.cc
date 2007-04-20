@@ -5352,7 +5352,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
     Security_context *save_secutiry_ctx;
     res= set_routine_security_ctx(thd, m_sp, false, &save_secutiry_ctx);
     if (!res)
-      sp_restore_security_context(thd, save_secutiry_ctx);
+      m_sp->m_security_ctx.restore_security_context(thd, save_secutiry_ctx);
     
 #endif /* ! NO_EMBEDDED_ACCESS_CHECKS */
   }
