@@ -468,6 +468,7 @@ public:
   bool change_result(select_subselect *result, select_subselect *old_result);
   void set_limit(st_select_lex *values);
   void set_thd(THD *thd_arg) { thd= thd_arg; }
+  inline bool is_union (); 
 
   friend void lex_start(THD *thd, uchar *buf, uint length);
   friend int subselect_union_engine::exec();
@@ -699,6 +700,13 @@ public:
   void cleanup_all_joins(bool full);
 };
 typedef class st_select_lex SELECT_LEX;
+
+
+inline bool st_select_lex_unit::is_union ()
+{ 
+  return first_select()->next_select() && 
+    first_select()->next_select()->linkage == UNION_TYPE;
+}
 
 #define ALTER_ADD_COLUMN	1
 #define ALTER_DROP_COLUMN	2
