@@ -951,6 +951,7 @@ bool partition_info::set_up_charset_field_preps()
     if (!(char_ptrs= (char**)sql_alloc(size)))
       goto error;
     subpart_charset_field_array= (Field**)char_ptrs;
+    ptr= subpart_field_array;
     i= 0;
     while ((field= *(ptr++)))
     {
