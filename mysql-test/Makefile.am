@@ -103,7 +103,7 @@ install-data-local:
 	do \
 	  d=$(DESTDIR)$(testdir)/`dirname $$f`; \
 	  mkdir -p $$d ; \
-	  $(INSTALL_DATA) $(srcdir)$$f $$d ; \
+	  $(INSTALL_DATA) $(srcdir)/$$f $$d ; \
 	done
 
 uninstall-local:
