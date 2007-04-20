@@ -1193,6 +1193,41 @@ SELECT DISTINCT id FROM t1 ORDER BY id;
 DROP TABLE t1;
 
 #
+# Bug#20095 Changing length of VARCHAR field with UTF8
+# collation does not truncate values
+#
+create table t1 (
+  a varchar(26) not null
+) default character set utf8;
+insert into t1 (a) values ('abcdefghijklmnopqrstuvwxyz');
+select * from t1;
+# varchar to varchar
+alter table t1 change a a varchar(20) character set utf8 not null;
+select * from t1;
+# varchar to char
+alter table t1 change a a char(15) character set utf8 not null;
+select * from t1;
+# char to char
+alter table t1 change a a char(10) character set utf8 not null;
+select * from t1;
+# char to varchar
+alter table t1 change a a varchar(5) character set utf8 not null;
+select * from t1;
+drop table t1;
+
+#
+# Check that do_varstring2_mb produces a warning
+#
+create table t1 (
+  a varchar(4000) not null
+) default character set utf8;
+insert into t1 values (repeat('a',4000));
+alter table t1 change a a varchar(3000) character set utf8 not null;
+select length(a) from t1;
+drop table t1;
+
+
+#
 #  Bug#10504: Character set does not support traditional mode
 #  Bug#14146: CHAR(...USING ...) and CONVERT(CHAR(...) USING...)
 #             produce different results
