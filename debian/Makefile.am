@@ -26,10 +26,10 @@ EXTRA_DIST =  \
 	libndbclientNLIB.files.in \
 	source.lintian-overrides.in \
 	mysql-server-BASE.docs.in \
-	libmysqlclientSLIB.files.in \
+	libmysqlclientSLIBoff.files.in \
 	mysql-server-BASE.files.in \
 	libndbclientNLIB-dev.links.in \
-	libmysqlclientSLIB.postinst.in \
+	libmysqlclientSLIBoff.postinst.in \
 	mysql-extra-BASE.dirs.in \
 	libmysqlclientSLIB-dev.links.in \
 	mysql-server-BASE.dirs.in \
@@ -38,14 +38,14 @@ EXTRA_DIST =  \
 	copyright.more \
 	libndbclientNLIB-dev.dirs.in \
 	mysql-server-BASE.README.Debian.in \
-	libmysqlclientSLIB.docs.in \
+	libmysqlclientSLIBoff.docs.in \
 	compat \
 	mysql-test-BASE.dirs.in \
 	libmysqlclientSLIB-dev.files.in \
-	libmysqlclientSLIB.dirs.in \
+	libmysqlclientSLIBoff.dirs.in \
 	mysql-server-BASE.logcheck.ignore.server.in \
 	mysql-storage-BASE.mysql-storage.init.in \
-	libmysqlclientSLIB.README.Debian.in \
+	libmysqlclientSLIBoff.README.Debian.in \
 	mysql-client-BASE.README.Debian.in \
 	Makefile.am \
 	mysql-server-BASE.prerm.in \
