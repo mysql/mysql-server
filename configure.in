@@ -450,7 +450,7 @@ then
   FIND_PROC="$PS \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
 else
   case $SYSTEM_TYPE in
-    *freebsd*)
+    *freebsd*|*dragonfly*)
       FIND_PROC="$PS p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
       ;;
     *darwin*)
@@ -994,7 +994,7 @@ case $SYSTEM_TYPE in
       MAX_C_OPTIMIZE="-O"
     fi
     ;;
-  *freebsd*)
+  *freebsd*|*dragonfly*)
     AC_MSG_WARN([Adding fix for interrupted reads])
     OSVERSION=`sysctl -a | grep osreldate | awk '{ print $2 }'`
     if test "$OSVERSION" -gt "480100" && \
