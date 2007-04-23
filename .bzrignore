@@ -5,7 +5,6 @@
 *.bb
 *.bbg
 *.bin
-*.cmake
 *.core
 *.d
 *.da
@@ -32,6 +31,7 @@
 *.spec
 *.user
 *.vcproj
+*.vcproj.cmake
 */*.dir/*
 */*_pure_*warnings
 */.deps
@@ -394,6 +394,7 @@ client/tmp.diff
 client_debug/*
 client_release/*
 client_test
+cmake_install.cmake
 cmd-line-utils/libedit/.deps/chared.Po
 cmd-line-utils/libedit/.deps/common.Po
 cmd-line-utils/libedit/.deps/el.Po
