@@ -680,17 +680,45 @@ int Arg_comparator::compare_e_int_diff_signedness()
 int Arg_comparator::compare_row()
 {
   int res= 0;
+  bool was_null= 0;
   (*a)->bring_value();
   (*b)->bring_value();
   uint n= (*a)->cols();
   for (uint i= 0; i<n; i++)
   {
-    if ((res= comparators[i].compare()))
-      return res;
+    res= comparators[i].compare();
     if (owner->null_value)
-      return -1;
+    {
+      // NULL was compared
+      switch (owner->functype()) {
+      case Item_func::NE_FUNC:
+        break; // NE never aborts on NULL even if abort_on_null is set
+      case Item_func::LT_FUNC:
+      case Item_func::LE_FUNC:
+      case Item_func::GT_FUNC:
+      case Item_func::GE_FUNC:
+        return -1; // <, <=, > and >= always fail on NULL
+      default: // EQ_FUNC
+        if (owner->abort_on_null)
+          return -1; // We do not need correct NULL returning
+      }
+      was_null= 1;
+      owner->null_value= 0;
+      res= 0;  // continue comparison (maybe we will meet explicit difference)
+    }
+    else if (res)
+      return res;
   }
-  return res;
+  if (was_null)
+  {
+    /*
+      There was NULL(s) in comparison in some parts, but there was no
+      explicit difference in other parts, so we have to return NULL.
+    */
+    owner->null_value= 1;
+    return -1;
+  }
+  return 0;
 }
 
 int Arg_comparator::compare_e_row()
