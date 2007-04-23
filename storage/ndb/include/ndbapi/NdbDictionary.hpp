@@ -353,8 +353,7 @@ public:
 
     /**
      * For blob, get "inline size" i.e. number of initial bytes
-     * to store in table's blob attribute.  This part is normally in
-     * main memory and can be indexed and interpreted.
+     * to store in table's blob attribute.
      */
     int getInlineSize() const;
 
@@ -483,22 +482,38 @@ public:
     void setCharset(CHARSET_INFO* cs);
 
     /**
-     * For blob, get "inline size" i.e. number of initial bytes
+     * For blob, set "inline size" i.e. number of initial bytes
      * to store in table's blob attribute.  This part is normally in
-     * main memory and can be indexed and interpreted.
+     * main memory.  It can not currently be indexed.
      */
     void setInlineSize(int size);
 
     /**
-     * For blob, get "part size" i.e. number of bytes to store in
+     * For blob, set "part size" i.e. number of bytes to store in
      * each tuple of the "blob table".  Can be set to zero to omit parts
      * and to allow only inline bytes ("tinyblob").
      */
     void setPartSize(int size);
 
     /**
-     * For blob, get "stripe size" i.e. number of consecutive
-     * <em>parts</em> to store in each node group.
+     * For blob, set "stripe size" i.e. number of consecutive
+     * <em>parts</em> to store in a fragment, before moving to
+     * another (random) fragment.
+     *
+     * Striping may improve performance for large blobs
+     * since blob part operations are done in parallel.
+     * Optimal stripe size depends on the transport e.g. tcp/ip.
+     *
+     * Example: Given part size 2048 bytes, set stripe size 8.
+     * This assigns i/o in 16k chunks to each fragment.
+     *
+     * Blobs V1 required non-zero stripe size.  Blobs V2
+     * (created in version >= 5.1.x) have following behaviour:
+     *
+     * Default stripe size is zero, which means no striping and
+     * also that blob part data is stored in the same node group
+     * as the primary table row.  This is done by giving blob parts
+     * table same partition key as the primary table.
      */
     void setStripeSize(int size);
 
@@ -549,6 +564,9 @@ public:
     static const Column * COPY_ROWID;
     
     int getSizeInBytes() const;
+
+    int getBlobVersion() const; // NDB_BLOB_V1 or NDB_BLOB_V2
+    void setBlobVersion(int blobVersion); // default NDB_BLOB_V2
 #endif
     
   private:
