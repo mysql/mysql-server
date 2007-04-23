@@ -58,12 +58,12 @@ static void die(const char *fmt, ...)
 int main(int argc, char *argv[])
 {
   char buff[512];
-  char* infile_name= argv[1];
-  char* outfile_name= argv[2];
-  char* end= infile_name;
+  char* struct_name= argv[1];
+  char* infile_name= argv[2];
+  char* outfile_name= argv[3];
 
-  if (argc != 3)
-    die("Usage: comp_sql <sql_filename> <c_filename>");
+  if (argc != 4)
+    die("Usage: comp_sql <struct_name> <sql_filename> <c_filename>");
 
   /* Open input and output file */
   if (!(in= fopen(infile_name, "r")))
@@ -71,10 +71,7 @@ int main(int argc, char *argv[])
   if (!(out= fopen(outfile_name, "w")))
     die("Failed to open output file '%s'", outfile_name);
 
-  while(*end && *end != '.')
-    end++;
-  *end= 0;
-  fprintf(out, "const char* %s={\n\"", infile_name);
+  fprintf(out, "const char* %s={\n\"", struct_name);
 
   while (fgets(buff, sizeof(buff), in))
   {

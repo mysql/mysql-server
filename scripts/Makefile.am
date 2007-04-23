@@ -15,6 +15,11 @@
 
 ## Process this file with automake to create Makefile.in
 
+BUILT_SOURCES = mysql_fix_privilege_tables.sql \
+                mysql_fix_privilege_tables_sql.c
+
+noinst_PROGRAMS = 	comp_sql
+
 bin_SCRIPTS =		@server_scripts@ \
 			msql2mysql \
 			mysql_config \
@@ -83,7 +88,8 @@ CLEANFILES =		@server_scripts@ \
 			mysqldumpslow \
 			mysql_tableinfo \
 			mysqld_multi \
-			mysql_fix_privilege_tables.sql
+			mysql_fix_privilege_tables.sql \
+			mysql_fix_privilege_tables_sql.c
 
 # mysqlbug should be distributed built so that people can report build
 # failures with it.
@@ -99,6 +105,17 @@ mysql_fix_privilege_tables.sql: mysql_system_tables.sql \
 				mysql_system_tables_fix.sql
 	@echo "Building $@";
 	@cat mysql_system_tables.sql mysql_system_tables_fix.sql > $@
+
+#
+# Build mysql_fix_privilege_tables_sql.c from
+# mysql_fix_privileges_tables.sql using comp_sql
+#
+mysql_fix_privilege_tables_sql.c: comp_sql.c mysql_fix_privilege_tables.sql
+	$(MAKE) $(AM_MAKEFLAGS) comp_sql$(EXEEXT)
+	$(top_builddir)/scripts/comp_sql$(EXEEXT) \
+          mysql_fix_privilege_tables \
+	    $(top_srcdir)/scripts/mysql_fix_privilege_tables.sql $@
+
 
 SUFFIXES = .sh
 
@@ -154,19 +171,6 @@ SUFFIXES = .sh
 	$< > $@-t
 	@CHMOD@ +x $@-t
 	@MV@ $@-t $@
-
-
-BUILT_SOURCES = 	mysql_fix_privilege_tables_sql.c
-noinst_PROGRAMS = 	comp_sql
-
-#
-# Build mysql_fix_privilege_tables_sql.c from
-# mysql_fix_privileges_tables.sql using comp_sql
-#
-mysql_fix_privilege_tables_sql.c: comp_sql.c mysql_fix_privilege_tables.sql
-	$(MAKE) $(AM_MAKEFLAGS) comp_sql$(EXEEXT)
-	$(top_builddir)/scripts/comp_sql$(EXEEXT) \
-          mysql_fix_privilege_tables.sql $@
 
 
 # Don't update the files from bitkeeper
