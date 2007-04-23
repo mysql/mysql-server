@@ -2915,11 +2915,10 @@ Dbtup::nr_update_gci(Uint32 fragPtrI, const Local_key* key, Uint32 gci)
     int ret;
     if (tablePtr.p->m_attributes[MM].m_no_of_varsize)
     {
-      tablePtr.p->m_offsets[MM].m_fix_header_size += 
-	Tuple_header::HeaderSize+1;
+      const Uint32 XXX = Tuple_header::HeaderSize+Var_part_ref::SZ32;
+      tablePtr.p->m_offsets[MM].m_fix_header_size += XXX;
       ret = alloc_page(tablePtr.p, fragPtr.p, &page_ptr, tmp.m_page_no);
-      tablePtr.p->m_offsets[MM].m_fix_header_size -= 
-	Tuple_header::HeaderSize+1;
+      tablePtr.p->m_offsets[MM].m_fix_header_size -= XXX;
     } 
     else
     {
