@@ -1489,12 +1489,14 @@ NdbRecord *
 NdbDictionary::Dictionary::createRecord(const Table *table,
                                         const RecordSpecification *recSpec,
                                         Uint32 length,
-                                        Uint32 elemSize)
+                                        Uint32 elemSize,
+                                        Uint32 flags)
 {
   return m_impl.createRecord(&NdbTableImpl::getImpl(*table),
                              recSpec,
                              length,
-                             elemSize);
+                             elemSize,
+                             flags);
 }
 
 NdbRecord *
@@ -1502,20 +1504,23 @@ NdbDictionary::Dictionary::createRecord(const Index *index,
                                         const Table *table,
                                         const RecordSpecification *recSpec,
                                         Uint32 length,
-                                        Uint32 elemSize)
+                                        Uint32 elemSize,
+                                        Uint32 flags)
 {
   return m_impl.createRecord(&NdbIndexImpl::getImpl(*index),
                              &NdbTableImpl::getImpl(*table),
                              recSpec,
                              length,
-                             elemSize);
+                             elemSize,
+                             flags);
 }
 
 NdbRecord *
 NdbDictionary::Dictionary::createRecord(const Index *index,
                                         const RecordSpecification *recSpec,
                                         Uint32 length,
-                                        Uint32 elemSize)
+                                        Uint32 elemSize,
+                                        Uint32 flags)
 {
   const NdbDictionary::Table *table= getTable(index->getTable());
   if (!table)
@@ -1524,7 +1529,8 @@ NdbDictionary::Dictionary::createRecord(const Index *index,
                              &NdbTableImpl::getImpl(*table),
                              recSpec,
                              length,
-                             elemSize);
+                             elemSize,
+                             flags);
 }
 
 void 

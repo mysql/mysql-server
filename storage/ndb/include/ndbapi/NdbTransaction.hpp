@@ -627,7 +627,8 @@ public:
     The result_record describes the rows to be returned from the scan. For an
     ordered index scan, result_record must be a key record for the index to
     be scanned, that is it must include at least all of the column in the
-    index.
+    index (the reason is that the index key is needed for merge sorting the
+    scans returned from each fragment).
 
     The call uses a callback function as a flexible way of specifying multiple
     range bounds. The callback will be called once for each bound to define

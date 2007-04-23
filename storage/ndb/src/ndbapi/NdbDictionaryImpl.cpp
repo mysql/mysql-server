@@ -4531,6 +4531,7 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
                                 const NdbDictionary::RecordSpecification *recSpec,
                                 Uint32 length,
                                 Uint32 elemSize,
+                                Uint32 flags,
                                 const NdbTableImpl *base_table)
 {
   NdbRecord *rec= NULL;
@@ -4657,6 +4658,8 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
     {
       recCol->flags|= NdbRecord::IsVar1ByteLen;
       isVarCol= true;
+      if (flags & NdbDictionary::RecMysqldShrinkVarchar)
+        recCol->flags|= NdbRecord::IsMysqldShrinkVarchar;
     }
     else if (col->m_arrayType==NDB_ARRAYTYPE_MEDIUM_VAR)
     {
@@ -4667,6 +4670,25 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
     {
       isVarCol= false;
     }
+    if (col->m_type == NdbDictionary::Column::Bit)
+    {
+      recCol->bitCount= col->m_length;
+      if (flags & NdbDictionary::RecMysqldBitfield)
+      {
+        recCol->flags|= NdbRecord::IsMysqldBitfield;
+        if (!(col->m_nullable))
+        {
+          /*
+            We need these to access the overflow bits stored within
+            the null bitmap.
+          */
+          recCol->nullbit_byte_offset= rs->nullbit_byte_offset;
+          recCol->nullbit_bit_in_byte= rs->nullbit_bit_in_byte;
+        }
+      }
+    }
+    else
+      recCol->bitCount= 0;
     if (col->m_distributionKey)
       recCol->flags|= NdbRecord::IsDistributionKey;
     if (col->getBlobType())
@@ -4781,10 +4803,11 @@ NdbDictionaryImpl::createRecord(const NdbIndexImpl *index_impl,
                                 const NdbTableImpl *base_table_impl,
                                 const NdbDictionary::RecordSpecification *recSpec,
                                 Uint32 length,
-                                Uint32 elemSize)
+                                Uint32 elemSize,
+                                Uint32 flags)
 {
   return createRecord(index_impl->getIndexTable(), recSpec, length, elemSize,
-                      base_table_impl);
+                      flags, base_table_impl);
 }
 
 void
@@ -4810,6 +4833,92 @@ NdbRecord::copyMask(Uint32 *dst, const unsigned char *src) const
       Uint32 attrId= columns[i].attrId;
       if (!(attrId & AttributeHeader::PSEUDO))
         BitmaskImpl::set((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5, dst, attrId);
+    }
+  }
+}
+
+void
+NdbRecord::Attr::get_mysqld_bitfield(const char *src_row, char *dst_buffer) const
+{
+  assert(flags & IsMysqldBitfield);
+  Uint64 bits= 0;
+  Uint32 shift= 0;
+
+  /* Copy whole bytes. */
+  Uint32 remaining_bits= bitCount;
+  assert(remaining_bits <= 64);
+  const unsigned char *src_ptr= (const unsigned char *)&src_row[offset];
+  while (remaining_bits >= 8)
+  {
+    bits|= (Uint64)(*src_ptr++) << shift;
+    shift+= 8;
+    remaining_bits-= 8;
+  }
+
+  /* Copy fractional bits, if any. */
+  if (remaining_bits > 0)
+  {
+    Uint32 fractional_shift= nullbit_bit_in_byte + ((flags & IsNullable) != 0);
+    Uint32 fractional_bits= (unsigned char)(src_row[nullbit_byte_offset]);
+    if (fractional_shift + remaining_bits > 8)
+      fractional_bits|= (unsigned char)(src_row[nullbit_byte_offset+1]) << 8;
+    fractional_bits=
+      (fractional_bits >> fractional_shift) & ((1 << remaining_bits) - 1);
+    bits|= (Uint64)fractional_bits << shift;
+  }
+
+  if (maxSize > 4)
+    memcpy(dst_buffer, &bits, 8);
+  else
+  {
+    Uint32 small_bits= bits;
+    memcpy(dst_buffer, &small_bits, 4);
+  }
+}
+
+void
+NdbRecord::Attr::put_mysqld_bitfield(char *dst_row, const char *src_buffer) const
+{
+  assert(flags & IsMysqldBitfield);
+  char *dst_ptr= &dst_row[offset];
+  Uint64 bits;
+  if (maxSize > 4)
+  {
+    memcpy(&bits, src_buffer, 8);
+    bzero(dst_ptr, 8);
+  }
+  else
+  {
+    Uint32 small_bits;
+    memcpy (&small_bits, src_buffer, 4);
+    bits= small_bits;
+    bzero(dst_ptr, 4);
+  }
+
+  /* Copy whole bytes. */
+  Uint32 remaining_bits= bitCount;
+  assert(remaining_bits <= 64);
+  while (remaining_bits >= 8)
+  {
+    *dst_ptr++= bits & 0xff;
+    bits>>= 8;
+    remaining_bits-= 8;
+  }
+
+  /* Copy fractional bits, if any. */
+  if (remaining_bits > 0)
+  {
+    Uint32 shift= nullbit_bit_in_byte + ((flags & IsNullable) != 0);
+    Uint32 mask= ((1 << remaining_bits) - 1) << shift;
+    bits= (bits << shift) & mask;
+    dst_row[nullbit_byte_offset]=
+      (dst_row[nullbit_byte_offset] & ~mask) | bits;
+    if (shift + remaining_bits > 8)
+    {
+      mask>>= 8;
+      bits>>= 8;
+      dst_row[nullbit_byte_offset+1]=
+        (dst_row[nullbit_byte_offset+1] & ~mask) | bits;
     }
   }
 }

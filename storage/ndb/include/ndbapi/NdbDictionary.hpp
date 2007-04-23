@@ -1413,6 +1413,16 @@ public:
     Event(NdbEventImpl&);
   };
 
+  /* Flags for createRecord(). */
+  enum NdbRecordFlags {
+    /*
+      Use special mysqld varchar format in index keys, used only from
+      inside mysqld.
+    */
+    RecMysqldShrinkVarchar= 0x1,
+    /* Use the mysqld record format for bitfields, only used inside mysqld. */
+    RecMysqldBitfield= 0x2
+  };
   struct RecordSpecification {
     /*
       Column described by this entry (the column maximum size defines field
@@ -1945,7 +1955,8 @@ public:
     NdbRecord *createRecord(const Table *table,
                             const RecordSpecification *recSpec,
                             Uint32 length,
-                            Uint32 elemSize);
+                            Uint32 elemSize,
+                            Uint32 flags= 0);
 
     /*
       Create an NdbRecord for use in index operations.
@@ -1954,11 +1965,13 @@ public:
                             const Table *table,
                             const RecordSpecification *recSpec,
                             Uint32 length,
-                            Uint32 elemSize);
+                            Uint32 elemSize,
+                            Uint32 flags= 0);
     NdbRecord *createRecord(const Index *index,
                             const RecordSpecification *recSpec,
                             Uint32 length,
-                            Uint32 elemSize);
+                            Uint32 elemSize,
+                            Uint32 flags= 0);
     void releaseRecord(NdbRecord *rec);
   };
 };

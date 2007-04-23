@@ -2143,15 +2143,29 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
     return NULL;
   }
 
-  NdbOperation *op= setupRecordOp(NdbOperation::ReadRequest,
-                                  lock_mode, key_rec, key_row,
+  /* It appears that unique index operations do no support readCommitted. */
+  if (key_rec->flags & NdbRecord::RecIsIndex &&
+      lock_mode == NdbOperation::LM_CommittedRead)
+    lock_mode= NdbOperation::LM_Read;
+
+  NdbOperation::OperationType opType=
+    (lock_mode == NdbOperation::LM_Exclusive ?
+       NdbOperation::ReadExclusive : NdbOperation::ReadRequest);
+  NdbOperation *op= setupRecordOp(opType, lock_mode, key_rec, key_row,
                                   result_rec, result_row, result_mask);
   if (!op)
     return NULL;
 
   op->m_abortOption= AO_IgnoreError;
-  if (op->theLockMode != NdbOperation::LM_CommittedRead)
+  if (op->theLockMode == NdbOperation::LM_CommittedRead)
+  {
+    op->theDirtyIndicator= 1;
+    op->theSimpleIndicator= 1;
+  }
+  else
+  {
     theSimpleState= 0;
+  }
 
   /* Setup the record/row for receiving the results. */
   op->theReceiver.getValues(result_rec, result_row);
@@ -2337,7 +2351,8 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
   return op_idx;
 
  giveup_err:
-  theNdb->releaseScanOperation(op_idx);
+  releaseScanOperation(&m_theFirstScanOperation, &m_theLastScanOperation,
+                       op_idx);
   return NULL;
 }
 
@@ -2448,7 +2463,8 @@ NdbTransaction::scanIndex(
     return NULL;
   }
   if ((scan_flags & NdbScanOperation::SF_OrderBy) &&
-      !(result_record->flags & NdbRecord::RecHasAllKeys))
+      ( !(result_record->flags & NdbRecord::RecHasAllKeys) ||
+        key_record->tableId != result_record->tableId))
   {
     /* For ordering, we need all keys in the result row. */
     setOperationErrorCodeAbort(4279);
@@ -2461,7 +2477,7 @@ NdbTransaction::scanIndex(
   }
 
   index_table_impl= key_record->table;
-  table_impl= result_record->table;
+  table_impl= result_record->base_table;
 
   op= getNdbScanOperation(index_table_impl);
   if (op==NULL)
@@ -2583,21 +2599,20 @@ NdbTransaction::scanIndex(
 
     for (j= 0; j<key_count; j++)
     {
+      Uint32 bound_type;
       if (bound.low_key && j<bound.low_key_count)
       {
+        bound_type= bound.low_inclusive  || j+1 < bound.low_key_count ?
+            NdbIndexScanOperation::BoundLE : NdbIndexScanOperation::BoundLT;
         op->ndbrecord_insert_bound(key_record, key_record->key_indexes[j],
-                                   bound.low_key,
-                                   bound.low_inclusive ?
-                                     NdbIndexScanOperation::BoundLE :
-                                     NdbIndexScanOperation::BoundLT);
+                                   bound.low_key, bound_type);
       }
       if (bound.high_key && j<bound.high_key_count)
       {
+        bound_type= bound.high_inclusive  || j+1 < bound.high_key_count ?
+            NdbIndexScanOperation::BoundGE : NdbIndexScanOperation::BoundGT;
         op->ndbrecord_insert_bound(key_record, key_record->key_indexes[j],
-                                   bound.high_key,
-                                   bound.high_inclusive ?
-                                     NdbIndexScanOperation::BoundGE :
-                                     NdbIndexScanOperation::BoundGT);
+                                   bound.high_key, bound_type);
       }
     }
 
@@ -2637,7 +2652,7 @@ NdbTransaction::scanIndex(
   return op;
 
  giveup_err:
-  theNdb->releaseScanOperation(op);
+  releaseScanOperation(&m_theFirstScanOperation, &m_theLastScanOperation, op);
   return NULL;
 }
 

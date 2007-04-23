@@ -208,7 +208,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   tcKeyReq->setKeyLength(tReqInfo, tTupKeyLen);
   
   // A simple read is always ignore error
-  abortOption = tSimpleState ? AO_IgnoreError : abortOption;
+  abortOption = tSimpleState ? (AbortOption)AO_IgnoreError : abortOption;
   tcKeyReq->setAbortOption(tReqInfo, abortOption);
   m_abortOption = abortOption;
   
@@ -531,6 +531,7 @@ int
 NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
                                    AbortOption ao)
 {
+  char buf[256];
   Uint32 *keyInfoPtr, *attrInfoPtr;
   Uint32 remain;
   int res;
@@ -572,17 +573,40 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
 
       col= &key_rec->columns[key_rec->key_indexes[i]];
 
-      assert(!(col->flags & NdbRecord::IsNullable));
+      /*
+        A unique index can index a nullable column (the primary key index
+        cannot). So we can get NULL here (but it is an error if we do).
+      */
+      if (col->is_null(key_row))
+      {
+        setErrorCodeAbort(4316);
+        return -1;
+      }
+
       Uint32 length;
-      if (!col->get_var_length(key_row, length))
+
+      bool len_ok;
+      const char *src;
+      if (col->flags & NdbRecord::IsMysqldShrinkVarchar)
+      {
+        /* Used to support special varchar format for mysqld keys. */
+        len_ok= col->shrink_varchar(key_row, length, buf);
+        src= buf;
+      }
+      else
+      {
+        len_ok= col->get_var_length(key_row, length);
+        src= &key_row[col->offset];
+      }
+
+      if (!len_ok)
       {
         /* Hm, corrupt varchar length. */
         setErrorCodeAbort(4209);
         return -1;
       }
       res= insertKEYINFO_NdbRecord(aTC_ConnectPtr, aTransId,
-                                   &key_row[col->offset],
-                                   length, &keyInfoPtr, &remain);
+                                   src, length, &keyInfoPtr, &remain);
       if (res)
         return res;
     }
@@ -626,11 +650,11 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
       Uint32 length;
       const char *data;
 
-      if (likely(!(col->flags & NdbRecord::IsBlob)))
+      if (likely(!(col->flags & (NdbRecord::IsBlob|NdbRecord::IsMysqldBitfield))))
       {
         if (col->is_null(updRow))
           length= 0;
-        else if (!col->get_var_length(key_row, length))
+        else if (!col->get_var_length(updRow, length))
         {
           /* Hm, corrupt varchar length. */
           setErrorCodeAbort(4209);
@@ -640,19 +664,34 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
       }
       else
       {
-        /*
-          Blob column.
-          For insert and write, we need to set the value of the blob head
-          (cannot leave it unset in case the blob is non-nullable).
-          For update, do nothing, as another operation will be injected to
-          update the blob head.
-        */
-        NdbBlob *bh= currentBlob;
-        currentBlob= currentBlob->theNext;
-        if (tOpType == UpdateRequest)
-          continue;
+        if (likely(col->flags & NdbRecord::IsMysqldBitfield))
+        {
+          /* Mysqld format bitfield. */
+          if (col->is_null(updRow))
+            length= 0;
+          else
+          {
+            col->get_mysqld_bitfield(updRow, buf);
+            data= buf;
+            length= col->maxSize;
+          }
+        }
+        else
+        {
+          /*
+            Blob column.
+            For insert and write, we need to set the value of the blob head
+            (cannot leave it unset in case the blob is non-nullable).
+            For update, do nothing, as another operation will be injected to
+            update the blob head.
+          */
+          NdbBlob *bh= currentBlob;
+          currentBlob= currentBlob->theNext;
+          if (tOpType == UpdateRequest)
+            continue;
 
-        bh->getBlobHeadData(data, length);
+          bh->getBlobHeadData(data, length);
+        }
       }
 
       res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
@@ -670,7 +709,7 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
       }
     }
   }
-  else if (tOpType == ReadRequest)
+  else if (tOpType == ReadRequest || tOpType == ReadExclusive)
   {
     for (Uint32 i= 0; i<attr_rec->noOfColumns; i++)
     {
