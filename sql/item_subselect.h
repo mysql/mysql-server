@@ -276,7 +276,11 @@ public:
   {
     return pushed_cond_guards ? pushed_cond_guards + i : NULL;
   }
-  void set_cond_guard_var(int i, bool v) { pushed_cond_guards[i]= v; }
+  void set_cond_guard_var(int i, bool v) 
+  { 
+    if ( pushed_cond_guards)
+      pushed_cond_guards[i]= v;
+  }
   bool have_guarded_conds() { return test(pushed_cond_guards); }
 
   Item_func_not_all *upper_item; // point on NOT/NOP before ALL/SOME subquery

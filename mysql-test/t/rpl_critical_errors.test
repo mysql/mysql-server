@@ -1,0 +1,66 @@
+# Test for BUG#26551
+#
+
+# This test is unfortunately very fragile and very dependent on the
+# load of the computer. The test is therefore disabled normally. It is
+# entered here to demonstrate how to check that the bug is actually
+# solved.
+
+--echo Turn on parsing to run this test
+
+disable_parsing;
+
+source include/master-slave.inc;
+
+connection master;
+CREATE TABLE t1 (data LONGBLOB) ENGINE=MYISAM;
+CREATE TABLE t2 (data LONGBLOB) ENGINE=MYISAM;
+
+INSERT INTO t1 (data) VALUES (repeat('a',1024*1024));
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+sync_slave_with_master;
+
+connection master;
+send INSERT INTO t2 SELECT * FROM t1;
+
+connection master1;
+
+# This sleep is picked so that the query above has started to insert
+# some rows into t2. If it hasn't the slave will not stop below.
+sleep 4;
+
+# SHOW PROCESSLIST;
+
+# Code for the 5.1 server to get the thread id of the thread executing
+# the query above.
+#
+#SET @id = 0;
+#SELECT id INTO @id
+#  FROM information_schema.processlist
+# WHERE info LIKE 'INSERT INTO t2%';
+
+# This is the connection that is executing the INSERT INTO t2...
+KILL QUERY 2;
+
+connection slave;
+
+# Here the slave will only stop if the query above actually started
+# inserting some rows into t2. Otherwise, it will hang forever.
+wait_for_slave_to_stop;
+
+# The following should be 0
+SELECT COUNT(*) FROM t2;
+
+# ... and there the error code should be 1317 (ER_QUERY_INTERRUPTED)
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 7 # 8 # 9 # 20 # 22 # 23 # 33 #
+query_vertical SHOW SLAVE STATUS;
+
+enable_parsing;
