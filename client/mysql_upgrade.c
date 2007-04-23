@@ -578,14 +578,20 @@ static void create_mysql_upgrade_info_file(void)
     return;
   }
 
-    /* Write new version to file, just print a message if it fails */
-  if (!fputs(MYSQL_SERVER_VERSION, out))
+  /* Write new version to file */
+  fputs(MYSQL_SERVER_VERSION, out);
+  my_fclose(out, MYF(0));
+
+  /*
+    Check if the upgrad_info_file was properly created/updated
+    It's not a fatal error -> just print a message if it fails
+  */
+  if (!upgrade_already_done())
     fprintf(stderr,
             "Could not write to the upgrade info file '%s' in "
             "the MySQL Servers datadir, errno: %d\n",
             upgrade_info_file, errno);
-
-  my_fclose(out, MYF(0));
+  return;
 }
 
 
