@@ -251,7 +251,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
           */
           if (context->table->s == field->table->s)
           {       
-            const NDBTAB *tab= (const NDBTAB *) context->ndb_table;
+            const NDBTAB *tab= context->ndb_table;
             DBUG_PRINT("info", ("FIELD_ITEM"));
             DBUG_PRINT("info", ("table %s", tab->getName()));
             DBUG_PRINT("info", ("column %s", field->field_name));
@@ -907,7 +907,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
 const 
 COND* 
 ha_ndbcluster_cond::cond_push(const COND *cond, 
-                              TABLE *table, NDBTAB *ndb_table)
+                              TABLE *table, const NDBTAB *ndb_table)
 { 
   DBUG_ENTER("cond_push");
   Ndb_cond_stack *ndb_cond = new Ndb_cond_stack();
@@ -963,12 +963,11 @@ ha_ndbcluster_cond::cond_clear()
 
 bool
 ha_ndbcluster_cond::serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond,
-                                   TABLE *table, NDBTAB *ndb_table)
+                                   TABLE *table, const NDBTAB *ndb_table)
 {
   DBUG_ENTER("serialize_cond");
   Item *item= (Item *) cond;
-  Ndb_cond_traverse_context context(table, (void *)ndb_table, 
-				    ndb_cond);
+  Ndb_cond_traverse_context context(table, ndb_table, ndb_cond);
   // Expect a logical expression
   context.expect(Item::FUNC_ITEM);
   context.expect(Item::COND_ITEM);
