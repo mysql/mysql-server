@@ -333,7 +333,7 @@ public:
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp.cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
-  void top_level_item() { abort_on_null=1; }
+  void top_level_item() { abort_on_null= TRUE; }
 
   friend class  Arg_comparator;
 };
