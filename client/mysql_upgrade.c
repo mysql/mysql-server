@@ -250,6 +250,7 @@ static int run_command(char* cmd,
 {
   char buf[512]= {0};
   FILE *res_file;
+  int error;
 
   if (!(res_file= popen(cmd, "r")))
     die("popen(\"%s\", \"r\") failed", cmd);
@@ -269,7 +270,8 @@ static int run_command(char* cmd,
     }
   }
 
-  return WEXITSTATUS(pclose(res_file));
+  error= pclose(res_file);
+  return WEXITSTATUS(error);
 }
 
 
