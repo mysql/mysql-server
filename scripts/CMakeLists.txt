@@ -22,6 +22,7 @@ GET_TARGET_PROPERTY(COMP_SQL_EXE comp_sql LOCATION)
 
 ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_SOURCE_DIR}/scripts/mysql_fix_privilege_tables_sql.c
                    COMMAND ${COMP_SQL_EXE}
+                   mysql_fix_privilege_tables
                    mysql_fix_privilege_tables.sql
 		           mysql_fix_privilege_tables_sql.c
                    DEPENDS comp_sql ${PROJECT_SOURCE_DIR}/scripts/mysql_fix_privilege_tables.sql)
