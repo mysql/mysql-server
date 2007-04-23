@@ -264,7 +264,6 @@ MY_LOCALE *my_locale_by_number(uint number);
 #endif
 
 #if defined(__WIN__)
-#define IF_WIN(A,B) (A)
 #undef	FLUSH_TIME
 #define FLUSH_TIME	1800			/* Flush every half hour */
 
@@ -273,7 +272,6 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define WAIT_PRIOR	0
 #define QUERY_PRIOR	2
 #else
-#define IF_WIN(A,B) (B)
 #define INTERRUPT_PRIOR 10
 #define CONNECT_PRIOR	9
 #define WAIT_PRIOR	8

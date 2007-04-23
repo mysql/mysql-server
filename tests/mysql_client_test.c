@@ -87,7 +87,7 @@ DBUG_PRINT("test", ("name: %s", str));        \
 if (opt_silent < 2) \
 { \
   fprintf(stdout, "\n\n#####################################\n"); \
-  fprintf(stdout, "%d of (%d/%d): %s", test_count++, iter_count, \
+  fprintf(stdout, "%u of (%u/%u): %s", test_count++, iter_count, \
                                      opt_count, str); \
   fprintf(stdout, "  \n#####################################\n"); \
 }
@@ -103,7 +103,7 @@ if (!opt_silent) \
 
 static void print_error(const char *msg);
 static void print_st_error(MYSQL_STMT *stmt, const char *msg);
-static void client_disconnect();
+static void client_disconnect(void);
 
 
 /*
@@ -122,7 +122,7 @@ static void client_disconnect();
 #define DIE(expr) \
         die(__FILE__, __LINE__, #expr)
 
-void die(const char *file, int line, const char *expr)
+static void die(const char *file, int line, const char *expr)
 {
   fflush(stdout);
   fprintf(stderr, "%s:%d: check failed: '%s'\n", file, line, expr);
@@ -256,7 +256,7 @@ static my_bool check_have_innodb(MYSQL *conn)
   mysql_simple_prepare(): a variant without the 'length' parameter.
 */
 
-MYSQL_STMT *STDCALL
+static MYSQL_STMT *STDCALL
 mysql_simple_prepare(MYSQL *mysql_arg, const char *query)
 {
   MYSQL_STMT *stmt= mysql_stmt_init(mysql_arg);
@@ -472,7 +472,7 @@ static void my_print_result_metadata(MYSQL_RES *result)
 
 /* Process the result set */
 
-int my_process_result_set(MYSQL_RES *result)
+static int my_process_result_set(MYSQL_RES *result)
 {
   MYSQL_ROW    row;
   MYSQL_FIELD  *field;
@@ -528,7 +528,7 @@ int my_process_result_set(MYSQL_RES *result)
 }
 
 
-int my_process_result(MYSQL *mysql_arg)
+static int my_process_result(MYSQL *mysql_arg)
 {
   MYSQL_RES *result;
   int       row_count;
@@ -548,7 +548,7 @@ int my_process_result(MYSQL *mysql_arg)
 #define MAX_RES_FIELDS 50
 #define MAX_FIELD_DATA_SIZE 255
 
-int my_process_stmt_result(MYSQL_STMT *stmt)
+static int my_process_stmt_result(MYSQL_STMT *stmt)
 {
   int         field_count;
   int         row_count= 0;

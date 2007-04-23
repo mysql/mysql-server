@@ -2320,6 +2320,26 @@ INSERT INTO t1 VALUES ('DDD');
 SELECT * FROM t1;
 DROP TABLE t1;
 
+#
+# Bug #23313 (AUTO_INCREMENT=# not reported back for InnoDB tables)
+# Bug #21404 (AUTO_INCREMENT value reset when Adding FKEY (or ALTER?))
+#
+
+CREATE TABLE t1 (id int PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB
+AUTO_INCREMENT=42;
+
+INSERT INTO t1 VALUES (0),(347),(0);
+SELECT * FROM t1;
+
+SHOW CREATE TABLE t1;
+
+CREATE TABLE t2 (id int PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t2 VALUES(42),(347),(348);
+ALTER TABLE t1 ADD CONSTRAINT t1_t2 FOREIGN KEY (id) REFERENCES t2(id);
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1,t2;
+
 #######################################################################
 #                                                                     #
 # Please, DO NOT TOUCH this file as well as the innodb.result file.   #

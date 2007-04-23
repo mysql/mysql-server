@@ -1,0 +1,20 @@
+[passwords]
+If you change the password of the root user (which is strongly recommended)
+you have to create a personal mysql config file in order to let cron run
+the /etc/cron.daily script without asking you for the password.
+The /root/.my.cnf file should be chmod 0600 (-rw------- root root .my.cnf)
+and have the following content:
+[mysqladmin]
+user            = root
+password        = <secret>
+
+[more than one process]
+Note that the shutdown script cannot use the pid number stored in
+/var/run, since it is for the first mysqld thread, but we need to kill
+the most recent thread to shutdown the server. The upstream developers
+are aware of this bug. When maintaining your database, you should use
+mysqladmin with your password to shutdown and reload the server rather
+than /etc/init.d/mysql.
+
+Scott Hanson               and          Christian Hammers
+<shanson@debian.org>                    <ch@debian.org>

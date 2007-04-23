@@ -16,11 +16,13 @@
 #ifndef ConfigInfo_H
 #define ConfigInfo_H
 
+#ifndef NDB_MGMAPI
 #include <kernel_types.h>
 #include <Properties.hpp>
 #include <ndb_limits.h>
 #include <NdbOut.hpp>
 #include "InitConfigFileParser.hpp"
+#endif /* NDB_MGMAPI */
 
 /**
  * A MANDATORY parameters must be specified in the config file
@@ -63,6 +65,7 @@ public:
     const char*    _max;
   };
 
+#ifndef NDB_MGMAPI
   struct AliasPair{
     const char * name;
     const char * alias;
@@ -132,14 +135,17 @@ private:
   static const AliasPair   m_sectionNameAliases[];
   static const char*       m_sectionNames[];
   static const int         m_noOfSectionNames;
+#endif /* NDB_MGMAPI */
 
 public:
   static const ParamInfo   m_ParamInfo[];
   static const int         m_NoOfParams;
   
+#ifndef NDB_MGMAPI
   static const SectionRule m_SectionRules[];
   static const ConfigRule  m_ConfigRules[];
   static const int         m_NoOfRules;
+#endif /* NDB_MGMAPI */
 };
 
 #endif // ConfigInfo_H
