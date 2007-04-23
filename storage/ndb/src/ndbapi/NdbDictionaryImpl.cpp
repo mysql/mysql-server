@@ -114,6 +114,7 @@ NdbColumnImpl::operator=(const NdbColumnImpl& col)
   m_arraySize = col.m_arraySize;
   m_arrayType = col.m_arrayType;
   m_storageType = col.m_storageType;
+  m_blobVersion = col.m_blobVersion;
   m_dynamic = col.m_dynamic;
   m_keyInfoPos = col.m_keyInfoPos;
   if (col.m_blobTable == NULL)
@@ -135,6 +136,7 @@ NdbColumnImpl::init(Type t)
   // do not use default_charset_info as it may not be initialized yet
   // use binary collation until NDB tests can handle charsets
   CHARSET_INFO* default_cs = &my_charset_bin;
+  m_blobVersion = 0;
   m_type = t;
   switch (m_type) {
   case Tinyint:
@@ -202,18 +204,20 @@ NdbColumnImpl::init(Type t)
     m_arrayType = NDB_ARRAYTYPE_FIXED;
     break;
   case Blob:
-    m_precision = 256;
-    m_scale = 8000;
-    m_length = 4;
-    m_cs = NULL;
-    m_arrayType = NDB_ARRAYTYPE_FIXED;
-    break;
   case Text:
     m_precision = 256;
     m_scale = 8000;
-    m_length = 4;
-    m_cs = default_cs;
-    m_arrayType = NDB_ARRAYTYPE_FIXED;
+    m_length = 0; // default no striping
+    m_cs = m_type == Blob ? NULL : default_cs;
+    m_arrayType = NDB_ARRAYTYPE_MEDIUM_VAR;
+    m_blobVersion = NDB_BLOB_V2;
+#ifdef VM_TRACE
+    if (NdbEnv_GetEnv("NDB_DEFAULT_BLOB_V1", (char *)0, 0)) {
+      m_length = 4;
+      m_arrayType = NDB_ARRAYTYPE_FIXED;
+      m_blobVersion = NDB_BLOB_V1;
+    }
+#endif
     break;
   case Time:
   case Year:
@@ -314,6 +318,9 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
   }
 
   if (m_arrayType != col.m_arrayType || m_storageType != col.m_storageType){
+    DBUG_RETURN(false);
+  }
+  if (m_blobVersion != col.m_blobVersion) {
     DBUG_RETURN(false);
   }
   if(m_dynamic != col.m_dynamic){
@@ -1471,6 +1478,13 @@ NdbDictionaryImpl::getBlobTables(NdbTableImpl &t)
     // the blob column owns the blob table
     assert(c.m_blobTable == NULL);
     c.m_blobTable = bt;
+
+    // change storage type to that of PART column
+    const char* colName = c.m_blobVersion == 1 ? "DATA" : "NDB$DATA";
+    const NdbColumnImpl* bc = bt->getColumn(colName);
+    assert(bc != 0);
+    assert(c.m_storageType == NDB_STORAGETYPE_MEMORY);
+    c.m_storageType = bc->m_storageType;
   }
   DBUG_RETURN(0); 
 }
@@ -2211,6 +2225,18 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     }
     col->m_storageType = attrDesc.AttributeStorageType;
     col->m_dynamic = (attrDesc.AttributeDynamic != 0);
+
+    if (col->getBlobType()) {
+      if (unlikely(col->m_arrayType) == NDB_ARRAYTYPE_FIXED)
+        col->m_blobVersion = NDB_BLOB_V1;
+      else if (col->m_arrayType == NDB_ARRAYTYPE_MEDIUM_VAR)
+        col->m_blobVersion = NDB_BLOB_V2;
+      else {
+        delete impl;
+        NdbMem_Free((void*)tableDesc);
+        DBUG_RETURN(4263);
+      }
+    }
     
     col->m_pk = attrDesc.AttributeKeyFlag;
     col->m_distributionKey = (attrDesc.AttributeDKey != 0);
@@ -2350,12 +2376,27 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
   }
 
   // blob tables - use "t2" to get values set by kernel
-  if (t2->m_noOfBlobs != 0 && createBlobTables(t, *t2) != 0) {
-    int save_code = m_error.code;
-    (void)dropTableGlobal(*t2);
-    m_error.code = save_code;
-    delete t2;
-    DBUG_RETURN(-1);
+  if (t.m_noOfBlobs != 0) {
+
+    // fix up disk data in t2 columns
+    Uint32 i;
+    for (i = 0; i < t.m_columns.size(); i++) {
+      const NdbColumnImpl* c = t.m_columns[i];
+      NdbColumnImpl* c2 = t2->m_columns[i];
+      if (c->getBlobType()) {
+        // type was mangled before sending to DICT
+        assert(c2->m_storageType == NDB_STORAGETYPE_MEMORY);
+        c2->m_storageType = c->m_storageType;
+      }
+    }
+
+    if (createBlobTables(*t2) != 0) {
+      int save_code = m_error.code;
+      (void)dropTableGlobal(*t2);
+      m_error.code = save_code;
+      delete t2;
+      DBUG_RETURN(-1);
+    }
   }
 
   // not entered in cache
@@ -2364,19 +2405,29 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
 }
 
 int
-NdbDictionaryImpl::createBlobTables(NdbTableImpl& orig, NdbTableImpl &t)
+NdbDictionaryImpl::createBlobTables(const NdbTableImpl& t)
 {
   DBUG_ENTER("NdbDictionaryImpl::createBlobTables");
   for (unsigned i = 0; i < t.m_columns.size(); i++) {
-    NdbColumnImpl & c = *t.m_columns[i];
+    const NdbColumnImpl & c = *t.m_columns[i];
     if (! c.getBlobType() || c.getPartSize() == 0)
       continue;
+    DBUG_PRINT("info", ("col: %s array type: %u storage type: %u",
+                        c.m_name.c_str(), c.m_arrayType, c.m_storageType));
     NdbTableImpl bt;
-    NdbBlob::getBlobTable(bt, &t, &c);
+    NdbError error;
+    if (NdbBlob::getBlobTable(bt, &t, &c, error) == -1) {
+      m_error.code = error.code;
+      DBUG_RETURN(-1);
+    }
     NdbDictionary::Column::StorageType 
       d = NdbDictionary::Column::StorageTypeDisk;
-    if (orig.m_columns[i]->getStorageType() == d)
-      bt.getColumn("DATA")->setStorageType(d);
+    if (t.m_columns[i]->getStorageType() == d) {
+      const char* colName = c.m_blobVersion == 1 ? "DATA" : "NDB$DATA";
+      NdbColumnImpl* bc = bt.getColumn(colName);
+      assert(bc != NULL);
+      bc->setStorageType(d);
+    }
     if (createTable(bt) != 0) {
       DBUG_RETURN(-1);
     }
@@ -2763,8 +2814,10 @@ loop:
     if(col == 0)
       continue;
     
-    DBUG_PRINT("info",("column: %s(%d) col->m_distributionKey: %d",
-		       col->m_name.c_str(), i, col->m_distributionKey));
+    DBUG_PRINT("info",("column: %s(%d) col->m_distributionKey: %d"
+                       " array type: %u storage type: %u",
+		       col->m_name.c_str(), i, col->m_distributionKey,
+                       col->m_arrayType, col->m_storageType));
     DictTabInfo::Attribute tmpAttr; tmpAttr.init();
     BaseString::snprintf(tmpAttr.AttributeName, sizeof(tmpAttr.AttributeName), 
 	     "%s", col->m_name.c_str());
@@ -2788,8 +2841,10 @@ loop:
       tmpAttr.AttributeStorageType = col->m_storageType;
     tmpAttr.AttributeDynamic = (col->m_dynamic ? 1 : 0);
 
-    if(col->getBlobType())
+    if (col->getBlobType()) {
+      tmpAttr.AttributeArrayType = col->m_arrayType;
       tmpAttr.AttributeStorageType = NDB_STORAGETYPE_MEMORY;      
+    }
     
     // check type and compute attribute size and array size
     if (! tmpAttr.translateExtType()) {
@@ -2808,17 +2863,7 @@ loop:
       m_error.code= err;
       DBUG_RETURN(-1);
     }
-    // distribution key not supported for Char attribute
-    if (distKeys && col->m_distributionKey && col->m_cs != NULL) {
-      // we can allow this for non-var char where strxfrm does nothing
-      if (col->m_type == NdbDictionary::Column::Char &&
-          (col->m_cs->state & MY_CS_BINSORT))
-        ;
-      else {
-        m_error.code= 745;
-        DBUG_RETURN(-1);
-      }
-    }
+    // all PK types now allowed as dist key
     // charset in upper half of precision
     if (col->getCharType()) {
       tmpAttr.AttributeExtPrecision |= (col->m_cs->number << 16);

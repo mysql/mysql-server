@@ -4591,8 +4591,22 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   Not member of ha_ndbcluster because NDBCOL cannot be declared.
 
   MySQL text types with character set "binary" are mapped to true
-  NDB binary types without a character set.  This may change.
+  NDB binary types without a character set.
+
+  Blobs are V2 and striping from mysql level is not supported
+  due to lack of syntax and lack of support for partitioning.
  */
+
+static bool
+ndb_blob_striping()
+{
+#ifndef DBUG_OFF
+  const char* p= getenv("NDB_BLOB_STRIPING");
+  if (p != 0 && *p != 0 && *p != '0' && *p != 'n' && *p != 'N')
+    return true;
+#endif
+  return false;
+}
 
 static int create_ndb_column(NDBCOL &col,
                              Field *field,
@@ -4775,7 +4789,7 @@ static int create_ndb_column(NDBCOL &col,
     col.setInlineSize(256);
     // No parts
     col.setPartSize(0);
-    col.setStripeSize(0);
+    col.setStripeSize(ndb_blob_striping() ? 0 : 0);
     break;
   //mysql_type_blob:
   case MYSQL_TYPE_GEOMETRY:
@@ -4802,7 +4816,7 @@ static int create_ndb_column(NDBCOL &col,
       {
         col.setInlineSize(256);
         col.setPartSize(2000);
-        col.setStripeSize(16);
+        col.setStripeSize(ndb_blob_striping() ? 16 : 0);
       }
       else if (field_blob->max_data_length() < (1 << 24))
         goto mysql_type_medium_blob;
@@ -4820,7 +4834,7 @@ static int create_ndb_column(NDBCOL &col,
     }
     col.setInlineSize(256);
     col.setPartSize(4000);
-    col.setStripeSize(8);
+    col.setStripeSize(ndb_blob_striping() ? 8 : 0);
     break;
   mysql_type_long_blob:
   case MYSQL_TYPE_LONG_BLOB:  
@@ -4832,7 +4846,7 @@ static int create_ndb_column(NDBCOL &col,
     }
     col.setInlineSize(256);
     col.setPartSize(8000);
-    col.setStripeSize(4);
+    col.setStripeSize(ndb_blob_striping() ? 4 : 0);
     break;
   // Other types
   case MYSQL_TYPE_ENUM:
