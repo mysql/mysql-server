@@ -4,7 +4,8 @@
 *.bb
 *.bbg
 *.bin
-*.cmake
+*.vcproj.cmake
+cmake_install.cmake
 *.core
 *.d
 *.da
