@@ -1238,16 +1238,20 @@ deleteNoPk()
 {
   DBG("--- deleteNoPk ---");
   Tup no_tup; // bug#24028
-  no_tup.m_pk1 = 0xb1ffb1ff;
-  sprintf(no_tup.m_pk2, "%-*.*s", g_opt.m_pk2len, g_opt.m_pk2len,  "b1ffb1ff");
+  no_tup.m_pk1 = 0xb1ff;
+  const Chr& pk2chr = g_opt.m_pk2chr;
+  sprintf(no_tup.m_pk2, "%-*.*s", pk2chr.m_len, pk2chr.m_len,  "b1ff");
+  no_tup.m_pk3 = 0xb1ff;
   CHK((g_con = g_ndb->startTransaction()) != 0);
   Tup& tup =  no_tup;
   DBG("deletePk pk1=" << hex << tup.m_pk1);
   CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
   CHK(g_opr->deleteTuple() == 0);
   CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
-  if (g_opt.m_pk2len != 0)
+  if (pk2chr.m_len != 0) {
     CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+    CHK(g_opr->equal("PK3", (char*)&tup.m_pk2) == 0);
+  }
   CHK(g_con->execute(Commit) == -1); // fail
   // BUG: error should be on op but is on con now
   DBG("con: " << g_con->getNdbError());
@@ -1633,10 +1637,9 @@ testmain()
           CHK(deleteNoPk() == 0);
           CHK(verifyBlob() == 0);
         }
-        CHK(verifyBlob() == 0);
       }
       if (testcase('w')) {
-        calcTups(false, false);
+        calcTups(true, false);
         CHK(writePk(style) == 0);
         CHK(verifyBlob() == 0);
         CHK(readPk(style) == 0);
@@ -2088,7 +2091,7 @@ bugtest_27018()
       // testing write at end is another problem..
       continue;
     }
-    //DBG("len=" << tup.m_bval1.m_len << " offset=" << offset);
+    DBG("len=" << tup.m_bval1.m_len << " offset=" << offset);
 
     CHK((g_con= g_ndb->startTransaction()) != 0);
     CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
@@ -2123,7 +2126,12 @@ bugtest_27018()
     Uint64 len= ~0;
     CHK(g_bh1->getLength(len) == 0 && len == tup.m_bval1.m_len);
     tup.m_bval1.m_buf[offset]^= 0xff;
-    CHK(memcmp(tup.m_bval1.m_buf, tup.m_bval1.m_val, tup.m_bval1.m_len) == 0);
+    //CHK(memcmp(tup.m_bval1.m_buf, tup.m_bval1.m_val, tup.m_bval1.m_len) == 0);
+    Uint32 i = 0;
+    while (i < tup.m_bval1.m_len) {
+      CHK(tup.m_bval1.m_buf[i] == tup.m_bval1.m_val[i]);
+      i++;
+    }
 
     g_ndb->closeTransaction(g_con);
   }
