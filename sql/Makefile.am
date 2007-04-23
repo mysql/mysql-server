@@ -54,7 +54,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_error.h field.h handler.h mysqld_suffix.h \
 			ha_myisammrg.h\
 			ha_heap.h ha_myisam.h ha_berkeley.h ha_innodb.h \
-			ha_ndbcluster.h opt_range.h protocol.h \
+			ha_ndbcluster.h ha_ndbcluster_cond.h \
+			opt_range.h protocol.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
 			log_event.h sql_repl.h slave.h \
@@ -88,7 +89,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 		   	records.cc filesort.cc handler.cc \
 		        ha_heap.cc ha_myisam.cc ha_myisammrg.cc \
 	                ha_berkeley.cc ha_innodb.cc \
-			ha_ndbcluster.cc \
+			ha_ndbcluster.cc ha_ndbcluster_cond.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
