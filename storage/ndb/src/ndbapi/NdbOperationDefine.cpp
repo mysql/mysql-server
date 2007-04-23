@@ -699,7 +699,7 @@ NdbOperation::getBlobHandlesNdbRecord(NdbTransaction* aCon)
     if (bh == NULL)
       return -1;
 
-    if (theOperationType == ReadRequest)
+    if (theOperationType == ReadRequest || theOperationType == ReadExclusive)
     {
       /*
         For read request, it is safe to cast away const-ness for the

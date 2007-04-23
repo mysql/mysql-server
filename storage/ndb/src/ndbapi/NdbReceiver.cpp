@@ -468,7 +468,7 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
              col->attrId == attrId);
 
       /* The fast path is for a plain offset/length column (not blob eg). */
-      if (likely(!(col->flags & NdbRecord::IsBlob)))
+      if (likely(!(col->flags & (NdbRecord::IsBlob|NdbRecord::IsMysqldBitfield))))
       {
         if (attrSize == 0)
         {
@@ -492,11 +492,33 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
       }
       else
       {
-        /* Blob head. */
-        receiveBlobHead(rec, rec_pos, aDataPtr, attrSize, blob_pos);
-        Uint32 sizeInWords= (attrSize+3)>>2;
-        aDataPtr+= sizeInWords;
-        aLength-= sizeInWords;
+        if (likely((col->flags & NdbRecord::IsMysqldBitfield)))
+        {
+          /* Mysqld format bitfield. */
+          if (attrSize == 0)
+          {
+            setRecToNULL(col, m_record.m_row);
+          }
+          else
+          {
+            assert(attrSize == col->maxSize);
+            Uint32 sizeInWords= (attrSize+3)>>2;
+            if (col->flags & NdbRecord::IsNullable)
+              m_record.m_row[col->nullbit_byte_offset]&=
+                ~(1 << col->nullbit_bit_in_byte);
+            col->put_mysqld_bitfield(m_record.m_row, (const char *)aDataPtr);
+            aDataPtr+= sizeInWords;
+            aLength-= sizeInWords;
+          }
+        }
+        else
+        {
+          /* Blob head. */
+          receiveBlobHead(rec, rec_pos, aDataPtr, attrSize, blob_pos);
+          Uint32 sizeInWords= (attrSize+3)>>2;
+          aDataPtr+= sizeInWords;
+          aLength-= sizeInWords;
+        }
       }
       rec_pos++;
     }

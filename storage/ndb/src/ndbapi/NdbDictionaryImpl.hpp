@@ -637,7 +637,14 @@ public:
     /* Flag for column that is a part of the distribution key. */
     IsDistributionKey= 0x20,
     /* Flag for blob columns. */
-    IsBlob= 0x40
+    IsBlob= 0x40,
+    /* 
+       Flag for special handling of short varchar for index keys, which is
+       used by mysqld to avoid converting index key rows.
+    */
+    IsMysqldShrinkVarchar= 0x80,
+    /* Bitfield stored in the internal mysqld format. */
+    IsMysqldBitfield= 0x100
   };
 
   struct Attr
@@ -658,6 +665,8 @@ public:
       to dig into Table object for every attribute fetch/store.
     */
     Uint32 maxSize;
+    /* Number of bits in a bitfield. */
+    Uint32 bitCount;
 
     /* Flags, or-ed from enum ColFlags. */
     Uint32 flags;
@@ -687,6 +696,31 @@ public:
       return (flags & IsNullable) &&
              (row[nullbit_byte_offset] & (1 << nullbit_bit_in_byte));
     }
+    /*
+      Mysqld uses a slightly different format for storing varchar in
+      index keys; the length is always two bytes little endian, even
+      for max size < 256.
+      This converts to the usual format expected by NDB kernel.
+    */
+    bool shrink_varchar(const char *row, Uint32& out_len, char *buf) const
+    {
+      const char *p= row + offset;
+      Uint32 len= uint2korr(p);
+      if (len >= 256 || len >= maxSize)
+        return false;
+      buf[0]= (unsigned char)len;
+      memcpy(buf+1, p+2, len);
+      out_len= len + 1;
+      return true;
+    }
+    /*
+      Accessing mysqld format bitfields.
+      For internal use in myqsld.
+      In mysqld, fractional bytes of each bit field are stored inside the
+      null bytes area.
+    */
+    void get_mysqld_bitfield(const char *src_row, char *dst_buffer) const;
+    void put_mysqld_bitfield(char *dst_row, const char *src_buffer) const;
   };
 
   /*
@@ -852,12 +886,14 @@ public:
                           const NdbDictionary::RecordSpecification *recSpec,
                           Uint32 length,
                           Uint32 elemSize,
+                          Uint32 flags,
                           const NdbTableImpl *base_table= 0);
   NdbRecord *createRecord(const NdbIndexImpl *index,
                           const NdbTableImpl *base_table,
                           const NdbDictionary::RecordSpecification *recSpec,
                           Uint32 length,
-                          Uint32 elemSize);
+                          Uint32 elemSize,
+                          Uint32 flags);
   void releaseRecord_impl(NdbRecord *rec);
 
 private:

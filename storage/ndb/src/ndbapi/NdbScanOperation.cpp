@@ -1678,25 +1678,39 @@ NdbIndexScanOperation::ndbrecord_insert_bound(const NdbRecord *key_record,
                                               const char *row,
                                               Uint32 bound_type)
 {
+  char buf[256];
   Uint32 currLen= theTotalNrOfKeyWordInSignal;
   Uint32 remaining= KeyInfo::DataLength - currLen;
   const NdbRecord::Attr *column= &key_record->columns[column_index];
 
   bool is_null= column->is_null(row);
   Uint32 len= 0;
+  const void *aValue= row+column->offset;
 
   if (!is_null)
-    if (!column->get_var_length(row, len)) {
+  {
+    bool len_ok;
+    /* Support for special mysqld varchar format in keys. */
+    if (column->flags & NdbRecord::IsMysqldShrinkVarchar)
+    {
+      len_ok= column->shrink_varchar(row, len, buf);
+      aValue= buf;
+    }
+    else
+    {
+      len_ok= column->get_var_length(row, len);
+    }
+    if (!len_ok) {
       setErrorCodeAbort(4209);
       return -1;
     }
+  }
 
   /* Insert attribute header. */
   Uint32 tIndexAttrId= column->index_attrId;
   Uint32 sizeInWords= (len + 3) / 4;
   AttributeHeader ah(tIndexAttrId, sizeInWords << 2);
   const Uint32 ahValue= ah.m_value;
-  const void *aValue= row+column->offset;
   const bool aligned= (UintPtr(aValue) & 3) == 0;
 
   /*

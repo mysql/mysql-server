@@ -89,6 +89,10 @@ public:
     BoundEQ = 4         ///< equality
   };
 
+  enum {
+    MaxRangeNo= 0xfff
+  };
+
   /**
    * Define bound on index key in range scan.
    *
@@ -152,7 +156,7 @@ public:
    * called when all setBound() calls for one range bound have been done.
    *
    * The RANGE_NO argument is an application-selected value (in the range
-   * 0-0xfff) that can be used to identify which range scan a particular row
+   * 0-MaxRangeNo) that can be used to identify which range scan a particular row
    * belong to; the value can be obtained from get_range_no() when rows are
    * fetched with nextResult().
    */
@@ -180,7 +184,7 @@ public:
     bool high_inclusive;
     /*
       Value to identify this bound, may be read with get_range_no().
-      Must be < 8192 (set to zero if not using range_no).
+      Must be <= MaxRangeNo (set to zero if not using range_no).
       Note that for ordered scans, the range_no must be strictly increasing
       for each range, or the result set will not be sorted correctly.
     */

@@ -508,6 +508,7 @@ int
 NdbBlob::copyKeyFromRow(const NdbRecord *record, const char *row,
                         Buf& packedBuf, Buf& unpackedBuf)
 {
+  char buf[256];
   DBUG_ENTER("NdbBlob::copyKeyFromRow");
 
   bool index_flag= isInsertOp();
@@ -527,15 +528,29 @@ NdbBlob::copyKeyFromRow(const NdbRecord *record, const char *row,
       continue;
 
     Uint32 len= ~0;
-    if (!col->get_var_length(row, len))
+    bool len_ok;
+    const char *src;
+    if (col->flags & NdbRecord::IsMysqldShrinkVarchar)
+    {
+      /* Used to support special varchar format for mysqld keys. */
+      len_ok= col->shrink_varchar(row, len, buf);
+      src= buf;
+    }
+    else
+    {
+      len_ok= col->get_var_length(row, len);
+      src= &row[col->offset];
+    }
+
+    if (!len_ok)
     {
       setErrorCode(NdbBlobImpl::ErrCorruptPK);
       DBUG_RETURN(-1);
     }
 
     /* Copy the key. */
-    memcpy(packed, &row[col->offset], len);
-    memcpy(unpacked, &row[col->offset], len);
+    memcpy(packed, src, len);
+    memcpy(unpacked, src, len);
 
     /* Zero-pad if needed. */
     Uint32 packed_len= (len + 3) & ~3;
@@ -961,7 +976,7 @@ int
 NdbBlob::setPos(Uint64 pos)
 {
   DBUG_ENTER("NdbBlob::setPos");
-  DBUG_PRINT("info", ("pos=%llu", pos));
+  DBUG_PRINT("info", ("this=%p pos=%llu", this, pos));
   if (theNullFlag == -1) {
     setErrorCode(NdbBlobImpl::ErrState);
     DBUG_RETURN(-1);
@@ -993,7 +1008,8 @@ int
 NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
 {
   DBUG_ENTER("NdbBlob::readDataPrivate");
-  DBUG_PRINT("info", ("bytes=%u", bytes));
+  DBUG_PRINT("info", ("this=%p bytes=%u thePos=%u theLength=%u",
+                      this, bytes, (Uint32)thePos, (Uint32)theLength));
   assert(thePos <= theLength);
   Uint64 pos = thePos;
   if (bytes > theLength - pos)
