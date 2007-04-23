@@ -348,7 +348,7 @@ run_startHint(NDBT_Context* ctx, NDBT_Step* step)
     char* pos= start;
     
     int k = 0;
-    Ndb::Key_part_ptr ptrs[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
+    Ndb::Key_part_ptr ptrs[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1];
     for(int j = 0; j<tab->getNoOfColumns(); j++)
     {
       if(tab->getColumn(j)->getPartitionKey())
