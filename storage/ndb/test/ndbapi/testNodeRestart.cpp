@@ -1473,6 +1473,72 @@ runBug27466(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug28023(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+  {
+    return NDBT_OK;
+  }
+
+
+  HugoTransactions hugoTrans(*ctx->getTab());
+  if (hugoTrans.loadTable(pNdb, records) != 0){
+    return NDBT_FAILED;
+  }
+  
+  if (hugoTrans.clearTable(pNdb, records) != 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  for (Uint32 i = 0; i<loops; i++)
+  {
+    int node1 = res.getDbNodeId(rand() % res.getNumDbNodes());
+    
+    if (res.restartOneDbNode2(node1, 
+                              NdbRestarter::NRRF_ABORT |
+                              NdbRestarter::NRRF_NOSTART))
+      return NDBT_FAILED;
+    
+    if (res.waitNodesNoStart(&node1, 1))
+      return NDBT_FAILED;
+
+    if (hugoTrans.loadTable(pNdb, records) != 0){
+      return NDBT_FAILED;
+    }
+    
+    if (hugoTrans.clearTable(pNdb, records) != 0)
+    {
+      return NDBT_FAILED;
+    }
+    
+    res.startNodes(&node1, 1);
+    if (res.waitClusterStarted())
+      return NDBT_FAILED;
+
+    if (hugoTrans.loadTable(pNdb, records) != 0){
+      return NDBT_FAILED;
+    }
+    
+    if (hugoTrans.scanUpdateRecords(pNdb, records) != 0)
+      return NDBT_FAILED;
+
+    if (hugoTrans.clearTable(pNdb, records) != 0)
+    {
+      return NDBT_FAILED;
+    }
+  }
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -1826,6 +1892,9 @@ TESTCASE("Bug27283", ""){
 }
 TESTCASE("Bug27466", ""){
   INITIALIZER(runBug27466);
+}
+TESTCASE("Bug28023", ""){
+  INITIALIZER(runBug28023);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 
