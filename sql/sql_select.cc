@@ -5982,10 +5982,7 @@ make_join_readinfo(JOIN *join, ulonglong options)
     */
     if (!ordered_set && 
         (table == join->sort_by_table &&
-         (!join->order || join->skip_sort_order ||
-          test_if_skip_sort_order(tab, join->order, join->select_limit,
-                                  1))
-        ) ||
+         (!join->order || join->skip_sort_order)) ||
         (join->sort_by_table == (TABLE *) 1 && i != join->const_tables))
       ordered_set= 1;
 
