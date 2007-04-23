@@ -12,6 +12,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+INCLUDE("${PROJECT_SOURCE_DIR}/win/mysql_manifest.cmake")
 
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
@@ -30,3 +31,7 @@ ADD_EXECUTABLE(mysqlmanager buffer.cc command.cc commands.cc guardian.cc instanc
 
 ADD_DEPENDENCIES(mysqlmanager GenError)
 TARGET_LINK_LIBRARIES(mysqlmanager dbug mysys strings taocrypt vio yassl zlib wsock32)
+
+IF(EMBED_MANIFESTS)
+  MYSQL_EMBED_MANIFEST("mysqlmanager" "asInvoker")
+ENDIF(EMBED_MANIFESTS)

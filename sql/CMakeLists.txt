@@ -12,6 +12,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+INCLUDE("${PROJECT_SOURCE_DIR}/win/mysql_manifest.cmake")
 
 SET(CMAKE_CXX_FLAGS_DEBUG 
     "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX -DUSE_SYMDIR /Zi")
@@ -83,6 +84,10 @@ ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
 
 TARGET_LINK_LIBRARIES(mysqld heap myisam myisammrg mysys yassl zlib dbug yassl 
                       taocrypt strings vio regex wsock32)
+
+IF(EMBED_MANIFESTS)
+  MYSQL_EMBED_MANIFEST("mysqld" "requireAdministrator")
+ENDIF(EMBED_MANIFESTS)
 
 IF(WITH_EXAMPLE_STORAGE_ENGINE)
   TARGET_LINK_LIBRARIES(mysqld example)
