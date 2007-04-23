@@ -111,7 +111,6 @@ BEGIN
   SELECT teller.balance INTO tbal FROM tpcb.teller WHERE tid = tell;
   SELECT branch.balance INTO bbal FROM tpcb.branch WHERE bid = brch;
 
-  START TRANSACTION;
   IF (test < 5)
    THEN
      SET bal = bal + amount;
@@ -146,8 +145,6 @@ BEGIN
     INSERT INTO tpcb.history VALUES(NULL,acct,tell,brch,amount, NOW(), USER(),
                              UUID(),'completed trans');
   END IF;
-  COMMIT;
-
 END|
 delimiter ;|
 --enable_query_log
