@@ -128,6 +128,33 @@ ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 7" OR
 
 ADD_DEFINITIONS("-D_WINDOWS -D__WIN__ -D _CRT_SECURE_NO_DEPRECATE")
 
+IF(EMBED_MANIFESTS)
+    # Search for the Manifest tool.  CMake will first search it's defaults
+    # (CMAKE_FRAMEWORK_PATH, CMAKE_APPBUNDLE_PATH, CMAKE_PROGRAM_PATH and
+    # the system PATH) followed by the listed paths which are the current
+    # possible defaults and should be updated when necessary.  The custom
+    # manifests are designed to be compatible with all mt versions.
+    FIND_PROGRAM(HAVE_MANIFEST_TOOL NAMES mt
+                 PATHS
+                 "$ENV{PROGRAMFILES}/Microsoft Visual Studio 8/VC/bin"
+                 "$ENV{PROGRAMFILES}/Microsoft Visual Studio 8/Common7/Tools/Bin"
+                 "$ENV{PROGRAMFILES}/Microsoft Visual Studio 8/SDK/v2.0/Bin")
+    IF(HAVE_MANIFEST_TOOL)
+        MESSAGE(STATUS "Found Mainfest Tool. Embedding custom manifests.")
+    ELSE(HAVE_MANIFEST_TOOL)
+        MESSAGE(FATAL_ERROR "Manifest tool, mt.exe, can't be found.")
+    ENDIF(HAVE_MANIFEST_TOOL)
+    # Disable automatic manifest generation.
+    STRING(REPLACE "/MANIFEST" "/MANIFEST:NO" CMAKE_EXE_LINKER_FLAGS 
+    	   ${CMAKE_EXE_LINKER_FLAGS})
+    # Set the processor architecture.
+    IF(CMAKE_GENERATOR MATCHES "Visual Studio 8 2005 Win64")
+    	SET(PROCESSOR_ARCH "X64") 
+    ELSE(CMAKE_GENERATOR MATCHES "Visual Studio 8 2005 Win64")
+    	SET(PROCESSOR_ARCH "X86")
+    ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 8 2005 Win64")
+ENDIF(EMBED_MANIFESTS)
+
 ADD_SUBDIRECTORY(vio)
 ADD_SUBDIRECTORY(dbug)
 ADD_SUBDIRECTORY(strings)
