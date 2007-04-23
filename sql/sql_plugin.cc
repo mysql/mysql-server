@@ -2683,7 +2683,7 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
   st_bookmark *v;
   DBUG_ENTER("construct_options");
   DBUG_PRINT("plugin", ("plugin: '%s'  enabled: %d  can_disable: %d",
-                        tmp->plugin->name, **enabled, can_disable));
+                        plugin_name, **enabled, can_disable));
 
   /* support --skip-plugin-foo syntax */
   memcpy(name, plugin_name, namelen + 1);
@@ -2759,7 +2759,7 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
       break;
     default:
       sql_print_error("Unknown variable type code 0x%x in plugin '%s'.",
-                      opt->flags, tmp->plugin->name);
+                      opt->flags, plugin_name);
       DBUG_RETURN(-1);
     };
   }
@@ -2799,7 +2799,13 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
       {
         opt->update= update_func_str;
         if (!(opt->flags & PLUGIN_VAR_MEMALLOC))
+        {
           opt->flags |= PLUGIN_VAR_READONLY;
+          sql_print_warning("Server variable %s of plugin %s was forced "
+                            "to be read-only: string variable without "
+                            "update_func and PLUGIN_VAR_MEMALLOC flag",
+                            opt->name, plugin_name);
+        }
       }
       break;
     case PLUGIN_VAR_ENUM:
@@ -2816,7 +2822,7 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
       break;
     default:
       sql_print_error("Unknown variable type code 0x%x in plugin '%s'.",
-                      opt->flags, tmp->plugin->name);
+                      opt->flags, plugin_name);
       DBUG_RETURN(-1);
     }
 
@@ -2826,7 +2832,7 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
     if (!opt->name)
     {
       sql_print_error("Missing variable name in plugin '%s'.",
-                      tmp->plugin->name);
+                      plugin_name);
       DBUG_RETURN(-1);
     }
 
