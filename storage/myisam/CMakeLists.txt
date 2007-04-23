@@ -12,6 +12,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+INCLUDE("${PROJECT_SOURCE_DIR}/win/mysql_manifest.cmake")
 
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
@@ -43,3 +44,10 @@ TARGET_LINK_LIBRARIES(myisamlog myisam mysys dbug strings zlib wsock32)
 
 ADD_EXECUTABLE(myisampack myisampack.c)
 TARGET_LINK_LIBRARIES(myisampack myisam mysys dbug strings zlib wsock32)
+
+IF(EMBED_MANIFESTS)
+  MYSQL_EMBED_MANIFEST("myisam_ftdump" "asInvoker")
+  MYSQL_EMBED_MANIFEST("myisamchk" "asInvoker")
+  MYSQL_EMBED_MANIFEST("myisamlog" "asInvoker")
+  MYSQL_EMBED_MANIFEST("myisampack" "asInvoker")
+ENDIF(EMBED_MANIFESTS)
