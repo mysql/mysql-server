@@ -7,17 +7,55 @@
 select LENGTH("$MYSQL_UPGRADE")>0 as have_mysql_upgrade;
 --enable_query_log
 
+# Get version of the server so it can be masked out in the
+# error messages from mysql_upgrade
+let $VERSION=`select LEFT(version(), 6)`;
+
 #
-# Basic test thta we can run mysql_upgrde and that it finds the
+# Basic test that we can run mysql_upgrde and that it finds the
 # expected binaries it uses.
 #
 --echo Run mysql_upgrade once
---exec $MYSQL_UPGRADE 2> $MYSQLTEST_VARDIR/log/mysql_upgrade.err
+--exec $MYSQL_UPGRADE --skip-verbose 2>&1
+
+# It should have created a file in the MySQL Servers datadir
+file_exists $MYSQLTEST_VARDIR/master-data/mysql_upgrade_info;
 
 --echo Run it again - should say already completed
---exec $MYSQL_UPGRADE 2> $MYSQLTEST_VARDIR/log/mysql_upgrade.err
+--replace_result $VERSION VERSION
+--error 1
+--exec $MYSQL_UPGRADE --skip-verbose 2>&1
 
---echo Force should run it regardless of wheter it's been run before
---exec $MYSQL_UPGRADE --force 2> $MYSQLTEST_VARDIR/log/mysql_upgrade.err
+# It should have created a file in the MySQL Servers datadir
+file_exists $MYSQLTEST_VARDIR/master-data/mysql_upgrade_info;
+
+--echo Force should run it regardless of wether it's been run before
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+# It should have created a file in the MySQL Servers datadir
+file_exists $MYSQLTEST_VARDIR/master-data/mysql_upgrade_info;
 
 
+#
+# Bug #25452 mysql_upgrade access denied.
+#
+
+# Password protect a root account and run mysql_upgrade
+
+CREATE USER mysqltest1@'%' IDENTIFIED by 'sakila';
+GRANT ALL ON *.* TO mysqltest1@'%';
+--echo Run mysql_upgrade with password protected account
+--exec $MYSQL_UPGRADE --skip-verbose --force --user=mysqltest1 --password=sakila 2>&1
+
+DROP USER mysqltest1@'%';
+
+
+#
+# Bug #26639 mysql_upgrade exits successfully even if external command failed
+#
+
+--echo Run mysql_upgrade with a non existing server socket
+--replace_result $MYSQLTEST_VARDIR var
+--replace_regex /.*mysqlcheck.*: Got/mysqlcheck: Got/ /\([0-9]*\)/(errno)/
+--error 1
+--exec $MYSQL_UPGRADE --skip-verbose --force --host=not_existing_host 2>&1

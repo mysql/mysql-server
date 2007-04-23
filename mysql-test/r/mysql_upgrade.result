@@ -16,48 +16,9 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-@hadGrantPriv:=1
-1
-1
-1
-@hadShowDbPriv:=1
-1
-1
-1
-@hadCreateViewPriv:=1
-1
-1
-1
-@hadCreateRoutinePriv:=1
-1
-1
-1
-@hadCreateUserPriv:=1
-1
-1
-1
 Run it again - should say already completed
-@hadGrantPriv:=1
-1
-1
-1
-@hadShowDbPriv:=1
-1
-1
-1
-@hadCreateViewPriv:=1
-1
-1
-1
-@hadCreateRoutinePriv:=1
-1
-1
-1
-@hadCreateUserPriv:=1
-1
-1
-1
-Force should run it regardless of wheter it's been run before
+This installation of MySQL is already upgraded to VERSION, use --force if you still need to run mysql_upgrade
+Force should run it regardless of wether it's been run before
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.func                                         OK
@@ -75,23 +36,27 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-@hadGrantPriv:=1
-1
-1
-1
-@hadShowDbPriv:=1
-1
-1
-1
-@hadCreateViewPriv:=1
-1
-1
-1
-@hadCreateRoutinePriv:=1
-1
-1
-1
-@hadCreateUserPriv:=1
-1
-1
-1
+CREATE USER mysqltest1@'%' IDENTIFIED by 'sakila';
+GRANT ALL ON *.* TO mysqltest1@'%';
+Run mysql_upgrade with password protected account
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.func                                         OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.host                                         OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+DROP USER mysqltest1@'%';
+Run mysql_upgrade with a non existing server socket
+mysqlcheck: Got error: 2005: Unknown MySQL server host 'not_existing_host' (errno) when trying to connect
+FATAL ERROR: Upgrade failed
