@@ -2640,6 +2640,16 @@ storage/ndb/lib/libNEWTON_BASICTEST_COMMON.so
 storage/ndb/lib/libREP_API.so
 storage/ndb/lib/libndbclient.so
 storage/ndb/lib/libndbclient_extra.so
+storage/ndb/ndbapi-examples/mgmapi_logevent/mgmapi_logevent
+storage/ndb/ndbapi-examples/mgmapi_logevent2/mgmapi_logevent2
+storage/ndb/ndbapi-examples/ndbapi_async/ndbapi_async
+storage/ndb/ndbapi-examples/ndbapi_async1/ndbapi_async1
+storage/ndb/ndbapi-examples/ndbapi_event/ndbapi_event
+storage/ndb/ndbapi-examples/ndbapi_retries/ndbapi_retries
+storage/ndb/ndbapi-examples/ndbapi_scan/ndbapi_scan
+storage/ndb/ndbapi-examples/ndbapi_simple/ndbapi_simple
+storage/ndb/ndbapi-examples/ndbapi_simple_dual/ndbapi_simple_dual
+storage/ndb/ndbapi-examples/ndbapi_simple_index/ndbapi_simple_index
 storage/ndb/src/common/debugger/libtrace.dsp
 storage/ndb/src/common/debugger/signaldata/libsignaldataprint.dsp
 storage/ndb/src/common/logger/liblogger.dsp
@@ -2717,6 +2727,8 @@ storage/ndb/test/ndbapi/testDataBuffers
 storage/ndb/test/ndbapi/testDeadlock
 storage/ndb/test/ndbapi/testDict
 storage/ndb/test/ndbapi/testIndex
+storage/ndb/test/ndbapi/testIndexStat
+storage/ndb/test/ndbapi/testInterpreter
 storage/ndb/test/ndbapi/testLcp
 storage/ndb/test/ndbapi/testMgm
 storage/ndb/test/ndbapi/testNdbApi
@@ -2752,6 +2764,7 @@ storage/ndb/test/tools/hugoScanRead
 storage/ndb/test/tools/hugoScanUpdate
 storage/ndb/test/tools/listen_event
 storage/ndb/test/tools/ndb_cpcc
+storage/ndb/test/tools/rep_latency
 storage/ndb/test/tools/restart
 storage/ndb/test/tools/verify_index
 storage/ndb/tools/ndb_config
