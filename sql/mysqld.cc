@@ -3412,8 +3412,9 @@ void decrement_handler_count()
 {
   pthread_mutex_lock(&LOCK_thread_count);
   handler_count--;
-  pthread_mutex_unlock(&LOCK_thread_count);
   pthread_cond_signal(&COND_handler_count);
+  pthread_mutex_unlock(&LOCK_thread_count);  
+  my_thread_end();
 }
 #else
 #define decrement_handler_count()
