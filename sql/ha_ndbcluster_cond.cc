@@ -15,8 +15,7 @@
 */
 
 /*
-  This file defines the NDB Cluster handler: the interface between MySQL and
-  NDB Cluster
+  This file defines the NDB Cluster handler engine_condition_pushdown
 */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
