@@ -250,14 +250,8 @@ DROP DATABASE tpcb;
 
 --echo ****** Do dumps compare ************
 
---exec diff $MYSQLTEST_VARDIR/tmp/master_apply_status.sql $MYSQLTEST_VARDIR/tmp/slave_apply_status.sql;
 
-#Note: other tests are using diff_files, but I could not get the test framework to 
-#      work using it, so I went back to using 11exec diff. In the future
-#      once all clones work with diff_files, this test should be altered to
-#      use it.
-
-#diff_files $MYSQLTEST_VARDIR/tmp/master_apply_status.sql $MYSQLTEST_VARDIR/tmp/slave_apply_status.sql;
+diff_files $MYSQLTEST_VARDIR/tmp/master_apply_status.sql $MYSQLTEST_VARDIR/tmp/slave_apply_status.sql;
 
 ## Note: Ths files should only get removed, if the above diff succeeds.
 
