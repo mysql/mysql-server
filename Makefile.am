@@ -21,57 +21,17 @@ AUTOMAKE_OPTIONS =	foreign
 EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 			README COPYING EXCEPTIONS-CLIENT CMakeLists.txt
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
-			@readline_topdir@ sql-common \
+			@readline_topdir@ sql-common scripts \
 			@thread_dirs@ pstack \
 			@sql_union_dirs@ unittest storage plugin \
-			@sql_server@ scripts @man_dirs@ tests \
+			@sql_server@ @man_dirs@ tests \
 			netware @libmysqld_dirs@ \
 			mysql-test support-files sql-bench @tools_dirs@ \
 			win
 
-DIST_SUBDIRS =		$(SUBDIRS) BUILD
+DIST_SUBDIRS =		$(SUBDIRS) BUILD debian
 
-# Run these targets before any others, also make part of clean target,
-# to make sure we create new links after a clean.
-BUILT_SOURCES = linked_client_sources linked_server_sources \
-		 @linked_client_targets@ \
-		 @linked_libmysqld_targets@ \
-		 linked_include_sources @linked_netware_sources@
-
-CLEANFILES = $(BUILT_SOURCES)
 DISTCLEANFILES = ac_available_languages_fragment
-
-linked_include_sources:
-	cd include; $(MAKE) link_sources
-	echo timestamp > linked_include_sources
-
-linked_client_sources:  @linked_client_targets@
-	cd client; $(MAKE) link_sources
-	echo timestamp > linked_client_sources
-
-linked_libmysql_sources:
-	cd libmysql; $(MAKE) link_sources
-	echo timestamp > linked_libmysql_sources
-
-linked_libmysql_r_sources: linked_libmysql_sources
-	cd libmysql_r; $(MAKE) link_sources
-	echo timestamp > linked_libmysql_r_sources
-
-linked_libmysqld_sources:
-	cd libmysqld; $(MAKE) link_sources
-	echo timestamp > linked_libmysqld_sources
-
-linked_libmysqldex_sources:
-	cd libmysqld/examples; $(MAKE) link_sources
-	echo timestamp > linked_libmysqldex_sources
-
-linked_netware_sources:
-	cd @netware_dir@; $(MAKE) link_sources
-	echo timestamp > linked_netware_sources
-
-linked_server_sources:
-	cd sql; $(MAKE) link_sources
-	echo timestamp > linked_server_sources
 
 # Create permission databases
 init-db:		all

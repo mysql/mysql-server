@@ -1,0 +1,2 @@
+W: mysql-dfsg source: maintainer-script-lacks-debhelper-token debian/mysql-server.postinst
+W: mysql-server: possible-bashism-in-maintainer-script postinst:68 'p{("a".."z","A".."Z",0..9)[int(rand(62))]}'

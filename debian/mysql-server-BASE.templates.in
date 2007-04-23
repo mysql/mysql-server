@@ -1,0 +1,71 @@
+Template: mysql-server-@MYSQL_BRANDED_BASE_VERSION@/really_downgrade
+Type: boolean
+Default: false
+_Description: Do you really want to downgrade?
+ WARNING: The file /var/lib/mysql/debian-*.flag exists. This indicates that a
+ mysql-server package with a higher version has been installed before.
+ It can not be guaranteed that this version can use its data.
+
+Template: mysql-server-@MYSQL_BRANDED_BASE_VERSION@/nis_warning
+Type: note
+_Description: Important note for NIS/YP users!
+ To use mysql you must install an equivalent user and group to the
+ following and ensure yourself that /var/lib/mysql has the right
+ permissions (the uid/gid may be different).
+ .
+ /etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false
+ .
+ /etc/group:       mysql:x:101:
+ .
+ /var/lib/mysql:   drwxr-xr-x   mysql    mysql
+
+Template: mysql-server-@MYSQL_BRANDED_BASE_VERSION@/postrm_remove_databases
+Type: boolean
+Default: false
+_Description: Remove the databases used by all MySQL versions?
+ The script is about to remove the data directory /var/lib/mysql.
+ If it is planned to just install a higher MySQL version or if a different
+ mysql-server package is already using it, the data should be kept.
+
+Template: mysql-server-@MYSQL_BRANDED_BASE_VERSION@/start_on_boot
+Type: boolean
+Default: true
+_Description: Should MySQL start on boot?
+ The MySQL can start automatically on boot time or only if you manually
+ type '/etc/init.d/mysql start'.
+
+Template: mysql-server/root_password
+Type: password
+_Description: New password for MySQL "root" user:
+ It is highly recommended that you set a password for the MySQL administrative
+ "root" user.
+ .
+ If you do not provide a password no changes will be made to the account.
+
+Template: mysql-server/error_setting_password
+Type: error
+_Description: Unable to set password for MySQL "root" user
+ It seems an error occurred while setting the password for the MySQL
+ administrative user.  This may have happened because the user already
+ has a password, or because there was a problem communicating with the
+ MySQL server.
+ .
+ When installation finishes, you should verify that the account
+ is properly protected with a password (see README.Debian for more
+ information).
+
+Template: mysql-server-@MYSQL_BRANDED_BASE_VERSION@/need_sarge_compat
+Type: boolean
+Default: false
+_Description: Support MySQL connections from hosts running Debian "sarge" or older?
+ The way passwords were stored was not very secure. This has been improved
+ with the drawback that clients (e.g. PHP) from hosts running Debian 3.1 Sarge
+ will not be able to connect to account which are new or whose password have
+ been changed. See /usr/share/doc/mysql-server-@MYSQL_BRANDED_BASE_VERSION@/README.Debian.
+
+Template: mysql-server-@MYSQL_BRANDED_BASE_VERSION@/need_sarge_compat_done
+Type: boolean
+Default: false
+Description: for internal use
+ Only internally used.
+

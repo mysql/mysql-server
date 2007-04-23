@@ -389,43 +389,6 @@ ALTER TABLE proc  MODIFY db
                          char(64) collate utf8_bin DEFAULT '' NOT NULL;
 
 #
-# Create missing log tables (5.1)
-#
-
-delimiter //
-CREATE PROCEDURE create_log_tables()
-BEGIN
-  DECLARE is_csv_enabled int DEFAULT 0;
-  SELECT @@have_csv = 'YES' INTO is_csv_enabled;
-  IF (is_csv_enabled) THEN
-    CREATE TABLE IF NOT EXISTS general_log (
-      event_time TIMESTAMP NOT NULL,
-      user_host    MEDIUMTEXT,
-      thread_id INTEGER,
-      server_id INTEGER,
-      command_type VARCHAR(64),
-      argument     MEDIUMTEXT
-    ) engine=CSV CHARACTER SET utf8 comment='General log';
-    CREATE TABLE IF NOT EXISTS slow_log (
-      start_time TIMESTAMP NOT NULL,
-      user_host MEDIUMTEXT NOT NULL,
-      query_time   TIME NOT NULL,
-      lock_time    TIME NOT NULL,
-      rows_sent    INTEGER NOT NULL,
-      rows_examined INTEGER NOT NULL,
-      db VARCHAR(512),
-      last_insert_id INTEGER,
-      insert_id INTEGER,
-      server_id INTEGER,
-      sql_text MEDIUMTEXT NOT NULL
-    ) engine=CSV CHARACTER SET utf8 comment='Slow log';
-  END IF;
-END//
-delimiter ;
-CALL create_log_tables();
-DROP PROCEDURE create_log_tables;
-
-#
 # EVENT privilege
 #
 SET @hadEventPriv := 0;
@@ -502,8 +465,6 @@ ALTER TABLE db MODIFY Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT
 ALTER TABLE tables_priv MODIFY Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger') COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
 UPDATE user SET Trigger_priv=Super_priv WHERE @hadTriggerPriv = 0;
-
-CREATE TABLE IF NOT EXISTS ndb_binlog_index (Position BIGINT UNSIGNED NOT NULL, File VARCHAR(255) NOT NULL, epoch BIGINT UNSIGNED NOT NULL, inserts BIGINT UNSIGNED NOT NULL, updates BIGINT UNSIGNED NOT NULL, deletes BIGINT UNSIGNED NOT NULL, schemaops BIGINT UNSIGNED NOT NULL, PRIMARY KEY(epoch)) ENGINE=MYISAM;
 
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above

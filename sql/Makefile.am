@@ -21,15 +21,13 @@ MYSQLBASEdir=		$(prefix)
 MYSQLLIBdir=            $(pkglibdir)
 INCLUDES =		@ZLIB_INCLUDES@ \
 			-I$(top_builddir)/include -I$(top_srcdir)/include \
-			-I$(top_srcdir)/regex -I$(srcdir) \
-                        $(openssl_includes)
+			-I$(top_srcdir)/regex -I$(srcdir) $(openssl_includes)
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
 EXTRA_PROGRAMS =	gen_lex_hash
 bin_PROGRAMS =		mysql_tzinfo_to_sql
-gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
-SUPPORTING_LIBS =			$(top_builddir)/vio/libvio.a \
+SUPPORTING_LIBS =	$(top_builddir)/vio/libvio.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/regex/libregex.a \
@@ -71,6 +69,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			event_data_objects.h event_scheduler.h \
 			sql_partition.h partition_info.h partition_element.h \
 			contributors.h sql_servers.h
+
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
@@ -114,11 +113,11 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_builtin.cc sql_tablespace.cc partition_info.cc \
 			sql_servers.cc
 
-
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
-gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
-mysql_tzinfo_to_sql_SOURCES =   mysql_tzinfo_to_sql.cc
-mysql_tzinfo_to_sql_LDADD =  @MYSQLD_EXTRA_LDFLAGS@ $(LDADD) $(CXXLDFLAGS)
+gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
+
+mysql_tzinfo_to_sql_SOURCES = tztime.cc
+mysql_tzinfo_to_sql_CXXFLAGS= -DTZINFO2SQL
 
 DEFS =			-DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
@@ -128,20 +127,16 @@ DEFS =			-DMYSQL_SERVER \
 			@DEFS@
 
 BUILT_MAINT_SRC =	sql_yacc.cc sql_yacc.h
-BUILT_SOURCES =		$(BUILT_MAINT_SRC) lex_hash.h
+BUILT_SOURCES =		$(BUILT_MAINT_SRC) lex_hash.h link_sources
 EXTRA_DIST =		udf_example.c udf_example.def $(BUILT_MAINT_SRC) \
 			nt_servc.cc nt_servc.h message.mc CMakeLists.txt \
 			udf_example.c udf_example.def
-CLEANFILES =        	lex_hash.h sql_yacc.output
+CLEANFILES =        	lex_hash.h sql_yacc.output link_sources
 DISTCLEANFILES =        $(EXTRA_PROGRAMS)
 MAINTAINERCLEANFILES =  $(BUILT_MAINT_SRC)
 AM_YFLAGS =		-d --verbose
 
-mysql_tzinfo_to_sql.cc:
-	rm -f mysql_tzinfo_to_sql.cc
-	@LN_CP_F@ $(srcdir)/tztime.cc mysql_tzinfo_to_sql.cc
-
-link_sources: mysql_tzinfo_to_sql.cc
+link_sources:
 	rm -f mini_client_errors.c
 	@LN_CP_F@ $(top_srcdir)/libmysql/errmsg.c mini_client_errors.c
 	rm -f pack.c
@@ -152,9 +147,6 @@ link_sources: mysql_tzinfo_to_sql.cc
 	@LN_CP_F@ $(top_srcdir)/sql-common/my_time.c my_time.c
 	rm -f my_user.c
 	@LN_CP_F@ $(top_srcdir)/sql-common/my_user.c my_user.c
-
-mysql_tzinfo_to_sql.o:	$(mysql_tzinfo_to_sql_SOURCES)
-			$(CXXCOMPILE) -c $(INCLUDES) -DTZINFO2SQL $<
 
 # This generates lex_hash.h
 # NOTE Built sources should depend on their sources not the tool

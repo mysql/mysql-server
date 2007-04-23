@@ -1393,4 +1393,10 @@ create table t1 (f1 set('a','a'));
 ERROR HY000: Column 'f1' has duplicated value 'a' in SET
 create table t1 (f1 enum('a','a'));
 ERROR HY000: Column 'f1' has duplicated value 'a' in ENUM
+set @@sql_mode='NO_ZERO_DATE';
+create table t1(a datetime not null);
+select count(*) from t1 where a is null;
+count(*)
+0
+drop table t1;
 End of 5.0 tests
