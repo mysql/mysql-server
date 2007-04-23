@@ -315,7 +315,8 @@ public:
 class Ndb_cond_traverse_context : public Sql_alloc
 {
  public:
-  Ndb_cond_traverse_context(TABLE *tab, void* ndb_tab, Ndb_cond_stack* stack)
+   Ndb_cond_traverse_context(TABLE *tab, const NdbDictionary::Table *ndb_tab,
+			     Ndb_cond_stack* stack)
     : table(tab), ndb_table(ndb_tab), 
     supported(TRUE), stack_ptr(stack), cond_ptr(NULL),
     skip(0), collation(NULL), rewrite_stack(NULL)
@@ -422,7 +423,7 @@ class Ndb_cond_traverse_context : public Sql_alloc
   };
 
   TABLE* table;
-  void* ndb_table;
+  const NdbDictionary::Table *ndb_table;
   bool supported;
   Ndb_cond_stack* stack_ptr;
   Ndb_cond* cond_ptr;
@@ -445,7 +446,7 @@ public:
   ~ha_ndbcluster_cond() 
   { if (m_cond_stack) delete m_cond_stack; }
   const COND *cond_push(const COND *cond, 
-                        TABLE *table, NdbDictionary::Table *ndb_table);
+                        TABLE *table, const NdbDictionary::Table *ndb_table);
   void cond_pop();
   void cond_clear();
   int generate_scan_filter(NdbScanOperation* op);
@@ -457,7 +458,7 @@ public:
                                     byte *buf);
 private:
   bool serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond,
-		      TABLE *table, NdbDictionary::Table *ndb_table);
+		      TABLE *table, const NdbDictionary::Table *ndb_table);
   int build_scan_filter_predicate(Ndb_cond* &cond, 
                                   NdbScanFilter* filter,
                                   bool negated= false);
