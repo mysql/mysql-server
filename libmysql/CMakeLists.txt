@@ -15,6 +15,8 @@
 
 # Need to set USE_TLS, since __declspec(thread) approach to thread local
 # storage does not work properly in DLLs.
+INCLUDE("${PROJECT_SOURCE_DIR}/win/mysql_manifest.cmake")
+
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX -DUSE_TLS")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX -DUSE_TLS")
 
@@ -67,3 +69,7 @@ TARGET_LINK_LIBRARIES(libmysql mysys strings wsock32)
 
 ADD_EXECUTABLE(myTest mytest.c)
 TARGET_LINK_LIBRARIES(myTest libmysql)
+
+IF(EMBED_MANIFESTS)
+  MYSQL_EMBED_MANIFEST("myTest" "asInvoker")
+ENDIF(EMBED_MANIFESTS)
