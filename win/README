@@ -58,7 +58,9 @@ The options right now are
     MYSQL_SERVER_SUFFIX=<suffix>         Server suffix, default none
     COMPILATION_COMMENT=<comment>        Server comment, default "Source distribution"
     MYSQL_TCP_PORT=<port>                Server port, default 3306
-    CYBOZU				 Default character set is UTF8
+    CYBOZU                               Default character set is UTF8
+    EMBED_MANIFESTS                      Embed custom manifests into final exes, otherwise VS
+                                         default will be used.
 
 So the command line could look like:
 
