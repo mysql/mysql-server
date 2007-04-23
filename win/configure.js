@@ -47,6 +47,7 @@ try
             case "WITH_PARTITION_STORAGE_ENGINE":
             case "__NT__":
             case "DISABLE_GRANT_OPTIONS":
+            case "EMBED_MANIFESTS":
                     configfile.WriteLine("SET (" + args.Item(i) + " TRUE)");
                     break;
             case "MYSQL_SERVER_SUFFIX":
