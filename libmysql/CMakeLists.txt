@@ -12,6 +12,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+INCLUDE("${PROJECT_SOURCE_DIR}/win/mysql_manifest.cmake")
 
 # Need to set USE_TLS, since __declspec(thread) approach to thread local
 # storage does not work properly in DLLs.
@@ -67,3 +68,7 @@ TARGET_LINK_LIBRARIES(libmysql mysys strings wsock32)
 
 ADD_EXECUTABLE(myTest mytest.c)
 TARGET_LINK_LIBRARIES(myTest libmysql)
+
+IF(EMBED_MANIFESTS)
+  MYSQL_EMBED_MANIFEST("myTest" "asInvoker")
+ENDIF(EMBED_MANIFESTS)
