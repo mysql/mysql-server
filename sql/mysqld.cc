@@ -3177,6 +3177,7 @@ static void init_ssl()
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
     {
+      sql_print_warning("Failed to setup SSL");
       opt_use_ssl = 0;
       have_ssl= SHOW_OPTION_DISABLED;
     }

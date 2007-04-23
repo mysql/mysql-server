@@ -352,7 +352,7 @@ mkdir -p $DESTDIR/scripts
 for i in `cd scripts && ls`; do \
   if echo $i | grep -q '\.sh'; then \
     cp scripts/$i $DESTDIR/scripts/`echo $i | sed -e 's/\.sh$//'`; \
-  elif [ $i = Makefile.am -o $i = Makefile.in -o -e scripts/$i.sh ] ; then \
+  elif [ -d scripts/$i -o $i = Makefile.am -o $i = Makefile.in -o -e scripts/$i.sh ] ; then \
     : ; \
   else \
     cp scripts/$i $DESTDIR/scripts/$i; \

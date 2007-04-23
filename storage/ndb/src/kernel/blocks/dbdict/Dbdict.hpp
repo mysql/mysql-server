@@ -2560,7 +2560,9 @@ private:
   void restartCreateTab_dihComplete(Signal* signal, Uint32 callback, Uint32);
   void restartCreateTab_activateComplete(Signal*, Uint32 callback, Uint32);
 
-  void restartDropTab(Signal* signal, Uint32 tableId);
+  void restartDropTab(Signal* signal, Uint32 tableId,
+                      const SchemaFile::TableEntry *, 
+                      const SchemaFile::TableEntry *);
   void restartDropTab_complete(Signal*, Uint32 callback, Uint32);
   
   void restart_checkSchemaStatusComplete(Signal*, Uint32 callback, Uint32);

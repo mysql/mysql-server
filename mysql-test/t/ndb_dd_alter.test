@@ -93,6 +93,8 @@ SHOW CREATE TABLE test.t1;
 SELECT * FROM test.t1 ORDER BY a1;
 ALTER TABLE test.t1 TABLESPACE ts STORAGE DISK ENGINE=NDB;
 SHOW CREATE TABLE test.t1;
+# Check column storage
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
 SELECT * FROM test.t1 ORDER BY a1;
 DROP TABLE test.t1;
 
@@ -125,6 +127,8 @@ SHOW CREATE TABLE test.t1;
 SELECT * FROM test.t1 ORDER BY a1;
 ALTER TABLE test.t1 TABLESPACE ts STORAGE DISK ENGINE=NDB;
 SHOW CREATE TABLE test.t1;
+# Check column storage
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
 SELECT * FROM test.t1 ORDER BY a1;
 
 #### Try to ALTER from Cluster Disk Data to InnoDB
@@ -133,10 +137,12 @@ ALTER TABLE test.t1 ENGINE=InnoDB;
 SHOW CREATE TABLE test.t1;
 SELECT * FROM test.t1 ORDER BY a1;
 ALTER TABLE test.t1 TABLESPACE ts STORAGE DISK ENGINE=NDB;
+SHOW CREATE TABLE test.t1;
+# Check column storage
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
 
 #### Try to ALTER from Cluster Disk Data to MyISAM
 
-SHOW CREATE TABLE test.t1;
 ALTER TABLE test.t1 ENGINE=MyISAM;
 SHOW CREATE TABLE test.t1;
 DROP TABLE test.t1;
@@ -188,6 +194,9 @@ enable_query_log;
 SELECT a1,a2,a3,hex(a4), a5,a6,a7,a8 FROM test.t1 ORDER BY a1;
 
 ALTER TABLE test.t1 ADD a9 DATETIME, ADD a10 TINYTEXT, ADD a11 MEDIUMTEXT, ADD a12 LONGTEXT, ADD a13 TEXT, ADD a14 BLOB;
+SHOW CREATE TABLE test.t1;
+# Check column storage
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
 
 disable_query_log;
 set @d2 = 'dd2';
@@ -209,7 +218,6 @@ while ($1)
 enable_query_log;
 
 SELECT a1, a2,a3,hex(a4),a5,a6,a7,a8,a9,a10,a11,a12,a13 FROM test.t1 ORDER BY a1;
-SHOW CREATE TABLE test.t1;
 
 #### Try to ALTER DD Tables and add Indexes
 
@@ -217,13 +225,22 @@ ALTER TABLE test.t1 ADD INDEX a2_i (a2), ADD INDEX a3_i (a3);
 
 SHOW CREATE TABLE test.t1;
 
+# Check column storage
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+
 ALTER TABLE test.t1 DROP INDEX a2_i;
 
 SHOW CREATE TABLE test.t1;
 
+# Check column storage
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+
 TRUNCATE TABLE test.t1;
 
 SHOW CREATE TABLE test.t1;
+
+# Check column storage
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
 
 #### Try to ALTER DD Tables and drop columns
 
@@ -240,6 +257,9 @@ ALTER TABLE test.t1 DROP a6;
 ALTER TABLE test.t1 DROP PRIMARY KEY;
 
 SHOW CREATE TABLE test.t1;
+
+# Check column storage
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
 
 DROP TABLE test.t1;
 
