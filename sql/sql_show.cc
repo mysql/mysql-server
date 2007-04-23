@@ -715,9 +715,9 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   }
 #endif
   if (!my_strcasecmp(system_charset_info, dbname,
-                     information_schema_name.str))
+                     INFORMATION_SCHEMA_NAME.str))
   {
-    dbname= information_schema_name.str;
+    dbname= INFORMATION_SCHEMA_NAME.str;
     create.default_table_charset= system_charset_info;
   }
   else
@@ -1800,7 +1800,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       else
         table->field[4]->store(command_name[tmp->command].str,
                                command_name[tmp->command].length, cs);
-      /* TIME */
+      /* MYSQL_TIME */
       table->field[5]->store((uint32)(tmp->start_time ?
                                       now - tmp->start_time : 0), TRUE);
       /* STATE */
@@ -2197,7 +2197,7 @@ LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
 
 
 /* INFORMATION_SCHEMA name */
-LEX_STRING information_schema_name= { C_STRING_WITH_LEN("information_schema")};
+LEX_STRING INFORMATION_SCHEMA_NAME= { C_STRING_WITH_LEN("information_schema")};
 
 /* This is only used internally, but we need it here as a forward reference */
 extern ST_SCHEMA_TABLE schema_tables[];
@@ -2413,11 +2413,11 @@ int make_db_list(THD *thd, List<char> *files,
     */
     if (!idx_field_vals->db_value ||
         !wild_case_compare(system_charset_info, 
-                           information_schema_name.str,
+                           INFORMATION_SCHEMA_NAME.str,
                            idx_field_vals->db_value))
     {
       *with_i_schema= 1;
-      if (files->push_back(thd->strdup(information_schema_name.str)))
+      if (files->push_back(thd->strdup(INFORMATION_SCHEMA_NAME.str)))
         return 1;
     }
     return (find_files(thd, files, NullS, mysql_data_home,
@@ -2431,11 +2431,11 @@ int make_db_list(THD *thd, List<char> *files,
   */
   if (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND)
   {
-    if (!my_strcasecmp(system_charset_info, information_schema_name.str,
+    if (!my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str,
                        idx_field_vals->db_value))
     {
       *with_i_schema= 1;
-      return files->push_back(thd->strdup(information_schema_name.str));
+      return files->push_back(thd->strdup(INFORMATION_SCHEMA_NAME.str));
     }
     return files->push_back(thd->strdup(idx_field_vals->db_value));
   }
@@ -2444,7 +2444,7 @@ int make_db_list(THD *thd, List<char> *files,
     Create list of existing databases. It is used in case
     of select from information schema table
   */
-  if (files->push_back(thd->strdup(information_schema_name.str)))
+  if (files->push_back(thd->strdup(INFORMATION_SCHEMA_NAME.str)))
     return 1;
   *with_i_schema= 1;
   return (find_files(thd, files, NullS,
@@ -2564,7 +2564,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   */
   thd->reset_n_backup_open_tables_state(&open_tables_state_backup);
 
-  if (lsel)
+  if (lsel && lsel->table_list.first)
   {
     TABLE_LIST *show_table_list= (TABLE_LIST*) lsel->table_list.first;
     bool res;
@@ -2733,18 +2733,32 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             res= open_normal_and_derived_tables(thd, show_table_list,
                                                 MYSQL_LOCK_IGNORE_FLUSH);
             lex->sql_command= save_sql_command;
-            /*
-              We should use show_table_list->alias instead of 
-              show_table_list->table_name because table_name
-              could be changed during opening of I_S tables. It's safe
-              to use alias because alias contains original table name 
-              in this case.
+            /* 
+              They can drop table after table names list creation and
+              before table opening. We open non existing table and 
+              get ER_NO_SUCH_TABLE error. In this case we do not store
+              the record into I_S table and clear error.
             */
-            res= schema_table->process_table(thd, show_table_list, table,
-                                             res, orig_base_name,
-                                             show_table_list->alias);
-            close_tables_for_reopen(thd, &show_table_list);
-            DBUG_ASSERT(!lex->query_tables_own_last);
+            if (thd->net.last_errno == ER_NO_SUCH_TABLE)
+            {
+              res= 0;
+              thd->clear_error();
+            }
+            else
+            {
+              /*
+                We should use show_table_list->alias instead of 
+                show_table_list->table_name because table_name
+                could be changed during opening of I_S tables. It's safe
+                to use alias because alias contains original table name 
+                in this case.
+              */
+              res= schema_table->process_table(thd, show_table_list, table,
+                                               res, orig_base_name,
+                                               show_table_list->alias);
+              close_tables_for_reopen(thd, &show_table_list);
+              DBUG_ASSERT(!lex->query_tables_own_last);
+            }
             if (res)
               goto err;
           }
@@ -2837,7 +2851,7 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
 				    const char *file_name)
 {
   const char *tmp_buff;
-  TIME time;
+  MYSQL_TIME time;
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_tables_record");
 
@@ -3396,7 +3410,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
 {
   String tmp_string;
   String sp_db, sp_name, definer;
-  TIME time;
+  MYSQL_TIME time;
   LEX *lex= thd->lex;
   CHARSET_INFO *cs= system_charset_info;
   get_field(thd->mem_root, proc_table->field[0], &sp_db);
@@ -3965,7 +3979,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
   TABLE* table= schema_table;
   CHARSET_INFO *cs= system_charset_info;
   PARTITION_INFO stat_info;
-  TIME time;
+  MYSQL_TIME time;
   file->get_dynamic_partition_info(&stat_info, part_id);
   table->field[12]->store((longlong) stat_info.records, TRUE);
   table->field[13]->store((longlong) stat_info.mean_rec_length, TRUE);
@@ -4303,7 +4317,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 {
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   CHARSET_INFO *scs= system_charset_info;
-  TIME time;
+  MYSQL_TIME time;
   Event_timed et;    
   DBUG_ENTER("copy_event_to_schema_table");
 
@@ -5052,8 +5066,8 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
      We have to make non const db_name & table_name
      because of lower_case_table_names
   */
-  make_lex_string(thd, &db, information_schema_name.str,
-                  information_schema_name.length, 0);
+  make_lex_string(thd, &db, INFORMATION_SCHEMA_NAME.str,
+                  INFORMATION_SCHEMA_NAME.length, 0);
   make_lex_string(thd, &table, schema_table->table_name,
                   strlen(schema_table->table_name), 0);
   if (schema_table->old_format(thd, schema_table) ||   /* Handle old syntax */

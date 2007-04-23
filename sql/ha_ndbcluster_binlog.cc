@@ -602,10 +602,30 @@ static int ndbcluster_binlog_end(THD *thd)
   ndbcluster_binlog_inited= 0;
 
 #ifdef HAVE_NDB_BINLOG
+  if (ndb_util_thread_running > 0)
+  {
+    /*
+      Wait for util thread to die (as this uses the injector mutex)
+      There is a very small change that ndb_util_thread dies and the
+      following mutex is freed before it's accessed. This shouldn't
+      however be a likely case as the ndbcluster_binlog_end is supposed to
+      be called before ndb_cluster_end().
+    */
+    pthread_mutex_lock(&LOCK_ndb_util_thread);
+    /* Ensure mutex are not freed if ndb_cluster_end is running at same time */
+    ndb_util_thread_running++;
+    ndbcluster_terminating= 1;
+    pthread_cond_signal(&COND_ndb_util_thread);
+    while (ndb_util_thread_running > 1)
+      pthread_cond_wait(&COND_ndb_util_ready, &LOCK_ndb_util_thread);
+    ndb_util_thread_running--;
+    pthread_mutex_unlock(&LOCK_ndb_util_thread);
+  }
+
   /* wait for injector thread to finish */
   ndbcluster_binlog_terminating= 1;
-  pthread_cond_signal(&injector_cond);
   pthread_mutex_lock(&injector_mutex);
+  pthread_cond_signal(&injector_cond);
   while (ndb_binlog_thread_running > 0)
     pthread_cond_wait(&injector_cond, &injector_mutex);
   pthread_mutex_unlock(&injector_mutex);
@@ -892,6 +912,7 @@ struct Cluster_schema
   uint32 id;
   uint32 version;
   uint32 type;
+  uint32 any_value;
 };
 
 /*
@@ -1412,6 +1433,12 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
       /* type */
       r|= op->setValue(SCHEMA_TYPE_I, log_type);
       DBUG_ASSERT(r == 0);
+      /* any value */
+      if (!(thd->options & OPTION_BIN_LOG))
+        r|= op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
+      else
+        r|= op->setAnyValue(thd->server_id);
+      DBUG_ASSERT(r == 0);
       if (log_db != new_db && new_db && new_table_name)
       {
         log_db= new_db;
@@ -1757,6 +1784,31 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
   DBUG_RETURN(0);
 }
 
+static void ndb_binlog_query(THD *thd, Cluster_schema *schema)
+{
+  if (schema->any_value & NDB_ANYVALUE_RESERVED)
+  {
+    if (schema->any_value != NDB_ANYVALUE_FOR_NOLOGGING)
+      sql_print_warning("NDB: unknown value for binlog signalling 0x%X, "
+                        "query not logged",
+                        schema->any_value);
+    return;
+  }
+  uint32 thd_server_id_save= thd->server_id;
+  DBUG_ASSERT(sizeof(thd_server_id_save) == sizeof(thd->server_id));
+  char *thd_db_save= thd->db;
+  if (schema->any_value == 0)
+    thd->server_id= ::server_id;
+  else
+    thd->server_id= schema->any_value;
+  thd->db= schema->db;
+  thd->binlog_query(THD::STMT_QUERY_TYPE, schema->query,
+                    schema->query_length, FALSE,
+                    schema->name[0] == 0 || thd->db[0] == 0);
+  thd->server_id= thd_server_id_save;
+  thd->db= thd_db_save;
+}
+
 static int
 ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
                                       NdbEventOperation *pOp,
@@ -1781,7 +1833,10 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
       MY_BITMAP slock;
       bitmap_init(&slock, schema->slock, 8*SCHEMA_SLOCK_SIZE, FALSE);
       uint node_id= g_ndb_cluster_connection->node_id();
-      ndbcluster_get_schema(tmp_share, schema);
+      {
+        ndbcluster_get_schema(tmp_share, schema);
+        schema->any_value= pOp->getAnyValue();
+      }
       enum SCHEMA_OP_TYPE schema_type= (enum SCHEMA_OP_TYPE)schema->type;
       DBUG_PRINT("info",
                  ("%s.%s: log query_length: %d  query: '%s'  type: %d",
@@ -1905,7 +1960,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           run_query(thd, schema->query,
                     schema->query + schema->query_length,
                     TRUE,    /* print error */
-                    FALSE);  /* binlog the query */
+                    TRUE);   /* don't binlog the query */
+          log_query= 1;
           break;
         case SOT_TABLESPACE:
         case SOT_LOGFILE_GROUP:
@@ -1915,14 +1971,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           abort();
         }
         if (log_query && ndb_binlog_running)
-        {
-          char *thd_db_save= thd->db;
-          thd->db= schema->db;
-          thd->binlog_query(THD::STMT_QUERY_TYPE, schema->query,
-                            schema->query_length, FALSE,
-                            schema->name[0] == 0 || thd->db[0] == 0);
-          thd->db= thd_db_save;
-        }
+          ndb_binlog_query(thd, schema);
         /* signal that schema operation has been handled */
         DBUG_DUMP("slock", (char*)schema->slock, schema->slock_length);
         if (bitmap_is_set(&slock, node_id))
@@ -2099,10 +2148,10 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         log_query= 1;
         break;
       case SOT_DROP_TABLE:
+        log_query= 1;
         // invalidation already handled by binlog thread
         if (share && share->op)
         {
-          log_query= 1;
           break;
         }
         // fall through
@@ -2180,14 +2229,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
       }
     }
     if (ndb_binlog_running && log_query)
-    {
-      char *thd_db_save= thd->db;
-      thd->db= schema->db;
-      thd->binlog_query(THD::STMT_QUERY_TYPE, schema->query,
-                        schema->query_length, FALSE,
-                        schema->name[0] == 0);
-      thd->db= thd_db_save;
-    }
+      ndb_binlog_query(thd, schema);
   }
   while ((schema= post_epoch_unlock_list->pop()))
   {
@@ -2342,6 +2384,18 @@ static enum Binlog_thread_state do_ndbcluster_binlog_close_connection= BCCC_rest
 int ndbcluster_binlog_start()
 {
   DBUG_ENTER("ndbcluster_binlog_start");
+
+  if (::server_id == 0)
+  {
+    sql_print_warning("NDB: server id set to zero will cause any other mysqld "
+                      "with bin log to log with wrong server id");
+  }
+  else if (::server_id & 0x1 << 31)
+  {
+    sql_print_error("NDB: server id's with high bit set is reserved for internal "
+                    "purposes");
+    DBUG_RETURN(-1);
+  }
 
   pthread_mutex_init(&injector_mutex, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&injector_cond, NULL);
@@ -3212,9 +3266,17 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
   if (share == ndb_apply_status_share)
     return 0;
 
-  uint originating_server_id= pOp->getAnyValue();
+  uint32 originating_server_id= pOp->getAnyValue();
   if (originating_server_id == 0)
     originating_server_id= ::server_id;
+  else if (originating_server_id & NDB_ANYVALUE_RESERVED)
+  {
+    if (originating_server_id != NDB_ANYVALUE_FOR_NOLOGGING)
+      sql_print_warning("NDB: unknown value for binlog signalling 0x%X, "
+                        "event not logged",
+                        originating_server_id);
+    return 0;
+  }
 
   TABLE *table= share->table;
   DBUG_ASSERT(trans.good());

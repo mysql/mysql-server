@@ -174,4 +174,6 @@ ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'cyrils_superlonghostnam
 1
 ERROR at line 1: DELIMITER cannot contain a backslash character
 ERROR at line 1: DELIMITER cannot contain a backslash character
+1
+1
 End of 5.0 tests

@@ -23,6 +23,14 @@
 #include <errmsg.h>
 #include <my_getopt.h>
 
+#ifndef WEXITSTATUS
+# ifdef __WIN__
+#  define WEXITSTATUS(stat_val) (stat_val)
+# else
+#  define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
+# endif
+#endif
+
 enum options_client
 {
   OPT_CHARSETS_DIR=256, OPT_DEFAULT_CHARSET,
@@ -67,5 +75,6 @@ enum options_client
   OPT_SLAP_POST_QUERY,
   OPT_MYSQL_REPLACE_INTO, OPT_BASE64_OUTPUT, OPT_SERVER_ID,
   OPT_FIX_TABLE_NAMES, OPT_FIX_DB_NAMES, OPT_SSL_VERIFY_SERVER_CERT,
-  OPT_DEBUG_INFO, OPT_COLUMN_TYPES, OPT_WRITE_BINLOG
+  OPT_DEBUG_INFO, OPT_COLUMN_TYPES, OPT_ERROR_LOG_FILE, OPT_WRITE_BINLOG,
+  OPT_MAX_CLIENT_OPTION
 };

@@ -49,9 +49,9 @@ if [ "$1" = "purge" -a ! \( -x /usr/sbin/mysqld -o -L /usr/sbin/mysqld \) ]; the
   rm -f /var/log/mysql.{log,err}{,.0,.[1234567].gz}
   rm -rf /var/log/mysql
 
-  db_input high mysql-server-@MYVER@/postrm_remove_databases || true
+  db_input high mysql-server-@MYSQL_BRANDED_BASE_VERSION@/postrm_remove_databases || true
   db_go
-  db_get mysql-server-@MYVER@/postrm_remove_databases || true
+  db_get mysql-server-@MYSQL_BRANDED_BASE_VERSION@/postrm_remove_databases || true
   if [ "$RET" = "true" ]; then
     # never remove the debian.cnf when the databases are still existing
     # else we ran into big trouble on the next install!
@@ -87,6 +87,6 @@ if [ "$1" = "purge" ] ; then
 fi
 # (normally) End automatically added section
 
-# no DEBHELPER here, "update-rc.d remove" fails if mysql-server-@MYVER@ is installed
+# no DEBHELPER here, "update-rc.d remove" fails if mysql-server-@MYSQL_BRANDED_BASE_VERSION@ is installed
 
 exit 0

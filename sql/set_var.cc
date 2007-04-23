@@ -51,6 +51,7 @@
 #include "mysql_priv.h"
 #include <mysql.h>
 #include "slave.h"
+#include "rpl_mi.h"
 #include <my_getopt.h>
 #include <thr_alarm.h>
 #include <myisam.h>
@@ -3038,7 +3039,10 @@ bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
 
 bool sys_var_thd_lc_time_names::update(THD *thd, set_var *var)
 {
-  thd->variables.lc_time_names= var->save_result.locale_value;
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.lc_time_names= var->save_result.locale_value;
+  else
+    thd->variables.lc_time_names= var->save_result.locale_value;
   return 0;
 }
 
@@ -3046,13 +3050,18 @@ bool sys_var_thd_lc_time_names::update(THD *thd, set_var *var)
 byte *sys_var_thd_lc_time_names::value_ptr(THD *thd, enum_var_type type,
 					  LEX_STRING *base)
 {
-  return (byte *)(thd->variables.lc_time_names->name);
+  return type == OPT_GLOBAL ?
+                 (byte *) global_system_variables.lc_time_names->name :
+                 (byte *) thd->variables.lc_time_names->name;
 }
 
 
 void sys_var_thd_lc_time_names::set_default(THD *thd, enum_var_type type)
 {
-  thd->variables.lc_time_names = &my_locale_en_US;
+  if (type == OPT_GLOBAL)
+    global_system_variables.lc_time_names= my_default_lc_time_names;
+  else
+    thd->variables.lc_time_names= global_system_variables.lc_time_names;
 }
 
 /*
@@ -3086,16 +3095,15 @@ static bool set_option_autocommit(THD *thd, set_var *var)
     if ((org_options & OPTION_NOT_AUTOCOMMIT))
     {
       /* We changed to auto_commit mode */
-      thd->options&= ~(ulonglong) (OPTION_BEGIN |
-                                   OPTION_STATUS_NO_TRANS_UPDATE |
-                                   OPTION_KEEP_LOG);
+      thd->options&= ~(ulonglong) (OPTION_BEGIN | OPTION_KEEP_LOG);
+      thd->no_trans_update.all= FALSE;
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
       if (ha_commit(thd))
 	return 1;
     }
     else
     {
-      thd->options&= ~(ulonglong) (OPTION_STATUS_NO_TRANS_UPDATE);
+      thd->no_trans_update.all= FALSE;
       thd->server_status&= ~SERVER_STATUS_AUTOCOMMIT;
     }
   }

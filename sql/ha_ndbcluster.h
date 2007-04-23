@@ -624,7 +624,8 @@ class Thd_ndb
   uint lock_count;
   NdbTransaction *all;
   NdbTransaction *stmt;
-  int error;
+  bool m_error;
+  bool m_slow_path;
   uint32 options;
   uint32 trans_options;
   List<NDB_SHARE> changed_tables;
@@ -970,6 +971,7 @@ private:
   ha_rows m_ops_pending;
   bool m_skip_auto_increment;
   bool m_blobs_pending;
+  bool m_slow_path;
   my_ptrdiff_t m_blobs_offset;
   // memory for blobs in one tuple
   char *m_blobs_buffer;
@@ -1005,4 +1007,6 @@ void ndbcluster_print_error(int error, const NdbOperation *error_op);
 
 static const char ndbcluster_hton_name[]= "ndbcluster";
 static const int ndbcluster_hton_name_length=sizeof(ndbcluster_hton_name)-1;
-
+extern int ndbcluster_terminating;
+extern int ndb_util_thread_running;
+extern pthread_cond_t COND_ndb_util_ready;

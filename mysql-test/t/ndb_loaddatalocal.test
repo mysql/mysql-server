@@ -25,7 +25,7 @@ create table t1(a int) engine=ndb;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval load data local infile '$MYSQLTEST_VARDIR/master-data/ndb_loaddatalocal.select_outfile' into table t1;
 select count(*) from t1;
-system rm $MYSQLTEST_VARDIR/master-data/ndb_loaddatalocal.select_outfile ;
+--remove_file $MYSQLTEST_VARDIR/master-data/ndb_loaddatalocal.select_outfile
 drop table t1;
 
 create table t1(a int) engine=myisam;
@@ -37,7 +37,7 @@ drop table t1;
 create table t1(a int primary key) engine=ndb;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval load data local infile '$MYSQLTEST_VARDIR/master-data/ndb_loaddatalocal.select_outfile' into table t1;
-system rm $MYSQLTEST_VARDIR/master-data/ndb_loaddatalocal.select_outfile;
+--remove_file $MYSQLTEST_VARDIR/master-data/ndb_loaddatalocal.select_outfile
 select * from t1 order by a;
 drop table t1;
 
@@ -50,7 +50,7 @@ drop table t1;
 create table t1(a int primary key) engine=ndb;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval load data local infile '$MYSQLTEST_VARDIR/master-data/ndb_loaddatalocal.select_outfile' into table t1;
-system rm $MYSQLTEST_VARDIR/master-data/ndb_loaddatalocal.select_outfile;
+--remove_file $MYSQLTEST_VARDIR/master-data/ndb_loaddatalocal.select_outfile
 select * from t1 order by a;
 drop table t1;
 
@@ -63,7 +63,7 @@ drop table t1;
 create table t1(a int primary key) engine=ndb;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval load data local infile '$MYSQLTEST_VARDIR/master-data/ndb_loaddatalocal.select_outfile' into table t1;
-system rm $MYSQLTEST_VARDIR/master-data/ndb_loaddatalocal.select_outfile;
+--remove_file $MYSQLTEST_VARDIR/master-data/ndb_loaddatalocal.select_outfile
 select * from t1 order by a;
 drop table t1;
 

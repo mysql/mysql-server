@@ -65,15 +65,15 @@ CREATE TABLE IF NOT EXISTS proc ( db char(64) collate utf8_bin DEFAULT '' NOT NU
 CREATE TABLE IF NOT EXISTS procs_priv ( Host char(60) binary DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Routine_name char(64) binary DEFAULT '' NOT NULL, Routine_type enum('FUNCTION','PROCEDURE') NOT NULL, Grantor char(77) DEFAULT '' NOT NULL, Proc_priv set('Execute','Alter Routine','Grant') COLLATE utf8_general_ci DEFAULT '' NOT NULL, Timestamp timestamp(14), PRIMARY KEY (Host,Db,User,Routine_name,Routine_type), KEY Grantor (Grantor) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin   comment='Procedure privileges';
 
 
-CREATE PROCEDURE create_general_log_table() BEGIN DECLARE is_csv_enabled int DEFAULT 0; SELECT @@have_csv = 'YES' INTO is_csv_enabled; IF (is_csv_enabled) THEN CREATE TABLE IF NOT EXISTS general_log (event_time TIMESTAMP NOT NULL, user_host MEDIUMTEXT, thread_id INTEGER, server_id INTEGER, command_type VARCHAR(64), argument MEDIUMTEXT) engine=CSV CHARACTER SET utf8 comment='General log'; END IF; END;
-CALL create_general_log_table();
-DROP PROCEDURE create_general_log_table;
+delimiter ;;
+CREATE PROCEDURE create_general_log_table() BEGIN DECLARE is_csv_enabled int DEFAULT 0; SELECT @@have_csv = 'YES' INTO is_csv_enabled; IF (is_csv_enabled) THEN CREATE TABLE IF NOT EXISTS general_log (event_time TIMESTAMP NOT NULL, user_host MEDIUMTEXT, thread_id INTEGER, server_id INTEGER, command_type VARCHAR(64), argument MEDIUMTEXT) engine=CSV CHARACTER SET utf8 comment='General log'; END IF; END;;
+CALL create_general_log_table();;
+DROP PROCEDURE create_general_log_table;;
 
-
-CREATE PROCEDURE create_slow_log_table() BEGIN DECLARE is_csv_enabled int DEFAULT 0; SELECT @@have_csv = 'YES' INTO is_csv_enabled; IF (is_csv_enabled) THEN CREATE TABLE IF NOT EXISTS slow_log (start_time TIMESTAMP NOT NULL, user_host MEDIUMTEXT NOT NULL, query_time TIME NOT NULL, lock_time TIME NOT NULL, rows_sent INTEGER NOT NULL, rows_examined INTEGER NOT NULL, db VARCHAR(512), last_insert_id INTEGER, insert_id INTEGER, server_id INTEGER, sql_text MEDIUMTEXT NOT NULL) engine=CSV CHARACTER SET utf8 comment='Slow log'; END IF; END;
-CALL create_slow_log_table();
-DROP PROCEDURE create_slow_log_table;
-
+CREATE PROCEDURE create_slow_log_table() BEGIN DECLARE is_csv_enabled int DEFAULT 0; SELECT @@have_csv = 'YES' INTO is_csv_enabled; IF (is_csv_enabled) THEN CREATE TABLE IF NOT EXISTS slow_log (start_time TIMESTAMP NOT NULL, user_host MEDIUMTEXT NOT NULL, query_time TIME NOT NULL, lock_time TIME NOT NULL, rows_sent INTEGER NOT NULL, rows_examined INTEGER NOT NULL, db VARCHAR(512), last_insert_id INTEGER, insert_id INTEGER, server_id INTEGER, sql_text MEDIUMTEXT NOT NULL) engine=CSV CHARACTER SET utf8 comment='Slow log'; END IF; END;;
+CALL create_slow_log_table();;
+DROP PROCEDURE create_slow_log_table;;
+delimiter ;
 
 CREATE TABLE IF NOT EXISTS event ( db char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '', name char(64) CHARACTER SET utf8 NOT NULL default '', body longblob NOT NULL, definer char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '', execute_at DATETIME default NULL, interval_value int(11) default NULL, interval_field ENUM('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND') default NULL, created TIMESTAMP NOT NULL, modified TIMESTAMP NOT NULL, last_executed DATETIME default NULL, starts DATETIME default NULL, ends DATETIME default NULL, status ENUM('ENABLED','DISABLED','SLAVESIDE_DISABLED') NOT NULL default 'ENABLED', on_completion ENUM('DROP','PRESERVE') NOT NULL default 'DROP', sql_mode  set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE') DEFAULT '' NOT NULL, comment char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '', originator int(10) NOT NULL, time_zone char(64) CHARACTER SET latin1 NOT NULL DEFAULT 'SYSTEM', PRIMARY KEY (db, name) ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';
 

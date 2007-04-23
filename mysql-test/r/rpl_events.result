@@ -34,7 +34,6 @@ id	c	ts
 affected rows: 2
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'justonce';
 db	name	status	originator
-test	justonce	SLAVESIDE_DISABLED	1
 DROP EVENT IF EXISTS test.slave_once;
 CREATE EVENT test.slave_once ON SCHEDULE EVERY 5 MINUTE DO 
 INSERT INTO t1(c) VALUES ('from slave_once');
@@ -111,7 +110,6 @@ id	c	ts
 affected rows: 2
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'justonce';
 db	name	status	originator
-test	justonce	SLAVESIDE_DISABLED	1
 DROP EVENT IF EXISTS test.slave_once;
 CREATE EVENT test.slave_once ON SCHEDULE EVERY 5 MINUTE DO 
 INSERT INTO t1(c) VALUES ('from slave_once');

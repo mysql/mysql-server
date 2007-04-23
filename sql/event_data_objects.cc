@@ -23,14 +23,6 @@
 
 #define EVEX_MAX_INTERVAL_VALUE 1000000000L
 
-static bool
-event_change_security_context(THD *thd, LEX_STRING user, LEX_STRING host,
-                              LEX_STRING db, Security_context *backup);
-
-static void
-event_restore_security_context(THD *thd, Security_context *backup);
-
-
 /*
   Initiliazes dbname and name of an Event_queue_element_for_exec
   object
@@ -286,7 +278,7 @@ int
 Event_parse_data::init_execute_at(THD *thd)
 {
   my_bool not_used;
-  TIME ltime;
+  MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
   DBUG_ENTER("Event_parse_data::init_execute_at");
@@ -455,7 +447,7 @@ int
 Event_parse_data::init_starts(THD *thd)
 {
   my_bool not_used;
-  TIME ltime;
+  MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
   DBUG_ENTER("Event_parse_data::init_starts");
@@ -509,7 +501,7 @@ int
 Event_parse_data::init_ends(THD *thd)
 {
   my_bool not_used;
-  TIME ltime;
+  MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
   DBUG_ENTER("Event_parse_data::init_ends");
@@ -816,26 +808,9 @@ Event_timed::~Event_timed()
 */
 
 Event_job_data::Event_job_data()
-  :sphead(NULL), sql_mode(0)
+  :sql_mode(0)
 {
 }
-
-
-/*
-  Destructor
-
-  SYNOPSIS
-    Event_timed::~Event_timed()
-*/
-
-Event_job_data::~Event_job_data()
-{
-  DBUG_ENTER("Event_job_data::~Event_job_data");
-  delete sphead;
-  sphead= NULL;
-  DBUG_VOID_RETURN;
-}
-
 
 /*
   Init all member variables
@@ -941,7 +916,7 @@ int
 Event_queue_element::load_from_row(THD *thd, TABLE *table)
 {
   char *ptr;
-  TIME time;
+  MYSQL_TIME time;
   LEX_STRING tz_name;
 
   DBUG_ENTER("Event_queue_element::load_from_row");
@@ -1136,7 +1111,7 @@ error:
 */
 static
 my_time_t
-add_interval(TIME *ltime, const Time_zone *time_zone,
+add_interval(MYSQL_TIME *ltime, const Time_zone *time_zone,
              interval_type scale, INTERVAL interval)
 {
   if (date_add_interval(ltime, scale, interval))
@@ -1229,8 +1204,8 @@ bool get_next_time(const Time_zone *time_zone, my_time_t *next,
   }
   DBUG_PRINT("info", ("seconds: %ld  months: %ld", (long) seconds, (long) months));
 
-  TIME local_start;
-  TIME local_now;
+  MYSQL_TIME local_start;
+  MYSQL_TIME local_now;
 
   /* Convert times from UTC to local. */
   {
@@ -1473,7 +1448,7 @@ Event_queue_element::compute_next_execution_time()
   {
     /*
       Both starts and m_ends are set and time_now is between them (incl.)
-      If last_executed is set then increase with m_expression. The new TIME is
+      If last_executed is set then increase with m_expression. The new MYSQL_TIME is
       after m_ends set execute_at to 0. And check for on_completion
       If not set then schedule for now.
     */
@@ -1615,7 +1590,7 @@ err:
 
 
 /*
-  Set the internal last_executed TIME struct to now. NOW is the
+  Set the internal last_executed MYSQL_TIME struct to now. NOW is the
   time according to thd->query_start(), so the THD's clock.
 
   SYNOPSIS
@@ -1686,7 +1661,7 @@ append_datetime(String *buf, Time_zone *time_zone, my_time_t secs,
     Pass the buffer and the second param tells fills the buffer and
     returns the number of chars to copy.
   */
-  TIME time;
+  MYSQL_TIME time;
   time_zone->gmt_sec_to_TIME(&time, secs);
   buf->append(dtime_buff, my_datetime_to_str(&time, dtime_buff));
   buf->append(STRING_WITH_LEN("'"));
@@ -1769,234 +1744,242 @@ Event_timed::get_create_event(THD *thd, String *buf)
 }
 
 
-/*
-  Get SHOW CREATE EVENT as string
-
-  SYNOPSIS
-    Event_job_data::get_create_event(THD *thd, String *buf)
-      thd    Thread
-      buf    String*, should be already allocated. CREATE EVENT goes inside.
-
-  RETURN VALUE
-    0                       OK
-    EVEX_MICROSECOND_UNSUP  Error (for now if mysql.event has been
-                            tampered and MICROSECONDS interval or
-                            derivative has been put there.
+/**
+  Get an artificial stored procedure to parse as an event definition.
 */
 
-int
-Event_job_data::get_fake_create_event(String *buf)
+bool
+Event_job_data::construct_sp_sql(THD *thd, String *sp_sql)
 {
-  DBUG_ENTER("Event_job_data::get_create_event");
-  /* FIXME: "EVERY 3337 HOUR" is asking for trouble. */
-  buf->append(STRING_WITH_LEN("CREATE EVENT anonymous ON SCHEDULE "
-                              "EVERY 3337 HOUR DO "));
-  buf->append(body.str, body.length);
+  LEX_STRING buffer;
+  const uint STATIC_SQL_LENGTH= 44;
 
-  DBUG_RETURN(0);
+  DBUG_ENTER("Event_job_data::construct_sp_sql");
+
+  /*
+    Allocate a large enough buffer on the thread execution memory
+    root to avoid multiple [re]allocations on system heap
+  */
+  buffer.length= STATIC_SQL_LENGTH + name.length + body.length;
+  if (! (buffer.str= (char*) thd->alloc(buffer.length)))
+    DBUG_RETURN(TRUE);
+
+  sp_sql->set(buffer.str, buffer.length, system_charset_info);
+  sp_sql->length(0);
+
+
+  sp_sql->append(C_STRING_WITH_LEN("CREATE "));
+  sp_sql->append(C_STRING_WITH_LEN("PROCEDURE "));
+  /*
+    Let's use the same name as the event name to perhaps produce a
+    better error message in case it is a part of some parse error.
+    We're using append_identifier here to successfully parse
+    events with reserved names.
+  */
+  append_identifier(thd, sp_sql, name.str, name.length);
+
+  /*
+    The default SQL security of a stored procedure is DEFINER. We
+    have already activated the security context of the event, so
+    let's execute the procedure with the invoker rights to save on
+    resets of security contexts.
+  */
+  sp_sql->append(C_STRING_WITH_LEN("() SQL SECURITY INVOKER "));
+
+  sp_sql->append(body.str, body.length);
+
+  DBUG_RETURN(thd->is_fatal_error);
 }
 
 
-/*
-  Executes the event (the underlying sp_head object);
-
-  SYNOPSIS
-    Event_job_data::execute()
-      thd       THD
-
-  RETURN VALUE
-    0        success
-    -99      No rights on this.dbname.str
-    others   retcodes of sp_head::execute_procedure()
+/**
+  Get DROP EVENT statement to binlog the drop of ON COMPLETION NOT
+  PRESERVE event.
 */
 
-int
+bool
+Event_job_data::construct_drop_event_sql(THD *thd, String *sp_sql)
+{
+  LEX_STRING buffer;
+  const uint STATIC_SQL_LENGTH= 14;
+
+  DBUG_ENTER("Event_job_data::construct_drop_event_sql");
+
+  buffer.length= STATIC_SQL_LENGTH + name.length*2 + dbname.length*2;
+  if (! (buffer.str= (char*) thd->alloc(buffer.length)))
+    DBUG_RETURN(TRUE);
+
+  sp_sql->set(buffer.str, buffer.length, system_charset_info);
+  sp_sql->length(0);
+
+  sp_sql->append(C_STRING_WITH_LEN("DROP EVENT "));
+  append_identifier(thd, sp_sql, dbname.str, dbname.length);
+  sp_sql->append('.');
+  append_identifier(thd, sp_sql, name.str, name.length);
+
+  DBUG_RETURN(thd->is_fatal_error);
+}
+
+/**
+  Compiles and executes the event (the underlying sp_head object)
+
+  @retval TRUE  error (reported to the error log)
+  @retval FALSE success
+*/
+
+bool
 Event_job_data::execute(THD *thd, bool drop)
 {
-  Security_context save_ctx;
-  /* this one is local and not needed after exec */
-  int ret= 0;
+  String sp_sql;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context event_sctx, *save_sctx= NULL;
+#endif
+  CHARSET_INFO *charset_connection;
+  List<Item> empty_item_list;
+  bool ret= TRUE;
 
   DBUG_ENTER("Event_job_data::execute");
-  DBUG_PRINT("info", ("EXECUTING %s.%s", dbname.str, name.str));
 
-  if ((ret= compile(thd, NULL)))
-    goto done;
+  mysql_reset_thd_for_next_command(thd);
 
-  event_change_security_context(thd, definer_user, definer_host, dbname,
-                                &save_ctx);
   /*
-    THD::~THD will clean this or if there is DROP DATABASE in the
-    SP then it will be free there. It should not point to our buffer
-    which is allocated on a mem_root.
+    MySQL parser currently assumes that current database is either
+    present in THD or all names in all statements are fully specified.
+    And yet not fully specified names inside stored programs must be 
+    be supported, even if the current database is not set:
+    CREATE PROCEDURE db1.p1() BEGIN CREATE TABLE t1; END//
+    -- in this example t1 should be always created in db1 and the statement
+    must parse even if there is no current database.
+
+    To support this feature and still address the parser limitation,
+    we need to set the current database here.
+    We don't have to call mysql_change_db, since the checks performed
+    in it are unnecessary for the purpose of parsing, and
+    mysql_change_db will be invoked anyway later, to activate the
+    procedure database before it's executed.
   */
-  thd->db= my_strdup(dbname.str, MYF(0));
-  thd->db_length= dbname.length;
-  if (!check_access(thd, EVENT_ACL,dbname.str, 0, 0, 0,is_schema_db(dbname.str)))
+  thd->set_db(dbname.str, dbname.length);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (event_sctx.change_security_context(thd,
+                                         &definer_user, &definer_host,
+                                         &dbname, &save_sctx))
   {
-    List<Item> empty_item_list;
-    empty_item_list.empty();
+    sql_print_error("Event Scheduler: "
+                    "[%s].[%s.%s] execution failed, "
+                    "failed to authenticate the user.",
+                    definer.str, dbname.str, name.str);
+    goto end;
+  }
+#endif
+
+  if (check_access(thd, EVENT_ACL, dbname.str,
+                   0, 0, 0, is_schema_db(dbname.str)))
+  {
+    /*
+      This aspect of behavior is defined in the worklog,
+      and this is how triggers work too: if TRIGGER
+      privilege is revoked from trigger definer,
+      triggers are not executed.
+    */
+    sql_print_error("Event Scheduler: "
+                    "[%s].[%s.%s] execution failed, "
+                    "user no longer has EVENT privilege.",
+                    definer.str, dbname.str, name.str);
+    goto end;
+  }
+
+  if (construct_sp_sql(thd, &sp_sql))
+    goto end;
+
+  /*
+    Set up global thread attributes to reflect the properties of
+    this Event. We can simply reset these instead of usual
+    backup/restore employed in stored programs since we know that
+    this is a top level statement and the worker thread is
+    allocated exclusively to execute this event.
+  */
+  charset_connection= get_charset_by_csname("utf8",
+                                            MY_CS_PRIMARY, MYF(MY_WME));
+  thd->variables.character_set_client= charset_connection;
+  thd->variables.character_set_results= charset_connection;
+  thd->variables.collation_connection= charset_connection;
+  thd->update_charset();
+
+  thd->variables.sql_mode= sql_mode;
+  thd->variables.time_zone= time_zone;
+
+  thd->query= sp_sql.c_ptr_safe();
+  thd->query_length= sp_sql.length();
+
+  lex_start(thd, thd->query, thd->query_length);
+
+  if (MYSQLparse(thd) || thd->is_fatal_error)
+  {
+    sql_print_error("Event Scheduler: "
+                    "%serror during compilation of %s.%s",
+                    thd->is_fatal_error ? "fatal " : "",
+                    (const char *) dbname.str, (const char *) name.str);
+    goto end;
+  }
+
+  {
+    sp_head *sphead= thd->lex->sphead;
+
+    DBUG_ASSERT(sphead);
+
     if (thd->enable_slow_log)
       sphead->m_flags|= sp_head::LOG_SLOW_STATEMENTS;
     sphead->m_flags|= sp_head::LOG_GENERAL_LOG;
 
-    /* Execute the event in its time zone. */
-    thd->variables.time_zone= time_zone;
+    sphead->set_info(0, 0, &thd->lex->sp_chistics, sql_mode);
+    sphead->optimize();
 
     ret= sphead->execute_procedure(thd, &empty_item_list);
-  }
-  else
-  {
-    DBUG_PRINT("error", ("%s@%s has no rights on %s", definer_user.str,
-               definer_host.str, dbname.str));
-    ret= -99;
-  }
-  if (drop)
-  {
-    sql_print_information("Event Scheduler: Dropping %s.%s",
-                          dbname.str, name.str);
     /*
-      We must do it here since here we're under the right authentication
-      ID of the event definer
+      There is no pre-locking and therefore there should be no
+      tables open and locked left after execute_procedure.
     */
-    if (Events::drop_event(thd, dbname, name, FALSE))
-      ret= 1;
   }
 
-  event_restore_security_context(thd, &save_ctx);
-done:
+end:
+  if (drop && !thd->is_fatal_error)
+  {
+    /*
+      We must do it here since here we're under the right authentication
+      ID of the event definer.
+    */
+    sql_print_information("Event Scheduler: Dropping %s.%s",
+                          (const char *) dbname.str, (const char *) name.str);
+    /*
+      Construct a query for the binary log, to ensure the event is dropped
+      on the slave
+    */
+    if (construct_drop_event_sql(thd, &sp_sql))
+      ret= 1;
+    else
+    {
+      thd->query= sp_sql.c_ptr_safe();
+      thd->query_length= sp_sql.length();
+      if (Events::drop_event(thd, dbname, name, FALSE))
+        ret= 1;
+    }
+  }
+  if (thd->lex->sphead)                        /* NULL only if a parse error */
+  {
+    delete thd->lex->sphead;
+    thd->lex->sphead= NULL;
+  }
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (save_sctx)
+    event_sctx.restore_security_context(thd, save_sctx);
+#endif
+  lex_end(thd->lex);
+  thd->lex->unit.cleanup();
   thd->end_statement();
   thd->cleanup_after_query();
 
   DBUG_PRINT("info", ("EXECUTED %s.%s  ret: %d", dbname.str, name.str, ret));
-
-  DBUG_RETURN(ret);
-}
-
-
-/*
-  Compiles an event before it's execution. Compiles the anonymous
-  sp_head object held by the event
-
-  SYNOPSIS
-    Event_job_data::compile()
-      thd        thread context, used for memory allocation mostly
-      mem_root   if != NULL then this memory root is used for allocs
-                 instead of thd->mem_root
-
-  RETURN VALUE
-    0                       success
-    EVEX_COMPILE_ERROR      error during compilation
-    EVEX_MICROSECOND_UNSUP  mysql.event was tampered
-*/
-
-int
-Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
-{
-  int ret= 0;
-  MEM_ROOT *tmp_mem_root= 0;
-  LEX *old_lex= thd->lex, lex;
-  char *old_db;
-  int old_db_length;
-  char *old_query;
-  uint old_query_len;
-  ulong old_sql_mode= thd->variables.sql_mode;
-  char create_buf[15 * STRING_BUFFER_USUAL_SIZE];
-  String show_create(create_buf, sizeof(create_buf), system_charset_info);
-  CHARSET_INFO *old_character_set_client,
-               *old_collation_connection,
-               *old_character_set_results;
-  Security_context save_ctx;
-
-  DBUG_ENTER("Event_job_data::compile");
-
-  show_create.length(0);
-
-  switch (get_fake_create_event(&show_create)) {
-  case EVEX_MICROSECOND_UNSUP:
-    DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
-  case 0:
-    break;
-  default:
-    DBUG_ASSERT(0);
-  }
-
-  old_character_set_client= thd->variables.character_set_client;
-  old_character_set_results= thd->variables.character_set_results;
-  old_collation_connection= thd->variables.collation_connection;
-
-  thd->variables.character_set_client=
-    thd->variables.character_set_results=
-      thd->variables.collation_connection=
-           get_charset_by_csname("utf8", MY_CS_PRIMARY, MYF(MY_WME));
-
-  thd->update_charset();
-
-  DBUG_PRINT("info",("old_sql_mode: %lu  new_sql_mode: %lu",old_sql_mode, sql_mode));
-  thd->variables.sql_mode= this->sql_mode;
-  /* Change the memory root for the execution time */
-  if (mem_root)
-  {
-    tmp_mem_root= thd->mem_root;
-    thd->mem_root= mem_root;
-  }
-  old_query_len= thd->query_length;
-  old_query= thd->query;
-  old_db= thd->db;
-  old_db_length= thd->db_length;
-  thd->db= dbname.str;
-  thd->db_length= dbname.length;
-
-  thd->query= show_create.c_ptr_safe();
-  thd->query_length= show_create.length();
-  DBUG_PRINT("info", ("query: %s",thd->query));
-
-  event_change_security_context(thd, definer_user, definer_host, dbname,
-                                &save_ctx);
-  thd->lex= &lex;
-  mysql_init_query(thd, thd->query, thd->query_length);
-  if (MYSQLparse((void *)thd) || thd->is_fatal_error)
-  {
-    DBUG_PRINT("error", ("error during compile or thd->is_fatal_error: %d",
-                          thd->is_fatal_error));
-    lex.unit.cleanup();
-
-    sql_print_error("Event Scheduler: "
-                    "%serror during compilation of %s.%s",
-                    thd->is_fatal_error ? "fatal " : "",
-                    dbname.str, name.str);
-
-    ret= EVEX_COMPILE_ERROR;
-    goto done;
-  }
-  DBUG_PRINT("note", ("success compiling %s.%s", dbname.str, name.str));
-
-  sphead= lex.sphead;
-
-  sphead->set_definer(definer.str, definer.length);
-  sphead->set_info(0, 0, &lex.sp_chistics, sql_mode);
-  sphead->optimize();
-  ret= 0;
-done:
-
-  lex_end(&lex);
-  event_restore_security_context(thd, &save_ctx);
-  DBUG_PRINT("note", ("return old data on its place. set back NAMES"));
-
-  thd->lex= old_lex;
-  thd->query= old_query;
-  thd->query_length= old_query_len;
-  thd->db= old_db;
-
-  thd->variables.sql_mode= old_sql_mode;
-  thd->variables.character_set_client= old_character_set_client;
-  thd->variables.character_set_results= old_character_set_results;
-  thd->variables.collation_connection= old_collation_connection;
-  thd->update_charset();
-
-  /* Change the memory root for the execution time. */
-  if (mem_root)
-    thd->mem_root= tmp_mem_root;
 
   DBUG_RETURN(ret);
 }
@@ -2041,65 +2024,4 @@ event_basic_identifier_equal(LEX_STRING db, LEX_STRING name, Event_basic *b)
 {
   return !sortcmp_lex_string(name, b->name, system_charset_info) &&
          !sortcmp_lex_string(db, b->dbname, system_charset_info);
-}
-
-
-/*
-  Switches the security context.
-
-  SYNOPSIS
-    event_change_security_context()
-      thd     Thread
-      user    The user
-      host    The host of the user
-      db      The schema for which the security_ctx will be loaded
-      backup  Where to store the old context
-
-  RETURN VALUE
-    FALSE  OK
-    TRUE   Error (generates error too)
-*/
-
-static bool
-event_change_security_context(THD *thd, LEX_STRING user, LEX_STRING host,
-                              LEX_STRING db, Security_context *backup)
-{
-  DBUG_ENTER("event_change_security_context");
-  DBUG_PRINT("info",("%s@%s@%s", user.str, host.str, db.str));
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-
-  *backup= thd->main_security_ctx;
-  if (acl_getroot_no_password(&thd->main_security_ctx, user.str, host.str,
-                              host.str, db.str))
-  {
-    my_error(ER_NO_SUCH_USER, MYF(0), user.str, host.str);
-    DBUG_RETURN(TRUE);
-  }
-  thd->security_ctx= &thd->main_security_ctx;
-#endif
-  DBUG_RETURN(FALSE);
-}
-
-
-/*
-  Restores the security context.
-
-  SYNOPSIS
-    event_restore_security_context()
-      thd     Thread
-      backup  Context to switch to
-*/
-
-static void
-event_restore_security_context(THD *thd, Security_context *backup)
-{
-  DBUG_ENTER("event_restore_security_context");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (backup)
-  {
-    thd->main_security_ctx= *backup;
-    thd->security_ctx= &thd->main_security_ctx;
-  }
-#endif
-  DBUG_VOID_RETURN;
 }

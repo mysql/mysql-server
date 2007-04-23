@@ -47,7 +47,9 @@ ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
                item_create.cc item_func.cc item_geofunc.cc item_row.cc 
                item_strfunc.cc item_subselect.cc item_sum.cc item_timefunc.cc 
-               key.cc log.cc lock.cc log_event.cc message.rc 
+               key.cc log.cc lock.cc message.rc 
+               log_event.cc rpl_record.cc
+               log_event_old.cc rpl_record_old.cc
                message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
                mysqld.cc net_serv.cc 
                nt_servc.cc nt_servc.h opt_range.cc opt_range.h opt_sum.cc 
@@ -79,7 +81,7 @@ ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
 			   ${PROJECT_SOURCE_DIR}/sql/sql_builtin.cc
 			   ${PROJECT_SOURCE_DIR}/sql/lex_hash.h)
 TARGET_LINK_LIBRARIES(mysqld heap myisam myisammrg mysys yassl zlib dbug yassl 
-                      taocrypt strings vio regex wsock32)
+                      taocrypt strings vio regex wsock32 ws2_32)
 IF(WITH_ARCHIVE_STORAGE_ENGINE)
   TARGET_LINK_LIBRARIES(mysqld archive)
 ENDIF(WITH_ARCHIVE_STORAGE_ENGINE)

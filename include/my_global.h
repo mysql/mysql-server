@@ -77,6 +77,13 @@
 #endif
 #endif /* _WIN32... */
 
+/* Make it easier to add conditionl code for windows */
+#ifdef __WIN__
+#define IF_WIN(A,B) (A)
+#else
+#define IF_WIN(A,B) (B)
+#endif
+
 #ifndef EMBEDDED_LIBRARY
 #ifdef WITH_NDB_BINLOG
 #define HAVE_NDB_BINLOG 1

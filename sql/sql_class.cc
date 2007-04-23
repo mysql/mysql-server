@@ -26,6 +26,8 @@
 #endif
 
 #include "mysql_priv.h"
+#include "rpl_rli.h"
+#include "rpl_record.h"
 #include <my_bitmap.h>
 #include "log_event.h"
 #include <m_ctype.h>
@@ -367,6 +369,7 @@ void THD::init(void)
   if (variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
     server_status|= SERVER_STATUS_NO_BACKSLASH_ESCAPES;
   options= thd_startup_options;
+  no_trans_update.stmt= no_trans_update.all= FALSE;
   open_options=ha_open_options;
   update_lock_default= (variables.low_priority_updates ?
 			TL_WRITE_LOW_PRIORITY :
@@ -378,7 +381,6 @@ void THD::init(void)
   update_charset();
   reset_current_stmt_binlog_row_based();
   bzero((char *) &status_var, sizeof(status_var));
-  variables.lc_time_names = &my_locale_en_US;
 }
 
 
@@ -419,6 +421,7 @@ void THD::init_for_queries()
 void THD::change_user(void)
 {
   cleanup();
+  killed= NOT_KILLED;
   cleanup_done= 0;
   init();
   stmt_map.reset();
@@ -437,6 +440,7 @@ void THD::cleanup(void)
   DBUG_ENTER("THD::cleanup");
   DBUG_ASSERT(cleanup_done == 0);
 
+  killed= KILL_CONNECTION;
 #ifdef ENABLE_WHEN_BINLOG_WILL_BE_ABLE_TO_PREPARE
   if (transaction.xid_state.xa_state == XA_PREPARED)
   {
@@ -841,7 +845,8 @@ void THD::add_changed_table(const char *key, long key_length)
     {
       list_include(prev_changed, curr, changed_table_dup(key, key_length));
       DBUG_PRINT("info", 
-		 ("key_length %ld %u", key_length, (*prev_changed)->key_length));
+		 ("key_length: %ld  %u", key_length,
+                  (*prev_changed)->key_length));
       DBUG_VOID_RETURN;
     }
     else if (cmp == 0)
@@ -851,7 +856,7 @@ void THD::add_changed_table(const char *key, long key_length)
       {
 	list_include(prev_changed, curr, changed_table_dup(key, key_length));
 	DBUG_PRINT("info", 
-		   ("key_length %ld %u", key_length,
+		   ("key_length:  %ld  %u", key_length,
 		    (*prev_changed)->key_length));
 	DBUG_VOID_RETURN;
       }
@@ -863,7 +868,7 @@ void THD::add_changed_table(const char *key, long key_length)
     }
   }
   *prev_changed = changed_table_dup(key, key_length);
-  DBUG_PRINT("info", ("key_length %ld %u", key_length,
+  DBUG_PRINT("info", ("key_length: %ld  %u", key_length,
 		      (*prev_changed)->key_length));
   DBUG_VOID_RETURN;
 }
@@ -2120,6 +2125,102 @@ bool Security_context::set_user(char *user_arg)
   return user == 0;
 }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+/**
+  Initialize this security context from the passed in credentials
+  and activate it in the current thread.
+
+  @param[out]  backup  Save a pointer to the current security context
+                       in the thread. In case of success it points to the
+                       saved old context, otherwise it points to NULL.
+
+
+  During execution of a statement, multiple security contexts may
+  be needed:
+  - the security context of the authenticated user, used as the
+    default security context for all top-level statements
+  - in case of a view or a stored program, possibly the security
+    context of the definer of the routine, if the object is
+    defined with SQL SECURITY DEFINER option.
+
+  The currently "active" security context is parameterized in THD
+  member security_ctx. By default, after a connection is
+  established, this member points at the "main" security context
+  - the credentials of the authenticated user.
+
+  Later, if we would like to execute some sub-statement or a part
+  of a statement under credentials of a different user, e.g.
+  definer of a procedure, we authenticate this user in a local
+  instance of Security_context by means of this method (and
+  ultimately by means of acl_getroot_no_password), and make the
+  local instance active in the thread by re-setting
+  thd->security_ctx pointer.
+
+  Note, that the life cycle and memory management of the "main" and
+  temporary security contexts are different.
+  For the main security context, the memory for user/host/ip is
+  allocated on system heap, and the THD class frees this memory in
+  its destructor. The only case when contents of the main security
+  context may change during its life time is when someone issued
+  CHANGE USER command.
+  Memory management of a "temporary" security context is
+  responsibility of the module that creates it.
+
+  @retval TRUE  there is no user with the given credentials. The erro
+                is reported in the thread.
+  @retval FALSE success
+*/
+
+bool
+Security_context::
+change_security_context(THD *thd,
+                        LEX_STRING *definer_user,
+                        LEX_STRING *definer_host,
+                        LEX_STRING *db,
+                        Security_context **backup)
+{
+  bool needs_change;
+
+  DBUG_ENTER("Security_context::change_security_context");
+
+  DBUG_ASSERT(definer_user->str && definer_host->str);
+
+  *backup= NULL;
+  /*
+    The current security context may have NULL members
+    if we have just started the thread and not authenticated
+    any user. This use case is currently in events worker thread.
+  */
+  needs_change= (thd->security_ctx->priv_user == NULL ||
+                 strcmp(definer_user->str, thd->security_ctx->priv_user) ||
+                 thd->security_ctx->priv_host == NULL ||
+                 my_strcasecmp(system_charset_info, definer_host->str,
+                               thd->security_ctx->priv_host));
+  if (needs_change)
+  {
+    if (acl_getroot_no_password(this, definer_user->str, definer_host->str,
+                                definer_host->str, db->str))
+    {
+      my_error(ER_NO_SUCH_USER, MYF(0), definer_user->str,
+               definer_host->str);
+      DBUG_RETURN(TRUE);
+    }
+    *backup= thd->security_ctx;
+    thd->security_ctx= this;
+  }
+
+  DBUG_RETURN(FALSE);
+}
+
+
+void
+Security_context::restore_security_context(THD *thd,
+                                           Security_context *backup)
+{
+  if (backup)
+    thd->security_ctx= backup;
+}
+#endif
 
 /****************************************************************************
   Handling of open and locked tables states.
@@ -2554,112 +2655,6 @@ my_size_t THD::max_row_length_blob(TABLE *table, const byte *data) const
 }
 
 
-/*
-  Pack a record of data for a table into a format suitable for
-  transfer via the binary log.
-
-  SYNOPSIS
-    THD::pack_row()
-    table     Table describing the format of the record
-    cols      Bitmap with a set bit for each column that should be
-              stored in the row
-    row_data  Pointer to memory where row will be written
-    record    Pointer to record that should be packed. It is assumed
-              that the pointer refers to either record[0] or
-              record[1], but no such check is made since the code does
-              not rely on that.
-
-  DESCRIPTION
-
-    The format for a row in transfer with N fields is the following:
-
-    ceil(N/8) null bytes:
-        One null bit for every column *regardless of whether it can be
-        null or not*. This simplifies the decoding. Observe that the
-        number of null bits is equal to the number of set bits in the
-        'cols' bitmap. The number of null bytes is the smallest number
-        of bytes necessary to store the null bits.
-
-        Padding bits are 1.
-
-    N packets:
-        Each field is stored in packed format.
-
-
-  RETURN VALUE
-
-    The number of bytes written at 'row_data'.
- */
-my_size_t
-THD::pack_row(TABLE *table, MY_BITMAP const* cols,
-              byte *const row_data, const byte *record) const
-{
-  Field **p_field= table->field, *field;
-  int const null_byte_count= (bitmap_bits_set(cols) + 7) / 8;
-  byte *pack_ptr = row_data + null_byte_count;
-  byte *null_ptr = row_data;
-  my_ptrdiff_t const rec_offset= record - table->record[0];
-  my_ptrdiff_t const def_offset= table->s->default_values - table->record[0];
-
-  /*
-    We write the null bits and the packed records using one pass
-    through all the fields. The null bytes are written little-endian,
-    i.e., the first fields are in the first byte.
-   */
-  unsigned int null_bits= (1U << 8) - 1;
-  // Mask to mask out the correct but among the null bits
-  unsigned int null_mask= 1U;
-  for ( ; (field= *p_field) ; p_field++)
-  {
-    DBUG_PRINT("debug", ("null_mask=%d; null_ptr=%p; row_data=%p; null_byte_count=%d",
-                         null_mask, null_ptr, row_data, null_byte_count));
-    if (bitmap_is_set(cols, p_field - table->field))
-    {
-      my_ptrdiff_t offset;
-      if (field->is_null(rec_offset))
-      {
-        offset= def_offset;
-        null_bits |= null_mask;
-      }
-      else
-      {
-        offset= rec_offset;
-        null_bits &= ~null_mask;
-
-        /*
-          We only store the data of the field if it is non-null
-         */
-        pack_ptr= (byte*)field->pack((char *) pack_ptr, field->ptr + offset);
-      }
-
-      null_mask <<= 1;
-      if ((null_mask & 0xFF) == 0)
-      {
-        DBUG_ASSERT(null_ptr < row_data + null_byte_count);
-        null_mask = 1U;
-        *null_ptr++ = null_bits;
-        null_bits= (1U << 8) - 1;
-      }
-    }
-  }
-
-  /*
-    Write the last (partial) byte, if there is one
-  */
-  if ((null_mask & 0xFF) > 1)
-  {
-    DBUG_ASSERT(null_ptr < row_data + null_byte_count);
-    *null_ptr++ = null_bits;
-  }
-
-  /*
-    The null pointer should now point to the first byte of the
-    packed data. If it doesn't, something is very wrong.
-  */
-  DBUG_ASSERT(null_ptr == row_data + null_byte_count);
-
-  return static_cast<my_size_t>(pack_ptr - row_data);
-}
 
 
 namespace {
@@ -2830,9 +2825,9 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
   byte *before_row= row_data.slot(0);
   byte *after_row= row_data.slot(1);
 
-  my_size_t const before_size= pack_row(table, cols, before_row, 
+  my_size_t const before_size= pack_row(table, cols, before_row,
                                         before_record);
-  my_size_t const after_size= pack_row(table, cols, after_row, 
+  my_size_t const after_size= pack_row(table, cols, after_row,
                                        after_record);
 
   /*

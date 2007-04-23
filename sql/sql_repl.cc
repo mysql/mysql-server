@@ -16,6 +16,7 @@
 #include "mysql_priv.h"
 #ifdef HAVE_REPLICATION
 
+#include "rpl_mi.h"
 #include "sql_repl.h"
 #include "log_event.h"
 #include "rpl_filter.h"
