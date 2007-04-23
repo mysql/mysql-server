@@ -11,6 +11,6 @@ create database mysqltest;
 use mysqltest;
 create table t1 (a int primary key, b int) engine=ndb;
 insert into t1 values (1, 1);
--- source include/show_binlog_events.inc
+-- source include/show_binlog_events2.inc
 
 drop database mysqltest;

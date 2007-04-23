@@ -841,6 +841,7 @@ public:
   }
 
 protected:
+
   /**
     Primitive to apply an event to the database.
 
@@ -2145,9 +2146,9 @@ public:
 
   virtual ~Rows_log_event();
 
-  void set_flags(flag_set flags) { m_flags |= flags; }
-  void clear_flags(flag_set flags) { m_flags &= ~flags; }
-  flag_set get_flags(flag_set flags) const { return m_flags & flags; }
+  void set_flags(flag_set flags_arg) { m_flags |= flags_arg; }
+  void clear_flags(flag_set flags_arg) { m_flags &= ~flags_arg; }
+  flag_set get_flags(flag_set flags_arg) const { return m_flags & flags_arg; }
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   virtual void pack_info(Protocol *protocol);
@@ -2242,6 +2243,7 @@ private:
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(RELAY_LOG_INFO const *rli);
+  virtual int do_update_pos(RELAY_LOG_INFO *rli);
 
   /*
     Primitive to prepare for a sequence of row executions.
@@ -2427,7 +2429,7 @@ public:
     return Rows_log_event::is_valid() && m_cols_ai.bitmap;
   }
 
-private:
+protected:
   virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
 
 #ifdef MYSQL_CLIENT
@@ -2498,7 +2500,7 @@ public:
   }
 #endif
   
-private:
+protected:
   virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
 
 #ifdef MYSQL_CLIENT
@@ -2518,6 +2520,8 @@ private:
 #endif
 };
 
+
+#include "log_event_old.h"
 
 /**
    Class representing an incident, an occurance out of the ordinary,

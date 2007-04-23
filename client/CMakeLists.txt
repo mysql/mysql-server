@@ -82,6 +82,7 @@ TARGET_LINK_LIBRARIES(mysqlimport mysqlclient mysys dbug yassl taocrypt zlib wso
 
 ADD_EXECUTABLE(mysql_upgrade mysql_upgrade.c ../mysys/my_getpagesize.c)
 TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient dbug yassl taocrypt zlib wsock32)
+ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs)
 
 ADD_EXECUTABLE(mysqlshow mysqlshow.c)
 TARGET_LINK_LIBRARIES(mysqlshow mysqlclient mysys dbug yassl taocrypt zlib wsock32)

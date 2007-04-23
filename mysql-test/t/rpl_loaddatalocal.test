@@ -25,7 +25,7 @@ eval select * into outfile '$MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.sele
 truncate table t1;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval load data local infile '$MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_outfile' into table t1;
-system rm $MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_outfile ;
+--remove_file $MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_outfile
 save_master_pos;
 connection slave;
 sync_with_master;
@@ -52,7 +52,7 @@ drop table t1;
 create table t1(a int primary key);
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval load data local infile '$MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_outfile' into table t1;
-system rm $MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_outfile ;
+--remove_file $MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_outfile
 SELECT * FROM t1 ORDER BY a;
 save_master_pos;
 connection slave;

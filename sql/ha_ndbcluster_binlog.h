@@ -30,6 +30,10 @@ extern ulong ndb_extra_logging;
 
 #define NDB_INVALID_SCHEMA_OBJECT 241
 
+/* server id's with high bit set is reservered */
+#define NDB_ANYVALUE_FOR_NOLOGGING 0xFFFFFFFF
+#define NDB_ANYVALUE_RESERVED      0x80000000
+
 extern handlerton *ndbcluster_hton;
 
 /*

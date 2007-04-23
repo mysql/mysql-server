@@ -17,8 +17,9 @@
 
 #include <mysql.h>
 #include <myisam.h>
-#include "rpl_rli.h"
 #include "slave.h"
+#include "rpl_mi.h"
+#include "rpl_rli.h"
 #include "sql_repl.h"
 #include "rpl_filter.h"
 #include "repl_failsafe.h"
@@ -794,8 +795,10 @@ static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
   else
   {
     mi->clock_diff_with_master= 0; /* The "most sensible" value */
-    sql_print_warning("\"SELECT UNIX_TIMESTAMP()\" failed on master, \
-do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS");
+    sql_print_warning("\"SELECT UNIX_TIMESTAMP()\" failed on master, "
+                      "do not trust column Seconds_Behind_Master of SHOW "
+                      "SLAVE STATUS. Error: %s (%d)",
+                      mysql_error(mysql), mysql_errno(mysql));
   }
   if (master_res)
     mysql_free_result(master_res);
@@ -1333,8 +1336,7 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
     if ((mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) &&
         mi->rli.slave_running)
     {
-      long time_diff= ((long)((time_t)time((time_t*) 0)
-                              - mi->rli.last_master_timestamp)
+      long time_diff= ((long)(time(0) - mi->rli.last_master_timestamp)
                        - mi->clock_diff_with_master);
       /*
         Apparently on some systems time_diff can be <0. Here are possible
@@ -1632,6 +1634,7 @@ int check_expected_error(THD* thd, RELAY_LOG_INFO const *rli,
   switch (expected_error) {
   case ER_NET_READ_ERROR:
   case ER_NET_ERROR_ON_WRITE:
+  case ER_QUERY_INTERRUPTED:
   case ER_SERVER_SHUTDOWN:
   case ER_NEW_ABORTING_CONNECTION:
     DBUG_RETURN(1);
@@ -1736,11 +1739,12 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     /*
     */
 
-    DBUG_PRINT("info",("type_code=%d (%s), server_id=%d",
-                       type_code, ev->get_type_str(), ev->server_id));
-    DBUG_PRINT("info", ("thd->options={ %s%s}",
+    DBUG_PRINT("exec_event",("%s(type_code: %d; server_id: %d)",
+                       ev->get_type_str(), type_code, ev->server_id));
+    DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
                         FLAGSTR(thd->options, OPTION_NOT_AUTOCOMMIT),
-                        FLAGSTR(thd->options, OPTION_BEGIN)));
+                        FLAGSTR(thd->options, OPTION_BEGIN),
+                        rli->last_event_start_time));
 
 
 
@@ -1782,21 +1786,21 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     if (reason == Log_event::EVENT_SKIP_NOT)
       exec_res= ev->apply_event(rli);
 #ifndef DBUG_OFF
-    else
-    {
-      /*
-        This only prints information to the debug trace.
+    /*
+      This only prints information to the debug trace.
 
-        TODO: Print an informational message to the error log?
-       */
-      static const char *const explain[] = {
-        "event was not skipped",                  // EVENT_SKIP_NOT,
-        "event originated from this server",      // EVENT_SKIP_IGNORE,
-        "event skip counter was non-zero"         // EVENT_SKIP_COUNT
-      };
-      DBUG_PRINT("info", ("%s was skipped because %s",
-                          ev->get_type_str(), explain[reason]));
-    }
+      TODO: Print an informational message to the error log?
+    */
+    static const char *const explain[] = {
+      // EVENT_SKIP_NOT,
+      "not skipped",
+      // EVENT_SKIP_IGNORE,
+      "skipped because event originated from this server",
+      // EVENT_SKIP_COUNT
+      "skipped because event skip counter was non-zero"
+    };
+    DBUG_PRINT("skip_event", ("%s event was %s",
+                              ev->get_type_str(), explain[reason]));
 #endif
 
     DBUG_PRINT("info", ("apply_event error = %d", exec_res));

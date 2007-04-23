@@ -31,10 +31,10 @@ create table t1 (a int primary key) engine=ndb;
 
 --connection server2
 create table t2 (a int primary key) engine=ndb;
---source include/show_binlog_events.inc
+--source include/show_binlog_events2.inc
 
 --connection server1
---source include/show_binlog_events.inc
+--source include/show_binlog_events2.inc
 
 # alter table
 --connection server1
@@ -46,7 +46,7 @@ reset master;
 alter table t2 add column (b int);
 
 --connection server1
---source include/show_binlog_events.inc
+--source include/show_binlog_events2.inc
 
 # alter database
 --connection server1
@@ -64,10 +64,10 @@ ALTER DATABASE mysqltest CHARACTER SET latin1;
 drop table mysqltest.t1;
 
 --connection server1
---source include/show_binlog_events.inc
+--source include/show_binlog_events2.inc
 # to track down bug#18976
 --real_sleep 10
---source include/show_binlog_events.inc
+--source include/show_binlog_events2.inc
 
 #--connection server2
 #drop table mysqltest.t1;
@@ -85,7 +85,7 @@ drop database mysqltest;
 create table t1 (a int primary key) engine=ndb;
 
 --connection server2
---source include/show_binlog_events.inc
+--source include/show_binlog_events2.inc
 
 --connection server2
 drop table t2;
@@ -137,10 +137,10 @@ ENGINE =NDB;
 #drop table t1;
 
 --connection server2
---source include/show_binlog_events.inc
+--source include/show_binlog_events2.inc
 # to track down bug#18976
 --real_sleep 10
---source include/show_binlog_events.inc
+--source include/show_binlog_events2.inc
 
 drop table t1;
 
@@ -161,7 +161,7 @@ create table t2 (a int key) engine=ndb;
 create table t3 (a int key) engine=ndb;
 rename table t3 to t4, t2 to t3, t1 to t2, t4 to t1;
 --connection server2
---source include/show_binlog_events.inc
+--source include/show_binlog_events2.inc
 
 drop table t1;
 drop table t2;
@@ -188,4 +188,4 @@ insert into t2 values(2);
 # prior to bug fix, data was missing for t2
 --connection server2
 drop table t2;
---source include/show_binlog_events.inc
+--source include/show_binlog_events2.inc
