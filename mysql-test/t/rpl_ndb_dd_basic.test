@@ -67,7 +67,7 @@ select * from t1 order by pk1;
 #
 
 --connection master
--- source include/show_binlog_events.inc
+-- source include/show_binlog_events2.inc
 
 #
 # cleanup

@@ -349,13 +349,13 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   bool save_abort_on_warning= thd->abort_on_warning;
-  bool save_no_trans_update= thd->no_trans_update;
+  bool save_no_trans_update_stmt= thd->no_trans_update.stmt;
 
   thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   thd->abort_on_warning=
     thd->variables.sql_mode &
     (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES);
-  thd->no_trans_update= 0;
+  thd->no_trans_update.stmt= FALSE;
 
   /* Save the value in the field. Convert the value if needed. */
 
@@ -363,7 +363,7 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 
   thd->count_cuted_fields= save_count_cuted_fields;
   thd->abort_on_warning= save_abort_on_warning;
-  thd->no_trans_update= save_no_trans_update;
+  thd->no_trans_update.stmt= save_no_trans_update_stmt;
 
   if (thd->net.report_error)
   {
@@ -1189,7 +1189,7 @@ sp_head::execute(THD *thd)
       (It would generate an error from mysql_change_db() when old_db=="")
     */
     if (! thd->killed)
-      err_status|= mysql_change_db(thd, old_db.str, 1);
+      err_status|= mysql_change_db(thd, &old_db, TRUE);
   }
   m_flags&= ~IS_INVOKED;
   DBUG_PRINT("info",
@@ -1245,7 +1245,11 @@ set_routine_security_ctx(THD *thd, sp_head *sp, bool is_proc,
                          Security_context **save_ctx)
 {
   *save_ctx= 0;
-  if (sp_change_security_context(thd, sp, save_ctx))
+  if (sp->m_chistics->suid != SP_IS_NOT_SUID &&
+      sp->m_security_ctx.change_security_context(thd, &sp->m_definer_user,
+                                                 &sp->m_definer_host,
+                                                 &sp->m_db,
+                                                 save_ctx))
     return TRUE;
 
   /*
@@ -1262,7 +1266,7 @@ set_routine_security_ctx(THD *thd, sp_head *sp, bool is_proc,
       check_routine_access(thd, EXECUTE_ACL,
                            sp->m_db.str, sp->m_name.str, is_proc, FALSE))
   {
-    sp_restore_security_context(thd, *save_ctx);
+    sp->m_security_ctx.restore_security_context(thd, *save_ctx);
     *save_ctx= 0;
     return TRUE;
   }
@@ -1573,7 +1577,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  sp_restore_security_context(thd, save_security_ctx);
+  m_security_ctx.restore_security_context(thd, save_security_ctx);
 #endif
 
 err_with_cleanup:
@@ -1791,7 +1795,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (save_security_ctx)
-    sp_restore_security_context(thd, save_security_ctx);
+    m_security_ctx.restore_security_context(thd, save_security_ctx);
 #endif
 
   if (!save_spcont)
@@ -3431,44 +3435,6 @@ sp_instr_set_case_expr::opt_move(uint dst, List<sp_instr> *bp)
 
 /* ------------------------------------------------------------------ */
 
-/*
-  Security context swapping
-*/
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-bool
-sp_change_security_context(THD *thd, sp_head *sp, Security_context **backup)
-{
-  *backup= 0;
-  if (sp->m_chistics->suid != SP_IS_NOT_SUID &&
-      (strcmp(sp->m_definer_user.str,
-              thd->security_ctx->priv_user) ||
-       my_strcasecmp(system_charset_info, sp->m_definer_host.str,
-                     thd->security_ctx->priv_host)))
-  {
-    if (acl_getroot_no_password(&sp->m_security_ctx, sp->m_definer_user.str,
-                                sp->m_definer_host.str,
-                                sp->m_definer_host.str,
-                                sp->m_db.str))
-    {
-      my_error(ER_NO_SUCH_USER, MYF(0), sp->m_definer_user.str,
-               sp->m_definer_host.str);
-      return TRUE;
-    }
-    *backup= thd->security_ctx;
-    thd->security_ctx= &sp->m_security_ctx;
-  }
-  return FALSE;
-}
-
-void
-sp_restore_security_context(THD *thd, Security_context *backup)
-{
-  if (backup)
-    thd->security_ctx= backup;
-}
-
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 /*
   Structure that represent all instances of one table

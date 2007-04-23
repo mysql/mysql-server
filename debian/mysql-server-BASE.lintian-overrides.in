@@ -1,0 +1,4 @@
+mysql-server-@MYSQL_BRANDED_BASE_VERSION@: possible-bashism-in-maintainer-script postinst:81 'p{("a".."z","A".."Z",0..9)[int(rand(62))]}'
+mysql-server-@MYSQL_BRANDED_BASE_VERSION@: possible-bashism-in-maintainer-script preinst:33 '${cmd/ */}'
+mysql-server-@MYSQL_BRANDED_BASE_VERSION@: statically-linked-binary ./usr/bin/mysql_tzinfo_to_sql
+mysql-server-@MYSQL_BRANDED_BASE_VERSION@: statically-linked-binary ./usr/sbin/mysqld

@@ -353,6 +353,7 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
   {
     TABLE *table= field->table;
     ulong orig_sql_mode= thd->variables.sql_mode;
+    enum_check_fields orig_count_cuted_fields= thd->count_cuted_fields;
     my_bitmap_map *old_write_map;
     my_bitmap_map *old_read_map;
 
@@ -365,7 +366,9 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
       old_read_map= dbug_tmp_use_all_columns(table, table->read_set);
     }
     /* For comparison purposes allow invalid dates like 2000-01-32 */
-    thd->variables.sql_mode|= MODE_INVALID_DATES;
+    thd->variables.sql_mode= (orig_sql_mode & ~MODE_NO_ZERO_DATE) | 
+                             MODE_INVALID_DATES;
+    thd->count_cuted_fields= CHECK_FIELD_IGNORE;
     if (!(*item)->save_in_field(field, 1) && !((*item)->null_value))
     {
       Item *tmp= new Item_int_with_ref(field->val_int(), *item,
@@ -375,6 +378,7 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
       result= 1;					// Item was replaced
     }
     thd->variables.sql_mode= orig_sql_mode;
+    thd->count_cuted_fields= orig_count_cuted_fields;
     if (table)
     {
       dbug_tmp_restore_column_map(table->write_set, old_write_map);
@@ -864,8 +868,18 @@ int Arg_comparator::compare_row()
     if (owner->null_value)
     {
       // NULL was compared
-      if (owner->abort_on_null)
-        return -1; // We do not need correct NULL returning
+      switch (owner->functype()) {
+      case Item_func::NE_FUNC:
+        break; // NE never aborts on NULL even if abort_on_null is set
+      case Item_func::LT_FUNC:
+      case Item_func::LE_FUNC:
+      case Item_func::GT_FUNC:
+      case Item_func::GE_FUNC:
+        return -1; // <, <=, > and >= always fail on NULL
+      default: // EQ_FUNC
+        if (owner->abort_on_null)
+          return -1; // We do not need correct NULL returning
+      }
       was_null= 1;
       owner->null_value= 0;
       res= 0;  // continue comparison (maybe we will meet explicit difference)
@@ -876,8 +890,8 @@ int Arg_comparator::compare_row()
   if (was_null)
   {
     /*
-      There was NULL(s) in comparison in some parts, but there was not
-      explicit difference in other parts, so we have to return NULL
+      There was NULL(s) in comparison in some parts, but there was no
+      explicit difference in other parts, so we have to return NULL.
     */
     owner->null_value= 1;
     return -1;
@@ -2484,7 +2498,7 @@ byte *in_row::get_value(Item *item)
 void in_row::set(uint pos, Item *item)
 {
   DBUG_ENTER("in_row::set");
-  DBUG_PRINT("enter", ("pos %u item 0x%lx", pos, (ulong) item));
+  DBUG_PRINT("enter", ("pos: %u  item: 0x%lx", pos, (ulong) item));
   ((cmp_item_row*) base)[pos].store_value_by_template(&tmp, item);
   DBUG_VOID_RETURN;
 }

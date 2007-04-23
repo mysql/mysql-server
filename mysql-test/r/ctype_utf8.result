@@ -1480,6 +1480,49 @@ aa
 xxx
 yyy
 DROP TABLE t1;
+create table t1 (
+a varchar(26) not null
+) default character set utf8;
+insert into t1 (a) values ('abcdefghijklmnopqrstuvwxyz');
+select * from t1;
+a
+abcdefghijklmnopqrstuvwxyz
+alter table t1 change a a varchar(20) character set utf8 not null;
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+select * from t1;
+a
+abcdefghijklmnopqrst
+alter table t1 change a a char(15) character set utf8 not null;
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+select * from t1;
+a
+abcdefghijklmno
+alter table t1 change a a char(10) character set utf8 not null;
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+select * from t1;
+a
+abcdefghij
+alter table t1 change a a varchar(5) character set utf8 not null;
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+select * from t1;
+a
+abcde
+drop table t1;
+create table t1 (
+a varchar(4000) not null
+) default character set utf8;
+insert into t1 values (repeat('a',4000));
+alter table t1 change a a varchar(3000) character set utf8 not null;
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+select length(a) from t1;
+length(a)
+3000
+drop table t1;
 set names utf8;
 select hex(char(1 using utf8));
 hex(char(1 using utf8))

@@ -18,6 +18,9 @@
 
 #ifdef HAVE_REPLICATION
 
+#include "rpl_rli.h"
+
+
 /*****************************************************************************
 
   Replication IO Thread
