@@ -4980,6 +4980,29 @@ int ha_ndbcluster::create(const char *name,
   my_free((char*)data, MYF(0));
   my_free((char*)pack_data, MYF(0));
   
+  if (create_info->storage_media == HA_SM_DISK)
+  { 
+    if (create_info->tablespace)
+      tab.setTablespaceName(create_info->tablespace);
+    else
+      tab.setTablespaceName("DEFAULT-TS");
+  }
+  else if (create_info->tablespace)
+  {
+    if (create_info->storage_media == HA_SM_MEMORY)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+			  ER_ILLEGAL_HA_CREATE_OPTION,
+			  ER(ER_ILLEGAL_HA_CREATE_OPTION),
+			  ndbcluster_hton_name,
+			  "TABLESPACE currently only supported for "
+			  "STORAGE DISK"); 
+      DBUG_RETURN(HA_ERR_UNSUPPORTED);
+    }
+    tab.setTablespaceName(create_info->tablespace);
+    create_info->storage_media = HA_SM_DISK;  //if use tablespace, that also means store on disk
+  }
+
   for (i= 0; i < form->s->fields; i++) 
   {
     Field *field= form->field[i];
@@ -5011,29 +5034,6 @@ int ha_ndbcluster::create(const char *name,
     for (; key_part != end; key_part++)
       tab.getColumn(key_part->fieldnr-1)->setStorageType(
                              NdbDictionary::Column::StorageTypeMemory);
-  }
-
-  if (create_info->storage_media == HA_SM_DISK)
-  { 
-    if (create_info->tablespace)
-      tab.setTablespaceName(create_info->tablespace);
-    else
-      tab.setTablespaceName("DEFAULT-TS");
-  }
-  else if (create_info->tablespace)
-  {
-    if (create_info->storage_media == HA_SM_MEMORY)
-    {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-			  ER_ILLEGAL_HA_CREATE_OPTION,
-			  ER(ER_ILLEGAL_HA_CREATE_OPTION),
-			  ndbcluster_hton_name,
-			  "TABLESPACE currently only supported for "
-			  "STORAGE DISK"); 
-      DBUG_RETURN(HA_ERR_UNSUPPORTED);
-    }
-    tab.setTablespaceName(create_info->tablespace);
-    create_info->storage_media = HA_SM_DISK;  //if use tablespace, that also means store on disk
   }
 
   // No primary key, create shadow key as 64 bit, auto increment  
