@@ -1087,19 +1087,6 @@ a
 2
 1
 drop table t1;
-create table t1 (a int) engine myisam
-partition by range (a)
-subpartition by hash (a)
-(partition p0 VALUES LESS THAN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/tmpdata' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/tmpinx'
-(SUBPARTITION subpart00, SUBPARTITION subpart01));
-Checking if file exists before alter
-ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
-(partition p1 VALUES LESS THAN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/tmpdata' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/tmpinx'
-(SUBPARTITION subpart10, SUBPARTITION subpart11),
-partition p2 VALUES LESS THAN (2) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/tmpdata' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/tmpinx'
-(SUBPARTITION subpart20, SUBPARTITION subpart21));
-Checking if file exists after alter
-drop table t1;
 create table t1 (a bigint unsigned not null, primary key(a))
 engine = myisam
 partition by key (a)
