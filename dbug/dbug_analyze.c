@@ -574,10 +574,12 @@ int main (int argc, char **argv)
     FILE *infile;
     FILE *outfile = {stdout};
 
-#if defined(HAVE_PTHREAD_INIT) && defined(THREAD)
+#ifdef THREAD
+#if defined(HAVE_PTHREAD_INIT)
   pthread_init();                       /* Must be called before DBUG_ENTER */
 #endif
   my_thread_global_init();
+#endif /* THREAD */
   {
     DBUG_ENTER ("main");
     DBUG_PROCESS (argv[0]);
