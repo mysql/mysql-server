@@ -65,7 +65,8 @@ EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			mysqlaccess.conf \
 			mysqlbug \
 			make_win_bin_dist \
-			mysql_system_tables_fix.sql
+			mysql_system_tables_fix.sql \
+			CMakeLists.txt
 
 dist_pkgdata_DATA =	fill_help_tables.sql \
 			mysql_fix_privilege_tables.sql \
@@ -164,6 +165,20 @@ SUFFIXES = .sh
 	$< > $@-t
 	@CHMOD@ +x $@-t
 	@MV@ $@-t $@
+
+
+BUILT_SOURCES = 	mysql_fix_privilege_tables_sql.c
+noinst_PROGRAMS = 	comp_sql
+
+#
+# Build mysql_fix_privilege_tables_sql.c from
+# mysql_fix_privileges_tables.sql using comp_sql
+#
+mysql_fix_privilege_tables_sql.c: comp_sql.c mysql_fix_privilege_tables.sql
+	$(MAKE) $(AM_MAKEFLAGS) comp_sql$(EXEEXT)
+	$(top_builddir)/scripts/comp_sql$(EXEEXT) \
+          mysql_fix_privilege_tables.sql $@
+
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
