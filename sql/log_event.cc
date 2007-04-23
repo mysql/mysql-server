@@ -6260,7 +6260,7 @@ bool Rows_log_event::write_data_body(IO_CACHE*file)
                                 reinterpret_cast<byte*>(m_cols_ai.bitmap),
                                 no_bytes_in_map(&m_cols_ai));
   }
-  DBUG_DUMP("rows", m_rows_buf, data_size);
+  DBUG_DUMP("rows",(const char *) m_rows_buf, data_size);
   res= res || my_b_safe_write(file, m_rows_buf, (uint) data_size);
 
   return res;
@@ -6979,7 +6979,7 @@ replace_record(THD *thd, TABLE *table,
   auto_afree_ptr<char> key(NULL);
 
 #ifndef DBUG_OFF
-  DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
+  DBUG_DUMP("record[0]",(const char *) table->record[0], table->s->reclength);
   DBUG_PRINT_BITSET("debug", "write_set = %s", table->write_set);
   DBUG_PRINT_BITSET("debug", "read_set = %s", table->read_set);
 #endif
@@ -7221,7 +7221,7 @@ static int find_and_fetch_row(TABLE *table, byte *key)
 
   DBUG_ASSERT(table->in_use != NULL);
 
-  DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
+  DBUG_DUMP("record[0]",(const char *) table->record[0], table->s->reclength);
 
   if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION) &&
       table->s->primary_key < MAX_KEY)
@@ -7365,8 +7365,8 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     {
       error= table->file->rnd_next(table->record[1]);
 
-      DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
-      DBUG_DUMP("record[1]", table->record[1], table->s->reclength);
+      DBUG_DUMP("record[0]",(const char *) table->record[0], table->s->reclength);
+      DBUG_DUMP("record[1]",(const char *) table->record[1], table->s->reclength);
 
       switch (error)
       {
