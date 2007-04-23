@@ -358,6 +358,11 @@ NdbOperation::repack_read(Uint32 len)
   {
     AttributeHeader tmp(* ptr++);
     Uint32 id = tmp.getAttributeId();
+    if (id >= NDB_MAX_ATTRIBUTES_IN_TABLE)
+    {
+      // Dont support == fallback
+      return save;
+    }
     mask.set(id);
     maxId = (id > maxId) ? id : maxId;
     check |= (id - maxId);

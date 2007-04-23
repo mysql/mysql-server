@@ -1004,15 +1004,14 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
     Uint32 extType = AttributeDescriptor::getType(attrDescriptor);
     Uint32 off;
 
+    if (extType == NDB_TYPE_BLOB || extType == NDB_TYPE_TEXT)
+      regTabPtr->blobAttributeMask.set(i);
     if(!AttributeDescriptor::getNullable(attrDescriptor))
       regTabPtr->notNullAttributeMask.set(i);
     if (!AttributeDescriptor::getDynamic(attrDescriptor))
     {
       if(arr == NDB_ARRAYTYPE_FIXED)
       {
-        if (extType == NDB_TYPE_BLOB || extType == NDB_TYPE_TEXT)
-          regTabPtr->blobAttributeMask.set(i);
-
         if (attrLen!=0)
         {
           off= fix_size[ind] + pos[ind];
@@ -1039,8 +1038,8 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
       if(arr == NDB_ARRAYTYPE_FIXED)
       {
         jam();
-        if (extType == NDB_TYPE_BLOB || extType == NDB_TYPE_TEXT)
-          regTabPtr->blobAttributeMask.set(i);
+        //if (extType == NDB_TYPE_BLOB || extType == NDB_TYPE_TEXT)
+          //regTabPtr->blobAttributeMask.set(i);
         // ToDo: I wonder what else is needed to handle BLOB/TEXT, if anything?
 
         if (attrLen!=0)
