@@ -2934,3 +2934,16 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
+storage/ndb/test/tools/rep_latency
+storage/ndb/test/ndbapi/testIndexStat
+storage/ndb/test/ndbapi/testInterpreter
+storage/ndb/ndbapi-examples/mgmapi_logevent/mgmapi_logevent
+storage/ndb/ndbapi-examples/mgmapi_logevent2/mgmapi_logevent2
+storage/ndb/ndbapi-examples/ndbapi_async/ndbapi_async
+storage/ndb/ndbapi-examples/ndbapi_async1/ndbapi_async1
+storage/ndb/ndbapi-examples/ndbapi_event/ndbapi_event
+storage/ndb/ndbapi-examples/ndbapi_retries/ndbapi_retries
+storage/ndb/ndbapi-examples/ndbapi_scan/ndbapi_scan
+storage/ndb/ndbapi-examples/ndbapi_simple/ndbapi_simple
+storage/ndb/ndbapi-examples/ndbapi_simple_dual/ndbapi_simple_dual
+storage/ndb/ndbapi-examples/ndbapi_simple_index/ndbapi_simple_index
