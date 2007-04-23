@@ -1099,6 +1099,13 @@ sub mtr_kill_processes ($) {
 
   foreach my $pid (@$pids)
   {
+
+    if ($pid <= 0)
+    {
+      mtr_warning("Trying to kill illegal pid: $pid");
+      next;
+    }
+
     foreach my $sig (15, 9)
     {
       last if mtr_im_kill_process([ $pid ], $sig, 10, 1);

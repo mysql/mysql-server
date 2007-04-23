@@ -100,7 +100,9 @@ DEFS =			-DUNDEF_THREADS_HACK \
 			-DDATADIR="\"$(localstatedir)\""
 
 sql_src=log_event.h mysql_priv.h rpl_constants.h \
-	log_event.cc my_decimal.h my_decimal.cc
+	log_event.cc my_decimal.h my_decimal.cc \
+	log_event_old.h log_event_old.cc \
+	rpl_record_old.h rpl_record_old.cc
 strings_src=decimal.c
 
 link_sources:

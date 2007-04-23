@@ -55,8 +55,9 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			log.h sql_show.h rpl_rli.h rpl_mi.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h \
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
-			log_event.h sql_repl.h slave.h rpl_filter.h \
-			rpl_injector.h \
+			sql_repl.h slave.h rpl_filter.h rpl_injector.h \
+			log_event.h rpl_record.h \
+			log_event_old.h rpl_record_old.h \
 			stacktrace.h sql_sort.h sql_cache.h set_var.h \
 			spatial.h gstream.h client_settings.h tzfile.h \
 			tztime.h my_decimal.h\
@@ -85,8 +86,10 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_prepare.cc sql_error.cc sql_locale.cc \
 			sql_update.cc sql_delete.cc uniques.cc sql_do.cc \
 			procedure.cc sql_test.cc \
-			log.cc log_event.cc init.cc derror.cc sql_acl.cc \
+			log.cc init.cc derror.cc sql_acl.cc \
 			unireg.cc des_key_file.cc \
+			log_event.cc rpl_record.cc \
+			log_event_old.cc rpl_record_old.cc \
 			discover.cc time.cc opt_range.cc opt_sum.cc \
 		   	records.cc filesort.cc handler.cc \
 			ha_partition.cc \

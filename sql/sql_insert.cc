@@ -60,6 +60,7 @@
 #include "sql_select.h"
 #include "sql_show.h"
 #include "slave.h"
+#include "rpl_mi.h"
 
 #ifndef EMBEDDED_LIBRARY
 static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list);
@@ -611,7 +612,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (lock_type != TL_WRITE_DELAYED && !thd->prelocked_mode)
     table->file->ha_start_bulk_insert(values_list.elements);
 
-  thd->no_trans_update= 0;
+  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= (!ignore && (thd->variables.sql_mode &
                                        (MODE_STRICT_TRANS_TABLES |
                                         MODE_STRICT_ALL_TABLES)));
@@ -754,7 +755,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
           }
         }
         if (!transactional_table)
-          thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+          thd->no_trans_update.all= TRUE;
       }
     }
     if (transactional_table)
@@ -1162,7 +1163,7 @@ static int last_uniq_key(TABLE *table,uint keynr)
     then both on update triggers will work instead. Similarly both on
     delete triggers will be invoked if we will delete conflicting records.
 
-    Sets thd->no_trans_update if table which is updated didn't have
+    Sets thd->no_trans_update.stmt to TRUE if table which is updated didn't have
     transactions.
 
   RETURN VALUE
@@ -1365,7 +1366,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
             goto err;
           info->deleted++;
           if (!table->file->has_transactions())
-            thd->no_trans_update= 1;
+            thd->no_trans_update.stmt= TRUE;
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                                 TRG_ACTION_AFTER, TRUE))
@@ -1406,7 +1407,7 @@ ok_or_after_trg_err:
   if (key)
     my_safe_afree(key,table->s->max_unique_length,MAX_KEY_LENGTH);
   if (!table->file->has_transactions())
-    thd->no_trans_update= 1;
+    thd->no_trans_update.stmt= TRUE;
   DBUG_RETURN(trg_error);
 
 err:
@@ -2679,7 +2680,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (info.handle_duplicates == DUP_REPLACE &&
       (!table->triggers || !table->triggers->has_delete_triggers()))
     table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
-  thd->no_trans_update= 0;
+  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |
@@ -2860,7 +2861,7 @@ void select_insert::send_error(uint errcode,const char *err)
                             table->file->has_transactions(), FALSE);
         if (!thd->current_stmt_binlog_row_based && !table->s->tmp_table &&
             !can_rollback_data())
-          thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
+          thd->no_trans_update.all= TRUE;
         query_cache_invalidate3(thd, table, 1);
       }
     }
@@ -2901,7 +2902,7 @@ bool select_insert::send_eof()
     */
     if (!trans_table &&
         (!table->s->tmp_table || !thd->current_stmt_binlog_row_based))
-      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
+      thd->no_trans_update.all= TRUE;
    }
 
   /*
@@ -3208,7 +3209,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
   if (!thd->prelocked_mode)
     table->file->ha_start_bulk_insert((ha_rows) 0);
-  thd->no_trans_update= 0;
+  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |

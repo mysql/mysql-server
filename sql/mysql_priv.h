@@ -147,6 +147,7 @@ typedef struct my_locale_st
 
 extern MY_LOCALE my_locale_en_US;
 extern MY_LOCALE *my_locales[];
+extern MY_LOCALE *my_default_lc_time_names;
 
 MY_LOCALE *my_locale_by_name(const char *name);
 MY_LOCALE *my_locale_by_number(uint number);
@@ -263,7 +264,6 @@ MY_LOCALE *my_locale_by_number(uint number);
 #endif
 
 #if defined(__WIN__)
-#define IF_WIN(A,B) (A)
 #undef	FLUSH_TIME
 #define FLUSH_TIME	1800			/* Flush every half hour */
 
@@ -272,7 +272,6 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define WAIT_PRIOR	0
 #define QUERY_PRIOR	2
 #else
-#define IF_WIN(A,B) (B)
 #define INTERRUPT_PRIOR 10
 #define CONNECT_PRIOR	9
 #define WAIT_PRIOR	8
@@ -339,9 +338,6 @@ MY_LOCALE *my_locale_by_number(uint number);
 
 /* The following is used to detect a conflict with DISTINCT */
 #define SELECT_ALL              (ULL(1) << 24)    // SELECT, user, parser
-
-/* Set if we are updating a non-transaction safe table */
-#define OPTION_STATUS_NO_TRANS_UPDATE   (ULL(1) << 25) // THD, intern
 
 /* The following can be set when importing tables in a 'wrong order'
    to suppress foreign key checks */
@@ -838,7 +834,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent);
 bool do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db,
                       char *new_table_name, char *new_table_alias,
                       bool skip_error);
-bool mysql_change_db(THD *thd,const char *name,bool no_access_check);
+bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name,
+                     bool force_switch);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
 bool is_update_query(enum enum_sql_command command);
@@ -1118,7 +1115,7 @@ void init_status_vars();
 void free_status_vars();
 
 /* information schema */
-extern LEX_STRING information_schema_name;
+extern LEX_STRING INFORMATION_SCHEMA_NAME;
 extern const LEX_STRING partition_keywords[];
 LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
                             const char* str, uint length,
@@ -1136,8 +1133,10 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place);
+enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
+
 #define is_schema_db(X) \
-  !my_strcasecmp(system_charset_info, information_schema_name.str, (X))
+  !my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str, (X))
 
 /* sql_prepare.cc */
 
@@ -1842,19 +1841,20 @@ ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
-my_time_t TIME_to_timestamp(THD *thd, const TIME *t, my_bool *not_exist);
-bool str_to_time_with_warn(const char *str,uint length,TIME *l_time);
+my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *not_exist);
+bool str_to_time_with_warn(const char *str,uint length,MYSQL_TIME *l_time);
 timestamp_type str_to_datetime_with_warn(const char *str, uint length,
-                                         TIME *l_time, uint flags);
-void localtime_to_TIME(TIME *to, struct tm *from);
-void calc_time_from_sec(TIME *to, long seconds, long microseconds);
+                                         MYSQL_TIME *l_time, uint flags);
+void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
+void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds);
 
-void make_truncated_value_warning(THD *thd, const char *str_val,
+void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
+                                  const char *str_val,
 				  uint str_length, timestamp_type time_type,
                                   const char *field_name);
 
-bool date_add_interval(TIME *ltime, interval_type int_type, INTERVAL interval);
-bool calc_time_diff(TIME *l_time1, TIME *l_time2, int l_sign,
+bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL interval);
+bool calc_time_diff(MYSQL_TIME *l_time1, MYSQL_TIME *l_time2, int l_sign,
                     longlong *seconds_out, long *microseconds_out);
 
 extern LEX_STRING interval_type_to_name[];
@@ -1866,15 +1866,15 @@ extern DATE_TIME_FORMAT *date_time_format_copy(THD *thd,
 					       DATE_TIME_FORMAT *format);
 const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
 				     timestamp_type type);
-extern bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
+extern bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
 			   timestamp_type type, String *str);
-void make_datetime(const DATE_TIME_FORMAT *format, const TIME *l_time,
+void make_datetime(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
                    String *str);
-void make_date(const DATE_TIME_FORMAT *format, const TIME *l_time,
+void make_date(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
                String *str);
-void make_time(const DATE_TIME_FORMAT *format, const TIME *l_time,
+void make_time(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
                String *str);
-int my_time_compare(TIME *a, TIME *b);
+int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);
@@ -1894,7 +1894,7 @@ double my_double_round(double value, int dec, bool truncate);
 int get_quick_record(SQL_SELECT *select);
 
 int calc_weekday(long daynr,bool sunday_first_day_of_week);
-uint calc_week(TIME *l_time, uint week_behaviour, uint *year);
+uint calc_week(MYSQL_TIME *l_time, uint week_behaviour, uint *year);
 void find_date(char *pos,uint *vek,uint flag);
 TYPELIB *convert_strings_to_array_type(my_string *typelibs, my_string *end);
 TYPELIB *typelib(MEM_ROOT *mem_root, List<String> &strings);

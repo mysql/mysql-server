@@ -17,6 +17,7 @@
 #include <m_ctype.h>
 #include <my_dir.h>
 #include "slave.h"
+#include "rpl_mi.h"
 #include "sql_repl.h"
 #include "rpl_filter.h"
 #include "repl_failsafe.h"
@@ -274,7 +275,11 @@ static TYPELIB tc_heuristic_recover_typelib=
 };
 
 static const char *thread_handling_names[]=
-{ "one-thread-per-connection", "no-threads", "pool-of-threads", NullS};
+{ "one-thread-per-connection", "no-threads",
+#if HAVE_POOL_OF_THREADS == 1
+  "pool-of-threads",
+#endif
+  NullS};
 
 TYPELIB thread_handling_typelib=
 {
@@ -329,6 +334,7 @@ static char *mysqld_user, *mysqld_chroot, *log_error_file_ptr;
 static char *opt_init_slave, *language_ptr, *opt_init_connect;
 static char *default_character_set_name;
 static char *character_set_filesystem_name;
+static char *lc_time_names_name;
 static char *my_bind_addr_str;
 static char *default_collation_name; 
 static char *default_storage_engine_str;
@@ -566,6 +572,8 @@ CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 CHARSET_INFO *character_set_filesystem;
 
+MY_LOCALE *my_default_lc_time_names;
+
 SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
@@ -733,6 +741,8 @@ pthread_handler_t handle_connections_shared_memory(void *arg);
 #endif
 pthread_handler_t handle_slave(void *arg);
 static ulong find_bit_type(const char *x, TYPELIB *bit_lib);
+static ulong find_bit_type_or_exit(const char *x, TYPELIB *bit_lib,
+                                   const char *option);
 static void clean_up(bool print_message);
 static int test_if_case_insensitive(const char *dir_name);
 
@@ -784,7 +794,6 @@ static void close_connections(void)
     DBUG_PRINT("info",("Waiting for select thread"));
 
 #ifndef DONT_USE_THR_ALARM
-    if (pthread_kill(select_thread, thr_client_alarm))
       break;					// allready dead
 #endif
     set_timespec(abstime, 2);
@@ -2914,6 +2923,14 @@ static int init_common_variables(const char *conf_file_name, int argc,
     return 1;
   global_system_variables.character_set_filesystem= character_set_filesystem;
 
+  if (!(my_default_lc_time_names=
+        my_locale_by_name(lc_time_names_name)))
+  {
+    sql_print_error("Unknown locale: '%s'", lc_time_names_name);
+    return 1;
+  }
+  global_system_variables.lc_time_names= my_default_lc_time_names;
+  
   sys_init_connect.value_length= 0;
   if ((sys_init_connect.value= opt_init_connect))
     sys_init_connect.value_length= strlen(opt_init_connect);
@@ -5009,6 +5026,7 @@ enum options_mysqld
   OPT_DEFAULT_COLLATION,
   OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
   OPT_CHARACTER_SET_FILESYSTEM,
+  OPT_LC_TIME_NAMES,
   OPT_INIT_CONNECT,
   OPT_INIT_SLAVE,
   OPT_SECURE_AUTH,
@@ -5352,6 +5370,11 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "Client error messages in given language. May be given as a full path.",
    (gptr*) &language_ptr, (gptr*) &language_ptr, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
+  {"lc-time-names", OPT_LC_TIME_NAMES,
+   "Set the language used for the month names and the days of the week.",
+   (gptr*) &lc_time_names_name,
+   (gptr*) &lc_time_names_name,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"local-infile", OPT_LOCAL_INFILE,
    "Enable/disable LOAD DATA LOCAL INFILE (takes values 1|0).",
    (gptr*) &opt_local_infile,
@@ -7242,7 +7265,7 @@ static void mysql_init_variables(void)
   default_collation_name= compiled_default_collation_name;
   sys_charset_system.value= (char*) system_charset_info->csname;
   character_set_filesystem_name= (char*) "binary";
-
+  lc_time_names_name= (char*) "en_US";
   /* Set default values for some option variables */
   default_storage_engine_str= (char*) "MyISAM";
   global_system_variables.table_type= myisam_hton;
@@ -7464,11 +7487,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_INIT_RPL_ROLE:
   {
     int role;
-    if ((role=find_type(argument, &rpl_role_typelib, 2)) <= 0)
-    {
-      fprintf(stderr, "Unknown replication role: %s\n", argument);
-      exit(1);
-    }
+    role= find_type_or_exit(argument, &rpl_role_typelib, opt->name);
     rpl_status = (role == 1) ?  RPL_AUTH_MASTER : RPL_IDLE_SLAVE;
     break;
   }
@@ -7524,17 +7543,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_BINLOG_FORMAT:
   {
     int id;
-    if ((id= find_type(argument, &binlog_format_typelib, 2)) <= 0)
-    {
-      fprintf(stderr, 
-	      "Unknown binary log format: '%s' "
-	      "(should be one of '%s', '%s', '%s')\n", 
-	      argument,
-              binlog_format_names[BINLOG_FORMAT_STMT],
-              binlog_format_names[BINLOG_FORMAT_ROW],
-              binlog_format_names[BINLOG_FORMAT_MIXED]);
-      exit(1);
-    }
+    id= find_type_or_exit(argument, &binlog_format_typelib, opt->name);
     global_system_variables.binlog_format= opt_binlog_format_id= id - 1;
     break;
   }
@@ -7594,13 +7603,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
     {
       log_output_str= argument;
-      if ((log_output_options=
-           find_bit_type(argument, &log_output_typelib)) == ~(ulong) 0)
-      {
-        fprintf(stderr, "Unknown option to log-output: %s\n", argument);
-        exit(1);
-      }
-    }
+      log_output_options=
+        find_bit_type_or_exit(argument, &log_output_typelib, opt->name);
+  }
     break;
   }
 #endif
@@ -7743,11 +7748,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
     {
       int type;
-      if ((type=find_type(argument, &delay_key_write_typelib, 2)) <= 0)
-      {
-	fprintf(stderr,"Unknown delay_key_write type: %s\n",argument);
-	exit(1);
-      }
+      type= find_type_or_exit(argument, &delay_key_write_typelib, opt->name);
       delay_key_write_options= (uint) type-1;
     }
     break;
@@ -7758,11 +7759,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_TX_ISOLATION:
   {
     int type;
-    if ((type=find_type(argument, &tx_isolation_typelib, 2)) <= 0)
-    {
-      fprintf(stderr,"Unknown transaction isolation type: %s\n",argument);
-      exit(1);
-    }
+    type= find_type_or_exit(argument, &tx_isolation_typelib, opt->name);
     global_system_variables.tx_isolation= (type-1);
     break;
   }
@@ -7803,16 +7800,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_NDB_DISTRIBUTION:
     int id;
-    if ((id= find_type(argument, &ndb_distribution_typelib, 2)) <= 0)
-    {
-      fprintf(stderr, 
-	      "Unknown ndb distribution type: '%s' "
-	      "(should be '%s' or '%s')\n", 
-	      argument,
-              ndb_distribution_names[ND_KEYHASH],
-              ndb_distribution_names[ND_LINHASH]);
-      exit(1);
-    }
+    id= find_type_or_exit(argument, &ndb_distribution_typelib, opt->name);
     opt_ndb_distribution_id= (enum ndb_distribution)(id-1);
     break;
   case OPT_NDB_EXTRA_LOGGING:
@@ -7852,12 +7840,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
     {
       myisam_recover_options_str=argument;
-      if ((myisam_recover_options=
-	   find_bit_type(argument, &myisam_recover_typelib)) == ~(ulong) 0)
-      {
-	fprintf(stderr, "Unknown option to myisam-recover: %s\n",argument);
-	exit(1);
-      }
+      myisam_recover_options=
+        find_bit_type_or_exit(argument, &myisam_recover_typelib, opt->name);
     }
     ha_open_options|=HA_OPEN_ABORT_IF_CRASHED;
     break;
@@ -7870,14 +7854,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       myisam_concurrent_insert= 0;      /* --skip-concurrent-insert */
     break;
   case OPT_TC_HEURISTIC_RECOVER:
-  {
-    if ((tc_heuristic_recover=find_type(argument,
-                                        &tc_heuristic_recover_typelib, 2)) <=0)
-    {
-      fprintf(stderr, "Unknown option to tc-heuristic-recover: %s\n",argument);
-      exit(1);
-    }
-  }
+    tc_heuristic_recover= find_type_or_exit(argument,
+                                            &tc_heuristic_recover_typelib,
+                                            opt->name);
+    break;
   case OPT_MYISAM_STATS_METHOD:
   {
     ulong method_conv;
@@ -7885,11 +7865,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     LINT_INIT(method_conv);
 
     myisam_stats_method_str= argument;
-    if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
-    {
-      fprintf(stderr, "Invalid value of myisam_stats_method: %s.\n", argument);
-      exit(1);
-    }
+    method= find_type_or_exit(argument, &myisam_stats_method_typelib,
+                              opt->name);
     switch (method-1) {
     case 2:
       method_conv= MI_STATS_METHOD_IGNORE_NULLS;
@@ -7908,12 +7885,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_SQL_MODE:
   {
     sql_mode_str= argument;
-    if ((global_system_variables.sql_mode=
-         find_bit_type(argument, &sql_mode_typelib)) == ~(ulong) 0)
-    {
-      fprintf(stderr, "Unknown option to sql-mode: %s\n", argument);
-      exit(1);
-    }
+    global_system_variables.sql_mode=
+      find_bit_type_or_exit(argument, &sql_mode_typelib, opt->name);
     global_system_variables.sql_mode= fix_sql_mode(global_system_variables.
 						   sql_mode);
     break;
@@ -7923,16 +7896,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_THREAD_HANDLING:
   {
-    if ((global_system_variables.thread_handling=
-         find_type(argument, &thread_handling_typelib, 2)) <= 0 ||
-        (global_system_variables.thread_handling == SCHEDULER_POOL_OF_THREADS
-         && !HAVE_POOL_OF_THREADS))
-    {
-      /* purecov: begin tested */
-      fprintf(stderr,"Unknown/unsupported thread-handling: %s\n",argument);
-      exit(1);
-      /* purecov: end */
-    }
+    global_system_variables.thread_handling=
+      find_type_or_exit(argument, &thread_handling_typelib, opt->name);
     break;
   }
   case OPT_FT_BOOLEAN_SYNTAX:
@@ -8218,6 +8183,30 @@ static void fix_paths(void)
     my_free(opt_secure_file_priv, MYF(0));
     opt_secure_file_priv= my_strdup(buff, MYF(MY_FAE));
   }
+}
+
+
+static ulong find_bit_type_or_exit(const char *x, TYPELIB *bit_lib,
+                                   const char *option)
+{
+  ulong res;
+
+  const char **ptr;
+  
+  if ((res= find_bit_type(x, bit_lib)) == ~(ulong) 0)
+  {
+    ptr= bit_lib->type_names;
+    if (!*x)
+      fprintf(stderr, "No option given to %s\n", option);
+    else
+      fprintf(stderr, "Wrong option to %s. Option(s) given: %s\n", option, x);
+    fprintf(stderr, "Alternatives are: '%s'", *ptr);
+    while (*++ptr)
+      fprintf(stderr, ",'%s'", *ptr);
+    fprintf(stderr, "\n");
+    exit(1);
+  }
+  return res;
 }
 
 

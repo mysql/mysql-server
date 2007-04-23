@@ -818,7 +818,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
 #endif
   case OPT_CHARSETS_DIR:
-    strmov(mysql_charsets_dir, argument);
+    strmake(mysql_charsets_dir, argument, sizeof(mysql_charsets_dir) - 1);
     charsets_dir = mysql_charsets_dir;
     break;
   case  OPT_DEFAULT_CHARSET:
@@ -871,7 +871,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       if (argument && strlen(argument))
       {
 	default_pager_set= 1;
-	strmov(pager, argument);
+	strmake(pager, argument, sizeof(pager) - 1);
 	strmov(default_pager, pager);
       }
       else if (default_pager_set)
@@ -885,14 +885,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_nopager= 1;
     break;
   case OPT_MYSQL_PROTOCOL:
-  {
-    if ((opt_protocol= find_type(argument, &sql_protocol_typelib,0)) <= 0)
-    {
-      fprintf(stderr, "Unknown option to protocol: %s\n", argument);
-      exit(1);
-    }
+    opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
+                                    opt->name);
     break;
-  }
   break;
   case 'A':
     opt_rehash= 0;
@@ -2104,6 +2099,17 @@ com_go(String *buffer,char *line __attribute__((unused)))
       if (!mysql_num_rows(result) && ! quick && !column_types_flag)
       {
 	strmov(buff, "Empty set");
+        if (opt_xml)
+        { 
+          /*
+            We must print XML header and footer
+            to produce a well-formed XML even if
+            the result set is empty (Bug#27608).
+          */
+          init_pager();
+          print_table_data_xml(result);
+          end_pager();
+        }
       }
       else
       {
