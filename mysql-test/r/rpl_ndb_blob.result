@@ -23,6 +23,19 @@ S	a	sha1(b)
 S	1	8a6c4cf7cf97e66c487c3e3b717e9ae13623d07d
 S	2	0ccd08c0fa6ad6a4382b27b1d36586d6ceb4fffa
 S	3	75e7b3299e0b776aeac2a4d1542d5b3c0ba2e05e
+update t1 set b = repeat('xyz',3000) where a = 1;
+delete from t1 where a = 2;
+update t1 set b = concat(b,'xyz') where a = 3;
+select 'M', a, sha1(b) from t1
+order by a;
+M	a	sha1(b)
+M	1	00fb68a43c526c2b7e3466ddcf2b3e39277d0fe1
+M	3	e731e68ab2482967619b62a69a5d03dfcbb9ce16
+select 'S', a, sha1(b) from t1
+order by a;
+S	a	sha1(b)
+S	1	00fb68a43c526c2b7e3466ddcf2b3e39277d0fe1
+S	3	e731e68ab2482967619b62a69a5d03dfcbb9ce16
 drop table t1;
 create table t1 (
 a int not null primary key,

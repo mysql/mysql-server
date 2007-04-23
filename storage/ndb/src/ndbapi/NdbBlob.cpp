@@ -897,7 +897,9 @@ NdbBlob::getHeadInlineValue(NdbOperation* anOp)
    * one way or other.  Following hack in 5.0 makes sure we don't read
    * garbage.  The proper fix exists only in version >= 5.1.
    */
-  theHead->length = 0;
+  // 5.0 theHead->length = 0;
+  memset(&theHead, 0, sizeof(theHead));
+  packBlobHead();
   DBUG_RETURN(0);
 }
 
