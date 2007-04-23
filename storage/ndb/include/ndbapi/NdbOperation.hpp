@@ -822,7 +822,7 @@ public:
   Uint32 getPartitionId() const;
 #endif
 protected:
-  int handle_distribution_key(const Uint64 *, Uint32 len);
+  int handle_distribution_key(const NdbColumnImpl*, const Uint64 *, Uint32 len);
 protected:
 /******************************************************************************
  * These are the methods used to create and delete the NdbOperation objects.
@@ -1033,6 +1033,12 @@ protected:
 
   // Blobs in this operation
   NdbBlob* theBlobList;
+
+  // ONLY for blob V2 implementation (not virtual, only PK ops)
+  NdbRecAttr*
+  getVarValue(const NdbColumnImpl*, char* aBareValue, Uint16* aLenLoc);
+  int
+  setVarValue(const NdbColumnImpl*, const char* aBareValue, const Uint16&  aLen);
 
   /*
    * Abort option per operation, used by blobs.
