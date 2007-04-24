@@ -136,9 +136,22 @@ SET AUTOCOMMIT=0;
 let $run= 5;
 while ($run)
 {
+ START TRANSACTION;
  CALL tpcb.trans();
+ eval SET @my_errno= $mysql_errno;
+ let $run_good= `SELECT @my_errno = 0`;
+ let $run_bad= `SELECT @my_errno <> 0`;
+ if ($run_good)
+ {
+   COMMIT;
+ }
+ if ($run_bad)
+ {
+   ROLLBACK;
+ }
  dec $run;
 }
+
 SET AUTOCOMMIT=1;
 --enable_query_log
 
@@ -148,6 +161,7 @@ SET AUTOCOMMIT=1;
 --echo
 
 connection master;
+let $off_set = 9;
 --source  include/show_binlog_using_logname.inc
 
 # Flush the logs on the master moving all
