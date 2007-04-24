@@ -3263,7 +3263,7 @@ end_with_restore_list:
 	*/
 	old_list= table[0];
 	new_list= table->next_local[0];
-	if (check_grant(thd, ALTER_ACL, &old_list, 0, 1, 0) ||
+	if (check_grant(thd, ALTER_ACL | DROP_ACL, &old_list, 0, 1, 0) ||
 	    (!test_all_bits(table->next_local->grant.privilege,
 			    INSERT_ACL | CREATE_ACL) &&
 	     check_grant(thd, INSERT_ACL | CREATE_ACL, &new_list, 0, 1, 0)))
