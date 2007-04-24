@@ -45,7 +45,8 @@
 
 ConfigRetriever::ConfigRetriever(const char * _connect_string,
 				 Uint32 version, Uint32 node_type,
-				 const char * _bindaddress)
+				 const char * _bindaddress,
+                                 int timeout_ms)
 {
   DBUG_ENTER("ConfigRetriever::ConfigRetriever");
 
@@ -60,6 +61,8 @@ ConfigRetriever::ConfigRetriever(const char * _connect_string,
     setError(CR_ERROR, "Unable to allocate mgm handle");
     DBUG_VOID_RETURN;
   }
+
+  ndb_mgm_set_timeout(m_handle, timeout_ms);
 
   if (ndb_mgm_set_connectstring(m_handle, _connect_string))
   {

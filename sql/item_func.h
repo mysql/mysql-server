@@ -147,11 +147,11 @@ public:
   void count_only_length();
   void count_real_length();
   void count_decimal_length();
-  inline bool get_arg0_date(TIME *ltime, uint fuzzy_date)
+  inline bool get_arg0_date(MYSQL_TIME *ltime, uint fuzzy_date)
   {
     return (null_value=args[0]->get_date(ltime, fuzzy_date));
   }
-  inline bool get_arg0_time(TIME *ltime)
+  inline bool get_arg0_time(MYSQL_TIME *ltime)
   {
     return (null_value=args[0]->get_time(ltime));
   }
@@ -1337,12 +1337,12 @@ public:
   FT_INFO *ft_handler;
   TABLE *table;
   Item_func_match *master;   // for master-slave optimization
-  Item *concat;              // Item_func_concat_ws
-  String value;              // value of concat
+  Item *concat_ws;           // Item_func_concat_ws
+  String value;              // value of concat_ws
   String search_value;       // key_item()'s value converted to cmp_collation
 
   Item_func_match(List<Item> &a, uint b): Item_real_func(a), key(0), flags(b),
-       join_key(0), ft_handler(0), table(0), master(0), concat(0) { }
+       join_key(0), ft_handler(0), table(0), master(0), concat_ws(0) { }
   void cleanup()
   {
     DBUG_ENTER("Item_func_match");
@@ -1350,7 +1350,7 @@ public:
     if (!master && ft_handler)
       ft_handler->please->close_search(ft_handler);
     ft_handler= 0;
-    concat= 0;
+    concat_ws= 0;
     DBUG_VOID_RETURN;
   }
   enum Functype functype() const { return FT_FUNC; }
@@ -1434,13 +1434,16 @@ private:
   sp_name *m_name;
   mutable sp_head *m_sp;
   TABLE *dummy_table;
-  Field *result_field;
   char result_buf[64];
+  /*
+     The result field of the concrete stored function.
+  */
+  Field *sp_result_field;
 
-  bool execute(Field **flp);
-  bool execute_impl(THD *thd, Field *return_value_fld);
-  Field *sp_result_field(void) const;
-
+  bool execute();
+  bool execute_impl(THD *thd);
+  bool init_result_field(THD *thd);
+  
 public:
 
   Item_func_sp(Name_resolution_context *context_arg, sp_name *name);
@@ -1450,6 +1453,8 @@ public:
 
   virtual ~Item_func_sp()
   {}
+
+  table_map used_tables() const { return RAND_TABLE_BIT; }
 
   void cleanup();
 
@@ -1465,23 +1470,23 @@ public:
 
   longlong val_int()
   {
-    if (execute(&result_field))
+    if (execute())
       return (longlong) 0;
-    return result_field->val_int();
+    return sp_result_field->val_int();
   }
 
   double val_real()
   {
-    if (execute(&result_field))
+    if (execute())
       return 0.0;
-    return result_field->val_real();
+    return sp_result_field->val_real();
   }
 
   my_decimal *val_decimal(my_decimal *dec_buf)
   {
-    if (execute(&result_field))
+    if (execute())
       return NULL;
-    return result_field->val_decimal(dec_buf);
+    return sp_result_field->val_decimal(dec_buf);
   }
 
   String *val_str(String *str)
@@ -1490,7 +1495,7 @@ public:
     char buff[20];
     buf.set(buff, 20, str->charset());
     buf.length(0);
-    if (execute(&result_field))
+    if (execute())
       return NULL;
     /*
       result_field will set buf pointing to internal buffer
@@ -1498,7 +1503,7 @@ public:
       when SP is executed. In order to prevent occasional
       corruption of returned value, we make here a copy.
     */
-    result_field->val_str(&buf);
+    sp_result_field->val_str(&buf);
     str->copy(buf);
     return str;
   }
@@ -1506,11 +1511,11 @@ public:
   virtual bool change_context_processor(byte *cntx)
     { context= (Name_resolution_context *)cntx; return FALSE; }
 
-  void fix_length_and_dec();
-  bool find_and_check_access(THD * thd);
+  bool sp_check_access(THD * thd);
   virtual enum Functype functype() const { return FUNC_SP; }
 
   bool fix_fields(THD *thd, Item **ref);
+  void fix_length_and_dec(void);
   bool is_expensive() { return 1; }
 };
 

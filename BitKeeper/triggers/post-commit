@@ -72,7 +72,7 @@ X-CSetKey: <$CSETKEY>
 $BH
 EOF
   bk changes -v -r+
-  bk cset -r+ -d
+  bk rset -r+ -ah | bk gnupatch -h -dup -T
  ) > $BKROOT/BitKeeper/tmp/dev_public.txt
 
 $SENDMAIL -t < $BKROOT/BitKeeper/tmp/dev_public.txt

@@ -333,6 +333,12 @@ public:
   // supply argc and argv as parameters
   int execute(int, const char**);
 
+  // NDBT's test tables are fixed and it always create 
+  // and drop fixed table when execute, add this method 
+  // in order to run CTX only and adapt to some new 
+  // customized testsuite
+  int executeOneCtx(Ndb_cluster_connection&,
+		 const NdbDictionary::Table* ptab, const char* testname = NULL);
 
   // These function can be used from main in the test program 
   // to control the behaviour of the testsuite

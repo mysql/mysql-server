@@ -65,7 +65,7 @@ select "--- --database --" as "";
 select "--- --position --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=235 $MYSQLTEST_VARDIR/log/master-bin.000002
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=239 $MYSQLTEST_VARDIR/log/master-bin.000002
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
@@ -97,7 +97,7 @@ select "--- --database --" as "";
 select "--- --position --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --position=235 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --position=239 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
 
 # Bug#7853 (mysqlbinlog does not accept input from stdin)
 --disable_query_log
@@ -204,8 +204,8 @@ load data infile '../std_data_ln/loaddata6.dat' into table t1 character set koi8
 select hex(a) from t1;
 drop table t1;
 flush logs;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000010
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/log/master-bin.000010
 
 --echo End of 5.0 tests
 

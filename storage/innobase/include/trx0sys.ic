@@ -62,9 +62,7 @@ trx_sys_get_nth_rseg(
 	trx_sys_t*	sys,	/* in: trx system */
 	ulint		n)	/* in: index of slot */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(kernel_mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(n < TRX_SYS_N_RSEGS);
 
 	return(sys->rseg_array[n]);
@@ -121,9 +119,7 @@ trx_sysf_rseg_get_space(
 	ulint		i,		/* in: slot index == rseg id */
 	mtr_t*		mtr)		/* in: mtr */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(kernel_mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(sys_header);
 	ut_ad(i < TRX_SYS_N_RSEGS);
 
@@ -146,9 +142,7 @@ trx_sysf_rseg_get_page_no(
 	mtr_t*		mtr)		/* in: mtr */
 {
 	ut_ad(sys_header);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(kernel_mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(i < TRX_SYS_N_RSEGS);
 
 	return(mtr_read_ulint(sys_header + TRX_SYS_RSEGS
@@ -168,9 +162,7 @@ trx_sysf_rseg_set_space(
 	ulint		space,		/* in: space id */
 	mtr_t*		mtr)		/* in: mtr */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(kernel_mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(sys_header);
 	ut_ad(i < TRX_SYS_N_RSEGS);
 
@@ -194,9 +186,7 @@ trx_sysf_rseg_set_page_no(
 					slot is reset to unused */
 	mtr_t*		mtr)		/* in: mtr */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(kernel_mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(sys_header);
 	ut_ad(i < TRX_SYS_N_RSEGS);
 
@@ -250,9 +240,7 @@ trx_get_on_id(
 {
 	trx_t*	trx;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(kernel_mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
@@ -282,9 +270,7 @@ trx_list_get_min_trx_id(void)
 {
 	trx_t*	trx;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(kernel_mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	trx = UT_LIST_GET_LAST(trx_sys->trx_list);
 
@@ -307,9 +293,7 @@ trx_is_active(
 {
 	trx_t*	trx;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(kernel_mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (ut_dulint_cmp(trx_id, trx_list_get_min_trx_id()) < 0) {
 
@@ -346,9 +330,7 @@ trx_sys_get_new_trx_id(void)
 {
 	dulint	id;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	/* VERY important: after the database is started, max_trx_id value is
 	divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the following if
@@ -378,9 +360,7 @@ trx_sys_get_new_trx_no(void)
 /*========================*/
 			/* out: new, allocated trx number */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	return(trx_sys_get_new_trx_id());
 }

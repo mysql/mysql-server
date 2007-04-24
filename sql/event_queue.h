@@ -25,23 +25,16 @@ class Event_queue
 {
 public:
   Event_queue();
-
-  void
-  init_mutexes();
-
-  void
-  deinit_mutexes();
+  ~Event_queue();
 
   bool
   init_queue(THD *thd);
-  
-  void
-  deinit_queue();
 
   /* Methods for queue management follow */
 
-  void
-  create_event(THD *thd, Event_queue_element *new_element);
+  bool
+  create_event(THD *thd, Event_queue_element *new_element,
+               bool *created);
 
   void
   update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
@@ -64,9 +57,23 @@ public:
   void
   dump_internal_status();
 
+private:
   void
   empty_queue();
-protected:
+
+  void
+  deinit_queue();
+  /* helper functions for working with mutexes & conditionals */
+  void
+  lock_data(const char *func, uint line);
+
+  void
+  unlock_data(const char *func, uint line);
+
+  void
+  cond_wait(THD *thd, struct timespec *abstime, const char* msg,
+            const char *func, uint line);
+
   void
   find_n_remove_event(LEX_STRING db, LEX_STRING name);
 
@@ -86,7 +93,7 @@ protected:
   /* The sorted queue with the Event_queue_element objects */
   QUEUE queue;
 
-  TIME next_activation_at;
+  my_time_t next_activation_at;
 
   uint mutex_last_locked_at_line;
   uint mutex_last_unlocked_at_line;
@@ -98,16 +105,6 @@ protected:
   bool mutex_queue_data_attempting_lock;
   bool waiting_on_cond;
 
-  /* helper functions for working with mutexes & conditionals */
-  void
-  lock_data(const char *func, uint line);
-
-  void
-  unlock_data(const char *func, uint line);
-
-  void
-  cond_wait(THD *thd, struct timespec *abstime, const char* msg,
-            const char *func, uint line);
 };
 
 #endif /* _EVENT_QUEUE_H_ */

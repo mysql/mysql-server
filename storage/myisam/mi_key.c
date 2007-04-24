@@ -206,7 +206,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
     uint keynr		key number
     key			Store packed key here
     old			Not packed key
-    k_length		Length of 'old' to use
+    keypart_map         bitmap of used keyparts
     last_used_keyseg	out parameter.  May be NULL
 
    RETURN
@@ -216,34 +216,36 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
 */
 
 uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
-		  uint k_length, HA_KEYSEG **last_used_keyseg)
+                  key_part_map keypart_map, HA_KEYSEG **last_used_keyseg)
 {
   uchar *start_key=key;
   HA_KEYSEG *keyseg;
   my_bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
   DBUG_ENTER("_mi_pack_key");
 
-  for (keyseg=info->s->keyinfo[keynr].seg ;
-       keyseg->type && (int) k_length > 0;
-       old+=keyseg->length, keyseg++)
+  /* "one part" rtree key is 2*SPDIMS part key in MyISAM */
+  if (info->s->keyinfo[keynr].key_alg == HA_KEY_ALG_RTREE)
+    keypart_map= (((key_part_map)1) << (2*SPDIMS)) - 1;
+
+  /* only key prefixes are supported */
+  DBUG_ASSERT(((keypart_map+1) & keypart_map) == 0);
+
+  for (keyseg= info->s->keyinfo[keynr].seg ; keyseg->type && keypart_map;
+       old+= keyseg->length, keyseg++)
   {
-    enum ha_base_keytype type=(enum ha_base_keytype) keyseg->type;
-    uint length=min((uint) keyseg->length,(uint) k_length);
+    enum ha_base_keytype type= (enum ha_base_keytype) keyseg->type;
+    uint length= keyseg->length;
     uint char_length;
     uchar *pos;
     CHARSET_INFO *cs=keyseg->charset;
 
+    keypart_map>>= 1;
     if (keyseg->null_bit)
     {
-      k_length--;
       if (!(*key++= (char) 1-*old++))			/* Copy null marker */
       {
-	k_length-=length;
         if (keyseg->flag & (HA_VAR_LENGTH_PART | HA_BLOB_PART))
-        {
-          k_length-=2;                                  /* Skip length */
           old+= 2;
-        }
 	continue;					/* Found NULL */
       }
     }
@@ -262,7 +264,6 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
 	while (pos < end && pos[0] == ' ')
 	  pos++;
       }
-      k_length-=length;
       length=(uint) (end-pos);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
@@ -274,7 +275,6 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
     {
       /* Length of key-part used with mi_rkey() always 2 */
       uint tmp_length=uint2korr(pos);
-      k_length-= 2+length;
       pos+=2;
       set_if_smaller(length,tmp_length);	/* Safety */
       FIX_LENGTH(cs, pos, length, char_length);
@@ -287,11 +287,8 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
     else if (keyseg->flag & HA_SWAP_KEY)
     {						/* Numerical column */
       pos+=length;
-      k_length-=length;
       while (length--)
-      {
 	*key++ = *--pos;
-      }
       continue;
     }
     FIX_LENGTH(cs, pos, length, char_length);
@@ -299,30 +296,10 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
     if (length > char_length)
       cs->cset->fill(cs, (char*) key+char_length, length-char_length, ' ');
     key+= length;
-    k_length-=length;
   }
   if (last_used_keyseg)
     *last_used_keyseg= keyseg;
 
-#ifdef NOT_USED
-  if (keyseg->type)
-  {
-    /* Part-key ; fill with ASCII 0 for easier searching */
-    length= (uint) -k_length;			/* unused part of last key */
-    do
-    {
-      if (keyseg->flag & HA_NULL_PART)
-	length++;
-      if (keyseg->flag & HA_SPACE_PACK)
-	length+=2;
-      else
-	length+= keyseg->length;
-      keyseg++;
-    } while (keyseg->type);
-    bzero((byte*) key,length);
-    key+=length;
-  }
-#endif
   DBUG_RETURN((uint) (key-start_key));
 } /* _mi_pack_key */
 

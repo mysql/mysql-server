@@ -7,6 +7,10 @@
 # Change Date: 2006-01-11
 # Change: Cleanup and test rename
 #################################
+# Change Author: Guangbao Ni
+# Change Date: 2007-03-20
+# Change: Test insert data when no datafile in spacetable
+#################################
 
 -- source include/have_ndb.inc
 
@@ -216,6 +220,42 @@ ENGINE = NDB;
 
 DROP TABLE t1;
 
+create tablespace ts2
+add datafile 'datafile2_1.dat'
+use logfile group lg1
+initial_size 12M
+engine ndb;
+
+CREATE TABLE City (
+   ID int(11) NOT NULL AUTO_INCREMENT,
+   Name char(35) NOT NULL,
+   CountryCode char(3) NOT NULL,
+   District char(20) NOT NULL,
+   Population int(11) NOT NULL,
+   PRIMARY KEY (ID)
+) ENGINE=ndbcluster
+tablespace ts2
+storage disk;
+
+alter tablespace ts2
+drop datafile 'datafile2_1.dat'
+engine ndb;
+
+#It will give error messages: NoDatafile in tablespace
+--error ER_GET_ERRMSG
+insert
+into City (Name,CountryCode,District,Population)
+values ('BeiJing','CN','Beijing',2000);
+
+--error ER_DROP_FILEGROUP_FAILED
+drop tablespace ts2
+engine ndb;
+
+drop table City;
+
+drop tablespace ts2
+engine ndb;
+
 ############################
 # Test update of mm/dd part
 ############################
@@ -367,7 +407,15 @@ insert into t1 values(7,'x');
 insert into t1 values(8,'x');
 delete from t1 where a = 0;
 commit;
+
+delete from t1;
+begin;
+insert into t1 values (1, 'x');
+select * from t1;
+rollback;
+
 set autocommit = 1;
+
 
 drop table t1;
 #############################

@@ -426,8 +426,8 @@ public:
   bool fix_fields(THD *thd, Item **ref);
   void fix_length_and_dec()
   {
-    max_length= ((USERNAME_LENGTH + HOSTNAME_LENGTH + 1) *
-                 system_charset_info->mbmaxlen);
+    max_length= (USERNAME_LENGTH +
+                 (HOSTNAME_LENGTH + 1) * SYSTEM_CHARSET_MBMAXLEN);
   }
   const char *func_name() const { return "user"; }
   const char *fully_qualified_func_name() const { return "user()"; }
@@ -601,7 +601,11 @@ class Item_func_unhex :public Item_str_func
 {
   String tmp_value;
 public:
-  Item_func_unhex(Item *a) :Item_str_func(a) {}
+  Item_func_unhex(Item *a) :Item_str_func(a) 
+  { 
+    /* there can be bad hex strings */
+    maybe_null= 1; 
+  }
   const char *func_name() const { return "unhex"; }
   String *val_str(String *);
   void fix_length_and_dec()
@@ -786,7 +790,7 @@ class Item_func_crc32 :public Item_int_func
 {
   String value;
 public:
-  Item_func_crc32(Item *a) :Item_int_func(a) {}
+  Item_func_crc32(Item *a) :Item_int_func(a) { unsigned_flag= 1; }
   const char *func_name() const { return "crc32"; }
   void fix_length_and_dec() { max_length=10; }
   longlong val_int();

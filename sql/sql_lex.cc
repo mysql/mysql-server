@@ -33,10 +33,10 @@ sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
 
 /* Macros to look like lex */
 
-#define yyGet()		*(lex->ptr++)
-#define yyGetLast()	lex->ptr[-1]
-#define yyPeek()	lex->ptr[0]
-#define yyPeek2()	lex->ptr[1]
+#define yyGet()         ((uchar) *(lex->ptr++))
+#define yyGetLast()     ((uchar) lex->ptr[-1])
+#define yyPeek()        ((uchar) lex->ptr[0])
+#define yyPeek2()       ((uchar) lex->ptr[1])
 #define yyUnget()	lex->ptr--
 #define yySkip()	lex->ptr++
 #define yyLength()	((uint) (lex->ptr - lex->tok_start)-1)
@@ -69,6 +69,17 @@ static uchar to_upper_lex[]=
   208,209,210,211,212,213,214,247,216,217,218,219,220,221,222,255
 };
 
+/* 
+  Names of the index hints (for error messages). Keep in sync with 
+  index_hint_type 
+*/
+
+const char * index_hint_type_name[] =
+{
+  "IGNORE INDEX", 
+  "USE INDEX", 
+  "FORCE INDEX"
+};
 
 inline int lex_casecmp(const char *s, const char *t, uint len)
 {
@@ -116,7 +127,7 @@ st_parsing_options::reset()
   (We already do too much here)
 */
 
-void lex_start(THD *thd, const uchar *buf, uint length)
+void lex_start(THD *thd, const char *buf, uint length)
 {
   LEX *lex= thd->lex;
   DBUG_ENTER("lex_start");
@@ -158,7 +169,6 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->lock_option= TL_READ;
   lex->found_semicolon= 0;
   lex->safe_to_cache_query= 1;
-  lex->time_zone_tables_used= 0;
   lex->leaf_tables_insert= 0;
   lex->parsing_options.reset();
   lex->empty_field_list_on_rset= 0;
@@ -228,9 +238,9 @@ void lex_end(LEX *lex)
 
 static int find_keyword(LEX *lex, uint len, bool function)
 {
-  const uchar *tok=lex->tok_start;
+  const char *tok= lex->tok_start;
 
-  SYMBOL *symbol= get_hash_symbol((const char *)tok,len,function);
+  SYMBOL *symbol= get_hash_symbol(tok, len, function);
   if (symbol)
   {
     lex->yylval->symbol.symbol=symbol;
@@ -295,16 +305,16 @@ static LEX_STRING get_token(LEX *lex,uint length)
 static LEX_STRING get_quoted_token(LEX *lex,uint length, char quote)
 {
   LEX_STRING tmp;
-  const uchar *from, *end;
-  uchar *to;
+  const char *from, *end;
+  char *to;
   yyUnget();			// ptr points now after last token char
   tmp.length=lex->yytoklen=length;
   tmp.str=(char*) lex->thd->alloc(tmp.length+1);
-  for (from= lex->tok_start, to= (uchar*) tmp.str, end= to+length ;
+  for (from= lex->tok_start, to= tmp.str, end= to+length ;
        to != end ;
        )
   {
-    if ((*to++= *from++) == (uchar) quote)
+    if ((*to++= *from++) == quote)
       from++;					// Skip double quotes
   }
   *to= 0;					// End null for safety
@@ -331,9 +341,7 @@ static char *get_text(LEX *lex)
     {
       int l;
       if (use_mb(cs) &&
-          (l = my_ismbchar(cs,
-                           (const char *)lex->ptr-1,
-                           (const char *)lex->end_of_query))) {
+          (l = my_ismbchar(cs, lex->ptr-1, lex->end_of_query))) {
 	lex->ptr += l-1;
 	continue;
       }
@@ -358,12 +366,12 @@ static char *get_text(LEX *lex)
 	yyUnget();
 
       /* Found end. Unescape and return string */
-      const uchar *str, *end;
-      uchar *start;
+      const char *str, *end;
+      char *start;
 
       str=lex->tok_start+1;
       end=lex->ptr-1;
-      if (!(start=(uchar*) lex->thd->alloc((uint) (end-str)+1)))
+      if (!(start= (char*) lex->thd->alloc((uint) (end-str)+1)))
 	return (char*) "";		// Sql_alloc has set error flag
       if (!found_escape)
       {
@@ -373,15 +381,14 @@ static char *get_text(LEX *lex)
       }
       else
       {
-	uchar *to;
+        char *to;
 
 	for (to=start ; str != end ; str++)
 	{
 #ifdef USE_MB
 	  int l;
 	  if (use_mb(cs) &&
-              (l = my_ismbchar(cs,
-                               (const char *)str, (const char *)end))) {
+              (l = my_ismbchar(cs, str, end))) {
 	      while (l--)
 		  *to++ = *str++;
 	      str--;
@@ -427,7 +434,7 @@ static char *get_text(LEX *lex)
 	*to=0;
 	lex->yytoklen=(uint) (to-start);
       }
-      return (char*) start;
+      return start;
     }
   }
   return 0;					// unexpected end of query
@@ -546,7 +553,6 @@ int MYSQLlex(void *arg, void *yythd)
 
   lex->yylval=yylval;			// The global state
 
-  lex->tok_end_prev= lex->tok_end;
   lex->tok_start_prev= lex->tok_start;
 
   lex->tok_start=lex->tok_end=lex->ptr;
@@ -630,16 +636,14 @@ int MYSQLlex(void *arg, void *yythd)
         break;
       }
     case MY_LEX_IDENT:
-      const uchar *start;
+      const char *start;
 #if defined(USE_MB) && defined(USE_MB_IDENT)
       if (use_mb(cs))
       {
 	result_state= IDENT_QUOTED;
         if (my_mbcharlen(cs, yyGetLast()) > 1)
         {
-          int l = my_ismbchar(cs,
-                              (const char *)lex->ptr-1,
-                              (const char *)lex->end_of_query);
+          int l = my_ismbchar(cs, lex->ptr-1, lex->end_of_query);
           if (l == 0) {
             state = MY_LEX_CHAR;
             continue;
@@ -651,9 +655,7 @@ int MYSQLlex(void *arg, void *yythd)
           if (my_mbcharlen(cs, c) > 1)
           {
             int l;
-            if ((l = my_ismbchar(cs,
-                              (const char *)lex->ptr-1,
-                              (const char *)lex->end_of_query)) == 0)
+            if ((l = my_ismbchar(cs, lex->ptr-1, lex->end_of_query)) == 0)
               break;
             lex->ptr += l-1;
           }
@@ -776,9 +778,7 @@ int MYSQLlex(void *arg, void *yythd)
           if (my_mbcharlen(cs, c) > 1)
           {
             int l;
-            if ((l = my_ismbchar(cs,
-                                 (const char *)lex->ptr-1,
-                                 (const char *)lex->end_of_query)) == 0)
+            if ((l = my_ismbchar(cs, lex->ptr-1, lex->end_of_query)) == 0)
               break;
             lex->ptr += l-1;
           }
@@ -1112,7 +1112,7 @@ int MYSQLlex(void *arg, void *yythd)
     Pointer to the last non-comment symbol of the statement.
 */
 
-const uchar *skip_rear_comments(const uchar *begin, const uchar *end)
+const char *skip_rear_comments(const char *begin, const char *end)
 {
   while (begin < end && (end[-1] <= ' ' || end[-1] == '*' ||
                          end[-1] == '/' || end[-1] == ';'))
@@ -1201,7 +1201,6 @@ void st_select_lex::init_select()
   group_list.empty();
   type= db= 0;
   having= 0;
-  use_index_ptr= ignore_index_ptr= 0;
   table_join_options= 0;
   in_sum_expr= with_wild= 0;
   options= 0;
@@ -1209,7 +1208,6 @@ void st_select_lex::init_select()
   braces= 0;
   expr_list.empty();
   interval_list.empty();
-  use_index.empty();
   ftfunc_list_alloc.empty();
   inner_sum_func_list= 0;
   ftfunc_list= &ftfunc_list_alloc;
@@ -1224,6 +1222,7 @@ void st_select_lex::init_select()
   is_correlated= 0;
   cur_pos_in_select_list= UNDEF_POS;
   non_agg_fields.empty();
+  cond_value= having_value= Item::COND_UNDEF;
   inner_refs_list.empty();
 }
 
@@ -1435,14 +1434,11 @@ bool st_select_lex_node::inc_in_sum_expr()           { return 1; }
 uint st_select_lex_node::get_in_sum_expr()           { return 0; }
 TABLE_LIST* st_select_lex_node::get_table_list()     { return 0; }
 List<Item>* st_select_lex_node::get_item_list()      { return 0; }
-List<String>* st_select_lex_node::get_use_index()    { return 0; }
-List<String>* st_select_lex_node::get_ignore_index() { return 0; }
-TABLE_LIST *st_select_lex_node::add_table_to_list(THD *thd, Table_ident *table,
+TABLE_LIST *st_select_lex_node::add_table_to_list (THD *thd, Table_ident *table,
 						  LEX_STRING *alias,
 						  ulong table_join_options,
 						  thr_lock_type flags,
-						  List<String> *use_index,
-						  List<String> *ignore_index,
+						  List<index_hint> *hints,
                                                   LEX_STRING *option)
 {
   return 0;
@@ -1548,19 +1544,6 @@ List<Item>* st_select_lex::get_item_list()
 {
   return &item_list;
 }
-
-
-List<String>* st_select_lex::get_use_index()
-{
-  return use_index_ptr;
-}
-
-
-List<String>* st_select_lex::get_ignore_index()
-{
-  return ignore_index_ptr;
-}
-
 
 ulong st_select_lex::get_table_join_options()
 {
@@ -1852,6 +1835,7 @@ bool st_lex::can_use_merged()
   case SQLCOM_UPDATE_MULTI:
   case SQLCOM_DELETE:
   case SQLCOM_DELETE_MULTI:
+  case SQLCOM_TRUNCATE:
   case SQLCOM_INSERT:
   case SQLCOM_INSERT_SELECT:
   case SQLCOM_REPLACE:
@@ -2093,31 +2077,6 @@ void st_lex::first_lists_tables_same()
 
 
 /*
-  Add implicitly used time zone description tables to global table list
-  (if needed).
-
-  SYNOPSYS
-    st_lex::add_time_zone_tables_to_query_tables()
-      thd - pointer to current thread context
-
-  RETURN VALUE
-   TRUE  - error
-   FALSE - success
-*/
-
-bool st_lex::add_time_zone_tables_to_query_tables(THD *thd_arg)
-{
-  /* We should not add these tables twice */
-  if (!time_zone_tables_used)
-  {
-    time_zone_tables_used= my_tz_get_table_list(thd_arg, &query_tables_last);
-    if (time_zone_tables_used == &fake_time_zone_tables_list)
-      return TRUE;
-  }
-  return FALSE;
-}
-
-/*
   Link table back that was unlinked with unlink_first_table()
 
   SYNOPSIS
@@ -2186,7 +2145,6 @@ void st_lex::cleanup_after_one_table_open()
     /* remove underlying units (units of VIEW) subtree */
     select_lex.cut_subtree();
   }
-  time_zone_tables_used= 0;
 }
 
 
@@ -2327,3 +2285,61 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
   are in sql_union.cc
 */
 
+/*
+  Sets the kind of hints to be added by the calls to add_index_hint().
+
+  SYNOPSIS
+    set_index_hint_type()
+      type         the kind of hints to be added from now on.
+      clause       the clause to use for hints to be added from now on.
+
+  DESCRIPTION
+    Used in filling up the tagged hints list.
+    This list is filled by first setting the kind of the hint as a 
+    context variable and then adding hints of the current kind.
+    Then the context variable index_hint_type can be reset to the
+    next hint type.
+*/
+void st_select_lex::set_index_hint_type(enum index_hint_type type, 
+                                        index_clause_map clause)
+{ 
+  current_index_hint_type= type;
+  current_index_hint_clause= clause;
+}
+
+
+/*
+  Makes an array to store index usage hints (ADD/FORCE/IGNORE INDEX).
+
+  SYNOPSIS
+    alloc_index_hints()
+      thd         current thread.
+*/
+
+void st_select_lex::alloc_index_hints (THD *thd)
+{ 
+  index_hints= new (thd->mem_root) List<index_hint>(); 
+}
+
+
+
+/*
+  adds an element to the array storing index usage hints 
+  (ADD/FORCE/IGNORE INDEX).
+
+  SYNOPSIS
+    add_index_hint()
+      thd         current thread.
+      str         name of the index.
+      length      number of characters in str.
+
+  RETURN VALUE
+    0 on success, non-zero otherwise
+*/
+bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
+{
+  return index_hints->push_front (new (thd->mem_root) 
+                                 index_hint(current_index_hint_type,
+                                            current_index_hint_clause,
+                                            str, length));
+}

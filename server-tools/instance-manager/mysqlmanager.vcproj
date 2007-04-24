@@ -12,13 +12,14 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory="../../client_debug"
-			IntermediateDirectory="Debug"
+			OutputDirectory=".\debug_obj"
+			IntermediateDirectory=".\debug_obj"
 			ConfigurationType="1"
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
+				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="..\..\include,../../extra/yassl/include"
 				PreprocessorDefinitions="MYSQL_INSTANCE_MANAGER;MYSQL_SERVER;_DEBUG;SAFEMALLOC;SAFE_MUTEX;_WINDOWS;CONSOLE"
 				MinimalRebuild="TRUE"
@@ -34,10 +35,12 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="wsock32.lib"
-				OutputFile="../../client_debug/mysqlmanager.exe"
-				LinkIncremental="2"
+				OutputFile=".\debug/mysqlmanager.exe"
+				LinkIncremental="1"
 				GenerateDebugInformation="TRUE"
-				ProgramDatabaseFile="../../client_debug/mysqlmanager.pdb"
+				ProgramDatabaseFile=".\debug/mysqlmanager.pdb"
+				GenerateMapFile="TRUE"
+				MapFileName=".\debug/mysqlmanager.map"
 				SubSystem="1"
 				TargetMachine="1"/>
 			<Tool
@@ -63,12 +66,15 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory="../../client_release"
-			IntermediateDirectory="Release"
+			OutputDirectory=".\release_obj"
+			IntermediateDirectory=".\release_obj"
 			ConfigurationType="1"
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
+				Optimization="2"
+				InlineFunctionExpansion="1"
+				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="..\..\include,../../extra/yassl/include"
 				PreprocessorDefinitions="MYSQL_INSTANCE_MANAGER;MYSQL_SERVER;_WINDOWS;CONSOLE"
 				ExceptionHandling="FALSE"
@@ -82,9 +88,12 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="wsock32.lib"
-				OutputFile="../../client_release/mysqlmanager.exe"
+				OutputFile=".\release/mysqlmanager.exe"
 				LinkIncremental="1"
 				GenerateDebugInformation="TRUE"
+				ProgramDatabaseFile=".\release/mysqlmanager.pdb"
+				GenerateMapFile="TRUE"
+				MapFileName=".\release/mysqlmanager.map"
 				SubSystem="1"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"

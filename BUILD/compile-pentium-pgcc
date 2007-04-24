@@ -1,5 +1,7 @@
+#! /bin/sh
+
 AM_MAKEFLAGS="-j 2"
-gmake -k clean || true
+gmake -k maintainer-clean || true
 /bin/rm -f */.deps/*.P config.cache
  
 path=`dirname $0`

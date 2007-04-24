@@ -158,11 +158,7 @@ class Load_log_processor
 
 public:
   Load_log_processor() {}
-  ~Load_log_processor()
-  {
-    destroy();
-    delete_dynamic(&file_names);
-  }
+  ~Load_log_processor() {}
 
   int init()
   {
@@ -182,19 +178,21 @@ public:
       target_dir_name_len= strlen(target_dir_name);
     }
   void destroy()
+  {
+    File_name_record *ptr= (File_name_record *)file_names.buffer;
+    File_name_record *end= ptr + file_names.elements;
+    for (; ptr < end; ptr++)
     {
-      File_name_record *ptr= (File_name_record *)file_names.buffer;
-      File_name_record *end= ptr + file_names.elements;
-      for (; ptr<end; ptr++)
+      if (ptr->fname)
       {
-	if (ptr->fname)
-	{
-          my_free(ptr->fname, MYF(MY_WME));
-          delete ptr->event;
-          bzero((char *)ptr, sizeof(File_name_record));
-	}
+        my_free(ptr->fname, MYF(MY_WME));
+        delete ptr->event;
+        bzero((char *)ptr, sizeof(File_name_record));
       }
     }
+
+    delete_dynamic(&file_names);
+  }
 
   /*
     Obtain Create_file event for LOAD DATA statement by its file_id.
@@ -483,19 +481,17 @@ static int
 write_event_header_and_base64(Log_event *ev, FILE *result_file,
                               PRINT_EVENT_INFO *print_event_info)
 {
+  IO_CACHE *head= &print_event_info->head_cache;
+  IO_CACHE *body= &print_event_info->body_cache;
   DBUG_ENTER("write_event_header_and_base64");
-  /* Write header and base64 output to cache */
-  IO_CACHE result_cache;
-  if (open_cached_file(&result_cache, NULL, NULL, 0, MYF(MY_WME | MY_NABP)))
-    return 1;
 
-  ev->print_header(&result_cache, print_event_info, FALSE);
-  ev->print_base64(&result_cache, print_event_info, FALSE);
+  /* Write header and base64 output to cache */
+  ev->print_header(head, print_event_info, FALSE);
+  ev->print_base64(body, print_event_info, FALSE);
 
   /* Read data from cache and write to result file */
-  my_b_copy_to_file(&result_cache, result_file);
-  close_cached_file(&result_cache);
-  DBUG_RETURN(0);
+  DBUG_RETURN(copy_event_cache_to_file_and_reinit(head, result_file) ||
+              copy_event_cache_to_file_and_reinit(body, result_file));
 }
 
 
@@ -948,14 +944,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     remote_opt= 1;
     break;
   case OPT_MYSQL_PROTOCOL:
-  {
-    if ((opt_protocol= find_type(argument, &sql_protocol_typelib,0)) <= 0)
-    {
-      fprintf(stderr, "Unknown option to protocol: %s\n", argument);
-      exit(1);
-    }
+    opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
+                                    opt->name);
     break;
-  }
   case OPT_START_DATETIME:
     start_datetime= convert_str_to_timestamp(start_datetime_str);
     break;
@@ -1171,7 +1162,7 @@ could be out of memory");
     }
     if (len < 8 && net->read_pos[0] == 254)
       break; // end of data
-    DBUG_PRINT("info",( "len: %lu, net->read_pos[5]: %d\n",
+    DBUG_PRINT("info",( "len: %lu  net->read_pos[5]: %d\n",
 			len, net->read_pos[5]));
     if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
                                         len - 1, &error_msg,
@@ -1226,6 +1217,18 @@ could be out of memory");
           len= 1; // fake Rotate, so don't increment old_off
         }
       }
+      else if (type == FORMAT_DESCRIPTION_EVENT)
+      {
+        /*
+          This could be an fake Format_description_log_event that server
+          (5.0+) automatically sends to a slave on connect, before sending
+          a first event at the requested position.  If this is the case,
+          don't increment old_off. Real Format_description_log_event always
+          starts from BIN_LOG_HEADER_SIZE position.
+        */
+        if (old_off != BIN_LOG_HEADER_SIZE)
+          len= 1;         // fake event, don't increment old_off
+      }
       if ((error= process_event(print_event_info, ev, old_off)))
       {
 	error= ((error < 0) ? 0 : 1);
@@ -1238,16 +1241,16 @@ could be out of memory");
       const char *old_fname= le->fname;
       uint old_len= le->fname_len;
       File file;
-      
+
       if ((file= load_processor.prepare_new_file_for_old_format(le,fname)) < 0)
       {
         error= 1;
         goto err;
       }
-      
+
       if ((error= process_event(print_event_info, ev, old_off)))
       {
- 	my_close(file,MYF(MY_WME));
+        my_close(file,MYF(MY_WME));
 	error= ((error < 0) ? 0 : 1);
         goto err;
       }
@@ -1260,8 +1263,8 @@ could be out of memory");
       }
     }
     /*
-      Let's adjust offset for remote log as for local log to produce 
-      similar text.
+      Let's adjust offset for remote log as for local log to produce
+      similar text and to have --stop-position to work identically.
     */
     old_off+= len-1;
   }
@@ -1577,6 +1580,7 @@ int main(int argc, char** argv)
   cleanup();
   free_defaults(defaults_argv);
   my_free_open_file_info();
+  load_processor.destroy();
   /* We cannot free DBUG, it is used in global destructors after exit(). */
   my_end((info_flag ? MY_CHECK_ERROR : 0) | MY_DONT_FREE_DBUG);
 
@@ -1603,10 +1607,12 @@ int main(int argc, char** argv)
 #include "decimal.c"
 #include "my_decimal.cpp"
 #include "log_event.cpp"
+#include "log_event_old.cpp"
 #else
 #include "my_decimal.h"
 #include "decimal.c"
 #include "my_decimal.cc"
 #include "log_event.cc"
+#include "log_event_old.cc"
 #endif
 

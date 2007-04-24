@@ -38,6 +38,7 @@ enum enum_i_s_events_fields
   ISE_EVENT_SCHEMA,
   ISE_EVENT_NAME,
   ISE_DEFINER,
+  ISE_TIME_ZONE,
   ISE_EVENT_BODY,
   ISE_EVENT_DEFINITION,
   ISE_EVENT_TYPE,
@@ -52,7 +53,8 @@ enum enum_i_s_events_fields
   ISE_CREATED,
   ISE_LAST_ALTERED,
   ISE_LAST_EXECUTED,
-  ISE_EVENT_COMMENT
+  ISE_EVENT_COMMENT,
+  ISE_ORIGINATOR
 };
 
 
@@ -360,7 +362,7 @@ bool mysqld_show_privileges(THD *thd)
 
   field_list.push_back(new Item_empty_string("Privilege",10));
   field_list.push_back(new Item_empty_string("Context",15));
-  field_list.push_back(new Item_empty_string("Comment",NAME_LEN));
+  field_list.push_back(new Item_empty_string("Comment",NAME_CHAR_LEN));
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -424,7 +426,8 @@ bool mysqld_show_column_types(THD *thd)
   DBUG_ENTER("mysqld_show_column_types");
 
   field_list.push_back(new Item_empty_string("Type",30));
-  field_list.push_back(new Item_int("Size",(longlong) 1,21));
+  field_list.push_back(new Item_int("Size",(longlong) 1,
+                                    MY_INT64_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("Min_Value",20));
   field_list.push_back(new Item_empty_string("Max_Value",20));
   field_list.push_back(new Item_return_int("Prec", 4, MYSQL_TYPE_SHORT));
@@ -435,8 +438,8 @@ bool mysqld_show_column_types(THD *thd)
   field_list.push_back(new Item_empty_string("Zerofill",4));
   field_list.push_back(new Item_empty_string("Searchable",4));
   field_list.push_back(new Item_empty_string("Case_Sensitive",4));
-  field_list.push_back(new Item_empty_string("Default",NAME_LEN));
-  field_list.push_back(new Item_empty_string("Comment",NAME_LEN));
+  field_list.push_back(new Item_empty_string("Default",NAME_CHAR_LEN));
+  field_list.push_back(new Item_empty_string("Comment",NAME_CHAR_LEN));
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -518,7 +521,7 @@ find_files(THD *thd, List<char> *files, const char *db,
 
   for (i=0 ; i < (uint) dirp->number_off_files  ; i++)
   {
-    char uname[NAME_LEN*3+1];                   /* Unencoded name */
+    char uname[NAME_LEN + 1];                   /* Unencoded name */
     file=dirp->dir_entry+i;
     if (dir)
     {                                           /* Return databases */
@@ -648,13 +651,13 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   List<Item> field_list;
   if (table_list->view)
   {
-    field_list.push_back(new Item_empty_string("View",NAME_LEN));
+    field_list.push_back(new Item_empty_string("View",NAME_CHAR_LEN));
     field_list.push_back(new Item_empty_string("Create View",
                                                max(buffer.length(),1024)));
   }
   else
   {
-    field_list.push_back(new Item_empty_string("Table",NAME_LEN));
+    field_list.push_back(new Item_empty_string("Table",NAME_CHAR_LEN));
     // 1024 is for not to confuse old clients
     field_list.push_back(new Item_empty_string("Create Table",
                                                max(buffer.length(),1024)));
@@ -712,9 +715,9 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   }
 #endif
   if (!my_strcasecmp(system_charset_info, dbname,
-                     information_schema_name.str))
+                     INFORMATION_SCHEMA_NAME.str))
   {
-    dbname= information_schema_name.str;
+    dbname= INFORMATION_SCHEMA_NAME.str;
     create.default_table_charset= system_charset_info;
   }
   else
@@ -728,7 +731,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     load_db_opt_by_name(thd, dbname, &create);
   }
   List<Item> field_list;
-  field_list.push_back(new Item_empty_string("Database",NAME_LEN));
+  field_list.push_back(new Item_empty_string("Database",NAME_CHAR_LEN));
   field_list.push_back(new Item_empty_string("Create Database",1024));
 
   if (protocol->send_fields(&field_list,
@@ -1221,7 +1224,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       if (key_part->field &&
           (key_part->length !=
            table->field[key_part->fieldnr-1]->key_length() &&
-           !(key_info->flags & HA_FULLTEXT)))
+           !(key_info->flags & (HA_FULLTEXT | HA_SPATIAL))))
       {
         char *end;
         buff[0] = '(';
@@ -1620,10 +1623,10 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_list_processes");
 
-  field_list.push_back(new Item_int("Id",0,11));
+  field_list.push_back(new Item_int("Id", 0, MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("User",16));
   field_list.push_back(new Item_empty_string("Host",LIST_PROCESS_HOST_LEN));
-  field_list.push_back(field=new Item_empty_string("db",NAME_LEN));
+  field_list.push_back(field=new Item_empty_string("db",NAME_CHAR_LEN));
   field->maybe_null=1;
   field_list.push_back(new Item_empty_string("Command",16));
   field_list.push_back(new Item_return_int("Time",7, MYSQL_TYPE_LONG));
@@ -1797,7 +1800,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       else
         table->field[4]->store(command_name[tmp->command].str,
                                command_name[tmp->command].length, cs);
-      /* TIME */
+      /* MYSQL_TIME */
       table->field[5]->store((uint32)(tmp->start_time ?
                                       now - tmp->start_time : 0), TRUE);
       /* STATE */
@@ -2194,7 +2197,7 @@ LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
 
 
 /* INFORMATION_SCHEMA name */
-LEX_STRING information_schema_name= { C_STRING_WITH_LEN("information_schema")};
+LEX_STRING INFORMATION_SCHEMA_NAME= { C_STRING_WITH_LEN("information_schema")};
 
 /* This is only used internally, but we need it here as a forward reference */
 extern ST_SCHEMA_TABLE schema_tables[];
@@ -2266,8 +2269,7 @@ int make_table_list(THD *thd, SELECT_LEX *sel,
   ident_table.length= strlen(table);
   table_ident= new Table_ident(thd, ident_db, ident_table, 1);
   sel->init_query();
-  if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ,
-                             (List<String> *) 0, (List<String> *) 0))
+  if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ))
     return 1;
   return 0;
 }
@@ -2411,11 +2413,11 @@ int make_db_list(THD *thd, List<char> *files,
     */
     if (!idx_field_vals->db_value ||
         !wild_case_compare(system_charset_info, 
-                           information_schema_name.str,
+                           INFORMATION_SCHEMA_NAME.str,
                            idx_field_vals->db_value))
     {
       *with_i_schema= 1;
-      if (files->push_back(thd->strdup(information_schema_name.str)))
+      if (files->push_back(thd->strdup(INFORMATION_SCHEMA_NAME.str)))
         return 1;
     }
     return (find_files(thd, files, NullS, mysql_data_home,
@@ -2429,11 +2431,11 @@ int make_db_list(THD *thd, List<char> *files,
   */
   if (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND)
   {
-    if (!my_strcasecmp(system_charset_info, information_schema_name.str,
+    if (!my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str,
                        idx_field_vals->db_value))
     {
       *with_i_schema= 1;
-      return files->push_back(thd->strdup(information_schema_name.str));
+      return files->push_back(thd->strdup(INFORMATION_SCHEMA_NAME.str));
     }
     return files->push_back(thd->strdup(idx_field_vals->db_value));
   }
@@ -2442,7 +2444,7 @@ int make_db_list(THD *thd, List<char> *files,
     Create list of existing databases. It is used in case
     of select from information schema table
   */
-  if (files->push_back(thd->strdup(information_schema_name.str)))
+  if (files->push_back(thd->strdup(INFORMATION_SCHEMA_NAME.str)))
     return 1;
   *with_i_schema= 1;
   return (find_files(thd, files, NullS,
@@ -2562,7 +2564,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   */
   thd->reset_n_backup_open_tables_state(&open_tables_state_backup);
 
-  if (lsel)
+  if (lsel && lsel->table_list.first)
   {
     TABLE_LIST *show_table_list= (TABLE_LIST*) lsel->table_list.first;
     bool res;
@@ -2731,18 +2733,32 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             res= open_normal_and_derived_tables(thd, show_table_list,
                                                 MYSQL_LOCK_IGNORE_FLUSH);
             lex->sql_command= save_sql_command;
-            /*
-              We should use show_table_list->alias instead of 
-              show_table_list->table_name because table_name
-              could be changed during opening of I_S tables. It's safe
-              to use alias because alias contains original table name 
-              in this case.
+            /* 
+              They can drop table after table names list creation and
+              before table opening. We open non existing table and 
+              get ER_NO_SUCH_TABLE error. In this case we do not store
+              the record into I_S table and clear error.
             */
-            res= schema_table->process_table(thd, show_table_list, table,
-                                             res, orig_base_name,
-                                             show_table_list->alias);
-            close_tables_for_reopen(thd, &show_table_list);
-            DBUG_ASSERT(!lex->query_tables_own_last);
+            if (thd->net.last_errno == ER_NO_SUCH_TABLE)
+            {
+              res= 0;
+              thd->clear_error();
+            }
+            else
+            {
+              /*
+                We should use show_table_list->alias instead of 
+                show_table_list->table_name because table_name
+                could be changed during opening of I_S tables. It's safe
+                to use alias because alias contains original table name 
+                in this case.
+              */
+              res= schema_table->process_table(thd, show_table_list, table,
+                                               res, orig_base_name,
+                                               show_table_list->alias);
+              close_tables_for_reopen(thd, &show_table_list);
+              DBUG_ASSERT(!lex->query_tables_own_last);
+            }
             if (res)
               goto err;
           }
@@ -2835,7 +2851,7 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
 				    const char *file_name)
 {
   const char *tmp_buff;
-  TIME time;
+  MYSQL_TIME time;
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_tables_record");
 
@@ -3394,7 +3410,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
 {
   String tmp_string;
   String sp_db, sp_name, definer;
-  TIME time;
+  MYSQL_TIME time;
   LEX *lex= thd->lex;
   CHARSET_INFO *cs= system_charset_info;
   get_field(thd->mem_root, proc_table->field[0], &sp_db);
@@ -3511,7 +3527,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
 
 err:
   proc_table->file->ha_index_end();
-  close_proc_table(thd, &open_tables_state_backup);
+  close_system_tables(thd, &open_tables_state_backup);
   DBUG_RETURN(res);
 }
 
@@ -3759,8 +3775,7 @@ static bool store_trigger(THD *thd, TABLE *table, const char *db,
                           LEX_STRING *definer_buffer)
 {
   CHARSET_INFO *cs= system_charset_info;
-  byte *sql_mode_str;
-  ulong sql_mode_len;
+  LEX_STRING sql_mode_rep;
 
   restore_record(table, s->default_values);
   table->field[1]->store(db, strlen(db), cs);
@@ -3776,11 +3791,9 @@ static bool store_trigger(THD *thd, TABLE *table, const char *db,
   table->field[14]->store(STRING_WITH_LEN("OLD"), cs);
   table->field[15]->store(STRING_WITH_LEN("NEW"), cs);
 
-  sql_mode_str=
-    sys_var_thd_sql_mode::symbolic_mode_representation(thd,
-                                                       sql_mode,
-                                                       &sql_mode_len);
-  table->field[17]->store((const char*)sql_mode_str, sql_mode_len, cs);
+  sys_var_thd_sql_mode::symbolic_mode_representation(thd, sql_mode,
+                                                     &sql_mode_rep);
+  table->field[17]->store(sql_mode_rep.str, sql_mode_rep.length, cs);
   table->field[18]->store((const char *)definer_buffer->str, definer_buffer->length, cs);
   return schema_table_store_record(thd, table);
 }
@@ -3966,7 +3979,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
   TABLE* table= schema_table;
   CHARSET_INFO *cs= system_charset_info;
   PARTITION_INFO stat_info;
-  TIME time;
+  MYSQL_TIME time;
   file->get_dynamic_partition_info(&stat_info, part_id);
   table->field[12]->store((longlong) stat_info.records, TRUE);
   table->field[13]->store((longlong) stat_info.mean_rec_length, TRUE);
@@ -4304,15 +4317,15 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 {
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   CHARSET_INFO *scs= system_charset_info;
-  TIME time;
+  MYSQL_TIME time;
   Event_timed et;    
-  DBUG_ENTER("fill_events_copy_to_schema_tab");
+  DBUG_ENTER("copy_event_to_schema_table");
 
   restore_record(sch_table, s->default_values);
 
-  if (et.load_from_row(event_table))
+  if (et.load_from_row(thd, event_table))
   {
-    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0));
+    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), event_table->alias);
     DBUG_RETURN(1);
   }
 
@@ -4337,6 +4350,9 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
                                 store(et.name.str, et.name.length, scs);
   sch_table->field[ISE_DEFINER]->
                                 store(et.definer.str, et.definer.length, scs);
+  const String *tz_name= et.time_zone->get_name();
+  sch_table->field[ISE_TIME_ZONE]->
+                                store(tz_name->ptr(), tz_name->length(), scs);
   sch_table->field[ISE_EVENT_BODY]->
                                 store(STRING_WITH_LEN("SQL"), scs);
   sch_table->field[ISE_EVENT_DEFINITION]->
@@ -4344,14 +4360,14 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   /* SQL_MODE */
   {
-    byte *sql_mode_str;
-    ulong sql_mode_len= 0;
-    sql_mode_str=
-           sys_var_thd_sql_mode::symbolic_mode_representation(thd, et.sql_mode,
-                                                              &sql_mode_len);
+    LEX_STRING sql_mode;
+    sys_var_thd_sql_mode::symbolic_mode_representation(thd, et.sql_mode,
+                                                       &sql_mode);
     sch_table->field[ISE_SQL_MODE]->
-                                store((const char*)sql_mode_str, sql_mode_len, scs);
+                                store(sql_mode.str, sql_mode.length, scs);
   }
+
+  int not_used=0;
 
   if (et.expression)
   {
@@ -4372,15 +4388,17 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     sch_table->field[ISE_INTERVAL_FIELD]->store(ival->str, ival->length, scs);
 
     /* starts & ends . STARTS is always set - see sql_yacc.yy */
+    et.time_zone->gmt_sec_to_TIME(&time, et.starts);
     sch_table->field[ISE_STARTS]->set_notnull();
     sch_table->field[ISE_STARTS]->
-                                store_time(&et.starts, MYSQL_TIMESTAMP_DATETIME);
+                                store_time(&time, MYSQL_TIMESTAMP_DATETIME);
 
     if (!et.ends_null)
     {
+      et.time_zone->gmt_sec_to_TIME(&time, et.ends);
       sch_table->field[ISE_ENDS]->set_notnull();
       sch_table->field[ISE_ENDS]->
-                                store_time(&et.ends, MYSQL_TIMESTAMP_DATETIME);
+                                store_time(&time, MYSQL_TIMESTAMP_DATETIME);
     }
   }
   else
@@ -4388,16 +4406,30 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     /* type */
     sch_table->field[ISE_EVENT_TYPE]->store(STRING_WITH_LEN("ONE TIME"), scs);
 
+    et.time_zone->gmt_sec_to_TIME(&time, et.execute_at);
     sch_table->field[ISE_EXECUTE_AT]->set_notnull();
     sch_table->field[ISE_EXECUTE_AT]->
-                          store_time(&et.execute_at, MYSQL_TIMESTAMP_DATETIME);
+                          store_time(&time, MYSQL_TIMESTAMP_DATETIME);
   }
 
   /* status */
-  if (et.status == Event_timed::ENABLED)
-    sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("ENABLED"), scs);
-  else
-    sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("DISABLED"), scs);
+
+  switch (et.status)
+  {
+    case Event_timed::ENABLED:
+      sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("ENABLED"), scs);
+      break;
+    case Event_timed::SLAVESIDE_DISABLED:
+      sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("SLAVESIDE_DISABLED"),
+                                          scs);
+      break;
+    case Event_timed::DISABLED:
+      sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("DISABLED"), scs);
+      break;
+    default:
+      DBUG_ASSERT(0);
+  }
+  sch_table->field[ISE_ORIGINATOR]->store(et.originator, TRUE);
 
   /* on_completion */
   if (et.on_completion == Event_timed::ON_COMPLETION_DROP)
@@ -4407,7 +4439,6 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     sch_table->field[ISE_ON_COMPLETION]->
                                 store(STRING_WITH_LEN("PRESERVE"), scs);
     
-  int not_used=0;
   number_to_datetime(et.created, &time, 0, &not_used);
   DBUG_ASSERT(not_used==0);
   sch_table->field[ISE_CREATED]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
@@ -4417,11 +4448,12 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   sch_table->field[ISE_LAST_ALTERED]->
                                 store_time(&time, MYSQL_TIMESTAMP_DATETIME);
 
-  if (et.last_executed.year)
+  if (et.last_executed)
   {
+    et.time_zone->gmt_sec_to_TIME(&time, et.last_executed);
     sch_table->field[ISE_LAST_EXECUTED]->set_notnull();
     sch_table->field[ISE_LAST_EXECUTED]->
-                       store_time(&et.last_executed, MYSQL_TIMESTAMP_DATETIME);
+                       store_time(&time, MYSQL_TIMESTAMP_DATETIME);
   }
 
   sch_table->field[ISE_EVENT_COMMENT]->
@@ -4686,6 +4718,12 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
         DBUG_RETURN(0);
       }
       break;
+    case MYSQL_TYPE_FLOAT:
+    case MYSQL_TYPE_DOUBLE:
+      if ((item= new Item_float(fields_info->field_name, 0.0, NOT_FIXED_DEC, 
+                           fields_info->field_length)) == NULL)
+        DBUG_RETURN(NULL);
+      break;
     case MYSQL_TYPE_DECIMAL:
       if (!(item= new Item_decimal((longlong) fields_info->value, false)))
       {
@@ -4702,6 +4740,9 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
                      strlen(fields_info->field_name), cs);
       break;
     default:
+      /* Don't let unimplemented types pass through. Could be a grave error. */
+      DBUG_ASSERT(fields_info->field_type == MYSQL_TYPE_STRING);
+
       /* this should be changed when Item_empty_string is fixed(in 4.1) */
       if (!(item= new Item_empty_string("", 0, cs)))
       {
@@ -4936,9 +4977,7 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   TABLE *table;
   DBUG_ENTER("mysql_schema_table");
   if (!(table= table_list->schema_table->create_table(thd, table_list)))
-  {
     DBUG_RETURN(1);
-  }
   table->s->tmp_table= SYSTEM_TMP_TABLE;
   table->grant.privilege= SELECT_ACL;
   /*
@@ -5027,14 +5066,13 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
      We have to make non const db_name & table_name
      because of lower_case_table_names
   */
-  make_lex_string(thd, &db, information_schema_name.str,
-                  information_schema_name.length, 0);
+  make_lex_string(thd, &db, INFORMATION_SCHEMA_NAME.str,
+                  INFORMATION_SCHEMA_NAME.length, 0);
   make_lex_string(thd, &table, schema_table->table_name,
                   strlen(schema_table->table_name), 0);
   if (schema_table->old_format(thd, schema_table) ||   /* Handle old syntax */
       !sel->add_table_to_list(thd, new Table_ident(thd, db, table, 0),
-                              0, 0, TL_READ, (List<String> *) 0,
-                              (List<String> *) 0))
+                              0, 0, TL_READ))
   {
     DBUG_RETURN(1);
   }
@@ -5321,7 +5359,7 @@ int fill_schema_session_variables(THD *thd, TABLE_LIST *tables, COND *cond)
 ST_FIELD_INFO schema_fields_info[]=
 {
   {"CATALOG_NAME", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"SCHEMA_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Database"},
+  {"SCHEMA_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Database"},
   {"DEFAULT_CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 0, 0},
   {"DEFAULT_COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 0, 0},
   {"SQL_PATH", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
@@ -5332,24 +5370,29 @@ ST_FIELD_INFO schema_fields_info[]=
 ST_FIELD_INFO tables_fields_info[]=
 {
   {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"TABLE_SCHEMA",NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
-  {"TABLE_TYPE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"ENGINE", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Engine"},
-  {"VERSION", 21 , MYSQL_TYPE_LONG, 0, 1, "Version"},
+  {"TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
+  {"TABLE_TYPE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"ENGINE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, "Engine"},
+  {"VERSION", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1, "Version"},
   {"ROW_FORMAT", 10, MYSQL_TYPE_STRING, 0, 1, "Row_format"},
-  {"TABLE_ROWS", 21 , MYSQL_TYPE_LONG, 0, 1, "Rows"},
-  {"AVG_ROW_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, "Avg_row_length"},
-  {"DATA_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, "Data_length"},
-  {"MAX_DATA_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, "Max_data_length"},
-  {"INDEX_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, "Index_length"},
-  {"DATA_FREE", 21 , MYSQL_TYPE_LONG, 0, 1, "Data_free"},
-  {"AUTO_INCREMENT", 21 , MYSQL_TYPE_LONG, 0, 1, "Auto_increment"},
+  {"TABLE_ROWS", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1, "Rows"},
+  {"AVG_ROW_LENGTH", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1,
+   "Avg_row_length"},
+  {"DATA_LENGTH", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1,
+   "Data_length"},
+  {"MAX_DATA_LENGTH", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1,
+   "Max_data_length"},
+  {"INDEX_LENGTH", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1,
+   "Index_length"},
+  {"DATA_FREE", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1, "Data_free"},
+  {"AUTO_INCREMENT", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1,
+   "Auto_increment"},
   {"CREATE_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Create_time"},
   {"UPDATE_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Update_time"},
   {"CHECK_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Check_time"},
   {"TABLE_COLLATION", 64, MYSQL_TYPE_STRING, 0, 1, "Collation"},
-  {"CHECKSUM", 21 , MYSQL_TYPE_LONG, 0, 1, "Checksum"},
+  {"CHECKSUM", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1, "Checksum"},
   {"CREATE_OPTIONS", 255, MYSQL_TYPE_STRING, 0, 1, "Create_options"},
   {"TABLE_COMMENT", 80, MYSQL_TYPE_STRING, 0, 0, "Comment"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
@@ -5359,17 +5402,18 @@ ST_FIELD_INFO tables_fields_info[]=
 ST_FIELD_INFO columns_fields_info[]=
 {
   {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Field"},
-  {"ORDINAL_POSITION", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"COLUMN_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Field"},
+  {"ORDINAL_POSITION", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
   {"COLUMN_DEFAULT", MAX_FIELD_VARCHARLENGTH, MYSQL_TYPE_STRING, 0, 1, "Default"},
   {"IS_NULLABLE", 3, MYSQL_TYPE_STRING, 0, 0, "Null"},
-  {"DATA_TYPE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"CHARACTER_MAXIMUM_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
-  {"CHARACTER_OCTET_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
-  {"NUMERIC_PRECISION", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
-  {"NUMERIC_SCALE", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
+  {"DATA_TYPE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"CHARACTER_MAXIMUM_LENGTH", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1,
+   0},
+  {"CHARACTER_OCTET_LENGTH", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1, 0},
+  {"NUMERIC_PRECISION", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1, 0},
+  {"NUMERIC_SCALE", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 1, 0},
   {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 1, 0},
   {"COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 1, "Collation"},
   {"COLUMN_TYPE", 65535, MYSQL_TYPE_STRING, 0, 0, "Type"},
@@ -5395,7 +5439,7 @@ ST_FIELD_INFO collation_fields_info[]=
 {
   {"COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 0, "Collation"},
   {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 0, "Charset"},
-  {"ID", 11, MYSQL_TYPE_LONG, 0, 0, "Id"},
+  {"ID", MY_INT32_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Id"},
   {"IS_DEFAULT", 3, MYSQL_TYPE_STRING, 0, 0, "Default"},
   {"IS_COMPILED", 3, MYSQL_TYPE_STRING, 0, 0, "Compiled"},
   {"SORTLEN", 3 ,MYSQL_TYPE_LONG, 0, 0, "Sortlen"},
@@ -5417,10 +5461,11 @@ ST_FIELD_INFO engines_fields_info[]=
 
 ST_FIELD_INFO events_fields_info[]=
 {
-  {"EVENT_CATALOG", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"EVENT_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Db"},
-  {"EVENT_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
+  {"EVENT_CATALOG", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"EVENT_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Db"},
+  {"EVENT_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
   {"DEFINER", 77, MYSQL_TYPE_STRING, 0, 0, "Definer"},
+  {"TIME_ZONE", 64, MYSQL_TYPE_STRING, 0, 0, "Time zone"},
   {"EVENT_BODY", 8, MYSQL_TYPE_STRING, 0, 0, 0},
   {"EVENT_DEFINITION", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
   {"EVENT_TYPE", 9, MYSQL_TYPE_STRING, 0, 0, "Type"},
@@ -5430,13 +5475,14 @@ ST_FIELD_INFO events_fields_info[]=
   {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
   {"STARTS", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Starts"},
   {"ENDS", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Ends"},
-  {"STATUS", 8, MYSQL_TYPE_STRING, 0, 0, "Status"},
+  {"STATUS", 18, MYSQL_TYPE_STRING, 0, 0, "Status"}, 
   {"ON_COMPLETION", 12, MYSQL_TYPE_STRING, 0, 0, 0},
   {"CREATED", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, 0},
   {"LAST_ALTERED", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, 0},
   {"LAST_EXECUTED", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, 0},
-  {"EVENT_COMMENT", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
+  {"EVENT_COMMENT", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"ORIGINATOR", 10, MYSQL_TYPE_LONG, 0, 0, "Originator"}, 
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0} 
 };
 
 
@@ -5451,25 +5497,25 @@ ST_FIELD_INFO coll_charset_app_fields_info[]=
 
 ST_FIELD_INFO proc_fields_info[]=
 {
-  {"SPECIFIC_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"SPECIFIC_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ROUTINE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"ROUTINE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Db"},
-  {"ROUTINE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
+  {"ROUTINE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Db"},
+  {"ROUTINE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
   {"ROUTINE_TYPE", 9, MYSQL_TYPE_STRING, 0, 0, "Type"},
-  {"DTD_IDENTIFIER", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"DTD_IDENTIFIER", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"ROUTINE_BODY", 8, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ROUTINE_DEFINITION", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"EXTERNAL_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"EXTERNAL_LANGUAGE", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"EXTERNAL_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"EXTERNAL_LANGUAGE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"PARAMETER_STYLE", 8, MYSQL_TYPE_STRING, 0, 0, 0},
   {"IS_DETERMINISTIC", 3, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"SQL_DATA_ACCESS", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"SQL_PATH", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"SQL_DATA_ACCESS", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"SQL_PATH", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"SECURITY_TYPE", 7, MYSQL_TYPE_STRING, 0, 0, "Security_type"},
   {"CREATED", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, "Created"},
   {"LAST_ALTERED", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, "Modified"},
   {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"ROUTINE_COMMENT", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Comment"},
+  {"ROUTINE_COMMENT", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Comment"},
   {"DEFINER", 77, MYSQL_TYPE_STRING, 0, 0, "Definer"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
@@ -5478,15 +5524,15 @@ ST_FIELD_INFO proc_fields_info[]=
 ST_FIELD_INFO stat_fields_info[]=
 {
   {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Table"},
+  {"TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Table"},
   {"NON_UNIQUE", 1, MYSQL_TYPE_LONG, 0, 0, "Non_unique"},
-  {"INDEX_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"INDEX_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Key_name"},
+  {"INDEX_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"INDEX_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Key_name"},
   {"SEQ_IN_INDEX", 2, MYSQL_TYPE_LONG, 0, 0, "Seq_in_index"},
-  {"COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Column_name"},
+  {"COLUMN_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Column_name"},
   {"COLLATION", 1, MYSQL_TYPE_STRING, 0, 1, "Collation"},
-  {"CARDINALITY", 21, MYSQL_TYPE_LONG, 0, 1, "Cardinality"},
+  {"CARDINALITY", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 1, "Cardinality"},
   {"SUB_PART", 3, MYSQL_TYPE_LONG, 0, 1, "Sub_part"},
   {"PACKED", 10, MYSQL_TYPE_STRING, 0, 1, "Packed"},
   {"NULLABLE", 3, MYSQL_TYPE_STRING, 0, 0, "Null"},
@@ -5499,8 +5545,8 @@ ST_FIELD_INFO stat_fields_info[]=
 ST_FIELD_INFO view_fields_info[]=
 {
   {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"VIEW_DEFINITION", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
   {"CHECK_OPTION", 8, MYSQL_TYPE_STRING, 0, 0, 0},
   {"IS_UPDATABLE", 3, MYSQL_TYPE_STRING, 0, 0, 0},
@@ -5514,7 +5560,7 @@ ST_FIELD_INFO user_privileges_fields_info[]=
 {
   {"GRANTEE", 81, MYSQL_TYPE_STRING, 0, 0, 0},
   {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"PRIVILEGE_TYPE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"PRIVILEGE_TYPE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"IS_GRANTABLE", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
@@ -5524,8 +5570,8 @@ ST_FIELD_INFO schema_privileges_fields_info[]=
 {
   {"GRANTEE", 81, MYSQL_TYPE_STRING, 0, 0, 0},
   {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"PRIVILEGE_TYPE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"PRIVILEGE_TYPE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"IS_GRANTABLE", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
@@ -5535,9 +5581,9 @@ ST_FIELD_INFO table_privileges_fields_info[]=
 {
   {"GRANTEE", 81, MYSQL_TYPE_STRING, 0, 0, 0},
   {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"PRIVILEGE_TYPE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"PRIVILEGE_TYPE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"IS_GRANTABLE", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
@@ -5547,10 +5593,10 @@ ST_FIELD_INFO column_privileges_fields_info[]=
 {
   {"GRANTEE", 81, MYSQL_TYPE_STRING, 0, 0, 0},
   {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"PRIVILEGE_TYPE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"COLUMN_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"PRIVILEGE_TYPE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"IS_GRANTABLE", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
@@ -5559,11 +5605,11 @@ ST_FIELD_INFO column_privileges_fields_info[]=
 ST_FIELD_INFO table_constraints_fields_info[]=
 {
   {"CONSTRAINT_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"CONSTRAINT_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"CONSTRAINT_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"CONSTRAINT_TYPE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"CONSTRAINT_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"CONSTRAINT_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"CONSTRAINT_TYPE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -5571,17 +5617,17 @@ ST_FIELD_INFO table_constraints_fields_info[]=
 ST_FIELD_INFO key_column_usage_fields_info[]=
 {
   {"CONSTRAINT_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"CONSTRAINT_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"CONSTRAINT_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"CONSTRAINT_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"CONSTRAINT_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"COLUMN_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ORDINAL_POSITION", 10 ,MYSQL_TYPE_LONG, 0, 0, 0},
   {"POSITION_IN_UNIQUE_CONSTRAINT", 10 ,MYSQL_TYPE_LONG, 0, 1, 0},
-  {"REFERENCED_TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"REFERENCED_TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"REFERENCED_COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"REFERENCED_TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"REFERENCED_TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"REFERENCED_COLUMN_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -5589,17 +5635,17 @@ ST_FIELD_INFO key_column_usage_fields_info[]=
 ST_FIELD_INFO table_names_fields_info[]=
 {
   {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"TABLE_SCHEMA",NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Tables_in_"},
-  {"TABLE_TYPE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Table_type"},
+  {"TABLE_SCHEMA",NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Tables_in_"},
+  {"TABLE_TYPE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Table_type"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
 
 ST_FIELD_INFO open_tables_fields_info[]=
 {
-  {"Database", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Database"},
-  {"Table",NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Table"},
+  {"Database", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Database"},
+  {"Table",NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Table"},
   {"In_use", 1, MYSQL_TYPE_LONG, 0, 0, "In_use"},
   {"Name_locked", 4, MYSQL_TYPE_LONG, 0, 0, "Name_locked"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
@@ -5609,19 +5655,19 @@ ST_FIELD_INFO open_tables_fields_info[]=
 ST_FIELD_INFO triggers_fields_info[]=
 {
   {"TRIGGER_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"TRIGGER_SCHEMA",NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TRIGGER_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Trigger"},
+  {"TRIGGER_SCHEMA",NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TRIGGER_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Trigger"},
   {"EVENT_MANIPULATION", 6, MYSQL_TYPE_STRING, 0, 0, "Event"},
   {"EVENT_OBJECT_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"EVENT_OBJECT_SCHEMA",NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"EVENT_OBJECT_TABLE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Table"},
+  {"EVENT_OBJECT_SCHEMA",NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"EVENT_OBJECT_TABLE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Table"},
   {"ACTION_ORDER", 4, MYSQL_TYPE_LONG, 0, 0, 0},
   {"ACTION_CONDITION", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
   {"ACTION_STATEMENT", 65535, MYSQL_TYPE_STRING, 0, 0, "Statement"},
   {"ACTION_ORIENTATION", 9, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ACTION_TIMING", 6, MYSQL_TYPE_STRING, 0, 0, "Timing"},
-  {"ACTION_REFERENCE_OLD_TABLE", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"ACTION_REFERENCE_NEW_TABLE", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"ACTION_REFERENCE_OLD_TABLE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"ACTION_REFERENCE_NEW_TABLE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"ACTION_REFERENCE_OLD_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ACTION_REFERENCE_NEW_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {"CREATED", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Created"},
@@ -5634,10 +5680,10 @@ ST_FIELD_INFO triggers_fields_info[]=
 ST_FIELD_INFO partitions_fields_info[]=
 {
   {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"TABLE_SCHEMA",NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"PARTITION_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"SUBPARTITION_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"TABLE_SCHEMA",NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"PARTITION_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"SUBPARTITION_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"PARTITION_ORDINAL_POSITION", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
   {"SUBPARTITION_ORDINAL_POSITION", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
   {"PARTITION_METHOD", 12, MYSQL_TYPE_STRING, 0, 1, 0},
@@ -5657,7 +5703,7 @@ ST_FIELD_INFO partitions_fields_info[]=
   {"CHECKSUM", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
   {"PARTITION_COMMENT", 80, MYSQL_TYPE_STRING, 0, 0, 0},
   {"NODEGROUP", 12 , MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLESPACE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"TABLESPACE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -5691,7 +5737,7 @@ ST_FIELD_INFO processlist_fields_info[]=
   {"ID", 4, MYSQL_TYPE_LONG, 0, 0, "Id"},
   {"USER", 16, MYSQL_TYPE_STRING, 0, 0, "User"},
   {"HOST", LIST_PROCESS_HOST_LEN,  MYSQL_TYPE_STRING, 0, 0, "Host"},
-  {"DB", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Db"},
+  {"DB", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, "Db"},
   {"COMMAND", 16, MYSQL_TYPE_STRING, 0, 0, "Command"},
   {"TIME", 7, MYSQL_TYPE_LONG, 0, 0, "Time"},
   {"STATE", 64, MYSQL_TYPE_STRING, 0, 1, "State"},
@@ -5702,14 +5748,14 @@ ST_FIELD_INFO processlist_fields_info[]=
 
 ST_FIELD_INFO plugin_fields_info[]=
 {
-  {"PLUGIN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
+  {"PLUGIN_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
   {"PLUGIN_VERSION", 20, MYSQL_TYPE_STRING, 0, 0, 0},
   {"PLUGIN_STATUS", 10, MYSQL_TYPE_STRING, 0, 0, "Status"},
   {"PLUGIN_TYPE", 80, MYSQL_TYPE_STRING, 0, 0, "Type"},
   {"PLUGIN_TYPE_VERSION", 20, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"PLUGIN_LIBRARY", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Library"},
+  {"PLUGIN_LIBRARY", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, "Library"},
   {"PLUGIN_LIBRARY_VERSION", 20, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"PLUGIN_AUTHOR", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"PLUGIN_AUTHOR", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"PLUGIN_DESCRIPTION", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
   {"PLUGIN_LICENSE", 80, MYSQL_TYPE_STRING, 0, 1, "License"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
@@ -5718,16 +5764,16 @@ ST_FIELD_INFO plugin_fields_info[]=
 ST_FIELD_INFO files_fields_info[]=
 {
   {"FILE_ID", 4, MYSQL_TYPE_LONG, 0, 0, 0},
-  {"FILE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"FILE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"FILE_TYPE", 20, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLESPACE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"TABLE_CATALOG", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"LOGFILE_GROUP_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"TABLESPACE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"TABLE_CATALOG", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"LOGFILE_GROUP_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"LOGFILE_GROUP_NUMBER", 4, MYSQL_TYPE_LONG, 0, 1, 0},
-  {"ENGINE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"FULLTEXT_KEYS", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"ENGINE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"FULLTEXT_KEYS", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"DELETED_ROWS", 4, MYSQL_TYPE_LONG, 0, 1, 0},
   {"UPDATE_COUNT", 4, MYSQL_TYPE_LONG, 0, 1, 0},
   {"FREE_EXTENTS", 4, MYSQL_TYPE_LONG, 0, 1, 0},
@@ -5771,16 +5817,16 @@ void init_fill_schema_files_row(TABLE* table)
 ST_FIELD_INFO referential_constraints_fields_info[]=
 {
   {"CONSTRAINT_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"CONSTRAINT_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"CONSTRAINT_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"CONSTRAINT_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"CONSTRAINT_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"UNIQUE_CONSTRAINT_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"UNIQUE_CONSTRAINT_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"UNIQUE_CONSTRAINT_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"MATCH_OPTION", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"UPDATE_RULE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"DELETE_RULE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"REFERENCED_TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"UNIQUE_CONSTRAINT_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"UNIQUE_CONSTRAINT_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"MATCH_OPTION", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"UPDATE_RULE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"DELETE_RULE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"REFERENCED_TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 

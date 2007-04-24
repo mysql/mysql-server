@@ -706,9 +706,11 @@ begin
   insert into test.t1 values (concat(x, "2"), y+2);
 end|
 
---system rm -f $MYSQLTEST_VARDIR/tmp/spout
+# Remove spout file if it exists
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/tmp/spout
 call into_outfile("ofile", 1)|
---system rm -f $MYSQLTEST_VARDIR/tmp/spout
+--remove_file $MYSQLTEST_VARDIR/tmp/spout
 delete from t1|
 drop procedure into_outfile|
 
@@ -723,9 +725,11 @@ begin
   insert into test.t1 values (concat(x, "2"), y+2);
 end|
 
---system rm -f $MYSQLTEST_VARDIR/tmp/spdump
+# Remove spdump file if it exists
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/tmp/spdump
 call into_dumpfile("dfile", 1)|
---system rm -f $MYSQLTEST_VARDIR/tmp/spdump
+--remove_file $MYSQLTEST_VARDIR/tmp/spdump
 delete from t1|
 drop procedure into_dumpfile|
 
@@ -6564,6 +6568,46 @@ call proc_21462_b(1)|
 drop procedure proc_21462_a|
 drop procedure proc_21462_b|
 
+
+#
+# BUG#20492: Subsequent calls to stored procedure yeild incorrect
+# result if join is used 
+#
+# Optimized ON expression in join wasn't properly saved for reuse.
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1|
+DROP VIEW IF EXISTS v1, v2|
+DROP TABLE IF EXISTS t3, t4|
+--enable_warnings
+
+CREATE TABLE t3 (t3_id INT)|
+
+INSERT INTO t3 VALUES (0)|
+INSERT INTO t3 VALUES (1)|
+
+CREATE TABLE t4 (t4_id INT)|
+
+INSERT INTO t4 VALUES (2)|
+
+CREATE VIEW v1 AS
+SELECT t3.t3_id, t4.t4_id
+FROM t3 JOIN t4 ON t3.t3_id = 0|
+
+CREATE VIEW v2 AS
+SELECT t3.t3_id AS t3_id_1, v1.t3_id AS t3_id_2, v1.t4_id
+FROM t3 LEFT JOIN v1 ON t3.t3_id = 0|
+
+CREATE PROCEDURE p1() SELECT * FROM v2|
+
+# Results should not differ.
+CALL p1()|
+CALL p1()|
+
+DROP PROCEDURE p1|
+DROP VIEW v1, v2|
+DROP TABLE t3, t4|
+
 --echo End of 5.0 tests
 
 --echo Begin of 5.1 tests
@@ -6828,9 +6872,283 @@ drop function func_8407_a|
 drop function func_8407_b|
 
 #
-# NOTE: The delimiter is `|`, and not `;`. It is changed to `;`
-#       at the end of the file!
+# Bug#26503 (Illegal SQL exception handler code causes the server to crash)
 #
+
+--disable_warnings
+drop table if exists table_26503|
+drop procedure if exists proc_26503_ok_1|
+drop procedure if exists proc_26503_ok_2|
+drop procedure if exists proc_26503_ok_3|
+drop procedure if exists proc_26503_ok_4|
+--enable_warnings
+
+create table table_26503(a int unique)|
+
+create procedure proc_26503_ok_1(v int)
+begin
+  declare i int default 5;
+
+  declare continue handler for sqlexception
+  begin
+    select 'caught something';
+    retry:
+    while i > 0 do
+      begin
+        set i = i - 1;
+        select 'looping', i;
+        iterate retry;
+        select 'dead code';
+      end;
+    end while retry;
+    select 'leaving handler';
+  end;
+
+  select 'do something';
+  insert into table_26503 values (v);
+  select 'do something again';
+  insert into table_26503 values (v);
+end|
+
+create procedure proc_26503_ok_2(v int)
+begin
+  declare i int default 5;
+
+  declare continue handler for sqlexception
+  begin
+    select 'caught something';
+    retry:
+    while i > 0 do
+      begin
+        set i = i - 1;
+        select 'looping', i;
+        leave retry;
+        select 'dead code';
+      end;
+    end while;
+    select 'leaving handler';
+  end;
+
+  select 'do something';
+  insert into table_26503 values (v);
+  select 'do something again';
+  insert into table_26503 values (v);
+end|
+
+## The outer retry label should not prevent using the inner label.
+
+create procedure proc_26503_ok_3(v int)
+begin
+  declare i int default 5;
+
+retry:
+  begin
+    declare continue handler for sqlexception
+    begin
+      select 'caught something';
+      retry:
+      while i > 0 do
+        begin
+          set i = i - 1;
+          select 'looping', i;
+          iterate retry;
+          select 'dead code';
+        end;
+      end while retry;
+      select 'leaving handler';
+    end;
+
+    select 'do something';
+    insert into table_26503 values (v);
+    select 'do something again';
+    insert into table_26503 values (v);
+  end;
+end|
+
+## The outer retry label should not prevent using the inner label.
+
+create procedure proc_26503_ok_4(v int)
+begin
+  declare i int default 5;
+
+retry:
+  begin
+    declare continue handler for sqlexception
+    begin
+      select 'caught something';
+      retry:
+      while i > 0 do
+        begin
+          set i = i - 1;
+          select 'looping', i;
+          leave retry;
+          select 'dead code';
+        end;
+      end while;
+      select 'leaving handler';
+    end;
+
+    select 'do something';
+    insert into table_26503 values (v);
+    select 'do something again';
+    insert into table_26503 values (v);
+  end;
+end|
+
+call proc_26503_ok_1(1)|
+call proc_26503_ok_2(2)|
+call proc_26503_ok_3(3)|
+call proc_26503_ok_4(4)|
+
+drop table table_26503|
+drop procedure proc_26503_ok_1|
+drop procedure proc_26503_ok_2|
+drop procedure proc_26503_ok_3|
+drop procedure proc_26503_ok_4|
+
+#
+# Bug#25373: Stored functions wasn't compared correctly which leads to a wrong
+#            result.
+#
+--disable_warnings
+DROP FUNCTION IF EXISTS bug25373|
+--disable_warnings
+CREATE FUNCTION bug25373(p1 INTEGER) RETURNS INTEGER
+LANGUAGE SQL DETERMINISTIC
+RETURN p1;|
+CREATE TABLE t3 (f1 INT, f2 FLOAT)|
+INSERT INTO t3 VALUES (1, 3.4), (1, 2), (1, 0.9), (2, 8), (2, 7)|
+SELECT SUM(f2), bug25373(f1) FROM t3 GROUP BY bug25373(f1) WITH ROLLUP|
+DROP FUNCTION bug25373|
+DROP TABLE t3|
+
+
+#
+# BUG#25082: Default database change on trigger execution breaks replication.
+#
+# As it turned out, this bug has actually two bugs. So, here we have two test
+# cases -- one in sp.test, the other in sp-security.test.
+#
+
+#
+# Test case 1: error on dropping the current database.
+#
+
+# Prepare.
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1|
+DROP DATABASE IF EXISTS mysqltest2|
+--enable_warnings
+
+CREATE DATABASE mysqltest1|
+CREATE DATABASE mysqltest2|
+
+# Test.
+
+CREATE PROCEDURE mysqltest1.p1()
+  DROP DATABASE mysqltest2|
+
+use mysqltest2|
+
+CALL mysqltest1.p1()|
+
+SELECT DATABASE()|
+
+# Cleanup.
+
+DROP DATABASE mysqltest1|
+
+use test|
+
+
+#
+# Bug#20777: Function w BIGINT UNSIGNED shows diff. behaviour --ps-protocol
+--disable_warnings
+drop function if exists bug20777|
+drop table if exists examplebug20777|
+--enabled_warnings
+create function bug20777(f1 bigint unsigned) returns bigint unsigned
+begin
+  set f1 = (f1 - 10); set f1 = (f1 + 10);
+return f1;
+end|
+delimiter ;|
+select bug20777(9223372036854775803) as '9223372036854775803   2**63-5';
+select bug20777(9223372036854775804) as '9223372036854775804   2**63-4';
+select bug20777(9223372036854775805) as '9223372036854775805   2**63-3';
+select bug20777(9223372036854775806) as '9223372036854775806   2**63-2';
+select bug20777(9223372036854775807) as '9223372036854775807   2**63-1';
+select bug20777(9223372036854775808) as '9223372036854775808   2**63+0';
+select bug20777(9223372036854775809) as '9223372036854775809   2**63+1';
+select bug20777(9223372036854775810) as '9223372036854775810   2**63+2';
+select bug20777(-9223372036854775808) as 'lower bounds signed bigint';
+select bug20777(9223372036854775807) as 'upper bounds signed bigint';
+select bug20777(0) as 'lower bounds unsigned bigint';
+select bug20777(18446744073709551615) as 'upper bounds unsigned bigint';
+select bug20777(18446744073709551616) as 'upper bounds unsigned bigint + 1';
+select bug20777(-1) as 'lower bounds unsigned bigint - 1';
+
+create table examplebug20777 as select 
+  0 as 'i',
+  bug20777(9223372036854775806) as '2**63-2',
+  bug20777(9223372036854775807) as '2**63-1',
+  bug20777(9223372036854775808) as '2**63',
+  bug20777(9223372036854775809) as '2**63+1',
+  bug20777(18446744073709551614) as '2**64-2',
+  bug20777(18446744073709551615) as '2**64-1', 
+  bug20777(18446744073709551616) as '2**64',
+  bug20777(0) as '0',
+  bug20777(-1) as '-1';
+insert into examplebug20777 values (1, 9223372036854775806, 9223372036854775807, 223372036854775808, 9223372036854775809, 18446744073709551614, 18446744073709551615, 8446744073709551616, 0, -1);
+show create table examplebug20777;
+select * from examplebug20777 order by i;
+
+drop table examplebug20777;
+select bug20777(18446744073709551613)+1;
+drop function bug20777;
+delimiter |;
+
+
+#
+# BUG#5274: Stored procedure crash if length of CHAR variable too great.
+#
+
+# Prepare.
+
+--disable_warnings
+DROP FUNCTION IF EXISTS bug5274_f1|
+DROP FUNCTION IF EXISTS bug5274_f2|
+--enable_warnings
+
+# Test.
+
+CREATE FUNCTION bug5274_f1(p1 CHAR) RETURNS CHAR
+  RETURN CONCAT(p1, p1)|
+
+CREATE FUNCTION bug5274_f2() RETURNS CHAR
+BEGIN
+  DECLARE v1 INT DEFAULT 0;
+  DECLARE v2 CHAR DEFAULT 'x';
+
+  WHILE v1 < 30 DO
+    SET v1 = v1 + 1;
+    SET v2 = bug5274_f1(v2);
+  END WHILE;
+
+  RETURN v2;
+END|
+ 
+SELECT bug5274_f2()|
+
+# Cleanup.
+
+DROP FUNCTION bug5274_f1|
+DROP FUNCTION bug5274_f2|
+
+
+###
+--echo End of 5.0 tests.
 
 #
 # BUG#NNNN: New bug synopsis
@@ -6839,8 +7157,36 @@ drop function func_8407_b|
 #drop procedure if exists bugNNNN|
 #--enable_warnings
 #create procedure bugNNNN...
-
+#
 # Add bugs above this line. Use existing tables t1 and t2 when
-# practical, or create table t3, t4 etc temporarily (and drop them).
+# practical, or create table t3,t4 etc temporarily (and drop them).
+# NOTE: The delimiter is `|`, and not `;`. It is changed to `;`
+#       at the end of the file!
+#
+
 delimiter ;|
 drop table t1,t2;
+
+CREATE TABLE t1 (a int auto_increment primary key) engine=MyISAM;
+CREATE TABLE t2 (a int auto_increment primary key, b int) engine=innodb;
+set @a=0;
+
+delimiter |;
+CREATE function bug27354() RETURNS int deterministic
+begin
+insert into t1 values (null);
+set @a=@a+1;
+return @a;
+end|
+
+delimiter ;|
+update t2 set b=1 where a=bug27354();
+select count(t_1.a),count(t_2.a) from t1 as t_1, t2 as t_2 /* must be 0,0 */;
+insert into t2 values (1,1),(2,2),(3,3);
+update t2 set b=-b where a=bug27354();
+select * from t2 /* must return 1,-1 ... */;
+select count(*) from t1 /* must be 3 */;
+
+
+drop table t1,t2;
+drop function   bug27354;

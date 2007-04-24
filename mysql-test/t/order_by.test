@@ -617,7 +617,6 @@ UPDATE bug25126 SET MissingCol = val ORDER BY MissingCol;
 UPDATE bug25126 SET MissingCol = MissingCol ORDER BY MissingCol;
 DROP TABLE bug25126;
 
-
 #
 # Bug #25427: crash when order by expression contains a name
 #             that cannot be resolved unambiguously               
@@ -633,6 +632,41 @@ SELECT p.a AS val, q.a AS val FROM t1 p, t1 q ORDER BY val > 1;
 
 DROP TABLE t1;
 
+#
+# Bug #27532: ORDER/GROUP BY expressions with IN/BETWEEN and NOT IN/BETWEEN
+#                          
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (3), (2), (4), (1);
+
+SELECT a, IF(a IN (2,3), a, a+10) FROM t1
+  ORDER BY IF(a IN (2,3), a, a+10);
+SELECT a, IF(a NOT IN (2,3), a, a+10) FROM t1 
+  ORDER BY IF(a NOT IN (2,3), a, a+10);
+SELECT a, IF(a IN (2,3), a, a+10) FROM t1 
+  ORDER BY IF(a NOT IN (2,3), a, a+10);
+
+SELECT a, IF(a BETWEEN 2 AND 3, a, a+10) FROM t1
+  ORDER BY IF(a BETWEEN 2 AND 3, a, a+10);
+SELECT a, IF(a NOT BETWEEN 2 AND 3, a, a+10) FROM t1 
+  ORDER BY IF(a NOT BETWEEN 2 AND 3, a, a+10);
+SELECT a, IF(a BETWEEN 2 AND 3, a, a+10) FROM t1 
+  ORDER BY IF(a NOT BETWEEN 2 AND 3, a, a+10);
+
+SELECT IF(a IN (1,2), a, '') as x1, IF(a NOT IN (1,2), a, '') as x2
+  FROM t1 GROUP BY x1, x2;
+SELECT IF(a IN (1,2), a, '') as x1, IF(a NOT IN (1,2), a, '') as x2
+  FROM t1 GROUP BY x1, IF(a NOT IN (1,2), a, '');
+
+# The remaining queries are for better coverage
+SELECT a, a IN (1,2) FROM t1 ORDER BY a IN (1,2);
+SELECT a FROM t1 ORDER BY a IN (1,2);
+SELECT a+10 FROM t1 ORDER BY a IN (1,2);
+SELECT a, IF(a IN (1,2), a, a+10) FROM t1
+  ORDER BY IF(a IN (3,4), a, a+10);   
+DROP TABLE t1;
+
+# End of 4.1
 create table t1 (a int not null, b  int not null, c int not null);
 insert t1 values (1,1,1),(1,1,2),(1,2,1);
 select a, b from t1 group by a, b order by sum(c);
@@ -669,6 +703,29 @@ SELECT t2.b FROM t1 LEFT JOIN (t2, t3 LEFT JOIN t4 ON t3.a=t4.a)
 ON (t1.a=t2.a AND t1.b=t3.b) order by t2.b;
 
 DROP TABLE t1,t2,t3,t4;
+
+#
+# Bug#25376: Incomplete setup of ORDER BY clause results in a wrong result.
+#
+create table t1 (a int, b int, c int);
+insert into t1 values (1,2,3), (9,8,3), (19,4,3), (1,4,9);
+select a,(sum(b)/sum(c)) as ratio from t1 group by a order by sum(b)/sum(c) asc;
+drop table t1;
+
+#
+# Bug#26672: Incorrect SEC_TO_TIME() casting in ORDER BY
+#
+CREATE TABLE t1 (a INT UNSIGNED NOT NULL, b TIME);
+INSERT INTO t1 (a) VALUES (100000), (0), (100), (1000000),(10000), (1000), (10);
+UPDATE t1 SET b = SEC_TO_TIME(a);
+
+-- Correct ORDER
+SELECT a, b FROM t1 ORDER BY b DESC;
+
+-- must be ordered as the above
+SELECT a, b FROM t1 ORDER BY SEC_TO_TIME(a) DESC;
+
+DROP TABLE t1;
 
 #
 # BUG#16590: Optimized does not do right "const" table pre-read

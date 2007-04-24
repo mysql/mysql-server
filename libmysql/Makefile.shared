@@ -79,8 +79,11 @@ target_libadd =		$(mysysobjects) $(mystringsobjects) $(dbugobjects) \
  $(sql_cmn_objects) $(vio_objects) $(sqlobjects)
 target_ldflags = -version-info @SHARED_LIB_VERSION@ @LD_VERSION_SCRIPT@ 
 vio_objects= vio.lo viosocket.lo viossl.lo viosslfactories.lo
+
+BUILT_SOURCES		= link_sources
+
 CLEANFILES =		$(target_libadd) $(SHLIBOBJS) \
-			$(target)
+			$(target) $(BUILT_SOURCES)
 DEFS =			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DDEFAULT_HOME_ENV=MYSQL_HOME \
@@ -103,8 +106,7 @@ clean-local:
 	      `echo $(vio_objects) | sed "s;\.lo;.c;g"` \
 	      `echo $(sql_cmn_objects) | sed "s;\.lo;.c;g"` \
 	       $(CHARSET_SRCS) $(CHARSET_OBJS) \
-	       $(mystringsextra) $(mysysheaders) $(vioheaders)\
-	       ../linked_libmysql_sources ../linked_libmysql_r_sources \
+	       $(mystringsextra) $(mysysheaders) $(vioheaders) \
                net.c
 
 conf_to_src_SOURCES = conf_to_src.c

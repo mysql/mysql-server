@@ -1,0 +1,6 @@
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id $ndb_restore_filter > $MYSQLTEST_VARDIR/tmp/tmp.dat
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults $ndb_restore_opts -b $the_backup_id -n 2 $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id $ndb_restore_filter >> $MYSQLTEST_VARDIR/tmp/tmp.dat
+--exec sort $MYSQLTEST_VARDIR/tmp/tmp.dat
+--exec rm -f $MYSQLTEST_VARDIR/tmp/tmp.dat
+--let ndb_restore_opts=
+--let ndb_restore_filter=

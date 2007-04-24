@@ -320,6 +320,12 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
   RETURN VALUE
     0 - Equal definitions.
     1 - Different definitions.
+
+  TODO
+    - compare FULLTEXT keys;
+    - compare SPATIAL keys;
+    - compare FIELD_SKIP_ZERO which is converted to FIELD_NORMAL correctly
+      (should be corretly detected in table2myisam).
 */
 
 int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
@@ -345,6 +351,28 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
   {
     HA_KEYSEG *t1_keysegs= t1_keyinfo[i].seg;
     HA_KEYSEG *t2_keysegs= t2_keyinfo[i].seg;
+    if (t1_keyinfo[i].flag & HA_FULLTEXT && t2_keyinfo[i].flag & HA_FULLTEXT)
+      continue;
+    else if (t1_keyinfo[i].flag & HA_FULLTEXT ||
+             t2_keyinfo[i].flag & HA_FULLTEXT)
+    {
+       DBUG_PRINT("error", ("Key %d has different definition", i));
+       DBUG_PRINT("error", ("t1_fulltext= %d, t2_fulltext=%d",
+                            test(t1_keyinfo[i].flag & HA_FULLTEXT),
+                            test(t2_keyinfo[i].flag & HA_FULLTEXT)));
+       DBUG_RETURN(1);
+    }
+    if (t1_keyinfo[i].flag & HA_SPATIAL && t2_keyinfo[i].flag & HA_SPATIAL)
+      continue;
+    else if (t1_keyinfo[i].flag & HA_SPATIAL ||
+             t2_keyinfo[i].flag & HA_SPATIAL)
+    {
+       DBUG_PRINT("error", ("Key %d has different definition", i));
+       DBUG_PRINT("error", ("t1_spatial= %d, t2_spatial=%d",
+                            test(t1_keyinfo[i].flag & HA_SPATIAL),
+                            test(t2_keyinfo[i].flag & HA_SPATIAL)));
+       DBUG_RETURN(1);
+    }
     if (t1_keyinfo[i].keysegs != t2_keyinfo[i].keysegs ||
         t1_keyinfo[i].key_alg != t2_keyinfo[i].key_alg)
     {
@@ -381,7 +409,14 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
   {
     MI_COLUMNDEF *t1_rec= &t1_recinfo[i];
     MI_COLUMNDEF *t2_rec= &t2_recinfo[i];
-    if (t1_rec->type != t2_rec->type ||
+    /*
+      FIELD_SKIP_ZERO can be changed to FIELD_NORMAL in mi_create,
+      see NOTE1 in mi_create.c
+    */
+    if ((t1_rec->type != t2_rec->type &&
+         !(t1_rec->type == (int) FIELD_SKIP_ZERO &&
+           t1_rec->length == 1 &&
+           t2_rec->type == (int) FIELD_NORMAL)) ||
         t1_rec->length != t2_rec->length ||
         t1_rec->null_bit != t2_rec->null_bit)
     {
@@ -565,7 +600,8 @@ err:
 
 bool ha_myisam::check_if_locking_is_allowed(uint sql_command,
                                             ulong type, TABLE *table,
-                                            uint count,
+                                            uint count, uint current,
+                                            uint *system_count,
                                             bool called_by_privileged_thread)
 {
   /*
@@ -574,11 +610,13 @@ bool ha_myisam::check_if_locking_is_allowed(uint sql_command,
     we have to disallow write-locking of these tables with any other tables.
   */
   if (table->s->system_table &&
-      table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE &&
-      count != 1)
+      table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE)
+    (*system_count)++;
+
+  /* 'current' is an index, that's why '<=' below. */
+  if (*system_count > 0 && *system_count <= current)
   {
-    my_error(ER_WRONG_LOCK_OF_SYSTEM_TABLE, MYF(0), table->s->db.str,
-             table->s->table_name.str);
+    my_error(ER_WRONG_LOCK_OF_SYSTEM_TABLE, MYF(0));
     return FALSE;
   }
 
@@ -597,6 +635,9 @@ bool ha_myisam::check_if_locking_is_allowed(uint sql_command,
 
 int ha_myisam::open(const char *name, int mode, uint test_if_locked)
 {
+  MI_KEYDEF *keyinfo;
+  MI_COLUMNDEF *recinfo= 0;
+  uint recs;
   uint i;
 
   /*
@@ -619,6 +660,26 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
 
   if (!(file=mi_open(name, mode, test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
     return (my_errno ? my_errno : -1);
+  if (!table->s->tmp_table) /* No need to perform a check for tmp table */
+  {
+    if ((my_errno= table2myisam(table, &keyinfo, &recinfo, &recs)))
+    {
+      /* purecov: begin inspected */
+      DBUG_PRINT("error", ("Failed to convert TABLE object to MyISAM "
+                           "key and column definition"));
+      goto err;
+      /* purecov: end */
+    }
+    if (check_definition(keyinfo, recinfo, table->s->keys, recs,
+                         file->s->keyinfo, file->s->rec,
+                         file->s->base.keys, file->s->base.fields, true))
+    {
+      /* purecov: begin inspected */
+      my_errno= HA_ERR_CRASHED;
+      goto err;
+      /* purecov: end */
+    }
+  }
   
   if (test_if_locked & (HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_TMP_TABLE))
     VOID(mi_extra(file, HA_EXTRA_NO_WAIT_LOCK, 0));
@@ -639,7 +700,18 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
         (struct st_mysql_ftparser *)parser->plugin->info;
     table->key_info[i].block_size= file->s->keyinfo[i].block_length;
   }
-  return (0);
+  my_errno= 0;
+  goto end;
+ err:
+  this->close();
+ end:
+  /*
+    Both recinfo and keydef are allocated by my_multi_malloc(), thus only
+    recinfo must be freed.
+  */
+  if (recinfo)
+    my_free((gptr) recinfo, MYF(0));
+  return my_errno;
 }
 
 int ha_myisam::close(void)
@@ -985,6 +1057,22 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
   ha_rows rows= file->state->records;
   DBUG_ENTER("ha_myisam::repair");
 
+  /*
+    Normally this method is entered with a properly opened table. If the
+    repair fails, it can be repeated with more elaborate options. Under
+    special circumstances it can happen that a repair fails so that it
+    closed the data file and cannot re-open it. In this case file->dfile
+    is set to -1. We must not try another repair without an open data
+    file. (Bug #25289)
+  */
+  if (file->dfile == -1)
+  {
+    sql_print_information("Retrying repair of: '%s' failed. "
+                          "Please try REPAIR EXTENDED or myisamchk",
+                          table->s->path.str);
+    DBUG_RETURN(HA_ADMIN_FAILED);
+  }
+
   param.db_name=    table->s->db.str;
   param.table_name= table->alias;
   param.tmpfile_createflag = O_RDWR | O_TRUNC;
@@ -1121,23 +1209,22 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
   KEY_CACHE *new_key_cache= check_opt->key_cache;
   const char *errmsg= 0;
   int error= HA_ADMIN_OK;
-  ulonglong map= ~(ulonglong) 0;
+  ulonglong map;
   TABLE_LIST *table_list= table->pos_in_table_list;
   DBUG_ENTER("ha_myisam::assign_to_keycache");
 
-  /* Check validity of the index references */
-  if (table_list->use_index)
+  table->keys_in_use_for_query.clear_all();
+
+  if (table_list->process_index_hints(table))
   {
-    /* We only come here when the user did specify an index map */
-    key_map kmap;
-    if (get_key_map_from_key_list(&kmap, table, table_list->use_index))
-    {
-      errmsg= thd->net.last_error;
-      error= HA_ADMIN_FAILED;
-      goto err;
-    }
-    map= kmap.to_ulonglong();
+    errmsg= thd->net.last_error;
+    error= HA_ADMIN_FAILED;
+    goto err;
   }
+  map= ~(ulonglong) 0;
+  if (!table->keys_in_use_for_query.is_clear_all())
+    /* use all keys if there's no list specified by the user through hints */
+    map= table->keys_in_use_for_query.to_ulonglong();
 
   if ((error= mi_assign_to_key_cache(file, map, new_key_cache)))
   { 
@@ -1173,26 +1260,26 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
 {
   int error;
   const char *errmsg;
-  ulonglong map= ~(ulonglong) 0;
+  ulonglong map;
   TABLE_LIST *table_list= table->pos_in_table_list;
   my_bool ignore_leaves= table_list->ignore_leaves;
 
   DBUG_ENTER("ha_myisam::preload_keys");
 
-  /* Check validity of the index references */
-  if (table_list->use_index)
+  table->keys_in_use_for_query.clear_all();
+
+  if (table_list->process_index_hints(table))
   {
-    key_map kmap;
-    get_key_map_from_key_list(&kmap, table, table_list->use_index);
-    if (kmap.is_set_all())
-    {
-      errmsg= thd->net.last_error;
-      error= HA_ADMIN_FAILED;
-      goto err;
-    }
-    if (!kmap.is_clear_all())
-      map= kmap.to_ulonglong();
+    errmsg= thd->net.last_error;
+    error= HA_ADMIN_FAILED;
+    goto err;
   }
+
+  map= ~(ulonglong) 0;
+  /* Check validity of the index references */
+  if (!table->keys_in_use_for_query.is_clear_all())
+    /* use all keys if there's no list specified by the user through hints */
+    map= table->keys_in_use_for_query.to_ulonglong();
 
   mi_extra(file, HA_EXTRA_PRELOAD_BUFFER_SIZE,
            (void *) &thd->variables.preload_buff_size);
@@ -1521,34 +1608,37 @@ int ha_myisam::delete_row(const byte * buf)
   return mi_delete(file,buf);
 }
 
-int ha_myisam::index_read(byte * buf, const byte * key,
-			  uint key_len, enum ha_rkey_function find_flag)
+int ha_myisam::index_read(byte *buf, const byte *key, key_part_map keypart_map,
+                          enum ha_rkey_function find_flag)
 {
   DBUG_ASSERT(inited==INDEX);
   statistic_increment(table->in_use->status_var.ha_read_key_count,
 		      &LOCK_status);
-  int error=mi_rkey(file,buf,active_index, key, key_len, find_flag);
+  int error=mi_rkey(file, buf, active_index, key, keypart_map, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
-int ha_myisam::index_read_idx(byte * buf, uint index, const byte * key,
-			      uint key_len, enum ha_rkey_function find_flag)
+int ha_myisam::index_read_idx(byte *buf, uint index, const byte *key,
+                              key_part_map keypart_map,
+                              enum ha_rkey_function find_flag)
 {
   statistic_increment(table->in_use->status_var.ha_read_key_count,
 		      &LOCK_status);
-  int error=mi_rkey(file,buf,index, key, key_len, find_flag);
+  int error=mi_rkey(file, buf, index, key, keypart_map, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
-int ha_myisam::index_read_last(byte * buf, const byte * key, uint key_len)
+int ha_myisam::index_read_last(byte *buf, const byte *key,
+                               key_part_map keypart_map)
 {
   DBUG_ENTER("ha_myisam::index_read_last");
   DBUG_ASSERT(inited==INDEX);
   statistic_increment(table->in_use->status_var.ha_read_key_count,
 		      &LOCK_status);
-  int error=mi_rkey(file,buf,active_index, key, key_len, HA_READ_PREFIX_LAST);
+  int error=mi_rkey(file, buf, active_index, key, keypart_map,
+                    HA_READ_PREFIX_LAST);
   table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
 }
@@ -1857,8 +1947,9 @@ void ha_myisam::get_auto_increment(ulonglong offset, ulonglong increment,
   key_copy(key, table->record[0],
            table->key_info + table->s->next_number_index,
            table->s->next_number_key_offset);
-  error= mi_rkey(file,table->record[1],(int) table->s->next_number_index,
-                 key,table->s->next_number_key_offset,HA_READ_PREFIX_LAST);
+  error= mi_rkey(file, table->record[1], (int) table->s->next_number_index,
+                 key, make_prev_keypart_map(table->s->next_number_keypart),
+                 HA_READ_PREFIX_LAST);
   if (error)
     nr= 1;
   else

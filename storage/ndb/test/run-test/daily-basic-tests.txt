@@ -239,6 +239,10 @@ max-time: 500
 cmd: testBasic
 args: -n Bug25090 T1
 
+max-time: 1000
+cmd: testBasic
+args: -n Bug27756
+
 max-time: 500
 cmd: testIndex
 args: -n Bug25059 -r 3000 T1
@@ -469,6 +473,14 @@ max-time: 1000
 cmd: testScan
 args: -n ScanVariants
 
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug27003 T1
+
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug27283 T1
+
 max-time: 500
 cmd: testNodeRestart
 args: -n Bug15587 T1
@@ -586,6 +598,14 @@ args: -n TemporaryTables T1 T6 T7 T8
 max-time: 1500
 cmd: testDict
 args: -n Restart_NR2 T1 I3
+
+max-time: 500
+cmd: testDict
+args: -n Bug21755 T1
+
+max-time: 1500
+cmd: testDict
+args: -l 25 -n DictRestart T1
 
 #
 # TEST NDBAPI
@@ -792,6 +812,14 @@ max-time: 1000
 cmd: testNodeRestart
 args: -n Bug25468 T1
 
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug27466 T1
+
+max-time: 1000
+cmd: test_event
+args: -l 10 -n Bug27169 T1
+
 # OLD FLEX
 max-time: 500
 cmd: flexBench
@@ -829,4 +857,32 @@ max-time: 180
 cmd: DbAsyncGenerator
 args: -time 60 -p 1 -proc 25
 type: bench
+
+max-time: 120
+cmd: testMgm
+args: -n ApiSessionFailure T1
+
+max-time: 120
+cmd: testMgm
+args: -n ApiTimeoutBasic T1
+
+max-time: 120
+cmd: testMgm
+args: -n ApiSessionFailure T1
+
+max-time: 120
+cmd: testMgm
+args: -n ApiGetStatusTimeout T1
+
+max-time: 120
+cmd: testMgm
+args: -n ApiGetConfigTimeout T1
+
+max-time: 120
+cmd: testMgm
+args: -n ApiMgmEventTimeout T1
+
+max-time: 120
+cmd: testMgm
+args: -n ApiMgmStructEventTimeout T1
 

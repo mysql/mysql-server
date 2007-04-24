@@ -726,10 +726,9 @@ event_thread_run(void* p)
     do_event_thread= 1;
     char *tmp= 0;
     char buf[1024];
-    SocketInputStream in(fd,10);
     do {
-      if (tmp == 0) NdbSleep_MilliSleep(10);
-      if((tmp = in.gets(buf, 1024)))
+      SocketInputStream in(fd,2000);
+      if((tmp = in.gets(buf, sizeof(buf))))
       {
 	const char ping_token[]= "<PING>";
 	if (memcmp(ping_token,tmp,sizeof(ping_token)-1))
@@ -738,6 +737,10 @@ event_thread_run(void* p)
             Guard g(printmutex);
             ndbout << tmp;
           }
+      }
+      else if(in.timedout() && ndb_mgm_check_connection(handle)<0)
+      {
+        break;
       }
     } while(do_event_thread);
     NDB_CLOSE_SOCKET(fd);
@@ -1963,6 +1966,9 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
     return -1;
   }
 
+  if (!nostart)
+    ndbout_c("Shutting down nodes with \"-n, no start\" option, to subsequently start the nodes.");
+
   result= ndb_mgm_restart3(m_mgmsrv, no_of_nodes, node_ids,
                            initialstart, nostart, abort, &need_disconnect);
 
@@ -2056,6 +2062,7 @@ CommandInterpreter::executeStatus(int processId,
   }
   if (cl->node_states[i].node_type != NDB_MGM_NODE_TYPE_NDB){
     if (cl->node_states[i].version != 0){
+      version = cl->node_states[i].version;
       ndbout << "Node "<< cl->node_states[i].node_id <<": connected" ;
       ndbout_c(" (Version %d.%d.%d)",
              getMajor(version) ,
@@ -2065,7 +2072,7 @@ CommandInterpreter::executeStatus(int processId,
     }else
      ndbout << "Node "<< cl->node_states[i].node_id <<": not connected" << endl;
     return 0;
-  } 
+  }
   status = cl->node_states[i].node_status;
   startPhase = cl->node_states[i].start_phase;
   version = cl->node_states[i].version;
@@ -2488,6 +2495,7 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   {
     flags = 0;
     result = ndb_mgm_start_backup(m_mgmsrv, 0, &backupId, &reply);
+    goto END_BACKUP;
   }
   else if (sz == 1 || (sz == 3 && args[1] == "WAIT" && args[2] == "COMPLETED"))
   {
@@ -2521,6 +2529,7 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   }
   result = ndb_mgm_start_backup(m_mgmsrv, flags, &backupId, &reply);
 
+END_BACKUP:
   if (result != 0) {
     ndbout << "Backup failed" << endl;
     printError();

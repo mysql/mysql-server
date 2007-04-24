@@ -25,8 +25,6 @@
 #include <ndb_version.h>
 #include <version.h>
 
-#define delimiter ";"
-
 const int FileNameLenC = 256;
 const int TableNameLenC = 256;
 const int AttrNameLenC = 256;
@@ -142,6 +140,8 @@ class TableS {
   Uint64 m_max_auto_val;
 
   bool isSysTable;
+  TableS *m_main_table;
+  Uint32 m_local_id;
 
   Uint64 m_noOfRecords;
   Vector<FragmentInfo *> m_fragmentInfo;
@@ -155,6 +155,9 @@ public:
 
   Uint32 getTableId() const { 
     return m_dictTable->getTableId(); 
+  }
+  Uint32 getLocalId() const { 
+    return m_local_id; 
   }
   Uint32 getNoOfRecords() const { 
     return m_noOfRecords; 
@@ -214,6 +217,9 @@ public:
       memcpy(&val.u32,data,4);
       v= val.u32;
       break;
+    case 24:
+      v= uint3korr((unsigned char*)data);
+      break;
     case 16:
       memcpy(&val.u16,data,2);
       v= val.u16;
@@ -237,6 +243,10 @@ public:
 
   bool getSysTable() const {
     return isSysTable;
+  }
+
+  const TableS *getMainTable() const {
+    return m_main_table;
   }
 
   TableS& operator=(TableS& org) ; 

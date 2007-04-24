@@ -1,0 +1,6 @@
+usr/bin/mysql_config
+usr/include/*
+usr/lib/libmysqlclient.a
+usr/lib/libmysqlclient.la
+usr/lib/mysql
+usr/share/man/man1/mysql_config.1

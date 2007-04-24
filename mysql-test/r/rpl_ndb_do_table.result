@@ -19,4 +19,8 @@ t1
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 3
+INSERT INTO t1 VALUES (3, repeat('bad',1));
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+INSERT INTO t1 VALUES (3, repeat('bad too',1));
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
 DROP TABLE IF EXISTS t1, t2;

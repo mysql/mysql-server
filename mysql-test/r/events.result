@@ -1,4 +1,8 @@
-create database if not exists events_test;
+drop database if exists events_test;
+drop database if exists db_x;
+drop database if exists mysqltest_db2;
+drop database if exists mysqltest_no_such_database;
+create database events_test;
 use events_test;
 CREATE USER pauline@localhost;
 CREATE DATABASE db_x;
@@ -73,7 +77,7 @@ DROP EVENT event_starts_test;
 create table test_nested(a int);
 create event e_43 on schedule every 1 second do set @a = 5;
 alter event e_43 do alter event e_43 do set @a = 4;
-ERROR HY000: Recursivity of EVENT DDL statements is forbidden when body is present
+ERROR HY000: Recursion of EVENT DDL statements is forbidden when body is present
 alter event e_43 do
 begin
 alter event e_43 on schedule every 5 minute;
@@ -118,82 +122,82 @@ drop table t_event3;
 set names utf8;
 CREATE EVENT root6 ON SCHEDULE EVERY '10:20' MINUTE_SECOND ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1;
 SHOW CREATE EVENT root6;
-Event	sql_mode	Create Event
-root6		CREATE EVENT `root6` ON SCHEDULE EVERY '10:20' MINUTE_SECOND ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1
+Event	sql_mode	time_zone	Create Event
+root6		SYSTEM	CREATE EVENT `root6` ON SCHEDULE EVERY '10:20' MINUTE_SECOND STARTS '#' ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1
 create event root7 on schedule every 2 year do select 1;
 SHOW CREATE EVENT root7;
-Event	sql_mode	Create Event
-root7		CREATE EVENT `root7` ON SCHEDULE EVERY 2 YEAR ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root7		SYSTEM	CREATE EVENT `root7` ON SCHEDULE EVERY 2 YEAR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root8 on schedule every '2:5' year_month do select 1;
 SHOW CREATE EVENT root8;
-Event	sql_mode	Create Event
-root8		CREATE EVENT `root8` ON SCHEDULE EVERY '2-5' YEAR_MONTH ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root8		SYSTEM	CREATE EVENT `root8` ON SCHEDULE EVERY '2-5' YEAR_MONTH STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root8_1 on schedule every '2:15' year_month do select 1;
 SHOW CREATE EVENT root8_1;
-Event	sql_mode	Create Event
-root8_1		CREATE EVENT `root8_1` ON SCHEDULE EVERY '3-3' YEAR_MONTH ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root8_1		SYSTEM	CREATE EVENT `root8_1` ON SCHEDULE EVERY '3-3' YEAR_MONTH STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root9 on schedule every 2 week ON COMPLETION PRESERVE DISABLE COMMENT 'ÐºÐ¾Ð¼ÐµÐ½Ñ‚Ð°Ñ€ Ð½Ð° ÐºÐ¸Ñ€Ð¸Ð»Ð¸Ñ†Ð°' do select 1;
 SHOW CREATE EVENT root9;
-Event	sql_mode	Create Event
-root9		CREATE EVENT `root9` ON SCHEDULE EVERY 2 WEEK ON COMPLETION PRESERVE DISABLE COMMENT 'ÐºÐ¾Ð¼ÐµÐ½Ñ‚Ð°Ñ€ Ð½Ð° ÐºÐ¸Ñ€Ð¸Ð»Ð¸Ñ†Ð°' DO select 1
+Event	sql_mode	time_zone	Create Event
+root9		SYSTEM	CREATE EVENT `root9` ON SCHEDULE EVERY 2 WEEK STARTS '#' ON COMPLETION PRESERVE DISABLE COMMENT 'ÐºÐ¾Ð¼ÐµÐ½Ñ‚Ð°Ñ€ Ð½Ð° ÐºÐ¸Ñ€Ð¸Ð»Ð¸Ñ†Ð°' DO select 1
 create event root10 on schedule every '20:5' day_hour do select 1;
 SHOW CREATE EVENT root10;
-Event	sql_mode	Create Event
-root10		CREATE EVENT `root10` ON SCHEDULE EVERY '20 5' DAY_HOUR ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root10		SYSTEM	CREATE EVENT `root10` ON SCHEDULE EVERY '20 5' DAY_HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root11 on schedule every '20:25' day_hour do select 1;
 SHOW CREATE EVENT root11;
-Event	sql_mode	Create Event
-root11		CREATE EVENT `root11` ON SCHEDULE EVERY '21 1' DAY_HOUR ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root11		SYSTEM	CREATE EVENT `root11` ON SCHEDULE EVERY '21 1' DAY_HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root12 on schedule every '20:25' hour_minute do select 1;
 SHOW CREATE EVENT root12;
-Event	sql_mode	Create Event
-root12		CREATE EVENT `root12` ON SCHEDULE EVERY '20:25' HOUR_MINUTE ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root12		SYSTEM	CREATE EVENT `root12` ON SCHEDULE EVERY '20:25' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root13 on schedule every '25:25' hour_minute do select 1;
 SHOW CREATE EVENT root13;
-Event	sql_mode	Create Event
-root13		CREATE EVENT `root13` ON SCHEDULE EVERY '25:25' HOUR_MINUTE ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root13		SYSTEM	CREATE EVENT `root13` ON SCHEDULE EVERY '25:25' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root13_1 on schedule every '11:65' hour_minute do select 1;
 SHOW CREATE EVENT root13_1;
-Event	sql_mode	Create Event
-root13_1		CREATE EVENT `root13_1` ON SCHEDULE EVERY '12:5' HOUR_MINUTE ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root13_1		SYSTEM	CREATE EVENT `root13_1` ON SCHEDULE EVERY '12:5' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root14 on schedule every '35:35' minute_second do select 1;
 SHOW CREATE EVENT root14;
-Event	sql_mode	Create Event
-root14		CREATE EVENT `root14` ON SCHEDULE EVERY '35:35' MINUTE_SECOND ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root14		SYSTEM	CREATE EVENT `root14` ON SCHEDULE EVERY '35:35' MINUTE_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root15 on schedule every '35:66' minute_second do select 1;
 SHOW CREATE EVENT root15;
-Event	sql_mode	Create Event
-root15		CREATE EVENT `root15` ON SCHEDULE EVERY '36:6' MINUTE_SECOND ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root15		SYSTEM	CREATE EVENT `root15` ON SCHEDULE EVERY '36:6' MINUTE_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root16 on schedule every '35:56' day_minute do select 1;
 SHOW CREATE EVENT root16;
-Event	sql_mode	Create Event
-root16		CREATE EVENT `root16` ON SCHEDULE EVERY '1 11:56' DAY_MINUTE ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root16		SYSTEM	CREATE EVENT `root16` ON SCHEDULE EVERY '1 11:56' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root17 on schedule every '35:12:45' day_minute do select 1;
 SHOW CREATE EVENT root17;
-Event	sql_mode	Create Event
-root17		CREATE EVENT `root17` ON SCHEDULE EVERY '35 12:45' DAY_MINUTE ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root17		SYSTEM	CREATE EVENT `root17` ON SCHEDULE EVERY '35 12:45' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root17_1 on schedule every '35:25:65' day_minute do select 1;
 SHOW CREATE EVENT root17_1;
-Event	sql_mode	Create Event
-root17_1		CREATE EVENT `root17_1` ON SCHEDULE EVERY '36 2:5' DAY_MINUTE ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root17_1		SYSTEM	CREATE EVENT `root17_1` ON SCHEDULE EVERY '36 2:5' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root18 on schedule every '35:12:45' hour_second do select 1;
 SHOW CREATE EVENT root18;
-Event	sql_mode	Create Event
-root18		CREATE EVENT `root18` ON SCHEDULE EVERY '35:12:45' HOUR_SECOND ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root18		SYSTEM	CREATE EVENT `root18` ON SCHEDULE EVERY '35:12:45' HOUR_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root19 on schedule every '15:59:85' hour_second do select 1;
 SHOW CREATE EVENT root19;
-Event	sql_mode	Create Event
-root19		CREATE EVENT `root19` ON SCHEDULE EVERY '16:0:25' HOUR_SECOND ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root19		SYSTEM	CREATE EVENT `root19` ON SCHEDULE EVERY '16:0:25' HOUR_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 create event root20 on schedule every '50:20:12:45' day_second do select 1;
 SHOW CREATE EVENT root20;
-Event	sql_mode	Create Event
-root20		CREATE EVENT `root20` ON SCHEDULE EVERY '50 20:12:45' DAY_SECOND ON COMPLETION NOT PRESERVE ENABLE DO select 1
+Event	sql_mode	time_zone	Create Event
+root20		SYSTEM	CREATE EVENT `root20` ON SCHEDULE EVERY '50 20:12:45' DAY_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
 set names cp1251;
 create event ðóóò21 on schedule every '50:23:59:95' day_second COMMENT 'òîâà å 1251 êîìåíòàð' do select 1;
 SHOW CREATE EVENT ðóóò21;
-Event	sql_mode	Create Event
-ðóóò21		CREATE EVENT `ðóóò21` ON SCHEDULE EVERY '51 0:0:35' DAY_SECOND ON COMPLETION NOT PRESERVE ENABLE COMMENT 'òîâà å 1251 êîìåíòàð' DO select 1
-insert into mysql.event (db, name, body, definer, interval_value, interval_field) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND");
+Event	sql_mode	time_zone	Create Event
+ðóóò21		SYSTEM	CREATE EVENT `ðóóò21` ON SCHEDULE EVERY '51 0:0:35' DAY_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE COMMENT 'òîâà å 1251 êîìåíòàð' DO select 1
+insert into mysql.event (db, name, body, definer, interval_value, interval_field, originator) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND", 1);
 show create event root22;
 ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
 SHOW EVENTS;
@@ -223,71 +227,180 @@ drop event root19;
 drop event root20;
 drop event ðóóò21;
 set names latin1;
+Create a test event. Only event metadata is relevant, 
+the actual schedule and body are not.
 CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
 SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	intact_check	root@localhost	RECURRING	NULL	10	HOUR	#	#	ENABLED
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
+events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED	1
+Try to alter mysql.event: the server should fail to load
+event information after mysql.event was tampered with.
+
+First, let's add a column to the end and make sure everything
+works as before
+
+ALTER TABLE mysql.event ADD dummy INT;
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
+events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED	1
+SELECT event_name FROM INFORMATION_SCHEMA.events;
+event_name
+intact_check
+SHOW CREATE EVENT intact_check;
+Event	sql_mode	time_zone	Create Event
+intact_check		SYSTEM	CREATE EVENT `intact_check` ON SCHEDULE EVERY 10 HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO SELECT "nothing"
+DROP EVENT no_such_event;
+ERROR HY000: Unknown event 'no_such_event'
+CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
+ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
+ALTER EVENT intact_check_1 RENAME TO intact_check_2;
+DROP EVENT intact_check_1;
+ERROR HY000: Unknown event 'intact_check_1'
+DROP EVENT intact_check_2;
+DROP EVENT intact_check;
+DROP DATABASE IF EXISTS mysqltest_no_such_database;
+Warnings:
+Note	1008	Can't drop database 'mysqltest_no_such_database'; database doesn't exist
+CREATE DATABASE mysqltest_db2;
+DROP DATABASE mysqltest_db2;
+SELECT @@event_scheduler;
+@@event_scheduler
+OFF
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	OFF
+SET GLOBAL event_scheduler=OFF;
+ALTER TABLE mysql.event DROP dummy;
+CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
+
+Now let's add a column to the first position: the server
+expects to see event schema name there
+
 ALTER TABLE mysql.event ADD dummy INT FIRST;
 SHOW EVENTS;
-ERROR HY000: Column count of mysql.event is wrong. Expected 16, found 17. Table probably corrupted
-ALTER TABLE mysql.event DROP dummy, ADD dummy2 VARCHAR(64) FIRST;
-SHOW EVENTS;
-ERROR HY000: Column count of mysql.event is wrong. Expected 16, found 17. Table probably corrupted
-ALTER TABLE mysql.event DROP dummy2;
-SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	intact_check	root@localhost	RECURRING	NULL	10	HOUR	#	#	ENABLED
+ERROR HY000: Cannot load from mysql.event. The table is probably corrupted
+SELECT event_name FROM INFORMATION_SCHEMA.events;
+ERROR HY000: Cannot load from mysql.event. The table is probably corrupted
+SHOW CREATE EVENT intact_check;
+ERROR HY000: Unknown event 'intact_check'
+DROP EVENT no_such_event;
+ERROR HY000: Unknown event 'no_such_event'
+CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
+ERROR HY000: Cannot load from mysql.event. The table is probably corrupted
+ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
+ERROR HY000: Unknown event 'intact_check_1'
+ALTER EVENT intact_check_1 RENAME TO intact_check_2;
+ERROR HY000: Unknown event 'intact_check_1'
+DROP EVENT intact_check_1;
+ERROR HY000: Unknown event 'intact_check_1'
+DROP EVENT intact_check_2;
+ERROR HY000: Unknown event 'intact_check_2'
+DROP EVENT intact_check;
+ERROR HY000: Unknown event 'intact_check'
+DROP DATABASE IF EXISTS mysqltest_no_such_database;
+Warnings:
+Note	1008	Can't drop database 'mysqltest_no_such_database'; database doesn't exist
+CREATE DATABASE mysqltest_db2;
+DROP DATABASE mysqltest_db2;
+SELECT @@event_scheduler;
+@@event_scheduler
+OFF
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	OFF
+SET GLOBAL event_scheduler=OFF;
+Clean up
+ALTER TABLE mysql.event DROP dummy;
+DELETE FROM mysql.event;
+CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
+Back up the table, further changes are not reversible
 CREATE TABLE event_like LIKE mysql.event;
 INSERT INTO event_like SELECT * FROM mysql.event;
-ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
-SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
-ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
-ALTER TABLE mysql.event MODIFY db char(20) character set utf8 collate utf8_bin default '';
-SHOW CREATE TABLE mysql.event;
-Table	Create Table
-event	CREATE TABLE `event` (
-  `db` char(20) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
-  `name` char(64) NOT NULL DEFAULT '',
-  `body` longblob NOT NULL,
-  `definer` char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
-  `execute_at` datetime DEFAULT NULL,
-  `interval_value` int(11) DEFAULT NULL,
-  `interval_field` enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND') DEFAULT NULL,
-  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `last_executed` datetime DEFAULT NULL,
-  `starts` datetime DEFAULT NULL,
-  `ends` datetime DEFAULT NULL,
-  `status` enum('ENABLED','DISABLED') NOT NULL DEFAULT 'ENABLED',
-  `on_completion` enum('DROP','PRESERVE') NOT NULL DEFAULT 'DROP',
-  `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE') NOT NULL DEFAULT '',
-  `comment` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
-  PRIMARY KEY (`db`,`name`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Events'
-SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
-ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
-ALTER TABLE mysql.event MODIFY db char(64) character set utf8 collate utf8_bin default '';
-"This should work"
-SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	intact_check	root@localhost	RECURRING	NULL	10	HOUR	#	#	ENABLED
-ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
-SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
-ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
-ALTER TABLE mysql.event MODIFY db varchar(64) character set utf8 collate utf8_bin default '';
-SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
-ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
+
+Drop some columns and try more checks. 
+
+
 ALTER TABLE mysql.event DROP comment, DROP starts;
+SHOW EVENTS;
+ERROR HY000: Cannot load from mysql.event. The table is probably corrupted
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
-ERROR HY000: Column count of mysql.event is wrong. Expected 16, found 14. Table probably corrupted
+ERROR HY000: Cannot load from mysql.event. The table is probably corrupted
+SHOW CREATE EVENT intact_check;
+ERROR HY000: Cannot load from mysql.event. The table is probably corrupted
+DROP EVENT no_such_event;
+ERROR HY000: Unknown event 'no_such_event'
+CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
+ERROR HY000: Column count of mysql.event is wrong. Expected 18, found 16. The table is probably corrupted
+ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
+ERROR HY000: Unknown event 'intact_check_1'
+ALTER EVENT intact_check_1 RENAME TO intact_check_2;
+ERROR HY000: Unknown event 'intact_check_1'
+DROP EVENT intact_check_1;
+ERROR HY000: Unknown event 'intact_check_1'
+DROP EVENT intact_check_2;
+ERROR HY000: Unknown event 'intact_check_2'
+DROP EVENT intact_check;
+DROP DATABASE IF EXISTS mysqltest_no_such_database;
+Warnings:
+Note	1008	Can't drop database 'mysqltest_no_such_database'; database doesn't exist
+CREATE DATABASE mysqltest_db2;
+DROP DATABASE mysqltest_db2;
+SELECT @@event_scheduler;
+@@event_scheduler
+OFF
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	OFF
+SET GLOBAL event_scheduler=OFF;
+
+Now drop the table, and test again
+
+
 DROP TABLE mysql.event;
+SHOW EVENTS;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+SELECT event_name FROM INFORMATION_SCHEMA.events;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+SHOW CREATE EVENT intact_check;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+DROP EVENT no_such_event;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+ALTER EVENT intact_check_1 RENAME  TO intact_check_2;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+DROP EVENT intact_check_1;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+DROP EVENT intact_check_2;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+DROP EVENT intact_check;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+DROP DATABASE IF EXISTS mysqltest_no_such_database;
+Warnings:
+Note	1008	Can't drop database 'mysqltest_no_such_database'; database doesn't exist
+Error	1146	Table 'mysql.event' doesn't exist
+CREATE DATABASE mysqltest_db2;
+DROP DATABASE mysqltest_db2;
+OK, there is an unnecessary warning about the non-existent table 
+but it's not easy to fix and no one complained about it.
+A similar warning is printed if mysql.proc is missing.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1146	Table 'mysql.event' doesn't exist
+SELECT @@event_scheduler;
+@@event_scheduler
+OFF
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	OFF
+SET GLOBAL event_scheduler=OFF;
+Restore the original table.
 CREATE TABLE mysql.event like event_like;
-INSERT INTO  mysql.event SELECT * FROM event_like;
 DROP TABLE event_like;
 SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	intact_check	root@localhost	RECURRING	NULL	10	HOUR	#	#	ENABLED
-DROP EVENT intact_check;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
 create event e_26 on schedule at '2017-01-01 00:00:00' disable do set @a = 5;
 select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
 db	name	body	definer	convert_tz(execute_at, 'UTC', 'SYSTEM')	on_completion
@@ -366,7 +479,7 @@ root	localhost	events_test	Connect	User lock	select get_lock("test_lock2_1", 20)
 drop event Ð·Ð°ÐºÐ°Ñ‡ÐºÐ°21;
 create table t_16 (s1 int);
 create trigger t_16_bi before insert on t_16 for each row create event  e_16 on schedule every 1 second do set @a=5;
-ERROR HY000: Recursivity of EVENT DDL statements is forbidden when body is present
+ERROR HY000: Recursion of EVENT DDL statements is forbidden when body is present
 drop table t_16;
 create event white_space
 on schedule every 10 hour
@@ -399,5 +512,197 @@ ERROR 42000: Incorrect database name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 SHOW EVENTS FROM ``;
 ERROR 42000: Incorrect database name ''
 SHOW EVENTS FROM `events\\test`;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
+
+LOCK TABLES mode.
+
+create table t1 (a int);
+create event e1 on schedule every 10 hour do select 1;
+lock table t1 read;
+show create event e1;
+Event	sql_mode	time_zone	Create Event
+e1		SYSTEM	CREATE EVENT `e1` ON SCHEDULE EVERY 10 HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
+select event_name from information_schema.events;
+event_name
+e1
+create event e2 on schedule every 10 hour do select 1;
+ERROR HY000: Table 'event' was not locked with LOCK TABLES
+alter event e2 disable;
+ERROR HY000: Table 'event' was not locked with LOCK TABLES
+alter event e2 rename to e3;
+ERROR HY000: Table 'event' was not locked with LOCK TABLES
+drop event e2;
+ERROR HY000: Table 'event' was not locked with LOCK TABLES
+drop event e1;
+ERROR HY000: Table 'event' was not locked with LOCK TABLES
+unlock tables;
+lock table t1 write;
+show create event e1;
+Event	sql_mode	time_zone	Create Event
+e1		SYSTEM	CREATE EVENT `e1` ON SCHEDULE EVERY 10 HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
+select event_name from information_schema.events;
+event_name
+e1
+create event e2 on schedule every 10 hour do select 1;
+ERROR HY000: Table 'event' was not locked with LOCK TABLES
+alter event e2 disable;
+ERROR HY000: Table 'event' was not locked with LOCK TABLES
+alter event e2 rename to e3;
+ERROR HY000: Table 'event' was not locked with LOCK TABLES
+drop event e2;
+ERROR HY000: Table 'event' was not locked with LOCK TABLES
+drop event e1;
+ERROR HY000: Table 'event' was not locked with LOCK TABLES
+unlock tables;
+lock table t1 read, mysql.event read;
+show create event e1;
+Event	sql_mode	time_zone	Create Event
+e1		SYSTEM	CREATE EVENT `e1` ON SCHEDULE EVERY 10 HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
+select event_name from information_schema.events;
+event_name
+e1
+create event e2 on schedule every 10 hour do select 1;
+ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+alter event e2 disable;
+ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+alter event e2 rename to e3;
+ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+drop event e2;
+ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+drop event e1;
+ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+unlock tables;
+lock table t1 write, mysql.event read;
+show create event e1;
+Event	sql_mode	time_zone	Create Event
+e1		SYSTEM	CREATE EVENT `e1` ON SCHEDULE EVERY 10 HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
+select event_name from information_schema.events;
+event_name
+e1
+create event e2 on schedule every 10 hour do select 1;
+ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+alter event e2 disable;
+ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+alter event e2 rename to e3;
+ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+drop event e2;
+ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+drop event e1;
+ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+unlock tables;
+lock table t1 read, mysql.event write;
+ERROR HY000: You can't combine write-locking of system tables with other tables or lock types
+lock table t1 write, mysql.event write;
+ERROR HY000: You can't combine write-locking of system tables with other tables or lock types
+lock table mysql.event write;
+show create event e1;
+Event	sql_mode	time_zone	Create Event
+e1		SYSTEM	CREATE EVENT `e1` ON SCHEDULE EVERY 10 HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1
+select event_name from information_schema.events;
+event_name
+e1
+create event e2 on schedule every 10 hour do select 1;
+alter event e2 disable;
+alter event e2 rename to e3;
+drop event e3;
+drop event e1;
+unlock tables;
+Make sure we have left no events 
+select event_name from information_schema.events;
+event_name
+
+Events in sub-statements, events and prelocking
+
+
+create event e1 on schedule every 10 hour do select 1;
+create function f1() returns int
+begin
+show create event e1;
+return 1;
+end|
+ERROR 0A000: Not allowed to return a result set from a function
+create trigger trg before insert on t1 for each row
+begin
+show create event e1;
+end|
+ERROR 0A000: Not allowed to return a result set from a trigger
+create function f1() returns int
+begin
+select event_name from information_schema.events;
+return 1;
+end|
+ERROR 0A000: Not allowed to return a result set from a function
+create trigger trg before insert on t1 for each row
+begin
+select event_name from information_schema.events;
+end|
+ERROR 0A000: Not allowed to return a result set from a trigger
+create function f1() returns int
+begin
+create event e2 on schedule every 10 hour do select 1;
+return 1;
+end|
+ERROR HY000: Recursion of EVENT DDL statements is forbidden when body is present
+create function f1() returns int
+begin
+alter event e1 rename to e2;
+return 1;
+end|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+create function f1() returns int
+begin
+drop event e2;
+return 1;
+end|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+----------------------------------------------------------------------
+create trigger trg before insert on t1 for each row
+begin
+set new.a= f1();
+end|
+create function f1() returns int
+begin
+call p1();
+return 0;
+end|
+create procedure p1()
+begin
+select event_name from information_schema.events;
+end|
+insert into t1 (a) values (1)|
+ERROR 0A000: Not allowed to return a result set from a trigger
+drop procedure p1|
+create procedure p1()
+begin
+show create event e1; 
+end|
+insert into t1 (a) values (1)|
+ERROR 0A000: Not allowed to return a result set from a trigger
+drop procedure p1|
+create procedure p1()
+begin
+create temporary table tmp select event_name from information_schema.events;
+end|
+expected to work, since we redirect the output into a tmp table
+insert into t1 (a) values (1)|
+select * from tmp|
+event_name
+e1
+drop temporary table tmp|
+drop procedure p1|
+create procedure p1()
+begin
+alter event e1 rename to e2;
+end|
+insert into t1 (a) values (1)|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+drop procedure p1|
+create procedure p1()
+begin
+drop event e1;
+end|
+insert into t1 (a) values (1)|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+drop table t1|
+drop event e1|
 drop database events_test;

@@ -149,10 +149,12 @@ ErrorBundle ErrorCodes[] = {
   /**
    * Unknown result
    */
+  { 4007, DMEC, UR, "Send to ndbd node failed" },
   { 4008, DMEC, UR, "Receive from NDB failed" },
   { 4009, DMEC, UR, "Cluster Failure" },
   { 4012, DMEC, UR, 
     "Request ndbd time-out, maybe due to high load or communication problems"}, 
+  { 4013, DMEC, UR, "Request timed out in waiting for node failure"}, 
   { 4024, DMEC, UR, 
     "Time-out, most likely caused by simple read or cluster failure" }, 
   
@@ -199,7 +201,8 @@ ErrorBundle ErrorCodes[] = {
   { 904,  HA_ERR_INDEX_FILE_FULL, IS, "Out of fragment records (increase MaxNoOfOrderedIndexes)" },
   { 905,  DMEC, IS, "Out of attribute records (increase MaxNoOfAttributes)" },
   { 1601, HA_ERR_RECORD_FILE_FULL, IS, "Out extents, tablespace full" },
-  
+  { 1602, DMEC, IS,"No datafile in tablespace" },
+
   /**
    * TimeoutExpired 
    */
@@ -488,6 +491,7 @@ ErrorBundle ErrorCodes[] = {
   { 1419, DMEC, SE, "Subscription already dropped" },
 
   { 1420, DMEC, TR, "Subscriber manager busy with adding/removing a table" },
+  { 1421, DMEC, SE, "Partially connected API in NdbOperation::execute()" },
 
   { 4004, DMEC, AE, "Attribute name or id not found in the table" },
   

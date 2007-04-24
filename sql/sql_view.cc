@@ -224,6 +224,9 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 {
   LEX *lex= thd->lex;
   bool link_to_local;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  bool definer_check_is_needed= mode != VIEW_ALTER || lex->definer;
+#endif
   /* first table in list is target VIEW name => cut off it */
   TABLE_LIST *view= lex->unlink_first_table(&link_to_local);
   TABLE_LIST *tables= lex->query_tables;
@@ -256,8 +259,9 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     /*
       DEFINER-clause is missing; we have to create default definer in
       persistent arena to be PS/SP friendly.
+      If this is an ALTER VIEW then the current user should be set as
+      the definer.
     */
-
     Query_arena original_arena;
     Query_arena *ps_arena = thd->activate_stmt_arena_if_needed(&original_arena);
 
@@ -277,11 +281,11 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       - same as current user
       - current user has SUPER_ACL
   */
-  if (strcmp(lex->definer->user.str,
-             thd->security_ctx->priv_user) != 0 ||
-      my_strcasecmp(system_charset_info,
-                    lex->definer->host.str,
-                    thd->security_ctx->priv_host) != 0)
+  if (definer_check_is_needed &&
+      (strcmp(lex->definer->user.str, thd->security_ctx->priv_user) != 0 ||
+       my_strcasecmp(system_charset_info,
+                     lex->definer->host.str,
+                     thd->security_ctx->priv_host) != 0))
   {
     if (!(thd->security_ctx->master_access & SUPER_ACL))
     {
@@ -492,35 +496,46 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   /*
     Compare/check grants on view with grants of underlying tables
   */
+
+  fill_effective_table_privileges(thd, &view->grant, view->db,
+                                  view->table_name);
+
+  {
+    Item *report_item= NULL;
+    uint final_priv= VIEW_ANY_ACL;
+
   for (sl= select_lex; sl; sl= sl->next_select())
   {
     DBUG_ASSERT(view->db);                     /* Must be set in the parser */
     List_iterator_fast<Item> it(sl->item_list);
     Item *item;
-    fill_effective_table_privileges(thd, &view->grant, view->db,
-                                    view->table_name);
     while ((item= it++))
     {
-      Item_field *fld;
+        Item_field *fld= item->filed_for_view_update();
       uint priv= (get_column_grant(thd, &view->grant, view->db,
                                     view->table_name, item->name) &
                   VIEW_ANY_ACL);
-      if ((fld= item->filed_for_view_update()))
+
+        if (fld && !fld->field->table->s->tmp_table)
       {
-        /*
-          Do we have more privileges on view field then underlying table field?
-        */
-        if (!fld->field->table->s->tmp_table && (~fld->have_privileges & priv))
+          final_priv&= fld->have_privileges;
+
+          if (~fld->have_privileges & priv)
+            report_item= item;
+        }
+      }
+    }
+
+    if (!final_priv)
         {
-          /* VIEW column has more privileges */
+      DBUG_ASSERT(report_item);
+
           my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
                    "create view", thd->security_ctx->priv_user,
-                   thd->security_ctx->priv_host, item->name,
+               thd->security_ctx->priv_host, report_item->name,
                    view->table_name);
           res= TRUE;
           goto err;
-        }
-      }
     }
   }
 #endif
@@ -675,7 +690,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   char md5[MD5_BUFF_LENGTH];
   bool can_be_merged;
   char dir_buff[FN_REFLEN], path_buff[FN_REFLEN];
-  const uchar *endp;
+  const char *endp;
   LEX_STRING dir, file, path;
   DBUG_ENTER("mysql_register_view");
 
@@ -759,9 +774,9 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view->query.str= (char*)str.ptr();
   view->query.length= str.length()-1; // we do not need last \0
   view->source.str= thd->query + thd->lex->create_view_select_start;
-  endp= (uchar*) view->source.str;
-  endp= skip_rear_comments(endp, (uchar*) (thd->query + thd->query_length));
-  view->source.length= endp - (uchar*) view->source.str;
+  endp= view->source.str;
+  endp= skip_rear_comments(endp, thd->query + thd->query_length);
+  view->source.length= endp - view->source.str;
   view->file_version= 1;
   view->calc_md5(md5);
   view->md5.str= md5;
@@ -970,7 +985,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     now Lex placed in statement memory
   */
   table->view= lex= thd->lex= (LEX*) new(thd->mem_root) st_lex_local;
-  lex_start(thd, (uchar*)table->query.str, table->query.length);
+  lex_start(thd, table->query.str, table->query.length);
   view_select= &lex->select_lex;
   view_select->select_number= ++thd->select_number;
   {
@@ -1004,6 +1019,11 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     CHARSET_INFO *save_cs= thd->variables.character_set_client;
     thd->variables.character_set_client= system_charset_info;
     res= MYSQLparse((void *)thd);
+
+    if ((old_lex->sql_command == SQLCOM_SHOW_FIELDS) ||
+        (old_lex->sql_command == SQLCOM_SHOW_CREATE))
+        lex->sql_command= old_lex->sql_command;
+
     thd->variables.character_set_client= save_cs;
     thd->variables.sql_mode= save_mode;
   }
@@ -1029,7 +1049,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       }
     }
     else if (!table->prelocking_placeholder &&
-             old_lex->sql_command == SQLCOM_SHOW_CREATE &&
+             (old_lex->sql_command == SQLCOM_SHOW_CREATE) &&
              !table->belong_to_view)
     {
       if (check_table_access(thd, SHOW_VIEW_ACL, table, 0))
@@ -1266,13 +1286,18 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
         unit->slave= save_slave; // fix include_down initialisation
       }
 
+      /* 
+        We can safely ignore the VIEW's ORDER BY if we merge into union 
+        branch, as order is not important there.
+      */
+      if (!table->select_lex->master_unit()->is_union())
+        table->select_lex->order_list.push_back(&lex->select_lex.order_list);
       /*
 	This SELECT_LEX will be linked in global SELECT_LEX list
 	to make it processed by mysql_handle_derived(),
 	but it will not be included to SELECT_LEX tree, because it
 	will not be executed
-      */
-      table->select_lex->order_list.push_back(&lex->select_lex.order_list);
+      */ 
       goto ok;
     }
 
@@ -1302,8 +1327,6 @@ ok:
     (st_select_lex_node**)&old_lex->all_selects_list;
 
 ok2:
-  if (!old_lex->time_zone_tables_used && thd->lex->time_zone_tables_used)
-    old_lex->time_zone_tables_used= thd->lex->time_zone_tables_used;
   DBUG_ASSERT(lex == thd->lex);
   thd->lex= old_lex;                            // Needed for prepare_security
   result= !table->prelocking_placeholder && table->prepare_security(thd);

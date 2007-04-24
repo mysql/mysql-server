@@ -20,6 +20,55 @@ Created 5/11/1994 Heikki Tuuri
 
 ibool	ut_always_false	= FALSE;
 
+#ifdef __WIN__
+/*********************************************************************
+NOTE: The Windows epoch starts from 1601/01/01 whereas the Unix
+epoch starts from 1970/1/1. For selection of constant see:
+http://support.microsoft.com/kb/167296/ */
+#define WIN_TO_UNIX_DELTA_USEC  ((ib_longlong) 11644473600000000ULL)
+
+
+/*********************************************************************
+This is the Windows version of gettimeofday(2).*/
+static
+int
+ut_gettimeofday(
+/*============*/
+			/* out: 0 if all OK else -1 */
+	struct timeval*	tv,	/* out: Values are relative to Unix epoch */
+	void*		tz)	/* in: not used */
+{
+	FILETIME	ft;
+	ib_longlong	tm;
+
+	if (!tv) {
+		errno = EINVAL;
+		return(-1);
+	}
+
+	GetSystemTimeAsFileTime(&ft);
+
+	tm = (ib_longlong) ft.dwHighDateTime << 32;
+	tm |= ft.dwLowDateTime;
+
+	ut_a(tm >= 0);	/* If tm wraps over to negative, the quotient / 10
+			does not work */
+
+	tm /= 10;	/* Convert from 100 nsec periods to usec */
+
+	/* If we don't convert to the Unix epoch the value for
+	struct timeval::tv_sec will overflow.*/
+	tm -= WIN_TO_UNIX_DELTA_USEC;
+
+	tv->tv_sec  = (long) (tm / 1000000L);
+	tv->tv_usec = (long) (tm % 1000000L);
+
+	return(0);
+}
+#else
+#define	ut_gettimeofday		gettimeofday
+#endif
+
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Display an SQL identifier.
@@ -85,17 +134,11 @@ ut_usectime(
 	ulint*	sec,	/* out: seconds since the Epoch */
 	ulint*	ms)	/* out: microseconds since the Epoch+*sec */
 {
-#ifdef __WIN__
-	SYSTEMTIME st;
-	GetLocalTime(&st);
-	*sec = (ulint) st.wSecond;
-	*ms  = (ulint) st.wMilliseconds;
-#else
 	struct timeval	tv;
-	gettimeofday(&tv,NULL);
+
+	ut_gettimeofday(&tv, NULL);
 	*sec = (ulint) tv.tv_sec;
 	*ms  = (ulint) tv.tv_usec;
-#endif
 }
 
 /**************************************************************

@@ -17,15 +17,11 @@
 
 
 #define EVEX_GET_FIELD_FAILED   -2
-#define EVEX_COMPILE_ERROR      -3
-#define EVEX_GENERAL_ERROR      -4
 #define EVEX_BAD_PARAMS         -5
 #define EVEX_MICROSECOND_UNSUP  -6
 
-
 class sp_head;
 class Sql_alloc;
-
 
 class Event_queue_element_for_exec
 {
@@ -54,19 +50,42 @@ protected:
   MEM_ROOT mem_root;
 
 public:
+  /*
+    ENABLED = feature can function normally (is turned on)
+    SLAVESIDE_DISABLED = feature is turned off on slave
+    DISABLED = feature is turned off
+  */
+  enum enum_status
+  {
+    ENABLED = 1,
+    DISABLED,
+    SLAVESIDE_DISABLED  
+  };
+
+  enum enum_on_completion
+  {
+    ON_COMPLETION_DROP = 1,
+    ON_COMPLETION_PRESERVE
+  };
+
   LEX_STRING dbname;
   LEX_STRING name;
   LEX_STRING definer;// combination of user and host
+
+  Time_zone *time_zone;
 
   Event_basic();
   virtual ~Event_basic();
 
   virtual int
-  load_from_row(TABLE *table) = 0;
+  load_from_row(THD *thd, TABLE *table) = 0;
 
 protected:
   bool
   load_string_fields(Field **fields, ...);
+
+  bool
+  load_time_zone(THD *thd, const LEX_STRING tz_name);
 };
 
 
@@ -78,25 +97,14 @@ protected:
   bool last_executed_changed;
 
 public:
-  enum enum_status
-  {
-    ENABLED = 1,
-    DISABLED
-  };
+  int on_completion;
+  int status;
+  longlong originator;
 
-  enum enum_on_completion
-  {
-    ON_COMPLETION_DROP = 1,
-    ON_COMPLETION_PRESERVE
-  };
-
-  enum enum_on_completion on_completion;
-  enum enum_status status;
-  TIME last_executed;
-
-  TIME execute_at;
-  TIME starts;
-  TIME ends;
+  my_time_t last_executed;
+  my_time_t execute_at;
+  my_time_t starts;
+  my_time_t ends;
   my_bool starts_null;
   my_bool ends_null;
   my_bool execute_at_null;
@@ -112,7 +120,7 @@ public:
   virtual ~Event_queue_element();
 
   virtual int
-  load_from_row(TABLE *table);
+  load_from_row(THD *thd, TABLE *table);
 
   bool
   compute_next_execution_time();
@@ -122,24 +130,6 @@ public:
 
   bool
   update_timing_fields(THD *thd);
-
-  static void *operator new(size_t size)
-  {
-    void *p;
-    DBUG_ENTER("Event_queue_element::new(size)");
-    p= my_malloc(size, MYF(0));
-    DBUG_PRINT("info", ("alloc_ptr: 0x%lx", (long) p));
-    DBUG_RETURN(p);
-  }
-
-  static void operator delete(void *ptr, size_t size)
-  {
-    DBUG_ENTER("Event_queue_element::delete(ptr,size)");
-    DBUG_PRINT("enter", ("free_ptr: 0x%lx", (long) ptr));
-    TRASH(ptr, size);
-    my_free((gptr) ptr, MYF(0));
-    DBUG_VOID_RETURN;
-  }
 };
 
 
@@ -168,7 +158,7 @@ public:
   init();
 
   virtual int
-  load_from_row(TABLE *table);
+  load_from_row(THD *thd, TABLE *table);
 
   int
   get_create_event(THD *thd, String *buf);
@@ -178,30 +168,24 @@ public:
 class Event_job_data : public Event_basic
 {
 public:
-  sp_head *sphead;
-
   LEX_STRING body;
   LEX_STRING definer_user;
   LEX_STRING definer_host;
 
   ulong sql_mode;
 
-  uint execution_count;
-
   Event_job_data();
-  virtual ~Event_job_data();
 
   virtual int
-  load_from_row(TABLE *table);
+  load_from_row(THD *thd, TABLE *table);
 
-  int
-  execute(THD *thd);
-
-  int
-  compile(THD *thd, MEM_ROOT *mem_root);
+  bool
+  execute(THD *thd, bool drop);
 private:
-  int
-  get_fake_create_event(THD *thd, String *buf);
+  bool
+  construct_sp_sql(THD *thd, String *sp_sql);
+  bool
+  construct_drop_event_sql(THD *thd, String *sp_sql);
 
   Event_job_data(const Event_job_data &);       /* Prevent use of these */
   void operator=(Event_job_data &);
@@ -211,21 +195,17 @@ private:
 class Event_parse_data : public Sql_alloc
 {
 public:
-  enum enum_status
-  {
-    ENABLED = 1,
-    DISABLED
-  };
 
-  enum enum_on_completion
-  {
-    ON_COMPLETION_DROP = 1,
-    ON_COMPLETION_PRESERVE
-  };
-  enum enum_on_completion on_completion;
-  enum enum_status status;
+  int on_completion;
+  int status;
+  longlong originator;
+  /*
+    do_not_create will be set if STARTS time is in the past and
+    on_completion == ON_COMPLETION_DROP.
+  */
+  bool do_not_create;
 
-  const uchar *body_begin;
+  const char *body_begin;
 
   LEX_STRING dbname;
   LEX_STRING name;
@@ -237,9 +217,9 @@ public:
   Item* item_ends;
   Item* item_execute_at;
 
-  TIME starts;
-  TIME ends;
-  TIME execute_at;
+  my_time_t starts;
+  my_time_t ends;
+  my_time_t execute_at;
   my_bool starts_null;
   my_bool ends_null;
   my_bool execute_at_null;
@@ -284,7 +264,11 @@ private:
   void
   report_bad_value(const char *item_name, Item *bad_item);
 
+  void
+  check_if_in_the_past(THD *thd, my_time_t ltime_utc);
+
   Event_parse_data(const Event_parse_data &);	/* Prevent use of these */
+  void check_originator_id(THD *thd);
   void operator=(Event_parse_data &);
 };
 

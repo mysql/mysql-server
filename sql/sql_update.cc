@@ -126,7 +126,7 @@ int mysql_update(THD *thd,
 #endif
   uint          table_count= 0;
   ha_rows	updated, found;
-  key_map	old_used_keys;
+  key_map	old_covering_keys;
   TABLE		*table;
   SQL_SELECT	*select;
   READ_RECORD	info;
@@ -165,8 +165,8 @@ int mysql_update(THD *thd,
   thd->proc_info="init";
   table= table_list->table;
 
-  /* Calculate "table->used_keys" based on the WHERE */
-  table->used_keys= table->s->keys_in_use;
+  /* Calculate "table->covering_keys" based on the WHERE */
+  table->covering_keys= table->s->keys_in_use;
   table->quick_keys.clear_all();
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -176,7 +176,7 @@ int mysql_update(THD *thd,
   if (mysql_prepare_update(thd, table_list, &conds, order_num, order))
     DBUG_RETURN(1);
 
-  old_used_keys= table->used_keys;		// Keys used in WHERE
+  old_covering_keys= table->covering_keys;		// Keys used in WHERE
   /* Check the fields we are going to modify */
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->grant.want_privilege= table->grant.want_privilege= want_privilege;
@@ -201,8 +201,10 @@ int mysql_update(THD *thd,
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     else
     {
-      bitmap_set_bit(table->write_set,
-                     table->timestamp_field->field_index);
+      if (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
+          table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH)
+        bitmap_set_bit(table->write_set,
+                       table->timestamp_field->field_index);
     }
   }
 
@@ -229,7 +231,7 @@ int mysql_update(THD *thd,
       limit= 0;                                   // Impossible WHERE
   }
   // Don't count on usage of 'only index' when calculating which key to use
-  table->used_keys.clear_all();
+  table->covering_keys.clear_all();
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (prune_partitions(thd, table, conds))
@@ -304,7 +306,7 @@ int mysql_update(THD *thd,
       We can't update table directly;  We must first search after all
       matching rows before updating the table!
     */
-    if (used_index < MAX_KEY && old_used_keys.is_set(used_index))
+    if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
     {
       table->key_read=1;
       table->mark_columns_used_by_index(used_index);
@@ -447,12 +449,25 @@ int mysql_update(THD *thd,
   thd->proc_info="Updating";
 
   transactional_table= table->file->has_transactions();
-  thd->no_trans_update= 0;
+  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= test(!ignore &&
                               (thd->variables.sql_mode &
                                (MODE_STRICT_TRANS_TABLES |
                                 MODE_STRICT_ALL_TABLES)));
-  will_batch= !table->file->start_bulk_update();
+  if (table->triggers &&
+      table->triggers->has_triggers(TRG_EVENT_UPDATE,
+                                    TRG_ACTION_AFTER))
+  {
+    /*
+      The table has AFTER UPDATE triggers that might access to subject 
+      table and therefore might need update to be done immediately. 
+      So we turn-off the batching.
+    */ 
+    (void) table->file->extra(HA_EXTRA_UPDATE_CANNOT_BATCH);
+    will_batch= FALSE;
+  }
+  else
+    will_batch= !table->file->start_bulk_update();
 
   /*
     We can use compare_record() to optimize away updates if
@@ -474,7 +489,7 @@ int mysql_update(THD *thd,
       if (fill_record_n_invoke_before_triggers(thd, fields, values, 0,
                                                table->triggers,
                                                TRG_EVENT_UPDATE))
-	break; /* purecov: inspected */
+        break; /* purecov: inspected */
 
       found++;
 
@@ -535,7 +550,7 @@ int mysql_update(THD *thd,
         if (!error)
 	{
 	  updated++;
-          thd->no_trans_update= !transactional_table;
+          thd->no_trans_update.stmt= !transactional_table;
 
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
@@ -661,11 +676,11 @@ int mysql_update(THD *thd,
                             transactional_table, FALSE) &&
           transactional_table)
       {
-	error=1;				// Rollback update
+        error=1;				// Rollback update
       }
     }
     if (!transactional_table)
-      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+      thd->no_trans_update.all= TRUE;
   }
   free_underlaid_joins(thd, select_lex);
   if (transactional_table)
@@ -761,7 +776,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   /* Check that we are not using table that we are updating in a sub select */
   {
     TABLE_LIST *duplicate;
-    if ((duplicate= unique_table(thd, table_list, table_list->next_global)))
+    if ((duplicate= unique_table(thd, table_list, table_list->next_global, 0)))
     {
       update_non_unique_table_error(table_list, "UPDATE", duplicate);
       my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
@@ -987,7 +1002,7 @@ reopen_tables:
         tl->lock_type != TL_READ_NO_INSERT)
     {
       TABLE_LIST *duplicate;
-      if ((duplicate= unique_table(thd, tl, table_list)))
+      if ((duplicate= unique_table(thd, tl, table_list, 0)))
       {
         update_non_unique_table_error(table_list, "UPDATE", duplicate);
         DBUG_RETURN(TRUE);
@@ -1030,7 +1045,7 @@ bool mysql_multi_update(THD *thd,
 				 handle_duplicates, ignore)))
     DBUG_RETURN(TRUE);
 
-  thd->no_trans_update= 0;
+  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= test(thd->variables.sql_mode &
                               (MODE_STRICT_TRANS_TABLES |
                                MODE_STRICT_ALL_TABLES));
@@ -1092,7 +1107,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   }
 
   /*
-    We have to check values after setup_tables to get used_keys right in
+    We have to check values after setup_tables to get covering_keys right in
     reference tables
   */
 
@@ -1119,8 +1134,19 @@ int multi_update::prepare(List<Item> &not_used_values,
       update.link_in_list((byte*) tl, (byte**) &tl->next_local);
       tl->shared= table_count++;
       table->no_keyread=1;
-      table->used_keys.clear_all();
+      table->covering_keys.clear_all();
       table->pos_in_table_list= tl;
+      if (table->triggers &&
+          table->triggers->has_triggers(TRG_EVENT_UPDATE,
+                                        TRG_ACTION_AFTER))
+      {
+	/*
+           The table has AFTER UPDATE triggers that might access to subject 
+           table and therefore might need update to be done immediately. 
+           So we turn-off the batching.
+	*/ 
+	(void) table->file->extra(HA_EXTRA_UPDATE_CANNOT_BATCH);
+      }
     }
   }
 
@@ -1203,7 +1229,7 @@ static bool safe_update_on_fly(THD *thd, JOIN_TAB *join_tab,
                                TABLE_LIST *table_ref, TABLE_LIST *all_tables)
 {
   TABLE *table= join_tab->table;
-  if (unique_table(thd, table_ref, all_tables))
+  if (unique_table(thd, table_ref, all_tables, 0))
     return 0;
   switch (join_tab->type) {
   case JT_SYSTEM:
@@ -1344,7 +1370,7 @@ multi_update::~multi_update()
     delete [] copy_field;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		// Restore this setting
   if (!trans_safe)
-    thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+    thd->no_trans_update.all= TRUE;
 }
 
 
@@ -1405,40 +1431,40 @@ bool multi_update::send_data(List<Item> &not_used_values)
           else if (error == VIEW_CHECK_ERROR)
             DBUG_RETURN(1);
         }
-	if (!updated++)
-	{
-	  /*
-	    Inform the main table that we are going to update the table even
-	    while we may be scanning it.  This will flush the read cache
-	    if it's used.
-	  */
-	  main_table->file->extra(HA_EXTRA_PREPARE_FOR_UPDATE);
-	}
-	if ((error=table->file->ha_update_row(table->record[1],
-					      table->record[0])))
-	{
-	  updated--;
+        if (!updated++)
+        {
+          /*
+            Inform the main table that we are going to update the table even
+            while we may be scanning it.  This will flush the read cache
+            if it's used.
+          */
+          main_table->file->extra(HA_EXTRA_PREPARE_FOR_UPDATE);
+        }
+        if ((error=table->file->ha_update_row(table->record[1],
+                                              table->record[0])))
+        {
+          updated--;
           if (!ignore ||
               table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
-	  {
+          {
             /*
               If (ignore && error == is ignorable) we don't have to
               do anything; otherwise...
             */
             if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
               thd->fatal_error(); /* Other handler errors are fatal */
-	    table->file->print_error(error,MYF(0));
-	    DBUG_RETURN(1);
-	  }
-	}
+            table->file->print_error(error,MYF(0));
+            DBUG_RETURN(1);
+          }
+        }
         else
         {
           if (!table->file->has_transactions())
-            thd->no_trans_update= 1;
+            thd->no_trans_update.stmt= TRUE;
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                                 TRG_ACTION_AFTER, TRUE))
-	    DBUG_RETURN(1);
+            DBUG_RETURN(1);
         }
       }
     }
@@ -1674,7 +1700,7 @@ bool multi_update::send_eof()
       }
     }
     if (!transactional_tables)
-      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+     thd->no_trans_update.all= TRUE;
   }
 
   if (transactional_tables)

@@ -62,11 +62,7 @@ MK_FUNDAMENTAL_TYPE(unsigned long)
 
 MK_FUNDAMENTAL_TYPE(float)
 MK_FUNDAMENTAL_TYPE(     double)
-
-#ifdef LONG_DOUBLE_IS_DISTINCT_TYPE
-// Don't define by default as this gives warnings on power mac
-    MK_FUNDAMENTAL_TYPE(long double)
-#endif
+MK_FUNDAMENTAL_TYPE(long double)
 
 #if defined(WORD64_AVAILABLE) && defined(WORD64_IS_DISTINCT_TYPE)
     MK_FUNDAMENTAL_TYPE(word64)

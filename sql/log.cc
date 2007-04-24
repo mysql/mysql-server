@@ -20,6 +20,7 @@
 #include "mysql_priv.h"
 #include "sql_repl.h"
 #include "rpl_filter.h"
+#include "rpl_rli.h"
 
 #include <my_dir.h>
 #include <stdarg.h>
@@ -68,7 +69,7 @@ char *make_default_log_name(char *buff,const char* log_ext)
 {
   strmake(buff, pidfile_name, FN_REFLEN-5);
   return fn_format(buff, buff, mysql_data_home, log_ext,
-                   MYF(MY_UNPACK_FILENAME|MY_APPEND_EXT));
+                   MYF(MY_UNPACK_FILENAME|MY_REPLACE_EXT));
 }
 
 /*
@@ -569,11 +570,21 @@ bool Log_to_csv_event_handler::
 
   if (query_start_arg)
   {
+    /*
+      A TIME field can not hold the full longlong range; query_time or
+      lock_time may be truncated without warning here, if greater than
+      839 hours (~35 days)
+    */
+    MYSQL_TIME t;
+    t.neg= 0;
+
     /* fill in query_time field */
-    if (table->field[2]->store(query_time, TRUE))
+    calc_time_from_sec(&t, (long) min(query_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
+    if (table->field[2]->store_time(&t, MYSQL_TIMESTAMP_TIME))
       goto err;
     /* lock_time */
-    if (table->field[3]->store(lock_time, TRUE))
+    calc_time_from_sec(&t, (long) min(lock_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
+    if (table->field[3]->store_time(&t, MYSQL_TIMESTAMP_TIME))
       goto err;
     /* rows_sent */
     if (table->field[4]->store((longlong) thd->sent_row_count, TRUE))
@@ -1548,7 +1559,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
     (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
   DBUG_ASSERT(mysql_bin_log.is_open());
 
-  if (all && trx_data->empty())
+  if (trx_data->empty())
   {
     // we're here because trans_log was flushed in MYSQL_BIN_LOG::log_xid()
     trx_data->reset();
@@ -1587,8 +1598,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
     table. Such cases should be rare (updating a
     non-transactional table inside a transaction...)
   */
-  if (unlikely(thd->options & (OPTION_STATUS_NO_TRANS_UPDATE |
-                               OPTION_KEEP_LOG)))
+  if (unlikely(thd->no_trans_update.all || (thd->options & OPTION_KEEP_LOG)))
   {
     Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, FALSE);
     qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
@@ -1643,8 +1653,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
     non-transactional table. Otherwise, truncate the binlog cache starting
     from the SAVEPOINT command.
   */
-  if (unlikely(thd->options &
-               (OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG)))
+  if (unlikely(thd->no_trans_update.all || (thd->options & OPTION_KEEP_LOG)))
   {
     int error=
       thd->binlog_query(THD::STMT_QUERY_TYPE,
@@ -1714,7 +1723,7 @@ err:
 #ifdef __NT__
 static int eventSource = 0;
 
-void setup_windows_event_source()
+static void setup_windows_event_source()
 {
   HKEY    hRegKey= NULL;
   DWORD   dwError= 0;
@@ -2499,7 +2508,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
       /*
         Set 'created' to 0, so that in next relay logs this event does not
         trigger cleaning actions on the slave in
-        Format_description_log_event::exec_event().
+        Format_description_log_event::apply_event_impl().
       */
       description_event_for_queue->created= 0;
       /* Don't set log_pos in event header */
@@ -3206,8 +3215,10 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   {
     tc_log_page_waits++;
     pthread_mutex_lock(&LOCK_prep_xids);
-    while (prepared_xids)
+    while (prepared_xids) {
+      DBUG_PRINT("info", ("prepared_xids=%lu", prepared_xids));
       pthread_cond_wait(&COND_prep_xids, &LOCK_prep_xids);
+    }
     pthread_mutex_unlock(&LOCK_prep_xids);
   }
 
@@ -3773,7 +3784,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
                              nb_elements()));
           /*
             If the auto_increment was second in a table's index (possible with
-            MyISAM or BDB) (table->next_number_key_offset != 0), such event is
+            MyISAM or BDB) (table->next_number_keypart != 0), such event is
             in fact not necessary. We could avoid logging it.
           */
           Intvar_log_event e(thd, (uchar) INSERT_ID_EVENT,
@@ -4216,38 +4227,6 @@ static bool test_if_number(register const char *str,
 } /* test_if_number */
 
 
-void print_buffer_to_file(enum loglevel level, const char *buffer)
-{
-  time_t skr;
-  struct tm tm_tmp;
-  struct tm *start;
-  DBUG_ENTER("print_buffer_to_file");
-  DBUG_PRINT("enter",("buffer: %s", buffer));
-
-  VOID(pthread_mutex_lock(&LOCK_error_log));
-
-  skr=time(NULL);
-  localtime_r(&skr, &tm_tmp);
-  start=&tm_tmp;
-
-  fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d [%s] %s\n",
-          start->tm_year % 100,
-          start->tm_mon+1,
-          start->tm_mday,
-          start->tm_hour,
-          start->tm_min,
-          start->tm_sec,
-          (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
-           "Warning" : "Note"),
-          buffer);
-
-  fflush(stderr);
-
-  VOID(pthread_mutex_unlock(&LOCK_error_log));
-  DBUG_VOID_RETURN;
-}
-
-
 void sql_perror(const char *message)
 {
 #ifdef HAVE_STRERROR
@@ -4314,23 +4293,15 @@ void MYSQL_BIN_LOG::signal_update()
 }
 
 #ifdef __NT__
-void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
-                                 uint length, int buffLen)
+static void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
+                                        size_t length, size_t buffLen)
 {
   HANDLE event;
-  char   *buffptr;
-  LPCSTR *buffmsgptr;
+  char   *buffptr= buff;
   DBUG_ENTER("print_buffer_to_nt_eventlog");
 
-  buffptr= buff;
-  if (length > (uint)(buffLen-5))
-  {
-    char *newBuff= new char[length + 5];
-    strcpy(newBuff, buff);
-    buffptr= newBuff;
-  }
-  strmov(buffptr+length, "\r\n\r\n");
-  buffmsgptr= (LPCSTR*) &buffptr;               // Keep windows happy
+  /* Add ending CR/LF's to string, overwrite last chars if necessary */
+  strmov(buffptr+min(length, buffLen-5), "\r\n\r\n");
 
   setup_windows_event_source();
   if ((event= RegisterEventSource(NULL,"MySQL")))
@@ -4338,23 +4309,19 @@ void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
     switch (level) {
       case ERROR_LEVEL:
         ReportEvent(event, EVENTLOG_ERROR_TYPE, 0, MSG_DEFAULT, NULL, 1, 0,
-                    buffmsgptr, NULL);
+                    (LPCSTR*)&buffptr, NULL);
         break;
       case WARNING_LEVEL:
         ReportEvent(event, EVENTLOG_WARNING_TYPE, 0, MSG_DEFAULT, NULL, 1, 0,
-                    buffmsgptr, NULL);
+                    (LPCSTR*) &buffptr, NULL);
         break;
       case INFORMATION_LEVEL:
         ReportEvent(event, EVENTLOG_INFORMATION_TYPE, 0, MSG_DEFAULT, NULL, 1,
-                    0, buffmsgptr, NULL);
+                    0, (LPCSTR*) &buffptr, NULL);
         break;
     }
     DeregisterEventSource(event);
   }
-
-  /* if we created a string buffer, then delete it */
-  if (buffptr != buff)
-    delete[] buffptr;
 
   DBUG_VOID_RETURN;
 }
@@ -4392,14 +4359,45 @@ int vprint_msg_to_log(enum loglevel level __attribute__((unused)),
   DBUG_RETURN(0);
 }
 #else /*!EMBEDDED_LIBRARY*/
+static void print_buffer_to_file(enum loglevel level, const char *buffer)
+{
+  time_t skr;
+  struct tm tm_tmp;
+  struct tm *start;
+  DBUG_ENTER("print_buffer_to_file");
+  DBUG_PRINT("enter",("buffer: %s", buffer));
+
+  VOID(pthread_mutex_lock(&LOCK_error_log));
+
+  skr=time(NULL);
+  localtime_r(&skr, &tm_tmp);
+  start=&tm_tmp;
+
+  fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d [%s] %s\n",
+          start->tm_year % 100,
+          start->tm_mon+1,
+          start->tm_mday,
+          start->tm_hour,
+          start->tm_min,
+          start->tm_sec,
+          (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
+           "Warning" : "Note"),
+          buffer);
+
+  fflush(stderr);
+
+  VOID(pthread_mutex_unlock(&LOCK_error_log));
+  DBUG_VOID_RETURN;
+}
+
+
 int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 {
   char   buff[1024];
-  uint length;
+  size_t length;
   DBUG_ENTER("vprint_msg_to_log");
 
-  /* "- 5" is because of print_buffer_to_nt_eventlog() */
-  length= my_vsnprintf(buff, sizeof(buff) - 5, format, args);
+  length= my_vsnprintf(buff, sizeof(buff), format, args);
   print_buffer_to_file(level, buff);
 
 #ifdef __NT__
@@ -5061,8 +5059,10 @@ void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid)
 {
   pthread_mutex_lock(&LOCK_prep_xids);
   DBUG_ASSERT(prepared_xids > 0);
-  if (--prepared_xids == 0)
+  if (--prepared_xids == 0) {
+    DBUG_PRINT("info", ("prepared_xids=%lu", prepared_xids));
     pthread_cond_signal(&COND_prep_xids);
+  }
   pthread_mutex_unlock(&LOCK_prep_xids);
   rotate_and_purge(0);     // as ::write() did not rotate
 }

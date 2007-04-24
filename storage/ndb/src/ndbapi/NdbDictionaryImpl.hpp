@@ -131,28 +131,28 @@ public:
   ~NdbTableImpl();
   
   void init();
-  void setName(const char * name);
+  int setName(const char * name);
   const char * getName() const;
   void setFragmentCount(Uint32 count);
   Uint32 getFragmentCount() const;
-  void setFrm(const void* data, Uint32 len);
+  int setFrm(const void* data, Uint32 len);
   const void * getFrmData() const;
   Uint32 getFrmLength() const;
-  void setFragmentData(const void* data, Uint32 len);
+  int setFragmentData(const void* data, Uint32 len);
   const void * getFragmentData() const;
   Uint32 getFragmentDataLen() const;
-  void setTablespaceNames(const void* data, Uint32 len);
+  int setTablespaceNames(const void* data, Uint32 len);
   Uint32 getTablespaceNamesLen() const;
   const void * getTablespaceNames() const;
-  void setTablespaceData(const void* data, Uint32 len);
+  int setTablespaceData(const void* data, Uint32 len);
   const void * getTablespaceData() const;
   Uint32 getTablespaceDataLen() const;
-  void setRangeListData(const void* data, Uint32 len);
+  int setRangeListData(const void* data, Uint32 len);
   const void * getRangeListData() const;
   Uint32 getRangeListDataLen() const;
 
   const char * getMysqlName() const;
-  void updateMysqlName();
+  int updateMysqlName();
 
   int aggregate(NdbError& error);
   int validate(NdbError& error);
@@ -182,7 +182,7 @@ public:
   Vector<Uint32> m_columnHash;
   Vector<NdbColumnImpl *> m_columns;
   void computeAggregates();
-  void buildColumnHash(); 
+  int buildColumnHash(); 
 
   /**
    * Fragment info
@@ -204,6 +204,7 @@ public:
   int m_maxLoadFactor;
   Uint16 m_keyLenInWords;
   Uint16 m_fragmentCount;
+  Uint8 m_single_user_mode;
 
   NdbIndexImpl * m_index;
   NdbColumnImpl * getColumn(unsigned attrId);
@@ -231,7 +232,7 @@ public:
    * Equality/assign
    */
   bool equal(const NdbTableImpl&) const;
-  void assign(const NdbTableImpl&);
+  int assign(const NdbTableImpl&);
 
   static NdbTableImpl & getImpl(NdbDictionary::Table & t);
   static NdbTableImpl & getImpl(const NdbDictionary::Table & t);
@@ -257,9 +258,9 @@ public:
   ~NdbIndexImpl();
 
   void init();
-  void setName(const char * name);
+  int setName(const char * name);
   const char * getName() const;
-  void setTable(const char * table);
+  int setTable(const char * table);
   const char * getTable() const;
   const NdbTableImpl * getIndexTable() const;
 
@@ -295,11 +296,11 @@ public:
   ~NdbEventImpl();
 
   void init();
-  void setName(const char * name);
+  int setName(const char * name);
   const char * getName() const;
-  void setTable(const NdbDictionary::Table& table);
+  int setTable(const NdbDictionary::Table& table);
   const NdbDictionary::Table * getTable() const;
-  void setTable(const char * table);
+  int setTable(const char * table);
   const char * getTableName() const;
   void addTableEvent(const NdbDictionary::Event::TableEvent t);
   bool getTableEvent(const NdbDictionary::Event::TableEvent t) const;
@@ -363,7 +364,7 @@ public:
   NdbTablespaceImpl(NdbDictionary::Tablespace &);
   ~NdbTablespaceImpl();
 
-  void assign(const NdbTablespaceImpl&);
+  int assign(const NdbTablespaceImpl&);
 
   static NdbTablespaceImpl & getImpl(NdbDictionary::Tablespace & t);
   static const NdbTablespaceImpl & getImpl(const NdbDictionary::Tablespace &);
@@ -377,7 +378,7 @@ public:
   NdbLogfileGroupImpl(NdbDictionary::LogfileGroup &);
   ~NdbLogfileGroupImpl();
 
-  void assign(const NdbLogfileGroupImpl&);
+  int assign(const NdbLogfileGroupImpl&);
 
   static NdbLogfileGroupImpl & getImpl(NdbDictionary::LogfileGroup & t);
   static const NdbLogfileGroupImpl& getImpl(const 
@@ -402,7 +403,7 @@ public:
   NdbDatafileImpl(NdbDictionary::Datafile &);
   ~NdbDatafileImpl();
 
-  void assign(const NdbDatafileImpl&);
+  int assign(const NdbDatafileImpl&);
 
   static NdbDatafileImpl & getImpl(NdbDictionary::Datafile & t);
   static const NdbDatafileImpl & getImpl(const NdbDictionary::Datafile & t);
@@ -415,7 +416,7 @@ public:
   NdbUndofileImpl(NdbDictionary::Undofile &);
   ~NdbUndofileImpl();
 
-  void assign(const NdbUndofileImpl&);
+  int assign(const NdbUndofileImpl&);
 
   static NdbUndofileImpl & getImpl(NdbDictionary::Undofile & t);
   static const NdbUndofileImpl & getImpl(const NdbDictionary::Undofile & t);
@@ -993,8 +994,9 @@ public:
     if(NdbDictInterface::create_index_obj_from_table(&idx, &tab, &m_prim) == 0)
     {
       idx->m_table = &tab;
-      idx->m_externalName.assign(m_index_name);
-      idx->m_internalName.assign(m_name);
+      if (!idx->m_externalName.assign(m_index_name) ||
+          !idx->m_internalName.assign(m_name))
+        DBUG_RETURN(4000);
       tab.m_index = idx;
       DBUG_RETURN(0);
     }

@@ -168,9 +168,15 @@ main(int argc, const char** argv){
 	  break;
 	case NdbDictionary::Event::TE_DROP:
 	  break;
+	case NdbDictionary::Event::TE_NODE_FAILURE:
+	  break;
+	case NdbDictionary::Event::TE_SUBSCRIBE:
+	case NdbDictionary::Event::TE_UNSUBSCRIBE:
+	  break;
 	default:
 	  /* We should REALLY never get here. */
-	  ndbout_c("Error: unknown event type");
+	  ndbout_c("Error: unknown event type: %u", 
+		   (Uint32)pOp->getEventType());
 	  abort();
 	}
       } while ((pOp= MyNdb.nextEvent()) && gci == pOp->getGCI());

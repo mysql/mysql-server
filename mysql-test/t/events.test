@@ -1,7 +1,13 @@
 # Can't test with embedded server that doesn't support grants
 -- source include/not_embedded.inc
 
-create database if not exists events_test;
+--disable_warnings
+drop database if exists events_test;
+drop database if exists db_x;
+drop database if exists mysqltest_db2;
+drop database if exists mysqltest_no_such_database;
+--enable_warnings
+create database events_test;
 use events_test;
 
 #
@@ -74,7 +80,7 @@ DROP EVENT event_starts_test;
 #
 create table test_nested(a int);
 create event e_43 on schedule every 1 second do set @a = 5;
---error ER_EVENT_RECURSIVITY_FORBIDDEN
+--error ER_EVENT_RECURSION_FORBIDDEN
 alter event e_43 do alter event e_43 do set @a = 4;
 delimiter |;
 alter event e_43 do
@@ -122,45 +128,64 @@ set names utf8;
 # SHOW CREATE EVENT test begin
 #
 CREATE EVENT root6 ON SCHEDULE EVERY '10:20' MINUTE_SECOND ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root6;
 create event root7 on schedule every 2 year do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root7;
 create event root8 on schedule every '2:5' year_month do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root8;
 create event root8_1 on schedule every '2:15' year_month do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root8_1;
 create event root9 on schedule every 2 week ON COMPLETION PRESERVE DISABLE COMMENT 'ÐºÐ¾Ð¼ÐµÐ½Ñ‚Ð°Ñ€ Ð½Ð° ÐºÐ¸Ñ€Ð¸Ð»Ð¸Ñ†Ð°' do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root9;
 create event root10 on schedule every '20:5' day_hour do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root10;
 create event root11 on schedule every '20:25' day_hour do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root11;
 create event root12 on schedule every '20:25' hour_minute do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root12;
 create event root13 on schedule every '25:25' hour_minute do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root13;
 create event root13_1 on schedule every '11:65' hour_minute do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root13_1;
 create event root14 on schedule every '35:35' minute_second do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root14;
 create event root15 on schedule every '35:66' minute_second do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root15;
 create event root16 on schedule every '35:56' day_minute do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root16;
 create event root17 on schedule every '35:12:45' day_minute do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root17;
 create event root17_1 on schedule every '35:25:65' day_minute do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root17_1;
 create event root18 on schedule every '35:12:45' hour_second do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root18;
 create event root19 on schedule every '15:59:85' hour_second do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root19;
 create event root20 on schedule every '50:20:12:45' day_second do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root20;
 set names cp1251;
 create event ðóóò21 on schedule every '50:23:59:95' day_second COMMENT 'òîâà å 1251 êîìåíòàð' do select 1;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT ðóóò21;
-insert into mysql.event (db, name, body, definer, interval_value, interval_field) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND");
+insert into mysql.event (db, name, body, definer, interval_value, interval_field, originator) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND", 1);
 --error ER_NOT_SUPPORTED_YET
 show create event root22;
 --error ER_NOT_SUPPORTED_YET
@@ -196,62 +221,161 @@ set names latin1;
 #
 
 #
-# mysql.event intact checking start
+# mysql.event intact checking
+# Check that the server does not crash if
+# one has destroyed or tampered with the event table. 
+# Please see see for events_restart_phase* tests to 
+# see the server behavior at start up with bad mysql.event
+# table.
 #
-# There should be at least 1 second between the ALTERs or we can't catch the change of create_time!!
+#
+--echo Create a test event. Only event metadata is relevant, 
+--echo the actual schedule and body are not.
 #
 CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
 --replace_column 8 # 9 #
 SHOW EVENTS;
-ALTER TABLE mysql.event ADD dummy INT FIRST;
---error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
-SHOW EVENTS;
-ALTER TABLE mysql.event DROP dummy, ADD dummy2 VARCHAR(64) FIRST;
---error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
-SHOW EVENTS;
-ALTER TABLE mysql.event DROP dummy2;
+#
+--echo Try to alter mysql.event: the server should fail to load
+--echo event information after mysql.event was tampered with.
+--echo 
+--echo First, let's add a column to the end and make sure everything
+--echo works as before
+--echo 
+ALTER TABLE mysql.event ADD dummy INT;
 --replace_column 8 # 9 #
 SHOW EVENTS;
+SELECT event_name FROM INFORMATION_SCHEMA.events;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
+SHOW CREATE EVENT intact_check;
+--error ER_EVENT_DOES_NOT_EXIST
+DROP EVENT no_such_event;
+CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
+ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
+ALTER EVENT intact_check_1 RENAME TO intact_check_2;
+--error ER_EVENT_DOES_NOT_EXIST
+DROP EVENT intact_check_1;
+DROP EVENT intact_check_2;
+DROP EVENT intact_check;
+DROP DATABASE IF EXISTS mysqltest_no_such_database;
+CREATE DATABASE mysqltest_db2;
+DROP DATABASE mysqltest_db2;
+SELECT @@event_scheduler;
+SHOW VARIABLES LIKE 'event_scheduler';
+SET GLOBAL event_scheduler=OFF;
+# Clean up
+ALTER TABLE mysql.event DROP dummy;
+CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
+--echo 
+--echo Now let's add a column to the first position: the server
+--echo expects to see event schema name there
+--echo 
+ALTER TABLE mysql.event ADD dummy INT FIRST;
+--error ER_CANNOT_LOAD_FROM_TABLE
+SHOW EVENTS;
+--error ER_CANNOT_LOAD_FROM_TABLE
+SELECT event_name FROM INFORMATION_SCHEMA.events;
+--error ER_EVENT_DOES_NOT_EXIST
+SHOW CREATE EVENT intact_check;
+--error ER_EVENT_DOES_NOT_EXIST
+DROP EVENT no_such_event;
+--error ER_CANNOT_LOAD_FROM_TABLE
+CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
+--error ER_EVENT_DOES_NOT_EXIST
+ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
+--error ER_EVENT_DOES_NOT_EXIST
+ALTER EVENT intact_check_1 RENAME TO intact_check_2;
+--error ER_EVENT_DOES_NOT_EXIST
+DROP EVENT intact_check_1;
+--error ER_EVENT_DOES_NOT_EXIST
+DROP EVENT intact_check_2;
+--error ER_EVENT_DOES_NOT_EXIST
+DROP EVENT intact_check;
+# Should work OK
+DROP DATABASE IF EXISTS mysqltest_no_such_database;
+CREATE DATABASE mysqltest_db2;
+DROP DATABASE mysqltest_db2;
+SELECT @@event_scheduler;
+SHOW VARIABLES LIKE 'event_scheduler';
+SET GLOBAL event_scheduler=OFF;
+--echo Clean up
+ALTER TABLE mysql.event DROP dummy;
+DELETE FROM mysql.event;
+CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
+--echo Back up the table, further changes are not reversible
 CREATE TABLE event_like LIKE mysql.event;
 INSERT INTO event_like SELECT * FROM mysql.event;
-#sleep a bit or we won't catch the change of time
---sleep 1.1
-ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
---error ER_CANNOT_LOAD_FROM_TABLE
-SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
-ALTER TABLE mysql.event MODIFY db char(20) character set utf8 collate utf8_bin default '';
-#wait a bit or we won't see the difference because of seconds resolution
---sleep 1.1
-SHOW CREATE TABLE mysql.event;
---error ER_CANNOT_LOAD_FROM_TABLE
-SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
---sleep 1.1
-ALTER TABLE mysql.event MODIFY db char(64) character set utf8 collate utf8_bin default '';
---sleep 1.1
---echo "This should work"
---replace_column 8 # 9 #
-SHOW EVENTS;
---sleep 1.1
-ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
---error ER_CANNOT_LOAD_FROM_TABLE
-SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
---sleep 1.1
-ALTER TABLE mysql.event MODIFY db varchar(64) character set utf8 collate utf8_bin default '';
---sleep 1.1
---error ER_CANNOT_LOAD_FROM_TABLE
-SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
---sleep 1.1
+--echo 
+--echo Drop some columns and try more checks. 
+--echo
+--echo 
 ALTER TABLE mysql.event DROP comment, DROP starts;
---sleep 1.1
---error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
+--error ER_CANNOT_LOAD_FROM_TABLE
+SHOW EVENTS;
+--error ER_CANNOT_LOAD_FROM_TABLE
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
+--error ER_CANNOT_LOAD_FROM_TABLE
+SHOW CREATE EVENT intact_check;
+--error ER_EVENT_DOES_NOT_EXIST
+DROP EVENT no_such_event;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
+CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
+--error ER_EVENT_DOES_NOT_EXIST
+ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
+--error ER_EVENT_DOES_NOT_EXIST
+ALTER EVENT intact_check_1 RENAME TO intact_check_2;
+--error ER_EVENT_DOES_NOT_EXIST
+DROP EVENT intact_check_1;
+--error ER_EVENT_DOES_NOT_EXIST
+DROP EVENT intact_check_2;
+# Should succeed
+DROP EVENT intact_check;
+DROP DATABASE IF EXISTS mysqltest_no_such_database;
+CREATE DATABASE mysqltest_db2;
+DROP DATABASE mysqltest_db2;
+SELECT @@event_scheduler;
+SHOW VARIABLES LIKE 'event_scheduler';
+SET GLOBAL event_scheduler=OFF;
+--echo 
+--echo Now drop the table, and test again
+--echo
+--echo 
 DROP TABLE mysql.event;
+--error ER_NO_SUCH_TABLE
+SHOW EVENTS;
+--error ER_NO_SUCH_TABLE
+SELECT event_name FROM INFORMATION_SCHEMA.events;
+--error ER_NO_SUCH_TABLE
+SHOW CREATE EVENT intact_check;
+--error ER_NO_SUCH_TABLE
+DROP EVENT no_such_event;
+--error ER_NO_SUCH_TABLE
+CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
+--error ER_NO_SUCH_TABLE
+ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
+--error ER_NO_SUCH_TABLE
+ALTER EVENT intact_check_1 RENAME  TO intact_check_2;
+--error ER_NO_SUCH_TABLE
+DROP EVENT intact_check_1;
+--error ER_NO_SUCH_TABLE
+DROP EVENT intact_check_2;
+--error ER_NO_SUCH_TABLE
+DROP EVENT intact_check;
+DROP DATABASE IF EXISTS mysqltest_no_such_database;
+CREATE DATABASE mysqltest_db2;
+DROP DATABASE mysqltest_db2;
+--echo OK, there is an unnecessary warning about the non-existent table 
+--echo but it's not easy to fix and no one complained about it.
+--echo A similar warning is printed if mysql.proc is missing.
+SHOW WARNINGS;
+SELECT @@event_scheduler;
+SHOW VARIABLES LIKE 'event_scheduler';
+SET GLOBAL event_scheduler=OFF;
+--echo Restore the original table.
 CREATE TABLE mysql.event like event_like;
-INSERT INTO  mysql.event SELECT * FROM event_like;
 DROP TABLE event_like;
 --replace_column 8 # 9 #
 SHOW EVENTS;
-DROP EVENT intact_check;
 #
 # mysql.event intact checking end
 #
@@ -332,7 +456,7 @@ drop event Ð·Ð°ÐºÐ°Ñ‡ÐºÐ°21;
 # Bug #16410  Events: CREATE EVENT is legal in a CREATE TRIGGER statement
 #
 create table t_16 (s1 int);
---error ER_EVENT_RECURSIVITY_FORBIDDEN
+--error ER_EVENT_RECURSION_FORBIDDEN
 create trigger t_16_bi before insert on t_16 for each row create event  e_16 on schedule every 1 second do set @a=5;
 drop table t_16;
 #
@@ -405,5 +529,200 @@ SHOW EVENTS FROM aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 SHOW EVENTS FROM ``;
 
 SHOW EVENTS FROM `events\\test`;
+#
+# A check for events SQL under LOCK TABLES and in pre-locked mode.
+#
+--echo
+--echo LOCK TABLES mode.
+--echo 
+#
+# SHOW CREATE EVENT and INFORMATION_SCHEMA.events are available and 
+# cause an implicit lock/unlock of mysql.event table, regardless of the
+# currently locked tables.
+#
+create table t1 (a int);
+create event e1 on schedule every 10 hour do select 1;
+#
+lock table t1 read;
+#
+--replace_regex /STARTS '[^']+'/STARTS '#'/
+show create event e1;
+select event_name from information_schema.events;
+--error ER_TABLE_NOT_LOCKED
+create event e2 on schedule every 10 hour do select 1;
+--error ER_TABLE_NOT_LOCKED
+alter event e2 disable;
+--error ER_TABLE_NOT_LOCKED
+alter event e2 rename to e3;
+--error ER_TABLE_NOT_LOCKED
+drop event e2;
+--error ER_TABLE_NOT_LOCKED
+drop event e1;
+unlock tables;
+#
+lock table t1 write;
+#
+--replace_regex /STARTS '[^']+'/STARTS '#'/
+show create event e1;
+select event_name from information_schema.events;
+--error ER_TABLE_NOT_LOCKED
+create event e2 on schedule every 10 hour do select 1;
+--error ER_TABLE_NOT_LOCKED
+alter event e2 disable;
+--error ER_TABLE_NOT_LOCKED
+alter event e2 rename to e3;
+--error ER_TABLE_NOT_LOCKED
+drop event e2;
+--error ER_TABLE_NOT_LOCKED
+drop event e1;
+unlock tables;
+#
+lock table t1 read, mysql.event read;
+#
+--replace_regex /STARTS '[^']+'/STARTS '#'/
+show create event e1;
+select event_name from information_schema.events;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+create event e2 on schedule every 10 hour do select 1;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+alter event e2 disable;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+alter event e2 rename to e3;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+drop event e2;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+drop event e1;
+unlock tables;
+#
+lock table t1 write, mysql.event read;
+#
+--replace_regex /STARTS '[^']+'/STARTS '#'/
+show create event e1;
+select event_name from information_schema.events;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+create event e2 on schedule every 10 hour do select 1;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+alter event e2 disable;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+alter event e2 rename to e3;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+drop event e2;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+drop event e1;
+unlock tables;
+#
+--error ER_WRONG_LOCK_OF_SYSTEM_TABLE
+lock table t1 read, mysql.event write;
+#
+--error ER_WRONG_LOCK_OF_SYSTEM_TABLE
+lock table t1 write, mysql.event write;
+#
+lock table mysql.event write;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
+show create event e1;
+select event_name from information_schema.events;
+create event e2 on schedule every 10 hour do select 1;
+alter event e2 disable;
+alter event e2 rename to e3;
+drop event e3;
+drop event e1;
+unlock tables;
+--echo Make sure we have left no events 
+select event_name from information_schema.events;
+--echo
+--echo Events in sub-statements, events and prelocking
+--echo 
+--echo 
+create event e1 on schedule every 10 hour do select 1;
+delimiter |;
+--error ER_SP_NO_RETSET
+create function f1() returns int
+begin
+  show create event e1;
+  return 1;
+end|
+--error ER_SP_NO_RETSET
+create trigger trg before insert on t1 for each row
+begin
+  show create event e1;
+end|
+--error ER_SP_NO_RETSET
+create function f1() returns int
+begin
+  select event_name from information_schema.events;
+  return 1;
+end|
+--error ER_SP_NO_RETSET
+create trigger trg before insert on t1 for each row
+begin
+  select event_name from information_schema.events;
+end|
+--error ER_EVENT_RECURSION_FORBIDDEN
+create function f1() returns int
+begin
+  create event e2 on schedule every 10 hour do select 1;
+  return 1;
+end|
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+create function f1() returns int
+begin
+  alter event e1 rename to e2;
+  return 1;
+end|
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+create function f1() returns int
+begin
+  drop event e2;
+  return 1;
+end|
+--echo ----------------------------------------------------------------------
+create trigger trg before insert on t1 for each row
+begin
+  set new.a= f1();
+end|
+create function f1() returns int
+begin
+  call p1();
+  return 0;
+end|
+create procedure p1()
+begin
+  select event_name from information_schema.events;
+end|
+--error ER_SP_NO_RETSET
+insert into t1 (a) values (1)|
+drop procedure p1|
+create procedure p1()
+begin
+  show create event e1; 
+end|
+--error ER_SP_NO_RETSET
+insert into t1 (a) values (1)|
+drop procedure p1|
+create procedure p1()
+begin
+  create temporary table tmp select event_name from information_schema.events;
+end|
+--echo expected to work, since we redirect the output into a tmp table
+insert into t1 (a) values (1)|
+select * from tmp|
+drop temporary table tmp|
+drop procedure p1|
+create procedure p1()
+begin
+  alter event e1 rename to e2;
+end|
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+insert into t1 (a) values (1)|
+drop procedure p1|
+create procedure p1()
+begin
+  drop event e1;
+end|
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+insert into t1 (a) values (1)|
+drop table t1|
+drop event e1|
+delimiter ;|
 
 drop database events_test;

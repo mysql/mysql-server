@@ -1,0 +1,97 @@
+source include/have_ssl.inc;
+source include/master-slave.inc;
+
+# We don't test all types of ssl auth params here since it's a bit hard 
+# until problems with OpenSSL 0.9.7 are unresolved
+
+# creating replication user for whom ssl auth is required
+# preparing playground
+connection master;
+grant replication slave on *.* to replssl@localhost require ssl;
+create table t1 (t int);
+save_master_pos;
+
+#syncing with master
+connection slave;
+sync_with_master;
+
+#trying to use this user without ssl
+stop slave;
+change master to master_user='replssl',master_password='';
+start slave;
+
+#showing that replication don't work
+connection master;
+insert into t1 values (1);
+#reasonable timeout for changes to propagate to slave
+sleep 3;
+connection slave;
+select * from t1;
+
+#showing that replication could work with ssl params
+stop slave;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval change master to master_ssl=1 , master_ssl_ca ='$MYSQL_TEST_DIR/std_data/cacert.pem', master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem', master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem';
+start slave;
+
+#avoiding unneeded sleeps
+connection master;
+save_master_pos;
+connection slave;
+sync_with_master;
+
+#checking that replication is ok
+select * from t1;
+
+#checking show slave status
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_MYPORT
+--replace_column 1 # 6 # 7 # 8 # 9 # 10 # 11 # 16 # 22 # 23 # 33 #
+query_vertical show slave status;
+
+#checking if replication works without ssl also performing clean up
+stop slave;
+change master to master_user='root',master_password='', master_ssl=0;
+start slave;
+connection master;
+drop user replssl@localhost;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_MYPORT
+--replace_column 1 # 6 # 7 # 8 # 9 # 10 # 11 # 16 # 22 # 23 # 33 #
+query_vertical show slave status;
+
+# End of 4.1 tests
+
+# Start replication with ssl_verify_server_cert turned on
+connection slave;
+stop slave;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval change master to
+ master_host="localhost",
+ master_ssl=1 ,
+ master_ssl_ca ='$MYSQL_TEST_DIR/std_data/cacert.pem',
+ master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem',
+ master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem',
+ master_ssl_verify_server_cert=1;
+start slave;
+
+connection master;
+create table t1 (t int);
+insert into t1 values (1);
+
+sync_slave_with_master;
+
+echo on slave;
+#checking that replication is ok
+select * from t1;
+
+#checking show slave status
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_MYPORT
+--replace_column 1 # 6 # 7 # 8 # 9 # 10 # 11 # 16 # 22 # 23 # 33 #
+query_vertical show slave status;
+
+connection master;
+drop table t1;
+sync_slave_with_master;

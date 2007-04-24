@@ -1995,12 +1995,13 @@ static char *DbugMalloc(size_t size)
 
 
 /*
- *     strtok lookalike - splits on ':', magically handles :\ and :/
+ *     strtok lookalike - splits on ':', magically handles ::, :\ and :/
  */
 
 static const char *DbugStrTok(const char *s)
 {
-  while (s[0] && (s[0] != ':' || (s[1] == '\\' || s[1] == '/')))
+  while (s[0] && (s[0] != ':' ||
+                  (s[1] == '\\' || s[1] == '/' || (s[1] == ':' && s++))))
     s++;
   return s;
 }

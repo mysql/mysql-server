@@ -730,17 +730,16 @@ public:
   /* Called for items that really have to be split */
   void split_sum_func2(THD *thd, Item **ref_pointer_array, List<Item> &fields,
                        Item **ref, bool skip_registered);
-  virtual bool get_date(TIME *ltime,uint fuzzydate);
-  virtual bool get_time(TIME *ltime);
-  virtual bool get_date_result(TIME *ltime,uint fuzzydate)
+  virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  virtual bool get_time(MYSQL_TIME *ltime);
+  virtual bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate)
   { return get_date(ltime,fuzzydate); }
   /*
-    This function is used only in Item_func_isnull/Item_func_isnotnull
-    (implementations of IS NULL/IS NOT NULL clauses). Item_func_is{not}null
-    calls this method instead of one of val/result*() methods, which
-    normally will set null_value. This allows to determine nullness of
-    a complex expression without fully evaluating it.
-    Any new item which can be NULL must implement this call.
+    The method allows to determine nullness of a complex expression 
+    without fully evaluating it, instead of calling val/result*() then 
+    checking null_value. Used in Item_func_isnull/Item_func_isnotnull
+    and Item_sum_count/Item_sum_count_distinct.
+    Any new item which can be NULL must implement this method.
   */
   virtual bool is_null() { return 0; }
 
@@ -1116,7 +1115,7 @@ inline Item_result Item_splocal::result_type() const
 class Item_case_expr :public Item_sp_variable
 {
 public:
-  Item_case_expr(int case_expr_id);
+  Item_case_expr(uint case_expr_id);
 
 public:
   Item *this_item();
@@ -1135,7 +1134,7 @@ public:
   void print(String *str);
 
 private:
-  int m_case_expr_id;
+  uint m_case_expr_id;
 };
 
 /*****************************************************************************
@@ -1317,7 +1316,6 @@ public:
   uint have_privileges;
   /* field need any privileges (for VIEW creation) */
   bool any_privileges;
-  bool fixed_as_field;
   Item_field(Name_resolution_context *context_arg,
              const char *db_arg,const char *table_name_arg,
 	     const char *field_name_arg);
@@ -1373,9 +1371,9 @@ public:
   }
   Field *get_tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
-  bool get_date(TIME *ltime,uint fuzzydate);
-  bool get_date_result(TIME *ltime,uint fuzzydate);
-  bool get_time(TIME *ltime);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
   bool is_null() { return field->is_null(); }
   void update_null_value();
   Item *get_tmp_table_item(THD *thd);
@@ -1398,6 +1396,7 @@ public:
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(byte *select_arg);
+  void print(String *str);
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
@@ -1498,7 +1497,7 @@ public:
       */
       CHARSET_INFO *final_character_set_of_str_value;
     } cs_info;
-    TIME     time;
+    MYSQL_TIME     time;
   } value;
 
   /* Cached values for virtual methods to save us one switch.  */
@@ -1530,8 +1529,8 @@ public:
   longlong val_int();
   my_decimal *val_decimal(my_decimal*);
   String *val_str(String*);
-  bool get_time(TIME *tm);
-  bool get_date(TIME *tm, uint fuzzydate);
+  bool get_time(MYSQL_TIME *tm);
+  bool get_date(MYSQL_TIME *tm, uint fuzzydate);
   int  save_in_field(Field *field, bool no_conversions);
 
   void set_null();
@@ -1540,7 +1539,7 @@ public:
   void set_decimal(const char *str, ulong length);
   bool set_str(const char *str, ulong length);
   bool set_longdata(const char *str, ulong length);
-  void set_time(TIME *tm, timestamp_type type, uint32 max_length_arg);
+  void set_time(MYSQL_TIME *tm, timestamp_type type, uint32 max_length_arg);
   bool set_from_user_var(THD *thd, const user_var_entry *entry);
   void reset();
   /*
@@ -1591,11 +1590,14 @@ class Item_int :public Item_num
 {
 public:
   longlong value;
-  Item_int(int32 i,uint length=11) :value((longlong) i)
+  Item_int(int32 i,uint length= MY_INT32_NUM_DECIMAL_DIGITS)
+    :value((longlong) i)
     { max_length=length; fixed= 1; }
-  Item_int(longlong i,uint length=21) :value(i)
+  Item_int(longlong i,uint length= MY_INT64_NUM_DECIMAL_DIGITS)
+    :value(i)
     { max_length=length; fixed= 1; }
-  Item_int(ulonglong i, uint length= 21) :value((longlong)i)
+  Item_int(ulonglong i, uint length= MY_INT64_NUM_DECIMAL_DIGITS)
+    :value((longlong)i)
     { max_length=length; fixed= 1; unsigned_flag= 1; }
   Item_int(const char *str_arg,longlong i,uint length) :value(i)
     { max_length=length; name=(char*) str_arg; fixed= 1; }
@@ -1810,7 +1812,11 @@ public:
     			   str_value.length(), collation.collation);
   }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  inline void append(char *str, uint length) { str_value.append(str, length); }
+  inline void append(char *str, uint length)
+  {
+    str_value.append(str, length);
+    max_length= str_value.numchars() * collation.collation->mbmaxlen;
+  }
   void print(String *str);
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
@@ -1876,7 +1882,10 @@ public:
   Item_hex_string(const char *str,uint str_length);
   enum Type type() const { return VARBIN_ITEM; }
   double val_real()
-    { DBUG_ASSERT(fixed == 1); return (double) Item_hex_string::val_int(); }
+  { 
+    DBUG_ASSERT(fixed == 1); 
+    return (double) (ulonglong) Item_hex_string::val_int();
+  }
   longlong val_int();
   bool basic_const_item() const { return 1; }
   String *val_str(String*) { DBUG_ASSERT(fixed == 1); return &str_value; }
@@ -1951,7 +1960,8 @@ public:
          with Bar, and if we have a more broader set of problems like this.
   */
   Item_ref(Name_resolution_context *context_arg, Item **item,
-           const char *table_name_arg, const char *field_name_arg);
+           const char *table_name_arg, const char *field_name_arg,
+           bool alias_name_used_arg= FALSE);
 
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_ref(THD *thd, Item_ref *item)
@@ -1968,7 +1978,7 @@ public:
   bool val_bool();
   String *val_str(String* tmp);
   bool is_null();
-  bool get_date(TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   double val_result();
   longlong val_int_result();
   String *str_result(String* tmp);
@@ -1991,6 +2001,11 @@ public:
   table_map used_tables() const		
   {
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
+  }
+  void update_used_tables() 
+  { 
+    if (!depended_from) 
+      (*ref)->update_used_tables(); 
   }
   table_map not_null_tables() const { return (*ref)->not_null_tables(); }
   void set_result_field(Field *field)	{ result_field= field; }
@@ -2026,8 +2041,11 @@ class Item_direct_ref :public Item_ref
 public:
   Item_direct_ref(Name_resolution_context *context_arg, Item **item,
                   const char *table_name_arg,
-                  const char *field_name_arg)
-    :Item_ref(context_arg, item, table_name_arg, field_name_arg) {}
+                  const char *field_name_arg,
+                  bool alias_name_used_arg= FALSE)
+    :Item_ref(context_arg, item, table_name_arg,
+              field_name_arg, alias_name_used_arg)
+  {}
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_ref(THD *thd, Item_direct_ref *item) : Item_ref(thd, item) {}
 
@@ -2037,7 +2055,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
   bool is_null();
-  bool get_date(TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   virtual Ref_Type ref_type() { return DIRECT_REF; }
 };
 
@@ -2062,30 +2080,49 @@ public:
 };
 
 
+/*
+  Class for outer fields.
+  An object of this class is created when the select where the outer field was
+  resolved is a grouping one. After it has been fixed the ref field will point
+  to either an Item_ref or an Item_direct_ref object which will be used to
+  access the field.
+  See also comments for the fix_inner_refs() and the
+  Item_field::fix_outer_field() functions.
+*/
+
+class Item_sum;
 class Item_outer_ref :public Item_direct_ref
 {
 public:
-  Item_field *outer_field;
+  Item *outer_ref;
+  /* The aggregate function under which this outer ref is used, if any. */
+  Item_sum *in_sum_func;
+  /*
+    TRUE <=> that the outer_ref is already present in the select list
+    of the outer select.
+  */
+  bool found_in_select_list;
   Item_outer_ref(Name_resolution_context *context_arg,
                  Item_field *outer_field_arg)
     :Item_direct_ref(context_arg, 0, outer_field_arg->table_name,
-                          outer_field_arg->field_name),
-    outer_field(outer_field_arg)
+                     outer_field_arg->field_name),
+    outer_ref(outer_field_arg), in_sum_func(0),
+    found_in_select_list(0)
   {
-    ref= (Item**)&outer_field;
+    ref= &outer_ref;
     set_properties();
     fixed= 0;
   }
-  void cleanup()
-  {
-    ref= (Item**)&outer_field;
-    fixed= 0;
-    Item_direct_ref::cleanup();
-    outer_field->cleanup();
-  }
+  Item_outer_ref(Name_resolution_context *context_arg, Item **item,
+                 const char *table_name_arg, const char *field_name_arg,
+                 bool alias_name_used_arg)
+    :Item_direct_ref(context_arg, item, table_name_arg, field_name_arg,
+                     alias_name_used_arg),
+    outer_ref(0), in_sum_func(0), found_in_select_list(1)
+  {}
   void save_in_result_field(bool no_conversions)
   {
-    outer_field->save_org_in_field(result_field);
+    outer_ref->save_org_in_field(result_field);
   }
   bool fix_fields(THD *, Item **);
   table_map used_tables() const
@@ -2123,7 +2160,7 @@ public:
   String* val_str(String* s);
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
-  bool get_date(TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
   void print(String *str);
   /*
     we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE

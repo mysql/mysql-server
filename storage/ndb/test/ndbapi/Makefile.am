@@ -39,6 +39,7 @@ testOperations \
 testRestartGci \
 testScan \
 testInterpreter \
+testScanFilter \
 testScanInterpreter \
 testScanPerf \
 testSystemRestart \
@@ -85,6 +86,7 @@ testOperations_SOURCES = testOperations.cpp
 testRestartGci_SOURCES = testRestartGci.cpp
 testScan_SOURCES = testScan.cpp ScanFunctions.hpp
 testInterpreter_SOURCES = testInterpreter.cpp
+testScanFilter_SOURCES = testScanFilter.cpp
 testScanInterpreter_SOURCES = testScanInterpreter.cpp ScanFilter.hpp ScanInterpretTest.hpp 
 testScanPerf_SOURCES = testScanPerf.cpp
 testSystemRestart_SOURCES = testSystemRestart.cpp

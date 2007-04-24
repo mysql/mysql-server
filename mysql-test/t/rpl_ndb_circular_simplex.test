@@ -1,0 +1,82 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+connection master;
+CREATE TABLE t1 (a int key, b int) ENGINE=NDB;
+sync_slave_with_master;
+SHOW TABLES;
+
+# Lose the events from the slave binary log: there is no
+# need to re-create the table on the master.
+connection slave;
+RESET MASTER;
+
+# Insert some values on the slave and master
+connection master;
+INSERT INTO t1 VALUES (1,2);
+# Switch to slave once event is applied and insert a row
+sync_slave_with_master;
+connection slave;
+INSERT INTO t1 VALUES (2,3);
+
+# ... it is now very probable that we have a mixed event in the binary
+# log.  If we don't, the test should still pass, but will not test the
+# mixed event situation.
+
+# The statement is disabled since it cannot reliably show the same
+# info all the time.  Use it for debug purposes.
+
+#SHOW BINLOG EVENTS;
+
+# Replicate back to the master to test this mixed event on the master
+STOP SLAVE;
+
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=$SLAVE_MYPORT,MASTER_USER="root";
+
+RESET MASTER;
+START SLAVE;
+
+connection slave;
+save_master_pos;
+connection master;
+sync_with_master;
+
+# The statement is disabled since it cannot reliably show the same
+# info all the time.  Use it for debug purposes.
+
+#SHOW BINLOG EVENTS;
+
+# Check that there is no error in replication
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+query_vertical SHOW SLAVE STATUS;
+
+# Check that we have the data on the master
+SELECT * FROM t1 ORDER BY a;
+
+# We should now have another mixed event, likely with "slave" server
+# id last, and with the STMT_END_F flag set.
+
+# The statement is disabled since it cannot reliably show the same
+# info all the time.  Use it for debug purposes.
+
+#SHOW BINLOG EVENTS;
+
+# now lets see that this data is applied correctly on the slave
+STOP SLAVE;
+save_master_pos;
+
+connection slave;
+START SLAVE;
+
+# check that we have the data on the slave
+sync_with_master;
+SELECT * FROM t1 ORDER BY a;
+
+# Check that there is no error in replication
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+query_vertical SHOW SLAVE STATUS;

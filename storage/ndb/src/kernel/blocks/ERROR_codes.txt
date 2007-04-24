@@ -1,12 +1,12 @@
 Next QMGR 1
-Next NDBCNTR 1000
+Next NDBCNTR 1001
 Next NDBFS 2000
 Next DBACC 3002
-Next DBTUP 4024
+Next DBTUP 4029
 Next DBLQH 5045
 Next DBDICT 6007
-Next DBDIH 7181
-Next DBTC 8039
+Next DBDIH 7183
+Next DBTC 8040
 Next CMVMI 9000
 Next BACKUP 10038
 Next DBUTIL 11002
@@ -327,6 +327,8 @@ Test Crashes in handling node restarts
 
 7170: Crash when receiving START_PERMREF (InitialStartRequired)
 
+8039: DBTC delay INCL_NODECONF and kill starting node
+
 7174: Crash starting node before sending DICT_LOCK_REQ
 7175: Master sends one fake START_PERMREF (ZNODE_ALREADY_STARTING_ERROR)
 7176: Slave NR pretends master does not support DICT lock (rolling upgrade)
@@ -512,3 +514,12 @@ Dbtup:
 
 4022 - addTuxEntries - fail before add of first entry
 4023 - addTuxEntries - fail add of last entry (the entry for last index)
+
+4025: Fail all inserts with out of memory
+4026: Fail one insert with oom
+4027: Fail inserts randomly with oom
+4028: Fail one random insert with oom
+
+NDBCNTR:
+
+1000: Crash insertion on SystemError::CopyFragRef

@@ -88,16 +88,33 @@ typedef struct sp_cond
   sp_cond_type_t *val;
 } sp_cond_t;
 
+/**
+  The scope of a label in Stored Procedures,
+  for name resolution of labels in a parsing context.
+*/
+enum label_scope_type
+{
+  /**
+    The labels declared in a parent context are in scope.
+  */
+  LABEL_DEFAULT_SCOPE,
+  /**
+    The labels declared in a parent context are not in scope.
+  */
+  LABEL_HANDLER_SCOPE
+};
 
-/*
-  The parse-time context, used to keep track on declared variables/parameters,
+/**
+  The parse-time context, used to keep track of declared variables/parameters,
   conditions, handlers, cursors and labels, during parsing.
   sp_contexts are organized as a tree, with one object for each begin-end
-  block, plus a root-context for the parameters.
+  block, one object for each exception handler,
+  plus a root-context for the parameters.
   This is used during parsing for looking up defined names (e.g. declared
   variables and visible labels), for error checking, and to calculate offsets
   to be used at runtime. (During execution variable values, active handlers
   and cursors, etc, are referred to by an index in a stack.)
+  Parsing contexts for exception handlers limit the visibility of labels.
   The pcontext tree is also kept during execution and is used for error
   checking (e.g. correct number of parameters), and in the future, used by
   the debugger.
@@ -105,21 +122,30 @@ typedef struct sp_cond
 
 class sp_pcontext : public Sql_alloc
 {
-  sp_pcontext(const sp_pcontext &); /* Prevent use of these */
-  void operator=(sp_pcontext &);
+public:
 
- public:
-
-  sp_pcontext(sp_pcontext *prev);
+  /**
+    Constructor.
+    Builds a parsing context root node.
+  */
+  sp_pcontext();
 
   // Free memory
   void
   destroy();
 
+  /**
+    Create and push a new context in the tree.
+    @param label_scope label scope for the new parsing context
+    @return the node created
+  */
   sp_pcontext *
-  push_context();
+  push_context(label_scope_type label_scope);
 
-  // Returns the previous context, not the one we pop
+  /**
+    Pop a node from the parsing context tree.
+    @return the parent node
+  */
   sp_pcontext *
   pop_context();
 
@@ -363,6 +389,13 @@ class sp_pcontext : public Sql_alloc
 
 protected:
 
+  /**
+    Constructor for a tree node.
+    @param prev the parent parsing context
+    @param label_scope label_scope for this parsing context
+  */
+  sp_pcontext(sp_pcontext *prev, label_scope_type label_scope);
+
   /*
     m_max_var_index -- number of variables (including all types of arguments)
     in this context including all children contexts.
@@ -416,6 +449,14 @@ private:
 
   List<sp_pcontext> m_children;	// Children contexts, used for destruction
 
+  /**
+    Scope of labels for this parsing context.
+  */
+  label_scope_type m_label_scope;
+
+private:
+  sp_pcontext(const sp_pcontext &); /* Prevent use of these */
+  void operator=(sp_pcontext &);
 }; // class sp_pcontext : public Sql_alloc
 
 

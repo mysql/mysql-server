@@ -1151,8 +1151,23 @@ Restore::calulate_hash(Uint32 tableId, const Uint32 *src)
 }
 
 void
-Restore::execLQHKEYREF(Signal*)
+Restore::execLQHKEYREF(Signal* signal)
 {
+  FilePtr file_ptr;
+  LqhKeyRef* ref = (LqhKeyRef*)signal->getDataPtr();
+  m_file_pool.getPtr(file_ptr, ref->connectPtr);
+  
+  char buf[255], name[100];
+  BaseString::snprintf(name, sizeof(name), "%u/T%dF%d",
+		       file_ptr.p->m_lcp_no,
+		       file_ptr.p->m_table_id,
+		       file_ptr.p->m_fragment_id);
+  
+  BaseString::snprintf(buf, sizeof(buf),
+		       "Error %d during restore of  %s",
+		       ref->errorCode, name);
+  
+  progError(__LINE__, NDBD_EXIT_INVALID_LCP_FILE, buf);  
   ndbrequire(false);
 }
 

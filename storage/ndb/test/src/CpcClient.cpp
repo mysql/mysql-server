@@ -428,8 +428,6 @@ SimpleCpcClient::SimpleCpcClient(const char *_host, int _port) {
   host = strdup(_host);
   port = _port;
   cpc_sock = -1;
-  cpc_in = NULL;
-  cpc_out = NULL;
 }
 
 SimpleCpcClient::~SimpleCpcClient() {
@@ -444,12 +442,6 @@ SimpleCpcClient::~SimpleCpcClient() {
     close(cpc_sock);
     cpc_sock = -1;
   }
-
-  if(cpc_in != NULL)
-    delete cpc_in;
-
-  if(cpc_out != NULL)
-    delete cpc_out;
 }
 
 int
@@ -475,17 +467,15 @@ SimpleCpcClient::connect() {
   if (::connect(cpc_sock, (struct sockaddr*) &sa, sizeof(sa)) < 0)
     return -1;
 
-  cpc_in = new SocketInputStream(cpc_sock, 60000);
-  cpc_out = new SocketOutputStream(cpc_sock);
-  
   return 0;
 }
 
 int
 SimpleCpcClient::cpc_send(const char *cmd,
 			  const Properties &args) {
-  
-  cpc_out->println(cmd);
+  SocketOutputStream cpc_out(cpc_sock);
+
+  cpc_out.println(cmd);
 
   Properties::Iterator iter(&args);
   const char *name;
@@ -498,18 +488,18 @@ SimpleCpcClient::cpc_send(const char *cmd,
     switch(t) {
     case PropertiesType_Uint32:
       args.get(name, &val_i);
-      cpc_out->println("%s: %d", name, val_i);
+      cpc_out.println("%s: %d", name, val_i);
       break;
     case PropertiesType_char:
       args.get(name, val_s);
-      cpc_out->println("%s: %s", name, val_s.c_str());
+      cpc_out.println("%s: %s", name, val_s.c_str());
       break;
     default:
       /* Silently ignore */
       break;
     }
   }
-  cpc_out->println("");
+  cpc_out.println("");
 
   return 0;
 }
@@ -523,9 +513,11 @@ SimpleCpcClient::Parser_t::ParserStatus
 SimpleCpcClient::cpc_recv(const ParserRow_t *syntax,
 			  const Properties **reply,
 			  void **user_value) {
+  SocketInputStream cpc_in(cpc_sock);
+
   Parser_t::Context ctx;
   ParserDummy session(cpc_sock);
-  Parser_t parser(syntax, *cpc_in, true, true, true);
+  Parser_t parser(syntax, cpc_in, true, true, true);
   *reply = parser.parse(ctx, session);
   if(user_value != NULL)
     *user_value = ctx.m_currentCmd->user_value;

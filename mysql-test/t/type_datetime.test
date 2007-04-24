@@ -113,6 +113,12 @@ insert into t1 values ("00-00-00"), ("00-00-00 00:00:00");
 select * from t1;
 drop table t1;
 
+#
+# Bug #16546 DATETIME+0 not always coerced the same way 
+#
+select cast('2006-12-05 22:10:10' as datetime) + 0;
+
+
 # End of 4.1 tests
 
 #
@@ -135,3 +141,25 @@ SELECT CAST(CAST('2006-08-10 10:11:12' AS DATETIME) AS DECIMAL(20,6));
 SELECT CAST(CAST('2006-08-10 10:11:12' AS DATETIME) + INTERVAL 14 MICROSECOND AS DECIMAL(20,6));
 SELECT CAST(CAST('10:11:12.098700' AS TIME) AS DECIMAL(20,6));
 
+#
+# Test of storing datetime into date fields
+#
+
+set @org_mode=@@sql_mode;
+create table t1 (da date default '1962-03-03 23:33:34', dt datetime default '1962-03-03');
+show create table t1;
+insert into t1 values ();
+insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
+set @@sql_mode='ansi,traditional';
+insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
+insert into t1 set dt='2007-03-23 13:49:38',da=dt;
+# Test error handling
+--error 1292
+insert into t1 values ('2007-03-32','2007-03-23 13:49:38');
+select * from t1;
+drop table t1;
+--error 1067
+create table t1 (da date default '1962-03-32 23:33:34', dt datetime default '1962-03-03');
+--error 1067
+create table t1 (t time default '916:00:00 a');
+set @@sql_mode= @org_mode;

@@ -16,13 +16,13 @@
 # MA 02111-1307, USA
 
 # FIXME 'abi_check' should be in BUILT_SOURCES, disabled for now
-BUILT_SOURCES =		$(HEADERS_GEN)
+BUILT_SOURCES =		$(HEADERS_GEN) link_sources
 HEADERS_GEN =		mysql_version.h my_config.h
 HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
 			my_list.h my_alloc.h typelib.h
 pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			my_xml.h mysql_embed.h \
-		  	my_semaphore.h my_pthread.h my_no_pthread.h \
+		  	my_pthread.h my_no_pthread.h \
 			errmsg.h my_global.h my_net.h \
 			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
@@ -48,9 +48,10 @@ EXTRA_DIST =            mysql_h.ic
 DISTCLEANFILES =	sched.h $(CLEANFILES)
 
 link_sources:
-	-$(RM) -fr readline
+	-$(RM) -f readline openssl
 	@readline_h_ln_cmd@
 	@yassl_h_ln_cmd@
+	echo timestamp > link_sources
 
 my_config.h: ../config.h
 	$(CP) ../config.h my_config.h

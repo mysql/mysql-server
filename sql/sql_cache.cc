@@ -377,7 +377,7 @@ inline Query_cache_block * Query_cache_block_table::block()
 void Query_cache_block::init(ulong block_length)
 {
   DBUG_ENTER("Query_cache_block::init");
-  DBUG_PRINT("qcache", ("init block 0x%lx  length: %lu", (ulong) this,
+  DBUG_PRINT("qcache", ("init block: 0x%lx  length: %lu", (ulong) this,
 			block_length));
   length = block_length;
   used = 0;
@@ -844,6 +844,12 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     flags.client_long_flag= test(thd->client_capabilities & CLIENT_LONG_FLAG);
     flags.client_protocol_41= test(thd->client_capabilities &
                                    CLIENT_PROTOCOL_41);
+    /*
+      Protocol influences result format, so statement results in the binary
+      protocol (COM_EXECUTE) cannot be served to statements asking for results
+      in the text protocol (COM_QUERY) and vice-versa.
+    */
+    flags.result_in_binary_protocol= (unsigned int) thd->protocol->type();
     flags.more_results_exists= test(thd->server_status &
                                     SERVER_MORE_RESULTS_EXISTS);
     flags.pkt_nr= net->pkt_nr;
@@ -861,11 +867,13 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     flags.max_sort_length= thd->variables.max_sort_length;
     flags.lc_time_names= thd->variables.lc_time_names;
     flags.group_concat_max_len= thd->variables.group_concat_max_len;
-    DBUG_PRINT("qcache", ("long %d, 4.1: %d, more results %d, pkt_nr: %d, \
+    DBUG_PRINT("qcache", ("\
+long %d, 4.1: %d, bin_proto: %d, more results %d, pkt_nr: %d, \
 CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
 sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
                           (int)flags.client_long_flag,
                           (int)flags.client_protocol_41,
+                          (int)flags.result_in_binary_protocol,
                           (int)flags.more_results_exists,
                           flags.pkt_nr,
                           flags.character_set_client_num,
@@ -1089,6 +1097,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   flags.client_long_flag= test(thd->client_capabilities & CLIENT_LONG_FLAG);
   flags.client_protocol_41= test(thd->client_capabilities &
                                  CLIENT_PROTOCOL_41);
+  flags.result_in_binary_protocol= (unsigned int)thd->protocol->type();
   flags.more_results_exists= test(thd->server_status &
                                   SERVER_MORE_RESULTS_EXISTS);
   flags.pkt_nr= thd->net.pkt_nr;
@@ -1104,11 +1113,13 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   flags.max_sort_length= thd->variables.max_sort_length;
   flags.group_concat_max_len= thd->variables.group_concat_max_len;
   flags.lc_time_names= thd->variables.lc_time_names;
-  DBUG_PRINT("qcache", ("long %d, 4.1: %d, more results %d, pkt_nr: %d, \
+  DBUG_PRINT("qcache", ("\
+long %d, 4.1: %d, bin_proto: %d, more results %d, pkt_nr: %d, \
 CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
 sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
                           (int)flags.client_long_flag,
                           (int)flags.client_protocol_41,
+                          (int)flags.result_in_binary_protocol,
                           (int)flags.more_results_exists,
                           flags.pkt_nr,
                           flags.character_set_client_num,
@@ -3048,11 +3059,10 @@ Query_cache::is_cacheable(THD *thd, uint32 query_len, char *query, LEX *lex,
   TABLE_COUNTER_TYPE table_count;
   DBUG_ENTER("Query_cache::is_cacheable");
 
-  if (lex->sql_command == SQLCOM_SELECT &&
+  if (query_cache_is_cacheable_query(lex) &&
       (thd->variables.query_cache_type == 1 ||
        (thd->variables.query_cache_type == 2 && (lex->select_lex.options &
-						 OPTION_TO_QUERY_CACHE))) &&
-      lex->safe_to_cache_query)
+						 OPTION_TO_QUERY_CACHE))))
   {
     DBUG_PRINT("qcache", ("options: %lx  %lx  type: %u",
                           (long) OPTION_TO_QUERY_CACHE,
@@ -3675,7 +3685,7 @@ void Query_cache::queries_dump()
       Query_cache_query_flags flags;
       memcpy(&flags, str+len, QUERY_CACHE_FLAGS_SIZE);
       str[len]= 0; // make zero ending DB name
-      DBUG_PRINT("qcache", ("F:%u C:%u L:%lu T:'%s' (%u) '%s' '%s'",
+      DBUG_PRINT("qcache", ("F: %u  C: %u L: %lu  T: '%s' (%u)  '%s'  '%s'",
 			    flags.client_long_flag,
 			    flags.character_set_client_num, 
                             (ulong)flags.limit,
@@ -3998,7 +4008,7 @@ my_bool Query_cache::check_integrity(bool locked)
       } while (block != bins[i].free_blocks);
       if (count != bins[i].number)
       {
-	DBUG_PRINT("error", ("bins[%d].number = %d, but bin have %d blocks",
+	DBUG_PRINT("error", ("bins[%d].number= %d, but bin have %d blocks",
 			     i, bins[i].number,  count));
 	result = 1;
       }

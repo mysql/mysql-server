@@ -2,8 +2,8 @@ CREATE DATABASE IF NOT EXISTS events_test;
 use events_test;
 CREATE EVENT one_event ON SCHEDULE EVERY 10 SECOND DO SELECT 123;
 SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	root@localhost	RECURRING	NULL	10	SECOND	#	#	ENABLED
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
+events_test	one_event	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED	1
 SELECT EVENT_CATALOG, EVENT_SCHEMA, EVENT_NAME, DEFINER, EVENT_BODY, EVENT_DEFINITION, EVENT_TYPE, EXECUTE_AT, INTERVAL_VALUE, INTERVAL_FIELD, STATUS,ON_COMPLETION, EVENT_COMMENT FROM INFORMATION_SCHEMA.EVENTS ORDER BY EVENT_SCHEMA, EVENT_NAME;
 EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	EVENT_BODY	EVENT_DEFINITION	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	STATUS	ON_COMPLETION	EVENT_COMMENT
 NULL	events_test	one_event	root@localhost	SQL	SELECT 123	RECURRING	NULL	10	SECOND	ENABLED	NOT PRESERVE	
@@ -29,8 +29,8 @@ ERROR 42000: Access denied for user 'ev_test'@'localhost' to database 'events_te
 USE events_test;
 "We should see one event";
 SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	root@localhost	RECURRING	NULL	10	SECOND	#	#	ENABLED
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
+events_test	one_event	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED	1
 SELECT CONCAT("Let's create some new events from the name of ", USER());
 CONCAT("Let's create some new events from the name of ", USER())
 Let's create some new events from the name of ev_test@localhost
@@ -40,18 +40,18 @@ CREATE EVENT two_event ON SCHEDULE EVERY 20 SECOND ON COMPLETION NOT PRESERVE CO
 CREATE EVENT three_event ON SCHEDULE EVERY 20 SECOND ON COMPLETION PRESERVE COMMENT "three event" DO SELECT 123;
 "Now we should see 3 events:";
 SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	root@localhost	RECURRING	NULL	10	SECOND	#	#	ENABLED
-events_test	three_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
-events_test	two_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
+events_test	one_event	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED	1
+events_test	three_event	ev_test@localhost	SYSTEM	RECURRING	NULL	20	#	#	NULL	ENABLED	1
+events_test	two_event	ev_test@localhost	SYSTEM	RECURRING	NULL	20	#	#	NULL	ENABLED	1
 "This should show us only 2 events:";
 SHOW EVENTS LIKE 't%event';
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	three_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
-events_test	two_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
+events_test	three_event	ev_test@localhost	SYSTEM	RECURRING	NULL	20	#	#	NULL	ENABLED	1
+events_test	two_event	ev_test@localhost	SYSTEM	RECURRING	NULL	20	#	#	NULL	ENABLED	1
 "This should show us no events:";
 SHOW EVENTS FROM test LIKE '%';
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
 GRANT EVENT ON events_test2.* TO ev_test@localhost;
 USE events_test2;
 CREATE EVENT four_event ON SCHEDULE EVERY 20 SECOND DO SELECT 42;

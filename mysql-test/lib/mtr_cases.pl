@@ -354,6 +354,13 @@ sub collect_one_test_case($$$$$$$) {
 	next;
       }
 
+      $value= mtr_match_prefix($opt, "--slave-num=");
+      if ( defined $value )
+      {
+	$tinfo->{'slave_num'}= $value;
+	next;
+      }
+
       $value= mtr_match_prefix($opt, "--result-file=");
       if ( defined $value )
       {
@@ -498,6 +505,17 @@ sub collect_one_test_case($$$$$$$) {
   {
     mtr_options_from_test_file($tinfo,"$testdir/${tname}.test");
 
+    if ( defined $::used_default_engine )
+    {
+      # Different default engine is used
+      # tag test to require that engine
+      $tinfo->{'ndb_test'}= 1
+	if ( $::used_default_engine =~ /^ndb/i );
+
+      $tinfo->{'innodb_test'}= 1
+	if ( $::used_default_engine =~ /^innodb/i );
+    }
+
     if ( $tinfo->{'big_test'} and ! $::opt_big_test )
     {
       $tinfo->{'skip'}= 1;
@@ -523,7 +541,7 @@ sub collect_one_test_case($$$$$$$) {
 	 ! ( $tinfo->{'binlog_format'} eq $::used_binlog_format ) )
     {
       $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "Not running with binlog format '$tinfo->{'binlog_format'}'";
+      $tinfo->{'comment'}= "Requiring binlog format '$tinfo->{'binlog_format'}'";
       return;
     }
 
@@ -588,7 +606,7 @@ our @tags=
 (
  ["include/have_innodb.inc", "innodb_test", 1],
  ["include/have_binlog_format_row.inc", "binlog_format", "row"],
- ["include/have_binlog_format_statement.inc", "binlog_format", "stmt"],
+ ["include/have_binlog_format_statement.inc", "binlog_format", "statement"],
  ["include/have_binlog_format_mixed.inc", "binlog_format", "mixed"],
  ["include/big_test.inc", "big_test", 1],
  ["include/have_debug.inc", "need_debug", 1],

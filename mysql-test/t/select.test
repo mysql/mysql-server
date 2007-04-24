@@ -3299,4 +3299,64 @@ SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 
 DROP TABLE t1,t2;
 
+
+#
+# Bug #26963: join with predicates that contain fields from equalities evaluated
+#             to constants after constant table substitution
+#
+
+CREATE TABLE t1 (
+ access_id int NOT NULL default '0',
+ name varchar(20) default NULL,
+ rank int NOT NULL default '0',
+ KEY idx (access_id)
+);
+
+CREATE TABLE t2 (
+  faq_group_id int NOT NULL default '0',
+  faq_id int NOT NULL default '0',
+  access_id int default NULL,
+  UNIQUE KEY idx1 (faq_id),
+  KEY idx2 (faq_group_id,faq_id)
+);
+
+INSERT INTO t1 VALUES 
+  (1,'Everyone',2),(2,'Help',3),(3,'Technical Support',1),(4,'Chat User',4);
+INSERT INTO t2 VALUES
+  (261,265,1),(490,494,1);
+
+
+SELECT t2.faq_id 
+  FROM t1 INNER JOIN t2 IGNORE INDEX (idx1)
+       ON (t1.access_id = t2.access_id)
+       LEFT JOIN t2 t
+       ON (t.faq_group_id = t2.faq_group_id AND
+           find_in_set(t.access_id, '1,4') < find_in_set(t2.access_id, '1,4'))
+   WHERE
+     t2.access_id IN (1,4) AND t.access_id IS NULL AND t2.faq_id in (265);
+
+SELECT t2.faq_id 
+  FROM t1 INNER JOIN t2
+       ON (t1.access_id = t2.access_id)
+       LEFT JOIN t2 t
+       ON (t.faq_group_id = t2.faq_group_id AND
+           find_in_set(t.access_id, '1,4') < find_in_set(t2.access_id, '1,4'))
+   WHERE
+     t2.access_id IN (1,4) AND t.access_id IS NULL AND t2.faq_id in (265);
+
+DROP TABLE t1,t2;
+
+
+#
+# Bug #19372: Optimizer does not use index anymore when WHERE index NOT IN
+# () is added
+#
+CREATE TABLE t1 (a INT, b INT, KEY inx (b,a));
+
+INSERT INTO t1 VALUES (1,1), (1,2), (1,3), (1,4), (1,5), (1, 6), (1,7);
+EXPLAIN SELECT COUNT(*) FROM t1 f1 INNER JOIN t1 f2
+    ON ( f1.b=f2.b AND f1.a<f2.a ) 
+    WHERE 1 AND f1.b NOT IN (100,2232,3343,51111);
+DROP TABLE t1;    
+
 --echo End of 5.0 tests

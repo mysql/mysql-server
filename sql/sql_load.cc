@@ -175,7 +175,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     table is marked to be 'used for insert' in which case we should never
     mark this table as 'const table' (ie, one that has only one row).
   */
-  if (unique_table(thd, table_list, table_list->next_global))
+  if (unique_table(thd, table_list, table_list->next_global, 0))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
     DBUG_RETURN(TRUE);
@@ -226,7 +226,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       DBUG_RETURN(TRUE);
   }
 
-  table->mark_columns_needed_for_insert();
+  prepare_triggers_for_insert_stmt(table);
 
   uint tot_length=0;
   bool use_blobs= 0, use_vars= 0;
@@ -376,7 +376,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       table->file->ha_start_bulk_insert((ha_rows) 0);
     table->copy_blobs=1;
 
-    thd->no_trans_update= 0;
+    thd->no_trans_update.stmt= FALSE;
     thd->abort_on_warning= (!ignore &&
                             (thd->variables.sql_mode &
                              (MODE_STRICT_TRANS_TABLES |
@@ -470,7 +470,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	  (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
 
   if (!transactional_table)
-    thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+    thd->no_trans_update.all= TRUE;
 #ifndef EMBEDDED_LIBRARY
   if (mysql_bin_log.is_open())
   {
@@ -512,6 +512,7 @@ err:
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
+  table->auto_increment_field_not_null= FALSE;
   thd->abort_on_warning= 0;
   DBUG_RETURN(error);
 }
@@ -551,7 +552,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   Item_field *sql_field;
   TABLE *table= table_list->table;
   ulonglong id;
-  bool no_trans_update;
+  bool no_trans_update_stmt, err;
   DBUG_ENTER("read_fixed_length");
 
   id= 0;
@@ -579,7 +580,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 #ifdef HAVE_purify
     read_info.row_end[0]=0;
 #endif
-    no_trans_update= !table->file->has_transactions();
+    no_trans_update_stmt= !table->file->has_transactions();
 
     restore_record(table, s->default_values);
     /*
@@ -609,8 +610,6 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       {
 	uint length;
 	byte save_chr;
-        if (field == table->next_number_field)
-          table->auto_increment_field_not_null= TRUE;
 	if ((length=(uint) (read_info.row_end-pos)) >
 	    field->field_length)
 	  length=field->field_length;
@@ -645,9 +644,11 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       DBUG_RETURN(-1);
     }
 
-    if (write_record(thd, table, &info))
+    err= write_record(thd, table, &info);
+    table->auto_increment_field_not_null= FALSE;
+    if (err)
       DBUG_RETURN(1);
-    thd->no_trans_update= no_trans_update;
+    thd->no_trans_update.stmt= no_trans_update_stmt;
    
     /*
       We don't need to reset auto-increment field since we are restoring
@@ -682,12 +683,12 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   TABLE *table= table_list->table;
   uint enclosed_length;
   ulonglong id;
-  bool no_trans_update;
+  bool no_trans_update_stmt, err;
   DBUG_ENTER("read_sep_field");
 
   enclosed_length=enclosed.length();
   id= 0;
-  no_trans_update= !table->file->has_transactions();
+  no_trans_update_stmt= !table->file->has_transactions();
 
   for (;;it.rewind())
   {
@@ -729,8 +730,6 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
             DBUG_RETURN(1);
           }
           field->set_null();
-          if (field == table->next_number_field)
-            table->auto_increment_field_not_null= TRUE;
           if (!field->maybe_null())
           {
             if (field->type() == MYSQL_TYPE_TIMESTAMP)
@@ -816,14 +815,15 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       DBUG_RETURN(-1);
     }
 
-
-    if (write_record(thd, table, &info))
+    err= write_record(thd, table, &info);
+    table->auto_increment_field_not_null= FALSE;
+    if (err)
       DBUG_RETURN(1);
     /*
       We don't need to reset auto-increment field since we are restoring
       its default value at the beginning of each loop iteration.
     */
-    thd->no_trans_update= no_trans_update;
+    thd->no_trans_update.stmt= no_trans_update_stmt;
     if (read_info.next_line())			// Skip to next line
       break;
     if (read_info.line_cuted)

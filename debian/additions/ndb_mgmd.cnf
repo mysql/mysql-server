@@ -1,0 +1,35 @@
+[NDBD DEFAULT]
+NoOfReplicas=2
+DataMemory=10MB
+IndexMemory=25MB
+MaxNoOfTables=256
+MaxNoOfOrderedIndexes=256
+MaxNoOfUniqueHashIndexes=128
+
+[MYSQLD DEFAULT]
+
+[NDB_MGMD DEFAULT]
+
+[TCP DEFAULT]
+
+[NDB_MGMD]
+Id=1                            # the NDB Management Node (this one)
+HostName=127.0.0.1          
+
+[NDBD]
+Id=2                            # the first NDB Data Node
+HostName=127.0.0.1          
+DataDir= /var/lib/mysql-cluster
+
+[NDBD]
+Id=3                            # the second NDB Data Node
+HostName=127.0.0.1          
+DataDir=/var/lib/mysql-cluster
+
+[MYSQLD]
+Id=4                            # the first SQL node
+HostName=127.0.0.1
+
+# [MYSQLD]
+# Id=5                          # the second SQL node
+# HostName=127.0.0.10

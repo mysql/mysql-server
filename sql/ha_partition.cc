@@ -1781,7 +1781,8 @@ int ha_partition::set_up_table_before_create(TABLE *table,
   }
   table->s->max_rows= part_elem->part_max_rows;
   table->s->min_rows= part_elem->part_min_rows;
-  partition_name= strrchr(partition_name_with_path, FN_LIBCHAR);
+  /* Here we have unified path so should always look for '/', not FN_LIBCHAR */
+  partition_name= strrchr(partition_name_with_path, '/');
   if ((part_elem->index_file_name &&
       (error= append_file_to_dir(thd,
                                  (const char**)&part_elem->index_file_name,
@@ -3336,13 +3337,14 @@ int ha_partition::index_end()
 */
 
 int ha_partition::index_read(byte * buf, const byte * key,
-			     uint key_len, enum ha_rkey_function find_flag)
+                             key_part_map keypart_map,
+                             enum ha_rkey_function find_flag)
 {
   DBUG_ENTER("ha_partition::index_read");
 
   end_range= 0;
   m_index_scan_type= partition_index_read;
-  DBUG_RETURN(common_index_read(buf, key, key_len, find_flag));
+  DBUG_RETURN(common_index_read(buf, key, keypart_map, find_flag));
 }
 
 
@@ -3355,14 +3357,17 @@ int ha_partition::index_read(byte * buf, const byte * key,
   see index_read for rest
 */
 
-int ha_partition::common_index_read(byte *buf, const byte *key, uint key_len,
+int ha_partition::common_index_read(byte *buf, const byte *key,
+                                    key_part_map keypart_map,
 				    enum ha_rkey_function find_flag)
 {
   int error;
   bool reverse_order= FALSE;
+  uint key_len= calculate_key_len(table, active_index, key, keypart_map);
   DBUG_ENTER("ha_partition::common_index_read");
 
   memcpy((void*)m_start_key.key, key, key_len);
+  m_start_key.keypart_map= keypart_map;
   m_start_key.length= key_len;
   m_start_key.flag= find_flag;
 
@@ -3491,33 +3496,6 @@ int ha_partition::common_first_last(byte *buf)
 
 
 /*
-  Perform index read using index where always only one row is returned
-
-  SYNOPSIS
-    index_read_idx()
-    see index_read for rest of parameters and return values
-
-  DESCRIPTION
-    Positions an index cursor to the index specified in key. Fetches the
-    row if any.  This is only used to read whole keys.
-    TODO: Optimise this code to avoid index_init and index_end
-*/
-
-int ha_partition::index_read_idx(byte * buf, uint index, const byte * key,
-				 uint key_len,
-                                 enum ha_rkey_function find_flag)
-{
-  int res;
-  DBUG_ENTER("ha_partition::index_read_idx");
-
-  index_init(index, 0);
-  res= index_read(buf, key, key_len, find_flag);
-  index_end();
-  DBUG_RETURN(res);
-}
-
-
-/*
   Read last using key
 
   SYNOPSIS
@@ -3535,14 +3513,15 @@ int ha_partition::index_read_idx(byte * buf, uint index, const byte * key,
     Can only be used on indexes supporting HA_READ_ORDER
 */
 
-int ha_partition::index_read_last(byte *buf, const byte *key, uint keylen)
+int ha_partition::index_read_last(byte *buf, const byte *key,
+                                  key_part_map keypart_map)
 {
   DBUG_ENTER("ha_partition::index_read_last");
 
   m_ordered= TRUE;				// Safety measure
   end_range= 0;
   m_index_scan_type= partition_index_read_last;
-  DBUG_RETURN(common_index_read(buf, key, keylen, HA_READ_PREFIX_LAST));
+  DBUG_RETURN(common_index_read(buf, key, keypart_map, HA_READ_PREFIX_LAST));
 }
 
 
@@ -3688,7 +3667,7 @@ int ha_partition::read_range_first(const key_range *start_key,
     m_index_scan_type= partition_index_read;
     error= common_index_read(m_rec0,
 			     start_key->key,
-			     start_key->length, start_key->flag);
+                             start_key->keypart_map, start_key->flag);
   }
   DBUG_RETURN(error);
 }
@@ -3887,7 +3866,7 @@ int ha_partition::handle_unordered_scan_next_partition(byte * buf)
     case partition_index_read:
       DBUG_PRINT("info", ("index_read on partition %d", i));
       error= file->index_read(buf, m_start_key.key,
-                              m_start_key.length,
+                              m_start_key.keypart_map,
                               m_start_key.flag);
       break;
     case partition_index_first:
@@ -3979,7 +3958,7 @@ int ha_partition::handle_ordered_index_scan(byte *buf, bool reverse_order)
     case partition_index_read:
       error= file->index_read(rec_buf_ptr,
                               m_start_key.key,
-                              m_start_key.length,
+                              m_start_key.keypart_map,
                               m_start_key.flag);
       break;
     case partition_index_first:
@@ -3993,7 +3972,7 @@ int ha_partition::handle_ordered_index_scan(byte *buf, bool reverse_order)
     case partition_index_read_last:
       error= file->index_read_last(rec_buf_ptr,
                                    m_start_key.key,
-                                   m_start_key.length);
+                                   m_start_key.keypart_map);
       reverse_order= TRUE;
       break;
     default:

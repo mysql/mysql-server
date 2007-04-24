@@ -19,6 +19,7 @@
 #include "repl_failsafe.h"
 #include "sql_repl.h"
 #include "slave.h"
+#include "rpl_mi.h"
 #include "rpl_filter.h"
 #include "log_event.h"
 #include <mysql.h>
@@ -692,12 +693,16 @@ int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi)
 
 #ifdef HAVE_OPENSSL
   if (mi->ssl)
+  {
     mysql_ssl_set(mysql, 
         mi->ssl_key[0]?mi->ssl_key:0,
         mi->ssl_cert[0]?mi->ssl_cert:0,
         mi->ssl_ca[0]?mi->ssl_ca:0, 
         mi->ssl_capath[0]?mi->ssl_capath:0,
         mi->ssl_cipher[0]?mi->ssl_cipher:0);
+    mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
+                  &mi->ssl_verify_server_cert);
+  }
 #endif
     
   mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset_info->csname);

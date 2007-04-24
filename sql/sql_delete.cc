@@ -54,6 +54,27 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   if (mysql_prepare_delete(thd, table_list, &conds))
     DBUG_RETURN(TRUE);
 
+  /* check ORDER BY even if it can be ignored */
+  if (order && order->elements)
+  {
+    TABLE_LIST   tables;
+    List<Item>   fields;
+    List<Item>   all_fields;
+
+    bzero((char*) &tables,sizeof(tables));
+    tables.table = table;
+    tables.alias = table_list->alias;
+
+      if (select_lex->setup_ref_array(thd, order->elements) ||
+	  setup_order(thd, select_lex->ref_pointer_array, &tables,
+                    fields, all_fields, (ORDER*) order->first))
+    {
+      delete select;
+      free_underlaid_joins(thd, &thd->lex->select_lex);
+      DBUG_RETURN(TRUE);
+    }
+  }
+
   const_cond= (!conds || conds->const_item());
   safe_update=test(thd->options & OPTION_SAFE_UPDATES);
   if (safe_update && const_cond)
@@ -116,7 +137,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
-  table->used_keys.clear_all();
+  table->covering_keys.clear_all();
   table->quick_keys.clear_all();		// Can't use 'only index'
   select=make_select(table, 0, 0, conds, 0, &error);
   if (error)
@@ -155,23 +176,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   {
     uint         length= 0;
     SORT_FIELD  *sortorder;
-    TABLE_LIST   tables;
-    List<Item>   fields;
-    List<Item>   all_fields;
     ha_rows examined_rows;
-
-    bzero((char*) &tables,sizeof(tables));
-    tables.table = table;
-    tables.alias = table_list->alias;
-
-      if (select_lex->setup_ref_array(thd, order->elements) ||
-	  setup_order(thd, select_lex->ref_pointer_array, &tables,
-                    fields, all_fields, (ORDER*) order->first))
-    {
-      delete select;
-      free_underlaid_joins(thd, &thd->lex->select_lex);
-      DBUG_RETURN(TRUE);
-    }
     
     if ((!select || table->quick_keys.is_clear_all()) && limit != HA_POS_ERROR)
       usable_index= get_index_for_order(table, (ORDER*)(order->first), limit);
@@ -216,7 +221,20 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 
   init_ftfuncs(thd, select_lex, 1);
   thd->proc_info="updating";
-  will_batch= !table->file->start_bulk_delete();
+  if (table->triggers && 
+      table->triggers->has_triggers(TRG_EVENT_DELETE,
+                                    TRG_ACTION_AFTER))
+  {
+    /*
+      The table has AFTER DELETE triggers that might access to subject table
+      and therefore might need delete to be done immediately. So we turn-off
+      the batching.
+    */
+    (void) table->file->extra(HA_EXTRA_DELETE_CANNOT_BATCH);
+    will_batch= FALSE;
+  }
+  else
+    will_batch= !table->file->start_bulk_delete();
 
 
   table->mark_columns_needed_for_delete();
@@ -335,7 +353,7 @@ cleanup:
       }
     }
     if (!transactional_table)
-      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+      thd->no_trans_update.all= TRUE;
   }
   free_underlaid_joins(thd, select_lex);
   if (transactional_table)
@@ -376,6 +394,8 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 {
   Item *fake_conds= 0;
   SELECT_LEX *select_lex= &thd->lex->select_lex;
+  const char *operation = thd->lex->sql_command == SQLCOM_TRUNCATE ?
+                          "TRUNCATE" : "DELETE";
   DBUG_ENTER("mysql_prepare_delete");
   List<Item> all_fields;
 
@@ -390,14 +410,14 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
     DBUG_RETURN(TRUE);
   if (!table_list->updatable || check_key_in_view(thd, table_list))
   {
-    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, operation);
     DBUG_RETURN(TRUE);
   }
   {
     TABLE_LIST *duplicate;
-    if ((duplicate= unique_table(thd, table_list, table_list->next_global)))
+    if ((duplicate= unique_table(thd, table_list, table_list->next_global, 0)))
     {
-      update_non_unique_table_error(table_list, "DELETE", duplicate);
+      update_non_unique_table_error(table_list, operation, duplicate);
       DBUG_RETURN(TRUE);
     }
   }
@@ -492,7 +512,7 @@ bool mysql_multi_delete_prepare(THD *thd)
     {
       TABLE_LIST *duplicate;
       if ((duplicate= unique_table(thd, target_tbl->correspondent_table,
-                                   lex->query_tables)))
+                                   lex->query_tables, 0)))
       {
         update_non_unique_table_error(target_tbl->correspondent_table,
                                       "DELETE", duplicate);
@@ -553,11 +573,22 @@ multi_delete::initialize_tables(JOIN *join)
       tbl->no_keyread=1;
       /* Don't use record cache */
       tbl->no_cache= 1;
-      tbl->used_keys.clear_all();
+      tbl->covering_keys.clear_all();
       if (tbl->file->has_transactions())
 	transactional_tables= 1;
       else
 	normal_tables= 1;
+      if (tbl->triggers &&
+          tbl->triggers->has_triggers(TRG_EVENT_DELETE,
+                                      TRG_ACTION_AFTER))
+      {
+	/*
+          The table has AFTER DELETE triggers that might access to subject 
+          table and therefore might need delete to be done immediately. 
+          So we turn-off the batching.
+        */
+	(void) tbl->file->extra(HA_EXTRA_DELETE_CANNOT_BATCH);
+      }
       tbl->prepare_for_position();
       tbl->mark_columns_needed_for_delete();
     }
@@ -827,7 +858,7 @@ bool multi_delete::send_eof()
       }
     }
     if (!transactional_tables)
-      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+      thd->no_trans_update.all= TRUE;
   }
   /* Commit or rollback the current SQL statement */
   if (transactional_tables)
@@ -904,7 +935,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   if (!dont_send_ok)
   {
     enum legacy_db_type table_type;
-    mysql_frm_type(thd, path, &table_type);
+    if (mysql_frm_type(thd, path, &table_type) == FRMTYPE_VIEW)
+      goto trunc_by_del;
     if (table_type == DB_TYPE_UNKNOWN)
     {
       my_error(ER_NO_SUCH_TABLE, MYF(0),

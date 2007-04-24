@@ -167,11 +167,13 @@ ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errn
 The commands reported in the bug report
 ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'cyril has found a bug :)XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' (errno)
 Too long dbname
-ERROR 1049 (42000) at line 1: Unknown database 'test_really_long_dbnamexxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+ERROR 1102 (42000) at line 1: Incorrect database name 'test_really_long_dbnamexxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 Too long hostname
 ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'cyrils_superlonghostnameXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' (errno)
 1
 1
 ERROR at line 1: DELIMITER cannot contain a backslash character
 ERROR at line 1: DELIMITER cannot contain a backslash character
+1
+1
 End of 5.0 tests

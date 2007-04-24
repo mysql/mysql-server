@@ -333,7 +333,7 @@ public:
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp.cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
-  void top_level_item() { abort_on_null=1; }
+  void top_level_item() { abort_on_null= TRUE; }
 
   friend class  Arg_comparator;
 };
@@ -563,6 +563,7 @@ public:
     negated= !negated;
     return this;
   }
+  bool eq(const Item *item, bool binary_cmp) const;
   bool subst_argument_checker(byte **arg) { return TRUE; }
 };
 
@@ -785,7 +786,16 @@ public:
 
 class in_longlong :public in_vector
 {
-  longlong tmp;
+  /*
+    Here we declare a temporary variable (tmp) of the same type as the
+    elements of this vector. tmp is used in finding if a given value is in 
+    the list. 
+  */
+  struct packed_longlong 
+  {
+    longlong val;
+    longlong unsigned_flag;  // Use longlong, not bool, to preserve alignment
+  } tmp;
 public:
   in_longlong(uint elements);
   void set(uint pos,Item *item);
@@ -801,9 +811,13 @@ public:
   }
   void value_to_item(uint pos, Item *item)
   {
-    ((Item_int*)item)->value= ((longlong*)base)[pos];
+    ((Item_int*) item)->value= ((packed_longlong*) base)[pos].val;
+    ((Item_int*) item)->unsigned_flag= (my_bool)
+      ((packed_longlong*) base)[pos].unsigned_flag;
   }
   Item_result result_type() { return INT_RESULT; }
+
+  friend int cmp_longlong(void *cmp_arg, packed_longlong *a,packed_longlong *b);
 };
 
 class in_double :public in_vector

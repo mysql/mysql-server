@@ -42,8 +42,8 @@ public:
             { cipher_.Process(c, p, sz); }
     void SetKey(const byte* k, word32 sz)   
             { cipher_.SetKey(k, sz, DIR); }
-    void SetKey(const byte* k, word32 sz, const byte* iv_arg)   
-            { cipher_.SetKey(k, sz, DIR); cipher_.SetIV(iv_arg); }
+    void SetKey(const byte* k, word32 sz, const byte* iv)   
+            { cipher_.SetKey(k, sz, DIR); cipher_.SetIV(iv); }
 private:
     T cipher_;
 

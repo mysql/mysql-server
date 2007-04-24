@@ -59,7 +59,7 @@ int my_redel(const char *org_name, const char *tmp_name, myf MyFlags)
 		  MyFlags))
       goto end;
   }
-  else if (my_delete(org_name,MyFlags))
+  else if (my_delete_allow_opened(org_name, MyFlags))
       goto end;
   if (my_rename(tmp_name,org_name,MyFlags))
     goto end;

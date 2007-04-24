@@ -365,7 +365,8 @@ inline
 bool
 TransporterFacade::get_node_stopping(NodeId n) const {
   const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
-  return ((node.m_state.startLevel == NodeState::SL_STOPPING_1) ||
+  return (!node.m_state.getSingleUserMode() &&
+          (node.m_state.startLevel == NodeState::SL_STOPPING_1) ||
           (node.m_state.startLevel == NodeState::SL_STOPPING_2));
 }
 
@@ -376,16 +377,9 @@ TransporterFacade::getIsNodeSendable(NodeId n) const {
   const Uint32 startLevel = node.m_state.startLevel;
 
   if (node.m_info.m_type == NodeInfo::DB) {
-    if(node.m_state.singleUserMode && 
-       ownId() == node.m_state.singleUserApi) {
-      return (node.compatible && 
-              (node.m_state.startLevel == NodeState::SL_STOPPING_1 ||
-               node.m_state.startLevel == NodeState::SL_STARTED ||
-               node.m_state.startLevel == NodeState::SL_SINGLEUSER));
-      }
-      else
-        return node.compatible && (startLevel == NodeState::SL_STARTED ||
-                                 startLevel == NodeState::SL_STOPPING_1);
+    return node.compatible && (startLevel == NodeState::SL_STARTED ||
+                               startLevel == NodeState::SL_STOPPING_1 ||
+                               node.m_state.getSingleUserMode());
   } else {
     ndbout_c("TransporterFacade::getIsNodeSendable: Illegal node type: "
              "%d of node: %d", 

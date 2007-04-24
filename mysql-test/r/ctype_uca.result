@@ -2654,3 +2654,12 @@ ii	2	ii	2	İİ	4
 İİ	4	ii	2	İİ	4
 II	2	ıı	4	II	2
 DROP TABLE t1;
+CREATE TABLE t1 (
+c1 text character set ucs2 collate ucs2_polish_ci NOT NULL
+) ENGINE=MyISAM;
+insert into t1 values (''),('a');
+SELECT COUNT(*), c1 FROM t1 GROUP BY c1;
+COUNT(*)	c1
+1	
+1	a
+DROP TABLE IF EXISTS t1;

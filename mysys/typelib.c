@@ -20,6 +20,28 @@
 #include <m_ctype.h>
 
 
+int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
+{
+  int res;
+  const char **ptr;
+
+  if ((res= find_type((my_string) x, typelib, 2)) <= 0)
+  {
+    ptr= typelib->type_names;
+    if (!*x)
+      fprintf(stderr, "No option given to %s\n", option);
+    else
+      fprintf(stderr, "Unknown option to %s: %s\n", option, x);
+    fprintf(stderr, "Alternatives are: '%s'", *ptr);
+    while (*++ptr)
+      fprintf(stderr, ",'%s'", *ptr);
+    fprintf(stderr, "\n");
+    exit(1);
+  }
+  return res;
+}
+
+
 /*
   Search after a string in a list of strings. Endspace in x is not compared.
 
@@ -42,7 +64,7 @@
     >0  Offset+1 in typelib for matched string
 */
 
-int find_type(my_string x, TYPELIB *typelib, uint full_name)
+int find_type(char *x, const TYPELIB *typelib, uint full_name)
 {
   int find,pos,findpos;
   reg1 my_string i;

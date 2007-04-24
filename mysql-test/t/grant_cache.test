@@ -1,6 +1,8 @@
 # Grant tests not performed with embedded server
 -- source include/not_embedded.inc
 -- source include/have_query_cache.inc
+# See at the end of the test why we disable the ps protocol (*)
+-- disable_ps_protocol
 
 --source include/add_anonymous_users.inc
 
@@ -157,3 +159,27 @@ set GLOBAL query_cache_size=default;
 
 
 # End of 4.1 tests
+
+# (*) Why we disable the ps protocol: because in normal protocol,
+# a SELECT failing due to insufficient privileges increments
+# Qcache_not_cached, while in ps-protocol, no.
+# In detail: in normal protocol,
+# the "access denied" errors on SELECT are issued at (stack trace):
+# mysql_parse/mysql_execute_command/execute_sqlcom_select/handle_select/
+# mysql_select/JOIN::prepare/setup_wild/insert_fields/
+# check_grant_all_columns/my_error/my_message_sql, which then calls
+# push_warning/query_cache_abort: at this moment,
+# query_cache_store_query() has been called, so query exists in cache,
+# so thd->net.query_cache_query!=NULL, so query_cache_abort() removes
+# the query from cache, which causes a query_cache.refused++ (thus,
+# a Qcache_not_cached++).
+# While in ps-protocol, the error is issued at prepare time;
+# for this mysql_test_select() is called, not execute_sqlcom_select()
+# (and that also leads to JOIN::prepare/etc). Thus, as
+# query_cache_store_query() has not been called,
+# thd->net.query_cache_query==NULL, so query_cache_abort() does nothing:
+# Qcache_not_cached is not incremented.
+# As this test prints Qcache_not_cached after SELECT failures,
+# we cannot enable this test in ps-protocol.
+
+--enable_ps_protocol

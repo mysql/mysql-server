@@ -277,6 +277,9 @@ let $A = changed value of A;
 # Content of $B is: initial value of B
 let $B = changed value of B;
 # Content of $A is: changed value of A
+var2: content of variable 1
+var3: content of variable 1 content of variable 1
+length of var3 is longer than 0
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
 mysqltest: At line 1: Could not open file ./non_existingFile
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/recursive.sql": At line 1: Source directives are nesting too deep
@@ -538,4 +541,35 @@ hello
 hello
 mysqltest: At line 1: test of die
 Some output
+create table t1( a int, b char(255), c timestamp);
+insert into t1 values(1, 'Line 1', '2007-04-05'), (2, "Part 2", '2007-04-05');
+insert into t1 values(1, 'Line 1', '2007-04-05'), (2, "Part 3", '2007-04-05');
+select * from t1;
+a	b	c
+1	Line 1	2007-04-05 00:00:00
+2	Part 2	2007-04-05 00:00:00
+1	Line 1	2007-04-05 00:00:00
+2	Part 3	2007-04-05 00:00:00
+select * from t1;
+a	b	c
+1	Line 1	2007-04-05 00:00:00
+1	Line 1	2007-04-05 00:00:00
+2	Part 2	2007-04-05 00:00:00
+2	Part 3	2007-04-05 00:00:00
+select * from t1;
+select '';
+
+
+select "h";
+h
+h
+select "he";
+he
+he
+select "hep";
+hep
+hep
+select "hepp";
+hepp
+hepp
 End of tests

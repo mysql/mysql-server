@@ -29,6 +29,7 @@
     field		Field to search after
     key_length		On partial match, contains length of fields before
 			field
+    keypart             key part # of a field
 
   NOTES
    Used when calculating key for NEXT_NUMBER
@@ -45,7 +46,7 @@
 */
 
 int find_ref_key(KEY *key, uint key_count, byte *record, Field *field,
-                 uint *key_length)
+                 uint *key_length, uint *keypart)
 {
   reg2 int i;
   reg3 KEY *key_info;
@@ -60,8 +61,8 @@ int find_ref_key(KEY *key, uint key_count, byte *record, Field *field,
   {
     if (key_info->key_part[0].offset == fieldpos)
     {                                  		/* Found key. Calc keylength */
-      *key_length=0;
-      return(i);                                /* Use this key */
+      *key_length= *keypart= 0;
+      return i;                                 /* Use this key */
     }
   }
 
@@ -78,8 +79,11 @@ int find_ref_key(KEY *key, uint key_count, byte *record, Field *field,
 	 j++, key_part++)
     {
       if (key_part->offset == fieldpos)
-	return(i);                              /* Use this key */
-      *key_length+=key_part->store_length;
+      {
+        *keypart= j;
+        return i;                               /* Use this key */
+      }
+      *key_length+= key_part->store_length;
     }
   }
   return(-1);					/* No key is ok */

@@ -188,6 +188,7 @@ public:
 private:
   char* m_chr;
   unsigned m_len;
+  friend bool operator!(const BaseString& str);
 };
 
 inline const char*
@@ -259,6 +260,12 @@ inline bool
 BaseString::operator!=(const char *str) const
 {
     return strcmp(m_chr, str) != 0;
+}
+
+inline bool
+operator!(const BaseString& str)
+{
+    return str.m_chr == NULL;
 }
 
 inline BaseString&

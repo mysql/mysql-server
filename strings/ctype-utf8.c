@@ -2769,6 +2769,7 @@ static int my_strnncoll_utf8_cs(CHARSET_INFO *cs,
   const uchar *te=t+tlen;
   int save_diff = 0;
   int diff;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
 
   while ( s < se && t < te )
   {
@@ -2805,13 +2806,16 @@ static int my_strnncoll_utf8_cs(CHARSET_INFO *cs,
 
 static int my_strnncollsp_utf8_cs(CHARSET_INFO *cs, 
                                   const uchar *s, uint slen,
-                                  const uchar *t, uint tlen)
+                                  const uchar *t, uint tlen,
+                                  my_bool diff_if_only_endspace_difference
+                                  __attribute__((unused)))
 {
   int s_res,t_res;
   my_wc_t s_wc,t_wc;
   const uchar *se= s+slen;
   const uchar *te= t+tlen;
   int save_diff = 0;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
   
   while ( s < se && t < te )
   {
@@ -2880,6 +2884,7 @@ static MY_COLLATION_HANDLER my_collation_cs_handler =
     my_strnncoll_utf8_cs,
     my_strnncollsp_utf8_cs,
     my_strnxfrm_utf8,
+    my_strnxfrmlen_utf8,
     my_like_range_simple,
     my_wildcmp_mb,
     my_strcasecmp_utf8,

@@ -30,6 +30,10 @@ extern ulong ndb_extra_logging;
 
 #define NDB_INVALID_SCHEMA_OBJECT 241
 
+/* server id's with high bit set is reservered */
+#define NDB_ANYVALUE_FOR_NOLOGGING 0xFFFFFFFF
+#define NDB_ANYVALUE_RESERVED      0x80000000
+
 extern handlerton *ndbcluster_hton;
 
 /*
@@ -181,6 +185,8 @@ int ndbcluster_find_all_files(THD *thd);
 
 void ndb_unpack_record(TABLE *table, NdbValue *value,
                        MY_BITMAP *defined, byte *buf);
+char *ndb_pack_varchar(const NDBCOL *col, char *buf,
+                       const char *str, int sz);
 
 NDB_SHARE *ndbcluster_get_share(const char *key,
                                 TABLE *table,
