@@ -299,6 +299,7 @@ uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
   uint minimum_width; /* as yet unimplemented */
   uint minimum_width_sign;
   uint precision; /* as yet unimplemented for anything but %b */
+  my_bool is_zero_padded;
 
   /*
     Store the location of the beginning of a format directive, for the
@@ -334,11 +335,27 @@ uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
     backtrack= fmt;
     fmt++;
 
+    is_zero_padded= FALSE;
+    minimum_width_sign= 1;
     minimum_width= 0;
     precision= 0;
-    minimum_width_sign= 1;
     /* Skip if max size is used (to be compatible with printf) */
-    while (*fmt == '-') { fmt++; minimum_width_sign= -1; }
+
+process_flags:
+    switch (*fmt)
+    {
+      case '-': 
+        minimum_width_sign= -1; fmt++; goto process_flags;
+      case '0':
+        is_zero_padded= TRUE; fmt++; goto process_flags;
+      case '#':
+        /** @todo Implement "#" conversion flag. */  fmt++; goto process_flags;
+      case ' ':
+        /** @todo Implement " " conversion flag. */  fmt++; goto process_flags;
+      case '+':
+        /** @todo Implement "+" conversion flag. */  fmt++; goto process_flags;
+    }
+
     if (*fmt == '*') {
       precision= (int) va_arg(args, int);
       fmt++;
@@ -367,7 +384,7 @@ uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
     {
       reg2 char *par = va_arg(args, char *);
       uint length2 = (uint) strlen(par);
-      /* TODO: implement minimum width and precision */
+      /* TODO: implement precision */
       out_length+= length2;
       if (my_b_write(info, par, length2))
 	goto err;
@@ -390,6 +407,21 @@ uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
 	length2= (uint) (int10_to_str((long) iarg,buff, -10) - buff);
       else
 	length2= (uint) (int10_to_str((long) (uint) iarg,buff,10)- buff);
+
+      /* minimum width padding */
+      if (minimum_width > length2) 
+      {
+        char *buffz;
+                    
+        buffz= my_alloca(minimum_width - length2);
+        if (is_zero_padded)
+          memset(buffz, '0', minimum_width - length2);
+        else
+          memset(buffz, ' ', minimum_width - length2);
+        my_b_write(info, buffz, minimum_width - length2);
+        my_afree(buffz);
+      }
+
       out_length+= length2;
       if (my_b_write(info, buff, length2))
 	goto err;
