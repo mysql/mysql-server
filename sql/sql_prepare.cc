@@ -2799,11 +2799,15 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
 
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
-  lex_start(thd, (uchar*) thd->query, thd->query_length);
+
+  Lex_input_stream lip(thd, thd->query, thd->query_length);
+  thd->m_lip= &lip;
+  lex_start(thd);
   lex->safe_to_cache_query= FALSE;
   lex->stmt_prepare_mode= TRUE;
+  int err= MYSQLparse((void *)thd);
 
-  error= MYSQLparse((void *)thd) || thd->is_fatal_error ||
+  error= err || thd->is_fatal_error ||
       thd->net.report_error || init_param_array(this);
 
   /*

@@ -761,8 +761,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view->query.str= (char*)str.ptr();
   view->query.length= str.length()-1; // we do not need last \0
   view->source.str= thd->query + thd->lex->create_view_select_start;
-  view->source.length= (char *)skip_rear_comments((uchar *)view->source.str,
-                                                  (uchar *)thd->query +
+  view->source.length= (char *)skip_rear_comments((char *)view->source.str,
+                                                  (char *)thd->query +
                                                   thd->query_length) -
                         view->source.str;
   view->file_version= 1;
@@ -973,10 +973,14 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     now Lex placed in statement memory
   */
   table->view= lex= thd->lex= (LEX*) new(thd->mem_root) st_lex_local;
-  lex_start(thd, (uchar*)table->query.str, table->query.length);
-  view_select= &lex->select_lex;
-  view_select->select_number= ++thd->select_number;
+
   {
+    Lex_input_stream lip(thd, table->query.str, table->query.length);
+    thd->m_lip= &lip;
+    lex_start(thd);
+    view_select= &lex->select_lex;
+    view_select->select_number= ++thd->select_number;
+
     ulong save_mode= thd->variables.sql_mode;
     /* switch off modes which can prevent normal parsing of VIEW
       - MODE_REAL_AS_FLOAT            affect only CREATE TABLE parsing
