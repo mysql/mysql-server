@@ -349,13 +349,13 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   bool save_abort_on_warning= thd->abort_on_warning;
-  bool save_no_trans_update= thd->no_trans_update;
+  bool save_no_trans_update_stmt= thd->no_trans_update.stmt;
 
   thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   thd->abort_on_warning=
     thd->variables.sql_mode &
     (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES);
-  thd->no_trans_update= 0;
+  thd->no_trans_update.stmt= FALSE;
 
   /* Save the value in the field. Convert the value if needed. */
 
@@ -363,7 +363,7 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 
   thd->count_cuted_fields= save_count_cuted_fields;
   thd->abort_on_warning= save_abort_on_warning;
-  thd->no_trans_update= save_no_trans_update;
+  thd->no_trans_update.stmt= save_no_trans_update_stmt;
 
   if (thd->net.report_error)
   {
@@ -408,9 +408,22 @@ sp_name::init_qname(THD *thd)
 */
 
 bool
-check_routine_name(LEX_STRING ident)
+check_routine_name(LEX_STRING *ident)
 {
-  return (!ident.str || !ident.str[0] || ident.str[ident.length-1] == ' ');
+  if (!ident || !ident->str || !ident->str[0] ||
+      ident->str[ident->length-1] == ' ')
+  {
+    my_error(ER_SP_WRONG_NAME, MYF(0), ident->str);
+    return TRUE;
+  }
+  if (check_string_char_length(ident, "", NAME_CHAR_LEN,
+                               system_charset_info, 1))
+  {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), ident->str);
+    return TRUE;
+  }
+
+  return FALSE;
 }
 
 /* ------------------------------------------------------------------ */
@@ -490,7 +503,7 @@ sp_head::init(LEX *lex)
 {
   DBUG_ENTER("sp_head::init");
 
-  lex->spcont= m_pcont= new sp_pcontext(NULL);
+  lex->spcont= m_pcont= new sp_pcontext();
 
   /*
     Altough trg_table_fields list is used only in triggers we init for all
@@ -541,15 +554,14 @@ void
 sp_head::init_strings(THD *thd, LEX *lex)
 {
   DBUG_ENTER("sp_head::init_strings");
-  const uchar *endp;                            /* Used to trim the end */
+  const char *endp;                            /* Used to trim the end */
   /* During parsing, we must use thd->mem_root */
   MEM_ROOT *root= thd->mem_root;
 
   if (m_param_begin && m_param_end)
   {
     m_params.length= m_param_end - m_param_begin;
-    m_params.str= strmake_root(root,
-                               (char *)m_param_begin, m_params.length);
+    m_params.str= strmake_root(root, m_param_begin, m_params.length);
   }
 
   /* If ptr has overrun end_of_query then end_of_query is the end */
@@ -561,9 +573,9 @@ sp_head::init_strings(THD *thd, LEX *lex)
   endp= skip_rear_comments(m_body_begin, endp);
 
   m_body.length= endp - m_body_begin;
-  m_body.str= strmake_root(root, (char *)m_body_begin, m_body.length);
+  m_body.str= strmake_root(root, m_body_begin, m_body.length);
   m_defstr.length= endp - lex->buf;
-  m_defstr.str= strmake_root(root, (char *)lex->buf, m_defstr.length);
+  m_defstr.str= strmake_root(root, lex->buf, m_defstr.length);
   DBUG_VOID_RETURN;
 }
 
@@ -993,6 +1005,12 @@ sp_head::execute(THD *thd)
                m_first_instance->m_last_cached_sp == this) ||
               (m_recursion_level + 1 == m_next_cached_sp->m_recursion_level));
 
+  /*
+    NOTE: The SQL Standard does not specify the context that should be
+    preserved for stored routines. However, at SAP/Walldorf meeting it was
+    decided that current database should be preserved.
+  */
+
   if (m_db.length &&
       (err_status= sp_use_new_db(thd, m_db, &old_db, 0, &dbchanged)))
     goto done;
@@ -1117,7 +1135,7 @@ sp_head::execute(THD *thd)
       case SP_HANDLER_CONTINUE:
         thd->restore_active_arena(&execute_arena, &backup_arena);
         thd->set_n_backup_active_arena(&execute_arena, &backup_arena);
-        ctx->push_hstack(ip);
+        ctx->push_hstack(i->get_cont_dest());
         // Fall through
       default:
 	ip= hip;
@@ -1127,6 +1145,7 @@ sp_head::execute(THD *thd)
         thd->clear_error();
         thd->is_fatal_error= 0;
 	thd->killed= THD::NOT_KILLED;
+        thd->mysys_var->abort= 0;
 	continue;
       }
     }
@@ -1170,7 +1189,7 @@ sp_head::execute(THD *thd)
       (It would generate an error from mysql_change_db() when old_db=="")
     */
     if (! thd->killed)
-      err_status|= mysql_change_db(thd, old_db.str, 1);
+      err_status|= mysql_change_db(thd, &old_db, TRUE);
   }
   m_flags&= ~IS_INVOKED;
   DBUG_PRINT("info",
@@ -1226,7 +1245,11 @@ set_routine_security_ctx(THD *thd, sp_head *sp, bool is_proc,
                          Security_context **save_ctx)
 {
   *save_ctx= 0;
-  if (sp_change_security_context(thd, sp, save_ctx))
+  if (sp->m_chistics->suid != SP_IS_NOT_SUID &&
+      sp->m_security_ctx.change_security_context(thd, &sp->m_definer_user,
+                                                 &sp->m_definer_host,
+                                                 &sp->m_db,
+                                                 save_ctx))
     return TRUE;
 
   /*
@@ -1243,7 +1266,7 @@ set_routine_security_ctx(THD *thd, sp_head *sp, bool is_proc,
       check_routine_access(thd, EXECUTE_ACL,
                            sp->m_db.str, sp->m_name.str, is_proc, FALSE))
   {
-    sp_restore_security_context(thd, *save_ctx);
+    sp->m_security_ctx.restore_security_context(thd, *save_ctx);
     *save_ctx= 0;
     return TRUE;
   }
@@ -1554,7 +1577,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  sp_restore_security_context(thd, save_security_ctx);
+  m_security_ctx.restore_security_context(thd, save_security_ctx);
 #endif
 
 err_with_cleanup:
@@ -1772,7 +1795,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (save_security_ctx)
-    sp_restore_security_context(thd, save_security_ctx);
+    m_security_ctx.restore_security_context(thd, save_security_ctx);
 #endif
 
   if (!save_spcont)
@@ -2104,24 +2127,18 @@ sp_head::show_create_procedure(THD *thd)
   String buffer(buff, sizeof(buff), system_charset_info);
   int res;
   List<Item> field_list;
-  byte *sql_mode_str;
-  ulong sql_mode_len;
+  LEX_STRING sql_mode;
   bool full_access;
   DBUG_ENTER("sp_head::show_create_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 
-  LINT_INIT(sql_mode_str);
-  LINT_INIT(sql_mode_len);
-
   if (check_show_routine_access(thd, this, &full_access))
     DBUG_RETURN(1);
 
-  sql_mode_str=
-    sys_var_thd_sql_mode::symbolic_mode_representation(thd,
-                                                       m_sql_mode,
-                                                       &sql_mode_len);
-  field_list.push_back(new Item_empty_string("Procedure", NAME_LEN));
-  field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
+  sys_var_thd_sql_mode::symbolic_mode_representation(thd, m_sql_mode,
+                                                     &sql_mode);
+  field_list.push_back(new Item_empty_string("Procedure", NAME_CHAR_LEN));
+  field_list.push_back(new Item_empty_string("sql_mode", sql_mode.length));
   // 1024 is for not to confuse old clients
   Item_empty_string *definition=
     new Item_empty_string("Create Procedure", max(buffer.length(),1024));
@@ -2133,7 +2150,7 @@ sp_head::show_create_procedure(THD *thd)
     DBUG_RETURN(1);
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
-  protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
+  protocol->store((char*) sql_mode.str, sql_mode.length, system_charset_info);
   if (full_access)
     protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   else
@@ -2176,23 +2193,18 @@ sp_head::show_create_function(THD *thd)
   String buffer(buff, sizeof(buff), system_charset_info);
   int res;
   List<Item> field_list;
-  byte *sql_mode_str;
-  ulong sql_mode_len;
+  LEX_STRING sql_mode;
   bool full_access;
   DBUG_ENTER("sp_head::show_create_function");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
-  LINT_INIT(sql_mode_str);
-  LINT_INIT(sql_mode_len);
 
   if (check_show_routine_access(thd, this, &full_access))
     DBUG_RETURN(1);
 
-  sql_mode_str=
-    sys_var_thd_sql_mode::symbolic_mode_representation(thd,
-                                                       m_sql_mode,
-                                                       &sql_mode_len);
-  field_list.push_back(new Item_empty_string("Function",NAME_LEN));
-  field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
+  sys_var_thd_sql_mode::symbolic_mode_representation(thd, m_sql_mode,
+                                                     &sql_mode);
+  field_list.push_back(new Item_empty_string("Function",NAME_CHAR_LEN));
+  field_list.push_back(new Item_empty_string("sql_mode", sql_mode.length));
   Item_empty_string *definition=
     new Item_empty_string("Create Function", max(buffer.length(),1024));
   definition->maybe_null= TRUE;
@@ -2203,7 +2215,7 @@ sp_head::show_create_function(THD *thd)
     DBUG_RETURN(1);
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
-  protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
+  protocol->store(sql_mode.str, sql_mode.length, system_charset_info);
   if (full_access)
     protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   else
@@ -2448,7 +2460,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   reinit_stmt_before_use(thd, m_lex);
 
   if (open_tables)
-    res= instr->exec_open_and_lock_tables(thd, m_lex->query_tables, nextp);
+    res= instr->exec_open_and_lock_tables(thd, m_lex->query_tables);
 
   if (!res)
   {
@@ -2500,8 +2512,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   sp_instr class functions
 */
 
-int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables,
-                                        uint *nextp)
+int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   int result;
 
@@ -2511,19 +2522,16 @@ int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables,
   */
   if (check_table_access(thd, SELECT_ACL, tables, 0)
       || open_and_lock_tables(thd, tables))
-  {
-    get_cont_dest(nextp);
     result= -1;
-  }
   else
     result= 0;
 
   return result;
 }
 
-void sp_instr::get_cont_dest(uint *nextp)
+uint sp_instr::get_cont_dest()
 {
-  *nextp= m_ip+1;
+  return (m_ip+1);
 }
 
 
@@ -2716,9 +2724,9 @@ sp_instr_set_trigger_field::print(String *str)
   sp_instr_opt_meta
 */
 
-void sp_instr_opt_meta::get_cont_dest(uint *nextp)
+uint sp_instr_opt_meta::get_cont_dest()
 {
-  *nextp= m_cont_dest;
+  return m_cont_dest;
 }
 
 
@@ -2810,7 +2818,6 @@ sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp)
   if (! it)
   {
     res= -1;
-    *nextp = m_cont_dest;
   }
   else
   {
@@ -3379,7 +3386,6 @@ sp_instr_set_case_expr::exec_core(THD *thd, uint *nextp)
       spcont->clear_handler();
       thd->spcont= spcont;
     }
-    *nextp= m_cont_dest;        /* For continue handler */
   }
   else
     *nextp= m_ip+1;
@@ -3429,44 +3435,6 @@ sp_instr_set_case_expr::opt_move(uint dst, List<sp_instr> *bp)
 
 /* ------------------------------------------------------------------ */
 
-/*
-  Security context swapping
-*/
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-bool
-sp_change_security_context(THD *thd, sp_head *sp, Security_context **backup)
-{
-  *backup= 0;
-  if (sp->m_chistics->suid != SP_IS_NOT_SUID &&
-      (strcmp(sp->m_definer_user.str,
-              thd->security_ctx->priv_user) ||
-       my_strcasecmp(system_charset_info, sp->m_definer_host.str,
-                     thd->security_ctx->priv_host)))
-  {
-    if (acl_getroot_no_password(&sp->m_security_ctx, sp->m_definer_user.str,
-                                sp->m_definer_host.str,
-                                sp->m_definer_host.str,
-                                sp->m_db.str))
-    {
-      my_error(ER_NO_SUCH_USER, MYF(0), sp->m_definer_user.str,
-               sp->m_definer_host.str);
-      return TRUE;
-    }
-    *backup= thd->security_ctx;
-    thd->security_ctx= &sp->m_security_ctx;
-  }
-  return FALSE;
-}
-
-void
-sp_restore_security_context(THD *thd, Security_context *backup)
-{
-  if (backup)
-    thd->security_ctx= backup;
-}
-
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 /*
   Structure that represent all instances of one table

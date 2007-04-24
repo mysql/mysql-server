@@ -900,6 +900,7 @@ drop view v1;
 drop table t1;
 create table t1 (col1 int);
 create table t2 (col1 int);
+create table t3 (col1 datetime not null);
 create view v1 as select * from t1;
 create view v2 as select * from v1;
 create view v3 as select v2.col1 from v2,t2 where v2.col1 = t2.col1;
@@ -1004,8 +1005,8 @@ ERROR HY000: The definition of table 'v2' prevents operation INSERT on table 'v3
 insert into v3 (col1) values ((select CONVERT_TZ('20050101000000','UTC','MET') from v2));
 ERROR HY000: The definition of table 'v2' prevents operation INSERT on table 'v3'.
 insert into v3 (col1) values ((select CONVERT_TZ('20050101000000','UTC','MET') from t2));
-insert into mysql.time_zone values ('', (select CONVERT_TZ('20050101000000','UTC','MET') from t2));
-ERROR 23000: Column 'Use_leap_seconds' cannot be null
+insert into t3 values ((select CONVERT_TZ('20050101000000','UTC','MET') from t2));
+ERROR 23000: Column 'col1' cannot be null
 create algorithm=temptable view v4 as select * from t1;
 insert into t1 values (1),(2),(3);
 insert into t1 (col1) values ((select max(col1) from v4));
@@ -1017,7 +1018,7 @@ NULL
 3
 3
 drop view v4,v3,v2,v1;
-drop table t1,t2;
+drop table t1,t2,t3;
 create table t1 (s1 int);
 create view v1 as select * from t1;
 handler v1 open as xx;
@@ -2384,6 +2385,16 @@ Table	Op	Msg_type	Msg_text
 test.v1	optimize	error	'test.v1' is not BASE TABLE
 Warnings:
 Error	1347	'test.v1' is not BASE TABLE
+ANALYZE TABLE v1;
+Table	Op	Msg_type	Msg_text
+test.v1	analyze	error	'test.v1' is not BASE TABLE
+Warnings:
+Error	1347	'test.v1' is not BASE TABLE
+REPAIR TABLE v1;
+Table	Op	Msg_type	Msg_text
+test.v1	repair	error	'test.v1' is not BASE TABLE
+Warnings:
+Error	1347	'test.v1' is not BASE TABLE
 DROP VIEW v1;
 create definer = current_user() sql security invoker view v1 as select 1;
 show create view v1;
@@ -3263,6 +3274,78 @@ a IS TRUE	old_istrue	a IS NOT TRUE	old_isnottrue	a IS FALSE	old_isfalse	a IS NOT
 drop view view_24532_a;
 drop view view_24532_b;
 drop table table_24532;
+CREATE TABLE t1 (
+lid int NOT NULL PRIMARY KEY,
+name char(10) NOT NULL
+);
+INSERT INTO t1 (lid, name) VALUES
+(1, 'YES'), (2, 'NO');
+CREATE TABLE t2 (
+id int NOT NULL PRIMARY KEY, 
+gid int NOT NULL,
+lid int NOT NULL,
+dt date
+);
+INSERT INTO t2 (id, gid, lid, dt) VALUES
+(1, 1, 1, '2007-01-01'),(2, 1, 2, '2007-01-02'),
+(3, 2, 2, '2007-02-01'),(4, 2, 1, '2007-02-02');
+SELECT DISTINCT t2.gid AS lgid,
+(SELECT t1.name FROM t1, t2
+WHERE t1.lid  = t2.lid AND t2.gid = lgid
+ORDER BY t2.dt DESC LIMIT 1
+) as clid
+FROM t2;
+lgid	clid
+1	NO
+2	YES
+CREATE VIEW v1 AS
+SELECT DISTINCT t2.gid AS lgid,
+(SELECT t1.name FROM t1, t2
+WHERE t1.lid  = t2.lid AND t2.gid = lgid
+ORDER BY t2.dt DESC LIMIT 1
+) as clid
+FROM t2;
+SELECT * FROM v1;
+lgid	clid
+1	NO
+2	YES
+DROP VIEW v1;
+DROP table t1,t2;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE VIEW v1 AS SELECT a FROM t1 ORDER BY a;
+SELECT * FROM t1 UNION SELECT * FROM v1;
+a
+1
+2
+3
+EXPLAIN SELECT * FROM t1 UNION SELECT * FROM v1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+2	UNION	t1	ALL	NULL	NULL	NULL	NULL	3	
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
+SELECT * FROM v1 UNION SELECT * FROM t1;
+a
+1
+2
+3
+EXPLAIN SELECT * FROM v1 UNION SELECT * FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+2	UNION	t1	ALL	NULL	NULL	NULL	NULL	3	
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
+SELECT * FROM t1 UNION SELECT * FROM v1 ORDER BY a;
+a
+1
+2
+3
+EXPLAIN SELECT * FROM t1 UNION SELECT * FROM v1 ORDER BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+2	UNION	t1	ALL	NULL	NULL	NULL	NULL	3	
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using filesort
+DROP VIEW v1;
+DROP TABLE t1;
 End of 5.0 tests.
 DROP DATABASE IF EXISTS `d-1`;
 CREATE DATABASE `d-1`;
@@ -3283,3 +3366,4 @@ DROP TABLE `t-2`;
 DROP VIEW  `v-2`;
 DROP DATABASE `d-1`;
 USE test;
+End of 5.1 tests.

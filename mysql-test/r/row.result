@@ -175,6 +175,121 @@ ROW(2,10) <=> ROW(3,4)
 SELECT ROW(NULL,10) <=> ROW(3,NULL);
 ROW(NULL,10) <=> ROW(3,NULL)
 0
+SELECT ROW(1,ROW(2,3)) IN (ROW(1,ROW(2,3)),ROW(1,1));
+ERROR 21000: Operand should contain 2 column(s)
+SELECT ROW(1,ROW(2,3)) IN (ROW(1,ROW(2,3)),ROW(1,1),ROW(1,ROW(2,3)));
+ERROR 21000: Operand should contain 2 column(s)
+SELECT ROW(1,ROW(2,3)) IN (ROW(1,ROW(2,3)),ROW(1,ROW(2,2,2)));
+ERROR 21000: Operand should contain 2 column(s)
+SELECT ROW(1,ROW(2,3,4)) IN (ROW(1,ROW(2,3,4)),ROW(1,ROW(2,2)));
+ERROR 21000: Operand should contain 3 column(s)
+SELECT ROW(1,ROW(2,3)) IN (ROW(1,ROW(2,3)),(SELECT 1,1));
+ERROR 21000: Operand should contain 2 column(s)
+SELECT ROW(1,ROW(2,3)) IN (ROW(1,ROW(2,3)),(SELECT 1,1),ROW(1,ROW(2,4)));
+ERROR 21000: Operand should contain 2 column(s)
+SELECT ROW(1,ROW(2,3)) IN ((SELECT 1,1),ROW(1,ROW(2,3)));
+ERROR 21000: Operand should contain 2 column(s)
+SELECT ROW(2,1) IN (ROW(21,2),ROW(ROW(1,1,3),0));
+ERROR 21000: Operand should contain 1 column(s)
+SELECT ROW(2,1) IN (ROW(ROW(1,1,3),0),ROW(21,2));
+ERROR 21000: Operand should contain 1 column(s)
+CREATE TABLE t1(a int, b int, c int);
+INSERT INTO t1 VALUES (1, 2, 3),
+(NULL, 2, 3  ), (1, NULL, 3  ), (1, 2,   NULL),
+(NULL, 2, 3+1), (1, NULL, 3+1), (1, 2+1, NULL),
+(NULL, 2, 3-1), (1, NULL, 3-1), (1, 2-1, NULL);
+SELECT (1,2,3) = (1,   NULL, 3);
+(1,2,3) = (1,   NULL, 3)
+NULL
+SELECT (1,2,3) = (1+1, NULL, 3);
+(1,2,3) = (1+1, NULL, 3)
+0
+SELECT (1,2,3) = (1,   NULL, 3+1);
+(1,2,3) = (1,   NULL, 3+1)
+0
+SELECT * FROM t1 WHERE (a,b,c) = (1,2,3);
+a	b	c
+1	2	3
+SELECT (1,2,3) <> (1,   NULL, 3);
+(1,2,3) <> (1,   NULL, 3)
+NULL
+SELECT (1,2,3) <> (1+1, NULL, 3);
+(1,2,3) <> (1+1, NULL, 3)
+1
+SELECT (1,2,3) <> (1,   NULL, 3+1);
+(1,2,3) <> (1,   NULL, 3+1)
+1
+SELECT * FROM t1 WHERE (a,b,c) <> (1,2,3);
+a	b	c
+NULL	2	4
+1	NULL	4
+1	3	NULL
+NULL	2	2
+1	NULL	2
+1	1	NULL
+SELECT (1,2,3) < (NULL, 2,    3);
+(1,2,3) < (NULL, 2,    3)
+NULL
+SELECT (1,2,3) < (1,    NULL, 3);
+(1,2,3) < (1,    NULL, 3)
+NULL
+SELECT (1,2,3) < (1-1,  NULL, 3);
+(1,2,3) < (1-1,  NULL, 3)
+0
+SELECT (1,2,3) < (1+1,  NULL, 3);
+(1,2,3) < (1+1,  NULL, 3)
+1
+SELECT * FROM t1 WHERE (a,b,c) < (1,2,3);
+a	b	c
+1	1	NULL
+SELECT (1,2,3) <= (NULL, 2,    3);
+(1,2,3) <= (NULL, 2,    3)
+NULL
+SELECT (1,2,3) <= (1,    NULL, 3);
+(1,2,3) <= (1,    NULL, 3)
+NULL
+SELECT (1,2,3) <= (1-1,  NULL, 3);
+(1,2,3) <= (1-1,  NULL, 3)
+0
+SELECT (1,2,3) <= (1+1,  NULL, 3);
+(1,2,3) <= (1+1,  NULL, 3)
+1
+SELECT * FROM t1 WHERE (a,b,c) <= (1,2,3);
+a	b	c
+1	2	3
+1	1	NULL
+SELECT (1,2,3) > (NULL, 2,    3);
+(1,2,3) > (NULL, 2,    3)
+NULL
+SELECT (1,2,3) > (1,    NULL, 3);
+(1,2,3) > (1,    NULL, 3)
+NULL
+SELECT (1,2,3) > (1-1,  NULL, 3);
+(1,2,3) > (1-1,  NULL, 3)
+1
+SELECT (1,2,3) > (1+1,  NULL, 3);
+(1,2,3) > (1+1,  NULL, 3)
+0
+SELECT * FROM t1 WHERE (a,b,c) > (1,2,3);
+a	b	c
+1	3	NULL
+SELECT (1,2,3) >= (NULL, 2,    3);
+(1,2,3) >= (NULL, 2,    3)
+NULL
+SELECT (1,2,3) >= (1,    NULL, 3);
+(1,2,3) >= (1,    NULL, 3)
+NULL
+SELECT (1,2,3) >= (1-1,  NULL, 3);
+(1,2,3) >= (1-1,  NULL, 3)
+1
+SELECT (1,2,3) >= (1+1,  NULL, 3);
+(1,2,3) >= (1+1,  NULL, 3)
+0
+SELECT * FROM t1 WHERE (a,b,c) >= (1,2,3);
+a	b	c
+1	2	3
+1	3	NULL
+DROP TABLE t1;
 SELECT ROW(1,1,1) = ROW(1,1,1) as `1`, ROW(1,1,1) = ROW(1,2,1) as `0`, ROW(1,NULL,1) = ROW(2,2,1) as `0`, ROW(1,NULL,1) = ROW(1,2,2) as `0`, ROW(1,NULL,1) = ROW(1,2,1) as `null` ;
 1	0	0	0	null
 1	0	0	0	NULL
@@ -306,3 +421,16 @@ a	b	a	b	c
 1	1	1	2	1
 1	2	1	2	1
 DROP TABLE t1,t2;
+CREATE TABLE t1(
+a int, b int, c int, d int, e int, f int, g int, h int,
+PRIMARY KEY (a,b,c,d,e,f,g)
+);
+INSERT INTO t1 VALUES (1,2,3,4,5,6,7,99);
+SELECT h FROM t1 WHERE (a,b,c,d,e,f,g)=(1,2,3,4,5,6,7);
+h
+99
+SET @x:= (SELECT h FROM t1 WHERE (a,b,c,d,e,f,g)=(1,2,3,4,5,6,7));
+SELECT @x;
+@x
+99
+DROP TABLE t1;

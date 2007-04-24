@@ -1,7 +1,12 @@
 # Can't test with embedded server that doesn't support grants
 -- source include/not_embedded.inc
 
-create database if not exists events_test;
+--disable_warnings
+drop database if exists events_test;
+drop database if exists mysqltest_db1;
+drop database if exists mysqltest_db2;
+--enable_warnings
+create database events_test;
 use events_test;
 
 #
@@ -30,7 +35,7 @@ SET NAMES latin1;
 # START - BUG#16408: Events: crash for an event in a procedure
 #
 set @a=3;
---error ER_EVENT_RECURSIVITY_FORBIDDEN
+--error ER_EVENT_RECURSION_FORBIDDEN
 CREATE PROCEDURE p_16 () CREATE EVENT e_16 ON SCHEDULE EVERY @a SECOND DO SET @a=5;
 #
 # END   - BUG#16408: Events: crash for an event in a procedure
@@ -45,10 +50,17 @@ create event e_55 on schedule at 99990101000000 do drop table t;
 create event e_55 on schedule every 10 hour starts 99990101000000 do drop table t;
 --error ER_EVENT_ENDS_BEFORE_STARTS
 create event e_55 on schedule every 10 minute ends 99990101000000 do drop table t;
---error ER_EVENT_EXEC_TIME_IN_THE_PAST
+--error ER_WRONG_VALUE
 create event e_55 on schedule at 10000101000000 do drop table t;
---error ER_EVENT_EXEC_TIME_IN_THE_PAST
+
+# For the purpose of backup we allow times in the past.  Here, no
+# error will be given, but the event won't be created.  One may think
+# of that as if the event was created, then it turned out it's in the
+# past, so it was dropped because of implicit ON COMPLETION NOT
+# PRESERVE.
 create event e_55 on schedule at 20000101000000 do drop table t;
+show events;
+
 --error ER_PARSE_ERROR
 create event e_55 on schedule at 20200101000000 starts 10000101000000 do drop table t;
 --error ER_PARSE_ERROR
@@ -422,6 +434,184 @@ DROP USER mysqltest_u1@localhost;
 
 
 #
+# BUG#16420: Events: timestamps become UTC
+# BUG#26429: SHOW CREATE EVENT is incorrect for an event that
+#            STARTS NOW()
+# BUG#26431: Impossible to re-create an event from backup if its
+#            STARTS clause is in the past
+# WL#3698: Events: execution in local time zone
+#
+# Here we only check non-concurrent aspects of the patch.
+# For the actual tests of time zones please see events_time_zone.test
+#
+SET GLOBAL EVENT_SCHEDULER= OFF;
+SET @save_time_zone= @@TIME_ZONE;
+
+#----------------------------------------------------------------------
+
+# We will use a separate connection because SET TIMESTAMP will stop
+# the clock in that connection.
+
+SET TIME_ZONE= '+00:00';
+SET TIMESTAMP= UNIX_TIMESTAMP('2005-12-31 23:58:59');
+
+
+# Test when event time zone is updated on ALTER EVENT.
+#
+
+CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
+SHOW EVENTS;
+
+# Test storing and updating of the event time zone.
+#
+SET TIME_ZONE= '-01:00';
+ALTER EVENT e1 ON SCHEDULE EVERY 1 DAY STARTS '2000-01-01 00:00:00';
+SHOW EVENTS;
+
+# This will update event time zone.
+SET TIME_ZONE= '+02:00';
+ALTER EVENT e1 ON SCHEDULE AT '2000-01-02 00:00:00'
+  ON COMPLETION PRESERVE DISABLE;
+SHOW EVENTS;
+
+# This will update event time zone.
+SET TIME_ZONE= '-03:00';
+ALTER EVENT e1 ON SCHEDULE EVERY 1 DAY ENDS '2030-01-03 00:00:00'
+  ON COMPLETION PRESERVE DISABLE;
+SHOW EVENTS;
+
+# This will not update event time zone, as no time is being adjusted.
+SET TIME_ZONE= '+04:00';
+ALTER EVENT e1 DO SELECT 2;
+SHOW EVENTS;
+
+DROP EVENT e1;
+
+#----------------------------------------------------------------------
+
+# Create some events.
+SET TIME_ZONE='+05:00';
+CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' DO
+  SELECT 1;
+
+SET TIMESTAMP= @@TIMESTAMP + 1;
+
+SET TIME_ZONE='-05:00';
+CREATE EVENT e2 ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' DO
+  SELECT 1;
+
+SET TIMESTAMP= @@TIMESTAMP + 1;
+
+SET TIME_ZONE='+00:00';
+CREATE EVENT e3 ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' DO
+  SELECT 1;
+
+
+# Test INFORMATION_SCHEMA.EVENTS.
+#
+
+SELECT * FROM INFORMATION_SCHEMA.EVENTS ORDER BY event_name;
+
+
+# Test SHOW EVENTS.
+#
+
+SHOW EVENTS;
+
+
+# Test SHOW CREATE EVENT.
+#
+
+SHOW CREATE EVENT e1;
+SHOW CREATE EVENT e2;
+SHOW CREATE EVENT e3;
+
+#----------------------------------------------------------------------
+
+# Test times in the past.
+#
+
+--echo The following should fail, and nothing should be altered.
+
+--error ER_EVENT_CANNOT_ALTER_IN_THE_PAST
+ALTER EVENT e1 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
+  ENDS '1999-01-02 00:00:00';
+
+--error ER_EVENT_CANNOT_ALTER_IN_THE_PAST
+ALTER EVENT e1 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
+  ENDS '1999-01-02 00:00:00' DISABLE;
+
+--echo The following should give warnings, and nothing should be created.
+
+CREATE EVENT e4 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
+  ENDS '1999-01-02 00:00:00'
+DO
+  SELECT 1;
+
+CREATE EVENT e4 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
+  ENDS '1999-01-02 00:00:00' DISABLE
+DO
+  SELECT 1;
+
+CREATE EVENT e4 ON SCHEDULE AT '1999-01-01 00:00:00' DO
+  SELECT 1;
+
+CREATE EVENT e4 ON SCHEDULE AT '1999-01-01 00:00:00' DISABLE
+DO
+  SELECT 1;
+
+SHOW EVENTS;
+
+--echo The following should succeed giving a warning.
+
+ALTER EVENT e1 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
+  ENDS '1999-01-02 00:00:00' ON COMPLETION PRESERVE;
+
+CREATE EVENT e4 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
+  ENDS '1999-01-02 00:00:00' ON COMPLETION PRESERVE
+DO
+  SELECT 1;
+
+CREATE EVENT e5 ON SCHEDULE AT '1999-01-01 00:00:00'
+  ON COMPLETION PRESERVE
+DO
+  SELECT 1;
+
+--echo The following should succeed without warnings.
+
+ALTER EVENT e2 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00';
+
+ALTER EVENT e3 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
+  ENDS '1999-01-02 00:00:00' ON COMPLETION PRESERVE DISABLE;
+
+CREATE EVENT e6 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00' DO
+  SELECT 1;
+
+CREATE EVENT e7 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
+  ENDS '1999-01-02 00:00:00' ON COMPLETION PRESERVE DISABLE
+DO
+  SELECT 1;
+
+CREATE EVENT e8 ON SCHEDULE AT '1999-01-01 00:00:00'
+  ON COMPLETION PRESERVE DISABLE
+DO
+  SELECT 1;
+
+SHOW EVENTS;
+
+
+DROP EVENT e8;
+DROP EVENT e7;
+DROP EVENT e6;
+DROP EVENT e5;
+DROP EVENT e4;
+DROP EVENT e3;
+DROP EVENT e2;
+DROP EVENT e1;
+
+SET TIME_ZONE=@save_time_zone;
+
+# 
 # End of tests
 #
 drop database events_test;

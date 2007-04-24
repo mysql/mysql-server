@@ -15,6 +15,7 @@
 
 
 #define DBTUP_C
+#define DBTUP_GEN_CPP
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
@@ -33,9 +34,6 @@
 #include <SLList.hpp>
 
 #define DEBUG(x) { ndbout << "TUP::" << x << endl; }
-
-#define ljam() { jamLine(24000 + __LINE__); }
-#define ljamEntry() { jamEntryLine(24000 + __LINE__); }
 
 void Dbtup::initData() 
 {
@@ -112,6 +110,7 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
   cnoOfAllocatedPages = 0;
   
   initData();
+  CLEAR_ERROR_INSERT_VALUE;
 }//Dbtup::Dbtup()
 
 Dbtup::~Dbtup() 
@@ -151,21 +150,21 @@ BLOCK_FUNCTIONS(Dbtup)
 
 void Dbtup::execCONTINUEB(Signal* signal) 
 {
-  ljamEntry();
+  jamEntry();
   Uint32 actionType = signal->theData[0];
   Uint32 dataPtr = signal->theData[1];
   switch (actionType) {
   case ZINITIALISE_RECORDS:
-    ljam();
+    jam();
     initialiseRecordsLab(signal, dataPtr, 
 			 signal->theData[2], signal->theData[3]);
     break;
   case ZREL_FRAG:
-    ljam();
+    jam();
     releaseFragment(signal, dataPtr, signal->theData[2]);
     break;
   case ZREPORT_MEMORY_USAGE:{
-    ljam();
+    jam();
     static int c_currentMemUsed = 0;
     Uint32 cnt = signal->theData[1];
     Uint32 tmp = c_page_pool.getSize();
@@ -200,11 +199,11 @@ void Dbtup::execCONTINUEB(Signal* signal)
     return;
   }
   case ZBUILD_INDEX:
-    ljam();
+    jam();
     buildIndex(signal, dataPtr);
     break;
   case ZTUP_SCAN:
-    ljam();
+    jam();
     {
       ScanOpPtr scanPtr;
       c_scanOpPool.getPtr(scanPtr, dataPtr);
@@ -213,7 +212,7 @@ void Dbtup::execCONTINUEB(Signal* signal)
     return;
   case ZFREE_EXTENT:
   {
-    ljam();
+    jam();
     
     TablerecPtr tabPtr;
     tabPtr.i= dataPtr;
@@ -226,7 +225,7 @@ void Dbtup::execCONTINUEB(Signal* signal)
   }
   case ZUNMAP_PAGES:
   {
-    ljam();
+    jam();
     
     TablerecPtr tabPtr;
     tabPtr.i= dataPtr;
@@ -239,7 +238,7 @@ void Dbtup::execCONTINUEB(Signal* signal)
   }
   case ZFREE_VAR_PAGES:
   {
-    ljam();
+    jam();
     drop_fragment_free_var_pages(signal);
     return;
   }
@@ -256,20 +255,19 @@ void Dbtup::execCONTINUEB(Signal* signal)
 /* **************************************************************** */
 void Dbtup::execSTTOR(Signal* signal) 
 {
-  ljamEntry();
+  jamEntry();
   Uint32 startPhase = signal->theData[1];
   Uint32 sigKey = signal->theData[6];
   switch (startPhase) {
   case ZSTARTPHASE1:
-    ljam();
-    CLEAR_ERROR_INSERT_VALUE;
+    jam();
     ndbrequire((c_lqh= (Dblqh*)globalData.getBlock(DBLQH)) != 0);
     ndbrequire((c_tsman= (Tsman*)globalData.getBlock(TSMAN)) != 0);
     ndbrequire((c_lgman= (Lgman*)globalData.getBlock(LGMAN)) != 0);
     cownref = calcTupBlockRef(0);
     break;
   default:
-    ljam();
+    jam();
     break;
   }//switch
   signal->theData[0] = sigKey;
@@ -292,7 +290,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 senderData = req->senderData;
   ndbrequire(req->noOfParameters == 0);
   
-  ljamEntry();
+  jamEntry();
 
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
@@ -412,58 +410,58 @@ void Dbtup::initialiseRecordsLab(Signal* signal, Uint32 switchData,
 {
   switch (switchData) {
   case 0:
-    ljam();
+    jam();
     initializeHostBuffer();
     break;
   case 1:
-    ljam();
+    jam();
     initializeOperationrec();
     break;
   case 2:
-    ljam();
+    jam();
     initializePage();
     break;
   case 3:
-    ljam();
+    jam();
     break;
   case 4:
-    ljam();
+    jam();
     initializeTablerec();
     break;
   case 5:
-    ljam();
+    jam();
     break;
   case 6:
-    ljam();
+    jam();
     initializeFragrecord();
     break;
   case 7:
-    ljam();
+    jam();
     initializeFragoperrec();
     break;
   case 8:
-    ljam();
+    jam();
     initializePageRange();
     break;
   case 9:
-    ljam();
+    jam();
     initializeTabDescr();
     break;
   case 10:
-    ljam();
+    jam();
     break;
   case 11:
-    ljam();
+    jam();
     break;
   case 12:
-    ljam();
+    jam();
     initializeAttrbufrec();
     break;
   case 13:
-    ljam();
+    jam();
     break;
   case 14:
-    ljam();
+    jam();
 
     {
       ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
@@ -487,28 +485,28 @@ void Dbtup::initialiseRecordsLab(Signal* signal, Uint32 switchData,
 
 void Dbtup::execNDB_STTOR(Signal* signal) 
 {
-  ljamEntry();
+  jamEntry();
   cndbcntrRef = signal->theData[0];
   Uint32 ownNodeId = signal->theData[1];
   Uint32 startPhase = signal->theData[2];
   switch (startPhase) {
   case ZSTARTPHASE1:
-    ljam();
+    jam();
     cownNodeId = ownNodeId;
     cownref = calcTupBlockRef(ownNodeId);
     break;
   case ZSTARTPHASE2:
-    ljam();
+    jam();
     break;
   case ZSTARTPHASE3:
-    ljam();
+    jam();
     startphase3Lab(signal, ~0, ~0);
     break;
   case ZSTARTPHASE4:
-    ljam();
+    jam();
     break;
   case ZSTARTPHASE6:
-    ljam();
+    jam();
 /*****************************************/
 /*       NOW SET THE DISK WRITE SPEED TO */
 /*       PAGES PER TICK AFTER SYSTEM     */
@@ -516,10 +514,10 @@ void Dbtup::execNDB_STTOR(Signal* signal)
 /*****************************************/
     signal->theData[0] = ZREPORT_MEMORY_USAGE;
     signal->theData[1] = 0;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);    
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 2);
     break;
   default:
-    ljam();
+    jam();
     break;
   }//switch
   signal->theData[0] = cownref;
@@ -596,7 +594,7 @@ void Dbtup::initializeTablerec()
 {
   TablerecPtr regTabPtr;
   for (regTabPtr.i = 0; regTabPtr.i < cnoOfTablerec; regTabPtr.i++) {
-    ljam();
+    jam();
     refresh_watch_dog();
     ptrAss(regTabPtr, tablerec);
     initTab(regTabPtr.p);
@@ -667,12 +665,12 @@ void Dbtup::initializeTabDescr()
 void Dbtup::execTUPSEIZEREQ(Signal* signal)
 {
   OperationrecPtr regOperPtr;
-  ljamEntry();
+  jamEntry();
   Uint32 userPtr = signal->theData[0];
   BlockReference userRef = signal->theData[1];
   if (!c_operation_pool.seize(regOperPtr))
   {
-    ljam();
+    jam();
     signal->theData[0] = userPtr;
     signal->theData[1] = ZGET_OPREC_ERROR;
     sendSignal(userRef, GSN_TUPSEIZEREF, signal, 2, JBB);
@@ -682,6 +680,7 @@ void Dbtup::execTUPSEIZEREQ(Signal* signal)
   new (regOperPtr.p) Operationrec();
   regOperPtr.p->firstAttrinbufrec = RNIL;
   regOperPtr.p->lastAttrinbufrec = RNIL;
+  regOperPtr.p->m_any_value = 0;
   regOperPtr.p->op_struct.op_type = ZREAD;
   regOperPtr.p->op_struct.in_active_list = false;
   set_trans_state(regOperPtr.p, TRANS_DISCONNECTED);
@@ -706,7 +705,7 @@ void Dbtup::execTUPSEIZEREQ(Signal* signal)
 void Dbtup::execTUPRELEASEREQ(Signal* signal) 
 {
   OperationrecPtr regOperPtr;
-  ljamEntry();
+  jamEntry();
   regOperPtr.i = signal->theData[0];
   c_operation_pool.getPtr(regOperPtr);
   set_trans_state(regOperPtr.p, TRANS_DISCONNECTED);

@@ -26,7 +26,7 @@ Master_User	replssl
 Master_Port	MASTER_MYPORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	420
+Read_Master_Log_Pos	#
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -41,7 +41,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	420
+Exec_Master_Log_Pos	#
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -53,10 +53,12 @@ Master_SSL_Cert	MYSQL_TEST_DIR/std_data/client-cert.pem
 Master_SSL_Cipher	
 Master_SSL_Key	MYSQL_TEST_DIR/std_data/client-key.pem
 Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
 STOP SLAVE;
 select * from t1;
 t
 1
+insert into t1 values (NULL);
 show slave status;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -64,7 +66,7 @@ Master_User	replssl
 Master_Port	MASTER_MYPORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	12320
+Read_Master_Log_Pos	#
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -79,7 +81,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	12320
+Exec_Master_Log_Pos	#
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -91,3 +93,6 @@ Master_SSL_Cert	MYSQL_TEST_DIR/std_data/client-cert.pem
 Master_SSL_Cipher	
 Master_SSL_Key	MYSQL_TEST_DIR/std_data/client-key.pem
 Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+drop user replssl@localhost;
+drop table t1;

@@ -2,10 +2,11 @@
 # Test of init_connect variable
 #
 
+# should work with embedded server after mysqltest is fixed
+--source include/not_embedded.inc
+
 --source include/add_anonymous_users.inc
 
-# should work with embedded server after mysqltest is fixed
--- source include/not_embedded.inc
 connect (con0,localhost,root,,);
 connection con0;
 select hex(@a);

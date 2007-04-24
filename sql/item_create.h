@@ -87,11 +87,12 @@ public:
     @param thd The current thread
     @param db The database name
     @param name The function name
+    @param use_explicit_name Should the function be represented as 'db.name'?
     @param item_list The list of arguments to the function, can be NULL
     @return An item representing the parsed function call
   */
   virtual Item* create(THD *thd, LEX_STRING db, LEX_STRING name,
-                       List<Item> *item_list) = 0;
+                       bool use_explicit_name, List<Item> *item_list) = 0;
 
 protected:
   /** Constructor. */

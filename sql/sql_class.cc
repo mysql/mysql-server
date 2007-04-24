@@ -26,6 +26,8 @@
 #endif
 
 #include "mysql_priv.h"
+#include "rpl_rli.h"
+#include "rpl_record.h"
 #include <my_bitmap.h>
 #include "log_event.h"
 #include <m_ctype.h>
@@ -303,9 +305,9 @@ THD::THD()
     bzero((char*) &user_var_events, sizeof(user_var_events));
 
   /* Protocol */
-  protocol= &protocol_simple;			// Default protocol
-  protocol_simple.init(this);
-  protocol_prep.init(this);
+  protocol= &protocol_text;			// Default protocol
+  protocol_text.init(this);
+  protocol_binary.init(this);
 
   tablespace_op=FALSE;
   tmp= sql_rnd_with_mutex();
@@ -367,6 +369,7 @@ void THD::init(void)
   if (variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
     server_status|= SERVER_STATUS_NO_BACKSLASH_ESCAPES;
   options= thd_startup_options;
+  no_trans_update.stmt= no_trans_update.all= FALSE;
   open_options=ha_open_options;
   update_lock_default= (variables.low_priority_updates ?
 			TL_WRITE_LOW_PRIORITY :
@@ -378,7 +381,6 @@ void THD::init(void)
   update_charset();
   reset_current_stmt_binlog_row_based();
   bzero((char *) &status_var, sizeof(status_var));
-  variables.lc_time_names = &my_locale_en_US;
 }
 
 
@@ -419,6 +421,7 @@ void THD::init_for_queries()
 void THD::change_user(void)
 {
   cleanup();
+  killed= NOT_KILLED;
   cleanup_done= 0;
   init();
   stmt_map.reset();
@@ -437,6 +440,7 @@ void THD::cleanup(void)
   DBUG_ENTER("THD::cleanup");
   DBUG_ASSERT(cleanup_done == 0);
 
+  killed= KILL_CONNECTION;
 #ifdef ENABLE_WHEN_BINLOG_WILL_BE_ABLE_TO_PREPARE
   if (transaction.xid_state.xa_state == XA_PREPARED)
   {
@@ -679,11 +683,22 @@ bool THD::store_globals()
 
 void THD::cleanup_after_query()
 {
+  /*
+    Reset rand_used so that detection of calls to rand() will save random 
+    seeds if needed by the slave.
+
+    Do not reset rand_used if inside a stored function or trigger because 
+    only the call to these operations is logged. Thus only the calling 
+    statement needs to detect rand() calls made by its substatements. These
+    substatements must not set rand_used to 0 because it would remove the
+    detection of rand() by the calling statement. 
+  */
   if (!in_sub_stmt) /* stored functions and triggers are a special case */
   {
     /* Forget those values, for next binlogger: */
     stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
     auto_inc_intervals_in_cur_stmt_for_binlog.empty();
+    rand_used= 0;
   }
   if (first_successful_insert_id_in_cur_stmt > 0)
   {
@@ -830,7 +845,8 @@ void THD::add_changed_table(const char *key, long key_length)
     {
       list_include(prev_changed, curr, changed_table_dup(key, key_length));
       DBUG_PRINT("info", 
-		 ("key_length %ld %u", key_length, (*prev_changed)->key_length));
+		 ("key_length: %ld  %u", key_length,
+                  (*prev_changed)->key_length));
       DBUG_VOID_RETURN;
     }
     else if (cmp == 0)
@@ -840,7 +856,7 @@ void THD::add_changed_table(const char *key, long key_length)
       {
 	list_include(prev_changed, curr, changed_table_dup(key, key_length));
 	DBUG_PRINT("info", 
-		   ("key_length %ld %u", key_length,
+		   ("key_length:  %ld  %u", key_length,
 		    (*prev_changed)->key_length));
 	DBUG_VOID_RETURN;
       }
@@ -852,7 +868,7 @@ void THD::add_changed_table(const char *key, long key_length)
     }
   }
   *prev_changed = changed_table_dup(key, key_length);
-  DBUG_PRINT("info", ("key_length %ld %u", key_length,
+  DBUG_PRINT("info", ("key_length: %ld  %u", key_length,
 		      (*prev_changed)->key_length));
   DBUG_VOID_RETURN;
 }
@@ -887,7 +903,7 @@ int THD::send_explain_fields(select_result *result)
   CHARSET_INFO *cs= system_charset_info;
   field_list.push_back(new Item_return_int("id",3, MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("select_type", 19, cs));
-  field_list.push_back(item= new Item_empty_string("table", NAME_LEN, cs));
+  field_list.push_back(item= new Item_empty_string("table", NAME_CHAR_LEN, cs));
   item->maybe_null= 1;
   if (lex->describe & DESCRIBE_PARTITIONS)
   {
@@ -900,15 +916,16 @@ int THD::send_explain_fields(select_result *result)
   field_list.push_back(item= new Item_empty_string("type", 10, cs));
   item->maybe_null= 1;
   field_list.push_back(item=new Item_empty_string("possible_keys",
-						  NAME_LEN*MAX_KEY, cs));
+						  NAME_CHAR_LEN*MAX_KEY, cs));
   item->maybe_null=1;
-  field_list.push_back(item=new Item_empty_string("key", NAME_LEN, cs));
+  field_list.push_back(item=new Item_empty_string("key", NAME_CHAR_LEN, cs));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("key_len",
-						  NAME_LEN*MAX_KEY));
+						  NAME_CHAR_LEN*MAX_KEY));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("ref",
-						  NAME_LEN*MAX_REF_PARTS, cs));
+                                                  NAME_CHAR_LEN*MAX_REF_PARTS,
+                                                  cs));
   item->maybe_null=1;
   field_list.push_back(item= new Item_return_int("rows", 10,
                                                  MYSQL_TYPE_LONGLONG));
@@ -1322,7 +1339,6 @@ bool select_export::send_data(List<Item> &items)
   }
   row_count++;
   Item *item;
-  char *buff_ptr=buff;
   uint used_length=0,items_left=items.elements;
   List_iterator_fast<Item> li(items);
 
@@ -1422,19 +1438,18 @@ bool select_export::send_data(List<Item> &items)
 	  goto err;
       }
     }
-    buff_ptr=buff;				// Place separators here
     if (res && (!exchange->opt_enclosed || result_type == STRING_RESULT))
     {
-      memcpy(buff_ptr,exchange->enclosed->ptr(),exchange->enclosed->length());
-      buff_ptr+=exchange->enclosed->length();
+      if (my_b_write(&cache, (byte*) exchange->enclosed->ptr(),
+                     exchange->enclosed->length()))
+        goto err;
     }
     if (--items_left)
     {
-      memcpy(buff_ptr,exchange->field_term->ptr(),field_term_length);
-      buff_ptr+=field_term_length;
+      if (my_b_write(&cache, (byte*) exchange->field_term->ptr(),
+                     field_term_length))
+        goto err;
     }
-    if (my_b_write(&cache,(byte*) buff,(uint) (buff_ptr-buff)))
-      goto err;
   }
   if (my_b_write(&cache,(byte*) exchange->line_term->ptr(),
 		 exchange->line_term->length()))
@@ -2110,6 +2125,102 @@ bool Security_context::set_user(char *user_arg)
   return user == 0;
 }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+/**
+  Initialize this security context from the passed in credentials
+  and activate it in the current thread.
+
+  @param[out]  backup  Save a pointer to the current security context
+                       in the thread. In case of success it points to the
+                       saved old context, otherwise it points to NULL.
+
+
+  During execution of a statement, multiple security contexts may
+  be needed:
+  - the security context of the authenticated user, used as the
+    default security context for all top-level statements
+  - in case of a view or a stored program, possibly the security
+    context of the definer of the routine, if the object is
+    defined with SQL SECURITY DEFINER option.
+
+  The currently "active" security context is parameterized in THD
+  member security_ctx. By default, after a connection is
+  established, this member points at the "main" security context
+  - the credentials of the authenticated user.
+
+  Later, if we would like to execute some sub-statement or a part
+  of a statement under credentials of a different user, e.g.
+  definer of a procedure, we authenticate this user in a local
+  instance of Security_context by means of this method (and
+  ultimately by means of acl_getroot_no_password), and make the
+  local instance active in the thread by re-setting
+  thd->security_ctx pointer.
+
+  Note, that the life cycle and memory management of the "main" and
+  temporary security contexts are different.
+  For the main security context, the memory for user/host/ip is
+  allocated on system heap, and the THD class frees this memory in
+  its destructor. The only case when contents of the main security
+  context may change during its life time is when someone issued
+  CHANGE USER command.
+  Memory management of a "temporary" security context is
+  responsibility of the module that creates it.
+
+  @retval TRUE  there is no user with the given credentials. The erro
+                is reported in the thread.
+  @retval FALSE success
+*/
+
+bool
+Security_context::
+change_security_context(THD *thd,
+                        LEX_STRING *definer_user,
+                        LEX_STRING *definer_host,
+                        LEX_STRING *db,
+                        Security_context **backup)
+{
+  bool needs_change;
+
+  DBUG_ENTER("Security_context::change_security_context");
+
+  DBUG_ASSERT(definer_user->str && definer_host->str);
+
+  *backup= NULL;
+  /*
+    The current security context may have NULL members
+    if we have just started the thread and not authenticated
+    any user. This use case is currently in events worker thread.
+  */
+  needs_change= (thd->security_ctx->priv_user == NULL ||
+                 strcmp(definer_user->str, thd->security_ctx->priv_user) ||
+                 thd->security_ctx->priv_host == NULL ||
+                 my_strcasecmp(system_charset_info, definer_host->str,
+                               thd->security_ctx->priv_host));
+  if (needs_change)
+  {
+    if (acl_getroot_no_password(this, definer_user->str, definer_host->str,
+                                definer_host->str, db->str))
+    {
+      my_error(ER_NO_SUCH_USER, MYF(0), definer_user->str,
+               definer_host->str);
+      DBUG_RETURN(TRUE);
+    }
+    *backup= thd->security_ctx;
+    thd->security_ctx= this;
+  }
+
+  DBUG_RETURN(FALSE);
+}
+
+
+void
+Security_context::restore_security_context(THD *thd,
+                                           Security_context *backup)
+{
+  if (backup)
+    thd->security_ctx= backup;
+}
+#endif
 
 /****************************************************************************
   Handling of open and locked tables states.
@@ -2544,31 +2655,6 @@ my_size_t THD::max_row_length_blob(TABLE *table, const byte *data) const
 }
 
 
-my_size_t THD::pack_row(TABLE *table, MY_BITMAP const* cols, byte *row_data, 
-                        const byte *record) const
-{
-  Field **p_field= table->field, *field;
-  int n_null_bytes= table->s->null_bytes;
-  byte *ptr;
-  uint i;
-  my_ptrdiff_t const rec_offset= record - table->record[0];
-  my_ptrdiff_t const def_offset= table->s->default_values - table->record[0];
-  memcpy(row_data, record, n_null_bytes);
-  ptr= row_data+n_null_bytes;
-
-  for (i= 0 ; (field= *p_field) ; i++, p_field++)
-  {
-    if (bitmap_is_set(cols,i))
-    {
-      my_ptrdiff_t const offset=
-        field->is_null((uint) rec_offset) ? def_offset : rec_offset;
-      field->move_field_offset(offset);
-      ptr= (byte*)field->pack((char *) ptr, field->ptr);
-      field->move_field_offset(-offset);
-    }
-  }
-  return (static_cast<my_size_t>(ptr - row_data));
-}
 
 
 namespace {
@@ -2739,9 +2825,9 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
   byte *before_row= row_data.slot(0);
   byte *after_row= row_data.slot(1);
 
-  my_size_t const before_size= pack_row(table, cols, before_row, 
+  my_size_t const before_size= pack_row(table, cols, before_row,
                                         before_record);
-  my_size_t const after_size= pack_row(table, cols, after_row, 
+  my_size_t const after_size= pack_row(table, cols, after_row,
                                        after_record);
 
   /*

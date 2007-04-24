@@ -7,5 +7,5 @@ create table t1 (a int primary key, b int) engine=ndb;
 insert into t1 values (1, 1);
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; drop table if exists t1
+master-bin.000001	#	Query	1	#	use `test`; drop table if exists t1
 drop database mysqltest;

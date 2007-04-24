@@ -305,6 +305,7 @@ our $path_sql_dir;
 our @data_dir_lst;
 
 our $used_binlog_format;
+our $used_default_engine;
 our $debug_compiled_binaries;
 our $glob_tot_real_time= 0;
 
@@ -354,7 +355,7 @@ sub do_before_start_slave ($);
 sub ndbd_start ($$$);
 sub ndb_mgmd_start ($);
 sub mysqld_start ($$$);
-sub mysqld_arguments ($$$$$);
+sub mysqld_arguments ($$$$);
 sub stop_all_servers ();
 sub run_mysqltest ($);
 sub usage ($);
@@ -520,7 +521,7 @@ sub command_line_setup () {
              'compress'                 => \$opt_compress,
              'bench'                    => \$opt_bench,
              'small-bench'              => \$opt_small_bench,
-             'with-ndbcluster'          => \$opt_with_ndbcluster,
+             'with-ndbcluster|ndb'      => \$opt_with_ndbcluster,
              'vs-config'            => \$opt_vs_config,
 
              # Control what test suites or cases to run
@@ -570,6 +571,7 @@ sub command_line_setup () {
              'manual-debug'             => \$opt_manual_debug,
              'ddd'                      => \$opt_ddd,
              'client-ddd'               => \$opt_client_ddd,
+             'manual-ddd'               => \$opt_manual_ddd,
 	     'debugger=s'               => \$opt_debugger,
 	     'client-debugger=s'        => \$opt_client_debugger,
              'strace-client'            => \$opt_strace_client,
@@ -724,8 +726,6 @@ sub command_line_setup () {
   {
     $mysqld_variables{'port'}= 3306;
     $mysqld_variables{'master-port'}= 3306;
-    $opt_skip_ndbcluster= 1;
-    $opt_skip_im= 1;
   }
 
   if ( $opt_comment )
@@ -776,6 +776,26 @@ sub command_line_setup () {
     }
     mtr_report("Using binlog format '$used_binlog_format'");
   }
+
+
+  # --------------------------------------------------------------------------
+  # Find out default storage engine being used(if any)
+  # --------------------------------------------------------------------------
+  if ( $opt_with_ndbcluster )
+  {
+    # --ndb or --with-ndbcluster turns on --default-storage-engine=ndbcluster
+    push(@opt_extra_mysqld_opt, "--default-storage-engine=ndbcluster");
+  }
+
+  foreach my $arg ( @opt_extra_mysqld_opt )
+  {
+    if ( $arg =~ /default-storage-engine=(\S+)/ )
+    {
+      $used_default_engine= $1;
+    }
+  }
+  mtr_report("Using default engine '$used_default_engine'")
+    if defined $used_default_engine;
 
   # --------------------------------------------------------------------------
   # Check if we should speed up tests by trying to run on tmpfs
@@ -849,20 +869,22 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Check im suport
   # --------------------------------------------------------------------------
-  if (!$opt_extern)
+  if ($opt_extern)
   {
-    if ( $mysql_version_id < 50000 ) {
-      # Instance manager is not supported until 5.0
-      $opt_skip_im= 1;
-
-    }
-
-    if ( $glob_win32 ) {
-      mtr_report("Disable Instance manager - not supported on Windows");
-      $opt_skip_im= 1;
-    }
-
+    mtr_report("Disable instance manager when running with extern mysqld");
+    $opt_skip_im= 1;
   }
+  elsif ( $mysql_version_id < 50000 )
+  {
+    # Instance manager is not supported until 5.0
+    $opt_skip_im= 1;
+  }
+  elsif ( $glob_win32 )
+  {
+    mtr_report("Disable Instance manager - testing not supported on Windows");
+    $opt_skip_im= 1;
+  }
+
   # --------------------------------------------------------------------------
   # Record flag
   # --------------------------------------------------------------------------
@@ -900,10 +922,6 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Ndb cluster flags
   # --------------------------------------------------------------------------
-  if ( $opt_with_ndbcluster and !$opt_bench)
-  {
-    mtr_error("Can only use --with-ndbcluster togheter with --bench");
-  }
 
   if ( $opt_ndbconnectstring )
   {
@@ -1054,9 +1072,7 @@ sub command_line_setup () {
   # On some operating systems, there is a limit to the length of a
   # UNIX domain socket's path far below PATH_MAX, so try to avoid long
   # socket path names.
-  $sockdir = tempdir(CLEANUP => 0) if ( length($sockdir) > 80 );
-
-  # Put this into a hash, will be a C struct
+  $sockdir = tempdir(CLEANUP => 0) if ( length($sockdir) >= 80 );
 
   $master->[0]=
   {
@@ -1065,7 +1081,6 @@ sub command_line_setup () {
    idx           => 0,
    path_myddir   => "$opt_vardir/master-data",
    path_myerr    => "$opt_vardir/log/master.err",
-   path_mylog    => "$opt_vardir/log/master.log",
    path_pid    => "$opt_vardir/run/master.pid",
    path_sock   => "$sockdir/master.sock",
    port   =>  $opt_master_myport,
@@ -1081,7 +1096,6 @@ sub command_line_setup () {
    idx           => 1,
    path_myddir   => "$opt_vardir/master1-data",
    path_myerr    => "$opt_vardir/log/master1.err",
-   path_mylog    => "$opt_vardir/log/master1.log",
    path_pid    => "$opt_vardir/run/master1.pid",
    path_sock   => "$sockdir/master1.sock",
    port   => $opt_master_myport + 1,
@@ -1097,7 +1111,6 @@ sub command_line_setup () {
    idx           => 0,
    path_myddir   => "$opt_vardir/slave-data",
    path_myerr    => "$opt_vardir/log/slave.err",
-   path_mylog    => "$opt_vardir/log/slave.log",
    path_pid    => "$opt_vardir/run/slave.pid",
    path_sock   => "$sockdir/slave.sock",
    port   => $opt_slave_myport,
@@ -1114,7 +1127,6 @@ sub command_line_setup () {
    idx           => 1,
    path_myddir   => "$opt_vardir/slave1-data",
    path_myerr    => "$opt_vardir/log/slave1.err",
-   path_mylog    => "$opt_vardir/log/slave1.log",
    path_pid    => "$opt_vardir/run/slave1.pid",
    path_sock   => "$sockdir/slave1.sock",
    port   => $opt_slave_myport + 1,
@@ -1130,7 +1142,6 @@ sub command_line_setup () {
    idx           => 2,
    path_myddir   => "$opt_vardir/slave2-data",
    path_myerr    => "$opt_vardir/log/slave2.err",
-   path_mylog    => "$opt_vardir/log/slave2.log",
    path_pid    => "$opt_vardir/run/slave2.pid",
    path_sock   => "$sockdir/slave2.sock",
    port   => $opt_slave_myport + 2,
@@ -1224,6 +1235,7 @@ sub command_line_setup () {
   {
     # Turn off features not supported when running with extern server
     $opt_skip_rpl= 1;
+    $opt_skip_ndbcluster= 1;
 
     # Setup master->[0] with the settings for the extern server
     $master->[0]->{'path_sock'}=  $opt_socket ? $opt_socket : "/tmp/mysql.sock";
@@ -1334,7 +1346,7 @@ sub collect_mysqld_features () {
 
   #
   # Execute "mysqld --no-defaults --help --verbose" to get a
-  # of all features and settings
+  # list of all features and settings
   #
   my $list= `$exe_mysqld --no-defaults --verbose --help`;
 
@@ -1397,6 +1409,40 @@ sub collect_mysqld_features () {
 
 }
 
+
+sub run_query($$) {
+  my ($mysqld, $query)= @_;
+
+  my $args;
+  mtr_init_args(\$args);
+
+  mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--user=%s", $opt_user);
+  mtr_add_arg($args, "--port=%d", $mysqld->{'port'});
+  mtr_add_arg($args, "--socket=%s", $mysqld->{'path_sock'});
+  mtr_add_arg($args, "--silent"); # Tab separated output
+  mtr_add_arg($args, "-e '%s'", $query);
+
+  my $cmd= "$exe_mysql " . join(' ', @$args);
+  mtr_verbose("cmd: $cmd");
+  return `$cmd`;
+}
+
+
+sub collect_mysqld_features_from_running_server ()
+{
+  my $list= run_query($master->[0], "use mysql; SHOW VARIABLES");
+
+  foreach my $line (split('\n', $list))
+  {
+    # Put variables into hash
+    if ( $line =~ /^([\S]+)[ \t]+(.*?)\r?$/ )
+    {
+      print "$1=\"$2\"\n";
+      $mysqld_variables{$1}= $2;
+    }
+  }
+}
 
 sub executable_setup_im () {
 
@@ -1495,9 +1541,17 @@ sub executable_setup () {
 
   if (!$opt_extern)
   {
-  # Look for SQL scripts directory
-  $path_sql_dir= mtr_path_exists("$glob_basedir/share",
-				 "$glob_basedir/scripts");
+    # Look for SQL scripts directory
+    if ( mtr_file_exists("$path_share/mysql_system_tables.sql") ne "")
+    {
+      # The SQL scripts are in path_share
+      $path_sql_dir= $path_share;
+    }
+    else
+    {
+      $path_sql_dir= mtr_path_exists("$glob_basedir/share",
+				     "$glob_basedir/scripts");
+    }
 
     if ( $mysql_version_id >= 50100 )
     {
@@ -1877,8 +1931,7 @@ sub environment_setup () {
       mtr_native_path($exe_mysqlslap) .
       " -uroot " .
       "--port=$master->[0]->{'port'} " .
-      "--socket=$master->[0]->{'path_sock'} --password= " .
-      "--lock-directory=$opt_tmpdir";
+      "--socket=$master->[0]->{'path_sock'} --password= ";
 
     if ( $opt_debug )
    {
@@ -1926,7 +1979,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   my $cmdline_mysqlbinlog=
     mtr_native_path($exe_mysqlbinlog) .
-      " --no-defaults --disable-force-if-open --debug-info --local-load=$opt_tmpdir";
+      " --no-defaults --disable-force-if-open --debug-info";
   if ( !$opt_extern && $mysql_version_id >= 50000 )
   {
     $cmdline_mysqlbinlog .=" --character-sets-dir=$path_charsetsdir";
@@ -1978,10 +2031,7 @@ sub environment_setup () {
     $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
 
   }
-  if (!$opt_extern)
-  {
-    $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
-  }
+  $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
 
   # ----------------------------------------------------
   # Setup env so childs can execute my_print_defaults
@@ -2795,10 +2845,7 @@ sub initialize_servers () {
     }
     else
     {
-      if ($opt_verbose)
-      {
-	mtr_report("No need to create '$opt_vardir' it already exists");
-      }
+      mtr_verbose("No need to create '$opt_vardir' it already exists");
     }
   }
   else
@@ -3228,9 +3275,9 @@ sub do_after_run_mysqltest($)
 }
 
 
-sub run_testcase_mark_logs($)
+sub run_testcase_mark_logs($$)
 {
-  my ($log_msg)= @_;
+  my ($tinfo, $log_msg)= @_;
 
   # Write a marker to all log files
 
@@ -3241,6 +3288,12 @@ sub run_testcase_mark_logs($)
   foreach my $mysqld (@{$master}, @{$slave})
   {
     mtr_tofile($mysqld->{path_myerr}, $log_msg);
+  }
+
+  if ( $tinfo->{'component_id'} eq 'im')
+  {
+    mtr_tofile($instance_manager->{path_err}, $log_msg);
+    mtr_tofile($instance_manager->{path_log}, $log_msg);
   }
 
   # ndbcluster log file
@@ -3369,7 +3422,7 @@ sub run_testcase ($) {
   }
 
   # Write to all log files to indicate start of testcase
-  run_testcase_mark_logs("CURRENT_TEST: $tinfo->{name}\n");
+  run_testcase_mark_logs($tinfo, "CURRENT_TEST: $tinfo->{name}\n");
 
   my $died= mtr_record_dead_children();
   if ($died or $master_restart or $slave_restart)
@@ -3443,7 +3496,7 @@ sub run_testcase ($) {
   # Stop Instance Manager if we are processing an IM-test case.
   # ----------------------------------------------------------------------
   if ( $tinfo->{'component_id'} eq 'im' and
-       !mtr_im_stop($instance_manager, $tinfo->{'name'}) )
+       !mtr_im_stop($instance_manager, $tinfo->{'name'}))
   {
     mtr_error("Failed to stop Instance Manager.")
   }
@@ -3628,21 +3681,20 @@ sub do_before_start_slave ($) {
 }
 
 
-sub mysqld_arguments ($$$$$) {
+sub mysqld_arguments ($$$$) {
   my $args=              shift;
-  my $type=              shift;
-  my $idx=               shift;
+  my $mysqld=            shift;
   my $extra_opt=         shift;
   my $slave_master_info= shift;
 
+  my $idx= $mysqld->{'idx'};
   my $sidx= "";                 # Index as string, 0 is empty string
-  if ( $idx > 0 )
+  if ( $idx> 0 )
   {
-    $sidx= "$idx";
+    $sidx= $idx;
   }
 
   my $prefix= "";               # If mysqltest server arg
-
   if ( $glob_use_embedded_server )
   {
     $prefix= "--server-arg=";
@@ -3656,8 +3708,16 @@ sub mysqld_arguments ($$$$$) {
 
   if ( $mysql_version_id >= 50036)
   {
-    # Prevent the started mysqld to access files outside of vardir
-    mtr_add_arg($args, "%s--secure-file-priv=%s", $prefix, $opt_vardir);
+    # By default, prevent the started mysqld to access files outside of vardir
+    my $secure_file_dir= $opt_vardir;
+    if ( $opt_suite ne "main" )
+    {
+      # When running a suite other than default allow the mysqld
+      # access to subdirs of mysql-test/ in order to make it possible
+      # to "load data" from the suites data/ directory.
+      $secure_file_dir= $glob_mysql_test_dir;
+    }
+    mtr_add_arg($args, "%s--secure-file-priv=%s", $prefix, $secure_file_dir);
   }
 
   if ( $mysql_version_id >= 50000 )
@@ -3679,36 +3739,55 @@ sub mysqld_arguments ($$$$$) {
     }
   }
 
+  mtr_add_arg($args, "%s--pid-file=%s", $prefix,
+	      $mysqld->{'path_pid'});
+
+  mtr_add_arg($args, "%s--port=%d", $prefix,
+                $mysqld->{'port'});
+
+  mtr_add_arg($args, "%s--socket=%s", $prefix,
+	      $mysqld->{'path_sock'});
+
+  mtr_add_arg($args, "%s--datadir=%s", $prefix,
+	      $mysqld->{'path_myddir'});
+
+
+  if ( $mysql_version_id >= 50106 )
+  {
+    # Turn on logging to bothe tables and file
+    mtr_add_arg($args, "%s--log-output=table,file", $prefix);
+  }
+
+  my $log_base_path= "$opt_vardir/log/$mysqld->{'type'}$sidx";
+  mtr_add_arg($args, "%s--log=%s.log", $prefix, $log_base_path);
+  mtr_add_arg($args,
+	      "%s--log-slow-queries=%s-slow.log", $prefix, $log_base_path);
+
   # Check if "extra_opt" contains --skip-log-bin
   my $skip_binlog= grep(/^--skip-log-bin/, @$extra_opt);
 
-  if ( $type eq 'master' )
+  if ( $mysqld->{'type'} eq 'master' )
   {
-    my $id= $idx > 0 ? $idx + 101 : 1;
-
     if (! ($opt_skip_master_binlog || $skip_binlog) )
     {
       mtr_add_arg($args, "%s--log-bin=%s/log/master-bin%s", $prefix,
                   $opt_vardir, $sidx);
     }
-    mtr_add_arg($args, "%s--pid-file=%s", $prefix,
-                $master->[$idx]->{'path_pid'});
-    mtr_add_arg($args, "%s--port=%d", $prefix,
-                $master->[$idx]->{'port'});
-    mtr_add_arg($args, "%s--server-id=%d", $prefix, $id);
-    mtr_add_arg($args, "%s--socket=%s", $prefix,
-                $master->[$idx]->{'path_sock'});
-    mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:10M:autoextend", $prefix);
+
+    mtr_add_arg($args, "%s--server-id=%d", $prefix,
+	       $idx > 0 ? $idx + 101 : 1);
+
+    mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:10M:autoextend",
+		$prefix);
+
     mtr_add_arg($args, "%s--local-infile", $prefix);
-    mtr_add_arg($args, "%s--datadir=%s", $prefix,
-                $master->[$idx]->{'path_myddir'});
 
     if ( $idx > 0 or !$use_innodb)
     {
       mtr_add_arg($args, "%s--skip-innodb", $prefix);
     }
 
-    my $cluster= $clusters->[$master->[$idx]->{'cluster'}];
+    my $cluster= $clusters->[$mysqld->{'cluster'}];
     if ( $opt_skip_ndbcluster ||
 	 !$cluster->{'pid'})
     {
@@ -3725,28 +3804,14 @@ sub mysqld_arguments ($$$$$) {
       }
     }
 
-    if ( $mysql_version_id <= 50106 )
-    {
-      # Force mysqld to use log files up until 5.1.6
-      mtr_add_arg($args, "%s--log=%s", $prefix, $master->[0]->{'path_mylog'});
-    }
-    else
-    {
-      # Turn on logging, will be sent to tables
-      mtr_add_arg($args, "%s--log=", $prefix);
-    }
-
       mtr_add_arg($args, "%s--plugin_dir=%s", $prefix,
 		  dirname($lib_example_plugin));
   }
-
-  if ( $type eq 'slave' )
+  else
   {
-    my $slave_server_id=  2 + $idx;
-    my $slave_rpl_rank= $slave_server_id;
+    mtr_error("unknown mysqld type")
+      unless $mysqld->{'type'} eq 'slave';
 
-    mtr_add_arg($args, "%s--datadir=%s", $prefix,
-                $slave->[$idx]->{'path_myddir'});
     mtr_add_arg($args, "%s--init-rpl-role=slave", $prefix);
     if (! ( $opt_skip_slave_binlog || $skip_binlog ))
     {
@@ -3756,18 +3821,14 @@ sub mysqld_arguments ($$$$$) {
     }
 
     mtr_add_arg($args, "%s--master-retry-count=10", $prefix);
-    mtr_add_arg($args, "%s--pid-file=%s", $prefix,
-                $slave->[$idx]->{'path_pid'});
-    mtr_add_arg($args, "%s--port=%d", $prefix,
-                $slave->[$idx]->{'port'});
+
     mtr_add_arg($args, "%s--relay-log=%s/log/slave%s-relay-bin", $prefix,
                 $opt_vardir, $sidx);
     mtr_add_arg($args, "%s--report-host=127.0.0.1", $prefix);
     mtr_add_arg($args, "%s--report-port=%d", $prefix,
-                $slave->[$idx]->{'port'});
+                $mysqld->{'port'});
     mtr_add_arg($args, "%s--report-user=root", $prefix);
     mtr_add_arg($args, "%s--skip-innodb", $prefix);
-    mtr_add_arg($args, "%s--skip-ndbcluster", $prefix);
     mtr_add_arg($args, "%s--skip-slave-start", $prefix);
 
     # Directory where slaves find the dumps generated by "load data"
@@ -3776,8 +3837,6 @@ sub mysqld_arguments ($$$$$) {
     my $slave_load_path= "../tmp";
     mtr_add_arg($args, "%s--slave-load-tmpdir=%s", $prefix,
                 $slave_load_path);
-    mtr_add_arg($args, "%s--socket=%s", $prefix,
-                $slave->[$idx]->{'path_sock'});
     mtr_add_arg($args, "%s--set-variable=slave_net_timeout=10", $prefix);
 
     if ( @$slave_master_info )
@@ -3795,13 +3854,16 @@ sub mysqld_arguments ($$$$$) {
       mtr_add_arg($args, "%s--master-password=", $prefix);
       mtr_add_arg($args, "%s--master-port=%d", $prefix,
                   $master->[0]->{'port'}); # First master
+
+      my $slave_server_id=  2 + $idx;
+      my $slave_rpl_rank= $slave_server_id;
       mtr_add_arg($args, "%s--server-id=%d", $prefix, $slave_server_id);
       mtr_add_arg($args, "%s--rpl-recovery-rank=%d", $prefix, $slave_rpl_rank);
     }
 
     if ( $opt_skip_ndbcluster_slave ||
-         $slave->[$idx]->{'cluster'} == -1 ||
-	 !$clusters->[$slave->[$idx]->{'cluster'}]->{'pid'} )
+         $mysqld->{'cluster'} == -1 ||
+	 !$clusters->[$mysqld->{'cluster'}]->{'pid'} )
     {
       mtr_add_arg($args, "%s--skip-ndbcluster", $prefix);
     }
@@ -3809,41 +3871,21 @@ sub mysqld_arguments ($$$$$) {
     {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
-		  $clusters->[$slave->[$idx]->{'cluster'}]->{'connect_string'});
+		  $clusters->[$mysqld->{'cluster'}]->{'connect_string'});
+
       if ( $mysql_version_id >= 50100 )
       {
 	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
       }
     }
-
-    if ( $mysql_version_id <= 50106 )
-    {
-      # Force mysqld to use log files up until 5.1.6
-      mtr_add_arg($args, "%s--log=%s", $prefix, $master->[0]->{'path_mylog'});
-    }
-    else
-    {
-      # Turn on logging, will be sent to tables
-      mtr_add_arg($args, "%s--log=", $prefix);
-    }
-
   } # end slave
 
   if ( $opt_debug )
   {
-    if ( $type eq 'master' )
-    {
-      mtr_add_arg($args, "%s--debug=d:t:i:A,%s/log/master%s.trace",
-                  $prefix, $path_vardir_trace, $sidx);
-    }
-    if ( $type eq 'slave' )
-    {
-      mtr_add_arg($args, "%s--debug=d:t:i:A,%s/log/slave%s.trace",
-                  $prefix, $path_vardir_trace, $sidx);
-    }
+    mtr_add_arg($args, "%s--debug=d:t:i:A,%s/log/%s%s.trace",
+		$prefix, $path_vardir_trace, $mysqld->{'type'}, $sidx);
   }
 
-  # FIXME always set nowdays??? SMALL_SERVER
   mtr_add_arg($args, "%s--key_buffer_size=1M", $prefix);
   mtr_add_arg($args, "%s--sort_buffer=256K", $prefix);
   mtr_add_arg($args, "%s--max_heap_table_size=1M", $prefix);
@@ -3869,18 +3911,10 @@ sub mysqld_arguments ($$$$$) {
     mtr_add_arg($args, "%s--gdb", $prefix);
   }
 
-  # If we should run all tests cases, we will use a local server for that
-
-  if ( -w "/" )
-  {
-    # We are running as root;  We need to add the --root argument
-    mtr_add_arg($args, "%s--user=root", $prefix);
-  }
-
   my $found_skip_core= 0;
   foreach my $arg ( @opt_extra_mysqld_opt, @$extra_opt )
   {
-    # Allow --skip-core-file to be set in master.opt file
+    # Allow --skip-core-file to be set in <testname>-[master|slave].opt file
     if ($arg eq "--skip-core-file")
     {
       $found_skip_core= 1;
@@ -3904,7 +3938,7 @@ sub mysqld_arguments ($$$$$) {
     mtr_add_arg($args, "%s--rpl-recovery-rank=1", $prefix);
     mtr_add_arg($args, "%s--init-rpl-role=master", $prefix);
   }
-  elsif ( $type eq 'master' )
+  elsif ( $mysqld->{'type'} eq 'master' )
   {
     mtr_add_arg($args, "%s--open-files-limit=1024", $prefix);
   }
@@ -3955,7 +3989,7 @@ sub mysqld_start ($$$) {
     valgrind_arguments($args, \$exe);
   }
 
-  mysqld_arguments($args,$type,$idx,$extra_opt,$slave_master_info);
+  mysqld_arguments($args,$mysqld,$extra_opt,$slave_master_info);
 
   if ( $opt_gdb || $opt_manual_gdb)
   {
@@ -4700,7 +4734,7 @@ sub run_mysqltest ($) {
 
   if ( $glob_use_embedded_server )
   {
-    mysqld_arguments($args,'master',0,$tinfo->{'master_opt'},[]);
+    mysqld_arguments($args,$master->[0],$tinfo->{'master_opt'},[]);
   }
 
   # ----------------------------------------------------------------------
@@ -4820,8 +4854,7 @@ sub gdb_arguments {
   if ( $opt_manual_gdb )
   {
      print "\nTo start gdb for $type, type in another window:\n";
-     print "cd $glob_mysql_test_dir;\n";
-     print "gdb -x $gdb_init_file $$exe\n";
+     print "gdb -cd $glob_mysql_test_dir -x $gdb_init_file $$exe\n";
 
      # Indicate the exe should not be started
      $$exe= undef;
@@ -4885,8 +4918,7 @@ sub ddd_arguments {
   if ( $opt_manual_ddd )
   {
      print "\nTo start ddd for $type, type in another window:\n";
-     print "cd $glob_mysql_test_dir;\n";
-     print "ddd -x $gdb_init_file $$exe\n";
+     print "ddd -cd $glob_mysql_test_dir -x $gdb_init_file $$exe\n";
 
      # Indicate the exe should not be started
      $$exe= undef;
@@ -5030,7 +5062,7 @@ Options to control what engine/variation to run
   skip-ssl              Dont start server with support for ssl connections
   bench                 Run the benchmark suite
   small-bench           Run the benchmarks with --small-tests --small-tables
-  with-ndbcluster       Use cluster as default table type for benchmark
+  ndb|with-ndbcluster   Use cluster as default table type
   vs-config             Visual Studio configuration used to create executables
                         (default: MTR_VS_CONFIG environment variable)
 
@@ -5104,6 +5136,8 @@ Options for debugging the product
   manual-debug          Let user manually start mysqld in debugger, before
                         running test(s)
   manual-gdb            Let user manually start mysqld in gdb, before running
+                        test(s)
+  manual-ddd            Let user manually start mysqld in ddd, before running
                         test(s)
   master-binary=PATH    Specify the master "mysqld" to use
   slave-binary=PATH     Specify the slave "mysqld" to use

@@ -1309,12 +1309,12 @@ explain extended select encode(f1,'zxcv') as 'enc' from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select encode(`test`.`t1`.`f1`,_latin1'zxcv') AS `enc` from `test`.`t1`
+Note	1003	select encode('',_latin1'zxcv') AS `enc` from `test`.`t1`
 explain extended select decode(f1,'zxcv') as 'enc' from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select decode(`test`.`t1`.`f1`,_latin1'zxcv') AS `enc` from `test`.`t1`
+Note	1003	select decode('',_latin1'zxcv') AS `enc` from `test`.`t1`
 drop table t1;
 End of 4.1 tests
 create table t1 (d decimal default null);
@@ -1378,7 +1378,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	const	PRIMARY	PRIMARY	12	const	1	100.00	Using index
 1	SIMPLE	t1	ref	code	code	13	const	3	100.00	Using where; Using index
 Warnings:
-Note	1003	select `test`.`t1`.`code` AS `code`,`test`.`t2`.`id` AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`code` = _latin1'a12') and (length(`test`.`t1`.`code`) = 5))
+Note	1003	select `test`.`t1`.`code` AS `code`,'a12' AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`code` = _latin1'a12') and (length(`test`.`t1`.`code`) = 5))
 DROP TABLE t1,t2;
 select encode(NULL, NULL);
 encode(NULL, NULL)
@@ -2273,6 +2273,17 @@ abcxx
 select lpad('abc', cast(5 as unsigned integer), 'x');
 lpad('abc', cast(5 as unsigned integer), 'x')
 xxabc
+create table t1(f1 longtext);
+insert into t1 values ("123"),("456");
+select substring(f1,1,1) from t1 group by 1;
+substring(f1,1,1)
+1
+4
+create table t2(f1 varchar(3));
+insert into t1 values ("123"),("456");
+select substring(f1,4,1), substring(f1,-4,1) from t2;
+substring(f1,4,1)	substring(f1,-4,1)
+drop table t1,t2;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE `t1` (
 `id` varchar(20) NOT NULL,
@@ -2286,5 +2297,101 @@ A	B	tire
 		0
 #	#	1
 ##	##	2
+SELECT REPEAT('0', CAST(0 AS UNSIGNED));
+REPEAT('0', CAST(0 AS UNSIGNED))
+
+SELECT REPEAT('0', -2);
+REPEAT('0', -2)
+
+SELECT REPEAT('0', 2);
+REPEAT('0', 2)
+00
 DROP TABLE t1;
+SELECT UNHEX('G');
+UNHEX('G')
+NULL
+SELECT UNHEX('G') IS NULL;
+UNHEX('G') IS NULL
+1
+SELECT INSERT('abc', 3, 3, '1234');
+INSERT('abc', 3, 3, '1234')
+ab1234
+SELECT INSERT('abc', 4, 3, '1234');
+INSERT('abc', 4, 3, '1234')
+abc1234
+SELECT INSERT('abc', 5, 3, '1234');
+INSERT('abc', 5, 3, '1234')
+abc
+SELECT INSERT('abc', 6, 3, '1234');
+INSERT('abc', 6, 3, '1234')
+abc
+CREATE TABLE t1 (a INT);
+CREATE VIEW v1 AS SELECT CRC32(a) AS C FROM t1;
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+SELECT CRC32(a), COUNT(*) FROM t1 GROUP BY 1;
+CRC32(a)	COUNT(*)
+450215437	1
+498629140	1
+1790921346	1
+1842515611	1
+2212294583	1
+2226203566	1
+2366072709	1
+2707236321	1
+4088798008	1
+4194326291	1
+SELECT CRC32(a), COUNT(*) FROM t1 GROUP BY 1 ORDER BY 1;
+CRC32(a)	COUNT(*)
+450215437	1
+498629140	1
+1790921346	1
+1842515611	1
+2212294583	1
+2226203566	1
+2366072709	1
+2707236321	1
+4088798008	1
+4194326291	1
+SELECT * FROM (SELECT CRC32(a) FROM t1) t2;
+CRC32(a)
+2212294583
+450215437
+1842515611
+4088798008
+2226203566
+498629140
+1790921346
+4194326291
+2366072709
+2707236321
+CREATE TABLE t2 SELECT CRC32(a) FROM t1;
+desc t2;
+Field	Type	Null	Key	Default	Extra
+CRC32(a)	int(10) unsigned	YES		NULL	
+SELECT * FROM v1;
+C
+2212294583
+450215437
+1842515611
+4088798008
+2226203566
+498629140
+1790921346
+4194326291
+2366072709
+2707236321
+SELECT * FROM (SELECT * FROM v1) x;
+C
+2212294583
+450215437
+1842515611
+4088798008
+2226203566
+498629140
+1790921346
+4194326291
+2366072709
+2707236321
+DROP TABLE t1, t2;
+DROP VIEW v1;
 End of 5.0 tests

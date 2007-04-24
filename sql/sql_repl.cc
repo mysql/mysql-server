@@ -16,6 +16,7 @@
 #include "mysql_priv.h"
 #ifdef HAVE_REPLICATION
 
+#include "rpl_mi.h"
 #include "sql_repl.h"
 #include "log_event.h"
 #include "rpl_filter.h"
@@ -1130,6 +1131,11 @@ bool change_master(THD* thd, MASTER_INFO* mi)
 
   if (lex_mi->ssl != LEX_MASTER_INFO::SSL_UNCHANGED)
     mi->ssl= (lex_mi->ssl == LEX_MASTER_INFO::SSL_ENABLE);
+
+  if (lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::SSL_UNCHANGED)
+    mi->ssl_verify_server_cert=
+      (lex_mi->ssl_verify_server_cert == LEX_MASTER_INFO::SSL_ENABLE);
+
   if (lex_mi->ssl_ca)
     strmake(mi->ssl_ca, lex_mi->ssl_ca, sizeof(mi->ssl_ca)-1);
   if (lex_mi->ssl_capath)
@@ -1142,7 +1148,8 @@ bool change_master(THD* thd, MASTER_INFO* mi)
     strmake(mi->ssl_key, lex_mi->ssl_key, sizeof(mi->ssl_key)-1);
 #ifndef HAVE_OPENSSL
   if (lex_mi->ssl || lex_mi->ssl_ca || lex_mi->ssl_capath ||
-      lex_mi->ssl_cert || lex_mi->ssl_cipher || lex_mi->ssl_key )
+      lex_mi->ssl_cert || lex_mi->ssl_cipher || lex_mi->ssl_key ||
+      lex_mi->ssl_verify_server_cert )
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                  ER_SLAVE_IGNORED_SSL_PARAMS, ER(ER_SLAVE_IGNORED_SSL_PARAMS));
 #endif

@@ -38,8 +38,8 @@ sub mtr_kill_processes ($);
 sub mtr_ping_with_timeout($);
 sub mtr_ping_port ($);
 
-# static in C
-sub spawn_impl ($$$$$$$$);
+# Local function
+sub spawn_impl ($$$$$$$);
 
 ##############################################################################
 #
@@ -47,18 +47,16 @@ sub spawn_impl ($$$$$$$$);
 #
 ##############################################################################
 
-# This function try to mimic the C version used in "netware/mysql_test_run.c"
-
 sub mtr_run ($$$$$$;$) {
   my $path=       shift;
   my $arg_list_t= shift;
   my $input=      shift;
   my $output=     shift;
   my $error=      shift;
-  my $pid_file=   shift;
+  my $pid_file=   shift; # Not used
   my $spawn_opts= shift;
 
-  return spawn_impl($path,$arg_list_t,'run',$input,$output,$error,$pid_file,
+  return spawn_impl($path,$arg_list_t,'run',$input,$output,$error,
     $spawn_opts);
 }
 
@@ -68,10 +66,10 @@ sub mtr_run_test ($$$$$$;$) {
   my $input=      shift;
   my $output=     shift;
   my $error=      shift;
-  my $pid_file=   shift;
+  my $pid_file=   shift; # Not used
   my $spawn_opts= shift;
 
-  return spawn_impl($path,$arg_list_t,'test',$input,$output,$error,$pid_file,
+  return spawn_impl($path,$arg_list_t,'test',$input,$output,$error,
     $spawn_opts);
 }
 
@@ -81,28 +79,22 @@ sub mtr_spawn ($$$$$$;$) {
   my $input=      shift;
   my $output=     shift;
   my $error=      shift;
-  my $pid_file=   shift;
+  my $pid_file=   shift; # Not used
   my $spawn_opts= shift;
 
-  return spawn_impl($path,$arg_list_t,'spawn',$input,$output,$error,$pid_file,
+  return spawn_impl($path,$arg_list_t,'spawn',$input,$output,$error,
     $spawn_opts);
 }
 
 
-##############################################################################
-#
-#  If $join is set, we return the error code, else we return the PID
-#
-##############################################################################
 
-sub spawn_impl ($$$$$$$$) {
+sub spawn_impl ($$$$$$$) {
   my $path=       shift;
   my $arg_list_t= shift;
   my $mode=       shift;
   my $input=      shift;
   my $output=     shift;
   my $error=      shift;
-  my $pid_file=   shift;                 # FIXME
   my $spawn_opts= shift;
 
   if ( $::opt_script_debug )
@@ -155,10 +147,6 @@ sub spawn_impl ($$$$$$$$) {
     else
     {
       # Child, redirect output and exec
-      # FIXME I tried POSIX::setsid() here to detach and, I hoped,
-      # avoid zombies. But everything went wild, somehow the parent
-      # became a deamon as well, and was hard to kill ;-)
-      # Need to catch SIGCHLD and do waitpid or something instead......
 
       $SIG{INT}= 'DEFAULT';         # Parent do some stuff, we don't
 
@@ -196,7 +184,15 @@ sub spawn_impl ($$$$$$$$) {
         }
         else
         {
-          if ( ! open(STDERR,$log_file_open_mode,$error) )
+	  if ( $::glob_win32_perl )
+	  {
+	    # Don't redirect stdout on ActiveState perl since this is
+	    # just another thread in the same process.
+	    # Should be fixed so that the thread that is created with fork
+	    # executes the exe in another process and wait's for it to return.
+	    # In the meanwhile, we get all the output from mysqld's to screen
+	  }
+          elsif ( ! open(STDERR,$log_file_open_mode,$error) )
           {
             mtr_child_error("can't redirect STDERR to \"$error\": $!");
           }
@@ -259,9 +255,7 @@ sub spawn_parent_impl {
       # We do blocking waitpid() until we get the return from the
       # "mysqltest" call. But if a mysqld process dies that we
       # started, we take this as an error, and kill mysqltest.
-      #
-      # FIXME is this as it should be? Can't mysqld terminate
-      # normally from running a test case?
+
 
       my $exit_value= -1;
       my $saved_exit_value;
@@ -450,7 +444,6 @@ sub mtr_kill_leftovers () {
 
   # We scan the "var/run/" directory for other process id's to kill
 
-  # FIXME $path_run_dir or something
   my $rundir= "$::opt_vardir/run";
 
   mtr_debug("Processing PID files in directory '$rundir'...");
@@ -1106,6 +1099,13 @@ sub mtr_kill_processes ($) {
 
   foreach my $pid (@$pids)
   {
+
+    if ($pid <= 0)
+    {
+      mtr_warning("Trying to kill illegal pid: $pid");
+      next;
+    }
+
     foreach my $sig (15, 9)
     {
       last if mtr_im_kill_process([ $pid ], $sig, 10, 1);

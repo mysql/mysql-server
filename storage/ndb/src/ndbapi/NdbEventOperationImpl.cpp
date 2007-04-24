@@ -683,6 +683,12 @@ NdbEventOperationImpl::getGCI()
   return m_data_item->sdata->gci;
 }
 
+Uint32
+NdbEventOperationImpl::getAnyValue() const
+{
+  return m_data_item->sdata->anyValue;
+}
+
 Uint64
 NdbEventOperationImpl::getLatestGCI()
 {
@@ -977,7 +983,7 @@ NdbEventOperationImpl::printAll()
 NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_system_nodes(ndb->theImpl->theNoOfDBnodes),
   m_ndb(ndb),
-  m_latestGCI(0),
+  m_latestGCI(0), m_latest_complete_GCI(0),
   m_total_alloc(0),
   m_free_thresh(10),
   m_min_free_thresh(10),
@@ -1469,7 +1475,7 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
                                       , m_flush_gci
 #endif
                                       );
-
+  Uint32 idx = bucket - (Gci_container*)m_active_gci.getBase();
   if (unlikely(bucket == 0))
   {
     /**
@@ -1514,8 +1520,20 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
       }
       reportStatus();
       bzero(bucket, sizeof(Gci_container));
-      bucket->m_gci = gci + ACTIVE_GCI_DIRECTORY_SIZE;
-      bucket->m_gcp_complete_rep_count = m_system_nodes;
+      if (likely(idx < ACTIVE_GCI_DIRECTORY_SIZE))
+      {
+        /**
+         * Only "prepare" next GCI if we're in
+         *   the first 4 highest GCI's...else
+         *   this is somekind of "late" GCI...
+         *   which is only initialized to 0
+         *
+         *   This to make sure we dont get several buckets with same GCI
+         */
+        bucket->m_gci = gci + ACTIVE_GCI_DIRECTORY_SIZE;
+        bucket->m_gcp_complete_rep_count = m_system_nodes;
+      }
+      
       if(unlikely(m_latest_complete_GCI > gci))
       {
 	complete_outof_order_gcis();
@@ -2101,15 +2119,17 @@ NdbEventBuffer::alloc_mem(EventBufData* data,
 
     NdbMem_Free((char*)data->memory);
     assert(m_total_alloc >= data->sz);
-    m_total_alloc -= data->sz;
     data->memory = 0;
     data->sz = 0;
 
     data->memory = (Uint32*)NdbMem_Allocate(alloc_size);
     if (data->memory == 0)
+    {
+      m_total_alloc -= data->sz;
       DBUG_RETURN(-1);
+    }
     data->sz = alloc_size;
-    m_total_alloc += data->sz;
+    m_total_alloc += add_sz;
 
     if (change_sz != NULL)
       *change_sz += add_sz;
@@ -2781,7 +2801,7 @@ NdbEventBuffer::reportStatus()
   else
     apply_gci= latest_gci;
 
-  if (100*m_free_data_sz < m_min_free_thresh*m_total_alloc &&
+  if (100*(Uint64)m_free_data_sz < m_min_free_thresh*(Uint64)m_total_alloc &&
       m_total_alloc > 1024*1024)
   {
     /* report less free buffer than m_free_thresh,
@@ -2792,7 +2812,7 @@ NdbEventBuffer::reportStatus()
     goto send_report;
   }
   
-  if (100*m_free_data_sz > m_max_free_thresh*m_total_alloc &&
+  if (100*(Uint64)m_free_data_sz > m_max_free_thresh*(Uint64)m_total_alloc &&
       m_total_alloc > 1024*1024)
   {
     /* report more free than 2 * m_free_thresh

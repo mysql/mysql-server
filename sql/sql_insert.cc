@@ -60,6 +60,7 @@
 #include "sql_select.h"
 #include "sql_show.h"
 #include "slave.h"
+#include "rpl_mi.h"
 
 #ifndef EMBEDDED_LIBRARY
 static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list);
@@ -341,6 +342,47 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
   return 0;
 }
 
+/*
+  Prepare triggers  for INSERT-like statement.
+
+  SYNOPSIS
+    prepare_triggers_for_insert_stmt()
+      table   Table to which insert will happen
+
+  NOTE
+    Prepare triggers for INSERT-like statement by marking fields
+    used by triggers and inform handlers that batching of UPDATE/DELETE 
+    cannot be done if there are BEFORE UPDATE/DELETE triggers.
+*/
+
+void prepare_triggers_for_insert_stmt(TABLE *table)
+{
+  if (table->triggers)
+  {
+    if (table->triggers->has_triggers(TRG_EVENT_DELETE,
+                                      TRG_ACTION_AFTER))
+    {
+      /*
+        The table has AFTER DELETE triggers that might access to 
+        subject table and therefore might need delete to be done 
+        immediately. So we turn-off the batching.
+      */ 
+      (void) table->file->extra(HA_EXTRA_DELETE_CANNOT_BATCH);
+    }
+    if (table->triggers->has_triggers(TRG_EVENT_UPDATE,
+                                      TRG_ACTION_AFTER))
+    {
+      /*
+        The table has AFTER UPDATE triggers that might access to subject 
+        table and therefore might need update to be done immediately. 
+        So we turn-off the batching.
+      */ 
+      (void) table->file->extra(HA_EXTRA_UPDATE_CANNOT_BATCH);
+    }
+  }
+  table->mark_columns_needed_for_insert();
+}
+
 
 bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                   List<Item> &fields,
@@ -468,10 +510,15 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->proc_info="init";
   thd->used_tables=0;
   values= its++;
+  value_count= values->elements;
 
   if (mysql_prepare_insert(thd, table_list, table, fields, values,
 			   update_fields, update_values, duplic, &unused_conds,
-                           FALSE))
+                           FALSE,
+                           (fields.elements || !value_count),
+                           !ignore && (thd->variables.sql_mode &
+                                       (MODE_STRICT_TRANS_TABLES |
+                                        MODE_STRICT_ALL_TABLES))))
     goto abort;
 
   /* mysql_prepare_insert set table_list->table if it was not set */
@@ -497,7 +544,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   table_list->next_local= 0;
   context->resolve_in_table_list_only(table_list);
 
-  value_count= values->elements;
   while ((values= its++))
   {
     counter++;
@@ -566,20 +612,13 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (lock_type != TL_WRITE_DELAYED && !thd->prelocked_mode)
     table->file->ha_start_bulk_insert(values_list.elements);
 
-  thd->no_trans_update= 0;
-  thd->abort_on_warning= (!ignore &&
-                          (thd->variables.sql_mode &
-                           (MODE_STRICT_TRANS_TABLES |
-                            MODE_STRICT_ALL_TABLES)));
+  thd->no_trans_update.stmt= FALSE;
+  thd->abort_on_warning= (!ignore && (thd->variables.sql_mode &
+                                       (MODE_STRICT_TRANS_TABLES |
+                                        MODE_STRICT_ALL_TABLES)));
 
-  if ((fields.elements || !value_count) &&
-      check_that_all_fields_are_given_values(thd, table, table_list))
-  {
-    /* thd->net.report_error is now set, which will abort the next loop */
-    error= 1;
-  }
+  prepare_triggers_for_insert_stmt(table);
 
-  table->mark_columns_needed_for_insert();
 
   if (table_list->prepare_where(thd, 0, TRUE) ||
       table_list->prepare_check_option(thd))
@@ -716,7 +755,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
           }
         }
         if (!transactional_table)
-          thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+          thd->no_trans_update.all= TRUE;
       }
     }
     if (transactional_table)
@@ -757,6 +796,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
      table->next_number_field->val_int() : 0));
   table->next_number_field=0;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  table->auto_increment_field_not_null= FALSE;
   if (duplic != DUP_ERROR || ignore)
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   if (duplic == DUP_REPLACE &&
@@ -954,6 +994,10 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
 			be taken from table_list->table)    
     where		Where clause (for insert ... select)
     select_insert	TRUE if INSERT ... SELECT statement
+    check_fields        TRUE if need to check that all INSERT fields are 
+                        given values.
+    abort_on_warning    whether to report if some INSERT field is not 
+                        assigned as an error (TRUE) or as a warning (FALSE).
 
   TODO (in far future)
     In cases of:
@@ -974,7 +1018,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                           TABLE *table, List<Item> &fields, List_item *values,
                           List<Item> &update_fields, List<Item> &update_values,
                           enum_duplicates duplic,
-                          COND **where, bool select_insert)
+                          COND **where, bool select_insert,
+                          bool check_fields, bool abort_on_warning)
 {
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   Name_resolution_context *context= &select_lex->context;
@@ -1036,10 +1081,22 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     table_list->next_local= 0;
     context->resolve_in_table_list_only(table_list);
 
-    if (!(res= check_insert_fields(thd, context->table_list, fields, *values,
-                                 !insert_into_view, &map) ||
-          setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0)) 
-        && duplic == DUP_UPDATE)
+    res= check_insert_fields(thd, context->table_list, fields, *values,
+                             !insert_into_view, &map) ||
+      setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0);
+
+    if (!res && check_fields)
+    {
+      bool saved_abort_on_warning= thd->abort_on_warning;
+      thd->abort_on_warning= abort_on_warning;
+      res= check_that_all_fields_are_given_values(thd, 
+                                                  table ? table : 
+                                                  context->table_list->table,
+                                                  context->table_list);
+      thd->abort_on_warning= saved_abort_on_warning;
+    }
+
+    if (!res && duplic == DUP_UPDATE)
     {
       select_lex->no_wrap_view_item= TRUE;
       res= check_update_fields(thd, context->table_list, update_fields, &map);
@@ -1063,7 +1120,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   {
     Item *fake_conds= 0;
     TABLE_LIST *duplicate;
-    if ((duplicate= unique_table(thd, table_list, table_list->next_global)))
+    if ((duplicate= unique_table(thd, table_list, table_list->next_global, 1)))
     {
       update_non_unique_table_error(table_list, "INSERT", duplicate);
       DBUG_RETURN(TRUE);
@@ -1106,7 +1163,7 @@ static int last_uniq_key(TABLE *table,uint keynr)
     then both on update triggers will work instead. Similarly both on
     delete triggers will be invoked if we will delete conflicting records.
 
-    Sets thd->no_trans_update if table which is updated didn't have
+    Sets thd->no_trans_update.stmt to TRUE if table which is updated didn't have
     transactions.
 
   RETURN VALUE
@@ -1201,9 +1258,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	}
 	key_copy((byte*) key,table->record[0],table->key_info+key_nr,0);
 	if ((error=(table->file->index_read_idx(table->record[1],key_nr,
-						(byte*) key,
-						table->key_info[key_nr].
-						key_length,
+                                                (byte*) key, HA_WHOLE_KEY,
 						HA_READ_KEY_EXACT))))
 	  goto err;
       }
@@ -1258,12 +1313,14 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           */
           insert_id_for_cur_row= table->file->insert_id_for_cur_row= 0;
           if (table->next_number_field)
-            table->file->adjust_next_insert_id_after_explicit_value(table->next_number_field->val_int());
+            table->file->adjust_next_insert_id_after_explicit_value(
+              table->next_number_field->val_int());
           trg_error= (table->triggers &&
                       table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                                         TRG_ACTION_AFTER, TRUE));
           info->copied++;
         }
+
         goto ok_or_after_trg_err;
       }
       else /* DUP_REPLACE */
@@ -1309,7 +1366,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
             goto err;
           info->deleted++;
           if (!table->file->has_transactions())
-            thd->no_trans_update= 1;
+            thd->no_trans_update.stmt= TRUE;
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                                 TRG_ACTION_AFTER, TRUE))
@@ -1350,7 +1407,7 @@ ok_or_after_trg_err:
   if (key)
     my_safe_afree(key,table->s->max_unique_length,MAX_KEY_LENGTH);
   if (!table->file->has_transactions())
-    thd->no_trans_update= 1;
+    thd->no_trans_update.stmt= TRUE;
   DBUG_RETURN(trg_error);
 
 err:
@@ -2443,7 +2500,7 @@ bool mysql_insert_select_prepare(THD *thd)
                            lex->query_tables->table, lex->field_list, 0,
                            lex->update_list, lex->value_list,
                            lex->duplicates,
-                           &select_lex->where, TRUE))
+                           &select_lex->where, TRUE, FALSE, FALSE))
     DBUG_RETURN(TRUE);
 
   /*
@@ -2506,7 +2563,18 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
                            !insert_into_view, &map) ||
        setup_fields(thd, 0, values, MARK_COLUMNS_READ, 0, 0);
 
-  if (info.handle_duplicates == DUP_UPDATE)
+  if (!res && fields->elements)
+  {
+    bool saved_abort_on_warning= thd->abort_on_warning;
+    thd->abort_on_warning= !info.ignore && (thd->variables.sql_mode &
+                                            (MODE_STRICT_TRANS_TABLES |
+                                             MODE_STRICT_ALL_TABLES));
+    res= check_that_all_fields_are_given_values(thd, table_list->table, 
+                                                table_list);
+    thd->abort_on_warning= saved_abort_on_warning;
+  }
+
+  if (info.handle_duplicates == DUP_UPDATE && !res)
   {
     Name_resolution_context *context= &lex->select_lex.context;
     Name_resolution_context_state ctx_state;
@@ -2576,7 +2644,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     query
   */
   if (!(lex->current_select->options & OPTION_BUFFER_RESULT) &&
-      unique_table(thd, table_list, table_list->next_global))
+      unique_table(thd, table_list, table_list->next_global, 0))
   {
     /* Using same table for INSERT and SELECT */
     lex->current_select->options|= OPTION_BUFFER_RESULT;
@@ -2612,18 +2680,16 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (info.handle_duplicates == DUP_REPLACE &&
       (!table->triggers || !table->triggers->has_delete_triggers()))
     table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
-  thd->no_trans_update= 0;
+  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |
                             MODE_STRICT_ALL_TABLES)));
-  res= ((fields->elements &&
-         check_that_all_fields_are_given_values(thd, table, table_list)) ||
-        table_list->prepare_where(thd, 0, TRUE) ||
+  res= (table_list->prepare_where(thd, 0, TRUE) ||
         table_list->prepare_check_option(thd));
 
   if (!res)
-    table->mark_columns_needed_for_insert();
+     prepare_triggers_for_insert_stmt(table);
 
   DBUG_RETURN(res);
 }
@@ -2667,6 +2733,7 @@ select_insert::~select_insert()
   if (table)
   {
     table->next_number_field=0;
+    table->auto_increment_field_not_null= FALSE;
     table->file->ha_reset();
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
@@ -2794,7 +2861,7 @@ void select_insert::send_error(uint errcode,const char *err)
                             table->file->has_transactions(), FALSE);
         if (!thd->current_stmt_binlog_row_based && !table->s->tmp_table &&
             !can_rollback_data())
-          thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
+          thd->no_trans_update.all= TRUE;
         query_cache_invalidate3(thd, table, 1);
       }
     }
@@ -2835,7 +2902,7 @@ bool select_insert::send_eof()
     */
     if (!trans_table &&
         (!table->s->tmp_table || !thd->current_stmt_binlog_row_based))
-      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
+      thd->no_trans_update.all= TRUE;
    }
 
   /*
@@ -3142,7 +3209,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
   if (!thd->prelocked_mode)
     table->file->ha_start_bulk_insert((ha_rows) 0);
-  thd->no_trans_update= 0;
+  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |

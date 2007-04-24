@@ -537,6 +537,6 @@ Estimated memory (with thread stack):    %ld\n",
 	 (long) (thread_count * thread_stack + info.hblkhd + info.arena));
 #endif
 
-  Events::get_instance()->dump_internal_status();
+  Events::dump_internal_status();
   puts("");
 }

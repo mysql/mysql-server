@@ -133,6 +133,10 @@ void reset_root_defaults(MEM_ROOT *mem_root, uint block_size,
         mem->next= *prev;
         *prev= mem_root->pre_alloc= mem; 
       }
+      else
+      {
+        mem_root->pre_alloc= 0;
+      }
     }
   }
   else
@@ -330,8 +334,6 @@ void free_root(MEM_ROOT *root, myf MyFlags)
   DBUG_ENTER("free_root");
   DBUG_PRINT("enter",("root: 0x%lx  flags: %u", (long) root, (uint) MyFlags));
 
-  if (!root)					/* QQ: Should be deleted */
-    DBUG_VOID_RETURN; /* purecov: inspected */
   if (MyFlags & MY_MARK_BLOCKS_FREE)
   {
     mark_blocks_free(root);

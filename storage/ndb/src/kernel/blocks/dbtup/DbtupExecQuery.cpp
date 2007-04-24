@@ -102,6 +102,7 @@ void Dbtup::copyAttrinfo(Operationrec * regOperPtr,
   regOperPtr->storedProcedureId= RNIL;
   regOperPtr->firstAttrinbufrec= RNIL;
   regOperPtr->lastAttrinbufrec= RNIL;
+  regOperPtr->m_any_value= 0;
 }
 
 void Dbtup::handleATTRINFOforTUPKEYREQ(Signal* signal,
@@ -286,6 +287,8 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
     set_change_mask_state(regOperPtr.p, get_change_mask_state(prevOpPtr.p));
     regOperPtr.p->saved_change_mask[0] = prevOpPtr.p->saved_change_mask[0];
     regOperPtr.p->saved_change_mask[1] = prevOpPtr.p->saved_change_mask[1];
+
+    regOperPtr.p->m_any_value = prevOpPtr.p->m_any_value;
 
     prevOpPtr.p->op_struct.m_wait_log_buffer= 0;
     prevOpPtr.p->op_struct.m_load_diskpage_on_commit= 0;
@@ -811,6 +814,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
      else if(Roptype == ZDELETE)
      {
        jam();
+       req_struct.log_size= 0;
        if (handleDeleteReq(signal, regOperPtr,
 			   regFragPtr, regTabPtr, 
 			   &req_struct,
@@ -829,7 +833,6 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 					 regOperPtr, 
 					 regTabPtr);
        set_change_mask_state(regOperPtr, DELETE_CHANGES);
-       req_struct.log_size= 0;
        sendTUPKEYCONF(signal, &req_struct, regOperPtr);
        return;
      }
@@ -1259,6 +1262,28 @@ int Dbtup::handleInsertReq(Signal* signal,
   {  
     shrink_tuple(req_struct, sizes+2, regTabPtr, true);
   }
+
+  if (ERROR_INSERTED(4025))
+  {
+    goto mem_error;
+  }
+
+  if (ERROR_INSERTED(4026))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    goto mem_error;
+  }
+
+  if (ERROR_INSERTED(4027) && (rand() % 100) > 25)
+  {
+    goto mem_error;
+  }
+ 
+  if (ERROR_INSERTED(4028) && (rand() % 100) > 25)
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    goto mem_error;
+  }
   
   /**
    * Alloc memory
@@ -1514,7 +1539,14 @@ int Dbtup::handleDeleteReq(Signal* signal,
 
   if (setup_read(req_struct, regOperPtr, regFragPtr, regTabPtr, disk))
   {
-    return handleReadReq(signal, regOperPtr, regTabPtr, req_struct);
+    Uint32 RlogSize;
+    int ret= handleReadReq(signal, regOperPtr, regTabPtr, req_struct);
+    if (ret == 0 && (RlogSize= req_struct->log_size))
+    {
+      jam();
+      sendLogAttrinfo(signal, RlogSize, regOperPtr);
+    }
+    return ret;
   }
 
 error:
@@ -2833,11 +2865,11 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     Ptr<Page> pagePtr = req_struct->m_varpart_page_ptr;
     Var_page* pageP= (Var_page*)pagePtr.p;
     Uint32 idx, alloc, needed;
-    Uint32 *refptr = org->get_var_part_ptr(regTabPtr);
+    Var_part_ref *refptr = (Var_part_ref*)org->get_var_part_ptr(regTabPtr);
     ndbassert(bits & Tuple_header::CHAINED_ROW);
 
     Local_key ref;
-    ref.assref(*refptr);
+    refptr->copyout(&ref);
     idx= ref.m_page_idx;
     if (! (copy_bits & Tuple_header::CHAINED_ROW))
     {
@@ -2860,7 +2892,7 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     }
     copy_bits |= Tuple_header::MM_GROWN;
     if (unlikely(realloc_var_part(regFragPtr, regTabPtr, pagePtr, 
-				  (Var_part_ref*)refptr, alloc, needed)))
+				  refptr, alloc, needed)))
       return -1;
   }
   req_struct->m_tuple_ptr->m_header_bits = copy_bits;
@@ -2926,9 +2958,10 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
   PagePtr page_ptr;
   if (tablePtr.p->m_attributes[MM].m_no_of_varsize)
   {
-    tablePtr.p->m_offsets[MM].m_fix_header_size += Tuple_header::HeaderSize+1;
+    const Uint32 XXX = Tuple_header::HeaderSize+Var_part_ref::SZ32;
+    tablePtr.p->m_offsets[MM].m_fix_header_size += XXX;
     ret = alloc_page(tablePtr.p, fragPtr.p, &page_ptr, tmp.m_page_no);
-    tablePtr.p->m_offsets[MM].m_fix_header_size -= Tuple_header::HeaderSize+1;
+    tablePtr.p->m_offsets[MM].m_fix_header_size -= XXX;
   } 
   else
   {

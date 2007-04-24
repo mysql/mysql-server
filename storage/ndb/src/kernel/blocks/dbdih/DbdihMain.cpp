@@ -1772,7 +1772,8 @@ void Dbdih::execSTART_PERMREF(Signal* signal)
 {
   jamEntry();
   Uint32 errorCode = signal->theData[1];
-  if (errorCode == StartPermRef::ZNODE_ALREADY_STARTING_ERROR) {
+  if (errorCode == StartPermRef::ZNODE_ALREADY_STARTING_ERROR ||
+      errorCode == StartPermRef::ZNODE_START_DISALLOWED_ERROR) {
     jam();
     /*-----------------------------------------------------------------------*/
     // The master was busy adding another node. We will wait for a second and
@@ -2122,49 +2123,45 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
   TstartNode_or_blockref = signal->theData[0];
   TsendNodeId = signal->theData[1];
 
-  if (TstartNode_or_blockref == clocallqhblockref) {
-    jam();
-    /*-----------------------------------------------------------------------*/
-    // THIS SIGNAL CAME FROM THE LOCAL LQH BLOCK. 
-    // WE WILL NOW SEND INCLUDE TO THE TC BLOCK.
-    /*-----------------------------------------------------------------------*/
-    signal->theData[0] = reference();
-    signal->theData[1] = c_nodeStartSlave.nodeId;
-    sendSignal(clocaltcblockref, GSN_INCL_NODEREQ, signal, 2, JBB);
-    return;
-  }//if
-  if (TstartNode_or_blockref == clocaltcblockref) {
-    jam();
-    /*----------------------------------------------------------------------*/
-    // THIS SIGNAL CAME FROM THE LOCAL LQH BLOCK. 
-    // WE WILL NOW SEND INCLUDE TO THE DICT BLOCK.
-    /*----------------------------------------------------------------------*/
-    signal->theData[0] = reference();
-    signal->theData[1] = c_nodeStartSlave.nodeId;
-    sendSignal(cdictblockref, GSN_INCL_NODEREQ, signal, 2, JBB);
-    return;
-  }//if
-  if (TstartNode_or_blockref == cdictblockref) {
-    jam();
-    /*-----------------------------------------------------------------------*/
-    // THIS SIGNAL CAME FROM THE LOCAL DICT BLOCK. WE WILL NOW SEND CONF TO THE
-    // BACKUP.
-    /*-----------------------------------------------------------------------*/
-    signal->theData[0] = reference();
-    signal->theData[1] = c_nodeStartSlave.nodeId;
-    sendSignal(BACKUP_REF, GSN_INCL_NODEREQ, signal, 2, JBB);
-    
-    // Suma will not send response to this for now, later...
-    sendSignal(SUMA_REF, GSN_INCL_NODEREQ, signal, 2, JBB);
-    return;
-  }//if
-  if (TstartNode_or_blockref == numberToRef(BACKUP, getOwnNodeId())){
-    jam();
-    signal->theData[0] = c_nodeStartSlave.nodeId;
-    signal->theData[1] = cownNodeId;
-    sendSignal(cmasterdihref, GSN_INCL_NODECONF, signal, 2, JBB);
-    c_nodeStartSlave.nodeId = 0;
-    return;
+  Uint32 blocklist[6];
+  blocklist[0] = clocallqhblockref;
+  blocklist[1] = clocaltcblockref;
+  blocklist[2] = cdictblockref;
+  blocklist[3] = numberToRef(BACKUP, getOwnNodeId());
+  blocklist[4] = numberToRef(SUMA, getOwnNodeId());
+  blocklist[5] = 0;
+  
+  for (Uint32 i = 0; blocklist[i] != 0; i++)
+  {
+    if (TstartNode_or_blockref == blocklist[i])
+    {
+      jam();
+      if (getNodeStatus(c_nodeStartSlave.nodeId) == NodeRecord::ALIVE && 
+	  blocklist[i+1] != 0)
+      {
+	/**
+	 * Send to next in block list
+	 */
+	jam();
+	signal->theData[0] = reference();
+	signal->theData[1] = c_nodeStartSlave.nodeId;
+	sendSignal(blocklist[i+1], GSN_INCL_NODEREQ, signal, 2, JBB);
+	return;
+      }
+      else
+      {
+	/**
+	 * All done, reply to master
+	 */
+	jam();
+	signal->theData[0] = c_nodeStartSlave.nodeId;
+	signal->theData[1] = cownNodeId;
+	sendSignal(cmasterdihref, GSN_INCL_NODECONF, signal, 2, JBB);
+	
+	c_nodeStartSlave.nodeId = 0;
+	return;
+      }
+    }
   }
   
   ndbrequire(cmasterdihref = reference());
@@ -2283,7 +2280,7 @@ void Dbdih::execSTART_INFOREQ(Signal* signal)
     StartInfoRef *const ref =(StartInfoRef*)&signal->theData[0];
     ref->startingNodeId = startNode;
     ref->sendingNodeId = cownNodeId;
-    ref->errorCode = ZNODE_START_DISALLOWED_ERROR;
+    ref->errorCode = StartPermRef::ZNODE_START_DISALLOWED_ERROR;
     sendSignal(cmasterdihref, GSN_START_INFOREF, signal, 
 	       StartInfoRef::SignalLength, JBB);
     return;
@@ -5096,6 +5093,16 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
   } else {
     ndbrequire(failedNodePtr.p->nodeStatus == NodeRecord::DYING);
   }//if
+
+  if (ERROR_INSERTED(7181))
+  {
+    ndbout_c("execGCP_TCFINISHED in MASTER_GCPREQ");
+    CLEAR_ERROR_INSERT_VALUE;
+    signal->theData[0] = c_error_7181_ref;
+    signal->theData[1] = coldgcp;
+    execGCP_TCFINISHED(signal);
+  }
+  
   MasterGCPConf::State gcpState;
   switch (cgcpParticipantState) {
   case GCP_PARTICIPANT_READY:
@@ -5162,6 +5169,15 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
     masterGCPConf->lcpActive[i] = SYSFILE->lcpActive[i];
   sendSignal(newMasterBlockref, GSN_MASTER_GCPCONF, signal, 
              MasterGCPConf::SignalLength, JBB);
+
+  if (ERROR_INSERTED(7182))
+  {
+    ndbout_c("execGCP_TCFINISHED in MASTER_GCPREQ");
+    CLEAR_ERROR_INSERT_VALUE;
+    signal->theData[0] = c_error_7181_ref;
+    signal->theData[1] = coldgcp;
+    execGCP_TCFINISHED(signal);
+  }
 }//Dbdih::execMASTER_GCPREQ()
 
 void Dbdih::execMASTER_GCPCONF(Signal* signal) 
@@ -7923,10 +7939,10 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
   } else if (cmasterState == MASTER_TAKE_OVER_GCP) {
     jam();
     //-------------------------------------------------------------
-    // We are currently taking over as master. We will delay the
-    // signal until we have completed the take over gcp handling.
+    // We are currently taking over as master. Ignore
+    // signal in this case since we will discover it in reception of 
+    // MASTER_GCPCONF.
     //-------------------------------------------------------------
-    sendSignalWithDelay(reference(), GSN_GCP_NODEFINISH, signal, 20, 3);
     return;
   } else {
     ndbrequire(cmasterState == MASTER_ACTIVE);
@@ -8061,6 +8077,7 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
   cgckptflag = false;
   emptyverificbuffer(signal, true);
   cgcpParticipantState = GCP_PARTICIPANT_COMMIT_RECEIVED;
+  signal->theData[0] = calcDihBlockRef(masterNodeId);
   signal->theData[1] = coldgcp;
   sendSignal(clocaltcblockref, GSN_GCP_NOMORETRANS, signal, 2, JBB);
   return;
@@ -8070,14 +8087,25 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
 {
   jamEntry();
   CRASH_INSERTION(7007);
+  Uint32 retRef = signal->theData[0];
   Uint32 gci = signal->theData[1];
   ndbrequire(gci == coldgcp);
+
+  if (ERROR_INSERTED(7181) || ERROR_INSERTED(7182))
+  {
+    c_error_7181_ref = retRef; // Save ref
+    ndbout_c("killing %d", refToNode(cmasterdihref));
+    signal->theData[0] = 9999;
+    sendSignal(numberToRef(CMVMI, refToNode(cmasterdihref)),
+	       GSN_NDB_TAMPER, signal, 1, JBB);
+    return;
+  }
 
   cgcpParticipantState = GCP_PARTICIPANT_TC_FINISHED;
   signal->theData[0] = cownNodeId;
   signal->theData[1] = coldgcp;
   signal->theData[2] = cfailurenr;
-  sendSignal(cmasterdihref, GSN_GCP_NODEFINISH, signal, 3, JBB);
+  sendSignal(retRef, GSN_GCP_NODEFINISH, signal, 3, JBB);
 }//Dbdih::execGCP_TCFINISHED()
 
 /*****************************************************************************/

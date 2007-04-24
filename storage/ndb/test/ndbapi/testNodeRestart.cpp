@@ -887,6 +887,9 @@ int runBug20185(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;
   
   NdbSleep_MilliSleep(3000);
+  Vector<int> nodes;
+  for (Uint32 i = 0; i<restarter.getNumDbNodes(); i++)
+    nodes.push_back(restarter.getDbNodeId(i));
   
 retry:
   if(hugoOps.startTransaction(pNdb) != 0)
@@ -910,11 +913,16 @@ retry:
     nodeId = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
   } while (nodeId == node);
   
-  if (restarter.insertErrorInAllNodes(7030))
-    return NDBT_FAILED;
-  
+  ndbout_c("7031 to %d", nodeId);
   if (restarter.insertErrorInNode(nodeId, 7031))
     return NDBT_FAILED;
+
+  for (Uint32 i = 0; i<nodes.size(); i++)
+  {
+    if (nodes[i] != nodeId)
+      if (restarter.insertErrorInNode(nodes[i], 7030))
+	return NDBT_FAILED;
+  }
   
   NdbSleep_MilliSleep(500);
   
@@ -1223,8 +1231,7 @@ int runBug25984(NDBT_Context* ctx, NDBT_Step* step){
     if (restarter.startNodes(&victim, 1))
       return NDBT_FAILED;
 
-    if (restarter.waitNodesStartPhase(&victim, 1, 2))
-      return NDBT_FAILED;
+    NdbSleep_SecSleep(3);
   }
 
   if (restarter.waitNodesNoStart(&victim, 1))
@@ -1412,6 +1419,151 @@ runBug26450(NDBT_Context* ctx, NDBT_Step* step)
   if (trans.selectCount(pNdb) != 0)
     return NDBT_FAILED;
 
+  return NDBT_OK;
+}
+
+int
+runBug27003(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter res;
+  
+  static const int errnos[] = { 4025, 4026, 4027, 4028, 0 };
+
+  int node = res.getRandomNotMasterNodeId(rand());
+  ndbout_c("node: %d", node);
+  if (res.restartOneDbNode(node, true, true, true))
+    return NDBT_FAILED;
+
+  Uint32 pos = 0;
+  for (Uint32 i = 0; i<loops; i++)
+  {
+    while (errnos[pos] != 0)
+    {
+      ndbout_c("Tesing err: %d", errnos[pos]);
+      
+      if (res.waitNodesNoStart(&node, 1))
+	return NDBT_FAILED;
+
+      if (res.insertErrorInNode(node, 1000))
+	return NDBT_FAILED;
+      
+      if (res.insertErrorInNode(node, errnos[pos]))
+	return NDBT_FAILED;
+      
+      int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 3 };
+      if (res.dumpStateOneNode(node, val2, 2))
+	return NDBT_FAILED;
+      
+      res.startNodes(&node, 1);
+      NdbSleep_SecSleep(3);
+      pos++;
+    }
+    pos = 0;
+  }
+
+  if (res.waitNodesNoStart(&node, 1))
+    return NDBT_FAILED;
+  
+  res.startNodes(&node, 1);
+  if (res.waitClusterStarted())
+    return NDBT_FAILED;
+  
+  return NDBT_OK;
+}
+
+
+int
+runBug27283(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+  {
+    return NDBT_OK;
+  }
+
+  static const int errnos[] = { 7181, 7182, 0 };
+  
+  Uint32 pos = 0;
+  for (Uint32 i = 0; i<loops; i++)
+  {
+    while (errnos[pos] != 0)
+    {
+      int master = res.getMasterNodeId();
+      int next = res.getNextMasterNodeId(master);
+      int next2 = res.getNextMasterNodeId(next);
+      
+      int node = (i & 1) ? next : next2;
+      ndbout_c("Tesing err: %d", errnos[pos]);
+      if (res.insertErrorInNode(next, errnos[pos]))
+	return NDBT_FAILED;
+
+      NdbSleep_SecSleep(3);
+      
+      if (res.waitClusterStarted())
+	return NDBT_FAILED;
+      
+      pos++;
+    }
+    pos = 0;
+  }
+  
+  return NDBT_OK;
+}
+
+int
+runBug27466(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+  {
+    return NDBT_OK;
+  }
+
+  Uint32 pos = 0;
+  for (Uint32 i = 0; i<loops; i++)
+  {
+    int node1 = res.getDbNodeId(rand() % res.getNumDbNodes());
+    int node2 = node1;
+    while (node1 == node2)
+    {
+      node2 = res.getDbNodeId(rand() % res.getNumDbNodes());
+    }
+
+    if (res.restartOneDbNode(node1, false, true, true))
+      return NDBT_FAILED;
+    
+    if (res.waitNodesNoStart(&node1, 1))
+      return NDBT_FAILED;
+    
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    if (res.dumpStateOneNode(node1, val2, 2))
+      return NDBT_FAILED;
+    
+    if (res.insertErrorInNode(node2, 8039))
+      return NDBT_FAILED;
+
+    res.startNodes(&node1, 1);
+    NdbSleep_SecSleep(3);
+    if (res.waitNodesNoStart(&node1, 1))
+      return NDBT_FAILED;
+    NdbSleep_SecSleep(5); // Wait for delayed INCL_NODECONF to arrive
+    
+    res.startNodes(&node1, 1);
+    if (res.waitClusterStarted())
+      return NDBT_FAILED;
+  }
+  
   return NDBT_OK;
 }
 
@@ -1762,6 +1914,15 @@ TESTCASE("Bug26481", ""){
 TESTCASE("Bug26450", ""){
   INITIALIZER(runLoadTable);
   INITIALIZER(runBug26450);
+}
+TESTCASE("Bug27003", ""){
+  INITIALIZER(runBug27003);
+}
+TESTCASE("Bug27283", ""){
+  INITIALIZER(runBug27283);
+}
+TESTCASE("Bug27466", ""){
+  INITIALIZER(runBug27466);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 

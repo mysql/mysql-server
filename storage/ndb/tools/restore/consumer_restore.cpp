@@ -619,6 +619,7 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData)
     return true;
 
   bool result= false;
+  unsigned apply_table_format= 0;
 
   m_ndb->setDatabaseName(NDB_REP_DB);
   m_ndb->setSchemaName("def");
@@ -631,8 +632,33 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData)
 	<< dict->getNdbError() << endl;
     return false;
   }
+  if
+    (ndbtab->getColumn(0)->getType() == NdbDictionary::Column::Unsigned &&
+     ndbtab->getColumn(1)->getType() == NdbDictionary::Column::Bigunsigned)
+  {
+    if (ndbtab->getNoOfColumns() == 2)
+    {
+      apply_table_format= 1;
+    }
+    else if
+      (ndbtab->getColumn(2)->getType() == NdbDictionary::Column::Varchar &&
+       ndbtab->getColumn(3)->getType() == NdbDictionary::Column::Bigunsigned &&
+       ndbtab->getColumn(4)->getType() == NdbDictionary::Column::Bigunsigned)
+    {
+      apply_table_format= 2;
+    }
+  }
+  if (apply_table_format == 0)
+  {
+    err << Ndb_apply_table << " has wrong format\n";
+    return false;
+  }
+
   Uint32 server_id= 0;
   Uint64 epoch= metaData.getStopGCP();
+  Uint64 zero= 0;
+  char empty_string[1];
+  empty_string[0]= 0;
   NdbTransaction * trans= m_ndb->startTransaction();
   if (!trans)
   {
@@ -655,6 +681,15 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData)
 	<< op->getNdbError() << endl;
     goto err;
   }
+  if ((apply_table_format == 2) &&
+      (op->setValue(2u, (const char *)&empty_string, 1) ||
+       op->setValue(3u, (const char *)&zero, sizeof(zero)) ||
+       op->setValue(4u, (const char *)&zero, sizeof(zero))))
+  {
+    err << Ndb_apply_table << ": "
+	<< op->getNdbError() << endl;
+    goto err;
+  }
   if (trans->execute(NdbTransaction::Commit))
   {
     err << Ndb_apply_table << ": "
@@ -665,6 +700,66 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData)
 err:
   m_ndb->closeTransaction(trans);
   return result;
+}
+
+bool
+BackupRestore::table_equal(const TableS &tableS)
+{
+  if (!m_restore)
+    return true;
+
+  const char *tablename = tableS.getTableName();
+
+  if(tableS.m_dictTable == NULL){
+    ndbout<<"Table %s has no m_dictTable " << tablename << endl;
+    return false;
+  }
+  /**
+   * Ignore blob tables
+   */
+  if(match_blob(tablename) >= 0)
+    return true;
+
+  const NdbTableImpl & tmptab = NdbTableImpl::getImpl(* tableS.m_dictTable);
+  if ((int) tmptab.m_indexType != (int) NdbDictionary::Index::Undefined){
+    return true;
+  }
+
+  BaseString tmp(tablename);
+  Vector<BaseString> split;
+  if(tmp.split(split, "/") != 3){
+    err << "Invalid table name format " << tablename << endl;
+    return false;
+  }
+
+  m_ndb->setDatabaseName(split[0].c_str());
+  m_ndb->setSchemaName(split[1].c_str());
+
+  NdbDictionary::Dictionary* dict = m_ndb->getDictionary();  
+  const NdbDictionary::Table* tab = dict->getTable(split[2].c_str());
+  if(tab == 0){
+    err << "Unable to find table: " << split[2].c_str() << endl;
+    return false;
+  }
+
+  if(tab->getNoOfColumns() != tableS.m_dictTable->getNoOfColumns())
+  {
+    ndbout_c("m_columns.size %d != %d",tab->getNoOfColumns(),
+                       tableS.m_dictTable->getNoOfColumns());
+    return false;
+  }
+
+ for(int i = 0; i<tab->getNoOfColumns(); i++)
+  {
+    if(!tab->getColumn(i)->equal(*(tableS.m_dictTable->getColumn(i))))
+    {
+      ndbout_c("m_columns %s != %s",tab->getColumn(i)->getName(),
+                tableS.m_dictTable->getColumn(i)->getName());
+      return false;
+    }
+  }
+
+  return true;
 }
 
 bool
@@ -718,7 +813,7 @@ BackupRestore::table(const TableS & table){
   BaseString tmp(name);
   Vector<BaseString> split;
   if(tmp.split(split, "/") != 3){
-    err << "Invalid table name format " << name << endl;
+    err << "Invalid table name format `" << name << "`" << endl;
     return false;
   }
 
@@ -786,7 +881,7 @@ BackupRestore::table(const TableS & table){
 
     if (dict->createTable(copy) == -1) 
     {
-      err << "Create table " << table.getTableName() << " failed: "
+      err << "Create table `" << table.getTableName() << "` failed: "
           << dict->getNdbError() << endl;
       if (dict->getNdbError().code == 771)
       {
@@ -803,12 +898,13 @@ BackupRestore::table(const TableS & table){
       }
       return false;
     }
-    info << "Successfully restored table " << table.getTableName()<< endl ;
+    info << "Successfully restored table `"
+         << table.getTableName() << "`" << endl;
   }  
   
   const NdbDictionary::Table* tab = dict->getTable(split[2].c_str());
   if(tab == 0){
-    err << "Unable to find table: " << split[2].c_str() << endl;
+    err << "Unable to find table: `" << split[2].c_str() << "`" << endl;
     return false;
   }
   if(m_restore_meta)
@@ -870,12 +966,15 @@ BackupRestore::endOfTables(){
   for(size_t i = 0; i<m_indexes.size(); i++){
     NdbTableImpl & indtab = NdbTableImpl::getImpl(* m_indexes[i]);
 
-    BaseString tmp(indtab.m_primaryTable.c_str());
     Vector<BaseString> split;
-    if(tmp.split(split, "/") != 3){
-      err << "Invalid table name format " << indtab.m_primaryTable.c_str()
-	  << endl;
-      return false;
+    {
+      BaseString tmp(indtab.m_primaryTable.c_str());
+      if (tmp.split(split, "/") != 3)
+      {
+        err << "Invalid table name format `" << indtab.m_primaryTable.c_str()
+            << "`" << endl;
+        return false;
+      }
     }
     
     m_ndb->setDatabaseName(split[0].c_str());
@@ -883,39 +982,41 @@ BackupRestore::endOfTables(){
     
     const NdbDictionary::Table * prim = dict->getTable(split[2].c_str());
     if(prim == 0){
-      err << "Unable to find base table \"" << split[2].c_str() 
-	  << "\" for index "
-	  << indtab.getName() << endl;
+      err << "Unable to find base table `" << split[2].c_str() 
+	  << "` for index `"
+	  << indtab.getName() << "`" << endl;
       return false;
     }
     NdbTableImpl& base = NdbTableImpl::getImpl(*prim);
     NdbIndexImpl* idx;
-    int id;
-    char idxName[255], buf[255];
-    if(sscanf(indtab.getName(), "%[^/]/%[^/]/%d/%s",
-	      buf, buf, &id, idxName) != 4){
-      err << "Invalid index name format " << indtab.getName() << endl;
-      return false;
+    Vector<BaseString> split_idx;
+    {
+      BaseString tmp(indtab.getName());
+      if (tmp.split(split_idx, "/") != 4)
+      {
+        err << "Invalid index name format `" << indtab.getName() << "`" << endl;
+        return false;
+      }
     }
     if(NdbDictInterface::create_index_obj_from_table(&idx, &indtab, &base))
     {
-      err << "Failed to create index " << idxName
-	  << " on " << split[2].c_str() << endl;
+      err << "Failed to create index `" << split_idx[3]
+	  << "` on " << split[2].c_str() << endl;
 	return false;
     }
-    idx->setName(idxName);
+    idx->setName(split_idx[3].c_str());
     if(dict->createIndex(* idx) != 0)
     {
       delete idx;
-      err << "Failed to create index " << idxName
-	  << " on " << split[2].c_str() << endl
+      err << "Failed to create index `" << split_idx[3].c_str()
+	  << "` on `" << split[2].c_str() << "`" << endl
 	  << dict->getNdbError() << endl;
 
       return false;
     }
     delete idx;
-    info << "Successfully created index " << idxName
-	 << " on " << split[2].c_str() << endl;
+    info << "Successfully created index `" << split_idx[3].c_str()
+	 << "` on `" << split[2].c_str() << "`" << endl;
   }
   return true;
 }
@@ -1027,7 +1128,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 	Uint32 length = attr_data->size;
 	
 	if (j == 0 && tup.getTable()->have_auto_inc(i))
-	  tup.getTable()->update_max_auto_val(dataPtr,size);
+	  tup.getTable()->update_max_auto_val(dataPtr,size*arraySize);
 	
 	if (attr_desc->m_column->getPrimaryKey())
 	{
@@ -1283,7 +1384,7 @@ BackupRestore::logEntry(const LogEntry & tup)
     const char * dataPtr = attr->Data.string_value;
     
     if (tup.m_table->have_auto_inc(attr->Desc->attrId))
-      tup.m_table->update_max_auto_val(dataPtr,size);
+      tup.m_table->update_max_auto_val(dataPtr,size*arraySize);
 
     const Uint32 length = (size / 8) * arraySize;
     if (attr->Desc->m_column->getPrimaryKey())

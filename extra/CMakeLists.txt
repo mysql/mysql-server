@@ -38,7 +38,7 @@ ADD_CUSTOM_TARGET(GenError
                   DEPENDS ${PROJECT_SOURCE_DIR}/include/mysqld_error.h)
 
 ADD_EXECUTABLE(my_print_defaults my_print_defaults.c)
-TARGET_LINK_LIBRARIES(my_print_defaults strings mysys dbug taocrypt odbc32 odbccp32 wsock32)
+TARGET_LINK_LIBRARIES(my_print_defaults strings mysys dbug taocrypt wsock32)
 
 ADD_EXECUTABLE(perror perror.c)
 TARGET_LINK_LIBRARIES(perror strings mysys dbug wsock32)

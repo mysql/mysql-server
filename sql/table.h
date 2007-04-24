@@ -58,7 +58,7 @@ typedef struct st_grant_info
 
 enum tmp_table_type
 {
-  NO_TMP_TABLE, TMP_TABLE, TRANSACTIONAL_TMP_TABLE,
+  NO_TMP_TABLE, NON_TRANSACTIONAL_TMP_TABLE, TRANSACTIONAL_TMP_TABLE,
   INTERNAL_TMP_TABLE, SYSTEM_TMP_TABLE
 };
 
@@ -197,8 +197,9 @@ typedef struct st_table_share
   uint rowid_field_offset;		/* Field_nr +1 to rowid field */
   /* Index of auto-updated TIMESTAMP field in field array */
   uint primary_key;
-  uint next_number_index;
-  uint next_number_key_offset;
+  uint next_number_index;               /* autoincrement key number */
+  uint next_number_key_offset;          /* autoinc keypart offset in a key */
+  uint next_number_keypart;             /* autoinc keypart number in a key */
   uint error, open_errno, errarg;       /* error from open_table_def() */
   uint column_bitmap_size;
   uchar frm_version;
@@ -235,9 +236,9 @@ typedef struct st_table_share
   bool log_table;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   bool auto_partitioned;
-  const uchar *partition_info;
+  const char *partition_info;
   uint  partition_info_len;
-  const uchar *part_state;
+  const char *part_state;
   uint part_state_len;
   handlerton *default_part_db_type;
 #endif
@@ -299,6 +300,12 @@ typedef struct st_table_share
 
 
 /* Information for one open table */
+enum index_hint_type
+{
+  INDEX_HINT_IGNORE,
+  INDEX_HINT_USE,
+  INDEX_HINT_FORCE
+};
 
 struct st_table {
   st_table() {}                               /* Remove gcc warning */
@@ -318,8 +325,12 @@ struct st_table {
   byte *write_row_record;		/* Used as optimisation in
 					   THD::write_row */
   byte *insert_values;                  /* used by INSERT ... UPDATE */
-  key_map quick_keys, used_keys;
-
+  /* 
+    Map of keys that can be used to retrieve all data from this table 
+    needed by the query without reading the row.
+  */
+  key_map covering_keys;
+  key_map quick_keys, merge_keys;
   /*
     A set of keys that can be used in the query that references this
     table.
@@ -332,7 +343,10 @@ struct st_table {
     The set is implemented as a bitmap.
   */
   key_map keys_in_use_for_query;
-  key_map merge_keys;
+  /* Map of keys that can be used to calculate GROUP BY without sorting */
+  key_map keys_in_use_for_group_by;
+  /* Map of keys that can be used to calculate ORDER BY without sorting */
+  key_map keys_in_use_for_order_by;
   KEY  *key_info;			/* data of keys in database */
 
   Field *next_number_field;		/* Set if next_number is activated */
@@ -425,6 +439,11 @@ struct st_table {
   my_bool no_cache;
   /* To signal that we should reset query_id for tables and cols */
   my_bool clear_query_id;
+  /*
+    To indicate that a non-null value of the auto_increment field
+    was provided by the user or retrieved from the current record.
+    Used only in the MODE_NO_AUTO_VALUE_ON_ZERO mode.
+  */
   my_bool auto_increment_field_not_null;
   my_bool insert_or_update;             /* Can be used by the handler */
   my_bool alias_name_used;		/* true if table_name is alias */
@@ -666,9 +685,25 @@ public:
          (TABLE_LIST::join_using_fields != NULL)
 */
 
+class index_hint;
 typedef struct st_table_list
 {
   st_table_list() {}                          /* Remove gcc warning */
+
+  /**
+    Prepare TABLE_LIST that consists of one table instance to use in
+    simple_open_and_lock_tables
+  */
+  inline void init_one_table(const char *db_name_arg,
+                             const char *table_name_arg,
+                             enum thr_lock_type lock_type_arg)
+  {
+    bzero((char*) this, sizeof(*this));
+    db= (char*) db_name_arg;
+    table_name= alias= (char*) table_name_arg;
+    lock_type= lock_type_arg;
+  }
+
   /*
     List of tables local to a subquery (used by SQL_LIST). Considers
     views as leaves (unlike 'next_leaf' below). Created at parse time
@@ -722,7 +757,7 @@ typedef struct st_table_list
   */
   struct st_table_list *next_name_resolution_table;
   /* Index names in a "... JOIN ... USE/IGNORE INDEX ..." clause. */
-  List<String> *use_index, *ignore_index;
+  List<index_hint> *index_hints;
   TABLE        *table;                          /* opened table */
   uint          table_id; /* table id (from binlog) for opened table */
   /*
@@ -895,6 +930,13 @@ typedef struct st_table_list
   */
   void reinit_before_use(THD *thd);
   Item_subselect *containing_subselect();
+
+  /* 
+    Compiles the tagged hints list and fills up st_table::keys_in_use_for_query,
+    st_table::keys_in_use_for_group_by, st_table::keys_in_use_for_order_by,
+    st_table::force_index and st_table::covering_keys.
+  */
+  bool process_index_hints(TABLE *table);
 
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
@@ -1070,8 +1112,7 @@ typedef struct st_table_field_w_type
 
 my_bool
 table_check_intact(TABLE *table, const uint table_f_count,
-                   const TABLE_FIELD_W_TYPE *table_def,
-                   time_t *last_create_time, int error_num);
+                   const TABLE_FIELD_W_TYPE *table_def);
 
 static inline my_bitmap_map *tmp_use_all_columns(TABLE *table,
                                                  MY_BITMAP *bitmap)

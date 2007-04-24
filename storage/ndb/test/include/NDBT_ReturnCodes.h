@@ -26,7 +26,7 @@ extern "C" {
 #define NDBT_TEMPORARY 3
 /**
  * NDBT_ProgramExit
- * This function will print the returncode togheter with a prefix on 
+ * This function will print the returncode together with a prefix on 
  * the screen and then exit the test program. 
  * Call this function when exiting the main function in your test programs
  * Returns the return code

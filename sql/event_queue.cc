@@ -32,16 +32,6 @@
 #define LOCK_QUEUE_DATA()   lock_data(SCHED_FUNC, __LINE__)
 #define UNLOCK_QUEUE_DATA() unlock_data(SCHED_FUNC, __LINE__)
 
-struct event_queue_param
-{
-  THD *thd;
-  Event_queue *queue;
-  pthread_mutex_t LOCK_loaded;
-  pthread_cond_t COND_loaded;
-  bool loading_finished;
-};
-
-
 /*
   Compares the execute_at members of two Event_queue_element instances.
   Used as callback for the prioritized queue when shifting
@@ -62,11 +52,13 @@ struct event_queue_param
     execute_at.second_part is not considered during comparison
 */
 
-static int 
+static int
 event_queue_element_compare_q(void *vptr, byte* a, byte *b)
 {
-  return my_time_compare(&((Event_queue_element *)a)->execute_at,
-                         &((Event_queue_element *)b)->execute_at);
+  my_time_t lhs = ((Event_queue_element *)a)->execute_at;
+  my_time_t rhs = ((Event_queue_element *)b)->execute_at;
+
+  return (lhs < rhs ? -1 : (lhs > rhs ? 1 : 0));
 }
 
 
@@ -80,39 +72,21 @@ event_queue_element_compare_q(void *vptr, byte* a, byte *b)
 Event_queue::Event_queue()
   :mutex_last_unlocked_at_line(0), mutex_last_locked_at_line(0),
    mutex_last_attempted_lock_at_line(0),
-   mutex_queue_data_locked(FALSE), mutex_queue_data_attempting_lock(FALSE)
+   mutex_queue_data_locked(FALSE),
+   mutex_queue_data_attempting_lock(FALSE),
+   next_activation_at(0)
 {
   mutex_last_unlocked_in_func= mutex_last_locked_in_func=
     mutex_last_attempted_lock_in_func= "";
-  set_zero_time(&next_activation_at, MYSQL_TIMESTAMP_DATETIME);
-}
 
-
-/*
-  Inits mutexes.
-
-  SYNOPSIS
-    Event_queue::init_mutexes()
-*/
-
-void
-Event_queue::init_mutexes()
-{
   pthread_mutex_init(&LOCK_event_queue, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_queue_state, NULL);
 }
 
 
-/*
-  Destroys mutexes.
-
-  SYNOPSIS
-    Event_queue::deinit_mutexes()
-*/
-
-void
-Event_queue::deinit_mutexes()
+Event_queue::~Event_queue()
 {
+  deinit_queue();
   pthread_mutex_destroy(&LOCK_event_queue);
   pthread_cond_destroy(&COND_queue_state);
 }
@@ -146,7 +120,7 @@ Event_queue::init_queue(THD *thd)
                     0 /*max_on_top*/, event_queue_element_compare_q,
                     NULL, EVENT_QUEUE_EXTENT))
   {
-    sql_print_error("SCHEDULER: Can't initialize the execution queue");
+    sql_print_error("Event Scheduler: Can't initialize the execution queue");
     goto err;
   }
 
@@ -181,36 +155,50 @@ Event_queue::deinit_queue()
 }
 
 
-/*
+/**
   Adds an event to the queue.
 
-  SYNOPSIS
-    Event_queue::create_event()
-      dbname  The schema of the new event
-      name    The name of the new event
+  Compute the next execution time for an event, and if it is still
+  active, add it to the queue. Otherwise delete it.
+  The object is left intact in case of an error. Otherwise
+  the queue container assumes ownership of it.
+
+  @param[in]  thd      thread handle
+  @param[in]  new_element a new element to add to the queue
+  @param[out] created  set to TRUE if no error and the element is
+                       added to the queue, FALSE otherwise
+
+  @retval TRUE  an error occured. The value of created is undefined,
+                the element was not deleted.
+  @retval FALSE success
 */
 
-void
-Event_queue::create_event(THD *thd, Event_queue_element *new_element)
+bool
+Event_queue::create_event(THD *thd, Event_queue_element *new_element,
+                          bool *created)
 {
   DBUG_ENTER("Event_queue::create_event");
   DBUG_PRINT("enter", ("thd: 0x%lx et=%s.%s", (long) thd,
              new_element->dbname.str, new_element->name.str));
 
-  if (new_element->status == Event_queue_element::DISABLED)
-    delete new_element;
-  else
+  /* Will do nothing if the event is disabled */
+  new_element->compute_next_execution_time();
+  if (new_element->status != Event_queue_element::ENABLED)
   {
-    new_element->compute_next_execution_time();
-    DBUG_PRINT("info", ("new event in the queue: 0x%lx", (long) new_element));
-
-    LOCK_QUEUE_DATA();
-    queue_insert_safe(&queue, (byte *) new_element);
-    dbug_dump_queue(thd->query_start());
-    pthread_cond_broadcast(&COND_queue_state);  
-    UNLOCK_QUEUE_DATA();
+    delete new_element;
+    *created= FALSE;
+    DBUG_RETURN(FALSE);
   }
-  DBUG_VOID_RETURN;
+
+  DBUG_PRINT("info", ("new event in the queue: 0x%lx", (long) new_element));
+
+  LOCK_QUEUE_DATA();
+  *created= (queue_insert_safe(&queue, (byte *) new_element) == FALSE);
+  dbug_dump_queue(thd->query_start());
+  pthread_cond_broadcast(&COND_queue_state);
+  UNLOCK_QUEUE_DATA();
+
+  DBUG_RETURN(!*created);
 }
 
 
@@ -233,7 +221,8 @@ Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
   DBUG_ENTER("Event_queue::update_event");
   DBUG_PRINT("enter", ("thd: 0x%lx  et=[%s.%s]", (long) thd, dbname.str, name.str));
 
-  if (new_element->status == Event_queue_element::DISABLED)
+  if ((new_element->status == Event_queue_element::DISABLED) ||
+      (new_element->status == Event_queue_element::SLAVESIDE_DISABLED))
   {
     DBUG_PRINT("info", ("The event is disabled."));
     /*
@@ -254,7 +243,7 @@ Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
   {
     DBUG_PRINT("info", ("new event in the queue: 0x%lx", (long) new_element));
     queue_insert_safe(&queue, (byte *) new_element);
-    pthread_cond_broadcast(&COND_queue_state);  
+    pthread_cond_broadcast(&COND_queue_state);
   }
 
   dbug_dump_queue(thd->query_start());
@@ -285,7 +274,7 @@ Event_queue::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
   find_n_remove_event(dbname, name);
   dbug_dump_queue(thd->query_start());
   UNLOCK_QUEUE_DATA();
-  
+
   /*
     We don't signal here because the scheduler will catch the change
     next time it wakes up.
@@ -307,7 +296,7 @@ Event_queue::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 
   RETURN VALUE
     >=0  Number of dropped events
-    
+
   NOTE
     Expected is the caller to acquire lock on LOCK_event_queue
 */
@@ -339,7 +328,7 @@ Event_queue::drop_matching_events(THD *thd, LEX_STRING pattern,
       i++;
   }
   /*
-    We don't call pthread_cond_broadcast(&COND_queue_state);  
+    We don't call pthread_cond_broadcast(&COND_queue_state);
     If we remove the top event:
     1. The queue is empty. The scheduler will wake up at some time and
        realize that the queue is empty. If create_event() comes inbetween
@@ -461,7 +450,8 @@ Event_queue::empty_queue()
   uint i;
   DBUG_ENTER("Event_queue::empty_queue");
   DBUG_PRINT("enter", ("Purging the queue. %u element(s)", queue.elements));
-  sql_print_information("SCHEDULER: Purging queue. %u events", queue.elements);
+  sql_print_information("Event Scheduler: Purging the queue. %u events",
+                        queue.elements);
   /* empty the queue */
   for (i= 0; i < queue.elements; ++i)
   {
@@ -497,15 +487,11 @@ Event_queue::dbug_dump_queue(time_t now)
     DBUG_PRINT("info", ("exec_at: %lu  starts: %lu  ends: %lu  execs_so_far: %u  "
                         "expr: %ld  et.exec_at: %ld  now: %ld  "
                         "(et.exec_at - now): %d  if: %d",
-                        (long) TIME_to_ulonglong_datetime(&et->execute_at),
-                        (long) TIME_to_ulonglong_datetime(&et->starts),
-                        (long) TIME_to_ulonglong_datetime(&et->ends),
-                        et->execution_count,
-                        (long) et->expression,
-                        (long) (sec_since_epoch_TIME(&et->execute_at)),
-                        (long) now,
-                        (int) (sec_since_epoch_TIME(&et->execute_at) - now),
-                        sec_since_epoch_TIME(&et->execute_at) <= now));
+                        (long) et->execute_at, (long) et->starts,
+                        (long) et->ends, et->execution_count,
+                        (long) et->expression, (long) et->execute_at,
+                        (long) now, (int) (et->execute_at - now),
+                        et->execute_at <= now));
   }
   DBUG_VOID_RETURN;
 #endif
@@ -534,7 +520,6 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
                 Event_queue_element_for_exec **event_name)
 {
   bool ret= FALSE;
-  struct timespec top_time;
   *event_name= NULL;
   DBUG_ENTER("Event_queue::get_top_for_execution_if_time");
 
@@ -553,7 +538,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
     if (!queue.elements)
     {
       /* There are no events in the queue */
-      set_zero_time(&next_activation_at, MYSQL_TIMESTAMP_DATETIME);
+      next_activation_at= 0;
 
       /* Wait on condition until signaled. Release LOCK_queue while waiting. */
       cond_wait(thd, NULL, queue_empty_msg, SCHED_FUNC, __LINE__);
@@ -565,16 +550,15 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
 
     thd->end_time(); /* Get current time */
 
-    time_t seconds_to_next_event= 
-      sec_since_epoch_TIME(&top->execute_at) - thd->query_start();
     next_activation_at= top->execute_at;
-    if (seconds_to_next_event > 0)
+    if (next_activation_at > thd->query_start())
     {
       /*
         Not yet time for top event, wait on condition with
         time or until signaled. Release LOCK_queue while waiting.
       */
-      set_timespec(top_time, seconds_to_next_event);
+      struct timespec top_time;
+      set_timespec(top_time, next_activation_at - thd->query_start());
       cond_wait(thd, &top_time, queue_wait_msg, SCHED_FUNC, __LINE__);
 
       continue;
@@ -600,7 +584,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
     if (top->status == Event_queue_element::DISABLED)
     {
       DBUG_PRINT("info", ("removing from the queue"));
-      sql_print_information("SCHEDULER: Last execution of %s.%s. %s",
+      sql_print_information("Event Scheduler: Last execution of %s.%s. %s",
                             top->dbname.str, top->name.str,
                             top->dropped? "Dropping.":"");
       delete top;
@@ -752,10 +736,11 @@ Event_queue::dump_internal_status()
     printf("Last lock attempt at: %s:%u\n", mutex_last_attempted_lock_in_func,
                                             mutex_last_attempted_lock_at_line);
   printf("WOC             : %s\n", waiting_on_cond? "YES":"NO");
+
+  MYSQL_TIME time;
+  my_tz_UTC->gmt_sec_to_TIME(&time, next_activation_at);
   printf("Next activation : %04d-%02d-%02d %02d:%02d:%02d\n",
-         next_activation_at.year, next_activation_at.month,
-         next_activation_at.day, next_activation_at.hour,
-         next_activation_at.minute, next_activation_at.second);
+         time.year, time.month, time.day, time.hour, time.minute, time.second);
 
   DBUG_VOID_RETURN;
 }

@@ -173,7 +173,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
   if (field == field->table->next_number_field)
   {
     field->table->auto_increment_field_not_null= FALSE;
-    return 0;					// field is set in handler.cc
+    return 0;				  // field is set in fill_record()
   }
   if (field->table->in_use->count_cuted_fields == CHECK_FIELD_WARN)
   {
@@ -336,6 +336,13 @@ static void do_field_real(Copy_field *copy)
 }
 
 
+static void do_field_decimal(Copy_field *copy)
+{
+  my_decimal value;
+  copy->to_field->store_decimal(copy->from_field->val_decimal(&value));
+}
+
+
 /*
   string copy for single byte characters set when to string is shorter than
   from string
@@ -426,6 +433,26 @@ static void do_varstring1(Copy_field *copy)
 }
 
 
+static void do_varstring1_mb(Copy_field *copy)
+{
+  int well_formed_error;
+  CHARSET_INFO *cs= copy->from_field->charset();
+  uint from_length= (uint) *(uchar*) copy->from_ptr;
+  const char *from_ptr= copy->from_ptr + 1;
+  uint to_char_length= (copy->to_length - 1) / cs->mbmaxlen;
+  uint length= cs->cset->well_formed_len(cs, from_ptr, from_ptr + from_length,
+                                         to_char_length, &well_formed_error);
+  if (length < from_length)
+  {
+    if (current_thd->count_cuted_fields)
+      copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+                                  WARN_DATA_TRUNCATED, 1);
+  }
+  *(uchar*) copy->to_ptr= (uchar) length;
+  memcpy(copy->to_ptr + 1, from_ptr, length);
+}
+
+
 static void do_varstring2(Copy_field *copy)
 {
   uint length=uint2korr(copy->from_ptr);
@@ -451,6 +478,12 @@ static void do_varstring2_mb(Copy_field *copy)
   const char *from_beg= copy->from_ptr + HA_KEY_BLOB_LENGTH;
   uint length= cs->cset->well_formed_len(cs, from_beg, from_beg + from_length,
                                          char_length, &well_formed_error);
+  if (length < from_length)
+  {
+    if (current_thd->count_cuted_fields)
+      copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+                                  WARN_DATA_TRUNCATED, 1);
+  }  
   int2store(copy->to_ptr, length);
   memcpy(copy->to_ptr+HA_KEY_BLOB_LENGTH, from_beg, length);
 }
@@ -580,6 +613,8 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
     if (to->real_type() == MYSQL_TYPE_BIT ||
         from->real_type() == MYSQL_TYPE_BIT)
       return do_field_int;
+    if (to->result_type() == DECIMAL_RESULT)
+      return do_field_decimal;
     // Check if identical fields
     if (from->result_type() == STRING_RESULT)
     {
@@ -624,8 +659,10 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
           return do_field_string;
         if (to_length != from_length)
           return (((Field_varstring*) to)->length_bytes == 1 ?
-                  do_varstring1 : (from->charset()->mbmaxlen == 1 ?
-                                   do_varstring2 : do_varstring2_mb));
+                  (from->charset()->mbmaxlen == 1 ? do_varstring1 :
+                                                    do_varstring1_mb) :
+                  (from->charset()->mbmaxlen == 1 ? do_varstring2 :
+                                                    do_varstring2_mb));
       }
       else if (to_length < from_length)
 	return (from->charset()->mbmaxlen == 1 ?

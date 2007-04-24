@@ -1042,5 +1042,39 @@ select user,db from information_schema.processlist;
 connection default;
 drop user user3148@localhost;
 
---echo End of 5.1 tests.
+#
+# Bug #26174 Server Crash: INSERT ... SELECT ... FROM I_S.GLOBAL_STATUS
+# in Event (see also openssl_1.test)
+#
+--disable_warnings
+DROP TABLE IF EXISTS server_status;
+DROP EVENT IF EXISTS event_status;
+--enable_warnings
 
+SET GLOBAL event_scheduler=1;
+
+DELIMITER $$;
+
+CREATE EVENT event_status
+ ON SCHEDULE AT NOW()
+ ON COMPLETION NOT PRESERVE
+ DO
+BEGIN
+  CREATE TABLE server_status
+  SELECT variable_name
+  FROM information_schema.global_status
+  WHERE variable_name LIKE 'ABORTED_CONNECTS' OR
+  variable_name LIKE 'BINLOG_CACHE_DISK_USE';
+END$$
+
+DELIMITER ;$$
+
+let $wait_condition=select count(*) = 0 from information_schema.events where event_name='event_status';
+--source include/wait_condition.inc
+
+SELECT variable_name FROM server_status;
+
+DROP TABLE server_status;
+SET GLOBAL event_scheduler=0;
+
+--echo End of 5.1 tests.

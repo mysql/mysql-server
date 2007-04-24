@@ -1115,6 +1115,16 @@ select repeat('a', cast(2 as unsigned int));
 select rpad('abc', cast(5 as unsigned integer), 'x');
 select lpad('abc', cast(5 as unsigned integer), 'x');
 
+#
+# Bug#15757: Wrong SUBSTRING() result when a tmp table was employed.
+#
+create table t1(f1 longtext);
+insert into t1 values ("123"),("456");
+select substring(f1,1,1) from t1 group by 1;
+create table t2(f1 varchar(3));
+insert into t1 values ("123"),("456");
+select substring(f1,4,1), substring(f1,-4,1) from t2;
+drop table t1,t2;
 
 #
 # Bug #25197 :repeat function returns null when using table field directly as count
@@ -1135,6 +1145,42 @@ INSERT INTO `t1` (`id`, `tire`) VALUES ('A', 0), ('B', 1),('C', 2);
 SELECT REPEAT( '#', tire ) AS A,
        REPEAT( '#', tire % 999 ) AS B, tire FROM `t1`;
 
+SELECT REPEAT('0', CAST(0 AS UNSIGNED));
+SELECT REPEAT('0', -2);
+SELECT REPEAT('0', 2);
+
 DROP TABLE t1;
+
+#
+# Bug #26537: UNHEX() IS NULL comparison fails
+#
+SELECT UNHEX('G');
+SELECT UNHEX('G') IS NULL;
+
+#
+# Bug #26281: INSERT() function mishandles NUL on boundary condition
+#
+SELECT INSERT('abc', 3, 3, '1234');
+SELECT INSERT('abc', 4, 3, '1234');
+SELECT INSERT('abc', 5, 3, '1234');
+SELECT INSERT('abc', 6, 3, '1234');
+
+#
+# Bug #27530: Grouping on crc32, or create table select crc32
+#
+CREATE TABLE t1 (a INT);
+CREATE VIEW v1 AS SELECT CRC32(a) AS C FROM t1;
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+SELECT CRC32(a), COUNT(*) FROM t1 GROUP BY 1;
+SELECT CRC32(a), COUNT(*) FROM t1 GROUP BY 1 ORDER BY 1;
+SELECT * FROM (SELECT CRC32(a) FROM t1) t2;
+CREATE TABLE t2 SELECT CRC32(a) FROM t1;
+desc t2;
+SELECT * FROM v1;
+SELECT * FROM (SELECT * FROM v1) x;
+
+DROP TABLE t1, t2;
+DROP VIEW v1;
 
 --echo End of 5.0 tests

@@ -35,7 +35,7 @@
       HA_READ_KEY_EXACT		Include the key in the range
       HA_READ_AFTER_KEY		Don't include key in range
 
-    max_key.flag can have one of the following values:  
+    max_key.flag can have one of the following values:
       HA_READ_BEFORE_KEY	Don't include key in range
       HA_READ_AFTER_KEY		Include all 'end_key' values in the range
 
@@ -62,7 +62,7 @@ ha_rows hp_rb_records_in_range(HP_INFO *info, int inx,  key_range *min_key,
   {
     custom_arg.key_length= hp_rb_pack_key(keyinfo, (uchar*) info->recbuf,
 					  (uchar*) min_key->key,
-					  min_key->length);
+					  min_key->keypart_map);
     start_pos= tree_record_pos(rb_tree, info->recbuf, min_key->flag,
 			       &custom_arg);
   }
@@ -70,12 +70,12 @@ ha_rows hp_rb_records_in_range(HP_INFO *info, int inx,  key_range *min_key,
   {
     start_pos= 0;
   }
-  
+
   if (max_key)
   {
     custom_arg.key_length= hp_rb_pack_key(keyinfo, (uchar*) info->recbuf,
 					  (uchar*) max_key->key,
-                                          max_key->length);
+                                          max_key->keypart_map);
     end_pos= tree_record_pos(rb_tree, info->recbuf, max_key->flag,
 			     &custom_arg);
   }
@@ -772,7 +772,7 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, byte *key,
                               char_length / seg->charset->mbmaxlen);
       set_if_smaller(char_length, seg->length); /* QQ: ok to remove? */
       if (char_length < seg->length)
-        seg->charset->cset->fill(seg->charset, (char*) key + char_length, 
+        seg->charset->cset->fill(seg->charset, (char*) key + char_length,
                                  seg->length - char_length, ' ');
     }
     memcpy(key, rec + seg->start, (size_t) char_length);
@@ -784,30 +784,26 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, byte *key,
 
 
 uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
-                    uint k_len)
+                    key_part_map keypart_map)
 {
   HA_KEYSEG *seg, *endseg;
   uchar *start_key= key;
-  
+
   for (seg= keydef->seg, endseg= seg + keydef->keysegs;
-       seg < endseg && (int) k_len > 0; old+= seg->length, seg++)
+       seg < endseg && keypart_map; old+= seg->length, seg++)
   {
     uint char_length;
+    keypart_map>>= 1;
     if (seg->null_bit)
     {
-      k_len--;
       if (!(*key++= (char) 1 - *old++))
-      {
-        k_len-= seg->length;
         continue;
       }
-    }
     if (seg->flag & HA_SWAP_KEY)
     {
       uint length= seg->length;
       byte *pos= (byte*) old + length;
       
-      k_len-= length;
       while (length--)
       {
 	*key++= *--pos;
@@ -822,7 +818,6 @@ uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
       CHARSET_INFO *cs= seg->charset;
       char_length= length/cs->mbmaxlen;
 
-      k_len-= 2+length;
       old+= 2;
       set_if_smaller(length,tmp_length);	/* Safety */
       FIX_LENGTH(cs, old, length, char_length);
@@ -843,7 +838,6 @@ uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
     }
     memcpy(key, old, (size_t) char_length);
     key+= seg->length;
-    k_len-= seg->length;
   }
   return (uint) (key - start_key);
 }

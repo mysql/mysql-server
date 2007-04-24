@@ -582,6 +582,7 @@ class LqhKeyRef {
    * Reciver(s)
    */
   friend class Dbtc;      
+  friend class Restore;
 
   /**
    * Sender(s)

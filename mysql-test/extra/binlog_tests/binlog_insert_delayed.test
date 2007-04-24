@@ -23,9 +23,7 @@ inc $count;
 # moving binlog check affront of multi-rows queries which work is indeterministic (extra table_maps)
 # todo: better check is to substitute SHOW BINLOG with reading from binlog, probably bug#19459 is in
 # the way
---replace_column 2 # 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
-show binlog events from 102;
+source include/show_binlog_events.inc;
 
 insert delayed into t1 values (null),(null),(null),(null);
 inc $count; inc $count; inc $count; inc $count;

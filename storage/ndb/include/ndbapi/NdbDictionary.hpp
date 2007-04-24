@@ -429,7 +429,7 @@ public:
      * Set name of column
      * @param  name  Name of the column
      */
-    void setName(const char * name);
+    int setName(const char * name);
 
     /**
      * Set whether column is nullable or not
@@ -520,7 +520,7 @@ public:
     void setAutoIncrement(bool);
     bool getAutoIncrement() const;
     void setAutoIncrementInitialValue(Uint64 val);
-    void setDefaultValue(const char*);   
+    int setDefaultValue(const char*);   
     const char* getDefaultValue() const;
 
     static const Column * FRAGMENT;
@@ -534,6 +534,8 @@ public:
     static const Column * RECORDS_IN_RANGE;
     static const Column * ROWID;
     static const Column * ROW_GCI;
+    static const Column * ANY_VALUE;
+    static const Column * COPY_ROWID;
     
     int getSizeInBytes() const;
 #endif
@@ -576,6 +578,15 @@ public:
    */
   class Table : public Object {
   public:
+    /*
+     * Single user mode specifies access rights to table during single user mode
+     */
+    enum SingleUserMode {
+      SingleUserModeLocked    = NDB_SUM_LOCKED,
+      SingleUserModeReadOnly  = NDB_SUM_READONLY,
+      SingleUserModeReadWrite = NDB_SUM_READ_WRITE
+    };
+
     /** 
      * @name General
      * @{
@@ -749,13 +760,13 @@ public:
      * Name of table
      * @param  name  Name of table
      */
-    void setName(const char * name);
+    int setName(const char * name);
 
     /**
      * Add a column definition to a table
      * @note creates a copy
      */
-    void addColumn(const Column &);
+    int addColumn(const Column &);
     
     /**
      * @see NdbDictionary::Table::getLogging.
@@ -809,9 +820,9 @@ public:
      */
     void setMaxLoadFactor(int);
 
-    void setTablespaceName(const char * name);
+    int setTablespaceName(const char * name);
     const char * getTablespaceName() const;
-    void setTablespace(const class Tablespace &);
+    int setTablespace(const class Tablespace &);
     bool getTablespace(Uint32 *id= 0, Uint32 *version= 0) const;
 
     /**
@@ -844,7 +855,7 @@ public:
     /**
      * Set frm file to store with this table
      */ 
-    void setFrm(const void* data, Uint32 len);
+    int setFrm(const void* data, Uint32 len);
 
     /**
      * Set array of fragment information containing
@@ -852,12 +863,12 @@ public:
      * Node group identity
      * Fragment State
      */
-    void setFragmentData(const void* data, Uint32 len);
+    int setFragmentData(const void* data, Uint32 len);
 
     /**
      * Set/Get tablespace names per fragment
      */
-    void setTablespaceNames(const void* data, Uint32 len);
+    int setTablespaceNames(const void* data, Uint32 len);
     const void *getTablespaceNames();
     Uint32 getTablespaceNamesLen() const;
 
@@ -865,7 +876,7 @@ public:
      * Set tablespace information per fragment
      * Contains a tablespace id and a tablespace version
      */
-    void setTablespaceData(const void* data, Uint32 len);
+    int setTablespaceData(const void* data, Uint32 len);
 
     /**
      * Set array of information mapping range values and list values
@@ -874,7 +885,7 @@ public:
      * one pair per fragment. For list partitions it could be any number
      * of pairs, at least as many as there are fragments.
      */
-    void setRangeListData(const void* data, Uint32 len);
+    int setRangeListData(const void* data, Uint32 len);
 
     /**
      * Set table object type
@@ -894,6 +905,13 @@ public:
      */
     void setMinRows(Uint64 minRows);
     Uint64 getMinRows() const;
+
+    /**
+     * Set/Get SingleUserMode
+     */
+    void setSingleUserMode(enum SingleUserMode);
+    enum SingleUserMode getSingleUserMode() const;
+
 
     /** @} *******************************************************************/
 
@@ -1082,26 +1100,26 @@ public:
     /**
      * Set the name of an index
      */
-    void setName(const char * name);
+    int setName(const char * name);
 
     /**
      * Define the name of the table to be indexed
      */
-    void setTable(const char * name);
+    int setTable(const char * name);
 
     /**
      * Add a column to the index definition
      * Note that the order of columns will be in
      * the order they are added (only matters for ordered indexes).
      */
-    void addColumn(const Column & c);
+    int addColumn(const Column & c);
 
     /**
      * Add a column name to the index definition
      * Note that the order of indexes will be in
      * the order they are added (only matters for ordered indexes).
      */
-    void addColumnName(const char * name);
+    int addColumnName(const char * name);
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
@@ -1110,7 +1128,7 @@ public:
      * the order they are added (only matters for ordered indexes).
      * Depricated, use addColumnName instead.
      */
-    void addIndexColumn(const char * name);
+    int addIndexColumn(const char * name);
 #endif
 
     /**
@@ -1118,7 +1136,7 @@ public:
      * Note that the order of indexes will be in
      * the order they are added (only matters for ordered indexes).
      */
-    void addColumnNames(unsigned noOfNames, const char ** names);
+    int  addColumnNames(unsigned noOfNames, const char ** names);
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
@@ -1127,7 +1145,7 @@ public:
      * the order they are added (only matters for ordered indexes).
      * Depricated, use addColumnNames instead.
      */
-    void addIndexColumns(int noOfNames, const char ** names);
+    int addIndexColumns(int noOfNames, const char ** names);
 #endif
 
     /**
@@ -1264,7 +1282,7 @@ public:
     /**
      * Set unique identifier for the event
      */
-    void setName(const char *name);
+    int setName(const char *name);
     /**
      * Get unique identifier for the event
      */
@@ -1291,7 +1309,7 @@ public:
      * @note preferred way is using setTable(const NdbDictionary::Table&)
      *       or constructor with table object parameter
      */
-    void setTable(const char *tableName);
+    int setTable(const char *tableName);
     /**
      * Get table name for events
      *
@@ -1517,8 +1535,8 @@ public:
     Uint64 getSize() const;
     Uint64 getFree() const;
     
-    void setTablespace(const char * name);
-    void setTablespace(const class Tablespace &);
+    int setTablespace(const char * name);
+    int setTablespace(const class Tablespace &);
     const char * getTablespace() const;
     void getTablespaceId(ObjectId * dst) const;
 

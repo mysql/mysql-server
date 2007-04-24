@@ -34,7 +34,11 @@ LDADD=				@CLIENT_EXTRA_LDFLAGS@ $(CLIENT_THREAD_LIBS) \
 noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h \
 				client_priv.h
 
-EXTRA_DIST =			get_password.c CMakeLists.txt
+EXTRA_DIST =			get_password.c CMakeLists.txt echo.c
+
+BUILT_SOURCES =			link_sources
+
+CLEANFILES =			$(BUILT_SOURCES)
 
 bin_PROGRAMS =			mysql \
 				mysqladmin \
@@ -76,6 +80,7 @@ mysqlimport_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 mysqlshow_SOURCES=		mysqlshow.c
 
 mysqlslap_SOURCES=		mysqlslap.c
+mysqlslap_CFLAGS=		-DTHREAD -UUNDEF_THREADS_HACK
 mysqlslap_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
@@ -94,9 +99,11 @@ DEFS =			-DUNDEF_THREADS_HACK \
 			-DDEFAULT_MYSQL_HOME="\"$(prefix)\"" \
 			-DDATADIR="\"$(localstatedir)\""
 
-sql_src=log_event.h mysql_priv.h log_event.cc my_decimal.h my_decimal.cc
+sql_src=log_event.h mysql_priv.h rpl_constants.h \
+	log_event.cc my_decimal.h my_decimal.cc \
+	log_event_old.h log_event_old.cc \
+	rpl_record_old.h rpl_record_old.cc
 strings_src=decimal.c
-EXTRA_DIST =		get_password.c CMakeLists.txt echo.c
 
 link_sources:
 	for f in $(sql_src) ; do \
@@ -109,6 +116,7 @@ link_sources:
          done; \
          rm -f $(srcdir)/my_user.c; \
          @LN_CP_F@ $(top_srcdir)/sql-common/my_user.c my_user.c;
+	echo timestamp > link_sources;
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

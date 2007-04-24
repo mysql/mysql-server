@@ -77,8 +77,8 @@ private:
 };
 
 //
-//  ERR prints an NdbError object togheter with a description of where 
-//  the error occured
+//  ERR prints an NdbError object together with a description of where the
+//  error occured
 //
 #define ERR_OUT(where, error) \
   {  where << "ERROR: " << error.code << " " \

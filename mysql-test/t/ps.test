@@ -2324,7 +2324,7 @@ drop event if exists xyz;
 #drop event xyz;
 #drop procedure proc_1;
 delimiter |;
---error ER_EVENT_RECURSIVITY_FORBIDDEN
+--error ER_EVENT_RECURSION_FORBIDDEN
 create function func_1() returns int begin create event xyz on schedule at now() do select 123; return 1; end|
 delimiter ;|
 --error ER_SP_DOES_NOT_EXIST
@@ -2516,3 +2516,60 @@ set @to_format="10000";
 execute stmt2 using @to_format, @dec;
 deallocate prepare stmt2;
 
+
+#
+# BUG#18326: Do not lock table for writing during prepare of statement
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (i INT);
+INSERT INTO t2 VALUES (2);
+
+LOCK TABLE t1 READ, t2 WRITE;
+
+connect (conn1, localhost, root, , );
+
+# Prepare never acquires the lock, and thus should not block.
+PREPARE stmt1 FROM "SELECT i FROM t1";
+PREPARE stmt2 FROM "INSERT INTO t2 (i) VALUES (3)";
+
+# This should not block because READ lock on t1 is shared.
+EXECUTE stmt1;
+
+# This should block because WRITE lock on t2 is exclusive.
+send EXECUTE stmt2;
+
+connection default;
+
+SELECT * FROM t2;
+UNLOCK TABLES;
+let $wait_condition= SELECT COUNT(*) = 2 FROM t2;
+--source include/wait_condition.inc
+SELECT * FROM t2;
+
+# DDL and DML works even if some client have a prepared statement
+# referencing the table.
+ALTER TABLE t1 ADD COLUMN j INT;
+ALTER TABLE t2 ADD COLUMN j INT;
+INSERT INTO t1 VALUES (4, 5);
+INSERT INTO t2 VALUES (4, 5);
+
+connection conn1;
+
+reap;
+EXECUTE stmt1;
+EXECUTE stmt2;
+SELECT * FROM t2;
+
+disconnect conn1;
+
+connection default;
+
+DROP TABLE t1, t2;
+
+
+--echo End of 5.1 tests.

@@ -69,26 +69,80 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
 
 
 /*
+  Compare row signature of two expressions
+
+  SYNOPSIS:
+    cmp_row_type()
+    item1          the first expression
+    item2         the second expression
+
+  DESCRIPTION
+    The function checks that two expressions have compatible row signatures
+    i.e. that the number of columns they return are the same and that if they
+    are both row expressions then each component from the first expression has 
+    a row signature compatible with the signature of the corresponding component
+    of the second expression.
+
+  RETURN VALUES
+    1  type incompatibility has been detected
+    0  otherwise
+*/
+
+static int cmp_row_type(Item* item1, Item* item2)
+{
+  uint n= item1->cols();
+  if (item2->check_cols(n))
+    return 1;
+  for (uint i=0; i<n; i++)
+  {
+    if (item2->element_index(i)->check_cols(item1->element_index(i)->cols()) ||
+        (item1->element_index(i)->result_type() == ROW_RESULT &&
+         cmp_row_type(item1->element_index(i), item2->element_index(i))))
+      return 1;
+  }
+  return 0;
+}
+
+
+/*
   Aggregates result types from the array of items.
 
-  SYNOPSIS
+  SYNOPSIS:
     agg_cmp_type()
-      items        array of items to aggregate the type from
-      nitems       number of items in the array
+    type   [out] the aggregated type
+    items        array of items to aggregate the type from
+    nitems       number of items in the array
 
   DESCRIPTION
     This function aggregates result types from the array of items. Found type
     supposed to be used later for comparison of values of these items.
     Aggregation itself is performed by the item_cmp_type() function.
+    The function also checks compatibility of row signatures for the
+    submitted items (see the spec for the cmp_row_type function). 
+
+  RETURN VALUES
+    1  type incompatibility has been detected
+    0  otherwise
 */
 
-static Item_result agg_cmp_type(Item **items, uint nitems)
+static int agg_cmp_type(Item_result *type, Item **items, uint nitems)
 {
   uint i;
-  Item_result type= items[0]->result_type();
+  type[0]= items[0]->result_type();
   for (i= 1 ; i < nitems ; i++)
-    type= item_cmp_type(type, items[i]->result_type());
-  return type;
+  {
+    type[0]= item_cmp_type(type[0], items[i]->result_type());
+    /*
+      When aggregating types of two row expressions we have to check
+      that they have the same cardinality and that each component
+      of the first row expression has a compatible row signature with
+      the signature of the corresponding component of the second row
+      expression.
+    */ 
+    if (type[0] == ROW_RESULT && cmp_row_type(items[0], items[i]))
+      return 1;     // error found: invalid usage of rows
+  }
+  return 0;
 }
 
 
@@ -105,7 +159,8 @@ static Item_result agg_cmp_type(Item **items, uint nitems)
     item in the list with each of the remaining items in the 'items' array.
 
   RETURN
-    Bitmap of collected types
+    0 - if row type incompatibility has been detected (see cmp_row_type)
+    Bitmap of collected types - otherwise
 */
 
 static uint collect_cmp_types(Item **items, uint nitems)
@@ -116,11 +171,16 @@ static uint collect_cmp_types(Item **items, uint nitems)
   DBUG_ASSERT(nitems > 1);
   found_types= 0;
   for (i= 1; i < nitems ; i++)
+  {
+    if ((left_result == ROW_RESULT || 
+         items[i]->result_type() == ROW_RESULT) &&
+        cmp_row_type(items[0], items[i]))
+      return 0;
     found_types|= 1<< (uint)item_cmp_type(left_result,
                                            items[i]->result_type());
+  }
   return found_types;
 }
-
 
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
                               const char *fname)
@@ -293,6 +353,7 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
   {
     TABLE *table= field->table;
     ulong orig_sql_mode= thd->variables.sql_mode;
+    enum_check_fields orig_count_cuted_fields= thd->count_cuted_fields;
     my_bitmap_map *old_write_map;
     my_bitmap_map *old_read_map;
 
@@ -305,7 +366,9 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
       old_read_map= dbug_tmp_use_all_columns(table, table->read_set);
     }
     /* For comparison purposes allow invalid dates like 2000-01-32 */
-    thd->variables.sql_mode|= MODE_INVALID_DATES;
+    thd->variables.sql_mode= (orig_sql_mode & ~MODE_NO_ZERO_DATE) | 
+                             MODE_INVALID_DATES;
+    thd->count_cuted_fields= CHECK_FIELD_IGNORE;
     if (!(*item)->save_in_field(field, 1) && !((*item)->null_value))
     {
       Item *tmp= new Item_int_with_ref(field->val_int(), *item,
@@ -315,6 +378,7 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
       result= 1;					// Item was replaced
     }
     thd->variables.sql_mode= orig_sql_mode;
+    thd->count_cuted_fields= orig_count_cuted_fields;
     if (table)
     {
       dbug_tmp_restore_column_map(table->write_set, old_write_map);
@@ -804,8 +868,18 @@ int Arg_comparator::compare_row()
     if (owner->null_value)
     {
       // NULL was compared
-      if (owner->abort_on_null)
-        return -1; // We do not need correct NULL returning
+      switch (owner->functype()) {
+      case Item_func::NE_FUNC:
+        break; // NE never aborts on NULL even if abort_on_null is set
+      case Item_func::LT_FUNC:
+      case Item_func::LE_FUNC:
+      case Item_func::GT_FUNC:
+      case Item_func::GE_FUNC:
+        return -1; // <, <=, > and >= always fail on NULL
+      default: // EQ_FUNC
+        if (owner->abort_on_null)
+          return -1; // We do not need correct NULL returning
+      }
       was_null= 1;
       owner->null_value= 0;
       res= 0;  // continue comparison (maybe we will meet explicit difference)
@@ -816,8 +890,8 @@ int Arg_comparator::compare_row()
   if (was_null)
   {
     /*
-      There was NULL(s) in comparison in some parts, but there was not
-      explicit difference in other parts, so we have to return NULL
+      There was NULL(s) in comparison in some parts, but there was no
+      explicit difference in other parts, so we have to return NULL.
     */
     owner->null_value= 1;
     return -1;
@@ -1127,6 +1201,26 @@ longlong Item_func_strcmp::val_int()
 }
 
 
+bool Item_func_opt_neg::eq(const Item *item, bool binary_cmp) const
+{
+  /* Assume we don't have rtti */
+  if (this == item)
+    return 1;
+  if (item->type() != FUNC_ITEM)
+    return 0;
+  Item_func *item_func=(Item_func*) item;
+  if (arg_count != item_func->arg_count ||
+      functype() != item_func->functype())
+    return 0;
+  if (negated != ((Item_func_opt_neg *) item_func)->negated)
+    return 0;
+  for (uint i=0; i < arg_count ; i++)
+    if (!args[i]->eq(item_func->arguments()[i], binary_cmp))
+      return 0;
+  return 1;
+}
+
+
 void Item_func_interval::fix_length_and_dec()
 {
   use_decimal_comparison= ((row->element_index(0)->result_type() ==
@@ -1335,7 +1429,8 @@ void Item_func_between::fix_length_and_dec()
   */
   if (!args[0] || !args[1] || !args[2])
     return;
-  cmp_type= agg_cmp_type(args, 3);
+  if ( agg_cmp_type(&cmp_type, args, 3))
+    return;
   if (cmp_type == STRING_RESULT &&
       agg_arg_charsets(cmp_collation, args, 3, MY_COLL_CMP_CONV, 1))
    return;
@@ -2024,7 +2119,8 @@ void Item_func_case::fix_length_and_dec()
     for (nagg= 0; nagg < ncases/2 ; nagg++)
       agg[nagg+1]= args[nagg*2];
     nagg++;
-    found_types= collect_cmp_types(agg, nagg);
+    if (!(found_types= collect_cmp_types(agg, nagg)))
+      return;
 
     for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
     {
@@ -2190,9 +2286,100 @@ void Item_func_coalesce::fix_length_and_dec()
  Classes and function for the IN operator
 ****************************************************************************/
 
-static int cmp_longlong(void *cmp_arg, longlong *a,longlong *b)
+/*
+  Determine which of the signed longlong arguments is bigger
+
+  SYNOPSIS
+    cmp_longs()
+      a_val     left argument
+      b_val     right argument
+
+  DESCRIPTION
+    This function will compare two signed longlong arguments
+    and will return -1, 0, or 1 if left argument is smaller than,
+    equal to or greater than the right argument.
+
+  RETURN VALUE
+    -1          left argument is smaller than the right argument.
+    0           left argument is equal to the right argument.
+    1           left argument is greater than the right argument.
+*/
+static inline int cmp_longs (longlong a_val, longlong b_val)
 {
-  return *a < *b ? -1 : *a == *b ? 0 : 1;
+  return a_val < b_val ? -1 : a_val == b_val ? 0 : 1;
+}
+
+
+/*
+  Determine which of the unsigned longlong arguments is bigger
+
+  SYNOPSIS
+    cmp_ulongs()
+      a_val     left argument
+      b_val     right argument
+
+  DESCRIPTION
+    This function will compare two unsigned longlong arguments
+    and will return -1, 0, or 1 if left argument is smaller than,
+    equal to or greater than the right argument.
+
+  RETURN VALUE
+    -1          left argument is smaller than the right argument.
+    0           left argument is equal to the right argument.
+    1           left argument is greater than the right argument.
+*/
+static inline int cmp_ulongs (ulonglong a_val, ulonglong b_val)
+{
+  return a_val < b_val ? -1 : a_val == b_val ? 0 : 1;
+}
+
+
+/*
+  Compare two integers in IN value list format (packed_longlong) 
+
+  SYNOPSIS
+    cmp_longlong()
+      cmp_arg   an argument passed to the calling function (qsort2)
+      a         left argument
+      b         right argument
+
+  DESCRIPTION
+    This function will compare two integer arguments in the IN value list
+    format and will return -1, 0, or 1 if left argument is smaller than,
+    equal to or greater than the right argument.
+    It's used in sorting the IN values list and finding an element in it.
+    Depending on the signedness of the arguments cmp_longlong() will
+    compare them as either signed (using cmp_longs()) or unsigned (using
+    cmp_ulongs()).
+
+  RETURN VALUE
+    -1          left argument is smaller than the right argument.
+    0           left argument is equal to the right argument.
+    1           left argument is greater than the right argument.
+*/
+int cmp_longlong(void *cmp_arg, 
+                 in_longlong::packed_longlong *a,
+                 in_longlong::packed_longlong *b)
+{
+  if (a->unsigned_flag != b->unsigned_flag)
+  { 
+    /* 
+      One of the args is unsigned and is too big to fit into the 
+      positive signed range. Report no match.
+    */  
+    if (a->unsigned_flag && ((ulonglong) a->val) > (ulonglong) LONGLONG_MAX ||
+        b->unsigned_flag && ((ulonglong) b->val) > (ulonglong) LONGLONG_MAX)
+      return a->unsigned_flag ? 1 : -1;
+    /*
+      Although the signedness differs both args can fit into the signed 
+      positive range. Make them signed and compare as usual.
+    */  
+    return cmp_longs (a->val, b->val);
+  }
+  if (a->unsigned_flag)
+    return cmp_ulongs ((ulonglong) a->val, (ulonglong) b->val);
+  else
+    return cmp_longs (a->val, b->val);
 }
 
 static int cmp_double(void *cmp_arg, double *a,double *b)
@@ -2311,25 +2498,29 @@ byte *in_row::get_value(Item *item)
 void in_row::set(uint pos, Item *item)
 {
   DBUG_ENTER("in_row::set");
-  DBUG_PRINT("enter", ("pos %u item 0x%lx", pos, (ulong) item));
+  DBUG_PRINT("enter", ("pos: %u  item: 0x%lx", pos, (ulong) item));
   ((cmp_item_row*) base)[pos].store_value_by_template(&tmp, item);
   DBUG_VOID_RETURN;
 }
 
 in_longlong::in_longlong(uint elements)
-  :in_vector(elements,sizeof(longlong),(qsort2_cmp) cmp_longlong, 0)
+  :in_vector(elements,sizeof(packed_longlong),(qsort2_cmp) cmp_longlong, 0)
 {}
 
 void in_longlong::set(uint pos,Item *item)
 {
-  ((longlong*) base)[pos]=item->val_int();
+  struct packed_longlong *buff= &((packed_longlong*) base)[pos];
+  
+  buff->val= item->val_int();
+  buff->unsigned_flag= item->unsigned_flag;
 }
 
 byte *in_longlong::get_value(Item *item)
 {
-  tmp= item->val_int();
+  tmp.val= item->val_int();
   if (item->null_value)
     return 0;
+  tmp.unsigned_flag= item->unsigned_flag;
   return (byte*) &tmp;
 }
 
@@ -2363,7 +2554,8 @@ void in_decimal::set(uint pos, Item *item)
   dec->len= DECIMAL_BUFF_LENGTH;
   dec->fix_buffer_pointer();
   my_decimal *res= item->val_decimal(dec);
-  if (res != dec)
+  /* if item->val_decimal() is evaluated to NULL then res == 0 */ 
+  if (!item->null_value && res != dec)
     my_decimal2decimal(res, dec);
 }
 
@@ -2632,7 +2824,8 @@ void Item_func_in::fix_length_and_dec()
   uint type_cnt= 0, i;
   Item_result cmp_type= STRING_RESULT;
   left_result_type= args[0]->result_type();
-  found_types= collect_cmp_types(args, arg_count);
+  if (!(found_types= collect_cmp_types(args, arg_count)))
+    return;
   
   for (arg= args + 1, arg_end= args + arg_count; arg != arg_end ; arg++)
   {
@@ -2665,6 +2858,31 @@ void Item_func_in::fix_length_and_dec()
   */
   if (type_cnt == 1 && const_itm && !nulls_in_row())
   {
+    /*
+      IN must compare INT/DATE/DATETIME/TIMESTAMP columns and constants
+      as int values (the same way as equality does).
+      So we must check here if the column on the left and all the constant 
+      values on the right can be compared as integers and adjust the 
+      comparison type accordingly.
+    */  
+    if (args[0]->real_item()->type() == FIELD_ITEM &&
+        thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
+        thd->lex->sql_command != SQLCOM_SHOW_CREATE &&
+        cmp_type != INT_RESULT)
+    {
+      Field *field= ((Item_field*) (args[0]->real_item()))->field;
+      if (field->can_be_compared_as_longlong())
+      {
+        bool all_converted= TRUE;
+        for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
+        {
+          if (!convert_constant_item (thd, field, &arg[0]))
+            all_converted= FALSE;
+        }
+        if (all_converted)
+          cmp_type= INT_RESULT;
+      }
+    }
     switch (cmp_type) {
     case STRING_RESULT:
       array=new in_string(arg_count - 1,(qsort2_cmp) srtcmp_in,

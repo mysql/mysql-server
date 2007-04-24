@@ -238,34 +238,35 @@ int ha_heap::delete_row(const byte * buf)
   return res;
 }
 
-int ha_heap::index_read(byte * buf, const byte * key, uint key_len,
+int ha_heap::index_read(byte * buf, const byte * key, key_part_map keypart_map,
 			enum ha_rkey_function find_flag)
 {
   DBUG_ASSERT(inited==INDEX);
   statistic_increment(table->in_use->status_var.ha_read_key_count,
 		      &LOCK_status);
-  int error = heap_rkey(file,buf,active_index, key, key_len, find_flag);
+  int error = heap_rkey(file,buf,active_index, key, keypart_map, find_flag);
   table->status = error ? STATUS_NOT_FOUND : 0;
   return error;
 }
 
-int ha_heap::index_read_last(byte *buf, const byte *key, uint key_len)
+int ha_heap::index_read_last(byte *buf, const byte *key, key_part_map keypart_map)
 {
   DBUG_ASSERT(inited==INDEX);
   statistic_increment(table->in_use->status_var.ha_read_key_count,
 		      &LOCK_status);
-  int error= heap_rkey(file, buf, active_index, key, key_len,
+  int error= heap_rkey(file, buf, active_index, key, keypart_map,
 		       HA_READ_PREFIX_LAST);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
 }
 
 int ha_heap::index_read_idx(byte * buf, uint index, const byte * key,
-			    uint key_len, enum ha_rkey_function find_flag)
+			    key_part_map keypart_map,
+                            enum ha_rkey_function find_flag)
 {
   statistic_increment(table->in_use->status_var.ha_read_key_count,
 		      &LOCK_status);
-  int error = heap_rkey(file, buf, index, key, key_len, find_flag);
+  int error = heap_rkey(file, buf, index, key, keypart_map, find_flag);
   table->status = error ? STATUS_NOT_FOUND : 0;
   return error;
 }
@@ -627,7 +628,10 @@ int ha_heap::create(const char *name, TABLE *table_arg,
       seg->length=  (uint) key_part->length;
       seg->flag=    key_part->key_part_flag;
 
-      seg->charset= field->charset();
+      if (field->flags & (ENUM_FLAG | SET_FLAG))
+        seg->charset= &my_charset_bin;
+      else
+        seg->charset= field->charset();
       if (field->null_ptr)
       {
 	seg->null_bit= field->null_bit;
@@ -703,9 +707,10 @@ bool ha_heap::check_if_incompatible_data(HA_CREATE_INFO *info,
 					 uint table_changes)
 {
   /* Check that auto_increment value was not changed */
-  if ((table_changes != IS_EQUAL_YES &&
-       info->used_fields & HA_CREATE_USED_AUTO) &&
-      info->auto_increment_value != 0)
+  if ((info->used_fields & HA_CREATE_USED_AUTO &&
+       info->auto_increment_value != 0) ||
+      table_changes == IS_EQUAL_NO ||
+      table_changes & IS_EQUAL_PACK_LENGTH) // Not implemented yet
     return COMPATIBLE_DATA_NO;
   return COMPATIBLE_DATA_YES;
 }

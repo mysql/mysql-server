@@ -187,7 +187,7 @@ Pos	Instruction
 32	set v_dig@4 (v_dig@4 + 1)
 33	stmt 4 "update sudoku_work set dig = v_dig wh..."
 34	set v_tcounter@6 (v_tcounter@6 + 1)
-35	jump_if_not 37(37) (not(`test`.`sudoku_digit_ok`(v_row@7,v_col@8,v_dig@4)))
+35	jump_if_not 37(37) (not(`sudoku_digit_ok`(v_row@7,v_col@8,v_dig@4)))
 36	jump 15
 37	set v_i@3 (v_i@3 + 1)
 38	jump 15
@@ -621,3 +621,20 @@ Pos	Instruction
 0	stmt 2 "CREATE INDEX idx ON t1 (c1)"
 DROP PROCEDURE p1;
 End of 5.0 tests.
+CREATE PROCEDURE p1() 
+BEGIN 
+DECLARE dummy int default 0;
+CASE 12 
+WHEN 12 
+THEN SET dummy = 0;
+END CASE;
+END//
+SHOW PROCEDURE CODE p1;
+Pos	Instruction
+0	set dummy@0 0
+1	set_case_expr (6) 0 12
+2	jump_if_not 5(6) (case_expr@0 = 12)
+3	set dummy@0 0
+4	jump 6
+5	error 1339
+DROP PROCEDURE p1;

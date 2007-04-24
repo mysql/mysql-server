@@ -28,7 +28,8 @@ class ConfigRetriever {
 public:
   ConfigRetriever(const char * _connect_string,
 		  Uint32 version, Uint32 nodeType,
-		  const char * _bind_address = 0);
+		  const char * _bind_address = 0,
+                  int timeout_ms = 30000);
   ~ConfigRetriever();
 
   int do_connect(int no_retries, int retry_delay_in_seconds, int verbose);

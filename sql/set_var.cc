@@ -51,6 +51,7 @@
 #include "mysql_priv.h"
 #include <mysql.h>
 #include "slave.h"
+#include "rpl_mi.h"
 #include <my_getopt.h>
 #include <thr_alarm.h>
 #include <myisam.h>
@@ -356,6 +357,8 @@ sys_var_thd_ulong	sys_net_retry_count("net_retry_count",
 					    &SV::net_retry_count,
 					    0, fix_net_retry_count);
 sys_var_thd_bool	sys_new_mode("new", &SV::new_mode);
+sys_var_bool_ptr_readonly sys_old_mode("old", 
+                                       &global_system_variables.old_mode);
 sys_var_thd_bool	sys_old_alter_table("old_alter_table",
 					    &SV::old_alter_table);
 sys_var_thd_bool	sys_old_passwords("old_passwords", &SV::old_passwords);
@@ -875,7 +878,7 @@ SHOW_VAR init_vars[]= {
 #ifdef HAVE_REPLICATION
   {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_MY_BOOL},
 #endif
-  {"log_slow_queries",        (char*) &opt_slow_log,                SHOW_BOOL},
+  {"log_slow_queries",        (char*) &opt_slow_log,                SHOW_MY_BOOL},
   {sys_log_warnings.name,     (char*) &sys_log_warnings,	    SHOW_SYS},
   {sys_long_query_time.name,  (char*) &sys_long_query_time, 	    SHOW_SYS},
   {sys_low_priority_updates.name, (char*) &sys_low_priority_updates, SHOW_SYS},
@@ -942,6 +945,7 @@ SHOW_VAR init_vars[]= {
   {sys_net_retry_count.name,  (char*) &sys_net_retry_count,	    SHOW_SYS},
   {sys_net_write_timeout.name,(char*) &sys_net_write_timeout,       SHOW_SYS},
   {sys_new_mode.name,         (char*) &sys_new_mode,                SHOW_SYS},
+  {sys_old_mode.name,         (char*) &sys_old_mode,                SHOW_SYS},
   {sys_old_alter_table.name,  (char*) &sys_old_alter_table,         SHOW_SYS},
   {sys_old_passwords.name,    (char*) &sys_old_passwords,           SHOW_SYS},
   {"open_files_limit",	      (char*) &open_files_limit,	    SHOW_LONG},
@@ -1683,7 +1687,7 @@ byte *sys_var_thd_bool::value_ptr(THD *thd, enum_var_type type,
 }
 
 
-bool sys_var::check_enum(THD *thd, set_var *var, TYPELIB *enum_names)
+bool sys_var::check_enum(THD *thd, set_var *var, const TYPELIB *enum_names)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
   const char *value;
@@ -2750,8 +2754,8 @@ int set_var_collation_client::update(THD *thd)
   thd->variables.character_set_results= character_set_results;
   thd->variables.collation_connection= collation_connection;
   thd->update_charset();
-  thd->protocol_simple.init(thd);
-  thd->protocol_prep.init(thd);
+  thd->protocol_text.init(thd);
+  thd->protocol_binary.init(thd);
   return 0;
 }
 
@@ -2880,8 +2884,7 @@ bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
   String str(buff, sizeof(buff), &my_charset_latin1);
   String *res= var->value->val_str(&str);
 
-  if (!(var->save_result.time_zone=
-        my_tz_find(res, thd->lex->time_zone_tables_used)))
+  if (!(var->save_result.time_zone= my_tz_find(thd, res)))
   {
     my_error(ER_UNKNOWN_TIME_ZONE, MYF(0), res ? res->c_ptr() : "NULL");
     return 1;
@@ -2942,8 +2945,7 @@ void sys_var_thd_time_zone::set_default(THD *thd, enum_var_type type)
        We are guaranteed to find this time zone since its existence
        is checked during start-up.
      */
-     global_system_variables.time_zone=
-       my_tz_find(&str, thd->lex->time_zone_tables_used);
+     global_system_variables.time_zone= my_tz_find(thd, &str);
    }
    else
      global_system_variables.time_zone= my_tz_SYSTEM;
@@ -3037,7 +3039,10 @@ bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
 
 bool sys_var_thd_lc_time_names::update(THD *thd, set_var *var)
 {
-  thd->variables.lc_time_names= var->save_result.locale_value;
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.lc_time_names= var->save_result.locale_value;
+  else
+    thd->variables.lc_time_names= var->save_result.locale_value;
   return 0;
 }
 
@@ -3045,13 +3050,18 @@ bool sys_var_thd_lc_time_names::update(THD *thd, set_var *var)
 byte *sys_var_thd_lc_time_names::value_ptr(THD *thd, enum_var_type type,
 					  LEX_STRING *base)
 {
-  return (byte *)(thd->variables.lc_time_names->name);
+  return type == OPT_GLOBAL ?
+                 (byte *) global_system_variables.lc_time_names->name :
+                 (byte *) thd->variables.lc_time_names->name;
 }
 
 
 void sys_var_thd_lc_time_names::set_default(THD *thd, enum_var_type type)
 {
-  thd->variables.lc_time_names = &my_locale_en_US;
+  if (type == OPT_GLOBAL)
+    global_system_variables.lc_time_names= my_default_lc_time_names;
+  else
+    thd->variables.lc_time_names= global_system_variables.lc_time_names;
 }
 
 /*
@@ -3085,16 +3095,15 @@ static bool set_option_autocommit(THD *thd, set_var *var)
     if ((org_options & OPTION_NOT_AUTOCOMMIT))
     {
       /* We changed to auto_commit mode */
-      thd->options&= ~(ulonglong) (OPTION_BEGIN |
-                                   OPTION_STATUS_NO_TRANS_UPDATE |
-                                   OPTION_KEEP_LOG);
+      thd->options&= ~(ulonglong) (OPTION_BEGIN | OPTION_KEEP_LOG);
+      thd->no_trans_update.all= FALSE;
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
       if (ha_commit(thd))
 	return 1;
     }
     else
     {
-      thd->options&= ~(ulonglong) (OPTION_STATUS_NO_TRANS_UPDATE);
+      thd->no_trans_update.all= FALSE;
       thd->server_status&= ~SERVER_STATUS_AUTOCOMMIT;
     }
   }
@@ -3642,21 +3651,18 @@ bool sys_var_thd_table_type::update(THD *thd, set_var *var)
   SYNOPSIS
     thd   in  thread handler
     val   in  sql_mode value
-    len   out pointer on length of string
-
-  RETURN
-    pointer to string with sql_mode representation
+    rep   out pointer pointer to string with sql_mode representation
 */
 
-byte *sys_var_thd_sql_mode::symbolic_mode_representation(THD *thd,
-                                                         ulonglong val,
-                                                         ulong *len)
+bool
+sys_var_thd_sql_mode::
+symbolic_mode_representation(THD *thd, ulonglong val, LEX_STRING *rep)
 {
-  char buff[256];
+  char buff[STRING_BUFFER_USUAL_SIZE*8];
   String tmp(buff, sizeof(buff), &my_charset_latin1);
-  ulong length;
 
   tmp.length(0);
+
   for (uint i= 0; val; val>>= 1, i++)
   {
     if (val & 1)
@@ -3667,20 +3673,25 @@ byte *sys_var_thd_sql_mode::symbolic_mode_representation(THD *thd,
     }
   }
 
-  if ((length= tmp.length()))
-    length--;
-  *len= length;
-  return (byte*) thd->strmake(tmp.ptr(), length);
+  if (tmp.length())
+    tmp.length(tmp.length() - 1); /* trim the trailing comma */
+
+  rep->str= thd->strmake(tmp.ptr(), tmp.length());
+
+  rep->length= rep->str ? tmp.length() : 0;
+
+  return rep->length != tmp.length();
 }
 
 
 byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type,
 				      LEX_STRING *base)
 {
+  LEX_STRING sql_mode;
   ulonglong val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
                   thd->variables.*offset);
-  ulong length_unused;
-  return symbolic_mode_representation(thd, val, &length_unused);
+  (void) symbolic_mode_representation(thd, val, &sql_mode);
+  return (byte *) sql_mode.str;
 }
 
 
@@ -4011,24 +4022,13 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
   int res;
   /* here start the thread if not running. */
   DBUG_ENTER("sys_var_event_scheduler::update");
-  if (Events::opt_event_scheduler == Events::EVENTS_DISABLED)
-  {
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--event-scheduler=DISABLED");
-    DBUG_RETURN(TRUE);
-  }
-
   DBUG_PRINT("info", ("new_value: %d", (int) var->save_result.ulong_value));
 
-  if (var->save_result.ulong_value == Events::EVENTS_ON)
-    res= Events::get_instance()->start_execution_of_events();
-  else if (var->save_result.ulong_value == Events::EVENTS_OFF)
-    res= Events::get_instance()->stop_execution_of_events();
-  else
-  {
-    assert(0);                                  // Impossible
-  }
-  if (res)
-    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0));
+  enum Events::enum_opt_event_scheduler
+    new_state=
+    (enum Events::enum_opt_event_scheduler) var->save_result.ulong_value;
+
+  res= Events::switch_event_scheduler_state(new_state);
 
   DBUG_RETURN((bool) res);
 }
@@ -4037,15 +4037,7 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
 byte *sys_var_event_scheduler::value_ptr(THD *thd, enum_var_type type,
                                          LEX_STRING *base)
 {
-  int state;
-  if (Events::opt_event_scheduler == Events::EVENTS_DISABLED)
-    state= Events::EVENTS_DISABLED;              // This should be DISABLED
-  else if (Events::get_instance()->is_execution_of_events_started())
-    state= Events::EVENTS_ON;                    // This should be ON
-  else
-    state= Events::EVENTS_OFF;                   // This should be OFF
-
-  return (byte*) Events::opt_typelib.type_names[state];
+  return (byte *) Events::get_opt_event_scheduler_str();
 }
 
 

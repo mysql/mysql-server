@@ -1892,12 +1892,15 @@ static int add_partition_options(File fptr, partition_element *p_elem)
     err+= add_keyword_int(fptr,"MAX_ROWS",(longlong)p_elem->part_max_rows);
   if (p_elem->part_min_rows)
     err+= add_keyword_int(fptr,"MIN_ROWS",(longlong)p_elem->part_min_rows);
-  if (p_elem->data_file_name)
-    err+= add_keyword_string(fptr, "DATA DIRECTORY", TRUE, 
-                             p_elem->data_file_name);
-  if (p_elem->index_file_name)
-    err+= add_keyword_string(fptr, "INDEX DIRECTORY", TRUE, 
-                             p_elem->index_file_name);
+  if (!(current_thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
+  {
+    if (p_elem->data_file_name)
+      err+= add_keyword_string(fptr, "DATA DIRECTORY", TRUE, 
+                               p_elem->data_file_name);
+    if (p_elem->index_file_name)
+      err+= add_keyword_string(fptr, "INDEX DIRECTORY", TRUE, 
+                               p_elem->index_file_name);
+  }
   if (p_elem->part_comment)
     err+= add_keyword_string(fptr, "COMMENT", TRUE, p_elem->part_comment);
   return err + add_engine(fptr,p_elem->engine_type);
@@ -3700,9 +3703,9 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
      possible to retrace this given an item tree.
 */
 
-bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
-                            uint part_info_len,
-                            uchar *part_state, uint part_state_len,
+bool mysql_unpack_partition(THD *thd,
+                            const char *part_buf, uint part_info_len,
+                            const char *part_state, uint part_state_len,
                             TABLE* table, bool is_create_table_ind,
                             handlerton *default_db_type)
 {

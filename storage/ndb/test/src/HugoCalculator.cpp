@@ -89,6 +89,27 @@ HugoCalculator::float calcValue(int record, int attrib, int updates) const;
 HugoCalculator::double calcValue(int record, int attrib, int updates) const;
 #endif
 
+static
+Uint32
+calc_len(Uint32 rvalue, int maxlen)
+{
+  Uint32 minlen = 25;
+  
+  if ((rvalue >> 16) < 4096)
+    minlen = 15;
+  else if ((rvalue >> 16) < 8192)
+    minlen = 25;
+  else if ((rvalue >> 16) < 16384)
+    minlen = 35;
+  else
+    minlen = 64;
+
+  if (maxlen <= minlen)
+    return maxlen;
+
+  return minlen + (rvalue % (maxlen - minlen));
+}
+
 const char* 
 HugoCalculator::calcValue(int record, 
 			  int attrib, 
@@ -178,7 +199,7 @@ HugoCalculator::calcValue(int record,
     break;
   case NdbDictionary::Column::Varbinary:
   case NdbDictionary::Column::Varchar:
-    len = 1 + (myRand(&seed) % (len - 1));
+    len = calc_len(myRand(&seed), len - 1);
     assert(len < 256);
     * outlen = len + 1;
     * buf = len;
@@ -186,7 +207,7 @@ HugoCalculator::calcValue(int record,
     goto write_char;
   case NdbDictionary::Column::Longvarchar:
   case NdbDictionary::Column::Longvarbinary:
-    len = 1 + (myRand(&seed) % (len - 2));
+    len = calc_len(myRand(&seed), len - 2);
     assert(len < 65536);
     * outlen = len + 2;
     int2store(buf, len);

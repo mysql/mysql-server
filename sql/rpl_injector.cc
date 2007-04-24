@@ -75,9 +75,11 @@ int injector::transaction::use_table(server_id_type sid, table tbl)
   if ((error= check_state(TABLE_STATE)))
     DBUG_RETURN(error);
 
+  server_id_type save_id= m_thd->server_id;
   m_thd->set_server_id(sid);
   error= m_thd->binlog_write_table_map(tbl.get_table(),
                                        tbl.is_transactional());
+  m_thd->set_server_id(save_id);
   DBUG_RETURN(error);
 }
 
@@ -91,9 +93,11 @@ int injector::transaction::write_row (server_id_type sid, table tbl,
    if (int error= check_state(ROW_STATE))
      DBUG_RETURN(error);
 
+   server_id_type save_id= m_thd->server_id;
    m_thd->set_server_id(sid);
    m_thd->binlog_write_row(tbl.get_table(), tbl.is_transactional(), 
                            cols, colcnt, record);
+   m_thd->set_server_id(save_id);
    DBUG_RETURN(0);
 }
 
@@ -107,9 +111,11 @@ int injector::transaction::delete_row(server_id_type sid, table tbl,
    if (int error= check_state(ROW_STATE))
      DBUG_RETURN(error);
 
+   server_id_type save_id= m_thd->server_id;
    m_thd->set_server_id(sid);
    m_thd->binlog_delete_row(tbl.get_table(), tbl.is_transactional(), 
                             cols, colcnt, record);
+   m_thd->set_server_id(save_id);
    DBUG_RETURN(0);
 }
 
@@ -123,9 +129,11 @@ int injector::transaction::update_row(server_id_type sid, table tbl,
    if (int error= check_state(ROW_STATE))
      DBUG_RETURN(error);
 
+   server_id_type save_id= m_thd->server_id;
    m_thd->set_server_id(sid);
    m_thd->binlog_update_row(tbl.get_table(), tbl.is_transactional(),
 		            cols, colcnt, before, after);
+   m_thd->set_server_id(save_id);
    DBUG_RETURN(0);
 }
 
@@ -187,4 +195,22 @@ void injector::new_trans(THD *thd, injector::transaction *ptr)
    ptr->swap(trans);
 
    DBUG_VOID_RETURN;
+}
+
+int injector::record_incident(THD *thd, Incident incident)
+{
+  Incident_log_event ev(thd, incident);
+  if (int error= mysql_bin_log.write(&ev))
+    return error;
+  mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
+  return 0;
+}
+
+int injector::record_incident(THD *thd, Incident incident, LEX_STRING const message)
+{
+  Incident_log_event ev(thd, incident, message);
+  if (int error= mysql_bin_log.write(&ev))
+    return error;
+  mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
+  return 0;
 }

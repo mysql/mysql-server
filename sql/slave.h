@@ -22,12 +22,17 @@
 #include "my_list.h"
 #include "rpl_filter.h"
 #include "rpl_tblmap.h"
-#include "rpl_rli.h"
-#include "rpl_mi.h"
 
 #define SLAVE_NET_TIMEOUT  3600
 
 #define MAX_SLAVE_ERROR    2000
+
+
+// Forward declarations
+struct st_relay_log_info;
+typedef st_relay_log_info RELAY_LOG_INFO;
+
+class MASTER_INFO;
 
 /*****************************************************************************
 
@@ -162,9 +167,9 @@ bool show_binlog_info(THD* thd);
 bool rpl_master_has_bug(RELAY_LOG_INFO *rli, uint bug_id);
 
 const char *print_slave_db_safe(const char *db);
-int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int error_code);
+int check_expected_error(THD* thd, RELAY_LOG_INFO const *rli, int error_code);
 void skip_load_data_infile(NET* net);
-void slave_print_msg(enum loglevel level, RELAY_LOG_INFO* rli,
+void slave_print_msg(enum loglevel level, RELAY_LOG_INFO const *rli,
                      int err_code, const char* msg, ...)
   ATTRIBUTE_FORMAT(printf, 4, 5);
 
@@ -182,7 +187,7 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,ulonglong pos,
 int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
 		     const char** errmsg);
 void set_slave_thread_options(THD* thd);
-void set_slave_thread_default_charset(THD* thd, RELAY_LOG_INFO *rli);
+void set_slave_thread_default_charset(THD *thd, RELAY_LOG_INFO const *rli);
 void rotate_relay_log(MASTER_INFO* mi);
 
 pthread_handler_t handle_slave_io(void *arg);

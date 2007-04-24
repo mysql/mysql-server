@@ -92,7 +92,8 @@ delete from t2 using t1,t2 where t1.a=t2.a;
 delete t2 from t1,t2 where t1.a=t2.a;
 drop table t1,t2;
 
-# End of 4.1 tests
+--echo End of 4.1 tests.
+
 
 #
 # Bug#18884 "lock table + global read lock = crash"
@@ -108,3 +109,44 @@ flush tables with read lock;
 unlock tables;
 drop table t1;
 
+
+#
+# Test LOCK TABLE on system tables.  See bug#9953: CONVERT_TZ requires
+# mysql.time_zone_name to be locked.
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (i INT);
+
+LOCK TABLES mysql.time_zone READ, mysql.proc READ, t1 READ;
+UNLOCK TABLES;
+
+LOCK TABLES mysql.time_zone READ, mysql.proc READ, t1 WRITE;
+UNLOCK TABLES;
+
+LOCK TABLES mysql.time_zone READ, mysql.proc READ;
+UNLOCK TABLES;
+
+LOCK TABLES mysql.time_zone WRITE, mysql.proc WRITE;
+UNLOCK TABLES;
+
+# If at least one system table is locked for WRITE, then all other
+# tables should be system tables locked also for WRITE.
+--error ER_WRONG_LOCK_OF_SYSTEM_TABLE
+LOCK TABLES mysql.time_zone READ, mysql.proc WRITE, t1 READ;
+
+--error ER_WRONG_LOCK_OF_SYSTEM_TABLE
+LOCK TABLES mysql.time_zone WRITE, mysql.proc WRITE, t1 READ;
+
+--error ER_WRONG_LOCK_OF_SYSTEM_TABLE
+LOCK TABLES mysql.time_zone WRITE, mysql.proc WRITE, t1 WRITE;
+
+--error ER_WRONG_LOCK_OF_SYSTEM_TABLE
+LOCK TABLES mysql.time_zone READ, mysql.proc WRITE;
+
+DROP TABLE t1;
+
+
+--echo End of 5.1 tests.

@@ -66,7 +66,8 @@ struct CreateFilegroupRef {
     InvalidExtentSize = 764,
     InvalidUndoBufferSize = 779,
     NoSuchLogfileGroup = 767,
-    InvalidFilegroupVersion = 768
+    InvalidFilegroupVersion = 768,
+    SingleUser = 299
   };
   
   Uint32 senderData;
@@ -159,7 +160,8 @@ struct CreateFileRef {
     FilenameAlreadyExists = 760,
     OutOfFileRecords = 751,
     InvalidFileType = 750,
-    NotSupportedWhenDiskless = 775
+    NotSupportedWhenDiskless = 775,
+    SingleUser = 299
   };
   
   Uint32 senderData;

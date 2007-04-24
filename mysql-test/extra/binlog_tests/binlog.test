@@ -20,9 +20,7 @@ begin;
 insert t2 values (5);
 commit;
 # first COMMIT must be Query_log_event, second - Xid_log_event
---replace_column 2 # 5 #
---replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events from 102;
+source include/show_binlog_events.inc;
 drop table t1,t2;
 
 #
@@ -44,10 +42,10 @@ commit;
 drop table t1;
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events in 'master-bin.000001' from 102;
+show binlog events in 'master-bin.000001' from 106;
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events in 'master-bin.000002' from 102;
+show binlog events in 'master-bin.000002' from 106;
 
 # Test of a too big SET INSERT_ID: see if the truncated value goes
 # into binlog (right), or the too big value (wrong); we look at the
@@ -80,9 +78,24 @@ DELETE FROM user WHERE host='localhost' AND user='@#@';
 --enable_warnings
 
 use test;
---replace_column 2 # 5 #
---replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events from 102;
+source include/show_binlog_events.inc;
 drop table t1,t2,t3,tt1;
 
 -- source extra/binlog_tests/binlog_insert_delayed.test
+
+#Bug #26079 max_binlog_size + innodb = not make new binlog and hang server
+# server should not hang, binlog must rotate in the end
+reset master;
+--disable_warnings
+drop table if exists t3;
+--enable_warnings
+create table t3 (a int(11) NOT NULL AUTO_INCREMENT, b text, PRIMARY KEY (a) ) engine=innodb;
+show master status;
+let $it=4;
+while ($it)
+{
+insert into t3(b) values ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+dec $it;
+}
+show master status /* must show new binlog index after rotating */;
+drop table t3;

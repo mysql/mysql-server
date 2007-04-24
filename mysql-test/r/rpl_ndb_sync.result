@@ -60,11 +60,11 @@ hex(c2)	hex(c3)	c1
 0	1	BCDEF
 1	0	CD
 0	0	DEFGHIJKL
-SELECT @the_epoch:=MAX(epoch) FROM mysql.apply_status;
+SELECT @the_epoch:=MAX(epoch) FROM mysql.ndb_apply_status;
 @the_epoch:=MAX(epoch)
 <the_epoch>
 SELECT @the_pos:=Position,@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
-FROM mysql.binlog_index WHERE epoch > <the_epoch> ORDER BY epoch ASC LIMIT 1;
+FROM mysql.ndb_binlog_index WHERE epoch > <the_epoch> ORDER BY epoch ASC LIMIT 1;
 @the_pos:=Position	@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
 <the_pos>	master-bin.000001
 CHANGE MASTER TO
@@ -72,8 +72,8 @@ master_log_file = 'master-bin.000001',
 master_log_pos = <the_pos> ;
 START SLAVE;
 SHOW SLAVE STATUS;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-<Slave_IO_State>	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	<Read_Master_Log_Pos>	<Relay_Log_File>	<Relay_Log_Pos>	master-bin.000001	Yes	Yes				<Replicate_Ignore_Table>			0		0	<Exec_Master_Log_Pos>	<Relay_Log_Space>	None		0	No						<Seconds_Behind_Master>
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master	Master_SSL_Verify_Server_Cert
+<Slave_IO_State>	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	<Read_Master_Log_Pos>	<Relay_Log_File>	<Relay_Log_Pos>	master-bin.000001	Yes	Yes				<Replicate_Ignore_Table>			0		0	<Exec_Master_Log_Pos>	<Relay_Log_Space>	None		0	No						<Seconds_Behind_Master>	No
 SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
 hex(c1)	hex(c2)	c3
 1	1	row1
@@ -89,8 +89,8 @@ hex(c2)	hex(c3)	c1
 DROP DATABASE ndbsynctest;
 STOP SLAVE;
 reset master;
-select * from mysql.binlog_index;
+select * from mysql.ndb_binlog_index;
 Position	File	epoch	inserts	updates	deletes	schemaops
 reset slave;
-select * from mysql.apply_status;
-server_id	epoch
+select * from mysql.ndb_apply_status;
+server_id	epoch	log_name	start_pos	end_pos

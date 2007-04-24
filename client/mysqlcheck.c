@@ -34,7 +34,8 @@ static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
                opt_medium_check = 0, opt_quick = 0, opt_all_in_1 = 0,
                opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0,
                tty_password= 0, opt_frm= 0, info_flag= 0, 
-               opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0;
+               opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0,
+               opt_write_binlog= 1;
 static uint verbose = 0, opt_mysql_port=0;
 static my_string opt_mysql_unix_port = 0;
 static char *opt_password = 0, *current_user = 0, 
@@ -123,6 +124,10 @@ static struct my_option my_long_options[] =
   {"medium-check", 'm',
    "Faster than extended-check, but only finds 99.99 percent of all errors. Should be good enough for most cases.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"write-binlog", OPT_WRITE_BINLOG,
+   "Log ANALYZE, OPTIMIZE and REPAIR TABLE commands. Enabled by default; use --skip-write-binlog when commands should not be sent to replication slaves.",
+   (gptr*) &opt_write_binlog, (gptr*) &opt_write_binlog, 0, GET_BOOL, NO_ARG,
+   1, 0, 0, 0, 0, 0},
   {"optimize", 'o', "Optimize table.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"password", 'p',
@@ -310,14 +315,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'V': print_version(); exit(0);
   case OPT_MYSQL_PROTOCOL:
-  {
-    if ((opt_protocol= find_type(argument, &sql_protocol_typelib,0)) <= 0)
-    {
-      fprintf(stderr, "Unknown option to protocol: %s\n", argument);
-      exit(1);
-    }
+    opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
+                                    opt->name);
     break;
-  }
   }
   return 0;
 }
@@ -598,16 +598,16 @@ static int handle_request_for_tables(char *tables, uint length)
     if (opt_upgrade)            end = strmov(end, " FOR UPGRADE");
     break;
   case DO_REPAIR:
-    op = "REPAIR";
+    op= (opt_write_binlog) ? "REPAIR" : "REPAIR NO_WRITE_TO_BINLOG";
     if (opt_quick)              end = strmov(end, " QUICK");
     if (opt_extended)           end = strmov(end, " EXTENDED");
     if (opt_frm)                end = strmov(end, " USE_FRM");
     break;
   case DO_ANALYZE:
-    op = "ANALYZE";
+    op= (opt_write_binlog) ? "ANALYZE" : "ANALYZE NO_WRITE_TO_BINLOG";
     break;
   case DO_OPTIMIZE:
-    op = "OPTIMIZE";
+    op= (opt_write_binlog) ? "OPTIMIZE" : "OPTIMIZE NO_WRITE_TO_BINLOG";
     break;
   case DO_UPGRADE:
     return fix_object_name("TABLE", tables);

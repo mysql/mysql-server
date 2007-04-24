@@ -3,10 +3,10 @@ create table t2 (c char(30)) charset=ucs2;
 set @v=convert('abc' using ucs2);
 reset master;
 insert into t2 values (@v);
-show binlog events from 102;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	102	User var	1	142	@`v`=_ucs2 0x006100620063 COLLATE ucs2_general_ci
-master-bin.000001	142	Query	1	231	use `test`; insert into t2 values (@v)
+master-bin.000001	#	User var	#	#	@`v`=_ucs2 0x006100620063 COLLATE ucs2_general_ci
+master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (@v)
 flush logs;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;

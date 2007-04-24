@@ -1,0 +1,35 @@
+# this test needs multithreaded mysqltest
+-- source include/not_embedded.inc
+
+# Test sleeps for long times
+--source include/big_test.inc
+
+# check that CSV engine was compiled in
+--source include/have_csv.inc
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+#
+# Bug #27638: slow logging to CSV table inserts bad query_time and lock_time values
+#
+connection con1;
+set session long_query_time=10;
+select get_lock('bug27638', 1);
+connection con2;
+set session long_query_time=1;
+truncate table mysql.slow_log;
+select get_lock('bug27638', 2);
+select if (query_time between '00:00:01' and '00:00:10', 'OK', 'WRONG') as qt, sql_text from mysql.slow_log;
+truncate table mysql.slow_log;
+select get_lock('bug27638', 60);
+select if (query_time between '00:00:59' and '00:01:10', 'OK', 'WRONG') as qt, sql_text from mysql.slow_log;
+truncate table mysql.slow_log;
+select get_lock('bug27638', 101);
+select if (query_time between '00:01:40' and '00:01:50', 'OK', 'WRONG') as qt, sql_text from mysql.slow_log;
+connection con1;
+select release_lock('bug27638');
+connection default;
+
+disconnect con1;
+disconnect con2;

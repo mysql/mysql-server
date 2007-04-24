@@ -307,8 +307,11 @@ RecordPool<T, P>::seize(Ptr<T> & ptr)
 {
   Ptr<void> tmp;
   bool ret = m_pool.seize(tmp);
-  ptr.i = tmp.i;
-  ptr.p = static_cast<T*>(tmp.p);
+  if(likely(ret))
+  {
+    ptr.i = tmp.i;
+    ptr.p = static_cast<T*>(tmp.p);
+  }
   return ret;
 }
 

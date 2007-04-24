@@ -57,6 +57,7 @@ Number of primary keys: 3
 Length of frm data: #
 Row Checksum: 1
 Row GCI: 1
+SingleUserMode: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY AT=FIXED ST=MEMORY

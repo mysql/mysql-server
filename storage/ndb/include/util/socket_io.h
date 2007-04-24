@@ -28,15 +28,20 @@ extern "C" {
 
   int read_socket(NDB_SOCKET_TYPE, int timeout_ms, char *, int len);
 
-  int readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
+  int readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
                     char * buf, int buflen, NdbMutex *mutex);
 
-  int write_socket(NDB_SOCKET_TYPE, int timeout_ms, const char[], int len);
+  int write_socket(NDB_SOCKET_TYPE, int timeout_ms, int *time,
+                   const char[], int len);
 
-  int print_socket(NDB_SOCKET_TYPE, int timeout_ms, const char *, ...); 
-  int println_socket(NDB_SOCKET_TYPE, int timeout_ms, const char *, ...); 
-  int vprint_socket(NDB_SOCKET_TYPE, int timeout_ms, const char *, va_list); 
-  int vprintln_socket(NDB_SOCKET_TYPE, int timeout_ms, const char *, va_list); 
+  int print_socket(NDB_SOCKET_TYPE, int timeout_ms, int *time,
+                   const char *, ...);
+  int println_socket(NDB_SOCKET_TYPE, int timeout_ms, int *time,
+                     const char *, ...);
+  int vprint_socket(NDB_SOCKET_TYPE, int timeout_ms, int *time,
+                    const char *, va_list);
+  int vprintln_socket(NDB_SOCKET_TYPE, int timeout_ms, int *time,
+                      const char *, va_list);
 
 #ifdef  __cplusplus
 }

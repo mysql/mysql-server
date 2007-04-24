@@ -15,6 +15,7 @@
 
 #include "mysql_priv.h"
 
+#include "rpl_mi.h"
 #include "rpl_rli.h"
 #include <my_dir.h>    // For MY_STAT
 #include "sql_repl.h"  // For check_binlog_magic
@@ -29,14 +30,15 @@ int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
 
 
 st_relay_log_info::st_relay_log_info()
-  :no_storage(FALSE), info_fd(-1), cur_log_fd(-1), save_temporary_tables(0),
+  :no_storage(FALSE), replicate_same_server_id(::replicate_same_server_id),
+   info_fd(-1), cur_log_fd(-1), save_temporary_tables(0),
    cur_log_old_open_count(0), group_master_log_pos(0), log_space_total(0),
    ignore_log_space_limit(0), last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), slave_run_id(0), sql_thd(0), last_slave_errno(0),
    inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
    until_log_pos(0), retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
-   unsafe_to_stop_at(0)
+   last_event_start_time(0), m_flags(0)
 {
   DBUG_ENTER("st_relay_log_info::st_relay_log_info");
 
@@ -968,7 +970,7 @@ err:
      strtol() conversions needed for log names comparison. We don't need to
      compare them each time this function is called, we only need to do this
      when current log name changes. If we have UNTIL_MASTER_POS condition we
-     need to do this only after Rotate_log_event::exec_event() (which is
+     need to do this only after Rotate_log_event::do_apply_event() (which is
      rare, so caching gives real benifit), and if we have UNTIL_RELAY_POS
      condition then we should invalidate cached comarison value after
      inc_group_relay_log_pos() which called for each group of events (so we
@@ -1000,6 +1002,22 @@ bool st_relay_log_info::is_until_satisfied()
     log_name= group_relay_log_name;
     log_pos= group_relay_log_pos;
   }
+
+#ifndef DBUG_OFF
+  {
+    char buf[32];
+    DBUG_PRINT("info", ("group_master_log_name='%s', group_master_log_pos=%s",
+                        group_master_log_name, llstr(group_master_log_pos, buf)));
+    DBUG_PRINT("info", ("group_relay_log_name='%s', group_relay_log_pos=%s",
+                        group_relay_log_name, llstr(group_relay_log_pos, buf)));
+    DBUG_PRINT("info", ("(%s) log_name='%s', log_pos=%s",
+                        until_condition == UNTIL_MASTER_POS ? "master" : "relay",
+                        log_name, llstr(log_pos, buf)));
+    DBUG_PRINT("info", ("(%s) until_log_name='%s', until_log_pos=%s",
+                        until_condition == UNTIL_MASTER_POS ? "master" : "relay",
+                        until_log_name, llstr(until_log_pos, buf)));
+  }
+#endif
 
   if (until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_UNKNOWN)
   {
@@ -1056,28 +1074,63 @@ void st_relay_log_info::cached_charset_invalidate()
 }
 
 
-bool st_relay_log_info::cached_charset_compare(char *charset)
+bool st_relay_log_info::cached_charset_compare(char *charset) const
 {
   DBUG_ENTER("st_relay_log_info::cached_charset_compare");
 
   if (bcmp(cached_charset, charset, sizeof(cached_charset)))
   {
-    memcpy(cached_charset, charset, sizeof(cached_charset));
+    memcpy(const_cast<char*>(cached_charset), charset, sizeof(cached_charset));
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
 
 
-void st_relay_log_info::transaction_end(THD* thd)
+void st_relay_log_info::stmt_done(my_off_t event_master_log_pos,
+                                  time_t event_creation_time)
 {
-  DBUG_ENTER("st_relay_log_info::transaction_end");
+  clear_flag(IN_STMT);
 
   /*
-    Nothing to do here right now.
-   */
+    If in a transaction, and if the slave supports transactions, just
+    inc_event_relay_log_pos(). We only have to check for OPTION_BEGIN
+    (not OPTION_NOT_AUTOCOMMIT) as transactions are logged with
+    BEGIN/COMMIT, not with SET AUTOCOMMIT= .
 
-  DBUG_VOID_RETURN;
+    CAUTION: opt_using_transactions means innodb || bdb ; suppose the
+    master supports InnoDB and BDB, but the slave supports only BDB,
+    problems will arise: - suppose an InnoDB table is created on the
+    master, - then it will be MyISAM on the slave - but as
+    opt_using_transactions is true, the slave will believe he is
+    transactional with the MyISAM table. And problems will come when
+    one does START SLAVE; STOP SLAVE; START SLAVE; (the slave will
+    resume at BEGIN whereas there has not been any rollback).  This is
+    the problem of using opt_using_transactions instead of a finer
+    "does the slave support _transactional handler used on the
+    master_".
+
+    More generally, we'll have problems when a query mixes a
+    transactional handler and MyISAM and STOP SLAVE is issued in the
+    middle of the "transaction". START SLAVE will resume at BEGIN
+    while the MyISAM table has already been updated.
+  */
+  if ((sql_thd->options & OPTION_BEGIN) && opt_using_transactions)
+    inc_event_relay_log_pos();
+  else
+  {
+    inc_group_relay_log_pos(event_master_log_pos);
+    flush_relay_log_info(this);
+    /*
+      Note that Rotate_log_event::do_apply_event() does not call this
+      function, so there is no chance that a fake rotate event resets
+      last_master_timestamp.  Note that we update without mutex
+      (probably ok - except in some very rare cases, only consequence
+      is that value may take some time to display in
+      Seconds_Behind_Master - not critical).
+    */
+    last_master_timestamp= event_creation_time;
+  }
 }
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
@@ -1087,12 +1140,12 @@ void st_relay_log_info::cleanup_context(THD *thd, bool error)
 
   DBUG_ASSERT(sql_thd == thd);
   /*
-    1) Instances of Table_map_log_event, if ::exec_event() was called on them,
+    1) Instances of Table_map_log_event, if ::do_apply_event() was called on them,
     may have opened tables, which we cannot be sure have been closed (because
     maybe the Rows_log_event have not been found or will not be, because slave
     SQL thread is stopping, or relay log has a missing tail etc). So we close
     all thread's tables. And so the table mappings have to be cancelled.
-    2) Rows_log_event::exec_event() may even have started statements or
+    2) Rows_log_event::do_apply_event() may even have started statements or
     transactions on them, which we need to rollback in case of error.
     3) If finding a Format_description_log_event after a BEGIN, we also need
     to rollback before continuing with the next events.
@@ -1106,7 +1159,8 @@ void st_relay_log_info::cleanup_context(THD *thd, bool error)
   m_table_map.clear_tables();
   close_thread_tables(thd);
   clear_tables_to_lock();
-  unsafe_to_stop_at= 0;
+  clear_flag(IN_STMT);
+  last_event_start_time= 0;
   DBUG_VOID_RETURN;
 }
 

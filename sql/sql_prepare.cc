@@ -34,6 +34,12 @@ When one prepares a statement:
     [Params meta info (stubs only for now)]  (if Param_count > 0)
     [Columns meta info] (if Column_count > 0)
 
+  During prepare the tables used in a statement are opened, but no
+  locks are acquired.  Table opening will block any DDL during the
+  operation, and we do not need any locks as we neither read nor
+  modify any data during prepare.  Tables are closed after prepare
+  finishes.
+
 When one executes a statement:
 
   - Server gets the command 'COM_STMT_EXECUTE' to execute the
@@ -52,6 +58,10 @@ When one executes a statement:
   - Assign parameter items from the supplied data.
   - Execute the query without re-parsing and send back the results
     to client
+
+  During execution of prepared statement tables are opened and locked
+  the same way they would for normal (non-prepared) statement
+  execution.  Tables are unlocked and closed after the execution.
 
 When one supplies long data for a placeholder:
 
@@ -83,11 +93,11 @@ When one supplies long data for a placeholder:
 
 /* A result class used to send cursor rows using the binary protocol. */
 
-class Select_fetch_protocol_prep: public select_send
+class Select_fetch_protocol_binary: public select_send
 {
-  Protocol_prep protocol;
+  Protocol_binary protocol;
 public:
-  Select_fetch_protocol_prep(THD *thd);
+  Select_fetch_protocol_binary(THD *thd);
   virtual bool send_fields(List<Item> &list, uint flags);
   virtual bool send_data(List<Item> &items);
   virtual bool send_eof();
@@ -115,7 +125,7 @@ public:
   };
 
   THD *thd;
-  Select_fetch_protocol_prep result;
+  Select_fetch_protocol_binary result;
   Protocol *protocol;
   Item_param **param_array;
   uint param_count;
@@ -237,9 +247,9 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   */
   DBUG_RETURN(my_net_write(net, buff, sizeof(buff)) ||
               (stmt->param_count &&
-               stmt->thd->protocol_simple.send_fields((List<Item> *)
-                                                      &stmt->lex->param_list,
-                                                      Protocol::SEND_EOF)));
+               stmt->thd->protocol_text.send_fields((List<Item> *)
+                                                    &stmt->lex->param_list,
+                                                    Protocol::SEND_EOF)));
 }
 #else
 static bool send_prep_stmt(Prepared_statement *stmt,
@@ -681,7 +691,7 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
     and generate a valid query for logging.
 
   NOTES
-    This function, along with other _withlog functions is called when one of
+    This function, along with other _with_log functions is called when one of
     binary, slow or general logs is open. Logging of prepared statements in
     all cases is performed by means of conventional queries: if parameter
     data was supplied from C API, each placeholder in the query is
@@ -705,9 +715,9 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
    0 if success, 1 otherwise
 */
 
-static bool insert_params_withlog(Prepared_statement *stmt, uchar *null_array,
-                                  uchar *read_pos, uchar *data_end,
-                                  String *query)
+static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
+                                   uchar *read_pos, uchar *data_end,
+                                   String *query)
 {
   THD  *thd= stmt->thd;
   Item_param **begin= stmt->param_array;
@@ -715,7 +725,7 @@ static bool insert_params_withlog(Prepared_statement *stmt, uchar *null_array,
   uint32 length= 0;
   String str;
   const String *res;
-  DBUG_ENTER("insert_params_withlog");
+  DBUG_ENTER("insert_params_with_log");
 
   if (query->copy(stmt->query, stmt->query_length, default_charset_info))
     DBUG_RETURN(1);
@@ -859,7 +869,8 @@ static bool emb_insert_params(Prepared_statement *stmt, String *expanded_query)
 }
 
 
-static bool emb_insert_params_withlog(Prepared_statement *stmt, String *query)
+static bool emb_insert_params_with_log(Prepared_statement *stmt,
+                                       String *query)
 {
   THD *thd= stmt->thd;
   Item_param **it= stmt->param_array;
@@ -870,7 +881,7 @@ static bool emb_insert_params_withlog(Prepared_statement *stmt, String *query)
   const String *res;
   uint32 length= 0;
 
-  DBUG_ENTER("emb_insert_params_withlog");
+  DBUG_ENTER("emb_insert_params_with_log");
 
   if (query->copy(stmt->query, stmt->query_length, default_charset_info))
     DBUG_RETURN(1);
@@ -1071,7 +1082,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
 
     if (mysql_prepare_insert(thd, table_list, table_list->table,
                              fields, values, update_fields, update_values,
-                             duplic, &unused_conds, FALSE))
+                             duplic, &unused_conds, FALSE, FALSE, FALSE))
       goto error;
 
     value_count= values->elements;
@@ -1129,32 +1140,20 @@ static int mysql_test_update(Prepared_statement *stmt,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint          want_privilege;
 #endif
-  bool need_reopen;
   DBUG_ENTER("mysql_test_update");
 
-  if (update_precheck(thd, table_list))
+  if (update_precheck(thd, table_list) ||
+      open_tables(thd, &table_list, &table_count, 0))
     goto error;
 
-  for ( ; ; )
+  if (table_list->multitable_view)
   {
-    if (open_tables(thd, &table_list, &table_count, 0))
-      goto error;
-
-    if (table_list->multitable_view)
-    {
-      DBUG_ASSERT(table_list->view != 0);
-      DBUG_PRINT("info", ("Switch to multi-update"));
-      /* pass counter value */
-      thd->lex->table_count= table_count;
-      /* convert to multiupdate */
-      DBUG_RETURN(2);
-    }
-
-    if (!lock_tables(thd, table_list, table_count, &need_reopen))
-      break;
-    if (!need_reopen)
-      goto error;
-    close_tables_for_reopen(thd, &table_list);
+    DBUG_ASSERT(table_list->view != 0);
+    DBUG_PRINT("info", ("Switch to multi-update"));
+    /* pass counter value */
+    thd->lex->table_count= table_count;
+    /* convert to multiupdate */
+    DBUG_RETURN(2);
   }
 
   /*
@@ -1221,7 +1220,7 @@ static bool mysql_test_delete(Prepared_statement *stmt,
   DBUG_ENTER("mysql_test_delete");
 
   if (delete_precheck(thd, table_list) ||
-      open_and_lock_tables(thd, table_list))
+      open_normal_and_derived_tables(thd, table_list, 0))
     goto error;
 
   if (!table_list->table)
@@ -1280,7 +1279,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
   }
 
-  if (open_and_lock_tables(thd, tables))
+  if (open_normal_and_derived_tables(thd, tables, 0))
     goto error;
 
   thd->used_tables= 0;                        // Updated by setup_fields
@@ -1341,7 +1340,7 @@ static bool mysql_test_do_fields(Prepared_statement *stmt,
   if (tables && check_table_access(thd, SELECT_ACL, tables, 0))
     DBUG_RETURN(TRUE);
 
-  if (open_and_lock_tables(thd, tables))
+  if (open_normal_and_derived_tables(thd, tables, 0))
     DBUG_RETURN(TRUE);
   DBUG_RETURN(setup_fields(thd, 0, *values, MARK_COLUMNS_NONE, 0, 0));
 }
@@ -1371,7 +1370,7 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
   set_var_base *var;
 
   if (tables && check_table_access(thd, SELECT_ACL, tables, 0) ||
-      open_and_lock_tables(thd, tables))
+      open_normal_and_derived_tables(thd, tables, 0))
     goto error;
 
   while ((var= it++))
@@ -1397,7 +1396,7 @@ error:
   NOTE
     This function won't directly open tables used in select. They should
     be opened either by calling function (and in this case you probably
-    should use select_like_stmt_test_with_open_n_lock()) or by
+    should use select_like_stmt_test_with_open()) or by
     "specific_prepare" call (like this happens in case of multi-update).
 
   RETURN VALUE
@@ -1425,14 +1424,14 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
 }
 
 /*
-  Check internal SELECT of the prepared command (with opening and
-  locking of used tables).
+  Check internal SELECT of the prepared command (with opening of used
+  tables).
 
   SYNOPSIS
-    select_like_stmt_test_with_open_n_lock()
+    select_like_stmt_test_with_open()
       stmt                      prepared statement
-      tables                    list of tables to be opened and locked
-                                before calling specific_prepare function
+      tables                    list of tables to be opened before calling
+                                specific_prepare function
       specific_prepare          function of command specific prepare
       setup_tables_done_option  options to be passed to LEX::unit.prepare()
 
@@ -1442,19 +1441,20 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
 */
 
 static bool
-select_like_stmt_test_with_open_n_lock(Prepared_statement *stmt,
-                                       TABLE_LIST *tables,
-                                       bool (*specific_prepare)(THD *thd),
-                                       ulong setup_tables_done_option)
+select_like_stmt_test_with_open(Prepared_statement *stmt,
+                                TABLE_LIST *tables,
+                                bool (*specific_prepare)(THD *thd),
+                                ulong setup_tables_done_option)
 {
-  DBUG_ENTER("select_like_stmt_test_with_open_n_lock");
+  DBUG_ENTER("select_like_stmt_test_with_open");
 
   /*
-    We should not call LEX::unit.cleanup() after this open_and_lock_tables()
-    call because we don't allow prepared EXPLAIN yet so derived tables will
-    clean up after themself.
+    We should not call LEX::unit.cleanup() after this
+    open_normal_and_derived_tables() call because we don't allow
+    prepared EXPLAIN yet so derived tables will clean up after
+    themself.
   */
-  if (open_and_lock_tables(stmt->thd, tables))
+  if (open_normal_and_derived_tables(stmt->thd, tables, 0))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(select_like_stmt_test(stmt, specific_prepare,
@@ -1493,7 +1493,7 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
   if (select_lex->item_list.elements)
   {
     select_lex->context.resolve_in_select_list= TRUE;
-    res= select_like_stmt_test_with_open_n_lock(stmt, tables, 0, 0);
+    res= select_like_stmt_test_with_open(stmt, tables, 0, 0);
   }
 
   /* put tables back for PS rexecuting */
@@ -1553,9 +1553,9 @@ static bool mysql_test_multidelete(Prepared_statement *stmt,
   }
 
   if (multi_delete_precheck(stmt->thd, tables) ||
-      select_like_stmt_test_with_open_n_lock(stmt, tables,
-                                             &mysql_multi_delete_prepare,
-                                             OPTION_SETUP_TABLES_DONE))
+      select_like_stmt_test_with_open(stmt, tables,
+                                      &mysql_multi_delete_prepare,
+                                      OPTION_SETUP_TABLES_DONE))
     goto error;
   if (!tables->table)
   {
@@ -1571,15 +1571,16 @@ error:
 
 /*
   Wrapper for mysql_insert_select_prepare, to make change of local tables
-  after open_and_lock_tables() call.
+  after open_normal_and_derived_tables() call.
 
   SYNOPSIS
     mysql_insert_select_prepare_tester()
       thd                thread handle
 
   NOTE
-    We need to remove the first local table after open_and_lock_tables,
-    because mysql_handle_derived uses local tables lists.
+    We need to remove the first local table after
+    open_normal_and_derived_tables(), because mysql_handle_derived
+    uses local tables lists.
 */
 
 static bool mysql_insert_select_prepare_tester(THD *thd)
@@ -1631,9 +1632,9 @@ static bool mysql_test_insert_select(Prepared_statement *stmt,
   DBUG_ASSERT(first_local_table != 0);
 
   res=
-    select_like_stmt_test_with_open_n_lock(stmt, tables,
-                                           &mysql_insert_select_prepare_tester,
-                                           OPTION_SETUP_TABLES_DONE);
+    select_like_stmt_test_with_open(stmt, tables,
+                                    &mysql_insert_select_prepare_tester,
+                                    OPTION_SETUP_TABLES_DONE);
   /* revert changes  made by mysql_insert_select_prepare_tester */
   lex->select_lex.table_list.first= (byte*) first_local_table;
   return res;
@@ -1669,7 +1670,7 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   enum enum_sql_command sql_command= lex->sql_command;
   int res= 0;
   DBUG_ENTER("check_prepared_statement");
-  DBUG_PRINT("enter",("command: %d, param_count: %u",
+  DBUG_PRINT("enter",("command: %d  param_count: %u",
                       sql_command, stmt->param_count));
 
   lex->first_lists_tables_same();
@@ -1889,7 +1890,7 @@ void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
 
-  if (! (stmt= new Prepared_statement(thd, &thd->protocol_prep)))
+  if (! (stmt= new Prepared_statement(thd, &thd->protocol_binary)))
     DBUG_VOID_RETURN; /* out of memory: error is set in Sql_alloc */
 
   if (thd->stmt_map.insert(thd, stmt))
@@ -2061,8 +2062,8 @@ void mysql_sql_stmt_prepare(THD *thd)
   const char *query;
   uint query_len;
   DBUG_ENTER("mysql_sql_stmt_prepare");
-  DBUG_ASSERT(thd->protocol == &thd->protocol_simple);
   LINT_INIT(query_len);
+  DBUG_ASSERT(thd->protocol == &thd->protocol_text);
 
   if ((stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
   {
@@ -2075,7 +2076,7 @@ void mysql_sql_stmt_prepare(THD *thd)
   }
 
   if (! (query= get_dynamic_sql_string(lex, &query_len)) ||
-      ! (stmt= new Prepared_statement(thd, &thd->protocol_simple)))
+      ! (stmt= new Prepared_statement(thd, &thd->protocol_text)))
   {
     DBUG_VOID_RETURN;                           /* out of memory */
   }
@@ -2628,14 +2629,14 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 
 
 /***************************************************************************
- Select_fetch_protocol_prep
+ Select_fetch_protocol_binary
 ****************************************************************************/
 
-Select_fetch_protocol_prep::Select_fetch_protocol_prep(THD *thd_arg)
+Select_fetch_protocol_binary::Select_fetch_protocol_binary(THD *thd_arg)
   :protocol(thd_arg)
 {}
 
-bool Select_fetch_protocol_prep::send_fields(List<Item> &list, uint flags)
+bool Select_fetch_protocol_binary::send_fields(List<Item> &list, uint flags)
 {
   bool rc;
   Protocol *save_protocol= thd->protocol;
@@ -2653,7 +2654,7 @@ bool Select_fetch_protocol_prep::send_fields(List<Item> &list, uint flags)
   return rc;
 }
 
-bool Select_fetch_protocol_prep::send_eof()
+bool Select_fetch_protocol_binary::send_eof()
 {
   Protocol *save_protocol= thd->protocol;
 
@@ -2665,7 +2666,7 @@ bool Select_fetch_protocol_prep::send_eof()
 
 
 bool
-Select_fetch_protocol_prep::send_data(List<Item> &fields)
+Select_fetch_protocol_binary::send_data(List<Item> &fields)
 {
   Protocol *save_protocol= thd->protocol;
   bool rc;
@@ -2699,15 +2700,26 @@ Prepared_statement::Prepared_statement(THD *thd_arg, Protocol *protocol_arg)
 
 void Prepared_statement::setup_set_params()
 {
-  /* Setup binary logging */
+  /*
+    Note: BUG#25843 applies here too (query cache lookup uses thd->db, not
+    db from "prepare" time).
+  */
+  if (query_cache_maybe_disabled(thd)) // we won't expand the query
+    lex->safe_to_cache_query= FALSE;   // so don't cache it at Execution
+
+  /*
+    Decide if we have to expand the query (because we must write it to logs or
+    because we want to look it up in the query cache) or not.
+  */
   if (mysql_bin_log.is_open() && is_update_query(lex->sql_command) ||
-      opt_log || opt_slow_log)
+      opt_log || opt_slow_log ||
+      query_cache_is_cacheable_query(lex))
   {
     set_params_from_vars= insert_params_from_vars_with_log;
 #ifndef EMBEDDED_LIBRARY
-    set_params= insert_params_withlog;
+    set_params= insert_params_with_log;
 #else
-    set_params_data= emb_insert_params_withlog;
+    set_params_data= emb_insert_params_with_log;
 #endif
   }
   else
@@ -2838,13 +2850,12 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
 
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
-  lex_start(thd, (uchar*) thd->query, thd->query_length);
+  lex_start(thd, thd->query, thd->query_length);
   lex->stmt_prepare_mode= TRUE;
 
   error= MYSQLparse((void *)thd) || thd->is_fatal_error ||
       thd->net.report_error || init_param_array(this);
 
-  lex->safe_to_cache_query= FALSE;
   /*
     While doing context analysis of the query (in check_prepared_statement)
     we allocate a lot of additional memory: for open tables, JOINs, derived
@@ -2886,6 +2897,18 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   cleanup_stmt();
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= old_stmt_arena;
+
+  if ((protocol->type() == Protocol::PROTOCOL_TEXT) && (param_count > 0))
+  {
+    /*
+      This is a mysql_sql_stmt_prepare(); query expansion will insert user
+      variable references, and user variables are uncacheable, thus we have to
+      mark this statement as uncacheable.
+      This has to be done before setup_set_params(), as it may make expansion
+      unneeded.
+    */
+    lex->safe_to_cache_query= FALSE;
+  }
 
   if (error == 0)
   {
@@ -3003,11 +3026,26 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   reinit_stmt_before_use(thd, lex);
 
   thd->protocol= protocol;                      /* activate stmt protocol */
-  error= (open_cursor ?
-          mysql_open_cursor(thd, (uint) ALWAYS_MATERIALIZED_CURSOR,
-                            &result, &cursor) :
-          mysql_execute_command(thd));
-  thd->protocol= &thd->protocol_simple;         /* use normal protocol */
+
+  if (open_cursor)
+    error= mysql_open_cursor(thd, (uint) ALWAYS_MATERIALIZED_CURSOR,
+                             &result, &cursor);
+  else
+  {
+    /*
+      Try to find it in the query cache, if not, execute it.
+      Note that multi-statements cannot exist here (they are not supported in
+      prepared statements).
+    */
+    if (query_cache_send_result_to_client(thd, thd->query,
+                                          thd->query_length) <= 0)
+    {
+      error= mysql_execute_command(thd);
+      query_cache_end_of_result(thd);
+    }
+  }
+
+  thd->protocol= &thd->protocol_text;         /* use normal protocol */
 
   /* Assert that if an error, no cursor is open */
   DBUG_ASSERT(! (error && cursor));

@@ -571,6 +571,33 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   DBUG_RETURN(0);
 }//NdbOperation::setValue()
 
+
+int
+NdbOperation::setAnyValue(Uint32 any_value)
+{
+  const NdbColumnImpl* impl =
+    &NdbColumnImpl::getImpl(* NdbDictionary::Column::ANY_VALUE);
+  OperationType tOpType = theOperationType;
+  OperationStatus tStatus = theStatus;
+
+  switch(tOpType){
+  case DeleteRequest:{
+    Uint32 ah;
+    AttributeHeader::init(&ah, AttributeHeader::ANY_VALUE, 4);
+    if (insertATTRINFO(ah) != -1 && insertATTRINFO(any_value) != -1 ) 
+    {
+      return 0;
+    }
+  }
+  default:
+    return setValue(impl, (const char *)&any_value);
+  }
+
+  setErrorCodeAbort(4000);
+  return -1;
+}
+
+
 NdbBlob*
 NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo)
 {

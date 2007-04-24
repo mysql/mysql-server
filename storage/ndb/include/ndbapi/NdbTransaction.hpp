@@ -575,7 +575,7 @@ private:
   NdbTransaction(Ndb* aNdb); 
   ~NdbTransaction();
 
-  void init();           // Initialize connection object for new transaction
+  int init();           // Initialize connection object for new transaction
 
   int executeNoBlobs(ExecType execType, 
 	             NdbOperation::AbortOption = NdbOperation::DefaultAbortOption,

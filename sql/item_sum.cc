@@ -63,6 +63,7 @@ bool Item_sum::init_sum_func_check(THD *thd)
   nest_level= thd->lex->current_select->nest_level;
   ref_by= 0;
   aggr_level= -1;
+  aggr_sel= NULL;
   max_arg_level= -1;
   max_sum_func_level= -1;
   return FALSE;
@@ -148,9 +149,14 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     if (register_sum_func(thd, ref))
       return TRUE;
     invalid= aggr_level < 0 && !(allow_sum_func & (1 << nest_level));
+    if (!invalid && thd->variables.sql_mode & MODE_ANSI)
+      invalid= aggr_level < 0 && max_arg_level < nest_level;
   }
   if (!invalid && aggr_level < 0)
+  {
     aggr_level= nest_level;
+    aggr_sel= thd->lex->current_select;
+  }
   /*
     By this moment we either found a subquery where the set function is
     to be aggregated  and assigned a value that is  >= 0 to aggr_level,
@@ -160,8 +166,9 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     Additionally we have to check whether possible nested set functions
     are acceptable here: they are not, if the level of aggregation of
     some of them is less than aggr_level.
-  */ 
-  invalid= aggr_level <= max_sum_func_level;
+  */
+  if (!invalid) 
+    invalid= aggr_level <= max_sum_func_level;
   if (invalid)  
   {
     my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
@@ -176,6 +183,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     */
     set_if_bigger(in_sum_func->max_sum_func_level, aggr_level);
   }
+  update_used_tables();
   thd->lex->in_sum_func= in_sum_func;
   return FALSE;
 }
@@ -210,7 +218,6 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
 bool Item_sum::register_sum_func(THD *thd, Item **ref)
 {
   SELECT_LEX *sl;
-  SELECT_LEX *aggr_sl= NULL;
   nesting_map allow_sum_func= thd->lex->allow_sum_func;
   for (sl= thd->lex->current_select->master_unit()->outer_select() ;
        sl && sl->nest_level > max_arg_level;
@@ -220,7 +227,7 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
     {
       /* Found the most nested subquery where the function can be aggregated */
       aggr_level= sl->nest_level;
-      aggr_sl= sl;
+      aggr_sel= sl;
     }
   }
   if (sl && (allow_sum_func & (1 << sl->nest_level)))
@@ -231,21 +238,22 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
       The set function will be aggregated in this subquery.
     */   
     aggr_level= sl->nest_level;
-    aggr_sl= sl;
+    aggr_sel= sl;
+
   }
   if (aggr_level >= 0)
   {
     ref_by= ref;
-    /* Add the object to the list of registered objects assigned to aggr_sl */
-    if (!aggr_sl->inner_sum_func_list)
+    /* Add the object to the list of registered objects assigned to aggr_sel */
+    if (!aggr_sel->inner_sum_func_list)
       next= this;
     else
     {
-      next= aggr_sl->inner_sum_func_list->next;
-      aggr_sl->inner_sum_func_list->next= this;
+      next= aggr_sel->inner_sum_func_list->next;
+      aggr_sel->inner_sum_func_list->next= this;
     }
-    aggr_sl->inner_sum_func_list= this;
-    aggr_sl->with_sum_func= 1;
+    aggr_sel->inner_sum_func_list= this;
+    aggr_sel->with_sum_func= 1;
 
     /* 
       Mark Item_subselect(s) as containing aggregate function all the way up
@@ -263,16 +271,17 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
       has aggregate functions directly referenced (i.e. not through a sub-select).
     */
     for (sl= thd->lex->current_select; 
-         sl && sl != aggr_sl && sl->master_unit()->item;
+         sl && sl != aggr_sel && sl->master_unit()->item;
          sl= sl->master_unit()->outer_select() )
       sl->master_unit()->item->with_sum_func= 1;
   }
+  thd->lex->current_select->mark_as_dependent(aggr_sel);
   return FALSE;
 }
 
 
-Item_sum::Item_sum(List<Item> &list)
-  :arg_count(list.elements)
+Item_sum::Item_sum(List<Item> &list) :arg_count(list.elements), 
+  forced_const(FALSE)
 {
   if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
   {
@@ -296,7 +305,10 @@ Item_sum::Item_sum(List<Item> &list)
 
 Item_sum::Item_sum(THD *thd, Item_sum *item):
   Item_result_field(thd, item), arg_count(item->arg_count),
-  quick_group(item->quick_group)
+  aggr_sel(item->aggr_sel),
+  nest_level(item->nest_level), aggr_level(item->aggr_level),
+  quick_group(item->quick_group), used_tables_cache(item->used_tables_cache),
+  forced_const(item->forced_const) 
 {
   if (arg_count <= 2)
     args=tmp_args;
@@ -407,7 +419,7 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
     break;
   case STRING_RESULT:
     if (max_length/collation.collation->mbmaxlen <= 255 ||
-        max_length/collation.collation->mbmaxlen >=UINT_MAX16 ||
+        convert_blob_length >=UINT_MAX16 ||
         !convert_blob_length)
       return make_string_field(table);
     field= new Field_varstring(convert_blob_length, maybe_null,
@@ -426,6 +438,25 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
   if (field)
     field->init(table);
   return field;
+}
+
+
+void Item_sum::update_used_tables ()
+{
+  if (!forced_const)
+  {
+    used_tables_cache= 0;
+    for (uint i=0 ; i < arg_count ; i++)
+    {
+      args[i]->update_used_tables();
+      used_tables_cache|= args[i]->used_tables();
+    }
+
+    used_tables_cache&= PSEUDO_TABLE_BITS;
+
+    /* the aggregate function is aggregated into its local context */
+    used_tables_cache |=  (1 << aggr_sel->join->tables) - 1;
+  }
 }
 
 
@@ -488,7 +519,7 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
 Item_sum_hybrid::Item_sum_hybrid(THD *thd, Item_sum_hybrid *item)
   :Item_sum(thd, item), value(item->value), hybrid_type(item->hybrid_type),
   hybrid_field_type(item->hybrid_field_type), cmp_sign(item->cmp_sign),
-  used_table_cache(item->used_table_cache), was_values(item->was_values)
+  was_values(item->was_values)
 {
   /* copy results from old value */
   switch (hybrid_type) {
@@ -1059,14 +1090,8 @@ void Item_sum_count::clear()
 
 bool Item_sum_count::add()
 {
-  if (!args[0]->maybe_null)
+  if (!args[0]->maybe_null || !args[0]->is_null())
     count++;
-  else
-  {
-    args[0]->update_null_value();
-    if (!args[0]->null_value)
-      count++;
-  }
   return 0;
 }
 
@@ -1082,7 +1107,6 @@ void Item_sum_count::cleanup()
   DBUG_ENTER("Item_sum_count::cleanup");
   count= 0;
   Item_sum_int::cleanup();
-  used_table_cache= ~(table_map) 0;
   DBUG_VOID_RETURN;
 }
 
@@ -1105,8 +1129,10 @@ void Item_sum_avg::fix_length_and_dec()
     f_scale=  args[0]->decimals;
     dec_bin_size= my_decimal_get_binary_size(f_precision, f_scale);
   }
-  else
+  else {
     decimals= min(args[0]->decimals + prec_increment, NOT_FIXED_DEC);
+    max_length= args[0]->max_length + prec_increment;
+  }
 }
 
 
@@ -1572,7 +1598,7 @@ void Item_sum_hybrid::cleanup()
 {
   DBUG_ENTER("Item_sum_hybrid::cleanup");
   Item_sum::cleanup();
-  used_table_cache= ~(table_map) 0;
+  forced_const= FALSE;
 
   /*
     by default it is TRUE to avoid TRUE reporting by
@@ -1908,14 +1934,8 @@ void Item_sum_count::reset_field()
   char *res=result_field->ptr;
   longlong nr=0;
 
-  if (!args[0]->maybe_null)
+  if (!args[0]->maybe_null || !args[0]->is_null())
     nr=1;
-  else
-  {
-    args[0]->update_null_value();
-    if (!args[0]->null_value)
-      nr=1;
-  }
   int8store(res,nr);
 }
 
@@ -2018,14 +2038,8 @@ void Item_sum_count::update_field()
   char *res=result_field->ptr;
 
   nr=sint8korr(res);
-  if (!args[0]->maybe_null)
+  if (!args[0]->maybe_null || !args[0]->is_null())
     nr++;
-  else
-  {
-    args[0]->update_null_value();
-    if (!args[0]->null_value)
-      nr++;
-  }
   int8store(res,nr);
 }
 
@@ -2449,12 +2463,8 @@ bool Item_sum_count_distinct::setup(THD *thd)
     Item *item=args[i];
     if (list.push_back(item))
       return TRUE;                              // End of memory
-    if (item->const_item())
-    {
-      item->update_null_value();
-      if (item->null_value)
-	always_null=1;
-    }
+    if (item->const_item() && item->is_null())
+      always_null= 1;
   }
   if (always_null)
     return FALSE;

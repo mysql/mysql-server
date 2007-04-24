@@ -1,0 +1,13 @@
+usr/bin/ndb_mgm
+usr/bin/ndb_restore
+usr/bin/ndb_waiter
+usr/bin/ndb_select_all
+usr/bin/ndb_select_count
+usr/bin/ndb_desc
+usr/bin/ndb_show_tables
+usr/bin/ndb_test_platform
+usr/bin/ndb_config
+usr/bin/ndb_error_reporter
+usr/bin/ndb_size
+
+

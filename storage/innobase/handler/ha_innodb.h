@@ -33,23 +33,17 @@ typedef struct st_innobase_share {
 
 
 struct row_prebuilt_struct;
-
-my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
-						  uint full_name_len,
-						  ulonglong *unused);
+typedef struct row_prebuilt_struct row_prebuilt_t;
 
 /* The class defining a handle to an Innodb table */
 class ha_innobase: public handler
 {
-	void*		innobase_prebuilt;/* (row_prebuilt_t*) prebuilt
-					struct in InnoDB, used to save
-					CPU time with prebuilt data
+	row_prebuilt_t*	prebuilt;	/* prebuilt struct in InnoDB, used
+					to save CPU time with prebuilt data
 					structures*/
 	THD*		user_thd;	/* the thread handle of the user
 					currently using the handle; this is
 					set in external_lock function */
-	query_id_t	last_query_id;	/* the latest query id where the
-					handle was used */
 	THR_LOCK_DATA	lock;
 	INNOBASE_SHARE	*share;
 
@@ -156,6 +150,7 @@ class ha_innobase: public handler
 								*max_key);
 	ha_rows estimate_rows_upper_bound();
 
+	void update_create_info(HA_CREATE_INFO* create_info);
 	int create(const char *name, register TABLE *form,
 					HA_CREATE_INFO *create_info);
 	int delete_all_rows();
@@ -186,14 +181,7 @@ class ha_innobase: public handler
 	my_bool register_query_cache_table(THD *thd, char *table_key,
 					   uint key_length,
 					   qc_engine_callback *call_back,
-					   ulonglong *engine_data)
-	{
-	  *call_back= innobase_query_caching_of_table_permitted;
-	  *engine_data= 0;
-	  return innobase_query_caching_of_table_permitted(thd, table_key,
-							   key_length,
-							   engine_data);
-	}
+					   ulonglong *engine_data);
 	static char *get_mysql_bin_log_name();
 	static ulonglong get_mysql_bin_log_pos();
 	bool primary_key_is_clustered() { return true; }
@@ -202,7 +190,6 @@ class ha_innobase: public handler
 					uint table_changes);
 };
 
-extern SHOW_VAR innodb_status_variables[];
 extern ulong innobase_fast_shutdown;
 extern ulong innobase_large_page_size;
 extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
@@ -238,11 +225,6 @@ extern ulong srv_commit_concurrency;
 extern ulong srv_flush_log_at_trx_commit;
 }
 
-int innobase_init(void);
-int innobase_end(handlerton *hton, ha_panic_function type);
-bool innobase_flush_logs(handlerton *hton);
-uint innobase_get_free_space(void);
-
 /*
   don't delete it - it may be re-enabled later
   as an optimization for the most common case InnoDB+binlog
@@ -256,93 +238,3 @@ int innobase_report_binlog_offset_and_commit(
 int innobase_commit_complete(void* trx_handle);
 void innobase_store_binlog_offset_and_flush_log(char *binlog_name,longlong offset);
 #endif
-
-void innobase_drop_database(handlerton *hton, char *path);
-bool innobase_show_status(handlerton *hton, THD* thd, stat_print_fn*, enum ha_stat_type);
-
-int innobase_release_temporary_latches(handlerton *hton, THD *thd);
-
-void innobase_store_binlog_offset_and_flush_log(handlerton *hton, char *binlog_name,longlong offset);
-
-int innobase_start_trx_and_assign_read_view(handlerton *hton, THD* thd);
-
-/***********************************************************************
-This function is used to prepare X/Open XA distributed transaction   */
-
-int innobase_xa_prepare(
-/*====================*/
-			/* out: 0 or error number */
-        handlerton *hton, /* in: innobase hton */
-	THD*	thd,	/* in: handle to the MySQL thread of the user
-			whose XA transaction should be prepared */
-	bool	all);	/* in: TRUE - commit transaction
-			FALSE - the current SQL statement ended */
-
-/***********************************************************************
-This function is used to recover X/Open XA distributed transactions   */
-
-int innobase_xa_recover(
-/*====================*/
-				/* out: number of prepared transactions
-				stored in xid_list */
-        handlerton *hton, /* in: innobase hton */
-	XID*	xid_list,	/* in/out: prepared transactions */
-	uint	len);		/* in: number of slots in xid_list */
-
-/***********************************************************************
-This function is used to commit one X/Open XA distributed transaction
-which is in the prepared state */
-
-int innobase_commit_by_xid(
-/*=======================*/
-			/* out: 0 or error number */
-        handlerton *hton, /* in: innobase hton */
-	XID*	xid);	/* in : X/Open XA Transaction Identification */
-
-/***********************************************************************
-This function is used to rollback one X/Open XA distributed transaction
-which is in the prepared state */
-
-int innobase_rollback_by_xid(
-			/* out: 0 or error number */
-        handlerton *hton, /* in: innobase hton */
-	XID	*xid);	/* in : X/Open XA Transaction Identification */
-
-
-/***********************************************************************
-Create a consistent view for a cursor based on current transaction
-which is created if the corresponding MySQL thread still lacks one.
-This consistent view is then used inside of MySQL when accessing records
-using a cursor. */
-
-void*
-innobase_create_cursor_view(
-			  /* out: Pointer to cursor view or NULL */
-        handlerton *hton, /* in: innobase hton */
-	THD* thd);	  /* in: user thread handle */
-
-/***********************************************************************
-Close the given consistent cursor view of a transaction and restore
-global read view to a transaction read view. Transaction is created if the
-corresponding MySQL thread still lacks one. */
-
-void
-innobase_close_cursor_view(
-/*=======================*/
-        handlerton *hton, /* in: innobase hton */
-	THD*	thd,		/* in: user thread handle */
-	void*	curview);	/* in: Consistent read view to be closed */
-
-
-/***********************************************************************
-Set the given consistent cursor view to a transaction which is created
-if the corresponding MySQL thread still lacks one. If the given
-consistent cursor view is NULL global read view of a transaction is
-restored to a transaction read view. */
-
-void
-innobase_set_cursor_view(
-/*=====================*/
-        handlerton *hton, /* in: innobase hton */
-	THD*	thd,		/* in: user thread handle */
-	void*	curview);	/* in: Consistent read view to be set */

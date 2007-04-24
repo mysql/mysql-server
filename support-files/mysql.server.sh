@@ -46,6 +46,13 @@
 basedir=
 datadir=
 
+# Default value, in seconds, afterwhich the script should timeout waiting
+# for server start. 
+# Value here is overriden by value in my.cnf. 
+# 0 means don't wait at all
+# Negative numbers mean to wait indefinitely
+service_startup_timeout=900
+
 # The following variables are only set for letting mysql.server find things.
 
 # Set some defaults
@@ -126,6 +133,7 @@ parse_server_arguments() {
 	;;
       --user=*)  user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --pid-file=*) server_pid_file=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --service-startup-timeout=*) service_startup_timeout=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --use-mysqld_safe) use_mysqld_safe=1;;
       --use-manager)     use_mysqld_safe=0;;
     esac
@@ -143,7 +151,7 @@ parse_manager_arguments() {
 
 wait_for_pid () {
   i=0
-  while test $i -lt 900 ; do
+  while test $i -ne $service_startup_timeout ; do
     sleep 1
     case "$1" in
       'created')
@@ -253,12 +261,12 @@ else
   esac
 fi
 
-# Safeguard (relative paths, core dumps..)
-cd $basedir
-
 case "$mode" in
   'start')
     # Start daemon
+
+    # Safeguard (relative paths, core dumps..)
+    cd $basedir
 
     manager=$bindir/mysqlmanager
     if test -x $libexecdir/mysqlmanager
@@ -354,20 +362,52 @@ case "$mode" in
     fi
     ;;
 
-  'reload')
+  'reload'|'force-reload')
     if test -s "$server_pid_file" ; then
-      mysqld_pid=`cat $server_pid_file`
+      read mysqld_pid <  $server_pid_file
       kill -HUP $mysqld_pid && log_success_msg "Reloading service MySQL"
       touch $server_pid_file
     else
       log_failure_msg "MySQL PID file could not be found!"
+      exit 1
     fi
     ;;
-
-  *)
-    # usage
-    echo "Usage: $0  {start|stop|restart|reload}  [ MySQL server options ]"
-    exit 1
+  'status')
+    # First, check to see if pid file exists
+    if test -s "$server_pid_file" ; then 
+      read mysqld_pid < $server_pid_file
+      if kill -0 $mysqld_pid 2>/dev/null ; then 
+        log_success_msg "MySQL running ($mysqld_pid)"
+        exit 0
+      else
+        log_failure_msg "MySQL is not running, but PID file exists"
+        exit 1
+      fi
+    else
+      # Try to find appropriate mysqld process
+      mysqld_pid=`pidof $sbindir/mysqld`
+      if test -z $mysqld_pid ; then 
+        if test "$use_mysqld_safe" = "0" ; then 
+          lockfile=/var/lock/subsys/mysqlmanager
+        else
+          lockfile=/var/lock/subsys/mysql
+        fi 
+        if test -f $lockfile ; then 
+          log_failure_msg "MySQL is not running, but lock exists"
+          exit 2
+        fi 
+        log_failure_msg "MySQL is not running"
+        exit 3
+      else
+        log_failure_msg "MySQL is running but PID file could not be found"
+        exit 4
+      fi
+    fi
+    ;;
+    *)
+      # usage
+      echo "Usage: $0  {start|stop|restart|reload|force-reload|status}  [ MySQL server options ]"
+      exit 1
     ;;
 esac
 

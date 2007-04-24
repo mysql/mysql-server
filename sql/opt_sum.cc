@@ -251,7 +251,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
             error= table->file->index_first(table->record[0]);
           else
 	    error= table->file->index_read(table->record[0],key_buff,
-					   ref.key_length,
+                                           make_prev_keypart_map(ref.key_parts),
 					   range_fl & NEAR_MIN ?
 					   HA_READ_AFTER_KEY :
 					   HA_READ_KEY_OR_NEXT);
@@ -338,11 +338,11 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
             error= table->file->index_last(table->record[0]);
           else
 	    error= table->file->index_read(table->record[0], key_buff,
-					   ref.key_length,
+                                           make_prev_keypart_map(ref.key_parts),
 					   range_fl & NEAR_MAX ?
 					   HA_READ_BEFORE_KEY :
 					   HA_READ_PREFIX_LAST_OR_PREV);
-	  if (!error && reckey_in_range(1, &ref, item_field->field, 
+	  if (!error && reckey_in_range(1, &ref, item_field->field,
 			                conds, range_fl, prefix_len))
 	    error= HA_ERR_KEY_NOT_FOUND;
           if (table->key_read)
@@ -605,15 +605,13 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   /* Check if field is part of the tested partial key */
   byte *key_ptr= ref->key_buff;
   KEY_PART_INFO *part;
-  for (part= keyinfo->key_part;
-       ;
-       key_ptr+= part++->store_length)
+  for (part= keyinfo->key_part; ; key_ptr+= part++->store_length)
 
   {
     if (part > field_part)
       return 0;                     // Field is beyond the tested parts
     if (part->field->eq(((Item_field*) args[0])->field))
-      break;                        // Found a part od the key for the field
+      break;                        // Found a part of the key for the field
   }
 
   bool is_field_part= part == field_part;
@@ -625,8 +623,11 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   {
     uint length= (key_ptr-ref->key_buff)+part->store_length;
     if (ref->key_length < length)
+    {
     /* Ultimately ref->key_length will contain the length of the search key */
       ref->key_length= length;      
+      ref->key_parts= (part - keyinfo->key_part) + 1;
+    }
     if (!*prefix_len && part+1 == field_part)       
       *prefix_len= length;
     if (is_field_part && eq_type)
@@ -773,6 +774,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
       {
         ref->key= idx;
         ref->key_length= 0;
+        ref->key_parts= 0;
         key_part_map key_part_used= 0;
         *range_fl= NO_MIN_RANGE | NO_MAX_RANGE;
         if (matching_cond(max_fl, ref, keyinfo, part, cond,
@@ -788,6 +790,8 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
             */
             ref->key_buff[ref->key_length]= 1;
             ref->key_length+= part->store_length;
+            ref->key_parts++;
+            DBUG_ASSERT(ref->key_parts == jdx+1);
             *range_fl&= ~NO_MIN_RANGE;
             *range_fl|= NEAR_MIN;                // > NULL
           }

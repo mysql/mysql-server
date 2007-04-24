@@ -14,28 +14,26 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #define DBTUP_C
+#define DBTUP_BUFFER_CPP
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
 #include <pc.hpp>
 #include <signaldata/TransIdAI.hpp>
 
-#define ljam() { jamLine(2000 + __LINE__); }
-#define ljamEntry() { jamEntryLine(2000 + __LINE__); }
-
 void Dbtup::execSEND_PACKED(Signal* signal)
 {
   Uint16 hostId;
   Uint32 i;
   Uint32 TpackedListIndex= cpackedListIndex;
-  ljamEntry();
+  jamEntry();
   for (i= 0; i < TpackedListIndex; i++) {
-    ljam();
+    jam();
     hostId= cpackedList[i];
     ndbrequire((hostId - 1) < (MAX_NODES - 1)); // Also check not zero
     Uint32 TpacketTA= hostBuffer[hostId].noOfPacketsTA;
     if (TpacketTA != 0) {
-      ljam();
+      jam();
       BlockReference TBref= numberToRef(API_PACKED, hostId);
       Uint32 TpacketLen= hostBuffer[hostId].packetLenTA;
       MEMCOPY_NO_WORDS(&signal->theData[0],
@@ -73,7 +71,7 @@ void Dbtup::bufferTRANSID_AI(Signal* signal, BlockReference aRef,
 // There is still space in the buffer. We will copy it into the
 // buffer.
 // ----------------------------------------------------------------
-    ljam();
+    jam();
     updatePackedList(signal, hostId);
   } else if (false && TnoOfPackets == 1) {
 // ----------------------------------------------------------------
@@ -118,7 +116,7 @@ void Dbtup::updatePackedList(Signal* signal, Uint16 hostId)
 {
   if (hostBuffer[hostId].inPackedList == false) {
     Uint32 TpackedListIndex= cpackedListIndex;
-    ljam();
+    jam();
     hostBuffer[hostId].inPackedList= true;
     cpackedList[TpackedListIndex]= hostId;
     cpackedListIndex= TpackedListIndex + 1;
@@ -149,7 +147,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
 
   if (ERROR_INSERTED(4006) && (nodeId != getOwnNodeId())){
     // Use error insert to turn routing on
-    ljam();
+    jam();
     connectedToNode= false;    
   }
 
@@ -167,18 +165,18 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
      * Own node -> execute direct
      */
     if(nodeId != getOwnNodeId()){
-      ljam();
+      jam();
     
       /**
        * Send long sig
        */
       if (ToutBufIndex >= 22 && is_api && !old_dest) {
-	ljam();
+	jam();
 	/**
 	 * Flush buffer so that order is maintained
 	 */
 	if (TpacketTA != 0) {
-	  ljam();
+	  jam();
 	  BlockReference TBref = numberToRef(API_PACKED, nodeId);
 	  MEMCOPY_NO_WORDS(&signal->theData[0],
 			   &hostBuffer[nodeId].packetBufferTA[0],
@@ -202,7 +200,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
        */
 #ifndef NDB_NO_DROPPED_SIGNAL
       if (ToutBufIndex < 22 && is_api){
-	ljam();
+	jam();
 	bufferTRANSID_AI(signal, recBlockref, 3+ToutBufIndex);
 	return;
       }
@@ -214,7 +212,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
       Uint32 * src= signal->theData+25;
       if (ToutBufIndex >= 22){
 	do {
-	  ljam();
+	  jam();
 	  MEMCOPY_NO_WORDS(&signal->theData[3], src, 22);
 	  sendSignal(recBlockref, GSN_TRANSID_AI, signal, 25, JBB);
 	  ToutBufIndex -= 22;
@@ -223,14 +221,14 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
       }
       
       if (ToutBufIndex > 0){
-	ljam();
+	jam();
 	MEMCOPY_NO_WORDS(&signal->theData[3], src, ToutBufIndex);
 	sendSignal(recBlockref, GSN_TRANSID_AI, signal, 3+ToutBufIndex, JBB);
       }
       return;
     }
     EXECUTE_DIRECT(block, GSN_TRANSID_AI, signal, 3 + ToutBufIndex);
-    ljamEntry();
+    jamEntry();
     return;
   }
 
@@ -242,7 +240,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
   Uint32 routeBlockref= req_struct->TC_ref;
   
   if (true){ // TODO is_api && !old_dest){
-    ljam();
+    jam();
     transIdAI->attrData[0]= recBlockref;
     LinearSectionPtr ptr[3];
     ptr[0].p= &signal->theData[25];
@@ -260,7 +258,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
   Uint32 sent= 0;
   Uint32 maxLen= TransIdAI::DataLength - 1;
   while (sent < tot) {
-    ljam();      
+    jam();      
     Uint32 dataLen= (tot - sent > maxLen) ? maxLen : tot - sent;
     Uint32 sigLen= dataLen + TransIdAI::HeaderLength + 1; 
     MEMCOPY_NO_WORDS(&transIdAI->attrData,
