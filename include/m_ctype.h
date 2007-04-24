@@ -21,6 +21,8 @@
 #ifndef _m_ctype_h
 #define _m_ctype_h
 
+#include <my_attribute.h>
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
