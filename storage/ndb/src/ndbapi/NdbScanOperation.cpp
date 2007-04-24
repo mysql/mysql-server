@@ -1119,9 +1119,10 @@ NdbIndexScanOperation::getValue_impl(const NdbColumnImpl* attrInfo,
     return NdbScanOperation::getValue_impl(attrInfo, aValue);
   }
   
-  int id = attrInfo->getColumnNo();                // In "real" table
+  int id = attrInfo->m_attrId;                       // In "real" table
   assert(m_accessTable->m_index);
   int sz = (int)m_accessTable->m_index->m_key_ids.size();
+  // first check handles pseudo-column
   if(id >= sz || (id = m_accessTable->m_index->m_key_ids[id]) == -1){
     return NdbScanOperation::getValue_impl(attrInfo, aValue);
   }
