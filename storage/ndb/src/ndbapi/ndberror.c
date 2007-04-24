@@ -490,6 +490,7 @@ ErrorBundle ErrorCodes[] = {
   { 1419, DMEC, SE, "Subscription already dropped" },
 
   { 1420, DMEC, TR, "Subscriber manager busy with adding/removing a table" },
+  { 1421, DMEC, SE, "Partially connected API in NdbOperation::execute()" },
 
   { 4004, DMEC, AE, "Attribute name or id not found in the table" },
   

@@ -311,6 +311,19 @@ void Dbtc::execINCL_NODEREQ(Signal* signal)
   hostptr.p->hostStatus = HS_ALIVE;
   signal->theData[0] = cownref;
   c_alive_nodes.set(hostptr.i);
+
+  if (ERROR_INSERTED(8039))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    Uint32 save = signal->theData[0];
+    signal->theData[0] = 9999;
+    sendSignal(numberToRef(CMVMI, hostptr.i), 
+	       GSN_NDB_TAMPER, signal, 1, JBB);
+    signal->theData[0] = save;
+    sendSignalWithDelay(tblockref, GSN_INCL_NODECONF, signal, 5000, 1);
+    return;
+  }
+
   sendSignal(tblockref, GSN_INCL_NODECONF, signal, 1, JBB);
 }
 
@@ -6880,6 +6893,7 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
 void Dbtc::execGCP_NOMORETRANS(Signal* signal) 
 {
   jamEntry();
+  c_gcp_ref = signal->theData[0];
   tcheckGcpId = signal->theData[1];
   if (cfirstgcp != RNIL) {
     jam();
@@ -9916,6 +9930,7 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
 
 void Dbtc::gcpTcfinished(Signal* signal) 
 {
+  signal->theData[0] = c_gcp_ref;
   signal->theData[1] = tcheckGcpId;
   sendSignal(cdihblockref, GSN_GCP_TCFINISHED, signal, 2, JBB);
 }//Dbtc::gcpTcfinished()
