@@ -1,0 +1,100 @@
+# Non-windows specific partition tests.
+--source include/not_windows.inc
+--source include/have_partition.inc
+
+# partition.test used to contained the following note:
+# This test is disabled on Windows due to BUG#19107
+# All tests passed on Windows except the following which should be moved into
+# partition.test once the bug has been resolved.
+
+#
+# Bug 20770 Partitions: DATA DIRECTORY clause change in reorganize
+#                       doesn't remove old directory
+
+--disable_query_log
+--exec mkdir $MYSQLTEST_VARDIR/master-data/tmpdata || true
+eval SET @data_dir = 'DATA DIRECTORY = ''$MYSQLTEST_VARDIR/master-data/tmpdata''';
+let $data_directory = `select @data_dir`;
+
+--exec mkdir $MYSQLTEST_VARDIR/master-data/tmpinx || true
+eval SET @inx_dir = 'INDEX DIRECTORY = ''$MYSQLTEST_VARDIR/master-data/tmpinx''';
+let $inx_directory = `select @inx_dir`;
+--enable_query_log
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval create table t1 (a int) engine myisam
+partition by range (a)
+subpartition by hash (a)
+(partition p0 VALUES LESS THAN (1) $data_directory $inx_directory
+ (SUBPARTITION subpart00, SUBPARTITION subpart01));
+
+--echo Checking if file exists before alter
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1.frm
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1.par
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0#SP#subpart00.MYD
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0#SP#subpart00.MYI
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0#SP#subpart01.MYD
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0#SP#subpart01.MYI
+--file_exists $MYSQLTEST_VARDIR/master-data/tmpdata/t1#P#p0#SP#subpart00.MYD
+--file_exists $MYSQLTEST_VARDIR/master-data/tmpdata/t1#P#p0#SP#subpart01.MYD
+--file_exists $MYSQLTEST_VARDIR/master-data/tmpinx/t1#P#p0#SP#subpart00.MYI
+--file_exists $MYSQLTEST_VARDIR/master-data/tmpinx/t1#P#p0#SP#subpart01.MYI
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
+(partition p1 VALUES LESS THAN (1) $data_directory $inx_directory
+ (SUBPARTITION subpart10, SUBPARTITION subpart11),
+ partition p2 VALUES LESS THAN (2) $data_directory $inx_directory
+ (SUBPARTITION subpart20, SUBPARTITION subpart21));
+
+--echo Checking if file exists after alter
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1.frm
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1.par
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p1#SP#subpart10.MYD
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p1#SP#subpart10.MYI
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p1#SP#subpart11.MYD
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p1#SP#subpart11.MYI
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p2#SP#subpart20.MYD
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p2#SP#subpart20.MYI
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p2#SP#subpart21.MYD
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p2#SP#subpart21.MYI
+--file_exists $MYSQLTEST_VARDIR/master-data/tmpdata/t1#P#p1#SP#subpart10.MYD
+--file_exists $MYSQLTEST_VARDIR/master-data/tmpdata/t1#P#p1#SP#subpart11.MYD
+--file_exists $MYSQLTEST_VARDIR/master-data/tmpdata/t1#P#p2#SP#subpart20.MYD
+--file_exists $MYSQLTEST_VARDIR/master-data/tmpdata/t1#P#p2#SP#subpart21.MYD
+--file_exists $MYSQLTEST_VARDIR/master-data/tmpinx/t1#P#p1#SP#subpart10.MYI
+--file_exists $MYSQLTEST_VARDIR/master-data/tmpinx/t1#P#p1#SP#subpart11.MYI
+--file_exists $MYSQLTEST_VARDIR/master-data/tmpinx/t1#P#p2#SP#subpart20.MYI
+--file_exists $MYSQLTEST_VARDIR/master-data/tmpinx/t1#P#p2#SP#subpart21.MYI
+
+drop table t1;
+--exec rmdir $MYSQLTEST_VARDIR/master-data/tmpdata || true
+--exec rmdir $MYSQLTEST_VARDIR/master-data/tmpinx || true
+
+# End Windows specific test failures.
+
+# These tests contain non-Windows specific directory/file format.
+
+#
+# Bug 25141: Crash Server on Partitioning command
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS `example`;
+--enable_warnings
+
+--disable_abort_on_error
+CREATE TABLE `example` (
+  `ID_EXAMPLE` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `DESCRIPTION` varchar(30) NOT NULL,
+  `LEVEL` smallint(5) unsigned DEFAULT NULL,
+  PRIMARY KEY (`ID_EXAMPLE`)
+) ENGINE = MYISAM 
+PARTITION BY HASH(ID_EXAMPLE)(
+PARTITION p0 DATA DIRECTORY = '/build/5.1/data/partitiontest/p0Data',
+PARTITION p1 DATA DIRECTORY = '/build/5.1/data/partitiontest/p1Data',
+PARTITION p2 DATA DIRECTORY = '/build/5.1/data/partitiontest/p2Data',
+PARTITION p3 DATA DIRECTORY = '/build/5.1/data/partitiontest/p3Data'
+);
+--enable_abort_on_error
+
