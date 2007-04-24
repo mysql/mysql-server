@@ -1157,7 +1157,7 @@ NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl
     if (isReadOp()) {
       // upgrade lock mode
       if (theNdbOp->theLockMode == NdbOperation::LM_CommittedRead)
-        theNdbOp->theLockMode = NdbOperation::LM_Read;
+        theNdbOp->setReadLockMode(NdbOperation::LM_Read);
       // add read of head+inline in this op
       if (getHeadInlineValue(theNdbOp) == -1)
         DBUG_RETURN(-1);
@@ -1178,7 +1178,7 @@ NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl
   if (isScanOp()) {
     // upgrade lock mode
     if (theNdbOp->theLockMode == NdbOperation::LM_CommittedRead)
-      theNdbOp->theLockMode = NdbOperation::LM_Read;
+      theNdbOp->setReadLockMode(NdbOperation::LM_Read);
     // add read of head+inline in this op
     if (getHeadInlineValue(theNdbOp) == -1)
       DBUG_RETURN(-1);
