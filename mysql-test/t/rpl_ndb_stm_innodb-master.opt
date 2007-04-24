@@ -1,1 +1,1 @@
---innodb
+--innodb --default-storage-engine=innodb
