@@ -28,6 +28,7 @@ class Slave_log_event;
 class Format_description_log_event;
 class sp_rcontext;
 class sp_cache;
+class Lex_input_stream;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
@@ -1491,6 +1492,15 @@ public:
     */
     query_id_t first_query_id;
   } binlog_evt_union;
+
+  /**
+    Character input stream consumed by the lexical analyser,
+    used during parsing.
+    Note that since the parser is not re-entrant, we keep only one input
+    stream here. This member is valid only when executing code during parsing,
+    and may point to invalid memory after that.
+  */
+  Lex_input_stream *m_lip;
 
   THD();
   ~THD();
