@@ -920,6 +920,7 @@ ALTER TABLE t1 RENAME TO t2;
 
 DROP USER mysqltest_1@localhost;
 DROP DATABASE mysqltest1;
+USE test;
 
 # Working with database-level privileges.
 
