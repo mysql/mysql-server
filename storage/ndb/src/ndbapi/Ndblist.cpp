@@ -422,6 +422,15 @@ Ndb::releaseSignal(NdbApiSignal* aSignal)
 }
 
 void
+Ndb::releaseSignals(Uint32 cnt, NdbApiSignal* head, NdbApiSignal* tail)
+{
+#ifdef POORMANSPURIFY
+  creleaseSignals += cnt;
+#endif
+  theImpl->theSignalIdleList.release(cnt, head, tail);
+}
+
+void
 Ndb::releaseSignalsInList(NdbApiSignal** pList){
   NdbApiSignal* tmp;
   while (*pList != NULL){
