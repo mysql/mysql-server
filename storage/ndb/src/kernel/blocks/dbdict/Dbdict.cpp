@@ -2821,8 +2821,10 @@ void Dbdict::checkSchemaStatus(Signal* signal)
         continue;
       case SchemaFile::ADD_STARTED: jam();
       case SchemaFile::DROP_TABLE_STARTED: jam();
-        ndbrequire(false);
-        return;
+        ndbrequire(DictTabInfo::isTable(newEntry->m_tableType) ||
+                   DictTabInfo::isIndex(newEntry->m_tableType));
+        newEntry->m_tableState = SchemaFile::INIT;
+        continue;
       case SchemaFile::TABLE_ADD_COMMITTED: jam();
       case SchemaFile::ALTER_TABLE_COMMITTED: jam();
         if (DictTabInfo::isIndex(newEntry->m_tableType) ||
