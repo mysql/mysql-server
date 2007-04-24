@@ -2746,7 +2746,7 @@ mysql_execute_command(THD *thd)
   }
   case SQLCOM_SHOW_PROFILES:
   {
-#ifdef ENABLED_PROFILING
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
     thd->profiling.store();
     thd->profiling.discard();
     res= thd->profiling.show_profiles();
@@ -2760,7 +2760,7 @@ mysql_execute_command(THD *thd)
   }
   case SQLCOM_SHOW_PROFILE:
   {
-#ifdef ENABLED_PROFILING
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
     thd->profiling.store();
     thd->profiling.discard(); // will get re-enabled by reset()
     if (lex->profile_query_id != 0)
@@ -5730,7 +5730,7 @@ mysql_init_query(THD *thd, uchar *buf, uint length)
   DBUG_ENTER("mysql_init_query");
   lex_start(thd, buf, length);
   mysql_reset_thd_for_next_command(thd);
-#ifdef ENABLED_PROFILING
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   thd->profiling.reset();
 #endif
   DBUG_VOID_RETURN;
@@ -5774,7 +5774,7 @@ void mysql_reset_thd_for_next_command(THD *thd)
     thd->total_warn_count=0;			// Warnings for this query
     thd->rand_used= 0;
     thd->sent_row_count= thd->examined_row_count= 0;
-#ifdef ENABLED_PROFILING
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
     thd->profiling.reset();
 #endif
   }
