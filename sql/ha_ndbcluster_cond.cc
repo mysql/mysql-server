@@ -24,7 +24,7 @@
 
 #include "mysql_priv.h"
 
-#ifdef HAVE_NDBCLUSTER_DB
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include <ndbapi/NdbApi.hpp>
 #include "ha_ndbcluster_cond.h"
 
@@ -351,8 +351,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
           else
           {
             DBUG_PRINT("info", ("Was not expecting field from table %s (%s)",
-                                context->table->s->table_name, 
-                                field->table->s->table_name));
+                                context->table->s->table_name.str, 
+                                field->table->s->table_name.str));
             context->supported= FALSE;
           }
           break;
