@@ -53,7 +53,7 @@ int fill_query_profile_statistics_info(THD *thd, struct st_table_list *tables, I
 #define PROFILE_ALL          (~0)
 
 
-#ifndef ENABLED_PROFILING
+#if !defined(ENABLED_PROFILING) || !defined(COMMUNITY_SERVER)
 
 #  define thd_proc_info(thd, msg) do { (thd)->proc_info= (msg); } while (0)
 

@@ -31,7 +31,7 @@ const char * const _unknown_func_ = "<unknown>";
 int fill_query_profile_statistics_info(THD *thd, struct st_table_list *tables, 
                                        Item *cond)
 {
-#ifdef ENABLED_PROFILING
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   return(thd->profiling.fill_statistics_info(thd, tables, cond));
 #else
   return(1);
@@ -62,7 +62,7 @@ ST_FIELD_INFO query_profile_statistics_info[]=
   {NULL, 0, MYSQL_TYPE_STRING, 0, true, NULL}
 };
 
-#ifdef ENABLED_PROFILING
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
 
 #define RUSAGE_USEC(tv)  ((tv).tv_sec*1000*1000 + (tv).tv_usec)
 #define RUSAGE_DIFF_USEC(tv1, tv2) (RUSAGE_USEC((tv1))-RUSAGE_USEC((tv2)))

@@ -1,3 +1,5 @@
+--source include/profiling.inc
+
 # default is OFF
 show session variables like 'profil%';
 select @@profiling;

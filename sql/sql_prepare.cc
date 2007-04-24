@@ -2231,7 +2231,7 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_execute")))
     DBUG_VOID_RETURN;
 
-#ifdef ENABLED_PROFILING
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   thd->profiling.set_query_source(stmt->query, stmt->query_length);
 #endif
   DBUG_PRINT("exec_query", ("%s", stmt->query));
