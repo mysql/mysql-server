@@ -1517,6 +1517,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   handler *file;
   ulonglong save_options;
   NET *net= &mysql->net;
+  const char *found_semicolon= NULL;
   DBUG_ENTER("create_table_from_dump");  
 
   packet_len= my_net_read(net); // read create table statement
@@ -1567,7 +1568,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   save_db_length= thd->db_length;
   DBUG_ASSERT(db != 0);
   thd->reset_db((char*)db, strlen(db));
-  mysql_parse(thd, thd->query, packet_len); // run create table
+  mysql_parse(thd, thd->query, packet_len, &found_semicolon); // run create table
   thd->db = save_db;		// leave things the way the were before
   thd->db_length= save_db_length;
   thd->options = save_options;
