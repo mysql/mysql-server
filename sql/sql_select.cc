@@ -231,7 +231,8 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
 
-  if (select_lex->next_select() || select_lex->master_unit()->fake_select_lex)
+  if (select_lex->master_unit()->is_union() || 
+      select_lex->master_unit()->fake_select_lex)
     res= mysql_union(thd, lex, result, &lex->unit, setup_tables_done_option);
   else
   {
@@ -442,7 +443,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   select_lex= select_lex_arg;
   select_lex->join= this;
   join_list= &select_lex->top_join_list;
-  union_part= (unit_arg->first_select()->next_select() != 0);
+  union_part= unit_arg->is_union();
 
   thd->lex->current_select->is_item_list_lookup= 1;
   /*
@@ -1191,7 +1192,7 @@ JOIN::optimize()
   if (!group_list && !order &&
       unit->item && unit->item->substype() == Item_subselect::IN_SUBS &&
       tables == 1 && conds &&
-      !unit->first_select()->next_select())
+      !unit->is_union())
   {
     if (!having)
     {
@@ -3165,7 +3166,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
       if (!join->group_list && !join->order &&
           join->unit->item && 
           join->unit->item->substype() == Item_subselect::IN_SUBS &&
-          !join->unit->first_select()->next_select())
+          !join->unit->is_union())
       {
         KEY_FIELD *save= *key_fields;
         add_key_fields(join, key_fields, and_level, cond_arg, usable_tables,
@@ -15523,7 +15524,7 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 		 "UNION")));
     sl->options|= SELECT_DESCRIBE;
   }
-  if (first->next_select())
+  if (unit->is_union())
   {
     unit->fake_select_lex->select_number= UINT_MAX; // jost for initialization
     unit->fake_select_lex->type= "UNION RESULT";
