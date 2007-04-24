@@ -212,7 +212,12 @@ public:
     const Item *item= value.item;
 
     if (item && field)
-      ((Item *)item)->save_in_field(field, false);
+    {
+      my_bitmap_map *old_map=
+        dbug_tmp_use_all_columns(field->table, field->table->write_set);
+      ((Item *)item)->save_in_field(field, FALSE);
+      dbug_tmp_restore_column_map(field->table->write_set, old_map);
+    }
   };
 
   static NDB_FUNC_TYPE item_func_to_ndb_func(Item_func::Functype fun)
