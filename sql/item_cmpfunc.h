@@ -206,10 +206,11 @@ class Item_bool_func2 :public Item_int_func
 protected:
   Arg_comparator cmp;
   String tmp_value1,tmp_value2;
+  bool abort_on_null;
 
 public:
   Item_bool_func2(Item *a,Item *b)
-    :Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1) {}
+    :Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1), abort_on_null(FALSE) {}
   void fix_length_and_dec();
   void set_cmp_func()
   {
@@ -222,6 +223,7 @@ public:
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp.cmp_collation.collation; }
+  void top_level_item() { abort_on_null= TRUE; }
 
   friend class  Arg_comparator;
 };
