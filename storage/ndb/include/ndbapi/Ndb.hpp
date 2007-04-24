@@ -1055,6 +1055,8 @@ class Ndb
   friend class NdbDictInterface;
   friend class NdbBlob;
   friend class NdbImpl;
+  friend class Ndb_cluster_connection;
+  friend class Ndb_cluster_connection_impl;
   friend class Ndb_free_list_t<NdbRecAttr>;  
   friend class Ndb_free_list_t<NdbApiSignal>;
   friend class Ndb_free_list_t<NdbLabel>;
@@ -1310,6 +1312,45 @@ public:
   NdbTransaction* startTransaction(const NdbDictionary::Table *table= 0,
 				   const char  *keyData = 0, 
 				   Uint32       keyLen = 0);
+
+
+
+  /**
+   * Structure for passing in pointers to startTransaction
+   *
+   */
+  struct Key_part_ptr
+  {
+    const void * ptr;
+    unsigned len;
+  };
+
+  /**
+   * Start a transaction
+   *
+   * @note When the transaction is completed it must be closed using
+   *       Ndb::closeTransaction or NdbTransaction::close. 
+   *       The transaction must be closed independent of its outcome, i.e.
+   *       even if there is an error.
+   *
+   * @param  table    Pointer to table object used for deciding 
+   *                  which node to run the Transaction Coordinator on
+   * @param  keyData  Null-terminated array of pointers to keyParts that is 
+   *                  part of distribution key.
+   *                  Length of resp. keyPart will be read from
+   *                  metadata and checked against passed value
+   * @param  xfrmbuf  Pointer to temporary buffer that will be used
+   *                  to calculate hashvalue
+   * @param  xfrmbuflen Lengh of buffer
+   *
+   * @note if xfrmbuf is null (default) malloc/free will be made
+   *       if xfrmbuf is not null but length is too short, method will fail
+   *
+   * @return NdbTransaction object, or NULL on failure.
+   */
+  NdbTransaction* startTransaction(const NdbDictionary::Table *table,
+				   const struct Key_part_ptr * keyData,
+				   void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
 
   /**
    * Close a transaction.
@@ -1588,6 +1629,7 @@ private:
   NdbBlob*              getNdbBlob();// Get a blob handle etc
 
   void			releaseSignal(NdbApiSignal* anApiSignal);
+  void                  releaseSignals(Uint32, NdbApiSignal*, NdbApiSignal*);
   void                  releaseSignalsInList(NdbApiSignal** pList);
   void			releaseNdbScanRec(NdbReceiver* aNdbScanRec);
   void			releaseNdbLabel(NdbLabel* anNdbLabel);

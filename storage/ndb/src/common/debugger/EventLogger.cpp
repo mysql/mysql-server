@@ -23,6 +23,7 @@
 #include <signaldata/ArbitSignalData.hpp>
 #include <NodeState.hpp>
 #include <version.h>
+#include <ndb_version.h>
 
 #include <ndbd_exit_codes.h>
 
@@ -34,7 +35,7 @@ EventLoggerBase::~EventLoggerBase()
   
 }
 
-#define QQQQ char *m_text, size_t m_text_len, const Uint32* theData
+#define QQQQ char *m_text, size_t m_text_len, const Uint32* theData, Uint32 len
 
 void getTextConnected(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
@@ -42,13 +43,17 @@ void getTextConnected(QQQQ) {
 		       theData[1]);
 }
 void getTextConnectedApiVersion(QQQQ) {
+  char tmp[100];
+  Uint32 mysql_version = theData[3];
+  if (theData[2] < NDBD_SPLIT_VERSION)
+  mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
-		       "Node %u: API version %d.%d.%d",
+		       "Node %u: API %s",
 		       theData[1],
-		       getMajor(theData[2]),
-		       getMinor(theData[2]),
-		       getBuild(theData[2]));
+		       getVersionString(theData[2], mysql_version, 0,
+					tmp, sizeof(tmp)));
 }
+
 void getTextDisconnected(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node %u Disconnected", 
@@ -74,11 +79,15 @@ void getTextNDBStartStarted(QQQQ) {
   //-----------------------------------------------------------------------
   // Start of NDB has been initiated.
   //-----------------------------------------------------------------------
+
+  char tmp[100];
+  Uint32 mysql_version = theData[2];
+  if (theData[1] < NDBD_SPLIT_VERSION)
+    mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
-		       "Start initiated (version %d.%d.%d)", 
-		       getMajor(theData[1]),
-		       getMinor(theData[1]),
-		       getBuild(theData[1]));
+		       "Start initiated (%s)", 
+		       getVersionString(theData[1], mysql_version, 0,
+					tmp, sizeof(tmp)));
 }
 void getTextNDBStopStarted(QQQQ) {
   BaseString::snprintf(m_text, m_text_len,
@@ -114,7 +123,8 @@ void getTextNDBStopForced(QQQQ) {
   int error         = theData[3];
   int sphase        = theData[4];
   int extra         = theData[5];
-  getRestartAction(theData[1],action_str);
+  if (signum)
+    getRestartAction(theData[1],action_str);
   if (signum)
     reason_str.appfmt(" Initiated by signal %d.", signum);
   if (error)
@@ -144,12 +154,17 @@ void getTextNDBStartCompleted(QQQQ) {
   //-----------------------------------------------------------------------
   // Start of NDB has been completed.
   //-----------------------------------------------------------------------
+
+  char tmp[100];
+  Uint32 mysql_version = theData[2];
+  if (theData[1] < NDBD_SPLIT_VERSION)
+    mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
-		       "Started (version %d.%d.%d)", 
-		       getMajor(theData[1]),
-		       getMinor(theData[1]),
-		       getBuild(theData[1]));
+		       "Started (%s)", 
+		       getVersionString(theData[1], mysql_version, 0,
+					tmp, sizeof(tmp)));
 }
+
 void getTextSTTORRYRecieved(QQQQ) {
   //-----------------------------------------------------------------------
   // STTORRY recevied after restart finished.
@@ -625,7 +640,7 @@ void getTextTransporterError(QQQQ) {
                          theData[2]);
 }
 void getTextTransporterWarning(QQQQ) {
-  getTextTransporterError(m_text, m_text_len, theData);
+  getTextTransporterError(m_text, m_text_len, theData, len);
 }
 void getTextMissedHeartbeat(QQQQ) {
   //-----------------------------------------------------------------------
@@ -1077,7 +1092,7 @@ EventLoggerBase::event_lookup(int eventType,
 const char*
 EventLogger::getText(char * dst, size_t dst_len,
 		     EventTextFunction textF,
-		     const Uint32* theData, NodeId nodeId )
+		     const Uint32* theData, Uint32 len, NodeId nodeId )
 {
   int pos= 0;
   if (nodeId != 0)
@@ -1086,13 +1101,13 @@ EventLogger::getText(char * dst, size_t dst_len,
     pos= strlen(dst);
   }
   if (dst_len-pos > 0)
-    textF(dst+pos,dst_len-pos,theData);
+    textF(dst+pos, dst_len-pos, theData, len);
   return dst;
 }
 
 void 
-EventLogger::log(int eventType, const Uint32* theData, NodeId nodeId,
-		 const LogLevel* ll)
+EventLogger::log(int eventType, const Uint32* theData, Uint32 len,
+		 NodeId nodeId, const LogLevel* ll)
 {
   Uint32 threshold = 0;
   Logger::LoggerLevel severity = Logger::LL_WARNING;
@@ -1112,7 +1127,7 @@ EventLogger::log(int eventType, const Uint32* theData, NodeId nodeId,
     DBUG_PRINT("info",("m_logLevel.getLogLevel=%d", m_logLevel.getLogLevel(cat)));
 
   if (threshold <= set){
-    getText(log_text,sizeof(log_text),textF,theData,nodeId);
+    getText(log_text, sizeof(log_text), textF, theData, len, nodeId);
 
     switch (severity){
     case Logger::LL_ALERT:

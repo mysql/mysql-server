@@ -311,14 +311,16 @@ execute(void * callbackObj, SignalHeader * const header,
 
      case GSN_ALTER_TABLE_REP:
      {
+       if (theFacade->m_globalDictCache == NULL)
+         break;
        const AlterTableRep* rep = (const AlterTableRep*)theData;
-       theFacade->m_globalDictCache.lock();
-       theFacade->m_globalDictCache.
+       theFacade->m_globalDictCache->lock();
+       theFacade->m_globalDictCache->
 	 alter_table_rep((const char*)ptr[0].p, 
 			 rep->tableId,
 			 rep->tableVersion,
 			 rep->changeType == AlterTableRep::CT_ALTERED);
-       theFacade->m_globalDictCache.unlock();
+       theFacade->m_globalDictCache->unlock();
        break;
      }
      case GSN_SUB_GCP_COMPLETE_REP:
@@ -641,12 +643,13 @@ void TransporterFacade::init_cond_wait_queue()
   }
 }
 
-TransporterFacade::TransporterFacade() :
+TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   theTransporterRegistry(0),
   theStopReceive(0),
   theSendThread(NULL),
   theReceiveThread(NULL),
-  m_fragmented_signal_id(0)
+  m_fragmented_signal_id(0),
+  m_globalDictCache(cache)
 {
   DBUG_ENTER("TransporterFacade::TransporterFacade");
   init_cond_wait_queue();

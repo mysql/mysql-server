@@ -291,6 +291,28 @@ NdbDictionary::Column::getStorageType() const
   return (StorageType)m_impl.m_storageType;
 }
 
+int
+NdbDictionary::Column::getBlobVersion() const
+{
+  return m_impl.getBlobVersion();
+}
+
+void
+NdbDictionary::Column::setBlobVersion(int blobVersion)
+{
+  m_impl.setBlobVersion(blobVersion);
+}
+
+void 
+NdbDictionary::Column::setDynamic(bool val){
+  m_impl.m_dynamic = val;
+}
+
+bool 
+NdbDictionary::Column::getDynamic() const {
+  return m_impl.m_dynamic;
+}
+
 /*****************************************************************
  * Table facade
  */
@@ -1472,8 +1494,9 @@ NdbDictionary::Dictionary::dropTable(const char * name){
 }
 
 int
-NdbDictionary::Dictionary::alterTable(const Table & t){
-  return m_impl.alterTable(NdbTableImpl::getImpl(t));
+NdbDictionary::Dictionary::alterTable(const Table & f, const Table & t)
+{
+  return m_impl.alterTable(NdbTableImpl::getImpl(f), NdbTableImpl::getImpl(t));
 }
 
 int
@@ -1710,6 +1733,18 @@ NdbDictionary::Dictionary::getEvent(const char * eventName)
 }
 
 int
+NdbDictionary::Dictionary::listEvents(List& list)
+{
+  return m_impl.listEvents(list);
+}
+
+int
+NdbDictionary::Dictionary::listEvents(List& list) const
+{
+  return m_impl.listEvents(list);
+}
+
+int
 NdbDictionary::Dictionary::listObjects(List& list, Object::Type type)
 {
   return m_impl.listObjects(list, type);
@@ -1834,11 +1869,11 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     break;
   case NdbDictionary::Column::Blob:
     out << "Blob(" << col.getInlineSize() << "," << col.getPartSize()
-        << ";" << col.getStripeSize() << ")";
+        << "," << col.getStripeSize() << ")";
     break;
   case NdbDictionary::Column::Text:
     out << "Text(" << col.getInlineSize() << "," << col.getPartSize()
-        << ";" << col.getStripeSize() << ";" << csname << ")";
+        << "," << col.getStripeSize() << ";" << csname << ")";
     break;
   case NdbDictionary::Column::Time:
     out << "Time";
@@ -1920,6 +1955,21 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     out << " ST=" << (int)col.getStorageType() << "?";
     break;
   }
+
+  if (col.getAutoIncrement())
+    out << " AUTO_INCR";
+
+  switch (col.getType()) {
+  case NdbDictionary::Column::Blob:
+  case NdbDictionary::Column::Text:
+    out << " BV=" << col.getBlobVersion();
+    break;
+  default:
+    break;
+  }
+
+  if(col.getDynamic())
+    out << " DYNAMIC";
 
   return out;
 }

@@ -347,21 +347,27 @@ run_startHint(NDBT_Context* ctx, NDBT_Step* step)
     char* start= buffer + (rand() & 7);
     char* pos= start;
     
+    int k = 0;
+    Ndb::Key_part_ptr ptrs[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1];
     for(int j = 0; j<tab->getNoOfColumns(); j++)
     {
       if(tab->getColumn(j)->getPartitionKey())
       {
-	ndbout_c(tab->getColumn(j)->getName());
+	//ndbout_c(tab->getColumn(j)->getName());
 	int sz = tab->getColumn(j)->getSizeInBytes();
 	int aligned_size = 4 * ((sz + 3) >> 2);
 	memset(pos, 0, aligned_size);
 	Uint32 real_size;
 	dummy.calcValue(i, j, 0, pos, sz, &real_size);
+	ptrs[k].ptr = pos;
+	ptrs[k++].len = real_size;
 	pos += (real_size + 3) & ~3;
       }
     }
+    ptrs[k].ptr = 0;
+    
     // Now we have the pk
-    NdbTransaction* pTrans= p_ndb->startTransaction(tab, start,(pos - start));
+    NdbTransaction* pTrans= p_ndb->startTransaction(tab, ptrs);
     HugoOperations ops(*tab);
     ops.setTransaction(pTrans);
     if(ops.pkReadRecord(p_ndb, i, 1) != NDBT_OK)
