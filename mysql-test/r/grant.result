@@ -657,6 +657,17 @@ delete from mysql.db where user='mysqltest1';
 delete from mysql.tables_priv where user='mysqltest1';
 flush privileges;
 drop database mysqltest;
+create database db27515;
+use db27515;
+create table t1 (a int);
+grant alter on db27515.t1 to user27515@localhost;
+grant insert, create on db27515.t2 to user27515@localhost;
+rename table t1 to t2;
+ERROR 42000: DROP command denied to user 'user27515'@'localhost' for table 't1'
+revoke all privileges, grant option from user27515@localhost;
+drop user user27515@localhost;
+drop database db27515;
+End of 4.1 tests
 use test;
 create table t1 (a int);
 create table t2 as select * from mysql.user where user='';
