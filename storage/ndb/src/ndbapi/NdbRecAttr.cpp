@@ -81,6 +81,7 @@ NdbRecAttr::setup(const NdbColumnImpl* anAttrInfo, char* aValue)
     theRef = tRef;
     return 0;
   }
+  errno = ENOMEM;
   return -1;
 }
 
@@ -100,7 +101,11 @@ NdbRecAttr::copyout()
 NdbRecAttr *
 NdbRecAttr::clone() const {
   NdbRecAttr * ret = new NdbRecAttr(0);
-
+  if (ret == NULL)
+  {
+    errno = ENOMEM;
+    return NULL;
+  }
   ret->theAttrId = theAttrId;
   ret->m_size_in_bytes = m_size_in_bytes;
   ret->m_column = m_column;
@@ -112,6 +117,12 @@ NdbRecAttr::clone() const {
     ret->theValue = 0;
   } else {
     ret->theStorageX = new Uint64[((n + 7) >> 3)];
+    if (ret->theStorageX == NULL)
+    {
+      delete ret;
+      errno = ENOMEM;
+      return NULL;
+    }
     ret->theRef = (char*)ret->theStorageX;    
     ret->theValue = 0;
   }
@@ -138,8 +149,24 @@ NdbRecAttr::receive_data(const Uint32 * data, Uint32 sz)
   return false;
 }
 
+NdbRecordPrintFormat::NdbRecordPrintFormat()
+{
+  fields_terminated_by= ";";
+  start_array_enclosure= "[";
+  end_array_enclosure= "]";
+  fields_enclosed_by= "";
+  fields_optionally_enclosed_by= "\"";
+  lines_terminated_by= "\n";
+  hex_prefix= "H'";
+  null_string= "[NULL]";
+  hex_format= 0;
+}
+NdbRecordPrintFormat::~NdbRecordPrintFormat() {}
+static const NdbRecordPrintFormat default_print_format;
+
 static void
-ndbrecattr_print_string(NdbOut& out, const char *type,
+ndbrecattr_print_string(NdbOut& out, const NdbRecordPrintFormat &f,
+                        const char *type, bool is_binary,
 			const char *aref, unsigned sz)
 {
   const unsigned char* ref = (const unsigned char*)aref;
@@ -148,6 +175,25 @@ ndbrecattr_print_string(NdbOut& out, const char *type,
   for (i=sz-1; i >= 0; i--)
     if (ref[i] == 0) sz--;
     else break;
+  if (!is_binary)
+  {
+    // trailing spaces are not printed
+    for (i=sz-1; i >= 0; i--)
+      if (ref[i] == 32) sz--;
+      else break;
+  }
+  if (is_binary && f.hex_format)
+  {
+    if (sz == 0)
+    {
+      out.print("0x0");
+      return;
+    }
+    out.print("0x");
+    for (len = 0; len < (int)sz; len++)
+      out.print("%02X", (int)ref[len]);
+    return;
+  }
   if (sz == 0) return; // empty
 
   for (len=0; len < (int)sz && ref[i] != 0; len++)
@@ -168,37 +214,57 @@ ndbrecattr_print_string(NdbOut& out, const char *type,
     for (i= len+1; ref[i] != 0; i++)
     out.print("%u]",len-i);
     assert((int)sz > i);
-    ndbrecattr_print_string(out,type,aref+i,sz-i);
+    ndbrecattr_print_string(out,f,type,is_binary,aref+i,sz-i);
   }
 }
 
-NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
+NdbOut&
+ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
+                           const NdbRecordPrintFormat &f)
 {
   if (r.isNULL())
   {
-    out << "[NULL]";
+    out << f.null_string;
     return out;
   }
   
   const NdbDictionary::Column* c = r.getColumn();
   uint length = c->getLength();
-  if (length > 1)
-    out << "[";
-
-  for (Uint32 j = 0; j < length; j++) 
   {
-    if (j > 0)
-      out << " ";
-
+    const char *fields_optionally_enclosed_by;
+    if (f.fields_enclosed_by[0] == '\0')
+      fields_optionally_enclosed_by=
+        f.fields_optionally_enclosed_by;
+    else
+      fields_optionally_enclosed_by= "";
+    out << f.fields_enclosed_by;
+    Uint32 j;
     switch(r.getType()){
     case NdbDictionary::Column::Bigunsigned:
       out << r.u_64_value();
       break;
     case NdbDictionary::Column::Bit:
-      out << hex << "H'" << r.u_32_value() << dec;
+      out << f.hex_prefix << "0x";
+      {
+        const Uint32 *buf = (Uint32 *)r.aRef();
+        int k = (length+31)/32;
+        while (k > 0 && (buf[--k] == 0));
+        out.print("%X", buf[k]);
+        while (k > 0)
+          out.print("%.8X", buf[--k]);
+      }
       break;
     case NdbDictionary::Column::Unsigned:
-      out << *((Uint32*)r.aRef() + j);
+      if (length > 1)
+        out << f.start_array_enclosure;
+      out << *(Uint32*)r.aRef();
+      for (j = 1; j < length; j++)
+        out << " " << *((Uint32*)r.aRef() + j);
+      if (length > 1)
+        out << f.end_array_enclosure;
+      break;
+    case NdbDictionary::Column::Mediumunsigned:
+      out << r.u_medium_value();
       break;
     case NdbDictionary::Column::Smallunsigned:
       out << r.u_short_value();
@@ -212,6 +278,9 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
     case NdbDictionary::Column::Int:
       out << r.int32_value();
       break;
+    case NdbDictionary::Column::Mediumint:
+      out << r.medium_value();
+      break;
     case NdbDictionary::Column::Smallint:
       out << r.short_value();
       break;
@@ -219,25 +288,37 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
       out << (int) r.char_value();
       break;
     case NdbDictionary::Column::Binary:
+      if (!f.hex_format)
+        out << fields_optionally_enclosed_by;
       j = r.get_size_in_bytes();
-      ndbrecattr_print_string(out,"Binary", r.aRef(), j);
+      ndbrecattr_print_string(out,f,"Binary", true, r.aRef(), j);
+      if (!f.hex_format)
+        out << fields_optionally_enclosed_by;
       break;
     case NdbDictionary::Column::Char:
+      out << fields_optionally_enclosed_by;
       j = r.get_size_in_bytes();
-      ndbrecattr_print_string(out,"Char", r.aRef(), j);
+      ndbrecattr_print_string(out,f,"Char", false, r.aRef(), j);
+      out << fields_optionally_enclosed_by;
       break;
     case NdbDictionary::Column::Varchar:
     {
+      out << fields_optionally_enclosed_by;
       unsigned len = *(const unsigned char*)r.aRef();
-      ndbrecattr_print_string(out,"Varchar", r.aRef()+1,len);
+      ndbrecattr_print_string(out,f,"Varchar", false, r.aRef()+1,len);
       j = length;
+      out << fields_optionally_enclosed_by;
     }
     break;
     case NdbDictionary::Column::Varbinary:
     {
+      if (!f.hex_format)
+        out << fields_optionally_enclosed_by;
       unsigned len = *(const unsigned char*)r.aRef();
-      ndbrecattr_print_string(out,"Varbinary", r.aRef()+1,len);
+      ndbrecattr_print_string(out,f,"Varbinary", true, r.aRef()+1,len);
       j = length;
+      if (!f.hex_format)
+        out << fields_optionally_enclosed_by;
     }
     break;
     case NdbDictionary::Column::Float:
@@ -366,16 +447,26 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
     break;
     case NdbDictionary::Column::Longvarchar:
     {
+      out << fields_optionally_enclosed_by;
       unsigned len = uint2korr(r.aRef());
-      ndbrecattr_print_string(out,"Longvarchar", r.aRef()+2,len);
+      ndbrecattr_print_string(out,f,"Longvarchar", false, r.aRef()+2,len);
       j = length;
+      out << fields_optionally_enclosed_by;
+    }
+    break;
+    case NdbDictionary::Column::Longvarbinary:
+    {
+      if (!f.hex_format)
+        out << fields_optionally_enclosed_by;
+      unsigned len = uint2korr(r.aRef());
+      ndbrecattr_print_string(out,f,"Longvarbinary", true, r.aRef()+2,len);
+      j = length;
+      if (!f.hex_format)
+        out << fields_optionally_enclosed_by;
     }
     break;
 
     case NdbDictionary::Column::Undefined:
-    case NdbDictionary::Column::Mediumint:
-    case NdbDictionary::Column::Mediumunsigned:
-    case NdbDictionary::Column::Longvarbinary:
     unknown:
     //default: /* no print functions for the rest, just print type */
     out << (int) r.getType();
@@ -384,14 +475,15 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
       out << " " << j << " times";
     break;
     }
-  }
-
-  if (length > 1)
-  {
-    out << "]";
+    out << f.fields_enclosed_by;
   }
 
   return out;
+}
+
+NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
+{
+  return ndbrecattr_print_formatted(out, r, default_print_format);
 }
 
 Int64
@@ -424,4 +516,16 @@ NdbRecAttr::double_value() const
   double val;
   memcpy(&val,theRef,sizeof(val));
   return val;
+}
+
+Int32
+NdbRecAttr::medium_value() const
+{
+  return sint3korr((unsigned char *)theRef);
+}
+
+Uint32
+NdbRecAttr::u_medium_value() const
+{
+  return uint3korr((unsigned char*)theRef);
 }

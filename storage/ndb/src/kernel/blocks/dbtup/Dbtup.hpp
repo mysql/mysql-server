@@ -32,6 +32,82 @@
 #include <../pgman.hpp>
 #include <../tsman.hpp>
 
+// jams
+#undef jam
+#undef jamEntry
+#ifdef DBTUP_BUFFER_CPP
+#define jam()	 	jamLine(10000 + __LINE__)
+#define jamEntry() 	jamEntryLine(10000 + __LINE__)
+#endif
+#ifdef DBTUP_ROUTINES_CPP
+#define jam()           jamLine(15000 + __LINE__)
+#define jamEntry()      jamEntryLine(15000 + __LINE__)
+#endif
+#ifdef DBTUP_COMMIT_CPP
+#define jam()           jamLine(20000 + __LINE__)
+#define jamEntry()      jamEntryLine(20000 + __LINE__)
+#endif
+#ifdef DBTUP_FIXALLOC_CPP
+#define jam()           jamLine(25000 + __LINE__)
+#define jamEntry()      jamEntryLine(25000 + __LINE__)
+#endif
+#ifdef DBTUP_TRIGGER_CPP
+#define jam()           jamLine(30000 + __LINE__)
+#define jamEntry()      jamEntryLine(30000 + __LINE__)
+#endif
+#ifdef DBTUP_ABORT_CPP
+#define jam()           jamLine(35000 + __LINE__)
+#define jamEntry()      jamEntryLine(35000 + __LINE__)
+#endif
+#ifdef DBTUP_PAGE_MAP_CPP
+#define jam()           jamLine(40000 + __LINE__)
+#define jamEntry()      jamEntryLine(40000 + __LINE__)
+#endif
+#ifdef DBTUP_PAG_MAN_CPP
+#define jam()           jamLine(45000 + __LINE__)
+#define jamEntry()      jamEntryLine(45000 + __LINE__)
+#endif
+#ifdef DBTUP_STORE_PROC_DEF_CPP
+#define jam()           jamLine(50000 + __LINE__)
+#define jamEntry()      jamEntryLine(50000 + __LINE__)
+#endif
+#ifdef DBTUP_META_CPP
+#define jam()           jamLine(55000 + __LINE__)
+#define jamEntry()      jamEntryLine(55000 + __LINE__)
+#endif
+#ifdef DBTUP_TAB_DES_MAN_CPP
+#define jam()           jamLine(60000 + __LINE__)
+#define jamEntry()      jamEntryLine(60000 + __LINE__)
+#endif
+#ifdef DBTUP_GEN_CPP
+#define jam()           jamLine(65000 + __LINE__)
+#define jamEntry()      jamEntryLine(65000 + __LINE__)
+#endif
+#ifdef DBTUP_INDEX_CPP
+#define jam()           jamLine(70000 + __LINE__)
+#define jamEntry()      jamEntryLine(70000 + __LINE__)
+#endif
+#ifdef DBTUP_DEBUG_CPP
+#define jam()           jamLine(75000 + __LINE__)
+#define jamEntry()      jamEntryLine(75000 + __LINE__)
+#endif
+#ifdef DBTUP_VAR_ALLOC_CPP
+#define jam()           jamLine(80000 + __LINE__)
+#define jamEntry()      jamEntryLine(80000 + __LINE__)
+#endif
+#ifdef DBTUP_SCAN_CPP
+#define jam()           jamLine(85000 + __LINE__)
+#define jamEntry()      jamEntryLine(85000 + __LINE__)
+#endif
+#ifdef DBTUP_DISK_ALLOC_CPP
+#define jam()           jamLine(90000 + __LINE__)
+#define jamEntry()      jamEntryLine(90000 + __LINE__)
+#endif
+#ifndef jam
+#define jam()           jamLine(__LINE__)
+#define jamEntry()      jamEntryLine(__LINE__)
+#endif
+
 #ifdef VM_TRACE
 inline const char* dbgmask(const Bitmask<MAXNROFATTRIBUTESINWORDS>& bm) {
   static int i=0; static char buf[5][200];
@@ -70,22 +146,23 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 // only reports the line number in the file it currently is located in.
 // 
 // DbtupExecQuery.cpp         0
-// DbtupBuffer.cpp         2000
-// DbtupRoutines.cpp       3000
-// DbtupCommit.cpp         5000
-// DbtupFixAlloc.cpp       6000
-// DbtupTrigger.cpp        7000
-// DbtupAbort.cpp          9000
-// DbtupPageMap.cpp       14000
-// DbtupPagMan.cpp        16000
-// DbtupStoredProcDef.cpp 18000
-// DbtupMeta.cpp          20000
-// DbtupTabDesMan.cpp     22000
-// DbtupGen.cpp           24000
-// DbtupIndex.cpp         28000
-// DbtupDebug.cpp         30000
-// DbtupVarAlloc.cpp      32000
-// DbtupScan.cpp          33000
+// DbtupBuffer.cpp         10000
+// DbtupRoutines.cpp       15000
+// DbtupCommit.cpp         20000
+// DbtupFixAlloc.cpp       25000
+// DbtupTrigger.cpp        30000
+// DbtupAbort.cpp          35000
+// DbtupPageMap.cpp        40000
+// DbtupPagMan.cpp         45000
+// DbtupStoredProcDef.cpp  50000
+// DbtupMeta.cpp           55000
+// DbtupTabDesMan.cpp      60000
+// DbtupGen.cpp            65000
+// DbtupIndex.cpp          70000
+// DbtupDebug.cpp          75000
+// DbtupVarAlloc.cpp       80000
+// DbtupScan.cpp           85000
+// DbtupDiskAlloc.cpp      90000
 //------------------------------------------------------------------
 
 /*
@@ -676,6 +753,7 @@ struct Operationrec {
   union {
     Uint32 firstAttrinbufrec; //Used until copyAttrinfo
   };
+  Uint32 m_any_value;
   union {
     Uint32 lastAttrinbufrec; //Used until copyAttrinfo
     Uint32 nextPool;
@@ -1209,9 +1287,40 @@ typedef Ptr<HostBuffer> HostBufferPtr;
    */
   struct Var_part_ref 
   {
+#ifdef NDB_32BIT_VAR_REF
+    /*
+      In versions prior to ndb 6.1.6, 6.2.1 and mysql 5.1.17
+      Running this code limits DataMemory to 16G, also online
+      upgrade not possible between versions
+     */
     Uint32 m_ref;
-  };
+    STATIC_CONST( SZ32 = 1 );
 
+    void copyout(Local_key* dst) const {
+      dst->m_page_no = m_ref >> MAX_TUPLES_BITS;
+      dst->m_page_idx = m_ref & MAX_TUPLES_PER_PAGE;
+    }
+
+    void assign(const Local_key* src) {
+      m_ref = (src->m_page_no << MAX_TUPLES_BITS) | src->m_page_idx;
+    }
+#else
+    Uint32 m_page_no;
+    Uint32 m_page_idx;
+    STATIC_CONST( SZ32 = 2 );
+
+    void copyout(Local_key* dst) const {
+      dst->m_page_no = m_page_no;
+      dst->m_page_idx = m_page_idx;
+    }
+
+    void assign(const Local_key* src) {
+      m_page_no = src->m_page_no;
+      m_page_idx = src->m_page_idx;
+    }
+#endif    
+  };
+  
   struct Tuple_header
   {
     union {
@@ -2851,12 +2960,13 @@ Uint32*
 Dbtup::get_ptr(Ptr<Page>* pagePtr, Var_part_ref ref)
 {
   PagePtr tmp;
-  Uint32 page_idx= ref.m_ref & MAX_TUPLES_PER_PAGE;
-  tmp.i= ref.m_ref >> MAX_TUPLES_BITS;
+  Local_key key;
+  ref.copyout(&key);
+  tmp.i = key.m_page_no;
   
   c_page_pool.getPtr(tmp);
   memcpy(pagePtr, &tmp, sizeof(tmp));
-  return ((Var_page*)tmp.p)->get_ptr(page_idx);
+  return ((Var_page*)tmp.p)->get_ptr(key.m_page_idx);
 }
 
 inline

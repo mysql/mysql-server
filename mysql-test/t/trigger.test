@@ -1699,4 +1699,42 @@ DROP TABLE bug22580_t1;
 DROP PROCEDURE bug22580_proc_1;
 DROP PROCEDURE bug22580_proc_2;
 
+#
+# Bug#27006: AFTER UPDATE triggers not fired with INSERT ... ON DUPLICATE
+#
+--disable_warnings
+DROP TRIGGER IF EXISTS trg27006_a_update;
+DROP TRIGGER IF EXISTS trg27006_a_insert;
+--enable_warnings
+
+CREATE TABLE t1 (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `val` varchar(10) NOT NULL,
+  PRIMARY KEY  (`id`)
+);
+CREATE TABLE t2 like t1;
+DELIMITER |;
+
+CREATE TRIGGER trg27006_a_insert AFTER INSERT ON t1 FOR EACH ROW
+BEGIN
+    insert into t2 values (NULL,new.val);
+END |
+CREATE TRIGGER trg27006_a_update AFTER UPDATE ON t1 FOR EACH ROW
+BEGIN
+    insert into t2 values (NULL,new.val);
+END |
+DELIMITER ;|
+
+INSERT INTO t1(val) VALUES ('test1'),('test2');
+SELECT * FROM t1;
+SELECT * FROM t2;
+INSERT INTO t1 VALUES (2,'test2') ON DUPLICATE KEY UPDATE val=VALUES(val);
+INSERT INTO t1 VALUES (2,'test3') ON DUPLICATE KEY UPDATE val=VALUES(val);
+INSERT INTO t1 VALUES (3,'test4') ON DUPLICATE KEY UPDATE val=VALUES(val);
+SELECT * FROM t1;
+SELECT * FROM t2;
+DROP TRIGGER trg27006_a_insert;
+DROP TRIGGER trg27006_a_update;
+drop table t1,t2;
+
 --echo End of 5.0 tests

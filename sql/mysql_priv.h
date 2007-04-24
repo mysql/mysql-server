@@ -47,7 +47,6 @@ typedef Bitmap<64>  key_map;          /* Used for finding keys */
 #else
 typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 #endif
-typedef ulong key_part_map;           /* Used for finding key parts */
 typedef ulong nesting_map;  /* Used for flags of nesting constructs */
 /*
   Used to identify NESTED_JOIN structures within a join (applicable only to
@@ -148,6 +147,7 @@ typedef struct my_locale_st
 
 extern MY_LOCALE my_locale_en_US;
 extern MY_LOCALE *my_locales[];
+extern MY_LOCALE *my_default_lc_time_names;
 
 MY_LOCALE *my_locale_by_name(const char *name);
 MY_LOCALE *my_locale_by_number(uint number);
@@ -264,7 +264,6 @@ MY_LOCALE *my_locale_by_number(uint number);
 #endif
 
 #if defined(__WIN__)
-#define IF_WIN(A,B) (A)
 #undef	FLUSH_TIME
 #define FLUSH_TIME	1800			/* Flush every half hour */
 
@@ -273,7 +272,6 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define WAIT_PRIOR	0
 #define QUERY_PRIOR	2
 #else
-#define IF_WIN(A,B) (B)
 #define INTERRUPT_PRIOR 10
 #define CONNECT_PRIOR	9
 #define WAIT_PRIOR	8
@@ -341,9 +339,6 @@ MY_LOCALE *my_locale_by_number(uint number);
 /* The following is used to detect a conflict with DISTINCT */
 #define SELECT_ALL              (ULL(1) << 24)    // SELECT, user, parser
 
-/* Set if we are updating a non-transaction safe table */
-#define OPTION_STATUS_NO_TRANS_UPDATE   (ULL(1) << 25) // THD, intern
-
 /* The following can be set when importing tables in a 'wrong order'
    to suppress foreign key checks */
 #define OPTION_NO_FOREIGN_KEY_CHECKS    (ULL(1) << 26) // THD, user, binlog
@@ -367,7 +362,7 @@ MY_LOCALE *my_locale_by_number(uint number);
   Maximum length of time zone name that we support
   (Time zone name is char(64) in db). mysqlbinlog needs it.
 */
-#define MAX_TIME_ZONE_NAME_LENGTH 72
+#define MAX_TIME_ZONE_NAME_LENGTH       (NAME_LEN + 1)
 
 /* The rest of the file is included in the server only */
 #ifndef MYSQL_CLIENT
@@ -411,8 +406,9 @@ MY_LOCALE *my_locale_by_number(uint number);
   updated (to store more bytes on disk).
 
   NOTE: When adding new SQL_MODE types, make sure to also add them to
-  ../scripts/mysql_create_system_tables.sh and
-  ../scripts/mysql_fix_privilege_tables.sql
+  the scripts used for creating the MySQL system tables
+  in scripts/mysql_system_tables.sql and scripts/mysql_system_tables_fix.sql
+
 */
 
 #define RAID_BLOCK_SIZE 1024
@@ -599,7 +595,7 @@ class THD;
 void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0);
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables);
 bool check_single_table_access(THD *thd, ulong privilege,
-			   TABLE_LIST *tables);
+			   TABLE_LIST *tables, bool no_errors);
 bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
 			  bool is_proc, bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
@@ -622,8 +618,11 @@ void get_default_definer(THD *thd, LEX_USER *definer);
 LEX_USER *create_default_definer(THD *thd);
 LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name);
 LEX_USER *get_current_user(THD *thd, LEX_USER *user);
-bool check_string_length(LEX_STRING *str,
-                         const char *err_msg, uint max_length);
+bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
+                              uint max_byte_length);
+bool check_string_char_length(LEX_STRING *str, const char *err_msg,
+                              uint max_char_length, CHARSET_INFO *cs,
+                              bool no_error);
 
 enum enum_mysql_completiontype {
   ROLLBACK_RELEASE=-2, ROLLBACK=1,  ROLLBACK_AND_CHAIN=7,
@@ -647,6 +646,7 @@ struct Query_cache_query_flags
 {
   unsigned int client_long_flag:1;
   unsigned int client_protocol_41:1;
+  unsigned int result_in_binary_protocol:1;
   unsigned int more_results_exists:1;
   unsigned int pkt_nr;
   uint character_set_client_num;
@@ -673,6 +673,11 @@ struct Query_cache_query_flags
   query_cache.send_result_to_client(A, B, C)
 #define query_cache_invalidate_by_MyISAM_filename_ref \
   &query_cache_invalidate_by_MyISAM_filename
+/* note the "maybe": it's a read without mutex */
+#define query_cache_maybe_disabled(T)                                 \
+  (T->variables.query_cache_type == 0 || query_cache.query_cache_size == 0)
+#define query_cache_is_cacheable_query(L) \
+  (((L)->sql_command == SQLCOM_SELECT) && (L)->safe_to_cache_query)
 #else
 #define QUERY_CACHE_FLAGS_SIZE 0
 #define query_cache_store_query(A, B)
@@ -689,6 +694,8 @@ struct Query_cache_query_flags
 #define query_cache_abort(A)
 #define query_cache_end_of_result(A)
 #define query_cache_invalidate_by_MyISAM_filename_ref NULL
+#define query_cache_maybe_disabled(T) 1
+#define query_cache_is_cacheable_query(L) 0
 #endif /*HAVE_QUERY_CACHE*/
 
 /*
@@ -827,14 +834,15 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent);
 bool do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db,
                       char *new_table_name, char *new_table_alias,
                       bool skip_error);
-bool mysql_change_db(THD *thd,const char *name,bool no_access_check);
+bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name,
+                     bool force_switch);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
 bool is_update_query(enum enum_sql_command command);
 bool alloc_query(THD *thd, const char *packet, uint packet_length);
 void mysql_init_select(LEX *lex);
 void mysql_reset_thd_for_next_command(THD *thd);
-void mysql_init_query(THD *thd, uchar *buf, uint length);
+void mysql_init_query(THD *thd, const char *buf, uint length);
 bool mysql_new_select(LEX *lex, bool move_down);
 void create_select_for_variable(const char *var_name);
 void mysql_init_multi_delete(LEX *lex);
@@ -991,13 +999,15 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
                           List<Item> &fields, List_item *values,
                           List<Item> &update_fields,
                           List<Item> &update_values, enum_duplicates duplic,
-                          COND **where, bool select_insert);
+                          COND **where, bool select_insert,
+                          bool check_fields, bool abort_on_warning);
 bool mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
                   List<List_item> &values, List<Item> &update_fields,
                   List<Item> &update_values, enum_duplicates flag,
                   bool ignore);
 int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
                                            TABLE_LIST *table_list);
+void prepare_triggers_for_insert_stmt(TABLE *table);
 bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
                   SQL_LIST *order, ha_rows rows, ulonglong options,
@@ -1105,7 +1115,7 @@ void init_status_vars();
 void free_status_vars();
 
 /* information schema */
-extern LEX_STRING information_schema_name;
+extern LEX_STRING INFORMATION_SCHEMA_NAME;
 extern const LEX_STRING partition_keywords[];
 LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
                             const char* str, uint length,
@@ -1123,8 +1133,10 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place);
+enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
+
 #define is_schema_db(X) \
-  !my_strcasecmp(system_charset_info, information_schema_name.str, (X))
+  !my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str, (X))
 
 /* sql_prepare.cc */
 
@@ -1155,7 +1167,7 @@ void mysql_ha_mark_tables_for_reopen(THD *thd, TABLE *table);
 /* sql_base.cc */
 #define TMP_TABLE_KEY_EXTRA 8
 void set_item_name(Item *item,char *pos,uint length);
-bool add_field_to_list(THD *thd, char *field_name, enum enum_field_types type,
+bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types type,
 		       char *length, char *decimal,
 		       uint type_modifier,
 		       Item *default_value, Item *on_update_value,
@@ -1188,9 +1200,29 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 			table_map read_tables, COND *conds,
                         bool allow_null_cond,  int *error);
 extern Item **not_found_item;
+
+/*
+  This enumeration type is used only by the function find_item_in_list
+  to return the info on how an item has been resolved against a list
+  of possibly aliased items.
+  The item can be resolved: 
+   - against an alias name of the list's element (RESOLVED_AGAINST_ALIAS)
+   - against non-aliased field name of the list  (RESOLVED_WITH_NO_ALIAS)
+   - against an aliased field name of the list   (RESOLVED_BEHIND_ALIAS)
+   - ignoring the alias name in cases when SQL requires to ignore aliases
+     (e.g. when the resolved field reference contains a table name or
+     when the resolved item is an expression)   (RESOLVED_IGNORING_ALIAS)    
+*/
+enum enum_resolution_type {
+  NOT_RESOLVED=0,
+  RESOLVED_IGNORING_ALIAS,
+  RESOLVED_BEHIND_ALIAS,
+  RESOLVED_WITH_NO_ALIAS,
+  RESOLVED_AGAINST_ALIAS
+};
 Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
                           find_item_error_report_type report_error,
-                          bool *unaliased);
+                          enum_resolution_type *resolution);
 bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
 bool insert_fields(THD *thd, Name_resolution_context *context,
@@ -1248,7 +1280,8 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
                                st_table_list *TABLE_LIST::*link,
                                const char *db_name,
                                const char *table_name);
-TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list);
+TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
+                         bool check_alias);
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
 TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list);
 bool close_temporary_table(THD *thd, TABLE_LIST *table_list);
@@ -1408,7 +1441,16 @@ int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt);
 void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt);
 void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table);
 
+/* Functions to work with system tables. */
+bool open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
+                                 Open_tables_state *backup);
+void close_system_tables(THD *thd, Open_tables_state *backup);
+TABLE *open_system_table_for_update(THD *thd, TABLE_LIST *one_table);
+
 bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables, bool have_lock = FALSE);
+bool close_cached_connection_tables(THD *thd, bool wait_for_refresh,
+                                    LEX_STRING *connect_string,
+                                    bool have_lock = FALSE);
 void copy_field_from_tmp_record(Field *field,int offset);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
                  bool ignore_errors);
@@ -1471,7 +1513,7 @@ void print_plan(JOIN* join,uint idx, double record_count, double read_time,
 void mysql_print_status();
 /* key.cc */
 int find_ref_key(KEY *key, uint key_count, byte *record, Field *field,
-                 uint *key_length);
+                 uint *key_length, uint *keypart);
 void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length);
 void key_restore(byte *to_record, byte *from_key, KEY *key_info,
                  uint key_length);
@@ -1526,8 +1568,10 @@ extern bool check_reserved_words(LEX_STRING *name);
 /* strfunc.cc */
 ulonglong find_set(TYPELIB *lib, const char *x, uint length, CHARSET_INFO *cs,
 		   char **err_pos, uint *err_len, bool *set_warning);
-uint find_type(TYPELIB *lib, const char *find, uint length, bool part_match);
-uint find_type2(TYPELIB *lib, const char *find, uint length, CHARSET_INFO *cs);
+uint find_type(const TYPELIB *lib, const char *find, uint length,
+               bool part_match);
+uint find_type2(const TYPELIB *lib, const char *find, uint length,
+                CHARSET_INFO *cs);
 void unhex_type2(TYPELIB *lib);
 uint check_word(TYPELIB *lib, const char *val, const char *end,
 		const char **end_of_word);
@@ -1797,19 +1841,20 @@ ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
-my_time_t TIME_to_timestamp(THD *thd, const TIME *t, my_bool *not_exist);
-bool str_to_time_with_warn(const char *str,uint length,TIME *l_time);
+my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *not_exist);
+bool str_to_time_with_warn(const char *str,uint length,MYSQL_TIME *l_time);
 timestamp_type str_to_datetime_with_warn(const char *str, uint length,
-                                         TIME *l_time, uint flags);
-void localtime_to_TIME(TIME *to, struct tm *from);
-void calc_time_from_sec(TIME *to, long seconds, long microseconds);
+                                         MYSQL_TIME *l_time, uint flags);
+void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
+void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds);
 
-void make_truncated_value_warning(THD *thd, const char *str_val,
+void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
+                                  const char *str_val,
 				  uint str_length, timestamp_type time_type,
                                   const char *field_name);
 
-bool date_add_interval(TIME *ltime, interval_type int_type, INTERVAL interval);
-bool calc_time_diff(TIME *l_time1, TIME *l_time2, int l_sign,
+bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL interval);
+bool calc_time_diff(MYSQL_TIME *l_time1, MYSQL_TIME *l_time2, int l_sign,
                     longlong *seconds_out, long *microseconds_out);
 
 extern LEX_STRING interval_type_to_name[];
@@ -1821,15 +1866,15 @@ extern DATE_TIME_FORMAT *date_time_format_copy(THD *thd,
 					       DATE_TIME_FORMAT *format);
 const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
 				     timestamp_type type);
-extern bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
+extern bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
 			   timestamp_type type, String *str);
-void make_datetime(const DATE_TIME_FORMAT *format, const TIME *l_time,
+void make_datetime(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
                    String *str);
-void make_date(const DATE_TIME_FORMAT *format, const TIME *l_time,
+void make_date(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
                String *str);
-void make_time(const DATE_TIME_FORMAT *format, const TIME *l_time,
+void make_time(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
                String *str);
-int my_time_compare(TIME *a, TIME *b);
+int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);
@@ -1849,7 +1894,7 @@ double my_double_round(double value, int dec, bool truncate);
 int get_quick_record(SQL_SELECT *select);
 
 int calc_weekday(long daynr,bool sunday_first_day_of_week);
-uint calc_week(TIME *l_time, uint week_behaviour, uint *year);
+uint calc_week(MYSQL_TIME *l_time, uint week_behaviour, uint *year);
 void find_date(char *pos,uint *vek,uint flag);
 TYPELIB *convert_strings_to_array_type(my_string *typelibs, my_string *end);
 TYPELIB *typelib(MEM_ROOT *mem_root, List<String> &strings);
@@ -2000,7 +2045,6 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->const_table= 0;
   table->null_row= 0;
   table->status= STATUS_NO_RECORD;
-  table->keys_in_use_for_query= table->s->keys_in_use;
   table->maybe_null= table_list->outer_join;
   TABLE_LIST *embedding= table_list->embedding;
   while (!table->maybe_null && embedding)
@@ -2011,6 +2055,8 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->tablenr= tablenr;
   table->map= (table_map) 1 << tablenr;
   table->force_index= table_list->force_index;
+  table->covering_keys= table->s->keys_for_keyread;
+  table->merge_keys.clear_all();
 }
 
 

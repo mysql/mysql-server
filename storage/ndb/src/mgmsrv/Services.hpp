@@ -46,6 +46,8 @@ private:
   Parser_t::Context *m_ctx;
   Uint64 m_session_id;
 
+  int m_errorInsert;
+
   const char *get_error_text(int err_no)
   { return m_mgmsrv.getErrorText(err_no, m_err_str, sizeof(m_err_str)); }
 

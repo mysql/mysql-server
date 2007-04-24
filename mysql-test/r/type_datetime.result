@@ -26,8 +26,6 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 delete from t1;
 insert into t1 values("000101"),("691231"),("700101"),("991231"),("00000101"),("00010101"),("99991231"),("00101000000"),("691231000000"),("700101000000"),("991231235959"),("10000101000000"),("99991231235959"),("20030100000000"),("20030000000000");
-Warnings:
-Warning	1264	Out of range value for column 't' at row 5
 insert into t1 values ("2003-003-03");
 insert into t1 values ("20030102T131415"),("2001-01-01T01:01:01"), ("2001-1-1T1:01:01");
 select * from t1;
@@ -36,7 +34,7 @@ t
 2069-12-31 00:00:00
 1970-01-01 00:00:00
 1999-12-31 00:00:00
-0000-00-00 00:00:00
+0000-01-01 00:00:00
 0001-01-01 00:00:00
 9999-12-31 00:00:00
 2000-10-10 00:00:00
@@ -168,6 +166,9 @@ dt
 0000-00-00 00:00:00
 0000-00-00 00:00:00
 drop table t1;
+select cast('2006-12-05 22:10:10' as datetime) + 0;
+cast('2006-12-05 22:10:10' as datetime) + 0
+20061205221010.000000
 CREATE TABLE t1(a DATETIME NOT NULL);
 INSERT INTO t1 VALUES ('20060606155555');
 SELECT a FROM t1 WHERE a=(SELECT MAX(a) FROM t1) AND (a="20060606155555");
@@ -191,3 +192,38 @@ CAST(CAST('2006-08-10 10:11:12' AS DATETIME) + INTERVAL 14 MICROSECOND AS DECIMA
 SELECT CAST(CAST('10:11:12.098700' AS TIME) AS DECIMAL(20,6));
 CAST(CAST('10:11:12.098700' AS TIME) AS DECIMAL(20,6))
 101112.098700
+set @org_mode=@@sql_mode;
+create table t1 (da date default '1962-03-03 23:33:34', dt datetime default '1962-03-03');
+Warnings:
+Note	1265	Data truncated for column 'da' at row 1
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `da` date DEFAULT '1962-03-03',
+  `dt` datetime DEFAULT '1962-03-03 00:00:00'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values ();
+insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
+Warnings:
+Note	1265	Data truncated for column 'da' at row 1
+set @@sql_mode='ansi,traditional';
+insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
+Warnings:
+Note	1265	Data truncated for column 'da' at row 1
+insert into t1 set dt='2007-03-23 13:49:38',da=dt;
+Warnings:
+Note	1265	Data truncated for column 'da' at row 1
+insert into t1 values ('2007-03-32','2007-03-23 13:49:38');
+ERROR 22007: Incorrect date value: '2007-03-32' for column 'da' at row 1
+select * from t1;
+da	dt
+1962-03-03	1962-03-03 00:00:00
+2007-03-23	2007-03-23 13:49:38
+2007-03-23	2007-03-23 13:49:38
+2007-03-23	2007-03-23 13:49:38
+drop table t1;
+create table t1 (da date default '1962-03-32 23:33:34', dt datetime default '1962-03-03');
+ERROR 42000: Invalid default value for 'da'
+create table t1 (t time default '916:00:00 a');
+ERROR 42000: Invalid default value for 't'
+set @@sql_mode= @org_mode;

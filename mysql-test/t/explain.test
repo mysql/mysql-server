@@ -51,4 +51,19 @@ set names latin1;
 select 3 into @v1;
 explain select 3 into @v1;
 
+#
+# Bug#22331: Wrong WHERE in EXPLAIN EXTENDED when all expressions were
+#            optimized away.
+#
+create table t1(f1 int, f2 int);
+insert into t1 values (1,1);
+create view v1 as select * from t1 where f1=1;
+explain extended select * from v1 where f2=1;
+explain extended select * from t1 where 0;
+explain extended select * from t1 where 1;
+explain extended select * from t1 having 0;
+explain extended select * from t1 having 1;
+drop view v1;
+drop table t1;
+
 # End of 5.0 tests.

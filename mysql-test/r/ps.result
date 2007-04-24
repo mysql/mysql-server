@@ -1968,11 +1968,11 @@ prepare abc from "show master logs";
 deallocate prepare abc;
 create procedure proc_1() show events;
 call proc_1();
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
 call proc_1();
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
 call proc_1();
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
 drop procedure proc_1;
 create function func_1() returns int begin show events; return 1; end|
 ERROR 0A000: Not allowed to return a result set from a function
@@ -1982,11 +1982,11 @@ drop function func_1;
 ERROR 42000: FUNCTION test.func_1 does not exist
 prepare abc from "show events";
 execute abc;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
 execute abc;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
 execute abc;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
 deallocate prepare abc;
 drop procedure if exists a;
 create procedure a() select 42;
@@ -2285,7 +2285,7 @@ drop user pstest_xyz@localhost;
 deallocate prepare abc;
 drop event if exists xyz;
 create function func_1() returns int begin create event xyz on schedule at now() do select 123; return 1; end|
-ERROR HY000: Recursivity of EVENT DDL statements is forbidden when body is present
+ERROR HY000: Recursion of EVENT DDL statements is forbidden when body is present
 select func_1(), func_1(), func_1() from dual;
 ERROR 42000: FUNCTION test.func_1 does not exist
 drop function func_1;
@@ -2488,3 +2488,40 @@ execute stmt2 using @to_format, @dec;
 format(?, ?)
 10,000.00
 deallocate prepare stmt2;
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (i INT);
+INSERT INTO t2 VALUES (2);
+LOCK TABLE t1 READ, t2 WRITE;
+PREPARE stmt1 FROM "SELECT i FROM t1";
+PREPARE stmt2 FROM "INSERT INTO t2 (i) VALUES (3)";
+EXECUTE stmt1;
+i
+1
+EXECUTE stmt2;
+SELECT * FROM t2;
+i
+2
+UNLOCK TABLES;
+SELECT * FROM t2;
+i
+2
+3
+ALTER TABLE t1 ADD COLUMN j INT;
+ALTER TABLE t2 ADD COLUMN j INT;
+INSERT INTO t1 VALUES (4, 5);
+INSERT INTO t2 VALUES (4, 5);
+EXECUTE stmt1;
+i
+1
+4
+EXECUTE stmt2;
+SELECT * FROM t2;
+i	j
+2	NULL
+3	NULL
+4	5
+3	NULL
+DROP TABLE t1, t2;
+End of 5.1 tests.

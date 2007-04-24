@@ -167,7 +167,7 @@ class Create_sp_func : public Create_qfunc
 {
 public:
   virtual Item* create(THD *thd, LEX_STRING db, LEX_STRING name,
-                       List<Item> *item_list);
+                       bool use_explicit_name, List<Item> *item_list);
 
   static Create_sp_func s_singleton;
 
@@ -2316,7 +2316,7 @@ Create_qfunc::create(THD *thd, LEX_STRING name, List<Item> *item_list)
   if (thd->copy_db_to(&db.str, &db.length))
     return NULL;
 
-  return create(thd, db, name, item_list);
+  return create(thd, db, name, false, item_list);
 }
 
 
@@ -2433,7 +2433,7 @@ Create_sp_func Create_sp_func::s_singleton;
 
 Item*
 Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
-                       List<Item> *item_list)
+                       bool use_explicit_name, List<Item> *item_list)
 {
   int arg_count= 0;
   Item *func= NULL;
@@ -2458,7 +2458,7 @@ Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
   if (item_list != NULL)
     arg_count= item_list->elements;
 
-  qname= new (thd->mem_root) sp_name(db, name);
+  qname= new (thd->mem_root) sp_name(db, name, use_explicit_name);
   qname->init_qname(thd);
   sp_add_used_routine(lex, thd, qname, TYPE_ENUM_FUNCTION);
 
@@ -2877,9 +2877,6 @@ Create_func_convert_tz Create_func_convert_tz::s_singleton;
 Item*
 Create_func_convert_tz::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 {
-  if (thd->lex->add_time_zone_tables_to_query_tables(thd))
-    return NULL;
-
   return new (thd->mem_root) Item_func_convert_tz(arg1, arg2, arg3);
 }
 
@@ -4795,6 +4792,12 @@ static Native_func_registry func_array[] =
   { C_STRING_WITH_LEN("MAKE_SET"), BUILDER(Create_func_make_set)},
   { C_STRING_WITH_LEN("MASTER_POS_WAIT"), BUILDER(Create_func_master_pos_wait)},
   { C_STRING_WITH_LEN("MBRCONTAINS"), GEOM_BUILDER(Create_func_contains)},
+  { C_STRING_WITH_LEN("MBRDISJOINT"), GEOM_BUILDER(Create_func_disjoint)},
+  { C_STRING_WITH_LEN("MBREQUAL"), GEOM_BUILDER(Create_func_equals)},
+  { C_STRING_WITH_LEN("MBRINTERSECTS"), GEOM_BUILDER(Create_func_intersects)},
+  { C_STRING_WITH_LEN("MBROVERLAPS"), GEOM_BUILDER(Create_func_overlaps)},
+  { C_STRING_WITH_LEN("MBRTOUCHES"), GEOM_BUILDER(Create_func_touches)},
+  { C_STRING_WITH_LEN("MBRWITHIN"), GEOM_BUILDER(Create_func_within)},
   { C_STRING_WITH_LEN("MD5"), BUILDER(Create_func_md5)},
   { C_STRING_WITH_LEN("MLINEFROMTEXT"), GEOM_BUILDER(Create_func_geometry_from_text)},
   { C_STRING_WITH_LEN("MLINEFROMWKB"), GEOM_BUILDER(Create_func_geometry_from_wkb)},

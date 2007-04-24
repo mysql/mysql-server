@@ -14,17 +14,16 @@ a
 1
 2
 3
-show binlog events;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	102	Server ver: VERSION, Binlog ver: 4
-master-bin.000001	102	Query	1	222	use `test`; create table t1(a int not null primary key) engine=myisam
-master-bin.000001	222	Table_map	1	261	table_id: # (test.t1)
-master-bin.000001	261	Write_rows	1	295	table_id: # flags: STMT_END_F
-master-bin.000001	295	Table_map	1	334	table_id: # (test.t1)
-master-bin.000001	334	Write_rows	1	368	table_id: # flags: STMT_END_F
-master-bin.000001	368	Table_map	1	407	table_id: # (test.t1)
-master-bin.000001	407	Write_rows	1	441	table_id: # flags: STMT_END_F
-master-bin.000001	441	Query	1	516	use `test`; flush tables
+master-bin.000001	#	Query	#	#	use `test`; create table t1(a int not null primary key) engine=myisam
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; flush tables
 SELECT * FROM t1 ORDER BY a;
 a
 1

@@ -733,14 +733,18 @@ nlist_err:
 
 /*
   parse parameters
- 
+
   SYNOPSIS
     File_parser::parse()
     base                base address for parameter writing (structure like
                         TABLE)
     mem_root            MEM_ROOT for parameters allocation
     parameters          parameters description
-    required            number of required parameters in above list
+    required            number of parameters in the above list. If the file
+                        contains more parameters than "required", they will
+                        be ignored. If the file contains less parameters
+                        then "required", non-existing parameters will
+                        remain their values.
     hook                hook called for unknown keys
     hook_data           some data specific for the hook
 
@@ -923,6 +927,13 @@ list_err:
       }
     }
   }
+
+  /*
+    NOTE: if we read less than "required" parameters, it is still Ok.
+    Probably, we've just read the file of the previous version, which
+    contains less parameters.
+  */
+
   DBUG_RETURN(FALSE);
 }
 

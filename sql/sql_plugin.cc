@@ -162,7 +162,8 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     plugin directory are used (to make this even remotely secure).
   */
   if (my_strchr(files_charset_info, dl->str, dl->str + dl->length, FN_LIBCHAR) ||
-      dl->length > NAME_LEN ||
+      check_string_char_length((LEX_STRING *) dl, "", NAME_CHAR_LEN,
+                               system_charset_info, 1) ||
       plugin_dir_len + dl->length + 1 >= FN_REFLEN)
   {
     if (report & REPORT_TO_USER)
@@ -944,8 +945,7 @@ my_bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   table->use_all_columns();
   table->field[0]->store(name->str, name->length, system_charset_info);
   if (! table->file->index_read_idx(table->record[0], 0,
-                                    (byte *)table->field[0]->ptr,
-                                    table->key_info[0].key_length,
+                                    (byte *)table->field[0]->ptr, HA_WHOLE_KEY,
                                     HA_READ_KEY_EXACT))
   {
     int error;

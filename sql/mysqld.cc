@@ -17,6 +17,7 @@
 #include <m_ctype.h>
 #include <my_dir.h>
 #include "slave.h"
+#include "rpl_mi.h"
 #include "sql_repl.h"
 #include "rpl_filter.h"
 #include "repl_failsafe.h"
@@ -195,12 +196,6 @@ inline void reset_floating_point_exceptions()
 
 } /* cplusplus */
 
-
-#if defined(HAVE_LINUXTHREADS)
-#define THR_KILL_SIGNAL SIGINT
-#else
-#define THR_KILL_SIGNAL SIGUSR2		// Can't use this with LinuxThreads
-#endif
 #define MYSQL_KILL_SIGNAL SIGTERM
 
 #ifdef HAVE_GLIBC2_STYLE_GETHOSTBYNAME_R
@@ -280,7 +275,11 @@ static TYPELIB tc_heuristic_recover_typelib=
 };
 
 static const char *thread_handling_names[]=
-{ "one-thread-per-connection", "no-threads", "pool-of-threads", NullS};
+{ "one-thread-per-connection", "no-threads",
+#if HAVE_POOL_OF_THREADS == 1
+  "pool-of-threads",
+#endif
+  NullS};
 
 TYPELIB thread_handling_typelib=
 {
@@ -335,6 +334,7 @@ static char *mysqld_user, *mysqld_chroot, *log_error_file_ptr;
 static char *opt_init_slave, *language_ptr, *opt_init_connect;
 static char *default_character_set_name;
 static char *character_set_filesystem_name;
+static char *lc_time_names_name;
 static char *my_bind_addr_str;
 static char *default_collation_name; 
 static char *default_storage_engine_str;
@@ -571,6 +571,8 @@ CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 CHARSET_INFO *character_set_filesystem;
 
+MY_LOCALE *my_default_lc_time_names;
+
 SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
@@ -638,6 +640,7 @@ struct rand_struct sql_rand; // used by sql_class.cc:THD::THD()
 #ifndef EMBEDDED_LIBRARY
 struct passwd *user_info;
 static pthread_t select_thread;
+static uint thr_kill_signal;
 #endif
 
 /* OS specific variables */
@@ -737,6 +740,8 @@ pthread_handler_t handle_connections_shared_memory(void *arg);
 #endif
 pthread_handler_t handle_slave(void *arg);
 static ulong find_bit_type(const char *x, TYPELIB *bit_lib);
+static ulong find_bit_type_or_exit(const char *x, TYPELIB *bit_lib,
+                                   const char *option);
 static void clean_up(bool print_message);
 static int test_if_case_insensitive(const char *dir_name);
 
@@ -788,7 +793,6 @@ static void close_connections(void)
     DBUG_PRINT("info",("Waiting for select thread"));
 
 #ifndef DONT_USE_THR_ALARM
-    if (pthread_kill(select_thread,THR_CLIENT_ALARM))
       break;					// allready dead
 #endif
     set_timespec(abstime, 2);
@@ -890,7 +894,7 @@ static void close_connections(void)
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count); // For unlink from list
 
-  Events::get_instance()->deinit();
+  Events::deinit();
   end_slave();
 
   if (thread_count)
@@ -1335,7 +1339,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_bytes_sent);
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
-  Events::get_instance()->destroy_mutexes();
+  Events::destroy_mutexes();
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
 #ifndef HAVE_YASSL
@@ -1804,6 +1808,12 @@ static bool cache_thread()
       thd= thread_cache.get();
       thd->thread_stack= (char*) &thd;          // For store_globals
       (void) thd->store_globals();
+      /*
+        THD::mysys_var::abort is associated with physical thread rather
+        than with THD object. So we need to reset this flag before using
+        this thread for handling of new THD object/connection.
+      */
+      thd->mysys_var->abort= 0;
       thd->thr_create_time= time(NULL);
       threads.append(thd);
       return(1);
@@ -2288,7 +2298,9 @@ static void init_signals(void)
   DBUG_ENTER("init_signals");
 
   if (test_flags & TEST_SIGINT)
-    my_sigset(THR_KILL_SIGNAL,end_thread_signal);
+  {
+    my_sigset(thr_kill_signal, end_thread_signal);
+  }
   my_sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
@@ -2343,10 +2355,13 @@ static void init_signals(void)
 #ifdef SIGTSTP
   sigaddset(&set,SIGTSTP);
 #endif
-  sigaddset(&set,THR_SERVER_ALARM);
+  if (thd_lib_detected != THD_LIB_LT)
+    sigaddset(&set,THR_SERVER_ALARM);
   if (test_flags & TEST_SIGINT)
-    sigdelset(&set,THR_KILL_SIGNAL);		// May be SIGINT
-  sigdelset(&set,THR_CLIENT_ALARM);		// For alarms
+  {
+    // May be SIGINT
+    sigdelset(&set, thr_kill_signal);
+  }
   sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
@@ -2409,23 +2424,19 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
   */
   init_thr_alarm(thread_scheduler.max_threads +
 		 global_system_variables.max_insert_delayed_threads + 10);
-#if SIGINT != THR_KILL_SIGNAL
-  if (test_flags & TEST_SIGINT)
+  if (thd_lib_detected != THD_LIB_LT && (test_flags & TEST_SIGINT))
   {
     (void) sigemptyset(&set);			// Setup up SIGINT for debug
     (void) sigaddset(&set,SIGINT);		// For debugging
     (void) pthread_sigmask(SIG_UNBLOCK,&set,NULL);
   }
-#endif
   (void) sigemptyset(&set);			// Setup up SIGINT for debug
 #ifdef USE_ONE_SIGNAL_HAND
   (void) sigaddset(&set,THR_SERVER_ALARM);	// For alarms
 #endif
 #ifndef IGNORE_SIGHUP_SIGQUIT
   (void) sigaddset(&set,SIGQUIT);
-#if THR_CLIENT_ALARM != SIGHUP
   (void) sigaddset(&set,SIGHUP);
-#endif
 #endif
   (void) sigaddset(&set,SIGTERM);
   (void) sigaddset(&set,SIGTSTP);
@@ -2911,6 +2922,14 @@ static int init_common_variables(const char *conf_file_name, int argc,
     return 1;
   global_system_variables.character_set_filesystem= character_set_filesystem;
 
+  if (!(my_default_lc_time_names=
+        my_locale_by_name(lc_time_names_name)))
+  {
+    sql_print_error("Unknown locale: '%s'", lc_time_names_name);
+    return 1;
+  }
+  global_system_variables.lc_time_names= my_default_lc_time_names;
+  
   sys_init_connect.value_length= 0;
   if ((sys_init_connect.value= opt_init_connect))
     sys_init_connect.value_length= strlen(opt_init_connect);
@@ -3056,7 +3075,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_server_started, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_server_started,NULL);
   sp_cache_init();
-  Events::get_instance()->init_mutexes();
+  Events::init_mutexes();
   /* Parameter for threads created for connections */
   (void) pthread_attr_init(&connection_attrib);
   (void) pthread_attr_setdetachstate(&connection_attrib,
@@ -3158,6 +3177,7 @@ static void init_ssl()
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
     {
+      sql_print_warning("Failed to setup SSL");
       opt_use_ssl = 0;
       have_ssl= SHOW_OPTION_DISABLED;
     }
@@ -3620,6 +3640,13 @@ int main(int argc, char **argv)
   MY_INIT(argv[0]);		// init my_sys library & pthreads
   /* nothing should come before this line ^^^ */
 
+  /* Set signal used to kill MySQL */
+#if defined(SIGUSR2)
+  thr_kill_signal= thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2;
+#else
+  thr_kill_signal= SIGINT;
+#endif
+
   /*
     Perform basic logger initialization logger. Should be called after
     MY_INIT, as it initializes mutexes. Log tables are inited later.
@@ -3799,6 +3826,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     udf_init();
 #endif
   }
+
   init_status_vars();
   if (opt_bootstrap) /* If running with bootstrap, do not start replication. */
     opt_skip_slave_start= 1;
@@ -3834,17 +3862,15 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   create_shutdown_thread();
   create_maintenance_thread();
 
+  if (Events::init(opt_noacl))
+    unireg_abort(1);
+
   sql_print_information(ER(ER_STARTUP),my_progname,server_version,
                         ((unix_sock == INVALID_SOCKET) ? (char*) ""
                                                        : mysqld_unix_port),
                          mysqld_port,
                          MYSQL_COMPILATION_COMMENT);
 
-  if (!opt_noacl)
-  {
-    if (Events::get_instance()->init())
-      unireg_abort(1);
-  }
 
   /* Signal threads waiting for server to be started */
   pthread_mutex_lock(&LOCK_server_started);
@@ -4997,6 +5023,7 @@ enum options_mysqld
   OPT_DEFAULT_COLLATION,
   OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
   OPT_CHARACTER_SET_FILESYSTEM,
+  OPT_LC_TIME_NAMES,
   OPT_INIT_CONNECT,
   OPT_INIT_SLAVE,
   OPT_SECURE_AUTH,
@@ -5025,7 +5052,8 @@ enum options_mysqld
   OPT_MERGE,
   OPT_THREAD_HANDLING,
   OPT_INNODB_ROLLBACK_ON_TIMEOUT,
-  OPT_SECURE_FILE_PRIV
+  OPT_SECURE_FILE_PRIV,
+  OPT_OLD_MODE
 };
 
 
@@ -5339,6 +5367,11 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "Client error messages in given language. May be given as a full path.",
    (gptr*) &language_ptr, (gptr*) &language_ptr, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
+  {"lc-time-names", OPT_LC_TIME_NAMES,
+   "Set the language used for the month names and the days of the week.",
+   (gptr*) &lc_time_names_name,
+   (gptr*) &lc_time_names_name,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"local-infile", OPT_LOCAL_INFILE,
    "Enable/disable LOAD DATA LOCAL INFILE (takes values 1|0).",
    (gptr*) &opt_local_infile,
@@ -6256,6 +6289,10 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.net_write_timeout,
    (gptr*) &max_system_variables.net_write_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WRITE_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
+  { "old", OPT_OLD_MODE, "Use compatible behavior.", 
+    (gptr*) &global_system_variables.old_mode,
+    (gptr*) &max_system_variables.old_mode, 0, GET_BOOL, NO_ARG, 
+    0, 0, 0, 0, 0, 0},
   {"open_files_limit", OPT_OPEN_FILES_LIMIT,
    "If this is not 0, then mysqld will use this value to reserve file descriptors to use with setrlimit(). If this value is 0 then mysqld will reserve max_connections*5 or max_connections + table_cache*2 (whichever is larger) number of files.",
    (gptr*) &open_files_limit, (gptr*) &open_files_limit, 0, GET_ULONG,
@@ -6435,12 +6472,12 @@ The minimum value for this variable is 4096.",
    (gptr*) &max_system_variables.tmp_table_size, 0, GET_ULL,
    REQUIRED_ARG, 16*1024*1024L, 1024, MAX_MEM_TABLE_SIZE, 0, 1, 0},
   {"transaction_alloc_block_size", OPT_TRANS_ALLOC_BLOCK_SIZE,
-   "Allocation block size for transactions to be stored in binary log",
+   "Allocation block size for various transaction-related structures",
    (gptr*) &global_system_variables.trans_alloc_block_size,
    (gptr*) &max_system_variables.trans_alloc_block_size, 0, GET_ULONG,
    REQUIRED_ARG, QUERY_ALLOC_BLOCK_SIZE, 1024, ~0L, 0, 1024, 0},
   {"transaction_prealloc_size", OPT_TRANS_PREALLOC_SIZE,
-   "Persistent buffer for transactions to be stored in binary log",
+   "Persistent buffer for various transaction-related structures",
    (gptr*) &global_system_variables.trans_prealloc_size,
    (gptr*) &max_system_variables.trans_prealloc_size, 0, GET_ULONG,
    REQUIRED_ARG, TRANS_ALLOC_PREALLOC_SIZE, 1024, ~0L, 0, 1024, 0},
@@ -6494,10 +6531,11 @@ static int show_rpl_status(THD *thd, SHOW_VAR *var, char *buff)
 
 static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
 {
-  var->type= SHOW_CHAR;
+  var->type= SHOW_MY_BOOL;
   pthread_mutex_lock(&LOCK_active_mi);
-  var->value= const_cast<char*>((active_mi && active_mi->slave_running &&
-               active_mi->rli.slave_running) ? "ON" : "OFF");
+  var->value= buff;
+  *((my_bool *)buff)= (my_bool) (active_mi && active_mi->slave_running &&
+                                 active_mi->rli.slave_running);
   pthread_mutex_unlock(&LOCK_active_mi);
   return 0;
 }
@@ -6713,12 +6751,20 @@ static int show_ssl_ctx_get_session_cache_mode(THD *thd, SHOW_VAR *var, char *bu
   return 0;
 }
 
-/* Functions relying on SSL */
+/*
+   Functions relying on SSL 
+   Note: In the show_ssl_* functions, we need to check if we have a
+         valid vio-object since this isn't always true, specifically
+         when session_status or global_status is requested from
+         inside an Event.
+ */
 static int show_ssl_get_version(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  var->value= const_cast<char*>(thd->net.vio->ssl_arg ?
-        SSL_get_version((SSL*) thd->net.vio->ssl_arg) : "");
+  if( thd->vio_ok() && thd->net.vio->ssl_arg )
+    var->value= const_cast<char*>(SSL_get_version((SSL*) thd->net.vio->ssl_arg));
+  else
+    var->value= (char *)"";
   return 0;
 }
 
@@ -6726,9 +6772,10 @@ static int show_ssl_session_reused(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  *((long *)buff)= (long)thd->net.vio->ssl_arg ?
-                         SSL_session_reused((SSL*) thd->net.vio->ssl_arg) :
-                         0;
+  if( thd->vio_ok() && thd->net.vio->ssl_arg )
+    *((long *)buff)= (long)SSL_session_reused((SSL*) thd->net.vio->ssl_arg);
+  else
+    *((long *)buff)= 0;
   return 0;
 }
 
@@ -6736,9 +6783,10 @@ static int show_ssl_get_default_timeout(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  *((long *)buff)= (long)thd->net.vio->ssl_arg ?
-                         SSL_get_default_timeout((SSL*)thd->net.vio->ssl_arg) :
-                         0;
+  if( thd->vio_ok() && thd->net.vio->ssl_arg )
+    *((long *)buff)= (long)SSL_get_default_timeout((SSL*)thd->net.vio->ssl_arg);
+  else
+    *((long *)buff)= 0;
   return 0;
 }
 
@@ -6746,9 +6794,10 @@ static int show_ssl_get_verify_mode(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  *((long *)buff)= (long)thd->net.vio->ssl_arg ?
-                         SSL_get_verify_mode((SSL*)thd->net.vio->ssl_arg) :
-                         0;
+  if( thd->net.vio && thd->net.vio->ssl_arg )
+    *((long *)buff)= (long)SSL_get_verify_mode((SSL*)thd->net.vio->ssl_arg);
+  else
+    *((long *)buff)= 0;
   return 0;
 }
 
@@ -6756,17 +6805,20 @@ static int show_ssl_get_verify_depth(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  *((long *)buff)= (long)thd->net.vio->ssl_arg ?
-                         SSL_get_verify_depth((SSL*)thd->net.vio->ssl_arg) :
-                         0;
+  if( thd->vio_ok() && thd->net.vio->ssl_arg )
+    *((long *)buff)= (long)SSL_get_verify_depth((SSL*)thd->net.vio->ssl_arg);
+  else
+    *((long *)buff)= 0;
   return 0;
 }
 
 static int show_ssl_get_cipher(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  var->value= const_cast<char*>(thd->net.vio->ssl_arg ?
-              SSL_get_cipher((SSL*) thd->net.vio->ssl_arg) : "");
+  if( thd->vio_ok() && thd->net.vio->ssl_arg )
+    var->value= const_cast<char*>(SSL_get_cipher((SSL*) thd->net.vio->ssl_arg));
+  else
+    var->value= (char *)"";
   return 0;
 }
 
@@ -6774,7 +6826,7 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
   var->value= buff;
-  if (thd->net.vio->ssl_arg)
+  if (thd->vio_ok() && thd->net.vio->ssl_arg)
   {
     int i;
     const char *p;
@@ -7201,7 +7253,7 @@ static void mysql_init_variables(void)
   default_collation_name= compiled_default_collation_name;
   sys_charset_system.value= (char*) system_charset_info->csname;
   character_set_filesystem_name= (char*) "binary";
-
+  lc_time_names_name= (char*) "en_US";
   /* Set default values for some option variables */
   default_storage_engine_str= (char*) "MyISAM";
   global_system_variables.table_type= myisam_hton;
@@ -7314,6 +7366,18 @@ static void mysql_init_variables(void)
   /* Allow Win32 and NetWare users to move MySQL anywhere */
   {
     char prg_dev[LIBLEN];
+#if defined __WIN__
+	char executing_path_name[LIBLEN];
+	if (!test_if_hard_path(my_progname))
+	{
+		// we don't want to use GetModuleFileName inside of my_path since
+		// my_path is a generic path dereferencing function and here we care
+		// only about the executing binary.
+		GetModuleFileName(NULL, executing_path_name, sizeof(executing_path_name));
+		my_path(prg_dev, executing_path_name, NULL);
+	}
+	else
+#endif
     my_path(prg_dev,my_progname,"mysql/bin");
     strcat(prg_dev,"/../");			// Remove 'bin' to get base dir
     cleanup_dirname(mysql_home,prg_dev);
@@ -7411,11 +7475,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_INIT_RPL_ROLE:
   {
     int role;
-    if ((role=find_type(argument, &rpl_role_typelib, 2)) <= 0)
-    {
-      fprintf(stderr, "Unknown replication role: %s\n", argument);
-      exit(1);
-    }
+    role= find_type_or_exit(argument, &rpl_role_typelib, opt->name);
     rpl_status = (role == 1) ?  RPL_AUTH_MASTER : RPL_IDLE_SLAVE;
     break;
   }
@@ -7471,17 +7531,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_BINLOG_FORMAT:
   {
     int id;
-    if ((id= find_type(argument, &binlog_format_typelib, 2)) <= 0)
-    {
-      fprintf(stderr, 
-	      "Unknown binary log format: '%s' "
-	      "(should be one of '%s', '%s', '%s')\n", 
-	      argument,
-              binlog_format_names[BINLOG_FORMAT_STMT],
-              binlog_format_names[BINLOG_FORMAT_ROW],
-              binlog_format_names[BINLOG_FORMAT_MIXED]);
-      exit(1);
-    }
+    id= find_type_or_exit(argument, &binlog_format_typelib, opt->name);
     global_system_variables.binlog_format= opt_binlog_format_id= id - 1;
     break;
   }
@@ -7541,43 +7591,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
     {
       log_output_str= argument;
-      if ((log_output_options=
-           find_bit_type(argument, &log_output_typelib)) == ~(ulong) 0)
-      {
-        fprintf(stderr, "Unknown option to log-output: %s\n", argument);
-        exit(1);
-      }
-    }
+      log_output_options=
+        find_bit_type_or_exit(argument, &log_output_typelib, opt->name);
+  }
     break;
   }
 #endif
   case OPT_EVENT_SCHEDULER:
-    if (!argument)
-      Events::opt_event_scheduler= Events::EVENTS_DISABLED;
-    else
-    {
-      int type;
-      /* 
-        type=     5          1   2      3   4
-             (DISABLE ) - (OFF | ON) - (0 | 1)
-      */
-      switch ((type=find_type(argument, &Events::opt_typelib, 1))) {
-      case 0:
-	fprintf(stderr, "Unknown option to event-scheduler: %s\n",argument);
-	exit(1);
-      case 5: /* OPT_DISABLED */
-        Events::opt_event_scheduler= Events::EVENTS_DISABLED;
-        break;
-      case 2: /* OPT_ON  */
-      case 4: /* 1   */
-        Events::opt_event_scheduler= Events::EVENTS_ON;
-        break;
-      case 1: /* OPT_OFF */
-      case 3: /*  0  */
-        Events::opt_event_scheduler= Events::EVENTS_OFF;
-        break;
-      }
-    }
+    if (Events::set_opt_event_scheduler(argument))
+      exit(1);
     break;
   case (int) OPT_SKIP_NEW:
     opt_specialflag|= SPECIAL_NO_NEW_FUNC;
@@ -7714,11 +7736,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
     {
       int type;
-      if ((type=find_type(argument, &delay_key_write_typelib, 2)) <= 0)
-      {
-	fprintf(stderr,"Unknown delay_key_write type: %s\n",argument);
-	exit(1);
-      }
+      type= find_type_or_exit(argument, &delay_key_write_typelib, opt->name);
       delay_key_write_options= (uint) type-1;
     }
     break;
@@ -7729,11 +7747,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_TX_ISOLATION:
   {
     int type;
-    if ((type=find_type(argument, &tx_isolation_typelib, 2)) <= 0)
-    {
-      fprintf(stderr,"Unknown transaction isolation type: %s\n",argument);
-      exit(1);
-    }
+    type= find_type_or_exit(argument, &tx_isolation_typelib, opt->name);
     global_system_variables.tx_isolation= (type-1);
     break;
   }
@@ -7774,16 +7788,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_NDB_DISTRIBUTION:
     int id;
-    if ((id= find_type(argument, &ndb_distribution_typelib, 2)) <= 0)
-    {
-      fprintf(stderr, 
-	      "Unknown ndb distribution type: '%s' "
-	      "(should be '%s' or '%s')\n", 
-	      argument,
-              ndb_distribution_names[ND_KEYHASH],
-              ndb_distribution_names[ND_LINHASH]);
-      exit(1);
-    }
+    id= find_type_or_exit(argument, &ndb_distribution_typelib, opt->name);
     opt_ndb_distribution_id= (enum ndb_distribution)(id-1);
     break;
   case OPT_NDB_EXTRA_LOGGING:
@@ -7823,12 +7828,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
     {
       myisam_recover_options_str=argument;
-      if ((myisam_recover_options=
-	   find_bit_type(argument, &myisam_recover_typelib)) == ~(ulong) 0)
-      {
-	fprintf(stderr, "Unknown option to myisam-recover: %s\n",argument);
-	exit(1);
-      }
+      myisam_recover_options=
+        find_bit_type_or_exit(argument, &myisam_recover_typelib, opt->name);
     }
     ha_open_options|=HA_OPEN_ABORT_IF_CRASHED;
     break;
@@ -7841,14 +7842,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       myisam_concurrent_insert= 0;      /* --skip-concurrent-insert */
     break;
   case OPT_TC_HEURISTIC_RECOVER:
-  {
-    if ((tc_heuristic_recover=find_type(argument,
-                                        &tc_heuristic_recover_typelib, 2)) <=0)
-    {
-      fprintf(stderr, "Unknown option to tc-heuristic-recover: %s\n",argument);
-      exit(1);
-    }
-  }
+    tc_heuristic_recover= find_type_or_exit(argument,
+                                            &tc_heuristic_recover_typelib,
+                                            opt->name);
+    break;
   case OPT_MYISAM_STATS_METHOD:
   {
     ulong method_conv;
@@ -7856,11 +7853,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     LINT_INIT(method_conv);
 
     myisam_stats_method_str= argument;
-    if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
-    {
-      fprintf(stderr, "Invalid value of myisam_stats_method: %s.\n", argument);
-      exit(1);
-    }
+    method= find_type_or_exit(argument, &myisam_stats_method_typelib,
+                              opt->name);
     switch (method-1) {
     case 2:
       method_conv= MI_STATS_METHOD_IGNORE_NULLS;
@@ -7879,12 +7873,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_SQL_MODE:
   {
     sql_mode_str= argument;
-    if ((global_system_variables.sql_mode=
-         find_bit_type(argument, &sql_mode_typelib)) == ~(ulong) 0)
-    {
-      fprintf(stderr, "Unknown option to sql-mode: %s\n", argument);
-      exit(1);
-    }
+    global_system_variables.sql_mode=
+      find_bit_type_or_exit(argument, &sql_mode_typelib, opt->name);
     global_system_variables.sql_mode= fix_sql_mode(global_system_variables.
 						   sql_mode);
     break;
@@ -7894,16 +7884,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_THREAD_HANDLING:
   {
-    if ((global_system_variables.thread_handling=
-         find_type(argument, &thread_handling_typelib, 2)) <= 0 ||
-        (global_system_variables.thread_handling == SCHEDULER_POOL_OF_THREADS
-         && !HAVE_POOL_OF_THREADS))
-    {
-      /* purecov: begin tested */
-      fprintf(stderr,"Unknown/unsupported thread-handling: %s\n",argument);
-      exit(1);
-      /* purecov: end */
-    }
+    global_system_variables.thread_handling=
+      find_type_or_exit(argument, &thread_handling_typelib, opt->name);
     break;
   }
   case OPT_FT_BOOLEAN_SYNTAX:
@@ -8189,6 +8171,30 @@ static void fix_paths(void)
     my_free(opt_secure_file_priv, MYF(0));
     opt_secure_file_priv= my_strdup(buff, MYF(MY_FAE));
   }
+}
+
+
+static ulong find_bit_type_or_exit(const char *x, TYPELIB *bit_lib,
+                                   const char *option)
+{
+  ulong res;
+
+  const char **ptr;
+  
+  if ((res= find_bit_type(x, bit_lib)) == ~(ulong) 0)
+  {
+    ptr= bit_lib->type_names;
+    if (!*x)
+      fprintf(stderr, "No option given to %s\n", option);
+    else
+      fprintf(stderr, "Wrong option to %s. Option(s) given: %s\n", option, x);
+    fprintf(stderr, "Alternatives are: '%s'", *ptr);
+    while (*++ptr)
+      fprintf(stderr, ",'%s'", *ptr);
+    fprintf(stderr, "\n");
+    exit(1);
+  }
+  return res;
 }
 
 

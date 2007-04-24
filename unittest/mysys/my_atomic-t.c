@@ -182,9 +182,6 @@ int main()
   test_atomic("my_atomic_add32", test_atomic_add_handler, THREADS, CYCLES);
   test_atomic("my_atomic_swap32", test_atomic_swap_handler, THREADS, CYCLES);
   test_atomic("my_atomic_cas32", test_atomic_cas_handler, THREADS, CYCLES);
-
-  /* workaround until we know why this includes dbug but not safemalloc */
-  if(err) { my_thread_global_init(); my_free(my_malloc(0, MYF(0)), MYF(0)); }
   /*
     workaround until we know why it crashes randomly on some machine
     (BUG#22320).

@@ -37,7 +37,7 @@ struct Ndb_free_list_t
   Ndb_free_list_t();
   ~Ndb_free_list_t();
   
-  void fill(Ndb*, Uint32 cnt);
+  int fill(Ndb*, Uint32 cnt);
   T* seize(Ndb*);
   void release(T*);
   void clear();
@@ -86,10 +86,14 @@ public:
 
   BaseString m_prefix; // Buffer for preformatted internal name <db>/<schema>/
 
-  void update_prefix()
+  int update_prefix()
   {
-    m_prefix.assfmt("%s%c%s%c", m_dbname.c_str(), table_name_separator,
-                    m_schemaname.c_str(), table_name_separator);
+    if (!m_prefix.assfmt("%s%c%s%c", m_dbname.c_str(), table_name_separator,
+                         m_schemaname.c_str(), table_name_separator))
+    {
+      return -1;
+    }
+    return 0;
   }
 
   BaseString m_systemPrefix; // Buffer for preformatted for <sys>/<def>/
@@ -203,7 +207,7 @@ Ndb_free_list_t<T>::~Ndb_free_list_t()
     
 template<class T>
 inline
-void
+int
 Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
 {
   if (m_free_list == 0)
@@ -211,18 +215,28 @@ Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
     m_free_cnt++;
     m_alloc_cnt++;
     m_free_list = new T(ndb);
+    if (m_free_list == 0)
+    {
+      ndb->theError.code = 4000;
+      assert(false);
+      return -1;
+    }
   }
   while(m_alloc_cnt < cnt)
   {
     T* obj= new T(ndb);
     if(obj == 0)
-      return;
-    
+    {
+      ndb->theError.code = 4000;
+      assert(false);
+      return -1;
+    }
     obj->next(m_free_list);
     m_free_cnt++;
     m_alloc_cnt++;
     m_free_list = obj;
   }
+  return 0;
 }
 
 template<class T>
@@ -243,7 +257,11 @@ Ndb_free_list_t<T>::seize(Ndb* ndb)
   {
     m_alloc_cnt++;
   }
-  
+  else
+  {
+    ndb->theError.code = 4000;
+    assert(false);
+  }
   return tmp;
 }
 

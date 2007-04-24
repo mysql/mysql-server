@@ -105,11 +105,11 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
 
   theRequestPool = new Pool<Request>;
 
-  m_maxFiles = 40;
+  m_maxFiles = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_MAX_OPEN_FILES, &m_maxFiles);
   Uint32 noIdleFiles = 27;
   ndb_mgm_get_int_parameter(p, CFG_DB_INITIAL_OPEN_FILES, &noIdleFiles);
-  if (noIdleFiles > m_maxFiles)
+  if (noIdleFiles > m_maxFiles && m_maxFiles != 0)
     m_maxFiles = noIdleFiles;
   // Create idle AsyncFiles
   for (Uint32 i = 0; i < noIdleFiles; i++){
@@ -217,6 +217,8 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     releaseSections(signal);
   }
   file->reportTo(&theFromThreads);
+  if (getenv("NDB_TRACE_OPEN"))
+    ndbout_c("open(%s)", file->theFileName.c_str());
   
   Request* request = theRequestPool->get();
   request->action = Request::open;
@@ -650,7 +652,7 @@ AsyncFile*
 Ndbfs::createAsyncFile(){
 
   // Check limit of open files
-  if (theFiles.size()+1 ==  m_maxFiles) {
+  if (m_maxFiles !=0 && theFiles.size()+1 ==  m_maxFiles) {
     // Print info about all open files
     for (unsigned i = 0; i < theFiles.size(); i++){
       AsyncFile* file = theFiles[i];

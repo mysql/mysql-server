@@ -1,0 +1,6 @@
+--source include/have_ndb.inc
+let $engine= NDB;
+let $select= SELECT v1.i FROM v1 WHERE v1.i<125 FOR UPDATE;
+let $indext1= CREATE INDEX ixi ON t1 (i);
+let $indext2= CREATE INDEX ixi ON t2 (i);
+--source suite/row_lock/include/row_lock_view_mix.inc

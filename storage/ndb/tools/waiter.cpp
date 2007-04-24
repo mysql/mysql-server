@@ -30,12 +30,14 @@ waitClusterStatus(const char* _addr, ndb_mgm_node_status _status,
 		  unsigned int _timeout);
 
 enum ndb_waiter_options {
-  OPT_WAIT_STATUS_NOT_STARTED = NDB_STD_OPTIONS_LAST
+  OPT_WAIT_STATUS_NOT_STARTED = NDB_STD_OPTIONS_LAST,
+  OPT_WAIT_STATUS_SINGLE_USER
 };
 NDB_STD_OPTS_VARS;
 
 static int _no_contact = 0;
 static int _not_started = 0;
+static int _single_user = 0;
 static int _timeout = 120;
 
 const char *load_default_groups[]= { "mysql_cluster",0 };
@@ -48,6 +50,10 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "not-started", OPT_WAIT_STATUS_NOT_STARTED, "Wait for cluster not started",
     (gptr*) &_not_started, (gptr*) &_not_started, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "single-user", OPT_WAIT_STATUS_SINGLE_USER,
+    "Wait for cluster to enter single user mode",
+    (gptr*) &_single_user, (gptr*) &_single_user, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "timeout", 't', "Timeout to wait",
     (gptr*) &_timeout, (gptr*) &_timeout, 0,
@@ -89,6 +95,10 @@ int main(int argc, char** argv){
   else if (_not_started)
   {
     wait_status= NDB_MGM_NODE_STATUS_NOT_STARTED;
+  }
+  else if (_single_user)
+  {
+    wait_status= NDB_MGM_NODE_STATUS_SINGLEUSER;
   }
   else 
   {

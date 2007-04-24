@@ -375,6 +375,11 @@ public:
 
     Uint32 fragmentCount;
     Uint32 m_tablespace_id;
+
+    /*
+     * Access rights to table during single user mode
+     */
+    Uint8 singleUserMode;
   };
 
   typedef Ptr<TableRecord> TableRecordPtr;
@@ -2555,7 +2560,9 @@ private:
   void restartCreateTab_dihComplete(Signal* signal, Uint32 callback, Uint32);
   void restartCreateTab_activateComplete(Signal*, Uint32 callback, Uint32);
 
-  void restartDropTab(Signal* signal, Uint32 tableId);
+  void restartDropTab(Signal* signal, Uint32 tableId,
+                      const SchemaFile::TableEntry *, 
+                      const SchemaFile::TableEntry *);
   void restartDropTab_complete(Signal*, Uint32 callback, Uint32);
   
   void restart_checkSchemaStatusComplete(Signal*, Uint32 callback, Uint32);
@@ -2649,6 +2656,8 @@ public:
   void send_drop_fg(Signal*, SchemaOp*, DropFilegroupImplReq::RequestInfo);
 
   void drop_undofile_prepare_start(Signal* signal, SchemaOp*);
+
+  int checkSingleUserMode(Uint32 senderRef);
 };
 
 inline bool

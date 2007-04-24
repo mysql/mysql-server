@@ -179,30 +179,33 @@ int ha_myisammrg::delete_row(const byte * buf)
 }
 
 int ha_myisammrg::index_read(byte * buf, const byte * key,
-			  uint key_len, enum ha_rkey_function find_flag)
+                             key_part_map keypart_map,
+                             enum ha_rkey_function find_flag)
 {
   statistic_increment(table->in_use->status_var.ha_read_key_count,
 		      &LOCK_status);
-  int error=myrg_rkey(file,buf,active_index, key, key_len, find_flag);
+  int error=myrg_rkey(file,buf,active_index, key, keypart_map, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
 int ha_myisammrg::index_read_idx(byte * buf, uint index, const byte * key,
-				 uint key_len, enum ha_rkey_function find_flag)
+				 key_part_map keypart_map,
+                                 enum ha_rkey_function find_flag)
 {
   statistic_increment(table->in_use->status_var.ha_read_key_count,
 		      &LOCK_status);
-  int error=myrg_rkey(file,buf,index, key, key_len, find_flag);
+  int error=myrg_rkey(file,buf,index, key, keypart_map, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
-int ha_myisammrg::index_read_last(byte * buf, const byte * key, uint key_len)
+int ha_myisammrg::index_read_last(byte * buf, const byte * key,
+                                  key_part_map keypart_map)
 {
   statistic_increment(table->in_use->status_var.ha_read_key_count,
 		      &LOCK_status);
-  int error=myrg_rkey(file,buf,active_index, key, key_len,
+  int error=myrg_rkey(file,buf,active_index, key, keypart_map,
 		      HA_READ_PREFIX_LAST);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;

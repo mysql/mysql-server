@@ -15,6 +15,7 @@
 
 
 #define DBTUP_C
+#define DBTUP_DEBUG_CPP
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
@@ -24,9 +25,6 @@
 #include <signaldata/EventReport.hpp>
 #include <Vector.hpp>
 
-#define ljam() { jamLine(30000 + __LINE__); }
-#define ljamEntry() { jamEntryLine(30000 + __LINE__); }
-
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
 /* ------------------------ DEBUG MODULE -------------------------- */
@@ -35,7 +33,7 @@
 void Dbtup::execDEBUG_SIG(Signal* signal) 
 {
   PagePtr regPagePtr;
-  ljamEntry();
+  jamEntry();
   regPagePtr.i = signal->theData[0];
   c_page_pool.getPtr(regPagePtr);
 }//Dbtup::execDEBUG_SIG()
@@ -248,18 +246,18 @@ void Dbtup::execMEMCHECKREQ(Signal* signal)
   PagePtr regPagePtr;
   Uint32* data = &signal->theData[0];
 
-  ljamEntry();
+  jamEntry();
   BlockReference blockref = signal->theData[0];
   Uint32 i;
   for (i = 0; i < 25; i++) {
-    ljam();
+    jam();
     data[i] = 0;
   }//for
   for (i = 0; i < 16; i++) {
     regPagePtr.i = cfreepageList[i];
-    ljam();
+    jam();
     while (regPagePtr.i != RNIL) {
-      ljam();
+      jam();
       ptrCheckGuard(regPagePtr, cnoOfPage, cpage);
       regPagePtr.i = regPagePtr.p->next_page;
       data[0]++;

@@ -15,11 +15,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-class sp_name;
+/*
+  @file
+  A public interface of Events Scheduler module.
+*/
+
 class Event_parse_data;
 class Event_db_repository;
 class Event_queue;
-class Event_queue_element;
 class Event_scheduler;
 
 /* Return codes */
@@ -38,6 +41,26 @@ enum enum_events_error_code
 int
 sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
 
+/**
+  @class Events -- a facade to the functionality of the Event Scheduler.
+
+  Every public operation against the scheduler has to be executed via the
+  interface provided by a static method of this class. No instance of this
+  class is ever created and it has no non-static data members.
+
+  The life cycle of the Events module is the following:
+
+  At server start up:
+     set_opt_event_scheduler() -> init_mutexes() -> init()
+  When the server is running:
+     create_event(), drop_event(), start_or_stop_event_scheduler(), etc
+  At shutdown:
+     deinit(), destroy_mutexes().
+
+  The peculiar initialization and shutdown cycle is an adaptation to the
+  outside server startup/shutdown framework and mimics the rest of MySQL
+  subsystems (ACL, time zone tables, etc).
+*/
 
 class Events
 {
@@ -50,47 +73,48 @@ public:
     EVENTS_DISABLED= 4
   };
 
-  static enum_opt_event_scheduler opt_event_scheduler;
-  static TYPELIB opt_typelib;
-  static TYPELIB var_typelib;
+  /* Possible values of @@event_scheduler variable */
+  static const TYPELIB var_typelib;
 
-  bool
-  init();
+  static bool
+  set_opt_event_scheduler(char *argument);
 
-  void
+  static const char *
+  get_opt_event_scheduler_str();
+
+  /* A hack needed for Event_queue_element */
+  static Event_db_repository *
+  get_db_repository() { return db_repository; }
+
+  static bool
+  init(my_bool opt_noacl);
+
+  static void
   deinit();
 
-  void
+  static void
   init_mutexes();
 
-  void
+  static void
   destroy_mutexes();
 
-  bool
-  start_execution_of_events();
+  static bool
+  switch_event_scheduler_state(enum enum_opt_event_scheduler new_state);
 
-  bool
-  stop_execution_of_events();
-
-  bool
-  is_execution_of_events_started();
-
-  static Events *
-  get_instance();
-
-  bool
+  static bool
   create_event(THD *thd, Event_parse_data *parse_data, bool if_exists);
 
-  bool
-  update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to);
+  static bool
+  update_event(THD *thd, Event_parse_data *parse_data,
+               LEX_STRING *new_dbname, LEX_STRING *new_name);
 
-  bool
+  static bool
   drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists);
 
-  void
+  static void
   drop_schema_events(THD *thd, char *db);
 
-  bool
+  static bool
   show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name);
 
   /* Needed for both SHOW CREATE EVENT and INFORMATION_SCHEMA */
@@ -101,31 +125,28 @@ public:
   static int
   fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */);
 
-  void
+  static void
   dump_internal_status();
 
 private:
-  bool
-  check_system_tables(THD *thd);
+  static bool check_if_system_tables_error();
 
-  int
+  static bool
   load_events_from_db(THD *thd);
 
-  /* Singleton DP is used */
-  Events();
-  ~Events(){}
+private:
+  /* Command line option names */
+  static const TYPELIB opt_typelib;
+  static pthread_mutex_t LOCK_event_metadata;
+  static Event_queue         *event_queue;
+  static Event_scheduler     *scheduler;
+  static Event_db_repository *db_repository;
+  /* Current state of Event Scheduler */
+  static enum enum_opt_event_scheduler opt_event_scheduler;
+  /* Set to TRUE if an error at start up */
+  static bool check_system_tables_error;
 
-  /* Singleton instance */
-  static Events singleton;
-
-  Event_queue         *event_queue;
-  Event_scheduler     *scheduler;
-  Event_db_repository *db_repository;
-
-  pthread_mutex_t LOCK_event_metadata;
-
-  bool check_system_tables_error;
-
+private:
   /* Prevent use of these */
   Events(const Events &);
   void operator=(Events &);

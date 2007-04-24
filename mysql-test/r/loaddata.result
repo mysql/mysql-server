@@ -157,14 +157,23 @@ MYSQLTEST_VARDIR/
 set @@secure_file_priv= 0;
 ERROR HY000: Variable 'secure_file_priv' is a read only variable
 truncate table t1;
-load data infile 'MYSQL_TEST_DIR/Makefile' into table t1;
+load data infile 'MYSQL_TEST_DIR/t/loaddata.test' into table t1;
 ERROR HY000: The MySQL server is running with the --secure-file-priv option so it cannot execute this statement
 select * from t1;
 a	b	c
-select load_file("MYSQL_TEST_DIR/Makefile");
-load_file("MYSQL_TEST_DIR/Makefile")
+select load_file("MYSQL_TEST_DIR/t/loaddata.test");
+load_file("MYSQL_TEST_DIR/t/loaddata.test")
 NULL
 drop table t1, t2;
+create table t1(f1 int);
+insert into t1 values(1),(null);
+create table t2(f2 int auto_increment primary key);
+select * from t2;
+f2
+1
+2
+SET @@SQL_MODE=@OLD_SQL_MODE;
+drop table t1,t2;
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1);
 SET NAMES latin1;

@@ -328,6 +328,10 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
       NdbColumnImpl::create_pseudo("NDB$ROWID");
     NdbDictionary::Column::ROW_GCI= 
       NdbColumnImpl::create_pseudo("NDB$ROW_GCI");
+    NdbDictionary::Column::ANY_VALUE= 
+      NdbColumnImpl::create_pseudo("NDB$ANY_VALUE");
+    NdbDictionary::Column::COPY_ROWID= 
+      NdbColumnImpl::create_pseudo("NDB$COPY_ROWID");
   }
   NdbMutex_Unlock(g_ndb_connection_mutex);
 
@@ -382,6 +386,7 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
     delete NdbDictionary::Column::RECORDS_IN_RANGE;
     delete NdbDictionary::Column::ROWID;
     delete NdbDictionary::Column::ROW_GCI;
+    delete NdbDictionary::Column::ANY_VALUE;
     NdbDictionary::Column::FRAGMENT= 0;
     NdbDictionary::Column::FRAGMENT_FIXED_MEMORY= 0;
     NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY= 0;
@@ -393,6 +398,10 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
     NdbDictionary::Column::RECORDS_IN_RANGE= 0;
     NdbDictionary::Column::ROWID= 0;
     NdbDictionary::Column::ROW_GCI= 0;
+    NdbDictionary::Column::ANY_VALUE= 0;
+
+    delete NdbDictionary::Column::COPY_ROWID;
+    NdbDictionary::Column::COPY_ROWID = 0;
   }
   NdbMutex_Unlock(g_ndb_connection_mutex);
 
@@ -415,7 +424,7 @@ Ndb_cluster_connection_impl::set_name(const char *name)
   }
 }
 
-void
+int
 Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
 					       const ndb_mgm_configuration 
 					       &config)
@@ -461,7 +470,10 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
       break;
     }
     }
-    m_impl.m_all_nodes.push_back(Node(group,remoteNodeId));
+    if (m_impl.m_all_nodes.push_back(Node(group,remoteNodeId)))
+    {
+      DBUG_RETURN(-1);
+    }
     DBUG_PRINT("info",("saved %d %d", group,remoteNodeId));
     for (int i= m_impl.m_all_nodes.size()-2;
 	 i >= 0 && m_impl.m_all_nodes[i].group > m_impl.m_all_nodes[i+1].group;
@@ -508,7 +520,7 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
 
   do_test();
 #endif
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 void
@@ -591,7 +603,11 @@ int Ndb_cluster_connection::connect(int no_retries, int retry_delay_in_seconds,
       break;
 
     m_impl.m_transporter_facade->start_instance(nodeId, props);
-    m_impl.init_nodes_vector(nodeId, *props);
+    if (m_impl.init_nodes_vector(nodeId, *props))
+    {
+      ndbout_c("Ndb_cluster_connection::connect: malloc failure");
+      DBUG_RETURN(-1);
+    }
 
     for(unsigned i=0;
 	i<m_impl.m_transporter_facade->get_registry()->m_transporter_interface.size();
@@ -666,5 +682,12 @@ Ndb_cluster_connection::get_active_ndb_objects() const
 {
   return m_impl.m_transporter_facade->get_active_ndb_objects();
 }
+
+int Ndb_cluster_connection::set_timeout(int timeout_ms)
+{
+  return ndb_mgm_set_timeout(m_impl.m_config_retriever->get_mgmHandle(),
+                             timeout_ms);
+}
+
 template class Vector<Ndb_cluster_connection_impl::Node>;
 

@@ -867,6 +867,18 @@ public:
   {}
 };
 
+uint calculate_key_len(TABLE *, uint, const byte *, key_part_map);
+/*
+  bitmap with first N+1 bits set
+  (keypart_map for a key prefix of [0..N] keyparts)
+*/
+#define make_keypart_map(N) (((key_part_map)2 << (N)) - 1)
+/*
+  bitmap with first N bits set
+  (keypart_map for a key prefix of [0..N-1] keyparts)
+*/
+#define make_prev_keypart_map(N) (((key_part_map)1 << (N)) - 1)
+
 /*
   The handler class is the interface for dynamically loadable
   storage engines. Do not add ifdefs and take care when adding or
@@ -974,7 +986,11 @@ public:
       check_if_locking_is_allowed()
         thd     Handler of the thread, trying to lock the table
         table   Table handler to check
-        count   Number of locks already granted to the table
+        count   Total number of tables to be locked
+        current Index of the current table in the list of the tables
+                to be locked.
+        system_count Pointer to the counter of system tables seen thus
+                     far.
         called_by_privileged_thread TRUE if called from a logger THD
                                     (general_log_thd or slow_log_thd)
                                     or by a privileged thread, which
@@ -993,7 +1009,8 @@ public:
   */
   virtual bool check_if_locking_is_allowed(uint sql_command,
                                            ulong type, TABLE *table,
-                                           uint count,
+                                           uint count, uint current,
+                                           uint *system_count,
                                            bool called_by_privileged_thread)
   {
     return TRUE;
@@ -1202,11 +1219,32 @@ public:
     DBUG_ASSERT(FALSE);
     return HA_ERR_WRONG_COMMAND;
   }
-  virtual int index_read(byte * buf, const byte * key,
-			 uint key_len, enum ha_rkey_function find_flag)
+  private:
+  virtual int index_read(byte * buf, const byte * key, uint key_len,
+                         enum ha_rkey_function find_flag)
    { return  HA_ERR_WRONG_COMMAND; }
+  public:
+/**
+  @brief
+  Positions an index cursor to the index specified in the handle. Fetches the
+  row if available. If the key value is null, begin at the first key of the
+  index.
+*/
+  virtual int index_read(byte * buf, const byte * key, key_part_map keypart_map,
+                         enum ha_rkey_function find_flag)
+   {
+     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
+     return  index_read(buf, key, key_len, find_flag);
+   }
+/**
+  @brief
+  Positions an index cursor to the index specified in the handle. Fetches the
+  row if available. If the key value is null, begin at the first key of the
+  index.
+*/
   virtual int index_read_idx(byte * buf, uint index, const byte * key,
-			     uint key_len, enum ha_rkey_function find_flag);
+                             key_part_map keypart_map,
+                             enum ha_rkey_function find_flag);
   virtual int index_next(byte * buf)
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_prev(byte * buf)
@@ -1216,8 +1254,21 @@ public:
   virtual int index_last(byte * buf)
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_next_same(byte *buf, const byte *key, uint keylen);
+  private:
   virtual int index_read_last(byte * buf, const byte * key, uint key_len)
    { return (my_errno=HA_ERR_WRONG_COMMAND); }
+  public:
+/**
+  @brief
+  The following functions works like index_read, but it find the last
+  row with the current key value or prefix.
+*/
+  virtual int index_read_last(byte * buf, const byte * key,
+                              key_part_map keypart_map)
+   {
+     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
+     return  index_read_last(buf, key, key_len);
+   }
   virtual int read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                      KEY_MULTI_RANGE *ranges, uint range_count,
                                      bool sorted, HANDLER_BUFFER *buffer);
@@ -1243,8 +1294,7 @@ public:
     { return HA_ERR_WRONG_COMMAND; }
   virtual int rnd_same(byte *buf, uint inx)
     { return HA_ERR_WRONG_COMMAND; }
-  virtual ha_rows records_in_range(uint inx, key_range *min_key,
-                                   key_range *max_key)
+  virtual ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key)
     { return (ha_rows) 10; }
   virtual void position(const byte *record)=0;
   virtual int info(uint)=0; // see my_base.h for full description
@@ -1422,6 +1472,17 @@ public:
   virtual void free_foreign_key_create_info(char* str) {}
   /* The following can be called without an open handler */
   virtual const char *table_type() const =0;
+  /*
+    If frm_error() is called then we will use this to find out what file
+    extentions exist for the storage engine. This is also used by the default
+    rename_table and delete_table method in handler.cc.
+
+    For engines that have two file name extentions (separate meta/index file
+    and data file), the order of elements is relevant. First element of engine
+    file name extentions array should be meta/index file extention. Second
+    element - data file extention. This order is assumed by
+    prepare_for_repair() when REPAIR TABLE ... USE_FRM is issued.
+  */
   virtual const char **bas_ext() const =0;
 
   virtual int get_default_no_partitions(HA_CREATE_INFO *info) { return 1;}

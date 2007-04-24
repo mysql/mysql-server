@@ -339,9 +339,8 @@ rw_lock_x_lock_low(
 	const char*	file_name,/* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(rw_lock_get_mutex(lock)));
-#endif /* UNIV_SYNC_DEBUG */
+
 	if (rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED) {
 
 		if (rw_lock_get_reader_count(lock) == 0) {
@@ -564,8 +563,7 @@ rw_lock_debug_mutex_enter(void)
 /*==========================*/
 {
 loop:
-	if (0 == mutex_enter_nowait(&rw_lock_debug_mutex,
-				    __FILE__, __LINE__)) {
+	if (0 == mutex_enter_nowait(&rw_lock_debug_mutex)) {
 		return;
 	}
 
@@ -573,8 +571,7 @@ loop:
 
 	rw_lock_debug_waiters = TRUE;
 
-	if (0 == mutex_enter_nowait(&rw_lock_debug_mutex,
-				    __FILE__, __LINE__)) {
+	if (0 == mutex_enter_nowait(&rw_lock_debug_mutex)) {
 		return;
 	}
 

@@ -858,6 +858,7 @@ void free_io_cache(TABLE *table)
   DBUG_VOID_RETURN;
 }
 
+
 /*
   Close all tables which aren't in use by any thread
 
@@ -965,6 +966,71 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     thd->proc_info=0;
     pthread_mutex_unlock(&thd->mysys_var->mutex);
   }
+  DBUG_RETURN(result);
+}
+
+
+/*
+  Close all tables which match specified connection string or
+  if specified string is NULL, then any table with a connection string.
+*/
+
+bool close_cached_connection_tables(THD *thd, bool if_wait_for_refresh,
+                                    LEX_STRING *connection, bool have_lock)
+{
+  uint idx;
+  TABLE_LIST tmp, *tables= NULL;
+  bool result= FALSE;
+  DBUG_ENTER("close_cached_connections");
+  DBUG_ASSERT(thd);
+
+  bzero(&tmp, sizeof(TABLE_LIST));
+  
+  if (!have_lock)
+    VOID(pthread_mutex_lock(&LOCK_open));
+  
+  for (idx= 0; idx < table_def_cache.records; idx++)
+  {
+    TABLE_SHARE *share= (TABLE_SHARE *) hash_element(&table_def_cache, idx);
+
+    /* Ignore if table is not open or does not have a connect_string */
+    if (!share->connect_string.length || !share->ref_count)
+      continue;
+
+    /* Compare the connection string */
+    if (connection &&
+        (connection->length > share->connect_string.length ||
+         (connection->length < share->connect_string.length &&
+          (share->connect_string.str[connection->length] != '/' &&
+           share->connect_string.str[connection->length] != '\\')) ||
+         strncasecmp(connection->str, share->connect_string.str,
+                     connection->length)))
+      continue;
+
+    /* close_cached_tables() only uses these elements */
+    tmp.db= share->db.str;
+    tmp.table_name= share->table_name.str;
+    tmp.next_local= tables;
+
+    tables= (TABLE_LIST *) memdup_root(thd->mem_root, (char*)&tmp, 
+                                       sizeof(TABLE_LIST));
+  }
+
+  if (tables)
+    result= close_cached_tables(thd, FALSE, tables, TRUE);
+  
+  if (!have_lock)
+    VOID(pthread_mutex_unlock(&LOCK_open));
+  
+  if (if_wait_for_refresh)
+  {
+    pthread_mutex_lock(&thd->mysys_var->mutex);
+    thd->mysys_var->current_mutex= 0;
+    thd->mysys_var->current_cond= 0;
+    thd->proc_info=0;
+    pthread_mutex_unlock(&thd->mysys_var->mutex);
+  }
+
   DBUG_RETURN(result);
 }
 
@@ -1328,10 +1394,10 @@ void close_temporary_tables(THD *thd)
           due to special characters in the names
         */
         append_identifier(thd, &s_query, table->s->db.str, strlen(table->s->db.str));
-        s_query.q_append('.');
+        s_query.append('.');
         append_identifier(thd, &s_query, table->s->table_name.str,
                           strlen(table->s->table_name.str));
-        s_query.q_append(',');
+        s_query.append(',');
         next= table->next;
         close_temporary(table, 1, 1);
       }
@@ -1410,6 +1476,7 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
     thd                   thread handle
     table                 table which should be checked
     table_list            list of tables
+    check_alias           whether to check tables' aliases
 
   NOTE: to exclude derived tables from check we use following mechanism:
     a) during derived table processing set THD::derived_tables_processing
@@ -1437,10 +1504,11 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
     0 if table is unique
 */
 
-TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list)
+TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
+                         bool check_alias)
 {
   TABLE_LIST *res;
-  const char *d_name, *t_name;
+  const char *d_name, *t_name, *t_alias;
   DBUG_ENTER("unique_table");
   DBUG_PRINT("enter", ("table alias: %s", table->alias));
 
@@ -1468,6 +1536,7 @@ TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list)
   }
   d_name= table->db;
   t_name= table->table_name;
+  t_alias= table->alias;
 
   DBUG_PRINT("info", ("real table: %s.%s", d_name, t_name));
   for (;;)
@@ -1475,6 +1544,9 @@ TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list)
     if (((! (res= find_table_in_global_list(table_list, d_name, t_name))) &&
          (! (res= mysql_lock_have_duplicate(thd, table, table_list)))) ||
         ((!res->table || res->table != table->table) &&
+         (!check_alias || !(lower_case_table_names ?
+          my_strcasecmp(files_charset_info, t_alias, res->alias) :
+          strcmp(t_alias, res->alias))) &&
          res->select_lex && !res->select_lex->exclude_from_table_unique_test &&
          !res->prelocking_placeholder))
       break;
@@ -1845,8 +1917,6 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   table->const_table=0;
   table->null_row= table->maybe_null= table->force_index= 0;
   table->status=STATUS_NO_RECORD;
-  table->keys_in_use_for_query= share->keys_in_use;
-  table->used_keys= share->keys_for_keyread;
   DBUG_RETURN(FALSE);
 }
 
@@ -2265,11 +2335,12 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->const_table=0;
   table->null_row= table->maybe_null= table->force_index= 0;
   table->status=STATUS_NO_RECORD;
-  table->keys_in_use_for_query= table->s->keys_in_use;
   table->insert_values= 0;
-  table->used_keys= table->s->keys_for_keyread;
   table->fulltext_searched= 0;
   table->file->ft_handler= 0;
+  /* Catch wrong handling of the auto_increment_field_not_null. */
+  DBUG_ASSERT(!table->auto_increment_field_not_null);
+  table->auto_increment_field_not_null= FALSE;
   if (table->timestamp_field)
     table->timestamp_field_type= table->timestamp_field->get_auto_set_type();
   table->pos_in_table_list= table_list;
@@ -2352,8 +2423,6 @@ static bool reopen_table(TABLE *table)
   tmp.null_row=		table->null_row;
   tmp.maybe_null=	table->maybe_null;
   tmp.status=		table->status;
-  tmp.keys_in_use_for_query= tmp.s->keys_in_use;
-  tmp.used_keys= 	tmp.s->keys_for_keyread;
 
   tmp.s->table_map_id=  table->s->table_map_id;
 
@@ -3746,7 +3815,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 
   tmp_table->reginfo.lock_type= TL_WRITE;	 // Simulate locked
   share->tmp_table= (tmp_table->file->has_transactions() ? 
-                     TRANSACTIONAL_TMP_TABLE : TMP_TABLE);
+                     TRANSACTIONAL_TMP_TABLE : NON_TRANSACTIONAL_TMP_TABLE);
 
   if (link_in_list)
   {
@@ -3814,7 +3883,7 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
       been set for all fields (for example for view).
     */
       
-    table->used_keys.intersect(field->part_of_key);
+    table->covering_keys.intersect(field->part_of_key);
     table->merge_keys.merge(field->part_of_key);
 
     if (thd->mark_used_columns == MARK_COLUMNS_READ)
@@ -4490,14 +4559,35 @@ find_field_in_tables(THD *thd, Item_ident *item,
   {
     Field *cur_field= find_field_in_table_ref(thd, cur_table, name, length,
                                               item->name, db, table_name, ref,
-                                              check_privileges, allow_rowid,
+                                              check_privileges,
+                                              allow_rowid,
                                               &(item->cached_field_index),
                                               register_tree_change,
                                               &actual_table);
     if (cur_field)
     {
       if (cur_field == WRONG_GRANT)
-	return (Field*) 0;
+      {
+        if (thd->lex->sql_command != SQLCOM_SHOW_FIELDS)
+          return (Field*) 0;
+
+        thd->clear_error();
+        cur_field= find_field_in_table_ref(thd, cur_table, name, length,
+                                           item->name, db, table_name, ref,
+                                           false,
+                                           allow_rowid,
+                                           &(item->cached_field_index),
+                                           register_tree_change,
+                                           &actual_table);
+        if (cur_field)
+        {
+          Field *nf=new Field_null(NULL,0,Field::NONE,
+                                   cur_field->field_name,
+                                   &my_charset_bin);
+          nf->init(cur_table->table);
+          cur_field= nf;
+        }
+      }
 
       /*
         Store the original table of the field, which may be different from
@@ -4520,7 +4610,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
             report_error == IGNORE_EXCEPT_NON_UNIQUE)
           my_error(ER_NON_UNIQ_ERROR, MYF(0),
                    table_name ? item->full_name() : name, thd->where);
-	return (Field*) 0;
+        return (Field*) 0;
       }
       found= cur_field;
     }
@@ -4577,10 +4667,13 @@ find_field_in_tables(THD *thd, Item_ident *item,
 				return not_found_item, report other errors,
 				return 0
       IGNORE_ERRORS		Do not report errors, return 0 if error
-    unaliased                   Set to true if item is field which was found
-                                by original field name and not by its alias
-                                in item list. Set to false otherwise.
-
+    resolution                  Set to the resolution type if the item is found 
+                                (it says whether the item is resolved 
+                                 against an alias name,
+                                 or as a field name without alias,
+                                 or as a field hidden by alias,
+                                 or ignoring alias)
+                                
   RETURN VALUES
     0			Item is not found or item is not unique,
 			error message is reported
@@ -4596,7 +4689,8 @@ Item **not_found_item= (Item**) 0x1;
 
 Item **
 find_item_in_list(Item *find, List<Item> &items, uint *counter,
-                  find_item_error_report_type report_error, bool *unaliased)
+                  find_item_error_report_type report_error,
+                  enum_resolution_type *resolution)
 {
   List_iterator<Item> li(items);
   Item **found=0, **found_unaliased= 0, *item;
@@ -4610,10 +4704,9 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
   */
   bool is_ref_by_name= 0;
   uint unaliased_counter;
-
   LINT_INIT(unaliased_counter);                 // Dependent on found_unaliased
 
-  *unaliased= FALSE;
+  *resolution= NOT_RESOLVED;
 
   is_ref_by_name= (find->type() == Item::FIELD_ITEM  || 
                    find->type() == Item::REF_ITEM);
@@ -4680,63 +4773,77 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
           }
           found_unaliased= li.ref();
           unaliased_counter= i;
+          *resolution= RESOLVED_IGNORING_ALIAS;
           if (db_name)
             break;                              // Perfect match
         }
       }
-      else if (!my_strcasecmp(system_charset_info, item_field->name,
-                              field_name))
+      else
       {
-        /*
-          If table name was not given we should scan through aliases
-          (or non-aliased fields) first. We are also checking unaliased
-          name of the field in then next else-if, to be able to find
-          instantly field (hidden by alias) if no suitable alias (or
-          non-aliased field) was found.
-        */
-        if (found)
+        int fname_cmp= my_strcasecmp(system_charset_info,
+                                     item_field->field_name,
+                                     field_name);
+        if (!my_strcasecmp(system_charset_info,
+                           item_field->name,field_name))
         {
-          if ((*found)->eq(item, 0))
-            continue;                           // Same field twice
-          if (report_error != IGNORE_ERRORS)
-            my_error(ER_NON_UNIQ_ERROR, MYF(0),
-                     find->full_name(), current_thd->where);
-          return (Item**) 0;
+          /*
+            If table name was not given we should scan through aliases
+            and non-aliased fields first. We are also checking unaliased
+            name of the field in then next  else-if, to be able to find
+            instantly field (hidden by alias) if no suitable alias or
+            non-aliased field was found.
+          */
+          if (found)
+          {
+            if ((*found)->eq(item, 0))
+              continue;                           // Same field twice
+            if (report_error != IGNORE_ERRORS)
+              my_error(ER_NON_UNIQ_ERROR, MYF(0),
+                       find->full_name(), current_thd->where);
+            return (Item**) 0;
+          }
+          found= li.ref();
+          *counter= i;
+          *resolution= fname_cmp ? RESOLVED_AGAINST_ALIAS:
+	                           RESOLVED_WITH_NO_ALIAS;
         }
-        found= li.ref();
-        *counter= i;
-      }
-      else if (!my_strcasecmp(system_charset_info, item_field->field_name,
-                              field_name))
-      {
-        /*
-          We will use un-aliased field or react on such ambiguities only if
-          we won't be able to find aliased field.
-          Again if we have ambiguity with field outside of select list
-          we should prefer fields from select list.
-        */
-        if (found_unaliased)
+        else if (!fname_cmp)
         {
-          if ((*found_unaliased)->eq(item, 0))
-            continue;                           // Same field twice
-          found_unaliased_non_uniq= 1;
-        }
-        else
-        {
+          /*
+            We will use non-aliased field or react on such ambiguities only if
+            we won't be able to find aliased field.
+            Again if we have ambiguity with field outside of select list
+            we should prefer fields from select list.
+          */
+          if (found_unaliased)
+          {
+            if ((*found_unaliased)->eq(item, 0))
+              continue;                           // Same field twice
+            found_unaliased_non_uniq= 1;
+          }
           found_unaliased= li.ref();
           unaliased_counter= i;
         }
       }
     }
-    else if (!table_name && (find->eq(item,0) ||
-			     is_ref_by_name && find->name && item->name &&
-			     !my_strcasecmp(system_charset_info, 
-					    item->name,find->name)))
-    {
-      found= li.ref();
-      *counter= i;
-      break;
-    }
+    else if (!table_name)
+    { 
+      if (is_ref_by_name && find->name && item->name &&
+	  !my_strcasecmp(system_charset_info,item->name,find->name))
+      {
+        found= li.ref();
+        *counter= i;
+        *resolution= RESOLVED_AGAINST_ALIAS;
+        break;
+      }
+      else if (find->eq(item,0))
+      {
+        found= li.ref();
+        *counter= i;
+        *resolution= RESOLVED_IGNORING_ALIAS;
+        break;
+      }
+    } 
   }
   if (!found)
   {
@@ -4751,7 +4858,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     {
       found= found_unaliased;
       *counter= unaliased_counter;
-      *unaliased= TRUE;
+      *resolution= RESOLVED_BEHIND_ALIAS;
     }
   }
   if (found)
@@ -5037,7 +5144,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
         TABLE *table_1= nj_col_1->table_ref->table;
         /* Mark field_1 used for table cache. */
         bitmap_set_bit(table_1->read_set, field_1->field_index);
-        table_1->used_keys.intersect(field_1->part_of_key);
+        table_1->covering_keys.intersect(field_1->part_of_key);
         table_1->merge_keys.merge(field_1->part_of_key);
       }
       if (field_2)
@@ -5045,7 +5152,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
         TABLE *table_2= nj_col_2->table_ref->table;
         /* Mark field_2 used for table cache. */
         bitmap_set_bit(table_2->read_set, field_2->field_index);
-        table_2->used_keys.intersect(field_2->part_of_key);
+        table_2->covering_keys.intersect(field_2->part_of_key);
         table_2->merge_keys.merge(field_2->part_of_key);
       }
 
@@ -5486,7 +5593,8 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 
           Item_int do not need fix_fields() because it is basic constant.
         */
-        it.replace(new Item_int("Not_used", (longlong) 1, 21));
+        it.replace(new Item_int("Not_used", (longlong) 1,
+                                MY_INT64_NUM_DECIMAL_DIGITS));
       }
       else if (insert_fields(thd, ((Item_field*) item)->context,
                              ((Item_field*) item)->db_name,
@@ -5533,6 +5641,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
   nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
   List_iterator<Item> it(fields);
+  bool save_is_item_list_lookup;
   DBUG_ENTER("setup_fields");
 
   thd->mark_used_columns= mark_used_columns;
@@ -5540,6 +5649,8 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   if (allow_sum_func)
     thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
   thd->where= THD::DEFAULT_WHERE;
+  save_is_item_list_lookup= thd->lex->current_select->is_item_list_lookup;
+  thd->lex->current_select->is_item_list_lookup= 0;
 
   /*
     To prevent fail on forward lookup we fill it with zerows,
@@ -5562,6 +5673,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     if (!item->fixed && item->fix_fields(thd, it.ref()) ||
 	(item= *(it.ref()))->check_cols(1))
     {
+      thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
       thd->lex->allow_sum_func= save_allow_sum_func;
       thd->mark_used_columns= save_mark_used_columns;
       DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
@@ -5575,6 +5687,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     thd->used_tables|= item->used_tables();
     thd->lex->current_select->cur_pos_in_select_list++;
   }
+  thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
   thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
 
   thd->lex->allow_sum_func= save_allow_sum_func;
@@ -5676,30 +5789,8 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
       tablenr= 0;
     }
     setup_table_map(table, table_list, tablenr);
-    table->used_keys= table->s->keys_for_keyread;
-    table->merge_keys.clear_all();
-    if (table_list->use_index)
-    {
-      key_map map;
-      get_key_map_from_key_list(&map, table, table_list->use_index);
-      if (map.is_set_all())
-	DBUG_RETURN(1);
-      /* 
-	 Don't introduce keys in keys_in_use_for_query that weren't there 
-	 before. FORCE/USE INDEX should not add keys, it should only remove
-	 all keys except the key(s) specified in the hint.
-      */
-      table->keys_in_use_for_query.intersect(map);
-    }
-    if (table_list->ignore_index)
-    {
-      key_map map;
-      get_key_map_from_key_list(&map, table, table_list->ignore_index);
-      if (map.is_set_all())
-	DBUG_RETURN(1);
-      table->keys_in_use_for_query.subtract(map);
-    }
-    table->used_keys.intersect(table->keys_in_use_for_query);
+    if (table_list->process_index_hints(table))
+      DBUG_RETURN(1);
   }
   if (tablenr > MAX_TABLES)
   {
@@ -5775,13 +5866,14 @@ bool setup_tables_and_check_access(THD *thd,
                    &leaves_tmp, select_insert))
     return TRUE;
 
-  *leaves= leaves_tmp;
+  if (leaves)
+    *leaves= leaves_tmp;
 
   for (; leaves_tmp; leaves_tmp= leaves_tmp->next_leaf)
   {
     if (leaves_tmp->belong_to_view && 
         check_single_table_access(thd, first_table ? want_access_first :
-                                  want_access,  leaves_tmp))
+                                  want_access, leaves_tmp, FALSE))
     {
       tables->hide_view_error(thd);
       return TRUE;
@@ -5981,7 +6073,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         bitmap_set_bit(field->table->read_set, field->field_index);
         if (table)
         {
-          table->used_keys.intersect(field->part_of_key);
+          table->covering_keys.intersect(field->part_of_key);
           table->merge_keys.merge(field->part_of_key);
         }
         if (tables->is_natural_join)
@@ -5999,7 +6091,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
           if (field_table)
           {
             thd->used_tables|= field_table->map;
-            field_table->used_keys.intersect(field->part_of_key);
+            field_table->covering_keys.intersect(field->part_of_key);
             field_table->merge_keys.merge(field->part_of_key);
             field_table->used_fields++;
           }
@@ -6068,6 +6160,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
   */
   bool it_is_update= (select_lex == &thd->lex->select_lex) &&
     thd->lex->which_check_option_applicable();
+  bool save_is_item_list_lookup= select_lex->is_item_list_lookup;
+  select_lex->is_item_list_lookup= 0;
   DBUG_ENTER("setup_conds");
 
   if (select_lex->conds_processed_with_permanent_arena ||
@@ -6143,9 +6237,11 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     select_lex->where= *conds;
     select_lex->conds_processed_with_permanent_arena= 1;
   }
+  thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
   DBUG_RETURN(test(thd->net.report_error));
 
 err_no_arena:
+  select_lex->is_item_list_lookup= save_is_item_list_lookup;
   DBUG_RETURN(1);
 }
 
@@ -6166,6 +6262,11 @@ err_no_arena:
     values        values to fill with
     ignore_errors TRUE if we should ignore errors
 
+  NOTE
+    fill_record() may set table->auto_increment_field_not_null and a
+    caller should make sure that it is reset after their last call to this
+    function.
+
   RETURN
     FALSE   OK
     TRUE    error occured
@@ -6178,27 +6279,52 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   List_iterator_fast<Item> f(fields),v(values);
   Item *value, *fld;
   Item_field *field;
+  TABLE *table= 0;
   DBUG_ENTER("fill_record");
 
+  /*
+    Reset the table->auto_increment_field_not_null as it is valid for
+    only one row.
+  */
+  if (fields.elements)
+  {
+    /*
+      On INSERT or UPDATE fields are checked to be from the same table,
+      thus we safely can take table from the first field.
+    */
+    fld= (Item_field*)f++;
+    if (!(field= fld->filed_for_view_update()))
+    {
+      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), fld->name);
+      goto err;
+    }
+    table= field->field->table;
+    table->auto_increment_field_not_null= FALSE;
+    f.rewind();
+  }
   while ((fld= f++))
   {
     if (!(field= fld->filed_for_view_update()))
     {
       my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), fld->name);
-      DBUG_RETURN(TRUE);
+      goto err;
     }
     value=v++;
     Field *rfield= field->field;
-    TABLE *table= rfield->table;
+    table= rfield->table;
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
     if ((value->save_in_field(rfield, 0) < 0) && !ignore_errors)
     {
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
-      DBUG_RETURN(TRUE);
+      goto err;
     }
   }
   DBUG_RETURN(thd->net.report_error);
+err:
+  if (table)
+    table->auto_increment_field_not_null= FALSE;
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -6247,6 +6373,11 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
     values        list of fields
     ignore_errors TRUE if we should ignore errors
 
+  NOTE
+    fill_record() may set table->auto_increment_field_not_null and a
+    caller should make sure that it is reset after their last call to this
+    function.
+
   RETURN
     FALSE   OK
     TRUE    error occured
@@ -6257,19 +6388,38 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
 {
   List_iterator_fast<Item> v(values);
   Item *value;
+  TABLE *table= 0;
   DBUG_ENTER("fill_record");
 
   Field *field;
+  /*
+    Reset the table->auto_increment_field_not_null as it is valid for
+    only one row.
+  */
+  if (*ptr)
+  {
+    /*
+      On INSERT or UPDATE fields are checked to be from the same table,
+      thus we safely can take table from the first field.
+    */
+    table= (*ptr)->table;
+    table->auto_increment_field_not_null= FALSE;
+  }
   while ((field = *ptr++))
   {
     value=v++;
-    TABLE *table= field->table;
+    table= field->table;
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
-    if (value->save_in_field(field, 0) == -1)
-      DBUG_RETURN(TRUE);
+    if (value->save_in_field(field, 0) < 0)
+      goto err;
   }
   DBUG_RETURN(thd->net.report_error);
+
+err:
+  if (table)
+    table->auto_increment_field_not_null= FALSE;
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -6873,4 +7023,123 @@ has_two_write_locked_tables_with_auto_increment(TABLE_LIST *tables)
     }
   }
   return 0;
+}
+
+
+/*
+  Open and lock system tables for read.
+
+  SYNOPSIS
+    open_system_tables_for_read()
+      thd         Thread context.
+      table_list  List of tables to open.
+      backup      Pointer to Open_tables_state instance where
+                  information about currently open tables will be
+                  saved, and from which will be restored when we will
+                  end work with system tables.
+
+  NOTES
+    Thanks to restrictions which we put on opening and locking of
+    system tables for writing, we can open and lock them for reading
+    even when we already have some other tables open and locked.  One
+    must call close_system_tables() to close systems tables opened
+    with this call.
+
+  RETURN
+    FALSE   Success
+    TRUE    Error
+*/
+
+bool
+open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
+                            Open_tables_state *backup)
+{
+  DBUG_ENTER("open_system_tables_for_read");
+
+  thd->reset_n_backup_open_tables_state(backup);
+
+  uint count= 0;
+  bool not_used;
+  for (TABLE_LIST *tables= table_list; tables; tables= tables->next_global)
+  {
+    TABLE *table= open_table(thd, tables, thd->mem_root, &not_used,
+                             MYSQL_LOCK_IGNORE_FLUSH);
+    if (!table)
+      goto error;
+
+    DBUG_ASSERT(table->s->system_table);
+
+    table->use_all_columns();
+    table->reginfo.lock_type= tables->lock_type;
+    tables->table= table;
+    count++;
+  }
+
+  {
+    TABLE **list= (TABLE**) thd->alloc(sizeof(TABLE*) * count);
+    TABLE **ptr= list;
+    for (TABLE_LIST *tables= table_list; tables; tables= tables->next_global)
+      *(ptr++)= tables->table;
+
+    thd->lock= mysql_lock_tables(thd, list, count,
+                                 MYSQL_LOCK_IGNORE_FLUSH, &not_used);
+  }
+  if (thd->lock)
+    DBUG_RETURN(FALSE);
+
+error:
+  close_system_tables(thd, backup);
+
+  DBUG_RETURN(TRUE);
+}
+
+
+/*
+  Close system tables, opened with open_system_tables_for_read().
+
+  SYNOPSIS
+    close_system_tables()
+      thd     Thread context
+      backup  Pointer to Open_tables_state instance which holds
+              information about tables which were open before we
+              decided to access system tables.
+*/
+
+void
+close_system_tables(THD *thd, Open_tables_state *backup)
+{
+  close_thread_tables(thd);
+  thd->restore_backup_open_tables_state(backup);
+}
+
+
+/*
+  Open and lock one system table for update.
+
+  SYNOPSIS
+    open_system_table_for_update()
+      thd        Thread context.
+      one_table  Table to open.
+
+  NOTES
+    Table opened with this call should closed using close_thread_tables().
+
+  RETURN
+    0	Error
+    #	Pointer to TABLE object of system table
+*/
+
+TABLE *
+open_system_table_for_update(THD *thd, TABLE_LIST *one_table)
+{
+  DBUG_ENTER("open_system_table_for_update");
+
+  TABLE *table= open_ltable(thd, one_table, one_table->lock_type);
+  if (table)
+  {
+    DBUG_ASSERT(table->s->system_table);
+    table->use_all_columns();
+  }
+
+  DBUG_RETURN(table);
 }

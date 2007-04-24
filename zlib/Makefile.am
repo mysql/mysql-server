@@ -19,16 +19,18 @@ INCLUDES=		-I$(top_builddir)/include -I$(top_srcdir)/include
 
 LIBS= $(NON_THREADED_LIBS)
 
-pkglib_LTLIBRARIES=libz.la
+pkglib_LTLIBRARIES = libz.la
+noinst_LTLIBRARIES = libzlt.la
 
-libz_la_LDFLAGS= -version-info 3:3:2
+libz_la_LDFLAGS    = -static
 
-noinst_HEADERS= crc32.h deflate.h inffast.h inffixed.h inflate.h \
-		inftrees.h trees.h zconf.h zlib.h zutil.h
+noinst_HEADERS     = crc32.h deflate.h inffast.h inffixed.h inflate.h \
+		     inftrees.h trees.h zconf.h zlib.h zutil.h
 
-libz_la_SOURCES= adler32.c compress.c crc32.c deflate.c gzio.c \
-		 infback.c inffast.c inflate.c inftrees.c trees.c \
-		 uncompr.c zutil.c
+libz_la_SOURCES    = adler32.c compress.c crc32.c deflate.c gzio.c \
+		     infback.c inffast.c inflate.c inftrees.c trees.c \
+		     uncompr.c zutil.c
+libzlt_la_SOURCES  = $(libz_la_SOURCES)
 
 EXTRA_DIST= README FAQ INDEX ChangeLog algorithm.txt zlib.3 CMakeLists.txt
 

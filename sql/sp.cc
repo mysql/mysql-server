@@ -69,24 +69,6 @@ enum
 
 
 /*
-  Close mysql.proc, opened with open_proc_table_for_read().
-
-  SYNOPSIS
-    close_proc_table()
-      thd     Thread context
-      backup  Pointer to Open_tables_state instance which holds
-              information about tables which were open before we
-              decided to access mysql.proc.
-*/
-
-void close_proc_table(THD *thd, Open_tables_state *backup)
-{
-  close_thread_tables(thd);
-  thd->restore_backup_open_tables_state(backup);
-}
-
-
-/*
   Open the mysql.proc table for read.
 
   SYNOPSIS
@@ -96,13 +78,6 @@ void close_proc_table(THD *thd, Open_tables_state *backup)
               currently open tables will be saved, and from which will be
               restored when we will end work with mysql.proc.
 
-  NOTES
-    Thanks to restrictions which we put on opening and locking of
-    this table for writing, we can open and lock it for reading
-    even when we already have some other tables open and locked.
-    One must call close_proc_table() to close table opened with
-    this call.
-
   RETURN
     0	Error
     #	Pointer to TABLE object of mysql.proc
@@ -110,38 +85,18 @@ void close_proc_table(THD *thd, Open_tables_state *backup)
 
 TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
 {
-  TABLE_LIST tables;
-  TABLE *table;
-  bool not_used;
-  DBUG_ENTER("open_proc_table");
+  DBUG_ENTER("open_proc_table_for_read");
 
-  thd->reset_n_backup_open_tables_state(backup);
+  TABLE_LIST table;
+  bzero((char*) &table, sizeof(table));
+  table.db= (char*) "mysql";
+  table.table_name= table.alias= (char*)"proc";
+  table.lock_type= TL_READ;
 
-  bzero((char*) &tables, sizeof(tables));
-  tables.db= (char*) "mysql";
-  tables.table_name= tables.alias= (char*)"proc";
-  if (!(table= open_table(thd, &tables, thd->mem_root, &not_used,
-                          MYSQL_LOCK_IGNORE_FLUSH)))
-  {
-    thd->restore_backup_open_tables_state(backup);
+  if (!open_system_tables_for_read(thd, &table, backup))
+    DBUG_RETURN(table.table);
+  else
     DBUG_RETURN(0);
-  }
-  table->use_all_columns();
-
-  DBUG_ASSERT(table->s->system_table);
-
-  table->reginfo.lock_type= TL_READ;
-  /*
-    We have to ensure we are not blocked by a flush tables, as this
-    could lead to a deadlock if we have other tables opened.
-  */
-  if (!(thd->lock= mysql_lock_tables(thd, &table, 1,
-                                     MYSQL_LOCK_IGNORE_FLUSH, &not_used)))
-  {
-    close_proc_table(thd, backup);
-    DBUG_RETURN(0);
-  }
-  DBUG_RETURN(table);
 }
 
 
@@ -162,20 +117,15 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
 
 static TABLE *open_proc_table_for_update(THD *thd)
 {
-  TABLE_LIST tables;
-  TABLE *table;
-  DBUG_ENTER("open_proc_table");
+  DBUG_ENTER("open_proc_table_for_update");
 
-  bzero((char*) &tables, sizeof(tables));
-  tables.db= (char*) "mysql";
-  tables.table_name= tables.alias= (char*)"proc";
-  tables.lock_type= TL_WRITE;
+  TABLE_LIST table;
+  bzero((char*) &table, sizeof(table));
+  table.db= (char*) "mysql";
+  table.table_name= table.alias= (char*)"proc";
+  table.lock_type= TL_WRITE;
 
-  table= open_ltable(thd, &tables, TL_WRITE);
-  if (table)
-    table->use_all_columns();
-
-  DBUG_RETURN(table);
+  DBUG_RETURN(open_system_table_for_update(thd, &table));
 }
 
 
@@ -218,8 +168,7 @@ db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
   key_copy(key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx(table->record[0], 0,
-				  key, table->key_info->key_length,
+  if (table->file->index_read_idx(table->record[0], 0, key, HA_WHOLE_KEY,
 				  HA_READ_KEY_EXACT))
     DBUG_RETURN(SP_KEY_NOT_FOUND);
 
@@ -364,7 +313,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   chistics.comment.str= ptr;
   chistics.comment.length= length;
 
-  close_proc_table(thd, &open_tables_state_backup);
+  close_system_tables(thd, &open_tables_state_backup);
   table= 0;
 
   ret= db_load_routine(thd, type, name, sphp,
@@ -373,7 +322,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
                        
  done:
   if (table)
-    close_proc_table(thd, &open_tables_state_backup);
+    close_system_tables(thd, &open_tables_state_backup);
   DBUG_RETURN(ret);
 }
 
@@ -435,21 +384,21 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   if ((ret= sp_use_new_db(thd, name->m_db, &old_db, 1, &dbchanged)))
     goto end;
 
-  lex_start(thd, (uchar*)defstr.c_ptr(), defstr.length());
+  lex_start(thd, defstr.c_ptr(), defstr.length());
 
   thd->spcont= 0;
   if (MYSQLparse(thd) || thd->is_fatal_error || newlex.sphead == NULL)
   {
     sp_head *sp= newlex.sphead;
 
-    if (dbchanged && (ret= mysql_change_db(thd, old_db.str, 1)))
+    if (dbchanged && (ret= mysql_change_db(thd, &old_db, TRUE)))
       goto end;
     delete sp;
     ret= SP_PARSE_ERROR;
   }
   else
   {
-    if (dbchanged && (ret= mysql_change_db(thd, old_db.str, 1)))
+    if (dbchanged && (ret= mysql_change_db(thd, &old_db, TRUE)))
       goto end;
     *sphp= newlex.sphead;
     (*sphp)->set_definer(&definer_user_name, &definer_host_name);
@@ -733,15 +682,15 @@ struct st_used_field
 
 static struct st_used_field init_fields[]=
 {
-  { "Db",       NAME_LEN, MYSQL_TYPE_STRING,    0},
-  { "Name",     NAME_LEN, MYSQL_TYPE_STRING,    0},
-  { "Type",            9, MYSQL_TYPE_STRING,    0},
-  { "Definer",        77, MYSQL_TYPE_STRING,    0},
-  { "Modified",        0, MYSQL_TYPE_TIMESTAMP, 0},
-  { "Created",         0, MYSQL_TYPE_TIMESTAMP, 0},
-  { "Security_type",   1, MYSQL_TYPE_STRING,    0},
-  { "Comment",  NAME_LEN, MYSQL_TYPE_STRING,    0},
-  { 0,                 0, MYSQL_TYPE_STRING,    0}
+  { "Db",       NAME_CHAR_LEN, MYSQL_TYPE_STRING,    0},
+  { "Name",     NAME_CHAR_LEN, MYSQL_TYPE_STRING,    0},
+  { "Type",                 9, MYSQL_TYPE_STRING,    0},
+  { "Definer",             77, MYSQL_TYPE_STRING,    0},
+  { "Modified",             0, MYSQL_TYPE_TIMESTAMP, 0},
+  { "Created",              0, MYSQL_TYPE_TIMESTAMP, 0},
+  { "Security_type",        1, MYSQL_TYPE_STRING,    0},
+  { "Comment",  NAME_CHAR_LEN, MYSQL_TYPE_STRING,    0},
+  { 0,                      0, MYSQL_TYPE_STRING,    0}
 };
 
 
@@ -775,7 +724,7 @@ print_field_values(THD *thd, TABLE *table,
 	switch (used_field->field_type) {
 	case MYSQL_TYPE_TIMESTAMP:
 	  {
-	    TIME tmp_time;
+	    MYSQL_TIME tmp_time;
 
 	    bzero((char *)&tmp_time, sizeof(tmp_time));
 	    ((Field_timestamp *) used_field->field)->get_time(&tmp_time);
@@ -925,7 +874,7 @@ sp_drop_db_routines(THD *thd, char *db)
   table->file->ha_index_init(0, 1);
   if (! table->file->index_read(table->record[0],
                                 (byte *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
-				key_len, HA_READ_KEY_EXACT))
+                                (key_part_map)1, HA_READ_KEY_EXACT))
   {
     int nxtres;
     bool deleted= FALSE;
@@ -1092,7 +1041,7 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any, bool no_error)
     lex_name.length= strlen(routine->table_name);
     lex_db.str= thd->strmake(routine->db, lex_db.length);
     lex_name.str= thd->strmake(routine->table_name, lex_name.length);
-    name= new sp_name(lex_db, lex_name);
+    name= new sp_name(lex_db, lex_name, true);
     name->init_qname(thd);
     sp_object_found= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, name,
                                      &thd->sp_proc_cache, FALSE) != NULL ||
@@ -1147,7 +1096,7 @@ sp_routine_exists_in_table(THD *thd, int type, sp_name *name)
   {
     if ((ret= db_find_routine_aux(thd, type, name, table)) != SP_OK)
       ret= SP_KEY_NOT_FOUND;
-    close_proc_table(thd, &open_tables_state_backup);
+    close_system_tables(thd, &open_tables_state_backup);
   }
   return ret;
 }
@@ -1649,10 +1598,8 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
             rest of the server checks agains NAME_LEN bytes and not chars.
             Hence, the overrun happens only if the name is in length > 32 and
             uses multibyte (cyrillic, greek, etc.)
-
-            !! Change 3 with SYSTEM_CHARSET_MBMAXLEN when it's defined.
           */
-          char n[NAME_LEN*3*2+2];
+          char n[NAME_LEN*2+2];
 
           /* m_qname.str is not always \0 terminated */
           memcpy(n, name.m_qname.str, name.m_qname.length);
@@ -1914,7 +1861,7 @@ sp_use_new_db(THD *thd, LEX_STRING new_db, LEX_STRING *old_db,
     DBUG_RETURN(0);
   }
 
-  ret= mysql_change_db(thd, new_db.str, no_access_check);
+  ret= mysql_change_db(thd, &new_db, no_access_check);
 
   *dbchangedp= ret == 0;
   DBUG_RETURN(ret);

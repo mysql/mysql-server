@@ -170,8 +170,10 @@ void udf_init()
       This is done to ensure that only approved dll from the system
       directories are used (to make this even remotely secure).
     */
-    if (my_strchr(files_charset_info, dl_name, dl_name + strlen(dl_name), FN_LIBCHAR) || 
-		strlen(name.str) > NAME_LEN)
+    if (my_strchr(files_charset_info, dl_name,
+                  dl_name + strlen(dl_name), FN_LIBCHAR) || 
+                  check_string_char_length(&name, "", NAME_CHAR_LEN,
+                                           system_charset_info, 1))
     {
       sql_print_error("Invalid row in mysql.func table for function '%.64s'",
                       name.str);
@@ -398,11 +400,19 @@ int mysql_create_function(THD *thd,udf_func *udf)
     my_message(ER_UDF_NO_PATHS, ER(ER_UDF_NO_PATHS), MYF(0));
     DBUG_RETURN(1);
   }
-  if (udf->name.length > NAME_LEN)
+  if (check_string_char_length(&udf->name, "", NAME_CHAR_LEN,
+                               system_charset_info, 1))
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), udf->name);
     DBUG_RETURN(1);
   }
+
+  /* 
+    Turn off row binlogging of this statement and use statement-based 
+    so that all supporting tables are updated for CREATE FUNCTION command.
+  */
+  if (thd->current_stmt_binlog_row_based)
+    thd->clear_current_stmt_binlog_row_based();
 
   rw_wrlock(&THR_LOCK_udf);
   if ((hash_search(&udf_hash,(byte*) udf->name.str, udf->name.length)))
@@ -467,6 +477,15 @@ int mysql_create_function(THD *thd,udf_func *udf)
     goto err;
   }
   rw_unlock(&THR_LOCK_udf);
+
+  /* Binlog the create function. */
+  if (mysql_bin_log.is_open())
+  {
+    thd->clear_error();
+    thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                      thd->query, thd->query_length, FALSE, FALSE);
+  }
+
   DBUG_RETURN(0);
 
  err:
@@ -485,11 +504,20 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   char *exact_name_str;
   uint exact_name_len;
   DBUG_ENTER("mysql_drop_function");
+
   if (!initialized)
   {
     my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
     DBUG_RETURN(1);
   }
+
+  /* 
+    Turn off row binlogging of this statement and use statement-based
+    so that all supporting tables are updated for DROP FUNCTION command.
+  */
+  if (thd->current_stmt_binlog_row_based)
+    thd->clear_current_stmt_binlog_row_based();
+
   rw_wrlock(&THR_LOCK_udf);  
   if (!(udf=(udf_func*) hash_search(&udf_hash,(byte*) udf_name->str,
 				    (uint) udf_name->length)))
@@ -515,8 +543,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   table->use_all_columns();
   table->field[0]->store(exact_name_str, exact_name_len, &my_charset_bin);
   if (!table->file->index_read_idx(table->record[0], 0,
-				   (byte*) table->field[0]->ptr,
-				   table->key_info[0].key_length,
+				   (byte*) table->field[0]->ptr, HA_WHOLE_KEY,
 				   HA_READ_KEY_EXACT))
   {
     int error;
@@ -525,7 +552,16 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   }
   close_thread_tables(thd);
 
-  rw_unlock(&THR_LOCK_udf);  
+  rw_unlock(&THR_LOCK_udf);
+
+  /* Binlog the drop function. */
+  if (mysql_bin_log.is_open())
+  {
+    thd->clear_error();
+    thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                      thd->query, thd->query_length, FALSE, FALSE);
+  }
+
   DBUG_RETURN(0);
  err:
   rw_unlock(&THR_LOCK_udf);

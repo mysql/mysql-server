@@ -62,18 +62,19 @@ class ha_myisam: public handler
 
   virtual bool check_if_locking_is_allowed(uint sql_command,
                                            ulong type, TABLE *table,
-                                           uint count,
+                                           uint count, uint current,
+                                           uint *system_count,
                                            bool called_by_logger_thread);
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int write_row(byte * buf);
   int update_row(const byte * old_data, byte * new_data);
   int delete_row(const byte * buf);
-  int index_read(byte * buf, const byte * key,
-		 uint key_len, enum ha_rkey_function find_flag);
-  int index_read_idx(byte * buf, uint idx, const byte * key,
-		     uint key_len, enum ha_rkey_function find_flag);
-  int index_read_last(byte * buf, const byte * key, uint key_len);
+  int index_read(byte *buf, const byte *key, key_part_map keypart_map,
+                 enum ha_rkey_function find_flag);
+  int index_read_idx(byte *buf, uint index, const byte *key,
+                     key_part_map keypart_map, enum ha_rkey_function find_flag);
+  int index_read_last(byte *buf, const byte *key, key_part_map keypart_map);
   int index_next(byte * buf);
   int index_prev(byte * buf);
   int index_first(byte * buf);

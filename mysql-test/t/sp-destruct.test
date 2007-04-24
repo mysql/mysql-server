@@ -12,13 +12,10 @@
 # mysqltest should be fixed to allow REPLACE_RESULT in error message
 -- source include/not_embedded.inc
 
-# We're using --system things that probably doesn't work on Windows.
---source include/not_windows.inc
-
 # Backup proc table
---system rm -rf $MYSQLTEST_VARDIR/master-data/mysql/backup
---system mkdir $MYSQLTEST_VARDIR/master-data/mysql/backup
---system cp $MYSQLTEST_VARDIR/master-data/mysql/proc.* $MYSQLTEST_VARDIR/master-data/mysql/backup/
+--copy_file $MYSQLTEST_VARDIR/master-data/mysql/proc.frm $MYSQLTEST_VARDIR/tmp/proc.frm
+--copy_file $MYSQLTEST_VARDIR/master-data/mysql/proc.MYD $MYSQLTEST_VARDIR/tmp/proc.MYD
+--copy_file $MYSQLTEST_VARDIR/master-data/mysql/proc.MYI $MYSQLTEST_VARDIR/tmp/proc.MYI
 
 use test;
 
@@ -53,22 +50,25 @@ insert into t1 values (0);
 flush table mysql.proc;
 
 # Thrashing the .frm file
---system echo 'saljdlfa' > $MYSQLTEST_VARDIR/master-data/mysql/proc.frm
---replace_result $MYSQLTEST_VARDIR . master-data// ''
+--write_file $MYSQLTEST_VARDIR/master-data/mysql/proc.frm
+saljdfa
+EOF
+--replace_result $MYSQLTEST_VARDIR . master-data// '' '\\' '/'
 --error ER_NOT_FORM_FILE
 call bug14233();
---replace_result $MYSQLTEST_VARDIR . master-data// ''
+--replace_result $MYSQLTEST_VARDIR . master-data// '' '\\' '/'
 --error ER_NOT_FORM_FILE
 create view v1 as select bug14233_f();
---replace_result $MYSQLTEST_VARDIR . master-data// ''
+--replace_result $MYSQLTEST_VARDIR . master-data// '' '\\' '/'
 --error ER_NOT_FORM_FILE
 insert into t1 values (0);
-
 
 flush table mysql.proc;
 
 # Drop the mysql.proc table
---system rm $MYSQLTEST_VARDIR/master-data/mysql/proc.*
+--remove_file $MYSQLTEST_VARDIR/master-data/mysql/proc.frm
+--remove_file $MYSQLTEST_VARDIR/master-data/mysql/proc.MYD
+--remove_file $MYSQLTEST_VARDIR/master-data/mysql/proc.MYI
 --error ER_NO_SUCH_TABLE
 call bug14233();
 --error ER_NO_SUCH_TABLE
@@ -77,8 +77,12 @@ create view v1 as select bug14233_f();
 insert into t1 values (0);
 
 # Restore mysql.proc
---system mv $MYSQLTEST_VARDIR/master-data/mysql/backup/* $MYSQLTEST_VARDIR/master-data/mysql/
---system rmdir $MYSQLTEST_VARDIR/master-data/mysql/backup
+--copy_file $MYSQLTEST_VARDIR/tmp/proc.frm $MYSQLTEST_VARDIR/master-data/mysql/proc.frm
+--copy_file $MYSQLTEST_VARDIR/tmp/proc.MYD $MYSQLTEST_VARDIR/master-data/mysql/proc.MYD
+--copy_file $MYSQLTEST_VARDIR/tmp/proc.MYI $MYSQLTEST_VARDIR/master-data/mysql/proc.MYI 
+--remove_file $MYSQLTEST_VARDIR/tmp/proc.frm
+--remove_file $MYSQLTEST_VARDIR/tmp/proc.MYD
+--remove_file $MYSQLTEST_VARDIR/tmp/proc.MYI
 
 flush table mysql.proc;
 flush privileges;

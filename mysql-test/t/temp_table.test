@@ -164,6 +164,21 @@ DROP TABLE t1;
 
 --echo End of 4.1 tests.
 
+#
+# Bug #24791: Union with AVG-groups generates wrong results
+#
+CREATE TABLE t1 ( c FLOAT( 20, 14 ) );
+INSERT INTO t1 VALUES( 12139 );
+
+CREATE TABLE t2 ( c FLOAT(30,18) );
+INSERT INTO t2 VALUES( 123456 );
+
+SELECT AVG( c ) FROM t1 UNION SELECT 1;
+SELECT 1 UNION SELECT AVG( c ) FROM t1;
+SELECT 1 UNION SELECT * FROM t2 UNION SELECT 1;
+SELECT c/1 FROM t1 UNION SELECT 1;
+
+DROP TABLE t1, t2;
 
 #
 # Test truncate with temporary tables

@@ -31,7 +31,8 @@ struct AllocExtentReq {
 
   enum ErrorCode {
     UnmappedExtentPageIsNotImplemented = 1,
-    NoExtentAvailable = 1601
+    NoExtentAvailable = 1601,
+    NoDatafile = 1602
   };
   
   union 

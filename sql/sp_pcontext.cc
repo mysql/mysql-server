@@ -25,6 +25,11 @@
 #include "sp_pcontext.h"
 #include "sp_head.h"
 
+/* Initial size for the dynamic arrays in sp_pcontext */
+#define PCONTEXT_ARRAY_INIT_ALLOC 16
+/* Increment size for the dynamic arrays in sp_pcontext */
+#define PCONTEXT_ARRAY_INCREMENT_ALLOC 8
+
 /*
   Sanity check for SQLSTATEs. Will not check if it's really an existing
   state (there are just too many), but will check length and bad characters.
@@ -49,28 +54,61 @@ sp_cond_check(LEX_STRING *sqlstate)
   return TRUE;
 }
 
-sp_pcontext::sp_pcontext(sp_pcontext *prev)
-  :Sql_alloc(), m_max_var_index(0), m_max_cursor_index(0), m_max_handler_index(0),
-   m_context_handlers(0), m_parent(prev), m_pboundary(0)
+sp_pcontext::sp_pcontext()
+  : Sql_alloc(),
+  m_max_var_index(0), m_max_cursor_index(0), m_max_handler_index(0),
+  m_context_handlers(0), m_parent(NULL), m_pboundary(0),
+  m_label_scope(LABEL_DEFAULT_SCOPE)
 {
-  VOID(my_init_dynamic_array(&m_vars, sizeof(sp_variable_t *), 16, 8));
-  VOID(my_init_dynamic_array(&m_case_expr_id_lst, sizeof(int), 16, 8));
-  VOID(my_init_dynamic_array(&m_conds, sizeof(sp_cond_type_t *), 16, 8));
-  VOID(my_init_dynamic_array(&m_cursors, sizeof(LEX_STRING), 16, 8));
-  VOID(my_init_dynamic_array(&m_handlers, sizeof(sp_cond_type_t *), 16, 8));
+  VOID(my_init_dynamic_array(&m_vars, sizeof(sp_variable_t *),
+                             PCONTEXT_ARRAY_INIT_ALLOC,
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
+  VOID(my_init_dynamic_array(&m_case_expr_id_lst, sizeof(int),
+                             PCONTEXT_ARRAY_INIT_ALLOC,
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
+  VOID(my_init_dynamic_array(&m_conds, sizeof(sp_cond_type_t *),
+                             PCONTEXT_ARRAY_INIT_ALLOC,
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
+  VOID(my_init_dynamic_array(&m_cursors, sizeof(LEX_STRING),
+                             PCONTEXT_ARRAY_INIT_ALLOC,
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
+  VOID(my_init_dynamic_array(&m_handlers, sizeof(sp_cond_type_t *),
+                             PCONTEXT_ARRAY_INIT_ALLOC,
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
   m_label.empty();
   m_children.empty();
-  if (!prev)
-  {
-    m_var_offset= m_cursor_offset= 0;
-    m_num_case_exprs= 0;
-  }
-  else
-  {
-    m_var_offset= prev->m_var_offset + prev->m_max_var_index;
-    m_cursor_offset= prev->current_cursor_count();
-    m_num_case_exprs= prev->get_num_case_exprs();
-  }
+
+  m_var_offset= m_cursor_offset= 0;
+  m_num_case_exprs= 0;
+}
+
+sp_pcontext::sp_pcontext(sp_pcontext *prev, label_scope_type label_scope)
+  : Sql_alloc(),
+  m_max_var_index(0), m_max_cursor_index(0), m_max_handler_index(0),
+  m_context_handlers(0), m_parent(prev), m_pboundary(0),
+  m_label_scope(label_scope)
+{
+  VOID(my_init_dynamic_array(&m_vars, sizeof(sp_variable_t *),
+                             PCONTEXT_ARRAY_INIT_ALLOC,
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
+  VOID(my_init_dynamic_array(&m_case_expr_id_lst, sizeof(int),
+                             PCONTEXT_ARRAY_INIT_ALLOC,
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
+  VOID(my_init_dynamic_array(&m_conds, sizeof(sp_cond_type_t *),
+                             PCONTEXT_ARRAY_INIT_ALLOC,
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
+  VOID(my_init_dynamic_array(&m_cursors, sizeof(LEX_STRING),
+                             PCONTEXT_ARRAY_INIT_ALLOC,
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
+  VOID(my_init_dynamic_array(&m_handlers, sizeof(sp_cond_type_t *),
+                             PCONTEXT_ARRAY_INIT_ALLOC,
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
+  m_label.empty();
+  m_children.empty();
+
+  m_var_offset= prev->m_var_offset + prev->m_max_var_index;
+  m_cursor_offset= prev->current_cursor_count();
+  m_num_case_exprs= prev->get_num_case_exprs();
 }
 
 void
@@ -92,9 +130,9 @@ sp_pcontext::destroy()
 }
 
 sp_pcontext *
-sp_pcontext::push_context()
+sp_pcontext::push_context(label_scope_type label_scope)
 {
-  sp_pcontext *child= new sp_pcontext(this);
+  sp_pcontext *child= new sp_pcontext(this, label_scope);
 
   if (child)
     m_children.push_back(child);
@@ -257,7 +295,15 @@ sp_pcontext::find_label(char *name)
     if (my_strcasecmp(system_charset_info, name, lab->name) == 0)
       return lab;
 
-  if (m_parent)
+  /*
+    Note about exception handlers.
+    See SQL:2003 SQL/PSM (ISO/IEC 9075-4:2003),
+    section 13.1 <compound statement>,
+    syntax rule 4.
+    In short, a DECLARE HANDLER block can not refer
+    to labels from the parent context, as they are out of scope.
+  */
+  if (m_parent && (m_label_scope == LABEL_DEFAULT_SCOPE))
     return m_parent->find_label(name);
   return NULL;
 }

@@ -593,6 +593,11 @@ enum THD_NDB_OPTIONS
   TNO_NO_LOG_SCHEMA_OP= 1 << 0
 };
 
+enum THD_NDB_TRANS_OPTIONS
+{
+  TNTO_INJECTED_APPLY_STATUS= 1 << 0
+};
+
 struct Ndb_local_table_statistics {
   int no_uncommitted_rows_count;
   ulong last_count;
@@ -618,8 +623,10 @@ class Thd_ndb
   uint lock_count;
   NdbTransaction *all;
   NdbTransaction *stmt;
-  int error;
+  bool m_error;
+  bool m_slow_path;
   uint32 options;
+  uint32 trans_options;
   List<NDB_SHARE> changed_tables;
   uint query_state;
   HASH open_tables;
@@ -642,8 +649,6 @@ class ha_ndbcluster: public handler
   int index_end();
   int index_read(byte *buf, const byte *key, uint key_len, 
                  enum ha_rkey_function find_flag);
-  int index_read_idx(byte *buf, uint index, const byte *key, uint key_len, 
-                     enum ha_rkey_function find_flag);
   int index_next(byte *buf);
   int index_prev(byte *buf);
   int index_first(byte *buf);
@@ -960,9 +965,12 @@ private:
   ha_rows m_bulk_insert_rows;
   ha_rows m_rows_changed;
   bool m_bulk_insert_not_flushed;
+  bool m_delete_cannot_batch;
+  bool m_update_cannot_batch;
   ha_rows m_ops_pending;
   bool m_skip_auto_increment;
   bool m_blobs_pending;
+  bool m_slow_path;
   my_ptrdiff_t m_blobs_offset;
   // memory for blobs in one tuple
   char *m_blobs_buffer;
@@ -998,4 +1006,6 @@ void ndbcluster_print_error(int error, const NdbOperation *error_op);
 
 static const char ndbcluster_hton_name[]= "ndbcluster";
 static const int ndbcluster_hton_name_length=sizeof(ndbcluster_hton_name)-1;
-
+extern int ndbcluster_terminating;
+extern int ndb_util_thread_running;
+extern pthread_cond_t COND_ndb_util_ready;

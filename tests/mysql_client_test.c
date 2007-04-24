@@ -83,14 +83,17 @@ struct my_tests_st
 };
 
 #define myheader(str) \
+DBUG_PRINT("test", ("name: %s", str));        \
 if (opt_silent < 2) \
 { \
   fprintf(stdout, "\n\n#####################################\n"); \
-  fprintf(stdout, "%d of (%d/%d): %s", test_count++, iter_count, \
+  fprintf(stdout, "%u of (%u/%u): %s", test_count++, iter_count, \
                                      opt_count, str); \
   fprintf(stdout, "  \n#####################################\n"); \
 }
+
 #define myheader_r(str) \
+DBUG_PRINT("test", ("name: %s", str));        \
 if (!opt_silent) \
 { \
   fprintf(stdout, "\n\n#####################################\n"); \
@@ -100,7 +103,7 @@ if (!opt_silent) \
 
 static void print_error(const char *msg);
 static void print_st_error(MYSQL_STMT *stmt, const char *msg);
-static void client_disconnect();
+static void client_disconnect(void);
 
 
 /*
@@ -119,7 +122,7 @@ static void client_disconnect();
 #define DIE(expr) \
         die(__FILE__, __LINE__, #expr)
 
-void die(const char *file, int line, const char *expr)
+static void die(const char *file, int line, const char *expr)
 {
   fflush(stdout);
   fprintf(stderr, "%s:%d: check failed: '%s'\n", file, line, expr);
@@ -253,7 +256,7 @@ static my_bool check_have_innodb(MYSQL *conn)
   mysql_simple_prepare(): a variant without the 'length' parameter.
 */
 
-MYSQL_STMT *STDCALL
+static MYSQL_STMT *STDCALL
 mysql_simple_prepare(MYSQL *mysql_arg, const char *query)
 {
   MYSQL_STMT *stmt= mysql_stmt_init(mysql_arg);
@@ -298,7 +301,7 @@ static void client_connect(ulong flag)
   mysql->reconnect= 1;
 
   if (!opt_silent)
-    fprintf(stdout, " OK");
+    fprintf(stdout, "OK");
 
   /* set AUTOCOMMIT to ON*/
   mysql_autocommit(mysql, TRUE);
@@ -321,7 +324,7 @@ static void client_connect(ulong flag)
   have_innodb= check_have_innodb(mysql);
 
   if (!opt_silent)
-    fprintf(stdout, " OK");
+    fprintf(stdout, "OK");
 }
 
 
@@ -341,12 +344,13 @@ static void client_disconnect()
 
     mysql_query(mysql, query);
     if (!opt_silent)
-      fprintf(stdout, " OK");
+      fprintf(stdout, "OK");
 
     if (!opt_silent)
       fprintf(stdout, "\n closing the connection ...");
     mysql_close(mysql);
-    fprintf(stdout, " OK\n");
+    if (!opt_silent)
+      fprintf(stdout, "OK\n");
   }
 }
 
@@ -468,7 +472,7 @@ static void my_print_result_metadata(MYSQL_RES *result)
 
 /* Process the result set */
 
-int my_process_result_set(MYSQL_RES *result)
+static int my_process_result_set(MYSQL_RES *result)
 {
   MYSQL_ROW    row;
   MYSQL_FIELD  *field;
@@ -524,7 +528,7 @@ int my_process_result_set(MYSQL_RES *result)
 }
 
 
-int my_process_result(MYSQL *mysql_arg)
+static int my_process_result(MYSQL *mysql_arg)
 {
   MYSQL_RES *result;
   int       row_count;
@@ -544,7 +548,7 @@ int my_process_result(MYSQL *mysql_arg)
 #define MAX_RES_FIELDS 50
 #define MAX_FIELD_DATA_SIZE 255
 
-int my_process_stmt_result(MYSQL_STMT *stmt)
+static int my_process_stmt_result(MYSQL_STMT *stmt)
 {
   int         field_count;
   int         row_count= 0;
@@ -2351,6 +2355,271 @@ static void test_ps_conj_select()
   DIE_UNLESS(rc == 3);
 
   mysql_stmt_close(stmt);
+}
+
+
+/* reads Qcache_hits from server and returns its value */
+static uint query_cache_hits(MYSQL *conn)
+{
+  MYSQL_RES *res;
+  MYSQL_ROW row;
+  int rc;
+  uint result;
+
+  rc= mysql_query(conn, "show status like 'qcache_hits'");
+  myquery(rc);
+  res= mysql_use_result(conn);
+  DIE_UNLESS(res);
+
+  row= mysql_fetch_row(res);
+  DIE_UNLESS(row);
+
+  result= atoi(row[1]);
+  mysql_free_result(res);
+  return result;
+}
+
+
+/*
+  utility for the next test; expects 3 rows in the result from a SELECT,
+  compares each row/field with an expected value.
+ */
+#define test_ps_query_cache_result(i1,s1,l1,i2,s2,l2,i3,s3,l3)    \
+  r_metadata= mysql_stmt_result_metadata(stmt);                   \
+  DIE_UNLESS(r_metadata != NULL);                                 \
+  rc= mysql_stmt_fetch(stmt);                                     \
+  check_execute(stmt, rc);                                        \
+  if (!opt_silent)                                                \
+    fprintf(stdout, "\n row 1: %d, %s(%lu)", r_int_data,          \
+            r_str_data, r_str_length);                            \
+  DIE_UNLESS((r_int_data == i1) && (r_str_length == l1) &&        \
+             (strcmp(r_str_data, s1) == 0));                      \
+  rc= mysql_stmt_fetch(stmt);                                     \
+  check_execute(stmt, rc);                                        \
+  if (!opt_silent)                                                \
+    fprintf(stdout, "\n row 2: %d, %s(%lu)", r_int_data,          \
+            r_str_data, r_str_length);                            \
+  DIE_UNLESS((r_int_data == i2) && (r_str_length == l2) &&        \
+             (strcmp(r_str_data, s2) == 0));                      \
+  rc= mysql_stmt_fetch(stmt);                                     \
+  check_execute(stmt, rc);                                        \
+  if (!opt_silent)                                                \
+    fprintf(stdout, "\n row 3: %d, %s(%lu)", r_int_data,          \
+            r_str_data, r_str_length);                            \
+  DIE_UNLESS((r_int_data == i3) && (r_str_length == l3) &&        \
+             (strcmp(r_str_data, s3) == 0));                      \
+  rc= mysql_stmt_fetch(stmt);                                     \
+  DIE_UNLESS(rc == MYSQL_NO_DATA);                                \
+  mysql_free_result(r_metadata);
+
+
+/*
+  Test that prepared statements make use of the query cache just as normal
+  statements (BUG#735).
+*/
+static void test_ps_query_cache()
+{
+  MYSQL      *org_mysql= mysql, *lmysql;
+  MYSQL_STMT *stmt;
+  int        rc;
+  MYSQL_BIND p_bind[2],r_bind[2]; /* p: param bind; r: result bind */
+  int32      p_int_data, r_int_data;
+  char       p_str_data[32], r_str_data[32];
+  unsigned long p_str_length, r_str_length;
+  MYSQL_RES  *r_metadata;
+  char       query[MAX_TEST_QUERY_LENGTH];
+  uint       hits1, hits2;
+  enum enum_test_ps_query_cache
+  {
+    /*
+      We iterate the same prepare/executes block, but have iterations where
+      we vary the query cache conditions.
+    */
+    /* the query cache is enabled for the duration of prep&execs: */
+    TEST_QCACHE_ON= 0,
+    /*
+      same but using a new connection (to see if qcache serves results from
+      the previous connection as it should):
+    */
+    TEST_QCACHE_ON_WITH_OTHER_CONN,
+    /*
+      First border case: disables the query cache before prepare and
+      re-enables it before execution (to test if we have no bug then):
+    */
+    TEST_QCACHE_OFF_ON,
+    /*
+      Second border case: enables the query cache before prepare and
+      disables it before execution:
+    */
+    TEST_QCACHE_ON_OFF
+  };
+  enum enum_test_ps_query_cache iteration;
+  LINT_INIT(lmysql);
+
+  myheader("test_ps_query_cache");
+
+  /* prepare the table */
+
+  rc= mysql_query(mysql, "drop table if exists t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "create table t1 (id1 int(11) NOT NULL default '0', "
+                         "value2 varchar(100), value1 varchar(100))");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "insert into t1 values (1, 'hh', 'hh'), "
+                          "(2, 'hh', 'hh'), (1, 'ii', 'ii'), (2, 'ii', 'ii')");
+  myquery(rc);
+
+  for (iteration= TEST_QCACHE_ON; iteration < TEST_QCACHE_ON_OFF; iteration++)
+  {
+
+    switch (iteration)
+    {
+    case TEST_QCACHE_ON:
+    case TEST_QCACHE_ON_OFF:
+      rc= mysql_query(mysql, "set global query_cache_size=1000000");
+      myquery(rc);
+      break;
+    case TEST_QCACHE_OFF_ON:
+      rc= mysql_query(mysql, "set global query_cache_size=0");
+      myquery(rc);
+      break;
+    case TEST_QCACHE_ON_WITH_OTHER_CONN:
+      if (!opt_silent)
+        fprintf(stdout, "\n Establishing a test connection ...");
+      if (!(lmysql= mysql_init(NULL)))
+      {
+        myerror("mysql_init() failed");
+        exit(1);
+      }
+      if (!(mysql_real_connect(lmysql, opt_host, opt_user,
+                               opt_password, current_db, opt_port,
+                               opt_unix_socket, 0)))
+      {
+        myerror("connection failed");
+        mysql_close(lmysql);
+        exit(1);
+      }
+      if (!opt_silent)
+        fprintf(stdout, "OK");
+      mysql= lmysql;
+    }
+
+    strmov(query, "select id1, value1 from t1 where id1= ? or "
+           "CONVERT(value1 USING utf8)= ?");
+    stmt= mysql_simple_prepare(mysql, query);
+    check_stmt(stmt);
+
+    verify_param_count(stmt, 2);
+
+    switch(iteration)
+    {
+    case TEST_QCACHE_OFF_ON:
+      rc= mysql_query(mysql, "set global query_cache_size=1000000");
+      myquery(rc);
+      break;
+    case TEST_QCACHE_ON_OFF:
+      rc= mysql_query(mysql, "set global query_cache_size=0");
+      myquery(rc);
+    default:
+      break;
+    }
+
+    bzero((char*) p_bind, sizeof(p_bind));
+    p_bind[0].buffer_type= MYSQL_TYPE_LONG;
+    p_bind[0].buffer= (void *)&p_int_data;
+    p_bind[1].buffer_type= MYSQL_TYPE_VAR_STRING;
+    p_bind[1].buffer= (void *)p_str_data;
+    p_bind[1].buffer_length= array_elements(p_str_data);
+    p_bind[1].length= &p_str_length;
+
+    rc= mysql_stmt_bind_param(stmt, p_bind);
+    check_execute(stmt, rc);
+
+    p_int_data= 1;
+    strmov(p_str_data, "hh");
+    p_str_length= strlen(p_str_data);
+
+    bzero((char*) r_bind, sizeof(r_bind));
+    r_bind[0].buffer_type= MYSQL_TYPE_LONG;
+    r_bind[0].buffer= (void *)&r_int_data;
+    r_bind[1].buffer_type= MYSQL_TYPE_VAR_STRING;
+    r_bind[1].buffer= (void *)r_str_data;
+    r_bind[1].buffer_length= array_elements(r_str_data);
+    r_bind[1].length= &r_str_length;
+
+    rc= mysql_stmt_bind_result(stmt, r_bind);
+    check_execute(stmt, rc);
+
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+
+    test_ps_query_cache_result(1, "hh", 2, 2, "hh", 2, 1, "ii", 2);
+
+    /* now retry with the same parameter values and see qcache hits */
+    hits1= query_cache_hits(mysql);
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+    test_ps_query_cache_result(1, "hh", 2, 2, "hh", 2, 1, "ii", 2);
+    hits2= query_cache_hits(mysql);
+    switch(iteration)
+    {
+    case TEST_QCACHE_ON_WITH_OTHER_CONN:
+    case TEST_QCACHE_ON:                 /* should have hit */
+      DIE_UNLESS(hits2-hits1 == 1);
+      break;
+    case TEST_QCACHE_OFF_ON:
+    case TEST_QCACHE_ON_OFF:             /* should not have hit */
+      DIE_UNLESS(hits2-hits1 == 0);
+    }
+
+    /* now modify parameter values and see qcache hits */
+    strmov(p_str_data, "ii");
+    p_str_length= strlen(p_str_data);
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+    test_ps_query_cache_result(1, "hh", 2, 1, "ii", 2, 2, "ii", 2);
+    hits1= query_cache_hits(mysql);
+
+    switch(iteration)
+    {
+    case TEST_QCACHE_ON:
+    case TEST_QCACHE_OFF_ON:
+    case TEST_QCACHE_ON_OFF:             /* should not have hit */
+      DIE_UNLESS(hits2-hits1 == 0);
+      break;
+    case TEST_QCACHE_ON_WITH_OTHER_CONN: /* should have hit */
+      DIE_UNLESS(hits1-hits2 == 1);
+    }
+
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+
+    test_ps_query_cache_result(1, "hh", 2, 1, "ii", 2, 2, "ii", 2);
+    hits2= query_cache_hits(mysql);
+
+    mysql_stmt_close(stmt);
+
+    switch(iteration)
+    {
+    case TEST_QCACHE_ON:                 /* should have hit */
+      DIE_UNLESS(hits2-hits1 == 1);
+      break;
+    case TEST_QCACHE_OFF_ON:
+    case TEST_QCACHE_ON_OFF:             /* should not have hit */
+      DIE_UNLESS(hits2-hits1 == 0);
+      break;
+    case TEST_QCACHE_ON_WITH_OTHER_CONN:
+      mysql_close(lmysql);
+      mysql= org_mysql;
+    }
+
+  } /* for(iteration=...) */
+
+  rc= mysql_query(mysql, "set global query_cache_size=0");
+  myquery(rc);
+
 }
 
 
@@ -4675,7 +4944,7 @@ static void test_stmt_close()
   }
   lmysql->reconnect= 1;
   if (!opt_silent)
-    fprintf(stdout, " OK");
+    fprintf(stdout, "OK");
 
 
   /* set AUTOCOMMIT to ON*/
@@ -4722,7 +4991,7 @@ static void test_stmt_close()
     close statements by hand once mysql_close() had been called.
     Now mysql_close() doesn't free any statements, so this test doesn't
     serve its original designation any more.
-    Here we free stmt2 and stmt3 by hande to avoid memory leaks.
+    Here we free stmt2 and stmt3 by hand to avoid memory leaks.
   */
   mysql_stmt_close(stmt2);
   mysql_stmt_close(stmt3);
@@ -7206,7 +7475,7 @@ static void test_prepare_grant()
     }
     lmysql->reconnect= 1;
     if (!opt_silent)
-      fprintf(stdout, " OK");
+      fprintf(stdout, "OK");
 
     mysql= lmysql;
     rc= mysql_query(mysql, "INSERT INTO test_grant VALUES(NULL)");
@@ -7546,16 +7815,16 @@ static void test_explain_bug()
                        "", "", "", 19, 0);
 
   verify_prepare_field(result, 2, "table", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", NAME_LEN, 0);
+                       "", "", "", NAME_CHAR_LEN, 0);
 
   verify_prepare_field(result, 3, "type", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", 10, 0);
 
   verify_prepare_field(result, 4, "possible_keys", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", NAME_LEN*MAX_KEY, 0);
+                       "", "", "", NAME_CHAR_LEN*MAX_KEY, 0);
 
   verify_prepare_field(result, 5, "key", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", NAME_LEN, 0);
+                       "", "", "", NAME_CHAR_LEN, 0);
 
   if (mysql_get_server_version(mysql) <= 50000)
   {
@@ -7565,11 +7834,11 @@ static void test_explain_bug()
   else
   {
     verify_prepare_field(result, 6, "key_len", "", MYSQL_TYPE_VAR_STRING, "", 
-                         "", "", NAME_LEN*MAX_KEY, 0);
+                         "", "", NAME_CHAR_LEN*MAX_KEY, 0);
   }
 
   verify_prepare_field(result, 7, "ref", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", NAME_LEN*16, 0);
+                       "", "", "", NAME_CHAR_LEN*16, 0);
 
   verify_prepare_field(result, 8, "rows", "", MYSQL_TYPE_LONGLONG,
                        "", "", "", 10, 0);
@@ -7667,7 +7936,7 @@ static void test_drop_temp()
     }
     lmysql->reconnect= 1;
     if (!opt_silent)
-      fprintf(stdout, " OK");
+      fprintf(stdout, "OK");
 
     mysql= lmysql;
     rc= mysql_query(mysql, "INSERT INTO t1 VALUES(10, 'C')");
@@ -11753,16 +12022,24 @@ static void test_bug5315()
   stmt= mysql_stmt_init(mysql);
   rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
   DIE_UNLESS(rc == 0);
+  if (!opt_silent)
+    printf("Excuting mysql_change_user\n");
   mysql_change_user(mysql, opt_user, opt_password, current_db);
+  if (!opt_silent)
+    printf("Excuting mysql_stmt_execute\n");
   rc= mysql_stmt_execute(stmt);
   DIE_UNLESS(rc != 0);
   if (rc)
   {
     if (!opt_silent)
-      printf("Got error (as expected):\n%s", mysql_stmt_error(stmt));
+      printf("Got error (as expected): '%s'\n", mysql_stmt_error(stmt));
   }
   /* check that connection is OK */
+  if (!opt_silent)
+    printf("Excuting mysql_stmt_close\n");
   mysql_stmt_close(stmt);
+  if (!opt_silent)
+    printf("Excuting mysql_stmt_init\n");
   stmt= mysql_stmt_init(mysql);
   rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
   DIE_UNLESS(rc == 0);
@@ -12451,6 +12728,7 @@ static void test_rewind(void)
 
   /* retreive all result sets till we are at the end */
   while(!mysql_stmt_fetch(stmt))
+    if (!opt_silent)
       printf("fetched result:%ld\n", Data);
 
   DIE_UNLESS(rc != MYSQL_NO_DATA);
@@ -12461,6 +12739,7 @@ static void test_rewind(void)
   /* now we should be able to fetch the results again */
   /* but mysql_stmt_fetch returns MYSQL_NO_DATA */
   while(!(rc= mysql_stmt_fetch(stmt)))
+    if (!opt_silent)
       printf("fetched result after seek:%ld\n", Data);
   
   DIE_UNLESS(rc == MYSQL_NO_DATA);
@@ -13011,7 +13290,7 @@ static void test_bug8378()
     exit(1);
   }
   if (!opt_silent)
-    fprintf(stdout, " OK");
+    fprintf(stdout, "OK");
 
   len= mysql_real_escape_string(mysql, out, TEST_BUG8378_IN, 4);
 
@@ -13180,7 +13459,8 @@ static void test_bug9520()
 
   DIE_UNLESS(rc == MYSQL_NO_DATA);
 
-  printf("Fetched %d rows\n", row_count);
+  if (!opt_silent)
+    printf("Fetched %d rows\n", row_count);
   DBUG_ASSERT(row_count == 3);
 
   mysql_stmt_close(stmt);
@@ -15080,8 +15360,28 @@ static void test_bug17667()
 
   myheader("test_bug17667");
 
+  master_log_filename = (char *) malloc(strlen(opt_vardir) + strlen("/log/master.log") + 1);
+  strxmov(master_log_filename, opt_vardir, "/log/master.log", NullS);
+  if (!opt_silent)
+    printf("Opening '%s'\n", master_log_filename);
+  log_file= my_fopen(master_log_filename, (int) (O_RDONLY | O_BINARY), MYF(0));
+  free(master_log_filename);
+
+  if (log_file == NULL)
+  {
+    if (!opt_silent)
+    {
+      printf("Could not find the log file, VARDIR/log/master.log, so "
+             "test_bug17667 is not run.\n"
+             "Run test from the mysql-test/mysql-test-run* program to set up "
+             "correct environment for this test.\n\n");
+    }
+    return;
+  }
+
   for (statement_cursor= statements; statement_cursor->buffer != NULL;
-      statement_cursor++) {
+       statement_cursor++)
+  {
     if (statement_cursor->qt == QT_NORMAL)
     {
       /* Run statement as normal query */
@@ -15092,10 +15392,10 @@ static void test_bug17667()
     else if (statement_cursor->qt == QT_PREPARED)
     {
       /*
-         Run as prepared statement
+        Run as prepared statement
 
-         NOTE! All these queries should be in the log twice,
-         one time for prepare and one time for execute
+        NOTE! All these queries should be in the log twice,
+        one time for prepare and one time for execute
       */
       stmt= mysql_stmt_init(mysql);
 
@@ -15118,66 +15418,49 @@ static void test_bug17667()
   rc= mysql_query(mysql, "flush logs");
   myquery(rc);
 
-  master_log_filename = (char *) malloc(strlen(opt_vardir) + strlen("/log/master.log") + 1);
-  strcpy(master_log_filename, opt_vardir);
-  strcat(master_log_filename, "/log/master.log");
-  printf("Opening '%s'\n", master_log_filename);
-  log_file= my_fopen(master_log_filename, (int) (O_RDONLY | O_BINARY), MYF(MY_WME));
-  free(master_log_filename);
+  for (statement_cursor= statements; statement_cursor->buffer != NULL;
+       statement_cursor++)
+  {
+    int expected_hits= 1, hits= 0;
+    char line_buffer[MAX_TEST_QUERY_LENGTH*2];
+    /* more than enough room for the query and some marginalia. */
 
-  if (log_file != NULL) {
+    /* Prepared statments always occurs twice in log */
+    if (statement_cursor->qt == QT_PREPARED)
+      expected_hits++;
 
-    for (statement_cursor= statements; statement_cursor->buffer != NULL;
-        statement_cursor++) {
-      int expected_hits= 1, hits= 0;
-      char line_buffer[MAX_TEST_QUERY_LENGTH*2];
-      /* more than enough room for the query and some marginalia. */
-
-      /* Prepared statments always occurs twice in log */
-      if (statement_cursor->qt == QT_PREPARED)
-        expected_hits++;
-
-      /* Loop until we found expected number of log entries */
+    /* Loop until we found expected number of log entries */
+    do {
+      /* Loop until statement is found in log */
       do {
-        /* Loop until statement is found in log */
-        do {
-          memset(line_buffer, '/', MAX_TEST_QUERY_LENGTH*2);
+        memset(line_buffer, '/', MAX_TEST_QUERY_LENGTH*2);
 
-          if(fgets(line_buffer, MAX_TEST_QUERY_LENGTH*2, log_file) == NULL)
-          {
-            /* If fgets returned NULL, it indicates either error or EOF */
-            if (feof(log_file))
-              DIE("Found EOF before all statements where found");
+        if(fgets(line_buffer, MAX_TEST_QUERY_LENGTH*2, log_file) == NULL)
+        {
+          /* If fgets returned NULL, it indicates either error or EOF */
+          if (feof(log_file))
+            DIE("Found EOF before all statements where found");
 
-            fprintf(stderr, "Got error %d while reading from file\n",
-                    ferror(log_file));
-            DIE("Read error");
-          }
+          fprintf(stderr, "Got error %d while reading from file\n",
+                  ferror(log_file));
+          DIE("Read error");
+        }
 
-        } while (my_memmem(line_buffer, MAX_TEST_QUERY_LENGTH*2,
-                           statement_cursor->buffer,
-                           statement_cursor->length) == NULL);
-        hits++;
-      } while (hits < expected_hits);
+      } while (my_memmem(line_buffer, MAX_TEST_QUERY_LENGTH*2,
+                         statement_cursor->buffer,
+                         statement_cursor->length) == NULL);
+      hits++;
+    } while (hits < expected_hits);
 
+    if (!opt_silent)
       printf("Found statement starting with \"%s\"\n",
              statement_cursor->buffer);
-    }
+  }
 
+  if (!opt_silent)
     printf("success.  All queries found intact in the log.\n");
 
-  }
-  else
-  {
-    fprintf(stderr, "Could not find the log file, VARDIR/log/master.log, so "
-            "test_bug17667 is \ninconclusive.  Run test from the "
-            "mysql-test/mysql-test-run* program \nto set up the correct "
-            "environment for this test.\n\n");
-  }
-
-  if (log_file != NULL)
-    my_fclose(log_file, MYF(0));
-
+  my_fclose(log_file, MYF(0));
 }
 
 
@@ -15743,12 +16026,14 @@ static void test_bug21635()
   for (i= 0; i < field_count; ++i)
   {
     field= mysql_fetch_field_direct(result, i);
-    printf("%s -> %s ... ", expr[i * 2], field->name);
+    if (!opt_silent)
+      printf("%s -> %s ... ", expr[i * 2], field->name);
     fflush(stdout);
     DIE_UNLESS(field->db[0] == 0 && field->org_table[0] == 0 &&
                field->table[0] == 0 && field->org_name[0] == 0);
     DIE_UNLESS(strcmp(field->name, expr[i * 2 + 1]) == 0);
-    puts("OK");
+    if (!opt_silent)
+      puts("OK");
   }
 
   mysql_free_result(result);
@@ -16067,8 +16352,9 @@ static struct my_tests_st my_tests[]= {
   { "test_bug15518", test_bug15518 },
   { "test_bug23383", test_bug23383 },
   { "test_bug21635", test_bug21635 },
-  { "test_status", test_status},
+  { "test_status",   test_status   },
   { "test_bug24179", test_bug24179 },
+  { "test_ps_query_cache", test_ps_query_cache },
   { 0, 0 }
 };
 

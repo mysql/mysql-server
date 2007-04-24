@@ -46,6 +46,7 @@
    ndbrequire(false); } } while(0)
 #else
 #define vlqrequire(x) ndbrequire(x)
+#define dump_lock_queue(x)
 #endif
 
 
@@ -3182,7 +3183,7 @@ void Dbacc::getdirindex(Signal* signal)
 }//Dbacc::getdirindex()
 
 Uint32
-Dbacc::readTablePk(Uint32 localkey1, Uint32 eh, const Operationrec* op)
+Dbacc::readTablePk(Uint32 localkey1, Uint32 eh, Ptr<Operationrec> opPtr)
 {
   int ret;
   Uint32 tableId = fragrecptr.p->myTableId;
@@ -3203,8 +3204,17 @@ Dbacc::readTablePk(Uint32 localkey1, Uint32 eh, const Operationrec* op)
   else
   {
     ndbrequire(ElementHeader::getLocked(eh));
-    ndbrequire((op->m_op_bits & Operationrec::OP_MASK) != ZSCAN_OP);
-    ret = c_lqh->readPrimaryKeys(op->userptr, ckeys, xfrm);
+    if (unlikely((opPtr.p->m_op_bits & Operationrec::OP_MASK) == ZSCAN_OP))
+    {
+      dump_lock_queue(opPtr);
+      ndbrequire(opPtr.p->nextParallelQue == RNIL);
+      ndbrequire(opPtr.p->nextSerialQue == RNIL);
+      ndbrequire(opPtr.p->m_op_bits & Operationrec::OP_ELEMENT_DISAPPEARED);
+      ndbrequire(opPtr.p->m_op_bits & Operationrec::OP_COMMIT_DELETE_CHECK);
+      ndbrequire((opPtr.p->m_op_bits & Operationrec::OP_STATE_MASK) == Operationrec::OP_STATE_RUNNING);
+      return 0;
+    }
+    ret = c_lqh->readPrimaryKeys(opPtr.p->userptr, ckeys, xfrm);
   }
   jamEntry();
   ndbrequire(ret >= 0);
@@ -3349,7 +3359,7 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
           if (! searchLocalKey) 
 	  {
             Uint32 len = readTablePk(localkey1, tgeElementHeader, 
-				     lockOwnerPtr.p);
+				     lockOwnerPtr);
             found = (len == operationRecPtr.p->xfrmtupkeylen) &&
 	      (memcmp(Tkeydata, ckeys, len << 2) == 0);
           } else {
@@ -6864,6 +6874,7 @@ void Dbacc::execACC_TO_REQ(Signal* signal)
   {
     tatrOpPtr.p->transId1 = signal->theData[2];
     tatrOpPtr.p->transId2 = signal->theData[3];
+    validate_lock_queue(tatrOpPtr);
   } else {
     jam();
     signal->theData[0] = cminusOne;

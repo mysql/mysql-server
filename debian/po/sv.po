@@ -1,0 +1,225 @@
+# Translators, if you are not familiar with the PO format, gettext
+# documentation is worth reading, especially sections dedicated to
+# this format, e.g. by running:
+# info -n '(gettext)PO Files'
+# info -n '(gettext)Header Entry'
+# Some information specific to po-debconf are available at
+# /usr/share/doc/po-debconf/README-trans
+# or http://www.debian.org/intl/l10n/po-debconf/README-trans
+# Developers do not need to manually edit POT or PO files.
+# , fuzzy
+#
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: mysql-dfsg-5.0 5.0.21-3\n"
+"Report-Msgid-Bugs-To: ch@debian.org\n"
+"POT-Creation-Date: 2007-02-16 22:27+0100\n"
+"PO-Revision-Date: 2007-02-18 14:48+0100\n"
+"Last-Translator: Andreas Henriksson <andreas@fatal.se>\n"
+"Language-Team: Swedish <tp-sv@listor.tp-sv.se>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=iso-8859-1\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Poedit-Language: Swedish\n"
+"X-Poedit-Country: SWEDEN\n"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:1001
+msgid "Do you really want to downgrade?"
+msgstr "Vill du verkligen nedgradera?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:1001
+msgid "WARNING: The file /var/lib/mysql/debian-*.flag exists. This indicates that a mysql-server package with a higher version has been installed before. It can not be guaranteed that this version can use its data."
+msgstr "VARNING: Filen /var/lib/mysql/debian-*.flag existerar. Detta betyder att paketet mysql-server med högre versionsnummer har installerats tidigare. Det kan inte garanteras att denna version kan använda dess data."
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "Important note for NIS/YP users!"
+msgstr "Viktig notering för NIS/YP-användare!"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "To use mysql you must install an equivalent user and group to the following and ensure yourself that /var/lib/mysql has the right permissions (the uid/gid may be different)."
+msgstr "För att använda MySQL måste du installera en motsvarande användare och grupp till följande och se till att /var/lib/mysql har korrekta rättigheter satta (uid/gid kan vara olika)."
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+msgstr "/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "/etc/group:       mysql:x:101:"
+msgstr "/etc/group:       mysql:x:101:"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.0.templates:2001
+msgid "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+msgstr "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:3001
+msgid "Remove the databases used by all MySQL versions?"
+msgstr "Ta bort databaserna som används av alla MySQL-versioner?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:3001
+msgid "The script is about to remove the data directory /var/lib/mysql. If it is planned to just install a higher MySQL version or if a different mysql-server package is already using it, the data should be kept."
+msgstr "Scriptet kommer strax ta bort data-katalogen /var/lib/mysql. Om det planerade var att bara installera en högre MySQL-version eller om ett annan mysql-server paket redan använde det, skall datan sparas."
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:4001
+msgid "Should MySQL start on boot?"
+msgstr "Ska MySQL startas när systemet startar upp?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:4001
+msgid "The MySQL can start automatically on boot time or only if you manually type '/etc/init.d/mysql start'."
+msgstr "MySQL kan startas när systemet startas upp eller endast om du manuellt skriver '/etc/init.d/mysql start'."
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid "New password for MySQL \"root\" user:"
+msgstr "Nytt lösenord för MySQLs \"root\"-användare:"
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid "It is highly recommended that you set a password for the MySQL administrative \"root\" user."
+msgstr "Det är starkt rekommenderat att du sätter ett lösenord för MySQLs administrativa \"root\"-användare."
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.0.templates:5001
+msgid "If you do not provide a password no changes will be made to the account."
+msgstr "Om du inte anger ett lösenord kommer inga ändringar att göras för kontot."
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid "Unable to set password for MySQL \"root\" user"
+msgstr "Lyckades inte sätta lösenord för MySQLs \"root\"-användare"
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid "It seems an error occurred while setting the password for the MySQL administrative user.  This may have happened because the user already has a password, or because there was a problem communicating with the MySQL server."
+msgstr "Det verkar som ett fel uppstod när det skulle sättas ett lösenord för MySQLs administrativa användare. Detta kan ha skett för att användaren redan har ett lösenord satt, eller på grund av problem med att kommunicera med MySQL-servern."
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.0.templates:6001
+msgid "When installation finishes, you should verify that the account is properly protected with a password (see README.Debian for more information)."
+msgstr "När installationen är klar, bör du kontrollera så att kontot är riktigt skyddat av ett lösenord (läs README.Debian för mer information)."
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:7001
+msgid "Support MySQL connections from hosts running Debian \"sarge\" or older?"
+msgstr "Behöver du MySQL-anslutningar från system som kör Debian \"Sarge\" eller äldre?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.0.templates:7001
+msgid "The way passwords were stored was not very secure. This has been improved with the drawback that clients (e.g. PHP) from hosts running Debian 3.1 Sarge will not be able to connect to account which are new or whose password have been changed. See /usr/share/doc/mysql-server-5.0/README.Debian."
+msgstr "Sättet som lösenorden lagrades på var inte särskilt säkert. Detta har förbättrats på bekostnad av att klienter (t.ex. PHP) från system som kör Debian 3.1 Sarge inte kan ansluta till konton som är nya eller vars lösenord har ändrats. Se /usr/share/doc/mysql-server-5.0/README.Debian."
+
+#~ msgid "Cannot upgrade if ISAM tables are present!"
+#~ msgstr "Kan inte uppgradera om ISAM-tabeller finns!"
+#~ msgid ""
+#~ "Recent versions of MySQL can no longer use the old ISAM table format and "
+#~ "it is necessary to convert your tables to e.g. MyISAM before upgrading by "
+#~ "using \"mysql_convert_table_format\" or \"ALTER TABLE x ENGINE=MyISAM\". "
+#~ "The installation of mysql-server-5.0 will now abort. In case your old "
+#~ "mysql-server-4.1 gets removed nevertheless just reinstall it to convert "
+#~ "those tables."
+#~ msgstr ""
+#~ "Senaste versionerna av MySQL kan inte längre använda gamla ISAM-"
+#~ "tabellformatet och det är nödvändigt att konvertera dina tabeller till "
+#~ "exempelvis MyISAM före uppgradering med \"mysql_convert_table_format\" "
+#~ "eller \"ALTER TABLE x ENGINE=MyISAM\". Installationen av mysql-server-5.0 "
+#~ "kommer nu att avbrytas. Om ditt gamla mysql-server-4.1-paket tas bort är "
+#~ "det bara att installera om det för att konvertera de tabellerna."
+#~ msgid "Update Hints"
+#~ msgstr "Uppdateringstips"
+#~ msgid ""
+#~ "You have to run \"mysql_upgrade\" after the upgrade, else tables can be  "
+#~ "corrupted! This script also enhances the privilege tables but is not  "
+#~ "supposed to give any user more rights that he had before,"
+#~ msgstr ""
+#~ "Du måste köra \"mysql_upgrade\" efter uppgraderingen, annars kan "
+#~ "tabellerna vara skadade! Detta skript utökar även privilegietabellerna "
+#~ "men är inte tänkte att ge någon användare mer befogenhet än vad han hade "
+#~ "tidigare,"
+#~ msgid "Please also read http://www.mysql.com/doc/en/Upgrade.html"
+#~ msgstr "Läs även http://www.mysql.com/doc/en/Upgrade.html"
+#~ msgid "Install Hints"
+#~ msgstr "Installationstips"
+#~ msgid ""
+#~ "On upgrades from MySQL 3.23, as shipped with Debian Woody, symlinks in "
+#~ "place of /var/lib/mysql or /var/log/mysql gets accidently removed and "
+#~ "have manually be restored."
+#~ msgstr ""
+#~ "Vid uppgraderingar från MySQL 3.23 som skickades med Debian Woody har "
+#~ "symboliska länkar i /var/lib/mysql eller /var/log/mysql av misstag tagits "
+#~ "bort och måste manuellt återskapas."
+#~ msgid ""
+#~ "MySQL will only install if you have a non-numeric hostname that is "
+#~ "resolvable via the /etc/hosts file. E.g. if the \"hostname\" command "
+#~ "returns \"myhostname\" then there must be a line like \"10.0.0.1 "
+#~ "myhostname\"."
+#~ msgstr ""
+#~ "MySQL kan endast installeras om du har ett icke-numeriskt värdnamn som "
+#~ "kan slås upp via filen /etc/hosts. Exempelvis om kommandot \"hostname\" "
+#~ "returnerar \"mittnamn\" så bör det finnas en rad som liknar \"10.0.0.1 "
+#~ "mittnamn\"."
+#~ msgid ""
+#~ "A new mysql user \"debian-sys-maint\" will be created. This mysql account "
+#~ "is used in the start/stop and cron scripts. Don't delete."
+#~ msgstr ""
+#~ "En ny MySQL-användare kallad \"debian-sys-maint\" kommer att skapas. "
+#~ "Detta MySQL-konto används för start/stopp och cron-skript. Ta inte bort "
+#~ "det."
+#~ msgid ""
+#~ "Please remember to set a PASSWORD for the MySQL root user! If you use a /"
+#~ "root/.my.cnf, always write the \"user\" and the \"password\" lines in "
+#~ "there, never only the password!"
+#~ msgstr ""
+#~ "Tänk på att sätta ett LÖSENORD för MySQL:s root-användare! Om du "
+#~ "använder /root/.my.cnf, skriv då alltid en \"user\"-rad och en \"password"
+#~ "\"-rad i den, aldrig med endast lösenordet!"
+#~ msgid ""
+#~ "See /usr/share/doc/mysql-server-5.0/README.Debian for more information."
+#~ msgstr ""
+#~ "Se /usr/share/doc/mysql-server-5.0/README.Debian för mer information."
+#~ msgid ""
+#~ "Should I remove the complete /var/lib/mysql directory tree which is used "
+#~ "by all MySQL versions, not necessarily only the one you are about to "
+#~ "purge?"
+#~ msgstr ""
+#~ "Ska jag ta bort hela katalogträdet i /var/lib/mysql som används av alla "
+#~ "MySQL-versioner och inte bara för den som du nu kommer att rensa ut?"
+#~ msgid ""
+#~ "Rarely, e.g. on new major versions, the privilege system is improved. To "
+#~ "make use of it mysql_fix_privilege_tables must be executed manually. The "
+#~ "script is not supposed to give any user more rights that he had before,"
+#~ msgstr ""
+#~ "Sällan, exempelvis i nya större versioner, har behörighetssystemet "
+#~ "förbättrats. För att använda det måste skriptet "
+#~ "mysql_fix_privilege_tables köras manuellt. Skriptet är inte tänkt att ge "
+#~ "någon användare högre behörighet än han hade tidigare."
+

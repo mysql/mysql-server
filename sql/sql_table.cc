@@ -1922,22 +1922,25 @@ static int sort_keys(KEY *a, KEY *b)
     set_or_name   "SET" or "ENUM" string for warning message
     name	  name of the checked column
     typelib	  list of values for the column
+    dup_val_count  returns count of duplicate elements
 
   DESCRIPTION
     This function prints an warning for each value in list
     which has some duplicates on its right
 
   RETURN VALUES
-    void
+    0             ok
+    1             Error
 */
 
-void check_duplicates_in_interval(const char *set_or_name,
+bool check_duplicates_in_interval(const char *set_or_name,
                                   const char *name, TYPELIB *typelib,
-                                  CHARSET_INFO *cs)
+                                  CHARSET_INFO *cs, unsigned int *dup_val_count)
 {
   TYPELIB tmp= *typelib;
   const char **cur_value= typelib->type_names;
   unsigned int *cur_length= typelib->type_lengths;
+  *dup_val_count= 0;  
   
   for ( ; tmp.count > 1; cur_value++, cur_length++)
   {
@@ -1946,12 +1949,21 @@ void check_duplicates_in_interval(const char *set_or_name,
     tmp.count--;
     if (find_type2(&tmp, (const char*)*cur_value, *cur_length, cs))
     {
+      if ((current_thd->variables.sql_mode &
+         (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
+      {
+        my_error(ER_DUPLICATED_VALUE_IN_TYPE, MYF(0),
+                 name,*cur_value,set_or_name);
+        return 1;
+      }
       push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_NOTE,
 			  ER_DUPLICATED_VALUE_IN_TYPE,
 			  ER(ER_DUPLICATED_VALUE_IN_TYPE),
 			  name,*cur_value,set_or_name);
+      (*dup_val_count)++;
     }
   }
+  return 0;
 }
 
 
@@ -2013,6 +2025,7 @@ int prepare_create_field(create_field *sql_field,
 			 int *timestamps, int *timestamps_with_niladic,
 			 longlong table_flags)
 {
+  unsigned int dup_val_count;
   DBUG_ENTER("prepare_field");
 
   /*
@@ -2086,9 +2099,10 @@ int prepare_create_field(create_field *sql_field,
     if (sql_field->charset->state & MY_CS_BINSORT)
       sql_field->pack_flag|=FIELDFLAG_BINARY;
     sql_field->unireg_check=Field::INTERVAL_FIELD;
-    check_duplicates_in_interval("ENUM",sql_field->field_name,
-                                 sql_field->interval,
-                                 sql_field->charset);
+    if (check_duplicates_in_interval("ENUM",sql_field->field_name,
+                                     sql_field->interval,
+                                     sql_field->charset, &dup_val_count))
+      DBUG_RETURN(1);
     break;
   case MYSQL_TYPE_SET:
     sql_field->pack_flag=pack_length_to_packflag(sql_field->pack_length) |
@@ -2096,9 +2110,16 @@ int prepare_create_field(create_field *sql_field,
     if (sql_field->charset->state & MY_CS_BINSORT)
       sql_field->pack_flag|=FIELDFLAG_BINARY;
     sql_field->unireg_check=Field::BIT_FIELD;
-    check_duplicates_in_interval("SET",sql_field->field_name,
-                                 sql_field->interval,
-                                 sql_field->charset);
+    if (check_duplicates_in_interval("SET",sql_field->field_name,
+                                     sql_field->interval,
+                                     sql_field->charset, &dup_val_count))
+      DBUG_RETURN(1);
+    /* Check that count of unique members is not more then 64 */
+    if (sql_field->interval->count -  dup_val_count > sizeof(longlong)*8)
+    {
+       my_error(ER_TOO_BIG_SET, MYF(0), sql_field->field_name);
+       DBUG_RETURN(1);
+    }
     break;
   case MYSQL_TYPE_DATE:			// Rest of string types
   case MYSQL_TYPE_NEWDATE:
@@ -2541,6 +2562,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
   {
     DBUG_PRINT("info", ("key name: '%s'  type: %d", key->name ? key->name :
                         "(none)" , key->type));
+    LEX_STRING key_name_str;
     if (key->type == Key::FOREIGN_KEY)
     {
       fk_key_count++;
@@ -2562,7 +2584,10 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       my_error(ER_TOO_MANY_KEY_PARTS,MYF(0),tmp);
       DBUG_RETURN(-1);
     }
-    if (key->name && strlen(key->name) > NAME_LEN)
+    key_name_str.str= (char*) key->name;
+    key_name_str.length= key->name ? strlen(key->name) : 0;
+    if (check_string_char_length(&key_name_str, "", NAME_CHAR_LEN,
+                                 system_charset_info, 1))
     {
       my_error(ER_TOO_LONG_IDENT, MYF(0), key->name);
       DBUG_RETURN(-1);
@@ -2791,6 +2816,12 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       {
 	column->length*= sql_field->charset->mbmaxlen;
 
+        if (key->type == Key::SPATIAL && column->length)
+        {
+          my_error(ER_WRONG_SUB_KEY, MYF(0));
+	  DBUG_RETURN(-1);
+	}
+
 	if (f_is_blob(sql_field->pack_flag) ||
             (f_is_geom(sql_field->pack_flag) && key->type != Key::SPATIAL))
 	{
@@ -2884,6 +2915,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	}
 	else if (!f_is_geom(sql_field->pack_flag) &&
 		  (column->length > length ||
+                   !Field::type_can_have_key_part (sql_field->sql_type) ||
 		   ((f_is_packed(sql_field->pack_flag) ||
 		     ((file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
 		      (key_info->flags & HA_NOSAME))) &&
@@ -3481,6 +3513,7 @@ bool mysql_create_table_internal(THD *thd,
   {
     bool create_if_not_exists =
       create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS;
+
     if (ha_table_exists_in_engine(thd, db, table_name))
     {
       DBUG_PRINT("info", ("Table with same name already existed in handler"));
@@ -3931,7 +3964,9 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
   /*
     Check if this is a table type that stores index and data separately,
-    like ISAM or MyISAM
+    like ISAM or MyISAM. We assume fixed order of engine file name
+    extentions array. First element of engine file name extentions array
+    is meta/index file extention. Second element - data file extention. 
   */
   ext= table->file->bas_ext();
   if (!ext[0] || !ext[1])
@@ -4042,7 +4077,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
   if (end_active_trans(thd))
     DBUG_RETURN(1);
-  field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
+  field_list.push_back(item = new Item_empty_string("Table", NAME_CHAR_LEN*2));
   item->maybe_null = 1;
   field_list.push_back(item = new Item_empty_string("Op", 10));
   item->maybe_null = 1;
@@ -4611,6 +4646,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   char tmp_path[FN_REFLEN];
 #endif
+  char ts_name[FN_LEN];
   TABLE_LIST src_tables_list, dst_tables_list;
   DBUG_ENTER("mysql_create_like_table");
 
@@ -4624,7 +4660,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   /*
     Validate the source table
   */
-  if (table_ident->table.length > NAME_LEN ||
+  if (check_string_char_length(&table_ident->table, "", NAME_CHAR_LEN,
+                               system_charset_info, 1) ||
       (table_ident->table.length &&
        check_table_name(src_table,table_ident->table.length)))
   {
@@ -4690,6 +4727,18 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
 
   if (simple_open_n_lock_tables(thd, &src_tables_list))
     DBUG_RETURN(TRUE);
+
+  /*
+    For bug#25875, Newly created table through CREATE TABLE .. LIKE
+                   has no ndb_dd attributes;
+    Add something to get possible tablespace info from src table,
+    it can get valid tablespace name only for disk-base ndb table
+  */
+  if ((src_tables_list.table->file->get_tablespace_name(thd, ts_name, FN_LEN)))
+  {
+    create_info->tablespace= ts_name;
+    create_info->storage_media= HA_SM_DISK;
+  }
 
   /*
     Validate the destination table
@@ -5859,6 +5908,8 @@ view_err:
          */
         if (!Field::type_can_have_key_part(cfield->field->type()) ||
             !Field::type_can_have_key_part(cfield->sql_type) ||
+            /* spatial keys can't have sub-key length */
+            (key_info->flags & HA_SPATIAL) ||
             (cfield->field->field_length == key_part_length &&
              !f_is_blob(key_part->key_type)) ||
 	    (cfield->length && (cfield->length < key_part_length /
@@ -6742,7 +6793,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   alter_table_manage_keys(to, from->file->indexes_are_disabled(), keys_onoff);
 
   /* We can abort alter table for any table type */
-  thd->no_trans_update= 0;
+  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= !ignore && test(thd->variables.sql_mode &
                                          (MODE_STRICT_TRANS_TABLES |
                                           MODE_STRICT_ALL_TABLES));
@@ -6829,7 +6880,9 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       copy_ptr->do_copy(copy_ptr);
     }
     prev_insert_id= to->file->next_insert_id;
-    if ((error=to->file->ha_write_row((byte*) to->record[0])))
+    error=to->file->write_row((byte*) to->record[0]);
+    to->auto_increment_field_not_null= FALSE;
+    if (error)
     {
       if (!ignore ||
           to->file->is_fatal_error(error, HA_CHECK_DUP))
@@ -6939,7 +6992,8 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
   item->maybe_null= 1;
-  field_list.push_back(item=new Item_int("Checksum",(longlong) 1,21));
+  field_list.push_back(item= new Item_int("Checksum", (longlong) 1,
+                                          MY_INT64_NUM_DECIMAL_DIGITS));
   item->maybe_null= 1;
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))

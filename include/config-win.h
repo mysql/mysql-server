@@ -172,6 +172,7 @@ typedef uint rf_SetTimer;
 #endif
 #define VOID_SIGHANDLER
 #define SIZEOF_CHAR		1
+#define SIZEOF_INT		4
 #define SIZEOF_LONG		4
 #define SIZEOF_LONG_LONG	8
 #define SIZEOF_OFF_T		8
@@ -424,14 +425,8 @@ inline double ulonglong2double(ulonglong value)
 #define shared_memory_buffer_length 16000
 #define default_shared_memory_base_name "MYSQL"
 
-#ifdef CYBOZU
-#define MYSQL_DEFAULT_CHARSET_NAME "utf8"
-#define MYSQL_DEFAULT_COLLATION_NAME "utf8_general_cs"
-#define HAVE_UTF8_GENERAL_CS 1
-#else
 #define MYSQL_DEFAULT_CHARSET_NAME "latin1"
 #define MYSQL_DEFAULT_COLLATION_NAME "latin1_swedish_ci"
-#endif
 
 #define HAVE_SPATIAL 1
 #define HAVE_RTREE_KEYS 1
@@ -442,10 +437,8 @@ inline double ulonglong2double(ulonglong value)
 /* Define charsets you want */
 /* #undef HAVE_CHARSET_armscii8 */
 /* #undef HAVE_CHARSET_ascii */
-#ifndef CYBOZU
 #define HAVE_CHARSET_big5 1
 #define HAVE_CHARSET_cp1250 1
-#endif
 /* #undef HAVE_CHARSET_cp1251 */
 /* #undef HAVE_CHARSET_cp1256 */
 /* #undef HAVE_CHARSET_cp1257 */
@@ -454,33 +447,27 @@ inline double ulonglong2double(ulonglong value)
 /* #undef HAVE_CHARSET_cp866 */
 #define HAVE_CHARSET_cp932 1
 /* #undef HAVE_CHARSET_dec8 */
-#ifndef CYBOZU
 #define HAVE_CHARSET_eucjpms 1
 #define HAVE_CHARSET_euckr 1
 #define HAVE_CHARSET_gb2312 1
 #define HAVE_CHARSET_gbk 1
-#endif
 /* #undef HAVE_CHARSET_greek */
 /* #undef HAVE_CHARSET_hebrew */
 /* #undef HAVE_CHARSET_hp8 */
 /* #undef HAVE_CHARSET_keybcs2 */
 /* #undef HAVE_CHARSET_koi8r */
 /* #undef HAVE_CHARSET_koi8u */
-#ifndef CYBOZU
 #define HAVE_CHARSET_latin1 1
 #define HAVE_CHARSET_latin2 1
-#endif
 /* #undef HAVE_CHARSET_latin5 */
 /* #undef HAVE_CHARSET_latin7 */
 /* #undef HAVE_CHARSET_macce */
 /* #undef HAVE_CHARSET_macroman */
 #define HAVE_CHARSET_sjis 1
 /* #undef HAVE_CHARSET_swe7 */
-#ifndef CYBOZU
 #define HAVE_CHARSET_tis620 1
 #define HAVE_CHARSET_ucs2 1
 #define HAVE_CHARSET_ujis 1
-#endif
 #define HAVE_CHARSET_utf8 1
 #define HAVE_UCA_COLLATIONS 1
 

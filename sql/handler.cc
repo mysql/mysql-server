@@ -844,7 +844,7 @@ int ha_rollback_trans(THD *thd, bool all)
     the error log; but we don't want users to wonder why they have this
     message in the error log, so we don't send it.
   */
-  if (is_real_trans && (thd->options & OPTION_STATUS_NO_TRANS_UPDATE) &&
+  if (is_real_trans && thd->no_trans_update.all &&
       !thd->slave_thread && thd->killed != THD::KILL_CONNECTION)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_WARNING_NOT_COMPLETE_ROLLBACK,
@@ -1143,9 +1143,9 @@ bool mysql_xa_recover(THD *thd)
   XID_STATE *xs;
   DBUG_ENTER("mysql_xa_recover");
 
-  field_list.push_back(new Item_int("formatID",0,11));
-  field_list.push_back(new Item_int("gtrid_length",0,11));
-  field_list.push_back(new Item_int("bqual_length",0,11));
+  field_list.push_back(new Item_int("formatID", 0, MY_INT32_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_int("gtrid_length", 0, MY_INT32_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_int("bqual_length", 0, MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("data",XIDDATASIZE));
 
   if (protocol->send_fields(&field_list,
@@ -1753,7 +1753,6 @@ int handler::update_auto_increment()
   bool append= FALSE;
   THD *thd= table->in_use;
   struct system_variables *variables= &thd->variables;
-  bool auto_increment_field_not_null;
   DBUG_ENTER("handler::update_auto_increment");
 
   /*
@@ -1761,11 +1760,9 @@ int handler::update_auto_increment()
     than the interval, but not smaller.
   */
   DBUG_ASSERT(next_insert_id >= auto_inc_interval_for_cur_row.minimum());
-  auto_increment_field_not_null= table->auto_increment_field_not_null;
-  table->auto_increment_field_not_null= FALSE; // to reset for next row
 
   if ((nr= table->next_number_field->val_int()) != 0 ||
-      auto_increment_field_not_null &&
+      table->auto_increment_field_not_null &&
       thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
   {
     /*
@@ -1843,7 +1840,7 @@ int handler::update_auto_increment()
       nr= compute_next_insert_id(nr-1, variables);
     }
     
-    if (table->s->next_number_key_offset == 0)
+    if (table->s->next_number_keypart == 0)
     {
       /* We must defer the appending until "nr" has been possibly truncated */
       append= TRUE;
@@ -1963,7 +1960,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
                                         table->read_set);
   column_bitmaps_signal();
   index_init(table->s->next_number_index, 1);
-  if (!table->s->next_number_key_offset)
+  if (table->s->next_number_keypart == 0)
   {						// Autoincrement at key-start
     error=index_last(table->record[1]);
     /*
@@ -1979,7 +1976,8 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
     key_copy(key, table->record[0],
              table->key_info + table->s->next_number_index,
              table->s->next_number_key_offset);
-    error= index_read(table->record[1], key, table->s->next_number_key_offset,
+    error= index_read(table->record[1], key,
+                      make_prev_keypart_map(table->s->next_number_keypart),
                       HA_READ_PREFIX_LAST);
     /*
       MySQL needs to call us for next row: assume we are inserting ("a",null)
@@ -3079,9 +3077,9 @@ int handler::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
        multi_range_curr < multi_range_end;
        multi_range_curr++)
   {
-    result= read_range_first(multi_range_curr->start_key.length ?
+    result= read_range_first(multi_range_curr->start_key.keypart_map ?
                              &multi_range_curr->start_key : 0,
-                             multi_range_curr->end_key.length ?
+                             multi_range_curr->end_key.keypart_map ?
                              &multi_range_curr->end_key : 0,
                              test(multi_range_curr->range_flag & EQ_RANGE),
                              multi_range_sorted);
@@ -3146,9 +3144,9 @@ int handler::read_multi_range_next(KEY_MULTI_RANGE **found_range_p)
          multi_range_curr < multi_range_end;
          multi_range_curr++)
     {
-      result= read_range_first(multi_range_curr->start_key.length ?
+      result= read_range_first(multi_range_curr->start_key.keypart_map ?
                                &multi_range_curr->start_key : 0,
-                               multi_range_curr->end_key.length ?
+                               multi_range_curr->end_key.keypart_map ?
                                &multi_range_curr->end_key : 0,
                                test(multi_range_curr->range_flag & EQ_RANGE),
                                multi_range_sorted);
@@ -3207,7 +3205,7 @@ int handler::read_range_first(const key_range *start_key,
   else
     result= index_read(table->record[0],
 		       start_key->key,
-		       start_key->length,
+                       start_key->keypart_map,
 		       start_key->flag);
   if (result)
     DBUG_RETURN((result == HA_ERR_KEY_NOT_FOUND) 
@@ -3279,15 +3277,19 @@ int handler::compare_key(key_range *range)
   return cmp;
 }
 
+
 int handler::index_read_idx(byte * buf, uint index, const byte * key,
-			     uint key_len, enum ha_rkey_function find_flag)
+                            key_part_map keypart_map,
+                            enum ha_rkey_function find_flag)
 {
-  int error= ha_index_init(index, 0);
+  int error, error1;
+  error= index_init(index, 0);
   if (!error)
-    error= index_read(buf, key, key_len, find_flag);
-  if (!error)
-    error= ha_index_end();
-  return error;
+  {
+    error= index_read(buf, key, keypart_map, find_flag);
+    error1= index_end();
+  }
+  return error ?  error : error1;
 }
 
 

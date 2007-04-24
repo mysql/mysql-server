@@ -1810,7 +1810,6 @@ select a,hex(s1) from t1;
 select hex(s1) from t2;
 
 drop table t2,t1;
-
 # Ensure that <tablename>_ibfk_0 is not mistreated as a
 # generated foreign key identifier.  (Bug #16387)
 
@@ -2292,6 +2291,54 @@ DELETE CASCADE ON UPDATE CASCADE;
 
 SHOW CREATE TABLE t2;
 DROP TABLE t2, t1;
+
+#
+# Bug #25927: Prevent ALTER TABLE ... MODIFY ... NOT NULL on columns
+# for which there is a foreign key constraint ON ... SET NULL.
+#
+
+CREATE TABLE t1 (a INT, INDEX(a)) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT, INDEX(a)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
+--replace_regex /'\.\/test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error 1025
+ALTER TABLE t2 MODIFY a INT NOT NULL;
+DELETE FROM t1;
+DROP TABLE t2,t1;
+
+#
+# Bug #26835: table corruption after delete+insert
+#
+
+CREATE TABLE t1 (a VARCHAR(5) COLLATE utf8_unicode_ci PRIMARY KEY)
+ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0xEFBCA4EFBCA4EFBCA4);
+DELETE FROM t1;
+INSERT INTO t1 VALUES ('DDD');
+SELECT * FROM t1;
+DROP TABLE t1;
+
+#
+# Bug #23313 (AUTO_INCREMENT=# not reported back for InnoDB tables)
+# Bug #21404 (AUTO_INCREMENT value reset when Adding FKEY (or ALTER?))
+#
+
+CREATE TABLE t1 (id int PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB
+AUTO_INCREMENT=42;
+
+INSERT INTO t1 VALUES (0),(347),(0);
+SELECT * FROM t1;
+
+SHOW CREATE TABLE t1;
+
+CREATE TABLE t2 (id int PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t2 VALUES(42),(347),(348);
+ALTER TABLE t1 ADD CONSTRAINT t1_t2 FOREIGN KEY (id) REFERENCES t2(id);
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1,t2;
 
 #######################################################################
 #                                                                     #

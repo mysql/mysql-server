@@ -51,8 +51,6 @@ int my_pthread_getprio(pthread_t thread_id)
   int policy;
   if (!pthread_getschedparam(thread_id,&policy,&tmp_sched_param))
   {
-    DBUG_PRINT("thread",("policy: %d  priority: %d",
-			 policy,tmp_sched_param.sched_priority));
     return tmp_sched_param.sched_priority;
   }
 #endif
@@ -314,8 +312,6 @@ void sigwait_handle_sig(int sig)
   pthread_mutex_unlock(&LOCK_sigwait);
 }
 
-extern pthread_t alarm_thread;
-
 void *sigwait_thread(void *set_arg)
 {
   sigset_t *set=(sigset_t*) set_arg;
@@ -334,7 +330,9 @@ void *sigwait_thread(void *set_arg)
       sigaction(i, &sact, (struct sigaction*) 0);
     }
   }
-  sigaddset(set,THR_CLIENT_ALARM);
+  /* Ensure that init_thr_alarm() is called */
+  DBUG_ASSERT(thr_client_alarm);
+  sigaddset(set, thr_client_alarm);
   pthread_sigmask(SIG_UNBLOCK,(sigset_t*) set,(sigset_t*) 0);
   alarm_thread=pthread_self();			/* For thr_alarm */
 

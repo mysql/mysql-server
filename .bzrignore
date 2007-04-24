@@ -352,8 +352,11 @@ client/.libs/mysqltest
 client/completion_hash.cpp
 client/decimal.c
 client/insert_test
+client/link_sources
 client/log_event.cc
 client/log_event.h
+client/log_event_old.cc
+client/log_event_old.h
 client/mf_iocache.c
 client/mf_iocache.cc
 client/my_decimal.cc
@@ -379,6 +382,9 @@ client/mysqltestmanager-pwgen
 client/mysqltestmanagerc
 client/mysys_priv.h
 client/readline.cpp
+client/rpl_constants.h
+client/rpl_record_old.cc
+client/rpl_record_old.h
 client/select_test
 client/sql_string.cpp
 client/ssl_test
@@ -574,6 +580,7 @@ help
 help.c
 help.h
 include/check_abi
+include/link_sources
 include/my_config.h
 include/my_global.h
 include/mysql_h.ic
@@ -749,6 +756,7 @@ libmysql/.libs/libmysqlclient.so.15.0.0
 libmysql/conf_to_src
 libmysql/debug/libmysql.exp
 libmysql/libmysql.ver
+libmysql/link_sources
 libmysql/my_static.h
 libmysql/my_time.c
 libmysql/mysys_priv.h
@@ -1084,9 +1092,11 @@ libmysqld/item_uniq.cc
 libmysqld/key.cc
 libmysqld/lib_sql.cpp
 libmysqld/libmysql.c
+libmysqld/link_sources
 libmysqld/lock.cc
 libmysqld/log.cc
 libmysqld/log_event.cc
+libmysqld/log_event_old.cc
 libmysqld/md5.c
 libmysqld/mf_iocache.cc
 libmysqld/mini_client.cc
@@ -1109,6 +1119,8 @@ libmysqld/records.cc
 libmysqld/repl_failsafe.cc
 libmysqld/rpl_filter.cc
 libmysqld/rpl_injector.cc
+libmysqld/rpl_record.cc
+libmysqld/rpl_record_old.cc
 libmysqld/set_var.cc
 libmysqld/simple-test
 libmysqld/slave.cc
@@ -1347,10 +1359,15 @@ mysql-test/suite/funcs_1/r/myisam_trig_03e.warnings
 mysql-test/suite/funcs_1/r/myisam_views.warnings
 mysql-test/suite/funcs_1/r/ndb_trig_03e.warnings
 mysql-test/suite/funcs_1/r/ndb_views.warnings
+mysql-test/suite/partitions/r/dif
 mysql-test/suite/partitions/r/diff
+mysql-test/suite/partitions/r/partition.result
 mysql-test/suite/partitions/r/partition_bit_ndb.warnings
 mysql-test/suite/partitions/r/partition_special_innodb.warnings
 mysql-test/suite/partitions/r/partition_special_myisam.warnings
+mysql-test/suite/partitions/r/partition_t55.out
+mysql-test/suite/partitions/r/partition_t55.refout
+mysql-test/suite/partitions/t/partition.test
 mysql-test/t/index_merge.load
 mysql-test/t/tmp.test
 mysql-test/var
@@ -1763,7 +1780,9 @@ netware/.deps/my_manage.Po
 netware/.deps/mysql_install_db.Po
 netware/.deps/mysql_test_run.Po
 netware/.deps/mysqld_safe.Po
+netware/init_db.sql
 netware/libmysql.imp
+netware/test_db.sql
 pack_isam/*.ds?
 perror/*.ds?
 perror/*.vcproj
@@ -1798,6 +1817,7 @@ repl-tests/test-repl/sum-wlen-slave.master.re
 repl-tests/test-repl/sum-wlen-slave.master.reje
 replace/*.ds?
 replace/*.vcproj
+scripts/comp_sql
 scripts/fill_func_tables
 scripts/fill_func_tables.sql
 scripts/fill_help_tables
@@ -1815,6 +1835,7 @@ scripts/mysql_find_rows
 scripts/mysql_fix_extensions
 scripts/mysql_fix_privilege_tables
 scripts/mysql_fix_privilege_tables.sql
+scripts/mysql_fix_privilege_tables_sql.c
 scripts/mysql_install_db
 scripts/mysql_secure_installation
 scripts/mysql_setpermission
