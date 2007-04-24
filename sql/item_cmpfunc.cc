@@ -62,6 +62,42 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
 
 
 /*
+  Compare row signature of two expressions
+
+  SYNOPSIS:
+    cmp_row_type()
+    item1          the first expression
+    item2         the second expression
+
+  DESCRIPTION
+    The function checks that two expressions have compatible row signatures
+    i.e. that the number of columns they return are the same and that if they
+    are both row expressions then each component from the first expression has 
+    a row signature compatible with the signature of the corresponding component
+    of the second expression.
+
+  RETURN VALUES
+    1  type incompatibility has been detected
+    0  otherwise
+*/
+
+static int cmp_row_type(Item* item1, Item* item2)
+{
+  uint n= item1->cols();
+  if (item2->check_cols(n))
+    return 1;
+  for (uint i=0; i<n; i++)
+  {
+    if (item2->el(i)->check_cols(item1->el(i)->cols()) ||
+        (item1->el(i)->result_type() == ROW_RESULT &&
+         cmp_row_type(item1->el(i), item2->el(i))))
+      return 1;
+  }
+  return 0;
+}
+
+
+/*
   Aggregates result types from the array of items.
 
   SYNOPSIS:
@@ -75,14 +111,32 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
     This function aggregates result types from the array of items. Found type
     supposed to be used later for comparison of values of these items.
     Aggregation itself is performed by the item_cmp_type() function.
+    The function also checks compatibility of row signatures for the
+    submitted items (see the spec for the cmp_row_type function). 
+
+  RETURN VALUES
+    1  type incompatibility has been detected
+    0  otherwise
 */
 
-static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
+static int agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
 {
   uint i;
   type[0]= items[0]->result_type();
   for (i= 1 ; i < nitems ; i++)
+  {
     type[0]= item_cmp_type(type[0], items[i]->result_type());
+    /*
+      When aggregating types of two row expressions we have to check
+      that they have the same cardinality and that each component
+      of the first row expression has a compatible row signature with
+      the signature of the corresponding component of the second row
+      expression.
+    */ 
+    if (type[0] == ROW_RESULT && cmp_row_type(items[0], items[i]))
+      return 1;     // error found: invalid usage of rows
+  }
+  return 0;
 }
 
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
@@ -984,7 +1038,8 @@ void Item_func_between::fix_length_and_dec()
   */
   if (!args[0] || !args[1] || !args[2])
     return;
-  agg_cmp_type(thd, &cmp_type, args, 3);
+  if ( agg_cmp_type(thd, &cmp_type, args, 3))
+    return;
   if (cmp_type == STRING_RESULT &&
       agg_arg_charsets(cmp_collation, args, 3, MY_COLL_CMP_CONV))
    return;
@@ -1532,7 +1587,8 @@ void Item_func_case::fix_length_and_dec()
     for (nagg= 0; nagg < ncases/2 ; nagg++)
       agg[nagg+1]= args[nagg*2];
     nagg++;
-    agg_cmp_type(current_thd, &cmp_type, agg, nagg);
+    if (agg_cmp_type(current_thd, &cmp_type, agg, nagg))
+      return;
     if ((cmp_type == STRING_RESULT) &&
         agg_arg_charsets(cmp_collation, agg, nagg, MY_COLL_CMP_CONV))
     return;
@@ -2013,7 +2069,8 @@ void Item_func_in::fix_length_and_dec()
   uint const_itm= 1;
   THD *thd= current_thd;
   
-  agg_cmp_type(thd, &cmp_type, args, arg_count);
+  if (agg_cmp_type(thd, &cmp_type, args, arg_count))
+    return;
 
   if (cmp_type == STRING_RESULT &&
       agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV))
