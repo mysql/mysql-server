@@ -540,7 +540,28 @@ delete from mysql.tables_priv where user='mysqltest1';
 flush privileges;
 drop database mysqltest;
 
-# End of 4.1 tests
+#
+# Bug #27515: DROP previlege is not required for RENAME TABLE
+#
+connection master;
+create database db27515;
+use db27515;
+create table t1 (a int);
+grant alter on db27515.t1 to user27515@localhost;
+grant insert, create on db27515.t2 to user27515@localhost;
+
+connect (conn27515, localhost, user27515, , db27515);
+connection conn27515;
+--error 1142
+rename table t1 to t2;
+disconnect conn27515;
+
+connection master;
+revoke all privileges, grant option from user27515@localhost;
+drop user user27515@localhost;
+drop database db27515;
+
+--echo End of 4.1 tests
 
 #
 # Bug #16297 In memory grant tables not flushed when users's hostname is ""
