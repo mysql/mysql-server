@@ -113,15 +113,15 @@ private:
  z = Descending (TUX)      - 1  Bit 14
  x = Range Scan (TUX)      - 1  Bit 15
  b = Scan batch            - 10 Bit 16-25 (max 1023)
- d = Distribution key flag
+ d = Distribution key flag - 1  Bit 26
 
            1111111111222222222233
  01234567890123456789012345678901
- ppppppppl hcktzxbbbbbbbbbb
+ ppppppppl hcktzxbbbbbbbbbbd
 */
 
-#define PARALLELL_SHIFT     (0)
-#define PARALLELL_MASK      (255)
+#define PARALLEL_SHIFT     (0)
+#define PARALLEL_MASK      (255)
 
 #define LOCK_MODE_SHIFT     (8)
 #define LOCK_MODE_MASK      (1)
@@ -148,11 +148,12 @@ private:
 #define SCAN_BATCH_MASK  (1023)
 
 #define SCAN_DISTR_KEY_SHIFT (26)
+#define SCAN_DISTR_KEY_MASK (1)
 
 inline
 Uint8
 ScanTabReq::getParallelism(const UintR & requestInfo){
-  return (Uint8)((requestInfo >> PARALLELL_SHIFT) & PARALLELL_MASK);
+  return (Uint8)((requestInfo >> PARALLEL_SHIFT) & PARALLEL_MASK);
 }
 
 inline
@@ -206,58 +207,65 @@ ScanTabReq::clearRequestInfo(UintR & requestInfo){
 inline
 void 
 ScanTabReq::setParallelism(UintR & requestInfo, Uint32 type){
-  ASSERT_MAX(type, PARALLELL_MASK, "ScanTabReq::setParallellism");
-  requestInfo |= (type << PARALLELL_SHIFT);
+  ASSERT_MAX(type, PARALLEL_MASK, "ScanTabReq::setParallelism");
+  requestInfo= (requestInfo & ~(PARALLEL_MASK << PARALLEL_SHIFT)) |
+               ((type & PARALLEL_MASK) << PARALLEL_SHIFT);
 }
 
 inline
 void 
 ScanTabReq::setLockMode(UintR & requestInfo, Uint32 mode){
   ASSERT_MAX(mode, LOCK_MODE_MASK,  "ScanTabReq::setLockMode");
-  requestInfo |= (mode << LOCK_MODE_SHIFT);
+  requestInfo= (requestInfo & ~(LOCK_MODE_MASK << LOCK_MODE_SHIFT)) |
+               ((mode & LOCK_MODE_MASK) << LOCK_MODE_SHIFT);
 }
 
 inline
 void 
 ScanTabReq::setHoldLockFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "ScanTabReq::setHoldLockFlag");
-  requestInfo |= (flag << HOLD_LOCK_SHIFT);
+  requestInfo= (requestInfo & ~(HOLD_LOCK_MASK << HOLD_LOCK_SHIFT)) |
+               ((flag & HOLD_LOCK_MASK) << HOLD_LOCK_SHIFT);
 }
 
 inline
 void 
 ScanTabReq::setReadCommittedFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "ScanTabReq::setReadCommittedFlag");
-  requestInfo |= (flag << READ_COMMITTED_SHIFT);
+  requestInfo= (requestInfo & ~(READ_COMMITTED_MASK << READ_COMMITTED_SHIFT)) |
+               ((flag & READ_COMMITTED_MASK) << READ_COMMITTED_SHIFT);
 }
 
 inline
 void 
 ScanTabReq::setRangeScanFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "ScanTabReq::setRangeScanFlag");
-  requestInfo |= (flag << RANGE_SCAN_SHIFT);
+  requestInfo= (requestInfo & ~(RANGE_SCAN_MASK << RANGE_SCAN_SHIFT)) |
+               ((flag & RANGE_SCAN_MASK) << RANGE_SCAN_SHIFT);
 }
 
 inline
 void 
 ScanTabReq::setDescendingFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "ScanTabReq::setDescendingFlag");
-  requestInfo |= (flag << DESCENDING_SHIFT);
+  requestInfo= (requestInfo & ~(DESCENDING_MASK << DESCENDING_SHIFT)) |
+               ((flag & DESCENDING_MASK) << DESCENDING_SHIFT);
 }
 
 inline
 void 
 ScanTabReq::setTupScanFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "ScanTabReq::setTupScanFlag");
-  requestInfo |= (flag << TUP_SCAN_SHIFT);
+  requestInfo= (requestInfo & ~(TUP_SCAN_MASK << TUP_SCAN_SHIFT)) |
+               ((flag & TUP_SCAN_MASK) << TUP_SCAN_SHIFT);
 }
 
 inline
 void
 ScanTabReq::setScanBatch(Uint32 & requestInfo, Uint32 flag){
   ASSERT_MAX(flag, SCAN_BATCH_MASK,  "ScanTabReq::setScanBatch");
-  requestInfo &= ~(SCAN_BATCH_MASK << SCAN_BATCH_SHIFT);
-  requestInfo |= (flag << SCAN_BATCH_SHIFT);
+  requestInfo= (requestInfo & ~(SCAN_BATCH_MASK << SCAN_BATCH_SHIFT)) |
+               ((flag & SCAN_BATCH_MASK) << SCAN_BATCH_SHIFT);
 }
 
 inline
@@ -270,7 +278,8 @@ inline
 void 
 ScanTabReq::setKeyinfoFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "ScanTabReq::setKeyinfoFlag");
-  requestInfo |= (flag << KEYINFO_SHIFT);
+  requestInfo= (requestInfo & ~(KEYINFO_MASK << KEYINFO_SHIFT)) |
+               ((flag & KEYINFO_MASK) << KEYINFO_SHIFT);
 }
 
 inline
@@ -283,7 +292,8 @@ inline
 void 
 ScanTabReq::setDistributionKeyFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "ScanTabReq::setKeyinfoFlag");
-  requestInfo |= (flag << SCAN_DISTR_KEY_SHIFT);
+  requestInfo= (requestInfo & ~(SCAN_DISTR_KEY_MASK << SCAN_DISTR_KEY_SHIFT)) |
+               ((flag & SCAN_DISTR_KEY_MASK) << SCAN_DISTR_KEY_SHIFT);
 }
 
 /**

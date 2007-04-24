@@ -139,6 +139,7 @@ printusage()
     << "bug tests (no blob test)" << endl
     << "  -bug 4088   ndb api hang with mixed ops on index table" << endl
     << "  -bug 27018  middle partial part write clobbers rest of part" << endl
+    << "  -bug 27370  Potential inconsistent blob reads for ReadCommitted reads" << endl
     << "  -bug nnnn   delete + write gives 626" << endl
     << "  -bug nnnn   acc crash on delete and long key" << endl
     ;
@@ -1857,6 +1858,203 @@ bugtest_27018()
   return 0;
 }
 
+
+struct bug27370_data {
+  Ndb *m_ndb;
+  char m_current_write_value;
+  char *m_writebuf;
+  Uint32 m_blob1_size;
+  Uint32 m_pk1;
+  char m_pk2[g_max_pk2len + 1];
+  bool m_thread_stop;
+};
+
+void *bugtest_27370_thread(void *arg)
+{
+  bug27370_data *data= (bug27370_data *)arg;
+
+  while (!data->m_thread_stop)
+  {
+    memset(data->m_writebuf, data->m_current_write_value, data->m_blob1_size);
+    data->m_current_write_value++;
+
+    NdbConnection *con;
+    if ((con= data->m_ndb->startTransaction()) == 0)
+      return (void *)"Failed to create transaction";
+    NdbOperation *opr;
+    if ((opr= con->getNdbOperation(g_opt.m_tname)) == 0)
+      return (void *)"Failed to create operation";
+    if (opr->writeTuple() != 0)
+      return (void *)"writeTuple() failed";
+    if (opr->equal("PK1", data->m_pk1) != 0)
+      return (void *)"equal(PK1) failed";
+    if (g_opt.m_pk2len != 0)
+      if (opr->equal("PK2", data->m_pk2) != 0)
+        return (void *)"equal(PK2) failed";
+    NdbBlob *bh;
+    if ((bh= opr->getBlobHandle("BL1")) == 0)
+      return (void *)"getBlobHandle() failed";
+    if (bh->setValue(data->m_writebuf, data->m_blob1_size) != 0)
+      return (void *)"setValue() failed";
+    if (con->execute(Commit, AbortOnError, 1) != 0)
+      return (void *)"execute() failed";
+    data->m_ndb->closeTransaction(con);
+  }
+
+  return NULL;                                  // Success
+}
+
+static int
+bugtest_27370()
+{
+  DBG("bug test 27370 - Potential inconsistent blob reads for ReadCommitted reads");
+
+  bug27370_data data;
+
+  data.m_ndb= new Ndb(g_ncc, "TEST_DB");
+  CHK(data.m_ndb->init(20) == 0);
+  CHK(data.m_ndb->waitUntilReady() == 0);
+
+  data.m_current_write_value= 0;
+  data.m_blob1_size= g_opt.m_blob1.m_inline + 10 * g_opt.m_blob1.m_partsize;
+  CHK((data.m_writebuf= new char [data.m_blob1_size]) != 0);
+  data.m_pk1= 27370;
+  memset(data.m_pk2, 'x', g_max_pk2len);
+  data.m_pk2[g_max_pk2len]= '\0';
+  data.m_thread_stop= false;
+
+  memset(data.m_writebuf, data.m_current_write_value, data.m_blob1_size);
+  data.m_current_write_value++;
+
+  CHK((g_con= g_ndb->startTransaction()) != 0);
+  CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
+  CHK(g_opr->writeTuple() == 0);
+  CHK(g_opr->equal("PK1", data.m_pk1) == 0);
+  if (g_opt.m_pk2len != 0)
+    CHK(g_opr->equal("PK2", data.m_pk2) == 0);
+  CHK((g_bh1= g_opr->getBlobHandle("BL1")) != 0);
+  CHK(g_bh1->setValue(data.m_writebuf, data.m_blob1_size) == 0);
+  CHK(g_con->execute(Commit) == 0);
+  g_ndb->closeTransaction(g_con);
+  g_con= NULL;
+
+  pthread_t thread_handle;
+  CHK(pthread_create(&thread_handle, NULL, bugtest_27370_thread, &data) == 0);
+
+  DBG("bug test 27370 - PK blob reads");
+  Uint32 seen_updates= 0;
+  while (seen_updates < 50)
+  {
+    CHK((g_con= g_ndb->startTransaction()) != 0);
+    CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
+    CHK(g_opr->readTuple(NdbOperation::LM_CommittedRead) == 0);
+    CHK(g_opr->equal("PK1", data.m_pk1) == 0);
+    if (g_opt.m_pk2len != 0)
+      CHK(g_opr->equal("PK2", data.m_pk2) == 0);
+    CHK((g_bh1= g_opr->getBlobHandle("BL1")) != 0);
+    CHK(g_con->execute(NoCommit, AbortOnError, 1) == 0);
+
+    const Uint32 loop_max= 10;
+    char read_char;
+    char original_read_char= 0;
+    Uint32 readloop;
+    for (readloop= 0;; readloop++)
+    {
+      if (readloop > 0)
+      {
+        if (readloop > 1)
+        {
+          /* Compare against first read. */
+          CHK(read_char == original_read_char);
+        }
+        else
+        {
+          /*
+            We count the number of times we see the other thread had the
+            chance to update, so that we can be sure it had the opportunity
+            to run a reasonable number of times before we stop.
+          */
+          if (original_read_char != read_char)
+            seen_updates++;
+          original_read_char= read_char;
+        }
+      }
+      if (readloop > loop_max)
+        break;
+      Uint32 readSize= 1;
+      CHK(g_bh1->setPos(urandom(data.m_blob1_size)) == 0);
+      CHK(g_bh1->readData(&read_char, readSize) == 0);
+      CHK(readSize == 1);
+      ExecType commitType= readloop == loop_max ? Commit : NoCommit;
+      CHK(g_con->execute(commitType, AbortOnError, 1) == 0);
+    }
+    g_ndb->closeTransaction(g_con);
+    g_con= NULL;
+  }
+
+  DBG("bug test 27370 - table scan blob reads");
+  seen_updates= 0;
+  while (seen_updates < 50)
+  {
+    CHK((g_con= g_ndb->startTransaction()) != 0);
+    CHK((g_ops= g_con->getNdbScanOperation(g_opt.m_tname)) != 0);
+    CHK(g_ops->readTuples(NdbOperation::LM_CommittedRead) == 0);
+    CHK((g_bh1= g_ops->getBlobHandle("BL1")) != 0);
+    CHK(g_con->execute(NoCommit, AbortOnError, 1) == 0);
+    CHK(g_ops->nextResult(true) == 0);
+
+    const Uint32 loop_max= 10;
+    char read_char;
+    char original_read_char= 0;
+    Uint32 readloop;
+    for (readloop= 0;; readloop++)
+    {
+      if (readloop > 0)
+      {
+        if (readloop > 1)
+        {
+          /* Compare against first read. */
+          CHK(read_char == original_read_char);
+        }
+        else
+        {
+          /*
+            We count the number of times we see the other thread had the
+            chance to update, so that we can be sure it had the opportunity
+            to run a reasonable number of times before we stop.
+          */
+          if (original_read_char != read_char)
+            seen_updates++;
+          original_read_char= read_char;
+        }
+      }
+      if (readloop > loop_max)
+        break;
+      Uint32 readSize= 1;
+      CHK(g_bh1->setPos(urandom(data.m_blob1_size)) == 0);
+      CHK(g_bh1->readData(&read_char, readSize) == 0);
+      CHK(readSize == 1);
+      CHK(g_con->execute(NoCommit, AbortOnError, 1) == 0);
+    }
+
+    CHK(g_ops->nextResult(true) == 1);
+    g_ndb->closeTransaction(g_con);
+    g_con= NULL;
+  }
+
+  data.m_thread_stop= true;
+  void *thread_return;
+  CHK(pthread_join(thread_handle, &thread_return) == 0);
+  DBG("bug 27370 - thread return status: " <<
+      (thread_return ? (char *)thread_return : "<null>"));
+  CHK(thread_return == 0);
+
+  g_con= NULL;
+  g_opr= NULL;
+  g_bh1= NULL;
+  return 0;
+}
+
 static int
 bugtest_2222()
 {
@@ -1874,7 +2072,8 @@ static struct {
   int (*m_test)();
 } g_bugtest[] = {
   { 4088, bugtest_4088 },
-  { 27018, bugtest_27018 }
+  { 27018, bugtest_27018 },
+  { 27370, bugtest_27370 }
 };
 
 NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)

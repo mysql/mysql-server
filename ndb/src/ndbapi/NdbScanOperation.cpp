@@ -136,31 +136,6 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   }
 
   theNdbCon->theScanningOp = this;
-  theLockMode = lm;
-
-  bool lockExcl, lockHoldMode, readCommitted;
-  switch(lm){
-  case NdbScanOperation::LM_Read:
-    lockExcl = false;
-    lockHoldMode = true;
-    readCommitted = false;
-    break;
-  case NdbScanOperation::LM_Exclusive:
-    lockExcl = true;
-    lockHoldMode = true;
-    readCommitted = false;
-    break;
-  case NdbScanOperation::LM_CommittedRead:
-    lockExcl = false;
-    lockHoldMode = false;
-    readCommitted = true;
-    break;
-  default:
-    setErrorCode(4003);
-    return -1;
-  }
-
-  m_keyInfo = ((scan_flags & SF_KeyInfo) || lockExcl) ? 1 : 0;
 
   bool rangeScan = false;
   if (m_accessTable->m_indexType == NdbDictionary::Index::OrderedIndex)
@@ -210,12 +185,12 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   Uint32 reqInfo = 0;
   ScanTabReq::setParallelism(reqInfo, parallel);
   ScanTabReq::setScanBatch(reqInfo, 0);
-  ScanTabReq::setLockMode(reqInfo, lockExcl);
-  ScanTabReq::setHoldLockFlag(reqInfo, lockHoldMode);
-  ScanTabReq::setReadCommittedFlag(reqInfo, readCommitted);
   ScanTabReq::setRangeScanFlag(reqInfo, rangeScan);
   ScanTabReq::setTupScanFlag(reqInfo, tupScan);
   req->requestInfo = reqInfo;
+
+  m_keyInfo = (scan_flags & SF_KeyInfo) ? 1 : 0;
+  setReadLockMode(lm);
 
   Uint64 transId = theNdbCon->getTransactionId();
   req->transId1 = (Uint32) transId;
@@ -234,6 +209,41 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
 
   getFirstATTRINFOScan();
   return 0;
+}
+
+void
+NdbScanOperation::setReadLockMode(LockMode lockMode)
+{
+  bool lockExcl, lockHoldMode, readCommitted;
+  switch (lockMode)
+  {
+    case LM_CommittedRead:
+      lockExcl= false;
+      lockHoldMode= false;
+      readCommitted= true;
+      break;
+    case LM_Read:
+      lockExcl= false;
+      lockHoldMode= true;
+      readCommitted= false;
+      break;
+    case LM_Exclusive:
+      lockExcl= true;
+      lockHoldMode= true;
+      readCommitted= false;
+      m_keyInfo= 1;
+      break;
+    default:
+      /* Not supported / invalid. */
+      assert(false);
+  }
+  theLockMode= lockMode;
+  ScanTabReq *req= CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
+  Uint32 reqInfo= req->requestInfo;
+  ScanTabReq::setLockMode(reqInfo, lockExcl);
+  ScanTabReq::setHoldLockFlag(reqInfo, lockHoldMode);
+  ScanTabReq::setReadCommittedFlag(reqInfo, readCommitted);
+  req->requestInfo= reqInfo;
 }
 
 int
