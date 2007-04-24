@@ -49,7 +49,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_map.h sql_string.h unireg.h \
 			sql_error.h field.h handler.h mysqld_suffix.h \
 			ha_ndbcluster.h ha_ndbcluster_cond.h \
-			ha_ndbcluster_binlog.h ha_ndbcluster_tables.h 
+			ha_ndbcluster_binlog.h ha_ndbcluster_tables.h \
 			ha_partition.h rpl_constants.h \
 			opt_range.h protocol.h rpl_tblmap.h rpl_utility.h \
 			log.h sql_show.h rpl_rli.h rpl_mi.h \
