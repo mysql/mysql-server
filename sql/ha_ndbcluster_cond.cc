@@ -270,7 +270,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                    type == MYSQL_TYPE_DATETIME)
                   ? (context->expecting_field_result(STRING_RESULT) ||
                      context->expecting_field_result(INT_RESULT))
-                  : true)) &&
+                  : TRUE)) &&
                 // Bit fields no yet supported in scan filter
                 type != MYSQL_TYPE_BIT &&
                 // No BLOB support in scan filter
@@ -350,7 +350,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
           }
           else
           {
-            DBUG_PRINT("info", ("Was not expecting field from table %s(%s)",
+            DBUG_PRINT("info", ("Was not expecting field from table %s (%s)",
                                 context->table->s->table_name, 
                                 field->table->s->table_name));
             context->supported= FALSE;
@@ -770,7 +770,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
           DBUG_PRINT("info", ("REAL_ITEM"));
           if (context->expecting(Item::REAL_ITEM)) 
           {
-            DBUG_PRINT("info", ("value %f", ((Item_float *) item)->value));
+            DBUG_PRINT("info", ("value %f", ((Item_float*) item)->value));
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::REAL_ITEM;
             curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
@@ -990,27 +990,28 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
       break;
     Ndb_item *a= cond->next->ndb_item;
     Ndb_item *b, *field, *value= NULL;
-    LINT_INIT(field);
 
     switch (cond->ndb_item->argument_count()) {
     case 1:
-      field= 
-        (a->type == NDB_FIELD)? a : NULL;
+      field= (a->type == NDB_FIELD)? a : NULL;
       break;
     case 2:
       if (!cond->next->next)
+      {
+        field= NULL;
         break;
+      }
       b= cond->next->next->ndb_item;
-      value= 
-        (a->type == NDB_VALUE)? a
-        : (b->type == NDB_VALUE)? b
-        : NULL;
-      field= 
-        (a->type == NDB_FIELD)? a
-        : (b->type == NDB_FIELD)? b
-        : NULL;
+      value= ((a->type == NDB_VALUE) ? a :
+              (b->type == NDB_VALUE) ? b :
+              NULL);
+      field= ((a->type == NDB_FIELD) ? a :
+              (b->type == NDB_FIELD) ? b :
+              NULL);
       break;
     default:
+      field= NULL; //Keep compiler happy
+      DBUG_ASSERT(0);
       break;
     }
     switch ((negated) ? 
