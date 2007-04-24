@@ -1008,6 +1008,7 @@ my_bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
       rw_unlock(&THR_LOCK_plugin);
     }
     plugin= plugins[idx];
+    /* It will stop iterating on first engine error when "func" returns TRUE */
     if (plugin && func(thd, plugin, arg))
         goto err;
   }
