@@ -701,6 +701,8 @@ static bool plugin_add(MEM_ROOT *tmp_root,
       sql_print_error(ER(ER_UDF_EXISTS), name->str);
     DBUG_RETURN(TRUE);
   }
+  /* Clear the whole struct to catch future extensions. */
+  bzero((char*) &tmp, sizeof(tmp));
   if (! (tmp.plugin_dl= plugin_dl_add(dl, report)))
     DBUG_RETURN(TRUE);
   /* Find plugin by name */
@@ -1569,7 +1571,8 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
 {
   TABLE_LIST tables;
   TABLE *table;
-  int error, argc=0;
+  int error, argc;
+  char *argv[2];
   struct st_plugin_int *tmp;
   DBUG_ENTER("mysql_install_plugin");
 
@@ -1585,7 +1588,10 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
 
   pthread_mutex_lock(&LOCK_plugin);
   rw_wrlock(&LOCK_system_variables_hash);
-  error= plugin_add(thd->mem_root, name, dl, &argc, NULL, REPORT_TO_USER);
+  argv[0]= ""; /* handle_options() assumes arg0 (program name) always exists */
+  argv[1]= NULL;
+  argc= 1;
+  error= plugin_add(thd->mem_root, name, dl, &argc, argv, REPORT_TO_USER);
   rw_unlock(&LOCK_system_variables_hash);
 
   if (error || !(tmp= plugin_find_internal(name, MYSQL_ANY_PLUGIN)))

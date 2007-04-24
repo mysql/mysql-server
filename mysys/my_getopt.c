@@ -111,6 +111,9 @@ int handle_options(int *argc, char ***argv,
   int error, i;
 
   LINT_INIT(opt_found);
+  /* handle_options() assumes arg0 (program name) always exists */
+  DBUG_ASSERT(argc && *argc >= 1);
+  DBUG_ASSERT(argv && *argv);
   (*argc)--; /* Skip the program name */
   (*argv)++; /*      --- || ----      */
   init_variables(longopts);
