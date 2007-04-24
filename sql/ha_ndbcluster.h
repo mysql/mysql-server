@@ -310,6 +310,8 @@ bool uses_blob_value(bool all_fields);
   void no_uncommitted_rows_init(THD *);
   void no_uncommitted_rows_reset(THD *);
 
+  void release_completed_operations(NdbTransaction*, bool);
+
   friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*, bool);
   friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*, bool);
@@ -357,7 +359,6 @@ bool uses_blob_value(bool all_fields);
   bool m_force_send;
   ha_rows m_autoincrement_prefetch;
   bool m_transaction_on;
-  void release_completed_operations(NdbTransaction*, bool);
 
   ha_ndbcluster_cond *m_cond;
   bool m_disable_multi_read;
