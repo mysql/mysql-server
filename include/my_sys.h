@@ -31,10 +31,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #include <my_pthread.h>
 #endif
 
-#ifndef _m_ctype_h
 #include <m_ctype.h>                    /* for CHARSET_INFO */
-#endif
-
 #include <stdarg.h>
 #include <typelib.h>
 
