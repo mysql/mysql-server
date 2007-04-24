@@ -18,7 +18,11 @@ insert into t1 values(null, "f");
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
+# at {pos}
+#{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Start: binlog v 4, server v 5.1.18-beta-debug-log created {yymmdd} {HH:MM:SS} at startup
 ROLLBACK/*!*/;
+# at {pos}
+#{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Query	thread_id={integer}	exec_time={integer}	error_code=0
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
@@ -26,21 +30,43 @@ SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))/*!*/;
+# at {pos}
+#{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Intvar
 SET INSERT_ID=1/*!*/;
+# at {pos}
+#{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Query	thread_id={integer}	exec_time={integer}	error_code=0
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")/*!*/;
+# at {pos}
+#{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Intvar
 SET INSERT_ID=2/*!*/;
+# at {pos}
+#{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Query	thread_id={integer}	exec_time={integer}	error_code=0
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "b")/*!*/;
+# at {pos}
+#{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Intvar
 SET INSERT_ID=3/*!*/;
+# at {pos}
+#{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Query	thread_id={integer}	exec_time={integer}	error_code=0
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")/*!*/;
+# at {pos}
+#{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Intvar
 SET INSERT_ID=4/*!*/;
+# at {pos}
+#{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Query	thread_id={integer}	exec_time={integer}	error_code=0
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")/*!*/;
+# at {pos}
+#{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Intvar
 SET INSERT_ID=5/*!*/;
+# at {pos}
+#{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Query	thread_id={integer}	exec_time={integer}	error_code=0
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")/*!*/;
+# at {pos}
+#{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Rotate to master-bin.000002  pos: {pos}
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
