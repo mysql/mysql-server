@@ -5346,7 +5346,7 @@ Disable with --skip-ndbcluster (will save memory).",
    "Maximum time in seconds to wait for the port to become free. "
    "(Default: no wait)", (gptr*) &mysqld_port_timeout,
    (gptr*) &mysqld_port_timeout, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef ENABLED_PROFILING
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   {"profiling_history_size", OPT_PROFILING, "Limit of query profiling memory",
    (gptr*) &global_system_variables.profiling_history_size,
    (gptr*) &max_system_variables.profiling_history_size,
@@ -7685,7 +7685,9 @@ void refresh_status(THD *thd)
 
   /* Reset the counters of all key caches (default and named). */
   process_key_caches(reset_key_cache_counters);
+#ifdef COMMUNITY_SERVER
   flush_status_time= time((time_t*) 0);
+#endif
   pthread_mutex_unlock(&LOCK_status);
 
   /*
