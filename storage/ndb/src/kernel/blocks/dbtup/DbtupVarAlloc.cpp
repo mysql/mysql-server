@@ -76,13 +76,6 @@ Uint32* Dbtup::alloc_var_rec(Fragrecord* fragPtr,
   {
     return 0;
   }
-
-  ndbassert(alloc_size >= tabPtr->m_offsets[MM].m_fix_header_size + 
-	    Tuple_header::HeaderSize);
-  
-  alloc_size -= tabPtr->m_offsets[MM].m_fix_header_size + 
-    Tuple_header::HeaderSize;
-
   
   Local_key varref;
   if (likely(alloc_var_part(fragPtr, tabPtr, alloc_size, &varref) != 0))
@@ -191,11 +184,12 @@ void Dbtup::free_var_rec(Fragrecord* fragPtr,
   return;
 }
 
-int
+Uint32 *
 Dbtup::realloc_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
 			Var_part_ref* refptr, Uint32 oldsz, Uint32 newsz)
 {
   Uint32 add = newsz - oldsz;
+  Uint32 *new_var_ptr;
   Var_page* pageP = (Var_page*)pagePtr.p;
   Local_key oldref;
   refptr->copyout(&oldref);
@@ -203,6 +197,7 @@ Dbtup::realloc_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
   if (pageP->free_space >= add)
   {
     jam();
+    new_var_ptr= pageP->get_ptr(oldref.m_page_idx);
     if(!pageP->is_space_behind_entry(oldref.m_page_idx, add))
     {
       if(0) printf("extra reorg");
@@ -215,11 +210,12 @@ Dbtup::realloc_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
        * the page before reorg_page to save the entry contents.
        */
       Uint32* copyBuffer= cinBuffer;
-      memcpy(copyBuffer, pageP->get_ptr(oldref.m_page_idx), 4*oldsz);
+      memcpy(copyBuffer, new_var_ptr, 4*oldsz);
       pageP->set_entry_len(oldref.m_page_idx, 0);
       pageP->free_space += oldsz;
       pageP->reorg((Var_page*)ctemp_page);
-      memcpy(pageP->get_free_space_ptr(), copyBuffer, 4*oldsz);
+      new_var_ptr= pageP->get_free_space_ptr();
+      memcpy(new_var_ptr, copyBuffer, 4*oldsz);
       pageP->set_entry_offset(oldref.m_page_idx, pageP->insert_pos);
       add += oldsz;
     }
@@ -230,20 +226,20 @@ Dbtup::realloc_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
   {
     Local_key newref;
     Uint32 *src = pageP->get_ptr(oldref.m_page_idx);
-    Uint32 *dst = alloc_var_part(fragPtr, tabPtr, newsz, &newref);
-    if (unlikely(dst == 0))
-      return -1;
+    new_var_ptr = alloc_var_part(fragPtr, tabPtr, newsz, &newref);
+    if (unlikely(new_var_ptr == 0))
+      return NULL;
 
     ndbassert(oldref.m_page_no != newref.m_page_no);
     ndbassert(pageP->get_entry_len(oldref.m_page_idx) == oldsz);
-    memcpy(dst, src, 4*oldsz);
+    memcpy(new_var_ptr, src, 4*oldsz);
     refptr->assign(&newref);
     
     pageP->free_record(oldref.m_page_idx, Var_page::CHAIN);
     update_free_page_list(fragPtr, pagePtr);    
   }
   
-  return 0;
+  return new_var_ptr;
 }
 
 
@@ -406,12 +402,6 @@ Dbtup::alloc_var_rowid(Fragrecord* fragPtr,
   {
     return 0;
   }
-
-  ndbassert(alloc_size >= tabPtr->m_offsets[MM].m_fix_header_size + 
-	    Tuple_header::HeaderSize);
-  
-  alloc_size -= tabPtr->m_offsets[MM].m_fix_header_size + 
-    Tuple_header::HeaderSize;
 
   Local_key varref;
   if (likely(alloc_var_part(fragPtr, tabPtr, alloc_size, &varref) != 0))

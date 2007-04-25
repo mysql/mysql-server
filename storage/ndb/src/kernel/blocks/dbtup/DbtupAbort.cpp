@@ -142,30 +142,38 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
     Uint32 copy_bits= copy->m_header_bits;
     if(! (bits & Tuple_header::ALLOC))
     {
-      if(copy_bits & Tuple_header::MM_GROWN)
+      if(bits & Tuple_header::MM_GROWN)
       {
 	if (0) ndbout_c("abort grow");
 	Ptr<Page> vpage;
 	Uint32 idx= regOperPtr.p->m_tuple_location.m_page_idx;
-	Uint32 mm_vars= regTabPtr.p->m_attributes[MM].m_no_of_varsize;
-	Uint32 *var_part;
+        Uint32 mm_vars= regTabPtr.p->m_attributes[MM].m_no_of_varsize;
+        Uint32 *var_part;
 
-	ndbassert(tuple_ptr->m_header_bits & Tuple_header::CHAINED_ROW);
-	
-	Var_part_ref *ref = 
-	  (Var_part_ref*)tuple_ptr->get_var_part_ptr(regTabPtr.p);
+        ndbassert(tuple_ptr->m_header_bits & Tuple_header::CHAINED_ROW);
+        
+        Var_part_ref *ref = 
+          (Var_part_ref*)tuple_ptr->get_var_part_ptr(regTabPtr.p);
 
-	Local_key tmp; 
-	ref->copyout(&tmp);
+        Local_key tmp; 
+        ref->copyout(&tmp);
 	
-	idx= tmp.m_page_idx;
-	var_part= get_ptr(&vpage, *ref);
-	Var_page* pageP = (Var_page*)vpage.p;
-	Uint32 len= pageP->get_entry_len(idx) & ~Var_page::CHAIN;
-	Uint32 sz = ((((mm_vars + 1) << 1) + (((Uint16*)var_part)[mm_vars]) + 3)>> 2);
-	ndbassert(sz <= len);
-	pageP->shrink_entry(idx, sz);
-	update_free_page_list(regFragPtr.p, vpage);
+        idx= tmp.m_page_idx;
+        var_part= get_ptr(&vpage, *ref);
+        Var_page* pageP = (Var_page*)vpage.p;
+        Uint32 len= pageP->get_entry_len(idx) & ~Var_page::CHAIN;
+
+        /*
+          A MM_GROWN tuple was relocated with a bigger size in preparation for
+          commit, so we need to shrink it back. The original size is stored in
+          the last word of the relocated (oversized) tuple.
+        */
+        ndbassert(len > 0);
+        Uint32 sz= var_part[len-1];
+        ndbassert(sz < len);
+        pageP->shrink_entry(idx, sz);
+        update_free_page_list(regFragPtr.p, vpage);
+        tuple_ptr->m_header_bits= bits & ~Tuple_header::MM_GROWN;
       } 
       else if(bits & Tuple_header::MM_SHRINK)
       {

@@ -611,6 +611,14 @@ max-time: 1500
 cmd: testDict
 args: -l 25 -n DictRestart T1
 
+max-time: 1500
+cmd: testDict
+args: -n TableAddAttrs T7
+
+max-time: 1500
+cmd: testDict
+args: -n TableAddAttrsDuring T7
+
 #
 # TEST NDBAPI
 #
@@ -819,6 +827,10 @@ args: -n Bug25468 T1
 max-time: 1000
 cmd: testNodeRestart
 args: -n Bug27466 T1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n Bug27434 T1
 
 max-time: 1000
 cmd: test_event
