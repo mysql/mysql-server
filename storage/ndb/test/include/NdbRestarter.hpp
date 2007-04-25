@@ -27,14 +27,33 @@ public:
 
   int getDbNodeId(int _i);
 
+  enum RestartFlags {
+    NRRF_INITIAL = 0x1,
+    NRRF_NOSTART = 0x2,
+    NRRF_ABORT   = 0x4
+  };
+
   int restartOneDbNode(int _nodeId, 
 		       bool initial = false, 
 		       bool nostart = false, 
 		       bool abort = false);
 
+  int restartOneDbNode2(int _nodeId, Uint32 flags){
+    return restartOneDbNode(_nodeId,
+                            flags & NRRF_INITIAL,
+                            flags & NRRF_NOSTART,
+                            flags & NRRF_ABORT);
+  }
+
   int restartAll(bool initial = false, 
 		 bool nostart = false, 
 		 bool abort = false);
+  
+  int restartAll2(Uint32 flags){
+    return restartAll(flags & NRRF_INITIAL,
+                      flags & NRRF_NOSTART,
+                      flags & NRRF_ABORT);
+  }
   
   int startAll();
   int startNodes(const int * _nodes, int _num_nodes);

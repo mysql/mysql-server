@@ -6,7 +6,7 @@ Next DBTUP 4029
 Next DBLQH 5045
 Next DBDICT 6007
 Next DBDIH 7183
-Next DBTC 8039
+Next DBTC 8040
 Next CMVMI 9000
 Next BACKUP 10038
 Next DBUTIL 11002
@@ -326,6 +326,8 @@ Test Crashes in handling node restarts
 7132: Crash when receiving START_COPYCONF in starting node
 
 7170: Crash when receiving START_PERMREF (InitialStartRequired)
+
+8039: DBTC delay INCL_NODECONF and kill starting node
 
 7174: Crash starting node before sending DICT_LOCK_REQ
 7175: Master sends one fake START_PERMREF (ZNODE_ALREADY_STARTING_ERROR)

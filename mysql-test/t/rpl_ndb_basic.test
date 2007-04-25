@@ -36,6 +36,37 @@ select * from t1 order by nid;
 select * from t1 order by nid;
 
 --connection master
+delete from t1;
+insert into t1 values(1,"AA", "AA");
+insert into t1 values(2,"BB", "BB");
+insert into t1 values(3,"CC", "CC");
+insert into t1 values(4,"DD", "DD");
+
+begin;
+# delete+insert = update
+delete from t1 where nid = 1;
+insert into t1 values (1,"A2", "A2");
+
+# update+delete = delete
+update t1 set nom="B2" where nid = 2;
+delete from t1 where nid = 2;
+
+# multi-update
+update t1 set nom = "D2" where nid = 4;
+delete from t1 where nid = 4;
+insert into t1 values (4, "D3", "D3");
+update t1 set nom = "D4" where nid = 4;
+
+# insert+delete = nothing
+insert into t1 values (5, "EE", "EE");
+delete from t1 where nid = 5;
+
+commit;
+select * from t1 order by 1;
+--sync_slave_with_master
+--connection slave
+select * from t1 order by 1;
+--connection master
 DROP table t1;
 
 #
