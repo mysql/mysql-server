@@ -1318,6 +1318,7 @@ runDeleteRead(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int
 runBug28073(NDBT_Context *ctx, NDBT_Step* step)
 {
   int result = NDBT_OK;
