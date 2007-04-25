@@ -1,6 +1,8 @@
 # Non-windows specific partition tests.
 --source include/not_windows.inc
 --source include/have_partition.inc
+# SUBPARTITION depends on symlink support
+--source include/have_symlink.inc
 
 # partition.test used to contained the following note:
 # This test is disabled on Windows due to BUG#19107
