@@ -473,6 +473,7 @@ public:
   friend class create_field;
   my_decimal *val_decimal(my_decimal *);
   virtual bool str_needs_quotes() { return TRUE; }
+  bool compare_str_field_flags(create_field *new_field, uint32 flags);
   uint is_equal(create_field *new_field);
 };
 
@@ -1325,6 +1326,7 @@ public:
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   uint32 max_display_length();
+  uint is_equal(create_field *new_field);
 };
 
 
