@@ -67,7 +67,8 @@ Thread_registry::~Thread_registry()
   if (head.next != &head)
     log_error("Not all threads died properly\n");
   /* All threads must unregister */
-  DBUG_ASSERT(head.next == &head);
+  // Disabled assert temporarily - BUG#28030
+  // DBUG_ASSERT(head.next == &head);
 
   pthread_mutex_unlock(&LOCK_thread_registry);
   pthread_cond_destroy(&COND_thread_registry_is_empty);
