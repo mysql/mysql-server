@@ -122,7 +122,8 @@ Lex_input_stream::Lex_input_stream(THD *thd,
   tok_start_prev(NULL),
   buf(buffer),
   next_state(MY_LEX_START),
-  found_semicolon(NULL)
+  found_semicolon(NULL),
+  ignore_space(test(thd->variables.sql_mode & MODE_IGNORE_SPACE))
 {
 }
 
@@ -192,7 +193,6 @@ void lex_start(THD *thd)
   lex->select_lex.udf_list.empty();
   lex->current_select= &lex->select_lex;
   lex->yacc_yyss=lex->yacc_yyvs=0;
-  lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
   lex->sql_command= lex->orig_sql_command= SQLCOM_END;
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
@@ -656,7 +656,7 @@ int MYSQLlex(void *arg, void *yythd)
       }
       length= (uint) (lip->ptr - lip->tok_start)-1;
       start= lip->ptr;
-      if (lex->ignore_space)
+      if (lip->ignore_space)
       {
         /*
           If we find a space then this can't be an identifier. We notice this

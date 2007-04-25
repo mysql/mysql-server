@@ -5990,16 +5990,14 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
     - first, call query_cache_send_result_to_client,
     - second, if caching failed, initialise the lexical and syntactic parser.
     The problem is that the query cache depends on a clean initialization
-    of the thd and thd->lex structures, which happen to be implemented
-    by:
+    of (among others) lex->safe_to_cache_query and thd->server_status,
+    which are reset respectively in
     - lex_start()
     - mysql_reset_thd_for_next_command()
     So, initializing the lexical analyser *before* using the query cache
     is required for the cache to work properly.
     FIXME: cleanup the dependencies in the code to simplify this.
   */
-  Lex_input_stream lip(thd, inBuf, length);
-  thd->m_lip= &lip;
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
 
@@ -6009,6 +6007,9 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
 
     sp_cache_flush_obsolete(&thd->sp_proc_cache);
     sp_cache_flush_obsolete(&thd->sp_func_cache);
+
+    Lex_input_stream lip(thd, inBuf, length);
+    thd->m_lip= &lip;
 
     int err= MYSQLparse(thd);
     *found_semicolon= lip.found_semicolon;
