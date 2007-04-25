@@ -3316,6 +3316,12 @@ view_err:
     create_info->avg_row_length= table->s->avg_row_length;
   if (!(used_fields & HA_CREATE_USED_DEFAULT_CHARSET))
     create_info->default_table_charset= table->s->table_charset;
+  if (!(used_fields & HA_CREATE_USED_AUTO) && table->found_next_number_field)
+  {
+    /* Table has an autoincrement, copy value to new table */
+    table->file->info(HA_STATUS_AUTO);
+    create_info->auto_increment_value= table->file->auto_increment_value;
+  }
 
   restore_record(table, s->default_values);     // Empty record for DEFAULT
   List_iterator<Alter_drop> drop_it(alter_info->drop_list);
