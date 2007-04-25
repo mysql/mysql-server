@@ -252,16 +252,22 @@ Dbtup::commit_operation(Signal* signal,
   }
   else
   {
-    Var_part_ref *ref= (Var_part_ref*)tuple_ptr->get_var_part_ptr(regTabPtr);
-    memcpy(tuple_ptr, copy, 4*(Tuple_header::HeaderSize+fixsize));
-    
+    /**
+     * Var_part_ref is only stored in *allocated* tuple
+     * so memcpy from copy, will over write it...
+     * hence subtle copyout/assign...
+     */
     Local_key tmp; 
+    Var_part_ref *ref= tuple_ptr->get_var_part_ref_ptr(regTabPtr);
     ref->copyout(&tmp);
+
+    memcpy(tuple_ptr, copy, 4*fixsize);
+    ref->assign(&tmp);
 
     PagePtr vpagePtr;
     Uint32 *dst= get_ptr(&vpagePtr, *ref);
     Var_page* vpagePtrP = (Var_page*)vpagePtr.p;
-    Varpart_copy* vp = (Varpart_copy*)copy->get_var_part_ptr(regTabPtr);
+    Varpart_copy* vp = (Varpart_copy*)copy->get_end_of_fix_part_ptr(regTabPtr);
     ndbassert(!(copy_bits & Tuple_header::CHAINED_ROW));
     /* The first word of shrunken tuple holds the lenght in words. */
     Uint32 len = vp->m_len;

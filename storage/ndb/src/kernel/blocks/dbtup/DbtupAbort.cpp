@@ -150,10 +150,9 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
         Uint32 mm_vars= regTabPtr.p->m_attributes[MM].m_no_of_varsize;
         Uint32 *var_part;
 
-        ndbassert(tuple_ptr->m_header_bits & Tuple_header::CHAINED_ROW);
-        
-        Var_part_ref *ref = 
-          (Var_part_ref*)tuple_ptr->get_var_part_ptr(regTabPtr.p);
+	ndbassert(tuple_ptr->m_header_bits & Tuple_header::CHAINED_ROW);
+	
+	Var_part_ref *ref = tuple_ptr->get_var_part_ref_ptr(regTabPtr.p);
 
         Local_key tmp; 
         ref->copyout(&tmp);
