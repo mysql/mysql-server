@@ -1081,21 +1081,14 @@ ArrayPool<TupTriggerData> c_triggerPool;
       Uint8 m_null_words;
       Uint8 m_null_offset;
       Uint16 m_disk_ref_offset; // In words relative m_data
-      union {
-	Uint16 m_varpart_offset;  // In words relative m_data
-	Uint16 m_fix_header_size; // For fix size tuples= total rec size(part)
-      };
+      Uint16 m_fix_header_size; // For fix size tuples= total rec size(part)
       Uint16 m_max_var_offset;  // In bytes relative m_var_data.m_data_ptr
       Uint16 m_max_dyn_offset;  // In bytes relative m_var_data.m_dyn_data_ptr
       Uint16 m_dyn_null_words;  // 32-bit words in dynattr bitmap
     } m_offsets[2];
     
-
     Uint32 get_check_offset(Uint32 mm) const {
-      Uint32 cnt=
-        m_attributes[mm].m_no_of_varsize + m_attributes[mm].m_no_of_dynamic;
-      Uint32 off= m_offsets[mm].m_varpart_offset;
-      return off - (cnt ? 0 : Tuple_header::HeaderSize);
+      return m_offsets[mm].m_fix_header_size;
     }
 
     struct {
@@ -1397,6 +1390,11 @@ typedef Ptr<HostBuffer> HostBufferPtr;
 #endif    
   };
   
+  struct Disk_part_ref
+  {
+    STATIC_CONST( SZ32 = 2 );
+  };
+
   struct Tuple_header
   {
     union {
@@ -1454,14 +1452,24 @@ typedef Ptr<HostBuffer> HostBufferPtr;
       return m_null_bits+tabPtrP->m_offsets[mm].m_null_offset;
     }
     
-    Uint32* get_var_part_ptr(const Tablerec* tabPtrP) {
-      return m_data + tabPtrP->m_offsets[MM].m_varpart_offset;      
+    Var_part_ref* get_var_part_ref_ptr(const Tablerec* tabPtrP) {
+      return (Var_part_ref*)(get_disk_ref_ptr(tabPtrP) + Disk_part_ref::SZ32);
     }
 
-    const Uint32* get_var_part_ptr(const Tablerec* tabPtrP) const {
-      return m_data + tabPtrP->m_offsets[MM].m_varpart_offset;      
+    const Var_part_ref* get_var_part_ref_ptr(const Tablerec* tabPtrP) const {
+      return (Var_part_ref*)(get_disk_ref_ptr(tabPtrP) + Disk_part_ref::SZ32);
     }
-
+    
+    Uint32* get_end_of_fix_part_ptr(const Tablerec* tabPtrP) {
+      return m_data + tabPtrP->m_offsets[MM].m_fix_header_size - 
+        Tuple_header::HeaderSize;
+    }
+    
+    const Uint32* get_end_of_fix_part_ptr(const Tablerec* tabPtrP) const {
+      return m_data + tabPtrP->m_offsets[MM].m_fix_header_size - 
+        Tuple_header::HeaderSize;
+    }
+    
     Uint32* get_disk_ref_ptr(const Tablerec* tabPtrP) {
       return m_data + tabPtrP->m_offsets[MM].m_disk_ref_offset;
     }
