@@ -88,7 +88,7 @@ from mysql.ndb_apply_status;
 @log_name:=log_name	@start_pos:=start_pos	@end_pos:=end_pos
 <log_name>	<start_pos>	<end_pos>
 
-show binlog events in 'master-bin.000001'  from <start_pos> limit 6,1;
+show binlog events in 'master-bin.000001'  from <start_pos> limit 9,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Xid	1	<end_pos>	COMMIT /* XID */
 
@@ -101,7 +101,7 @@ from mysql.ndb_apply_status;
 @log_name:=log_name	@start_pos:=start_pos	@end_pos:=end_pos
 <log_name>	<start_pos>	<end_pos>
 
-show binlog events in 'master-bin.000002'  from <start_pos> limit 6,1;
+show binlog events in 'master-bin.000002'  from <start_pos> limit 9,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Xid	1	<end_pos>	COMMIT /* XID */
 
@@ -119,7 +119,7 @@ from mysql.ndb_apply_status;
 @log_name:=log_name	@start_pos:=start_pos	@end_pos:=end_pos
 <log_name>	<start_pos>	<end_pos>
 
-show binlog events in 'master-bin.000001'  from <start_pos> limit 6,1;
+show binlog events in 'master-bin.000001'  from <start_pos> limit 9,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Xid	1	<end_pos>	COMMIT /* XID */
 
