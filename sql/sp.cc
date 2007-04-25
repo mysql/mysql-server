@@ -784,7 +784,9 @@ db_show_routine_status(THD *thd, int type, const char *wild)
     {
       switch (used_field->field_type) {
       case MYSQL_TYPE_TIMESTAMP:
-	field_list.push_back(item=new Item_datetime(used_field->field_name));
+	field_list.push_back(item=
+                             new Item_return_date_time(used_field->field_name,
+                                                       MYSQL_TYPE_DATETIME));
 	break;
       default:
 	field_list.push_back(item=new Item_empty_string(used_field->field_name,
