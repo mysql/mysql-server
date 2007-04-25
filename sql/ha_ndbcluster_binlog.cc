@@ -1024,6 +1024,7 @@ ndbcluster_update_slock(THD *thd,
   const NDBTAB *ndbtab= ndbtab_g.get_table();
   NdbTransaction *trans= 0;
   int retries= 100;
+  int retry_sleep= 10; /* 10 milliseconds, transaction */
   const NDBCOL *col[SCHEMA_SIZE];
   unsigned sz[SCHEMA_SIZE];
 
@@ -1125,6 +1126,7 @@ ndbcluster_update_slock(THD *thd,
       {
         if (trans)
           ndb->closeTransaction(trans);
+        my_sleep(retry_sleep);
         continue; // retry
       }
     }
@@ -1323,6 +1325,7 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
   const NDBTAB *ndbtab= ndbtab_g.get_table();
   NdbTransaction *trans= 0;
   int retries= 100;
+  int retry_sleep= 10; /* 10 milliseconds, transaction */
   const NDBCOL *col[SCHEMA_SIZE];
   unsigned sz[SCHEMA_SIZE];
 
@@ -1427,6 +1430,7 @@ err:
       {
         if (trans)
           ndb->closeTransaction(trans);
+        my_sleep(retry_sleep);
         continue; // retry
       }
     }
@@ -2715,6 +2719,11 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
   TABLE *table= share->table;
 
   int retries= 100;
+  /*
+    100 milliseconds, temporary error on schema operation can
+    take some time to be resolved
+  */
+  int retry_sleep= 100;
   while (1)
   {
     pthread_mutex_lock(&injector_mutex);
@@ -2843,7 +2852,10 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
       ndb->dropEventOperation(op);
       pthread_mutex_unlock(&injector_mutex);
       if (retries)
+      {
+        my_sleep(retry_sleep);
         continue;
+      }
       DBUG_RETURN(-1);
     }
     pthread_mutex_unlock(&injector_mutex);
