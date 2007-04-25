@@ -446,4 +446,43 @@ a
 2
 5
 drop table t1;
+create table t1(
+id int auto_increment,
+c char(1) not null,
+counter int not null default 1,
+primary key (id),
+unique key (c)
+) engine=innodb;
+insert into t1 (id, c) values
+(NULL, 'a'),
+(NULL, 'a')
+on duplicate key update id = values(id), counter = counter + 1;
+select * from t1;
+id	c	counter
+2	a	2
+insert into t1 (id, c) values
+(NULL, 'b')
+on duplicate key update id = values(id), counter = counter + 1;
+select * from t1;
+id	c	counter
+2	a	2
+3	b	1
+truncate table t1;
+insert into t1 (id, c) values (NULL, 'a');
+select * from t1;
+id	c	counter
+1	a	1
+insert into t1 (id, c) values (NULL, 'b'), (NULL, 'b')
+on duplicate key update id = values(id), c = values(c), counter = counter + 1;
+select * from t1;
+id	c	counter
+1	a	1
+3	b	2
+insert into t1 (id, c) values (NULL, 'a')
+on duplicate key update id = values(id), c = values(c), counter = counter + 1;
+select * from t1;
+id	c	counter
+3	b	2
+4	a	2
+drop table t1;
 End of 5.0 tests
