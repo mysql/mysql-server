@@ -599,8 +599,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   const bool lcp = (bits & ScanOp::SCAN_LCP);
   
   Uint32 lcp_list = fragPtr.p->m_lcp_keep_list;
-  Uint32 size = table.m_offsets[mm].m_fix_header_size +
-    (bits&ScanOp::SCAN_VS ? Tuple_header::HeaderSize + Var_part_ref::SZ32 : 0);
+  Uint32 size = table.m_offsets[mm].m_fix_header_size;
 
   if (lcp && lcp_list != RNIL)
     goto found_lcp_keep;
