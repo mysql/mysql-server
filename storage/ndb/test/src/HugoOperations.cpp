@@ -113,14 +113,8 @@ rand_lock_mode:
     }
     
     // Define primary keys
-    for(a = 0; a<tab.getNoOfColumns(); a++){
-      if (tab.getColumn(a)->getPrimaryKey() == true){
-	if(equalForAttr(pOp, a, r+recordNo) != 0){
-	  ERR(pTrans->getNdbError());
-	  return NDBT_FAILED;
-	}
-      }
-    }
+    if (equalForRow(pOp, r+recordNo) != 0)
+      return NDBT_FAILED;
 
     if(pIndexScanOp)
       pIndexScanOp->end_of_bound(r);
@@ -145,7 +139,6 @@ int HugoOperations::pkUpdateRecord(Ndb* pNdb,
 				   int recordNo,
 				   int numRecords,
 				   int updatesValue){
-  int a; 
   allocRows(numRecords);
   int check;
   for(int r=0; r < numRecords; r++){
@@ -174,14 +167,8 @@ HugoOperations::setValues(NdbOperation* pOp, int rowId, int updateId)
 {
   // Define primary keys
   int a;
-  for(a = 0; a<tab.getNoOfColumns(); a++){
-    if (tab.getColumn(a)->getPrimaryKey() == true){
-      if(equalForAttr(pOp, a, rowId) != 0){
-	ERR(pTrans->getNdbError());
-	return NDBT_FAILED;
-      }
-    }
-  }
+  if (equalForRow(pOp, rowId) != 0)
+    return NDBT_FAILED;
   
   for(a = 0; a<tab.getNoOfColumns(); a++){
     if (tab.getColumn(a)->getPrimaryKey() == false){
@@ -200,7 +187,7 @@ int HugoOperations::pkInsertRecord(Ndb* pNdb,
 				   int numRecords,
 				   int updatesValue){
   
-  int a, check;
+  int check;
   for(int r=0; r < numRecords; r++){
     NdbOperation* pOp = getOperation(pTrans, NdbOperation::InsertRequest);
     if (pOp == NULL) {
@@ -242,14 +229,8 @@ int HugoOperations::pkWriteRecord(Ndb* pNdb,
     }
     
     // Define primary keys
-    for(a = 0; a<tab.getNoOfColumns(); a++){
-      if (tab.getColumn(a)->getPrimaryKey() == true){
-	if(equalForAttr(pOp, a, r+recordNo) != 0){
-	  ERR(pTrans->getNdbError());
-	  return NDBT_FAILED;
-	}
-      }
-    }
+    if (equalForRow(pOp, r+recordNo) != 0)
+      return NDBT_FAILED;
     
     // Define attributes to update
     for(a = 0; a<tab.getNoOfColumns(); a++){
@@ -268,7 +249,7 @@ int HugoOperations::pkWritePartialRecord(Ndb* pNdb,
 					 int recordNo,
 					 int numRecords){
   
-  int a, check;
+  int check;
   for(int r=0; r < numRecords; r++){
     NdbOperation* pOp = pTrans->getNdbOperation(tab.getName());	
     if (pOp == NULL) {
@@ -283,14 +264,8 @@ int HugoOperations::pkWritePartialRecord(Ndb* pNdb,
     }
     
     // Define primary keys
-    for(a = 0; a<tab.getNoOfColumns(); a++){
-      if (tab.getColumn(a)->getPrimaryKey() == true){
-	if(equalForAttr(pOp, a, r+recordNo) != 0){
-	  ERR(pTrans->getNdbError());
-	  return NDBT_FAILED;
-	}
-      }
-    }
+    if (equalForRow(pOp, r+recordNo) != 0)
+      return NDBT_FAILED;
   }
   return NDBT_OK;
 }
@@ -299,7 +274,7 @@ int HugoOperations::pkDeleteRecord(Ndb* pNdb,
 				   int recordNo,
 				   int numRecords){
   
-  int a, check;
+  int check;
   for(int r=0; r < numRecords; r++){
     NdbOperation* pOp = getOperation(pTrans, NdbOperation::DeleteRequest);
     if (pOp == NULL) {
@@ -314,14 +289,8 @@ int HugoOperations::pkDeleteRecord(Ndb* pNdb,
     }
     
     // Define primary keys
-    for(a = 0; a<tab.getNoOfColumns(); a++){
-      if (tab.getColumn(a)->getPrimaryKey() == true){
-	if(equalForAttr(pOp, a, r+recordNo) != 0){
-	  ERR(pTrans->getNdbError());
-	  return NDBT_FAILED;
-	}
-      }
-    }
+    if (equalForRow(pOp, r+recordNo) != 0)
+      return NDBT_FAILED;
   }
   return NDBT_OK;
 }
@@ -520,6 +489,22 @@ HugoOperations::~HugoOperations(){
   }
 }
 
+int
+HugoOperations::equalForRow(NdbOperation* pOp, int row)
+{
+  for(int a = 0; a<tab.getNoOfColumns(); a++)
+  {
+    if (tab.getColumn(a)->getPrimaryKey() == true)
+    {
+      if(equalForAttr(pOp, a, row) != 0)
+      {
+        ERR(pOp->getNdbError());
+        return NDBT_FAILED;
+      }
+    }
+  }
+  return NDBT_OK;
+}
 
 int HugoOperations::equalForAttr(NdbOperation* pOp,
 				   int attrId, 
@@ -678,14 +663,8 @@ int HugoOperations::indexReadRecords(Ndb*, const char * idxName, int recordNo,
     }
     
     // Define primary keys
-    for(a = 0; a<tab.getNoOfColumns(); a++){
-      if (tab.getColumn(a)->getPrimaryKey() == true){
-	if(equalForAttr(pOp, a, r+recordNo) != 0){
-	  ERR(pTrans->getNdbError());
-	  return NDBT_FAILED;
-	}
-      }
-    }
+    if (equalForRow(pOp, r+recordNo) != 0)
+      return NDBT_FAILED;
     
     // Define attributes to read  
     for(a = 0; a<tab.getNoOfColumns(); a++){
@@ -722,14 +701,8 @@ HugoOperations::indexUpdateRecord(Ndb*,
     }
     
     // Define primary keys
-    for(a = 0; a<tab.getNoOfColumns(); a++){
-      if (tab.getColumn(a)->getPrimaryKey() == true){
-	if(equalForAttr(pOp, a, r+recordNo) != 0){
-	  ERR(pTrans->getNdbError());
-	  return NDBT_FAILED;
-	}
-      }
-    }
+    if (equalForRow(pOp, r+recordNo) != 0)
+      return NDBT_FAILED;
     
     // Define attributes to update
     for(a = 0; a<tab.getNoOfColumns(); a++){

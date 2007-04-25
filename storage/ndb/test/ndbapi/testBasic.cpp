@@ -1340,6 +1340,64 @@ runBug28073(NDBT_Context *ctx, NDBT_Step* step)
   return result;
 }
 
+int
+runBug27756(NDBT_Context* ctx, NDBT_Step* step)
+{
+  
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary * dict = pNdb->getDictionary();
+  
+  HugoOperations ops(*ctx->getTab());
+
+  int loops = ctx->getNumLoops();
+  const int rows = ctx->getNumRecords();
+  
+  Vector<Uint64> copies;
+  while (loops--)
+  {
+    ops.startTransaction(pNdb);
+    ops.pkInsertRecord(pNdb, 1, 1);
+    ops.execute_NoCommit(pNdb);
+    
+    NdbTransaction* pTrans = ops.getTransaction();
+    NdbOperation* op = pTrans->getNdbOperation(ctx->getTab()->getName());
+    op->interpretedUpdateTuple();
+    ops.equalForRow(op, 1);
+    NdbRecAttr* attr = op->getValue(NdbDictionary::Column::COPY_ROWID);
+    ops.execute_NoCommit(pNdb);
+    
+    copies.push_back(attr->u_64_value());
+    ndbout_c("copy at: %llx", copies.back());
+    ops.execute_NoCommit(pNdb);
+    
+    ops.pkDeleteRecord(pNdb, 1, 1);
+    ops.execute_NoCommit(pNdb);
+    
+    if (loops & 1)
+    {
+      ops.execute_Rollback(pNdb);
+      ops.closeTransaction(pNdb);
+    }
+    else
+    {
+      ops.execute_Commit(pNdb);
+      ops.closeTransaction(pNdb);
+      ops.clearTable(pNdb, 100);
+    }
+  }
+  
+  for (Uint32 i = 0; i<copies.size(); i++)
+    if (copies[i] != copies.back())
+    {
+      ndbout_c("Memleak detected");
+      return NDBT_FAILED;
+    }
+  
+  return NDBT_OK;
+}
+
+template class Vector<Uint64>;
+
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
 	 "Verify that we can insert and delete from this table using PK"
@@ -1613,6 +1671,10 @@ TESTCASE("Bug25090",
 TESTCASE("Bug28073", 
 	 "Infinite loop in lock queue" ){
   STEP(runBug28073);
+}
+TESTCASE("Bug27756", 
+	 "Verify what happens when we fill the db" ){
+  STEP(runBug27756);
 }
 NDBT_TESTSUITE_END(testBasic);
 
