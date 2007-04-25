@@ -6201,7 +6201,7 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
   NdbError error;
   int retries= 10;
   int reterr= 0;
-  int retry_sleep= 30 * 1000; /* 30 milliseconds */
+  int retry_sleep= 30; /* 30 milliseconds, transaction */
 #ifndef DBUG_OFF
   char buff[22], buff2[22], buff3[22], buff4[22];
 #endif
