@@ -322,6 +322,36 @@ NdbOperation::interpretedDeleteTuple()
   }//if
 }//NdbOperation::interpretedDeleteTuple()
 
+void
+NdbOperation::setReadLockMode(LockMode lockMode)
+{
+  /* We only support changing lock mode for read operations at this time. */
+  assert(theOperationType == ReadRequest || theOperationType == ReadExclusive);
+  switch (lockMode)
+  {
+    case LM_CommittedRead:
+      theOperationType= ReadRequest;
+      theSimpleIndicator= 1;
+      theDirtyIndicator= 1;
+      break;
+    case LM_Read:
+      theNdbCon->theSimpleState= 0;
+      theOperationType= ReadRequest;
+      theSimpleIndicator= 0;
+      theDirtyIndicator= 0;
+      break;
+    case LM_Exclusive:
+      theNdbCon->theSimpleState= 0;
+      theOperationType= ReadExclusive;
+      theSimpleIndicator= 0;
+      theDirtyIndicator= 0;
+      break;
+    default:
+      /* Not supported / invalid. */
+      assert(false);
+  }
+  theLockMode= lockMode;
+}
 
 
 /******************************************************************************
