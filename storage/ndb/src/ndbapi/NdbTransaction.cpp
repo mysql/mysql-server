@@ -676,6 +676,17 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
   DBUG_VOID_RETURN;
 }//NdbTransaction::executeAsynchPrepare()
 
+void
+NdbTransaction::executeAsynch(ExecType aTypeOfExec,
+                              NdbAsynchCallback aCallback,
+                              void* anyObject,
+                              AbortOption abortOption,
+                              int forceSend)
+{
+  executeAsynchPrepare(aTypeOfExec, aCallback, anyObject, abortOption);
+  theNdb->sendPreparedTransactions(forceSend);
+}
+
 void NdbTransaction::close()
 {
   theNdb->closeTransaction(this);

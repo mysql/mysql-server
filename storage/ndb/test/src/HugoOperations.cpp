@@ -15,13 +15,15 @@
 
 #include <HugoOperations.hpp>
 
-int HugoOperations::startTransaction(Ndb* pNdb){
+int HugoOperations::startTransaction(Ndb* pNdb,
+                                     const NdbDictionary::Table *table,
+                                     const char  *keyData, Uint32 keyLen){
   
   if (pTrans != NULL){
     ndbout << "HugoOperations::startTransaction, pTrans != NULL" << endl;
     return NDBT_FAILED;
   }
-  pTrans = pNdb->startTransaction();
+  pTrans = pNdb->startTransaction(table, keyData, keyLen);
   if (pTrans == NULL) {
     const NdbError err = pNdb->getNdbError();
     ERR(err);
