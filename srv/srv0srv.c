@@ -1027,7 +1027,7 @@ retry:
 	if (!has_slept && !trx->has_search_latch
 	    && NULL == UT_LIST_GET_FIRST(trx->trx_locks)) {
 
-		has_slept = TRUE; /* We let is sleep only once to avoid
+		has_slept = TRUE; /* We let it sleep only once to avoid
 				  starvation */
 
 		srv_conc_n_waiting_threads++;
