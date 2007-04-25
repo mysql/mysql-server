@@ -2408,9 +2408,9 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
   m_lex->unit.cleanup();
 
-  thd->proc_info="closing tables";
+  thd_proc_info(thd, "closing tables");
   close_thread_tables(thd);
-  thd->proc_info= 0;
+  thd_proc_info(thd, 0);
 
   if (m_lex->query_tables_own_last)
   {
