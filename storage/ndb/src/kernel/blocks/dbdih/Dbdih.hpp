@@ -74,7 +74,6 @@
 #define ZWRONG_FAILURE_NUMBER_ERROR 302
 #define ZWRONG_START_NODE_ERROR 303
 #define ZNO_REPLICA_FOUND_ERROR 304
-#define ZNODE_START_DISALLOWED_ERROR 309
 
 // --------------------------------------
 // Codes from LQH
@@ -1643,6 +1642,8 @@ private:
   // NR
   Uint32 c_dictLockSlavePtrI_nodeRestart; // userPtr for NR
   void recvDictLockConf_nodeRestart(Signal* signal, Uint32 data, Uint32 ret);
+
+  Uint32 c_error_7181_ref;
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)
