@@ -140,14 +140,14 @@ static bool end_active_trans(THD *thd)
   if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN |
 		      OPTION_TABLE_LOCK))
   {
-    DBUG_PRINT("info",("options: 0x%lx", (ulong) thd->options));
+    DBUG_PRINT("info",("options: 0x%llx", thd->options));
     /* Safety if one did "drop table" on locked tables */
     if (!thd->locked_tables)
       thd->options&= ~OPTION_TABLE_LOCK;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_commit(thd))
       error=1;
-    thd->options&= ~(ulong) OPTION_BEGIN;
+    thd->options&= ~OPTION_BEGIN;
     thd->no_trans_update.all= FALSE;
   }
   DBUG_RETURN(error);
@@ -173,7 +173,7 @@ static bool begin_trans(THD *thd)
   {
     LEX *lex= thd->lex;
     thd->no_trans_update.all= FALSE;
-    thd->options|= (ulong) OPTION_BEGIN;
+    thd->options|= OPTION_BEGIN;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     if (lex->start_transaction_opt & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
       error= ha_start_consistent_snapshot(thd);
@@ -1058,7 +1058,7 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
   Vio* save_vio;
   ulong save_client_capabilities;
 
-  thd->proc_info= "Execution of init_command";
+  thd_proc_info(thd, "Execution of init_command");
   /*
     We need to lock init_command_var because
     during execution of init_command_var query
@@ -1162,7 +1162,7 @@ pthread_handler_t handle_one_connection(void *arg)
       net->compress=1;				// Use compression
 
     thd->version= refresh_version;
-    thd->proc_info= 0;
+    thd_proc_info(thd, 0);
     thd->command= COM_SLEEP;
     thd->init_for_queries();
 
@@ -1178,7 +1178,7 @@ pthread_handler_t handle_one_connection(void *arg)
                           sctx->host_or_ip, "init_connect command failed");
         sql_print_warning("%s", net->last_error);
       }
-      thd->proc_info=0;
+      thd_proc_info(thd, 0);
       thd->init_for_queries();
     }
 
@@ -1264,7 +1264,7 @@ pthread_handler_t handle_bootstrap(void *arg)
   if (thd->variables.max_join_size == HA_POS_ERROR)
     thd->options |= OPTION_BIG_SELECTS;
 
-  thd->proc_info=0;
+  thd_proc_info(thd, 0);
   thd->version=refresh_version;
   thd->security_ctx->priv_user=
     thd->security_ctx->user= (char*) my_strdup("boot", MYF(MY_WME));
@@ -1465,7 +1465,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     */
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     res= ha_commit(thd);
-    thd->options&= ~(ulong) OPTION_BEGIN;
+    thd->options&= ~OPTION_BEGIN;
     thd->no_trans_update.all= FALSE;
     break;
   case COMMIT_RELEASE:
@@ -1483,7 +1483,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_rollback(thd))
       res= -1;
-    thd->options&= ~(ulong) OPTION_BEGIN;
+    thd->options&= ~OPTION_BEGIN;
     thd->no_trans_update.all= FALSE;
     if (!res && (completion == ROLLBACK_AND_CHAIN))
       res= begin_trans(thd);
@@ -2130,7 +2130,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   if (thd->lock || thd->open_tables || thd->derived_tables ||
       thd->prelocked_mode)
   {
-    thd->proc_info="closing tables";
+    thd_proc_info(thd, "closing tables");
     close_thread_tables(thd);			/* Free tables */
   }
   /*
@@ -2153,9 +2153,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   log_slow_statement(thd);
 
-  thd->proc_info="cleaning up";
+  thd_proc_info(thd, "cleaning up");
   VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
-  thd->proc_info=0;
+  thd_proc_info(thd, 0);
   thd->command=COM_SLEEP;
   thd->query=0;
   thd->query_length=0;
@@ -2188,7 +2188,7 @@ void log_slow_statement(THD *thd)
   */
   if (thd->enable_slow_log && !thd->user_time)
   {
-    thd->proc_info="logging slow query";
+    thd_proc_info(thd, "logging slow query");
 
     if ((ulong) (thd->start_time - thd->time_after_lock) >
 	thd->variables.long_query_time ||
@@ -2198,6 +2198,7 @@ void log_slow_statement(THD *thd)
         /* == SQLCOM_END unless this is a SHOW command */
         thd->lex->orig_sql_command == SQLCOM_END)
     {
+      thd_proc_info(thd, "logging slow query");
       thd->status_var.long_query_count++;
       mysql_slow_log.write(thd, thd->query, thd->query_length, start_of_query);
     }
@@ -2732,6 +2733,37 @@ mysql_execute_command(THD *thd)
   {
     res= mysqld_show_warnings(thd, (ulong)
 			      (1L << (uint) MYSQL_ERROR::WARN_LEVEL_ERROR));
+    break;
+  }
+  case SQLCOM_SHOW_PROFILES:
+  {
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+    thd->profiling.store();
+    thd->profiling.discard();
+    res= thd->profiling.show_profiles();
+    if (res)
+      goto error;
+#else
+    my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROFILES", "enable-profiling");
+    goto error;
+#endif
+    break;
+  }
+  case SQLCOM_SHOW_PROFILE:
+  {
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+    thd->profiling.store();
+    thd->profiling.discard(); // will get re-enabled by reset()
+    if (lex->profile_query_id != 0)
+      res= thd->profiling.show(lex->profile_options, lex->profile_query_id);
+    else
+      res= thd->profiling.show_last(lex->profile_options);
+    if (res)
+      goto error;
+#else
+    my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROFILE", "enable-profiling");
+    goto error;
+#endif
     break;
   }
   case SQLCOM_SHOW_NEW_MASTER:
@@ -3650,7 +3682,7 @@ end_with_restore_list:
     if (add_item_to_list(thd, new Item_null()))
       goto error;
 
-    thd->proc_info="init";
+    thd_proc_info(thd, "init");
     if ((res= open_and_lock_tables(thd, all_tables)))
       break;
 
@@ -3810,7 +3842,7 @@ end_with_restore_list:
     if (thd->options & OPTION_TABLE_LOCK)
     {
       end_active_trans(thd);
-      thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
+      thd->options&= ~(OPTION_TABLE_LOCK);
     }
     if (thd->global_read_lock)
       unlock_global_read_lock(thd);
@@ -3836,7 +3868,7 @@ end_with_restore_list:
       send_ok(thd);
     }
     else
-      thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
+      thd->options&= ~(OPTION_TABLE_LOCK);
     thd->in_lock_tables=0;
     break;
   case SQLCOM_CREATE_DB:
@@ -4936,7 +4968,7 @@ create_sp_error:
     thd->transaction.xid_state.xid.set(thd->lex->xid);
     xid_cache_insert(&thd->transaction.xid_state);
     thd->no_trans_update.all= FALSE;
-    thd->options|= (ulong) OPTION_BEGIN;
+    thd->options|= OPTION_BEGIN;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     send_ok(thd);
     break;
@@ -5029,7 +5061,7 @@ create_sp_error:
                xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
-    thd->options&= ~(ulong) OPTION_BEGIN;
+    thd->options&= ~OPTION_BEGIN;
     thd->no_trans_update.all= FALSE;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     xid_cache_delete(&thd->transaction.xid_state);
@@ -5060,7 +5092,7 @@ create_sp_error:
       my_error(ER_XAER_RMERR, MYF(0));
     else
       send_ok(thd);
-    thd->options&= ~(ulong) OPTION_BEGIN;
+    thd->options&= ~OPTION_BEGIN;
     thd->no_trans_update.all= FALSE;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     xid_cache_delete(&thd->transaction.xid_state);
@@ -5076,7 +5108,7 @@ create_sp_error:
     send_ok(thd);
     break;
   }
-  thd->proc_info="query end";
+  thd_proc_info(thd, "query end");
   /* Two binlog-related cleanups: */
 
   /*
@@ -5250,6 +5282,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   else
     save_priv= &dummy;
 
+  thd_proc_info(thd, "checking permissions");
   if ((!db || !db[0]) && !thd->db && !dont_check_global_grants)
   {
     DBUG_PRINT("error",("No database"));
@@ -5784,6 +5817,9 @@ mysql_init_query(THD *thd, uchar *buf, uint length)
   DBUG_ENTER("mysql_init_query");
   lex_start(thd, buf, length);
   mysql_reset_thd_for_next_command(thd);
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  thd->profiling.reset();
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -5825,6 +5861,9 @@ void mysql_reset_thd_for_next_command(THD *thd)
     thd->total_warn_count=0;			// Warnings for this query
     thd->rand_used= 0;
     thd->sent_row_count= thd->examined_row_count= 0;
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+    thd->profiling.reset();
+#endif
   }
   DBUG_VOID_RETURN;
 }
@@ -6034,7 +6073,7 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
       thd->lex->sphead= 0;
     }
     lex->unit.cleanup();
-    thd->proc_info="freeing items";
+    thd_proc_info(thd, "freeing items");
     thd->end_statement();
     thd->cleanup_after_query();
     DBUG_ASSERT(thd->change_list.is_empty());

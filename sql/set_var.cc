@@ -544,6 +544,12 @@ static sys_var_thd_bit	sys_unique_checks("unique_checks", 0,
 					  set_option_bit,
 					  OPTION_RELAXED_UNIQUE_CHECKS,
 					  1);
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+static sys_var_thd_bit  sys_profiling("profiling", NULL, set_option_bit,
+                                      ulonglong(OPTION_PROFILING));
+static sys_var_thd_ulong	sys_profiling_history_size("profiling_history_size",
+					      &SV::profiling_history_size);
+#endif
 
 /* Local state variables */
 
@@ -700,6 +706,10 @@ sys_var *sys_variables[]=
   &sys_optimizer_prune_level,
   &sys_optimizer_search_depth,
   &sys_preload_buff_size,
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  &sys_profiling,
+  &sys_profiling_history_size,
+#endif
   &sys_pseudo_thread_id,
   &sys_query_alloc_block_size,
   &sys_query_cache_size,
@@ -1011,6 +1021,10 @@ struct show_var_st init_vars[]= {
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  {sys_profiling.name,        (char*) &sys_profiling,               SHOW_SYS},
+  {sys_profiling_history_size.name, (char*) &sys_profiling_history_size, SHOW_SYS},
+#endif
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_query_alloc_block_size.name, (char*) &sys_query_alloc_block_size,
    SHOW_SYS},
@@ -2881,7 +2895,7 @@ static bool set_option_autocommit(THD *thd, set_var *var)
     if ((org_options & OPTION_NOT_AUTOCOMMIT))
     {
       /* We changed to auto_commit mode */
-      thd->options&= ~(ulong) OPTION_BEGIN;
+      thd->options&= ~OPTION_BEGIN;
       thd->no_trans_update.all= FALSE;
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
       if (ha_commit(thd))
