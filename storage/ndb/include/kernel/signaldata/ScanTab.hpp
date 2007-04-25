@@ -116,7 +116,7 @@ private:
  x = Range Scan (TUX)      - 1  Bit 15
  b = Scan batch            - 10 Bit 16-25 (max 1023)
  d = Distribution key flag - 1  Bit 26
- n = No disk flag
+ n = No disk flag          - 1  Bit 9
 
            1111111111222222222233
  01234567890123456789012345678901
