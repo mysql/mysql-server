@@ -2840,11 +2840,11 @@ Dbtup::dump_tuple(const KeyReqStruct* req_struct, const Tablerec* tabPtrP)
   const char *typ;
 
   fix_p= tuple_words;
-  fix_len= Tuple_header::HeaderSize+tabPtrP->m_offsets[MM].m_fix_header_size;
+  fix_len= tabPtrP->m_offsets[MM].m_fix_header_size;
   if(req_struct->is_expanded)
   {
     typ= "expanded";
-    var_p= ptr->get_var_part_ptr(tabPtrP);
+    var_p= ptr->get_end_of_fix_part_ptr(tabPtrP);
     var_len= 0;                                 // No dump of varpart in expanded
 #if 0
     disk_p= (Uint32 *)req_struct->m_disk_ptr;
@@ -2857,10 +2857,10 @@ Dbtup::dump_tuple(const KeyReqStruct* req_struct, const Tablerec* tabPtrP)
     if(mm_vars+mm_dyns)
     {
       const KeyReqStruct::Var_data* dst= &req_struct->m_var_data[MM];
-      const Uint32 *src_ptr= ptr->get_var_part_ptr(tabPtrP);
+      const Var_part_ref *varref= ptr->get_var_part_ref_ptr(tabPtrP);
       Ptr<Page> tmp;
-      var_p= get_ptr(&tmp, * (Var_part_ref*)src_ptr);
-      var_len= get_len(&tmp, * (Var_part_ref*)src_ptr);
+      var_p= get_ptr(&tmp, * varref);
+      var_len= get_len(&tmp, * varref);
     }
     else
     {
@@ -2888,7 +2888,7 @@ Dbtup::dump_tuple(const KeyReqStruct* req_struct, const Tablerec* tabPtrP)
     typ= "shrunken";
     if(mm_vars+mm_dyns)
     {
-      var_p= ptr->get_var_part_ptr(tabPtrP);
+      var_p= ptr->get_end_of_fix_part_ptr(tabPtrP);
       var_len= *((Uint16 *)var_p) + 1;
     }
     else
