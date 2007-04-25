@@ -140,7 +140,7 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   theNdbCon->theScanningOp = this;
   bool tupScan = (scan_flags & SF_TupScan);
 
-#if 1 // XXX temp for testing
+#if 0 // XXX temp for testing
   { char* p = getenv("NDB_USE_TUPSCAN");
     if (p != 0) {
       unsigned n = atoi(p); // 0-10
