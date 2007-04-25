@@ -1,13 +1,11 @@
 # Non-windows specific partition tests.
 --source include/not_windows.inc
 --source include/have_partition.inc
-# SUBPARTITION depends on symlink support
+# DATA DIRECTORY/INDEX DIRECTORY require symbolic link support
 --source include/have_symlink.inc
 
-# partition.test used to contained the following note:
-# This test is disabled on Windows due to BUG#19107
-# All tests passed on Windows except the following which should be moved into
-# partition.test once the bug has been resolved.
+# The test for Bug 20770 is disabled on Windows due to BUG#19107; it
+# should be moved into partition.test once the bug has been resolved.
 
 #
 # Bug 20770 Partitions: DATA DIRECTORY clause change in reorganize
