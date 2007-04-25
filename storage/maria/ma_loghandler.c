@@ -424,7 +424,7 @@ static File open_logfile_by_number_no_cache(uint32 file_no)
   char path[FN_REFLEN];
   DBUG_ENTER("open_logfile_by_number_no_cache");
 
-  /* Todo: add O_DIRECT to open flags (when buffer is aligned) */
+  /* TODO: add O_DIRECT to open flags (when buffer is aligned) */
   if ((file= my_open(translog_filename_by_fileno(file_no, path),
                      O_CREAT | O_BINARY | O_RDWR,
                      MYF(MY_WME))) < 0)
@@ -3180,7 +3180,7 @@ static byte *translog_get_LSN_from_diff(LSN base_lsn, byte *src, byte *dst)
                        (ulong) LSN_OFFSET(base_lsn),
                        (ulong) src, (ulong) dst));
   first_byte= *((uint8*) src);
-  code= first_byte >> 6;                        /* Length in 2 upmost bits */
+  code= first_byte >> 6; /* Length is in 2 most significant bits */
   first_byte&= 0x3F;
   src++;                                        /* Skip length + encode */
   file_no= LSN_FILE_NO(base_lsn);               /* Assume relative */

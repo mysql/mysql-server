@@ -16,7 +16,7 @@
 /*
   Storage of records in block
 
-  Some clarifactions about the abbrev used:
+  Some clarifications about the abbrev used:
 
   NULL fields      -> Fields that may have contain a NULL value.
   Not null fields  -> Fields that may not contain a NULL value.
@@ -57,21 +57,21 @@
   NO           1 byte   Number of row/tail entries on page
   empty space  2 bytes  Empty space on page
 
-  The upmost bit in PAGE_TYPE is set to 1 if the data on the page
+  The most significant bit in PAGE_TYPE is set to 1 if the data on the page
   can be compacted to get more space. (PAGE_CAN_BE_COMPACTED)
 
   Row data
 
   Row directory of NO entries, that consist of the following for each row
-  (in reverse order; ie, first record is stored last):
+  (in reverse order; i.e., first record is stored last):
 
   Position      2 bytes Position of row on page
   Length        2 bytes Length of entry
 
-  For Position and Length, the 1 upmost bit of the position and the 1
-  upmost bit of the length could be used for some states of the row (in
-  other words, we should try to keep these reserved)
-   
+  For Position and Length, the 1 most significant bit of the position and
+  the 1 most significant bit of the length could be used for some states of
+  the row (in other words, we should try to keep these reserved)
+
   eof flag  1 byte   Reserved for full page read testing. (Ie, did the
 		     previous write get the whole block on disk.
 
@@ -167,7 +167,7 @@
   efficiently. On update and delete we would add TRANSID (if it was an old
   committed row) and VER_PTR to
   the row. On row page compaction we can easily detect rows where
-  TRANSID was committed before the the longest running transaction
+  TRANSID was committed before the longest running transaction
   started and we can then delete TRANSID and VER_PTR from the row to
   gain more space.
 
@@ -279,12 +279,12 @@ typedef struct st_maria_extent_cursor
   my_off_t page;
   /* How many pages in the page region */
   uint page_count;
-  /* Total number of extents (ie, entries in the 'extent' slot) */
+  /* Total number of extents (i.e., entries in the 'extent' slot) */
   uint extent_count;
   /* <> 0 if current extent is a tail page; Set while using cursor */
-  uint tail;                      
+  uint tail;
   /*
-    <> 1 if we are working on the first extent (ie, the one that is store in
+    <> 1 if we are working on the first extent (i.e., the one that is store in
     the row header, not an extent that is stored as part of the row data).
   */
   my_bool first_extent;
@@ -362,7 +362,7 @@ my_bool _ma_once_init_block_record(MARIA_SHARE *share, File data_file)
 {
 
   share->base.max_data_file_length=
-    (((ulonglong) 1 << ((share->base.rec_reflength-1)*8))-1) * 
+    (((ulonglong) 1 << ((share->base.rec_reflength-1)*8))-1) *
     share->block_size;
 #if SIZEOF_OFF_T == 4
     set_if_smaller(share->base.max_data_file_length, INT_MAX32);
@@ -422,7 +422,7 @@ my_bool _ma_init_block_record(MARIA_HA *info)
                        NullS, 0))
     DBUG_RETURN(1);
   if (my_init_dynamic_array(&info->bitmap_blocks,
-                            sizeof(MARIA_BITMAP_BLOCK), 
+                            sizeof(MARIA_BITMAP_BLOCK),
                             ELEMENTS_RESERVED_FOR_MAIN_PART, 16))
     my_free((char*) &info->bitmap_blocks, MYF(0));
   row->base_length= new_row->base_length= info->s->base_length;
@@ -460,7 +460,7 @@ void _ma_end_block_record(MARIA_HA *info)
 
 /*
   Return the next used byte on the page after a directory entry.
-  
+
   SYNOPSIS
     start_of_next_entry()
     dir		Directory entry to be used
@@ -468,7 +468,7 @@ void _ma_end_block_record(MARIA_HA *info)
   RETURN
     #   Position in page where next entry starts.
         Everything between the '*dir' and this are free to be used.
-*/  
+*/
 
 static inline uint start_of_next_entry(byte *dir)
 {
@@ -491,7 +491,7 @@ static inline uint start_of_next_entry(byte *dir)
   SYNOPSIS
     check_if_zero()
     pos		Start of memory to check
-    length 	length of memory region
+    length	length of memory region
 
   NOTES
     Used mainly to detect rows with wrong extent information
@@ -715,7 +715,7 @@ static void calc_record_size(MARIA_HA *info, const byte *record,
       *null_field_lengths= length;
       if (!length)
       {
-        row->empty_bits[column->empty_pos]|= column->empty_bit;          
+        row->empty_bits[column->empty_pos]|= column->empty_bit;
         break;
       }
       row->varchar_length+= length;
@@ -809,7 +809,7 @@ static void compact_page(byte *buff, uint block_size, uint rownr,
         uint length= (next_free_pos - start_of_found_block);
         /*
            There was empty space before this and prev block
-           Check if we have to move prevous block up to page start
+           Check if we have to move previous block up to page start
         */
         if (page_pos != start_of_found_block)
         {
@@ -817,7 +817,7 @@ static void compact_page(byte *buff, uint block_size, uint rownr,
           memmove(buff + page_pos, buff + start_of_found_block, length);
         }
         page_pos+= length;
-        /* next continous block starts here */
+        /* next continuous block starts here */
         start_of_found_block= offset;
         diff= offset - page_pos;
       }
@@ -858,7 +858,7 @@ static void compact_page(byte *buff, uint block_size, uint rownr,
           memmove(buff + page_pos - length, buff + next_free_pos, length);
         }
         page_pos-= length;
-        /* next continous block starts here */
+        /* next continuous block starts here */
         end_of_found_block= row_end;
         diff= page_pos - row_end;
       }
@@ -952,7 +952,7 @@ static my_bool get_head_or_tail_page(MARIA_HA *info,
     res->data= (buff + PAGE_HEADER_SIZE);
     res->dir= res->data + res->length;
     res->offset= 0;
-    /* Store poistion to the first row */
+    /* Store position to the first row */
     int2store(res->dir, PAGE_HEADER_SIZE);
     DBUG_ASSERT(length <= res->length);
   }
@@ -1487,7 +1487,7 @@ static my_bool write_block_record(MARIA_HA *info, const byte *record,
         for (end_block= block + block->sub_blocks; block < end_block; block++)
         {
           /*
-            Set only a bit, to not cause bitmap code to belive a block is full
+            Set only a bit, to not cause bitmap code to believe a block is full
             when there is still a lot of entries in it
           */
           block->used|= BLOCKUSED_USED;
@@ -1535,7 +1535,7 @@ static my_bool write_block_record(MARIA_HA *info, const byte *record,
       end_block= head_block + head_block->sub_blocks;
       /*
         Loop until we have find a block bigger than we need or
-        we find the the empty page block.
+        we find the empty page block.
       */
       while (data_length >= (length= (cur_block->page_count *
                                       FULL_PAGE_SIZE(block_size))) &&
@@ -1585,7 +1585,6 @@ static my_bool write_block_record(MARIA_HA *info, const byte *record,
             TODO:
              If there is enough space on the following tail block, use
              this instead of creating a new tail block.
-              
           */
           DBUG_ASSERT(cur_block[1].page_count == 0);
           if (cur_block->page_count == 1)
@@ -2622,7 +2621,7 @@ int _ma_read_block_record2(MARIA_HA *info, byte *record,
       the row is very short in which case we allocated 'min_row_length' data
       for allowing the row to expand.
     */
-    if (data != end_of_data && (uint) (end_of_data - start_of_data) > 
+    if (data != end_of_data && (uint) (end_of_data - start_of_data) >
         info->s->base.min_row_length)
       goto err;
   }
