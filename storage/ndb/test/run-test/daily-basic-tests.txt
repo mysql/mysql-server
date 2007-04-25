@@ -235,6 +235,10 @@ max-time: 500
 cmd: testBasic
 args: -n Bug25090 T1
 
+max-time: 1000
+cmd: testBasic
+args: -n Bug27756
+
 max-time: 500
 cmd: testIndex
 args: -n Bug25059 -r 3000 T1
@@ -468,6 +472,10 @@ args: -n Bug27003 T1
 max-time: 1000
 cmd: testNodeRestart
 args: -n Bug27283 T1
+
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug28023 T7 D2
 
 max-time: 500
 cmd: testScan
@@ -791,6 +799,10 @@ args: -n Bug24664
 max-time: 1000
 cmd: testNodeRestart
 args: -n Bug25468 T1
+
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug27466 T1
 
 max-time: 1000
 cmd: test_event
