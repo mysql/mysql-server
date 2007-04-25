@@ -233,16 +233,22 @@ Dbtup::commit_operation(Signal* signal,
   }
   else
   {
-    Var_part_ref *ref= (Var_part_ref*)tuple_ptr->get_var_part_ptr(regTabPtr);
-    memcpy(tuple_ptr, copy, 4*(Tuple_header::HeaderSize+fixsize));
-    
+    /**
+     * Var_part_ref is only stored in *allocated* tuple
+     * so memcpy from copy, will over write it...
+     * hence subtle copyout/assign...
+     */
     Local_key tmp; 
+    Var_part_ref *ref= tuple_ptr->get_var_part_ref_ptr(regTabPtr);
     ref->copyout(&tmp);
+
+    memcpy(tuple_ptr, copy, 4*fixsize);
+    ref->assign(&tmp);
 
     PagePtr vpagePtr;
     Uint32 *dst= get_ptr(&vpagePtr, *ref);
     Var_page* vpagePtrP = (Var_page*)vpagePtr.p;
-    Uint32 *src= copy->get_var_part_ptr(regTabPtr);
+    Uint32 *src= copy->get_end_of_fix_part_ptr(regTabPtr);
     Uint32 sz= ((mm_vars + 1) << 1) + (((Uint16*)src)[mm_vars]);
     ndbassert(4*vpagePtrP->get_entry_len(tmp.m_page_idx) >= sz);
     memcpy(dst, src, sz);
@@ -255,9 +261,8 @@ Dbtup::commit_operation(Signal* signal,
       update_free_page_list(regFragPtr, vpagePtr);
     } 
     
-    disk_ptr = (Tuple_header*)
-      (((Uint32*)copy)+Tuple_header::HeaderSize+fixsize+((sz + 3) >> 2));
-  } 
+    disk_ptr = (Tuple_header*)(((Uint32*)copy)+fixsize+((sz + 3) >> 2));
+  }
   
   if (regTabPtr->m_no_of_disk_attributes &&
       (copy_bits & Tuple_header::DISK_INLINE))
