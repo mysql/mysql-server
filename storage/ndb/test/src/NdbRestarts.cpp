@@ -630,8 +630,8 @@ int restartNFDuringNR(NdbRestarter& _restarter,
     int nodeId = _restarter.getDbNodeId(randomId);
     int error = NFDuringNR_codes[i];
     
-    g_info << _restart->m_name << ": node = " << nodeId 
-	   << " error code = " << error << endl;
+    g_err << _restart->m_name << ": node = " << nodeId 
+	  << " error code = " << error << endl;
     
     CHECK(_restarter.restartOneDbNode(nodeId, false, true, true) == 0,
 	  "Could not restart node "<< nodeId);
