@@ -605,8 +605,6 @@ desc t1;
 drop table t1;
 
 #
-
-#
 # Bug#25262 Auto Increment lost when changing Engine type
 #
 
