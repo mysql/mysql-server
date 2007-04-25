@@ -88,7 +88,7 @@ BEGIN
    RETURN  num;
 END|
 
-CREATE PROCEDURE tpcb.trans()
+CREATE PROCEDURE tpcb.trans(in format varchar(3))
 BEGIN
   DECLARE acct INT DEFAULT 0;
   DECLARE brch INT DEFAULT 0;
@@ -134,7 +134,7 @@ BEGIN
      WHERE tid = tell;
   END IF;
 
-  IF (@RPL_SYS_MODE = 'SBR')
+  IF (format = 'SBR')
   THEN
     SET local_uuid=UUID();
     SET local_user=USER();
