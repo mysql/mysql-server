@@ -471,7 +471,7 @@ ErrorBundle ErrorCodes[] = {
   { 1700, DMEC, IE, "Undefined error" },
   { 1701, DMEC, AE, "Node already reserved" },
   { 1702, DMEC, AE, "Node already connected" },
-  { 1703, DMEC, AE, "Node failure handling not completed" },
+  { 1703, DMEC, IT, "Node failure handling not completed" },
   { 1704, DMEC, AE, "Node type mismatch" },
   
   /**
