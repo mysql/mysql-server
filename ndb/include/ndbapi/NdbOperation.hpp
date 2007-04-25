@@ -908,6 +908,8 @@ protected:
   // get table or index key from prepared signals
   int getKeyFromTCREQ(Uint32* data, unsigned size);
 
+  virtual void setReadLockMode(LockMode lockMode);
+
 /******************************************************************************
  * These are the private variables that are defined in the operation objects.
  *****************************************************************************/
