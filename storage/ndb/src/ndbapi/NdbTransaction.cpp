@@ -680,7 +680,7 @@ void
 NdbTransaction::executeAsynch(ExecType aTypeOfExec,
                               NdbAsynchCallback aCallback,
                               void* anyObject,
-                              AbortOption abortOption,
+                              NdbOperation::AbortOption abortOption,
                               int forceSend)
 {
   executeAsynchPrepare(aTypeOfExec, aCallback, anyObject, abortOption);
