@@ -1517,6 +1517,75 @@ runTestIgnoreError(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static void
+testExecuteAsynchCallback(int res, NdbTransaction *con, void *data_ptr)
+{
+  int *res_ptr= (int *)data_ptr;
+
+  *res_ptr= res;
+}
+
+int runTestExecuteAsynch(NDBT_Context* ctx, NDBT_Step* step){
+  /* Test that NdbTransaction::executeAsynch() works (BUG#27495). */
+  int result = NDBT_OK;
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
+  if (pNdb == NULL){
+    ndbout << "pNdb == NULL" << endl;      
+    return NDBT_FAILED;  
+  }
+  if (pNdb->init(2048)){
+    ERR(pNdb->getNdbError());
+    delete pNdb;
+    return NDBT_FAILED;
+  }
+
+  NdbConnection* pCon = pNdb->startTransaction();
+  if (pCon == NULL){
+    ERR(pNdb->getNdbError());
+    delete pNdb;
+    return NDBT_FAILED;
+  }
+
+  NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
+  if (pOp == NULL){
+    ERR(pOp->getNdbError());
+    pNdb->closeTransaction(pCon);
+    delete pNdb;
+    return NDBT_FAILED;
+  }
+
+  if (pOp->readTuples() != 0){
+    ERR(pOp->getNdbError());
+    pNdb->closeTransaction(pCon);
+    delete pNdb;
+    return NDBT_FAILED;
+  }
+
+  if (pOp->getValue(NdbDictionary::Column::FRAGMENT) == 0){
+    ERR(pOp->getNdbError());
+    pNdb->closeTransaction(pCon);
+    delete pNdb;
+    return NDBT_FAILED;
+  }
+  int res= 42;
+  pCon->executeAsynch(NoCommit, testExecuteAsynchCallback, &res);
+  while(pNdb->pollNdb(100000) == 0)
+    ;
+  if (res != 0){
+    ERR(pCon->getNdbError());
+    ndbout << "Error returned from execute: " << res << endl;
+    result= NDBT_FAILED;
+  }
+
+  pNdb->closeTransaction(pCon);
+
+  delete pNdb;
+
+  return result;
+}
+
 template class Vector<NdbScanOperation*>;
 
 
@@ -1615,6 +1684,10 @@ TESTCASE("IgnoreError", ""){
   STEP(runTestIgnoreError);
   FINALIZER(runClearTable);
   FINALIZER(createPkIndex_Drop);
+}
+TESTCASE("ExecuteAsynch", 
+	 "Check that executeAsync() works (BUG#27495)\n"){ 
+  INITIALIZER(runTestExecuteAsynch);
 }
 NDBT_TESTSUITE_END(testNdbApi);
 
