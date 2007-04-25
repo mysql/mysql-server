@@ -708,6 +708,14 @@ max-time: 1500
 cmd: testBlobs
 args:
 
+max-time: 600
+cmd: testBlobs
+args: -bug 27018
+
+max-time: 600
+cmd: testBlobs
+args: -bug 27370
+
 max-time: 5000
 cmd: testOIBasic
 args: -case abcdefz
