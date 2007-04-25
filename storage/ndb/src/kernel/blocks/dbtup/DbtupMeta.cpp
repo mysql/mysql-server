@@ -174,14 +174,14 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
     
     regTabPtr.p->m_offsets[MM].m_disk_ref_offset= 0;
     regTabPtr.p->m_offsets[MM].m_null_words= 0;
-    regTabPtr.p->m_offsets[MM].m_varpart_offset= 0;
+    regTabPtr.p->m_offsets[MM].m_fix_header_size= 0;
     regTabPtr.p->m_offsets[MM].m_max_var_offset= 0;
     regTabPtr.p->m_offsets[MM].m_max_dyn_offset= 0;
     regTabPtr.p->m_offsets[MM].m_dyn_null_words= 0;
 
     regTabPtr.p->m_offsets[DD].m_disk_ref_offset= 0;
     regTabPtr.p->m_offsets[DD].m_null_words= 0;
-    regTabPtr.p->m_offsets[DD].m_varpart_offset= 0;
+    regTabPtr.p->m_offsets[DD].m_fix_header_size= 0;
     regTabPtr.p->m_offsets[DD].m_max_var_offset= 0;
     regTabPtr.p->m_offsets[DD].m_max_dyn_offset= 0;
     regTabPtr.p->m_offsets[DD].m_dyn_null_words= 0;
@@ -516,9 +516,6 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   
   {
     Uint32 fix_tupheader = regTabPtr.p->m_offsets[MM].m_fix_header_size;
-    if((regTabPtr.p->m_attributes[MM].m_no_of_varsize +
-        regTabPtr.p->m_attributes[MM].m_no_of_dynamic) != 0)
-      fix_tupheader += Tuple_header::HeaderSize + Var_part_ref::SZ32;
     ndbassert(fix_tupheader > 0);
     Uint32 noRowsPerPage = ZWORDS_ON_PAGE / fix_tupheader;
     Uint32 noAllocatedPages =
@@ -962,7 +959,16 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
   {
     /* Room for disk part location. */
     regTabPtr->m_offsets[MM].m_disk_ref_offset= pos[MM];
-    pos[MM] += 2; // 8 bytes
+    pos[MM] += Disk_part_ref::SZ32; // 8 bytes
+  }
+  else
+  {
+    regTabPtr->m_offsets[MM].m_disk_ref_offset= pos[MM] - Disk_part_ref::SZ32;
+  }
+
+  if (regTabPtr->m_attributes[MM].m_no_of_varsize)
+  {
+    pos[MM] += Var_part_ref::SZ32;
   }
 
   regTabPtr->m_offsets[MM].m_null_offset= pos[MM];
@@ -1075,13 +1081,9 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
   ndbassert(statvar_count==regTabPtr->m_attributes[MM].m_no_of_varsize);
 
   regTabPtr->m_offsets[MM].m_fix_header_size= 
-    fix_size[MM] + pos[MM];
+    Tuple_header::HeaderSize + fix_size[MM] + pos[MM];
   regTabPtr->m_offsets[DD].m_fix_header_size= 
     fix_size[DD] + pos[DD];
-
-  if((regTabPtr->m_attributes[MM].m_no_of_varsize +
-      regTabPtr->m_attributes[MM].m_no_of_dynamic) == 0)
-    regTabPtr->m_offsets[MM].m_fix_header_size += Tuple_header::HeaderSize;
 
   if(regTabPtr->m_attributes[DD].m_no_of_varsize == 0 &&
      regTabPtr->m_attributes[DD].m_no_of_fixsize > 0)

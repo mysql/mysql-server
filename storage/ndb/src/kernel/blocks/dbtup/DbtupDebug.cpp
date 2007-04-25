@@ -366,7 +366,7 @@ operator<<(NdbOut& out, const Dbtup::Tablerec::Tuple_offsets& off)
   out << "[ null_words: " << (Uint32)off.m_null_words
       << " null off: " << (Uint32)off.m_null_offset
       << " disk_off: " << off.m_disk_ref_offset
-      << " var_off: " << off.m_varpart_offset
+      << " fixheadsz: " << off.m_fix_header_size
       << " max_var_off: " << off.m_max_var_offset
       << " ]";
 

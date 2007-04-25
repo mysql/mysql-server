@@ -477,8 +477,7 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
   const Uint32 firstTupleNo = 0;
-  const Uint32 tupheadsize = tablePtr.p->m_offsets[MM].m_fix_header_size +
-    (buildPtr.p->m_build_vs? Tuple_header::HeaderSize + Var_part_ref::SZ32: 0);
+  const Uint32 tupheadsize = tablePtr.p->m_offsets[MM].m_fix_header_size;
 
 #ifdef TIME_MEASUREMENT
   MicroSecondTimer start;
