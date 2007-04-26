@@ -448,6 +448,8 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
 	!!(tablePtr.p->m_bits & TableRecord::TR_RowChecksum));
   w.add(DictTabInfo::TableTemporaryFlag, 
 	!!(tablePtr.p->m_bits & TableRecord::TR_Temporary));
+  w.add(DictTabInfo::ForceVarPartFlag,
+	!!(tablePtr.p->m_bits & TableRecord::TR_ForceVarPart));
   
   w.add(DictTabInfo::MinLoadFactor, tablePtr.p->minLoadFactor);
   w.add(DictTabInfo::MaxLoadFactor, tablePtr.p->maxLoadFactor);
@@ -5413,8 +5415,8 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
     req->tableType = tabPtr.p->tableType;
     req->primaryTableId = tabPtr.p->primaryTableId;
     req->tablespace_id= tabPtr.p->m_tablespace_id;
-    //req->tablespace_id= tablespace_id;
     req->logPartId = logPart;
+    req->forceVarPartFlag = !!(tabPtr.p->m_bits& TableRecord::TR_ForceVarPart);
     sendSignal(DBLQH_REF, GSN_LQHFRAGREQ, signal, 
 	       LqhFragReq::SignalLength, JBB);
   }
@@ -6031,6 +6033,8 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     (c_tableDesc.RowGCIFlag ? TableRecord::TR_RowGCI : 0);
   tablePtr.p->m_bits |= 
     (c_tableDesc.TableTemporaryFlag ? TableRecord::TR_Temporary : 0);
+  tablePtr.p->m_bits |=
+    (c_tableDesc.ForceVarPartFlag ? TableRecord::TR_ForceVarPart : 0);
   tablePtr.p->minLoadFactor = c_tableDesc.MinLoadFactor;
   tablePtr.p->maxLoadFactor = c_tableDesc.MaxLoadFactor;
   tablePtr.p->fragmentType = (DictTabInfo::FragmentType)c_tableDesc.FragmentType;
