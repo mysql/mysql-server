@@ -971,9 +971,6 @@ SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT), COLUMN_DEFAULT=
 DROP TABLE bug23037;
 DROP FUNCTION get_value;
 
-
-
-
 #
 # Bug#22413: EXPLAIN SELECT FROM view with ORDER BY yield server crash
 #
@@ -1022,5 +1019,13 @@ where t.table_schema = 'information_schema' and
          (c2.column_type = 'varchar(7)' or c2.column_type = 'varchar(20)')
           group by c2.column_type order by num limit 1)
 group by t.table_name order by num1, t.table_name;
+# Bug#24822: Patch: uptime_since_flush_status
+#
+--replace_column 2 #
+show global status like "Uptime_%";
+flush status;
+--replace_column 2 #
+show global status like "Uptime_%";  # Almost certainly zero
+
 
 # End of 5.0 tests.

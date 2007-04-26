@@ -1,0 +1,195 @@
+# default is OFF
+show session variables like 'profil%';
+select @@profiling;
+
+# setting global variable is an error
+--error ER_LOCAL_VARIABLE
+set global profiling = ON;
+
+# But size is okay
+set global profiling_history_size=100;
+show global variables like 'profil%';
+
+# turn on for testing
+set session profiling = ON;
+set session profiling_history_size=30;  # small enough to overflow
+
+# verify it is active
+show session variables like 'profil%';
+select @@profiling;
+
+#   Profiling is a descriptive look into the way the server operated
+#   in retrospect.  Chad doesn't think it's wise to include the result
+#   log, as this creates a proscriptive specification about how the 
+#   server should work in the future -- or it forces everyone who 
+#   changes the server significantly to record the test results again,
+#   and that violates the spirit of our tests.  Please don't include
+#   execution-specific data here, as in all of the "show profile" and
+#   information_schema.profiling results.
+
+create table t1 (
+  a int,
+  b int
+);
+insert into t1 values (1,1), (2,null), (3, 4);
+insert into t1 values (5,1), (6,null), (7, 4);
+insert into t1 values (1,1), (2,null), (3, 4);
+insert into t1 values (5,1), (6,null), (7, 4);
+select max(x) from (select sum(a) as x from t1 group by b) as teeone;
+insert into t1 select * from t1;
+select count(*) from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+select count(*) from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+select count(*) from t1;
+select sum(a) from t1;
+select sum(a) from t1 group by b;
+select sum(a) + sum(b) from t1 group by b;
+select max(x) from (select sum(a) as x from t1 group by b) as teeone;
+select '012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890' as big_string;
+
+--enable_result_log
+--replace_column 2 #
+show profiles;
+
+--disable_result_log
+###--replace_column 2 # 3 # 4 #
+show profile for query 15;
+###--replace_column 2 # 3 # 4 #
+show profile cpu for query 15;
+###--replace_column 2 # 3 # 4 # 5 # 6 #
+show profile cpu, block io for query 15;
+###--replace_column 2 # 3 # 4 #
+show profile cpu for query 9 limit 2 offset 2;
+show profile cpu for query 10 limit 0;
+--error 0,ER_WRONG_ARGUMENTS
+show profile cpu for query 65534;
+###--replace_column 2 #
+show profile memory;
+###--replace_column 2 # 3 # 4 #
+show profile block io;
+###--replace_column 2 # 3 # 4 #
+show profile context switches;
+###--replace_column 2 # 3 # 4 #
+show profile page faults;
+###--replace_column 2 # 3 # 4 #
+show profile ipc;
+###--replace_column 2 #
+show profile swaps limit 1 offset 2;
+###--replace_column 2 # 5 #
+show profile source;
+show profile all for query 0 limit 0;
+###--replace_column 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 # 13 # 16 #
+show profile all for query 15;
+###--replace_column 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 # 13 # 16 #
+
+select * from information_schema.profiling;
+select query_id, state, duration from information_schema.profiling;
+select query_id, sum(duration) from information_schema.profiling group by query_id;
+select query_id, count(*) from information_schema.profiling group by query_id;
+select sum(duration) from information_schema.profiling;
+
+# Broken down into number of stages and duration of each query.
+select query_id, count(*), sum(duration) from information_schema.profiling group by query_id;
+select CPU_user, CPU_system, Context_voluntary, Context_involuntary, Block_ops_in, Block_ops_out, Messages_sent, Messages_received, Page_faults_major, Page_faults_minor, Swaps, Source_function, Source_file, Source_line from information_schema.profiling;
+
+
+--enable_result_log
+drop table if exists t1, t2, t3;
+create table t1 (id int );
+create table t2 (id int not null);
+create table t3 (id int not null primary key);
+insert into t1 values (1), (2), (3);
+insert into t2 values (1), (2), (3);
+insert into t3 values (1), (2), (3);
+
+--replace_column 2 #
+show profiles;
+
+select * from t1;
+--replace_column 2 #
+show profiles;
+--echo This ^^ should end in "select * from t1;"
+
+delete from t1;
+insert into t1 values (1), (2), (3);
+insert into t1 values (1), (2), (3);
+
+select * from t1;
+--replace_column 2 #
+show profiles;
+
+# Turning profiling off does freeze it
+set session profiling = OFF;
+select sum(id) from t1;
+--replace_column 2 #
+show profiles;
+
+##  Verify that the various juggling of THD contexts doesn't affect profiling.
+
+##  Functions
+set session profiling = ON;
+select @@profiling;
+create function f1() returns varchar(50) return 'hello';
+select @@profiling;
+select * from t1 where id <> f1();
+select @@profiling;
+
+##  Triggers
+set session profiling = ON;
+drop table if exists t2;
+create table t2 (id int not null);
+create trigger t2_bi before insert on t2 for each row set @x=0;
+select @@profiling;
+insert into t2 values (1), (2), (3);
+select @@profiling;
+
+##  ALTER TABLE
+set session profiling = ON;
+drop table if exists t1, t2;
+create table t1 (id int not null primary key);
+create table t2 (id int not null primary key, id1 int not null);
+select @@profiling;
+alter table t2 add foreign key (id1) references t1 (id) on delete cascade;
+select @@profiling;
+
+##  Table LOCKing
+lock table t1 write; 
+select @@profiling;
+unlock table; 
+select @@profiling;
+
+##  Transactions
+set autocommit=0;
+select @@profiling, @@autocommit;
+begin;
+select @@profiling;
+insert into t1 values (1);
+insert into t2 values (1,1);
+--echo testing referential integrity cascade
+delete from t1 where id = 1;
+select @@profiling;
+--echo testing rollback
+--disable_warnings
+rollback;
+--enable_warnings
+select @@profiling;
+--echo testing commit
+begin;
+select @@profiling;
+commit;
+select @@profiling;
+
+drop table if exists t1, t2, t3;
+drop view if exists v1;
+drop function if exists f1;
+
+## last thing in the file
+set session profiling = OFF;
+
+##
+--echo End of 5.0 tests

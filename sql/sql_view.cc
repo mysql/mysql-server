@@ -592,7 +592,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   DBUG_RETURN(0);
 
 err:
-  thd->proc_info= "end";
+  thd_proc_info(thd, "end");
   lex->link_first_table_back(view, link_to_local);
   unit->cleanup();
   DBUG_RETURN(res || thd->net.report_error);

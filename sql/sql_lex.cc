@@ -184,7 +184,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->proc_list.first= 0;
   lex->escape_used= FALSE;
   lex->reset_query_tables_list(FALSE);
-
+  lex->profile_options= PROFILE_NONE;
   lex->nest_level=0 ;
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;
