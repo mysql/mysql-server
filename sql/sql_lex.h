@@ -543,7 +543,7 @@ public:
   void set_thd(THD *thd_arg) { thd= thd_arg; }
   inline bool is_union (); 
 
-  friend void lex_start(THD *thd, const char *buf, uint length);
+  friend void lex_start(THD *thd);
   friend int subselect_union_engine::exec();
 
   List<Item> *get_unit_column_types();
@@ -744,7 +744,7 @@ public:
   void cut_subtree() { slave= 0; }
   bool test_limit();
 
-  friend void lex_start(THD *thd, const char *buf, uint length);
+  friend void lex_start(THD *thd);
   st_select_lex() : n_sum_items(0), n_child_sum_items(0) {}
   void make_empty_select()
   {
@@ -992,23 +992,67 @@ struct st_parsing_options
 };
 
 
+/**
+  This class represents the character input stream consumed during
+  lexical analysis.
+*/
+class Lex_input_stream
+{
+public:
+  Lex_input_stream(THD *thd, const char* buff, unsigned int length);
+  ~Lex_input_stream();
+
+  /** Current thread. */
+  THD *m_thd;
+
+  /** Current line number. */
+  uint yylineno;
+
+  /** Length of the last token parsed. */
+  uint yytoklen;
+
+  /** Interface with bison, value of the last token parsed. */
+  LEX_YYSTYPE yylval;
+
+  /** Pointer to the current position in the input stream. */
+  const char* ptr;
+
+  /** Starting position of the last token parsed. */
+  const char* tok_start;
+
+  /** Ending position of the last token parsed. */
+  const char* tok_end;
+
+  /** End of the query text in the input stream. */
+  const char* end_of_query;
+
+  /** Starting position of the previous token parsed. */
+  const char* tok_start_prev;
+
+  /** Begining of the query text in the input stream. */
+  const char* buf;
+
+  /** Current state of the lexical analyser. */
+  enum my_lex_states next_state;
+
+  /** Position of ';' in the stream, to delimit multiple queries. */
+  const char* found_semicolon;
+
+  /** SQL_MODE = IGNORE_SPACE. */
+  bool ignore_space;
+};
+
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 typedef struct st_lex : public Query_tables_list
 {
-  uint	 yylineno,yytoklen;			/* Simulate lex */
-  LEX_YYSTYPE yylval;
   SELECT_LEX_UNIT unit;                         /* most upper unit */
   SELECT_LEX select_lex;                        /* first SELECT_LEX */
   /* current SELECT_LEX in parsing */
   SELECT_LEX *current_select;
   /* list of all SELECT_LEX */
   SELECT_LEX *all_selects_list;
-  const char *buf;		/* The beginning of string, used by SPs */
-  const char *ptr,*tok_start,*tok_end,*end_of_query;
-  
-  /* The value of tok_start as they were one call of MYSQLlex before */
-  const char *tok_start_prev;
 
   char *length,*dec,*change;
   LEX_STRING name;
@@ -1017,7 +1061,6 @@ typedef struct st_lex : public Query_tables_list
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
   char* x509_subject,*x509_issuer,*ssl_cipher;
-  char* found_semicolon;                        /* For multi queries - next query */
   String *wild;
   sql_exchange *exchange;
   select_result *result;
@@ -1101,7 +1144,6 @@ typedef struct st_lex : public Query_tables_list
 
   thr_lock_type lock_option;
   enum SSL_type ssl_type;			/* defined in violite.h */
-  enum my_lex_states next_state;
   enum enum_duplicates duplicates;
   enum enum_tx_isolation tx_isolation;
   enum enum_ha_read_modes ha_read_mode;
@@ -1133,7 +1175,7 @@ typedef struct st_lex : public Query_tables_list
   uint8 create_view_algorithm;
   uint8 create_view_check;
   bool drop_if_exists, drop_temporary, local_file, one_shot_set;
-  bool in_comment, ignore_space, verbose, no_write_to_binlog;
+  bool in_comment, verbose, no_write_to_binlog;
   bool tx_chain, tx_release;
   /*
     Special JOIN::prepare mode: changing of query is prohibited.
@@ -1210,7 +1252,8 @@ typedef struct st_lex : public Query_tables_list
     Pointers to part of LOAD DATA statement that should be rewritten
     during replication ("LOCAL 'filename' REPLACE INTO" part).
   */
-  const char *fname_start, *fname_end;
+  const char *fname_start;
+  const char *fname_end;
 
   /*
     Reference to a struct that contains information in various commands
@@ -1327,7 +1370,7 @@ struct st_lex_local: public st_lex
 
 extern void lex_init(void);
 extern void lex_free(void);
-extern void lex_start(THD *thd, const char *buf, uint length);
+extern void lex_start(THD *thd);
 extern void lex_end(LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
 extern const char *skip_rear_comments(const char *ubegin, const char *uend);

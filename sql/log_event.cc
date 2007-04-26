@@ -5863,7 +5863,7 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
       Table_map_log_event::do_apply_event() we don't call
       mysql_init_query() as that may reset the binlog format.
     */
-    lex_start(thd, NULL, 0);
+    lex_start(thd);
 
     while ((error= lock_tables(thd, rli->tables_to_lock,
                                rli->tables_to_lock_count, &need_reopen)))
@@ -6513,7 +6513,8 @@ int Table_map_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
       initialized, so we should call lex_start(); to be even safer, we
       call mysql_init_query() which does a more complete set of inits.
     */
-    mysql_init_query(thd, NULL, 0);
+    lex_start(thd);
+    mysql_reset_thd_for_next_command(thd);
     /*
       Check if the slave is set to use SBR.  If so, it should switch
       to using RBR until the end of the "statement", i.e., next
