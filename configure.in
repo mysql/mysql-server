@@ -425,6 +425,22 @@ AC_SUBST(PERL5)
 
 # icheck, used for ABI check
 AC_PATH_PROG(ICHECK, icheck, no)
+# "icheck" is also the name of a file system check program on Tru64.
+# Verify the program found is really the interface checker.
+if test "x$ICHECK" != "xno"
+then
+  AC_MSG_CHECKING(if $ICHECK works as expected)
+  echo "int foo;" > conftest.h
+  $ICHECK --canonify -o conftest.ic conftest.h 2>/dev/null
+  if test -f "conftest.ic"
+  then
+    AC_MSG_RESULT(yes)
+  else
+    AC_MSG_RESULT(no)
+    ICHECK=no
+  fi
+  rm -f conftest.ic conftest.h
+fi
 AC_SUBST(ICHECK)
 
 # Lock for PS
@@ -2301,28 +2317,6 @@ AC_ARG_WITH(man,
     [with_man=yes]
 )
 
-if test X"$with_man" = Xyes
-then
-  man_dirs="man"
-  if test X"$have_ndbcluster" = Xyes
-  then
-    man1_files=`ls $srcdir/man/*.1 | sed -e 's;^.*man/;;'`
-    man8_files=`ls $srcdir/man/*.8 | sed -e 's;^.*man/;;'`
-  else
-    man1_files=`ls $srcdir/man/*.1 | grep -v '/ndb' | sed -e 's;^.*man/;;'`
-    man8_files=`ls $srcdir/man/*.8 | grep -v '/ndb' | sed -e 's;^.*man/;;'`
-  fi
-  man1_files=`echo $man1_files`
-  man8_files=`echo $man8_files`
-else
-  man_dirs=""
-  man1_files=""
-  man8_files=""
-fi
-AC_SUBST(man_dirs)
-AC_SUBST(man1_files)
-AC_SUBST(man8_files)
-
 # Don't build readline, i have it already
 AC_ARG_WITH(readline,
     [  --without-readline      Use system readline instead of bundled copy.],
@@ -2448,6 +2442,61 @@ AC_SUBST(readline_basedir)
 AC_SUBST(readline_link)
 AC_SUBST(readline_h_ln_cmd)
 
+
+
+# Include man pages, if desired, adapted to the configured parts.
+if test X"$with_man" = Xyes
+then
+  # First, create the list of all man pages present.
+  MANLISTFIL=manlist.$$
+  TMPLISTFIL=`echo $MANLISTFIL | sed -e 's/manlist/tmplist/'`
+  if test -f $MANLISTFIL -o -f $TMPLISTFIL
+  then
+    echo "Temp file '$MANLISTFIL' or '$TMPLISTFIL' already exists in '`pwd`' - aborting"
+    exit 1
+  fi
+  touch $MANLISTFIL $TMPLISTFIL
+
+  ls $srcdir/man/*.[[18]] > $MANLISTFIL
+
+  # Then, remove all those pages from the list which are specific to parts
+  # (table handlers, features, ...) which are not configured in this run.
+  AC_MSG_CHECKING("for man pages to remove")
+  MAN_DROP="dropping"
+  if test X"$with_plugin_ndbcluster" != Xyes
+  then
+    MAN_DROP="$MAN_DROP ndbcluster"
+    grep -v '/ndb' $MANLISTFIL > $TMPLISTFIL ; mv -f $TMPLISTFIL $MANLISTFIL
+  fi
+  if test X"$with_embedded_server" != Xyes
+  then
+    MAN_DROP="$MAN_DROP embedded"
+    grep -v 'embedded' $MANLISTFIL > $TMPLISTFIL ; mv -f $TMPLISTFIL $MANLISTFIL
+  fi
+  if test X"$with_plugin_innobase" != Xyes
+  then
+    MAN_DROP="$MAN_DROP innodb"
+    grep -v 'inno' $MANLISTFIL > $TMPLISTFIL ; mv -f $TMPLISTFIL $MANLISTFIL
+  fi
+  AC_MSG_RESULT([$MAN_DROP])
+
+  # Finally, split the man pages into sections 1 and 8.
+  # Get rid of line breaks.
+  man1_files=`sed -n -e '/\.1$/s/^.*man\///p' <$MANLISTFIL`
+  man8_files=`sed -n -e '/\.8$/s/^.*man\///p' <$MANLISTFIL`
+
+  man_dirs="man"
+  man1_files=`echo $man1_files`
+  man8_files=`echo $man8_files`
+  rm -f $MANLISTFIL $TMPLISTFIL
+else
+  man_dirs=""
+  man1_files=""
+  man8_files=""
+fi
+AC_SUBST(man_dirs)
+AC_SUBST(man1_files)
+AC_SUBST(man8_files)
 
 # If we have threads generate some library functions and test programs
 sql_server_dirs=

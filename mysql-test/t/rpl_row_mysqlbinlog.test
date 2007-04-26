@@ -10,6 +10,8 @@
 # Embedded server doesn't support binlogging
 -- source include/not_embedded.inc
 -- source include/master-slave.inc
+# This test requires the cp932 charset compiled in
+-- source include/have_cp932.inc
 
 # Setup Section
 # we need this for getting fixed timestamps inside of this test
