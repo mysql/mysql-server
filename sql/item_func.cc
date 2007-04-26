@@ -3158,7 +3158,7 @@ bool Item_func_match::fix_index()
   for (keynr=0 ; keynr < table->keys ; keynr++)
   {
     if ((table->key_info[keynr].flags & HA_FULLTEXT) &&
-        (table->keys_in_use_for_query.is_set(keynr)))
+        (table->keys_in_use.is_set(keynr)))
     {
       ft_to_key[fts]=keynr;
       ft_cnt[fts]=0;
