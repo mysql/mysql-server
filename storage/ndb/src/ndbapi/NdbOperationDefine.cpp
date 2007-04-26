@@ -655,6 +655,36 @@ NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo
   return tBlob;
 }
 
+NdbRecAttr*
+NdbOperation::getVarValue(const NdbColumnImpl* tAttrInfo,
+                          char* aBareValue, Uint16* aLenLoc)
+{
+  NdbRecAttr* ra = getValue(tAttrInfo, aBareValue);
+  if (ra != NULL) {
+    assert(aLenLoc != NULL);
+    ra->m_getVarValue = aLenLoc;
+  }
+  return ra;
+}
+
+int
+NdbOperation::setVarValue(const NdbColumnImpl* tAttrInfo,
+                          const char* aBareValue, const Uint16& aLen)
+{
+  DBUG_ENTER("NdbOperation::setVarValue");
+  DBUG_PRINT("info", ("aLen=%u", (Uint32)aLen));
+
+  // wl3717_todo not optimal..
+  Uint64 buf[2048];
+  unsigned char* p = (unsigned char*)buf;
+  p[0] = (aLen & 0xff);
+  p[1] = (aLen >> 8);
+  memcpy(&p[2], aBareValue, aLen);
+  if (setValue(tAttrInfo, (char*)buf) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
 /****************************************************************************
  * int insertATTRINFO( Uint32 aData );
  *

@@ -58,7 +58,7 @@ enum SCHEMA_OP_TYPE
   SOT_TRUNCATE_TABLE= 11
 };
 
-const uint max_ndb_nodes= 64; /* multiple of 32 */
+const uint max_ndb_nodes= 256; /* multiple of 32 */
 
 static const char *ha_ndb_ext=".ndb";
 static const char share_prefix[]= "./";
@@ -115,6 +115,8 @@ extern int ndbcluster_util_inited;
 extern pthread_mutex_t ndbcluster_mutex;
 extern HASH ndbcluster_open_tables;
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
+extern Ndb_cluster_connection **g_ndb_cluster_connection_pool;
+extern ulong g_ndb_cluster_connection_pool_alloc;
 extern long ndb_number_of_storage_nodes;
 
 /*

@@ -141,6 +141,9 @@ list(const char * tabname,
 	case NdbDictionary::Object::Undofile:
 	  strcpy(type, "Undofile");
 	  break;
+        case NdbDictionary::Object::TableEvent:
+            strcpy(type, "TableEvent");
+            break;
         default:
 	  sprintf(type, "%d", (int)elt.type);
             break;
