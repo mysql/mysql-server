@@ -196,6 +196,7 @@ static bool register_builtin(struct st_mysql_plugin *, struct st_plugin_int *,
                              struct st_plugin_int **);
 static void unlock_variables(THD *thd, struct system_variables *vars);
 static void cleanup_variables(THD *thd, struct system_variables *vars);
+static void plugin_vars_free_values(sys_var *vars);
 static void plugin_opt_set_limits(struct my_option *options,
                                   const struct st_mysql_sys_var *opt);
 #define my_intern_plugin_lock(A,B) intern_plugin_lock(A,B CALLER_INFO)
@@ -829,8 +830,11 @@ static void plugin_del(struct st_plugin_int *plugin)
 {
   DBUG_ENTER("plugin_del(plugin)");
   safe_mutex_assert_owner(&LOCK_plugin);
+  /* Free allocated strings before deleting the plugin. */
+  plugin_vars_free_values(plugin->system_vars);
   hash_delete(&plugin_hash[plugin->plugin->type], (byte*)plugin);
-  plugin_dl_del(&plugin->plugin_dl->dl);
+  if (plugin->plugin_dl)
+    plugin_dl_del(&plugin->plugin_dl->dl);
   plugin->state= PLUGIN_IS_FREED;
   plugin_array_version++;
   rw_wrlock(&LOCK_system_variables_hash);
@@ -1588,8 +1592,9 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
 
   pthread_mutex_lock(&LOCK_plugin);
   rw_wrlock(&LOCK_system_variables_hash);
-  argv[0]= ""; /* handle_options() assumes arg0 (program name) always exists */
-  argv[1]= NULL;
+  /* handle_options() assumes arg0 (program name) always exists */
+  argv[0]= const_cast<char*>(""); // without a cast gcc emits a warning
+  argv[1]= 0;
   argc= 1;
   error= plugin_add(thd->mem_root, name, dl, &argc, argv, REPORT_TO_USER);
   rw_unlock(&LOCK_system_variables_hash);
@@ -2171,6 +2176,17 @@ static st_bookmark *register_var(const char *plugin, const char *name,
       max_system_variables.dynamic_variables_ptr=
         my_realloc(max_system_variables.dynamic_variables_ptr, new_size,
                    MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
+      /*
+        Clear the new variable value space. This is required for string
+        variables. If their value is non-NULL, it must point to a valid
+        string.
+      */
+      bzero(global_system_variables.dynamic_variables_ptr +
+            global_variables_dynamic_size,
+            new_size - global_variables_dynamic_size);
+      bzero(max_system_variables.dynamic_variables_ptr +
+            global_variables_dynamic_size,
+            new_size - global_variables_dynamic_size);
       global_variables_dynamic_size= new_size;
     }
 
@@ -2311,6 +2327,9 @@ static void unlock_variables(THD *thd, struct system_variables *vars)
 
 /*
   Frees memory used by system variables
+
+  Unlike plugin_vars_free_values() it frees all variables of all plugins,
+  it's used on shutdown.
 */
 static void cleanup_variables(THD *thd, struct system_variables *vars)
 {
@@ -2379,6 +2398,40 @@ void plugin_thdvar_cleanup(THD *thd)
 }
 
 
+/**
+  @brief Free values of thread variables of a plugin.
+
+  @detail This must be called before a plugin is deleted. Otherwise its
+  variables are no longer accessible and the value space is lost. Note
+  that only string values with PLUGIN_VAR_MEMALLOC are allocated and
+  must be freed.
+
+  @param[in]        vars        Chain of system variables of a plugin
+*/
+
+static void plugin_vars_free_values(sys_var *vars)
+{
+  DBUG_ENTER("plugin_vars_free_values");
+
+  for (sys_var *var= vars; var; var= var->next)
+  {
+    sys_var_pluginvar *piv= var->cast_pluginvar();
+    if (piv &&
+        ((piv->plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR) &&
+        (piv->plugin_var->flags & PLUGIN_VAR_MEMALLOC))
+    {
+      /* Free the string from global_system_variables. */
+      char **valptr= (char**) piv->real_value_ptr(NULL, OPT_GLOBAL);
+      DBUG_PRINT("plugin", ("freeing value for: '%s'  addr: 0x%lx",
+                            var->name, (long) valptr));
+      my_free(*valptr, MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
+      *valptr= NULL;
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 bool sys_var_pluginvar::check_update_type(Item_result type)
 {
   if (is_readonly())
@@ -2421,10 +2474,10 @@ SHOW_TYPE sys_var_pluginvar::show_type()
 
 byte* sys_var_pluginvar::real_value_ptr(THD *thd, enum_var_type type)
 {
-  DBUG_ASSERT(thd);
+  DBUG_ASSERT(thd || (type != OPT_SESSION));
   if (plugin_var->flags & PLUGIN_VAR_THDLOCAL)
   {
-    if (type == OPT_GLOBAL)
+    if (type != OPT_SESSION)
       thd= NULL;
 
     return intern_sys_var_ptr(thd, *(int*) (plugin_var+1), false);
@@ -2614,7 +2667,9 @@ static void plugin_opt_set_limits(struct my_option *options,
     options->def_value= *(my_bool*) ((void**)(opt + 1) + 1);
     break;
   case PLUGIN_VAR_STR:
-    options->var_type= GET_STR;
+    options->var_type= ((opt->flags & PLUGIN_VAR_MEMALLOC) ?
+                        GET_STR_ALLOC : GET_STR);
+    options->def_value= (ulonglong)(intptr) *((char**) ((void**) (opt + 1) + 1));
     break;
   /* threadlocal variables */
   case PLUGIN_VAR_INT | PLUGIN_VAR_THDLOCAL:
@@ -2654,7 +2709,9 @@ static void plugin_opt_set_limits(struct my_option *options,
     options->def_value= *(my_bool*) ((int*) (opt + 1) + 1);
     break;
   case PLUGIN_VAR_STR | PLUGIN_VAR_THDLOCAL:
-    options->var_type= GET_STR;
+    options->var_type= ((opt->flags & PLUGIN_VAR_MEMALLOC) ?
+                        GET_STR_ALLOC : GET_STR);
+    options->def_value= (intptr) *((char**) ((void**) (opt + 1) + 1));
     break;
   default:
     DBUG_ASSERT(0);

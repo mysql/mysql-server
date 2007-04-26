@@ -1114,10 +1114,10 @@ void unireg_end(void)
 extern "C" void unireg_abort(int exit_code)
 {
   DBUG_ENTER("unireg_abort");
-  if (opt_help)
-    usage();
   if (exit_code)
     sql_print_error("Aborting\n");
+  else if (opt_help)
+    usage();
   clean_up(exit_code || !opt_bootstrap); /* purecov: inspected */
   DBUG_PRINT("quit",("done with cleanup in unireg_abort"));
   wait_for_signal_thread_to_end();
@@ -5056,8 +5056,7 @@ struct my_option my_long_options[] =
    " to 'row' and back implicitly per each query accessing a NDB table."
 #endif
    ,(gptr*) &opt_binlog_format, (gptr*) &opt_binlog_format,
-   0, GET_STR, REQUIRED_ARG, BINLOG_FORMAT_MIXED, BINLOG_FORMAT_STMT,
-   BINLOG_FORMAT_MIXED, 0, 0, 0},
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, and exclude all others not explicitly mentioned.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -6888,7 +6887,6 @@ Starts the MySQL database server\n");
 #endif
   print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
   puts("");
-  fix_paths();
   set_ports();
 
   /* Print out all the options including plugin supplied options */
