@@ -2105,6 +2105,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_temporary = tableDesc->TableTemporaryFlag;
   impl->m_row_gci = tableDesc->RowGCIFlag;
   impl->m_row_checksum = tableDesc->RowChecksumFlag;
+  impl->m_force_var_part = tableDesc->ForceVarPartFlag;
   impl->m_kvalue = tableDesc->TableKValue;
   impl->m_minLoadFactor = tableDesc->MinLoadFactor;
   impl->m_maxLoadFactor = tableDesc->MaxLoadFactor;
@@ -2569,6 +2570,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   tmpTab->MinRowsLow = (Uint32)(impl.m_min_rows & 0xFFFFFFFF);
   tmpTab->DefaultNoPartFlag = impl.m_default_no_part_flag;
   tmpTab->LinearHashFlag = impl.m_linear_flag;
+  tmpTab->ForceVarPartFlag = impl.m_force_var_part;
 
   if (impl.m_ts_name.length())
   {
