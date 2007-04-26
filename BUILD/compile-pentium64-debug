@@ -1,7 +1,8 @@
 #! /bin/sh
 
 path=`dirname $0`
-. "$path/SETUP.sh" $@ --with-debug=full
+set -- "$@" --with-debug=full
+. "$path/SETUP.sh"
 
 extra_flags="$pentium64_cflags $debug_cflags"
 c_warnings="$c_warnings $debug_extra_warnings"
