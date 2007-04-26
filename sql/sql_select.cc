@@ -8621,17 +8621,13 @@ static bool
 test_if_equality_guarantees_uniqueness(Item *l, Item *r)
 {
   return r->const_item() &&
-    /* elements must be of the same result type */
-    (r->result_type() == l->result_type() ||
-    /* or dates compared to longs */
-     (((l->type() == Item::FIELD_ITEM &&
-        ((Item_field *)l)->field->can_be_compared_as_longlong()) ||
-       (l->type() == Item::FUNC_ITEM &&
-        ((Item_func *)l)->result_as_longlong())) &&
-      r->result_type() == INT_RESULT))
-    /* and must have the same collation if compared as strings */
-    && (l->result_type() != STRING_RESULT ||
-        l->collation.collation == r->collation.collation);
+    /* elements must be compared as dates */
+     (Arg_comparator::can_compare_as_dates(l, r, 0) ||
+      /* or of the same result type */
+      (r->result_type() == l->result_type() &&
+       /* and must have the same collation if compared as strings */
+       (l->result_type() != STRING_RESULT ||
+        l->collation.collation == r->collation.collation)));
 }
 
 /*
