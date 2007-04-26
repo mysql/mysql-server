@@ -648,6 +648,26 @@ static bool ndb_supported_type(enum_field_types type)
 
 
 /*
+  Check if MySQL field type forces var part in ndb storage
+*/
+static bool field_type_forces_var_part(enum_field_types type)
+{
+  switch (type) {
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_VARCHAR:
+    return TRUE;
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_GEOMETRY:
+    return FALSE;
+  default:
+    return FALSE;
+  }
+}
+
+/*
   Instruct NDB to set the value of the hidden primary key
 */
 
@@ -4863,6 +4883,28 @@ int ha_ndbcluster::create(const char *name,
   }
 
   /*
+    Handle table row type
+
+    Default is to let table rows have var part reference so that online 
+    add column can be performed in the future.  Explicitly setting row 
+    type to fixed will omit var part reference, which will save data 
+    memory in ndb, but at the cost of not being able to online add 
+    column to this table
+  */
+  switch (create_info->row_type) {
+  case ROW_TYPE_FIXED:
+    tab.setForceVarPart(FALSE);
+    break;
+  case ROW_TYPE_DYNAMIC:
+    /* fall through, treat as default */
+  default:
+    /* fall through, treat as default */
+  case ROW_TYPE_DEFAULT:
+    tab.setForceVarPart(TRUE);
+    break;
+  }
+
+  /*
     Setup columns
   */
   for (i= 0; i < form->s->fields; i++) 
@@ -4878,6 +4920,28 @@ int ha_ndbcluster::create(const char *name,
       col.setStorageType(NdbDictionary::Column::StorageTypeDisk);
     else
       col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
+
+    switch (create_info->row_type) {
+    case ROW_TYPE_FIXED:
+      if (field_type_forces_var_part(field->type()))
+      {
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                            ER_ILLEGAL_HA_CREATE_OPTION,
+                            ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                            ndbcluster_hton_name,
+                            "Row format FIXED incompatible with "
+                            "variable sized attribute");
+        DBUG_RETURN(HA_ERR_UNSUPPORTED);
+      }
+      break;
+    case ROW_TYPE_DYNAMIC:
+      /*
+        Future: make columns dynamic in this case
+      */
+      break;
+    default:
+      break;
+    }
 
     tab.addColumn(col);
     if (col.getPrimaryKey())
