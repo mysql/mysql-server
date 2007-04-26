@@ -62,8 +62,9 @@ public:
    */
   void insert(Ptr<T> & ptr, Ptr<T>& loc);
   
+  void remove();
   void remove(Ptr<T> &);
-  
+  void remove(T*);
   /**
    *  Update i & p value according to <b>i</b>
    */
@@ -277,9 +278,25 @@ DLFifoListImpl<P,T,U>::insert(Ptr<T> & ptr, Ptr<T> & loc)
 template <typename P, typename T, typename U>
 inline
 void
+DLFifoListImpl<P,T,U>::remove()
+{
+  head.firstItem = RNIL;
+  head.lastItem = RNIL;
+}
+
+template <typename P, typename T, typename U>
+inline
+void
 DLFifoListImpl<P,T,U>::remove(Ptr<T> & p)
 {
-  T * t = p.p;
+  remove(p.p);
+}
+
+template <typename P, typename T, typename U>
+inline
+void
+DLFifoListImpl<P,T,U>::remove(T * t)
+{
   Uint32 ni = t->U::nextList;
   Uint32 pi = t->U::prevList;
 
@@ -328,7 +345,7 @@ inline
 void 
 DLFifoListImpl<P,T,U>::release(Ptr<T> & p)
 {
-  remove(p);
+  remove(p.p);
   thePool.release(p);
 }
 

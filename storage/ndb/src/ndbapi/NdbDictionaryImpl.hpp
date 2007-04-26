@@ -199,6 +199,7 @@ public:
   bool m_temporary;
   bool m_row_gci;
   bool m_row_checksum;
+  bool m_force_var_part;
   int m_kvalue;
   int m_minLoadFactor;
   int m_maxLoadFactor;

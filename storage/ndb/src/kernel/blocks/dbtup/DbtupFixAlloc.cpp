@@ -90,8 +90,8 @@ Dbtup::alloc_fix_rec(Fragrecord* const regFragPtr,
       
       pagePtr.p->page_state = ZTH_MM_FREE;
       
-      LocalDLList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);    
-      free_pages.add(pagePtr);
+      LocalDLFifoList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);
+      free_pages.addFirst(pagePtr);
     } else {
       jam();
 /* ---------------------------------------------------------------- */
@@ -173,7 +173,7 @@ Dbtup::alloc_tuple_from_page(Fragrecord* const regFragPtr,
 /*       ARE MAINTAINED EVEN AFTER A SYSTEM CRASH.                  */
 /* ---------------------------------------------------------------- */
     ndbrequire(regPagePtr->page_state == ZTH_MM_FREE);
-    LocalDLList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);    
+    LocalDLFifoList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);    
     free_pages.remove((Page*)regPagePtr);
     regPagePtr->page_state = ZTH_MM_FULL;
   }
@@ -193,10 +193,10 @@ void Dbtup::free_fix_rec(Fragrecord* regFragPtr,
   {
     jam();
     PagePtr pagePtr = { (Page*)regPagePtr, key->m_page_no };
-    LocalDLList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);    
+    LocalDLFifoList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);    
     ndbrequire(regPagePtr->page_state == ZTH_MM_FULL);
     regPagePtr->page_state = ZTH_MM_FREE;
-    free_pages.add(pagePtr);
+    free_pages.addLast(pagePtr);
   } 
 }//Dbtup::freeTh()
 
@@ -224,13 +224,13 @@ Dbtup::alloc_page(Tablerec* tabPtrP, Fragrecord* fragPtrP,
   c_page_pool.getPtr(pagePtr, getRealpid(fragPtrP, page_no));
   
   LocalDLList<Page> alloc_pages(c_page_pool, fragPtrP->emptyPrimPage);
-  LocalDLList<Page> free_pages(c_page_pool, fragPtrP->thFreeFirst);
+  LocalDLFifoList<Page> free_pages(c_page_pool, fragPtrP->thFreeFirst);
   if (pagePtr.p->page_state == ZEMPTY_MM)
   {
     convertThPage((Fix_page*)pagePtr.p, tabPtrP, MM);
     pagePtr.p->page_state = ZTH_MM_FREE;
     alloc_pages.remove(pagePtr);
-    free_pages.add(pagePtr);
+    free_pages.addFirst(pagePtr);
   }
   
   *ret = pagePtr;
@@ -254,7 +254,7 @@ Dbtup::alloc_fix_rowid(Fragrecord* regFragPtr,
   }
 
   Uint32 state = pagePtr.p->page_state;
-  LocalDLList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);
+  LocalDLFifoList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);
   switch(state){
   case ZTH_MM_FREE:
     if (((Fix_page*)pagePtr.p)->alloc_record(idx) != idx)
