@@ -24,7 +24,7 @@
 #
 
 --source include/master-slave.inc
---source include/have_binlog_format_mixed_or_row.inc
+--source include/have_binlog_format_row.inc
 --source include/have_ndb.inc
 let $engine_type= NDB;
 let $temp_engine_type= MEMORY;
