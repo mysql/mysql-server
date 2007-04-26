@@ -176,7 +176,9 @@ public:
   */
   HASH m_sroutines;
   // Pointers set during parsing
-  const char *m_param_begin, *m_param_end, *m_body_begin;
+  const char *m_param_begin;
+  const char *m_param_end;
+  const char *m_body_begin;
 
   /*
     Security context for stored routine which should be run under

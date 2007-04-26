@@ -985,10 +985,14 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     now Lex placed in statement memory
   */
   table->view= lex= thd->lex= (LEX*) new(thd->mem_root) st_lex_local;
-  lex_start(thd, table->query.str, table->query.length);
-  view_select= &lex->select_lex;
-  view_select->select_number= ++thd->select_number;
+
   {
+    Lex_input_stream lip(thd, table->query.str, table->query.length);
+    thd->m_lip= &lip;
+    lex_start(thd);
+    view_select= &lex->select_lex;
+    view_select->select_number= ++thd->select_number;
+
     ulong save_mode= thd->variables.sql_mode;
     /* switch off modes which can prevent normal parsing of VIEW
       - MODE_REAL_AS_FLOAT            affect only CREATE TABLE parsing

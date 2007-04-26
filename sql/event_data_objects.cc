@@ -156,10 +156,14 @@ void
 Event_parse_data::init_body(THD *thd)
 {
   DBUG_ENTER("Event_parse_data::init_body");
-  DBUG_PRINT("info", ("body: '%s'  body_begin: 0x%lx end: 0x%lx", body_begin,
-                      (long) body_begin, (long) thd->lex->ptr));
 
-  body.length= thd->lex->ptr - body_begin;
+  /* This method is called from within the parser, from sql_yacc.yy */
+  DBUG_ASSERT(thd->m_lip != NULL);
+
+  DBUG_PRINT("info", ("body: '%s'  body_begin: 0x%lx end: 0x%lx", body_begin,
+                      (long) body_begin, (long) thd->m_lip->ptr));
+
+  body.length= thd->m_lip->ptr - body_begin;
   const char *body_end= body_begin + body.length - 1;
 
   /* Trim nuls or close-comments ('*'+'/') or spaces at the end */
@@ -1912,15 +1916,20 @@ Event_job_data::execute(THD *thd, bool drop)
   thd->query= sp_sql.c_ptr_safe();
   thd->query_length= sp_sql.length();
 
-  lex_start(thd, thd->query, thd->query_length);
-
-  if (MYSQLparse(thd) || thd->is_fatal_error)
   {
-    sql_print_error("Event Scheduler: "
-                    "%serror during compilation of %s.%s",
-                    thd->is_fatal_error ? "fatal " : "",
-                    (const char *) dbname.str, (const char *) name.str);
-    goto end;
+    Lex_input_stream lip(thd, thd->query, thd->query_length);
+    thd->m_lip= &lip;
+    lex_start(thd);
+    int err= MYSQLparse(thd);
+
+    if (err || thd->is_fatal_error)
+    {
+      sql_print_error("Event Scheduler: "
+                      "%serror during compilation of %s.%s",
+                      thd->is_fatal_error ? "fatal " : "",
+                      (const char *) dbname.str, (const char *) name.str);
+      goto end;
+    }
   }
 
   {
