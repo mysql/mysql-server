@@ -231,3 +231,38 @@ f1	f2	UNIX_TIMESTAMP(f2)	UNIX_TIMESTAMP(f1)	f1 > f2	f1 = f2	f1 < f2
 2001-04-15	2001-04-15 00:00:00	987282000	987282000	0	1	0
 2001-05-20	2001-05-20 01:01:01	990309661	990306000	0	0	1
 drop table t1;
+create table t1 (f1 date, f2 datetime, f3 timestamp);
+insert into t1 values('2001-01-01','2001-01-01 01:01:01','2001-01-01 01:01:01');
+insert into t1 values('2001-02-05','2001-02-05 00:00:00','2001-02-05 01:01:01');
+insert into t1 values('2001-03-10','2001-03-09 01:01:01','2001-03-10 01:01:01');
+insert into t1 values('2001-04-15','2001-04-15 00:00:00','2001-04-15 00:00:00');
+insert into t1 values('2001-05-20','2001-05-20 01:01:01','2001-05-20 01:01:01');
+select f2 from t1 where f2 between '2001-2-5' and '01-04-14';
+f2
+2001-02-05 00:00:00
+2001-03-09 01:01:01
+select f1, f2, f3 from t1 where f1 between f2 and f3;
+f1	f2	f3
+2001-02-05	2001-02-05 00:00:00	2001-02-05 01:01:01
+2001-03-10	2001-03-09 01:01:01	2001-03-10 01:01:01
+2001-04-15	2001-04-15 00:00:00	2001-04-15 00:00:00
+select f1, f2, f3 from t1 where cast(f1 as datetime) between f2 and
+cast(f3 as date);
+f1	f2	f3
+2001-02-05	2001-02-05 00:00:00	2001-02-05 01:01:01
+2001-03-10	2001-03-09 01:01:01	2001-03-10 01:01:01
+2001-04-15	2001-04-15 00:00:00	2001-04-15 00:00:00
+select f2 from t1 where '2001-04-10 12:34:56' between f2 and '01-05-01';
+f2
+2001-01-01 01:01:01
+2001-02-05 00:00:00
+2001-03-09 01:01:01
+select f2, f3 from t1 where '01-03-10' between f2 and f3;
+f2	f3
+2001-03-09 01:01:01	2001-03-10 01:01:01
+select f2 from t1 where DATE(f2) between "2001-4-15" AND "01-4-15";
+f2
+2001-04-15 00:00:00
+SELECT 1 from dual where NOW() BETWEEN CURRENT_DATE() - INTERVAL 1 DAY AND CURRENT_DATE();
+1
+drop table t1;
