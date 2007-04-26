@@ -692,13 +692,28 @@ int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
         b= (Item **)&b_cache;
       }
     }
-    is_nulls_eq= owner->functype() == Item_func::EQUAL_FUNC;
+    is_nulls_eq= test(owner && owner->functype() == Item_func::EQUAL_FUNC);
     func= &Arg_comparator::compare_datetime;
     return 0;
   }
   return set_compare_func(owner_arg, type);
 }
 
+
+void Arg_comparator::set_datetime_cmp_func(Item **a1, Item **b1)
+{
+  thd= current_thd;
+  /* A caller will handle null values by itself. */
+  owner= NULL;
+  a= a1;
+  b= b1;
+  a_type= (*a)->field_type();
+  b_type= (*b)->field_type();
+  a_cache= 0;
+  b_cache= 0;
+  is_nulls_eq= FALSE;
+  func= &Arg_comparator::compare_datetime;
+}
 
 /*
   Retrieves correct DATETIME value from given item.
@@ -807,7 +822,8 @@ int Arg_comparator::compare_datetime()
   a_value= get_datetime_value(thd, &a, &a_cache, *b, &is_null);
   if (!is_nulls_eq && is_null)
   {
-    owner->null_value= 1;
+    if (owner)
+      owner->null_value= 1;
     return -1;
   }
 
@@ -815,11 +831,13 @@ int Arg_comparator::compare_datetime()
   b_value= get_datetime_value(thd, &b, &b_cache, *a, &is_null);
   if (is_null)
   {
-    owner->null_value= is_nulls_eq ? 0 : 1;
+    if (owner)
+      owner->null_value= is_nulls_eq ? 0 : 1;
     return is_nulls_eq ? 1 : -1;
   }
 
-  owner->null_value= 0;
+  if (owner)
+    owner->null_value= 0;
 
   /* Compare values. */
   if (is_nulls_eq)
@@ -1674,8 +1692,11 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref)
 
 void Item_func_between::fix_length_and_dec()
 {
-   max_length= 1;
-   THD *thd= current_thd;
+  max_length= 1;
+  THD *thd= current_thd;
+  int i;
+  bool datetime_found= FALSE;
+  compare_as_dates= TRUE;
 
   /*
     As some compare functions are generated after sql_yacc,
@@ -1690,26 +1711,29 @@ void Item_func_between::fix_length_and_dec()
    return;
 
   /*
-    Make a special case of compare with date/time and longlong fields.
-    They are compared as integers, so for const item this time-consuming
-    conversion can be done only once, not for every single comparison
+    Detect the comparison of DATE/DATETIME items.
+    At least one of items should be a DATE/DATETIME item and other items
+    should return the STRING result.
   */
-  if (args[0]->real_item()->type() == FIELD_ITEM &&
-      thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
-      thd->lex->sql_command != SQLCOM_SHOW_CREATE)
+  for (i= 0; i < 3; i++)
   {
-    Field *field=((Item_field*) (args[0]->real_item()))->field;
-    if (field->can_be_compared_as_longlong())
+    if (args[i]->is_datetime())
     {
-      /*
-        The following can't be recoded with || as convert_constant_item
-        changes the argument
-      */
-      if (convert_constant_item(thd, field,&args[1]))
-	cmp_type=INT_RESULT;			// Works for all types.
-      if (convert_constant_item(thd, field,&args[2]))
-	cmp_type=INT_RESULT;			// Works for all types.
+      datetime_found= TRUE;
+      continue;
     }
+    if (args[i]->result_type() == STRING_RESULT)
+      continue;
+    compare_as_dates= FALSE;
+    break;
+  }
+  if (!datetime_found)
+    compare_as_dates= FALSE;
+
+  if (compare_as_dates)
+  {
+    ge_cmp.set_datetime_cmp_func(args, args + 1);
+    le_cmp.set_datetime_cmp_func(args, args + 2);
   }
 }
 
@@ -1717,7 +1741,27 @@ void Item_func_between::fix_length_and_dec()
 longlong Item_func_between::val_int()
 {						// ANSI BETWEEN
   DBUG_ASSERT(fixed == 1);
-  if (cmp_type == STRING_RESULT)
+  if (compare_as_dates)
+  {
+    int ge_res, le_res;
+
+    ge_res= ge_cmp.compare();
+    if ((null_value= args[0]->null_value))
+      return 0;
+    le_res= le_cmp.compare();
+
+    if (!args[1]->null_value && !args[2]->null_value)
+      return (longlong) ((ge_res >= 0 && le_res <=0) != negated);
+    else if (args[1]->null_value)
+    {
+      null_value= le_res > 0;			// not null if false range.
+    }
+    else
+    {
+      null_value= ge_res < 0;
+    }
+  }
+  else if (cmp_type == STRING_RESULT)
   {
     String *value,*a,*b;
     value=args[0]->val_str(&value0);
