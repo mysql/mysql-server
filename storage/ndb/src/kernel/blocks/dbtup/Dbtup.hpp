@@ -610,7 +610,7 @@ struct Fragrecord {
   Uint32 noOfPagesToGrow;
 
   DLList<Page>::Head emptyPrimPage; // allocated pages (not init)
-  DLList<Page>::Head thFreeFirst;   // pages with atleast 1 free record
+  DLFifoList<Page>::Head thFreeFirst;   // pages with atleast 1 free record
   SLList<Page>::Head m_empty_pages; // Empty pages not in logical/physical map
   
   Uint32 m_lcp_scan_op;
