@@ -91,6 +91,7 @@ public:
   static enum enum_date_cmp_type can_compare_as_dates(Item *a, Item *b,
                                                       ulonglong *const_val_arg);
 
+  void set_datetime_cmp_func(Item **a1, Item **b1);
   static arg_cmp_func comparator_matrix [5][2];
 
   friend class Item_func;
@@ -579,8 +580,12 @@ class Item_func_between :public Item_func_opt_neg
 public:
   Item_result cmp_type;
   String value0,value1,value2;
+  /* TRUE <=> arguments will be compared as dates. */
+  bool compare_as_dates;
+  /* Comparators used for DATE/DATETIME comparison. */
+  Arg_comparator ge_cmp, le_cmp;
   Item_func_between(Item *a, Item *b, Item *c)
-    :Item_func_opt_neg(a, b, c) {}
+    :Item_func_opt_neg(a, b, c), compare_as_dates(FALSE) {}
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_KEY; }
   enum Functype functype() const   { return BETWEEN; }
