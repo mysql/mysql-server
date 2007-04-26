@@ -105,7 +105,7 @@ class LqhFragReq {
   friend bool printLQH_FRAG_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
 public:
-  STATIC_CONST( SignalLength = 24 );
+  STATIC_CONST( SignalLength = 25 );
   
   enum RequestInfo {
     CreateInRunning = 0x8000000,
@@ -143,6 +143,7 @@ private:
   Uint32 maxRowsHigh;
   Uint32 minRowsLow;
   Uint32 minRowsHigh;
+  Uint32 forceVarPartFlag;
 };
 
 class LqhFragConf {
