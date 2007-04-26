@@ -69,7 +69,7 @@ Dbtup::reportMemoryUsage(Signal* signal, int incDec){
   signal->theData[1] = incDec;
   signal->theData[2] = sizeof(Page);
   signal->theData[3] = cnoOfAllocatedPages;
-  signal->theData[4] = c_page_pool.getSize();
+  signal->theData[4] = c_no_of_pages;
   signal->theData[5] = DBTUP;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
 }
@@ -366,7 +366,7 @@ operator<<(NdbOut& out, const Dbtup::Tablerec::Tuple_offsets& off)
   out << "[ null_words: " << (Uint32)off.m_null_words
       << " null off: " << (Uint32)off.m_null_offset
       << " disk_off: " << off.m_disk_ref_offset
-      << " var_off: " << off.m_varpart_offset
+      << " fixheadsz: " << off.m_fix_header_size
       << " max_var_off: " << off.m_max_var_offset
       << " ]";
 
