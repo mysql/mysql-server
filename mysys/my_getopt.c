@@ -813,6 +813,7 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp)
 static void init_one_value(const struct my_option *option, gptr *variable,
 			   longlong value)
 {
+  DBUG_ENTER("init_one_value");
   switch ((option->var_type & GET_TYPE_MASK)) {
   case GET_BOOL:
     *((my_bool*) variable)= (my_bool) value;
@@ -837,9 +838,29 @@ static void init_one_value(const struct my_option *option, gptr *variable,
   case GET_SET:
     *((ulonglong*) variable)=  (ulonglong) value;
     break;
+  case GET_STR:
+    /*
+      Do not clear variable value if it has no default value.
+      The default value may already be set.
+    */
+    if ((char*) value)
+      *((char**) variable)= (char*) value;
+    break;
+  case GET_STR_ALLOC:
+    /*
+      Do not clear variable value if it has no default value.
+      The default value may already be set.
+    */
+    if ((char*) value)
+    {
+      my_free((*(char**) variable), MYF(MY_ALLOW_ZERO_PTR));
+      *((char**) variable)= my_strdup((char*) value, MYF(MY_WME));
+    }
+    break;
   default: /* dummy default to avoid compiler warnings */
     break;
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -858,9 +879,11 @@ static void init_one_value(const struct my_option *option, gptr *variable,
 
 static void init_variables(const struct my_option *options)
 {
+  DBUG_ENTER("init_variables");
   for (; options->name; options++)
   {
     gptr *variable;
+    DBUG_PRINT("options", ("name: '%s'", options->name));
     /*
       We must set u_max_value first as for some variables
       options->u_max_value == options->value and in this case we want to
@@ -874,6 +897,7 @@ static void init_variables(const struct my_option *options)
 	(variable= (*getopt_get_addr)("", 0, options)))
       init_one_value(options, variable, options->def_value);
   }
+  DBUG_VOID_RETURN;
 }
 
 
