@@ -1,0 +1,364 @@
+show session variables like 'profil%';
+Variable_name	Value
+profiling	OFF
+profiling_history_size	15
+select @@profiling;
+@@profiling
+0
+set global profiling = ON;
+ERROR HY000: Variable 'profiling' is a SESSION variable and can't be used with SET GLOBAL
+set global profiling_history_size=100;
+show global variables like 'profil%';
+Variable_name	Value
+profiling	OFF
+profiling_history_size	100
+set session profiling = ON;
+set session profiling_history_size=30;
+show session variables like 'profil%';
+Variable_name	Value
+profiling	ON
+profiling_history_size	30
+select @@profiling;
+@@profiling
+1
+create table t1 (
+a int,
+b int
+);
+insert into t1 values (1,1), (2,null), (3, 4);
+insert into t1 values (5,1), (6,null), (7, 4);
+insert into t1 values (1,1), (2,null), (3, 4);
+insert into t1 values (5,1), (6,null), (7, 4);
+select max(x) from (select sum(a) as x from t1 group by b) as teeone;
+max(x)
+20
+insert into t1 select * from t1;
+select count(*) from t1;
+count(*)
+24
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+select count(*) from t1;
+count(*)
+192
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+select count(*) from t1;
+count(*)
+1536
+select sum(a) from t1;
+sum(a)
+6144
+select sum(a) from t1 group by b;
+sum(a)
+2048
+1536
+2560
+select sum(a) + sum(b) from t1 group by b;
+sum(a) + sum(b)
+NULL
+2048
+4608
+select max(x) from (select sum(a) as x from t1 group by b) as teeone;
+max(x)
+2560
+select '012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890' as big_string;
+big_string
+012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890
+show profiles;
+Query_ID	Duration	Query
+1	#	set session profiling_history_size=30
+2	#	show session variables like 'profil%'
+3	#	select @@profiling
+4	#	create table t1 (
+a int,
+b int
+)
+5	#	insert into t1 values (1,1), (2,null), (3, 4)
+6	#	insert into t1 values (5,1), (6,null), (7, 4)
+7	#	insert into t1 values (1,1), (2,null), (3, 4)
+8	#	insert into t1 values (5,1), (6,null), (7, 4)
+9	#	select max(x) from (select sum(a) as x from t1 group by b) as teeone
+10	#	insert into t1 select * from t1
+11	#	select count(*) from t1
+12	#	insert into t1 select * from t1
+13	#	insert into t1 select * from t1
+14	#	insert into t1 select * from t1
+15	#	select count(*) from t1
+16	#	insert into t1 select * from t1
+17	#	insert into t1 select * from t1
+18	#	insert into t1 select * from t1
+19	#	select count(*) from t1
+20	#	select sum(a) from t1
+21	#	select sum(a) from t1 group by b
+22	#	select sum(a) + sum(b) from t1 group by b
+23	#	select max(x) from (select sum(a) as x from t1 group by b) as teeone
+24	#	select '0123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345
+show profile for query 15;
+show profile cpu for query 15;
+show profile cpu, block io for query 15;
+show profile cpu for query 9 limit 2 offset 2;
+show profile cpu for query 10 limit 0;
+show profile cpu for query 65534;
+show profile memory;
+show profile block io;
+show profile context switches;
+show profile page faults;
+show profile ipc;
+show profile swaps limit 1 offset 2;
+show profile source;
+show profile all for query 0 limit 0;
+show profile all for query 15;
+select * from information_schema.profiling;
+select query_id, state, duration from information_schema.profiling;
+select query_id, sum(duration) from information_schema.profiling group by query_id;
+select query_id, count(*) from information_schema.profiling group by query_id;
+select sum(duration) from information_schema.profiling;
+select query_id, count(*), sum(duration) from information_schema.profiling group by query_id;
+select CPU_user, CPU_system, Context_voluntary, Context_involuntary, Block_ops_in, Block_ops_out, Messages_sent, Messages_received, Page_faults_major, Page_faults_minor, Swaps, Source_function, Source_file, Source_line from information_schema.profiling;
+drop table if exists t1, t2, t3;
+Warnings:
+Note	1051	Unknown table 't2'
+Note	1051	Unknown table 't3'
+create table t1 (id int );
+create table t2 (id int not null);
+create table t3 (id int not null primary key);
+insert into t1 values (1), (2), (3);
+insert into t2 values (1), (2), (3);
+insert into t3 values (1), (2), (3);
+show profiles;
+Query_ID	Duration	Query
+10	#	insert into t1 select * from t1
+11	#	select count(*) from t1
+12	#	insert into t1 select * from t1
+13	#	insert into t1 select * from t1
+14	#	insert into t1 select * from t1
+15	#	select count(*) from t1
+16	#	insert into t1 select * from t1
+17	#	insert into t1 select * from t1
+18	#	insert into t1 select * from t1
+19	#	select count(*) from t1
+20	#	select sum(a) from t1
+21	#	select sum(a) from t1 group by b
+22	#	select sum(a) + sum(b) from t1 group by b
+23	#	select max(x) from (select sum(a) as x from t1 group by b) as teeone
+24	#	select '0123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345
+25	#	select * from information_schema.profiling
+26	#	select query_id, state, duration from information_schema.profiling
+27	#	select query_id, sum(duration) from information_schema.profiling group by query_id
+28	#	select query_id, count(*) from information_schema.profiling group by query_id
+29	#	select sum(duration) from information_schema.profiling
+30	#	select query_id, count(*), sum(duration) from information_schema.profiling group by query_id
+31	#	select CPU_user, CPU_system, Context_voluntary, Context_involuntary, Block_ops_in, Block_ops_out, Messages_sent, Messages_received, Page_faults_major, Page_faults_minor, Swaps, Source_function, Source_file, Source_line from information_schema.profiling
+32	#	drop table if exists t1, t2, t3
+33	#	SHOW WARNINGS
+34	#	create table t1 (id int )
+35	#	create table t2 (id int not null)
+36	#	create table t3 (id int not null primary key)
+37	#	insert into t1 values (1), (2), (3)
+38	#	insert into t2 values (1), (2), (3)
+39	#	insert into t3 values (1), (2), (3)
+select * from t1;
+id
+1
+2
+3
+show profiles;
+Query_ID	Duration	Query
+11	#	select count(*) from t1
+12	#	insert into t1 select * from t1
+13	#	insert into t1 select * from t1
+14	#	insert into t1 select * from t1
+15	#	select count(*) from t1
+16	#	insert into t1 select * from t1
+17	#	insert into t1 select * from t1
+18	#	insert into t1 select * from t1
+19	#	select count(*) from t1
+20	#	select sum(a) from t1
+21	#	select sum(a) from t1 group by b
+22	#	select sum(a) + sum(b) from t1 group by b
+23	#	select max(x) from (select sum(a) as x from t1 group by b) as teeone
+24	#	select '0123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345
+25	#	select * from information_schema.profiling
+26	#	select query_id, state, duration from information_schema.profiling
+27	#	select query_id, sum(duration) from information_schema.profiling group by query_id
+28	#	select query_id, count(*) from information_schema.profiling group by query_id
+29	#	select sum(duration) from information_schema.profiling
+30	#	select query_id, count(*), sum(duration) from information_schema.profiling group by query_id
+31	#	select CPU_user, CPU_system, Context_voluntary, Context_involuntary, Block_ops_in, Block_ops_out, Messages_sent, Messages_received, Page_faults_major, Page_faults_minor, Swaps, Source_function, Source_file, Source_line from information_schema.profiling
+32	#	drop table if exists t1, t2, t3
+33	#	SHOW WARNINGS
+34	#	create table t1 (id int )
+35	#	create table t2 (id int not null)
+36	#	create table t3 (id int not null primary key)
+37	#	insert into t1 values (1), (2), (3)
+38	#	insert into t2 values (1), (2), (3)
+39	#	insert into t3 values (1), (2), (3)
+40	#	select * from t1
+This ^^ should end in "select * from t1;"
+delete from t1;
+insert into t1 values (1), (2), (3);
+insert into t1 values (1), (2), (3);
+select * from t1;
+id
+1
+2
+3
+1
+2
+3
+show profiles;
+Query_ID	Duration	Query
+15	#	select count(*) from t1
+16	#	insert into t1 select * from t1
+17	#	insert into t1 select * from t1
+18	#	insert into t1 select * from t1
+19	#	select count(*) from t1
+20	#	select sum(a) from t1
+21	#	select sum(a) from t1 group by b
+22	#	select sum(a) + sum(b) from t1 group by b
+23	#	select max(x) from (select sum(a) as x from t1 group by b) as teeone
+24	#	select '0123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345
+25	#	select * from information_schema.profiling
+26	#	select query_id, state, duration from information_schema.profiling
+27	#	select query_id, sum(duration) from information_schema.profiling group by query_id
+28	#	select query_id, count(*) from information_schema.profiling group by query_id
+29	#	select sum(duration) from information_schema.profiling
+30	#	select query_id, count(*), sum(duration) from information_schema.profiling group by query_id
+31	#	select CPU_user, CPU_system, Context_voluntary, Context_involuntary, Block_ops_in, Block_ops_out, Messages_sent, Messages_received, Page_faults_major, Page_faults_minor, Swaps, Source_function, Source_file, Source_line from information_schema.profiling
+32	#	drop table if exists t1, t2, t3
+33	#	SHOW WARNINGS
+34	#	create table t1 (id int )
+35	#	create table t2 (id int not null)
+36	#	create table t3 (id int not null primary key)
+37	#	insert into t1 values (1), (2), (3)
+38	#	insert into t2 values (1), (2), (3)
+39	#	insert into t3 values (1), (2), (3)
+40	#	select * from t1
+41	#	delete from t1
+42	#	insert into t1 values (1), (2), (3)
+43	#	insert into t1 values (1), (2), (3)
+44	#	select * from t1
+set session profiling = OFF;
+select sum(id) from t1;
+sum(id)
+12
+show profiles;
+Query_ID	Duration	Query
+15	#	select count(*) from t1
+16	#	insert into t1 select * from t1
+17	#	insert into t1 select * from t1
+18	#	insert into t1 select * from t1
+19	#	select count(*) from t1
+20	#	select sum(a) from t1
+21	#	select sum(a) from t1 group by b
+22	#	select sum(a) + sum(b) from t1 group by b
+23	#	select max(x) from (select sum(a) as x from t1 group by b) as teeone
+24	#	select '0123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345
+25	#	select * from information_schema.profiling
+26	#	select query_id, state, duration from information_schema.profiling
+27	#	select query_id, sum(duration) from information_schema.profiling group by query_id
+28	#	select query_id, count(*) from information_schema.profiling group by query_id
+29	#	select sum(duration) from information_schema.profiling
+30	#	select query_id, count(*), sum(duration) from information_schema.profiling group by query_id
+31	#	select CPU_user, CPU_system, Context_voluntary, Context_involuntary, Block_ops_in, Block_ops_out, Messages_sent, Messages_received, Page_faults_major, Page_faults_minor, Swaps, Source_function, Source_file, Source_line from information_schema.profiling
+32	#	drop table if exists t1, t2, t3
+33	#	SHOW WARNINGS
+34	#	create table t1 (id int )
+35	#	create table t2 (id int not null)
+36	#	create table t3 (id int not null primary key)
+37	#	insert into t1 values (1), (2), (3)
+38	#	insert into t2 values (1), (2), (3)
+39	#	insert into t3 values (1), (2), (3)
+40	#	select * from t1
+41	#	delete from t1
+42	#	insert into t1 values (1), (2), (3)
+43	#	insert into t1 values (1), (2), (3)
+44	#	select * from t1
+set session profiling = ON;
+select @@profiling;
+@@profiling
+1
+create function f1() returns varchar(50) return 'hello';
+select @@profiling;
+@@profiling
+1
+select * from t1 where id <> f1();
+id
+1
+2
+3
+1
+2
+3
+select @@profiling;
+@@profiling
+1
+set session profiling = ON;
+drop table if exists t2;
+create table t2 (id int not null);
+create trigger t2_bi before insert on t2 for each row set @x=0;
+select @@profiling;
+@@profiling
+1
+insert into t2 values (1), (2), (3);
+select @@profiling;
+@@profiling
+1
+set session profiling = ON;
+drop table if exists t1, t2;
+create table t1 (id int not null primary key);
+create table t2 (id int not null primary key, id1 int not null);
+select @@profiling;
+@@profiling
+1
+alter table t2 add foreign key (id1) references t1 (id) on delete cascade;
+select @@profiling;
+@@profiling
+1
+lock table t1 write;
+select @@profiling;
+@@profiling
+1
+unlock table;
+select @@profiling;
+@@profiling
+1
+set autocommit=0;
+select @@profiling, @@autocommit;
+@@profiling	@@autocommit
+1	0
+begin;
+select @@profiling;
+@@profiling
+1
+insert into t1 values (1);
+insert into t2 values (1,1);
+testing referential integrity cascade
+delete from t1 where id = 1;
+select @@profiling;
+@@profiling
+1
+testing rollback
+rollback;
+select @@profiling;
+@@profiling
+1
+testing commit
+begin;
+select @@profiling;
+@@profiling
+1
+commit;
+select @@profiling;
+@@profiling
+1
+drop table if exists t1, t2, t3;
+drop view if exists v1;
+Warnings:
+Note	1051	Unknown table 'test.v1'
+drop function if exists f1;
+set session profiling = OFF;
+End of 5.0 tests

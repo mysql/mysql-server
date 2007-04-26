@@ -3365,7 +3365,7 @@ longlong Item_is_not_null_test::val_int()
   }
   if (args[0]->is_null())
   {
-    DBUG_PRINT("info", ("null"))
+    DBUG_PRINT("info", ("null"));
     owner->was_null|= 1;
     DBUG_RETURN(0);
   }
