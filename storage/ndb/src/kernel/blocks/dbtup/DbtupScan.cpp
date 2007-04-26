@@ -72,7 +72,8 @@ Dbtup::execACC_SCANREQ(Signal* signal)
 #endif
       
       bool mm = (bits & ScanOp::SCAN_DD);
-      if (tablePtr.p->m_attributes[mm].m_no_of_varsize > 0) {
+      if ((tablePtr.p->m_attributes[mm].m_no_of_varsize +
+           tablePtr.p->m_attributes[mm].m_no_of_dynamic) > 0) {
 	bits |= ScanOp::SCAN_VS;
 	
 	// disk pages have fixed page format
@@ -92,7 +93,8 @@ Dbtup::execACC_SCANREQ(Signal* signal)
       c_scanOpPool.getPtr(scanPtr, frag.m_lcp_scan_op);
       ndbrequire(scanPtr.p->m_fragPtrI == fragPtr.i);
       bits |= ScanOp::SCAN_LCP;
-      if (tablePtr.p->m_attributes[MM].m_no_of_varsize > 0) {
+      if ((tablePtr.p->m_attributes[MM].m_no_of_varsize +
+           tablePtr.p->m_attributes[MM].m_no_of_dynamic) > 0) {
         bits |= ScanOp::SCAN_VS;
       }
     }
@@ -919,7 +921,8 @@ found_lcp_keep:
   ptr->m_header_bits |= Tuple_header::FREED; // RESTORE free flag
   if (headerbits & Tuple_header::FREED)
   {
-    if (tablePtr.p->m_attributes[MM].m_no_of_varsize)
+    if (tablePtr.p->m_attributes[MM].m_no_of_varsize +
+        tablePtr.p->m_attributes[MM].m_no_of_dynamic)
     {
       jam();
       free_var_rec(fragPtr.p, tablePtr.p, &tmp, pagePtr);

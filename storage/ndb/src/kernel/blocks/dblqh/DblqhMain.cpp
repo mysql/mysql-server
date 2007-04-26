@@ -888,10 +888,10 @@ void Dblqh::execREAD_NODESCONF(Signal* signal)
   unsigned i = 0;
   for (i = 1; i < MAX_NDB_NODES; i++) {
     jam();
-    if (NodeBitmask::get(readNodes->allNodes, i)) {
+    if (NdbNodeBitmask::get(readNodes->allNodes, i)) {
       jam();
       cnodeData[ind]    = i;
-      cnodeStatus[ind]  = NodeBitmask::get(readNodes->inactiveNodes, i);
+      cnodeStatus[ind]  = NdbNodeBitmask::get(readNodes->inactiveNodes, i);
       //readNodes->getVersionId(i, readNodes->theVersionIds) not used
       if (!NodeBitmask::get(readNodes->inactiveNodes, i))
       {
@@ -3625,6 +3625,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     {
       ndbout_c("fragptr.p->fragStatus: %d",
 	       fragptr.p->fragStatus);
+      CRASH_INSERTION(5046);
     }
     ndbassert(fragptr.p->fragStatus == Fragrecord::ACTIVE_CREATION);
     fragptr.p->m_copy_started_state = Fragrecord::AC_NR_COPY;
@@ -5725,6 +5726,8 @@ void Dblqh::deleteTransidHash(Signal* signal)
     ptrCheckGuard(nextHashptr, ctcConnectrecFileSize, tcConnectionrec);
     nextHashptr.p->prevHashRec = prevHashptr.i;
   }//if
+
+  regTcPtr->prevHashRec = regTcPtr->nextHashRec = RNIL;
 }//Dblqh::deleteTransidHash()
 
 /* -------------------------------------------------------------------------
@@ -7423,7 +7426,7 @@ void Dblqh::execNODE_FAILREP(Signal* signal)
   UintR index = 0;
   for (i = 1; i < MAX_NDB_NODES; i++) {
     jam();
-    if(NodeBitmask::get(nodeFail->theNodes, i)){
+    if(NdbNodeBitmask::get(nodeFail->theNodes, i)){
       jam();
       Tdata[index] = i;
       index++;
@@ -8419,6 +8422,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
              ZNIL);
   tcConnectptr.p->save1 = 4;
   tcConnectptr.p->primKeyLen = keyLen + 4; // hard coded in execKEYINFO
+  tcConnectptr.p->applRef = scanFragReq->resultRef;
   errorCode = initScanrec(scanFragReq);
   if (errorCode != ZOK) {
     jam();
@@ -9998,6 +10002,74 @@ Dblqh::calculateHash(Uint32 tableId, const Uint32* src)
   return md5_hash(Tmp, keyLen);
 }//Dblqh::calculateHash()
 
+/**
+ * PREPARE COPY FRAG REQ
+ */
+void
+Dblqh::execPREPARE_COPY_FRAG_REQ(Signal* signal)
+{
+  jamEntry();
+  PrepareCopyFragReq req = *(PrepareCopyFragReq*)signal->getDataPtr();
+
+  CRASH_INSERTION(5045);
+
+  Uint32 max_page_no = 0;
+  if (getOwnNodeId() == req.copyNodeId)
+  {
+    jam();
+    //max_page_no = c_tup->get_max_page_no(req.tableId, req.fragId);
+  }
+  else
+  {
+    jam();
+    ndbrequire(getOwnNodeId() == req.startingNodeId);
+
+    tabptr.i = req.tableId;
+    ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
+
+    if (! DictTabInfo::isOrderedIndex(tabptr.p->tableType))
+    {
+      jam();
+      ndbrequire(getFragmentrec(signal, req.fragId));
+      fragptr.p->m_copy_started_state = Fragrecord::AC_IGNORED;
+      fragptr.p->fragStatus = Fragrecord::ACTIVE_CREATION;
+      fragptr.p->logFlag = Fragrecord::STATE_FALSE;
+      
+      /**
+       *
+       */
+      if (cstartType == NodeState::ST_SYSTEM_RESTART)
+      {
+        jam();
+        signal->theData[0] = fragptr.p->tabRef;
+        signal->theData[1] = fragptr.p->fragId;
+        sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
+      }
+    
+    
+      /**
+       *
+       */
+      Uint32 copyVersion = getNodeInfo(req.copyNodeId).m_version;
+      if (copyVersion >= NDBD_PREPARE_COPY_FRAG_VERSION)
+      {
+        jam();
+      }
+    }
+  }
+  
+  PrepareCopyFragConf* conf = (PrepareCopyFragConf*)signal->getDataPtrSend();
+  conf->senderData = req.senderData;
+  conf->senderRef = reference();
+  conf->tableId = req.tableId;
+  conf->fragId = req.fragId;
+  conf->copyNodeId = req.copyNodeId;
+  conf->startingNodeId = req.startingNodeId;
+  conf->maxPageNo = max_page_no;
+  sendSignal(req.senderRef, GSN_PREPARE_COPY_FRAG_CONF,
+	     signal, PrepareCopyFragConf::SignalLength, JBB);
+}
+
 /* *************************************** */
 /*  COPY_FRAGREQ: Start copying a fragment */
 /* *************************************** */
@@ -10099,6 +10171,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   tcConnectptr.p->tcOprec = tcConnectptr.i;
   tcConnectptr.p->schemaVersion = scanptr.p->scanSchemaVersion;
   tcConnectptr.p->savePointId = gci;
+  tcConnectptr.p->applRef = 0;
   scanptr.p->scanState = ScanRecord::WAIT_ACC_COPY;
   AccScanReq * req = (AccScanReq*)&signal->theData[0];
   req->senderData = scanptr.i;
@@ -18425,6 +18498,223 @@ void Dblqh::writeNextLog(Signal* signal)
   }//if
 }//Dblqh::writeNextLog()
 
+bool
+Dblqh::validate_filter(Signal* signal)
+{
+  Uint32 * start = signal->theData + 1;
+  Uint32 * end = signal->theData + signal->getLength();
+  if (start == end)
+  {
+    infoEvent("No filter specified, not listing...");
+    return false;
+  }
+
+  while(start < end)
+  {
+    switch(* start){
+    case 0: // Table
+    case 1: // API Node
+    case 3: // TC Node
+      start += 2;
+      break;
+    case 2: // Transid
+      start += 3;
+      break;
+    default:
+      infoEvent("Invalid filter op: 0x%x pos: %d",
+		* start,
+		start - (signal->theData + 1));
+      return false;
+    }
+  }
+
+  if (start != end)
+  {
+    infoEvent("Invalid filter, unexpected end");
+    return false;
+  }
+
+  return true;
+}
+
+bool
+Dblqh::match_and_print(Signal* signal, Ptr<TcConnectionrec> tcRec)
+{
+  Uint32 len = signal->getLength();
+  Uint32* start = signal->theData + 3;
+  Uint32* end = signal->theData + len;
+  while (start < end)
+  {
+    switch(* start){
+    case 0:
+      if (tcRec.p->tableref != * (start + 1))
+	return false;
+      start += 2;
+      break;
+    case 1:
+      if (refToNode(tcRec.p->applRef) != * (start + 1))
+	return false;
+      start += 2;
+      break;
+    case 2:
+      if (tcRec.p->transid[0] != * (start + 1) ||
+	  tcRec.p->transid[1] != * (start + 2))
+	return false;
+      start += 3;
+      break;
+    case 3:
+      if (refToNode(tcRec.p->tcBlockref) != * (start + 1))
+	return false;
+      start += 2;
+      break;
+    default:
+      ndbassert(false);
+      return false;
+    }
+  }
+  
+  if (start != end)
+  {
+    ndbassert(false);
+    return false;
+  }
+
+  /**
+   * Do print
+   */
+  Uint32 *temp = signal->theData + 25;
+  memcpy(temp, signal->theData, 4 * len);
+
+  char state[20];
+  const char* op = "<Unknown>";
+  if (tcRec.p->tcScanRec != RNIL)
+  {
+    ScanRecordPtr sp;
+    sp.i = tcRec.p->tcScanRec;
+    c_scanRecordPool.getPtr(sp);
+
+    if (sp.p->scanLockMode)
+      op = "SCAN-EX";
+    else if(sp.p->scanLockHold)
+      op = "SCAN-SH";
+    else
+      op = "SCAN";
+    
+    switch(sp.p->scanState){
+    case ScanRecord::WAIT_NEXT_SCAN:
+      BaseString::snprintf(state, sizeof(state), "WaitNextScan");
+      break;
+    case ScanRecord::IN_QUEUE:
+      BaseString::snprintf(state, sizeof(state), "InQueue");
+      break;
+    case ScanRecord::SCAN_FREE:
+    case ScanRecord::WAIT_STORED_PROC_COPY:
+    case ScanRecord::WAIT_STORED_PROC_SCAN:
+    case ScanRecord::WAIT_NEXT_SCAN_COPY:
+    case ScanRecord::WAIT_DELETE_STORED_PROC_ID_SCAN:
+    case ScanRecord::WAIT_DELETE_STORED_PROC_ID_COPY:
+    case ScanRecord::WAIT_ACC_COPY:
+    case ScanRecord::WAIT_ACC_SCAN:
+    case ScanRecord::WAIT_SCAN_NEXTREQ:
+    case ScanRecord::WAIT_CLOSE_SCAN:
+    case ScanRecord::WAIT_CLOSE_COPY:
+    case ScanRecord::WAIT_RELEASE_LOCK:
+    case ScanRecord::WAIT_TUPKEY_COPY:
+    case ScanRecord::WAIT_LQHKEY_COPY:
+      BaseString::snprintf(state, sizeof(state), "%u", sp.p->scanState);
+    }
+  }
+  else
+  {
+    switch(tcRec.p->operation){
+    case ZREAD: 
+      if (tcRec.p->lockType)
+	op = "READ-EX";
+      else if(!tcRec.p->dirtyOp)
+	op = "READ-SH";
+      else
+	op = "READ";
+      break;
+    case ZINSERT: op = "INSERT"; break;
+    case ZUPDATE: op = "UPDATE"; break;
+    case ZDELETE: op = "DELETE"; break;
+    case ZWRITE: op = "WRITE"; break;
+    }
+    
+    switch(tcRec.p->transactionState){
+    case TcConnectionrec::IDLE:
+    case TcConnectionrec::WAIT_ACC:
+      BaseString::snprintf(state, sizeof(state), "In lock queue");
+      break;
+    case TcConnectionrec::WAIT_TUPKEYINFO:
+    case TcConnectionrec::WAIT_ATTR:
+      BaseString::snprintf(state, sizeof(state), "WaitData");
+      break;
+    case TcConnectionrec::WAIT_TUP:
+      BaseString::snprintf(state, sizeof(state), "Running");
+      break;
+    case TcConnectionrec::WAIT_TUP_COMMIT:
+      BaseString::snprintf(state, sizeof(state), "Committing");
+      break;
+    case TcConnectionrec::PREPARED:
+      BaseString::snprintf(state, sizeof(state), "Prepared");
+      break;
+    case TcConnectionrec::COMMITTED:
+      BaseString::snprintf(state, sizeof(state), "Committed");
+      break;
+    case TcConnectionrec::STOPPED:
+    case TcConnectionrec::LOG_QUEUED:
+    case TcConnectionrec::LOG_COMMIT_WRITTEN_WAIT_SIGNAL:
+    case TcConnectionrec::LOG_COMMIT_QUEUED_WAIT_SIGNAL:
+    case TcConnectionrec::COMMIT_STOPPED:
+    case TcConnectionrec::LOG_COMMIT_QUEUED:
+    case TcConnectionrec::COMMIT_QUEUED:
+    case TcConnectionrec::WAIT_ACC_ABORT:
+    case TcConnectionrec::ABORT_QUEUED:
+    case TcConnectionrec::ABORT_STOPPED:
+    case TcConnectionrec::WAIT_AI_AFTER_ABORT:
+    case TcConnectionrec::LOG_ABORT_QUEUED:
+    case TcConnectionrec::WAIT_TUP_TO_ABORT:
+    case TcConnectionrec::WAIT_SCAN_AI:
+    case TcConnectionrec::SCAN_STATE_USED:
+    case TcConnectionrec::SCAN_FIRST_STOPPED:
+    case TcConnectionrec::SCAN_CHECK_STOPPED:
+    case TcConnectionrec::SCAN_STOPPED:
+    case TcConnectionrec::SCAN_RELEASE_STOPPED:
+    case TcConnectionrec::SCAN_CLOSE_STOPPED:
+    case TcConnectionrec::COPY_CLOSE_STOPPED:
+    case TcConnectionrec::COPY_FIRST_STOPPED:
+    case TcConnectionrec::COPY_STOPPED:
+    case TcConnectionrec::SCAN_TUPKEY:
+    case TcConnectionrec::COPY_TUPKEY:
+    case TcConnectionrec::TC_NOT_CONNECTED:
+    case TcConnectionrec::PREPARED_RECEIVED_COMMIT:
+    case TcConnectionrec::LOG_COMMIT_WRITTEN:
+      BaseString::snprintf(state, sizeof(state), "%u", 
+			   tcRec.p->transactionState);
+    }
+  }
+  
+  char buf[100];
+  BaseString::snprintf(buf, sizeof(buf),
+		       "OP[%u]: Tab: %d frag: %d TC: %u API: %d(0x%x)"
+		       "transid: 0x%x 0x%x op: %s state: %s",
+		       tcRec.i,
+		       tcRec.p->tableref, 
+		       tcRec.p->fragmentid,
+		       refToNode(tcRec.p->tcBlockref),
+		       refToNode(tcRec.p->applRef),
+		       refToBlock(tcRec.p->applRef),
+		       tcRec.p->transid[0], tcRec.p->transid[1],
+		       op,
+		       state);
+  
+  infoEvent(buf);
+  
+  memcpy(signal->theData, temp, 4*len);
+  return true;
+}
+
 void
 Dblqh::execDUMP_STATE_ORD(Signal* signal)
 {
@@ -18524,7 +18814,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 
     ScanRecordPtr sp;
     sp.i = recordNo;
-    c_scanRecordPool.getPtr(scanptr);
+    c_scanRecordPool.getPtr(sp);
     if (sp.p->scanState != ScanRecord::SCAN_FREE){
       dumpState->args[0] = DumpStateOrd::LqhDumpOneScanRec;
       dumpState->args[1] = recordNo;
@@ -18883,6 +19173,183 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
   }
 #endif
   
+  if (arg == 2350)
+  {
+    jam();
+    Uint32 len = signal->getLength() - 1;
+    if (len + 3 > 25)
+    {
+      jam();
+      infoEvent("Too long filter");
+      return;
+    }
+    if (validate_filter(signal))
+    {
+      jam();
+      memmove(signal->theData + 3, signal->theData + 1, 4 * len);
+      signal->theData[0] = 2351;
+      signal->theData[1] = 0;    // Bucket
+      signal->theData[2] = RNIL; // Record
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, len + 3, JBB);
+      
+      infoEvent("Starting dump of operations");
+    }
+    return;
+  }
+
+  if (arg == 2351)
+  {
+    jam();
+    Uint32 bucket = signal->theData[1];
+    Uint32 record = signal->theData[2];
+    Uint32 len = signal->getLength();
+    TcConnectionrecPtr tcRec;
+    if (record != RNIL)
+    {
+      jam();
+      /**
+       * Check that record is still in use...
+       */
+      tcRec.i = record;
+      ptrCheckGuard(tcRec, ttcConnectrecFileSize, regTcConnectionrec);
+
+      Uint32 hashIndex = (tcRec.p->transid[0] ^ tcRec.p->tcOprec) & 1023;
+      if (hashIndex != bucket)
+      {
+	jam();
+	record = RNIL;
+      }
+      else
+      {
+	jam();
+	if (tcRec.p->nextHashRec == RNIL && 
+	    tcRec.p->prevHashRec == RNIL &&
+	    ctransidHash[hashIndex] != record)
+	{
+	  jam();
+	  record = RNIL;
+	}
+      }
+      
+      if (record == RNIL)
+      {
+	jam();
+	signal->theData[2] = RNIL;
+	sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 
+		   signal->getLength(), JBB);	
+	return;
+      }
+    }
+    else if ((record = ctransidHash[bucket]) == RNIL)
+    {
+      jam();
+      bucket++;
+      if (bucket < 1024)
+      {
+	jam();
+	signal->theData[1] = bucket;
+	signal->theData[2] = RNIL;
+	sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 
+		   signal->getLength(), JBB);	
+      }
+      else
+      {
+	jam();
+	infoEvent("End of operation dump");
+      }
+
+      return;
+    } 
+    else
+    {
+      jam();
+      tcRec.i = record;
+      ptrCheckGuard(tcRec, ttcConnectrecFileSize, regTcConnectionrec);      
+    }
+
+    for (Uint32 i = 0; i<32; i++)
+    {
+      jam();
+      bool print = match_and_print(signal, tcRec);
+      
+      tcRec.i = tcRec.p->nextHashRec;
+      if (tcRec.i == RNIL || print)
+      {
+	jam();
+	break;
+      }
+      
+      ptrCheckGuard(tcRec, ttcConnectrecFileSize, regTcConnectionrec);
+    }
+    
+    if (tcRec.i == RNIL)
+    {
+      jam();
+      bucket++;
+      if (bucket < 1024)
+      {
+	jam();
+	signal->theData[1] = bucket;
+	signal->theData[2] = RNIL;
+	sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, len, JBB);
+      }
+      else
+      {
+	jam();
+	infoEvent("End of operation dump");
+      }
+      
+      return;
+    }
+    else
+    {
+      jam();
+      signal->theData[2] = tcRec.i;
+      sendSignalWithDelay(reference(), GSN_DUMP_STATE_ORD, signal, 200, len);
+      return;
+    }
+  }
+
+  if (arg == 2352 && signal->getLength() == 2)
+  {
+    jam();
+    Uint32 i;
+    Uint32 opNo = signal->theData[1];
+    TcConnectionrecPtr tcRec;
+    if (opNo < ttcConnectrecFileSize)
+    {
+      jam();
+      tcRec.i = opNo;
+      ptrCheckGuard(tcRec, ttcConnectrecFileSize, regTcConnectionrec);
+
+      Uint32 keyLen = tcRec.p->primKeyLen;
+      BaseString key;
+      for(i = 0; i<keyLen && i < 4; i++)
+      {
+	jam();
+	key.appfmt("0x%x ", tcRec.p->tupkeyData[i]);
+      }
+      
+      if (keyLen > 4)
+      {
+	jam();
+	tcConnectptr = tcRec;
+	sendKeyinfoAcc(signal, 4);
+	for (i = 4; i<keyLen; i++)
+	{
+	  jam();
+	  key.appfmt("0x%x ", signal->theData[i]);
+	}
+      }
+      
+      char buf[100];
+      BaseString::snprintf(buf, sizeof(buf),
+			   "OP[%u]: transid: 0x%x 0x%x key: %s",
+			   tcRec.i,
+			   tcRec.p->transid[0], tcRec.p->transid[1], key.c_str());
+      infoEvent(buf);
+    }
+  }
 }//Dblqh::execDUMP_STATE_ORD()
 
 /* **************************************************************** */
