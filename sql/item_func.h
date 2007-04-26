@@ -1528,3 +1528,18 @@ public:
   const char *func_name() const { return "found_rows"; }
   void fix_length_and_dec() { decimals= 0; maybe_null=0; }
 };
+
+
+void uuid_short_init();
+
+class Item_func_uuid_short :public Item_int_func
+{
+public:
+  Item_func_uuid_short() :Item_int_func() {}
+  const char *func_name() const { return "uuid_short"; }
+  longlong val_int();
+  void fix_length_and_dec()
+  { max_length= 21; unsigned_flag=1; }
+  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+};
+
