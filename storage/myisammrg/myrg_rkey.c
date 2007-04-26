@@ -40,12 +40,14 @@ int myrg_rkey(MYRG_INFO *info,byte *buf,int inx, const byte *key,
 {
   byte *key_buff;
   uint pack_key_length;
+  uint16 last_used_keyseg;
   MYRG_TABLE *table;
   MI_INFO *mi;
   int err;
   DBUG_ENTER("myrg_rkey");
   LINT_INIT(key_buff);
   LINT_INIT(pack_key_length);
+  LINT_INIT(last_used_keyseg);
 
   if (_myrg_init_queue(info,inx,search_flag))
     DBUG_RETURN(my_errno);
@@ -60,10 +62,12 @@ int myrg_rkey(MYRG_INFO *info,byte *buf,int inx, const byte *key,
       /* Get the saved packed key and packed key length. */
       key_buff=(byte*) mi->lastkey+mi->s->base.max_key_length;
       pack_key_length=mi->pack_key_length;
+      last_used_keyseg= mi->last_used_keyseg;
     }
     else
     {
       mi->once_flags|= USE_PACKED_KEYS;
+      mi->last_used_keyseg= last_used_keyseg;
       err=mi_rkey(mi, 0, inx, key_buff, pack_key_length, search_flag);
     }
     info->last_used_table=table+1;
