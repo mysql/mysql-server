@@ -43,7 +43,7 @@ struct Chr {
     m_len(55),
     m_bytelen(0),
     m_totlen(0),
-    m_cs("utf8"),
+    m_cs("latin1"),
     m_csinfo(0),
     m_caseins(true)
   {}
@@ -514,8 +514,9 @@ calcBval(Tup& tup, bool keepsize)
     calcBval(g_blob2, tup.m_bval2, keepsize);
 }
 
+// dont remember what the keepsize was for..
 static void
-calcTups(bool keys, bool keepsize)
+calcTups(bool keys, bool keepsize = false)
 {
   for (uint k = 0; k < g_opt.m_rows; k++) {
     Tup& tup = g_tups[k];
@@ -531,7 +532,8 @@ calcTups(bool keys, bool keepsize)
           *(uchar*)&p[0] = *(uchar*)&q[0] = len;
           i++;
         }
-        while (i < len) {
+        uint j = 0;
+        while (j < len) {
           // mixed case for distribution check
           if (urandom(3) == 0) {
             uint u = urandom(26);
@@ -543,14 +545,17 @@ calcTups(bool keys, bool keepsize)
             q[i] = c.m_caseins ? 'A' + u : 'a' + u;
           }
           i++;
+          j++;
         }
-        while (i < c.m_bytelen) {
+        while (j < c.m_bytelen) {
           if (c.m_fixed)
             p[i] = q[i] = 0x20;
           else
             p[i] = q[i] = '#'; // garbage
           i++;
+          j++;
         }
+        assert(i == c.m_totlen);
         p[i] = q[i] = 0; // convenience
       }
       tup.m_pk3 = (Uint16)k;
@@ -981,6 +986,18 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
         CHK(sz == m);
     }
     CHK(memcmp(data, v.m_val + n, m) == 0);
+    if (b.m_version == 1) {
+      char fillchr;
+      if (b.m_type == NdbDictionary::Column::Text)
+        fillchr = 0x20;
+      else
+        fillchr = 0x0;
+      uint i = m;
+      while (i < b.m_partsize) {
+        CHK(data[i] == fillchr);
+        i++;
+      }
+    }
     Uint32 frag2 = ra_frag->u_32_value();
     DBG("frags main=" << frag << " blob=" << frag2 << " stripe=" << b.m_stripe);
     if (b.m_stripe == 0)
@@ -1241,7 +1258,21 @@ deleteNoPk()
   Tup no_tup; // bug#24028
   no_tup.m_pk1 = 0xb1ff;
   const Chr& pk2chr = g_opt.m_pk2chr;
-  sprintf(no_tup.m_pk2, "%-*.*s", pk2chr.m_len, pk2chr.m_len,  "b1ff");
+  if (pk2chr.m_len != 0) {
+    char* const p = no_tup.m_pk2;
+    uint len = urandom(pk2chr.m_len + 1);
+    uint i = 0;
+    if (! pk2chr.m_fixed) {
+      *(uchar*)&p[0] = len;
+      i++;
+    }
+    uint j = 0;
+    while (j < len) {
+      p[i] = "b1ff"[j % 4];
+      i++;
+      j++;
+    }
+  }
   no_tup.m_pk3 = 0xb1ff;
   CHK((g_con = g_ndb->startTransaction()) != 0);
   Tup& tup =  no_tup;
@@ -1623,12 +1654,12 @@ testmain()
         continue;
       DBG("--- pk ops " << stylename[style] << " ---");
       if (testcase('n')) {
-        calcTups(true, false);
+        calcTups(true);
         CHK(insertPk(style) == 0);
         CHK(verifyBlob() == 0);
         CHK(readPk(style) == 0);
         if (testcase('u')) {
-          calcTups(false, style);
+          calcTups(false);
           CHK(updatePk(style) == 0);
           CHK(verifyBlob() == 0);
           CHK(readPk(style) == 0);
@@ -1640,12 +1671,12 @@ testmain()
         }
       }
       if (testcase('w')) {
-        calcTups(true, false);
+        calcTups(true);
         CHK(writePk(style) == 0);
         CHK(verifyBlob() == 0);
         CHK(readPk(style) == 0);
         if (testcase('u')) {
-          calcTups(false, style);
+          calcTups(false);
           CHK(writePk(style) == 0);
           CHK(verifyBlob() == 0);
           CHK(readPk(style) == 0);
@@ -1663,12 +1694,12 @@ testmain()
         continue;
       DBG("--- idx ops " << stylename[style] << " ---");
       if (testcase('n')) {
-        calcTups(true, false);
+        calcTups(true);
         CHK(insertPk(style) == 0);
         CHK(verifyBlob() == 0);
         CHK(readIdx(style) == 0);
         if (testcase('u')) {
-          calcTups(false, style);
+          calcTups(false);
           CHK(updateIdx(style) == 0);
           CHK(verifyBlob() == 0);
           CHK(readIdx(style) == 0);
@@ -1679,12 +1710,12 @@ testmain()
         }
       }
       if (testcase('w')) {
-        calcTups(false, false);
+        calcTups(false);
         CHK(writePk(style) == 0);
         CHK(verifyBlob() == 0);
         CHK(readIdx(style) == 0);
         if (testcase('u')) {
-          calcTups(false, style);
+          calcTups(false);
           CHK(writeIdx(style) == 0);
           CHK(verifyBlob() == 0);
           CHK(readIdx(style) == 0);
@@ -1700,7 +1731,7 @@ testmain()
       if (! testcase('s') || ! testcase(style))
         continue;
       DBG("--- table scan " << stylename[style] << " ---");
-      calcTups(true, false);
+      calcTups(true);
       CHK(insertPk(style) == 0);
       CHK(verifyBlob() == 0);
       CHK(readScan(style, false) == 0);
@@ -1718,7 +1749,7 @@ testmain()
       if (! testcase('r') || ! testcase(style))
         continue;
       DBG("--- index scan " << stylename[style] << " ---");
-      calcTups(true, false);
+      calcTups(true);
       CHK(insertPk(style) == 0);
       CHK(verifyBlob() == 0);
       CHK(readScan(style, true) == 0);
@@ -1960,65 +1991,72 @@ testperf()
   t1.clr();
   t2.clr();
   // scan read char
+  const uint scan_loops = 10;
   {
     DBG("--- scan read char ---");
     Uint32 a;
     char b[20];
-    CHK((g_con = g_ndb->startTransaction()) != 0);
-    CHK((g_ops = g_con->getNdbScanOperation(tab.getName())) != 0);
-    CHK(g_ops->readTuples(NdbOperation::LM_Read) == 0);
-    CHK(g_ops->getValue(cA, (char*)&a) != 0);
-    CHK(g_ops->getValue(cB, b) != 0);
-    CHK(g_con->execute(NoCommit) == 0);
-    unsigned n = 0;
-    t1.on();
-    while (1) {
-      a = (Uint32)-1;
-      b[0] = 0;
-      int ret;
-      CHK((ret = g_ops->nextResult(true)) == 0 || ret == 1);
-      if (ret == 1)
-        break;
-      CHK(a < g_opt.m_rowsperf && b[0] == 'b');
-      n++;
+    uint i;
+    for (i = 0; i < scan_loops; i++) {
+      CHK((g_con = g_ndb->startTransaction()) != 0);
+      CHK((g_ops = g_con->getNdbScanOperation(tab.getName())) != 0);
+      CHK(g_ops->readTuples(NdbOperation::LM_Read) == 0);
+      CHK(g_ops->getValue(cA, (char*)&a) != 0);
+      CHK(g_ops->getValue(cB, b) != 0);
+      CHK(g_con->execute(NoCommit) == 0);
+      unsigned n = 0;
+      t1.on();
+      while (1) {
+        a = (Uint32)-1;
+        b[0] = 0;
+        int ret;
+        CHK((ret = g_ops->nextResult(true)) == 0 || ret == 1);
+        if (ret == 1)
+          break;
+        CHK(a < g_opt.m_rowsperf && b[0] == 'b');
+        n++;
+      }
+      CHK(n == g_opt.m_rowsperf);
+      t1.off(g_opt.m_rowsperf);
+      g_ndb->closeTransaction(g_con); g_ops = 0;
+      g_con = 0;
     }
-    CHK(n == g_opt.m_rowsperf);
-    t1.off(g_opt.m_rowsperf);
     DBG(t1.time());
-    g_ndb->closeTransaction(g_con); g_ops = 0;
-    g_con = 0;
   }
   // scan read text
   {
     DBG("--- read text ---");
     Uint32 a;
     char c[20];
-    CHK((g_con = g_ndb->startTransaction()) != 0);
-    CHK((g_ops = g_con->getNdbScanOperation(tab.getName())) != 0);
-    CHK(g_ops->readTuples(NdbOperation::LM_Read) == 0);
-    CHK(g_ops->getValue(cA, (char*)&a) != 0);
-    CHK((g_bh1 = g_ops->getBlobHandle(cC)) != 0);
-    CHK(g_con->execute(NoCommit) == 0);
-    unsigned n = 0;
-    t2.on();
-    while (1) {
-      a = (Uint32)-1;
-      c[0] = 0;
-      int ret;
-      CHK((ret = g_ops->nextResult(true)) == 0 || ret == 1);
-      if (ret == 1)
-        break;
-      Uint32 m = 20;
-      CHK(g_bh1->readData(c, m) == 0);
-      CHK(a < g_opt.m_rowsperf && m == 1 && c[0] == 'c');
-      n++;
+    uint i;
+    for (i = 0; i < scan_loops; i++) {
+      CHK((g_con = g_ndb->startTransaction()) != 0);
+      CHK((g_ops = g_con->getNdbScanOperation(tab.getName())) != 0);
+      CHK(g_ops->readTuples(NdbOperation::LM_Read) == 0);
+      CHK(g_ops->getValue(cA, (char*)&a) != 0);
+      CHK((g_bh1 = g_ops->getBlobHandle(cC)) != 0);
+      CHK(g_con->execute(NoCommit) == 0);
+      unsigned n = 0;
+      t2.on();
+      while (1) {
+        a = (Uint32)-1;
+        c[0] = 0;
+        int ret;
+        CHK((ret = g_ops->nextResult(true)) == 0 || ret == 1);
+        if (ret == 1)
+          break;
+        Uint32 m = 20;
+        CHK(g_bh1->readData(c, m) == 0);
+        CHK(a < g_opt.m_rowsperf && m == 1 && c[0] == 'c');
+        n++;
+      }
+      CHK(n == g_opt.m_rowsperf);
+      t2.off(g_opt.m_rowsperf);
+      g_bh1 = 0;
+      g_ops = 0;
+      g_ndb->closeTransaction(g_con); g_con = 0;
     }
-    CHK(n == g_opt.m_rowsperf);
-    t2.off(g_opt.m_rowsperf);
     DBG(t2.time());
-    g_bh1 = 0;
-    g_ops = 0;
-    g_ndb->closeTransaction(g_con); g_con = 0;
   }
   // scan read overhead
   DBG("scan read overhead: " << t2.over(t1));
@@ -2036,7 +2074,7 @@ bugtest_4088()
   unsigned i;
   DBG("bug test 4088 - ndb api hang with mixed ops on index table");
   // insert rows
-  calcTups(true, false);
+  calcTups(true);
   CHK(insertPk(false) == 0);
   // new trans
   CHK((g_con = g_ndb->startTransaction()) != 0);
@@ -2079,7 +2117,7 @@ bugtest_27018()
   DBG("bug test 27018 - middle partial part write clobbers rest of part");
 
   // insert rows
-  calcTups(true, false);
+  calcTups(true);
   CHK(insertPk(false) == 0);
   // new trans
   for (unsigned k= 0; k < g_opt.m_rows; k++)

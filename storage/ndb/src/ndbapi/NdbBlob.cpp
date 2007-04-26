@@ -213,7 +213,6 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
     { NdbDictionary::Column bc("NDB$PART");
       bc.setType(NdbDictionary::Column::Unsigned);
       bc.setPrimaryKey(true);
-      // wl3717_todo all PK types must be allowed as DK
       bc.setDistributionKey(false);
       bt.addColumn(bc);
     }
@@ -673,7 +672,7 @@ NdbBlob::unpackBlobHead(Head& head, const char* buf, int blobVersion)
     for (i = 0, n = 0; i < 8; i++, n += 8)
       head.length |= ((Uint64)*p++ << n);
     assert(p - (uchar*)buf == 16);
-    assert(head.reserved == 0); //wl3717_todo catch bad data
+    assert(head.reserved == 0);
     head.headsize = (NDB_BLOB_V2_HEAD_SIZE << 2);
     DBUG_DUMP("info", buf, 16);
   }
@@ -1146,25 +1145,22 @@ NdbBlob::truncate(Uint64 length)
       Uint32 part2 = getPartNumber(theLength - 1);
       assert(part2 >= part1);
       if (part2 > part1 && deleteParts(part1 + 1, part2 - part1) == -1)
-        DBUG_RETURN(-1);
-      if (theFixedDataFlag)
-        // wl3717_todo should change padding to be consistent
-        ;
-      else {
-        Uint32 off = getPartOffset(length);
-        if (off != 0) {
-          assert(off < thePartSize);
-          Uint16 len = 0;
-          if (readPart(thePartBuf.data, part1, len) == -1)
-            DBUG_RETURN(-1);
-          if (executePendingBlobReads() == -1)
-            DBUG_RETURN(-1);
-          assert(len != 0);
-          DBUG_PRINT("info", ("part %u length old=%u new=%u",
-                              part1, (Uint32)len, off));
-          if (updatePart(thePartBuf.data, part1, off) == -1)
-            DBUG_RETURN(-1);
-        }
+      DBUG_RETURN(-1);
+      Uint32 off = getPartOffset(length);
+      if (off != 0) {
+        assert(off < thePartSize);
+        Uint16 len = 0;
+        if (readPart(thePartBuf.data, part1, len) == -1)
+          DBUG_RETURN(-1);
+        if (executePendingBlobReads() == -1)
+          DBUG_RETURN(-1);
+        assert(len != 0);
+        DBUG_PRINT("info", ("part %u length old=%u new=%u",
+                            part1, (Uint32)len, off));
+        if (theFixedDataFlag)
+          memset(thePartBuf.data + off, theFillChar, thePartSize - off);
+        if (updatePart(thePartBuf.data, part1, off) == -1)
+          DBUG_RETURN(-1);
       }
     } else {
       if (deleteParts(0, getPartCount()) == -1)
