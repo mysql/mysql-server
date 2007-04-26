@@ -15,8 +15,8 @@ im_options                : Bug#20294 2006-07-24 stewart   Instance manager test
 im_life_cycle            : BUG#27851 Instance manager dies on ASSERT in ~Thread_registry() or from not being able to close a mysqld instance.
 concurrent_innodb        : BUG#21579 2006-08-11 mleich innodb_concurrent random failures with varying differences
 ndb_single_user          : Bug will not be fixed in this release (not yet atleast)
-ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
-ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
+ndb_autodiscover         : BUG#18952 2006-02-16 NDB Auto Discovery is failing designed tests in ndb_autodiscovery.test
+ndb_autodiscover2         : BUG#18952 2006-02-16 NDB Auto Discovery is failing designed tests in ndb_autodiscovery.test
 ndb_load                 : BUG#17233 2006-05-04 tomas failed load data from infile causes mysqld dbug_assert, binlog not flushed
 
 partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when updating a range partitioned NDB table
