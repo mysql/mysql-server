@@ -4012,3 +4012,26 @@ WHERE (SELECT COUNT(t0.b) FROM t1 t WHERE t.b>20) GROUP BY a;
 ERROR HY000: Invalid use of group function
 SET @@sql_mode=default;
 DROP TABLE t1;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 values (1),(1),(1),(1);
+CREATE TABLE t2 (x INT);
+INSERT INTO t1 values (1000),(1001),(1002);
+SELECT SUM( (SELECT COUNT(a) FROM t2) ) FROM t1;
+ERROR HY000: Invalid use of group function
+SELECT SUM( (SELECT SUM(COUNT(a)) FROM t2) ) FROM t1;
+ERROR HY000: Invalid use of group function
+SELECT COUNT(1) FROM DUAL;
+COUNT(1)
+1
+SELECT SUM( (SELECT AVG( (SELECT t1.a FROM t2) ) FROM DUAL) ) FROM t1;
+ERROR HY000: Invalid use of group function
+SELECT 
+SUM( (SELECT AVG( (SELECT COUNT(*) FROM t1 t HAVING t1.a < 12) ) FROM t2) )
+FROM t1;
+ERROR HY000: Invalid use of group function
+SELECT t1.a as XXA, 
+SUM( (SELECT AVG( (SELECT COUNT(*) FROM t1 t HAVING XXA < 12) ) FROM t2) )
+FROM t1;
+ERROR HY000: Invalid use of group function
+DROP TABLE t1,t2;
+End of 5.0 tests.

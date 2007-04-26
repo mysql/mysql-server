@@ -3521,9 +3521,13 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
             select->inner_refs_list.push_back(rf);
             rf->in_sum_func= thd->lex->in_sum_func;
           }
+          /*
+            A reference is resolved to a nest level that's outer or the same as
+            the nest level of the enclosing set function : adjust the value of
+            max_arg_level for the function if it's needed.
+          */
           if (thd->lex->in_sum_func &&
-              thd->lex->in_sum_func->nest_level == 
-              thd->lex->current_select->nest_level)
+              thd->lex->in_sum_func->nest_level >= select->nest_level)
           {
             Item::Type ref_type= (*reference)->type();
             set_if_bigger(thd->lex->in_sum_func->max_arg_level,
@@ -5174,6 +5178,16 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
         thd->change_item_tree(reference, fld);
         mark_as_dependent(thd, last_checked_context->select_lex,
                           thd->lex->current_select, this, fld);
+        /*
+          A reference is resolved to a nest level that's outer or the same as
+          the nest level of the enclosing set function : adjust the value of
+          max_arg_level for the function if it's needed.
+        */
+        if (thd->lex->in_sum_func &&
+            thd->lex->in_sum_func->nest_level >= 
+            last_checked_context->select_lex->nest_level)
+          set_if_bigger(thd->lex->in_sum_func->max_arg_level,
+                        last_checked_context->select_lex->nest_level);
         return FALSE;
       }
       if (ref == 0)
@@ -5187,6 +5201,16 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
       DBUG_ASSERT(*ref && (*ref)->fixed);
       mark_as_dependent(thd, last_checked_context->select_lex,
                         context->select_lex, this, this);
+      /*
+        A reference is resolved to a nest level that's outer or the same as
+        the nest level of the enclosing set function : adjust the value of
+        max_arg_level for the function if it's needed.
+      */
+      if (thd->lex->in_sum_func &&
+          thd->lex->in_sum_func->nest_level >= 
+          last_checked_context->select_lex->nest_level)
+        set_if_bigger(thd->lex->in_sum_func->max_arg_level,
+                      last_checked_context->select_lex->nest_level);
     }
   }
 
