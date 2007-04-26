@@ -236,10 +236,11 @@ public:
     /* Is the table logged (i.e. data survives system restart) */
     enum Bits
     {
-      TR_Logged = 0x1,
-      TR_RowGCI = 0x2,
-      TR_RowChecksum = 0x4,
-      TR_Temporary = 0x8
+      TR_Logged       = 0x1,
+      TR_RowGCI       = 0x2,
+      TR_RowChecksum  = 0x4,
+      TR_Temporary    = 0x8,
+      TR_ForceVarPart = 0x10
     };
     Uint16 m_bits;
 
