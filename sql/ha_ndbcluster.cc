@@ -4749,14 +4749,14 @@ static int create_ndb_column(NDBCOL &col,
 
 int ha_ndbcluster::create(const char *name, 
                           TABLE *form, 
-                          HA_CREATE_INFO *info)
+                          HA_CREATE_INFO *create_info)
 {
   THD *thd= current_thd;
   NDBTAB tab;
   NDBCOL col;
   uint pack_length, length, i, pk_length= 0;
   const void *data= NULL, *pack_data= NULL;
-  bool create_from_engine= (info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
+  bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
   bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
   char tablespace[FN_LEN];
 
@@ -4780,7 +4780,7 @@ int ha_ndbcluster::create(const char *name,
       if (!(m_table= ndbtab_g.get_table()))
 	ERR_RETURN(dict->getNdbError());
       if ((get_tablespace_name(thd, tablespace, FN_LEN)))
-	info->tablespace= tablespace;    
+	create_info->tablespace= tablespace;    
       m_table= NULL;
     }
     DBUG_PRINT("info", ("Dropping and re-creating table for TRUNCATE"));
@@ -4821,7 +4821,7 @@ int ha_ndbcluster::create(const char *name,
 
   DBUG_PRINT("table", ("name: %s", m_tabname));  
   tab.setName(m_tabname);
-  tab.setLogging(!(info->options & HA_LEX_CREATE_TMP_TABLE));    
+  tab.setLogging(!(create_info->options & HA_LEX_CREATE_TMP_TABLE));    
    
   // Save frm data for this table
   if (readfrm(name, &data, &length))
@@ -4836,16 +4836,45 @@ int ha_ndbcluster::create(const char *name,
   my_free((char*)data, MYF(0));
   my_free((char*)pack_data, MYF(0));
   
+  /*
+    Check for disk options
+  */
+  if (create_info->storage_media == HA_SM_DISK)
+  { 
+    if (create_info->tablespace)
+      tab.setTablespaceName(create_info->tablespace);
+    else
+      tab.setTablespaceName("DEFAULT-TS");
+  }
+  else if (create_info->tablespace)
+  {
+    if (create_info->storage_media == HA_SM_MEMORY)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+			  ER_ILLEGAL_HA_CREATE_OPTION,
+			  ER(ER_ILLEGAL_HA_CREATE_OPTION),
+			  ndbcluster_hton_name,
+			  "TABLESPACE currently only supported for "
+			  "STORAGE DISK");
+      DBUG_RETURN(HA_ERR_UNSUPPORTED);
+    }
+    tab.setTablespaceName(create_info->tablespace);
+    create_info->storage_media = HA_SM_DISK;  //if use tablespace, that also means store on disk
+  }
+
+  /*
+    Setup columns
+  */
   for (i= 0; i < form->s->fields; i++) 
   {
     Field *field= form->field[i];
     DBUG_PRINT("info", ("name: %s, type: %u, pack_length: %d", 
                         field->field_name, field->real_type(),
                         field->pack_length()));
-    if ((my_errno= create_ndb_column(col, field, info)))
+    if ((my_errno= create_ndb_column(col, field, create_info)))
       DBUG_RETURN(my_errno);
  
-    if (info->storage_media == HA_SM_DISK)
+    if (create_info->storage_media == HA_SM_DISK)
       col.setStorageType(NdbDictionary::Column::StorageTypeDisk);
     else
       col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
@@ -4863,29 +4892,6 @@ int ha_ndbcluster::create(const char *name,
     for (; key_part != end; key_part++)
       tab.getColumn(key_part->fieldnr-1)->setStorageType(
                              NdbDictionary::Column::StorageTypeMemory);
-  }
-
-  if (info->storage_media == HA_SM_DISK)
-  { 
-    if (info->tablespace)
-      tab.setTablespaceName(info->tablespace);
-    else
-      tab.setTablespaceName("DEFAULT-TS");
-  }
-  else if (info->tablespace)
-  {
-    if (info->storage_media == HA_SM_MEMORY)
-    {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-			  ER_ILLEGAL_HA_CREATE_OPTION,
-			  ER(ER_ILLEGAL_HA_CREATE_OPTION),
-			  ndbcluster_hton_name,
-			  "TABLESPACE currently only supported for "
-			  "STORAGE DISK"); 
-      DBUG_RETURN(HA_ERR_UNSUPPORTED);
-    }
-    tab.setTablespaceName(info->tablespace);
-    info->storage_media = HA_SM_DISK;  //if use tablespace, that also means store on disk
   }
 
   // No primary key, create shadow key as 64 bit, auto increment  
