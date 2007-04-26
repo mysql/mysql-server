@@ -2141,6 +2141,19 @@ protected:
 };
 
 
+class Create_func_uuid_short : public Create_func_arg0
+{
+public:
+  virtual Item *create(THD *thd);
+
+  static Create_func_uuid_short s_singleton;
+
+protected:
+  Create_func_uuid_short() {}
+  virtual ~Create_func_uuid_short() {}
+};
+
+
 class Create_func_version : public Create_func_arg0
 {
 public:
@@ -4532,6 +4545,16 @@ Create_func_uuid::create(THD *thd)
 }
 
 
+Create_func_uuid_short Create_func_uuid_short::s_singleton;
+
+Item*
+Create_func_uuid_short::create(THD *thd)
+{
+  thd->lex->binlog_row_based_if_mixed= TRUE;
+  return new (thd->mem_root) Item_func_uuid_short();
+}
+
+
 Create_func_version Create_func_version::s_singleton;
 
 Item*
@@ -4871,6 +4894,7 @@ static Native_func_registry func_array[] =
   { C_STRING_WITH_LEN("UPDATEXML"), BUILDER(Create_func_xml_update)},
   { C_STRING_WITH_LEN("UPPER"), BUILDER(Create_func_ucase)},
   { C_STRING_WITH_LEN("UUID"), BUILDER(Create_func_uuid)},
+  { C_STRING_WITH_LEN("UUID_SHORT"), BUILDER(Create_func_uuid_short)},
   { C_STRING_WITH_LEN("VERSION"), BUILDER(Create_func_version)},
   { C_STRING_WITH_LEN("WEEKDAY"), BUILDER(Create_func_weekday)},
   { C_STRING_WITH_LEN("WEEKOFYEAR"), BUILDER(Create_func_weekofyear)},

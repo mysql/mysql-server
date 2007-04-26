@@ -225,8 +225,10 @@ static const char *sql_mode_names[]=
   "ERROR_FOR_DIVISION_BY_ZERO",
   "TRADITIONAL", "NO_AUTO_CREATE_USER", "HIGH_NOT_PRECEDENCE",
   "NO_ENGINE_SUBSTITUTION",
+  "PAD_CHAR_TO_FULL_LENGTH",
   NullS
 };
+
 static const unsigned int sql_mode_names_len[]=
 {
   /*REAL_AS_FLOAT*/               13,
@@ -259,8 +261,10 @@ static const unsigned int sql_mode_names_len[]=
   /*TRADITIONAL*/                 11,
   /*NO_AUTO_CREATE_USER*/         19,
   /*HIGH_NOT_PRECEDENCE*/         19,
-  /*NO_ENGINE_SUBSTITUTION*/      22
+  /*NO_ENGINE_SUBSTITUTION*/      22,
+  /*PAD_CHAR_TO_FULL_LENGTH*/     23
 };
+
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
 			    sql_mode_names,
                             (unsigned int *)sql_mode_names_len };

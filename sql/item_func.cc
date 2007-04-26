@@ -5358,3 +5358,40 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   }
   DBUG_RETURN(res);
 }
+
+
+/*
+  uuid_short handling.
+
+  The short uuid is defined as a longlong that contains the following bytes:
+
+  Bytes  Comment
+  1      Server_id & 255
+  4      Startup time of server in seconds
+  3      Incrementor
+
+  This means that an uuid is guaranteed to be unique
+  even in a replication environment if the following holds:
+
+  - The last byte of the server id is unique
+  - If you between two shutdown of the server don't get more than
+    an average of 2^24 = 16M calls to uuid_short() per second.
+*/
+
+ulonglong uuid_value;
+
+void uuid_short_init()
+{
+  uuid_value= (((ulonglong) server_id << 56) + 
+               (ulonglong) server_start_time << 24);
+}
+
+
+longlong Item_func_uuid_short::val_int()
+{
+  ulonglong val;
+  pthread_mutex_lock(&LOCK_uuid_generator);
+  val= uuid_value++;
+  pthread_mutex_unlock(&LOCK_uuid_generator);
+  return (longlong) val;
+}
