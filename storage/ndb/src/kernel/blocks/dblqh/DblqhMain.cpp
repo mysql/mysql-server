@@ -1071,6 +1071,7 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
   Uint32 primaryTableId = req->primaryTableId;
   Uint32 tablespace= req->tablespace_id;
   Uint32 logPart = req->logPartId;
+  Uint32 forceVarPartFlag = req->forceVarPartFlag;
 
   if (signal->getLength() < 20)
   {
@@ -1190,6 +1191,7 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
   addfragptr.p->tableType = tableType;
   addfragptr.p->primaryTableId = primaryTableId;
   addfragptr.p->tablespace_id= tablespace;
+  addfragptr.p->forceVarPartFlag = forceVarPartFlag;
   //
   addfragptr.p->tupConnectptr = RNIL;
   addfragptr.p->tuxConnectptr = RNIL;
@@ -1340,6 +1342,7 @@ Dblqh::sendAddFragReq(Signal* signal)
       tupFragReq->checksumIndicator = addfragptr.p->checksumIndicator;
       tupFragReq->globalCheckpointIdIndicator = addfragptr.p->GCPIndicator;
       tupFragReq->tablespaceid = addfragptr.p->tablespace_id;
+      tupFragReq->forceVarPartFlag = addfragptr.p->forceVarPartFlag;
       sendSignal(fragptr.p->tupBlockref, GSN_TUPFRAGREQ,
 		 signal, TupFragReq::SignalLength, JBB);
       return;
