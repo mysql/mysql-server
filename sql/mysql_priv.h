@@ -195,6 +195,8 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define BDB_LOG_ALLOC_BLOCK_SIZE	1024
 #define WARN_ALLOC_BLOCK_SIZE		2048
 #define WARN_ALLOC_PREALLOC_SIZE	1024
+#define PROFILE_ALLOC_BLOCK_SIZE  2048
+#define PROFILE_ALLOC_PREALLOC_SIZE 1024
 
 /*
   The following parameters is to decide when to use an extra cache to
@@ -367,6 +369,8 @@ MY_LOCALE *my_locale_by_number(uint number);
   fulltext functions when reading from it.
 */
 #define TMP_TABLE_FORCE_MYISAM          (ULL(1) << 32)
+#define OPTION_PROFILING                (ULL(1) << 33)
+
 
 
 /*
@@ -569,6 +573,8 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
 #include "field.h"				/* Field definitions */
 #include "protocol.h"
 #include "sql_udf.h"
+#include "sql_profile.h"
+
 class user_var_entry;
 class Security_context;
 enum enum_var_type
@@ -1240,7 +1246,7 @@ void my_dbopt_free(void);
   External variables
 */
 
-extern time_t server_start_time;
+extern time_t server_start_time, flush_status_time;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[],
             def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];

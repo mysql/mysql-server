@@ -5971,14 +5971,14 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
 
   if (!is_autocommit)
   {
-    DBUG_PRINT("exit", ("Can't register table during transaction"))
+    DBUG_PRINT("exit", ("Can't register table during transaction"));
     DBUG_RETURN(FALSE);
   }
 
   if (ndb_get_commitcount(thd, m_dbname, m_tabname, &commit_count))
   {
     *engine_data= 0;
-    DBUG_PRINT("exit", ("Error, could not get commitcount"))
+    DBUG_PRINT("exit", ("Error, could not get commitcount"));
     DBUG_RETURN(FALSE);
   }
   *engine_data= commit_count;
