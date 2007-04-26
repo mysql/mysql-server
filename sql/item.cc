@@ -4166,6 +4166,21 @@ enum_field_types Item::field_type() const
 }
 
 
+bool Item::is_datetime()
+{
+  switch (field_type())
+  {
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      return TRUE;
+    default:
+      break;
+  }
+  return FALSE;
+}
+
+
 /*
   Create a field to hold a string value from an item
 
@@ -6118,6 +6133,14 @@ void Item_cache::print(String *str)
 void Item_cache_int::store(Item *item)
 {
   value= item->val_int_result();
+  null_value= item->null_value;
+  unsigned_flag= item->unsigned_flag;
+}
+
+
+void Item_cache_int::store(Item *item, longlong val_arg)
+{
+  value= val_arg;
   null_value= item->null_value;
   unsigned_flag= item->unsigned_flag;
 }
