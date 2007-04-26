@@ -2148,7 +2148,8 @@ struct bug27370_data {
   char *m_writebuf;
   Uint32 m_blob1_size;
   Uint32 m_pk1;
-  char m_pk2[g_max_pk2len + 1];
+  char m_pk2[256 + 1];
+  Uint16 m_pk3;
   bool m_thread_stop;
 };
 
@@ -2171,9 +2172,13 @@ void *bugtest_27370_thread(void *arg)
       return (void *)"writeTuple() failed";
     if (opr->equal("PK1", data->m_pk1) != 0)
       return (void *)"equal(PK1) failed";
-    if (g_opt.m_pk2len != 0)
+    if (g_opt.m_pk2chr.m_len != 0)
+    {
       if (opr->equal("PK2", data->m_pk2) != 0)
         return (void *)"equal(PK2) failed";
+      if (opr->equal("PK3", (char *)(&data->m_pk3)) != 0)
+        return (void *)"equal(PK2) failed";
+    }
     NdbBlob *bh;
     if ((bh= opr->getBlobHandle("BL1")) == 0)
       return (void *)"getBlobHandle() failed";
@@ -2199,11 +2204,12 @@ bugtest_27370()
   CHK(data.m_ndb->waitUntilReady() == 0);
 
   data.m_current_write_value= 0;
-  data.m_blob1_size= g_opt.m_blob1.m_inline + 10 * g_opt.m_blob1.m_partsize;
+  data.m_blob1_size= g_blob1.m_inline + 10 * g_blob1.m_partsize;
   CHK((data.m_writebuf= new char [data.m_blob1_size]) != 0);
   data.m_pk1= 27370;
-  memset(data.m_pk2, 'x', g_max_pk2len);
-  data.m_pk2[g_max_pk2len]= '\0';
+  memset(data.m_pk2, 'x', sizeof(data.m_pk2) - 1);
+  data.m_pk2[sizeof(data.m_pk2) - 1]= '\0';
+  data.m_pk3= 27370;
   data.m_thread_stop= false;
 
   memset(data.m_writebuf, data.m_current_write_value, data.m_blob1_size);
@@ -2213,8 +2219,11 @@ bugtest_27370()
   CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
   CHK(g_opr->writeTuple() == 0);
   CHK(g_opr->equal("PK1", data.m_pk1) == 0);
-  if (g_opt.m_pk2len != 0)
+  if (g_opt.m_pk2chr.m_len != 0)
+  {
     CHK(g_opr->equal("PK2", data.m_pk2) == 0);
+    CHK(g_opr->equal("PK3", (char *)(&data.m_pk3)) == 0);
+  }
   CHK((g_bh1= g_opr->getBlobHandle("BL1")) != 0);
   CHK(g_bh1->setValue(data.m_writebuf, data.m_blob1_size) == 0);
   CHK(g_con->execute(Commit) == 0);
@@ -2232,8 +2241,11 @@ bugtest_27370()
     CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
     CHK(g_opr->readTuple(NdbOperation::LM_CommittedRead) == 0);
     CHK(g_opr->equal("PK1", data.m_pk1) == 0);
-    if (g_opt.m_pk2len != 0)
+    if (g_opt.m_pk2chr.m_len != 0)
+    {
       CHK(g_opr->equal("PK2", data.m_pk2) == 0);
+      CHK(g_opr->equal("PK3", (char *)(&data.m_pk3)) == 0);
+    }
     CHK((g_bh1= g_opr->getBlobHandle("BL1")) != 0);
     CHK(g_con->execute(NoCommit, AbortOnError, 1) == 0);
 
