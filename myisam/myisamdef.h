@@ -263,6 +263,7 @@ struct st_myisam_info {
   enum ha_rkey_function last_key_func;  /* CONTAIN, OVERLAP, etc */
   uint  save_lastkey_length;
   uint  pack_key_length;                /* For MYISAMMRG */
+  uint16 last_used_keyseg;              /* For MyISAMMRG */
   int	errkey;				/* Got last error on this key */
   int   lock_type;			/* How database was locked */
   int   tmp_lock_type;			/* When locked by readinfo */
