@@ -629,6 +629,12 @@ static sys_var_thd_bit	sys_unique_checks("unique_checks", 0,
 					  set_option_bit,
 					  OPTION_RELAXED_UNIQUE_CHECKS,
 					  1);
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+static sys_var_thd_bit  sys_profiling("profiling", NULL, set_option_bit,
+                                      ulonglong(OPTION_PROFILING));
+static sys_var_thd_ulong	sys_profiling_history_size("profiling_history_size",
+					      &SV::profiling_history_size);
+#endif
 
 /* Local state variables */
 
@@ -957,6 +963,10 @@ SHOW_VAR init_vars[]= {
   {"plugin_dir",              (char*) opt_plugin_dir,               SHOW_CHAR},
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  {sys_profiling.name,        (char*) &sys_profiling,               SHOW_SYS},
+  {sys_profiling_history_size.name, (char*) &sys_profiling_history_size, SHOW_SYS},
+#endif
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_query_alloc_block_size.name, (char*) &sys_query_alloc_block_size,
    SHOW_SYS},

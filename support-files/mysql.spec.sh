@@ -490,6 +490,11 @@ chmod -R og-rw $mysql_datadir/mysql
 # Allow mysqld_safe to start mysqld and print a message before we exit
 sleep 2
 
+#echo "Thank you for installing the MySQL Community Server! For Production
+#systems, we recommend MySQL Enterprise, which contains enterprise-ready
+#software, intelligent advisory services, and full production support with
+#scheduled service packs and more.  Visit www.mysql.com/enterprise for more
+#information." 
 
 %post ndb-storage
 mysql_clusterdir=/var/lib/mysql-cluster

@@ -113,9 +113,13 @@ enum enum_sql_command {
   SQLCOM_CREATE_SERVER, SQLCOM_DROP_SERVER, SQLCOM_ALTER_SERVER,
   SQLCOM_CREATE_EVENT, SQLCOM_ALTER_EVENT, SQLCOM_DROP_EVENT,
   SQLCOM_SHOW_CREATE_EVENT, SQLCOM_SHOW_EVENTS, 
+  SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
 
+  /*
+    When a command is added here, be sure it's also added in mysqld.cc
+    in "struct show_var_st status_vars[]= {" ...
+  */
   /* This should be the last !!! */
-
   SQLCOM_END
 };
 
@@ -1112,6 +1116,9 @@ typedef struct st_lex : public Query_tables_list
   enum enum_var_type option_type;
   enum enum_view_create_mode create_view_mode;
   enum enum_drop_mode drop_mode;
+
+  uint profile_query_id;
+  uint profile_options;
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;

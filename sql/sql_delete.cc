@@ -48,7 +48,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 	     table_list->view_db.str, table_list->view_name.str);
     DBUG_RETURN(TRUE);
   }
-  thd->proc_info="init";
+  thd_proc_info(thd, "init");
   table->map=1;
 
   if (mysql_prepare_delete(thd, table_list, &conds))
@@ -220,7 +220,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     init_read_record_idx(&info, thd, table, 1, usable_index);
 
   init_ftfuncs(thd, select_lex, 1);
-  thd->proc_info="updating";
+  thd_proc_info(thd, "updating");
   if (table->triggers && 
       table->triggers->has_triggers(TRG_EVENT_DELETE,
                                     TRG_ACTION_AFTER))
@@ -296,7 +296,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       table->file->print_error(loc_error,MYF(0));
     error=1;
   }
-  thd->proc_info= "end";
+  thd_proc_info(thd, "end");
   end_read_record(&info);
   if (options & OPTION_QUICK)
     (void) table->file->extra(HA_EXTRA_NORMAL);
@@ -539,7 +539,7 @@ multi_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_ENTER("multi_delete::prepare");
   unit= u;
   do_delete= 1;
-  thd->proc_info="deleting from main table";
+  thd_proc_info(thd, "deleting from main table");
   DBUG_RETURN(0);
 }
 
@@ -823,7 +823,7 @@ int multi_delete::do_deletes()
 
 bool multi_delete::send_eof()
 {
-  thd->proc_info="deleting from reference tables";
+  thd_proc_info(thd, "deleting from reference tables");
 
   /* Does deletes for the last n - 1 tables, returns 0 if ok */
   int local_error= do_deletes();		// returns 0 if success
@@ -832,7 +832,7 @@ bool multi_delete::send_eof()
   local_error= local_error || error;
 
   /* reset used flags */
-  thd->proc_info="end";
+  thd_proc_info(thd, "end");
 
   /*
     We must invalidate the query cache before binlog writing and
@@ -1014,7 +1014,7 @@ trunc_by_del:
   /* Probably InnoDB table */
   ulonglong save_options= thd->options;
   table_list->lock_type= TL_WRITE;
-  thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT);
+  thd->options&= ~(OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT);
   ha_enable_transaction(thd, FALSE);
   mysql_init_select(thd->lex);
   bool save_binlog_row_based= thd->current_stmt_binlog_row_based;

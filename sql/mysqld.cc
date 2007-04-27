@@ -514,7 +514,7 @@ const char *log_output_str= "TABLE";
 
 double log_10[32];			/* 10 potences */
 double log_01[32];
-time_t server_start_time;
+time_t server_start_time, flush_status_time;
 
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
 char *default_tz_name;
@@ -2720,7 +2720,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   tzset();			// Set tzname
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
-  server_start_time= time((time_t*) 0);
+  server_start_time= flush_status_time= time((time_t*) 0);
   rpl_filter= new Rpl_filter;
   binlog_filter= new Rpl_filter;
   if (!rpl_filter || !binlog_filter) 
@@ -5048,6 +5048,7 @@ enum options_mysqld
   OPT_PLUGIN_DIR,
   OPT_LOG_OUTPUT,
   OPT_PORT_OPEN_TIMEOUT,
+  OPT_PROFILING,
   OPT_GENERAL_LOG,
   OPT_SLOW_LOG,
   OPT_MERGE,
@@ -5688,6 +5689,12 @@ Disable with --skip-ndbcluster (will save memory).",
    "Maximum time in seconds to wait for the port to become free. "
    "(Default: no wait)", (gptr*) &mysqld_port_timeout,
    (gptr*) &mysqld_port_timeout, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  {"profiling_history_size", OPT_PROFILING, "Limit of query profiling memory",
+   (gptr*) &global_system_variables.profiling_history_size,
+   (gptr*) &max_system_variables.profiling_history_size,
+   0, GET_ULONG, REQUIRED_ARG, 15, 0, 100, 0, 0, 0},
+#endif
   {"relay-log", OPT_RELAY_LOG,
    "The location and name to use for relay logs.",
    (gptr*) &opt_relay_logname, (gptr*) &opt_relay_logname, 0,
@@ -6522,6 +6529,14 @@ static int show_starttime(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
+static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (long) (thd->query_start() - flush_status_time);
+  return 0;
+}
+
 #ifdef HAVE_REPLICATION
 static int show_rpl_status(THD *thd, SHOW_VAR *var, char *buff)
 {
@@ -7074,6 +7089,7 @@ SHOW_VAR status_vars[]= {
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_NOFLUSH},
   {"Threads_running",          (char*) &thread_running,         SHOW_INT},
   {"Uptime",                   (char*) &show_starttime,         SHOW_FUNC},
+  {"Uptime_since_flush_status",(char*) &show_flushstatustime,   SHOW_FUNC},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -8346,6 +8362,9 @@ void refresh_status(THD *thd)
 
   /* Reset the counters of all key caches (default and named). */
   process_key_caches(reset_key_cache_counters);
+#ifdef COMMUNITY_SERVER
+  flush_status_time= time((time_t*) 0);
+#endif
   pthread_mutex_unlock(&LOCK_status);
 
   /*
