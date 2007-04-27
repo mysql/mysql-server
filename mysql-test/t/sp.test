@@ -7075,8 +7075,11 @@ DROP FUNCTION bug5274_f2|
 delimiter ;|
 drop table t1,t2;
 
+# Disable warnings to allow test run without InnoDB
+--disable_warnings
 CREATE TABLE t1 (a int auto_increment primary key) engine=MyISAM;
 CREATE TABLE t2 (a int auto_increment primary key, b int) engine=innodb;
+--enable_warnings
 set @a=0;
 
 delimiter |;
