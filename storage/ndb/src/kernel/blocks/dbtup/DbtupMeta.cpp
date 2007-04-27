@@ -567,8 +567,12 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       Uint32 sz= sizeof(Disk_undo::Create) >> 2;
       
       Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
-      (void)  c_lgman->alloc_log_space(regFragPtr.p->m_logfile_group_id,
-                                       sz);
+      if((terrorCode = 
+          c_lgman->alloc_log_space(regFragPtr.p->m_logfile_group_id, sz)))
+      {
+        addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
+        return;
+      }
       
       int res= lgman.get_log_buffer(signal, sz, &cb);
       switch(res){

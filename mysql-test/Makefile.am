@@ -24,7 +24,7 @@ benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test
 EXTRA_SCRIPTS = 	mysql-test-run-shell.sh install_test_db.sh \
 			valgrind.supp $(PRESCRIPTS)
-EXTRA_DIST = 		$(EXTRA_SCRIPTS)
+EXTRA_DIST = 		$(EXTRA_SCRIPTS) suite
 GENSCRIPTS =		mysql-test-run-shell install_test_db mtr mysql-test-run
 PRESCRIPTS =		mysql-test-run.pl
 test_SCRIPTS = 		$(GENSCRIPTS) $(PRESCRIPTS)
@@ -71,6 +71,7 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50/BACKUP* $(distdir)/std_data/ndb_backup50
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51/BACKUP* $(distdir)/std_data/ndb_backup51
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(distdir)/lib
+	-rm -rf `find $(distdir)/suite -type d -name SCCS`
 
 install-data-local:
 	$(mkinstalldirs) \
@@ -112,6 +113,12 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup50
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(DESTDIR)$(testdir)/lib
+	for f in `(cd $(srcdir); find suite -type f | grep -v SCCS)`; \
+	do \
+	  d=$(DESTDIR)$(testdir)/`dirname $$f`; \
+	  mkdir -p $$d ; \
+	  $(INSTALL_DATA) $(srcdir)/$$f $$d ; \
+	done
 
 uninstall-local:
 	@RM@ -f -r $(DESTDIR)$(testdir)
