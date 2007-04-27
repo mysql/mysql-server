@@ -1961,11 +1961,6 @@ Lgman::alloc_log_space(Uint32 ref, Uint32 words)
   if(m_logfile_group_hash.find(ptr, key) && 
      ptr.p->m_free_file_words >= (words + (4 * File_formats::UNDO_PAGE_WORDS)))
   {
-    Uint32 group_pages = 
-      ((ptr.p->m_free_file_words + File_formats::UNDO_PAGE_WORDS - 1)/ File_formats::UNDO_PAGE_WORDS);
-    if(group_pages > compute_free_file_pages(ptr))
-      return 1501; 
-
     ptr.p->m_free_file_words -= words;
     validate_logfile_group(ptr, "alloc_log_space");
     return 0;
