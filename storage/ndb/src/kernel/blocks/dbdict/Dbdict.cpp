@@ -18,6 +18,7 @@
 
 #define DBDICT_C
 #include "Dbdict.hpp"
+#include "diskpage.hpp"
 
 #include <ndb_limits.h>
 #include <NdbOut.hpp>
@@ -15678,7 +15679,10 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op){
     } 
     else if(fg.FilegroupType == DictTabInfo::LogfileGroup)
     {
-      if(!fg.LF_UndoBufferSize)
+      /**
+       * undo_buffer_size can't be less than 96KB in LGMAN block 
+       */
+      if(fg.LF_UndoBufferSize < 3 * File_formats::NDB_PAGE_SIZE)
       {
 	op->m_errorCode = CreateFilegroupRef::InvalidUndoBufferSize;
 	break;

@@ -1057,18 +1057,6 @@ class Ndb
   friend class NdbImpl;
   friend class Ndb_cluster_connection;
   friend class Ndb_cluster_connection_impl;
-  friend class Ndb_free_list_t<NdbRecAttr>;  
-  friend class Ndb_free_list_t<NdbApiSignal>;
-  friend class Ndb_free_list_t<NdbLabel>;
-  friend class Ndb_free_list_t<NdbBranch>;
-  friend class Ndb_free_list_t<NdbSubroutine>;
-  friend class Ndb_free_list_t<NdbCall>;
-  friend class Ndb_free_list_t<NdbBlob>;
-  friend class Ndb_free_list_t<NdbReceiver>;
-  friend class Ndb_free_list_t<NdbIndexScanOperation>;
-  friend class Ndb_free_list_t<NdbOperation>;
-  friend class Ndb_free_list_t<NdbIndexOperation>;
-  friend class Ndb_free_list_t<NdbTransaction>;
 #endif
 
 public:

@@ -6099,13 +6099,21 @@ uint Field::is_equal(create_field *new_field)
 }
 
 
+/* If one of the fields is binary and the other one isn't return 1 else 0 */
+
+bool Field_str::compare_str_field_flags(create_field *new_field, uint32 flags)
+{
+  return (((new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
+          !(flags & (BINCMP_FLAG | BINARY_FLAG))) ||
+         (!(new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
+          (flags & (BINCMP_FLAG | BINARY_FLAG))));
+}
+
+
 uint Field_str::is_equal(create_field *new_field)
 {
-  if (((new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
-       !(flags & (BINCMP_FLAG | BINARY_FLAG))) ||
-      (!(new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
-	(flags & (BINCMP_FLAG | BINARY_FLAG))))
-    return 0; /* One of the fields is binary and the other one isn't */
+  if (compare_str_field_flags(new_field, flags))
+    return 0;
 
   return ((new_field->sql_type == real_type()) &&
 	  new_field->charset == field_charset &&
@@ -7608,6 +7616,18 @@ uint Field_blob::packed_col_length(const char *data_ptr, uint length)
 uint Field_blob::max_packed_col_length(uint max_length)
 {
   return (max_length > 255 ? 2 : 1)+max_length;
+}
+
+
+uint Field_blob::is_equal(create_field *new_field)
+{
+  if (compare_str_field_flags(new_field, flags))
+    return 0;
+
+  return ((new_field->sql_type == get_blob_type_from_length(max_data_length()))
+          && new_field->charset == field_charset &&
+          ((Field_blob *)new_field->field)->max_data_length() ==
+          max_data_length());
 }
 
 
