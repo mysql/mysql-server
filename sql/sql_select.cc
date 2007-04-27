@@ -9625,12 +9625,14 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   share->fields= field_count;
 
   /* If result table is small; use a heap */
+  /* future: storage engine selection can be made dynamic? */
   if (blob_count || using_unique_constraint ||
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
       OPTION_BIG_TABLES || (select_options & TMP_TABLE_FORCE_MYISAM))
   {
+    share->db_plugin= ha_lock_engine(0, myisam_hton);
     table->file= get_new_handler(share, &table->mem_root,
-                                 share->db_type= myisam_hton);
+                                 share->db_type());
     if (group &&
 	(param->group_parts > table->file->max_key_parts() ||
 	 param->group_length > table->file->max_key_length()))
@@ -9638,8 +9640,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   }
   else
   {
+    share->db_plugin= ha_lock_engine(0, heap_hton);
     table->file= get_new_handler(share, &table->mem_root,
-                                 share->db_type= heap_hton);
+                                 share->db_type());
   }
   if (!table->file)
     goto err;
@@ -9801,7 +9804,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   if (thd->variables.tmp_table_size == ~ (ulonglong) 0)		// No limit
     share->max_rows= ~(ha_rows) 0;
   else
-    share->max_rows= (ha_rows) (((share->db_type == heap_hton) ?
+    share->max_rows= (ha_rows) (((share->db_type() == heap_hton) ?
                                  min(thd->variables.tmp_table_size,
                                      thd->variables.max_heap_table_size) :
                                  thd->variables.tmp_table_size) /
@@ -9949,7 +9952,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   if (thd->is_fatal_error)				// If end of memory
     goto err;					 /* purecov: inspected */
   share->db_record_offset= 1;
-  if (share->db_type == myisam_hton)
+  if (share->db_type() == myisam_hton)
   {
     if (create_myisam_tmp_table(table,param,select_options))
       goto err;
@@ -10256,6 +10259,8 @@ free_tmp_table(THD *thd, TABLE *entry)
   if (entry->temp_pool_slot != MY_BIT_NONE)
     bitmap_lock_clear_bit(&temp_pool, entry->temp_pool_slot);
 
+  plugin_unlock(0, entry->s->db_plugin);
+
   free_root(&own_root, MYF(0)); /* the table is allocated in its own root */
   thd->proc_info=save_proc_info;
 
@@ -10275,7 +10280,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   int write_err;
   DBUG_ENTER("create_myisam_from_heap");
 
-  if (table->s->db_type != heap_hton || 
+  if (table->s->db_type() != heap_hton || 
       error != HA_ERR_RECORD_FILE_FULL)
   {
     table->file->print_error(error,MYF(0));
@@ -10284,9 +10289,9 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   new_table= *table;
   share= *table->s;
   new_table.s= &share;
-  new_table.s->db_type= myisam_hton;
+  new_table.s->db_plugin= ha_lock_engine(thd, myisam_hton);
   if (!(new_table.file= get_new_handler(&share, &new_table.mem_root,
-                                        myisam_hton)))
+                                        new_table.s->db_type())))
     DBUG_RETURN(1);				// End of memory
 
   save_proc_info=thd->proc_info;
@@ -10344,9 +10349,12 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   (void) table->file->delete_table(table->s->table_name.str);
   delete table->file;
   table->file=0;
+  plugin_unlock(0, table->s->db_plugin);
+  share.db_plugin= my_plugin_lock(0, &share.db_plugin);
   new_table.s= table->s;                       // Keep old share
   *table= new_table;
   *table->s= share;
+  
   table->file->change_table_ptr(table, table->s);
   table->use_all_columns();
   if (save_proc_info)
@@ -12934,7 +12942,7 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
 
   free_io_cache(entry);				// Safety
   entry->file->info(HA_STATUS_VARIABLE);
-  if (entry->s->db_type == heap_hton ||
+  if (entry->s->db_type() == heap_hton ||
       (!entry->s->blob_fields &&
        ((ALIGN_SIZE(reclength) + HASH_OVERHEAD) * entry->file->stats.records <
 	thd->variables.sortbuff_size)))
