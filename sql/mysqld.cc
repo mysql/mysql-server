@@ -3271,7 +3271,7 @@ server.");
 #ifdef HAVE_REPLICATION
   if (opt_bin_log && expire_logs_days)
   {
-    long purge_time= (long) (time(0) - expire_logs_days*24*60*60);
+    time_t purge_time= time(0) - expire_logs_days*24*60*60;
     if (purge_time >= 0)
       mysql_bin_log.purge_logs_before_date(purge_time);
   }
