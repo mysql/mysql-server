@@ -154,6 +154,7 @@ else
     if test -f $i/$fill_help_tables
     then
       pkgdatadir=$i
+      break
     fi
   done
 
