@@ -8785,7 +8785,9 @@ static void test_ts()
   int        rc, field_count;
   char       name;
   char query[MAX_TEST_QUERY_LENGTH];
-
+  const char *queries [3]= {"SELECT a, b, c FROM test_ts WHERE %c=?",
+                            "SELECT a, b, c FROM test_ts WHERE %c=?",
+                            "SELECT a, b, c FROM test_ts WHERE %c=CAST(? AS DATE)"};
   myheader("test_ts");
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_ts");
@@ -8852,9 +8854,7 @@ static void test_ts()
 
   mysql_free_result(prep_res);
   mysql_stmt_close(stmt);
-  char queries [3][60]= {"SELECT a, b, c FROM test_ts WHERE %c=?",
-                         "SELECT a, b, c FROM test_ts WHERE %c=?",
-                         "SELECT a, b, c FROM test_ts WHERE %c=CAST(? AS DATE)"};
+
   for (name= 'a'; field_count--; name++)
   {
     int row_count= 0;
