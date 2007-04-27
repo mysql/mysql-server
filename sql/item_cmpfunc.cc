@@ -544,7 +544,7 @@ static ulonglong
 get_date_from_str(THD *thd, String *str, timestamp_type warn_type,
                   char *warn_name, bool *error_arg)
 {
-  ulonglong value;
+  ulonglong value= 0;
   int error;
   MYSQL_TIME l_time;
   enum_mysql_timestamp_type ret;
@@ -748,7 +748,7 @@ static ulonglong
 get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
                    Item *warn_item, bool *is_null)
 {
-  ulonglong value;
+  ulonglong value= 0;
   String buf, *str= 0;
   Item *item= **item_arg;
 
