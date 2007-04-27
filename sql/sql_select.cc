@@ -733,6 +733,7 @@ JOIN::optimize()
     DBUG_RETURN(0);
   optimized= 1;
 
+  thd_proc_info(thd, "optimizing");
   row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :
 	      unit->select_limit_cnt);
   /* select_limit is used to decide if we are likely to scan the whole table */
@@ -868,7 +869,14 @@ JOIN::optimize()
         thd->fatal_error();
         error= res;
         DBUG_PRINT("error",("Error from opt_sum_query"));
-	DBUG_RETURN(1);
+        DBUG_RETURN(1);
+      }
+      if (res < 0)
+      {
+        DBUG_PRINT("info",("No matching min/max row"));
+        zero_result_cause= "No matching min/max row";
+        error=0;
+        DBUG_RETURN(0);
       }
       DBUG_PRINT("info",("Select tables optimized away"));
       zero_result_cause= "Select tables optimized away";
@@ -904,7 +912,7 @@ JOIN::optimize()
   sort_by_table= get_sort_by_table(order, group_list, select_lex->leaf_tables);
 
   /* Calculate how to do the join */
-  thd->proc_info= "statistics";
+  thd_proc_info(thd, "statistics");
   if (make_join_statistics(this, select_lex->leaf_tables, conds, &keyuse) ||
       thd->is_fatal_error)
   {
@@ -914,7 +922,7 @@ JOIN::optimize()
 
   /* Remove distinct if only const tables */
   select_distinct= select_distinct && (const_tables != tables);
-  thd->proc_info= "preparing";
+  thd_proc_info(thd, "preparing");
   if (result->initialize_tables(this))
   {
     DBUG_PRINT("error",("Error: initialize_tables() failed"));
@@ -1272,8 +1280,9 @@ JOIN::optimize()
         join_tab[const_tables].type != JT_REF_OR_NULL &&
         (order && simple_order || group_list && simple_group))
     {
-      if (add_ref_to_table_cond(thd,&join_tab[const_tables]))
+      if (add_ref_to_table_cond(thd,&join_tab[const_tables])) {
         DBUG_RETURN(1);
+      }
     }
     
     if (!(select_options & SELECT_BIG_RESULT) &&
@@ -1333,7 +1342,7 @@ JOIN::optimize()
   if (need_tmp)
   {
     DBUG_PRINT("info",("Creating tmp table"));
-    thd->proc_info="Creating tmp table";
+    thd_proc_info(thd, "Creating tmp table");
 
     init_items_ref_array();
 
@@ -1362,7 +1371,9 @@ JOIN::optimize()
 			   select_options,
                            tmp_rows_limit,
 			   (char *) "")))
+		{
       DBUG_RETURN(1);
+    }
 
     /*
       We don't have to store rows in temp table that doesn't match HAVING if:
@@ -1382,28 +1393,34 @@ JOIN::optimize()
     if (group_list && simple_group)
     {
       DBUG_PRINT("info",("Sorting for group"));
-      thd->proc_info="Sorting for group";
+      thd_proc_info(thd, "Sorting for group");
       if (create_sort_index(thd, this, group_list,
 			    HA_POS_ERROR, HA_POS_ERROR, FALSE) ||
 	  alloc_group_fields(this, group_list) ||
           make_sum_func_list(all_fields, fields_list, 1) ||
           setup_sum_funcs(thd, sum_funcs))
-	DBUG_RETURN(1);
+      {
+        DBUG_RETURN(1);
+      }
       group_list=0;
     }
     else
     {
       if (make_sum_func_list(all_fields, fields_list, 0) ||
           setup_sum_funcs(thd, sum_funcs))
-	DBUG_RETURN(1);
+      {
+        DBUG_RETURN(1);
+      }
+
       if (!group_list && ! exec_tmp_table1->distinct && order && simple_order)
       {
-	DBUG_PRINT("info",("Sorting for order"));
-	thd->proc_info="Sorting for order";
-	if (create_sort_index(thd, this, order,
+        thd_proc_info(thd, "Sorting for order");
+        if (create_sort_index(thd, this, order,
                               HA_POS_ERROR, HA_POS_ERROR, TRUE))
-	  DBUG_RETURN(1);
-	order=0;
+        {
+          DBUG_RETURN(1);
+        }
+        order=0;
       }
     }
     
@@ -1528,6 +1545,7 @@ JOIN::exec()
   int      tmp_error;
   DBUG_ENTER("JOIN::exec");
 
+  thd_proc_info(thd, "executing");
   error= 0;
   if (procedure)
   {
@@ -1669,7 +1687,7 @@ JOIN::exec()
     curr_tmp_table= exec_tmp_table1;
 
     /* Copy data to the temporary table */
-    thd->proc_info= "Copying to tmp table";
+    thd_proc_info(thd, "Copying to tmp table");
     DBUG_PRINT("info", ("%s", thd->proc_info));
     if (!curr_join->sort_and_group &&
         curr_join->const_tables != curr_join->tables)
@@ -1795,7 +1813,7 @@ JOIN::exec()
       }
       if (curr_join->group_list)
       {
-	thd->proc_info= "Creating sort index";
+	thd_proc_info(thd, "Creating sort index");
 	if (curr_join->join_tab == join_tab && save_join_tab())
 	{
 	  DBUG_VOID_RETURN;
@@ -1809,7 +1827,7 @@ JOIN::exec()
         sortorder= curr_join->sortorder;
       }
       
-      thd->proc_info="Copying to group table";
+      thd_proc_info(thd, "Copying to group table");
       DBUG_PRINT("info", ("%s", thd->proc_info));
       tmp_error= -1;
       if (curr_join != this)
@@ -1868,7 +1886,7 @@ JOIN::exec()
     curr_join->join_free();			/* Free quick selects */
     if (curr_join->select_distinct && ! curr_join->group_list)
     {
-      thd->proc_info="Removing duplicates";
+      thd_proc_info(thd, "Removing duplicates");
       if (curr_join->tmp_having)
 	curr_join->tmp_having->update_used_tables();
       if (remove_duplicates(curr_join, curr_tmp_table,
@@ -1929,7 +1947,7 @@ JOIN::exec()
   if (curr_join->group_list || curr_join->order)
   {
     DBUG_PRINT("info",("Sorting for send_fields"));
-    thd->proc_info="Sorting result";
+    thd_proc_info(thd, "Sorting result");
     /* If we have already done the group, add HAVING to sorted table */
     if (curr_join->tmp_having && ! curr_join->group_list && 
 	! curr_join->sort_and_group)
@@ -2064,7 +2082,7 @@ JOIN::exec()
   }
   else
   {
-    thd->proc_info="Sending data";
+    thd_proc_info(thd, "Sending data");
     DBUG_PRINT("info", ("%s", thd->proc_info));
     result->send_fields((procedure ? curr_join->procedure_fields_list :
                          *curr_fields_list),
@@ -2210,7 +2228,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
   {
     if (!(join= new JOIN(thd, fields, select_options, result)))
 	DBUG_RETURN(TRUE);
-    thd->proc_info="init";
+    thd_proc_info(thd, "init");
     thd->used_tables=0;                         // Updated by setup_fields
     if (err= join->prepare(rref_pointer_array, tables, wild_num,
                            conds, og_num, order, group, having, proc_param,
@@ -2255,8 +2273,9 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 err:
   if (free_join)
   {
-    thd->proc_info="end";
+    thd_proc_info(thd, "end");
     err|= select_lex->cleanup();
+    thd_proc_info(thd, "end");
     DBUG_RETURN(err || thd->net.report_error);
   }
   DBUG_RETURN(join->error);
@@ -10237,7 +10256,7 @@ free_tmp_table(THD *thd, TABLE *entry)
   DBUG_PRINT("enter",("table: %s",entry->alias));
 
   save_proc_info=thd->proc_info;
-  thd->proc_info="removing tmp table";
+  thd_proc_info(thd, "removing tmp table");
 
   if (entry->file)
   {
@@ -10257,7 +10276,7 @@ free_tmp_table(THD *thd, TABLE *entry)
     bitmap_lock_clear_bit(&temp_pool, entry->temp_pool_slot);
 
   free_root(&own_root, MYF(0)); /* the table is allocated in its own root */
-  thd->proc_info=save_proc_info;
+  thd_proc_info(thd, save_proc_info);
 
   DBUG_VOID_RETURN;
 }
@@ -10290,7 +10309,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
     DBUG_RETURN(1);				// End of memory
 
   save_proc_info=thd->proc_info;
-  thd->proc_info="converting HEAP to MyISAM";
+  thd_proc_info(thd, "converting HEAP to MyISAM");
 
   if (create_myisam_tmp_table(&new_table, param,
 			      thd->lex->select_lex.options | thd->options))
@@ -10350,8 +10369,8 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   table->file->change_table_ptr(table, table->s);
   table->use_all_columns();
   if (save_proc_info)
-    thd->proc_info= (!strcmp(save_proc_info,"Copying to tmp table") ?
-                     "Copying to tmp table on disk" : save_proc_info);
+    thd_proc_info(thd, (!strcmp(save_proc_info,"Copying to tmp table") ?
+                  "Copying to tmp table on disk" : save_proc_info));
   DBUG_RETURN(0);
 
  err:
@@ -10363,7 +10382,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   new_table.file->delete_table(new_table.s->table_name.str);
  err2:
   delete new_table.file;
-  thd->proc_info=save_proc_info;
+  thd_proc_info(thd, save_proc_info);
   DBUG_RETURN(1);
 }
 

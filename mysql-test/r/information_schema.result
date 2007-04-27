@@ -50,6 +50,7 @@ KEY_COLUMN_USAGE
 PARTITIONS
 PLUGINS
 PROCESSLIST
+PROFILING
 REFERENTIAL_CONSTRAINTS
 ROUTINES
 SCHEMATA
@@ -852,7 +853,7 @@ delete from mysql.db where user='mysqltest_4';
 flush privileges;
 SELECT table_schema, count(*) FROM information_schema.TABLES where table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	27
+information_schema	28
 mysql	22
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1146,7 +1147,7 @@ table_schema='information_schema' and
 group by column_type order by num;
 column_type	group_concat(table_schema, '.', table_name)	num
 varchar(7)	information_schema.ROUTINES,information_schema.VIEWS	2
-varchar(20)	information_schema.COLUMNS,information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS	6
+varchar(20)	information_schema.COLUMNS,information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	7
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;
 select CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH from
@@ -1251,6 +1252,7 @@ KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
 PARTITIONS	TABLE_SCHEMA
 PLUGINS	PLUGIN_NAME
 PROCESSLIST	ID
+PROFILING	QUERY_ID
 REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA
 ROUTINES	ROUTINE_SCHEMA
 SCHEMATA	SCHEMA_NAME
@@ -1293,6 +1295,7 @@ KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
 PARTITIONS	TABLE_SCHEMA
 PLUGINS	PLUGIN_NAME
 PROCESSLIST	ID
+PROFILING	QUERY_ID
 REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA
 ROUTINES	ROUTINE_SCHEMA
 SCHEMATA	SCHEMA_NAME
@@ -1386,6 +1389,7 @@ KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
 PARTITIONS	information_schema.PARTITIONS	1
 PLUGINS	information_schema.PLUGINS	1
 PROCESSLIST	information_schema.PROCESSLIST	1
+PROFILING	information_schema.PROFILING	1
 REFERENTIAL_CONSTRAINTS	information_schema.REFERENTIAL_CONSTRAINTS	1
 ROUTINES	information_schema.ROUTINES	1
 SCHEMATA	information_schema.SCHEMATA	1
@@ -1399,6 +1403,13 @@ TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
 TRIGGERS	information_schema.TRIGGERS	1
 USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
 VIEWS	information_schema.VIEWS	1
+show global status like "Uptime_%";
+Variable_name	Value
+Uptime_since_flush_status	#
+flush status;
+show global status like "Uptime_%";
+Variable_name	Value
+Uptime_since_flush_status	#
 End of 5.0 tests.
 select * from information_schema.engines WHERE ENGINE="MyISAM";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS

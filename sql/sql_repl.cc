@@ -650,7 +650,7 @@ impossible position";
 
 	if (read_packet)
 	{
-	  thd->proc_info = "Sending binlog event to slave";
+	  thd_proc_info(thd, "Sending binlog event to slave");
 	  if (my_net_write(net, (char*)packet->ptr(), packet->length()) )
 	  {
 	    errmsg = "Failed on my_net_write()";
@@ -688,7 +688,7 @@ impossible position";
       bool loop_breaker = 0;
       /* need this to break out of the for loop from switch */
 
-      thd->proc_info = "Finished reading one binlog; switching to next binlog";
+      thd_proc_info(thd, "Finished reading one binlog; switching to next binlog");
       switch (mysql_bin_log.find_next_log(&linfo, 1)) {
       case LOG_INFO_EOF:
 	loop_breaker = (flags & BINLOG_DUMP_NON_BLOCK);
@@ -734,14 +734,14 @@ end:
   (void)my_close(file, MYF(MY_WME));
 
   send_eof(thd);
-  thd->proc_info = "Waiting to finalize termination";
+  thd_proc_info(thd, "Waiting to finalize termination");
   pthread_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
   pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_VOID_RETURN;
 
 err:
-  thd->proc_info = "Waiting to finalize termination";
+  thd_proc_info(thd, "Waiting to finalize termination");
   end_io_cache(&log);
   /*
     Exclude  iteration through thread list
@@ -895,7 +895,7 @@ int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
 
   if (check_access(thd, SUPER_ACL, any_db,0,0,0,0))
     DBUG_RETURN(1);
-  thd->proc_info = "Killing slave";
+  thd_proc_info(thd, "Killing slave");
   int thread_mask;
   lock_slave_threads(mi);
   // Get a mask of _running_ threads
@@ -922,7 +922,7 @@ int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
                  ER(ER_SLAVE_WAS_NOT_RUNNING));
   }
   unlock_slave_threads(mi);
-  thd->proc_info = 0;
+  thd_proc_info(thd, 0);
 
   if (slave_errno)
   {
@@ -1081,7 +1081,7 @@ bool change_master(THD* thd, MASTER_INFO* mi)
     DBUG_RETURN(TRUE);
   }
 
-  thd->proc_info = "Changing master";
+  thd_proc_info(thd, "Changing master");
   LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
   // TODO: see if needs re-write
   if (init_master_info(mi, master_info_file, relay_log_info_file, 0,
@@ -1212,7 +1212,7 @@ bool change_master(THD* thd, MASTER_INFO* mi)
   if (need_relay_log_purge)
   {
     relay_log_purge= 1;
-    thd->proc_info="Purging old relay logs";
+    thd_proc_info(thd, "Purging old relay logs");
     if (purge_relay_logs(&mi->rli, thd,
 			 0 /* not only reset, but also reinit */,
 			 &errmsg))
@@ -1275,7 +1275,7 @@ bool change_master(THD* thd, MASTER_INFO* mi)
   pthread_mutex_unlock(&mi->rli.data_lock);
 
   unlock_slave_threads(mi);
-  thd->proc_info = 0;
+  thd_proc_info(thd, 0);
   send_ok(thd);
   DBUG_RETURN(FALSE);
 }

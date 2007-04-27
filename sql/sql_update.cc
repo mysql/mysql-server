@@ -162,7 +162,7 @@ int mysql_update(THD *thd,
        mysql_handle_derived(thd->lex, &mysql_derived_filling)))
     DBUG_RETURN(1);
 
-  thd->proc_info="init";
+  thd_proc_info(thd, "init");
   table= table_list->table;
 
   /* Calculate "table->covering_keys" based on the WHERE */
@@ -379,7 +379,7 @@ int mysql_update(THD *thd,
       else
         init_read_record_idx(&info, thd, table, 1, used_index);
 
-      thd->proc_info="Searching rows for update";
+      thd_proc_info(thd, "Searching rows for update");
       uint tmp_limit= limit;
 
       while (!(error=info.read_record(&info)) && !thd->killed)
@@ -446,7 +446,7 @@ int mysql_update(THD *thd,
   updated= found= 0;
   thd->count_cuted_fields= CHECK_FIELD_WARN;		/* calc cuted fields */
   thd->cuted_fields=0L;
-  thd->proc_info="Updating";
+  thd_proc_info(thd, "Updating");
 
   transactional_table= table->file->has_transactions();
   thd->no_trans_update.stmt= FALSE;
@@ -644,7 +644,7 @@ int mysql_update(THD *thd,
   table->file->try_semi_consistent_read(0);
   end_read_record(&info);
   delete select;
-  thd->proc_info= "end";
+  thd_proc_info(thd, "end");
   VOID(table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY));
 
   /*
@@ -1096,7 +1096,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;
   thd->cuted_fields=0L;
-  thd->proc_info="updating main table";
+  thd_proc_info(thd, "updating main table");
 
   tables_to_update= get_table_map(fields);
 
@@ -1665,11 +1665,11 @@ bool multi_update::send_eof()
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
   ulonglong id;
-  thd->proc_info="updating reference tables";
+  thd_proc_info(thd, "updating reference tables");
 
   /* Does updates for the last n - 1 tables, returns 0 if ok */
   int local_error = (table_count) ? do_updates(0) : 0;
-  thd->proc_info= "end";
+  thd_proc_info(thd, "end");
 
   /* We must invalidate the query cache before binlog writing and
   ha_autocommit_... */

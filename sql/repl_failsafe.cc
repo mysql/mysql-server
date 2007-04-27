@@ -91,7 +91,7 @@ static int init_failsafe_rpl_thread(THD* thd)
   if (thd->variables.max_join_size == HA_POS_ERROR)
     thd->options|= OPTION_BIG_SELECTS;
 
-  thd->proc_info="Thread initialized";
+  thd_proc_info(thd, "Thread initialized");
   thd->version=refresh_version;
   thd->set_time();
   DBUG_RETURN(0);
@@ -599,7 +599,7 @@ pthread_handler_t handle_failsafe_rpl(void *arg)
   {
     bool break_req_chain = 0;
     pthread_cond_wait(&COND_rpl_status, &LOCK_rpl_status);
-    thd->proc_info="Processing request";
+    thd_proc_info(thd, "Processing request");
     while (!break_req_chain)
     {
       switch (rpl_status) {
@@ -947,7 +947,7 @@ bool load_master_data(THD* thd)
       goto err;
     }
   }
-  thd->proc_info="purging old relay logs";
+  thd_proc_info(thd, "purging old relay logs");
   if (purge_relay_logs(&active_mi->rli,thd,
 		       0 /* not only reset, but also reinit */,
 		       &errmsg))
@@ -974,7 +974,7 @@ bool load_master_data(THD* thd)
   flush_relay_log_info(&active_mi->rli);
   pthread_cond_broadcast(&active_mi->rli.data_cond);
   pthread_mutex_unlock(&active_mi->rli.data_lock);
-  thd->proc_info = "starting slave";
+  thd_proc_info(thd, "starting slave");
   if (restart_thread_mask)
   {
     error=start_slave_threads(0 /* mutex not needed */,
@@ -986,7 +986,7 @@ bool load_master_data(THD* thd)
 err:
   unlock_slave_threads(active_mi);
   pthread_mutex_unlock(&LOCK_active_mi);
-  thd->proc_info = 0;
+  thd_proc_info(thd, 0);
 
   mysql_close(&mysql); // safe to call since we always do mysql_init()
   if (!error)
