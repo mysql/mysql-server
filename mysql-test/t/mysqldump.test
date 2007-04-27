@@ -1544,6 +1544,13 @@ drop view v1;
 drop table t1;
 drop database mysqldump_test_db;
 
+#
+# BUG#26121 mysqldump includes LOCK TABLES general_log WRITE
+#
+--exec $MYSQL_DUMP --all-databases > $MYSQLTEST_VARDIR/tmp/bug26121.sql
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug26121.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bug26121.sql
+
 --echo #
 --echo # End of 5.1 tests
 --echo #
