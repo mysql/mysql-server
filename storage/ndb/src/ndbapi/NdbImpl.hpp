@@ -96,6 +96,15 @@ public:
     return 0;
   }
 
+/*
+  We need this friend accessor function to work around a HP compiler problem,
+  where template class friends are not working.
+*/
+  static inline void setNdbError(Ndb &ndb,int code){
+    ndb.theError.code = code;
+    return;
+  }
+
   BaseString m_systemPrefix; // Buffer for preformatted for <sys>/<def>/
 
   /**
@@ -217,7 +226,7 @@ Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
     m_free_list = new T(ndb);
     if (m_free_list == 0)
     {
-      ndb->theError.code = 4000;
+      NdbImpl::setNdbError(*ndb, 4000);
       assert(false);
       return -1;
     }
@@ -227,7 +236,7 @@ Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
     T* obj= new T(ndb);
     if(obj == 0)
     {
-      ndb->theError.code = 4000;
+      NdbImpl::setNdbError(*ndb, 4000);
       assert(false);
       return -1;
     }
@@ -259,7 +268,7 @@ Ndb_free_list_t<T>::seize(Ndb* ndb)
   }
   else
   {
-    ndb->theError.code = 4000;
+    NdbImpl::setNdbError(*ndb, 4000);
     assert(false);
   }
   return tmp;
