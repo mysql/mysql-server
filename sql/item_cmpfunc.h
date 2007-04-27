@@ -35,12 +35,19 @@ class Arg_comparator: public Sql_alloc
   Item_bool_func2 *owner;
   Arg_comparator *comparators;   // used only for compare_row()
   double precision;
-
+  /* Fields used in DATE/DATETIME comparison. */
+  THD *thd;
+  enum_field_types a_type, b_type; // Types of a and b items
+  Item *a_cache, *b_cache;         // Cached values of a and b items
+  bool is_nulls_eq;                // TRUE <=> compare for the EQUAL_FUNC
+  enum enum_date_cmp_type { CMP_DATE_DFLT= 0, CMP_DATE_WITH_DATE,
+                            CMP_DATE_WITH_STR, CMP_STR_WITH_DATE };
 public:
   DTCollation cmp_collation;
 
-  Arg_comparator() {};
-  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2) {};
+  Arg_comparator(): thd(0), a_cache(0), b_cache(0) {};
+  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), thd(0),
+    a_cache(0), b_cache(0) {};
 
   int set_compare_func(Item_bool_func2 *owner, Item_result type);
   inline int set_compare_func(Item_bool_func2 *owner_arg)
@@ -48,14 +55,10 @@ public:
     return set_compare_func(owner_arg, item_cmp_type((*a)->result_type(),
                                                      (*b)->result_type()));
   }
-  inline int set_cmp_func(Item_bool_func2 *owner_arg,
+  int set_cmp_func(Item_bool_func2 *owner_arg,
 			  Item **a1, Item **a2,
-			  Item_result type)
-  {
-    a= a1;
-    b= a2;
-    return set_compare_func(owner_arg, type);
-  }
+			  Item_result type);
+
   inline int set_cmp_func(Item_bool_func2 *owner_arg,
 			  Item **a1, Item **a2)
   {
@@ -83,6 +86,10 @@ public:
   int compare_e_row();           // compare args[0] & args[1]
   int compare_real_fixed();
   int compare_e_real_fixed();
+  int compare_datetime();        // compare args[0] & args[1] as DATETIMEs
+
+  static enum enum_date_cmp_type can_compare_as_dates(Item *a, Item *b,
+                                                      ulonglong *const_val_arg);
 
   static arg_cmp_func comparator_matrix [5][2];
 

@@ -8852,12 +8852,14 @@ static void test_ts()
 
   mysql_free_result(prep_res);
   mysql_stmt_close(stmt);
-
+  char queries [3][60]= {"SELECT a, b, c FROM test_ts WHERE %c=?",
+                         "SELECT a, b, c FROM test_ts WHERE %c=?",
+                         "SELECT a, b, c FROM test_ts WHERE %c=CAST(? AS DATE)"};
   for (name= 'a'; field_count--; name++)
   {
     int row_count= 0;
 
-    sprintf(query, "SELECT a, b, c FROM test_ts WHERE %c=?", name);
+    sprintf(query, queries[field_count], name);
 
     if (!opt_silent)
       fprintf(stdout, "\n  %s", query);
