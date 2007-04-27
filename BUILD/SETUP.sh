@@ -93,6 +93,10 @@ if [ "x$warning_mode" != "xpedantic" ]; then
   warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W"
   warnings="$warnings -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare"
   warnings="$warnings -Wwrite-strings -Wunused-function -Wunused-label -Wunused-value -Wunused-variable"
+
+# For more warnings, uncomment the following line
+# warnings="$global_warnings -Wshadow"
+
 # C warnings
   c_warnings="$warnings -Wunused-parameter"
 # C++ warnings
@@ -139,8 +143,16 @@ fi
 #
 base_configs="--prefix=$prefix --enable-assembler "
 base_configs="$base_configs --with-extra-charsets=complex "
-base_configs="$base_configs --enable-thread-safe-client --with-readline "
+base_configs="$base_configs --enable-thread-safe-client "
 base_configs="$base_configs --with-big-tables"
+
+if test -d "$path/../cmd-line-utils/readline"
+then
+    base_configs="$base_configs --with-readline"
+elif test -d "$path/../cmd-line-utils/libedit"
+then
+    base_configs="$base_configs --with-libedit"
+fi
 
 static_link="--with-mysqld-ldflags=-all-static "
 static_link="$static_link --with-client-ldflags=-all-static"
@@ -160,6 +172,7 @@ max_configs="$SSL_LIBRARY --with-plugins=max --with-embedded-server"
 alpha_cflags="$check_cpu_cflags -Wa,-m$cpu_flag"
 amd64_cflags="$check_cpu_cflags"
 amd64_cxxflags=""  # If dropping '--with-big-tables', add here  "-DBIG_TABLES"
+pentium_cflags="$check_cpu_cflags"
 pentium64_cflags="$check_cpu_cflags -m64"
 ppc_cflags="$check_cpu_cflags"
 sparc_cflags=""
@@ -183,6 +196,12 @@ fi
 # (http://samba.org/ccache) is installed, use it.
 # We use 'grep' and hope 'grep' will work as expected
 # (returns 0 if finds lines)
+if test "$USING_GCOV" != "1"
+then
+  # Not using gcov; Safe to use ccache
+  CCACHE_GCOV_VERSION_ENABLED=1
+fi
+
 if ccache -V > /dev/null 2>&1 && test "$CCACHE_GCOV_VERSION_ENABLED" = "1"
 then
   echo "$CC" | grep "ccache" > /dev/null || CC="ccache $CC"

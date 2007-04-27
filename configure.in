@@ -2359,6 +2359,7 @@ readline_basedir=""
 readline_dir=""
 readline_h_ln_cmd=""
 readline_link=""
+want_to_use_readline="no"
 
 if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null
 then
@@ -2384,6 +2385,7 @@ then
     readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
     readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/readline readline"
     compile_readline=yes
+    want_to_use_readline="yes"
     AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
 else
     # Use system readline library
@@ -2393,10 +2395,12 @@ else
     MYSQL_CHECK_NEW_RL_INTERFACE
     MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY
     AC_LANG_RESTORE
-    if [test "$mysql_cv_new_rl_interface" = "yes"]
+    if [test "$mysql_cv_new_rl_interface" = "yes"] && [test -d "./cmd-line-utils/readline"]
     then
-        # Use the new readline interface
+        # Use the new readline interface, but only if the package includes a bundled libreadline
+        # this way we avoid linking commercial source with GPL readline
         readline_link="-lreadline"
+        want_to_use_readline="yes"
     elif [test "$mysql_cv_libedit_interface" = "yes"]
     then
         # Use libedit
@@ -2417,6 +2421,15 @@ then
                   cmd-line-utils/libedit/Makefile dnl
                   cmd-line-utils/readline/Makefile)
 fi
+
+# if there is no readline, but we want to build with readline, we fail
+if [test "$want_to_use_readline" = "yes"] && [test ! -d "./cmd-line-utils/readline"]
+then
+    AC_MSG_ERROR([This commercially licensed MySQL source package can't
+          be built with libreadline. Please use --with-libedit to use
+          the bundled version of libedit instead.])
+fi
+
 fi
 
 AC_SUBST(readline_dir)
