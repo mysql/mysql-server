@@ -389,4 +389,14 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
+#
+# BUG#25951 - ignore/use index does not work with fulltext
+#
+CREATE TABLE t1 (a VARCHAR(255), FULLTEXT(a));
+SELECT * FROM t1 IGNORE INDEX(a) WHERE MATCH(a) AGAINST('test');
+ALTER TABLE t1 DISABLE KEYS;
+--error 1191
+SELECT * FROM t1 WHERE MATCH(a) AGAINST('test');
+DROP TABLE t1;
+
 # End of 4.1 tests

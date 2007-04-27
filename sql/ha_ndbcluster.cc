@@ -758,8 +758,8 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
         DBUG_DUMP("value", (char*)&bits, pack_len);
 #ifdef WORDS_BIGENDIAN
         /* store lsw first */
-        bits = ((bits >> 32) & 0x00000000FFFFFFFF)
-          |    ((bits << 32) & 0xFFFFFFFF00000000);
+        bits = ((bits >> 32) & 0x00000000FFFFFFFFLL)
+          |    ((bits << 32) & 0xFFFFFFFF00000000LL);
 #endif
         DBUG_RETURN(ndb_op->setValue(fieldnr, (char*)&bits) != 0);
       }
@@ -3248,10 +3248,10 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
             /* lsw is stored first */
             Uint32 *buf= (Uint32 *)(*value).rec->aRef();
             field_bit->Field_bit::store((((longlong)*buf)
-                                         & 0x000000000FFFFFFFF)
+                                         & 0x000000000FFFFFFFFLL)
                                         |
                                         ((((longlong)*(buf+1)) << 32)
-                                         & 0xFFFFFFFF00000000),
+                                         & 0xFFFFFFFF00000000LL),
                                         TRUE);
 #else
             field_bit->Field_bit::store((longlong)
