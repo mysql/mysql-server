@@ -262,12 +262,12 @@ bool is_keyword(const char *name, uint len)
 
 /* make a copy of token before ptr and set yytoklen */
 
-static LEX_STRING get_token(Lex_input_stream *lip, uint length)
+static LEX_STRING get_token(Lex_input_stream *lip, uint skip, uint length)
 {
   LEX_STRING tmp;
   yyUnget();			// ptr points now after last token char
   tmp.length=lip->yytoklen=length;
-  tmp.str= lip->m_thd->strmake(lip->tok_start, tmp.length);
+  tmp.str= lip->m_thd->strmake(lip->tok_start + skip, tmp.length);
   return tmp;
 }
 
@@ -279,6 +279,7 @@ static LEX_STRING get_token(Lex_input_stream *lip, uint length)
 */
 
 static LEX_STRING get_quoted_token(Lex_input_stream *lip,
+                                   uint skip,
                                    uint length, char quote)
 {
   LEX_STRING tmp;
@@ -286,9 +287,10 @@ static LEX_STRING get_quoted_token(Lex_input_stream *lip,
   yyUnget();			// ptr points now after last token char
   tmp.length=lip->yytoklen=length;
   tmp.str=(char*) lip->m_thd->alloc(tmp.length+1);
-  for (from= (byte*) lip->tok_start, to= (byte*) tmp.str, end= to+length ;
-       to != end ;
-       )
+  from= (byte*) lip->tok_start + skip;
+  to= (byte*) tmp.str;
+  end= to+length;
+  for ( ; to != end; )
   {
     if ((*to++= *from++) == quote)
       from++;					// Skip double quotes
@@ -676,7 +678,7 @@ int MYSQLlex(void *arg, void *yythd)
 	}
 	yySkip();			// next state does a unget
       }
-      yylval->lex_str=get_token(lip, length);
+      yylval->lex_str=get_token(lip, 0, length);
 
       /* 
          Note: "SELECT _bla AS 'alias'"
@@ -718,7 +720,7 @@ int MYSQLlex(void *arg, void *yythd)
 	  {
 	    yySkip();
 	    while (my_isdigit(cs,yyGet())) ;
-	    yylval->lex_str=get_token(lip, yyLength());
+	    yylval->lex_str=get_token(lip, 0, yyLength());
 	    return(FLOAT_NUM);
 	  }
 	}
@@ -730,10 +732,8 @@ int MYSQLlex(void *arg, void *yythd)
 	while (my_isxdigit(cs,(c = yyGet()))) ;
 	if ((lip->ptr - lip->tok_start) >= 4 && !ident_map[c])
 	{
-	  yylval->lex_str=get_token(lip, yyLength());
-	  yylval->lex_str.str+=2;		// Skip 0x
-	  yylval->lex_str.length-=2;
-	  lip->yytoklen-=2;
+          /* skip '0x' */
+	  yylval->lex_str=get_token(lip, 2, yyLength()-2);
 	  return (HEX_NUM);
 	}
 	yyUnget();
@@ -744,10 +744,8 @@ int MYSQLlex(void *arg, void *yythd)
 	while (my_isxdigit(cs,(c = yyGet()))) ;
 	if ((lip->ptr - lip->tok_start) >= 4 && !ident_map[c])
 	{
-	  yylval->lex_str= get_token(lip, yyLength());
-	  yylval->lex_str.str+= 2;		// Skip 0x
-	  yylval->lex_str.length-= 2;
-	  lip->yytoklen-= 2;
+          /* Skip '0b' */
+	  yylval->lex_str= get_token(lip, 2, yyLength()-2);
 	  return (BIN_NUM);
 	}
 	yyUnget();
@@ -782,14 +780,13 @@ int MYSQLlex(void *arg, void *yythd)
       if (c == '.' && ident_map[yyPeek()])
 	lip->next_state=MY_LEX_IDENT_SEP;// Next is '.'
 
-      yylval->lex_str= get_token(lip, yyLength());
+      yylval->lex_str= get_token(lip, 0, yyLength());
       return(result_state);
 
     case MY_LEX_USER_VARIABLE_DELIMITER:	// Found quote char
     {
       uint double_quotes= 0;
       char quote_char= c;                       // Used char
-      lip->tok_start=lip->ptr;			// Skip first `
       while ((c=yyGet()))
       {
 	int var_length;
@@ -813,19 +810,20 @@ int MYSQLlex(void *arg, void *yythd)
 #endif
       }
       if (double_quotes)
-	yylval->lex_str=get_quoted_token(lip, yyLength() - double_quotes,
+	yylval->lex_str=get_quoted_token(lip, 1,
+                                         yyLength() - double_quotes -1,
 					 quote_char);
       else
-	yylval->lex_str=get_token(lip, yyLength());
+	yylval->lex_str=get_token(lip, 1, yyLength() -1);
       if (c == quote_char)
 	yySkip();			// Skip end `
       lip->next_state= MY_LEX_START;
       return(IDENT_QUOTED);
     }
-    case MY_LEX_INT_OR_REAL:		// Compleat int or incompleat real
+    case MY_LEX_INT_OR_REAL:		// Complete int or incomplete real
       if (c != '.')
       {					// Found complete integer number.
-	yylval->lex_str=get_token(lip, yyLength());
+	yylval->lex_str=get_token(lip, 0, yyLength());
 	return int_token(yylval->lex_str.str,yylval->lex_str.length);
       }
       // fall through
@@ -843,10 +841,10 @@ int MYSQLlex(void *arg, void *yythd)
 	  break;
 	}
 	while (my_isdigit(cs,yyGet())) ;
-	yylval->lex_str=get_token(lip, yyLength());
+	yylval->lex_str=get_token(lip, 0, yyLength());
 	return(FLOAT_NUM);
       }
-      yylval->lex_str=get_token(lip, yyLength());
+      yylval->lex_str=get_token(lip, 0, yyLength());
       return(DECIMAL_NUM);
 
     case MY_LEX_HEX_NUMBER:		// Found x'hexstring'
@@ -858,10 +856,9 @@ int MYSQLlex(void *arg, void *yythd)
 	return(ABORT_SYM);		// Illegal hex constant
       }
       yyGet();				// get_token makes an unget
-      yylval->lex_str=get_token(lip, length);
-      yylval->lex_str.str+=2;		// Skip x'
-      yylval->lex_str.length-=3;	// Don't count x' and last '
-      lip->yytoklen-=3;
+      yylval->lex_str=get_token(lip,
+                                2,          // skip x'
+                                length-3);  // don't count x' and last '
       return (HEX_NUM);
 
     case MY_LEX_BIN_NUMBER:           // Found b'bin-string'
@@ -871,11 +868,10 @@ int MYSQLlex(void *arg, void *yythd)
       if (c != '\'')
       return(ABORT_SYM);              // Illegal hex constant
       yyGet();                        // get_token makes an unget
-      yylval->lex_str= get_token(lip, length);
-      yylval->lex_str.str+= 2;        // Skip b'
-      yylval->lex_str.length-= 3;     // Don't count b' and last '
-      lip->yytoklen-= 3;
-      return (BIN_NUM); 
+      yylval->lex_str= get_token(lip,
+                                 2,         // skip b'
+                                 length-3); // don't count b' and last '
+      return (BIN_NUM);
 
     case MY_LEX_CMP_OP:			// Incomplete comparison operator
       if (state_map[yyPeek()] == MY_LEX_CMP_OP ||
@@ -1047,7 +1043,7 @@ int MYSQLlex(void *arg, void *yythd)
       for (c=yyGet() ; 
 	   my_isalnum(cs,c) || c == '.' || c == '_' ||  c == '$';
 	   c= yyGet()) ;
-      yylval->lex_str=get_token(lip, yyLength());
+      yylval->lex_str=get_token(lip, 0, yyLength());
       return(LEX_HOSTNAME);
     case MY_LEX_SYSTEM_VAR:
       yylval->lex_str.str=(char*) lip->ptr;
@@ -1079,7 +1075,7 @@ int MYSQLlex(void *arg, void *yythd)
 	yyUnget();				// Put back 'c'
 	return(tokval);				// Was keyword
       }
-      yylval->lex_str=get_token(lip, length);
+      yylval->lex_str=get_token(lip, 0, length);
       return(result_state);
     }
   }
