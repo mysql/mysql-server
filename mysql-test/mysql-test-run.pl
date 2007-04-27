@@ -58,7 +58,7 @@ $Devel::Trace::TRACE= 0;       # Don't trace boring init stuff
 use File::Path;
 use File::Basename;
 use File::Copy;
-use File::Temp qw / tempdir /;
+use File::Temp qw /tempdir/;
 use Cwd;
 use Getopt::Long;
 use Sys::Hostname;
@@ -113,6 +113,7 @@ our $glob_basedir;
 
 our $path_charsetsdir;
 our $path_client_bindir;
+our $path_share;
 our $path_language;
 our $path_timefile;
 our $path_snapshot;
@@ -704,6 +705,15 @@ sub command_line_setup () {
 				       vs_config_dirs('client', ''),
 				       "$glob_basedir/client",
 				       "$glob_basedir/bin");
+
+  # Look for language files and charsetsdir, use same share
+  $path_share=      mtr_path_exists("$glob_basedir/share/mysql",
+                                    "$glob_basedir/sql/share",
+                                    "$glob_basedir/share");
+
+  $path_language=      mtr_path_exists("$path_share/english");
+  $path_charsetsdir=   mtr_path_exists("$path_share/charsets");
+
 
   if (!$opt_extern)
   {
@@ -1345,10 +1355,13 @@ sub collect_mysqld_features () {
   my $found_variable_list_start= 0;
 
   #
-  # Execute "mysqld --no-defaults --help --verbose" to get a
+  # Execute "mysqld --help --verbose" to get a list
   # list of all features and settings
   #
-  my $list= `$exe_mysqld --no-defaults --verbose --help`;
+  # --no-defaults and --skip-grant-tables are to avoid loading
+  # system-wide configs and plugins
+  #
+  my $list= `$exe_mysqld --no-defaults --language=$path_language --skip-grant-tables --verbose --help`;
 
   foreach my $line (split('\n', $list))
   {
@@ -1510,14 +1523,6 @@ sub executable_setup () {
       mtr_report("Using \"$exe_libtool\" when running valgrind or debugger");
     }
   }
-
-  # Look for language files and charsetsdir, use same share
-  my $path_share=      mtr_path_exists("$glob_basedir/share/mysql",
-				       "$glob_basedir/sql/share",
-				       "$glob_basedir/share");
-
-  $path_language=      mtr_path_exists("$path_share/english");
-  $path_charsetsdir=   mtr_path_exists("$path_share/charsets");
 
   # Look for my_print_defaults
   $exe_my_print_defaults=
@@ -2972,8 +2977,8 @@ sub install_db ($$) {
   mtr_add_arg($args, "--bootstrap");
   mtr_add_arg($args, "--basedir=%s", $path_my_basedir);
   mtr_add_arg($args, "--datadir=%s", $data_dir);
-  mtr_add_arg($args, "--skip-innodb");
-  mtr_add_arg($args, "--skip-ndbcluster");
+  mtr_add_arg($args, "--loose-skip-innodb");
+  mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=.");
   mtr_add_arg($args, "--core-file");
 
@@ -3114,8 +3119,8 @@ basedir             = $path_my_basedir
 server_id           = $server_id
 shutdown-delay      = 10
 skip-stack-trace
-skip-innodb
-skip-ndbcluster
+loose-skip-innodb
+loose-skip-ndbcluster
 EOF
 ;
     if ( $mysql_version_id < 50100 )
@@ -3791,7 +3796,7 @@ sub mysqld_arguments ($$$$) {
     if ( $opt_skip_ndbcluster ||
 	 !$cluster->{'pid'})
     {
-      mtr_add_arg($args, "%s--skip-ndbcluster", $prefix);
+      mtr_add_arg($args, "%s--loose-skip-ndbcluster", $prefix);
     }
     else
     {
@@ -3865,7 +3870,7 @@ sub mysqld_arguments ($$$$) {
          $mysqld->{'cluster'} == -1 ||
 	 !$clusters->[$mysqld->{'cluster'}]->{'pid'} )
     {
-      mtr_add_arg($args, "%s--skip-ndbcluster", $prefix);
+      mtr_add_arg($args, "%s--loose-skip-ndbcluster", $prefix);
     }
     else
     {

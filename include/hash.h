@@ -27,6 +27,9 @@ extern "C" {
  */
 #define HASH_OVERHEAD (sizeof(char*)*2)
 
+/* flags for hash_init */
+#define HASH_UNIQUE     1       /* hash_insert fails on duplicate key */
+
 typedef byte *(*hash_get_key)(const byte *,uint*,my_bool);
 typedef void (*hash_free_key)(void *);
 

@@ -1832,7 +1832,7 @@ int ha_federated::write_row(byte *buf)
   values_string.length(0);
   insert_string.length(0);
   insert_field_value_string.length(0);
-  statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
+  ha_statistic_increment(&SSV::ha_write_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
 
@@ -2299,8 +2299,7 @@ int ha_federated::index_read_idx_with_result_set(byte *buf, uint index,
   *result= 0;                                   // In case of errors
   index_string.length(0);
   sql_query.length(0);
-  statistic_increment(table->in_use->status_var.ha_read_key_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_key_count);
 
   sql_query.append(share->select_query);
 
@@ -2414,8 +2413,7 @@ int ha_federated::read_range_next()
 int ha_federated::index_next(byte *buf)
 {
   DBUG_ENTER("ha_federated::index_next");
-  statistic_increment(table->in_use->status_var.ha_read_next_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_next_count);
   DBUG_RETURN(read_next(buf, stored_result));
 }
 
@@ -2616,8 +2614,7 @@ int ha_federated::rnd_pos(byte *buf, byte *pos)
 {
   int result;
   DBUG_ENTER("ha_federated::rnd_pos");
-  statistic_increment(table->in_use->status_var.ha_read_rnd_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_count);
   if (table->s->primary_key != MAX_KEY)
   {
     /* We have a primary key, so use index_read_idx to find row */
