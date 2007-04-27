@@ -405,7 +405,7 @@ my_bool opt_noacl;
 my_bool sp_automatic_privileges= 1;
 
 ulong opt_binlog_rows_event_max_size;
-const char *binlog_format_names[]= {"STATEMENT", "ROW", "MIXED", NullS};
+const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 TYPELIB binlog_format_typelib=
   { array_elements(binlog_format_names) - 1, "",
     binlog_format_names, NULL };
