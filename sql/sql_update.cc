@@ -1452,18 +1452,18 @@ bool multi_update::send_data(List<Item> &not_used_values)
       memcpy((char*) tmp_table->field[0]->ptr,
 	     (char*) table->file->ref, table->file->ref_length);
       /* Write row, ignoring duplicated updates to a row */
-      if ((error= tmp_table->file->ha_write_row(tmp_table->record[0])))
+      error= tmp_table->file->ha_write_row(tmp_table->record[0]);
+      if (error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE)
       {
-        if (tmp_table->file->is_fatal_error(error, HA_CHECK_DUP) &&
+        if (error &&
             create_myisam_from_heap(thd, tmp_table,
-                                         tmp_table_param + offset, error, 1))
-	{
-	  do_update=0;
-	  DBUG_RETURN(1);			// Not a table_is_full error
-	}
-      }
-      else
+                                    tmp_table_param + offset, error, 1))
+        {
+          do_update= 0;
+          DBUG_RETURN(1);			// Not a table_is_full error
+        }
         found++;
+      }
     }
   }
   DBUG_RETURN(0);
