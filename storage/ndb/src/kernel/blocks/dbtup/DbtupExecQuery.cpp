@@ -2709,11 +2709,11 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
   const Uint16 *order = (Uint16*)(&tableDescriptor[order_desc]);
   order += tabPtrP->m_attributes[MM].m_no_of_fixsize;
   
+  // Copy fix part
+  sizes[MM]= 1;
+  memcpy(ptr, src, 4*fix_size);
   if(mm_vars || mm_dyns)
-  {
-    // Copy fix part
-    memcpy(ptr, src, 4*fix_size);
-    
+  { 
     Uint32 src_len;
     Uint32 step; // in bytes
     const Uint32 *src_data;
@@ -2732,7 +2732,7 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
         ndbassert(src_len>0);
         src_len= src_data[src_len-1];
       }
-      step= 1;
+      step= 0;
       req_struct->m_varpart_page_ptr = var_page;
     }
     else
@@ -2778,11 +2778,6 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
     
     ndbassert((UintPtr(src_ptr) & 3) == 0);
     src_ptr = src_ptr + step;
-  }
-  else 
-  {
-    sizes[MM]= 1;
-    memcpy(ptr, src, 4*fix_size);
   }
 
   src->m_header_bits= bits & 

@@ -970,7 +970,8 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
     regTabPtr->m_offsets[MM].m_disk_ref_offset= pos[MM] - Disk_part_ref::SZ32;
   }
 
-  if (regTabPtr->m_attributes[MM].m_no_of_varsize)
+  if (regTabPtr->m_attributes[MM].m_no_of_varsize ||
+      regTabPtr->m_attributes[MM].m_no_of_dynamic)
   {
     pos[MM] += Var_part_ref::SZ32;
   }
