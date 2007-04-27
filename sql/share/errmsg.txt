@@ -5914,8 +5914,8 @@ ER_FOREIGN_DUPLICATE_KEY 23000 S1009
         eng "Upholding foreign key constraints for table '%.192s', entry '%-.192s', key %d would lead to a duplicate entry"
         ger "Aufrechterhalten der Fremdschlüssel-Constraints für Tabelle '%.192s', Eintrag '%-.192s', Schlüssel %d würde zu einem doppelten Eintrag führen"
 ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE
-        eng "Column count of mysql.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use scripts/mysql_fix_privilege_tables"
-        ger "Spaltenanzahl von mysql.%s falsch. %d erwartet, aber %d erhalten. Erzeugt mit MySQL %d, jetzt unter %d. Bitte benutzen Sie scripts/mysql_fix_privilege_tables, um den Fehler zu beheben"
+        eng "Column count of mysql.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use mysql_upgrade to fix this error."
+        ger "Spaltenanzahl von mysql.%s falsch. %d erwartet, aber %d erhalten. Erzeugt mit MySQL %d, jetzt unter %d. Bitte benutzen Sie mysql_upgrade, um den Fehler zu beheben"
 ER_REMOVED_SPACES
         eng "Leading spaces are removed from name '%s'"
         ger "Führende Leerzeichen werden aus dem Namen '%s' entfernt"
