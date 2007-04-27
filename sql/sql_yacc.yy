@@ -550,6 +550,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  BIT_SYM                       /* MYSQL-FUNC */
 %token  BIT_XOR                       /* MYSQL-FUNC */
 %token  BLOB_SYM                      /* SQL-2003-R */
+%token  BLOCK_SYM
 %token  BOOLEAN_SYM                   /* SQL-2003-R */
 %token  BOOL_SYM
 %token  BOTH                          /* SQL-2003-R */
@@ -590,10 +591,12 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  CONSISTENT_SYM
 %token  CONSTRAINT                    /* SQL-2003-R */
 %token  CONTAINS_SYM                  /* SQL-2003-N */
+%token  CONTEXT_SYM
 %token  CONTINUE_SYM                  /* SQL-2003-R */
 %token  CONTRIBUTORS_SYM
 %token  CONVERT_SYM                   /* SQL-2003-N */
 %token  COUNT_SYM                     /* SQL-2003-N */
+%token  CPU_SYM
 %token  CREATE                        /* SQL-2003-R */
 %token  CROSS                         /* SQL-2003-R */
 %token  CUBE_SYM                      /* SQL-2003-R */
@@ -668,6 +671,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  EXTRACT_SYM                   /* SQL-2003-N */
 %token  FALSE_SYM                     /* SQL-2003-R */
 %token  FAST_SYM
+%token  FAULTS_SYM
 %token  FETCH_SYM                     /* SQL-2003-R */
 %token  FILE_SYM
 %token  FIRST_SYM                     /* SQL-2003-N */
@@ -728,6 +732,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  INT_SYM                       /* SQL-2003-R */
 %token  INVOKER_SYM
 %token  IN_SYM                        /* SQL-2003-R */
+%token  IO_SYM
+%token  IPC_SYM
 %token  IS                            /* SQL-2003-R */
 %token  ISOLATION                     /* SQL-2003-R */
 %token  ISSUER_SYM
@@ -856,6 +862,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  OUT_SYM                       /* SQL-2003-R */
 %token  OWNER_SYM
 %token  PACK_KEYS_SYM
+%token  PAGE_SYM
 %token  PARAM_MARKER
 %token  PARSER_SYM
 %token  PARTIAL                       /* SQL-2003-N */
@@ -879,6 +886,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PROCEDURE                     /* SQL-2003-R */
 %token  PROCESS
 %token  PROCESSLIST_SYM
+%token  PROFILE_SYM
+%token  PROFILES_SYM
 %token  PURGE
 %token  QUARTER_SYM
 %token  QUERY_SYM
@@ -954,6 +963,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SOCKET_SYM
 %token  SONAME_SYM
 %token  SOUNDS_SYM
+%token  SOURCE_SYM
 %token  SPATIAL_SYM
 %token  SPECIFIC_SYM                  /* SQL-2003-R */
 %token  SQLEXCEPTION_SYM              /* SQL-2003-R */
@@ -986,6 +996,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SUM_SYM                       /* SQL-2003-N */
 %token  SUPER_SYM
 %token  SUSPEND_SYM
+%token  SWAPS_SYM
+%token  SWITCHES_SYM
 %token  SYSDATE
 %token  TABLES
 %token  TABLESPACE
@@ -8548,6 +8560,64 @@ opt_table_sym:
 	/* empty */
 	| TABLE_SYM;
 
+opt_profile_defs:
+  /* empty */
+  | profile_defs
+
+profile_defs:
+  profile_def
+  | profile_defs ',' profile_def
+
+profile_def:
+  CPU_SYM
+    {
+      Lex->profile_options|= PROFILE_CPU;
+    }
+  | MEMORY_SYM
+    {
+      Lex->profile_options|= PROFILE_MEMORY;
+    }
+  | BLOCK_SYM IO_SYM
+    {
+      Lex->profile_options|= PROFILE_BLOCK_IO;
+    }
+  | CONTEXT_SYM SWITCHES_SYM
+    {
+      Lex->profile_options|= PROFILE_CONTEXT;
+    }
+  | PAGE_SYM FAULTS_SYM
+    {
+      Lex->profile_options|= PROFILE_PAGE_FAULTS;
+    }
+  | IPC_SYM
+    {
+      Lex->profile_options|= PROFILE_IPC;
+    }
+  | SWAPS_SYM
+    {
+      Lex->profile_options|= PROFILE_SWAPS;
+    }
+  | SOURCE_SYM
+    {
+      Lex->profile_options|= PROFILE_SOURCE;
+    }
+  | ALL
+    {
+      Lex->profile_options|= PROFILE_ALL;
+    }
+  ;
+
+opt_profile_args:
+  /* empty */
+    {
+      Lex->profile_query_id= 0;
+    }
+  | FOR_SYM QUERY_SYM NUM
+    {
+      Lex->profile_query_id= atoi($3.str);
+    }
+  ;
+
 /* Show things */
 
 show:	SHOW
@@ -8712,6 +8782,10 @@ show_param:
           { Lex->sql_command = SQLCOM_SHOW_WARNS;}
         | ERRORS opt_limit_clause_init
           { Lex->sql_command = SQLCOM_SHOW_ERRORS;}
+        | PROFILES_SYM
+          { Lex->sql_command = SQLCOM_SHOW_PROFILES; }
+        | PROFILE_SYM opt_profile_defs opt_profile_args opt_limit_clause_init
+          { Lex->sql_command = SQLCOM_SHOW_PROFILE; }
         | opt_var_type STATUS_SYM wild_and_where
           {
             LEX *lex= Lex;
@@ -9826,6 +9900,7 @@ keyword_sp:
 	| AVG_SYM		{}
 	| BINLOG_SYM		{}
 	| BIT_SYM		{}
+	| BLOCK_SYM             {}
 	| BOOL_SYM		{}
 	| BOOLEAN_SYM		{}
 	| BTREE_SYM		{}
@@ -9845,7 +9920,9 @@ keyword_sp:
 	| CONCURRENT		{}
 	| CONNECTION_SYM	{}
 	| CONSISTENT_SYM	{}
+	| CONTEXT_SYM           {}
 	| CONTRIBUTORS_SYM	{}
+	| CPU_SYM               {}
 	| CUBE_SYM		{}
 	| DATA_SYM		{}
 	| DATAFILE_SYM          {}
@@ -9875,6 +9952,7 @@ keyword_sp:
 	| EXTENDED_SYM		{}
 	| EXTENT_SIZE_SYM       {}
 	| FAST_SYM		{}
+	| FAULTS_SYM            {}
 	| FOUND_SYM		{}
 	| ENABLE_SYM		{}
 	| FULL			{}
@@ -9899,6 +9977,8 @@ keyword_sp:
 	| ISSUER_SYM		{}
 	| INNOBASE_SYM		{}
 	| INSERT_METHOD		{}
+	| IO_SYM                {}
+	| IPC_SYM               {}
 	| KEY_BLOCK_SIZE	{}
 	| LAST_SYM		{}
 	| LEAVES                {}
@@ -9962,6 +10042,7 @@ keyword_sp:
 	| ONE_SHOT_SYM		{}
         | ONE_SYM               {}
 	| PACK_KEYS_SYM		{}
+	| PAGE_SYM              {}
 	| PARTIAL		{}
 	| PARTITIONING_SYM	{}
 	| PARTITIONS_SYM	{}
@@ -9976,6 +10057,8 @@ keyword_sp:
         | PRIVILEGES            {}
 	| PROCESS		{}
 	| PROCESSLIST_SYM	{}
+	| PROFILE_SYM           {}
+	| PROFILES_SYM          {}
 	| QUARTER_SYM		{}
 	| QUERY_SYM		{}
 	| QUICK			{}
@@ -10010,6 +10093,7 @@ keyword_sp:
 	| SHUTDOWN		{}
 	| SNAPSHOT_SYM		{}
 	| SOUNDS_SYM		{}
+	| SOURCE_SYM            {}
 	| SQL_CACHE_SYM		{}
 	| SQL_BUFFER_RESULT	{}
 	| SQL_NO_CACHE_SYM	{}
@@ -10024,6 +10108,8 @@ keyword_sp:
 	| SUBPARTITIONS_SYM	{}
 	| SUPER_SYM		{}
         | SUSPEND_SYM           {}
+        | SWAPS_SYM             {}
+	| SWITCHES_SYM          {}
         | TABLES                {}
 	| TABLESPACE		{}
 	| TEMPORARY		{}

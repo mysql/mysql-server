@@ -93,6 +93,7 @@ Database: information_schema
 | PARTITIONS                            |
 | PLUGINS                               |
 | PROCESSLIST                           |
+| PROFILING                             |
 | REFERENTIAL_CONSTRAINTS               |
 | ROUTINES                              |
 | SCHEMATA                              |
@@ -125,6 +126,7 @@ Database: INFORMATION_SCHEMA
 | PARTITIONS                            |
 | PLUGINS                               |
 | PROCESSLIST                           |
+| PROFILING                             |
 | REFERENTIAL_CONSTRAINTS               |
 | ROUTINES                              |
 | SCHEMATA                              |

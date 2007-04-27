@@ -194,6 +194,8 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define BDB_LOG_ALLOC_BLOCK_SIZE	1024
 #define WARN_ALLOC_BLOCK_SIZE		2048
 #define WARN_ALLOC_PREALLOC_SIZE	1024
+#define PROFILE_ALLOC_BLOCK_SIZE  2048
+#define PROFILE_ALLOC_PREALLOC_SIZE 1024
 
 /*
   The following parameters is to decide when to use an extra cache to
@@ -356,6 +358,8 @@ MY_LOCALE *my_locale_by_number(uint number);
   fulltext functions when reading from it.
 */
 #define TMP_TABLE_FORCE_MYISAM          (ULL(1) << 32)
+#define OPTION_PROFILING                (ULL(1) << 33)
+
 
 
 /*
@@ -548,7 +552,14 @@ inline THD *_current_thd(void)
 /* below functions are required for plugins as THD class is opaque */
 my_bool thd_in_lock_tables(const THD *thd);
 my_bool thd_tablespace_op(const THD *thd);
-const char *thd_proc_info(THD *thd, const char *info);
+/** 
+  The meat of thd_proc_info(THD*, char*), a macro that packs the last
+  three calling-info parameters. 
+*/
+const char *set_thd_proc_info(THD *thd, const char *info, 
+                              const char *calling_func, 
+                              const char *calling_file, 
+                              const unsigned int calling_line);
 void **thd_ha_data(const THD *thd, const struct handlerton *hton);
 
 /*
@@ -572,6 +583,7 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
 #include "field.h"				/* Field definitions */
 #include "protocol.h"
 #include "sql_udf.h"
+#include "sql_profile.h"
 #include "sql_partition.h"
 
 class user_var_entry;
@@ -1597,7 +1609,7 @@ extern int creating_table;    // How many mysql_create_table() are running
   External variables
 */
 
-extern time_t server_start_time;
+extern time_t server_start_time, flush_status_time;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[],
             def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];

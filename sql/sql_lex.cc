@@ -199,7 +199,7 @@ void lex_start(THD *thd, const char *buf, uint length)
   lex->name.str= 0;
   lex->name.length= 0;
   lex->event_parse_data= NULL;
-
+  lex->profile_options= PROFILE_NONE;
   lex->nest_level=0 ;
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;

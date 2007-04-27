@@ -5870,6 +5870,8 @@ ST_SCHEMA_TABLE schema_tables[]=
     fill_plugins, make_old_format, 0, -1, -1, 0},
   {"PROCESSLIST", processlist_fields_info, create_schema_table,
     fill_schema_processlist, make_old_format, 0, -1, -1, 0},
+  {"PROFILING", query_profile_statistics_info, create_schema_table,
+    fill_query_profile_statistics_info, NULL, NULL, -1, -1, false},
   {"REFERENTIAL_CONSTRAINTS", referential_constraints_fields_info,
    create_schema_table, get_all_tables, 0, get_referential_constraints_record,
    1, 9, 0},
