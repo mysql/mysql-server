@@ -30,22 +30,13 @@
 
 #include "rpl_injector.h"
 
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-#define OPT_INNODB_DEFAULT 1
-#else
-#define OPT_INNODB_DEFAULT 0
-#endif
-#define OPT_BDB_DEFAULT 0
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-#define OPT_NDBCLUSTER_DEFAULT 0
 #if defined(NOT_ENOUGH_TESTED) \
   && defined(NDB_SHM_TRANSPORTER) && MYSQL_VERSION_ID >= 50000
 #define OPT_NDB_SHM_DEFAULT 1
 #else
 #define OPT_NDB_SHM_DEFAULT 0
 #endif
-#else
-#define OPT_NDBCLUSTER_DEFAULT 0
 #endif
 
 #ifndef DEFAULT_SKIP_THREAD_PRIORITY
@@ -322,7 +313,6 @@ static bool lower_case_table_names_used= 0;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
-static my_bool opt_ndbcluster;
 static my_bool opt_short_log_format= 0;
 static uint kill_cached_threads, wake_thread;
 static ulong killed_threads, thread_created;
@@ -366,7 +356,6 @@ my_bool opt_local_infile, opt_slave_compressed_protocol;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
-my_bool	opt_innodb;
 bool slave_warning_issued = false; 
 
 /*
@@ -375,45 +364,6 @@ bool slave_warning_issued = false;
 handlerton *heap_hton;
 handlerton *myisam_hton;
 handlerton *partition_hton;
-
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-extern ulong innobase_fast_shutdown;
-extern ulong innobase_large_page_size;
-extern char *innobase_home, *innobase_tmpdir, *innobase_logdir;
-extern long innobase_lock_scan_time;
-extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
-extern longlong innobase_log_file_size;
-extern long innobase_log_buffer_size;
-extern longlong innobase_buffer_pool_size;
-extern long innobase_additional_mem_pool_size;
-extern long innobase_file_io_threads, innobase_lock_wait_timeout;
-extern long innobase_force_recovery;
-extern long innobase_open_files;
-extern char *innobase_data_home_dir, *innobase_data_file_path;
-extern char *innobase_log_group_home_dir, *innobase_log_arch_dir;
-extern char *innobase_unix_file_flush_method;
-/* The following variables have to be my_bool for SHOW VARIABLES to work */
-extern my_bool innobase_log_archive,
-               innobase_use_doublewrite,
-               innobase_use_checksums,
-               innobase_use_large_pages,
-               innobase_use_native_aio,
-               innobase_file_per_table, innobase_locks_unsafe_for_binlog,
-               innobase_rollback_on_timeout,
-               innobase_stats_on_metadata,
-               innobase_create_status_file;
-extern "C" {
-extern ulong srv_max_buf_pool_modified_pct;
-extern ulong srv_max_purge_lag;
-extern ulong srv_auto_extend_increment;
-extern ulong srv_n_spin_wait_rounds;
-extern ulong srv_n_free_tickets_to_enter;
-extern ulong srv_thread_sleep_delay;
-extern ulong srv_thread_concurrency;
-extern ulong srv_commit_concurrency;
-extern ulong srv_flush_log_at_trx_commit;
-}
-#endif
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 const char *opt_ndbcluster_connectstring= 0;
@@ -600,6 +550,7 @@ pthread_mutex_t LOCK_prepared_stmt_count;
 pthread_mutex_t LOCK_des_key_file;
 #endif
 rw_lock_t	LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
+rw_lock_t	LOCK_system_variables_hash;
 pthread_cond_t COND_refresh, COND_thread_count, COND_global_read_lock;
 pthread_t signal_thread;
 pthread_attr_t connection_attrib;
@@ -631,6 +582,7 @@ static ulong opt_specialflag, opt_myisam_block_size;
 static char *opt_update_logname, *opt_binlog_index_name;
 static char *opt_tc_heuristic_recover;
 static char *mysql_home_ptr, *pidfile_name_ptr;
+static int defaults_argc;
 static char **defaults_argv;
 static char *opt_bin_logname;
 
@@ -723,7 +675,9 @@ struct st_VioSSLFd *ssl_acceptor_fd;
 
 pthread_handler_t signal_hand(void *arg);
 static void mysql_init_variables(void);
-static void get_options(int argc,char **argv);
+static void get_options(int *argc,char **argv);
+static my_bool get_one_option(int, const struct my_option *, char *);
+static void usage(void);
 static void set_server_version(void);
 static int init_thread_environment();
 static char *get_relative_path(const char *path);
@@ -1171,6 +1125,8 @@ extern "C" void unireg_abort(int exit_code)
   DBUG_ENTER("unireg_abort");
   if (exit_code)
     sql_print_error("Aborting\n");
+  else if (opt_help)
+    usage();
   clean_up(exit_code || !opt_bootstrap); /* purecov: inspected */
   DBUG_PRINT("quit",("done with cleanup in unireg_abort"));
   wait_for_signal_thread_to_end();
@@ -1356,6 +1312,7 @@ static void clean_up_mutexes()
   (void) rwlock_destroy(&LOCK_sys_init_connect);
   (void) rwlock_destroy(&LOCK_sys_init_slave);
   (void) pthread_mutex_destroy(&LOCK_global_system_variables);
+  (void) rwlock_destroy(&LOCK_system_variables_hash);
   (void) pthread_mutex_destroy(&LOCK_global_read_lock);
   (void) pthread_mutex_destroy(&LOCK_uuid_generator);
   (void) pthread_mutex_destroy(&LOCK_prepared_stmt_count);
@@ -2356,7 +2313,7 @@ static void init_signals(void)
   sigaddset(&set,SIGTSTP);
 #endif
   if (thd_lib_detected != THD_LIB_LT)
-    sigaddset(&set,THR_SERVER_ALARM);
+  sigaddset(&set,THR_SERVER_ALARM);
   if (test_flags & TEST_SIGINT)
   {
     // May be SIGINT
@@ -2714,7 +2671,7 @@ static bool init_global_datetime_format(timestamp_type format_type,
 static int init_common_variables(const char *conf_file_name, int argc,
 				 char **argv, const char **groups)
 {
-  char buff[FN_REFLEN];
+  char buff[FN_REFLEN], *s;
   umask(((~my_umask) & 0666));
   my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();			// Set tzname
@@ -2766,7 +2723,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
     strmake(pidfile_name, STRING_WITH_LEN("mysql"));
   }
   else
-    strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
+  strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
   /*
@@ -2780,7 +2737,8 @@ static int init_common_variables(const char *conf_file_name, int argc,
 
   load_defaults(conf_file_name, groups, &argc, &argv);
   defaults_argv=argv;
-  get_options(argc,argv);
+  defaults_argc=argc;
+  get_options(&defaults_argc, defaults_argv);
   set_server_version();
 
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
@@ -2792,10 +2750,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
   {
       my_use_large_pages= 1;
       my_large_page_size= opt_large_page_size;
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-      innobase_use_large_pages= 1;
-      innobase_large_page_size= opt_large_page_size;
-#endif
   }
 #endif /* HAVE_LARGE_PAGES */
 
@@ -2858,7 +2812,12 @@ static int init_common_variables(const char *conf_file_name, int argc,
   if (item_create_init())
     return 1;
   item_init();
-  set_var_init();
+  if (set_var_init())
+    return 1;
+#ifdef HAVE_REPLICATION
+  if (init_replication_sys_vars())
+    return 1;
+#endif
   mysys_uses_curses=0;
 #ifdef USE_REGEX
   my_regex_init(&my_charset_latin1);
@@ -2955,15 +2914,13 @@ static int init_common_variables(const char *conf_file_name, int argc,
                       "--log-slow-queries option, log tables are used. "
                       "To enable logging to files use the --log-output option.");
 
-  if (!opt_logname)
-    opt_logname= make_default_log_name(buff, ".log");
-  sys_var_general_log_path.value= my_strdup(opt_logname, MYF(0));
-  sys_var_general_log_path.value_length= strlen(opt_logname);
+  s= opt_logname ? opt_logname : make_default_log_name(buff, ".log");
+  sys_var_general_log_path.value= my_strdup(s, MYF(0));
+  sys_var_general_log_path.value_length= strlen(s);
 
-  if (!opt_slow_logname)
-    opt_slow_logname= make_default_log_name(buff, "-slow.log");
-  sys_var_slow_log_path.value= my_strdup(opt_slow_logname, MYF(0));
-  sys_var_slow_log_path.value_length= strlen(opt_slow_logname);
+  s= opt_slow_logname ? opt_slow_logname : make_default_log_name(buff, "-slow.log");
+  sys_var_slow_log_path.value= my_strdup(s, MYF(0));
+  sys_var_slow_log_path.value_length= strlen(s);
 
   if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
     return 1;
@@ -3042,6 +2999,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
+  (void) my_rwlock_init(&LOCK_system_variables_hash, NULL);
   (void) pthread_mutex_init(&LOCK_global_read_lock, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
@@ -3316,13 +3274,13 @@ with --log-bin instead.");
   }
   if (!opt_bin_log)
     if (opt_binlog_format_id != BINLOG_FORMAT_UNSPEC)
-    {
-      sql_print_error("You need to use --log-bin to make "
-		      "--binlog-format work.");
-      unireg_abort(1);
-    }
+  {
+    sql_print_error("You need to use --log-bin to make "
+                    "--binlog-format work.");
+    unireg_abort(1);
+  }
     else
-    {
+  {
       global_system_variables.binlog_format= BINLOG_FORMAT_UNSPEC;
     }
   else
@@ -3331,7 +3289,7 @@ with --log-bin instead.");
     else
     { 
       DBUG_ASSERT(global_system_variables.binlog_format != BINLOG_FORMAT_UNSPEC);
-    }
+  }
 
   /* Check that we have not let the format to unspecified at this point */
   DBUG_ASSERT((uint)global_system_variables.binlog_format <=
@@ -3385,10 +3343,45 @@ server.");
     using_update_log=1;
   }
 
-  if (plugin_init(opt_bootstrap))
+  if (plugin_init(&defaults_argc, defaults_argv,
+                  (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
+                  (opt_help ? PLUGIN_INIT_SKIP_INITIALIZATION : 0)))
   {
-    sql_print_error("Failed to init plugins.");
-    return 1;
+    sql_print_error("Failed to initialize plugins.");
+    unireg_abort(1);
+  }
+
+  if (opt_help)
+    unireg_abort(0);
+
+  /* we do want to exit if there are any other unknown options */
+  if (defaults_argc > 1)
+  {
+    int ho_error;
+    char **tmp_argv= defaults_argv;
+    struct my_option no_opts[]=
+    {
+      {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+    };
+    /*
+      We need to eat any 'loose' arguments first before we conclude
+      that there are unprocessed options.
+      But we need to preserve defaults_argv pointer intact for
+      free_defaults() to work. Thus we use a copy here.
+    */
+    my_getopt_skip_unknown= 0;
+
+    if ((ho_error= handle_options(&defaults_argc, &tmp_argv, no_opts,
+                                  get_one_option)))
+      unireg_abort(ho_error);
+
+    if (defaults_argc)
+    {
+      fprintf(stderr, "%s: Too many arguments (first extra is '%s').\n"
+              "Use --verbose --help to get a list of available options\n",
+              my_progname, *tmp_argv);
+      unireg_abort(1);
+    }
   }
 
   /* We have to initialize the storage engines before CSV logging */
@@ -3419,7 +3412,8 @@ server.");
   else
   {
     /* fall back to the log files if tables are not present */
-    if (have_csv_db == SHOW_OPTION_NO)
+    LEX_STRING csv_name={C_STRING_WITH_LEN("csv")};
+    if (!plugin_is_ready(&csv_name, MYSQL_STORAGE_ENGINE_PLUGIN))
     {
       /* purecov: begin inspected */
       sql_print_error("CSV engine is not present, falling back to the "
@@ -3439,11 +3433,16 @@ server.");
   /*
     Check that the default storage engine is actually available.
   */
+  if (default_storage_engine_str)
   {
     LEX_STRING name= { default_storage_engine_str,
                        strlen(default_storage_engine_str) };
-    handlerton *hton= ha_resolve_by_name(0, &name);
-    if (hton == NULL)
+    plugin_ref plugin;
+    handlerton *hton;
+    
+    if ((plugin= ha_resolve_by_name(0, &name)))
+      hton= plugin_data(plugin, handlerton*);
+    else
     {
       sql_print_error("Unknown/unsupported table type: %s",
                       default_storage_engine_str);
@@ -3457,9 +3456,17 @@ server.");
                         default_storage_engine_str);
         unireg_abort(1);
       }
-      hton= myisam_hton;
+      DBUG_ASSERT(global_system_variables.table_plugin);
     }
-    global_system_variables.table_type= hton;
+    else
+    {
+      /*
+        Need to unlock as global_system_variables.table_plugin 
+        was acquired during plugin_init()
+      */
+      plugin_unlock(0, global_system_variables.table_plugin);
+      global_system_variables.table_plugin= plugin;
+    }
   }
 
   tc_log= (total_ha_2pc > 1 ? (opt_bin_log  ?
@@ -4870,11 +4877,6 @@ enum options_mysqld
   OPT_STORAGE_ENGINE,          OPT_INIT_FILE,
   OPT_DELAY_KEY_WRITE_ALL,     OPT_SLOW_QUERY_LOG,
   OPT_DELAY_KEY_WRITE,	       OPT_CHARSETS_DIR,
-  OPT_BDB_HOME,                OPT_BDB_LOG,
-  OPT_BDB_TMP,                 OPT_BDB_SYNC,
-  OPT_BDB_LOCK,                OPT_BDB,
-  OPT_BDB_NO_RECOVER,          OPT_BDB_SHARED,
-  OPT_BDB_DATA_DIRECT,         OPT_BDB_LOG_DIRECT,
   OPT_MASTER_HOST,             OPT_MASTER_USER,
   OPT_MASTER_PASSWORD,         OPT_MASTER_PORT,
   OPT_MASTER_INFO_FILE,        OPT_MASTER_CONNECT_RETRY,
@@ -4893,28 +4895,14 @@ enum options_mysqld
   OPT_WANT_CORE,               OPT_CONCURRENT_INSERT,
   OPT_MEMLOCK,                 OPT_MYISAM_RECOVER,
   OPT_REPLICATE_REWRITE_DB,    OPT_SERVER_ID,
-  OPT_SKIP_SLAVE_START,        OPT_SKIP_INNOBASE,
+  OPT_SKIP_SLAVE_START,        OPT_SAFE_SHOW_DB, 
   OPT_SAFEMALLOC_MEM_LIMIT,    OPT_REPLICATE_DO_TABLE,
   OPT_REPLICATE_IGNORE_TABLE,  OPT_REPLICATE_WILD_DO_TABLE,
   OPT_REPLICATE_WILD_IGNORE_TABLE, OPT_REPLICATE_SAME_SERVER_ID,
   OPT_DISCONNECT_SLAVE_EVENT_COUNT, OPT_TC_HEURISTIC_RECOVER,
   OPT_ABORT_SLAVE_EVENT_COUNT,
-  OPT_INNODB_DATA_HOME_DIR,
-  OPT_INNODB_DATA_FILE_PATH,
-  OPT_INNODB_LOG_GROUP_HOME_DIR,
-  OPT_INNODB_LOG_ARCH_DIR,
-  OPT_INNODB_LOG_ARCHIVE,
-  OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT,
-  OPT_INNODB_FLUSH_METHOD,
-  OPT_INNODB_DOUBLEWRITE,
-  OPT_INNODB_CHECKSUMS,
-  OPT_INNODB_FAST_SHUTDOWN,
-  OPT_INNODB_FILE_PER_TABLE, OPT_CRASH_BINLOG_INNODB,
-  OPT_INNODB_LOCKS_UNSAFE_FOR_BINLOG,
   OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
-  OPT_SAFE_SHOW_DB, OPT_INNODB_SAFE_BINLOG,
-  OPT_INNODB, OPT_ISAM,
-  OPT_ENGINE_CONDITION_PUSHDOWN, OPT_NDBCLUSTER, OPT_NDB_CONNECTSTRING, 
+  OPT_ENGINE_CONDITION_PUSHDOWN, OPT_NDB_CONNECTSTRING, 
   OPT_NDB_USE_EXACT_COUNT, OPT_NDB_USE_TRANSACTIONS,
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
   OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
@@ -4977,34 +4965,6 @@ enum options_mysqld
   OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
   OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
   OPT_WAIT_TIMEOUT, OPT_MYISAM_REPAIR_THREADS,
-  OPT_INNODB_MIRRORED_LOG_GROUPS,
-  OPT_INNODB_LOG_FILES_IN_GROUP,
-  OPT_INNODB_LOG_FILE_SIZE,
-  OPT_INNODB_LOG_BUFFER_SIZE,
-  OPT_INNODB_BUFFER_POOL_SIZE,
-  OPT_INNODB_BUFFER_POOL_AWE_MEM_MB,
-  OPT_INNODB_ADDITIONAL_MEM_POOL_SIZE,
-  OPT_INNODB_MAX_PURGE_LAG,
-  OPT_INNODB_FILE_IO_THREADS,
-  OPT_INNODB_LOCK_WAIT_TIMEOUT,
-  OPT_INNODB_THREAD_CONCURRENCY,
-  OPT_INNODB_COMMIT_CONCURRENCY,
-  OPT_INNODB_FORCE_RECOVERY,
-  OPT_INNODB_STATUS_FILE,
-  OPT_INNODB_MAX_DIRTY_PAGES_PCT,
-  OPT_INNODB_TABLE_LOCKS,
-  OPT_INNODB_SUPPORT_XA,
-  OPT_INNODB_OPEN_FILES,
-  OPT_INNODB_AUTOEXTEND_INCREMENT,
-  OPT_INNODB_SYNC_SPIN_LOOPS,
-  OPT_INNODB_CONCURRENCY_TICKETS,
-  OPT_INNODB_THREAD_SLEEP_DELAY,
-  OPT_INNODB_STATS_ON_METADATA,
-  OPT_BDB_CACHE_SIZE,
-  OPT_BDB_CACHE_PARTS,
-  OPT_BDB_LOG_BUFFER_SIZE,
-  OPT_BDB_MAX_LOCK,
-  OPT_BDB_REGION_SIZE,
   OPT_ERROR_LOG_FILE,
   OPT_DEFAULT_WEEK_FORMAT,
   OPT_RANGE_ALLOC_BLOCK_SIZE, OPT_ALLOW_SUSPICIOUS_UDFS,
@@ -5014,7 +4974,6 @@ enum options_mysqld
   OPT_SYNC_REPLICATION,
   OPT_SYNC_REPLICATION_SLAVE_ID,
   OPT_SYNC_REPLICATION_TIMEOUT,
-  OPT_BDB_NOSYNC,
   OPT_ENABLE_SHARED_MEMORY,
   OPT_SHARED_MEMORY_BASE_NAME,
   OPT_OLD_PASSWORDS,
@@ -5045,12 +5004,12 @@ enum options_mysqld
   OPT_OLD_STYLE_USER_LIMITS,
   OPT_LOG_SLOW_ADMIN_STATEMENTS,
   OPT_TABLE_LOCK_WAIT_TIMEOUT,
+  OPT_PLUGIN_LOAD,
   OPT_PLUGIN_DIR,
   OPT_LOG_OUTPUT,
   OPT_PORT_OPEN_TIMEOUT,
   OPT_GENERAL_LOG,
   OPT_SLOW_LOG,
-  OPT_MERGE,
   OPT_THREAD_HANDLING,
   OPT_INNODB_ROLLBACK_ON_TIMEOUT,
   OPT_SECURE_FILE_PRIV,
@@ -5117,8 +5076,7 @@ struct my_option my_long_options[] =
    " to 'row' and back implicitly per each query accessing a NDB table."
 #endif
    ,(gptr*) &opt_binlog_format, (gptr*) &opt_binlog_format,
-   0, GET_STR, REQUIRED_ARG, BINLOG_FORMAT_MIXED, BINLOG_FORMAT_STMT,
-   BINLOG_FORMAT_MIXED, 0, 0, 0},
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, and exclude all others not explicitly mentioned.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -5272,98 +5230,6 @@ Disable with --skip-large-pages.",
   {"init-slave", OPT_INIT_SLAVE, "Command(s) that are executed when a slave connects to this master",
    (gptr*) &opt_init_slave, (gptr*) &opt_init_slave, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"innodb", OPT_INNODB, "Enable InnoDB (if this version of MySQL supports it). \
-Disable with --skip-innodb (will save memory).",
-   (gptr*) &opt_innodb, (gptr*) &opt_innodb, 0, GET_BOOL, NO_ARG, OPT_INNODB_DEFAULT, 0, 0,
-   0, 0, 0},
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-  {"innodb_checksums", OPT_INNODB_CHECKSUMS, "Enable InnoDB checksums validation (enabled by default). \
-Disable with --skip-innodb-checksums.", (gptr*) &innobase_use_checksums,
-   (gptr*) &innobase_use_checksums, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-#endif
-  {"innodb_data_file_path", OPT_INNODB_DATA_FILE_PATH,
-   "Path to individual files and their sizes.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-  {"innodb_data_home_dir", OPT_INNODB_DATA_HOME_DIR,
-   "The common part for InnoDB table spaces.", (gptr*) &innobase_data_home_dir,
-   (gptr*) &innobase_data_home_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
-   0},
-  {"innodb_doublewrite", OPT_INNODB_DOUBLEWRITE, "Enable InnoDB doublewrite buffer (enabled by default). \
-Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
-   (gptr*) &innobase_use_doublewrite, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"innodb_fast_shutdown", OPT_INNODB_FAST_SHUTDOWN,
-   "Speeds up the shutdown process of the InnoDB storage engine. Possible "
-   "values are 0, 1 (faster)"
-   /*
-     NetWare can't close unclosed files, can't automatically kill remaining
-     threads, etc, so on this OS we disable the crash-like InnoDB shutdown.
-   */
-#ifndef __NETWARE__
-   " or 2 (fastest - crash-like)"
-#endif
-   ".",
-   (gptr*) &innobase_fast_shutdown,
-   (gptr*) &innobase_fast_shutdown, 0, GET_ULONG, OPT_ARG, 1, 0,
-   IF_NETWARE(1,2), 0, 0, 0},
-  {"innodb_file_per_table", OPT_INNODB_FILE_PER_TABLE,
-   "Stores each InnoDB table to an .ibd file in the database dir.",
-   (gptr*) &innobase_file_per_table,
-   (gptr*) &innobase_file_per_table, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"innodb_flush_log_at_trx_commit", OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT,
-   "Set to 0 (write and flush once per second), 1 (write and flush at each commit) or 2 (write at commit, flush once per second).",
-   (gptr*) &srv_flush_log_at_trx_commit,
-   (gptr*) &srv_flush_log_at_trx_commit,
-   0, GET_ULONG, OPT_ARG,  1, 0, 2, 0, 0, 0},
-  {"innodb_flush_method", OPT_INNODB_FLUSH_METHOD,
-   "With which method to flush data.", (gptr*) &innobase_unix_file_flush_method,
-   (gptr*) &innobase_unix_file_flush_method, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
-   0, 0, 0},
-  {"innodb_locks_unsafe_for_binlog", OPT_INNODB_LOCKS_UNSAFE_FOR_BINLOG,
-   "Force InnoDB to not use next-key locking, to use only row-level locking.",
-   (gptr*) &innobase_locks_unsafe_for_binlog,
-   (gptr*) &innobase_locks_unsafe_for_binlog, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"innodb_log_arch_dir", OPT_INNODB_LOG_ARCH_DIR,
-   "Where full logs should be archived.", (gptr*) &innobase_log_arch_dir,
-   (gptr*) &innobase_log_arch_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"innodb_log_archive", OPT_INNODB_LOG_ARCHIVE,
-   "Set to 1 if you want to have logs archived.", 0, 0, 0, GET_LONG, OPT_ARG,
-   0, 0, 0, 0, 0, 0},
-  {"innodb_log_group_home_dir", OPT_INNODB_LOG_GROUP_HOME_DIR,
-   "Path to InnoDB log files.", (gptr*) &innobase_log_group_home_dir,
-   (gptr*) &innobase_log_group_home_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
-   0, 0},
-  {"innodb_max_dirty_pages_pct", OPT_INNODB_MAX_DIRTY_PAGES_PCT,
-   "Percentage of dirty pages allowed in bufferpool.", (gptr*) &srv_max_buf_pool_modified_pct,
-   (gptr*) &srv_max_buf_pool_modified_pct, 0, GET_ULONG, REQUIRED_ARG, 90, 0, 100, 0, 0, 0},
-  {"innodb_max_purge_lag", OPT_INNODB_MAX_PURGE_LAG,
-   "Desired maximum length of the purge queue (0 = no limit)",
-   (gptr*) &srv_max_purge_lag,
-   (gptr*) &srv_max_purge_lag, 0, GET_LONG, REQUIRED_ARG, 0, 0, ~0L,
-   0, 1L, 0},
-  {"innodb_rollback_on_timeout", OPT_INNODB_ROLLBACK_ON_TIMEOUT,
-   "Roll back the complete transaction on lock wait timeout, for 4.x compatibility (disabled by default)",
-   (gptr*) &innobase_rollback_on_timeout, (gptr*) &innobase_rollback_on_timeout,
-   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"innodb_status_file", OPT_INNODB_STATUS_FILE,
-   "Enable SHOW INNODB STATUS output in the innodb_status.<pid> file",
-   (gptr*) &innobase_create_status_file, (gptr*) &innobase_create_status_file,
-   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"innodb_stats_on_metadata", OPT_INNODB_STATS_ON_METADATA,
-   "Enable statistics gathering for metadata commands such as SHOW TABLE STATUS (on by default)",
-   (gptr*) &innobase_stats_on_metadata, (gptr*) &innobase_stats_on_metadata,
-   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"innodb_support_xa", OPT_INNODB_SUPPORT_XA,
-   "Enable InnoDB support for the XA two-phase commit",
-   (gptr*) &global_system_variables.innodb_support_xa,
-   (gptr*) &global_system_variables.innodb_support_xa,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-  {"innodb_table_locks", OPT_INNODB_TABLE_LOCKS,
-   "Enable InnoDB locking in LOCK TABLES",
-   (gptr*) &global_system_variables.innodb_table_locks,
-   (gptr*) &global_system_variables.innodb_table_locks,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-#endif /* End WITH_INNOBASE_STORAGE_ENGINE */
    {"language", 'L',
    "Client error messages in given language. May be given as a full path.",
    (gptr*) &language_ptr, (gptr*) &language_ptr, 0, GET_STR, REQUIRED_ARG,
@@ -5542,10 +5408,6 @@ master-ssl",
    "Syntax: myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, FORCE or QUICK.",
    (gptr*) &myisam_recover_options_str, (gptr*) &myisam_recover_options_str, 0,
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"ndbcluster", OPT_NDBCLUSTER, "Enable NDB Cluster (if this version of MySQL supports it). \
-Disable with --skip-ndbcluster (will save memory).",
-   (gptr*) &opt_ndbcluster, (gptr*) &opt_ndbcluster, 0, GET_BOOL, NO_ARG,
-   OPT_NDBCLUSTER_DEFAULT, 0, 0, 0, 0, 0},
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   {"ndb-connectstring", OPT_NDB_CONNECTSTRING,
    "Connect string for ndbcluster.",
@@ -6005,84 +5867,6 @@ log and this option does nothing anymore.",
     (gptr*) &global_system_variables.group_concat_max_len,
     (gptr*) &max_system_variables.group_concat_max_len, 0, GET_ULONG,
     REQUIRED_ARG, 1024, 4, (long) ~0, 0, 1, 0},
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-  {"innodb_additional_mem_pool_size", OPT_INNODB_ADDITIONAL_MEM_POOL_SIZE,
-   "Size of a memory pool InnoDB uses to store data dictionary information and other internal data structures.",
-   (gptr*) &innobase_additional_mem_pool_size,
-   (gptr*) &innobase_additional_mem_pool_size, 0, GET_LONG, REQUIRED_ARG,
-   1*1024*1024L, 512*1024L, ~0L, 0, 1024, 0},
-  {"innodb_autoextend_increment", OPT_INNODB_AUTOEXTEND_INCREMENT,
-   "Data file autoextend increment in megabytes",
-   (gptr*) &srv_auto_extend_increment,
-   (gptr*) &srv_auto_extend_increment,
-   0, GET_LONG, REQUIRED_ARG, 8L, 1L, 1000L, 0, 1L, 0},
-  {"innodb_buffer_pool_size", OPT_INNODB_BUFFER_POOL_SIZE,
-   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
-   (gptr*) &innobase_buffer_pool_size, (gptr*) &innobase_buffer_pool_size, 0,
-   GET_LL, REQUIRED_ARG, 8*1024*1024L, 1024*1024L, LONGLONG_MAX, 0,
-   1024*1024L, 0},
-  {"innodb_commit_concurrency", OPT_INNODB_COMMIT_CONCURRENCY,
-   "Helps in performance tuning in heavily concurrent environments.",
-   (gptr*) &srv_commit_concurrency, (gptr*) &srv_commit_concurrency,
-   0, GET_LONG, REQUIRED_ARG, 0, 0, 1000, 0, 1, 0},
-  {"innodb_concurrency_tickets", OPT_INNODB_CONCURRENCY_TICKETS,
-   "Number of times a thread is allowed to enter InnoDB within the same \
-    SQL query after it has once got the ticket",
-   (gptr*) &srv_n_free_tickets_to_enter,
-   (gptr*) &srv_n_free_tickets_to_enter,
-   0, GET_LONG, REQUIRED_ARG, 500L, 1L, ~0L, 0, 1L, 0},
-  {"innodb_file_io_threads", OPT_INNODB_FILE_IO_THREADS,
-   "Number of file I/O threads in InnoDB.", (gptr*) &innobase_file_io_threads,
-   (gptr*) &innobase_file_io_threads, 0, GET_LONG, REQUIRED_ARG, 4, 4, 64, 0,
-   1, 0},
-  {"innodb_force_recovery", OPT_INNODB_FORCE_RECOVERY,
-   "Helps to save your data in case the disk image of the database becomes corrupt.",
-   (gptr*) &innobase_force_recovery, (gptr*) &innobase_force_recovery, 0,
-   GET_LONG, REQUIRED_ARG, 0, 0, 6, 0, 1, 0},
-  {"innodb_lock_wait_timeout", OPT_INNODB_LOCK_WAIT_TIMEOUT,
-   "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back.",
-   (gptr*) &innobase_lock_wait_timeout, (gptr*) &innobase_lock_wait_timeout,
-   0, GET_LONG, REQUIRED_ARG, 50, 1, 1024 * 1024 * 1024, 0, 1, 0},
-  {"innodb_log_buffer_size", OPT_INNODB_LOG_BUFFER_SIZE,
-   "The size of the buffer which InnoDB uses to write log to the log files on disk.",
-   (gptr*) &innobase_log_buffer_size, (gptr*) &innobase_log_buffer_size, 0,
-   GET_LONG, REQUIRED_ARG, 1024*1024L, 256*1024L, ~0L, 0, 1024, 0},
-  {"innodb_log_file_size", OPT_INNODB_LOG_FILE_SIZE,
-   "Size of each log file in a log group.",
-   (gptr*) &innobase_log_file_size, (gptr*) &innobase_log_file_size, 0,
-   GET_LL, REQUIRED_ARG, 5*1024*1024L, 1*1024*1024L, LONGLONG_MAX, 0,
-   1024*1024L, 0},
-  {"innodb_log_files_in_group", OPT_INNODB_LOG_FILES_IN_GROUP,
-   "Number of log files in the log group. InnoDB writes to the files in a circular fashion. Value 3 is recommended here.",
-   (gptr*) &innobase_log_files_in_group, (gptr*) &innobase_log_files_in_group,
-   0, GET_LONG, REQUIRED_ARG, 2, 2, 100, 0, 1, 0},
-  {"innodb_mirrored_log_groups", OPT_INNODB_MIRRORED_LOG_GROUPS,
-   "Number of identical copies of log groups we keep for the database. Currently this should be set to 1.",
-   (gptr*) &innobase_mirrored_log_groups,
-   (gptr*) &innobase_mirrored_log_groups, 0, GET_LONG, REQUIRED_ARG, 1, 1, 10,
-   0, 1, 0},
-  {"innodb_open_files", OPT_INNODB_OPEN_FILES,
-   "How many files at the maximum InnoDB keeps open at the same time.",
-   (gptr*) &innobase_open_files, (gptr*) &innobase_open_files, 0,
-   GET_LONG, REQUIRED_ARG, 300L, 10L, ~0L, 0, 1L, 0},
-  {"innodb_sync_spin_loops", OPT_INNODB_SYNC_SPIN_LOOPS,
-   "Count of spin-loop rounds in InnoDB mutexes",
-   (gptr*) &srv_n_spin_wait_rounds,
-   (gptr*) &srv_n_spin_wait_rounds,
-   0, GET_LONG, REQUIRED_ARG, 20L, 0L, ~0L, 0, 1L, 0},
-  {"innodb_thread_concurrency", OPT_INNODB_THREAD_CONCURRENCY,
-   "Helps in performance tuning in heavily concurrent environments. "
-   "Sets the maximum number of threads allowed inside InnoDB. Value 0"
-   " will disable the thread throttling.",
-   (gptr*) &srv_thread_concurrency, (gptr*) &srv_thread_concurrency,
-   0, GET_LONG, REQUIRED_ARG, 8, 0, 1000, 0, 1, 0},
-  {"innodb_thread_sleep_delay", OPT_INNODB_THREAD_SLEEP_DELAY,
-   "Time of innodb thread sleeping before joining InnoDB queue (usec). Value 0"
-    " disable a sleep",
-   (gptr*) &srv_thread_sleep_delay,
-   (gptr*) &srv_thread_sleep_delay,
-   0, GET_LONG, REQUIRED_ARG, 10000L, 0L, ~0L, 0, 1L, 0},
-#endif /* WITH_INNOBASE_STORAGE_ENGINE */
   {"interactive_timeout", OPT_INTERACTIVE_TIMEOUT,
    "The number of seconds the server waits for activity on an interactive connection before closing it.",
    (gptr*) &global_system_variables.net_interactive_timeout,
@@ -6311,6 +6095,11 @@ The minimum value for this variable is 4096.",
   {"plugin_dir", OPT_PLUGIN_DIR,
    "Directory for plugins.",
    (gptr*) &opt_plugin_dir_ptr, (gptr*) &opt_plugin_dir_ptr, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"plugin_load", OPT_PLUGIN_LOAD,
+   "Optional colon separated list of plugins to load, where each plugin is "
+   "identified by name and path to library seperated by an equals.",
+   (gptr*) &opt_plugin_load, (gptr*) &opt_plugin_load, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
    {"preload_buffer_size", OPT_PRELOAD_BUFFER_SIZE,
     "The size of the buffer that is allocated when preloading indexes",
@@ -7123,11 +6912,10 @@ Starts the MySQL database server\n");
 #endif
   print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
   puts("");
-  fix_paths();
   set_ports();
 
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  /* Print out all the options including plugin supplied options */
+  my_print_help_inc_plugins(my_long_options, sizeof(my_long_options)/sizeof(my_option));
 
   puts("\n\
 To see what values a running MySQL server is using, type\n\
@@ -7170,6 +6958,7 @@ static void mysql_init_variables(void)
   mqh_used= 0;
   segfaulted= kill_in_progress= 0;
   cleanup_done= 0;
+  defaults_argc= 0;
   defaults_argv= 0;
   server_id_supplied= 0;
   test_flags= select_errors= dropping_tables= ha_open_options=0;
@@ -7257,7 +7046,7 @@ static void mysql_init_variables(void)
   lc_time_names_name= (char*) "en_US";
   /* Set default values for some option variables */
   default_storage_engine_str= (char*) "MyISAM";
-  global_system_variables.table_type= myisam_hton;
+  global_system_variables.table_plugin= NULL;
   global_system_variables.tx_isolation= ISO_REPEATABLE_READ;
   global_system_variables.select_limit= (ulonglong) HA_POS_ERROR;
   max_system_variables.select_limit=    (ulonglong) HA_POS_ERROR;
@@ -7278,36 +7067,13 @@ static void mysql_init_variables(void)
 			     "d:t:i:o,/tmp/mysqld.trace");
 #endif
   opt_error_log= IF_WIN(1,0);
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-  have_innodb= SHOW_OPTION_YES;
-#else
-  have_innodb= SHOW_OPTION_NO;
-#endif
-#ifdef WITH_CSV_STORAGE_ENGINE
-  have_csv_db= SHOW_OPTION_YES;
-#else
-  have_csv_db= SHOW_OPTION_NO;
-#endif
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-    have_ndbcluster= SHOW_OPTION_DISABLED;
-#else
-    have_ndbcluster= SHOW_OPTION_NO;
-#endif
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-    have_partition_db= SHOW_OPTION_YES;
-#else
-    have_partition_db= SHOW_OPTION_NO;
-#endif
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  have_ndbcluster=SHOW_OPTION_DISABLED;
   global_system_variables.ndb_index_stat_enable=FALSE;
   max_system_variables.ndb_index_stat_enable=TRUE;
   global_system_variables.ndb_index_stat_cache_entries=32;
   max_system_variables.ndb_index_stat_cache_entries=~0L;
   global_system_variables.ndb_index_stat_update_freq=20;
   max_system_variables.ndb_index_stat_update_freq=~0L;
-#else
-  have_ndbcluster=SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_OPENSSL
   have_ssl=SHOW_OPTION_YES;
@@ -7600,7 +7366,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
   case OPT_EVENT_SCHEDULER:
     if (Events::set_opt_event_scheduler(argument))
-      exit(1);
+	exit(1);
     break;
   case (int) OPT_SKIP_NEW:
     opt_specialflag|= SPECIAL_NO_NEW_FUNC;
@@ -7752,17 +7518,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     global_system_variables.tx_isolation= (type-1);
     break;
   }
-  case OPT_MERGE:
-  case OPT_BDB:
-    break;
-  case OPT_NDBCLUSTER:
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-    if (opt_ndbcluster)
-      have_ndbcluster= SHOW_OPTION_YES;
-    else
-      have_ndbcluster= SHOW_OPTION_DISABLED;
-#endif
-    break;
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   case OPT_NDB_MGMD:
   case OPT_NDB_NODEID:
@@ -7801,24 +7556,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       ndb_extra_logging= atoi(argument);
     break;
 #endif
-  case OPT_INNODB:
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-    if (opt_innodb)
-      have_innodb= SHOW_OPTION_YES;
-    else
-      have_innodb= SHOW_OPTION_DISABLED;
-#endif
-    break;
-  case OPT_INNODB_DATA_FILE_PATH:
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-    innobase_data_file_path= argument;
-#endif
-    break;
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-  case OPT_INNODB_LOG_ARCHIVE:
-    innobase_log_archive= argument ? test(atoi(argument)) : 1;
-    break;
-#endif /* WITH_INNOBASE_STORAGE_ENGINE */
   case OPT_MYISAM_RECOVER:
   {
     if (!argument || !argument[0])
@@ -7949,7 +7686,7 @@ static void option_error_reporter(enum loglevel level, const char *format, ...)
 }
 
 
-static void get_options(int argc,char **argv)
+static void get_options(int *argc,char **argv)
 {
   int ho_error;
 
@@ -7957,34 +7694,20 @@ static void get_options(int argc,char **argv)
   strmake(def_ft_boolean_syntax, ft_boolean_syntax,
 	  sizeof(ft_boolean_syntax)-1);
   my_getopt_error_reporter= option_error_reporter;
-  if ((ho_error= handle_options(&argc, &argv, my_long_options,
+
+  /* Skip unknown options so that they may be processed later by plugins */
+  my_getopt_skip_unknown= TRUE;
+
+  if ((ho_error= handle_options(argc, &argv, my_long_options,
                                 get_one_option)))
     exit(ho_error);
+  (*argc)++; /* add back one for the progname handle_options removes */
+             /* no need to do this for argv as we are discarding it. */
 
-#ifndef WITH_NDBCLUSTER_STORAGE_ENGINE
-  if (opt_ndbcluster)
-    sql_print_warning("this binary does not contain NDBCLUSTER storage engine");
-#endif
-#ifndef WITH_INNOBASE_STORAGE_ENGINE
-  if (opt_innodb)
-    sql_print_warning("this binary does not contain INNODB storage engine");
-#endif
   if ((opt_log_slow_admin_statements || opt_log_queries_not_using_indexes) &&
       !opt_slow_log)
     sql_print_warning("options --log-slow-admin-statements and --log-queries-not-using-indexes have no effect if --log-slow-queries is not set");
 
-  if (argc > 0)
-  {
-    fprintf(stderr, "%s: Too many arguments (first extra is '%s').\nUse --help to get a list of available options\n", my_progname, *argv);
-    /* FIXME add EXIT_TOO_MANY_ARGUMENTS to "mysys_err.h" and return that code? */
-    exit(1);
-  }
-
-  if (opt_help)
-  {
-    usage();
-    exit(0);
-  }
 #if defined(HAVE_BROKEN_REALPATH)
   my_use_symdir=0;
   my_disable_symlinks=1;
@@ -8337,12 +8060,7 @@ void refresh_status(THD *thd)
   bzero((char*) &thd->status_var, sizeof(thd->status_var));
 
   /* Reset some global variables */
-  for (SHOW_VAR *ptr= status_vars; ptr->name; ptr++)
-  {
-    /* Note that SHOW_LONG_NOFLUSH variables are not reset */
-    if (ptr->type == SHOW_LONG)
-      *(ulong*) ptr->value= 0;
-  }
+  reset_status_vars();
 
   /* Reset the counters of all key caches (default and named). */
   process_key_caches(reset_key_cache_counters);
@@ -8361,51 +8079,9 @@ void refresh_status(THD *thd)
 
 
 /*****************************************************************************
-  Instantiate have_xyx for missing storage engines
+  Instantiate variables for missing storage engines
+  This section should go away soon
 *****************************************************************************/
-#undef have_innodb
-#undef have_ndbcluster
-#undef have_csv_db
-
-SHOW_COMP_OPTION have_innodb= SHOW_OPTION_NO;
-SHOW_COMP_OPTION have_ndbcluster= SHOW_OPTION_NO;
-SHOW_COMP_OPTION have_csv_db= SHOW_OPTION_NO;
-SHOW_COMP_OPTION have_partition_db= SHOW_OPTION_NO;
-
-#ifndef WITH_INNOBASE_STORAGE_ENGINE
-uint innobase_flush_log_at_trx_commit;
-ulong innobase_fast_shutdown;
-long innobase_mirrored_log_groups, innobase_log_files_in_group;
-longlong innobase_log_file_size;
-long innobase_log_buffer_size;
-longlong innobase_buffer_pool_size;
-long innobase_additional_mem_pool_size;
-long innobase_file_io_threads, innobase_lock_wait_timeout;
-long innobase_force_recovery;
-long innobase_open_files;
-char *innobase_data_home_dir, *innobase_data_file_path;
-char *innobase_log_group_home_dir, *innobase_log_arch_dir;
-char *innobase_unix_file_flush_method;
-my_bool innobase_log_archive,
-        innobase_use_doublewrite,
-        innobase_use_checksums,
-        innobase_file_per_table,
-        innobase_locks_unsafe_for_binlog,
-        innobase_rollback_on_timeout,
-        innobase_stats_on_metadata;
-
-extern "C" {
-ulong srv_max_buf_pool_modified_pct;
-ulong srv_max_purge_lag;
-ulong srv_auto_extend_increment;
-ulong srv_n_spin_wait_rounds;
-ulong srv_n_free_tickets_to_enter;
-ulong srv_thread_sleep_delay;
-ulong srv_thread_concurrency;
-ulong srv_commit_concurrency;
-}
-
-#endif
 
 #ifndef WITH_NDBCLUSTER_STORAGE_ENGINE
 ulong ndb_cache_check_time;

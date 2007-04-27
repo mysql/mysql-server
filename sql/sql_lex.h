@@ -1027,6 +1027,11 @@ typedef struct st_lex : public Query_tables_list
   XID *xid;
   gptr yacc_yyss,yacc_yyvs;
   THD *thd;
+
+  /* maintain a list of used plugins for this LEX */
+  DYNAMIC_ARRAY plugins;
+  plugin_ref plugins_static_buffer[INITIAL_LEX_PLUGIN_LIST_SIZE];
+  
   CHARSET_INFO *charset, *underscore_charset;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
@@ -1225,6 +1230,8 @@ typedef struct st_lex : public Query_tables_list
   virtual ~st_lex()
   {
     destroy_query_tables_list();
+    plugin_unlock_list(NULL, (plugin_ref *)plugins.buffer, plugins.elements);
+    delete_dynamic(&plugins);
   }
 
   inline void uncacheable(uint8 cause)

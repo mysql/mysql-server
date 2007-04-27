@@ -465,6 +465,14 @@ C_MODE_END
 */
 #include <assert.h>
 
+/* an assert that works at compile-time. only for constant expression */
+#define compile_time_assert(X)                                  \
+  do                                                            \
+  {                                                             \
+    char compile_time_assert[(X) ? 1 : -1]                      \
+                             __attribute__ ((unused));          \
+  } while(0)
+
 /* Go around some bugs in different OS and compilers */
 #if defined (HPUX11) && defined(_LARGEFILE_SOURCE)
 #define _LARGEFILE64_SOURCE
