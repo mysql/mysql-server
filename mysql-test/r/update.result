@@ -457,3 +457,38 @@ a	quux
 2	0.100000000000000000000000000000
 3	NULL
 DROP TABLE t1;
+set tmp_table_size=1024;
+create table t1 (id int, a int, key idx(a));
+create table t2 (id int unsigned not null auto_increment primary key, a int);
+insert into t2(a) values(1),(2),(3),(4),(5),(6),(7),(8);
+insert into t2(a) select a from t2;
+insert into t2(a) select a from t2;
+insert into t2(a) select a from t2;
+update t2 set a=id;
+insert into t1 select * from t2;
+select count(*) from t1 join t2 on (t1.a=t2.a);
+count(*)
+64
+update t1 join t2 on (t1.a=t2.a) set t1.id=t2.id;
+affected rows: 0
+info: Rows matched: 64  Changed: 0  Warnings: 0
+insert into t2(a) select a from t2;
+update t2 set a=id;
+truncate t1;
+insert into t1 select * from t2;
+select count(*) from t1 join t2 on (t1.a=t2.a);
+count(*)
+128
+update t1 join t2 on (t1.a=t2.a) set t1.id=t2.id;
+affected rows: 0
+info: Rows matched: 128  Changed: 0  Warnings: 0
+update t1 set a=1;
+update t2 set a=1;
+select count(*) from t1 join t2 on (t1.a=t2.a);
+count(*)
+16384
+update t1 join t2 on (t1.a=t2.a) set t1.id=t2.id;
+affected rows: 127
+info: Rows matched: 128  Changed: 127  Warnings: 0
+drop table t1,t2;
+End of 5.0 tests
