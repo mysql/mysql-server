@@ -129,7 +129,11 @@ drop table t1;
 #
 # BUG# 14524 Partitions: crash if blackhole
 #
+# Disable warnings to allow this test case to run without 
+# the Blackhole storage engine.
+--disable_warnings
 CREATE TABLE t1 (s1 int) ENGINE=BLACKHOLE PARTITION BY HASH (s1);
+--enable_warnings
 INSERT INTO t1 VALUES (0);
 DROP TABLE t1;
 
