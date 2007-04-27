@@ -464,6 +464,7 @@ NdbTableImpl::init(){
   m_temporary = false;
   m_row_gci = true;
   m_row_checksum = true;
+  m_force_var_part = false;
   m_kvalue= 6;
   m_minLoadFactor= 78;
   m_maxLoadFactor= 80;
@@ -752,6 +753,7 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_temporary = org.m_temporary;
   m_row_gci = org.m_row_gci;
   m_row_checksum = org.m_row_checksum;
+  m_force_var_part = org.m_force_var_part;
   m_kvalue = org.m_kvalue;
   m_minLoadFactor = org.m_minLoadFactor;
   m_maxLoadFactor = org.m_maxLoadFactor;
