@@ -620,6 +620,14 @@ Item *Item_func::get_tmp_table_item(THD *thd)
   return copy_or_same(thd);
 }
 
+double Item_int_func::val_real()
+{
+  DBUG_ASSERT(fixed == 1);
+
+  return unsigned_flag ? (double) ((ulonglong) val_int()) : (double) val_int();
+}
+
+
 String *Item_int_func::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
@@ -802,7 +810,10 @@ double Item_func_numhybrid::val_real()
     return result;
   }
   case INT_RESULT:
-    return (double)int_op();
+  {
+    longlong result= int_op();
+    return unsigned_flag ? (double) ((ulonglong) result) : (double) result;
+  }
   case REAL_RESULT:
     return real_op();
   case STRING_RESULT:
@@ -1362,6 +1373,8 @@ longlong Item_func_mod::int_op()
   DBUG_ASSERT(fixed == 1);
   longlong value=  args[0]->val_int();
   longlong val2= args[1]->val_int();
+  longlong result;
+
   if ((null_value= args[0]->null_value || args[1]->null_value))
     return 0; /* purecov: inspected */
   if (val2 == 0)
@@ -1371,9 +1384,13 @@ longlong Item_func_mod::int_op()
   }
 
   if (args[0]->unsigned_flag)
-    return ((ulonglong) value) % val2;
+    result= args[1]->unsigned_flag ? 
+      ((ulonglong) value) % ((ulonglong) val2) : ((ulonglong) value) % val2;
+  else
+    result= args[1]->unsigned_flag ?
+      value % ((ulonglong) val2) : value % val2;
 
-  return value % val2;
+  return result;
 }
 
 double Item_func_mod::real_op()
@@ -1428,6 +1445,7 @@ void Item_func_mod::fix_length_and_dec()
 {
   Item_num_op::fix_length_and_dec();
   maybe_null= 1;
+  unsigned_flag= args[0]->unsigned_flag;
 }
 
 
@@ -1506,8 +1524,9 @@ double Item_func_abs::real_op()
 longlong Item_func_abs::int_op()
 {
   longlong value= args[0]->val_int();
-  null_value= args[0]->null_value;
-  return value >= 0 ? value : -value;
+  if ((null_value= args[0]->null_value))
+    return 0;
+  return (value >= 0) || unsigned_flag ? value : -value;
 }
 
 
@@ -1528,6 +1547,7 @@ my_decimal *Item_func_abs::decimal_op(my_decimal *decimal_value)
 void Item_func_abs::fix_length_and_dec()
 {
   Item_func_num1::fix_length_and_dec();
+  unsigned_flag= args[0]->unsigned_flag;
 }
 
 
@@ -1902,6 +1922,10 @@ my_decimal *Item_func_floor::decimal_op(my_decimal *decimal_value)
 
 void Item_func_round::fix_length_and_dec()
 {
+  int      decimals_to_set;
+  longlong val1;
+  bool     val1_unsigned;
+  
   unsigned_flag= args[0]->unsigned_flag;
   if (!args[1]->const_item())
   {
@@ -1910,8 +1934,14 @@ void Item_func_round::fix_length_and_dec()
     hybrid_type= REAL_RESULT;
     return;
   }
-  
-  int decimals_to_set= max((int)args[1]->val_int(), 0);
+
+  val1= args[1]->val_int();
+  val1_unsigned= args[1]->unsigned_flag;
+  if (val1 < 0)
+    decimals_to_set= val1_unsigned ? INT_MAX : 0;
+  else
+    decimals_to_set= (val1 > INT_MAX) ? INT_MAX : (int) val1;
+
   if (args[0]->decimals == NOT_FIXED_DEC)
   {
     max_length= args[0]->max_length;
@@ -1928,10 +1958,9 @@ void Item_func_round::fix_length_and_dec()
     max_length= float_length(decimals);
     break;
   case INT_RESULT:
-    if (!decimals_to_set &&
-        (truncate || (args[0]->decimal_precision() < DECIMAL_LONGLONG_DIGITS)))
+    if ((!decimals_to_set && truncate) || (args[0]->decimal_precision() < DECIMAL_LONGLONG_DIGITS))
     {
-      int length_can_increase= test(!truncate && (args[1]->val_int() < 0));
+      int length_can_increase= test(!truncate && (val1 < 0) && !val1_unsigned);
       max_length= args[0]->max_length + length_can_increase;
       /* Here we can keep INT_RESULT */
       hybrid_type= INT_RESULT;
@@ -1957,10 +1986,12 @@ void Item_func_round::fix_length_and_dec()
   }
 }
 
-double my_double_round(double value, int dec, bool truncate)
+double my_double_round(double value, longlong dec, bool dec_unsigned,
+                       bool truncate)
 {
   double tmp;
-  uint abs_dec= abs(dec);
+  bool dec_negative= (dec < 0) && !dec_unsigned;
+  ulonglong abs_dec= dec_negative ? -dec : dec;
   /*
     tmp2 is here to avoid return the value with 80 bit precision
     This will fix that the test round(0.1,1) = round(0.1,1) is true
@@ -1970,7 +2001,11 @@ double my_double_round(double value, int dec, bool truncate)
   tmp=(abs_dec < array_elements(log_10) ?
        log_10[abs_dec] : pow(10.0,(double) abs_dec));
 
-  if (truncate)
+  if (dec_negative && isinf(tmp))
+    tmp2= 0;
+  else if (!dec_negative && isinf(value * tmp))
+    tmp2= value;
+  else if (truncate)
   {
     if (value >= 0)
       tmp2= dec < 0 ? floor(value/tmp)*tmp : floor(value*tmp)/tmp;
@@ -1986,24 +2021,35 @@ double my_double_round(double value, int dec, bool truncate)
 double Item_func_round::real_op()
 {
   double value= args[0]->val_real();
-  int dec= (int) args[1]->val_int();
 
   if (!(null_value= args[0]->null_value || args[1]->null_value))
-    return my_double_round(value, dec, truncate);
+    return my_double_round(value, args[1]->val_int(), args[1]->unsigned_flag,
+                           truncate);
 
   return 0.0;
+}
+
+/*
+  Rounds a given value to a power of 10 specified as the 'to' argument,
+  avoiding overflows when the value is close to the ulonglong range boundary.
+*/
+
+static inline ulonglong my_unsigned_round(ulonglong value, ulonglong to)
+{
+  ulonglong tmp= value / to * to;
+  return (value - tmp < (to >> 1)) ? tmp : tmp + to;
 }
 
 
 longlong Item_func_round::int_op()
 {
   longlong value= args[0]->val_int();
-  int dec=(int) args[1]->val_int();
+  longlong dec= args[1]->val_int();
   decimals= 0;
-  uint abs_dec;
+  ulonglong abs_dec;
   if ((null_value= args[0]->null_value || args[1]->null_value))
     return 0;
-  if (dec >= 0)
+  if ((dec >= 0) || args[1]->unsigned_flag)
     return value; // integer have not digits after point
 
   abs_dec= -dec;
@@ -2015,21 +2061,12 @@ longlong Item_func_round::int_op()
   tmp= log_10_int[abs_dec];
   
   if (truncate)
-  {
-    if (unsigned_flag)
-      value= (ulonglong(value)/tmp)*tmp;
-    else
-      value= (value/tmp)*tmp;
-  }
+    value= (unsigned_flag) ?
+      ((ulonglong) value / tmp) * tmp : (value / tmp) * tmp;
   else
-  {
-    if (unsigned_flag)
-      value= ((ulonglong(value)+(tmp>>1))/tmp)*tmp;
-    else if ( value >= 0)
-      value= ((value+(tmp>>1))/tmp)*tmp;
-    else
-      value= ((value-(tmp>>1))/tmp)*tmp;
-  }
+    value= (unsigned_flag || value >= 0) ?
+      my_unsigned_round((ulonglong) value, tmp) :
+      -my_unsigned_round((ulonglong) -value, tmp);
   return value;
 }
 
@@ -2037,14 +2074,18 @@ longlong Item_func_round::int_op()
 my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
 {
   my_decimal val, *value= args[0]->val_decimal(&val);
-  int dec=(int) args[1]->val_int();
-  if (dec > 0)
+  longlong dec= args[1]->val_int();
+  if (dec > 0 || (dec < 0 && args[1]->unsigned_flag))
   {
-    decimals= min(dec, DECIMAL_MAX_SCALE); // to get correct output
+    dec= min((ulonglong) dec, DECIMAL_MAX_SCALE);
+    decimals= dec; // to get correct output
   }
+  else if (dec < INT_MIN)
+    dec= INT_MIN;
+    
   if (!(null_value= (args[0]->null_value || args[1]->null_value ||
-                     my_decimal_round(E_DEC_FATAL_ERROR, value, dec, truncate,
-                                      decimal_value) > 1)))
+                     my_decimal_round(E_DEC_FATAL_ERROR, value, dec,
+                                      truncate, decimal_value) > 1)))
     return decimal_value;
   return 0;
 }
