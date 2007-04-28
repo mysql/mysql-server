@@ -2474,10 +2474,10 @@ SHOW_TYPE sys_var_pluginvar::show_type()
 
 byte* sys_var_pluginvar::real_value_ptr(THD *thd, enum_var_type type)
 {
-  DBUG_ASSERT(thd || (type != OPT_SESSION));
+  DBUG_ASSERT(thd || (type == OPT_GLOBAL));
   if (plugin_var->flags & PLUGIN_VAR_THDLOCAL)
   {
-    if (type != OPT_SESSION)
+    if (type == OPT_GLOBAL)
       thd= NULL;
 
     return intern_sys_var_ptr(thd, *(int*) (plugin_var+1), false);
