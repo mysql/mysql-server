@@ -155,9 +155,6 @@ select format(col2,6) from t1 where col1=7;
 format(col2,6)
 1,234,567,890,123,456.123450
 drop table t1;
-select round(150, 2);
-round(150, 2)
-150.00
 select ceil(0.09);
 ceil(0.09)
 1
@@ -168,11 +165,11 @@ create table t1 select round(1, 6);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `round(1, 6)` decimal(7,6) NOT NULL DEFAULT '0.000000'
+  `round(1, 6)` int(1) NOT NULL DEFAULT '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t1;
 round(1, 6)
-1.000000
+1
 drop table t1;
 select abs(-2) * -2;
 abs(-2) * -2
@@ -285,3 +282,91 @@ format(t2.f2-t2.f1+1,0)
 10,000
 drop table t1, t2;
 set names default;
+select cast(-2 as unsigned), 18446744073709551614, -2;
+cast(-2 as unsigned)	18446744073709551614	-2
+18446744073709551614	18446744073709551614	-2
+select abs(cast(-2 as unsigned)), abs(18446744073709551614), abs(-2);
+abs(cast(-2 as unsigned))	abs(18446744073709551614)	abs(-2)
+18446744073709551614	18446744073709551614	2
+select ceiling(cast(-2 as unsigned)), ceiling(18446744073709551614), ceiling(-2);
+ceiling(cast(-2 as unsigned))	ceiling(18446744073709551614)	ceiling(-2)
+18446744073709551614	18446744073709551614	-2
+select floor(cast(-2 as unsigned)), floor(18446744073709551614), floor(-2);
+floor(cast(-2 as unsigned))	floor(18446744073709551614)	floor(-2)
+18446744073709551614	18446744073709551614	-2
+select format(cast(-2 as unsigned), 2), format(18446744073709551614, 2), format(-2, 2);
+format(cast(-2 as unsigned), 2)	format(18446744073709551614, 2)	format(-2, 2)
+18,446,744,073,709,551,614.00	18,446,744,073,709,551,614.00	-2.00
+select sqrt(cast(-2 as unsigned)), sqrt(18446744073709551614), sqrt(-2);
+sqrt(cast(-2 as unsigned))	sqrt(18446744073709551614)	sqrt(-2)
+4294967296	4294967296	NULL
+select round(cast(-2 as unsigned), 1), round(18446744073709551614, 1), round(-2, 1);
+round(cast(-2 as unsigned), 1)	round(18446744073709551614, 1)	round(-2, 1)
+18446744073709551614	18446744073709551614	-2
+select round(4, cast(-2 as unsigned)), round(4, 18446744073709551614), round(4, -2);
+round(4, cast(-2 as unsigned))	round(4, 18446744073709551614)	round(4, -2)
+4	4	0
+select truncate(cast(-2 as unsigned), 1), truncate(18446744073709551614, 1), truncate(-2, 1);
+truncate(cast(-2 as unsigned), 1)	truncate(18446744073709551614, 1)	truncate(-2, 1)
+18446744073709551614	18446744073709551614	-2
+select truncate(4, cast(-2 as unsigned)), truncate(4, 18446744073709551614), truncate(4, -2);
+truncate(4, cast(-2 as unsigned))	truncate(4, 18446744073709551614)	truncate(4, -2)
+4	4	0
+select round(10000000000000000000, -19), truncate(10000000000000000000, -19);
+round(10000000000000000000, -19)	truncate(10000000000000000000, -19)
+10000000000000000000	10000000000000000000
+select round(1e0, -309), truncate(1e0, -309);
+round(1e0, -309)	truncate(1e0, -309)
+0	0
+select round(1e1,308), truncate(1e1, 308);
+round(1e1,308)	truncate(1e1, 308)
+10	10
+select round(1e1, 2147483648), truncate(1e1, 2147483648);
+round(1e1, 2147483648)	truncate(1e1, 2147483648)
+10	10
+select round(1.1e1, 4294967295), truncate(1.1e1, 4294967295);
+round(1.1e1, 4294967295)	truncate(1.1e1, 4294967295)
+11	11
+select round(1.12e1, 4294967296), truncate(1.12e1, 4294967296);
+round(1.12e1, 4294967296)	truncate(1.12e1, 4294967296)
+11.2	11.2
+select round(1.5, 2147483640), truncate(1.5, 2147483640);
+round(1.5, 2147483640)	truncate(1.5, 2147483640)
+1.500000000000000000000000000000	1.500000000000000000000000000000
+select round(1.5, -2147483649), round(1.5, 2147483648);
+round(1.5, -2147483649)	round(1.5, 2147483648)
+0	1.500000000000000000000000000000
+select truncate(1.5, -2147483649), truncate(1.5, 2147483648);
+truncate(1.5, -2147483649)	truncate(1.5, 2147483648)
+0	1.500000000000000000000000000000
+select round(1.5, -4294967296), round(1.5, 4294967296);
+round(1.5, -4294967296)	round(1.5, 4294967296)
+0	1.500000000000000000000000000000
+select truncate(1.5, -4294967296), truncate(1.5, 4294967296);
+truncate(1.5, -4294967296)	truncate(1.5, 4294967296)
+0	1.500000000000000000000000000000
+select round(1.5, -9223372036854775808), round(1.5, 9223372036854775808);
+round(1.5, -9223372036854775808)	round(1.5, 9223372036854775808)
+0	1.500000000000000000000000000000
+select truncate(1.5, -9223372036854775808), truncate(1.5, 9223372036854775808);
+truncate(1.5, -9223372036854775808)	truncate(1.5, 9223372036854775808)
+0	1.500000000000000000000000000000
+select round(1.5, 18446744073709551615), truncate(1.5, 18446744073709551615);
+round(1.5, 18446744073709551615)	truncate(1.5, 18446744073709551615)
+1.500000000000000000000000000000	1.500000000000000000000000000000
+select round(18446744073709551614, -1), truncate(18446744073709551614, -1);
+round(18446744073709551614, -1)	truncate(18446744073709551614, -1)
+18446744073709551610	18446744073709551610
+select round(4, -4294967200), truncate(4, -4294967200);
+round(4, -4294967200)	truncate(4, -4294967200)
+0	0
+select mod(cast(-2 as unsigned), 3), mod(18446744073709551614, 3), mod(-2, 3);
+mod(cast(-2 as unsigned), 3)	mod(18446744073709551614, 3)	mod(-2, 3)
+2	2	-2
+select mod(5, cast(-2 as unsigned)), mod(5, 18446744073709551614), mod(5, -2);
+mod(5, cast(-2 as unsigned))	mod(5, 18446744073709551614)	mod(5, -2)
+5	5	1
+select pow(cast(-2 as unsigned), 5), pow(18446744073709551614, 5), pow(-2, 5);
+pow(cast(-2 as unsigned), 5)	pow(18446744073709551614, 5)	pow(-2, 5)
+2.1359870359209e+96	2.1359870359209e+96	-32
+End of 5.0 tests
