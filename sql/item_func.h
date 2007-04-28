@@ -280,7 +280,7 @@ public:
   { max_length= 21; }
   Item_int_func(List<Item> &list) :Item_func(list) { max_length= 21; }
   Item_int_func(THD *thd, Item_int_func *item) :Item_func(thd, item) {}
-  double val_real() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
+  double val_real();
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec() {}
@@ -305,12 +305,6 @@ class Item_func_signed :public Item_int_func
 public:
   Item_func_signed(Item *a) :Item_int_func(a) {}
   const char *func_name() const { return "cast_as_signed"; }
-  double val_real()
-  {
-    double tmp= args[0]->val_real();
-    null_value= args[0]->null_value;
-    return tmp;
-  }
   longlong val_int();
   longlong val_int_from_str(int *error);
   void fix_length_and_dec()
