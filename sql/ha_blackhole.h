@@ -46,8 +46,7 @@ public:
   {
     return(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
            HA_DUPP_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
-           HA_FILE_BASED | HA_CAN_GEOMETRY | HA_READ_RND_SAME |
-           HA_CAN_INSERT_DELAYED);
+           HA_FILE_BASED | HA_CAN_GEOMETRY | HA_READ_RND_SAME);
   }
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {
