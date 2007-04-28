@@ -2045,7 +2045,7 @@ longlong Item_func_round::int_op()
   else
     value= (unsigned_flag || value >= 0) ?
       my_unsigned_round((ulonglong) value, tmp) :
-      -my_unsigned_round((ulonglong) -value, tmp);
+      -(longlong) my_unsigned_round((ulonglong) -value, tmp);
   return value;
 }
 
@@ -2057,13 +2057,13 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
   if (dec > 0 || (dec < 0 && args[1]->unsigned_flag))
   {
     dec= min((ulonglong) dec, DECIMAL_MAX_SCALE);
-    decimals= dec; // to get correct output
+    decimals= (uint8) dec; // to get correct output
   }
   else if (dec < INT_MIN)
     dec= INT_MIN;
     
   if (!(null_value= (args[0]->null_value || args[1]->null_value ||
-                     my_decimal_round(E_DEC_FATAL_ERROR, value, dec,
+                     my_decimal_round(E_DEC_FATAL_ERROR, value, (int) dec,
                                       truncate, decimal_value) > 1)))
     return decimal_value;
   return 0;
