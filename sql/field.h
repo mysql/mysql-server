@@ -228,9 +228,43 @@ public:
     { memcpy(buff,ptr,length); }
   inline void set_image(char *buff,uint length, CHARSET_INFO *cs)
     { memcpy(ptr,buff,length); }
-  virtual void get_key_image(char *buff,uint length, CHARSET_INFO *cs,
-			     imagetype type)
-    { get_image(buff,length,cs); }
+
+
+  /*
+    Copy a field part into an output buffer.
+
+    SYNOPSIS
+      Field::get_key_image()
+      buff   [out] output buffer
+      length       output buffer size
+      cs           charset, always same as this->charset(),
+                   (to be removed in 5.x)
+      type         itMBR for geometry blobs, otherwise itRAW
+
+    DESCRIPTION
+      This function makes a copy of field part of size equal to or
+      less than "length" parameter value.
+      For fields of string types (CHAR, VARCHAR, TEXT) the rest of buffer
+      is padded by zero byte.
+
+    NOTES
+      For variable length character fields (i.e. UTF-8) the "length"
+      parameter means a number of output buffer bytes as if all field
+      characters have maximal possible size (mbmaxlen). In the other words,
+      "length" parameter is a number of characters multiplied by
+      field_charset->mbmaxlen.
+
+    RETURN
+      Number of copied bytes (excluding padded zero bytes -- see above).
+  */
+
+  virtual uint get_key_image(char *buff, uint length,
+                             CHARSET_INFO *cs,
+                             imagetype type)
+  {
+    get_image(buff,length,cs);
+    return length;
+  }
   virtual void set_key_image(char *buff,uint length, CHARSET_INFO *cs)
     { set_image(buff,length,cs); }
   inline longlong val_int_offset(uint row_offset)
@@ -947,6 +981,8 @@ public:
   enum_field_types real_type() const { return FIELD_TYPE_STRING; }
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
+  virtual uint get_key_image(char *buff,uint length, CHARSET_INFO *cs,
+                             imagetype type);
 };
 
 
@@ -981,7 +1017,7 @@ public:
   String *val_str(String*,String *);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
-  void get_key_image(char *buff,uint length, CHARSET_INFO *cs, imagetype type);
+  uint get_key_image(char *buff,uint length, CHARSET_INFO *cs, imagetype type);
   void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
   void sql_type(String &str) const;
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
@@ -1060,7 +1096,7 @@ public:
       store_length(length);
       memcpy_fixed(ptr+packlength,&data,sizeof(char*));
     }
-  void get_key_image(char *buff,uint length, CHARSET_INFO *cs, imagetype type);
+  uint get_key_image(char *buff,uint length, CHARSET_INFO *cs, imagetype type);
   void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
   void sql_type(String &str) const;
   inline bool copy()
@@ -1117,7 +1153,7 @@ public:
   int  store(longlong nr) { return 1; }
   int  reset(void) { return !maybe_null() || Field_blob::reset(); }
 
-  void get_key_image(char *buff,uint length, CHARSET_INFO *cs,imagetype type);
+  uint get_key_image(char *buff,uint length, CHARSET_INFO *cs,imagetype type);
   void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
 };
 #endif /*HAVE_SPATIAL*/
