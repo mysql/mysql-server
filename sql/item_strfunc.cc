@@ -1995,7 +1995,7 @@ String *Item_func_format::val_str(String *str)
     double nr= args[0]->val_real();
     if ((null_value=args[0]->null_value))
       return 0; /* purecov: inspected */
-    nr= my_double_round(nr, decimals, FALSE);
+    nr= my_double_round(nr, (longlong) decimals, FALSE, FALSE);
     /* Here default_charset() is right as this is not an automatic conversion */
     str->set(nr,decimals, default_charset());
     if (isnan(nr))
