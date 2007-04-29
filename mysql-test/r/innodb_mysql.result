@@ -111,6 +111,39 @@ c1
 Before and after comparison
 0
 drop table t1;
+CREATE TABLE t1(c1 TEXT, UNIQUE (c1(1)), cnt INT DEFAULT 1)
+ENGINE=INNODB CHARACTER SET UTF8;
+INSERT INTO t1 (c1) VALUES ('1a');
+SELECT * FROM t1;
+c1	cnt
+1a	1
+INSERT INTO t1 (c1) VALUES ('1b') ON DUPLICATE KEY UPDATE cnt=cnt+1;
+SELECT * FROM t1;
+c1	cnt
+1a	2
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(2), UNIQUE (c1(1)), cnt INT DEFAULT 1)
+ENGINE=INNODB CHARACTER SET UTF8;
+INSERT INTO t1 (c1) VALUES ('1a');
+SELECT * FROM t1;
+c1	cnt
+1a	1
+INSERT INTO t1 (c1) VALUES ('1b') ON DUPLICATE KEY UPDATE cnt=cnt+1;
+SELECT * FROM t1;
+c1	cnt
+1a	2
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(2), UNIQUE (c1(1)), cnt INT DEFAULT 1)
+ENGINE=INNODB CHARACTER SET UTF8;
+INSERT INTO t1 (c1) VALUES ('1a');
+SELECT * FROM t1;
+c1	cnt
+1a	1
+INSERT INTO t1 (c1) VALUES ('1b') ON DUPLICATE KEY UPDATE cnt=cnt+1;
+SELECT * FROM t1;
+c1	cnt
+1a	2
+DROP TABLE t1;
 End of 4.1 tests
 create table t1m (a int) engine=myisam;
 create table t1i (a int) engine=innodb;
