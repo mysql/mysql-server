@@ -1151,14 +1151,8 @@ int plugin_init(int *argc, char **argv, int flags)
       if (is_myisam)
       {
         DBUG_ASSERT(!global_system_variables.table_plugin);
-#ifdef DBUG_OFF
-        global_system_variables.table_plugin= plugin_ptr;
-#else
-        global_system_variables.table_plugin= (plugin_ref)
-                my_malloc(sizeof(plugin_ptr), MYF(MY_WME | MY_FAE));
-        global_system_variables.table_plugin[0]= plugin_ptr;
-#endif
-        plugin_ptr->ref_count++;
+        global_system_variables.table_plugin=
+          my_intern_plugin_lock(NULL, plugin_int_to_ref(plugin_ptr));
         DBUG_ASSERT(plugin_ptr->ref_count == 1);
       }
     }
@@ -1441,7 +1435,7 @@ error:
 
 void plugin_shutdown(void)
 {
-  uint i, count= plugin_array.elements, free_slots;
+  uint i, count= plugin_array.elements, free_slots= 0;
   struct st_plugin_int **plugins, *plugin;
   struct st_plugin_dl **dl;
   DBUG_ENTER("plugin_shutdown");
