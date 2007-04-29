@@ -847,19 +847,4 @@ select '^^: The above should be ~= 20 + cost(select * from t1). Value less than 
 Z
 ^^: The above should be ~= 20 + cost(select * from t1). Value less than 20 is an error
 drop table t1, t2;
-CREATE TABLE t1 (ID INTEGER, Name VARCHAR(50));
-CREATE TABLE t2 (Test_ID INTEGER);
-CREATE VIEW v1 (Test_ID, Description) AS SELECT ID, Name FROM t1;
-CREATE TABLE tv1 SELECT Description AS Name FROM v1 JOIN t2
-USING (Test_ID);
-DESCRIBE tv1;
-Field	Type	Null	Key	Default	Extra
-Name	varchar(50)	YES		NULL	
-CREATE TABLE tv2 SELECT Description AS Name FROM v1 JOIN t2
-ON v1.Test_ID = t2.Test_ID;
-DESCRIBE tv2;
-Field	Type	Null	Key	Default	Extra
-Name	varchar(50)	YES		NULL	
-DROP VIEW v1;
-DROP TABLE t1,t2,tv1,tv2;
 End of 5.0 tests.
