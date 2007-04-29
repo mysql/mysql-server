@@ -7688,8 +7688,8 @@ static MYSQL_SYSVAR_BOOL(file_per_table, innobase_file_per_table,
 
 static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
   PLUGIN_VAR_OPCMDARG,
- "Set to 0 (write and flush once per second), 1 (write and flush at each commit)\
- or 2 (write at commit, flush once per second).",
+ "Set to 0 (write and flush once per second), 1 (write and flush at each commit)"
+ " or 2 (write at commit, flush once per second).",
   NULL, NULL, 1, 0, 2, 0);
 
 static MYSQL_SYSVAR_STR(flush_method, innobase_unix_file_flush_method,
