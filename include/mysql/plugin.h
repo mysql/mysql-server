@@ -657,7 +657,7 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, unsigned int length,
 
 
 #ifdef __cplusplus
-};
+}
 #endif
 
 #endif
