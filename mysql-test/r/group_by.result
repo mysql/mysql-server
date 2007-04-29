@@ -1035,3 +1035,15 @@ HAVING SUM(t1_inner.b)+t1_outer.b > 5);
 ERROR 42000: 'test.t1_outer.b' isn't in GROUP BY
 DROP TABLE t1;
 SET SQL_MODE = '';
+SET SQL_MODE = 'ONLY_FULL_GROUP_BY';
+create table t1(f1 int, f2 int);
+select * from t1 group by f1;
+ERROR 42000: 'test.t1.f2' isn't in GROUP BY
+select * from t1 group by f2;
+ERROR 42000: 'test.t1.f1' isn't in GROUP BY
+select * from t1 group by f1, f2;
+f1	f2
+select t1.f1,t.* from t1, t1 t group by 1;
+ERROR 42000: 'test.t.f1' isn't in GROUP BY
+drop table t1;
+SET SQL_MODE = '';
