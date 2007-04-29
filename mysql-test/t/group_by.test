@@ -752,6 +752,20 @@ SELECT b FROM t1 AS t1_outer GROUP BY a HAVING t1_outer.a IN
    HAVING SUM(t1_inner.b)+t1_outer.b > 5);
 DROP TABLE t1;
 SET SQL_MODE = '';
+#
+# Bug#27874: Non-grouped columns are allowed by * in ONLY_FULL_GROUP_BY mode.
+#
+SET SQL_MODE = 'ONLY_FULL_GROUP_BY';
+create table t1(f1 int, f2 int);
+--error 1055
+select * from t1 group by f1;
+--error 1055
+select * from t1 group by f2;
+select * from t1 group by f1, f2;
+--error 1055
+select t1.f1,t.* from t1, t1 t group by 1;
+drop table t1;
+SET SQL_MODE = '';
 
 #
 # Bug #21174: Index degrades sort performance and 

@@ -139,29 +139,22 @@ void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length)
         key_length--;
       }
     }
-    if (key_part->key_part_flag & HA_BLOB_PART)
-    {
-      char *pos;
-      ulong blob_length= ((Field_blob*) key_part->field)->get_length();
-      key_length-= HA_KEY_BLOB_LENGTH;
-      ((Field_blob*) key_part->field)->get_ptr(&pos);
-      length=min(key_length, key_part->length);
-      set_if_smaller(blob_length, length);
-      int2store(to_key, (uint) blob_length);
-      to_key+= HA_KEY_BLOB_LENGTH;			// Skip length info
-      memcpy(to_key, pos, blob_length);
-    }
-    else if (key_part->key_part_flag & HA_VAR_LENGTH_PART)
+    if (key_part->key_part_flag & HA_BLOB_PART ||
+        key_part->key_part_flag & HA_VAR_LENGTH_PART)
     {
       key_length-= HA_KEY_BLOB_LENGTH;
       length= min(key_length, key_part->length);
-      key_part->field->get_key_image((char *) to_key, length, Field::itRAW);
+      key_part->field->get_key_image((char*) to_key, length, Field::itRAW);
       to_key+= HA_KEY_BLOB_LENGTH;
     }
     else
     {
       length= min(key_length, key_part->length);
-      memcpy(to_key, from_record + key_part->offset, (size_t) length);
+      Field *field= key_part->field;
+      CHARSET_INFO *cs= field->charset();
+      uint bytes= field->get_key_image((char*) to_key, length, Field::itRAW);
+      if (bytes < length)
+        cs->cset->fill(cs, (char*) to_key + bytes, length - bytes, ' ');
     }
     to_key+= length;
     key_length-= length;

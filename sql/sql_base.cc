@@ -5575,6 +5575,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
   */
   arena= thd->activate_stmt_arena_if_needed(&backup);
 
+  thd->lex->current_select->cur_pos_in_select_list= 0;
   while (wild_num && (item= it++))
   {
     if (item->type() == Item::FIELD_ITEM &&
@@ -5616,7 +5617,10 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       }
       wild_num--;
     }
+    else
+      thd->lex->current_select->cur_pos_in_select_list++;
   }
+  thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
   if (arena)
   {
     /* make * substituting permanent */
@@ -6099,6 +6103,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       }
       else
         thd->used_tables|= item->used_tables();
+      thd->lex->current_select->cur_pos_in_select_list++;
     }
     /*
       In case of stored tables, all fields are considered as used,
