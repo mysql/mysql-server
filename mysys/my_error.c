@@ -82,6 +82,11 @@ int my_error(int nr,myf MyFlags, ...)
         If "%.*u" or "%.*d" are encountered, the precision number is read
         from the variable argument list but its value is ignored.
       */
+      if (*tpos == '-')
+      {
+        tpos++;
+        olen--;
+      }
       prec_supplied= 0;
       if (*tpos== '.')
       {
@@ -93,6 +98,14 @@ int my_error(int nr,myf MyFlags, ...)
           olen--;
           prec_chars= va_arg(ap, int); /* get length parameter */
           prec_supplied= 1;
+        }
+        else
+        {
+          for (prec_chars= 0; my_isdigit(&my_charset_latin1, *tpos); tpos++, olen--)
+          {
+            prec_supplied= 1;
+            prec_chars= prec_chars * 10 + *tpos - '0';
+          }
         }
       }
 

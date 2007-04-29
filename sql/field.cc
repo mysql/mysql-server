@@ -5204,6 +5204,16 @@ uint Field_string::max_packed_col_length(uint max_length)
   return (max_length > 255 ? 2 : 1)+max_length;
 }
 
+uint Field_string::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
+                                 imagetype type_arg)
+{
+  uint bytes = my_charpos(cs, ptr, ptr + field_length,
+                          length / field_charset->mbmaxlen);
+  memcpy(buff, ptr, bytes);
+  if (bytes < length)
+    bzero(buff + bytes, length - bytes);
+  return bytes;
+}
 
 /****************************************************************************
 ** VARCHAR type  (Not available for the end user yet)
@@ -5414,8 +5424,8 @@ uint Field_varstring::max_packed_col_length(uint max_length)
   return (max_length > 255 ? 2 : 1)+max_length;
 }
 
-void Field_varstring::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
-				    imagetype type)
+uint Field_varstring::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
+                                    imagetype type)
 {
   uint f_length=uint2korr(ptr);
   if (f_length > length)
@@ -5426,6 +5436,7 @@ void Field_varstring::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
   if (f_length < length)
     bzero(buff+HA_KEY_BLOB_LENGTH+f_length, (length-f_length));
 #endif
+  return HA_KEY_BLOB_LENGTH+f_length;
 }
 
 void Field_varstring::set_key_image(char *buff,uint length, CHARSET_INFO *cs)
@@ -5724,8 +5735,8 @@ int Field_blob::cmp_binary(const char *a_ptr, const char *b_ptr,
 
 /* The following is used only when comparing a key */
 
-void Field_blob::get_key_image(char *buff,uint length,
-			       CHARSET_INFO *cs, imagetype type)
+uint Field_blob::get_key_image(char *buff,uint length,
+                               CHARSET_INFO *cs, imagetype type)
 {
   uint32 blob_length= get_length(ptr);
   char *blob;
@@ -5737,16 +5748,17 @@ void Field_blob::get_key_image(char *buff,uint length,
     MBR mbr;
     Geometry_buffer buffer;
     Geometry *gobj;
+    const uint image_length= SIZEOF_STORED_DOUBLE*4;
 
     if (blob_length < SRID_SIZE)
     {
-      bzero(buff, SIZEOF_STORED_DOUBLE*4);
-      return;
+      bzero(buff, image_length);
+      return image_length;
     }
     get_ptr(&blob);
     gobj= Geometry::construct(&buffer, blob, blob_length);
     if (gobj->get_mbr(&mbr, &dummy))
-      bzero(buff, SIZEOF_STORED_DOUBLE*4);
+      bzero(buff, image_length);
     else
     {
       float8store(buff,    mbr.xmin);
@@ -5754,7 +5766,7 @@ void Field_blob::get_key_image(char *buff,uint length,
       float8store(buff+16, mbr.ymin);
       float8store(buff+24, mbr.ymax);
     }
-    return;
+    return image_length;
   }
 #endif /*HAVE_SPATIAL*/
 
@@ -5774,6 +5786,7 @@ void Field_blob::get_key_image(char *buff,uint length,
   }
   int2store(buff,length);
   memcpy(buff+HA_KEY_BLOB_LENGTH, blob, length);
+  return HA_KEY_BLOB_LENGTH+length;
 }
 
 void Field_blob::set_key_image(char *buff,uint length, CHARSET_INFO *cs)
@@ -6021,8 +6034,8 @@ uint Field_blob::max_packed_col_length(uint max_length)
 
 #ifdef HAVE_SPATIAL
 
-void Field_geom::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
-			       imagetype type)
+uint Field_geom::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
+                               imagetype type)
 {
   char *blob;
   const char *dummy;
@@ -6030,16 +6043,17 @@ void Field_geom::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
   ulong blob_length= get_length(ptr);
   Geometry_buffer buffer;
   Geometry *gobj;
+  const uint image_length= SIZEOF_STORED_DOUBLE*4;
 
   if (blob_length < SRID_SIZE)
   {
-    bzero(buff, SIZEOF_STORED_DOUBLE*4);
-    return;
+    bzero(buff, image_length);
+    return image_length;
   }
   get_ptr(&blob);
   gobj= Geometry::construct(&buffer, blob, blob_length);
   if (gobj->get_mbr(&mbr, &dummy))
-    bzero(buff, SIZEOF_STORED_DOUBLE*4);
+    bzero(buff, image_length);
   else
   {
     float8store(buff, mbr.xmin);
@@ -6047,6 +6061,7 @@ void Field_geom::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
     float8store(buff + 16, mbr.ymin);
     float8store(buff + 24, mbr.ymax);
   }
+  return image_length;
 }
 
 
