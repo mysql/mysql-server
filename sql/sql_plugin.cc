@@ -1151,9 +1151,13 @@ int plugin_init(int *argc, char **argv, int flags)
       if (is_myisam)
       {
         DBUG_ASSERT(!global_system_variables.table_plugin);
+#ifdef DBUG_OFF
+        global_system_variables.table_plugin= plugin_ptr;
+#else
         global_system_variables.table_plugin= (plugin_ref)
                 my_malloc(sizeof(plugin_ptr), MYF(MY_WME | MY_FAE));
         global_system_variables.table_plugin[0]= plugin_ptr;
+#endif
         plugin_ptr->ref_count++;
         DBUG_ASSERT(plugin_ptr->ref_count == 1);
       }
