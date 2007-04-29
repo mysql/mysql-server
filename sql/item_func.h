@@ -590,6 +590,31 @@ public:
 };
 
 
+/* 
+  Objects of this class are used for ROLLUP queries to wrap up 
+  each constant item referred to in GROUP BY list. 
+*/
+
+class Item_func_rollup_const :public Item_func
+{
+public:
+  Item_func_rollup_const(Item *a) :Item_func(a)
+    { name= a->name; }
+  double val() { return args[0]->val(); }
+  longlong val_int() { return args[0]->val_int(); }
+  String *val_str(String *str) { return args[0]->val_str(str); }
+  const char *func_name() const { return "rollup_const"; }
+  bool const_item() const { return 0; }
+  Item_result result_type() const { return args[0]->result_type(); }
+  void fix_length_and_dec()
+  {
+    collation= args[0]->collation;
+    max_length= args[0]->max_length;
+    decimals=args[0]->decimals; 
+  }
+};
+
+
 class Item_func_length :public Item_int_func
 {
   String value;
