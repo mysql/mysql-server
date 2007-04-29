@@ -132,9 +132,9 @@ void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length)
       length= min(key_length, key_part->length);
       Field *field= key_part->field;
       CHARSET_INFO *cs= field->charset();
-      uint bytes= field->get_key_image(to_key, length, Field::itRAW);
+      uint bytes= field->get_key_image((char*) to_key, length, Field::itRAW);
       if (bytes < length)
-        cs->cset->fill(cs, to_key + bytes, length - bytes, ' ');
+        cs->cset->fill(cs, (char*) to_key + bytes, length - bytes, ' ');
     }
     to_key+= length;
     key_length-= length;
