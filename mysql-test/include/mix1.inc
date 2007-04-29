@@ -474,6 +474,38 @@ drop table test;
 set global query_cache_type=@save_qcache_type;
 set global query_cache_size=@save_qcache_size;
 
+--source include/innodb_rollback_on_timeout.inc
+
+#
+# Bug #27210: INNODB ON DUPLICATE KEY UPDATE
+#
+
+set @save_qcache_size=@@global.query_cache_size;
+set @save_qcache_type=@@global.query_cache_type;
+set global query_cache_size=10*1024*1024;
+set global query_cache_type=1;
+connect (con1,localhost,root,,);
+connection con1;
+drop table if exists `test`;
+CREATE TABLE `test` (`test1` varchar(3) NOT NULL,
+  `test2` varchar(4) NOT NULL,PRIMARY KEY  (`test1`))
+  ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO `test` (`test1`, `test2`) VALUES ('tes', '5678');
+disconnect con1;
+connect (con2,localhost,root,,);
+connection con2;
+select * from test;
+INSERT INTO `test` (`test1`, `test2`) VALUES ('tes', '1234')
+  ON DUPLICATE KEY UPDATE `test2` = '1234';
+select * from test;
+flush tables;
+select * from test;
+disconnect con2;
+connection default;
+drop table test;
+set global query_cache_type=@save_qcache_type;
+set global query_cache_size=@save_qcache_size;
+
 --echo End of 5.0 tests
 
 -- source include/have_innodb.inc
