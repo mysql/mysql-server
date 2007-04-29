@@ -446,6 +446,69 @@ tes	1234
 drop table test;
 set global query_cache_type=@save_qcache_type;
 set global query_cache_size=@save_qcache_size;
+show variables like 'innodb_rollback_on_timeout';
+Variable_name	Value
+innodb_rollback_on_timeout	OFF
+create table t1 (a int unsigned not null primary key) engine = innodb;
+insert into t1 values (1);
+commit;
+begin work;
+insert into t1 values (2);
+select * from t1;
+a
+1
+2
+begin work;
+insert into t1 values (5);
+select * from t1;
+a
+1
+5
+insert into t1 values (2);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+select * from t1;
+a
+1
+5
+commit;
+select * from t1;
+a
+1
+2
+commit;
+select * from t1;
+a
+1
+2
+5
+drop table t1;
+set @save_qcache_size=@@global.query_cache_size;
+set @save_qcache_type=@@global.query_cache_type;
+set global query_cache_size=10*1024*1024;
+set global query_cache_type=1;
+drop table if exists `test`;
+Warnings:
+Note	1051	Unknown table 'test'
+CREATE TABLE `test` (`test1` varchar(3) NOT NULL,
+`test2` varchar(4) NOT NULL,PRIMARY KEY  (`test1`))
+ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO `test` (`test1`, `test2`) VALUES ('tes', '5678');
+select * from test;
+test1	test2
+tes	5678
+INSERT INTO `test` (`test1`, `test2`) VALUES ('tes', '1234')
+ON DUPLICATE KEY UPDATE `test2` = '1234';
+select * from test;
+test1	test2
+tes	1234
+flush tables;
+select * from test;
+test1	test2
+tes	1234
+drop table test;
+set global query_cache_type=@save_qcache_type;
+set global query_cache_size=@save_qcache_size;
+End of 5.0 tests
 create table t1(
 id int auto_increment,
 c char(1) not null,
