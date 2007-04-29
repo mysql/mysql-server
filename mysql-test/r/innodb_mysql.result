@@ -459,6 +459,7 @@ id	c	counter
 3	b	2
 4	a	2
 drop table t1;
+End of 5.0 tests
 CREATE TABLE t1 (a int, b int);
 insert into t1 values (1,1),(1,2);
 CREATE TABLE t2 (primary key (a)) select * from t1;

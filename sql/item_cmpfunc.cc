@@ -619,8 +619,9 @@ get_date_from_str(THD *thd, String *str, timestamp_type warn_type,
 
   if (error || *error_arg)
   {
-    make_truncated_value_warning(thd, str->ptr(), str->length(), warn_type,
-                                 warn_name);
+    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                 str->ptr(), str->length(),
+                                 warn_type, warn_name);
     *error_arg= TRUE;
   }
   return value;
