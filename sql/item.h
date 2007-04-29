@@ -942,6 +942,7 @@ public:
     representation is more precise than the string one).
   */
   virtual bool result_as_longlong() { return FALSE; }
+  bool is_datetime();
 };
 
 
@@ -1840,33 +1841,57 @@ public:
 
 
 /* for show tables */
-
-class Item_datetime :public Item_string
+class Item_partition_func_safe_string: public Item_string
 {
 public:
-  Item_datetime(const char *item_name): Item_string(item_name,"",0,
-                                                    &my_charset_bin)
-  { max_length=19;}
-  enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
+  Item_partition_func_safe_string(const char *name, uint length,
+                                  CHARSET_INFO *cs= NULL):
+    Item_string(name, length, cs)
+  {}
   bool check_partition_func_processor(byte *int_arg) {return TRUE;}
 };
 
-class Item_empty_string :public Item_string
+
+class Item_return_date_time :public Item_partition_func_safe_string
+{
+  enum_field_types date_time_field_type;
+public:
+  Item_return_date_time(const char *name_arg, enum_field_types field_type_arg)
+    :Item_partition_func_safe_string(name_arg, 0, &my_charset_bin),
+     date_time_field_type(field_type_arg)
+  { }
+  enum_field_types field_type() const { return date_time_field_type; }
+};
+
+
+class Item_blob :public Item_partition_func_safe_string
+{
+public:
+  Item_blob(const char *name, uint length) :
+    Item_partition_func_safe_string(name, length, &my_charset_bin)
+  { max_length= length; }
+  enum Type type() const { return TYPE_HOLDER; }
+  enum_field_types field_type() const { return MYSQL_TYPE_BLOB; }
+};
+
+
+class Item_empty_string :public Item_partition_func_safe_string
 {
 public:
   Item_empty_string(const char *header,uint length, CHARSET_INFO *cs= NULL) :
-    Item_string("",0, cs ? cs : &my_charset_bin)
+    Item_partition_func_safe_string("",0, cs ? cs : &my_charset_bin)
     { name=(char*) header; max_length= cs ? length * cs->mbmaxlen : length; }
   void make_field(Send_field *field);
 };
+
 
 class Item_return_int :public Item_int
 {
   enum_field_types int_field_type;
 public:
   Item_return_int(const char *name_arg, uint length,
-		  enum_field_types field_type_arg)
-    :Item_int(name_arg, 0, length), int_field_type(field_type_arg)
+		  enum_field_types field_type_arg, longlong value= 0)
+    :Item_int(name_arg, value, length), int_field_type(field_type_arg)
   {
     unsigned_flag=1;
   }
@@ -2529,11 +2554,13 @@ public:
   Item_cache_int(): Item_cache(), value(0) {}
 
   void store(Item *item);
+  void store(Item *item, longlong val_arg);
   double val_real() { DBUG_ASSERT(fixed == 1); return (double) value; }
   longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return INT_RESULT; }
+  bool result_as_longlong() { return TRUE; }
 };
 
 

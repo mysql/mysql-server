@@ -437,7 +437,9 @@ void Item_bool_func2::fix_length_and_dec()
     if (arg_real_item->type() == FIELD_ITEM)
     {
       Field *field=((Item_field*) arg_real_item)->field;
-      if (field->can_be_compared_as_longlong())
+      if (field->can_be_compared_as_longlong() &&
+          !(arg_real_item->is_datetime() &&
+            args[1]->result_type() == STRING_RESULT))
       {
         if (convert_constant_item(thd, field,&args[1]))
         {
@@ -452,7 +454,9 @@ void Item_bool_func2::fix_length_and_dec()
     if (arg_real_item->type() == FIELD_ITEM)
     {
       Field *field=((Item_field*) arg_real_item)->field;
-      if (field->can_be_compared_as_longlong())
+      if (field->can_be_compared_as_longlong() &&
+          !(arg_real_item->is_datetime() &&
+            args[0]->result_type() == STRING_RESULT))
       {
         if (convert_constant_item(thd, field,&args[0]))
         {
@@ -568,6 +572,335 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
     DBUG_ASSERT(0);
   }
   return 0;
+}
+
+
+/*
+  Convert date provided in a string to the int representation.
+
+  SYNOPSIS
+    get_date_from_str()
+    thd              Thread handle
+    str              a string to convert
+    warn_type        type of the timestamp for issuing the warning
+    warn_name        field name for issuing the warning
+    error_arg  [out] TRUE if string isn't a DATETIME or clipping occur
+
+  DESCRIPTION
+    Convert date provided in the string str to the int representation.
+    if the string contains wrong date or doesn't contain it at all
+    then the warning is issued and TRUE returned in the error_arg argument.
+    The warn_type and the warn_name arguments are used as the name and the
+    type of the field when issuing the warning.
+
+  RETURN
+    converted value.
+*/
+
+static ulonglong
+get_date_from_str(THD *thd, String *str, timestamp_type warn_type,
+                  char *warn_name, bool *error_arg)
+{
+  ulonglong value= 0;
+  int error;
+  MYSQL_TIME l_time;
+  enum_mysql_timestamp_type ret;
+  *error_arg= TRUE;
+
+  ret= str_to_datetime(str->ptr(), str->length(), &l_time,
+                       (TIME_FUZZY_DATE | MODE_INVALID_DATES |
+                        (thd->variables.sql_mode &
+                         (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE))),
+                       &error);
+  if ((ret == MYSQL_TIMESTAMP_DATETIME || ret == MYSQL_TIMESTAMP_DATE))
+  {
+    value= TIME_to_ulonglong_datetime(&l_time);
+    *error_arg= FALSE;
+  }
+
+  if (error || *error_arg)
+  {
+    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                 str->ptr(), str->length(),
+                                 warn_type, warn_name);
+    *error_arg= TRUE;
+  }
+  return value;
+}
+
+
+/*
+  Check whether compare_datetime() can be used to compare items.
+
+  SYNOPSIS
+    Arg_comparator::can_compare_as_dates()
+    a, b          [in]  items to be compared
+    const_value   [out] converted value of the string constant, if any
+
+  DESCRIPTION
+    Check several cases when the DATE/DATETIME comparator should be used.
+    The following cases are checked:
+      1. Both a and b is a DATE/DATETIME field/function returning string or
+         int result.
+      2. Only a or b is a DATE/DATETIME field/function returning string or
+         int result and the other item (b or a) is an item with string result.
+         If the second item is a constant one then it's checked to be
+         convertible to the DATE/DATETIME type. If the constant can't be
+         converted to a DATE/DATETIME then the compare_datetime() comparator
+         isn't used and the warning about wrong DATE/DATETIME value is issued.
+      In all other cases (date-[int|real|decimal]/[int|real|decimal]-date)
+      the comparison is handled by other comparators.
+    If the datetime comparator can be used and one the operands of the
+    comparison is a string constant that was successfully converted to a
+    DATE/DATETIME type then the result of the conversion is returned in the
+    const_value if it is provided.  If there is no constant or
+    compare_datetime() isn't applicable then the *const_value remains
+    unchanged.
+
+  RETURN
+    the found type of date comparison
+*/
+
+enum Arg_comparator::enum_date_cmp_type
+Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
+{
+  enum enum_date_cmp_type cmp_type= CMP_DATE_DFLT;
+  Item *str_arg= 0, *date_arg= 0;
+
+  if (a->type() == Item::ROW_ITEM || b->type() == Item::ROW_ITEM)
+    return CMP_DATE_DFLT;
+
+  if (a->is_datetime())
+  {
+    if (b->is_datetime())
+      cmp_type= CMP_DATE_WITH_DATE;
+    else if (b->result_type() == STRING_RESULT)
+    {
+      cmp_type= CMP_DATE_WITH_STR;
+      date_arg= a;
+      str_arg= b;
+    }
+  }
+  else if (b->is_datetime() && a->result_type() == STRING_RESULT)
+  {
+    cmp_type= CMP_STR_WITH_DATE;
+    date_arg= b;
+    str_arg= a;
+  }
+
+  if (cmp_type != CMP_DATE_DFLT)
+  {
+    if (cmp_type != CMP_DATE_WITH_DATE && str_arg->const_item())
+    {
+      THD *thd= current_thd;
+      ulonglong value;
+      bool error;
+      String tmp, *str_val= 0;
+      timestamp_type t_type= (date_arg->field_type() == MYSQL_TYPE_DATE ?
+                              MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME);
+
+      str_val= str_arg->val_str(&tmp);
+      if (str_arg->null_value)
+        return CMP_DATE_DFLT;
+      value= get_date_from_str(thd, str_val, t_type, date_arg->name, &error);
+      if (error)
+        return CMP_DATE_DFLT;
+      if (const_value)
+        *const_value= value;
+    }
+  }
+  return cmp_type;
+}
+
+
+int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
+                                        Item **a1, Item **a2,
+                                        Item_result type)
+{
+  enum enum_date_cmp_type cmp_type;
+  ulonglong const_value;
+  a= a1;
+  b= a2;
+
+  if ((cmp_type= can_compare_as_dates(*a, *b, &const_value)))
+  {
+    thd= current_thd;
+    owner= owner_arg;
+    a_type= (*a)->field_type();
+    b_type= (*b)->field_type();
+    a_cache= 0;
+    b_cache= 0;
+
+    if (cmp_type != CMP_DATE_WITH_DATE &&
+        ((*b)->const_item() || (*a)->const_item()))
+    {
+      Item_cache_int *cache= new Item_cache_int();
+      /* Mark the cache as non-const to prevent re-caching. */
+      cache->set_used_tables(1);
+      if (!(*a)->is_datetime())
+      {
+        cache->store((*a), const_value);
+        a_cache= cache;
+        a= (Item **)&a_cache;
+      }
+      else
+      {
+        cache->store((*b), const_value);
+        b_cache= cache;
+        b= (Item **)&b_cache;
+      }
+    }
+    is_nulls_eq= test(owner && owner->functype() == Item_func::EQUAL_FUNC);
+    func= &Arg_comparator::compare_datetime;
+    return 0;
+  }
+  return set_compare_func(owner_arg, type);
+}
+
+
+void Arg_comparator::set_datetime_cmp_func(Item **a1, Item **b1)
+{
+  thd= current_thd;
+  /* A caller will handle null values by itself. */
+  owner= NULL;
+  a= a1;
+  b= b1;
+  a_type= (*a)->field_type();
+  b_type= (*b)->field_type();
+  a_cache= 0;
+  b_cache= 0;
+  is_nulls_eq= FALSE;
+  func= &Arg_comparator::compare_datetime;
+}
+
+/*
+  Retrieves correct DATETIME value from given item.
+
+  SYNOPSIS
+    get_datetime_value()
+    thd                 thread handle
+    item_arg   [in/out] item to retrieve DATETIME value from
+    cache_arg  [in/out] pointer to place to store the caching item to
+    warn_item  [in]     item for issuing the conversion warning
+    is_null    [out]    TRUE <=> the item_arg is null
+
+  DESCRIPTION
+    Retrieves the correct DATETIME value from given item for comparison by the
+    compare_datetime() function.
+    If item's result can be compared as longlong then its int value is used
+    and its string value is used otherwise. Strings are always parsed and
+    converted to int values by the get_date_from_str() function.
+    This allows us to compare correctly string dates with missed insignificant
+    zeros. If an item is a constant one then its value is cached and it isn't
+    get parsed again. An Item_cache_int object is used for caching values. It
+    seamlessly substitutes the original item.  The cache item is marked as
+    non-constant to prevent re-caching it again.  In order to compare
+    correctly DATE and DATETIME items the result of the former are treated as
+    a DATETIME with zero time (00:00:00).
+
+  RETURN
+    obtained value
+*/
+
+static ulonglong
+get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
+                   Item *warn_item, bool *is_null)
+{
+  ulonglong value= 0;
+  String buf, *str= 0;
+  Item *item= **item_arg;
+
+  if (item->result_as_longlong())
+  {
+    value= item->val_int();
+    *is_null= item->null_value;
+    if (item->field_type() == MYSQL_TYPE_DATE)
+      value*= 1000000L;
+  }
+  else
+  {
+    str= item->val_str(&buf);
+    *is_null= item->null_value;
+  }
+  if (*is_null)
+    return -1;
+  /*
+    Convert strings to the integer DATE/DATETIME representation.
+    Even if both dates provided in strings we can't compare them directly as
+    strings as there is no warranty that they are correct and do not miss
+    some insignificant zeros.
+  */
+  if (str)
+  {
+    bool error;
+    enum_field_types f_type= warn_item->field_type();
+    timestamp_type t_type= f_type ==
+      MYSQL_TYPE_DATE ? MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME;
+    value= get_date_from_str(thd, str, t_type, warn_item->name, &error);
+  }
+  if (item->const_item())
+  {
+    Item_cache_int *cache= new Item_cache_int();
+    /* Mark the cache as non-const to prevent re-caching. */
+    cache->set_used_tables(1);
+    cache->store(item, value);
+    *cache_arg= cache;
+    *item_arg= cache_arg;
+  }
+  return value;
+}
+
+/*
+  Compare items values as dates.
+
+  SYNOPSIS
+    Arg_comparator::compare_datetime()
+
+  DESCRIPTION
+    Compare items values as DATE/DATETIME for both EQUAL_FUNC and from other
+    comparison functions. The correct DATETIME values are obtained
+    with help of the get_datetime_value() function.
+
+  RETURN
+    If is_nulls_eq is TRUE:
+       1    if items are equal or both are null
+       0    otherwise
+    If is_nulls_eq is FALSE:
+      -1   a < b or one of items is null
+       0   a == b
+       1   a > b
+*/
+
+int Arg_comparator::compare_datetime()
+{
+  bool is_null= FALSE;
+  ulonglong a_value, b_value;
+
+  /* Get DATE/DATETIME value of the 'a' item. */
+  a_value= get_datetime_value(thd, &a, &a_cache, *b, &is_null);
+  if (!is_nulls_eq && is_null)
+  {
+    if (owner)
+      owner->null_value= 1;
+    return -1;
+  }
+
+  /* Get DATE/DATETIME value of the 'b' item. */
+  b_value= get_datetime_value(thd, &b, &b_cache, *a, &is_null);
+  if (is_null)
+  {
+    if (owner)
+      owner->null_value= is_nulls_eq ? 0 : 1;
+    return is_nulls_eq ? 1 : -1;
+  }
+
+  if (owner)
+    owner->null_value= 0;
+
+  /* Compare values. */
+  if (is_nulls_eq)
+    return (a_value == b_value);
+  return a_value < b_value ? -1 : (a_value > b_value ? 1 : 0);
 }
 
 
@@ -1420,8 +1753,11 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref)
 
 void Item_func_between::fix_length_and_dec()
 {
-   max_length= 1;
-   THD *thd= current_thd;
+  max_length= 1;
+  THD *thd= current_thd;
+  int i;
+  bool datetime_found= FALSE;
+  compare_as_dates= TRUE;
 
   /*
     As some compare functions are generated after sql_yacc,
@@ -1436,26 +1772,29 @@ void Item_func_between::fix_length_and_dec()
    return;
 
   /*
-    Make a special case of compare with date/time and longlong fields.
-    They are compared as integers, so for const item this time-consuming
-    conversion can be done only once, not for every single comparison
+    Detect the comparison of DATE/DATETIME items.
+    At least one of items should be a DATE/DATETIME item and other items
+    should return the STRING result.
   */
-  if (args[0]->real_item()->type() == FIELD_ITEM &&
-      thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
-      thd->lex->sql_command != SQLCOM_SHOW_CREATE)
+  for (i= 0; i < 3; i++)
   {
-    Field *field=((Item_field*) (args[0]->real_item()))->field;
-    if (field->can_be_compared_as_longlong())
+    if (args[i]->is_datetime())
     {
-      /*
-        The following can't be recoded with || as convert_constant_item
-        changes the argument
-      */
-      if (convert_constant_item(thd, field,&args[1]))
-	cmp_type=INT_RESULT;			// Works for all types.
-      if (convert_constant_item(thd, field,&args[2]))
-	cmp_type=INT_RESULT;			// Works for all types.
+      datetime_found= TRUE;
+      continue;
     }
+    if (args[i]->result_type() == STRING_RESULT)
+      continue;
+    compare_as_dates= FALSE;
+    break;
+  }
+  if (!datetime_found)
+    compare_as_dates= FALSE;
+
+  if (compare_as_dates)
+  {
+    ge_cmp.set_datetime_cmp_func(args, args + 1);
+    le_cmp.set_datetime_cmp_func(args, args + 2);
   }
 }
 
@@ -1463,7 +1802,27 @@ void Item_func_between::fix_length_and_dec()
 longlong Item_func_between::val_int()
 {						// ANSI BETWEEN
   DBUG_ASSERT(fixed == 1);
-  if (cmp_type == STRING_RESULT)
+  if (compare_as_dates)
+  {
+    int ge_res, le_res;
+
+    ge_res= ge_cmp.compare();
+    if ((null_value= args[0]->null_value))
+      return 0;
+    le_res= le_cmp.compare();
+
+    if (!args[1]->null_value && !args[2]->null_value)
+      return (longlong) ((ge_res >= 0 && le_res <=0) != negated);
+    else if (args[1]->null_value)
+    {
+      null_value= le_res > 0;			// not null if false range.
+    }
+    else
+    {
+      null_value= ge_res < 0;
+    }
+  }
+  else if (cmp_type == STRING_RESULT)
   {
     String *value,*a,*b;
     value=args[0]->val_str(&value0);

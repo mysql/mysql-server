@@ -236,9 +236,7 @@ bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
     SELECT_LEX *first_select= unit->first_select();
     select_union *derived_result= orig_table_list->derived_result;
     SELECT_LEX *save_current_select= lex->current_select;
-    bool is_union= first_select->next_select() &&
-      first_select->next_select()->linkage == UNION_TYPE;
-    if (is_union)
+    if (unit->is_union())
     {
       // execute union without clean up
       res= unit->exec();

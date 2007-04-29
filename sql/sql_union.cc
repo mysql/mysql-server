@@ -165,7 +165,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   SELECT_LEX *lex_select_save= thd_arg->lex->current_select;
   SELECT_LEX *sl, *first_sl= first_select();
   select_result *tmp_result;
-  bool is_union;
+  bool is_union_select;
   TABLE *empty_table= 0;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
@@ -203,11 +203,11 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   
   thd_arg->lex->current_select= sl= first_sl;
   found_rows_for_union= first_sl->options & OPTION_FOUND_ROWS;
-  is_union= first_sl->next_select() || fake_select_lex;
+  is_union_select= is_union() || fake_select_lex;
 
   /* Global option */
 
-  if (is_union)
+  if (is_union_select)
   {
     if (!(tmp_result= union_result= new select_union))
       goto err;
@@ -238,7 +238,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 
     thd_arg->lex->current_select= sl;
 
-    can_skip_order_by= is_union && !(sl->braces && sl->explicit_limit);
+    can_skip_order_by= is_union_select && !(sl->braces && sl->explicit_limit);
 
     saved_error= join->prepare(&sl->ref_pointer_array,
                                (TABLE_LIST*) sl->table_list.first,
@@ -251,7 +251,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
                                (ORDER*) 0 : (ORDER *)sl->order_list.first,
                                (ORDER*) sl->group_list.first,
                                sl->having,
-                               (is_union ? (ORDER*) 0 :
+                               (is_union_select ? (ORDER*) 0 :
                                 (ORDER*) thd_arg->lex->proc_list.first),
                                sl, this);
     /* There are no * in the statement anymore (for PS) */
@@ -264,7 +264,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       Use items list of underlaid select for derived tables to preserve
       information about fields lengths and exact types
     */
-    if (!is_union)
+    if (!is_union_select)
       types= first_sl->item_list;
     else if (sl == first_sl)
     {
@@ -307,7 +307,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     }
   }
 
-  if (is_union)
+  if (is_union_select)
   {
     /*
       Check that it was possible to aggregate
@@ -639,7 +639,7 @@ void st_select_lex_unit::reinit_exec_mechanism()
 {
   prepared= optimized= executed= 0;
 #ifndef DBUG_OFF
-  if (first_select()->next_select())
+  if (is_union())
   {
     List_iterator_fast<Item> it(item_list);
     Item *field;
@@ -706,7 +706,6 @@ bool st_select_lex_unit::change_result(select_subselect *new_result,
 List<Item> *st_select_lex_unit::get_unit_column_types()
 {
   SELECT_LEX *sl= first_select();
-  bool is_union= test(sl->next_select());
   bool is_procedure= test(sl->join->procedure);
 
   if (is_procedure)
@@ -717,7 +716,7 @@ List<Item> *st_select_lex_unit::get_unit_column_types()
   }
 
 
-  if (is_union)
+  if (is_union())
   {
     DBUG_ASSERT(prepared);
     /* Types are generated during prepare */
