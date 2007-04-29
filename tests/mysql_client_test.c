@@ -9055,7 +9055,9 @@ static void test_ts()
   int        rc, field_count;
   char       name;
   char query[MAX_TEST_QUERY_LENGTH];
-
+  const char *queries [3]= {"SELECT a, b, c FROM test_ts WHERE %c=?",
+                            "SELECT a, b, c FROM test_ts WHERE %c=?",
+                            "SELECT a, b, c FROM test_ts WHERE %c=CAST(? AS DATE)"};
   myheader("test_ts");
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_ts");
@@ -9127,7 +9129,7 @@ static void test_ts()
   {
     int row_count= 0;
 
-    sprintf(query, "SELECT a, b, c FROM test_ts WHERE %c=?", name);
+    sprintf(query, queries[field_count], name);
 
     if (!opt_silent)
       fprintf(stdout, "\n  %s", query);

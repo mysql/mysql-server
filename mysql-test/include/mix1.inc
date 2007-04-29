@@ -168,6 +168,35 @@ connection default;
 drop table t1;
 disconnect con1;
 
+#
+# Bug #13191: INSERT...ON DUPLICATE KEY UPDATE of UTF-8 string fields
+# used in partial unique indices.
+#
+
+CREATE TABLE t1(c1 TEXT, UNIQUE (c1(1)), cnt INT DEFAULT 1)
+  ENGINE=INNODB CHARACTER SET UTF8;
+INSERT INTO t1 (c1) VALUES ('1a');
+SELECT * FROM t1;
+INSERT INTO t1 (c1) VALUES ('1b') ON DUPLICATE KEY UPDATE cnt=cnt+1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1(c1 VARCHAR(2), UNIQUE (c1(1)), cnt INT DEFAULT 1)
+  ENGINE=INNODB CHARACTER SET UTF8;
+INSERT INTO t1 (c1) VALUES ('1a');
+SELECT * FROM t1;
+INSERT INTO t1 (c1) VALUES ('1b') ON DUPLICATE KEY UPDATE cnt=cnt+1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1(c1 CHAR(2), UNIQUE (c1(1)), cnt INT DEFAULT 1)
+  ENGINE=INNODB CHARACTER SET UTF8;
+INSERT INTO t1 (c1) VALUES ('1a');
+SELECT * FROM t1;
+INSERT INTO t1 (c1) VALUES ('1b') ON DUPLICATE KEY UPDATE cnt=cnt+1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
 --echo End of 4.1 tests
 
 
@@ -415,7 +444,54 @@ DROP TABLE t1;
 
 --source include/innodb_rollback_on_timeout.inc
 
+-- source include/have_innodb.inc
+
+#
+# Bug #27650: INSERT fails after multi-row INSERT of the form:
+# INSERT INTO t (id...) VALUES (NULL...) ON DUPLICATE KEY UPDATE id=VALUES(id)
+#
+
+create table t1(
+id int auto_increment,
+c char(1) not null,
+counter int not null default 1,
+primary key (id),
+unique key (c)
+) engine=innodb;
+
+insert into t1 (id, c) values
+(NULL, 'a'),
+(NULL, 'a')
+on duplicate key update id = values(id), counter = counter + 1;
+
+select * from t1;
+
+insert into t1 (id, c) values
+(NULL, 'b')
+on duplicate key update id = values(id), counter = counter + 1;
+
+select * from t1;
+
+truncate table t1;
+
+insert into t1 (id, c) values (NULL, 'a');
+
+select * from t1;
+
+insert into t1 (id, c) values (NULL, 'b'), (NULL, 'b')
+on duplicate key update id = values(id), c = values(c), counter = counter + 1;
+
+select * from t1;
+
+insert into t1 (id, c) values (NULL, 'a')
+on duplicate key update id = values(id), c = values(c), counter = counter + 1;
+
+select * from t1;
+
+drop table t1;
+
 --echo End of 5.0 tests
+
 #
 # Test of behaviour with CREATE ... SELECT
 #

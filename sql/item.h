@@ -942,6 +942,7 @@ public:
     representation is more precise than the string one).
   */
   virtual bool result_as_longlong() { return FALSE; }
+  bool is_datetime();
 };
 
 
@@ -2553,11 +2554,13 @@ public:
   Item_cache_int(): Item_cache(), value(0) {}
 
   void store(Item *item);
+  void store(Item *item, longlong val_arg);
   double val_real() { DBUG_ASSERT(fixed == 1); return (double) value; }
   longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return INT_RESULT; }
+  bool result_as_longlong() { return TRUE; }
 };
 
 
