@@ -842,19 +842,23 @@ static void init_one_value(const struct my_option *option, gptr *variable,
     /*
       Do not clear variable value if it has no default value.
       The default value may already be set.
+      NOTE: To avoid compiler warnings, we first cast longlong to intptr,
+      so that the value has the same size as a pointer.
     */
-    if ((char*) value)
-      *((char**) variable)= (char*) value;
+    if ((char*) (intptr) value)
+      *((char**) variable)= (char*) (intptr) value;
     break;
   case GET_STR_ALLOC:
     /*
       Do not clear variable value if it has no default value.
       The default value may already be set.
+      NOTE: To avoid compiler warnings, we first cast longlong to intptr,
+      so that the value has the same size as a pointer.
     */
-    if ((char*) value)
+    if ((char*) (intptr) value)
     {
       my_free((*(char**) variable), MYF(MY_ALLOW_ZERO_PTR));
-      *((char**) variable)= my_strdup((char*) value, MYF(MY_WME));
+      *((char**) variable)= my_strdup((char*) (intptr) value, MYF(MY_WME));
     }
     break;
   default: /* dummy default to avoid compiler warnings */
