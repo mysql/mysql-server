@@ -677,7 +677,6 @@ pthread_handler_t signal_hand(void *arg);
 static void mysql_init_variables(void);
 static void get_options(int *argc,char **argv);
 static my_bool get_one_option(int, const struct my_option *, char *);
-static void usage(void);
 static void set_server_version(void);
 static int init_thread_environment();
 static char *get_relative_path(const char *path);
@@ -700,6 +699,7 @@ static void clean_up(bool print_message);
 static int test_if_case_insensitive(const char *dir_name);
 
 #ifndef EMBEDDED_LIBRARY
+static void usage(void);
 static void start_signal_handler(void);
 static void close_server_sock();
 static void clean_up_mutexes(void);
@@ -6877,6 +6877,7 @@ static void print_version(void)
 	 server_version,SYSTEM_TYPE,MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }
 
+#ifndef EMBEDDED_LIBRARY
 static void usage(void)
 {
   if (!(default_charset_info= get_charset_by_csname(default_character_set_name,
@@ -6922,6 +6923,7 @@ To see what values a running MySQL server is using, type\n\
 'mysqladmin variables' instead of 'mysqld --verbose --help'.\n");
   }
 }
+#endif /*!EMBEDDED_LIBRARY*/
 
 
 /*

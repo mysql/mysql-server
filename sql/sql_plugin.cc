@@ -2506,10 +2506,9 @@ byte* sys_var_pluginvar::value_ptr(THD *thd, enum_var_type type,
 
   result= real_value_ptr(thd, type);
 
-  if ((plugin_var->flags && PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_ENUM)
+  if ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_ENUM)
     result= (byte*) get_type(plugin_var_typelib(), *(ulong*)result);
-  else
-  if ((plugin_var->flags && PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_SET)
+  else if ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_SET)
   {
     char buffer[STRING_BUFFER_USUAL_SIZE];
     String str(buffer, sizeof(buffer), system_charset_info);
@@ -2620,7 +2619,7 @@ bool sys_var_pluginvar::update(THD *thd, set_var *var)
   options->def_value= (opt)->def_val; \
   options->min_value= (opt)->min_val; \
   options->max_value= (opt)->max_val; \
-  options->block_size= (opt)->blk_sz
+  options->block_size= (long) (opt)->blk_sz
 
 
 static void plugin_opt_set_limits(struct my_option *options,
