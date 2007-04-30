@@ -885,8 +885,6 @@ row_merge_block_merge(
 	merge_block_t*	new_block1;
 	merge_block_t*	new_block2;
 	merge_block_t*	tmp;
-	merge_rec_t*	mrec1;
-	merge_rec_t*	mrec2;
 	ulint		nth_rec1 = 0;
 	ulint		nth_rec2 = 0;
 	ulint		offset1 = 0;
@@ -894,7 +892,6 @@ row_merge_block_merge(
 	ulint		offset3 = 0;
 	ulint		offset4 = 0;
 	ibool		fits_to_new = TRUE;
-	int		selected = 0;
 	mem_heap_t*	heap;
 	mem_heap_t*	offset_heap = NULL;
 	ulint		sec_offsets1_[REC_OFFS_SMALL_SIZE];
@@ -919,14 +916,17 @@ row_merge_block_merge(
 	new_block1->header = block1->header;
 	new_block2->header = tmp->header;
 
+	new_block1->header.n_records = 0;
+	new_block2->header.n_records = 0;
+
 	/* Merge all records from both blocks */
 
 	while (nth_rec1 < block1->header.n_records ||
 	       nth_rec2 < tmp->header.n_records) {
+		merge_rec_t*	mrec1 = NULL;
+		merge_rec_t*	mrec2 = NULL;
 		const ulint*	rec_offsets;
 
-		mrec1 = mrec2 = NULL;
-		selected = 0;
 		mem_heap_empty(heap);
 
 		if (nth_rec1 < block1->header.n_records &&
@@ -999,17 +999,19 @@ row_merge_block_merge(
 					goto error_handling;
 				}
 				/* fall through */
-			case 1:
+			case -1:
 				rec_offsets = sec_offs1;
 				nth_rec1++;
 				offset2 = tmp_offset2;
 				break;
-			case 2:
+			case 1:
 				mrec1 = mrec2;
 				rec_offsets = sec_offs2;
 				nth_rec2++;
 				offset1 = tmp_offset1;
 				break;
+			default:
+				ut_error;
 			}
 		}
 
