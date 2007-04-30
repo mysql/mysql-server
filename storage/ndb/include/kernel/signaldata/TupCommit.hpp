@@ -35,7 +35,7 @@ class TupCommitReq {
   friend bool printTUPCOMMITREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
 
 private:
 
@@ -45,6 +45,7 @@ private:
   Uint32 opPtr;
   Uint32 gci;
   Uint32 hashValue;
+  Uint32 diskpage;
 };
 
 #endif

@@ -6361,6 +6361,7 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
       tupCommitReq->opPtr = sig0;
       tupCommitReq->gci = regTcPtr.p->gci;
       tupCommitReq->hashValue = regTcPtr.p->hashValue;
+      tupCommitReq->diskpage = RNIL;
       EXECUTE_DIRECT(tup, GSN_TUP_COMMITREQ, signal, 
 		     TupCommitReq::SignalLength);
 
