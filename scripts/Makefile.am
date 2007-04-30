@@ -18,7 +18,7 @@
 BUILT_SOURCES = mysql_fix_privilege_tables.sql \
                 mysql_fix_privilege_tables_sql.c
 
-noinst_PROGRAMS = 	comp_sql
+EXTRA_PROGRAMS = 	comp_sql
 
 bin_SCRIPTS =		@server_scripts@ \
 			msql2mysql \
@@ -70,6 +70,8 @@ EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			mysqlaccess.conf \
 			mysqlbug \
 			make_win_bin_dist \
+			mysql_fix_privilege_tables.sql \
+			mysql_fix_privilege_tables_sql.c \
 			mysql_system_tables_fix.sql \
 			CMakeLists.txt
 
