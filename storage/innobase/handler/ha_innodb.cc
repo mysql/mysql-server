@@ -7675,9 +7675,7 @@ static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
     NetWare can't close unclosed files, can't automatically kill remaining
     threads, etc, so on this OS we disable the crash-like InnoDB shutdown.
   */
-#ifndef __NETWARE__
-  " or 2 (fastest - crash-like)"
-#endif
+  IF_NETWARE("", " or 2 (fastest - crash-like)")
   ".",
   NULL, NULL, 1, 0, IF_NETWARE(1,2), 0);
 

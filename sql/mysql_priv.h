@@ -259,9 +259,9 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define MAX_CONNECT_ERRORS	10		// errors before disabling host
 
 #ifdef __NETWARE__
-#define IF_NETWARE(A,B) (A)
+#define IF_NETWARE(A,B) A
 #else
-#define IF_NETWARE(A,B) (B)
+#define IF_NETWARE(A,B) B
 #endif
 
 #if defined(__WIN__)
