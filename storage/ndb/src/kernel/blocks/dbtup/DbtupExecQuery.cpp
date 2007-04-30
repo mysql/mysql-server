@@ -1105,7 +1105,14 @@ Dbtup::prepare_initial_insert(KeyReqStruct *req_struct,
   const Uint32 cnt1= regTabPtr->m_attributes[MM].m_no_of_varsize;
   const Uint32 cnt2= regTabPtr->m_attributes[DD].m_no_of_varsize;
   Uint32 *ptr= req_struct->m_tuple_ptr->get_end_of_fix_part_ptr(regTabPtr);
+  Var_part_ref* ref = req_struct->m_tuple_ptr->get_var_part_ref_ptr(regTabPtr);
 
+  if (regTabPtr->m_bits & Tablerec::TR_ForceVarPart)
+  {
+    ref->m_page_no = RNIL;
+    ref->m_page_idx = Tup_varsize_page::END_OF_FREE_LIST;
+  }
+  
   if(cnt1)
   {
     KeyReqStruct::Var_data* dst= &req_struct->m_var_data[MM];
