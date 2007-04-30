@@ -24,7 +24,6 @@
 #include "AttributeOffset.hpp"
 #include <AttributeHeader.hpp>
 #include <Interpreter.hpp>
-#include <signaldata/TupCommit.hpp>
 #include <signaldata/TupKey.hpp>
 #include <signaldata/AttrInfo.hpp>
 #include <NdbSqlUtil.hpp>
