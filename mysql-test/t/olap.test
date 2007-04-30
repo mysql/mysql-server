@@ -282,7 +282,7 @@ select left(a,10) x, a, sum(b) from t1 group by x,a with rollup;
 drop table t1;
 
 #
-# Bug #20825: ROLLUP by const item in a query with DISTINCT
+# Bug #24856: ROLLUP by const item in a query with DISTINCT
 #
 
 CREATE TABLE t1 (a int, b int);
