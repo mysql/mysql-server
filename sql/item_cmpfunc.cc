@@ -1754,7 +1754,6 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref)
 void Item_func_between::fix_length_and_dec()
 {
   max_length= 1;
-  THD *thd= current_thd;
   int i;
   bool datetime_found= FALSE;
   compare_as_dates= TRUE;
