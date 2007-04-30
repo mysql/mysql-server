@@ -1060,11 +1060,19 @@ NDBT_Tables::createTable(Ndb* pNdb, const char* _name, bool _temp,
       "that NDBT_Tables can create!" << endl;
     return NDBT_WRONGARGS;
   }
+
+  Uint32 sum = 0;
+  for (Uint32 i = 0; i<strlen(_name); i++)
+    sum += 33 * sum + (Uint32)_name[i];
+  
+  bool forceVarPart = (sum & 1);
   
   int r = 0;
   do {
     NdbDictionary::Table tmpTab(* tab);
     tmpTab.setStoredTable(_temp ? 0 : 1);
+    tmpTab.setForceVarPart(forceVarPart);
+
     {
       NdbError error;
       int ret = tmpTab.validate(error);

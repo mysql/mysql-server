@@ -1036,7 +1036,8 @@ ArrayPool<TupTriggerData> c_triggerPool;
     enum Bits
     {
       TR_Checksum = 0x1, // Need to be 1
-      TR_RowGCI   = 0x2
+      TR_RowGCI   = 0x2,
+      TR_ForceVarPart = 0x4
     };
     Uint16 m_bits;
     Uint16 total_rec_size; // Max total size for entire tuple in words
