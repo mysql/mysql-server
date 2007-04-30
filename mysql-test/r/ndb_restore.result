@@ -23,7 +23,7 @@ CREATE TABLE `t3_c` (
 `CapGoaledatta` smallint(5) unsigned NOT NULL default '0',
 `capgotod` smallint(5) unsigned NOT NULL default '0',
 PRIMARY KEY  (`capgotod`,`CapGoaledatta`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED;
 INSERT INTO `t3_c` VALUES (5,3),(2,4),(5,4),(1,3);
 CREATE TABLE `t4_c` (
 `capfa` bigint(20) unsigned NOT NULL auto_increment,
@@ -128,6 +128,8 @@ create table t7 engine=myisam as select * from t7_c;
 create table t8 engine=myisam as select * from t8_c;
 create table t9 engine=myisam as select * from t9_c;
 create table t10 engine=myisam as select * from t10_c;
+ForceVarPart: 0
+ForceVarPart: 1
 CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
 DELETE FROM test.backup_info;
 LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
@@ -136,6 +138,8 @@ SELECT @the_backup_id:=backup_id FROM test.backup_info;
 <the_backup_id>
 DROP TABLE test.backup_info;
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
+ForceVarPart: 0
+ForceVarPart: 1
 select count(*) from t1;
 count(*)
 5
