@@ -394,7 +394,7 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
   }
   out.println("");
 
-  CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+  DBUG_CHECK_TIMEDOUT_RET(handle, in, out, NULL);
 
   Parser_t::Context ctx;
   ParserDummy session(handle->socket);
@@ -403,7 +403,7 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
   const Properties* p = parser.parse(ctx, session);
   if (p == NULL){
     if(!ndb_mgm_is_connected(handle)) {
-      CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+      DBUG_CHECK_TIMEDOUT_RET(handle, in, out, NULL);
       DBUG_RETURN(NULL);
     }
     else
@@ -413,7 +413,7 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
 	 || ctx.m_status==Parser_t::NoLine)
       {
 	ndb_mgm_disconnect(handle);
-        CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+        DBUG_CHECK_TIMEDOUT_RET(handle, in, out, NULL);
 	DBUG_RETURN(NULL);
       }
       /**
@@ -438,7 +438,7 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
 
   if(p && (in.timedout() || out.timedout()))
     delete p;
-  CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+  DBUG_CHECK_TIMEDOUT_RET(handle, in, out, NULL);
   DBUG_RETURN(p);
 }
 

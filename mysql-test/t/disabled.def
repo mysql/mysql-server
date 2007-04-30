@@ -28,7 +28,6 @@ rpl_ddl                  : BUG#26418 2007-03-01 mleich Slave out of sync after C
 rpl_ndb_innodb2ndb       : Bug #19710  Cluster replication to partition table fails on DELETE FROM statement
 rpl_ndb_myisam2ndb       : Bug #19710  Cluster replication to partition table fails on DELETE FROM statement
 rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
-rpl_udf                  : BUG#27564 2007-03-31 lars New test case for rpl of UDF shows valgrind failure
 synchronization          : Bug#24529  	Test 'synchronization' fails on Mac pushbuild; Also on Linux 64 bit.
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
