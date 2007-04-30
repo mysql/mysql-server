@@ -728,10 +728,14 @@ class Item_func_rollup_const :public Item_func
 {
 public:
   Item_func_rollup_const(Item *a) :Item_func(a)
-    { name= a->name; }
-  double val() { return args[0]->val(); }
+  {
+    name= a->name;
+    name_length= a->name_length;
+  }
+  double val_real() { return args[0]->val_real(); }
   longlong val_int() { return args[0]->val_int(); }
   String *val_str(String *str) { return args[0]->val_str(str); }
+  my_decimal *val_decimal(my_decimal *dec) { return args[0]->val_decimal(dec); }
   const char *func_name() const { return "rollup_const"; }
   bool const_item() const { return 0; }
   Item_result result_type() const { return args[0]->result_type(); }
