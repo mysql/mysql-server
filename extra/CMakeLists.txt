@@ -12,6 +12,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+INCLUDE("${PROJECT_SOURCE_DIR}/win/mysql_manifest.cmake")
 
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
@@ -45,3 +46,9 @@ TARGET_LINK_LIBRARIES(perror strings mysys dbug wsock32)
 
 ADD_EXECUTABLE(replace replace.c)
 TARGET_LINK_LIBRARIES(replace strings mysys dbug wsock32)
+
+IF(EMBED_MANIFESTS)
+  MYSQL_EMBED_MANIFEST("my_print_defaults" "asInvoker")
+  MYSQL_EMBED_MANIFEST("perror" "asInvoker")
+  MYSQL_EMBED_MANIFEST("replace" "asInvoker")
+ENDIF(EMBED_MANIFESTS)
