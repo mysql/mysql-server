@@ -466,7 +466,7 @@ C_MODE_END
 #include <assert.h>
 
 /* an assert that works at compile-time. only for constant expression */
-#ifdef __WIN__
+#ifndef __GNUC__
 #define compile_time_assert(X)  do { } while(0)
 #else
 #define compile_time_assert(X)                                  \
