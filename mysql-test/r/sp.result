@@ -6210,6 +6210,13 @@ Warning	1265	Data truncated for column 'bug5274_f1' at row 1
 Warning	1265	Data truncated for column 'bug5274_f1' at row 1
 DROP FUNCTION bug5274_f1|
 DROP FUNCTION bug5274_f2|
+drop procedure if exists proc_21513|
+create procedure proc_21513()`my_label`:BEGIN END|
+show create procedure proc_21513|
+Procedure	sql_mode	Create Procedure
+proc_21513		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_21513`()
+`my_label`:BEGIN END
+drop procedure proc_21513|
 End of 5.0 tests.
 drop table t1,t2;
 CREATE TABLE t1 (a int auto_increment primary key) engine=MyISAM;

@@ -328,7 +328,7 @@ static LEX_STRING get_quoted_token(Lex_input_stream *lip,
   yyUnget();			// ptr points now after last token char
   tmp.length= lip->yytoklen=length;
   tmp.str=(char*) lip->m_thd->alloc(tmp.length+1);
-  from= lip->tok_start + skip
+  from= lip->tok_start + skip;
   to= tmp.str;
   end= to+length;
   for ( ; to != end; )
