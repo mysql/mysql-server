@@ -14571,7 +14571,7 @@ bool JOIN::rollup_init()
           Item* new_item= new Item_func_rollup_const(item);
           if (!new_item)
             return 1;
-          new_item->fix_fields(thd,0, (Item **) 0);
+          new_item->fix_fields(thd, (Item **) 0);
           thd->change_item_tree(it.ref(), new_item);
           for (ORDER *tmp= group_tmp; tmp; tmp= tmp->next)
           { 
