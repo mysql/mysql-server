@@ -479,7 +479,7 @@ AC_MSG_CHECKING(if conversion of longlong to float works)
 AC_CACHE_VAL(ac_cv_conv_longlong_to_float,
 [AC_TRY_RUN([#include <stdio.h>
 typedef long long longlong;
-main()
+int main()
 {
   longlong ll=1;
   float f;
@@ -487,7 +487,7 @@ main()
   f = (float) ll;
   fprintf(file,"%g\n",f);
   fclose(file);
-  exit (0);
+  return (0);
 }], ac_cv_conv_longlong_to_float=`cat conftestval`, ac_cv_conv_longlong_to_float=0, ifelse([$2], , , ac_cv_conv_longlong_to_float=$2))])dnl
 if test "$ac_cv_conv_longlong_to_float" = "1" -o "$ac_cv_conv_longlong_to_float" = "yes"
 then
