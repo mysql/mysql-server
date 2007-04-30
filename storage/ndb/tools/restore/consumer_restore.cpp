@@ -869,6 +869,22 @@ BackupRestore::table(const TableS & table){
       copy.setFragmentData((const void *)ng_array, no_parts << 1);
     }
 
+    /**
+     * Force of varpart was introduced in 5.1.18, telco 6.1.7 and 6.2.1
+     * Since default from mysqld is to add force of varpart (disable with
+     * ROW_FORMAT=FIXED) we force varpart onto tables when they are restored
+     * from backups taken with older versions. This will be wrong if
+     * ROW_FORMAT=FIXED was used on original table, however the likelyhood of
+     * this is low, since ROW_FORMAT= was a NOOP in older versions.
+     */
+
+    if (table.getBackupVersion() < MAKE_VERSION(5,1,18))
+      copy.setForceVarPart(true);
+    else if (getMajor(table.getBackupVersion()) == 6 &&
+             (table.getBackupVersion() < MAKE_VERSION(6,1,7) ||
+              table.getBackupVersion() == MAKE_VERSION(6,2,0)))
+      copy.setForceVarPart(true);
+
     /*
       update min and max rows to reflect the table, this to
       ensure that memory is allocated properly in the ndb kernel
