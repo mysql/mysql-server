@@ -71,27 +71,22 @@ Uint32* Dbtup::alloc_var_rec(Fragrecord* fragPtr,
   /**
    * TODO alloc fix+var part
    */
-  const Uint32 XXX = Tuple_header::HeaderSize + Var_part_ref::SZ32;
-  tabPtr->m_offsets[MM].m_fix_header_size += XXX;
   Uint32 *ptr = alloc_fix_rec(fragPtr, tabPtr, key, out_frag_page_id);
-  tabPtr->m_offsets[MM].m_fix_header_size -= XXX;
   if (unlikely(ptr == 0))
   {
     return 0;
   }
 
-  ndbassert(alloc_size >= tabPtr->m_offsets[MM].m_fix_header_size + 
-	    Tuple_header::HeaderSize);
+  ndbassert(alloc_size >= tabPtr->m_offsets[MM].m_fix_header_size);
   
-  alloc_size -= tabPtr->m_offsets[MM].m_fix_header_size + 
-    Tuple_header::HeaderSize;
+  alloc_size -= tabPtr->m_offsets[MM].m_fix_header_size;
 
   
   Local_key varref;
   if (likely(alloc_var_part(fragPtr, tabPtr, alloc_size, &varref) != 0))
   {
     Tuple_header* tuple = (Tuple_header*)ptr;
-    Var_part_ref* dst = (Var_part_ref*)tuple->get_var_part_ptr(tabPtr);
+    Var_part_ref* dst = tuple->get_var_part_ref_ptr(tabPtr);
     dst->assign(&varref);
     return ptr;
   }
@@ -170,7 +165,7 @@ void Dbtup::free_var_rec(Fragrecord* fragPtr,
   Tuple_header* tuple = (Tuple_header*)ptr;
 
   Local_key ref;
-  Var_part_ref * varref = (Var_part_ref*)tuple->get_var_part_ptr(tabPtr);
+  Var_part_ref * varref = tuple->get_var_part_ref_ptr(tabPtr);
   varref->copyout(&ref);
 
   free_fix_rec(fragPtr, tabPtr, key, (Fix_page*)pagePtr.p);
@@ -402,26 +397,21 @@ Dbtup::alloc_var_rowid(Fragrecord* fragPtr,
 		       Local_key* key,
 		       Uint32 * out_frag_page_id)
 {
-  const Uint32 XXX = Tuple_header::HeaderSize + Var_part_ref::SZ32;
-  tabPtr->m_offsets[MM].m_fix_header_size += XXX;
   Uint32 *ptr = alloc_fix_rowid(fragPtr, tabPtr, key, out_frag_page_id);
-  tabPtr->m_offsets[MM].m_fix_header_size -= XXX;
   if (unlikely(ptr == 0))
   {
     return 0;
   }
 
-  ndbassert(alloc_size >= tabPtr->m_offsets[MM].m_fix_header_size + 
-	    Tuple_header::HeaderSize);
+  ndbassert(alloc_size >= tabPtr->m_offsets[MM].m_fix_header_size);
   
-  alloc_size -= tabPtr->m_offsets[MM].m_fix_header_size + 
-    Tuple_header::HeaderSize;
+  alloc_size -= tabPtr->m_offsets[MM].m_fix_header_size;
 
   Local_key varref;
   if (likely(alloc_var_part(fragPtr, tabPtr, alloc_size, &varref) != 0))
   {
     Tuple_header* tuple = (Tuple_header*)ptr;
-    Var_part_ref* dst = (Var_part_ref*)tuple->get_var_part_ptr(tabPtr);
+    Var_part_ref* dst = (Var_part_ref*)tuple->get_var_part_ref_ptr(tabPtr);
     dst->assign(&varref);
     return ptr;
   }
