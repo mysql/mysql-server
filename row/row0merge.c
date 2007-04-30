@@ -648,6 +648,8 @@ pick2:
 						list2_size = 0;
 					}
 					break;
+				default:
+					ut_error;
 				}
 
 				/* Append the element to the merged list */
