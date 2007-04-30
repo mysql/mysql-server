@@ -459,7 +459,8 @@ void Dbtup::checkDeferredTriggers(Signal* signal,
 /* ---------------------------------------------------------------- */
 void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
                                   Operationrec* regOperPtr,
-                                  Tablerec* regTablePtr)
+                                  Tablerec* regTablePtr,
+                                  bool disk)
 {
   Uint32 save_type = regOperPtr->op_struct.op_type;
   Tuple_header *save_ptr = req_struct->m_tuple_ptr;  
@@ -505,7 +506,7 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
     // If any fired immediate insert trigger then fetch after tuple
     fireDetachedTriggers(req_struct,
                          regTablePtr->subscriptionInsertTriggers, 
-                         regOperPtr);
+                         regOperPtr, disk);
     break;
   case(ZDELETE):
     ljam();
@@ -519,7 +520,7 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
     // FIRETRIGORD with the before tuple
     fireDetachedTriggers(req_struct,
 			 regTablePtr->subscriptionDeleteTriggers, 
-			 regOperPtr);
+			 regOperPtr, disk);
     break;
   case(ZUPDATE):
     ljam();
@@ -533,7 +534,7 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
     // and send two FIRETRIGORD one with before tuple and one with after tuple
     fireDetachedTriggers(req_struct,
                          regTablePtr->subscriptionUpdateTriggers, 
-                         regOperPtr);
+                         regOperPtr, disk);
     break;
   default:
     ndbrequire(false);
@@ -591,7 +592,8 @@ Dbtup::fireDeferredTriggers(Signal* signal,
 void 
 Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
                             DLList<TupTriggerData>& triggerList, 
-                            Operationrec* const regOperPtr)
+                            Operationrec* const regOperPtr,
+                            bool disk)
 {
   
   TriggerPtr trigPtr;  
@@ -612,7 +614,8 @@ Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
       ljam();
       executeTrigger(req_struct,
                      trigPtr.p,
-                     regOperPtr);
+                     regOperPtr,
+                     disk);
     }
     triggerList.next(trigPtr);
   }
@@ -636,7 +639,8 @@ void Dbtup::executeTriggers(KeyReqStruct *req_struct,
 
 void Dbtup::executeTrigger(KeyReqStruct *req_struct,
                            TupTriggerData* const trigPtr,
-                           Operationrec* const regOperPtr)
+                           Operationrec* const regOperPtr,
+                           bool disk)
 {
   /**
    * The block below does not work together with GREP.
@@ -703,7 +707,8 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
                        afterBuffer,
                        noAfterWords,
                        beforeBuffer,
-                       noBeforeWords)) {
+                       noBeforeWords,
+                       disk)) {
     ljam();
     return;
   }
@@ -806,9 +811,9 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
                             Uint32* const afterBuffer,
                             Uint32& noAfterWords,
                             Uint32* const beforeBuffer,
-                            Uint32& noBeforeWords)
+                            Uint32& noBeforeWords,
+                            bool disk)
 {
-  //XXX this will not work with varsize attributes...
   noAfterWords = 0;
   noBeforeWords = 0;
   Uint32 readBuffer[MAX_ATTRIBUTES_IN_TABLE];
@@ -841,8 +846,8 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
       c_undo_buffer.get_ptr(&req_struct->prevOpPtr.p->m_copy_tuple_location);
   }
 
-  if (regTabPtr->need_expand()) 
-    prepare_read(req_struct, regTabPtr, true);
+  if (regTabPtr->need_expand(disk)) 
+    prepare_read(req_struct, regTabPtr, disk);
   
   int ret = readAttributes(req_struct,
 			   &tableDescriptor[regTabPtr->readKeyArray].tabDescr,
@@ -937,8 +942,8 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
       req_struct->m_tuple_ptr= (Tuple_header*)ptr;
     }
 
-    if (regTabPtr->need_expand()) // no disk 
-      prepare_read(req_struct, regTabPtr, true);
+    if (regTabPtr->need_expand(disk)) 
+      prepare_read(req_struct, regTabPtr, disk);
     
     int ret = readAttributes(req_struct,
 			     &readBuffer[0],
