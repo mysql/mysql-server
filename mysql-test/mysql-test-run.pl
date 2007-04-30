@@ -1361,10 +1361,9 @@ sub collect_mysqld_features () {
   # --no-defaults and --skip-grant-tables are to avoid loading
   # system-wide configs and plugins
   #
-  # --datadir - for lowercase test to work
+  # --datadir must exist, mysqld will chdir into it
   #
-  my $tmp_datadir=$opt_vardir || $default_vardir;
-  my $list= `$exe_mysqld --no-defaults --datadir=$tmp_datadir --language=$path_language --skip-grant-tables --verbose --help`;
+  my $list= `$exe_mysqld --no-defaults --datadir=$path_language --language=$path_language --skip-grant-tables --verbose --help`;
 
   foreach my $line (split('\n', $list))
   {
