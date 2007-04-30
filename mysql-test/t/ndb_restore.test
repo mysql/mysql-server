@@ -28,11 +28,13 @@ CREATE TABLE `t2_c` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 INSERT INTO `t2_c` VALUES (5,4,'','q3.net','addavp:MK_CASELECTOR=1','postorod rattoaa'),(2,1,'4','','addavp:MK_BRANDTAD=345','REDS Brandtad'),(3,2,'4','q3.net','execorder','fixedRatediPO REDS'),(1,1,'3','','addavp:MK_BRANDTAD=123','TEST Brandtad'),(6,5,'','told.q3.net','addavp:MK_BRANDTAD=123','Brandtad Toldzone'),(4,3,'3','q3.net','addavp:MK_POOLHINT=2','ratedi PO TEST');
 
+# Added ROW_FORMAT=FIXED to use below to see that setting is preserved
+# by restore
 CREATE TABLE `t3_c` (
   `CapGoaledatta` smallint(5) unsigned NOT NULL default '0',
   `capgotod` smallint(5) unsigned NOT NULL default '0',
   PRIMARY KEY  (`capgotod`,`CapGoaledatta`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED;
 INSERT INTO `t3_c` VALUES (5,3),(2,4),(5,4),(1,3);
 
 CREATE TABLE `t4_c` (
@@ -150,11 +152,19 @@ create table t8 engine=myisam as select * from t8_c;
 create table t9 engine=myisam as select * from t9_c;
 create table t10 engine=myisam as select * from t10_c;
 
+# check that force varpart is preserved by ndb_restore
+# t3_c has ROW_FORMAT=FIXED i.e. ForceVarPart=0
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t3_c | grep ForceVarPart
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t2_c | grep ForceVarPart
 
 --source include/ndb_backup.inc
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+# check that force varpart is preserved by ndb_restore
+# t3_c has ROW_FORMAT=FIXED i.e. ForceVarPart=0
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t3_c | grep ForceVarPart
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t2_c | grep ForceVarPart
 
 # random output order??
 #show tables;
