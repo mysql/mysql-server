@@ -2126,7 +2126,8 @@ private:
 #endif
   void checkDetachedTriggers(KeyReqStruct *req_struct,
                              Operationrec* regOperPtr,
-                             Tablerec* regTablePtr);
+                             Tablerec* regTablePtr,
+                             bool disk);
 
   void fireImmediateTriggers(KeyReqStruct *req_struct,
                              DLList<TupTriggerData>& triggerList, 
@@ -2138,7 +2139,8 @@ private:
 
   void fireDetachedTriggers(KeyReqStruct *req_struct,
                             DLList<TupTriggerData>& triggerList,
-                            Operationrec* regOperPtr);
+                            Operationrec* regOperPtr,
+                            bool disk);
 
   void executeTriggers(KeyReqStruct *req_struct,
                        DLList<TupTriggerData>& triggerList,
@@ -2146,7 +2148,8 @@ private:
 
   void executeTrigger(KeyReqStruct *req_struct,
                       TupTriggerData* trigPtr, 
-                      Operationrec* regOperPtr);
+                      Operationrec* regOperPtr,
+                      bool disk = true);
 
   bool readTriggerInfo(TupTriggerData* trigPtr,
                        Operationrec* regOperPtr,
@@ -2157,8 +2160,9 @@ private:
                        Uint32* afterBuffer,
                        Uint32& noAfterWords,
                        Uint32* beforeBuffer,
-                       Uint32& noBeforeWords);
-
+                       Uint32& noBeforeWords,
+                       bool disk);
+  
   void sendTrigAttrInfo(Signal*        signal, 
                         Uint32*        data, 
                         Uint32         dataLen,
