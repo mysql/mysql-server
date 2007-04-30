@@ -110,6 +110,11 @@ int my_copy(const char *from, const char *to, myf MyFlags)
 
 err:
   if (from_file >= 0) VOID(my_close(from_file,MyFlags));
-  if (to_file >= 0)   VOID(my_close(to_file,MyFlags));
+  if (to_file >= 0)
+  {
+    VOID(my_close(to_file, MyFlags));
+    /* attempt to delete the to-file we've partially written */
+    VOID(my_delete(to, MyFlags));
+  }
   DBUG_RETURN(-1);
 } /* my_copy */
