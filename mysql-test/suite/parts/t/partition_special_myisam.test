@@ -1,0 +1,49 @@
+################################################################################
+# t/partition_special_myisam.test                                                 #
+#                                                                              #
+# Purpose:                                                                     #
+#  different Tests                                                             #
+#        MYISAM branch                                                         #
+#                                                                              #
+#------------------------------------------------------------------------------#
+# Original Author: HH                                                          #
+# Original Date: 2006-08-01                                                    #
+# Change Author:                                                               #
+# Change Date:                                                                 #
+# Change:                                                                      #
+################################################################################
+
+#
+# NOTE: PLEASE DO NOT ADD NOT MYISAM SPECIFIC TESTCASES HERE !
+#       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
+#       THE SOURCED FILES ONLY.
+#
+# Please read the README at the end of include/partition.pre before changing
+# any of the variables.
+#
+
+#------------------------------------------------------------------------------#
+# General not engine specific settings and requirements
+
+##### Options, for debugging support #####
+let $debug= 0;
+
+# The server must support partitioning.
+--source include/have_partition.inc
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+
+##### Storage engine to be tested
+let $engine= 'MyISAM';
+
+#------------------------------------------------------------------------------#
+# Execute the tests to be applied to all storage engines
+--source suite/parts/inc/partition_key_4col.inc
+--source suite/parts/inc/partition_key_8col.inc
+--source suite/parts/inc/partition_key_16col.inc
+--source suite/parts/inc/partition_key_32col.inc
+# --source inc/partition_key_4col.inc
+# --source inc/partition_key_8col.inc
+# --source inc/partition_key_16col.inc
+# --source inc/partition_key_32col.inc
