@@ -1767,8 +1767,10 @@ typedef DECLARE_MYSQL_THDVAR_BASIC(thdvar_bool_t, my_bool);
 typedef DECLARE_MYSQL_SYSVAR_BASIC(sysvar_str_t, char *);
 typedef DECLARE_MYSQL_THDVAR_BASIC(thdvar_str_t, char *);
 
-typedef DECLARE_MYSQL_SYSVAR_TYPELIB(sysvar_typelib_t);
-typedef DECLARE_MYSQL_THDVAR_TYPELIB(thdvar_typelib_t);
+typedef DECLARE_MYSQL_SYSVAR_TYPELIB(sysvar_enum_t, unsigned long);
+typedef DECLARE_MYSQL_THDVAR_TYPELIB(thdvar_enum_t, unsigned long);
+typedef DECLARE_MYSQL_SYSVAR_TYPELIB(sysvar_set_t, ulonglong);
+typedef DECLARE_MYSQL_THDVAR_TYPELIB(thdvar_set_t, ulonglong);
 
 typedef DECLARE_MYSQL_SYSVAR_SIMPLE(sysvar_int_t, int);
 typedef DECLARE_MYSQL_SYSVAR_SIMPLE(sysvar_long_t, long);
@@ -1896,9 +1898,9 @@ static int check_func_enum(THD *thd, struct st_mysql_sys_var *var,
   int length;
 
   if (var->flags & PLUGIN_VAR_THDLOCAL)
-    typelib= ((thdvar_typelib_t*) var)->typelib;
+    typelib= ((thdvar_enum_t*) var)->typelib;
   else
-    typelib= ((sysvar_typelib_t*) var)->typelib;
+    typelib= ((sysvar_enum_t*) var)->typelib;
 
   if (value->value_type(value) == MYSQL_VALUE_TYPE_STRING)
   {
@@ -1944,9 +1946,9 @@ static int check_func_set(THD *thd, struct st_mysql_sys_var *var,
   int length;
 
   if (var->flags & PLUGIN_VAR_THDLOCAL)
-    typelib= ((thdvar_typelib_t*) var)->typelib;
+    typelib= ((thdvar_set_t*) var)->typelib;
   else
-    typelib= ((sysvar_typelib_t*)var)->typelib;
+    typelib= ((sysvar_set_t*)var)->typelib;
 
   if (value->value_type(value) == MYSQL_VALUE_TYPE_STRING)
   {
@@ -2487,13 +2489,17 @@ byte* sys_var_pluginvar::real_value_ptr(THD *thd, enum_var_type type)
 
 TYPELIB* sys_var_pluginvar::plugin_var_typelib(void)
 {
-  int type= plugin_var->flags & PLUGIN_VAR_TYPEMASK;
-  if (type == PLUGIN_VAR_ENUM || type == PLUGIN_VAR_SET)
-  {
-    if (plugin_var->flags & PLUGIN_VAR_THDLOCAL)
-      return ((thdvar_typelib_t *)plugin_var)->typelib;
-    else
-      return ((sysvar_typelib_t *)plugin_var)->typelib;
+  switch (plugin_var->flags & (PLUGIN_VAR_TYPEMASK | PLUGIN_VAR_THDLOCAL)) {
+  case PLUGIN_VAR_ENUM:
+    return ((sysvar_enum_t *)plugin_var)->typelib;
+  case PLUGIN_VAR_SET:
+    return ((sysvar_set_t *)plugin_var)->typelib;
+  case PLUGIN_VAR_ENUM | PLUGIN_VAR_THDLOCAL:
+    return ((thdvar_enum_t *)plugin_var)->typelib;
+  case PLUGIN_VAR_SET | PLUGIN_VAR_THDLOCAL:
+    return ((thdvar_set_t *)plugin_var)->typelib;
+  default:
+    return NULL;
   }
   return NULL;
 }
@@ -2513,7 +2519,7 @@ byte* sys_var_pluginvar::value_ptr(THD *thd, enum_var_type type,
     char buffer[STRING_BUFFER_USUAL_SIZE];
     String str(buffer, sizeof(buffer), system_charset_info);
     TYPELIB *typelib= plugin_var_typelib();
-    ulong mask= 1, value= *(ulong*) result;
+    ulonglong mask= 1, value= *(ulonglong*) result;
     uint i;
 
     str.length(0);
@@ -2648,15 +2654,15 @@ static void plugin_opt_set_limits(struct my_option *options,
     break;
   case PLUGIN_VAR_ENUM:
     options->var_type= GET_ENUM;
-    options->typelib= ((sysvar_typelib_t*) opt)->typelib;
+    options->typelib= ((sysvar_enum_t*) opt)->typelib;
     options->def_value= *(ulong*) ((int*) (opt + 1) + 1);
     options->min_value= options->block_size= 0;
     options->max_value= options->typelib->count - 1;
     break;
   case PLUGIN_VAR_SET:
     options->var_type= GET_SET;
-    options->typelib= ((sysvar_typelib_t*) opt)->typelib;
-    options->def_value= *(ulong*) ((int*) (opt + 1) + 1);
+    options->typelib= ((sysvar_set_t*) opt)->typelib;
+    options->def_value= *(ulonglong*) ((int*) (opt + 1) + 1);
     options->min_value= options->block_size= 0;
     options->max_value= (ULL(1) << options->typelib->count) - 1;
     break;
@@ -2690,15 +2696,15 @@ static void plugin_opt_set_limits(struct my_option *options,
     break;
   case PLUGIN_VAR_ENUM | PLUGIN_VAR_THDLOCAL:
     options->var_type= GET_ENUM;
-    options->typelib= ((thdvar_typelib_t*) opt)->typelib;
+    options->typelib= ((thdvar_enum_t*) opt)->typelib;
     options->def_value= *(ulong*) ((int*) (opt + 1) + 1);
     options->min_value= options->block_size= 0;
     options->max_value= options->typelib->count - 1;
     break;
   case PLUGIN_VAR_SET | PLUGIN_VAR_THDLOCAL:
     options->var_type= GET_SET;
-    options->typelib= ((thdvar_typelib_t*) opt)->typelib;
-    options->def_value= *(ulong*) ((int*) (opt + 1) + 1);
+    options->typelib= ((thdvar_set_t*) opt)->typelib;
+    options->def_value= *(ulonglong*) ((int*) (opt + 1) + 1);
     options->min_value= options->block_size= 0;
     options->max_value= (ULL(1) << options->typelib->count) - 1;
     break;
@@ -2815,8 +2821,10 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
       SET_PLUGIN_VAR_RESOLVE((thdvar_str_t *) opt);
       break;
     case PLUGIN_VAR_ENUM:
+      SET_PLUGIN_VAR_RESOLVE((thdvar_enum_t *) opt);
+      break;
     case PLUGIN_VAR_SET:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_typelib_t *) opt);
+      SET_PLUGIN_VAR_RESOLVE((thdvar_set_t *) opt);
       break;
     default:
       sql_print_error("Unknown variable type code 0x%x in plugin '%s'.",
