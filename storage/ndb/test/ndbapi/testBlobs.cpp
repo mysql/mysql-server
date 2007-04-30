@@ -2186,7 +2186,7 @@ struct bug27370_data {
   char *m_writebuf;
   Uint32 m_blob1_size;
   Uint32 m_pk1;
-  char m_pk2[256 + 1];
+  char m_pk2[256 + 2];
   Uint16 m_pk3;
   bool m_thread_stop;
 };
@@ -2247,6 +2247,8 @@ bugtest_27370()
   data.m_pk1= 27370;
   memset(data.m_pk2, 'x', sizeof(data.m_pk2) - 1);
   data.m_pk2[sizeof(data.m_pk2) - 1]= '\0';
+  if (!g_opt.m_pk2chr.m_fixed)
+    data.m_pk2[0]= urandom(g_opt.m_pk2chr.m_len + 1);
   data.m_pk3= 27370;
   data.m_thread_stop= false;
 
