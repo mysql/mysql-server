@@ -1386,6 +1386,7 @@ Dblqh::sendAddFragReq(Signal* signal)
       tupFragReq->noOfCharsets = addfragptr.p->noOfCharsets;
       tupFragReq->checksumIndicator = addfragptr.p->checksumIndicator;
       tupFragReq->globalCheckpointIdIndicator = addfragptr.p->GCPIndicator;
+      tupFragReq->forceVarPartFlag = addfragptr.p->forceVarPartFlag;      
       sendSignal(fragptr.p->tupBlockref, GSN_TUPFRAGREQ,
 		 signal, TupFragReq::SignalLength, JBB);
       return;
