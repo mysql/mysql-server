@@ -203,9 +203,9 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd,
   type blk_sz;                  \
 } MYSQL_SYSVAR_NAME(name)
 
-#define DECLARE_MYSQL_SYSVAR_TYPELIB(name) struct { \
+#define DECLARE_MYSQL_SYSVAR_TYPELIB(name, type) struct { \
   MYSQL_PLUGIN_VAR_HEADER;      \
-  unsigned long *value, def_val;\
+  type *value; type def_val;    \
   TYPELIB *typelib;             \
 } MYSQL_SYSVAR_NAME(name)
 
@@ -227,11 +227,11 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd,
   DECLARE_THDVAR_FUNC(type);    \
 } MYSQL_SYSVAR_NAME(name)
 
-#define DECLARE_MYSQL_THDVAR_TYPELIB(name) struct { \
+#define DECLARE_MYSQL_THDVAR_TYPELIB(name, type) struct { \
   MYSQL_PLUGIN_VAR_HEADER;      \
   int offset;                   \
-  unsigned long def_val;        \
-  DECLARE_THDVAR_FUNC(unsigned long); \
+  type def_val;                 \
+  DECLARE_THDVAR_FUNC(type);    \
   TYPELIB *typelib;             \
 } MYSQL_SYSVAR_NAME(name)
 
@@ -271,22 +271,22 @@ DECLARE_MYSQL_SYSVAR_SIMPLE(name, unsigned long) = { \
   #name, comment, check, update, &varname, def, min, max, blk }
 
 #define MYSQL_SYSVAR_LONGLONG(name, varname, opt, comment, check, update, def, min, max, blk) \
-DECLARE_MYSQL_SYSVAR_SIMPLE(name, longlong) = { \
+DECLARE_MYSQL_SYSVAR_SIMPLE(name, long long) = { \
   PLUGIN_VAR_LONGLONG | ((opt) & PLUGIN_VAR_MASK), \
   #name, comment, check, update, &varname, def, min, max, blk }
 
 #define MYSQL_SYSVAR_ULONGLONG(name, varname, opt, comment, check, update, def, min, max, blk) \
-DECLARE_MYSQL_SYSVAR_SIMPLE(name, ulonglong) = { \
+DECLARE_MYSQL_SYSVAR_SIMPLE(name, unsigned long long) = { \
   PLUGIN_VAR_LONGLONG | PLUGIN_VAR_UNSIGNED | ((opt) & PLUGIN_VAR_MASK), \
   #name, comment, check, update, &varname, def, min, max, blk }
 
 #define MYSQL_SYSVAR_ENUM(name, varname, opt, comment, check, update, def, typelib) \
-DECLARE_MYSQL_SYSVAR_TYPELIB(name) = { \
+DECLARE_MYSQL_SYSVAR_TYPELIB(name, unsigned long) = { \
   PLUGIN_VAR_ENUM | ((opt) & PLUGIN_VAR_MASK), \
   #name, comment, check, update, &varname, def, typelib }
 
 #define MYSQL_SYSVAR_SET(name, varname, opt, comment, check, update, def, typelib) \
-DECLARE_MYSQL_SYSVAR_TYPELIB(name) = { \
+DECLARE_MYSQL_SYSVAR_TYPELIB(name, unsigned long long) = { \
   PLUGIN_VAR_SET | ((opt) & PLUGIN_VAR_MASK), \
   #name, comment, check, update, &varname, def, typelib }
 
@@ -321,22 +321,22 @@ DECLARE_MYSQL_THDVAR_SIMPLE(name, unsigned long) = { \
   #name, comment, check, update, -1, def, min, max, blk, NULL }
 
 #define MYSQL_THDVAR_LONGLONG(name, opt, comment, check, update, def, min, max, blk) \
-DECLARE_MYSQL_THDVAR_SIMPLE(name, longlong) = { \
+DECLARE_MYSQL_THDVAR_SIMPLE(name, long long) = { \
   PLUGIN_VAR_LONGLONG | PLUGIN_VAR_THDLOCAL | ((opt) & PLUGIN_VAR_MASK), \
   #name, comment, check, update, -1, def, min, max, blk, NULL }
 
 #define MYSQL_THDVAR_ULONGLONG(name, opt, comment, check, update, def, min, max, blk) \
-DECLARE_MYSQL_THDVAR_SIMPLE(name, ulonglong) = { \
+DECLARE_MYSQL_THDVAR_SIMPLE(name, unsigned long long) = { \
   PLUGIN_VAR_LONGLONG | PLUGIN_VAR_THDLOCAL | PLUGIN_VAR_UNSIGNED | ((opt) & PLUGIN_VAR_MASK), \
   #name, comment, check, update, -1, def, min, max, blk, NULL }
 
 #define MYSQL_THDVAR_ENUM(name, opt, comment, check, update, def, typelib) \
-DECLARE_MYSQL_THDVAR_TYPELIB(name) = { \
+DECLARE_MYSQL_THDVAR_TYPELIB(name, unsigned long) = { \
   PLUGIN_VAR_ENUM | PLUGIN_VAR_THDLOCAL | ((opt) & PLUGIN_VAR_MASK), \
   #name, comment, check, update, -1, def, NULL, typelib }
 
 #define MYSQL_THDVAR_SET(name, opt, comment, check, update, def, typelib) \
-DECLARE_MYSQL_THDVAR_TYPELIB(name) = { \
+DECLARE_MYSQL_THDVAR_TYPELIB(name, unsigned long long) = { \
   PLUGIN_VAR_SET | PLUGIN_VAR_THDLOCAL | ((opt) & PLUGIN_VAR_MASK), \
   #name, comment, check, update, -1, def, NULL, typelib }
 
