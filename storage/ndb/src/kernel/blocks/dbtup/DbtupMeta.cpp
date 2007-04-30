@@ -976,9 +976,9 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
       regTabPtr->m_attributes[MM].m_no_of_dynamic)
   {
     pos[MM] += Var_part_ref::SZ32;
-    regTabPtr.p->m_bits &= ~(Uint32)Tablerec::TR_ForceVarPart;
+    regTabPtr->m_bits &= ~(Uint32)Tablerec::TR_ForceVarPart;
   }
-  else if (regTabPtr.p->m_bits & Tablerec::TR_ForceVarPart)
+  else if (regTabPtr->m_bits & Tablerec::TR_ForceVarPart)
   {
     pos[MM] += Var_part_ref::SZ32;
   }
