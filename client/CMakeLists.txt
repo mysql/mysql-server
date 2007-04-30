@@ -12,6 +12,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+INCLUDE("${PROJECT_SOURCE_DIR}/win/mysql_manifest.cmake")
 
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
@@ -96,4 +97,17 @@ ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
 TARGET_LINK_LIBRARIES(mysqladmin mysqlclient mysys dbug yassl taocrypt zlib wsock32)
 
 ADD_EXECUTABLE(echo echo.c)
+
+IF(EMBED_MANIFESTS)
+  MYSQL_EMBED_MANIFEST("mysql" "asInvoker")
+  MYSQL_EMBED_MANIFEST("mysqltest" "asInvoker")
+  MYSQL_EMBED_MANIFEST("mysqlcheck" "asInvoker")
+  MYSQL_EMBED_MANIFEST("mysqldump" "asInvoker")
+  MYSQL_EMBED_MANIFEST("mysqlimport" "asInvoker")
+  MYSQL_EMBED_MANIFEST("mysql_upgrade" "asInvoker")
+  MYSQL_EMBED_MANIFEST("mysqlshow" "asInvoker")
+  MYSQL_EMBED_MANIFEST("mysqlbinlog" "asInvoker")
+  MYSQL_EMBED_MANIFEST("mysqladmin" "asInvoker")
+  MYSQL_EMBED_MANIFEST("echo" "asInvoker")
+ENDIF(EMBED_MANIFESTS)
 

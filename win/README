@@ -50,6 +50,8 @@ The options right now are
     MYSQL_TCP_PORT=<port>                Server port, default 3306
     DISABLE_GRANT_OPTIONS                Disables the use of --init-file and --skip-grant-tables
                                          options of mysqld.exe
+    EMBED_MANIFESTS                      Embed custom manifests into final exes, otherwise VS
+                                         default will be used.
                                 
 
 So the command line could look like:
