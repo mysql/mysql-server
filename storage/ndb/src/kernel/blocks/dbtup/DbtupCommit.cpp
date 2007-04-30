@@ -356,6 +356,7 @@ Dbtup::disk_page_commit_callback(Signal* signal,
   tupCommitReq->opPtr= opPtrI;
   tupCommitReq->hashValue= hash_value;
   tupCommitReq->gci= gci;
+  tupCommitReq->diskpage = page_id;
 
   regOperPtr.p->op_struct.m_load_diskpage_on_commit= 0;
   regOperPtr.p->m_commit_disk_callback_page= page_id;
@@ -386,14 +387,15 @@ Dbtup::disk_page_log_buffer_callback(Signal* signal,
   
   c_operation_pool.getPtr(regOperPtr, opPtrI);
   c_lqh->get_op_info(regOperPtr.p->userpointer, &hash_value, &gci);
+  Uint32 page= regOperPtr.p->m_commit_disk_callback_page;
 
   TupCommitReq * const tupCommitReq= (TupCommitReq *)signal->getDataPtr();
   
   tupCommitReq->opPtr= opPtrI;
   tupCommitReq->hashValue= hash_value;
   tupCommitReq->gci= gci;
+  tupCommitReq->diskpage = page;
 
-  Uint32 page= regOperPtr.p->m_commit_disk_callback_page;
   ndbassert(regOperPtr.p->op_struct.m_load_diskpage_on_commit == 0);
   regOperPtr.p->op_struct.m_wait_log_buffer= 0;
   m_global_page_pool.getPtr(m_pgman.m_ptr, page);
@@ -478,7 +480,16 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   req_struct.signal= signal;
   req_struct.hash_value= hash_value;
   req_struct.gci= gci;
+  regOperPtr.p->m_commit_disk_callback_page = tupCommitReq->diskpage;
 
+#ifdef VM_TRACE
+  if (tupCommitReq->diskpage == RNIL)
+  {
+    m_pgman.m_ptr.setNull();
+    req_struct.m_disk_page_ptr.setNull();
+  }
+#endif
+  
   ptrCheckGuard(regTabPtr, no_of_tablerec, tablerec);
 
   PagePtr page;
@@ -626,8 +637,10 @@ skip_disk:
     /**
      * Perform "real" commit
      */
+    Uint32 disk = regOperPtr.p->m_commit_disk_callback_page;
     set_change_mask_info(&req_struct, regOperPtr.p);
-    checkDetachedTriggers(&req_struct, regOperPtr.p, regTabPtr.p);
+    checkDetachedTriggers(&req_struct, regOperPtr.p, regTabPtr.p, 
+                          disk != RNIL);
     
     if(regOperPtr.p->op_struct.op_type != ZDELETE)
     {
