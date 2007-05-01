@@ -4,9 +4,10 @@ use Getopt::Long;
 use POSIX qw(strftime);
 
 $|=1;
-$VER="2.15";
+$VER="2.16";
 
-$opt_config_file   = undef();
+my @defaults_options;   #  Leading --no-defaults, --defaults-file, etc.
+
 $opt_example       = 0;
 $opt_help          = 0;
 $opt_log           = undef();
@@ -49,54 +50,52 @@ sub main
     print "MySQL distribution.\n";
     $my_print_defaults_exists= 0;
   }
-  if ($my_print_defaults_exists)
+
+  # Remove leading defaults options from @ARGV
+  while (@ARGV > 0)
   {
-    foreach my $arg (@ARGV)
-    {
-      if ($arg =~ m/^--config-file=(.*)/)
-      {
-	if (!length($1))
-	{
-	  die "Option config-file requires an argument\n";
-	}
-	elsif (!( -e $1 && -r $1))
-	{
-	  die "Option file '$1' doesn't exists, or is not readable\n";
-	}
-	else
-	{
-	  $opt_config_file= $1;
-	  if (!($opt_config_file =~ m/\//))
-	  {
-	    # No path. Use current working directory
-	    $opt_config_file= "./" . $opt_config_file;
-	  }
-	}
-      }
-    }
-    my $com= "my_print_defaults ";
-    $com.= "--config-file=$opt_config_file " if (defined($opt_config_file));
-    $com.= "mysqld_multi";
-    my @defops = `$com`;
-    chop @defops;
-    splice @ARGV, 0, 0, @defops;
+    last unless $ARGV[0] =~
+      /^--(?:no-defaults$|(?:defaults-file|defaults-extra-file)=)/;
+    push @defaults_options, (shift @ARGV);
   }
-  if (!GetOptions("help","example","version","mysqld=s","mysqladmin=s",
-		  "config-file=s","user=s","password=s","log=s","no-log",
-		  "tcp-ip", "silent","verbose"))
+
+  # Handle deprecated --config-file option: convert to --defaults-extra-file
+  foreach my $arg (@ARGV)
+  {
+    if ($arg =~ m/^--config-file=(.*)/)
+    {
+      # Put it at the beginning of the list, so it has lower precedence
+      # than a correct --defaults-extra-file option
+
+      unshift @defaults_options, "--defaults-extra-file=$1";
+    }
+  }
+
+  foreach (@defaults_options)
+  {
+    $_ = quote_shell_word($_);
+  }
+
+  # Add [mysqld_multi] options to front of @ARGV, ready for GetOptions()
+  unshift @ARGV, defaults_for_group('mysqld_multi');
+
+  # The --config-file option can be ignored; if passed on the command
+  # line, it's already handled; if specified in the configuration file,
+  # it's redundant and not useful
+  @ARGV= grep { not /^--config-file=/ } @ARGV;
+
+  # We've already handled --no-defaults, --defaults-file, etc.
+  if (!GetOptions("help", "example", "version", "mysqld=s", "mysqladmin=s",
+                  "user=s", "password=s", "log=s", "no-log",
+                  "tcp-ip",  "silent", "verbose"))
   {
     $flag_exit= 1;
-  }
-  if (defined($opt_config_file) && !($opt_config_file =~ m/\//))
-  {
-    # No path. Use current working directory
-    $opt_config_file= "./" . $opt_config_file;
   }
   usage() if ($opt_help);
 
   if ($opt_verbose && $opt_silent)
   {
-    print "Both --verbose and --silent has been given. Some of the warnings ";
+    print "Both --verbose and --silent have been given. Some of the warnings ";
     print "will be disabled\nand some will be enabled.\n\n";
   }
 
@@ -168,51 +167,42 @@ sub main
   }
 }
 
-####
-#### Quote option argument. Add double quotes around the argument
-#### and escape the following: $, \, "
-#### This function is needed, because my_print_defaults drops possible
-#### quotes, single or double, from in front of an argument and from
-#### the end.
-####
+#
+# Quote word for shell
+#
 
-sub quote_opt_arg
+sub quote_shell_word
 {
   my ($option)= @_;
 
-  if ($option =~ m/(\-\-[a-zA-Z0-9\_\-]+)=(.*)/)
-  {
-    $option= $1;
-    $arg= $2;
-    $arg=~ s/\\/\\\\/g; # Escape escape character first to avoid doubling.
-    $arg=~ s/\$/\\\$/g;
-    $arg=~ s/\"/\\\"/g;
-    $arg= "\"" . $arg . "\"";
-    $option= $option . "=" . $arg;
-  }
+  $option =~ s!([^\w=./-])!\\$1!g;
   return $option;
+}
+
+sub defaults_for_group
+{
+  my ($group) = @_;
+
+  return () unless $my_print_defaults_exists;
+
+  my $com= join ' ', 'my_print_defaults', @defaults_options, $group;
+  my @defaults = `$com`;
+  chomp @defaults;
+  return @defaults;
 }
 
 ####
 #### Init log file. Check for appropriate place for log file, in the following
-#### order my_print_defaults mysqld datadir, @datadir@, /var/log, /tmp
+#### order:  my_print_defaults mysqld datadir, @datadir@
 ####
 
 sub init_log
 {
-  if ($my_print_defaults_exists)
+  foreach my $opt (defaults_for_group('mysqld'))
   {
-    @mysqld_opts= `my_print_defaults mysqld`;
-    chomp @mysqld_opts;
-    foreach my $opt (@mysqld_opts)
+    if ($opt =~ m/^--datadir=(.*)/ && -d "$1" && -w "$1")
     {
-      if ($opt =~ m/^\-\-datadir[=](.*)/)
-      {
-        if (-d "$1" && -w "$1")
-        {
-	  $logdir= $1;
-        }
-      }
+      $logdir= $1;
     }
   }
   if (!defined($logdir))
@@ -303,11 +293,7 @@ sub start_mysqlds()
   @groups = &find_groups($groupids);
   for ($i = 0; defined($groups[$i]); $i++)
   {
-    $com = "my_print_defaults";
-    $com.= defined($opt_config_file) ? " --config-file=$opt_config_file" : "";
-    $com.= " $groups[$i]";
-    @options = `$com`;
-    chop @options;
+    @options = defaults_for_group($groups[$i]);
 
     $mysqld_found= 1; # The default
     $mysqld_found= 0 if (!length($mysqld));
@@ -326,7 +312,7 @@ sub start_mysqlds()
       }
       else
       {
-	$options[$j]= quote_opt_arg($options[$j]);
+	$options[$j]= quote_shell_word($options[$j]);
 	$tmp.= " $options[$j]";
       }
     }
@@ -401,11 +387,7 @@ sub get_mysqladmin_options
   my ($i, @groups)= @_;
   my ($mysqladmin_found, $com, $tmp, $j);
 
-  $com = "my_print_defaults";
-  $com.= defined($opt_config_file) ? " --config-file=$opt_config_file" : "";
-  $com.= " $groups[$i]";
-  @options = `$com`;
-  chop @options;
+  @options = defaults_for_group($groups[$i]);
 
   $mysqladmin_found= 1; # The default
   $mysqladmin_found= 0 if (!length($mysqladmin));
@@ -445,129 +427,81 @@ sub get_mysqladmin_options
   return $com;
 }
 
-####
-#### Find groups. Takes the valid group numbers as an argument, parses
-#### them, puts them in the ascending order, removes duplicates and
-#### returns the wanted groups accordingly.
-####
+# Return a list of option files which can be opened.  Similar, but not
+# identical, to behavior of my_search_option_files()
+sub list_defaults_files
+{
+  my %opt;
+  foreach (@defaults_options)
+  {
+    return () if /^--no-defaults$/;
+    $opt{$1} = $2 if /^--defaults-(extra-file|file)=(.*)$/;
+  }
 
+  return ($opt{file}) if exists $opt{file};
+
+  my %seen;  # Don't list the same file more than once
+  return grep { defined $_ and not $seen{$_}++ and -f $_ and -r $_ }
+              ('/etc/my.cnf',
+               '/etc/mysql/my.cnf',
+               '@sysconfdir@/my.cnf',
+               ($ENV{MYSQL_HOME} ? "$ENV{MYSQL_HOME}/my.cnf" : undef),
+               $opt{'extra-file'},
+               ($ENV{HOME} ? "$ENV{HOME}/.my.cnf" : undef));
+}
+
+
+# Takes a specification of GNRs (see --help), and returns a list of matching
+# groups which actually are mentioned in a relevant config file
 sub find_groups
 {
   my ($raw_gids) = @_;
-  my (@groups, @data, @tmp, $line, $i, $k, @pre_gids, @gids, @tmp2,
-      $prev_value);
 
-  # Read the lines from the config file to variable 'data'
-  if (defined($opt_config_file))
-  {
-    open(MY_CNF, "<$opt_config_file") && (@data=<MY_CNF>) && close(MY_CNF);
-  }
-  else
-  {
-    if (-f "@sysconfdir@/my.cnf" && -r "@sysconfdir@/my.cnf")
-    {
-      open(MY_CNF, "<@sysconfdir@/my.cnf") && (@tmp=<MY_CNF>) && close(MY_CNF);
-    } elsif (-f "/etc/my.cnf" && -r "/etc/my.cnf")
-    {
-      open(MY_CNF, "</etc/my.cnf") && (@tmp=<MY_CNF>) && close(MY_CNF);
-    }
-    for ($i = 0; ($line = shift @tmp); $i++)
-    {
-      $data[$i] = $line;
-    }
-    if (-f "/etc/mysql/my.cnf" && -r "/etc/mysql/my.cnf")
-    {
-      open(MY_CNF, "</etc/mysql/my.cnf") && (@tmp=<MY_CNF>) && close(MY_CNF);
-    }
-    for (; ($line = shift @tmp); $i++)
-    {
-      $data[$i] = $line;
-    }
-    if (defined($ENV{MYSQL_HOME}) && -f "$ENV{MYSQL_HOME}/my.cnf" &&
-	-r "$ENV{MYSQL_HOME}/my.cnf")
-    {
-      open(MY_CNF, "<$ENV{MYSQL_HOME}/my.cnf") && (@tmp=<MY_CNF>) &&
-      close(MY_CNF);
-    }
-    for (; ($line = shift @tmp); $i++)
-    {
-      $data[$i] = $line;
-    }
-    if (-f "$homedir/.my.cnf" && -r "$homedir/.my.cnf")
-    {
-      open(MY_CNF, "<$homedir/.my.cnf") && (@tmp=<MY_CNF>) && close(MY_CNF);
-    }
-    for (; ($line = shift @tmp); $i++)
-    {
-      $data[$i] = $line;
-    }
-  }
-  chomp @data;
-  # Make a list of the wanted group ids
+  my %gids;
+  my @groups;
+
   if (defined($raw_gids))
   {
-    @pre_gids = split(',', $raw_gids);
-  }
-  if (defined($raw_gids))
-  {
-    for ($i = 0, $j = 0; defined($pre_gids[$i]); $i++)
+    # Make a hash of the wanted group ids
+    foreach my $raw_gid (split ',', $raw_gids)
     {
-      if ($pre_gids[$i] =~ m/^(\d+)$/)
+      # Match 123 or 123-456
+      my ($start, $end) = ($raw_gid =~ /^\s*(\d+)(?:\s*-\s*(\d+))?\s*$/);
+      $end = $start if not defined $end;
+      if (not defined $start or $end < $start or $start < 0)
       {
-	$gids[$j] = $1;
-	$j++;
+        print "ABORT: Bad GNR: $raw_gid; see $my_progname --help\n";
+        exit(1);
       }
-      elsif ($pre_gids[$i] =~ m/^(\d+)(\-)(\d+)$/)
+
+      foreach my $i ($start .. $end)
       {
-	for ($k = $1; $k <= $3; $k++)
-	{
-	  $gids[$j] = $k;
-	  $j++;
-	}
-      }
-      else
-      {
-	print "ABORT: Bad GNR: $pre_gids[$i] See $my_progname --help\n";
-	exit(1);
+        # Use $i + 0 to normalize numbers (002 + 0 -> 2)
+        $gids{$i + 0}= 1;
       }
     }
   }
-  # Sort the list of gids numerically in ascending order
-  @gids = sort {$a <=> $b} @gids;
-  # Remove non-positive integers and duplicates
-  for ($i = 0, $j = 0; defined($gids[$i]); $i++)
+
+  my @defaults_files = list_defaults_files();
+  #warn "@{[sort keys %gids]} -> @defaults_files\n";
+  foreach my $file (@defaults_files)
   {
-    next if ($gids[$i] <= 0);
-    if (!$i || $prev_value != $gids[$i])
+    next unless open CONF, "< $file";
+
+    while (<CONF>)
     {
-      $tmp2[$j] = $gids[$i];
-      $j++;
-    }
-    $prev_value = $gids[$i];
-  }
-  @gids = @tmp2;
-  # Find and return the wanted groups
-  for ($i = 0, $j = 0; defined($data[$i]); $i++)
-  {
-    if ($data[$i] =~ m/^(\s*\[\s*)(mysqld)(\d+)(\s*\]\s*)$/)
-    {
-      if (defined($raw_gids))
+      if (/^\s*\[\s*(mysqld)(\d+)\s*\]\s*$/)
       {
-	for ($k = 0; defined($gids[$k]); $k++)
-	{
-	  if ($gids[$k] == $3)
-	  {
-	    $groups[$j] = $2 . $3;
-	    $j++;
-	  }
-	}
-      }
-      else
-      {
-	$groups[$j] = $2 . $3;
-	$j++;
+        #warn "Found a group: $1$2\n";
+        # Use $2 + 0 to normalize numbers (002 + 0 -> 2)
+        if (not defined($raw_gids) or $gids{$2 + 0})
+        {
+          push @groups, "$1$2";
+        }
       }
     }
+
+    close CONF;
   }
   return @groups;
 }
@@ -806,8 +740,16 @@ groups found will either be started, stopped, or reported. Note that
 syntax for specifying GNRs must appear without spaces.
 
 Options:
---config-file=...  Alternative config file.
-                   Using: $opt_config_file
+
+These options must be given before any others:
+--no-defaults      Do not read any defaults file
+--defaults-file=...  Read only this configuration file, do not read the
+                   standard system-wide and user-specific files
+--defaults-extra-file=...  Read this configuration file in addition to the
+                   standard system-wide and user-specific files
+Using:  @{[join ' ', @defaults_options]}
+
+--config-file=...  Deprecated, please use --defaults-extra-file instead
 --example          Give an example of a config file with extra information.
 --help             Print this help and exit.
 --log=...          Log file. Full path to and the name for the log file. NOTE:
