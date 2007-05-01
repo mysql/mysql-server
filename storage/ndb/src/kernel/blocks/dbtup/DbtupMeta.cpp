@@ -118,17 +118,10 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
     fragrefuse1Lab(signal, fragOperPtr);
     return;
   }
-  initFragRange(regFragPtr.p);
   if (!addfragtotab(regTabPtr.p, fragId, regFragPtr.i)) {
     jam();
     terrorCode= ZNO_FREE_TAB_ENTRY_ERROR;
     fragrefuse2Lab(signal, fragOperPtr, regFragPtr);
-    return;
-  }
-  if (cfirstfreerange == RNIL) {
-    jam();
-    terrorCode= ZNO_FREE_PAGE_RANGE_ERROR;
-    fragrefuse3Lab(signal, fragOperPtr, regFragPtr, regTabPtr.p, fragId);
     return;
   }
 
@@ -139,6 +132,9 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->m_lcp_scan_op = RNIL; 
   regFragPtr.p->m_lcp_keep_list = RNIL;
   regFragPtr.p->m_var_page_chunks = RNIL;  
+  regFragPtr.p->noOfPages = 0;
+  regFragPtr.p->noOfVarPages = 0;
+  ndbrequire(regFragPtr.p->m_page_map.isEmpty());
 
   if (ERROR_INSERTED(4007) && regTabPtr.p->fragid[0] == fragId ||
       ERROR_INSERTED(4008) && regTabPtr.p->fragid[1] == fragId) {
@@ -517,6 +513,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
 #endif
   
   {
+#ifdef MIN_ROWS_NOT_SUPPORTED
     Uint32 fix_tupheader = regTabPtr.p->m_offsets[MM].m_fix_header_size;
     ndbassert(fix_tupheader > 0);
     Uint32 noRowsPerPage = ZWORDS_ON_PAGE / fix_tupheader;
@@ -526,8 +523,10 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       noAllocatedPages = 2;
     else if (noAllocatedPages == 0)
       noAllocatedPages = 2;
-    noAllocatedPages = allocFragPages(regFragPtr.p, noAllocatedPages);
-
+#endif
+    
+    Uint32 noAllocatedPages = allocFragPage(regFragPtr.p);
+    
     if (noAllocatedPages == 0) {
       jam();
       terrorCode = ZNO_PAGES_ALLOCATED_ERROR;
@@ -1336,7 +1335,6 @@ void Dbtup::addattrrefuseLab(Signal* signal,
                              Tablerec* const regTabPtr,
                              Uint32 fragId) 
 {
-  releaseFragPages(regFragPtr.p);
   deleteFragTab(regTabPtr, fragId);
   releaseFragrec(regFragPtr);
   releaseTabDescr(regTabPtr);
@@ -1355,7 +1353,6 @@ void Dbtup::fragrefuse4Lab(Signal* signal,
                            Tablerec* const regTabPtr,
                            Uint32 fragId) 
 {
-  releaseFragPages(regFragPtr.p);
   fragrefuse3Lab(signal, fragOperPtr, regFragPtr, regTabPtr, fragId);
   initTab(regTabPtr);
 }
@@ -1367,7 +1364,6 @@ void Dbtup::fragrefuse3Lab(Signal* signal,
                            Uint32 fragId) 
 {
   fragrefuse2Lab(signal, fragOperPtr, regFragPtr);
-  deleteFragTab(regTabPtr, fragId);
 }
 
 void Dbtup::fragrefuse2Lab(Signal* signal,
@@ -1854,12 +1850,91 @@ Dbtup::drop_fragment_free_var_pages(Signal* signal)
     sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);  
     return;
   }
-  Uint32 logfile_group_id = fragPtr.p->m_logfile_group_id ;
-  releaseFragPages(fragPtr.p);
+
+  DynArr256::ReleaseIterator iter;
+  DynArr256 map(c_page_map_pool, fragPtr.p->m_page_map);
+  map.init(iter);
+  signal->theData[0] = ZFREE_PAGES;
+  signal->theData[1] = tabPtr.i;
+  signal->theData[2] = fragPtrI;
+  memcpy(signal->theData+3, &iter, sizeof(iter));
+  sendSignal(reference(), GSN_CONTINUEB, signal, 3 + sizeof(iter)/4, JBB);
+}
+
+void
+Dbtup::drop_fragment_free_pages(Signal* signal)
+{
   Uint32 i;
+  Uint32 tableId = signal->theData[1];
+  Uint32 fragPtrI = signal->theData[2];
+  DynArr256::ReleaseIterator iter;
+  memcpy(&iter, signal->theData+3, sizeof(iter));
+
+  FragrecordPtr fragPtr;
+  fragPtr.i = fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+  
+  DynArr256 map(c_page_map_pool, fragPtr.p->m_page_map);
+  Uint32 realpid;
+  for (i = 0; i<16; i++)
+  {
+    switch(map.release(iter, &realpid)){
+    case 0:
+      jam();
+      goto done;
+    case 1:
+      if (realpid != RNIL)
+      {
+	jam();
+	returnCommonArea(realpid, 1);
+      }
+    case 2:
+      jam();
+      break;
+    }
+  }
+  
+  signal->theData[0] = ZFREE_PAGES;
+  signal->theData[1] = tableId;
+  signal->theData[2] = fragPtrI;
+  memcpy(signal->theData+3, &iter, sizeof(iter));
+  sendSignal(reference(), GSN_CONTINUEB, signal, 3 + sizeof(iter)/4, JBB);
+  return;
+
+done:
+  for (i = 0; i<MAX_FREE_LIST; i++)
+  {
+    LocalDLList<Page> tmp(c_page_pool, fragPtr.p->free_var_page_array[i]);
+    tmp.remove();
+  }
+  
+  {
+    LocalDLList<Page> tmp(c_page_pool, fragPtr.p->emptyPrimPage);
+    tmp.remove();
+  }
+  
+  {
+    LocalDLFifoList<Page> tmp(c_page_pool, fragPtr.p->thFreeFirst);
+    tmp.remove();
+  }
+  
+  {
+    LocalSLList<Page> tmp(c_page_pool, fragPtr.p->m_empty_pages);
+    tmp.remove();
+  }
+
+  /**
+   * Finish
+   */
+  TablerecPtr tabPtr;
+  tabPtr.i= tableId;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+  
   for(i= 0; i<MAX_FRAG_PER_NODE; i++)
     if(tabPtr.p->fragrec[i] == fragPtr.i)
       break;
+
+  Uint32 logfile_group_id = fragPtr.p->m_logfile_group_id ;
   
   ndbrequire(i != MAX_FRAG_PER_NODE);
   tabPtr.p->fragid[i]= RNIL;
