@@ -980,7 +980,8 @@ ArrayPool<TupTriggerData> c_triggerPool;
     enum Bits
     {
       TR_Checksum = 0x1, // Need to be 1
-      TR_RowGCI   = 0x2
+      TR_RowGCI   = 0x2,
+      TR_ForceVarPart = 0x4
     };
     Uint16 m_bits;
     Uint16 total_rec_size; // Max total size for entire tuple in words
@@ -2207,7 +2208,8 @@ private:
 #endif
   void checkDetachedTriggers(KeyReqStruct *req_struct,
                              Operationrec* regOperPtr,
-                             Tablerec* regTablePtr);
+                             Tablerec* regTablePtr,
+                             bool disk);
 
   void fireImmediateTriggers(KeyReqStruct *req_struct,
                              DLList<TupTriggerData>& triggerList, 
@@ -2219,7 +2221,8 @@ private:
 
   void fireDetachedTriggers(KeyReqStruct *req_struct,
                             DLList<TupTriggerData>& triggerList,
-                            Operationrec* regOperPtr);
+                            Operationrec* regOperPtr,
+                            bool disk);
 
   void executeTriggers(KeyReqStruct *req_struct,
                        DLList<TupTriggerData>& triggerList,
@@ -2227,7 +2230,8 @@ private:
 
   void executeTrigger(KeyReqStruct *req_struct,
                       TupTriggerData* trigPtr, 
-                      Operationrec* regOperPtr);
+                      Operationrec* regOperPtr,
+                      bool disk = true);
 
   bool readTriggerInfo(TupTriggerData* trigPtr,
                        Operationrec* regOperPtr,
@@ -2238,8 +2242,9 @@ private:
                        Uint32* afterBuffer,
                        Uint32& noAfterWords,
                        Uint32* beforeBuffer,
-                       Uint32& noBeforeWords);
-
+                       Uint32& noBeforeWords,
+                       bool disk);
+  
   void sendTrigAttrInfo(Signal*        signal, 
                         Uint32*        data, 
                         Uint32         dataLen,

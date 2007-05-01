@@ -1386,6 +1386,7 @@ Dblqh::sendAddFragReq(Signal* signal)
       tupFragReq->noOfCharsets = addfragptr.p->noOfCharsets;
       tupFragReq->checksumIndicator = addfragptr.p->checksumIndicator;
       tupFragReq->globalCheckpointIdIndicator = addfragptr.p->GCPIndicator;
+      tupFragReq->forceVarPartFlag = addfragptr.p->forceVarPartFlag;      
       sendSignal(fragptr.p->tupBlockref, GSN_TUPFRAGREQ,
 		 signal, TupFragReq::SignalLength, JBB);
       return;
@@ -6378,6 +6379,7 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
       tupCommitReq->opPtr = sig0;
       tupCommitReq->gci = regTcPtr.p->gci;
       tupCommitReq->hashValue = regTcPtr.p->hashValue;
+      tupCommitReq->diskpage = RNIL;
       EXECUTE_DIRECT(tup, GSN_TUP_COMMITREQ, signal, 
 		     TupCommitReq::SignalLength);
 
