@@ -1530,39 +1530,6 @@ drop database mysqldump_test_db;
 
 
 
---echo # 
---echo # Bug 27293: mysqldump crashes when dumping routines
---echo # defined by a different user
---echo #
---echo # Bug #22761: mysqldump reports no errors when using
---echo # --routines without mysql.proc privileges
---echo #
-
-create database mysqldump_test_db;
-
-grant all privileges on mysqldump_test_db.*  to user1;
-grant all privileges on mysqldump_test_db.*  to user2;
-
-connect (user27293,localhost,user1,,mysqldump_test_db,$MASTER_MYPORT,$MASTER_MYSOCK);
-connection user27293;
-
-create procedure mysqldump_test_db.sp1() select 'hello';
-
---error 2
---exec $MYSQL_DUMP -f --compact --user=user2 --password=  -h 127.0.0.1 -P $MASTER_MYPORT --routines mysqldump_test_db
-
---exec $MYSQL_DUMP -f --compact --user=user1 --password=  -h 127.0.0.1 -P $MASTER_MYPORT --routines mysqldump_test_db
-
-drop procedure sp1;
-
-connection default;
-drop user user1;
-drop user user2;
-
-drop database mysqldump_test_db;
-
-
-
 --echo #
 --echo # End of 5.0 tests
 --echo #
