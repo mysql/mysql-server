@@ -157,9 +157,7 @@ select f1, f3 from t1 where f1 >= '2001-02-05 00:00:00' and f3 <= '2001-04-15';
 select f1, f3 from t1 where f1 >= '2001-2-5 0:0:0' and f2 <= '2001-4-15';
 select f1, f2 from t1 where if(1, f1, 0) >= f2;
 select 1 from dual where cast('2001-1-1 2:3:4' as date) = cast('2001-01-01' as datetime);
-select f1, f2, UNIX_TIMESTAMP(f2), UNIX_TIMESTAMP(f1),
-  f1 > f2, f1 = f2, f1 < f2
-  from t1;
+select f1, f2, f1 > f2, f1 = f2, f1 < f2 from t1;
 drop table t1;
 
 #
