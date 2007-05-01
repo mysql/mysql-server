@@ -345,18 +345,28 @@ err:
 void
 DynArr256::init(ReleaseIterator &iter)
 {
-  iter.m_sz = 0;
+  iter.m_sz = 1;
   iter.m_pos = 0;
-  iter.m_ptr_i[0] = m_head.m_ptr_i;
-  iter.m_ptr_i[1] = RNIL;
+  iter.m_ptr_i[0] = RNIL;
+  iter.m_ptr_i[1] = m_head.m_ptr_i;
   iter.m_ptr_i[2] = RNIL;
   iter.m_ptr_i[3] = RNIL;
+  iter.m_ptr_i[4] = RNIL;
 }
 
-bool
-DynArr256::release(ReleaseIterator &iter)
+/**
+ * Iter is in next pos
+ *
+ * 0 - done
+ * 1 - data
+ * 2 - no data
+ */
+Uint32
+DynArr256::release(ReleaseIterator &iter, Uint32 * retptr)
 {
-  Uint32 ptrI = iter.m_ptr_i[iter.m_sz];
+  Uint32 sz = iter.m_sz;
+  Uint32 pos = iter.m_pos;
+  Uint32 ptrI = iter.m_ptr_i[sz];
   Uint32 page_no = ptrI >> DA256_BITS;
   Uint32 page_idx = ptrI & DA256_MASK;
   Uint32 type_id = (~m_pool.m_type_id) & 0xFFFF;
@@ -365,9 +375,8 @@ DynArr256::release(ReleaseIterator &iter)
 
   if (ptrI != RNIL)
   {
-    Uint32 tmp = iter.m_pos & 255;
-    Uint32 p0 = tmp;
-    for (; p0<256 && p0 < tmp + 16; p0++)
+    Uint32 p0 = iter.m_pos & 255;
+    for (; p0<256; p0++)
     {
       Uint32 *retVal, *magic_ptr, p;
       if (p0 != 255)
@@ -390,55 +399,53 @@ DynArr256::release(ReleaseIterator &iter)
       }
       
       Uint32 magic = *magic_ptr;
+      Uint32 val = *retVal;
       if (unlikely(! ((magic & (1 << p)) && (magic >> 16) == type_id)))
 	goto err;
       
-      Uint32 val = * retVal;
-      if (val != RNIL)
+      if (sz == m_head.m_sz)
       {
-	if (iter.m_sz + 2 == m_head.m_sz)
+	* retptr = val;
+	p0++;
+	if (p0 != 256)
 	{
-	  * retVal = RNIL;
-	  m_pool.release(val);
-	  iter.m_pos = (iter.m_pos & ~255) + p0;
-	  return false;
+	  /**
+	   * Move next
+	   */
+	  iter.m_pos &= ~(Uint32)255;
+	  iter.m_pos |= p0;
 	}
 	else
 	{
-	  * retVal = RNIL;
-	  iter.m_sz++;
-	  iter.m_ptr_i[iter.m_sz] = val;
-	  iter.m_pos = (p0 << 8);
-	  return false;
+	  /**
+	   * Move up
+	   */
+	  m_pool.release(ptrI);
+	  iter.m_sz --;
+	  iter.m_pos >>= 8;
 	}
+	return 1;
+      }
+      else if (val != RNIL)
+      {
+	iter.m_sz++;
+	iter.m_ptr_i[iter.m_sz] = val;
+	iter.m_pos = (p0 << 8);
+	* retVal = RNIL;
+	return 2;
       }
     }
     
-    if (p0 == 256)
-    {
-      if (iter.m_sz == 0)
-	goto done;
-      iter.m_sz--;
-      iter.m_pos >>= 8;
-            
-      m_pool.release(ptrI);
-      return false;
-    }
-    else
-    {
-      iter.m_pos = (iter.m_pos & ~255) + p0;
-      return false;
-    }
+    assert(p0 == 256);
+    m_pool.release(ptrI);
+    iter.m_sz --;
+    iter.m_pos >>= 8;
+    return 2;
   }
   
 done:  
-  if (m_head.m_ptr_i != RNIL)
-  {
-    m_pool.release(m_head.m_ptr_i);
-  }
-  
   new (&m_head) Head();
-  return true;
+  return 0;
   
 err:
   require(false);
@@ -639,6 +646,7 @@ static
 void
 simple(DynArr256 & arr, int argc, char* argv[])
 {
+  ndbout_c("argc: %d", argc);
   for (Uint32 i = 1; i<(Uint32)argc; i++)
   {
     Uint32 * s = arr.set(atoi(argv[i]));
@@ -866,7 +874,8 @@ write(DynArr256& arr, int argc, char ** argv)
     ndbout_c("Elapsed %lldus -> %f us/set", start, uspg);
     DynArr256::ReleaseIterator iter;
     arr.init(iter);
-    while(!arr.release(iter));
+    Uint32 val;
+    while(arr.release(iter, &val));
   }
 }
 
@@ -903,7 +912,7 @@ main(int argc, char** argv)
   DynArr256::Head head;
   DynArr256 arr(pool, head);
 
-  if (strcmp(argv[1], "--args") == 0)
+  if (strcmp(argv[1], "--simple") == 0)
     simple(arr, argc, argv);
   else if (strcmp(argv[1], "--basic") == 0)
     basic(arr, argc, argv);
@@ -914,8 +923,8 @@ main(int argc, char** argv)
 
   DynArr256::ReleaseIterator iter;
   arr.init(iter);
-  Uint32 cnt = 0;
-  while (!arr.release(iter)) cnt++;
+  Uint32 cnt = 0, val;
+  while (arr.release(iter, &val)) cnt++;
   
   ndbout_c("allocatedpages: %d allocatednodes: %d releasednodes: %d"
 	   " releasecnt: %d",
