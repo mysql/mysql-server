@@ -13,15 +13,22 @@
 DROP DATABASE IF EXISTS BANK;
 --enable_warnings
 CREATE DATABASE BANK default charset=latin1 default collate=latin1_bin;
-USE BANK;
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 1 -p 1 -m -r $MYSQL_TEST_DIR/std_data/ndb_backup51 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -e -b 1 -n 2 -p 1 -r $MYSQL_TEST_DIR/std_data/ndb_backup51 >> $NDB_TOOLS_OUTPUT
+USE BANK;
 SHOW TABLES;
 SELECT * FROM GL            ORDER BY TIME,ACCOUNT_TYPE;
 SELECT * FROM ACCOUNT       ORDER BY ACCOUNT_ID;
 SELECT COUNT(*) FROM TRANSACTION;
 SELECT * FROM SYSTEM_VALUES ORDER BY SYSTEM_VALUES_ID;
 SELECT * FROM mysql.ndb_apply_status WHERE server_id=0;
+
+# Check that force varpart is set by ndb_restore
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d BANK GL | grep ForceVarPart
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d BANK ACCOUNT | grep ForceVarPart
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d BANK TRANSACTION | grep ForceVarPart
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d BANK SYSTEM_VALUES | grep ForceVarPart
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d BANK ACCOUNT_TYPE | grep ForceVarPart
 
 #
 # verify restore of 5.0 backup
@@ -33,8 +40,19 @@ TRUNCATE ACCOUNT;
 TRUNCATE TRANSACTION;
 TRUNCATE SYSTEM_VALUES;
 TRUNCATE ACCOUNT_TYPE;
+
+# Check that force varpart is not changed by truncate
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d BANK GL | grep ForceVarPart
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d BANK ACCOUNT | grep ForceVarPart
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d BANK TRANSACTION | grep ForceVarPart
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d BANK SYSTEM_VALUES | grep ForceVarPart
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d BANK ACCOUNT_TYPE | grep ForceVarPart
+
+# Restore data
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 1 -p 1 -r $MYSQL_TEST_DIR/std_data/ndb_backup50 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -e -b 1 -n 2 -p 1 -r $MYSQL_TEST_DIR/std_data/ndb_backup50 >> $NDB_TOOLS_OUTPUT
+
+# Check data
 SELECT * FROM GL            ORDER BY TIME,ACCOUNT_TYPE;
 SELECT * FROM ACCOUNT       ORDER BY ACCOUNT_ID;
 SELECT COUNT(*) FROM TRANSACTION;

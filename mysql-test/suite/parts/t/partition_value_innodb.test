@@ -1,0 +1,82 @@
+################################################################################
+# t/partition_value_innodb.test                                                #
+#                                                                              #
+# Purpose:                                                                     #
+#  Tests around "exotic" values calculated by the partitioning function        #
+#        InnoDB branch                                                         #
+#                                                                              #
+#------------------------------------------------------------------------------#
+# Original Author: ML                                                          #
+# Original Date: 2006-04-11                                                    #
+# Change Author:                                                               #
+# Change Date:                                                                 #
+# Change:                                                                      #
+################################################################################
+
+#
+# NOTE: PLEASE DO NOT ADD NOT INNODB SPECIFIC TESTCASES HERE !
+#       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
+#       THE SOURCED FILES ONLY.
+#
+# Please read the README at the end of include/partition.pre before changing
+# any of the variables.
+#
+
+#------------------------------------------------------------------------------#
+# General not engine specific settings and requirements
+
+##### Options, for debugging support #####
+let $debug= 0;
+
+##### Option, for displaying files #####
+let $ls= 1;
+
+##### Number of rows for the INSERT/UPDATE/DELETE/SELECT experiments #####
+#     on partioned tables
+SET @max_row = 20;
+
+##### Execute more tests                                             #####
+let $more_trigger_tests= 0;
+let $more_pk_ui_tests= 0;
+
+# The server must support partitioning.
+--source include/have_partition.inc
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+
+##### Storage engine to be tested
+let $engine= 'InnoDB';
+--source include/have_innodb.inc
+
+##### Execute the test of "table" files
+# InnoDB has no files per PK, UI, ...
+let $do_file_tests= 0;
+
+##### Execute PRIMARY KEY tests                                      #####
+# AFAIK InnoDB clusters the table around PRIMARY KEYs.
+let $do_pk_tests= 1;
+
+##### Assign a big number smaller than the maximum value for partitions  #####
+#     and smaller than the maximum value of SIGNED INTEGER
+let $MAX_VALUE= (2147483646);
+
+# Generate the prerequisites ($variables, @variables, tables) needed
+--source suite/parts/inc/partition.pre
+# --source inc/partition.pre
+
+##### Workarounds for known open engine specific bugs
+#     none
+
+#------------------------------------------------------------------------------#
+# Execute the tests to be applied to all storage engines
+--source suite/parts/inc/partition_value.inc
+# --source inc/partition_value.inc
+
+#------------------------------------------------------------------------------#
+# Execute storage engine specific tests
+
+#------------------------------------------------------------------------------#
+# Cleanup
+--source suite/parts/inc/partition_cleanup.inc
+# --source inc/partition_cleanup.inc
