@@ -191,7 +191,7 @@ class ha_innobase: public handler
 };
 
 extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
-extern longlong innobase_buffer_pool_size, innobase_log_file_size;
+extern long long innobase_buffer_pool_size, innobase_log_file_size;
 extern long innobase_log_buffer_size;
 extern long innobase_additional_mem_pool_size;
 extern long innobase_buffer_pool_awe_mem_mb;
