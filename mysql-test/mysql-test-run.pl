@@ -3434,6 +3434,10 @@ sub run_testcase ($) {
       return 1;
     }
   }
+  elsif ($glob_use_embedded_server)
+  {
+    run_master_init_script($tinfo);
+  }
 
   # ----------------------------------------------------------------------
   # If --start-and-exit or --start-dirty given, stop here to let user manually
@@ -3609,6 +3613,23 @@ sub report_failure_and_restart ($) {
 }
 
 
+sub run_master_init_script ($) {
+  my ($tinfo)= @_;
+  my $init_script= $tinfo->{'master_sh'};
+
+  # Run master initialization shell script if one exists
+  if ( $init_script )
+  {
+    my $ret= mtr_run("/bin/sh", [$init_script], "", "", "", "");
+    if ( $ret != 0 )
+    {
+      # FIXME rewrite those scripts to return 0 if successful
+      # mtr_warning("$init_script exited with code $ret");
+    }
+  }
+}
+
+
 ##############################################################################
 #
 #  Start and stop servers
@@ -3620,7 +3641,6 @@ sub do_before_start_master ($) {
   my ($tinfo)= @_;
 
   my $tname= $tinfo->{'name'};
-  my $init_script= $tinfo->{'master_sh'};
 
   # FIXME what about second master.....
 
@@ -3636,16 +3656,7 @@ sub do_before_start_master ($) {
   unlink("$master->[1]->{'path_myddir'}/master.info");
   unlink("$master->[1]->{'path_myddir'}/relay-log.info");
 
-  # Run master initialization shell script if one exists
-  if ( $init_script )
-  {
-    my $ret= mtr_run("/bin/sh", [$init_script], "", "", "", "");
-    if ( $ret != 0 )
-    {
-      # FIXME rewrite those scripts to return 0 if successful
-      # mtr_warning("$init_script exited with code $ret");
-    }
-  }
+  run_master_init_script($tinfo);
 }
 
 
