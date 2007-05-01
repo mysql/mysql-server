@@ -3814,13 +3814,11 @@ CAST(my_time AS DATETIME)	my_time	id
 NULL	NULL	1
 0000-00-00 00:00:00	-838:59:59	2
 0000-00-00 00:00:00	838:59:59	3
-0000-00-00 00:00:00	13:00:00	4
-0000-00-00 00:00:00	10:00:00	5
+0000-00-00 13:00:00	13:00:00	4
+0000-00-00 10:00:00	10:00:00	5
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '0000-00-00 838:59:59'
 Warning	1292	Truncated incorrect datetime value: '0000-00-00 838:59:59'
-Warning	1292	Truncated incorrect datetime value: '0000-00-00 13:00:00'
-Warning	1292	Truncated incorrect datetime value: '0000-00-00 10:00:00'
 SHOW CREATE VIEW v1;
 View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_time` as datetime) AS `CAST(my_time AS DATETIME)`,`t1_values`.`my_time` AS `my_time`,`t1_values`.`id` AS `id` from `t1_values`
@@ -3831,13 +3829,11 @@ CAST(my_time AS DATETIME)	my_time	id
 NULL	NULL	1
 0000-00-00 00:00:00	-838:59:59	2
 0000-00-00 00:00:00	838:59:59	3
-0000-00-00 00:00:00	13:00:00	4
-0000-00-00 00:00:00	10:00:00	5
+0000-00-00 13:00:00	13:00:00	4
+0000-00-00 10:00:00	10:00:00	5
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '0000-00-00 838:59:59'
 Warning	1292	Truncated incorrect datetime value: '0000-00-00 838:59:59'
-Warning	1292	Truncated incorrect datetime value: '0000-00-00 13:00:00'
-Warning	1292	Truncated incorrect datetime value: '0000-00-00 10:00:00'
 DROP VIEW v1;
 
 
