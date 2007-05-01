@@ -238,7 +238,7 @@ sub mtr_report_stats ($) {
   }
   if (!$::opt_extern)
   {
-    print "The servers where restarted $tot_restarts times\n";
+    print "The servers were restarted $tot_restarts times\n";
   }
 
   if ( $::opt_timer )
@@ -358,7 +358,7 @@ sub mtr_report_stats ($) {
 
   if ( $tot_failed != 0 || $found_problems)
   {
-    mtr_error("there where failing test cases");
+    mtr_error("there were failing test cases");
   }
 }
 

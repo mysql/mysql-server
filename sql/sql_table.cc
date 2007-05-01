@@ -209,17 +209,20 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
 
 uint build_tmptable_filename(THD* thd, char *buff, size_t bufflen)
 {
-  uint length;
-  char tmp_table_name[tmp_file_prefix_length+22+22+22+3];
   DBUG_ENTER("build_tmptable_filename");
 
-  my_snprintf(tmp_table_name, sizeof(tmp_table_name),
-	      "%s%lx_%lx_%x",
-	      tmp_file_prefix, current_pid,
-	      thd->thread_id, thd->tmp_table++);
+  char *p= strnmov(buff, mysql_tmpdir, bufflen);
+  my_snprintf(p, bufflen - (p - buff), "/%s%lx_%lx_%x%s",
+              tmp_file_prefix, current_pid,
+              thd->thread_id, thd->tmp_table++, reg_ext);
 
-  strxnmov(buff, bufflen, mysql_tmpdir, "/", tmp_table_name, reg_ext, NullS);
-  length= unpack_filename(buff, buff);
+  if (lower_case_table_names)
+  {
+    /* Convert all except tmpdir to lower case */
+    my_casedn_str(files_charset_info, p);
+  }
+
+  uint length= unpack_filename(buff, buff);
   DBUG_PRINT("exit", ("buff: '%s'", buff));
   DBUG_RETURN(length);
 }
@@ -3440,8 +3443,6 @@ bool mysql_create_table_internal(THD *thd,
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
     path_length= build_tmptable_filename(thd, path, sizeof(path));
-    if (lower_case_table_names)
-      my_casedn_str(files_charset_info, path);
     create_info->table_options|=HA_CREATE_DELAY_KEY_WRITE;
   }
   else  
@@ -4751,8 +4752,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
     if (find_temporary_table(thd, db, table_name))
       goto table_exists;
     dst_path_length= build_tmptable_filename(thd, dst_path, sizeof(dst_path));
-    if (lower_case_table_names)
-      my_casedn_str(files_charset_info, dst_path);
     create_info->table_options|= HA_CREATE_DELAY_KEY_WRITE;
   }
   else
