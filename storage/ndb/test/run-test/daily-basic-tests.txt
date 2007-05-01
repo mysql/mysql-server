@@ -244,6 +244,10 @@ cmd: testBasic
 args: -n Bug27756
 
 max-time: 500
+cmd: testBasic
+args: -n Bug28073
+
+max-time: 500
 cmd: testIndex
 args: -n Bug25059 -r 3000 T1
 
@@ -549,6 +553,10 @@ max-time: 1000
 cmd: testNodeRestart
 args: -n Bug26481 T1
 
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug28023 T7 D2
+
 #
 # DICT TESTS
 max-time: 1500
@@ -684,6 +692,10 @@ max-time: 500
 cmd: testNdbApi
 args: -n Bug_WritePartialIgnoreError T1 
 
+max-time: 500
+cmd: testNdbApi
+args: -n ExecuteAsynch T1
+
 #max-time: 500
 #cmd: testInterpreter
 #args: T1 
@@ -703,6 +715,14 @@ args: T6
 max-time: 1500
 cmd: testBlobs
 args:
+
+max-time: 600
+cmd: testBlobs
+args: -bug 27018
+
+max-time: 600
+cmd: testBlobs
+args: -bug 27370
 
 max-time: 5000
 cmd: testOIBasic

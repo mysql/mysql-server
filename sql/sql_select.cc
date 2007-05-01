@@ -231,7 +231,8 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
 
-  if (select_lex->next_select() || select_lex->master_unit()->fake_select_lex)
+  if (select_lex->master_unit()->is_union() || 
+      select_lex->master_unit()->fake_select_lex)
     res= mysql_union(thd, lex, result, &lex->unit, setup_tables_done_option);
   else
   {
@@ -442,7 +443,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   select_lex= select_lex_arg;
   select_lex->join= this;
   join_list= &select_lex->top_join_list;
-  union_part= (unit_arg->first_select()->next_select() != 0);
+  union_part= unit_arg->is_union();
 
   thd->lex->current_select->is_item_list_lookup= 1;
   /*
@@ -1191,7 +1192,7 @@ JOIN::optimize()
   if (!group_list && !order &&
       unit->item && unit->item->substype() == Item_subselect::IN_SUBS &&
       tables == 1 && conds &&
-      !unit->first_select()->next_select())
+      !unit->is_union())
   {
     if (!having)
     {
@@ -3165,7 +3166,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
       if (!join->group_list && !join->order &&
           join->unit->item && 
           join->unit->item->substype() == Item_subselect::IN_SUBS &&
-          !join->unit->first_select()->next_select())
+          !join->unit->is_union())
       {
         KEY_FIELD *save= *key_fields;
         add_key_fields(join, key_fields, and_level, cond_arg, usable_tables,
@@ -5614,8 +5615,9 @@ static void add_not_null_conds(JOIN *join)
   for (uint i=join->const_tables ; i < join->tables ; i++)
   {
     JOIN_TAB *tab=join->join_tab+i;
-    if ((tab->type == JT_REF || tab->type == JT_REF_OR_NULL) &&
-         !tab->table->maybe_null)
+    if ((tab->type == JT_REF || tab->type == JT_EQ_REF || 
+         tab->type == JT_REF_OR_NULL) &&
+        !tab->table->maybe_null)
     {
       for (uint keypart= 0; keypart < tab->ref.key_parts; keypart++)
       {
@@ -8856,17 +8858,13 @@ static bool
 test_if_equality_guarantees_uniqueness(Item *l, Item *r)
 {
   return r->const_item() &&
-    /* elements must be of the same result type */
-    (r->result_type() == l->result_type() ||
-    /* or dates compared to longs */
-     (((l->type() == Item::FIELD_ITEM &&
-        ((Item_field *)l)->field->can_be_compared_as_longlong()) ||
-       (l->type() == Item::FUNC_ITEM &&
-        ((Item_func *)l)->result_as_longlong())) &&
-      r->result_type() == INT_RESULT))
-    /* and must have the same collation if compared as strings */
-    && (l->result_type() != STRING_RESULT ||
-        l->collation.collation == r->collation.collation);
+    /* elements must be compared as dates */
+     (Arg_comparator::can_compare_as_dates(l, r, 0) ||
+      /* or of the same result type */
+      (r->result_type() == l->result_type() &&
+       /* and must have the same collation if compared as strings */
+       (l->result_type() != STRING_RESULT ||
+        l->collation.collation == r->collation.collation)));
 }
 
 /*
@@ -15523,7 +15521,7 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 		 "UNION")));
     sl->options|= SELECT_DESCRIBE;
   }
-  if (first->next_select())
+  if (unit->is_union())
   {
     unit->fake_select_lex->select_number= UINT_MAX; // jost for initialization
     unit->fake_select_lex->type= "UNION RESULT";

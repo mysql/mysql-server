@@ -18,6 +18,7 @@
 
 #define DBDICT_C
 #include "Dbdict.hpp"
+#include "diskpage.hpp"
 
 #include <ndb_limits.h>
 #include <NdbOut.hpp>
@@ -448,6 +449,8 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
 	!!(tablePtr.p->m_bits & TableRecord::TR_RowChecksum));
   w.add(DictTabInfo::TableTemporaryFlag, 
 	!!(tablePtr.p->m_bits & TableRecord::TR_Temporary));
+  w.add(DictTabInfo::ForceVarPartFlag,
+	!!(tablePtr.p->m_bits & TableRecord::TR_ForceVarPart));
   
   w.add(DictTabInfo::MinLoadFactor, tablePtr.p->minLoadFactor);
   w.add(DictTabInfo::MaxLoadFactor, tablePtr.p->maxLoadFactor);
@@ -2819,8 +2822,10 @@ void Dbdict::checkSchemaStatus(Signal* signal)
         continue;
       case SchemaFile::ADD_STARTED: jam();
       case SchemaFile::DROP_TABLE_STARTED: jam();
-        ndbrequire(false);
-        return;
+        ndbrequire(DictTabInfo::isTable(newEntry->m_tableType) ||
+                   DictTabInfo::isIndex(newEntry->m_tableType));
+        newEntry->m_tableState = SchemaFile::INIT;
+        continue;
       case SchemaFile::TABLE_ADD_COMMITTED: jam();
       case SchemaFile::ALTER_TABLE_COMMITTED: jam();
         if (DictTabInfo::isIndex(newEntry->m_tableType) ||
@@ -5411,8 +5416,8 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
     req->tableType = tabPtr.p->tableType;
     req->primaryTableId = tabPtr.p->primaryTableId;
     req->tablespace_id= tabPtr.p->m_tablespace_id;
-    //req->tablespace_id= tablespace_id;
     req->logPartId = logPart;
+    req->forceVarPartFlag = !!(tabPtr.p->m_bits& TableRecord::TR_ForceVarPart);
     sendSignal(DBLQH_REF, GSN_LQHFRAGREQ, signal, 
 	       LqhFragReq::SignalLength, JBB);
   }
@@ -6029,6 +6034,8 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     (c_tableDesc.RowGCIFlag ? TableRecord::TR_RowGCI : 0);
   tablePtr.p->m_bits |= 
     (c_tableDesc.TableTemporaryFlag ? TableRecord::TR_Temporary : 0);
+  tablePtr.p->m_bits |=
+    (c_tableDesc.ForceVarPartFlag ? TableRecord::TR_ForceVarPart : 0);
   tablePtr.p->minLoadFactor = c_tableDesc.MinLoadFactor;
   tablePtr.p->maxLoadFactor = c_tableDesc.MaxLoadFactor;
   tablePtr.p->fragmentType = (DictTabInfo::FragmentType)c_tableDesc.FragmentType;
@@ -15492,7 +15499,10 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op){
     } 
     else if(fg.FilegroupType == DictTabInfo::LogfileGroup)
     {
-      if(!fg.LF_UndoBufferSize)
+      /**
+       * undo_buffer_size can't be less than 96KB in LGMAN block 
+       */
+      if(fg.LF_UndoBufferSize < 3 * File_formats::NDB_PAGE_SIZE)
       {
 	op->m_errorCode = CreateFilegroupRef::InvalidUndoBufferSize;
 	break;

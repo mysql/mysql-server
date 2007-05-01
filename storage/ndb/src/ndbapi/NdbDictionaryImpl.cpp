@@ -464,6 +464,7 @@ NdbTableImpl::init(){
   m_temporary = false;
   m_row_gci = true;
   m_row_checksum = true;
+  m_force_var_part = false;
   m_kvalue= 6;
   m_minLoadFactor= 78;
   m_maxLoadFactor= 80;
@@ -752,6 +753,7 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_temporary = org.m_temporary;
   m_row_gci = org.m_row_gci;
   m_row_checksum = org.m_row_checksum;
+  m_force_var_part = org.m_force_var_part;
   m_kvalue = org.m_kvalue;
   m_minLoadFactor = org.m_minLoadFactor;
   m_maxLoadFactor = org.m_maxLoadFactor;
@@ -2179,6 +2181,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_temporary = tableDesc->TableTemporaryFlag;
   impl->m_row_gci = tableDesc->RowGCIFlag;
   impl->m_row_checksum = tableDesc->RowChecksumFlag;
+  impl->m_force_var_part = tableDesc->ForceVarPartFlag;
   impl->m_kvalue = tableDesc->TableKValue;
   impl->m_minLoadFactor = tableDesc->MinLoadFactor;
   impl->m_maxLoadFactor = tableDesc->MaxLoadFactor;
@@ -2693,6 +2696,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   tmpTab->DefaultNoPartFlag = impl.m_default_no_part_flag;
   tmpTab->LinearHashFlag = impl.m_linear_flag;
   tmpTab->SingleUserMode = impl.m_single_user_mode;
+  tmpTab->ForceVarPartFlag = impl.m_force_var_part;
 
   if (impl.m_ts_name.length())
   {

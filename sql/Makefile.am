@@ -48,9 +48,9 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			procedure.h sql_class.h sql_lex.h sql_list.h \
 			sql_map.h sql_string.h unireg.h \
 			sql_error.h field.h handler.h mysqld_suffix.h \
-			ha_partition.h \
-			ha_ndbcluster.h ha_ndbcluster_binlog.h \
-			ha_ndbcluster_tables.h rpl_constants.h \
+			ha_ndbcluster.h ha_ndbcluster_cond.h \
+			ha_ndbcluster_binlog.h ha_ndbcluster_tables.h \
+			ha_partition.h rpl_constants.h \
 			opt_range.h protocol.h rpl_tblmap.h rpl_utility.h \
 			log.h sql_show.h rpl_rli.h rpl_mi.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h \
@@ -92,8 +92,8 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			log_event_old.cc rpl_record_old.cc \
 			discover.cc time.cc opt_range.cc opt_sum.cc \
 		   	records.cc filesort.cc handler.cc \
-			ha_partition.cc \
-                        ha_ndbcluster.cc ha_ndbcluster_binlog.cc \
+                        ha_ndbcluster.cc ha_ndbcluster_cond.cc \
+		        ha_ndbcluster_binlog.cc ha_partition.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
@@ -156,8 +156,11 @@ lex_hash.h:	gen_lex_hash.cc lex.h
 		./gen_lex_hash$(EXEEXT) > $@-t
 		$(MV) $@-t $@
 
-# the following three should eventually be moved out of this directory
+# the following four should eventually be moved out of this directory
 ha_ndbcluster.o:ha_ndbcluster.cc ha_ndbcluster.h
+		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
+
+ha_ndbcluster_cond.o:ha_ndbcluster_cond.cc ha_ndbcluster_cond.h
 		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 ha_ndbcluster_binlog.o:ha_ndbcluster_binlog.cc ha_ndbcluster_binlog.h
