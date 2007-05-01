@@ -118,6 +118,7 @@ public:
     FrmData            = 27,
 
     TableTemporaryFlag = 28,  //Default not Temporary
+    ForceVarPartFlag   = 29,
 
     FragmentCount      = 128, // No of fragments in table (!fragment replicas)
     FragmentDataLen    = 129,
@@ -301,6 +302,7 @@ public:
     Uint32 PrimaryTableId;
     Uint32 TableLoggedFlag;
     Uint32 TableTemporaryFlag;
+    Uint32 ForceVarPartFlag;
     Uint32 NoOfKeyAttr;
     Uint32 NoOfAttributes;
     Uint32 NoOfNullable;

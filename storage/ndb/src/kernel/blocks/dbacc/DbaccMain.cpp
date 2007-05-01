@@ -1320,7 +1320,7 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
    * We must check if there are many transactions in parallel queue...
    */
   OperationrecPtr tmp;
-  tmp.i = loPtr.p->nextParallelQue;
+  tmp= loPtr;
   while (tmp.i != RNIL)
   {
     ptrCheckGuard(tmp, coprecsize, operationrec);      
@@ -1332,6 +1332,7 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
        */
       return;
     }
+    tmp.i = tmp.p->nextParallelQue;
   }
   
 upgrade:

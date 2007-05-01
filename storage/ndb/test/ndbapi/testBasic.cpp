@@ -1374,6 +1374,74 @@ runBug27756(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug28073(NDBT_Context *ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  const NdbDictionary::Table *table= ctx->getTab();
+  HugoOperations hugoOp1(*table);
+  HugoOperations hugoOp2(*table);
+  Ndb* pNdb = GETNDB(step);
+  int loops = ctx->getNumLoops();
+  bool inserted= false;
+
+  while (loops--)
+  {
+    if (!inserted)
+    {
+      CHECK(hugoOp1.startTransaction(pNdb) == 0);
+      CHECK(hugoOp1.pkInsertRecord(pNdb, 1, 1) == 0);
+      CHECK(hugoOp1.execute_Commit(pNdb) == 0);
+      CHECK(hugoOp1.closeTransaction(pNdb) == 0);
+      inserted= 1;
+    }
+
+    // Use TC hint to hit the same node in both transactions.
+    Uint32 key_val= 0;
+    const char *key= (const char *)(&key_val);
+    CHECK(hugoOp1.startTransaction(pNdb, table, key, 4) == 0);
+    CHECK(hugoOp2.startTransaction(pNdb, table, key, 4) == 0);
+
+    // First take 2*read lock on the tuple in transaction 1.
+    for (Uint32 i= 0; i < 2; i++)
+    {
+      CHECK(hugoOp1.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_Read) == 0);
+      CHECK(hugoOp1.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_Read) == 0);
+    }
+    CHECK(hugoOp1.execute_NoCommit(pNdb) == 0);
+
+    // Now send ops in two transactions, one batch.
+    // First 2*read in transaction 2.
+    for (Uint32 i= 0; i < 2; i++)
+    {
+      CHECK(hugoOp2.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_Read) == 0);
+      CHECK(hugoOp2.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_Read) == 0);
+    }
+    CHECK(hugoOp2.execute_async_prepare(pNdb, NdbTransaction::NoCommit) == 0);
+
+    // Second op an update in transaction 1.
+    CHECK(hugoOp1.pkUpdateRecord(pNdb, 1, 1) == 0);
+    CHECK(hugoOp1.execute_async_prepare(pNdb, NdbTransaction::Commit) == 0);
+
+    // Transaction 1 will now hang waiting on transaction 2 to commit before it
+    // can upgrade its read lock to a write lock.
+    // With the bug, we get a node failure due to watchdog timeout here.
+    CHECK(hugoOp2.wait_async(pNdb) == 0);
+
+    // Now commit transaction 2, we should see transaction 1 finish with the
+    // update.
+    CHECK(hugoOp2.execute_async_prepare(pNdb, NdbTransaction::Commit) == 0);
+    CHECK(hugoOp2.wait_async(pNdb) == 0);
+    // No error check, as transaction 1 may have terminated already.
+    hugoOp1.wait_async(pNdb);
+
+    CHECK(hugoOp1.closeTransaction(pNdb) == 0);
+    CHECK(hugoOp2.closeTransaction(pNdb) == 0);
+  }
+
+  return result;
+}
+
 template class Vector<Uint64>;
 
 NDBT_TESTSUITE(testBasic);
@@ -1655,6 +1723,10 @@ TESTCASE("DeleteRead",
 TESTCASE("Bug27756", 
 	 "Verify what happens when we fill the db" ){
   STEP(runBug27756);
+}
+TESTCASE("Bug28073", 
+	 "Infinite loop in lock queue" ){
+  STEP(runBug28073);
 }
 NDBT_TESTSUITE_END(testBasic);
 

@@ -175,12 +175,12 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
     
     regTabPtr.p->m_offsets[MM].m_disk_ref_offset= 0;
     regTabPtr.p->m_offsets[MM].m_null_words= 0;
-    regTabPtr.p->m_offsets[MM].m_varpart_offset= 0;
+    regTabPtr.p->m_offsets[MM].m_fix_header_size= 0;
     regTabPtr.p->m_offsets[MM].m_max_var_offset= 0;
 
     regTabPtr.p->m_offsets[DD].m_disk_ref_offset= 0;
     regTabPtr.p->m_offsets[DD].m_null_words= 0;
-    regTabPtr.p->m_offsets[DD].m_varpart_offset= 0;
+    regTabPtr.p->m_offsets[DD].m_fix_header_size= 0;
     regTabPtr.p->m_offsets[DD].m_max_var_offset= 0;
 
     regTabPtr.p->m_attributes[MM].m_no_of_fixsize= 0;
@@ -463,7 +463,19 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   if(regTabPtr.p->m_no_of_disk_attributes > 0)
   {
     regTabPtr.p->m_offsets[MM].m_disk_ref_offset= pos[MM];
-    pos[MM] += 2; // 8 bytes
+    pos[MM] += Disk_part_ref::SZ32; // 8 bytes
+  }
+  else
+  {
+    /**
+     * var part ref is stored at m_disk_ref_offset + Disk_part_ref::SZ32
+     */
+    regTabPtr.p->m_offsets[MM].m_disk_ref_offset= pos[MM]-Disk_part_ref::SZ32;
+  }
+
+  if (regTabPtr.p->m_attributes[MM].m_no_of_varsize)
+  {
+    pos[MM] += Var_part_ref::SZ32;
   }
   
   regTabPtr.p->m_offsets[MM].m_null_offset= pos[MM];
@@ -489,15 +501,13 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   }
 
   regTabPtr.p->m_offsets[MM].m_fix_header_size= 
+    Tuple_header::HeaderSize + 
     fragOperPtr.p->m_fix_attributes_size[MM] + 
     pos[MM];
-
+  
   regTabPtr.p->m_offsets[DD].m_fix_header_size= 
     fragOperPtr.p->m_fix_attributes_size[DD] + 
     pos[DD];
-
-  if(regTabPtr.p->m_attributes[MM].m_no_of_varsize == 0)
-    regTabPtr.p->m_offsets[MM].m_fix_header_size += Tuple_header::HeaderSize;
 
   if(regTabPtr.p->m_attributes[DD].m_no_of_varsize == 0 &&
      regTabPtr.p->m_attributes[DD].m_no_of_fixsize > 0)
@@ -538,8 +548,6 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   
   {
     Uint32 fix_tupheader = regTabPtr.p->m_offsets[MM].m_fix_header_size;
-    if(regTabPtr.p->m_attributes[MM].m_no_of_varsize != 0)
-      fix_tupheader += Tuple_header::HeaderSize + Var_part_ref::SZ32;
     ndbassert(fix_tupheader > 0);
     Uint32 noRowsPerPage = ZWORDS_ON_PAGE / fix_tupheader;
     Uint32 noAllocatedPages =
@@ -591,8 +599,12 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       Uint32 sz= sizeof(Disk_undo::Create) >> 2;
       
       Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
-      (void)  c_lgman->alloc_log_space(regFragPtr.p->m_logfile_group_id,
-                                       sz);
+      if((terrorCode = 
+          c_lgman->alloc_log_space(regFragPtr.p->m_logfile_group_id, sz)))
+      {
+        addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
+        return;
+      }
       
       int res= lgman.get_log_buffer(signal, sz, &cb);
       switch(res){
