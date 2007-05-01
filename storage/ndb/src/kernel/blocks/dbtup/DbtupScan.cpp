@@ -653,7 +653,14 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       {
         if (pos.m_realpid_mm == RNIL) {
           jam();
-          pos.m_realpid_mm = getRealpid(fragPtr.p, key.m_page_no);
+          pos.m_realpid_mm = getRealpidCheck(fragPtr.p, key.m_page_no);
+          
+          if (pos.m_realpid_mm == RNIL)
+          {
+            jam();
+            pos.m_get = ScanPos::Get_next_page_mm;
+            break; // incr loop count
+          }
         }
         PagePtr pagePtr;
 	c_page_pool.getPtr(pagePtr, pos.m_realpid_mm);

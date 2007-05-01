@@ -61,5 +61,6 @@
 #define RT_TSMAN_FILEGROUP         MAKE_TID( 7, RG_DISK_RECORDS)
 
 #define RT_DBTUP_PAGE              MAKE_TID( 1, RG_DATAMEM)
+#define RT_DBTUP_PAGE_MAP          MAKE_TID( 2, RG_DATAMEM)
 
 #endif
