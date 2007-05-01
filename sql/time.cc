@@ -860,8 +860,9 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL inter
     }
     break;
   default:
-    return 1;
+    goto null_date;
   }
+
   return 0;					// Ok
 
 invalid_date:
@@ -869,6 +870,7 @@ invalid_date:
                       ER_DATETIME_FUNCTION_OVERFLOW,
                       ER(ER_DATETIME_FUNCTION_OVERFLOW),
                       "datetime");
+null_date:
   return 1;
 }
 

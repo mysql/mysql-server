@@ -214,6 +214,7 @@ protected:
   int init(const NdbTableImpl* tab, NdbTransaction*);
   int prepareSend(Uint32  TC_ConnectPtr, Uint64  TransactionId);
   int doSend(int ProcessorId);
+  virtual void setReadLockMode(LockMode lockMode);
 
   virtual void setErrorCode(int aErrorCode);
   virtual void setErrorCodeAbort(int aErrorCode);

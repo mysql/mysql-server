@@ -939,6 +939,14 @@ public:
     void setTemporary(bool); 
 
     /**
+     * Only table with varpart do support online add column
+     *   Add property so that table wo/ varsize column(s) still
+     *   allocates varpart-ref, so that later online add column is possible
+     */
+    bool getForceVarPart() const;
+    void setForceVarPart(bool);
+
+    /**
      * Check if any of column in bitmaps are disk columns
      *   returns bitmap of different columns
      *     bit 0 = atleast 1 pk column is set
