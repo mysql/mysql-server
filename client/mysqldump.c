@@ -1489,8 +1489,15 @@ static uint dump_routines_for_db(char *db)
             routine body of other routines that are not the creator of!
           */
           DBUG_PRINT("info",("length of body for %s row[2] '%s' is %d",
-                             routine_name, row[2], (int) strlen(row[2])));
-          if (strlen(row[2]))
+                             routine_name, row[2] ? row[2] : "(null)",
+                             row[2] ? (int) strlen(row[2]) : 0));
+          if (row[2] == NULL)
+          {
+            fprintf(sql_file, "\n-- insufficient privileges to %s\n", query_buff);
+            fprintf(sql_file, "-- does %s have permissions on mysql.proc?\n\n", current_user);
+            maybe_die(EX_MYSQLERR,"%s has insufficent privileges to %s!", current_user, query_buff);
+          }
+          else if (strlen(row[2]))
           {
             char *query_str= NULL;
             char *definer_begin;
@@ -1540,7 +1547,7 @@ static uint dump_routines_for_db(char *db)
             /*
               we need to change sql_mode only for the CREATE
               PROCEDURE/FUNCTION otherwise we may need to re-quote routine_name
-            */;
+            */
             fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\"*/;;\n",
                     row[1] /* sql_mode */);
             fprintf(sql_file, "/*!50003 %s */;;\n",
