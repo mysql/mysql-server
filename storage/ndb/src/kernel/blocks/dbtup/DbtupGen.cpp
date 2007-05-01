@@ -41,7 +41,6 @@ void Dbtup::initData()
   cnoOfFragrec = MAX_FRAG_PER_NODE;
   cnoOfFragoprec = MAX_FRAG_PER_NODE;
   cnoOfAlterTabOps = MAX_FRAG_PER_NODE;
-  cnoOfPageRangeRec = ZNO_OF_PAGE_RANGE_REC;
   c_maxTriggersPerTable = ZDEFAULT_MAX_NO_TRIGGERS_PER_TABLE;
   c_noOfBuildIndexRec = 32;
 
@@ -106,7 +105,6 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
   fragrecord = 0;
   alterTabOperRec = 0;
   hostBuffer = 0;
-  pageRange = 0;
   tablerec = 0;
   tableDescriptor = 0;
   totNoOfPagesAllocated = 0;
@@ -141,10 +139,6 @@ Dbtup::~Dbtup()
 		sizeof(HostBuffer), 
 		MAX_NODES);
   
-  deallocRecord((void **)&pageRange,"PageRange",
-		sizeof(PageRange), 
-		cnoOfPageRangeRec);
-
   deallocRecord((void **)&tablerec,"Tablerec",
 		sizeof(Tablerec), 
 		cnoOfTablerec);
@@ -251,6 +245,12 @@ void Dbtup::execCONTINUEB(Signal* signal)
     drop_fragment_free_var_pages(signal);
     return;
   }
+  case ZFREE_PAGES:
+  {
+    jam();
+    drop_fragment_free_pages(signal);
+    return;
+  }
   default:
     ndbrequire(false);
     break;
@@ -309,9 +309,6 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   
   Uint32 noOfTriggers= 0;
   
-  Uint32 tmp= 0;
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE_RANGE, &tmp));
-  initPageRangeSize(tmp);
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_TABLE, &cnoOfTablerec));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_TABLE_DESC, 
 					&cnoOfTabDescrRec));
@@ -335,6 +332,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   pc.m_block = this;
   c_page_request_pool.wo_pool_init(RT_DBTUP_PAGE_REQUEST, pc);
   c_extent_pool.init(RT_DBTUP_EXTENT_INFO, pc);
+  c_page_map_pool.init(RT_DBTUP_PAGE_MAP, pc);
   
   Uint32 nScanOp;       // use TUX config for now
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_SCAN_OP, &nScanOp));
@@ -405,10 +403,6 @@ void Dbtup::initRecords()
   c_operation_pool.setSize(tmp, false, true, true, 
       tmp1 == 0 ? CFG_DB_NO_OPS : CFG_DB_NO_LOCAL_OPS);
   
-  pageRange = (PageRange*)allocRecord("PageRange",
-				      sizeof(PageRange), 
-				      cnoOfPageRangeRec);
-  
   tablerec = (Tablerec*)allocRecord("Tablerec",
 				    sizeof(Tablerec), 
 				    cnoOfTablerec);
@@ -455,7 +449,6 @@ void Dbtup::initialiseRecordsLab(Signal* signal, Uint32 switchData,
     break;
   case 8:
     jam();
-    initializePageRange();
     break;
   case 9:
     jam();

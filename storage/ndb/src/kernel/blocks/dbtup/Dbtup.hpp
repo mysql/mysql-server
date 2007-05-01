@@ -32,6 +32,7 @@
 #include "AttributeOffset.hpp"
 #include "Undo_buffer.hpp"
 #include "tuppage.hpp"
+#include <DynArr256.hpp>
 #include <../pgman.hpp>
 #include <../tsman.hpp>
 
@@ -328,6 +329,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZFREE_EXTENT 11
 #define ZUNMAP_PAGES 12
 #define ZFREE_VAR_PAGES 13
+#define ZFREE_PAGES 14
 
 #define ZSCAN_PROCEDURE 0
 #define ZCOPY_PROCEDURE 2
@@ -698,13 +700,10 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   void dump_disk_alloc(Disk_alloc_info&);
 
 struct Fragrecord {
-  Uint32 nextStartRange;
-  Uint32 currentPageRange;
-  Uint32 rootPageRange;
   Uint32 noOfPages;
   Uint32 noOfVarPages;
-  Uint32 noOfPagesToGrow;
 
+  DynArr256::Head m_page_map;
   DLList<Page>::Head emptyPrimPage; // allocated pages (not init)
   DLFifoList<Page>::Head thFreeFirst;   // pages with atleast 1 free record
   SLList<Page>::Head m_empty_pages; // Empty pages not in logical/physical map
@@ -853,29 +852,6 @@ struct Operationrec {
   Uint16 tupVersion;
 };
 typedef Ptr<Operationrec> OperationrecPtr;
-
-          /* ****************************** PAGE RANGE RECORD ************************** */
-          /* PAGE RANGES AND BASE PAGE ID. EACH RANGE HAS A  CORRESPONDING BASE PAGE ID  */
-          /* THAT IS USED TO  CALCULATE REAL PAGE ID FROM A FRAGMENT PAGE ID AND A TABLE */
-          /* REFERENCE.                                                                  */
-          /* THE PAGE RANGES ARE ORGANISED IN A B-TREE FASHION WHERE THE VARIABLE TYPE   */
-          /* SPECIFIES IF A LEAF NODE HAS BEEN REACHED. IF A LEAF NODE HAS BEEN REACHED  */
-          /* THEN BASE_PAGE_ID IS THE BASE_PAGE_ID OF THE SET OF PAGES THAT WAS          */
-          /* ALLOCATED IN THAT RANGE. OTHERWISE BASE_PAGE_ID IS THE POINTER TO THE NEXT  */
-          /* PAGE_RANGE RECORD.                                                          */
-          /* *************************************************************************** */
-struct PageRange {
-  Uint32 startRange[4];                                  /* START OF RANGE                                   */
-  Uint32 endRange[4];                                    /* END OF THIS RANGE                                */
-  Uint32 basePageId[4];                                  /* BASE PAGE ID.                                    */
-/*----               VARIABLE BASE_PAGE_ID2 (4) 8 DS NEEDED WHEN SUPPORTING 40 BIT PAGE ID           -------*/
-  Uint8 type[4];                                        /* TYPE OF BASE PAGE ID                             */
-  Uint32 nextFree;                                       /* NEXT FREE PAGE RANGE RECORD                      */
-  Uint32 parentPtr;                                      /* THE PARENT TO THE PAGE RANGE REC IN THE B-TREE   */
-  Uint8 currentIndexPos;
-};
-typedef Ptr<PageRange> PageRangePtr;
-
 
   /* ************* TRIGGER DATA ************* */
   /* THIS RECORD FORMS LISTS OF ACTIVE       */
@@ -2801,9 +2777,9 @@ private:
                         Tablerec* regTabPtr,
                         Uint32 fragId);
 
-
-  void releaseFragment(Signal* signal, Uint32 tableId, Uint32);
+  void releaseFragment(Signal*, Uint32, Uint32);
   void drop_fragment_free_var_pages(Signal*);
+  void drop_fragment_free_pages(Signal*);
   void drop_fragment_free_extent(Signal*, TablerecPtr, FragrecordPtr, Uint32);
   void drop_fragment_free_extent_log_buffer_callback(Signal*, Uint32, Uint32);
   void drop_fragment_unmap_pages(Signal*, TablerecPtr, FragrecordPtr, Uint32);
@@ -2878,30 +2854,16 @@ private:
 //
 // Public methods
   Uint32 getRealpid(Fragrecord* regFragPtr, Uint32 logicalPageId);
+  Uint32 getRealpidCheck(Fragrecord* regFragPtr, Uint32 logicalPageId);
   Uint32 getNoOfPages(Fragrecord* regFragPtr);
-  void initPageRangeSize(Uint32 size);
-  bool insertPageRangeTab(Fragrecord* regFragPtr,
-                          Uint32 startPageId,
-                          Uint32 noPages);
-  void releaseFragPages(Fragrecord* regFragPtr);
-  void initFragRange(Fragrecord* regFragPtr);
-  void initializePageRange();
   Uint32 getEmptyPage(Fragrecord* regFragPtr);
-  Uint32 allocFragPages(Fragrecord* regFragPtr, Uint32 noOfPagesAllocated);
+  Uint32 allocFragPage(Fragrecord* regFragPtr);
+  void releaseFragPages(Fragrecord* regFragPtr);
   Uint32 get_empty_var_page(Fragrecord* frag_ptr);
+  void init_page(Fragrecord*, PagePtr, Uint32 page_no);
   
 // Private methods
-  Uint32 leafPageRangeFull(Fragrecord* regFragPtr, PageRangePtr currPageRangePtr);
-  void releasePagerange(PageRangePtr regPRPtr);
-  void seizePagerange(PageRangePtr& regPageRangePtr);
   void errorHandler(Uint32 errorCode);
-  void allocMoreFragPages(Fragrecord* regFragPtr);
-
-// Private data
-  Uint32 cfirstfreerange;
-  PageRange *pageRange;
-  Uint32 c_noOfFreePageRanges;
-  Uint32 cnoOfPageRangeRec;
 
 //---------------------------------------------------------------
 // Variable Allocator
@@ -2991,6 +2953,7 @@ private:
 
   HostBuffer *hostBuffer;
 
+  DynArr256Pool c_page_map_pool;
   ArrayPool<Operationrec> c_operation_pool;
 
   ArrayPool<Page> c_page_pool;
