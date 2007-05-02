@@ -2768,6 +2768,16 @@ String *Item_func_xml_update::val_str(String *str)
 
   nodebeg+= fltbeg->num;
 
+  if (!nodebeg->level)
+  {
+    /*
+      Root element, without NameTest:
+      UpdateXML(xml, '/', 'replacement');
+      Just return the replacement string.
+    */
+    return rep;
+  }
+
   tmp_value.length(0);
   tmp_value.set_charset(collation.collation);
   uint offs= nodebeg->type == MY_XML_NODE_TAG ? 1 : 0;
