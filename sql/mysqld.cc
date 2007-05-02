@@ -576,6 +576,7 @@ MY_LOCALE *my_default_lc_time_names;
 SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
+SHOW_COMP_OPTION have_community_features;
 
 /* Thread specific variables */
 
@@ -6529,6 +6530,7 @@ static int show_starttime(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
+#ifdef COMMUNITY_SERVER
 static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
@@ -6536,6 +6538,7 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
   *((long *)buff)= (long) (thd->query_start() - flush_status_time);
   return 0;
 }
+#endif
 
 #ifdef HAVE_REPLICATION
 static int show_rpl_status(THD *thd, SHOW_VAR *var, char *buff)
@@ -7089,7 +7092,9 @@ SHOW_VAR status_vars[]= {
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_NOFLUSH},
   {"Threads_running",          (char*) &thread_running,         SHOW_INT},
   {"Uptime",                   (char*) &show_starttime,         SHOW_FUNC},
+#ifdef COMMUNITY_SERVER
   {"Uptime_since_flush_status",(char*) &show_flushstatustime,   SHOW_FUNC},
+#endif
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -7313,6 +7318,11 @@ static void mysql_init_variables(void)
     have_partition_db= SHOW_OPTION_YES;
 #else
     have_partition_db= SHOW_OPTION_NO;
+#endif
+#ifdef COMMUNITY_SERVER
+    have_community_features = SHOW_OPTION_YES;
+#else
+    have_community_features = SHOW_OPTION_NO;
 #endif
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   have_ndbcluster=SHOW_OPTION_DISABLED;

@@ -177,7 +177,7 @@ void QUERY_PROFILE::set_query_source(char *query_source_arg,
 
   DBUG_ASSERT(query_source == NULL);
   if (query_source_arg != NULL)
-    query_source= my_strdup_with_length(query_source_arg, length, MYF(0));
+    query_source= my_strndup(query_source_arg, length, MYF(0));
 }
 
 QUERY_PROFILE::~QUERY_PROFILE()
