@@ -460,7 +460,9 @@ eval SELECT *
   LINES TERMINATED BY '\n'
   FROM information_schema.schemata
   WHERE schema_name LIKE 'db_%';
-# The above error is bug 28181 - a regression in 5.0.42
+# The above will fail with access error as long as 
+# BUBG#28181 - a regression introduced in 5.0.42 is not fixed
+
 eval SELECT *
   FROM information_schema.schemata
   WHERE schema_name LIKE 'db_%';
@@ -473,7 +475,9 @@ eval SELECT *
   FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
   LINES TERMINATED BY '\n'
   FROM schemata LIMIT 0, 5;
-# The above error is bug 28181 - a regression in 5.0.42
+# The above will fail with access error as long as 
+# BUBG#28181 - a regression introduced in 5.0.42 is not fixed
+
 eval SELECT *
   FROM schemata LIMIT 0, 5;
 
@@ -483,7 +487,9 @@ eval SELECT *
   LINES TERMINATED BY '\n'
   FROM information_schema.schemata
   WHERE schema_name LIKE 'db_%';
-# The above error is bug 28181 - a regression in 5.0.42
+# The above will fail with access error as long as 
+# BUBG#28181 - a regression introduced in 5.0.42 is not fixed
+
 eval SELECT *
   FROM information_schema.schemata
   WHERE schema_name LIKE 'db_%';
