@@ -3,7 +3,7 @@ Next NDBCNTR 1001
 Next NDBFS 2000
 Next DBACC 3002
 Next DBTUP 4029
-Next DBLQH 5045
+Next DBLQH 5047
 Next DBDICT 6007
 Next DBDIH 7183
 Next DBTC 8040
@@ -177,6 +177,8 @@ handling in DBTC to ensure that node failures are also well handled in
 time-out handling. They can also be used to test multiple node failure
 handling.
 
+5045: Crash in PREPARE_COPY_FRAG_REQ
+5046: Crash if LQHKEYREQ (NrCopy) comes when frag-state is incorrect
 
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBLQH
 -------------------------------------------------

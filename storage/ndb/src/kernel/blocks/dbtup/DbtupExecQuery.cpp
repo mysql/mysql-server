@@ -28,6 +28,31 @@
 #include <signaldata/AttrInfo.hpp>
 #include <NdbSqlUtil.hpp>
 
+/* For debugging */
+static void
+dump_hex(const Uint32 *p, Uint32 len)
+{
+  if(len > 2560)
+    len= 160;
+  if(len==0)
+    return;
+  for(;;)
+  {
+    if(len>=4)
+      ndbout_c("%8p %08X %08X %08X %08X", p, p[0], p[1], p[2], p[3]);
+    else if(len>=3)
+      ndbout_c("%8p %08X %08X %08X", p, p[0], p[1], p[2]);
+    else if(len>=2)
+      ndbout_c("%8p %08X %08X", p, p[0], p[1]);
+    else
+      ndbout_c("%8p %08X", p, p[0]);
+    if(len <= 4)
+      break;
+    len-= 4;
+    p+= 4;
+  }
+}
+
 /* ----------------------------------------------------------------- */
 /* -----------       INIT_STORED_OPERATIONREC         -------------- */
 /* ----------------------------------------------------------------- */
@@ -1101,41 +1126,85 @@ Dbtup::prepare_initial_insert(KeyReqStruct *req_struct,
   req_struct->attr_descr= tab_descr; 
   Uint16* order= (Uint16*)&tableDescriptor[order_desc];
 
-  const Uint32 cnt1= regTabPtr->m_attributes[MM].m_no_of_varsize;
-  const Uint32 cnt2= regTabPtr->m_attributes[DD].m_no_of_varsize;
+  const Uint32 mm_vars= regTabPtr->m_attributes[MM].m_no_of_varsize;
+  const Uint32 mm_dyns= regTabPtr->m_attributes[MM].m_no_of_dynamic;
+  const Uint32 mm_dynvar= regTabPtr->m_attributes[MM].m_no_of_dyn_var;
+  const Uint32 mm_dynfix= regTabPtr->m_attributes[MM].m_no_of_dyn_fix;
+  const Uint32 dd_vars= regTabPtr->m_attributes[DD].m_no_of_varsize;
   Uint32 *ptr= req_struct->m_tuple_ptr->get_end_of_fix_part_ptr(regTabPtr);
   Var_part_ref* ref = req_struct->m_tuple_ptr->get_var_part_ref_ptr(regTabPtr);
 
   if (regTabPtr->m_bits & Tablerec::TR_ForceVarPart)
   {
-    ref->m_page_no = RNIL;
+    ref->m_page_no = RNIL; 
     ref->m_page_idx = Tup_varsize_page::END_OF_FREE_LIST;
   }
-  
-  if(cnt1)
+
+  if(mm_vars || mm_dyns)
   {
+    /* Prepare empty varsize part. */
     KeyReqStruct::Var_data* dst= &req_struct->m_var_data[MM];
-    dst->m_data_ptr= (char*)(((Uint16*)ptr)+cnt1+1);
+    /* Reserve room for length word. */
+    ptr++;
+    dst->m_data_ptr= (char*)(((Uint16*)ptr)+mm_vars+1);
     dst->m_offset_array_ptr= req_struct->var_pos_array;
-    dst->m_var_len_offset= cnt1;
+    dst->m_var_len_offset= mm_vars;
     dst->m_max_var_offset= regTabPtr->m_offsets[MM].m_max_var_offset;
-    // Disk part is 32-bit aligned
+    // Disk/dynamic part is 32-bit aligned
     ptr= ALIGN_WORD(dst->m_data_ptr+regTabPtr->m_offsets[MM].m_max_var_offset);
     order += regTabPtr->m_attributes[MM].m_no_of_fixsize;
     Uint32 pos= 0;
     Uint16 *pos_ptr = req_struct->var_pos_array;
-    Uint16 *len_ptr = pos_ptr + cnt1;
-    for(Uint32 i= 0; i<cnt1; i++)
+    Uint16 *len_ptr = pos_ptr + mm_vars;
+    for(Uint32 i= 0; i<mm_vars; i++)
     {
       * pos_ptr++ = pos;
       * len_ptr++ = pos;
       pos += AttributeDescriptor::getSizeInBytes(tab_descr[*order++].tabDescr);
     }
+    ndbassert(ptr==ALIGN_WORD(dst->m_data_ptr+pos));
+
+    /* Prepare empty dynamic part. */
+    dst->m_dyn_data_ptr= (char *)ptr;
+    ndbassert((UintPtr(dst->m_dyn_data_ptr)&3) == 0);
+
+    /* Zero out the bitmap. */
+    Uint32 bm_size_in_bytes= 4*(regTabPtr->m_offsets[MM].m_dyn_null_words);
+    bzero(ptr, bm_size_in_bytes);
+    * ptr = bm_size_in_bytes >> 2; // Store len, for easy access
+
+    /* Set up the offsets for the attribute data. */
+    dst->m_dyn_offset_arr_ptr= len_ptr;
+    dst->m_dyn_len_offset= mm_dynvar+mm_dynfix;
+    dst->m_max_dyn_offset= regTabPtr->m_offsets[MM].m_max_dyn_offset;
+    pos_ptr= len_ptr;
+    len_ptr= pos_ptr+mm_dynvar+mm_dynfix;
+    /* Reserve room for bitmap + shrunken offset array + padding. */
+    pos= bm_size_in_bytes + 4*((mm_dynvar+2)>>1);
+    for(Uint32 i= 0; i<mm_dynvar; i++)
+    {
+      * pos_ptr++ = pos;
+      * len_ptr++ = pos;
+      Uint32 attrDes= tab_descr[order[i+mm_dynfix]].tabDescr;
+      pos += (AttributeDescriptor::getSizeInWords(attrDes) << 2);
+    }
+    /* Fixed part is stored 32-bit aligned, from the end of the row back. */
+    ndbassert((pos&3)==0);
+    for(Uint32 i= mm_dynfix; i>0; )
+    {
+      i--;
+      pos_ptr[i]= pos;
+      Uint32 attrDes= tab_descr[order[i]].tabDescr;
+      pos+= (AttributeDescriptor::getSizeInBytes(attrDes)+3)&~3;
+      /* len offset array is not used for fixed-size attributes. */
+    }
+    ndbassert((pos&3)==0);
+    ptr+= (pos>>2);
   } 
 
   req_struct->m_disk_ptr= (Tuple_header*)ptr;
   
-  ndbrequire(cnt2 == 0);
+  ndbrequire(dd_vars == 0);
   
   // Set all null bits
   memset(req_struct->m_tuple_ptr->m_null_bits+
@@ -1163,7 +1232,9 @@ int Dbtup::handleInsertReq(Signal* signal,
   bool disk = regTabPtr->m_no_of_disk_attributes > 0;
   bool mem_insert = regOperPtr.p->is_first_operation();
   bool disk_insert = mem_insert && disk;
-  bool varsize = regTabPtr->m_attributes[MM].m_no_of_varsize;
+  bool vardynsize =
+    regTabPtr->m_attributes[MM].m_no_of_varsize + 
+    regTabPtr->m_attributes[MM].m_no_of_dynamic;
   bool rowid = req_struct->m_use_rowid;
   Uint32 real_page_id = regOperPtr.p->m_tuple_location.m_page_no;
   Uint32 frag_page_id = req_struct->frag_page_id;
@@ -1288,7 +1359,7 @@ int Dbtup::handleInsertReq(Signal* signal,
 	goto mem_error;
       }
 
-      if (!varsize)
+      if (!vardynsize)
       {
 	jam();
 	ptr= alloc_fix_rec(regFragPtr,
@@ -1320,7 +1391,7 @@ int Dbtup::handleInsertReq(Signal* signal,
 	goto alloc_rowid_error;
       }
       
-      if (!varsize)
+      if (!vardynsize)
       {
 	jam();
 	ptr= alloc_fix_rowid(regFragPtr,
@@ -1352,7 +1423,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     base = (Tuple_header*)ptr;
     base->m_operation_ptr_i= regOperPtr.i;
     base->m_header_bits= Tuple_header::ALLOC | 
-      (varsize ? Tuple_header::CHAINED_ROW : 0);
+      (vardynsize ? Tuple_header::CHAINED_ROW : 0);
     regOperPtr.p->m_tuple_location.m_page_no = real_page_id;
   }
   else 
@@ -2469,6 +2540,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
  * tabDesc     array of attribute descriptors (used for getting max size)
  * no_of_attr  no of atributes to expand
  */
+static
 Uint32*
 expand_var_part(Dbtup::KeyReqStruct::Var_data *dst, 
 		const Uint32* src, 
@@ -2503,6 +2575,120 @@ expand_var_part(Dbtup::KeyReqStruct::Var_data *dst,
   return ALIGN_WORD(dst_ptr);
 }
 
+/*
+  expand_dyn_part - copy dynamic attributes to fully expanded size.
+
+  Both variable-sized and fixed-size attributes are stored in the same way
+  in the expanded form as variable-sized attributes (in expand_var_part()).
+
+    dst         Destination for expanded data
+    tabPtrP     Table descriptor
+    src         Pointer to the start of dynamic bitmap in source row
+    row_len     Total number of 32-bit words in dynamic part of row
+    tabDesc     Array of table descriptors
+    order       Array of indexes into tabDesc, dynfix followed by dynvar
+*/
+static
+Uint32*
+expand_dyn_part(Dbtup::KeyReqStruct::Var_data *dst,
+		const Uint32* src,
+		Uint32 row_len,
+		const Uint32 * tabDesc,
+		const Uint16* order,
+		Uint32 mm_dynvar,
+		Uint32 mm_dynfix,
+		Uint32 max_bmlen)
+{
+  /* Copy the bitmap, zeroing out any words not stored in the row. */
+  Uint32 *dst_bm_ptr= (Uint32*)dst->m_dyn_data_ptr;
+  Uint32 bm_len = row_len ? (* src & Dbtup::DYN_BM_LEN_MASK) : 0;
+  
+  assert(bm_len <= max_bmlen);
+
+  if(bm_len > 0)
+    memcpy(dst_bm_ptr, src, 4*bm_len);
+  if(bm_len < max_bmlen)
+    bzero(dst_bm_ptr + bm_len, 4 * (max_bmlen - bm_len));
+
+  /**
+   * Store max_bmlen for homogen code in DbtupRoutines
+   */
+  Uint32 tmp = (* dst_bm_ptr);
+  * dst_bm_ptr = (tmp & ~(Uint32)Dbtup::DYN_BM_LEN_MASK) | max_bmlen;
+
+  char *src_off_start= (char*)(src + bm_len);
+  assert((UintPtr(src_off_start)&3) == 0);
+  Uint16 *src_off_ptr= (Uint16*)src_off_start;
+
+  /*
+    Prepare the variable-sized dynamic attributes, copying out data from the
+    source row for any that are not NULL.
+  */
+  Uint32 no_attr= dst->m_dyn_len_offset;
+  Uint16* dst_off_ptr= dst->m_dyn_offset_arr_ptr;
+  Uint16* dst_len_ptr= dst_off_ptr + no_attr;
+  Uint16 this_src_off= *src_off_ptr++;
+  /* We need to reserve room for the offsets written by shrink_tuple+padding. */
+  Uint16 dst_off= 4 * (max_bmlen + ((mm_dynvar+2)>>1));
+  char *dst_ptr= (char*)dst_bm_ptr + dst_off;
+  for(Uint32 i= 0; i<mm_dynvar; i++)
+  {
+    Uint16 j= order[mm_dynfix+i];
+    Uint32 max_len= 4 *AttributeDescriptor::getSizeInWords(tabDesc[j]);
+    Uint32 len;
+    Uint32 pos = AttributeOffset::getNullFlagPos(tabDesc[j+1]);
+    if(bm_len > (pos >> 5) && BitmaskImpl::get(bm_len, src, pos))
+    {
+      Uint16 next_src_off= *src_off_ptr++;
+      len= next_src_off - this_src_off;
+      memcpy(dst_ptr, src_off_start+this_src_off, len);
+      this_src_off= next_src_off;
+    }
+    else
+    {
+      len= 0;
+    }
+    dst_off_ptr[i]= dst_off;
+    dst_len_ptr[i]= dst_off+len;
+    dst_off+= max_len;
+    dst_ptr+= max_len;
+  }
+  /*
+    The fixed-size data is stored 32-bit aligned after the variable-sized
+    data.
+  */
+  char *src_ptr= src_off_start+this_src_off;
+  src_ptr= (char *)(ALIGN_WORD(src_ptr));
+
+  /*
+    Prepare the fixed-size dynamic attributes, copying out data from the
+    source row for any that are not NULL.
+    Note that the fixed-size data is stored in reverse from the end of the
+    dynamic part of the row. This is true both for the stored/shrunken and
+    for the expanded form.
+  */
+  for(Uint32 i= mm_dynfix; i>0; )
+  {
+    i--;
+    Uint16 j= order[i];
+    Uint32 fix_size= 4*AttributeDescriptor::getSizeInWords(tabDesc[j]);
+    dst_off_ptr[mm_dynvar+i]= dst_off;
+    /* len offset array is not used for fixed size. */
+    Uint32 pos = AttributeOffset::getNullFlagPos(tabDesc[j+1]);
+    if(bm_len > (pos >> 5) && BitmaskImpl::get(bm_len, src, pos))
+    {
+      assert((UintPtr(dst_ptr)&3) == 0);
+      memcpy(dst_ptr, src_ptr, fix_size);
+      src_ptr+= fix_size;
+    }
+    dst_off+= fix_size;
+    dst_ptr+= fix_size;
+  }
+
+  return (Uint32 *)dst_ptr;
+}
+
+
 void
 Dbtup::expand_tuple(KeyReqStruct* req_struct, 
 		    Uint32 sizes[2],
@@ -2515,6 +2701,9 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
   
   Uint16 dd_tot= tabPtrP->m_no_of_disk_attributes;
   Uint16 mm_vars= tabPtrP->m_attributes[MM].m_no_of_varsize;
+  Uint16 mm_dynvar= tabPtrP->m_attributes[MM].m_no_of_dyn_var;
+  Uint16 mm_dynfix= tabPtrP->m_attributes[MM].m_no_of_dyn_fix;
+  Uint16 mm_dyns= tabPtrP->m_attributes[MM].m_no_of_dynamic;
   Uint32 fix_size= tabPtrP->m_offsets[MM].m_fix_header_size;
   Uint32 order_desc= tabPtrP->m_real_order_descriptor;
 
@@ -2526,43 +2715,75 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
   const Uint16 *order = (Uint16*)(&tableDescriptor[order_desc]);
   order += tabPtrP->m_attributes[MM].m_no_of_fixsize;
   
-  if(mm_vars)
-  {
-
+  // Copy fix part
+  sizes[MM]= 1;
+  memcpy(ptr, src, 4*fix_size);
+  if(mm_vars || mm_dyns)
+  { 
+    Uint32 src_len;
     Uint32 step; // in bytes
-    const Uint32 *src_data= src_ptr;
+    const Uint32 *src_data;
     KeyReqStruct::Var_data* dst= &req_struct->m_var_data[MM];
     if(bits & Tuple_header::CHAINED_ROW)
     {
+      /* This is for the initial expansion of a stored row. */
       Ptr<Page> var_page;
       src_data= get_ptr(&var_page, *var_ref);
-      step= 4;
-      sizes[MM]= (2 + (mm_vars << 1) + ((Uint16*)src_data)[mm_vars] + 3) >> 2;
+      src_len= get_len(&var_page, *var_ref);
+      sizes[MM]= src_len;
+      /* If the original tuple was grown, the old size is stored at the end. */
+      if(bits & Tuple_header::MM_GROWN)
+      {
+	ndbrequire(false);
+        ndbassert(src_len>0);
+        src_len= src_data[src_len-1];
+      }
+      step= 0;
       req_struct->m_varpart_page_ptr = var_page;
     }
     else
     {
-      step= (2 + (mm_vars << 1) + ((Uint16*)src_ptr)[mm_vars]);
-      sizes[MM]= (step + 3) >> 2;
+      /* This is for the re-expansion of a shrunken row (update2 ...) */
+
+      Varpart_copy* vp = (Varpart_copy*)src_ptr;
+      src_len = vp->m_len;
+      src_data= vp->m_data;
+      step= (1+src_len); // 1+ is for extra word
       req_struct->m_varpart_page_ptr = req_struct->m_page_ptr;
+      sizes[MM]= src_len;
     }
+    /*
+     * Reserve place for initial length word and offset array (with one extra
+     * offset). This will be filled-in in later, in shrink_tuple().
+     */
+    dst_ptr++;
     dst->m_data_ptr= (char*)(((Uint16*)dst_ptr)+mm_vars+1);
     dst->m_offset_array_ptr= req_struct->var_pos_array;
     dst->m_var_len_offset= mm_vars;
     dst->m_max_var_offset= tabPtrP->m_offsets[MM].m_max_var_offset;
-    
+
     dst_ptr= expand_var_part(dst, src_data, desc, order);
     ndbassert(dst_ptr == ALIGN_WORD(dst->m_data_ptr + dst->m_max_var_offset));
-    ndbassert((UintPtr(src_ptr) & 3) == 0);
-    src_ptr = ALIGN_WORD(((char*)src_ptr)+step);
+
+    /**
+     * Now do dynpart
+     */
+    char* varstart = (char*)(((Uint16*)src_data)+mm_vars+1);
+    Uint32 varlen = ((Uint16*)src_data)[mm_vars];
+    Uint32* dynstart = ALIGN_WORD(varstart + varlen);
+
+    dst->m_dyn_offset_arr_ptr= req_struct->var_pos_array+2*mm_vars;
+    dst->m_dyn_len_offset= mm_dynvar+mm_dynfix;
+    dst->m_max_dyn_offset= tabPtrP->m_offsets[MM].m_max_dyn_offset;
+    dst->m_dyn_data_ptr= (char*)dst_ptr;
+    dst_ptr= expand_dyn_part(dst, dynstart,
+			     src_len - (dynstart - src_data),
+			     desc, order + mm_vars,
+			     mm_dynvar, mm_dynfix,
+			     tabPtrP->m_offsets[MM].m_dyn_null_words);
     
-    sizes[MM] += fix_size;
-    memcpy(ptr, src, 4*fix_size);
-  } 
-  else 
-  {
-    sizes[MM]= 1;
-    memcpy(ptr, src, 4*fix_size);
+    ndbassert((UintPtr(src_ptr) & 3) == 0);
+    src_ptr = src_ptr + step;
   }
 
   src->m_header_bits= bits & 
@@ -2572,7 +2793,7 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
   if(disk && dd_tot)
   {
     const Uint16 dd_vars= tabPtrP->m_attributes[DD].m_no_of_varsize;
-    order += mm_vars;
+    order+= mm_vars+mm_dynvar+mm_dynfix;
     
     if(bits & Tuple_header::DISK_INLINE)
     {
@@ -2599,6 +2820,96 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
   }
   
   ptr->m_header_bits= (bits & ~(Uint32)(Tuple_header::CHAINED_ROW));
+  req_struct->is_expanded= true;
+}
+
+void
+Dbtup::dump_tuple(const KeyReqStruct* req_struct, const Tablerec* tabPtrP)
+{
+  Uint16 mm_vars= tabPtrP->m_attributes[MM].m_no_of_varsize;
+  Uint16 mm_dyns= tabPtrP->m_attributes[MM].m_no_of_dynamic;
+  Uint16 dd_tot= tabPtrP->m_no_of_disk_attributes;
+  const Tuple_header* ptr= req_struct->m_tuple_ptr;
+  Uint32 bits= ptr->m_header_bits;
+  const Uint32 *tuple_words= (Uint32 *)ptr;
+  const Uint32 *fix_p;
+  Uint32 fix_len;
+  const Uint32 *var_p;
+  Uint32 var_len;
+  const Uint32 *disk_p;
+  Uint32 disk_len;
+  const char *typ;
+
+  fix_p= tuple_words;
+  fix_len= tabPtrP->m_offsets[MM].m_fix_header_size;
+  if(req_struct->is_expanded)
+  {
+    typ= "expanded";
+    var_p= ptr->get_end_of_fix_part_ptr(tabPtrP);
+    var_len= 0;                                 // No dump of varpart in expanded
+#if 0
+    disk_p= (Uint32 *)req_struct->m_disk_ptr;
+    disk_len= (dd_tot ? tabPtrP->m_offsets[DD].m_fix_header_size : 0);
+#endif
+  }
+  else if(bits & Tuple_header::CHAINED_ROW)
+  {
+    typ= "stored";
+    if(mm_vars+mm_dyns)
+    {
+      const KeyReqStruct::Var_data* dst= &req_struct->m_var_data[MM];
+      const Var_part_ref *varref= ptr->get_var_part_ref_ptr(tabPtrP);
+      Ptr<Page> tmp;
+      var_p= get_ptr(&tmp, * varref);
+      var_len= get_len(&tmp, * varref);
+    }
+    else
+    {
+      var_p= 0;
+      var_len= 0;
+    }
+#if 0
+    if(dd_tot)
+    {
+      Local_key key;
+      memcpy(&key, ptr->get_disk_ref_ptr(tabPtrP), sizeof(key));
+      key.m_page_no= req_struct->m_disk_page_ptr.i;
+      disk_p= get_dd_ptr(&req_struct->m_disk_page_ptr, &key, tabPtrP);
+      disk_len= tabPtrP->m_offsets[DD].m_fix_header_size;
+    }
+    else
+    {
+      disk_p= var_p;
+      disk_len= 0;
+    }
+#endif
+  }
+  else
+  {
+    typ= "shrunken";
+    if(mm_vars+mm_dyns)
+    {
+      var_p= ptr->get_end_of_fix_part_ptr(tabPtrP);
+      var_len= *((Uint16 *)var_p) + 1;
+    }
+    else
+    {
+      var_p= 0;
+      var_len= 0;
+    }
+#if 0
+    disk_p= (Uint32 *)(req_struct->m_disk_ptr);
+    disk_len= (dd_tot ? tabPtrP->m_offsets[DD].m_fix_header_size : 0);
+#endif
+  }
+  ndbout_c("Fixed part[%s](%p len=%u words)",typ, fix_p, fix_len);
+  dump_hex(fix_p, fix_len);
+  ndbout_c("Varpart part[%s](%p len=%u words)", typ , var_p, var_len);
+  dump_hex(var_p, var_len);
+#if 0
+  ndbout_c("Disk part[%s](%p len=%u words)", typ, disk_p, disk_len);
+  dump_hex(disk_p, disk_len);
+#endif
 }
 
 void
@@ -2610,28 +2921,64 @@ Dbtup::prepare_read(KeyReqStruct* req_struct,
   Uint32 bits= ptr->m_header_bits;
   Uint16 dd_tot= tabPtrP->m_no_of_disk_attributes;
   Uint16 mm_vars= tabPtrP->m_attributes[MM].m_no_of_varsize;
+  Uint16 mm_dyns= tabPtrP->m_attributes[MM].m_no_of_dynamic;
   
   const Uint32 *src_ptr= ptr->get_end_of_fix_part_ptr(tabPtrP);
   const Uint32 *disk_ref= ptr->get_disk_ref_ptr(tabPtrP);
   const Var_part_ref* var_ref = ptr->get_var_part_ref_ptr(tabPtrP);
-  if(mm_vars)
+  if(mm_vars || mm_dyns)
   {
     const Uint32 *src_data= src_ptr;
+    Uint32 src_len;
     KeyReqStruct::Var_data* dst= &req_struct->m_var_data[MM];
     if(bits & Tuple_header::CHAINED_ROW)
     {
-#if VM_TRACE
-      
-#endif
-      src_data= get_ptr(* var_ref);
+      Ptr<Page> tmp;
+      src_data= get_ptr(&tmp, * var_ref);
+      src_len= get_len(&tmp, * var_ref);
+      /* If the original tuple was grown, the old size is stored at the end. */
+      if(bits & Tuple_header::MM_GROWN)
+      {
+	/**
+	 * This is when triggers read before value of update
+	 *   when original has been reallocated due to grow
+	 */
+	ndbassert(src_len>0);
+	src_len= src_data[src_len-1];
+      }
     }
-    dst->m_data_ptr= (char*)(((Uint16*)src_data)+mm_vars+1);
+    else
+    {
+      Varpart_copy* vp = (Varpart_copy*)src_ptr;
+      src_len = vp->m_len;
+      src_data = vp->m_data;
+      src_ptr++;
+    }
+    
+    char* varstart = (char*)(((Uint16*)src_data)+mm_vars+1);
+    Uint32 varlen = ((Uint16*)src_data)[mm_vars];
+    Uint32* dynstart = ALIGN_WORD(varstart + varlen);
+
+    dst->m_data_ptr= varstart;
     dst->m_offset_array_ptr= (Uint16*)src_data;
     dst->m_var_len_offset= 1;
-    dst->m_max_var_offset= ((Uint16*)src_data)[mm_vars];
+    dst->m_max_var_offset= varlen;
+
+    Uint32 dynlen = src_len - (dynstart - src_data);
+    dst->m_dyn_data_ptr= (char*)dynstart;
+    dst->m_dyn_part_len= dynlen;
+    // Do or not to to do
+    // dst->m_dyn_offset_arr_ptr = dynlen ? (Uint16*)(dynstart + *(Uint8*)dynstart) : 0;
+
+
     
-    // disk part start after varsize (aligned)
-    src_ptr = ALIGN_WORD(dst->m_data_ptr + dst->m_max_var_offset);
+    /*
+      dst->m_dyn_offset_arr_ptr and dst->m_dyn_len_offset are not used for
+      reading the stored/shrunken format.
+    */
+    
+    // disk part start after dynamic part.
+    src_ptr+= src_len;
   } 
   
   if(disk && dd_tot)
@@ -2656,6 +3003,8 @@ Dbtup::prepare_read(KeyReqStruct* req_struct,
     ndbassert(! (req_struct->m_disk_ptr->m_header_bits & Tuple_header::FREE));
     ndbrequire(dd_vars == 0);
   }
+
+  req_struct->is_expanded= false;
 }
 
 void
@@ -2664,9 +3013,18 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
 {
   ndbassert(tabPtrP->need_shrink());
   Tuple_header* ptr= req_struct->m_tuple_ptr;
+  ndbassert(!(ptr->m_header_bits & Tuple_header::CHAINED_ROW));
   
+  KeyReqStruct::Var_data* dst= &req_struct->m_var_data[MM];
+  Uint32 order_desc= tabPtrP->m_real_order_descriptor;
+  const Uint32 * tabDesc= (Uint32*)req_struct->attr_descr;
+  const Uint16 *order = (Uint16*)(&tableDescriptor[order_desc]);
   Uint16 dd_tot= tabPtrP->m_no_of_disk_attributes;
+  Uint16 mm_fix= tabPtrP->m_attributes[MM].m_no_of_fixsize;
   Uint16 mm_vars= tabPtrP->m_attributes[MM].m_no_of_varsize;
+  Uint16 mm_dyns= tabPtrP->m_attributes[MM].m_no_of_dynamic;
+  Uint16 mm_dynvar= tabPtrP->m_attributes[MM].m_no_of_dyn_var;
+  Uint16 mm_dynfix= tabPtrP->m_attributes[MM].m_no_of_dyn_fix;
   Uint16 dd_vars= tabPtrP->m_attributes[DD].m_no_of_varsize;
   
   Uint32 *dst_ptr= ptr->get_end_of_fix_part_ptr(tabPtrP);
@@ -2674,8 +3032,11 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
 
   sizes[MM] = 1;
   sizes[DD] = 0;
-  if(mm_vars)
+  if(mm_vars || mm_dyns)
   {
+    Varpart_copy* vp = (Varpart_copy*)dst_ptr;
+    dst_ptr = vp->m_data;
+
     Uint16* dst_off_ptr= (Uint16*)dst_ptr;
     char*  dst_data_ptr= (char*)(dst_off_ptr + mm_vars + 1);
     char*  src_data_ptr= dst_data_ptr;
@@ -2691,11 +3052,134 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
       dst_data_ptr += len;
     }
     *dst_off_ptr= off;
-    ndbassert(dst_data_ptr <= ((char*)ptr) + 8192);
-    ndbassert((UintPtr(ptr) & 3) == 0);
-    sizes[MM]= (dst_data_ptr + 3 - ((char*)ptr)) >> 2;
 
-    dst_ptr = ALIGN_WORD(dst_data_ptr);
+    /*
+      Now build the dynamic part, if any.
+      First look for any trailing all-NULL words of the bitmap; we do
+      not need to store those.
+    */
+    
+    ndbassert((UintPtr(dst->m_dyn_data_ptr)&3) == 0);
+    char *dyn_src_ptr= dst->m_dyn_data_ptr;
+    Uint32 bm_len= tabPtrP->m_offsets[MM].m_dyn_null_words; // In 32-bit words
+    /* If no dynamic variables, store nothing. */
+    if(bm_len != 0)
+    {
+      Uint32 *bm_ptr= (Uint32 *)dyn_src_ptr + bm_len - 1;
+      while(*bm_ptr == 0)
+      {
+        bm_ptr--;
+        bm_len--;
+        if(bm_len == 0)
+          break;
+      }
+    }
+
+    /*
+      Copy the bitmap, counting the number of variable sized
+      attributes that are not NULL on the way.
+    */
+    Uint32 *dyn_dst_ptr= ALIGN_WORD(dst_data_ptr);
+    Uint32 dyn_var_count= 0;
+    const Uint32 *src_bm_ptr= (Uint32 *)(dyn_src_ptr);
+    Uint32 *dst_bm_ptr= (Uint32 *)dyn_dst_ptr;
+    /* ToDo: Put all of the dynattr code inside if(bm_len>0) { ... }, split to separate function. */
+    Uint16 dyn_dst_data_offset= 0;
+    if (bm_len > 0)
+    {
+      const Uint32 *dyn_bm_var_mask_ptr= tabPtrP->dynVarSizeMask;
+      for(Uint16 i= 0; i< bm_len; i++)
+      {
+        Uint32 v= src_bm_ptr[i];
+        dyn_var_count+= count_bits(v & *dyn_bm_var_mask_ptr++);
+        dst_bm_ptr[i]= v;
+      }
+
+      Uint32 tmp = *dyn_dst_ptr;
+      ndbassert(bm_len <= DYN_BM_LEN_MASK);
+      * dyn_dst_ptr = (tmp & ~(Uint32)DYN_BM_LEN_MASK) | bm_len;
+      dyn_dst_ptr+= bm_len;
+      dyn_dst_data_offset= 2*dyn_var_count + 2;
+    }
+    Uint16 *dyn_src_off_array= dst->m_dyn_offset_arr_ptr;
+    Uint16 *dyn_src_lenoff_array=
+      dyn_src_off_array + dst->m_dyn_len_offset;
+    Uint16* dyn_dst_off_array = (Uint16*)dyn_dst_ptr;
+    /*
+      Copy over the variable sized not-NULL attributes.
+      Data offsets are counted from the start of the offset array, and
+      we store one additional offset to be able to easily compute the
+      data length as the difference between offsets.
+    */
+    Uint16 off_idx= 0;
+    order+= mm_fix+mm_vars;                     // Point to first dynfix entry
+    for(Uint32 i= 0; i<mm_dynvar; i++)
+    {
+      /*
+        Note that we must use the destination (shrunken) bitmap here, as the
+        source (expanded) bitmap may have been already clobbered (by offset
+        data).
+      */
+      Uint32 attrDesc2 = tabDesc[order[mm_dynfix+i]+1];
+      Uint32 pos = AttributeOffset::getNullFlagPos(attrDesc2);
+      if (bm_len > (pos >> 5) && BitmaskImpl::get(bm_len, dst_bm_ptr, pos))
+      {
+        dyn_dst_off_array[off_idx++]= dyn_dst_data_offset;
+        Uint32 dyn_src_off= dyn_src_off_array[i];
+        Uint32 dyn_len= dyn_src_lenoff_array[i] - dyn_src_off;
+        memmove(((char *)dyn_dst_ptr) + dyn_dst_data_offset,
+                dyn_src_ptr + dyn_src_off,
+                dyn_len);
+        dyn_dst_data_offset+= dyn_len;
+      }
+    }
+    /* If all dynamic attributes are NULL, we store nothing. */
+    if(bm_len != 0)
+    {
+      dyn_dst_off_array[off_idx]= dyn_dst_data_offset;
+      ndbassert(dyn_dst_off_array + off_idx == (Uint16*)dyn_dst_ptr+dyn_var_count);
+    }
+
+    char *dynvar_end_ptr= ((char *)dyn_dst_ptr) + dyn_dst_data_offset;
+    char *dyn_dst_data_ptr= (char *)(ALIGN_WORD(dynvar_end_ptr));
+    /*
+      Zero out any padding bytes. Might not be strictly necessary, but seems
+      cleaner than leaving random stuff in there.
+    */
+    bzero(dynvar_end_ptr, dyn_dst_data_ptr-dynvar_end_ptr);
+
+    /* 
+       Copy over the fixed-sized not-NULL attributes.
+       Note that attributes are copied in reverse order; this is to avoid
+       overwriting not-yet-copied data, as the data is also stored in reverse
+       order.
+    */
+    for(Uint32 i= mm_dynfix; i > 0; )
+    {
+      i--;
+      Uint16 j= order[i];
+      Uint32 attrDesc2 = tabDesc[j+1];
+      Uint32 pos = AttributeOffset::getNullFlagPos(attrDesc2);
+      if(bm_len > (pos >> 5) && BitmaskImpl::get(bm_len, dst_bm_ptr, pos))
+      {
+        Uint32 fixsize=
+          4*AttributeDescriptor::getSizeInWords(tabDesc[j]);
+        memmove(dyn_dst_data_ptr,
+                dyn_src_ptr + dyn_src_off_array[mm_dynvar+i],
+                fixsize);
+        dyn_dst_data_ptr += fixsize;
+      }
+    }
+
+    Uint32 varpart_len= ((Uint32 *)dyn_dst_data_ptr)-dst_ptr;
+    vp->m_len = varpart_len;
+    sizes[MM] = varpart_len;
+    dst_ptr= (Uint32 *)dyn_dst_data_ptr;
+    
+    ndbassert(dyn_dst_data_ptr <= ((char*)ptr) + 8192);
+    ndbassert((UintPtr(ptr) & 3) == 0);
+    ndbassert((UintPtr(dyn_dst_data_ptr) & 3) == 0);
+    ndbassert(varpart_len < 0x10000);
   }
   
   if(disk && dd_tot)
@@ -2706,11 +3190,15 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
     sizes[DD] = tabPtrP->m_offsets[DD].m_fix_header_size;
     memmove(dst_ptr, src_ptr, 4*tabPtrP->m_offsets[DD].m_fix_header_size);
   }
+
+  req_struct->is_expanded= false;
+
 }
 
 void
 Dbtup::validate_page(Tablerec* regTabPtr, Var_page* p)
 {
+  /* ToDo: We could also do some checks here for any dynamic part. */
   Uint32 mm_vars= regTabPtr->m_attributes[MM].m_no_of_varsize;
   Uint32 fix_sz= regTabPtr->m_offsets[MM].m_fix_header_size + 
     Tuple_header::HeaderSize;
@@ -2802,14 +3290,13 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
   
   Uint32 bits= org->m_header_bits;
   Uint32 copy_bits= req_struct->m_tuple_ptr->m_header_bits;
-  Uint32 fix_sz = regTabPtr->m_offsets[MM].m_fix_header_size;
   
   if(sizes[MM] == sizes[2+MM])
     ;
   else if(sizes[MM] > sizes[2+MM])
   {
     if(0) ndbout_c("shrink");
-    copy_bits |= Tuple_header::MM_SHRINK;
+    req_struct->m_tuple_ptr->m_header_bits= copy_bits|Tuple_header::MM_SHRINK;
   }
   else
   {
@@ -2817,7 +3304,7 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     Ptr<Page> pagePtr = req_struct->m_varpart_page_ptr;
     Var_page* pageP= (Var_page*)pagePtr.p;
     Uint32 idx, alloc, needed;
-    Var_part_ref *refptr = org->get_var_part_ref_ptr(regTabPtr);
+    Var_part_ref *refptr= org->get_var_part_ref_ptr(regTabPtr);
     ndbassert(bits & Tuple_header::CHAINED_ROW);
 
     Local_key ref;
@@ -2829,25 +3316,37 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
       pageP = (Var_page*)pagePtr.p;
     }
     alloc= pageP->get_entry_len(idx);
+    Uint32 orig_size= alloc;
+    if(bits&Tuple_header::MM_GROWN)
+    {
+      /* Was grown before, so must fetch real original size from last word. */
+      Uint32 *old_var_part= pageP->get_ptr(idx);
+      ndbassert(alloc>0);
+      orig_size= old_var_part[alloc-1];
+    }
+      
 #ifdef VM_TRACE
     if(!pageP->get_entry_chain(idx))
       ndbout << *pageP << endl;
 #endif
     ndbassert(pageP->get_entry_chain(idx));
-    needed= sizes[2+MM] - fix_sz;
-    
+    needed= sizes[2+MM];
+
     if(needed <= alloc)
     {
       //ndbassert(!regOperPtr->is_first_operation());
       if (0) ndbout_c(" no grow");
       return 0;
     }
-    copy_bits |= Tuple_header::MM_GROWN;
-    if (unlikely(realloc_var_part(regFragPtr, regTabPtr, pagePtr, 
-				  refptr, alloc, needed)))
+    Uint32 *new_var_part=realloc_var_part(regFragPtr, regTabPtr, pagePtr, 
+                                          refptr, alloc, needed);
+    if (unlikely(new_var_part==NULL))
       return -1;
+    /* Mark the tuple grown, store the original length at the end. */
+    org->m_header_bits= bits|Tuple_header::MM_GROWN;
+    ndbassert(needed>1);
+    new_var_part[needed-1]= orig_size;
   }
-  req_struct->m_tuple_ptr->m_header_bits = copy_bits;
   return 0;
 }
 
@@ -3017,7 +3516,8 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
   Local_key disk;
   memcpy(&disk, ptr->get_disk_ref_ptr(tablePtr.p), sizeof(disk));
   
-  if (tablePtr.p->m_attributes[MM].m_no_of_varsize)
+  if (tablePtr.p->m_attributes[MM].m_no_of_varsize +
+      tablePtr.p->m_attributes[MM].m_no_of_dynamic)
   {
     jam();
     free_var_rec(fragPtr.p, tablePtr.p, &tmp, pagePtr);
