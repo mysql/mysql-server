@@ -1939,8 +1939,7 @@ static int check_func_set(THD *thd, struct st_mysql_sys_var *var,
   char buff[STRING_BUFFER_USUAL_SIZE], *error= 0;
   const char *strvalue= "NULL", *str;
   TYPELIB *typelib;
-  long result;
-  ulonglong tmp;
+  ulonglong result;
   uint error_len;
   bool not_used;
   int length;
@@ -1966,18 +1965,17 @@ static int check_func_set(THD *thd, struct st_mysql_sys_var *var,
   }
   else
   {
-    if (value->val_int(value, (long long *)&tmp))
+    if (value->val_int(value, (long long *)&result))
       goto err;
-    if (unlikely((tmp >= (ULL(1) << typelib->count)) &&
+    if (unlikely((result >= (ULL(1) << typelib->count)) &&
                  (typelib->count < sizeof(long)*8)))
     {
-      llstr(tmp, buff);
+      llstr(result, buff);
       strvalue= buff;
       goto err;
     }
-    result= (long) tmp;
   }
-  *(long*)save= result;
+  *(ulonglong*)save= result;
   return 0;
 err:
   my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var->name, strvalue);
@@ -2887,7 +2885,7 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
       if (!opt->check)
         opt->check= check_func_set;
       if (!opt->update)
-        opt->update= update_func_long;
+        opt->update= update_func_longlong;
       break;
     default:
       sql_print_error("Unknown variable type code 0x%x in plugin '%s'.",

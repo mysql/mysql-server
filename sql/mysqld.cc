@@ -1331,6 +1331,7 @@ static void clean_up_mutexes()
 ** Init IP and UNIX socket
 ****************************************************************************/
 
+#ifndef EMBEDDED_LIBRARY
 static void set_ports()
 {
   char	*env;
@@ -1355,7 +1356,6 @@ static void set_ports()
   }
 }
 
-#ifndef EMBEDDED_LIBRARY
 /* Change to run as another user if started with --user */
 
 static struct passwd *check_user(const char *user)
@@ -2614,16 +2614,18 @@ int STDCALL handle_kill(ulong ctrl_type)
 }
 #endif
 
+#if !defined(EMBEDDED_LIBRARY)
 static const char *load_default_groups[]= {
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 "mysql_cluster",
 #endif
 "mysqld","server", MYSQL_BASE_VERSION, 0, 0};
 
-#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
+#if defined(__WIN__)
 static const int load_default_groups_sz=
 sizeof(load_default_groups)/sizeof(load_default_groups[0]);
 #endif
+#endif /*!EMBEDDED_LIBRARY*/
 
 
 /*
@@ -3384,6 +3386,10 @@ server.");
     }
   }
 
+  /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
+  if (!errmesg[0][0])
+    unireg_abort(1);
+
   /* We have to initialize the storage engines before CSV logging */
   if (ha_init())
   {
@@ -3743,7 +3749,7 @@ int main(int argc, char **argv)
     We have enough space for fiddling with the argv, continue
   */
   check_data_home(mysql_real_data_home);
-  if (my_setwd(mysql_real_data_home,MYF(MY_WME)))
+  if (my_setwd(mysql_real_data_home,MYF(MY_WME)) && !opt_help)
     unireg_abort(1);				/* purecov: inspected */
   mysql_data_home= mysql_data_home_buff;
   mysql_data_home[0]=FN_CURLIB;		// all paths are relative from here
