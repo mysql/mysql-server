@@ -2496,16 +2496,17 @@ thread_dirs=
 
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
-sql_client_dirs="strings regex mysys libmysql client"
+sql_client_dirs="strings regex mysys libmysql"
 
 AM_CONDITIONAL(THREAD_SAFE_CLIENT, test "$THREAD_SAFE_CLIENT" != "no")
 
 if test "$THREAD_SAFE_CLIENT" != "no"
 then
-  sql_client_dirs="libmysql_r $sql_client_dirs"
+  sql_client_dirs="$sql_client_dirs libmysql_r"
   AC_CONFIG_FILES(libmysql_r/Makefile)
   AC_DEFINE([THREAD_SAFE_CLIENT], [1], [Should the client be thread safe])
 fi
+sql_client_dirs="$sql_client_dirs client"
 
 CLIENT_LIBS="$NON_THREADED_LIBS $openssl_libs $ZLIB_LIBS $STATIC_NSS_FLAGS"
 

@@ -181,9 +181,16 @@ my_bool thd_tablespace_op(const THD *thd)
 }
 
 
-const char *thd_proc_info(THD *thd, const char *info)
+const char *set_thd_proc_info(THD *thd, const char *info, 
+                              const char *calling_function, 
+                              const char *calling_file, 
+                              const unsigned int calling_line)
 {
   const char *old_info= thd->proc_info;
+  DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line, info));
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  thd->profiling.status_change(info, calling_function, calling_file, calling_line);
+#endif
   thd->proc_info= info;
   return old_info;
 }

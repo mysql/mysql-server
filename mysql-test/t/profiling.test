@@ -1,4 +1,4 @@
---source include/profiling.inc
+--source include/have_community_features.inc
 
 # default is OFF
 show session variables like 'profil%';

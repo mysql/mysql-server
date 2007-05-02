@@ -496,6 +496,8 @@ enum enum_parsing_place
 };
 
 struct st_table;
+
+#define thd_proc_info(thd, msg)  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
 class THD;
 
 /* Struct to handle simple linked lists */
@@ -1756,6 +1758,7 @@ extern SHOW_COMP_OPTION have_innodb;
 extern SHOW_COMP_OPTION have_csv_db;
 extern SHOW_COMP_OPTION have_ndbcluster;
 extern SHOW_COMP_OPTION have_partition_db;
+extern SHOW_COMP_OPTION have_community_features;
 
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
