@@ -10526,7 +10526,6 @@ static enum_nested_loop_state
 evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
                      int error, my_bool *report_error)
 {
-  bool not_exists_optimize= join_tab->table->reginfo.not_exists_optimize;
   bool not_used_in_distinct=join_tab->not_used_in_distinct;
   ha_rows found_records=join->found_records;
   COND *select_cond= join_tab->select_cond;
@@ -10563,6 +10562,8 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       first_unmatched->found= 1;
       for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
       {
+        if (tab->table->reginfo.not_exists_optimize)
+          return NESTED_LOOP_NO_MORE_ROWS;
         /* Check all predicates that has just been activated. */
         /*
           Actually all predicates non-guarded by first_unmatched->found
@@ -10608,8 +10609,6 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     if (found)
     {
       enum enum_nested_loop_state rc;
-      if (not_exists_optimize)
-        return NESTED_LOOP_NO_MORE_ROWS;
       /* A match from join_tab is found for the current partial join. */
       rc= (*join_tab->next_select)(join, join_tab+1, 0);
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
