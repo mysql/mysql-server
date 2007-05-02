@@ -4315,7 +4315,7 @@ int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     List<set_var_base> tmp_var_list;
     LEX *sav_lex= thd->lex, lex_tmp;
     thd->lex= &lex_tmp;
-    lex_start(thd, NULL, 0);
+    lex_start(thd);
     tmp_var_list.push_back(new set_var_user(new Item_func_set_user_var(name,
                                                                        new Item_null())));
     /* Create the variable */

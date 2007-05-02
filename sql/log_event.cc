@@ -1879,7 +1879,8 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli,
         thd->variables.collation_database= thd->db_charset;
       
       /* Execute the query (note that we bypass dispatch_command()) */
-      mysql_parse(thd, thd->query, thd->query_length);
+      const char* found_semicolon= NULL;
+      mysql_parse(thd, thd->query, thd->query_length, &found_semicolon);
 
     }
     else
@@ -2987,10 +2988,12 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   thd->query_error= 0;
   clear_all_errors(thd, rli);
   /*
-    Usually mysql_init_query() is called by mysql_parse(), but we need it here
+    Usually lex_start() is called by mysql_parse(), but we need it here
     as the present method does not call mysql_parse().
   */
-  mysql_init_query(thd, 0, 0);
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
+
   if (!use_rli_only_for_errors)
   {
     /* Saved for InnoDB, see comment in Query_log_event::exec_event() */
