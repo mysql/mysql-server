@@ -1,2 +1,0 @@
-mysqltest: Warning detected in included file ./suite/funcs_1/views/views_master.inc at line 3039: Suspicious command '--eror 1116' detected, was this intentional? Use # instead of -- to avoid this warning
-mysqltest: Warning detected in included file ./suite/funcs_1/views/views_master.inc at line 3050: Suspicious command '--eror 1116' detected, was this intentional? Use # instead of -- to avoid this warning
