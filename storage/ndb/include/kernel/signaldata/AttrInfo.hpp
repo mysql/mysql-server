@@ -36,6 +36,7 @@ class AttrInfo {
   friend class Dblqh;
   friend class NdbScanOperation;
   friend class Restore;
+  friend class NdbOperation;
 
   friend bool printATTRINFO(FILE *, const Uint32 *, Uint32, Uint16);
   
@@ -49,5 +50,37 @@ private:
   Uint32 transId[2];
   Uint32 attrData[DataLength];
 };
+
+/*
+  A train of ATTRINFO signals is used to specify attributes to read or
+  attributes and values to insert/update in TCKEYREQ, and to specify
+  attributes to read in SCAN_TABREQ.
+
+  The ATTRINFO signal train defines a stream of attribute info words.  (Note
+  that for TCKEYREQ, the first five words are stored inside the TCKEYREQ
+  signal. For SCAN_TABREQ, all attribute info words are sent in ATTRINFO
+  signals).
+
+  For SCAN_TABREQ, the attribute information can have up to five sections. The
+  initial five words of the stream defines the length of the sections,
+  followed by the words of each section in sequence.
+
+  The sections are:
+   1. Attributes to read before starting any interpreted program.
+   2. Interpreted program.
+   3. Attributes to update after running interpreted program.
+   4. Attributes to read after interpreted program.
+   5. Subroutine data.
+
+  The formats of sections that specify attributes to read or update is a
+  sequence of entries, each (1+N) words:
+    1 word specifying the AttributeHeader (attribute id in upper 16 bits, and
+           size in bytes of data in lower 16 bits).
+    N words of data (N = (data byte length+3)>>2).
+  For specifying attributes to read, the data length is always zero.
+  For an index range scan of a table using an ordered index, the attribute IDs
+  refer to columns in the underlying table, not to columns being indexed, so
+  all attributes in the underlying table being indexed are accessible.
+*/
 
 #endif

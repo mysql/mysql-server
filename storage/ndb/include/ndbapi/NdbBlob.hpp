@@ -263,9 +263,12 @@ private:
   friend class NdbResultSet; // atNextResult
   friend class NdbEventBuffer;
   friend class NdbEventOperationImpl;
+  friend class NdbReceiver;
 #endif
   // state
   State theState;
+  // True if theNdbOp is using NdbRecord, false if NdbRecAttr.
+  bool theNdbRecordFlag;
   void setState(State newState);
   // quick and dirty support for events (consider subclassing)
   int theEventBlobVersion; // -1=normal blob 0=post event 1=pre event
@@ -359,6 +362,10 @@ private:
   // pack / unpack
   int packKeyValue(const NdbTableImpl* aTable, const Buf& srcBuf);
   int unpackKeyValue(const NdbTableImpl* aTable, Buf& dstBuf);
+  int copyKeyFromRow(const NdbRecord *record, const char *row,
+                     Buf& packedBuf, Buf& unpackedBuf);
+  Uint32 getHeadInlineSize() { return sizeof(Head) + theInlineSize; }
+  void getBlobHeadData(const char * & data, Uint32 & byteSize);
   // getters and setters
   int getTableKeyValue(NdbOperation* anOp);
   int setTableKeyValue(NdbOperation* anOp);
@@ -366,6 +373,7 @@ private:
   int setPartKeyValue(NdbOperation* anOp, Uint32 part);
   int getHeadInlineValue(NdbOperation* anOp);
   void getHeadFromRecAttr();
+  void receiveHead(const char *src, Uint32 byteSize);
   int setHeadInlineValue(NdbOperation* anOp);
   // data operations
   int readDataPrivate(char* buf, Uint32& bytes);
@@ -384,12 +392,24 @@ private:
   int invokeActiveHook();
   // blob handle maintenance
   int atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl* aColumn);
+  int atPrepareNdbRecord(NdbTransaction* aCon, NdbOperation* anOp,
+                         const NdbColumnImpl* aColumn,
+                         const NdbRecord *key_record, const char *key_row);
+  int atPrepareNdbRecordTakeover(NdbTransaction* aCon, NdbOperation* anOp,
+                                 const NdbColumnImpl* aColumn,
+                                 const char *keyinfo, Uint32 keyinfo_bytes);
+  int atPrepareNdbRecordScan(NdbTransaction* aCon, NdbOperation* anOp,
+                             const NdbColumnImpl* aColumn);
+  int atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
+                      const NdbColumnImpl* aColumn);
   int atPrepare(NdbEventOperationImpl* anOp, NdbEventOperationImpl* aBlobOp, const NdbColumnImpl* aColumn, int version);
   int prepareColumn();
   int preExecute(NdbTransaction::ExecType anExecType, bool& batch);
   int postExecute(NdbTransaction::ExecType anExecType);
   int preCommit();
   int atNextResult();
+  int atNextResultNdbRecord(const char *keyinfo, Uint32 keyinfo_bytes);
+  int atNextResultCommon();
   int atNextEvent();
   // errors
   void setErrorCode(int anErrorCode, bool invalidFlag = false);

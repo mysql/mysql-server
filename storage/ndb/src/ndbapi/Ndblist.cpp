@@ -371,7 +371,7 @@ Ndb::releaseScanOperation(NdbIndexScanOperation* aScanOperation)
   { NdbIndexScanOperation* tOp = theScanOpIdleList;
     while (tOp != NULL) {
       assert(tOp != aScanOperation);
-    tOp = (NdbIndexScanOperation*)tOp->theNext;
+      tOp = (NdbIndexScanOperation*)tOp->theNext;
     }
   }
 #endif

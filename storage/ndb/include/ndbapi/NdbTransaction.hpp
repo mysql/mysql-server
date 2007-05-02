@@ -21,9 +21,9 @@
 #include "NdbDictionary.hpp"
 #include "Ndb.hpp"
 #include "NdbOperation.hpp"
+#include <NdbIndexScanOperation.hpp>
 
 class NdbTransaction;
-class NdbOperation;
 class NdbScanOperation;
 class NdbIndexScanOperation;
 class NdbIndexOperation;
@@ -132,6 +132,8 @@ enum ExecType {
  *
  */
 
+class NdbRecord;
+
 class NdbTransaction
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -226,8 +228,8 @@ public:
    * get the NdbTransaction object which
    * was fetched by startTransaction pointing to this operation.
    *
-   * @param  anIndexName  The index name.
-   * @param  aTableName  The table name.
+   * @param  anIndexName  The name of the index to use for scanning
+   * @param  aTableName  The name of the table to scan
    * @return pointer to an NdbOperation object if successful, otherwise NULL
    */
   NdbIndexScanOperation* getNdbIndexScanOperation(const char* anIndexName,
@@ -293,7 +295,8 @@ public:
    *                     ExecType::Rollback rollbacks the entire transaction.
    * @param abortOption  Handling of error while excuting
    *                     AbortOnError - Abort transaction if an operation fail
-   *                     IgnoreError  - Accept failing operations
+   *                     AO_IgnoreError  - Accept failing operations
+   *                     DefaultAbortOption - Use per-operation abort option
    * @param force        When operations should be sent to NDB Kernel.
    *                     (See @ref secAdapt.)
    *                     - 0: non-force, adaptive algorithm notices it 
@@ -560,6 +563,130 @@ public:
   Uint32 getConnectedNodeId(); // Get Connected node id
 #endif
 
+  /*
+    NdbRecord primary key and unique key operations.
+
+    If the key_rec passed in is for a table, the operation will be a primary
+    key operation. If it is for an index, it will be a unique key operation
+    using that index.
+
+    The key_row passed in defined the primary or unique key of the affected
+    tuple, and must remain valid until execute() is called.
+
+    The mask, if != NULL, defines a subset of attributes to read, update, or
+    insert. It is copied by the methods, so need not remain valid after the
+    call returns.
+
+    For unique index operations, the attr_rec must refer to the underlying
+    table of the index.
+  */
+
+  NdbOperation *readTuple(const NdbRecord *key_rec, const char *key_row,
+                          const NdbRecord *result_rec, char *result_row,
+                          NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
+                          const unsigned char *result_mask= 0);
+  NdbOperation *insertTuple(const NdbRecord *rec, const char *row,
+                            const unsigned char *mask= 0);
+  NdbOperation *updateTuple(const NdbRecord *key_rec, const char *key_row,
+                            const NdbRecord *attr_rec, const char *attr_row,
+                            const unsigned char *mask= 0);
+  NdbOperation *writeTuple(const NdbRecord *key_rec, const char *key_row,
+                           const NdbRecord *attr_rec, const char *attr_row,
+                           const unsigned char *mask= 0);
+  NdbOperation *deleteTuple(const NdbRecord *key_rec, const char *key_row);
+
+  /*
+    Scan a table, using NdbRecord to read out column data.
+
+    The result_record pointer must remain valid until after the call to
+    execute().
+
+    The result_mask pointer is optional, if present only columns for which
+    the corresponding bit in result_mask is set will be retrieved in the
+    scan. The result_mask is copied internally, so in contrast to
+    result_record need not be valid at execute().
+
+    The parallel argument is the desired parallelism, or 0 for maximum
+    parallelism (receiving rows from all fragments in parallel).
+  */
+  NdbScanOperation *
+  scanTable(const NdbRecord *result_record,
+            NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
+            const unsigned char *result_mask= 0,
+            Uint32 scan_flags= 0,
+            Uint32 parallel= 0,
+            Uint32 batch= 0);
+
+//private:
+  /*
+    Do an index range scan (optionally ordered) of a table.
+
+    The key_record describes the index to be scanned. It must be a
+    primary key record for the index, ie. it must specify exactly the
+    key columns of the index. And it must be created from the index to
+    be scanned (not from the underlying table).
+
+    The result_record describes the rows to be returned from the scan. For an
+    ordered index scan, result_record must be a key record for the index to
+    be scanned, that is it must include at least all of the column in the
+    index (the reason is that the index key is needed for merge sorting the
+    scans returned from each fragment).
+
+    The call uses a callback function as a flexible way of specifying multiple
+    range bounds. The callback will be called once for each bound to define
+    lower and upper key value etc.
+
+    The callback received a private callback_data void *, and the index of the
+    bound (0 .. num_key_bounds). However, it is guaranteed that it will be
+    called in ordered sequence, so it is permissible to ignore the passed
+    bound_index and just return the values for the next bound (for example
+    if data is kept in a linked list).
+
+    Note that for multi-range, the IndexBound::low_key and IndexBound::high_key
+    pointers must be unique, ie. it is not permissible to re-use the same row
+    buffer for several different range bounds within a single scan. It is
+    however permissible to use the same row pointer as low_key and high_key (to
+    specify an equals bound), and it is also permissible to re-use the rows
+    after the scanIndex() method returns (ie. they need not remain valid until
+    ececute() time, like the NdbRecord pointers do).
+
+    The callback can return 0 to denote success, and -1 to denote error (the
+    latter causing the creation of the NdbIndexScanOperation to fail).
+
+    This multi-range method is only for use in mysqld code.
+  */
+  NdbIndexScanOperation *
+  scanIndex(const NdbRecord *key_record,
+            int (*get_bound_callback)(void *callback_data,
+                                      Uint32 bound_index,
+                                      NdbIndexScanOperation::IndexBound & bound),
+            void *callback_data,
+            Uint32 num_key_bounds,
+            const NdbRecord *result_record,
+            NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
+            const unsigned char *result_mask= 0,
+            Uint32 scan_flags= 0,
+            Uint32 parallel= 0,
+            Uint32 batch= 0);
+
+public:
+
+  /* A convenience wrapper for simpler specification of a single bound. */
+  NdbIndexScanOperation *
+  scanIndex(const NdbRecord *key_record,
+            const char *low_key,
+            Uint32 low_key_count,
+            bool low_inclusive,
+            const char * high_key,
+            Uint32 high_key_count,
+            bool high_inclusive,
+            const NdbRecord *result_record,
+            NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
+            const unsigned char *result_mask= 0,
+            Uint32 scan_flags= 0,
+            Uint32 parallel= 0,
+            Uint32 batch= 0);
+
 private:						
   /**
    * Release completed operations
@@ -668,14 +795,25 @@ private:
 
   int		checkMagicNumber();		       // Verify correct object
   NdbOperation* getNdbOperation(const class NdbTableImpl* aTable,
-                                NdbOperation* aNextOp = 0);
+                                NdbOperation* aNextOp = 0,
+                                bool useRec= false);
+
   NdbIndexScanOperation* getNdbScanOperation(const class NdbTableImpl* aTable);
   NdbIndexOperation* getNdbIndexOperation(const class NdbIndexImpl* anIndex, 
                                           const class NdbTableImpl* aTable,
-                                          NdbOperation* aNextOp = 0);
+                                          NdbOperation* aNextOp = 0,
+                                          bool useRec= false);
   NdbIndexScanOperation* getNdbIndexScanOperation(const NdbIndexImpl* index,
 						  const NdbTableImpl* table);
   
+  NdbOperation *setupRecordOp(NdbOperation::OperationType type,
+                              NdbOperation::LockMode lock_mode,
+                              const NdbRecord *key_record,
+                              const char *key_row,
+                              const NdbRecord *attribute_record,
+                              const char *attribute_row,
+                              const unsigned char *mask);
+
   void		handleExecuteCompletion();
   
   /****************************************************************************

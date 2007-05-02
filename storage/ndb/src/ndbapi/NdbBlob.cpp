@@ -503,6 +503,93 @@ NdbBlob::unpackKeyValue(const NdbTableImpl* aTable, Buf& dstBuf)
   DBUG_RETURN(0);
 }
 
+/* Set both packed and unpacked KeyBuf from NdbRecord and row. */
+int
+NdbBlob::copyKeyFromRow(const NdbRecord *record, const char *row,
+                        Buf& packedBuf, Buf& unpackedBuf)
+{
+  char buf[256];
+  DBUG_ENTER("NdbBlob::copyKeyFromRow");
+
+  bool index_flag= isInsertOp();
+
+  assert(record->flags & NdbRecord::RecIsKeyRecord || index_flag);
+  assert(record->flags & NdbRecord::RecHasAllKeys);
+
+  char *packed= packedBuf.data;
+  char *unpacked= unpackedBuf.data;
+
+  for (Uint32 i= 0; i < record->key_index_length; i++)
+  {
+    const NdbRecord::Attr *col= &record->columns[record->key_indexes[i]];
+
+    /* Special case for insert, where extra non-key columns may be present. */
+    if (index_flag && !(col->flags & NdbRecord::IsKey))
+      continue;
+
+    Uint32 len= ~0;
+    bool len_ok;
+    const char *src;
+    if (col->flags & NdbRecord::IsMysqldShrinkVarchar)
+    {
+      /* Used to support special varchar format for mysqld keys. */
+      len_ok= col->shrink_varchar(row, len, buf);
+      src= buf;
+    }
+    else
+    {
+      len_ok= col->get_var_length(row, len);
+      src= &row[col->offset];
+    }
+
+    if (!len_ok)
+    {
+      setErrorCode(NdbBlobImpl::ErrCorruptPK);
+      DBUG_RETURN(-1);
+    }
+
+    /* Copy the key. */
+    memcpy(packed, src, len);
+    memcpy(unpacked, src, len);
+
+    /* Zero-pad if needed. */
+    Uint32 packed_len= (len + 3) & ~3;
+    Uint32 unpacked_len= (col->maxSize + 3) & ~3;
+    Uint32 packed_pad= packed_len - len;
+    Uint32 unpacked_pad= unpacked_len - len;
+    if (packed_pad > 0)
+      bzero(packed + len, packed_pad);
+    if (unpacked_pad > 0)
+      bzero(unpacked + len, unpacked_pad);
+    packed+= packed_len;
+    unpacked+= unpacked_len;
+  }
+
+  packedBuf.size= packed - packedBuf.data;
+  packedBuf.zerorest();
+  assert(unpacked == unpackedBuf.data + unpackedBuf.size);
+  DBUG_RETURN(0);
+}
+
+void
+NdbBlob::getBlobHeadData(const char * & data, Uint32 & byteSize)
+{
+  if (theNullFlag)
+  {
+    data= NULL;
+    byteSize= 0;
+  }
+  else
+  {
+    theHead->length= theLength;
+    if (theLength < theInlineSize)
+      memset(theInlineData + theLength, 0, theInlineSize - theLength);
+    data= theHeadInlineBuf.data;
+    byteSize= theHeadInlineBuf.size;
+  }
+}
+
+
 // getters and setters
 
 int
@@ -629,6 +716,32 @@ NdbBlob::getHeadFromRecAttr()
   DBUG_VOID_RETURN;
 }
 
+/*
+  Called with data from TRANSID_AI to receive the blob head (NdbRecord
+  operation).
+*/
+void
+NdbBlob::receiveHead(const char *src, Uint32 byteSize)
+{
+  if (byteSize == 0)
+  {
+    theNullFlag= 1;
+    theLength= 0;
+  }
+  else
+  {
+    if (theHeadInlineBuf.maxsize < byteSize)
+    {
+      /* Should not happen. */
+      assert(false);
+      byteSize= theHeadInlineBuf.maxsize;
+    }
+    memcpy(theHeadInlineBuf.data, src, byteSize);
+    theNullFlag= 0;
+    memcpy(&theLength, src, sizeof(theLength));
+  }
+}
+
 int
 NdbBlob::setHeadInlineValue(NdbOperation* anOp)
 {
@@ -704,8 +817,15 @@ NdbBlob::setValue(const void* data, Uint32 bytes)
       theNullFlag = true;
       theLength = 0;
     }
-    if (setHeadInlineValue(theNdbOp) == -1)
-      DBUG_RETURN(-1);
+    /*
+      In NdbRecAttr case, we set the value of the blob head here.
+      In NdbRecord case, this is done in NdbOperation::prepareSendNdbRecord().
+    */
+    if (!theNdbRecordFlag)
+    {
+      if (setHeadInlineValue(theNdbOp) == -1)
+        DBUG_RETURN(-1);
+    }
   }
   DBUG_RETURN(0);
 }
@@ -862,7 +982,7 @@ int
 NdbBlob::setPos(Uint64 pos)
 {
   DBUG_ENTER("NdbBlob::setPos");
-  DBUG_PRINT("info", ("pos=%llu", pos));
+  DBUG_PRINT("info", ("this=%p pos=%llu", this, pos));
   if (theNullFlag == -1) {
     setErrorCode(NdbBlobImpl::ErrState);
     DBUG_RETURN(-1);
@@ -894,7 +1014,8 @@ int
 NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
 {
   DBUG_ENTER("NdbBlob::readDataPrivate");
-  DBUG_PRINT("info", ("bytes=%u", bytes));
+  DBUG_PRINT("info", ("this=%p bytes=%u thePos=%u theLength=%u",
+                      this, bytes, (Uint32)thePos, (Uint32)theLength));
   assert(thePos <= theLength);
   Uint64 pos = thePos;
   if (bytes > theLength - pos)
@@ -1335,29 +1456,23 @@ NdbBlob::invokeActiveHook()
 // blob handle maintenance
 
 /*
- * Prepare blob handle linked to an operation.  Checks blob table.
- * Allocates buffers.  For key operation fetches key data from signal
- * data.  For read operation adds read of head+inline.
+ * Prepare blob handle linked to an operation.
+ * This one for NdbRecAttr-based operation.
+ *
+ * Checks blob table. Allocates buffers.
+ * For key operation fetches key data from signal data.
+ * For read operation adds read of head+inline.
  */
 int
 NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl* aColumn)
 {
   DBUG_ENTER("NdbBlob::atPrepare");
   DBUG_PRINT("info", ("this=%p op=%p con=%p", this, anOp, aCon));
-  assert(theState == Idle);
-  // ndb api stuff
-  theNdb = anOp->theNdb;
-  theNdbCon = aCon;     // for scan, this is the real transaction (m_transConnection)
-  theNdbOp = anOp;
-  theTable = anOp->m_currentTable;
-  theAccessTable = anOp->m_accessTable;
-  theColumn = aColumn;
-  // prepare blob column and table
-  if (prepareColumn() == -1)
+
+  theNdbRecordFlag= false;
+  if (atPrepareCommon(aCon, anOp, aColumn) == -1)
     DBUG_RETURN(-1);
-  // extra buffers
-  theAccessKeyBuf.alloc(theAccessTable->m_keyLenInWords << 2);
-  theHeadInlineCopyBuf.alloc(sizeof(Head) + theInlineSize);
+
   // handle different operation types
   bool supportedOp = false;
   if (isKeyOp()) {
@@ -1388,12 +1503,49 @@ NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl
         DBUG_RETURN(-1);
     }
     if (isReadOp()) {
-      // upgrade lock mode
-      if (theNdbOp->theLockMode == NdbOperation::LM_CommittedRead)
-        theNdbOp->setReadLockMode(NdbOperation::LM_Read);
       // add read of head+inline in this op
       if (getHeadInlineValue(theNdbOp) == -1)
         DBUG_RETURN(-1);
+    }
+    supportedOp = true;
+  }
+  if (isScanOp()) {
+    // add read of head+inline in this op
+    if (getHeadInlineValue(theNdbOp) == -1)
+      DBUG_RETURN(-1);
+    supportedOp = true;
+  }
+  if (! supportedOp) {
+    setErrorCode(NdbBlobImpl::ErrUsage);
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
+}
+
+int
+NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
+                         const NdbColumnImpl* aColumn)
+{
+  assert(theState == Idle);
+  // ndb api stuff
+  theNdb = anOp->theNdb;
+  theNdbCon = aCon;     // for scan, this is the real transaction (m_transConnection)
+  theNdbOp = anOp;
+  theTable = anOp->m_currentTable;
+  theAccessTable = anOp->m_accessTable;
+  theColumn = aColumn;
+  // prepare blob column and table
+  if (prepareColumn() == -1)
+    return -1;
+  // extra buffers
+  theAccessKeyBuf.alloc(theAccessTable->m_keyLenInWords << 2);
+  theHeadInlineCopyBuf.alloc(sizeof(Head) + theInlineSize);
+
+  if (isKeyOp()) {
+    if (isReadOp()) {
+      // upgrade lock mode
+      if (theNdbOp->theLockMode == NdbOperation::LM_CommittedRead)
+        theNdbOp->setReadLockMode(NdbOperation::LM_Read);
     }
     if (isInsertOp()) {
       // becomes NULL unless set before execute
@@ -1406,22 +1558,85 @@ NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl
       theLength = 0;
       theHeadInlineUpdateFlag = true;
     }
-    supportedOp = true;
   }
   if (isScanOp()) {
     // upgrade lock mode
     if (theNdbOp->theLockMode == NdbOperation::LM_CommittedRead)
       theNdbOp->setReadLockMode(NdbOperation::LM_Read);
-    // add read of head+inline in this op
-    if (getHeadInlineValue(theNdbOp) == -1)
-      DBUG_RETURN(-1);
-    supportedOp = true;
-  }
-  if (! supportedOp) {
-    setErrorCode(NdbBlobImpl::ErrUsage);
-    DBUG_RETURN(-1);
   }
   setState(Prepared);
+  return 0;
+}
+
+/* Prepare blob handle for key operation, NdbRecord version. */
+int
+NdbBlob::atPrepareNdbRecord(NdbTransaction* aCon, NdbOperation* anOp,
+                            const NdbColumnImpl* aColumn,
+                            const NdbRecord *key_record, const char *key_row)
+{
+  int res;
+  DBUG_ENTER("NdbBlob::atPrepareNdbRecord");
+  DBUG_PRINT("info", ("this=%p op=%p con=%p", this, anOp, aCon));
+
+  theNdbRecordFlag= true;
+  if (atPrepareCommon(aCon, anOp, aColumn) == -1)
+    DBUG_RETURN(-1);
+
+  assert(isKeyOp());
+
+  if (isTableOp())
+    res= copyKeyFromRow(key_record, key_row, thePackKeyBuf, theKeyBuf);
+  else if (isIndexOp())
+    res= copyKeyFromRow(key_record, key_row, thePackKeyBuf, theAccessKeyBuf);
+  if (res == -1)
+    DBUG_RETURN(-1);
+
+  DBUG_RETURN(0);
+}
+
+int
+NdbBlob::atPrepareNdbRecordTakeover(NdbTransaction* aCon, NdbOperation* anOp,
+                                    const NdbColumnImpl* aColumn,
+                                    const char *keyinfo, Uint32 keyinfo_bytes)
+{
+  DBUG_ENTER("NdbBlob::atPrepareNdbRecordTakeover");
+  DBUG_PRINT("info", ("this=%p op=%p con=%p", this, anOp, aCon));
+
+  theNdbRecordFlag= true;
+  if (atPrepareCommon(aCon, anOp, aColumn) == -1)
+    DBUG_RETURN(-1);
+
+  assert(isKeyOp());
+
+  /* Get primary key. */
+  if (keyinfo_bytes > thePackKeyBuf.maxsize)
+  {
+    assert(false);
+    DBUG_RETURN(-1);
+  }
+  memcpy(thePackKeyBuf.data, keyinfo, keyinfo_bytes);
+  thePackKeyBuf.size= keyinfo_bytes;
+  thePackKeyBuf.zerorest();
+  if (unpackKeyValue(theTable, theKeyBuf) == -1)
+    DBUG_RETURN(-1);
+
+  DBUG_RETURN(0);
+}
+
+/* Prepare blob handle for scan operation, NdbRecord version. */
+int
+NdbBlob::atPrepareNdbRecordScan(NdbTransaction* aCon, NdbOperation* anOp,
+                                const NdbColumnImpl* aColumn)
+{
+  DBUG_ENTER("NdbBlob::atPrepareNdbRecordScan");
+  DBUG_PRINT("info", ("this=%p op=%p con=%p", this, anOp, aCon));
+
+  theNdbRecordFlag= true;
+  if (atPrepareCommon(aCon, anOp, aColumn) == -1)
+    DBUG_RETURN(-1);
+
+  assert(isScanOp());
+
   DBUG_RETURN(0);
 }
 
@@ -1517,7 +1732,7 @@ NdbBlob::prepareColumn()
   // these buffers are always used
   theKeyBuf.alloc(theTable->m_keyLenInWords << 2);
   thePackKeyBuf.alloc(max(theTable->m_keyLenInWords, theAccessTable->m_keyLenInWords) << 2);
-  theHeadInlineBuf.alloc(sizeof(Head) + theInlineSize);
+  theHeadInlineBuf.alloc(getHeadInlineSize());
   theHead = (Head*)theHeadInlineBuf.data;
   theInlineData = theHeadInlineBuf.data + sizeof(Head);
   thePartBuf.alloc(thePartSize);
@@ -1667,8 +1882,15 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
         if (writeDataPrivate(theSetBuf, n) == -1)
           DBUG_RETURN(-1);
       }
-      if (setHeadInlineValue(theNdbOp) == -1)
-        DBUG_RETURN(-1);
+      /*
+        For NdbRecAttr case, we need to set the value of the blob head here.
+        For NdbRecord case, it is done in NdbOperation::prepareSendNdbRecord().
+      */
+      if (!theNdbRecordFlag)
+      {
+        if (setHeadInlineValue(theNdbOp) == -1)
+          DBUG_RETURN(-1);
+      }
       // the read op before us may overwrite
       theHeadInlineCopyBuf.copyfrom(theHeadInlineBuf);
     }
@@ -1714,7 +1936,14 @@ NdbBlob::postExecute(NdbTransaction::ExecType anExecType)
     }
   }
   if (isReadOp()) {
-    getHeadFromRecAttr();
+    /*
+      In the NdbRecAttr case, we injected a read of blob head into the
+      operation, and need to set theLength and theNullFlag from it.
+      In the NdbRecord case, it is done by the receiver.
+    */
+    if (!theNdbRecordFlag)
+      getHeadFromRecAttr();
+
     if (setPos(0) == -1)
       DBUG_RETURN(-1);
     if (theGetFlag) {
@@ -1853,7 +2082,9 @@ NdbBlob::preCommit()
 }
 
 /*
- * After next scan result.  Handle like read op above.
+  After next scan result.  Handle like read op above. NdbRecAttr version.
+  Obtain the primary key from KEYINFO20, and set theLength and theNullFlag
+  from the blob head read in the scan.
  */
 int
 NdbBlob::atNextResult()
@@ -1877,6 +2108,40 @@ NdbBlob::atNextResult()
       DBUG_RETURN(-1);
   }
   getHeadFromRecAttr();
+
+  DBUG_RETURN(atNextResultCommon());
+}
+
+/*
+  After next scan result, NdbRecord version.
+  For NdbRecord, the keyinfo is given as parameter, and the receiver
+  already loaded the blob head and set theLength and theNullFlag.
+*/
+int
+NdbBlob::atNextResultNdbRecord(const char *keyinfo, Uint32 keyinfo_bytes)
+{
+  DBUG_ENTER("NdbBlob::atNextResultNdbRecord");
+  DBUG_PRINT("info", ("this=%p op=%p con=%p keyinfo_bytes=%lu",
+                      this, theNdbOp, theNdbCon,
+                      (unsigned long)keyinfo_bytes));
+  if (theState == Invalid)
+    DBUG_RETURN(-1);
+  assert(isScanOp());
+  /* Get primary key. */
+  memcpy(thePackKeyBuf.data, keyinfo, keyinfo_bytes);
+  thePackKeyBuf.size= keyinfo_bytes;
+  thePackKeyBuf.zerorest();
+  if (unpackKeyValue(theTable, theKeyBuf) == -1)
+    DBUG_RETURN(-1);
+
+  DBUG_RETURN(atNextResultCommon());
+}
+
+/* After next scan result. Stuff common to NdbRecAttr and NdbRecord case. */
+int
+NdbBlob::atNextResultCommon()
+{
+  DBUG_ENTER("NdbBlob::atNextResultCommon");
   if (setPos(0) == -1)
     DBUG_RETURN(-1);
   if (theGetFlag) {

@@ -16,6 +16,7 @@
 #include <ndb_global.h>
 #include <NdbOperation.hpp>
 #include <NdbTransaction.hpp>
+#include <NdbBlob.hpp>
 #include "NdbApiSignal.hpp"
 #include <Ndb.hpp>
 #include <NdbRecAttr.hpp>
@@ -361,6 +362,21 @@ NdbOperation::prepareSendInterpreted()
     } else {
       return -1;
     }//if
+  } else if (theStatus == UseNdbRecord &&
+             (theOperationType == OpenScanRequest ||
+              theOperationType == OpenRangeScanRequest)) {
+    /*
+      With NdbRecord scans, we set up the initial read section when the
+      operation was created, and we only allow the addition of an interpreted
+      program.
+    */
+    if (tTotalCurrAI_Len > tInitReadSize + 5)
+    {
+      if (insertATTRINFO(Interpreter::EXIT_OK) != -1)
+        theInterpretedSize = (tTotalCurrAI_Len + 1) - (tInitReadSize + 5);
+      else
+        return -1;
+    }
   } else if (theStatus == FinalGetValue) {
 
     theFinalReadSize = tTotalCurrAI_Len -
@@ -384,6 +400,9 @@ NdbOperation::prepareSendInterpreted()
     return -1;
   }
 
+  /*
+    Fix jumps by patching in the correct address for the corresponding label.
+  */
   while (theFirstBranch != NULL) {
     Uint32 tRelAddress;
     Uint32 tLabelAddress = 0;
@@ -502,6 +521,490 @@ NdbOperation::prepareSendInterpreted()
   theReceiver.prepareSend();
   return 0;
 }//NdbOperation::prepareSendInterpreted()
+
+
+/*
+  Prepares TCKEYREQ and (if needed) KEYINFO and ATTRINFO signals, for
+  operations using NdbRecord.
+*/
+int
+NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
+                                   AbortOption ao)
+{
+  char buf[256];
+  Uint32 *keyInfoPtr, *attrInfoPtr;
+  Uint32 remain;
+  int res;
+  Uint32 no_disk_flag;
+
+  assert(theStatus==UseNdbRecord);
+  /* Not yet support for NdbRecord with interpreted operations. */
+  assert(!theInterpretIndicator);
+
+  const NdbRecord *key_rec= m_key_record;
+  const char *key_row= m_key_row;
+  const NdbRecord *attr_rec= m_attribute_record;
+  const char *updRow;
+
+  TcKeyReq *tcKeyReq= CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
+  Uint32 hdrSize= fillTcKeyReqHdr(tcKeyReq, aTC_ConnectPtr, aTransId, ao);
+  keyInfoPtr= theTCREQ->getDataPtrSend() + hdrSize;
+  remain= TcKeyReq::MaxKeyInfo;
+
+  /* Fill in keyinfo (in TCKEYREQ signal, spilling into KEYINFO signals). */
+  if (!key_rec)
+  {
+    /* This means that key_row contains the KEYINFO20 data. */
+    tcKeyReq->tableId= attr_rec->tableId;
+    tcKeyReq->tableSchemaVersion= attr_rec->tableVersion;
+    res= insertKEYINFO_NdbRecord(aTC_ConnectPtr, aTransId, key_row,
+                                 m_keyinfo_length*4, &keyInfoPtr, &remain);
+    if (res)
+      return res;
+  }
+  else
+  {
+    tcKeyReq->tableId= key_rec->tableId;
+    tcKeyReq->tableSchemaVersion= key_rec->tableVersion;
+    theTotalNrOfKeyWordInSignal= 0;
+    for (Uint32 i= 0; i<key_rec->key_index_length; i++)
+    {
+      const NdbRecord::Attr *col;
+
+      col= &key_rec->columns[key_rec->key_indexes[i]];
+
+      /*
+        A unique index can index a nullable column (the primary key index
+        cannot). So we can get NULL here (but it is an error if we do).
+      */
+      if (col->is_null(key_row))
+      {
+        setErrorCodeAbort(4316);
+        return -1;
+      }
+
+      Uint32 length;
+
+      bool len_ok;
+      const char *src;
+      if (col->flags & NdbRecord::IsMysqldShrinkVarchar)
+      {
+        /* Used to support special varchar format for mysqld keys. */
+        len_ok= col->shrink_varchar(key_row, length, buf);
+        src= buf;
+      }
+      else
+      {
+        len_ok= col->get_var_length(key_row, length);
+        src= &key_row[col->offset];
+      }
+
+      if (!len_ok)
+      {
+        /* Hm, corrupt varchar length. */
+        setErrorCodeAbort(4209);
+        return -1;
+      }
+      res= insertKEYINFO_NdbRecord(aTC_ConnectPtr, aTransId,
+                                   src, length, &keyInfoPtr, &remain);
+      if (res)
+        return res;
+    }
+  }
+
+  /* 
+     Now the total keyinfo size has been computed, inside
+     insertKEYINFO_NdbRecord().
+  */
+  TcKeyReq::setKeyLength(tcKeyReq->requestInfo, theTupKeyLen);
+
+  // Fill in attrinfo (in TCKEYREQ signal, spilling into ATTRINFO signals)
+  remain= TcKeyReq::MaxAttrInfo;
+  attrInfoPtr= theTCREQ->getDataPtrSend() + hdrSize +
+    (theTupKeyLen > TcKeyReq::MaxKeyInfo ? TcKeyReq::MaxKeyInfo : theTupKeyLen);
+
+  no_disk_flag= m_no_disk_flag;
+
+  OperationType tOpType= theOperationType;
+  if ((tOpType == InsertRequest) || (tOpType == WriteRequest) ||
+      (tOpType == UpdateRequest))
+  {
+    updRow= m_attribute_row;
+    NdbBlob *currentBlob= theBlobList;
+
+    for (Uint32 i= 0; i<attr_rec->noOfColumns; i++)
+    {
+      const NdbRecord::Attr *col;
+
+      col= &attr_rec->columns[i];
+      Uint32 attrId= col->attrId;
+
+      if (!(attrId & AttributeHeader::PSEUDO) &&
+          !BitmaskImpl::get((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5,
+                            m_read_mask, attrId))
+        continue;
+
+      if (col->flags & NdbRecord::IsDisk)
+        no_disk_flag= 0;
+
+      Uint32 length;
+      const char *data;
+
+      if (likely(!(col->flags & (NdbRecord::IsBlob|NdbRecord::IsMysqldBitfield))))
+      {
+        if (col->is_null(updRow))
+          length= 0;
+        else if (!col->get_var_length(updRow, length))
+        {
+          /* Hm, corrupt varchar length. */
+          setErrorCodeAbort(4209);
+          return -1;
+        }
+        data= &updRow[col->offset];
+      }
+      else
+      {
+        if (likely(col->flags & NdbRecord::IsMysqldBitfield))
+        {
+          /* Mysqld format bitfield. */
+          if (col->is_null(updRow))
+            length= 0;
+          else
+          {
+            col->get_mysqld_bitfield(updRow, buf);
+            data= buf;
+            length= col->maxSize;
+          }
+        }
+        else
+        {
+          /*
+            Blob column.
+            For insert and write, we need to set the value of the blob head
+            (cannot leave it unset in case the blob is non-nullable).
+            For update, do nothing, as another operation will be injected to
+            update the blob head.
+          */
+          NdbBlob *bh= currentBlob;
+          currentBlob= currentBlob->theNext;
+          if (tOpType == UpdateRequest)
+            continue;
+
+          bh->getBlobHeadData(data, length);
+        }
+      }
+
+      res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
+                                       attrId, length,
+                                       &attrInfoPtr, &remain);
+      if(res)
+        return res;
+      if (length > 0)
+      {
+        res= insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
+                                          data, length,
+                                          &attrInfoPtr, &remain);
+        if(res)
+          return res;
+      }
+    }
+  }
+  else if (tOpType == ReadRequest || tOpType == ReadExclusive)
+  {
+    for (Uint32 i= 0; i<attr_rec->noOfColumns; i++)
+    {
+      const NdbRecord::Attr *col;
+
+      col= &attr_rec->columns[i];
+      Uint32 attrId= col->attrId;
+
+      if (!(attrId & AttributeHeader::PSEUDO) &&
+          !BitmaskImpl::get((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5,
+                            m_read_mask, attrId))
+        continue;
+
+      if (col->flags & NdbRecord::IsDisk)
+        no_disk_flag= 0;
+
+      /*
+        Read the column.
+        For blobs, we actually read the blob head, and treat it as a special
+        case in the receiver.
+      */
+      res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
+                                       attrId, 0,
+                                       &attrInfoPtr, &remain);
+      if(res)
+        return res;
+    }
+  }
+  Uint32 signalLength= hdrSize +
+    (theTupKeyLen > TcKeyReq::MaxKeyInfo ?
+         TcKeyReq::MaxKeyInfo : theTupKeyLen) +
+    (theTotalCurrAI_Len > TcKeyReq::MaxAttrInfo ?
+         TcKeyReq::MaxAttrInfo : theTotalCurrAI_Len);
+  theTCREQ->setLength(signalLength);
+
+
+  /* Check if too much attrinfo have been defined. */
+  if (theTotalCurrAI_Len > TcKeyReq::MaxTotalAttrInfo){
+    setErrorCodeAbort(4257);
+    return -1;
+  }
+  TcKeyReq::setNoDiskFlag(tcKeyReq->requestInfo, no_disk_flag);
+  TcKeyReq::setAttrinfoLen(tcKeyReq->attrLen, theTotalCurrAI_Len);
+  TcKeyReq::setAIInTcKeyReq(tcKeyReq->requestInfo, 
+                            theTotalCurrAI_Len < TcKeyReq::MaxAttrInfo ?
+                                theTotalCurrAI_Len : TcKeyReq::MaxAttrInfo);
+
+  theStatus= WaitResponse;
+  theReceiver.prepareSend();
+
+  return 0;
+}
+
+/*
+  Set up the header of the TCKEYREQ signal (except a few length fields,
+  which are computed later in prepareSendNdbRecord()).
+  Returns the length of the header, used to find the correct placement of
+  keyinfo and attrinfo stored within TCKEYREQ.
+*/
+Uint32
+NdbOperation::fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
+                              Uint32 connectPtr,
+                              Uint64 transId,
+                              AbortOption ao)
+{
+  Uint32 hdrLen;
+  UintR *hdrPtr;
+
+  tcKeyReq->apiConnectPtr= connectPtr;
+  tcKeyReq->apiOperationPtr= ptr2int();
+
+  UintR attrLen= 0;
+  TcKeyReq::setAPIVersion(attrLen, NDB_VERSION);
+  /* We will setAttrinfoLen() later when AttrInfo has been written. */
+  tcKeyReq->attrLen= attrLen;
+
+  UintR reqInfo= 0;
+  TcKeyReq::setSimpleFlag(reqInfo, theSimpleIndicator);
+  TcKeyReq::setCommitFlag(reqInfo, theCommitIndicator);
+  TcKeyReq::setStartFlag(reqInfo, theStartIndicator);
+  TcKeyReq::setInterpretedFlag(reqInfo, theInterpretIndicator);
+  /* We will setNoDiskFlag() later when we have checked all columns. */
+  TcKeyReq::setDirtyFlag(reqInfo, theDirtyIndicator);
+  TcKeyReq::setOperationType(reqInfo, theOperationType);
+  Uint8 abortOption= (ao == DefaultAbortOption) ? m_abortOption : ao;
+  m_abortOption= theSimpleIndicator && theOperationType==ReadRequest ?
+    AO_IgnoreError : abortOption;
+  TcKeyReq::setAbortOption(reqInfo, m_abortOption);
+  TcKeyReq::setDistributionKeyFlag(reqInfo, theDistrKeyIndicator_);
+  TcKeyReq::setScanIndFlag(reqInfo, theScanInfo & 1);
+  /* We will setAIInTcKeyReq() and setKeyLength() later. */
+  tcKeyReq->requestInfo= reqInfo;
+
+  tcKeyReq->transId1= (Uint32)transId;
+  tcKeyReq->transId2= (Uint32)(transId>>32);
+
+  /*
+    The next four words are optional, and included or not based on the flags
+    passed earlier. At most two of them are possible here.
+  */
+  hdrLen= 8;
+  hdrPtr= &(tcKeyReq->scanInfo);
+  if (theScanInfo & 1)
+  {
+    *hdrPtr++= theScanInfo;
+    hdrLen++;
+  }
+  if (theDistrKeyIndicator_)
+  {
+    *hdrPtr++= theDistributionKey;
+    hdrLen++;
+  }
+
+  return hdrLen;
+}
+
+/*
+  Link a new KEYINFO signal into the operation.
+  Return 0 on success, -1 on error.
+*/
+int
+NdbOperation::allocKeyInfo(Uint32 connectPtr, Uint64 transId,
+                           Uint32 **dstPtr, Uint32 *remain)
+{
+  NdbApiSignal *tSignal;
+  KeyInfo *keyInfo;
+
+  tSignal= theNdb->getSignal();
+  if (tSignal == NULL)
+  {
+    setErrorCodeAbort(4000);
+    return -1;
+  }
+  keyInfo= (struct KeyInfo *)(tSignal->getDataPtrSend());
+  if (tSignal->setSignal(m_keyInfoGSN) == -1)
+  {
+    setErrorCodeAbort(4001);
+    return -1;
+  }
+  tSignal->next(NULL);
+  keyInfo->connectPtr= connectPtr;
+  keyInfo->transId[0]= (Uint32)transId;
+  keyInfo->transId[1]= (Uint32)(transId>>32);
+  if (theTCREQ->next() != NULL)
+  {
+    theLastKEYINFO->setLength(KeyInfo::MaxSignalLength);
+    theLastKEYINFO->next(tSignal);
+  }
+  else
+  {
+    theTCREQ->next(tSignal);
+  }
+  theLastKEYINFO= tSignal;
+  *remain= KeyInfo::DataLength;
+  *dstPtr= &(keyInfo->keyData[0]);
+  return 0;
+}
+
+/*
+  Link a new ATTRINFO signal into the operation.
+  Return 0 on success, -1 on error.
+*/
+int
+NdbOperation::allocAttrInfo(Uint32 connectPtr, Uint64 transId,
+                            Uint32 **dstPtr, Uint32 *remain)
+{
+  NdbApiSignal *tSignal;
+  AttrInfo *attrInfo;
+
+  tSignal= theNdb->getSignal();
+  if (tSignal == NULL)
+  {
+    setErrorCodeAbort(4000);
+    return -1;
+  }
+  attrInfo= (struct AttrInfo *)(tSignal->getDataPtrSend());
+  if (tSignal->setSignal(m_attrInfoGSN) == -1)
+  {
+    setErrorCodeAbort(4001);
+    return -1;
+  }
+  tSignal->next(NULL);
+  attrInfo->connectPtr= connectPtr;
+  attrInfo->transId[0]= (Uint32)transId;
+  attrInfo->transId[1]= (Uint32)(transId>>32);
+  if (theFirstATTRINFO != NULL)
+  {
+    theCurrentATTRINFO->setLength(AttrInfo::MaxSignalLength);
+    theCurrentATTRINFO->next(tSignal);
+  }
+  else
+  {
+    theFirstATTRINFO= tSignal;
+  }
+  theCurrentATTRINFO= tSignal;
+  *remain= AttrInfo::DataLength;
+  *dstPtr= &(attrInfo->attrData[0]);
+
+  return 0;
+}
+
+int
+NdbOperation::insertKEYINFO_NdbRecord(Uint32 connectPtr,
+                                      Uint64 transId,
+                                      const char *value,
+                                      Uint32 size,
+                                      Uint32 **dstPtr,
+                                      Uint32 *remain)
+{
+  theTupKeyLen+= (size+3)/4;
+
+  while (size > *remain*4)
+  {
+    if (*remain)
+    {
+      memcpy(*dstPtr, value, *remain*4);
+      value+= *remain*4;
+      size-= *remain*4;
+    }
+    int res= allocKeyInfo(connectPtr, transId, dstPtr, remain);
+    if(res)
+      return res;
+  }
+
+  memcpy(*dstPtr, value, size);
+  if((size%4) != 0)
+    memset(((char *)*dstPtr)+size, 0, 4-(size%4));
+  Uint32 sizeInWords= (size+3)/4;
+  *dstPtr+= sizeInWords;
+  *remain-= sizeInWords;
+  if (theTCREQ->next() != NULL)
+    theLastKEYINFO->setLength(KeyInfo::MaxSignalLength - *remain);
+
+  return 0;
+}
+
+int
+NdbOperation::insertATTRINFOHdr_NdbRecord(Uint32 connectPtr,
+                                          Uint64 transId,
+                                          Uint32 attrId,
+                                          Uint32 attrLen,
+                                          Uint32 **dstPtr,
+                                          Uint32 *remain)
+{
+  theTotalCurrAI_Len++;
+  if (! *remain)
+  {
+    int res= allocAttrInfo(connectPtr, transId, dstPtr, remain);
+    if (res)
+      return res;
+  }
+  Uint32 ah;
+  AttributeHeader::init(&ah, attrId, attrLen);
+  *(*dstPtr)++= ah;
+  (*remain)--;
+  if (theFirstATTRINFO != NULL)
+    theCurrentATTRINFO->setLength(AttrInfo::MaxSignalLength - *remain);
+
+  return 0;
+}
+
+int
+NdbOperation::insertATTRINFOData_NdbRecord(Uint32 connectPtr,
+                                           Uint64 transId,
+                                           const char *value,
+                                           Uint32 size,
+                                           Uint32 **dstPtr,
+                                           Uint32 *remain)
+{
+  theTotalCurrAI_Len+= (size+3)/4;
+
+  while (size > *remain*4)
+  {
+    if (*remain)
+    {
+      memcpy(*dstPtr, value, *remain*4);
+      value+= *remain*4;
+      size-= *remain*4;
+    }
+    int res= allocAttrInfo(connectPtr, transId, dstPtr, remain);
+    if (res)
+      return res;
+  }
+
+  memcpy(*dstPtr, value, size);
+  if((size%4) != 0)
+    memset(((char *)*dstPtr)+size, 0, 4-(size%4));
+  Uint32 sizeInWords= (size+3)/4;
+  *dstPtr+= sizeInWords;
+  *remain-= sizeInWords;
+  if (theFirstATTRINFO != NULL)
+    theCurrentATTRINFO->setLength(AttrInfo::MaxSignalLength - *remain);
+
+  return 0;
+}
 
 int
 NdbOperation::checkState_TransId(NdbApiSignal* aSignal)
