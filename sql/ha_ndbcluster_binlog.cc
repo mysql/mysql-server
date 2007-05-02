@@ -230,6 +230,7 @@ static void run_query(THD *thd, char *buf, char *end,
   ulonglong save_thd_options= thd->options;
   DBUG_ASSERT(sizeof(save_thd_options) == sizeof(thd->options));
   NET save_net= thd->net;
+  const char* found_semicolon= NULL;
 
   bzero((char*) &thd->net, sizeof(NET));
   thd->query_length= end - buf;
@@ -239,7 +240,7 @@ static void run_query(THD *thd, char *buf, char *end,
     thd->options&= ~OPTION_BIN_LOG;
     
   DBUG_PRINT("query", ("%s", thd->query));
-  mysql_parse(thd, thd->query, thd->query_length);
+  mysql_parse(thd, thd->query, thd->query_length, &found_semicolon);
 
   if (print_error && thd->query_error)
   {
