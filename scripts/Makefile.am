@@ -122,9 +122,11 @@ mysql_fix_privilege_tables.sql: mysql_system_tables.sql \
 #
 # Build mysql_fix_privilege_tables_sql.c from
 # mysql_fix_privileges_tables.sql using comp_sql
+# The "sleep" ensures the generated file has a younger timestamp than its source.
 #
 mysql_fix_privilege_tables_sql.c: comp_sql.c mysql_fix_privilege_tables.sql
 	$(MAKE) $(AM_MAKEFLAGS) comp_sql$(EXEEXT)
+	sleep 5
 	$(top_builddir)/scripts/comp_sql$(EXEEXT) \
 	  mysql_fix_privilege_tables \
 	    $(top_srcdir)/scripts/mysql_fix_privilege_tables.sql $@
