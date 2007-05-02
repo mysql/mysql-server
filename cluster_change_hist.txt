@@ -4,6 +4,7 @@ mysql-5.1.15-ndb-6.1.X
 
 mysql-5.1.15-ndb-6.1.7 (not released)
 
+  Bug #28161 Detached triggers + DD and only MM update could cause node failure
   Bug #25530 --with-readline fails with commercial source packages
   Bug #25741 AllocNodeIdRef::NodeFailureHandlingNotCompleted
   Bug #27205 Occational 899 if delete+insert during LCP
@@ -22,6 +23,9 @@ mysql-5.1.15-ndb-6.1.7 (not released)
   Bug #27581 Drop/truncate table can result in node/cluster-crash
 
   (no bug number) fix bug in my.cnf config handling, put64 for 64-bit variables
+
+  Other changes:
+  - Force varpart, such that tables can handle online add column when feature arrives
 
   Test tools update for measuring replication latency:
 
