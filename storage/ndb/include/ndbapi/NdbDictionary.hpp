@@ -22,6 +22,9 @@ class Ndb;
 struct charset_info_st;
 typedef struct charset_info_st CHARSET_INFO;
 
+/* Forward declaration only. */
+class NdbRecord;
+
 /**
  * @class NdbDictionary
  * @brief Data dictionary class
@@ -1017,7 +1020,7 @@ public:
     const char * getName() const;
     
     /**
-     * Get the name of the table being indexed
+     * Get the name of the underlying table being indexed
      */
     const char * getTable() const;
     
@@ -1434,6 +1437,42 @@ public:
 #endif
     class NdbEventImpl & m_impl;
     Event(NdbEventImpl&);
+  };
+
+  /* Flags for createRecord(). */
+  enum NdbRecordFlags {
+    /*
+      Use special mysqld varchar format in index keys, used only from
+      inside mysqld.
+    */
+    RecMysqldShrinkVarchar= 0x1,
+    /* Use the mysqld record format for bitfields, only used inside mysqld. */
+    RecMysqldBitfield= 0x2
+  };
+  struct RecordSpecification {
+    /*
+      Column described by this entry (the column maximum size defines field
+      size in row).
+      Note that even when creating an NdbRecord for an index, the column
+      pointers must be to columns obtained from the underlying table, not
+      from the index itself.
+    */
+    const Column *column;
+    /*
+      Offset of data from start of a row.
+      
+      For reading blobs, the blob handle (NdbBlob *) will be writted into the
+      row, not the actual blob data. So at least sizeof(NdbBlob *) must be
+      available in the row.
+    */
+    Uint32 offset;
+    /*
+      Offset from start of row of byte containing NULL bit.
+      Not used for columns that are not NULLable.
+    */
+    Uint32 nullbit_byte_offset;
+    /* NULL bit, 0-7. Not used for columns that are not NULLable. */
+    Uint32 nullbit_bit_in_byte;
   };
 
   struct AutoGrowSpecification {
@@ -1935,6 +1974,31 @@ public:
     int removeIndexGlobal(const Index &ndbidx, int invalidate) const;
     int removeTableGlobal(const Table &ndbtab, int invalidate) const;
 #endif
+
+    /*
+      Create an NdbRecord for use in table operations.
+    */
+    NdbRecord *createRecord(const Table *table,
+                            const RecordSpecification *recSpec,
+                            Uint32 length,
+                            Uint32 elemSize,
+                            Uint32 flags= 0);
+
+    /*
+      Create an NdbRecord for use in index operations.
+    */
+    NdbRecord *createRecord(const Index *index,
+                            const Table *table,
+                            const RecordSpecification *recSpec,
+                            Uint32 length,
+                            Uint32 elemSize,
+                            Uint32 flags= 0);
+    NdbRecord *createRecord(const Index *index,
+                            const RecordSpecification *recSpec,
+                            Uint32 length,
+                            Uint32 elemSize,
+                            Uint32 flags= 0);
+    void releaseRecord(NdbRecord *rec);
   };
 };
 

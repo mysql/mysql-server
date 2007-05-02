@@ -19,7 +19,7 @@
 #include <ndb_global.h>
 
 /**
- * Bitmask implementation.  Size is given explicitly
+ * Bitmask implementation.  Size (in 32-bit words) is given explicitly
  * (as first argument).  All methods are static.
  */
 class BitmaskImpl {

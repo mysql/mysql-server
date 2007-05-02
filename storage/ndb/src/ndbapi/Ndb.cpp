@@ -325,14 +325,20 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
       Uint32 hashValue;
       {
 	Uint32 buf[4];
+        Uint64 tmp[1000];
+
+        if (keyLen >= sizeof(tmp))
+        {
+          theError.code = 4207;
+          DBUG_RETURN(NULL);
+        }
 	if((UintPtr(keyData) & 7) == 0 && (keyLen & 3) == 0)
 	{
 	  md5_hash(buf, (const Uint64*)keyData, keyLen >> 2);
 	}
 	else
 	{
-	  Uint64 tmp[1000];
-	  tmp[keyLen/8] = 0;
+          tmp[keyLen/8] = 0;    // Zero out any 64-bit padding
 	  memcpy(tmp, keyData, keyLen);
 	  md5_hash(buf, tmp, (keyLen+3) >> 2);	  
 	}
