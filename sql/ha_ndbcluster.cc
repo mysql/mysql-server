@@ -794,113 +794,6 @@ ha_ndbcluster::copy_column_set(MY_BITMAP *bitmap)
   return mask;
 }
 
-/*
-  Request reading of blob values.
-
-  If dst_record is specified, the blob null bit, pointer, and lenght will be
-  set in that record. Otherwise they must be set later by calling
-  unpack_record_ndbrecord().
-*/
-int
-ha_ndbcluster::get_blob_values(NdbOperation *ndb_op, byte *dst_record,
-                               const MY_BITMAP *bitmap)
-{
-  uint i;
-  DBUG_ENTER("ha_ndbcluster::get_blob_values");
-
-  m_blob_counter= 0;
-  m_blob_expected_count= 0;
-  m_blob_destination_record= dst_record;
-  m_blob_total_size= 0;
-
-  for (i= 0; i < table_share->fields; i++) 
-  {
-    Field *field= table->field[i];
-    if (!(field->flags & BLOB_FLAG))
-      continue;
-
-    DBUG_PRINT("info", ("fieldnr=%d", i));
-    NdbBlob *ndb_blob;
-    if (bitmap_is_set(bitmap, i))
-    {
-      if ((ndb_blob= ndb_op->getBlobHandle(i)) == NULL ||
-          ndb_blob->setActiveHook(g_get_ndb_blobs_value, this) != 0)
-        DBUG_RETURN(1);
-      m_blob_expected_count++;
-    }
-    else
-      ndb_blob= NULL;
-
-    m_value[i].blob= ndb_blob;
-  }
-
-  DBUG_RETURN(0);
-}
-
-int
-ha_ndbcluster::set_blob_values(NdbOperation *ndb_op, my_ptrdiff_t row_offset,
-                               const MY_BITMAP *bitmap, uint *set_count)
-{
-  uint field_no;
-  uint *blob_index, *blob_index_end;
-  int res= 0;
-  DBUG_ENTER("ha_ndbcluster::set_blob_values");
-
-  *set_count= 0;
-
-  if (table_share->blob_fields == 0)
-    DBUG_RETURN(0);
-
-  blob_index= table_share->blob_field;
-  blob_index_end= blob_index + table_share->blob_fields;
-  do
-  {
-    field_no= *blob_index;
-    /* A NULL bitmap sets all blobs. */
-    if (bitmap && !bitmap_is_set(bitmap, field_no))
-      continue;
-    Field *field= table->field[field_no];
-
-    NdbBlob *ndb_blob= ndb_op->getBlobHandle(field_no);
-    if (ndb_blob == NULL)
-      DBUG_RETURN(1);
-    if (field->is_null_in_record_with_offset(row_offset))
-    {
-      if (ndb_blob->setNull() != 0)
-        DBUG_RETURN(1);
-    }
-    else
-    {
-      Field_blob *field_blob= (Field_blob *)field;
-
-      // Get length and pointer to data
-      const byte* field_ptr= field->ptr + row_offset;
-      uint32 blob_len= field_blob->get_length(field_ptr);
-      char* blob_ptr= NULL;
-      field_blob->get_ptr(&blob_ptr);
-
-      // Looks like NULL ptr signals length 0 blob
-      if (blob_ptr == NULL) {
-        DBUG_ASSERT(blob_len == 0);
-        blob_ptr= (char*)"";
-      }
-
-      DBUG_PRINT("value", ("set blob ptr: 0x%lx  len: %u",
-                           (long) blob_ptr, blob_len));
-      DBUG_DUMP("value", (char*)blob_ptr, min(blob_len, 26));
-
-      // No callback needed to write value
-      res= ndb_blob->setValue(blob_ptr, blob_len);
-      if (res != 0)
-        DBUG_RETURN(1);
-    }
-
-    ++(*set_count);
-  } while (++blob_index != blob_index_end);
-
-  DBUG_RETURN(res);
-}
-
 int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
 {
   ha_ndbcluster *ha= (ha_ndbcluster *)arg;
@@ -1009,6 +902,113 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
   }
 
   DBUG_RETURN(0);
+}
+
+/*
+  Request reading of blob values.
+
+  If dst_record is specified, the blob null bit, pointer, and length will be
+  set in that record. Otherwise they must be set later by calling
+  unpack_record_ndbrecord().
+*/
+int
+ha_ndbcluster::get_blob_values(NdbOperation *ndb_op, byte *dst_record,
+                               const MY_BITMAP *bitmap)
+{
+  uint i;
+  DBUG_ENTER("ha_ndbcluster::get_blob_values");
+
+  m_blob_counter= 0;
+  m_blob_expected_count= 0;
+  m_blob_destination_record= dst_record;
+  m_blob_total_size= 0;
+
+  for (i= 0; i < table_share->fields; i++) 
+  {
+    Field *field= table->field[i];
+    if (!(field->flags & BLOB_FLAG))
+      continue;
+
+    DBUG_PRINT("info", ("fieldnr=%d", i));
+    NdbBlob *ndb_blob;
+    if (bitmap_is_set(bitmap, i))
+    {
+      if ((ndb_blob= ndb_op->getBlobHandle(i)) == NULL ||
+          ndb_blob->setActiveHook(g_get_ndb_blobs_value, this) != 0)
+        DBUG_RETURN(1);
+      m_blob_expected_count++;
+    }
+    else
+      ndb_blob= NULL;
+
+    m_value[i].blob= ndb_blob;
+  }
+
+  DBUG_RETURN(0);
+}
+
+int
+ha_ndbcluster::set_blob_values(NdbOperation *ndb_op, my_ptrdiff_t row_offset,
+                               const MY_BITMAP *bitmap, uint *set_count)
+{
+  uint field_no;
+  uint *blob_index, *blob_index_end;
+  int res= 0;
+  DBUG_ENTER("ha_ndbcluster::set_blob_values");
+
+  *set_count= 0;
+
+  if (table_share->blob_fields == 0)
+    DBUG_RETURN(0);
+
+  blob_index= table_share->blob_field;
+  blob_index_end= blob_index + table_share->blob_fields;
+  do
+  {
+    field_no= *blob_index;
+    /* A NULL bitmap sets all blobs. */
+    if (bitmap && !bitmap_is_set(bitmap, field_no))
+      continue;
+    Field *field= table->field[field_no];
+
+    NdbBlob *ndb_blob= ndb_op->getBlobHandle(field_no);
+    if (ndb_blob == NULL)
+      DBUG_RETURN(1);
+    if (field->is_null_in_record_with_offset(row_offset))
+    {
+      if (ndb_blob->setNull() != 0)
+        DBUG_RETURN(1);
+    }
+    else
+    {
+      Field_blob *field_blob= (Field_blob *)field;
+
+      // Get length and pointer to data
+      const byte* field_ptr= field->ptr + row_offset;
+      uint32 blob_len= field_blob->get_length(field_ptr);
+      char* blob_ptr= NULL;
+      field_blob->get_ptr(&blob_ptr);
+
+      // Looks like NULL ptr signals length 0 blob
+      if (blob_ptr == NULL) {
+        DBUG_ASSERT(blob_len == 0);
+        blob_ptr= (char*)"";
+      }
+
+      DBUG_PRINT("value", ("set blob ptr: 0x%lx  len: %u",
+                           (long) blob_ptr, blob_len));
+      DBUG_DUMP("value", (char*)blob_ptr, min(blob_len, 26));
+
+      // No callback needed to write value
+      res= ndb_blob->setValue(blob_ptr, blob_len);
+      if (res != 0)
+        DBUG_RETURN(1);
+    }
+
+    ++(*set_count);
+  } while (++blob_index != blob_index_end);
+
+  DBUG_RETURN(res);
 }
 
 /*
@@ -1472,7 +1472,7 @@ int
 ha_ndbcluster::add_table_ndb_record(NDBDICT *dict)
 {
   DBUG_ENTER("ha_ndbcluster::add_table_ndb_record()");
-  NdbDictionary::RecordSpecification spec[table_share->fields + 2];
+  NdbDictionary::RecordSpecification spec[NDB_MAX_ATTRIBUTES_IN_TABLE + 2];
   NdbRecord *rec;
   uint i;
 
@@ -1566,7 +1566,7 @@ int
 ha_ndbcluster::add_index_ndb_record(NDBDICT *dict, KEY *key_info, uint index_no)
 {
   DBUG_ENTER("ha_ndbcluster::add_index_ndb_record");
-  NdbDictionary::RecordSpecification spec[table_share->fields + 2];
+  NdbDictionary::RecordSpecification spec[NDB_MAX_ATTRIBUTES_IN_TABLE + 2];
   NdbRecord *rec;
 
   Uint32 offset= 0;
