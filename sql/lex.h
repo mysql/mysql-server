@@ -387,6 +387,7 @@ static SYMBOL symbols[] = {
   { "PACK_KEYS",	SYM(PACK_KEYS_SYM)},
   { "PARSER",           SYM(PARSER_SYM)},
   { "PARTIAL",		SYM(PARTIAL)},
+  { "PAGE",		SYM(PAGE_SYM)},
   { "PARTITION",        SYM(PARTITION_SYM)},
   { "PARTITIONING",     SYM(PARTITIONING_SYM)},
   { "PARTITIONS",       SYM(PARTITIONS_SYM)},
