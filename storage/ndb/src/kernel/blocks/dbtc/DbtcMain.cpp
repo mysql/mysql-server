@@ -70,6 +70,7 @@
 
 #include <NdbOut.hpp>
 #include <DebuggerNames.hpp>
+#include <signaldata/CheckNodeGroups.hpp>
 
 #include <signaldata/RouteOrd.hpp>
 
@@ -886,11 +887,11 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
 
   for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
     jam();
-    if (NodeBitmask::get(readNodes->allNodes, i)) {
+    if (NdbNodeBitmask::get(readNodes->allNodes, i)) {
       hostptr.i = i;
       ptrCheckGuard(hostptr, chostFilesize, hostRecord);
 
-      if (NodeBitmask::get(readNodes->inactiveNodes, i)) {
+      if (NdbNodeBitmask::get(readNodes->inactiveNodes, i)) {
         jam();
         hostptr.p->hostStatus = HS_DEAD;
       } else {
@@ -7069,7 +7070,7 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
   int index = 0;
   for (i = 1; i< MAX_NDB_NODES; i++) 
   {
-    if(NodeBitmask::get(nodeFail->theNodes, i))
+    if(NdbNodeBitmask::get(nodeFail->theNodes, i))
     {
       cdata[index] = i;
       index++;
@@ -7627,12 +7628,24 @@ Dbtc::sendTCKEY_FAILREF(Signal* signal, const ApiConnectRecord * regApiPtr){
   jam();
 
   const Uint32 ref = regApiPtr->ndbapiBlockref;
-  if(ref != 0){
+  const Uint32 nodeId = refToNode(ref);
+  if(ref != 0)
+  {
+    jam();
+    bool connectedToNode = getNodeInfo(nodeId).m_connected;
     signal->theData[0] = regApiPtr->ndbapiConnect;
     signal->theData[1] = regApiPtr->transid[0];
     signal->theData[2] = regApiPtr->transid[1];
-  
-    sendSignal(ref, GSN_TCKEY_FAILREF, signal, 3, JBB);
+    
+    if (likely(connectedToNode))
+    {
+      jam();
+      sendSignal(ref, GSN_TCKEY_FAILREF, signal, 3, JBB);
+    }
+    else
+    {
+      routeTCKEY_FAILREFCONF(signal, regApiPtr, GSN_TCKEY_FAILREF, 3);
+    }
   }
 }
 
@@ -7643,15 +7656,99 @@ Dbtc::sendTCKEY_FAILCONF(Signal* signal, ApiConnectRecord * regApiPtr){
   
   const Uint32 ref = regApiPtr->ndbapiBlockref;
   const Uint32 marker = regApiPtr->commitAckMarker;
-  if(ref != 0){
+  const Uint32 nodeId = refToNode(ref);
+  if(ref != 0)
+  {
+    jam()
     failConf->apiConnectPtr = regApiPtr->ndbapiConnect | (marker != RNIL);
     failConf->transId1 = regApiPtr->transid[0];
     failConf->transId2 = regApiPtr->transid[1];
     
-    sendSignal(regApiPtr->ndbapiBlockref,
-	       GSN_TCKEY_FAILCONF, signal, TcKeyFailConf::SignalLength, JBB);
+    bool connectedToNode = getNodeInfo(nodeId).m_connected;
+    if (likely(connectedToNode))
+    {
+      jam();
+      sendSignal(ref, GSN_TCKEY_FAILCONF, signal, 
+		 TcKeyFailConf::SignalLength, JBB);
+    }
+    else
+    {
+      routeTCKEY_FAILREFCONF(signal, regApiPtr,
+			     GSN_TCKEY_FAILCONF, TcKeyFailConf::SignalLength);
+    }
   }
   regApiPtr->commitAckMarker = RNIL;
+}
+
+void
+Dbtc::routeTCKEY_FAILREFCONF(Signal* signal, const ApiConnectRecord* regApiPtr,
+			     Uint32 gsn, Uint32 len)
+{
+  jam();
+
+  Uint32 ref = regApiPtr->ndbapiBlockref;
+
+  /**
+   * We're not connected
+   *   so we find another node in same node group as died node
+   *   and send to it, so that it can forward
+   */
+  tcNodeFailptr.i = regApiPtr->takeOverRec;
+  ptrCheckGuard(tcNodeFailptr, 1, tcFailRecord);
+
+  /**
+   * Save signal
+   */
+  Uint32 save[25];
+  ndbrequire(len <= 25);
+  memcpy(save, signal->theData, 4*len);
+  
+  Uint32 node = tcNodeFailptr.p->takeOverNode;
+  
+  CheckNodeGroups * sd = (CheckNodeGroups*)signal->getDataPtrSend();
+  sd->blockRef = reference();
+  sd->requestType =
+    CheckNodeGroups::Direct |
+    CheckNodeGroups::GetNodeGroupMembers;
+  sd->nodeId = node;
+  EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
+		 CheckNodeGroups::SignalLength);
+  jamEntry();
+  
+  NdbNodeBitmask mask;
+  mask.assign(sd->mask);
+  mask.clear(getOwnNodeId());
+  memcpy(signal->theData, save, 4*len);
+  
+  Uint32 i = 0;
+  while((i = mask.find(i + 1)) != NdbNodeBitmask::NotFound)
+  {
+    jam();
+    HostRecordPtr localHostptr;
+    localHostptr.i = i;
+    ptrCheckGuard(localHostptr, chostFilesize, hostRecord);
+    if (localHostptr.p->hostStatus == HS_ALIVE) 
+    {
+      jam();
+      signal->theData[len] = gsn;
+      signal->theData[len+1] = ref;
+      sendSignal(calcTcBlockRef(i), GSN_TCKEY_FAILREFCONF_R, 
+		 signal, len+2, JBB);
+      return;
+    }
+  }
+  
+  ndbrequire(getNodeInfo(refToNode(ref)).m_type == NodeInfo::DB);
+}
+
+void
+Dbtc::execTCKEY_FAILREFCONF_R(Signal* signal)
+{
+  jamEntry();
+  Uint32 len = signal->getLength();
+  Uint32 gsn = signal->theData[len-2];
+  Uint32 ref = signal->theData[len-1];
+  sendSignal(ref, gsn, signal, len-2, JBB);
 }
 
 /*------------------------------------------------------------*/
@@ -10803,7 +10900,9 @@ void Dbtc::unlinkGcp(Signal* signal)
 void
 Dbtc::execDUMP_STATE_ORD(Signal* signal)
 {
+  jamEntry();
   DumpStateOrd * const dumpState = (DumpStateOrd *)&signal->theData[0];
+  Uint32 arg = signal->theData[0];
   if(signal->theData[0] == DumpStateOrd::CommitAckMarkersSize){
     infoEvent("TC: m_commitAckMarkerPool: %d free size: %d",
               m_commitAckMarkerPool.getNoOfFree(),
@@ -11130,7 +11229,241 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     sendSignalWithDelay(cownref, GSN_SYSTEM_ERROR, signal, 300, 1);    
     return;
   }
+
+  if (arg == 2550)
+  {
+    jam();
+    Uint32 len = signal->getLength() - 1;
+    if (len + 2 > 25)
+    {
+      jam();
+      infoEvent("Too long filter");
+      return;
+    }
+    if (validate_filter(signal))
+    {
+      jam();
+      memmove(signal->theData + 2, signal->theData + 1, 4 * len);
+      signal->theData[0] = 2551;
+      signal->theData[1] = 0;    // record
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, len + 2, JBB);
+      
+      infoEvent("Starting dump of transactions");
+    }
+    return;
+  }
+
+  if (arg == 2551)
+  {
+    jam();
+    Uint32 record = signal->theData[1];
+    Uint32 len = signal->getLength();
+    ndbassert(len > 1);
+
+    ApiConnectRecordPtr ap;
+    ap.i = record;
+    ptrAss(ap, apiConnectRecord);
+
+    bool print = false;
+    for (Uint32 i = 0; i<32; i++)
+    {
+      jam();
+      print = match_and_print(signal, ap);
+
+      ap.i++;
+      if (ap.i == capiConnectFilesize || print)
+      {
+	jam();
+	break;
+      }
+      
+      ptrAss(ap, apiConnectRecord);
+    }
+
+    if (ap.i == capiConnectFilesize)
+    {
+      jam();
+      infoEvent("End of transaction dump");
+      return;
+    }
+    
+    signal->theData[1] = ap.i;
+    if (print)
+    {
+      jam();
+      sendSignalWithDelay(reference(), GSN_DUMP_STATE_ORD, signal, 200, len);
+    }
+    else
+    {
+      jam();
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, len, JBB);
+    }
+    return;
+  }
 }//Dbtc::execDUMP_STATE_ORD()
+
+bool
+Dbtc::validate_filter(Signal* signal)
+{
+  Uint32 * start = signal->theData + 1;
+  Uint32 * end = signal->theData + signal->getLength();
+  if (start == end)
+  {
+    infoEvent("No filter specified, not listing...");
+    return false;
+  }
+
+  while(start < end)
+  {
+    switch(* start){
+    case 1: // API Node
+    case 4: // Inactive time
+      start += 2;
+      break;
+    case 2: // Transid
+      start += 3;
+      break;
+    default:
+      infoEvent("Invalid filter op: 0x%x pos: %d",
+		* start,
+		start - (signal->theData + 1));
+      return false;
+    }
+  }
+
+  if (start != end)
+  {
+    infoEvent("Invalid filter, unexpected end");
+    return false;
+  }
+
+  return true;
+}
+
+bool
+Dbtc::match_and_print(Signal* signal, ApiConnectRecordPtr apiPtr)
+{
+  Uint32 conState = apiPtr.p->apiConnectstate;
+  if (conState == CS_CONNECTED ||
+      conState == CS_DISCONNECTED ||
+      conState == CS_RESTART)
+    return false;
+
+  Uint32 len = signal->getLength();
+  Uint32* start = signal->theData + 2;
+  Uint32* end = signal->theData + len;
+  Uint32 apiTimer = getApiConTimer(apiPtr.i);
+  while (start < end)
+  {
+    jam();
+    switch(* start){
+    case 1:
+      jam();
+      if (refToNode(apiPtr.p->ndbapiBlockref) != * (start + 1))
+	return false;
+      start += 2;
+      break;
+    case 2:
+      jam();
+      if (apiPtr.p->transid[0] != * (start + 1) ||
+	  apiPtr.p->transid[1] != * (start + 2))
+	return false;
+      start += 3;
+      break;
+    case 4:{
+      jam();
+      if (apiTimer == 0 || ((ctcTimer - apiTimer) / 100) < * (start + 1))
+	return false;
+      start += 2;
+      break;
+    }
+    default:
+      ndbassert(false);
+      return false;
+    }
+  }
+  
+  if (start != end)
+  {
+    ndbassert(false);
+    return false;
+  }
+
+  /**
+   * Do print
+   */
+  Uint32 *temp = signal->theData + 25;
+  memcpy(temp, signal->theData, 4 * len);
+
+  char state[10];
+  const char *stateptr = "";
+  
+  switch(apiPtr.p->apiConnectstate){
+  case CS_STARTED:
+    stateptr = "Prepared";
+    break;
+  case CS_RECEIVING:
+  case CS_REC_COMMITTING:
+  case CS_START_COMMITTING:
+    stateptr = "Running";
+    break;
+  case CS_COMMITTING:
+    stateptr = "Committing";
+    break;
+  case CS_COMPLETING:
+    stateptr = "Completing";
+    break;
+  case CS_PREPARE_TO_COMMIT:
+    stateptr = "Prepare to commit";
+    break;
+  case CS_COMMIT_SENT:
+    stateptr = "Commit sent";
+    break;
+  case CS_COMPLETE_SENT:
+    stateptr = "Complete sent";
+    break;
+  case CS_ABORTING:
+    stateptr = "Aborting";
+    break;
+  case CS_START_SCAN:
+    stateptr = "Scanning";
+    break;
+  case CS_WAIT_ABORT_CONF:
+  case CS_WAIT_COMMIT_CONF:
+  case CS_WAIT_COMPLETE_CONF:
+  case CS_FAIL_PREPARED:
+  case CS_FAIL_COMMITTING:
+  case CS_FAIL_COMMITTED:
+  case CS_REC_PREPARING:
+  case CS_START_PREPARING:
+  case CS_PREPARED:
+  case CS_RESTART:
+  case CS_FAIL_ABORTED:
+  case CS_DISCONNECTED:
+  default:
+    BaseString::snprintf(state, sizeof(state), 
+			 "%u", apiPtr.p->apiConnectstate);
+    stateptr = state;
+    break;
+  }
+
+  char buf[100];
+  BaseString::snprintf(buf, sizeof(buf),
+		       "TRX[%u]: API: %d(0x%x)"
+		       "transid: 0x%x 0x%x inactive: %u(%d) state: %s",
+		       apiPtr.i,
+		       refToNode(apiPtr.p->ndbapiBlockref),
+		       refToBlock(apiPtr.p->ndbapiBlockref),
+		       apiPtr.p->transid[0],
+		       apiPtr.p->transid[1],
+		       apiTimer ? (ctcTimer - apiTimer) / 100 : 0,
+		       c_apiConTimer_line[apiPtr.i],
+		       stateptr);
+  infoEvent(buf);
+  
+  memcpy(signal->theData, temp, 4*len);
+  return true;
+}
 
 void Dbtc::execABORT_ALL_REQ(Signal* signal)
 {

@@ -37,6 +37,7 @@ Name:          Ndb.cpp
 #include "API.hpp"
 #include <NdbEnv.h>
 #include <BaseString.hpp>
+#include <NdbSqlUtil.hpp>
 
 /****************************************************************************
 void connect();
@@ -304,6 +305,181 @@ Return Value:   Returns a pointer to a connection object.
                 Return NULL otherwise.
 Remark:         Start transaction. Synchronous.
 *****************************************************************************/ 
+NdbTransaction* 
+Ndb::startTransaction(const NdbDictionary::Table *table,
+		      const struct Key_part_ptr * keyData, 
+		      void* buf, Uint32 bufLen)
+{
+  Uint32 j = 0;
+  Uint32 sumlen = 0; // Needed len
+  const NdbTableImpl* impl = &NdbTableImpl::getImpl(*table);
+  const NdbColumnImpl* const * cols = impl->m_columns.getBase();
+  Uint32 len;
+  NdbTransaction* trans;
+  char* pos;
+
+  Uint32 colcnt = impl->m_columns.size();
+  Uint32 parts = impl->m_noOfDistributionKeys;
+  if (parts == 0)
+  {
+    parts = impl->m_noOfKeys;
+  }
+
+  for (Uint32 i = 0; i<parts; i++)
+  {
+    if (unlikely(keyData[i].ptr == 0))
+      goto enullptr;
+  }
+
+  if (unlikely(keyData[parts].ptr != 0))
+    goto emissingnullptr;
+
+  const NdbColumnImpl* partcols[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
+  for (Uint32 i = 0; i<colcnt && j < parts; i++)
+  {
+    if (cols[i]->m_distributionKey)
+    {
+      // wl3717_todo
+      // char allowed now as dist key so this case should be tested
+      partcols[j++] = cols[i];
+    }
+  }
+
+  for (Uint32 i = 0; i<parts; i++)
+  {
+    Uint32 lb, len;
+    if (unlikely(!NdbSqlUtil::get_var_length(partcols[i]->m_type, 
+					     keyData[i].ptr, 
+					     keyData[i].len,
+					     lb, len)))
+      goto emalformedkey;
+
+    if (unlikely(keyData[i].len < (lb + len)))
+      goto elentosmall;
+    
+    Uint32 maxlen = (partcols[i]->m_attrSize * partcols[i]->m_arraySize);
+
+    if (unlikely(lb == 0 && keyData[i].len != maxlen))
+      goto emalformedkey;
+    
+    if (partcols[i]->m_cs)
+    {
+      Uint32 xmul = partcols[i]->m_cs->strxfrm_multiply;
+      xmul = xmul ? xmul : 1;
+      len = xmul * (maxlen - lb);
+    }
+
+    len = (lb + len + 3) & ~(Uint32)3;
+    sumlen += len;
+
+  }
+  
+  if (buf)
+  {
+    UintPtr org = UintPtr(buf);
+    UintPtr use = (org + 7) & ~(UintPtr)7;
+
+    buf = (void*)use;
+    bufLen -= (use - org);
+
+    if (unlikely(sumlen > bufLen))
+      goto ebuftosmall;
+  }
+  else
+  {
+    buf = malloc(sumlen);
+    if (unlikely(buf == 0))
+      goto enomem;
+    bufLen = 0;
+    assert((UintPtr(buf) & 7) == 0);
+  }
+  
+  pos = (char*)buf;
+  for (Uint32 i = 0; i<parts; i++)
+  {
+    Uint32 lb, len;
+    NdbSqlUtil::get_var_length(partcols[i]->m_type, 
+			       keyData[i].ptr, keyData[i].len, lb, len);
+    CHARSET_INFO* cs;
+    if ((cs = partcols[i]->m_cs))
+    {
+      Uint32 xmul = cs->strxfrm_multiply;
+      if (xmul == 0)
+	xmul = 1;
+      /*
+       * Varchar end-spaces are ignored in comparisons.  To get same hash
+       * we blank-pad to maximum length via strnxfrm.
+       */
+      Uint32 maxlen = (partcols[i]->m_attrSize * partcols[i]->m_arraySize);
+      Uint32 dstLen = xmul * (maxlen - lb);
+      int n = NdbSqlUtil::strnxfrm_bug7284(cs, 
+					   (unsigned char*)pos, 
+					   dstLen, 
+					   ((unsigned char*)keyData[i].ptr)+lb,
+					   len);
+      
+      if (unlikely(n == -1))
+	goto emalformedstring;
+      
+      while ((n & 3) != 0) 
+      {
+	pos[n++] = 0;
+      }
+      pos += n;
+    }
+    else
+    {
+      len += lb;
+      memcpy(pos, keyData[i].ptr, len);
+      while (len & 3)
+      {
+	* (pos + len++) = 0;
+      }
+      pos += len;
+    }
+  }
+  len = UintPtr(pos) - UintPtr(buf);
+  assert((len & 3) == 0);
+    
+  trans = startTransaction(table, (char*)buf, len);
+
+  if (bufLen == 0)
+    free(buf);
+
+  return trans;
+
+enullptr:
+  theError.code = 4316;
+  return 0;
+  
+emissingnullptr:
+  theError.code = 4276;
+  return 0;
+
+elentosmall:
+  theError.code = 4277;
+  return 0;
+
+ebuftosmall:
+  theError.code = 4278;
+  return 0;
+
+emalformedstring:
+  if (bufLen == 0)
+    free(buf);
+  
+  theError.code = 4279;
+  return 0;
+  
+emalformedkey:
+  theError.code = 4280;
+  return 0;
+
+enomem:
+  theError.code = 4000;
+  return 0;
+}
+
 NdbTransaction* 
 Ndb::startTransaction(const NdbDictionary::Table *table,
 		      const char * keyData, Uint32 keyLen)

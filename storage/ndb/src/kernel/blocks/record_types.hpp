@@ -35,10 +35,15 @@
 #define RG_DISK_RECORDS         2
 
 /**
+ * Records for data memory
+ */
+#define RG_DATAMEM              3
+
+/**
  * 
  */
 #define RG_RESERVED             0
-#define RG_COUNT                3
+#define RG_COUNT                4
 
 /**
  * Record types
@@ -47,12 +52,15 @@
 #define RT_LGMAN_LOG_WAITER        MAKE_TID( 2, RG_DISK_OPERATIONS)
 #define RT_DBTUP_PAGE_REQUEST      MAKE_TID( 3, RG_DISK_OPERATIONS)
 
-#define RT_DBTUP_EXTENT_INFO       MAKE_TID( 4, RG_DISK_RECORDS)
-#define RT_DBDICT_FILE             MAKE_TID( 5, RG_DISK_RECORDS)
-#define RT_DBDICT_FILEGROUP        MAKE_TID( 6, RG_DISK_RECORDS)
-#define RT_LGMAN_FILE              MAKE_TID( 7, RG_DISK_RECORDS)
-#define RT_LGMAN_FILEGROUP         MAKE_TID( 8, RG_DISK_RECORDS)
-#define RT_TSMAN_FILE              MAKE_TID( 9, RG_DISK_RECORDS)
-#define RT_TSMAN_FILEGROUP         MAKE_TID(10, RG_DISK_RECORDS)
+#define RT_DBTUP_EXTENT_INFO       MAKE_TID( 1, RG_DISK_RECORDS)
+#define RT_DBDICT_FILE             MAKE_TID( 2, RG_DISK_RECORDS)
+#define RT_DBDICT_FILEGROUP        MAKE_TID( 3, RG_DISK_RECORDS)
+#define RT_LGMAN_FILE              MAKE_TID( 4, RG_DISK_RECORDS)
+#define RT_LGMAN_FILEGROUP         MAKE_TID( 5, RG_DISK_RECORDS)
+#define RT_TSMAN_FILE              MAKE_TID( 6, RG_DISK_RECORDS)
+#define RT_TSMAN_FILEGROUP         MAKE_TID( 7, RG_DISK_RECORDS)
+
+#define RT_DBTUP_PAGE              MAKE_TID( 1, RG_DATAMEM)
+#define RT_DBTUP_PAGE_MAP          MAKE_TID( 2, RG_DATAMEM)
 
 #endif
