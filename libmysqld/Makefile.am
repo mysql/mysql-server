@@ -127,11 +127,11 @@ link_sources:
 	  for f in $(sqlsources); do \
 	    rm -f $$f; \
 	    if test -e $(top_srcdir)/sql/$$f ; \
-            then \
+	    then \
 	      @LN_CP_F@ $(top_srcdir)/sql/$$f $$f; \
-            else \
+	    else \
 	      @LN_CP_F@ $(top_builddir)/sql/$$f $$f; \
-            fi ; \
+	    fi ; \
 	  done; \
 	  for f in $(libmysqlsources); do \
 	    rm -f $$f; \
