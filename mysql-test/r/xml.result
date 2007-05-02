@@ -547,6 +547,13 @@ UpdateXML(@xml, '/a/b/@bb2', '')
 select UpdateXML(@xml, '/a/b/@bb2', 'bb3="bb3"');
 UpdateXML(@xml, '/a/b/@bb2', 'bb3="bb3"')
 <a aa1="aa1" aa2="aa2"><b bb1="bb1" bb3="bb3">bb</b></a>
+select updatexml('<div><div><span>1</span><span>2</span></div></div>',
+'/','<tr><td>1</td><td>2</td></tr>') as upd1;
+upd1
+<tr><td>1</td><td>2</td></tr>
+select updatexml('', '/', '') as upd2;
+upd2
+
 SET @xml= '<order><clerk>lesser wombat</clerk></order>';
 select extractvalue(@xml,'order/clerk');
 extractvalue(@xml,'order/clerk')

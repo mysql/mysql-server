@@ -232,6 +232,13 @@ select UpdateXML(@xml, '/a/b/@bb2', '');
 select UpdateXML(@xml, '/a/b/@bb2', 'bb3="bb3"');
 
 #
+# Bug#27898 UPDATEXML Crashes the Server!
+#
+select updatexml('<div><div><span>1</span><span>2</span></div></div>',
+                 '/','<tr><td>1</td><td>2</td></tr>') as upd1;
+select updatexml('', '/', '') as upd2;
+
+#
 #  Bug#16234 XML: Crash if ExtractValue()
 #
 SET @xml= '<order><clerk>lesser wombat</clerk></order>';
