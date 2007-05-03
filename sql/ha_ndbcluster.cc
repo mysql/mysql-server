@@ -1216,6 +1216,8 @@ int ha_ndbcluster::get_metadata(const char *path)
       goto err;
   }
 
+  calc_batch_buffer_size();
+
   if ((error= add_table_ndb_record(dict)) != 0)
     goto err;
   if ((error= open_indexes(ndb, table, FALSE)) == 0)
@@ -1223,8 +1225,6 @@ int ha_ndbcluster::get_metadata(const char *path)
     ndbtab_g.release();
     DBUG_RETURN(0);
   }
-
-  calc_batch_buffer_size();
 
 err:
   ndbtab_g.invalidate();
@@ -1312,7 +1312,7 @@ static void ndb_init_index(NDB_INDEX_DATA &data)
   data.ndb_unique_record_row= NULL;
 }
 
-static void ndb_clear_index(NDB_INDEX_DATA &data)
+static void ndb_clear_index(NDBDICT *dict, NDB_INDEX_DATA &data)
 {
   if (data.unique_index_attrid_map)
   {
@@ -1322,6 +1322,14 @@ static void ndb_clear_index(NDB_INDEX_DATA &data)
   {
     delete data.index_stat;
   }
+  if (data.ndb_unique_record_key)
+    dict->releaseRecord(data.ndb_unique_record_key);
+  if (data.ndb_unique_record_row)
+    dict->releaseRecord(data.ndb_unique_record_row);
+  if (data.ndb_record_key)
+    dict->releaseRecord(data.ndb_record_key);
+  if (data.ndb_record_row)
+    dict->releaseRecord(data.ndb_record_row);
   ndb_init_index(data);
 }
 
@@ -1853,7 +1861,7 @@ int ha_ndbcluster::drop_indexes(Ndb *ndb, TABLE *tab)
       }
       if (error)
         DBUG_RETURN(error);
-      ndb_clear_index(m_index[i]);
+      ndb_clear_index(dict, m_index[i]);
       continue;
     }
   }
@@ -1947,27 +1955,6 @@ void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb)
   // Release index list 
   for (i= 0; i < MAX_KEY; i++)
   {
-    if (m_index[i].ndb_unique_record_key)
-    {
-      dict->releaseRecord(m_index[i].ndb_unique_record_key);
-      m_index[i].ndb_unique_record_key= NULL;
-    }
-    if (m_index[i].ndb_unique_record_row)
-    {
-      dict->releaseRecord(m_index[i].ndb_unique_record_row);
-      m_index[i].ndb_unique_record_row= NULL;
-    }
-    if (m_index[i].ndb_record_key)
-    {
-      dict->releaseRecord(m_index[i].ndb_record_key);
-      m_index[i].ndb_record_key= NULL;
-    }
-    if (m_index[i].ndb_record_row)
-    {
-      dict->releaseRecord(m_index[i].ndb_record_row);
-      m_index[i].ndb_record_row= NULL;
-    }
-
     if (m_index[i].unique_index)
     {
       DBUG_ASSERT(m_table != NULL);
@@ -1978,7 +1965,7 @@ void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb)
       DBUG_ASSERT(m_table != NULL);
       dict->removeIndexGlobal(*m_index[i].index, invalidate_indexes);
     }
-    ndb_clear_index(m_index[i]);
+    ndb_clear_index(dict, m_index[i]);
   }
 
   m_table= NULL;
