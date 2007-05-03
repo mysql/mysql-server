@@ -767,7 +767,7 @@ innobase_mysql_print_thd(
 Get the variable length bounds of the given character set.
 
 NOTE that the exact prototype of this function has to be in
-/innobase/data/data0type.ic! */
+/innobase/include/data0type.ic! */
 extern "C"
 void
 innobase_get_cset_width(
