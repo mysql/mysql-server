@@ -458,11 +458,7 @@ row_merge_read_rec_from_block(
 }
 
 /*****************************************************************
-Compare a merge record to another merge record. Returns
-1) NULL if unique index is to be created and records are identical
-2) first record if the fist record is smaller than the second record
-3) first record if records are identical and index type is not UNIQUE
-4) second record if the first record is largen than second record*/
+Compare two merge records. */
 static
 int
 row_merge_cmp(
