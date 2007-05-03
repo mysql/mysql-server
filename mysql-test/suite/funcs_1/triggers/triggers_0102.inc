@@ -214,7 +214,13 @@ let $message= Testcase 3.5.1.7: - need to fix;
 	eval create table t1 (f1 int, f2 char(25),f3 int) engine=$engine_type;
 	CREATE TRIGGER trg5_1 BEFORE INSERT on test.t1 
 		for each row set new.f3 = '14';
+# In 5.0 names to long (more than 64 chars) were trimed without an error
+# In 5.1 an error is returned. So adding a call with the expected error 
+# and one with a shorter name to validate proper execution
+	--error 1059
 	CREATE TRIGGER trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ
+		BEFORE UPDATE on test.t1 for each row set new.f3 = '42';
+	CREATE TRIGGER trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWX
 		BEFORE UPDATE on test.t1 for each row set new.f3 = '42';
 
 	insert into t1 (f2) values ('insert 3.5.1.7');
@@ -227,8 +233,10 @@ let $message= Testcase 3.5.1.7: - need to fix;
 	--disable_warnings 
 	--error 0, 1360
 	drop trigger trg5_1;
-	# The above trigger should be dropped since the name was trimmed.
+	# In 5.1 the long name should generate an error that is to long
+	--error 1059
 	drop trigger trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ;
+	drop trigger trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWX;
 	drop table t1;
 
 #Section 3.5.1.8
