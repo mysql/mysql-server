@@ -3,6 +3,7 @@ BIN_DIRS := 	ndbapi_simple \
 	 	ndbapi_async1 \
 		ndbapi_retries \
 		ndbapi_simple_index \
+		ndbapi_simple_index_ndbrecord \
 		ndbapi_event \
 		ndbapi_scan \
 		mgmapi_logevent \
