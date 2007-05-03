@@ -4753,7 +4753,7 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
   */
   if (elemSize != sizeof(NdbDictionary::RecordSpecification))
   {
-    m_error.code= 4276;
+    m_error.code= 4289;
     return NULL;
   }
 
@@ -4832,7 +4832,7 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
     col= &NdbColumnImpl::getImpl(*(rs->column));
     if (!col)
     {
-      m_error.code= 4277;
+      m_error.code= 4290;
       goto err;
     }
     NdbRecord::Attr *recCol= &rec->columns[i];
@@ -4933,7 +4933,7 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
     NdbRecord::Attr *recCol= &rec->columns[i];
     if (i > 0 && oldAttrId==recCol->attrId)
     {
-      m_error.code= 4278;
+      m_error.code= 4291;
       goto err;
     }
     oldAttrId= recCol->attrId;

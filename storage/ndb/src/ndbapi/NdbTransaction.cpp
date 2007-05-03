@@ -2162,7 +2162,7 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
   /* Check that the NdbRecord specifies the full primary key. */
   if (!(key_rec->flags & NdbRecord::RecIsKeyRecord))
   {
-    setOperationErrorCodeAbort(4279);
+    setOperationErrorCodeAbort(4292);
     return NULL;
   }
 
@@ -2203,7 +2203,7 @@ NdbTransaction::insertTuple(const NdbRecord *rec, const char *row,
   /* Check that the NdbRecord specifies the full primary key. */
   if (!(rec->flags & NdbRecord::RecHasAllKeys))
   {
-    setOperationErrorCodeAbort(4279);
+    setOperationErrorCodeAbort(4292);
     return NULL;
   }
 
@@ -2227,7 +2227,7 @@ NdbTransaction::updateTuple(const NdbRecord *key_rec, const char *key_row,
   /* Check that the NdbRecord specifies the full primary key. */
   if (!(key_rec->flags & NdbRecord::RecIsKeyRecord))
   {
-    setOperationErrorCodeAbort(4279);
+    setOperationErrorCodeAbort(4292);
     return NULL;
   }
 
@@ -2249,7 +2249,7 @@ NdbTransaction::deleteTuple(const NdbRecord *key_rec, const char *key_row)
   /* Check that the NdbRecord specifies the full primary key. */
   if (!(key_rec->flags & NdbRecord::RecIsKeyRecord))
   {
-    setOperationErrorCodeAbort(4279);
+    setOperationErrorCodeAbort(4292);
     return NULL;
   }
 
@@ -2280,7 +2280,7 @@ NdbTransaction::writeTuple(const NdbRecord *key_rec, const char *key_row,
   /* Check that the NdbRecord specifies the full primary key. */
   if (!(key_rec->flags & NdbRecord::RecIsKeyRecord))
   {
-    setOperationErrorCodeAbort(4279);
+    setOperationErrorCodeAbort(4292);
     return NULL;
   }
 
@@ -2482,7 +2482,7 @@ NdbTransaction::scanIndex(
 
   if (!(key_record->flags & NdbRecord::RecIsKeyRecord))
   {
-    setOperationErrorCodeAbort(4279);
+    setOperationErrorCodeAbort(4292);
     return NULL;
   }
   if ((scan_flags & NdbScanOperation::SF_OrderBy) &&
@@ -2490,7 +2490,7 @@ NdbTransaction::scanIndex(
         key_record->tableId != result_record->tableId))
   {
     /* For ordering, we need all keys in the result row. */
-    setOperationErrorCodeAbort(4279);
+    setOperationErrorCodeAbort(4292);
     return NULL;
   }
   if (!(key_record->flags & NdbRecord::RecIsIndex))
@@ -2585,7 +2585,7 @@ NdbTransaction::scanIndex(
     res= get_key_bound_callback(callback_data, i, bound);
     if (res==-1)
     {
-      setOperationErrorCodeAbort(4280);
+      setOperationErrorCodeAbort(4293);
       goto giveup_err;
     }
     range_no= bound.range_no;
