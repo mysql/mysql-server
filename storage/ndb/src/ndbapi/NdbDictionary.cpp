@@ -1560,6 +1560,60 @@ NdbDictionary::Dictionary::removeTableGlobal(const Table &ndbtab,
   return m_impl.releaseTableGlobal(NdbTableImpl::getImpl(ndbtab), invalidate);
 }
 
+NdbRecord *
+NdbDictionary::Dictionary::createRecord(const Table *table,
+                                        const RecordSpecification *recSpec,
+                                        Uint32 length,
+                                        Uint32 elemSize,
+                                        Uint32 flags)
+{
+  return m_impl.createRecord(&NdbTableImpl::getImpl(*table),
+                             recSpec,
+                             length,
+                             elemSize,
+                             flags);
+}
+
+NdbRecord *
+NdbDictionary::Dictionary::createRecord(const Index *index,
+                                        const Table *table,
+                                        const RecordSpecification *recSpec,
+                                        Uint32 length,
+                                        Uint32 elemSize,
+                                        Uint32 flags)
+{
+  return m_impl.createRecord(&NdbIndexImpl::getImpl(*index),
+                             &NdbTableImpl::getImpl(*table),
+                             recSpec,
+                             length,
+                             elemSize,
+                             flags);
+}
+
+NdbRecord *
+NdbDictionary::Dictionary::createRecord(const Index *index,
+                                        const RecordSpecification *recSpec,
+                                        Uint32 length,
+                                        Uint32 elemSize,
+                                        Uint32 flags)
+{
+  const NdbDictionary::Table *table= getTable(index->getTable());
+  if (!table)
+    return NULL;
+  return m_impl.createRecord(&NdbIndexImpl::getImpl(*index),
+                             &NdbTableImpl::getImpl(*table),
+                             recSpec,
+                             length,
+                             elemSize,
+                             flags);
+}
+
+void 
+NdbDictionary::Dictionary::releaseRecord(NdbRecord *rec)
+{
+  m_impl.releaseRecord_impl(rec);
+}
+
 void NdbDictionary::Dictionary::putTable(const NdbDictionary::Table * table)
 {
  NdbDictionary::Table  *copy_table = new NdbDictionary::Table;

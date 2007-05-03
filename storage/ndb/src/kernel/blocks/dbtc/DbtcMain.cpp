@@ -8756,16 +8756,14 @@ void Dbtc::systemErrorLab(Signal* signal, int line)
   when it has retrived at least one tuple and is hindered by a lock to
   retrieve the next tuple.  This is to ensure that a scan process never 
   can be involved in a deadlock situation.   
-   
-  When the scan process receives a number of tuples to report to the 
-  application it checks the state of the delivery process. Only one delivery 
-  at a time is handled by the application. Thus if the delivery process 
-  has already sent a number of tuples to the application this set of tuples 
-  are queued.
-   
-  When the application requests the next set of tuples it is immediately
-  delivered if any are queued, otherwise it waits for the next scan
-  process that is ready to deliver.  
+
+  Tuples from each fragment scan are sent directly to API from TUP, and tuples
+  from different fragments are delivered in parallel (so will be interleaved
+  when received).
+
+  When a batch of tuples from one fragment has been fully fetched, the scan of
+  that fragment will not continue until the previous batch has been
+  acknowledged by API with a SCAN_NEXTREQ signal.
 
 
   ERROR HANDLING
@@ -9698,7 +9696,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
 /****************************************************************************
  * execSCAN_NEXTREQ
  *
- * THE APPLICATION HAVE PROCESSED THE TUPLES TRANSFERRED AND IS NOW READY FOR
+ * THE APPLICATION HAS PROCESSED THE TUPLES TRANSFERRED AND IS NOW READY FOR
  * MORE. THIS SIGNAL IS ALSO USED TO CLOSE THE SCAN. 
  ****************************************************************************/
 void Dbtc::execSCAN_NEXTREQ(Signal* signal) 

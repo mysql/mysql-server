@@ -20,11 +20,13 @@
 #include <NdbScanOperation.hpp>
 #include <NdbIndexScanOperation.hpp>
 #include <NdbIndexOperation.hpp>
+#include <NdbDictionaryImpl.hpp>
 #include "NdbApiSignal.hpp"
 #include "TransporterFacade.hpp"
 #include "API.hpp"
 #include "NdbBlob.hpp"
 
+#include <AttributeHeader.hpp>
 #include <signaldata/TcKeyConf.hpp>
 #include <signaldata/TcIndx.hpp>
 #include <signaldata/TcCommit.hpp>
@@ -520,8 +522,10 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
   /**
    * Reset error.code on execute
    */
+#ifndef DBUG_OFF
   if (theError.code != 0)
     DBUG_PRINT("enter", ("Resetting error %d on execute", theError.code));
+#endif
   theError.code = 0;
   NdbScanOperation* tcOp = m_theFirstScanOperation;
   if (tcOp != 0){
@@ -645,7 +649,13 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
   while (tOp) {
     int tReturnCode;
     NdbOperation* tNextOp = tOp->next();
-    tReturnCode = tOp->prepareSend(theTCConPtr, theTransactionId, abortOption);
+
+    if (tOp->Status() == NdbOperation::UseNdbRecord)
+      tReturnCode= tOp->prepareSendNdbRecord(theTCConPtr, theTransactionId,
+                                             abortOption);
+    else
+      tReturnCode= tOp->prepareSend(theTCConPtr, theTransactionId, abortOption);
+
     if (tReturnCode == -1) {
       theSendStatus = sendABORTfail;
       DBUG_VOID_RETURN;
@@ -1101,7 +1111,9 @@ Remark:         Get an operation from NdbOperation object idlelist and
                 object, synchronous.
 *****************************************************************************/
 NdbOperation*
-NdbTransaction::getNdbOperation(const NdbTableImpl * tab, NdbOperation* aNextOp)
+NdbTransaction::getNdbOperation(const NdbTableImpl * tab,
+                                NdbOperation* aNextOp,
+                                bool useRec)
 { 
   NdbOperation* tOp;
 
@@ -1135,7 +1147,7 @@ NdbTransaction::getNdbOperation(const NdbTableImpl * tab, NdbOperation* aNextOp)
     }
     tOp->next(aNextOp);
   }
-  if (tOp->init(tab, this) != -1) {
+  if (tOp->init(tab, this, useRec) != -1) {
     return tOp;
   } else {
     theNdb->releaseOperation(tOp);
@@ -1154,6 +1166,7 @@ NdbOperation* NdbTransaction::getNdbOperation(const NdbDictionary::Table * table
   else
     return NULL;
 }//NdbTransaction::getNdbOperation()
+
 
 // NdbScanOperation
 /*****************************************************************************
@@ -1245,6 +1258,7 @@ NdbTransaction::getNdbIndexScanOperation(const NdbDictionary::Index * index)
 { 
   if (index)
   {
+    /* This fetches the underlying table being indexed. */
     const NdbDictionary::Table *table=
       theNdb->theDictionary->getTable(index->getTable());
 
@@ -1343,7 +1357,8 @@ NdbTransaction::getNdbScanOperation(const NdbDictionary::Table * table)
 NdbIndexOperation* getNdbIndexOperation(const char* anIndexName,
 					const char* aTableName);
 
-Return Value    Return a pointer to a NdbOperation object if getNdbIndexOperation was succesful.
+Return Value    Return a pointer to an NdbIndexOperation object if
+                getNdbIndexOperation was succesful.
                 Return NULL : In all other case. 	
 Parameters:     aTableName : Name of the database table. 	
 Remark:         Get an operation from NdbIndexOperation idlelist and get the NdbTransaction object 
@@ -1405,8 +1420,9 @@ Remark:         Get an operation from NdbIndexOperation object idlelist and get 
 *****************************************************************************/
 NdbIndexOperation*
 NdbTransaction::getNdbIndexOperation(const NdbIndexImpl * anIndex, 
-				    const NdbTableImpl * aTable,
-                                    NdbOperation* aNextOp)
+                                     const NdbTableImpl * aTable,
+                                     NdbOperation* aNextOp,
+                                     bool useRec)
 { 
   NdbIndexOperation* tOp;
   
@@ -1435,7 +1451,7 @@ NdbTransaction::getNdbIndexOperation(const NdbIndexImpl * anIndex,
     }
     tOp->next(aNextOp);
   }
-  if (tOp->indxInit(anIndex, aTable, this)!= -1) {
+  if (tOp->indxInit(anIndex, aTable, this, useRec)!= -1) {
     return tOp;
   } else {
     theNdb->releaseOperation(tOp);
@@ -2083,6 +2099,624 @@ NdbTransaction::getNextCompletedOperation(const NdbOperation * current) const {
     return theCompletedFirstOp;
   return current->theNext;
 }
+
+NdbOperation *
+NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
+                              NdbOperation::LockMode lock_mode,
+                              const NdbRecord *key_record,
+                              const char *key_row,
+                              const NdbRecord *attribute_record,
+                              const char *attribute_row,
+                              const unsigned char *mask)
+{
+  NdbOperation *op;
+  /*
+    We are actually passing the table object for the index here, not the table
+    object of the underlying table. But we only need it to keep the existing
+    NdbOperation code happy, it is not actually used for NdbRecord operation.
+    We will eliminate the need for passing table and index completely when
+    implementing WL#3707.
+  */
+  if (key_record->flags & NdbRecord::RecIsIndex)
+  {
+    op= getNdbIndexOperation(key_record->table->m_index,
+                             key_record->base_table, NULL, true);
+  }
+  else
+  {
+    if (key_record->tableId != attribute_record->tableId)
+    {
+      setOperationErrorCodeAbort(4287);
+      return NULL;
+    }
+    op= getNdbOperation(key_record->table, NULL, true);
+  }
+  if(!op)
+    return NULL;
+
+  op->theStatus= NdbOperation::UseNdbRecord;
+  op->theOperationType= type;
+  op->theErrorLine++;
+  op->theLockMode= lock_mode;
+  op->m_key_record= key_record;
+  op->m_key_row= key_row;
+  op->m_attribute_record= attribute_record;
+  op->m_attribute_row= attribute_row;
+  attribute_record->copyMask(op->m_read_mask, mask);
+
+  if (unlikely(attribute_record->flags & NdbRecord::RecHasBlob))
+  {
+    if (op->getBlobHandlesNdbRecord(this) == -1)
+      return NULL;
+  }
+
+  return op;
+}
+
+NdbOperation *
+NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
+                          const NdbRecord *result_rec, char *result_row,
+                          NdbOperation::LockMode lock_mode,
+                          const unsigned char *result_mask)
+{
+  /* Check that the NdbRecord specifies the full primary key. */
+  if (!(key_rec->flags & NdbRecord::RecIsKeyRecord))
+  {
+    setOperationErrorCodeAbort(4292);
+    return NULL;
+  }
+
+  /* It appears that unique index operations do no support readCommitted. */
+  if (key_rec->flags & NdbRecord::RecIsIndex &&
+      lock_mode == NdbOperation::LM_CommittedRead)
+    lock_mode= NdbOperation::LM_Read;
+
+  NdbOperation::OperationType opType=
+    (lock_mode == NdbOperation::LM_Exclusive ?
+       NdbOperation::ReadExclusive : NdbOperation::ReadRequest);
+  NdbOperation *op= setupRecordOp(opType, lock_mode, key_rec, key_row,
+                                  result_rec, result_row, result_mask);
+  if (!op)
+    return NULL;
+
+  op->m_abortOption= AO_IgnoreError;
+  if (op->theLockMode == NdbOperation::LM_CommittedRead)
+  {
+    op->theDirtyIndicator= 1;
+    op->theSimpleIndicator= 1;
+  }
+  else
+  {
+    theSimpleState= 0;
+  }
+
+  /* Setup the record/row for receiving the results. */
+  op->theReceiver.getValues(result_rec, result_row);
+
+  return op;
+}
+
+NdbOperation *
+NdbTransaction::insertTuple(const NdbRecord *rec, const char *row,
+                            const unsigned char *mask)
+{
+  /* Check that the NdbRecord specifies the full primary key. */
+  if (!(rec->flags & NdbRecord::RecHasAllKeys))
+  {
+    setOperationErrorCodeAbort(4292);
+    return NULL;
+  }
+
+  NdbOperation *op= setupRecordOp(NdbOperation::InsertRequest,
+                                  NdbOperation::LM_Exclusive, rec, row,
+                                  rec, row, mask);
+  if (!op)
+    return NULL;
+
+  op->m_abortOption = AbortOnError;
+  theSimpleState= 0;
+
+  return op;
+}
+
+NdbOperation *
+NdbTransaction::updateTuple(const NdbRecord *key_rec, const char *key_row,
+                            const NdbRecord *attr_rec, const char *attr_row,
+                            const unsigned char *mask)
+{
+  /* Check that the NdbRecord specifies the full primary key. */
+  if (!(key_rec->flags & NdbRecord::RecIsKeyRecord))
+  {
+    setOperationErrorCodeAbort(4292);
+    return NULL;
+  }
+
+  NdbOperation *op= setupRecordOp(NdbOperation::UpdateRequest,
+                                  NdbOperation::LM_Exclusive, key_rec, key_row,
+                                  attr_rec, attr_row, mask);
+  if(!op)
+    return op;
+
+  op->m_abortOption = AbortOnError;
+  theSimpleState= 0;
+
+  return op;
+}
+
+NdbOperation *
+NdbTransaction::deleteTuple(const NdbRecord *key_rec, const char *key_row)
+{
+  /* Check that the NdbRecord specifies the full primary key. */
+  if (!(key_rec->flags & NdbRecord::RecIsKeyRecord))
+  {
+    setOperationErrorCodeAbort(4292);
+    return NULL;
+  }
+
+  NdbOperation *op= setupRecordOp(NdbOperation::DeleteRequest,
+                                  NdbOperation::LM_Exclusive, key_rec, key_row,
+                                  key_rec, NULL, NULL);
+  if(!op)
+    return op;
+
+  op->m_abortOption = AbortOnError;
+  theSimpleState= 0;
+
+  /* Create blob handles if any, to properly delete all blob parts. */
+  if (unlikely(key_rec->flags & NdbRecord::RecTableHasBlob))
+  {
+    if (op->getBlobHandlesDelete(this) == -1)
+      return NULL;
+  }
+
+  return op;
+}
+
+NdbOperation *
+NdbTransaction::writeTuple(const NdbRecord *key_rec, const char *key_row,
+                           const NdbRecord *attr_rec, const char *attr_row,
+                           const unsigned char *mask)
+{
+  /* Check that the NdbRecord specifies the full primary key. */
+  if (!(key_rec->flags & NdbRecord::RecIsKeyRecord))
+  {
+    setOperationErrorCodeAbort(4292);
+    return NULL;
+  }
+
+  NdbOperation *op= setupRecordOp(NdbOperation::WriteRequest,
+                                  NdbOperation::LM_Exclusive, key_rec, key_row,
+                                  attr_rec, attr_row, mask);
+  if(!op)
+    return op;
+
+  op->m_abortOption = AbortOnError;
+  theSimpleState= 0;
+
+  return op;
+}
+
+NdbScanOperation *
+NdbTransaction::scanTable(const NdbRecord *result_record,
+                          NdbOperation::LockMode lock_mode,
+                          const unsigned char *result_mask,
+                          Uint32 scan_flags,
+                          Uint32 parallel,
+                          Uint32 batch)
+{
+  /*
+    Normal scan operations are created as NdbIndexScanOperations.
+    The reason for this is that they can then share a pool of allocated
+    objects.
+  */
+  NdbIndexScanOperation *op_idx;
+  NdbScanOperation *op;
+  NdbBlob *lastBlob;
+  int res;
+
+  op_idx= getNdbScanOperation(result_record->table);
+  if (op_idx==NULL)
+  {
+    setOperationErrorCodeAbort(4000);
+    return NULL;
+  }
+  op= op_idx;
+
+  res= op->readTuples(lock_mode, scan_flags, parallel, batch);
+  if (res==-1)
+    goto giveup_err;
+
+  result_record->copyMask(op->m_read_mask, result_mask);
+
+  lastBlob= NULL;
+  for (Uint32 i= 0; i<result_record->noOfColumns; i++)
+  {
+    const NdbRecord::Attr *col;
+    Uint32 ah;
+    Uint32 attrId;
+
+    col= &result_record->columns[i];
+
+    /* Skip column if result_mask says so. But cannot mask pseudo columns. */
+    attrId= col->attrId;
+    if (!(attrId & AttributeHeader::PSEUDO) &&
+        !BitmaskImpl::get((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5,
+                          op->m_read_mask, attrId))
+      continue;
+
+    /* Create blob handle for any blob column. */
+    if (col->flags & NdbRecord::IsBlob)
+    {
+      const NdbColumnImpl *column= result_record->base_table->getColumn(attrId);
+      NdbBlob *blob= op->linkInBlobHandle(this, column, lastBlob);
+      if (blob == NULL)
+        goto giveup_err;
+      op->m_keyInfo= 1;                         // Need keyinfo for blob scan
+    }
+
+    AttributeHeader::init(&ah, attrId, 0);
+    res= op->insertATTRINFO(ah);
+    if (res==-1)
+      goto giveup_err;
+
+    if (col->flags & NdbRecord::IsDisk)
+      op->m_no_disk_flag= false;
+  }
+
+  /*
+    We set theStatus=UseNdbRecord to allow the addition of an interpreted
+    program (NdbScanFilter ...), but nothing else.
+  */
+  op->theInitialReadSize= op->theTotalCurrAI_Len - 5;
+  op->theStatus= NdbOperation::UseNdbRecord;
+  op->m_attribute_record= result_record;
+
+  return op_idx;
+
+ giveup_err:
+  releaseScanOperation(&m_theFirstScanOperation, &m_theLastScanOperation,
+                       op_idx);
+  return NULL;
+}
+
+/*
+  Compare two rows on some prefix of the index.
+  This is used to see if we can determine that all rows in an index range scan
+  will come from a single fragment (if the two rows bound a single distribution
+  key).
+ */
+static int
+compare_index_row_prefix(const NdbRecord *rec,
+                         const char *row1,
+                         const char *row2,
+                         Uint32 prefix_length)
+{
+  Uint32 i;
+
+  for (i= 0; i<prefix_length; i++)
+  {
+    const NdbRecord::Attr *col= &rec->columns[rec->key_indexes[i]];
+
+    bool is_null1= col->is_null(row1);
+    bool is_null2= col->is_null(row2);
+    if (is_null1)
+    {
+      if (!is_null2)
+        return -1;
+      /* Fall-through to compare next one. */
+    }
+    else
+    {
+      if (is_null2)
+        return 1;
+
+      Uint32 offset= col->offset;
+      Uint32 maxSize= col->maxSize;
+      const char *ptr1= row1 + offset;
+      const char *ptr2= row2 + offset;
+      void *info= col->charset_info;
+      int res=
+        (*col->compare_function)(info, ptr1, maxSize, ptr2, maxSize, true);
+      if (res)
+      {
+        assert(res != NdbSqlUtil::CmpUnknown);
+        return res;
+      }
+    }
+  }
+
+  return 0;
+}
+
+static void
+set_distribution_key_from_range(NdbIndexScanOperation *op,
+                                const NdbRecord *record,
+                                const char *row,
+                                Uint32 distkey_max)
+{
+  Uint64 tmp[1000];
+  char *dst= (char *)(&tmp[0]);
+  Uint32 i;
+  Uint32 len, padded_len, total_len;
+
+  total_len= 0;
+  for (i= 0; i<record->distkey_index_length; i++)
+  {
+    const NdbRecord::Attr *col= &record->columns[record->distkey_indexes[i]];
+    /* Distribution key cannot be NULL. */
+    col->get_var_length(row, len);
+    padded_len= (len+3)&~3;
+    total_len+= padded_len;
+    if (total_len > sizeof(tmp))
+      break;
+    memcpy(dst, row + col->offset, len);
+    if (padded_len != len)
+      bzero(dst + len, padded_len - len);
+    dst+= padded_len;
+  }
+  op->setPartitionHash(tmp, total_len>>2);
+}
+
+NdbIndexScanOperation *
+NdbTransaction::scanIndex(
+            const NdbRecord *key_record,
+            int (*get_key_bound_callback)(void *callback_data,
+                                          Uint32 bound_index,
+                                          NdbIndexScanOperation::IndexBound & bound),
+            void *callback_data,
+            Uint32 num_key_bounds,
+            const NdbRecord *result_record,
+            NdbOperation::LockMode lock_mode,
+            const unsigned char *result_mask,
+            Uint32 scan_flags,
+            Uint32 parallel,
+            Uint32 batch)
+{
+  NdbIndexScanOperation *op;
+  const NdbTableImpl *index_table_impl; // The index schema object
+  const NdbTableImpl *table_impl;       // The table schema object
+  NdbBlob *lastBlob;
+  int res;
+  Uint32 i,j;
+  Uint32 previous_range_no;
+
+  if (!(key_record->flags & NdbRecord::RecIsKeyRecord))
+  {
+    setOperationErrorCodeAbort(4292);
+    return NULL;
+  }
+  if ((scan_flags & NdbScanOperation::SF_OrderBy) &&
+      ( !(result_record->flags & NdbRecord::RecHasAllKeys) ||
+        key_record->tableId != result_record->tableId))
+  {
+    /* For ordering, we need all keys in the result row. */
+    setOperationErrorCodeAbort(4292);
+    return NULL;
+  }
+  if (!(key_record->flags & NdbRecord::RecIsIndex))
+  {
+    setOperationErrorCodeAbort(4283);
+    return NULL;
+  }
+
+  index_table_impl= key_record->table;
+  table_impl= result_record->base_table;
+
+  op= getNdbScanOperation(index_table_impl);
+  if (op==NULL)
+  {
+    setOperationErrorCodeAbort(4000);
+    return NULL;
+  }
+  op->m_type= NdbOperation::OrderedIndexScan;
+  op->m_currentTable= table_impl;
+
+  op->m_attribute_record= result_record; // Mark using NdbRecord for readTuples
+  res= op->readTuples(lock_mode, scan_flags, parallel, batch);
+  if (res==-1)
+    goto giveup_err;
+  result_record->copyMask(op->m_read_mask, result_mask);
+
+  /* Fix theStatus as set in readTuples(). */
+  op->theStatus= NdbOperation::UseNdbRecord;
+
+  lastBlob= NULL;
+  for (i= 0; i<result_record->noOfColumns; i++)
+  {
+    const NdbRecord::Attr *col;
+    Uint32 ah;
+    Uint32 attrId;
+
+    col= &result_record->columns[i];
+
+    /*
+      Skip column if result_mask says so.
+      But cannot mask pseudo columns, nor key columns in ordered scans.
+    */
+    attrId= col->attrId;
+    if ( result_mask &&
+         !(attrId & AttributeHeader::PSEUDO) &&
+         !( (scan_flags & NdbScanOperation::SF_OrderBy) &&
+            (col->flags & NdbRecord::IsKey) ) &&
+         !(result_mask[attrId>>3] & (1<<(attrId & 7))) )
+    {
+      continue;
+    }
+
+    /* Create blob handle for any blob column. */
+    if (col->flags & NdbRecord::IsBlob)
+    {
+      const NdbColumnImpl *column= key_record->base_table->getColumn(attrId);
+      NdbBlob *blob= op->linkInBlobHandle(this, column, lastBlob);
+      if (blob == NULL)
+        goto giveup_err;
+      op->m_keyInfo= 1;                         // Need keyinfo for blob scan
+    }
+
+    AttributeHeader::init(&ah, attrId, 0);
+    res= op->insertATTRINFO(ah);
+    if (res==-1)
+      goto giveup_err;
+
+    if (col->flags & NdbRecord::IsDisk)
+      op->m_no_disk_flag= false;
+  }
+
+  op->theInitialReadSize= op->theTotalCurrAI_Len - 5;
+
+  /*
+    Set up index range bounds, write into keyinfo.
+
+    ToDo: We need to compare each attribute lower with upper bound, and use an
+    x=a condition instead of a<=x<=b as appropriate.
+
+    ToDo: We also need to send distribution key, but _only_ if distribution
+    key is scanned equal to the same value for all ranges (see BUG#25821).
+  */
+
+  for (i= 0; i<num_key_bounds; i++)
+  {
+    NdbIndexScanOperation::IndexBound bound;
+    int res;
+    Uint32 key_count, common_key_count;
+    Uint32 range_no;
+    Uint32 bound_head;
+
+    res= get_key_bound_callback(callback_data, i, bound);
+    if (res==-1)
+    {
+      setOperationErrorCodeAbort(4293);
+      goto giveup_err;
+    }
+    range_no= bound.range_no;
+    if (range_no >= (1 << 12))
+    {
+      setOperationErrorCodeAbort(4286);
+      goto giveup_err;
+    }
+
+    if ( (scan_flags & NdbScanOperation::SF_ReadRangeNo) &&
+         (scan_flags & NdbScanOperation::SF_OrderBy) )
+    {
+      if (i>0 && previous_range_no >= range_no)
+      {
+        setOperationErrorCodeAbort(4282);
+        goto giveup_err;
+      }
+      previous_range_no= range_no;
+    }
+
+    key_count= bound.low_key_count;
+    common_key_count= key_count;
+    if (key_count < bound.high_key_count)
+      key_count= bound.high_key_count;
+    else
+      common_key_count= bound.high_key_count;
+
+    if (key_count > key_record->key_index_length)
+    {
+      /* Too many keys specified for key bound. */
+      setOperationErrorCodeAbort(4281);
+      goto giveup_err;
+    }
+
+    for (j= 0; j<key_count; j++)
+    {
+      Uint32 bound_type;
+      if (bound.low_key && j<bound.low_key_count)
+      {
+        bound_type= bound.low_inclusive  || j+1 < bound.low_key_count ?
+            NdbIndexScanOperation::BoundLE : NdbIndexScanOperation::BoundLT;
+        op->ndbrecord_insert_bound(key_record, key_record->key_indexes[j],
+                                   bound.low_key, bound_type);
+      }
+      if (bound.high_key && j<bound.high_key_count)
+      {
+        bound_type= bound.high_inclusive  || j+1 < bound.high_key_count ?
+            NdbIndexScanOperation::BoundGE : NdbIndexScanOperation::BoundGT;
+        op->ndbrecord_insert_bound(key_record, key_record->key_indexes[j],
+                                   bound.high_key, bound_type);
+      }
+    }
+
+    /* Set the length of this bound. */
+    bound_head= *op->m_first_bound_word;
+    bound_head|=
+      (op->theTupKeyLen - op->m_this_bound_start) << 16 | (range_no << 4);
+    *op->m_first_bound_word= bound_head;
+    op->m_first_bound_word= op->theKEYINFOptr + op->theTotalNrOfKeyWordInSignal;
+    op->m_this_bound_start= op->theTupKeyLen;
+
+    /*
+      Now check if the range bounds a single distribution key. If so, we need
+      scan only a single fragment.
+
+      ToDo: we do not attempt to identify the case where we have multiple
+      ranges, but they all bound the same single distribution key. It seems
+      not really worth the effort to optimise this case, better to fix the
+      multi-range protocol so that the distribution key could be specified
+      individually for each of the multiple ranges.
+    */
+    if (num_key_bounds==1)
+    {
+      Uint32 distkey_min= key_record->m_min_distkey_prefix_length;
+      if (distkey_min > 0 &&
+          common_key_count >= distkey_min &&
+          bound.low_key &&
+          bound.high_key &&
+          0==compare_index_row_prefix(key_record,
+                                      bound.low_key,
+                                      bound.high_key,
+                                      distkey_min))
+        set_distribution_key_from_range(op, key_record, bound.low_key, distkey_min);
+    }
+  }
+
+  return op;
+
+ giveup_err:
+  releaseScanOperation(&m_theFirstScanOperation, &m_theLastScanOperation, op);
+  return NULL;
+}
+
+static int scanIndexCallback(void *callback_data,
+                             Uint32 bound_index,
+                             NdbIndexScanOperation::IndexBound & bound)
+{
+  const NdbIndexScanOperation::IndexBound *s=
+    (NdbIndexScanOperation::IndexBound *)callback_data;
+  bound= *s;
+  return 0;
+}
+
+NdbIndexScanOperation *
+NdbTransaction::scanIndex(const NdbRecord *key_record,
+                          const char *low_key,
+                          Uint32 low_key_count,
+                          bool low_inclusive,
+                          const char * high_key,
+                          Uint32 high_key_count,
+                          bool high_inclusive,
+                          const NdbRecord *result_record,
+                          NdbOperation::LockMode lock_mode,
+                          const unsigned char *result_mask,
+                          Uint32 scan_flags,
+                          Uint32 parallel,
+                          Uint32 batch)
+{
+  NdbIndexScanOperation::IndexBound s;
+  s.low_key= low_key;
+  s.low_key_count= low_key_count;
+  s.low_inclusive= low_inclusive;
+  s.high_key= high_key;
+  s.high_key_count= high_key_count;
+  s.high_inclusive= high_inclusive;
+  s.range_no= 0;
+  return scanIndex(key_record, scanIndexCallback, &s, 1,
+                   result_record, lock_mode, result_mask,
+                   scan_flags, parallel, batch);
+}
+
 
 #ifdef VM_TRACE
 #define CASE(x) case x: ndbout << " " << #x; break
