@@ -438,6 +438,13 @@ NdbScanOperation::executeCursor(int nodeId){
 int NdbScanOperation::nextResult(bool fetchAllowed, bool forceSend)
 {
   int res;
+
+  if (unlikely(m_attribute_record != 0))
+  {
+    setErrorCodeAbort(4284);
+    return -1;
+  }
+
   if ((res = nextResultImpl(fetchAllowed, forceSend)) == 0) {
     // handle blobs
     NdbBlob* tBlob = theBlobList;
@@ -464,6 +471,13 @@ NdbScanOperation::nextResult(const char * & out_row,
                              bool fetchAllowed, bool forceSend)
 {
   int res;
+
+  if (unlikely(m_attribute_record == 0))
+  {
+    setErrorCodeAbort(4284);
+    return -1;
+  }
+
   if ((res = nextResultNdbRecord(out_row, fetchAllowed, forceSend)) == 0) {
     if (unlikely(theBlobList != NULL))
     {

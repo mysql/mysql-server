@@ -493,15 +493,6 @@ getBlobHandles(NdbOperation* opr)
 }
 
 static int
-getBlobHandles(NdbIndexOperation* opx)
-{
-  CHK((g_bh1 = opx->getBlobHandle("BL1")) != 0);
-  if (! g_opt.m_oneblob)
-    CHK((g_bh2 = opx->getBlobHandle("BL2")) != 0);
-  return 0;
-}
-
-static int
 getBlobHandles(NdbScanOperation* ops)
 {
   CHK((g_bh1 = ops->getBlobHandle("BL1")) != 0);
@@ -1944,11 +1935,11 @@ bugtest_27018()
     Tup& tup= g_tups[k];
 
     CHK((g_con= g_ndb->startTransaction()) != 0);
-    CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
-    CHK(g_opr->updateTuple() == 0);
-    CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+    memcpy(&tup.m_key_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
     if (g_opt.m_pk2len != 0)
-      CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+      memcpy(&tup.m_key_row[g_pk2_offset], tup.m_pk2, g_opt.m_pk2len);
+    CHK((g_opr= g_con->updateTuple(g_key_record, tup.m_key_row,
+                                   g_blob_record, tup.m_row)) != 0);
     CHK(getBlobHandles(g_opr) == 0);
     CHK(g_con->execute(NoCommit) == 0);
 
@@ -1961,11 +1952,8 @@ bugtest_27018()
     g_ndb->closeTransaction(g_con);
 
     CHK((g_con= g_ndb->startTransaction()) != 0);
-    CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
-    CHK(g_opr->readTuple() == 0);
-    CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
-    if (g_opt.m_pk2len != 0)
-      CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+    CHK((g_opr= g_con->readTuple(g_key_record, tup.m_key_row,
+                                 g_blob_record, tup.m_row)) != 0);
     CHK(getBlobHandles(g_opr) == 0);
 
     CHK(g_bh1->getValue(tup.m_blob1.m_buf, tup.m_blob1.m_len) == 0);
@@ -1986,8 +1974,9 @@ struct bug27370_data {
   char m_current_write_value;
   char *m_writebuf;
   Uint32 m_blob1_size;
-  Uint32 m_pk1;
-  char m_pk2[g_max_pk2len + 1];
+  char *m_key_row;
+  char *m_read_row;
+  char *m_write_row;
   bool m_thread_stop;
 };
 
@@ -2004,15 +1993,10 @@ void *bugtest_27370_thread(void *arg)
     if ((con= data->m_ndb->startTransaction()) == 0)
       return (void *)"Failed to create transaction";
     NdbOperation *opr;
-    if ((opr= con->getNdbOperation(g_opt.m_tname)) == 0)
+    memcpy(data->m_write_row, data->m_key_row, g_rowsize);
+    if ((opr= con->writeTuple(g_key_record, data->m_key_row,
+                              g_full_record, data->m_write_row)) == 0)
       return (void *)"Failed to create operation";
-    if (opr->writeTuple() != 0)
-      return (void *)"writeTuple() failed";
-    if (opr->equal("PK1", data->m_pk1) != 0)
-      return (void *)"equal(PK1) failed";
-    if (g_opt.m_pk2len != 0)
-      if (opr->equal("PK2", data->m_pk2) != 0)
-        return (void *)"equal(PK2) failed";
     NdbBlob *bh;
     if ((bh= opr->getBlobHandle("BL1")) == 0)
       return (void *)"getBlobHandle() failed";
@@ -2033,6 +2017,10 @@ bugtest_27370()
 
   bug27370_data data;
 
+  CHK((data.m_key_row= new char[g_rowsize*3]) != 0);
+  data.m_read_row= data.m_key_row + g_rowsize;
+  data.m_write_row= data.m_read_row + g_rowsize;
+
   data.m_ndb= new Ndb(g_ncc, "TEST_DB");
   CHK(data.m_ndb->init(20) == 0);
   CHK(data.m_ndb->waitUntilReady() == 0);
@@ -2040,20 +2028,19 @@ bugtest_27370()
   data.m_current_write_value= 0;
   data.m_blob1_size= g_opt.m_blob1.m_inline + 10 * g_opt.m_blob1.m_partsize;
   CHK((data.m_writebuf= new char [data.m_blob1_size]) != 0);
-  data.m_pk1= 27370;
-  memset(data.m_pk2, 'x', g_max_pk2len);
-  data.m_pk2[g_max_pk2len]= '\0';
+  unsigned pk1_value= 27370;
+  memcpy(&data.m_key_row[g_pk1_offset], &pk1_value, sizeof(pk1_value));
+  if (g_opt.m_pk2len != 0)
+    memset(&data.m_key_row[g_pk2_offset], 'x', g_opt.m_pk2len);
   data.m_thread_stop= false;
 
   memset(data.m_writebuf, data.m_current_write_value, data.m_blob1_size);
   data.m_current_write_value++;
 
   CHK((g_con= g_ndb->startTransaction()) != 0);
-  CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
-  CHK(g_opr->writeTuple() == 0);
-  CHK(g_opr->equal("PK1", data.m_pk1) == 0);
-  if (g_opt.m_pk2len != 0)
-    CHK(g_opr->equal("PK2", data.m_pk2) == 0);
+  memcpy(data.m_write_row, data.m_key_row, g_rowsize);
+  CHK((g_opr= g_con->writeTuple(g_key_record, data.m_key_row,
+                                g_full_record, data.m_write_row)) != 0);
   CHK((g_bh1= g_opr->getBlobHandle("BL1")) != 0);
   CHK(g_bh1->setValue(data.m_writebuf, data.m_blob1_size) == 0);
   CHK(g_con->execute(Commit) == 0);
@@ -2068,11 +2055,9 @@ bugtest_27370()
   while (seen_updates < 50)
   {
     CHK((g_con= g_ndb->startTransaction()) != 0);
-    CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
-    CHK(g_opr->readTuple(NdbOperation::LM_CommittedRead) == 0);
-    CHK(g_opr->equal("PK1", data.m_pk1) == 0);
-    if (g_opt.m_pk2len != 0)
-      CHK(g_opr->equal("PK2", data.m_pk2) == 0);
+    CHK((g_opr= g_con->readTuple(g_key_record, data.m_key_row,
+                                 g_blob_record, data.m_read_row,
+                                 NdbOperation::LM_CommittedRead)) != 0);
     CHK((g_bh1= g_opr->getBlobHandle("BL1")) != 0);
     CHK(g_con->execute(NoCommit, AbortOnError, 1) == 0);
 
@@ -2119,11 +2104,12 @@ bugtest_27370()
   while (seen_updates < 50)
   {
     CHK((g_con= g_ndb->startTransaction()) != 0);
-    CHK((g_ops= g_con->getNdbScanOperation(g_opt.m_tname)) != 0);
-    CHK(g_ops->readTuples(NdbOperation::LM_CommittedRead) == 0);
+    CHK((g_ops= g_con->scanTable(g_full_record,
+                                 NdbOperation::LM_CommittedRead)) != 0);
     CHK((g_bh1= g_ops->getBlobHandle("BL1")) != 0);
     CHK(g_con->execute(NoCommit, AbortOnError, 1) == 0);
-    CHK(g_ops->nextResult(true) == 0);
+    const char *out_row;
+    CHK(g_ops->nextResult(out_row, true) == 0);
 
     const Uint32 loop_max= 10;
     char read_char;
@@ -2159,7 +2145,7 @@ bugtest_27370()
       CHK(g_con->execute(NoCommit, AbortOnError, 1) == 0);
     }
 
-    CHK(g_ops->nextResult(true) == 1);
+    CHK(g_ops->nextResult(out_row, true) == 1);
     g_ndb->closeTransaction(g_con);
     g_con= NULL;
   }
@@ -2171,6 +2157,7 @@ bugtest_27370()
       (thread_return ? (char *)thread_return : "<null>"));
   CHK(thread_return == 0);
 
+  delete [] data.m_key_row;
   g_con= NULL;
   g_opr= NULL;
   g_bh1= NULL;
