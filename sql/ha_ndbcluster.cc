@@ -1929,6 +1929,33 @@ bool ha_ndbcluster::check_all_operations_for_error(NdbTransaction *trans,
 }
 
 
+/**
+ * Check if record contains any null valued columns that are part of a key
+ */
+static
+int
+check_null_in_record(const KEY* key_info, const byte *record)
+{
+  KEY_PART_INFO *curr_part, *end_part;
+  curr_part= key_info->key_part;
+  end_part= curr_part + key_info->key_parts;
+
+  while (curr_part != end_part)
+  {
+    if (curr_part->null_bit &&
+        (record[curr_part->null_offset] & curr_part->null_bit))
+      return 1;
+    curr_part++;
+  }
+  return 0;
+  /*
+    We could instead pre-compute a bitmask in table_share with one bit for
+    every null-bit in the key, and so check this just by OR'ing the bitmask
+    with the null bitmap in the record.
+    But not sure it's worth it.
+  */
+}
+
 /*
  * Peek to check if any rows already exist with conflicting
  * primary key or unique index values
@@ -1986,7 +2013,17 @@ int ha_ndbcluster::peek_indexed_rows(const byte *record,
     if (i != table->s->primary_key &&
         key_info->flags & HA_NOSAME)
     {
-      // A unique index is defined on table
+      /*
+        A unique index is defined on table.
+        We cannot look up a NULL field value in a unique index. But since
+        keys with NULLs are not indexed, such rows cannot conflict anyway, so
+        we just skip the index in this case.
+      */
+      if (check_null_in_record(key_info, record))
+      {
+        DBUG_PRINT("info", ("skipping check for key with NULL"));
+        continue;
+      } 
       NdbIndexOperation *iop;
       const NDBINDEX *unique_index = m_index[i].unique_index;
       key_part= key_info->key_part;
