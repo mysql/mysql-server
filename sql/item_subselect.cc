@@ -1787,7 +1787,7 @@ int subselect_single_select_engine::exec()
       select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
       select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
       if (join->init_save_join_tab())
-        DBUG_RETURN(1);
+        DBUG_RETURN(1);                        /* purecov: inspected */
     }
     if (item->engine_changed)
     {
