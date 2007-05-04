@@ -36,7 +36,7 @@ eval select table_name, index_schema, index_name, index_type
 
 --replace_result $SERVER_NAME <SERVER_NAME>
 eval select *
-  from information_schema.user_privileges;
+  from information_schema.user_privileges order by grantee, privilege_type;
 # where grantee="'u_6_401013'@'%'";
 
 eval select *
