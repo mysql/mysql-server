@@ -2,6 +2,36 @@
 mysql-5.1.15-ndb-6.1.X
 ==================================================
 
+mysql-5.1.15-ndb-6.1.7 (not released)
+
+  Bug #28161 Detached triggers + DD and only MM update could cause node failure
+  Bug #25530 --with-readline fails with commercial source packages
+  Bug #25741 AllocNodeIdRef::NodeFailureHandlingNotCompleted
+  Bug #27205 Occational 899 if delete+insert during LCP
+  Bug #24667 After ALTER TABLE operation ndb_dd table becomes regular ndb
+  Bug #28093 ndb: retry sleep in get table stats 30s instead of 30ms
+  Bug #28073 Infinite loop in lock queue.
+  Bug #27495 Missing implementation of NdbTransaction::executeAsynch().
+  Bug #28023 NR can fail to update GCI
+  Bug #27756 Memleak with insert+delete
+  Bug #27757 Tup scan cant see own records
+  Bug #27748 Inconsistent replication(backup) with some multi-update combinations
+  Bug #27651 Very high load can cause event api to get out of sync, "out of order buckets"
+  Bug #27728 Partially connected API's can cause problem for SUMA
+  Bug #27663 Missmatched free/delete in listObjects
+  Bug #27560 Memory usage of mysqld grows while doing nothing
+  Bug #27581 Drop/truncate table can result in node/cluster-crash
+
+  (no bug number) fix bug in my.cnf config handling, put64 for 64-bit variables
+
+  Other changes:
+  - Force varpart, such that tables can handle online add column when feature arrives
+
+  Test tools update for measuring replication latency:
+
+  - new ndb tool 'rep_latency' to measure replication latency
+  - simple extend of 'listen_event' to do apply on remote cluster
+
 mysql-5.1.15-ndb-6.1.6 (2007-03-30)
 
   Bug #27529 Slave crashes on lots of updates
