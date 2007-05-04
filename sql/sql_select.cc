@@ -1426,14 +1426,13 @@ JOIN::optimize()
       }
     }
 
-    if (select_lex->uncacheable && !is_top_level_join())
-    {
-      /* If this join belongs to an uncacheable subquery */
-      if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
-	DBUG_RETURN(-1);
-      error= 0;				// Ensure that tmp_join.error= 0
-      restore_tmp();
-    }
+    /* 
+      If this join belongs to an uncacheable subquery save 
+      the original join 
+    */
+    if (select_lex->uncacheable && !is_top_level_join() &&
+        init_save_join_tab())
+      DBUG_RETURN(-1);
   }
 
   error= 0;
@@ -1493,6 +1492,27 @@ JOIN::reinit()
   }
 
   DBUG_RETURN(0);
+}
+
+/**
+   @brief Save the original join layout
+      
+   @details Saves the original join layout so it can be reused in 
+   re-execution and for EXPLAIN.
+             
+   @return Operation status
+   @retval 0      success.
+   @retval 1      error occurred.
+*/
+
+bool
+JOIN::init_save_join_tab()
+{
+  if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
+    return 1;
+  error= 0;				       // Ensure that tmp_join.error= 0
+  restore_tmp();
+  return 0;
 }
 
 
