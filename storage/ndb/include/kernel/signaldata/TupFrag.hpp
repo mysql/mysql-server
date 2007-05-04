@@ -29,7 +29,7 @@ class TupFragReq {
   friend class Dblqh;
   friend class Dbtup;
 public:
-  STATIC_CONST( SignalLength = 17 );
+  STATIC_CONST( SignalLength = 18 );
 private:
   Uint32 userPtr;
   Uint32 userRef;
@@ -48,6 +48,7 @@ private:
   Uint32 checksumIndicator;
   Uint32 globalCheckpointIdIndicator;
   Uint32 tablespaceid;
+  Uint32 forceVarPartFlag;
 };
 
 class TupFragConf {

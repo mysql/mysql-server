@@ -1,6 +1,5 @@
 --source include/have_binlog_format_row.inc
 
-
 let $SERVER_VERSION=`select version()`;
 
 #This test case is not written for NDB, the result files 
@@ -127,6 +126,8 @@ sync_slave_with_master;
 --source include/master-slave-reset.inc
 --enable_query_log
 
+# disabling warnings temporarily for ENGINE=INNODB to work without InnoDB
+--disable_warnings
 --echo **** On Master **** 
 connection master;
 CREATE TABLE t1_myisam (k INT, a BIT(1), b BIT(9)) ENGINE=MYISAM;
@@ -139,6 +140,7 @@ ALTER TABLE t1_myisam ENGINE=INNODB;
 ALTER TABLE t1_innodb ENGINE=MYISAM;
 ALTER TABLE t2_myisam ENGINE=INNODB;
 ALTER TABLE t2_innodb ENGINE=MYISAM;
+--enable_warnings
 
 --echo **** On Master **** 
 connection master;

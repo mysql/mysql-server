@@ -459,7 +459,8 @@ public:
     Uint32 maxRowsHigh;
     Uint32 minRowsLow;
     Uint32 minRowsHigh;
-  };// Size 128 bytes
+    Uint32 forceVarPartFlag;
+  };
   typedef Ptr<AddFragRecord> AddFragRecordPtr;
   
   /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */

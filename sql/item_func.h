@@ -280,7 +280,7 @@ public:
   { max_length= 21; }
   Item_int_func(List<Item> &list) :Item_func(list) { max_length= 21; }
   Item_int_func(THD *thd, Item_int_func *item) :Item_func(thd, item) {}
-  double val_real() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
+  double val_real();
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec() {}
@@ -305,12 +305,6 @@ class Item_func_signed :public Item_int_func
 public:
   Item_func_signed(Item *a) :Item_int_func(a) {}
   const char *func_name() const { return "cast_as_signed"; }
-  double val_real()
-  {
-    double tmp= args[0]->val_real();
-    null_value= args[0]->null_value;
-    return tmp;
-  }
   longlong val_int();
   longlong val_int_from_str(int *error);
   void fix_length_and_dec()
@@ -738,6 +732,35 @@ class Item_func_max :public Item_func_min_max
 public:
   Item_func_max(List<Item> &list) :Item_func_min_max(list,-1) {}
   const char *func_name() const { return "greatest"; }
+};
+
+
+/* 
+  Objects of this class are used for ROLLUP queries to wrap up 
+  each constant item referred to in GROUP BY list. 
+*/
+
+class Item_func_rollup_const :public Item_func
+{
+public:
+  Item_func_rollup_const(Item *a) :Item_func(a)
+  {
+    name= a->name;
+    name_length= a->name_length;
+  }
+  double val_real() { return args[0]->val_real(); }
+  longlong val_int() { return args[0]->val_int(); }
+  String *val_str(String *str) { return args[0]->val_str(str); }
+  my_decimal *val_decimal(my_decimal *dec) { return args[0]->val_decimal(dec); }
+  const char *func_name() const { return "rollup_const"; }
+  bool const_item() const { return 0; }
+  Item_result result_type() const { return args[0]->result_type(); }
+  void fix_length_and_dec()
+  {
+    collation= args[0]->collation;
+    max_length= args[0]->max_length;
+    decimals=args[0]->decimals; 
+  }
 };
 
 

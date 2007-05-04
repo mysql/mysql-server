@@ -5966,7 +5966,7 @@ bool st_select_lex_unit::add_fake_select_lex(THD *thd_arg)
   fake_select_lex->context.resolve_in_select_list= TRUE;
   fake_select_lex->context.select_lex= fake_select_lex;
 
-  if (!first_sl->next_select())
+  if (!is_union())
   {
     /* 
       This works only for 
