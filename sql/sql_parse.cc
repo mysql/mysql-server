@@ -4570,7 +4570,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
   if (schema_db)
   {
-    if (want_access & ~(SELECT_ACL | EXTRA_ACL))
+    if (!(sctx->master_access & FILE_ACL) && (want_access & FILE_ACL) ||
+        (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
     {
       if (!no_errors)
       {

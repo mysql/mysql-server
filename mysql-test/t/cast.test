@@ -182,6 +182,12 @@ DROP TABLE t1;
 
 select isnull(date(NULL)), isnull(cast(NULL as DATE));
 
+#
+# Bug#23656: Wrong result of CAST from DATE to int
+#
+SELECT CAST(cast('01-01-01' as date) AS UNSIGNED);
+SELECT CAST(cast('01-01-01' as date) AS SIGNED);
+
 --echo End of 4.1 tests
 
 
