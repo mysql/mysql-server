@@ -956,8 +956,8 @@ int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
   param.sort_buffer_length=  check_opt->sort_buffer_size;
   if ((error= repair(thd,param,1)) && param.retry_repair)
   {
-    sql_print_warning("Warning: Optimize table got errno %d, retrying",
-                      my_errno);
+    sql_print_warning("Warning: Optimize table got errno %d on %s.%s, retrying",
+                      my_errno, param.db_name, param.table_name);
     param.testflag&= ~T_REP_BY_SORT;
     error= repair(thd,param,1);
   }
@@ -1347,8 +1347,8 @@ int ha_myisam::enable_indexes(uint mode)
     param.tmpdir=&mysql_tmpdir_list;
     if ((error= (repair(thd,param,0) != HA_ADMIN_OK)) && param.retry_repair)
     {
-      sql_print_warning("Warning: Enabling keys got errno %d, retrying",
-                        my_errno);
+      sql_print_warning("Warning: Enabling keys got errno %d on %s.%s, retrying",
+                        my_errno, param.db_name, param.table_name);
       /* Repairing by sort failed. Now try standard repair method. */
       param.testflag&= ~(T_REP_BY_SORT | T_QUICK);
       error= (repair(thd,param,0) != HA_ADMIN_OK);
