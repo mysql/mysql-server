@@ -192,6 +192,78 @@ CAST(CAST('2006-08-10 10:11:12' AS DATETIME) + INTERVAL 14 MICROSECOND AS DECIMA
 SELECT CAST(CAST('10:11:12.098700' AS TIME) AS DECIMAL(20,6));
 CAST(CAST('10:11:12.098700' AS TIME) AS DECIMAL(20,6))
 101112.098700
+create table t1 (f1 date, f2 datetime, f3 timestamp);
+insert into t1(f1) values(curdate());
+select curdate() < now(), f1 < now(), cast(f1 as date) < now() from t1;
+curdate() < now()	f1 < now()	cast(f1 as date) < now()
+1	1	1
+delete from t1;
+insert into t1 values('2001-01-01','2001-01-01 01:01:01','2001-01-01 01:01:01');
+insert into t1 values('2001-02-05','2001-02-05 00:00:00','2001-02-05 01:01:01');
+insert into t1 values('2001-03-10','2001-03-09 01:01:01','2001-03-10 01:01:01');
+insert into t1 values('2001-04-15','2001-04-15 00:00:00','2001-04-15 00:00:00');
+insert into t1 values('2001-05-20','2001-05-20 01:01:01','2001-05-20 01:01:01');
+select f1, f3 from t1 where f1 >= '2001-02-05 00:00:00' and f3 <= '2001-04-15';
+f1	f3
+2001-02-05	2001-02-05 01:01:01
+2001-03-10	2001-03-10 01:01:01
+2001-04-15	2001-04-15 00:00:00
+select f1, f3 from t1 where f1 >= '2001-2-5 0:0:0' and f2 <= '2001-4-15';
+f1	f3
+2001-02-05	2001-02-05 01:01:01
+2001-03-10	2001-03-10 01:01:01
+2001-04-15	2001-04-15 00:00:00
+select f1, f2 from t1 where if(1, f1, 0) >= f2;
+f1	f2
+2001-02-05	2001-02-05 00:00:00
+2001-03-10	2001-03-09 01:01:01
+2001-04-15	2001-04-15 00:00:00
+select 1 from dual where cast('2001-1-1 2:3:4' as date) = cast('2001-01-01' as datetime);
+1
+1
+select f1, f2, f1 > f2, f1 = f2, f1 < f2 from t1;
+f1	f2	f1 > f2	f1 = f2	f1 < f2
+2001-01-01	2001-01-01 01:01:01	0	0	1
+2001-02-05	2001-02-05 00:00:00	0	1	0
+2001-03-10	2001-03-09 01:01:01	1	0	0
+2001-04-15	2001-04-15 00:00:00	0	1	0
+2001-05-20	2001-05-20 01:01:01	0	0	1
+drop table t1;
+create table t1 (f1 date, f2 datetime, f3 timestamp);
+insert into t1 values('2001-01-01','2001-01-01 01:01:01','2001-01-01 01:01:01');
+insert into t1 values('2001-02-05','2001-02-05 00:00:00','2001-02-05 01:01:01');
+insert into t1 values('2001-03-10','2001-03-09 01:01:01','2001-03-10 01:01:01');
+insert into t1 values('2001-04-15','2001-04-15 00:00:00','2001-04-15 00:00:00');
+insert into t1 values('2001-05-20','2001-05-20 01:01:01','2001-05-20 01:01:01');
+select f2 from t1 where f2 between '2001-2-5' and '01-04-14';
+f2
+2001-02-05 00:00:00
+2001-03-09 01:01:01
+select f1, f2, f3 from t1 where f1 between f2 and f3;
+f1	f2	f3
+2001-02-05	2001-02-05 00:00:00	2001-02-05 01:01:01
+2001-03-10	2001-03-09 01:01:01	2001-03-10 01:01:01
+2001-04-15	2001-04-15 00:00:00	2001-04-15 00:00:00
+select f1, f2, f3 from t1 where cast(f1 as datetime) between f2 and
+cast(f3 as date);
+f1	f2	f3
+2001-02-05	2001-02-05 00:00:00	2001-02-05 01:01:01
+2001-03-10	2001-03-09 01:01:01	2001-03-10 01:01:01
+2001-04-15	2001-04-15 00:00:00	2001-04-15 00:00:00
+select f2 from t1 where '2001-04-10 12:34:56' between f2 and '01-05-01';
+f2
+2001-01-01 01:01:01
+2001-02-05 00:00:00
+2001-03-09 01:01:01
+select f2, f3 from t1 where '01-03-10' between f2 and f3;
+f2	f3
+2001-03-09 01:01:01	2001-03-10 01:01:01
+select f2 from t1 where DATE(f2) between "2001-4-15" AND "01-4-15";
+f2
+2001-04-15 00:00:00
+SELECT 1 from dual where NOW() BETWEEN CURRENT_DATE() - INTERVAL 1 DAY AND CURRENT_DATE();
+1
+drop table t1;
 set @org_mode=@@sql_mode;
 create table t1 (da date default '1962-03-03 23:33:34', dt datetime default '1962-03-03');
 Warnings:

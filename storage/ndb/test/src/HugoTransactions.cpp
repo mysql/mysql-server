@@ -1146,7 +1146,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
     }
 
     // PKs
-    if (equalForRow(pOp, r) != 0)
+    if (equalForRow(pUpdOp, r) != 0)
     {
       closeTransaction(pNdb);
       return NDBT_FAILED;
@@ -1714,7 +1714,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
       
       if(!ordered)
       {
-        if (equalForRow(pOp, r+b) != 0)
+        if (equalForRow(pUpdOp, r+b) != 0)
         {
           closeTransaction(pNdb);
           return NDBT_FAILED;
