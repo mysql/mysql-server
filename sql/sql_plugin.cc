@@ -2303,14 +2303,26 @@ static byte *mysql_sys_var_ptr(void* a_thd, int offset)
 
 void plugin_thdvar_init(THD *thd)
 {
+  plugin_ref old_table_plugin= thd->variables.table_plugin;
+  DBUG_ENTER("plugin_thdvar_init");
+  
+  thd->variables.table_plugin= NULL;
+  cleanup_variables(thd, &thd->variables);
+  
+  thd->variables= global_system_variables;
+  thd->variables.table_plugin= NULL;
+
   /* we are going to allocate these lazily */
   thd->variables.dynamic_variables_version= 0;
   thd->variables.dynamic_variables_size= 0;
   thd->variables.dynamic_variables_ptr= 0;
 
-  DBUG_ASSERT(!(thd->variables.table_plugin));
+  pthread_mutex_lock(&LOCK_plugin);  
   thd->variables.table_plugin=
-        my_plugin_lock(NULL, &global_system_variables.table_plugin);
+        my_intern_plugin_lock(NULL, global_system_variables.table_plugin);
+  intern_plugin_unlock(NULL, old_table_plugin);
+  pthread_mutex_unlock(&LOCK_plugin);
+  DBUG_VOID_RETURN;
 }
 
 
