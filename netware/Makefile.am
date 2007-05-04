@@ -98,20 +98,20 @@ EXTRA_DIST=	$(BUILT_SOURCES) comp_err.def install_test_db.ncf \
 # Build init_db.sql from the files that contain
 # the system tables for this version of MySQL plus any commands
 init_db.sql: $(top_srcdir)/scripts/mysql_system_tables.sql \
-             $(top_srcdir)/scripts/mysql_system_tables_data.sql
+	     $(top_srcdir)/scripts/mysql_system_tables_data.sql
 	@echo "Building $@";
 	@echo "CREATE DATABASE mysql;" > $@;
 	@echo "CREATE DATABASE test;" >> $@;
 	@echo "use mysql;" >> $@;
 	@cat $(top_srcdir)/scripts/mysql_system_tables.sql \
-             $(top_srcdir)/scripts/mysql_system_tables_fix.sql >> $@;
+	     $(top_srcdir)/scripts/mysql_system_tables_fix.sql >> $@;
 
 # Build test_db.sql from init_db.sql plus
 # some test data
 test_db.sql: init_db.sql $(top_srcdir)/scripts/mysql_test_data_timezone.sql
 	@echo "Building $@";
 	@cat init_db.sql \
-             $(top_srcdir)/scripts/mysql_test_data_timezone.sql >> $@;
+	     $(top_srcdir)/scripts/mysql_test_data_timezone.sql >> $@;
 
 endif
 
