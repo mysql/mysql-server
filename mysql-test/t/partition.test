@@ -415,9 +415,13 @@ drop table t1;
 #
 # BUG 14524
 #
+# Disable warnings to allow this test case to work without
+# the Blackhole engine.
+--disable_warnings
 CREATE TABLE `t1` (
   `id` int(11) default NULL
 ) ENGINE=BLACKHOLE DEFAULT CHARSET=latin1 PARTITION BY HASH (id) ;
+--enable_warnings
 SELECT * FROM t1;
 
 drop table t1;
@@ -425,9 +429,13 @@ drop table t1;
 #
 # BUG 14524
 #
+# Disable warnings to allow this test case to work without
+# the Blackhole engine.
+--disable_warnings
 CREATE TABLE `t1` (
   `id` int(11) default NULL
 ) ENGINE=BLACKHOLE DEFAULT CHARSET=latin1 PARTITION BY HASH (id) ;
+--enable_warnings
 SELECT * FROM t1;
 
 drop table t1;

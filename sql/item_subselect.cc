@@ -82,7 +82,7 @@ void Item_subselect::init(st_select_lex *select_lex,
     parsing_place= (outer_select->in_sum_expr ?
                     NO_MATTER :
                     outer_select->parsing_place);
-    if (select_lex->next_select())
+    if (unit->is_union())
       engine= new subselect_union_engine(unit, result, this);
     else
       engine= new subselect_single_select_engine(select_lex, result, this);
@@ -412,7 +412,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
   SELECT_LEX *select_lex= join->select_lex;
   Query_arena *arena= thd->stmt_arena;
  
-  if (!select_lex->master_unit()->first_select()->next_select() &&
+  if (!select_lex->master_unit()->is_union() &&
       !select_lex->table_list.elements &&
       select_lex->item_list.elements == 1 &&
       !select_lex->item_list.head()->with_sum_func &&
@@ -1147,7 +1147,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     else
     {
       bool tmp;
-      if (select_lex->master_unit()->first_select()->next_select())
+      if (select_lex->master_unit()->is_union())
       {
 	/*
 	  comparison functions can't be changed during fix_fields()

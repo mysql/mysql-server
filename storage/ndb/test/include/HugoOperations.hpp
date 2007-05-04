@@ -27,7 +27,8 @@ public:
 		 const NdbDictionary::Index* idx = 0);
 
   ~HugoOperations();
-  int startTransaction(Ndb*);
+  int startTransaction(Ndb*, const NdbDictionary::Table *table= 0,
+                       const char  *keyData= 0, Uint32 keyLen= 0);
   int setTransaction(NdbTransaction*,bool not_null_ok= false);
   int closeTransaction(Ndb*);
   NdbTransaction* getTransaction();

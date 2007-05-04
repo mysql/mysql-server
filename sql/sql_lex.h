@@ -796,7 +796,6 @@ private:
 };
 typedef class st_select_lex SELECT_LEX;
 
-
 inline bool st_select_lex_unit::is_union ()
 { 
   return first_select()->next_select() && 

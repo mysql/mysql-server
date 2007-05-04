@@ -34,6 +34,7 @@ operator <<(class NdbOut& ndbout, const NDBT_Table & tab)
   ndbout << "Row Checksum: " << tab.getRowChecksumIndicator() << endl;
   ndbout << "Row GCI: " << tab.getRowGCIIndicator() << endl;
   ndbout << "SingleUserMode: " << (Uint32) tab.getSingleUserMode() << endl;
+  ndbout << "ForceVarPart: " << tab.getForceVarPart() << endl;
 
   //<< ((tab.getTupleKey() == TupleId) ? " tupleid" : "") <<endl;
   ndbout << "TableStatus: ";
