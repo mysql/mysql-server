@@ -3189,8 +3189,12 @@ static int init_server_components()
 
   /* Setup logs */
 
-  /* enable old-fashioned error log */
-  if (opt_error_log)
+  /*
+    Enable old-fashioned error log, except when the user has requested
+    help information. Since the implementation of plugin server
+    variables the help output is now written much later.
+  */
+  if (opt_error_log && !opt_help)
   {
     if (!log_error_file_ptr[0])
       fn_format(log_error_file, pidfile_name, mysql_data_home, ".err",
