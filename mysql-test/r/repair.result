@@ -77,7 +77,7 @@ INSERT INTO t1 VALUES
 SET myisam_repair_threads=2;
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	error	sort_buffer_size is to small
+test.t1	repair	error	myisam_sort_buffer_size is too small
 test.t1	repair	warning	Number of rows changed from 0 to 157
 test.t1	repair	status	OK
 SET myisam_repair_threads=@@global.myisam_repair_threads;
