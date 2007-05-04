@@ -345,6 +345,7 @@ THD::THD()
   time_after_lock=(time_t) 0;
   current_linfo =  0;
   slave_thread = 0;
+  bzero(&variables, sizeof(variables));
   thread_id= variables.pseudo_thread_id= 0;
   one_shot_set= 0;
   file_id = 0;
@@ -455,8 +456,6 @@ void THD::pop_internal_handler()
 void THD::init(void)
 {
   pthread_mutex_lock(&LOCK_global_system_variables);
-  variables= global_system_variables;
-  variables.table_plugin= NULL;
   plugin_thdvar_init(this);
   variables.time_format= date_time_format_copy((THD*) 0,
 					       variables.time_format);
