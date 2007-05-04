@@ -3346,6 +3346,12 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     org->m_header_bits= bits|Tuple_header::MM_GROWN;
     ndbassert(needed>1);
     new_var_part[needed-1]= orig_size;
+
+    if (regTabPtr->m_bits & Tablerec::TR_Checksum) 
+    {
+      jam();
+      setChecksum(org, regTabPtr);
+    }
   }
   return 0;
 }

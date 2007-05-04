@@ -132,7 +132,7 @@ f121	f122	f142	f144	f134
 Test 3.5.1.1	Before Update Trigger	27	0000000008	1
 select @test_before, @test_after;
 @test_before	@test_after
-2	2
+2	1
 drop trigger trg1_1;
 drop trigger trg1_2;
 drop trigger trg1_3;
@@ -200,6 +200,9 @@ CREATE TRIGGER trg5_1 BEFORE INSERT on test.t1
 for each row set new.f3 = '14';
 CREATE TRIGGER trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ
 BEFORE UPDATE on test.t1 for each row set new.f3 = '42';
+ERROR 42000: Identifier name 'trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ' is too long
+CREATE TRIGGER trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWX
+BEFORE UPDATE on test.t1 for each row set new.f3 = '42';
 insert into t1 (f2) values ('insert 3.5.1.7');
 select * from t1;
 f1	f2	f3
@@ -214,6 +217,8 @@ trg5_1
 trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWX
 drop trigger trg5_1;
 drop trigger trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ;
+ERROR 42000: Identifier name 'trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ' is too long
+drop trigger trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWX;
 drop table t1;
 
 Testcase 3.5.1.8:
