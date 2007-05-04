@@ -6175,11 +6175,14 @@ make_join_readinfo(JOIN *join, ulonglong options)
       disable join cache because it will change the ordering of the results.
       Code handles sort table that is at any location (not only first after 
       the const tables) despite the fact that it's currently prohibited.
+      We must disable join cache if the first non-const table alone is
+      ordered. If there is a temp table the ordering is done as a last
+      operation and doesn't prevent join cache usage.
     */
-    if (!ordered_set && 
-        (table == join->sort_by_table &&
+    if (!ordered_set && !join->need_tmp &&
+        ((table == join->sort_by_table &&
          (!join->order || join->skip_sort_order)) ||
-        (join->sort_by_table == (TABLE *) 1 && i != join->const_tables))
+        (join->sort_by_table == (TABLE *) 1 && i != join->const_tables)))
       ordered_set= 1;
 
     tab->sorted= sorted;
