@@ -200,6 +200,7 @@ class Thd_ndb
   void init_open_tables();
   THD_NDB_SHARE *get_open_table(THD *thd, const void *key);
 
+  Ndb_cluster_connection *connection;
   Ndb *ndb;
   ulong count;
   uint lock_count;

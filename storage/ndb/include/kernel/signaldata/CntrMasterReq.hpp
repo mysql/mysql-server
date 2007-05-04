@@ -36,14 +36,14 @@ class CntrMasterReq {
    */
   
 public:
-  STATIC_CONST( SignalLength = 4 + NodeBitmask::Size );
+  STATIC_CONST( SignalLength = 4 + NdbNodeBitmask::Size );
 private:
   
   Uint32 userBlockRef;
   Uint32 userNodeId;
   Uint32 typeOfStart;
   Uint32 noRestartNodes;
-  Uint32 theNodes[NodeBitmask::Size];
+  Uint32 theNodes[NdbNodeBitmask::Size];
 };
 
 #endif

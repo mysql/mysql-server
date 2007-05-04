@@ -40,6 +40,7 @@ struct Ndb_free_list_t
   int fill(Ndb*, Uint32 cnt);
   T* seize(Ndb*);
   void release(T*);
+  void release(Uint32 cnt, T* head, T* tail);
   void clear();
   Uint32 get_sizeof() const { return sizeof(T); }
   T * m_free_list;
@@ -57,7 +58,8 @@ public:
   int send_event_report(Uint32 *data, Uint32 length);
 
   Ndb &m_ndb;
-
+  Ndb * m_next_ndb_object, * m_prev_ndb_object;
+  
   Ndb_cluster_connection_impl &m_ndb_cluster_connection;
   TransporterFacade *m_transporter_facade;
 
@@ -297,6 +299,26 @@ Ndb_free_list_t<T>::clear()
     obj = (T*)obj->next();
     delete curr;
     m_alloc_cnt--;
+  }
+}
+
+template<class T>
+inline
+void
+Ndb_free_list_t<T>::release(Uint32 cnt, T* head, T* tail)
+{
+  if (cnt)
+  {
+#ifdef VM_TRACE
+    {
+      T* tmp = head;
+      while (tmp != 0 && tmp != tail) tmp = (T*)tmp->next();
+      assert(tmp == tail);
+    }
+#endif
+    tail->next(m_free_list);
+    m_free_list = head;
+    m_free_cnt += cnt;
   }
 }
 

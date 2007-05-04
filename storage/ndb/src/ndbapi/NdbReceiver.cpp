@@ -22,6 +22,7 @@
 #include <NdbTransaction.hpp>
 #include <TransporterFacade.hpp>
 #include <signaldata/TcKeyConf.hpp>
+#include <signaldata/DictTabInfo.hpp>
 
 NdbReceiver::NdbReceiver(Ndb *aNdb) :
   theMagicNumber(0),
@@ -238,6 +239,111 @@ NdbReceiver::copyout(NdbReceiver & dstRec){
   return start;
 }
 
+static
+inline
+const Uint8*
+pad(const Uint8* src, Uint32 align, Uint32 bitPos)
+{
+  UintPtr ptr = UintPtr(src);
+  switch(align){
+  case DictTabInfo::aBit:
+  case DictTabInfo::a32Bit:
+  case DictTabInfo::a64Bit:
+  case DictTabInfo::a128Bit:
+    return (Uint8*)(((ptr + 3) & ~(UintPtr)3) + 4 * ((bitPos + 31) >> 5));
+charpad:
+  case DictTabInfo::an8Bit:
+  case DictTabInfo::a16Bit:
+    return src + 4 * ((bitPos + 31) >> 5);
+  default:
+#ifdef VM_TRACE
+    abort();
+#endif
+    goto charpad;
+  }
+}
+
+static
+void
+handle_packed_bit(const Uint8* _src, Uint32 pos, Uint32 len, NdbRecAttr* curr)
+{
+  Uint32 * src = (Uint32*)_src;
+  Uint32 * dst = (Uint32*)curr->aRef();
+  assert((UintPtr(dst) & 3) == 0);
+  assert((UintPtr(src) & 3) == 0);
+  BitmaskImpl::getField(1 + ((len + 31) >> 5), src, pos, len, dst);
+}
+
+Uint32
+NdbReceiver::receive_packed(NdbRecAttr** recAttr, 
+			    Uint32 bmlen, 
+			    const Uint32* aDataPtr, 
+			    Uint32 aLength)
+{
+  NdbRecAttr* currRecAttr = *recAttr;
+  const Uint8 *src = (Uint8*)(aDataPtr + bmlen);
+  Uint32 bitPos = 0;
+  for (Uint32 i = 0, attrId = 0; i<32*bmlen; i++, attrId++)
+  {
+    if (BitmaskImpl::get(bmlen, aDataPtr, i))
+    {
+      const NdbColumnImpl & col = 
+	NdbColumnImpl::getImpl(* currRecAttr->getColumn());
+      if (unlikely(attrId != (Uint32)col.m_attrId))
+        goto err;
+      if (col.m_nullable)
+      {
+	if (BitmaskImpl::get(bmlen, aDataPtr, ++i))
+	{
+	  currRecAttr->setNULL();
+	  currRecAttr = currRecAttr->next();
+	  continue;
+	}
+      }
+      Uint32 align = col.m_orgAttrSize;
+      Uint32 attrSize = col.m_attrSize;
+      Uint32 array = col.m_arraySize;
+      Uint32 len = col.m_length;
+      Uint32 sz = attrSize * array;
+      Uint32 arrayType = col.m_arrayType;
+      
+      switch(align){
+      case DictTabInfo::aBit: // Bit
+        src = pad(src, 0, 0);
+	handle_packed_bit(src, bitPos, len, currRecAttr);
+	src += 4 * ((bitPos + len) >> 5);
+	bitPos = (bitPos + len) & 31;
+        goto next;
+      default:
+        src = pad(src, align, bitPos);
+      }
+      switch(arrayType){
+      case NDB_ARRAYTYPE_FIXED:
+        break;
+      case NDB_ARRAYTYPE_SHORT_VAR:
+        sz = 1 + src[0];
+        break;
+      case NDB_ARRAYTYPE_MEDIUM_VAR:
+	sz = 2 + src[0] + 256 * src[1];
+        break;
+      default:
+        goto err;
+      }
+      
+      bitPos = 0;
+      currRecAttr->receive_data((Uint32*)src, sz);
+      src += sz;
+  next:
+      currRecAttr = currRecAttr->next();
+    }
+  }
+  * recAttr = currRecAttr;
+  return ((Uint32*)pad(src, 0, bitPos)) - aDataPtr;
+
+err:
+  abort();
+}
+
 int
 NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
 {
@@ -247,7 +353,17 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
     AttributeHeader ah(* aDataPtr++);
     const Uint32 tAttrId = ah.getAttributeId();
     const Uint32 tAttrSize = ah.getByteSize();
-
+    
+    if (tAttrId == AttributeHeader::READ_PACKED)
+    {
+      NdbRecAttr* tmp = currRecAttr;
+      Uint32 len = receive_packed(&tmp, tAttrSize>>2, aDataPtr, aLength); 
+      aDataPtr += len;
+      used += len;
+      currRecAttr = tmp;
+      continue;
+    }
+    
     /**
      * Set all results to NULL if  not found...
      */

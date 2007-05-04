@@ -517,13 +517,25 @@ NdbOperation::getKeyFromTCREQ(Uint32* data, Uint32 & size)
 }
 
 int
-NdbOperation::handle_distribution_key(const Uint64* value, Uint32 len)
+NdbOperation::handle_distribution_key(const NdbColumnImpl* tAttrInfo,
+                                      const Uint64* value, Uint32 len)
 {
-  if(theDistrKeyIndicator_ == 1 || 
-     (theNoOfTupKeyLeft > 0 && m_accessTable->m_noOfDistributionKeys > 1))
-  {
-    return 0;
-  }
+  DBUG_ENTER("NdbOperation::handle_distribution_key");
+
+  if (theDistrKeyIndicator_ == 1)
+    DBUG_RETURN(0);
+
+  // this check was previously in create table
+  if (tAttrInfo->m_cs != NULL)
+    DBUG_RETURN(0);
+
+  DBUG_PRINT("info",("theNoOfTupKeyLeft=%u m_noOfDistributionKeys=%u",
+                     theNoOfTupKeyLeft, m_accessTable->m_noOfDistributionKeys));
+
+  if (theNoOfTupKeyLeft > 0 && m_accessTable->m_noOfDistributionKeys > 1)
+    DBUG_RETURN(0);
+
+  DBUG_DUMP("value", (const char*)value, len << 2);
   
   if(m_accessTable->m_noOfDistributionKeys == 1)
   {
@@ -531,6 +543,8 @@ NdbOperation::handle_distribution_key(const Uint64* value, Uint32 len)
   }
   else if(theTCREQ->readSignalNumber() == GSN_TCKEYREQ)
   {
+    // This branch is currently dead
+
     // No support for combined distribution key and scan
 
     /**
@@ -604,7 +618,7 @@ NdbOperation::handle_distribution_key(const Uint64* value, Uint32 len)
     }
     setPartitionHash(tmp, dst - (Uint32*)tmp);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 void
