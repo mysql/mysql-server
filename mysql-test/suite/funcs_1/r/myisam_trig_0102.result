@@ -199,6 +199,9 @@ CREATE TRIGGER trg5_1 BEFORE INSERT on test.t1
 for each row set new.f3 = '14';
 CREATE TRIGGER trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ
 BEFORE UPDATE on test.t1 for each row set new.f3 = '42';
+ERROR 42000: Identifier name 'trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ' is too long
+CREATE TRIGGER trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWX
+BEFORE UPDATE on test.t1 for each row set new.f3 = '42';
 insert into t1 (f2) values ('insert 3.5.1.7');
 select * from t1;
 f1	f2	f3
@@ -213,6 +216,8 @@ trg5_1
 trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWX
 drop trigger trg5_1;
 drop trigger trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ;
+ERROR 42000: Identifier name 'trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ' is too long
+drop trigger trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWX;
 drop table t1;
 
 Testcase 3.5.1.8:
