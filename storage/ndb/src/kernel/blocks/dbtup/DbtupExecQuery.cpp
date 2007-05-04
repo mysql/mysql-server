@@ -2838,6 +2838,12 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     if (unlikely(realloc_var_part(regFragPtr, regTabPtr, pagePtr, 
 				  refptr, alloc, needed)))
       return -1;
+
+    if (regTabPtr->m_bits & Tablerec::TR_Checksum) 
+    {
+      jam();
+      setChecksum(org, regTabPtr);
+    }
   }
   req_struct->m_tuple_ptr->m_header_bits = copy_bits;
   return 0;
