@@ -784,9 +784,9 @@ static bool handle_list_of_fields(List_iterator<char> it,
     }
     else
     {
-      if (table->s->db_type->partition_flags &&
-          (table->s->db_type->partition_flags() & HA_USE_AUTO_PARTITION) &&
-          (table->s->db_type->partition_flags() & HA_CAN_PARTITION))
+      if (table->s->db_type()->partition_flags &&
+          (table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION) &&
+          (table->s->db_type()->partition_flags() & HA_CAN_PARTITION))
       {
         /*
           This engine can handle automatic partitioning and there is no
@@ -1664,8 +1664,8 @@ bool fix_partition_func(THD *thd, TABLE *table,
     goto end;
   if (unlikely(check_primary_key(table)))
     goto end;
-  if (unlikely((!(table->s->db_type->partition_flags &&
-      (table->s->db_type->partition_flags() & HA_CAN_PARTITION_UNIQUE))) &&
+  if (unlikely((!(table->s->db_type()->partition_flags &&
+      (table->s->db_type()->partition_flags() & HA_CAN_PARTITION_UNIQUE))) &&
                check_unique_keys(table)))
     goto end;
   if (unlikely(set_up_partition_bitmap(thd, part_info)))
@@ -1872,7 +1872,7 @@ static int add_keyword_int(File fptr, const char *keyword, longlong num)
 
 static int add_engine(File fptr, handlerton *engine_type)
 {
-  const char *engine_str= hton2plugin[engine_type->slot]->name.str;
+  const char *engine_str= ha_resolve_storage_engine_name(engine_type);
   DBUG_PRINT("info", ("ENGINE: %s", engine_str));
   int err= add_string(fptr, "ENGINE = ");
   return err + add_string(fptr, engine_str);
@@ -2188,8 +2188,8 @@ bool partition_key_modified(TABLE *table, const MY_BITMAP *fields)
 
   if (!part_info)
     DBUG_RETURN(FALSE);
-  if (table->s->db_type->partition_flags &&
-      (table->s->db_type->partition_flags() & HA_CAN_UPDATE_PARTITION_KEY))
+  if (table->s->db_type()->partition_flags &&
+      (table->s->db_type()->partition_flags() & HA_CAN_UPDATE_PARTITION_KEY))
     DBUG_RETURN(FALSE);
   for (fld= part_info->full_part_field_array; *fld; fld++)
     if (bitmap_is_set(fields, (*fld)->field_index))
@@ -4204,8 +4204,8 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
         alter_info->no_parts= curr_part_no - new_part_no;
       }
     }
-    if (table->s->db_type->alter_table_flags &&
-        (!(flags= table->s->db_type->alter_table_flags(alter_info->flags))))
+    if (table->s->db_type()->alter_table_flags &&
+        (!(flags= table->s->db_type()->alter_table_flags(alter_info->flags))))
     {
       my_error(ER_PARTITION_FUNCTION_FAILURE, MYF(0));
       DBUG_RETURN(1);
@@ -4951,7 +4951,7 @@ the generated partition syntax in a correct manner.
           create_info->db_type= table->part_info->default_engine_type;
         }
         DBUG_PRINT("info", ("New engine type: %s",
-                   hton2plugin[create_info->db_type->slot]->name.str));
+                   ha_resolve_storage_engine_name(create_info->db_type)));
         thd->work_part_info= NULL;
         *partition_changed= TRUE;
       }

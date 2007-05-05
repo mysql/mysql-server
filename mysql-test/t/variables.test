@@ -150,14 +150,14 @@ set global net_retry_count=10, session net_retry_count=10;
 set global net_buffer_length=1024, net_write_timeout=200, net_read_timeout=300;
 set session net_buffer_length=2048, net_write_timeout=500, net_read_timeout=600;
 show global variables like 'net_%';
-select * from information_schema.global_variables where variable_name like 'net_%';
+select * from information_schema.global_variables where variable_name like 'net_%' order by 1;
 show session variables like 'net_%';
-select * from information_schema.session_variables where variable_name like 'net_%';
+select * from information_schema.session_variables where variable_name like 'net_%' order by 1;
 set session net_buffer_length=8000, global net_read_timeout=900, net_write_timeout=1000;
 show global variables like 'net_%';
-select * from information_schema.global_variables where variable_name like 'net_%';
+select * from information_schema.global_variables where variable_name like 'net_%' order by 1;
 show session variables like 'net_%';
-select * from information_schema.session_variables where variable_name like 'net_%';
+select * from information_schema.session_variables where variable_name like 'net_%' order by 1;
 set net_buffer_length=1;
 show variables like 'net_buffer_length';
 select * from information_schema.session_variables where variable_name like 'net_buffer_length';
@@ -174,7 +174,7 @@ set @@rand_seed1=10000000,@@rand_seed2=1000000;
 select ROUND(RAND(),5);
 
 show variables like '%alloc%';
-select * from information_schema.session_variables where variable_name like '%alloc%';
+select * from information_schema.session_variables where variable_name like '%alloc%' order by 1;
 set @@range_alloc_block_size=1024*16;
 set @@query_alloc_block_size=1024*17+2;
 set @@query_prealloc_size=1024*18;
@@ -182,12 +182,12 @@ set @@transaction_alloc_block_size=1024*20-1;
 set @@transaction_prealloc_size=1024*21-1;
 select @@query_alloc_block_size;
 show variables like '%alloc%';
-select * from information_schema.session_variables where variable_name like '%alloc%';
+select * from information_schema.session_variables where variable_name like '%alloc%' order by 1;
 set @@range_alloc_block_size=default;
 set @@query_alloc_block_size=default, @@query_prealloc_size=default;
 set transaction_alloc_block_size=default, @@transaction_prealloc_size=default;
 show variables like '%alloc%';
-select * from information_schema.session_variables where variable_name like '%alloc%';
+select * from information_schema.session_variables where variable_name like '%alloc%' order by 1;
 
 #
 # Bug #10904 Illegal mix of collations between
@@ -692,7 +692,7 @@ select @@ssl_ca, @@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_key;
 --replace_column 2 #
 show variables like 'ssl%';
 --replace_column 2 #
-select * from information_schema.session_variables where variable_name like 'ssl%';
+select * from information_schema.session_variables where variable_name like 'ssl%' order by 1;
 
 #
 # Bug #19616: make log_queries_not_using_indexes available in SHOW VARIABLES
