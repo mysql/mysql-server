@@ -603,13 +603,13 @@ public:
 };
 
 enum enum_binlog_format {
-  BINLOG_FORMAT_STMT= 0, // statement-based
-  BINLOG_FORMAT_ROW= 1, // row_based
   /*
     statement-based except for cases where only row-based can work (UUID()
     etc):
   */
-  BINLOG_FORMAT_MIXED= 2,
+  BINLOG_FORMAT_MIXED= 0,
+  BINLOG_FORMAT_STMT= 1, // statement-based
+  BINLOG_FORMAT_ROW= 2, // row_based
 /*
   This value is last, after the end of binlog_format_typelib: it has no
   corresponding cell in this typelib. We use this value to be able to know if

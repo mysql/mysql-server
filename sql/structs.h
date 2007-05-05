@@ -83,7 +83,7 @@ typedef struct st_key {
   */
   union
   {
-    struct st_plugin_int *parser;       /* Fulltext [pre]parser */
+    plugin_ref parser;                  /* Fulltext [pre]parser */
     LEX_STRING *parser_name;            /* Fulltext [pre]parser name */
   };
   KEY_PART_INFO *key_part;
