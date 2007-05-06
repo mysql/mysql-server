@@ -787,7 +787,9 @@ btr_create(
 	trees in the same mtr, otherwise the latch on a bitmap page would
 	prevent it because of the latching order */
 
-	ibuf_reset_free_bits_with_type(type, block);
+	if (!(type & DICT_CLUSTERED)) {
+		ibuf_reset_free_bits(block);
+	}
 
 	/* In the following assertion we test that two records of maximum
 	allowed size fit on the root page: this fact is needed to ensure
@@ -977,8 +979,7 @@ btr_page_reorganize_low(
 	if (UNIV_LIKELY_NULL(page_zip)
 	    && !dict_index_is_clust(index) && page_is_leaf(page)) {
 
-		ibuf_update_free_bits_zip(
-			index, page_zip_get_size(page_zip), block);
+		ibuf_update_free_bits_zip(page_zip_get_size(page_zip), block);
 	}
 
 func_exit:
@@ -1212,7 +1213,10 @@ btr_root_raise_and_insert(
 	fprintf(stderr, "Root raise new page no %lu\n", new_page_no);
 #endif
 
-	ibuf_reset_free_bits_with_type(index->type, new_block);
+	if (!dict_index_is_clust(index)) {
+		ibuf_reset_free_bits(new_block);
+	}
+
 	/* Reposition the cursor to the child node */
 	page_cur_search(new_block, index, tuple,
 			PAGE_CUR_LE, page_cursor);
@@ -1979,7 +1983,9 @@ func_start:
 		start of the function for a new split */
 insert_failed:
 		/* We play safe and reset the free bits for new_page */
-		ibuf_reset_free_bits_with_type(cursor->index->type, new_block);
+		if (!dict_index_is_clust(cursor->index)) {
+			ibuf_reset_free_bits(new_block);
+		}
 
 		/* fprintf(stderr, "Split second round %lu\n",
 		page_get_page_no(page)); */
@@ -1998,7 +2004,6 @@ func_exit:
 
 	if (!dict_index_is_clust(cursor->index) && page_is_leaf(page)) {
 		ibuf_update_free_bits_for_two_pages_low(
-			cursor->index,
 			buf_block_get_zip_size(left_block),
 			left_block, right_block, mtr);
 	}
@@ -2281,7 +2286,9 @@ btr_lift_page_up(
 	btr_page_free(index, block, mtr);
 
 	/* We play safe and reset the free bits for the father */
-	ibuf_reset_free_bits_with_type(index->type, father_block);
+	if (!dict_index_is_clust(index)) {
+		ibuf_reset_free_bits(father_block);
+	}
 	ut_ad(page_validate(father_page, index));
 	ut_ad(btr_check_node_ptr(index, father_block, mtr));
 }
@@ -2519,10 +2526,9 @@ err_exit:
 		/* We have added new records to merge_page:
 		update its free bits */
 		if (zip_size) {
-			ibuf_update_free_bits_zip(index, zip_size,
-						  merge_block);
+			ibuf_update_free_bits_zip(zip_size, merge_block);
 		} else {
-			ibuf_update_free_bits_if_full(index, merge_block,
+			ibuf_update_free_bits_if_full(merge_block,
 						      UNIV_PAGE_SIZE,
 						      ULINT_UNDEFINED);
 		}
@@ -2580,7 +2586,9 @@ btr_discard_only_page_on_level(
 		btr_page_empty(father_block, father_page_zip, mtr, index);
 
 		/* We play safe and reset the free bits for the father */
-		ibuf_reset_free_bits_with_type(index->type, father_block);
+		if (!dict_index_is_clust(index)) {
+			ibuf_reset_free_bits(father_block);
+		}
 	} else {
 		ut_ad(page_get_n_recs(father_page) == 1);
 

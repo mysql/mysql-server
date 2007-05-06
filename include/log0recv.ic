@@ -20,7 +20,7 @@ ibool
 recv_recovery_is_on(void)
 /*=====================*/
 {
-	return(recv_recovery_on);
+	return(UNIV_UNLIKELY(recv_recovery_on));
 }
 
 /***********************************************************************
