@@ -2349,6 +2349,7 @@ buf_page_init_for_read(
 	ulint		mode,	/* in: BUF_READ_IBUF_PAGES_ONLY, ... */
 	ulint		space,	/* in: space id */
 	ulint		zip_size,/* in: compressed page size, or 0 */
+	ibool		unzip,	/* in: TRUE=request uncompressed page */
 	ib_longlong	tablespace_version,/* in: prevents reading from a wrong
 				version of the tablespace in case we have done
 				DISCARD + IMPORT */
@@ -2382,7 +2383,8 @@ buf_page_init_for_read(
 		ut_ad(mode == BUF_READ_ANY_PAGE);
 	}
 
-	if (zip_size && UNIV_LIKELY(!recv_recovery_is_on())) {
+	if (zip_size && UNIV_LIKELY(!unzip)
+	    && UNIV_LIKELY(!recv_recovery_is_on())) {
 		block = NULL;
 	} else {
 		block = buf_LRU_get_free_block(0);
@@ -2525,6 +2527,7 @@ err_exit2:
 		mtr_commit(&mtr);
 	}
 
+	ut_ad(buf_page_in_file(bpage));
 	return(bpage);
 }
 
