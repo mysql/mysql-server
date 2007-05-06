@@ -791,7 +791,6 @@ UNIV_INLINE
 void
 ibuf_set_free_bits_low(
 /*===================*/
-	ulint		type,	/* in: index type */
 	ulint		zip_size,/* in: compressed page size in bytes;
 				0 for uncompressed pages */
 	buf_block_t*	block,	/* in: index page; free bits are set if
@@ -803,11 +802,6 @@ ibuf_set_free_bits_low(
 	page_t*	bitmap_page;
 	ulint	space;
 	ulint	page_no;
-
-	if (type & DICT_CLUSTERED) {
-
-		return;
-	}
 
 	if (!page_is_leaf(buf_block_get_frame(block))) {
 
@@ -840,10 +834,8 @@ were kept. */
 void
 ibuf_set_free_bits_func(
 /*====================*/
-	ulint		type,	/* in: index type */
-	buf_block_t*	block,	/* in: index page; free bit is reset
-				if the index is a non-clustered
-				non-unique, and page level is 0 */
+	buf_block_t*	block,	/* in: index page of a non-clustered index;
+				free bit is reset if page level is 0 */
 #ifdef UNIV_IBUF_DEBUG
 	ulint		max_val,/* in: ULINT_UNDEFINED or a maximum
 				value which the bits must have before
@@ -858,11 +850,6 @@ ibuf_set_free_bits_func(
 	ulint	page_no;
 	ulint	zip_size;
 
-	if (type & DICT_CLUSTERED) {
-
-		return;
-	}
-
 	page = buf_block_get_frame(block);
 
 	if (!page_is_leaf(page)) {
@@ -871,6 +858,10 @@ ibuf_set_free_bits_func(
 	}
 
 	mtr_start(&mtr);
+
+	if (recv_recovery_is_on()) {
+		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+	}
 
 	space = buf_block_get_space(block);
 	page_no = buf_block_get_page_no(block);
@@ -905,6 +896,14 @@ ibuf_set_free_bits_func(
 #endif /* UNIV_IBUF_DEBUG */
 	ibuf_bitmap_page_set_bits(bitmap_page, page_no, zip_size,
 				  IBUF_BITMAP_FREE, val, &mtr);
+
+	if (recv_recovery_is_on()) {
+		/* Do not acquire log_sys->mutex or attempt to
+		write to the redo log, because the lock is being
+		held by the crash recovery thread. */
+		mtr.modifications = FALSE;
+	}
+
 	mtr_commit(&mtr);
 }
 
@@ -915,14 +914,13 @@ work to only ibuf bitmap operations, which would result if the latch to the
 bitmap page were kept. */
 
 void
-ibuf_reset_free_bits_with_type(
-/*===========================*/
-	ulint		type,	/* in: index type */
+ibuf_reset_free_bits(
+/*=================*/
 	buf_block_t*	block)	/* in: index page; free bits are set to 0
 				if the index is a non-clustered
 				non-unique, and page level is 0 */
 {
-	ibuf_set_free_bits(type, block, 0, ULINT_UNDEFINED);
+	ibuf_set_free_bits(block, 0, ULINT_UNDEFINED);
 }
 
 /**************************************************************************
@@ -933,7 +931,6 @@ any further operations for this OS thread until mtr is committed. */
 void
 ibuf_update_free_bits_low(
 /*======================*/
-	dict_index_t*	index,		/* in: index */
 	ulint		zip_size,	/* in: compressed page size in bytes;
 					0 for uncompressed pages */
 	buf_block_t*	block,		/* in: index page */
@@ -950,8 +947,7 @@ ibuf_update_free_bits_low(
 	after = ibuf_index_page_calc_free(zip_size, block);
 
 	if (before != after) {
-		ibuf_set_free_bits_low(index->type, zip_size,
-				       block, after, mtr);
+		ibuf_set_free_bits_low(zip_size, block, after, mtr);
 	}
 }
 
@@ -963,7 +959,6 @@ prevent any further operations until mtr is committed. */
 void
 ibuf_update_free_bits_for_two_pages_low(
 /*====================================*/
-	dict_index_t*	index,	/* in: index */
 	ulint		zip_size,/* in: compressed page size in bytes;
 				0 for uncompressed pages */
 	buf_block_t*	block1,	/* in: index page */
@@ -980,11 +975,11 @@ ibuf_update_free_bits_for_two_pages_low(
 
 	state = ibuf_index_page_calc_free(zip_size, block1);
 
-	ibuf_set_free_bits_low(index->type, zip_size, block1, state, mtr);
+	ibuf_set_free_bits_low(zip_size, block1, state, mtr);
 
 	state = ibuf_index_page_calc_free(zip_size, block2);
 
-	ibuf_set_free_bits_low(index->type, zip_size, block2, state, mtr);
+	ibuf_set_free_bits_low(zip_size, block2, state, mtr);
 
 	mutex_exit(&ibuf_bitmap_mutex);
 }

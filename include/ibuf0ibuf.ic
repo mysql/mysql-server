@@ -59,10 +59,8 @@ were kept. */
 void
 ibuf_set_free_bits_func(
 /*====================*/
-	ulint		type,	/* in: index type */
-	buf_block_t*	block,	/* in: index page; free bit is reset
-				if the index is a non-clustered
-				non-unique, and page level is 0 */
+	buf_block_t*	block,	/* in: index page of a non-clustered index;
+				free bit is reset if page level is 0 */
 #ifdef UNIV_IBUF_DEBUG
 	ulint		max_val,/* in: ULINT_UNDEFINED or a maximum
 				value which the bits must have before
@@ -70,9 +68,9 @@ ibuf_set_free_bits_func(
 #endif /* UNIV_IBUF_DEBUG */
 	ulint		val);	/* in: value to set: < 4 */
 #ifdef UNIV_IBUF_DEBUG
-# define ibuf_set_free_bits(t,b,v,max) ibuf_set_free_bits_func(t,b,max,v)
+# define ibuf_set_free_bits(b,v,max) ibuf_set_free_bits_func(b,max,v)
 #else /* UNIV_IBUF_DEBUG */
-# define ibuf_set_free_bits(t,b,v,max) ibuf_set_free_bits_func(t,b,v)
+# define ibuf_set_free_bits(b,v,max) ibuf_set_free_bits_func(b,v)
 #endif /* UNIV_IBUF_DEBUG */
 
 /**************************************************************************
@@ -238,7 +236,6 @@ UNIV_INLINE
 void
 ibuf_update_free_bits_if_full(
 /*==========================*/
-	dict_index_t*	index,	/* in: index */
 	buf_block_t*	block,	/* in: index page to which we have added new
 				records; the free bits are updated if the
 				index is non-clustered and non-unique and
@@ -279,7 +276,7 @@ ibuf_update_free_bits_if_full(
 	}
 
 	if (before > after) {
-		ibuf_set_free_bits(index->type, block, after, before);
+		ibuf_set_free_bits(block, after, before);
 	}
 }
 
@@ -292,7 +289,6 @@ UNIV_INLINE
 void
 ibuf_update_free_bits_zip(
 /*======================*/
-	dict_index_t*	index,	/* in: index */
 	ulint		zip_size,/* in: compressed page size in bytes */
 	buf_block_t*	block)	/* in: B-tree leaf page of a secondary
 				index */
@@ -308,5 +304,5 @@ ibuf_update_free_bits_zip(
 		buf_page_make_young(&block->page);
 	}
 
-	ibuf_set_free_bits(index->type, block, free_bits, ULINT_UNDEFINED);
+	ibuf_set_free_bits(block, free_bits, ULINT_UNDEFINED);
 }

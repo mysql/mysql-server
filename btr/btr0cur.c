@@ -898,8 +898,7 @@ btr_cur_insert_if_possible(
 	    && !dict_index_is_clust(cursor->index)
 	    && page_is_leaf(buf_block_get_frame(block))) {
 		/* Update the free bits in the insert buffer. */
-		ibuf_update_free_bits_zip(cursor->index,
-					  buf_block_get_zip_size(block),
+		ibuf_update_free_bits_zip(buf_block_get_zip_size(block),
 					  block);
 	}
 
@@ -1226,11 +1225,10 @@ fail_err:
 	if (!dict_index_is_clust(index) && UNIV_LIKELY(0 == level)) {
 		/* We have added a record to page: update its free bits */
 		if (zip_size) {
-			ibuf_update_free_bits_zip(cursor->index,
-						  zip_size, block);
+			ibuf_update_free_bits_zip(zip_size, block);
 		} else {
 			ibuf_update_free_bits_if_full(
-				cursor->index, block, max_size,
+				block, max_size,
 				rec_size + PAGE_DIR_SLOT_SIZE);
 		}
 	}
@@ -1664,7 +1662,7 @@ btr_cur_update_alloc_zip(
 				length, 0)) {
 		if (!dict_index_is_clust(index)) {
 			/* No space on the page: reset the free bits. */
-			ibuf_reset_free_bits_with_type(index->type, block);
+			ibuf_reset_free_bits(block);
 		}
 		return(FALSE);
 	}
@@ -1734,7 +1732,7 @@ btr_cur_update_in_place(
 		    && page_is_leaf(buf_block_get_frame(block))) {
 			/* Update the free bits in the insert buffer. */
 			ibuf_update_free_bits_zip(
-				index, page_zip_get_size(page_zip), block);
+				page_zip_get_size(page_zip), block);
 		}
 
 		if (UNIV_LIKELY_NULL(heap)) {
@@ -1775,7 +1773,7 @@ btr_cur_update_in_place(
 	if (page_zip && !dict_index_is_clust(index)
 	    && page_is_leaf(buf_block_get_frame(block))) {
 		/* Update the free bits in the insert buffer. */
-		ibuf_update_free_bits_zip(index, buf_block_get_zip_size(block),
+		ibuf_update_free_bits_zip(buf_block_get_zip_size(block),
 					  block);
 	}
 
@@ -1954,7 +1952,7 @@ err_exit:
 		    && page_is_leaf(page)) {
 			/* Update the free bits in the insert buffer. */
 			ibuf_update_free_bits_zip(
-				index, buf_block_get_zip_size(block), block);
+				buf_block_get_zip_size(block), block);
 		}
 
 		mem_heap_free(heap);
@@ -2785,8 +2783,10 @@ btr_cur_optimistic_delete(
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 
-		ibuf_update_free_bits_low(cursor->index, zip_size,
-					  block, max_ins_size, mtr);
+		if (!dict_index_is_clust(cursor->index)) {
+			ibuf_update_free_bits_low(zip_size, block,
+						  max_ins_size, mtr);
+		}
 	}
 
 	if (UNIV_LIKELY_NULL(heap)) {
