@@ -3887,8 +3887,7 @@ page_zip_reorganize(
 
 	if (!dict_index_is_clust(index) && page_is_leaf(page)) {
 		/* Recompute the insert buffer free bits. */
-		ibuf_update_free_bits_zip(index,
-					  page_zip_get_size(page_zip), block);
+		ibuf_update_free_bits_zip(page_zip_get_size(page_zip), block);
 	}
 
 	buf_block_free(temp_block);

@@ -61,9 +61,8 @@ work to only ibuf bitmap operations, which would result if the latch to the
 bitmap page were kept. */
 
 void
-ibuf_reset_free_bits_with_type(
-/*===========================*/
-	ulint		type,	/* in: index type */
+ibuf_reset_free_bits(
+/*=================*/
 	buf_block_t*	block);	/* in: index page; free bits are set to 0
 				if the index is a non-clustered
 				non-unique, and page level is 0 */
@@ -76,7 +75,6 @@ UNIV_INLINE
 void
 ibuf_update_free_bits_if_full(
 /*==========================*/
-	dict_index_t*	index,	/* in: index */
 	buf_block_t*	block,	/* in: index page to which we have added new
 				records; the free bits are updated if the
 				index is non-clustered and non-unique and
@@ -97,7 +95,6 @@ UNIV_INLINE
 void
 ibuf_update_free_bits_zip(
 /*======================*/
-	dict_index_t*	index,	/* in: index */
 	ulint		zip_size,/* in: compressed page size in bytes */
 	buf_block_t*	block);	/* in: B-tree leaf page of a secondary
 				index */
@@ -109,7 +106,6 @@ prevent any further operations for this OS thread until mtr is committed. */
 void
 ibuf_update_free_bits_low(
 /*======================*/
-	dict_index_t*	index,		/* in: index */
 	ulint		zip_size,	/* in: compressed page size in bytes;
 					0 for uncompressed pages */
 	buf_block_t*	block,		/* in: index page */
@@ -125,7 +121,6 @@ prevent any further operations until mtr is committed. */
 void
 ibuf_update_free_bits_for_two_pages_low(
 /*====================================*/
-	dict_index_t*	index,	/* in: index */
 	ulint		zip_size,/* in: compressed page size in bytes;
 				0 for uncompressed pages */
 	buf_block_t*	block1,	/* in: index page */
