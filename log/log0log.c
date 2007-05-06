@@ -1475,12 +1475,19 @@ loop:
 do_waits:
 	mutex_exit(&(log_sys->mutex));
 
-	if (wait == LOG_WAIT_ONE_GROUP) {
+	switch (wait) {
+	case LOG_WAIT_ONE_GROUP:
 		os_event_wait(log_sys->one_flushed_event);
-	} else if (wait == LOG_WAIT_ALL_GROUPS) {
+		break;
+	case LOG_WAIT_ALL_GROUPS:
 		os_event_wait(log_sys->no_flush_event);
-	} else {
-		ut_ad(wait == LOG_NO_WAIT);
+		break;
+#ifdef UNIV_DEBUG
+	case LOG_NO_WAIT:
+		break;
+	default:
+		ut_error;
+#endif /* UNIV_DEBUG */
 	}
 }
 
@@ -2544,21 +2551,19 @@ log_archive_do(
 loop:
 	mutex_enter(&(log_sys->mutex));
 
-	if (log_sys->archiving_state == LOG_ARCH_OFF) {
+	switch (log_sys->archiving_state) {
+	case LOG_ARCH_OFF:
+arch_none:
 		mutex_exit(&(log_sys->mutex));
 
 		*n_bytes = 0;
 
 		return(TRUE);
-
-	} else if (log_sys->archiving_state == LOG_ARCH_STOPPED
-		   || log_sys->archiving_state == LOG_ARCH_STOPPING2) {
-
+	case LOG_ARCH_STOPPED:
+	case LOG_ARCH_STOPPING2:
 		mutex_exit(&(log_sys->mutex));
 
 		os_event_wait(log_sys->archiving_on);
-
-		mutex_enter(&(log_sys->mutex));
 
 		goto loop;
 	}
@@ -2580,11 +2585,7 @@ loop:
 
 	if (log_sys->archived_lsn >= limit_lsn) {
 
-		mutex_exit(&(log_sys->mutex));
-
-		*n_bytes = 0;
-
-		return(TRUE);
+		goto arch_none;
 	}
 
 	if (log_sys->written_to_all_lsn < limit_lsn) {
