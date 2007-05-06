@@ -83,8 +83,6 @@ memory is read outside the allocated blocks. */
 #define UNIV_INIT_MEM_TO_ZERO
 */
 
-/* Make a non-inline debug version */
-
 #if 0
 #define UNIV_DEBUG_VALGRIND			/* Enable extra
 						Valgrind instrumentation */
@@ -92,7 +90,8 @@ memory is read outside the allocated blocks. */
 						some debug print functions */
 #define UNIV_BUF_DEBUG				/* Enable buffer pool
 						debugging without UNIV_DEBUG */
-#define UNIV_DEBUG				/* Enable ut_ad() assertions */
+#define UNIV_DEBUG				/* Enable ut_ad() assertions
+						and disable UNIV_INLINE */
 #define UNIV_DEBUG_FILE_ACCESSES		/* Debug .ibd file access
 						(field file_page_was_freed
 						in buf_page_t) */
