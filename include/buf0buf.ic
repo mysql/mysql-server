@@ -748,20 +748,17 @@ buf_page_io_query(
 				/* out: TRUE if io going on */
 	buf_page_t*	bpage)	/* in: buf_pool block, must be bufferfixed */
 {
+	ibool	io_fixed;
+
 	mutex_enter(&(buf_pool->mutex));
 
 	ut_ad(buf_page_in_file(bpage));
 	ut_ad(bpage->buf_fix_count > 0);
 
-	if (buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
-		mutex_exit(&(buf_pool->mutex));
-
-		return(TRUE);
-	}
-
+	io_fixed = buf_page_get_io_fix(bpage) != BUF_IO_NONE;
 	mutex_exit(&(buf_pool->mutex));
 
-	return(FALSE);
+	return(io_fixed);
 }
 
 /************************************************************************
