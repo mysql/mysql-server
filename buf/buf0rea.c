@@ -66,6 +66,7 @@ buf_read_page_low(
 			at read-ahead functions) */
 	ulint	space,	/* in: space id */
 	ulint	zip_size,/* in: compressed page size, or 0 */
+	ibool	unzip,	/* in: TRUE=request uncompressed page */
 	ib_longlong tablespace_version, /* in: if the space memory object has
 			this timestamp different from what we are giving here,
 			treat the tablespace as dropped; this is a timestamp we
@@ -113,7 +114,7 @@ buf_read_page_low(
 	or is being dropped; if we succeed in initing the page in the buffer
 	pool for read, then DISCARD cannot proceed until the read has
 	completed */
-	bpage = buf_page_init_for_read(err, mode, space, zip_size,
+	bpage = buf_page_init_for_read(err, mode, space, zip_size, unzip,
 				       tablespace_version, offset);
 	if (bpage == NULL) {
 
@@ -273,7 +274,8 @@ read_ahead:
 			count += buf_read_page_low(
 				&err, FALSE,
 				ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
-				space, zip_size, tablespace_version, i);
+				space, zip_size, FALSE,
+				tablespace_version, i);
 			if (err == DB_TABLESPACE_DELETED) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
@@ -335,7 +337,8 @@ buf_read_page(
 	switches: hence TRUE */
 
 	count2 = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
-				   zip_size, tablespace_version, offset);
+				   zip_size, FALSE,
+				   tablespace_version, offset);
 	srv_buf_pool_reads+= count2;
 	if (err == DB_TABLESPACE_DELETED) {
 		ut_print_timestamp(stderr);
@@ -579,7 +582,7 @@ buf_read_ahead_linear(
 			count += buf_read_page_low(
 				&err, FALSE,
 				ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
-				space, zip_size, tablespace_version, i);
+				space, zip_size, FALSE, tablespace_version, i);
 			if (err == DB_TABLESPACE_DELETED) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
@@ -664,7 +667,7 @@ buf_read_ibuf_merge_pages(
 
 		buf_read_page_low(&err, sync && (i + 1 == n_stored),
 				  BUF_READ_ANY_PAGE, space_ids[i],
-				  zip_size, space_versions[i],
+				  zip_size, TRUE, space_versions[i],
 				  page_nos[i]);
 
 		if (UNIV_UNLIKELY(err == DB_TABLESPACE_DELETED)) {
@@ -753,12 +756,12 @@ buf_read_recv_pages(
 
 		if ((i + 1 == n_stored) && sync) {
 			buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
-					  zip_size, tablespace_version,
+					  zip_size, TRUE, tablespace_version,
 					  page_nos[i]);
 		} else {
 			buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE
 					  | OS_AIO_SIMULATED_WAKE_LATER,
-					  space, zip_size,
+					  space, zip_size, TRUE,
 					  tablespace_version, page_nos[i]);
 		}
 	}
