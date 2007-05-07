@@ -189,38 +189,44 @@ struct Ndb_statistics {
 
 /* Status variables shown with 'show status like 'Ndb%' */
 
-static long ndb_cluster_node_id= 0;
-static const char * ndb_connected_host= 0;
-static long ndb_connected_port= 0;
-static long ndb_number_of_replicas= 0;
-long ndb_number_of_data_nodes= 0;
-long ndb_number_of_ready_data_nodes= 0;
-long ndb_connect_count= 0;
+struct st_ndb_status {
+  st_ndb_status() { bzero(this, sizeof(struct st_ndb_status)); }
+  long cluster_node_id;
+  const char * connected_host;
+  long connected_port;
+  long number_of_replicas;
+  long number_of_data_nodes;
+  long number_of_ready_data_nodes;
+  long connect_count;
+};
 
-static int update_status_variables(Ndb_cluster_connection *c)
+static struct st_ndb_status g_ndb_status;
+
+static int update_status_variables(st_ndb_status *ns, Ndb_cluster_connection *c)
 {
-  ndb_connected_port= c->get_connected_port();
-  ndb_connected_host= c->get_connected_host();
-  if (ndb_cluster_node_id != (int) c->node_id())
+  ns->connected_port= c->get_connected_port();
+  ns->connected_host= c->get_connected_host();
+  if (ns->cluster_node_id != (int) c->node_id())
   {
-    ndb_cluster_node_id= c->node_id();
-    sql_print_information("NDB: NodeID is %lu, management server '%s:%lu'",
-                          ndb_cluster_node_id, ndb_connected_host,
-                          ndb_connected_port);
+    ns->cluster_node_id= c->node_id();
+    if (&g_ndb_status == ns && g_ndb_cluster_connection == c)
+      sql_print_information("NDB: NodeID is %lu, management server '%s:%lu'",
+                            ns->cluster_node_id, ns->connected_host,
+                            ns->connected_port);
   }
-  ndb_number_of_replicas=      0;
-  ndb_number_of_ready_data_nodes= c->get_no_ready();
-  ndb_number_of_data_nodes=     c->no_db_nodes();
-  ndb_connect_count= c->get_connect_count();
+  ns->number_of_replicas= 0;
+  ns->number_of_ready_data_nodes= c->get_no_ready();
+  ns->number_of_data_nodes= c->no_db_nodes();
+  ns->connect_count= c->get_connect_count();
   return 0;
 }
 
 SHOW_VAR ndb_status_variables[]= {
-  {"cluster_node_id",        (char*) &ndb_cluster_node_id,         SHOW_LONG},
-  {"config_from_host",         (char*) &ndb_connected_host,      SHOW_CHAR_PTR},
-  {"config_from_port",         (char*) &ndb_connected_port,          SHOW_LONG},
-//  {"number_of_replicas",     (char*) &ndb_number_of_replicas,      SHOW_LONG},
-  {"number_of_data_nodes",(char*) &ndb_number_of_data_nodes, SHOW_LONG},
+  {"cluster_node_id",     (char*) &g_ndb_status.cluster_node_id,      SHOW_LONG},
+  {"config_from_host",    (char*) &g_ndb_status.connected_host,       SHOW_CHAR_PTR},
+  {"config_from_port",    (char*) &g_ndb_status.connected_port,       SHOW_LONG},
+//{"number_of_replicas",  (char*) &g_ndb_status.number_of_replicas,   SHOW_LONG},
+  {"number_of_data_nodes",(char*) &g_ndb_status.number_of_data_nodes, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -7083,7 +7089,8 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
 static int connect_callback()
 {
   pthread_mutex_lock(&LOCK_ndb_util_thread);
-  update_status_variables(g_ndb_cluster_connection);
+  update_status_variables(&g_ndb_status,
+                          g_ndb_cluster_connection);
 
   uint node_id, i= 0;
   Ndb_cluster_connection_node_iter node_iter;
@@ -9090,7 +9097,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     Wait for cluster to start
   */
   pthread_mutex_lock(&LOCK_ndb_util_thread);
-  while (!ndb_cluster_node_id && (ndbcluster_hton->slot != ~(uint)0))
+  while (!g_ndb_status.cluster_node_id && (ndbcluster_hton->slot != ~(uint)0))
   {
     /* ndb not connected yet */
     pthread_cond_wait(&COND_ndb_util_thread, &LOCK_ndb_util_thread);
@@ -9412,7 +9419,13 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
     DBUG_RETURN(FALSE);
   }
 
-  update_status_variables(g_ndb_cluster_connection);
+  Ndb* ndb= check_ndb_in_thd(thd);
+  struct st_ndb_status ns;
+  if (ndb)
+    update_status_variables(&ns, get_thd_ndb(thd)->connection);
+  else
+    update_status_variables(&ns, g_ndb_cluster_connection);
+
   buflen=
     my_snprintf(buf, sizeof(buf),
                 "cluster_node_id=%ld, "
@@ -9421,19 +9434,18 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
                 "number_of_data_nodes=%ld, "
                 "number_of_ready_data_nodes=%ld, "
                 "connect_count=%ld",
-                ndb_cluster_node_id,
-                ndb_connected_host,
-                ndb_connected_port,
-                ndb_number_of_data_nodes,
-                ndb_number_of_ready_data_nodes,
-                ndb_connect_count);
+                ns.cluster_node_id,
+                ns.connected_host,
+                ns.connected_port,
+                ns.number_of_data_nodes,
+                ns.number_of_ready_data_nodes,
+                ns.connect_count);
   if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
                  STRING_WITH_LEN("connection"), buf, buflen))
     DBUG_RETURN(TRUE);
 
-  if (get_thd_ndb(thd) && get_thd_ndb(thd)->ndb)
+  if (ndb)
   {
-    Ndb* ndb= (get_thd_ndb(thd))->ndb;
     Ndb::Free_list_usage tmp;
     tmp.m_name= 0;
     while (ndb->get_free_list_usage(&tmp))
