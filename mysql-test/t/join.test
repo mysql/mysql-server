@@ -326,4 +326,28 @@ select t1.i,t2.i,t3.i from t2 natural right join t3,t1 order by t1.i,t2.i,t3.i;
 select t1.i,t2.i,t3.i from t2 right join t3 on (t2.i=t3.i),t1 order by t1.i,t2.i,t3.i;
 drop table t1,t2,t3;
 
+#
+# Bug #27531: Query performance degredation in 4.1.22 and greater
+#
+CREATE TABLE t1 (a int, b int default 0, c int default 1);
+
+INSERT INTO t1 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+INSERT INTO t1 (a) SELECT a + 8 FROM t1;
+INSERT INTO t1 (a) SELECT a + 16 FROM t1;
+
+CREATE TABLE t2 (a int, d int, e int default 0);
+
+INSERT INTO t2 (a, d) VALUES (1,1),(2,2),(3,3),(4,4);
+INSERT INTO t2 (a, d) SELECT a+4, a+4 FROM t2;
+INSERT INTO t2 (a, d) SELECT a+8, a+8 FROM t2;
+
+# should use join cache
+EXPLAIN
+SELECT STRAIGHT_JOIN t2.e FROM t1,t2 WHERE t2.d=1 AND t1.b=t2.e
+  ORDER BY t1.b, t1.c;
+SELECT STRAIGHT_JOIN t2.e FROM t1,t2 WHERE t2.d=1 AND t1.b=t2.e
+  ORDER BY t1.b, t1.c;
+
+DROP TABLE t1,t2;
+
 # End of 4.1 tests
