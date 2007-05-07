@@ -104,7 +104,7 @@ AC_DEFUN([MYSQL_FIND_OPENSSL], [
   # compiler warnings when using gcc 3.x
   if test "$openssl_include" != "/usr/include"
   then
-    openssl_includes="-I$ssl_include"
+    openssl_includes="-I$openssl_include"
   fi
 
   #
