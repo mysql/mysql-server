@@ -446,4 +446,79 @@ SHOW PROCEDURE CODE p1;
 DROP PROCEDURE p1;
 
 
+#
+# Bug#26977 exception handlers never hreturn
+#
+--disable_warnings
+drop table if exists t1;
+drop procedure if exists proc_26977_broken;
+drop procedure if exists proc_26977_works;
+--enable_warnings
+
+create table t1(a int unique);
+
+delimiter //;
+
+create procedure proc_26977_broken(v int)
+begin
+  declare i int default 5;
+
+  declare continue handler for sqlexception
+  begin
+    select 'caught something';
+    retry:
+    while i > 0 do
+      begin
+        set i = i - 1;
+        select 'looping', i;
+      end;
+    end while retry;
+  end;
+
+  select 'do something';
+  insert into t1 values (v);
+  select 'do something again';
+  insert into t1 values (v);
+end//
+
+create procedure proc_26977_works(v int)
+begin
+  declare i int default 5;
+
+  declare continue handler for sqlexception
+  begin
+    select 'caught something';
+    retry:
+    while i > 0 do
+      begin
+        set i = i - 1;
+        select 'looping', i;
+      end;
+    end while retry;
+    select 'optimizer: keep hreturn';
+  end;
+
+  select 'do something';
+  insert into t1 values (v);
+  select 'do something again';
+  insert into t1 values (v);
+end//
+delimiter ;//
+
+show procedure code proc_26977_broken;
+
+show procedure code proc_26977_works;
+
+## This caust an error because of jump short cut
+## optimization.
+call proc_26977_broken(1);
+
+## This works
+call proc_26977_works(2);
+
+drop table t1;
+drop procedure proc_26977_broken;
+drop procedure proc_26977_works;
+
+
 --echo End of 5.0 tests.
