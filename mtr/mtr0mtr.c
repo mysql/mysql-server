@@ -167,13 +167,17 @@ mtr_commit(
 /*=======*/
 	mtr_t*	mtr)	/* in: mini-transaction */
 {
+	ibool		write_log;
+
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_ACTIVE);
 #ifdef UNIV_DEBUG
 	mtr->state = MTR_COMMITTING;
 #endif
-	if (mtr->modifications) {
+	write_log = mtr->modifications && mtr->n_log_recs;
+
+	if (write_log) {
 		mtr_log_reserve_and_write(mtr);
 	}
 
@@ -187,7 +191,7 @@ mtr_commit(
 
 	mtr_memo_pop_all(mtr);
 
-	if (mtr->modifications) {
+	if (write_log) {
 		log_release();
 	}
 
