@@ -321,10 +321,8 @@ prepare stmt4 from ' show status like ''Threads_running'' ';
 execute stmt4;
 prepare stmt4 from ' show variables like ''sql_mode'' ';
 execute stmt4;
---error ER_UNKNOWN_STORAGE_ENGINE
-prepare stmt4 from ' show engine bdb logs ';
---error ER_UNKNOWN_STORAGE_ENGINE
-prepare stmt4 from ' show engine foo logs ';
+prepare stmt4 from ' show engine myisam logs ';
+execute stmt4;
 prepare stmt4 from ' show grants for user ';
 prepare stmt4 from ' show create table t2 ';
 prepare stmt4 from ' show master status ';

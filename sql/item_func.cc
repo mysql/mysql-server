@@ -4946,7 +4946,7 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
     component_name= &component;			// Empty string
   }
 
-  if (!(var= find_sys_var(base_name->str, base_name->length)))
+  if (!(var= find_sys_var(thd, base_name->str, base_name->length)))
     return 0;
   if (component.str)
   {

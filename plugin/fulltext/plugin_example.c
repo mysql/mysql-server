@@ -216,6 +216,41 @@ static struct st_mysql_show_var simple_status[]=
 };
 
 /*
+  Plugin system variables.
+*/
+
+static long     sysvar_one_value;
+static char     *sysvar_two_value;
+
+static MYSQL_SYSVAR_LONG(simple_sysvar_one, sysvar_one_value,
+  PLUGIN_VAR_RQCMDARG,
+  "Simple fulltext parser example system variable number one. Give a number.",
+  NULL, NULL, 77L, 7L, 777L, 0);
+
+static MYSQL_SYSVAR_STR(simple_sysvar_two, sysvar_two_value,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+  "Simple fulltext parser example system variable number two. Give a string.",
+  NULL, NULL, "simple sysvar two default");
+
+static MYSQL_THDVAR_LONG(simple_thdvar_one,
+  PLUGIN_VAR_RQCMDARG,
+  "Simple fulltext parser example thread variable number one. Give a number.",
+  NULL, NULL, 88L, 8L, 888L, 0);
+
+static MYSQL_THDVAR_STR(simple_thdvar_two,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+  "Simple fulltext parser example thread variable number two. Give a string.",
+  NULL, NULL, "simple thdvar two default");
+
+static struct st_mysql_sys_var* simple_system_variables[]= {
+  MYSQL_SYSVAR(simple_sysvar_one),
+  MYSQL_SYSVAR(simple_sysvar_two),
+  MYSQL_SYSVAR(simple_thdvar_one),
+  MYSQL_SYSVAR(simple_thdvar_two),
+  NULL
+};
+
+/*
   Plugin library descriptor
 */
 
@@ -231,8 +266,8 @@ mysql_declare_plugin(ftexample)
   simple_parser_plugin_deinit,/* deinit function (when unloaded) */
   0x0001,                     /* version                         */
   simple_status,              /* status variables                */
-  NULL,                       /* system variables                */
-  NULL                        /* config options                  */
+  simple_system_variables,    /* system variables                */
+  NULL
 }
 mysql_declare_plugin_end;
 

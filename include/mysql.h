@@ -67,7 +67,6 @@ typedef int my_socket;
 #include "mysql_version.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
-#include "typelib.h"
 
 #include "my_list.h" /* for LISTs used in 'MYSQL' and 'MYSQL_STMT' */
 
@@ -125,6 +124,8 @@ typedef unsigned __int64 my_ulonglong;
 typedef unsigned long long my_ulonglong;
 #endif
 #endif
+
+#include "typelib.h"
 
 #define MYSQL_COUNT_ERROR (~(my_ulonglong) 0)
 
