@@ -1024,7 +1024,6 @@ NdbTransaction::OpSent()
 /******************************************************************************
 void executePendingBlobOps();
 ******************************************************************************/
-#include <stdlib.h>
 inline
 int
 NdbTransaction::executePendingBlobOps(Uint8 flags)
