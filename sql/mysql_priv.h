@@ -1890,6 +1890,8 @@ void make_date(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
 void make_time(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
                String *str);
 int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b);
+ulonglong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
+                             Item *warn_item, bool *is_null);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);
@@ -1905,7 +1907,8 @@ ha_rows filesort(THD *thd, TABLE *form,struct st_sort_field *sortorder,
                  ha_rows *examined_rows);
 void filesort_free_buffers(TABLE *table, bool full);
 void change_double_for_sort(double nr,byte *to);
-double my_double_round(double value, int dec, bool truncate);
+double my_double_round(double value, longlong dec, bool dec_unsigned,
+                       bool truncate);
 int get_quick_record(SQL_SELECT *select);
 
 int calc_weekday(long daynr,bool sunday_first_day_of_week);

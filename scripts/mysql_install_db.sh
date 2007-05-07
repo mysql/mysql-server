@@ -79,7 +79,10 @@ parse_arguments() {
         then
           # This sed command makes sure that any special chars are quoted,
           # so the arg gets passed exactly to the server.
-          args="$args "`echo "$arg" | sed -e 's,\([^a-zA-Z0-9_.-]\),\\\\\1,g'`
+          # XXX: This is broken; true fix requires using eval and proper
+          # quoting of every single arg ($basedir, $ldata, etc.)
+          #args="$args "`echo "$arg" | sed -e 's,\([^a-zA-Z0-9_.-]\),\\\\\1,g'`
+          args="$args $arg"
         fi
         ;;
     esac
@@ -151,6 +154,7 @@ else
     if test -f $i/$fill_help_tables
     then
       pkgdatadir=$i
+      break
     fi
   done
 

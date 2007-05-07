@@ -369,14 +369,16 @@ public:
   void executeAsynch(ExecType            aTypeOfExec,
 		     NdbAsynchCallback   aCallback,
 		     void*               anyObject,
-		     NdbOperation::AbortOption = NdbOperation::DefaultAbortOption);
+		     NdbOperation::AbortOption = NdbOperation::DefaultAbortOption,
+                     int forceSend= 0);
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   void executeAsynch(::ExecType         aTypeOfExec,
 		     NdbAsynchCallback   aCallback,
 		     void*               anyObject,
-		     ::AbortOption abortOption= ::DefaultAbortOption)
+		     ::AbortOption abortOption= ::DefaultAbortOption,
+                     int forceSend= 0)
   { executeAsynch((ExecType)aTypeOfExec, aCallback, anyObject,
-		  (NdbOperation::AbortOption)abortOption); }
+		  (NdbOperation::AbortOption)abortOption, forceSend); }
 #endif
 #endif
   /**

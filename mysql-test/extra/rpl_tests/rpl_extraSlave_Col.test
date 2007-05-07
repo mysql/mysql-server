@@ -4,6 +4,9 @@
 # Purpose: To test having extra columns on the slave.
 ##################################################
 
+# Some tests in here requre partitioning
+-- source include/have_partition.inc
+
 ########### Clean up ################
 --disable_warnings
 --disable_query_log

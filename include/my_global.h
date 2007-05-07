@@ -847,13 +847,20 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define SSIZE_MAX ((~((size_t) 0)) / 2)
 #endif
 
+#ifndef HAVE_FINITE
+#define finite(x) (1.0 / fabs(x) > 0.0)
+#endif
+
+#ifndef HAVE_ISNAN
+#define isnan(x) ((x) != (x))
+#endif
+
 #if !defined(HAVE_ISINF)
 /* The configure check for "isinf with math.h" has failed */
 #ifdef isinf
 #undef isinf
 #endif
-/* Define isinf to never say that X is infinite */
-#define isinf(X)    0
+#define isinf(X) (!finite(X) && !isnan(X))
 #endif
 
 /* Define missing math constants. */

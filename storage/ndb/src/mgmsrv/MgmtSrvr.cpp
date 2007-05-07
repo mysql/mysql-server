@@ -2160,12 +2160,18 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id, enum ndb_mgm_node_type type)
       const AllocNodeIdRef * const ref =
         CAST_CONSTPTR(AllocNodeIdRef, signal->getDataPtr());
       if (ref->errorCode == AllocNodeIdRef::NotMaster ||
-          ref->errorCode == AllocNodeIdRef::Busy)
+          ref->errorCode == AllocNodeIdRef::Busy ||
+          ref->errorCode == AllocNodeIdRef::NodeFailureHandlingNotCompleted)
       {
         do_send = 1;
         nodeId = refToNode(ref->masterRef);
 	if (!theFacade->get_node_alive(nodeId))
 	  nodeId = 0;
+        if (ref->errorCode != AllocNodeIdRef::NotMaster)
+        {
+          /* sleep for a while (100ms) before retrying */
+          NdbSleep_MilliSleep(100);  
+        }
         continue;
       }
       return ref->errorCode;

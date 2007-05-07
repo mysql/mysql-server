@@ -2056,7 +2056,30 @@ bool Item_date_add_interval::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   if (date_sub_interval)
     interval.neg = !interval.neg;
 
-  return (null_value= date_add_interval(ltime, int_type, interval));
+  if ((null_value= date_add_interval(ltime, int_type, interval)))
+    return 1;
+
+  /* Adjust cached_field_type according to the detected type. */
+  if (cached_field_type == MYSQL_TYPE_STRING)
+  {
+    switch (ltime->time_type)
+    {
+    case MYSQL_TIMESTAMP_DATE:
+      cached_field_type= MYSQL_TYPE_DATE;
+      break;
+    case MYSQL_TIMESTAMP_DATETIME:
+      cached_field_type= MYSQL_TYPE_DATETIME;
+      break;
+    case MYSQL_TIMESTAMP_TIME:
+      cached_field_type= MYSQL_TYPE_TIME;
+      break;
+    default:
+      /* Shouldn't get here. */
+      DBUG_ASSERT(0);
+      break;
+    }
+  }
+  return 0;
 }
 
 
