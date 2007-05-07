@@ -6099,13 +6099,21 @@ uint Field::is_equal(create_field *new_field)
 }
 
 
+/* If one of the fields is binary and the other one isn't return 1 else 0 */
+
+bool Field_str::compare_str_field_flags(create_field *new_field, uint32 flags)
+{
+  return (((new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
+          !(flags & (BINCMP_FLAG | BINARY_FLAG))) ||
+         (!(new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
+          (flags & (BINCMP_FLAG | BINARY_FLAG))));
+}
+
+
 uint Field_str::is_equal(create_field *new_field)
 {
-  if (((new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
-       !(flags & (BINCMP_FLAG | BINARY_FLAG))) ||
-      (!(new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
-	(flags & (BINCMP_FLAG | BINARY_FLAG))))
-    return 0; /* One of the fields is binary and the other one isn't */
+  if (compare_str_field_flags(new_field, flags))
+    return 0;
 
   return ((new_field->sql_type == real_type()) &&
 	  new_field->charset == field_charset &&
@@ -6395,6 +6403,15 @@ uint Field_string::max_packed_col_length(uint max_length)
   return (max_length > 255 ? 2 : 1)+max_length;
 }
 
+uint Field_string::get_key_image(char *buff, uint length, imagetype type_arg)
+{
+  uint bytes = my_charpos(field_charset, ptr, ptr + field_length,
+                          length / field_charset->mbmaxlen);
+  memcpy(buff, ptr, bytes);
+  if (bytes < length)
+    bzero(buff + bytes, length - bytes);
+  return bytes;
+}
 
 Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table,
                                bool keep_type)
@@ -6853,9 +6870,7 @@ uint Field_varstring::max_packed_col_length(uint max_length)
   return (max_length > 255 ? 2 : 1)+max_length;
 }
 
-
-void Field_varstring::get_key_image(char *buff, uint length,
-                                    imagetype type_arg)
+uint Field_varstring::get_key_image(char *buff, uint length, imagetype type)
 {
   uint f_length=  length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
   uint local_char_length= length / field_charset->mbmaxlen;
@@ -6874,6 +6889,7 @@ void Field_varstring::get_key_image(char *buff, uint length,
     */
     bzero(buff+HA_KEY_BLOB_LENGTH+f_length, (length-f_length));
   }
+  return HA_KEY_BLOB_LENGTH+f_length;
 }
 
 
@@ -6990,34 +7006,34 @@ Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 }
 
 
-void Field_blob::store_length(uint32 number)
+void Field_blob::store_length(char *i_ptr, uint i_packlength, uint32 i_number)
 {
-  switch (packlength) {
+  switch (i_packlength) {
   case 1:
-    ptr[0]= (uchar) number;
+    i_ptr[0]= (uchar) i_number;
     break;
   case 2:
 #ifdef WORDS_BIGENDIAN
     if (table->s->db_low_byte_first)
     {
-      int2store(ptr,(unsigned short) number);
+      int2store(i_ptr,(unsigned short) i_number);
     }
     else
 #endif
-      shortstore(ptr,(unsigned short) number);
+      shortstore(i_ptr,(unsigned short) i_number);
     break;
   case 3:
-    int3store(ptr,number);
+    int3store(i_ptr,i_number);
     break;
   case 4:
 #ifdef WORDS_BIGENDIAN
     if (table->s->db_low_byte_first)
     {
-      int4store(ptr,number);
+      int4store(i_ptr,i_number);
     }
     else
 #endif
-      longstore(ptr,number);
+      longstore(i_ptr,i_number);
   }
 }
 
@@ -7278,7 +7294,7 @@ int Field_blob::cmp_binary(const char *a_ptr, const char *b_ptr,
 
 /* The following is used only when comparing a key */
 
-void Field_blob::get_key_image(char *buff, uint length, imagetype type_arg)
+uint Field_blob::get_key_image(char *buff,uint length, imagetype type_arg)
 {
   uint32 blob_length= get_length(ptr);
   char *blob;
@@ -7290,16 +7306,17 @@ void Field_blob::get_key_image(char *buff, uint length, imagetype type_arg)
     MBR mbr;
     Geometry_buffer buffer;
     Geometry *gobj;
+    const uint image_length= SIZEOF_STORED_DOUBLE*4;
 
     if (blob_length < SRID_SIZE)
     {
-      bzero(buff, SIZEOF_STORED_DOUBLE*4);
-      return;
+      bzero(buff, image_length);
+      return image_length;
     }
     get_ptr(&blob);
     gobj= Geometry::construct(&buffer, blob, blob_length);
     if (!gobj || gobj->get_mbr(&mbr, &dummy))
-      bzero(buff, SIZEOF_STORED_DOUBLE*4);
+      bzero(buff, image_length);
     else
     {
       float8store(buff,    mbr.xmin);
@@ -7307,7 +7324,7 @@ void Field_blob::get_key_image(char *buff, uint length, imagetype type_arg)
       float8store(buff+16, mbr.ymin);
       float8store(buff+24, mbr.ymax);
     }
-    return;
+    return image_length;
   }
 #endif /*HAVE_SPATIAL*/
 
@@ -7328,6 +7345,7 @@ void Field_blob::get_key_image(char *buff, uint length, imagetype type_arg)
   }
   int2store(buff,length);
   memcpy(buff+HA_KEY_BLOB_LENGTH, blob, length);
+  return HA_KEY_BLOB_LENGTH+length;
 }
 
 
@@ -7611,9 +7629,21 @@ uint Field_blob::max_packed_col_length(uint max_length)
 }
 
 
+uint Field_blob::is_equal(create_field *new_field)
+{
+  if (compare_str_field_flags(new_field, flags))
+    return 0;
+
+  return ((new_field->sql_type == get_blob_type_from_length(max_data_length()))
+          && new_field->charset == field_charset &&
+          ((Field_blob *)new_field->field)->max_data_length() ==
+          max_data_length());
+}
+
+
 #ifdef HAVE_SPATIAL
 
-void Field_geom::get_key_image(char *buff, uint length, imagetype type_arg)
+uint Field_geom::get_key_image(char *buff, uint length, imagetype type)
 {
   char *blob;
   const char *dummy;
@@ -7621,16 +7651,17 @@ void Field_geom::get_key_image(char *buff, uint length, imagetype type_arg)
   ulong blob_length= get_length(ptr);
   Geometry_buffer buffer;
   Geometry *gobj;
+  const uint image_length= SIZEOF_STORED_DOUBLE*4;
 
   if (blob_length < SRID_SIZE)
   {
-    bzero(buff, SIZEOF_STORED_DOUBLE*4);
-    return;
+    bzero(buff, image_length);
+    return image_length;
   }
   get_ptr(&blob);
   gobj= Geometry::construct(&buffer, blob, blob_length);
   if (!gobj || gobj->get_mbr(&mbr, &dummy))
-    bzero(buff, SIZEOF_STORED_DOUBLE*4);
+    bzero(buff, image_length);
   else
   {
     float8store(buff, mbr.xmin);
@@ -7638,6 +7669,7 @@ void Field_geom::get_key_image(char *buff, uint length, imagetype type_arg)
     float8store(buff + 16, mbr.ymin);
     float8store(buff + 24, mbr.ymax);
   }
+  return image_length;
 }
 
 
@@ -8421,7 +8453,7 @@ int Field_bit::cmp_offset(uint row_offset)
 }
 
 
-void Field_bit::get_key_image(char *buff, uint length, imagetype type_arg)
+uint Field_bit::get_key_image(char *buff, uint length, imagetype type_arg)
 {
   if (bit_len)
   {
@@ -8429,7 +8461,9 @@ void Field_bit::get_key_image(char *buff, uint length, imagetype type_arg)
     *buff++= bits;
     length--;
   }
-  memcpy(buff, ptr, min(length, bytes_in_rec));
+  uint data_length = min(length, bytes_in_rec);
+  memcpy(buff, ptr, data_length);
+  return data_length + 1;
 }
 
 

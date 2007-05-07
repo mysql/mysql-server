@@ -45,7 +45,7 @@ libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c \
 noinst_HEADERS =	embedded_priv.h emb_qcache.h
 
 sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
-	     ha_ndbcluster.cc \
+	     ha_ndbcluster.cc ha_ndbcluster_cond.cc \
 	ha_ndbcluster_binlog.cc ha_partition.cc \
 	handler.cc sql_handler.cc \
 	hostname.cc init.cc password.c \
@@ -106,6 +106,9 @@ endif
 
 # Storage engine specific compilation options
 ha_ndbcluster.o:ha_ndbcluster.cc
+		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
+
+ha_ndbcluster_cond.o:ha_ndbcluster_cond.cc
 		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 ha_ndbcluster_binlog.o: ha_ndbcluster_binlog.cc
@@ -188,11 +191,11 @@ link_sources:
 	  for f in $(sqlsources); do \
 	    rm -f $$f; \
 	    if test -e $(top_srcdir)/sql/$$f ; \
-            then \
+	    then \
 	      @LN_CP_F@ $(top_srcdir)/sql/$$f $$f; \
-            else \
+	    else \
 	      @LN_CP_F@ $(top_builddir)/sql/$$f $$f; \
-            fi ; \
+	    fi ; \
 	  done; \
 	  for f in $(libmysqlsources); do \
 	    rm -f $$f; \

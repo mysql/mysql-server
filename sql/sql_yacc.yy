@@ -7829,7 +7829,7 @@ order_clause:
               yet.
             */
             SELECT_LEX *first_sl= unit->first_select();
-            if (!first_sl->next_select() &&
+            if (!unit->is_union() &&
                 (first_sl->order_list.elements || 
                  first_sl->select_limit) &&            
                 unit->add_fake_select_lex(lex->thd))

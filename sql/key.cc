@@ -139,29 +139,22 @@ void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length)
         key_length--;
       }
     }
-    if (key_part->key_part_flag & HA_BLOB_PART)
-    {
-      char *pos;
-      ulong blob_length= ((Field_blob*) key_part->field)->get_length();
-      key_length-= HA_KEY_BLOB_LENGTH;
-      ((Field_blob*) key_part->field)->get_ptr(&pos);
-      length=min(key_length, key_part->length);
-      set_if_smaller(blob_length, length);
-      int2store(to_key, (uint) blob_length);
-      to_key+= HA_KEY_BLOB_LENGTH;			// Skip length info
-      memcpy(to_key, pos, blob_length);
-    }
-    else if (key_part->key_part_flag & HA_VAR_LENGTH_PART)
+    if (key_part->key_part_flag & HA_BLOB_PART ||
+        key_part->key_part_flag & HA_VAR_LENGTH_PART)
     {
       key_length-= HA_KEY_BLOB_LENGTH;
       length= min(key_length, key_part->length);
-      key_part->field->get_key_image((char *) to_key, length, Field::itRAW);
+      key_part->field->get_key_image((char*) to_key, length, Field::itRAW);
       to_key+= HA_KEY_BLOB_LENGTH;
     }
     else
     {
       length= min(key_length, key_part->length);
-      memcpy(to_key, from_record + key_part->offset, (size_t) length);
+      Field *field= key_part->field;
+      CHARSET_INFO *cs= field->charset();
+      uint bytes= field->get_key_image((char*) to_key, length, Field::itRAW);
+      if (bytes < length)
+        cs->cset->fill(cs, (char*) to_key + bytes, length - bytes, ' ');
     }
     to_key+= length;
     key_length-= length;
@@ -221,23 +214,34 @@ void key_restore(byte *to_record, byte *from_key, KEY *key_info,
     }
     if (key_part->key_part_flag & HA_BLOB_PART)
     {
+      /*
+        This in fact never happens, as we have only partial BLOB
+        keys yet anyway, so it's difficult to find any sence to
+        restore the part of a record.
+        Maybe this branch is to be removed, but now we
+        have to ignore GCov compaining.
+      */
       uint blob_length= uint2korr(from_key);
+      Field_blob *field= (Field_blob*) key_part->field;
       from_key+= HA_KEY_BLOB_LENGTH;
       key_length-= HA_KEY_BLOB_LENGTH;
-      ((Field_blob*) key_part->field)->set_ptr((ulong) blob_length,
-					       (char*) from_key);
+      field->set_ptr_offset(to_record - field->table->record[0],
+                            (ulong) blob_length, (char*) from_key);
       length= key_part->length;
     }
     else if (key_part->key_part_flag & HA_VAR_LENGTH_PART)
     {
+      Field *field= key_part->field;
       my_bitmap_map *old_map;
+      my_ptrdiff_t ptrdiff= to_record - field->table->record[0];
+      field->move_field_offset(ptrdiff);
       key_length-= HA_KEY_BLOB_LENGTH;
       length= min(key_length, key_part->length);
-      old_map= dbug_tmp_use_all_columns(key_part->field->table,
-                                        key_part->field->table->write_set);
-      key_part->field->set_key_image((char *) from_key, length);
-      dbug_tmp_restore_column_map(key_part->field->table->write_set, old_map);
+      old_map= dbug_tmp_use_all_columns(field->table, field->table->write_set);
+      field->set_key_image((char *) from_key, length);
+      dbug_tmp_restore_column_map(field->table->write_set, old_map);
       from_key+= HA_KEY_BLOB_LENGTH;
+      field->move_field_offset(-ptrdiff);
     }
     else
     {

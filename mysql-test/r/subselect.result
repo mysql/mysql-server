@@ -394,13 +394,13 @@ EXPLAIN EXTENDED SELECT DISTINCT date FROM t1 WHERE date='2002-08-03';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	NULL	PRIMARY	43	NULL	2	100.00	Using where; Using index
 Warnings:
-Note	1003	select distinct `test`.`t1`.`date` AS `date` from `test`.`t1` where (`test`.`t1`.`date` = 20020803)
+Note	1003	select distinct `test`.`t1`.`date` AS `date` from `test`.`t1` where (`test`.`t1`.`date` = _latin1'2002-08-03')
 EXPLAIN EXTENDED SELECT (SELECT DISTINCT date FROM t1 WHERE date='2002-08-03');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 2	SUBQUERY	t1	index	NULL	PRIMARY	43	NULL	2	100.00	Using where; Using index
 Warnings:
-Note	1003	select (select distinct `test`.`t1`.`date` AS `date` from `test`.`t1` where (`test`.`t1`.`date` = 20020803)) AS `(SELECT DISTINCT date FROM t1 WHERE date='2002-08-03')`
+Note	1003	select (select distinct `test`.`t1`.`date` AS `date` from `test`.`t1` where (`test`.`t1`.`date` = _latin1'2002-08-03')) AS `(SELECT DISTINCT date FROM t1 WHERE date='2002-08-03')`
 SELECT DISTINCT date FROM t1 WHERE date='2002-08-03';
 date
 2002-08-03
@@ -904,7 +904,7 @@ a	t1.a in (select t2.a from t2,t3 where t3.a=t2.a)
 explain extended SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	ref_or_null	a	a	5	func	2	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	ref_or_null	a	a	5	func	2	100.00	Using where; Using index; Using join cache
 2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) or isnull(`test`.`t2`.`a`))) having <is_not_null_test>(`test`.`t2`.`a`))) AS `t1.a in (select t2.a from t2,t3 where t3.a=t2.a)` from `test`.`t1`
@@ -1354,7 +1354,7 @@ a
 explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	ref	a	a	5	func	1001	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	ref	a	a	5	func	1001	100.00	Using where; Using index; Using join cache
 2	DEPENDENT SUBQUERY	t3	index	a	a	5	NULL	3	100.00	Using where; Using index
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t1`.`b`) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))
@@ -3989,6 +3989,59 @@ a	test
 2	o
 3	p
 DROP TABLE t1;
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (2,22),(1,11),(2,22);
+SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 0 GROUP BY a;
+a
+1
+2
+SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 1 GROUP BY a;
+a
+SELECT a FROM t1 t0
+WHERE (SELECT COUNT(t0.b) FROM t1 t WHERE t.b>20) GROUP BY a;
+a
+1
+2
+SET @@sql_mode='ansi';
+SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 0 GROUP BY a;
+ERROR HY000: Invalid use of group function
+SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 1 GROUP BY a;
+ERROR HY000: Invalid use of group function
+SELECT a FROM t1 t0
+WHERE (SELECT COUNT(t0.b) FROM t1 t WHERE t.b>20) GROUP BY a;
+ERROR HY000: Invalid use of group function
+SET @@sql_mode=default;
+DROP TABLE t1;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 values (1),(1),(1),(1);
+CREATE TABLE t2 (x INT);
+INSERT INTO t1 values (1000),(1001),(1002);
+SELECT SUM( (SELECT COUNT(a) FROM t2) ) FROM t1;
+ERROR HY000: Invalid use of group function
+SELECT SUM( (SELECT SUM(COUNT(a)) FROM t2) ) FROM t1;
+ERROR HY000: Invalid use of group function
+SELECT COUNT(1) FROM DUAL;
+COUNT(1)
+1
+SELECT SUM( (SELECT AVG( (SELECT t1.a FROM t2) ) FROM DUAL) ) FROM t1;
+ERROR HY000: Invalid use of group function
+SELECT 
+SUM( (SELECT AVG( (SELECT COUNT(*) FROM t1 t HAVING t1.a < 12) ) FROM t2) )
+FROM t1;
+ERROR HY000: Invalid use of group function
+SELECT t1.a as XXA, 
+SUM( (SELECT AVG( (SELECT COUNT(*) FROM t1 t HAVING XXA < 12) ) FROM t2) )
+FROM t1;
+ERROR HY000: Invalid use of group function
+DROP TABLE t1,t2;
+CREATE TABLE t1 (a int, b int, KEY (a));
+INSERT INTO t1 VALUES (1,1),(2,1);
+EXPLAIN SELECT 1 FROM t1 WHERE a = (SELECT COUNT(*) FROM t1 GROUP BY b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	a	a	5	const	1	Using where; Using index
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+DROP TABLE t1;
+End of 5.0 tests.
 CREATE TABLE t1 (a int, b int);
 INSERT INTO t1 VALUES (2,22),(1,11),(2,22);
 SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 0 GROUP BY a;

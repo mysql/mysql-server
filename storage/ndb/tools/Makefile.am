@@ -14,7 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 dist_bin_SCRIPTS =	ndb_size.pl ndb_error_reporter
-dist_pkgdata_DATA =	ndb_size.tmpl
+dist_pkgdata_DATA =
 
 ndbtools_PROGRAMS = \
   ndb_test_platform \

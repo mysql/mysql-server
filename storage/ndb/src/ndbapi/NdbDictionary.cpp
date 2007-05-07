@@ -727,6 +727,16 @@ NdbDictionary::Table::getRowGCIIndicator() const {
   return m_impl.m_row_gci;
 }
 
+void
+NdbDictionary::Table::setForceVarPart(bool val){
+  m_impl.m_force_var_part = val;
+}
+
+bool 
+NdbDictionary::Table::getForceVarPart() const {
+  return m_impl.m_force_var_part;
+}
+
 int
 NdbDictionary::Table::aggregate(NdbError& error)
 {

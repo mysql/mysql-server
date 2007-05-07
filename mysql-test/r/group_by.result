@@ -536,11 +536,11 @@ a	b
 1	1
 explain select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort; Using join cache
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	4	Using where
 explain select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b ORDER BY NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using join cache
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	4	Using where
 drop table t1,t2;
 create table t1 (a int, b int);
@@ -1034,6 +1034,18 @@ SELECT b FROM t1 AS t1_outer GROUP BY a HAVING t1_outer.a IN
 HAVING SUM(t1_inner.b)+t1_outer.b > 5);
 ERROR 42000: 'test.t1_outer.b' isn't in GROUP BY
 DROP TABLE t1;
+SET SQL_MODE = '';
+SET SQL_MODE = 'ONLY_FULL_GROUP_BY';
+create table t1(f1 int, f2 int);
+select * from t1 group by f1;
+ERROR 42000: 'test.t1.f2' isn't in GROUP BY
+select * from t1 group by f2;
+ERROR 42000: 'test.t1.f1' isn't in GROUP BY
+select * from t1 group by f1, f2;
+f1	f2
+select t1.f1,t.* from t1, t1 t group by 1;
+ERROR 42000: 'test.t.f1' isn't in GROUP BY
+drop table t1;
 SET SQL_MODE = '';
 CREATE TABLE t1 (a INT, b INT,
 PRIMARY KEY (a),

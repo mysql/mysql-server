@@ -5880,6 +5880,11 @@ log and this option does nothing anymore.",
 #endif
   {"symbolic-links", 's', "Enable symbolic link support.",
    (gptr*) &my_use_symdir, (gptr*) &my_use_symdir, 0, GET_BOOL, NO_ARG,
+   /*
+     The system call realpath() produces warnings under valgrind and
+     purify. These are not suppressed: instead we disable symlinks
+     option if compiled with valgrind support.
+   */
    IF_PURIFY(0,1), 0, 0, 0, 0, 0},
   {"sysdate-is-now", OPT_SYSDATE_IS_NOW,
    "Non-default option to alias SYSDATE() to NOW() to make it safe-replicable. Since 5.0, SYSDATE() returns a `dynamic' value different for different invocations, even within the same statement.",
@@ -5912,11 +5917,6 @@ log and this option does nothing anymore.",
    0, 0, 0, 0, 0},
   {"use-symbolic-links", 's', "Enable symbolic link support. Deprecated option; use --symbolic-links instead.",
    (gptr*) &my_use_symdir, (gptr*) &my_use_symdir, 0, GET_BOOL, NO_ARG,
-   /*
-     The system call realpath() produces warnings under valgrind and
-     purify. These are not suppressed: instead we disable symlinks
-     option if compiled with valgrind support. 
-   */
    IF_PURIFY(0,1), 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
