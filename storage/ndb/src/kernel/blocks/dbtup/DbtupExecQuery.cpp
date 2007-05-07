@@ -1532,15 +1532,17 @@ int Dbtup::handleDeleteReq(Signal* signal,
   if (regTabPtr->need_expand(disk))
     prepare_read(req_struct, regTabPtr, disk);
   
-  Uint32 RlogSize;
-  int ret= handleReadReq(signal, regOperPtr, regTabPtr, req_struct);
-  if (ret == 0 && (RlogSize= req_struct->log_size))
   {
-    jam();
-    sendLogAttrinfo(signal, RlogSize, regOperPtr);
+    Uint32 RlogSize;
+    int ret= handleReadReq(signal, regOperPtr, regTabPtr, req_struct);
+    if (ret == 0 && (RlogSize= req_struct->log_size))
+    {
+      jam();
+      sendLogAttrinfo(signal, RlogSize, regOperPtr);
+    }
+    return ret;
   }
-  return ret;
-  
+
 error:
   tupkeyErrorLab(signal);
   return -1;
