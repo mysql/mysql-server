@@ -1491,6 +1491,7 @@ int Dbtup::handleDeleteReq(Signal* signal,
       goto error;
     }
     memcpy(dst, org, regTabPtr->total_rec_size << 2);
+    req_struct->m_tuple_ptr = (Tuple_header*)dst;
   } 
   else 
   {
@@ -1528,18 +1529,18 @@ int Dbtup::handleDeleteReq(Signal* signal,
     return 0;
   }
 
-  if (setup_read(req_struct, regOperPtr, regFragPtr, regTabPtr, disk))
+  if (regTabPtr->need_expand(disk))
+    prepare_read(req_struct, regTabPtr, disk);
+  
+  Uint32 RlogSize;
+  int ret= handleReadReq(signal, regOperPtr, regTabPtr, req_struct);
+  if (ret == 0 && (RlogSize= req_struct->log_size))
   {
-    Uint32 RlogSize;
-    int ret= handleReadReq(signal, regOperPtr, regTabPtr, req_struct);
-    if (ret == 0 && (RlogSize= req_struct->log_size))
-    {
-      jam();
-      sendLogAttrinfo(signal, RlogSize, regOperPtr);
-    }
-    return ret;
+    jam();
+    sendLogAttrinfo(signal, RlogSize, regOperPtr);
   }
-
+  return ret;
+  
 error:
   tupkeyErrorLab(signal);
   return -1;
