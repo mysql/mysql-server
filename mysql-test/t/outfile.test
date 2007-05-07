@@ -96,3 +96,38 @@ create table t1(a int);
 eval select * into outfile "$MYSQL_TEST_DIR/outfile-test1" from t1;
 drop table t1;
 
+#
+# Bug#28181 Access denied to 'information_schema when
+# select into out file (regression)
+#
+create database mysqltest;
+create user user_1@localhost;
+grant all on mysqltest.* to user_1@localhost;
+connect (con28181_1,localhost,user_1,,mysqltest);
+
+--error 1044
+eval select schema_name
+into outfile "../tmp/outfile-test.4"
+fields terminated by ',' optionally enclosed by '"'
+ lines terminated by '\n'
+from information_schema.schemata
+where schema_name like 'mysqltest';
+
+connection default;
+grant file on *.* to user_1@localhost;
+
+connect (con28181_2,localhost,user_1,,mysqltest);
+eval select schema_name
+into outfile "../tmp/outfile-test.4"
+fields terminated by ',' optionally enclosed by '"'
+ lines terminated by '\n'
+from information_schema.schemata
+where schema_name like 'mysqltest';
+
+connection default;
+--exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.4
+use test;
+revoke all privileges on *.* from user_1@localhost;
+drop user user_1@localhost;
+drop database mysqltest;
+

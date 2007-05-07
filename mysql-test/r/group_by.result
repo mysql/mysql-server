@@ -536,11 +536,11 @@ a	b
 1	1
 explain select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort; Using join cache
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	4	Using where
 explain select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b ORDER BY NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using join cache
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	4	Using where
 drop table t1,t2;
 create table t1 (a int, b int);
