@@ -1290,17 +1290,7 @@ runDeleteRead(NDBT_Context* ctx, NDBT_Step* step){
     NdbTransaction* pTrans = pNdb->startTransaction();
     NdbOperation* pOp = pTrans->getNdbOperation(tab->getName());
     pOp->deleteTuple();
-    for(a = 0; a<tab->getNoOfColumns(); a++)
-    {
-      if (tab->getColumn(a)->getPrimaryKey() == true)
-      {
-	if(tmp.equalForAttr(pOp, a, 0) != 0)
-	{
-	  ERR(pTrans->getNdbError());
-	  return NDBT_FAILED;
-	}
-      }
-    }
+    tmp.equalForRow(pOp, loops);
     
     // Define attributes to read  
     for(a = 0; a<tab->getNoOfColumns(); a++)
@@ -1313,6 +1303,30 @@ runDeleteRead(NDBT_Context* ctx, NDBT_Step* step){
 
     pTrans->execute(Commit);
     pTrans->close();
+
+    pTrans = pNdb->startTransaction();    
+    pOp = pTrans->getNdbOperation(tab->getName());
+    pOp->insertTuple();
+    tmp.setValues(pOp, loops, 0);
+
+    pOp = pTrans->getNdbOperation(tab->getName());
+    pOp->deleteTuple();
+    tmp.equalForRow(pOp, loops);
+    for(a = 0; a<tab->getNoOfColumns(); a++)
+    {
+      if((row.attributeStore(a) = pOp->getValue(tab->getColumn(a)->getName())) == 0) 
+      {
+	ERR(pTrans->getNdbError());
+	return NDBT_FAILED;
+      }
+    }
+    if (pTrans->execute(Commit) != 0)
+    {
+      ERR(pTrans->getNdbError());
+      return NDBT_FAILED;
+    }
+
+    pTrans->close();    
   }
   
   return NDBT_OK;
