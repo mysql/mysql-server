@@ -1307,7 +1307,10 @@ public:
   }
   int reset(void) { bzero(ptr, packlength+sizeof(char*)); return 0; }
   void reset_fields() { bzero((char*) &value,sizeof(value)); }
-  static void store_length(char *ptr, uint packlength, uint32 number);
+#ifndef WORDS_BIGENDIAN
+  static
+#endif
+  void store_length(char *i_ptr, uint i_packlength, uint32 i_number);
   inline void store_length(uint32 number)
   {
     store_length(ptr, packlength, number);
