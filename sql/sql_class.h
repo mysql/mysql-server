@@ -1431,6 +1431,10 @@ public:
   */
   bool       insert_id_used;
 
+  /* 
+    clear_next_insert_id is set if engine was called at least once
+    for this statement to generate auto_increment value.
+  */
   bool       clear_next_insert_id;
   /* for IS NULL => = last_insert_id() fix in remove_eq_conds() */
   bool       substitute_null_with_insert_id;
