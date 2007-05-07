@@ -2701,7 +2701,7 @@ int ha_ndbcluster::write_row(byte *record)
       DBUG_RETURN(peek_res);
   }
 
-  statistic_increment(thd->status_var.ha_write_count, &LOCK_status);
+  ha_statistic_increment(&SSV::ha_write_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
 
@@ -2930,7 +2930,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       DBUG_RETURN(peek_res);
   }
 
-  statistic_increment(thd->status_var.ha_update_count, &LOCK_status);
+  ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
   {
     table->timestamp_field->set_time();
@@ -3110,7 +3110,7 @@ int ha_ndbcluster::delete_row(const byte *record)
   DBUG_ENTER("delete_row");
   m_write_op= TRUE;
 
-  statistic_increment(thd->status_var.ha_delete_count,&LOCK_status);
+  ha_statistic_increment(&SSV::ha_delete_count);
   m_rows_changed++;
 
   if (m_use_partition_function &&
@@ -3504,8 +3504,7 @@ int ha_ndbcluster::index_read(byte *buf,
 int ha_ndbcluster::index_next(byte *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_next");
-  statistic_increment(current_thd->status_var.ha_read_next_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_next_count);
   DBUG_RETURN(next_result(buf));
 }
 
@@ -3513,8 +3512,7 @@ int ha_ndbcluster::index_next(byte *buf)
 int ha_ndbcluster::index_prev(byte *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_prev");
-  statistic_increment(current_thd->status_var.ha_read_prev_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_prev_count);
   DBUG_RETURN(next_result(buf));
 }
 
@@ -3522,8 +3520,7 @@ int ha_ndbcluster::index_prev(byte *buf)
 int ha_ndbcluster::index_first(byte *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_first");
-  statistic_increment(current_thd->status_var.ha_read_first_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_first_count);
   // Start the ordered index scan and fetch the first row
 
   // Only HA_READ_ORDER indexes get called by index_first
@@ -3534,7 +3531,7 @@ int ha_ndbcluster::index_first(byte *buf)
 int ha_ndbcluster::index_last(byte *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_last");
-  statistic_increment(current_thd->status_var.ha_read_last_count,&LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_last_count);
   DBUG_RETURN(ordered_index_scan(0, 0, TRUE, TRUE, buf, NULL));
 }
 
@@ -3720,8 +3717,7 @@ int ha_ndbcluster::rnd_end()
 int ha_ndbcluster::rnd_next(byte *buf)
 {
   DBUG_ENTER("rnd_next");
-  statistic_increment(current_thd->status_var.ha_read_rnd_next_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
 
   if (!m_active_cursor)
     DBUG_RETURN(full_table_scan(buf));
@@ -3739,8 +3735,7 @@ int ha_ndbcluster::rnd_next(byte *buf)
 int ha_ndbcluster::rnd_pos(byte *buf, byte *pos)
 {
   DBUG_ENTER("rnd_pos");
-  statistic_increment(current_thd->status_var.ha_read_rnd_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_count);
   // The primary key for the record is stored in pos
   // Perform a pk_read using primary key "index"
   {
@@ -7061,6 +7056,7 @@ static int connect_callback()
 }
 
 extern int ndb_dictionary_is_mysqld;
+extern pthread_mutex_t LOCK_plugin;
 
 static int ndbcluster_init(void *p)
 {
@@ -7069,6 +7065,13 @@ static int ndbcluster_init(void *p)
 
   if (ndbcluster_inited)
     DBUG_RETURN(FALSE);
+
+  /*
+    Below we create new THD's. They'll need LOCK_plugin, but it's taken now by
+    plugin initialization code. Release it to avoid deadlocks.  It's safe, as
+    there're no threads that may concurrently access plugin control structures.
+  */
+  pthread_mutex_unlock(&LOCK_plugin);
 
   pthread_mutex_init(&ndbcluster_mutex,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&LOCK_ndb_util_thread, MY_MUTEX_INIT_FAST);
@@ -7081,7 +7084,7 @@ static int ndbcluster_init(void *p)
 
   {
     handlerton *h= ndbcluster_hton;
-    h->state=            have_ndbcluster;
+    h->state=            SHOW_OPTION_YES;
     h->db_type=          DB_TYPE_NDBCLUSTER;
     h->close_connection= ndbcluster_close_connection;
     h->commit=           ndbcluster_commit;
@@ -7102,9 +7105,6 @@ static int ndbcluster_init(void *p)
     h->find_files= ndbcluster_find_files;
     h->table_exists_in_engine= ndbcluster_table_exists_in_engine;
   }
-
-  if (have_ndbcluster != SHOW_OPTION_YES)
-    DBUG_RETURN(0); // nothing else to do
 
   // Initialize ndb interface
   ndb_init_internal();
@@ -7213,6 +7213,8 @@ static int ndbcluster_init(void *p)
     goto ndbcluster_init_error;
   }
 
+  pthread_mutex_lock(&LOCK_plugin);
+
   ndbcluster_inited= 1;
   DBUG_RETURN(FALSE);
 
@@ -7223,8 +7225,9 @@ ndbcluster_init_error:
   if (g_ndb_cluster_connection)
     delete g_ndb_cluster_connection;
   g_ndb_cluster_connection= NULL;
-  have_ndbcluster= SHOW_OPTION_DISABLED;	// If we couldn't use handler
   ndbcluster_hton->state= SHOW_OPTION_DISABLED;               // If we couldn't use handler
+
+  pthread_mutex_lock(&LOCK_plugin);
 
   DBUG_RETURN(TRUE);
 }
@@ -9245,10 +9248,6 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
   uint buflen;
   DBUG_ENTER("ndbcluster_show_status");
   
-  if (have_ndbcluster != SHOW_OPTION_YES) 
-  {
-    DBUG_RETURN(FALSE);
-  }
   if (stat_type != HA_ENGINE_STATUS)
   {
     DBUG_RETURN(FALSE);

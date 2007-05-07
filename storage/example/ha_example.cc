@@ -723,6 +723,11 @@ int ha_example::external_lock(THD *thd, int lock_type)
 
   Called from lock.cc by get_lock_data().
 
+    @note
+  In this method one should NEVER rely on table->in_use, it may, in fact,
+  refer to a different thread! (this happens if get_lock_data() is called
+  from mysql_lock_abort_for_thread() function)
+
     @see
   get_lock_data() in lock.cc
 */
