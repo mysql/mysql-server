@@ -352,3 +352,13 @@ select c1 mod 50 as result from t1;
 result
 6
 drop table t1;
+select -9223372036854775808 bi;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					bi	8	20	20	N	32897	0	63
+bi
+-9223372036854775808
+select -9223372036854775809 bi;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					bi	246	20	20	N	129	0	63
+bi
+-9223372036854775809
