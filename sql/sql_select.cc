@@ -1442,7 +1442,7 @@ JOIN::optimize()
     */
     if (select_lex->uncacheable && !is_top_level_join() &&
         init_save_join_tab())
-      DBUG_RETURN(-1);
+      DBUG_RETURN(-1);                         /* purecov: inspected */
   }
 
   error= 0;
@@ -1519,7 +1519,7 @@ bool
 JOIN::init_save_join_tab()
 {
   if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
-    return 1;
+    return 1;                                  /* purecov: inspected */
   error= 0;				       // Ensure that tmp_join.error= 0
   restore_tmp();
   return 0;
