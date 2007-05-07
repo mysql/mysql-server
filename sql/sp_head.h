@@ -973,6 +973,12 @@ public:
 
   virtual void print(String *str);
 
+  /* This instruction will not be short cut optimized. */
+  virtual uint opt_shortcut_jump(sp_head *sp, sp_instr *start)
+  {
+    return m_ip;
+  }
+
   virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
 
 private:
