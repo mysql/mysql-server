@@ -467,6 +467,7 @@ CREATE TABLE t4 (a DATE);
 INSERT INTO t4 VALUES ('1972-02-06'), ('1972-07-29');
 SELECT * FROM t4 WHERE a IN ('1972-02-06','19772-07-29');
 a
+1972-02-06
 Warnings:
 Warning	1292	Incorrect date value: '19772-07-29' for column 'a' at row 1
 DROP TABLE t1,t2,t3,t4;
