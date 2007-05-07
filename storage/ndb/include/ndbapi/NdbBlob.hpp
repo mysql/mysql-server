@@ -162,7 +162,7 @@ public:
     Uint32 pkid;        // connects part and row with same PK within tx
     Uint64 length;      // blob length
     //
-    uint headsize;    // for convenience, number of bytes in head
+    Uint32 headsize;    // for convenience, number of bytes in head
     Head() :
       varsize(0), reserved(0), pkid(0), length(0), headsize(0) {}
   };
@@ -295,8 +295,8 @@ private:
    * Use following flag.  It is always set for V1.
    */
   bool theFixedDataFlag;
-  uint theHeadSize;
-  uint theVarsizeBytes;
+  Uint32 theHeadSize;
+  Uint32 theVarsizeBytes;
   // state
   State theState;
   void setState(State newState);
