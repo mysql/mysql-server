@@ -75,7 +75,7 @@ template <class T>
 class MemoryChannel
 {
 public:
-  MemoryChannel( int size= 256);
+  MemoryChannel( int size= 512);
   virtual ~MemoryChannel( );
 
   void writeChannel( T *t);
