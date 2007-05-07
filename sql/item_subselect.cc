@@ -1774,6 +1774,21 @@ int subselect_single_select_engine::exec()
       thd->lex->current_select= save_select;
       DBUG_RETURN(join->error ? join->error : 1);
     }
+    if (!select_lex->uncacheable && thd->lex->describe && 
+        !(join->select_options & SELECT_DESCRIBE) && 
+        join->need_tmp && item->const_item())
+    {
+      /*
+        Force join->join_tmp creation, because this subquery will be replaced
+        by a simple select from the materialization temp table by optimize()
+        called by EXPLAIN and we need to preserve the initial query structure
+        so we can display it.
+       */
+      select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
+      select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
+      if (join->init_save_join_tab())
+        DBUG_RETURN(1);                        /* purecov: inspected */
+    }
     if (item->engine_changed)
     {
       DBUG_RETURN(1);
