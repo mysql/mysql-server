@@ -958,7 +958,8 @@ longlong Item_func_signed::val_int()
   longlong value;
   int error;
 
-  if (args[0]->cast_to_int_type() != STRING_RESULT)
+  if (args[0]->cast_to_int_type() != STRING_RESULT ||
+      args[0]->result_as_longlong())
   {
     value= args[0]->val_int();
     null_value= args[0]->null_value; 
@@ -997,7 +998,8 @@ longlong Item_func_unsigned::val_int()
       my_decimal2int(E_DEC_FATAL_ERROR, dec, 1, &value);
     return value;
   }
-  else if (args[0]->cast_to_int_type() != STRING_RESULT)
+  else if (args[0]->cast_to_int_type() != STRING_RESULT ||
+           args[0]->result_as_longlong())
   {
     value= args[0]->val_int();
     null_value= args[0]->null_value; 
@@ -2161,6 +2163,7 @@ double Item_func_units::val_real()
 void Item_func_min_max::fix_length_and_dec()
 {
   int max_int_part=0;
+  bool datetime_found= FALSE;
   decimals=0;
   max_length=0;
   maybe_null=0;
@@ -2174,18 +2177,88 @@ void Item_func_min_max::fix_length_and_dec()
     if (args[i]->maybe_null)
       maybe_null=1;
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
+    if (args[i]->result_type() != ROW_RESULT && args[i]->is_datetime())
+    {
+      datetime_found= TRUE;
+      if (!datetime_item || args[i]->field_type() == MYSQL_TYPE_DATETIME)
+        datetime_item= args[i];
+    }
   }
   if (cmp_type == STRING_RESULT)
+  {
     agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV, 1);
+    if (datetime_found)
+    {
+      thd= current_thd;
+      compare_as_dates= TRUE;
+    }
+  }
   else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
     max_length= my_decimal_precision_to_length(max_int_part+decimals, decimals,
                                             unsigned_flag);
 }
 
 
+/*
+  Compare item arguments in the DATETIME context.
+
+  SYNOPSIS
+    cmp_datetimes()
+    value [out]   found least/greatest DATE/DATETIME value
+
+  DESCRIPTION
+    Compare item arguments as DATETIME values and return the index of the
+    least/greatest argument in the arguments array.
+    The correct integer DATE/DATETIME value of the found argument is
+    stored to the value pointer, if latter is provided.
+
+  RETURN
+   0	If one of arguments is NULL
+   #	index of the least/greatest argument
+*/
+
+uint Item_func_min_max::cmp_datetimes(ulonglong *value)
+{
+  ulonglong min_max;
+  uint min_max_idx= 0;
+  LINT_INIT(min_max);
+
+  for (uint i=0; i < arg_count ; i++)
+  {
+    Item **arg= args + i;
+    bool is_null;
+    ulonglong res= get_datetime_value(thd, &arg, 0, datetime_item, &is_null);
+    if ((null_value= args[i]->null_value))
+      return 0;
+    if (i == 0 || (res < min_max ? cmp_sign : -cmp_sign) > 0)
+    {
+      min_max= res;
+      min_max_idx= i;
+    }
+  }
+  if (value)
+  {
+    *value= min_max;
+    if (datetime_item->field_type() == MYSQL_TYPE_DATE)
+      *value/= 1000000L;
+  }
+  return min_max_idx;
+}
+
+
 String *Item_func_min_max::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
+  if (compare_as_dates)
+  {
+    String *str_res;
+    uint min_max_idx= cmp_datetimes(NULL);
+    if (null_value)
+      return 0;
+    str_res= args[min_max_idx]->val_str(str);
+    str_res->set_charset(collation.collation);
+    return str_res;
+  }
   switch (cmp_type) {
   case INT_RESULT:
   {
@@ -2253,6 +2326,12 @@ double Item_func_min_max::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double value=0.0;
+  if (compare_as_dates)
+  {
+    ulonglong result;
+    (void)cmp_datetimes(&result);
+    return (double)result;
+  }
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
@@ -2274,6 +2353,12 @@ longlong Item_func_min_max::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   longlong value=0;
+  if (compare_as_dates)
+  {
+    ulonglong result;
+    (void)cmp_datetimes(&result);
+    return (longlong)result;
+  }
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
@@ -2297,6 +2382,13 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
   my_decimal tmp_buf, *tmp, *res;
   LINT_INIT(res);
 
+  if (compare_as_dates)
+  {
+    ulonglong value;
+    (void)cmp_datetimes(&value);
+    ulonglong2decimal(value, dec);
+    return dec;
+  }
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
