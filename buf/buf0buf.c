@@ -2440,6 +2440,7 @@ err_exit2:
 		io-handler thread. */
 
 		rw_lock_x_lock_gen(&block->lock, BUF_IO_READ);
+		buf_page_set_io_fix(bpage, BUF_IO_READ);
 
 		if (UNIV_UNLIKELY(zip_size)) {
 			page_zip_set_size(&block->page.zip, zip_size);
@@ -2457,8 +2458,6 @@ err_exit2:
 			mutex_enter(&block->mutex);
 			block->page.zip.data = data;
 		}
-
-		buf_page_set_io_fix(bpage, BUF_IO_READ);
 
 		mutex_exit(&block->mutex);
 	} else {

@@ -860,6 +860,11 @@ ibuf_set_free_bits_func(
 	mtr_start(&mtr);
 
 	if (recv_recovery_is_on()) {
+		/* Do not write to the redo log, because there is
+		crash recovery in progress.  Flushing the log would
+		require the possession of log_sys->mutex, which is
+		being held by the main thread. */
+
 		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
 	}
 
@@ -896,14 +901,6 @@ ibuf_set_free_bits_func(
 #endif /* UNIV_IBUF_DEBUG */
 	ibuf_bitmap_page_set_bits(bitmap_page, page_no, zip_size,
 				  IBUF_BITMAP_FREE, val, &mtr);
-
-	if (recv_recovery_is_on()) {
-		/* Do not acquire log_sys->mutex or attempt to
-		write to the redo log, because the lock is being
-		held by the crash recovery thread. */
-		mtr.modifications = FALSE;
-	}
-
 	mtr_commit(&mtr);
 }
 
