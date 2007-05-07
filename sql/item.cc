@@ -1011,6 +1011,7 @@ Item_splocal::Item_splocal(const LEX_STRING &sp_var_name,
   maybe_null= TRUE;
 
   m_type= sp_map_item_type(sp_var_type);
+  m_field_type= sp_var_type;
   m_result_type= sp_map_result_type(sp_var_type);
 }
 
