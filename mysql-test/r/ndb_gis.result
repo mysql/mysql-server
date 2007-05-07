@@ -402,7 +402,7 @@ Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
 Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	g1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	g1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort; Using join cache
 1	SIMPLE	g2	ALL	NULL	NULL	NULL	NULL	2	100.00	
 Warnings:
 Note	1003	select `test`.`g1`.`fid` AS `first`,`test`.`g2`.`fid` AS `second`,within(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `w`,contains(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `c`,overlaps(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `o`,equals(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `e`,disjoint(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `d`,touches(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `t`,intersects(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `i`,crosses(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `r` from `test`.`gis_geometrycollection` `g1` join `test`.`gis_geometrycollection` `g2` order by `test`.`g1`.`fid`,`test`.`g2`.`fid`
@@ -952,7 +952,7 @@ Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
 Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	g1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	g1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort; Using join cache
 1	SIMPLE	g2	ALL	NULL	NULL	NULL	NULL	2	100.00	
 Warnings:
 Note	1003	select `test`.`g1`.`fid` AS `first`,`test`.`g2`.`fid` AS `second`,within(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `w`,contains(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `c`,overlaps(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `o`,equals(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `e`,disjoint(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `d`,touches(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `t`,intersects(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `i`,crosses(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `r` from `test`.`gis_geometrycollection` `g1` join `test`.`gis_geometrycollection` `g2` order by `test`.`g1`.`fid`,`test`.`g2`.`fid`
