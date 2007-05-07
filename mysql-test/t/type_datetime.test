@@ -180,6 +180,32 @@ SELECT 1 from dual where NOW() BETWEEN CURRENT_DATE() - INTERVAL 1 DAY AND CURRE
 drop table t1;
 
 #
+# Bug#27759: Wrong DATE/DATETIME comparison in LEAST()/GREATEST() functions.
+#
+select least(cast('01-01-01' as date), '01-01-02');
+select greatest(cast('01-01-01' as date), '01-01-02');
+select least(cast('01-01-01' as date), '01-01-02') + 0;
+select greatest(cast('01-01-01' as date), '01-01-02') + 0;
+select least(cast('01-01-01' as datetime), '01-01-02') + 0;
+--disable_warnings
+DROP PROCEDURE IF EXISTS test27759 ;
+--enable_warnings
+DELIMITER |;
+CREATE PROCEDURE test27759()
+BEGIN
+declare v_a date default '2007-4-10';
+declare v_b date default '2007-4-11';
+declare v_c datetime default '2004-4-9 0:0:0';
+select v_a as a,v_b as b,
+       least( v_a, v_b ) as a_then_b,
+       least( v_b, v_a ) as b_then_a,
+       least( v_c, v_a ) as c_then_a;
+END;|
+DELIMITER ;|
+call test27759();
+drop procedure test27759;
+
+#
 # Test of storing datetime into date fields
 #
 

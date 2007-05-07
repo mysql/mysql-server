@@ -690,12 +690,12 @@ END|
 CALL p1(NOW());
 Table	Create Table
 t1	CREATE TABLE "t1" (
-  "x" varbinary(19) DEFAULT NULL
+  "x" datetime default NULL
 )
 CALL p1('test');
 Table	Create Table
 t1	CREATE TABLE "t1" (
-  "x" varbinary(19) DEFAULT NULL
+  "x" datetime default NULL
 )
 Warnings:
 Warning	1264	Out of range value for column 'x' at row 1

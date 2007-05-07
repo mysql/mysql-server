@@ -264,6 +264,36 @@ f2
 SELECT 1 from dual where NOW() BETWEEN CURRENT_DATE() - INTERVAL 1 DAY AND CURRENT_DATE();
 1
 drop table t1;
+select least(cast('01-01-01' as date), '01-01-02');
+least(cast('01-01-01' as date), '01-01-02')
+2001-01-01
+select greatest(cast('01-01-01' as date), '01-01-02');
+greatest(cast('01-01-01' as date), '01-01-02')
+01-01-02
+select least(cast('01-01-01' as date), '01-01-02') + 0;
+least(cast('01-01-01' as date), '01-01-02') + 0
+20010101
+select greatest(cast('01-01-01' as date), '01-01-02') + 0;
+greatest(cast('01-01-01' as date), '01-01-02') + 0
+20010102
+select least(cast('01-01-01' as datetime), '01-01-02') + 0;
+least(cast('01-01-01' as datetime), '01-01-02') + 0
+20010101000000
+DROP PROCEDURE IF EXISTS test27759 ;
+CREATE PROCEDURE test27759()
+BEGIN
+declare v_a date default '2007-4-10';
+declare v_b date default '2007-4-11';
+declare v_c datetime default '2004-4-9 0:0:0';
+select v_a as a,v_b as b,
+least( v_a, v_b ) as a_then_b,
+least( v_b, v_a ) as b_then_a,
+least( v_c, v_a ) as c_then_a;
+END;|
+call test27759();
+a	b	a_then_b	b_then_a	c_then_a
+2007-04-10	2007-04-11	2007-04-10	2007-04-10	2004-04-09 00:00:00
+drop procedure test27759;
 set @org_mode=@@sql_mode;
 create table t1 (da date default '1962-03-03 23:33:34', dt datetime default '1962-03-03');
 Warnings:
