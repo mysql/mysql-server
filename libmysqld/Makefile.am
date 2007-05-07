@@ -95,6 +95,7 @@ INC_LIB=	$(top_builddir)/regex/libregex.a \
 		$(top_builddir)/strings/libmystrings.a \
 		$(top_builddir)/dbug/libdbug.a \
 		$(top_builddir)/vio/libvio.a \
+                @NDB_SCI_LIBS@ \
 		@mysql_plugin_libs@ \
 		$(yassl_inc_libs)
 
