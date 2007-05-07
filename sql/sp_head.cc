@@ -2982,10 +2982,20 @@ sp_instr_hreturn::print(String *str)
 uint
 sp_instr_hreturn::opt_mark(sp_head *sp, List<sp_instr> *leads)
 {
-  if (m_dest)
-    return sp_instr_jump::opt_mark(sp, leads);
-
   marked= 1;
+  
+  if (m_dest)
+  {
+    /*
+      This is an EXIT handler; next instruction step is in m_dest.
+     */
+    return m_dest;
+  }
+  
+  /*
+    This is a CONTINUE handler; next instruction step will come from
+    the handler stack and not from opt_mark.
+   */
   return UINT_MAX;
 }
 
