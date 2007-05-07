@@ -462,7 +462,8 @@ Lgman::drop_filegroup_drop_files(Signal* signal,
 }
 
 void
-Lgman::execCREATE_FILE_REQ(Signal* signal){
+Lgman::execCREATE_FILE_REQ(Signal* signal)
+{
   jamEntry();
   CreateFileImplReq* req= (CreateFileImplReq*)signal->getDataPtr();
   
@@ -491,6 +492,7 @@ Lgman::execCREATE_FILE_REQ(Signal* signal){
     switch(requestInfo){
     case CreateFileImplReq::Commit:
     {
+      jam();
       ndbrequire(find_file_by_id(file_ptr, ptr.p->m_meta_files, req->file_id));
       file_ptr.p->m_create.m_senderRef = req->senderRef;
       file_ptr.p->m_create.m_senderData = req->senderData;
@@ -503,6 +505,7 @@ Lgman::execCREATE_FILE_REQ(Signal* signal){
       Uint32 senderData = req->senderData;
       if (find_file_by_id(file_ptr, ptr.p->m_meta_files, req->file_id))
       {
+        jam();
 	file_ptr.p->m_create.m_senderRef = senderRef;
 	file_ptr.p->m_create.m_senderData = senderData;
 	create_file_abort(signal, ptr, file_ptr);
@@ -510,11 +513,11 @@ Lgman::execCREATE_FILE_REQ(Signal* signal){
       else
       {
 	CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
+        jam();
 	conf->senderData = senderData;
 	conf->senderRef = reference();
 	sendSignal(senderRef, GSN_CREATE_FILE_CONF, signal, 
 		   CreateFileImplConf::SignalLength, JBB);
-	return;
       }
       return;
     }
