@@ -105,7 +105,7 @@ SELECT DISTINCT u,
     AS Server_Clean
 FROM db_datadict.vu1;
 --replace_result $SERVER_NAME <SERVER_NAME>
-SELECT * FROM db_datadict.vu;
+SELECT * FROM db_datadict.vu order by u;
 
 delimiter //;
 CREATE PROCEDURE db_datadict.sp_1()
@@ -141,8 +141,9 @@ if ($have_bug_11589)
 # 13 DATA_FREE
 # 15 CREATE_TIME
 # 16 UPDATE_TIME
+# 17 CHECK_TIME
 # 20 CREATE_OPTIONS
---replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss"  20 "#CO#"
+--replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss"  20 "#CO#"
 SELECT * FROM tables
  WHERE table_schema = 'information_schema';
 #  9 AVG_ROW_LENGTH
@@ -152,7 +153,8 @@ SELECT * FROM tables
 # 13 DATA_FREE
 # 15 CREATE_TIME
 # 16 UPDATE_TIME
---replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss"
+# 17 CHECK_TIME
+--replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss"
 SELECT * FROM tables
  WHERE NOT( table_schema = 'information_schema');
 --horizontal_results
@@ -177,7 +179,7 @@ select count(*) from routines;
 select * from statistics;
 select * from views;
 --replace_result $SERVER_NAME <SERVER_NAME>
-select * from user_privileges;
+select * from user_privileges order by grantee, privilege_type;
 select * from schema_privileges;
 select * from table_privileges;
 select * from column_privileges;
@@ -199,7 +201,8 @@ select concat("Table or view '", table_name,
 --replace_result $SERVER_NAME <SERVER_NAME>
 select grantee as "user's having select privilege",
        substring( grantee, length(SUBSTRING_INDEX(grantee,_utf8'@',1))+2 )
-  from user_privileges where privilege_type = 'select';
+  from user_privileges where privilege_type = 'select'
+  order by grantee;
 
 select all table_schema from schema_privileges limit 0,5;
 
@@ -293,13 +296,14 @@ select * from information_schema.schemata ORDER BY 2 DESC;
 # 13 DATA_FREE
 # 15 CREATE_TIME
 # 16 UPDATE_TIME
+# 17 CHRCK_TIME
 # 20 CREATE_OPTIONS
 if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
 --vertical_results
---replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss"  20 "#CO#"
+--replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss" 20 "#CO#"
 SELECT * FROM information_schema.tables
  WHERE table_schema = 'information_schema';
 #  9 AVG_ROW_LENGTH
@@ -309,7 +313,8 @@ SELECT * FROM information_schema.tables
 # 13 DATA_FREE
 # 15 CREATE_TIME
 # 16 UPDATE_TIME
---replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss"
+# 17 CHRCK_TIME
+--replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss"
 SELECT * FROM information_schema.tables
  WHERE NOT( table_schema = 'information_schema');
 --horizontal_results
@@ -385,7 +390,7 @@ select concat(table_schema, ', ', table_name) "Table_info"
   from tables ORDER BY 1;
 
 --replace_result $SERVER_NAME <SERVER_NAME>
-select distinct grantee from user_privileges;
+select distinct grantee from user_privileges order by grantee, privilege_type;
 select * from schema_privileges where table_catalog is null limit 0, 5;
 select * from table_privileges where grantee like '%r%'  limit 0, 5;
 
@@ -399,7 +404,7 @@ select * from schemata  limit 0,5;
 --replace_result $SERVER_NAME <SERVER_NAME>
 select distinct grantee from user_privileges;
 --replace_result $SERVER_NAME <SERVER_NAME>
-select all      grantee from user_privileges;
+select all      grantee from user_privileges order by grantee, privilege_type;
 
 select id , character_set_name from collations order by id asc limit 10;
 
@@ -455,8 +460,9 @@ eval SELECT *
   LINES TERMINATED BY '\n'
   FROM information_schema.schemata
   WHERE schema_name LIKE 'db_%';
-# FIXME: why do we get different error numbers with and without OUTFILE ?
-#FIXME this should fail! --error 1146
+# The above will fail with access error as long as 
+# BUBG#28181 - a regression introduced in 5.0.42 is not fixed
+
 eval SELECT *
   FROM information_schema.schemata
   WHERE schema_name LIKE 'db_%';
@@ -469,7 +475,9 @@ eval SELECT *
   FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
   LINES TERMINATED BY '\n'
   FROM schemata LIMIT 0, 5;
-# FIXME 3.2.1.2: why do we get different error numbers with and without OUTFILE ?
+# The above will fail with access error as long as 
+# BUBG#28181 - a regression introduced in 5.0.42 is not fixed
+
 eval SELECT *
   FROM schemata LIMIT 0, 5;
 
@@ -479,8 +487,9 @@ eval SELECT *
   LINES TERMINATED BY '\n'
   FROM information_schema.schemata
   WHERE schema_name LIKE 'db_%';
-# FIXME: why do we get different error numbers with and without OUTFILE ?
-#FIXME this should fail! --error 1146
+# The above will fail with access error as long as 
+# BUBG#28181 - a regression introduced in 5.0.42 is not fixed
+
 eval SELECT *
   FROM information_schema.schemata
   WHERE schema_name LIKE 'db_%';
@@ -3014,12 +3023,13 @@ GRANT SELECT ON db_datadict.v3 to 'user_3'@'localhost';
 # 13 DATA_FREE
 # 15 CREATE_TIME
 # 16 UPDATE_TIME
+# 17 CHECK_TIME
 # 20 CREATE_OPTIONS
 if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
---replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss"  20 "#CO#"
+--replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss" 20 "#CO#"
 SELECT * FROM information_schema.tables
  WHERE table_schema = 'information_schema';
 #  9 AVG_ROW_LENGTH
@@ -3029,7 +3039,8 @@ SELECT * FROM information_schema.tables
 # 13 DATA_FREE
 # 15 CREATE_TIME
 # 16 UPDATE_TIME
---replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss"
+# 17 CHECK_TIME
+--replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss"
 SELECT * FROM information_schema.tables
  WHERE NOT( table_schema = 'information_schema');
 --enable_ps_protocol
@@ -3049,12 +3060,13 @@ connect (user_12_2, localhost, user_2, , db_datadict);
 # 13 DATA_FREE
 # 15 CREATE_TIME
 # 16 UPDATE_TIME
+# 17 CHECK_TIME
 # 20 CREATE_OPTIONS
 if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
---replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss"  20 "#CO#"
+--replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss" 20 "#CO#"
 SELECT * FROM information_schema.tables
  WHERE table_schema = 'information_schema';
 #  9 AVG_ROW_LENGTH
@@ -3064,7 +3076,8 @@ SELECT * FROM information_schema.tables
 # 13 DATA_FREE
 # 15 CREATE_TIME
 # 16 UPDATE_TIME
---replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss"
+# 17 CHECK_TIME
+--replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss"
 SELECT * FROM information_schema.tables
  WHERE NOT( table_schema = 'information_schema');
 --enable_ps_protocol
@@ -3085,12 +3098,13 @@ connect (user_12_3, localhost, user_3, , db_datadict);
 # 13 DATA_FREE
 # 15 CREATE_TIME
 # 16 UPDATE_TIME
+# 17 CHECK_TIME
 # 20 CREATE_OPTIONS
 if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
---replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss"  20 "#CO#"
+--replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss"  20 "#CO#"
 SELECT * FROM information_schema.tables
  WHERE table_schema = 'information_schema';
 #  9 AVG_ROW_LENGTH
@@ -3100,7 +3114,8 @@ SELECT * FROM information_schema.tables
 # 13 DATA_FREE
 # 15 CREATE_TIME
 # 16 UPDATE_TIME
---replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss"
+# 17 CHECK_TIME
+--replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss"
 SELECT * FROM information_schema.tables
  WHERE NOT( table_schema = 'information_schema');
 --enable_ps_protocol
@@ -3121,12 +3136,13 @@ connection default;
 # 13 DATA_FREE
 # 15 CREATE_TIME
 # 16 UPDATE_TIME
+# 17 CHECK_TIME
 # 20 CREATE_OPTIONS
 if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
---replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss"  20 "#CO#"
+--replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss"  20 "#CO#"
 SELECT * FROM information_schema.tables
  WHERE table_schema = 'information_schema';
 #  9 AVG_ROW_LENGTH
@@ -3136,7 +3152,8 @@ SELECT * FROM information_schema.tables
 # 13 DATA_FREE
 # 15 CREATE_TIME
 # 16 UPDATE_TIME
---replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss"
+# 17 CHECK_TIME
+--replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss"
 SELECT * FROM information_schema.tables
  WHERE NOT( table_schema = 'information_schema');
 --enable_ps_protocol

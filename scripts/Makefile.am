@@ -16,9 +16,9 @@
 ## Process this file with automake to create Makefile.in
 
 BUILT_SOURCES = mysql_fix_privilege_tables.sql \
-                mysql_fix_privilege_tables_sql.c
+		mysql_fix_privilege_tables_sql.c
 
-noinst_PROGRAMS = 	comp_sql
+EXTRA_PROGRAMS = 	comp_sql
 
 bin_SCRIPTS =		@server_scripts@ \
 			msql2mysql \
@@ -70,6 +70,7 @@ EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			mysqlaccess.conf \
 			mysqlbug \
 			make_win_bin_dist \
+			mysql_fix_privilege_tables_sql.c \
 			mysql_system_tables_fix.sql \
 			CMakeLists.txt
 
@@ -98,13 +99,11 @@ CLEANFILES =		@server_scripts@ \
 			mysql_tableinfo \
 			mysql_upgrade_shell \
 			mysqld_multi \
-			make_win_src_distribution \
-			mysql_fix_privilege_tables.sql \
-			mysql_fix_privilege_tables_sql.c
+			make_win_src_distribution
 
 # mysqlbug should be distributed built so that people can report build
 # failures with it.
-DISTCLEANFILES =        mysqlbug
+DISTCLEANFILES =        $(BUILT_SOURCES) mysqlbug
 
 # We want the right version and configure comand line in mysqlbug
 mysqlbug: ${top_builddir}/config.status mysqlbug.sh
@@ -120,11 +119,14 @@ mysql_fix_privilege_tables.sql: mysql_system_tables.sql \
 #
 # Build mysql_fix_privilege_tables_sql.c from
 # mysql_fix_privileges_tables.sql using comp_sql
+# The "sleep" ensures the generated file has a younger timestamp than its source
+# (which may have been generated in this very same "make" run).
 #
 mysql_fix_privilege_tables_sql.c: comp_sql.c mysql_fix_privilege_tables.sql
 	$(MAKE) $(AM_MAKEFLAGS) comp_sql$(EXEEXT)
+	sleep 2
 	$(top_builddir)/scripts/comp_sql$(EXEEXT) \
-          mysql_fix_privilege_tables \
+	  mysql_fix_privilege_tables \
 	    $(top_srcdir)/scripts/mysql_fix_privilege_tables.sql $@
 
 
