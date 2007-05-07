@@ -315,7 +315,7 @@ for servertype in '--with-debug=full' ' '
 do
   BuildMySQL "\
 %if %{STATIC_BUILD}
-		--disable-shared \
+		--enable-shared \
 		--with-mysqld-ldflags='-all-static' \
 		--with-client-ldflags='-all-static' \
 		$USE_OTHER_LIBC_DIR \
@@ -346,6 +346,22 @@ do
 done
 
 ./libtool --mode=execute nm --numeric-sort sql/mysqld > sql/mysqld.sym
+
+# Include libgcc.a in the devel subpackage (BUG 4921)
+if expr "$CC" : ".*gcc.*" > /dev/null ;
+then
+  libgcc=`$CC $CFLAGS --print-libgcc-file`
+  if [ -f $libgcc ]
+  then
+    %define have_libgcc 1
+    install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
+  fi
+fi
+
+# Save the libraries
+(cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
+(cd libmysql_r/.libs; tar rf $RBR/shared-libs.tar *.so*)
+(cd ndb/src/.libs; tar rf $RBR/shared-libs.tar *.so*)
 
 # We might want to save the config log file
 if test -n "$MYSQL_CONFLOG_DEST"
@@ -379,18 +395,7 @@ make install-strip DESTDIR=$RBR benchdir_root=%{_datadir}
 install -s -m 755 $MBD/sql/mysqld-debug $RBR%{_sbindir}/mysqld-debug
 
 # Install shared libraries (Disable for architectures that don't support it)
-# (cd $RBR%{_libdir}; tar xf $RBR/shared-libs.tar; rm -f $RBR/shared-libs.tar)
-
-# Include libgcc.a in the devel subpackage (BUG 4921)
-if expr "$CC" : ".*gcc.*" > /dev/null ;
-then
-  libgcc=`$CC $CFLAGS --print-libgcc-file`
-  if [ -f $libgcc ]
-  then
-    %define have_libgcc 1
-    install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
-  fi
-fi
+(cd $RBR%{_libdir}; tar xf $RBR/shared-libs.tar; rm -f $RBR/shared-libs.tar)
 
 # install symbol files ( for stack trace resolution)
 # install -m 644 $MBD/sql/mysqld-max.sym $RBR%{_libdir}/mysql/mysqld-max.sym
@@ -540,7 +545,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_multi.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_safe.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_fix_privilege_tables.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_install_db.1
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_install_db.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_upgrade.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlman.1*
