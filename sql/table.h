@@ -555,13 +555,17 @@ enum enum_schema_tables
 };
 
 
+#define MY_I_S_MAYBE_NULL 1
+#define MY_I_S_UNSIGNED   2
+
+
 typedef struct st_field_info
 {
   const char* field_name;
   uint field_length;
   enum enum_field_types field_type;
   int value;
-  bool maybe_null;
+  uint field_flags;        // Field atributes(maybe_null, signed, unsigned etc.)
   const char* old_name;
 } ST_FIELD_INFO;
 

@@ -1,18 +1,13 @@
 #
 # Test of partitions that require symlinks
 #
--- source include/have_partition.inc
+--source include/have_partition.inc
+--source include/have_symlink.inc
 
 #
 # This test is disabled on windows due to BUG#19107
 #
--- source include/not_windows.inc
--- require r/have_symlink.require
-
-disable_query_log;
-show variables like "have_symlink";
-enable_query_log;
-
+--source include/not_windows.inc
 #
 # BUG: 14354 Partitions: data directory clause fails
 #

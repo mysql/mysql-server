@@ -231,7 +231,8 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
 
-  if (select_lex->next_select() || select_lex->master_unit()->fake_select_lex)
+  if (select_lex->master_unit()->is_union() || 
+      select_lex->master_unit()->fake_select_lex)
     res= mysql_union(thd, lex, result, &lex->unit, setup_tables_done_option);
   else
   {
@@ -442,7 +443,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   select_lex= select_lex_arg;
   select_lex->join= this;
   join_list= &select_lex->top_join_list;
-  union_part= (unit_arg->first_select()->next_select() != 0);
+  union_part= unit_arg->is_union();
 
   thd->lex->current_select->is_item_list_lookup= 1;
   /*
@@ -1199,7 +1200,7 @@ JOIN::optimize()
   if (!group_list && !order &&
       unit->item && unit->item->substype() == Item_subselect::IN_SUBS &&
       tables == 1 && conds &&
-      !unit->first_select()->next_select())
+      !unit->is_union())
   {
     if (!having)
     {
@@ -1452,14 +1453,13 @@ JOIN::optimize()
       }
     }
 
-    if (select_lex->uncacheable && !is_top_level_join())
-    {
-      /* If this join belongs to an uncacheable subquery */
-      if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
-	DBUG_RETURN(-1);
-      error= 0;				// Ensure that tmp_join.error= 0
-      restore_tmp();
-    }
+    /* 
+      If this join belongs to an uncacheable subquery save 
+      the original join 
+    */
+    if (select_lex->uncacheable && !is_top_level_join() &&
+        init_save_join_tab())
+      DBUG_RETURN(-1);                         /* purecov: inspected */
   }
 
   error= 0;
@@ -1519,6 +1519,27 @@ JOIN::reinit()
   }
 
   DBUG_RETURN(0);
+}
+
+/**
+   @brief Save the original join layout
+      
+   @details Saves the original join layout so it can be reused in 
+   re-execution and for EXPLAIN.
+             
+   @return Operation status
+   @retval 0      success.
+   @retval 1      error occurred.
+*/
+
+bool
+JOIN::init_save_join_tab()
+{
+  if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
+    return 1;                                  /* purecov: inspected */
+  error= 0;				       // Ensure that tmp_join.error= 0
+  restore_tmp();
+  return 0;
 }
 
 
@@ -3184,7 +3205,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
       if (!join->group_list && !join->order &&
           join->unit->item && 
           join->unit->item->substype() == Item_subselect::IN_SUBS &&
-          !join->unit->first_select()->next_select())
+          !join->unit->is_union())
       {
         KEY_FIELD *save= *key_fields;
         add_key_fields(join, key_fields, and_level, cond_arg, usable_tables,
@@ -5633,8 +5654,9 @@ static void add_not_null_conds(JOIN *join)
   for (uint i=join->const_tables ; i < join->tables ; i++)
   {
     JOIN_TAB *tab=join->join_tab+i;
-    if ((tab->type == JT_REF || tab->type == JT_REF_OR_NULL) &&
-         !tab->table->maybe_null)
+    if ((tab->type == JT_REF || tab->type == JT_EQ_REF || 
+         tab->type == JT_REF_OR_NULL) &&
+        !tab->table->maybe_null)
     {
       for (uint keypart= 0; keypart < tab->ref.key_parts; keypart++)
       {
@@ -5890,6 +5912,12 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         tab->ref.key= -1;
 	tab->ref.key_parts=0;		// Don't use ref key.
 	join->best_positions[i].records_read= rows2double(tab->quick->records);
+        /* 
+          We will use join cache here : prevent sorting of the first
+          table only and sort at the end.
+        */
+        if (i != join->const_tables && join->tables > join->const_tables + 1)
+          join->full_join= 1;
       }
 
       tmp= NULL;
@@ -6172,11 +6200,14 @@ make_join_readinfo(JOIN *join, ulonglong options)
       disable join cache because it will change the ordering of the results.
       Code handles sort table that is at any location (not only first after 
       the const tables) despite the fact that it's currently prohibited.
+      We must disable join cache if the first non-const table alone is
+      ordered. If there is a temp table the ordering is done as a last
+      operation and doesn't prevent join cache usage.
     */
-    if (!ordered_set && 
-        (table == join->sort_by_table &&
+    if (!ordered_set && !join->need_tmp &&
+        ((table == join->sort_by_table &&
          (!join->order || join->skip_sort_order)) ||
-        (join->sort_by_table == (TABLE *) 1 && i != join->const_tables))
+        (join->sort_by_table == (TABLE *) 1 && i != join->const_tables)))
       ordered_set= 1;
 
     tab->sorted= sorted;
@@ -8875,17 +8906,13 @@ static bool
 test_if_equality_guarantees_uniqueness(Item *l, Item *r)
 {
   return r->const_item() &&
-    /* elements must be of the same result type */
-    (r->result_type() == l->result_type() ||
-    /* or dates compared to longs */
-     (((l->type() == Item::FIELD_ITEM &&
-        ((Item_field *)l)->field->can_be_compared_as_longlong()) ||
-       (l->type() == Item::FUNC_ITEM &&
-        ((Item_func *)l)->result_as_longlong())) &&
-      r->result_type() == INT_RESULT))
-    /* and must have the same collation if compared as strings */
-    && (l->result_type() != STRING_RESULT ||
-        l->collation.collation == r->collation.collation);
+    /* elements must be compared as dates */
+     (Arg_comparator::can_compare_as_dates(l, r, 0) ||
+      /* or of the same result type */
+      (r->result_type() == l->result_type() &&
+       /* and must have the same collation if compared as strings */
+       (l->result_type() != STRING_RESULT ||
+        l->collation.collation == r->collation.collation)));
 }
 
 /*
@@ -10789,7 +10816,6 @@ static enum_nested_loop_state
 evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
                      int error, my_bool *report_error)
 {
-  bool not_exists_optimize= join_tab->table->reginfo.not_exists_optimize;
   bool not_used_in_distinct=join_tab->not_used_in_distinct;
   ha_rows found_records=join->found_records;
   COND *select_cond= join_tab->select_cond;
@@ -10826,6 +10852,8 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       first_unmatched->found= 1;
       for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
       {
+        if (tab->table->reginfo.not_exists_optimize)
+          return NESTED_LOOP_NO_MORE_ROWS;
         /* Check all predicates that has just been activated. */
         /*
           Actually all predicates non-guarded by first_unmatched->found
@@ -10871,8 +10899,6 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     if (found)
     {
       enum enum_nested_loop_state rc;
-      if (not_exists_optimize)
-        return NESTED_LOOP_NO_MORE_ROWS;
       /* A match from join_tab is found for the current partial join. */
       rc= (*join_tab->next_select)(join, join_tab+1, 0);
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
@@ -12659,6 +12685,12 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     uint nr;
     key_map keys;
 
+    /* 
+      filesort() and join cache are usually faster than reading in 
+      index order and not using join cache
+    */
+    if (tab->type == JT_ALL && tab->join->tables > tab->join->const_tables + 1)
+      DBUG_RETURN(0);
     /*
       If not used with LIMIT, only use keys if the whole query can be
       resolved with a key;  This is because filesort() is usually faster than
@@ -14825,7 +14857,7 @@ bool JOIN::rollup_init()
     for (j=0 ; j < fields_list.elements ; j++)
       rollup.fields[i].push_back(rollup.null_items[i]);
   }
-  List_iterator_fast<Item> it(all_fields);
+  List_iterator<Item> it(all_fields);
   Item *item;
   while ((item= it++))
   {
@@ -14838,6 +14870,32 @@ bool JOIN::rollup_init()
       {
         item->maybe_null= 1;
         found_in_group= 1;
+        if (item->const_item())
+        {
+          /*
+            For ROLLUP queries each constant item referenced in GROUP BY list
+            is wrapped up into an Item_func object yielding the same value
+            as the constant item. The objects of the wrapper class are never
+            considered as constant items and besides they inherit all
+            properties of the Item_result_field class.
+            This wrapping allows us to ensure writing constant items
+            into temporary tables whenever the result of the ROLLUP
+            operation has to be written into a temporary table, e.g. when
+            ROLLUP is used together with DISTINCT in the SELECT list.
+            Usually when creating temporary tables for a intermidiate
+            result we do not include fields for constant expressions.
+	  */           
+          Item* new_item= new Item_func_rollup_const(item);
+          if (!new_item)
+            return 1;
+          new_item->fix_fields(thd, (Item **) 0);
+          thd->change_item_tree(it.ref(), new_item);
+          for (ORDER *tmp= group_tmp; tmp; tmp= tmp->next)
+          { 
+            if (*tmp->item == item)
+              thd->change_item_tree(tmp->item, new_item);
+          }
+        }
       }
     }
     if (item->type() == Item::FUNC_ITEM && !found_in_group)
@@ -15486,6 +15544,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
             break;
           }
         }
+        if (tab->next_select == sub_select_cache)
+          extra.append(STRING_WITH_LEN("; Using join cache"));
         
         /* Skip initial "; "*/
         const char *str= extra.ptr();
@@ -15542,7 +15602,7 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 		 "UNION")));
     sl->options|= SELECT_DESCRIBE;
   }
-  if (first->next_select())
+  if (unit->is_union())
   {
     unit->fake_select_lex->select_number= UINT_MAX; // jost for initialization
     unit->fake_select_lex->type= "UNION RESULT";

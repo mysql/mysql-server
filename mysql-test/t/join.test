@@ -333,6 +333,30 @@ select t1.i,t2.i,t3.i from t2 natural right join t3,t1 order by t1.i,t2.i,t3.i;
 select t1.i,t2.i,t3.i from t2 right join t3 on (t2.i=t3.i),t1 order by t1.i,t2.i,t3.i;
 drop table t1,t2,t3;
 
+#
+# Bug #27531: Query performance degredation in 4.1.22 and greater
+#
+CREATE TABLE t1 (a int, b int default 0, c int default 1);
+
+INSERT INTO t1 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+INSERT INTO t1 (a) SELECT a + 8 FROM t1;
+INSERT INTO t1 (a) SELECT a + 16 FROM t1;
+
+CREATE TABLE t2 (a int, d int, e int default 0);
+
+INSERT INTO t2 (a, d) VALUES (1,1),(2,2),(3,3),(4,4);
+INSERT INTO t2 (a, d) SELECT a+4, a+4 FROM t2;
+INSERT INTO t2 (a, d) SELECT a+8, a+8 FROM t2;
+
+# should use join cache
+EXPLAIN
+SELECT STRAIGHT_JOIN t2.e FROM t1,t2 WHERE t2.d=1 AND t1.b=t2.e
+  ORDER BY t1.b, t1.c;
+SELECT STRAIGHT_JOIN t2.e FROM t1,t2 WHERE t2.d=1 AND t1.b=t2.e
+  ORDER BY t1.b, t1.c;
+
+DROP TABLE t1,t2;
+
 # End of 4.1 tests
 
 #
@@ -593,6 +617,46 @@ drop table t1, t2, t3, t4, t5;
 # End of tests for WL#2486 - natural/using join
 
 #
+# BUG#25106: A USING clause in combination with a VIEW results in column 
+#            aliases ignored
+#
+CREATE TABLE t1 (ID INTEGER, Name VARCHAR(50));
+CREATE TABLE t2 (Test_ID INTEGER);
+CREATE VIEW v1 (Test_ID, Description) AS SELECT ID, Name FROM t1;
+
+CREATE TABLE tv1 SELECT Description AS Name FROM v1 JOIN t2
+ USING (Test_ID);
+DESCRIBE tv1;
+CREATE TABLE tv2 SELECT Description AS Name FROM v1 JOIN t2
+ ON v1.Test_ID = t2.Test_ID;
+DESCRIBE tv2;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,tv1,tv2;
+
+
+# BUG#27939: Early NULLs filtering doesn't work for eq_ref access
+create table t1 (a int, b int);
+insert into t1 values 
+  (NULL, 1),
+  (NULL, 2),
+  (NULL, 3),
+  (NULL, 4);
+
+create table t2 (a int not null, primary key(a));
+insert into t2 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t3 (a int not null, primary key(a));
+insert into t3 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+flush status;
+select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
+explain select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
+--echo We expect rnd_next=5, and read_key must be 0 because of short-cutting:
+show status like 'Handler_read%'; 
+drop table t1, t2, t3;
+
+#
 # BUG#14940: Make E(#rows) from "range" access be re-used by range optimizer
 #
 create table t1 (a int); 
@@ -631,21 +695,5 @@ select '^^: The above should be ~= 20 + cost(select * from t1). Value less than 
 
 
 drop table t1, t2;
-# BUG#25106: A USING clause in combination with a VIEW results in column 
-#            aliases ignored
-#
-CREATE TABLE t1 (ID INTEGER, Name VARCHAR(50));
-CREATE TABLE t2 (Test_ID INTEGER);
-CREATE VIEW v1 (Test_ID, Description) AS SELECT ID, Name FROM t1;
-
-CREATE TABLE tv1 SELECT Description AS Name FROM v1 JOIN t2
- USING (Test_ID);
-DESCRIBE tv1;
-CREATE TABLE tv2 SELECT Description AS Name FROM v1 JOIN t2
- ON v1.Test_ID = t2.Test_ID;
-DESCRIBE tv2;
-
-DROP VIEW v1;
-DROP TABLE t1,t2,tv1,tv2;
 
 --echo End of 5.0 tests.

@@ -885,8 +885,8 @@ void my_print_default_files(const char *conf_file)
 	fputs(name,stdout);
       }
     }
-    puts("");
   }
+  puts("");
 }
 
 void print_defaults(const char *conf_file, const char **groups)

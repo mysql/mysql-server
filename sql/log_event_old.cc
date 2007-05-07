@@ -84,8 +84,8 @@ int Update_rows_log_event_old::do_prepare_row(THD *thd,
                         row_start, &m_cols, row_end, &m_master_reclength,
                         table->write_set, PRE_GA_UPDATE_ROWS_EVENT);
 
-  DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
-  DBUG_DUMP("m_after_image", m_after_image, table->s->reclength);
+  DBUG_DUMP("record[0]", (const char*) table->record[0], table->s->reclength);
+  DBUG_DUMP("m_after_image", (const char *) m_after_image, table->s->reclength);
 
 
   /*

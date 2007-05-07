@@ -688,7 +688,7 @@ struct Fragrecord {
   Uint32 noOfPagesToGrow;
 
   DLList<Page>::Head emptyPrimPage; // allocated pages (not init)
-  DLList<Page>::Head thFreeFirst;   // pages with atleast 1 free record
+  DLFifoList<Page>::Head thFreeFirst;   // pages with atleast 1 free record
   SLList<Page>::Head m_empty_pages; // Empty pages not in logical/physical map
   
   Uint32 m_lcp_scan_op;
@@ -980,7 +980,8 @@ ArrayPool<TupTriggerData> c_triggerPool;
     enum Bits
     {
       TR_Checksum = 0x1, // Need to be 1
-      TR_RowGCI   = 0x2
+      TR_RowGCI   = 0x2,
+      TR_ForceVarPart = 0x4
     };
     Uint16 m_bits;
     Uint16 total_rec_size; // Max total size for entire tuple in words
@@ -1021,18 +1022,12 @@ ArrayPool<TupTriggerData> c_triggerPool;
       Uint8 m_null_words;
       Uint8 m_null_offset;
       Uint16 m_disk_ref_offset; // In words relative m_data
-      union {
-	Uint16 m_varpart_offset;  // In words relative m_data
-	Uint16 m_fix_header_size; // For fix size tuples= total rec size(part)
-      };
+      Uint16 m_fix_header_size; // For fix size tuples= total rec size(part)
       Uint16 m_max_var_offset;  // In bytes relative m_var_data.m_data_ptr
     } m_offsets[2];
     
-
     Uint32 get_check_offset(Uint32 mm) const {
-      Uint32 cnt= m_attributes[mm].m_no_of_varsize;
-      Uint32 off= m_offsets[mm].m_varpart_offset;
-      return off - (cnt ? 0 : Tuple_header::HeaderSize);
+      return m_offsets[mm].m_fix_header_size;
     }
 
     struct {
@@ -1321,6 +1316,11 @@ typedef Ptr<HostBuffer> HostBufferPtr;
 #endif    
   };
   
+  struct Disk_part_ref
+  {
+    STATIC_CONST( SZ32 = 2 );
+  };
+
   struct Tuple_header
   {
     union {
@@ -1370,14 +1370,24 @@ typedef Ptr<HostBuffer> HostBufferPtr;
       return m_null_bits+tabPtrP->m_offsets[mm].m_null_offset;
     }
     
-    Uint32* get_var_part_ptr(const Tablerec* tabPtrP) {
-      return m_data + tabPtrP->m_offsets[MM].m_varpart_offset;      
+    Var_part_ref* get_var_part_ref_ptr(const Tablerec* tabPtrP) {
+      return (Var_part_ref*)(get_disk_ref_ptr(tabPtrP) + Disk_part_ref::SZ32);
     }
 
-    const Uint32* get_var_part_ptr(const Tablerec* tabPtrP) const {
-      return m_data + tabPtrP->m_offsets[MM].m_varpart_offset;      
+    const Var_part_ref* get_var_part_ref_ptr(const Tablerec* tabPtrP) const {
+      return (Var_part_ref*)(get_disk_ref_ptr(tabPtrP) + Disk_part_ref::SZ32);
     }
-
+    
+    Uint32* get_end_of_fix_part_ptr(const Tablerec* tabPtrP) {
+      return m_data + tabPtrP->m_offsets[MM].m_fix_header_size - 
+        Tuple_header::HeaderSize;
+    }
+    
+    const Uint32* get_end_of_fix_part_ptr(const Tablerec* tabPtrP) const {
+      return m_data + tabPtrP->m_offsets[MM].m_fix_header_size - 
+        Tuple_header::HeaderSize;
+    }
+    
     Uint32* get_disk_ref_ptr(const Tablerec* tabPtrP) {
       return m_data + tabPtrP->m_offsets[MM].m_disk_ref_offset;
     }
@@ -2198,7 +2208,8 @@ private:
 #endif
   void checkDetachedTriggers(KeyReqStruct *req_struct,
                              Operationrec* regOperPtr,
-                             Tablerec* regTablePtr);
+                             Tablerec* regTablePtr,
+                             bool disk);
 
   void fireImmediateTriggers(KeyReqStruct *req_struct,
                              DLList<TupTriggerData>& triggerList, 
@@ -2210,7 +2221,8 @@ private:
 
   void fireDetachedTriggers(KeyReqStruct *req_struct,
                             DLList<TupTriggerData>& triggerList,
-                            Operationrec* regOperPtr);
+                            Operationrec* regOperPtr,
+                            bool disk);
 
   void executeTriggers(KeyReqStruct *req_struct,
                        DLList<TupTriggerData>& triggerList,
@@ -2218,7 +2230,8 @@ private:
 
   void executeTrigger(KeyReqStruct *req_struct,
                       TupTriggerData* trigPtr, 
-                      Operationrec* regOperPtr);
+                      Operationrec* regOperPtr,
+                      bool disk = true);
 
   bool readTriggerInfo(TupTriggerData* trigPtr,
                        Operationrec* regOperPtr,
@@ -2229,8 +2242,9 @@ private:
                        Uint32* afterBuffer,
                        Uint32& noAfterWords,
                        Uint32* beforeBuffer,
-                       Uint32& noBeforeWords);
-
+                       Uint32& noBeforeWords,
+                       bool disk);
+  
   void sendTrigAttrInfo(Signal*        signal, 
                         Uint32*        data, 
                         Uint32         dataLen,

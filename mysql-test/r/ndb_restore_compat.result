@@ -47,11 +47,21 @@ SYSTEM_VALUES_ID	VALUE
 SELECT * FROM mysql.ndb_apply_status WHERE server_id=0;
 server_id	epoch	log_name	start_pos	end_pos
 0	151		0	0
+ForceVarPart: 1
+ForceVarPart: 1
+ForceVarPart: 1
+ForceVarPart: 1
+ForceVarPart: 1
 TRUNCATE GL;
 TRUNCATE ACCOUNT;
 TRUNCATE TRANSACTION;
 TRUNCATE SYSTEM_VALUES;
 TRUNCATE ACCOUNT_TYPE;
+ForceVarPart: 1
+ForceVarPart: 1
+ForceVarPart: 1
+ForceVarPart: 1
+ForceVarPart: 1
 SELECT * FROM GL            ORDER BY TIME,ACCOUNT_TYPE;
 TIME	ACCOUNT_TYPE	BALANCE	DEPOSIT_COUNT	DEPOSIT_SUM	WITHDRAWAL_COUNT	WITHDRAWAL_SUM	PURGED
 0	0	10000000	0	0	0	0	1

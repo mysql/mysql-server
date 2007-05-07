@@ -1,0 +1,52 @@
+################################################################################
+# t/partition_int_ndb.test                                                  #
+#                                                                              #
+# Purpose:                                                                     #
+#  Tests around integer type                                                   #
+#        NDB branch                                                         #
+#                                                                              #
+#------------------------------------------------------------------------------#
+# Original Author: HH                                                          #
+# Original Date: 2006-08-01                                                    #
+# Change Author:                                                               #
+# Change Date:                                                                 #
+# Change:                                                                      #
+################################################################################
+
+#
+# NOTE: PLEASE DO NOT ADD NOT NDB SPECIFIC TESTCASES HERE !
+#       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
+#       THE SOURCED FILES ONLY.
+#
+# Please read the README at the end of include/partition.pre before changing
+# any of the variables.
+#
+
+#------------------------------------------------------------------------------#
+# General not engine specific settings and requirements
+
+##### Options, for debugging support #####
+let $debug= 0;
+
+# The server must support partitioning.
+--source include/have_partition.inc
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+
+##### Storage engine to be tested
+--source include/have_ndb.inc
+let $engine= 'NDB';
+
+#------------------------------------------------------------------------------#
+# Execute the tests to be applied to all storage engines
+--source suite/parts/inc/partition_tinyint.inc
+--source suite/parts/inc/partition_smallint.inc
+--source suite/parts/inc/partition_int.inc
+--source suite/parts/inc/partition_mediumint.inc
+--source suite/parts/inc/partition_bigint.inc
+# --source inc/partition_tinyint.inc
+# --source inc/partition_samllint.inc
+# --source inc/partition_int.inc
+# --source inc/partition_mediumint.inc
+# --source inc/partition_bigint.inc
