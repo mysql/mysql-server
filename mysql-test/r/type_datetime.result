@@ -325,6 +325,12 @@ greatest(cast('01-01-01' as date), '01-01-02') + 0
 select least(cast('01-01-01' as datetime), '01-01-02') + 0;
 least(cast('01-01-01' as datetime), '01-01-02') + 0
 20010101000000
+select cast(least(cast('01-01-01' as datetime), '01-01-02') as signed);
+cast(least(cast('01-01-01' as datetime), '01-01-02') as signed)
+20010101000000
+select cast(least(cast('01-01-01' as datetime), '01-01-02') as decimal);
+cast(least(cast('01-01-01' as datetime), '01-01-02') as decimal)
+20010101000000.00
 DROP PROCEDURE IF EXISTS test27759 ;
 CREATE PROCEDURE test27759()
 BEGIN
