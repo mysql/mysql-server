@@ -47,6 +47,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "dict0boot.h"
 #include "srv0start.h"
 #include "row0mysql.h"
+#include "ha_prototypes.h"
 
 /* This is set to TRUE if the MySQL user has set it in MySQL; currently
 affects only FOREIGN KEY definition parsing */
@@ -987,6 +988,17 @@ srv_conc_enter_innodb(
 	srv_conc_slot_t*	slot	  = NULL;
 	ulint			i;
 
+	if (trx->mysql_thd != NULL
+	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
+
+		/* TODO Do something more interesting (based on a config
+		parameter). Some users what to give the replication
+		thread very low priority, see http://bugs.mysq.com/25078
+		This can be done by introducing
+		innodb_replication_delay(ms) config parameter */
+		return;
+	}
+
 	/* If trx has 'free tickets' to enter the engine left, then use one
 	such ticket */
 
@@ -1158,6 +1170,12 @@ srv_conc_force_exit_innodb(
 	srv_conc_slot_t*	slot	= NULL;
 
 	if (UNIV_LIKELY(!srv_thread_concurrency)) {
+
+		return;
+	}
+
+	if (trx->mysql_thd != NULL
+	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
 
 		return;
 	}
