@@ -3238,94 +3238,19 @@ void Item_func_in::fix_length_and_dec()
   /* TRUE <=> arguments values will be compared as DATETIMEs. */
   bool compare_as_datetime= FALSE;
   Item *date_arg= 0;
-
+  uint found_types= 0;
+  uint type_cnt= 0, i;
+  Item_result cmp_type= STRING_RESULT;
+  left_result_type= args[0]->result_type();
+  if (!(found_types= collect_cmp_types(args, arg_count)))
+    return;
+  
   for (arg= args + 1, arg_end= args + arg_count; arg != arg_end ; arg++)
   {
     if (!arg[0]->const_item())
     {
       const_itm= 0;
       break;
-    }
-  }
-  /*
-    When comparing rows create the row comparator object beforehand to ease
-    the DATETIME comparison detection procedure.
-  */
-  if (cmp_type == ROW_RESULT)
-  {
-    cmp_item_row *cmp= 0;
-    if (const_itm && !nulls_in_row())
-    {
-      array= new in_row(arg_count-1, 0);
-      cmp= &((in_row*)array)->tmp;
-    }
-    else
-    {
-      if (!(cmp= new cmp_item_row))
-        return;
-      in_item= cmp;
-    }
-    cmp->n= args[0]->cols();
-    cmp->alloc_comparators();
-  }
-  /* All DATE/DATETIME fields/functions has the STRING result type. */
-  if (cmp_type == STRING_RESULT || cmp_type == ROW_RESULT)
-  {
-    uint col, cols= args[0]->cols();
-
-    for (col= 0; col < cols; col++)
-    {
-      bool skip_column= FALSE;
-      /*
-        Check that all items to be compared has the STRING result type and at
-        least one of them is a DATE/DATETIME item.
-      */
-      for (arg= args, arg_end= args + arg_count; arg != arg_end ; arg++)
-      {
-        Item *itm= ((cmp_type == STRING_RESULT) ? arg[0] :
-                    arg[0]->element_index(col));
-        if (itm->result_type() != STRING_RESULT)
-        {
-          skip_column= TRUE;
-          break;
-        }
-        else if (itm->is_datetime())
-        {
-          datetime_found= TRUE;
-          /*
-            Internally all DATE/DATETIME values are converted to the DATETIME
-            type. So try to find a DATETIME item to issue correct warnings.
-          */
-          if (!date_arg)
-            date_arg= itm;
-          else if (itm->field_type() == MYSQL_TYPE_DATETIME)
-          {
-            date_arg= itm;
-            /* All arguments are already checked to have the STRING result. */
-            if (cmp_type == STRING_RESULT)
-              break;
-          }
-        }
-      }
-      if (skip_column)
-        continue;
-      if (datetime_found)
-      {
-        if (cmp_type == ROW_RESULT)
-        {
-          cmp_item **cmp= 0;
-          if (array)
-            cmp= ((in_row*)array)->tmp.comparators + col;
-          else
-            cmp= ((cmp_item_row*)in_item)->comparators + col;
-          *cmp= new cmp_item_datetime(date_arg);
-          /* Reset variables for the next column. */
-          date_arg= 0;
-          datetime_found= FALSE;
-        }
-        else
-          compare_as_datetime= TRUE;
-      }
     }
   }
   for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
@@ -3344,7 +3269,90 @@ void Item_func_in::fix_length_and_dec()
       return;
     arg_types_compatible= TRUE;
   }
+  if (type_cnt == 1)
+  {
+    /*
+      When comparing rows create the row comparator object beforehand to ease
+      the DATETIME comparison detection procedure.
+    */
+    if (cmp_type == ROW_RESULT)
+    {
+      cmp_item_row *cmp= 0;
+      if (const_itm && !nulls_in_row())
+      {
+        array= new in_row(arg_count-1, 0);
+        cmp= &((in_row*)array)->tmp;
+      }
+      else
+      {
+        if (!(cmp= new cmp_item_row))
+          return;
+        cmp_items[ROW_RESULT]= cmp;
+      }
+      cmp->n= args[0]->cols();
+      cmp->alloc_comparators();
+    }
+    /* All DATE/DATETIME fields/functions has the STRING result type. */
+    if (cmp_type == STRING_RESULT || cmp_type == ROW_RESULT)
+    {
+      uint col, cols= args[0]->cols();
 
+      for (col= 0; col < cols; col++)
+      {
+        bool skip_column= FALSE;
+        /*
+          Check that all items to be compared has the STRING result type and at
+          least one of them is a DATE/DATETIME item.
+        */
+        for (arg= args, arg_end= args + arg_count; arg != arg_end ; arg++)
+        {
+          Item *itm= ((cmp_type == STRING_RESULT) ? arg[0] :
+                      arg[0]->element_index(col));
+          if (itm->result_type() != STRING_RESULT)
+          {
+            skip_column= TRUE;
+            break;
+          }
+          else if (itm->is_datetime())
+          {
+            datetime_found= TRUE;
+            /*
+              Internally all DATE/DATETIME values are converted to the DATETIME
+              type. So try to find a DATETIME item to issue correct warnings.
+            */
+            if (!date_arg)
+              date_arg= itm;
+            else if (itm->field_type() == MYSQL_TYPE_DATETIME)
+            {
+              date_arg= itm;
+              /* All arguments are already checked to have the STRING result. */
+              if (cmp_type == STRING_RESULT)
+                break;
+            }
+          }
+        }
+        if (skip_column)
+          continue;
+        if (datetime_found)
+        {
+          if (cmp_type == ROW_RESULT)
+          {
+            cmp_item **cmp= 0;
+            if (array)
+              cmp= ((in_row*)array)->tmp.comparators + col;
+            else
+              cmp= ((cmp_item_row*)cmp_items[ROW_RESULT])->comparators + col;
+            *cmp= new cmp_item_datetime(date_arg);
+            /* Reset variables for the next column. */
+            date_arg= 0;
+            datetime_found= FALSE;
+          }
+          else
+            compare_as_datetime= TRUE;
+        }
+      }
+    }
+  }
   /*
     Row item with NULLs inside can return NULL or FALSE =>
     they can't be processed as static
@@ -3424,32 +3432,24 @@ void Item_func_in::fix_length_and_dec()
   }
   else
   {
-    if (in_item)
-    {
-      /*
-        The row comparator was created at the beginning but only DATETIME
-        items comparators were initialized. Call store_value() to setup
-        others.
-      */
-      in_item->store_value(args[0]);
-    }
-    else if (compare_as_datetime)
-      in_item= new cmp_item_datetime(date_arg);
+    if (compare_as_datetime)
+      cmp_items[STRING_RESULT]= new cmp_item_datetime(date_arg);
     else
     {
-    for (i= 0; i <= (uint) DECIMAL_RESULT; i++)
-    {
-      if (found_types & (1 << i) && !cmp_items[i])
+      for (i= 0; i <= (uint) DECIMAL_RESULT; i++)
       {
-        if ((Item_result)i == STRING_RESULT &&
-            agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV, 1))
-          return;
-        if (!(cmp_items[i]=
-            cmp_item::get_comparator((Item_result)i,
-                                     cmp_collation.collation)))
-          return;
+        if (found_types & (1 << i) && !cmp_items[i])
+        {
+          if ((Item_result)i == STRING_RESULT &&
+              agg_arg_charsets(cmp_collation, args, arg_count,
+                               MY_COLL_CMP_CONV, 1))
+            return;
+          if (!cmp_items[i] && !(cmp_items[i]=
+              cmp_item::get_comparator((Item_result)i,
+                                       cmp_collation.collation)))
+            return;
+        }
       }
-    }
     }
   }
   max_length= 1;

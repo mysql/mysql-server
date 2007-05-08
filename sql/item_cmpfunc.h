@@ -1186,7 +1186,7 @@ public:
   */
   bool arg_types_compatible;
   Item_result left_result_type;
-  cmp_item *cmp_items[5]; /* One cmp_item for each result type */
+  cmp_item *cmp_items[6]; /* One cmp_item for each result type */
   DTCollation cmp_collation;
 
   Item_func_in(List<Item> &list)
@@ -1207,7 +1207,7 @@ public:
     Item_int_func::cleanup();
     delete array;
     array= 0;
-    for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
+    for (i= 0; i <= (uint)DECIMAL_RESULT + 1; i++)
     {
       delete cmp_items[i];
       cmp_items[i]= 0;
@@ -1251,35 +1251,7 @@ public:
   void set(uint pos,Item *item);
   byte *get_value(Item *item);
   friend void Item_func_in::fix_length_and_dec();
-  Item_resul result_type() { return ROW_RESULT; };
-};
-
-class cmp_item_row :public cmp_item
-{
-  cmp_item **comparators;
-  uint n;
-public:
-  cmp_item_row(): comparators(0), n(0) {}
-  ~cmp_item_row();
-  void store_value(Item *item);
-  inline void alloc_comparators();
-  int cmp(Item *arg);
-  int compare(cmp_item *arg);
-  cmp_item *make_same();
-  void store_value_by_template(cmp_item *tmpl, Item *);
-  friend void Item_func_in::fix_length_and_dec();
-};
-
-
-class in_row :public in_vector
-{
-  cmp_item_row tmp;
-public:
-  in_row(uint elements, Item *);
-  ~in_row();
-  void set(uint pos,Item *item);
-  byte *get_value(Item *item);
-  friend void Item_func_in::fix_length_and_dec();
+  Item_result result_type() { return ROW_RESULT; };
 };
 
 /* Functions used by where clause */
