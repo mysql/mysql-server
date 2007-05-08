@@ -1139,7 +1139,11 @@ Dbtup::updateStartLab(Signal* signal,
                                 regOperPtr->attrinbufLen);
   } else {
     jam();
-    retValue = interpreterStartLab(signal, pagePtr, regOperPtr->pageOffset);
+    if (interpreterStartLab(signal, pagePtr, regOperPtr->pageOffset) == -1)
+    {
+      jam();
+      return -1;
+    }
   }//if
 
   if (retValue == -1) {
