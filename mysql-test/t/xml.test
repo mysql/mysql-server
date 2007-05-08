@@ -451,3 +451,75 @@ select ExtractValue('<a><parent>test</parent></a>', '/a/parent');
 select ExtractValue('<a><preceding>test</preceding></a>', '/a/preceding');
 select ExtractValue('<a><preceding-sibling>test</preceding-sibling></a>', '/a/preceding-sibling');
 select ExtractValue('<a><self>test</self></a>', '/a/self');
+
+#
+# Bug#26518 XPath and variables problem
+# Check with user defined variables
+#
+set @i=1;
+select ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]');
+set @i=2;
+select ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]');
+set @i=NULL;
+select ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]');
+
+#
+# Check variables in a stored procedure - both local and user variables
+# Make sure that SP and local variables with the same name work together.
+#
+DELIMITER |;
+CREATE PROCEDURE spxml(xml VARCHAR(128))
+BEGIN
+  DECLARE c INT;
+  DECLARE i INT DEFAULT 1;
+  SET c= ExtractValue(xml,'count(/a/b)');
+  SET @i= c;
+  WHILE i <= c DO
+    BEGIN
+      SELECT i, @i, ExtractValue(xml,'/a/b[$i]'), ExtractValue(xml,'/a/b[$@i]');
+      SET i= i + 1;
+      SET @i= @i - 1;
+    END;
+  END WHILE;
+END|
+DELIMITER ;|
+
+call spxml('<a><b>b1</b><b>b2</b><b>b3</b></a>');
+drop procedure spxml;
+
+#
+# Additional tests for bug#26518
+--echo Multiple matches, but no index specification
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b');
+--echo No matches
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/c');
+--echo Index out of range
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[-1]');
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[10]');
+--echo With string-to-number conversion
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["1"]');
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["1 and string"]');
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["string and 1"]');
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["string"]');
+--echo String-to-number conversion from a user variable
+SET @i='1';
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]');
+SET @i='1 and string';
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]');
+SET @i='string and 1';
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]');
+SET @i='string';
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]');
+
+--echo String-to-number conversion with a CHAR SP variable
+DELIMITER |;
+CREATE PROCEDURE spxml(xml VARCHAR(128), i CHAR(16))
+BEGIN
+  SELECT ExtractValue(xml,'/a/b[$i]');
+END|
+DELIMITER ;|
+CALL spxml('<a><b>b1</b><b>b2</b></a>', '1');
+CALL spxml('<a><b>b1</b><b>b2</b></a>', '1 and string');
+CALL spxml('<a><b>b1</b><b>b2</b></a>', 'string and 1');
+CALL spxml('<a><b>b1</b><b>b2</b></a>', 'string');
+DROP PROCEDURE spxml;
