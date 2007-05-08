@@ -894,6 +894,21 @@ BackupRestore::table(const TableS & table){
     {
       copy.setMaxRows(table.getNoOfRecords());
     }
+    
+    NdbTableImpl &tableImpl = NdbTableImpl::getImpl(copy);
+    if (table.getBackupVersion() < MAKE_VERSION(5,1,0) && !m_no_upgrade){
+      for(int i= 0; i < copy.getNoOfColumns(); i++)
+      {
+        NdbDictionary::Column::Type t = copy.getColumn(i)->getType();
+
+        if (t == NdbDictionary::Column::Varchar ||
+          t == NdbDictionary::Column::Varbinary)
+          tableImpl.getColumn(i)->setArrayType(NdbDictionary::Column::ArrayTypeShortVar);
+        if (t == NdbDictionary::Column::Longvarchar ||
+          t == NdbDictionary::Column::Longvarbinary)
+          tableImpl.getColumn(i)->setArrayType(NdbDictionary::Column::ArrayTypeMediumVar);
+      }
+    }
 
     if (dict->createTable(copy) == -1) 
     {
@@ -1141,8 +1156,22 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 	int size = attr_desc->size;
 	int arraySize = attr_desc->arraySize;
 	char * dataPtr = attr_data->string_value;
-	Uint32 length = attr_data->size;
-	
+	Uint32 length = 0;
+       
+        const unsigned char * src = (const unsigned char *)dataPtr;
+        switch(attr_desc->m_column->getType()){
+        case NdbDictionary::Column::Varchar:
+        case NdbDictionary::Column::Varbinary:
+          length = src[0] + 1;
+          break;
+        case NdbDictionary::Column::Longvarchar:
+        case NdbDictionary::Column::Longvarbinary:
+          length = src[0] + (src[1] << 8) + 2;
+          break;
+        default:
+          length = attr_data->size;
+          break;
+        }
 	if (j == 0 && tup.getTable()->have_auto_inc(i))
 	  tup.getTable()->update_max_auto_val(dataPtr,size*arraySize);
 	
@@ -1162,7 +1191,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 	if (ret < 0) {
 	  ndbout_c("Column: %d type %d %d %d %d",i,
 		   attr_desc->m_column->getType(),
-		   size, arraySize, attr_data->size);
+		   size, arraySize, length);
 	  break;
 	}
       }
