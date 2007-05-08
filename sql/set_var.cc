@@ -95,8 +95,12 @@ extern ulong srv_flush_log_at_trx_commit;
 }
 
 /* WITH_NDBCLUSTER_STORAGE_ENGINE */
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 extern ulong ndb_cache_check_time;
+extern char opt_ndb_constrbuf[];
 extern ulong ndb_extra_logging;
+#endif
+
 #ifdef HAVE_NDB_BINLOG
 extern ulong ndb_report_thresh_binlog_epoch_slip;
 extern ulong ndb_report_thresh_binlog_mem_usage;
@@ -528,6 +532,7 @@ sys_var_thd_bool
 sys_engine_condition_pushdown("engine_condition_pushdown",
 			      &SV::engine_condition_pushdown);
 
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 /* ndb thread specific variable settings */
 sys_var_thd_ulong
 sys_ndb_autoincrement_prefetch_sz("ndb_autoincrement_prefetch_sz",
@@ -548,6 +553,8 @@ sys_var_thd_bool
 sys_ndb_use_transactions("ndb_use_transactions", &SV::ndb_use_transactions);
 sys_var_long_ptr
 sys_ndb_cache_check_time("ndb_cache_check_time", &ndb_cache_check_time);
+sys_var_const_str
+sys_ndb_connectstring("ndb_connectstring", opt_ndb_constrbuf);
 sys_var_thd_bool
 sys_ndb_index_stat_enable("ndb_index_stat_enable",
                           &SV::ndb_index_stat_enable);
@@ -561,6 +568,7 @@ sys_var_long_ptr
 sys_ndb_extra_logging("ndb_extra_logging", &ndb_extra_logging);
 sys_var_thd_bool
 sys_ndb_use_copying_alter_table("ndb_use_copying_alter_table", &SV::ndb_use_copying_alter_table);
+#endif //WITH_NDBCLUSTER_STORAGE_ENGINE
 
 /* Time/date/datetime formats */
 
@@ -922,9 +930,11 @@ SHOW_VAR init_vars[]= {
 #ifdef __NT__
   {"named_pipe",	      (char*) &opt_enable_named_pipe,       SHOW_MY_BOOL},
 #endif
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   {sys_ndb_autoincrement_prefetch_sz.name,
    (char*) &sys_ndb_autoincrement_prefetch_sz,                      SHOW_SYS},
   {sys_ndb_cache_check_time.name,(char*) &sys_ndb_cache_check_time, SHOW_SYS},
+  {sys_ndb_connectstring.name,(char*) &sys_ndb_connectstring,       SHOW_SYS},
   {sys_ndb_extra_logging.name,(char*) &sys_ndb_extra_logging,       SHOW_SYS},
   {sys_ndb_force_send.name,   (char*) &sys_ndb_force_send,          SHOW_SYS},
   {sys_ndb_index_stat_cache_entries.name, (char*) &sys_ndb_index_stat_cache_entries, SHOW_SYS},
@@ -940,6 +950,7 @@ SHOW_VAR init_vars[]= {
    (char*) &sys_ndb_use_copying_alter_table,                        SHOW_SYS},
   {sys_ndb_use_exact_count.name,(char*) &sys_ndb_use_exact_count,   SHOW_SYS},
   {sys_ndb_use_transactions.name,(char*) &sys_ndb_use_transactions, SHOW_SYS},
+#endif //WITH_NDBCLUSTER_STORAGE_ENGINE
   {sys_net_buffer_length.name,(char*) &sys_net_buffer_length,       SHOW_SYS},
   {sys_net_read_timeout.name, (char*) &sys_net_read_timeout,        SHOW_SYS},
   {sys_net_retry_count.name,  (char*) &sys_net_retry_count,	    SHOW_SYS},
