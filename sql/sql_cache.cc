@@ -813,6 +813,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     flags.sql_mode= thd->variables.sql_mode;
     flags.max_sort_length= thd->variables.max_sort_length;
     flags.group_concat_max_len= thd->variables.group_concat_max_len;
+    flags.default_week_format= thd->variables.default_week_format;
     flags.lc_time_names= thd->variables.lc_time_names; 
     STRUCT_LOCK(&structure_guard_mutex);
 
@@ -1016,6 +1017,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   flags.sql_mode= thd->variables.sql_mode;
   flags.max_sort_length= thd->variables.max_sort_length;
   flags.group_concat_max_len= thd->variables.group_concat_max_len;
+  flags.default_week_format= thd->variables.default_week_format;
   flags.lc_time_names= thd->variables.lc_time_names; 
   memcpy((void *)(sql + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
 	 &flags, QUERY_CACHE_FLAGS_SIZE);
