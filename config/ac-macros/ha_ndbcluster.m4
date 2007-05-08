@@ -192,7 +192,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
 
   MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
 
-  CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS)"
   if test "$have_ndb_debug" = "default"
   then
     have_ndb_debug=$with_debug
