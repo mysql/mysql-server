@@ -17,30 +17,30 @@
 //  ndbapi_simple_index_ndbrecord.cpp: Using secondary hash indexes in NDB API,
 //  utilising the NdbRecord interface.
 //
-//  Correct output from this program is:
+//  Correct output from this program is (from a two-node cluster):
 //
-//  ATTR1 ATTR2
-//    0     0
-//    1     1
-//    2     2
-//    3     3
-//    4     4
-//    5     5
-//    6     6
-//    7     7
-//    8     8
-//    9     9
-//  ATTR1 ATTR2
-//    0    10
-//    1     1
-//    2    12
-//  Detected that deleted tuple doesn't exist!
-//    4    14
-//    5     5
-//    6    16
-//    7     7
-//    8    18
-//    9     9
+// ATTR1 ATTR2
+//   0     0   (frag=0)
+//   1     1   (frag=1)
+//   2     2   (frag=1)
+//   3     3   (frag=0)
+//   4     4   (frag=1)
+//   5     5   (frag=1)
+//   6     6   (frag=0)
+//   7     7   (frag=0)
+//   8     8   (frag=1)
+//   9     9   (frag=0)
+// ATTR1 ATTR2
+//   0    10
+//   1     1
+//   2    12
+// Detected that deleted tuple doesn't exist!
+//   4    14
+//   5     5
+//   6    16
+//   7     7
+//   8    18
+//   9     9
 
 #include <mysql.h>
 #include <NdbApi.hpp>
@@ -229,12 +229,18 @@ int main(int argc, char** argv)
     if (myOperation == NULL)
       APIERROR(myTransaction->getNdbError());
 
+    /* Demonstrate the posibility to use getValue() for the odd extra read. */
+    Uint32 frag;
+    if (myOperation->getValue(NdbDictionary::Column::FRAGMENT,
+                              (char *)(&frag)) == 0)
+      APIERROR(myOperation->getNdbError());
+
     if (myTransaction->execute( NdbTransaction::Commit,
                                 NdbOperation::AbortOnError ) != -1)
     {
       int value;
       memcpy(&value, &row[1][0], 4);
-      printf(" %2d    %2d\n", value, i);
+      printf(" %2d    %2d   (frag=%u)\n", value, i, frag);
     }
 
     myNdb->closeTransaction(myTransaction);

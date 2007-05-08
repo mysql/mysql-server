@@ -479,7 +479,9 @@ NdbScanOperation::nextResult(const char * & out_row,
   }
 
   if ((res = nextResultNdbRecord(out_row, fetchAllowed, forceSend)) == 0) {
-    if (unlikely(theBlobList != NULL))
+    NdbBlob* tBlob= theBlobList;
+    NdbRecAttr *getvalue_recattr= theReceiver.theFirstRecAttr;
+    if (unlikely(((UintPtr)tBlob | (UintPtr)getvalue_recattr) != 0))
     {
       /* Handle blobs. */
 
@@ -487,30 +489,45 @@ NdbScanOperation::nextResult(const char * & out_row,
       Uint32 idx= m_current_api_receiver;
       assert(idx < m_api_receivers_count);
       const NdbReceiver *receiver= m_api_receivers[m_current_api_receiver];
-      Uint32 infoword;                          // Not used for blobs
-      Uint32 key_length;
-      const char *key_data;
-      res= receiver->get_keyinfo20(infoword, key_length, key_data);
-      if (res == -1)
-        return -1;
-
-      NdbBlob* tBlob= theBlobList;
       Uint32 blob_pos= 0;
-      while (tBlob != 0)
-      {
-        const char *blobhead_data;
-        Uint32 blobhead_size;
-        if (receiver->getBlobHead(blobhead_data, blobhead_size, blob_pos) == -1)
-          return -1;
-        tBlob->receiveHead(blobhead_data, blobhead_size);
 
-        if (tBlob->atNextResultNdbRecord(key_data, key_length*4) == -1)
+      if (tBlob)
+      {
+        Uint32 infoword;                          // Not used for blobs
+        Uint32 key_length;
+        const char *key_data;
+        res= receiver->get_keyinfo20(infoword, key_length, key_data);
+        if (res == -1)
           return -1;
-        tBlob= tBlob->theNext;
+
+        do
+        {
+          const char *blobhead_data;
+          Uint32 blobhead_size;
+          if (receiver->getScanAttrData(blobhead_data, blobhead_size, blob_pos) == -1)
+            return -1;
+          tBlob->receiveHead(blobhead_data, blobhead_size);
+
+          if (tBlob->atNextResultNdbRecord(key_data, key_length*4) == -1)
+            return -1;
+          tBlob= tBlob->theNext;
+        } while (tBlob != 0);
+        /* Flush blob part ops on behalf of user. */
+        if (m_transConnection->executePendingBlobOps() == -1)
+          return -1;
       }
-      /* Flush blob part ops on behalf of user. */
-      if (m_transConnection->executePendingBlobOps() == -1)
-        return -1;
+
+      while (getvalue_recattr != NULL)
+      {
+        const char *attr_data;
+        Uint32 attr_size;
+        if (receiver->getScanAttrData(attr_data, attr_size, blob_pos) == -1)
+          return -1;
+        if (!getvalue_recattr->receive_data((const Uint32 *)attr_data,
+                                            attr_size))
+          return -1;                            // purecov: deadcode
+        getvalue_recattr= getvalue_recattr->next();
+      }
     }
     return 0;
   }
@@ -1057,8 +1074,10 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   if (theStatus == UseNdbRecord)
   {
     Uint32 blobs_size= 0;
-    if (m_attribute_record->flags & NdbRecord::RecHasBlob)
+    if (unlikely(m_attribute_record->flags & NdbRecord::RecHasBlob))
       blobs_size= calcBlobsSize();
+    if (unlikely(theReceiver.theFirstRecAttr != NULL))
+      blobs_size+= calcGetValueSize();
 
     assert(theParallelism > 0);
     Uint32 rowsize= m_receivers[0]->ndbrecord_rowsize(m_attribute_record,
@@ -1079,7 +1098,8 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
     {
       m_receivers[i]->do_setup_ndbrecord(m_attribute_record, batch_size,
                                          key_size, m_read_range_no,
-                                         rowsize, buf);
+                                         rowsize, buf,
+                                         theReceiver.m_record.m_column_count);
       buf+= bufsize;
     }
   }
@@ -1128,6 +1148,24 @@ NdbScanOperation::calcBlobsSize()
   }
   assert(currentBlob == NULL);
 
+  return size;
+}
+
+/*
+  Compute extra space needed to buffer getValue() results in NdbRecord
+  scans.
+ */
+Uint32
+NdbScanOperation::calcGetValueSize()
+{
+  Uint32 size= 0;
+  const NdbRecAttr *ra= theReceiver.theFirstRecAttr;
+  while (ra != NULL)
+  {
+    Uint32 thisSize= ra->getColumn()->getSizeInBytes();
+    size+= (thisSize + (4+3)) & (~3);
+    ra= ra->next();
+  }
   return size;
 }
 
@@ -1498,6 +1536,37 @@ NdbScanOperation::getBlobHandle(Uint32 anAttrId)
 				     m_currentTable->getColumn(anAttrId));
 }
 
+NdbRecAttr*
+NdbScanOperation::getValue_NdbRecord_scan(const NdbColumnImpl* attrInfo,
+                                          char* aValue)
+{
+  int res;
+  Uint32 ah;
+  NdbRecAttr *ra;
+  AttributeHeader::init(&ah, attrInfo->m_attrId, 0);
+  res= insertATTRINFO(ah);
+  if (res==-1)
+    return NULL;
+  theInitialReadSize= theTotalCurrAI_Len - 5;
+  ra= theReceiver.getValue(attrInfo, aValue);
+  if (!ra)
+  {
+    setErrorCodeAbort(4000);
+    return NULL;
+  }
+  theErrorLine++;
+  return ra;
+}
+
+NdbRecAttr*
+NdbScanOperation::getValue_impl(const NdbColumnImpl *attrInfo, char *aValue)
+{
+  if (theStatus == UseNdbRecord)
+    return getValue_NdbRecord_scan(attrInfo, aValue);
+  else
+    return NdbOperation::getValue_impl(attrInfo, aValue);
+}
+
 NdbIndexScanOperation::NdbIndexScanOperation(Ndb* aNdb)
   : NdbScanOperation(aNdb, NdbOperation::OrderedIndexScan)
 {
@@ -1530,6 +1599,9 @@ NdbIndexScanOperation::equal_impl(const NdbColumnImpl* anAttrObject,
 NdbRecAttr*
 NdbIndexScanOperation::getValue_impl(const NdbColumnImpl* attrInfo, 
 				     char* aValue){
+  if (theStatus == UseNdbRecord)
+    return getValue_NdbRecord_scan(attrInfo, aValue);
+
   if(!m_ordered){
     return NdbScanOperation::getValue_impl(attrInfo, aValue);
   }
@@ -1858,7 +1930,7 @@ NdbIndexScanOperation::fix_get_values(){
   /**
    * Loop through all getValues and set buffer pointer to "API" pointer
    */
-  NdbRecAttr * curr = theReceiver.m_recattr.theFirstRecAttr;
+  NdbRecAttr * curr = theReceiver.theFirstRecAttr;
   Uint32 cnt = m_accessTable->getNoOfColumns() - 1;
   assert(cnt <  NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY);
   

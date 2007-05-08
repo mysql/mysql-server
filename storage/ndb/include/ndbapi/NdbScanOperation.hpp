@@ -278,6 +278,8 @@ protected:
                    NdbOperation::Type aType = NdbOperation::TableScan);
   virtual ~NdbScanOperation();
 
+  virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char* aValue = 0);
+  NdbRecAttr* getValue_NdbRecord_scan(const NdbColumnImpl*, char* aValue);
   int nextResultImpl(bool fetchAllowed = true, bool forceSend = false);
   int nextResultNdbRecord(const char * & out_row,
                           bool fetchAllowed, bool forceSend);
@@ -312,6 +314,7 @@ protected:
 
   int getFirstATTRINFOScan();
   Uint32 calcBlobsSize();
+  Uint32 calcGetValueSize();
   int doSendScan(int ProcessorId);
   int prepareSendScan(Uint32 TC_ConnectPtr, Uint64 TransactionId);
   
