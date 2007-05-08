@@ -867,11 +867,13 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     flags.max_sort_length= thd->variables.max_sort_length;
     flags.lc_time_names= thd->variables.lc_time_names;
     flags.group_concat_max_len= thd->variables.group_concat_max_len;
+    flags.div_precision_increment= thd->variables.div_precincrement;
+    flags.default_week_format= thd->variables.default_week_format;
     DBUG_PRINT("qcache", ("\
 long %d, 4.1: %d, bin_proto: %d, more results %d, pkt_nr: %d, \
 CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
-sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
-                          (int)flags.client_long_flag,
+sql mode: 0x%lx, sort len: %lu, conncat len: %lu, div_precision: %lu, \
+def_week_frmt: %lu",                          
                           (int)flags.client_protocol_41,
                           (int)flags.result_in_binary_protocol,
                           (int)flags.more_results_exists,
@@ -883,7 +885,9 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
                           (ulong) flags.time_zone,
                           flags.sql_mode,
                           flags.max_sort_length,
-                          flags.group_concat_max_len));
+                          flags.group_concat_max_len,
+                          flags.div_precision_increment,
+                          flags.default_week_format));
     /*
      Make InnoDB to release the adaptive hash index latch before
      acquiring the query cache mutex.
@@ -1112,11 +1116,14 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   flags.sql_mode= thd->variables.sql_mode;
   flags.max_sort_length= thd->variables.max_sort_length;
   flags.group_concat_max_len= thd->variables.group_concat_max_len;
+  flags.div_precision_increment= thd->variables.div_precincrement;
+  flags.default_week_format= thd->variables.default_week_format;
   flags.lc_time_names= thd->variables.lc_time_names;
   DBUG_PRINT("qcache", ("\
 long %d, 4.1: %d, bin_proto: %d, more results %d, pkt_nr: %d, \
 CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
-sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
+sql mode: 0x%lx, sort len: %lu, conncat len: %lu, div_precision: %lu, \
+def_week_frmt: %lu",                          
                           (int)flags.client_long_flag,
                           (int)flags.client_protocol_41,
                           (int)flags.result_in_binary_protocol,
@@ -1129,7 +1136,9 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
                           (ulong) flags.time_zone,
                           flags.sql_mode,
                           flags.max_sort_length,
-                          flags.group_concat_max_len));
+                          flags.group_concat_max_len,
+                          flags.div_precision_increment,
+                          flags.default_week_format));
   memcpy((void *)(sql + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
 	 &flags, QUERY_CACHE_FLAGS_SIZE);
   query_block = (Query_cache_block *)  hash_search(&queries, (byte*) sql,
