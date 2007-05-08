@@ -2999,25 +2999,50 @@ static bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data)
   char buf[] = "NodeIdX";  buf[6] = data[sizeof("NodeI")];
   char sysbuf[] = "SystemX";  sysbuf[6] = data[sizeof("NodeI")];
   const char* nodeId;
-  require(ctx.m_currentSection->get(buf, &nodeId));
+  if(!ctx.m_currentSection->get(buf, &nodeId))
+  {
+    ctx.reportError("Mandatory parameter %s missing from section"
+                    "[%s] starting at line: %d",
+                    buf, ctx.fname, ctx.m_sectionLineno);
+    return false;
+  }
 
   char tmpLine[MAX_LINE_LENGTH];
   strncpy(tmpLine, nodeId, MAX_LINE_LENGTH);
   char* token1 = strtok(tmpLine, ".");
   char* token2 = strtok(NULL, ".");
   Uint32 id;
-
+  
+  if(!token1)
+  {
+    ctx.reportError("Value for mandatory parameter %s missing from section "
+                    "[%s] starting at line: %d",
+                    buf, ctx.fname, ctx.m_sectionLineno);
+    return false;
+  }
   if (token2 == NULL) {                // Only a number given
     errno = 0;
     char* p;
     id = strtol(token1, &p, 10);
-    if (errno != 0) warning("STRTOK1", nodeId);
+    if (errno != 0 || id <= 0x0  || id > MAX_NODES)
+    {
+      ctx.reportError("Illegal value for mandatory parameter %s from section "
+                    "[%s] starting at line: %d",
+                    buf, ctx.fname, ctx.m_sectionLineno);
+      return false;
+    }
     require(ctx.m_currentSection->put(buf, id, true));
   } else {                             // A pair given (e.g. "uppsala.32")
     errno = 0;
     char* p;
     id = strtol(token2, &p, 10);
-    if (errno != 0) warning("STRTOK2", nodeId);
+    if (errno != 0 || id <= 0x0  || id > MAX_NODES)
+    {
+      ctx.reportError("Illegal value for mandatory parameter %s from section "
+                    "[%s] starting at line: %d",
+                    buf, ctx.fname, ctx.m_sectionLineno);
+      return false;
+    }
     require(ctx.m_currentSection->put(buf, id, true));
     require(ctx.m_currentSection->put(sysbuf, token1));
   }
