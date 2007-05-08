@@ -2371,7 +2371,7 @@ longlong Item_func_min_max::val_int()
   longlong value=0;
   if (compare_as_dates)
   {
-    ulonglong result;
+    ulonglong result= 0;
     (void)cmp_datetimes(&result);
     return (longlong)result;
   }
@@ -2400,7 +2400,7 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
 
   if (compare_as_dates)
   {
-    ulonglong value;
+    ulonglong value= 0;
     (void)cmp_datetimes(&value);
     ulonglong2decimal(value, dec);
     return dec;
