@@ -244,6 +244,10 @@ cmd: testBasic
 args: -n Bug28073
 
 max-time: 500
+cmd: testBasic
+args: -n Bug20535
+
+max-time: 500
 cmd: testIndex
 args: -n Bug25059 -r 3000 T1
 
