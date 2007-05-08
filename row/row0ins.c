@@ -1336,11 +1336,9 @@ run_again:
 	/* Scan index records and check if there is a matching record */
 
 	for (;;) {
-		page_t*	page;
 		rec = btr_pcur_get_rec(&pcur);
-		page = buf_frame_align(rec);
 
-		if (rec == page_get_infimum_rec(page)) {
+		if (page_rec_is_infimum(rec)) {
 
 			goto next_rec;
 		}
@@ -1348,7 +1346,7 @@ run_again:
 		offsets = rec_get_offsets(rec, check_index,
 					  offsets, ULINT_UNDEFINED, &heap);
 
-		if (rec == page_get_supremum_rec(page)) {
+		if (page_rec_is_supremum(rec)) {
 
 			err = row_ins_set_shared_rec_lock(
 				LOCK_ORDINARY, rec, check_index, offsets, thr);
@@ -1689,7 +1687,7 @@ row_ins_scan_sec_index_for_duplicate(
 	for (;;) {
 		rec = btr_pcur_get_rec(&pcur);
 
-		if (rec == page_get_infimum_rec(buf_frame_align(rec))) {
+		if (page_rec_is_infimum(rec)) {
 
 			goto next_rec;
 		}
