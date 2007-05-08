@@ -891,3 +891,118 @@ test
 select ExtractValue('<a><self>test</self></a>', '/a/self');
 ExtractValue('<a><self>test</self></a>', '/a/self')
 test
+set @i=1;
+select ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]');
+ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]')
+b1
+set @i=2;
+select ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]');
+ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]')
+b2
+set @i=NULL;
+select ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]');
+ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]')
+
+CREATE PROCEDURE spxml(xml VARCHAR(128))
+BEGIN
+DECLARE c INT;
+DECLARE i INT DEFAULT 1;
+SET c= ExtractValue(xml,'count(/a/b)');
+SET @i= c;
+WHILE i <= c DO
+BEGIN
+SELECT i, @i, ExtractValue(xml,'/a/b[$i]'), ExtractValue(xml,'/a/b[$@i]');
+SET i= i + 1;
+SET @i= @i - 1;
+END;
+END WHILE;
+END|
+call spxml('<a><b>b1</b><b>b2</b><b>b3</b></a>');
+i	@i	ExtractValue(xml,'/a/b[$i]')	ExtractValue(xml,'/a/b[$@i]')
+1	3	b1	b3
+i	@i	ExtractValue(xml,'/a/b[$i]')	ExtractValue(xml,'/a/b[$@i]')
+2	2	b2	b2
+i	@i	ExtractValue(xml,'/a/b[$i]')	ExtractValue(xml,'/a/b[$@i]')
+3	1	b3	b1
+drop procedure spxml;
+Multiple matches, but no index specification
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b');
+ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b')
+b1 b2
+No matches
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/c');
+ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/c')
+
+Index out of range
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[-1]');
+ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[-1]')
+
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[10]');
+ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[10]')
+
+With string-to-number conversion
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["1"]');
+ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["1"]')
+b1
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["1 and string"]');
+ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["1 and string"]')
+b1
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '1 and string"]'
+Warning	1292	Truncated incorrect INTEGER value: '1 and string"]'
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["string and 1"]');
+ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["string and 1"]')
+
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'string and 1"]'
+Warning	1292	Truncated incorrect INTEGER value: 'string and 1"]'
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["string"]');
+ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["string"]')
+
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'string"]'
+Warning	1292	Truncated incorrect INTEGER value: 'string"]'
+String-to-number conversion from a user variable
+SET @i='1';
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]');
+ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]')
+b1
+SET @i='1 and string';
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]');
+ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]')
+b1
+SET @i='string and 1';
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]');
+ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]')
+
+SET @i='string';
+SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]');
+ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]')
+
+String-to-number conversion with a CHAR SP variable
+CREATE PROCEDURE spxml(xml VARCHAR(128), i CHAR(16))
+BEGIN
+SELECT ExtractValue(xml,'/a/b[$i]');
+END|
+CALL spxml('<a><b>b1</b><b>b2</b></a>', '1');
+ExtractValue(xml,'/a/b[$i]')
+b1
+CALL spxml('<a><b>b1</b><b>b2</b></a>', '1 and string');
+ExtractValue(xml,'/a/b[$i]')
+b1
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '1 and string    '
+Warning	1292	Truncated incorrect INTEGER value: '1 and string    '
+CALL spxml('<a><b>b1</b><b>b2</b></a>', 'string and 1');
+ExtractValue(xml,'/a/b[$i]')
+
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'string and 1    '
+Warning	1292	Truncated incorrect INTEGER value: 'string and 1    '
+CALL spxml('<a><b>b1</b><b>b2</b></a>', 'string');
+ExtractValue(xml,'/a/b[$i]')
+
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'string          '
+Warning	1292	Truncated incorrect INTEGER value: 'string          '
+DROP PROCEDURE spxml;
