@@ -1200,6 +1200,11 @@ static bool sys_update_ftb_syntax(THD *thd, set_var * var)
 {
   strmake(ft_boolean_syntax, var->value->str_value.c_ptr(),
 	  sizeof(ft_boolean_syntax)-1);
+
+#ifdef HAVE_QUERY_CACHE
+  query_cache.flush();
+#endif /* HAVE_QUERY_CACHE */
+
   return 0;
 }
 
