@@ -86,9 +86,9 @@ private:
   */
   void do_setup_ndbrecord(const NdbRecord *ndb_record, Uint32 batch_size,
                           Uint32 key_size, Uint32 read_range_no,
-                          Uint32 rowsize, char *buf);
+                          Uint32 rowsize, char *buf, Uint32 column_count);
   Uint32 ndbrecord_rowsize(const NdbRecord *ndb_record, Uint32 key_size,
-                           Uint32 read_range_no, Uint32 blobs_size);
+                           Uint32 read_range_no, Uint32 extra_size);
 
   void receiveBlobHead(const NdbRecord *record, Uint32 record_pos,
                        const Uint32 *src, Uint32 byteSize,
@@ -99,20 +99,19 @@ private:
   int execSCANOPCONF(Uint32 tcPtrI, Uint32 len, Uint32 rows);
 
   /*
-    We need to keep different state for old NdbRecAttr based operation and for
+    We keep different state for old NdbRecAttr based operation and for
     new NdbRecord style operation.
   */
   bool m_using_ndb_record;
   union {
     /* members used for NdbRecAttr operation. */
     struct {
-      class NdbRecAttr* theFirstRecAttr;
-      class NdbRecAttr* theCurrentRecAttr;
       Uint32 m_hidden_count;
     } m_recattr;
 
     /* members used for NdbRecord operation. */
     struct {
+      Uint32 m_column_count;
       const NdbRecord *m_ndb_record;
       char *m_row;
       /* Block of memory used to receive all rows in a batch during scan. */
@@ -131,6 +130,9 @@ private:
       bool m_read_range_no;
     } m_record;
   };
+  class NdbRecAttr* theFirstRecAttr;
+  class NdbRecAttr* theCurrentRecAttr;
+
   /*
     m_rows is only used in NdbRecAttr mode, but is kept during NdbRecord mode
     operation to avoid the need for re-allocation.
@@ -192,7 +194,7 @@ private:
   /* get_keyinfo20)_ returns keyinfo from KEYINFO20 signal. */
   int get_keyinfo20(Uint32 & scaninfo, Uint32 & length,
                     const char * & data_ptr) const;
-  int getBlobHead(const char * & data, Uint32 & size, Uint32 & pos) const;
+  int getScanAttrData(const char * & data, Uint32 & size, Uint32 & pos) const;
 };
 
 #ifdef NDB_NO_DROPPED_SIGNAL
@@ -223,10 +225,7 @@ NdbReceiver::prepareSend(){
     if (m_type==NDB_SCANRECEIVER)
       m_record.m_row= m_record.m_row_buffer;
   }
-  else
-  {
-    m_recattr.theCurrentRecAttr = m_recattr.theFirstRecAttr;
-  }
+  theCurrentRecAttr = theFirstRecAttr;
 }
 
 inline

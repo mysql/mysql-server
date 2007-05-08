@@ -793,6 +793,7 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
   }
   else if (tOpType == ReadRequest || tOpType == ReadExclusive)
   {
+    Uint32 column_count= 0;
     for (Uint32 i= 0; i<attr_rec->noOfColumns; i++)
     {
       const NdbRecord::Attr *col;
@@ -818,6 +819,20 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
                                        &attrInfoPtr, &remain);
       if(res)
         return res;
+      column_count++;
+    }
+    theReceiver.m_record.m_column_count= column_count;
+
+    /* Handle any additional getValue(). */
+    const NdbRecAttr *ra= theReceiver.theFirstRecAttr;
+    while (ra)
+    {
+      res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
+                                       ra->attrId(), 0,
+                                       &attrInfoPtr, &remain);
+      if(res)
+        return res;
+      ra= ra->next();
     }
   }
   Uint32 signalLength= hdrSize +
