@@ -1071,6 +1071,7 @@ libmysqld/ha_myisam.cc
 libmysqld/ha_myisammrg.cc
 libmysqld/ha_ndbcluster.cc
 libmysqld/ha_ndbcluster_binlog.cc
+libmysqld/ha_ndbcluster_cond.cc
 libmysqld/ha_partition.cc
 libmysqld/ha_tina.cc
 libmysqld/handler.cc
