@@ -1010,6 +1010,7 @@ protected:
 
   virtual int equal_impl(const NdbColumnImpl*,const char* aValue);
   virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char* aValue = 0);
+  NdbRecAttr* getValue_NdbRecord(const NdbColumnImpl* tAttrInfo, char* aValue);
   int setValue(const NdbColumnImpl* anAttrObject, const char* aValue);
   NdbBlob* getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* anAttrObject);
   int incValue(const NdbColumnImpl* anAttrObject, Uint32 aValue);
@@ -1262,7 +1263,7 @@ inline
 const NdbRecAttr*
 NdbOperation::getFirstRecAttr() const 
 {
-  return theReceiver.m_recattr.theFirstRecAttr;
+  return theReceiver.theFirstRecAttr;
 }
 
 /******************************************************************************

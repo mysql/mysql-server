@@ -2312,6 +2312,7 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
   NdbIndexScanOperation *op_idx;
   NdbScanOperation *op;
   NdbBlob *lastBlob;
+  Uint32 column_count;
   int res;
 
   op_idx= getNdbScanOperation(result_record->table);
@@ -2329,6 +2330,7 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
   result_record->copyMask(op->m_read_mask, result_mask);
 
   lastBlob= NULL;
+  column_count= 0;
   for (Uint32 i= 0; i<result_record->noOfColumns; i++)
   {
     const NdbRecord::Attr *col;
@@ -2361,7 +2363,9 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
 
     if (col->flags & NdbRecord::IsDisk)
       op->m_no_disk_flag= false;
+    column_count++;
   }
+  op->theReceiver.m_record.m_column_count= column_count;
 
   /*
     We set theStatus=UseNdbRecord to allow the addition of an interpreted

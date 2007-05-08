@@ -73,6 +73,7 @@ class NdbRecAttr
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class NdbOperation;
+  friend class NdbScanOperation;
   friend class NdbIndexScanOperation;
   friend class NdbEventOperationImpl;
   friend class NdbReceiver;
