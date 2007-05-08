@@ -806,6 +806,10 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
                             m_read_mask, attrId))
         continue;
 
+      /* Blob reads are handled with a getValue() in NdbBlob.cpp. */
+      if (unlikely(col->flags & NdbRecord::IsBlob))
+        continue;
+
       if (col->flags & NdbRecord::IsDisk)
         no_disk_flag= 0;
 

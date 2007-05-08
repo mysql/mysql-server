@@ -487,40 +487,6 @@ static void setRecToNULL(const NdbRecord::Attr *col,
   row[col->nullbit_byte_offset]|= 1 << col->nullbit_bit_in_byte;
 }
 
-void
-NdbReceiver::receiveBlobHead(const NdbRecord *record, Uint32 record_pos,
-                             const Uint32 *src, Uint32 byteSize,
-                             Uint32 & blob_pos)
-{
-  /*
-    Blob head. We do not have room for this in the row, instead we pass
-    it to the blob handle, the pointer to which is stored in the row.
-  */
-  NdbBlob *bh;
-  /*
-    For scans, we store blob heads after the row, to be handed to the
-    NdbBlob object in NdbScanOperation::nextResult().
-  */
-  const NdbRecord::Attr *col= &record->columns[record_pos];
-  if (m_type == NDB_SCANRECEIVER)
-  {
-    blob_pos+= sizeof(Uint32);
-    memcpy(m_record.m_row + m_record.m_row_offset - blob_pos,
-           &byteSize, sizeof(Uint32));
-    if (byteSize > 0)
-    {
-      blob_pos+= byteSize;
-      memcpy(m_record.m_row + m_record.m_row_offset - blob_pos,
-           src, byteSize);
-    }
-  }
-  else
-  {
-    memcpy(&bh, &m_record.m_row[col->offset], sizeof(bh));
-    bh->receiveHead((const char *)src, byteSize);
-  }
-}
-
 int
 NdbReceiver::getScanAttrData(const char * & data, Uint32 & size, Uint32 & pos) const
 {
@@ -617,8 +583,13 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
       /* We should never get back an attribute not originally requested. */
       assert(rec_pos < rec->noOfColumns && col->attrId == attrId);
 
-      /* The fast path is for a plain offset/length column (not blob eg). */
-      if (likely(!(col->flags & (NdbRecord::IsBlob|NdbRecord::IsMysqldBitfield))))
+      /* Blobs heads are read with getValue(), not using NdbRecord. */
+      assert((col->flags & NdbRecord::IsBlob) == 0);
+      /*
+        The fast path is for a plain offset/length column (not
+        mysqld-format bit field).
+      */
+      if (likely(!(col->flags & NdbRecord::IsMysqldBitfield)))
       {
         if (attrSize == 0)
         {
@@ -642,30 +613,19 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
       }
       else
       {
-        if (likely((col->flags & NdbRecord::IsMysqldBitfield)))
+        /* Mysqld format bitfield. */
+        if (attrSize == 0)
         {
-          /* Mysqld format bitfield. */
-          if (attrSize == 0)
-          {
-            setRecToNULL(col, m_record.m_row);
-          }
-          else
-          {
-            assert(attrSize == col->maxSize);
-            Uint32 sizeInWords= (attrSize+3)>>2;
-            if (col->flags & NdbRecord::IsNullable)
-              m_record.m_row[col->nullbit_byte_offset]&=
-                ~(1 << col->nullbit_bit_in_byte);
-            col->put_mysqld_bitfield(m_record.m_row, (const char *)aDataPtr);
-            aDataPtr+= sizeInWords;
-            aLength-= sizeInWords;
-          }
+          setRecToNULL(col, m_record.m_row);
         }
         else
         {
-          /* Blob head. */
-          receiveBlobHead(rec, rec_pos, aDataPtr, attrSize, save_pos);
+          assert(attrSize == col->maxSize);
           Uint32 sizeInWords= (attrSize+3)>>2;
+          if (col->flags & NdbRecord::IsNullable)
+            m_record.m_row[col->nullbit_byte_offset]&=
+              ~(1 << col->nullbit_bit_in_byte);
+          col->put_mysqld_bitfield(m_record.m_row, (const char *)aDataPtr);
           aDataPtr+= sizeInWords;
           aLength-= sizeInWords;
         }

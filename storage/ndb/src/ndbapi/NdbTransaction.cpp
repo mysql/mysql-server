@@ -2314,6 +2314,7 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
   NdbBlob *lastBlob;
   Uint32 column_count;
   int res;
+  bool haveBlob= false;
 
   op_idx= getNdbScanOperation(result_record->table);
   if (op_idx==NULL)
@@ -2346,14 +2347,12 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
                           op->m_read_mask, attrId))
       continue;
 
-    /* Create blob handle for any blob column. */
-    if (col->flags & NdbRecord::IsBlob)
+    /* Blob reads are handled with a getValue() in NdbBlob.cpp. */
+    if (unlikely(col->flags & NdbRecord::IsBlob))
     {
-      const NdbColumnImpl *column= result_record->base_table->getColumn(attrId);
-      NdbBlob *blob= op->linkInBlobHandle(this, column, lastBlob);
-      if (blob == NULL)
-        goto giveup_err;
       op->m_keyInfo= 1;                         // Need keyinfo for blob scan
+      haveBlob= true;
+      continue;
     }
 
     AttributeHeader::init(&ah, attrId, 0);
@@ -2374,6 +2373,12 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
   op->theInitialReadSize= op->theTotalCurrAI_Len - 5;
   op->theStatus= NdbOperation::UseNdbRecord;
   op->m_attribute_record= result_record;
+
+  if (unlikely(haveBlob))
+  {
+    if (op->getBlobHandlesNdbRecord(this) == -1)
+      goto giveup_err;
+  }
 
   return op_idx;
 
@@ -2483,6 +2488,7 @@ NdbTransaction::scanIndex(
   int res;
   Uint32 i,j;
   Uint32 previous_range_no;
+  bool haveBlob= false;
 
   if (!(key_record->flags & NdbRecord::RecIsKeyRecord))
   {
@@ -2548,13 +2554,11 @@ NdbTransaction::scanIndex(
     }
 
     /* Create blob handle for any blob column. */
-    if (col->flags & NdbRecord::IsBlob)
+    if (unlikely(col->flags & NdbRecord::IsBlob))
     {
-      const NdbColumnImpl *column= key_record->base_table->getColumn(attrId);
-      NdbBlob *blob= op->linkInBlobHandle(this, column, lastBlob);
-      if (blob == NULL)
-        goto giveup_err;
       op->m_keyInfo= 1;                         // Need keyinfo for blob scan
+      haveBlob= true;
+      continue;
     }
 
     AttributeHeader::init(&ah, attrId, 0);
@@ -2674,6 +2678,12 @@ NdbTransaction::scanIndex(
                                       distkey_min))
         set_distribution_key_from_range(op, key_record, bound.low_key, distkey_min);
     }
+  }
+
+  if (unlikely(haveBlob))
+  {
+    if (op->getBlobHandlesNdbRecord(this) == -1)
+      goto giveup_err;
   }
 
   return op;
