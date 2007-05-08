@@ -985,7 +985,7 @@ select *, MATCH(a,b) AGAINST("+called +collections" IN BOOLEAN MODE) as x from t
 # be sure not to cause dead lock if the query cache is flushed
 # while inserting a query in the query cache.
 delimiter |;
-create function change_global() returns integer
+create function change_global() returns integer deterministic
 begin
   set global ft_boolean_syntax='+ -><()~*:""&|';
   return 1;
