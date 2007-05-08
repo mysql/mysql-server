@@ -247,3 +247,20 @@ REPLACE INTO t1 VALUES (0,"test1",null);
 SELECT id, f1 FROM t1;
 DROP TABLE t1;
 SET SQL_MODE='';
+
+#
+# Bug#27954: multi-row INSERT ... ON DUPLICATE with duplicated
+# row at the first place into table with AUTO_INCREMENT and
+# additional UNIQUE key.
+#
+CREATE TABLE t1 (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  c1 CHAR(1) UNIQUE KEY,
+  cnt INT DEFAULT 1
+);
+INSERT INTO t1 (c1) VALUES ('A'), ('B'), ('C');
+SELECT * FROM t1;
+INSERT  INTO t1 (c1) VALUES ('A'), ('X'), ('Y'), ('Z')
+  ON DUPLICATE KEY UPDATE cnt=cnt+1;
+SELECT * FROM t1;
+DROP TABLE t1;

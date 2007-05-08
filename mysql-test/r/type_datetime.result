@@ -264,6 +264,52 @@ f2
 SELECT 1 from dual where NOW() BETWEEN CURRENT_DATE() - INTERVAL 1 DAY AND CURRENT_DATE();
 1
 drop table t1;
+create table t1 (f1 date);
+insert into t1 values('01-01-01'),('01-01-02'),('01-01-03');
+select * from t1 where f1 in ('01-01-01','2001-01-02','2001-01-03 00:00:00');
+f1
+2001-01-01
+2001-01-02
+2001-01-03
+create table t2(f2 datetime);
+insert into t2 values('01-01-01 00:00:00'),('01-02-03 12:34:56'),('02-04-06 11:22:33');
+select * from t2 where f2 in ('01-01-01','01-02-03 12:34:56','01-02-03');
+f2
+2001-01-01 00:00:00
+2001-02-03 12:34:56
+select * from t1,t2 where '01-01-02' in (f1, cast(f2 as date));
+f1	f2
+2001-01-02	2001-01-01 00:00:00
+2001-01-02	2001-02-03 12:34:56
+2001-01-02	2002-04-06 11:22:33
+select * from t1,t2 where '01-01-01' in (f1, '01-02-03');
+f1	f2
+2001-01-01	2001-01-01 00:00:00
+2001-01-01	2001-02-03 12:34:56
+2001-01-01	2002-04-06 11:22:33
+select * from t1,t2 where if(1,'01-02-03 12:34:56','') in (f1, f2);
+f1	f2
+2001-01-01	2001-02-03 12:34:56
+2001-01-02	2001-02-03 12:34:56
+2001-01-03	2001-02-03 12:34:56
+create table t3(f3 varchar(20));
+insert into t3 select * from t2;
+select * from t2,t3 where f2 in (f3,'03-04-05');
+f2	f3
+2001-01-01 00:00:00	2001-01-01 00:00:00
+2001-02-03 12:34:56	2001-02-03 12:34:56
+2002-04-06 11:22:33	2002-04-06 11:22:33
+select f1,f2,f3 from t1,t2,t3 where (f1,'1') in ((f2,'1'),(f3,'1'));
+f1	f2	f3
+2001-01-01	2001-01-01 00:00:00	2001-01-01 00:00:00
+2001-01-01	2001-02-03 12:34:56	2001-01-01 00:00:00
+2001-01-01	2002-04-06 11:22:33	2001-01-01 00:00:00
+2001-01-01	2001-01-01 00:00:00	2001-02-03 12:34:56
+2001-01-01	2001-01-01 00:00:00	2002-04-06 11:22:33
+select f1 from t1 where ('1',f1) in (('1','01-01-01'),('1','2001-1-1 0:0:0'),('1','02-02-02'));
+f1
+2001-01-01
+drop table t1,t2,t3;
 select least(cast('01-01-01' as date), '01-01-02');
 least(cast('01-01-01' as date), '01-01-02')
 2001-01-01
@@ -279,6 +325,12 @@ greatest(cast('01-01-01' as date), '01-01-02') + 0
 select least(cast('01-01-01' as datetime), '01-01-02') + 0;
 least(cast('01-01-01' as datetime), '01-01-02') + 0
 20010101000000
+select cast(least(cast('01-01-01' as datetime), '01-01-02') as signed);
+cast(least(cast('01-01-01' as datetime), '01-01-02') as signed)
+20010101000000
+select cast(least(cast('01-01-01' as datetime), '01-01-02') as decimal);
+cast(least(cast('01-01-01' as datetime), '01-01-02') as decimal)
+20010101000000.00
 DROP PROCEDURE IF EXISTS test27759 ;
 CREATE PROCEDURE test27759()
 BEGIN

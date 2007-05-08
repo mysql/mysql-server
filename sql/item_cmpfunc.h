@@ -798,6 +798,7 @@ public:
 
 class in_longlong :public in_vector
 {
+protected:
   /*
     Here we declare a temporary variable (tmp) of the same type as the
     elements of this vector. tmp is used in finding if a given value is in 
@@ -829,6 +830,30 @@ public:
   }
   Item_result result_type() { return INT_RESULT; }
 
+  friend int cmp_longlong(void *cmp_arg, packed_longlong *a,packed_longlong *b);
+};
+
+
+/*
+  Class to represent a vector of constant DATE/DATETIME values.
+  Values are obtained with help of the get_datetime_value() function.
+  If the left item is a constant one then its value is cached in the
+  lval_cache variable.
+*/
+class in_datetime :public in_longlong
+{
+public:
+  THD *thd;
+  /* An item used to issue warnings. */
+  Item *warn_item;
+  /* Cache for the left item. */
+  Item *lval_cache;
+
+  in_datetime(Item *warn_item_arg, uint elements)
+    :in_longlong(elements), thd(current_thd), warn_item(warn_item_arg),
+     lval_cache(0) {};
+  void set(uint pos,Item *item);
+  byte *get_value(Item *item);
   friend int cmp_longlong(void *cmp_arg, packed_longlong *a,packed_longlong *b);
 };
 
@@ -964,6 +989,30 @@ public:
   cmp_item *make_same();
 };
 
+/*
+  Compare items in the DATETIME context.
+  Values are obtained with help of the get_datetime_value() function.
+  If the left item is a constant one then its value is cached in the
+  lval_cache variable.
+*/
+class cmp_item_datetime :public cmp_item
+{
+  ulonglong value;
+public:
+  THD *thd;
+  /* Item used for issuing warnings. */
+  Item *warn_item;
+  /* Cache for the left item. */
+  Item *lval_cache;
+
+  cmp_item_datetime(Item *warn_item_arg)
+    :thd(current_thd), warn_item(warn_item_arg), lval_cache(0) {}
+  void store_value(Item *item);
+  int cmp(Item *arg);
+  int compare(cmp_item *ci);
+  cmp_item *make_same();
+};
+
 class cmp_item_real :public cmp_item
 {
   double value;
@@ -997,32 +1046,6 @@ public:
   cmp_item *make_same();
 };
 
-
-class cmp_item_row :public cmp_item
-{
-  cmp_item **comparators;
-  uint n;
-public:
-  cmp_item_row(): comparators(0), n(0) {}
-  ~cmp_item_row();
-  void store_value(Item *item);
-  int cmp(Item *arg);
-  int compare(cmp_item *arg);
-  cmp_item *make_same();
-  void store_value_by_template(cmp_item *tmpl, Item *);
-};
-
-
-class in_row :public in_vector
-{
-  cmp_item_row tmp;
-public:
-  in_row(uint elements, Item *);
-  ~in_row();
-  void set(uint pos,Item *item);
-  byte *get_value(Item *item);
-  Item_result result_type() { return ROW_RESULT; }
-};
 
 /* 
    cmp_item for optimized IN with row (right part string, which never
@@ -1200,6 +1223,63 @@ public:
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+};
+
+class cmp_item_row :public cmp_item
+{
+  cmp_item **comparators;
+  uint n;
+public:
+  cmp_item_row(): comparators(0), n(0) {}
+  ~cmp_item_row();
+  void store_value(Item *item);
+  inline void alloc_comparators();
+  int cmp(Item *arg);
+  int compare(cmp_item *arg);
+  cmp_item *make_same();
+  void store_value_by_template(cmp_item *tmpl, Item *);
+  friend void Item_func_in::fix_length_and_dec();
+};
+
+
+class in_row :public in_vector
+{
+  cmp_item_row tmp;
+public:
+  in_row(uint elements, Item *);
+  ~in_row();
+  void set(uint pos,Item *item);
+  byte *get_value(Item *item);
+  friend void Item_func_in::fix_length_and_dec();
+  Item_resul result_type() { return ROW_RESULT; };
+};
+
+class cmp_item_row :public cmp_item
+{
+  cmp_item **comparators;
+  uint n;
+public:
+  cmp_item_row(): comparators(0), n(0) {}
+  ~cmp_item_row();
+  void store_value(Item *item);
+  inline void alloc_comparators();
+  int cmp(Item *arg);
+  int compare(cmp_item *arg);
+  cmp_item *make_same();
+  void store_value_by_template(cmp_item *tmpl, Item *);
+  friend void Item_func_in::fix_length_and_dec();
+};
+
+
+class in_row :public in_vector
+{
+  cmp_item_row tmp;
+public:
+  in_row(uint elements, Item *);
+  ~in_row();
+  void set(uint pos,Item *item);
+  byte *get_value(Item *item);
+  friend void Item_func_in::fix_length_and_dec();
 };
 
 /* Functions used by where clause */

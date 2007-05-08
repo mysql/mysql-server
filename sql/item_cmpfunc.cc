@@ -2830,7 +2830,6 @@ in_row::in_row(uint elements, Item * item)
   base= (char*) new cmp_item_row[count= elements];
   size= sizeof(cmp_item_row);
   compare= (qsort2_cmp) cmp_row;
-  tmp.store_value(item);
   /*
     We need to reset these as otherwise we will call sort() with
     uninitialized (even if not used) elements
@@ -2879,6 +2878,27 @@ byte *in_longlong::get_value(Item *item)
   if (item->null_value)
     return 0;
   tmp.unsigned_flag= item->unsigned_flag;
+  return (byte*) &tmp;
+}
+
+void in_datetime::set(uint pos,Item *item)
+{
+  Item **tmp= &item;
+  bool is_null;
+  struct packed_longlong *buff= &((packed_longlong*) base)[pos];
+
+  buff->val= get_datetime_value(thd, &tmp, 0, warn_item, &is_null);
+  buff->unsigned_flag= 1L;
+}
+
+byte *in_datetime::get_value(Item *item)
+{
+  bool is_null;
+  Item **tmp_item= lval_cache ? &lval_cache : &item;
+  tmp.val= get_datetime_value(thd, &tmp_item, &lval_cache, warn_item, &is_null);
+  if (item->null_value)
+    return 0;
+  tmp.unsigned_flag= 1L;
   return (byte*) &tmp;
 }
 
@@ -2986,12 +3006,18 @@ cmp_item_row::~cmp_item_row()
 }
 
 
+void cmp_item_row::alloc_comparators()
+{
+  if (!comparators)
+    comparators= (cmp_item **) current_thd->calloc(sizeof(cmp_item *)*n);
+}
+
+
 void cmp_item_row::store_value(Item *item)
 {
   DBUG_ENTER("cmp_item_row::store_value");
   n= item->cols();
-  if (!comparators)
-    comparators= (cmp_item **) current_thd->calloc(sizeof(cmp_item *)*n);
+  alloc_comparators();
   if (comparators)
   {
     item->bring_value();
@@ -3103,6 +3129,36 @@ cmp_item* cmp_item_decimal::make_same()
 }
 
 
+void cmp_item_datetime::store_value(Item *item)
+{
+  bool is_null;
+  Item **tmp_item= lval_cache ? &lval_cache : &item;
+  value= get_datetime_value(thd, &tmp_item, &lval_cache, warn_item, &is_null);
+}
+
+
+int cmp_item_datetime::cmp(Item *arg)
+{
+  bool is_null;
+  Item **tmp_item= &arg;
+  return value !=
+    get_datetime_value(thd, &tmp_item, 0, warn_item, &is_null);
+}
+
+
+int cmp_item_datetime::compare(cmp_item *ci)
+{
+  cmp_item_datetime *l_cmp= (cmp_item_datetime *)ci;
+  return (value < l_cmp->value) ? -1 : ((value == l_cmp->value) ? 0 : 1);
+}
+
+
+cmp_item *cmp_item_datetime::make_same()
+{
+  return new cmp_item_datetime(warn_item);
+}
+
+
 bool Item_func_in::nulls_in_row()
 {
   Item **arg,**arg_end;
@@ -3178,19 +3234,98 @@ void Item_func_in::fix_length_and_dec()
   Item **arg, **arg_end;
   bool const_itm= 1;
   THD *thd= current_thd;
-  uint found_types= 0;
-  uint type_cnt= 0, i;
-  Item_result cmp_type= STRING_RESULT;
-  left_result_type= args[0]->result_type();
-  if (!(found_types= collect_cmp_types(args, arg_count)))
-    return;
-  
+  bool datetime_found= FALSE;
+  /* TRUE <=> arguments values will be compared as DATETIMEs. */
+  bool compare_as_datetime= FALSE;
+  Item *date_arg= 0;
+
   for (arg= args + 1, arg_end= args + arg_count; arg != arg_end ; arg++)
   {
     if (!arg[0]->const_item())
     {
       const_itm= 0;
       break;
+    }
+  }
+  /*
+    When comparing rows create the row comparator object beforehand to ease
+    the DATETIME comparison detection procedure.
+  */
+  if (cmp_type == ROW_RESULT)
+  {
+    cmp_item_row *cmp= 0;
+    if (const_itm && !nulls_in_row())
+    {
+      array= new in_row(arg_count-1, 0);
+      cmp= &((in_row*)array)->tmp;
+    }
+    else
+    {
+      if (!(cmp= new cmp_item_row))
+        return;
+      in_item= cmp;
+    }
+    cmp->n= args[0]->cols();
+    cmp->alloc_comparators();
+  }
+  /* All DATE/DATETIME fields/functions has the STRING result type. */
+  if (cmp_type == STRING_RESULT || cmp_type == ROW_RESULT)
+  {
+    uint col, cols= args[0]->cols();
+
+    for (col= 0; col < cols; col++)
+    {
+      bool skip_column= FALSE;
+      /*
+        Check that all items to be compared has the STRING result type and at
+        least one of them is a DATE/DATETIME item.
+      */
+      for (arg= args, arg_end= args + arg_count; arg != arg_end ; arg++)
+      {
+        Item *itm= ((cmp_type == STRING_RESULT) ? arg[0] :
+                    arg[0]->element_index(col));
+        if (itm->result_type() != STRING_RESULT)
+        {
+          skip_column= TRUE;
+          break;
+        }
+        else if (itm->is_datetime())
+        {
+          datetime_found= TRUE;
+          /*
+            Internally all DATE/DATETIME values are converted to the DATETIME
+            type. So try to find a DATETIME item to issue correct warnings.
+          */
+          if (!date_arg)
+            date_arg= itm;
+          else if (itm->field_type() == MYSQL_TYPE_DATETIME)
+          {
+            date_arg= itm;
+            /* All arguments are already checked to have the STRING result. */
+            if (cmp_type == STRING_RESULT)
+              break;
+          }
+        }
+      }
+      if (skip_column)
+        continue;
+      if (datetime_found)
+      {
+        if (cmp_type == ROW_RESULT)
+        {
+          cmp_item **cmp= 0;
+          if (array)
+            cmp= ((in_row*)array)->tmp.comparators + col;
+          else
+            cmp= ((cmp_item_row*)in_item)->comparators + col;
+          *cmp= new cmp_item_datetime(date_arg);
+          /* Reset variables for the next column. */
+          date_arg= 0;
+          datetime_found= FALSE;
+        }
+        else
+          compare_as_datetime= TRUE;
+      }
     }
   }
   for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
@@ -3216,51 +3351,61 @@ void Item_func_in::fix_length_and_dec()
   */
   if (type_cnt == 1 && const_itm && !nulls_in_row())
   {
-    /*
-      IN must compare INT/DATE/DATETIME/TIMESTAMP columns and constants
-      as int values (the same way as equality does).
-      So we must check here if the column on the left and all the constant 
-      values on the right can be compared as integers and adjust the 
-      comparison type accordingly.
-    */  
-    if (args[0]->real_item()->type() == FIELD_ITEM &&
-        thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
-        thd->lex->sql_command != SQLCOM_SHOW_CREATE &&
-        cmp_type != INT_RESULT)
+    if (compare_as_datetime)
+      array= new in_datetime(date_arg, arg_count - 1);
+    else
     {
-      Field *field= ((Item_field*) (args[0]->real_item()))->field;
-      if (field->can_be_compared_as_longlong())
+      /*
+        IN must compare INT columns and constants as int values (the same
+        way as equality does).
+        So we must check here if the column on the left and all the constant 
+        values on the right can be compared as integers and adjust the 
+        comparison type accordingly.
+      */  
+      if (args[0]->real_item()->type() == FIELD_ITEM &&
+          thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
+          thd->lex->sql_command != SQLCOM_SHOW_CREATE &&
+          cmp_type != INT_RESULT)
       {
-        bool all_converted= TRUE;
-        for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
+        Field *field= ((Item_field*) (args[0]->real_item()))->field;
+        if (field->can_be_compared_as_longlong())
         {
-          if (!convert_constant_item (thd, field, &arg[0]))
-            all_converted= FALSE;
+          bool all_converted= TRUE;
+          for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
+          {
+            if (!convert_constant_item (thd, field, &arg[0]))
+              all_converted= FALSE;
+          }
+          if (all_converted)
+            cmp_type= INT_RESULT;
         }
-        if (all_converted)
-          cmp_type= INT_RESULT;
       }
-    }
-    switch (cmp_type) {
-    case STRING_RESULT:
-      array=new in_string(arg_count - 1,(qsort2_cmp) srtcmp_in,
-			  cmp_collation.collation);
-      break;
-    case INT_RESULT:
-      array= new in_longlong(arg_count - 1);
-      break;
-    case REAL_RESULT:
-      array= new in_double(arg_count - 1);
-      break;
-    case ROW_RESULT:
-      array= new in_row(arg_count - 1, args[0]);
-      break;
-    case DECIMAL_RESULT:
-      array= new in_decimal(arg_count - 1);
-      break;
-    default:
-      DBUG_ASSERT(0);
-      return;
+      switch (cmp_type) {
+      case STRING_RESULT:
+        array=new in_string(arg_count-1,(qsort2_cmp) srtcmp_in, 
+                            cmp_collation.collation);
+        break;
+      case INT_RESULT:
+        array= new in_longlong(arg_count-1);
+        break;
+      case REAL_RESULT:
+        array= new in_double(arg_count-1);
+        break;
+      case ROW_RESULT:
+        /*
+          The row comparator was created at the beginning but only DATETIME
+          items comparators were initialized. Call store_value() to setup
+          others.
+        */
+        ((in_row*)array)->tmp.store_value(args[0]);
+        break;
+      case DECIMAL_RESULT:
+        array= new in_decimal(arg_count - 1);
+        break;
+      default:
+        DBUG_ASSERT(0);
+        return;
+      }
     }
     if (array && !(thd->is_fatal_error))		// If not EOM
     {
@@ -3279,6 +3424,19 @@ void Item_func_in::fix_length_and_dec()
   }
   else
   {
+    if (in_item)
+    {
+      /*
+        The row comparator was created at the beginning but only DATETIME
+        items comparators were initialized. Call store_value() to setup
+        others.
+      */
+      in_item->store_value(args[0]);
+    }
+    else if (compare_as_datetime)
+      in_item= new cmp_item_datetime(date_arg);
+    else
+    {
     for (i= 0; i <= (uint) DECIMAL_RESULT; i++)
     {
       if (found_types & (1 << i) && !cmp_items[i])
@@ -3291,6 +3449,7 @@ void Item_func_in::fix_length_and_dec()
                                      cmp_collation.collation)))
           return;
       }
+    }
     }
   }
   max_length= 1;
