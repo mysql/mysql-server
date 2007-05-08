@@ -1,0 +1,9 @@
+#! /bin/sh
+
+path=`dirname $0`
+. "$path/SETUP.sh"
+
+extra_flags="$pentium64_cflags $fast_cflags -g"
+extra_configs="$pentium_configs $max_configs --with-ndb-sci=/opt/DIS"
+
+. "$path/FINISH.sh"
