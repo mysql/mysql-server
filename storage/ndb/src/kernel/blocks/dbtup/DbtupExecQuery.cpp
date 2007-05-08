@@ -1277,6 +1277,15 @@ int Dbtup::handleInsertReq(Signal* signal,
       memset(req_struct->m_disk_ptr->m_null_bits+
              regTabPtr->m_offsets[DD].m_null_offset, 0xFF, 
              4*regTabPtr->m_offsets[DD].m_null_words);
+
+      Uint32 bm_size_in_bytes= 4*(regTabPtr->m_offsets[MM].m_dyn_null_words);
+      if (bm_size_in_bytes)
+      {
+        Uint32* ptr = 
+          (Uint32*)req_struct->m_var_data[MM].m_dyn_data_ptr;
+        bzero(ptr, bm_size_in_bytes);
+        * ptr = bm_size_in_bytes >> 2;
+      }
     } 
     else
     {

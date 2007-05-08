@@ -940,7 +940,11 @@ Dbtup::handleCharsetPos(Uint32 csNumber, CHARSET_INFO** charsetArray,
 void
 Dbtup::computeTableMetaData(Tablerec *regTabPtr)
 {
-
+  if (regTabPtr->m_dyn_null_bits == DYN_BM_LEN_BITS)
+  {
+    regTabPtr->m_dyn_null_bits = 0;
+  }
+  
   Uint32 dyn_null_words= (regTabPtr->m_dyn_null_bits+31)>>5;
   regTabPtr->m_offsets[MM].m_dyn_null_words= dyn_null_words;
 
