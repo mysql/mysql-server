@@ -1198,9 +1198,19 @@ int Dbtup::handleInsertReq(Signal* signal,
     if(!prevOp->is_first_operation())
       org= (Tuple_header*)c_undo_buffer.get_ptr(&prevOp->m_copy_tuple_location);
     if (regTabPtr->need_expand())
+    {
       expand_tuple(req_struct, sizes, org, regTabPtr, !disk_insert);
+      memset(req_struct->m_disk_ptr->m_null_bits+
+             regTabPtr->m_offsets[DD].m_null_offset, 0xFF, 
+             4*regTabPtr->m_offsets[DD].m_null_words);
+    } 
     else
+    {
       memcpy(dst, org, 4*regTabPtr->m_offsets[MM].m_fix_header_size);
+    }
+    memset(tuple_ptr->m_null_bits+
+           regTabPtr->m_offsets[MM].m_null_offset, 0xFF, 
+           4*regTabPtr->m_offsets[MM].m_null_words);
   }
   
   if (disk_insert)
