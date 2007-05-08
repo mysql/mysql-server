@@ -1458,6 +1458,91 @@ runBug28073(NDBT_Context *ctx, NDBT_Step* step)
 
 template class Vector<Uint64>;
 
+int
+runBug20535(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Uint32 i;
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table * tab = ctx->getTab();
+  NdbDictionary::Dictionary * dict = pNdb->getDictionary();
+
+  bool null = false;
+  for (i = 0; i<tab->getNoOfColumns(); i++)
+  {
+    if (tab->getColumn(i)->getNullable())
+    {
+      null = true;
+      break;
+    }
+  }
+  
+  if (!null)
+    return NDBT_OK;
+
+  HugoTransactions hugoTrans(* tab);
+  hugoTrans.loadTable(pNdb, 1);
+
+  NdbTransaction* pTrans = pNdb->startTransaction();
+  NdbOperation* pOp = pTrans->getNdbOperation(tab->getName());
+  pOp->deleteTuple();
+  hugoTrans.equalForRow(pOp, 0);
+  if (pTrans->execute(NoCommit) != 0)
+    return NDBT_FAILED;
+
+  pOp = pTrans->getNdbOperation(tab->getName());
+  pOp->insertTuple();
+  hugoTrans.equalForRow(pOp, 0);
+  for (i = 0; i<tab->getNoOfColumns(); i++)
+  {
+    if (!tab->getColumn(i)->getPrimaryKey() &&
+        !tab->getColumn(i)->getNullable())
+    {
+      hugoTrans.setValueForAttr(pOp, i, 0, 1);
+    }
+  }
+  
+  if (pTrans->execute(Commit) != 0)
+    return NDBT_FAILED;
+  
+  pTrans->close();
+
+  pTrans = pNdb->startTransaction();
+  pOp = pTrans->getNdbOperation(tab->getName());
+  pOp->readTuple();
+  hugoTrans.equalForRow(pOp, 0);
+  Vector<NdbRecAttr*> values;
+  for (i = 0; i<tab->getNoOfColumns(); i++)
+  {
+    if (!tab->getColumn(i)->getPrimaryKey() &&
+        tab->getColumn(i)->getNullable())
+    {
+      values.push_back(pOp->getValue(i));
+    }
+  }
+  
+  if (pTrans->execute(Commit) != 0)
+    return NDBT_FAILED;
+
+  null = true;
+  for (i = 0; i<values.size(); i++)
+  {
+    if (!values[i]->isNULL())
+    {
+      null = false;
+      ndbout_c("column %s is not NULL", values[i]->getColumn()->getName());
+    }
+  }
+  
+  pTrans->close();  
+  
+  if (null)
+    return NDBT_OK;
+  else
+    return NDBT_FAILED;
+}
+
+template class Vector<NdbRecAttr*>;
+
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
 	 "Verify that we can insert and delete from this table using PK"
@@ -1741,6 +1826,10 @@ TESTCASE("Bug27756",
 TESTCASE("Bug28073", 
 	 "Infinite loop in lock queue" ){
   STEP(runBug28073);
+}
+TESTCASE("Bug20535", 
+	 "Verify what happens when we fill the db" ){
+  STEP(runBug20535);
 }
 NDBT_TESTSUITE_END(testBasic);
 
