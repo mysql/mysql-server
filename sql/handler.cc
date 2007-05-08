@@ -2858,20 +2858,21 @@ ha_find_files(THD *thd,const char *db,const char *path,
   DBUG_RETURN(error);
 }
 
-
-/** @brief
+/*
   Ask handler if the table exists in engine
 
   RETURN
-    0                   Table does not exist
-    1                   Table exists
-    #                   Error code
+    HA_ERR_NO_SUCH_TABLE     Table does not exist
+    HA_ERR_TABLE_EXIST       Table exists
+    #                        Error code
 
-*/
+ */
+
 struct st_table_exists_in_engine_args
 {
   const char *db;
   const char *name;
+  int err;
 };
 
 static my_bool table_exists_in_engine_handlerton(THD *thd, st_plugin_int *plugin,
@@ -2880,23 +2881,27 @@ static my_bool table_exists_in_engine_handlerton(THD *thd, st_plugin_int *plugin
   st_table_exists_in_engine_args *vargs= (st_table_exists_in_engine_args *)arg;
   handlerton *hton= (handlerton *)plugin->data;
 
+  int err= HA_ERR_NO_SUCH_TABLE;
+
   if (hton->state == SHOW_OPTION_YES && hton->table_exists_in_engine)
-    if ((hton->table_exists_in_engine(hton, thd, vargs->db, vargs->name)) == 1)
-      return TRUE;
+    err = hton->table_exists_in_engine(hton, thd, vargs->db, vargs->name);
+
+  vargs->err = err;
+  if (vargs->err == HA_ERR_TABLE_EXIST)
+    return TRUE;
 
   return FALSE;
 }
 
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
 {
-  int error= 0;
   DBUG_ENTER("ha_table_exists_in_engine");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
-  st_table_exists_in_engine_args args= {db, name};
-  error= plugin_foreach(thd, table_exists_in_engine_handlerton,
+  st_table_exists_in_engine_args args= {db, name, HA_ERR_NO_SUCH_TABLE};
+  plugin_foreach(thd, table_exists_in_engine_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &args);
-  DBUG_PRINT("exit", ("error: %d", error));
-  DBUG_RETURN(error);
+  DBUG_PRINT("exit", ("error: %d", args.err));
+  DBUG_RETURN(args.err);
 }
 
 #ifdef HAVE_NDB_BINLOG
