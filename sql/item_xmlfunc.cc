@@ -19,7 +19,7 @@
 
 #include "mysql_priv.h"
 #include "my_xml.h"
-
+#include "sp_pcontext.h"
 
 /*
   TODO: future development directions:
@@ -2412,21 +2412,78 @@ my_xpath_parse_QName(MY_XPATH *xpath)
 }
 
 
-/*
+/**
   Scan Variable reference
 
-  SYNOPSYS
+  @details Implements parsing of two syntax structures:
 
-    [36] VariableReference ::= '$' QName
-  RETURN
-    1 - success
-    0 - failure
+    1. Standard XPath syntax [36], for SP variables:
+
+      VariableReference ::= '$' QName     
+
+      Finds a SP variable with the given name.
+      If outside of a SP context, or variable with
+      the given name doesn't exists, then error is returned.
+
+    2. Non-standard syntax - MySQL extension for user variables:
+
+      VariableReference ::= '$' '@' QName
+
+    Item, corresponding to the variable, is returned
+    in xpath->item in both cases.
+
+  @param  xpath pointer to XPath structure
+
+  @return Operation status
+    @retval 1 Success
+    @retval 0 Failure
 */
+
 static int
 my_xpath_parse_VariableReference(MY_XPATH *xpath)
 {
-  return my_xpath_parse_term(xpath, MY_XPATH_LEX_DOLLAR) &&
-         my_xpath_parse_term(xpath, MY_XPATH_LEX_IDENT);
+  LEX_STRING name;
+  int user_var;
+  const char *dollar_pos;
+  if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_DOLLAR) ||
+      (!(dollar_pos= xpath->prevtok.beg)) ||
+      (!((user_var= my_xpath_parse_term(xpath, MY_XPATH_LEX_AT) &&
+         my_xpath_parse_term(xpath, MY_XPATH_LEX_IDENT))) &&
+       !my_xpath_parse_term(xpath, MY_XPATH_LEX_IDENT)))
+    return 0;
+
+  name.length= xpath->prevtok.end - xpath->prevtok.beg;
+  name.str= (char*) xpath->prevtok.beg;
+  
+  if (user_var)
+    xpath->item= new Item_func_get_user_var(name);
+  else
+  {
+    sp_variable_t *spv;
+    sp_pcontext *spc;
+    LEX *lex;
+    if ((lex= current_thd->lex) &&
+        (spc= lex->spcont) &&
+        (spv= spc->find_variable(&name)))
+    {
+      Item_splocal *splocal= new Item_splocal(name, spv->offset, spv->type, 0);
+#ifndef DBUG_OFF
+      if (splocal)
+        splocal->m_sp= lex->sphead;
+#endif
+      xpath->item= (Item*) splocal;
+    }
+    else
+    {
+      xpath->item= NULL;
+      DBUG_ASSERT(xpath->query.end > dollar_pos);
+      uint len= xpath->query.end - dollar_pos;
+      set_if_smaller(len, 32);
+      my_printf_error(ER_UNKNOWN_ERROR, "Unknown XPATH variable at: '%.*s'", 
+                      MYF(0), len, dollar_pos);
+    }
+  }
+  return xpath->item ? 1 : 0;
 }
 
 
