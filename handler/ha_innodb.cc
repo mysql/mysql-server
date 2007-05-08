@@ -408,6 +408,23 @@ static SHOW_VAR innodb_status_variables[]= {
 /* General functions */
 
 /**********************************************************************
+Returns true if the thread is the replication thread on the slave
+server. Used in srv_conc_enter_innodb() to determine if the thread
+should be allowed to enter InnoDB - the replication thread is treated
+differently than other threads. Also used in
+srv_conc_force_exit_innodb(). */
+
+extern "C"
+ibool
+thd_is_replication_slave_thread(
+/*============================*/
+			/* out: true if thd is the replication thread */
+	void*	thd)	/* in: thread handle (THD*) */
+{
+	return((ibool)(((THD*)thd)->slave_thread));
+}
+
+/**********************************************************************
 Save some CPU by testing the value of srv_thread_concurrency in inline
 functions. */
 inline
