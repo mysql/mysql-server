@@ -765,6 +765,9 @@ AC_SEARCH_LIBS(crypt, crypt, AC_DEFINE(HAVE_CRYPT, 1, [crypt]))
 # For the sched_yield() function on Solaris
 AC_CHECK_FUNC(sched_yield, , AC_CHECK_LIB(posix4, sched_yield))
 
+# For the sem_*() functions on BSDish
+AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(rt, sem_init))
+
 MYSQL_CHECK_ZLIB_WITH_COMPRESS
 
 # For large pages support
