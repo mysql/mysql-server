@@ -207,7 +207,7 @@ select least(cast('01-01-01' as date), '01-01-02') + 0;
 select greatest(cast('01-01-01' as date), '01-01-02') + 0;
 select least(cast('01-01-01' as datetime), '01-01-02') + 0;
 select cast(least(cast('01-01-01' as datetime), '01-01-02') as signed);
-select cast(least(cast('01-01-01' as datetime), '01-01-02') as decimal);
+select cast(least(cast('01-01-01' as datetime), '01-01-02') as decimal(16,2));
 --disable_warnings
 DROP PROCEDURE IF EXISTS test27759 ;
 --enable_warnings
