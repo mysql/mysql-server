@@ -90,9 +90,6 @@ private:
   Uint32 ndbrecord_rowsize(const NdbRecord *ndb_record, Uint32 key_size,
                            Uint32 read_range_no, Uint32 extra_size);
 
-  void receiveBlobHead(const NdbRecord *record, Uint32 record_pos,
-                       const Uint32 *src, Uint32 byteSize,
-                       Uint32 & blob_pos);
   int execKEYINFO20(Uint32 info, const Uint32* ptr, Uint32 len);
   int execTRANSID_AI(const Uint32* ptr, Uint32 len); 
   int execTCOPCONF(Uint32 len);

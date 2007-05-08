@@ -415,7 +415,7 @@ private:
   int unpackKeyValue(const NdbTableImpl* aTable, Buf& dstBuf);
   int copyKeyFromRow(const NdbRecord *record, const char *row,
                      Buf& packedBuf, Buf& unpackedBuf);
-  Uint32 getHeadInlineSize() { return sizeof(Head) + theInlineSize; }
+  Uint32 getHeadInlineSize() { return theHeadSize + theInlineSize; }
   void getBlobHeadData(const char * & data, Uint32 & byteSize);
   // getters and setters
   void packBlobHead();
@@ -430,7 +430,6 @@ private:
   int setPartDataValue(NdbOperation* anOp, const char* buf, const Uint16& aLen);
   int getHeadInlineValue(NdbOperation* anOp);
   void getHeadFromRecAttr();
-  void receiveHead(const char *src, Uint32 byteSize);
   int setHeadInlineValue(NdbOperation* anOp);
   // data operations
   int readDataPrivate(char* buf, Uint32& bytes);

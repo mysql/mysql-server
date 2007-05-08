@@ -539,8 +539,8 @@ int main(int argc, char**argv)
   if(update2_key(&myNdb) > 0)
     std::cout << "update2_key: Success!" << std::endl;
 
-   if(delete_key(&myNdb) > 0)
-     std::cout << "delete_key: Success!" << std::endl;
+  if(delete_key(&myNdb) > 0)
+    std::cout << "delete_key: Success!" << std::endl;
 
   /* Drop table. */
   drop_table(mysql);
