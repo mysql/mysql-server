@@ -382,6 +382,8 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
       (theStatus != Init)){
     m_no_disk_flag &= (tAttrInfo->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
     if (theStatus != GetValue) {
+      if (theStatus == UseNdbRecord)
+        return getValue_NdbRecord(tAttrInfo, aValue);
       if (theInterpretIndicator == 1) {
 	if (theStatus == FinalGetValue) {
 	  ; // Simply continue with getValue
@@ -430,6 +432,23 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
   }//if
   setErrorCodeAbort(4200);
   return NULL;
+}
+
+NdbRecAttr*
+NdbOperation::getValue_NdbRecord(const NdbColumnImpl* tAttrInfo, char* aValue)
+{
+  NdbRecAttr* tRecAttr;
+  /*
+    For getValue with NdbRecord operations, we just allocate the NdbRecAttr,
+    the signal data will be constructed later.
+  */
+  if((tRecAttr = theReceiver.getValue(tAttrInfo, aValue)) != 0) {
+    theErrorLine++;
+    return tRecAttr;
+  } else {
+    setErrorCodeAbort(4000);
+    return NULL;
+  }
 }
 
 /*****************************************************************************
