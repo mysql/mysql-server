@@ -3337,7 +3337,7 @@ void Dblqh::seizeTcrec()
   locTcConnectptr.p->tableref = RNIL;
   locTcConnectptr.p->savePointId = 0;
 #ifdef VM_TRACE
-  locTcConnectptr.p->tupkeyref = 0;
+  locTcConnectptr.p->tupkeyref = 1;
 #endif
 
   cfirstfreeTcConrec = nextTc;
@@ -4059,6 +4059,9 @@ void Dblqh::execACCKEYCONF(Signal* signal)
   tupKeyReq->tcOpIndex = tcConnectptr.p->tcOprec;
   tupKeyReq->savePointId = tcConnectptr.p->savePointId;
 
+#ifdef VM_TRACE
+  tcConnectptr.p->tupkeyref = 0;
+#endif
   EXECUTE_DIRECT(tup, GSN_TUPKEYREQ, signal, TupKeyReq::SignalLength);
 }//Dblqh::execACCKEYCONF()
 
@@ -5871,7 +5874,7 @@ void Dblqh::releaseTcrec(Signal* signal, TcConnectionrecPtr locTcConnectptr)
 {
   jam();
 #ifdef VM_TRACE
-  locTcConnectptr.p->tupkeyref = 0;
+  locTcConnectptr.p->tupkeyref = 1;
 #endif
 
   locTcConnectptr.p->tcTimer = 0;
@@ -5897,7 +5900,7 @@ void Dblqh::releaseTcrecLog(Signal* signal, TcConnectionrecPtr locTcConnectptr)
 {
   jam();
 #ifdef VM_TRACE
-  locTcConnectptr.p->tupkeyref = 0;
+  locTcConnectptr.p->tupkeyref = 1;
 #endif
   locTcConnectptr.p->tcTimer = 0;
   locTcConnectptr.p->transactionState = TcConnectionrec::TC_NOT_CONNECTED;
@@ -8353,8 +8356,11 @@ void Dblqh::nextScanConfLoopLab(Signal* signal)
     tupKeyReq->tcOpIndex = tcConnectptr.p->tcOprec;
     tupKeyReq->savePointId = tcConnectptr.p->savePointId;
     Uint32 blockNo = refToBlock(tcConnectptr.p->tcTupBlockref);
+#ifdef VM_TRACE
+    tcConnectptr.p->tupkeyref = 0;
+#endif
     EXECUTE_DIRECT(blockNo, GSN_TUPKEYREQ, signal, 
-               TupKeyReq::SignalLength);
+                   TupKeyReq::SignalLength);
   }
 }
 
@@ -9472,6 +9478,9 @@ void Dblqh::copySendTupkeyReqLab(Signal* signal)
     tupKeyReq->tcOpIndex = tcConnectptr.p->tcOprec;
     tupKeyReq->savePointId = tcConnectptr.p->savePointId;
     Uint32 blockNo = refToBlock(tcConnectptr.p->tcTupBlockref);
+#ifdef VM_TRACE
+    tcConnectptr.p->tupkeyref = 0;
+#endif
     EXECUTE_DIRECT(blockNo, GSN_TUPKEYREQ, signal, 
                TupKeyReq::SignalLength);
   }
