@@ -2344,7 +2344,7 @@ double Item_func_min_max::val_real()
   double value=0.0;
   if (compare_as_dates)
   {
-    ulonglong result;
+    ulonglong result= 0;
     (void)cmp_datetimes(&result);
     return (double)result;
   }
