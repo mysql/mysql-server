@@ -1426,7 +1426,7 @@ Full-text indexes	are called collections	0
 Only MyISAM tables	support collections	0
 Function MATCH ... AGAINST()	is used to do a search	0
 Full-text search in MySQL	implements vector space model	0
-create function change_global() returns integer
+create function change_global() returns integer deterministic
 begin
 set global ft_boolean_syntax='+ -><()~*:""&|';
 return 1;
