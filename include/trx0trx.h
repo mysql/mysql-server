@@ -643,7 +643,12 @@ struct trx_struct{
 					cannot be any activity in the undo
 					logs! */
 	dulint		undo_no;	/* next undo log record number to
-					assign */
+					assign; since the undo log is
+					private for a transaction, this
+					is a simple ascending sequence
+					with no gaps; thus it represents
+					the number of modified/inserted
+					rows in a transaction */
 	trx_savept_t	last_sql_stat_start;
 					/* undo_no when the last sql statement
 					was started: in case of an error, trx
