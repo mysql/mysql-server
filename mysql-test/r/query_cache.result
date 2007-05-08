@@ -1008,3 +1008,55 @@ Variable_name	Value
 Qcache_hits	1
 drop table t1;
 set GLOBAL query_cache_size=0;
+create table t1 (a int);
+insert into t1 values (1),(2),(3);
+set GLOBAL query_cache_type=1;
+set GLOBAL query_cache_limit=10000;
+set GLOBAL query_cache_min_res_unit=0;
+set GLOBAL query_cache_size= 100000;
+reset query cache;
+set LOCAL default_week_format = 0;
+select week('2007-01-04');
+week('2007-01-04')
+0
+select week('2007-01-04') from t1;
+week('2007-01-04')
+0
+0
+0
+set LOCAL default_week_format = 2;
+select week('2007-01-04');
+week('2007-01-04')
+53
+select week('2007-01-04') from t1;
+week('2007-01-04')
+53
+53
+53
+drop table t1;
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
+INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
+('Full-text indexes', 'are called collections'),
+('Only MyISAM tables','support collections'),
+('Function MATCH ... AGAINST()','is used to do a search'),
+('Full-text search in MySQL', 'implements vector space model');
+set GLOBAL ft_boolean_syntax='+ -><()~*:""&|';
+select *, MATCH(a,b) AGAINST("+called +collections" IN BOOLEAN MODE) as x from t1;
+a	b	x
+MySQL has now support	for full-text search	0
+Full-text indexes	are called collections	1
+Only MyISAM tables	support collections	0
+Function MATCH ... AGAINST()	is used to do a search	0
+Full-text search in MySQL	implements vector space model	0
+set GLOBAL ft_boolean_syntax='- +><()~*:""&|';
+select *, MATCH(a,b) AGAINST("+called +collections" IN BOOLEAN MODE) as x from t1;
+a	b	x
+MySQL has now support	for full-text search	0
+Full-text indexes	are called collections	0
+Only MyISAM tables	support collections	0
+Function MATCH ... AGAINST()	is used to do a search	0
+Full-text search in MySQL	implements vector space model	0
+set GLOBAL query_cache_type=default;
+set GLOBAL query_cache_limit=default;
+set GLOBAL query_cache_min_res_unit=default;
+set GLOBAL query_cache_size=default;
