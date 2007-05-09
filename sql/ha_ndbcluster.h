@@ -79,6 +79,16 @@ typedef struct ndb_index_data {
   // Simple counter mechanism to decide when to connect to db
   uint index_stat_update_freq;
   uint index_stat_query_count;
+  /*
+    In mysqld, keys and rows are stored differently (using KEY_PART_INFO for
+    keys and Field for rows).
+    So we need to use different NdbRecord for an index for passing values
+    from a key and from a row.
+  */
+  NdbRecord *ndb_record_key;
+  NdbRecord *ndb_record_row;
+  NdbRecord *ndb_unique_record_key;
+  NdbRecord *ndb_unique_record_row;
 } NDB_INDEX_DATA;
 
 typedef union { const NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
@@ -222,6 +232,7 @@ class ha_ndbcluster: public handler
   ~ha_ndbcluster();
 
   int ha_initialise();
+  void column_bitmaps_signal();
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
 
@@ -402,6 +413,10 @@ private:
   int drop_indexes(Ndb *ndb, TABLE *tab);
   int add_index_handle(THD *thd, NdbDictionary::Dictionary *dict,
                        KEY *key_info, const char *index_name, uint index_no);
+  int add_table_ndb_record(NdbDictionary::Dictionary *dict);
+  int add_hidden_pk_ndb_record(NdbDictionary::Dictionary *dict);
+  int add_index_ndb_record(NdbDictionary::Dictionary *dict,
+                           KEY *key_info, uint index_no);
   int get_metadata(const char* path);
   void release_metadata(THD *thd, Ndb *ndb);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
@@ -431,49 +446,79 @@ private:
 			uint key_len,
 			byte *buf);
   int full_table_scan(byte * buf);
+  int flush_bulk_insert();
+  int ndb_write_row(byte *record, bool primary_key_update, bool batched_update);
+  int ndb_delete_row(const byte *record, bool primary_key_update);
 
   bool check_all_operations_for_error(NdbTransaction *trans,
                                       const NdbOperation *first,
                                       const NdbOperation *last,
                                       uint errcode);
   int peek_indexed_rows(const byte *record, bool check_pk);
+  int scan_handle_lock_tuple(NdbScanOperation *scanOp, NdbTransaction *trans);
   int fetch_next(NdbScanOperation* op);
   int next_result(byte *buf); 
-  int define_read_attrs(byte* buf, NdbOperation* op);
-  int filtered_scan(const byte *key, uint key_len, 
-                    byte *buf,
-                    enum ha_rkey_function find_flag);
   int close_scan();
   void unpack_record(byte *buf);
-  int get_ndb_lock_type(enum thr_lock_type type);
+  void unpack_record_ndbrecord(byte *dst_row, const byte *src_row);
+  int get_ndb_lock_type(enum thr_lock_type type,
+                        const MY_BITMAP *column_bitmap);
 
   void set_dbname(const char *pathname);
   void set_tabname(const char *pathname);
 
-  bool set_hidden_key(NdbOperation*,
-                      uint fieldnr, const byte* field_ptr);
-  int set_ndb_key(NdbOperation*, Field *field,
-                  uint fieldnr, const byte* field_ptr);
-  int set_ndb_value(NdbOperation*, Field *field, uint fieldnr,
-		    int row_offset= 0, bool *set_blob_value= 0);
-  int get_ndb_value(NdbOperation*, Field *field, uint fieldnr, byte*);
-  int get_ndb_partition_id(NdbOperation *);
+  uint offset_hidden_key() { return table->s->reclength; }
+  uint offset_user_partition_function() {
+    return table->s->reclength +
+      (table_share->primary_key == MAX_KEY ?
+           NDB_HIDDEN_PRIMARY_KEY_LENGTH : 0);
+  }
+  uint offset_user_partition_fragment() {
+    return table->s->reclength +
+      (table_share->primary_key == MAX_KEY ?
+           NDB_HIDDEN_PRIMARY_KEY_LENGTH+4 : 4);
+  }
+  uint field_number_hidden_key() { return table->s->fields; }
+  uint field_number_user_partition_function() {
+    return table->s->fields +
+      (table_share->primary_key == MAX_KEY ? 1 : 0);
+  }
+
+  void set_hidden_key(char *row, Uint64 auto_value);
+  Uint64 get_hidden_key(const char *row);
+  void request_hidden_key(uchar *mask);
+  void set_partition_function_value(char *row, uint32 func_value);
+  uint32 get_partition_fragment(const char *row);
+  void request_partition_function_value(uchar *mask);
+  void calc_batch_buffer_size();
+  int alloc_row_buffer();
+  char *copy_row_to_buffer(const byte *record);
+  char *get_row_buffer();
+  int batch_copy_row_to_buffer(const byte *record,
+                               char * &row, bool & buffer_full);
+  void clear_extended_column_set(uchar *mask);
+  uchar *copy_column_set(MY_BITMAP *bitmap);
+
+  int get_blob_values(NdbOperation *ndb_op, byte *dst_record,
+                      const MY_BITMAP *bitmap);
+  int set_blob_values(NdbOperation *ndb_op, my_ptrdiff_t row_offset,
+                      const MY_BITMAP *bitmap, uint *set_count);
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
-  int set_primary_key(NdbOperation *op, const byte *key);
-  int set_primary_key_from_record(NdbOperation *op, const byte *record);
-  int set_index_key_from_record(NdbOperation *op, const byte *record,
-                                uint keyno);
+
+  NdbOperation *pk_unique_index_read_key(uint idx, const byte *key, byte *buf,
+                                         NdbOperation::LockMode lm);
+  int read_multi_range_fetch_next();
+  
   int set_bounds(NdbIndexScanOperation*, uint inx, bool rir,
                  const key_range *keys[2], uint= 0);
-  int key_cmp(uint keynr, const byte * old_row, const byte * new_row);
-  int set_index_key(NdbOperation *, const KEY *key_info, const byte *key_ptr);
+  int primary_key_cmp(const byte * old_row, const byte * new_row);
   void print_results();
 
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values);
-  bool uses_blob_value();
+  bool uses_blob_value(const MY_BITMAP *bitmap);
 
   char *update_table_comment(const char * comment);
 
@@ -489,6 +534,7 @@ private:
 
   void release_completed_operations(NdbTransaction*, bool);
 
+  void reset_state_at_execute();
   friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit_ignore_no_key(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*, bool);
@@ -497,6 +543,31 @@ private:
   NdbTransaction *m_active_trans;
   NdbScanOperation *m_active_cursor;
   const NdbDictionary::Table *m_table;
+  /*
+    Normal NdbRecord for accessing rows, with all fields including hidden
+    fields (hidden primary key, user-defined partitioning function value).
+  */
+  NdbRecord *m_ndb_record;
+  /* As m_ndb_record, but adding the FRAGMENT pseudo-column at end of row. */
+  NdbRecord *m_ndb_record_fragment;
+  /* NdbRecord for accessing tuple by hidden Uint64 primary key. */
+  NdbRecord *m_ndb_hidden_key_record;
+
+  /*
+    Special NdbRecord for ndb_get_table_statistics(), reading lots of
+    pseudo-columns.
+  */
+  NdbRecord *m_ndb_statistics_record;
+  /* Bitmap used for NdbRecord operation column mask. */
+  MY_BITMAP m_bitmap;
+  my_bitmap_map m_bitmap_buf[(NDB_MAX_ATTRIBUTES_IN_TABLE +
+                              8*sizeof(my_bitmap_map) - 1) /
+                             (8*sizeof(my_bitmap_map))]; // Buffer for m_bitmap
+  /* Bitmap with bit set for all primary key columns. */
+  MY_BITMAP m_pk_bitmap;
+  my_bitmap_map m_pk_bitmap_buf[(NDB_MAX_ATTRIBUTES_IN_TABLE +
+                                 8*sizeof(my_bitmap_map) - 1) /
+                                (8*sizeof(my_bitmap_map))]; // Buffer for m_pk_bitmap
   struct Ndb_local_table_statistics *m_table_info;
   char m_dbname[FN_HEADLEN];
   //char m_schemaname[FN_HEADLEN];
@@ -507,24 +578,41 @@ private:
   NDB_SHARE *m_share;
   NDB_INDEX_DATA  m_index[MAX_KEY];
   THD_NDB_SHARE *m_thd_ndb_share;
+  /*
+    Pointer to row returned from scan nextResult().
+  */
+  const char *m_next_row;
+  /* For read_multi_range scans, the get_range_no() of current row. */
+  int m_current_range_no;
+  /*
+    A buffer of rows for when we cannot pass the mysqld record pointer directly
+    to the NDB API, either because the mysqld buffer is too small (eg. hidden
+    primary key), or because it will not remain valid until execute() (eg.
+    bulk insert).
+  */
+  char *m_row_buffer;
+  uint m_row_buffer_size;
+  char *m_row_buffer_current;
+  /*
+    Size of buffer to fill before sending batched rows to NDB kernel, computed
+    from a heuristic based on row size.
+  */
+  uint m_batch_buffer_size;
+  /* Extra bytes needed in row for hidden fields. */
+  uint m_extra_reclength;
   // NdbRecAttr has no reference to blob
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
-  byte m_ref[NDB_HIDDEN_PRIMARY_KEY_LENGTH];
+  Uint64 m_ref;
   partition_info *m_part_info;
   uint32 m_part_id;
-  byte *m_rec0;
-  Field **m_part_field_array;
   bool m_use_partition_function;
   bool m_sorted;
   bool m_use_write;
   bool m_ignore_dup_key;
   bool m_has_unique_index;
-  bool m_primary_key_update;
-  bool m_write_op;
   bool m_ignore_no_key;
   ha_rows m_rows_to_insert; // TODO: merge it with handler::estimation_rows_to_insert?
   ha_rows m_rows_inserted;
-  ha_rows m_bulk_insert_rows;
   ha_rows m_rows_changed;
   bool m_bulk_insert_not_flushed;
   bool m_delete_cannot_batch;
@@ -533,7 +621,13 @@ private:
   bool m_skip_auto_increment;
   bool m_blobs_pending;
   bool m_slow_path;
-  my_ptrdiff_t m_blobs_offset;
+
+  /* State for setActiveHook() callback for reading blob data. */
+  uint m_blob_counter;
+  uint m_blob_expected_count;
+  byte *m_blob_destination_record;
+  Uint64 m_blob_total_size;
+  
   // memory for blobs in one tuple
   char *m_blobs_buffer;
   uint32 m_blobs_buffer_size;
@@ -548,11 +642,13 @@ private:
   bool m_disable_multi_read;
   byte *m_multi_range_result_ptr;
   KEY_MULTI_RANGE *m_multi_ranges;
-  KEY_MULTI_RANGE *m_multi_range_defined;
+  /*
+    Points 1 past the end of last multi range operation currently being
+    executed, to support splitting large multi range reands into manageable
+    pieces.
+  */
+  KEY_MULTI_RANGE *m_multi_range_defined_end;
   const NdbOperation *m_current_multi_operation;
-  NdbIndexScanOperation *m_multi_cursor;
-  byte *m_multi_range_cursor_result_ptr;
-  int setup_recattr(const NdbRecAttr*);
   Ndb *get_ndb();
 };
 
