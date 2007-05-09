@@ -583,5 +583,16 @@ alter table table_24562 order by no_such_col;
 
 drop table table_24562;
 
+#
+# Bug #20710: adding unique index of column with duplicated
+# long values to reproduce error message with truncated key value.
+#
+
+CREATE TABLE t1 (c1 CHAR(255));
+INSERT INTO t1 VALUES (REPEAT("x", 255)), (REPEAT("x", 255));
+--error 1062
+ALTER TABLE t1 ADD UNIQUE (c1);
+DROP TABLE t1;
+
 # End of 4.1 tests
 

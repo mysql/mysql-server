@@ -803,3 +803,8 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 alter table table_24562 order by no_such_col;
 ERROR 42S22: Unknown column 'no_such_col' in 'order clause'
 drop table table_24562;
+CREATE TABLE t1 (c1 CHAR(255));
+INSERT INTO t1 VALUES (REPEAT("x", 255)), (REPEAT("x", 255));
+ALTER TABLE t1 ADD UNIQUE (c1);
+ERROR 23000: Duplicate entry 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' for key 1
+DROP TABLE t1;
