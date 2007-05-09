@@ -148,7 +148,14 @@ public:
    *
    * @return  Char value.
    */           
-  Int8  char_value() const;           
+  char  char_value() const;           
+
+  /**
+   * Get value stored in NdbRecAttr object.
+   *
+   * @return  Int8 value.
+   */           
+  Int8  int8_value() const;           
 
   /**
    * Get value stored in NdbRecAttr object.
@@ -184,6 +191,13 @@ public:
    * @return  Unsigned char value.
    */   
   Uint8 u_char_value() const;        
+
+  /**
+   * Get value stored in NdbRecAttr object.
+   *
+   * @return  Uint8 value.
+   */   
+  Uint8 u_8_value() const;
 
   /**
    * Get value stored in NdbRecAttr object.
@@ -309,8 +323,15 @@ NdbRecAttr::short_value() const
 }
 
 inline
-Int8
+char
 NdbRecAttr::char_value() const
+{
+  return *(char*)theRef;
+}
+
+inline
+Int8
+NdbRecAttr::int8_value() const
 {
   return *(Int8*)theRef;
 }
@@ -332,6 +353,13 @@ NdbRecAttr::u_short_value() const
 inline
 Uint8
 NdbRecAttr::u_char_value() const
+{
+  return *(Uint8*)theRef;
+}
+
+inline
+Uint8
+NdbRecAttr::u_8_value() const
 {
   return *(Uint8*)theRef;
 }
