@@ -83,4 +83,74 @@ drop table t1;
 SELECT ROW(2,10) <=> ROW(3,4);
 SELECT ROW(NULL,10) <=> ROW(3,NULL);
 
+#
+# Bug #27484: nested row expressions in IN predicate
+#
+
+--error 1241
+SELECT ROW(1,ROW(2,3)) IN (ROW(1,ROW(2,3)),ROW(1,1));
+--error 1241
+SELECT ROW(1,ROW(2,3)) IN (ROW(1,ROW(2,3)),ROW(1,1),ROW(1,ROW(2,3)));
+--error 1241
+SELECT ROW(1,ROW(2,3)) IN (ROW(1,ROW(2,3)),ROW(1,ROW(2,2,2)));
+--error 1241
+SELECT ROW(1,ROW(2,3,4)) IN (ROW(1,ROW(2,3,4)),ROW(1,ROW(2,2)));
+
+--error 1241
+SELECT ROW(1,ROW(2,3)) IN (ROW(1,ROW(2,3)),(SELECT 1,1));
+--error 1241
+SELECT ROW(1,ROW(2,3)) IN (ROW(1,ROW(2,3)),(SELECT 1,1),ROW(1,ROW(2,4)));
+--error 1241
+SELECT ROW(1,ROW(2,3)) IN ((SELECT 1,1),ROW(1,ROW(2,3)));
+
+--error 1241
+SELECT ROW(2,1) IN (ROW(21,2),ROW(ROW(1,1,3),0));
+--error 1241
+SELECT ROW(2,1) IN (ROW(ROW(1,1,3),0),ROW(21,2));
+
+#
+# Bug#27704: erroneous comparison of rows with NULL components
+#
+CREATE TABLE t1(a int, b int, c int);
+INSERT INTO t1 VALUES (1, 2, 3),
+  (NULL, 2, 3  ), (1, NULL, 3  ), (1, 2,   NULL),
+  (NULL, 2, 3+1), (1, NULL, 3+1), (1, 2+1, NULL),
+  (NULL, 2, 3-1), (1, NULL, 3-1), (1, 2-1, NULL);
+
+SELECT (1,2,3) = (1,   NULL, 3);
+SELECT (1,2,3) = (1+1, NULL, 3);
+SELECT (1,2,3) = (1,   NULL, 3+1);
+SELECT * FROM t1 WHERE (a,b,c) = (1,2,3);
+
+SELECT (1,2,3) <> (1,   NULL, 3);
+SELECT (1,2,3) <> (1+1, NULL, 3);
+SELECT (1,2,3) <> (1,   NULL, 3+1);
+SELECT * FROM t1 WHERE (a,b,c) <> (1,2,3);
+
+SELECT (1,2,3) < (NULL, 2,    3);
+SELECT (1,2,3) < (1,    NULL, 3);
+SELECT (1,2,3) < (1-1,  NULL, 3);
+SELECT (1,2,3) < (1+1,  NULL, 3);
+SELECT * FROM t1 WHERE (a,b,c) < (1,2,3);
+
+SELECT (1,2,3) <= (NULL, 2,    3);
+SELECT (1,2,3) <= (1,    NULL, 3);
+SELECT (1,2,3) <= (1-1,  NULL, 3);
+SELECT (1,2,3) <= (1+1,  NULL, 3);
+SELECT * FROM t1 WHERE (a,b,c) <= (1,2,3);
+
+SELECT (1,2,3) > (NULL, 2,    3);
+SELECT (1,2,3) > (1,    NULL, 3);
+SELECT (1,2,3) > (1-1,  NULL, 3);
+SELECT (1,2,3) > (1+1,  NULL, 3);
+SELECT * FROM t1 WHERE (a,b,c) > (1,2,3);
+
+SELECT (1,2,3) >= (NULL, 2,    3);
+SELECT (1,2,3) >= (1,    NULL, 3);
+SELECT (1,2,3) >= (1-1,  NULL, 3);
+SELECT (1,2,3) >= (1+1,  NULL, 3);
+SELECT * FROM t1 WHERE (a,b,c) >= (1,2,3);
+
+DROP TABLE t1;
+
 # End of 4.1 tests

@@ -281,4 +281,23 @@ select left(a,10), a, sum(b) from t1 group by 1,2 with rollup;
 select left(a,10) x, a, sum(b) from t1 group by x,a with rollup;
 drop table t1;
 
+#
+# Bug #24856: ROLLUP by const item in a query with DISTINCT
+#
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 
+  VALUES (2,10),(3,30),(2,40),(1,10),(2,30),(1,20),(2,10);
+
+SELECT a, SUM(b) FROM t1 GROUP BY a WITH ROLLUP;
+SELECT DISTINCT a, SUM(b) FROM t1 GROUP BY a WITH ROLLUP;
+SELECT a, b, COUNT(*) FROM t1 GROUP BY a,b WITH ROLLUP;
+SELECT DISTINCT a, b, COUNT(*) FROM t1 GROUP BY a,b WITH ROLLUP;
+
+SELECT 'x', a, SUM(b) FROM t1 GROUP BY 1,2 WITH ROLLUP;
+SELECT DISTINCT 'x', a, SUM(b) FROM t1 GROUP BY 1,2 WITH ROLLUP;
+SELECT DISTINCT 'x', a, SUM(b) FROM t1 GROUP BY 1,2 WITH ROLLUP;
+
+DROP TABLE t1;
+
 # End of 4.1 tests

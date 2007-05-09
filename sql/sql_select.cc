@@ -9754,7 +9754,7 @@ bool JOIN::rollup_init()
     for (j=0 ; j < fields_list.elements ; j++)
       rollup.fields[i].push_back(rollup.null_items[i]);
   }
-  List_iterator_fast<Item> it(all_fields);
+  List_iterator<Item> it(all_fields);
   Item *item;
   while ((item= it++))
   {
@@ -9767,6 +9767,32 @@ bool JOIN::rollup_init()
       {
         item->maybe_null= 1;
         found_in_group= 1;
+        if (item->const_item())
+        {
+          /*
+            For ROLLUP queries each constant item referenced in GROUP BY list
+            is wrapped up into an Item_func object yielding the same value
+            as the constant item. The objects of the wrapper class are never
+            considered as constant items and besides they inherit all
+            properties of the Item_result_field class.
+            This wrapping allows us to ensure writing constant items
+            into temporary tables whenever the result of the ROLLUP
+            operation has to be written into a temporary table, e.g. when
+            ROLLUP is used together with DISTINCT in the SELECT list.
+            Usually when creating temporary tables for a intermidiate
+            result we do not include fields for constant expressions.
+	  */           
+          Item* new_item= new Item_func_rollup_const(item);
+          if (!new_item)
+            return 1;
+          new_item->fix_fields(thd,0, (Item **) 0);
+          thd->change_item_tree(it.ref(), new_item);
+          for (ORDER *tmp= group_tmp; tmp; tmp= tmp->next)
+          { 
+            if (*tmp->item == item)
+              thd->change_item_tree(tmp->item, new_item);
+          }
+        }
       }
     }
     if (item->type() == Item::FUNC_ITEM && !found_in_group)
