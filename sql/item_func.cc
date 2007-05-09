@@ -1059,9 +1059,26 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
 
 void Item_decimal_typecast::print(String *str)
 {
+  char len_buf[20*3 + 1];
+  char *end;
+  CHARSET_INFO *cs= str->charset();
+
+  uint precision= my_decimal_length_to_precision(max_length, decimals,
+                                                 unsigned_flag);
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(str);
-  str->append(STRING_WITH_LEN(" as decimal)"));
+  str->append(STRING_WITH_LEN(" as decimal("));
+
+  end=int10_to_str(precision, len_buf,10);
+  str->append(len_buf, (uint32) (end - len_buf));
+
+  str->append(',');
+
+  end=int10_to_str(decimals, len_buf,10);
+  str->append(len_buf, (uint32) (end - len_buf));
+
+  str->append(')');
+  str->append(')');
 }
 
 

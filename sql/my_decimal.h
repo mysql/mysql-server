@@ -387,5 +387,18 @@ int my_decimal_cmp(const my_decimal *a, const my_decimal *b)
   return decimal_cmp((decimal_t*) a, (decimal_t*) b);
 }
 
+
+inline
+void my_decimal_trim(ulong *precision, uint *scale)
+{
+  if (!(*precision) && !(*scale))
+  {
+    *precision= 10;
+    *scale= 0;
+    return;
+  }
+}
+
+
 #endif /*my_decimal_h*/
 
