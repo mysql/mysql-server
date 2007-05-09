@@ -1430,4 +1430,39 @@ select * from t1;
 a
 123456789012345678
 drop table t1;
+select cast(11.1234 as DECIMAL(3,2));
+cast(11.1234 as DECIMAL(3,2))
+9.99
+Warnings:
+Error	1264	Out of range value adjusted for column 'cast(11.1234 as DECIMAL(3,2))' at row 1
+select * from (select cast(11.1234 as DECIMAL(3,2))) t;
+cast(11.1234 as DECIMAL(3,2))
+9.99
+Warnings:
+Error	1264	Out of range value adjusted for column 'cast(11.1234 as DECIMAL(3,2))' at row 1
+select cast(a as DECIMAL(3,2))
+from (select 11.1233 as a
+UNION select 11.1234
+UNION select 12.1234
+) t;
+cast(a as DECIMAL(3,2))
+9.99
+9.99
+9.99
+Warnings:
+Error	1264	Out of range value adjusted for column 'cast(a as DECIMAL(3,2))' at row 1
+Error	1264	Out of range value adjusted for column 'cast(a as DECIMAL(3,2))' at row 1
+Error	1264	Out of range value adjusted for column 'cast(a as DECIMAL(3,2))' at row 1
+select cast(a as DECIMAL(3,2)), count(*)
+from (select 11.1233 as a
+UNION select 11.1234
+UNION select 12.1234
+) t group by 1;
+cast(a as DECIMAL(3,2))	count(*)
+9.99	3
+Warnings:
+Error	1264	Out of range value adjusted for column 'cast(a as DECIMAL(3,2))' at row 1
+Error	1264	Out of range value adjusted for column 'cast(a as DECIMAL(3,2))' at row 1
+Error	1264	Out of range value adjusted for column 'cast(a as DECIMAL(3,2))' at row 1
+Error	1264	Out of range value adjusted for column 'cast(a as DECIMAL(3,2))' at row 1
 End of 5.0 tests
