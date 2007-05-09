@@ -39,9 +39,9 @@ select load_file(concat(@tmpdir,"/outfile-test.3"));
 #eval select * into dumpfile "$MYSQL_TEST_DIR/var/tmp/outfile-test.3" from t1;
 #enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.not-exist"));
---exec rm $MYSQL_TEST_DIR/var/tmp/outfile-test.1
---exec rm $MYSQL_TEST_DIR/var/tmp/outfile-test.2
---exec rm $MYSQL_TEST_DIR/var/tmp/outfile-test.3
+--remove_file $MYSQL_TEST_DIR/var/tmp/outfile-test.1
+--remove_file $MYSQL_TEST_DIR/var/tmp/outfile-test.2
+--remove_file $MYSQL_TEST_DIR/var/tmp/outfile-test.3
 drop table t1;
 
 # Bug#8191
@@ -49,7 +49,7 @@ disable_query_log;
 eval select 1 into outfile "$MYSQL_TEST_DIR/var/tmp/outfile-test.4";
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.4"));
---exec rm $MYSQL_TEST_DIR/var/tmp/outfile-test.4
+--remove_file $MYSQL_TEST_DIR/var/tmp/outfile-test.4
 
 #
 # Bug #5382: 'explain select into outfile' crashes the server
