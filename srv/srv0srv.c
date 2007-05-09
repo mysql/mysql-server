@@ -993,7 +993,7 @@ srv_conc_enter_innodb(
 
 		/* TODO Do something more interesting (based on a config
 		parameter). Some users what to give the replication
-		thread very low priority, see http://bugs.mysq.com/25078
+		thread very low priority, see http://bugs.mysql.com/25078
 		This can be done by introducing
 		innodb_replication_delay(ms) config parameter */
 		return;
