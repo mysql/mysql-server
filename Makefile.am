@@ -130,7 +130,7 @@ test-bt:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --force --comment=rpl --suite=rpl
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	@PERL@ ./mysql-test-run.pl --force --comment=partitions --suite=partitions
+	@PERL@ ./mysql-test-run.pl --force --comment=partitions --suite=parts
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --force --comment=jp --suite=jp
 
@@ -157,7 +157,7 @@ test-ext-rpl:
 
 test-ext-partitions:
 	cd mysql-test ; \
-	@PERL@ ./mysql-test-run.pl --force --suite=partitions
+	@PERL@ ./mysql-test-run.pl --force --suite=parts
 
 test-ext-jp:
 	cd mysql-test ; \
