@@ -164,7 +164,7 @@ public:
    *
    * @return  Char value.
    */           
-  char  char_value() const;           
+  Int8  char_value() const;           
 
   /**
    * Get value stored in NdbRecAttr object.
@@ -340,10 +340,10 @@ NdbRecAttr::short_value() const
 }
 
 inline
-char
+Int8
 NdbRecAttr::char_value() const
 {
-  return *(char*)theRef;
+  return *(Int8*)theRef;
 }
 
 inline
