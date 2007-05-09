@@ -724,6 +724,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   void fix_length_and_dec();
   enum Item_result result_type () const { return cmp_type; }
+  bool result_as_longlong() { return compare_as_dates; };
   bool check_partition_func_processor(byte *int_arg) {return FALSE;}
   uint cmp_datetimes(ulonglong *value);
 };
