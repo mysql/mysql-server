@@ -184,6 +184,17 @@ static NdbBlob* g_bh1 = 0;
 static NdbBlob* g_bh2 = 0;
 static bool g_printerror = true;
 static unsigned g_loop = 0;
+static const NdbRecord *g_key_record= 0;
+static const NdbRecord *g_blob_record= 0;
+static const NdbRecord *g_full_record= 0;
+static const NdbRecord *g_idx_record= 0;
+static const NdbRecord *g_ord_record= 0;
+static unsigned g_pk1_offset= 0;
+static unsigned g_pk2_offset= 0;
+static unsigned g_pk3_offset= 0;
+static unsigned g_blob1_offset= 0;
+static unsigned g_blob2_offset= 0;
+static unsigned g_rowsize= 0;
 
 static void
 printerror(int line, const char* msg)
@@ -361,6 +372,54 @@ createTable()
     idx.addColumnName("PK2");
     CHK(g_dic->createIndex(idx) == 0);
   }
+
+  NdbDictionary::RecordSpecification spec[5];
+  unsigned numpks= g_opt.m_pk2chr.m_len == 0 ? 1 : 3;
+  unsigned numblobs= g_opt.m_oneblob ? 1 : 2;
+  g_pk1_offset= 0;
+  g_pk2_offset= g_pk1_offset + 4;
+  g_pk3_offset= g_pk2_offset + g_opt.m_pk2chr.m_totlen;
+  g_blob1_offset= g_pk3_offset + 2;
+  g_blob2_offset= g_blob1_offset + sizeof(NdbBlob *);
+  g_rowsize= g_blob2_offset + sizeof(NdbBlob *);
+
+  const NdbDictionary::Table *dict_table;
+  CHK((dict_table= g_dic->getTable(g_opt.m_tname)) != 0);
+  memset(spec, 0, sizeof(spec));
+  spec[0].column= dict_table->getColumn("PK1");
+  spec[0].offset= g_pk1_offset;
+  spec[numpks].column= dict_table->getColumn("BL1");
+  spec[numpks].offset= g_blob1_offset;
+  if (g_opt.m_pk2chr.m_len != 0)
+  {
+    spec[1].column= dict_table->getColumn("PK2");
+    spec[1].offset= g_pk2_offset;
+    spec[2].column= dict_table->getColumn("PK3");
+    spec[2].offset= g_pk3_offset;
+  }
+  if (! g_opt.m_oneblob)
+  {
+    spec[numpks+1].column= dict_table->getColumn("BL2");
+    spec[numpks+1].offset= g_blob2_offset;
+  }
+  CHK((g_key_record= g_dic->createRecord(dict_table, &spec[0], numpks,
+                                         sizeof(spec[0]))) != 0);
+  CHK((g_blob_record= g_dic->createRecord(dict_table, &spec[numpks], numblobs,
+                                         sizeof(spec[0]))) != 0);
+  CHK((g_full_record= g_dic->createRecord(dict_table, &spec[0], numpks+numblobs,
+                                         sizeof(spec[0]))) != 0);
+
+  if (g_opt.m_pk2chr.m_len != 0)
+  {
+    const NdbDictionary::Index *dict_index;
+    CHK((dict_index= g_dic->getIndex(g_opt.m_x1name, g_opt.m_tname)) != 0);
+    CHK((g_idx_record= g_dic->createRecord(dict_index, dict_table, &spec[1], 2,
+                                           sizeof(spec[0]))) != 0);
+    CHK((dict_index= g_dic->getIndex(g_opt.m_x2name, g_opt.m_tname)) != 0);
+    CHK((g_ord_record= g_dic->createRecord(dict_index, dict_table, &spec[1], 1,
+                                           sizeof(spec[0]))) != 0);
+  }
+
   return 0;
 }
 
@@ -438,6 +497,8 @@ struct Tup {
   Uint16 m_pk3;
   Bval m_bval1;
   Bval m_bval2;
+  char *m_key_row;
+  char *m_row;
   Uint32 m_frag;
   Tup() :
     m_exists(false),
@@ -445,6 +506,8 @@ struct Tup {
     m_pk2eq(new char [g_opt.m_pk2chr.m_totlen + 1]),
     m_bval1(g_blob1),
     m_bval2(g_blob2),
+    m_key_row(new char[g_rowsize]),
+    m_row(new char[g_rowsize]),
     m_frag(~(Uint32)0)
     {}
   ~Tup() {
@@ -452,6 +515,10 @@ struct Tup {
     m_pk2 = 0;
     delete [] m_pk2eq;
     m_pk2eq = 0;
+    delete [] m_key_row;
+    m_key_row= 0;
+    delete [] m_row;
+    m_row= 0;
   }
   // alloc buffers of max size
   void alloc() {
@@ -576,15 +643,6 @@ getBlobHandles(NdbOperation* opr)
 }
 
 static int
-getBlobHandles(NdbIndexOperation* opx)
-{
-  CHK((g_bh1 = opx->getBlobHandle("BL1")) != 0);
-  if (! g_opt.m_oneblob)
-    CHK((g_bh2 = opx->getBlobHandle("BL2")) != 0);
-  return 0;
-}
-
-static int
 getBlobHandles(NdbScanOperation* ops)
 {
   CHK((g_bh1 = ops->getBlobHandle("BL1")) != 0);
@@ -644,7 +702,6 @@ setBlobValue(const Tup& tup, int error_code = 0)
 static int
 getBlobValue(NdbBlob* h, const Bval& v)
 {
-  bool null = (v.m_val == 0);
   DBG("getValue " <<  h->getColumn()->getName() << " buflen=" << v.m_buflen);
   CHK(h->getValue(v.m_buf, v.m_buflen) == 0);
   return 0;
@@ -1052,13 +1109,12 @@ insertPk(int style)
   for (unsigned k = 0; k < g_opt.m_rows; k++) {
     Tup& tup = g_tups[k];
     DBG("insertPk pk1=" << hex << tup.m_pk1);
-    CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
-    CHK(g_opr->insertTuple() == 0);
-    CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+    memcpy(&tup.m_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
     if (g_opt.m_pk2chr.m_len != 0) {
-      CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
-      CHK(g_opr->equal("PK3", (char*)&tup.m_pk3) == 0);
+      memcpy(&tup.m_row[g_pk2_offset], tup.m_pk2, g_opt.m_pk2chr.m_totlen);
+      memcpy(&tup.m_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
     }
+    CHK((g_opr = g_con->insertTuple(g_full_record, tup.m_row)) != 0);
     CHK(getBlobHandles(g_opr) == 0);
     if (style == 0) {
       CHK(setBlobValue(tup) == 0);
@@ -1098,16 +1154,18 @@ readPk(int style)
     Tup& tup = g_tups[k];
     DBG("readPk pk1=" << hex << tup.m_pk1);
     CHK((g_con = g_ndb->startTransaction()) != 0);
-    CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
-    if (urandom(2) == 0)
-      CHK(g_opr->readTuple() == 0);
-    else
-      CHK(g_opr->readTuple(NdbOperation::LM_CommittedRead) == 0);
-    CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+    memcpy(&tup.m_key_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
     if (g_opt.m_pk2chr.m_len != 0) {
-      CHK(g_opr->equal("PK2", tup.pk2()) == 0);
-      CHK(g_opr->equal("PK3", (char*)&tup.m_pk3) == 0);
+      memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+      memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
     }
+    if (urandom(2) == 0)
+      CHK((g_opr = g_con->readTuple(g_key_record, tup.m_key_row,
+                                    g_blob_record, tup.m_row)) != 0);
+    else
+      CHK((g_opr = g_con->readTuple(g_key_record, tup.m_key_row,
+                                    g_blob_record, tup.m_row,
+                                    NdbOperation::LM_CommittedRead)) != 0);
     CHK(getBlobHandles(g_opr) == 0);
     if (style == 0) {
       CHK(getBlobValue(tup) == 0);
@@ -1141,21 +1199,24 @@ updatePk(int style)
       int mode = urandom(3);
       int error_code = mode == 0 ? 0 : 4275;
       CHK((g_con = g_ndb->startTransaction()) != 0);
-      CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
+      memcpy(&tup.m_key_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
+      if (g_opt.m_pk2chr.m_len != 0) {
+        memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+        memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+      }
       if (mode == 0) {
         DBG("using updateTuple");
-        CHK(g_opr->updateTuple() == 0);
+        CHK((g_opr= g_con->updateTuple(g_key_record, tup.m_key_row,
+                                       g_blob_record, tup.m_row)) != 0);
       } else if (mode == 1) {
         DBG("using readTuple exclusive");
-        CHK(g_opr->readTuple(NdbOperation::LM_Exclusive) == 0);
+        CHK((g_opr= g_con->readTuple(g_key_record, tup.m_key_row,
+                                     g_blob_record, tup.m_row,
+                                     NdbOperation::LM_Exclusive)) != 0);
       } else {
         DBG("using readTuple - will fail and retry");
-        CHK(g_opr->readTuple() == 0);
-      }
-      CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
-      if (g_opt.m_pk2chr.m_len != 0) {
-        CHK(g_opr->equal("PK2", tup.pk2()) == 0);
-        CHK(g_opr->equal("PK3", (char*)&tup.m_pk3) == 0);
+        CHK((g_opr= g_con->readTuple(g_key_record, tup.m_key_row,
+                                     g_blob_record, tup.m_row)) != 0);
       }
       CHK(getBlobHandles(g_opr) == 0);
       if (style == 0) {
@@ -1188,13 +1249,16 @@ writePk(int style)
     Tup& tup = g_tups[k];
     DBG("writePk pk1=" << hex << tup.m_pk1);
     CHK((g_con = g_ndb->startTransaction()) != 0);
-    CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
-    CHK(g_opr->writeTuple() == 0);
-    CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+    memcpy(&tup.m_key_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
+    memcpy(&tup.m_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
     if (g_opt.m_pk2chr.m_len != 0) {
-      CHK(g_opr->equal("PK2", tup.pk2()) == 0);
-      CHK(g_opr->equal("PK3", (char*)&tup.m_pk3) == 0);
+      memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+      memcpy(&tup.m_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+      memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+      memcpy(&tup.m_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
     }
+    CHK((g_opr= g_con->writeTuple(g_key_record, tup.m_key_row,
+                                  g_full_record, tup.m_row)) != 0);
     CHK(getBlobHandles(g_opr) == 0);
     if (style == 0) {
       CHK(setBlobValue(tup) == 0);
@@ -1226,13 +1290,12 @@ deletePk()
   for (unsigned k = 0; k < g_opt.m_rows; k++) {
     Tup& tup = g_tups[k];
     DBG("deletePk pk1=" << hex << tup.m_pk1);
-    CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
-    CHK(g_opr->deleteTuple() == 0);
-    CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+    memcpy(&tup.m_key_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
     if (g_opt.m_pk2chr.m_len != 0) {
-      CHK(g_opr->equal("PK2", tup.pk2()) == 0);
-      CHK(g_opr->equal("PK3", (char*)&tup.m_pk3) == 0);
+      memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+      memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
     }
+    CHK((g_opr= g_con->deleteTuple(g_key_record, tup.m_key_row)) != 0);
     if (++n == g_opt.m_batch) {
       CHK(g_con->execute(Commit) == 0);
       g_ndb->closeTransaction(g_con);
@@ -1305,14 +1368,16 @@ readIdx(int style)
     Tup& tup = g_tups[k];
     DBG("readIdx pk1=" << hex << tup.m_pk1);
     CHK((g_con = g_ndb->startTransaction()) != 0);
-    CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
+    memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+    memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
     if (urandom(2) == 0)
-      CHK(g_opx->readTuple() == 0);
+      CHK((g_opr= g_con->readTuple(g_idx_record, tup.m_key_row,
+                                   g_blob_record, tup.m_row)) != 0);
     else
-      CHK(g_opx->readTuple(NdbOperation::LM_CommittedRead) == 0);
-    CHK(g_opx->equal("PK2", tup.pk2()) == 0);
-    CHK(g_opx->equal("PK3", (char*)&tup.m_pk3) == 0);
-    CHK(getBlobHandles(g_opx) == 0);
+      CHK((g_opr= g_con->readTuple(g_idx_record, tup.m_key_row,
+                                   g_blob_record, tup.m_row,
+                                   NdbOperation::LM_CommittedRead)) != 0);
+    CHK(getBlobHandles(g_opr) == 0);
     if (style == 0) {
       CHK(getBlobValue(tup) == 0);
     } else if (style == 1) {
@@ -1323,12 +1388,12 @@ readIdx(int style)
     }
     CHK(g_con->execute(Commit) == 0);
     // verify lock mode upgrade (already done by NdbIndexOperation)
-    CHK(g_opx->getLockMode() == NdbOperation::LM_Read);
+    CHK(g_opr->getLockMode() == NdbOperation::LM_Read);
     if (style == 0 || style == 1) {
       CHK(verifyBlobValue(tup) == 0);
     }
     g_ndb->closeTransaction(g_con);
-    g_opx = 0;
+    g_opr = 0;
     g_con = 0;
   }
   return 0;
@@ -1343,11 +1408,11 @@ updateIdx(int style)
     DBG("updateIdx pk1=" << hex << tup.m_pk1);
     // skip 4275 testing
     CHK((g_con = g_ndb->startTransaction()) != 0);
-    CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
-    CHK(g_opx->updateTuple() == 0);
-    CHK(g_opx->equal("PK2", tup.pk2()) == 0);
-    CHK(g_opx->equal("PK3", (char*)&tup.m_pk3) == 0);
-    CHK(getBlobHandles(g_opx) == 0);
+    memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+    memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+    CHK((g_opr= g_con->updateTuple(g_idx_record, tup.m_key_row,
+                                   g_blob_record, tup.m_row)) != 0);
+    CHK(getBlobHandles(g_opr) == 0);
     if (style == 0) {
       CHK(setBlobValue(tup) == 0);
     } else if (style == 1) {
@@ -1358,7 +1423,7 @@ updateIdx(int style)
     }
     CHK(g_con->execute(Commit) == 0);
     g_ndb->closeTransaction(g_con);
-    g_opx = 0;
+    g_opr = 0;
     g_con = 0;
     tup.m_exists = true;
   }
@@ -1373,11 +1438,14 @@ writeIdx(int style)
     Tup& tup = g_tups[k];
     DBG("writeIdx pk1=" << hex << tup.m_pk1);
     CHK((g_con = g_ndb->startTransaction()) != 0);
-    CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
-    CHK(g_opx->writeTuple() == 0);
-    CHK(g_opx->equal("PK2", tup.pk2()) == 0);
-    CHK(g_opx->equal("PK3", (char*)&tup.m_pk3) == 0);
-    CHK(getBlobHandles(g_opx) == 0);
+    memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+    memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+    memcpy(&tup.m_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
+    memcpy(&tup.m_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+    memcpy(&tup.m_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+    CHK((g_opr= g_con->writeTuple(g_idx_record, tup.m_key_row,
+                                  g_full_record, tup.m_row)) != 0);
+    CHK(getBlobHandles(g_opr) == 0);
     if (style == 0) {
       CHK(setBlobValue(tup) == 0);
     } else if (style == 1) {
@@ -1392,7 +1460,7 @@ writeIdx(int style)
     }
     CHK(g_con->execute(Commit) == 0);
     g_ndb->closeTransaction(g_con);
-    g_opx = 0;
+    g_opr = 0;
     g_con = 0;
     tup.m_exists = true;
   }
@@ -1408,17 +1476,16 @@ deleteIdx()
   for (unsigned k = 0; k < g_opt.m_rows; k++) {
     Tup& tup = g_tups[k];
     DBG("deleteIdx pk1=" << hex << tup.m_pk1);
-    CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
-    CHK(g_opx->deleteTuple() == 0);
-    CHK(g_opx->equal("PK2", tup.pk2()) == 0);
-    CHK(g_opx->equal("PK3", (char*)&tup.m_pk3) == 0);
+    memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+    memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+    CHK((g_opr= g_con->deleteTuple(g_idx_record, tup.m_key_row)) != 0);
     if (++n == g_opt.m_batch) {
       CHK(g_con->execute(Commit) == 0);
       g_ndb->closeTransaction(g_con);
       CHK((g_con = g_ndb->startTransaction()) != 0);
       n = 0;
     }
-    g_opx = 0;
+    g_opr = 0;
     tup.m_exists = false;
   }
   if (n != 0) {
@@ -1437,20 +1504,20 @@ readScan(int style, bool idx)
   Tup tup;
   tup.alloc();  // allocate buffers
   CHK((g_con = g_ndb->startTransaction()) != 0);
-  if (! idx) {
-    CHK((g_ops = g_con->getNdbScanOperation(g_opt.m_tname)) != 0);
-  } else {
-    CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
-  }
   if (urandom(2) == 0)
-    CHK(g_ops->readTuples(NdbOperation::LM_Read) == 0);
+    if (! idx)
+      CHK((g_ops= g_con->scanTable(g_full_record,
+                                   NdbOperation::LM_Read)) != 0);
+  else 
+      CHK((g_ops= g_con->scanIndex(g_ord_record, NULL, NULL, 0, g_full_record,
+                                   NdbOperation::LM_Read)) != 0);
   else
-    CHK(g_ops->readTuples(NdbOperation::LM_CommittedRead) == 0);
-  CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
-  if (g_opt.m_pk2chr.m_len != 0) {
-    CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
-    CHK(g_ops->getValue("PK3", (char*)&tup.m_pk3) != 0);
-  }
+    if (! idx)
+      CHK((g_ops= g_con->scanTable(g_full_record,
+                                   NdbOperation::LM_CommittedRead)) != 0);
+    else
+      CHK((g_ops= g_con->scanIndex(g_ord_record, NULL, NULL, 0, g_full_record,
+                                   NdbOperation::LM_CommittedRead)) != 0);
   CHK(getBlobHandles(g_ops) == 0);
   if (style == 0) {
     CHK(getBlobValue(tup) == 0);
@@ -1462,12 +1529,19 @@ readScan(int style, bool idx)
   CHK(g_ops->getLockMode() == NdbOperation::LM_Read);
   unsigned rows = 0;
   while (1) {
+    const char *out_row= NULL;
     int ret;
-    tup.m_pk1 = (Uint32)-1;
-    memset(tup.m_pk2, 'x', g_opt.m_pk2chr.m_len);
-    CHK((ret = g_ops->nextResult(true)) == 0 || ret == 1);
+
+    CHK((ret = g_ops->nextResult(out_row, true)) == 0 || ret == 1);
     if (ret == 1)
       break;
+    memcpy(&tup.m_pk1, &out_row[g_pk1_offset], sizeof(tup.m_pk1));
+    if (g_opt.m_pk2chr.m_len != 0)
+    {
+      memcpy(tup.m_pk2, &out_row[g_pk2_offset], g_opt.m_pk2chr.m_totlen);
+      memcpy(&tup.m_pk3, &out_row[g_pk3_offset], sizeof(tup.m_pk3));
+    }
+
     DBG("readScan" << (idx ? "Idx" : "") << " pk1=" << hex << tup.m_pk1);
     Uint32 k = tup.m_pk1 - g_opt.m_pk1off;
     CHK(k < g_opt.m_rows && g_tups[k].m_exists);
@@ -1496,26 +1570,27 @@ updateScan(int style, bool idx)
   Tup tup;
   tup.alloc();  // allocate buffers
   CHK((g_con = g_ndb->startTransaction()) != 0);
-  if (! idx) {
-    CHK((g_ops = g_con->getNdbScanOperation(g_opt.m_tname)) != 0);
-  } else {
-    CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
-  }
-  CHK(g_ops->readTuples(NdbOperation::LM_Exclusive) == 0);
-  CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
-  if (g_opt.m_pk2chr.m_len != 0) {
-    CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
-    CHK(g_ops->getValue("PK3", (char*)&tup.m_pk3) != 0);
-  }
+  if (! idx)
+    CHK((g_ops= g_con->scanTable(g_key_record,
+                                 NdbOperation::LM_Exclusive)) != 0);
+  else
+    CHK((g_ops= g_con->scanIndex(g_ord_record, NULL, NULL, 0, g_key_record,
+                                 NdbOperation::LM_Exclusive)) != 0);
   CHK(g_con->execute(NoCommit) == 0);
   unsigned rows = 0;
   while (1) {
+    const char *out_row= NULL;
     int ret;
-    tup.m_pk1 = (Uint32)-1;
-    memset(tup.m_pk2, 'x', g_opt.m_pk2chr.m_len);
-    CHK((ret = g_ops->nextResult(true)) == 0 || ret == 1);
+
+    CHK((ret = g_ops->nextResult(out_row, true)) == 0 || ret == 1);
     if (ret == 1)
       break;
+    memcpy(&tup.m_pk1, &out_row[g_pk1_offset], sizeof(tup.m_pk1));
+    if (g_opt.m_pk2chr.m_len != 0) {
+      memcpy(tup.m_pk2, &out_row[g_pk2_offset], g_opt.m_pk2chr.m_totlen);
+      memcpy(&tup.m_pk3, &out_row[g_pk3_offset], sizeof(tup.m_pk3));
+    }
+
     DBG("updateScan" << (idx ? "Idx" : "") << " pk1=" << hex << tup.m_pk1);
     Uint32 k = tup.m_pk1 - g_opt.m_pk1off;
     CHK(k < g_opt.m_rows && g_tups[k].m_exists);
@@ -1523,7 +1598,7 @@ updateScan(int style, bool idx)
     calcBval(g_tups[k], false);
     tup.copyfrom(g_tups[k]);
     // cannot do 4275 testing, scan op error code controls execution
-    CHK((g_opr = g_ops->updateCurrentTuple()) != 0);
+    CHK((g_opr = g_ops->updateCurrentTuple(g_con, g_blob_record, tup.m_row)) != 0);
     CHK(getBlobHandles(g_opr) == 0);
     if (style == 0) {
       CHK(setBlobValue(tup) == 0);
@@ -1551,37 +1626,48 @@ deleteScan(bool idx)
   DBG("--- " << "deleteScan" << (idx ? "Idx" : "") << " ---");
   Tup tup;
   CHK((g_con = g_ndb->startTransaction()) != 0);
-  if (! idx) {
-    CHK((g_ops = g_con->getNdbScanOperation(g_opt.m_tname)) != 0);
-  } else {
-    CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
-  }
-  CHK(g_ops->readTuples(NdbOperation::LM_Exclusive) == 0);
-  CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
-  if (g_opt.m_pk2chr.m_len != 0) {
-    CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
-    CHK(g_ops->getValue("PK3", (char*)&tup.m_pk3) != 0);
-  }
+  if (! idx)
+    CHK((g_ops= g_con->scanTable(g_key_record,
+                                 NdbOperation::LM_Exclusive)) != 0);
+  else
+    CHK((g_ops= g_con->scanIndex(g_ord_record, NULL, NULL, 0, g_key_record,
+                                 NdbOperation::LM_Exclusive)) != 0);
   CHK(g_con->execute(NoCommit) == 0);
   unsigned rows = 0;
   unsigned n = 0;
   while (1) {
+    const char *out_row= NULL;
     int ret;
-    tup.m_pk1 = (Uint32)-1;
-    memset(tup.m_pk2, 'x', g_opt.m_pk2chr.m_len);
-    CHK((ret = g_ops->nextResult(true)) == 0 || ret == 1);
+
+    CHK((ret = g_ops->nextResult(out_row, true)) == 0 || ret == 1);
     if (ret == 1)
       break;
+    memcpy(&tup.m_pk1, &out_row[g_pk1_offset], sizeof(tup.m_pk1));
+    if (g_opt.m_pk2chr.m_len != 0)
+    {
+      memcpy(tup.m_pk2, &out_row[g_pk2_offset], g_opt.m_pk2chr.m_totlen);
+      memcpy(&tup.m_pk3, &out_row[g_pk3_offset], sizeof(tup.m_pk3));
+    }
+
     while (1) {
       DBG("deleteScan" << (idx ? "Idx" : "") << " pk1=" << hex << tup.m_pk1);
       Uint32 k = tup.m_pk1 - g_opt.m_pk1off;
       CHK(k < g_opt.m_rows && g_tups[k].m_exists);
       g_tups[k].m_exists = false;
-      CHK(g_ops->deleteCurrentTuple() == 0);
+      CHK(g_ops->deleteCurrentTuple(g_con, g_key_record) != NULL);
       rows++;
       tup.m_pk1 = (Uint32)-1;
       memset(tup.m_pk2, 'x', g_opt.m_pk2chr.m_len);
-      CHK((ret = g_ops->nextResult(false)) == 0 || ret == 1 || ret == 2);
+      CHK((ret = g_ops->nextResult(out_row, false)) == 0 || ret == 1 || ret == 2);
+      if (ret == 0)
+      {
+        memcpy(&tup.m_pk1, &out_row[g_pk1_offset], sizeof(tup.m_pk1));
+        if (g_opt.m_pk2chr.m_len != 0)
+        {
+          memcpy(tup.m_pk2, &out_row[g_pk2_offset], g_opt.m_pk2chr.m_totlen);
+          memcpy(&tup.m_pk3, &out_row[g_pk3_offset], sizeof(tup.m_pk3));
+        }
+      }
       if (++n == g_opt.m_batch || ret == 2) {
         DBG("execute batch: n=" << n << " ret=" << ret);
         if (! g_opt.m_fac) {
@@ -1621,9 +1707,9 @@ testmain()
   CHK(g_ndb->waitUntilReady() == 0);
   g_dic = g_ndb->getDictionary();
   initblobs();
-  g_tups = new Tup [g_opt.m_rows];
   CHK(dropTable() == 0);
   CHK(createTable() == 0);
+  g_tups = new Tup [g_opt.m_rows];
   Bcol& b1 = g_blob1;
   CHK(NdbBlob::getBlobTableName(b1.m_btname, g_ndb, g_opt.m_tname, "BL1") == 0);
   DBG("BL1: inline=" << b1.m_inline << " part=" << b1.m_partsize << " table=" << b1.m_btname);
@@ -2130,16 +2216,16 @@ bugtest_27018()
       // testing write at end is another problem..
       continue;
     }
-    DBG("len=" << tup.m_bval1.m_len << " offset=" << offset);
+    //DBG("len=" << tup.m_bval1.m_len << " offset=" << offset);
 
     CHK((g_con= g_ndb->startTransaction()) != 0);
-    CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
-    CHK(g_opr->updateTuple() == 0);
-    CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+    memcpy(&tup.m_key_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
     if (g_opt.m_pk2chr.m_len != 0) {
-      CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
-      CHK(g_opr->equal("PK3", (char*)&tup.m_pk3) == 0);
+      memcpy(&tup.m_key_row[g_pk2_offset], tup.m_pk2, g_opt.m_pk2chr.m_totlen);
+      memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
     }
+    CHK((g_opr= g_con->updateTuple(g_key_record, tup.m_key_row,
+                                   g_blob_record, tup.m_row)) != 0);
     CHK(getBlobHandles(g_opr) == 0);
     CHK(g_con->execute(NoCommit) == 0);
 
@@ -2150,13 +2236,8 @@ bugtest_27018()
     g_ndb->closeTransaction(g_con);
 
     CHK((g_con= g_ndb->startTransaction()) != 0);
-    CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
-    CHK(g_opr->readTuple() == 0);
-    CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
-    if (g_opt.m_pk2chr.m_len != 0) {
-      CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
-      CHK(g_opr->equal("PK3", (char*)&tup.m_pk3) == 0);
-    }
+    CHK((g_opr= g_con->readTuple(g_key_record, tup.m_key_row,
+                                 g_blob_record, tup.m_row)) != 0);
     CHK(getBlobHandles(g_opr) == 0);
 
     CHK(g_bh1->getValue(tup.m_bval1.m_buf, tup.m_bval1.m_len) == 0);
@@ -2185,9 +2266,9 @@ struct bug27370_data {
   char m_current_write_value;
   char *m_writebuf;
   Uint32 m_blob1_size;
-  Uint32 m_pk1;
-  char m_pk2[256 + 2];
-  Uint16 m_pk3;
+  char *m_key_row;
+  char *m_read_row;
+  char *m_write_row;
   bool m_thread_stop;
 };
 
@@ -2204,19 +2285,10 @@ void *bugtest_27370_thread(void *arg)
     if ((con= data->m_ndb->startTransaction()) == 0)
       return (void *)"Failed to create transaction";
     NdbOperation *opr;
-    if ((opr= con->getNdbOperation(g_opt.m_tname)) == 0)
+    memcpy(data->m_write_row, data->m_key_row, g_rowsize);
+    if ((opr= con->writeTuple(g_key_record, data->m_key_row,
+                              g_full_record, data->m_write_row)) == 0)
       return (void *)"Failed to create operation";
-    if (opr->writeTuple() != 0)
-      return (void *)"writeTuple() failed";
-    if (opr->equal("PK1", data->m_pk1) != 0)
-      return (void *)"equal(PK1) failed";
-    if (g_opt.m_pk2chr.m_len != 0)
-    {
-      if (opr->equal("PK2", data->m_pk2) != 0)
-        return (void *)"equal(PK2) failed";
-      if (opr->equal("PK3", (char *)(&data->m_pk3)) != 0)
-        return (void *)"equal(PK2) failed";
-    }
     NdbBlob *bh;
     if ((bh= opr->getBlobHandle("BL1")) == 0)
       return (void *)"getBlobHandle() failed";
@@ -2237,6 +2309,10 @@ bugtest_27370()
 
   bug27370_data data;
 
+  CHK((data.m_key_row= new char[g_rowsize*3]) != 0);
+  data.m_read_row= data.m_key_row + g_rowsize;
+  data.m_write_row= data.m_read_row + g_rowsize;
+
   data.m_ndb= new Ndb(g_ncc, "TEST_DB");
   CHK(data.m_ndb->init(20) == 0);
   CHK(data.m_ndb->waitUntilReady() == 0);
@@ -2244,26 +2320,25 @@ bugtest_27370()
   data.m_current_write_value= 0;
   data.m_blob1_size= g_blob1.m_inline + 10 * g_blob1.m_partsize;
   CHK((data.m_writebuf= new char [data.m_blob1_size]) != 0);
-  data.m_pk1= 27370;
-  memset(data.m_pk2, 'x', sizeof(data.m_pk2) - 1);
-  data.m_pk2[sizeof(data.m_pk2) - 1]= '\0';
-  if (!g_opt.m_pk2chr.m_fixed)
-    data.m_pk2[0]= urandom(g_opt.m_pk2chr.m_len + 1);
-  data.m_pk3= 27370;
+  Uint32 pk1_value= 27370;
+  memcpy(&data.m_key_row[g_pk1_offset], &pk1_value, sizeof(pk1_value));
+  if (g_opt.m_pk2chr.m_len != 0)
+  {
+    memset(&data.m_key_row[g_pk2_offset], 'x', g_opt.m_pk2chr.m_totlen);
+    if (!g_opt.m_pk2chr.m_fixed)
+      data.m_key_row[g_pk2_offset]= urandom(g_opt.m_pk2chr.m_len + 1);
+    Uint16 pk3_value= 27370;
+    memcpy(&data.m_key_row[g_pk3_offset], &pk3_value, sizeof(pk3_value));
+  }
   data.m_thread_stop= false;
 
   memset(data.m_writebuf, data.m_current_write_value, data.m_blob1_size);
   data.m_current_write_value++;
 
   CHK((g_con= g_ndb->startTransaction()) != 0);
-  CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
-  CHK(g_opr->writeTuple() == 0);
-  CHK(g_opr->equal("PK1", data.m_pk1) == 0);
-  if (g_opt.m_pk2chr.m_len != 0)
-  {
-    CHK(g_opr->equal("PK2", data.m_pk2) == 0);
-    CHK(g_opr->equal("PK3", (char *)(&data.m_pk3)) == 0);
-  }
+  memcpy(data.m_write_row, data.m_key_row, g_rowsize);
+  CHK((g_opr= g_con->writeTuple(g_key_record, data.m_key_row,
+                                g_full_record, data.m_write_row)) != 0);
   CHK((g_bh1= g_opr->getBlobHandle("BL1")) != 0);
   CHK(g_bh1->setValue(data.m_writebuf, data.m_blob1_size) == 0);
   CHK(g_con->execute(Commit) == 0);
@@ -2278,14 +2353,9 @@ bugtest_27370()
   while (seen_updates < 50)
   {
     CHK((g_con= g_ndb->startTransaction()) != 0);
-    CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
-    CHK(g_opr->readTuple(NdbOperation::LM_CommittedRead) == 0);
-    CHK(g_opr->equal("PK1", data.m_pk1) == 0);
-    if (g_opt.m_pk2chr.m_len != 0)
-    {
-      CHK(g_opr->equal("PK2", data.m_pk2) == 0);
-      CHK(g_opr->equal("PK3", (char *)(&data.m_pk3)) == 0);
-    }
+    CHK((g_opr= g_con->readTuple(g_key_record, data.m_key_row,
+                                 g_blob_record, data.m_read_row,
+                                 NdbOperation::LM_CommittedRead)) != 0);
     CHK((g_bh1= g_opr->getBlobHandle("BL1")) != 0);
     CHK(g_con->execute(NoCommit, AbortOnError, 1) == 0);
 
@@ -2332,11 +2402,12 @@ bugtest_27370()
   while (seen_updates < 50)
   {
     CHK((g_con= g_ndb->startTransaction()) != 0);
-    CHK((g_ops= g_con->getNdbScanOperation(g_opt.m_tname)) != 0);
-    CHK(g_ops->readTuples(NdbOperation::LM_CommittedRead) == 0);
+    CHK((g_ops= g_con->scanTable(g_full_record,
+                                 NdbOperation::LM_CommittedRead)) != 0);
     CHK((g_bh1= g_ops->getBlobHandle("BL1")) != 0);
     CHK(g_con->execute(NoCommit, AbortOnError, 1) == 0);
-    CHK(g_ops->nextResult(true) == 0);
+    const char *out_row;
+    CHK(g_ops->nextResult(out_row, true) == 0);
 
     const Uint32 loop_max= 10;
     char read_char;
@@ -2372,7 +2443,7 @@ bugtest_27370()
       CHK(g_con->execute(NoCommit, AbortOnError, 1) == 0);
     }
 
-    CHK(g_ops->nextResult(true) == 1);
+    CHK(g_ops->nextResult(out_row, true) == 1);
     g_ndb->closeTransaction(g_con);
     g_con= NULL;
   }
@@ -2384,6 +2455,7 @@ bugtest_27370()
       (thread_return ? (char *)thread_return : "<null>"));
   CHK(thread_return == 0);
 
+  delete [] data.m_key_row;
   g_con= NULL;
   g_opr= NULL;
   g_bh1= NULL;
@@ -2408,7 +2480,7 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
     const char* progname =
       strchr(argv[0], '/') ? strrchr(argv[0], '/') + 1 : argv[0];
     strcpy(cmdline, progname);
-    for (uint i = 1; i < argc; i++) {
+    for (int i = 1; i < argc; i++) {
       strcat(cmdline, " ");
       strcat(cmdline, argv[i]);
     }

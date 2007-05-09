@@ -623,7 +623,7 @@ ErrorBundle ErrorCodes[] = {
   { 4277, DMEC, AE, "Key part len is to small for column" },
   { 4278, DMEC, AE, "Supplied buffer to small" },
   { 4279, DMEC, AE, "Malformed string" },
-  { 4280, DMEC, AE, "Inconsisten key part length" },
+  { 4280, DMEC, AE, "Inconsistent key part length" },
   { 4281, DMEC, AE, "Too many keys specified for key bound in scanIndex" },
   { 4282, DMEC, AE, "range_no not strictly increasing in ordered multi-range index scan" },
   { 4283, DMEC, AE, "key_record in index scan is not an index ndbrecord" },
