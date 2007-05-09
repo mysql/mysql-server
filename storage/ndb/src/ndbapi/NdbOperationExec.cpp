@@ -350,7 +350,6 @@ NdbOperation::repack_read(Uint32 len)
   Uint32 save = len;
   Bitmask<MAXNROFATTRIBUTESINWORDS> mask;
   NdbApiSignal *tSignal = theFirstATTRINFO;
-  NdbApiSignal* tFirst = theTCREQ;
   TcKeyReq * const tcKeyReq = CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
   Uint32 cols = m_currentTable->m_columns.size();
 
@@ -895,9 +894,10 @@ NdbOperation::fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
   /* We will setNoDiskFlag() later when we have checked all columns. */
   TcKeyReq::setDirtyFlag(reqInfo, theDirtyIndicator);
   TcKeyReq::setOperationType(reqInfo, theOperationType);
-  Uint8 abortOption= (ao == DefaultAbortOption) ? m_abortOption : ao;
+  Uint8 abortOption= (ao == DefaultAbortOption) ?
+    (Uint8) m_abortOption : (Uint8) ao;
   m_abortOption= theSimpleIndicator && theOperationType==ReadRequest ?
-    AO_IgnoreError : abortOption;
+    (Uint8) AO_IgnoreError : (Uint8) abortOption;
   TcKeyReq::setAbortOption(reqInfo, m_abortOption);
   TcKeyReq::setDistributionKeyFlag(reqInfo, theDistrKeyIndicator_);
   TcKeyReq::setScanIndFlag(reqInfo, theScanInfo & 1);
