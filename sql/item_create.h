@@ -27,7 +27,8 @@ Item *create_func_bit_length(Item* a);
 Item *create_func_coercibility(Item* a);
 Item *create_func_ceiling(Item* a);
 Item *create_func_char_length(Item* a);
-Item *create_func_cast(Item *a, Cast_target cast_type, int len, int dec,
+Item *create_func_cast(Item *a, Cast_target cast_type,
+                       const char *len, const char *dec,
                        CHARSET_INFO *cs);
 Item *create_func_connection_id(void);
 Item *create_func_conv(Item* a, Item *b, Item *c);
