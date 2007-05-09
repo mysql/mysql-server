@@ -416,6 +416,7 @@ private:
   int copyKeyFromRow(const NdbRecord *record, const char *row,
                      Buf& packedBuf, Buf& unpackedBuf);
   Uint32 getHeadInlineSize() { return theHeadSize + theInlineSize; }
+  void prepareSetHeadInlineValue();
   void getBlobHeadData(const char * & data, Uint32 & byteSize);
   // getters and setters
   void packBlobHead();

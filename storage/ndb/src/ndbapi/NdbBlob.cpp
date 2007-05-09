@@ -686,6 +686,7 @@ NdbBlob::copyKeyFromRow(const NdbRecord *record, const char *row,
 void
 NdbBlob::getBlobHeadData(const char * & data, Uint32 & byteSize)
 {
+  prepareSetHeadInlineValue();
   if (theNullFlag)
   {
     data= NULL;
@@ -693,11 +694,11 @@ NdbBlob::getBlobHeadData(const char * & data, Uint32 & byteSize)
   }
   else
   {
-    theHead.length= theLength;
-    if (theLength < theInlineSize)
-      memset(theInlineData + theLength, 0, theInlineSize - theLength);
     data= theHeadInlineBuf.data;
-    byteSize= theHeadInlineBuf.size;
+    if (unlikely(theBlobVersion == NDB_BLOB_V1))
+      byteSize = theHeadInlineBuf.size;
+    else
+      byteSize = theHead.varsize + 2;
   }
 }
 
@@ -1018,10 +1019,9 @@ NdbBlob::getHeadFromRecAttr()
   DBUG_VOID_RETURN;
 }
 
-int
-NdbBlob::setHeadInlineValue(NdbOperation* anOp)
+void
+NdbBlob::prepareSetHeadInlineValue()
 {
-  DBUG_ENTER("NdbBlob::setHeadInlineValue");
   theHead.length = theLength;
   if (unlikely(theBlobVersion == NDB_BLOB_V1)) {
     if (theLength < theInlineSize)
@@ -1035,13 +1035,20 @@ NdbBlob::setHeadInlineValue(NdbOperation* anOp)
     theHead.pkid = 0; // wl3717_todo not yet
   }
   packBlobHead();
+  theHeadInlineUpdateFlag = false;
   assert(theNullFlag != -1);
+}
+
+int
+NdbBlob::setHeadInlineValue(NdbOperation* anOp)
+{
+  DBUG_ENTER("NdbBlob::setHeadInlineValue");
+  prepareSetHeadInlineValue();
   const char* aValue = theNullFlag ? 0 : theHeadInlineBuf.data;
   if (anOp->setValue(theColumn, aValue) == -1) {
     setErrorCode(anOp);
     DBUG_RETURN(-1);
   }
-  theHeadInlineUpdateFlag = false;
   DBUG_RETURN(0);
 }
 
@@ -1868,9 +1875,7 @@ NdbBlob::invokeActiveHook()
  * Prepare blob handle linked to an operation.
  * This one for NdbRecAttr-based operation.
  *
- * Checks blob table. Allocates buffers.
  * For key operation fetches key data from signal data.
- * For read operation adds read of head+inline.
  */
 int
 NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl* aColumn)
@@ -1924,6 +1929,11 @@ NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl
   DBUG_RETURN(0);
 }
 
+/*
+ * Common prepare code for NdbRecAttr and NdbRecord operations.
+ * Checks blob table. Allocates buffers.
+ * For read operation adds read of head+inline.
+ */
 int
 NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
                          const NdbColumnImpl* aColumn)
