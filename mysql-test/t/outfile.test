@@ -41,9 +41,9 @@ eval select * into dumpfile "../tmp/outfile-test.2" from t1;
 eval select * into dumpfile "../tmp/outfile-test.3" from t1;
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.not-exist"));
---exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.1
---exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.2
---exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.3
+--remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.1
+--remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.2
+--remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.3
 drop table t1;
 
 # Bug#8191
@@ -51,7 +51,7 @@ disable_query_log;
 eval select 1 into outfile "../tmp/outfile-test.4";
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.4"));
---exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.4
+--remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.4
 
 #
 # Bug #5382: 'explain select into outfile' crashes the server
@@ -75,7 +75,7 @@ eval SELECT * INTO OUTFILE "../tmp/outfile-test.4"
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
 FROM information_schema.schemata LIMIT 0, 5;
 # enable_query_log;
---exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.4
+--remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.4
 
 use information_schema;
 # disable_query_log;
@@ -83,7 +83,7 @@ eval SELECT * INTO OUTFILE "../tmp/outfile-test.4"
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
 FROM schemata LIMIT 0, 5;
 enable_query_log;
---exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.4
+--remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.4
 use test;
 
 #
