@@ -18,13 +18,24 @@
 #endif
 
 /*
+  Shared structure for correct LOCK operation
+*/
+struct st_blackhole_share {
+  THR_LOCK lock;
+  uint use_count;
+  uint table_name_length;
+  char table_name[1];
+};
+
+
+/*
   Class definition for the blackhole storage engine
   "Dumbest named feature ever"
 */
 class ha_blackhole: public handler
 {
   THR_LOCK_DATA lock;      /* MySQL lock */
-  THR_LOCK thr_lock;
+  st_blackhole_share *share;
 
 public:
   ha_blackhole(handlerton *hton, TABLE_SHARE *table_arg);
@@ -76,7 +87,6 @@ public:
   void position(const byte *record);
   int info(uint flag);
   int external_lock(THD *thd, int lock_type);
-  uint lock_count(void) const;
   int create(const char *name, TABLE *table_arg,
              HA_CREATE_INFO *create_info);
   THR_LOCK_DATA **store_lock(THD *thd,
