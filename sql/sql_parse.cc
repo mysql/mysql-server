@@ -2818,7 +2818,7 @@ unsent_create_error:
 	old_list=table[0];
 	new_list=table->next[0];
 	old_list.next=new_list.next=0;
-	if (check_grant(thd, ALTER_ACL, &old_list, 0, UINT_MAX, 0) ||
+	if (check_grant(thd, ALTER_ACL | DROP_ACL, &old_list, 0, UINT_MAX, 0) ||
 	    (!test_all_bits(table->next->grant.privilege,
 			    INSERT_ACL | CREATE_ACL) &&
 	     check_grant(thd, INSERT_ACL | CREATE_ACL, &new_list, 0,
