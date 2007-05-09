@@ -6056,7 +6056,7 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
                                        ulonglong nb_desired_values,
                                        ulonglong *first_value,
                                        ulonglong *nb_reserved_values)
-{  
+{
   int cache_size;
   Uint64 auto_value;
   DBUG_ENTER("get_auto_increment");
@@ -6080,7 +6080,8 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
     ret=
       m_skip_auto_increment ? 
       ndb->readAutoIncrementValue(m_table, g.range, auto_value) :
-      ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size);
+      ndb->getAutoIncrementValue(m_table, g.range, 
+                                 auto_value, cache_size, increment, offset);
   } while (ret == -1 && 
            --retries &&
            ndb->getNdbError().status == NdbError::TemporaryError);
