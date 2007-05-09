@@ -2483,6 +2483,7 @@ NdbTransaction::scanIndex(
   int res;
   Uint32 i,j;
   Uint32 previous_range_no;
+  Uint32 column_count;
 
   if (!(key_record->flags & NdbRecord::RecIsKeyRecord))
   {
@@ -2525,6 +2526,7 @@ NdbTransaction::scanIndex(
   op->theStatus= NdbOperation::UseNdbRecord;
 
   lastBlob= NULL;
+  column_count= 0;
   for (i= 0; i<result_record->noOfColumns; i++)
   {
     const NdbRecord::Attr *col;
@@ -2564,7 +2566,9 @@ NdbTransaction::scanIndex(
 
     if (col->flags & NdbRecord::IsDisk)
       op->m_no_disk_flag= false;
+    column_count++;
   }
+  op->theReceiver.m_record.m_column_count= column_count;
 
   op->theInitialReadSize= op->theTotalCurrAI_Len - 5;
 
