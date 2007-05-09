@@ -68,6 +68,7 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   clusterMgrThreadMutex = NdbMutex_Create();
   waitForHBCond= NdbCondition_Create();
   waitingForHB= false;
+  m_max_api_reg_req_interval= 0xFFFFFFFF; // MAX_INT
   noOfAliveNodes= 0;
   noOfConnectedNodes= 0;
   theClusterMgrThread= 0;
@@ -251,7 +252,7 @@ ClusterMgr::threadMain( ){
      * Start of Secure area for use of Transporter
      */
     theFacade.lock_mutex();
-    for (int i = 1; i < MAX_NODES; i++){
+    for (int i = 1; i < MAX_NDB_NODES; i++){
       /**
        * Send register request (heartbeat) to all available nodes 
        * at specified timing intervals
@@ -272,7 +273,8 @@ ClusterMgr::threadMain( ){
       }
       
       theNode.hbCounter += timeSlept;
-      if (theNode.hbCounter >= theNode.hbFrequency) {
+      if (theNode.hbCounter >= m_max_api_reg_req_interval ||
+          theNode.hbCounter >= theNode.hbFrequency) {
 	/**
 	 * It is now time to send a new Heartbeat
 	 */
@@ -281,13 +283,6 @@ ClusterMgr::threadMain( ){
 	  theNode.hbCounter = 0;
 	}
 
-	/**
-	 * If the node is of type REP, 
-	 * then the receiver of the signal should be API_CLUSTERMGR
-	 */
-	if (theNode.m_info.m_type == NodeInfo::REP) {
-	  signal.theReceiversBlockNumber = API_CLUSTERMGR;
-	}
 #ifdef DEBUG_REG
 	ndbout_c("ClusterMgr: Sending API_REGREQ to node %d", (int)nodeId);
 #endif
