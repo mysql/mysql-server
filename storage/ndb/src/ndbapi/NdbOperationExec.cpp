@@ -838,6 +838,22 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
       ra= ra->next();
     }
   }
+
+  /* Handle any setAnyValue(). */
+  if (m_use_any_value)
+  {
+    res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
+                                     AttributeHeader::ANY_VALUE, 4,
+                                     &attrInfoPtr, &remain);
+    if(res)
+      return res;
+    res= insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
+                                      (const char *)(&m_any_value), 4,
+                                      &attrInfoPtr, &remain);
+    if(res)
+      return res;
+  }
+
   Uint32 signalLength= hdrSize +
     (theTupKeyLen > TcKeyReq::MaxKeyInfo ?
          TcKeyReq::MaxKeyInfo : theTupKeyLen) +

@@ -624,9 +624,27 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
 int
 NdbOperation::setAnyValue(Uint32 any_value)
 {
+  OperationType tOpType = theOperationType;
+
+  if (theStatus == UseNdbRecord)
+  {
+    switch(tOpType)
+    {
+      case InsertRequest:
+      case WriteRequest:
+      case UpdateRequest:
+      case DeleteRequest:
+        m_any_value= any_value;
+        m_use_any_value= 1;
+        return 0;
+      default:
+        setErrorCodeAbort(4504);
+        return -1;
+    }
+  }
+
   const NdbColumnImpl* impl =
     &NdbColumnImpl::getImpl(* NdbDictionary::Column::ANY_VALUE);
-  OperationType tOpType = theOperationType;
   OperationStatus tStatus = theStatus;
 
   switch(tOpType){
