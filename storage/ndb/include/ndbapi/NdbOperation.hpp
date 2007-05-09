@@ -1143,6 +1143,11 @@ protected:
                                  // set true
   Int8  theDistrKeyIndicator_;    // Indicates whether distr. key is used
   Uint8  m_no_disk_flag;          
+  /*
+    For NdbRecord, this flag indicates that we need to send the Event-attached
+    word set by setAnyValue().
+  */
+  Uint8 m_use_any_value;
 
   Uint16 m_tcReqGSN;
   Uint16 m_keyInfoGSN;
@@ -1180,6 +1185,8 @@ protected:
     #include <Bitmask.hpp> in application code.
   */
   Uint32 m_read_mask[(NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5];
+
+  Uint32 m_any_value;                           // Valid if m_use_any_value!=0
 
   // Blobs in this operation
   NdbBlob* theBlobList;
