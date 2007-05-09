@@ -171,7 +171,7 @@ insert into t2 values(1),(2);
 Warnings:
 Warning	1261	Row 1 doesn't contain data for all columns
 Warning	1261	Row 2 doesn't contain data for all columns
-select f1 from t1 where f2 <> '0000-00-00 00:00:00';
+select f1 from t1 where f2 <> '0000-00-00 00:00:00' order by f1;
 f1
 1
 2
@@ -179,7 +179,7 @@ delete from t1;
 Warnings:
 Warning	1261	Row 1 doesn't contain data for all columns
 Warning	1261	Row 2 doesn't contain data for all columns
-select f1 from t1 where f2 <> '0000-00-00 00:00:00';
+select f1 from t1 where f2 <> '0000-00-00 00:00:00' order by f1;
 f1
 1
 2
