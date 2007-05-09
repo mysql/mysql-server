@@ -5,7 +5,7 @@
 #          stored procedures to load the database
 #          and run transactions against the DB
 ##################################################
-
+DROP DATABASE IF EXISTS tpcb;
 
 CREATE DATABASE tpcb;
 
