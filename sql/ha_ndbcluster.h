@@ -504,6 +504,7 @@ private:
   int set_blob_values(NdbOperation *ndb_op, my_ptrdiff_t row_offset,
                       const MY_BITMAP *bitmap, uint *set_count);
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
+  void eventSetAnyValue(const THD *thd, NdbOperation *op);
 
   NdbOperation *pk_unique_index_read_key(uint idx, const byte *key, byte *buf,
                                          NdbOperation::LockMode lm);

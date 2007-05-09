@@ -3226,6 +3226,18 @@ int ha_ndbcluster::full_table_scan(byte *buf)
   DBUG_RETURN(next_result(buf));
 }
 
+inline void
+ha_ndbcluster::eventSetAnyValue(const THD *thd, NdbOperation *op)
+{
+  if (unlikely(m_slow_path))
+  {
+    if (!(thd->options & OPTION_BIN_LOG))
+      op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
+    else if (thd->slave_thread)
+      op->setAnyValue(thd->server_id);
+  }
+}
+
 int ha_ndbcluster::write_row(byte *record)
 {
   DBUG_ENTER("ha_ndbcluster::write_row");
@@ -3409,13 +3421,7 @@ int ha_ndbcluster::ndb_write_row(byte *record, bool primary_key_update,
   if (!(op))
     ERR_RETURN(trans->getNdbError());
 
-  if (unlikely(m_slow_path))
-  {
-    if (!(thd->options & OPTION_BIN_LOG))
-      op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
-    else if (thd->slave_thread)
-      op->setAnyValue(thd->server_id);
-  }
+  eventSetAnyValue(thd, op);
 
   uint blob_count= 0;
   if (table_share->blob_fields > 0)
@@ -3700,13 +3706,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   if (m_use_partition_function)
     op->setPartitionId(new_part_id);
 
-  if (unlikely(m_slow_path))
-  {
-    if (!(thd->options & OPTION_BIN_LOG))
-      op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
-    else if (thd->slave_thread)
-      op->setAnyValue(thd->server_id);
-  }
+  eventSetAnyValue(thd, op);
 
   m_rows_changed++;
 
@@ -3768,13 +3768,8 @@ int ha_ndbcluster::ndb_delete_row(const byte *record, bool primary_key_update)
 
     no_uncommitted_rows_update(-1);
 
-    if (unlikely(m_slow_path))
-    {
-      if (!(thd->options & OPTION_BIN_LOG))
-        op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
-      else if (thd->slave_thread)
-        op->setAnyValue(thd->server_id);
-    }
+    eventSetAnyValue(thd, op);
+
     if (!primary_key_update || m_delete_cannot_batch)
       // If deleting from cursor, NoCommit will be handled in next_result
       DBUG_RETURN(0);
@@ -3801,13 +3796,7 @@ int ha_ndbcluster::ndb_delete_row(const byte *record, bool primary_key_update)
 
     no_uncommitted_rows_update(-1);
 
-    if (unlikely(m_slow_path))
-    {
-      if (!(thd->options & OPTION_BIN_LOG))
-        op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
-      else if (thd->slave_thread)
-        op->setAnyValue(thd->server_id);
-    }
+    eventSetAnyValue(thd, op);
   }
 
   // Execute delete operation
