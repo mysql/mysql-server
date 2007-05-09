@@ -164,6 +164,7 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection,
   theBlobList = NULL;
   m_abortOption = -1;
   m_no_disk_flag = 1;
+  m_use_any_value = 0;
 
   tSignal = theNdb->getSignal();
   if (tSignal == NULL)
