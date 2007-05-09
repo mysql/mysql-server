@@ -3808,6 +3808,17 @@ restart:
       res= i_ndb->pollEvents(tot_poll_wait, &gci);
       tot_poll_wait= 0;
     }
+    else
+    {
+      /*
+        Just consume any events, not used if no binlogging
+        e.g. node failure events
+      */
+      Uint64 tmp_gci;
+      if (i_ndb->pollEvents(0, &tmp_gci))
+        while (i_ndb->nextEvent())
+          ;
+    }
     int schema_res= s_ndb->pollEvents(tot_poll_wait, &schema_gci);
     ndb_latest_received_binlog_epoch= gci;
 
