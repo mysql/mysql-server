@@ -5,8 +5,9 @@
 #          stored procedures to load the database
 #          and run transactions against the DB
 ##################################################
+--disable_warnings
 DROP DATABASE IF EXISTS tpcb;
-
+--enable_warnings
 CREATE DATABASE tpcb;
 
 --echo
