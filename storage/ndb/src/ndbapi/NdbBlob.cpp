@@ -884,7 +884,7 @@ NdbBlob::setPartKeyValue(NdbOperation* anOp, Uint32 part)
 {
   DBUG_ENTER("NdbBlob::setPartKeyValue");
   DBUG_PRINT("info", ("part=%u packkey=", part));
-  DBUG_DUMP("info", thePackKeyBuf.data, 4 * thePackKeyBuf.size);
+  DBUG_DUMP("info", thePackKeyBuf.data, thePackKeyBuf.size);
   // TODO use attr ids after compatibility with 4.1.7 not needed
   if (unlikely(theBlobVersion == NDB_BLOB_V1)) {
     // keep using names
