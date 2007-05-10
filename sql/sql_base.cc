@@ -1716,7 +1716,7 @@ void close_temporary_table(THD *thd, TABLE *table,
 
 void close_temporary(TABLE *table, bool free_share, bool delete_table)
 {
-  handlerton *table_type= table->s->db_type;
+  handlerton *table_type= table->s->db_type();
   DBUG_ENTER("close_temporary");
 
   free_io_cache(table);
@@ -6512,7 +6512,7 @@ my_bool mysql_rm_tmp_tables(void)
           init_tmp_table_share(&share, "", 0, "", filePathCopy);
           if (!open_table_def(thd, &share, 0) &&
               ((handler_file= get_new_handler(&share, thd->mem_root,
-                                              share.db_type))))
+                                              share.db_type()))))
           {
             handler_file->delete_table(filePathCopy);
             delete handler_file;

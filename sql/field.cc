@@ -7006,34 +7006,34 @@ Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 }
 
 
-void Field_blob::store_length(uint32 number)
+void Field_blob::store_length(char *i_ptr, uint i_packlength, uint32 i_number)
 {
-  switch (packlength) {
+  switch (i_packlength) {
   case 1:
-    ptr[0]= (uchar) number;
+    i_ptr[0]= (uchar) i_number;
     break;
   case 2:
 #ifdef WORDS_BIGENDIAN
     if (table->s->db_low_byte_first)
     {
-      int2store(ptr,(unsigned short) number);
+      int2store(i_ptr,(unsigned short) i_number);
     }
     else
 #endif
-      shortstore(ptr,(unsigned short) number);
+      shortstore(i_ptr,(unsigned short) i_number);
     break;
   case 3:
-    int3store(ptr,number);
+    int3store(i_ptr,i_number);
     break;
   case 4:
 #ifdef WORDS_BIGENDIAN
     if (table->s->db_low_byte_first)
     {
-      int4store(ptr,number);
+      int4store(i_ptr,i_number);
     }
     else
 #endif
-      longstore(ptr,number);
+      longstore(i_ptr,i_number);
   }
 }
 

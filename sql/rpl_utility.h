@@ -59,7 +59,7 @@ public:
     @param size  Number of elements in array 'types'
    */
   table_def(field_type *types, my_size_t size)
-    : m_type(new unsigned char [size]), m_size(size)
+    : m_size(size), m_type(new unsigned char [size])
   {
     if (m_type)
       memcpy(m_type, types, size);
