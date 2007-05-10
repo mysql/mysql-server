@@ -453,7 +453,8 @@ struct trx_struct{
 	dulint		table_id;	/* table id if the preceding field is
 					TRUE */
 	/*------------------------------*/
-	int		active_trans;	/* 1 - if a transaction in MySQL
+	unsigned	duplicates:2;	/* TRX_DUP_IGNORE | TRX_DUP_REPLACE */
+	unsigned	active_trans:2;	/* 1 - if a transaction in MySQL
 					is active. 2 - if prepare_commit_mutex
 					was taken */
 	void*		mysql_thd;	/* MySQL thread handle corresponding
@@ -678,19 +679,19 @@ struct trx_struct{
 					single operation of a
 					transaction, e.g., a parallel
 					query */
-/* Transaction concurrency states */
+/* Transaction concurrency states (trx->conc_state) */
 #define	TRX_NOT_STARTED		1
 #define	TRX_ACTIVE		2
 #define	TRX_COMMITTED_IN_MEMORY	3
 #define	TRX_PREPARED		4	/* Support for 2PC/XA */
 
-/* Transaction execution states when trx state is TRX_ACTIVE */
+/* Transaction execution states when trx->conc_state == TRX_ACTIVE */
 #define TRX_QUE_RUNNING		1	/* transaction is running */
 #define TRX_QUE_LOCK_WAIT	2	/* transaction is waiting for a lock */
 #define TRX_QUE_ROLLING_BACK	3	/* transaction is rolling back */
 #define TRX_QUE_COMMITTING	4	/* transaction is committing */
 
-/* Transaction isolation levels */
+/* Transaction isolation levels (trx->isolation_level) */
 #define TRX_ISO_READ_UNCOMMITTED	1	/* dirty read: non-locking
 						SELECTs are performed so that
 						we do not look at a possible
@@ -724,6 +725,12 @@ struct trx_struct{
 #define TRX_ISO_SERIALIZABLE		4	/* all plain SELECTs are
 						converted to LOCK IN SHARE
 						MODE reads */
+
+/* Treatment of duplicate values (trx->duplicates; for example, in inserts).
+Multiple flags can be combined with bitwise OR. */
+#define TRX_DUP_IGNORE	1	/* duplicate rows are to be updated */
+#define TRX_DUP_REPLACE	2	/* duplicate rows are to be replaced */
+
 
 /* Types of a trx signal */
 #define TRX_SIG_NO_SIGNAL		100
