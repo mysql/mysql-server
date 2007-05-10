@@ -58,8 +58,12 @@
 #include "events.h"
 
 /* WITH_NDBCLUSTER_STORAGE_ENGINE */
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 extern ulong ndb_cache_check_time;
+extern char opt_ndb_constrbuf[];
 extern ulong ndb_extra_logging;
+#endif
+
 #ifdef HAVE_NDB_BINLOG
 extern ulong ndb_report_thresh_binlog_epoch_slip;
 extern ulong ndb_report_thresh_binlog_mem_usage;
@@ -471,6 +475,7 @@ static sys_var_thd_bool
 sys_engine_condition_pushdown(&vars, "engine_condition_pushdown",
 			      &SV::engine_condition_pushdown);
 
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 /* ndb thread specific variable settings */
 static sys_var_thd_ulong
 sys_ndb_autoincrement_prefetch_sz(&vars, "ndb_autoincrement_prefetch_sz",
@@ -491,6 +496,8 @@ static sys_var_thd_bool
 sys_ndb_use_transactions(&vars, "ndb_use_transactions", &SV::ndb_use_transactions);
 static sys_var_long_ptr
 sys_ndb_cache_check_time(&vars, "ndb_cache_check_time", &ndb_cache_check_time);
+static sys_var_const_str
+sys_ndb_connectstring(&vars, "ndb_connectstring", opt_ndb_constrbuf);
 static sys_var_thd_bool
 sys_ndb_index_stat_enable(&vars, "ndb_index_stat_enable",
                           &SV::ndb_index_stat_enable);
@@ -504,6 +511,7 @@ static sys_var_long_ptr
 sys_ndb_extra_logging(&vars, "ndb_extra_logging", &ndb_extra_logging);
 static sys_var_thd_bool
 sys_ndb_use_copying_alter_table(&vars, "ndb_use_copying_alter_table", &SV::ndb_use_copying_alter_table);
+#endif //WITH_NDBCLUSTER_STORAGE_ENGINE
 
 /* Time/date/datetime formats */
 
