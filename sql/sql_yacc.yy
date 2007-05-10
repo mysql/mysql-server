@@ -49,9 +49,9 @@ const LEX_STRING null_lex_str={0,0};
 
 #define MYSQL_YYABORT                         \
   do                                          \
-  {                                           \
+  {					\
     LEX::cleanup_lex_after_parse_error(YYTHD);\
-    YYABORT;                                  \
+    YYABORT;				\
   } while (0)
 
 #define MYSQL_YYABORT_UNLESS(A)         \
@@ -1591,14 +1591,26 @@ create:
 	  lex->change=NullS;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
-	  lex->create_info.db_type= lex->thd->variables.table_type;
+	  lex->create_info.db_type= ha_default_handlerton(thd);
 	  lex->create_info.default_table_charset= NULL;
 	  lex->name.str= 0;
           lex->name.length= 0;
          lex->like_name= 0;
 	}
 	create2
-	  { Lex->current_select= &Lex->select_lex; }
+	{
+	  LEX *lex= YYTHD->lex;
+          lex->current_select= &lex->select_lex; 
+          if (!lex->create_info.db_type)
+          {
+            lex->create_info.db_type= ha_default_handlerton(YYTHD);
+            push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                ER_WARN_USING_OTHER_HANDLER,
+                                ER(ER_WARN_USING_OTHER_HANDLER),
+                                ha_resolve_storage_engine_name(lex->create_info.db_type),
+                                $5->table.str);
+          }
+        }
 	| CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON
 	  table_ident
 	  {
@@ -3669,6 +3681,13 @@ partitioning:
         {
 #ifdef WITH_PARTITION_STORAGE_ENGINE
           LEX *lex= Lex;
+          LEX_STRING partition_name={C_STRING_WITH_LEN("partition")};
+          if (!plugin_is_ready(&partition_name, MYSQL_STORAGE_ENGINE_PLUGIN))
+          {
+            my_error(ER_FEATURE_DISABLED, MYF(0),
+                     "partitioning", "--with-partition");
+            MYSQL_YYABORT;
+          }
           lex->part_info= new partition_info();
           if (!lex->part_info)
           {
@@ -4384,35 +4403,42 @@ default_collation:
             Lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
         };
 
-known_storage_engines:
-        ident_or_text
-        {
-          $$ = ha_resolve_by_name(YYTHD, &$1);
-          if ($$ == NULL)
-          {
-            my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
-            MYSQL_YYABORT;
-          }
-        }
-        ;
-
 storage_engines:
 	ident_or_text
 	{
-	  $$ = ha_resolve_by_name(YYTHD, &$1);
-	  if ($$ == NULL)
+          plugin_ref plugin= ha_resolve_by_name(YYTHD, &$1);
+
+          if (plugin)
+            $$= plugin_data(plugin, handlerton*);
+          else
           {
             if (YYTHD->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION)
-	    {
-	      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
-	      MYSQL_YYABORT;
-	    }
-
+            {
+              my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
+              MYSQL_YYABORT;
+            }
+            $$= 0;
             push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
                                 ER_UNKNOWN_STORAGE_ENGINE,
-                                ER(ER_UNKNOWN_STORAGE_ENGINE), $1.str);
+                                ER(ER_UNKNOWN_STORAGE_ENGINE),
+                                $1.str);
           }
-	};
+	}
+        ;
+
+known_storage_engines:
+	ident_or_text
+	{
+          plugin_ref plugin;
+          if ((plugin= ha_resolve_by_name(YYTHD, &$1)))
+            $$= plugin_data(plugin, handlerton*);
+          else
+	  {
+	    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
+	    MYSQL_YYABORT;
+	  }
+	}
+        ;
 
 row_types:
 	DEFAULT		{ $$= ROW_TYPE_DEFAULT; }
@@ -5155,7 +5181,7 @@ alter:
 	    lex->spname= $3;
 	  }
         | ALTER view_algorithm definer
-          {
+	  {
             Lex->create_view_mode= VIEW_ALTER;
           }
           view_tail
@@ -5169,10 +5195,10 @@ alter:
           {
             LEX *lex= Lex;
             lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
-            lex->create_view_mode= VIEW_ALTER;
-          }
+	    lex->create_view_mode= VIEW_ALTER;
+	  }
           view_tail
-          {}
+	  {}
 	| ALTER definer EVENT_SYM sp_name
           /*
             BE CAREFUL when you add a new rule to update the block where
@@ -5982,7 +6008,7 @@ preload_keys:
 	;
 
 cache_keys_spec:
-        { 
+        {
           Lex->select_lex.alloc_index_hints(YYTHD);
           Select->set_index_hint_type(INDEX_HINT_USE, 
                                       global_system_variables.old_mode ? 
@@ -6089,7 +6115,7 @@ select_into:
 	| select_from into;
 
 select_from:
-        FROM join_table_list where_clause group_clause having_clause
+	  FROM join_table_list where_clause group_clause having_clause
 	       opt_order_clause opt_limit_clause procedure_clause
           {
             Select->context.table_list=
@@ -6296,8 +6322,8 @@ bool_test:
           { $$= new (YYTHD->mem_root) Item_func_isfalse($1); }
         | bool_pri IS not FALSE_SYM
           { $$= new (YYTHD->mem_root) Item_func_isnotfalse($1); }
-        | bool_pri IS UNKNOWN_SYM { $$= new Item_func_isnull($1); }
-        | bool_pri IS not UNKNOWN_SYM { $$= new Item_func_isnotnull($1); }
+	| bool_pri IS UNKNOWN_SYM { $$= new Item_func_isnull($1); }
+	| bool_pri IS not UNKNOWN_SYM { $$= new Item_func_isnotnull($1); }
         | bool_pri
         ;
 
@@ -6312,11 +6338,11 @@ bool_pri:
 	| predicate ;
 
 predicate:
-          bit_expr IN_SYM '(' subselect ')'
+        bit_expr IN_SYM '(' subselect ')'
           {
             $$= new (YYTHD->mem_root) Item_in_subselect($1, $4);
           }
-        | bit_expr not IN_SYM '(' subselect ')'
+	| bit_expr not IN_SYM '(' subselect ')'
           {
             THD *thd= YYTHD;
             Item *item= new (thd->mem_root) Item_in_subselect($1, $5);
@@ -6326,23 +6352,23 @@ predicate:
           {
             $$= handle_sql2003_note184_exception(YYTHD, $1, true, $4);
           }
-        | bit_expr IN_SYM '(' expr ',' expr_list ')'
-          { 
-            $6->push_front($4);
-            $6->push_front($1);
+	| bit_expr IN_SYM '(' expr ',' expr_list ')'
+	  { 
+              $6->push_front($4);
+              $6->push_front($1);
             $$= new (YYTHD->mem_root) Item_func_in(*$6);
           }
         | bit_expr not IN_SYM '(' expr ')'
           {
             $$= handle_sql2003_note184_exception(YYTHD, $1, false, $5);
           }
-        | bit_expr not IN_SYM '(' expr ',' expr_list ')'
+	| bit_expr not IN_SYM '(' expr ',' expr_list ')'
           {
-            $7->push_front($5);
-            $7->push_front($1);
+              $7->push_front($5);
+              $7->push_front($1);
             Item_func_in *item = new (YYTHD->mem_root) Item_func_in(*$7);
-            item->negate();
-            $$= item;
+              item->negate();
+              $$= item;
           }
 	| bit_expr BETWEEN_SYM bit_expr AND_SYM predicate
 	  { $$= new Item_func_between($1,$3,$5); }
@@ -7546,10 +7572,10 @@ opt_outer:
 
 index_hint_clause:
        /* empty */             
-         { 
+          {
             $$= global_system_variables.old_mode ? 
                   INDEX_HINT_MASK_JOIN : INDEX_HINT_MASK_ALL; 
-         } 
+	  }
        | FOR_SYM JOIN_SYM      { $$= INDEX_HINT_MASK_JOIN;  }
        | FOR_SYM ORDER_SYM BY  { $$= INDEX_HINT_MASK_ORDER; }
        | FOR_SYM GROUP_SYM BY  { $$= INDEX_HINT_MASK_GROUP; }
@@ -7562,12 +7588,12 @@ index_hint_type:
 
 index_hint_definition:
        index_hint_type key_or_index index_hint_clause
-       {
+          {
          Select->set_index_hint_type($1, $3);
-       }
+	  }
        '(' key_usage_list ')'
        | USE_SYM key_or_index index_hint_clause
-       {
+	  {
          Select->set_index_hint_type(INDEX_HINT_USE, $3);
        }
        '(' opt_key_usage_list ')'
@@ -7576,12 +7602,12 @@ index_hint_definition:
 index_hints_list:
        index_hint_definition         
        | index_hints_list index_hint_definition
-       ;
+	;
 
 opt_index_hints_list:
        /* empty */
        | { Select->alloc_index_hints(YYTHD); } index_hints_list
-       ;
+	;
 
 opt_key_definition:
        {  Select->clear_index_hints(); }
@@ -7595,7 +7621,7 @@ opt_key_usage_list:
 
 key_usage_element:
 	ident           { Select->add_index_hint(YYTHD, $1.str, $1.length); }
-	| PRIMARY_SYM   
+	| PRIMARY_SYM
           { 
             Select->add_index_hint(YYTHD, (char *)"PRIMARY", 7); 
           }
@@ -8632,7 +8658,7 @@ show_param:
 	  { Lex->create_info.db_type= NULL; }
 	| opt_full COLUMNS from_or_in table_ident opt_db wild_and_where
 	  {
- 	    LEX *lex= Lex;
+            LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_FIELDS;
 	    if ($5)
 	      $4->change_db($5);
@@ -10271,7 +10297,7 @@ sys_option_value:
 	  LEX *lex=Lex;
 	  lex->option_type= $1;
 	  lex->var_list.push_back(new set_var(lex->option_type,
-                                              find_sys_var("tx_isolation"),
+                                              find_sys_var(YYTHD, "tx_isolation"),
                                               &null_lex_str,
                                               new Item_int((int32) $5)));
 	}
@@ -10360,7 +10386,7 @@ internal_variable_name:
 	  if (!spc || !(spv = spc->find_variable(&$1)))
 	  {
             /* Not an SP local variable */
-	    sys_var *tmp=find_sys_var($1.str, $1.length);
+	    sys_var *tmp=find_sys_var(YYTHD, $1.str, $1.length);
 	    if (!tmp)
 	      MYSQL_YYABORT;
 	    $$.var= tmp;
@@ -10415,7 +10441,7 @@ internal_variable_name:
             }
             else
             {
-              sys_var *tmp=find_sys_var($3.str, $3.length);
+              sys_var *tmp=find_sys_var(YYTHD, $3.str, $3.length);
               if (!tmp)
                 MYSQL_YYABORT;
               if (!tmp->is_struct())
@@ -10426,7 +10452,7 @@ internal_variable_name:
 	  }
 	| DEFAULT '.' ident
 	  {
-	    sys_var *tmp=find_sys_var($3.str, $3.length);
+	    sys_var *tmp=find_sys_var(YYTHD, $3.str, $3.length);
 	    if (!tmp)
 	      MYSQL_YYABORT;
 	    if (!tmp->is_struct())

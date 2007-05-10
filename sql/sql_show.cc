@@ -79,24 +79,24 @@ append_algorithm(TABLE_LIST *table, String *buff);
 ** List all table types supported
 ***************************************************************************/
 
-static my_bool show_handlerton(THD *thd, st_plugin_int *plugin,
+static my_bool show_handlerton(THD *thd, plugin_ref plugin,
                                void *arg)
 {
   handlerton *default_type= (handlerton *) arg;
   Protocol *protocol= thd->protocol;
-  handlerton *hton= (handlerton *)plugin->data;
+  handlerton *hton= plugin_data(plugin, handlerton *);
 
   if (!(hton->flags & HTON_HIDDEN))
   {
     protocol->prepare_for_resend();
-    protocol->store(plugin->name.str, plugin->name.length,
+    protocol->store(plugin_name(plugin)->str, plugin_name(plugin)->length,
                     system_charset_info);
     const char *option_name= show_comp_option_name[(int) hton->state];
 
     if (hton->state == SHOW_OPTION_YES && default_type == hton)
       option_name= "DEFAULT";
     protocol->store(option_name, system_charset_info);
-    protocol->store(plugin->plugin->descr, system_charset_info);
+    protocol->store(plugin_decl(plugin)->descr, system_charset_info);
     protocol->store(hton->commit ? "YES" : "NO", system_charset_info);
     protocol->store(hton->prepare ? "YES" : "NO", system_charset_info);
     protocol->store(hton->savepoint_set ? "YES" : "NO", system_charset_info);
@@ -124,7 +124,7 @@ bool mysqld_show_storage_engines(THD *thd)
     DBUG_RETURN(TRUE);
 
   if (plugin_foreach(thd, show_handlerton,
-                     MYSQL_STORAGE_ENGINE_PLUGIN, thd->variables.table_type))
+                     MYSQL_STORAGE_ENGINE_PLUGIN, ha_default_handlerton(thd)))
     DBUG_RETURN(TRUE);
 
   send_eof(thd);
@@ -136,24 +136,26 @@ static int make_version_string(char *buf, int buf_length, uint version)
   return my_snprintf(buf, buf_length, "%d.%d", version>>8,version&0xff);
 }
 
-static my_bool show_plugins(THD *thd, st_plugin_int *plugin,
+static my_bool show_plugins(THD *thd, plugin_ref plugin,
                             void *arg)
 {
   TABLE *table= (TABLE*) arg;
-  struct st_mysql_plugin *plug= plugin->plugin;
+  struct st_mysql_plugin *plug= plugin_decl(plugin);
+  struct st_plugin_dl *plugin_dl= plugin_dlib(plugin);
   CHARSET_INFO *cs= system_charset_info;
   char version_buf[20];
 
   restore_record(table, s->default_values);
 
-  table->field[0]->store(plugin->name.str, plugin->name.length, cs);
+  table->field[0]->store(plugin_name(plugin)->str,
+                         plugin_name(plugin)->length, cs);
 
   table->field[1]->store(version_buf,
         make_version_string(version_buf, sizeof(version_buf), plug->version),
         cs);
 
 
-  switch (plugin->state) {
+  switch (plugin_state(plugin)) {
   /* case PLUGIN_IS_FREED: does not happen */
   case PLUGIN_IS_DELETED:
     table->field[2]->store(STRING_WITH_LEN("DELETED"), cs);
@@ -175,14 +177,13 @@ static my_bool show_plugins(THD *thd, st_plugin_int *plugin,
         make_version_string(version_buf, sizeof(version_buf),
                             *(uint *)plug->info), cs);
 
-  if (plugin->plugin_dl)
+  if (plugin_dl)
   {
-    table->field[5]->store(plugin->plugin_dl->dl.str,
-                           plugin->plugin_dl->dl.length, cs);
+    table->field[5]->store(plugin_dl->dl.str, plugin_dl->dl.length, cs);
     table->field[5]->set_notnull();
     table->field[6]->store(version_buf,
           make_version_string(version_buf, sizeof(version_buf),
-                              plugin->plugin_dl->version),
+                              plugin_dl->version),
           cs);
     table->field[6]->set_notnull();
   }
@@ -1239,9 +1240,9 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     store_key_options(thd, packet, table, key_info);
     if (key_info->parser)
     {
+      LEX_STRING *parser_name= plugin_name(key_info->parser);
       packet->append(STRING_WITH_LEN(" /*!50100 WITH PARSER "));
-      append_identifier(thd, packet, key_info->parser->name.str,
-                        key_info->parser->name.length);
+      append_identifier(thd, packet, parser_name->str, parser_name->length);
       packet->append(STRING_WITH_LEN(" */ "));
     }
   }
@@ -1936,6 +1937,18 @@ void init_status_vars()
   sort_dynamic(&all_status_vars, show_var_cmp);
 }
 
+void reset_status_vars()
+{
+  SHOW_VAR *ptr= (SHOW_VAR*) all_status_vars.buffer;
+  SHOW_VAR *last= ptr + all_status_vars.elements;
+  for (; ptr < last; ptr++)
+  {
+    /* Note that SHOW_LONG_NOFLUSH variables are not reset */
+    if (ptr->type == SHOW_LONG)
+      *(ulong*) ptr->value= 0;
+  }  
+}
+
 /*
   catch-all cleanup function, cleans up everything no matter what
 
@@ -2066,6 +2079,8 @@ static bool show_status_array(THD *thd, const char *wild,
         char *value=var->value;
         const char *pos, *end;                  // We assign a lot of const's
 
+        pthread_mutex_lock(&LOCK_global_system_variables);
+
         if (show_type == SHOW_SYS)
         {
           show_type= ((sys_var*) value)->show_type();
@@ -2148,6 +2163,9 @@ static bool show_status_array(THD *thd, const char *wild,
                                system_charset_info);
         table->field[1]->store(pos, (uint32) (end - pos), system_charset_info);
         table->field[1]->set_notnull();
+
+        pthread_mutex_unlock(&LOCK_global_system_variables);
+
         if (schema_table_store_record(thd, table))
           DBUG_RETURN(TRUE);
       }
@@ -2457,13 +2475,13 @@ struct st_add_schema_table
   const char *wild;
 };
 
-static my_bool add_schema_table(THD *thd, st_plugin_int *plugin,
+static my_bool add_schema_table(THD *thd, plugin_ref plugin,
                                 void* p_data)
 {
   st_add_schema_table *data= (st_add_schema_table *)p_data;
   List<char> *file_list= data->files;
   const char *wild= data->wild;
-  ST_SCHEMA_TABLE *schema_table= (ST_SCHEMA_TABLE *)plugin->data;
+  ST_SCHEMA_TABLE *schema_table= plugin_data(plugin, ST_SCHEMA_TABLE *);
   DBUG_ENTER("add_schema_table");
 
   if (schema_table->hidden)
@@ -3011,7 +3029,7 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
                   ha_row_type[(uint) share->row_type],
                   NullS);
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-    if (show_table->s->db_type == partition_hton && 
+    if (show_table->s->db_type() == partition_hton && 
         show_table->part_info != NULL && 
         show_table->part_info->no_parts > 0)
       ptr= strmov(ptr, " partitioned");
@@ -3286,19 +3304,20 @@ int fill_schema_charsets(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
-static my_bool iter_schema_engines(THD *thd, st_plugin_int *plugin,
+static my_bool iter_schema_engines(THD *thd, plugin_ref plugin,
                                    void *ptable)
 {
   TABLE *table= (TABLE *) ptable;
-  handlerton *hton= (handlerton *)plugin->data;
+  handlerton *hton= plugin_data(plugin, handlerton *);
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   CHARSET_INFO *scs= system_charset_info;
   DBUG_ENTER("iter_schema_engines");
 
   if (!(hton->flags & HTON_HIDDEN))
   {
+    LEX_STRING *name= plugin_name(plugin);
     if (!(wild && wild[0] &&
-          wild_case_compare(scs, plugin->name.str,wild)))
+          wild_case_compare(scs, name->str,wild)))
     {
       LEX_STRING state[2]= {{ C_STRING_WITH_LEN("ENABLED") },
                             { C_STRING_WITH_LEN("DISABLED") }};
@@ -3307,11 +3326,11 @@ static my_bool iter_schema_engines(THD *thd, st_plugin_int *plugin,
       LEX_STRING *tmp;
       restore_record(table, s->default_values);
 
-      table->field[0]->store(plugin->name.str, plugin->name.length, scs);
+      table->field[0]->store(name->str, name->length, scs);
       tmp= &state[test(hton->state)];
       table->field[1]->store(tmp->str, tmp->length, scs);
-      table->field[2]->store(plugin->plugin->descr,
-                             strlen(plugin->plugin->descr), scs);
+      table->field[2]->store(plugin_decl(plugin)->descr,
+                             strlen(plugin_decl(plugin)->descr), scs);
       tmp= &yesno[test(hton->commit)];
       table->field[3]->store(tmp->str, tmp->length, scs);
       tmp= &yesno[test(hton->prepare)];
@@ -4497,10 +4516,10 @@ int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond)
   int res= 0;
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
-  pthread_mutex_lock(&LOCK_global_system_variables);
-  res= show_status_array(thd, wild, init_vars,
+  rw_rdlock(&LOCK_system_variables_hash);
+  res= show_status_array(thd, wild, enumerate_sys_vars(thd, TRUE),
                          lex->option_type, 0, "", tables->table, 0);
-  pthread_mutex_unlock(&LOCK_global_system_variables);
+  rw_unlock(&LOCK_system_variables_hash);
   DBUG_RETURN(res);
 }
 
@@ -4616,12 +4635,12 @@ struct schema_table_ref
     0	table not found
     1   found the schema table
 */
-static my_bool find_schema_table_in_plugin(THD *thd, st_plugin_int *plugin,
+static my_bool find_schema_table_in_plugin(THD *thd, plugin_ref plugin,
                                            void* p_table)
 {
   schema_table_ref *p_schema_table= (schema_table_ref *)p_table;
   const char* table_name= p_schema_table->table_name;
-  ST_SCHEMA_TABLE *schema_table= (ST_SCHEMA_TABLE *)plugin->data;
+  ST_SCHEMA_TABLE *schema_table= plugin_data(plugin, ST_SCHEMA_TABLE *);
   DBUG_ENTER("find_schema_table_in_plugin");
 
   if (!my_strcasecmp(system_charset_info,
@@ -5184,12 +5203,12 @@ struct run_hton_fill_schema_files_args
   COND *cond;
 };
 
-static my_bool run_hton_fill_schema_files(THD *thd, st_plugin_int *plugin,
+static my_bool run_hton_fill_schema_files(THD *thd, plugin_ref plugin,
                                           void *arg)
 {
   struct run_hton_fill_schema_files_args *args=
     (run_hton_fill_schema_files_args *) arg;
-  handlerton *hton= (handlerton *)plugin->data;
+  handlerton *hton= plugin_data(plugin, handlerton *);
   if(hton->fill_files_table && hton->state == SHOW_OPTION_YES)
     hton->fill_files_table(hton, thd, args->tables, args->cond);
   return false;
@@ -5355,10 +5374,10 @@ int fill_schema_global_variables(THD *thd, TABLE_LIST *tables, COND *cond)
   int res= 0;
   DBUG_ENTER("fill_schema_global_variables");
   
-  pthread_mutex_lock(&LOCK_global_system_variables);
-  res= show_status_array(thd, "", init_vars, OPT_GLOBAL,
+  rw_rdlock(&LOCK_system_variables_hash);
+  res= show_status_array(thd, "", enumerate_sys_vars(thd, FALSE), OPT_GLOBAL,
                          NULL, "", tables->table, 1);
-  pthread_mutex_unlock(&LOCK_global_system_variables);
+  rw_unlock(&LOCK_system_variables_hash);
   
   DBUG_RETURN(res);
 }
@@ -5368,10 +5387,10 @@ int fill_schema_session_variables(THD *thd, TABLE_LIST *tables, COND *cond)
   int res= 0;
   DBUG_ENTER("fill_schema_session_variables");
   
-  pthread_mutex_lock(&LOCK_global_system_variables);
-  res= show_status_array(thd, "", init_vars, OPT_SESSION,
+  rw_rdlock(&LOCK_system_variables_hash);
+  res= show_status_array(thd, "", enumerate_sys_vars(thd, FALSE), OPT_SESSION,
                          NULL, "", tables->table, 1);
-  pthread_mutex_unlock(&LOCK_global_system_variables);
+  rw_unlock(&LOCK_system_variables_hash);
   
   DBUG_RETURN(res);
 }

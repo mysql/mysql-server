@@ -193,6 +193,7 @@ void lex_start(THD *thd, const char *buf, uint length)
   lex->spcont= NULL;
   lex->proc_list.first= 0;
   lex->escape_used= FALSE;
+  lex->query_tables= 0;
   lex->reset_query_tables_list(FALSE);
   lex->expr_allows_subselect= TRUE;
 
@@ -232,6 +233,12 @@ void lex_end(LEX *lex)
     lex->yacc_yyss= 0;
     lex->yacc_yyvs= 0;
   }
+
+  /* release used plugins */
+  plugin_unlock_list(0, (plugin_ref*)lex->plugins.buffer, 
+                     lex->plugins.elements);
+  reset_dynamic(&lex->plugins);
+
   DBUG_VOID_RETURN;
 }
 
@@ -1700,6 +1707,17 @@ void st_lex::cleanup_lex_after_parse_error(THD *thd)
 
 void Query_tables_list::reset_query_tables_list(bool init)
 {
+  if (!init && query_tables)
+  {
+    TABLE_LIST *table= query_tables;
+    for (;;)
+    {
+      delete table->view;
+      if (query_tables_last == &table->next_global ||
+          !(table= table->next_global))
+        break;
+    }
+  }
   query_tables= 0;
   query_tables_last= &query_tables;
   query_tables_own_last= 0;
@@ -1754,6 +1772,13 @@ st_lex::st_lex()
   :result(0), yacc_yyss(0), yacc_yyvs(0),
    sql_command(SQLCOM_END)
 {
+  /* Check that plugins_static_buffer is declared immediately after plugins */
+  compile_time_assert((&plugins + 1) == (DYNAMIC_ARRAY*)plugins_static_buffer);
+
+  my_init_dynamic_array2(&plugins, sizeof(plugin_ref),
+                         plugins_static_buffer,
+                         INITIAL_LEX_PLUGIN_LIST_SIZE, 
+                         INITIAL_LEX_PLUGIN_LIST_SIZE);
   reset_query_tables_list(TRUE);
 }
 
