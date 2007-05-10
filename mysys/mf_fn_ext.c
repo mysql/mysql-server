@@ -33,21 +33,22 @@
     points at the end ASCII(0) of the filename.
 */
 
-my_string fn_ext(const char *name)
+char *fn_ext(const char *name)
 {
-  register my_string pos,gpos;
+  register const char *pos, *gpos;
   DBUG_ENTER("fn_ext");
   DBUG_PRINT("mfunkt",("name: '%s'",name));
 
 #if defined(FN_DEVCHAR) || defined(FN_C_AFTER_DIR) || defined(BASKSLASH_MBTAIL)
   {
     char buff[FN_REFLEN];
-    gpos=(my_string) name+dirname_part(buff,(char*) name);
+    size_t res_length;
+    gpos= name+ dirname_part(buff,(char*) name, &res_length);
   }
 #else
   if (!(gpos= strrchr(name, FN_LIBCHAR)))
-    gpos= (my_string) name;
+    gpos= name;
 #endif
   pos=strchr(gpos,FN_EXTCHAR);
-  DBUG_RETURN (pos ? pos : strend(gpos));
+  DBUG_RETURN((char*) (pos ? pos : strend(gpos)));
 } /* fn_ext */

@@ -1186,7 +1186,7 @@ int decimal2longlong(decimal_t *from, longlong *to)
 
                 7E F2 04 37 2D FB 2D
 */
-int decimal2bin(decimal_t *from, char *to, int precision, int frac)
+int decimal2bin(decimal_t *from, uchar *to, int precision, int frac)
 {
   dec1 mask=from->sign ? -1 : 0, *buf1=from->buf, *stop1;
   int error=E_DEC_OK, intg=precision-frac,
@@ -1202,7 +1202,7 @@ int decimal2bin(decimal_t *from, char *to, int precision, int frac)
       fsize1=frac1*sizeof(dec1)+dig2bytes[frac1x];
   const int orig_isize0= isize0;
   const int orig_fsize0= fsize0;
-  char *orig_to= to;
+  uchar *orig_to= to;
 
   buf1= remove_leading_zeroes(from, &from_intg);
 
@@ -1292,10 +1292,10 @@ int decimal2bin(decimal_t *from, char *to, int precision, int frac)
   }
   if (fsize0 > fsize1)
   {
-    char *to_end= orig_to + orig_fsize0 + orig_isize0;
+    uchar *to_end= orig_to + orig_fsize0 + orig_isize0;
 
     while (fsize0-- > fsize1 && to < to_end)
-      *to++=(uchar)mask;
+      *to++= (uchar)mask;
   }
   orig_to[0]^= 0x80;
 
@@ -1321,19 +1321,19 @@ int decimal2bin(decimal_t *from, char *to, int precision, int frac)
     E_DEC_OK/E_DEC_TRUNCATED/E_DEC_OVERFLOW
 */
 
-int bin2decimal(char *from, decimal_t *to, int precision, int scale)
+int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale)
 {
   int error=E_DEC_OK, intg=precision-scale,
       intg0=intg/DIG_PER_DEC1, frac0=scale/DIG_PER_DEC1,
       intg0x=intg-intg0*DIG_PER_DEC1, frac0x=scale-frac0*DIG_PER_DEC1,
       intg1=intg0+(intg0x>0), frac1=frac0+(frac0x>0);
   dec1 *buf=to->buf, mask=(*from & 0x80) ? 0 : -1;
-  char *stop;
-  char *d_copy;
+  const uchar *stop;
+  uchar *d_copy;
   int bin_size= decimal_bin_size(precision, scale);
 
   sanity(to);
-  d_copy= (char *)my_alloca(bin_size);
+  d_copy= (uchar*) my_alloca(bin_size);
   memcpy(d_copy, from, bin_size);
   d_copy[0]^= 0x80;
   from= d_copy;

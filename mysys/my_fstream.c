@@ -27,24 +27,31 @@
 #define fseek(A,B,C) fseeko((A),(B),(C))
 #endif
 
-	/* Read a chunk of bytes from a file  */
-	/* Returns (uint) -1 if error as my_read() */
+/*
+  Read a chunk of bytes from a FILE
 
-uint my_fread(FILE *stream, byte *Buffer, uint Count, myf MyFlags)
-			/* File descriptor */
-			/* Buffer must be at least count bytes */
-			/* Max number of bytes returnd */
-			/* Flags on what to do on error */
+  SYNOPSIS
+   my_fread()
+   stream	File descriptor
+   Buffer	Buffer to read to
+   Count	Number of bytes to read
+   MyFlags	Flags on what to do on error
+
+  RETURN
+    (size_t) -1 Error
+    #		Number of bytes read
+ */
+
+size_t my_fread(FILE *stream, uchar *Buffer, size_t Count, myf MyFlags)
 {
-  uint readbytes;
+  size_t readbytes;
   DBUG_ENTER("my_fread");
   DBUG_PRINT("my",("stream: 0x%lx  Buffer: 0x%lx  Count: %u  MyFlags: %d",
-		   (long) stream, (long) Buffer, Count, MyFlags));
+		   (long) stream, (long) Buffer, (uint) Count, MyFlags));
 
-  if ((readbytes = (uint) fread(Buffer,sizeof(char),(size_t) Count,stream))
-      != Count)
+  if ((readbytes= fread(Buffer, sizeof(char), Count, stream)) != Count)
   {
-    DBUG_PRINT("error",("Read only %d bytes",readbytes));
+    DBUG_PRINT("error",("Read only %d bytes", (int) readbytes));
     if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
     {
       if (ferror(stream))
@@ -57,7 +64,7 @@ uint my_fread(FILE *stream, byte *Buffer, uint Count, myf MyFlags)
     }
     my_errno=errno ? errno : -1;
     if (ferror(stream) || MyFlags & (MY_NABP | MY_FNABP))
-      DBUG_RETURN((uint) -1);			/* Return with error */
+      DBUG_RETURN((size_t) -1);			/* Return with error */
   }
   if (MyFlags & (MY_NABP | MY_FNABP))
     DBUG_RETURN(0);				/* Read ok */
@@ -66,40 +73,48 @@ uint my_fread(FILE *stream, byte *Buffer, uint Count, myf MyFlags)
 
 
 /*
-** Write a chunk of bytes to a stream
-** Returns (uint) -1 if error as my_write()
-** Does retries if interrupted
+  Write a chunk of bytes to a stream
+
+   my_fwrite()
+   stream	File descriptor
+   Buffer	Buffer to write from
+   Count	Number of bytes to write
+   MyFlags	Flags on what to do on error
+
+  RETURN
+    (size_t) -1 Error
+    #		Number of bytes written
 */
 
-uint my_fwrite(FILE *stream, const byte *Buffer, uint Count, myf MyFlags)
+size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags)
 {
-  uint writenbytes=0;
-  off_t seekptr;
+  size_t writtenbytes =0;
+  my_off_t seekptr;
 #if !defined(NO_BACKGROUND) && defined(USE_MY_STREAM)
   uint errors;
 #endif
   DBUG_ENTER("my_fwrite");
   DBUG_PRINT("my",("stream: 0x%lx  Buffer: 0x%lx  Count: %u  MyFlags: %d",
-		   (long) stream, (long) Buffer, Count, MyFlags));
+		   (long) stream, (long) Buffer, (uint) Count, MyFlags));
 
 #if !defined(NO_BACKGROUND) && defined(USE_MY_STREAM)
   errors=0;
 #endif
-  seekptr=ftell(stream);
+  seekptr= ftell(stream);
   for (;;)
   {
-    uint writen;
-    if ((writen = (uint) fwrite((char*) Buffer,sizeof(char),
-				(size_t) Count, stream)) != Count)
+    size_t written;
+    if ((written = (size_t) fwrite((char*) Buffer,sizeof(char),
+                                   Count, stream)) != Count)
     {
-      DBUG_PRINT("error",("Write only %d bytes",writenbytes));
+      DBUG_PRINT("error",("Write only %d bytes", (int) writtenbytes));
       my_errno=errno;
-      if (writen != (uint) -1)
+      if (written != (size_t) -1)
       {
-	seekptr+=writen;
-	Buffer+=writen;
-	writenbytes+=writen;
-	Count-=writen;
+	seekptr+=written;
+	Buffer+=written;
+	writtenbytes+=written;
+	Count-=written;
       }
 #ifdef EINTR
       if (errno == EINTR)
@@ -131,21 +146,21 @@ uint my_fwrite(FILE *stream, const byte *Buffer, uint Count, myf MyFlags)
 	  my_error(EE_WRITE, MYF(ME_BELL+ME_WAITTANG),
 		   my_filename(fileno(stream)),errno);
 	}
-	writenbytes=(uint) -1;			/* Return that we got error */
+	writtenbytes= (size_t) -1;        /* Return that we got error */
 	break;
       }
     }
     if (MyFlags & (MY_NABP | MY_FNABP))
-      writenbytes=0;				/* Everything OK */
+      writtenbytes= 0;				/* Everything OK */
     else
-      writenbytes+=writen;
+      writtenbytes+= written;
     break;
   }
-  DBUG_RETURN(writenbytes);
+  DBUG_RETURN(writtenbytes);
 } /* my_fwrite */
 
-	/* Seek to position in file */
-	/* ARGSUSED */
+
+/* Seek to position in file */
 
 my_off_t my_fseek(FILE *stream, my_off_t pos, int whence,
 		  myf MyFlags __attribute__((unused)))
@@ -158,8 +173,7 @@ my_off_t my_fseek(FILE *stream, my_off_t pos, int whence,
 } /* my_seek */
 
 
-	/* Tell current position of file */
-	/* ARGSUSED */
+/* Tell current position of file */
 
 my_off_t my_ftell(FILE *stream, myf MyFlags __attribute__((unused)))
 {

@@ -20,7 +20,7 @@
 #include "ftdefs.h"
 #include <math.h>
 
-void _mi_ft_segiterator_init(MI_INFO *info, uint keynr, const byte *record,
+void _mi_ft_segiterator_init(MI_INFO *info, uint keynr, const uchar *record,
 			     FT_SEG_ITERATOR *ftsi)
 {
   DBUG_ENTER("_mi_ft_segiterator_init");
@@ -31,7 +31,7 @@ void _mi_ft_segiterator_init(MI_INFO *info, uint keynr, const byte *record,
   DBUG_VOID_RETURN;
 }
 
-void _mi_ft_segiterator_dummy_init(const byte *record, uint len,
+void _mi_ft_segiterator_dummy_init(const uchar *record, uint len,
 				   FT_SEG_ITERATOR *ftsi)
 {
   DBUG_ENTER("_mi_ft_segiterator_dummy_init");
@@ -94,7 +94,7 @@ uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
 
 /* parses a document i.e. calls ft_parse for every keyseg */
 
-uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record,
+uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const uchar *record,
                   MYSQL_FTPARSER_PARAM *param, MEM_ROOT *mem_root)
 {
   FT_SEG_ITERATOR ftsi;
@@ -108,13 +108,13 @@ uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record,
   while (_mi_ft_segiterator(&ftsi))
   {
     if (ftsi.pos)
-      if (ft_parse(parsed, (byte *)ftsi.pos, ftsi.len, parser, param, mem_root))
+      if (ft_parse(parsed, (uchar *)ftsi.pos, ftsi.len, parser, param, mem_root))
         DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
 
-FT_WORD *_mi_ft_parserecord(MI_INFO *info, uint keynr, const byte *record,
+FT_WORD *_mi_ft_parserecord(MI_INFO *info, uint keynr, const uchar *record,
                              MEM_ROOT *mem_root)
 {
   TREE ptree;
@@ -130,7 +130,7 @@ FT_WORD *_mi_ft_parserecord(MI_INFO *info, uint keynr, const byte *record,
   DBUG_RETURN(ft_linearize(&ptree, mem_root));
 }
 
-static int _mi_ft_store(MI_INFO *info, uint keynr, byte *keybuf,
+static int _mi_ft_store(MI_INFO *info, uint keynr, uchar *keybuf,
 			FT_WORD *wlist, my_off_t filepos)
 {
   uint key_length;
@@ -145,7 +145,7 @@ static int _mi_ft_store(MI_INFO *info, uint keynr, byte *keybuf,
    DBUG_RETURN(0);
 }
 
-static int _mi_ft_erase(MI_INFO *info, uint keynr, byte *keybuf,
+static int _mi_ft_erase(MI_INFO *info, uint keynr, uchar *keybuf,
 			FT_WORD *wlist, my_off_t filepos)
 {
   uint key_length, err=0;
@@ -168,7 +168,7 @@ static int _mi_ft_erase(MI_INFO *info, uint keynr, byte *keybuf,
 #define THOSE_TWO_DAMN_KEYS_ARE_REALLY_DIFFERENT 1
 #define GEE_THEY_ARE_ABSOLUTELY_IDENTICAL	 0
 
-int _mi_ft_cmp(MI_INFO *info, uint keynr, const byte *rec1, const byte *rec2)
+int _mi_ft_cmp(MI_INFO *info, uint keynr, const uchar *rec1, const uchar *rec2)
 {
   FT_SEG_ITERATOR ftsi1, ftsi2;
   CHARSET_INFO *cs=info->s->keyinfo[keynr].seg->charset;
@@ -190,8 +190,8 @@ int _mi_ft_cmp(MI_INFO *info, uint keynr, const byte *rec1, const byte *rec2)
 
 /* update a document entry */
 
-int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
-                  const byte *oldrec, const byte *newrec, my_off_t pos)
+int _mi_ft_update(MI_INFO *info, uint keynr, uchar *keybuf,
+                  const uchar *oldrec, const uchar *newrec, my_off_t pos)
 {
   int error= -1;
   FT_WORD *oldlist,*newlist, *old_word, *new_word;
@@ -241,7 +241,7 @@ err:
 
 /* adds a document to the collection */
 
-int _mi_ft_add(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
+int _mi_ft_add(MI_INFO *info, uint keynr, uchar *keybuf, const uchar *record,
 	       my_off_t pos)
 {
   int error= -1;
@@ -260,7 +260,7 @@ int _mi_ft_add(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
 
 /* removes a document from the collection */
 
-int _mi_ft_del(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
+int _mi_ft_del(MI_INFO *info, uint keynr, uchar *keybuf, const uchar *record,
 	       my_off_t pos)
 {
   int error= -1;
@@ -276,10 +276,10 @@ int _mi_ft_del(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
   DBUG_RETURN(error);
 }
 
-uint _ft_make_key(MI_INFO *info, uint keynr, byte *keybuf, FT_WORD *wptr,
+uint _ft_make_key(MI_INFO *info, uint keynr, uchar *keybuf, FT_WORD *wptr,
 		  my_off_t filepos)
 {
-  byte buf[HA_FT_MAXBYTELEN+16];
+  uchar buf[HA_FT_MAXBYTELEN+16];
   DBUG_ENTER("_ft_make_key");
 
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT

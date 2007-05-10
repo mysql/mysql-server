@@ -531,8 +531,8 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
         which would be transformed to:
         WHERE col= 'j'
       */
-      (*a)->walk(&Item::set_no_const_sub, FALSE, (byte*) 0);
-      (*b)->walk(&Item::set_no_const_sub, FALSE, (byte*) 0);
+      (*a)->walk(&Item::set_no_const_sub, FALSE, (uchar*) 0);
+      (*b)->walk(&Item::set_no_const_sub, FALSE, (uchar*) 0);
     }
     break;
   }
@@ -2425,7 +2425,7 @@ bool Item_func_case::fix_fields(THD *thd, Item **ref)
     Item_func_case::val_int() -> Item_func_case::find_item()
   */
 #ifndef EMBEDDED_LIBRARY
-  char buff[MAX_FIELD_WIDTH*2+sizeof(String)*2+sizeof(String*)*2+sizeof(double)*2+sizeof(longlong)*2];
+  uchar buff[MAX_FIELD_WIDTH*2+sizeof(String)*2+sizeof(String*)*2+sizeof(double)*2+sizeof(longlong)*2];
 #endif
   bool res= Item_func::fix_fields(thd, ref);
   /*
@@ -2765,7 +2765,7 @@ static int cmp_decimal(void *cmp_arg, my_decimal *a, my_decimal *b)
 
 int in_vector::find(Item *item)
 {
-  byte *result=get_value(item);
+  uchar *result=get_value(item);
   if (!result || !used_count)
     return 0;				// Null value
 
@@ -2820,9 +2820,9 @@ void in_string::set(uint pos,Item *item)
 }
 
 
-byte *in_string::get_value(Item *item)
+uchar *in_string::get_value(Item *item)
 {
-  return (byte*) item->val_str(&tmp);
+  return (uchar*) item->val_str(&tmp);
 }
 
 in_row::in_row(uint elements, Item * item)
@@ -2845,12 +2845,12 @@ in_row::~in_row()
     delete [] (cmp_item_row*) base;
 }
 
-byte *in_row::get_value(Item *item)
+uchar *in_row::get_value(Item *item)
 {
   tmp.store_value(item);
   if (item->is_null())
     return 0;
-  return (byte *)&tmp;
+  return (uchar *)&tmp;
 }
 
 void in_row::set(uint pos, Item *item)
@@ -2873,13 +2873,13 @@ void in_longlong::set(uint pos,Item *item)
   buff->unsigned_flag= item->unsigned_flag;
 }
 
-byte *in_longlong::get_value(Item *item)
+uchar *in_longlong::get_value(Item *item)
 {
   tmp.val= item->val_int();
   if (item->null_value)
     return 0;
   tmp.unsigned_flag= item->unsigned_flag;
-  return (byte*) &tmp;
+  return (uchar*) &tmp;
 }
 
 in_double::in_double(uint elements)
@@ -2891,12 +2891,12 @@ void in_double::set(uint pos,Item *item)
   ((double*) base)[pos]= item->val_real();
 }
 
-byte *in_double::get_value(Item *item)
+uchar *in_double::get_value(Item *item)
 {
   tmp= item->val_real();
   if (item->null_value)
     return 0;					/* purecov: inspected */
-  return (byte*) &tmp;
+  return (uchar*) &tmp;
 }
 
 
@@ -2918,12 +2918,12 @@ void in_decimal::set(uint pos, Item *item)
 }
 
 
-byte *in_decimal::get_value(Item *item)
+uchar *in_decimal::get_value(Item *item)
 {
   my_decimal *result= item->val_decimal(&val);
   if (item->null_value)
     return 0;
-  return (byte *)result;
+  return (uchar *)result;
 }
 
 
@@ -3434,7 +3434,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   List_iterator<Item> li(list);
   Item *item;
 #ifndef EMBEDDED_LIBRARY
-  char buff[sizeof(char*)];			// Max local vars in function
+  uchar buff[sizeof(char*)];			// Max local vars in function
 #endif
   not_null_tables_cache= used_tables_cache= 0;
   const_item_cache= 1;
@@ -3501,7 +3501,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   return FALSE;
 }
 
-bool Item_cond::walk(Item_processor processor, bool walk_subquery, byte *arg)
+bool Item_cond::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 {
   List_iterator_fast<Item> li(list);
   Item *item;
@@ -3533,7 +3533,7 @@ bool Item_cond::walk(Item_processor processor, bool walk_subquery, byte *arg)
     Item returned as the result of transformation of the root node 
 */
 
-Item *Item_cond::transform(Item_transformer transformer, byte *arg)
+Item *Item_cond::transform(Item_transformer transformer, uchar *arg)
 {
   DBUG_ASSERT(!current_thd->is_stmt_prepare());
 
@@ -3584,8 +3584,8 @@ Item *Item_cond::transform(Item_transformer transformer, byte *arg)
     Item returned as the result of transformation of the root node 
 */
 
-Item *Item_cond::compile(Item_analyzer analyzer, byte **arg_p,
-                         Item_transformer transformer, byte *arg_t)
+Item *Item_cond::compile(Item_analyzer analyzer, uchar **arg_p,
+                         Item_transformer transformer, uchar *arg_t)
 {
   if (!(this->*analyzer)(arg_p))
     return 0;
@@ -3598,7 +3598,7 @@ Item *Item_cond::compile(Item_analyzer analyzer, byte **arg_p,
       The same parameter value of arg_p must be passed
       to analyze any argument of the condition formula.
     */   
-    byte *arg_v= *arg_p;
+    uchar *arg_v= *arg_p;
     Item *new_item= item->compile(analyzer, &arg_v, transformer, arg_t);
     if (new_item && new_item != item)
       li.replace(new_item);
@@ -4832,7 +4832,7 @@ void Item_equal::fix_length_and_dec()
                                       item->collation.collation);
 }
 
-bool Item_equal::walk(Item_processor processor, bool walk_subquery, byte *arg)
+bool Item_equal::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 {
   List_iterator_fast<Item_field> it(fields);
   Item *item;
@@ -4844,7 +4844,7 @@ bool Item_equal::walk(Item_processor processor, bool walk_subquery, byte *arg)
   return Item_func::walk(processor, walk_subquery, arg);
 }
 
-Item *Item_equal::transform(Item_transformer transformer, byte *arg)
+Item *Item_equal::transform(Item_transformer transformer, uchar *arg)
 {
   DBUG_ASSERT(!current_thd->is_stmt_prepare());
 

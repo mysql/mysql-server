@@ -27,9 +27,9 @@
 #include <my_global.h>
 #include "m_string.h"
 
-my_string strcont(reg1 const char *str,reg2 const char *set)
+char * strcont(reg1 const char *str,reg2 const char *set)
 {
-  reg3 my_string start = (my_string) set;
+  reg3 char * start = (char *) set;
 
   while (*str)
   {

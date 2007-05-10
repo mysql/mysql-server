@@ -25,7 +25,7 @@
 	*/
 
 
-int mi_rsame(MI_INFO *info, byte *record, int inx)
+int mi_rsame(MI_INFO *info, uchar *record, int inx)
 {
   DBUG_ENTER("mi_rsame");
 

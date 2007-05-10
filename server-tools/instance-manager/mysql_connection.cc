@@ -147,12 +147,12 @@ int Mysql_connection::check_connection()
   ulong pkt_len=0;                              // to hold client reply length
 
   /* buffer for the first packet */             /* packet contains: */
-  char buff[MAX_VERSION_LENGTH + 1 +            // server version, 0-ended
-            4 +                                 // connection id
-            SCRAMBLE_LENGTH + 2 +               // scramble (in 2 pieces)
-            18];                                // server variables: flags,
+  uchar buff[MAX_VERSION_LENGTH + 1 +            // server version, 0-ended
+             4 +                                 // connection id
+             SCRAMBLE_LENGTH + 2 +               // scramble (in 2 pieces)
+             18];                                // server variables: flags,
                                                 // charset number, status,
-  char *pos= buff;
+  uchar *pos= buff;
   ulong server_flags;
 
   memcpy(pos, mysqlmanager_version.str, mysqlmanager_version.length + 1);
@@ -195,7 +195,8 @@ int Mysql_connection::check_connection()
 
   /* write connection message and read reply */
   enum { MIN_HANDSHAKE_SIZE= 2 };
-  if (net_write_command(&net, protocol_version, "", 0, buff, pos - buff) ||
+  if (net_write_command(&net, protocol_version, (uchar*) "", 0,
+                        buff, pos - buff) ||
      (pkt_len= my_net_read(&net)) == packet_error ||
       pkt_len < MIN_HANDSHAKE_SIZE)
   {
@@ -211,17 +212,17 @@ int Mysql_connection::check_connection()
   }
   client_capabilities|= ((ulong) uint2korr(net.read_pos + 2)) << 16;
 
-  pos= (char*) net.read_pos + 32;
+  pos= net.read_pos + 32;
 
   /* At least one byte for username and one byte for password */
-  if (pos >= (char*) net.read_pos + pkt_len + 2)
+  if (pos >= net.read_pos + pkt_len + 2)
   {
     /*TODO add user and password handling in error messages*/
     net_send_error(&net, ER_HANDSHAKE_ERROR);
     return 1;
   }
 
-  const char *user= pos;
+  const char *user= (char*) pos;
   const char *password= strend(user)+1;
   ulong password_len= *password++;
   LEX_STRING user_name= { (char *) user, password - user - 2 };

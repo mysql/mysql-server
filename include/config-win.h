@@ -310,10 +310,10 @@ inline double ulonglong2double(ulonglong value)
 #define doublestore(T,V) do { *((long *) T) = *((long*) &V); \
 			      *(((long *) T)+1) = *(((long*) &V)+1); } while(0)
 #define float4get(V,M) { *((long *) &(V)) = *((long*) (M)); }
-#define floatstore(T,V) memcpy((byte*)(T), (byte*)(&V), sizeof(float))
-#define floatget(V,M)   memcpy((byte*)(&V), (byte*)(M), sizeof(float))
+#define floatstore(T,V) memcpy((uchar*)(T), (uchar*)(&V), sizeof(float))
+#define floatget(V,M)   memcpy((uchar*)(&V), (uchar*)(M), sizeof(float))
 #define float8get(V,M) doubleget((V),(M))
-#define float4store(V,M) memcpy((byte*) V,(byte*) (&M),sizeof(float))
+#define float4store(V,M) memcpy((uchar*) V,(uchar*) (&M),sizeof(float))
 #define float8store(V,M) doublestore((V),(M))
 #endif /* _WIN64 */
 

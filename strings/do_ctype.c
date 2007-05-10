@@ -141,22 +141,22 @@ void init_case_convert()
 #endif
 
 #ifdef MSDOS
-  higher_pos= (uchar * ) "\217\216\231\232\220"; /* Extra chars to konv. */
-  lower_pos=  (uchar * ) "\206\204\224\201\202";
+  higher_pos= (uchar *) "\217\216\231\232\220"; /* Extra chars to konv. */
+  lower_pos=  (uchar *) "\206\204\224\201\202";
 #else
 #if defined(HPUX10) && ASCII_BITS_USED == 8
-  higher_pos= (uchar * ) "\xd0\xd8\xda\xdb\xdc\xd3";
-  lower_pos=  (uchar * ) "\xd4\xcc\xce\xdf\xc9\xd7";
+  higher_pos= (uchar *) "\xd0\xd8\xda\xdb\xdc\xd3";
+  lower_pos=  (uchar *) "\xd4\xcc\xce\xdf\xc9\xd7";
 #else
 #ifdef USE_INTERNAL_CTYPE
   higher_pos=lower_pos= (uchar* ) "";		/* System converts chars */
 #else
 #if defined(DEC_MULTINATIONAL_CHAR) || defined(HP_MULTINATIONAL_CHAR)
-  higher_pos= (uchar * ) "\305\304\326\311\334";
-  lower_pos=  (uchar * ) "\345\344\366\351\374";
+  higher_pos= (uchar *) "\305\304\326\311\334";
+  lower_pos=  (uchar *) "\345\344\366\351\374";
 #else
-  higher_pos= (uchar * ) "[]\\@^";
-  lower_pos=  (uchar * ) "{}|`~";
+  higher_pos= (uchar *) "[]\\@^";
+  lower_pos=  (uchar *) "{}|`~";
 #endif
 #endif /* USE_INTERNAL_CTYPE */
 #endif /* HPUX10 */

@@ -213,7 +213,7 @@ void completion_hash_clean(HashTable *ht)
 void completion_hash_free(HashTable *ht)
 {
   completion_hash_clean(ht);
-  my_free((gptr) ht->arBuckets,MYF(0));
+  my_free(ht->arBuckets, MYF(0));
 }
 
 

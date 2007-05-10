@@ -498,7 +498,7 @@ void field_decimal::add()
 
   if (room_in_tree)
   {
-    char buf[DECIMAL_MAX_FIELD_SIZE];
+    uchar buf[DECIMAL_MAX_FIELD_SIZE];
     my_decimal2binary(E_DEC_FATAL_ERROR, dec, buf,
                       item->max_length, item->decimals);
     if (!(element = tree_insert(&tree, (void*)buf, 0, tree.custom_arg)))
@@ -1108,7 +1108,7 @@ int collect_real(double *element, element_count count __attribute__((unused)),
 } // collect_real
 
 
-int collect_decimal(char *element, element_count count,
+int collect_decimal(uchar *element, element_count count,
                     TREE_INFO *info)
 {
   char buff[DECIMAL_MAX_STR_LENGTH];

@@ -17,7 +17,7 @@
 
 #include "myisamdef.h"
 
-ha_checksum mi_checksum(MI_INFO *info, const byte *buf)
+ha_checksum mi_checksum(MI_INFO *info, const uchar *buf)
 {
   uint i;
   ha_checksum crc=0;
@@ -25,7 +25,7 @@ ha_checksum mi_checksum(MI_INFO *info, const byte *buf)
 
   for (i=info->s->base.fields ; i-- ; buf+=(rec++)->length)
   {
-    const byte *pos;
+    const uchar *pos;
     ulong length;
     switch (rec->type) {
     case FIELD_BLOB:
@@ -52,13 +52,13 @@ ha_checksum mi_checksum(MI_INFO *info, const byte *buf)
       pos=buf;
       break;
     }
-    crc=my_checksum(crc, pos ? pos : "", length);
+    crc=my_checksum(crc, pos ? pos : (uchar*) "", length);
   }
   return crc;
 }
 
 
-ha_checksum mi_static_checksum(MI_INFO *info, const byte *pos)
+ha_checksum mi_static_checksum(MI_INFO *info, const uchar *pos)
 {
   return my_checksum(0, pos, info->s->base.reclength);
 }

@@ -59,9 +59,9 @@ do_ssl_stuff(	TH_ARGS*	args)
 	/* ----------------------------------------------- */
 	/* TCP connection is ready. Do server side SSL. */
 
-	err = write(server_vio->sd,(gptr)s, strlen(s));
+	err = write(server_vio->sd,(uchar*)s, strlen(s));
 	sslaccept(args->ssl_acceptor,server_vio,60L);
-	err = server_vio->write(server_vio,(gptr)s, strlen(s));
+	err = server_vio->write(server_vio,(uchar*)s, strlen(s));
 	DBUG_VOID_RETURN;
 }
 
@@ -139,12 +139,12 @@ main(int argc __attribute__((unused)), char** argv)
 
 #if 0
 	if (err<=0) {
-		my_free((gptr)ssl_acceptor,MYF(0));
+		my_free((uchar*)ssl_acceptor,MYF(0));
 		fatal_error("server:SSL_write");
 	}
 #endif /* 0 */
 
-	my_free((gptr)ssl_acceptor,MYF(0));
+	my_free((uchar*)ssl_acceptor,MYF(0));
 	return 0;
 }
 #else /* HAVE_OPENSSL */

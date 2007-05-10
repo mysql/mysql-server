@@ -41,7 +41,8 @@ asm(".L5:				");
 }
 #else
 
-void bmove_upp(register char *dst, register const char *src, register uint len)
+void bmove_upp(register uchar *dst, register const uchar *src,
+               register size_t len)
 {
   while (len-- != 0) *--dst = *--src;
 }

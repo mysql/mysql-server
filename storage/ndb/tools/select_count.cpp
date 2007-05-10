@@ -43,13 +43,13 @@ static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
   { "database", 'd', "Name of database table is in",
-    (gptr*) &_dbname, (gptr*) &_dbname, 0,
+    (uchar**) &_dbname, (uchar**) &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "parallelism", 'p', "parallelism",
-    (gptr*) &_parallelism, (gptr*) &_parallelism, 0,
+    (uchar**) &_parallelism, (uchar**) &_parallelism, 0,
     GET_INT, REQUIRED_ARG, 240, 0, 0, 0, 0, 0 }, 
   { "lock", 'l', "Read(0), Read-hold(1), Exclusive(2)",
-    (gptr*) &_lock, (gptr*) &_lock, 0,
+    (uchar**) &_lock, (uchar**) &_lock, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };

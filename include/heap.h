@@ -57,7 +57,7 @@ typedef struct st_heapinfo		/* Struct from heap_info */
 
 typedef struct st_heap_ptrs
 {
-  byte *blocks[HP_PTRS_IN_NOD];		/* pointers to HP_PTRS or records */
+  uchar *blocks[HP_PTRS_IN_NOD];		/* pointers to HP_PTRS or records */
 } HP_PTRS;
 
 struct st_level_info
@@ -70,7 +70,7 @@ struct st_level_info
     of last_blocks array. For level 0 - 1, for level 1 - HP_PTRS_IN_NOD, for 
     level 2 - HP_PTRS_IN_NOD^2 and so forth.
   */
-  uint records_under_level;
+  ulong records_under_level;
 
   /*
     Ptr to last allocated HP_PTRS (or records buffer for level 0) on this 
@@ -123,10 +123,10 @@ typedef struct st_hp_keydef		/* Key definition with open */
   ha_rows hash_buckets; 
   TREE rb_tree;
   int (*write_key)(struct st_heap_info *info, struct st_hp_keydef *keyinfo,
-		   const byte *record, byte *recpos);
+		   const uchar *record, uchar *recpos);
   int (*delete_key)(struct st_heap_info *info, struct st_hp_keydef *keyinfo,
-		   const byte *record, byte *recpos, int flag);
-  uint (*get_key_length)(struct st_hp_keydef *keydef, const byte *key);
+		   const uchar *record, uchar *recpos, int flag);
+  uint (*get_key_length)(struct st_hp_keydef *keydef, const uchar *key);
 } HP_KEYDEF;
 
 typedef struct st_heap_share
@@ -144,8 +144,8 @@ typedef struct st_heap_share
   uint keys,max_key_length;
   uint currently_disabled_keys;    /* saved value from "keys" when disabled */
   uint open_count;
-  byte *del_link;			/* Link to next block with del. rec */
-  my_string name;			/* Name of "memory-file" */
+  uchar *del_link;			/* Link to next block with del. rec */
+  char * name;			/* Name of "memory-file" */
 #ifdef THREAD
   THR_LOCK lock;
   pthread_mutex_t intern_lock;		/* Locking for use with _locking */
@@ -162,14 +162,14 @@ struct st_hp_hash_info;
 typedef struct st_heap_info
 {
   HP_SHARE *s;
-  byte *current_ptr;
+  uchar *current_ptr;
   struct st_hp_hash_info *current_hash_ptr;
   ulong current_record,next_block;
   int lastinx,errkey;
   int  mode;				/* Mode of file (READONLY..) */
   uint opt_flag,update;
-  byte *lastkey;			/* Last used key with rkey */
-  byte *recbuf;                         /* Record buffer for rb-tree keys */
+  uchar *lastkey;			/* Last used key with rkey */
+  uchar *recbuf;                         /* Record buffer for rb-tree keys */
   enum ha_rkey_function last_find_flag;
   TREE_ELEMENT *parents[MAX_TREE_HEIGHT+1];
   TREE_ELEMENT **last_pos;
@@ -195,12 +195,12 @@ typedef struct st_heap_create_info
 
 extern HP_INFO *heap_open(const char *name, int mode);
 extern int heap_close(HP_INFO *info);
-extern int heap_write(HP_INFO *info,const byte *buff);
-extern int heap_update(HP_INFO *info,const byte *old,const byte *newdata);
-extern int heap_rrnd(HP_INFO *info,byte *buf,byte *pos);
+extern int heap_write(HP_INFO *info,const uchar *buff);
+extern int heap_update(HP_INFO *info,const uchar *old,const uchar *newdata);
+extern int heap_rrnd(HP_INFO *info,uchar *buf,uchar *pos);
 extern int heap_scan_init(HP_INFO *info);
-extern int heap_scan(register HP_INFO *info, byte *record);
-extern int heap_delete(HP_INFO *info,const byte *buff);
+extern int heap_scan(register HP_INFO *info, uchar *record);
+extern int heap_delete(HP_INFO *info,const uchar *buff);
 extern int heap_info(HP_INFO *info,HEAPINFO *x,int flag);
 extern int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
 		       uint reclength, ulong max_records, ulong min_records,
@@ -211,32 +211,32 @@ extern int heap_extra(HP_INFO *info,enum ha_extra_function function);
 extern int heap_reset(HP_INFO *info);
 extern int heap_rename(const char *old_name,const char *new_name);
 extern int heap_panic(enum ha_panic_function flag);
-extern int heap_rsame(HP_INFO *info,byte *record,int inx);
-extern int heap_rnext(HP_INFO *info,byte *record);
-extern int heap_rprev(HP_INFO *info,byte *record);
-extern int heap_rfirst(HP_INFO *info,byte *record,int inx);
-extern int heap_rlast(HP_INFO *info,byte *record,int inx);
+extern int heap_rsame(HP_INFO *info,uchar *record,int inx);
+extern int heap_rnext(HP_INFO *info,uchar *record);
+extern int heap_rprev(HP_INFO *info,uchar *record);
+extern int heap_rfirst(HP_INFO *info,uchar *record,int inx);
+extern int heap_rlast(HP_INFO *info,uchar *record,int inx);
 extern void heap_clear(HP_INFO *info);
 extern void heap_clear_keys(HP_INFO *info);
 extern int heap_disable_indexes(HP_INFO *info);
 extern int heap_enable_indexes(HP_INFO *info);
 extern int heap_indexes_are_disabled(HP_INFO *info);
-extern void heap_update_auto_increment(HP_INFO *info, const byte *record);
+extern void heap_update_auto_increment(HP_INFO *info, const uchar *record);
 ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, key_range *min_key,
                                key_range *max_key);
 int hp_panic(enum ha_panic_function flag);
-int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key,
+int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
               key_part_map keypart_map, enum ha_rkey_function find_flag);
-extern gptr heap_find(HP_INFO *info,int inx,const byte *key);
+extern uchar * heap_find(HP_INFO *info,int inx,const uchar *key);
 extern int heap_check_heap(HP_INFO *info, my_bool print_status);
-extern byte *heap_position(HP_INFO *info);
+extern uchar *heap_position(HP_INFO *info);
 
 /* The following is for programs that uses the old HEAP interface where
-   pointer to rows where a long instead of a (byte*).
+   pointer to rows where a long instead of a (uchar*).
 */
 
 #if defined(WANT_OLD_HEAP_VERSION) || defined(OLD_HEAP_VERSION)
-extern int heap_rrnd_old(HP_INFO *info,byte *buf,ulong pos);
+extern int heap_rrnd_old(HP_INFO *info,uchar *buf,ulong pos);
 extern ulong heap_position_old(HP_INFO *info);
 #endif
 #ifdef OLD_HEAP_VERSION
@@ -244,7 +244,7 @@ typedef ulong HEAP_PTR;
 #define heap_position(A) heap_position_old(A)
 #define heap_rrnd(A,B,C) heap_rrnd_old(A,B,C)
 #else
-typedef byte *HEAP_PTR;
+typedef uchar *HEAP_PTR;
 #endif
 
 #ifdef	__cplusplus

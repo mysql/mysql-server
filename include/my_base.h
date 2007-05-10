@@ -478,7 +478,7 @@ enum data_file_type {
 
 typedef struct st_key_range
 {
-  const byte *key;
+  const uchar *key;
   uint length;
   key_part_map keypart_map;
   enum ha_rkey_function flag;

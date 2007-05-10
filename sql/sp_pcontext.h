@@ -273,7 +273,7 @@ public:
   inline bool
   push_case_expr_id(int case_expr_id)
   {
-    return insert_dynamic(&m_case_expr_id_lst, (gptr) &case_expr_id);
+    return insert_dynamic(&m_case_expr_id_lst, (uchar*) &case_expr_id);
   }
 
   inline void
@@ -287,7 +287,7 @@ public:
   {
     int case_expr_id;
 
-    get_dynamic((DYNAMIC_ARRAY*)&m_case_expr_id_lst, (gptr) &case_expr_id,
+    get_dynamic((DYNAMIC_ARRAY*)&m_case_expr_id_lst, (uchar*) &case_expr_id,
                 m_case_expr_id_lst.elements - 1);
 
     return case_expr_id;
@@ -343,7 +343,7 @@ public:
   inline void
   push_handler(sp_cond_type_t *cond)
   {
-    insert_dynamic(&m_handlers, (gptr)&cond);
+    insert_dynamic(&m_handlers, (uchar*)&cond);
   }
 
   bool

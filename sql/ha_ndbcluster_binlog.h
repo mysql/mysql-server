@@ -184,7 +184,7 @@ int ndbcluster_find_all_files(THD *thd);
 #endif /* HAVE_NDB_BINLOG */
 
 void ndb_unpack_record(TABLE *table, NdbValue *value,
-                       MY_BITMAP *defined, byte *buf);
+                       MY_BITMAP *defined, uchar *buf);
 char *ndb_pack_varchar(const NDBCOL *col, char *buf,
                        const char *str, int sz);
 

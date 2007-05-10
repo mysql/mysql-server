@@ -24,7 +24,8 @@
 /*
   Returns the number of bytes required for strnxfrm().
 */
-uint my_strnxfrmlen_simple(CHARSET_INFO *cs, uint len)
+
+size_t my_strnxfrmlen_simple(CHARSET_INFO *cs, size_t len)
 {
   return len * (cs->strxfrm_multiply ? cs->strxfrm_multiply : 1);
 }
@@ -70,12 +71,12 @@ uint my_strnxfrmlen_simple(CHARSET_INFO *cs, uint len)
 */
 
 
-int my_strnxfrm_simple(CHARSET_INFO * cs, 
-                       uchar *dest, uint len,
-                       const uchar *src, uint srclen)
+size_t my_strnxfrm_simple(CHARSET_INFO * cs, 
+                          uchar *dest, size_t len,
+                          const uchar *src, size_t srclen)
 {
   uchar *map= cs->sort_order;
-  uint dstlen= len;
+  size_t dstlen= len;
   set_if_smaller(len, srclen);
   if (dest != src)
   {
@@ -94,11 +95,12 @@ int my_strnxfrm_simple(CHARSET_INFO * cs,
   return dstlen;
 }
 
-int my_strnncoll_simple(CHARSET_INFO * cs, const uchar *s, uint slen, 
-                        const uchar *t, uint tlen,
+
+int my_strnncoll_simple(CHARSET_INFO * cs, const uchar *s, size_t slen, 
+                        const uchar *t, size_t tlen,
                         my_bool t_is_prefix)
 {
-  int len = ( slen > tlen ) ? tlen : slen;
+  size_t len = ( slen > tlen ) ? tlen : slen;
   uchar *map= cs->sort_order;
   if (t_is_prefix && slen > tlen)
     slen=tlen;
@@ -107,7 +109,11 @@ int my_strnncoll_simple(CHARSET_INFO * cs, const uchar *s, uint slen,
     if (map[*s++] != map[*t++])
       return ((int) map[s[-1]] - (int) map[t[-1]]);
   }
-  return (int) (slen - tlen);
+  /*
+    We can't use (slen - tlen) here as the result may be outside of the
+    precision of a signed int
+  */
+  return slen > tlen ? 1 : slen < tlen ? -1 : 0 ;
 }
 
 
@@ -141,12 +147,12 @@ int my_strnncoll_simple(CHARSET_INFO * cs, const uchar *s, uint slen,
     > 0	 a > b
 */
 
-int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *a, uint a_length, 
-			  const uchar *b, uint b_length,
+int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *a, size_t a_length, 
+			  const uchar *b, size_t b_length,
                           my_bool diff_if_only_endspace_difference)
 {
   const uchar *map= cs->sort_order, *end;
-  uint length;
+  size_t length;
   int res;
 
 #ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
@@ -187,48 +193,49 @@ int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *a, uint a_length,
 }
 
 
-uint my_caseup_str_8bit(CHARSET_INFO * cs,char *str)
+size_t my_caseup_str_8bit(CHARSET_INFO * cs,char *str)
 {
   register uchar *map= cs->to_upper;
   char *str_orig= str;
   while ((*str= (char) map[(uchar) *str]) != 0)
     str++;
-  return str - str_orig;
+  return (size_t) (str - str_orig);
 }
 
 
-uint my_casedn_str_8bit(CHARSET_INFO * cs,char *str)
+size_t my_casedn_str_8bit(CHARSET_INFO * cs,char *str)
 {
   register uchar *map= cs->to_lower;
   char *str_orig= str;
   while ((*str= (char) map[(uchar) *str]) != 0)
     str++;
-  return str - str_orig;
+  return (size_t) (str - str_orig);
 }
 
 
-uint my_caseup_8bit(CHARSET_INFO * cs, char *src, uint srclen,
-                    char *dst __attribute__((unused)),
-                    uint dstlen __attribute__((unused)))
+size_t my_caseup_8bit(CHARSET_INFO * cs, char *src, size_t srclen,
+                      char *dst __attribute__((unused)),
+                      size_t dstlen __attribute__((unused)))
 {
-  uint srclen0= srclen;
+  char *end= src + srclen;
   register uchar *map= cs->to_upper;
   DBUG_ASSERT(src == dst && srclen == dstlen);
-  for ( ; srclen > 0 ; srclen--, src++)
+  for ( ; src != end ; src++)
     *src= (char) map[(uchar) *src];
-  return srclen0;
+  return srclen;
 }
 
-uint my_casedn_8bit(CHARSET_INFO * cs, char *src, uint srclen,
-                    char *dst __attribute__((unused)),
-                    uint dstlen __attribute__((unused)))
+
+size_t my_casedn_8bit(CHARSET_INFO * cs, char *src, size_t srclen,
+                      char *dst __attribute__((unused)),
+                      size_t dstlen __attribute__((unused)))
 {
-  uint srclen0= srclen;
+  char *end= src + srclen;
   register uchar *map=cs->to_lower;
   DBUG_ASSERT(src == dst && srclen == dstlen);
-  for ( ; srclen > 0 ; srclen--, src++)
+  for ( ; src != end ; src++)
     *src= (char) map[(uchar) *src];
-  return srclen0;
+  return srclen;
 }
 
 int my_strcasecmp_8bit(CHARSET_INFO * cs,const char *s, const char *t)
@@ -241,8 +248,8 @@ int my_strcasecmp_8bit(CHARSET_INFO * cs,const char *s, const char *t)
 
 
 int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc,
-		  const unsigned char *str,
-		  const unsigned char *end __attribute__((unused)))
+		  const uchar *str,
+		  const uchar *end __attribute__((unused)))
 {
   if (str >= end)
     return MY_CS_TOOSMALL;
@@ -252,8 +259,8 @@ int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc,
 }
 
 int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc,
-		  unsigned char *str,
-		  unsigned char *end __attribute__((unused)))
+		  uchar *str,
+		  uchar *end)
 {
   MY_UNI_IDX *idx;
 
@@ -279,8 +286,8 @@ int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc,
    end buffer must be checked.
 */
 
-int my_snprintf_8bit(CHARSET_INFO *cs  __attribute__((unused)),
-		     char* to, uint n  __attribute__((unused)),
+size_t my_snprintf_8bit(CHARSET_INFO *cs  __attribute__((unused)),
+                        char* to, size_t n  __attribute__((unused)),
 		     const char* fmt, ...)
 {
   va_list args;
@@ -293,7 +300,7 @@ int my_snprintf_8bit(CHARSET_INFO *cs  __attribute__((unused)),
 
 
 void my_hash_sort_simple(CHARSET_INFO *cs,
-			 const uchar *key, uint len,
+			 const uchar *key, size_t len,
 			 ulong *nr1, ulong *nr2)
 {
   register uchar *sort_order=cs->sort_order;
@@ -316,15 +323,15 @@ void my_hash_sort_simple(CHARSET_INFO *cs,
 
 
 long my_strntol_8bit(CHARSET_INFO *cs,
-		     const char *nptr, uint l, int base,
+		     const char *nptr, size_t l, int base,
 		     char **endptr, int *err)
 {
   int negative;
   register uint32 cutoff;
-  register unsigned int cutlim;
+  register uint cutlim;
   register uint32 i;
   register const char *s;
-  register unsigned char c;
+  register uchar c;
   const char *save, *e;
   int overflow;
 
@@ -439,15 +446,15 @@ noconv:
 
 
 ulong my_strntoul_8bit(CHARSET_INFO *cs,
-		       const char *nptr, uint l, int base,
+		       const char *nptr, size_t l, int base,
 		       char **endptr, int *err)
 {
   int negative;
   register uint32 cutoff;
-  register unsigned int cutlim;
+  register uint cutlim;
   register uint32 i;
   register const char *s;
-  register unsigned char c;
+  register uchar c;
   const char *save, *e;
   int overflow;
 
@@ -553,12 +560,12 @@ noconv:
 
 
 longlong my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
-			  const char *nptr, uint l, int base,
+			  const char *nptr, size_t l, int base,
 			  char **endptr,int *err)
 {
   int negative;
   register ulonglong cutoff;
-  register unsigned int cutlim;
+  register uint cutlim;
   register ulonglong i;
   register const char *s, *e;
   const char *save;
@@ -625,7 +632,7 @@ longlong my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
   i = 0;
   for ( ; s != e; s++)
   {
-    register unsigned char c= *s;
+    register uchar c= *s;
     if (c>='0' && c<='9')
       c -= '0';
     else if (c>='A' && c<='Z')
@@ -676,12 +683,12 @@ noconv:
 
 
 ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
-			   const char *nptr, uint l, int base,
+			   const char *nptr, size_t l, int base,
 			   char **endptr, int *err)
 {
   int negative;
   register ulonglong cutoff;
-  register unsigned int cutlim;
+  register uint cutlim;
   register ulonglong i;
   register const char *s, *e;
   const char *save;
@@ -748,7 +755,7 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
   i = 0;
   for ( ; s != e; s++)
   {
-    register unsigned char c= *s;
+    register uchar c= *s;
 
     if (c>='0' && c<='9')
       c -= '0';
@@ -790,6 +797,7 @@ noconv:
   return 0L;
 }
 
+
 /*
   Read double from string
 
@@ -814,7 +822,7 @@ noconv:
 
 
 double my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
-		       char *str, uint length,
+		       char *str, size_t length,
 		       char **end, int *err)
 {
   if (length == INT_MAX32)
@@ -830,8 +838,8 @@ double my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
   Assume len >= 1
 */
 
-int my_long10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
-		     char *dst, uint len, int radix, long int val)
+size_t my_long10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
+                             char *dst, size_t len, int radix, long int val)
 {
   char buffer[66];
   register char *p, *e;
@@ -863,14 +871,15 @@ int my_long10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
     val= new_val;
   }
   
-  len= min(len, (uint) (e-p));
+  len= min(len, (size_t) (e-p));
   memcpy(dst, p, len);
-  return (int) len+sign;
+  return len+sign;
 }
 
 
-int my_longlong10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
-		      char *dst, uint len, int radix, longlong val)
+size_t my_longlong10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
+                                 char *dst, size_t len, int radix,
+                                 longlong val)
 {
   char buffer[65];
   register char *p, *e;
@@ -914,7 +923,7 @@ int my_longlong10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
     long_val= quo;
   }
   
-  len= min(len, (uint) (e-p));
+  len= min(len, (size_t) (e-p));
 cnv:
   memcpy(dst, p, len);
   return len+sign;
@@ -1034,16 +1043,16 @@ int my_wildcmp_8bit(CHARSET_INFO *cs,
 */
 
 my_bool my_like_range_simple(CHARSET_INFO *cs,
-			     const char *ptr,uint ptr_length,
+			     const char *ptr, size_t ptr_length,
 			     pbool escape, pbool w_one, pbool w_many,
-			     uint res_length,
+			     size_t res_length,
 			     char *min_str,char *max_str,
-			     uint *min_length,uint *max_length)
+			     size_t *min_length, size_t *max_length)
 {
   const char *end= ptr + ptr_length;
   char *min_org=min_str;
   char *min_end=min_str+res_length;
-  uint charlen= res_length / cs->mbmaxlen;
+  size_t charlen= res_length / cs->mbmaxlen;
 
   for (; ptr != end && min_str != min_end && charlen > 0 ; ptr++, charlen--)
   {
@@ -1062,7 +1071,8 @@ my_bool my_like_range_simple(CHARSET_INFO *cs,
     if (*ptr == w_many)				/* '%' in SQL */
     {
       /* Calculate length of keys */
-      *min_length= ((cs->state & MY_CS_BINSORT) ? (uint) (min_str - min_org) :
+      *min_length= ((cs->state & MY_CS_BINSORT) ?
+                    (size_t) (min_str - min_org) :
                     res_length);
       *max_length= res_length;
       do
@@ -1075,14 +1085,14 @@ my_bool my_like_range_simple(CHARSET_INFO *cs,
     *min_str++= *max_str++ = *ptr;
   }
 
- *min_length= *max_length = (uint) (min_str - min_org);
+ *min_length= *max_length = (size_t) (min_str - min_org);
   while (min_str != min_end)
     *min_str++= *max_str++ = ' ';      /* Because if key compression */
   return 0;
 }
 
 
-ulong my_scan_8bit(CHARSET_INFO *cs, const char *str, const char *end, int sq)
+size_t my_scan_8bit(CHARSET_INFO *cs, const char *str, const char *end, int sq)
 {
   const char *str0= str;
   switch (sq)
@@ -1091,7 +1101,7 @@ ulong my_scan_8bit(CHARSET_INFO *cs, const char *str, const char *end, int sq)
     if (*str == '.')
     {
       for(str++ ; str != end && *str == '0' ; str++);
-      return (ulong) (str - str0);
+      return (size_t) (str - str0);
     }
     return 0;
 
@@ -1101,7 +1111,7 @@ ulong my_scan_8bit(CHARSET_INFO *cs, const char *str, const char *end, int sq)
       if (!my_isspace(cs,*str))
         break;
     }
-    return (ulong) (str - str0);
+    return (size_t) (str - str0);
   default:
     return 0;
   }
@@ -1109,59 +1119,59 @@ ulong my_scan_8bit(CHARSET_INFO *cs, const char *str, const char *end, int sq)
 
 
 void my_fill_8bit(CHARSET_INFO *cs __attribute__((unused)),
-		   char *s, uint l, int fill)
+		   char *s, size_t l, int fill)
 {
-  bfill(s,l,fill);
+  bfill((uchar*) s,l,fill);
 }
 
 
-uint my_numchars_8bit(CHARSET_INFO *cs __attribute__((unused)),
+size_t my_numchars_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		      const char *b, const char *e)
 {
-  return (uint) (e - b);
+  return (size_t) (e - b);
 }
 
 
-uint my_numcells_8bit(CHARSET_INFO *cs __attribute__((unused)),
-		      const char *b, const char *e)
+size_t my_numcells_8bit(CHARSET_INFO *cs __attribute__((unused)),
+                        const char *b, const char *e)
 {
-  return (uint) (e - b);
+  return (size_t) (e - b);
 }
 
 
-uint my_charpos_8bit(CHARSET_INFO *cs __attribute__((unused)),
-		     const char *b  __attribute__((unused)),
-		     const char *e  __attribute__((unused)),
-		     uint pos)
+size_t my_charpos_8bit(CHARSET_INFO *cs __attribute__((unused)),
+                       const char *b  __attribute__((unused)),
+                       const char *e  __attribute__((unused)),
+                       size_t pos)
 {
   return pos;
 }
 
 
-uint my_well_formed_len_8bit(CHARSET_INFO *cs __attribute__((unused)),
-                             const char *start, const char *end,
-                             uint nchars, int *error)
+size_t my_well_formed_len_8bit(CHARSET_INFO *cs __attribute__((unused)),
+                               const char *start, const char *end,
+                               size_t nchars, int *error)
 {
-  uint nbytes= (uint) (end-start);
+  size_t nbytes= (size_t) (end-start);
   *error= 0;
   return min(nbytes, nchars);
 }
 
 
-uint my_lengthsp_8bit(CHARSET_INFO *cs __attribute__((unused)),
-		      const char *ptr, uint length)
+size_t my_lengthsp_8bit(CHARSET_INFO *cs __attribute__((unused)),
+                        const char *ptr, size_t length)
 {
   const char *end= ptr+length;
   while (end > ptr && end[-1] == ' ')
     end--;
-  return (uint) (end-ptr);
+  return (size_t) (end-ptr);
 }
 
 
 uint my_instr_simple(CHARSET_INFO *cs,
-                    const char *b, uint b_length, 
-		    const char *s, uint s_length,
-		    my_match_t *match, uint nmatch)
+                     const char *b, size_t b_length, 
+                     const char *s, size_t s_length,
+                     my_match_t *match, uint nmatch)
 {
   register const uchar *str, *search, *end, *search_end;
   
@@ -1200,7 +1210,7 @@ skip:
 	if (nmatch > 0)
 	{
 	  match[0].beg= 0;
-	  match[0].end= (uint) (str- (const uchar*)b-1);
+	  match[0].end= (size_t) (str- (const uchar*)b-1);
 	  match[0].mb_len= match[0].end;
 	  
 	  if (nmatch > 1)
@@ -1239,7 +1249,7 @@ static int pcmp(const void * f, const void * s)
   return res;
 }
 
-static my_bool create_fromuni(CHARSET_INFO *cs, void *(*alloc)(uint))
+static my_bool create_fromuni(CHARSET_INFO *cs, void *(*alloc)(size_t))
 {
   uni_idx	idx[PLANE_NUM];
   int		i,n;
@@ -1318,7 +1328,7 @@ static my_bool create_fromuni(CHARSET_INFO *cs, void *(*alloc)(uint))
   return FALSE;
 }
 
-static my_bool my_cset_init_8bit(CHARSET_INFO *cs, void *(*alloc)(uint))
+static my_bool my_cset_init_8bit(CHARSET_INFO *cs, void *(*alloc)(size_t))
 {
   cs->caseup_multiply= 1;
   cs->casedn_multiply= 1;
@@ -1346,7 +1356,7 @@ static void set_max_sort_char(CHARSET_INFO *cs)
 }
 
 static my_bool my_coll_init_simple(CHARSET_INFO *cs,
-                                   void *(*alloc)(uint) __attribute__((unused)))
+                                   void *(*alloc)(size_t) __attribute__((unused)))
 {
   set_max_sort_char(cs);
   return FALSE;
@@ -1361,7 +1371,7 @@ longlong my_strtoll10_8bit(CHARSET_INFO *cs __attribute__((unused)),
 
 
 int my_mb_ctype_8bit(CHARSET_INFO *cs, int *ctype,
-                   const unsigned char *s, const unsigned char *e)
+                   const uchar *s, const uchar *e)
 {
   if (s >= e)
   {
@@ -1473,13 +1483,13 @@ static ulonglong d10[DIGITS_IN_ULONGLONG]=
 
 ulonglong
 my_strntoull10rnd_8bit(CHARSET_INFO *cs __attribute__((unused)),
-                       const char *str, uint length, int unsigned_flag,
+                       const char *str, size_t length, int unsigned_flag,
                        char **endptr, int *error)
 {
   const char *dot, *end9, *beg, *end= str + length;
   ulonglong ull;
   ulong ul;
-  unsigned char ch;
+  uchar ch;
   int shift= 0, digits= 0, negative, addon;
 
   /* Skip leading spaces and tabs */
@@ -1497,7 +1507,7 @@ my_strntoull10rnd_8bit(CHARSET_INFO *cs __attribute__((unused)),
   beg= str;
   end9= (str + 9) > end ? end : (str + 9);
   /* Accumulate small number into ulong, for performance purposes */
-  for (ul= 0 ; str < end9 && (ch= (unsigned char) (*str - '0')) < 10; str++)
+  for (ul= 0 ; str < end9 && (ch= (uchar) (*str - '0')) < 10; str++)
   {
     ul= ul * 10 + ch;
   }
@@ -1530,7 +1540,7 @@ my_strntoull10rnd_8bit(CHARSET_INFO *cs __attribute__((unused)),
   /* Continue to accumulate into ulonglong */
   for (dot= NULL, ull= ul; str < end; str++)
   {
-    if ((ch= (unsigned char) (*str - '0')) < 10)
+    if ((ch= (uchar) (*str - '0')) < 10)
     {
       if (ull < CUTOFF || (ull == CUTOFF && ch <= CUTLIM))
       {
@@ -1551,7 +1561,7 @@ my_strntoull10rnd_8bit(CHARSET_INFO *cs __attribute__((unused)),
       }
       else
         addon= (*str >= '5');
-      for ( ; str < end && (ch= (unsigned char) (*str - '0')) < 10; str++)
+      for ( ; str < end && (ch= (uchar) (*str - '0')) < 10; str++)
       {
         if (!dot)
           shift++;
@@ -1559,7 +1569,7 @@ my_strntoull10rnd_8bit(CHARSET_INFO *cs __attribute__((unused)),
       if (str < end && *str == '.' && !dot)
       {
         str++;
-        for ( ; str < end && (ch= (unsigned char) (*str - '0')) < 10; str++);
+        for ( ; str < end && (ch= (uchar) (*str - '0')) < 10; str++);
       }
       goto exp;
     }
@@ -1605,7 +1615,7 @@ exp:    /* [ E [ <sign> ] <unsigned integer> ] */
           goto ret_sign;
       }
       for (exponent= 0 ;
-           str < end && (ch= (unsigned char) (*str - '0')) < 10;
+           str < end && (ch= (uchar) (*str - '0')) < 10;
            str++)
       {
         exponent= exponent * 10 + ch;
@@ -1748,7 +1758,7 @@ ret_too_big:
 
 my_bool my_propagate_simple(CHARSET_INFO *cs __attribute__((unused)),
                             const uchar *str __attribute__((unused)),
-                            uint length __attribute__((unused)))
+                            size_t length __attribute__((unused)))
 {
   return 1;
 }
@@ -1756,7 +1766,7 @@ my_bool my_propagate_simple(CHARSET_INFO *cs __attribute__((unused)),
 
 my_bool my_propagate_complex(CHARSET_INFO *cs __attribute__((unused)),
                              const uchar *str __attribute__((unused)),
-                             uint length __attribute__((unused)))
+                             size_t length __attribute__((unused)))
 {
   return 0;
 }

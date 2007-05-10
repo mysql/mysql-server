@@ -39,16 +39,16 @@ static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
   { "database", 'd', "Name of database table is in",
-    (gptr*) &_dbname, (gptr*) &_dbname, 0,
+    (uchar**) &_dbname, (uchar**) &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "unqualified", 'u', "Use unqualified table names",
-    (gptr*) &_unqualified, (gptr*) &_unqualified, 0,
+    (uchar**) &_unqualified, (uchar**) &_unqualified, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "extra-partition-info", 'p', "Print more info per partition",
-    (gptr*) &_partinfo, (gptr*) &_partinfo, 0,
+    (uchar**) &_partinfo, (uchar**) &_partinfo, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "retries", 'r', "Retry every second for # retries",
-    (gptr*) &_retries, (gptr*) &_retries, 0,
+    (uchar**) &_retries, (uchar**) &_retries, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };

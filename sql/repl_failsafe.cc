@@ -134,9 +134,9 @@ void unregister_slave(THD* thd, bool only_mine, bool need_mutex)
 
     SLAVE_INFO* old_si;
     if ((old_si = (SLAVE_INFO*)hash_search(&slave_list,
-					   (byte*)&thd->server_id, 4)) &&
+					   (uchar*)&thd->server_id, 4)) &&
 	(!only_mine || old_si->thd == thd))
-    hash_delete(&slave_list, (byte*)old_si);
+    hash_delete(&slave_list, (uchar*)old_si);
 
     if (need_mutex)
       pthread_mutex_unlock(&LOCK_slave_list);
@@ -180,12 +180,12 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
 
   pthread_mutex_lock(&LOCK_slave_list);
   unregister_slave(thd,0,0);
-  res= my_hash_insert(&slave_list, (byte*) si);
+  res= my_hash_insert(&slave_list, (uchar*) si);
   pthread_mutex_unlock(&LOCK_slave_list);
   return res;
 
 err:
-  my_free((gptr) si, MYF(MY_WME));
+  my_free(si, MYF(MY_WME));
   my_message(ER_UNKNOWN_ERROR, "Wrong parameters to function register_slave",
 	     MYF(0));
 err2:
@@ -193,7 +193,7 @@ err2:
 }
 
 extern "C" uint32
-*slave_list_key(SLAVE_INFO* si, uint* len,
+*slave_list_key(SLAVE_INFO* si, size_t *len,
 		my_bool not_used __attribute__((unused)))
 {
   *len = 4;
@@ -202,7 +202,7 @@ extern "C" uint32
 
 extern "C" void slave_info_free(void *s)
 {
-  my_free((gptr) s, MYF(MY_WME));
+  my_free(s, MYF(MY_WME));
 }
 
 void init_slave_list()
@@ -531,7 +531,7 @@ HOSTS";
     SLAVE_INFO* si, *old_si;
     log_server_id = atoi(row[0]);
     if ((old_si= (SLAVE_INFO*)hash_search(&slave_list,
-					  (byte*)&log_server_id,4)))
+					  (uchar*)&log_server_id,4)))
       si = old_si;
     else
     {
@@ -542,7 +542,7 @@ HOSTS";
 	goto err;
       }
       si->server_id = log_server_id;
-      my_hash_insert(&slave_list, (byte*)si);
+      my_hash_insert(&slave_list, (uchar*)si);
     }
     strmake(si->host, row[1], sizeof(si->host)-1);
     si->port = atoi(row[port_ind]);

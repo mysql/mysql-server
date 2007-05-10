@@ -42,7 +42,7 @@ char *strmake(char *dst,const char *src,uint length)
 #define strmake strmake_overlapp	/* Use orginal for overlapping str */
 #endif
 
-char *strmake(register char *dst, register const char *src, uint length)
+char *strmake(register char *dst, register const char *src, size_t length)
 {
   while (length--)
     if (! (*dst++ = *src++))

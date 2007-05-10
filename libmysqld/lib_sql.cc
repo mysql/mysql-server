@@ -68,13 +68,13 @@ void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
   net->last_errno= ei->last_errno;
   strmake(net->last_error, ei->info, sizeof(net->last_error));
   memcpy(net->sqlstate, ei->sqlstate, sizeof(net->sqlstate));
-  my_free((gptr) data, MYF(0));
+  my_free(data, MYF(0));
 }
 
 static my_bool
 emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
-		     const char *header, ulong header_length,
-		     const char *arg, ulong arg_length, my_bool skip_check,
+		     const uchar *header, ulong header_length,
+		     const uchar *arg, ulong arg_length, my_bool skip_check,
                      MYSQL_STMT *stmt)
 {
   my_bool result= 1;
@@ -180,7 +180,7 @@ static MYSQL_FIELD *emb_list_fields(MYSQL *mysql)
   res= ((THD*) mysql->thd)->cur_data;
   ((THD*) mysql->thd)->cur_data= 0;
   mysql->field_alloc= res->alloc;
-  my_free((gptr) res,MYF(0));
+  my_free(res,MYF(0));
   mysql->status= MYSQL_STATUS_READY;
   return mysql->fields;
 }
@@ -209,7 +209,7 @@ static my_bool emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
     stmt->fields= mysql->fields;
     stmt->mem_root= res->alloc;
     mysql->fields= NULL;
-    my_free((gptr) res,MYF(0));
+    my_free(res,MYF(0));
   }
 
   return 0;
@@ -265,7 +265,7 @@ static my_bool emb_read_query_result(MYSQL *mysql)
     thd->cur_data= res;
   }
   else
-    my_free((gptr) res, MYF(0));
+    my_free(res, MYF(0));
 
   return 0;
 }
@@ -273,7 +273,7 @@ static my_bool emb_read_query_result(MYSQL *mysql)
 static int emb_stmt_execute(MYSQL_STMT *stmt)
 {
   DBUG_ENTER("emb_stmt_execute");
-  char header[5];
+  uchar header[5];
   THD *thd;
   my_bool res;
 
@@ -1063,22 +1063,22 @@ bool Protocol_text::store_null()
   return false;
 }
 
-bool Protocol::net_store_data(const char *from, uint length)
+bool Protocol::net_store_data(const uchar *from, size_t length)
 {
   char *field_buf;
   if (!thd->mysql)            // bootstrap file handling
-    return false;
+    return FALSE;
 
-  if (!(field_buf=alloc_root(alloc, length + sizeof(uint) + 1)))
-    return true;
+  if (!(field_buf= (char*) alloc_root(alloc, length + sizeof(uint) + 1)))
+    return TRUE;
   *(uint *)field_buf= length;
   *next_field= field_buf + sizeof(uint);
-  memcpy(*next_field, from, length);
+  memcpy((uchar*) *next_field, from, length);
   (*next_field)[length]= 0;
   if (next_mysql_field->max_length < length)
     next_mysql_field->max_length=length;
   ++next_field;
   ++next_mysql_field;
-  return false;
+  return FALSE;
 }
 

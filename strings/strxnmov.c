@@ -39,7 +39,7 @@
 #include "m_string.h"
 #include <stdarg.h>
 
-char *strxnmov(char *dst,uint len, const char *src, ...)
+char *strxnmov(char *dst, size_t len, const char *src, ...)
 {
   va_list pvar;
   char *end_of_dst=dst+len;

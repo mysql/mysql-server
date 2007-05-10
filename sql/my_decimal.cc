@@ -118,7 +118,7 @@ int my_decimal2string(uint mask, const my_decimal *d,
     E_DEC_OVERFLOW
 */
 
-int my_decimal2binary(uint mask, const my_decimal *d, char *bin, int prec,
+int my_decimal2binary(uint mask, const my_decimal *d, uchar *bin, int prec,
 		      int scale)
 {
   int err1= E_DEC_OK, err2;
@@ -233,7 +233,7 @@ print_decimal(const my_decimal *dec)
 
 /* print decimal with its binary representation */
 void
-print_decimal_buff(const my_decimal *dec, const byte* ptr, int length)
+print_decimal_buff(const my_decimal *dec, const uchar* ptr, int length)
 {
   print_decimal(dec);
   fprintf(DBUG_FILE, "Record: ");

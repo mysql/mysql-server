@@ -22,7 +22,7 @@
 	   based on the position of the last used key!
 	*/
 
-int mi_rprev(MI_INFO *info, byte *buf, int inx)
+int mi_rprev(MI_INFO *info, uchar *buf, int inx)
 {
   int error,changed;
   register uint flag;

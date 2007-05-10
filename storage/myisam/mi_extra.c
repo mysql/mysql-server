@@ -180,8 +180,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   case HA_EXTRA_KEYREAD:			/* Read only keys to record */
   case HA_EXTRA_REMEMBER_POS:
     info->opt_flag |= REMEMBER_OLD_POS;
-    bmove((byte*) info->lastkey+share->base.max_key_length*2,
-	  (byte*) info->lastkey,info->lastkey_length);
+    bmove((uchar*) info->lastkey+share->base.max_key_length*2,
+	  (uchar*) info->lastkey,info->lastkey_length);
     info->save_update=	info->update;
     info->save_lastinx= info->lastinx;
     info->save_lastpos= info->lastpos;
@@ -197,8 +197,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   case HA_EXTRA_RESTORE_POS:
     if (info->opt_flag & REMEMBER_OLD_POS)
     {
-      bmove((byte*) info->lastkey,
-	    (byte*) info->lastkey+share->base.max_key_length*2,
+      bmove((uchar*) info->lastkey,
+	    (uchar*) info->lastkey+share->base.max_key_length*2,
 	    info->save_lastkey_length);
       info->update=	info->save_update | HA_STATE_WRITTEN;
       info->lastinx=	info->save_lastinx;
@@ -385,7 +385,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   {
     char tmp[1];
     tmp[0]=function;
-    myisam_log_command(MI_LOG_EXTRA,info,(byte*) tmp,1,error);
+    myisam_log_command(MI_LOG_EXTRA,info,(uchar*) tmp,1,error);
   }
   DBUG_RETURN(error);
 } /* mi_extra */

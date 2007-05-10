@@ -221,7 +221,7 @@ enum tablespace_op_type
   Keep in sync with index_hint_type.
 */
 extern const char * index_hint_type_name[];
-typedef byte index_clause_map;
+typedef uchar index_clause_map;
 
 /*
   Bits in index_clause_map : one for each possible FOR clause in
@@ -409,7 +409,7 @@ public:
 
   static void *operator new(size_t size)
   {
-    return (void*) sql_alloc((uint) size);
+    return sql_alloc(size);
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
@@ -733,7 +733,7 @@ public:
   {
     order_list.elements= 0;
     order_list.first= 0;
-    order_list.next= (byte**) &order_list.first;
+    order_list.next= (uchar**) &order_list.first;
   }
   /*
     This method created for reiniting LEX in mysql_admin_table() and can be
@@ -913,7 +913,7 @@ public:
     in which it was right after query parsing.
   */
   SQL_LIST sroutines_list;
-  byte     **sroutines_list_own_last;
+  uchar    **sroutines_list_own_last;
   uint     sroutines_list_own_elements;
 
   /*
@@ -1024,7 +1024,7 @@ typedef struct st_lex : public Query_tables_list
   LEX_STRING comment, ident;
   LEX_USER *grant_user;
   XID *xid;
-  gptr yacc_yyss,yacc_yyvs;
+  uchar* yacc_yyss, *yacc_yyvs;
   THD *thd;
   CHARSET_INFO *charset, *underscore_charset;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
@@ -1312,7 +1312,7 @@ struct st_lex_local: public st_lex
 {
   static void *operator new(size_t size)
   {
-    return (void*) sql_alloc((uint) size);
+    return sql_alloc(size);
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   {

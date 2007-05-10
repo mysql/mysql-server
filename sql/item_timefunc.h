@@ -38,7 +38,7 @@ public:
   { 
     max_length=6*MY_CHARSET_BIN_MB_MAXLEN;
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -53,7 +53,7 @@ public:
     decimals=0;
     max_length=6*MY_CHARSET_BIN_MB_MAXLEN;
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -70,7 +70,7 @@ public:
     maybe_null=1; 
   }
   enum_monotonicity_info get_monotonicity_info() const;
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -86,7 +86,7 @@ public:
     max_length=2*MY_CHARSET_BIN_MB_MAXLEN;
     maybe_null=1; 
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -111,7 +111,7 @@ public:
     max_length=2*MY_CHARSET_BIN_MB_MAXLEN;
     maybe_null=1; 
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -144,7 +144,7 @@ public:
     max_length=3*MY_CHARSET_BIN_MB_MAXLEN;
     maybe_null=1; 
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -160,7 +160,7 @@ public:
     max_length=2*MY_CHARSET_BIN_MB_MAXLEN;
     maybe_null=1;
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -176,7 +176,7 @@ public:
     max_length=2*MY_CHARSET_BIN_MB_MAXLEN;
     maybe_null=1;
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -192,7 +192,7 @@ public:
      max_length=1*MY_CHARSET_BIN_MB_MAXLEN;
      maybe_null=1;
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -208,7 +208,7 @@ public:
     max_length=2*MY_CHARSET_BIN_MB_MAXLEN;
     maybe_null=1;
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -224,7 +224,7 @@ public:
     max_length=2*MY_CHARSET_BIN_MB_MAXLEN;
     maybe_null=1;
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 class Item_func_yearweek :public Item_int_func
@@ -239,7 +239,7 @@ public:
     max_length=6*MY_CHARSET_BIN_MB_MAXLEN;
     maybe_null=1;
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -256,7 +256,7 @@ public:
     max_length=4*MY_CHARSET_BIN_MB_MAXLEN;
     maybe_null=1;
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -286,7 +286,7 @@ public:
     max_length=1*MY_CHARSET_BIN_MB_MAXLEN;
     maybe_null=1;
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 class Item_func_dayname :public Item_func_weekday
@@ -319,7 +319,7 @@ public:
     decimals=0;
     max_length=10*MY_CHARSET_BIN_MB_MAXLEN;
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -334,7 +334,7 @@ public:
     decimals=0;
     max_length=10*MY_CHARSET_BIN_MB_MAXLEN;
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -585,7 +585,7 @@ public:
   Item_func_from_days(Item *a) :Item_date(a) {}
   const char *func_name() const { return "from_days"; }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -603,7 +603,7 @@ public:
   void fix_length_and_dec();
   uint format_length(const String *format);
   bool eq(const Item *item, bool binary_cmp) const;
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -617,7 +617,7 @@ class Item_func_from_unixtime :public Item_date_func
   const char *func_name() const { return "from_unixtime"; }
   void fix_length_and_dec();
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -676,7 +676,7 @@ public:
   }
   const char *func_name() const { return "sec_to_time"; }
   bool result_as_longlong() { return TRUE; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -698,7 +698,7 @@ public:
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   bool eq(const Item *item, bool binary_cmp) const;
   void print(String *str);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -716,7 +716,7 @@ class Item_extract :public Item_int_func
   void fix_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const;
   void print(String *str);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -753,7 +753,7 @@ public:
     max_length=args[0]->max_length;
     maybe_null= 1;
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -773,7 +773,7 @@ public:
   String *val_str(String *a);
   void fix_length_and_dec();
   void print(String *str);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -884,7 +884,7 @@ public:
     max_length=MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
   }
   longlong val_int();
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -907,7 +907,7 @@ public:
   }
   void print(String *str);
   const char *func_name() const { return "add_time"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   double val_real() { return val_real_from_decimal(); }
   my_decimal *val_decimal(my_decimal *decimal_value)
   {
@@ -949,7 +949,7 @@ public:
     :Item_str_timefunc(a, b ,c) {}
   String *val_str(String *str);
   const char *func_name() const { return "maketime"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 class Item_func_microsecond :public Item_int_func
@@ -963,7 +963,7 @@ public:
     decimals=0;
     maybe_null=1;
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -981,7 +981,7 @@ public:
     maybe_null=1;
   }
   void print(String *str);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -1028,7 +1028,7 @@ public:
   {
     return tmp_table_field_from_field_type(table, 1);
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 

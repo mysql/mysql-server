@@ -376,7 +376,7 @@ void add_compiled_collation(CHARSET_INFO *cs)
   cs->state|= MY_CS_AVAILABLE;
 }
 
-static void *cs_alloc(uint size)
+static void *cs_alloc(size_t size)
 {
   return my_once_alloc(size, MYF(MY_WME));
 }
@@ -594,13 +594,13 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
     "big enough"
 
   RETURN VALUES
-    ~0          The escaped string did not fit in the to buffer
-    >=0         The length of the escaped string
+    (size_t) -1 The escaped string did not fit in the to buffer
+    #           The length of the escaped string
 */
 
-ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
-                              char *to, ulong to_length,
-                              const char *from, ulong length)
+size_t escape_string_for_mysql(CHARSET_INFO *charset_info,
+                               char *to, size_t to_length,
+                               const char *from, size_t length)
 {
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
@@ -684,7 +684,7 @@ ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
     }
   }
   *to= 0;
-  return overflow ? (ulong)~0 : (ulong) (to - to_start);
+  return overflow ? (size_t) -1 : (size_t) (to - to_start);
 }
 
 
@@ -738,9 +738,9 @@ CHARSET_INFO *fs_character_set()
     >=0         The length of the escaped string
 */
 
-ulong escape_quotes_for_mysql(CHARSET_INFO *charset_info,
-                              char *to, ulong to_length,
-                              const char *from, ulong length)
+size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
+                               char *to, size_t to_length,
+                               const char *from, size_t length)
 {
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);

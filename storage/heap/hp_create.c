@@ -42,10 +42,10 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
     DBUG_PRINT("info",("Initializing new table"));
     
     /*
-      We have to store sometimes byte* del_link in records,
-      so the record length should be at least sizeof(byte*)
+      We have to store sometimes uchar* del_link in records,
+      so the record length should be at least sizeof(uchar*)
     */
-    set_if_bigger(reclength, sizeof (byte*));
+    set_if_bigger(reclength, sizeof (uchar*));
     
     for (i= key_segs= max_length= 0, keyinfo= keydef; i < keys; i++, keyinfo++)
     {
@@ -112,7 +112,7 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
       }
       keyinfo->length= length;
       length+= keyinfo->rb_tree.size_of_element + 
-	       ((keyinfo->algorithm == HA_KEY_ALG_BTREE) ? sizeof(byte*) : 0);
+	       ((keyinfo->algorithm == HA_KEY_ALG_BTREE) ? sizeof(uchar*) : 0);
       if (length > max_length)
 	max_length= length;
       key_segs+= keyinfo->keysegs;
@@ -152,12 +152,12 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
       {
 	/* additional HA_KEYTYPE_END keyseg */
 	keyseg->type=     HA_KEYTYPE_END;
-	keyseg->length=   sizeof(byte*);
+	keyseg->length=   sizeof(uchar*);
 	keyseg->flag=     0;
 	keyseg->null_bit= 0;
 	keyseg++;
 
-	init_tree(&keyinfo->rb_tree, 0, 0, sizeof(byte*),
+	init_tree(&keyinfo->rb_tree, 0, 0, sizeof(uchar*),
 		  (qsort_cmp2)keys_compare, 1, NULL, NULL);
 	keyinfo->delete_key= hp_rb_delete_key;
 	keyinfo->write_key= hp_rb_write_key;
@@ -188,7 +188,7 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
     /* Must be allocated separately for rename to work */
     if (!(share->name= my_strdup(name,MYF(0))))
     {
-      my_free((gptr) share,MYF(0));
+      my_free((uchar*) share,MYF(0));
       pthread_mutex_unlock(&THR_LOCK_heap);
       DBUG_RETURN(1);
     }
@@ -218,7 +218,7 @@ static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
   max_records= max(min_records,max_records);
   if (!max_records)
     max_records= 1000;			/* As good as quess as anything */
-  recbuffer= (uint) (reclength + sizeof(byte**) - 1) & ~(sizeof(byte**) - 1);
+  recbuffer= (uint) (reclength + sizeof(uchar**) - 1) & ~(sizeof(uchar**) - 1);
   records_in_block= max_records / 10;
   if (records_in_block < 10 && max_records)
     records_in_block= 10;
@@ -285,7 +285,7 @@ void hp_free(HP_SHARE *share)
   thr_lock_delete(&share->lock);
   VOID(pthread_mutex_destroy(&share->intern_lock));
 #endif
-  my_free((gptr) share->name, MYF(0));
-  my_free((gptr) share, MYF(0));
+  my_free((uchar*) share->name, MYF(0));
+  my_free((uchar*) share, MYF(0));
   return;
 }

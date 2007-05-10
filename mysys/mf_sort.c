@@ -18,7 +18,7 @@
 #include "mysys_priv.h"
 #include <m_string.h>
 
-void my_string_ptr_sort(void *base, uint items, size_s size)
+void my_string_ptr_sort(uchar *base, uint items, size_t size)
 {
 #if INT_MAX > 65536L
   uchar **ptr=0;
@@ -27,15 +27,15 @@ void my_string_ptr_sort(void *base, uint items, size_s size)
       (ptr= (uchar**) my_malloc(items*sizeof(char*),MYF(0))))
   {
     radixsort_for_str_ptr((uchar**) base,items,size,ptr);
-    my_free((gptr) ptr,MYF(0));
+    my_free((uchar*) ptr,MYF(0));
   }
   else
 #endif
   {
     if (size && items)
     {
-      uint size_arg=size;
-      qsort2(base,items,sizeof(byte*),get_ptr_compare(size),(void*) &size_arg);
+      qsort2(base,items, sizeof(uchar*), get_ptr_compare(size),
+             (void*) &size);
     }
   }
 }

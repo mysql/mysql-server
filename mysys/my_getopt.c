@@ -33,7 +33,7 @@ static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
 static ulonglong getopt_ull(char *arg, const struct my_option *optp,
 			    int *err);
 static void init_variables(const struct my_option *options);
-static int setval(const struct my_option *opts, gptr *value, char *argument,
+static int setval(const struct my_option *opts, uchar* *value, char *argument,
 		  my_bool set_maximum_value);
 static char *check_struct_option(char *cur_arg, char *key_name);
 
@@ -82,9 +82,9 @@ static void default_reporter(enum loglevel level,
   one. Call function 'get_one_option()' once for each option.
 */
 
-static gptr* (*getopt_get_addr)(const char *, uint, const struct my_option *);
+static uchar** (*getopt_get_addr)(const char *, uint, const struct my_option *);
 
-void my_getopt_register_get_addr(gptr* (*func_addr)(const char *, uint,
+void my_getopt_register_get_addr(uchar** (*func_addr)(const char *, uint,
 						    const struct my_option *))
 {
   getopt_get_addr= func_addr;
@@ -100,7 +100,7 @@ int handle_options(int *argc, char ***argv,
   char **pos, **pos_end, *optend, *prev_found,
        *opt_str, key_name[FN_REFLEN];
   const struct my_option *optp;
-  gptr *value;
+  uchar* *value;
   int error;
 
   LINT_INIT(opt_found);
@@ -556,14 +556,14 @@ static char *check_struct_option(char *cur_arg, char *key_name)
   Will set the option value to given value
 */
 
-static int setval(const struct my_option *opts, gptr *value, char *argument,
+static int setval(const struct my_option *opts, uchar* *value, char *argument,
 		  my_bool set_maximum_value)
 {
   int err= 0;
 
   if (value && argument)
   {
-    gptr *result_pos= ((set_maximum_value) ?
+    uchar* *result_pos= ((set_maximum_value) ?
 		       opts->u_max_value : value);
 
     if (!result_pos)
@@ -777,7 +777,7 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp)
     value		Pointer to variable
 */
 
-static void init_one_value(const struct my_option *option, gptr *variable,
+static void init_one_value(const struct my_option *option, uchar* *variable,
 			   longlong value)
 {
   switch ((option->var_type & GET_TYPE_MASK)) {
@@ -825,7 +825,7 @@ static void init_variables(const struct my_option *options)
 {
   for (; options->name; options++)
   {
-    gptr *variable;
+    uchar* *variable;
     /*
       We must set u_max_value first as for some variables
       options->u_max_value == options->value and in this case we want to
@@ -937,7 +937,7 @@ void my_print_variables(const struct my_option *options)
   printf("--------------------------------- -----------------------------\n");
   for (optp= options; optp->id; optp++)
   {
-    gptr *value= (optp->var_type & GET_ASK_ADDR ?
+    uchar* *value= (optp->var_type & GET_ASK_ADDR ?
 		  (*getopt_get_addr)("", 0, optp) : optp->value);
     if (value)
     {

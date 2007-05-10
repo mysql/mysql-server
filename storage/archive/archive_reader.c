@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
 
   if (opt_check)
   {
-    byte size_buffer[ARCHIVE_ROW_HEADER_SIZE];
+    uchar size_buffer[ARCHIVE_ROW_HEADER_SIZE];
     int error;
     unsigned int x;
     unsigned int read;
@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
     unsigned long long row_count= 0;
     char buffer;
 
-    while ((read= azread(&reader_handle, (byte *)size_buffer, 
+    while ((read= azread(&reader_handle, (uchar *)size_buffer, 
                         ARCHIVE_ROW_HEADER_SIZE, &error)))
     {
       if (error == Z_STREAM_ERROR ||  (read && read < ARCHIVE_ROW_HEADER_SIZE))
@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
 
   if (opt_backup)
   {
-    byte size_buffer[ARCHIVE_ROW_HEADER_SIZE];
+    uchar size_buffer[ARCHIVE_ROW_HEADER_SIZE];
     int error;
     unsigned int read;
     unsigned int row_len;
@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
       my_free(ptr, MYF(0));
     }
 
-    while ((read= azread(&reader_handle, (byte *)size_buffer, 
+    while ((read= azread(&reader_handle, (uchar *)size_buffer, 
                         ARCHIVE_ROW_HEADER_SIZE, &error)))
     {
       if (error == Z_STREAM_ERROR ||  (read && read < ARCHIVE_ROW_HEADER_SIZE))
@@ -355,15 +355,15 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-auto-increment", 'A',
    "Force auto_increment to start at this or higher value. If no value is given, then sets the next auto_increment value to the highest used value for the auto key + 1.",
-   (gptr*) &new_auto_increment,
-   (gptr*) &new_auto_increment,
+   (uchar**) &new_auto_increment,
+   (uchar**) &new_auto_increment,
    0, GET_ULL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's',
    "Only print errors. One can use two -s to make archive_reader very silent.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't',
    "Path for temporary files.",
-   (gptr*) &opt_tmpdir,
+   (uchar**) &opt_tmpdir,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V',
    "Print version and exit.",

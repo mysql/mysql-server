@@ -48,7 +48,7 @@ if (!(info->update & HA_STATE_AKTIV))\
 typedef struct st_hp_hash_info
 {
   struct st_hp_hash_info *next_key;
-  byte *ptr_to_rec;
+  uchar *ptr_to_rec;
 } HASH_INFO;
 
 typedef struct {
@@ -60,42 +60,42 @@ typedef struct {
 	/* Prototypes for intern functions */
 
 extern HP_SHARE *hp_find_named_heap(const char *name);
-extern int hp_rectest(HP_INFO *info,const byte *old);
-extern byte *hp_find_block(HP_BLOCK *info,ulong pos);
-extern int hp_get_new_block(HP_BLOCK *info, ulong* alloc_length);
+extern int hp_rectest(HP_INFO *info,const uchar *old);
+extern uchar *hp_find_block(HP_BLOCK *info,ulong pos);
+extern int hp_get_new_block(HP_BLOCK *info, size_t* alloc_length);
 extern void hp_free(HP_SHARE *info);
-extern byte *hp_free_level(HP_BLOCK *block,uint level,HP_PTRS *pos,
-			   byte *last_pos);
+extern uchar *hp_free_level(HP_BLOCK *block,uint level,HP_PTRS *pos,
+			   uchar *last_pos);
 extern int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
-			const byte *record, byte *recpos);
+			const uchar *record, uchar *recpos);
 extern int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, 
-			   const byte *record, byte *recpos);
+			   const uchar *record, uchar *recpos);
 extern int hp_rb_delete_key(HP_INFO *info,HP_KEYDEF *keyinfo,
-			    const byte *record,byte *recpos,int flag);
+			    const uchar *record,uchar *recpos,int flag);
 extern int hp_delete_key(HP_INFO *info,HP_KEYDEF *keyinfo,
-			 const byte *record,byte *recpos,int flag);
+			 const uchar *record,uchar *recpos,int flag);
 extern HASH_INFO *_heap_find_hash(HP_BLOCK *block,ulong pos);
-extern byte *hp_search(HP_INFO *info,HP_KEYDEF *keyinfo,const byte *key,
+extern uchar *hp_search(HP_INFO *info,HP_KEYDEF *keyinfo,const uchar *key,
 		       uint nextflag);
-extern byte *hp_search_next(HP_INFO *info, HP_KEYDEF *keyinfo,
-			    const byte *key, HASH_INFO *pos);
-extern ulong hp_hashnr(HP_KEYDEF *keyinfo,const byte *key);
-extern ulong hp_rec_hashnr(HP_KEYDEF *keyinfo,const byte *rec);
+extern uchar *hp_search_next(HP_INFO *info, HP_KEYDEF *keyinfo,
+			    const uchar *key, HASH_INFO *pos);
+extern ulong hp_hashnr(HP_KEYDEF *keyinfo,const uchar *key);
+extern ulong hp_rec_hashnr(HP_KEYDEF *keyinfo,const uchar *rec);
 extern ulong hp_mask(ulong hashnr,ulong buffmax,ulong maxlength);
 extern void hp_movelink(HASH_INFO *pos,HASH_INFO *next_link,
 			 HASH_INFO *newlink);
-extern int hp_rec_key_cmp(HP_KEYDEF *keydef,const byte *rec1,
-			  const byte *rec2,
+extern int hp_rec_key_cmp(HP_KEYDEF *keydef,const uchar *rec1,
+			  const uchar *rec2,
                           my_bool diff_if_only_endspace_difference);
-extern int hp_key_cmp(HP_KEYDEF *keydef,const byte *rec,
-		      const byte *key);
-extern void hp_make_key(HP_KEYDEF *keydef,byte *key,const byte *rec);
-extern uint hp_rb_make_key(HP_KEYDEF *keydef, byte *key,
-			   const byte *rec, byte *recpos);
-extern uint hp_rb_key_length(HP_KEYDEF *keydef, const byte *key);
-extern uint hp_rb_null_key_length(HP_KEYDEF *keydef, const byte *key);
-extern uint hp_rb_var_key_length(HP_KEYDEF *keydef, const byte *key);
-extern my_bool hp_if_null_in_key(HP_KEYDEF *keyinfo, const byte *record);
+extern int hp_key_cmp(HP_KEYDEF *keydef,const uchar *rec,
+		      const uchar *key);
+extern void hp_make_key(HP_KEYDEF *keydef,uchar *key,const uchar *rec);
+extern uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
+			   const uchar *rec, uchar *recpos);
+extern uint hp_rb_key_length(HP_KEYDEF *keydef, const uchar *key);
+extern uint hp_rb_null_key_length(HP_KEYDEF *keydef, const uchar *key);
+extern uint hp_rb_var_key_length(HP_KEYDEF *keydef, const uchar *key);
+extern my_bool hp_if_null_in_key(HP_KEYDEF *keyinfo, const uchar *record);
 extern int hp_close(register HP_INFO *info);
 extern void hp_clear(HP_SHARE *info);
 extern void hp_clear_keys(HP_SHARE *info);

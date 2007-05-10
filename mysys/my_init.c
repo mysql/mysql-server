@@ -69,7 +69,7 @@ static ulong atoi_octal(const char *str)
 
 my_bool my_init(void)
 {
-  my_string str;
+  char * str;
   if (my_init_done)
     return 0;
   my_init_done=1;

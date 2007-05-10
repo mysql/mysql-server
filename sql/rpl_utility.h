@@ -26,7 +26,7 @@ struct st_relay_log_info;
 typedef st_relay_log_info RELAY_LOG_INFO;
 
 uint32
-field_length_from_packed(enum_field_types field_type, byte const *data);
+field_length_from_packed(enum_field_types field_type, uchar const *data);
 
 /**
   A table definition from the master.
@@ -58,7 +58,7 @@ public:
     @param types Array of types
     @param size  Number of elements in array 'types'
    */
-  table_def(field_type *types, my_size_t size)
+  table_def(field_type *types, ulong size)
     : m_type(new unsigned char [size]), m_size(size)
   {
     if (m_type)
@@ -81,7 +81,7 @@ public:
 
     @return The number of fields that there is type data for.
    */
-  my_size_t size() const { return m_size; }
+  ulong size() const { return m_size; }
 
 
   /*
@@ -93,10 +93,9 @@ public:
     <code>index</code>. Currently, only the type identifier is
     returned.
    */
-  field_type type(my_ptrdiff_t index) const
+  field_type type(ulong index) const
   {
-    DBUG_ASSERT(0 <= index);
-    DBUG_ASSERT(static_cast<my_size_t>(index) < m_size);
+    DBUG_ASSERT(index < m_size);
     return m_type[index];
   }
 
@@ -120,7 +119,7 @@ public:
   int compatible_with(RELAY_LOG_INFO const *rli, TABLE *table) const;
 
 private:
-  my_size_t m_size;           // Number of elements in the types array
+  ulong m_size;           // Number of elements in the types array
   field_type *m_type;                     // Array of type descriptors
 };
 

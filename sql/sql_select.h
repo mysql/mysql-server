@@ -56,8 +56,8 @@ typedef struct st_table_ref
   uint          key_parts;                // num of ...
   uint          key_length;               // length of key_buff
   int           key;                      // key no
-  byte          *key_buff;                // value to look for with key
-  byte          *key_buff2;               // key_buff+key_length
+  uchar         *key_buff;                // value to look for with key
+  uchar         *key_buff2;               // key_buff+key_length
   store_key     **key_copy;               //
   Item          **items;                  // val()'s for each keypart
   /*  
@@ -79,7 +79,7 @@ typedef struct st_table_ref
   key_part_map  null_rejecting;
   table_map	depend_map;		  // Table depends on these tables.
   /* null byte position in the key_buf. Used for REF_OR_NULL optimization */
-  byte          *null_ref_key;
+  uchar          *null_ref_key;
 } TABLE_REF;
 
 
@@ -89,8 +89,8 @@ typedef struct st_table_ref
 */
 
 typedef struct st_cache_field {
-  char *str;
-  uint length,blob_length;
+  uchar *str;
+  uint length, blob_length;
   Field_blob *blob_field;
   bool strip;
 } CACHE_FIELD;
@@ -530,20 +530,20 @@ class store_key :public Sql_alloc
 public:
   bool null_key; /* TRUE <=> the value of the key has a null part */
   enum store_key_result { STORE_KEY_OK, STORE_KEY_FATAL, STORE_KEY_CONV };
-  store_key(THD *thd, Field *field_arg, char *ptr, char *null, uint length)
+  store_key(THD *thd, Field *field_arg, uchar *ptr, uchar *null, uint length)
     :null_key(0), null_ptr(null), err(0)
   {
     if (field_arg->type() == MYSQL_TYPE_BLOB)
     {
         /* Key segments are always packed with a 2 byte length prefix */
-      to_field= new Field_varstring(ptr, length, 2, (uchar*) null, 1, 
+      to_field= new Field_varstring(ptr, length, 2, null, 1, 
                                     Field::NONE, field_arg->field_name,
                                     field_arg->table->s, field_arg->charset());
       to_field->init(field_arg->table);
     }
     else
       to_field=field_arg->new_key_field(thd->mem_root, field_arg->table,
-                                        ptr, (uchar*) null, 1);
+                                        ptr, null, 1);
   }
   virtual ~store_key() {}			/* Not actually needed */
   virtual const char *name() const=0;
@@ -571,8 +571,8 @@ public:
 
  protected:
   Field *to_field;				// Store data here
-  char *null_ptr;
-  char err;
+  uchar *null_ptr;
+  uchar err;
 
   virtual enum store_key_result copy_inner()=0;
 };
@@ -583,11 +583,12 @@ class store_key_field: public store_key
   Copy_field copy_field;
   const char *field_name;
  public:
-  store_key_field(THD *thd, Field *to_field_arg, char *ptr, char *null_ptr_arg,
+  store_key_field(THD *thd, Field *to_field_arg, uchar *ptr,
+                  uchar *null_ptr_arg,
 		  uint length, Field *from_field, const char *name_arg)
     :store_key(thd, to_field_arg,ptr,
 	       null_ptr_arg ? null_ptr_arg : from_field->maybe_null() ? &err
-	       : NullS,length), field_name(name_arg)
+	       : (uchar*) 0, length), field_name(name_arg)
   {
     if (to_field)
     {
@@ -615,11 +616,11 @@ class store_key_item :public store_key
  protected:
   Item *item;
 public:
-  store_key_item(THD *thd, Field *to_field_arg, char *ptr, char *null_ptr_arg,
-		 uint length, Item *item_arg)
-    :store_key(thd, to_field_arg,ptr,
+  store_key_item(THD *thd, Field *to_field_arg, uchar *ptr,
+                 uchar *null_ptr_arg, uint length, Item *item_arg)
+    :store_key(thd, to_field_arg, ptr,
 	       null_ptr_arg ? null_ptr_arg : item_arg->maybe_null ?
-	       &err : NullS, length), item(item_arg)
+	       &err : (uchar*) 0, length), item(item_arg)
   {}
   const char *name() const { return "func"; }
 
@@ -641,12 +642,12 @@ class store_key_const_item :public store_key_item
 {
   bool inited;
 public:
-  store_key_const_item(THD *thd, Field *to_field_arg, char *ptr,
-		       char *null_ptr_arg, uint length,
+  store_key_const_item(THD *thd, Field *to_field_arg, uchar *ptr,
+		       uchar *null_ptr_arg, uint length,
 		       Item *item_arg)
     :store_key_item(thd, to_field_arg,ptr,
 		    null_ptr_arg ? null_ptr_arg : item_arg->maybe_null ?
-		    &err : NullS, length, item_arg), inited(0)
+		    &err : (uchar*) 0, length, item_arg), inited(0)
   {
   }
   const char *name() const { return "const"; }

@@ -23,7 +23,7 @@
 #include <m_string.h>
 
 my_bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
-			    uint init_alloc, uint alloc_increment)
+			    size_t init_alloc, size_t alloc_increment)
 {
   uint length;
   DBUG_ENTER("init_dynamic_string");
@@ -31,7 +31,7 @@ my_bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
   if (!alloc_increment)
     alloc_increment=128;
   length=1;
-  if (init_str && (length= (uint) strlen(init_str)+1) < init_alloc)
+  if (init_str && (length= strlen(init_str)+1) < init_alloc)
     init_alloc=((length+alloc_increment-1)/alloc_increment)*alloc_increment;
   if (!init_alloc)
     init_alloc=alloc_increment;
@@ -72,7 +72,7 @@ my_bool dynstr_set(DYNAMIC_STRING *str, const char *init_str)
 }
 
 
-my_bool dynstr_realloc(DYNAMIC_STRING *str, ulong additional_size)
+my_bool dynstr_realloc(DYNAMIC_STRING *str, size_t additional_size)
 {
   DBUG_ENTER("dynstr_realloc");
 
@@ -95,7 +95,7 @@ my_bool dynstr_append(DYNAMIC_STRING *str, const char *append)
 
 
 my_bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append,
-			  uint length)
+			  size_t length)
 {
   char *new_ptr;
   if (str->length+length >= str->max_length)
@@ -114,26 +114,30 @@ my_bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append,
   return FALSE;
 }
 
-my_bool dynstr_trunc(DYNAMIC_STRING *str, int n)
+
+my_bool dynstr_trunc(DYNAMIC_STRING *str, size_t n)
 {
   str->length-=n;
   str->str[str->length]= '\0';
   return FALSE;
 }
 
-/** Concatenates any number of strings, escapes any OS quote in the result then
- * surround the whole affair in another set of quotes which is finally appended
- * to specified DYNAMIC_STRING.  This function is especially useful when 
- * building strings to be executed with the system() function.
- * @param str Dynamic String which will have addtional strings appended.
- * @param append String to be appended.
- * @param ... Optional. Additional string(s) to be appended.
- *
- * @note The final argument in the list must be NullS even if no additional
- * options are passed.
- *
- * @return True = Success.
- */
+/*
+  Concatenates any number of strings, escapes any OS quote in the result then
+  surround the whole affair in another set of quotes which is finally appended
+  to specified DYNAMIC_STRING.  This function is especially useful when 
+  building strings to be executed with the system() function.
+
+  @param str Dynamic String which will have addtional strings appended.
+  @param append String to be appended.
+  @param ... Optional. Additional string(s) to be appended.
+
+  @note The final argument in the list must be NullS even if no additional
+  options are passed.
+
+  @return True = Success.
+*/
+
 my_bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append, ...)
 {
 #ifdef __WIN__

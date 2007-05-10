@@ -211,7 +211,7 @@ sp_pcontext::find_variable(LEX_STRING *name, my_bool scoped)
   {
     sp_variable_t *p;
 
-    get_dynamic(&m_vars, (gptr)&p, i);
+    get_dynamic(&m_vars, (uchar*)&p, i);
     if (my_strnncoll(system_charset_info,
 		     (const uchar *)name->str, name->length,
 		     (const uchar *)p->name.str, p->name.length) == 0)
@@ -238,7 +238,7 @@ sp_pcontext::find_variable(uint offset)
   {                           // This frame
     sp_variable_t *p;
 
-    get_dynamic(&m_vars, (gptr)&p, offset - m_var_offset);
+    get_dynamic(&m_vars, (uchar*)&p, offset - m_var_offset);
     return p;
   }
   if (m_parent)
@@ -263,7 +263,7 @@ sp_pcontext::push_variable(LEX_STRING *name, enum enum_field_types type,
   p->mode= mode;
   p->offset= current_var_count();
   p->dflt= NULL;
-  insert_dynamic(&m_vars, (gptr)&p);
+  insert_dynamic(&m_vars, (uchar*)&p);
 
   return p;
 }
@@ -318,7 +318,7 @@ sp_pcontext::push_cond(LEX_STRING *name, sp_cond_type_t *val)
     p->name.str= name->str;
     p->name.length= name->length;
     p->val= val;
-    insert_dynamic(&m_conds, (gptr)&p);
+    insert_dynamic(&m_conds, (uchar*)&p);
   }
 }
 
@@ -334,7 +334,7 @@ sp_pcontext::find_cond(LEX_STRING *name, my_bool scoped)
   {
     sp_cond_t *p;
 
-    get_dynamic(&m_conds, (gptr)&p, i);
+    get_dynamic(&m_conds, (uchar*)&p, i);
     if (my_strnncoll(system_charset_info,
 		     (const uchar *)name->str, name->length,
 		     (const uchar *)p->name.str, p->name.length) == 0)
@@ -361,7 +361,7 @@ sp_pcontext::find_handler(sp_cond_type_t *cond)
   {
     sp_cond_type_t *p;
 
-    get_dynamic(&m_handlers, (gptr)&p, i);
+    get_dynamic(&m_handlers, (uchar*)&p, i);
     if (cond->type == p->type)
     {
       switch (p->type)
@@ -391,7 +391,7 @@ sp_pcontext::push_cursor(LEX_STRING *name)
     m_max_cursor_index+= 1;
   n.str= name->str;
   n.length= name->length;
-  insert_dynamic(&m_cursors, (gptr)&n);
+  insert_dynamic(&m_cursors, (uchar*)&n);
 }
 
 /*
@@ -406,7 +406,7 @@ sp_pcontext::find_cursor(LEX_STRING *name, uint *poff, my_bool scoped)
   {
     LEX_STRING n;
 
-    get_dynamic(&m_cursors, (gptr)&n, i);
+    get_dynamic(&m_cursors, (uchar*)&n, i);
     if (my_strnncoll(system_charset_info,
 		     (const uchar *)name->str, name->length,
 		     (const uchar *)n.str, n.length) == 0)
@@ -429,7 +429,7 @@ sp_pcontext::retrieve_field_definitions(List<create_field> *field_def_lst)
   for (uint i = 0; i < m_vars.elements; ++i)
   {
     sp_variable_t *var_def;
-    get_dynamic(&m_vars, (gptr) &var_def, i);
+    get_dynamic(&m_vars, (uchar*) &var_def, i);
 
     field_def_lst->push_back(&var_def->field_def);
   }
@@ -453,7 +453,7 @@ sp_pcontext::find_cursor(uint offset, LEX_STRING *n)
   if (m_cursor_offset <= offset &&
       offset < m_cursor_offset + m_cursors.elements)
   {                           // This frame
-    get_dynamic(&m_cursors, (gptr)n, offset - m_cursor_offset);
+    get_dynamic(&m_cursors, (uchar*)n, offset - m_cursor_offset);
     return TRUE;
   }
   if (m_parent)

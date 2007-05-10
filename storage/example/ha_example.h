@@ -172,50 +172,50 @@ public:
     We implement this in ha_example.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
-  int write_row(byte * buf);
+  int write_row(uchar *buf);
 
   /** @brief
     We implement this in ha_example.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
-  int update_row(const byte * old_data, byte * new_data);
+  int update_row(const uchar *old_data, uchar *new_data);
 
   /** @brief
     We implement this in ha_example.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
-  int delete_row(const byte * buf);
+  int delete_row(const uchar *buf);
 
   /** @brief
     We implement this in ha_example.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
-  int index_read(byte * buf, const byte * key,
+  int index_read(uchar *buf, const uchar *key,
                  key_part_map keypart_map, enum ha_rkey_function find_flag);
 
   /** @brief
     We implement this in ha_example.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
-  int index_next(byte * buf);
+  int index_next(uchar *buf);
 
   /** @brief
     We implement this in ha_example.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
-  int index_prev(byte * buf);
+  int index_prev(uchar *buf);
 
   /** @brief
     We implement this in ha_example.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
-  int index_first(byte * buf);
+  int index_first(uchar *buf);
 
   /** @brief
     We implement this in ha_example.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
-  int index_last(byte * buf);
+  int index_last(uchar *buf);
 
   /** @brief
     Unlike index_init(), rnd_init() can be called two consecutive times
@@ -227,9 +227,9 @@ public:
   */
   int rnd_init(bool scan);                                      //required
   int rnd_end();
-  int rnd_next(byte *buf);                                      ///< required
-  int rnd_pos(byte * buf, byte *pos);                           ///< required
-  void position(const byte *record);                            ///< required
+  int rnd_next(uchar *buf);                                     ///< required
+  int rnd_pos(uchar *buf, uchar *pos);                          ///< required
+  void position(const uchar *record);                           ///< required
   int info(uint);                                               ///< required
   int extra(enum ha_extra_function operation);
   int external_lock(THD *thd, int lock_type);                   ///< required
