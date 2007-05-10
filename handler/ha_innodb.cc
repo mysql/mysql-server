@@ -523,12 +523,10 @@ inline
 trx_t*&
 thd_to_trx(
 /*=======*/
-				/* out: reference to transaction pointer */
-	THD*		thd,	/* in: MySQL thread */
-	handlerton*	hton)	/* in: InnoDB handlerton */
+			/* out: reference to transaction pointer */
+	THD*	thd)	/* in: MySQL thread */
 {
-	DBUG_ASSERT(hton == innodb_hton_ptr);
-	return(*(trx_t**) thd_ha_data(thd, hton));
+	return(*(trx_t**) thd_ha_data(thd, innodb_hton_ptr));
 }
 
 /************************************************************************
@@ -545,12 +543,14 @@ innobase_release_temporary_latches(
 {
 	trx_t*	trx;
 
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
 	if (!innodb_inited) {
 
 		return 0;
 	}
 
-	trx = thd_to_trx(thd, hton);
+	trx = thd_to_trx(thd);
 
 	if (trx) {
 		innobase_release_stat_resources(trx);
@@ -921,10 +921,9 @@ trx_t*
 check_trx_exists(
 /*=============*/
 			/* out: InnoDB transaction handle */
-	handlerton*	hton,	/* in: handlerton for innodb */
 	THD*	thd)	/* in: user thread handle */
 {
-	trx_t*&	trx = thd_to_trx(thd, hton);
+	trx_t*&	trx = thd_to_trx(thd);
 
 	ut_ad(thd == current_thd);
 
@@ -942,7 +941,7 @@ check_trx_exists(
 		if (trx->magic_n != TRX_MAGIC_N) {
 			mem_analyze_corruption(trx);
 
-			ut_a(0);
+			ut_error;
 		}
 	}
 
@@ -992,7 +991,7 @@ ha_innobase::update_thd(
 {
 	trx_t*		trx;
 
-	trx = check_trx_exists(ht, thd);
+	trx = check_trx_exists(thd);
 
 	if (prebuilt->trx != trx) {
 
@@ -1131,7 +1130,7 @@ innobase_query_caching_of_table_permitted(
 
 	ut_a(full_name_len < 999);
 
-	trx = check_trx_exists(innodb_hton_ptr, thd);
+	trx = check_trx_exists(thd);
 
 	if (trx->isolation_level == TRX_ISO_SERIALIZABLE) {
 		/* In the SERIALIZABLE mode we add LOCK IN SHARE MODE to every
@@ -1768,7 +1767,7 @@ innobase_start_trx_and_assign_read_view(
 
 	/* Create a new trx struct for thd, if it does not yet have one */
 
-	trx = check_trx_exists(hton, thd);
+	trx = check_trx_exists(thd);
 
 	/* This is just to play safe: release a possible FIFO ticket and
 	search latch. Since we will reserve the kernel mutex, we have to
@@ -1813,7 +1812,7 @@ innobase_commit(
 	DBUG_ENTER("innobase_commit");
 	DBUG_PRINT("trans", ("ending transaction"));
 
-	trx = check_trx_exists(hton, thd);
+	trx = check_trx_exists(thd);
 
 	/* Update the info whether we should skip XA steps that eat CPU time */
 	trx->support_xa = THDVAR(thd, support_xa);
@@ -2003,12 +2002,11 @@ int
 innobase_commit_complete(
 /*=====================*/
 				/* out: 0 */
-        handlerton *hton, /* in: Innodb handlerton */ 
 	THD*	thd)		/* in: user thread */
 {
 	trx_t*	trx;
 
-	trx = thd_to_trx(thd, hton);
+	trx = thd_to_trx(thd);
 
 	if (trx && trx->active_trans) {
 
@@ -2045,7 +2043,7 @@ innobase_rollback(
 	DBUG_ENTER("innobase_rollback");
 	DBUG_PRINT("trans", ("aborting transaction"));
 
-	trx = check_trx_exists(hton, thd);
+	trx = check_trx_exists(thd);
 
 	/* Update the info whether we should skip XA steps that eat CPU time */
 	trx->support_xa = THDVAR(thd, support_xa);
@@ -2111,8 +2109,8 @@ innobase_rollback_trx(
 
 /*********************************************************************
 Rolls back a transaction to a savepoint. */
-
-static int
+static
+int
 innobase_rollback_to_savepoint(
 /*===========================*/
 				/* out: 0 if success, HA_ERR_NO_SAVEPOINT if
@@ -2129,7 +2127,7 @@ innobase_rollback_to_savepoint(
 
 	DBUG_ENTER("innobase_rollback_to_savepoint");
 
-	trx = check_trx_exists(hton, thd);
+	trx = check_trx_exists(thd);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the kernel mutex, we have to release the search system latch
@@ -2165,7 +2163,7 @@ innobase_release_savepoint(
 
 	DBUG_ENTER("innobase_release_savepoint");
 
-	trx = check_trx_exists(hton, thd);
+	trx = check_trx_exists(thd);
 
 	/* TODO: use provided savepoint data area to store savepoint data */
 
@@ -2202,7 +2200,7 @@ innobase_savepoint(
 		thd->in_sub_stmt);
 #endif /* MYSQL_SERVER */
 
-	trx = check_trx_exists(hton, thd);
+	trx = check_trx_exists(thd);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the kernel mutex, we have to release the search system latch
@@ -2235,7 +2233,9 @@ innobase_close_connection(
 {
 	trx_t*	trx;
 
-	trx = thd_to_trx(thd, hton);
+	DBUG_ENTER("innobase_close_connection");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+	trx = thd_to_trx(thd);
 
 	ut_a(trx);
 
@@ -2261,7 +2261,7 @@ innobase_close_connection(
 	thr_local_free(trx->mysql_thread_id);
 	trx_free_for_mysql(trx);
 
-	return(0);
+	DBUG_RETURN(0);
 }
 
 
@@ -3330,7 +3330,7 @@ ha_innobase::write_row(
 	longlong	dummy;
 	ibool		auto_inc_used= FALSE;
 	ulint		sql_command;
-	trx_t*		trx = thd_to_trx(user_thd, ht);
+	trx_t*		trx = thd_to_trx(user_thd);
 
 	DBUG_ENTER("ha_innobase::write_row");
 
@@ -3708,7 +3708,7 @@ ha_innobase::update_row(
 {
 	upd_t*		uvect;
 	int		error = 0;
-	trx_t*		trx = thd_to_trx(user_thd, ht);
+	trx_t*		trx = thd_to_trx(user_thd);
 
 	DBUG_ENTER("ha_innobase::update_row");
 
@@ -3761,7 +3761,7 @@ ha_innobase::delete_row(
 	const mysql_byte* record)	/* in: a row in MySQL format */
 {
 	int		error = 0;
-	trx_t*		trx = thd_to_trx(user_thd, ht);
+	trx_t*		trx = thd_to_trx(user_thd);
 
 	DBUG_ENTER("ha_innobase::delete_row");
 
@@ -3840,7 +3840,7 @@ void
 ha_innobase::try_semi_consistent_read(bool yes)
 /*===========================================*/
 {
-	ut_a(prebuilt->trx == thd_to_trx(ha_thd(), ht));
+	ut_a(prebuilt->trx == thd_to_trx(ha_thd()));
 
 	/* Row read type is set to semi consistent read if this was
 	requested by the MySQL and either innodb_locks_unsafe_for_binlog
@@ -4006,7 +4006,7 @@ ha_innobase::index_read(
 
 	DBUG_ENTER("index_read");
 
-	ut_a(prebuilt->trx == thd_to_trx(user_thd, ht));
+	ut_a(prebuilt->trx == thd_to_trx(user_thd));
 
 	ha_statistic_increment(&SSV::ha_read_key_count);
 
@@ -4110,7 +4110,7 @@ ha_innobase::change_active_index(
 	ha_statistic_increment(&SSV::ha_read_key_count);
 
 	ut_ad(user_thd == ha_thd());
-	ut_a(prebuilt->trx == thd_to_trx(user_thd, ht));
+	ut_a(prebuilt->trx == thd_to_trx(user_thd));
 
 	active_index = keynr;
 
@@ -4198,7 +4198,7 @@ ha_innobase::general_fetch(
 
 	DBUG_ENTER("general_fetch");
 
-	ut_a(prebuilt->trx == thd_to_trx(user_thd, ht));
+	ut_a(prebuilt->trx == thd_to_trx(user_thd));
 
 	innodb_srv_conc_enter_innodb(prebuilt->trx);
 
@@ -4423,7 +4423,7 @@ ha_innobase::rnd_pos(
 
 	ha_statistic_increment(&SSV::ha_read_rnd_count);
 
-	ut_a(prebuilt->trx == thd_to_trx(ha_thd(), ht));
+	ut_a(prebuilt->trx == thd_to_trx(ha_thd()));
 
 	if (prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
@@ -4471,7 +4471,7 @@ ha_innobase::position(
 {
 	uint		len;
 
-	ut_a(prebuilt->trx == thd_to_trx(ha_thd(), ht));
+	ut_a(prebuilt->trx == thd_to_trx(ha_thd()));
 
 	if (prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
@@ -4843,7 +4843,7 @@ ha_innobase::create(
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 
-	parent_trx = check_trx_exists(ht, thd);
+	parent_trx = check_trx_exists(thd);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
@@ -5015,7 +5015,7 @@ ha_innobase::discard_or_import_tablespace(
 
 	ut_a(prebuilt->trx);
 	ut_a(prebuilt->trx->magic_n == TRX_MAGIC_N);
-	ut_a(prebuilt->trx == thd_to_trx(ha_thd(), ht));
+	ut_a(prebuilt->trx == thd_to_trx(ha_thd()));
 
 	dict_table = prebuilt->table;
 	trx = prebuilt->trx;
@@ -5093,7 +5093,7 @@ ha_innobase::delete_table(
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 
-	parent_trx = check_trx_exists(ht, thd);
+	parent_trx = check_trx_exists(thd);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
@@ -5178,7 +5178,7 @@ innobase_drop_database(
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 
-	parent_trx = check_trx_exists(hton, thd);
+	parent_trx = check_trx_exists(thd);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
@@ -5258,7 +5258,7 @@ ha_innobase::rename_table(
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 
-	parent_trx = check_trx_exists(ht, thd);
+	parent_trx = check_trx_exists(thd);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
@@ -5343,7 +5343,7 @@ ha_innobase::records_in_range(
 
 	DBUG_ENTER("records_in_range");
 
-	ut_a(prebuilt->trx == thd_to_trx(ha_thd(), ht));
+	ut_a(prebuilt->trx == thd_to_trx(ha_thd()));
 
 	prebuilt->trx->op_info = (char*)"estimating records in index range";
 
@@ -5775,7 +5775,7 @@ ha_innobase::check(
 
 	DBUG_ASSERT(thd == ha_thd());
 	ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
-	ut_a(prebuilt->trx == thd_to_trx(thd, ht));
+	ut_a(prebuilt->trx == thd_to_trx(thd));
 
 	if (prebuilt->mysql_template == NULL) {
 		/* Build the template; we will use a dummy template
@@ -6071,7 +6071,7 @@ ha_innobase::can_switch_engines(void)
 
 	DBUG_ENTER("ha_innobase::can_switch_engines");
 
-	ut_a(prebuilt->trx == thd_to_trx(ha_thd(), ht));
+	ut_a(prebuilt->trx == thd_to_trx(ha_thd()));
 
 	prebuilt->trx->op_info =
 			"determining if there are foreign key constraints";
@@ -6557,7 +6557,7 @@ innodb_show_status(
 		DBUG_RETURN(FALSE);
 	}
 
-	trx = check_trx_exists(hton, thd);
+	trx = check_trx_exists(thd);
 
 	innobase_release_stat_resources(trx);
 
@@ -6835,7 +6835,7 @@ ha_innobase::store_lock(
 	because we call update_thd() later, in ::external_lock()! Failure to
 	understand this caused a serious memory corruption bug in 5.1.11. */
 
-	trx = check_trx_exists(ht, thd);
+	trx = check_trx_exists(thd);
 
 	/* NOTE: MySQL can call this function with lock 'type' TL_IGNORE!
 	Be careful to ignore TL_IGNORE if we are going to do something with
@@ -7233,7 +7233,7 @@ ha_innobase::reset_auto_increment(ulonglong value)
 bool
 ha_innobase::get_error_message(int error, String *buf)
 {
-	trx_t*	trx = check_trx_exists(ht, ha_thd());
+	trx_t*	trx = check_trx_exists(ha_thd());
 
 	buf->copy(trx->detailed_error, strlen(trx->detailed_error),
 		system_charset_info);
@@ -7444,7 +7444,7 @@ innobase_xa_prepare(
 			FALSE - the current SQL statement ended */
 {
 	int error = 0;
-	trx_t* trx = check_trx_exists(hton, thd);
+	trx_t* trx = check_trx_exists(thd);
 
 	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE &&
 	    (all || !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
@@ -7605,7 +7605,7 @@ innobase_create_cursor_view(
         handlerton *hton, /* in: innobase hton */
 	THD* thd)	  /* in: user thread handle */
 {
-	return(read_cursor_view_create_for_mysql(check_trx_exists(hton, thd)));
+	return(read_cursor_view_create_for_mysql(check_trx_exists(thd)));
 }
 
 /***********************************************************************
@@ -7620,7 +7620,7 @@ innobase_close_cursor_view(
 	THD*	thd,	/* in: user thread handle */
 	void*	curview)/* in: Consistent read view to be closed */
 {
-	read_cursor_view_close_for_mysql(check_trx_exists(hton, thd),
+	read_cursor_view_close_for_mysql(check_trx_exists(thd),
 					 (cursor_view_t*) curview);
 }
 
@@ -7637,7 +7637,7 @@ innobase_set_cursor_view(
 	THD*	thd,	/* in: user thread handle */
 	void*	curview)/* in: Consistent cursor view to be set */
 {
-	read_cursor_set_for_mysql(check_trx_exists(hton, thd),
+	read_cursor_set_for_mysql(check_trx_exists(thd),
 				  (cursor_view_t*) curview);
 }
 
