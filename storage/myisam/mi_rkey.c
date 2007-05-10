@@ -21,7 +21,7 @@
 	/* Read a record using key */
 	/* Ordinary search_flag is 0 ; Give error if no record with key */
 
-int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key,
+int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
             key_part_map keypart_map, enum ha_rkey_function search_flag)
 {
   uchar *key_buff;

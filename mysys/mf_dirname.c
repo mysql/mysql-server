@@ -18,9 +18,9 @@
 
 	/* Functions definied in this file */
 
-uint dirname_length(const char *name)
+size_t dirname_length(const char *name)
 {
-  register my_string pos,gpos;
+  register char *pos, *gpos;
 #ifdef BASKSLASH_MBTAIL
   CHARSET_INFO *fs= fs_character_set();
 #endif
@@ -47,21 +47,31 @@ uint dirname_length(const char *name)
 	)
       gpos=pos;
   }
-  return ((uint) (uint) (gpos+1-(char*) name));
+  return (size_t) (gpos+1-(char*) name);
 }
 
 
-	/* Gives directory part of filename. Directory ends with '/' */
-	/* Returns length of directory part */
+/*
+  Gives directory part of filename. Directory ends with '/'
 
-uint dirname_part(my_string to, const char *name)
+  SYNOPSIS
+    dirname_part()
+    to		Store directory name here
+    name	Original name
+    to_length	Store length of 'to' here
+
+  RETURN
+   #  Length of directory part in 'name'
+*/
+
+size_t dirname_part(char *to, const char *name, size_t *to_res_length)
 {
-  uint length;
+  size_t length;
   DBUG_ENTER("dirname_part");
   DBUG_PRINT("enter",("'%s'",name));
 
   length=dirname_length(name);
-  convert_dirname(to, name, name+length);
+  *to_res_length= (size_t) (convert_dirname(to, name, name+length) - to);
   DBUG_RETURN(length);
 } /* dirname */
 
@@ -142,7 +152,7 @@ char *convert_dirname(char *to, const char *from, const char *from_end)
   }
 #else
   /* This is ok even if to == from, becasue we need to cut the string */
-  to= strmake(to, from, (uint) (from_end-from));
+  to= strmake(to, from, (size_t) (from_end-from));
 #endif
 
   /* Add FN_LIBCHAR to the end of directory path */

@@ -153,7 +153,7 @@ static my_bool prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage);
 static my_bool
 tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
 {
-  char *p;
+  uchar *p;
   int read_from_file;
   uint i;
   FILE *file;
@@ -164,8 +164,8 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
     union
     {
       struct tzhead tzhead;
-      char buf[sizeof(struct tzhead) + sizeof(my_time_t) * TZ_MAX_TIMES +
-               TZ_MAX_TIMES + sizeof(TRAN_TYPE_INFO) * TZ_MAX_TYPES +
+      uchar buf[sizeof(struct tzhead) + sizeof(my_time_t) * TZ_MAX_TIMES +
+                TZ_MAX_TIMES + sizeof(TRAN_TYPE_INFO) * TZ_MAX_TYPES +
 #ifdef ABBR_ARE_USED
                max(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1))) +
 #endif
@@ -189,7 +189,7 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
     sp->timecnt= int4net(u.tzhead.tzh_timecnt);
     sp->typecnt= int4net(u.tzhead.tzh_typecnt);
     sp->charcnt= int4net(u.tzhead.tzh_charcnt);
-    p= u.tzhead.tzh_charcnt + sizeof u.tzhead.tzh_charcnt;
+    p= u.tzhead.tzh_charcnt + sizeof(u.tzhead.tzh_charcnt);
     if (sp->leapcnt > TZ_MAX_LEAPS ||
         sp->typecnt == 0 || sp->typecnt > TZ_MAX_TYPES ||
         sp->timecnt > TZ_MAX_TIMES ||
@@ -1489,18 +1489,21 @@ public:
   they should obey C calling conventions.
 */
 
-extern "C" byte* my_tz_names_get_key(Tz_names_entry *entry, uint *length,
-                              my_bool not_used __attribute__((unused)))
+extern "C" uchar *
+my_tz_names_get_key(Tz_names_entry *entry, size_t *length,
+                    my_bool not_used __attribute__((unused)))
 {
   *length= entry->name.length();
-  return (byte*) entry->name.ptr();
+  return (uchar*) entry->name.ptr();
 }
 
-extern "C" byte* my_offset_tzs_get_key(Time_zone_offset *entry, uint *length,
-                              my_bool not_used __attribute__((unused)))
+extern "C" uchar *
+my_offset_tzs_get_key(Time_zone_offset *entry,
+                      size_t *length,
+                      my_bool not_used __attribute__((unused)))
 {
   *length= sizeof(long);
-  return (byte*) &entry->offset;
+  return (uchar*) &entry->offset;
 }
 
 
@@ -1586,7 +1589,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
 
   /* Init all memory structures that require explicit destruction */
   if (hash_init(&tz_names, &my_charset_latin1, 20,
-                0, 0, (hash_get_key)my_tz_names_get_key, 0, 0))
+                0, 0, (hash_get_key) my_tz_names_get_key, 0, 0))
   {
     sql_print_error("Fatal error: OOM while initializing time zones");
     goto end;
@@ -1610,7 +1613,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   }
   tmp_tzname->name.set(STRING_WITH_LEN("SYSTEM"), &my_charset_latin1);
   tmp_tzname->tz= my_tz_SYSTEM;
-  if (my_hash_insert(&tz_names, (const byte *)tmp_tzname))
+  if (my_hash_insert(&tz_names, (const uchar *)tmp_tzname))
   {
     sql_print_error("Fatal error: OOM while initializing time zones");
     goto end_with_cleanup;
@@ -1832,8 +1835,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   DBUG_ENTER("tz_load_from_open_tables");
 
   /* Prepare tz_info for loading also let us make copy of time zone name */
-  if (!(alloc_buff= alloc_root(&tz_storage, sizeof(TIME_ZONE_INFO) +
-                               tz_name->length() + 1)))
+  if (!(alloc_buff= (char*) alloc_root(&tz_storage, sizeof(TIME_ZONE_INFO) +
+                                       tz_name->length() + 1)))
   {
     sql_print_error("Out of memory while loading time zone description");
     return 0;
@@ -1862,7 +1865,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   */
   (void)table->file->ha_index_init(0, 1);
 
-  if (table->file->index_read(table->record[0], (byte*)table->field[0]->ptr,
+  if (table->file->index_read(table->record[0], table->field[0]->ptr,
                               HA_WHOLE_KEY, HA_READ_KEY_EXACT))
   {
 #ifdef EXTRA_DEBUG
@@ -1889,7 +1892,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0, 1);
 
-  if (table->file->index_read(table->record[0], (byte*)table->field[0]->ptr,
+  if (table->file->index_read(table->record[0], table->field[0]->ptr,
                               HA_WHOLE_KEY, HA_READ_KEY_EXACT))
   {
     sql_print_error("Can't find description of time zone '%u'", tzid);
@@ -1916,7 +1919,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0, 1);
 
-  res= table->file->index_read(table->record[0], (byte*)table->field[0]->ptr,
+  res= table->file->index_read(table->record[0], table->field[0]->ptr,
                                (key_part_map)1, HA_READ_KEY_EXACT);
   while (!res)
   {
@@ -1965,7 +1968,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     tz_info->typecnt= ttid + 1;
 
     res= table->file->index_next_same(table->record[0],
-                                      (byte*)table->field[0]->ptr, 4);
+                                      table->field[0]->ptr, 4);
   }
 
   if (res != HA_ERR_END_OF_FILE)
@@ -1987,7 +1990,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0, 1);
 
-  res= table->file->index_read(table->record[0], (byte*)table->field[0]->ptr,
+  res= table->file->index_read(table->record[0], table->field[0]->ptr,
                                (key_part_map)1, HA_READ_KEY_EXACT);
   while (!res)
   {
@@ -2018,7 +2021,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
        tzid, (ulong) ttime, ttid));
 
     res= table->file->index_next_same(table->record[0],
-                                      (byte*)table->field[0]->ptr, 4);
+                                      table->field[0]->ptr, 4);
   }
 
   /*
@@ -2038,21 +2041,21 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   /*
     Now we will allocate memory and init TIME_ZONE_INFO structure.
   */
-  if (!(alloc_buff= alloc_root(&tz_storage,
-                               ALIGN_SIZE(sizeof(my_time_t) *
-                                          tz_info->timecnt) +
-                               ALIGN_SIZE(tz_info->timecnt) +
+  if (!(alloc_buff= (char*) alloc_root(&tz_storage,
+                                       ALIGN_SIZE(sizeof(my_time_t) *
+                                                  tz_info->timecnt) +
+                                       ALIGN_SIZE(tz_info->timecnt) +
 #ifdef ABBR_ARE_USED
-                               ALIGN_SIZE(tz_info->charcnt) +
+                                       ALIGN_SIZE(tz_info->charcnt) +
 #endif
-                               sizeof(TRAN_TYPE_INFO) * tz_info->typecnt)))
+                                       sizeof(TRAN_TYPE_INFO) *
+                                       tz_info->typecnt)))
   {
     sql_print_error("Out of memory while loading time zone description");
     goto end;
   }
 
-
-  tz_info->ats= (my_time_t *)alloc_buff;
+  tz_info->ats= (my_time_t *) alloc_buff;
   memcpy(tz_info->ats, ats, tz_info->timecnt * sizeof(my_time_t));
   alloc_buff+= ALIGN_SIZE(sizeof(my_time_t) * tz_info->timecnt);
   tz_info->types= (uchar *)alloc_buff;
@@ -2087,7 +2090,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
                                             &(tmp_tzname->name))) ||
       (tmp_tzname->name.set(tz_name_buff, tz_name->length(),
                             &my_charset_latin1),
-       my_hash_insert(&tz_names, (const byte *)tmp_tzname)))
+       my_hash_insert(&tz_names, (const uchar *)tmp_tzname)))
   {
     sql_print_error("Out of memory while loading time zone");
     goto end;
@@ -2244,13 +2247,13 @@ my_tz_find(THD *thd, const String *name)
   {
 
     if (!(result_tz= (Time_zone_offset *)hash_search(&offset_tzs,
-                                                     (const byte *)&offset,
+                                                     (const uchar *)&offset,
                                                      sizeof(long))))
     {
       DBUG_PRINT("info", ("Creating new Time_zone_offset object"));
 
       if (!(result_tz= new (&tz_storage) Time_zone_offset(offset)) ||
-          my_hash_insert(&offset_tzs, (const byte *) result_tz))
+          my_hash_insert(&offset_tzs, (const uchar *) result_tz))
       {
         result_tz= 0;
         sql_print_error("Fatal error: Out of memory "
@@ -2262,7 +2265,7 @@ my_tz_find(THD *thd, const String *name)
   {
     result_tz= 0;
     if ((tmp_tzname= (Tz_names_entry *)hash_search(&tz_names,
-                                                   (const byte *)name->ptr(),
+                                                   (const uchar *)name->ptr(),
                                                    name->length())))
       result_tz= tmp_tzname->tz;
     else if (time_zone_tables_exist)

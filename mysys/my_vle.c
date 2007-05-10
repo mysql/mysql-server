@@ -39,16 +39,16 @@
     bytes.  On failure, the 'out' pointer is returned.
 */
 
-byte*
-my_vle_encode(byte* out, my_size_t max, ulong n) 
+uchar*
+my_vle_encode(uchar* out, size_t max, ulong n) 
 {
-  byte buf[my_vle_sizeof(n)];
-  byte *ptr= buf;
-  my_size_t len;
+  uchar buf[my_vle_sizeof(n)];
+  uchar *ptr= buf;
+  size_t len;
 
   do
   {
-    *ptr++= (byte) (n & 0x7F);
+    *ptr++= (uchar) (n & 0x7F);
     n>>= 7;
   }
   while (n > 0);
@@ -64,7 +64,7 @@ my_vle_encode(byte* out, my_size_t max, ulong n)
     */
     while (ptr-- > buf)
     {
-      byte v= *ptr;
+      uchar v= *ptr;
       if (ptr > buf)
         v|= 0x80;
       *out++= v;
@@ -89,11 +89,11 @@ my_vle_encode(byte* out, my_size_t max, ulong n)
     more than sizeof(*result_ptr) + 1 bytes.
 */
 
-byte const*
-my_vle_decode(ulong *result_ptr, byte const *vle) 
+uchar const*
+my_vle_decode(ulong *result_ptr, uchar const *vle)
 {
   ulong result= 0;
-  my_size_t cnt= 1;
+  size_t cnt= 1;
 
   do
   {

@@ -22,15 +22,15 @@
 #include "mysys_priv.h"
 #include <myisampack.h>
 
-static int ptr_compare(uint *compare_length, uchar **a, uchar **b);
-static int ptr_compare_0(uint *compare_length, uchar **a, uchar **b);
-static int ptr_compare_1(uint *compare_length, uchar **a, uchar **b);
-static int ptr_compare_2(uint *compare_length, uchar **a, uchar **b);
-static int ptr_compare_3(uint *compare_length, uchar **a, uchar **b);
+static int ptr_compare(size_t *compare_length, uchar **a, uchar **b);
+static int ptr_compare_0(size_t *compare_length, uchar **a, uchar **b);
+static int ptr_compare_1(size_t *compare_length, uchar **a, uchar **b);
+static int ptr_compare_2(size_t *compare_length, uchar **a, uchar **b);
+static int ptr_compare_3(size_t *compare_length, uchar **a, uchar **b);
 
 	/* Get a pointer to a optimal byte-compare function for a given size */
 
-qsort2_cmp get_ptr_compare (uint size)
+qsort2_cmp get_ptr_compare (size_t size)
 {
   if (size < 4)
     return (qsort2_cmp) ptr_compare;
@@ -51,7 +51,7 @@ qsort2_cmp get_ptr_compare (uint size)
 
 #define cmp(N) if (first[N] != last[N]) return (int) first[N] - (int) last[N]
 
-static int ptr_compare(uint *compare_length, uchar **a, uchar **b)
+static int ptr_compare(size_t *compare_length, uchar **a, uchar **b)
 {
   reg3 int length= *compare_length;
   reg1 uchar *first,*last;
@@ -66,7 +66,7 @@ static int ptr_compare(uint *compare_length, uchar **a, uchar **b)
 }
 
 
-static int ptr_compare_0(uint *compare_length,uchar **a, uchar **b)
+static int ptr_compare_0(size_t *compare_length,uchar **a, uchar **b)
 {
   reg3 int length= *compare_length;
   reg1 uchar *first,*last;
@@ -87,7 +87,7 @@ static int ptr_compare_0(uint *compare_length,uchar **a, uchar **b)
 }
 
 
-static int ptr_compare_1(uint *compare_length,uchar **a, uchar **b)
+static int ptr_compare_1(size_t *compare_length,uchar **a, uchar **b)
 {
   reg3 int length= *compare_length-1;
   reg1 uchar *first,*last;
@@ -108,7 +108,7 @@ static int ptr_compare_1(uint *compare_length,uchar **a, uchar **b)
   return (0);
 }
 
-static int ptr_compare_2(uint *compare_length,uchar **a, uchar **b)
+static int ptr_compare_2(size_t *compare_length,uchar **a, uchar **b)
 {
   reg3 int length= *compare_length-2;
   reg1 uchar *first,*last;
@@ -130,7 +130,7 @@ static int ptr_compare_2(uint *compare_length,uchar **a, uchar **b)
   return (0);
 }
 
-static int ptr_compare_3(uint *compare_length,uchar **a, uchar **b)
+static int ptr_compare_3(size_t *compare_length,uchar **a, uchar **b)
 {
   reg3 int length= *compare_length-3;
   reg1 uchar *first,*last;
@@ -153,7 +153,7 @@ static int ptr_compare_3(uint *compare_length,uchar **a, uchar **b)
   return (0);
 }
 
-void my_store_ptr(byte *buff, uint pack_length, my_off_t pos)
+void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos)
 {
   switch (pack_length) {
 #if SIZEOF_OFF_T > 4
@@ -171,7 +171,7 @@ void my_store_ptr(byte *buff, uint pack_length, my_off_t pos)
   return;
 }
 
-my_off_t my_get_ptr(byte *ptr, uint pack_length)
+my_off_t my_get_ptr(uchar *ptr, size_t pack_length)
 {
   my_off_t pos;
   switch (pack_length) {

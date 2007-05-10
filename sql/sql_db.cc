@@ -59,11 +59,11 @@ typedef struct my_dblock_st
   lock_db key.
 */
 
-static byte* lock_db_get_key(my_dblock_t *ptr, uint *length,
-                             my_bool not_used __attribute__((unused)))
+static uchar* lock_db_get_key(my_dblock_t *ptr, size_t *length,
+                              my_bool not_used __attribute__((unused)))
 {
   *length= ptr->name_length;
-  return (byte*) ptr->name;
+  return (uchar*) ptr->name;
 }
 
 
@@ -73,7 +73,7 @@ static byte* lock_db_get_key(my_dblock_t *ptr, uint *length,
 
 static void lock_db_free_element(void *ptr)
 {
-  my_free((gptr) ptr, MYF(0));
+  my_free(ptr, MYF(0));
 }
 
 
@@ -98,12 +98,12 @@ static my_bool lock_db_insert(const char *dbname, uint length)
   safe_mutex_assert_owner(&LOCK_lock_db);
 
   if (!(opt= (my_dblock_t*) hash_search(&lock_db_cache,
-                                        (byte*) dbname, length)))
+                                        (uchar*) dbname, length)))
   { 
     /* Db is not in the hash, insert it */
     char *tmp_name;
     if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
-                         &opt, (uint) sizeof(*opt), &tmp_name, length+1,
+                         &opt, (uint) sizeof(*opt), &tmp_name, (uint) length+1,
                          NullS))
     {
       error= 1;
@@ -114,11 +114,8 @@ static my_bool lock_db_insert(const char *dbname, uint length)
     strmov(opt->name, dbname);
     opt->name_length= length;
     
-    if ((error= my_hash_insert(&lock_db_cache, (byte*) opt)))
-    {
-      my_free((gptr) opt, MYF(0));
-      goto end;
-    }
+    if ((error= my_hash_insert(&lock_db_cache, (uchar*) opt)))
+      my_free(opt, MYF(0));
   }
 
 end:
@@ -135,8 +132,8 @@ void lock_db_delete(const char *name, uint length)
   my_dblock_t *opt;
   safe_mutex_assert_owner(&LOCK_lock_db);
   if ((opt= (my_dblock_t *)hash_search(&lock_db_cache,
-                                       (const byte*) name, length)))
-    hash_delete(&lock_db_cache, (byte*) opt);
+                                       (const uchar*) name, length)))
+    hash_delete(&lock_db_cache, (uchar*) opt);
 }
 
 
@@ -158,11 +155,11 @@ typedef struct my_dbopt_st
   Function we use in the creation of our hash to get key.
 */
 
-static byte* dboptions_get_key(my_dbopt_t *opt, uint *length,
-                               my_bool not_used __attribute__((unused)))
+static uchar* dboptions_get_key(my_dbopt_t *opt, size_t *length,
+                                my_bool not_used __attribute__((unused)))
 {
   *length= opt->name_length;
-  return (byte*) opt->name;
+  return (uchar*) opt->name;
 }
 
 
@@ -187,7 +184,7 @@ static inline void write_to_binlog(THD *thd, char *query, uint q_len,
 
 static void free_dbopt(void *dbopt)
 {
-  my_free((gptr) dbopt, MYF(0));
+  my_free((uchar*) dbopt, MYF(0));
 }
 
 
@@ -280,7 +277,7 @@ static my_bool get_dbopt(const char *dbname, HA_CREATE_INFO *create)
   length= (uint) strlen(dbname);
   
   rw_rdlock(&LOCK_dboptions);
-  if ((opt= (my_dbopt_t*) hash_search(&dboptions, (byte*) dbname, length)))
+  if ((opt= (my_dbopt_t*) hash_search(&dboptions, (uchar*) dbname, length)))
   {
     create->default_table_charset= opt->charset;
     error= 0;
@@ -312,12 +309,12 @@ static my_bool put_dbopt(const char *dbname, HA_CREATE_INFO *create)
   length= (uint) strlen(dbname);
   
   rw_wrlock(&LOCK_dboptions);
-  if (!(opt= (my_dbopt_t*) hash_search(&dboptions, (byte*) dbname, length)))
+  if (!(opt= (my_dbopt_t*) hash_search(&dboptions, (uchar*) dbname, length)))
   { 
     /* Options are not in the hash, insert them */
     char *tmp_name;
     if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
-                         &opt, (uint) sizeof(*opt), &tmp_name, length+1,
+                         &opt, (uint) sizeof(*opt), &tmp_name, (uint) length+1,
                          NullS))
     {
       error= 1;
@@ -328,9 +325,9 @@ static my_bool put_dbopt(const char *dbname, HA_CREATE_INFO *create)
     strmov(opt->name, dbname);
     opt->name_length= length;
     
-    if ((error= my_hash_insert(&dboptions, (byte*) opt)))
+    if ((error= my_hash_insert(&dboptions, (uchar*) opt)))
     {
-      my_free((gptr) opt, MYF(0));
+      my_free(opt, MYF(0));
       goto end;
     }
   }
@@ -352,9 +349,9 @@ void del_dbopt(const char *path)
 {
   my_dbopt_t *opt;
   rw_wrlock(&LOCK_dboptions);
-  if ((opt= (my_dbopt_t *)hash_search(&dboptions, (const byte*) path,
+  if ((opt= (my_dbopt_t *)hash_search(&dboptions, (const uchar*) path,
                                       strlen(path))))
-    hash_delete(&dboptions, (byte*) opt);
+    hash_delete(&dboptions, (uchar*) opt);
   rw_unlock(&LOCK_dboptions);
 }
 
@@ -392,7 +389,7 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
                               "\n", NullS) - buf);
 
     /* Error is written by my_write */
-    if (!my_write(file,(byte*) buf, length, MYF(MY_NABP+MY_WME)))
+    if (!my_write(file,(uchar*) buf, length, MYF(MY_NABP+MY_WME)))
       error=0;
     my_close(file,MYF(0));
   }
@@ -920,7 +917,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     TABLE_LIST *tbl;
     uint db_len;
 
-    if (!(query= thd->alloc(MAX_DROP_TABLE_Q_LEN)))
+    if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
       goto exit; /* not much else we can do */
     query_pos= query_data_start= strmov(query,"drop table ");
     query_end= query + MAX_DROP_TABLE_Q_LEN;
@@ -1021,7 +1018,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 	DBUG_PRINT("my",("New subdir found: %s", newpath));
 	if ((mysql_rm_known_files(thd, new_dirp, NullS, newpath,1,0)) < 0)
 	  goto err;
-	if (!(copy_of_path= thd->memdup(newpath, length+1)) ||
+	if (!(copy_of_path= (char*) thd->memdup(newpath, length+1)) ||
 	    !(dir= new (thd->mem_root) String(copy_of_path, length,
 					       &my_charset_bin)) ||
 	    raid_dirs.push_back(dir))
@@ -1511,8 +1508,8 @@ lock_databases(THD *thd, const char *db1, uint length1,
 {
   pthread_mutex_lock(&LOCK_lock_db);
   while (!thd->killed &&
-         (hash_search(&lock_db_cache,(byte*) db1, length1) ||
-          hash_search(&lock_db_cache,(byte*) db2, length2)))
+         (hash_search(&lock_db_cache,(uchar*) db1, length1) ||
+          hash_search(&lock_db_cache,(uchar*) db2, length2)))
   {
     wait_for_condition(thd, &LOCK_lock_db, &COND_refresh);
     pthread_mutex_lock(&LOCK_lock_db);
@@ -1654,7 +1651,7 @@ bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
       
       table_str.length= filename_to_tablename(file->name,
                                               tname, sizeof(tname)-1);
-      table_str.str= sql_memdup(tname, table_str.length + 1);
+      table_str.str= (char*) sql_memdup(tname, table_str.length + 1);
       Table_ident *old_ident= new Table_ident(thd, *old_db, table_str, 0);
       Table_ident *new_ident= new Table_ident(thd, *new_db, table_str, 0);
       if (!old_ident || !new_ident ||

@@ -42,7 +42,7 @@ static my_bool key3[MAX_RECORDS];
 static int reclength=39;
 
 
-static int calc_check(byte *buf,uint length);
+static int calc_check(uchar *buf,uint length);
 static void make_record(char *record, uint n1, uint n2, uint n3,
 			const char *mark, uint count);
 
@@ -674,7 +674,7 @@ static sig_handler endprog(int sig_number __attribute__((unused)))
   }
 }
 
-static int calc_check(byte *buf, uint length)
+static int calc_check(uchar *buf, uint length)
 {
   int check=0;
   while (length--)

@@ -50,7 +50,7 @@ private:
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
-                             char const *row_start, char const **row_end);
+                             uchar const *row_start, uchar const **row_end);
 #endif
 };
 
@@ -84,7 +84,7 @@ private:
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
-                             char const *row_start, char const **row_end);
+                             uchar const *row_start, uchar const **row_end);
 #endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */
 };
 
@@ -118,7 +118,7 @@ private:
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
-                             char const *row_start, char const **row_end);
+                             uchar const *row_start, uchar const **row_end);
 #endif
 };
 

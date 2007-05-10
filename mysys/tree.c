@@ -93,7 +93,7 @@ void init_tree(TREE *tree, ulong default_alloc_size, ulong memory_limit,
   if (default_alloc_size < DEFAULT_ALLOC_SIZE)
     default_alloc_size= DEFAULT_ALLOC_SIZE;
   default_alloc_size= MY_ALIGN(default_alloc_size, DEFAULT_ALIGN_SIZE);
-  bzero((gptr) &tree->null_element,sizeof(tree->null_element));
+  bzero((uchar*) &tree->null_element,sizeof(tree->null_element));
   tree->root= &tree->null_element;
   tree->compare=compare;
   tree->size_of_element=size > 0 ? (uint) size : 0;
@@ -247,12 +247,12 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size,
       else
       {
 	*((void**) (element+1))= (void*) ((void **) (element+1)+1);
-	memcpy((byte*) *((void **) (element+1)),key,
+	memcpy((uchar*) *((void **) (element+1)),key,
 	       (size_t) (key_size-sizeof(void*)));
       }
     }
     else
-      memcpy((byte*) element+tree->offset_to_key,key,(size_t) key_size);
+      memcpy((uchar*) element+tree->offset_to_key,key,(size_t) key_size);
     element->count=1;			/* May give warning in purify */
     tree->elements_in_tree++;
     rb_insert(tree,parent,element);	/* rebalance tree */
@@ -326,7 +326,7 @@ int tree_delete(TREE *tree, void *key, uint key_size, void *custom_arg)
   if (tree->free)
     (*tree->free)(ELEMENT_KEY(tree,element), free_free, tree->custom_arg);
   tree->allocated-= sizeof(TREE_ELEMENT) + tree->size_of_element + key_size;
-  my_free((gptr) element,MYF(0));
+  my_free((uchar*) element,MYF(0));
   tree->elements_in_tree--;
   return 0;
 }

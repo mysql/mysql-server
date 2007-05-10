@@ -8,8 +8,8 @@ int
 Write_rows_log_event_old::do_prepare_row(THD *thd,
                                          RELAY_LOG_INFO const *rli,
                                          TABLE *table,
-                                         char const *row_start,
-                                         char const **row_end)
+                                         uchar const *row_start,
+                                         uchar const **row_end)
 {
   DBUG_ASSERT(table != NULL);
   DBUG_ASSERT(row_start && row_end);
@@ -28,8 +28,8 @@ int
 Delete_rows_log_event_old::do_prepare_row(THD *thd,
                                           RELAY_LOG_INFO const *rli,
                                           TABLE *table,
-                                          char const *row_start,
-                                          char const **row_end)
+                                          uchar const *row_start,
+                                          uchar const **row_end)
 {
   int error;
   DBUG_ASSERT(row_start && row_end);
@@ -61,8 +61,8 @@ Delete_rows_log_event_old::do_prepare_row(THD *thd,
 int Update_rows_log_event_old::do_prepare_row(THD *thd,
                                               RELAY_LOG_INFO const *rli,
                                               TABLE *table,
-                                              char const *row_start,
-                                              char const **row_end)
+                                              uchar const *row_start,
+                                              uchar const **row_end)
 {
   int error;
   DBUG_ASSERT(row_start && row_end);
@@ -84,9 +84,8 @@ int Update_rows_log_event_old::do_prepare_row(THD *thd,
                         row_start, &m_cols, row_end, &m_master_reclength,
                         table->write_set, PRE_GA_UPDATE_ROWS_EVENT);
 
-  DBUG_DUMP("record[0]", (const char*) table->record[0], table->s->reclength);
-  DBUG_DUMP("m_after_image", (const char *) m_after_image, table->s->reclength);
-
+  DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
+  DBUG_DUMP("m_after_image", m_after_image, table->s->reclength);
 
   /*
     If we will access rows using the random access method, m_key will

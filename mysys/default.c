@@ -268,9 +268,9 @@ static int handle_default_option(void *in_ctx, const char *group_name,
 
   if (find_type((char *)group_name, ctx->group, 3))
   {
-    if (!(tmp= alloc_root(ctx->alloc, (uint) strlen(option) + 1)))
+    if (!(tmp= alloc_root(ctx->alloc, strlen(option) + 1)))
       return 1;
-    if (insert_dynamic(ctx->args, (gptr) &tmp))
+    if (insert_dynamic(ctx->args, (uchar*) &tmp))
       return 1;
     strmov(tmp, option);
   }
@@ -426,7 +426,7 @@ int load_defaults(const char *conf_file, const char **groups,
 
   /* copy name + found arguments + command line arguments to new array */
   res[0]= argv[0][0];  /* Name MUST be set, even by embedded library */
-  memcpy((gptr) (res+1), args.buffer, args.elements*sizeof(char*));
+  memcpy((uchar*) (res+1), args.buffer, args.elements*sizeof(char*));
   /* Skip --defaults-xxx options */
   (*argc)-= args_used;
   (*argv)+= args_used;
@@ -442,7 +442,7 @@ int load_defaults(const char *conf_file, const char **groups,
   }
 
   if (*argc)
-    memcpy((gptr) (res+1+args.elements), (char*) ((*argv)+1),
+    memcpy((uchar*) (res+1+args.elements), (char*) ((*argv)+1),
 	   (*argc-1)*sizeof(char*));
   res[args.elements+ *argc]=0;			/* last null */
 
@@ -514,7 +514,7 @@ static int search_default_file(Process_option_func opt_handler,
    #	Returns pointer to the argument after the keyword.
 */
 
-static char *get_argument(const char *keyword, uint kwlen,
+static char *get_argument(const char *keyword, size_t kwlen,
                           char *ptr, char *name, uint line)
 {
   char *end;
@@ -718,10 +718,11 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 		name,line);
 	goto err;
       }
-      for ( ; my_isspace(&my_charset_latin1,end[-1]) ; end--) ;/* Remove end space */
+      /* Remove end space */
+      for ( ; my_isspace(&my_charset_latin1,end[-1]) ; end--) ;
       end[0]=0;
 
-      strnmov(curr_gr, ptr, min((uint) (end-ptr)+1, 4096));
+      strmake(curr_gr, ptr, min((size_t) (end-ptr)+1, sizeof(curr_gr)-1));
 
       /* signal that a new group is found */
       opt_handler(handler_ctx, curr_gr, NULL);
@@ -743,7 +744,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     for ( ; my_isspace(&my_charset_latin1,end[-1]) ; end--) ;
     if (!value)
     {
-      strmake(strmov(option,"--"),ptr,(uint) (end-ptr));
+      strmake(strmov(option,"--"),ptr, (size_t) (end-ptr));
       if (opt_handler(handler_ctx, curr_gr, option))
         goto err;
     }
@@ -769,7 +770,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 	value++;
 	value_end--;
       }
-      ptr=strnmov(strmov(option,"--"),ptr,(uint) (end-ptr));
+      ptr=strnmov(strmov(option,"--"),ptr,(size_t) (end-ptr));
       *ptr++= '=';
 
       for ( ; value != value_end; value++)
@@ -931,9 +932,9 @@ void print_defaults(const char *conf_file, const char **groups)
 
 typedef UINT (WINAPI *GET_SYSTEM_WINDOWS_DIRECTORY)(LPSTR, UINT);
 
-static uint my_get_system_windows_directory(char *buffer, uint size)
+static size_t my_get_system_windows_directory(char *buffer, size_t size)
 {
-  uint count;
+  size_t count;
   GET_SYSTEM_WINDOWS_DIRECTORY
     func_ptr= (GET_SYSTEM_WINDOWS_DIRECTORY)
               GetProcAddress(GetModuleHandle("kernel32.dll"),

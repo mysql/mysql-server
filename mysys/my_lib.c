@@ -78,7 +78,7 @@ void my_dirend(MY_DIR *buffer)
                                     ALIGN_SIZE(sizeof(MY_DIR))));
     free_root((MEM_ROOT*)((char*)buffer + ALIGN_SIZE(sizeof(MY_DIR)) + 
                           ALIGN_SIZE(sizeof(DYNAMIC_ARRAY))), MYF(0));
-    my_free((gptr) buffer,MYF(0));
+    my_free((uchar*) buffer,MYF(0));
   }
   DBUG_VOID_RETURN;
 } /* my_dirend */
@@ -114,7 +114,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   pthread_mutex_lock(&THR_LOCK_open);
 #endif
 
-  dirp = opendir(directory_file_name(tmp_path,(my_string) path));
+  dirp = opendir(directory_file_name(tmp_path,(char *) path));
 #if defined(__amiga__)
   if ((dirp->dd_fd) < 0)			/* Directory doesn't exists */
     goto error;
@@ -132,7 +132,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   if (my_init_dynamic_array(dir_entries_storage, sizeof(FILEINFO),
                             ENTRIES_START_SIZE, ENTRIES_INCREMENT))
   {
-    my_free((gptr) buffer,MYF(0));
+    my_free((uchar*) buffer,MYF(0));
     goto error;
   }
   init_alloc_root(names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
@@ -168,7 +168,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
     else
       finfo.mystat= NULL;
 
-    if (push_dynamic(dir_entries_storage, (gptr)&finfo))
+    if (push_dynamic(dir_entries_storage, (uchar*)&finfo))
       goto error;
   }
 
@@ -208,13 +208,13 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
  * Returns pointer to dst;
  */
 
-my_string directory_file_name (my_string dst, const char *src)
+char * directory_file_name (char * dst, const char *src)
 {
 #ifndef VMS
 
   /* Process as Unix format: just remove test the final slash. */
 
-  my_string end;
+  char * end;
 
   if (src[0] == 0)
     src= (char*) ".";				/* Use empty as current */
@@ -230,7 +230,7 @@ my_string directory_file_name (my_string dst, const char *src)
 
   long slen;
   long rlen;
-  my_string ptr, rptr;
+  char * ptr, rptr;
   char bracket;
   struct FAB fab = cc$rms_fab;
   struct NAM nam = cc$rms_nam;
@@ -401,7 +401,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   if (my_init_dynamic_array(dir_entries_storage, sizeof(FILEINFO),
                             ENTRIES_START_SIZE, ENTRIES_INCREMENT))
   {
-    my_free((gptr) buffer,MYF(0));
+    my_free((uchar*) buffer,MYF(0));
     goto error;
   }
   init_alloc_root(names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
@@ -475,7 +475,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
       else
         finfo.mystat= NULL;
 
-      if (push_dynamic(dir_entries_storage, (gptr)&finfo))
+      if (push_dynamic(dir_entries_storage, (uchar*)&finfo))
         goto error;
     }
 #ifdef __BORLANDC__
@@ -533,13 +533,13 @@ MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags)
   if ((m_used= (stat_area == NULL)))
     if (!(stat_area = (MY_STAT *) my_malloc(sizeof(MY_STAT), my_flags)))
       goto error;
-  if (! stat((my_string) path, (struct stat *) stat_area) )
+  if (! stat((char *) path, (struct stat *) stat_area) )
     DBUG_RETURN(stat_area);
 
   DBUG_PRINT("error",("Got errno: %d from stat", errno));
   my_errno= errno;
   if (m_used)					/* Free if new area */
-    my_free((gptr) stat_area,MYF(0));
+    my_free((uchar*) stat_area,MYF(0));
 
 error:
   if (my_flags & (MY_FAE+MY_WME))

@@ -40,13 +40,13 @@ File my_create(const char *FileName, int CreateFlags, int access_flags,
 		   FileName, CreateFlags, access_flags, MyFlags));
 
 #if !defined(NO_OPEN_3)
-  fd = open((my_string) FileName, access_flags | O_CREAT,
+  fd = open((char *) FileName, access_flags | O_CREAT,
 	    CreateFlags ? CreateFlags : my_umask);
 #elif defined(VMS)
-  fd = open((my_string) FileName, access_flags | O_CREAT, 0,
+  fd = open((char *) FileName, access_flags | O_CREAT, 0,
 	    "ctx=stm","ctx=bin");
 #elif defined(__WIN__)
-  fd= my_sopen((my_string) FileName, access_flags | O_CREAT | O_BINARY,
+  fd= my_sopen((char *) FileName, access_flags | O_CREAT | O_BINARY,
 	       SH_DENYNO, MY_S_IREAD | MY_S_IWRITE);
 #else
   fd = open(FileName, access_flags);

@@ -77,9 +77,9 @@ my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
     FALSE	Ok
 */
 
-my_bool insert_dynamic(DYNAMIC_ARRAY *array, gptr element)
+my_bool insert_dynamic(DYNAMIC_ARRAY *array, uchar* element)
 {
-  gptr buffer;
+  uchar* buffer;
   if (array->elements == array->max_element)
   {						/* Call only when nessesary */
     if (!(buffer=alloc_dynamic(array)))
@@ -112,7 +112,7 @@ my_bool insert_dynamic(DYNAMIC_ARRAY *array, gptr element)
     0		Error
 */
 
-byte *alloc_dynamic(DYNAMIC_ARRAY *array)
+uchar *alloc_dynamic(DYNAMIC_ARRAY *array)
 {
   if (array->elements == array->max_element)
   {
@@ -141,7 +141,7 @@ byte *alloc_dynamic(DYNAMIC_ARRAY *array)
     0		Array is empty
 */
 
-byte *pop_dynamic(DYNAMIC_ARRAY *array)
+uchar *pop_dynamic(DYNAMIC_ARRAY *array)
 {
   if (array->elements)
     return array->buffer+(--array->elements * array->size_of_element);
@@ -166,7 +166,7 @@ byte *pop_dynamic(DYNAMIC_ARRAY *array)
     FALSE	Ok
 */
 
-my_bool set_dynamic(DYNAMIC_ARRAY *array, gptr element, uint idx)
+my_bool set_dynamic(DYNAMIC_ARRAY *array, uchar* element, uint idx)
 {
   if (idx >= array->elements)
   {
@@ -183,7 +183,7 @@ my_bool set_dynamic(DYNAMIC_ARRAY *array, gptr element, uint idx)
       array->buffer=new_ptr;
       array->max_element=size;
     }
-    bzero((gptr) (array->buffer+array->elements*array->size_of_element),
+    bzero((uchar*) (array->buffer+array->elements*array->size_of_element),
 	  (idx - array->elements)*array->size_of_element);
     array->elements=idx+1;
   }
@@ -198,11 +198,11 @@ my_bool set_dynamic(DYNAMIC_ARRAY *array, gptr element, uint idx)
   SYNOPSIS
     get_dynamic()
       array	
-      gptr	Element to be returned. If idx > elements contain zeroes.
+      uchar*	Element to be returned. If idx > elements contain zeroes.
       idx	Index of element wanted. 
 */
 
-void get_dynamic(DYNAMIC_ARRAY *array, gptr element, uint idx)
+void get_dynamic(DYNAMIC_ARRAY *array, uchar* element, uint idx)
 {
   if (idx >= array->elements)
   {
@@ -285,7 +285,7 @@ void freeze_size(DYNAMIC_ARRAY *array)
 
 */
 
-int get_index_dynamic(DYNAMIC_ARRAY *array, gptr element)
+int get_index_dynamic(DYNAMIC_ARRAY *array, uchar* element)
 {
   uint ret;
   if (array->buffer > element)

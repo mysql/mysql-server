@@ -30,7 +30,7 @@ static MYRG_TABLE *find_table(MYRG_TABLE *start,MYRG_TABLE *end,ulonglong pos);
 	   HA_ERR_END_OF_FILE = EOF.
 */
 
-int myrg_rrnd(MYRG_INFO *info,byte *buf,ulonglong filepos)
+int myrg_rrnd(MYRG_INFO *info,uchar *buf,ulonglong filepos)
 {
   int error;
   MI_INFO *isam_info;
@@ -47,7 +47,7 @@ int myrg_rrnd(MYRG_INFO *info,byte *buf,ulonglong filepos)
       }
       isam_info=(info->current_table=info->open_tables)->table;
       if (info->cache_in_use)
-	mi_extra(isam_info,HA_EXTRA_CACHE,(byte*) &info->cache_size);
+	mi_extra(isam_info,HA_EXTRA_CACHE,(uchar*) &info->cache_size);
       filepos=isam_info->s->pack.header_length;
       isam_info->lastinx= (uint) -1;	/* Can't forward or backward */
     }
@@ -60,20 +60,20 @@ int myrg_rrnd(MYRG_INFO *info,byte *buf,ulonglong filepos)
     for (;;)
     {
       isam_info->update&= HA_STATE_CHANGED;
-      if ((error=(*isam_info->s->read_rnd)(isam_info,(byte*) buf,
+      if ((error=(*isam_info->s->read_rnd)(isam_info,(uchar*) buf,
 					   (my_off_t) filepos,1)) !=
 	  HA_ERR_END_OF_FILE)
 	DBUG_RETURN(error);
       if (info->cache_in_use)
 	mi_extra(info->current_table->table, HA_EXTRA_NO_CACHE,
-		 (byte*) &info->cache_size);
+		 (uchar*) &info->cache_size);
       if (info->current_table+1 == info->end_table)
 	DBUG_RETURN(HA_ERR_END_OF_FILE);
       info->current_table++;
       info->last_used_table=info->current_table;
       if (info->cache_in_use)
 	mi_extra(info->current_table->table, HA_EXTRA_CACHE,
-		 (byte*) &info->cache_size);
+		 (uchar*) &info->cache_size);
       info->current_table->file_offset=
 	info->current_table[-1].file_offset+
 	info->current_table[-1].table->state->data_file_length;
@@ -88,7 +88,7 @@ int myrg_rrnd(MYRG_INFO *info,byte *buf,ulonglong filepos)
   isam_info=info->current_table->table;
   isam_info->update&= HA_STATE_CHANGED;
   DBUG_RETURN((*isam_info->s->read_rnd)
-              (isam_info, (byte*) buf,
+              (isam_info, (uchar*) buf,
 	      (my_off_t) (filepos - info->current_table->file_offset),
 	      0));
 }

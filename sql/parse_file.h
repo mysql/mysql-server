@@ -50,7 +50,7 @@ class Unknown_key_hook
 public:
   Unknown_key_hook() {}                       /* Remove gcc warning */
   virtual ~Unknown_key_hook() {}              /* Remove gcc warning */
-  virtual bool process_unknown_string(char *&unknown_key, gptr base,
+  virtual bool process_unknown_string(char *&unknown_key, uchar* base,
                                       MEM_ROOT *mem_root, char *end)= 0;
 };
 
@@ -61,14 +61,14 @@ class File_parser_dummy_hook: public Unknown_key_hook
 {
 public:
   File_parser_dummy_hook() {}                 /* Remove gcc warning */
-  virtual bool process_unknown_string(char *&unknown_key, gptr base,
+  virtual bool process_unknown_string(char *&unknown_key, uchar* base,
                                       MEM_ROOT *mem_root, char *end);
 };
 
 extern File_parser_dummy_hook file_parser_dummy_hook;
 
 bool get_file_options_ulllist(char *&ptr, char *end, char *line,
-                              gptr base, File_option *parameter,
+                              uchar* base, File_option *parameter,
                               MEM_ROOT *mem_root);
 
 char *
@@ -81,7 +81,7 @@ File_parser *sql_parse_prepare(const LEX_STRING *file_name,
 my_bool
 sql_create_definition_file(const LEX_STRING *dir, const  LEX_STRING *file_name,
 			   const LEX_STRING *type,
-			   gptr base, File_option *parameters, uint versions);
+			   uchar* base, File_option *parameters, uint versions);
 my_bool rename_in_schema_file(const char *schema, const char *old_name, 
                               const char *new_name, ulonglong revision, 
                               uint num_view_backups);
@@ -97,7 +97,7 @@ public:
 
   my_bool ok() { return content_ok; }
   LEX_STRING *type() { return &file_type; }
-  my_bool parse(gptr base, MEM_ROOT *mem_root,
+  my_bool parse(uchar* base, MEM_ROOT *mem_root,
 		struct File_option *parameters, uint required,
                 Unknown_key_hook *hook);
 

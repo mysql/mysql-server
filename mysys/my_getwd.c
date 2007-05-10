@@ -27,16 +27,28 @@
 #include <direct.h>
 #endif
 
-	/* Gets current working directory in buff. Directory is allways ended
-	   with FN_LIBCHAR */
-	/* One must pass a buffer to my_getwd. One can allways use
-	   curr_dir[] */
+/* Gets current working directory in buff.
 
-int my_getwd(my_string buf, uint size, myf MyFlags)
+  SYNPOSIS
+    my_getwd()
+    buf		Buffer to store result. Can be curr_dir[].
+    size	Size of buffer
+    MyFlags	Flags
+
+  NOTES
+    Directory is allways ended with FN_LIBCHAR
+
+  RESULT
+    0  ok
+    #  error
+*/
+
+int my_getwd(char * buf, size_t size, myf MyFlags)
 {
-  my_string pos;
+  char * pos;
   DBUG_ENTER("my_getwd");
-  DBUG_PRINT("my",("buf: 0x%lx  size: %d  MyFlags %d", (long) buf,size,MyFlags));
+  DBUG_PRINT("my",("buf: 0x%lx  size: %u  MyFlags %d",
+                   (long) buf, (uint) size, MyFlags));
 
   if (curr_dir[0])				/* Current pos is saved here */
     VOID(strmake(buf,&curr_dir[0],size-1));
@@ -71,26 +83,26 @@ int my_getwd(my_string buf, uint size, myf MyFlags)
       pos[0]= FN_LIBCHAR;
       pos[1]=0;
     }
-    (void) strmake(&curr_dir[0],buf,(size_s) (FN_REFLEN-1));
+    (void) strmake(&curr_dir[0],buf, (size_t) (FN_REFLEN-1));
   }
   DBUG_RETURN(0);
 } /* my_getwd */
 
 
-	/* Set new working directory */
+/* Set new working directory */
 
 int my_setwd(const char *dir, myf MyFlags)
 {
   int res;
-  size_s length;
-  my_string start,pos;
+  size_t length;
+  char *start, *pos;
 #if defined(VMS)
   char buff[FN_REFLEN];
 #endif
   DBUG_ENTER("my_setwd");
   DBUG_PRINT("my",("dir: '%s'  MyFlags %d", dir, MyFlags));
 
-  start=(my_string) dir;
+  start=(char *) dir;
   if (! dir[0] || (dir[0] == FN_LIBCHAR && dir[1] == 0))
     dir=FN_ROOTDIR;
 #ifdef VMS
@@ -115,7 +127,7 @@ int my_setwd(const char *dir, myf MyFlags)
   {
     if (test_if_hard_path(start))
     {						/* Hard pathname */
-      pos=strmake(&curr_dir[0],start,(size_s) FN_REFLEN-1);
+      pos= strmake(&curr_dir[0],start,(size_t) FN_REFLEN-1);
       if (pos[-1] != FN_LIBCHAR)
       {
 	length=(uint) (pos-(char*) curr_dir);

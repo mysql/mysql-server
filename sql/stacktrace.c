@@ -94,7 +94,7 @@ inline uint32* find_prev_pc(uint32* pc, uchar** fp)
 #endif /* defined(__alpha__) && defined(__GNUC__) */
 
 
-void  print_stacktrace(gptr stack_bottom, ulong thread_stack)
+void  print_stacktrace(uchar* stack_bottom, ulong thread_stack)
 {
   uchar** fp;
   uint frame_count = 0, sigreturn_frame_count;
@@ -129,11 +129,11 @@ terribly wrong...\n");
     return;
   }
 
-  if (!stack_bottom || (gptr) stack_bottom > (gptr) &fp)
+  if (!stack_bottom || (uchar*) stack_bottom > (uchar*) &fp)
   {
     ulong tmp= min(0x10000,thread_stack);
     /* Assume that the stack starts at the previous even 65K */
-    stack_bottom= (gptr) (((ulong) &fp + tmp) &
+    stack_bottom= (uchar*) (((ulong) &fp + tmp) &
 			  ~(ulong) 0xFFFF);
     fprintf(stderr, "Cannot determine thread, fp=%p, backtrace may not be correct.\n", fp);
   }

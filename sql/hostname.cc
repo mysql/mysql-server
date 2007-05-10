@@ -84,7 +84,7 @@ static void add_hostname(struct in_addr *in,const char *name)
   {
     VOID(pthread_mutex_lock(&hostname_cache->lock));
     host_entry *entry;
-    if (!(entry=(host_entry*) hostname_cache->search((gptr) &in->s_addr,0)))
+    if (!(entry=(host_entry*) hostname_cache->search((uchar*) &in->s_addr,0)))
     {
       uint length=name ? (uint) strlen(name) : 0;
 
@@ -115,7 +115,7 @@ void inc_host_errors(struct in_addr *in)
 {
   VOID(pthread_mutex_lock(&hostname_cache->lock));
   host_entry *entry;
-  if ((entry=(host_entry*) hostname_cache->search((gptr) &in->s_addr,0)))
+  if ((entry=(host_entry*) hostname_cache->search((uchar*) &in->s_addr,0)))
     entry->errors++;
   VOID(pthread_mutex_unlock(&hostname_cache->lock));
 }
@@ -124,7 +124,7 @@ void reset_host_errors(struct in_addr *in)
 {
   VOID(pthread_mutex_lock(&hostname_cache->lock));
   host_entry *entry;
-  if ((entry=(host_entry*) hostname_cache->search((gptr) &in->s_addr,0)))
+  if ((entry=(host_entry*) hostname_cache->search((uchar*) &in->s_addr,0)))
     entry->errors=0;
   VOID(pthread_mutex_unlock(&hostname_cache->lock));
 }
@@ -134,7 +134,7 @@ void reset_host_errors(struct in_addr *in)
 #define INADDR_LOOPBACK 0x7f000001UL
 #endif
 
-my_string ip_to_hostname(struct in_addr *in, uint *errors)
+char * ip_to_hostname(struct in_addr *in, uint *errors)
 {
   uint i;
   host_entry *entry;
@@ -149,7 +149,7 @@ my_string ip_to_hostname(struct in_addr *in, uint *errors)
   if (!(specialflag & SPECIAL_NO_HOST_CACHE))
   {
     VOID(pthread_mutex_lock(&hostname_cache->lock));
-    if ((entry=(host_entry*) hostname_cache->search((gptr) &in->s_addr,0)))
+    if ((entry=(host_entry*) hostname_cache->search((uchar*) &in->s_addr,0)))
     {
       char *name;
       if (!entry->hostname)

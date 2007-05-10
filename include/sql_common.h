@@ -32,9 +32,9 @@ void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group);
 my_bool
 cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
-		     const char *header, ulong header_length,
-		     const char *arg, ulong arg_length, my_bool skip_check,
-                     MYSQL_STMT *stmt);
+		     const unsigned char *header, ulong header_length,
+		     const unsigned char *arg, ulong arg_length,
+                     my_bool skip_check, MYSQL_STMT *stmt);
 unsigned long cli_safe_read(MYSQL *mysql);
 void set_stmt_errmsg(MYSQL_STMT * stmt, const char *err, int errcode,
 		     const char *sqlstate);

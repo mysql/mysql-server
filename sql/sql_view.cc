@@ -754,7 +754,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
         TODO: read dependence list, too, to process cascade/restrict
         TODO: special cascade/restrict procedure for alter?
       */
-      if (parser->parse((gptr)view, thd->mem_root,
+      if (parser->parse((uchar*)view, thd->mem_root,
                         view_parameters + revision_number_position, 1,
                         &file_parser_dummy_hook))
       {
@@ -846,7 +846,7 @@ loop_out:
   }
 
   if (sql_create_definition_file(&dir, &file, view_file_type,
-				 (gptr)view, view_parameters, num_view_backups))
+				 (uchar*)view, view_parameters, num_view_backups))
   {
     DBUG_RETURN(thd->net.report_error? -1 : 1);
   }
@@ -945,7 +945,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     TODO: when VIEWs will be stored in cache, table mem_root should
     be used here
   */
-  if (parser->parse((gptr)table, thd->mem_root, view_parameters,
+  if (parser->parse((uchar*)table, thd->mem_root, view_parameters,
                     required_view_parameters, &file_parser_dummy_hook))
     goto err;
 
@@ -1484,7 +1484,7 @@ frm_type_enum mysql_frm_type(THD *thd, char *path, enum legacy_db_type *dbt)
 
   if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
     DBUG_RETURN(FRMTYPE_ERROR);
-  error= my_read(file, (byte*) header, sizeof(header), MYF(MY_WME | MY_NABP));
+  error= my_read(file, (uchar*) header, sizeof(header), MYF(MY_WME | MY_NABP));
   my_close(file, MYF(MY_WME));
 
   if (error)
@@ -1747,7 +1747,7 @@ mysql_rename_view(THD *thd,
     view_def.view_suid= TRUE;
 
     /* get view definition and source */
-    if (parser->parse((gptr)&view_def, thd->mem_root, view_parameters,
+    if (parser->parse((uchar*)&view_def, thd->mem_root, view_parameters,
                       array_elements(view_parameters)-1,
                       &file_parser_dummy_hook))
       goto err;
@@ -1769,7 +1769,7 @@ mysql_rename_view(THD *thd,
     file.length= pathstr.length - dir.length;
 
     if (sql_create_definition_file(&dir, &file, view_file_type,
-                                   (gptr)&view_def, view_parameters,
+                                   (uchar*)&view_def, view_parameters,
                                    num_view_backups)) 
     {
       /* restore renamed view in case of error */

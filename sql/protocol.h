@@ -35,14 +35,14 @@ protected:
 #endif
   uint field_count;
 #ifndef EMBEDDED_LIBRARY
-  bool net_store_data(const char *from, uint length);
+  bool net_store_data(const uchar *from, size_t length);
 #else
-  virtual bool net_store_data(const char *from, uint length);
+  virtual bool net_store_data(const uchar *from, size_t length);
   char **next_field;
   MYSQL_FIELD *next_mysql_field;
   MEM_ROOT *alloc;
 #endif
-  bool store_string_aux(const char *from, uint length,
+  bool store_string_aux(const char *from, size_t length,
                         CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
 public:
   Protocol() {}
@@ -83,8 +83,8 @@ public:
   virtual bool store_long(longlong from)=0;
   virtual bool store_longlong(longlong from, bool unsigned_flag)=0;
   virtual bool store_decimal(const my_decimal *)=0;
-  virtual bool store(const char *from, uint length, CHARSET_INFO *cs)=0;
-  virtual bool store(const char *from, uint length, 
+  virtual bool store(const char *from, size_t length, CHARSET_INFO *cs)=0;
+  virtual bool store(const char *from, size_t length, 
   		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs)=0;
   virtual bool store(float from, uint32 decimals, String *buffer)=0;
   virtual bool store(double from, uint32 decimals, String *buffer)=0;
@@ -124,8 +124,8 @@ public:
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
   virtual bool store_decimal(const my_decimal *);
-  virtual bool store(const char *from, uint length, CHARSET_INFO *cs);
-  virtual bool store(const char *from, uint length,
+  virtual bool store(const char *from, size_t length, CHARSET_INFO *cs);
+  virtual bool store(const char *from, size_t length,
   		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
   virtual bool store(MYSQL_TIME *time);
   virtual bool store_date(MYSQL_TIME *time);
@@ -151,7 +151,7 @@ public:
   virtual void prepare_for_resend();
 #ifdef EMBEDDED_LIBRARY
   virtual bool write();
-  bool net_store_data(const char *from, uint length);
+  bool net_store_data(const uchar *from, size_t length);
 #endif
   virtual bool store_null();
   virtual bool store_tiny(longlong from);
@@ -159,8 +159,8 @@ public:
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
   virtual bool store_decimal(const my_decimal *);
-  virtual bool store(const char *from,uint length, CHARSET_INFO *cs);
-  virtual bool store(const char *from, uint length,
+  virtual bool store(const char *from, size_t length, CHARSET_INFO *cs);
+  virtual bool store(const char *from, size_t length,
   		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
   virtual bool store(MYSQL_TIME *time);
   virtual bool store_date(MYSQL_TIME *time);
@@ -178,7 +178,7 @@ void send_ok(THD *thd, ha_rows affected_rows=0L, ulonglong id=0L,
 	     const char *info=0);
 void send_eof(THD *thd);
 bool send_old_password_request(THD *thd);
-char *net_store_data(char *to,const char *from, uint length);
-char *net_store_data(char *to,int32 from);
-char *net_store_data(char *to,longlong from);
+uchar *net_store_data(uchar *to,const uchar *from, size_t length);
+uchar *net_store_data(uchar *to,int32 from);
+uchar *net_store_data(uchar *to,longlong from);
 

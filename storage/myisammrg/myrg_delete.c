@@ -17,7 +17,7 @@
 
 #include "myrg_def.h"
 
-int myrg_delete(MYRG_INFO *info, const byte *record)
+int myrg_delete(MYRG_INFO *info, const uchar *record)
 {
   if (!info->current_table)
     return (my_errno= HA_ERR_NO_ACTIVE_RECORD);

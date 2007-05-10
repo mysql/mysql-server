@@ -68,9 +68,8 @@ int modify_defaults_file(const char *file_location, const char *option,
   FILE *cnf_file;
   MY_STAT file_stat;
   char linebuff[BUFF_SIZE], *src_ptr, *dst_ptr, *file_buffer;
-  uint opt_len= 0;
-  uint optval_len= 0;
-  uint sect_len, nr_newlines= 0, buffer_size;
+  size_t opt_len= 0, optval_len= 0, sect_len;
+  uint nr_newlines= 0, buffer_size;
   my_bool in_section= FALSE, opt_applied= 0;
   uint reserve_extended;
   uint new_opt_len;
@@ -86,8 +85,8 @@ int modify_defaults_file(const char *file_location, const char *option,
 
   if (option && option_value)
   {
-    opt_len= (uint) strlen(option);
-    optval_len= (uint) strlen(option_value);
+    opt_len= strlen(option);
+    optval_len= strlen(option_value);
   }
 
   new_opt_len= opt_len + 1 + optval_len + NEWLINE_LEN;
@@ -110,7 +109,7 @@ int modify_defaults_file(const char *file_location, const char *option,
                                        MYF(MY_WME))))
     goto malloc_err;
 
-  sect_len= (uint) strlen(section_name);
+  sect_len= strlen(section_name);
 
   for (dst_ptr= file_buffer; fgets(linebuff, BUFF_SIZE, cnf_file); )
   {
@@ -219,7 +218,7 @@ int modify_defaults_file(const char *file_location, const char *option,
     if (my_chsize(fileno(cnf_file), (my_off_t) (dst_ptr - file_buffer), 0,
                   MYF(MY_WME)) ||
         my_fseek(cnf_file, 0, MY_SEEK_SET, MYF(0)) ||
-        my_fwrite(cnf_file, file_buffer, (uint) (dst_ptr - file_buffer),
+        my_fwrite(cnf_file, file_buffer, (size_t) (dst_ptr - file_buffer),
                   MYF(MY_NABP)))
       goto err;
   }

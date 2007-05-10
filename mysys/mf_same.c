@@ -25,14 +25,15 @@
 	  Returns 'to'.
 	*/
 
-my_string fn_same(char *to, const char *name, int flag)
+char * fn_same(char *to, const char *name, int flag)
 {
   char dev[FN_REFLEN];
   const char *ext;
+  size_t dev_length;
   DBUG_ENTER("fn_same");
   DBUG_PRINT("enter",("to: %s  name: %s  flag: %d",to,name,flag));
 
-  if ((ext=strrchr(name+dirname_part(dev,name),FN_EXTCHAR)) == 0)
+  if ((ext=strrchr(name+dirname_part(dev, name, &dev_length),FN_EXTCHAR)) == 0)
     ext="";
 
   DBUG_RETURN(fn_format(to,to,dev,ext,flag));

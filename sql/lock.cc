@@ -137,7 +137,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
       {
         /* Clear the lock type of all lock data to avoid reusage. */
         reset_lock_data(sql_lock);
-	my_free((gptr) sql_lock,MYF(0));
+	my_free((uchar*) sql_lock,MYF(0));
 	sql_lock=0;
 	break;
       }
@@ -145,7 +145,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
       {
         /* Clear the lock type of all lock data to avoid reusage. */
         reset_lock_data(sql_lock);
-	my_free((gptr) sql_lock,MYF(0));
+	my_free((uchar*) sql_lock,MYF(0));
 	goto retry;
       }
     }
@@ -161,7 +161,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
         We do not wait for READ_ONLY=0, and fail.
       */
       reset_lock_data(sql_lock);
-      my_free((gptr) sql_lock, MYF(0));
+      my_free((uchar*) sql_lock, MYF(0));
       sql_lock=0;
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
       break;
@@ -173,7 +173,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
     {
       /* Clear the lock type of all lock data to avoid reusage. */
       reset_lock_data(sql_lock);
-      my_free((gptr) sql_lock,MYF(0));
+      my_free((uchar*) sql_lock,MYF(0));
       sql_lock=0;
       break;
     }
@@ -191,7 +191,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
     if (rc > 1)                                 /* a timeout or a deadlock */
     {
       my_error(rc, MYF(0));
-      my_free((gptr) sql_lock,MYF(0));
+      my_free((uchar*) sql_lock,MYF(0));
       sql_lock= 0;
       break;
     }
@@ -285,7 +285,7 @@ void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock)
     thr_multi_unlock(sql_lock->locks,sql_lock->lock_count);
   if (sql_lock->table_count)
     VOID(unlock_external(thd,sql_lock->table,sql_lock->table_count));
-  my_free((gptr) sql_lock,MYF(0));
+  my_free((uchar*) sql_lock,MYF(0));
   DBUG_VOID_RETURN;
 }
 
@@ -435,7 +435,7 @@ void mysql_lock_downgrade_write(THD *thd, TABLE *table,
   {
     for (uint i=0; i < locked->lock_count; i++)
       thr_downgrade_write_lock(locked->locks[i], new_lock_type);
-    my_free((gptr) locked,MYF(0));
+    my_free((uchar*) locked,MYF(0));
   }
 }
 
@@ -453,7 +453,7 @@ void mysql_lock_abort(THD *thd, TABLE *table, bool upgrade_lock)
   {
     for (uint i=0; i < locked->lock_count; i++)
       thr_abort_locks(locked->locks[i]->lock, upgrade_lock);
-    my_free((gptr) locked,MYF(0));
+    my_free((uchar*) locked,MYF(0));
   }
   DBUG_VOID_RETURN;
 }
@@ -488,7 +488,7 @@ bool mysql_lock_abort_for_thread(THD *thd, TABLE *table)
                                      table->in_use->thread_id))
         result= TRUE;
     }
-    my_free((gptr) locked,MYF(0));
+    my_free((uchar*) locked,MYF(0));
   }
   DBUG_RETURN(result);
 }
@@ -530,8 +530,8 @@ MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b)
   }
 
   /* Delete old, not needed locks */
-  my_free((gptr) a,MYF(0));
-  my_free((gptr) b,MYF(0));
+  my_free((uchar*) a,MYF(0));
+  my_free((uchar*) b,MYF(0));
   DBUG_RETURN(sql_lock);
 }
 
@@ -749,7 +749,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
         /* Clear the lock type of the lock data that are stored already. */
         sql_lock->lock_count= locks - sql_lock->locks;
         reset_lock_data(sql_lock);
-	my_free((gptr) sql_lock,MYF(0));
+	my_free((uchar*) sql_lock,MYF(0));
 	DBUG_RETURN(0);
       }
     }
@@ -906,10 +906,10 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list, bool check_in_use)
   if (check_in_use)
   {
     /* Only insert the table if we haven't insert it already */
-    for (table=(TABLE*) hash_first(&open_cache, (byte*)key,
+    for (table=(TABLE*) hash_first(&open_cache, (uchar*)key,
                                    key_length, &state);
          table ;
-         table = (TABLE*) hash_next(&open_cache,(byte*) key,
+         table = (TABLE*) hash_next(&open_cache,(uchar*) key,
                                     key_length, &state))
     {
       if (table->in_use == thd)
@@ -927,10 +927,10 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list, bool check_in_use)
     table cache
   */
   if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
-                       &table, sizeof(*table),
-                       &share, sizeof(*share),
-                       &key_buff, key_length,
-                       NULL))
+                       &table, (uint) sizeof(*table),
+                       &share, (uint) sizeof(*share),
+                       &key_buff, (uint) key_length,
+                       NullS))
     DBUG_RETURN(-1);
   table->s= share;
   share->set_table_cache_key(key_buff, key, key_length);
@@ -939,9 +939,9 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list, bool check_in_use)
   table->locked_by_name=1;
   table_list->table=table;
 
-  if (my_hash_insert(&open_cache, (byte*) table))
+  if (my_hash_insert(&open_cache, (uchar*) table))
   {
-    my_free((gptr) table,MYF(0));
+    my_free((uchar*) table,MYF(0));
     DBUG_RETURN(-1);
   }
 
@@ -955,7 +955,7 @@ void unlock_table_name(THD *thd, TABLE_LIST *table_list)
 {
   if (table_list->table)
   {
-    hash_delete(&open_cache, (byte*) table_list->table);
+    hash_delete(&open_cache, (uchar*) table_list->table);
     broadcast_refresh();
   }
 }

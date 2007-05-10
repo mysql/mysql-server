@@ -688,7 +688,7 @@ struct st_my_thread_var
   struct st_my_thread_var *next,**prev;
   void *opt_info;
 #ifndef DBUG_OFF
-  gptr dbug;
+  void *dbug;
   char name[THREAD_NAME_SIZE+1];
 #endif
 };

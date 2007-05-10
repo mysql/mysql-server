@@ -78,7 +78,7 @@ FT_WORD * ft_linearize(TREE *wtree, MEM_ROOT *mem_root)
   DBUG_RETURN(wlist);
 }
 
-my_bool ft_boolean_check_syntax_string(const byte *str)
+my_bool ft_boolean_check_syntax_string(const uchar *str)
 {
   uint i, j;
 
@@ -106,10 +106,10 @@ my_bool ft_boolean_check_syntax_string(const byte *str)
   3 - right bracket
   4 - stopword found
 */
-byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
-                 FT_WORD *word, MYSQL_FTPARSER_BOOLEAN_INFO *param)
+uchar ft_get_word(CHARSET_INFO *cs, uchar **start, uchar *end,
+                  FT_WORD *word, MYSQL_FTPARSER_BOOLEAN_INFO *param)
 {
-  byte *doc=*start;
+  uchar *doc=*start;
   int ctype;
   uint mwc, length, mbl;
 
@@ -196,10 +196,10 @@ ret:
   return param->type;
 }
 
-byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, const byte *end,
-                        FT_WORD *word, my_bool skip_stopwords)
+uchar ft_simple_get_word(CHARSET_INFO *cs, uchar **start, const uchar *end,
+                         FT_WORD *word, my_bool skip_stopwords)
 {
-  byte *doc= *start;
+  uchar *doc= *start;
   uint mwc, length, mbl;
   int ctype;
   DBUG_ENTER("ft_simple_get_word");
@@ -260,9 +260,9 @@ static int ft_add_word(MYSQL_FTPARSER_PARAM *param,
   wtree= ft_param->wtree;
   if (param->flags & MYSQL_FTFLAGS_NEED_COPY)
   {
-    byte *ptr;
+    uchar *ptr;
     DBUG_ASSERT(wtree->with_delete == 0);
-    ptr= (byte *)alloc_root(ft_param->mem_root, word_len);
+    ptr= (uchar *)alloc_root(ft_param->mem_root, word_len);
     memcpy(ptr, word, word_len);
     w.pos= ptr;
   }
@@ -279,9 +279,10 @@ static int ft_add_word(MYSQL_FTPARSER_PARAM *param,
 
 
 static int ft_parse_internal(MYSQL_FTPARSER_PARAM *param,
-                             char *doc, int doc_len)
+                             char *doc_arg, int doc_len)
 {
-  byte   *end=doc+doc_len;
+  uchar *doc= (uchar*) doc_arg;
+  uchar *end= doc + doc_len;
   MY_FT_PARSER_PARAM *ft_param=param->mysql_ftparam;
   TREE *wtree= ft_param->wtree;
   FT_WORD w;
@@ -294,9 +295,9 @@ static int ft_parse_internal(MYSQL_FTPARSER_PARAM *param,
 }
 
 
-int ft_parse(TREE *wtree, byte *doc, int doclen,
-                    struct st_mysql_ftparser *parser,
-                    MYSQL_FTPARSER_PARAM *param, MEM_ROOT *mem_root)
+int ft_parse(TREE *wtree, uchar *doc, int doclen,
+             struct st_mysql_ftparser *parser,
+             MYSQL_FTPARSER_PARAM *param, MEM_ROOT *mem_root)
 {
   MY_FT_PARSER_PARAM my_param;
   DBUG_ENTER("ft_parse");

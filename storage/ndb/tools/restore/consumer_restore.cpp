@@ -424,13 +424,14 @@ error:
 
 bool BackupRestore::translate_frm(NdbDictionary::Table *table)
 {
-  const void *pack_data, *data, *new_pack_data;
+  uchar *pack_data, *data, *new_pack_data;
   char *new_data;
-  uint data_len, new_data_len, new_pack_len;
+  uint new_data_len;
+  size_t data_len, new_pack_len;
   uint no_parts, extra_growth;
   DBUG_ENTER("translate_frm");
 
-  pack_data = table->getFrmData();
+  pack_data = (uchar*) table->getFrmData();
   no_parts = table->getFragmentCount();
   /*
     Add max 4 characters per partition to handle worst case
@@ -442,7 +443,7 @@ bool BackupRestore::translate_frm(NdbDictionary::Table *table)
   {
     DBUG_RETURN(TRUE);
   }
-  if ((new_data = my_malloc(data_len + extra_growth, MYF(0))))
+  if ((new_data = (char*) my_malloc(data_len + extra_growth, MYF(0))))
   {
     DBUG_RETURN(TRUE);
   }
@@ -451,7 +452,7 @@ bool BackupRestore::translate_frm(NdbDictionary::Table *table)
     my_free(new_data, MYF(0));
     DBUG_RETURN(TRUE);
   }
-  if (packfrm((const void*)new_data, new_data_len,
+  if (packfrm((uchar*) new_data, new_data_len,
               &new_pack_data, &new_pack_len))
   {
     my_free(new_data, MYF(0));

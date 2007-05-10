@@ -82,7 +82,7 @@ static int sf_malloc_tampered= 0;
 
 	/* Static functions prototypes */
 
-static int check_ptr(const char *where, byte *ptr, const char *sFile,
+static int check_ptr(const char *where, uchar *ptr, const char *sFile,
 		     uint uLine);
 static int _checkchunk(struct st_irem *pRec, const char *sFile, uint uLine);
 
@@ -119,12 +119,12 @@ static int _checkchunk(struct st_irem *pRec, const char *sFile, uint uLine);
 
 /* Allocate some memory. */
 
-gptr _mymalloc(uint size, const char *filename, uint lineno, myf MyFlags)
+void *_mymalloc(size_t size, const char *filename, uint lineno, myf MyFlags)
 {
   struct st_irem *irem;
-  char *data;
+  uchar *data;
   DBUG_ENTER("_mymalloc");
-  DBUG_PRINT("enter",("Size: %u",size));
+  DBUG_PRINT("enter",("Size: %lu", (ulong) size));
 
   if (!sf_malloc_quick)
     (void) _sanity (filename, lineno);
@@ -151,8 +151,8 @@ gptr _mymalloc(uint size, const char *filename, uint lineno, myf MyFlags)
       my_errno=errno;
       sprintf(buff,"Out of memory at line %d, '%s'", lineno, filename);
       my_message(EE_OUTOFMEMORY, buff, MYF(ME_BELL+ME_WAITTANG+ME_NOREFRESH));
-      sprintf(buff,"needed %d byte (%ldk), memory in use: %ld bytes (%ldk)",
-	      size, (size + 1023L) / 1024L,
+      sprintf(buff,"needed %u byte (%ldk), memory in use: %ld bytes (%ldk)",
+	      (uint) size, (uint) (size + 1023L) / 1024L,
 	      sf_malloc_max_memory, (sf_malloc_max_memory + 1023L) / 1024L);
       my_message(EE_OUTOFMEMORY, buff, MYF(ME_BELL+ME_WAITTANG+ME_NOREFRESH));
     }
@@ -160,18 +160,18 @@ gptr _mymalloc(uint size, const char *filename, uint lineno, myf MyFlags)
 			sf_malloc_max_memory,lineno, filename));
     if (MyFlags & MY_FAE)
       exit(1);
-    DBUG_RETURN ((gptr) 0);
+    DBUG_RETURN ((void*) 0);
   }
 
   /* Fill up the structure */
-  data= (((char*) irem) + ALIGN_SIZE(sizeof(struct st_irem)) +
+  data= (((uchar*) irem) + ALIGN_SIZE(sizeof(struct st_irem)) +
 	 sf_malloc_prehunc);
   *((uint32*) (data-sizeof(uint32)))= MAGICKEY;
   data[size + 0]= MAGICEND0;
   data[size + 1]= MAGICEND1;
   data[size + 2]= MAGICEND2;
   data[size + 3]= MAGICEND3;
-  irem->filename= (my_string) filename;
+  irem->filename= (char *) filename;
   irem->linenum= lineno;
   irem->datasize= size;
   irem->prev=	  NULL;
@@ -198,7 +198,7 @@ gptr _mymalloc(uint size, const char *filename, uint lineno, myf MyFlags)
     sf_min_adress= data;
   if (sf_max_adress < data)
     sf_max_adress= data;
-  DBUG_RETURN ((gptr) data);
+  DBUG_RETURN((void*) data);
 }
 
 
@@ -207,8 +207,8 @@ gptr _mymalloc(uint size, const char *filename, uint lineno, myf MyFlags)
   Free then old memoryblock
 */
 
-gptr _myrealloc(register gptr ptr, register uint size,
-		const char *filename, uint lineno, myf MyFlags)
+void *_myrealloc(register void *ptr, register size_t size,
+                 const char *filename, uint lineno, myf MyFlags)
 {
   struct st_irem *irem;
   char *data;
@@ -220,8 +220,8 @@ gptr _myrealloc(register gptr ptr, register uint size,
   if (!sf_malloc_quick)
     (void) _sanity (filename, lineno);
 
-  if (check_ptr("Reallocating", (byte*) ptr, filename, lineno))
-    DBUG_RETURN((gptr) NULL);
+  if (check_ptr("Reallocating", (uchar*) ptr, filename, lineno))
+    DBUG_RETURN((uchar*) NULL);
 
   irem= (struct st_irem *) (((char*) ptr) - ALIGN_SIZE(sizeof(struct st_irem))-
 			    sf_malloc_prehunc);
@@ -232,13 +232,13 @@ gptr _myrealloc(register gptr ptr, register uint size,
     DBUG_PRINT("safe",("Reallocating unallocated data at line %d, '%s'",
 		       lineno, filename));
     (void) fflush(stderr);
-    DBUG_RETURN((gptr) NULL);
+    DBUG_RETURN((uchar*) NULL);
   }
 
   if ((data= _mymalloc(size,filename,lineno,MyFlags))) /* Allocate new area */
   {
     size=min(size, irem->datasize);		/* Move as much as possibly */
-    memcpy((byte*) data, ptr, (size_t) size);	/* Copy old data */
+    memcpy((uchar*) data, ptr, (size_t) size);	/* Copy old data */
     _myfree(ptr, filename, lineno, 0);		/* Free not needed area */
   }
   else
@@ -254,7 +254,7 @@ gptr _myrealloc(register gptr ptr, register uint size,
 
 /* Deallocate some memory. */
 
-void _myfree(gptr ptr, const char *filename, uint lineno, myf myflags)
+void _myfree(void *ptr, const char *filename, uint lineno, myf myflags)
 {
   struct st_irem *irem;
   DBUG_ENTER("_myfree");
@@ -264,7 +264,7 @@ void _myfree(gptr ptr, const char *filename, uint lineno, myf myflags)
     (void) _sanity (filename, lineno);
 
   if ((!ptr && (myflags & MY_ALLOW_ZERO_PTR)) ||
-      check_ptr("Freeing",(byte*) ptr,filename,lineno))
+      check_ptr("Freeing",(uchar*) ptr,filename,lineno))
     DBUG_VOID_RETURN;
 
   /* Calculate the address of the remember structure */
@@ -316,7 +316,7 @@ void _myfree(gptr ptr, const char *filename, uint lineno, myf myflags)
 
 	/* Check if we have a wrong  pointer */
 
-static int check_ptr(const char *where, byte *ptr, const char *filename,
+static int check_ptr(const char *where, uchar *ptr, const char *filename,
 		     uint lineno)
 {
   if (!ptr)
@@ -503,12 +503,12 @@ int _sanity(const char *filename, uint lineno)
 
 	/* malloc and copy */
 
-gptr _my_memdup(const byte *from, uint length, const char *filename,
-		uint lineno, myf MyFlags)
+void *_my_memdup(const void *from, size_t length, const char *filename,
+                  uint lineno, myf MyFlags)
 {
-  gptr ptr;
-  if ((ptr=_mymalloc(length,filename,lineno,MyFlags)) != 0)
-    memcpy((byte*) ptr, (byte*) from,(size_t) length);
+  void *ptr;
+  if ((ptr= _mymalloc(length,filename,lineno,MyFlags)) != 0)
+    memcpy(ptr, from, length);
   return(ptr);
 } /*_my_memdup */
 
@@ -516,23 +516,23 @@ gptr _my_memdup(const byte *from, uint length, const char *filename,
 char *_my_strdup(const char *from, const char *filename, uint lineno,
 		 myf MyFlags)
 {
-  gptr ptr;
-  uint length=(uint) strlen(from)+1;
-  if ((ptr=_mymalloc(length,filename,lineno,MyFlags)) != 0)
-    memcpy((byte*) ptr, (byte*) from,(size_t) length);
-  return((char*) ptr);
+  char *ptr;
+  size_t length= strlen(from)+1;
+  if ((ptr= (char*) _mymalloc(length,filename,lineno,MyFlags)) != 0)
+    memcpy((uchar*) ptr, (uchar*) from, (size_t) length);
+  return(ptr);
 } /* _my_strdup */
 
 
-char *_my_strndup(const char *from, uint length,
-			     const char *filename, uint lineno,
-			     myf MyFlags)
+char *_my_strndup(const char *from, size_t length,
+                  const char *filename, uint lineno,
+                  myf MyFlags)
 {
-  gptr ptr;
-  if ((ptr=_mymalloc(length+1,filename,lineno,MyFlags)) != 0)
+  char *ptr;
+  if ((ptr= (char*) _mymalloc(length+1,filename,lineno,MyFlags)) != 0)
   {
-    memcpy((byte*) ptr, (byte*) from,(size_t) length);
+    memcpy((uchar*) ptr, (uchar*) from, (size_t) length);
     ptr[length]=0;
   }
-  return((char *) ptr);
+  return(ptr);
 }

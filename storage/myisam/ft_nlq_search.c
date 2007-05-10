@@ -189,7 +189,7 @@ static int walk_and_push(FT_SUPERDOC *from,
   DBUG_ENTER("walk_and_copy");
   from->doc.weight+=from->tmp_weight*from->word_ptr->weight;
   set_if_smaller(best->elements, ft_query_expansion_limit-1);
-  queue_insert(best, (byte *)& from->doc);
+  queue_insert(best, (uchar *)& from->doc);
   DBUG_RETURN(0);
 }
 
@@ -201,8 +201,8 @@ static int FT_DOC_cmp(void *unused __attribute__((unused)),
 }
 
 
-FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
-			    uint query_len, uint flags, byte *record)
+FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
+			    uint query_len, uint flags, uchar *record)
 {
   TREE	      wtree;
   ALL_IN_ONE  aio;
@@ -323,7 +323,7 @@ int ft_nlq_read_next(FT_INFO *handler, char *record)
 
 
 float ft_nlq_find_relevance(FT_INFO *handler,
-			    byte *record __attribute__((unused)),
+			    uchar *record __attribute__((unused)),
 			    uint length __attribute__((unused)))
 {
   int a,b,c;
@@ -352,7 +352,7 @@ float ft_nlq_find_relevance(FT_INFO *handler,
 
 void ft_nlq_close_search(FT_INFO *handler)
 {
-  my_free((gptr)handler,MYF(0));
+  my_free((uchar*)handler,MYF(0));
 }
 
 

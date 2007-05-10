@@ -36,16 +36,16 @@ static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
   { "database", 'd', "Name of database table is in",
-    (gptr*) &_dbname, (gptr*) &_dbname, 0,
+    (uchar**) &_dbname, (uchar**) &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "transactional", 't', "Single transaction (may run out of operations)",
-    (gptr*) &_transactional, (gptr*) &_transactional, 0,
+    (uchar**) &_transactional, (uchar**) &_transactional, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "tupscan", 999, "Run tupscan",
-    (gptr*) &_tupscan, (gptr*) &_tupscan, 0,
+    (uchar**) &_tupscan, (uchar**) &_tupscan, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "diskscan", 999, "Run diskcan",
-    (gptr*) &_diskscan, (gptr*) &_diskscan, 0,
+    (uchar**) &_diskscan, (uchar**) &_diskscan, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };

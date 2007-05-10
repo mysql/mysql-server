@@ -85,7 +85,7 @@ private:
   entry *find_entry(ulong table_id)
   {
     return (entry *)hash_search(&m_table_ids,
-				(byte*)&table_id,
+				(uchar*)&table_id,
 				sizeof(table_id));
   }
   int expand();

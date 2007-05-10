@@ -2989,3 +2989,6 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
+libmysqld/ha_ndbcluster_cond.cc
+debian/defs.mk
+debian/control

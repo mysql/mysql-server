@@ -43,8 +43,8 @@
     reported as error in first alloc_root() on this memory root.
 */
 
-void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
-		     uint pre_alloc_size __attribute__((unused)))
+void init_alloc_root(MEM_ROOT *mem_root, size_t block_size,
+		     size_t pre_alloc_size __attribute__((unused)))
 {
   DBUG_ENTER("init_alloc_root");
   DBUG_PRINT("enter",("root: 0x%lx", (long) mem_root));
@@ -90,8 +90,8 @@ void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
     before allocation.
 */
 
-void reset_root_defaults(MEM_ROOT *mem_root, uint block_size,
-                         uint pre_alloc_size __attribute__((unused)))
+void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
+                         size_t pre_alloc_size __attribute__((unused)))
 {
   DBUG_ASSERT(alloc_root_inited(mem_root));
 
@@ -99,7 +99,7 @@ void reset_root_defaults(MEM_ROOT *mem_root, uint block_size,
 #if !(defined(HAVE_purify) && defined(EXTRA_DEBUG))
   if (pre_alloc_size)
   {
-    uint size= pre_alloc_size + ALIGN_SIZE(sizeof(USED_MEM));
+    size_t size= pre_alloc_size + ALIGN_SIZE(sizeof(USED_MEM));
     if (!mem_root->pre_alloc || mem_root->pre_alloc->size != size)
     {
       USED_MEM *mem, **prev= &mem_root->free;
@@ -120,7 +120,7 @@ void reset_root_defaults(MEM_ROOT *mem_root, uint block_size,
         {
           /* remove block from the list and free it */
           *prev= mem->next;
-          my_free((gptr) mem, MYF(0));
+          my_free(mem, MYF(0));
         }
         else
           prev= &mem->next;
@@ -145,7 +145,7 @@ void reset_root_defaults(MEM_ROOT *mem_root, uint block_size,
 }
 
 
-gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
+void *alloc_root(MEM_ROOT *mem_root, size_t length)
 {
 #if defined(HAVE_purify) && defined(EXTRA_DEBUG)
   reg1 USED_MEM *next;
@@ -154,32 +154,32 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
 
   DBUG_ASSERT(alloc_root_inited(mem_root));
 
-  Size+=ALIGN_SIZE(sizeof(USED_MEM));
-  if (!(next = (USED_MEM*) my_malloc(Size,MYF(MY_WME))))
+  length+=ALIGN_SIZE(sizeof(USED_MEM));
+  if (!(next = (USED_MEM*) my_malloc(length,MYF(MY_WME))))
   {
     if (mem_root->error_handler)
       (*mem_root->error_handler)();
-    DBUG_RETURN((gptr) 0);			/* purecov: inspected */
+    DBUG_RETURN((uchar*) 0);			/* purecov: inspected */
   }
   next->next= mem_root->used;
-  next->size= Size;
+  next->size= length;
   mem_root->used= next;
   DBUG_PRINT("exit",("ptr: 0x%lx", (long) (((char*) next)+
                                            ALIGN_SIZE(sizeof(USED_MEM)))));
-  DBUG_RETURN((gptr) (((char*) next)+ALIGN_SIZE(sizeof(USED_MEM))));
+  DBUG_RETURN((uchar*) (((char*) next)+ALIGN_SIZE(sizeof(USED_MEM))));
 #else
-  uint get_size, block_size;
-  gptr point;
+  size_t get_size, block_size;
+  uchar* point;
   reg1 USED_MEM *next= 0;
   reg2 USED_MEM **prev;
   DBUG_ENTER("alloc_root");
   DBUG_PRINT("enter",("root: 0x%lx", (long) mem_root));
   DBUG_ASSERT(alloc_root_inited(mem_root));
 
-  Size= ALIGN_SIZE(Size);
+  length= ALIGN_SIZE(length);
   if ((*(prev= &mem_root->free)) != NULL)
   {
-    if ((*prev)->left < Size &&
+    if ((*prev)->left < length &&
 	mem_root->first_block_usage++ >= ALLOC_MAX_BLOCK_USAGE_BEFORE_DROP &&
 	(*prev)->left < ALLOC_MAX_BLOCK_TO_DROP)
     {
@@ -189,20 +189,20 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
       mem_root->used= next;
       mem_root->first_block_usage= 0;
     }
-    for (next= *prev ; next && next->left < Size ; next= next->next)
+    for (next= *prev ; next && next->left < length ; next= next->next)
       prev= &next->next;
   }
   if (! next)
   {						/* Time to alloc new block */
     block_size= mem_root->block_size * (mem_root->block_num >> 2);
-    get_size= Size+ALIGN_SIZE(sizeof(USED_MEM));
+    get_size= length+ALIGN_SIZE(sizeof(USED_MEM));
     get_size= max(get_size, block_size);
 
     if (!(next = (USED_MEM*) my_malloc(get_size,MYF(MY_WME))))
     {
       if (mem_root->error_handler)
 	(*mem_root->error_handler)();
-      return((gptr) 0);				/* purecov: inspected */
+      return((void*) 0);                      /* purecov: inspected */
     }
     mem_root->block_num++;
     next->next= *prev;
@@ -211,9 +211,9 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
     *prev=next;
   }
 
-  point= (gptr) ((char*) next+ (next->size-next->left));
+  point= (uchar*) ((char*) next+ (next->size-next->left));
   /*TODO: next part may be unneded due to mem_root->first_block_usage counter*/
-  if ((next->left-= Size) < mem_root->min_malloc)
+  if ((next->left-= length) < mem_root->min_malloc)
   {						/* Full block */
     *prev= next->next;				/* Remove block from list */
     next->next= mem_root->used;
@@ -221,7 +221,7 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
     mem_root->first_block_usage= 0;
   }
   DBUG_PRINT("exit",("ptr: 0x%lx", (ulong) point));
-  DBUG_RETURN(point);
+  DBUG_RETURN((void*) point);
 #endif
 }
 
@@ -245,11 +245,11 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
     in case of success or NULL if out of memory.
 */
 
-gptr multi_alloc_root(MEM_ROOT *root, ...)
+void *multi_alloc_root(MEM_ROOT *root, ...)
 {
   va_list args;
   char **ptr, *start, *res;
-  uint tot_length, length;
+  size_t tot_length, length;
   DBUG_ENTER("multi_alloc_root");
 
   va_start(args, root);
@@ -273,7 +273,7 @@ gptr multi_alloc_root(MEM_ROOT *root, ...)
     res+= ALIGN_SIZE(length);
   }
   va_end(args);
-  DBUG_RETURN((gptr) start);
+  DBUG_RETURN((void*) start);
 }
 
 #define TRASH_MEM(X) TRASH(((char*)(X) + ((X)->size-(X)->left)), (X)->left)
@@ -346,13 +346,13 @@ void free_root(MEM_ROOT *root, myf MyFlags)
   {
     old=next; next= next->next ;
     if (old != root->pre_alloc)
-      my_free((gptr) old,MYF(0));
+      my_free(old,MYF(0));
   }
   for (next=root->free ; next ;)
   {
     old=next; next= next->next;
     if (old != root->pre_alloc)
-      my_free((gptr) old,MYF(0));
+      my_free(old,MYF(0));
   }
   root->used=root->free=0;
   if (root->pre_alloc)
@@ -393,13 +393,13 @@ void set_prealloc_root(MEM_ROOT *root, char *ptr)
 }
 
 
-char *strdup_root(MEM_ROOT *root,const char *str)
+char *strdup_root(MEM_ROOT *root, const char *str)
 {
-  return strmake_root(root, str, (uint) strlen(str));
+  return strmake_root(root, str, strlen(str));
 }
 
 
-char *strmake_root(MEM_ROOT *root,const char *str, uint len)
+char *strmake_root(MEM_ROOT *root, const char *str, size_t len)
 {
   char *pos;
   if ((pos=alloc_root(root,len+1)))
@@ -411,7 +411,7 @@ char *strmake_root(MEM_ROOT *root,const char *str, uint len)
 }
 
 
-char *memdup_root(MEM_ROOT *root,const char *str,uint len)
+void *memdup_root(MEM_ROOT *root, const void *str, size_t len)
 {
   char *pos;
   if ((pos=alloc_root(root,len)))

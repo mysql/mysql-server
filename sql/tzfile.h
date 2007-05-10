@@ -34,14 +34,14 @@
 #define	TZ_MAGIC	"TZif"
 
 struct tzhead {
- 	char	tzh_magic[4];		/* TZ_MAGIC */
-	char	tzh_reserved[16];	/* reserved for future use */
-	char	tzh_ttisgmtcnt[4];	/* coded number of trans. time flags */
-	char	tzh_ttisstdcnt[4];	/* coded number of trans. time flags */
-	char	tzh_leapcnt[4];		/* coded number of leap seconds */
-	char	tzh_timecnt[4];		/* coded number of transition times */
-	char	tzh_typecnt[4];		/* coded number of local time types */
-	char	tzh_charcnt[4];		/* coded number of abbr. chars */
+ 	uchar	tzh_magic[4];		/* TZ_MAGIC */
+	uchar	tzh_reserved[16];	/* reserved for future use */
+	uchar	tzh_ttisgmtcnt[4];	/* coded number of trans. time flags */
+	uchar	tzh_ttisstdcnt[4];	/* coded number of trans. time flags */
+	uchar	tzh_leapcnt[4];		/* coded number of leap seconds */
+	uchar	tzh_timecnt[4];		/* coded number of transition times */
+	uchar	tzh_typecnt[4];		/* coded number of local time types */
+	uchar	tzh_charcnt[4];		/* coded number of abbr. chars */
 };
 
 /*

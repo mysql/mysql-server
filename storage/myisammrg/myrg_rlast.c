@@ -17,7 +17,7 @@
 
 	/* Read last row with the same key as the previous read. */
 
-int myrg_rlast(MYRG_INFO *info, byte *buf, int inx)
+int myrg_rlast(MYRG_INFO *info, uchar *buf, int inx)
 {
   MYRG_TABLE *table;
   MI_INFO *mi;
@@ -35,7 +35,7 @@ int myrg_rlast(MYRG_INFO *info, byte *buf, int inx)
       return err;
     }
     /* adding to queue */
-    queue_insert(&(info->by_key),(byte *)table);
+    queue_insert(&(info->by_key),(uchar *)table);
   }
   /* We have done a read in all tables */
   info->last_used_table=table;

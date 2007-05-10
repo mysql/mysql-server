@@ -35,7 +35,7 @@ the link named "Complete package, excluding sources".  This includes an
 installer that will install bison.  After the installer finishes, modify
 your path so that you can execute bison.
 
-(Alternative you, can take the sql_yacc.yy and sql_yacc.h files from a
+(As an alternative you can take the sql_yacc.yy and sql_yacc.h files from a
 matching mysql tar distribution and drop them into the sql directory just
 before you start the build)
 
@@ -45,8 +45,11 @@ Clone your bk tree to any location you like.
 
 Step 5
 ------
-From the root of your bk clone, execute the command:  win\configure <options>.  
-The options right now are
+From the root of your installation directory, execute the command:
+
+win\configure <options>
+
+The options right now are:
 
     WITH_INNOBASE_STORAGE_ENGINE         Enable particular storage engines
     WITH_PARTITION_STORAGE_ENGINE
@@ -68,8 +71,9 @@ win\configure WITH_INNOBASE_STORAGE_ENGINE WITH_PARTITION_STORAGE_ENGINE MYSQL_S
 
 Step 6
 ------
-From the root of your bk clone, execute one of the batch files to generate the type
-of project files you desire.
+
+From the root of your installation directory/bk clone, execute one of
+the batch files to generate the type of project files you desire.
 
 For Visual Studio 8 (or Visual C++ 2005 express edition), do win\build-vs8.
 For Visual Studio 7.1, do win\build-vs71.
@@ -80,8 +84,8 @@ Step 7
 ------
 From the root of your bk clone, start your build.
 
-For Visual Studio, simply execute mysql.sln.  This will start the IDE and you can
-click the build solution menu option.
+For Visual Studio, execute mysql.sln.  This will start the IDE
+and you can click the build solution menu option.
 
 Current issues
 --------------

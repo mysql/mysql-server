@@ -94,7 +94,7 @@ private:
       return 0 on success
       return errorcode otherwise
   */
-  uint convert_row_to_internal_format(byte *buf, MYSQL_ROW row,
+  uint convert_row_to_internal_format(uchar *buf, MYSQL_ROW row,
                                       MYSQL_RES *result);
   bool create_where_from_key(String *to, KEY *key_info, 
                              const key_range *start_key,
@@ -188,15 +188,15 @@ public:
   int open(const char *name, int mode, uint test_if_locked);    // required
   int close(void);                                              // required
 
-  int write_row(byte *buf);
-  int update_row(const byte *old_data, byte *new_data);
-  int delete_row(const byte *buf);
+  int write_row(uchar *buf);
+  int update_row(const uchar *old_data, uchar *new_data);
+  int delete_row(const uchar *buf);
   int index_init(uint keynr, bool sorted);
-  int index_read(byte *buf, const byte *key,
+  int index_read(uchar *buf, const uchar *key,
                  uint key_len, enum ha_rkey_function find_flag);
-  int index_read_idx(byte *buf, uint idx, const byte *key,
+  int index_read_idx(uchar *buf, uint idx, const uchar *key,
                      uint key_len, enum ha_rkey_function find_flag);
-  int index_next(byte *buf);
+  int index_next(uchar *buf);
   int index_end();
   int read_range_first(const key_range *start_key,
                                const key_range *end_key,
@@ -212,9 +212,9 @@ public:
   */
   int rnd_init(bool scan);                                      //required
   int rnd_end();
-  int rnd_next(byte *buf);                                      //required
-  int rnd_pos(byte *buf, byte *pos);                            //required
-  void position(const byte *record);                            //required
+  int rnd_next(uchar *buf);                                      //required
+  int rnd_pos(uchar *buf, uchar *pos);                            //required
+  void position(const uchar *record);                            //required
   int info(uint);                                              //required
 
   void update_auto_increment(void);
@@ -237,9 +237,9 @@ public:
   int connection_autocommit(bool state);
   int execute_simple_query(const char *query, int len);
 
-  int read_next(byte *buf, MYSQL_RES *result);
-  int index_read_idx_with_result_set(byte *buf, uint index,
-                                     const byte *key,
+  int read_next(uchar *buf, MYSQL_RES *result);
+  int index_read_idx_with_result_set(uchar *buf, uint index,
+                                     const uchar *key,
                                      uint key_len,
                                      ha_rkey_function find_flag,
                                      MYSQL_RES **result);

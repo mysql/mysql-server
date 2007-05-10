@@ -34,7 +34,7 @@
 #include "sql_sort.h"
 
 
-int unique_write_to_file(gptr key, element_count count, Unique *unique)
+int unique_write_to_file(uchar* key, element_count count, Unique *unique)
 {
   /*
     Use unique->size (size of element stored in the tree) and not
@@ -42,11 +42,10 @@ int unique_write_to_file(gptr key, element_count count, Unique *unique)
     when tree implementation chooses to store pointer to key in TREE_ELEMENT
     (instead of storing the element itself there)
   */
-  return my_b_write(&unique->file, (byte*) key,
-		    unique->size) ? 1 : 0;
+  return my_b_write(&unique->file, key, unique->size) ? 1 : 0;
 }
 
-int unique_write_to_ptrs(gptr key, element_count count, Unique *unique)
+int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique)
 {
   memcpy(unique->record_pointers, key, unique->size);
   unique->record_pointers+=unique->size;
@@ -330,7 +329,7 @@ bool Unique::flush()
 
   if (tree_walk(&tree, (tree_walk_action) unique_write_to_file,
 		(void*) this, left_root_right) ||
-      insert_dynamic(&file_ptrs, (gptr) &file_ptr))
+      insert_dynamic(&file_ptrs, (uchar*) &file_ptr))
     return 1;
   delete_tree(&tree);
   return 0;
@@ -374,11 +373,11 @@ struct BUFFPEK_COMPARE_CONTEXT
 
 C_MODE_START
 
-static int buffpek_compare(void *arg, byte *key_ptr1, byte *key_ptr2)
+static int buffpek_compare(void *arg, uchar *key_ptr1, uchar *key_ptr2)
 {
   BUFFPEK_COMPARE_CONTEXT *ctx= (BUFFPEK_COMPARE_CONTEXT *) arg;
   return ctx->key_compare(ctx->key_compare_arg,
-                          *((byte **) key_ptr1), *((byte **)key_ptr2));
+                          *((uchar **) key_ptr1), *((uchar **)key_ptr2));
 }
 
 C_MODE_END
@@ -455,7 +454,7 @@ static bool merge_walk(uchar *merge_buffer, ulong merge_buffer_size,
     if (bytes_read == (uint) (-1))
       goto end;
     DBUG_ASSERT(bytes_read);
-    queue_insert(&queue, (byte *) top);
+    queue_insert(&queue, (uchar *) top);
   }
   top= (BUFFPEK *) queue_top(&queue);
   while (queue.elements > 1)
@@ -586,7 +585,7 @@ bool Unique::get(TABLE *table)
   if (my_b_tell(&file) == 0)
   {
     /* Whole tree is in memory;  Don't use disk if you don't need to */
-    if ((record_pointers=table->sort.record_pointers= (byte*)
+    if ((record_pointers=table->sort.record_pointers= (uchar*)
 	 my_malloc(size * tree.elements_in_tree, MYF(0))))
     {
       (void) tree_walk(&tree, (tree_walk_action) unique_write_to_ptrs,
@@ -641,7 +640,7 @@ bool Unique::get(TABLE *table)
     goto err;
   error=0;
 err:
-  x_free((gptr) sort_buffer);
+  x_free(sort_buffer);
   if (flush_io_cache(outfile))
     error=1;
 

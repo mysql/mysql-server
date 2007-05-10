@@ -18,9 +18,9 @@
 	/* Read prev record for key */
 
 
-int heap_rprev(HP_INFO *info, byte *record)
+int heap_rprev(HP_INFO *info, uchar *record)
 {
-  byte *pos;
+  uchar *pos;
   HP_SHARE *share=info->s;
   HP_KEYDEF *keyinfo;
   DBUG_ENTER("heap_rprev");
@@ -47,7 +47,7 @@ int heap_rprev(HP_INFO *info, byte *record)
     if (pos)
     {
       memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos),
-	     sizeof(byte*));
+	     sizeof(uchar*));
       info->current_ptr = pos;
     }
     else

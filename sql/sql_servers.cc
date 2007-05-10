@@ -77,7 +77,7 @@ static void merge_server_struct(FOREIGN_SERVER *from, FOREIGN_SERVER *to);
 
 
 
-static byte *servers_cache_get_key(FOREIGN_SERVER *server, uint *length,
+static uchar *servers_cache_get_key(FOREIGN_SERVER *server, size_t *length,
 			       my_bool not_used __attribute__((unused)))
 {
   DBUG_ENTER("servers_cache_get_key");
@@ -86,7 +86,7 @@ static byte *servers_cache_get_key(FOREIGN_SERVER *server, uint *length,
                       server->server_name));
 
   *length= (uint) server->server_name_length;
-  DBUG_RETURN((byte*) server->server_name);
+  DBUG_RETURN((uchar*) server->server_name);
 }
 
 
@@ -323,7 +323,7 @@ get_server_from_table_to_cache(TABLE *table)
   DBUG_PRINT("info", ("server->username %s", server->username));
   DBUG_PRINT("info", ("server->password %s", server->password));
   DBUG_PRINT("info", ("server->socket %s", server->socket));
-  if (my_hash_insert(&servers_cache, (byte*) server))
+  if (my_hash_insert(&servers_cache, (uchar*) server))
   {
     DBUG_PRINT("info", ("had a problem inserting server %s at %lx",
                         server->server_name, (long unsigned int) server));
@@ -411,7 +411,7 @@ insert_server_record_into_cache(FOREIGN_SERVER *server)
   DBUG_PRINT("info", ("inserting server %s at %lx, length %d",
                         server->server_name, (long unsigned int) server,
                         server->server_name_length));
-  if (my_hash_insert(&servers_cache, (byte*) server))
+  if (my_hash_insert(&servers_cache, (uchar*) server))
   {
     DBUG_PRINT("info", ("had a problem inserting server %s at %lx",
                         server->server_name, (long unsigned int) server));
@@ -517,7 +517,7 @@ int insert_server_record(TABLE *table, FOREIGN_SERVER *server)
 
   /* read index until record is that specified in server_name */
   if ((error= table->file->index_read_idx(table->record[0], 0,
-                                   (byte *)table->field[0]->ptr, HA_WHOLE_KEY,
+                                   (uchar *)table->field[0]->ptr, HA_WHOLE_KEY,
                                    HA_READ_KEY_EXACT)))
   {
     /* if not found, err */
@@ -642,7 +642,7 @@ delete_server_record_in_cache(LEX_SERVER_OPTIONS *server_options)
 
 
   if (!(server= (FOREIGN_SERVER *) hash_search(&servers_cache,
-                                     (byte*) server_options->server_name,
+                                     (uchar*) server_options->server_name,
                                      server_options->server_name_length)))
   {
     DBUG_PRINT("info", ("server_name %s length %d not found!",
@@ -658,7 +658,7 @@ delete_server_record_in_cache(LEX_SERVER_OPTIONS *server_options)
                      server->server_name,
                      server->server_name_length));
 
-  VOID(hash_delete(&servers_cache, (byte*) server));
+  VOID(hash_delete(&servers_cache, (uchar*) server));
   
   error= 0;
 
@@ -765,12 +765,12 @@ int update_server_record_in_cache(FOREIGN_SERVER *existing,
   /*
     delete the existing server struct from the server cache
   */
-  VOID(hash_delete(&servers_cache, (byte*)existing));
+  VOID(hash_delete(&servers_cache, (uchar*)existing));
 
   /*
     Insert the altered server struct into the server cache
   */
-  if (my_hash_insert(&servers_cache, (byte*)altered))
+  if (my_hash_insert(&servers_cache, (uchar*)altered))
   {
     DBUG_PRINT("info", ("had a problem inserting server %s at %lx",
                         altered->server_name, (long unsigned int) altered));
@@ -859,7 +859,7 @@ update_server_record(TABLE *table, FOREIGN_SERVER *server)
                          system_charset_info);
 
   if ((error= table->file->index_read_idx(table->record[0], 0,
-                                   (byte *)table->field[0]->ptr, ~(longlong)0,
+                                   (uchar *)table->field[0]->ptr, ~(longlong)0,
                                    HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -911,7 +911,7 @@ delete_server_record(TABLE *table,
   table->field[0]->store(server_name, server_name_length, system_charset_info);
 
   if ((error= table->file->index_read_idx(table->record[0], 0,
-                                   (byte *)table->field[0]->ptr, HA_WHOLE_KEY,
+                                   (uchar *)table->field[0]->ptr, HA_WHOLE_KEY,
                                    HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -954,7 +954,7 @@ int create_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
   rw_wrlock(&THR_LOCK_servers);
 
   /* hit the memory first */
-  if (hash_search(&servers_cache, (byte*) server_options->server_name,
+  if (hash_search(&servers_cache, (uchar*) server_options->server_name,
 				   server_options->server_name_length))
     goto end;
 
@@ -1000,7 +1000,7 @@ int alter_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
   rw_wrlock(&THR_LOCK_servers);
 
   if (!(existing= (FOREIGN_SERVER *) hash_search(&servers_cache,
-                                                 (byte*) name.str,
+                                                 (uchar*) name.str,
                                                  name.length)))
     goto end;
 
@@ -1260,7 +1260,7 @@ FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
   DBUG_PRINT("info", ("locking servers_cache"));
   rw_rdlock(&THR_LOCK_servers);
   if (!(server= (FOREIGN_SERVER *) hash_search(&servers_cache,
-                                               (byte*) server_name,
+                                               (uchar*) server_name,
                                                server_name_length)))
   {
     DBUG_PRINT("info", ("server_name %s length %d not found!",

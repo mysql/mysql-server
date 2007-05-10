@@ -34,7 +34,7 @@ int heap_scan_init(register HP_INFO *info)
   DBUG_RETURN(0);
 }
 
-int heap_scan(register HP_INFO *info, byte *record)
+int heap_scan(register HP_INFO *info, uchar *record)
 {
   HP_SHARE *share=info->s;
   ulong pos;

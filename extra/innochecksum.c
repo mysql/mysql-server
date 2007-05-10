@@ -51,10 +51,10 @@
 /* another argument to specify page ranges... seek to right spot and go from there */
 
 typedef unsigned long int ulint;
-typedef unsigned char byte;
+typedef unsigned char uchar;
 
 /* innodb function in name; modified slightly to not have the ASM version (lots of #ifs that didn't apply) */
-ulint mach_read_from_4(byte *b)
+ulint mach_read_from_4(uchar *b)
 {
   return( ((ulint)(b[0]) << 24)
           + ((ulint)(b[1]) << 16)
@@ -78,7 +78,7 @@ ulint
 ut_fold_binary(
 /*===========*/
             /* out: folded value */
-    byte*   str,    /* in: string of bytes */
+    uchar*   str,    /* in: string of bytes */
     ulint   len)    /* in: length */
 {
     ulint   i;
@@ -98,7 +98,7 @@ ulint
 buf_calc_page_new_checksum(
 /*=======================*/
                /* out: checksum */
-    byte*    page) /* in: buffer page */
+    uchar*    page) /* in: buffer page */
 {
     ulint checksum;
 
@@ -123,7 +123,7 @@ ulint
 buf_calc_page_old_checksum(
 /*=======================*/
                /* out: checksum */
-    byte*    page) /* in: buffer page */
+    uchar*    page) /* in: buffer page */
 {
     ulint checksum;
 
@@ -138,7 +138,7 @@ buf_calc_page_old_checksum(
 int main(int argc, char **argv)
 {
   FILE *f;                     /* our input file */
-  byte *p;                     /* storage of pages read */
+  uchar *p;                     /* storage of pages read */
   int bytes;                   /* bytes read count */
   ulint ct;                    /* current page number (0 based) */
   int now;                     /* current time */
@@ -256,7 +256,7 @@ int main(int argc, char **argv)
   }
 
   /* allocate buffer for reading (so we don't realloc every time) */
-  p= (byte *)malloc(UNIV_PAGE_SIZE);
+  p= (uchar *)malloc(UNIV_PAGE_SIZE);
 
   /* main checksumming loop */
   ct= start_page;
