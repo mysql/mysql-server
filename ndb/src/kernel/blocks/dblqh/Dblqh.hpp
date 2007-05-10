@@ -2059,6 +2059,9 @@ public:
     Uint8 simpleRead;
     Uint8 seqNoReplica;
     Uint8 tcNodeFailrec;
+#ifdef VM_TRACE
+    Uint8 tupkeyref;
+#endif
   }; /* p2c: size = 280 bytes */
   
   typedef Ptr<TcConnectionrec> TcConnectionrecPtr;
