@@ -289,7 +289,9 @@ select c1 mod 50 as result from t1;
 drop table t1;
 
 # Bug #28005 Partitions: can't use -9223372036854775808 
---enable_metadata
-select -9223372036854775808 bi;
-select -9223372036854775809 bi;
---disable_metadata
+create table t1 select -9223372036854775808 bi;
+describe t1;
+drop table t1;
+create table t1 select -9223372036854775809 bi;
+describe t1;
+drop table t1;
