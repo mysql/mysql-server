@@ -495,7 +495,7 @@ public:
 };
 
 
-class delayed_insert;
+class Delayed_insert;
 class select_result;
 
 #define THD_SENTRY_MAGIC 0xfeedd1ff
@@ -1248,7 +1248,7 @@ public:
   time_t     start_time,time_after_lock,user_time;
   time_t     connect_time,thr_create_time; // track down slow pthread_create
   thr_lock_type update_lock_default;
-  delayed_insert *di;
+  Delayed_insert *di;
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
