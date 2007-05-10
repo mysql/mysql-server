@@ -49,6 +49,8 @@ public:
     
     Uint32 m_ptr_i;
     Uint32 m_sz;
+
+    bool isEmpty() const { return m_sz == 0;}
   };
   
   DynArr256(DynArr256Pool & pool, Head& head) : 
@@ -61,12 +63,16 @@ public:
   {
     Uint32 m_sz;
     Uint32 m_pos;
-    Uint32 m_ptr_i[4];
+    Uint32 m_ptr_i[5];
   };
   
   void init(ReleaseIterator&);
-  bool release(ReleaseIterator&);
-  
+  /**
+   * return 0 - done
+   *        1 - data (in retptr)
+   *        2 - nodata
+   */
+  Uint32 release(ReleaseIterator&, Uint32* retptr);
 protected:
   Head & m_head;
   DynArr256Pool & m_pool;

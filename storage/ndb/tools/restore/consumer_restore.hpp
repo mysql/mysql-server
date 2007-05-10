@@ -51,6 +51,7 @@ public:
     m_callback = 0;
     m_free_callback = 0;
     m_temp_error = false;
+    m_no_upgrade = false;
     m_transactions = 0;
     m_cache.m_old_table = 0;
   }
@@ -91,6 +92,7 @@ public:
   bool m_restore_meta;
   bool m_no_restore_disk;
   bool m_restore_epoch;
+  bool m_no_upgrade; // for upgrade ArrayType from 5.0 backup file.
   Uint32 m_logCount;
   Uint32 m_dataCount;
 

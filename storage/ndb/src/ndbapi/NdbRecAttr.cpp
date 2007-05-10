@@ -270,7 +270,7 @@ ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
       out << r.u_short_value();
       break;
     case NdbDictionary::Column::Tinyunsigned:
-      out << (unsigned) r.u_char_value();
+      out << (unsigned) r.u_8_value();
       break;
     case NdbDictionary::Column::Bigint:
       out << r.int64_value();
@@ -285,7 +285,7 @@ ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
       out << r.short_value();
       break;
     case NdbDictionary::Column::Tinyint:
-      out << (int) r.char_value();
+      out << (int) r.int8_value();
       break;
     case NdbDictionary::Column::Binary:
       if (!f.hex_format)
@@ -411,7 +411,7 @@ ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
     break;
     case NdbDictionary::Column::Year:
     {
-      uint year = 1900 + r.u_char_value();
+      uint year = 1900 + r.u_8_value();
       char buf[40];
       sprintf(buf, "%04d", year);
       out << buf;

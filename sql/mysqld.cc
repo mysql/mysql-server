@@ -368,7 +368,7 @@ handlerton *partition_hton;
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 const char *opt_ndbcluster_connectstring= 0;
 const char *opt_ndb_connectstring= 0;
-char opt_ndb_constrbuf[1024];
+char opt_ndb_constrbuf[1024]= {0};
 unsigned opt_ndb_constrbuf_len= 0;
 my_bool	opt_ndb_shm, opt_ndb_optimized_node_selection;
 ulong opt_ndb_cache_check_time;
