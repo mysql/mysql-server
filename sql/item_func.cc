@@ -1501,7 +1501,7 @@ void Item_func_neg::fix_length_and_dec()
   */
   if (hybrid_type == INT_RESULT &&
       args[0]->type() == INT_ITEM &&
-      ((ulonglong) args[0]->val_int() >= (ulonglong) LONGLONG_MIN))
+      ((ulonglong) args[0]->val_int() > (ulonglong) LONGLONG_MIN))
   {
     /*
       Ensure that result is converted to DECIMAL, as longlong can't hold
