@@ -51,21 +51,6 @@ innobase_invalidate_query_cache(
 	ulint	full_name_len);	/* in: full name length where also the null
 				chars count */
 
-/**********************************************************************
-This function returns true if
-
-1) SQL-query in the current thread
-is either REPLACE or LOAD DATA INFILE REPLACE.
-
-2) SQL-query in the current thread
-is INSERT ON DUPLICATE KEY UPDATE.
-
-NOTE that /mysql/innobase/row/row0ins.c must contain the
-prototype for this function ! */
-
-ibool
-innobase_query_is_update(void);
-
 /*************************************************************************
 Creates an insert node struct. */
 
@@ -1652,6 +1637,7 @@ row_ins_scan_sec_index_for_duplicate(
 	btr_pcur_t	pcur;
 	ulint		err		= DB_SUCCESS;
 	ibool		moved;
+	unsigned	allow_duplicates;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -1682,6 +1668,8 @@ row_ins_scan_sec_index_for_duplicate(
 
 	btr_pcur_open(index, entry, PAGE_CUR_GE, BTR_SEARCH_LEAF, &pcur, &mtr);
 
+	allow_duplicates = thr_get_trx(thr)->duplicates & TRX_DUP_IGNORE;
+
 	/* Scan index records and check if there is a duplicate */
 
 	for (;;) {
@@ -1695,7 +1683,7 @@ row_ins_scan_sec_index_for_duplicate(
 		offsets = rec_get_offsets(rec, index, offsets,
 					  ULINT_UNDEFINED, &heap);
 
-		if (innobase_query_is_update()) {
+		if (allow_duplicates) {
 
 			/* If the SQL-query will update or replace
 			duplicate key we will take X-lock for
@@ -1824,7 +1812,7 @@ row_ins_duplicate_error_in_clust(
 			sure that in roll-forward we get the same duplicate
 			errors as in original execution */
 
-			if (innobase_query_is_update()) {
+			if (trx->duplicates & TRX_DUP_IGNORE) {
 
 				/* If the SQL-query will update or replace
 				duplicate key we will take X-lock for
@@ -1862,7 +1850,7 @@ row_ins_duplicate_error_in_clust(
 			offsets = rec_get_offsets(rec, cursor->index, offsets,
 						  ULINT_UNDEFINED, &heap);
 
-			if (innobase_query_is_update()) {
+			if (trx->duplicates & TRX_DUP_IGNORE) {
 
 				/* If the SQL-query will update or replace
 				duplicate key we will take X-lock for
