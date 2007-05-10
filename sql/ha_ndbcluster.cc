@@ -3423,6 +3423,9 @@ int ha_ndbcluster::ndb_write_row(byte *record, bool primary_key_update,
 
   eventSetAnyValue(thd, op);
 
+  if (m_use_partition_function)
+    op->setPartitionId(part_id);
+
   uint blob_count= 0;
   if (table_share->blob_fields > 0)
   {
@@ -3432,9 +3435,6 @@ int ha_ndbcluster::ndb_write_row(byte *record, bool primary_key_update,
     if (res != 0)
       ERR_RETURN(op->getNdbError());
   }
-
-  if (m_use_partition_function)
-    op->setPartitionId(part_id);
 
   m_rows_changed++;
 
@@ -3693,6 +3693,9 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       ERR_RETURN(trans->getNdbError());  
   }
 
+  if (m_use_partition_function)
+    op->setPartitionId(new_part_id);
+
   uint blob_count;
   if (uses_blob_value(table->write_set))
   {
@@ -3702,9 +3705,6 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
     if (cursor && blob_count > 0)
       m_blobs_pending= TRUE;
   }
-
-  if (m_use_partition_function)
-    op->setPartitionId(new_part_id);
 
   eventSetAnyValue(thd, op);
 
@@ -3856,6 +3856,7 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
           {
 	    DBUG_PRINT("info",("[%u] NULL",
                                (*value).rec->getColumn()->getColumnNo()));
+            field->set_null(row_offset);
           }
           else
           {
@@ -3868,7 +3869,6 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
         else if (field->type() == MYSQL_TYPE_BIT)
         {
           Field_bit *field_bit= static_cast<Field_bit*>(field);
-          field_bit->set_notnull(row_offset);
 
           /*
             Move internal field pointer to point to 'buf'.  Calling
@@ -3913,7 +3913,6 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
         }
         else
         {
-          field->set_notnull(row_offset);
           DBUG_PRINT("info",("[%u] SET",
                              (*value).rec->getColumn()->getColumnNo()));
           DBUG_DUMP("info", (const char*) field->ptr, field->pack_length());
@@ -3928,6 +3927,7 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
         if (isNull == 1)
         {
           DBUG_PRINT("info",("[%u] NULL", col_no));
+          field->set_null(row_offset);
         }
         else if (isNull == -1)
         {
@@ -3936,7 +3936,6 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
         }
         else
         {
-          field->set_notnull(row_offset);
 #ifndef DBUG_OFF
           // pointer vas set in get_ndb_blobs_value
           Field_blob *field_blob= (Field_blob*)field;

@@ -2660,6 +2660,16 @@ NdbTransaction::scanIndex(
     op->m_this_bound_start= op->theTupKeyLen;
 
     /*
+      ToDo: This does not work, as it does not properly handle collations.
+      Ie. scanning a='aAa' and a='AaA' should use the same distribution key
+      for non-binary collations.
+      Part of WL#3682 should provide the facilities to fix this.
+      Long-term, it should be made possible in the protocol to specify a
+      (potentially different) bitmap of fragments to scan for _each_ individual
+      range in multi-range scan.
+    */
+#if 0
+    /*
       Now check if the range bounds a single distribution key. If so, we need
       scan only a single fragment.
 
@@ -2682,6 +2692,7 @@ NdbTransaction::scanIndex(
                                       distkey_min))
         set_distribution_key_from_range(op, key_record, bound.low_key, distkey_min);
     }
+#endif
   }
 
   if (unlikely(haveBlob))
