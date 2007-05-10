@@ -48,7 +48,7 @@
 #define OFFSET_TABLE_SIZE 512
 
 static uint read_huff_table(MI_BIT_BUFF *bit_buff,MI_DECODE_TREE *decode_tree,
-			    uint16 **decode_table,byte **intervall_buff,
+			    uint16 **decode_table,uchar **intervall_buff,
 			    uint16 *tmp_buff);
 static void make_quick_table(uint16 *to_table,uint16 *decode_table,
 			     uint *next_free,uint value,uint bits,
@@ -107,7 +107,7 @@ static void fill_buffer(MI_BIT_BUFF *bit_buff);
 static uint max_bit(uint value);
 #ifdef HAVE_MMAP
 static uchar *_mi_mempack_get_block_info(MI_INFO *myisam, MI_BIT_BUFF *bit_buff,
-                                         MI_BLOCK_INFO *info, byte **rec_buff_p,
+                                         MI_BLOCK_INFO *info, uchar **rec_buff_p,
 					 uchar *header);
 #endif
 
@@ -136,7 +136,8 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
   uint i,trees,huff_tree_bits,rec_reflength,length;
   uint16 *decode_table,*tmp_buff;
   ulong elements,intervall_length;
-  char *disk_cache,*intervall_buff;
+  char *disk_cache;
+  uchar *intervall_buff;
   uchar header[HEAD_LENGTH];
   MYISAM_SHARE *share=info->s;
   MI_BIT_BUFF bit_buff;
@@ -149,14 +150,14 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
 
   file=info->dfile;
   my_errno=0;
-  if (my_read(file,(byte*) header,sizeof(header),MYF(MY_NABP)))
+  if (my_read(file,(uchar*) header,sizeof(header),MYF(MY_NABP)))
   {
     if (!my_errno)
       my_errno=HA_ERR_END_OF_FILE;
     goto err0;
   }
   /* Only the first three bytes of magic number are independent of version. */
-  if (memcmp((byte*) header, (byte*) myisam_pack_file_magic, 3))
+  if (memcmp((uchar*) header, (uchar*) myisam_pack_file_magic, 3))
   {
     my_errno=HA_ERR_WRONG_IN_RECORD;
     goto err0;
@@ -195,10 +196,10 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
   */
   if (!(share->decode_trees=(MI_DECODE_TREE*)
 	my_malloc((uint) (trees*sizeof(MI_DECODE_TREE)+
-			  intervall_length*sizeof(byte)),
+			  intervall_length*sizeof(uchar)),
 		  MYF(MY_WME))))
     goto err0;
-  intervall_buff=(byte*) (share->decode_trees+trees);
+  intervall_buff=(uchar*) (share->decode_trees+trees);
 
   /*
     Memory segment #2:
@@ -215,7 +216,7 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
                   MYF(MY_WME | MY_ZEROFILL))))
     goto err1;
   tmp_buff=share->decode_tables+length;
-  disk_cache=(byte*) (tmp_buff+OFFSET_TABLE_SIZE);
+  disk_cache=(uchar*) (tmp_buff+OFFSET_TABLE_SIZE);
 
   if (my_read(file,disk_cache,
 	      (uint) (share->pack.header_length-sizeof(header)),
@@ -250,8 +251,8 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
       goto err3;
   /* Reallocate the decoding tables to the used size. */
   decode_table=(uint16*)
-    my_realloc((gptr) share->decode_tables,
-	       (uint) ((byte*) decode_table - (byte*) share->decode_tables),
+    my_realloc((uchar*) share->decode_tables,
+	       (uint) ((uchar*) decode_table - (uchar*) share->decode_tables),
 	       MYF(MY_HOLD_ON_ERROR));
   /* Fix the table addresses in the tree heads. */
   {
@@ -291,9 +292,9 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
 err3:
   my_errno=HA_ERR_WRONG_IN_RECORD;
 err2:
-  my_free((gptr) share->decode_tables,MYF(0));
+  my_free((uchar*) share->decode_tables,MYF(0));
 err1:
-  my_free((gptr) share->decode_trees,MYF(0));
+  my_free((uchar*) share->decode_trees,MYF(0));
 err0:
   DBUG_RETURN(1);
 }
@@ -318,7 +319,7 @@ err0:
 */
 
 static uint read_huff_table(MI_BIT_BUFF *bit_buff, MI_DECODE_TREE *decode_tree,
-			    uint16 **decode_table, byte **intervall_buff,
+			    uint16 **decode_table, uchar **intervall_buff,
 			    uint16 *tmp_buff)
 {
   uint min_chr,elements,char_bits,offset_bits,size,intervall_length,table_bits,
@@ -697,7 +698,7 @@ static uint find_longest_bitstream(uint16 *table, uint16 *end)
     HA_ERR_WRONG_IN_RECORD or -1        on error
 */
 
-int _mi_read_pack_record(MI_INFO *info, my_off_t filepos, byte *buf)
+int _mi_read_pack_record(MI_INFO *info, my_off_t filepos, uchar *buf)
 {
   MI_BLOCK_INFO block_info;
   File file;
@@ -710,7 +711,7 @@ int _mi_read_pack_record(MI_INFO *info, my_off_t filepos, byte *buf)
   if (_mi_pack_get_block_info(info, &info->bit_buff, &block_info,
                               &info->rec_buff, file, filepos))
     goto err;
-  if (my_read(file,(byte*) info->rec_buff + block_info.offset ,
+  if (my_read(file,(uchar*) info->rec_buff + block_info.offset ,
 	      block_info.rec_len - block_info.offset, MYF(MY_NABP)))
     goto panic;
   info->update|= HA_STATE_AKTIV;
@@ -725,9 +726,9 @@ err:
 
 
 int _mi_pack_rec_unpack(register MI_INFO *info, MI_BIT_BUFF *bit_buff,
-                        register byte *to, byte *from, ulong reclength)
+                        register uchar *to, uchar *from, ulong reclength)
 {
-  byte *end_field;
+  uchar *end_field;
   reg3 MI_COLUMNDEF *end;
   MI_COLUMNDEF *current_field;
   MYISAM_SHARE *share=info->s;
@@ -834,7 +835,7 @@ static void uf_space_normal(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
 			    uchar *end)
 {
   if (get_bit(bit_buff))
-    bfill((byte*) to,(end-to),' ');
+    bfill((uchar*) to,(end-to),' ');
   else
     decode_bytes(rec,bit_buff,to,end);
 }
@@ -844,7 +845,7 @@ static void uf_space_endspace_selected(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
 {
   uint spaces;
   if (get_bit(bit_buff))
-    bfill((byte*) to,(end-to),' ');
+    bfill((uchar*) to,(end-to),' ');
   else
   {
     if (get_bit(bit_buff))
@@ -856,7 +857,7 @@ static void uf_space_endspace_selected(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
       }
       if (to+spaces != end)
 	decode_bytes(rec,bit_buff,to,end-spaces);
-      bfill((byte*) end-spaces,spaces,' ');
+      bfill((uchar*) end-spaces,spaces,' ');
     }
     else
       decode_bytes(rec,bit_buff,to,end);
@@ -876,7 +877,7 @@ static void uf_endspace_selected(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
     }
     if (to+spaces != end)
       decode_bytes(rec,bit_buff,to,end-spaces);
-    bfill((byte*) end-spaces,spaces,' ');
+    bfill((uchar*) end-spaces,spaces,' ');
   }
   else
     decode_bytes(rec,bit_buff,to,end);
@@ -887,7 +888,7 @@ static void uf_space_endspace(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *t
 {
   uint spaces;
   if (get_bit(bit_buff))
-    bfill((byte*) to,(end-to),' ');
+    bfill((uchar*) to,(end-to),' ');
   else
   {
     if ((spaces=get_bits(bit_buff,rec->space_length_bits))+to > end)
@@ -897,7 +898,7 @@ static void uf_space_endspace(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *t
     }
     if (to+spaces != end)
       decode_bytes(rec,bit_buff,to,end-spaces);
-    bfill((byte*) end-spaces,spaces,' ');
+    bfill((uchar*) end-spaces,spaces,' ');
   }
 }
 
@@ -912,7 +913,7 @@ static void uf_endspace(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
   }
   if (to+spaces != end)
     decode_bytes(rec,bit_buff,to,end-spaces);
-  bfill((byte*) end-spaces,spaces,' ');
+  bfill((uchar*) end-spaces,spaces,' ');
 }
 
 static void uf_space_prespace_selected(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
@@ -920,7 +921,7 @@ static void uf_space_prespace_selected(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
 {
   uint spaces;
   if (get_bit(bit_buff))
-    bfill((byte*) to,(end-to),' ');
+    bfill((uchar*) to,(end-to),' ');
   else
   {
     if (get_bit(bit_buff))
@@ -930,7 +931,7 @@ static void uf_space_prespace_selected(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
 	bit_buff->error=1;
 	return;
       }
-      bfill((byte*) to,spaces,' ');
+      bfill((uchar*) to,spaces,' ');
       if (to+spaces != end)
 	decode_bytes(rec,bit_buff,to+spaces,end);
     }
@@ -951,7 +952,7 @@ static void uf_prespace_selected(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
       bit_buff->error=1;
       return;
     }
-    bfill((byte*) to,spaces,' ');
+    bfill((uchar*) to,spaces,' ');
     if (to+spaces != end)
       decode_bytes(rec,bit_buff,to+spaces,end);
   }
@@ -965,7 +966,7 @@ static void uf_space_prespace(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *t
 {
   uint spaces;
   if (get_bit(bit_buff))
-    bfill((byte*) to,(end-to),' ');
+    bfill((uchar*) to,(end-to),' ');
   else
   {
     if ((spaces=get_bits(bit_buff,rec->space_length_bits))+to > end)
@@ -973,7 +974,7 @@ static void uf_space_prespace(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *t
       bit_buff->error=1;
       return;
     }
-    bfill((byte*) to,spaces,' ');
+    bfill((uchar*) to,spaces,' ');
     if (to+spaces != end)
       decode_bytes(rec,bit_buff,to+spaces,end);
   }
@@ -988,7 +989,7 @@ static void uf_prespace(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
     bit_buff->error=1;
     return;
   }
-  bfill((byte*) to,spaces,' ');
+  bfill((uchar*) to,spaces,' ');
   if (to+spaces != end)
     decode_bytes(rec,bit_buff,to+spaces,end);
 }
@@ -1031,7 +1032,7 @@ static void uf_blob(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
 		    uchar *to, uchar *end)
 {
   if (get_bit(bit_buff))
-    bzero((byte*) to,(end-to));
+    bzero((uchar*) to,(end-to));
   else
   {
     ulong length=get_bits(bit_buff,rec->space_length_bits);
@@ -1039,11 +1040,11 @@ static void uf_blob(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
     if (bit_buff->blob_pos+length > bit_buff->blob_end)
     {
       bit_buff->error=1;
-      bzero((byte*) to,(end-to));
+      bzero((uchar*) to,(end-to));
       return;
     }
     decode_bytes(rec,bit_buff,bit_buff->blob_pos,bit_buff->blob_pos+length);
-    _my_store_blob_length((byte*) to,pack_length,length);
+    _my_store_blob_length((uchar*) to,pack_length,length);
     memcpy_fixed((char*) to+pack_length,(char*) &bit_buff->blob_pos,
 		 sizeof(char*));
     bit_buff->blob_pos+=length;
@@ -1286,7 +1287,7 @@ static uint decode_pos(MI_BIT_BUFF *bit_buff, MI_DECODE_TREE *decode_tree)
 }
 
 
-int _mi_read_rnd_pack_record(MI_INFO *info, byte *buf,
+int _mi_read_rnd_pack_record(MI_INFO *info, uchar *buf,
 			     register my_off_t filepos,
 			     my_bool skip_deleted_blocks)
 {
@@ -1303,7 +1304,7 @@ int _mi_read_rnd_pack_record(MI_INFO *info, byte *buf,
 
   if (info->opt_flag & READ_CACHE_USED)
   {
-    if (_mi_read_cache(&info->rec_cache, (byte*) block_info.header,
+    if (_mi_read_cache(&info->rec_cache, (uchar*) block_info.header,
                        filepos, share->pack.ref_length,
                        skip_deleted_blocks ? READING_NEXT : 0))
       goto err;
@@ -1325,14 +1326,14 @@ int _mi_read_rnd_pack_record(MI_INFO *info, byte *buf,
 
   if (info->opt_flag & READ_CACHE_USED)
   {
-    if (_mi_read_cache(&info->rec_cache, (byte*) info->rec_buff,
+    if (_mi_read_cache(&info->rec_cache, (uchar*) info->rec_buff,
                        block_info.filepos, block_info.rec_len,
                        skip_deleted_blocks ? READING_NEXT : 0))
       goto err;
   }
   else
   {
-    if (my_read(info->dfile,(byte*) info->rec_buff + block_info.offset,
+    if (my_read(info->dfile,(uchar*) info->rec_buff + block_info.offset,
 		block_info.rec_len-block_info.offset,
 		MYF(MY_NABP)))
       goto err;
@@ -1352,7 +1353,7 @@ int _mi_read_rnd_pack_record(MI_INFO *info, byte *buf,
 	/* Read and process header from a huff-record-file */
 
 uint _mi_pack_get_block_info(MI_INFO *myisam, MI_BIT_BUFF *bit_buff,
-                             MI_BLOCK_INFO *info, byte **rec_buff_p,
+                             MI_BLOCK_INFO *info, uchar **rec_buff_p,
                              File file, my_off_t filepos)
 {
   uchar *header=info->header;
@@ -1369,7 +1370,7 @@ uint _mi_pack_get_block_info(MI_INFO *myisam, MI_BIT_BUFF *bit_buff,
     VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
     if (my_read(file,(char*) header,ref_length,MYF(MY_NABP)))
       return BLOCK_FATAL_ERROR;
-    DBUG_DUMP("header",(byte*) header,ref_length);
+    DBUG_DUMP("header",(uchar*) header,ref_length);
   }
   head_length= read_pack_length((uint) myisam->s->pack.version, header,
                                 &info->rec_len);
@@ -1478,8 +1479,8 @@ static uint max_bit(register uint value)
 
 #ifdef HAVE_MMAP
 
-static int _mi_read_mempack_record(MI_INFO *info,my_off_t filepos,byte *buf);
-static int _mi_read_rnd_mempack_record(MI_INFO*, byte *,my_off_t, my_bool);
+static int _mi_read_mempack_record(MI_INFO *info,my_off_t filepos,uchar *buf);
+static int _mi_read_rnd_mempack_record(MI_INFO*, uchar *,my_off_t, my_bool);
 
 my_bool _mi_memmap_file(MI_INFO *info)
 {
@@ -1512,7 +1513,7 @@ void _mi_unmap_file(MI_INFO *info)
 
 
 static uchar *_mi_mempack_get_block_info(MI_INFO *myisam, MI_BIT_BUFF *bit_buff,
-                                         MI_BLOCK_INFO *info, byte **rec_buff_p,
+                                         MI_BLOCK_INFO *info, uchar **rec_buff_p,
 					 uchar *header)
 {
   header+= read_pack_length((uint) myisam->s->pack.version, header,
@@ -1532,17 +1533,17 @@ static uchar *_mi_mempack_get_block_info(MI_INFO *myisam, MI_BIT_BUFF *bit_buff,
 }
 
 
-static int _mi_read_mempack_record(MI_INFO *info, my_off_t filepos, byte *buf)
+static int _mi_read_mempack_record(MI_INFO *info, my_off_t filepos, uchar *buf)
 {
   MI_BLOCK_INFO block_info;
   MYISAM_SHARE *share=info->s;
-  byte *pos;
+  uchar *pos;
   DBUG_ENTER("mi_read_mempack_record");
 
   if (filepos == HA_OFFSET_ERROR)
     DBUG_RETURN(-1);			/* _search() didn't find record */
 
-  if (!(pos= (byte*) _mi_mempack_get_block_info(info, &info->bit_buff,
+  if (!(pos= (uchar*) _mi_mempack_get_block_info(info, &info->bit_buff,
                                                 &block_info, &info->rec_buff,
 						(uchar*) share->file_map+
 						filepos)))
@@ -1553,14 +1554,14 @@ static int _mi_read_mempack_record(MI_INFO *info, my_off_t filepos, byte *buf)
 
 
 /*ARGSUSED*/
-static int _mi_read_rnd_mempack_record(MI_INFO *info, byte *buf,
+static int _mi_read_rnd_mempack_record(MI_INFO *info, uchar *buf,
 				       register my_off_t filepos,
 				       my_bool skip_deleted_blocks
 				       __attribute__((unused)))
 {
   MI_BLOCK_INFO block_info;
   MYISAM_SHARE *share=info->s;
-  byte *pos,*start;
+  uchar *pos,*start;
   DBUG_ENTER("_mi_read_rnd_mempack_record");
 
   if (filepos >= share->state.state.data_file_length)
@@ -1568,7 +1569,7 @@ static int _mi_read_rnd_mempack_record(MI_INFO *info, byte *buf,
     my_errno=HA_ERR_END_OF_FILE;
     goto err;
   }
-  if (!(pos= (byte*) _mi_mempack_get_block_info(info, &info->bit_buff,
+  if (!(pos= (uchar*) _mi_mempack_get_block_info(info, &info->bit_buff,
                                                 &block_info, &info->rec_buff,
 						(uchar*)
 						(start=share->file_map+
@@ -1596,7 +1597,7 @@ static int _mi_read_rnd_mempack_record(MI_INFO *info, byte *buf,
 
 	/* Save length of row */
 
-uint save_pack_length(uint version, byte *block_buff, ulong length)
+uint save_pack_length(uint version, uchar *block_buff, ulong length)
 {
   if (length < 254)
   {

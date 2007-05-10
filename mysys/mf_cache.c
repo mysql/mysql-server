@@ -58,7 +58,7 @@ static my_bool cache_remove_open_tmp(IO_CACHE *cache __attribute__((unused)),
 	*/
 
 my_bool open_cached_file(IO_CACHE *cache, const char* dir, const char *prefix,
-			  uint cache_size, myf cache_myflags)
+                         size_t cache_size, myf cache_myflags)
 {
   DBUG_ENTER("open_cached_file");
   cache->dir=	 dir ? my_strdup(dir,MYF(cache_myflags & MY_WME)) : (char*) 0;

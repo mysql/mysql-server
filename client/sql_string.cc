@@ -32,7 +32,7 @@
   required by the string function
 */
 
-extern gptr sql_alloc(unsigned size);
+extern void sql_alloc(size_t size);
 extern void sql_element_free(void *ptr);
 
 #include "sql_string.h"
@@ -506,7 +506,7 @@ bool String::append(FILE* file, uint32 arg_length, myf my_flags)
 {
   if (realloc(str_length+arg_length))
     return TRUE;
-  if (my_fread(file, (byte*) Ptr + str_length, arg_length, my_flags))
+  if (my_fread(file, (uchar*) Ptr + str_length, arg_length, my_flags))
   {
     shrink(str_length);
     return TRUE;
@@ -520,7 +520,7 @@ bool String::append(IO_CACHE* file, uint32 arg_length)
 {
   if (realloc(str_length+arg_length))
     return TRUE;
-  if (my_b_read(file, (byte*) Ptr + str_length, arg_length))
+  if (my_b_read(file, (uchar*) Ptr + str_length, arg_length))
   {
     shrink(str_length);
     return TRUE;
@@ -645,7 +645,7 @@ bool String::replace(uint32 offset,uint32 arg_length,
       {
 	if (realloc(str_length+(uint32) diff))
 	  return TRUE;
-	bmove_upp(Ptr+str_length+diff,Ptr+str_length,
+	bmove_upp((uchar*) Ptr+str_length+diff, (uchar*) Ptr+str_length,
 		  str_length-offset-arg_length);
       }
       if (to_length)

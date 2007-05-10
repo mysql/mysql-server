@@ -98,7 +98,7 @@ struct Query_cache_block
   void init(ulong length);
   void destroy();
   inline uint headers_len();
-  inline gptr data(void);
+  inline uchar* data(void);
   inline Query_cache_query *query();
   inline Query_cache_table *table();
   inline Query_cache_result *result();
@@ -128,17 +128,15 @@ struct Query_cache_query
   inline ulong length()			   { return len; }
   inline ulong add(ulong packet_len)	   { return(len+= packet_len); }
   inline void length(ulong length_arg)	   { len= length_arg; }
-  inline gptr query()
+  inline uchar* query()
   {
-    return (gptr)(((byte*)this)+
-		  ALIGN_SIZE(sizeof(Query_cache_query)));
+    return (((uchar*)this) + ALIGN_SIZE(sizeof(Query_cache_query)));
   }
   void lock_writing();
   void lock_reading();
   my_bool try_lock_writing();
   void unlock_writing();
   void unlock_reading();
-  static byte *cache_key(const byte *record, uint *length, my_bool not_used);
 };
 
 
@@ -164,9 +162,9 @@ struct Query_cache_table
   inline void callback(qc_engine_callback fn){ callback_func= fn; }
   inline ulonglong engine_data()             { return engine_data_buff; }
   inline void engine_data(ulonglong data_arg){ engine_data_buff= data_arg; }
-  inline gptr data()
+  inline uchar* data()
   {
-    return (gptr)(((byte*)this)+
+    return (uchar*)(((uchar*)this)+
 		  ALIGN_SIZE(sizeof(Query_cache_table)));
   }
 };
@@ -176,9 +174,9 @@ struct Query_cache_result
   Query_cache_result() {}                     /* Remove gcc warning */
   Query_cache_block *query;
 
-  inline gptr data()
+  inline uchar* data()
   {
-    return (gptr)(((byte*) this)+
+    return (uchar*)(((uchar*) this)+
 		  ALIGN_SIZE(sizeof(Query_cache_result)));
   }
   /* data_continue (if not whole packet contained by this block) */
@@ -189,10 +187,10 @@ struct Query_cache_result
 
 extern "C"
 {
-  byte *query_cache_query_get_key(const byte *record, uint *length,
-				  my_bool not_used);
-  byte *query_cache_table_get_key(const byte *record, uint *length,
-				  my_bool not_used);
+  uchar *query_cache_query_get_key(const uchar *record, size_t *length,
+                                   my_bool not_used);
+  uchar *query_cache_table_get_key(const uchar *record, size_t *length,
+                                   my_bool not_used);
 }
 extern "C" void query_cache_invalidate_by_MyISAM_filename(const char* filename);
 
@@ -261,7 +259,7 @@ protected:
     till the end of a flush operation.
   */
   pthread_mutex_t structure_guard_mutex;
-  byte *cache;					// cache memory
+  uchar *cache;					// cache memory
   Query_cache_block *first_block;		// physical location block list
   Query_cache_block *queries_blocks;		// query list (LIFO)
   Query_cache_block *tables_blocks;
@@ -299,7 +297,7 @@ protected:
 			      my_bool first_block);
   void invalidate_table(TABLE_LIST *table);
   void invalidate_table(TABLE *table);
-  void invalidate_table(byte *key, uint32  key_length);
+  void invalidate_table(uchar *key, uint32  key_length);
   void invalidate_table(Query_cache_block *table_block);
   TABLE_COUNTER_TYPE
     register_tables_from_list(TABLE_LIST *tables_used,
@@ -324,7 +322,7 @@ protected:
 				 ulong add_size);
   void exclude_from_free_memory_list(Query_cache_block *free_block);
   void insert_into_free_memory_list(Query_cache_block *new_block);
-  my_bool move_by_type(byte **border, Query_cache_block **before,
+  my_bool move_by_type(uchar **border, Query_cache_block **before,
 		       ulong *gap, Query_cache_block *i);
   uint find_bin(ulong size);
   void move_to_query_list_end(Query_cache_block *block);
@@ -346,16 +344,16 @@ protected:
   ulong init_cache();
   void make_disabled();
   void free_cache();
-  Query_cache_block *write_block_data(ulong data_len, gptr data,
+  Query_cache_block *write_block_data(ulong data_len, uchar* data,
 				       ulong header_len,
 				       Query_cache_block::block_type type,
 				       TABLE_COUNTER_TYPE ntab = 0,
 				       my_bool under_guard=0);
   my_bool append_result_data(Query_cache_block **result,
-			     ulong data_len, gptr data,
+			     ulong data_len, uchar* data,
 			     Query_cache_block *parent);
   my_bool write_result_data(Query_cache_block **result,
-			    ulong data_len, gptr data,
+			    ulong data_len, uchar* data,
 			    Query_cache_block *parent,
 			    Query_cache_block::block_type
 			    type=Query_cache_block::RESULT);

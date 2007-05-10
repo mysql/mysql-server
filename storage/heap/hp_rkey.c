@@ -15,10 +15,10 @@
 
 #include "heapdef.h"
 
-int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key, 
+int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key, 
               key_part_map keypart_map, enum ha_rkey_function find_flag)
 {
-  byte *pos;
+  uchar *pos;
   HP_SHARE *share= info->s;
   HP_KEYDEF *keyinfo= share->keydef + inx;
   DBUG_ENTER("heap_rkey");
@@ -53,7 +53,7 @@ int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key,
       info->update= 0;
       DBUG_RETURN(my_errno= HA_ERR_KEY_NOT_FOUND);
     }
-    memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos), sizeof(byte*));
+    memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos), sizeof(uchar*));
     info->current_ptr= pos;
   }
   else
@@ -74,7 +74,7 @@ int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key,
 
 	/* Quick find of record */
 
-gptr heap_find(HP_INFO *info, int inx, const byte *key)
+uchar* heap_find(HP_INFO *info, int inx, const uchar *key)
 {
   return hp_search(info, info->s->keydef + inx, key, 0);
 }

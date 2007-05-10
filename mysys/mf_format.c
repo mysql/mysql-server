@@ -23,18 +23,19 @@
   The arguments should be in unix format.
 */
 
-my_string fn_format(my_string to, const char *name, const char *dir,
+char * fn_format(char * to, const char *name, const char *dir,
 		    const char *extension, uint flag)
 {
-  reg1 uint length;
   char dev[FN_REFLEN], buff[FN_REFLEN], *pos, *startpos;
   const char *ext;
+  reg1 size_t length;
+  size_t dev_length;
   DBUG_ENTER("fn_format");
   DBUG_PRINT("enter",("name: %s  dir: %s  extension: %s  flag: %d",
 		       name,dir,extension,flag));
 
   /* Copy and skip directory */
-  name+=(length=dirname_part(dev,(startpos=(my_string) name)));
+  name+=(length=dirname_part(dev, (startpos=(char *) name), &dev_length));
   if (length == 0 || (flag & MY_REPLACE_DIR))
   {
     /* Use given directory */
@@ -63,7 +64,7 @@ my_string fn_format(my_string to, const char *name, const char *dir,
     }
     else
     {
-      length=(uint) (pos-(char*) name);		/* Change extension */
+      length= (size_t) (pos-(char*) name);	/* Change extension */
       ext= extension;
     }
   }
@@ -76,18 +77,19 @@ my_string fn_format(my_string to, const char *name, const char *dir,
   if (strlen(dev)+length+strlen(ext) >= FN_REFLEN || length >= FN_LEN )
   {
     /* To long path, return original or NULL */
-    uint tmp_length;
+    size_t tmp_length;
     if (flag & MY_SAFE_PATH)
       return NullS;
-    tmp_length=strlength(startpos);
-    DBUG_PRINT("error",("dev: '%s'  ext: '%s'  length: %d",dev,ext,length));
+    tmp_length= strlength(startpos);
+    DBUG_PRINT("error",("dev: '%s'  ext: '%s'  length: %u",dev,ext,
+                        (uint) length));
     (void) strmake(to,startpos,min(tmp_length,FN_REFLEN-1));
   }
   else
   {
     if (to == startpos)
     {
-      bmove(buff,(char*) name,length);		/* Save name for last copy */
+      bmove(buff,(uchar*) name,length);		/* Save name for last copy */
       name=buff;
     }
     pos=strmake(strmov(to,dev),name,length);
@@ -109,18 +111,18 @@ my_string fn_format(my_string to, const char *name, const char *dir,
 } /* fn_format */
 
 
-	/*
-	  strlength(const string str)
-	  Return length of string with end-space:s not counted.
-	  */
+/*
+  strlength(const string str)
+  Return length of string with end-space:s not counted.
+*/
 
-size_s strlength(const char *str)
+size_t strlength(const char *str)
 {
-  reg1 my_string pos;
-  reg2 my_string found;
+  reg1 const char * pos;
+  reg2 const char * found;
   DBUG_ENTER("strlength");
 
-  pos=found=(char*) str;
+  pos= found= str;
 
   while (*pos)
   {
@@ -136,5 +138,5 @@ size_s strlength(const char *str)
     found=pos;
     while (*++pos == ' ') {};
   }
-  DBUG_RETURN((size_s) (found-(char*) str));
+  DBUG_RETURN((size_t) (found - str));
 } /* strlength */

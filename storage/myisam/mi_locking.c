@@ -254,7 +254,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
   pthread_mutex_unlock(&share->intern_lock);
 #if defined(FULL_LOG) || defined(_lint)
   lock_type|=(int) (flag << 8);		/* Set bit to set if real lock */
-  myisam_log_command(MI_LOG_LOCK,info,(byte*) &lock_type,sizeof(lock_type),
+  myisam_log_command(MI_LOG_LOCK,info,(uchar*) &lock_type,sizeof(lock_type),
 		     error);
 #endif
   DBUG_RETURN(error);

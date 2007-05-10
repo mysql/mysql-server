@@ -191,7 +191,7 @@ int my_error_register(const char **errmsgs, int first, int last)
   /* Error numbers must be unique. No overlapping is allowed. */
   if (*search_meh_pp && ((*search_meh_pp)->meh_first <= last))
   {
-    my_free((gptr)meh_p, MYF(0));
+    my_free((uchar*)meh_p, MYF(0));
     return 1;
   }
 
@@ -247,7 +247,7 @@ const char **my_error_unregister(int first, int last)
 
   /* Save the return value and free the header. */
   errmsgs= meh_p->meh_errmsgs;
-  my_free((gptr) meh_p, MYF(0));
+  my_free((uchar*) meh_p, MYF(0));
   
   return errmsgs;
 }
@@ -259,7 +259,7 @@ void my_error_unregister_all(void)
   for (list= my_errmsgs_globerrs.meh_next; list; list= next)
   {
     next= list->meh_next;
-    my_free((gptr) list, MYF(0));
+    my_free((uchar*) list, MYF(0));
   }
   my_errmsgs_list= &my_errmsgs_globerrs;
 }

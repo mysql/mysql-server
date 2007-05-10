@@ -349,7 +349,7 @@ static void push_locks_into_array(DYNAMIC_ARRAY *ar, THR_LOCK_DATA *data,
       table_lock_info.lock_text=text;
       // lock_type is also obtainable from THR_LOCK_DATA
       table_lock_info.type=table->reginfo.lock_type;
-      VOID(push_dynamic(ar,(gptr) &table_lock_info));
+      VOID(push_dynamic(ar,(uchar*) &table_lock_info));
     }
   }
 }
@@ -394,7 +394,7 @@ static void display_table_locks(void)
   VOID(pthread_mutex_unlock(&THR_LOCK_lock));
   if (!saved_table_locks.elements) goto end;
   
-  qsort((gptr) dynamic_element(&saved_table_locks,0,TABLE_LOCK_INFO *),saved_table_locks.elements,sizeof(TABLE_LOCK_INFO),(qsort_cmp) dl_compare);
+  qsort((uchar*) dynamic_element(&saved_table_locks,0,TABLE_LOCK_INFO *),saved_table_locks.elements,sizeof(TABLE_LOCK_INFO),(qsort_cmp) dl_compare);
   freeze_size(&saved_table_locks);
 
   puts("\nThread database.table_name          Locked/Waiting        Lock_type\n");

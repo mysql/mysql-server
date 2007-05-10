@@ -45,7 +45,7 @@ public:
 
   bool append(Elem &el)
   {
-    return (insert_dynamic(&array, (gptr)&el));
+    return (insert_dynamic(&array, (uchar*)&el));
   }
 
   int elements()

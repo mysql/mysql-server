@@ -2601,7 +2601,7 @@ static uint xml_parent_tag(MY_XML_NODE *items, uint nitems, uint level)
   RETURN
     Currently only MY_XML_OK
 */
-static int xml_enter(MY_XML_PARSER *st,const char *attr, uint len)
+static int xml_enter(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   MY_XML_USER_DATA *data= (MY_XML_USER_DATA*)st->user_data;
   MY_XML_NODE *nodes= (MY_XML_NODE*) data->pxml->ptr();
@@ -2632,7 +2632,7 @@ static int xml_enter(MY_XML_PARSER *st,const char *attr, uint len)
   RETURN
     Currently only MY_XML_OK
 */
-static int xml_value(MY_XML_PARSER *st,const char *attr, uint len)
+static int xml_value(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   MY_XML_USER_DATA *data= (MY_XML_USER_DATA*)st->user_data;
   MY_XML_NODE *nodes= (MY_XML_NODE*) data->pxml->ptr();
@@ -2662,7 +2662,7 @@ static int xml_value(MY_XML_PARSER *st,const char *attr, uint len)
   RETURN
     Currently only MY_XML_OK
 */
-static int xml_leave(MY_XML_PARSER *st,const char *attr, uint len)
+static int xml_leave(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   MY_XML_USER_DATA *data= (MY_XML_USER_DATA*)st->user_data;
   DBUG_ASSERT(data->level > 0);
@@ -2712,7 +2712,7 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf)
   if ((rc= my_xml_parse(&p, raw_xml->ptr(), raw_xml->length())) != MY_XML_OK)
   {
     char buf[128];
-    my_snprintf(buf, sizeof(buf)-1, "parse error at line %d pos %d: %s",
+    my_snprintf(buf, sizeof(buf)-1, "parse error at line %d pos %lu: %s",
                 my_xml_error_lineno(&p) + 1,
                 my_xml_error_pos(&p) + 1,
                 my_xml_error_string(&p));

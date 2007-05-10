@@ -26,7 +26,7 @@
   {p_0, p_1, ...} serve as indexes to descend the blocks tree.
 */
 
-byte *hp_find_block(HP_BLOCK *block, ulong pos)
+uchar *hp_find_block(HP_BLOCK *block, ulong pos)
 {
   reg1 int i;
   reg3 HP_PTRS *ptr; /* block base ptr */
@@ -36,12 +36,13 @@ byte *hp_find_block(HP_BLOCK *block, ulong pos)
     ptr=(HP_PTRS*)ptr->blocks[pos/block->level_info[i].records_under_level];
     pos%=block->level_info[i].records_under_level;
   }
-  return (byte*) ptr+ pos*block->recbuffer;
+  return (uchar*) ptr+ pos*block->recbuffer;
 }
 
 
 /*
   Get one new block-of-records. Alloc ptr to block if needed
+
   SYNOPSIS
     hp_get_new_block()
       block             HP_BLOCK tree-like block
@@ -53,7 +54,7 @@ byte *hp_find_block(HP_BLOCK *block, ulong pos)
     1  Out of memory
 */
 
-int hp_get_new_block(HP_BLOCK *block, ulong *alloc_length)
+int hp_get_new_block(HP_BLOCK *block, size_t *alloc_length)
 {
   reg1 uint i,j;
   HP_PTRS *root;
@@ -101,13 +102,13 @@ int hp_get_new_block(HP_BLOCK *block, ulong *alloc_length)
     /* Occupy the free slot we've found at level i */
     block->level_info[i].last_blocks->
       blocks[HP_PTRS_IN_NOD - block->level_info[i].free_ptrs_in_block--]=
-	(byte*) root;
+	(uchar*) root;
     
     /* Add a block subtree with each node having one left-most child */
     for (j=i-1 ; j >0 ; j--)
     {
       block->level_info[j].last_blocks= root++;
-      block->level_info[j].last_blocks->blocks[0]=(byte*) root;
+      block->level_info[j].last_blocks->blocks[0]=(uchar*) root;
       block->level_info[j].free_ptrs_in_block=HP_PTRS_IN_NOD-1;
     }
     
@@ -124,27 +125,27 @@ int hp_get_new_block(HP_BLOCK *block, ulong *alloc_length)
 
 	/* free all blocks under level */
 
-byte *hp_free_level(HP_BLOCK *block, uint level, HP_PTRS *pos, byte *last_pos)
+uchar *hp_free_level(HP_BLOCK *block, uint level, HP_PTRS *pos, uchar *last_pos)
 {
   int i,max_pos;
-  byte *next_ptr;
+  uchar *next_ptr;
 
   if (level == 1)
-    next_ptr=(byte*) pos+block->recbuffer;
+    next_ptr=(uchar*) pos+block->recbuffer;
   else
   {
     max_pos= (block->level_info[level-1].last_blocks == pos) ?
       HP_PTRS_IN_NOD - block->level_info[level-1].free_ptrs_in_block :
     HP_PTRS_IN_NOD;
 
-    next_ptr=(byte*) (pos+1);
+    next_ptr=(uchar*) (pos+1);
     for (i=0 ; i < max_pos ; i++)
       next_ptr=hp_free_level(block,level-1,
 			      (HP_PTRS*) pos->blocks[i],next_ptr);
   }
-  if ((byte*) pos != last_pos)
+  if ((uchar*) pos != last_pos)
   {
-    my_free((gptr) pos,MYF(0));
+    my_free((uchar*) pos,MYF(0));
     return last_pos;
   }
   return next_ptr;			/* next memory position */

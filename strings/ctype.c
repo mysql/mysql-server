@@ -111,7 +111,7 @@ static struct my_cs_file_section_st sec[] =
   {0,	NULL}
 };
 
-static struct my_cs_file_section_st * cs_file_sec(const char *attr, uint len)
+static struct my_cs_file_section_st * cs_file_sec(const char *attr, size_t len)
 {
   struct my_cs_file_section_st *s;
   for (s=sec; s->str; s++)
@@ -160,7 +160,7 @@ static int fill_uchar(uchar *a,uint size,const char *str, uint len)
   return 0;
 }
 
-static int fill_uint16(uint16 *a,uint size,const char *str, uint len)
+static int fill_uint16(uint16 *a,uint size,const char *str, size_t len)
 {
   uint i= 0;
   
@@ -178,7 +178,7 @@ static int fill_uint16(uint16 *a,uint size,const char *str, uint len)
 }
 
 
-static int cs_enter(MY_XML_PARSER *st,const char *attr, uint len)
+static int cs_enter(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   struct my_cs_file_info *i= (struct my_cs_file_info *)st->user_data;
   struct my_cs_file_section_st *s= cs_file_sec(attr,len);
@@ -193,7 +193,7 @@ static int cs_enter(MY_XML_PARSER *st,const char *attr, uint len)
 }
 
 
-static int cs_leave(MY_XML_PARSER *st,const char *attr, uint len)
+static int cs_leave(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   struct my_cs_file_info *i= (struct my_cs_file_info *)st->user_data;
   struct my_cs_file_section_st *s= cs_file_sec(attr,len);
@@ -211,11 +211,12 @@ static int cs_leave(MY_XML_PARSER *st,const char *attr, uint len)
 }
 
 
-static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
+static int cs_value(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   struct my_cs_file_info *i= (struct my_cs_file_info *)st->user_data;
   struct my_cs_file_section_st *s;
-  int    state= (int)((s=cs_file_sec(st->attr, (int) strlen(st->attr))) ? s->state : 0);
+  int    state= (int)((s=cs_file_sec(st->attr, strlen(st->attr))) ? s->state :
+                      0);
   
   switch (state) {
   case _CS_ID:
@@ -289,8 +290,8 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
 }
 
 
-my_bool my_parse_charset_xml(const char *buf, uint len, 
-				    int (*add_collation)(CHARSET_INFO *cs))
+my_bool my_parse_charset_xml(const char *buf, size_t len,
+                             int (*add_collation)(CHARSET_INFO *cs))
 {
   MY_XML_PARSER p;
   struct my_cs_file_info i;

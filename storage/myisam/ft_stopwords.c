@@ -38,7 +38,7 @@ static void FT_STOPWORD_free(FT_STOPWORD *w, TREE_FREE action,
                              void *arg __attribute__((unused)))
 {
   if (action == free_free)
-    my_free((gptr) w->pos, MYF(0));
+    my_free((uchar*) w->pos, MYF(0));
 }
 
 static int ft_add_stopword(const char *w)
@@ -65,7 +65,7 @@ int ft_init_stopwords()
   {
     File fd;
     uint len;
-    byte *buffer, *start, *end;
+    uchar *buffer, *start, *end;
     FT_WORD w;
     int error=-1;
 

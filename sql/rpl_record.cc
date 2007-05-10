@@ -51,14 +51,14 @@
    @return The number of bytes written at @c row_data.
  */
 #if !defined(MYSQL_CLIENT)
-my_size_t
+size_t
 pack_row(TABLE *table, MY_BITMAP const* cols,
-         byte *row_data, const byte *record)
+         uchar *row_data, const uchar *record)
 {
   Field **p_field= table->field, *field;
   int const null_byte_count= (bitmap_bits_set(cols) + 7) / 8;
-  byte *pack_ptr = row_data + null_byte_count;
-  byte *null_ptr = row_data;
+  uchar *pack_ptr = row_data + null_byte_count;
+  uchar *null_ptr = row_data;
   my_ptrdiff_t const rec_offset= record - table->record[0];
   my_ptrdiff_t const def_offset= table->s->default_values - table->record[0];
 
@@ -90,7 +90,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
         /*
           We only store the data of the field if it is non-null
          */
-        pack_ptr= (byte*)field->pack((char *) pack_ptr, field->ptr + offset);
+        pack_ptr= field->pack(pack_ptr, field->ptr + offset);
       }
 
       null_mask <<= 1;
@@ -119,7 +119,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
   */
   DBUG_ASSERT(null_ptr == row_data + null_byte_count);
 
-  return static_cast<my_size_t>(pack_ptr - row_data);
+  return static_cast<size_t>(pack_ptr - row_data);
 }
 #endif
 
@@ -164,17 +164,17 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
 int
 unpack_row(RELAY_LOG_INFO const *rli,
            TABLE *table, uint const colcnt,
-           char const *const row_data, MY_BITMAP const *cols,
-           char const **const row_end, ulong *const master_reclength,
+           uchar const *const row_data, MY_BITMAP const *cols,
+           uchar const **const row_end, ulong *const master_reclength,
            MY_BITMAP* const rw_set, Log_event_type const event_type)
 {
   DBUG_ENTER("unpack_row");
   DBUG_ASSERT(row_data);
-  my_size_t const master_null_byte_count= (bitmap_bits_set(cols) + 7) / 8;
+  size_t const master_null_byte_count= (bitmap_bits_set(cols) + 7) / 8;
   int error= 0;
 
-  char const *null_ptr= row_data;
-  char const *pack_ptr= row_data + master_null_byte_count;
+  uchar const *null_ptr= row_data;
+  uchar const *pack_ptr= row_data + master_null_byte_count;
 
   bitmap_clear_all(rw_set);
 
@@ -239,7 +239,7 @@ unpack_row(RELAY_LOG_INFO const *rli,
   if (master_reclength)
   {
     if (*field_ptr)
-      *master_reclength = (*field_ptr)->ptr - (char*) table->record[0];
+      *master_reclength = (*field_ptr)->ptr - table->record[0];
     else
       *master_reclength = table->s->reclength;
   }

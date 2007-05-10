@@ -26,8 +26,8 @@
 #endif
 
 static uint my_get_large_page_size_int(void);
-static gptr my_large_malloc_int(uint size, myf my_flags);
-static my_bool my_large_free_int(gptr ptr, myf my_flags);
+static uchar* my_large_malloc_int(size_t size, myf my_flags);
+static my_bool my_large_free_int(uchar* ptr, myf my_flags);
 
 /* Gets the size of large pages from the OS */
 
@@ -48,9 +48,9 @@ uint my_get_large_page_size(void)
   my_malloc_lock() in case of failure
 */
 
-gptr my_large_malloc(uint size, myf my_flags)
+uchar* my_large_malloc(size_t size, myf my_flags)
 {
-  gptr ptr;
+  uchar* ptr;
   DBUG_ENTER("my_large_malloc");
   
   if (my_use_large_pages && my_large_page_size)
@@ -70,7 +70,7 @@ gptr my_large_malloc(uint size, myf my_flags)
   to my_free_lock() in case of failure
  */
 
-void my_large_free(gptr ptr, myf my_flags __attribute__((unused)))
+void my_large_free(uchar* ptr, myf my_flags __attribute__((unused)))
 {
   DBUG_ENTER("my_large_free");
   
@@ -113,29 +113,29 @@ finish:
 #if HAVE_DECL_SHM_HUGETLB
 /* Linux-specific large pages allocator  */
     
-gptr my_large_malloc_int(uint size, myf my_flags)
+uchar* my_large_malloc_int(size_t size, myf my_flags)
 {
   int shmid;
-  gptr ptr;
+  uchar* ptr;
   struct shmid_ds buf;
   DBUG_ENTER("my_large_malloc_int");
 
   /* Align block size to my_large_page_size */
   size = ((size - 1) & ~(my_large_page_size - 1)) + my_large_page_size;
   
-  shmid = shmget(IPC_PRIVATE, (size_t)size, SHM_HUGETLB | SHM_R | SHM_W);
+  shmid = shmget(IPC_PRIVATE, size, SHM_HUGETLB | SHM_R | SHM_W);
   if (shmid < 0)
   {
     if (my_flags & MY_WME)
       fprintf(stderr,
-              "Warning: Failed to allocate %d bytes from HugeTLB memory."
-              " errno %d\n", size, errno);
+              "Warning: Failed to allocate %lu bytesx from HugeTLB memory."
+              " errno %d\n", (ulong) size, errno);
 
     DBUG_RETURN(NULL);
   }
 
-  ptr = shmat(shmid, NULL, 0);
-  if (ptr == (void *)-1)
+  ptr = (uchar*) shmat(shmid, NULL, 0);
+  if (ptr == (uchar *) -1)
   {
     if (my_flags& MY_WME)
       fprintf(stderr, "Warning: Failed to attach shared memory segment,"
@@ -156,7 +156,7 @@ gptr my_large_malloc_int(uint size, myf my_flags)
 
 /* Linux-specific large pages deallocator */
 
-my_bool my_large_free_int(byte *ptr, myf my_flags __attribute__((unused)))
+my_bool my_large_free_int(uchar *ptr, myf my_flags __attribute__((unused)))
 {
   DBUG_ENTER("my_large_free_int");
   DBUG_RETURN(shmdt(ptr) == 0);

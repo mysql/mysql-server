@@ -60,7 +60,7 @@ static handlerton *legacy_innodb_hton;
 uses unsigned char; the header univ.i which we include next defines
 'byte' as a macro which expands to 'unsigned char' */
 
-typedef byte	mysql_byte;
+typedef uchar mysql_byte;
 
 #define INSIDE_HA_INNOBASE_CC
 
@@ -147,7 +147,7 @@ static HASH	innobase_open_tables;
 bool nw_panic = FALSE;
 #endif
 
-static mysql_byte* innobase_get_key(INNOBASE_SHARE *share,uint *length,
+static mysql_byte* innobase_get_key(INNOBASE_SHARE *share, size_t *length,
 	my_bool not_used __attribute__((unused)));
 static INNOBASE_SHARE *get_share(const char *table_name);
 static void free_share(INNOBASE_SHARE *share);
@@ -730,7 +730,7 @@ innobase_mysql_print_thd(
 		len = min(thd->query_length, max_query_len);
 
 		if (len > (sizeof(buf) - 1)) {
-			dyn_str = my_malloc(len + 1, MYF(0));
+                        dyn_str = (char*) my_malloc(len + 1, MYF(0));
 			str = dyn_str;
 		}
 
@@ -1296,12 +1296,12 @@ innobase_print_identifier(
 		output strings buffers must not be shared.  The function
 		only produces more output when the name contains other
 		characters than [0-9A-Z_a-z]. */
-          char*	temp_name = my_malloc((uint) namelen + 1, MYF(MY_WME));
+          char*	temp_name = (char*) my_malloc((uint) namelen + 1, MYF(MY_WME));
           uint	qnamelen = (uint) (namelen
                                    + (1 + sizeof srv_mysql50_table_name_prefix));
 
 		if (temp_name) {
-			qname = my_malloc(qnamelen, MYF(MY_WME));
+                  qname = (char*) my_malloc(qnamelen, MYF(MY_WME));
 			if (qname) {
 				memcpy(temp_name, name, namelen);
 				temp_name[namelen] = 0;
@@ -2441,7 +2441,7 @@ ha_innobase::open(
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
-		my_free((gptr) upd_buff, MYF(0));
+		my_free(upd_buff, MYF(0));
 		my_errno = ENOENT;
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
@@ -2458,7 +2458,7 @@ ha_innobase::open(
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
-		my_free((gptr) upd_buff, MYF(0));
+		my_free(upd_buff, MYF(0));
 		my_errno = ENOENT;
 
 		dict_table_decrement_handle_count(ib_table);
@@ -2557,7 +2557,7 @@ ha_innobase::close(void)
 
 	row_prebuilt_free(prebuilt);
 
-	my_free((gptr) upd_buff, MYF(0));
+	my_free(upd_buff, MYF(0));
 	free_share(share);
 
 	/* Tell InnoDB server that there might be work for
@@ -2580,7 +2580,7 @@ get_field_offset(
 	TABLE*	table,	/* in: MySQL table object */
 	Field*	field)	/* in: MySQL field object */
 {
-	return((uint) (field->ptr - (char*) table->record[0]));
+	return((uint) (field->ptr - table->record[0]));
 }
 
 /******************************************************************
@@ -4432,7 +4432,7 @@ ha_innobase::rnd_pos(
 	int		error;
 	uint		keynr	= active_index;
 	DBUG_ENTER("rnd_pos");
-	DBUG_DUMP("key", (char*) pos, ref_length);
+	DBUG_DUMP("key", pos, ref_length);
 
 	ha_statistic_increment(&SSV::ha_read_rnd_count);
 
@@ -4741,7 +4741,7 @@ create_index(
 
 	error = convert_error_code_to_mysql(error, NULL);
 
-	my_free((gptr) field_lengths, MYF(0));
+	my_free(field_lengths, MYF(0));
 
 	DBUG_RETURN(error);
 }
@@ -5174,7 +5174,7 @@ innobase_drop_database(
 	}
 
 	ptr++;
-	namebuf = my_malloc((uint) len + 2, MYF(0));
+	namebuf = (char*) my_malloc((uint) len + 2, MYF(0));
 
 	memcpy(namebuf, ptr, len);
 	namebuf[len] = '/';
@@ -5371,7 +5371,7 @@ ha_innobase::records_in_range(
 	dtuple_free_for_mysql(heap1);
 	dtuple_free_for_mysql(heap2);
 
-	my_free((gptr) key_val_buff2, MYF(0));
+	my_free(key_val_buff2, MYF(0));
 
 	prebuilt->trx->op_info = (char*)"";
 
@@ -5828,7 +5828,7 @@ ha_innobase::update_table_comment(
 	/* allocate buffer for the full string, and
 	read the contents of the temporary file */
 
-	str = my_malloc(length + flen + 3, MYF(0));
+	str = (char*) my_malloc(length + flen + 3, MYF(0));
 
 	if (str) {
 		char* pos	= str + length;
@@ -5896,7 +5896,7 @@ ha_innobase::get_foreign_key_create_info(void)
 	/* allocate buffer for the string, and
 	read the contents of the temporary file */
 
-	str = my_malloc(flen + 1, MYF(0));
+	str = (char*) my_malloc(flen + 1, MYF(0));
 
 	if (str) {
 		rewind(srv_dict_tmpfile);
@@ -6028,7 +6028,7 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
           }
 
 	  FOREIGN_KEY_INFO *pf_key_info= ((FOREIGN_KEY_INFO *)
-		  thd->memdup((gptr) &f_key_info,
+		  thd->memdup(&f_key_info,
 			  sizeof(FOREIGN_KEY_INFO)));
 	  f_key_list->push_back(pf_key_info);
 	  foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
@@ -6556,7 +6556,7 @@ innodb_show_status(
 	/* allocate buffer for the string, and
 	read the contents of the temporary file */
 
-	if (!(str = my_malloc(usable_len + 1, MYF(0)))) {
+	if (!(str = (char*) my_malloc(usable_len + 1, MYF(0)))) {
 	  mutex_exit_noninline(&srv_monitor_file_mutex);
 	  DBUG_RETURN(TRUE);
 	}
@@ -6717,7 +6717,7 @@ bool innobase_show_status(handlerton *hton, THD* thd,
  locking.
 ****************************************************************************/
 
-static mysql_byte* innobase_get_key(INNOBASE_SHARE* share, uint* length,
+static mysql_byte* innobase_get_key(INNOBASE_SHARE* share, size_t *length,
 	my_bool not_used __attribute__((unused)))
 {
 	*length=share->table_name_length;
@@ -6745,7 +6745,7 @@ static INNOBASE_SHARE* get_share(const char* table_name)
 		if (my_hash_insert(&innobase_open_tables,
 				(mysql_byte*) share)) {
 			pthread_mutex_unlock(&innobase_share_mutex);
-			my_free((gptr) share,0);
+			my_free(share,0);
 
 			return 0;
 		}
@@ -6768,7 +6768,7 @@ static void free_share(INNOBASE_SHARE* share)
 		hash_delete(&innobase_open_tables, (mysql_byte*) share);
 		thr_lock_delete(&share->lock);
 		pthread_mutex_destroy(&share->mutex);
-		my_free((gptr) share, MYF(0));
+		my_free(share, MYF(0));
 	}
 
 	pthread_mutex_unlock(&innobase_share_mutex);
@@ -7263,9 +7263,8 @@ ha_innobase::cmp_ref(
 
 			ref1 += 2;
 			ref2 += 2;
-			result = ((Field_blob*)field)->cmp(
-				(const char*)ref1, len1,
-				(const char*)ref2, len2);
+			result = ((Field_blob*)field)->cmp( ref1, len1,
+                                                            ref2, len2);
 		} else {
 			result = field->key_cmp(ref1, ref2);
 		}

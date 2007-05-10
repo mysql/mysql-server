@@ -17,7 +17,7 @@
 
 	/*  Read first row through  a specfic key */
 
-int mi_rfirst(MI_INFO *info, byte *buf, int inx)
+int mi_rfirst(MI_INFO *info, uchar *buf, int inx)
 {
   DBUG_ENTER("mi_rfirst");
   info->lastpos= HA_OFFSET_ERROR;

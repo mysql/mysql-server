@@ -84,13 +84,13 @@ main(	int	argc __attribute__((unused)),
         sslconnect(ssl_connector,client_vio,60L);
 	err = vio_read(client_vio,xbuf, sizeof(xbuf));
 	if (err<=0) {
-		my_free((gptr)ssl_connector,MYF(0));
+		my_free((uchar*)ssl_connector,MYF(0));
 		fatal_error("client:SSL_read");
 	}
 	xbuf[err] = 0;
 	printf("client:got %s\n", xbuf);
-	my_free((gptr)client_vio,MYF(0));
-	my_free((gptr)ssl_connector,MYF(0));
+	my_free((uchar*)client_vio,MYF(0));
+	my_free((uchar*)ssl_connector,MYF(0));
 	return 0;
 }
 #else /* HAVE_OPENSSL */

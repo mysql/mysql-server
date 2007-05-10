@@ -97,12 +97,12 @@ int User::init(const char *line)
 
 C_MODE_START
 
-static byte* get_user_key(const byte* u, uint* len,
-                          my_bool __attribute__((unused)) t)
+static uchar* get_user_key(const uchar* u, size_t* len,
+                           my_bool __attribute__((unused)) t)
 {
   const User *user= (const User *) u;
   *len= user->user_length;
-  return (byte *) user->user;
+  return (uchar *) user->user;
 }
 
 static void delete_user(void *u)
@@ -133,7 +133,7 @@ int User_map::init()
 {
   enum { START_HASH_SIZE= 16 };
   if (hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
-      get_user_key, delete_user, 0))
+                get_user_key, delete_user, 0))
     return 1;
 
   initialized= TRUE;
@@ -274,7 +274,7 @@ int User_map::load(const char *password_file_name, const char **err_msg)
       return ERR_PASSWORD_FILE_CORRUPTED;
     }
 
-    if (my_hash_insert(&hash, (byte *) user))
+    if (my_hash_insert(&hash, (uchar *) user))
     {
       delete user;
       my_fclose(file, MYF(0));
@@ -374,7 +374,7 @@ int User_map::authenticate(const LEX_STRING *user_name,
 
 User *User_map::find_user(const LEX_STRING *user_name)
 {
-  return (User*) hash_search(&hash, (byte*) user_name->str, user_name->length);
+  return (User*) hash_search(&hash, (uchar*) user_name->str, user_name->length);
 }
 
 const User *User_map::find_user(const LEX_STRING *user_name) const
@@ -385,11 +385,11 @@ const User *User_map::find_user(const LEX_STRING *user_name) const
 
 bool User_map::add_user(User *user)
 {
-  return my_hash_insert(&hash, (byte*) user) == 0 ? FALSE : TRUE;
+  return my_hash_insert(&hash, (uchar*) user) == 0 ? FALSE : TRUE;
 }
 
 
 bool User_map::remove_user(User *user)
 {
-  return hash_delete(&hash, (byte*) user) == 0 ? FALSE : TRUE;
+  return hash_delete(&hash, (uchar*) user) == 0 ? FALSE : TRUE;
 }

@@ -67,19 +67,19 @@ class ha_myisam: public handler
                                            bool called_by_logger_thread);
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
-  int write_row(byte * buf);
-  int update_row(const byte * old_data, byte * new_data);
-  int delete_row(const byte * buf);
-  int index_read(byte *buf, const byte *key, key_part_map keypart_map,
+  int write_row(uchar * buf);
+  int update_row(const uchar * old_data, uchar * new_data);
+  int delete_row(const uchar * buf);
+  int index_read(uchar *buf, const uchar *key, key_part_map keypart_map,
                  enum ha_rkey_function find_flag);
-  int index_read_idx(byte *buf, uint index, const byte *key,
+  int index_read_idx(uchar *buf, uint index, const uchar *key,
                      key_part_map keypart_map, enum ha_rkey_function find_flag);
-  int index_read_last(byte *buf, const byte *key, key_part_map keypart_map);
-  int index_next(byte * buf);
-  int index_prev(byte * buf);
-  int index_first(byte * buf);
-  int index_last(byte * buf);
-  int index_next_same(byte *buf, const byte *key, uint keylen);
+  int index_read_last(uchar *buf, const uchar *key, key_part_map keypart_map);
+  int index_next(uchar * buf);
+  int index_prev(uchar * buf);
+  int index_first(uchar * buf);
+  int index_last(uchar * buf);
+  int index_next_same(uchar *buf, const uchar *key, uint keylen);
   int ft_init()
   {
     if (!ft_handler)
@@ -90,15 +90,15 @@ class ha_myisam: public handler
   FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
   {
     return ft_init_search(flags,file,inx,
-                          (byte *)key->ptr(), key->length(), key->charset(),
+                          (uchar *)key->ptr(), key->length(), key->charset(),
                           table->record[0]);
   }
-  int ft_read(byte *buf);
+  int ft_read(uchar *buf);
   int rnd_init(bool scan);
-  int rnd_next(byte *buf);
-  int rnd_pos(byte * buf, byte *pos);
-  int restart_rnd_next(byte *buf, byte *pos);
-  void position(const byte *record);
+  int rnd_next(uchar *buf);
+  int rnd_pos(uchar * buf, uchar *pos);
+  int restart_rnd_next(uchar *buf, uchar *pos);
+  void position(const uchar *record);
   int info(uint);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);

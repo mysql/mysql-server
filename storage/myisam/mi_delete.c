@@ -32,7 +32,7 @@ static int _mi_ck_real_delete(register MI_INFO *info,MI_KEYDEF *keyinfo,
 			      uchar *key, uint key_length, my_off_t *root);
 
 
-int mi_delete(MI_INFO *info,const byte *record)
+int mi_delete(MI_INFO *info,const uchar *record)
 {
   uint i;
   uchar *old_key;
@@ -100,7 +100,7 @@ int mi_delete(MI_INFO *info,const byte *record)
   info->state->records--;
 
   mi_sizestore(lastpos,info->lastpos);
-  myisam_log_command(MI_LOG_DELETE,info,(byte*) lastpos,sizeof(lastpos),0);
+  myisam_log_command(MI_LOG_DELETE,info,(uchar*) lastpos,sizeof(lastpos),0);
   VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
   allow_break();			/* Allow SIGHUP & SIGINT */
   if (info->invalidator != 0)
@@ -114,7 +114,7 @@ int mi_delete(MI_INFO *info,const byte *record)
 err:
   save_errno=my_errno;
   mi_sizestore(lastpos,info->lastpos);
-  myisam_log_command(MI_LOG_DELETE,info,(byte*) lastpos, sizeof(lastpos),0);
+  myisam_log_command(MI_LOG_DELETE,info,(uchar*) lastpos, sizeof(lastpos),0);
   if (save_errno != HA_ERR_RECORD_CHANGED)
   {
     mi_print_error(info->s, HA_ERR_CRASHED);
@@ -198,7 +198,7 @@ static int _mi_ck_real_delete(register MI_INFO *info, MI_KEYDEF *keyinfo,
     }
   }
 err:
-  my_afree((gptr) root_buff);
+  my_afree((uchar*) root_buff);
   DBUG_PRINT("exit",("Return: %d",error));
   DBUG_RETURN(error);
 } /* _mi_ck_real_delete */
@@ -223,7 +223,7 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   my_off_t leaf_page,next_block;
   uchar lastkey[MI_MAX_KEY_BUFF];
   DBUG_ENTER("d_search");
-  DBUG_DUMP("page",(byte*) anc_buff,mi_getint(anc_buff));
+  DBUG_DUMP("page",(uchar*) anc_buff,mi_getint(anc_buff));
 
   search_key_length= (comp_flag & SEARCH_FIND) ? key_length : USE_WHOLE_KEY;
   flag=(*keyinfo->bin_search)(info,keyinfo,anc_buff,key, search_key_length,
@@ -381,14 +381,14 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     ret_value|=_mi_write_keypage(info,keyinfo,page,DFLT_INIT_HITS,anc_buff);
   else
   {
-    DBUG_DUMP("page",(byte*) anc_buff,mi_getint(anc_buff));
+    DBUG_DUMP("page",(uchar*) anc_buff,mi_getint(anc_buff));
   }
-  my_afree((byte*) leaf_buff);
+  my_afree((uchar*) leaf_buff);
   DBUG_PRINT("exit",("Return: %d",ret_value));
   DBUG_RETURN(ret_value);
 
 err:
-  my_afree((byte*) leaf_buff);
+  my_afree((uchar*) leaf_buff);
   DBUG_PRINT("exit",("Error: %d",my_errno));
   DBUG_RETURN (-1);
 } /* d_search */
@@ -411,7 +411,7 @@ static int del(register MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *key,
   DBUG_ENTER("del");
   DBUG_PRINT("enter",("leaf_page: %ld  keypos: 0x%lx", (long) leaf_page,
 		      (ulong) keypos));
-  DBUG_DUMP("leaf_buff",(byte*) leaf_buff,mi_getint(leaf_buff));
+  DBUG_DUMP("leaf_buff",(uchar*) leaf_buff,mi_getint(leaf_buff));
 
   endpos=leaf_buff+mi_getint(leaf_buff);
   if (!(key_start=_mi_get_last_key(info,keyinfo,leaf_buff,keybuff,endpos,
@@ -428,7 +428,7 @@ static int del(register MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *key,
       ret_value= -1;
     else
     {
-      DBUG_DUMP("next_page",(byte*) next_buff,mi_getint(next_buff));
+      DBUG_DUMP("next_page",(uchar*) next_buff,mi_getint(next_buff));
       if ((ret_value=del(info,keyinfo,key,anc_buff,next_page,next_buff,
 			 keypos,next_block,ret_key)) >0)
       {
@@ -455,7 +455,7 @@ static int del(register MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *key,
       if (_mi_write_keypage(info,keyinfo,leaf_page,DFLT_INIT_HITS,leaf_buff))
 	goto err;
     }
-    my_afree((byte*) next_buff);
+    my_afree((uchar*) next_buff);
     DBUG_RETURN(ret_value);
   }
 
@@ -479,7 +479,7 @@ static int del(register MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *key,
 			      prev_key, prev_key,
 			      keybuff,&s_temp);
   if (length > 0)
-    bmove_upp((byte*) endpos+length,(byte*) endpos,(uint) (endpos-keypos));
+    bmove_upp((uchar*) endpos+length,(uchar*) endpos,(uint) (endpos-keypos));
   else
     bmove(keypos,keypos-length, (int) (endpos-keypos)+length);
   (*keyinfo->store_key)(keyinfo,keypos,&s_temp);
@@ -517,8 +517,8 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   DBUG_ENTER("underflow");
   DBUG_PRINT("enter",("leaf_page: %ld  keypos: 0x%lx",(long) leaf_page,
 		      (ulong) keypos));
-  DBUG_DUMP("anc_buff",(byte*) anc_buff,mi_getint(anc_buff));
-  DBUG_DUMP("leaf_buff",(byte*) leaf_buff,mi_getint(leaf_buff));
+  DBUG_DUMP("anc_buff",(uchar*) anc_buff,mi_getint(anc_buff));
+  DBUG_DUMP("leaf_buff",(uchar*) leaf_buff,mi_getint(leaf_buff));
 
   buff=info->buff;
   info->buff_used=1;
@@ -554,10 +554,10 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     if (!_mi_fetch_keypage(info,keyinfo,next_page,DFLT_INIT_HITS,buff,0))
       goto err;
     buff_length=mi_getint(buff);
-    DBUG_DUMP("next",(byte*) buff,buff_length);
+    DBUG_DUMP("next",(uchar*) buff,buff_length);
 
     /* find keys to make a big key-page */
-    bmove((byte*) next_keypos-key_reflength,(byte*) buff+2,
+    bmove((uchar*) next_keypos-key_reflength,(uchar*) buff+2,
 	  key_reflength);
     if (!_mi_get_last_key(info,keyinfo,anc_buff,anc_key,next_keypos,&length)
 	|| !_mi_get_last_key(info,keyinfo,leaf_buff,leaf_key,
@@ -572,8 +572,8 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     length=buff_length-p_length;
     endpos=buff+length+leaf_length+t_length;
     /* buff will always be larger than before !*/
-    bmove_upp((byte*) endpos, (byte*) buff+buff_length,length);
-    memcpy((byte*) buff, (byte*) leaf_buff,(size_t) leaf_length);
+    bmove_upp((uchar*) endpos, (uchar*) buff+buff_length,length);
+    memcpy((uchar*) buff, (uchar*) leaf_buff,(size_t) leaf_length);
     (*keyinfo->store_key)(keyinfo,buff+leaf_length,&s_temp);
     buff_length=(uint) (endpos-buff);
     mi_putint(buff,buff_length,nod_flag);
@@ -589,7 +589,7 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 
     if (buff_length <= keyinfo->block_length)
     {						/* Keys in one page */
-      memcpy((byte*) leaf_buff,(byte*) buff,(size_t) buff_length);
+      memcpy((uchar*) leaf_buff,(uchar*) buff,(size_t) buff_length);
       if (_mi_dispose(info,keyinfo,next_page,DFLT_INIT_HITS))
        goto err;
     }
@@ -605,7 +605,7 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 				       &key_length, &after_key)))
 	goto err;
       length=(uint) (half_pos-buff);
-      memcpy((byte*) leaf_buff,(byte*) buff,(size_t) length);
+      memcpy((uchar*) leaf_buff,(uchar*) buff,(size_t) length);
       mi_putint(leaf_buff,length,nod_flag);
 
       /* Correct new keypointer to leaf_page */
@@ -619,7 +619,7 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 				    prev_key, prev_key,
 				    leaf_key, &s_temp);
       if (t_length >= 0)
-	bmove_upp((byte*) endpos+t_length,(byte*) endpos,
+	bmove_upp((uchar*) endpos+t_length,(uchar*) endpos,
 		  (uint) (endpos-keypos));
       else
 	bmove(keypos,keypos-t_length,(uint) (endpos-keypos)+t_length);
@@ -628,7 +628,7 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 
 	/* Store key first in new page */
       if (nod_flag)
-	bmove((byte*) buff+2,(byte*) half_pos-nod_flag,(size_t) nod_flag);
+	bmove((uchar*) buff+2,(uchar*) half_pos-nod_flag,(size_t) nod_flag);
       if (!(*keyinfo->get_key)(keyinfo,nod_flag,&half_pos,leaf_key))
 	goto err;
       t_length=(int) (*keyinfo->pack_key)(keyinfo, nod_flag, (uchar*) 0,
@@ -636,7 +636,7 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 					  leaf_key, &s_temp);
       /* t_length will always be > 0 for a new page !*/
       length=(uint) ((buff+mi_getint(buff))-half_pos);
-      bmove((byte*) buff+p_length+t_length,(byte*) half_pos,(size_t) length);
+      bmove((uchar*) buff+p_length+t_length,(uchar*) half_pos,(size_t) length);
       (*keyinfo->store_key)(keyinfo,buff+p_length,&s_temp);
       mi_putint(buff,length+t_length+p_length,nod_flag);
 
@@ -659,10 +659,10 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       goto err;
   buff_length=mi_getint(buff);
   endpos=buff+buff_length;
-  DBUG_DUMP("prev",(byte*) buff,buff_length);
+  DBUG_DUMP("prev",(uchar*) buff,buff_length);
 
   /* find keys to make a big key-page */
-  bmove((byte*) next_keypos - key_reflength,(byte*) leaf_buff+2,
+  bmove((uchar*) next_keypos - key_reflength,(uchar*) leaf_buff+2,
 	key_reflength);
   next_keypos=keypos;
   if (!(*keyinfo->get_key)(keyinfo,key_reflength,&next_keypos,
@@ -679,10 +679,10 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 				prev_key, prev_key,
 				anc_key, &s_temp);
   if (t_length >= 0)
-    bmove((byte*) endpos+t_length,(byte*) leaf_buff+p_length,
+    bmove((uchar*) endpos+t_length,(uchar*) leaf_buff+p_length,
 	    (size_t) (leaf_length-p_length));
   else						/* We gained space */
-    bmove((byte*) endpos,(byte*) leaf_buff+((int) p_length-t_length),
+    bmove((uchar*) endpos,(uchar*) leaf_buff+((int) p_length-t_length),
 	  (size_t) (leaf_length-p_length+t_length));
 
   (*keyinfo->store_key)(keyinfo,endpos,&s_temp);
@@ -715,8 +715,8 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       goto err;
     _mi_kpointer(info,leaf_key+key_length,leaf_page);
     /* Save key in anc_buff */
-    DBUG_DUMP("anc_buff",(byte*) anc_buff,anc_length);
-    DBUG_DUMP("key_to_anc",(byte*) leaf_key,key_length);
+    DBUG_DUMP("anc_buff",(uchar*) anc_buff,anc_length);
+    DBUG_DUMP("key_to_anc",(uchar*) leaf_key,key_length);
 
     temp_pos=anc_buff+anc_length;
     t_length=(*keyinfo->pack_key)(keyinfo,key_reflength,
@@ -725,7 +725,7 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 				  anc_pos, anc_pos,
 				  leaf_key,&s_temp);
     if (t_length > 0)
-      bmove_upp((byte*) temp_pos+t_length,(byte*) temp_pos,
+      bmove_upp((uchar*) temp_pos+t_length,(uchar*) temp_pos,
 		(uint) (temp_pos-keypos));
     else
       bmove(keypos,keypos-t_length,(uint) (temp_pos-keypos)+t_length);
@@ -734,15 +734,15 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 
     /* Store first key on new page */
     if (nod_flag)
-      bmove((byte*) leaf_buff+2,(byte*) half_pos-nod_flag,(size_t) nod_flag);
+      bmove((uchar*) leaf_buff+2,(uchar*) half_pos-nod_flag,(size_t) nod_flag);
     if (!(length=(*keyinfo->get_key)(keyinfo,nod_flag,&half_pos,leaf_key)))
       goto err;
-    DBUG_DUMP("key_to_leaf",(byte*) leaf_key,length);
+    DBUG_DUMP("key_to_leaf",(uchar*) leaf_key,length);
     t_length=(*keyinfo->pack_key)(keyinfo,nod_flag, (uchar*) 0,
 				  (uchar*) 0, (uchar*) 0, leaf_key, &s_temp);
     length=(uint) ((buff+buff_length)-half_pos);
     DBUG_PRINT("info",("t_length: %d  length: %d",t_length,(int) length));
-    bmove((byte*) leaf_buff+p_length+t_length,(byte*) half_pos,
+    bmove((uchar*) leaf_buff+p_length+t_length,(uchar*) half_pos,
 	  (size_t) length);
     (*keyinfo->store_key)(keyinfo,leaf_buff+p_length,&s_temp);
     mi_putint(leaf_buff,length+t_length+p_length,nod_flag);
@@ -886,7 +886,7 @@ static uint remove_key(MI_KEYDEF *keyinfo, uint nod_flag,
     }
   }
   end:
-  bmove((byte*) start,(byte*) start+s_length,
+  bmove((uchar*) start,(uchar*) start+s_length,
 	(uint) (page_end-start-s_length));
   DBUG_RETURN((uint) s_length);
 } /* remove_key */

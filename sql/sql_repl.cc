@@ -72,7 +72,7 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
   int8store(buf+R_POS_OFFSET,position);
   packet->append(buf, ROTATE_HEADER_LEN);
   packet->append(p,ident_len);
-  if (my_net_write(net, (char*)packet->ptr(), packet->length()))
+  if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
   {
     *errmsg = "failed on my_net_write()";
     DBUG_RETURN(-1);
@@ -83,12 +83,13 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
 static int send_file(THD *thd)
 {
   NET* net = &thd->net;
-  int fd = -1,bytes, error = 1;
+  int fd = -1, error = 1;
+  size_t bytes;
   char fname[FN_REFLEN+1];
   const char *errmsg = 0;
   int old_timeout;
   unsigned long packet_len;
-  char buf[IO_SIZE];				// It's safe to alloc this
+  uchar buf[IO_SIZE];				// It's safe to alloc this
   DBUG_ENTER("send_file");
 
   /*
@@ -121,7 +122,7 @@ static int send_file(THD *thd)
     goto err;
   }
 
-  while ((bytes = (int) my_read(fd, (byte*) buf, IO_SIZE, MYF(0))) > 0)
+  while ((long) (bytes= my_read(fd, buf, IO_SIZE, MYF(0))) > 0)
   {
     if (my_net_write(net, buf, bytes))
     {
@@ -131,7 +132,7 @@ static int send_file(THD *thd)
   }
 
  end:
-  if (my_net_write(net, "", 0) || net_flush(net) ||
+  if (my_net_write(net, (uchar*) "", 0) || net_flush(net) ||
       (my_net_read(net) == packet_error))
   {
     errmsg = "while negotiating file transfer close";
@@ -217,7 +218,8 @@ bool log_in_use(const char* log_name)
     if ((linfo = tmp->current_linfo))
     {
       pthread_mutex_lock(&linfo->lock);
-      result = !bcmp(log_name, linfo->log_file_name, log_name_len);
+      result = !bcmp((uchar*) log_name, (uchar*) linfo->log_file_name,
+                     log_name_len);
       pthread_mutex_unlock(&linfo->lock);
       if (result)
 	break;
@@ -480,7 +482,7 @@ impossible position";
          int4store((char*) packet->ptr()+LOG_EVENT_MINIMAL_HEADER_LEN+
                    ST_CREATED_OFFSET+1, (ulong) 0);
          /* send it */
-         if (my_net_write(net, (char*)packet->ptr(), packet->length()))
+         if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
          {
            errmsg = "Failed on my_net_write()";
            my_errno= ER_UNKNOWN_ERROR;
@@ -538,7 +540,7 @@ impossible position";
       else if ((*packet)[EVENT_TYPE_OFFSET+1] == STOP_EVENT)
         binlog_can_be_corrupted= FALSE;
 
-      if (my_net_write(net, (char*)packet->ptr(), packet->length()))
+      if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
       {
 	errmsg = "Failed on my_net_write()";
 	my_errno= ER_UNKNOWN_ERROR;
@@ -651,7 +653,7 @@ impossible position";
 	if (read_packet)
 	{
 	  thd->proc_info = "Sending binlog event to slave";
-	  if (my_net_write(net, (char*)packet->ptr(), packet->length()) )
+	  if (my_net_write(net, (uchar*) packet->ptr(), packet->length()) )
 	  {
 	    errmsg = "Failed on my_net_write()";
 	    my_errno= ER_UNKNOWN_ERROR;

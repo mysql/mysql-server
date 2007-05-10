@@ -20,28 +20,28 @@
 
 	/* Write a chunk of bytes to a file */
 
-uint my_write(int Filedes, const byte *Buffer, uint Count, myf MyFlags)
+size_t my_write(int Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
 {
-  uint writenbytes,errors;
-  ulong written;
+  size_t writenbytes, written;
+  uint errors;
   DBUG_ENTER("my_write");
-  DBUG_PRINT("my",("Fd: %d  Buffer: 0x%lx  Count: %d  MyFlags: %d",
-		   Filedes, (long) Buffer, Count, MyFlags));
-  errors=0; written=0L;
+  DBUG_PRINT("my",("Fd: %d  Buffer: 0x%lx  Count: %lu  MyFlags: %d",
+		   Filedes, (long) Buffer, (ulong) Count, MyFlags));
+  errors=0; written=0;
 
   for (;;)
   {
-    if ((writenbytes = (uint) write(Filedes, Buffer, Count)) == Count)
+    if ((writenbytes= write(Filedes, Buffer, Count)) == Count)
       break;
-    if ((int) writenbytes != -1)
+    if (writenbytes != (size_t) -1)
     {						/* Safeguard */
       written+=writenbytes;
       Buffer+=writenbytes;
       Count-=writenbytes;
     }
     my_errno=errno;
-    DBUG_PRINT("error",("Write only %d bytes, error: %d",
-			writenbytes,my_errno));
+    DBUG_PRINT("error",("Write only %ld bytes, error: %d",
+			(long) writenbytes, my_errno));
 #ifndef NO_BACKGROUND
 #ifdef THREAD
     if (my_thread_var->abort)
@@ -57,12 +57,12 @@ uint my_write(int Filedes, const byte *Buffer, uint Count, myf MyFlags)
       continue;
     }
 
-    if ((writenbytes == 0 || (int) writenbytes == -1))
+    if ((writenbytes == 0 || writenbytes == (size_t) -1))
     {
       if (my_errno == EINTR)
       {
-        DBUG_PRINT("debug", ("my_write() was interrupted and returned %d",
-                             (int) writenbytes));
+        DBUG_PRINT("debug", ("my_write() was interrupted and returned %ld",
+                             (long) writenbytes));
         continue;                               /* Interrupted */
       }
 

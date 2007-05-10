@@ -227,7 +227,7 @@ typedef struct st_mi_decode_tree	/* Decode huff-table */
 {
   uint16 *table;
   uint	 quick_table_bits;
-  byte	 *intervalls;
+  uchar	 *intervalls;
 } MI_DECODE_TREE;
 
 
@@ -259,7 +259,7 @@ typedef struct st_columndef		/* column information */
 /* invalidator function reference for Query Cache */
 typedef void (* invalidator_by_filename)(const char * filename);
 
-extern my_string myisam_log_filename;		/* Name of logfile */
+extern char * myisam_log_filename;		/* Name of logfile */
 extern ulong myisam_block_size;
 extern ulong myisam_concurrent_insert;
 extern my_bool myisam_flush,myisam_delay_key_write,myisam_single_user;
@@ -269,26 +269,26 @@ extern ulong myisam_bulk_insert_tree_size, myisam_data_pointer_size;
 	/* Prototypes for myisam-functions */
 
 extern int mi_close(struct st_myisam_info *file);
-extern int mi_delete(struct st_myisam_info *file,const byte *buff);
+extern int mi_delete(struct st_myisam_info *file,const uchar *buff);
 extern struct st_myisam_info *mi_open(const char *name,int mode,
 				      uint wait_if_locked);
 extern int mi_panic(enum ha_panic_function function);
-extern int mi_rfirst(struct st_myisam_info *file,byte *buf,int inx);
-extern int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key,
+extern int mi_rfirst(struct st_myisam_info *file,uchar *buf,int inx);
+extern int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
                    key_part_map keypart_map, enum ha_rkey_function search_flag);
-extern int mi_rlast(struct st_myisam_info *file,byte *buf,int inx);
-extern int mi_rnext(struct st_myisam_info *file,byte *buf,int inx);
-extern int mi_rnext_same(struct st_myisam_info *info, byte *buf);
-extern int mi_rprev(struct st_myisam_info *file,byte *buf,int inx);
-extern int mi_rrnd(struct st_myisam_info *file,byte *buf, my_off_t pos);
+extern int mi_rlast(struct st_myisam_info *file,uchar *buf,int inx);
+extern int mi_rnext(struct st_myisam_info *file,uchar *buf,int inx);
+extern int mi_rnext_same(struct st_myisam_info *info, uchar *buf);
+extern int mi_rprev(struct st_myisam_info *file,uchar *buf,int inx);
+extern int mi_rrnd(struct st_myisam_info *file,uchar *buf, my_off_t pos);
 extern int mi_scan_init(struct st_myisam_info *file);
-extern int mi_scan(struct st_myisam_info *file,byte *buf);
-extern int mi_rsame(struct st_myisam_info *file,byte *record,int inx);
-extern int mi_rsame_with_pos(struct st_myisam_info *file,byte *record,
+extern int mi_scan(struct st_myisam_info *file,uchar *buf);
+extern int mi_rsame(struct st_myisam_info *file,uchar *record,int inx);
+extern int mi_rsame_with_pos(struct st_myisam_info *file,uchar *record,
 			     int inx, my_off_t pos);
-extern int mi_update(struct st_myisam_info *file,const byte *old,
-		     byte *new_record);
-extern int mi_write(struct st_myisam_info *file,byte *buff);
+extern int mi_update(struct st_myisam_info *file,const uchar *old,
+		     uchar *new_record);
+extern int mi_write(struct st_myisam_info *file,uchar *buff);
 extern my_off_t mi_position(struct st_myisam_info *file);
 extern int mi_status(struct st_myisam_info *info, MI_ISAMINFO *x, uint flag);
 extern int mi_lock_database(struct st_myisam_info *file,int lock_type);
@@ -307,7 +307,7 @@ extern ha_rows mi_records_in_range(MI_INFO *info, int inx,
 extern int mi_log(int activate_log);
 extern int mi_is_changed(struct st_myisam_info *info);
 extern int mi_delete_all_rows(struct st_myisam_info *info);
-extern ulong _mi_calc_blob_length(uint length , const byte *pos);
+extern ulong _mi_calc_blob_length(uint length , const uchar *pos);
 extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 
 /* this is used to pass to mysql_myisamchk_table -- by Sasha Pachev */
@@ -474,8 +474,8 @@ int chk_size(MI_CHECK *param, MI_INFO *info);
 int chk_key(MI_CHECK *param, MI_INFO *info);
 int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend);
 int mi_repair(MI_CHECK *param, register MI_INFO *info,
-	      my_string name, int rep_quick);
-int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name);
+	      char * name, int rep_quick);
+int mi_sort_index(MI_CHECK *param, register MI_INFO *info, char * name);
 int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 		      const char * name, int rep_quick);
 int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
@@ -494,7 +494,7 @@ void update_key_parts(MI_KEYDEF *keyinfo, ulong *rec_per_key_part,
                       ulonglong records);
 int filecopy(MI_CHECK *param, File to,File from,my_off_t start,
 	     my_off_t length, const char *type);
-int movepoint(MI_INFO *info,byte *record,my_off_t oldpos,
+int movepoint(MI_INFO *info,uchar *record,my_off_t oldpos,
 	      my_off_t newpos, uint prot_key);
 int write_data_suffix(SORT_INFO *sort_info, my_bool fix_datafile);
 int test_if_almost_full(MI_INFO *info);

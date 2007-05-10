@@ -152,11 +152,11 @@ init_functions(IO_CACHE* info)
     #  error
 */
 
-int init_io_cache(IO_CACHE *info, File file, uint cachesize,
+int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
 		  enum cache_type type, my_off_t seek_offset,
 		  pbool use_async_io, myf cache_myflags)
 {
-  uint min_cache;
+  size_t min_cache;
   my_off_t pos;
   my_off_t end_of_file= ~(my_off_t) 0;
   DBUG_ENTER("init_io_cache");
@@ -214,7 +214,7 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
       /* Trim cache size if the file is very small */
       if ((my_off_t) cachesize > end_of_file-seek_offset+IO_SIZE*2-1)
       {
-	cachesize=(uint) (end_of_file-seek_offset)+IO_SIZE*2-1;
+	cachesize= (size_t) (end_of_file-seek_offset)+IO_SIZE*2-1;
 	use_async_io=0;				/* No need to use async */
       }
     }
@@ -223,18 +223,17 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   if (type != READ_NET && type != WRITE_NET)
   {
     /* Retry allocating memory in smaller blocks until we get one */
-    cachesize=(uint) ((ulong) (cachesize + min_cache-1) &
-			(ulong) ~(min_cache-1));
+    cachesize= ((cachesize + min_cache-1) & ~(min_cache-1));
     for (;;)
     {
-      uint buffer_block;
+      size_t buffer_block;
       if (cachesize < min_cache)
 	cachesize = min_cache;
-      buffer_block = cachesize;
+      buffer_block= cachesize;
       if (type == SEQ_READ_APPEND)
 	buffer_block *= 2;
       if ((info->buffer=
-	   (byte*) my_malloc(buffer_block,
+	   (uchar*) my_malloc(buffer_block,
 			     MYF((cache_myflags & ~ MY_WME) |
 				 (cachesize == min_cache ? MY_WME : 0)))) != 0)
       {
@@ -247,11 +246,11 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
       if (cachesize == min_cache)
 	DBUG_RETURN(2);				/* Can't alloc cache */
       /* Try with less memory */
-      cachesize= (uint) ((ulong) cachesize*3/4 & (ulong)~(min_cache-1));
+      cachesize= (cachesize*3/4 & ~(min_cache-1));
     }
   }
 
-  DBUG_PRINT("info",("init_io_cache: cachesize = %u",cachesize));
+  DBUG_PRINT("info",("init_io_cache: cachesize = %lu", (ulong) cachesize));
   info->read_length=info->buffer_length=cachesize;
   info->myflags=cache_myflags & ~(MY_NABP | MY_FNABP);
   info->request_pos= info->read_pos= info->write_pos = info->buffer;
@@ -350,7 +349,7 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
       seek_offset <= my_b_tell(info))
   {
     /* Reuse current buffer without flushing it to disk */
-    byte *pos;
+    uchar *pos;
     if (info->type == WRITE_CACHE && type == READ_CACHE)
     {
       info->read_end=info->write_pos;
@@ -452,22 +451,22 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
     1      Error: can't read requested characters
 */
 
-int _my_b_read(register IO_CACHE *info, byte *Buffer, uint Count)
+int _my_b_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
 {
-  uint length,diff_length,left_length;
-  my_off_t max_length, pos_in_file;
+  size_t length,diff_length,left_length, max_length;
+  my_off_t pos_in_file;
   DBUG_ENTER("_my_b_read");
 
-  if ((left_length=(uint) (info->read_end-info->read_pos)))
+  if ((left_length= (size_t) (info->read_end-info->read_pos)))
   {
     DBUG_ASSERT(Count >= left_length);	/* User is not using my_b_read() */
-    memcpy(Buffer,info->read_pos, (size_t) (left_length));
+    memcpy(Buffer,info->read_pos, left_length);
     Buffer+=left_length;
     Count-=left_length;
   }
 
   /* pos_in_file always point on where info->buffer was read */
-  pos_in_file=info->pos_in_file+(uint) (info->read_end - info->buffer);
+  pos_in_file=info->pos_in_file+ (size_t) (info->read_end - info->buffer);
 
   /* 
     Whenever a function which operates on IO_CACHE flushes/writes
@@ -496,20 +495,20 @@ int _my_b_read(register IO_CACHE *info, byte *Buffer, uint Count)
     }
   }
 
-  diff_length=(uint) (pos_in_file & (IO_SIZE-1));
-  if (Count >= (uint) (IO_SIZE+(IO_SIZE-diff_length)))
+  diff_length= (size_t) (pos_in_file & (IO_SIZE-1));
+  if (Count >= (size_t) (IO_SIZE+(IO_SIZE-diff_length)))
   {					/* Fill first intern buffer */
-    uint read_length;
+    size_t read_length;
     if (info->end_of_file <= pos_in_file)
     {					/* End of file */
-      info->error=(int) left_length;
+      info->error= (int) left_length;
       DBUG_RETURN(1);
     }
-    length=(Count & (uint) ~(IO_SIZE-1))-diff_length;
-    if ((read_length=my_read(info->file,Buffer,(uint) length,info->myflags))
-	!= (uint) length)
+    length=(Count & (size_t) ~(IO_SIZE-1))-diff_length;
+    if ((read_length= my_read(info->file,Buffer, length, info->myflags))
+	!= length)
     {
-      info->error= (read_length == (uint) -1 ? -1 :
+      info->error= (read_length == (size_t) -1 ? -1 :
 		    (int) (read_length+left_length));
       DBUG_RETURN(1);
     }
@@ -520,10 +519,10 @@ int _my_b_read(register IO_CACHE *info, byte *Buffer, uint Count)
     diff_length=0;
   }
 
-  max_length=info->read_length-diff_length;
+  max_length= info->read_length-diff_length;
   if (info->type != READ_FIFO &&
       max_length > (info->end_of_file - pos_in_file))
-    max_length = info->end_of_file - pos_in_file;
+    max_length= (size_t) (info->end_of_file - pos_in_file);
   if (!max_length)
   {
     if (Count)
@@ -533,21 +532,21 @@ int _my_b_read(register IO_CACHE *info, byte *Buffer, uint Count)
     }
     length=0;				/* Didn't read any chars */
   }
-  else if ((length=my_read(info->file,info->buffer,(uint) max_length,
-			   info->myflags)) < Count ||
-	   length == (uint) -1)
+  else if ((length= my_read(info->file,info->buffer, max_length,
+                            info->myflags)) < Count ||
+	   length == (size_t) -1)
   {
-    if (length != (uint) -1)
-      memcpy(Buffer,info->buffer,(size_t) length);
+    if (length != (size_t) -1)
+      memcpy(Buffer, info->buffer, length);
     info->pos_in_file= pos_in_file;
-    info->error= length == (uint) -1 ? -1 : (int) (length+left_length);
+    info->error= length == (size_t) -1 ? -1 : (int) (length+left_length);
     info->read_pos=info->read_end=info->buffer;
     DBUG_RETURN(1);
   }
   info->read_pos=info->buffer+Count;
   info->read_end=info->buffer+length;
   info->pos_in_file=pos_in_file;
-  memcpy(Buffer,info->buffer,(size_t) Count);
+  memcpy(Buffer, info->buffer, Count);
   DBUG_RETURN(0);
 }
 
@@ -859,8 +858,9 @@ static int lock_io_cache(IO_CACHE *cache, my_off_t pos)
     /* Another thread did read the block already. */
   }
   DBUG_PRINT("io_cache_share", ("reader awoke, going to process %u bytes",
-                                cshare->read_end ? (uint)
-                                (cshare->read_end - cshare->buffer) : 0));
+                                (uint) (cshare->read_end ? (size_t)
+                                        (cshare->read_end - cshare->buffer) :
+                                        0)));
 
   /*
     Leave the lock. Do not call unlock_io_cache() later. The thread that
@@ -952,33 +952,33 @@ static void unlock_io_cache(IO_CACHE *cache)
     1      Error: can't read requested characters
 */
 
-int _my_b_read_r(register IO_CACHE *cache, byte *Buffer, uint Count)
+int _my_b_read_r(register IO_CACHE *cache, uchar *Buffer, size_t Count)
 {
   my_off_t pos_in_file;
-  uint length, diff_length, left_length;
+  size_t length, diff_length, left_length;
   IO_CACHE_SHARE *cshare= cache->share;
   DBUG_ENTER("_my_b_read_r");
 
-  if ((left_length= (uint) (cache->read_end - cache->read_pos)))
+  if ((left_length= (size_t) (cache->read_end - cache->read_pos)))
   {
     DBUG_ASSERT(Count >= left_length);	/* User is not using my_b_read() */
-    memcpy(Buffer, cache->read_pos, (size_t) (left_length));
+    memcpy(Buffer, cache->read_pos, left_length);
     Buffer+= left_length;
     Count-= left_length;
   }
   while (Count)
   {
-    int cnt, len;
+    size_t cnt, len;
 
     pos_in_file= cache->pos_in_file + (cache->read_end - cache->buffer);
-    diff_length= (uint) (pos_in_file & (IO_SIZE-1));
+    diff_length= (size_t) (pos_in_file & (IO_SIZE-1));
     length=IO_ROUND_UP(Count+diff_length)-diff_length;
     length= ((length <= cache->read_length) ?
              length + IO_ROUND_DN(cache->read_length - length) :
              length - IO_ROUND_UP(length - cache->read_length));
     if (cache->type != READ_FIFO &&
 	(length > (cache->end_of_file - pos_in_file)))
-      length= (uint) (cache->end_of_file - pos_in_file);
+      length= (size_t) (cache->end_of_file - pos_in_file);
     if (length == 0)
     {
       cache->error= (int) left_length;
@@ -1013,12 +1013,12 @@ int _my_b_read_r(register IO_CACHE *cache, byte *Buffer, uint Count)
             DBUG_RETURN(1);
           }
         }
-        len= (int) my_read(cache->file, cache->buffer, length, cache->myflags);
+        len= my_read(cache->file, cache->buffer, length, cache->myflags);
       }
-      DBUG_PRINT("io_cache_share", ("read %d bytes", len));
+      DBUG_PRINT("io_cache_share", ("read %lu bytes", (ulong) len));
 
-      cache->read_end=    cache->buffer + (len == -1 ? 0 : len);
-      cache->error=       (len == (int)length ? 0 : len);
+      cache->read_end=    cache->buffer + (len == (size_t) -1 ? 0 : len);
+      cache->error=       (len == length ? 0 : (int) len);
       cache->pos_in_file= pos_in_file;
 
       /* Copy important values to the share. */
@@ -1039,19 +1039,20 @@ int _my_b_read_r(register IO_CACHE *cache, byte *Buffer, uint Count)
       cache->read_end=    cshare->read_end;
       cache->pos_in_file= cshare->pos_in_file;
 
-      len= (int) ((cache->error == -1) ? -1 : cache->read_end - cache->buffer);
+      len= ((cache->error == -1) ? (size_t) -1 :
+            (size_t) (cache->read_end - cache->buffer));
     }
     cache->read_pos=      cache->buffer;
     cache->seek_not_done= 0;
-    if (len <= 0)
+    if (len == 0 || len == (size_t) -1)
     {
-      DBUG_PRINT("io_cache_share", ("reader error. len %d  left %u",
-                                    len, left_length));
+      DBUG_PRINT("io_cache_share", ("reader error. len %lu  left %lu",
+                                    (ulong) len, (ulong) left_length));
       cache->error= (int) left_length;
       DBUG_RETURN(1);
     }
-    cnt= ((uint) len > Count) ? (int) Count : len;
-    memcpy(Buffer, cache->read_pos, (size_t) cnt);
+    cnt= (len > Count) ? Count : len;
+    memcpy(Buffer, cache->read_pos, cnt);
     Count -= cnt;
     Buffer+= cnt;
     left_length+= cnt;
@@ -1079,7 +1080,7 @@ int _my_b_read_r(register IO_CACHE *cache, byte *Buffer, uint Count)
 */
 
 static void copy_to_read_buffer(IO_CACHE *write_cache,
-                                const byte *write_buffer, uint write_length)
+                                const uchar *write_buffer, size_t write_length)
 {
   IO_CACHE_SHARE *cshare= write_cache->share;
 
@@ -1090,7 +1091,7 @@ static void copy_to_read_buffer(IO_CACHE *write_cache,
   */
   while (write_length)
   {
-    uint copy_length= min(write_length, write_cache->buffer_length);
+    size_t copy_length= min(write_length, write_cache->buffer_length);
     int  __attribute__((unused)) rc;
 
     rc= lock_io_cache(write_cache, write_cache->pos_in_file);
@@ -1126,33 +1127,32 @@ static void copy_to_read_buffer(IO_CACHE *write_cache,
     1  Failed to read
 */
 
-int _my_b_seq_read(register IO_CACHE *info, byte *Buffer, uint Count)
+int _my_b_seq_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
 {
-  uint length,diff_length,left_length,save_count;
-  my_off_t max_length, pos_in_file;
+  size_t length, diff_length, left_length, save_count, max_length;
+  my_off_t pos_in_file;
   save_count=Count;
 
   /* first, read the regular buffer */
-  if ((left_length=(uint) (info->read_end-info->read_pos)))
+  if ((left_length=(size_t) (info->read_end-info->read_pos)))
   {
     DBUG_ASSERT(Count > left_length);	/* User is not using my_b_read() */
-    memcpy(Buffer,info->read_pos, (size_t) (left_length));
+    memcpy(Buffer,info->read_pos, left_length);
     Buffer+=left_length;
     Count-=left_length;
   }
   lock_append_buffer(info);
 
   /* pos_in_file always point on where info->buffer was read */
-  if ((pos_in_file=info->pos_in_file+(uint) (info->read_end - info->buffer)) >=
-      info->end_of_file)
+  if ((pos_in_file=info->pos_in_file +
+       (size_t) (info->read_end - info->buffer)) >= info->end_of_file)
     goto read_append_buffer;
 
   /*
     With read-append cache we must always do a seek before we read,
     because the write could have moved the file pointer astray
   */
-  if (my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0))
-      == MY_FILEPOS_ERROR)
+  if (my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)) == MY_FILEPOS_ERROR)
   {
    info->error= -1;
    unlock_append_buffer(info);
@@ -1160,16 +1160,17 @@ int _my_b_seq_read(register IO_CACHE *info, byte *Buffer, uint Count)
   }
   info->seek_not_done=0;
 
-  diff_length=(uint) (pos_in_file & (IO_SIZE-1));
+  diff_length= (size_t) (pos_in_file & (IO_SIZE-1));
 
   /* now the second stage begins - read from file descriptor */
-  if (Count >= (uint) (IO_SIZE+(IO_SIZE-diff_length)))
-  {					/* Fill first intern buffer */
-    uint read_length;
+  if (Count >= (size_t) (IO_SIZE+(IO_SIZE-diff_length)))
+  {
+    /* Fill first intern buffer */
+    size_t read_length;
 
-    length=(Count & (uint) ~(IO_SIZE-1))-diff_length;
-    if ((read_length=my_read(info->file,Buffer,(uint) length,info->myflags)) ==
-	(uint)-1)
+    length=(Count & (size_t) ~(IO_SIZE-1))-diff_length;
+    if ((read_length= my_read(info->file,Buffer, length,
+                              info->myflags)) == (size_t) -1)
     {
       info->error= -1;
       unlock_append_buffer(info);
@@ -1179,7 +1180,7 @@ int _my_b_seq_read(register IO_CACHE *info, byte *Buffer, uint Count)
     Buffer+=read_length;
     pos_in_file+=read_length;
 
-    if (read_length != (uint) length)
+    if (read_length != length)
     {
       /*
 	We only got part of data;  Read the rest of the data from the
@@ -1191,9 +1192,9 @@ int _my_b_seq_read(register IO_CACHE *info, byte *Buffer, uint Count)
     diff_length=0;
   }
 
-  max_length=info->read_length-diff_length;
+  max_length= info->read_length-diff_length;
   if (max_length > (info->end_of_file - pos_in_file))
-    max_length = info->end_of_file - pos_in_file;
+    max_length= (size_t) (info->end_of_file - pos_in_file);
   if (!max_length)
   {
     if (Count)
@@ -1202,9 +1203,8 @@ int _my_b_seq_read(register IO_CACHE *info, byte *Buffer, uint Count)
   }
   else
   {
-    length=my_read(info->file,info->buffer,(uint) max_length,
-		   info->myflags);
-    if (length == (uint) -1)
+    length= my_read(info->file,info->buffer, max_length, info->myflags);
+    if (length == (size_t) -1)
     {
       info->error= -1;
       unlock_append_buffer(info);
@@ -1212,7 +1212,7 @@ int _my_b_seq_read(register IO_CACHE *info, byte *Buffer, uint Count)
     }
     if (length < Count)
     {
-      memcpy(Buffer,info->buffer,(size_t) length);
+      memcpy(Buffer, info->buffer, length);
       Count -= length;
       Buffer += length;
 
@@ -1241,9 +1241,9 @@ read_append_buffer:
 
   {
     /* First copy the data to Count */
-    uint len_in_buff = (uint) (info->write_pos - info->append_read_pos);
-    uint copy_len;
-    uint transfer_len;
+    size_t len_in_buff = (size_t) (info->write_pos - info->append_read_pos);
+    size_t copy_len;
+    size_t transfer_len;
 
     DBUG_ASSERT(info->append_read_pos <= info->write_pos);
     /*
@@ -1288,15 +1288,16 @@ read_append_buffer:
      0          Success
      1          An error has occurred; IO_CACHE to error state.
 */
-int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
+
+int _my_b_async_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
 {
-  uint length,read_length,diff_length,left_length,use_length,org_Count;
-  my_off_t max_length;
+  size_t length,read_length,diff_length,left_length,use_length,org_Count;
+  size_t max_length;
   my_off_t next_pos_in_file;
-  byte *read_buffer;
+  uchar *read_buffer;
 
   memcpy(Buffer,info->read_pos,
-	 (size_t) (left_length=(uint) (info->read_end-info->read_pos)));
+	 (left_length= (size_t) (info->read_end-info->read_pos)));
   Buffer+=left_length;
   org_Count=Count;
   Count-=left_length;
@@ -1315,15 +1316,15 @@ int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
       info->error= -1;
       return(1);
     }
-    if (! (read_length = (uint) info->aio_result.result.aio_return) ||
-	read_length == (uint) -1)
+    if (! (read_length= (size_t) info->aio_result.result.aio_return) ||
+	read_length == (size_t) -1)
     {
       my_errno=0;				/* For testing */
-      info->error= (read_length == (uint) -1 ? -1 :
+      info->error= (read_length == (size_t) -1 ? -1 :
 		    (int) (read_length+left_length));
       return(1);
     }
-    info->pos_in_file+=(uint) (info->read_end - info->request_pos);
+    info->pos_in_file+= (size_t) (info->read_end - info->request_pos);
 
     if (info->request_pos != info->buffer)
       info->request_pos=info->buffer;
@@ -1354,7 +1355,7 @@ int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
     if (info->aio_read_pos > info->pos_in_file)
     {
       my_errno=EINVAL;
-      return(info->read_length= -1);
+      return(info->read_length= (size_t) -1);
     }
 #endif
 	/* Copy found bytes to buffer */
@@ -1367,7 +1368,7 @@ int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
     info->read_pos+=length;
   }
   else
-    next_pos_in_file=(info->pos_in_file+ (uint)
+    next_pos_in_file=(info->pos_in_file+ (size_t)
 		      (info->read_end - info->request_pos));
 
 	/* If reading large blocks, or first read or read with skip */
@@ -1386,11 +1387,11 @@ int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
       return (1);
     }
 
-    read_length=IO_SIZE*2- (uint) (next_pos_in_file & (IO_SIZE-1));
+    read_length=IO_SIZE*2- (size_t) (next_pos_in_file & (IO_SIZE-1));
     if (Count < read_length)
     {					/* Small block, read to cache */
       if ((read_length=my_read(info->file,info->request_pos,
-			       read_length, info->myflags)) == (uint) -1)
+			       read_length, info->myflags)) == (size_t) -1)
         return info->error= -1;
       use_length=min(Count,read_length);
       memcpy(Buffer,info->request_pos,(size_t) use_length);
@@ -1410,10 +1411,10 @@ int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
     }
     else
     {						/* Big block, don't cache it */
-      if ((read_length=my_read(info->file,Buffer,(uint) Count,info->myflags))
+      if ((read_length= my_read(info->file,Buffer, Count,info->myflags))
 	  != Count)
       {
-	info->error= read_length == (uint)  -1 ? -1 : read_length+left_length;
+	info->error= read_length == (size_t) -1 ? -1 : read_length+left_length;
 	return 1;
       }
       info->read_pos=info->read_end=info->request_pos;
@@ -1421,12 +1422,12 @@ int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
     }
   }
 
-	/* Read next block with asyncronic io */
-  max_length=info->end_of_file - next_pos_in_file;
+  /* Read next block with asyncronic io */
   diff_length=(next_pos_in_file & (IO_SIZE-1));
+  max_length= info->read_length - diff_length;
+  if (max_length > info->end_of_file - next_pos_in_file)
+    max_length= (size_t) (info->end_of_file - next_pos_in_file);
 
-  if (max_length > (my_off_t) info->read_length - diff_length)
-    max_length= (my_off_t) info->read_length - diff_length;
   if (info->request_pos != info->buffer)
     read_buffer=info->buffer;
   else
@@ -1435,9 +1436,9 @@ int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
   if (max_length)
   {
     info->aio_result.result.aio_errno=AIO_INPROGRESS;	/* Marker for test */
-    DBUG_PRINT("aioread",("filepos: %ld  length: %ld",
-			  (ulong) next_pos_in_file,(ulong) max_length));
-    if (aioread(info->file,read_buffer,(int) max_length,
+    DBUG_PRINT("aioread",("filepos: %ld  length: %lu",
+			  (ulong) next_pos_in_file, (ulong) max_length));
+    if (aioread(info->file,read_buffer, max_length,
 		(my_off_t) next_pos_in_file,MY_SEEK_SET,
 		&info->aio_result.result))
     {						/* Skip async io */
@@ -1447,7 +1448,7 @@ int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
       if (info->request_pos != info->buffer)
       {
 	bmove(info->buffer,info->request_pos,
-	      (uint) (info->read_end - info->read_pos));
+	      (size_t) (info->read_end - info->read_pos));
 	info->request_pos=info->buffer;
 	info->read_pos-=info->read_length;
 	info->read_end-=info->read_length;
@@ -1467,7 +1468,7 @@ int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
 
 int _my_b_get(IO_CACHE *info)
 {
-  byte buff;
+  uchar buff;
   IO_CACHE_CALLBACK pre_read,post_read;
   if ((pre_read = info->pre_read))
     (*pre_read)(info);
@@ -1488,9 +1489,9 @@ int _my_b_get(IO_CACHE *info)
    -1 On error; my_errno contains error code.
 */
 
-int _my_b_write(register IO_CACHE *info, const byte *Buffer, uint Count)
+int _my_b_write(register IO_CACHE *info, const uchar *Buffer, size_t Count)
 {
-  uint rest_length,length;
+  size_t rest_length,length;
 
   if (info->pos_in_file+info->buffer_length > info->end_of_file)
   {
@@ -1498,7 +1499,7 @@ int _my_b_write(register IO_CACHE *info, const byte *Buffer, uint Count)
     return info->error = -1;
   }
 
-  rest_length=(uint) (info->write_end - info->write_pos);
+  rest_length= (size_t) (info->write_end - info->write_pos);
   memcpy(info->write_pos,Buffer,(size_t) rest_length);
   Buffer+=rest_length;
   Count-=rest_length;
@@ -1508,7 +1509,7 @@ int _my_b_write(register IO_CACHE *info, const byte *Buffer, uint Count)
     return 1;
   if (Count >= IO_SIZE)
   {					/* Fill first intern buffer */
-    length=Count & (uint) ~(IO_SIZE-1);
+    length=Count & (size_t) ~(IO_SIZE-1);
     if (info->seek_not_done)
     {
       /*
@@ -1524,7 +1525,7 @@ int _my_b_write(register IO_CACHE *info, const byte *Buffer, uint Count)
       }
       info->seek_not_done=0;
     }
-    if (my_write(info->file,Buffer,(uint) length,info->myflags | MY_NABP))
+    if (my_write(info->file, Buffer, length, info->myflags | MY_NABP))
       return info->error= -1;
 
 #ifdef THREAD
@@ -1559,9 +1560,9 @@ int _my_b_write(register IO_CACHE *info, const byte *Buffer, uint Count)
   the write buffer before we are ready with it.
 */
 
-int my_b_append(register IO_CACHE *info, const byte *Buffer, uint Count)
+int my_b_append(register IO_CACHE *info, const uchar *Buffer, size_t Count)
 {
-  uint rest_length,length;
+  size_t rest_length,length;
 
 #ifdef THREAD
   /*
@@ -1572,10 +1573,10 @@ int my_b_append(register IO_CACHE *info, const byte *Buffer, uint Count)
 #endif
 
   lock_append_buffer(info);
-  rest_length=(uint) (info->write_end - info->write_pos);
+  rest_length= (size_t) (info->write_end - info->write_pos);
   if (Count <= rest_length)
     goto end;
-  memcpy(info->write_pos,Buffer,(size_t) rest_length);
+  memcpy(info->write_pos, Buffer, rest_length);
   Buffer+=rest_length;
   Count-=rest_length;
   info->write_pos+=rest_length;
@@ -1586,8 +1587,8 @@ int my_b_append(register IO_CACHE *info, const byte *Buffer, uint Count)
   }
   if (Count >= IO_SIZE)
   {					/* Fill first intern buffer */
-    length=Count & (uint) ~(IO_SIZE-1);
-    if (my_write(info->file,Buffer,(uint) length,info->myflags | MY_NABP))
+    length=Count & (size_t) ~(IO_SIZE-1);
+    if (my_write(info->file,Buffer, length, info->myflags | MY_NABP))
     {
       unlock_append_buffer(info);
       return info->error= -1;
@@ -1605,7 +1606,7 @@ end:
 }
 
 
-int my_b_safe_write(IO_CACHE *info, const byte *Buffer, uint Count)
+int my_b_safe_write(IO_CACHE *info, const uchar *Buffer, size_t Count)
 {
   /*
     Sasha: We are not writing this with the ? operator to avoid hitting
@@ -1625,10 +1626,10 @@ int my_b_safe_write(IO_CACHE *info, const byte *Buffer, uint Count)
   we will never get a seek over the end of the buffer
 */
 
-int my_block_write(register IO_CACHE *info, const byte *Buffer, uint Count,
+int my_block_write(register IO_CACHE *info, const uchar *Buffer, size_t Count,
 		   my_off_t pos)
 {
-  uint length;
+  size_t length;
   int error=0;
 
 #ifdef THREAD
@@ -1648,7 +1649,7 @@ int my_block_write(register IO_CACHE *info, const byte *Buffer, uint Count,
     /* Write the part of the block that is before buffer */
     length= (uint) (info->pos_in_file - pos);
     if (my_pwrite(info->file, Buffer, length, pos, info->myflags | MY_NABP))
-      info->error=error=-1;
+      info->error= error= -1;
     Buffer+=length;
     pos+=  length;
     Count-= length;
@@ -1658,10 +1659,10 @@ int my_block_write(register IO_CACHE *info, const byte *Buffer, uint Count,
   }
 
   /* Check if we want to write inside the used part of the buffer.*/
-  length= (uint) (info->write_end - info->buffer);
+  length= (size_t) (info->write_end - info->buffer);
   if (pos < info->pos_in_file + length)
   {
-    uint offset= (uint) (pos - info->pos_in_file);
+    size_t offset= (size_t) (pos - info->pos_in_file);
     length-=offset;
     if (length > Count)
       length=Count;
@@ -1696,7 +1697,7 @@ int my_block_write(register IO_CACHE *info, const byte *Buffer, uint Count,
 
 int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
 {
-  uint length;
+  size_t length;
   my_bool append_cache;
   my_off_t pos_in_file;
   DBUG_ENTER("my_b_flush_io_cache");
@@ -1713,7 +1714,7 @@ int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
     }
     LOCK_APPEND_BUFFER;
 
-    if ((length=(uint) (info->write_pos - info->write_buffer)))
+    if ((length=(size_t) (info->write_pos - info->write_buffer)))
     {
 #ifdef THREAD
       /*
@@ -1821,8 +1822,8 @@ int end_io_cache(IO_CACHE *info)
     info->alloced_buffer=0;
     if (info->file != -1)			/* File doesn't exist */
       error= my_b_flush_io_cache(info,1);
-    my_free((gptr) info->buffer,MYF(MY_WME));
-    info->buffer=info->read_pos=(byte*) 0;
+    my_free((uchar*) info->buffer,MYF(MY_WME));
+    info->buffer=info->read_pos=(uchar*) 0;
   }
   if (info->type == SEQ_READ_APPEND)
   {

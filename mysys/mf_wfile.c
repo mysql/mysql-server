@@ -29,12 +29,12 @@
 
 	/* Store wildcard-string in a easyer format */
 
-WF_PACK *wf_comp(my_string str)
+WF_PACK *wf_comp(char * str)
 {
   uint ant;
   int not_pos;
-  register my_string pos;
-  my_string buffer;
+  register char * pos;
+  char * buffer;
   WF_PACK *ret;
   DBUG_ENTER("wf_comp");
 
@@ -53,13 +53,13 @@ WF_PACK *wf_comp(my_string str)
   for (pos=str ; *pos ; pos++)
     ant+= test(*pos == ' ' || *pos == ',');
 
-  if ((ret= (WF_PACK*) my_malloc((uint) ant*(sizeof(my_string*)+2)+
+  if ((ret= (WF_PACK*) my_malloc((uint) ant*(sizeof(char **)+2)+
 				 sizeof(WF_PACK)+ (uint) strlen(str)+1,
 				 MYF(MY_WME)))
 	== 0)
     DBUG_RETURN((WF_PACK *) NULL);
-  ret->wild= (my_string*) (ret+1);
-  buffer= (my_string) (ret->wild+ant);
+  ret->wild= (char **) (ret+1);
+  buffer= (char *) (ret->wild+ant);
 
   ant=0;
   for (pos=str ; *pos ; str= pos)
@@ -119,6 +119,6 @@ void wf_end(WF_PACK *buffer)
 {
   DBUG_ENTER("wf_end");
   if (buffer)
-    my_free((gptr) buffer,MYF(0));
+    my_free((uchar*) buffer,MYF(0));
   DBUG_VOID_RETURN;
 } /* wf_end */

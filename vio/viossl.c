@@ -82,35 +82,36 @@ report_errors(SSL* ssl)
 }
 
 
-int vio_ssl_read(Vio *vio, gptr buf, int size)
+size_t vio_ssl_read(Vio *vio, uchar* buf, size_t size)
 {
-  int r;
+  size_t r;
   DBUG_ENTER("vio_ssl_read");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d  ssl: 0x%lx",
-		       vio->sd, (long) buf, size, (long) vio->ssl_arg));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u  ssl: 0x%lx",
+		       vio->sd, (long) buf, (uint) size, (long) vio->ssl_arg));
 
   r= SSL_read((SSL*) vio->ssl_arg, buf, size);
 #ifndef DBUG_OFF
-  if (r < 0)
+  if (r == (size_t) -1)
     report_errors((SSL*) vio->ssl_arg);
 #endif
-  DBUG_PRINT("exit", ("%d", r));
+  DBUG_PRINT("exit", ("%u", (uint) r));
   DBUG_RETURN(r);
 }
 
 
-int vio_ssl_write(Vio *vio, const gptr buf, int size)
+size_t vio_ssl_write(Vio *vio, const uchar* buf, size_t size)
 {
-  int r;
+  size_t r;
   DBUG_ENTER("vio_ssl_write");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", vio->sd, (long) buf, size));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd,
+                       (long) buf, (uint) size));
 
   r= SSL_write((SSL*) vio->ssl_arg, buf, size);
 #ifndef DBUG_OFF
-  if (r < 0)
+  if (r == (size_t) -1)
     report_errors((SSL*) vio->ssl_arg);
 #endif
-  DBUG_PRINT("exit", ("%d", r));
+  DBUG_PRINT("exit", ("%u", (uint) r));
   DBUG_RETURN(r);
 }
 
@@ -123,8 +124,7 @@ int vio_ssl_close(Vio *vio)
 
   if (ssl)
   {
-    switch ((r= SSL_shutdown(ssl)))
-    {
+    switch ((r= SSL_shutdown(ssl))) {
     case 1:
       /* Shutdown successful */
       break;

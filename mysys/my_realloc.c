@@ -22,12 +22,12 @@
 
 	/* My memory re allocator */
 
-gptr my_realloc(gptr oldpoint, uint size, myf my_flags)
+void* my_realloc(void* oldpoint, size_t size, myf my_flags)
 {
-  gptr point;
+  void *point;
   DBUG_ENTER("my_realloc");
-  DBUG_PRINT("my",("ptr: 0x%lx  size: %u  my_flags: %d", (long) oldpoint, size,
-		   my_flags));
+  DBUG_PRINT("my",("ptr: 0x%lx  size: %lu  my_flags: %d", (long) oldpoint,
+                   (ulong) size, my_flags));
 
   if (!oldpoint && (my_flags & MY_ALLOW_ZERO_PTR))
     DBUG_RETURN(my_malloc(size,my_flags));
@@ -48,7 +48,7 @@ gptr my_realloc(gptr oldpoint, uint size, myf my_flags)
     free(oldpoint);
   }
 #else
-  if ((point = (char*)realloc(oldpoint,size)) == NULL)
+  if ((point= (uchar*) realloc(oldpoint,size)) == NULL)
   {
     if (my_flags & MY_FREE_ON_ERROR)
       my_free(oldpoint, my_flags);

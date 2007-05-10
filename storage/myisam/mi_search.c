@@ -78,7 +78,7 @@ int _mi_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   if (!(buff=_mi_fetch_keypage(info,keyinfo,pos,DFLT_INIT_HITS,info->buff,
                                test(!(nextflag & SEARCH_SAVE_BUFF)))))
     goto err;
-  DBUG_DUMP("page",(byte*) buff,mi_getint(buff));
+  DBUG_DUMP("page",(uchar*) buff,mi_getint(buff));
 
   flag=(*keyinfo->bin_search)(info,keyinfo,buff,key,key_len,nextflag,
                               &keypos,lastkey, &last_key);
@@ -753,7 +753,7 @@ void _mi_dpointer(MI_INFO *info, uchar *buff, my_off_t pos)
 uint _mi_get_static_key(register MI_KEYDEF *keyinfo, uint nod_flag,
                        register uchar **page, register uchar *key)
 {
-  memcpy((byte*) key,(byte*) *page,
+  memcpy((uchar*) key,(uchar*) *page,
          (size_t) (keyinfo->keylength+nod_flag));
   *page+=keyinfo->keylength+nod_flag;
   return(keyinfo->keylength);
@@ -897,12 +897,12 @@ uint _mi_get_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
       else
         length=keyseg->length;
     }
-    memcpy((byte*) key,(byte*) page,(size_t) length);
+    memcpy((uchar*) key,(uchar*) page,(size_t) length);
     key+=length;
     page+=length;
   }
   length=keyseg->length+nod_flag;
-  bmove((byte*) key,(byte*) page,length);
+  bmove((uchar*) key,(uchar*) page,length);
   *page_pos= page+length;
   return ((uint) (key-start_key)+keyseg->length);
 } /* _mi_get_pack_key */
@@ -1003,7 +1003,7 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
     }
     DBUG_PRINT("info",("key: 0x%lx  from: 0x%lx  length: %u",
 		       (long) key, (long) from, length));
-    memmove((byte*) key, (byte*) from, (size_t) length);
+    memmove((uchar*) key, (uchar*) from, (size_t) length);
     key+=length;
     from+=length;
   }
@@ -1035,7 +1035,7 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
       DBUG_RETURN(0);                                 /* Error */
     }
     /* Copy data pointer and, if appropriate, key block pointer. */
-    memcpy((byte*) key,(byte*) from,(size_t) length);
+    memcpy((uchar*) key,(uchar*) from,(size_t) length);
     *page_pos= from+length;
   }
   DBUG_RETURN((uint) (key-start_key)+keyseg->length);
@@ -1054,7 +1054,7 @@ uchar *_mi_get_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
   nod_flag=mi_test_if_nod(page);
   if (! (keyinfo->flag & (HA_VAR_LENGTH_KEY | HA_BINARY_PACK_KEY)))
   {
-    bmove((byte*) key,(byte*) keypos,keyinfo->keylength+nod_flag);
+    bmove((uchar*) key,(uchar*) keypos,keyinfo->keylength+nod_flag);
     DBUG_RETURN(keypos+keyinfo->keylength+nod_flag);
   }
   else
@@ -1092,7 +1092,7 @@ static my_bool _mi_get_prev_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
   if (! (keyinfo->flag & (HA_VAR_LENGTH_KEY | HA_BINARY_PACK_KEY)))
   {
     *return_key_length=keyinfo->keylength;
-    bmove((byte*) key,(byte*) keypos- *return_key_length-nod_flag,
+    bmove((uchar*) key,(uchar*) keypos- *return_key_length-nod_flag,
           *return_key_length);
     DBUG_RETURN(0);
   }
@@ -1134,7 +1134,7 @@ uchar *_mi_get_last_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
     lastpos=endpos-keyinfo->keylength-nod_flag;
     *return_key_length=keyinfo->keylength;
     if (lastpos > page)
-      bmove((byte*) lastkey,(byte*) lastpos,keyinfo->keylength+nod_flag);
+      bmove((uchar*) lastkey,(uchar*) lastpos,keyinfo->keylength+nod_flag);
   }
   else
   {
@@ -1225,7 +1225,7 @@ uint _mi_keylength_part(MI_KEYDEF *keyinfo, register uchar *key,
 uchar *_mi_move_key(MI_KEYDEF *keyinfo, uchar *to, uchar *from)
 {
   reg1 uint length;
-  memcpy((byte*) to, (byte*) from,
+  memcpy((uchar*) to, (uchar*) from,
          (size_t) (length=_mi_keylength(keyinfo,from)));
   return to+length;
 }
@@ -1827,7 +1827,7 @@ void _mi_store_static_key(MI_KEYDEF *keyinfo __attribute__((unused)),
                           register uchar *key_pos,
                           register MI_KEY_PARAM *s_temp)
 {
-  memcpy((byte*) key_pos,(byte*) s_temp->key,(size_t) s_temp->totlength);
+  memcpy((uchar*) key_pos,(uchar*) s_temp->key,(size_t) s_temp->totlength);
 }
 
 
@@ -1860,7 +1860,7 @@ void _mi_store_var_pack_key(MI_KEYDEF *keyinfo  __attribute__((unused)),
     /* Not packed against previous key */
     store_pack_length(s_temp->pack_marker == 128,key_pos,s_temp->key_length);
   }
-  bmove((byte*) key_pos,(byte*) s_temp->key,
+  bmove((uchar*) key_pos,(uchar*) s_temp->key,
         (length=s_temp->totlength-(uint) (key_pos-start)));
 
   if (!s_temp->next_key_pos)                    /* No following key */

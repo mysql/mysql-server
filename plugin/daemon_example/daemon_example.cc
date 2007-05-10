@@ -60,7 +60,7 @@ pthread_handler_t mysql_heartbeat(void *p)
                 tm_tmp.tm_hour,
                 tm_tmp.tm_min,
                 tm_tmp.tm_sec);
-    my_write(con->heartbeat_file, buffer, strlen(buffer), MYF(0));
+    my_write(con->heartbeat_file, (uchar*) buffer, strlen(buffer), MYF(0));
     x++;
   }
 
@@ -114,7 +114,7 @@ static int daemon_example_plugin_init(void *p)
               tm_tmp.tm_hour,
               tm_tmp.tm_min,
               tm_tmp.tm_sec);
-  my_write(con->heartbeat_file, buffer, strlen(buffer), MYF(0));
+  my_write(con->heartbeat_file, (uchar*) buffer, strlen(buffer), MYF(0));
 
   pthread_attr_init(&attr);
   pthread_attr_setdetachstate(&attr,
@@ -168,7 +168,7 @@ static int daemon_example_plugin_deinit(void *p)
               tm_tmp.tm_hour,
               tm_tmp.tm_min,
               tm_tmp.tm_sec);
-  my_write(con->heartbeat_file, buffer, strlen(buffer), MYF(0));
+  my_write(con->heartbeat_file, (uchar*) buffer, strlen(buffer), MYF(0));
   my_close(con->heartbeat_file, MYF(0));
 
   my_free((char *)con, MYF(0));

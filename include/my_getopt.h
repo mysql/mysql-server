@@ -40,8 +40,8 @@ struct my_option
   const char *name;                     /* Name of the option */
   int        id;                        /* unique id or short option */
   const char *comment;                  /* option comment, for autom. --help */
-  gptr       *value;                    /* The variable value */
-  gptr       *u_max_value;              /* The user def. max variable value */
+  uchar      **value;                   /* The variable value */
+  uchar      **u_max_value;             /* The user def. max variable value */
   const char **str_values;              /* Pointer to possible values */
   ulong     var_type;
   enum get_opt_arg_type arg_type;
@@ -64,7 +64,7 @@ extern int handle_options (int *argc, char ***argv,
 			   const struct my_option *longopts, my_get_one_option);
 extern void my_print_help(const struct my_option *options);
 extern void my_print_variables(const struct my_option *options);
-extern void my_getopt_register_get_addr(gptr* (*func_addr)(const char *, uint,
+extern void my_getopt_register_get_addr(uchar ** (*func_addr)(const char *, uint,
 							   const struct my_option *));
 
 ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp);

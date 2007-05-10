@@ -55,7 +55,7 @@ int main(int argc, char **argv)
   keyinfo[0].flag = HA_NOSAME;
   
   deleted=0;
-  bzero((gptr) flags,sizeof(flags));
+  bzero((uchar*) flags,sizeof(flags));
 
   printf("- Creating heap-file\n");
   if (heap_create(filename,1,keyinfo,30,(ulong) flag*100000L,10L,

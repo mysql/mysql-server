@@ -1256,9 +1256,9 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	    goto err;
 	  }
 	}
-	key_copy((byte*) key,table->record[0],table->key_info+key_nr,0);
+	key_copy((uchar*) key,table->record[0],table->key_info+key_nr,0);
 	if ((error=(table->file->index_read_idx(table->record[1],key_nr,
-                                                (byte*) key, HA_WHOLE_KEY,
+                                                (uchar*) key, HA_WHOLE_KEY,
 						HA_READ_KEY_EXACT))))
 	  goto err;
       }
@@ -1739,7 +1739,7 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
   Field **field,**org_field, *found_next_number_field;
   TABLE *copy;
   TABLE_SHARE *share= table->s;
-  byte *bitmap;
+  uchar *bitmap;
   DBUG_ENTER("delayed_insert::get_local_table");
 
   /* First request insert thread to get a lock */
@@ -1784,7 +1784,7 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
   /* We don't need to change the file handler here */
   /* Assign the pointers for the field pointers array and the record. */
   field= copy->field= (Field**) (copy + 1);
-  bitmap= (byte*) (field + share->fields + 1);
+  bitmap= (uchar*) (field + share->fields + 1);
   copy->record[0]= (bitmap + share->column_bitmap_size * 2);
   memcpy((char*) copy->record[0], (char*) table->record[0], share->reclength);
   /*
@@ -1853,7 +1853,8 @@ write_delayed(THD *thd,TABLE *table, enum_duplicates duplic,
   delayed_insert *di=thd->di;
   const Discrete_interval *forced_auto_inc;
   DBUG_ENTER("write_delayed");
-  DBUG_PRINT("enter", ("query = '%s' length %u", query.str, query.length));
+  DBUG_PRINT("enter", ("query = '%s' length %lu", query.str,
+                       (ulong) query.length));
 
   thd->proc_info="waiting for handler insert";
   pthread_mutex_lock(&di->mutex);
@@ -2227,7 +2228,7 @@ static void free_delayed_insert_blobs(register TABLE *table)
   {
     if ((*ptr)->flags & BLOB_FLAG)
     {
-      char *str;
+      uchar *str;
       ((Field_blob *) (*ptr))->get_ptr(&str);
       my_free(str,MYF(MY_ALLOW_ZERO_PTR));
       ((Field_blob *) (*ptr))->reset();
@@ -2289,8 +2290,9 @@ bool delayed_insert::handle_inserts(void)
       use values from the previous interval (of the previous rows).
     */
     bool log_query= (row->log_query && row->query.str != NULL);
-    DBUG_PRINT("delayed", ("query: '%s'  length: %u", row->query.str ?
-                           row->query.str : "[NULL]", row->query.length));
+    DBUG_PRINT("delayed", ("query: '%s'  length: %lu", row->query.str ?
+                           row->query.str : "[NULL]",
+                           (ulong) row->query.length));
     if (log_query)
     {
       /*
@@ -2622,7 +2624,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       while ((item= li++))
       {
         item->transform(&Item::update_value_transformer,
-                        (byte*)lex->current_select);
+                        (uchar*)lex->current_select);
       }
     }
 
@@ -3108,7 +3110,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                                     MYSQL_LOCK_IGNORE_FLUSH, &not_used)))
   {
     VOID(pthread_mutex_lock(&LOCK_open));
-    hash_delete(&open_cache,(byte*) table);
+    hash_delete(&open_cache,(uchar*) table);
     VOID(pthread_mutex_unlock(&LOCK_open));
     quick_rm_table(create_info->db_type, create_table->db,
 		   table_case_name(create_info, create_table->table_name), 0);
@@ -3369,7 +3371,7 @@ void select_create::abort()
     {
       ulong version= table->s->version;
       table->s->version= 0;
-      hash_delete(&open_cache,(byte*) table);
+      hash_delete(&open_cache,(uchar*) table);
       if (!create_info->table_existed)
         quick_rm_table(table_type, create_table->db,
                        create_table->table_name, 0);

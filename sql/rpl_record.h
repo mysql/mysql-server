@@ -17,15 +17,15 @@
 #define RPL_RECORD_H
 
 #if !defined(MYSQL_CLIENT)
-my_size_t pack_row(TABLE* table, MY_BITMAP const* cols,
-                   byte *row_data, const byte *data);
+size_t pack_row(TABLE* table, MY_BITMAP const* cols,
+                uchar *row_data, const uchar *data);
 #endif
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 int unpack_row(RELAY_LOG_INFO const *rli,
                TABLE *table, uint const colcnt,
-               char const *const row_data, MY_BITMAP const *cols,
-               char const **const row_end, ulong *const master_reclength,
+               uchar const *const row_data, MY_BITMAP const *cols,
+               uchar const **const row_end, ulong *const master_reclength,
                MY_BITMAP* const rw_set,
                Log_event_type const event_type);
 #endif

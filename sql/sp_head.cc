@@ -385,13 +385,13 @@ void
 sp_name::init_qname(THD *thd)
 {
   m_sroutines_key.length=  m_db.length + m_name.length + 2;
-  if (!(m_sroutines_key.str= thd->alloc(m_sroutines_key.length + 1)))
+  if (!(m_sroutines_key.str= (char*) thd->alloc(m_sroutines_key.length + 1)))
     return;
   m_qname.length= m_sroutines_key.length - 1;
   m_qname.str= m_sroutines_key.str + 1;
   sprintf(m_qname.str, "%.*s.%.*s",
-	  m_db.length, (m_db.length ? m_db.str : ""),
-	  m_name.length, m_name.str);
+	  (int) m_db.length, (m_db.length ? m_db.str : ""),
+	  (int) m_name.length, m_name.str);
 }
 
 
@@ -485,8 +485,7 @@ sp_head::sp_head()
   */
   m_db= m_name= m_qname= str_reset;
 
-  extern byte *
-    sp_table_key(const byte *ptr, uint *plen, my_bool first);
+  extern uchar *sp_table_key(const uchar *ptr, size_t *plen, my_bool first);
   DBUG_ENTER("sp_head::sp_head");
 
   m_backpatch.empty();
@@ -713,7 +712,7 @@ sp_head::create_result_field(uint field_max_length, const char *field_name,
                 field_max_length : m_return_field_def.length;
 
   field= ::make_field(table->s,                     /* TABLE_SHARE ptr */
-                      (char*) 0,                    /* field ptr */
+                      (uchar*) 0,                   /* field ptr */
                       field_length,                 /* field [max] length */
                       (uchar*) "",                  /* null ptr */
                       0,                            /* null bit */
@@ -977,7 +976,7 @@ sp_head::execute(THD *thd)
   String old_packet;
 
   /* Use some extra margin for possible SP recursion and functions */
-  if (check_stack_overrun(thd, 8 * STACK_MIN_SIZE, (char*)&old_packet))
+  if (check_stack_overrun(thd, 8 * STACK_MIN_SIZE, (uchar*)&old_packet))
     DBUG_RETURN(TRUE);
 
   /* init per-instruction memroot */
@@ -1664,7 +1663,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   {
     List_iterator<Item> it_args(*args);
 
-    DBUG_PRINT("info",(" %.*s: eval args", m_name.length, m_name.str));
+    DBUG_PRINT("info",(" %.*s: eval args", (int) m_name.length, m_name.str));
 
     for (uint i= 0 ; i < params ; i++)
     {
@@ -1722,7 +1721,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     if (!thd->in_sub_stmt)
       close_thread_tables(thd, 0, 0);
 
-    DBUG_PRINT("info",(" %.*s: eval args done", m_name.length, m_name.str));
+    DBUG_PRINT("info",(" %.*s: eval args done",
+                       (int) m_name.length, m_name.str));
   }
   if (!(m_flags & LOG_SLOW_STATEMENTS) && thd->enable_slow_log)
   {
@@ -2181,7 +2181,7 @@ void sp_head::add_instr(sp_instr *instr)
     entire stored procedure, as their life span is equal.
   */
   instr->mem_root= &main_mem_root;
-  insert_dynamic(&m_instr, (gptr)&instr);
+  insert_dynamic(&m_instr, (uchar*)&instr);
 }
 
 
@@ -2267,7 +2267,7 @@ void sp_head::optimize()
 	sp_instr *ibp;
 	List_iterator_fast<sp_instr> li(bp);
 
-	set_dynamic(&m_instr, (gptr)&i, dst);
+	set_dynamic(&m_instr, (uchar*)&i, dst);
 	while ((ibp= li++))
         {
           sp_instr_opt_meta *im= static_cast<sp_instr_opt_meta *>(ibp);
@@ -3458,12 +3458,12 @@ typedef struct st_sp_table
   uint query_lock_count;
 } SP_TABLE;
 
-byte *
-sp_table_key(const byte *ptr, uint *plen, my_bool first)
+uchar *
+sp_table_key(const uchar *ptr, size_t *plen, my_bool first)
 {
   SP_TABLE *tab= (SP_TABLE *)ptr;
   *plen= tab->qname.length;
-  return (byte *)tab->qname.str;
+  return (uchar *)tab->qname.str;
 }
 
 
@@ -3524,8 +3524,8 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
         (and therefore should not be prelocked). Otherwise we will erroneously
         treat table with same name but with different alias as non-temporary.
       */
-      if ((tab= (SP_TABLE *)hash_search(&m_sptabs, (byte *)tname, tlen)) ||
-          ((tab= (SP_TABLE *)hash_search(&m_sptabs, (byte *)tname,
+      if ((tab= (SP_TABLE *)hash_search(&m_sptabs, (uchar *)tname, tlen)) ||
+          ((tab= (SP_TABLE *)hash_search(&m_sptabs, (uchar *)tname,
                                         tlen - alen - 1)) &&
            tab->temp))
       {
@@ -3555,7 +3555,7 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
         tab->db_length= table->db_length;
         tab->lock_type= table->lock_type;
         tab->lock_count= tab->query_lock_count= 1;
-	my_hash_insert(&m_sptabs, (byte *)tab);
+	my_hash_insert(&m_sptabs, (uchar *)tab);
       }
     }
   return TRUE;

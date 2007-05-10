@@ -74,7 +74,7 @@ public:
       friend class injector;
     public:
       /* Convenience definitions */
-      typedef byte* record_type;
+      typedef uchar* record_type;
       typedef uint32 server_id_type;
 
       /*

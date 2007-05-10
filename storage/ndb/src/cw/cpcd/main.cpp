@@ -39,22 +39,22 @@ static const char *user = 0;
 static struct my_option my_long_options[] =
 {
   { "work-dir", 'w', "Work directory",
-    (gptr*) &work_dir, (gptr*) &work_dir,  0,
+    (uchar**) &work_dir, (uchar**) &work_dir,  0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "port", 'p', "TCP port to listen on",
-    (gptr*) &port, (gptr*) &port, 0,
+    (uchar**) &port, (uchar**) &port, 0,
     GET_INT, REQUIRED_ARG, CPCD_DEFAULT_TCP_PORT, 0, 0, 0, 0, 0 }, 
   { "syslog", 'S', "Log events to syslog",
-    (gptr*) &use_syslog, (gptr*) &use_syslog, 0,
+    (uchar**) &use_syslog, (uchar**) &use_syslog, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "logfile", 'L', "File to log events to",
-    (gptr*) &logfile, (gptr*) &logfile, 0,
+    (uchar**) &logfile, (uchar**) &logfile, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "debug", 'D', "Enable debug mode",
-    (gptr*) &debug, (gptr*) &debug, 0,
+    (uchar**) &debug, (uchar**) &debug, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "user", 'u', "Run as user",
-    (gptr*) &user, (gptr*) &user, 0,
+    (uchar**) &user, (uchar**) &user, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };

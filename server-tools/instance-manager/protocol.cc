@@ -21,7 +21,7 @@
 #include <m_string.h>
 
 
-static char eof_buff[1]= { (char) 254 };        /* Marker for end of fields */
+static uchar eof_buff[1]= { (char) 254 }; /* Marker for end of fields */
 static const char ERROR_PACKET_CODE= (char) 255;
 
 
@@ -38,7 +38,7 @@ int net_send_ok(struct st_net *net, unsigned long connection_id,
     1-9 + message length          message to send (isn't stored if no message)
   */
   Buffer buff;
-  char *pos= buff.buffer;
+  uchar *pos= buff.buffer;
 
   /* check that we have space to hold mandatory fields */
   buff.reserve(0, 23);
@@ -53,7 +53,7 @@ int net_send_ok(struct st_net *net, unsigned long connection_id,
   int2store(pos, 0);
   pos+= 2;
 
-  uint position= pos - buff.buffer; /* we might need it for message */
+  size_t position= pos - buff.buffer; /* we might need it for message */
 
   if (message != NULL)
   {
@@ -82,7 +82,8 @@ int net_send_error(struct st_net *net, uint sql_errno)
   memcpy(pos, errno_to_sqlstate(sql_errno), SQLSTATE_LENGTH);
   pos+= SQLSTATE_LENGTH;
   pos= strmake(pos, err, MYSQL_ERRMSG_SIZE - 1) + 1;
-  return my_net_write(net, buff, pos - buff) || net_flush(net);
+  return (my_net_write(net, (uchar*) buff, (size_t) (pos - buff)) ||
+          net_flush(net));
 }
 
 
@@ -98,7 +99,8 @@ int net_send_error_323(struct st_net *net, uint sql_errno)
   int2store(pos, sql_errno);
   pos+= 2;
   pos= strmake(pos, err, MYSQL_ERRMSG_SIZE - 1) + 1;
-  return my_net_write(net, buff, pos - buff) || net_flush(net);
+  return (my_net_write(net, (uchar*) buff, (size_t) (pos - buff)) ||
+          net_flush(net));
 }
 
 char *net_store_length(char *pkg, uint length)
@@ -115,8 +117,8 @@ char *net_store_length(char *pkg, uint length)
 }
 
 
-int store_to_protocol_packet(Buffer *buf, const char *string, uint *position,
-                             uint string_len)
+int store_to_protocol_packet(Buffer *buf, const char *string, size_t *position,
+                             size_t string_len)
 {
   uint currpos;
 
@@ -135,9 +137,10 @@ err:
 }
 
 
-int store_to_protocol_packet(Buffer *buf, const char *string, uint *position)
+int store_to_protocol_packet(Buffer *buf, const char *string,
+                             size_t *position)
 {
-  uint string_len;
+  size_t string_len;
 
   string_len= strlen(string);
   return store_to_protocol_packet(buf, string, position, string_len);
@@ -153,15 +156,16 @@ int send_eof(struct st_net *net)
   buff[0]=254;
   int2store(buff+1, 0);
   int2store(buff+3, 0);
-  return my_net_write(net, (char*) buff, sizeof buff);
+  return my_net_write(net, buff, sizeof(buff));
 }
+
 
 int send_fields(struct st_net *net, LIST *fields)
 {
   LIST *tmp= fields;
   Buffer send_buff;
-  char small_buff[4];
-  uint position= 0;
+  uchar small_buff[4];
+  size_t position= 0;
   LEX_STRING *field;
 
   /* send the number of fileds */

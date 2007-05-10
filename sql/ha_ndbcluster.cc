@@ -146,7 +146,7 @@ pthread_mutex_t ndbcluster_mutex;
 // Table lock handling
 HASH ndbcluster_open_tables;
 
-static byte *ndbcluster_get_key(NDB_SHARE *share,uint *length,
+static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
                                 my_bool not_used __attribute__((unused)));
 #ifdef HAVE_NDB_BINLOG
 static int rename_share(NDB_SHARE *share, const char *new_key);
@@ -336,11 +336,11 @@ int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans,
   Place holder for ha_ndbcluster thread specific data
 */
 static
-byte *thd_ndb_share_get_key(THD_NDB_SHARE *thd_ndb_share, uint *length,
+uchar *thd_ndb_share_get_key(THD_NDB_SHARE *thd_ndb_share, size_t *length,
                             my_bool not_used __attribute__((unused)))
 {
   *length= sizeof(thd_ndb_share->key);
-  return (byte*) &thd_ndb_share->key;
+  return (uchar*) &thd_ndb_share->key;
 }
 
 Thd_ndb::Thd_ndb()
@@ -395,9 +395,9 @@ Thd_ndb::get_open_table(THD *thd, const void *key)
   DBUG_ENTER("Thd_ndb::get_open_table");
   HASH_SEARCH_STATE state;
   THD_NDB_SHARE *thd_ndb_share=
-    (THD_NDB_SHARE*)hash_first(&open_tables, (byte *)&key, sizeof(key), &state);
+    (THD_NDB_SHARE*)hash_first(&open_tables, (uchar *)&key, sizeof(key), &state);
   while (thd_ndb_share && thd_ndb_share->key != key)
-    thd_ndb_share= (THD_NDB_SHARE*)hash_next(&open_tables, (byte *)&key, sizeof(key), &state);
+    thd_ndb_share= (THD_NDB_SHARE*)hash_next(&open_tables, (uchar *)&key, sizeof(key), &state);
   if (thd_ndb_share == 0)
   {
     thd_ndb_share= (THD_NDB_SHARE *) alloc_root(&thd->transaction.mem_root,
@@ -406,7 +406,7 @@ Thd_ndb::get_open_table(THD *thd, const void *key)
     thd_ndb_share->stat.last_count= count;
     thd_ndb_share->stat.no_uncommitted_rows_count= 0;
     thd_ndb_share->stat.records= ~(ha_rows)0;
-    my_hash_insert(&open_tables, (byte *)thd_ndb_share);
+    my_hash_insert(&open_tables, (uchar *)thd_ndb_share);
   }
   else if (thd_ndb_share->stat.last_count != count)
   {
@@ -674,7 +674,7 @@ static bool field_type_forces_var_part(enum_field_types type)
 */
 
 bool ha_ndbcluster::set_hidden_key(NdbOperation *ndb_op,
-                                   uint fieldnr, const byte *field_ptr)
+                                   uint fieldnr, const uchar *field_ptr)
 {
   DBUG_ENTER("set_hidden_key");
   DBUG_RETURN(ndb_op->equal(fieldnr, (char*)field_ptr) != 0);
@@ -686,14 +686,14 @@ bool ha_ndbcluster::set_hidden_key(NdbOperation *ndb_op,
 */
 
 int ha_ndbcluster::set_ndb_key(NdbOperation *ndb_op, Field *field,
-                               uint fieldnr, const byte *field_ptr)
+                               uint fieldnr, const uchar *field_ptr)
 {
   uint32 pack_len= field->pack_length();
   DBUG_ENTER("set_ndb_key");
   DBUG_PRINT("enter", ("%d: %s, ndb_type: %u, len=%d", 
                        fieldnr, field->field_name, field->type(),
                        pack_len));
-  DBUG_DUMP("key", (char*)field_ptr, pack_len);
+  DBUG_DUMP("key", field_ptr, pack_len);
   
   DBUG_ASSERT(ndb_supported_type(field->type()));
   DBUG_ASSERT(! (field->flags & BLOB_FLAG));
@@ -710,13 +710,13 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
                                  uint fieldnr, int row_offset,
                                  bool *set_blob_value)
 {
-  const byte* field_ptr= field->ptr + row_offset;
+  const uchar* field_ptr= field->ptr + row_offset;
   uint32 pack_len= field->pack_length();
   DBUG_ENTER("set_ndb_value");
   DBUG_PRINT("enter", ("%d: %s  type: %u  len=%d  is_null=%s", 
                        fieldnr, field->field_name, field->type(), 
                        pack_len, field->is_null(row_offset) ? "Y" : "N"));
-  DBUG_DUMP("value", (char*) field_ptr, pack_len);
+  DBUG_DUMP("value", field_ptr, pack_len);
 
   DBUG_ASSERT(ndb_supported_type(field->type()));
   {
@@ -725,7 +725,7 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
     if (pack_len == 0)
     {
       pack_len= sizeof(empty_field);
-      field_ptr= (byte *)&empty_field;
+      field_ptr= (uchar *)&empty_field;
       if (field->is_null(row_offset))
         empty_field= 0;
       else
@@ -755,7 +755,7 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
           // Set value to NULL
           DBUG_RETURN((ndb_op->setValue(fieldnr, (char*)NULL) != 0));
         DBUG_PRINT("info", ("bit field"));
-        DBUG_DUMP("value", (char*)&bits, pack_len);
+        DBUG_DUMP("value", (uchar*)&bits, pack_len);
 #ifdef WORDS_BIGENDIAN
         /* store lsw first */
         bits = ((bits >> 32) & 0x00000000FFFFFFFFLL)
@@ -775,18 +775,18 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
 
       // Get length and pointer to data
       uint32 blob_len= field_blob->get_length(field_ptr);
-      char* blob_ptr= NULL;
+      uchar* blob_ptr= NULL;
       field_blob->get_ptr(&blob_ptr);
 
       // Looks like NULL ptr signals length 0 blob
       if (blob_ptr == NULL) {
         DBUG_ASSERT(blob_len == 0);
-        blob_ptr= (char*)"";
+        blob_ptr= (uchar*)"";
       }
 
       DBUG_PRINT("value", ("set blob ptr: 0x%lx  len: %u",
                            (long) blob_ptr, blob_len));
-      DBUG_DUMP("value", (char*)blob_ptr, min(blob_len, 26));
+      DBUG_DUMP("value", blob_ptr, min(blob_len, 26));
 
       if (set_blob_value)
         *set_blob_value= TRUE;
@@ -830,7 +830,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
   passes a record pointer diff.
  */
 int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
-                        byte*& buffer, uint& buffer_size,
+                        uchar*& buffer, uint& buffer_size,
                         my_ptrdiff_t ptrdiff)
 {
   DBUG_ENTER("get_ndb_blobs_value");
@@ -866,7 +866,7 @@ int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
           size+= 8 - size % 8;
         if (loop == 1)
         {
-          char *buf= buffer + offset;
+          uchar *buf= buffer + offset;
           uint32 len= 0xffffffff;  // Max uint32
           if (ndb_blob->readData(buf, len) != 0)
             ERR_RETURN(ndb_blob->getNdbError());
@@ -883,7 +883,7 @@ int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
       else if (loop == 1) // undefined or null
       {
         // have to set length even in this case
-        char *buf= buffer + offset; // or maybe NULL
+        uchar *buf= buffer + offset; // or maybe NULL
         uint32 len= 0;
         field_blob->ptr+= ptrdiff;
         field_blob->set_ptr(len, buf);
@@ -896,7 +896,7 @@ int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
       my_free(buffer, MYF(MY_ALLOW_ZERO_PTR));
       buffer_size= 0;
       DBUG_PRINT("info", ("allocate blobs buffer size %u", offset));
-      buffer= my_malloc(offset, MYF(MY_WME));
+      buffer= (uchar*) my_malloc(offset, MYF(MY_WME));
       if (buffer == NULL)
       {
         sql_print_error("ha_ndbcluster::get_ndb_blobs_value: "
@@ -917,7 +917,7 @@ int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
 */
 
 int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
-                                 uint fieldnr, byte* buf)
+                                 uint fieldnr, uchar* buf)
 {
   DBUG_ENTER("get_ndb_value");
   DBUG_PRINT("enter", ("fieldnr: %d flags: %o", fieldnr,
@@ -932,13 +932,13 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
       { 
         if (field->type() != MYSQL_TYPE_BIT)
         {
-          byte *field_buf;
+          uchar *field_buf;
           if (field->pack_length() != 0)
             field_buf= buf + (field->ptr - table->record[0]);
           else
-            field_buf= (byte *)&dummy_buf;
+            field_buf= (uchar *)&dummy_buf;
           m_value[fieldnr].rec= ndb_op->getValue(fieldnr, 
-                                                 field_buf);
+                                                 (char*) field_buf);
         }
         else // if (field->type() == MYSQL_TYPE_BIT)
         {
@@ -953,7 +953,7 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
       if (ndb_blob != NULL)
       {
         // Set callback
-	m_blobs_offset= buf - (byte*) table->record[0];
+	m_blobs_offset= buf - (uchar*) table->record[0];
         void *arg= (void *)this;
         DBUG_RETURN(ndb_blob->setActiveHook(g_get_ndb_blobs_value, arg) != 0);
       }
@@ -961,7 +961,7 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
   }
 
   // Used for hidden key only
-  m_value[fieldnr].rec= ndb_op->getValue(fieldnr, m_ref);
+  m_value[fieldnr].rec= ndb_op->getValue(fieldnr, (char*) m_ref);
   DBUG_RETURN(m_value[fieldnr].rec == NULL);
 }
 
@@ -1035,8 +1035,8 @@ int ha_ndbcluster::get_metadata(const char *path)
   DBUG_ASSERT(m_table == NULL);
   DBUG_ASSERT(m_table_info == NULL);
 
-  const void *data= NULL, *pack_data= NULL;
-  uint length, pack_length;
+  uchar *data= NULL, *pack_data= NULL;
+  size_t length, pack_length;
 
   /*
     Compare FrmData in NDB with frm file from disk.
@@ -1045,8 +1045,8 @@ int ha_ndbcluster::get_metadata(const char *path)
   if (readfrm(path, &data, &length) ||
       packfrm(data, length, &pack_data, &pack_length))
   {
-    my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
-    my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(pack_data, MYF(MY_ALLOW_ZERO_PTR));
     DBUG_RETURN(1);
   }
     
@@ -1058,11 +1058,11 @@ int ha_ndbcluster::get_metadata(const char *path)
       && cmp_frm(tab, pack_data, pack_length))
   {
     DBUG_PRINT("error", 
-               ("metadata, pack_length: %d  getFrmLength: %d  memcmp: %d",
-                pack_length, tab->getFrmLength(),
+               ("metadata, pack_length: %lu  getFrmLength: %d  memcmp: %d",
+                (ulong) pack_length, tab->getFrmLength(),
                 memcmp(pack_data, tab->getFrmData(), pack_length)));
-    DBUG_DUMP("pack_data", (char*)pack_data, pack_length);
-    DBUG_DUMP("frm", (char*)tab->getFrmData(), tab->getFrmLength());
+    DBUG_DUMP("pack_data", (uchar*) pack_data, pack_length);
+    DBUG_DUMP("frm", (uchar*) tab->getFrmData(), tab->getFrmLength());
     error= HA_ERR_TABLE_DEF_CHANGED;
   }
   my_free((char*)data, MYF(0));
@@ -1565,7 +1565,7 @@ inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part,
               HA_KEY_SCAN_NOT_ROR);
 }
 
-static void shrink_varchar(Field* field, const byte* & ptr, char* buf)
+static void shrink_varchar(Field* field, const uchar* & ptr, uchar* buf)
 {
   if (field->type() == MYSQL_TYPE_VARCHAR && ptr != NULL) {
     Field_varstring* f= (Field_varstring*)field;
@@ -1584,7 +1584,7 @@ static void shrink_varchar(Field* field, const byte* & ptr, char* buf)
   }
 }
 
-int ha_ndbcluster::set_primary_key(NdbOperation *op, const byte *key)
+int ha_ndbcluster::set_primary_key(NdbOperation *op, const uchar *key)
 {
   KEY* key_info= table->key_info + table_share->primary_key;
   KEY_PART_INFO* key_part= key_info->key_part;
@@ -1594,8 +1594,8 @@ int ha_ndbcluster::set_primary_key(NdbOperation *op, const byte *key)
   for (; key_part != end; key_part++) 
   {
     Field* field= key_part->field;
-    const byte* ptr= key;
-    char buf[256];
+    const uchar* ptr= key;
+    uchar buf[256];
     shrink_varchar(field, ptr, buf);
     if (set_ndb_key(op, field, 
                     key_part->fieldnr-1, ptr))
@@ -1606,7 +1606,7 @@ int ha_ndbcluster::set_primary_key(NdbOperation *op, const byte *key)
 }
 
 
-int ha_ndbcluster::set_primary_key_from_record(NdbOperation *op, const byte *record)
+int ha_ndbcluster::set_primary_key_from_record(NdbOperation *op, const uchar *record)
 {
   KEY* key_info= table->key_info + table_share->primary_key;
   KEY_PART_INFO* key_part= key_info->key_part;
@@ -1624,7 +1624,7 @@ int ha_ndbcluster::set_primary_key_from_record(NdbOperation *op, const byte *rec
 }
 
 int ha_ndbcluster::set_index_key_from_record(NdbOperation *op, 
-                                             const byte *record, uint keyno)
+                                             const uchar *record, uint keyno)
 {
   KEY* key_info= table->key_info + keyno;
   KEY_PART_INFO* key_part= key_info->key_part;
@@ -1645,7 +1645,7 @@ int ha_ndbcluster::set_index_key_from_record(NdbOperation *op,
 int 
 ha_ndbcluster::set_index_key(NdbOperation *op, 
                              const KEY *key_info, 
-                             const byte * key_ptr)
+                             const uchar * key_ptr)
 {
   DBUG_ENTER("ha_ndbcluster::set_index_key");
   uint i;
@@ -1655,8 +1655,8 @@ ha_ndbcluster::set_index_key(NdbOperation *op,
   for (i= 0; key_part != end; key_part++, i++) 
   {
     Field* field= key_part->field;
-    const byte* ptr= key_part->null_bit ? key_ptr + 1 : key_ptr;
-    char buf[256];
+    const uchar* ptr= key_part->null_bit ? key_ptr + 1 : key_ptr;
+    uchar buf[256];
     shrink_varchar(field, ptr, buf);
     if (set_ndb_key(op, field, m_index[active_index].unique_index_attrid_map[i], ptr))
       ERR_RETURN(m_active_trans->getNdbError());
@@ -1666,7 +1666,7 @@ ha_ndbcluster::set_index_key(NdbOperation *op,
 }
 
 inline 
-int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
+int ha_ndbcluster::define_read_attrs(uchar* buf, NdbOperation* op)
 {
   uint i;
   DBUG_ENTER("define_read_attrs");  
@@ -1708,7 +1708,7 @@ int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
   Read one record from NDB using primary key
 */
 
-int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf,
+int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
                            uint32 part_id)
 {
   uint no_fields= table_share->fields;
@@ -1718,7 +1718,7 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf,
   int res;
   DBUG_ENTER("pk_read");
   DBUG_PRINT("enter", ("key_len: %u", key_len));
-  DBUG_DUMP("key", (char*)key, key_len);
+  DBUG_DUMP("key", key, key_len);
   m_write_op= FALSE;
 
   NdbOperation::LockMode lm=
@@ -1731,7 +1731,7 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf,
   {
     // This table has no primary key, use "hidden" primary key
     DBUG_PRINT("info", ("Using hidden key"));
-    DBUG_DUMP("key", (char*)key, 8);    
+    DBUG_DUMP("key", key, 8);    
     if (set_hidden_key(op, no_fields, key))
       ERR_RETURN(trans->getNdbError());
     
@@ -1777,7 +1777,7 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf,
   or hidden key
 */
 
-int ha_ndbcluster::complemented_read(const byte *old_data, byte *new_data,
+int ha_ndbcluster::complemented_read(const uchar *old_data, uchar *new_data,
                                      uint32 old_part_id)
 {
   uint no_fields= table_share->fields, i;
@@ -1914,7 +1914,7 @@ bool ha_ndbcluster::check_all_operations_for_error(NdbTransaction *trans,
  * primary key or unique index values
 */
 
-int ha_ndbcluster::peek_indexed_rows(const byte *record,
+int ha_ndbcluster::peek_indexed_rows(const uchar *record,
 				     bool check_pk)
 {
   NdbTransaction *trans= m_active_trans;
@@ -2008,15 +2008,15 @@ int ha_ndbcluster::peek_indexed_rows(const byte *record,
   Read one record from NDB using unique secondary index
 */
 
-int ha_ndbcluster::unique_index_read(const byte *key,
-                                     uint key_len, byte *buf)
+int ha_ndbcluster::unique_index_read(const uchar *key,
+                                     uint key_len, uchar *buf)
 {
   int res;
   NdbTransaction *trans= m_active_trans;
   NdbIndexOperation *op;
   DBUG_ENTER("ha_ndbcluster::unique_index_read");
   DBUG_PRINT("enter", ("key_len: %u, index: %u", key_len, active_index));
-  DBUG_DUMP("key", (char*)key, key_len);
+  DBUG_DUMP("key", key, key_len);
   
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
@@ -2152,7 +2152,7 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
 
 */
 
-inline int ha_ndbcluster::next_result(byte *buf)
+inline int ha_ndbcluster::next_result(uchar *buf)
 {  
   int res;
   DBUG_ENTER("next_result");
@@ -2231,10 +2231,10 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
     struct part_st {
       bool part_last;
       const key_range *key;
-      const byte *part_ptr;
+      const uchar *part_ptr;
       bool part_null;
       int bound_type;
-      const char* bound_ptr;
+      const uchar* bound_ptr;
     };
     struct part_st part[2];
 
@@ -2344,13 +2344,13 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
       {
         DBUG_PRINT("info", ("key %d:%d  offset: %d  length: %d  last: %d  bound: %d",
                             j, i, tot_len, part_len, p.part_last, p.bound_type));
-        DBUG_DUMP("info", (const char*)p.part_ptr, part_store_len);
+        DBUG_DUMP("info", p.part_ptr, part_store_len);
 
         // Set bound if not cancelled via type -1
         if (p.bound_type != -1)
         {
-          const char* ptr= p.bound_ptr;
-          char buf[256];
+          const uchar* ptr= p.bound_ptr;
+          uchar buf[256];
           shrink_varchar(field, ptr, buf);
           if (op->setBound(i, p.bound_type, ptr))
             ERR_RETURN(op->getNdbError());
@@ -2370,7 +2370,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
                                       const key_range *end_key,
                                       bool sorted, bool descending,
-                                      byte* buf, part_id_range *part_spec)
+                                      uchar* buf, part_id_range *part_spec)
 {  
   int res;
   bool restart;
@@ -2476,9 +2476,9 @@ guess_scan_flags(NdbOperation::LockMode lm,
  */
 
 int ha_ndbcluster::unique_index_scan(const KEY* key_info, 
-				     const byte *key, 
+				     const uchar *key, 
 				     uint key_len,
-				     byte *buf)
+				     uchar *buf)
 {
   int res;
   NdbScanOperation *op;
@@ -2552,7 +2552,7 @@ int ha_ndbcluster::unique_index_scan(const KEY* key_info,
   Start full table scan in NDB
  */
 
-int ha_ndbcluster::full_table_scan(byte *buf)
+int ha_ndbcluster::full_table_scan(uchar *buf)
 {
   int res;
   NdbScanOperation *op;
@@ -2619,7 +2619,7 @@ int ha_ndbcluster::full_table_scan(byte *buf)
 /*
   Insert one record into NDB
 */
-int ha_ndbcluster::write_row(byte *record)
+int ha_ndbcluster::write_row(uchar *record)
 {
   bool has_auto_increment;
   uint i;
@@ -2709,7 +2709,7 @@ int ha_ndbcluster::write_row(byte *record)
              ndb->getNdbError().status == NdbError::TemporaryError);
     if (ret == -1)
       ERR_RETURN(ndb->getNdbError());
-    if (set_hidden_key(op, table_share->fields, (const byte*)&auto_value))
+    if (set_hidden_key(op, table_share->fields, (const uchar*)&auto_value))
       ERR_RETURN(op->getNdbError());
   } 
   else 
@@ -2830,8 +2830,8 @@ int ha_ndbcluster::write_row(byte *record)
 
 /* Compare if a key in a row has changed */
 
-int ha_ndbcluster::key_cmp(uint keynr, const byte * old_row,
-                           const byte * new_row)
+int ha_ndbcluster::key_cmp(uint keynr, const uchar * old_row,
+                           const uchar * new_row)
 {
   KEY_PART_INFO *key_part=table->key_info[keynr].key_part;
   KEY_PART_INFO *end=key_part+table->key_info[keynr].key_parts;
@@ -2847,8 +2847,8 @@ int ha_ndbcluster::key_cmp(uint keynr, const byte * old_row,
     if (key_part->key_part_flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART))
     {
 
-      if (key_part->field->cmp_binary((char*) (old_row + key_part->offset),
-                                      (char*) (new_row + key_part->offset),
+      if (key_part->field->cmp_binary((old_row + key_part->offset),
+                                      (new_row + key_part->offset),
                                       (ulong) key_part->length))
         return 1;
     }
@@ -2866,7 +2866,7 @@ int ha_ndbcluster::key_cmp(uint keynr, const byte * old_row,
   Update one record in NDB using primary key
 */
 
-int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
+int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
 {
   THD *thd= table->in_use;
   NdbTransaction *trans= m_active_trans;
@@ -2951,7 +2951,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       {
         // Undo delete_row(old_data)
         m_primary_key_update= TRUE;
-        undo_res= write_row((byte *)old_data);
+        undo_res= write_row((uchar *)old_data);
         if (undo_res)
           push_warning(current_thd, 
                        MYSQL_ERROR::WARN_LEVEL_WARN, 
@@ -3066,7 +3066,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   Delete one record from NDB, using primary key 
 */
 
-int ha_ndbcluster::delete_row(const byte *record)
+int ha_ndbcluster::delete_row(const uchar *record)
 {
   THD *thd= table->in_use;
   NdbTransaction *trans= m_active_trans;
@@ -3178,7 +3178,7 @@ int ha_ndbcluster::delete_row(const byte *record)
 */
 
 void ndb_unpack_record(TABLE *table, NdbValue *value,
-                       MY_BITMAP *defined, byte *buf)
+                       MY_BITMAP *defined, uchar *buf)
 {
   Field **p_field= table->field, *field= *p_field;
   my_ptrdiff_t row_offset= (my_ptrdiff_t) (buf - table->record[0]);
@@ -3265,13 +3265,13 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
           field_bit->Field_bit::move_field_offset(-row_offset);
           DBUG_PRINT("info",("[%u] SET",
                              (*value).rec->getColumn()->getColumnNo()));
-          DBUG_DUMP("info", (const char*) field->ptr, field->pack_length());
+          DBUG_DUMP("info", field->ptr, field->pack_length());
         }
         else
         {
           DBUG_PRINT("info",("[%u] SET",
                              (*value).rec->getColumn()->getColumnNo()));
-          DBUG_DUMP("info", (const char*) field->ptr, field->pack_length());
+          DBUG_DUMP("info", field->ptr, field->pack_length());
         }
       }
       else
@@ -3295,7 +3295,7 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
 #ifndef DBUG_OFF
           // pointer vas set in get_ndb_blobs_value
           Field_blob *field_blob= (Field_blob*)field;
-          char* ptr;
+          uchar *ptr;
           field_blob->get_ptr(&ptr, row_offset);
           uint32 len= field_blob->get_length(row_offset);
           DBUG_PRINT("info",("[%u] SET ptr: 0x%lx  len: %u",
@@ -3309,7 +3309,7 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
   DBUG_VOID_RETURN;
 }
 
-void ha_ndbcluster::unpack_record(byte *buf)
+void ha_ndbcluster::unpack_record(uchar *buf)
 {
   ndb_unpack_record(table, m_value, 0, buf);
 #ifndef DBUG_OFF
@@ -3422,10 +3422,10 @@ int ha_ndbcluster::index_end()
  */
 static
 int
-check_null_in_key(const KEY* key_info, const byte *key, uint key_len)
+check_null_in_key(const KEY* key_info, const uchar *key, uint key_len)
 {
   KEY_PART_INFO *curr_part, *end_part;
-  const byte* end_ptr= key + key_len;
+  const uchar* end_ptr= key + key_len;
   curr_part= key_info->key_part;
   end_part= curr_part + key_info->key_parts;
 
@@ -3439,8 +3439,8 @@ check_null_in_key(const KEY* key_info, const byte *key, uint key_len)
   return 0;
 }
 
-int ha_ndbcluster::index_read(byte *buf,
-                              const byte *key, uint key_len, 
+int ha_ndbcluster::index_read(uchar *buf,
+                              const uchar *key, uint key_len, 
                               enum ha_rkey_function find_flag)
 {
   key_range start_key;
@@ -3468,7 +3468,7 @@ int ha_ndbcluster::index_read(byte *buf,
 }
 
 
-int ha_ndbcluster::index_next(byte *buf)
+int ha_ndbcluster::index_next(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_next");
   statistic_increment(current_thd->status_var.ha_read_next_count,
@@ -3477,7 +3477,7 @@ int ha_ndbcluster::index_next(byte *buf)
 }
 
 
-int ha_ndbcluster::index_prev(byte *buf)
+int ha_ndbcluster::index_prev(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_prev");
   statistic_increment(current_thd->status_var.ha_read_prev_count,
@@ -3486,7 +3486,7 @@ int ha_ndbcluster::index_prev(byte *buf)
 }
 
 
-int ha_ndbcluster::index_first(byte *buf)
+int ha_ndbcluster::index_first(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_first");
   statistic_increment(current_thd->status_var.ha_read_first_count,
@@ -3498,14 +3498,14 @@ int ha_ndbcluster::index_first(byte *buf)
 }
 
 
-int ha_ndbcluster::index_last(byte *buf)
+int ha_ndbcluster::index_last(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_last");
   statistic_increment(current_thd->status_var.ha_read_last_count,&LOCK_status);
   DBUG_RETURN(ordered_index_scan(0, 0, TRUE, TRUE, buf, NULL));
 }
 
-int ha_ndbcluster::index_read_last(byte * buf, const byte * key, uint key_len)
+int ha_ndbcluster::index_read_last(uchar * buf, const uchar * key, uint key_len)
 {
   DBUG_ENTER("ha_ndbcluster::index_read_last");
   DBUG_RETURN(index_read(buf, key, key_len, HA_READ_PREFIX_LAST));
@@ -3514,7 +3514,7 @@ int ha_ndbcluster::index_read_last(byte * buf, const byte * key, uint key_len)
 int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
                                            const key_range *end_key,
                                            bool desc, bool sorted,
-                                           byte* buf)
+                                           uchar* buf)
 {
   part_id_range part_spec;
   ndb_index_type type= get_index_type(active_index);
@@ -3594,7 +3594,7 @@ int ha_ndbcluster::read_range_first(const key_range *start_key,
                                     const key_range *end_key,
                                     bool eq_r, bool sorted)
 {
-  byte* buf= table->record[0];
+  uchar* buf= table->record[0];
   DBUG_ENTER("ha_ndbcluster::read_range_first");
   DBUG_RETURN(read_range_first_to_buf(start_key, end_key, FALSE,
                                       sorted, buf));
@@ -3684,7 +3684,7 @@ int ha_ndbcluster::rnd_end()
 }
 
 
-int ha_ndbcluster::rnd_next(byte *buf)
+int ha_ndbcluster::rnd_next(uchar *buf)
 {
   DBUG_ENTER("rnd_next");
   statistic_increment(current_thd->status_var.ha_read_rnd_next_count,
@@ -3703,7 +3703,7 @@ int ha_ndbcluster::rnd_next(byte *buf)
   again
 */
 
-int ha_ndbcluster::rnd_pos(byte *buf, byte *pos)
+int ha_ndbcluster::rnd_pos(uchar *buf, uchar *pos)
 {
   DBUG_ENTER("rnd_pos");
   statistic_increment(current_thd->status_var.ha_read_rnd_count,
@@ -3721,7 +3721,7 @@ int ha_ndbcluster::rnd_pos(byte *buf, byte *pos)
           The partition id has been fetched from ndb
           and has been stored directly after the hidden key
         */
-        DBUG_DUMP("key+part", (char *)pos, key_length);
+        DBUG_DUMP("key+part", pos, key_length);
         key_length= ref_length - sizeof(m_part_id);
         part_spec.start_part= part_spec.end_part= *(uint32 *)(pos + key_length);
       }
@@ -3738,7 +3738,7 @@ int ha_ndbcluster::rnd_pos(byte *buf, byte *pos)
       }
       DBUG_PRINT("info", ("partition id %u", part_spec.start_part));
     }
-    DBUG_DUMP("key", (char *)pos, key_length);
+    DBUG_DUMP("key", pos, key_length);
     DBUG_RETURN(pk_read(pos, key_length, buf, part_spec.start_part));
   }
 }
@@ -3750,12 +3750,12 @@ int ha_ndbcluster::rnd_pos(byte *buf, byte *pos)
   using "reference" in rnd_pos
 */
 
-void ha_ndbcluster::position(const byte *record)
+void ha_ndbcluster::position(const uchar *record)
 {
   KEY *key_info;
   KEY_PART_INFO *key_part;
   KEY_PART_INFO *end;
-  byte *buff;
+  uchar *buff;
   uint key_length;
 
   DBUG_ENTER("position");
@@ -3781,7 +3781,7 @@ void ha_ndbcluster::position(const byte *record)
       }
 
       size_t len = key_part->length;
-      const byte * ptr = record + key_part->offset;
+      const uchar * ptr = record + key_part->offset;
       Field *field = key_part->field;
       if (field->type() ==  MYSQL_TYPE_VARCHAR)
       {
@@ -3832,9 +3832,9 @@ void ha_ndbcluster::position(const byte *record)
   }
 #ifndef DBUG_OFF
   if (table_share->primary_key == MAX_KEY && m_use_partition_function) 
-    DBUG_DUMP("key+part", (char*)ref, key_length+sizeof(m_part_id));
+    DBUG_DUMP("key+part", ref, key_length+sizeof(m_part_id));
 #endif
-  DBUG_DUMP("ref", (char*)ref, key_length);
+  DBUG_DUMP("ref", ref, key_length);
   DBUG_VOID_RETURN;
 }
 
@@ -4937,8 +4937,9 @@ int ha_ndbcluster::create(const char *name,
   THD *thd= current_thd;
   NDBTAB tab;
   NDBCOL col;
-  uint pack_length, length, i, pk_length= 0;
-  const void *data= NULL, *pack_data= NULL;
+  size_t pack_length, length;
+  uint i, pk_length= 0;
+  uchar *data= NULL, *pack_data= NULL;
   bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
   bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
   char tablespace[FN_LEN];
@@ -5022,7 +5023,9 @@ int ha_ndbcluster::create(const char *name,
     my_free((char*)data, MYF(0));
     DBUG_RETURN(2);
   }
-  DBUG_PRINT("info", ("setFrm data: 0x%lx  len: %d", (long) pack_data, pack_length));
+  DBUG_PRINT("info",
+             ("setFrm data: 0x%lx  len: %lu", (long) pack_data,
+              (ulong) pack_length));
   tab.setFrm(pack_data, pack_length);      
   my_free((char*)data, MYF(0));
   my_free((char*)pack_data, MYF(0));
@@ -5257,7 +5260,7 @@ int ha_ndbcluster::create(const char *name,
     {
       uint length= (uint) strlen(name);
       if ((share= (NDB_SHARE*) hash_search(&ndbcluster_open_tables,
-                                           (byte*) name, length)))
+                                           (uchar*) name, length)))
         handle_trailing_share(share);
     }
     /*
@@ -5336,8 +5339,8 @@ int ha_ndbcluster::create_handler_files(const char *file,
 { 
   Ndb* ndb;
   const NDBTAB *tab;
-  const void *data= NULL, *pack_data= NULL;
-  uint length, pack_length;
+  uchar *data= NULL, *pack_data= NULL;
+  size_t length, pack_length;
   int error= 0;
 
   DBUG_ENTER("create_handler_files");
@@ -6403,13 +6406,13 @@ static int ndbcluster_close_connection(handlerton *hton, THD *thd)
 
 int ndbcluster_discover(handlerton *hton, THD* thd, const char *db, 
                         const char *name,
-                        const void** frmblob, 
-                        uint* frmlen)
+                        uchar **frmblob, 
+                        size_t *frmlen)
 {
   int error= 0;
   NdbError ndb_error;
-  uint len;
-  const void* data= NULL;
+  size_t len;
+  uchar* data= NULL;
   Ndb* ndb;
   char key[FN_REFLEN];
   DBUG_ENTER("ndbcluster_discover");
@@ -6470,7 +6473,7 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
       goto err;
     }
     
-    if (unpackfrm(&data, &len, tab->getFrmData()))
+    if (unpackfrm(&data, &len, (uchar*) tab->getFrmData()))
     {
       DBUG_PRINT("error", ("Could not unpack table"));
       error= 1;
@@ -6540,11 +6543,11 @@ int ndbcluster_table_exists_in_engine(handlerton *hton, THD* thd,
 
 
 
-extern "C" byte* tables_get_key(const char *entry, uint *length,
+extern "C" uchar* tables_get_key(const char *entry, size_t *length,
                                 my_bool not_used __attribute__((unused)))
 {
   *length= strlen(entry);
-  return (byte*) entry;
+  return (uchar*) entry;
 }
 
 
@@ -6725,8 +6728,8 @@ int ndbcluster_find_all_files(THD *thd)
       /* finalize construction of path */
       end+= tablename_to_filename(elmt.name, end,
                                   sizeof(key)-(end-key));
-      const void *data= 0, *pack_data= 0;
-      uint length, pack_length;
+      uchar *data= 0, *pack_data= 0;
+      size_t length, pack_length;
       int discover= 0;
       if (readfrm(key, &data, &length) ||
           packfrm(data, length, &pack_data, &pack_length))
@@ -6854,7 +6857,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
         continue;
     }
     DBUG_PRINT("info", ("Inserting %s into ndb_tables hash", elmt.name));     
-    my_hash_insert(&ndb_tables, (byte*)thd->strdup(elmt.name));
+    my_hash_insert(&ndb_tables, (uchar*)thd->strdup(elmt.name));
   }
 
   char *file_name;
@@ -6864,7 +6867,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
   {
     bool file_on_disk= FALSE;
     DBUG_PRINT("info", ("%s", file_name));     
-    if (hash_search(&ndb_tables, file_name, strlen(file_name)))
+    if (hash_search(&ndb_tables, (uchar*) file_name, strlen(file_name)))
     {
       DBUG_PRINT("info", ("%s existed in NDB _and_ on disk ", file_name));
       file_on_disk= TRUE;
@@ -6880,7 +6883,8 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
       if (file_on_disk)
       {
 	// Ignore this ndb table
-	gptr record=  hash_search(&ndb_tables, file_name, strlen(file_name));
+	uchar *record= hash_search(&ndb_tables, (uchar*) file_name,
+                                   strlen(file_name));
 	DBUG_ASSERT(record);
 	hash_delete(&ndb_tables, record);
 	push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -6893,7 +6897,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
     if (file_on_disk) 
     {
       // File existed in NDB and as frm file, put in ok_tables list
-      my_hash_insert(&ok_tables, (byte*)file_name);
+      my_hash_insert(&ok_tables, (uchar*)file_name);
       continue;
     }
     DBUG_PRINT("info", ("%s existed on disk", name));     
@@ -6931,8 +6935,8 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
   List<char> create_list;
   for (i= 0 ; i < ndb_tables.records ; i++)
   {
-    file_name= hash_element(&ndb_tables, i);
-    if (!hash_search(&ok_tables, file_name, strlen(file_name)))
+    file_name= (char*) hash_element(&ndb_tables, i);
+    if (!hash_search(&ok_tables, (uchar*) file_name, strlen(file_name)))
     {
       build_table_filename(name, sizeof(name), db, file_name, reg_ext, 0);
       if (my_access(name, F_OK))
@@ -7556,7 +7560,7 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
   DBUG_PRINT("enter", ("name: %s", name));
   pthread_mutex_lock(&ndbcluster_mutex);
   if (!(share=(NDB_SHARE*) hash_search(&ndbcluster_open_tables,
-                                       (byte*) name,
+                                       (uchar*) name,
                                        strlen(name))))
   {
     pthread_mutex_unlock(&ndbcluster_mutex);
@@ -7781,11 +7785,11 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
   data we want to or can share.
  */
 
-static byte *ndbcluster_get_key(NDB_SHARE *share,uint *length,
+static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
                                 my_bool not_used __attribute__((unused)))
 {
   *length= share->key_length;
-  return (byte*) share->key;
+  return (uchar*) share->key;
 }
 
 
@@ -7928,7 +7932,7 @@ int handle_trailing_share(NDB_SHARE *share)
     at the cost of a possible mem leak, by "renaming" the share
     - First remove from hash
   */
-  hash_delete(&ndbcluster_open_tables, (byte*) share);
+  hash_delete(&ndbcluster_open_tables, (uchar*) share);
 
   /*
     now give it a new name, just a running number
@@ -7938,7 +7942,7 @@ int handle_trailing_share(NDB_SHARE *share)
     const uint min_key_length= 10;
     if (share->key_length < min_key_length)
     {
-      share->key= alloc_root(&share->mem_root, min_key_length + 1);
+      share->key= (char*) alloc_root(&share->mem_root, min_key_length + 1);
       share->key_length= min_key_length;
     }
     share->key_length=
@@ -7946,7 +7950,7 @@ int handle_trailing_share(NDB_SHARE *share)
                   trailing_share_id++);
   }
   /* Keep it for possible the future trailing free */
-  my_hash_insert(&ndbcluster_open_tables, (byte*) share);
+  my_hash_insert(&ndbcluster_open_tables, (uchar*) share);
 
   DBUG_RETURN(0);
 }
@@ -7962,11 +7966,11 @@ static int rename_share(NDB_SHARE *share, const char *new_key)
   DBUG_PRINT("rename_share", ("old_key: %s  old__length: %d",
                               share->key, share->key_length));
   if ((tmp= (NDB_SHARE*) hash_search(&ndbcluster_open_tables,
-                                     (byte*) new_key, new_length)))
+                                     (uchar*) new_key, new_length)))
     handle_trailing_share(tmp);
 
   /* remove the share from hash */
-  hash_delete(&ndbcluster_open_tables, (byte*) share);
+  hash_delete(&ndbcluster_open_tables, (uchar*) share);
   dbug_print_open_tables();
 
   /* save old stuff if insert should fail */
@@ -7977,18 +7981,18 @@ static int rename_share(NDB_SHARE *share, const char *new_key)
     now allocate and set the new key, db etc
     enough space for key, db, and table_name
   */
-  share->key= alloc_root(&share->mem_root, 2 * (new_length + 1));
+  share->key= (char*) alloc_root(&share->mem_root, 2 * (new_length + 1));
   strmov(share->key, new_key);
   share->key_length= new_length;
 
-  if (my_hash_insert(&ndbcluster_open_tables, (byte*) share))
+  if (my_hash_insert(&ndbcluster_open_tables, (uchar*) share))
   {
     // ToDo free the allocated stuff above?
     DBUG_PRINT("error", ("rename_share: my_hash_insert %s failed",
                          share->key));
     share->key= old_key;
     share->key_length= old_length;
-    if (my_hash_insert(&ndbcluster_open_tables, (byte*) share))
+    if (my_hash_insert(&ndbcluster_open_tables, (uchar*) share))
     {
       sql_print_error("rename_share: failed to recover %s", share->key);
       DBUG_PRINT("error", ("rename_share: my_hash_insert %s failed",
@@ -8068,7 +8072,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
   if (!have_lock)
     pthread_mutex_lock(&ndbcluster_mutex);
   if (!(share= (NDB_SHARE*) hash_search(&ndbcluster_open_tables,
-                                        (byte*) key,
+                                        (uchar*) key,
                                         length)))
   {
     if (!create_if_not_exists)
@@ -8088,13 +8092,13 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
       *root_ptr= &share->mem_root; // remember to reset before return
       share->state= NSS_INITIAL;
       /* enough space for key, db, and table_name */
-      share->key= alloc_root(*root_ptr, 2 * (length + 1));
+      share->key= (char*) alloc_root(*root_ptr, 2 * (length + 1));
       share->key_length= length;
       strmov(share->key, key);
-      if (my_hash_insert(&ndbcluster_open_tables, (byte*) share))
+      if (my_hash_insert(&ndbcluster_open_tables, (uchar*) share))
       {
         free_root(&share->mem_root, MYF(0));
-        my_free((gptr) share, 0);
+        my_free((uchar*) share, 0);
         *root_ptr= old_root;
         if (!have_lock)
           pthread_mutex_unlock(&ndbcluster_mutex);
@@ -8137,7 +8141,7 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
   DBUG_ENTER("ndbcluster_real_free_share");
   dbug_print_share("ndbcluster_real_free_share:", *share);
 
-  hash_delete(&ndbcluster_open_tables, (byte*) *share);
+  hash_delete(&ndbcluster_open_tables, (uchar*) *share);
   thr_lock_delete(&(*share)->lock);
   pthread_mutex_destroy(&(*share)->mutex);
 
@@ -8149,15 +8153,15 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
     // (*share)->table_share->mem_root is freed by free_table_share
     free_table_share((*share)->table_share);
 #ifndef DBUG_OFF
-    bzero((gptr)(*share)->table_share, sizeof(*(*share)->table_share));
-    bzero((gptr)(*share)->table, sizeof(*(*share)->table));
+    bzero((uchar*)(*share)->table_share, sizeof(*(*share)->table_share));
+    bzero((uchar*)(*share)->table, sizeof(*(*share)->table));
     (*share)->table_share= 0;
     (*share)->table= 0;
 #endif
   }
 #endif
   free_root(&(*share)->mem_root, MYF(0));
-  my_free((gptr) *share, MYF(0));
+  my_free((uchar*) *share, MYF(0));
   *share= 0;
 
   dbug_print_open_tables();
@@ -8382,13 +8386,13 @@ ha_ndbcluster::null_value_index_search(KEY_MULTI_RANGE *ranges,
   KEY* key_info= table->key_info + active_index;
   KEY_MULTI_RANGE *range= ranges;
   ulong reclength= table->s->reclength;
-  byte *curr= (byte*)buffer->buffer;
-  byte *end_of_buffer= (byte*)buffer->buffer_end;
+  uchar *curr= (uchar*)buffer->buffer;
+  uchar *end_of_buffer= (uchar*)buffer->buffer_end;
   
   for (; range<end_range && curr+reclength <= end_of_buffer; 
        range++)
   {
-    const byte *key= range->start_key.key;
+    const uchar *key= range->start_key.key;
     uint key_len= range->start_key.length;
     if (check_null_in_key(key_info, key, key_len))
       DBUG_RETURN(TRUE);
@@ -8456,8 +8460,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   /**
    * Variables for loop
    */
-  byte *curr= (byte*)buffer->buffer;
-  byte *end_of_buffer= (byte*)buffer->buffer_end;
+  uchar *curr= (uchar*)buffer->buffer;
+  uchar *end_of_buffer= (uchar*)buffer->buffer_end;
   NdbOperation::LockMode lm= 
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
   bool need_pk = (lm == NdbOperation::LM_Read);
@@ -8586,7 +8590,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
      * This as we don't want mysqld to reuse the buffer when we read
      *   the remaining ranges
      */
-    buffer->end_of_used_area= (byte*)buffer->buffer_end;
+    buffer->end_of_used_area= (uchar*)buffer->buffer_end;
   }
   else
   {
@@ -8602,7 +8606,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   {
     m_multi_range_defined= multi_range_curr;
     multi_range_curr= ranges;
-    m_multi_range_result_ptr= (byte*)buffer->buffer;
+    m_multi_range_result_ptr= (uchar*)buffer->buffer;
     DBUG_RETURN(read_multi_range_next(found_range_p));
   }
   ERR_RETURN(m_active_trans->getNdbError());
@@ -8821,7 +8825,7 @@ ha_ndbcluster::update_table_comment(
   char *str;
   const char *fmt="%s%snumber_of_replicas: %d";
   const unsigned fmt_len_plus_extra= length + strlen(fmt);
-  if ((str= my_malloc(fmt_len_plus_extra, MYF(0))) == NULL)
+  if ((str= (char*) my_malloc(fmt_len_plus_extra, MYF(0))) == NULL)
   {
     sql_print_error("ha_ndbcluster::update_table_comment: "
                     "my_malloc(%u) failed", (unsigned int)fmt_len_plus_extra);
