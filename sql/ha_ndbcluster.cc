@@ -6561,9 +6561,9 @@ int ndbcluster_table_exists_in_engine(handlerton *hton, THD* thd,
     if (my_strcasecmp(system_charset_info, elmt.name, name))
       continue;
     DBUG_PRINT("info", ("Found table"));
-    DBUG_RETURN(1);
+    DBUG_RETURN(HA_ERR_TABLE_EXIST);
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 }
 
 
@@ -6927,7 +6927,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
     DBUG_PRINT("info", ("%s existed on disk", name));     
     // The .ndb file exists on disk, but it's not in list of tables in ndb
     // Verify that handler agrees table is gone.
-    if (ndbcluster_table_exists_in_engine(hton, thd, db, file_name) == 0)    
+    if (ndbcluster_table_exists_in_engine(hton, thd, db, file_name) == HA_ERR_NO_SUCH_TABLE)    
     {
       DBUG_PRINT("info", ("NDB says %s does not exists", file_name));     
       it.remove();

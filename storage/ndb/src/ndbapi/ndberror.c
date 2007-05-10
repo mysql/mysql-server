@@ -151,7 +151,7 @@ ErrorBundle ErrorCodes[] = {
    */
   { 4007, DMEC, UR, "Send to ndbd node failed" },
   { 4008, DMEC, UR, "Receive from NDB failed" },
-  { 4009, DMEC, UR, "Cluster Failure" },
+  { 4009, HA_ERR_NO_CONNECTION, UR, "Cluster Failure" },
   { 4012, DMEC, UR, 
     "Request ndbd time-out, maybe due to high load or communication problems"}, 
   { 4013, DMEC, UR, "Request timed out in waiting for node failure"}, 

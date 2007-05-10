@@ -1740,6 +1740,7 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
       pthread_mutex_unlock(&LOCK_plugin);
     }
     plugin= plugins[idx];
+    /* It will stop iterating on first engine error when "func" returns TRUE */
     if (plugin && func(thd, plugin_int_to_ref(plugin), arg))
         goto err;
   }
