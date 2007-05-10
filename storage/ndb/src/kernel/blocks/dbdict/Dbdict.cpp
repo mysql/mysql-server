@@ -13968,7 +13968,8 @@ Dbdict::getTableEntry(XSchemaFile * xsf, Uint32 tableId)
 
 //******************************************
 void
-Dbdict::execCREATE_FILE_REQ(Signal* signal){
+Dbdict::execCREATE_FILE_REQ(Signal* signal)
+{
   jamEntry();
   
   if(!assembleFragments(signal)){
@@ -14013,13 +14014,14 @@ Dbdict::execCREATE_FILE_REQ(Signal* signal){
 
     Ptr<SchemaTransaction> trans_ptr;
     if (! c_Trans.seize(trans_ptr)){
+      jam();
       ref->errorCode = CreateFileRef::Busy;
       ref->status    = 0;
       ref->errorKey  = 0;
       ref->errorLine = __LINE__;
       break;
     }
-    
+    jam(); 
     const Uint32 trans_key = ++c_opRecordSequence;
     trans_ptr.p->key = trans_key;
     trans_ptr.p->m_senderRef = senderRef;
@@ -14048,6 +14050,7 @@ Dbdict::execCREATE_FILE_REQ(Signal* signal){
     {
       Uint32 objId = getFreeObjId(0);
       if (objId == RNIL) {
+        jam();
         ref->errorCode = CreateFileRef::NoMoreObjectRecords;
         ref->status    = 0;
         ref->errorKey  = 0;
@@ -14072,7 +14075,6 @@ Dbdict::execCREATE_FILE_REQ(Signal* signal){
 	       CreateObjReq::SignalLength, JBB);
 
     c_blockState = BS_CREATE_TAB;
-
     return;
   } while(0);
   
@@ -14083,7 +14085,8 @@ Dbdict::execCREATE_FILE_REQ(Signal* signal){
 }
 
 void
-Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal){
+Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal)
+{
   jamEntry();
   
   if(!assembleFragments(signal)){
@@ -14127,13 +14130,14 @@ Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal){
 
     Ptr<SchemaTransaction> trans_ptr;
     if (! c_Trans.seize(trans_ptr)){
+      jam();
       ref->errorCode = CreateFilegroupRef::Busy;
       ref->status    = 0;
       ref->errorKey  = 0;
       ref->errorLine = __LINE__;
       break;
     }
-    
+    jam(); 
     const Uint32 trans_key = ++c_opRecordSequence;
     trans_ptr.p->key = trans_key;
     trans_ptr.p->m_senderRef = senderRef;
@@ -14159,6 +14163,7 @@ Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal){
     {
       Uint32 objId = getFreeObjId(0);
       if (objId == RNIL) {
+        jam();
         ref->errorCode = CreateFilegroupRef::NoMoreObjectRecords;
         ref->status    = 0;
         ref->errorKey  = 0;
@@ -14183,7 +14188,6 @@ Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal){
 	       CreateObjReq::SignalLength, JBB);
 
     c_blockState = BS_CREATE_TAB;
-
     return;
   } while(0);
   
@@ -14219,7 +14223,8 @@ Dbdict::execDROP_FILE_REQ(Signal* signal)
       break;
     }
     
-    if (c_blockState != BS_IDLE){
+    if (c_blockState != BS_IDLE)
+    {
       jam();
       ref->errorCode = DropFileRef::Busy;
       ref->errorKey  = 0;
@@ -14229,6 +14234,7 @@ Dbdict::execDROP_FILE_REQ(Signal* signal)
 
     if (checkSingleUserMode(senderRef))
     {
+      jam();
       ref->errorCode = DropFileRef::SingleUser;
       ref->errorKey  = 0;
       ref->errorLine = __LINE__;
@@ -14238,6 +14244,7 @@ Dbdict::execDROP_FILE_REQ(Signal* signal)
     Ptr<File> file_ptr;
     if (!c_file_hash.find(file_ptr, objId))
     {
+      jam();
       ref->errorCode = DropFileRef::NoSuchFile;
       ref->errorLine = __LINE__;
       break;
@@ -14245,6 +14252,7 @@ Dbdict::execDROP_FILE_REQ(Signal* signal)
     
     if (file_ptr.p->m_version != version)
     {
+      jam();
       ref->errorCode = DropFileRef::InvalidSchemaObjectVersion;
       ref->errorLine = __LINE__;
       break;
@@ -14253,10 +14261,12 @@ Dbdict::execDROP_FILE_REQ(Signal* signal)
     Ptr<SchemaTransaction> trans_ptr;
     if (! c_Trans.seize(trans_ptr))
     {
+      jam();
       ref->errorCode = DropFileRef::Busy;
       ref->errorLine = __LINE__;
       break;
     }
+    jam();
     
     const Uint32 trans_key = ++c_opRecordSequence;
     trans_ptr.p->key = trans_key;
@@ -14292,7 +14302,6 @@ Dbdict::execDROP_FILE_REQ(Signal* signal)
 	       DropObjReq::SignalLength, JBB);
 
     c_blockState = BS_CREATE_TAB;
-
     return;
   } while(0);
   
@@ -14320,7 +14329,8 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
   Uint32 version = req->filegroup_version;
   
   do {
-    if(getOwnNodeId() != c_masterNodeId){
+    if(getOwnNodeId() != c_masterNodeId)
+    {
       jam();
       ref->errorCode = DropFilegroupRef::NotMaster;
       ref->errorKey  = 0;
@@ -14328,7 +14338,8 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
       break;
     }
     
-    if (c_blockState != BS_IDLE){
+    if (c_blockState != BS_IDLE)
+    {
       jam();
       ref->errorCode = DropFilegroupRef::Busy;
       ref->errorKey  = 0;
@@ -14338,6 +14349,7 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
     
     if (checkSingleUserMode(senderRef))
     {
+      jam();
       ref->errorCode = DropFilegroupRef::SingleUser;
       ref->errorKey  = 0;
       ref->errorLine = __LINE__;
@@ -14347,6 +14359,7 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
     Ptr<Filegroup> filegroup_ptr;
     if (!c_filegroup_hash.find(filegroup_ptr, objId))
     {
+      jam();
       ref->errorCode = DropFilegroupRef::NoSuchFilegroup;
       ref->errorLine = __LINE__;
       break;
@@ -14354,6 +14367,7 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
 
     if (filegroup_ptr.p->m_version != version)
     {
+      jam();
       ref->errorCode = DropFilegroupRef::InvalidSchemaObjectVersion;
       ref->errorLine = __LINE__;
       break;
@@ -14362,10 +14376,12 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
     Ptr<SchemaTransaction> trans_ptr;
     if (! c_Trans.seize(trans_ptr))
     {
+      jam();
       ref->errorCode = DropFilegroupRef::Busy;
       ref->errorLine = __LINE__;
       break;
     }
+    jam();
     
     const Uint32 trans_key = ++c_opRecordSequence;
     trans_ptr.p->key = trans_key;
@@ -14401,7 +14417,6 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
 	       DropObjReq::SignalLength, JBB);
 
     c_blockState = BS_CREATE_TAB;
-
     return;
   } while(0);
   
@@ -14412,15 +14427,15 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
 }
 
 void
-Dbdict::execCREATE_OBJ_REF(Signal* signal){
-  jamEntry();
-
+Dbdict::execCREATE_OBJ_REF(Signal* signal)
+{
   CreateObjRef * const ref = (CreateObjRef*)signal->getDataPtr();
-  
   Ptr<SchemaTransaction> trans_ptr;
+
+  jamEntry();
   ndbrequire(c_Trans.find(trans_ptr, ref->senderData));
-  
   if(ref->errorCode != CreateObjRef::NF_FakeErrorREF){
+    jam();
     trans_ptr.p->setErrorCode(ref->errorCode);
   }
   Uint32 node = refToNode(ref->senderRef);
@@ -14428,12 +14443,12 @@ Dbdict::execCREATE_OBJ_REF(Signal* signal){
 }
 
 void
-Dbdict::execCREATE_OBJ_CONF(Signal* signal){
-  jamEntry();
-
-  CreateObjConf * const conf = (CreateObjConf*)signal->getDataPtr();
-  
+Dbdict::execCREATE_OBJ_CONF(Signal* signal)
+{
   Ptr<SchemaTransaction> trans_ptr;
+  CreateObjConf * const conf = (CreateObjConf*)signal->getDataPtr();
+
+  jamEntry();
   ndbrequire(c_Trans.find(trans_ptr, conf->senderData));
   schemaOp_reply(signal, trans_ptr.p, refToNode(conf->senderRef));
 }
@@ -14443,6 +14458,7 @@ Dbdict::schemaOp_reply(Signal* signal,
 		       SchemaTransaction * trans_ptr_p, 
 		       Uint32 nodeId)
 {
+  jam();
   {
     SafeCounter tmp(c_counterMgr, trans_ptr_p->m_counter);
     if(!tmp.clearWaitingFor(nodeId)){
@@ -14453,10 +14469,8 @@ Dbdict::schemaOp_reply(Signal* signal,
   
   switch(trans_ptr_p->m_op.m_state){
   case DictObjOp::Preparing:{
-    
     if(trans_ptr_p->m_errorCode != 0)
     {
-      jam();
       /**
        * Failed to prepare on atleast one node -> abort on all
        */
@@ -14466,10 +14480,16 @@ Dbdict::schemaOp_reply(Signal* signal,
 	safe_cast(&Dbdict::trans_abort_start_done);
       
       if(f_dict_op[trans_ptr_p->m_op.m_vt_index].m_trans_abort_start)
+      {
+        jam();
 	(this->*f_dict_op[trans_ptr_p->m_op.m_vt_index].m_trans_abort_start)
 	  (signal, trans_ptr_p);
+      }
       else
+      {
+        jam();
 	execute(signal, trans_ptr_p->m_callback, 0);
+      }
       return;
     }
     
@@ -14479,14 +14499,19 @@ Dbdict::schemaOp_reply(Signal* signal,
       safe_cast(&Dbdict::trans_commit_start_done);
     
     if(f_dict_op[trans_ptr_p->m_op.m_vt_index].m_trans_commit_start)
+    {
+      jam();
       (this->*f_dict_op[trans_ptr_p->m_op.m_vt_index].m_trans_commit_start)
 	(signal, trans_ptr_p);
+    }
     else
+    {
+      jam();
       execute(signal, trans_ptr_p->m_callback, 0);
+    }
     return;
   }
   case DictObjOp::Committing: {
-    jam();
     ndbrequire(trans_ptr_p->m_errorCode == 0);
 
     trans_ptr_p->m_op.m_state = DictObjOp::Committed;
@@ -14495,31 +14520,42 @@ Dbdict::schemaOp_reply(Signal* signal,
       safe_cast(&Dbdict::trans_commit_complete_done);
     
     if(f_dict_op[trans_ptr_p->m_op.m_vt_index].m_trans_commit_complete)
+    {
+      jam();
       (this->*f_dict_op[trans_ptr_p->m_op.m_vt_index].m_trans_commit_complete)
 	(signal, trans_ptr_p);
+    }
     else
-      execute(signal, trans_ptr_p->m_callback, 0);      
+    {
+      jam();
+      execute(signal, trans_ptr_p->m_callback, 0);
+    }
     return;
   }
   case DictObjOp::Aborting:{
-    jam();
-
     trans_ptr_p->m_op.m_state = DictObjOp::Committed;
     trans_ptr_p->m_callback.m_callbackData = trans_ptr_p->key;
     trans_ptr_p->m_callback.m_callbackFunction= 
       safe_cast(&Dbdict::trans_abort_complete_done);
 
     if(f_dict_op[trans_ptr_p->m_op.m_vt_index].m_trans_abort_complete)
+    {
+      jam();
       (this->*f_dict_op[trans_ptr_p->m_op.m_vt_index].m_trans_abort_complete)
 	(signal, trans_ptr_p);
+    }
     else
-      execute(signal, trans_ptr_p->m_callback, 0);      
+    {
+      jam();
+      execute(signal, trans_ptr_p->m_callback, 0);
+    }
     return;
   }
   case DictObjOp::Defined:
   case DictObjOp::Prepared:
   case DictObjOp::Committed:
   case DictObjOp::Aborted:
+    jam();
     break;
   }
   ndbrequire(false);
@@ -14528,14 +14564,13 @@ Dbdict::schemaOp_reply(Signal* signal,
 void
 Dbdict::trans_commit_start_done(Signal* signal, 
 				Uint32 callbackData,
-				Uint32 retValue){
-  jamEntry();
-  
-  ndbrequire(retValue == 0);
-  
+				Uint32 retValue)
+{
   Ptr<SchemaTransaction> trans_ptr;
+
+  jam();
+  ndbrequire(retValue == 0);
   ndbrequire(c_Trans.find(trans_ptr, callbackData));
-  
   NodeReceiverGroup rg(DBDICT, trans_ptr.p->m_nodes);
   SafeCounter tmp(c_counterMgr, trans_ptr.p->m_counter);
   tmp.init<DictCommitRef>(rg, GSN_DICT_COMMIT_REF, trans_ptr.p->key);
@@ -14546,27 +14581,26 @@ Dbdict::trans_commit_start_done(Signal* signal,
   req->op_key = trans_ptr.p->m_op.m_key;
   sendSignal(rg, GSN_DICT_COMMIT_REQ, signal, DictCommitReq::SignalLength, 
 	     JBB);
-  
   trans_ptr.p->m_op.m_state = DictObjOp::Committing;
 }
 
 void
 Dbdict::trans_commit_complete_done(Signal* signal, 
 				   Uint32 callbackData,
-				   Uint32 retValue){
-  jamEntry();
-  
-  ndbrequire(retValue == 0);
-  
+				   Uint32 retValue)
+{
   Ptr<SchemaTransaction> trans_ptr;
+
+  jam();
+  ndbrequire(retValue == 0);
   ndbrequire(c_Trans.find(trans_ptr, callbackData));
 
   switch(f_dict_op[trans_ptr.p->m_op.m_vt_index].m_gsn_user_req){
   case GSN_CREATE_FILEGROUP_REQ:{
     FilegroupPtr fg_ptr;
+    jam();
     ndbrequire(c_filegroup_hash.find(fg_ptr, trans_ptr.p->m_op.m_obj_id));
     
-    //
     CreateFilegroupConf * conf = (CreateFilegroupConf*)signal->getDataPtr();
     conf->senderRef = reference();
     conf->senderData = trans_ptr.p->m_senderData;
@@ -14576,11 +14610,11 @@ Dbdict::trans_commit_complete_done(Signal* signal,
     //@todo check api failed
     sendSignal(trans_ptr.p->m_senderRef, GSN_CREATE_FILEGROUP_CONF, signal, 
 	       CreateFilegroupConf::SignalLength, JBB);
-
     break;
   }
   case GSN_CREATE_FILE_REQ:{
     FilePtr f_ptr;
+    jam();
     ndbrequire(c_file_hash.find(f_ptr, trans_ptr.p->m_op.m_obj_id));
     CreateFileConf * conf = (CreateFileConf*)signal->getDataPtr();
     conf->senderRef = reference();
@@ -14591,11 +14625,11 @@ Dbdict::trans_commit_complete_done(Signal* signal,
     //@todo check api failed
     sendSignal(trans_ptr.p->m_senderRef, GSN_CREATE_FILE_CONF, signal, 
 	       CreateFileConf::SignalLength, JBB);
-    
     break;
   }
   case GSN_DROP_FILE_REQ:{
     DropFileConf * conf = (DropFileConf*)signal->getDataPtr();
+    jam();
     conf->senderRef = reference();
     conf->senderData = trans_ptr.p->m_senderData;
     conf->fileId = trans_ptr.p->m_op.m_obj_id;
@@ -14607,6 +14641,7 @@ Dbdict::trans_commit_complete_done(Signal* signal,
   }
   case GSN_DROP_FILEGROUP_REQ:{
     DropFilegroupConf * conf = (DropFilegroupConf*)signal->getDataPtr();
+    jam();
     conf->senderRef = reference();
     conf->senderData = trans_ptr.p->m_senderData;
     conf->filegroupId = trans_ptr.p->m_op.m_obj_id;
@@ -14629,12 +14664,12 @@ Dbdict::trans_commit_complete_done(Signal* signal,
 void
 Dbdict::trans_abort_start_done(Signal* signal, 
 			       Uint32 callbackData,
-			       Uint32 retValue){
-  jamEntry();
-  
-  ndbrequire(retValue == 0);
-
+			       Uint32 retValue)
+{
   Ptr<SchemaTransaction> trans_ptr;
+
+  jam();
+  ndbrequire(retValue == 0);
   ndbrequire(c_Trans.find(trans_ptr, callbackData));
   
   NodeReceiverGroup rg(DBDICT, trans_ptr.p->m_nodes);
@@ -14652,12 +14687,12 @@ Dbdict::trans_abort_start_done(Signal* signal,
 void
 Dbdict::trans_abort_complete_done(Signal* signal, 
 				  Uint32 callbackData,
-				  Uint32 retValue){
-  jamEntry();
-  
-  ndbrequire(retValue == 0);
-  
+				  Uint32 retValue)
+{
   Ptr<SchemaTransaction> trans_ptr;
+
+  jam();
+  ndbrequire(retValue == 0);
   ndbrequire(c_Trans.find(trans_ptr, callbackData));
 
   switch(f_dict_op[trans_ptr.p->m_op.m_vt_index].m_gsn_user_req){
@@ -14665,6 +14700,7 @@ Dbdict::trans_abort_complete_done(Signal* signal,
   {
     //
     CreateFilegroupRef * ref = (CreateFilegroupRef*)signal->getDataPtr();
+    jam();
     ref->senderRef = reference();
     ref->senderData = trans_ptr.p->m_senderData;
     ref->masterNodeId = c_masterNodeId;
@@ -14676,12 +14712,12 @@ Dbdict::trans_abort_complete_done(Signal* signal,
     //@todo check api failed
     sendSignal(trans_ptr.p->m_senderRef, GSN_CREATE_FILEGROUP_REF, signal, 
 	       CreateFilegroupRef::SignalLength, JBB);
-
     break;
   }
   case GSN_CREATE_FILE_REQ:
   {
     CreateFileRef * ref = (CreateFileRef*)signal->getDataPtr();
+    jam();
     ref->senderRef = reference();
     ref->senderData = trans_ptr.p->m_senderData;
     ref->masterNodeId = c_masterNodeId;
@@ -14693,12 +14729,12 @@ Dbdict::trans_abort_complete_done(Signal* signal,
     //@todo check api failed
     sendSignal(trans_ptr.p->m_senderRef, GSN_CREATE_FILE_REF, signal, 
 	       CreateFileRef::SignalLength, JBB);
-    
     break;
   }
   case GSN_DROP_FILE_REQ:
   {
     DropFileRef * ref = (DropFileRef*)signal->getDataPtr();
+    jam();
     ref->senderRef = reference();
     ref->senderData = trans_ptr.p->m_senderData;
     ref->masterNodeId = c_masterNodeId;
@@ -14709,13 +14745,13 @@ Dbdict::trans_abort_complete_done(Signal* signal,
     //@todo check api failed
     sendSignal(trans_ptr.p->m_senderRef, GSN_DROP_FILE_REF, signal, 
 	       DropFileRef::SignalLength, JBB);
-    
     break;
   }
   case GSN_DROP_FILEGROUP_REQ:
   {
     //
     DropFilegroupRef * ref = (DropFilegroupRef*)signal->getDataPtr();
+    jam();
     ref->senderRef = reference();
     ref->senderData = trans_ptr.p->m_senderData;
     ref->masterNodeId = c_masterNodeId;
@@ -14726,7 +14762,6 @@ Dbdict::trans_abort_complete_done(Signal* signal,
     //@todo check api failed
     sendSignal(trans_ptr.p->m_senderRef, GSN_DROP_FILEGROUP_REF, signal, 
 	       DropFilegroupRef::SignalLength, JBB);
-
     break;
   }
   default:
@@ -14740,7 +14775,8 @@ Dbdict::trans_abort_complete_done(Signal* signal,
 }
 
 void
-Dbdict::execCREATE_OBJ_REQ(Signal* signal){
+Dbdict::execCREATE_OBJ_REQ(Signal* signal)
+{
   jamEntry();
 
   if(!assembleFragments(signal)){
@@ -14785,6 +14821,7 @@ Dbdict::execCREATE_OBJ_REQ(Signal* signal){
   switch(objType){
   case DictTabInfo::Tablespace:
   case DictTabInfo::LogfileGroup:
+    jam();
     createObjPtr.p->m_vt_index = 0;
     break;
   case DictTabInfo::Datafile:
@@ -14793,7 +14830,11 @@ Dbdict::execCREATE_OBJ_REQ(Signal* signal){
      * Use restart code to impl. ForceCreateFile
      */
     if (requestInfo & CreateFileReq::ForceCreateFile)
-      createObjPtr.p->m_restart= 2;      
+    {
+      jam();
+      createObjPtr.p->m_restart= 2;
+    }
+    jam();
     createObjPtr.p->m_vt_index = 1;
     break;
   default:
@@ -14809,10 +14850,10 @@ void
 Dbdict::execDICT_COMMIT_REQ(Signal* signal)
 {
   DictCommitReq* req = (DictCommitReq*)signal->getDataPtr();
-
   Ptr<SchemaOp> op;
-  ndbrequire(c_schemaOp.find(op, req->op_key));
 
+  jamEntry();
+  ndbrequire(c_schemaOp.find(op, req->op_key));
   (this->*f_dict_op[op.p->m_vt_index].m_commit)(signal, op.p);
 }
 
@@ -14820,23 +14861,23 @@ void
 Dbdict::execDICT_ABORT_REQ(Signal* signal)
 {
   DictAbortReq* req = (DictAbortReq*)signal->getDataPtr();
-
   Ptr<SchemaOp> op;
-  ndbrequire(c_schemaOp.find(op, req->op_key));
 
+  jamEntry();
+  ndbrequire(c_schemaOp.find(op, req->op_key));
   (this->*f_dict_op[op.p->m_vt_index].m_abort)(signal, op.p);
 }
 
 void
-Dbdict::execDICT_COMMIT_REF(Signal* signal){
-  jamEntry();
-  
+Dbdict::execDICT_COMMIT_REF(Signal* signal)
+{
   DictCommitRef * const ref = (DictCommitRef*)signal->getDataPtr();
-  
   Ptr<SchemaTransaction> trans_ptr;
+
+  jamEntry();
   ndbrequire(c_Trans.find(trans_ptr, ref->senderData));
-  
   if(ref->errorCode != DictCommitRef::NF_FakeErrorREF){
+    jam();
     trans_ptr.p->setErrorCode(ref->errorCode);
   }
   Uint32 node = refToNode(ref->senderRef);
@@ -14844,26 +14885,26 @@ Dbdict::execDICT_COMMIT_REF(Signal* signal){
 }
 
 void
-Dbdict::execDICT_COMMIT_CONF(Signal* signal){
-  jamEntry();
-  
+Dbdict::execDICT_COMMIT_CONF(Signal* signal)
+{
+  Ptr<SchemaTransaction> trans_ptr;
   DictCommitConf * const conf = (DictCommitConf*)signal->getDataPtr();
-  
-  Ptr<SchemaTransaction> trans_ptr;
+
+  jamEntry();
   ndbrequire(c_Trans.find(trans_ptr, conf->senderData));
   schemaOp_reply(signal, trans_ptr.p, refToNode(conf->senderRef));
 }
 
 void
-Dbdict::execDICT_ABORT_REF(Signal* signal){
-  jamEntry();
-  
+Dbdict::execDICT_ABORT_REF(Signal* signal)
+{
   DictAbortRef * const ref = (DictAbortRef*)signal->getDataPtr();
-  
   Ptr<SchemaTransaction> trans_ptr;
+
+  jamEntry();
   ndbrequire(c_Trans.find(trans_ptr, ref->senderData));
-  
   if(ref->errorCode != DictAbortRef::NF_FakeErrorREF){
+    jam();
     trans_ptr.p->setErrorCode(ref->errorCode);
   }
   Uint32 node = refToNode(ref->senderRef);
@@ -14871,31 +14912,28 @@ Dbdict::execDICT_ABORT_REF(Signal* signal){
 }
 
 void
-Dbdict::execDICT_ABORT_CONF(Signal* signal){
-  jamEntry();
-  
+Dbdict::execDICT_ABORT_CONF(Signal* signal)
+{
   DictAbortConf * const conf = (DictAbortConf*)signal->getDataPtr();
-  
   Ptr<SchemaTransaction> trans_ptr;
+
+  jamEntry();
   ndbrequire(c_Trans.find(trans_ptr, conf->senderData));
   schemaOp_reply(signal, trans_ptr.p, refToNode(conf->senderRef));
 }
-
-
 
 void
 Dbdict::createObj_prepare_start_done(Signal* signal,
 				     Uint32 callbackData, 
-				     Uint32 returnCode){
+				     Uint32 returnCode)
+{
+  CreateObjRecordPtr createObjPtr;  
+  SegmentedSectionPtr objInfoPtr;
   
   ndbrequire(returnCode == 0);
-
-  CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-
-  SegmentedSectionPtr objInfoPtr;
+  jam();
   getSection(objInfoPtr, createObjPtr.p->m_obj_info_ptr_i);
-  
   if(createObjPtr.p->m_errorCode != 0){
     jam();
     createObjPtr.p->m_obj_info_ptr_i= RNIL;
@@ -14923,19 +14961,19 @@ Dbdict::createObj_prepare_start_done(Signal* signal,
 void
 Dbdict::createObj_writeSchemaConf1(Signal* signal, 
 				   Uint32 callbackData,
-				   Uint32 returnCode){
-  jam();
-
-  ndbrequire(returnCode == 0);
-
+				   Uint32 returnCode)
+{
   CreateObjRecordPtr createObjPtr;  
+  Callback callback;
+  SegmentedSectionPtr objInfoPtr;
+
+  jam();
+  ndbrequire(returnCode == 0);
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
   
-  Callback callback;
   callback.m_callbackData = createObjPtr.p->key;
   callback.m_callbackFunction = safe_cast(&Dbdict::createObj_writeObjConf);
   
-  SegmentedSectionPtr objInfoPtr;
   getSection(objInfoPtr, createObjPtr.p->m_obj_info_ptr_i);
   writeTableFile(signal, createObjPtr.p->m_obj_id, objInfoPtr, &callback);
   
@@ -14947,14 +14985,13 @@ Dbdict::createObj_writeSchemaConf1(Signal* signal,
 void
 Dbdict::createObj_writeObjConf(Signal* signal, 
 			       Uint32 callbackData,
-			       Uint32 returnCode){
+			       Uint32 returnCode)
+{
+  CreateObjRecordPtr createObjPtr;
+
   jam();
-
   ndbrequire(returnCode == 0);
-  
-  CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-
   createObjPtr.p->m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::createObj_prepare_complete_done);
   (this->*f_dict_op[createObjPtr.p->m_vt_index].m_prepare_complete)
@@ -14964,12 +15001,12 @@ Dbdict::createObj_writeObjConf(Signal* signal,
 void
 Dbdict::createObj_prepare_complete_done(Signal* signal, 
 					Uint32 callbackData,
-					Uint32 returnCode){
+					Uint32 returnCode)
+{
+  CreateObjRecordPtr createObjPtr;
+
   jam();
-  
   ndbrequire(returnCode == 0);
-  
-  CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
   
   //@todo check for master failed
@@ -14998,28 +15035,33 @@ Dbdict::createObj_prepare_complete_done(Signal* signal,
 }
 
 void
-Dbdict::createObj_commit(Signal * signal, SchemaOp * op){
-  jam();
-  
+Dbdict::createObj_commit(Signal * signal, SchemaOp * op)
+{
   OpCreateObj * createObj = (OpCreateObj*)op;
+
   createObj->m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::createObj_commit_start_done);
   if (f_dict_op[createObj->m_vt_index].m_commit_start)
+  {
+    jam();
     (this->*f_dict_op[createObj->m_vt_index].m_commit_start)(signal, createObj);
+  }
   else
+  {
+    jam();
     execute(signal, createObj->m_callback, 0);
+  }
 }
 
 void
 Dbdict::createObj_commit_start_done(Signal* signal, 
 				    Uint32 callbackData,
-				    Uint32 returnCode){
+				    Uint32 returnCode)
+{
+  CreateObjRecordPtr createObjPtr;  
   
   jam();
-  
   ndbrequire(returnCode == 0);
-  
-  CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
   
   Uint32 objId = createObjPtr.p->m_obj_id;
@@ -15039,29 +15081,35 @@ Dbdict::createObj_commit_start_done(Signal* signal,
 void
 Dbdict::createObj_writeSchemaConf2(Signal* signal, 
 				   Uint32 callbackData,
-				   Uint32 returnCode){
-  jam();
-  
-  CreateObjRecordPtr createObjPtr;  
-  ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
+				   Uint32 returnCode)
+{
+  CreateObjRecordPtr createObjPtr;
 
+  ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
   createObjPtr.p->m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::createObj_commit_complete_done);
   if (f_dict_op[createObjPtr.p->m_vt_index].m_commit_complete)
+  {
+    jam();
     (this->*f_dict_op[createObjPtr.p->m_vt_index].m_commit_complete)
       (signal, createObjPtr.p);
+  }
   else
+  {
+    jam();
     execute(signal, createObjPtr.p->m_callback, 0);
+  }
   
 }
 
 void
 Dbdict::createObj_commit_complete_done(Signal* signal, 
 				       Uint32 callbackData,
-				       Uint32 returnCode){
+				       Uint32 returnCode)
+{
+  CreateObjRecordPtr createObjPtr;
+
   jam();
-  
-  CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
   
   //@todo check error
@@ -15079,27 +15127,31 @@ Dbdict::createObj_commit_complete_done(Signal* signal,
 void
 Dbdict::createObj_abort(Signal* signal, SchemaOp* op)
 {
-  jam();
-  
   OpCreateObj * createObj = (OpCreateObj*)op;
   
   createObj->m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::createObj_abort_start_done);
   if (f_dict_op[createObj->m_vt_index].m_abort_start)
+  {
+    jam();
     (this->*f_dict_op[createObj->m_vt_index].m_abort_start)(signal, createObj);
+  }
   else
+  {
+    jam();
     execute(signal, createObj->m_callback, 0);
+  }
 }
 
 void
 Dbdict::createObj_abort_start_done(Signal* signal, 
 				   Uint32 callbackData,
-				   Uint32 returnCode){
+				   Uint32 returnCode)
+{
+  CreateObjRecordPtr createObjPtr;
+
   jam();
-  
-  CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-  
   XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
   SchemaFile::TableEntry objEntry = * getTableEntry(xsf, 
 						    createObjPtr.p->m_obj_id);
@@ -15118,19 +15170,23 @@ Dbdict::createObj_abort_writeSchemaConf(Signal* signal,
 					Uint32 callbackData,
 					Uint32 returnCode)
 {
-  jam();
+  CreateObjRecordPtr createObjPtr;
 
-  CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-
   createObjPtr.p->m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::createObj_abort_complete_done);
   
   if (f_dict_op[createObjPtr.p->m_vt_index].m_abort_complete)
+  {
+    jam();
     (this->*f_dict_op[createObjPtr.p->m_vt_index].m_abort_complete)
       (signal, createObjPtr.p);
+  }
   else
+  {
+    jam();
     execute(signal, createObjPtr.p->m_callback, 0);
+  }
 }
 
 void
@@ -15138,9 +15194,9 @@ Dbdict::createObj_abort_complete_done(Signal* signal,
 				      Uint32 callbackData,
 				      Uint32 returnCode)
 {
-  jam();
+  CreateObjRecordPtr createObjPtr;
 
-  CreateObjRecordPtr createObjPtr;  
+  jam();
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
 
   DictAbortConf * const conf = (DictAbortConf*)signal->getDataPtr();
@@ -15153,7 +15209,8 @@ Dbdict::createObj_abort_complete_done(Signal* signal,
 }
 
 void
-Dbdict::execDROP_OBJ_REQ(Signal* signal){
+Dbdict::execDROP_OBJ_REQ(Signal* signal)
+{
   jamEntry();
 
   if(!assembleFragments(signal)){
@@ -15191,8 +15248,9 @@ Dbdict::execDROP_OBJ_REQ(Signal* signal){
   case DictTabInfo::Tablespace:
   case DictTabInfo::LogfileGroup:
   {
-    dropObjPtr.p->m_vt_index = 3;
     Ptr<Filegroup> fg_ptr;
+    jam();
+    dropObjPtr.p->m_vt_index = 3;
     ndbrequire(c_filegroup_hash.find(fg_ptr, objId));
     dropObjPtr.p->m_obj_ptr_i = fg_ptr.i;
     break;
@@ -15200,15 +15258,19 @@ Dbdict::execDROP_OBJ_REQ(Signal* signal){
   }
   case DictTabInfo::Datafile:
   {
-    dropObjPtr.p->m_vt_index = 2;
     Ptr<File> file_ptr;
+    jam();
+    dropObjPtr.p->m_vt_index = 2;
     ndbrequire(c_file_hash.find(file_ptr, objId));
     dropObjPtr.p->m_obj_ptr_i = file_ptr.i;
     break;
   }
   case DictTabInfo::Undofile:
+  {
+    jam();
     dropObjPtr.p->m_vt_index = 4;
     return;
+  }
   default:
     ndbrequire(false);
   }
@@ -15223,12 +15285,12 @@ Dbdict::dropObj_prepare_start_done(Signal* signal,
 				   Uint32 callbackData,
 				   Uint32 returnCode)
 {
-  ndbrequire(returnCode == 0);
+  DropObjRecordPtr dropObjPtr;
+  Callback cb;
 
-  DropObjRecordPtr dropObjPtr;  
+  ndbrequire(returnCode == 0);
   ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
 
-  Callback cb;
   cb.m_callbackData = callbackData;
   cb.m_callbackFunction = 
     safe_cast(&Dbdict::dropObj_prepare_writeSchemaConf);
@@ -15239,7 +15301,7 @@ Dbdict::dropObj_prepare_start_done(Signal* signal,
     dropObj_prepare_complete_done(signal, callbackData, 0);
     return;
   }
-  
+  jam();  
   Uint32 objId = dropObjPtr.p->m_obj_id;
   XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
   SchemaFile::TableEntry objEntry = *getTableEntry(xsf, objId);
@@ -15252,19 +15314,23 @@ Dbdict::dropObj_prepare_writeSchemaConf(Signal* signal,
 					Uint32 callbackData,
 					Uint32 returnCode)
 {
-  ndbrequire(returnCode == 0);
+  DropObjRecordPtr dropObjPtr;
 
-  DropObjRecordPtr dropObjPtr;  
+  ndbrequire(returnCode == 0);
   ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
-  
   dropObjPtr.p->m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::dropObj_prepare_complete_done);
-  
   if(f_dict_op[dropObjPtr.p->m_vt_index].m_prepare_complete)
+  {
+    jam();
     (this->*f_dict_op[dropObjPtr.p->m_vt_index].m_prepare_complete)
       (signal, dropObjPtr.p);
+  }
   else
+  {
+    jam();
     execute(signal, dropObjPtr.p->m_callback, 0);
+  }
 }
 
 void
@@ -15272,10 +15338,11 @@ Dbdict::dropObj_prepare_complete_done(Signal* signal,
 				      Uint32 callbackData,
 				      Uint32 returnCode)
 {
+  DropObjRecordPtr dropObjPtr;
+
   ndbrequire(returnCode == 0);
-  
-  DropObjRecordPtr dropObjPtr;  
   ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
+  jam();
   
   //@todo check for master failed
   
@@ -15301,16 +15368,22 @@ Dbdict::dropObj_prepare_complete_done(Signal* signal,
 }
 
 void
-Dbdict::dropObj_commit(Signal * signal, SchemaOp * op){
-  jam();
-  
+Dbdict::dropObj_commit(Signal * signal, SchemaOp * op)
+{
   OpDropObj * dropObj = (OpDropObj*)op;
+
   dropObj->m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::dropObj_commit_start_done);
   if (f_dict_op[dropObj->m_vt_index].m_commit_start)
+  {
+    jam();
     (this->*f_dict_op[dropObj->m_vt_index].m_commit_start)(signal, dropObj);
+  }
   else
+  {
+    jam();
     execute(signal, dropObj->m_callback, 0);
+  }
 }
 
 void
@@ -15318,10 +15391,10 @@ Dbdict::dropObj_commit_start_done(Signal* signal,
 				  Uint32 callbackData,
 				  Uint32 returnCode)
 {
+  DropObjRecordPtr dropObjPtr;
+
   jam();
   ndbrequire(returnCode == 0);
-
-  DropObjRecordPtr dropObjPtr;  
   ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
   
   Uint32 objId = dropObjPtr.p->m_obj_id;
@@ -15342,20 +15415,25 @@ Dbdict::dropObj_commit_writeSchemaConf(Signal* signal,
 				       Uint32 callbackData,
 				       Uint32 returnCode)
 {
+  DropObjRecordPtr dropObjPtr;
+
   jam();
   ndbrequire(returnCode == 0);
-  
-  DropObjRecordPtr dropObjPtr;  
   ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
-  
   dropObjPtr.p->m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::dropObj_commit_complete_done);
   
   if(f_dict_op[dropObjPtr.p->m_vt_index].m_commit_complete)
+  {
+    jam();
     (this->*f_dict_op[dropObjPtr.p->m_vt_index].m_commit_complete)
       (signal, dropObjPtr.p);
+  }
   else
+  {
+    jam();
     execute(signal, dropObjPtr.p->m_callback, 0);
+  }
 }
 
 void
@@ -15363,7 +15441,9 @@ Dbdict::dropObj_commit_complete_done(Signal* signal,
 				     Uint32 callbackData,
 				     Uint32 returnCode)
 {
-  DropObjRecordPtr dropObjPtr;  
+  DropObjRecordPtr dropObjPtr;
+
+  jam();
   ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
   
   //@todo check error
@@ -15374,22 +15454,26 @@ Dbdict::dropObj_commit_complete_done(Signal* signal,
   conf->senderData = dropObjPtr.p->m_senderData;
   sendSignal(dropObjPtr.p->m_senderRef, GSN_DICT_COMMIT_CONF,
 	     signal, DictCommitConf::SignalLength, JBB);
-  
   c_opDropObj.release(dropObjPtr);
 }
 
 void
-Dbdict::dropObj_abort(Signal * signal, SchemaOp * op){
-  jam();
-  
+Dbdict::dropObj_abort(Signal * signal, SchemaOp * op)
+{
   OpDropObj * dropObj = (OpDropObj*)op;
+
   dropObj->m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::dropObj_abort_start_done);
-
   if (f_dict_op[dropObj->m_vt_index].m_abort_start)
+  {
+    jam();
     (this->*f_dict_op[dropObj->m_vt_index].m_abort_start)(signal, dropObj);
+  }
   else
+  {
+    jam();
     execute(signal, dropObj->m_callback, 0);
+  }
 }
 
 void
@@ -15397,10 +15481,10 @@ Dbdict::dropObj_abort_start_done(Signal* signal,
 				 Uint32 callbackData,
 				 Uint32 returnCode)
 {
+  DropObjRecordPtr dropObjPtr;
+
   jam();
   ndbrequire(returnCode == 0);
-
-  DropObjRecordPtr dropObjPtr;  
   ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
   
   XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
@@ -15421,6 +15505,7 @@ Dbdict::dropObj_abort_start_done(Signal* signal,
   }
   else
   {
+    jam();
     execute(signal, callback, 0);
   }
 }
@@ -15430,20 +15515,24 @@ Dbdict::dropObj_abort_writeSchemaConf(Signal* signal,
 				      Uint32 callbackData,
 				      Uint32 returnCode)
 {
-  jam();
+  DropObjRecordPtr dropObjPtr;
+
   ndbrequire(returnCode == 0);
-  
-  DropObjRecordPtr dropObjPtr;  
   ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
-  
   dropObjPtr.p->m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::dropObj_abort_complete_done);
   
   if(f_dict_op[dropObjPtr.p->m_vt_index].m_abort_complete)
+  {
+    jam();
     (this->*f_dict_op[dropObjPtr.p->m_vt_index].m_abort_complete)
       (signal, dropObjPtr.p);
+  }
   else
+  {
+    jam();
     execute(signal, dropObjPtr.p->m_callback, 0);
+  }
 }
 
 void
@@ -15451,24 +15540,26 @@ Dbdict::dropObj_abort_complete_done(Signal* signal,
 				    Uint32 callbackData,
 				    Uint32 returnCode)
 {
-  DropObjRecordPtr dropObjPtr;  
-  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
-
+  DropObjRecordPtr dropObjPtr;
   DictAbortConf * const conf = (DictAbortConf*)signal->getDataPtr();
+
+  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
+  jam();
   conf->senderRef = reference();
   conf->senderData = dropObjPtr.p->m_senderData;
   sendSignal(dropObjPtr.p->m_senderRef, GSN_DICT_ABORT_CONF,
 	     signal, DictAbortConf::SignalLength, JBB);
-  
   c_opDropObj.release(dropObjPtr);
 }
 
 void 
-Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op){
+Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op)
+{
   /**
    * Put data into table record
    */
   SegmentedSectionPtr objInfoPtr;
+  jam();
   getSection(objInfoPtr, ((OpCreateObj*)op)->m_obj_info_ptr_i);
   SimplePropertiesSectionReader it(objInfoPtr, getSectionSegmentPool());
 
@@ -15485,6 +15576,7 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op){
     
     if(status != SimpleProperties::Eof)
     {
+      jam();
       op->m_errorCode = CreateTableRef::InvalidFormat;
       break;
     }
@@ -15493,6 +15585,7 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op){
     {
       if(!fg.TS_ExtentSize)
       {
+        jam();
 	op->m_errorCode = CreateFilegroupRef::InvalidExtentSize;
 	break;
       }
@@ -15504,6 +15597,7 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op){
        */
       if(fg.LF_UndoBufferSize < 3 * File_formats::NDB_PAGE_SIZE)
       {
+        jam();
 	op->m_errorCode = CreateFilegroupRef::InvalidUndoBufferSize;
 	break;
       }
@@ -15512,16 +15606,19 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op){
     Uint32 len = strlen(fg.FilegroupName) + 1;
     Uint32 hash = Rope::hash(fg.FilegroupName, len);
     if(get_object(fg.FilegroupName, len, hash) != 0){
+      jam();
       op->m_errorCode = CreateTableRef::TableAlreadyExist;
       break;
     }
     
     if(!c_obj_pool.seize(obj_ptr)){
+      jam();
       op->m_errorCode = CreateTableRef::NoMoreTableRecords;
       break;
     }
     
     if(!c_filegroup_pool.seize(fg_ptr)){
+      jam();
       op->m_errorCode = CreateTableRef::NoMoreTableRecords;
       break;
     }
@@ -15531,6 +15628,7 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op){
     {
       Rope name(c_rope_pool, obj_ptr.p->m_name);
       if(!name.assign(fg.FilegroupName, len, hash)){
+        jam();
 	op->m_errorCode = CreateTableRef::OutOfStringBuffer;
 	break;
       }
@@ -15544,6 +15642,7 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op){
 
     switch(fg.FilegroupType){
     case DictTabInfo::Tablespace:
+    {
       //fg.TS_DataGrow = group.m_grow_spec;
       fg_ptr.p->m_tablespace.m_extent_size = fg.TS_ExtentSize;
       fg_ptr.p->m_tablespace.m_default_logfile_group_id = fg.TS_LogfileGroupId;
@@ -15551,22 +15650,28 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op){
       Ptr<Filegroup> lg_ptr;
       if (!c_filegroup_hash.find(lg_ptr, fg.TS_LogfileGroupId))
       {
+        jam();
 	op->m_errorCode = CreateFilegroupRef::NoSuchLogfileGroup;
 	goto error;
       }
 
       if (lg_ptr.p->m_version != fg.TS_LogfileGroupVersion)
       {
+        jam();
 	op->m_errorCode = CreateFilegroupRef::InvalidFilegroupVersion;
 	goto error;
       }
       increase_ref_count(lg_ptr.p->m_obj_ptr_i);
       break;
+    }
     case DictTabInfo::LogfileGroup:
+    {
+      jam();
       fg_ptr.p->m_logfilegroup.m_undo_buffer_size = fg.LF_UndoBufferSize;
       fg_ptr.p->m_logfilegroup.m_files.init();
       //fg.LF_UndoGrow = ;
       break;
+    }
     default:
       ndbrequire(false);
     }
@@ -15601,13 +15706,14 @@ error:
 }
 
 void
-Dbdict::create_fg_prepare_complete(Signal* signal, SchemaOp* op){
+Dbdict::create_fg_prepare_complete(Signal* signal, SchemaOp* op)
+{
   /**
    * CONTACT TSMAN LGMAN PGMAN 
    */
   CreateFilegroupImplReq* req = 
     (CreateFilegroupImplReq*)signal->getDataPtrSend();
-
+  jam();
   req->senderData = op->key;
   req->senderRef = reference();
   req->filegroup_id = op->m_obj_id;
@@ -15620,18 +15726,24 @@ Dbdict::create_fg_prepare_complete(Signal* signal, SchemaOp* op){
   Uint32 len= 0;
   switch(op->m_obj_type){
   case DictTabInfo::Tablespace:
+  {
+    jam();
     ref = TSMAN_REF;
     len = CreateFilegroupImplReq::TablespaceLength;
     req->tablespace.extent_size = fg_ptr.p->m_tablespace.m_extent_size;
     req->tablespace.logfile_group_id = 
       fg_ptr.p->m_tablespace.m_default_logfile_group_id;
     break;
+  }
   case DictTabInfo::LogfileGroup:
+  {
+    jam();
     ref = LGMAN_REF;
     len = CreateFilegroupImplReq::LogfileGroupLength;
     req->logfile_group.buffer_size = 
       fg_ptr.p->m_logfilegroup.m_undo_buffer_size;
     break;
+  }
   default:
     ndbrequire(false);
   }
@@ -15640,12 +15752,11 @@ Dbdict::create_fg_prepare_complete(Signal* signal, SchemaOp* op){
 }
 
 void
-Dbdict::execCREATE_FILEGROUP_REF(Signal* signal){
-  jamEntry();
-
+Dbdict::execCREATE_FILEGROUP_REF(Signal* signal)
+{
   CreateFilegroupImplRef * ref = (CreateFilegroupImplRef*)signal->getDataPtr();
-  
   CreateObjRecordPtr op_ptr;
+  jamEntry();
   ndbrequire(c_opCreateObj.find(op_ptr, ref->senderData));
   op_ptr.p->m_errorCode = ref->errorCode;
 
@@ -15653,13 +15764,12 @@ Dbdict::execCREATE_FILEGROUP_REF(Signal* signal){
 }  
 
 void
-Dbdict::execCREATE_FILEGROUP_CONF(Signal* signal){  
-  jamEntry();
-
+Dbdict::execCREATE_FILEGROUP_CONF(Signal* signal)
+{
   CreateFilegroupImplConf * rep = 
     (CreateFilegroupImplConf*)signal->getDataPtr();
-  
   CreateObjRecordPtr op_ptr;
+  jamEntry();
   ndbrequire(c_opCreateObj.find(op_ptr, rep->senderData));
   
   execute(signal, op_ptr.p->m_callback, 0);  
@@ -15675,13 +15785,13 @@ Dbdict::create_fg_abort_start(Signal* signal, SchemaOp* op){
     send_drop_fg(signal, op, DropFilegroupImplReq::Commit);
     return;
   }
-  
+  jam();  
   execute(signal, op->m_callback, 0);  
 }
 
 void
-Dbdict::create_fg_abort_complete(Signal* signal, SchemaOp* op){
-  
+Dbdict::create_fg_abort_complete(Signal* signal, SchemaOp* op)
+{
   if (op->m_obj_ptr_i != RNIL)
   {
     jam();
@@ -15691,12 +15801,13 @@ Dbdict::create_fg_abort_complete(Signal* signal, SchemaOp* op){
     release_object(fg_ptr.p->m_obj_ptr_i);
     c_filegroup_hash.release(fg_ptr);
   }
-  
+  jam();  
   execute(signal, op->m_callback, 0);
 }
 
 void 
-Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
+Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op)
+{
   /**
    * Put data into table record
    */
@@ -15716,6 +15827,7 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
   
   do {
     if(status != SimpleProperties::Eof){
+      jam();
       op->m_errorCode = CreateFileRef::InvalidFormat;
       break;
     }
@@ -15723,34 +15835,53 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
     // Get Filegroup
     FilegroupPtr fg_ptr;
     if(!c_filegroup_hash.find(fg_ptr, f.FilegroupId)){
+      jam();
       op->m_errorCode = CreateFileRef::NoSuchFilegroup;
       break;
     }
     
     if(fg_ptr.p->m_version != f.FilegroupVersion){
+      jam();
       op->m_errorCode = CreateFileRef::InvalidFilegroupVersion;
       break;
     }
 
     switch(f.FileType){
     case DictTabInfo::Datafile:
+    {
       if(fg_ptr.p->m_type != DictTabInfo::Tablespace)
+      {
+        jam();
 	op->m_errorCode = CreateFileRef::InvalidFileType;
+      }
+      jam();
       break;
+    }
     case DictTabInfo::Undofile:
+    {
       if(fg_ptr.p->m_type != DictTabInfo::LogfileGroup)
+      {
+        jam();
 	op->m_errorCode = CreateFileRef::InvalidFileType;
+      }
+      jam();
       break;
+    }
     default:
+      jam();
       op->m_errorCode = CreateFileRef::InvalidFileType;
     }
     
     if(op->m_errorCode)
+    {
+      jam();
       break;
+    }
 
     Uint32 len = strlen(f.FileName) + 1;
     Uint32 hash = Rope::hash(f.FileName, len);
     if(get_object(f.FileName, len, hash) != 0){
+      jam();
       op->m_errorCode = CreateFileRef::FilenameAlreadyExists;
       break;
     }
@@ -15761,6 +15892,7 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
 	m_ctx.m_config.getOwnConfigIterator();
       if(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl) && dl)
       {
+        jam();
 	op->m_errorCode = CreateFileRef::NotSupportedWhenDiskless;
 	break;
       }
@@ -15768,11 +15900,13 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
     
     // Loop through all filenames...
     if(!c_obj_pool.seize(obj_ptr)){
+      jam();
       op->m_errorCode = CreateTableRef::NoMoreTableRecords;
       break;
     }
     
     if (! c_file_pool.seize(filePtr)){
+      jam();
       op->m_errorCode = CreateFileRef::OutOfFileRecords;
       break;
     }
@@ -15782,6 +15916,7 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
     {
       Rope name(c_rope_pool, obj_ptr.p->m_name);
       if(!name.assign(f.FileName, len, hash)){
+        jam();
 	op->m_errorCode = CreateTableRef::OutOfStringBuffer;
 	break;
       }
@@ -15789,10 +15924,14 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
 
     switch(fg_ptr.p->m_type){
     case DictTabInfo::Tablespace:
+    {
+      jam();
       increase_ref_count(fg_ptr.p->m_obj_ptr_i);
       break;
+    }
     case DictTabInfo::LogfileGroup:
     {
+      jam();
       Local_file_list list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
       list.add(filePtr);
       break;
@@ -15836,36 +15975,45 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
       c_obj_pool.release(obj_ptr);
     }
   }
-  
   execute(signal, op->m_callback, 0);
 }
 
 
 void
-Dbdict::create_file_prepare_complete(Signal* signal, SchemaOp* op){
+Dbdict::create_file_prepare_complete(Signal* signal, SchemaOp* op)
+{
   /**
    * CONTACT TSMAN LGMAN PGMAN 
    */
   CreateFileImplReq* req = (CreateFileImplReq*)signal->getDataPtrSend();
-
   FilePtr f_ptr;
-  c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
-
   FilegroupPtr fg_ptr;
+
+  jam();
+  c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
   ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
 
   req->senderData = op->key;
   req->senderRef = reference();
   switch(((OpCreateObj*)op)->m_restart){
   case 0:
+  {
+    jam();
     req->requestInfo = CreateFileImplReq::Create;
     break;
+  }
   case 1:
+  {
+    jam();
     req->requestInfo = CreateFileImplReq::Open;
     break;
+  }
   case 2:
+  {
+    jam();
     req->requestInfo = CreateFileImplReq::CreateForce;
     break;
+  }
   }
 	 
   req->file_id = f_ptr.p->key;
@@ -15878,14 +16026,20 @@ Dbdict::create_file_prepare_complete(Signal* signal, SchemaOp* op){
   Uint32 len= 0;
   switch(op->m_obj_type){
   case DictTabInfo::Datafile:
+  {
+    jam();
     ref = TSMAN_REF;
     len = CreateFileImplReq::DatafileLength;
     req->tablespace.extent_size = fg_ptr.p->m_tablespace.m_extent_size;
     break;
+  }
   case DictTabInfo::Undofile:
+  {
+    jam();
     ref = LGMAN_REF;
     len = CreateFileImplReq::UndofileLength;
     break;
+  }
   default:
     ndbrequire(false);
   }
@@ -15900,42 +16054,41 @@ Dbdict::create_file_prepare_complete(Signal* signal, SchemaOp* op){
 }
 
 void
-Dbdict::execCREATE_FILE_REF(Signal* signal){
-  jamEntry();
-
+Dbdict::execCREATE_FILE_REF(Signal* signal)
+{
   CreateFileImplRef * ref = (CreateFileImplRef*)signal->getDataPtr();
-  
   CreateObjRecordPtr op_ptr;
+
+  jamEntry();
   ndbrequire(c_opCreateObj.find(op_ptr, ref->senderData));
   op_ptr.p->m_errorCode = ref->errorCode;
-
   execute(signal, op_ptr.p->m_callback, 0);  
 }  
 
 void
-Dbdict::execCREATE_FILE_CONF(Signal* signal){  
-  jamEntry();
-
+Dbdict::execCREATE_FILE_CONF(Signal* signal)
+{
   CreateFileImplConf * rep = 
     (CreateFileImplConf*)signal->getDataPtr();
-  
   CreateObjRecordPtr op_ptr;
+
+  jamEntry();
   ndbrequire(c_opCreateObj.find(op_ptr, rep->senderData));
-  
   execute(signal, op_ptr.p->m_callback, 0);  
 }
 
 void
-Dbdict::create_file_commit_start(Signal* signal, SchemaOp* op){
+Dbdict::create_file_commit_start(Signal* signal, SchemaOp* op)
+{
   /**
    * CONTACT TSMAN LGMAN PGMAN 
    */
   CreateFileImplReq* req = (CreateFileImplReq*)signal->getDataPtrSend();
-
   FilePtr f_ptr;
-  c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
-
   FilegroupPtr fg_ptr;
+
+  jam();
+  c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
   ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
 
   req->senderData = op->key;
@@ -15949,15 +16102,20 @@ Dbdict::create_file_commit_start(Signal* signal, SchemaOp* op){
   Uint32 ref= 0;
   switch(op->m_obj_type){
   case DictTabInfo::Datafile:
+  {
+    jam();
     ref = TSMAN_REF;
     break;
+  }
   case DictTabInfo::Undofile:
+  {
+    jam();
     ref = LGMAN_REF;
     break;
+  }
   default:
     ndbrequire(false);
   }
-  
   sendSignal(ref, GSN_CREATE_FILE_REQ, signal, 
 	     CreateFileImplReq::CommitLength, JBB);
 }
@@ -15970,9 +16128,11 @@ Dbdict::create_file_abort_start(Signal* signal, SchemaOp* op)
   if (op->m_obj_ptr_i != RNIL)
   {
     FilePtr f_ptr;
+    FilegroupPtr fg_ptr;
+
+    jam();
     c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
     
-    FilegroupPtr fg_ptr;
     ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
     
     req->senderData = op->key;
@@ -15986,20 +16146,24 @@ Dbdict::create_file_abort_start(Signal* signal, SchemaOp* op)
     Uint32 ref= 0;
     switch(op->m_obj_type){
     case DictTabInfo::Datafile:
+    {
+      jam();
       ref = TSMAN_REF;
       break;
+    }
     case DictTabInfo::Undofile:
+    {
+      jam();
       ref = LGMAN_REF;
       break;
+    }
     default:
       ndbrequire(false);
     }
-    
     sendSignal(ref, GSN_CREATE_FILE_REQ, signal, 
 	       CreateFileImplReq::AbortLength, JBB);
     return;
   }
-
   execute(signal, op->m_callback, 0);
 }
 
@@ -16009,17 +16173,21 @@ Dbdict::create_file_abort_complete(Signal* signal, SchemaOp* op)
   if (op->m_obj_ptr_i != RNIL)
   {
     FilePtr f_ptr;
-    c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
-    
     FilegroupPtr fg_ptr;
+
+    jam();
+    c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
     ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
-    
     switch(fg_ptr.p->m_type){
     case DictTabInfo::Tablespace:
+    {
+      jam();
       decrease_ref_count(fg_ptr.p->m_obj_ptr_i);
       break;
+    }
     case DictTabInfo::LogfileGroup:
     {
+      jam();
       Local_file_list list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
       list.remove(f_ptr);
       break;
@@ -16031,19 +16199,20 @@ Dbdict::create_file_abort_complete(Signal* signal, SchemaOp* op)
     release_object(f_ptr.p->m_obj_ptr_i);
     c_file_hash.release(f_ptr);
   }
-  
   execute(signal, op->m_callback, 0);
 }
 
 void
 Dbdict::drop_file_prepare_start(Signal* signal, SchemaOp* op)
 {
+  jam();
   send_drop_file(signal, op, DropFileImplReq::Prepare);
 }
 
 void
 Dbdict::drop_undofile_prepare_start(Signal* signal, SchemaOp* op)
 {
+  jam();
   op->m_errorCode = DropFileRef::DropUndoFileNotSupported;
   execute(signal, op->m_callback, 0);  
 }
@@ -16051,6 +16220,7 @@ Dbdict::drop_undofile_prepare_start(Signal* signal, SchemaOp* op)
 void
 Dbdict::drop_file_commit_start(Signal* signal, SchemaOp* op)
 {
+  jam();
   send_drop_file(signal, op, DropFileImplReq::Commit);
 }
 
@@ -16058,21 +16228,21 @@ void
 Dbdict::drop_file_commit_complete(Signal* signal, SchemaOp* op)
 {
   FilePtr f_ptr;
-  c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
-  
   FilegroupPtr fg_ptr;
-  ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
 
+  jam();
+  c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
+  ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
   decrease_ref_count(fg_ptr.p->m_obj_ptr_i);
   release_object(f_ptr.p->m_obj_ptr_i);
   c_file_hash.release(f_ptr);
-
   execute(signal, op->m_callback, 0);
 }
 
 void
 Dbdict::drop_file_abort_start(Signal* signal, SchemaOp* op)
 {
+  jam();
   send_drop_file(signal, op, DropFileImplReq::Abort);
 }
 
@@ -16081,11 +16251,11 @@ Dbdict::send_drop_file(Signal* signal, SchemaOp* op,
 		       DropFileImplReq::RequestInfo type)
 {
   DropFileImplReq* req = (DropFileImplReq*)signal->getDataPtrSend();
-  
   FilePtr f_ptr;
-  c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
-  
   FilegroupPtr fg_ptr;
+
+  jam();
+  c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
   ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
   
   req->senderData = op->key;
@@ -16099,29 +16269,34 @@ Dbdict::send_drop_file(Signal* signal, SchemaOp* op,
   Uint32 ref= 0;
   switch(op->m_obj_type){
   case DictTabInfo::Datafile:
+  {
+    jam();
     ref = TSMAN_REF;
     break;
+  }
   case DictTabInfo::Undofile:
+  {
+    jam();
     ref = LGMAN_REF;
     break;
+  }
   default:
     ndbrequire(false);
   }
-  
   sendSignal(ref, GSN_DROP_FILE_REQ, signal, 
 	     DropFileImplReq::SignalLength, JBB);
 }
 
 void
-Dbdict::execDROP_OBJ_REF(Signal* signal){
-  jamEntry();
-
+Dbdict::execDROP_OBJ_REF(Signal* signal)
+{
   DropObjRef * const ref = (DropObjRef*)signal->getDataPtr();
-  
   Ptr<SchemaTransaction> trans_ptr;
+
+  jamEntry();
   ndbrequire(c_Trans.find(trans_ptr, ref->senderData));
-  
   if(ref->errorCode != DropObjRef::NF_FakeErrorREF){
+    jam();
     trans_ptr.p->setErrorCode(ref->errorCode);
   }
   Uint32 node = refToNode(ref->senderRef);
@@ -16129,65 +16304,61 @@ Dbdict::execDROP_OBJ_REF(Signal* signal){
 }
 
 void
-Dbdict::execDROP_OBJ_CONF(Signal* signal){
-  jamEntry();
-
+Dbdict::execDROP_OBJ_CONF(Signal* signal)
+{
   DropObjConf * const conf = (DropObjConf*)signal->getDataPtr();
-  
   Ptr<SchemaTransaction> trans_ptr;
+
+  jamEntry();
   ndbrequire(c_Trans.find(trans_ptr, conf->senderData));
   schemaOp_reply(signal, trans_ptr.p, refToNode(conf->senderRef));
 }
 
 void
-Dbdict::execDROP_FILE_REF(Signal* signal){
-  jamEntry();
-
+Dbdict::execDROP_FILE_REF(Signal* signal)
+{
   DropFileImplRef * ref = (DropFileImplRef*)signal->getDataPtr();
-  
   DropObjRecordPtr op_ptr;
+
+  jamEntry();
   ndbrequire(c_opDropObj.find(op_ptr, ref->senderData));
   op_ptr.p->m_errorCode = ref->errorCode;
-
   execute(signal, op_ptr.p->m_callback, 0);  
 }  
 
 void
-Dbdict::execDROP_FILE_CONF(Signal* signal){  
-  jamEntry();
-
+Dbdict::execDROP_FILE_CONF(Signal* signal)
+{
   DropFileImplConf * rep = 
     (DropFileImplConf*)signal->getDataPtr();
-  
   DropObjRecordPtr op_ptr;
+
+  jamEntry();
   ndbrequire(c_opDropObj.find(op_ptr, rep->senderData));
-  
   execute(signal, op_ptr.p->m_callback, 0);  
 }
 
 void
-Dbdict::execDROP_FILEGROUP_REF(Signal* signal){
-  jamEntry();
-
+Dbdict::execDROP_FILEGROUP_REF(Signal* signal)
+{
   DropFilegroupImplRef * ref = (DropFilegroupImplRef*)signal->getDataPtr();
-  
   DropObjRecordPtr op_ptr;
+
+  jamEntry();
   ndbrequire(c_opDropObj.find(op_ptr, ref->senderData));
   op_ptr.p->m_errorCode = ref->errorCode;
-
   execute(signal, op_ptr.p->m_callback, 0);  
 }  
 
 void
-Dbdict::execDROP_FILEGROUP_CONF(Signal* signal){  
-  jamEntry();
-
+Dbdict::execDROP_FILEGROUP_CONF(Signal* signal)
+{
   DropFilegroupImplConf * rep = 
     (DropFilegroupImplConf*)signal->getDataPtr();
-  
   DropObjRecordPtr op_ptr;
+
+  jamEntry();
   ndbrequire(c_opDropObj.find(op_ptr, rep->senderData));
-  
   execute(signal, op_ptr.p->m_callback, 0);  
 }
 
@@ -16200,11 +16371,13 @@ Dbdict::drop_fg_prepare_start(Signal* signal, SchemaOp* op)
   DictObject * obj = c_obj_pool.getPtr(fg_ptr.p->m_obj_ptr_i);
   if (obj->m_ref_count)
   {
+    jam();
     op->m_errorCode = DropFilegroupRef::FilegroupInUse;
     execute(signal, op->m_callback, 0);  
   }
   else
   {
+    jam();
     send_drop_fg(signal, op, DropFilegroupImplReq::Prepare);
   }
 }
@@ -16216,7 +16389,7 @@ Dbdict::drop_fg_commit_start(Signal* signal, SchemaOp* op)
   c_filegroup_pool.getPtr(fg_ptr, op->m_obj_ptr_i);
   if (op->m_obj_type == DictTabInfo::LogfileGroup)
   {
-    
+    jam(); 
     /**
      * Mark all undofiles as dropped
      */
@@ -16225,6 +16398,7 @@ Dbdict::drop_fg_commit_start(Signal* signal, SchemaOp* op)
     XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
     for(list.first(filePtr); !filePtr.isNull(); list.next(filePtr))
     {
+      jam();
       Uint32 objId = filePtr.p->key;
       SchemaFile::TableEntry * tableEntry = getTableEntry(xsf, objId);
       tableEntry->m_tableState = SchemaFile::DROP_TABLE_COMMITTED;
@@ -16237,13 +16411,14 @@ Dbdict::drop_fg_commit_start(Signal* signal, SchemaOp* op)
   else if(op->m_obj_type == DictTabInfo::Tablespace)
   {
     FilegroupPtr lg_ptr;
+    jam();
     ndbrequire(c_filegroup_hash.
 	       find(lg_ptr, 
 		    fg_ptr.p->m_tablespace.m_default_logfile_group_id));
     
     decrease_ref_count(lg_ptr.p->m_obj_ptr_i);
   }
-  
+  jam(); 
   send_drop_fg(signal, op, DropFilegroupImplReq::Commit);
 }
 
@@ -16252,16 +16427,17 @@ Dbdict::drop_fg_commit_complete(Signal* signal, SchemaOp* op)
 {
   FilegroupPtr fg_ptr;
   c_filegroup_pool.getPtr(fg_ptr, op->m_obj_ptr_i);
-  
+
+  jam();
   release_object(fg_ptr.p->m_obj_ptr_i);
   c_filegroup_hash.release(fg_ptr);
-
   execute(signal, op->m_callback, 0);
 }
 
 void
 Dbdict::drop_fg_abort_start(Signal* signal, SchemaOp* op)
 {
+  jam();
   send_drop_fg(signal, op, DropFilegroupImplReq::Abort);
 }
 
