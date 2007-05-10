@@ -182,6 +182,20 @@ class Time_zone;
 
 struct system_variables
 {
+  /*
+    How dynamically allocated system variables are handled:
+    
+    The global_system_variables and max_system_variables are "authoritative"
+    They both should have the same 'version' and 'size'.
+    When attempting to access a dynamic variable, if the session version
+    is out of date, then the session version is updated and realloced if
+    neccessary and bytes copied from global to make up for missing data.
+  */ 
+  ulong dynamic_variables_version;
+  char* dynamic_variables_ptr;
+  uint dynamic_variables_head;  /* largest valid variable offset */
+  uint dynamic_variables_size;  /* how many bytes are in use */
+  
   ulonglong myisam_max_extra_sort_file_size;
   ulonglong myisam_max_sort_file_size;
   ulonglong max_heap_table_size;
@@ -252,8 +266,6 @@ struct system_variables
   my_bool old_mode;
   my_bool query_cache_wlock_invalidate;
   my_bool engine_condition_pushdown;
-  my_bool innodb_table_locks;
-  my_bool innodb_support_xa;
   my_bool ndb_force_send;
   my_bool ndb_use_copying_alter_table;
   my_bool ndb_use_exact_count;
@@ -263,7 +275,7 @@ struct system_variables
   my_bool old_alter_table;
   my_bool old_passwords;
 
-  handlerton *table_type;
+  plugin_ref table_plugin;
 
   /* Only charset part of these variables is sensible */
   CHARSET_INFO  *character_set_filesystem;

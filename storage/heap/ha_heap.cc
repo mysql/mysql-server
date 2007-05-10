@@ -181,7 +181,7 @@ void ha_heap::update_key_stats()
 int ha_heap::write_row(byte * buf)
 {
   int res;
-  statistic_increment(table->in_use->status_var.ha_write_count,&LOCK_status);
+  ha_statistic_increment(&SSV::ha_write_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
   if (table->next_number_field && buf == table->record[0])
@@ -205,7 +205,7 @@ int ha_heap::write_row(byte * buf)
 int ha_heap::update_row(const byte * old_data, byte * new_data)
 {
   int res;
-  statistic_increment(table->in_use->status_var.ha_update_count,&LOCK_status);
+  ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
   res= heap_update(file,old_data,new_data);
@@ -224,7 +224,7 @@ int ha_heap::update_row(const byte * old_data, byte * new_data)
 int ha_heap::delete_row(const byte * buf)
 {
   int res;
-  statistic_increment(table->in_use->status_var.ha_delete_count,&LOCK_status);
+  ha_statistic_increment(&SSV::ha_delete_count);
   res= heap_delete(file,buf);
   if (!res && table->s->tmp_table == NO_TMP_TABLE && 
       ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > file->s->records)
@@ -242,8 +242,7 @@ int ha_heap::index_read(byte * buf, const byte * key, key_part_map keypart_map,
 			enum ha_rkey_function find_flag)
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_key_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_key_count);
   int error = heap_rkey(file,buf,active_index, key, keypart_map, find_flag);
   table->status = error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -252,8 +251,7 @@ int ha_heap::index_read(byte * buf, const byte * key, key_part_map keypart_map,
 int ha_heap::index_read_last(byte *buf, const byte *key, key_part_map keypart_map)
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_key_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_key_count);
   int error= heap_rkey(file, buf, active_index, key, keypart_map,
 		       HA_READ_PREFIX_LAST);
   table->status= error ? STATUS_NOT_FOUND : 0;
@@ -264,8 +262,7 @@ int ha_heap::index_read_idx(byte * buf, uint index, const byte * key,
 			    key_part_map keypart_map,
                             enum ha_rkey_function find_flag)
 {
-  statistic_increment(table->in_use->status_var.ha_read_key_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_key_count);
   int error = heap_rkey(file, buf, index, key, keypart_map, find_flag);
   table->status = error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -274,8 +271,7 @@ int ha_heap::index_read_idx(byte * buf, uint index, const byte * key,
 int ha_heap::index_next(byte * buf)
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_next_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_next_count);
   int error=heap_rnext(file,buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -284,8 +280,7 @@ int ha_heap::index_next(byte * buf)
 int ha_heap::index_prev(byte * buf)
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_prev_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_prev_count);
   int error=heap_rprev(file,buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -294,8 +289,7 @@ int ha_heap::index_prev(byte * buf)
 int ha_heap::index_first(byte * buf)
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_first_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_first_count);
   int error=heap_rfirst(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -304,8 +298,7 @@ int ha_heap::index_first(byte * buf)
 int ha_heap::index_last(byte * buf)
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_last_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_last_count);
   int error=heap_rlast(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -318,8 +311,7 @@ int ha_heap::rnd_init(bool scan)
 
 int ha_heap::rnd_next(byte *buf)
 {
-  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
   int error=heap_scan(file, buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -329,8 +321,7 @@ int ha_heap::rnd_pos(byte * buf, byte *pos)
 {
   int error;
   HEAP_PTR heap_position;
-  statistic_increment(table->in_use->status_var.ha_read_rnd_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_count);
   memcpy_fixed((char*) &heap_position, pos, sizeof(HEAP_PTR));
   error=heap_rrnd(file, buf, heap_position);
   table->status=error ? STATUS_NOT_FOUND: 0;
