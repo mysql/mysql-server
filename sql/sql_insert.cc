@@ -29,7 +29,7 @@
   waited for to open and lock the table.
 
   If accessing the thread succeeded, in
-  delayed_insert::get_local_table() the table of the thread is copied
+  Delayed_insert::get_local_table() the table of the thread is copied
   for local use. A copy is required because the normal insert logic
   works on a target table, but the other threads table object must not
   be used. The insert logic uses the record buffer to create a record.
@@ -1507,13 +1507,13 @@ public:
 };
 
 /**
-  delayed_insert - context of a thread responsible for delayed insert
+  Delayed_insert - context of a thread responsible for delayed insert
   into one table. When processing delayed inserts, we create an own
   thread for every distinct table. Later on all delayed inserts directed
   into that table are handled by a dedicated thread.
 */
 
-class delayed_insert :public ilink {
+class Delayed_insert :public ilink {
   uint locks_in_memory;
 public:
   THD thd;
@@ -1527,7 +1527,7 @@ public:
   ulong group_count;
   TABLE_LIST table_list;			// Argument
 
-  delayed_insert()
+  Delayed_insert()
     :locks_in_memory(0),
      table(0),tables_in_use(0),stacked_inserts(0), status(0), dead(0),
      group_count(0)
@@ -1552,7 +1552,7 @@ public:
     delayed_insert_threads++;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
   }
-  ~delayed_insert()
+  ~Delayed_insert()
   {
     /* The following is not really needed, but just for safety */
     delayed_row *row;
@@ -1600,7 +1600,7 @@ public:
 };
 
 
-I_List<delayed_insert> delayed_threads;
+I_List<Delayed_insert> delayed_threads;
 
 
 /**
@@ -1609,12 +1609,12 @@ I_List<delayed_insert> delayed_threads;
 */
 
 static
-delayed_insert *find_handler(THD *thd, TABLE_LIST *table_list)
+Delayed_insert *find_handler(THD *thd, TABLE_LIST *table_list)
 {
   thd->proc_info="waiting for delay_list";
   pthread_mutex_lock(&LOCK_delayed_insert);	// Protect master list
-  I_List_iterator<delayed_insert> it(delayed_threads);
-  delayed_insert *tmp;
+  I_List_iterator<Delayed_insert> it(delayed_threads);
+  Delayed_insert *tmp;
   while ((tmp=it++))
   {
     if (!strcmp(tmp->thd.db,table_list->db) &&
@@ -1633,7 +1633,7 @@ delayed_insert *find_handler(THD *thd, TABLE_LIST *table_list)
   Attempt to find or create a delayed insert thread to handle inserts
   into this table.
 
-  @return Return an instance of the table in the delayed thread
+  @return Return a local copy of the table in the delayed thread
   @retval  NULL  too many delayed threads OR
                  this thread ran out of resources OR
                  a newly created delayed insert thread ran out of resources OR
@@ -1644,7 +1644,7 @@ delayed_insert *find_handler(THD *thd, TABLE_LIST *table_list)
 static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 {
   int error;
-  delayed_insert *tmp;
+  Delayed_insert *tmp;
   TABLE *table;
   DBUG_ENTER("delayed_get_table");
 
@@ -1668,9 +1668,9 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
     */
     if (! (tmp= find_handler(thd, table_list)))
     {
-      if (!(tmp=new delayed_insert()))
+      if (!(tmp=new Delayed_insert()))
       {
-	my_error(ER_OUTOFMEMORY,MYF(0),sizeof(delayed_insert));
+	my_error(ER_OUTOFMEMORY,MYF(0),sizeof(Delayed_insert));
 	goto err1;
       }
       pthread_mutex_lock(&LOCK_thread_count);
@@ -1762,12 +1762,12 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
        function.
 */
 
-TABLE *delayed_insert::get_local_table(THD* client_thd)
+TABLE *Delayed_insert::get_local_table(THD* client_thd)
 {
   my_ptrdiff_t adjust_ptrs;
   Field **field,**org_field, *found_next_number_field;
   TABLE *copy;
-  DBUG_ENTER("delayed_insert::get_local_table");
+  DBUG_ENTER("Delayed_insert::get_local_table");
 
   /* First request insert thread to get a lock */
   status=1;
@@ -1875,7 +1875,7 @@ static int write_delayed(THD *thd,TABLE *table,enum_duplicates duplic, bool igno
 			 char *query, uint query_length, bool log_on)
 {
   delayed_row *row=0;
-  delayed_insert *di=thd->di;
+  Delayed_insert *di=thd->di;
   DBUG_ENTER("write_delayed");
 
   thd->proc_info="waiting for handler insert";
@@ -1943,7 +1943,7 @@ static int write_delayed(THD *thd,TABLE *table,enum_duplicates duplic, bool igno
 static void end_delayed_insert(THD *thd)
 {
   DBUG_ENTER("end_delayed_insert");
-  delayed_insert *di=thd->di;
+  Delayed_insert *di=thd->di;
   pthread_mutex_lock(&di->mutex);
   DBUG_PRINT("info",("tables in use: %d",di->tables_in_use));
   if (!--di->tables_in_use || di->thd.killed)
@@ -1962,8 +1962,8 @@ void kill_delayed_threads(void)
 {
   VOID(pthread_mutex_lock(&LOCK_delayed_insert)); // For unlink from list
 
-  I_List_iterator<delayed_insert> it(delayed_threads);
-  delayed_insert *tmp;
+  I_List_iterator<Delayed_insert> it(delayed_threads);
+  Delayed_insert *tmp;
   while ((tmp=it++))
   {
     tmp->thd.killed= THD::KILL_CONNECTION;
@@ -1995,7 +1995,7 @@ void kill_delayed_threads(void)
 
 pthread_handler_t handle_delayed_insert(void *arg)
 {
-  delayed_insert *di=(delayed_insert*) arg;
+  Delayed_insert *di=(Delayed_insert*) arg;
   THD *thd= &di->thd;
 
   pthread_detach_this_thread();
@@ -2231,7 +2231,7 @@ static void free_delayed_insert_blobs(register TABLE *table)
 }
 
 
-bool delayed_insert::handle_inserts(void)
+bool Delayed_insert::handle_inserts(void)
 {
   int error;
   ulong max_rows;
@@ -3152,8 +3152,8 @@ void select_create::abort()
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class List_iterator_fast<List_item>;
 #ifndef EMBEDDED_LIBRARY
-template class I_List<delayed_insert>;
-template class I_List_iterator<delayed_insert>;
+template class I_List<Delayed_insert>;
+template class I_List_iterator<Delayed_insert>;
 template class I_List<delayed_row>;
 #endif /* EMBEDDED_LIBRARY */
 #endif /* HAVE_EXPLICIT_TEMPLATE_INSTANTIATION */
