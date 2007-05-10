@@ -31,6 +31,9 @@ static void init_myfunc_errs(void);
 
   DESCRIPTION
     This function can be called multiple times to reload the messages.
+	If it fails to load the messages, it will fail softly by initializing
+	the errmesg pointer to an array of empty strings or by keeping the
+	old array if it exists.
 
   RETURN
     FALSE       OK
@@ -39,7 +42,7 @@ static void init_myfunc_errs(void);
 
 bool init_errmessage(void)
 {
-  const char **errmsgs;
+  const char **errmsgs, **ptr;
   DBUG_ENTER("init_errmessage");
 
   /*
@@ -49,8 +52,15 @@ bool init_errmessage(void)
   errmsgs= my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST);
 
   /* Read messages from file. */
-  if (read_texts(ERRMSG_FILE, &errmsgs, ER_ERROR_LAST - ER_ERROR_FIRST + 1))
-    DBUG_RETURN(TRUE);
+  if (read_texts(ERRMSG_FILE, &errmsgs, ER_ERROR_LAST - ER_ERROR_FIRST + 1) &&
+      !errmsgs)
+  {
+    if (!(errmsgs= (const char**) my_malloc((ER_ERROR_LAST-ER_ERROR_FIRST+1)*
+                                            sizeof(char*), MYF(0))))
+      DBUG_RETURN(TRUE);
+    for (ptr= errmsgs; ptr < errmsgs + ER_ERROR_LAST - ER_ERROR_FIRST; ptr++)
+	  *ptr= "";
+  }
 
   /* Register messages for use with my_error(). */
   if (my_error_register(errmsgs, ER_ERROR_FIRST, ER_ERROR_LAST))
@@ -66,7 +76,6 @@ bool init_errmessage(void)
 
 
 	/* Read text from packed textfile in language-directory */
-	/* If we can't read messagefile then it's panic- we can't continue */
 
 static bool read_texts(const char *file_name,const char ***point,
 		       uint error_messages)
@@ -79,7 +88,6 @@ static bool read_texts(const char *file_name,const char ***point,
   uchar head[32],*pos;
   DBUG_ENTER("read_texts");
 
-  *point=0;					// If something goes wrong
   LINT_INIT(buff);
   funktpos=0;
   if ((file=my_open(fn_format(name,file_name,language,"",4),
@@ -119,7 +127,7 @@ but it should contain at least %d error messages.\n\
 Check that the above file is the right version for this program!",
 		    name,count,error_messages);
     VOID(my_close(file,MYF(MY_WME)));
-    unireg_abort(1);
+    DBUG_RETURN(1);
   }
 
   x_free((gptr) *point);		/* Free old language */
@@ -162,8 +170,7 @@ err:
 err1:
   if (file != FERR)
     VOID(my_close(file,MYF(MY_WME)));
-  unireg_abort(1);
-  DBUG_RETURN(1);					// keep compiler happy
+  DBUG_RETURN(1);
 } /* read_texts */
 
 
