@@ -871,6 +871,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
 sql mode: 0x%lx, sort len: %lu, conncat len: %lu, div_precision: %lu, \
 def_week_frmt: %lu",                          
+                          (int)flags.client_long_flag,
                           (int)flags.client_protocol_41,
                           (int)flags.more_results_exists,
                           flags.pkt_nr,
