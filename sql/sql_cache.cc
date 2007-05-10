@@ -874,6 +874,7 @@ long %d, 4.1: %d, bin_proto: %d, more results %d, pkt_nr: %d, \
 CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
 sql mode: 0x%lx, sort len: %lu, conncat len: %lu, div_precision: %lu, \
 def_week_frmt: %lu",                          
+                          (int)flags.client_long_flag,
                           (int)flags.client_protocol_41,
                           (int)flags.result_in_binary_protocol,
                           (int)flags.more_results_exists,
