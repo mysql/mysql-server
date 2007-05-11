@@ -1144,7 +1144,7 @@ UPDATE v1 SET f2 = 4;
 SELECT * FROM test.t1;
 disconnect user1;
 connection default;
-DROP VIEW v1;
+DROP DATABASE db27878;
 use test;
 DROP TABLE t1;
 
