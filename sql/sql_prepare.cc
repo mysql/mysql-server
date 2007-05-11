@@ -1492,8 +1492,21 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
 
   if (select_lex->item_list.elements)
   {
+    if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+    {
+      lex->link_first_table_back(create_table, link_to_local);
+      create_table->create= TRUE;
+    }
+
+    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables, 0))
+      DBUG_RETURN(TRUE);
+
+    if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+      create_table= lex->unlink_first_table(&link_to_local);
+
     select_lex->context.resolve_in_select_list= TRUE;
-    res= select_like_stmt_test_with_open(stmt, tables, 0, 0);
+
+    res= select_like_stmt_test(stmt, 0, 0);
   }
 
   /* put tables back for PS rexecuting */
