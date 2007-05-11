@@ -173,8 +173,9 @@ int mysql_update(THD *thd,
   table->quick_keys.clear_all();
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  /* TABLE_LIST contain right privilages request */
-  want_privilege= table_list->grant.want_privilege;
+  /* Force privilege re-checking for views after they have been opened. */
+  want_privilege= (table_list->view ? UPDATE_ACL :
+                   table_list->grant.want_privilege);
 #endif
   if (mysql_prepare_update(thd, table_list, &conds, order_num, order))
     DBUG_RETURN(1);
