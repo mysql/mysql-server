@@ -3947,6 +3947,7 @@ Create_func_master_pos_wait::create_native(THD *thd, LEX_STRING name,
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
     break;
   }
+  }
 
   return func;
 }
@@ -4972,7 +4973,7 @@ find_qualified_function_builder(THD *thd)
 
 
 Item *
-create_func_cast(Item *a, Cast_target cast_type,
+create_func_cast(THD *thd, Item *a, Cast_target cast_type,
                  const char *c_len, const char *c_dec,
                  CHARSET_INFO *cs)
 {
