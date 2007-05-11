@@ -44,7 +44,8 @@ if (0)
 # ------------------------------------------------------------------------------
 # prepare a variable to be able to suppress machine dependant diffs
 # this can be used in: --replace_result $SERVER_NAME <SERVER_NAME>
-let $SERVER_NAME= `SELECT DISTINCT host FROM mysql.user WHERE host LIKE "%\%" AND host NOT In ("localhost", "127.0.0.1", "%")`;
+# let $SERVER_NAME= `SELECT DISTINCT host FROM mysql.user WHERE host LIKE "%\%" AND host NOT In ("localhost", "127.0.0.1", "%")`;
+let $SERVER_NAME= `SELECT DISTINCT host FROM mysql.user WHERE host NOT In ("localhost", "127.0.0.1", "%")`;
 
 
 ################################################################################

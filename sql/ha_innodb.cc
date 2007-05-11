@@ -3299,6 +3299,8 @@ no_commit:
         if (error == DB_DUPLICATE_KEY && auto_inc_used
             && (user_thd->lex->sql_command == SQLCOM_REPLACE
                 || user_thd->lex->sql_command == SQLCOM_REPLACE_SELECT
+                || (user_thd->lex->sql_command == SQLCOM_INSERT
+                    && user_thd->lex->duplicates == DUP_UPDATE)
                 || (user_thd->lex->sql_command == SQLCOM_LOAD
                     && user_thd->lex->duplicates == DUP_REPLACE))) {
 

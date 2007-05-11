@@ -175,13 +175,25 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
                MYF(0));
     return TRUE;
   }
-  if (in_sum_func && in_sum_func->nest_level == nest_level)
+  if (in_sum_func)
   {
     /*
       If the set function is nested adjust the value of
       max_sum_func_level for the nesting set function.
+      We take into account only enclosed set functions that are to be 
+      aggregated on the same level or above of the nest level of 
+      the enclosing set function.
+      But we must always pass up the max_sum_func_level because it is
+      the maximum nested level of all directly and indirectly enclosed
+      set functions. We must do that even for set functions that are
+      aggregated inside of their enclosing set function's nest level
+      because the enclosing function may contain another enclosing
+      function that is to be aggregated outside or on the same level
+      as its parent's nest level.
     */
-    set_if_bigger(in_sum_func->max_sum_func_level, aggr_level);
+    if (in_sum_func->nest_level >= aggr_level)
+      set_if_bigger(in_sum_func->max_sum_func_level, aggr_level);
+    set_if_bigger(in_sum_func->max_sum_func_level, max_sum_func_level);
   }
   update_used_tables();
   thd->lex->in_sum_func= in_sum_func;

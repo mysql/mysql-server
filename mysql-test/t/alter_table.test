@@ -636,3 +636,29 @@ ALTER TABLE t1 ADD d INT;
 ALTER TABLE t1 ADD KEY (d(20));
 
 DROP TABLE t1;
+# Bug#25262 Auto Increment lost when changing Engine type
+#
+
+create table t1(id int(8) primary key auto_increment) engine=heap;
+
+insert into t1 values (null);
+insert into t1 values (null);
+
+select * from t1;
+
+# Set auto increment to 50
+alter table t1 auto_increment = 50;
+
+# Alter to myisam
+alter table t1 engine = myisam;
+
+# This insert should get id 50
+insert into t1 values (null);
+select * from t1;
+
+# Alter to heap again
+alter table t1 engine = heap;
+insert into t1 values (null);
+select * from t1;
+
+drop table t1;
