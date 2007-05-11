@@ -1762,6 +1762,9 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_OPTIMIZE:
     break;
 
+  case SQLCOM_PREPARE:
+  case SQLCOM_EXECUTE:
+  case SQLCOM_DEALLOCATE_PREPARE:
   default:
     /* All other statements are not supported yet. */
     my_message(ER_UNSUPPORTED_PS, ER(ER_UNSUPPORTED_PS), MYF(0));
@@ -2801,10 +2804,10 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   thd->stmt_arena= this;
 
   Lex_input_stream lip(thd, thd->query, thd->query_length);
+  lip.stmt_prepare_mode= TRUE;
   thd->m_lip= &lip;
   lex_start(thd);
   lex->safe_to_cache_query= FALSE;
-  lex->stmt_prepare_mode= TRUE;
   int err= MYSQLparse((void *)thd);
 
   error= err || thd->is_fatal_error ||
