@@ -3851,13 +3851,15 @@ sub mysqld_arguments ($$$$) {
     }
     else
     {
-      mtr_add_arg($args, "%s--master-user=root", $prefix);
-      mtr_add_arg($args, "%s--master-connect-retry=1", $prefix);
-      mtr_add_arg($args, "%s--master-host=127.0.0.1", $prefix);
-      mtr_add_arg($args, "%s--master-password=", $prefix);
-      mtr_add_arg($args, "%s--master-port=%d", $prefix,
-                  $master->[0]->{'port'}); # First master
-
+      if ($mysql_version_id < 50200)
+      {
+        mtr_add_arg($args, "%s--master-user=root", $prefix);
+        mtr_add_arg($args, "%s--master-connect-retry=1", $prefix);
+        mtr_add_arg($args, "%s--master-host=127.0.0.1", $prefix);
+        mtr_add_arg($args, "%s--master-password=", $prefix);
+        mtr_add_arg($args, "%s--master-port=%d", $prefix,
+    	            $master->[0]->{'port'}); # First master
+      }
       my $slave_server_id=  2 + $idx;
       my $slave_rpl_rank= $slave_server_id;
       mtr_add_arg($args, "%s--server-id=%d", $prefix, $slave_server_id);
