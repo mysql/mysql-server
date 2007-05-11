@@ -1567,9 +1567,7 @@ create:
 	  lex->sql_command= SQLCOM_CREATE_TABLE;
 	  if (!lex->select_lex.add_table_to_list(thd, $5, NULL,
 						 TL_OPTION_UPDATING,
-						 (using_update_log ?
-						  TL_READ_NO_INSERT:
-						  TL_READ)))
+						 TL_WRITE))
 	    MYSQL_YYABORT;
 	  lex->create_list.empty();
 	  lex->key_list.empty();
