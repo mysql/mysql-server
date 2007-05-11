@@ -1276,7 +1276,8 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         DBUG_ASSERT(info->update_fields->elements ==
                     info->update_values->elements);
         if (fill_record_n_invoke_before_triggers(thd, *info->update_fields,
-                                                 *info->update_values, 0,
+                                                 *info->update_values,
+                                                 info->ignore,
                                                  table->triggers,
                                                  TRG_EVENT_UPDATE))
           goto before_trg_err;
