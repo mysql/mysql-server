@@ -1364,11 +1364,6 @@ deallocate:
         {
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
-          if (lex->stmt_prepare_mode)
-          {
-            my_parse_error(ER(ER_SYNTAX_ERROR));
-            MYSQL_YYABORT;
-          }
           lex->sql_command= SQLCOM_DEALLOCATE_PREPARE;
           lex->prepared_stmt_name= $3;
         };
@@ -1384,11 +1379,6 @@ prepare:
         {
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
-          if (lex->stmt_prepare_mode)
-          {
-            my_parse_error(ER(ER_SYNTAX_ERROR));
-            MYSQL_YYABORT;
-          }
           lex->sql_command= SQLCOM_PREPARE;
           lex->prepared_stmt_name= $2;
         };
@@ -1414,11 +1404,6 @@ execute:
         {
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
-          if (lex->stmt_prepare_mode)
-          {
-            my_parse_error(ER(ER_SYNTAX_ERROR));
-            MYSQL_YYABORT;
-          }
           lex->sql_command= SQLCOM_EXECUTE;
           lex->prepared_stmt_name= $2;
         }

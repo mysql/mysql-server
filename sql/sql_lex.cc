@@ -135,7 +135,8 @@ Lex_input_stream::Lex_input_stream(THD *thd,
   buf(buffer),
   next_state(MY_LEX_START),
   found_semicolon(NULL),
-  ignore_space(test(thd->variables.sql_mode & MODE_IGNORE_SPACE))
+  ignore_space(test(thd->variables.sql_mode & MODE_IGNORE_SPACE)),
+  stmt_prepare_mode(FALSE)
 {
 }
 
@@ -184,7 +185,6 @@ void lex_start(THD *thd)
   lex->describe= 0;
   lex->subqueries= FALSE;
   lex->view_prepare_mode= FALSE;
-  lex->stmt_prepare_mode= FALSE;
   lex->derived_tables= 0;
   lex->lock_option= TL_READ;
   lex->safe_to_cache_query= 1;
@@ -623,7 +623,7 @@ int MYSQLlex(void *arg, void *yythd)
         its value in a query for the binlog, the query must stay
         grammatically correct.
       */
-      else if (c == '?' && lex->stmt_prepare_mode && !ident_map[yyPeek()])
+      else if (c == '?' && lip->stmt_prepare_mode && !ident_map[yyPeek()])
         return(PARAM_MARKER);
       return((int) c);
 
@@ -1018,7 +1018,7 @@ int MYSQLlex(void *arg, void *yythd)
       if (yyPeek())
       {
         if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
-            !lex->stmt_prepare_mode)
+            !lip->stmt_prepare_mode)
         {
 	  lex->safe_to_cache_query= 0;
           lip->found_semicolon= lip->ptr;

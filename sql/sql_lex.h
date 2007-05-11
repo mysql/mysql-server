@@ -1039,6 +1039,11 @@ public:
 
   /** SQL_MODE = IGNORE_SPACE. */
   bool ignore_space;
+  /*
+    TRUE if we're parsing a prepared statement: in this mode
+    we should allow placeholders and disallow multi-statements.
+  */
+  bool stmt_prepare_mode;
 };
 
 
@@ -1184,11 +1189,6 @@ typedef struct st_lex : public Query_tables_list
     to an .frm file. We need this definition to stay untouched.
   */
   bool view_prepare_mode;
-  /*
-    TRUE if we're parsing a prepared statement: in this mode
-    we should allow placeholders and disallow multistatements.
-  */
-  bool stmt_prepare_mode;
   bool safe_to_cache_query;
   bool subqueries, ignore;
   st_parsing_options parsing_options;
