@@ -130,7 +130,7 @@ static long innobase_mirrored_log_groups, innobase_log_files_in_group,
 	innobase_lock_wait_timeout, innobase_force_recovery,
 	innobase_open_files;
 
-static longlong innobase_buffer_pool_size, innobase_log_file_size;
+static long long innobase_buffer_pool_size, innobase_log_file_size;
 
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
@@ -1584,10 +1584,7 @@ innobase_init(
 	changes the value so that it becomes the number of database pages. */
 
 	if (innobase_buffer_pool_awe_mem_mb == 0) {
-		/* Careful here: we first convert the signed long int to ulint
-		and only after that divide */
-
-		srv_pool_size = ((ulint) innobase_buffer_pool_size) / 1024;
+		srv_pool_size = (ulint)(innobase_buffer_pool_size / 1024);
 	} else {
 		srv_use_awe = TRUE;
 		srv_pool_size = (ulint)
