@@ -1171,7 +1171,7 @@ execute stmt1 using @arg00, @arg00, @arg00, @arg00, @arg00 ;
 ######## SELECT .. WHERE column(date/time/..)=value(DATETIME/LONGBLOB) ########
 set @arg00= CAST('1991-01-01 01:01:01' as datetime) ;
 select 'true' as found from t9 
-where c1= 20 and c13= CAST('1991-01-01 01:01:01' as datetime) and
+where c1= 20 and c13= CAST('1991-01-01 00:00:00' as datetime) and
   c14= CAST('1991-01-01 01:01:01' as datetime) and
   c15= CAST('1991-01-01 01:01:01' as datetime) and
   c16= CAST('1991-01-01 01:01:01' as datetime) and
@@ -1180,7 +1180,7 @@ select 'true' as found from t9
 where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00 and c16= @arg00
   and c17= @arg00 ;
 prepare stmt1 from "select 'true' as found from t9 
-where c1= 20 and c13= CAST('1991-01-01 01:01:01' as datetime) and
+where c1= 20 and c13= CAST('1991-01-01 00:00:00' as datetime) and
   c14= CAST('1991-01-01 01:01:01' as datetime) and
   c15= CAST('1991-01-01 01:01:01' as datetime) and
   c16= CAST('1991-01-01 01:01:01' as datetime) and

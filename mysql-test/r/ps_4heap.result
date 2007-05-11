@@ -3054,7 +3054,7 @@ found
 true
 set @arg00= CAST('1991-01-01 01:01:01' as datetime) ;
 select 'true' as found from t9 
-where c1= 20 and c13= CAST('1991-01-01 01:01:01' as datetime) and
+where c1= 20 and c13= CAST('1991-01-01 00:00:00' as datetime) and
 c14= CAST('1991-01-01 01:01:01' as datetime) and
 c15= CAST('1991-01-01 01:01:01' as datetime) and
 c16= CAST('1991-01-01 01:01:01' as datetime) and
@@ -3067,7 +3067,7 @@ and c17= @arg00 ;
 found
 true
 prepare stmt1 from "select 'true' as found from t9 
-where c1= 20 and c13= CAST('1991-01-01 01:01:01' as datetime) and
+where c1= 20 and c13= CAST('1991-01-01 00:00:00' as datetime) and
   c14= CAST('1991-01-01 01:01:01' as datetime) and
   c15= CAST('1991-01-01 01:01:01' as datetime) and
   c16= CAST('1991-01-01 01:01:01' as datetime) and

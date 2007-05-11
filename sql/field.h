@@ -235,8 +235,39 @@ public:
     { memcpy(buff,ptr,length); }
   inline void set_image(char *buff,uint length, CHARSET_INFO *cs)
     { memcpy(ptr,buff,length); }
-  virtual void get_key_image(char *buff, uint length, imagetype type_arg)
-    { get_image(buff,length, &my_charset_bin); }
+
+
+  /*
+    Copy a field part into an output buffer.
+
+    SYNOPSIS
+      Field::get_key_image()
+      buff   [out] output buffer
+      length       output buffer size
+      type         itMBR for geometry blobs, otherwise itRAW
+
+    DESCRIPTION
+      This function makes a copy of field part of size equal to or
+      less than "length" parameter value.
+      For fields of string types (CHAR, VARCHAR, TEXT) the rest of buffer
+      is padded by zero byte.
+
+    NOTES
+      For variable length character fields (i.e. UTF-8) the "length"
+      parameter means a number of output buffer bytes as if all field
+      characters have maximal possible size (mbmaxlen). In the other words,
+      "length" parameter is a number of characters multiplied by
+      field_charset->mbmaxlen.
+
+    RETURN
+      Number of copied bytes (excluding padded zero bytes -- see above).
+  */
+
+  virtual uint get_key_image(char *buff, uint length, imagetype type)
+  {
+    get_image(buff, length, &my_charset_bin);
+    return length;
+  }
   virtual void set_key_image(char *buff,uint length)
     { set_image(buff,length, &my_charset_bin); }
   inline longlong val_int_offset(uint row_offset)
@@ -1071,6 +1102,7 @@ public:
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   Field *new_field(MEM_ROOT *root, struct st_table *new_table, bool keep_type);
+  virtual uint get_key_image(char *buff,uint length, imagetype type);
 };
 
 
@@ -1122,7 +1154,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
-  void get_key_image(char *buff,uint length, imagetype type);
+  uint get_key_image(char *buff,uint length, imagetype type);
   void set_key_image(char *buff,uint length);
   void sql_type(String &str) const;
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
@@ -1227,7 +1259,7 @@ public:
       store_length(length);
       memcpy_fixed(ptr+packlength,&data,sizeof(char*));
     }
-  void get_key_image(char *buff,uint length, imagetype type);
+  uint get_key_image(char *buff,uint length, imagetype type);
   void set_key_image(char *buff,uint length);
   void sql_type(String &str) const;
   inline bool copy()
@@ -1285,7 +1317,7 @@ public:
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
   int  store_decimal(const my_decimal *);
-  void get_key_image(char *buff,uint length,imagetype type);
+  uint get_key_image(char *buff,uint length,imagetype type);
   uint size_of() const { return sizeof(*this); }
   int  reset(void) { return !maybe_null() || Field_blob::reset(); }
 };
@@ -1395,7 +1427,7 @@ public:
   int cmp_offset(uint row_offset);
   int cmp_binary_offset(uint row_offset)
   { return cmp_offset(row_offset); }
-  void get_key_image(char *buff, uint length, imagetype type);
+  uint get_key_image(char *buff, uint length, imagetype type);
   void set_key_image(char *buff, uint length)
   { Field_bit::store(buff, length, &my_charset_bin); }
   void sort_string(char *buff, uint length)

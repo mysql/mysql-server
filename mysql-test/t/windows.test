@@ -27,3 +27,11 @@ CREATE TABLE t1 ( `ID` int(6) ) data directory 'c:/tmp/' index directory 'c:/tmp
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Bug #27811: The variable 'join_tab' is being used without being defined
+#
+CREATE TABLE t1 (a int, b int); INSERT INTO t1 VALUES (1,1);
+EXPLAIN SELECT * FROM t1 WHERE b =  (SELECT max(2));
+
+--echo End of 5.0 tests.

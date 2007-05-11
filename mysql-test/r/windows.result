@@ -12,3 +12,10 @@ Warnings:
 Warning	0	DATA DIRECTORY option ignored
 Warning	0	INDEX DIRECTORY option ignored
 drop table t1;
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (1,1);
+EXPLAIN SELECT * FROM t1 WHERE b =  (SELECT max(2));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+End of 5.0 tests.

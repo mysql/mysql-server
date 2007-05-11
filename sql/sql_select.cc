@@ -5444,8 +5444,9 @@ static void add_not_null_conds(JOIN *join)
   for (uint i=join->const_tables ; i < join->tables ; i++)
   {
     JOIN_TAB *tab=join->join_tab+i;
-    if ((tab->type == JT_REF || tab->type == JT_REF_OR_NULL) &&
-         !tab->table->maybe_null)
+    if ((tab->type == JT_REF || tab->type == JT_EQ_REF || 
+         tab->type == JT_REF_OR_NULL) &&
+        !tab->table->maybe_null)
     {
       for (uint keypart= 0; keypart < tab->ref.key_parts; keypart++)
       {
@@ -8666,17 +8667,13 @@ static bool
 test_if_equality_guarantees_uniqueness(Item *l, Item *r)
 {
   return r->const_item() &&
-    /* elements must be of the same result type */
-    (r->result_type() == l->result_type() ||
-    /* or dates compared to longs */
-     (((l->type() == Item::FIELD_ITEM &&
-        ((Item_field *)l)->field->can_be_compared_as_longlong()) ||
-       (l->type() == Item::FUNC_ITEM &&
-        ((Item_func *)l)->result_as_longlong())) &&
-      r->result_type() == INT_RESULT))
-    /* and must have the same collation if compared as strings */
-    && (l->result_type() != STRING_RESULT ||
-        l->collation.collation == r->collation.collation);
+    /* elements must be compared as dates */
+     (Arg_comparator::can_compare_as_dates(l, r, 0) ||
+      /* or of the same result type */
+      (r->result_type() == l->result_type() &&
+       /* and must have the same collation if compared as strings */
+       (l->result_type() != STRING_RESULT ||
+        l->collation.collation == r->collation.collation)));
 }
 
 /*
@@ -14543,7 +14540,7 @@ bool JOIN::rollup_init()
     for (j=0 ; j < fields_list.elements ; j++)
       rollup.fields[i].push_back(rollup.null_items[i]);
   }
-  List_iterator_fast<Item> it(all_fields);
+  List_iterator<Item> it(all_fields);
   Item *item;
   while ((item= it++))
   {
@@ -14556,6 +14553,32 @@ bool JOIN::rollup_init()
       {
         item->maybe_null= 1;
         found_in_group= 1;
+        if (item->const_item())
+        {
+          /*
+            For ROLLUP queries each constant item referenced in GROUP BY list
+            is wrapped up into an Item_func object yielding the same value
+            as the constant item. The objects of the wrapper class are never
+            considered as constant items and besides they inherit all
+            properties of the Item_result_field class.
+            This wrapping allows us to ensure writing constant items
+            into temporary tables whenever the result of the ROLLUP
+            operation has to be written into a temporary table, e.g. when
+            ROLLUP is used together with DISTINCT in the SELECT list.
+            Usually when creating temporary tables for a intermidiate
+            result we do not include fields for constant expressions.
+	  */           
+          Item* new_item= new Item_func_rollup_const(item);
+          if (!new_item)
+            return 1;
+          new_item->fix_fields(thd, (Item **) 0);
+          thd->change_item_tree(it.ref(), new_item);
+          for (ORDER *tmp= group_tmp; tmp; tmp= tmp->next)
+          { 
+            if (*tmp->item == item)
+              thd->change_item_tree(tmp->item, new_item);
+          }
+        }
       }
     }
     if (item->type() == Item::FUNC_ITEM && !found_in_group)
