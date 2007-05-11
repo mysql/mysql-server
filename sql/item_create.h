@@ -159,9 +159,9 @@ protected:
   @param dec TODO
   @param cs The character set
 */
-Item*
-create_func_cast(THD *thd, Item *a, Cast_target cast_type, int len, int dec,
+Item *
+create_func_cast(THD *thd, Item *a, Cast_target cast_type,
+                 const char *len, const char *dec,
                  CHARSET_INFO *cs);
-
 #endif
 
