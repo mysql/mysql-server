@@ -6292,9 +6292,9 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   }
   if (res)
   {
-    free_share(m_share);
+    free_share(&m_share);
     m_share= 0;
-    release_metadata();
+    release_metadata(current_thd, get_ndb());
     DBUG_RETURN(res);
   }
 #ifdef HAVE_NDB_BINLOG
