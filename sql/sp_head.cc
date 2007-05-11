@@ -512,6 +512,8 @@ sp_head::init_sp_name(THD *thd, sp_name *spname)
   m_qname.length= spname->m_qname.length;
   m_qname.str= strmake_root(thd->mem_root, spname->m_qname.str,
                             m_qname.length);
+
+  DBUG_VOID_RETURN;
 }
 
 
