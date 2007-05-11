@@ -2179,7 +2179,7 @@ bool delayed_insert::handle_inserts(void)
 
   thd.proc_info="insert";
   max_rows= delayed_insert_limit;
-  if (thd.killed || table->s->version != refresh_version)
+  if (thd.killed || table->needs_reopen_or_name_lock())
   {
     thd.killed= THD::KILL_CONNECTION;
     max_rows= ~(ulong)0;                        // Do as much as possible
@@ -2791,8 +2791,8 @@ bool select_insert::send_eof()
 ***************************************************************************/
 
 /*
-  Create table from lists of fields and items (or open existing table
-  with same name).
+  Create table from lists of fields and items (or just return TABLE
+  object for pre-opened existing table).
 
   SYNOPSIS
     create_table_from_items()
@@ -2807,18 +2807,24 @@ bool select_insert::send_eof()
                           of fields for the table (corresponding fields will
                           be added to the end of alter_info->create_list)
       lock         out    Pointer to the MYSQL_LOCK object for table created
-                          (open) will be returned in this parameter. Since
-                          this table is not included in THD::lock caller is
-                          responsible for explicitly unlocking this table.
+                          (or open temporary table) will be returned in this
+                          parameter. Since this table is not included in
+                          THD::lock caller is responsible for explicitly
+                          unlocking this table.
 
   NOTES
-    If 'create_info->options' bitmask has HA_LEX_CREATE_IF_NOT_EXISTS
-    flag and table with name provided already exists then this function will
-    simply open existing table.
-    Also note that create, open and lock sequence in this function is not
-    atomic and thus contains gap for deadlock and can cause other troubles.
-    Since this function contains some logic specific to CREATE TABLE ... SELECT
-    it should be changed before it can be used in other contexts.
+    This function behaves differently for base and temporary tables:
+    - For base table we assume that either table exists and was pre-opened
+      and locked at open_and_lock_tables() stage (and in this case we just
+      emit error or warning and return pre-opened TABLE object) or special
+      placeholder was put in table cache that guarantees that this table
+      won't be created or opened until the placeholder will be removed
+      (so there is an exclusive lock on this table).
+    - We don't pre-open existing temporary table, instead we either open
+      or create and then open table in this function.
+
+    Since this function contains some logic specific to CREATE TABLE ...
+    SELECT it should be changed before it can be used in other contexts.
 
   RETURN VALUES
     non-zero  Pointer to TABLE object for table created or opened
@@ -2840,6 +2846,25 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   Field *tmp_field;
   bool not_used;
   DBUG_ENTER("create_table_from_items");
+
+  DBUG_EXECUTE_IF("sleep_create_select_before_check_if_exists", my_sleep(6000000););
+
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      create_table->table->db_stat)
+  {
+    /* Table already exists and was open at open_and_lock_tables() stage. */
+    if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
+    {
+      create_info->table_existed= 1;		// Mark that table existed
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                          ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
+                          create_table->table_name);
+      DBUG_RETURN(create_table->table);
+    }
+
+    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), create_table->table_name);
+    DBUG_RETURN(0);
+  }
 
   tmp_table.alias= 0;
   tmp_table.timestamp_field= 0;
@@ -2869,8 +2894,15 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       cr_field->flags &= ~NOT_NULL_FLAG;
     alter_info->create_list.push_back(cr_field);
   }
+
+  DBUG_EXECUTE_IF("sleep_create_select_before_create", my_sleep(6000000););
+
   /*
-    create and lock table
+    Create and lock table.
+
+    Note that we either creating (or opening existing) temporary table or
+    creating base table on which name we have exclusive lock. So code below
+    should not cause deadlocks or races.
 
     We don't log the statement, it will be logged later.
 
@@ -2880,59 +2912,70 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     don't want to delete from it) 2) it would be written before the CREATE
     TABLE, which is a wrong order. So we keep binary logging disabled when we
     open_table().
-    NOTE: By locking table which we just have created (or for which we just have
-    have found that it already exists) separately from other tables used by the
-    statement we create potential window for deadlock.
-    TODO: create and open should be done atomic !
   */
   {
     tmp_disable_binlog(thd);
     if (!mysql_create_table(thd, create_table->db, create_table->table_name,
                             create_info, alter_info, 0, select_field_count))
     {
-      /*
-        If we are here in prelocked mode we either create temporary table
-        or prelocked mode is caused by the SELECT part of this statement.
-      */
-      DBUG_ASSERT(!thd->prelocked_mode ||
-                  create_info->options & HA_LEX_CREATE_TMP_TABLE ||
-                  thd->lex->requires_prelocking());
 
-      /*
-        NOTE: We don't want to ignore set of locked tables here if we are
-              under explicit LOCK TABLES since it will open gap for deadlock
-              too wide (and also is not backward compatible).
-      */
-      if (! (table= open_table(thd, create_table, thd->mem_root, (bool*) 0,
-                               (MYSQL_LOCK_IGNORE_FLUSH |
-                                ((thd->prelocked_mode == PRELOCKED) ?
-                                 MYSQL_OPEN_IGNORE_LOCKED_TABLES:0)))))
-        quick_rm_table(create_info->db_type, create_table->db,
-                       table_case_name(create_info, create_table->table_name));
+      if (create_info->table_existed &&
+          !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+      {
+        /*
+          This means that someone created table underneath server
+          or it was created via different mysqld front-end to the
+          cluster. We don't have much options but throw an error.
+        */
+        my_error(ER_TABLE_EXISTS_ERROR, MYF(0), create_table->table_name);
+        DBUG_RETURN(0);
+      }
+
+      DBUG_EXECUTE_IF("sleep_create_select_before_open", my_sleep(6000000););
+
+      if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+      {
+        VOID(pthread_mutex_lock(&LOCK_open));
+        if (reopen_name_locked_table(thd, create_table, FALSE))
+        {
+          quick_rm_table(create_info->db_type, create_table->db,
+                         table_case_name(create_info,
+                                         create_table->table_name));
+        }
+        else
+          table= create_table->table;
+        VOID(pthread_mutex_unlock(&LOCK_open));
+      }
+      else
+      {
+        if (!(table= open_table(thd, create_table, thd->mem_root, (bool*) 0,
+                                MYSQL_OPEN_TEMPORARY_ONLY)) &&
+            !create_info->table_existed)
+        {
+          /*
+            This shouldn't happen as creation of temporary table should make
+            it preparable for open. But let us do close_temporary_table() here
+            just in case.
+          */
+          close_temporary_table(thd, create_table->db, create_table->table_name);
+        }
+      }
     }
     reenable_binlog(thd);
     if (!table)                                   // open failed
       DBUG_RETURN(0);
   }
 
-  /*
-    FIXME: What happens if trigger manages to be created while we are
-           obtaining this lock ? May be it is sensible just to disable
-           trigger execution in this case ? Or will MYSQL_LOCK_IGNORE_FLUSH
-           save us from that ?
-  */
+  DBUG_EXECUTE_IF("sleep_create_select_before_lock", my_sleep(6000000););
+
   table->reginfo.lock_type=TL_WRITE;
   if (! ((*lock)= mysql_lock_tables(thd, &table, 1,
                                     MYSQL_LOCK_IGNORE_FLUSH, &not_used)))
   {
-    VOID(pthread_mutex_lock(&LOCK_open));
-    hash_delete(&open_cache,(byte*) table);
-    VOID(pthread_mutex_unlock(&LOCK_open));
-    quick_rm_table(create_info->db_type, create_table->db,
-		   table_case_name(create_info, create_table->table_name));
+    if (!create_info->table_existed)
+      drop_open_table(thd, table, create_table->db, create_table->table_name);
     DBUG_RETURN(0);
   }
-  table->file->extra(HA_EXTRA_WRITE_CACHE);
   DBUG_RETURN(table);
 }
 
@@ -2983,8 +3026,10 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |
                             MODE_STRICT_ALL_TABLES)));
-  DBUG_RETURN(check_that_all_fields_are_given_values(thd, table,
-                                                     table_list));
+  if (check_that_all_fields_are_given_values(thd, table, table_list))
+    DBUG_RETURN(1);
+  table->file->extra(HA_EXTRA_WRITE_CACHE);
+  DBUG_RETURN(0);
 }
 
 
@@ -3016,31 +3061,18 @@ bool select_create::send_eof()
   {
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
-    VOID(pthread_mutex_lock(&LOCK_open));
-    mysql_unlock_tables(thd, lock);
-    /*
-      TODO:
-      Check if we can remove the following two rows.
-      We should be able to just keep the table in the table cache.
-    */
-    if (!table->s->tmp_table)
+    if (lock)
     {
-      ulong version= table->s->version;
-      hash_delete(&open_cache,(byte*) table);
-      /* Tell threads waiting for refresh that something has happened */
-      if (version != refresh_version)
-        broadcast_refresh();
+      mysql_unlock_tables(thd, lock);
+      lock= 0;
     }
-    lock=0;
-    table=0;
-    VOID(pthread_mutex_unlock(&LOCK_open));
   }
   return tmp;
 }
 
+
 void select_create::abort()
 {
-  VOID(pthread_mutex_lock(&LOCK_open));
   if (lock)
   {
     mysql_unlock_tables(thd, lock);
@@ -3050,22 +3082,10 @@ void select_create::abort()
   {
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
-    enum db_type table_type=table->s->db_type;
-    if (!table->s->tmp_table)
-    {
-      ulong version= table->s->version;
-      hash_delete(&open_cache,(byte*) table);
-      if (!create_info->table_existed)
-        quick_rm_table(table_type, create_table->db, create_table->table_name);
-      /* Tell threads waiting for refresh that something has happened */
-      if (version != refresh_version)
-        broadcast_refresh();
-    }
-    else if (!create_info->table_existed)
-      close_temporary_table(thd, create_table->db, create_table->table_name);
+    if (!create_info->table_existed)
+      drop_open_table(thd, table, create_table->db, create_table->table_name);
     table=0;
   }
-  VOID(pthread_mutex_unlock(&LOCK_open));
 }
 
 
