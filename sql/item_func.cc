@@ -1049,6 +1049,8 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
 {
   my_decimal tmp_buf, *tmp= args[0]->val_decimal(&tmp_buf);
   bool sign;
+  uint precision;
+
   if ((null_value= args[0]->null_value))
     return NULL;
   my_decimal_round(E_DEC_FATAL_ERROR, tmp, decimals, FALSE, dec);
@@ -1061,9 +1063,11 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
       goto err;
     }
   }
-  if (max_length - 2 - decimals < (uint) my_decimal_intg(dec))
+  precision= my_decimal_length_to_precision(max_length,
+                                            decimals, unsigned_flag);
+  if (precision - decimals < (uint) my_decimal_intg(dec))
   {
-    max_my_decimal(dec, max_length - 2, decimals);
+    max_my_decimal(dec, precision, decimals);
     dec->sign(sign);
     goto err;
   }
@@ -1082,7 +1086,6 @@ void Item_decimal_typecast::print(String *str)
 {
   char len_buf[20*3 + 1];
   char *end;
-  CHARSET_INFO *cs= str->charset();
 
   uint precision= my_decimal_length_to_precision(max_length, decimals,
                                                  unsigned_flag);
