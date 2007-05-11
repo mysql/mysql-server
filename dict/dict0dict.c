@@ -30,6 +30,8 @@ Created 1/8/1996 Heikki Tuuri
 # include "m_ctype.h" /* my_isspace() */
 #endif /* !UNIV_HOTBACKUP */
 
+#include <ctype.h>
+
 dict_sys_t*	dict_sys	= NULL;	/* the dictionary system */
 
 rw_lock_t	dict_operation_lock;	/* table create, drop, etc. reserve
