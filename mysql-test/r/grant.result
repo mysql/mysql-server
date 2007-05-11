@@ -923,7 +923,7 @@ ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table '
 SHOW CREATE TABLE mysqltest2.t_nn;
 Table	Create Table
 t_nn	CREATE TABLE `t_nn` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SHOW CREATE VIEW  mysqltest2.t_nn;
 ERROR HY000: 'mysqltest2.t_nn' is not VIEW
@@ -942,7 +942,7 @@ v_nn	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER 
 SHOW CREATE TABLE mysqltest2.t_nn;
 Table	Create Table
 t_nn	CREATE TABLE `t_nn` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SHOW CREATE VIEW mysqltest2.t_nn;
 ERROR HY000: 'mysqltest2.t_nn' is not VIEW
@@ -960,72 +960,6 @@ DROP USER 'mysqltest_1'@'localhost';
 use test;
 create user mysqltest1_thisisreallytoolong;
 ERROR HY000: String 'mysqltest1_thisisreallytoolong' is too long for user name (should be no longer than 16)
-CREATE DATABASE mysqltest1;
-CREATE TABLE mysqltest1.t1 (
-int_field INTEGER UNSIGNED NOT NULL,
-char_field CHAR(10),
-INDEX(`int_field`)
-);
-CREATE TABLE mysqltest1.t2 (int_field INT);
-"Now check that we require equivalent grants for "
-"RENAME TABLE and ALTER TABLE"
-CREATE USER mysqltest_1@localhost;
-GRANT SELECT ON mysqltest1.t1 TO mysqltest_1@localhost;
-SELECT USER();
-USER()
-mysqltest_1@localhost
-SHOW GRANTS;
-Grants for mysqltest_1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT SELECT ON `mysqltest1`.`t1` TO 'mysqltest_1'@'localhost'
-RENAME TABLE t1 TO t2;
-ERROR 42000: DROP,ALTER command denied to user 'mysqltest_1'@'localhost' for table 't1'
-ALTER TABLE t1 RENAME TO t2;
-ERROR 42000: DROP,ALTER command denied to user 'mysqltest_1'@'localhost' for table 't1'
-GRANT DROP ON mysqltest1.t1 TO mysqltest_1@localhost;
-RENAME TABLE t1 TO t2;
-ERROR 42000: ALTER command denied to user 'mysqltest_1'@'localhost' for table 't1'
-ALTER TABLE t1 RENAME TO t2;
-ERROR 42000: ALTER command denied to user 'mysqltest_1'@'localhost' for table 't1'
-GRANT ALTER ON mysqltest1.t1 TO mysqltest_1@localhost;
-SHOW GRANTS;
-Grants for mysqltest_1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT SELECT, DROP, ALTER ON `mysqltest1`.`t1` TO 'mysqltest_1'@'localhost'
-RENAME TABLE t1 TO t2;
-ERROR 42000: INSERT,CREATE command denied to user 'mysqltest_1'@'localhost' for table 't2'
-ALTER TABLE t1 RENAME TO t2;
-ERROR 42000: INSERT,CREATE command denied to user 'mysqltest_1'@'localhost' for table 't2'
-GRANT INSERT, CREATE ON mysqltest1.t1 TO mysqltest_1@localhost;
-SHOW GRANTS;
-Grants for mysqltest_1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT SELECT, INSERT, CREATE, DROP, ALTER ON `mysqltest1`.`t1` TO 'mysqltest_1'@'localhost'
-GRANT INSERT, SELECT, CREATE, ALTER, DROP ON mysqltest1.t2 TO mysqltest_1@localhost;
-DROP TABLE mysqltest1.t2;
-SHOW GRANTS;
-Grants for mysqltest_1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT SELECT, INSERT, CREATE, DROP, ALTER ON `mysqltest1`.`t2` TO 'mysqltest_1'@'localhost'
-GRANT SELECT, INSERT, CREATE, DROP, ALTER ON `mysqltest1`.`t1` TO 'mysqltest_1'@'localhost'
-RENAME TABLE t1 TO t2;
-RENAME TABLE t2 TO t1;
-ALTER TABLE t1 RENAME TO t2;
-ALTER TABLE t2 RENAME TO t1;
-REVOKE DROP, INSERT ON mysqltest1.t1 FROM mysqltest_1@localhost;
-REVOKE DROP, INSERT ON mysqltest1.t2 FROM mysqltest_1@localhost;
-SHOW GRANTS;
-Grants for mysqltest_1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT SELECT, CREATE, ALTER ON `mysqltest1`.`t2` TO 'mysqltest_1'@'localhost'
-GRANT SELECT, CREATE, ALTER ON `mysqltest1`.`t1` TO 'mysqltest_1'@'localhost'
-RENAME TABLE t1 TO t2;
-ERROR 42000: DROP command denied to user 'mysqltest_1'@'localhost' for table 't1'
-ALTER TABLE t1 RENAME TO t2;
-ERROR 42000: DROP command denied to user 'mysqltest_1'@'localhost' for table 't1'
-DROP USER mysqltest_1@localhost;
-DROP DATABASE mysqltest1;
-USE test;
 GRANT CREATE ON mysqltest.* TO 1234567890abcdefGHIKL@localhost;
 ERROR HY000: String '1234567890abcdefGHIKL' is too long for user name (should be no longer than 16)
 GRANT CREATE ON mysqltest.* TO some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
@@ -1050,26 +984,6 @@ REVOKE EXECUTE ON PROCEDURE p1 FROM 1234567890abcdefGHIKL@localhost;
 ERROR HY000: String '1234567890abcdefGHIKL' is too long for user name (should be no longer than 16)
 REVOKE EXECUTE ON PROCEDURE t1 FROM some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
 ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
-CREATE USER bug23556@localhost;
-CREATE DATABASE bug23556;
-GRANT SELECT ON bug23556.* TO bug23556@localhost;
-USE bug23556;
-CREATE TABLE t1 (a INT PRIMARY KEY);
-INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
-GRANT DELETE ON t1 TO bug23556@localhost;
-USE bug23556;
-TRUNCATE t1;
-ERROR 42000: DROP command denied to user 'bug23556'@'localhost' for table 't1'
-USE bug23556;
-REVOKE DELETE ON t1 FROM bug23556@localhost;
-GRANT DROP ON t1 TO bug23556@localhost;
-USE bug23556;
-TRUNCATE t1;
-USE bug23556;
-DROP TABLE t1;
-USE test;
-DROP DATABASE bug23556;
-DROP USER bug23556@localhost;
 GRANT PROCESS ON * TO user@localhost;
 ERROR 3D000: No database selected
 DROP DATABASE IF EXISTS mysqltest1;
@@ -1194,6 +1108,25 @@ ERROR 42000: SELECT command denied to user 'mysqltest_2'@'localhost' for table '
 DROP DATABASE mysqltest1;
 DROP DATABASE mysqltest2;
 DROP USER mysqltest_1@localhost;
+use test;
+CREATE TABLE t1 (f1 int, f2 int);
+INSERT INTO t1 VALUES(1,1), (2,2);
+CREATE DATABASE db27878;
+GRANT UPDATE(f1) ON t1 TO 'mysqltest_1'@'localhost';
+GRANT SELECT ON `test`.* TO 'mysqltest_1'@'localhost';
+GRANT ALL ON db27878.* TO 'mysqltest_1'@'localhost';
+use db27878;
+CREATE SQL SECURITY INVOKER VIEW db27878.v1 AS SELECT * FROM test.t1;
+use db27878;
+UPDATE v1 SET f2 = 4;
+ERROR HY000: View 'db27878.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM test.t1;
+f1	f2
+1	1
+2	2
+DROP VIEW v1;
+use test;
+DROP TABLE t1;
 End of 5.0 tests
 set names utf8;
 grant select on test.* to юзер_юзер@localhost;
