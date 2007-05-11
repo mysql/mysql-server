@@ -1105,4 +1105,23 @@ ERROR 42000: SELECT command denied to user 'mysqltest_2'@'localhost' for table '
 DROP DATABASE mysqltest1;
 DROP DATABASE mysqltest2;
 DROP USER mysqltest_1@localhost;
+use test;
+CREATE TABLE t1 (f1 int, f2 int);
+INSERT INTO t1 VALUES(1,1), (2,2);
+CREATE DATABASE db27878;
+GRANT UPDATE(f1) ON t1 TO 'mysqltest_1'@'localhost';
+GRANT SELECT ON `test`.* TO 'mysqltest_1'@'localhost';
+GRANT ALL ON db27878.* TO 'mysqltest_1'@'localhost';
+use db27878;
+CREATE SQL SECURITY INVOKER VIEW db27878.v1 AS SELECT * FROM test.t1;
+use db27878;
+UPDATE v1 SET f2 = 4;
+ERROR HY000: View 'db27878.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM test.t1;
+f1	f2
+1	1
+2	2
+DROP VIEW v1;
+use test;
+DROP TABLE t1;
 End of 5.0 tests
