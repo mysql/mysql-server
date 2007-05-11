@@ -6503,15 +6503,13 @@ simple_expr:
           }
 	| BINARY simple_expr %prec NEG
 	  {
-            $$= create_func_cast(YYTHD, $2, ITEM_CAST_CHAR, -1, 0,
+            $$= create_func_cast(YYTHD, $2, ITEM_CAST_CHAR, NULL, NULL,
                                  &my_charset_bin);
 	  }
 	| CAST_SYM '(' expr AS cast_type ')'
 	  {
             LEX *lex= Lex;
-	    $$= create_func_cast(YYTHD, $3, $5,
-                                 lex->length ? atoi(lex->length) : -1,
-                                 lex->dec ? atoi(lex->dec) : 0,
+	    $$= create_func_cast(YYTHD, $3, $5, lex->length, lex->dec,
                                  lex->charset);
             if (!$$)
               MYSQL_YYABORT;
@@ -6520,10 +6518,8 @@ simple_expr:
 	  { $$= new (YYTHD->mem_root) Item_func_case(* $3, $2, $4 ); }
 	| CONVERT_SYM '(' expr ',' cast_type ')'
 	  {
-	    $$= create_func_cast(YYTHD, $3, $5,
-				 Lex->length ? atoi(Lex->length) : -1,
-                                 Lex->dec ? atoi(Lex->dec) : 0,
-				 Lex->charset);
+	    $$= create_func_cast(YYTHD, $3, $5, Lex->length, Lex->dec,
+                                 Lex->charset);
             if (!$$)
               MYSQL_YYABORT;
 	  }
