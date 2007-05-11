@@ -2164,7 +2164,13 @@ mysql_execute_command(THD *thd)
       select_lex->options|= SELECT_NO_UNLOCK;
       unit->set_limit(select_lex);
 
-      if (!(res= open_and_lock_tables(thd, select_tables)))
+      if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+      {
+        lex->link_first_table_back(create_table, link_to_local);
+        create_table->create= TRUE;
+      }
+
+      if (!(res= open_and_lock_tables(thd, lex->query_tables)))
       {
         /*
           Is table which we are changing used somewhere in other parts
@@ -2173,6 +2179,7 @@ mysql_execute_command(THD *thd)
         if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
         {
           TABLE_LIST *duplicate;
+          create_table= lex->unlink_first_table(&link_to_local);
           if ((duplicate= unique_table(thd, create_table, select_tables, 0)))
           {
             update_non_unique_table_error(create_table, "CREATE", duplicate);
@@ -2198,6 +2205,12 @@ mysql_execute_command(THD *thd)
           }
         }
 
+        /*
+          FIXME Temporary hack which will go away once Kostja pushes
+                his uber-fix for ALTER/CREATE TABLE.
+        */
+        lex->create_info.table_existed= 0;
+
         if ((result= new select_create(create_table,
 				       &lex->create_info,
 				       lex->create_list,
@@ -2217,6 +2230,9 @@ mysql_execute_command(THD *thd)
 	lex->create_list.empty();
 	lex->key_list.empty();
       }
+      else if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+        create_table= lex->unlink_first_table(&link_to_local);
+
     }
     else
     {
