@@ -374,11 +374,11 @@ drop table t5 ;
 deallocate prepare stmt_do ;
 deallocate prepare stmt_set ;
 prepare stmt1 from ' prepare stmt2 from '' select 1 ''  ' ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' select 1 '' at line 1
+ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt1 from ' execute stmt2 ' ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'stmt2' at line 1
+ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt1 from ' deallocate prepare never_prepared ' ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'never_prepared' at line 1
+ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt4 from ' use test ' ;
 ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt3 from ' create database mysqltest ';

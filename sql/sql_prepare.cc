@@ -1794,6 +1794,9 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_KILL:
     break;
 
+  case SQLCOM_PREPARE:
+  case SQLCOM_EXECUTE:
+  case SQLCOM_DEALLOCATE_PREPARE:
   default:
     /*
       Trivial check of all status commands. This is easier than having
@@ -2852,9 +2855,9 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   thd->stmt_arena= this;
 
   Lex_input_stream lip(thd, thd->query, thd->query_length);
+  lip.stmt_prepare_mode= TRUE;
   thd->m_lip= &lip;
   lex_start(thd);
-  lex->stmt_prepare_mode= TRUE;
   int err= MYSQLparse((void *)thd);
 
   error= err || thd->is_fatal_error ||
