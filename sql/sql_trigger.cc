@@ -279,7 +279,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   /* We also don't allow creation of triggers on views. */
   tables->required_type= FRMTYPE_TABLE;
 
-  if (reopen_name_locked_table(thd, tables))
+  if (reopen_name_locked_table(thd, tables, TRUE))
   {
     unlock_table_name(thd, tables);
     goto end;
