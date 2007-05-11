@@ -610,4 +610,27 @@ DESCRIBE tv2;
 DROP VIEW v1;
 DROP TABLE t1,t2,tv1,tv2;
 
+
+# BUG#27939: Early NULLs filtering doesn't work for eq_ref access
+create table t1 (a int, b int);
+insert into t1 values 
+  (NULL, 1),
+  (NULL, 2),
+  (NULL, 3),
+  (NULL, 4);
+
+create table t2 (a int not null, primary key(a));
+insert into t2 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t3 (a int not null, primary key(a));
+insert into t3 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+flush status;
+select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
+explain select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
+--echo We expect rnd_next=5, and read_key must be 0 because of short-cutting:
+show status like 'Handler_read%'; 
+drop table t1, t2, t3;
+
+
 --echo End of 5.0 tests.

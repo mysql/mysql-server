@@ -42,6 +42,7 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 static bool prepare_blob_field(THD *thd, create_field *sql_field);
 static bool check_engine(THD *thd, const char *table_name,
                          enum db_type *new_engine);                             
+static void set_tmp_file_path(char *buf, size_t bufsize, THD *thd);
 
 
 /*
@@ -1681,11 +1682,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
       /* Check if table exists */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
-    my_snprintf(path, sizeof(path), "%s%s%lx_%lx_%x%s",
-		mysql_tmpdir, tmp_file_prefix, current_pid, thd->thread_id,
-		thd->tmp_table++, reg_ext);
-    if (lower_case_table_names)
-      my_casedn_str(files_charset_info, path);
+    set_tmp_file_path(path, sizeof(path), thd);
     create_info->table_options|=HA_CREATE_DELAY_KEY_WRITE;
   }
   else  
@@ -2801,11 +2798,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   {
     if (find_temporary_table(thd, db, table_name))
       goto table_exists;
-    my_snprintf(dst_path, sizeof(dst_path), "%s%s%lx_%lx_%x%s",
-		mysql_tmpdir, tmp_file_prefix, current_pid,
-		thd->thread_id, thd->tmp_table++, reg_ext);
-    if (lower_case_table_names)
-      my_casedn_str(files_charset_info, dst_path);
+    set_tmp_file_path(dst_path, sizeof(dst_path), thd);
     create_info->table_options|= HA_CREATE_DELAY_KEY_WRITE;
   }
   else
@@ -3316,6 +3309,12 @@ view_err:
     create_info->avg_row_length= table->s->avg_row_length;
   if (!(used_fields & HA_CREATE_USED_DEFAULT_CHARSET))
     create_info->default_table_charset= table->s->table_charset;
+  if (!(used_fields & HA_CREATE_USED_AUTO) && table->found_next_number_field)
+  {
+    /* Table has an autoincrement, copy value to new table */
+    table->file->info(HA_STATUS_AUTO);
+    create_info->auto_increment_value= table->file->auto_increment_value;
+  }
 
   restore_record(table, s->default_values);     // Empty record for DEFAULT
   List_iterator<Alter_drop> drop_it(alter_info->drop_list);
@@ -4312,4 +4311,17 @@ static bool check_engine(THD *thd, const char *table_name,
                        table_name);
   }
   return FALSE;
+}
+
+static void set_tmp_file_path(char *buf, size_t bufsize, THD *thd)
+{
+  char *p= strnmov(buf, mysql_tmpdir, bufsize);
+  my_snprintf(p, bufsize - (p - buf), "%s%lx_%lx_%x%s",
+              tmp_file_prefix, current_pid,
+              thd->thread_id, thd->tmp_table++, reg_ext);
+  if (lower_case_table_names)
+  {
+    /* Convert all except tmpdir to lower case */
+    my_casedn_str(files_charset_info, p);
+  }
 }

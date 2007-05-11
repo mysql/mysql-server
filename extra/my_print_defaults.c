@@ -33,7 +33,20 @@ const char *default_dbug_option="d:t:o,/tmp/my_print_defaults.trace";
 
 static struct my_option my_long_options[] =
 {
-  {"config-file", 'c', "The config file to be used.",
+  /*
+    NB: --config-file is troublesome, because get_defaults_options() doesn't
+    know about it, but we pretend --config-file is like --defaults-file.  In
+    fact they behave differently: see the comments at the top of
+    mysys/default.c for how --defaults-file should behave.
+
+    This --config-file option behaves as:
+    - If it has a directory name part (absolute or relative), then only this
+      file is read; no error is given if the file doesn't exist
+    - If the file has no directory name part, the standard locations are
+      searched for a file of this name (and standard filename extensions are
+      added if the file has no extension)
+  */
+  {"config-file", 'c', "Deprecated, please use --defaults-file instead.  Name of config file to read; if no extension is given, default extension (e.g., .ini or .cnf) will be added",
    (gptr*) &config_file, (gptr*) &config_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
@@ -43,11 +56,11 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log", (gptr*) &default_dbug_option,
    (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"defaults-file", 'c', "Synonym for --config-file.",
+  {"defaults-file", 'c', "Like --config-file, except: if first option, then read this file only, do not read global or per-user config files; should be the first option",
    (gptr*) &config_file, (gptr*) &config_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"defaults-extra-file", 'e',
-   "Read this file after the global /etc config file and before the config file in the users home directory.",
+   "Read this file after the global config file and before the config file in the users home directory; should be the first option",
    (gptr*) &my_defaults_extra_file, (gptr*) &my_defaults_extra_file, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"defaults-group-suffix", 'g',
@@ -55,7 +68,7 @@ static struct my_option my_long_options[] =
    (gptr*) &my_defaults_group_suffix, (gptr*) &my_defaults_group_suffix,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"extra-file", 'e',
-   "Synonym for --defaults-extra-file.",
+   "Deprecated. Synonym for --defaults-extra-file.",
    (gptr*) &my_defaults_extra_file,
    (gptr*) &my_defaults_extra_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -86,7 +99,7 @@ static void usage(my_bool version)
   my_print_help(my_long_options);
   my_print_default_files(config_file);
   my_print_variables(my_long_options);
-  printf("\nExample usage:\n%s --config-file=my client mysql\n", my_progname);
+  printf("\nExample usage:\n%s --defaults-file=example.cnf client mysql\n", my_progname);
 }
 
 #include <help_end.h>
