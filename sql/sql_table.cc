@@ -62,8 +62,8 @@ static void set_tmp_file_path(char *buf, size_t bufsize, THD *thd);
     #                   Size of path
  */
 
-static uint build_table_path(char *buff, size_t bufflen, const char *db,
-                             const char *table, const char *ext)
+uint build_table_path(char *buff, size_t bufflen, const char *db,
+                      const char *table, const char *ext)
 {
   strxnmov(buff, bufflen-1, mysql_data_home, "/", db, "/", table, ext,
            NullS);
@@ -1722,7 +1722,14 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   VOID(pthread_mutex_lock(&LOCK_open));
   if (!internal_tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
-    if (!access(path,F_OK))
+    /*
+      Inspecting table cache for placeholders created by concurrent
+      CREATE TABLE ... SELECT statements to avoid interfering with them
+      is 5.0-only solution. Starting from 5.1 we solve this problem by
+      obtaining name-lock on the table to be created first.
+    */
+    if (table_cache_has_open_placeholder(thd, db, table_name) ||
+        !access(path, F_OK))
     {
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
         goto warn;
@@ -2051,7 +2058,7 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
     to finish the restore in the handler later on
   */
   pthread_mutex_lock(&LOCK_open);
-  if (reopen_name_locked_table(thd, table))
+  if (reopen_name_locked_table(thd, table, TRUE))
   {
     unlock_table_name(thd, table);
     pthread_mutex_unlock(&LOCK_open);
@@ -2158,7 +2165,7 @@ static int prepare_for_repair(THD* thd, TABLE_LIST *table_list,
     to finish the repair in the handler later on.
   */
   pthread_mutex_lock(&LOCK_open);
-  if (reopen_name_locked_table(thd, table_list))
+  if (reopen_name_locked_table(thd, table_list, TRUE))
   {
     unlock_table_name(thd, table_list);
     pthread_mutex_unlock(&LOCK_open);
@@ -2803,10 +2810,24 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   }
   else
   {
+    bool exists;
     strxmov(dst_path, mysql_data_home, "/", db, "/", table_name,
 	    reg_ext, NullS);
     fn_format(dst_path, dst_path, "", "", MYF(MY_UNPACK_FILENAME));
-    if (!access(dst_path, F_OK))
+
+    /*
+      Note that this critical section should actually cover most
+      of mysql_create_like_table() function. See bugs #18950 and
+      #23667 for more information.
+      Also note that starting from 5.1 we obtain name-lock on
+      target table instead of inspecting table cache for presence
+      of open placeholders (see comment in mysql_create_table()).
+    */
+    pthread_mutex_lock(&LOCK_open);
+    exists= (table_cache_has_open_placeholder(thd, db, table_name) ||
+             !access(dst_path, F_OK));
+    pthread_mutex_unlock(&LOCK_open);
+    if (exists)
       goto table_exists;
   }
 
@@ -3160,9 +3181,14 @@ view_err:
       else
       {
 	char dir_buff[FN_REFLEN];
+        bool exists;
 	strxnmov(dir_buff, FN_REFLEN, mysql_real_data_home, new_db, NullS);
-	if (!access(fn_format(new_name_buff,new_name_buff,dir_buff,reg_ext,0),
-		    F_OK))
+        VOID(pthread_mutex_lock(&LOCK_open));
+        exists= (table_cache_has_open_placeholder(thd, new_db, new_name) ||
+                 !access(fn_format(new_name_buff, new_name_buff, dir_buff,
+                                   reg_ext, 0), F_OK));
+        VOID(pthread_mutex_unlock(&LOCK_open));
+        if (exists)
 	{
 	  /* Table will be closed in do_command() */
 	  my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
@@ -3247,8 +3273,22 @@ view_err:
     if (!error && (new_name != table_name || new_db != db))
     {
       thd->proc_info="rename";
-      /* Then do a 'simple' rename of the table */
-      if (!access(new_name_buff,F_OK))
+      /*
+        Then do a 'simple' rename of the table. First we need to close all
+        instances of 'source' table.
+      */
+      close_cached_table(thd, table);
+      /*
+        Then, we want check once again that target table does not exist.
+        Note that we can't fully rely on results of previous check since
+        no lock was taken on target table during it. We also can't do this
+        before calling close_cached_table() as the latter temporarily
+        releases LOCK_open mutex.
+        Also note that starting from 5.1 we use approach with obtaining
+        of name-lock on target table.
+      */
+      if (table_cache_has_open_placeholder(thd, new_db, new_name) ||
+          !access(new_name_buff,F_OK))
       {
 	my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_name);
 	error= -1;
@@ -3256,7 +3296,6 @@ view_err:
       else
       {
 	*fn_ext(new_name)=0;
-	close_cached_table(thd, table);
 	if (mysql_rename_table(old_db_type,db,table_name,new_db,new_alias))
 	  error= -1;
         else if (Table_triggers_list::change_table_name(thd, db, table_name,
@@ -3806,17 +3845,6 @@ view_err:
 	      current_pid, thd->thread_id);
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, old_name);
-  if (new_name != table_name || new_db != db)
-  {
-    if (!access(new_name_buff,F_OK))
-    {
-      error=1;
-      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_name_buff);
-      VOID(quick_rm_table(new_db_type,new_db,tmp_name));
-      VOID(pthread_mutex_unlock(&LOCK_open));
-      goto err;
-    }
-  }
 
 #if (!defined( __WIN__) && !defined( __EMX__) && !defined( OS2))
   if (table->file->has_transactions())
@@ -3835,6 +3863,22 @@ view_err:
     table->file->extra(HA_EXTRA_FORCE_REOPEN);	// Don't use this file anymore
 #endif
 
+  if (new_name != table_name || new_db != db)
+  {
+    /*
+      Check that there is no table with target name. See the
+      comment describing code for 'simple' ALTER TABLE ... RENAME.
+    */
+    if (table_cache_has_open_placeholder(thd, new_db, new_name) ||
+        !access(new_name_buff,F_OK))
+    {
+      error=1;
+      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_name_buff);
+      VOID(quick_rm_table(new_db_type,new_db,tmp_name));
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      goto err;
+    }
+  }
 
   error=0;
   if (!need_copy_table)
