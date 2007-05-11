@@ -669,6 +669,117 @@ alter table t1 max_rows=100000000000;
 show create table t1;
 drop table t1;
 
+
+#
+# Tests for errors happening at various stages of CREATE TABLES ... SELECT
+#
+# (Also checks that it behaves atomically in the sense that in case
+#  of error it is automatically dropped if it has not existed before.)
+#
+# Error during open_and_lock_tables() of tables
+--error ER_NO_SUCH_TABLE
+create table t1 select * from t2;
+# Rather special error which also caught during open tables pahse
+--error ER_UPDATE_TABLE_USED
+create table t1 select * from t1;
+# Error which happens before select_create::prepare()
+--error ER_CANT_AGGREGATE_2COLLATIONS
+create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1_bin);
+# Error during table creation
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+create table t1 (primary key(a)) select "b" as b;
+# Error in select_create::prepare() which is not related to table creation
+create table t1 (a int);
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+create table if not exists t1 select 1 as a, 2 as b;
+drop table t1;
+# Finally error which happens during insert
+--error ER_DUP_ENTRY
+create table t1 (primary key (a)) (select 1 as a) union all (select 1 as a);
+# What happens if table already exists ?
+create table t1 (i int);
+--error ER_TABLE_EXISTS_ERROR
+create table t1 select 1 as i;
+create table if not exists t1 select 1 as i;
+select * from t1;
+# Error before select_create::prepare()
+--error ER_CANT_AGGREGATE_2COLLATIONS
+create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1_bin);
+select * from t1;
+# Error which happens during insertion of rows
+alter table t1 add primary key (i);
+--error ER_DUP_ENTRY
+create table if not exists t1 (select 2 as i) union all (select 2 as i);
+select * from t1;
+drop table t1;
+
+
+# Base vs temporary tables dillema (a.k.a. bug#24508 "Inconsistent
+# results of CREATE TABLE ... SELECT when temporary table exists").
+# In this situation we either have to create non-temporary table and
+# insert data in it or insert data in temporary table without creation
+# of permanent table. Since currently temporary tables always shadow
+# permanent tables we adopt second approach.
+create temporary table t1 (j int);
+create table if not exists t1 select 1;
+select * from t1;
+drop temporary table t1;
+--error ER_NO_SUCH_TABLE
+select * from t1;
+--error ER_BAD_TABLE_ERROR
+drop table t1;
+
+
+#
+# CREATE TABLE ... SELECT and LOCK TABLES
+#
+# There is little sense in using CREATE TABLE ... SELECT under
+# LOCK TABLES as it mostly does not work. At least we check that
+# the server doesn't crash, hang and produces sensible errors.
+# Includes test for bug #20662 "Infinite loop in CREATE TABLE
+# IF NOT EXISTS ... SELECT with locked tables".
+create table t1 (i int);
+insert into t1 values (1), (2);
+lock tables t1 read;
+--error ER_TABLE_NOT_LOCKED
+create table t2 select * from t1;
+--error ER_TABLE_NOT_LOCKED
+create table if not exists t2 select * from t1;
+unlock tables;
+create table t2 (j int);
+lock tables t1 read;
+--error ER_TABLE_NOT_LOCKED
+create table t2 select * from t1;
+# This should not be ever allowed as it will undermine
+# lock-all-at-once approach
+--error ER_TABLE_NOT_LOCKED
+create table if not exists t2 select * from t1;
+unlock tables;
+lock table t1 read, t2 read;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+create table t2 select * from t1;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+create table if not exists t2 select * from t1;
+unlock tables;
+lock table t1 read, t2 write;
+--error ER_TABLE_EXISTS_ERROR
+create table t2 select * from t1;
+# This is the only case which really works.
+create table if not exists t2 select * from t1;
+select * from t1;
+unlock tables;
+drop table t2;
+
+# OTOH CREATE TEMPORARY TABLE ... SELECT should work
+# well under LOCK TABLES.
+lock tables t1 read;
+create temporary table t2 select * from t1;
+create temporary table if not exists t2 select * from t1;
+select * from t2;
+unlock tables;
+drop table t1, t2;
+
+
 #
 # Bug#21772: can not name a column 'upgrade' when create a table
 #
