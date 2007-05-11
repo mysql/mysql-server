@@ -103,7 +103,7 @@ Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'a'
 select 10.0+cast('a' as decimal);
 10.0+cast('a' as decimal)
-10.00
+10.0
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: 'a'
 select 10E+0+'a';
@@ -388,7 +388,7 @@ INSERT INTO t1 VALUES ('1.01', '2.02', '3.03', '4.04', '5.05');
 SELECT CAST(v AS DECIMAL), CAST(tt AS DECIMAL), CAST(t AS DECIMAL),
 CAST(mt AS DECIMAL), CAST(lt AS DECIMAL) from t1;
 CAST(v AS DECIMAL)	CAST(tt AS DECIMAL)	CAST(t AS DECIMAL)	CAST(mt AS DECIMAL)	CAST(lt AS DECIMAL)
-1.01	2.02	3.03	4.04	5.05
+1	2	3	4	5
 DROP TABLE t1;
 select cast(NULL as decimal(6)) as t1;
 t1
