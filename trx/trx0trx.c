@@ -1891,7 +1891,7 @@ Does the transaction prepare for MySQL. */
 
 ulint
 trx_prepare_for_mysql(
-/*====-=============*/
+/*==================*/
 			/* out: 0 or error number */
 	trx_t*	trx)	/* in: trx handle */
 {
