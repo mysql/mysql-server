@@ -6263,23 +6263,23 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   set_dbname(name);
   set_tabname(name);
   
-  if (check_ndb_connection())
+  if ((res= check_ndb_connection()) ||
+      (res= get_metadata(name)))
   {
     /* ndb_share reference handler free */
     DBUG_PRINT("NDB_SHARE", ("%s handler free  use_count: %u",
                              m_share->key, m_share->use_count));
     free_share(&m_share);
     m_share= 0;
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    DBUG_RETURN(res);
   }
-  
-  res= get_metadata(name);
-  if (!res)
+  while (1)
   {
     Ndb *ndb= get_ndb();
     if (ndb->setDatabaseName(m_dbname))
     {
-      ERR_RETURN(ndb->getNdbError());
+      res= ndb_to_mysql_error(&ndb->getNdbError());
+      break;
     }
     struct Ndb_statistics stat;
     res= ndb_get_table_statistics(NULL, FALSE, ndb, m_table, &stat);
@@ -6288,14 +6288,20 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     stats.records= stat.row_count;
     if(!res)
       res= info(HA_STATUS_CONST);
+    break;
   }
-
+  if (res)
+  {
+    free_share(m_share);
+    m_share= 0;
+    release_metadata();
+    DBUG_RETURN(res);
+  }
 #ifdef HAVE_NDB_BINLOG
   if (!ndb_binlog_tables_inited && ndb_binlog_running)
     table->db_stat|= HA_READ_ONLY;
 #endif
-
-  DBUG_RETURN(res);
+  DBUG_RETURN(0);
 }
 
 /*
