@@ -1441,5 +1441,11 @@ insert into t1 values ('aaa','1') on duplicate key update c2 = c2 + 1;
 select * from t1;
 drop table t1;
 
+#
+# Bug #28005 Partitions: can't use -9223372036854775808 
+#
+
+create table t1 (s1 bigint) partition by list (s1) (partition p1 values in (-9223372036854775808));
+drop table t1;
 
 --echo End of 5.1 tests
