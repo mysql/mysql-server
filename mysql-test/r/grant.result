@@ -1210,7 +1210,7 @@ SELECT * FROM test.t1;
 f1	f2
 1	1
 2	2
-DROP VIEW v1;
+DROP DATABASE db27878;
 use test;
 DROP TABLE t1;
 End of 5.0 tests
