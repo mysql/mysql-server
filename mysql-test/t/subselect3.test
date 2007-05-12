@@ -546,3 +546,28 @@ SELECT a FROM t1, t2 WHERE a=b AND (b NOT IN (SELECT a FROM t1));
 SELECT a FROM t1, t2 WHERE a=b AND (b NOT IN (SELECT a FROM t1 WHERE a > 4));
 
 DROP TABLE t1,t2;
+
+#
+# Bug #28375: crash for NOT IN subquery predicate when left operand becomes NULL  
+#
+
+CREATE TABLE t1 (id int);
+CREATE TABLE t2 (id int PRIMARY KEY);
+CREATE TABLE t3 (id int PRIMARY KEY, name varchar(10));
+INSERT INTO t1 VALUES (2), (NULL), (3), (1);
+INSERT INTO t2 VALUES (234), (345), (457);
+INSERT INTO t3 VALUES (222,'bbb'), (333,'ccc'), (111,'aaa');
+
+EXPLAIN
+SELECT * FROM t1
+  WHERE t1.id NOT IN (SELECT t2.id FROM t2,t3 
+                        WHERE t3.name='xxx' AND t2.id=t3.id);
+SELECT * FROM t1
+  WHERE t1.id NOT IN (SELECT t2.id FROM t2,t3 
+                        WHERE t3.name='xxx' AND t2.id=t3.id);
+
+SELECT (t1.id IN (SELECT t2.id FROM t2,t3 
+                    WHERE t3.name='xxx' AND t2.id=t3.id)) AS x
+  FROM t1;
+
+DROP TABLE t1,t2,t3;   
