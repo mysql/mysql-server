@@ -208,6 +208,17 @@ my_decimal *date2my_decimal(MYSQL_TIME *ltime, my_decimal *dec)
 }
 
 
+void my_decimal_trim(ulong *precision, uint *scale)
+{
+  if (!(*precision) && !(*scale))
+  {
+    *precision= 10;
+    *scale= 0;
+    return;
+  }
+}
+
+
 #ifndef DBUG_OFF
 /* routines for debugging print */
 
