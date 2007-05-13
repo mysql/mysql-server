@@ -5048,38 +5048,39 @@ void
 NdbRecord::Attr::get_mysqld_bitfield(const char *src_row, char *dst_buffer) const
 {
   assert(flags & IsMysqldBitfield);
-  Uint64 bits= 0;
-  Uint32 shift= 0;
-
-  /* Copy whole bytes. */
+  Uint64 bits;
   Uint32 remaining_bits= bitCount;
+  Uint32 fractional_bitcount= remaining_bits % 8;
+
+  /* Copy fractional bits, if any. */
+  if (fractional_bitcount > 0)
+  {
+    Uint32 fractional_shift= nullbit_bit_in_byte + ((flags & IsNullable) != 0);
+    Uint32 fractional_bits= (unsigned char)(src_row[nullbit_byte_offset]);
+    if (fractional_shift + fractional_bitcount > 8)
+      fractional_bits|= (unsigned char)(src_row[nullbit_byte_offset+1]) << 8;
+    fractional_bits=
+      (fractional_bits >> fractional_shift) & ((1 << fractional_bitcount) - 1);
+    bits= fractional_bits;
+  }
+  else
+    bits= 0;
+
+  /* Copy whole bytes. The mysqld format stored bit fields big-endian. */
   assert(remaining_bits <= 64);
   const unsigned char *src_ptr= (const unsigned char *)&src_row[offset];
   while (remaining_bits >= 8)
   {
-    bits|= (Uint64)(*src_ptr++) << shift;
-    shift+= 8;
+    bits= (bits << 8) | (*src_ptr++);
     remaining_bits-= 8;
   }
 
-  /* Copy fractional bits, if any. */
-  if (remaining_bits > 0)
-  {
-    Uint32 fractional_shift= nullbit_bit_in_byte + ((flags & IsNullable) != 0);
-    Uint32 fractional_bits= (unsigned char)(src_row[nullbit_byte_offset]);
-    if (fractional_shift + remaining_bits > 8)
-      fractional_bits|= (unsigned char)(src_row[nullbit_byte_offset+1]) << 8;
-    fractional_bits=
-      (fractional_bits >> fractional_shift) & ((1 << remaining_bits) - 1);
-    bits|= (Uint64)fractional_bits << shift;
-  }
-
+  Uint32 small_bits= bits;
+  memcpy(dst_buffer, &small_bits, 4);
   if (maxSize > 4)
-    memcpy(dst_buffer, &bits, 8);
-  else
   {
-    Uint32 small_bits= bits;
-    memcpy(dst_buffer, &small_bits, 4);
+    small_bits= bits >> 32;
+    memcpy(dst_buffer+4, &small_bits, 4);
   }
 }
 
@@ -5089,25 +5090,22 @@ NdbRecord::Attr::put_mysqld_bitfield(char *dst_row, const char *src_buffer) cons
   assert(flags & IsMysqldBitfield);
   char *dst_ptr= &dst_row[offset];
   Uint64 bits;
+  Uint32 small_bits;
+  memcpy(&small_bits, src_buffer, 4);
+  bits= small_bits;
   if (maxSize > 4)
   {
-    memcpy(&bits, src_buffer, 8);
-    bzero(dst_ptr, 8);
-  }
-  else
-  {
-    Uint32 small_bits;
-    memcpy (&small_bits, src_buffer, 4);
-    bits= small_bits;
-    bzero(dst_ptr, 4);
+    memcpy(&small_bits, src_buffer+4, 4);
+    bits|= ((Uint64)small_bits) << 32;
   }
 
-  /* Copy whole bytes. */
+  /* Copy whole bytes. The mysqld format stores bitfields big-endian. */
   Uint32 remaining_bits= bitCount;
   assert(remaining_bits <= 64);
+  dst_ptr+= remaining_bits/8;
   while (remaining_bits >= 8)
   {
-    *dst_ptr++= bits & 0xff;
+    *--dst_ptr= bits & 0xff;
     bits>>= 8;
     remaining_bits-= 8;
   }
