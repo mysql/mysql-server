@@ -116,6 +116,7 @@ static uint ndbcluster_alter_table_flags(uint flags)
 }
 
 #define NDB_AUTO_INCREMENT_RETRIES 10
+#define BATCH_FLUSH_SIZE (32768)
 
 #define ERR_PRINT(err) \
   DBUG_PRINT("error", ("%d  message: %s", err.code, err.message))
@@ -283,17 +284,19 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
 */
 void ha_ndbcluster::reset_state_at_execute()
 {
+  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
   m_ops_pending= 0;
   m_blobs_pending= FALSE;
-  m_row_buffer_current= m_row_buffer;
+  thd_ndb->m_unsent_bytes= 0;
 }
 
 int execute_no_commit_ignore_no_key(ha_ndbcluster *h, NdbTransaction *trans)
 {
+  int res= trans->execute(NdbTransaction::NoCommit,
+                          NdbOperation::AO_IgnoreError,
+                          h->m_force_send);
   h->reset_state_at_execute();
-  if (trans->execute(NdbTransaction::NoCommit,
-                     NdbOperation::AO_IgnoreError,
-                     h->m_force_send) == -1)
+  if (res == -1)
     return -1;
 
   const NdbError &err= trans->getNdbError();
@@ -319,10 +322,11 @@ int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans,
     return execute_no_commit_ignore_no_key(h,trans);
   else
   {
+    int res= trans->execute(NdbTransaction::NoCommit,
+                            NdbOperation::AbortOnError,
+                            h->m_force_send);
     h->reset_state_at_execute();
-    return trans->execute(NdbTransaction::NoCommit,
-                          NdbOperation::AbortOnError,
-                          h->m_force_send);
+    return res;
   }
 }
 
@@ -334,10 +338,11 @@ int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
   if (m_batch_execute)
     return 0;
 #endif
+  int res= trans->execute(NdbTransaction::Commit,
+                          NdbOperation::AbortOnError,
+                          h->m_force_send);
   h->reset_state_at_execute();
-  return trans->execute(NdbTransaction::Commit,
-                        NdbOperation::AbortOnError,
-                        h->m_force_send);
+  return res;
 }
 
 inline
@@ -368,10 +373,11 @@ int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans,
     return 0;
 #endif
   h->release_completed_operations(trans, force_release);
+  int res= trans->execute(NdbTransaction::NoCommit,
+                          NdbOperation::AO_IgnoreError,
+                          h->m_force_send);
   h->reset_state_at_execute();
-  return trans->execute(NdbTransaction::NoCommit,
-                        NdbOperation::AO_IgnoreError,
-                        h->m_force_send);
+  return res;
 }
 
 /*
@@ -405,6 +411,8 @@ Thd_ndb::Thd_ndb()
   options= 0;
   (void) hash_init(&open_tables, &my_charset_bin, 5, 0, 0,
                    (hash_get_key)thd_ndb_share_get_key, 0, 0);
+  m_unsent_bytes= 0;
+  init_alloc_root(&m_batch_mem_root, BATCH_FLUSH_SIZE/4, 0);
 }
 
 Thd_ndb::~Thd_ndb()
@@ -429,6 +437,7 @@ Thd_ndb::~Thd_ndb()
   }
   changed_tables.empty();
   hash_free(&open_tables);
+  free_root(&m_batch_mem_root, MYF(0));
 }
 
 void
@@ -727,93 +736,83 @@ ha_ndbcluster::request_partition_function_value(uchar *mask)
   mask[field_no>>3]|= (1 << (field_no & 7));
 }
 
-void
-ha_ndbcluster::calc_batch_buffer_size()
+static inline char *
+alloc_batch_row(Thd_ndb *thd_ndb, uint size)
 {
-  /* 
-    Calculate how many rows that should be inserted
-    per roundtrip to NDB. This is done in order to minimize the 
-    number of roundtrips as much as possible. However performance will 
-    degrade if too many bytes are inserted, thus it's limited by this 
-    calculation.   
-  */
-  int bytes, batch;
-  const NDBTAB *tab= m_table;    
-  const int bytesperbatch= 8192;
-  bytes= 12 + tab->getRowSizeInBytes() + 4 * tab->getNoOfColumns();
-  batch= bytesperbatch/bytes;
-  batch= batch == 0 ? 1 : batch;
-  m_batch_buffer_size= batch * (table->s->reclength + m_extra_reclength);
-  DBUG_PRINT("info", ("batch: %d, bytes: %d", batch, bytes));
-}
-
-int
-ha_ndbcluster::alloc_row_buffer()
-{
-  uint desired_size;
-  if (m_active_cursor || m_rows_to_insert > 1)
-    desired_size= m_batch_buffer_size;
-  else
-    desired_size= table->s->reclength + m_extra_reclength;
-
-  if (m_row_buffer_size < desired_size)
-  {
-    my_free(m_row_buffer, MYF(MY_ALLOW_ZERO_PTR));
-    m_row_buffer= my_malloc(desired_size, MYF(0));
-    if (unlikely(!m_row_buffer))
-    {
-      m_row_buffer_size= 0;
-      return ER_OUTOFMEMORY;
-    }
-    m_row_buffer_size= desired_size;
-    m_row_buffer_current= m_row_buffer;
-  }
-  return 0;
+  /*
+    We only reset the batch mem_root on first allocate after execute(), not
+    immediately at execute() time.
+    This is so that we have the chance after execute() to copy out data from
+    any read buffers.
+   */
+  if (thd_ndb->m_unsent_bytes == 0)
+    free_root(&(thd_ndb->m_batch_mem_root), MY_MARK_BLOCKS_FREE);
+  return alloc_root(&(thd_ndb->m_batch_mem_root), size);
 }
 
 /*
-  Copy a record into a (bigger) buffer.
-  This version will re-use the same buffer at every call.
+  Copy a record into a newly allocated buffer.
+  The returned record is valid until next execute() (actually until next
+  allocation after next execute()).
+  The input parameter op_batch_size is an estimate of the signal bytes
+  needed for the operation; this is used to set the output parameter
+  batch_full to true when it is time to flush the batch with execute().
 */
 char *
-ha_ndbcluster::copy_row_to_buffer(const byte *record)
+ha_ndbcluster::batch_copy_row_to_buffer(Thd_ndb *thd_ndb, const byte *record,
+                                        bool & batch_full)
 {
-  if (alloc_row_buffer() != 0)
+  char *row= copy_row_to_buffer(thd_ndb, record);
+  if (unlikely(!row))
     return NULL;
-  memcpy(m_row_buffer, record, table->s->reclength);
-  return m_row_buffer;
+  uint unsent= thd_ndb->m_unsent_bytes;
+  unsent+= m_bytes_per_write;
+  batch_full= unsent >= BATCH_FLUSH_SIZE;
+  thd_ndb->m_unsent_bytes= unsent;
+  return row;
 }
 
+char *
+ha_ndbcluster::batch_copy_key_to_buffer(Thd_ndb *thd_ndb, const byte *key,
+                                        uint key_len,
+                                        uint op_batch_size, bool & batch_full)
+{
+  char *row= alloc_batch_row(thd_ndb, key_len);;
+  if (unlikely(!row))
+    return NULL;
+  memcpy(row, key, key_len);
+  uint unsent= thd_ndb->m_unsent_bytes;
+  unsent+= op_batch_size;
+  DBUG_ASSERT(op_batch_size > 0);
+  batch_full= unsent >= BATCH_FLUSH_SIZE;
+  thd_ndb->m_unsent_bytes= unsent;
+  return row;
+}
+
+/*
+  Simpler row buffer copy, for when we know we will not batch.
+  Only valid until next buffer allocation.
+*/
+char *
+ha_ndbcluster::copy_row_to_buffer(Thd_ndb *thd_ndb, const byte *record)
+{
+  char *row;
+  uint size= table->s->reclength + m_extra_reclength;
+  row= alloc_batch_row(thd_ndb, size);
+  if (unlikely(!row))
+    return NULL;
+  memcpy(row, record, table->s->reclength);
+  return row;
+}
+
+/* Return a row buffer, valid until next execute(). */
 char *
 ha_ndbcluster::get_row_buffer()
 {
-  if (alloc_row_buffer() != 0)
-    return NULL;
-  return m_row_buffer;
+  Thd_ndb *thd_ndb= get_thd_ndb(table->in_use);
+  return alloc_root(&(thd_ndb->m_batch_mem_root),
+                    table->s->reclength + m_extra_reclength);
 }
-
-/*
-  Copy a record into a buffer.
-  This one returns a new buffer on each call until more are available;
-  then it returns with buffer_full set to TRUE (and caller should execute()
-  before calling again).
-*/
-int
-ha_ndbcluster::batch_copy_row_to_buffer(const byte *record,
-                                        char * &row, bool & buffer_full)
-{
-  int error= alloc_row_buffer();
-  if (error != 0)
-    return error;
-  uint size= table->s->reclength + m_extra_reclength;
-  row= m_row_buffer_current;
-  m_row_buffer_current+= size;
-  DBUG_ASSERT((uint)(m_row_buffer_current - m_row_buffer) <= m_row_buffer_size);
-  buffer_full= (m_row_buffer_current - m_row_buffer + size) > m_row_buffer_size;
-  memcpy(row, record, table->s->reclength);
-  return 0;
-}
-
 
 /*
   When using extra hidden columns, the mysqld column bitmaps do not
@@ -1266,10 +1265,13 @@ int ha_ndbcluster::get_metadata(const char *path)
       goto err;
   }
 
-  calc_batch_buffer_size();
-
   if ((error= add_table_ndb_record(dict)) != 0)
     goto err;
+
+  /*
+    Approx. write size in bytes over transporter
+  */
+  m_bytes_per_write= 12 + tab->getRowSizeInBytes() + 4 * tab->getNoOfColumns();
   if ((error= open_indexes(ndb, table, FALSE)) == 0)
   {
     ndbtab_g.release();
@@ -3250,6 +3252,7 @@ int ha_ndbcluster::ndb_write_row(byte *record, bool primary_key_update,
   NdbTransaction *trans= m_active_trans;
   NdbOperation *op;
   THD *thd= table->in_use;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   uint32 part_id;
   char *row;
   bool need_flush;
@@ -3297,17 +3300,23 @@ int ha_ndbcluster::ndb_write_row(byte *record, bool primary_key_update,
     For non-bulk insert, we may still need to copy the row into a (bigger)
     buffer if we need extra space for the user-defined partitioning hash
     or the hidden primary key, but we always execute() in this case.
+
+    Note that when using writeTuple() with blobs, we cannot batch, as
+    NdbBlob::setValue() uses call-by-reference semantics for the blob value,
+    which must remain valid until execute(). For insertTuple(), the blob
+    value is buffered by NdbBlob::setValue().
   */
   bool uses_blobs= uses_blob_value(table->write_set);
-  if ((m_rows_to_insert > 1 && !uses_blobs) || batched_update)
+  if ((m_rows_to_insert > 1 && !uses_blobs) || batched_update ||
+      ( (thd->options & OPTION_ALLOW_BATCH) && !(uses_blobs && m_use_write)))
   {
     /* This sets row and need_flush (output parameters). */
-    error= batch_copy_row_to_buffer(record, row, need_flush);
+    row= batch_copy_row_to_buffer(thd_ndb, record, need_flush);
     DBUG_PRINT("info", ("allocating buffer for bulk insert, "
                         "m_rows_to_insert=%d write_set=0x%x",
                         (int)m_rows_to_insert, table->write_set->bitmap[0]));
-    if (error != 0)
-      DBUG_RETURN(error);
+    if (unlikely(!row))
+      DBUG_RETURN(ER_OUTOFMEMORY);
   }
   else
   {
@@ -3316,7 +3325,7 @@ int ha_ndbcluster::ndb_write_row(byte *record, bool primary_key_update,
     if (table_share->primary_key == MAX_KEY || m_use_partition_function)
     {
       DBUG_PRINT("info", ("Getting single buffer for oversize record."));
-      row= copy_row_to_buffer(record);
+      row= copy_row_to_buffer(thd_ndb, record);
       if (!row)
         DBUG_RETURN(ER_OUTOFMEMORY);
     }
@@ -3443,10 +3452,8 @@ int ha_ndbcluster::ndb_write_row(byte *record, bool primary_key_update,
   */
   m_rows_inserted++;
   no_uncommitted_rows_update(1);
-  m_bulk_insert_not_flushed= TRUE;
   if (need_flush || primary_key_update)
   {
-    // Send rows to NDB
     int res= flush_bulk_insert();
     if (res != 0)
     {
@@ -3516,6 +3523,7 @@ int ha_ndbcluster::primary_key_cmp(const byte * old_row, const byte * new_row)
 int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
 {
   THD *thd= table->in_use;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   NdbTransaction *trans= m_active_trans;
   NdbScanOperation* cursor= m_active_cursor;
   NdbOperation *op;
@@ -3627,16 +3635,16 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   if (cursor && !m_update_cannot_batch)
   {
     /* For a scan, we only need to execute() if the batch buffer is full. */
-    error= batch_copy_row_to_buffer(new_data, row, need_execute);
-    if (error != 0)
-      DBUG_RETURN(error);
+    row= batch_copy_row_to_buffer(thd_ndb, new_data, need_execute);
+    if (!row)
+      DBUG_RETURN(ER_OUTOFMEMORY);
   }
   else
   {
     need_execute= TRUE;
     if (m_use_partition_function)
     {
-      row= copy_row_to_buffer(new_data);
+      row= copy_row_to_buffer(thd_ndb, new_data);
       if (!row)
         DBUG_RETURN(ER_OUTOFMEMORY);
     }
@@ -3727,12 +3735,13 @@ int ha_ndbcluster::delete_row(const byte *record)
 int ha_ndbcluster::ndb_delete_row(const byte *record, bool primary_key_update)
 {
   THD *thd= table->in_use;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   NdbTransaction *trans= m_active_trans;
   NdbScanOperation* cursor= m_active_cursor;
   NdbOperation *op;
   uint32 part_id;
   int error;
-  DBUG_ENTER("delete_row");
+  DBUG_ENTER("ndb_delete_row");
 
   ha_statistic_increment(&SSV::ha_delete_count);
   m_rows_changed++;
@@ -3766,7 +3775,7 @@ int ha_ndbcluster::ndb_delete_row(const byte *record, bool primary_key_update)
 
     eventSetAnyValue(thd, op);
 
-    if (!primary_key_update || m_delete_cannot_batch)
+    if (!(primary_key_update || m_delete_cannot_batch))
       // If deleting from cursor, NoCommit will be handled in next_result
       DBUG_RETURN(0);
   }
@@ -3774,16 +3783,54 @@ int ha_ndbcluster::ndb_delete_row(const byte *record, bool primary_key_update)
   {
     const NdbRecord *key_rec;
     const char *key_row;
+    uint key_len;
     if (table_share->primary_key != MAX_KEY)
     {
       key_rec= m_index[table_share->primary_key].ndb_unique_record_row;
       key_row= record;
+      key_len= table->s->reclength;
     }
     else
     {
       key_rec= m_ndb_hidden_key_record;
       key_row= (const char *)(&m_ref);
+      key_len= sizeof(m_ref);
     }
+    /*
+      Check if we can batch the delete; if so we need to buffer the key.
+
+      We do not batch deletes on tables with no primary key. For such tables,
+      replication uses full table scan to locate the row to delete. The
+      problem is the following scenario when deleting 2 (or more) rows:
+
+       1. Table scan to locate the first row.
+       2. Delete the row, batched so no execute.
+       3. Table scan to locate the second row is executed, along with the
+          batched delete operation from step 2.
+       4. The first row is returned from nextResult() (not deleted yet).
+       5. The kernel deletes the row (operation from step 2).
+       6. lockCurrentTuple() is called on the row returned in step 4. However,
+          as that row is now deleted, the operation fails and the transaction
+          is aborted.
+       7. The delete of the second tuple now fails, as the transaction has
+          been aborted.
+    */
+    bool need_flush;
+    if ((thd->options & OPTION_ALLOW_BATCH) &&
+        table_share->primary_key != MAX_KEY)
+    {
+      /*
+        Poor approx. let delete ~ tabsize / 4
+      */
+      uint delete_size= 12 + m_bytes_per_write >> 2;
+      key_row= batch_copy_key_to_buffer(thd_ndb, key_row, key_len,
+                                        delete_size, need_flush);
+      if (unlikely(!key_row))
+        DBUG_RETURN(ER_OUTOFMEMORY);
+    }
+    else
+      need_flush= TRUE;
+
     if (!(op=trans->deleteTuple(key_rec, key_row)))
       ERR_RETURN(trans->getNdbError());
     
@@ -3793,6 +3840,9 @@ int ha_ndbcluster::ndb_delete_row(const byte *record, bool primary_key_update)
     no_uncommitted_rows_update(-1);
 
     eventSetAnyValue(thd, op);
+
+    if (!need_flush)
+      DBUG_RETURN(0);
   }
 
   // Execute delete operation
@@ -4737,8 +4787,6 @@ ha_ndbcluster::flush_bulk_insert()
   DBUG_ENTER("ha_ndbcluster::flush_bulk_insert");
   DBUG_PRINT("info", ("Sending inserts to NDB, rows_inserted: %d", 
                       (int)m_rows_inserted));
-
-  m_bulk_insert_not_flushed= FALSE;
   if (m_transaction_on)
   {
     if (execute_no_commit(this,trans,FALSE) != 0)
@@ -4801,7 +4849,11 @@ int ha_ndbcluster::end_bulk_insert()
 
   DBUG_ENTER("end_bulk_insert");
   // Check if last inserts need to be flushed
-  if (m_bulk_insert_not_flushed)
+
+  THD *thd= current_thd;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  
+  if ((thd->options & OPTION_ALLOW_BATCH) == 0 && thd_ndb->m_unsent_bytes)
   {
     error= flush_bulk_insert();
     if (error != 0)
@@ -5245,7 +5297,27 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   }
 #endif /* HAVE_NDB_BINLOG */
 
-  if (execute_commit(thd,trans) != 0)
+  if (thd->options & OPTION_ALLOW_BATCH)
+  {
+    if ((res= trans->execute(Commit, AO_IgnoreError, 1)) != 0)
+    {
+      const NdbError err= trans->getNdbError();
+      if (err.classification == NdbError::ConstraintViolation ||
+	  err.classification == NdbError::NoDataFound)
+      {
+	/*
+	  This is ok...
+	*/
+	res= 0;
+      }
+    }
+  }
+  else
+  {
+    res= execute_commit(thd,trans);
+  }
+
+  if (res != 0)
   {
     const NdbError err= trans->getNdbError();
     const NdbOperation *error_op= trans->getNdbErrorOperation();
@@ -6799,7 +6871,6 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_rows_to_insert((ha_rows) 1),
   m_rows_inserted((ha_rows) 0),
   m_rows_changed((ha_rows) 0),
-  m_bulk_insert_not_flushed(FALSE),
   m_delete_cannot_batch(FALSE),
   m_update_cannot_batch(FALSE),
   m_ops_pending(0),
@@ -6810,7 +6881,6 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_blobs_buffer_size(0),
   m_row_buffer(0),
   m_row_buffer_size(0),
-  m_batch_buffer_size(8192),
   m_extra_reclength(0),
   m_ndb_record(0),
   m_ndb_record_fragment(0),
