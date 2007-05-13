@@ -4059,7 +4059,7 @@ void ha_ndbcluster::unpack_record_ndbrecord(byte *dst_row, const byte *src_row)
           /* Field_bit in DBUG requires the bit set in write_set for store(). */
           my_bitmap_map *old_map=
             dbug_tmp_use_all_columns(table, table->write_set);
-          field_bit->store(value, true);
+          IF_DBUG(int res=) field_bit->store(value, true);
           dbug_tmp_restore_column_map(table->write_set, old_map);
           DBUG_ASSERT(res == 0);
           field->move_field_offset(-dst_offset);
