@@ -574,8 +574,9 @@ public:
     tuple, and must remain valid until execute() is called.
 
     The mask, if != NULL, defines a subset of attributes to read, update, or
-    insert. It is copied by the methods, so need not remain valid after the
-    call returns.
+    insert. Only if (mask[attrId >> 3] & (1<<(attrId & 7))) is set is the
+    column affected. The mask is copied by the methods, so need not remain
+    valid after the call returns.
 
     For unique index operations, the attr_rec must refer to the underlying
     table of the index.
@@ -601,10 +602,11 @@ public:
     The result_record pointer must remain valid until after the call to
     execute().
 
-    The result_mask pointer is optional, if present only columns for which
-    the corresponding bit in result_mask is set will be retrieved in the
-    scan. The result_mask is copied internally, so in contrast to
-    result_record need not be valid at execute().
+    The result_mask pointer is optional, if present only columns for
+    which the corresponding bit (by attribute id order) in result_mask
+    is set will be retrieved in the scan. The result_mask is copied
+    internally, so in contrast to result_record need not be valid at
+    execute().
 
     The parallel argument is the desired parallelism, or 0 for maximum
     parallelism (receiving rows from all fragments in parallel).
