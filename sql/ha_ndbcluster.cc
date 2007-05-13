@@ -4059,7 +4059,7 @@ void ha_ndbcluster::unpack_record_ndbrecord(byte *dst_row, const byte *src_row)
           /* Field_bit in DBUG requires the bit set in write_set for store(). */
           my_bitmap_map *old_map=
             dbug_tmp_use_all_columns(table, table->write_set);
-          int res= field_bit->store(value, true);
+          field_bit->store(value, true);
           dbug_tmp_restore_column_map(table->write_set, old_map);
           DBUG_ASSERT(res == 0);
           field->move_field_offset(-dst_offset);
@@ -9169,7 +9169,9 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
   int reterr= 0;
   int retry_sleep= 30 * 1000; /* 30 milliseconds */
   const char *row;
+#ifndef DBUG_OFF
   char buff[22], buff2[22], buff3[22], buff4[22];
+#endif
   DBUG_ENTER("ndb_get_table_statistics");
 
   DBUG_ASSERT(record != 0);
@@ -9736,7 +9738,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
     if (uses_blob_value(table->read_set) &&
         get_blob_values(scanOp, NULL, table->read_set) != 0)
-      ERR_RETURN(op->getNdbError());
+      ERR_RETURN(scanOp->getNdbError());
 
     if (m_cond && m_cond->generate_scan_filter(scanOp))
       ERR_RETURN(scanOp->getNdbError());
