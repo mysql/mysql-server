@@ -223,6 +223,16 @@ class Thd_ndb
   List<NDB_SHARE> changed_tables;
   uint query_state;
   HASH open_tables;
+  /*
+    This is a memroot used to buffer rows for batched execution.
+    It is reset after every execute().
+  */
+  MEM_ROOT m_batch_mem_root;
+  /*
+    Estimated pending batched execution bytes, once this is > BATCH_FLUSH_SIZE
+    we execute() to flush the rows buffered in m_batch_mem_root.
+  */
+  uint m_unsent_bytes;
 };
 
 class ha_ndbcluster: public handler
@@ -490,12 +500,13 @@ private:
   void set_partition_function_value(char *row, uint32 func_value);
   uint32 get_partition_fragment(const char *row);
   void request_partition_function_value(uchar *mask);
-  void calc_batch_buffer_size();
-  int alloc_row_buffer();
-  char *copy_row_to_buffer(const byte *record);
+  char *batch_copy_row_to_buffer(Thd_ndb *thd_ndb, const byte *record,
+                                 bool & batch_full);
+  char *batch_copy_key_to_buffer(Thd_ndb *thd_ndb, const byte *key,
+                                 uint key_len,
+                                 uint op_batch_size, bool & batch_full);
+  char *copy_row_to_buffer(Thd_ndb *thd_ndb, const byte *record);
   char *get_row_buffer();
-  int batch_copy_row_to_buffer(const byte *record,
-                               char * &row, bool & buffer_full);
   void clear_extended_column_set(uchar *mask);
   uchar *copy_column_set(MY_BITMAP *bitmap);
 
@@ -594,11 +605,6 @@ private:
   char *m_row_buffer;
   uint m_row_buffer_size;
   char *m_row_buffer_current;
-  /*
-    Size of buffer to fill before sending batched rows to NDB kernel, computed
-    from a heuristic based on row size.
-  */
-  uint m_batch_buffer_size;
   /* Extra bytes needed in row for hidden fields. */
   uint m_extra_reclength;
   // NdbRecAttr has no reference to blob
@@ -615,10 +621,10 @@ private:
   ha_rows m_rows_to_insert; // TODO: merge it with handler::estimation_rows_to_insert?
   ha_rows m_rows_inserted;
   ha_rows m_rows_changed;
-  bool m_bulk_insert_not_flushed;
   bool m_delete_cannot_batch;
   bool m_update_cannot_batch;
   ha_rows m_ops_pending;
+  uint m_bytes_per_write;
   bool m_skip_auto_increment;
   bool m_blobs_pending;
   bool m_slow_path;

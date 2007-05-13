@@ -428,6 +428,7 @@ ulong thread_stack, what_to_log;
 ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_net_timeout, slave_trans_retries;
+my_bool slave_allow_batching;
 ulong thread_cache_size=0, thread_pool_size= 0;
 ulong binlog_cache_size=0, max_binlog_cache_size=0;
 ulong query_cache_size=0;
@@ -4938,7 +4939,7 @@ enum options_mysqld
   OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
   OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE,
   OPT_RELAY_LOG, OPT_RELAY_LOG_INDEX, OPT_RELAY_LOG_INFO_FILE,
-  OPT_SLAVE_SKIP_ERRORS, OPT_DES_KEY_FILE, OPT_LOCAL_INFILE,
+  OPT_SLAVE_SKIP_ERRORS, OPT_SLAVE_ALLOW_BATCHING, OPT_DES_KEY_FILE, OPT_LOCAL_INFILE,
   OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA,
   OPT_SSL_CAPATH, OPT_SSL_CIPHER,
   OPT_BACK_LOG, OPT_BINLOG_CACHE_SIZE,
@@ -6219,6 +6220,10 @@ The minimum value for this variable is 4096.",
    "before giving up and stopping.",
    (gptr*) &slave_trans_retries, (gptr*) &slave_trans_retries, 0,
    GET_ULONG, REQUIRED_ARG, 10L, 0L, (longlong) ULONG_MAX, 0, 1, 0},
+  {"slave-allow-batching", OPT_SLAVE_ALLOW_BATCHING,
+   "Allow slave to batch requests.",
+   (gptr*) &slave_allow_batching, (gptr*) &slave_allow_batching,
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
 #endif /* HAVE_REPLICATION */
   {"slow_launch_time", OPT_SLOW_LAUNCH_TIME,
    "If creating the thread takes longer than this value (in seconds), the Slow_launch_threads counter will be incremented.",
