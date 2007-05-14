@@ -737,4 +737,30 @@ SELECT GROUP_CONCAT(DISTINCT UCASE(b)) FROM t1;
 GROUP_CONCAT(DISTINCT UCASE(b))
 ONE.1,TWO.2,ONE.3
 DROP TABLE t1;
+CREATE TABLE t1( a VARCHAR( 10 ), b INT );
+INSERT INTO t1 VALUES ( repeat( 'a', 10 ), 1), 
+( repeat( 'b', 10 ), 2);
+SET group_concat_max_len = 20;
+SELECT GROUP_CONCAT( a ) FROM t1;
+GROUP_CONCAT( a )
+aaaaaaaaaa,bbbbbbbbb
+Warnings:
+Warning	1260	1 line(s) were cut by GROUP_CONCAT()
+SELECT GROUP_CONCAT( DISTINCT a ) FROM t1;
+GROUP_CONCAT( DISTINCT a )
+aaaaaaaaaa,bbbbbbbbb
+Warnings:
+Warning	1260	1 line(s) were cut by GROUP_CONCAT()
+SELECT GROUP_CONCAT( a ORDER BY b ) FROM t1;
+GROUP_CONCAT( a ORDER BY b )
+aaaaaaaaaa,bbbbbbbbb
+Warnings:
+Warning	1260	1 line(s) were cut by GROUP_CONCAT()
+SELECT GROUP_CONCAT( DISTINCT a ORDER BY b ) FROM t1;
+GROUP_CONCAT( DISTINCT a ORDER BY b )
+aaaaaaaaaa,bbbbbbbbb
+Warnings:
+Warning	1260	1 line(s) were cut by GROUP_CONCAT()
+SET group_concat_max_len = DEFAULT;
+DROP TABLE t1;
 End of 5.0 tests
