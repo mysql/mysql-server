@@ -1164,8 +1164,9 @@ static int mysql_test_update(Prepared_statement *stmt,
     goto error;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  /* TABLE_LIST contain right privilages request */
-  want_privilege= table_list->grant.want_privilege;
+  /* Force privilege re-checking for views after they have been opened. */
+  want_privilege= (table_list->view ? UPDATE_ACL :
+                   table_list->grant.want_privilege);
 #endif
 
   if (mysql_prepare_update(thd, table_list, &select->where,
