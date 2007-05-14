@@ -777,7 +777,7 @@ ha_ndbcluster::batch_copy_key_to_buffer(Thd_ndb *thd_ndb, const byte *key,
                                         uint key_len,
                                         uint op_batch_size, bool & batch_full)
 {
-  char *row= alloc_batch_row(thd_ndb, key_len);;
+  char *row= alloc_batch_row(thd_ndb, key_len);
   if (unlikely(!row))
     return NULL;
   memcpy(row, key, key_len);
@@ -893,8 +893,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
   /*
     Now read all blob data.
     If we know the destination mysqld row, we also set the blob null bit and
-    pointer/length (if not, it will be done instead in
-    unpack_record_ndbrecord()).
+    pointer/length (if not, it will be done instead in unpack_record()).
   */
   uint32 offset= 0;
   for (uint i= 0; i < ha->table->s->fields; i++)
@@ -958,7 +957,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
 
   If dst_record is specified, the blob null bit, pointer, and length will be
   set in that record. Otherwise they must be set later by calling
-  unpack_record_ndbrecord().
+  unpack_record().
 */
 int
 ha_ndbcluster::get_blob_values(NdbOperation *ndb_op, byte *dst_record,
@@ -2607,7 +2606,7 @@ inline int ha_ndbcluster::next_result(byte *buf)
         m_part_id= get_partition_fragment(m_next_row);
     }
 
-    unpack_record_ndbrecord(buf, m_next_row);
+    unpack_record(buf, m_next_row);
     table->status= 0;
     DBUG_RETURN(0);
   }
@@ -3255,7 +3254,7 @@ int ha_ndbcluster::ndb_write_row(byte *record, bool primary_key_update,
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   uint32 part_id;
   char *row;
-  bool need_flush;
+  bool need_execute;
   int error;
   DBUG_ENTER("ha_ndbcluster::ndb_write_row");
 
@@ -3310,8 +3309,8 @@ int ha_ndbcluster::ndb_write_row(byte *record, bool primary_key_update,
   if ((m_rows_to_insert > 1 && !uses_blobs) || batched_update ||
       ( (thd->options & OPTION_ALLOW_BATCH) && !(uses_blobs && m_use_write)))
   {
-    /* This sets row and need_flush (output parameters). */
-    row= batch_copy_row_to_buffer(thd_ndb, record, need_flush);
+    /* This sets row and need_execute (output parameters). */
+    row= batch_copy_row_to_buffer(thd_ndb, record, need_execute);
     DBUG_PRINT("info", ("allocating buffer for bulk insert, "
                         "m_rows_to_insert=%d write_set=0x%x",
                         (int)m_rows_to_insert, table->write_set->bitmap[0]));
@@ -3321,12 +3320,12 @@ int ha_ndbcluster::ndb_write_row(byte *record, bool primary_key_update,
   else
   {
     DBUG_PRINT("info", ("Non-bulk insert."));
-    need_flush= TRUE;
+    need_execute= TRUE;
     if (table_share->primary_key == MAX_KEY || m_use_partition_function)
     {
       DBUG_PRINT("info", ("Getting single buffer for oversize record."));
       row= copy_row_to_buffer(thd_ndb, record);
-      if (!row)
+      if (unlikely(!row))
         DBUG_RETURN(ER_OUTOFMEMORY);
     }
     else
@@ -3452,7 +3451,7 @@ int ha_ndbcluster::ndb_write_row(byte *record, bool primary_key_update,
   */
   m_rows_inserted++;
   no_uncommitted_rows_update(1);
-  if (need_flush || primary_key_update)
+  if (need_execute || primary_key_update)
   {
     int res= flush_bulk_insert();
     if (res != 0)
@@ -3636,7 +3635,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   {
     /* For a scan, we only need to execute() if the batch buffer is full. */
     row= batch_copy_row_to_buffer(thd_ndb, new_data, need_execute);
-    if (!row)
+    if (unlikely(!row))
       DBUG_RETURN(ER_OUTOFMEMORY);
   }
   else
@@ -3645,7 +3644,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
     if (m_use_partition_function)
     {
       row= copy_row_to_buffer(thd_ndb, new_data);
-      if (!row)
+      if (unlikely(!row))
         DBUG_RETURN(ER_OUTOFMEMORY);
     }
     else
@@ -3815,7 +3814,7 @@ int ha_ndbcluster::ndb_delete_row(const byte *record, bool primary_key_update)
        7. The delete of the second tuple now fails, as the transaction has
           been aborted.
     */
-    bool need_flush;
+    bool need_execute;
     if ((thd->options & OPTION_ALLOW_BATCH) &&
         table_share->primary_key != MAX_KEY)
     {
@@ -3824,12 +3823,12 @@ int ha_ndbcluster::ndb_delete_row(const byte *record, bool primary_key_update)
       */
       uint delete_size= 12 + m_bytes_per_write >> 2;
       key_row= batch_copy_key_to_buffer(thd_ndb, key_row, key_len,
-                                        delete_size, need_flush);
+                                        delete_size, need_execute);
       if (unlikely(!key_row))
         DBUG_RETURN(ER_OUTOFMEMORY);
     }
     else
-      need_flush= TRUE;
+      need_execute= TRUE;
 
     if (!(op=trans->deleteTuple(key_rec, key_row)))
       ERR_RETURN(trans->getNdbError());
@@ -3841,7 +3840,7 @@ int ha_ndbcluster::ndb_delete_row(const byte *record, bool primary_key_update)
 
     eventSetAnyValue(thd, op);
 
-    if (!need_flush)
+    if (!need_execute)
       DBUG_RETURN(0);
   }
 
@@ -3854,174 +3853,6 @@ int ha_ndbcluster::ndb_delete_row(const byte *record, bool primary_key_update)
 }
   
 /*
-  Unpack a record read from NDB 
-
-  SYNOPSIS
-    ndb_unpack_record()
-    buf                 Buffer to store read row
-
-  NOTE
-    The data for each row is read directly into the
-    destination buffer. This function is primarily 
-    called in order to check if any fields should be 
-    set to null.
-*/
-
-void ndb_unpack_record(TABLE *table, NdbValue *value,
-                       MY_BITMAP *defined, byte *buf)
-{
-  Field **p_field= table->field, *field= *p_field;
-  my_ptrdiff_t row_offset= (my_ptrdiff_t) (buf - table->record[0]);
-  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
-  DBUG_ENTER("ndb_unpack_record");
-
-  /*
-    Set the filler bits of the null byte, since they are
-    not touched in the code below.
-    
-    The filler bits are the MSBs in the last null byte
-  */ 
-  if (table->s->null_bytes > 0)
-       buf[table->s->null_bytes - 1]|= 256U - (1U <<
-					       table->s->last_null_bit_pos);
-  /*
-    Set null flag(s)
-  */
-  for ( ; field;
-       p_field++, value++, field= *p_field)
-  {
-    field->set_notnull(row_offset);       
-    if ((*value).ptr)
-    {
-      if (!(field->flags & BLOB_FLAG))
-      {
-        int is_null= (*value).rec->isNULL();
-        if (is_null)
-        {
-          if (is_null > 0)
-          {
-	    DBUG_PRINT("info",("[%u] NULL",
-                               (*value).rec->getColumn()->getColumnNo()));
-            field->set_null(row_offset);
-          }
-          else
-          {
-            DBUG_PRINT("info",("[%u] UNDEFINED",
-                               (*value).rec->getColumn()->getColumnNo()));
-            bitmap_clear_bit(defined,
-                             (*value).rec->getColumn()->getColumnNo());
-          }
-        }
-        else if (field->type() == MYSQL_TYPE_BIT)
-        {
-          Field_bit *field_bit= static_cast<Field_bit*>(field);
-
-          /*
-            Move internal field pointer to point to 'buf'.  Calling
-            the correct member function directly since we know the
-            type of the object.
-           */
-          field_bit->Field_bit::move_field_offset(row_offset);
-          if (field->pack_length() < 5)
-          {
-            DBUG_PRINT("info", ("bit field H'%.8X", 
-                                (*value).rec->u_32_value()));
-            field_bit->Field_bit::store((longlong) (*value).rec->u_32_value(),
-                                        FALSE);
-          }
-          else
-          {
-            DBUG_PRINT("info", ("bit field H'%.8X%.8X",
-                                *(Uint32 *)(*value).rec->aRef(),
-                                *((Uint32 *)(*value).rec->aRef()+1)));
-#ifdef WORDS_BIGENDIAN
-            /* lsw is stored first */
-            Uint32 *buf= (Uint32 *)(*value).rec->aRef();
-            field_bit->Field_bit::store((((longlong)*buf)
-                                         & 0x000000000FFFFFFFFLL)
-                                        |
-                                        ((((longlong)*(buf+1)) << 32)
-                                         & 0xFFFFFFFF00000000LL),
-                                        TRUE);
-#else
-            field_bit->Field_bit::store((longlong)
-                                        (*value).rec->u_64_value(), TRUE);
-#endif
-          }
-          /*
-            Move back internal field pointer to point to original
-            value (usually record[0]).
-           */
-          field_bit->Field_bit::move_field_offset(-row_offset);
-          DBUG_PRINT("info",("[%u] SET",
-                             (*value).rec->getColumn()->getColumnNo()));
-          DBUG_DUMP("info", (const char*) field->ptr, field->pack_length());
-        }
-        else
-        {
-          DBUG_PRINT("info",("[%u] SET",
-                             (*value).rec->getColumn()->getColumnNo()));
-          DBUG_DUMP("info", (const char*) field->ptr, field->pack_length());
-        }
-      }
-      else
-      {
-        NdbBlob *ndb_blob= (*value).blob;
-        uint col_no = ndb_blob->getColumn()->getColumnNo();
-        int isNull;
-        ndb_blob->getDefined(isNull);
-        if (isNull == 1)
-        {
-          DBUG_PRINT("info",("[%u] NULL", col_no));
-          field->set_null(row_offset);
-        }
-        else if (isNull == -1)
-        {
-          DBUG_PRINT("info",("[%u] UNDEFINED", col_no));
-          bitmap_clear_bit(defined, col_no);
-        }
-        else
-        {
-#ifndef DBUG_OFF
-          // pointer vas set in get_ndb_blobs_value
-          Field_blob *field_blob= (Field_blob*)field;
-          char* ptr;
-          field_blob->get_ptr(&ptr, row_offset);
-          uint32 len= field_blob->get_length(row_offset);
-          DBUG_PRINT("info",("[%u] SET ptr: 0x%lx  len: %u",
-                             col_no, (long) ptr, len));
-#endif
-        }
-      }
-    }
-  }
-  dbug_tmp_restore_column_map(table->write_set, old_map);
-  DBUG_VOID_RETURN;
-}
-
-void ha_ndbcluster::unpack_record(byte *buf)
-{
-  ndb_unpack_record(table, m_value, 0, buf);
-#ifndef DBUG_OFF
-  // Read and print all values that was fetched
-  if (table_share->primary_key == MAX_KEY)
-  {
-    // Table with hidden primary key
-    int hidden_no= table_share->fields;
-    const NDBTAB *tab= m_table;
-    char buff[22];
-    const NDBCOL *hidden_col= tab->getColumn(hidden_no);
-    const NdbRecAttr* rec= m_value[hidden_no].rec;
-    DBUG_ASSERT(rec);
-    DBUG_PRINT("hidden", ("%d: %s \"%s\"", hidden_no,
-			  hidden_col->getName(),
-                          llstr(rec->u_64_value(), buff)));
-  }
-  //DBUG_EXECUTE("value", print_results(););
-#endif
-}
-
-/*
   Unpack a record returned from a scan.
   We copy field-for-field to
    1. Avoid unnecessary copying for sparse rows.
@@ -4029,7 +3860,7 @@ void ha_ndbcluster::unpack_record(byte *buf)
   Note that we do not unpack all returned rows; some primary/unique key
   operations can read directly into the destination row.
 */
-void ha_ndbcluster::unpack_record_ndbrecord(byte *dst_row, const byte *src_row)
+void ha_ndbcluster::unpack_record(byte *dst_row, const byte *src_row)
 {
   int res;
   DBUG_ASSERT(src_row != NULL);
@@ -4088,26 +3919,31 @@ void ha_ndbcluster::unpack_record_ndbrecord(byte *dst_row, const byte *src_row)
       }
       else
       {
+        field->move_field_offset(src_offset);
         /* Normal field (not blob or bit type). */
-        if (!field->is_null_in_record_with_offset(src_offset))
+        if (!field->is_null())
         {
-          char *src_ptr= field->ptr + src_offset;
-          /*
-            Hm, can't use the offset argument of set_notnull(), as it
-            is of type int, not my_ptrdiff_t (so could fail if
-            sizeof(int) < sizeof(char *)). Maybe this should really
-            be fixed in field.h?
-          */
-          field->move_field_offset(dst_offset);
+          /* Only copy actually used bytes of varstrings. */
+          uint32 actual_length= field->used_length();
+          char *src_ptr= field->ptr;
+          field->move_field_offset(dst_offset - src_offset);
           field->set_notnull();
+          memcpy(field->ptr, src_ptr, actual_length);
+#ifdef HAVE_purify
           /*
-            ToDo: For varchar, maybe copy only the actually used bytes.
-            Unfortunately, there seems to me no suitable method to get this
-            actual size from field::*, so would need to check types explicitly.
+            We get Valgrind warnings on uninitialised padding bytes in
+            varstrings, for example when writing rows to temporary tables.
+            So for valgrind builds we pad with zeros, not needed for
+            production code.
           */
-          memcpy(field->ptr, src_ptr, field->pack_length());
+          if (actual_length < field->pack_length())
+            bzero(field->ptr + actual_length,
+                  field->pack_length() - actual_length);
+#endif
           field->move_field_offset(-dst_offset);
         }
+        else
+          field->move_field_offset(-src_offset);
         /* No action needed for a NULL field. */
       }
     }
@@ -9735,9 +9571,11 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       ERR_RETURN(m_active_trans->getNdbError());
     m_active_cursor= scanOp;
 
-    if (uses_blob_value(table->read_set) &&
-        get_blob_values(scanOp, NULL, table->read_set) != 0)
-      ERR_RETURN(scanOp->getNdbError());
+    /*
+      We do not get_blob_values() here, as when using blobs we always
+      fallback to non-batched multi range read (see if statement at
+      top of this function).
+    */
 
     if (m_cond && m_cond->generate_scan_filter(scanOp))
       ERR_RETURN(scanOp->getNdbError());
@@ -9855,7 +9693,7 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
             if (m_use_partition_function)
               m_part_id= get_partition_fragment(m_next_row);
           }
-          unpack_record_ndbrecord(table->record[0], m_next_row);
+          unpack_record(table->record[0], m_next_row);
           /*
             Mark that we have used this row, so we need to fetch a new
             one on the next call.
