@@ -1341,6 +1341,38 @@ public:
 				   void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
 
   /**
+   * Start a transaction, specifying table+partition as hint for
+   *  TC-selection
+   *
+   */
+  NdbTransaction* startTransaction(const NdbDictionary::Table* table,
+                                   Uint32 partitionId);
+
+  /**
+   * Compute hash value given table/keys
+   *
+   * @param  hashvalueptr - OUT, is set to hashvalue if return value is 0
+   * @param  table    Pointer to table object
+   * @param  keyData  Null-terminated array of pointers to keyParts that is 
+   *                  part of distribution key.
+   *                  Length of resp. keyPart will be read from
+   *                  metadata and checked against passed value
+   * @param  xfrmbuf  Pointer to temporary buffer that will be used
+   *                  to calculate hashvalue
+   * @param  xfrmbuflen Lengh of buffer
+   *
+   * @note if xfrmbuf is null (default) malloc/free will be made
+   *       if xfrmbuf is not null but length is too short, method will fail
+   *
+   * @return 0 - ok - hashvalueptr is set
+   *         else - fail, with error code set
+   */
+  int computeHash(Uint32* hashvalueptr,
+                  const NdbDictionary::Table*, 
+                  const struct Key_part_ptr * keyData,
+                  void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
+  
+  /**
    * Close a transaction.
    *
    * @note should be called after the transaction has completed, irrespective
@@ -1798,6 +1830,28 @@ private:
 #ifdef VM_TRACE
   void printState(const char* fmt, ...);
 #endif
+
+  friend void
+  set_distribution_key_from_range(class NdbIndexScanOperation *op,
+                                  const class NdbRecord *record,
+                                  const char *row,
+                                  Uint32 distkey_max);
+
+  static int computeHash(NdbError*, Uint32* hashvalueptr,
+                         const NdbDictionary::Table*, 
+                         const struct Key_part_ptr * keyData,
+                         void* xfrmbuf, Uint32 xfrmbuflen);
 };
+
+inline
+int 
+Ndb::computeHash(Uint32* hashvalueptr,
+                 const NdbDictionary::Table* table, 
+                 const struct Key_part_ptr * keyData,
+                 void* xfrmbuf, Uint32 xfrmbuflen)
+{
+  return Ndb::computeHash(&theError, hashvalueptr, table, keyData,
+                          xfrmbuf, xfrmbuflen);
+}
 
 #endif

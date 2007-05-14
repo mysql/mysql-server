@@ -25,6 +25,7 @@
 #include <signaldata/TcKeyReq.hpp>
 #include <NdbEventOperationImpl.hpp>
 #include <NdbEnv.h>
+#include "NdbRecord.hpp"
 
 /*
  * Reading index table directly (as a table) is faster but there are

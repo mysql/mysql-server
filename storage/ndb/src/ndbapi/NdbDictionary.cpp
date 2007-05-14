@@ -771,6 +771,30 @@ NdbDictionary::Table::validate(NdbError& error)
   return m_impl.validate(error);
 }
 
+Uint32
+NdbDictionary::Table::getPartitionId(Uint32 hashValue) const
+{
+  switch (m_impl.m_fragmentType){
+  case NdbDictionary::Object::FragAllSmall:
+  case NdbDictionary::Object::FragAllMedium:
+  case NdbDictionary::Object::FragAllLarge:
+  case NdbDictionary::Object::FragSingle:
+  case NdbDictionary::Object::DistrKeyLin:
+  {
+    Uint32 fragmentId = hashValue & m_impl.m_hashValueMask;
+    if(fragmentId < m_impl.m_hashpointerValue) 
+      fragmentId = hashValue & ((m_impl.m_hashValueMask << 1) + 1);
+    return fragmentId;
+  }
+  case NdbDictionary::Object::DistrKeyHash:
+  {
+    Uint32 cnt = m_impl.m_fragmentCount;
+    return hashValue % (cnt ? cnt : 1);
+  }
+  default:
+    return 0;
+  }
+}
 
 /*****************************************************************
  * Index facade
