@@ -134,6 +134,8 @@ trx_create(
 
 	trx->mysql_thd = NULL;
 	trx->mysql_query_str = NULL;
+	trx->active_trans = 0;
+	trx->duplicates = 0;
 
 	trx->n_mysql_tables_in_use = 0;
 	trx->mysql_n_tables_locked = 0;
@@ -1902,7 +1904,7 @@ Does the transaction prepare for MySQL. */
 
 ulint
 trx_prepare_for_mysql(
-/*====-=============*/
+/*==================*/
 			/* out: 0 or error number */
 	trx_t*	trx)	/* in: trx handle */
 {

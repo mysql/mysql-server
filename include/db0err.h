@@ -66,6 +66,11 @@ Created 5/24/1996 Heikki Tuuri
 					it is needed on foreign key 
 					constraint */
 
+#define DB_TOO_MANY_CONCURRENT_TRXS 47	/* when InnoDB runs out of the
+					preconfigured undo slots, this can
+					only happen when there are too many
+					concurrent transactions */
+
 /* The following are partial failure codes */
 #define DB_FAIL			1000
 #define DB_OVERFLOW		1001

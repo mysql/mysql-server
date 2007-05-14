@@ -19,6 +19,8 @@ Created 5/30/1994 Heikki Tuuri
 #include "dict0dict.h"
 #include "btr0cur.h"
 
+#include <ctype.h>
+
 #ifdef UNIV_DEBUG
 byte	data_error;	/* data pointers of tuple fields are initialized
 			to point here for error checking */
