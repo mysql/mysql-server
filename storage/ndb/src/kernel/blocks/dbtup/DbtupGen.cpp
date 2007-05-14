@@ -102,6 +102,10 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
   addRecSignal(GSN_ACCKEYREF, &Dbtup::execACCKEYREF);
   addRecSignal(GSN_ACC_ABORTCONF, &Dbtup::execACC_ABORTCONF);
 
+  // Drop table
+  addRecSignal(GSN_FSREMOVEREF, &Dbtup::execFSREMOVEREF, true);
+  addRecSignal(GSN_FSREMOVECONF, &Dbtup::execFSREMOVECONF, true);
+
   attrbufrec = 0;
   fragoperrec = 0;
   fragrecord = 0;
