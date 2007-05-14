@@ -135,6 +135,11 @@ st_select_lex_unit::init_prepare_fake_select_lex(THD *thd)
   fake_select_lex->table_list.link_in_list((byte *)&result_table_list,
 					   (byte **)
 					   &result_table_list.next);
+  for (ORDER *order= (ORDER *) global_parameters->order_list.first;
+       order;
+       order= order->next)
+    order->item= &order->item_ptr;
+
   return options_tmp;
 }
 
