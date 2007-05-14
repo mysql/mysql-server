@@ -2731,18 +2731,25 @@ int ha_ndbcluster::write_row(byte *record)
   {
     // Table has hidden primary key
     Ndb *ndb= get_ndb();
-    int ret;
     Uint64 auto_value;
     uint retries= NDB_AUTO_INCREMENT_RETRIES;
-    do {
+    int retry_sleep= 30; /* 30 milliseconds, transaction */
+    for (;;)
+    {
       Ndb_tuple_id_range_guard g(m_share);
-      ret= ndb->getAutoIncrementValue(m_table, g.range, auto_value, 1);
-    } while (ret == -1 && 
-             --retries &&
-             ndb->getNdbError().status == NdbError::TemporaryError);
-    if (ret == -1)
-      ERR_RETURN(ndb->getNdbError());
-    if (set_hidden_key(op, table_share->fields, (const byte*)&auto_value))
+      if (ndb->getAutoIncrementValue(m_table, g.range, auto_value, 1) == -1)
+      {
+        if (--retries &&
+            ndb->getNdbError().status == NdbError::TemporaryError);
+        {
+          my_sleep(retry_sleep);
+          continue;
+        }
+        ERR_RETURN(ndb->getNdbError());
+      }
+      break;
+    }
+    if (set_hidden_key(op, table->s->fields, (const byte*)&auto_value))
       ERR_RETURN(op->getNdbError());
   } 
   else 
@@ -6064,24 +6071,27 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
            m_rows_to_insert - m_rows_inserted :
            ((m_rows_to_insert > m_autoincrement_prefetch) ?
             m_rows_to_insert : m_autoincrement_prefetch));
-  int ret;
   uint retries= NDB_AUTO_INCREMENT_RETRIES;
-  do {
-    Ndb_tuple_id_range_guard g(m_share);
-    ret=
-      m_skip_auto_increment ? 
-      ndb->readAutoIncrementValue(m_table, g.range, auto_value) :
-      ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size);
-  } while (ret == -1 && 
-           --retries &&
-           ndb->getNdbError().status == NdbError::TemporaryError);
-  if (ret == -1)
+  int retry_sleep= 30; /* 30 milliseconds, transaction */
+  for (;;)
   {
-    const NdbError err= ndb->getNdbError();
-    sql_print_error("Error %lu in ::get_auto_increment(): %s",
-                    (ulong) err.code, err.message);
-    *first_value= ~(ulonglong) 0;
-    DBUG_VOID_RETURN;
+    Ndb_tuple_id_range_guard g(m_share);
+    if (m_skip_auto_increment &&
+        ndb->readAutoIncrementValue(m_table, g.range, auto_value) ||
+        ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size))
+    {
+      if (--retries &&
+          ndb->getNdbError().status == NdbError::TemporaryError);
+      {
+        my_sleep(retry_sleep);
+        continue;
+      }
+      const NdbError err= ndb->getNdbError();
+      sql_print_error("Error %lu in ::get_auto_increment(): %s",
+                      (ulong) err.code, err.message);
+      DBUG_RETURN(~(ulonglong) 0);
+    }
+    break;
   }
   *first_value= (longlong)auto_value;
   /* From the point of view of MySQL, NDB reserves one row at a time */
