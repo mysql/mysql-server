@@ -1773,6 +1773,24 @@ trx_print(
 	}
 }
 
+/***********************************************************************
+Compares the "weight" (or size) of two transactions. The weight of one
+transaction is estimated as the number of altered rows + the number of
+locked rows. */
+
+int
+trx_weight_cmp(
+/*===========*/
+			/* out: <0, 0 or >0; similar to strcmp(3) */
+	trx_t*	a,	/* in: the first transaction to be compared */
+	trx_t*	b)	/* in: the second transaction to be compared */
+{
+#define TRX_WEIGHT(t)	\
+	ut_dulint_add((t)->undo_no, UT_LIST_GET_LEN((t)->trx_locks))
+
+	return(ut_dulint_cmp(TRX_WEIGHT(a), TRX_WEIGHT(b)));
+}
+
 /********************************************************************
 Prepares a transaction. */
 
