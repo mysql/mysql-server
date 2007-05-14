@@ -488,7 +488,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   Name_resolution_context_state ctx_state;
 #ifndef EMBEDDED_LIBRARY
   char *query= thd->query;
-#endif
   /*
     log_on is about delayed inserts only.
     By default, both logs are enabled (this won't cause problems if the server
@@ -496,6 +495,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   */
   bool log_on= ((thd->options & OPTION_BIN_LOG) ||
                 (!(thd->security_ctx->master_access & SUPER_ACL)));
+#endif
   thr_lock_type lock_type = table_list->lock_type;
   Item *unused_conds= 0;
   DBUG_ENTER("mysql_insert");
