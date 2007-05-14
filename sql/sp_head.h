@@ -379,7 +379,7 @@ public:
       the substatements not).
     */
     if (m_flags & BINLOG_ROW_BASED_IF_MIXED)
-      lex->binlog_row_based_if_mixed= TRUE;
+      lex->set_stmt_unsafe();
   }
 
 
