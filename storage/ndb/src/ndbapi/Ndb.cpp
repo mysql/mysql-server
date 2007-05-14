@@ -306,7 +306,8 @@ Return Value:   Returns a pointer to a connection object.
 Remark:         Start transaction. Synchronous.
 *****************************************************************************/ 
 int
-Ndb::computeHash(Uint32 *retval,
+Ndb::computeHash(NdbError* theError,
+                 Uint32 *retval,
                  const NdbDictionary::Table *table,
                  const struct Key_part_ptr * keyData, 
                  void* buf, Uint32 bufLen)
@@ -456,34 +457,34 @@ Ndb::computeHash(Uint32 *retval,
   return 0;
   
 enullptr:
-  theError.code = 4316;
+  theError->code = 4316;
   return -1;
   
 emissingnullptr:
-  theError.code = 4276;
+  theError->code = 4276;
   return -1;
 
 elentosmall:
-  theError.code = 4277;
+  theError->code = 4277;
   return -1;
 
 ebuftosmall:
-  theError.code = 4278;
+  theError->code = 4278;
   return -1;
 
 emalformedstring:
   if (bufLen == 0)
     free(buf);
   
-  theError.code = 4279;
+  theError->code = 4279;
   return -1;
   
 emalformedkey:
-  theError.code = 4280;
+  theError->code = 4280;
   return -1;
 
 enomem:
-  theError.code = 4000;
+  theError->code = 4000;
   return -1;
 
 }

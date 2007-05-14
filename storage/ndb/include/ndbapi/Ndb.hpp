@@ -1830,6 +1830,28 @@ private:
 #ifdef VM_TRACE
   void printState(const char* fmt, ...);
 #endif
+
+  friend void
+  set_distribution_key_from_range(class NdbIndexScanOperation *op,
+                                  const class NdbRecord *record,
+                                  const char *row,
+                                  Uint32 distkey_max);
+
+  static int computeHash(NdbError*, Uint32* hashvalueptr,
+                         const NdbDictionary::Table*, 
+                         const struct Key_part_ptr * keyData,
+                         void* xfrmbuf, Uint32 xfrmbuflen);
 };
+
+inline
+int 
+Ndb::computeHash(Uint32* hashvalueptr,
+                 const NdbDictionary::Table* table, 
+                 const struct Key_part_ptr * keyData,
+                 void* xfrmbuf, Uint32 xfrmbuflen)
+{
+  return Ndb::computeHash(&theError, hashvalueptr, table, keyData,
+                          xfrmbuf, xfrmbuflen);
+}
 
 #endif
