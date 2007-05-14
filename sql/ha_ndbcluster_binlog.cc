@@ -3145,6 +3145,152 @@ ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
 ********************************************************************/
 
 /*
+  Unpack a record read from NDB 
+
+  SYNOPSIS
+    ndb_unpack_record()
+    buf                 Buffer to store read row
+
+  NOTE
+    The data for each row is read directly into the
+    destination buffer. This function is primarily 
+    called in order to check if any fields should be 
+    set to null.
+*/
+
+static void ndb_unpack_record(TABLE *table, NdbValue *value,
+                              MY_BITMAP *defined, byte *buf)
+{
+  Field **p_field= table->field, *field= *p_field;
+  my_ptrdiff_t row_offset= (my_ptrdiff_t) (buf - table->record[0]);
+  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
+  DBUG_ENTER("ndb_unpack_record");
+
+  /*
+    Set the filler bits of the null byte, since they are
+    not touched in the code below.
+    
+    The filler bits are the MSBs in the last null byte
+  */ 
+  if (table->s->null_bytes > 0)
+       buf[table->s->null_bytes - 1]|= 256U - (1U <<
+					       table->s->last_null_bit_pos);
+  /*
+    Set null flag(s)
+  */
+  for ( ; field;
+       p_field++, value++, field= *p_field)
+  {
+    field->set_notnull(row_offset);       
+    if ((*value).ptr)
+    {
+      if (!(field->flags & BLOB_FLAG))
+      {
+        int is_null= (*value).rec->isNULL();
+        if (is_null)
+        {
+          if (is_null > 0)
+          {
+	    DBUG_PRINT("info",("[%u] NULL",
+                               (*value).rec->getColumn()->getColumnNo()));
+            field->set_null(row_offset);
+          }
+          else
+          {
+            DBUG_PRINT("info",("[%u] UNDEFINED",
+                               (*value).rec->getColumn()->getColumnNo()));
+            bitmap_clear_bit(defined,
+                             (*value).rec->getColumn()->getColumnNo());
+          }
+        }
+        else if (field->type() == MYSQL_TYPE_BIT)
+        {
+          Field_bit *field_bit= static_cast<Field_bit*>(field);
+
+          /*
+            Move internal field pointer to point to 'buf'.  Calling
+            the correct member function directly since we know the
+            type of the object.
+           */
+          field_bit->Field_bit::move_field_offset(row_offset);
+          if (field->pack_length() < 5)
+          {
+            DBUG_PRINT("info", ("bit field H'%.8X", 
+                                (*value).rec->u_32_value()));
+            field_bit->Field_bit::store((longlong) (*value).rec->u_32_value(),
+                                        FALSE);
+          }
+          else
+          {
+            DBUG_PRINT("info", ("bit field H'%.8X%.8X",
+                                *(Uint32 *)(*value).rec->aRef(),
+                                *((Uint32 *)(*value).rec->aRef()+1)));
+#ifdef WORDS_BIGENDIAN
+            /* lsw is stored first */
+            Uint32 *buf= (Uint32 *)(*value).rec->aRef();
+            field_bit->Field_bit::store((((longlong)*buf)
+                                         & 0x000000000FFFFFFFFLL)
+                                        |
+                                        ((((longlong)*(buf+1)) << 32)
+                                         & 0xFFFFFFFF00000000LL),
+                                        TRUE);
+#else
+            field_bit->Field_bit::store((longlong)
+                                        (*value).rec->u_64_value(), TRUE);
+#endif
+          }
+          /*
+            Move back internal field pointer to point to original
+            value (usually record[0]).
+           */
+          field_bit->Field_bit::move_field_offset(-row_offset);
+          DBUG_PRINT("info",("[%u] SET",
+                             (*value).rec->getColumn()->getColumnNo()));
+          DBUG_DUMP("info", (const char*) field->ptr, field->pack_length());
+        }
+        else
+        {
+          DBUG_PRINT("info",("[%u] SET",
+                             (*value).rec->getColumn()->getColumnNo()));
+          DBUG_DUMP("info", (const char*) field->ptr, field->pack_length());
+        }
+      }
+      else
+      {
+        NdbBlob *ndb_blob= (*value).blob;
+        uint col_no = ndb_blob->getColumn()->getColumnNo();
+        int isNull;
+        ndb_blob->getDefined(isNull);
+        if (isNull == 1)
+        {
+          DBUG_PRINT("info",("[%u] NULL", col_no));
+          field->set_null(row_offset);
+        }
+        else if (isNull == -1)
+        {
+          DBUG_PRINT("info",("[%u] UNDEFINED", col_no));
+          bitmap_clear_bit(defined, col_no);
+        }
+        else
+        {
+#ifndef DBUG_OFF
+          // pointer vas set in get_ndb_blobs_value
+          Field_blob *field_blob= (Field_blob*)field;
+          char* ptr;
+          field_blob->get_ptr(&ptr, row_offset);
+          uint32 len= field_blob->get_length(row_offset);
+          DBUG_PRINT("info",("[%u] SET ptr: 0x%lx  len: %u",
+                             col_no, (long) ptr, len));
+#endif
+        }
+      }
+    }
+  }
+  dbug_tmp_restore_column_map(table->write_set, old_map);
+  DBUG_VOID_RETURN;
+}
+
+/*
   Handle error states on events from the storage nodes
 */
 static int ndb_binlog_thread_handle_error(Ndb *ndb, NdbEventOperation *pOp,
