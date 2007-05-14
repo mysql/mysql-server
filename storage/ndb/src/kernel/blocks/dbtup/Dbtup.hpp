@@ -1098,6 +1098,8 @@ ArrayPool<TupTriggerData> c_triggerPool;
     struct {
       Uint32 tabUserPtr;
       Uint32 tabUserRef;
+      Uint32 m_lcpno;
+      Uint32 m_fragPtrI;
     } m_dropTable;
     State tableStatus;
   };  
@@ -1713,6 +1715,11 @@ private:
   void execACCKEYREF(Signal* signal);
   void execACC_ABORTCONF(Signal* signal);
 
+
+  // Drop table
+  void execFSREMOVEREF(Signal*);
+  void execFSREMOVECONF(Signal*);
+  
 //------------------------------------------------------------------
 //------------------------------------------------------------------
 // Methods to handle execution of TUPKEYREQ + ATTRINFO.
@@ -2784,7 +2791,9 @@ private:
   void drop_fragment_free_extent_log_buffer_callback(Signal*, Uint32, Uint32);
   void drop_fragment_unmap_pages(Signal*, TablerecPtr, FragrecordPtr, Uint32);
   void drop_fragment_unmap_page_callback(Signal* signal, Uint32, Uint32);
-  
+  void drop_fragment_fsremove(Signal*, TablerecPtr, FragrecordPtr);
+  void drop_fragment_fsremove_done(Signal*, TablerecPtr, FragrecordPtr);
+
   // Initialisation
   void initData();
   void initRecords();
