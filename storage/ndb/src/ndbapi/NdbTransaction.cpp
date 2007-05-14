@@ -2437,33 +2437,39 @@ compare_index_row_prefix(const NdbRecord *rec,
   return 0;
 }
 
-static void
+void
 set_distribution_key_from_range(NdbIndexScanOperation *op,
                                 const NdbRecord *record,
                                 const char *row,
                                 Uint32 distkey_max)
 {
   Uint64 tmp[1000];
-  char *dst= (char *)(&tmp[0]);
+  Ndb::Key_part_ptr ptrs[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1];
   Uint32 i;
-  Uint32 len, padded_len, total_len;
-
-  total_len= 0;
-  for (i= 0; i<record->distkey_index_length; i++)
+  for (i = 0; i<record->distkey_index_length; i++)
   {
     const NdbRecord::Attr *col= &record->columns[record->distkey_indexes[i]];
-    /* Distribution key cannot be NULL. */
-    col->get_var_length(row, len);
-    padded_len= (len+3)&~3;
-    total_len+= padded_len;
-    if (total_len > sizeof(tmp))
-      break;
-    memcpy(dst, row + col->offset, len);
-    if (padded_len != len)
-      bzero(dst + len, padded_len - len);
-    dst+= padded_len;
+    ptrs[i].ptr = row + col->offset;
+    ptrs[i].len = col->maxSize;
   }
-  op->setPartitionHash(tmp, total_len>>2);
+  ptrs[i].ptr = 0;
+  
+  Uint32 hashValue;
+  NdbError err;
+  int ret = Ndb::computeHash(&err, &hashValue, 
+                             record->base_table, 
+                             ptrs, tmp, sizeof(tmp));
+  if (ret == 0)
+  {
+    op->setPartitionId(record->base_table->getPartitionId(hashValue));
+  }
+#ifdef VM_TRACE
+  else
+  {
+    ndbout << "err: " << err.code << endl;
+    assert(false);
+  }
+#endif
 }
 
 NdbIndexScanOperation *
