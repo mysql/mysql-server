@@ -733,4 +733,15 @@ k	a	c
 11	15	1
 12	20	1
 drop table t2;
+drop table if exists t1, t2;
+create table t1 (i int);
+alter table t1 modify i int default 1;
+alter table t1 modify i int default 2, rename t2;
+lock table t2 write;
+alter table t2 modify i int default 3;
+unlock tables;
+lock table t2 write;
+alter table t2 modify i int default 4, rename t1;
+unlock tables;
+drop table t1;
 End of 5.1 tests
