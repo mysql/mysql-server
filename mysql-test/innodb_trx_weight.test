@@ -1,0 +1,57 @@
+#
+# Ensure that the number of locks (SELECT FOR UPDATE for example) is
+# added to the number of altered rows when choosing the smallest
+# transaction to kill as a victim when a deadlock is detected.
+#
+
+-- source include/have_innodb.inc
+SET storage_engine=InnoDB;
+
+-- disable_warnings
+DROP TABLE IF EXISTS t1, t2, t3;
+-- enable_warnings
+
+# we will create a simple deadlock with t1, t2 and two connections
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+# auxiliary table with a bulk of rows which will be locked by the second
+# transaction to increase its weight
+CREATE TABLE t3 (a INT);
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t3 VALUES (1), (2), (3);
+
+-- connect (con1,localhost,,,)
+-- connect (con2,localhost,,,)
+
+-- connection con1
+SET autocommit=0;
+SELECT * FROM t1 FOR UPDATE;
+
+-- connection con2
+SET autocommit=0;
+SELECT * FROM t2 FOR UPDATE;
+SELECT * FROM t3 FOR UPDATE;
+
+-- connection con1
+-- send
+INSERT INTO t2 VALUES (0);
+
+-- connection con2
+INSERT INTO t1 VALUES (0);
+
+-- connection con1
+# we do not want this test to fail if the very descriptive text
+# "ERROR 40001: Deadlock found when trying to get lock; try restarting transaction"
+# gets changed someday, so force mysqltest to emit
+# "Got one of the listed errors"
+-- error ER_LOCK_DEADLOCK,ER_LOCK_DEADLOCK
+-- reap
+
+-- connection default
+
+-- disconnect con1
+-- disconnect con2
+
+DROP TABLE t1, t2, t3;

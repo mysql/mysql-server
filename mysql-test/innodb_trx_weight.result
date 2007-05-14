@@ -1,0 +1,25 @@
+SET storage_engine=InnoDB;
+DROP TABLE IF EXISTS t1, t2, t3;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+CREATE TABLE t3 (a INT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t3 VALUES (1), (2), (3);
+SET autocommit=0;
+SELECT * FROM t1 FOR UPDATE;
+a
+1
+SET autocommit=0;
+SELECT * FROM t2 FOR UPDATE;
+a
+1
+SELECT * FROM t3 FOR UPDATE;
+a
+1
+2
+3
+INSERT INTO t2 VALUES (0);
+INSERT INTO t1 VALUES (0);
+Got one of the listed errors
+DROP TABLE t1, t2, t3;
