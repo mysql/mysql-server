@@ -483,11 +483,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 		  bool ignore)
 {
   int error, res;
-  /*
-    log_on is about delayed inserts only.
-    By default, both logs are enabled (this won't cause problems if the server
-    runs without --log-update or --log-bin).
-  */
   bool transactional_table, joins_freed= FALSE;
   bool changed;
   uint value_count;
@@ -501,9 +496,14 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   Name_resolution_context_state ctx_state;
 #ifndef EMBEDDED_LIBRARY
   char *query= thd->query;
-#endif
+  /*
+    log_on is about delayed inserts only.
+    By default, both logs are enabled (this won't cause problems if the server
+    runs without --log-update or --log-bin).
+  */
   bool log_on= (thd->options & OPTION_BIN_LOG) ||
     (!(thd->security_ctx->master_access & SUPER_ACL));
+#endif
   thr_lock_type lock_type = table_list->lock_type;
   Item *unused_conds= 0;
   DBUG_ENTER("mysql_insert");
