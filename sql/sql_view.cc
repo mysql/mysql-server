@@ -1114,8 +1114,8 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       If the view's body needs row-based binlogging (e.g. the VIEW is created
       from SELECT UUID()), the top statement also needs it.
     */
-    if (lex->binlog_row_based_if_mixed)
-      old_lex->binlog_row_based_if_mixed= TRUE;
+    if (lex->is_stmt_unsafe())
+      old_lex->set_stmt_unsafe();
     view_is_mergeable= (table->algorithm != VIEW_ALGORITHM_TMPTABLE &&
                         lex->can_be_merged());
     LINT_INIT(view_main_select_tables);

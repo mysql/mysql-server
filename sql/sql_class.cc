@@ -201,7 +201,7 @@ THD::THD()
    Open_tables_state(refresh_version), rli_fake(0),
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
-   binlog_table_maps(0),
+   binlog_table_maps(0), binlog_flags(0UL),
    global_read_lock(0), is_fatal_error(0),
    rand_used(0), time_zone_used(0),
    arg_of_last_insert_id_function(FALSE),
@@ -2888,6 +2888,23 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
       to how you treat this.
     */
   case THD::STMT_QUERY_TYPE:
+    if (lex->is_stmt_unsafe())
+    {
+      DBUG_ASSERT(this->query != NULL);
+      push_warning(this, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   ER_BINLOG_UNSAFE_STATEMENT,
+                   ER(ER_BINLOG_UNSAFE_STATEMENT));
+      if (!(binlog_flags & BINLOG_FLAG_UNSAFE_STMT_PRINTED))
+      {
+        
+        char warn_buf[MYSQL_ERRMSG_SIZE];
+        my_snprintf(warn_buf, MYSQL_ERRMSG_SIZE, "%s Statement: %s",
+                    ER(ER_BINLOG_UNSAFE_STATEMENT), this->query);
+        sql_print_warning(warn_buf);
+        binlog_flags|= BINLOG_FLAG_UNSAFE_STMT_PRINTED;
+      }
+    }
+
     /*
       The MYSQL_LOG::write() function will set the STMT_END_F flag and
       flush the pending rows event if necessary.
