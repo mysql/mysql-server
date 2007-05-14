@@ -1309,6 +1309,19 @@ trx_is_interrupted(
 	return(trx && trx->mysql_thd && thd_killed((THD*) trx->mysql_thd));
 }
 
+/******************************************************************
+Resets some fields of a prebuilt struct. The template is used in fast
+retrieval of just those column values MySQL needs in its processing. */
+static
+void
+reset_template(
+/*===========*/
+	row_prebuilt_t*	prebuilt)	/* in/out: prebuilt struct */
+{
+	prebuilt->keep_other_fields_on_keyread = 0;
+	prebuilt->read_just_key = 0;
+}
+
 /*********************************************************************
 Call this when you have opened a new table handle in HANDLER, before you
 call index_read_idx() etc. Actually, we can let the cursor stay open even
@@ -1367,11 +1380,8 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 	/* We want always to fetch all columns in the whole row? Or do
 	we???? */
 
-	prebuilt->read_just_key = FALSE;
-
 	prebuilt->used_in_HANDLER = TRUE;
-
-	prebuilt->keep_other_fields_on_keyread = FALSE;
+	reset_template(prebuilt);
 }
 
 /*************************************************************************
@@ -3094,7 +3104,7 @@ static
 void
 build_template(
 /*===========*/
-	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct */
+	row_prebuilt_t*	prebuilt,	/* in/out: prebuilt struct */
 	THD*		thd,		/* in: current user thread, used
 					only if templ_type is
 					ROW_MYSQL_REC_FIELDS */
@@ -6125,8 +6135,7 @@ ha_innobase::extra(
 			}
 			break;
 		case HA_EXTRA_RESET_STATE:
-			prebuilt->keep_other_fields_on_keyread = 0;
-			prebuilt->read_just_key = 0;
+			reset_template(prebuilt);
 			break;
 		case HA_EXTRA_NO_KEYREAD:
 			prebuilt->read_just_key = 0;
@@ -6162,8 +6171,7 @@ int ha_innobase::reset()
   if (prebuilt->blob_heap) {
     row_mysql_prebuilt_free_blob_heap(prebuilt);
   }
-  prebuilt->keep_other_fields_on_keyread = 0;
-  prebuilt->read_just_key = 0;
+  reset_template(prebuilt);
   return 0;
 }
 
@@ -6204,8 +6212,7 @@ ha_innobase::start_stmt(
 
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
-	prebuilt->read_just_key = 0;
-	prebuilt->keep_other_fields_on_keyread = FALSE;
+	reset_template(prebuilt);
 
 	if (!prebuilt->mysql_has_locked) {
 		/* This handle is for a temporary table created inside
@@ -6297,8 +6304,7 @@ ha_innobase::external_lock(
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
 
-	prebuilt->read_just_key = 0;
-	prebuilt->keep_other_fields_on_keyread = FALSE;
+	reset_template(prebuilt);
 
 	if (lock_type == F_WRLCK) {
 
@@ -6455,8 +6461,7 @@ ha_innobase::transactional_table_lock(
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
 
-	prebuilt->read_just_key = 0;
-	prebuilt->keep_other_fields_on_keyread = FALSE;
+	reset_template(prebuilt);
 
 	if (lock_type == F_WRLCK) {
 		prebuilt->select_lock_type = LOCK_X;
