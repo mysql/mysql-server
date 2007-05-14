@@ -3357,8 +3357,8 @@ lock_deadlock_recursive(
 					return(LOCK_VICTIM_IS_START);
 				}
 
-				if (ut_dulint_cmp(wait_lock->trx->undo_no,
-						  start->undo_no) >= 0) {
+				if (trx_weight_cmp(wait_lock->trx,
+						   start) >= 0) {
 					/* Our recursion starting point
 					transaction is 'smaller', let us
 					choose 'start' as the victim and roll

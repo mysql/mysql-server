@@ -371,6 +371,17 @@ trx_is_interrupted(
 #define trx_is_interrupted(trx) FALSE
 #endif /* !UNIV_HOTBACKUP */
 
+/***********************************************************************
+Compares the "weight" (or size) of two transactions. The weight of one
+transaction is estimated as the number of altered rows + the number of
+locked rows. */
+
+int
+trx_weight_cmp(
+/*===========*/
+			/* out: <0, 0 or >0; similar to strcmp(3) */
+	trx_t*	a,	/* in: the first transaction to be compared */
+	trx_t*	b);	/* in: the second transaction to be compared */
 
 /* Signal to a transaction */
 struct trx_sig_struct{
