@@ -46,10 +46,9 @@ add_distribution_key(Ndb*, NdbDictionary::Table& tab, int when, void* arg)
   }
 
   int keys = tab.getNoOfPrimaryKeys();
-  int dks = (2 * keys + 2) / 3; dks = (dks > max_dks ? max_dks : dks);
-  int cnt = 0;
+  Uint32 dks = (2 * keys + 2) / 3; dks = (dks > max_dks ? max_dks : dks);
   
-  for(unsigned i = 0; i<tab.getNoOfColumns(); i++)
+  for(int i = 0; i<tab.getNoOfColumns(); i++)
     if(tab.getColumn(i)->getPrimaryKey() && 
        tab.getColumn(i)->getCharset() != 0)
       keys--;
@@ -87,12 +86,12 @@ add_distribution_key(Ndb*, NdbDictionary::Table& tab, int when, void* arg)
   } 
   else 
   {
-    for(unsigned i = 0; i<tab.getNoOfColumns(); i++)
+    for(int i = 0; i<tab.getNoOfColumns(); i++)
     {
       NdbDictionary::Column* col = tab.getColumn(i);
       if(col->getPrimaryKey() && col->getCharset() == 0)
       {
-	if(dks >= keys || (rand() % 100) > 50)
+	if((int)dks >= keys || (rand() % 100) > 50)
 	{
 	  col->setDistributionKey(true);
 	  dks--;
@@ -355,8 +354,6 @@ run_startHint(NDBT_Context* ctx, NDBT_Step* step)
       {
 	//ndbout_c(tab->getColumn(j)->getName());
 	int sz = tab->getColumn(j)->getSizeInBytes();
-	int aligned_size = 4 * ((sz + 3) >> 2);
-	memset(pos, 0, aligned_size);
 	Uint32 real_size;
 	dummy.calcValue(i, j, 0, pos, sz, &real_size);
 	ptrs[k].ptr = pos;
