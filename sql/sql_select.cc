@@ -4269,7 +4269,7 @@ best_access_path(JOIN      *join,
       !(s->quick && best_key && s->quick->index == best_key->key &&      // (2)
         best_max_key_part >= s->table->quick_key_parts[best_key->key]) &&// (2)
       !((s->table->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX) &&   // (3)
-        ! s->table->covering_keys.is_clear_all() && best_key) &&         // (3)
+        ! s->table->covering_keys.is_clear_all() && best_key && !s->quick) &&// (3)
       !(s->table->force_index && best_key && !s->quick))                 // (4)
   {                                             // Check full join
     ha_rows rnd_records= s->found_records;
