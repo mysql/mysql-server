@@ -688,4 +688,24 @@ select * from t2;
 
 drop table t2;
 
+
+#
+# Tests for bug #28415 "Some ALTER TABLE statements no longer work
+# under LOCK TABLES" and some aspects of fast ALTER TABLE behaviour
+# for transactional tables.
+#
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+create table t1 (i int);
+alter table t1 modify i int default 1;
+alter table t1 modify i int default 2, rename t2;
+lock table t2 write;
+alter table t2 modify i int default 3;
+unlock tables;
+lock table t2 write;
+alter table t2 modify i int default 4, rename t1;
+unlock tables;
+drop table t1;
+
 --echo End of 5.1 tests
