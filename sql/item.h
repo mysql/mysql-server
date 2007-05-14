@@ -689,9 +689,9 @@ public:
   /* Called for items that really have to be split */
   void split_sum_func2(THD *thd, Item **ref_pointer_array, List<Item> &fields,
                        Item **ref, bool skip_registered);
-  virtual bool get_date(TIME *ltime,uint fuzzydate);
-  virtual bool get_time(TIME *ltime);
-  virtual bool get_date_result(TIME *ltime,uint fuzzydate)
+  virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  virtual bool get_time(MYSQL_TIME *ltime);
+  virtual bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate)
   { return get_date(ltime,fuzzydate); }
   /*
     The method allows to determine nullness of a complex expression 
@@ -1272,9 +1272,9 @@ public:
   }
   Field *get_tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
-  bool get_date(TIME *ltime,uint fuzzydate);
-  bool get_date_result(TIME *ltime,uint fuzzydate);
-  bool get_time(TIME *ltime);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
   bool is_null() { return field->is_null(); }
   void update_null_value();
   Item *get_tmp_table_item(THD *thd);
@@ -1401,7 +1401,7 @@ public:
       */
       CHARSET_INFO *final_character_set_of_str_value;
     } cs_info;
-    TIME     time;
+    MYSQL_TIME     time;
   } value;
 
   /* Cached values for virtual methods to save us one switch.  */
@@ -1433,8 +1433,8 @@ public:
   longlong val_int();
   my_decimal *val_decimal(my_decimal*);
   String *val_str(String*);
-  bool get_time(TIME *tm);
-  bool get_date(TIME *tm, uint fuzzydate);
+  bool get_time(MYSQL_TIME *tm);
+  bool get_date(MYSQL_TIME *tm, uint fuzzydate);
   int  save_in_field(Field *field, bool no_conversions);
 
   void set_null();
@@ -1443,7 +1443,7 @@ public:
   void set_decimal(const char *str, ulong length);
   bool set_str(const char *str, ulong length);
   bool set_longdata(const char *str, ulong length);
-  void set_time(TIME *tm, timestamp_type type, uint32 max_length_arg);
+  void set_time(MYSQL_TIME *tm, timestamp_type type, uint32 max_length_arg);
   bool set_from_user_var(THD *thd, const user_var_entry *entry);
   void reset();
   /*
@@ -1876,7 +1876,7 @@ public:
   bool val_bool();
   String *val_str(String* tmp);
   bool is_null();
-  bool get_date(TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   double val_result();
   longlong val_int_result();
   String *str_result(String* tmp);
@@ -1953,7 +1953,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
   bool is_null();
-  bool get_date(TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   virtual Ref_Type ref_type() { return DIRECT_REF; }
 };
 
@@ -2058,7 +2058,7 @@ public:
   String* val_str(String* s);
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
-  bool get_date(TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
   void print(String *str);
   /*
     we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE
