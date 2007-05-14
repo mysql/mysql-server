@@ -12,8 +12,8 @@
 user_limits     : Bug#23921 random failure of user_limits.test
 
 im_options               : Bug#20294 2006-07-24 stewart   Instance manager test im_options fails randomly
-im_daemon_life_cycle     : IM tests fail randomly
-im_cmd_line.imtest       : IM tests fail randomly
+im_daemon_life_cycle     : Bug#20294 2007-05-14 alik      Instance manager tests fail randomly
+im_cmd_line              : Bug#20294 2007-05-14 alik      Instance manager tests fail randomly
 im_life_cycle            : BUG#27851 Instance manager dies on ASSERT in ~Thread_registry() or from not being able to close a mysqld instance.
 concurrent_innodb        : BUG#21579 2006-08-11 mleich innodb_concurrent random failures with varying differences
 ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
