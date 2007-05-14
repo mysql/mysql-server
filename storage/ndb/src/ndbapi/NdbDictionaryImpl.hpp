@@ -251,8 +251,8 @@ public:
   /**
    * Return count
    */
-  Uint32 get_nodes(Uint32 hashValue, const Uint16** nodes) const ;
-
+  Uint32 get_nodes(Uint32 partitionId, const Uint16** nodes) const ;
+  
   /**
    * Disk stuff
    */

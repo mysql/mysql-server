@@ -305,10 +305,11 @@ Return Value:   Returns a pointer to a connection object.
                 Return NULL otherwise.
 Remark:         Start transaction. Synchronous.
 *****************************************************************************/ 
-NdbTransaction* 
-Ndb::startTransaction(const NdbDictionary::Table *table,
-		      const struct Key_part_ptr * keyData, 
-		      void* buf, Uint32 bufLen)
+int
+Ndb::computeHash(Uint32 *retval,
+                 const NdbDictionary::Table *table,
+                 const struct Key_part_ptr * keyData, 
+                 void* buf, Uint32 bufLen)
 {
   Uint32 j = 0;
   Uint32 sumlen = 0; // Needed len
@@ -440,44 +441,94 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
   }
   len = UintPtr(pos) - UintPtr(buf);
   assert((len & 3) == 0);
-    
-  trans = startTransaction(table, (char*)buf, len);
 
+  Uint32 values[4];
+  md5_hash(values, (const Uint64*)buf, len >> 2);
+  
+  if (retval)
+  {
+    * retval = values[1];
+  }
+  
   if (bufLen == 0)
     free(buf);
-
-  return trans;
-
+  
+  return 0;
+  
 enullptr:
   theError.code = 4316;
-  return 0;
+  return -1;
   
 emissingnullptr:
   theError.code = 4276;
-  return 0;
+  return -1;
 
 elentosmall:
   theError.code = 4277;
-  return 0;
+  return -1;
 
 ebuftosmall:
   theError.code = 4278;
-  return 0;
+  return -1;
 
 emalformedstring:
   if (bufLen == 0)
     free(buf);
   
   theError.code = 4279;
-  return 0;
+  return -1;
   
 emalformedkey:
   theError.code = 4280;
-  return 0;
+  return -1;
 
 enomem:
   theError.code = 4000;
+  return -1;
+
+}
+
+NdbTransaction* 
+Ndb::startTransaction(const NdbDictionary::Table *table,
+		      const struct Key_part_ptr * keyData, 
+		      void* buf, Uint32 bufLen)
+{
+  Uint32 hash;
+  if (computeHash(&hash, table, keyData, buf, bufLen) == 0)
+  {
+    return startTransaction(table, table->getPartitionId(hash));
+  }
+
   return 0;
+}
+
+NdbTransaction*
+Ndb::startTransaction(const NdbDictionary::Table* table, Uint32 partitionId)
+{
+  DBUG_ENTER("Ndb::startTransaction");
+  DBUG_PRINT("enter", 
+             ("table: %s partitionId: %u", table->getName(), partitionId));
+  if (theInitState == Initialised) 
+  {
+    theError.code = 0;
+    checkFailedNode();
+
+    Uint32 nodeId;
+    const Uint16 *nodes;
+    Uint32 cnt = NdbTableImpl::getImpl(* table).get_nodes(partitionId, 
+                                                          &nodes);
+    if(cnt)
+      nodeId= nodes[0];
+    else
+      nodeId= 0;
+    
+    NdbTransaction *trans= startTransactionLocal(0, nodeId);
+    DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
+                       (long) trans,
+                       (long) (trans ? trans->getTransactionId() : 0)));
+    DBUG_RETURN(trans);
+  }
+  DBUG_RETURN(NULL);
 }
 
 NdbTransaction* 
@@ -494,10 +545,14 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
      * We will make a qualified quess to which node is the primary for the
      * the fragment and contact that node
      */
-    Uint32 nodeId;
-    NdbTableImpl* impl;
-    if(table != 0 && keyData != 0 && (impl= &NdbTableImpl::getImpl(*table))) 
+    Uint32 nodeId = 0;
+    
+    /**
+     * Make this unlikely...assume new interface(s) are prefered
+     */
+    if(unlikely(table != 0 && keyData != 0))
     {
+      NdbTableImpl* impl = &NdbTableImpl::getImpl(*table);
       Uint32 hashValue;
       {
 	Uint32 buf[4];
@@ -520,15 +575,16 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
 	}
 	hashValue= buf[1];
       }
+      
+      Uint32 partId;
+      int ret;
       const Uint16 *nodes;
-      Uint32 cnt= impl->get_nodes(hashValue, &nodes);
+      Uint32 cnt= impl->get_nodes(table->getPartitionId(hashValue),  &nodes);
       if(cnt)
-	nodeId= nodes[0];
-      else
-	nodeId= 0;
-    } else {
-      nodeId = 0;
-    }//if
+      {
+        nodeId= nodes[0];
+      }
+    }
 
     {
       NdbTransaction *trans= startTransactionLocal(0, nodeId);
