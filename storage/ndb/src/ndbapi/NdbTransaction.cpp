@@ -2455,8 +2455,7 @@ set_distribution_key_from_range(NdbIndexScanOperation *op,
   ptrs[i].ptr = 0;
   
   Uint32 hashValue;
-  NdbError err;
-  int ret = Ndb::computeHash(&err, &hashValue, 
+  int ret = Ndb::computeHash(&hashValue, 
                              record->base_table, 
                              ptrs, tmp, sizeof(tmp));
   if (ret == 0)
@@ -2466,7 +2465,7 @@ set_distribution_key_from_range(NdbIndexScanOperation *op,
 #ifdef VM_TRACE
   else
   {
-    ndbout << "err: " << err.code << endl;
+    ndbout << "err: " << ret << endl;
     assert(false);
   }
 #endif

@@ -306,8 +306,7 @@ Return Value:   Returns a pointer to a connection object.
 Remark:         Start transaction. Synchronous.
 *****************************************************************************/ 
 int
-Ndb::computeHash(NdbError* theError,
-                 Uint32 *retval,
+Ndb::computeHash(Uint32 *retval,
                  const NdbDictionary::Table *table,
                  const struct Key_part_ptr * keyData, 
                  void* buf, Uint32 bufLen)
@@ -457,36 +456,28 @@ Ndb::computeHash(NdbError* theError,
   return 0;
   
 enullptr:
-  theError->code = 4316;
-  return -1;
+  return 4316;
   
 emissingnullptr:
-  theError->code = 4276;
-  return -1;
+  return 4276;
 
 elentosmall:
-  theError->code = 4277;
-  return -1;
+  return 4277;
 
 ebuftosmall:
-  theError->code = 4278;
-  return -1;
+  return 4278;
 
 emalformedstring:
   if (bufLen == 0)
     free(buf);
   
-  theError->code = 4279;
-  return -1;
+  return 4279;
   
 emalformedkey:
-  theError->code = 4280;
-  return -1;
+  return 4280;
 
 enomem:
-  theError->code = 4000;
-  return -1;
-
+  return 4000;
 }
 
 NdbTransaction* 
@@ -494,12 +485,14 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
 		      const struct Key_part_ptr * keyData, 
 		      void* buf, Uint32 bufLen)
 {
+  int ret;
   Uint32 hash;
-  if (computeHash(&hash, table, keyData, buf, bufLen) == 0)
+  if ((ret = computeHash(&hash, table, keyData, buf, bufLen)) == 0)
   {
     return startTransaction(table, table->getPartitionId(hash));
   }
 
+  theError.code = ret;
   return 0;
 }
 

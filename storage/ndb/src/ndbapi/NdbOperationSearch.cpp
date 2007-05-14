@@ -537,10 +537,9 @@ NdbOperation::handle_distribution_key(const NdbColumnImpl* tAttrInfo,
     ptrs[0].len = len;
     ptrs[1].ptr = 0;
     
-    NdbError err;
     Uint64 tmp[1000];
     Uint32 hashValue;
-    int ret = Ndb::computeHash(&err, &hashValue, 
+    int ret = Ndb::computeHash(&hashValue, 
                                m_currentTable,
                                ptrs, tmp, sizeof(tmp));
     
@@ -551,7 +550,7 @@ NdbOperation::handle_distribution_key(const NdbColumnImpl* tAttrInfo,
 #ifdef VM_TRACE
     else
     {
-      ndbout << "Err: " << err.code << endl;
+      ndbout << "Err: " << ret << endl;
       assert(false);
     }
 #endif
