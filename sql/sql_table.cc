@@ -6673,6 +6673,7 @@ view_err:
   }
   if (! need_copy_table)
   {
+    bool needs_unlink= FALSE;
     if (! table)
     {
       if (new_name != table_name || new_db != db)
@@ -6683,11 +6684,41 @@ view_err:
         table_list->db= new_db;
         table_list->db_length= strlen(new_db);
       }
-
-      VOID(pthread_mutex_unlock(&LOCK_open));
-      if (! (table= open_ltable(thd, table_list, TL_WRITE_ALLOW_READ)))
+      else
+      {
+        /*
+          TODO: Creation of name-lock placeholder here is a temporary
+          work-around. Long term we should change close_cached_table() call
+          which we invoke before table renaming operation in such way that
+          it will leave placeholders for table in table cache/THD::open_tables
+          list. By doing this we will be able easily reopen and relock these
+          tables later and therefore behave under LOCK TABLES in the same way
+          on all platforms.
+        */
+        char  key[MAX_DBKEY_LENGTH];
+        uint  key_length;
+        key_length= create_table_def_key(thd, key, table_list, 0);
+        if (!(name_lock= table_cache_insert_placeholder(thd, key,
+                                                        key_length)))
+        {
+          VOID(pthread_mutex_unlock(&LOCK_open));
+          goto err;
+        }
+        name_lock->next= thd->open_tables;
+        thd->open_tables= name_lock;
+      }
+      table_list->table= name_lock;
+      if (reopen_name_locked_table(thd, table_list, FALSE))
+      {
+        VOID(pthread_mutex_unlock(&LOCK_open));
         goto err;
-      VOID(pthread_mutex_lock(&LOCK_open));
+      }
+      table= table_list->table;
+      /*
+        We can't rely on later close_cached_table() calls to close
+        this instance of the table since it was not properly locked.
+      */
+      needs_unlink= TRUE;
     }
     /* Tell the handler that a new frm file is in place. */
     if (table->file->create_handler_files(path, NULL, CHF_INDEX_FLAG,
@@ -6695,6 +6726,11 @@ view_err:
     {
       VOID(pthread_mutex_unlock(&LOCK_open));
       goto err;
+    }
+    if (needs_unlink)
+    {
+      unlink_open_table(thd, table, FALSE);
+      table= name_lock= 0;
     }
   }
 
