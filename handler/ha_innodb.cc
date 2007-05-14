@@ -6146,17 +6146,24 @@ ha_innobase::extra(
 		case HA_EXTRA_KEYREAD_PRESERVE_FIELDS:
 			prebuilt->keep_other_fields_on_keyread = 1;
 			break;
+
+			/* IMPORTANT: prebuilt->trx can be obsolete in
+			this method, because it is not sure that MySQL
+			calls external_lock before this method with the
+			parameters below.  We must not invoke update_thd()
+			either, because the calling threads may change.
+			CAREFUL HERE, OR MEMORY CORRUPTION MAY OCCUR! */
 		case HA_EXTRA_IGNORE_DUP_KEY:
-			prebuilt->trx->duplicates |= TRX_DUP_IGNORE;
+			thd_to_trx(ha_thd())->duplicates |= TRX_DUP_IGNORE;
 			break;
 		case HA_EXTRA_WRITE_CAN_REPLACE:
-			prebuilt->trx->duplicates |= TRX_DUP_REPLACE;
+			thd_to_trx(ha_thd())->duplicates |= TRX_DUP_REPLACE;
 			break;
 		case HA_EXTRA_WRITE_CANNOT_REPLACE:
-			prebuilt->trx->duplicates &= ~TRX_DUP_REPLACE;
+			thd_to_trx(ha_thd())->duplicates &= ~TRX_DUP_REPLACE;
 			break;
 		case HA_EXTRA_NO_IGNORE_DUP_KEY:
-			prebuilt->trx->duplicates &=
+			thd_to_trx(ha_thd())->duplicates &=
 				~(TRX_DUP_IGNORE | TRX_DUP_REPLACE);
 			break;
 		default:/* Do nothing */
