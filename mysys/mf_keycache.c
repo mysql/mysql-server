@@ -608,6 +608,7 @@ int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
       keycache->can_be_used= 0;
       goto finish;
     }
+    DBUG_ASSERT(cache_empty(keycache));
 
     /* End the flush phase. */
     keycache->resize_in_flush= 0;
@@ -3599,7 +3600,7 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
         So we should not let count become smaller than the fixed buffer.
       */
       if (cache == cache_buff)
-        count == FLUSH_CACHE;
+        count= FLUSH_CACHE;
     }
 
     /* Retrieve the blocks and write them to a buffer to be flushed */
@@ -3718,8 +3719,16 @@ restart:
             link_changed(block, &first_in_switch);
           }
         }
-        else
+        else if (type != FLUSH_KEEP)
         {
+          /*
+            During the normal flush at end of statement (FLUSH_KEEP) we
+            do not need to ensure that blocks in flush or update by
+            other threads are flushed. They will be flushed by them
+            later. In all other cases we must assure that we do not have
+            any changed block of this file in the cache when this
+            function returns.
+          */
           if (block->status & BLOCK_IN_FLUSH)
           {
             /* Remember the last block found to be in flush. */
@@ -3743,9 +3752,14 @@ restart:
         last_errno= error;
       }
       /*
-        Do not restart here. We have now flushed at least all blocks
-        that were changed when entering this function.
+        Do not restart here during the normal flush at end of statement
+        (FLUSH_KEEP). We have now flushed at least all blocks that were
+        changed when entering this function. In all other cases we must
+        assure that we do not have any changed block of this file in the
+        cache when this function returns.
       */
+      if (type != FLUSH_KEEP)
+        goto restart;
     }
     if (last_in_flush)
     {
@@ -3996,7 +4010,35 @@ int flush_key_blocks(KEY_CACHE *keycache,
 
 
 /*
-  Flush all blocks in the key cache to disk
+  Flush all blocks in the key cache to disk.
+
+  SYNOPSIS
+    flush_all_key_blocks()
+      keycache                  pointer to key cache root structure
+
+  DESCRIPTION
+
+    Flushing of the whole key cache is done in two phases.
+
+    1. Flush all changed blocks, waiting for them if necessary. Loop
+    until there is no changed block left in the cache.
+
+    2. Free all clean blocks. Normally this means free all blocks. The
+    changed blocks were flushed in phase 1 and became clean. However we
+    may need to wait for blocks that are read by other threads. While we
+    wait, a clean block could become changed if that operation started
+    before the resize operation started. To be safe we must restart at
+    phase 1.
+
+    When we can run through the changed_blocks and file_blocks hashes
+    without finding a block any more, then we are done.
+
+    Note that we hold keycache->cache_lock all the time unless we need
+    to wait for something.
+
+  RETURN
+    0           OK
+    != 0        Error
 */
 
 static int flush_all_key_blocks(KEY_CACHE *keycache)
@@ -4007,13 +4049,15 @@ static int flush_all_key_blocks(KEY_CACHE *keycache)
   uint          idx;
   DBUG_ENTER("flush_all_key_blocks");
 
-  safe_mutex_assert_owner(&keycache->cache_lock);
-
   do
   {
+    safe_mutex_assert_owner(&keycache->cache_lock);
     total_found= 0;
 
-    /* Flush all changed blocks first. */
+    /*
+      Phase1: Flush all changed blocks, waiting for them if necessary.
+      Loop until there is no changed block left in the cache.
+    */
     do
     {
       found= 0;
@@ -4022,17 +4066,15 @@ static int flush_all_key_blocks(KEY_CACHE *keycache)
       {
         /*
           If an array element is non-empty, use the first block from its
-          chain to find a file for flush. All blocks for this file are
-          flushed. So the same block will not appear at this place again
-          with the next iteration. New writes for blocks are not accepted
-          during the flush.
+          chain to find a file for flush. All changed blocks for this
+          file are flushed. So the same block will not appear at this
+          place again with the next iteration. New writes for blocks are
+          not accepted during the flush. If multiple files share the
+          same hash bucket, one of them will be flushed per iteration
+          of the outer loop of phase 1.
         */
         if ((block= keycache->changed_blocks[idx]))
         {
-          /* A block in the changed_blocks hash must have a hash_link. */
-          DBUG_ASSERT(block->hash_link);
-          DBUG_ASSERT(block->hash_link->block == block);
-
           found++;
           /*
             Flush dirty blocks but do not free them yet. They can be used
@@ -4046,7 +4088,14 @@ static int flush_all_key_blocks(KEY_CACHE *keycache)
 
     } while (found);
 
-    /* Now flush (free) all clean blocks. */
+    /*
+      Phase 2: Free all clean blocks. Normally this means free all
+      blocks. The changed blocks were flushed in phase 1 and became
+      clean. However we may need to wait for blocks that are read by
+      other threads. While we wait, a clean block could become changed
+      if that operation started before the resize operation started. To
+      be safe we must restart at phase 1.
+    */
     do
     {
       found= 0;
@@ -4057,17 +4106,12 @@ static int flush_all_key_blocks(KEY_CACHE *keycache)
           If an array element is non-empty, use the first block from its
           chain to find a file for flush. All blocks for this file are
           freed. So the same block will not appear at this place again
-          with the next iteration. Unless it has been read into the cache
-          anew. In this case readers and the flusher fight against each
-          other. But since the flusher does not need to do I/O for clean
-          blocks, and writes for blocks are not accepted during the flush,
-          it will win finally.
+          with the next iteration. If multiple files share the
+          same hash bucket, one of them will be flushed per iteration
+          of the outer loop of phase 2.
         */
         if ((block= keycache->file_blocks[idx]))
         {
-          /* A block in the file_blocks hash must have a hash_link. */
-          DBUG_ASSERT(block->hash_link);
-
           total_found++;
           found++;
           if (flush_key_blocks_int(keycache, block->hash_link->file,
@@ -4412,7 +4456,7 @@ static int cache_empty(KEY_CACHE *keycache)
   for (idx= 0; idx < keycache->hash_links; idx++)
   {
     HASH_LINK *hash_link= keycache->hash_link_root + idx;
-    if (hash_link->block || hash_link->file || hash_link->diskpos)
+    if (hash_link->requests || hash_link->block)
     {
       fprintf(stderr, "hash_link index: %u\n", idx);
       fail_hlink(hash_link);
