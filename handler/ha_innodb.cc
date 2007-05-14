@@ -60,18 +60,6 @@ is defined the same in both builds: the MySQL server and the InnoDB plugin. */
 extern pthread_mutex_t LOCK_thread_count;
 #endif /* MYSQL_SERVER */
 
-extern "C" {
-extern ulong srv_max_buf_pool_modified_pct;
-extern ulong srv_max_purge_lag;
-extern ulong srv_auto_extend_increment;
-extern ulong srv_n_spin_wait_rounds;
-extern ulong srv_n_free_tickets_to_enter;
-extern ulong srv_thread_sleep_delay;
-extern ulong srv_thread_concurrency;
-extern ulong srv_commit_concurrency;
-extern ulong srv_flush_log_at_trx_commit;
-}
-
 /** to protect innobase_open_files */
 static pthread_mutex_t innobase_share_mutex;
 /** to force correct commit order in binlog */
