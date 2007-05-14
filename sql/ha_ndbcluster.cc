@@ -2309,16 +2309,24 @@ int ha_ndbcluster::write_row(byte *record)
   {
     // Table has hidden primary key
     Ndb *ndb= get_ndb();
-    int ret;
     Uint64 auto_value;
     uint retries= NDB_AUTO_INCREMENT_RETRIES;
-    do {
-      ret= ndb->getAutoIncrementValue((const NDBTAB *) m_table, auto_value, 1);
-    } while (ret == -1 && 
-             --retries &&
-             ndb->getNdbError().status == NdbError::TemporaryError);
-    if (ret == -1)
-      ERR_RETURN(ndb->getNdbError());
+    int retry_sleep= 30; /* 30 milliseconds, transaction */
+    for (;;)
+    {
+      if (ndb->getAutoIncrementValue((const NDBTAB *) m_table,
+                                     auto_value, 1) == -1)
+      {
+        if (--retries &&
+            ndb->getNdbError().status == NdbError::TemporaryError);
+        {
+          my_sleep(retry_sleep);
+          continue;
+        }
+        ERR_RETURN(ndb->getNdbError());
+      }
+      break;
+    }
     if (set_hidden_key(op, table->s->fields, (const byte*)&auto_value))
       ERR_RETURN(op->getNdbError());
   } 
@@ -4855,22 +4863,27 @@ ulonglong ha_ndbcluster::get_auto_increment()
            m_rows_to_insert - m_rows_inserted :
            ((m_rows_to_insert > m_autoincrement_prefetch) ?
             m_rows_to_insert : m_autoincrement_prefetch));
-  int ret;
   uint retries= NDB_AUTO_INCREMENT_RETRIES;
-  do {
-    ret=
-      m_skip_auto_increment ? 
-      ndb->readAutoIncrementValue((const NDBTAB *) m_table, auto_value) :
-      ndb->getAutoIncrementValue((const NDBTAB *) m_table, auto_value, cache_size);
-  } while (ret == -1 && 
-           --retries &&
-           ndb->getNdbError().status == NdbError::TemporaryError);
-  if (ret == -1)
+  int retry_sleep= 30; /* 30 milliseconds, transaction */
+  for (;;)
   {
-    const NdbError err= ndb->getNdbError();
-    sql_print_error("Error %lu in ::get_auto_increment(): %s",
-                    (ulong) err.code, err.message);
-    DBUG_RETURN(~(ulonglong) 0);
+    if (m_skip_auto_increment &&
+        ndb->readAutoIncrementValue((const NDBTAB *) m_table, auto_value) ||
+        ndb->getAutoIncrementValue((const NDBTAB *) m_table,
+                                   auto_value, cache_size))
+    {
+      if (--retries &&
+          ndb->getNdbError().status == NdbError::TemporaryError);
+      {
+        my_sleep(retry_sleep);
+        continue;
+      }
+      const NdbError err= ndb->getNdbError();
+      sql_print_error("Error %lu in ::get_auto_increment(): %s",
+                      (ulong) err.code, err.message);
+      DBUG_RETURN(~(ulonglong) 0);
+    }
+    break;
   }
   DBUG_RETURN((longlong)auto_value);
 }
