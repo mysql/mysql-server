@@ -6089,7 +6089,8 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
       const NdbError err= ndb->getNdbError();
       sql_print_error("Error %lu in ::get_auto_increment(): %s",
                       (ulong) err.code, err.message);
-      DBUG_RETURN(~(ulonglong) 0);
+      *first_value= ~(ulonglong) 0;
+      DBUG_VOID_RETURN;
     }
     break;
   }
