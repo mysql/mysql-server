@@ -469,8 +469,7 @@ private:
   int fetch_next(NdbScanOperation* op);
   int next_result(byte *buf); 
   int close_scan();
-  void unpack_record(byte *buf);
-  void unpack_record_ndbrecord(byte *dst_row, const byte *src_row);
+  void unpack_record(byte *dst_row, const byte *src_row);
   int get_ndb_lock_type(enum thr_lock_type type,
                         const MY_BITMAP *column_bitmap);
 

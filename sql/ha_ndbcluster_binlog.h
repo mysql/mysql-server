@@ -185,8 +185,6 @@ int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
 int ndbcluster_find_all_files(THD *thd);
 #endif /* HAVE_NDB_BINLOG */
 
-void ndb_unpack_record(TABLE *table, NdbValue *value,
-                       MY_BITMAP *defined, byte *buf);
 char *ndb_pack_varchar(const NDBCOL *col, char *buf,
                        const char *str, int sz);
 
