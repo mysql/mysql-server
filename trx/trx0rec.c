@@ -1241,6 +1241,7 @@ trx_undo_report_row_operation(
 	ulint		page_no;
 	trx_rseg_t*	rseg;
 	mtr_t		mtr;
+	ulint		err		= DB_SUCCESS;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -1270,33 +1271,32 @@ trx_undo_report_row_operation(
 
 		if (trx->insert_undo == NULL) {
 
-			trx_undo_assign_undo(trx, TRX_UNDO_INSERT);
+			err = trx_undo_assign_undo(trx, TRX_UNDO_INSERT);
 		}
 
 		undo = trx->insert_undo;
 
 		if (UNIV_UNLIKELY(!undo)) {
-			/* Did not succeed: out of space */
+			/* Did not succeed */
 			mutex_exit(&(trx->undo_mutex));
 
-			return(DB_OUT_OF_FILE_SPACE);
+			return(err);
 		}
 	} else {
 		ut_ad(op_type == TRX_UNDO_MODIFY_OP);
 
 		if (trx->update_undo == NULL) {
 
-			trx_undo_assign_undo(trx, TRX_UNDO_UPDATE);
+			err = trx_undo_assign_undo(trx, TRX_UNDO_UPDATE);
 
 		}
 
 		undo = trx->update_undo;
 
 		if (UNIV_UNLIKELY(!undo)) {
-			/* Did not succeed: out of space */
+			/* Did not succeed */
 			mutex_exit(&(trx->undo_mutex));
-
-			return(DB_OUT_OF_FILE_SPACE);
+			return(err);
 		}
 
 		offsets = rec_get_offsets(rec, index, offsets,
@@ -1332,7 +1332,9 @@ trx_undo_report_row_operation(
 		if (offset == 0) {
 			/* The record did not fit on the page. We erase the
 			end segment of the undo log page and write a log
-			record of it to to ensure deterministic contents. */
+			record of it: this is to ensure that in the debug
+			version the replicate page constructed using the log
+			records stays identical to the original page */
 
 			trx_undo_erase_page_end(undo_page, &mtr);
 			mtr_commit(&mtr);

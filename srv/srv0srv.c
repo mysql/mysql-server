@@ -47,6 +47,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "dict0boot.h"
 #include "srv0start.h"
 #include "row0mysql.h"
+#include "ha_prototypes.h"
 
 /* This is set to TRUE if the MySQL user has set it in MySQL; currently
 affects only FOREIGN KEY definition parsing */
@@ -176,6 +177,16 @@ ib_uint64_t	srv_archive_recovery_limit_lsn;
 #endif /* UNIV_LOG_ARCHIVE */
 
 ulint	srv_lock_wait_timeout	= 1024 * 1024 * 1024;
+
+/* This parameter is used to throttle the number of insert buffers that are
+merged in a batch. By increasing this parameter on a faster disk you can
+possibly reduce the number of I/O operations performed to complete the
+merge operation. The value of this parameter is used as is by the
+background loop when the system is idle (low load), on a busy system
+the parameter is scaled down by a factor of 4, this is to avoid putting
+a heavier load on the I/O sub system. */
+
+ulong	srv_insert_buffer_batch_size = 20;
 
 char*	srv_file_flush_method_str = NULL;
 ulint	srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
@@ -969,6 +980,17 @@ srv_conc_enter_innodb(
 	srv_conc_slot_t*	slot	  = NULL;
 	ulint			i;
 
+	if (trx->mysql_thd != NULL
+	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
+
+		/* TODO Do something more interesting (based on a config
+		parameter). Some users what to give the replication
+		thread very low priority, see http://bugs.mysql.com/25078
+		This can be done by introducing
+		innodb_replication_delay(ms) config parameter */
+		return;
+	}
+
 	/* If trx has 'free tickets' to enter the engine left, then use one
 	such ticket */
 
@@ -1009,7 +1031,7 @@ retry:
 	if (!has_slept && !trx->has_search_latch
 	    && NULL == UT_LIST_GET_FIRST(trx->trx_locks)) {
 
-		has_slept = TRUE; /* We let is sleep only once to avoid
+		has_slept = TRUE; /* We let it sleep only once to avoid
 				  starvation */
 
 		srv_conc_n_waiting_threads++;
@@ -1140,6 +1162,12 @@ srv_conc_force_exit_innodb(
 	srv_conc_slot_t*	slot	= NULL;
 
 	if (UNIV_LIKELY(!srv_thread_concurrency)) {
+
+		return;
+	}
+
+	if (trx->mysql_thd != NULL
+	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
 
 		return;
 	}
@@ -2240,7 +2268,8 @@ loop:
 			+ buf_pool->n_pages_written;
 		if (n_pend_ios < 3 && (n_ios - n_ios_old < 5)) {
 			srv_main_thread_op_info = "doing insert buffer merge";
-			ibuf_contract_for_n_pages(TRUE, 5);
+			ibuf_contract_for_n_pages(
+				TRUE, srv_insert_buffer_batch_size / 4);
 
 			srv_main_thread_op_info = "flushing log";
 
@@ -2301,7 +2330,7 @@ loop:
 	even if the server were active */
 
 	srv_main_thread_op_info = "doing insert buffer merge";
-	ibuf_contract_for_n_pages(TRUE, 5);
+	ibuf_contract_for_n_pages(TRUE, srv_insert_buffer_batch_size / 4);
 
 	srv_main_thread_op_info = "flushing log";
 	log_buffer_flush_to_disk();
@@ -2435,7 +2464,8 @@ background_loop:
 	if (srv_fast_shutdown && srv_shutdown_state > 0) {
 		n_bytes_merged = 0;
 	} else {
-		n_bytes_merged = ibuf_contract_for_n_pages(TRUE, 20);
+		n_bytes_merged = ibuf_contract_for_n_pages(
+			TRUE, srv_insert_buffer_batch_size);
 	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
