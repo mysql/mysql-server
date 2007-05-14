@@ -8772,8 +8772,7 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   case MYSQL_TYPE_NULL:
     break;
   case MYSQL_TYPE_NEWDECIMAL:
-    if (!fld_length && !decimals)
-      length= 10;
+    my_decimal_trim(&length, &decimals);
     if (length > DECIMAL_MAX_PRECISION)
     {
       my_error(ER_TOO_BIG_PRECISION, MYF(0), length, fld_name,
