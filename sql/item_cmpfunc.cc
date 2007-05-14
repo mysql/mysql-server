@@ -316,8 +316,10 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
   {
     /* For comparison purposes allow invalid dates like 2000-01-32 */
     ulong orig_sql_mode= thd->variables.sql_mode;
+    enum_check_fields orig_count_cuted_fields= thd->count_cuted_fields;
     thd->variables.sql_mode= (orig_sql_mode & ~MODE_NO_ZERO_DATE) | 
                              MODE_INVALID_DATES;
+    thd->count_cuted_fields= CHECK_FIELD_IGNORE;
     if (!(*item)->save_in_field(field, 1) && !((*item)->null_value))
     {
       Item *tmp=new Item_int_with_ref(field->val_int(), *item,
@@ -328,6 +330,7 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
       return 1;					// Item was replaced
     }
     thd->variables.sql_mode= orig_sql_mode;
+    thd->count_cuted_fields= orig_count_cuted_fields;
   }
   return 0;
 }
@@ -564,8 +567,9 @@ get_date_from_str(THD *thd, String *str, timestamp_type warn_type,
 
   if (error || *error_arg)
   {
-    make_truncated_value_warning(thd, str->ptr(), str->length(), warn_type,
-                                 warn_name);
+    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                 str->ptr(), str->length(),
+                                 warn_type, warn_name);
     *error_arg= TRUE;
   }
   return value;
