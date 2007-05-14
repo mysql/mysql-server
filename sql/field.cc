@@ -6677,6 +6677,11 @@ uint32 Field_varstring::data_length()
   return length_bytes == 1 ? (uint32) (uchar) *ptr : uint2korr(ptr);
 }
 
+uint32 Field_varstring::used_length()
+{
+  return length_bytes == 1 ? 1 + (uint32) (uchar) *ptr : 2 + uint2korr(ptr);
+}
+
 /*
   Functions to create a packed row.
   Here the number of length bytes are depending on the given max_length
