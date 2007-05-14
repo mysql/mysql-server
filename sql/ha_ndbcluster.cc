@@ -9677,16 +9677,16 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     }
     else
     {
-    /*
-      Convert to primary/unique key operation.
+      /*
+        Convert to primary/unique key operation.
 
-      If there is not enough buffer for reading the row: stop here, send
-      what we have so far, and continue when done with that.
-    */
+        If there is not enough buffer for reading the row: stop here, send
+        what we have so far, and continue when done with that.
+      */
       if (row_buf + reclength > end_of_buffer)
         break;
 
-      r->range_flag |= UNIQUE_RANGE;
+      r->range_flag|= UNIQUE_RANGE;
 
       if (!(op= pk_unique_index_read_key(active_index,
                                          r->start_key.key,
@@ -9700,7 +9700,6 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
       row_buf+= reclength;
     }
-
   }
   DBUG_ASSERT(i > 0 || i == range_count);       // Require progress
   m_multi_range_defined_end= ranges + i;
@@ -9769,8 +9768,6 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 int
 ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
 {
-  int res;
-
   DBUG_ENTER("ha_ndbcluster::read_multi_range_next");
   if (m_disable_multi_read)
   {
@@ -9784,7 +9781,7 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
       /* Nothing in this range, move to next one. */
       multi_range_curr++;
     }
-    else if(multi_range_curr->range_flag & UNIQUE_RANGE)
+    else if (multi_range_curr->range_flag & UNIQUE_RANGE)
     {
       /*
         Move to next range; we can have at most one record from a unique range.
@@ -9819,9 +9816,11 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
     else
     {
       /* An index scan range. */
-      if ((res= read_multi_range_fetch_next()) != 0)
-        DBUG_RETURN(res);
-
+      {
+        int res;
+        if ((res= read_multi_range_fetch_next()) != 0)
+          DBUG_RETURN(res);
+      }
       if (!m_next_row)
       {
         /*
@@ -9910,7 +9909,6 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
 int
 ha_ndbcluster::read_multi_range_fetch_next()
 {
-  int res;
   NdbIndexScanOperation *cursor= (NdbIndexScanOperation *)m_active_cursor;
 
   if (!cursor)
@@ -9918,7 +9916,7 @@ ha_ndbcluster::read_multi_range_fetch_next()
 
   if (!m_next_row)
   {
-    res= fetch_next(cursor);
+    int res= fetch_next(cursor);
     if (res == 0)
     {
       m_current_range_no= cursor->get_range_no();
