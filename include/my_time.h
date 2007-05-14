@@ -92,6 +92,7 @@ int check_time_range(struct st_mysql_time *, int *warning);
 
 long calc_daynr(uint year,uint month,uint day);
 uint calc_days_in_year(uint year);
+uint year_2000_handling(uint year);
 
 void init_time(void);
 

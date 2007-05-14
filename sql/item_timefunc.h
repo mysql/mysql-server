@@ -432,9 +432,9 @@ public:
   /* 
     Abstract method that defines which time zone is used for conversion.
     Converts time current time in my_time_t representation to broken-down
-    TIME representation using UTC-SYSTEM or per-thread time zone.
+    MYSQL_TIME representation using UTC-SYSTEM or per-thread time zone.
   */
-  virtual void store_now_in_TIME(TIME *now_time)=0;
+  virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
   bool result_as_longlong() { return TRUE; }
 };
 
@@ -445,7 +445,7 @@ public:
   Item_func_curtime_local() :Item_func_curtime() {}
   Item_func_curtime_local(Item *a) :Item_func_curtime(a) {}
   const char *func_name() const { return "curtime"; }
-  virtual void store_now_in_TIME(TIME *now_time);
+  virtual void store_now_in_TIME(MYSQL_TIME *now_time);
 };
 
 
@@ -455,7 +455,7 @@ public:
   Item_func_curtime_utc() :Item_func_curtime() {}
   Item_func_curtime_utc(Item *a) :Item_func_curtime(a) {}
   const char *func_name() const { return "utc_time"; }
-  virtual void store_now_in_TIME(TIME *now_time);
+  virtual void store_now_in_TIME(MYSQL_TIME *now_time);
 };
 
 
@@ -464,14 +464,14 @@ public:
 class Item_func_curdate :public Item_date
 {
   longlong value;
-  TIME ltime;
+  MYSQL_TIME ltime;
 public:
   Item_func_curdate() :Item_date() {}
   longlong val_int() { DBUG_ASSERT(fixed == 1); return (value) ; }
   String *val_str(String *str);
   void fix_length_and_dec();
-  bool get_date(TIME *res, uint fuzzy_date);
-  virtual void store_now_in_TIME(TIME *now_time)=0;
+  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
 };
 
 
@@ -480,7 +480,7 @@ class Item_func_curdate_local :public Item_func_curdate
 public:
   Item_func_curdate_local() :Item_func_curdate() {}
   const char *func_name() const { return "curdate"; }
-  void store_now_in_TIME(TIME *now_time);
+  void store_now_in_TIME(MYSQL_TIME *now_time);
 };
 
 
@@ -489,7 +489,7 @@ class Item_func_curdate_utc :public Item_func_curdate
 public:
   Item_func_curdate_utc() :Item_func_curdate() {}
   const char *func_name() const { return "utc_date"; }
-  void store_now_in_TIME(TIME *now_time);
+  void store_now_in_TIME(MYSQL_TIME *now_time);
 };
 
 
@@ -501,7 +501,7 @@ protected:
   longlong value;
   char buff[20*2+32];	// +32 to make my_snprintf_{8bit|ucs2} happy
   uint buff_length;
-  TIME ltime;
+  MYSQL_TIME ltime;
 public:
   Item_func_now() :Item_date_func() {}
   Item_func_now(Item *a) :Item_date_func(a) {}
@@ -510,8 +510,8 @@ public:
   int save_in_field(Field *to, bool no_conversions);
   String *val_str(String *str);
   void fix_length_and_dec();
-  bool get_date(TIME *res, uint fuzzy_date);
-  virtual void store_now_in_TIME(TIME *now_time)=0;
+  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
 };
 
 
@@ -521,7 +521,7 @@ public:
   Item_func_now_local() :Item_func_now() {}
   Item_func_now_local(Item *a) :Item_func_now(a) {}
   const char *func_name() const { return "now"; }
-  virtual void store_now_in_TIME(TIME *now_time);
+  virtual void store_now_in_TIME(MYSQL_TIME *now_time);
   virtual enum Functype functype() const { return NOW_FUNC; }
 };
 
@@ -532,7 +532,7 @@ public:
   Item_func_now_utc() :Item_func_now() {}
   Item_func_now_utc(Item *a) :Item_func_now(a) {}
   const char *func_name() const { return "utc_timestamp"; }
-  virtual void store_now_in_TIME(TIME *now_time);
+  virtual void store_now_in_TIME(MYSQL_TIME *now_time);
 };
 
 
@@ -547,13 +547,13 @@ public:
   Item_func_sysdate_local(Item *a) :Item_func_now(a) {}
   bool const_item() const { return 0; }
   const char *func_name() const { return "sysdate"; }
-  void store_now_in_TIME(TIME *now_time);
+  void store_now_in_TIME(MYSQL_TIME *now_time);
   double val_real();
   longlong val_int();
   int save_in_field(Field *to, bool no_conversions);
   String *val_str(String *str);
   void fix_length_and_dec();
-  bool get_date(TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   void update_used_tables()
   {
     Item_func_now::update_used_tables();
@@ -567,7 +567,7 @@ class Item_func_from_days :public Item_date
 public:
   Item_func_from_days(Item *a) :Item_date(a) {}
   const char *func_name() const { return "from_days"; }
-  bool get_date(TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
 };
 
 
@@ -597,7 +597,7 @@ class Item_func_from_unixtime :public Item_date_func
   String *val_str(String *str);
   const char *func_name() const { return "from_unixtime"; }
   void fix_length_and_dec();
-  bool get_date(TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
 };
 
 
@@ -635,7 +635,7 @@ class Item_func_convert_tz :public Item_date_func
   const char *func_name() const { return "convert_tz"; }
   bool fix_fields(THD *, Item **);
   void fix_length_and_dec();
-  bool get_date(TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   void cleanup();
 };
 
@@ -694,7 +694,7 @@ public:
   void fix_length_and_dec();
   enum_field_types field_type() const { return cached_field_type; }
   longlong val_int();
-  bool get_date(TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   bool eq(const Item *item, bool binary_cmp) const;
   void print(String *str);
 };
@@ -778,7 +778,7 @@ public:
   Item_date_typecast(Item *a) :Item_typecast_maybe_null(a) {}
   const char *func_name() const { return "cast_as_date"; }
   String *val_str(String *str);
-  bool get_date(TIME *ltime, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);
   const char *cast_type() const { return "date"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
   Field *tmp_table_field(TABLE *t_arg)
@@ -812,7 +812,7 @@ public:
   Item_time_typecast(Item *a) :Item_typecast_maybe_null(a) {}
   const char *func_name() const { return "cast_as_time"; }
   String *val_str(String *str);
-  bool get_time(TIME *ltime);
+  bool get_time(MYSQL_TIME *ltime);
   const char *cast_type() const { return "time"; }
   enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
   Field *tmp_table_field(TABLE *t_arg)
@@ -1033,7 +1033,7 @@ public:
     :Item_str_func(a, b)
   {}
   String *val_str(String *str);
-  bool get_date(TIME *ltime, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);
   const char *func_name() const { return "str_to_date"; }
   enum_field_types field_type() const { return cached_field_type; }
   void fix_length_and_dec();
@@ -1046,5 +1046,5 @@ class Item_func_last_day :public Item_date
 public:
   Item_func_last_day(Item *a) :Item_date(a) {}
   const char *func_name() const { return "last_day"; }
-  bool get_date(TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
 };
