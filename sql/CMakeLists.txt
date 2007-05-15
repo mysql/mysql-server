@@ -86,7 +86,7 @@ TARGET_LINK_LIBRARIES(mysqld heap myisam myisammrg mysys yassl zlib dbug yassl
                       taocrypt strings vio regex wsock32)
 
 IF(EMBED_MANIFESTS)
-  MYSQL_EMBED_MANIFEST("mysqld" "requireAdministrator")
+  MYSQL_EMBED_MANIFEST("mysqld" "asInvoker")
 ENDIF(EMBED_MANIFESTS)
 
 IF(WITH_EXAMPLE_STORAGE_ENGINE)
