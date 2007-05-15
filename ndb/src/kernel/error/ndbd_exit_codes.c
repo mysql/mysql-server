@@ -57,6 +57,8 @@ static const ErrStruct errArray[] =
     "error(s) on other node(s)"},
    {NDBD_EXIT_PARTITIONED_SHUTDOWN, XAE, "Partitioned cluster detected. "
     "Please check if cluster is already running"},
+   {NDBD_EXIT_NODE_DECLARED_DEAD, XAE,
+    "Node declared dead. See error log for details"},
    {NDBD_EXIT_POINTER_NOTINRANGE, XIE, "Pointer too large"},
    {NDBD_EXIT_SR_OTHERNODEFAILED, XRE, "Another node failed during system "
     "restart, please investigate error(s) on other node(s)"},
