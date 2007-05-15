@@ -31,6 +31,7 @@ class Load_log_event;
 class Slave_log_event;
 class sp_rcontext;
 class sp_cache;
+class Lex_input_stream;
 class Rows_log_event;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
@@ -171,7 +172,7 @@ public:
 
 #include "sql_lex.h"				/* Must be here */
 
-class delayed_insert;
+class Delayed_insert;
 class select_result;
 class Time_zone;
 
@@ -1013,7 +1014,7 @@ public:
   time_t     start_time,time_after_lock,user_time;
   time_t     connect_time,thr_create_time; // track down slow pthread_create
   thr_lock_type update_lock_default;
-  delayed_insert *di;
+  Delayed_insert *di;
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
@@ -1435,6 +1436,16 @@ public:
     */
     query_id_t first_query_id;
   } binlog_evt_union;
+
+  /**
+    Character input stream consumed by the lexical analyser,
+    used during parsing.
+    Note that since the parser is not re-entrant, we keep only one input
+    stream here. This member is valid only when executing code during parsing,
+    and may point to invalid memory after that.
+  */
+  Lex_input_stream *m_lip;
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *work_part_info;
 #endif
