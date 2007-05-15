@@ -1400,9 +1400,9 @@ void Dbdict::readSchemaConf(Signal* signal,
                n, reason, sf->FileSize, sf0->FileSize, sf->PageNumber);
       if (crashInd)
         progError(__LINE__, NDBD_EXIT_SR_SCHEMAFILE, reason_msg);
-      jam();
       ndbrequireErr(fsPtr.p->fsState == FsConnectRecord::READ_SCHEMA1,
                     NDBD_EXIT_SR_SCHEMAFILE);
+      jam();
       infoEvent("primary %s, trying backup", reason_msg);
       readSchemaRef(signal, fsPtr);
       return;
