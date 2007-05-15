@@ -207,14 +207,15 @@ page_cur_search(
 /***************************************************************
 Inserts a record next to page cursor. Returns pointer to inserted record if
 succeed, i.e., enough space available, NULL otherwise. The cursor stays at
-the same position. */
+the same logical position, but the physical position may change if it is
+pointing to a compressed page that was reorganized. */
 UNIV_INLINE
 rec_t*
 page_cur_tuple_insert(
 /*==================*/
 				/* out: pointer to record if succeed, NULL
 				otherwise */
-	page_cur_t*	cursor,	/* in: a page cursor */
+	page_cur_t*	cursor,	/* in/out: a page cursor */
 	const dtuple_t*	tuple,	/* in: pointer to a data tuple */
 	dict_index_t*	index,	/* in: record descriptor */
 	const ulint*	ext,	/* in: array of extern field numbers */
@@ -250,15 +251,16 @@ page_cur_tuple_insert(
 /***************************************************************
 Inserts a record next to page cursor. Returns pointer to inserted record if
 succeed, i.e., enough space available, NULL otherwise. The cursor stays at
-the same position. */
+the same logical position, but the physical position may change if it is
+pointing to a compressed page that was reorganized. */
 UNIV_INLINE
 rec_t*
 page_cur_rec_insert(
 /*================*/
 				/* out: pointer to record if succeed, NULL
 				otherwise */
-	page_cur_t*	cursor,	/* in: a page cursor */
-	rec_t*		rec,	/* in: record to insert */
+	page_cur_t*	cursor,	/* in/out: a page cursor */
+	const rec_t*	rec,	/* in: record to insert */
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
 	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL */
