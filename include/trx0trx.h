@@ -374,7 +374,8 @@ trx_is_interrupted(
 /***********************************************************************
 Compares the "weight" (or size) of two transactions. The weight of one
 transaction is estimated as the number of altered rows + the number of
-locked rows. */
+locked rows. Transactions that have edited non-transactional tables are
+considered heavier than ones that have not. */
 
 int
 trx_weight_cmp(
