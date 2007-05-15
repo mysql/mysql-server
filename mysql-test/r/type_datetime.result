@@ -346,3 +346,9 @@ call test27759();
 a	b	a_then_b	b_then_a	c_then_a
 2007-04-10	2007-04-11	2007-04-10	2007-04-10	2004-04-09 00:00:00
 drop procedure test27759;
+create table t1 (f1 date);
+insert into t1 values (curdate());
+select left(f1,10) = curdate() from t1;
+left(f1,10) = curdate()
+1
+drop table t1;

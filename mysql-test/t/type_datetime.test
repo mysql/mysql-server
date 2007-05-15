@@ -225,3 +225,12 @@ END;|
 DELIMITER ;|
 call test27759();
 drop procedure test27759;
+
+#
+# Bug#28208: Wrong result of a non-const STRING function with a const
+#            DATETIME function.
+#
+create table t1 (f1 date);
+insert into t1 values (curdate());
+select left(f1,10) = curdate() from t1;
+drop table t1;

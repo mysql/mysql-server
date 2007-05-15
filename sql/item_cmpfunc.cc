@@ -661,7 +661,7 @@ int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
                                         Item_result type)
 {
   enum enum_date_cmp_type cmp_type;
-  ulonglong const_value;
+  ulonglong const_value= (ulonglong)-1;
   a= a1;
   b= a2;
 
@@ -674,8 +674,7 @@ int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
     a_cache= 0;
     b_cache= 0;
 
-    if (cmp_type != CMP_DATE_WITH_DATE &&
-        ((*b)->const_item() || (*a)->const_item()))
+    if (const_value != (ulonglong)-1)
     {
       Item_cache_int *cache= new Item_cache_int();
       /* Mark the cache as non-const to prevent re-caching. */
