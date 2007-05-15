@@ -2,56 +2,101 @@
 # Ensure that the number of locks (SELECT FOR UPDATE for example) is
 # added to the number of altered rows when choosing the smallest
 # transaction to kill as a victim when a deadlock is detected.
+# Also transactions what had edited non-transactional tables should
+# be heavier than ones that had not.
 #
 
 -- source include/have_innodb.inc
+
 SET storage_engine=InnoDB;
 
+# we do not really care about what gets output-ed, we are only
+# interested in getting the deadlock resolved according to our
+# expectations
+-- disable_query_log
+-- disable_result_log
+
 -- disable_warnings
-DROP TABLE IF EXISTS t1, t2, t3;
+DROP TABLE IF EXISTS t1, t2, t3, t4, t5_nontrans;
 -- enable_warnings
 
 # we will create a simple deadlock with t1, t2 and two connections
 CREATE TABLE t1 (a INT);
 CREATE TABLE t2 (a INT);
-# auxiliary table with a bulk of rows which will be locked by the second
+
+# auxiliary table with a bulk of rows which will be locked by a
 # transaction to increase its weight
 CREATE TABLE t3 (a INT);
 
+# auxiliary empty table which will be inserted by a
+# transaction to increase its weight
+CREATE TABLE t4 (a INT);
+
+# auxiliary non-transactional table which will be edited by a
+# transaction to tremendously increase its weight
+CREATE TABLE t5_nontrans (a INT) ENGINE=MyISAM;
+
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
-INSERT INTO t3 VALUES (1), (2), (3);
+# insert a lot of rows in t3
+INSERT INTO t3 VALUES (1);
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
 
--- connect (con1,localhost,,,)
--- connect (con2,localhost,,,)
+# test locking weight
 
--- connection con1
-SET autocommit=0;
-SELECT * FROM t1 FOR UPDATE;
+-- let $con1_extra_sql =
+-- let $con1_extra_sql_present = 0
+-- let $con2_extra_sql = SELECT * FROM t3 FOR UPDATE
+-- let $con2_extra_sql_present = 1
+-- let $con1_should_be_rolledback = 1
+-- source include/innodb_trx_weight.inc
 
--- connection con2
-SET autocommit=0;
-SELECT * FROM t2 FOR UPDATE;
-SELECT * FROM t3 FOR UPDATE;
+-- let $con1_extra_sql = INSERT INTO t4 VALUES (1), (1)
+-- let $con1_extra_sql_present = 1
+-- let $con2_extra_sql = SELECT * FROM t3 FOR UPDATE
+-- let $con2_extra_sql_present = 1
+-- let $con1_should_be_rolledback = 1
+-- source include/innodb_trx_weight.inc
 
--- connection con1
--- send
-INSERT INTO t2 VALUES (0);
+-- let $con1_extra_sql = INSERT INTO t4 VALUES (1), (1), (1), (1), (1), (1)
+-- let $con1_extra_sql_present = 1
+-- let $con2_extra_sql = SELECT * FROM t3 FOR UPDATE
+-- let $con2_extra_sql_present = 1
+-- let $con1_should_be_rolledback = 0
+-- source include/innodb_trx_weight.inc
 
--- connection con2
-INSERT INTO t1 VALUES (0);
+# test weight when non-transactional tables are edited
 
--- connection con1
-# we do not want this test to fail if the very descriptive text
-# "ERROR 40001: Deadlock found when trying to get lock; try restarting transaction"
-# gets changed someday, so force mysqltest to emit
-# "Got one of the listed errors"
--- error ER_LOCK_DEADLOCK,ER_LOCK_DEADLOCK
--- reap
+-- let $con1_extra_sql = INSERT INTO t4 VALUES (1), (1), (1)
+-- let $con1_extra_sql_present = 1
+-- let $con2_extra_sql =
+-- let $con2_extra_sql_present = 0
+-- let $con1_should_be_rolledback = 0
+-- source include/innodb_trx_weight.inc
 
--- connection default
+-- let $con1_extra_sql = INSERT INTO t4 VALUES (1), (1), (1)
+-- let $con1_extra_sql_present = 1
+-- let $con2_extra_sql = INSERT INTO t5_nontrans VALUES (1)
+-- let $con2_extra_sql_present = 1
+-- let $con1_should_be_rolledback = 1
+-- source include/innodb_trx_weight.inc
 
--- disconnect con1
--- disconnect con2
+-- let $con1_extra_sql = INSERT INTO t4 VALUES (1), (1), (1)
+-- let $con1_extra_sql = $con1_extra_sql; INSERT INTO t5_nontrans VALUES (1)
+-- let $con1_extra_sql_present = 1
+-- let $con2_extra_sql = INSERT INTO t5_nontrans VALUES (1)
+-- let $con2_extra_sql_present = 1
+-- let $con1_should_be_rolledback = 0
+-- source include/innodb_trx_weight.inc
 
-DROP TABLE t1, t2, t3;
+DROP TABLE t1, t2, t3, t4, t5_nontrans;

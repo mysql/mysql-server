@@ -35,4 +35,17 @@ thd_is_replication_slave_thread(
 			/* out: true if thd is the replication thread */
 	void*	thd);	/* in: thread handle (THD*) */
 
+/**********************************************************************
+Returns true if the transaction this thread is processing has edited
+non-transactional tables. Used by the deadlock detector when deciding
+which transaction to rollback in case of a deadlock - we try to avoid
+rolling back transactions that have edited non-transactional tables. */
+
+ibool
+thd_has_edited_nontrans_tables(
+/*===========================*/
+			/* out: true if non-transactional tables have
+			been edited */
+	void*	thd);	/* in: thread handle (THD*) */
+
 #endif

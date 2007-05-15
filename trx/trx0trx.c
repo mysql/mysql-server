@@ -1776,7 +1776,8 @@ trx_print(
 /***********************************************************************
 Compares the "weight" (or size) of two transactions. The weight of one
 transaction is estimated as the number of altered rows + the number of
-locked rows. */
+locked rows. Transactions that have edited non-transactional tables are
+considered heavier than ones that have not. */
 
 int
 trx_weight_cmp(
@@ -1785,6 +1786,42 @@ trx_weight_cmp(
 	trx_t*	a,	/* in: the first transaction to be compared */
 	trx_t*	b)	/* in: the second transaction to be compared */
 {
+	ibool	a_notrans_edit;
+	ibool	b_notrans_edit;
+
+	/* If mysql_thd is NULL for a transaction we assume that it has
+	not edited non-transactional tables. */
+
+	a_notrans_edit = a->mysql_thd != NULL
+	    && thd_has_edited_nontrans_tables(a->mysql_thd);
+
+	b_notrans_edit = b->mysql_thd != NULL
+	    && thd_has_edited_nontrans_tables(b->mysql_thd);
+
+	if (a_notrans_edit && !b_notrans_edit) {
+
+		return(1);
+	}
+
+	if (!a_notrans_edit && b_notrans_edit) {
+
+		return(-1);
+	}
+
+	/* Either both had edited non-transactional tables or both had
+	not, we fall back to comparing the number of altered/locked
+	rows. */
+
+#if 0
+	fprintf(stderr,
+		"%s TRX_WEIGHT(a): %lld+%lu, TRX_WEIGHT(b): %lld+%lu\n",
+		__func__,
+		ut_conv_dulint_to_longlong(a->undo_no),
+		UT_LIST_GET_LEN(a->trx_locks),
+		ut_conv_dulint_to_longlong(b->undo_no),
+		UT_LIST_GET_LEN(b->trx_locks));
+#endif
+
 #define TRX_WEIGHT(t)	\
 	ut_dulint_add((t)->undo_no, UT_LIST_GET_LEN((t)->trx_locks))
 
