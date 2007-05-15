@@ -188,7 +188,7 @@ struct {
     0, 0, 0, 0,
     &Dbdict::drop_undofile_prepare_start, 0,
     0,
-    0, 0,
+    0, &Dbdict::drop_undofile_commit_complete,
     0, 0, 0
   }
 };
@@ -3211,9 +3211,7 @@ Dbdict::restartDropTab(Signal* signal, Uint32 tableId,
   case DictTabInfo::LogfileGroup:
   case DictTabInfo::Datafile:
   case DictTabInfo::Undofile:
-    warningEvent("Dont drop object: %d", tableId);
-    c_restartRecord.activeTable++;
-    checkSchemaStatus(signal);
+    restartDropObj(signal, tableId, old_entry);
     return;
   }
 
@@ -3256,6 +3254,9 @@ Dbdict::restartDropTab_complete(Signal* signal,
   checkSchemaStatus(signal);
 }
 
+/**
+ * Create Obj during NR/SR
+ */
 void
 Dbdict::restartCreateObj(Signal* signal, 
 			 Uint32 tableId, 
@@ -3479,6 +3480,170 @@ Dbdict::restartCreateObj_commit_complete_done(Signal* signal,
   ndbrequire(createObjPtr.p->m_errorCode == 0);
   
   c_opCreateObj.release(createObjPtr);
+
+  c_restartRecord.activeTable++;
+  checkSchemaStatus(signal);
+}
+
+/**
+ * Drop object during NR/SR
+ */
+void
+Dbdict::restartDropObj(Signal* signal, 
+                       Uint32 tableId, 
+                       const SchemaFile::TableEntry * entry)
+{
+  jam();
+  
+  DropObjRecordPtr dropObjPtr;  
+  ndbrequire(c_opDropObj.seize(dropObjPtr));
+  
+  const Uint32 key = ++c_opRecordSequence;
+  dropObjPtr.p->key = key;
+  c_opDropObj.add(dropObjPtr);
+  dropObjPtr.p->m_errorCode = 0;
+  dropObjPtr.p->m_senderRef = reference();
+  dropObjPtr.p->m_senderData = tableId;
+  dropObjPtr.p->m_clientRef = reference();
+  dropObjPtr.p->m_clientData = tableId;
+  
+  dropObjPtr.p->m_obj_id = tableId;
+  dropObjPtr.p->m_obj_type = entry->m_tableType;
+  dropObjPtr.p->m_obj_version = entry->m_tableVersion;
+
+  dropObjPtr.p->m_callback.m_callbackData = key;
+  dropObjPtr.p->m_callback.m_callbackFunction= 
+    safe_cast(&Dbdict::restartDropObj_prepare_start_done);
+
+  ndbout_c("Dropping %d %d", tableId, entry->m_tableType);
+  switch(entry->m_tableType){
+  case DictTabInfo::Tablespace:
+  case DictTabInfo::LogfileGroup:{
+    jam();
+    Ptr<Filegroup> fg_ptr;
+    ndbrequire(c_filegroup_hash.find(fg_ptr, tableId));
+    dropObjPtr.p->m_obj_ptr_i = fg_ptr.i;
+    dropObjPtr.p->m_vt_index = 3;
+    break;
+  }
+  case DictTabInfo::Datafile:{
+    jam();
+    Ptr<File> file_ptr;
+    dropObjPtr.p->m_vt_index = 2;
+    ndbrequire(c_file_hash.find(file_ptr, tableId));
+    dropObjPtr.p->m_obj_ptr_i = file_ptr.i;
+    break;
+  }
+  case DictTabInfo::Undofile:{
+    jam();    
+    Ptr<File> file_ptr;
+    dropObjPtr.p->m_vt_index = 4;
+    ndbrequire(c_file_hash.find(file_ptr, tableId));
+    dropObjPtr.p->m_obj_ptr_i = file_ptr.i;
+
+    /**
+     * Undofiles are only removed from logfile groups file list
+     *   as drop undofile is currently not supported...
+     *   file will be dropped by lgman when dropping filegroup
+     */
+    dropObjPtr.p->m_callback.m_callbackFunction= 
+      safe_cast(&Dbdict::restartDropObj_commit_complete_done);
+    
+    if (f_dict_op[dropObjPtr.p->m_vt_index].m_commit_complete)
+      (this->*f_dict_op[dropObjPtr.p->m_vt_index].m_commit_complete)
+        (signal, dropObjPtr.p);
+    else
+      execute(signal, dropObjPtr.p->m_callback, 0);
+    return;
+  }
+  default:
+    jamLine(entry->m_tableType);
+    ndbrequire(false);
+  }
+  
+  if (f_dict_op[dropObjPtr.p->m_vt_index].m_prepare_start)
+    (this->*f_dict_op[dropObjPtr.p->m_vt_index].m_prepare_start)
+      (signal, dropObjPtr.p);
+  else
+    execute(signal, dropObjPtr.p->m_callback, 0);
+}
+
+void
+Dbdict::restartDropObj_prepare_start_done(Signal* signal,
+                                          Uint32 callbackData, 
+                                          Uint32 returnCode)
+{
+  jam();
+  ndbrequire(returnCode == 0);
+  DropObjRecordPtr dropObjPtr;  
+  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
+  ndbrequire(dropObjPtr.p->m_errorCode == 0);
+  
+  dropObjPtr.p->m_callback.m_callbackFunction = 
+    safe_cast(&Dbdict::restartDropObj_prepare_complete_done);
+  
+  if (f_dict_op[dropObjPtr.p->m_vt_index].m_prepare_complete)
+    (this->*f_dict_op[dropObjPtr.p->m_vt_index].m_prepare_complete)
+      (signal, dropObjPtr.p);
+  else
+    execute(signal, dropObjPtr.p->m_callback, 0);
+}
+
+void
+Dbdict::restartDropObj_prepare_complete_done(Signal* signal,
+                                             Uint32 callbackData, 
+                                             Uint32 returnCode)
+{
+  jam();
+  ndbrequire(returnCode == 0);
+  DropObjRecordPtr dropObjPtr;  
+  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
+  ndbrequire(dropObjPtr.p->m_errorCode == 0);
+  
+  dropObjPtr.p->m_callback.m_callbackFunction = 
+    safe_cast(&Dbdict::restartDropObj_commit_start_done);
+  
+  if (f_dict_op[dropObjPtr.p->m_vt_index].m_commit_start)
+    (this->*f_dict_op[dropObjPtr.p->m_vt_index].m_commit_start)
+      (signal, dropObjPtr.p);
+  else
+    execute(signal, dropObjPtr.p->m_callback, 0);
+}
+
+void
+Dbdict::restartDropObj_commit_start_done(Signal* signal,
+                                         Uint32 callbackData, 
+                                         Uint32 returnCode)
+{
+  jam();
+  ndbrequire(returnCode == 0);
+  DropObjRecordPtr dropObjPtr;  
+  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
+  ndbrequire(dropObjPtr.p->m_errorCode == 0);
+  
+  dropObjPtr.p->m_callback.m_callbackFunction = 
+    safe_cast(&Dbdict::restartDropObj_commit_complete_done);
+
+  if (f_dict_op[dropObjPtr.p->m_vt_index].m_commit_complete)
+    (this->*f_dict_op[dropObjPtr.p->m_vt_index].m_commit_complete)
+      (signal, dropObjPtr.p);
+  else
+    execute(signal, dropObjPtr.p->m_callback, 0);
+}  
+
+
+void
+Dbdict::restartDropObj_commit_complete_done(Signal* signal,
+                                            Uint32 callbackData, 
+                                            Uint32 returnCode)
+{
+  jam();
+  ndbrequire(returnCode == 0);
+  DropObjRecordPtr dropObjPtr;  
+  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
+  ndbrequire(dropObjPtr.p->m_errorCode == 0);
+  
+  c_opDropObj.release(dropObjPtr);
 
   c_restartRecord.activeTable++;
   checkSchemaStatus(signal);
@@ -16414,6 +16579,22 @@ Dbdict::drop_file_commit_complete(Signal* signal, SchemaOp* op)
   c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
   ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
   decrease_ref_count(fg_ptr.p->m_obj_ptr_i);
+  release_object(f_ptr.p->m_obj_ptr_i);
+  c_file_hash.release(f_ptr);
+  execute(signal, op->m_callback, 0);
+}
+
+void
+Dbdict::drop_undofile_commit_complete(Signal* signal, SchemaOp* op)
+{
+  FilePtr f_ptr;
+  FilegroupPtr fg_ptr;
+
+  jam();
+  c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
+  ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
+  Local_file_list list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
+  list.remove(f_ptr);
   release_object(f_ptr.p->m_obj_ptr_i);
   c_file_hash.release(f_ptr);
   execute(signal, op->m_callback, 0);
