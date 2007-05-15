@@ -895,7 +895,7 @@ page_cur_insert_rec_low(
 	rec_t*		current_rec,/* in: pointer to current record after
 				which the new record is inserted */
 	dict_index_t*	index,	/* in: record descriptor */
-	rec_t*		rec,	/* in: pointer to a physical record */
+	const rec_t*	rec,	/* in: pointer to a physical record */
 	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
 	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL */
 {
@@ -1141,7 +1141,7 @@ page_cur_insert_rec_zip(
 				which the new record is inserted */
 	buf_block_t*	block,	/* in: buffer block of *current_rec */
 	dict_index_t*	index,	/* in: record descriptor */
-	rec_t*		rec,	/* in: pointer to a physical record */
+	const rec_t*	rec,	/* in: pointer to a physical record */
 	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
 	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL */
 {
