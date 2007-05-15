@@ -619,6 +619,10 @@ max-time: 1500
 cmd: testDict
 args: -l 25 -n DictRestart T1
 
+max-time: 500
+cmd: testDict
+args: -n Bug24631 T1
+
 #
 # TEST NDBAPI
 #
