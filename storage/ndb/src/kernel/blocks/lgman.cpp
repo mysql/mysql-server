@@ -436,7 +436,6 @@ Lgman::drop_filegroup_drop_files(Signal* signal,
 {
   jam();
   ndbrequire(! (ptr.p->m_state & Logfile_group::LG_THREAD_MASK));
-  ndbrequire(ptr.p->m_meta_files.isEmpty());
   ndbrequire(ptr.p->m_outstanding_fs == 0);
 
   Local_undofile_list list(m_file_pool, ptr.p->m_files);
@@ -446,6 +445,18 @@ Lgman::drop_filegroup_drop_files(Signal* signal,
   {
     jam();
     ndbrequire(! (file_ptr.p->m_state & Undofile::FS_OUTSTANDING));
+    file_ptr.p->m_create.m_senderRef = ref;
+    file_ptr.p->m_create.m_senderData = data;
+    create_file_abort(signal, ptr, file_ptr);
+    return;
+  }
+
+  Local_undofile_list metalist(m_file_pool, ptr.p->m_meta_files);
+  if (metalist.first(file_ptr))
+  {
+    jam();
+    metalist.remove(file_ptr);
+    list.add(file_ptr);
     file_ptr.p->m_create.m_senderRef = ref;
     file_ptr.p->m_create.m_senderData = data;
     create_file_abort(signal, ptr, file_ptr);
