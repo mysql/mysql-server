@@ -1371,14 +1371,24 @@ void Dbdict::readSchemaConf(Signal* signal,
 
   for (Uint32 n = 0; n < xsf->noOfPages; n++) {
     SchemaFile * sf = &xsf->schemaPage[n];
-    bool ok =
-      memcmp(sf->Magic, NDB_SF_MAGIC, sizeof(sf->Magic)) == 0 &&
-      sf->FileSize != 0 &&
-      sf->FileSize % NDB_SF_PAGE_SIZE == 0 &&
-      sf->FileSize == sf0->FileSize &&
-      sf->PageNumber == n &&
-      computeChecksum((Uint32*)sf, NDB_SF_PAGE_SIZE_IN_WORDS) == 0;
-    ndbrequireErr(ok || !crashInd, NDBD_EXIT_SR_SCHEMAFILE);
+    bool ok = false;
+    if (memcmp(sf->Magic, NDB_SF_MAGIC, sizeof(sf->Magic)) != 0)
+    { jam(); }
+    else if (sf->FileSize == 0)
+    { jam(); }
+    else if (sf->FileSize % NDB_SF_PAGE_SIZE != 0)
+    { jam(); }
+    else if (sf->FileSize != sf0->FileSize)
+    { jam(); }
+    else if (sf->PageNumber != n)
+    { jam(); }
+    else if (computeChecksum((Uint32*)sf, NDB_SF_PAGE_SIZE_IN_WORDS) != 0)
+    { jam(); }
+    else if (crashInd)
+    { jam(); }
+    else
+      ok = true;
+    ndbrequireErr(ok, NDBD_EXIT_SR_SCHEMAFILE);
     if (! ok) {
       jam();
       ndbrequireErr(fsPtr.p->fsState == FsConnectRecord::READ_SCHEMA1,
