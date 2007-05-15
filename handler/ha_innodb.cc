@@ -50,6 +50,7 @@ removing -DMYSQL_SERVER from ../Makefile.am as well. */
 #define thd_killed(thd) (thd)->killed
 #define thd_slave_thread(thd) (thd)->slave_thread
 #define thd_query(thd) (&(thd)->query)
+#define thd_non_transactional_update(thd) ((thd)->no_trans_update.all)
 #define mysql_bin_log_file_name() mysql_bin_log.get_log_fname()
 #define mysql_bin_log_file_pos() mysql_bin_log.get_log_file()->pos_in_file
 /*#define mysql_tmpfile() fileno(tmpfile())/* BUGGY: leaks memory, Bug #3998 */
@@ -503,6 +504,23 @@ innobase_release_stat_resources(
 
 		srv_conc_force_exit_innodb(trx);
 	}
+}
+
+/**********************************************************************
+Returns true if the transaction this thread is processing has edited
+non-transactional tables. Used by the deadlock detector when deciding
+which transaction to rollback in case of a deadlock - we try to avoid
+rolling back transactions that have edited non-transactional tables. */
+
+extern "C"
+ibool
+thd_has_edited_nontrans_tables(
+/*===========================*/
+			/* out: true if non-transactional tables have
+			been edited */
+	void*	thd)	/* in: thread handle (THD*) */
+{
+	return((ibool) thd_non_transactional_update((THD*) thd));
 }
 
 /************************************************************************
