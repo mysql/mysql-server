@@ -1871,7 +1871,7 @@ void drop_open_table(THD *thd, TABLE *table, const char *db_name,
     close_temporary_table(thd, table, 1, 1);
   else
   {
-    handlerton *table_type= table->s->db_type;
+    handlerton *table_type= table->s->db_type();
     VOID(pthread_mutex_lock(&LOCK_open));
     /*
       unlink_open_table() also tells threads waiting for refresh or close
