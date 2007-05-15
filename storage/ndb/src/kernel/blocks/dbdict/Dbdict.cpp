@@ -86,6 +86,9 @@
 #include <signaldata/CreateObj.hpp>
 #include <SLList.hpp>
 
+#include <EventLogger.hpp>
+extern EventLogger g_eventLogger;
+
 #define ZNOT_FOUND 626
 #define ZALREADYEXIST 630
 
@@ -1373,18 +1376,36 @@ void Dbdict::readSchemaConf(Signal* signal,
 
   for (Uint32 n = 0; n < xsf->noOfPages; n++) {
     SchemaFile * sf = &xsf->schemaPage[n];
-    bool ok =
-      memcmp(sf->Magic, NDB_SF_MAGIC, sizeof(sf->Magic)) == 0 &&
-      sf->FileSize != 0 &&
-      sf->FileSize % NDB_SF_PAGE_SIZE == 0 &&
-      sf->FileSize == sf0->FileSize &&
-      sf->PageNumber == n &&
-      computeChecksum((Uint32*)sf, NDB_SF_PAGE_SIZE_IN_WORDS) == 0;
-    ndbrequireErr(ok || !crashInd, NDBD_EXIT_SR_SCHEMAFILE);
-    if (! ok) {
-      jam();
+    bool ok = false;
+    const char *reason;
+    if (memcmp(sf->Magic, NDB_SF_MAGIC, sizeof(sf->Magic)) != 0)
+    { jam(); reason = "magic code"; }
+    else if (sf->FileSize == 0)
+    { jam(); reason = "file size == 0"; }
+    else if (sf->FileSize % NDB_SF_PAGE_SIZE != 0)
+    { jam(); reason = "invalid size multiple"; }
+    else if (sf->FileSize != sf0->FileSize)
+    { jam(); reason = "invalid size"; }
+    else if (sf->PageNumber != n)
+    { jam(); reason = "invalid page number"; }
+    else if (computeChecksum((Uint32*)sf, NDB_SF_PAGE_SIZE_IN_WORDS) != 0)
+    { jam(); reason = "invalid checksum"; }
+    else
+      ok = true;
+
+    if (!ok)
+    {
+      char reason_msg[128];
+      snprintf(reason_msg, sizeof(reason_msg),
+               "schema file corrupt, page %u (%s, "
+               "sz=%u sz0=%u pn=%u)",
+               n, reason, sf->FileSize, sf0->FileSize, sf->PageNumber);
+      if (crashInd)
+        progError(__LINE__, NDBD_EXIT_SR_SCHEMAFILE, reason_msg);
       ndbrequireErr(fsPtr.p->fsState == FsConnectRecord::READ_SCHEMA1,
                     NDBD_EXIT_SR_SCHEMAFILE);
+      jam();
+      infoEvent("primary %s, trying backup", reason_msg);
       readSchemaRef(signal, fsPtr);
       return;
     }
