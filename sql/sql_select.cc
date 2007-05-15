@@ -9133,8 +9133,7 @@ Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
   if (item->field_type() == MYSQL_TYPE_VARCHAR)
   {
     Field *field;
-    if (item->max_length > MAX_FIELD_VARCHARLENGTH /
-        item->collation.collation->mbmaxlen)
+    if (item->max_length > MAX_FIELD_VARCHARLENGTH)
       field= new Field_blob(item->max_length, item->maybe_null,
                             item->name, item->collation.collation);
     else
