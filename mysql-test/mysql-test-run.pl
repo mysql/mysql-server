@@ -3740,8 +3740,7 @@ sub mysqld_arguments ($$$$) {
 	      "%s--log-slow-queries=%s-slow.log", $prefix, $log_base_path);
 
   # Check if "extra_opt" contains --skip-log-bin
-  my $skip_binlog= grep(/^--skip-log-bin/, @$extra_opt);
-
+  my $skip_binlog= grep(/^--skip-log-bin/, @$extra_opt, @opt_extra_mysqld_opt);
   if ( $mysqld->{'type'} eq 'master' )
   {
     if (! ($opt_skip_master_binlog || $skip_binlog) )
