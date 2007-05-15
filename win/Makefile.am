@@ -14,7 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 ## Process this file with automake to create Makefile.in
-EXTRA_DIST = build-vs71.bat build-vs8.bat build-vs8_x64.bat configure.js README \ 
+EXTRA_DIST = build-vs71.bat build-vs8.bat build-vs8_x64.bat configure.js README \
              mysql_manifest.cmake create_manifest.js
 
 # Don't update the files from bitkeeper
