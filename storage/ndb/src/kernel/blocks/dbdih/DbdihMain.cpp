@@ -36,7 +36,7 @@
 #include <signaldata/EmptyLcp.hpp>
 #include <signaldata/EndTo.hpp>
 #include <signaldata/EventReport.hpp>
-#include <signaldata/GCPSave.hpp>
+#include <signaldata/GCP.hpp>
 #include <signaldata/HotSpareRep.hpp>
 #include <signaldata/MasterGCP.hpp>
 #include <signaldata/MasterLCP.hpp>
@@ -185,17 +185,19 @@ void Dbdih::sendEND_TOREQ(Signal* signal, Uint32 nodeId)
 void Dbdih::sendGCP_COMMIT(Signal* signal, Uint32 nodeId)
 {
   BlockReference ref = calcDihBlockRef(nodeId);
-  signal->theData[0] = cownNodeId;
-  signal->theData[1] = cnewgcp;
-  sendSignal(ref, GSN_GCP_COMMIT, signal, 2, JBA);
+  GCPCommit *req = (GCPCommit*)signal->getDataPtrSend();
+  req->nodeId = cownNodeId;
+  req->gci = cnewgcp;
+  sendSignal(ref, GSN_GCP_COMMIT, signal, GCPCommit::SignalLength, JBA);
 }//Dbdih::sendGCP_COMMIT()
 
 void Dbdih::sendGCP_PREPARE(Signal* signal, Uint32 nodeId)
 {
   BlockReference ref = calcDihBlockRef(nodeId);
-  signal->theData[0] = cownNodeId;
-  signal->theData[1] = cnewgcp;
-  sendSignal(ref, GSN_GCP_PREPARE, signal, 2, JBA);
+  GCPPrepare *req = (GCPPrepare*)signal->getDataPtrSend();
+  req->nodeId = cownNodeId;
+  req->gci = cnewgcp;
+  sendSignal(ref, GSN_GCP_PREPARE, signal, GCPPrepare::SignalLength, JBA);
 }//Dbdih::sendGCP_PREPARE()
 
 void Dbdih::sendGCP_SAVEREQ(Signal* signal, Uint32 nodeId)
@@ -4944,17 +4946,21 @@ void Dbdih::failedNodeLcpHandling(Signal* signal, NodeRecordPtr failedNodePtr)
 void Dbdih::checkGcpOutstanding(Signal* signal, Uint32 failedNodeId){
   if (c_GCP_PREPARE_Counter.isWaitingFor(failedNodeId)){
     jam();
-    signal->theData[0] = failedNodeId;
-    signal->theData[1] = cnewgcp;
-    sendSignal(reference(), GSN_GCP_PREPARECONF, signal, 2, JBB);
+    GCPPrepareConf* conf = (GCPPrepareConf*)signal->getDataPtrSend();
+    conf->nodeId = failedNodeId;
+    conf->gci = cnewgcp;
+    sendSignal(reference(), GSN_GCP_PREPARECONF, signal, 
+               GCPPrepareConf::SignalLength, JBB);
   }//if
 
   if (c_GCP_COMMIT_Counter.isWaitingFor(failedNodeId)) {
     jam();
-    signal->theData[0] = failedNodeId;
-    signal->theData[1] = coldgcp;
-    signal->theData[2] = cfailurenr;
-    sendSignal(reference(), GSN_GCP_NODEFINISH, signal, 3, JBB);
+    GCPNodeFinished* conf = (GCPNodeFinished*)signal->getDataPtrSend();
+    conf->nodeId = failedNodeId;
+    conf->gci = coldgcp;
+    conf->failno = cfailurenr;
+    sendSignal(reference(), GSN_GCP_NODEFINISH, signal, 
+               GCPNodeFinished::SignalLength, JBB);
   }//if
 
   if (c_GCP_SAVEREQ_Counter.isWaitingFor(failedNodeId)) {
@@ -8119,8 +8125,9 @@ void Dbdih::execGCP_PREPARE(Signal* signal)
     return;
   }
   
-  Uint32 masterNodeId = signal->theData[0];
-  Uint32 gci = signal->theData[1];
+  GCPPrepare* req = (GCPPrepare*)signal->getDataPtr();
+  Uint32 masterNodeId = req->nodeId;
+  Uint32 gci = req->gci;
   BlockReference retRef = calcDihBlockRef(masterNodeId);
                                                  
   ndbrequire (cmasterdihref == retRef);
@@ -8139,9 +8146,11 @@ void Dbdih::execGCP_PREPARE(Signal* signal)
     return;
   }
   
-  signal->theData[0] = cownNodeId;
-  signal->theData[1] = gci;  
-  sendSignal(retRef, GSN_GCP_PREPARECONF, signal, 2, JBA);
+  GCPPrepareConf* conf = (GCPPrepareConf*)signal->getDataPtrSend();
+  conf->nodeId = cownNodeId;
+  conf->gci = gci;  
+  sendSignal(retRef, GSN_GCP_PREPARECONF, signal, 
+             GCPPrepareConf::SignalLength, JBA);
   return;
 }//Dbdih::execGCP_PREPARE()
 
@@ -8149,8 +8158,9 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
 {
   jamEntry();
   CRASH_INSERTION(7006);
-  Uint32 masterNodeId = signal->theData[0];
-  Uint32 gci = signal->theData[1];
+  GCPCommit * req = (GCPCommit*)signal->getDataPtr();
+  Uint32 masterNodeId = req->nodeId;
+  Uint32 gci = req->gci;
 
   ndbrequire(gci == (currentgcp + 1));
   ndbrequire(masterNodeId = cmasterNodeId);
@@ -8161,9 +8171,12 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
   cgckptflag = false;
   emptyverificbuffer(signal, true);
   cgcpParticipantState = GCP_PARTICIPANT_COMMIT_RECEIVED;
-  signal->theData[0] = calcDihBlockRef(masterNodeId);
-  signal->theData[1] = coldgcp;
-  sendSignal(clocaltcblockref, GSN_GCP_NOMORETRANS, signal, 2, JBB);
+
+  GCPNoMoreTrans* req2 = (GCPNoMoreTrans*)signal->getDataPtrSend();
+  req2->senderData = calcDihBlockRef(masterNodeId);
+  req2->gci = coldgcp;
+  sendSignal(clocaltcblockref, GSN_GCP_NOMORETRANS, signal, 
+             GCPNoMoreTrans::SignalLength, JBB);
   return;
 }//Dbdih::execGCP_COMMIT()
 
@@ -8171,8 +8184,9 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
 {
   jamEntry();
   CRASH_INSERTION(7007);
-  Uint32 retRef = signal->theData[0];
-  Uint32 gci = signal->theData[1];
+  GCPTCFinished* req = (GCPTCFinished*)signal->getDataPtr();
+  Uint32 retRef = req->senderData;
+  Uint32 gci = req->gci;
   ndbrequire(gci == coldgcp);
 
   if (ERROR_INSERTED(7181) || ERROR_INSERTED(7182))
@@ -8186,10 +8200,13 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
   }
 
   cgcpParticipantState = GCP_PARTICIPANT_TC_FINISHED;
-  signal->theData[0] = cownNodeId;
-  signal->theData[1] = coldgcp;
-  signal->theData[2] = cfailurenr;
-  sendSignal(retRef, GSN_GCP_NODEFINISH, signal, 3, JBB);
+
+  GCPNodeFinished* conf = (GCPNodeFinished*)signal->getDataPtrSend();
+  conf->nodeId = cownNodeId;
+  conf->gci = coldgcp;
+  conf->failno = cfailurenr;
+  sendSignal(retRef, GSN_GCP_NODEFINISH, signal, 
+             GCPNodeFinished::SignalLength, JBB);
 }//Dbdih::execGCP_TCFINISHED()
 
 /*****************************************************************************/
