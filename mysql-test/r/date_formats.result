@@ -1,14 +1,12 @@
 drop table if exists t1;
-SHOW GLOBAL VARIABLES LIKE "%_format%";
+SHOW GLOBAL VARIABLES WHERE Variable_name LIKE "%_format%" AND Variable_name != "binlog_format";
 Variable_name	Value
-binlog_format	<format>
 date_format	%d.%m.%Y
 datetime_format	%Y-%m-%d %H:%i:%s
 default_week_format	0
 time_format	%H.%i.%s
-SHOW SESSION VARIABLES LIKE "%_format%";
+SHOW SESSION VARIABLES WHERE Variable_name LIKE "%_format%" AND Variable_name != "binlog_format";
 Variable_name	Value
-binlog_format	<format>
 date_format	%d.%m.%Y
 datetime_format	%Y-%m-%d %H:%i:%s
 default_week_format	0
@@ -30,9 +28,8 @@ set datetime_format= '%H:%i:%s %Y-%m-%d';
 set datetime_format= '%H:%i:%s.%f %m-%d-%Y';
 set datetime_format= '%h:%i:%s %p %Y-%m-%d';
 set datetime_format= '%h:%i:%s.%f %p %Y-%m-%d';
-SHOW SESSION VARIABLES LIKE "%format";
+SHOW SESSION VARIABLES WHERE Variable_name LIKE "%format" AND Variable_name != "binlog_format";
 Variable_name	Value
-binlog_format	<format>
 date_format	%m-%d-%Y
 datetime_format	%h:%i:%s.%f %p %Y-%m-%d
 default_week_format	0
