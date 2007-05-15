@@ -304,6 +304,8 @@ typedef struct st_table_share
 } TABLE_SHARE;
 
 
+extern ulong refresh_version;
+
 /* Information for one open table */
 enum index_hint_type
 {
@@ -319,8 +321,8 @@ struct st_table {
   handler	*file;
 #ifdef NOT_YET
   struct st_table *used_next, **used_prev;	/* Link to used tables */
-#endif
   struct st_table *open_next, **open_prev;	/* Link to open tables */
+#endif
   struct st_table *next, *prev;
 
   THD	*in_use;                        /* Which thread uses this */
@@ -436,7 +438,24 @@ struct st_table {
   my_bool force_index;
   my_bool distinct,const_table,no_rows;
   my_bool key_read, no_keyread;
-  my_bool locked_by_flush;
+  /*
+    Placeholder for an open table which prevents other connections
+    from taking name-locks on this table. Typically used with
+    TABLE_SHARE::version member to take an exclusive name-lock on
+    this table name -- a name lock that not only prevents other
+    threads from opening the table, but also blocks other name
+    locks. This is achieved by:
+    - setting open_placeholder to 1 - this will block other name
+      locks, as wait_for_locked_table_name will be forced to wait,
+      see table_is_used for details.
+    - setting version to 0 - this will force other threads to close
+      the instance of this table and wait (this is the same approach
+      as used for usual name locks).
+    An exclusively name-locked table currently can have no handler
+    object associated with it (db_stat is always 0), but please do
+    not rely on that.
+  */
+  my_bool open_placeholder;
   my_bool locked_by_logger;
   my_bool no_replicate;
   my_bool locked_by_name;
@@ -497,7 +516,13 @@ struct st_table {
     read_set= &def_read_set;
     write_set= &def_write_set;
   }
-
+  /* Is table open or should be treated as such by name-locking? */
+  inline bool is_name_opened() { return db_stat || open_placeholder; }
+  /*
+    Is this instance of the table should be reopen or represents a name-lock?
+  */
+  inline bool needs_reopen_or_name_lock()
+  { return s->version != refresh_version; }
 };
 
 enum enum_schema_table_state
@@ -893,6 +918,12 @@ typedef struct st_table_list
     used for implicit LOCK TABLES only and won't be used in real statement.
   */
   bool          prelocking_placeholder;
+  /*
+    This TABLE_LIST object corresponds to the table to be created
+    so it is possible that it does not exist (used in CREATE TABLE
+    ... SELECT implementation).
+  */
+  bool          create;
 
   enum enum_schema_table_state schema_table_state;
   void calc_md5(char *buffer);
@@ -900,7 +931,11 @@ typedef struct st_table_list
   int view_check_option(THD *thd, bool ignore_failure);
   bool setup_underlying(THD *thd);
   void cleanup_items();
-  bool placeholder() {return derived || view || schema_table || !table; }
+  bool placeholder()
+  {
+    return derived || view || schema_table || create && !table->db_stat ||
+           !table;
+  }
   void print(THD *thd, String *str);
   bool check_single_table(st_table_list **table, table_map map,
                           st_table_list *view);
