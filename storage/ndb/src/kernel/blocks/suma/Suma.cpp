@@ -38,7 +38,6 @@
 #include <signaldata/FireTrigOrd.hpp>
 #include <signaldata/TrigAttrInfo.hpp>
 #include <signaldata/CheckNodeGroups.hpp>
-#include <signaldata/GCPSave.hpp>
 #include <signaldata/CreateTab.hpp>
 #include <signaldata/DropTab.hpp>
 #include <signaldata/AlterTable.hpp>

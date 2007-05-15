@@ -73,6 +73,7 @@
 #include <signaldata/CheckNodeGroups.hpp>
 
 #include <signaldata/RouteOrd.hpp>
+#include <signaldata/GCP.hpp>
 
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
@@ -7005,8 +7006,9 @@ next:
 void Dbtc::execGCP_NOMORETRANS(Signal* signal) 
 {
   jamEntry();
-  c_gcp_ref = signal->theData[0];
-  tcheckGcpId = signal->theData[1];
+  GCPNoMoreTrans* req = (GCPNoMoreTrans*)signal->getDataPtr();
+  c_gcp_ref = req->senderData;
+  tcheckGcpId = req->gci;
   if (cfirstgcp != RNIL) {
     jam();
                                       /* A GLOBAL CHECKPOINT IS GOING ON */
@@ -10157,9 +10159,11 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
 
 void Dbtc::gcpTcfinished(Signal* signal) 
 {
-  signal->theData[0] = c_gcp_ref;
-  signal->theData[1] = tcheckGcpId;
-  sendSignal(cdihblockref, GSN_GCP_TCFINISHED, signal, 2, JBB);
+  GCPTCFinished* conf = (GCPTCFinished*)signal->getDataPtrSend();
+  conf->senderData = c_gcp_ref;
+  conf->gci = tcheckGcpId;
+  sendSignal(cdihblockref, GSN_GCP_TCFINISHED, signal, 
+             GCPTCFinished::SignalLength, JBB);
 }//Dbtc::gcpTcfinished()
 
 void Dbtc::initApiConnect(Signal* signal) 
