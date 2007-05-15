@@ -80,6 +80,7 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 #define NDBD_EXIT_SR_UNDOLOG                  2313 
 #define NDBD_EXIT_SR_SCHEMAFILE               2310
 #define NDBD_EXIT_SINGLE_USER_MODE            2314 
+#define NDBD_EXIT_NODE_DECLARED_DEAD          2315 
 #define NDBD_EXIT_MEMALLOC                    2327
 #define NDBD_EXIT_BLOCK_JBUFCONGESTION        2334
 #define NDBD_EXIT_TIME_QUEUE_SHORT            2335
