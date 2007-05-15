@@ -7146,6 +7146,17 @@ SELECT bug5274_f2()|
 DROP FUNCTION bug5274_f1|
 DROP FUNCTION bug5274_f2|
 
+#
+# Bug#21513 (SP having body starting with quoted label rendered unusable)
+#
+--disable_warnings
+drop procedure if exists proc_21513|
+--enable_warnings
+
+create procedure proc_21513()`my_label`:BEGIN END|
+show create procedure proc_21513|
+
+drop procedure proc_21513|
 
 ###
 --echo End of 5.0 tests.

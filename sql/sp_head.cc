@@ -557,6 +557,7 @@ sp_head::init_strings(THD *thd, LEX *lex)
   const char *endp;                            /* Used to trim the end */
   /* During parsing, we must use thd->mem_root */
   MEM_ROOT *root= thd->mem_root;
+  Lex_input_stream *lip=thd->m_lip;
 
   if (m_param_begin && m_param_end)
   {
@@ -565,7 +566,7 @@ sp_head::init_strings(THD *thd, LEX *lex)
   }
 
   /* If ptr has overrun end_of_query then end_of_query is the end */
-  endp= (lex->ptr > lex->end_of_query ? lex->end_of_query : lex->ptr);
+  endp= (lip->ptr > lip->end_of_query ? lip->end_of_query : lip->ptr);
   /*
     Trim "garbage" at the end. This is sometimes needed with the
     "/ * ! VERSION... * /" wrapper in dump files.
@@ -574,8 +575,8 @@ sp_head::init_strings(THD *thd, LEX *lex)
 
   m_body.length= endp - m_body_begin;
   m_body.str= strmake_root(root, m_body_begin, m_body.length);
-  m_defstr.length= endp - lex->buf;
-  m_defstr.str= strmake_root(root, lex->buf, m_defstr.length);
+  m_defstr.length= endp - lip->buf;
+  m_defstr.str= strmake_root(root, lip->buf, m_defstr.length);
   DBUG_VOID_RETURN;
 }
 
@@ -1815,25 +1816,13 @@ sp_head::reset_lex(THD *thd)
   DBUG_ENTER("sp_head::reset_lex");
   LEX *sublex;
   LEX *oldlex= thd->lex;
-  my_lex_states org_next_state= oldlex->next_state;
 
   (void)m_lex.push_front(oldlex);
   thd->lex= sublex= new st_lex;
 
-  /* Reset most stuff. The length arguments doesn't matter here. */
-  lex_start(thd, oldlex->buf, (ulong) (oldlex->end_of_query - oldlex->ptr));
+  /* Reset most stuff. */
+  lex_start(thd);
 
-  /*
-    next_state is normally the same (0), but it happens that we swap lex in
-    "mid-sentence", so we must restore it.
-   */
-  sublex->next_state= org_next_state;
-  /* We must reset ptr and end_of_query again */
-  sublex->ptr= oldlex->ptr;
-  sublex->end_of_query= oldlex->end_of_query;
-  sublex->tok_start= oldlex->tok_start;
-  sublex->tok_end= oldlex->tok_end;
-  sublex->yylineno= oldlex->yylineno;
   /* And keep the SP stuff too */
   sublex->sphead= oldlex->sphead;
   sublex->spcont= oldlex->spcont;
@@ -1866,10 +1855,6 @@ sp_head::restore_lex(THD *thd)
   if (! oldlex)
     return;			// Nothing to restore
 
-  // Update some state in the old one first
-  oldlex->ptr= sublex->ptr;
-  oldlex->tok_end= sublex->tok_end;
-  oldlex->next_state= sublex->next_state;
   oldlex->trg_table_fields.push_back(&sublex->trg_table_fields);
 
   /*
@@ -3062,10 +3047,20 @@ sp_instr_hreturn::print(String *str)
 uint
 sp_instr_hreturn::opt_mark(sp_head *sp, List<sp_instr> *leads)
 {
-  if (m_dest)
-    return sp_instr_jump::opt_mark(sp, leads);
-
   marked= 1;
+  
+  if (m_dest)
+  {
+    /*
+      This is an EXIT handler; next instruction step is in m_dest.
+     */
+    return m_dest;
+  }
+  
+  /*
+    This is a CONTINUE handler; next instruction step will come from
+    the handler stack and not from opt_mark.
+   */
   return UINT_MAX;
 }
 
