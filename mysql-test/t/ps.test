@@ -33,13 +33,13 @@ deallocate prepare no_such_statement;
 execute stmt1;
 
 # Nesting ps commands is not allowed: 
---error 1064
+--error ER_UNSUPPORTED_PS 
 prepare stmt2 from 'prepare nested_stmt from "select 1"';
 
---error 1064
+--error ER_UNSUPPORTED_PS 
 prepare stmt2 from 'execute stmt1';
 
---error 1064
+--error ER_UNSUPPORTED_PS 
 prepare stmt2 from 'deallocate prepare z';
 
 # PS insert 
