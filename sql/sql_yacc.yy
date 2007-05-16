@@ -104,12 +104,13 @@ const LEX_STRING null_lex_str={0,0};
 void my_parse_error(const char *s)
 {
   THD *thd= current_thd;
+  Lex_input_stream *lip= thd->m_lip;
 
-  char *yytext= (char*) thd->lex->tok_start;
+  const char *yytext= lip->tok_start;
   /* Push an error into the error stack */
   my_printf_error(ER_PARSE_ERROR,  ER(ER_PARSE_ERROR), MYF(0), s,
-                  (yytext ? (char*) yytext : ""),
-                  thd->lex->yylineno);
+                  (yytext ? yytext : ""),
+                  lip->yylineno);
 }
 
 /**
@@ -1363,11 +1364,6 @@ deallocate:
         {
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
-          if (lex->stmt_prepare_mode)
-          {
-            my_parse_error(ER(ER_SYNTAX_ERROR));
-            MYSQL_YYABORT;
-          }
           lex->sql_command= SQLCOM_DEALLOCATE_PREPARE;
           lex->prepared_stmt_name= $3;
         };
@@ -1383,11 +1379,6 @@ prepare:
         {
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
-          if (lex->stmt_prepare_mode)
-          {
-            my_parse_error(ER(ER_SYNTAX_ERROR));
-            MYSQL_YYABORT;
-          }
           lex->sql_command= SQLCOM_PREPARE;
           lex->prepared_stmt_name= $2;
         };
@@ -1413,11 +1404,6 @@ execute:
         {
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
-          if (lex->stmt_prepare_mode)
-          {
-            my_parse_error(ER(ER_SYNTAX_ERROR));
-            MYSQL_YYABORT;
-          }
           lex->sql_command= SQLCOM_EXECUTE;
           lex->prepared_stmt_name= $2;
         }
@@ -1581,9 +1567,7 @@ create:
 	  lex->sql_command= SQLCOM_CREATE_TABLE;
 	  if (!lex->select_lex.add_table_to_list(thd, $5, NULL,
 						 TL_OPTION_UPDATING,
-						 (using_update_log ?
-						  TL_READ_NO_INSERT:
-						  TL_READ)))
+						 TL_WRITE))
 	    MYSQL_YYABORT;
 	  lex->create_list.empty();
 	  lex->key_list.empty();
@@ -1849,7 +1833,9 @@ opt_ev_comment: /* empty */ { $$= 0; }
 
 ev_sql_stmt:
           {
-            LEX *lex= Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            Lex_input_stream *lip= thd->m_lip;
 
             /*
               This stops the following :
@@ -1886,22 +1872,23 @@ ev_sql_stmt:
             bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
             lex->sphead->m_chistics= &lex->sp_chistics;
 
-            lex->sphead->m_body_begin= lex->ptr;
+            lex->sphead->m_body_begin= lip->ptr;
             
-            Lex->event_parse_data->body_begin= lex->ptr;
+            lex->event_parse_data->body_begin= lip->ptr;
 
           }
           ev_sql_stmt_inner
           {
-            LEX *lex=Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
 
             /* return back to the original memory root ASAP */
-            lex->sphead->init_strings(YYTHD, lex);
-            lex->sphead->restore_thd_mem_root(YYTHD);
+            lex->sphead->init_strings(thd, lex);
+            lex->sphead->restore_thd_mem_root(thd);
 
             lex->sp_chistics.suid= SP_IS_SUID;  //always the definer!
 
-            Lex->event_parse_data->init_body(YYTHD);
+            lex->event_parse_data->init_body(thd);
           }
       ;
 
@@ -1995,7 +1982,9 @@ create_function_tail:
 	  }
 	| '('
 	  {
-	    LEX *lex= Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            Lex_input_stream *lip= thd->m_lip;
 	    sp_head *sp;
 
             /* 
@@ -2015,9 +2004,9 @@ create_function_tail:
 	    }
 	    /* Order is important here: new - reset - init */
 	    sp= new sp_head();
-	    sp->reset_thd_mem_root(YYTHD);
+	    sp->reset_thd_mem_root(thd);
 	    sp->init(lex);
-            sp->init_sp_name(YYTHD, lex->spname);
+            sp->init_sp_name(thd, lex->spname);
 
 	    sp->m_type= TYPE_ENUM_FUNCTION;
 	    lex->sphead= sp;
@@ -2026,15 +2015,17 @@ create_function_tail:
 	      stored procedure, otherwise yylex will chop it into pieces
 	      at each ';'.
 	    */
-            $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
-	    YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
-	    lex->sphead->m_param_begin= lex->tok_start+1;
+            $<ulong_num>$= thd->client_capabilities & CLIENT_MULTI_QUERIES;
+	    thd->client_capabilities &= ~CLIENT_MULTI_QUERIES;
+	    lex->sphead->m_param_begin= lip->tok_start+1;
 	  }
           sp_fdparam_list ')'
 	  {
-	    LEX *lex= Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            Lex_input_stream *lip= thd->m_lip;
 
-	    lex->sphead->m_param_end= lex->tok_start;
+	    lex->sphead->m_param_end= lip->tok_start;
 	  }
 	  RETURNS_SYM
 	  {
@@ -2069,10 +2060,12 @@ create_function_tail:
 	  }
 	  sp_c_chistics
 	  {
-	    LEX *lex= Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            Lex_input_stream *lip= thd->m_lip;
 
 	    lex->sphead->m_chistics= &lex->sp_chistics;
-	    lex->sphead->m_body_begin= lex->tok_start;
+	    lex->sphead->m_body_begin= lip->tok_start;
 	  }
 	  sp_proc_stmt
 	  {
@@ -2678,14 +2671,18 @@ sp_proc_stmt_if:
         
 sp_proc_stmt_statement:
 	  {
-	    LEX *lex= Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            Lex_input_stream *lip= thd->m_lip;
 
-	    lex->sphead->reset_lex(YYTHD);
-	    lex->sphead->m_tmp_query= lex->tok_start;
+	    lex->sphead->reset_lex(thd);
+	    lex->sphead->m_tmp_query= lip->tok_start;
 	  }
 	  statement
 	  {
-	    LEX *lex= Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            Lex_input_stream *lip= thd->m_lip;
 	    sp_head *sp= lex->sphead;
 
             sp->m_flags|= sp_get_flags_for_command(lex);
@@ -2712,15 +2709,15 @@ sp_proc_stmt_statement:
                 lex->tok_end otherwise.
               */
               if (yychar == YYEMPTY)
-                i->m_query.length= lex->ptr - sp->m_tmp_query;
+                i->m_query.length= lip->ptr - sp->m_tmp_query;
               else
-                i->m_query.length= lex->tok_end - sp->m_tmp_query;
-              i->m_query.str= strmake_root(YYTHD->mem_root,
+                i->m_query.length= lip->tok_end - sp->m_tmp_query;
+              i->m_query.str= strmake_root(thd->mem_root,
                                            sp->m_tmp_query,
                                            i->m_query.length);
               sp->add_instr(i);
             }
-	    sp->restore_lex(YYTHD);
+	    sp->restore_lex(thd);
           }
         ;
 
@@ -6222,26 +6219,36 @@ select_item_list:
 select_item:
 	  remember_name select_item2 remember_end select_alias
 	  {
-	    if (add_item_to_list(YYTHD, $2))
+            THD *thd= YYTHD;
+            DBUG_ASSERT($1 < $3);
+
+	    if (add_item_to_list(thd, $2))
 	      MYSQL_YYABORT;
 	    if ($4.str)
             {
               $2->is_autogenerated_name= FALSE;
 	      $2->set_name($4.str, $4.length, system_charset_info);
             }
-	    else if (!$2->name) {
-	      char *str = $1;
-	      if (str[-1] == '`')
-	        str--;
-	      $2->set_name(str,(uint) ($3 - str), YYTHD->charset());
+	    else if (!$2->name)
+            {
+	      $2->set_name($1, (uint) ($3 - $1), thd->charset());
 	    }
 	  };
 
+
 remember_name:
-	{ $$=(char*) Lex->tok_start; };
+        {
+          THD *thd= YYTHD;
+          Lex_input_stream *lip= thd->m_lip;
+          $$= (char*) lip->tok_start;
+        };
 
 remember_end:
-	{ $$=(char*) Lex->tok_end; };
+        {
+          THD *thd= YYTHD;
+          Lex_input_stream *lip= thd->m_lip;
+          $$=(char*) lip->tok_end;
+        };
 
 select_item2:
 	table_wild	{ $$=$1; } /* table.* */
@@ -8005,12 +8012,14 @@ procedure_list2:
 procedure_item:
 	  remember_name expr
 	  {
-	    LEX *lex= Lex;
-	    if (add_proc_to_list(lex->thd, $2))
+            THD *thd= YYTHD;
+            Lex_input_stream *lip= thd->m_lip;
+
+	    if (add_proc_to_list(thd, $2))
 	      MYSQL_YYABORT;
 	    if (!$2->name)
-	      $2->set_name($1,(uint) ((char*) lex->tok_end - $1),
-                           YYTHD->charset());
+	      $2->set_name($1,(uint) ((char*) lip->tok_end - $1),
+                           thd->charset());
 	  }
           ;
 
@@ -9100,13 +9109,16 @@ use:	USE_SYM ident
 
 load:   LOAD DATA_SYM
         {
-          LEX *lex=Lex;
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
+
 	  if (lex->sphead)
 	  {
 	    my_error(ER_SP_BADSTATEMENT, MYF(0), "LOAD DATA");
 	    MYSQL_YYABORT;
 	  }
-          lex->fname_start= lex->ptr;
+          lex->fname_start= lip->ptr;
         }
         load_data
         {}
@@ -9140,8 +9152,10 @@ load_data:
         }
         opt_duplicate INTO
         {
-	  LEX *lex=Lex;
-	  lex->fname_end= lex->ptr;
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
+	  lex->fname_end= lip->ptr;
 	}
         TABLE_SYM table_ident
         {
@@ -9322,14 +9336,15 @@ param_marker:
         PARAM_MARKER
         {
           THD *thd= YYTHD;
-	  LEX *lex= thd->lex;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
           Item_param *item;
           if (! lex->parsing_options.allows_variable)
           {
             my_error(ER_VIEW_SELECT_VARIABLE, MYF(0));
             MYSQL_YYABORT;
           }
-          item= new Item_param((uint) (lex->tok_start - thd->query));
+          item= new Item_param((uint) (lip->tok_start - thd->query));
           if (!($$= item) || lex->param_list.push_back(item))
           {
             my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
@@ -9352,8 +9367,11 @@ signed_literal:
 literal:
 	text_literal	{ $$ =	$1; }
 	| NUM_literal	{ $$ = $1; }
-	| NULL_SYM	{ $$ =	new Item_null();
-			  Lex->next_state=MY_LEX_OPERATOR_OR_IDENT;}
+	| NULL_SYM
+          {
+            $$ = new Item_null();
+            YYTHD->m_lip->next_state=MY_LEX_OPERATOR_OR_IDENT;
+          }
 	| FALSE_SYM	{ $$= new Item_int((char*) "FALSE",0,1); }
 	| TRUE_SYM	{ $$= new Item_int((char*) "TRUE",1,1); }
 	| HEX_NUM	{ $$ =	new Item_hex_string($1.str, $1.length);}
@@ -9443,8 +9461,10 @@ order_ident:
 simple_ident:
 	ident
 	{
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
 	  sp_variable_t *spv;
-	  LEX *lex = Lex;
           sp_pcontext *spc = lex->spcont;
 	  if (spc && (spv = spc->find_variable(&$1)))
 	  {
@@ -9457,7 +9477,7 @@ simple_ident:
 
             Item_splocal *splocal;
             splocal= new Item_splocal($1, spv->offset, spv->type,
-                                      lex->tok_start_prev - 
+                                      lip->tok_start_prev - 
                                       lex->sphead->m_tmp_query);
 #ifndef DBUG_OFF
             if (splocal)
@@ -10107,7 +10127,11 @@ option_value_list:
 
 option_type_value:
         {
-          if (Lex->sphead)
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
+
+          if (lex->sphead)
           {
             /*
               If we are in SP we want have own LEX for each assignment.
@@ -10119,9 +10143,8 @@ option_type_value:
 
               QQ: May be we should simply prohibit group assignments in SP?
             */
-            LEX *lex;
-            Lex->sphead->reset_lex(YYTHD);
-            lex= Lex;
+            lex->sphead->reset_lex(thd);
+            lex= thd->lex;
 
             /* Set new LEX as if we at start of set rule. */
 	    lex->sql_command= SQLCOM_SET_OPTION;
@@ -10129,12 +10152,14 @@ option_type_value:
 	    lex->option_type=OPT_SESSION;
 	    lex->var_list.empty();
             lex->one_shot_set= 0;
-	    lex->sphead->m_tmp_query= lex->tok_start;
+	    lex->sphead->m_tmp_query= lip->tok_start;
           }
         }
 	ext_option_value
         {
-          LEX *lex= Lex;
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
 
           if (lex->sphead)
           {
@@ -10156,15 +10181,15 @@ option_type_value:
 
               /*
                 Extract the query statement from the tokenizer.  The
-                end is either lex->ptr, if there was no lookahead,
-                lex->tok_end otherwise.
+                end is either lip->ptr, if there was no lookahead,
+                lip->tok_end otherwise.
               */
               if (yychar == YYEMPTY)
-                qbuff.length= lex->ptr - sp->m_tmp_query;
+                qbuff.length= lip->ptr - sp->m_tmp_query;
               else
-                qbuff.length= lex->tok_end - sp->m_tmp_query;
+                qbuff.length= lip->tok_end - sp->m_tmp_query;
 
-              if (!(qbuff.str= alloc_root(YYTHD->mem_root, qbuff.length + 5)))
+              if (!(qbuff.str= alloc_root(thd->mem_root, qbuff.length + 5)))
                 MYSQL_YYABORT;
 
               strmake(strmake(qbuff.str, "SET ", 4), sp->m_tmp_query,
@@ -10173,7 +10198,7 @@ option_type_value:
               i->m_query= qbuff;
               sp->add_instr(i);
             }
-            lex->sphead->restore_lex(YYTHD);
+            lex->sphead->restore_lex(thd);
           }
         };
 
@@ -11422,7 +11447,9 @@ trigger_tail:
 	TRIGGER_SYM remember_name sp_name trg_action_time trg_event
 	ON remember_name table_ident FOR_SYM remember_name EACH_SYM ROW_SYM
 	{
-	  LEX *lex= Lex;
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
 	  sp_head *sp;
 
 	  if (lex->sphead)
@@ -11433,9 +11460,9 @@ trigger_tail:
 
 	  if (!(sp= new sp_head()))
 	    MYSQL_YYABORT;
-	  sp->reset_thd_mem_root(YYTHD);
+	  sp->reset_thd_mem_root(thd);
 	  sp->init(lex);
-          sp->init_sp_name(YYTHD, $3);
+          sp->init_sp_name(thd, $3);
 	  lex->stmt_definition_begin= $2;
           lex->ident.str= $7;
           lex->ident.length= $10 - $7;
@@ -11448,12 +11475,12 @@ trigger_tail:
 	    stored procedure, otherwise yylex will chop it into pieces
 	    at each ';'.
 	  */
-	  $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
-	  YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
+	  $<ulong_num>$= thd->client_capabilities & CLIENT_MULTI_QUERIES;
+	  thd->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 
 	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  lex->sphead->m_chistics= &lex->sp_chistics;
-	  lex->sphead->m_body_begin= lex->ptr;
+	  lex->sphead->m_body_begin= lip->ptr;
           while (my_isspace(system_charset_info, lex->sphead->m_body_begin[0]))
             ++lex->sphead->m_body_begin;
 	}
@@ -11532,24 +11559,30 @@ sp_tail:
 	}
         '('
 	{
-	  LEX *lex= Lex;
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
 
-	  lex->sphead->m_param_begin= lex->tok_start+1;
+	  lex->sphead->m_param_begin= lip->tok_start+1;
 	}
 	sp_pdparam_list
 	')'
 	{
-	  LEX *lex= Lex;
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
 
-	  lex->sphead->m_param_end= lex->tok_start;
+	  lex->sphead->m_param_end= lip->tok_start;
 	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	}
 	sp_c_chistics
 	{
-	  LEX *lex= Lex;
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
 
 	  lex->sphead->m_chistics= &lex->sp_chistics;
-	  lex->sphead->m_body_begin= lex->tok_start;
+	  lex->sphead->m_body_begin= lip->tok_start;
 	}
 	sp_proc_stmt
 	{

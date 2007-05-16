@@ -620,6 +620,119 @@ SHOW PROCEDURE CODE p1;
 Pos	Instruction
 0	stmt 2 "CREATE INDEX idx ON t1 (c1)"
 DROP PROCEDURE p1;
+drop table if exists t1;
+drop procedure if exists proc_26977_broken;
+drop procedure if exists proc_26977_works;
+create table t1(a int unique);
+create procedure proc_26977_broken(v int)
+begin
+declare i int default 5;
+declare continue handler for sqlexception
+begin
+select 'caught something';
+retry:
+while i > 0 do
+begin
+set i = i - 1;
+select 'looping', i;
+end;
+end while retry;
+end;
+select 'do something';
+insert into t1 values (v);
+select 'do something again';
+insert into t1 values (v);
+end//
+create procedure proc_26977_works(v int)
+begin
+declare i int default 5;
+declare continue handler for sqlexception
+begin
+select 'caught something';
+retry:
+while i > 0 do
+begin
+set i = i - 1;
+select 'looping', i;
+end;
+end while retry;
+select 'optimizer: keep hreturn';
+end;
+select 'do something';
+insert into t1 values (v);
+select 'do something again';
+insert into t1 values (v);
+end//
+show procedure code proc_26977_broken;
+Pos	Instruction
+0	set i@1 5
+1	hpush_jump 8 2 CONTINUE
+2	stmt 0 "select 'caught something'"
+3	jump_if_not 7(7) (i@1 > 0)
+4	set i@1 (i@1 - 1)
+5	stmt 0 "select 'looping', i"
+6	jump 3
+7	hreturn 2
+8	stmt 0 "select 'do something'"
+9	stmt 5 "insert into t1 values (v)"
+10	stmt 0 "select 'do something again'"
+11	stmt 5 "insert into t1 values (v)"
+12	hpop 1
+show procedure code proc_26977_works;
+Pos	Instruction
+0	set i@1 5
+1	hpush_jump 9 2 CONTINUE
+2	stmt 0 "select 'caught something'"
+3	jump_if_not 7(7) (i@1 > 0)
+4	set i@1 (i@1 - 1)
+5	stmt 0 "select 'looping', i"
+6	jump 3
+7	stmt 0 "select 'optimizer: keep hreturn'"
+8	hreturn 2
+9	stmt 0 "select 'do something'"
+10	stmt 5 "insert into t1 values (v)"
+11	stmt 0 "select 'do something again'"
+12	stmt 5 "insert into t1 values (v)"
+13	hpop 1
+call proc_26977_broken(1);
+do something
+do something
+do something again
+do something again
+caught something
+caught something
+looping	i
+looping	4
+looping	i
+looping	3
+looping	i
+looping	2
+looping	i
+looping	1
+looping	i
+looping	0
+call proc_26977_works(2);
+do something
+do something
+do something again
+do something again
+caught something
+caught something
+looping	i
+looping	4
+looping	i
+looping	3
+looping	i
+looping	2
+looping	i
+looping	1
+looping	i
+looping	0
+optimizer: keep hreturn
+optimizer: keep hreturn
+drop table t1;
+drop procedure proc_26977_broken;
+drop procedure proc_26977_works;
 End of 5.0 tests.
 CREATE PROCEDURE p1() 
 BEGIN 
