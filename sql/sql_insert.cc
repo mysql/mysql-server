@@ -64,7 +64,7 @@
 
 #ifndef EMBEDDED_LIBRARY
 static bool delayed_get_table(THD *thd, TABLE_LIST *table_list);
-static int write_delayed(THD *thd, TABLE *table, enum_duplicates dup,
+static int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
                          LEX_STRING query, bool ignore, bool log_on);
 static void end_delayed_insert(THD *thd);
 pthread_handler_t handle_delayed_insert(void *arg);
@@ -1999,8 +1999,8 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
 /* Put a question in queue */
 
 static
-int write_delayed(THD *thd,TABLE *table,enum_duplicates duplic, bool ignore,
-                  char *query, uint query_length, bool log_on)
+int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
+                  LEX_STRING query, bool ignore, bool log_on)
 {
   delayed_row *row= 0;
   Delayed_insert *di=thd->di;
