@@ -288,3 +288,9 @@ insert into t1 values (10000002383263201056);
 select c1 mod 50 as result from t1;
 drop table t1;
 
+#
+# Bug #8663 cant use bgint unsigned as input to cast
+#
+
+select cast(19999999999999999999 as signed);
+select cast(-19999999999999999999 as signed);
