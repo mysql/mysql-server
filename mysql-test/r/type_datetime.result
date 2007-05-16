@@ -199,8 +199,8 @@ Note	1265	Data truncated for column 'da' at row 1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `da` date default '1962-03-03',
-  `dt` datetime default '1962-03-03 00:00:00'
+  `da` date DEFAULT '1962-03-03',
+  `dt` datetime DEFAULT '1962-03-03 00:00:00'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ();
 insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
