@@ -853,7 +853,6 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
   TABLE *table;
   char  key[MAX_DBKEY_LENGTH];
   char *db= table_list->db;
-  int table_in_key_offset;
   uint  key_length;
   HASH_SEARCH_STATE state;
   DBUG_ENTER("lock_table_name");
@@ -861,10 +860,8 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
 
   safe_mutex_assert_owner(&LOCK_open);
 
-  table_in_key_offset= strmov(key, db) - key + 1;
-  key_length= (uint)(strmov(key + table_in_key_offset, table_list->table_name)
-                     - key) + 1;
-
+  key_length= (uint)(strmov(strmov(key, db) + 1, table_list->table_name) -
+                     key) + 1;
 
   /* Only insert the table if we haven't insert it already */
   for (table=(TABLE*) hash_first(&open_cache, (byte*)key, key_length, &state);
@@ -873,29 +870,11 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
     if (table->in_use == thd)
       DBUG_RETURN(0);
 
-  /*
-    Create a table entry with the right key and with an old refresh version
-    Note that we must use my_malloc() here as this is freed by the table
-    cache
-  */
-  if (!(table= (TABLE*) my_malloc(sizeof(*table)+key_length,
-				  MYF(MY_WME | MY_ZEROFILL))))
+  if (!(table= table_cache_insert_placeholder(thd, key, key_length)))
     DBUG_RETURN(-1);
-  table->s= &table->share_not_to_be_used;
-  memcpy((table->s->table_cache_key= (char*) (table+1)), key, key_length);
-  table->s->db= table->s->table_cache_key;
-  table->s->table_name= table->s->table_cache_key + table_in_key_offset;
-  table->s->key_length=key_length;
-  table->in_use=thd;
-  table->locked_by_name=1;
-  table_list->table=table;
 
-  if (my_hash_insert(&open_cache, (byte*) table))
-  {
-    my_free((gptr) table,MYF(0));
-    DBUG_RETURN(-1);
-  }
-  
+  table_list->table= table;
+
   /* Return 1 if table is in use */
   DBUG_RETURN(test(remove_table_from_cache(thd, db, table_list->table_name,
                                            RTFC_NO_FLAG)));
