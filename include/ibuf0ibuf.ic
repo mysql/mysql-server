@@ -279,30 +279,3 @@ ibuf_update_free_bits_if_full(
 		ibuf_set_free_bits(block, after, before);
 	}
 }
-
-/****************************************************************************
-Updates the free bits of a compressed page in the ibuf bitmap.  This
-is done in a separate mini-transaction, hence this operation does not
-restrict further work to only ibuf bitmap operations, which would
-result if the latch to the bitmap page were kept. */
-UNIV_INLINE
-void
-ibuf_update_free_bits_zip(
-/*======================*/
-	ulint		zip_size,/* in: compressed page size in bytes */
-	buf_block_t*	block)	/* in: B-tree leaf page of a secondary
-				index */
-{
-	ulint	free_bits = ibuf_index_page_calc_free(zip_size, block);
-
-	if (free_bits == 0) {
-		/* We move the page to the front of the buffer pool LRU list:
-		the purpose of this is to prevent those pages to which we
-		cannot make inserts using the insert buffer from slipping
-		out of the buffer pool */
-
-		buf_page_make_young(&block->page);
-	}
-
-	ibuf_set_free_bits(block, free_bits, ULINT_UNDEFINED);
-}

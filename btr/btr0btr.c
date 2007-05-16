@@ -975,13 +975,6 @@ btr_page_reorganize_low(
 		success = TRUE;
 	}
 
-	/* On compressed pages, recompute the insert buffer free bits. */
-	if (UNIV_LIKELY_NULL(page_zip)
-	    && !dict_index_is_clust(index) && page_is_leaf(page)) {
-
-		ibuf_update_free_bits_zip(page_zip_get_size(page_zip), block);
-	}
-
 func_exit:
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
@@ -995,7 +988,11 @@ func_exit:
 }
 
 /*****************************************************************
-Reorganizes an index page. */
+Reorganizes an index page.
+IMPORTANT: if btr_page_reorganize() is invoked on a compressed leaf
+page of a non-clustered index, the caller must update the insert
+buffer free bits in the same mini-transaction in such a way that the
+modification will be redo-logged. */
 
 ibool
 btr_page_reorganize(
@@ -2400,6 +2397,13 @@ btr_compress(
 
 		/* No space for merge */
 err_exit:
+		/* We play it safe and reset the free bits. */
+		if (zip_size
+		    && page_is_leaf(merge_page)
+		    && !dict_index_is_clust(index)) {
+			ibuf_reset_free_bits(merge_block);
+		}
+
 		mem_heap_free(heap);
 		return(FALSE);
 	}
@@ -2523,11 +2527,40 @@ err_exit:
 	mem_heap_free(heap);
 
 	if (!dict_index_is_clust(index) && page_is_leaf(merge_page)) {
-		/* We have added new records to merge_page:
-		update its free bits */
+		/* Update the free bits of the B-tree page in the
+		insert buffer bitmap.  This has to be done in a
+		separate mini-transaction that is committed before the
+		main mini-transaction.  We cannot update the insert
+		buffer bitmap in this mini-transaction, because
+		btr_compress() can be invoked recursively without
+		committing the mini-transaction in between.  Since
+		insert buffer bitmap pages have a lower rank than
+		B-tree pages, we must not access other pages in the
+		same mini-transaction after accessing an insert buffer
+		bitmap page. */
+
+		/* The free bits in the insert buffer bitmap must
+		never exceed the free space on a page.  It is safe to
+		decrement or reset the bits in the bitmap in a
+		mini-transaction that is committed before the
+		mini-transaction that affects the free space. */
+
+		/* It is unsafe to increment the bits in a separately
+		committed mini-transaction, because in crash recovery,
+		the free bits could momentarily be set too high. */
+
 		if (zip_size) {
-			ibuf_update_free_bits_zip(zip_size, merge_block);
+			/* Because the free bits may be incremented
+			and we cannot update the insert buffer bitmap
+			in the same mini-transaction, the only safe
+			thing we can do here is the pessimistic
+			approach: reset the free bits. */
+			ibuf_reset_free_bits(merge_block);
 		} else {
+			/* On uncompressed pages, the free bits will
+			never increase here.  Thus, it is safe to
+			write the bits accurately in a separate
+			mini-transaction. */
 			ibuf_update_free_bits_if_full(merge_block,
 						      UNIV_PAGE_SIZE,
 						      ULINT_UNDEFINED);

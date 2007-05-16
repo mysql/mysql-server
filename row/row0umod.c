@@ -82,7 +82,8 @@ row_undo_mod_clust_low(
 				we may run out of file space */
 	undo_node_t*	node,	/* in: row undo node */
 	que_thr_t*	thr,	/* in: query thread */
-	mtr_t*		mtr,	/* in: mtr */
+	mtr_t*		mtr,	/* in: mtr; must be committed before
+				latching any further pages */
 	ulint		mode)	/* in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
 	btr_pcur_t*	pcur;
