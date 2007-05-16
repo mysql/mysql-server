@@ -727,7 +727,39 @@ void init_time(void)
 }
 
 
-	/* Calculate nr of day since year 0 in new date-system (from 1615) */
+/*
+  Handle 2 digit year conversions
+
+  SYNOPSIS
+  year_2000_handling()
+  year     2 digit year
+
+  RETURN
+    Year between 1970-2069
+*/
+
+uint year_2000_handling(uint year)
+{
+  if ((year=year+1900) < 1900+YY_PART_YEAR)
+    year+=100;
+  return year;
+}
+
+
+/*
+  Calculate nr of day since year 0 in new date-system (from 1615)
+
+  SYNOPSIS
+    calc_daynr()
+    year		 Year (exact 4 digit year, no year conversions)
+    month		 Month
+    day			 Day
+
+  NOTES: 0000-00-00 is a valid date, and will return 0
+
+  RETURN
+    Days since 0000-00-00
+*/
 
 long calc_daynr(uint year,uint month,uint day)
 {
