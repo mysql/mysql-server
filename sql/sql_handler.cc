@@ -670,7 +670,7 @@ int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags,
     while (*table_ptr)
     {
       if ((mode_flags & MYSQL_HA_FLUSH_ALL) ||
-          ((*table_ptr)->s->version != refresh_version))
+          (*table_ptr)->needs_reopen_or_name_lock())
       {
         /* The first time it is required, lock for close_thread_table(). */
         if (! did_lock && ! is_locked)
@@ -771,15 +771,22 @@ void mysql_ha_mark_tables_for_reopen(THD *thd, TABLE *table)
   safe_mutex_assert_owner(&LOCK_open);
   for (; table; table= table->next)
   {
-    TABLE_LIST *hash_tables;
-    if ((hash_tables= (TABLE_LIST*) hash_search(&thd->handler_tables_hash,
-                                                (byte*) table->alias,
-                                                strlen(table->alias) + 1)))
+    /*
+      Some elements in open table list, for example placeholders used for
+      name-locking, can have alias set to 0.
+    */
+    if (table->alias)
     {
-      /* Mark table as ready for reopen. */
-      hash_tables->table= NULL;
-      /* End open index/table scans. */
-      table->file->ha_index_or_rnd_end();
+      TABLE_LIST *hash_tables;
+      if ((hash_tables= (TABLE_LIST*) hash_search(&thd->handler_tables_hash,
+                                                  (byte*) table->alias,
+                                                  strlen(table->alias) + 1)))
+      {
+        /* Mark table as ready for reopen. */
+        hash_tables->table= NULL;
+        /* End open index/table scans. */
+        table->file->ha_index_or_rnd_end();
+      }
     }
   }
   DBUG_VOID_RETURN;
