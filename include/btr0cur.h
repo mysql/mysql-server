@@ -180,7 +180,11 @@ btr_cur_optimistic_insert(
 	const ulint*	ext,	/* in: array of extern field numbers */
 	ulint		n_ext,	/* in: number of elements in vec */
 	que_thr_t*	thr,	/* in: query thread or NULL */
-	mtr_t*		mtr);	/* in: mtr */
+	mtr_t*		mtr);	/* in: mtr; if this function returns
+				DB_SUCCESS on a leaf page of a secondary
+				index in a compressed tablespace, the
+				mtr must be committed before latching
+				any further pages */
 /*****************************************************************
 Performs an insert on a page of an index tree. It is assumed that mtr
 holds an x-latch on the tree and on the cursor page. If the insert is
