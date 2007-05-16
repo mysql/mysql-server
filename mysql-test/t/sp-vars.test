@@ -1367,4 +1367,48 @@ CALL p1();
 
 DROP PROCEDURE p1;
 
+#
+# Bug #27415 Text Variables in stored procedures
+# If the SP varible was also referenced on the right side
+# the result was corrupted.
+#
+DELIMITER |;
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug27415_text_test|
+DROP PROCEDURE IF EXISTS bug27415_text_test2|
+--enable_warnings
+
+CREATE PROCEDURE bug27415_text_test(entity_id_str_in text)
+BEGIN
+    DECLARE str_remainder text;
+
+    SET str_remainder = entity_id_str_in;
+
+    select 'before substr', str_remainder;
+    SET str_remainder = SUBSTRING(str_remainder, 3);
+    select 'after substr', str_remainder;
+END|
+
+CREATE PROCEDURE bug27415_text_test2(entity_id_str_in text)
+BEGIN
+    DECLARE str_remainder text;
+    DECLARE str_remainder2 text;
+ 
+    SET str_remainder2 = entity_id_str_in;
+    select 'before substr', str_remainder2;
+    SET str_remainder = SUBSTRING(str_remainder2, 3);
+    select 'after substr', str_remainder;
+END|
+
+CALL bug27415_text_test('a,b,c')|
+CALL bug27415_text_test('a,b,c')|
+CALL bug27415_text_test2('a,b,c')|
+CALL bug27415_text_test('a,b,c')|
+
+DROP PROCEDURE bug27415_text_test|
+DROP PROCEDURE bug27415_text_test2|
+
+DELIMITER ;|
+
 # End of 5.0 tests.
