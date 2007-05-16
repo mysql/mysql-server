@@ -1492,8 +1492,21 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
 
   if (select_lex->item_list.elements)
   {
+    if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+    {
+      lex->link_first_table_back(create_table, link_to_local);
+      create_table->create= TRUE;
+    }
+
+    if (open_and_lock_tables(stmt->thd, lex->query_tables))
+      DBUG_RETURN(TRUE);
+
+    if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+      create_table= lex->unlink_first_table(&link_to_local);
+
     select_lex->context.resolve_in_select_list= TRUE;
-    res= select_like_stmt_test_with_open_n_lock(stmt, tables, 0, 0);
+
+    res= select_like_stmt_test(stmt, 0, 0);
   }
 
   /* put tables back for PS rexecuting */
@@ -1763,6 +1776,9 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_OPTIMIZE:
     break;
 
+  case SQLCOM_PREPARE:
+  case SQLCOM_EXECUTE:
+  case SQLCOM_DEALLOCATE_PREPARE:
   default:
     /* All other statements are not supported yet. */
     my_message(ER_UNSUPPORTED_PS, ER(ER_UNSUPPORTED_PS), MYF(0));
@@ -2800,11 +2816,15 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
 
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
-  lex_start(thd, (uchar*) thd->query, thd->query_length);
-  lex->safe_to_cache_query= FALSE;
-  lex->stmt_prepare_mode= TRUE;
 
-  error= MYSQLparse((void *)thd) || thd->is_fatal_error ||
+  Lex_input_stream lip(thd, thd->query, thd->query_length);
+  lip.stmt_prepare_mode= TRUE;
+  thd->m_lip= &lip;
+  lex_start(thd);
+  lex->safe_to_cache_query= FALSE;
+  int err= MYSQLparse((void *)thd);
+
+  error= err || thd->is_fatal_error ||
       thd->net.report_error || init_param_array(this);
 
   /*
