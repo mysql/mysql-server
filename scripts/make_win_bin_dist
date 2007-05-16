@@ -39,7 +39,7 @@ The "package-base-name" argument should be something like
 
   mysql-noinstall-5.0.25-win32  (or winx64)
 
-and will be the name of the directory of the unpacked ZIP (stripping
+and will become the name of the directory of the unpacked ZIP (stripping
 away the "noinstall" part of the ZIP file name if any) and the base
 for the resulting package name.
 
@@ -51,6 +51,7 @@ Options are
   --no-embedded    Don't pack the embedded server even if built
 
   --debug          Pack the debug binaries and give error if not built.
+                   The default is to pack them if they are built.
 
   --no-debug       Don't pack the debug binaries even if built
 
@@ -58,10 +59,10 @@ Options are
                    want to replace the normal binaries with debug
                    versions, i.e. no separate "debug" directories.
 
-  --exe-suffix=SUF Add a suffix to the "mysqld" binary.
+  --exe-suffix=SUF Add a suffix to the filename part of the "mysqld" binary.
 
 As you might want to include files of directories from other builds
-(like a "mysqld-max.exe" server), you can instruct this script do copy
+(like a "mysqld-max.exe" server), you can instruct this script to copy
 them in for you. This is the "copy-def" arguments, and they are of the
 form
 
@@ -165,8 +166,8 @@ then
   cp sql/$TARGET/mysqld.pdb              $DESTDIR/bin/mysqld$EXE_SUFFIX.pdb
 fi
 
-if [ x"$PACK_DEBUG" = "" -a -f "sql/debug/mysqld.exe" -o \
-     x"$PACK_DEBUG" = "yes" ] ; then
+if [ x"$PACK_DEBUG" = x"" -a -f "sql/debug/mysqld.exe" -o \
+     x"$PACK_DEBUG" = x"yes" ] ; then
   cp sql/debug/mysqld.exe                $DESTDIR/bin/mysqld-debug.exe
   cp sql/debug/mysqld.pdb                $DESTDIR/bin/mysqld-debug.pdb
   cp sql/debug/mysqld.map                $DESTDIR/bin/mysqld-debug.map
@@ -212,8 +213,8 @@ copy_embedded()
   cp libmysqld/$TARGET/libmysqld.exp   $DESTDIR/Embedded/DLL/release/
   cp libmysqld/$TARGET/libmysqld.lib   $DESTDIR/Embedded/DLL/release/
 
-  if [ x"$PACK_DEBUG" = "" -a -f "libmysqld/debug/libmysqld.lib" -o \
-       x"$PACK_DEBUG" = "yes" ] ; then
+  if [ x"$PACK_DEBUG" = x"" -a -f "libmysqld/debug/libmysqld.lib" -o \
+       x"$PACK_DEBUG" = x"yes" ] ; then
     mkdir -p $DESTDIR/Embedded/DLL/debug
     cp libmysqld/debug/libmysqld.dll     $DESTDIR/Embedded/DLL/debug/
     cp libmysqld/debug/libmysqld.exp     $DESTDIR/Embedded/DLL/debug/
@@ -221,10 +222,10 @@ copy_embedded()
   fi
 }
 
-if [ x"$PACK_EMBEDDED" = "" -a \
+if [ x"$PACK_EMBEDDED" = x"" -a \
      -f "libmysqld/$TARGET/mysqlserver.lib" -a \
      -f "libmysqld/$TARGET/libmysqld.lib" -o \
-     x"$PACK_EMBEDDED" = "yes" ] ; then
+     x"$PACK_EMBEDDED" = x"yes" ] ; then
   copy_embedded
 fi
 
@@ -282,8 +283,8 @@ cp libmysql/$TARGET/libmysql.dll \
    strings/$TARGET/strings.lib \
    zlib/$TARGET/zlib.lib $DESTDIR/lib/opt/
 
-if [ x"$PACK_DEBUG" = "" -a -f "libmysql/debug/libmysql.lib" -o \
-     x"$PACK_DEBUG" = "yes" ] ; then
+if [ x"$PACK_DEBUG" = x"" -a -f "libmysql/debug/libmysql.lib" -o \
+     x"$PACK_DEBUG" = x"yes" ] ; then
   mkdir -p $DESTDIR/lib/debug
   cp libmysql/debug/libmysql.dll \
      libmysql/debug/libmysql.lib \
@@ -336,12 +337,11 @@ fi
 
 # ----------------------------------------------------------------------
 # Copy what could be usable in the "scripts" directory. Currently
-# only SQL files, others are bourne shell scripts or Perl scripts
+# only SQL files, others are Bourne shell scripts or Perl scripts
 # not really usable on Windows.
 #
 # But to be nice to the few Cygwin users we might have in 5.0 we
-# continue to copy the stuff, but don't include it include it in
-# the WiX install.
+# continue to copy the stuff, but don't include it in the WiX install.
 # ----------------------------------------------------------------------
 
 mkdir -p $DESTDIR/scripts
@@ -361,7 +361,7 @@ done
 
 cp -pR sql/share $DESTDIR/
 
-# The SQL initiation code is really expected to be in "share"
+# The SQL initialisation code is really expected to be in "share"
 mv $DESTDIR/scripts/*.sql $DESTDIR/share/ || true
 
 # ----------------------------------------------------------------------
@@ -382,7 +382,7 @@ for arg do
 done
 
 # ----------------------------------------------------------------------
-# Finally creat the ZIP archive
+# Finally create the ZIP archive
 # ----------------------------------------------------------------------
 
 rm -f $NOINST_NAME.zip
