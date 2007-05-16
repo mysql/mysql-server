@@ -1914,7 +1914,7 @@ Event_job_data::execute(THD *thd, bool drop)
   thd->variables.time_zone= time_zone;
 
   /*
-    Peculiar initialization order is a clutch to avoid races in SHOW
+    Peculiar initialization order is a crutch to avoid races in SHOW
     PROCESSLIST which reads thd->{query/query_length} without a mutex.
   */
   thd->query_length= 0;
@@ -1974,7 +1974,7 @@ end:
     else
     {
       /*
-        Peculiar initialization order is a clutch to avoid races in SHOW
+        Peculiar initialization order is a crutch to avoid races in SHOW
         PROCESSLIST which reads thd->{query/query_length} without a mutex.
       */
       thd->query_length= 0;
