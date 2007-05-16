@@ -546,6 +546,12 @@ a	b	c
 2	Part 2	2007-04-05 00:00:00
 2	Part 3	2007-04-05 00:00:00
 select * from t1;
+a	b	c
+1	Line 1	2007-04-05 00:00:00
+2	Part 2	2007-04-05 00:00:00
+1	Line 1	2007-04-05 00:00:00
+2	Part 3	2007-04-05 00:00:00
+select * from t1;
 select '';
 
 
@@ -561,4 +567,50 @@ hep
 select "hepp";
 hepp
 hepp
+drop table t1;
+SELECT 2 as "my_col"
+UNION
+SELECT 1;
+my_col
+1
+2
+SELECT 2 as "my_col" UNION SELECT 1;
+my_col
+1
+2
+SELECT 2 as "my_col"
+UNION
+SELECT 1;
+my_col
+1
+2
+SELECT '2' as "3"
+UNION
+SELECT '1';
+3
+1
+2
+SET @a = 17;
+SELECT 2 as "my_col"
+UNION
+SELECT 1;
+my_col
+1
+2
+SELECT 2 as "my_col"
+UNION
+SELECT 1;
+my_col
+2
+1
+SELECT 2 as "my_col"
+UNION
+SELECT 1;
+my_col
+1
+2
+SELECT '2' as "my_col1",2 as "my_col2"
+UNION
+SELECT '1',1 from t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
 End of tests
