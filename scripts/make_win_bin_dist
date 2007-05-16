@@ -238,8 +238,8 @@ cp libmysql/mytest.c libmysql/myTest.vcproj libmysql/$TARGET/myTest.exe \
    $DESTDIR/examples/libmysqltest/
 cp libmysql/$TARGET/myTest.exe $DESTDIR/examples/libmysqltest/release/
 
-if [ x"$PACK_DEBUG" = "" -a -f "libmysql/debug/myTest.exe" -o \
-     x"$PACK_DEBUG" = "yes" ] ; then
+if [ x"$PACK_DEBUG" = x"" -a -f "libmysql/debug/myTest.exe" -o \
+     x"$PACK_DEBUG" = x"yes" ] ; then
   mkdir -p $DESTDIR/examples/libmysqltest/debug
   cp libmysql/debug/myTest.exe $DESTDIR/examples/libmysqltest/debug/
 fi
