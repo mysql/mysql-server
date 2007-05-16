@@ -6028,6 +6028,11 @@ int main(int argc, char **argv)
   init_dynamic_string(&ds_warning_messages, "", 0, 2048);
   parse_args(argc, argv);
 
+  var_set_int("$PS_PROTOCOL", ps_protocol);
+  var_set_int("$SP_PROTOCOL", sp_protocol);
+  var_set_int("$VIEW_PROTOCOL", view_protocol);
+  var_set_int("$CURSOR_PROTOCOL", cursor_protocol);
+
   DBUG_PRINT("info",("result_file: '%s'",
                      result_file_name ? result_file_name : ""));
   if (mysql_server_init(embedded_server_arg_count,
