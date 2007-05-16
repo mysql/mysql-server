@@ -63,7 +63,7 @@
 #include "rpl_mi.h"
 
 #ifndef EMBEDDED_LIBRARY
-static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list);
+static bool delayed_get_table(THD *thd, TABLE_LIST *table_list);
 static int write_delayed(THD *thd, TABLE *table, enum_duplicates dup,
                          LEX_STRING query, bool ignore, bool log_on);
 static void end_delayed_insert(THD *thd);
@@ -392,6 +392,7 @@ void prepare_triggers_for_insert_stmt(TABLE *table)
   downgrade the lock in handler::store_lock() method.
 */
 
+static
 void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
                        enum_duplicates duplic,
                        bool is_multi_insert)
@@ -405,29 +406,37 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
 
   if (*lock_type == TL_WRITE_DELAYED)
   {
-#ifdef EMBEDDED_LIBRARY
-    /* No auxiliary threads in the embedded server. */
-    *lock_type= TL_WRITE;
-    return;
-#else
     /*
       We do not use delayed threads if:
-      - we're running in the safe mode or skip-new - the feature
-         is disabled in these modes
-      - we're running this query in statement level replication,
-        on a replication slave - because we must ensure serial
-        execution of queries on the slave
+      - we're running in the safe mode or skip-new mode -- the
+        feature is disabled in these modes
+      - we're executing this statement on a replication slave --
+        we need to ensure serial execution of queries on the
+        slave
       - it is INSERT .. ON DUPLICATE KEY UPDATE - in this case the
         insert cannot be concurrent
+      - this statement is directly or indirectly invoked from
+        a stored function or trigger (under pre-locking) - to
+        avoid deadlocks, since INSERT DELAYED involves a lock
+        upgrade (TL_WRITE_DELAYED -> TL_WRITE) which we should not
+        attempt while keeping other table level locks.
+      - this statement itself may require pre-locking.
+        We should upgrade the lock even though in most cases
+        delayed functionality may work. Unfortunately, we can't
+        easily identify whether the subject table is not used in
+        the statement indirectly via a stored function or trigger:
+        if it is used, that will lead to a deadlock between the
+        client connection and the delayed thread.
     */
     if (specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE) ||
         thd->slave_thread ||
-        thd->variables.max_insert_delayed_threads == 0)
+        thd->variables.max_insert_delayed_threads == 0 ||
+        thd->prelocked_mode ||
+        thd->lex->uses_stored_routines())
     {
       *lock_type= TL_WRITE;
       return;
     }
-#endif
     bool log_on= (thd->options & OPTION_BIN_LOG ||
                   ! (thd->security_ctx->master_access & SUPER_ACL));
     if (global_system_variables.binlog_format == BINLOG_FORMAT_STMT &&
@@ -459,6 +468,72 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
       *lock_type= TL_WRITE;
     }
   }
+}
+
+
+/**
+  Find or create a delayed insert thread for the first table in
+  the table list, then open and lock the remaining tables.
+  If a table can not be used with insert delayed, upgrade the lock
+  and open and lock all tables using the standard mechanism.
+
+  @param thd         thread context
+  @param table_list  list of "descriptors" for tables referenced
+                     directly in statement SQL text.
+                     The first element in the list corresponds to
+                     the destination table for inserts, remaining
+                     tables, if any, are usually tables referenced
+                     by sub-queries in the right part of the
+                     INSERT.
+
+  @return Status of the operation. In case of success 'table'
+  member of every table_list element points to an instance of
+  class TABLE.
+
+  @sa open_and_lock_tables for more information about MySQL table
+  level locking
+*/
+
+static
+bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
+{
+  DBUG_ENTER("open_and_lock_for_insert_delayed");
+
+#ifndef EMBEDDED_LIBRARY
+  if (delayed_get_table(thd, table_list))
+    DBUG_RETURN(TRUE);
+
+  if (table_list->table)
+  {
+    /*
+      Open tables used for sub-selects or in stored functions, will also
+      cache these functions.
+    */
+    if (open_and_lock_tables(thd, table_list->next_global))
+    {
+      end_delayed_insert(thd);
+      DBUG_RETURN(TRUE);
+    }
+    /*
+      First table was not processed by open_and_lock_tables(),
+      we need to set updatability flag "by hand".
+    */
+    if (!table_list->derived && !table_list->view)
+      table_list->updatable= 1;  // usual table
+    DBUG_RETURN(FALSE);
+  }
+#endif
+  /*
+    * This is embedded library and we don't have auxiliary
+    threads OR
+    * a lock upgrade was requested inside delayed_get_table
+      because
+      - there are too many delayed insert threads OR
+      - the table has triggers.
+    Use a normal insert.
+  */
+  table_list->lock_type= TL_WRITE;
+  DBUG_RETURN(open_and_lock_tables(thd, table_list));
 }
 
 
@@ -506,7 +581,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   */
   upgrade_lock_type(thd, &table_list->lock_type, duplic,
                     values_list.elements > 1);
-  lock_type= table_list->lock_type;
 
   /*
     We can't write-delayed into a table locked with LOCK TABLES:
@@ -514,7 +588,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     never be able to get a lock on the table. QQQ: why not
     upgrade the lock here instead?
   */
-  if (lock_type == TL_WRITE_DELAYED && thd->locked_tables &&
+  if (table_list->lock_type == TL_WRITE_DELAYED && thd->locked_tables &&
       find_locked_table(thd, table_list->db, table_list->table_name))
   {
     my_error(ER_DELAYED_INSERT_TABLE_LOCKED, MYF(0),
@@ -522,36 +596,16 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     DBUG_RETURN(TRUE);
   }
 
-#ifndef EMBEDDED_LIBRARY
-  if (lock_type == TL_WRITE_DELAYED)
+  if (table_list->lock_type == TL_WRITE_DELAYED)
   {
-    res= 1;
-    if ((table= delayed_get_table(thd,table_list)) && !thd->is_fatal_error)
-    {
-      /*
-        Open tables used for sub-selects or in stored functions, will also
-        cache these functions.
-      */
-      res= open_and_lock_tables(thd, table_list->next_global);
-      /*
-	First is not processed by open_and_lock_tables() => we need set
-	updateability flags "by hands".
-      */
-      if (!table_list->derived && !table_list->view)
-        table_list->updatable= 1;  // usual table
-    }
-    else
-    {
-      /* Too many delayed insert threads;  Use a normal insert */
-      table_list->lock_type= lock_type= TL_WRITE;
-      res= open_and_lock_tables(thd, table_list);
-    }
+    if (open_and_lock_for_insert_delayed(thd, table_list))
+      DBUG_RETURN(TRUE);
   }
   else
-#endif /* EMBEDDED_LIBRARY */
-    res= open_and_lock_tables(thd, table_list);
-  if (res || thd->is_fatal_error)
-    DBUG_RETURN(TRUE);
+  {
+    if (open_and_lock_tables(thd, table_list))
+      DBUG_RETURN(TRUE);
+  }
 
   thd->proc_info="init";
   thd->used_tables=0;
@@ -569,6 +623,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   /* mysql_prepare_insert set table_list->table if it was not set */
   table= table_list->table;
+  lock_type= table_list->lock_type;
 
   context= &thd->lex->select_lex.context;
   /*
@@ -1681,19 +1736,32 @@ Delayed_insert *find_handler(THD *thd, TABLE_LIST *table_list)
   Attempt to find or create a delayed insert thread to handle inserts
   into this table.
 
-  @return Return a local copy of the table in the delayed thread
-  @retval  NULL  too many delayed threads OR
-                 this thread ran out of resources OR
-                 a newly created delayed insert thread ran out of resources OR
-                 the delayed insert thread failed to open the table.
-                 In the last three cases an error is set in THD.
+  @return In case of success, table_list->table points to a local copy
+          of the delayed table or is set to NULL, which indicates a
+          request for lock upgrade. In case of failure, value of
+          table_list->table is undefined.
+  @retval TRUE  - this thread ran out of resources OR
+                - a newly created delayed insert thread ran out of
+                  resources OR
+                - the created thread failed to open and lock the table
+                  (e.g. because it does not exist) OR
+                - the table opened in the created thread turned out to
+                  be a view
+  @retval FALSE - table successfully opened OR
+                - too many delayed insert threads OR
+                - the table has triggers and we have to fall back to
+                  a normal INSERT
+                Two latter cases indicate a request for lock upgrade.
+
+  XXX: why do we regard INSERT DELAYED into a view as an error and
+  do not simply a lock upgrade?
 */
 
-static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
+static
+bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
 {
   int error;
   Delayed_insert *tmp;
-  TABLE *table;
   DBUG_ENTER("delayed_get_table");
 
   /* Must be set in the parser */
@@ -1719,7 +1787,8 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
       if (!(tmp=new Delayed_insert()))
       {
 	my_error(ER_OUTOFMEMORY,MYF(0),sizeof(Delayed_insert));
-	goto err1;
+        thd->fatal_error();
+        goto end_create;
       }
       pthread_mutex_lock(&LOCK_thread_count);
       thread_count++;
@@ -1728,9 +1797,10 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
       tmp->thd.query= my_strdup(table_list->table_name,MYF(MY_WME));
       if (tmp->thd.db == NULL || tmp->thd.query == NULL)
       {
+        /* The error is reported */
 	delete tmp;
-	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-	goto err1;
+        thd->fatal_error();
+        goto end_create;
       }
       tmp->table_list= *table_list;			// Needed to open table
       tmp->table_list.alias= tmp->table_list.table_name= tmp->thd.query;
@@ -1746,7 +1816,8 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	tmp->unlock();
 	delete tmp;
 	my_error(ER_CANT_CREATE_THREAD, MYF(0), error);
-	goto err1;
+        thd->fatal_error();
+        goto end_create;
       }
 
       /* Wait until table is open */
@@ -1759,41 +1830,44 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
       thd->proc_info="got old table";
       if (tmp->thd.killed)
       {
-	if (tmp->thd.is_fatal_error)
+	if (tmp->thd.net.report_error)
 	{
-	  /* Copy error message and abort */
-	  thd->fatal_error();
-	  strmov(thd->net.last_error,tmp->thd.net.last_error);
-	  thd->net.last_errno=tmp->thd.net.last_errno;
+          /*
+            Copy the error message. Note that we don't treat fatal
+            errors in the delayed thread as fatal errors in the
+            main thread. Use of my_message will enable stored
+            procedures continue handlers.
+          */
+          my_message(tmp->thd.net.last_errno, tmp->thd.net.last_error,
+                     MYF(0));
 	}
 	tmp->unlock();
-	goto err;
+        goto end_create;
       }
       if (thd->killed)
       {
 	tmp->unlock();
-	goto err;
+        goto end_create;
       }
     }
     pthread_mutex_unlock(&LOCK_delayed_create);
   }
 
   pthread_mutex_lock(&tmp->mutex);
-  table= tmp->get_local_table(thd);
+  table_list->table= tmp->get_local_table(thd);
   pthread_mutex_unlock(&tmp->mutex);
-  if (table)
+  if (table_list->table)
+  {
+    DBUG_ASSERT(tmp->thd.net.report_error == 0 && thd->net.report_error == 0);
     thd->di=tmp;
-  else if (tmp->thd.is_fatal_error)
-    thd->fatal_error();
+  }
   /* Unlock the delayed insert object after its last access. */
   tmp->unlock();
-  DBUG_RETURN((table_list->table=table));
+  DBUG_RETURN(table_list->table == NULL);
 
- err1:
-  thd->fatal_error();
- err:
+end_create:
   pthread_mutex_unlock(&LOCK_delayed_create);
-  DBUG_RETURN(0); // Continue with normal insert
+  DBUG_RETURN(thd->net.report_error);
 }
 
 
@@ -1808,6 +1882,9 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
   @pre This function is called from the client thread.  Delayed
        insert thread mutex must be acquired before invoking this
        function.
+
+  @return Not-NULL table object on success. NULL in case of an error,
+                    which is set in client_thd.
 */
 
 TABLE *Delayed_insert::get_local_table(THD* client_thd)
@@ -1835,8 +1912,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
       goto error;
     if (dead)
     {
-      strmov(client_thd->net.last_error,thd.net.last_error);
-      client_thd->net.last_errno=thd.net.last_errno;
+      my_message(thd.net.last_errno, thd.net.last_error, MYF(0));
       goto error;
     }
   }
@@ -1876,7 +1952,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   for (org_field= table->field; *org_field; org_field++, field++)
   {
     if (!(*field= (*org_field)->new_field(client_thd->mem_root, copy, 1)))
-      DBUG_RETURN(0);
+      goto error;
     (*field)->orig_table= copy;			// Remove connection
     (*field)->move_field_offset(adjust_ptrs);	// Point at copy->record[0]
     if (*org_field == found_next_number_field)
@@ -1922,9 +1998,9 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
 
 /* Put a question in queue */
 
-static int
-write_delayed(THD *thd,TABLE *table, enum_duplicates duplic,
-              LEX_STRING query, bool ignore, bool log_on)
+static
+int write_delayed(THD *thd,TABLE *table,enum_duplicates duplic, bool ignore,
+                  char *query, uint query_length, bool log_on)
 {
   delayed_row *row= 0;
   Delayed_insert *di=thd->di;
@@ -2006,6 +2082,10 @@ write_delayed(THD *thd,TABLE *table, enum_duplicates duplic,
   DBUG_RETURN(1);
 }
 
+/**
+  Signal the delayed insert thread that this user connection
+  is finished using it for this statement.
+*/
 
 static void end_delayed_insert(THD *thd)
 {
@@ -2110,6 +2190,15 @@ pthread_handler_t handle_delayed_insert(void *arg)
   {
     thd->fatal_error();
     my_error(ER_ILLEGAL_HA, MYF(0), di->table_list.table_name);
+    goto err;
+  }
+  if (di->table->triggers)
+  {
+    /*
+      Table has triggers. This is not an error, but we do
+      not support triggers with delayed insert. Terminate the delayed
+      thread without an error and thus request lock upgrade.
+    */
     goto err;
   }
   di->table->copy_blobs=1;
