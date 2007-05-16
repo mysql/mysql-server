@@ -652,6 +652,8 @@ struct Query_cache_query_flags
   ulong sql_mode;
   ulong max_sort_length;
   ulong group_concat_max_len;
+  ulong default_week_format;
+  ulong div_precision_increment;
   MY_LOCALE *lc_time_names;
 };
 #define QUERY_CACHE_FLAGS_SIZE sizeof(Query_cache_query_flags)
@@ -787,8 +789,6 @@ check_and_unset_inject_value(int value)
 
 #endif
 
-uint build_table_path(char *buff, size_t bufflen, const char *db,
-                      const char *table, const char *ext);
 void write_bin_log(THD *thd, bool clear_error,
                    char const *query, ulong query_length);
 
@@ -831,13 +831,15 @@ bool do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db,
                       bool skip_error);
 bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name,
                      bool force_switch);
-void mysql_parse(THD *thd,char *inBuf,uint length);
+
+void mysql_parse(THD *thd, const char *inBuf, uint length,
+                 const char ** semicolon);
+
 bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
 bool is_update_query(enum enum_sql_command command);
 bool alloc_query(THD *thd, const char *packet, uint packet_length);
 void mysql_init_select(LEX *lex);
 void mysql_reset_thd_for_next_command(THD *thd);
-void mysql_init_query(THD *thd, const char *buf, uint length);
 bool mysql_new_select(LEX *lex, bool move_down);
 void create_select_for_variable(const char *var_name);
 void mysql_init_multi_delete(LEX *lex);
@@ -961,6 +963,12 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
                         List<create_field> &fields, List<Key> &keys,
                         bool tmp_table, uint select_field_count,
                         bool use_copy_create_info);
+bool mysql_create_table_no_lock(THD *thd, const char *db,
+                                const char *table_name,
+                                HA_CREATE_INFO *create_info,
+                                List<create_field> &fields, List<Key> &keys,
+                                bool tmp_table, uint select_field_count,
+                                bool use_copy_create_info);
 
 bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
@@ -1018,7 +1026,11 @@ TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);
 TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT* mem,
 		  bool *refresh, uint flags);
-bool reopen_name_locked_table(THD* thd, TABLE_LIST* table);
+bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in);
+TABLE *table_cache_insert_placeholder(THD *thd, const char *key,
+                                      uint key_length);
+bool lock_table_name_if_not_cached(THD *thd, const char *db,
+                                   const char *table_name, TABLE **table);
 TABLE *find_locked_table(THD *thd, const char *db,const char *table_name);
 bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
 bool close_data_tables(THD *thd,const char *db, const char *table_name);
@@ -1187,7 +1199,9 @@ void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b,List<String> *using_fields,
                       SELECT_LEX *lex);
 bool add_proc_to_list(THD *thd, Item *item);
-TABLE *unlink_open_table(THD *thd,TABLE *list,TABLE *find);
+void unlink_open_table(THD *thd, TABLE *find, bool unlock);
+void drop_open_table(THD *thd, TABLE *table, const char *db_name,
+                     const char *table_name);
 void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
@@ -1622,7 +1636,7 @@ extern double log_01[32];
 extern ulonglong log_10_int[20];
 extern ulonglong keybuff_size;
 extern ulonglong thd_startup_options;
-extern ulong refresh_version, thread_id;
+extern ulong thread_id;
 extern ulong binlog_cache_use, binlog_cache_disk_use;
 extern ulong aborted_threads,aborted_connects;
 extern ulong delayed_insert_timeout;
@@ -1761,7 +1775,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
 #define MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK      0x0001
 #define MYSQL_LOCK_IGNORE_FLUSH                 0x0002
 #define MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN        0x0004
-#define MYSQL_OPEN_IGNORE_LOCKED_TABLES         0x0008
+#define MYSQL_OPEN_TEMPORARY_ONLY               0x0008
 
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
