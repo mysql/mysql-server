@@ -1913,6 +1913,11 @@ Event_job_data::execute(THD *thd, bool drop)
   thd->variables.sql_mode= sql_mode;
   thd->variables.time_zone= time_zone;
 
+  /*
+    Peculiar initialization order is a clutch to avoid races in SHOW
+    PROCESSLIST which reads thd->{query/query_length} without a mutex.
+  */
+  thd->query_length= 0;
   thd->query= sp_sql.c_ptr_safe();
   thd->query_length= sp_sql.length();
 
@@ -1968,6 +1973,11 @@ end:
       ret= 1;
     else
     {
+      /*
+        Peculiar initialization order is a clutch to avoid races in SHOW
+        PROCESSLIST which reads thd->{query/query_length} without a mutex.
+      */
+      thd->query_length= 0;
       thd->query= sp_sql.c_ptr_safe();
       thd->query_length= sp_sql.length();
       if (Events::drop_event(thd, dbname, name, FALSE))
