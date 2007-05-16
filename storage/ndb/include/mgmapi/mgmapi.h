@@ -23,7 +23,7 @@
 #define NDB_MGM_MAX_LOGLEVEL 15
 
 /**
- * @mainpage MySQL Cluster Management API
+ * @section MySQL Cluster Management API
  *
  * The MySQL Cluster Management API (MGM API) is a C language API
  * that is used for:
