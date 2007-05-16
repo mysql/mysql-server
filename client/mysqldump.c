@@ -1456,6 +1456,9 @@ static uint dump_routines_for_db(char *db)
   if (lock_tables)
     mysql_query(mysql, "LOCK TABLES mysql.proc READ");
 
+  if (opt_compact)
+    fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n");
+
   fprintf(sql_file, "DELIMITER ;;\n");
 
   /* 0, retrieve and dump functions, 1, procedures */
@@ -2106,8 +2109,11 @@ static void dump_triggers_for_table(char *table,
     DBUG_VOID_RETURN;
   }
   if (mysql_num_rows(result))
-    fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n\
-DELIMITER ;;\n");
+  {
+    if (opt_compact)
+      fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n");
+    fprintf(sql_file, "\nDELIMITER ;;\n");
+  }
   while ((row= mysql_fetch_row(result)))
   {
     fprintf(sql_file,
