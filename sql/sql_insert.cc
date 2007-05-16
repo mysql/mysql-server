@@ -1811,7 +1811,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
   pthread_mutex_unlock(&tmp->mutex);
   if (table_list->table)
   {
-    DBUG_ASSERT(tmp->thd.net.report_error == 0 && thd->net.report_error == 0);
+    DBUG_ASSERT(thd->net.report_error == 0);
     thd->di=tmp;
   }
   /* Unlock the delayed insert object after its last access. */
