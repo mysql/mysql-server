@@ -395,5 +395,8 @@ int my_decimal_intg(const my_decimal *a)
 }
 
 
+void my_decimal_trim(ulong *precision, uint *scale);
+
+
 #endif /*my_decimal_h*/
 

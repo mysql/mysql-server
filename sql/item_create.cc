@@ -3916,6 +3916,7 @@ Create_func_master_pos_wait Create_func_master_pos_wait::s_singleton;
 Item*
 Create_func_master_pos_wait::create_native(THD *thd, LEX_STRING name,
                                            List<Item> *item_list)
+
 {
   Item *func= NULL;
   int arg_count= 0;
@@ -4970,11 +4971,15 @@ find_qualified_function_builder(THD *thd)
   return & Create_sp_func::s_singleton;
 }
 
-Item*
-create_func_cast(THD *thd, Item *a, Cast_target cast_type, int len, int dec,
+
+Item *
+create_func_cast(THD *thd, Item *a, Cast_target cast_type,
+                 const char *c_len, const char *c_dec,
                  CHARSET_INFO *cs)
 {
   Item *res;
+  ulong len;
+  uint dec;
   LINT_INIT(res);
 
   switch (cast_type) {
@@ -4998,18 +5003,21 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type, int len, int dec,
     break;
   case ITEM_CAST_DECIMAL:
   {
-    int tmp_len= (len>0) ? len : 10;
-    if (tmp_len < dec)
+    len= c_len ? atoi(c_len) : 0;
+    dec= c_dec ? atoi(c_dec) : 0;
+    my_decimal_trim(&len, &dec);
+    if (len < dec)
     {
       my_error(ER_M_BIGGER_THAN_D, MYF(0), "");
       return 0;
     }
-    res= new (thd->mem_root) Item_decimal_typecast(a, tmp_len, dec);
+    res= new (thd->mem_root) Item_decimal_typecast(a, len, dec);
     break;
   }
   case ITEM_CAST_CHAR:
   {
     CHARSET_INFO *real_cs= (cs ? cs : thd->variables.collation_connection);
+    len= c_len ? atoi(c_len) : -1;
     res= new (thd->mem_root) Item_char_typecast(a, len, real_cs);
     break;
   }
@@ -5022,4 +5030,3 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type, int len, int dec,
   }
   return res;
 }
-
