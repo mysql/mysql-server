@@ -1049,6 +1049,8 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
 {
   my_decimal tmp_buf, *tmp= args[0]->val_decimal(&tmp_buf);
   bool sign;
+  uint precision;
+
   if ((null_value= args[0]->null_value))
     return NULL;
   my_decimal_round(E_DEC_FATAL_ERROR, tmp, decimals, FALSE, dec);
@@ -1061,9 +1063,11 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
       goto err;
     }
   }
-  if (max_length - 2 - decimals < (uint) my_decimal_intg(dec))
+  precision= my_decimal_length_to_precision(max_length,
+                                            decimals, unsigned_flag);
+  if (precision - decimals < (uint) my_decimal_intg(dec))
   {
-    max_my_decimal(dec, max_length - 2, decimals);
+    max_my_decimal(dec, precision, decimals);
     dec->sign(sign);
     goto err;
   }
@@ -1080,9 +1084,25 @@ err:
 
 void Item_decimal_typecast::print(String *str)
 {
+  char len_buf[20*3 + 1];
+  char *end;
+
+  uint precision= my_decimal_length_to_precision(max_length, decimals,
+                                                 unsigned_flag);
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(str);
-  str->append(STRING_WITH_LEN(" as decimal)"));
+  str->append(STRING_WITH_LEN(" as decimal("));
+
+  end=int10_to_str(precision, len_buf,10);
+  str->append(len_buf, (uint32) (end - len_buf));
+
+  str->append(',');
+
+  end=int10_to_str(decimals, len_buf,10);
+  str->append(len_buf, (uint32) (end - len_buf));
+
+  str->append(')');
+  str->append(')');
 }
 
 
@@ -1501,7 +1521,7 @@ void Item_func_neg::fix_length_and_dec()
   */
   if (hybrid_type == INT_RESULT &&
       args[0]->type() == INT_ITEM &&
-      ((ulonglong) args[0]->val_int() >= (ulonglong) LONGLONG_MIN))
+      ((ulonglong) args[0]->val_int() > (ulonglong) LONGLONG_MIN))
   {
     /*
       Ensure that result is converted to DECIMAL, as longlong can't hold
