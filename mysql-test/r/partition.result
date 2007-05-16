@@ -1233,4 +1233,6 @@ select * from t1;
 c1	c2
 aaa	2
 drop table t1;
+create table t1 (s1 bigint) partition by list (s1) (partition p1 values in (-9223372036854775808));
+drop table t1;
 End of 5.1 tests
