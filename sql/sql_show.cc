@@ -4546,19 +4546,23 @@ int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
   enum enum_var_type option_type;
   bool upper_case_names= (schema_table_idx != SCH_STATUS);
 
-  if (lex->option_type == OPT_GLOBAL ||
-      schema_table_idx == SCH_GLOBAL_STATUS)
+  if (schema_table_idx == SCH_STATUS)
+  {
+    option_type= lex->option_type;
+    if (option_type == OPT_GLOBAL)
+      tmp1= &tmp;
+    else
+      tmp1= thd->initial_status_var;
+  }
+  else if (schema_table_idx == SCH_GLOBAL_STATUS)
   {
     option_type= OPT_GLOBAL;
     tmp1= &tmp;
   }
   else
-  {
+  { 
     option_type= OPT_SESSION;
-    if (schema_table_idx == SCH_SESSION_STATUS)
-      tmp1= &thd->status_var;
-    else
-      tmp1= thd->initial_status_var;
+    tmp1= &thd->status_var;
   }
 
   pthread_mutex_lock(&LOCK_status);
