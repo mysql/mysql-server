@@ -407,11 +407,11 @@ deallocate prepare stmt_do ;
 deallocate prepare stmt_set ;
 
 ## nonsense like prepare of prepare,execute or deallocate
---error 1064
+--error ER_UNSUPPORTED_PS 
 prepare stmt1 from ' prepare stmt2 from '' select 1 ''  ' ;
---error 1064
+--error ER_UNSUPPORTED_PS 
 prepare stmt1 from ' execute stmt2 ' ;
---error 1064
+--error ER_UNSUPPORTED_PS 
 prepare stmt1 from ' deallocate prepare never_prepared ' ;
 
 ## switch the database connection
