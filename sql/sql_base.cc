@@ -2277,7 +2277,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
   */
 
   if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
-      thd->lex->sroutines_list.elements)
+      thd->lex->uses_stored_routines())
   {
     bool first_no_prelocking, need_prelocking, tabs_changed;
     TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
@@ -2465,7 +2465,7 @@ process_view_routines:
     */
     if (tables->view && !thd->prelocked_mode &&
         !thd->lex->requires_prelocking() &&
-        tables->view->sroutines_list.elements)
+        tables->view->uses_stored_routines())
     {
       /* We have at least one table in TL here. */
       if (!query_tables_last_own)
