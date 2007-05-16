@@ -194,7 +194,7 @@ double my_strtod(const char *str, char **end_ptr, int *error)
 done:
   *end_ptr= (char*) str;                        /* end of number */
 
-  if (overflow || isinf(result))
+  if (overflow || my_isinf(result))
   {
     result= DBL_MAX;
     *error= EOVERFLOW;
