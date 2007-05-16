@@ -752,7 +752,7 @@ print_field_values(THD *thd, TABLE *table,
 	switch (used_field->field_type) {
 	case MYSQL_TYPE_TIMESTAMP:
 	  {
-	    TIME tmp_time;
+	    MYSQL_TIME tmp_time;
 
 	    bzero((char *)&tmp_time, sizeof(tmp_time));
 	    ((Field_timestamp *) used_field->field)->get_time(&tmp_time);
