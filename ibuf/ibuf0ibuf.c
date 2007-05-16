@@ -857,15 +857,6 @@ ibuf_set_free_bits_func(
 
 	mtr_start(&mtr);
 
-	if (recv_recovery_is_on()) {
-		/* Do not write to the redo log, because there is
-		crash recovery in progress.  Flushing the log would
-		require the possession of log_sys->mutex, which is
-		being held by the main thread. */
-
-		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
-	}
-
 	space = buf_block_get_space(block);
 	page_no = buf_block_get_page_no(block);
 	zip_size = buf_block_get_zip_size(block);
@@ -3307,7 +3298,7 @@ loop:
 		if (UNIV_UNLIKELY(corruption_noticed)) {
 			fputs("InnoDB: Discarding record\n ", stderr);
 			rec_print_old(stderr, ibuf_rec);
-			fputs("\n from the insert buffer!\n\n", stderr);
+			fputs("\nInnoDB: from the insert buffer!\n\n", stderr);
 		} else if (block) {
 			/* Now we have at pcur a record which should be
 			inserted to the index page; NOTE that the call below

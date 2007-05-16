@@ -19,7 +19,6 @@ Created June 2005 by Marko Makela
 #include "dict0dict.h"
 #include "btr0sea.h"
 #include "btr0cur.h"
-#include "ibuf0ibuf.h"
 #include "page0types.h"
 #include "lock0lock.h"
 #include "log0recv.h"
@@ -3821,7 +3820,11 @@ page_zip_write_header_log(
 Reorganize and compress a page.  This is a low-level operation for
 compressed pages, to be used when page_zip_compress() fails.
 On success, a redo log entry MLOG_ZIP_PAGE_COMPRESS will be written.
-The function btr_page_reorganize() should be preferred whenever possible. */
+The function btr_page_reorganize() should be preferred whenever possible.
+IMPORTANT: if page_zip_reorganize() is invoked on a leaf page of a
+non-clustered index, the caller must update the insert buffer free
+bits in the same mini-transaction in such a way that the modification
+will be redo-logged. */
 
 ibool
 page_zip_reorganize(
@@ -3884,11 +3887,6 @@ page_zip_reorganize(
 
 	lock_move_reorganize_page(block, temp_block);
 	btr_search_drop_page_hash_index(block);
-
-	if (!dict_index_is_clust(index) && page_is_leaf(page)) {
-		/* Recompute the insert buffer free bits. */
-		ibuf_update_free_bits_zip(page_zip_get_size(page_zip), block);
-	}
 
 	buf_block_free(temp_block);
 	return(TRUE);

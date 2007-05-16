@@ -224,7 +224,8 @@ btr_cur_update_in_place(
 	ulint		cmpl_info,/* in: compiler info on secondary index
 				updates */
 	que_thr_t*	thr,	/* in: query thread */
-	mtr_t*		mtr);	/* in: mtr */
+	mtr_t*		mtr);	/* in: mtr; must be committed before
+				latching any further pages */
 /*****************************************************************
 Tries to update a record on a page in an index tree. It is assumed that mtr
 holds an x-latch on the page. The operation does not succeed if there is too
@@ -248,7 +249,8 @@ btr_cur_optimistic_update(
 	ulint		cmpl_info,/* in: compiler info on secondary index
 				updates */
 	que_thr_t*	thr,	/* in: query thread */
-	mtr_t*		mtr);	/* in: mtr */
+	mtr_t*		mtr);	/* in: mtr; must be committed before
+				latching any further pages */
 /*****************************************************************
 Performs an update of a record on a page of a tree. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. If the
@@ -271,7 +273,8 @@ btr_cur_pessimistic_update(
 	ulint		cmpl_info,/* in: compiler info on secondary index
 				updates */
 	que_thr_t*	thr,	/* in: query thread */
-	mtr_t*		mtr);	/* in: mtr */
+	mtr_t*		mtr);	/* in: mtr; must be committed before
+				latching any further pages */
 /***************************************************************
 Marks a clustered index record deleted. Writes an undo log record to
 undo log on this delete marking. Writes in the trx id field the id
