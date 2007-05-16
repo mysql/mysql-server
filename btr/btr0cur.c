@@ -1043,7 +1043,11 @@ btr_cur_optimistic_insert(
 	const ulint*	ext,	/* in: array of extern field numbers */
 	ulint		n_ext,	/* in: number of elements in vec */
 	que_thr_t*	thr,	/* in: query thread or NULL */
-	mtr_t*		mtr)	/* in: mtr */
+	mtr_t*		mtr)	/* in: mtr; if this function returns
+				DB_SUCCESS on a leaf page of a secondary
+				index in a compressed tablespace, the
+				mtr must be committed before latching
+				any further pages */
 {
 	big_rec_t*	big_rec_vec	= NULL;
 	dict_index_t*	index;
@@ -1051,8 +1055,9 @@ btr_cur_optimistic_insert(
 	buf_block_t*	block;
 	page_t*		page;
 	ulint		max_size;
+	ulint		max_size_zip	= 0;
 	rec_t*		dummy_rec;
-	ulint		level;
+	ibool		leaf;
 	ibool		reorg;
 	ibool		inherit;
 	ulint		zip_size;
@@ -1080,7 +1085,18 @@ btr_cur_optimistic_insert(
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	max_size = page_get_max_insert_size_after_reorganize(page, 1);
-	level = btr_page_get_level(page, mtr);
+	leaf = page_is_leaf(page);
+
+	/* If necessary for updating the insert buffer bitmap,
+	calculate the current maximum insert size on a compressed page. */
+	if (zip_size && UNIV_LIKELY(leaf) && !dict_index_is_clust(index)) {
+		lint	zip_max = page_zip_max_ins_size(
+			buf_block_get_page_zip(block), FALSE);
+
+		if (zip_max >= 0 && max_size > (ulint) zip_max) {
+			max_size_zip = (ulint) zip_max;
+		}
+	}
 
 	/* Calculate the record size when entry is converted to a record */
 	rec_size = rec_get_converted_size(index, entry, ext, n_ext);
@@ -1106,7 +1122,7 @@ btr_cur_optimistic_insert(
 
 	if (dict_index_is_clust(index)
 	    && (page_get_n_recs(page) >= 2)
-	    && UNIV_LIKELY(0 == level)
+	    && UNIV_LIKELY(leaf)
 	    && (dict_index_get_space_reserve() + rec_size > max_size)
 	    && (btr_page_get_split_rec_to_right(cursor, &dummy_rec)
 		|| btr_page_get_split_rec_to_left(cursor, &dummy_rec))) {
@@ -1196,7 +1212,7 @@ fail_err:
 	}
 
 #ifdef BTR_CUR_HASH_ADAPT
-	if (!reorg && (0 == level) && (cursor->flag == BTR_CUR_HASH)) {
+	if (!reorg && leaf && (cursor->flag == BTR_CUR_HASH)) {
 		btr_search_update_hash_node_on_insert(cursor);
 	} else {
 		btr_search_update_hash_on_insert(cursor);
@@ -1214,17 +1230,9 @@ fail_err:
 		buf_block_get_page_no(block), max_size,
 		rec_size + PAGE_DIR_SLOT_SIZE, index->type);
 #endif
-	if (!dict_index_is_clust(index) && UNIV_LIKELY(0 == level)) {
+	if (!dict_index_is_clust(index) && leaf) {
 		/* Update the free bits of the B-tree page in the
-		insert buffer bitmap.  This has to be done in a
-		separate mini-transaction that is committed before the
-		main mini-transaction.  Since insert buffer bitmap
-		pages have a lower rank than B-tree pages, we must not
-		access other pages in the same mini-transaction after
-		accessing an insert buffer bitmap page.  Because the
-		mini-transaction where this function is invoked may
-		access other pages, we must update the insert
-		buffer bitmap in a separate mini-transaction. */
+		insert buffer bitmap. */
 
 		/* The free bits in the insert buffer bitmap must
 		never exceed the free space on a page.  It is safe to
@@ -1237,13 +1245,12 @@ fail_err:
 		the free bits could momentarily be set too high. */
 
 		if (zip_size) {
-			/* Because the free bits may be incremented
-			and we cannot update the insert buffer bitmap
-			in the same mini-transaction, the only safe
-			thing we can do here is the pessimistic
-			approach: reset the free bits. */
-			ibuf_reset_free_bits(block);
+			/* Update the bits in the same mini-transaction. */
+			ibuf_update_free_bits_low(zip_size, block,
+						  max_size_zip, mtr);
 		} else {
+			/* Decrement the bits in a separate
+			mini-transaction. */
 			ibuf_update_free_bits_if_full(
 				block, max_size,
 				rec_size + PAGE_DIR_SLOT_SIZE);
