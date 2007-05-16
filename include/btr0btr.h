@@ -230,7 +230,11 @@ btr_root_raise_and_insert(
 	ulint		n_ext,	/* in: number of elements in vec */
 	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************
-Reorganizes an index page. */
+Reorganizes an index page.
+IMPORTANT: if btr_page_reorganize() is invoked on a compressed leaf
+page of a non-clustered index, the caller must update the insert
+buffer free bits in the same mini-transaction in such a way that the
+modification will be redo-logged. */
 
 ibool
 btr_page_reorganize(

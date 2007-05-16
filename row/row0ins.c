@@ -215,7 +215,8 @@ row_ins_sec_index_entry_by_modify(
 	btr_cur_t*	cursor,	/* in: B-tree cursor */
 	const dtuple_t*	entry,	/* in: index entry to insert */
 	que_thr_t*	thr,	/* in: query thread */
-	mtr_t*		mtr)	/* in: mtr */
+	mtr_t*		mtr)	/* in: mtr; must be committed before
+				latching any further pages */
 {
 	big_rec_t*	dummy_big_rec;
 	mem_heap_t*	heap;
@@ -292,7 +293,8 @@ row_ins_clust_index_entry_by_modify(
 				externally stored fields in entry, or NULL */
 	ulint		n_ext_vec,/* in: number of fields in ext_vec */
 	que_thr_t*	thr,	/* in: query thread */
-	mtr_t*		mtr)	/* in: mtr */
+	mtr_t*		mtr)	/* in: mtr; must be committed before
+				latching any further pages */
 {
 	rec_t*		rec;
 	upd_t*		update;
