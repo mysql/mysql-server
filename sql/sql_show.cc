@@ -2433,7 +2433,7 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
 				    const char *file_name)
 {
   const char *tmp_buff;
-  TIME time;
+  MYSQL_TIME time;
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_tables_record");
 
@@ -2939,7 +2939,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
 {
   String tmp_string;
   String sp_db, sp_name, definer;
-  TIME time;
+  MYSQL_TIME time;
   LEX *lex= thd->lex;
   CHARSET_INFO *cs= system_charset_info;
   get_field(thd->mem_root, proc_table->field[0], &sp_db);
