@@ -1634,7 +1634,7 @@ sub environment_setup () {
   }
 
   $ENV{'LD_LIBRARY_PATH'}= join(":", @ld_library_paths,
-				$ENV{'LD_LIBRARY_PATHS'} ?
+				$ENV{'LD_LIBRARY_PATH'} ?
 				split(':', $ENV{'LD_LIBRARY_PATH'}) : ());
   mtr_debug("LD_LIBRARY_PATH: $ENV{'LD_LIBRARY_PATH'}");
 
