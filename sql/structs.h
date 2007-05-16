@@ -142,12 +142,11 @@ typedef struct st_read_record {			/* Parameter to read_record */
 
 
 /*
-  Originally MySQL used TIME structure inside server only, but since
+  Originally MySQL used MYSQL_TIME structure inside server only, but since
   4.1 it's exported to user in the new client API. Define aliases for
   new names to keep existing code simple.
 */
 
-typedef struct st_mysql_time TIME;
 typedef enum enum_mysql_timestamp_type timestamp_type;
 
 
