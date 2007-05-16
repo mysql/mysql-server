@@ -971,6 +971,12 @@ public:
       query_tables_own_last= 0;
     }
   }
+  /**
+    true if the parsed tree contains references to stored procedures
+    or functions, false otherwise
+  */
+  bool uses_stored_routines() const
+  { return sroutines_list.elements != 0; }
 };
 
 
