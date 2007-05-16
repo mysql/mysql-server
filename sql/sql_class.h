@@ -28,6 +28,7 @@ class Slave_log_event;
 class Format_description_log_event;
 class sp_rcontext;
 class sp_cache;
+class Lex_input_stream;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
@@ -494,7 +495,7 @@ public:
 };
 
 
-class delayed_insert;
+class Delayed_insert;
 class select_result;
 
 #define THD_SENTRY_MAGIC 0xfeedd1ff
@@ -1247,7 +1248,7 @@ public:
   time_t     start_time,time_after_lock,user_time;
   time_t     connect_time,thr_create_time; // track down slow pthread_create
   thr_lock_type update_lock_default;
-  delayed_insert *di;
+  Delayed_insert *di;
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
@@ -1499,6 +1500,15 @@ public:
     */
     query_id_t first_query_id;
   } binlog_evt_union;
+
+  /**
+    Character input stream consumed by the lexical analyser,
+    used during parsing.
+    Note that since the parser is not re-entrant, we keep only one input
+    stream here. This member is valid only when executing code during parsing,
+    and may point to invalid memory after that.
+  */
+  Lex_input_stream *m_lip;
 
   THD();
   ~THD();
