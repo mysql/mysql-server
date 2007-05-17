@@ -621,6 +621,21 @@ select * from t1 order by counter;
 drop table t1;
 
 #
+# bug#27437
+connection con1;
+create table t1 (a int primary key auto_increment) engine = ndb;
+insert into t1() values (),(),(),(),(),(),(),(),(),(),(),();
+connection con2;
+insert into t1(a) values (20),(28);
+connection con1;
+insert into t1() values (),(),(),(),(),(),(),(),(),(),(),();
+connection con2;
+insert into t1() values (21), (22);
+connection con1;
+
+drop table t1;
+
+#
 # BUG#14514 Creating table with packed key fails silently
 #
 

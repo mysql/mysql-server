@@ -1986,6 +1986,8 @@ bool ha_partition::create_handler_file(const char *name)
 
 void ha_partition::clear_handler_file()
 {
+  if (m_engine_array)
+    plugin_unlock_list(NULL, m_engine_array, m_tot_parts);
   my_free((char*) m_file_buffer, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) m_engine_array, MYF(MY_ALLOW_ZERO_PTR));
   m_file_buffer= NULL;
@@ -2008,6 +2010,7 @@ bool ha_partition::create_handlers(MEM_ROOT *mem_root)
 {
   uint i;
   uint alloc_len= (m_tot_parts + 1) * sizeof(handler*);
+  handlerton *hton0;
   DBUG_ENTER("create_handlers");
 
   if (!(m_file= (handler **) alloc_root(mem_root, alloc_len)))
@@ -2016,19 +2019,21 @@ bool ha_partition::create_handlers(MEM_ROOT *mem_root)
   bzero((char*) m_file, alloc_len);
   for (i= 0; i < m_tot_parts; i++)
   {
+    handlerton *hton= plugin_data(m_engine_array[i], handlerton*);
     if (!(m_file[i]= get_new_handler(table_share, mem_root,
-                                     m_engine_array[i])))
+                                     hton)))
       DBUG_RETURN(TRUE);
-    DBUG_PRINT("info", ("engine_type: %u", m_engine_array[i]->db_type));
+    DBUG_PRINT("info", ("engine_type: %u", hton->db_type));
   }
   /* For the moment we only support partition over the same table engine */
-  if (m_engine_array[0] == myisam_hton)
+  hton0= plugin_data(m_engine_array[0], handlerton*);
+  if (hton0 == myisam_hton)
   {
     DBUG_PRINT("info", ("MyISAM"));
     m_myisam= TRUE;
   }
   /* INNODB may not be compiled in... */
-  else if (ha_legacy_type(m_engine_array[0]) == DB_TYPE_INNODB)
+  else if (ha_legacy_type(hton0) == DB_TYPE_INNODB)
   {
     DBUG_PRINT("info", ("InnoDB"));
     m_innodb= TRUE;
@@ -2159,8 +2164,7 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
   m_tot_parts= uint4korr((file_buffer) + 8);
   DBUG_PRINT("info", ("No of parts = %u", m_tot_parts));
   tot_partition_words= (m_tot_parts + 3) / 4;
-  if (!(engine_array= (handlerton **) my_malloc(m_tot_parts * sizeof(handlerton*),MYF(0))))
-    goto err2;
+  engine_array= (handlerton **) my_alloca(m_tot_parts * sizeof(handlerton*));
   for (i= 0; i < m_tot_parts; i++)
     engine_array[i]= ha_resolve_by_legacy_type(current_thd,
                                                (enum legacy_db_type)
@@ -2168,12 +2172,21 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
   address_tot_name_len= file_buffer + 12 + 4 * tot_partition_words;
   tot_name_words= (uint4korr(address_tot_name_len) + 3) / 4;
   if (len_words != (tot_partition_words + tot_name_words + 4))
-    goto err2;
+    goto err3;
   name_buffer_ptr= file_buffer + 16 + 4 * tot_partition_words;
   VOID(my_close(file, MYF(0)));
   m_file_buffer= file_buffer;          // Will be freed in clear_handler_file()
   m_name_buffer_ptr= name_buffer_ptr;
-  m_engine_array= engine_array;
+  
+  if (!(m_engine_array= (plugin_ref*)
+                my_malloc(m_tot_parts * sizeof(plugin_ref), MYF(MY_WME))))
+    goto err3;
+
+  for (i= 0; i < m_tot_parts; i++)
+    m_engine_array[i]= ha_lock_engine(NULL, engine_array[i]);
+
+  my_afree((gptr) engine_array);
+    
   if (!m_file && create_handlers(mem_root))
   {
     clear_handler_file();
@@ -2181,6 +2194,8 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
   }
   DBUG_RETURN(FALSE);
 
+err3:
+  my_afree((gptr) engine_array);
 err2:
   my_free(file_buffer, MYF(0));
 err1:
@@ -2324,7 +2339,8 @@ err_handler:
 
 handler *ha_partition::clone(MEM_ROOT *mem_root)
 {
-  handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type);
+  handler *new_handler= get_new_handler(table->s, mem_root,
+                                        table->s->db_type());
   ((ha_partition*)new_handler)->m_part_info= m_part_info;
   ((ha_partition*)new_handler)->is_clone= TRUE;
   if (new_handler && !new_handler->ha_open(table,

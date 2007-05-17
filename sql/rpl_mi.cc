@@ -29,8 +29,8 @@ int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
 
 MASTER_INFO::MASTER_INFO()
   :ssl(0), fd(-1),  io_thd(0), inited(0),
-   abort_slave(0),slave_running(0), slave_run_id(0),
-   ssl_verify_server_cert(0)
+   abort_slave(0),slave_running(0),
+   ssl_verify_server_cert(0), slave_run_id(0)
 {
   host[0] = 0; user[0] = 0; password[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
