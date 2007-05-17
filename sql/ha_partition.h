@@ -27,6 +27,7 @@ enum partition_keywords
   The partition implements the minimum of what you will probably need.
 */
 
+#ifdef NOT_USED
 typedef struct st_partition_share
 {
   char *table_name;
@@ -34,6 +35,7 @@ typedef struct st_partition_share
   pthread_mutex_t mutex;
   THR_LOCK lock;
 } PARTITION_SHARE;
+#endif
 
 
 #define PARTITION_BYTES_IN_POS 2
@@ -54,7 +56,7 @@ private:
   uint m_open_test_lock;                // Open test_if_locked
   char *m_file_buffer;                  // Buffer with names
   char *m_name_buffer_ptr;		// Pointer to first partition name
-  handlerton **m_engine_array;          // Array of types of the handlers
+  plugin_ref *m_engine_array;           // Array of types of the handlers
   handler **m_file;                     // Array of references to handler inst.
   uint m_file_tot_parts;                // Debug
   handler **m_new_file;                 // Array of references to new handlers
@@ -130,7 +132,9 @@ private:
     Variables for lock structures.
   */
   THR_LOCK_DATA lock;                   /* MySQL lock */
+#ifdef NOT_USED
   PARTITION_SHARE *share;               /* Shared lock info */
+#endif
 
   /* 
     TRUE <=> this object was created with ha_partition::clone and doesn't

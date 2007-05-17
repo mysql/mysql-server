@@ -499,6 +499,14 @@ struct trx_struct{
 	ulint		mysql_process_no;/* since in Linux, 'top' reports
 					process id's and not thread id's, we
 					store the process number too */
+	ibool		allow_duplicates;/* normally FALSE, but if the user
+					wants to update duplicate rows,
+					(in table inserts, for example) we
+					set this TRUE */
+	ibool		replace_duplicates;/* normally FALSE, but if the user
+					wants to replace duplicate rows,
+					(in table inserts, for example) we
+					set this TRUE */
 	/*------------------------------*/
 	ulint		n_mysql_tables_in_use; /* number of Innobase tables
 					used in the processing of the current

@@ -1817,6 +1817,21 @@ int subselect_single_select_engine::exec()
       thd->lex->current_select= save_select;
       DBUG_RETURN(join->error ? join->error : 1);
     }
+    if (!select_lex->uncacheable && thd->lex->describe && 
+        !(join->select_options & SELECT_DESCRIBE) && 
+        join->need_tmp && item->const_item())
+    {
+      /*
+        Force join->join_tmp creation, because this subquery will be replaced
+        by a simple select from the materialization temp table by optimize()
+        called by EXPLAIN and we need to preserve the initial query structure
+        so we can display it.
+       */
+      select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
+      select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
+      if (join->init_save_join_tab())
+        DBUG_RETURN(1);                        /* purecov: inspected */
+    }
     if (item->engine_changed)
     {
       DBUG_RETURN(1);
@@ -1857,6 +1872,8 @@ int subselect_single_select_engine::exec()
             if (cond_guard && !*cond_guard)
             {
               /* Change the access method to full table scan */
+              tab->save_read_first_record= tab->read_first_record;
+              tab->save_read_record= tab->read_record.read_record;
               tab->read_first_record= init_read_record_seq;
               tab->read_record.record= tab->table->record[0];
               tab->read_record.thd= join->thd;
@@ -1877,8 +1894,8 @@ int subselect_single_select_engine::exec()
       JOIN_TAB *tab= *ptab;
       tab->read_record.record= 0;
       tab->read_record.ref_length= 0;
-      tab->read_first_record= join_read_always_key_or_null;
-      tab->read_record.read_record= join_read_next_same_or_null;
+      tab->read_first_record= tab->save_read_first_record; 
+      tab->read_record.read_record= tab->save_read_record;
     }
     executed= 1;
     thd->where= save_where;

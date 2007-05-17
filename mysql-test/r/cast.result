@@ -351,6 +351,12 @@ DROP TABLE t1;
 select isnull(date(NULL)), isnull(cast(NULL as DATE));
 isnull(date(NULL))	isnull(cast(NULL as DATE))
 1	1
+SELECT CAST(cast('01-01-01' as date) AS UNSIGNED);
+CAST(cast('01-01-01' as date) AS UNSIGNED)
+20010101
+SELECT CAST(cast('01-01-01' as date) AS SIGNED);
+CAST(cast('01-01-01' as date) AS SIGNED)
+20010101
 End of 4.1 tests
 select cast('1.2' as decimal(3,2));
 cast('1.2' as decimal(3,2))

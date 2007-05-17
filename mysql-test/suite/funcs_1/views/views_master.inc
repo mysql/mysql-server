@@ -3036,7 +3036,9 @@ let $sublevel= `SELECT @max_level`;
 eval CREATE VIEW test1.v$level AS SELECT f1, f2
             FROM test3.t1 tab1 NATURAL JOIN test1.v$sublevel tab2;
 eval SHOW CREATE VIEW test1.v$level;
---eror 1116
+# the following line as written as '--eror 1116' and the command
+# is successful so assuming no expected error was intended
+# --error 1116
 eval SELECT CAST(f1 AS SIGNED INTEGER) AS f1,
             CAST(f2 AS CHAR) AS f2 FROM test1.v$level;
 let $message= The output of following EXPLAIN is deactivated, because the result
@@ -3047,7 +3049,9 @@ if (1)
 {
 --disable_result_log
 }
---eror 1116
+# the following line as written as '--eror 1116' and the command
+# is successful so assuming no expected error was intended
+# --error 1116
 eval EXPLAIN SELECT CAST(f1 AS SIGNED INTEGER) AS f1,
                 CAST(f2 AS CHAR) AS f2 FROM test1.v$level;
 if (1)
