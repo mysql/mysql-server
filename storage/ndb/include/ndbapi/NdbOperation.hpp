@@ -830,8 +830,6 @@ public:
    * Set/get partition key
    */
   void setPartitionId(Uint32 id);
-  void setPartitionHash(Uint32 key);
-  void setPartitionHash(const Uint64 *, Uint32 len);
   Uint32 getPartitionId() const;
 #endif
 protected:

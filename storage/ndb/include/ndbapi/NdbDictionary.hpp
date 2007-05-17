@@ -1020,6 +1020,13 @@ public:
      */
     int validate(struct NdbError& error);
 
+    /**
+     * Return partitionId given a hashvalue
+     *   Note, if table is not retreived (e.i using getTable) result
+     *   will most likely be wrong
+     */
+    Uint32 getPartitionId(Uint32 hashvalue) const ;
+
   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class Ndb;

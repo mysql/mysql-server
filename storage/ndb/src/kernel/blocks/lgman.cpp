@@ -436,7 +436,6 @@ Lgman::drop_filegroup_drop_files(Signal* signal,
 {
   jam();
   ndbrequire(! (ptr.p->m_state & Logfile_group::LG_THREAD_MASK));
-  ndbrequire(ptr.p->m_meta_files.isEmpty());
   ndbrequire(ptr.p->m_outstanding_fs == 0);
 
   Local_undofile_list list(m_file_pool, ptr.p->m_files);
@@ -446,6 +445,18 @@ Lgman::drop_filegroup_drop_files(Signal* signal,
   {
     jam();
     ndbrequire(! (file_ptr.p->m_state & Undofile::FS_OUTSTANDING));
+    file_ptr.p->m_create.m_senderRef = ref;
+    file_ptr.p->m_create.m_senderData = data;
+    create_file_abort(signal, ptr, file_ptr);
+    return;
+  }
+
+  Local_undofile_list metalist(m_file_pool, ptr.p->m_meta_files);
+  if (metalist.first(file_ptr))
+  {
+    jam();
+    metalist.remove(file_ptr);
+    list.add(file_ptr);
     file_ptr.p->m_create.m_senderRef = ref;
     file_ptr.p->m_create.m_senderData = data;
     create_file_abort(signal, ptr, file_ptr);
@@ -462,7 +473,8 @@ Lgman::drop_filegroup_drop_files(Signal* signal,
 }
 
 void
-Lgman::execCREATE_FILE_REQ(Signal* signal){
+Lgman::execCREATE_FILE_REQ(Signal* signal)
+{
   jamEntry();
   CreateFileImplReq* req= (CreateFileImplReq*)signal->getDataPtr();
   
@@ -491,6 +503,7 @@ Lgman::execCREATE_FILE_REQ(Signal* signal){
     switch(requestInfo){
     case CreateFileImplReq::Commit:
     {
+      jam();
       ndbrequire(find_file_by_id(file_ptr, ptr.p->m_meta_files, req->file_id));
       file_ptr.p->m_create.m_senderRef = req->senderRef;
       file_ptr.p->m_create.m_senderData = req->senderData;
@@ -503,6 +516,7 @@ Lgman::execCREATE_FILE_REQ(Signal* signal){
       Uint32 senderData = req->senderData;
       if (find_file_by_id(file_ptr, ptr.p->m_meta_files, req->file_id))
       {
+        jam();
 	file_ptr.p->m_create.m_senderRef = senderRef;
 	file_ptr.p->m_create.m_senderData = senderData;
 	create_file_abort(signal, ptr, file_ptr);
@@ -510,11 +524,11 @@ Lgman::execCREATE_FILE_REQ(Signal* signal){
       else
       {
 	CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
+        jam();
 	conf->senderData = senderData;
 	conf->senderRef = reference();
 	sendSignal(senderRef, GSN_CREATE_FILE_CONF, signal, 
 		   CreateFileImplConf::SignalLength, JBB);
-	return;
       }
       return;
     }
