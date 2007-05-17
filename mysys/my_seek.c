@@ -61,7 +61,7 @@ my_off_t my_seek(File fd, my_off_t pos, int whence,
   {
     pthread_mutex_lock(&my_file_info[fd].mutex);
     newpos= lseek(fd, pos, whence);
-    pthread_mutex_lock(&my_file_info[fd].mutex);
+    pthread_mutex_unlock(&my_file_info[fd].mutex);
   }
   else
 #endif
