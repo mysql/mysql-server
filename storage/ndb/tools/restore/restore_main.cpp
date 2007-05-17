@@ -34,6 +34,7 @@ static int ga_nodeId = 0;
 static int ga_nParallelism = 128;
 static int ga_backupId = 0;
 static bool ga_dont_ignore_systab_0 = false;
+static bool ga_no_upgrade = false;
 static Vector<class BackupConsumer *> g_consumers;
 static BackupPrinter* g_printer = NULL;
 
@@ -114,6 +115,10 @@ static struct my_option my_long_options[] =
   { "restore_meta", 'm',
     "Restore meta data into NDB Cluster using NDBAPI",
     (gptr*) &_restore_meta, (gptr*) &_restore_meta,  0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "no-upgrade", 'u',
+    "Don't upgrade array type for var attributes, which don't resize VAR data and don't change column attributes",
+    (gptr*) &ga_no_upgrade, (gptr*) &ga_no_upgrade, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "no-restore-disk-objects", 'd',
     "Dont restore disk objects (tablespace/logfilegroups etc)",
@@ -460,6 +465,11 @@ o verify nodegroup mapping
     restore->m_no_restore_disk = true;
   }
   
+  if (ga_no_upgrade)
+  {
+     restore->m_no_upgrade = true;
+  }
+
   if (ga_restore_epoch)
   {
     restore->m_restore_epoch = true;
@@ -644,6 +654,8 @@ main(int argc, char** argv)
   g_options.appfmt(" -n %d", ga_nodeId);
   if (_restore_meta)
     g_options.appfmt(" -m");
+  if (ga_no_upgrade)
+    g_options.appfmt(" -u");
   if (ga_skip_table_check)
     g_options.appfmt(" -s");
   if (_restore_data)
@@ -655,7 +667,6 @@ main(int argc, char** argv)
   g_options.appfmt(" -p %d", ga_nParallelism);
 
   g_connect_string = opt_connect_str;
-
   /**
    * we must always load meta data, even if we will only print it to stdout
    */

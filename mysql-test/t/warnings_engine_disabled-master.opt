@@ -1,1 +1,1 @@
---loose-skip-ndb
+--loose-skip-plugin-ndbcluster

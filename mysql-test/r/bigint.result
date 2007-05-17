@@ -352,3 +352,13 @@ select c1 mod 50 as result from t1;
 result
 6
 drop table t1;
+create table t1 select -9223372036854775808 bi;
+describe t1;
+Field	Type	Null	Key	Default	Extra
+bi	bigint(20)	NO		0	
+drop table t1;
+create table t1 select -9223372036854775809 bi;
+describe t1;
+Field	Type	Null	Key	Default	Extra
+bi	decimal(19,0)	NO		0	
+drop table t1;

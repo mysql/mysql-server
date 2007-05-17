@@ -1201,9 +1201,19 @@ int Dbtup::handleInsertReq(Signal* signal,
     if(!prevOp->is_first_operation())
       org= (Tuple_header*)c_undo_buffer.get_ptr(&prevOp->m_copy_tuple_location);
     if (regTabPtr->need_expand())
+    {
       expand_tuple(req_struct, sizes, org, regTabPtr, !disk_insert);
+      memset(req_struct->m_disk_ptr->m_null_bits+
+             regTabPtr->m_offsets[DD].m_null_offset, 0xFF, 
+             4*regTabPtr->m_offsets[DD].m_null_words);
+    } 
     else
+    {
       memcpy(dst, org, 4*regTabPtr->m_offsets[MM].m_fix_header_size);
+    }
+    memset(tuple_ptr->m_null_bits+
+           regTabPtr->m_offsets[MM].m_null_offset, 0xFF, 
+           4*regTabPtr->m_offsets[MM].m_null_words);
   }
   
   if (disk_insert)
@@ -1491,6 +1501,7 @@ int Dbtup::handleDeleteReq(Signal* signal,
       goto error;
     }
     memcpy(dst, org, regTabPtr->total_rec_size << 2);
+    req_struct->m_tuple_ptr = (Tuple_header*)dst;
   } 
   else 
   {
@@ -1528,7 +1539,9 @@ int Dbtup::handleDeleteReq(Signal* signal,
     return 0;
   }
 
-  if (setup_read(req_struct, regOperPtr, regFragPtr, regTabPtr, disk))
+  if (regTabPtr->need_expand(disk))
+    prepare_read(req_struct, regTabPtr, disk);
+  
   {
     Uint32 RlogSize;
     int ret= handleReadReq(signal, regOperPtr, regTabPtr, req_struct);
@@ -2846,6 +2859,12 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     if (unlikely(realloc_var_part(regFragPtr, regTabPtr, pagePtr, 
 				  refptr, alloc, needed)))
       return -1;
+
+    if (regTabPtr->m_bits & Tablerec::TR_Checksum) 
+    {
+      jam();
+      setChecksum(org, regTabPtr);
+    }
   }
   req_struct->m_tuple_ptr->m_header_bits = copy_bits;
   return 0;

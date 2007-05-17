@@ -52,9 +52,9 @@ class QUICK_RANGE :public Sql_alloc {
       max_key((char*) sql_memdup(max_key_arg,max_length_arg+1)),
       min_length((uint16) min_length_arg),
       max_length((uint16) max_length_arg),
+      flag((uint16) flag_arg),
       min_keypart_map(min_keypart_map_arg),
-      max_keypart_map(max_keypart_map_arg),
-      flag((uint16) flag_arg)
+      max_keypart_map(max_keypart_map_arg)
     {
 #ifdef HAVE_purify
       dummy=0;

@@ -867,10 +867,13 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     flags.max_sort_length= thd->variables.max_sort_length;
     flags.lc_time_names= thd->variables.lc_time_names;
     flags.group_concat_max_len= thd->variables.group_concat_max_len;
+    flags.div_precision_increment= thd->variables.div_precincrement;
+    flags.default_week_format= thd->variables.default_week_format;
     DBUG_PRINT("qcache", ("\
 long %d, 4.1: %d, bin_proto: %d, more results %d, pkt_nr: %d, \
 CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
-sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
+sql mode: 0x%lx, sort len: %lu, conncat len: %lu, div_precision: %lu, \
+def_week_frmt: %lu",                          
                           (int)flags.client_long_flag,
                           (int)flags.client_protocol_41,
                           (int)flags.result_in_binary_protocol,
@@ -883,7 +886,9 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
                           (ulong) flags.time_zone,
                           flags.sql_mode,
                           flags.max_sort_length,
-                          flags.group_concat_max_len));
+                          flags.group_concat_max_len,
+                          flags.div_precision_increment,
+                          flags.default_week_format));
     /*
      Make InnoDB to release the adaptive hash index latch before
      acquiring the query cache mutex.
@@ -1112,11 +1117,14 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   flags.sql_mode= thd->variables.sql_mode;
   flags.max_sort_length= thd->variables.max_sort_length;
   flags.group_concat_max_len= thd->variables.group_concat_max_len;
+  flags.div_precision_increment= thd->variables.div_precincrement;
+  flags.default_week_format= thd->variables.default_week_format;
   flags.lc_time_names= thd->variables.lc_time_names;
   DBUG_PRINT("qcache", ("\
 long %d, 4.1: %d, bin_proto: %d, more results %d, pkt_nr: %d, \
 CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
-sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
+sql mode: 0x%lx, sort len: %lu, conncat len: %lu, div_precision: %lu, \
+def_week_frmt: %lu",                          
                           (int)flags.client_long_flag,
                           (int)flags.client_protocol_41,
                           (int)flags.result_in_binary_protocol,
@@ -1129,7 +1137,9 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
                           (ulong) flags.time_zone,
                           flags.sql_mode,
                           flags.max_sort_length,
-                          flags.group_concat_max_len));
+                          flags.group_concat_max_len,
+                          flags.div_precision_increment,
+                          flags.default_week_format));
   memcpy((void *)(sql + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
 	 &flags, QUERY_CACHE_FLAGS_SIZE);
   query_block = (Query_cache_block *)  hash_search(&queries, (byte*) sql,
@@ -2411,7 +2421,12 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
                         tables_used->engine_data))
         DBUG_RETURN(0);
 
-      if (tables_used->table->s->db_type->db_type == DB_TYPE_MRG_MYISAM)
+#ifdef WITH_MYISAMMRG_STORAGE_ENGINE      
+      /*
+        XXX FIXME: Some generic mechanism is required here instead of this
+        MYISAMMRG-specific implementation.
+      */
+      if (tables_used->table->s->db_type()->db_type == DB_TYPE_MRG_MYISAM)
       {
         ha_myisammrg *handler = (ha_myisammrg *) tables_used->table->file;
         MYRG_INFO *file = handler->myrg_info();
@@ -2434,6 +2449,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
             DBUG_RETURN(0);
         }
       }
+#endif
     }
   }
   DBUG_RETURN(n - counter);
@@ -3010,7 +3026,7 @@ static TABLE_COUNTER_TYPE process_and_count_tables(TABLE_LIST *tables_used,
       DBUG_PRINT("qcache", ("table: %s  db:  %s  type: %u",
                             tables_used->table->s->table_name.str,
                             tables_used->table->s->db.str,
-                            tables_used->table->s->db_type->db_type));
+                            tables_used->table->s->db_type()->db_type));
       if (tables_used->derived)
       {
         table_count--;
@@ -3035,12 +3051,18 @@ static TABLE_COUNTER_TYPE process_and_count_tables(TABLE_LIST *tables_used,
                     "other non-cacheable table(s)"));
         DBUG_RETURN(0);
       }
-      if (tables_used->table->s->db_type->db_type == DB_TYPE_MRG_MYISAM)
+#ifdef WITH_MYISAMMRG_STORAGE_ENGINE      
+      /*
+        XXX FIXME: Some generic mechanism is required here instead of this
+        MYISAMMRG-specific implementation.
+      */
+      if (tables_used->table->s->db_type()->db_type == DB_TYPE_MRG_MYISAM)
       {
         ha_myisammrg *handler = (ha_myisammrg *)tables_used->table->file;
         MYRG_INFO *file = handler->myrg_info();
         table_count+= (file->end_table - file->open_tables);
       }
+#endif
     }
   }
   DBUG_RETURN(table_count);

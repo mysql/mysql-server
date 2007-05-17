@@ -20,6 +20,8 @@
 #include <m_ctype.h>
 
 
+static const char field_separator=',';
+
 int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
 {
   int res;
@@ -53,6 +55,7 @@ int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
 			If & 1 accept only whole names
 			If & 2 don't expand if half field
 			If & 4 allow #number# as type
+			If & 8 use ',' as string terminator
 
   NOTES
     If part, uniq field is found and full_name == 0 then x is expanded
@@ -82,16 +85,18 @@ int find_type(char *x, const TYPELIB *typelib, uint full_name)
   for (pos=0 ; (j=typelib->type_names[pos]) ; pos++)
   {
     for (i=x ; 
-    	*i && my_toupper(&my_charset_latin1,*i) == 
+    	*i && (!(full_name & 8) || *i != field_separator) &&
+        my_toupper(&my_charset_latin1,*i) == 
     		my_toupper(&my_charset_latin1,*j) ; i++, j++) ;
     if (! *j)
     {
       while (*i == ' ')
 	i++;					/* skip_end_space */
-      if (! *i)
+      if (! *i || ((full_name & 8) && *i == field_separator))
 	DBUG_RETURN(pos+1);
     }
-    if (! *i && (!*j || !(full_name & 1)))
+    if ((!*i && (!(full_name & 8) || *i != field_separator)) && 
+        (!*j || !(full_name & 1)))
     {
       find++;
       findpos=pos;
@@ -140,6 +145,50 @@ const char *get_type(TYPELIB *typelib, uint nr)
     return(typelib->type_names[nr]);
   return "?";
 }
+
+
+/*
+  Create an integer value to represent the supplied comma-seperated
+  string where each string in the TYPELIB denotes a bit position.
+
+  SYNOPSIS
+    find_typeset()
+    x		string to decompose
+    lib		TYPELIB (struct of pointer to values + count)
+    err		index (not char position) of string element which was not 
+                found or 0 if there was no error
+
+  RETURN
+    a integer representation of the supplied string
+*/
+
+my_ulonglong find_typeset(my_string x, TYPELIB *lib, int *err)
+{
+  my_ulonglong result;
+  int find;
+  my_string i;
+  DBUG_ENTER("find_set");
+  DBUG_PRINT("enter",("x: '%s'  lib: 0x%lx", x, (long) lib));
+
+  if (!lib->count)
+  {
+    DBUG_PRINT("exit",("no count"));
+    DBUG_RETURN(0);
+  }
+  result= 0;
+  *err= 0;
+  while (*x)
+  {
+    (*err)++;
+    i= x;
+    while (*x && *x != field_separator) x++;
+    if ((find= find_type(i, lib, 2 | 8) - 1) < 0)
+      DBUG_RETURN(0);
+    result|= (ULL(1) << find);
+  }
+  *err= 0;
+  DBUG_RETURN(result);
+} /* find_set */
 
 
 /*

@@ -84,9 +84,9 @@ public:
   partition_element(partition_element *part_elem)
   : part_max_rows(part_elem->part_max_rows),
     part_min_rows(part_elem->part_min_rows),
-    partition_name(NULL),
+    range_value(0), partition_name(NULL),
     tablespace_name(part_elem->tablespace_name),
-    range_value(0), part_comment(part_elem->part_comment),
+    part_comment(part_elem->part_comment),
     data_file_name(part_elem->data_file_name),
     index_file_name(part_elem->index_file_name),
     engine_type(part_elem->engine_type),
