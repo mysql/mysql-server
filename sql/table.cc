@@ -237,6 +237,9 @@ void free_table_share(TABLE_SHARE *share)
     pthread_cond_destroy(&share->cond);
   }
   hash_free(&share->name_hash);
+  
+  plugin_unlock(NULL, share->db_plugin);
+  share->db_plugin= NULL;
 
   /* We must copy mem_root from share because share is allocated through it */
   memcpy((char*) &mem_root, (char*) &share->mem_root, sizeof(mem_root));
@@ -500,7 +503,15 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   DBUG_PRINT("info", ("default_part_db_type = %u", head[61]));
 #endif
   legacy_db_type= (enum legacy_db_type) (uint) *(head+3);
-  share->db_type= ha_checktype(thd, legacy_db_type, 0, 0);
+  DBUG_ASSERT(share->db_plugin == NULL);
+  /*
+    if the storage engine is dynamic, no point in resolving it by its
+    dynamically allocated legacy_db_type. We will resolve it later by name.
+  */
+  if (legacy_db_type > DB_TYPE_UNKNOWN && 
+      legacy_db_type < DB_TYPE_FIRST_DYNAMIC)
+    share->db_plugin= ha_lock_engine(NULL, 
+                                     ha_checktype(thd, legacy_db_type, 0, 0));
   share->db_create_options= db_create_options= uint2korr(head+30);
   share->db_options_in_use= share->db_create_options;
   share->mysql_version= uint4korr(head+51);
@@ -659,24 +670,47 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     {
       uint str_db_type_length= uint2korr(next_chunk);
       LEX_STRING name= { next_chunk + 2, str_db_type_length };
-      handlerton *tmp_db_type= ha_resolve_by_name(thd, &name);
-      if (tmp_db_type != NULL)
+      plugin_ref tmp_plugin= ha_resolve_by_name(thd, &name);
+      if (tmp_plugin != NULL && !plugin_equals(tmp_plugin, share->db_plugin))
       {
-        share->db_type= tmp_db_type;
+        if (legacy_db_type > DB_TYPE_UNKNOWN &&
+            legacy_db_type < DB_TYPE_FIRST_DYNAMIC &&
+            legacy_db_type != ha_legacy_type(
+                plugin_data(tmp_plugin, handlerton *)))
+        {
+          /* bad file, legacy_db_type did not match the name */
+          my_free(buff, MYF(0));
+          goto err;
+        }
+        /*
+          tmp_plugin is locked with a local lock.
+          we unlock the old value of share->db_plugin before
+          replacing it with a globally locked version of tmp_plugin
+        */
+        plugin_unlock(NULL, share->db_plugin);
+        share->db_plugin= my_plugin_lock(NULL, &tmp_plugin);
         DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
                             str_db_type_length, next_chunk + 2,
-                            ha_legacy_type(share->db_type)));
+                            ha_legacy_type(share->db_type())));
       }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       else
       {
-        if (!strncmp(next_chunk + 2, "partition", str_db_type_length))
+        LEX_STRING pname= { C_STRING_WITH_LEN( "partition" ) };
+        if (str_db_type_length == pname.length &&
+            !strncmp(next_chunk + 2, pname.str, pname.length))
         {
-          /* Use partition handler */
-          share->db_type= partition_hton;
+          /*
+            Use partition handler
+            tmp_plugin is locked with a local lock.
+            we unlock the old value of share->db_plugin before
+            replacing it with a globally locked version of tmp_plugin
+          */
+          plugin_unlock(NULL, share->db_plugin);
+          share->db_plugin= ha_lock_engine(NULL, partition_hton);
           DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
                               str_db_type_length, next_chunk + 2,
-                              ha_legacy_type(share->db_type)));
+                              ha_legacy_type(share->db_type())));
         }
       }
 #endif
@@ -742,7 +776,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         }
         parser_name.str= next_chunk;
         parser_name.length= strlen(next_chunk);
-        keyinfo->parser= plugin_lock(&parser_name, MYSQL_FTPARSER_PLUGIN);
+        keyinfo->parser= my_plugin_lock_by_name(NULL, &parser_name,
+                                                MYSQL_FTPARSER_PLUGIN);
         if (! keyinfo->parser)
         {
           my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), parser_name.str);
@@ -858,7 +893,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
  /* Allocate handler */
   if (!(handler_file= get_new_handler(share, thd->mem_root,
-                                      share->db_type)))
+                                      share->db_type())))
     goto err;
 
   record= (char*) share->default_values-1;	/* Fieldstart = 1 */
@@ -1392,7 +1427,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
   /* Allocate handler */
   if (!(outparam->file= get_new_handler(share, &outparam->mem_root,
-                                        share->db_type)))
+                                        share->db_type())))
     goto err;
 
   error= 4;
@@ -1676,7 +1711,7 @@ int closefrm(register TABLE *table, bool free_share)
   {
     if (key_info->flags & HA_USES_PARSER)
     {
-      plugin_unlock(key_info->parser);
+      plugin_unlock(NULL, key_info->parser);
       key_info->flags= 0;
     }
   }
@@ -1887,10 +1922,10 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
     handler *file= 0;
     const char *datext= "";
     
-    if (share->db_type != NULL)
+    if (share->db_type() != NULL)
     {
       if ((file= get_new_handler(share, current_thd->mem_root,
-                                 share->db_type)))
+                                 share->db_type())))
       {
         if (!(datext= *file->bas_ext()))
           datext= "";

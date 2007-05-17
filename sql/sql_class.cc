@@ -169,18 +169,25 @@ Open_tables_state::Open_tables_state(ulong version_arg)
   reset_open_tables_state();
 }
 
-my_bool thd_in_lock_tables(const THD *thd)
+/*
+  The following functions form part of the C plugin API
+*/
+
+extern "C"
+int thd_in_lock_tables(const THD *thd)
 {
-  return thd->in_lock_tables;
+  return test(thd->in_lock_tables);
 }
 
 
-my_bool thd_tablespace_op(const THD *thd)
+extern "C"
+int thd_tablespace_op(const THD *thd)
 {
-  return thd->tablespace_op;
+  return test(thd->tablespace_op);
 }
 
 
+extern "C"
 const char *thd_proc_info(THD *thd, const char *info)
 {
   const char *old_info= thd->proc_info;
@@ -188,9 +195,96 @@ const char *thd_proc_info(THD *thd, const char *info)
   return old_info;
 }
 
+extern "C"
 void **thd_ha_data(const THD *thd, const struct handlerton *hton)
 {
   return (void **) thd->ha_data + hton->slot;
+}
+
+extern "C"
+long long thd_test_options(const THD *thd, long long test_options)
+{
+  return thd->options & test_options;
+}
+
+extern "C"
+int thd_sql_command(const THD *thd)
+{
+  return (int) thd->lex->sql_command;
+}
+
+extern "C"
+int thd_tx_isolation(const THD *thd)
+{
+  return (int) thd->variables.tx_isolation;
+}
+
+
+/*
+  Dumps a text description of a thread, its security context
+  (user, host) and the current query.
+
+  SYNOPSIS
+    thd_security_context()
+    thd                 current thread context
+    buffer              pointer to preferred result buffer
+    length              length of buffer
+    max_query_len       how many chars of query to copy (0 for all)
+
+  RETURN VALUES
+    pointer to string
+*/
+extern "C"
+char *thd_security_context(THD *thd, char *buffer, unsigned int length,
+                           unsigned int max_query_len)
+{
+  String str(buffer, length, &my_charset_latin1);
+  const Security_context *sctx= &thd->main_security_ctx;
+  char header[64];
+  int len;
+
+  len= my_snprintf(header, sizeof(header),
+                   "MySQL thread id %lu, query id %lu",
+                   thd->thread_id, (ulong) thd->query_id);
+  str.length(0);
+  str.append(header, len);
+
+  if (sctx->host)
+  {
+    str.append(' ');
+    str.append(sctx->host);
+  }
+
+  if (sctx->ip)
+  {
+    str.append(' ');
+    str.append(sctx->ip);
+  }
+
+  if (sctx->user)
+  {
+    str.append(' ');
+    str.append(sctx->user);
+  }
+
+  if (thd->proc_info)
+  {
+    str.append(' ');
+    str.append(thd->proc_info);
+  }
+
+  if (thd->query)
+  {
+    if (max_query_len < 1)
+      len= thd->query_length;
+    else
+      len= min(thd->query_length, max_query_len);
+    str.append('\n');
+    str.append(thd->query, len);
+  }
+  if (str.c_ptr_safe() == buffer)
+    return buffer;
+  return thd->strmake(str.ptr(), str.length());
 }
 
 
@@ -202,14 +296,18 @@ THD::THD()
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
    binlog_table_maps(0),
-   global_read_lock(0), is_fatal_error(0),
-   rand_used(0), time_zone_used(0),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
    first_successful_insert_id_in_prev_stmt_for_binlog(0),
    first_successful_insert_id_in_cur_stmt(0),
-   in_lock_tables(0), bootstrap(0), derived_tables_processing(FALSE),
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
+   global_read_lock(0),
+   is_fatal_error(0),
+   rand_used(0),
+   time_zone_used(0),
+   in_lock_tables(0),
+   bootstrap(0),
+   derived_tables_processing(FALSE),
    spcont(NULL)
 {
   ulong tmp;
@@ -247,6 +345,7 @@ THD::THD()
   time_after_lock=(time_t) 0;
   current_linfo =  0;
   slave_thread = 0;
+  bzero(&variables, sizeof(variables));
   thread_id= variables.pseudo_thread_id= 0;
   one_shot_set= 0;
   file_id = 0;
@@ -357,7 +456,7 @@ void THD::pop_internal_handler()
 void THD::init(void)
 {
   pthread_mutex_lock(&LOCK_global_system_variables);
-  variables= global_system_variables;
+  plugin_thdvar_init(this);
   variables.time_format= date_time_format_copy((THD*) 0,
 					       variables.time_format);
   variables.date_format= date_time_format_copy((THD*) 0,
@@ -506,6 +605,7 @@ THD::~THD()
     cleanup();
 
   ha_close_connection(this);
+  plugin_thdvar_cleanup(this);
 
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
@@ -1736,7 +1836,7 @@ void Query_arena::cleanup_stmt()
 }
 
 /*
-  Statement functions 
+  Statement functions
 */
 
 Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,

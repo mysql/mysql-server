@@ -1546,7 +1546,7 @@ void do_source(struct st_command *command)
 {
   static DYNAMIC_STRING ds_filename;
   const struct command_arg source_args[] = {
-    "filename", ARG_STRING, TRUE, &ds_filename, "File to source"
+    { "filename", ARG_STRING, TRUE, &ds_filename, "File to source" }
   };
   DBUG_ENTER("do_source");
 
@@ -1932,7 +1932,7 @@ void do_remove_file(struct st_command *command)
   int error;
   static DYNAMIC_STRING ds_filename;
   const struct command_arg rm_args[] = {
-    "filename", ARG_STRING, TRUE, &ds_filename, "File to delete"
+    { "filename", ARG_STRING, TRUE, &ds_filename, "File to delete" }
   };
   DBUG_ENTER("do_remove_file");
 
@@ -1966,8 +1966,8 @@ void do_copy_file(struct st_command *command)
   static DYNAMIC_STRING ds_from_file;
   static DYNAMIC_STRING ds_to_file;
   const struct command_arg copy_file_args[] = {
-    "from_file", ARG_STRING, TRUE, &ds_from_file, "Filename to copy from",
-    "to_file", ARG_STRING, TRUE, &ds_to_file, "Filename to copy to"
+    { "from_file", ARG_STRING, TRUE, &ds_from_file, "Filename to copy from" },
+    { "to_file", ARG_STRING, TRUE, &ds_to_file, "Filename to copy to" }
   };
   DBUG_ENTER("do_copy_file");
 
@@ -2003,8 +2003,8 @@ void do_chmod_file(struct st_command *command)
   static DYNAMIC_STRING ds_mode;
   static DYNAMIC_STRING ds_file;
   const struct command_arg chmod_file_args[] = {
-    "mode", ARG_STRING, TRUE, &ds_mode, "Mode of file",
-    "file", ARG_STRING, TRUE, &ds_file, "Filename of file to modify"
+    { "mode", ARG_STRING, TRUE, &ds_mode, "Mode of file" },
+    { "file", ARG_STRING, TRUE, &ds_file, "Filename of file to modify" }
   };
   DBUG_ENTER("do_chmod_file");
 
@@ -2041,7 +2041,7 @@ void do_file_exist(struct st_command *command)
   int error;
   static DYNAMIC_STRING ds_filename;
   const struct command_arg file_exist_args[] = {
-    "filename", ARG_STRING, TRUE, &ds_filename, "File to check if it exist"
+    { "filename", ARG_STRING, TRUE, &ds_filename, "File to check if it exist" }
   };
   DBUG_ENTER("do_file_exist");
 
@@ -2123,8 +2123,8 @@ void do_write_file_command(struct st_command *command, my_bool append)
   static DYNAMIC_STRING ds_filename;
   static DYNAMIC_STRING ds_delimiter;
   const struct command_arg write_file_args[] = {
-    "filename", ARG_STRING, TRUE, &ds_filename, "File to write to",
-    "delimiter", ARG_STRING, FALSE, &ds_delimiter, "Delimiter to read until"
+    { "filename", ARG_STRING, TRUE, &ds_filename, "File to write to" },
+    { "delimiter", ARG_STRING, FALSE, &ds_delimiter, "Delimiter to read until" }
   };
   DBUG_ENTER("do_write_file");
 
@@ -2232,7 +2232,7 @@ void do_cat_file(struct st_command *command)
   char buff[512];
   static DYNAMIC_STRING ds_filename;
   const struct command_arg cat_file_args[] = {
-    "filename", ARG_STRING, TRUE, &ds_filename, "File to read from"
+    { "filename", ARG_STRING, TRUE, &ds_filename, "File to read from" }
   };
   DBUG_ENTER("do_cat_file");
 
@@ -2296,8 +2296,8 @@ void do_diff_files(struct st_command *command)
   static DYNAMIC_STRING ds_filename;
   static DYNAMIC_STRING ds_filename2;
   const struct command_arg diff_file_args[] = {
-    "file1", ARG_STRING, TRUE, &ds_filename, "First file to diff",
-    "file2", ARG_STRING, TRUE, &ds_filename2, "Second file to diff"
+    { "file1", ARG_STRING, TRUE, &ds_filename, "First file to diff" },
+    { "file2", ARG_STRING, TRUE, &ds_filename2, "Second file to diff" }
   };
   DBUG_ENTER("do_diff_files");
 
@@ -2373,7 +2373,7 @@ void do_perl(struct st_command *command)
   static DYNAMIC_STRING ds_script;
   static DYNAMIC_STRING ds_delimiter;
   const struct command_arg perl_args[] = {
-    "delimiter", ARG_STRING, FALSE, &ds_delimiter, "Delimiter to read until"
+    { "delimiter", ARG_STRING, FALSE, &ds_delimiter, "Delimiter to read until" }
   };
   DBUG_ENTER("do_perl");
 
@@ -3452,18 +3452,14 @@ void do_connect(struct st_command *command)
   static DYNAMIC_STRING ds_sock;
   static DYNAMIC_STRING ds_options;
   const struct command_arg connect_args[] = {
-    "connection name", ARG_STRING, TRUE, &ds_connection_name,
-    "Name of the connection",
-    "host", ARG_STRING, TRUE, &ds_host, "Host to connect to",
-    "user", ARG_STRING, FALSE, &ds_user, "User to connect as",
-    "passsword", ARG_STRING, FALSE, &ds_password,
-    "Password used when connecting",
-    "database", ARG_STRING, FALSE, &ds_database,
-    "Dtabase to select after connect",
-    "port", ARG_STRING, FALSE, &ds_port, "Port to connect to",
-    "socket", ARG_STRING, FALSE, &ds_sock, "Socket to connect with",
-    "options", ARG_STRING, FALSE, &ds_options,
-    "Options to use while connecting"
+    { "connection name", ARG_STRING, TRUE, &ds_connection_name, "Name of the connection" },
+    { "host", ARG_STRING, TRUE, &ds_host, "Host to connect to" },
+    { "user", ARG_STRING, FALSE, &ds_user, "User to connect as" },
+    { "passsword", ARG_STRING, FALSE, &ds_password, "Password used when connecting" },
+    { "database", ARG_STRING, FALSE, &ds_database, "Database to select after connect" },
+    { "port", ARG_STRING, FALSE, &ds_port, "Port to connect to" },
+    { "socket", ARG_STRING, FALSE, &ds_sock, "Socket to connect with" },
+    { "options", ARG_STRING, FALSE, &ds_options, "Options to use while connecting" }
   };
 
   DBUG_ENTER("do_connect");
