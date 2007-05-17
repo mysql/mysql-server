@@ -413,6 +413,7 @@ connect (user1,localhost,mysqltest_1,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection user1;
 -- error 1142
 alter table t1 rename t2;
+disconnect user1;
 connection root;
 revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
 delete from mysql.user where user=_binary'mysqltest_1';
@@ -1122,5 +1123,29 @@ DROP DATABASE mysqltest2;
 
 DROP USER mysqltest_1@localhost;
 
+#
+# Bug#27878: Unchecked privileges on a view referring to a table from another 
+#            database.
+#
+use test;
+CREATE TABLE t1 (f1 int, f2 int);
+INSERT INTO t1 VALUES(1,1), (2,2);
+CREATE DATABASE db27878;
+GRANT UPDATE(f1) ON t1 TO 'mysqltest_1'@'localhost';
+GRANT SELECT ON `test`.* TO 'mysqltest_1'@'localhost';
+GRANT ALL ON db27878.* TO 'mysqltest_1'@'localhost';
+use db27878;
+CREATE SQL SECURITY INVOKER VIEW db27878.v1 AS SELECT * FROM test.t1;
+connect (user1,localhost,mysqltest_1,,test);
+connection user1;
+use db27878;
+--error 1356
+UPDATE v1 SET f2 = 4;
+SELECT * FROM test.t1;
+disconnect user1;
+connection default;
+DROP DATABASE db27878;
+use test;
+DROP TABLE t1;
 
 --echo End of 5.0 tests

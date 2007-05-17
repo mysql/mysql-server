@@ -1426,14 +1426,13 @@ JOIN::optimize()
       }
     }
 
-    if (select_lex->uncacheable && !is_top_level_join())
-    {
-      /* If this join belongs to an uncacheable subquery */
-      if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
-	DBUG_RETURN(-1);
-      error= 0;				// Ensure that tmp_join.error= 0
-      restore_tmp();
-    }
+    /* 
+      If this join belongs to an uncacheable subquery save 
+      the original join 
+    */
+    if (select_lex->uncacheable && !is_top_level_join() &&
+        init_save_join_tab())
+      DBUG_RETURN(-1);                         /* purecov: inspected */
   }
 
   error= 0;
@@ -1493,6 +1492,27 @@ JOIN::reinit()
   }
 
   DBUG_RETURN(0);
+}
+
+/**
+   @brief Save the original join layout
+      
+   @details Saves the original join layout so it can be reused in 
+   re-execution and for EXPLAIN.
+             
+   @return Operation status
+   @retval 0      success.
+   @retval 1      error occurred.
+*/
+
+bool
+JOIN::init_save_join_tab()
+{
+  if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
+    return 1;                                  /* purecov: inspected */
+  error= 0;				       // Ensure that tmp_join.error= 0
+  restore_tmp();
+  return 0;
 }
 
 
@@ -4169,7 +4189,7 @@ best_access_path(JOIN      *join,
       !(s->quick && best_key && s->quick->index == best_key->key &&      // (2)
         best_max_key_part >= s->table->quick_key_parts[best_key->key]) &&// (2)
       !((s->table->file->table_flags() & HA_TABLE_SCAN_ON_INDEX) &&      // (3)
-        ! s->table->used_keys.is_clear_all() && best_key) &&             // (3)
+        ! s->table->used_keys.is_clear_all() && best_key && !s->quick) &&// (3)
       !(s->table->force_index && best_key && !s->quick))                 // (4)
   {                                             // Check full join
     ha_rows rnd_records= s->found_records;
@@ -5980,11 +6000,14 @@ make_join_readinfo(JOIN *join, ulonglong options)
       disable join cache because it will change the ordering of the results.
       Code handles sort table that is at any location (not only first after 
       the const tables) despite the fact that it's currently prohibited.
+      We must disable join cache if the first non-const table alone is
+      ordered. If there is a temp table the ordering is done as a last
+      operation and doesn't prevent join cache usage.
     */
-    if (!ordered_set && 
-        (table == join->sort_by_table &&
+    if (!ordered_set && !join->need_tmp &&
+        ((table == join->sort_by_table &&
          (!join->order || join->skip_sort_order)) ||
-        (join->sort_by_table == (TABLE *) 1 && i != join->const_tables))
+        (join->sort_by_table == (TABLE *) 1 && i != join->const_tables)))
       ordered_set= 1;
 
     switch (tab->type) {
@@ -10526,7 +10549,6 @@ static enum_nested_loop_state
 evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
                      int error, my_bool *report_error)
 {
-  bool not_exists_optimize= join_tab->table->reginfo.not_exists_optimize;
   bool not_used_in_distinct=join_tab->not_used_in_distinct;
   ha_rows found_records=join->found_records;
   COND *select_cond= join_tab->select_cond;
@@ -10563,6 +10585,8 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       first_unmatched->found= 1;
       for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
       {
+        if (tab->table->reginfo.not_exists_optimize)
+          return NESTED_LOOP_NO_MORE_ROWS;
         /* Check all predicates that has just been activated. */
         /*
           Actually all predicates non-guarded by first_unmatched->found
@@ -10608,8 +10632,6 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     if (found)
     {
       enum enum_nested_loop_state rc;
-      if (not_exists_optimize)
-        return NESTED_LOOP_NO_MORE_ROWS;
       /* A match from join_tab is found for the current partial join. */
       rc= (*join_tab->next_select)(join, join_tab+1, 0);
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
