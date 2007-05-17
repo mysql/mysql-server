@@ -376,7 +376,7 @@ static BUFFPEK *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count)
   ulong length;
   BUFFPEK *tmp;
   DBUG_ENTER("read_buffpek_from_file");
-  if (count > ULONG_MAX/sizeof(BUFFPEK))
+  if ((ulong)count > ULONG_MAX/sizeof(BUFFPEK))
     return 0; /* sizeof(BUFFPEK)*count will overflow */
   tmp=(BUFFPEK*) my_malloc(length=sizeof(BUFFPEK)*count, MYF(MY_WME));
   if (tmp)
