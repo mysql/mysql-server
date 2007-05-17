@@ -18,7 +18,7 @@
 #include <ndb_global.h>
 #include "TimeModule.hpp"
 
-static const char* cMonth[]  = { "x", "January", "February", "Mars", "April", "May", "June",
+static const char* cMonth[]  = { "x", "January", "February", "March", "April", "May", "June",
 				 "July", "August", "September", "October", "November", "December"};
 
 static const char* cDay[]    = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",

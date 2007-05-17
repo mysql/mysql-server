@@ -627,6 +627,16 @@ MgmtSrvr::start(BaseString &error_string)
     ndbout_c("This is probably a bug.");
   }
 
+  /*
+    set api reg req frequency quite high:
+
+    100 ms interval to make sure we have fairly up-to-date
+    info from the nodes.  This to make sure that this info
+    is not dependent on heart beat settings in the
+    configuration
+  */
+  theFacade->theClusterMgr->set_max_api_reg_req_interval(100);
+
   TransporterRegistry *reg = theFacade->get_registry();
   for(unsigned int i=0;i<reg->m_transporter_interface.size();i++) {
     BaseString msg;
