@@ -1041,7 +1041,7 @@ class Item_splocal :public Item_sp_variable,
 
   Type m_type;
   Item_result m_result_type;
-
+  enum_field_types m_field_type;
 public:
   /* 
     Position of this reference to SP variable in the statement (the
@@ -1073,6 +1073,7 @@ public:
 
   inline enum Type type() const;
   inline Item_result result_type() const;
+  inline enum_field_types field_type() const { return m_field_type; }
 
 private:
   bool set_value(THD *thd, sp_rcontext *ctx, Item **it);

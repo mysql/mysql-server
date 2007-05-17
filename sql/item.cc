@@ -1057,6 +1057,7 @@ Item_splocal::Item_splocal(const LEX_STRING &sp_var_name,
   maybe_null= TRUE;
 
   m_type= sp_map_item_type(sp_var_type);
+  m_field_type= sp_var_type;
   m_result_type= sp_map_result_type(sp_var_type);
 }
 
@@ -4730,7 +4731,6 @@ inline uint char_val(char X)
 
 Item_hex_string::Item_hex_string(const char *str, uint str_length)
 {
-  name=(char*) str-2;				// Lex makes this start with 0x
   max_length=(str_length+1)/2;
   char *ptr=(char*) sql_alloc(max_length+1);
   if (!ptr)
@@ -4841,7 +4841,6 @@ Item_bin_string::Item_bin_string(const char *str, uint str_length)
   uchar bits= 0;
   uint power= 1;
 
-  name= (char*) str - 2;
   max_length= (str_length + 7) >> 3;
   char *ptr= (char*) sql_alloc(max_length + 1);
   if (!ptr)

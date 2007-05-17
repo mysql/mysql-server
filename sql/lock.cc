@@ -892,8 +892,6 @@ end:
 int lock_table_name(THD *thd, TABLE_LIST *table_list, bool check_in_use)
 {
   TABLE *table;
-  TABLE_SHARE *share;
-  char *key_buff;
   char  key[MAX_DBKEY_LENGTH];
   char *db= table_list->db;
   uint  key_length;
@@ -921,29 +919,11 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list, bool check_in_use)
       }
     }
   }
-  /*
-    Create a table entry with the right key and with an old refresh version
-    Note that we must use my_multi_malloc() here as this is freed by the
-    table cache
-  */
-  if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
-                       &table, sizeof(*table),
-                       &share, sizeof(*share),
-                       &key_buff, key_length,
-                       NULL))
-    DBUG_RETURN(-1);
-  table->s= share;
-  share->set_table_cache_key(key_buff, key, key_length);
-  share->tmp_table= INTERNAL_TMP_TABLE;  // for intern_close_table
-  table->in_use= thd;
-  table->locked_by_name=1;
-  table_list->table=table;
 
-  if (my_hash_insert(&open_cache, (byte*) table))
-  {
-    my_free((gptr) table,MYF(0));
+  if (!(table= table_cache_insert_placeholder(thd, key, key_length)))
     DBUG_RETURN(-1);
-  }
+
+  table_list->table=table;
 
   /* Return 1 if table is in use */
   DBUG_RETURN(test(remove_table_from_cache(thd, db, table_list->table_name,

@@ -488,8 +488,9 @@ BEGIN
 WHILE @counter1 < new.f136 
 SET @counter1 = @counter1 + 1; 
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SET @counter1 = @counter1 + 1; 
-END' at line 4
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WHILE @counter1 < new.f136 
+SET @counter1 = @counter1 + 1; 
+END' at line 3
 delete from tb3 where f122='Test 3.5.8.5-while';
 drop trigger trg7;
 
