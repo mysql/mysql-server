@@ -28,7 +28,7 @@
 #include <signaldata/EmptyLcp.hpp>
 #include <signaldata/EventReport.hpp>
 #include <signaldata/ExecFragReq.hpp>
-#include <signaldata/GCPSave.hpp>
+#include <signaldata/GCP.hpp>
 #include <signaldata/TcKeyRef.hpp>
 #include <signaldata/LqhKey.hpp>
 #include <signaldata/NextScan.hpp>
