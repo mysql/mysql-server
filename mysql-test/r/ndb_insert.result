@@ -649,3 +649,11 @@ pk	a
 6	NULL
 7	4
 DROP TABLE t1;
+create table t1(a int primary key, b int, unique key(b)) engine=ndb;
+insert ignore into t1 values (1,0), (2,0), (2,null), (3,null);
+select * from t1 order by a;
+a	b
+1	0
+2	NULL
+3	NULL
+drop table t1;

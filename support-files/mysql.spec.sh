@@ -544,7 +544,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_multi.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_safe.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_fix_privilege_tables.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_install_db.1
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_install_db.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_upgrade.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlman.1*
@@ -650,7 +650,6 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_size.pl
 %attr(755, root, root) %{_bindir}/ndb_test_platform
 %attr(755, root, root) %{_bindir}/ndb_waiter
-%attr(-, root, root) %{_datadir}/mysql/ndb_size.tmpl
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_config.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_desc.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_error_reporter.1*
@@ -726,6 +725,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Wed May 02 2007 Joerg Bruehe <joerg@mysql.com>
+
+- "ndb_size.tmpl" is not needed any more, 
+  "man1/mysql_install_db.1" lacked the trailing '*'.
+
 * Sat Apr 07 2007 Kent Boortz <kent@mysql.com>
 
 - Removed man page for "mysql_create_system_tables"

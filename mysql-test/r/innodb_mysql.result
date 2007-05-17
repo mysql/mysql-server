@@ -163,7 +163,7 @@ min(7)
 7
 explain select min(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	Using join cache
 1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	
 select min(7) from t2i join t1i;
 min(7)
@@ -179,7 +179,7 @@ max(7)
 7
 explain select max(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	Using join cache
 1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	
 select max(7) from t2i join t1i;
 max(7)
@@ -548,6 +548,58 @@ id	c	counter
 3	b	2
 4	a	2
 drop table t1;
+CREATE TABLE t1(
+id int AUTO_INCREMENT PRIMARY KEY,
+stat_id int NOT NULL,
+acct_id int DEFAULT NULL,
+INDEX idx1 (stat_id, acct_id),
+INDEX idx2 (acct_id)
+) ENGINE=MyISAM;
+CREATE TABLE t2(
+id int AUTO_INCREMENT PRIMARY KEY,
+stat_id int NOT NULL,
+acct_id int DEFAULT NULL,
+INDEX idx1 (stat_id, acct_id),
+INDEX idx2 (acct_id)
+) ENGINE=InnoDB;
+INSERT INTO t1(stat_id,acct_id) VALUES
+(1,759), (2,831), (3,785), (4,854), (1,921),
+(1,553), (2,589), (3,743), (2,827), (2,545),
+(4,779), (4,783), (1,597), (1,785), (4,832),
+(1,741), (1,833), (3,788), (2,973), (1,907);
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+UPDATE t1 SET acct_id=785 
+WHERE MOD(stat_id,2)=0 AND MOD(id,stat_id)=MOD(acct_id,stat_id);
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+40960
+SELECT COUNT(*) FROM t1 WHERE acct_id=785;
+COUNT(*)
+8702
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE stat_id IN (1,3) AND acct_id=785;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	idx1,idx2	idx1	9	NULL	2	Using where; Using index
+INSERT INTO t2 SELECT * FROM t1;
+OPTIMIZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	optimize	status	OK
+EXPLAIN SELECT COUNT(*) FROM t2 WHERE stat_id IN (1,3) AND acct_id=785;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	idx1,idx2	idx1	9	NULL	2	Using where; Using index
+DROP TABLE t1,t2;
 End of 5.0 tests
 CREATE TABLE t1 (a int, b int);
 insert into t1 values (1,1),(1,2);
@@ -733,4 +785,15 @@ k	a	c
 11	15	1
 12	20	1
 drop table t2;
+drop table if exists t1, t2;
+create table t1 (i int);
+alter table t1 modify i int default 1;
+alter table t1 modify i int default 2, rename t2;
+lock table t2 write;
+alter table t2 modify i int default 3;
+unlock tables;
+lock table t2 write;
+alter table t2 modify i int default 4, rename t1;
+unlock tables;
+drop table t1;
 End of 5.1 tests

@@ -230,6 +230,7 @@ static void run_query(THD *thd, char *buf, char *end,
   ulonglong save_thd_options= thd->options;
   DBUG_ASSERT(sizeof(save_thd_options) == sizeof(thd->options));
   NET save_net= thd->net;
+  const char* found_semicolon= NULL;
 
   bzero((char*) &thd->net, sizeof(NET));
   thd->query_length= end - buf;
@@ -239,7 +240,7 @@ static void run_query(THD *thd, char *buf, char *end,
     thd->options&= ~OPTION_BIN_LOG;
     
   DBUG_PRINT("query", ("%s", thd->query));
-  mysql_parse(thd, thd->query, thd->query_length);
+  mysql_parse(thd, thd->query, thd->query_length, &found_semicolon);
 
   if (print_error && thd->query_error)
   {
@@ -3807,6 +3808,17 @@ restart:
     {
       res= i_ndb->pollEvents(tot_poll_wait, &gci);
       tot_poll_wait= 0;
+    }
+    else
+    {
+      /*
+        Just consume any events, not used if no binlogging
+        e.g. node failure events
+      */
+      Uint64 tmp_gci;
+      if (i_ndb->pollEvents(0, &tmp_gci))
+        while (i_ndb->nextEvent())
+          ;
     }
     int schema_res= s_ndb->pollEvents(tot_poll_wait, &schema_gci);
     ndb_latest_received_binlog_epoch= gci;

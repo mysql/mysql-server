@@ -43,37 +43,37 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
 const char *any_db="*any*";	// Special symbol for check_access
 
 const LEX_STRING command_name[]={
-  C_STRING_WITH_LEN("Sleep"),
-  C_STRING_WITH_LEN("Quit"),
-  C_STRING_WITH_LEN("Init DB"),
-  C_STRING_WITH_LEN("Query"),
-  C_STRING_WITH_LEN("Field List"),
-  C_STRING_WITH_LEN("Create DB"),
-  C_STRING_WITH_LEN("Drop DB"),
-  C_STRING_WITH_LEN("Refresh"),
-  C_STRING_WITH_LEN("Shutdown"),
-  C_STRING_WITH_LEN("Statistics"),
-  C_STRING_WITH_LEN("Processlist"),
-  C_STRING_WITH_LEN("Connect"),
-  C_STRING_WITH_LEN("Kill"),
-  C_STRING_WITH_LEN("Debug"),
-  C_STRING_WITH_LEN("Ping"),
-  C_STRING_WITH_LEN("Time"),
-  C_STRING_WITH_LEN("Delayed insert"),
-  C_STRING_WITH_LEN("Change user"),
-  C_STRING_WITH_LEN("Binlog Dump"),
-  C_STRING_WITH_LEN("Table Dump"),
-  C_STRING_WITH_LEN("Connect Out"),
-  C_STRING_WITH_LEN("Register Slave"),
-  C_STRING_WITH_LEN("Prepare"),
-  C_STRING_WITH_LEN("Execute"),
-  C_STRING_WITH_LEN("Long Data"),
-  C_STRING_WITH_LEN("Close stmt"),
-  C_STRING_WITH_LEN("Reset stmt"),
-  C_STRING_WITH_LEN("Set option"),
-  C_STRING_WITH_LEN("Fetch"),
-  C_STRING_WITH_LEN("Daemon"),
-  C_STRING_WITH_LEN("Error")  // Last command number
+  { C_STRING_WITH_LEN("Sleep") },
+  { C_STRING_WITH_LEN("Quit") },
+  { C_STRING_WITH_LEN("Init DB") },
+  { C_STRING_WITH_LEN("Query") },
+  { C_STRING_WITH_LEN("Field List") },
+  { C_STRING_WITH_LEN("Create DB") },
+  { C_STRING_WITH_LEN("Drop DB") },
+  { C_STRING_WITH_LEN("Refresh") },
+  { C_STRING_WITH_LEN("Shutdown") },
+  { C_STRING_WITH_LEN("Statistics") },
+  { C_STRING_WITH_LEN("Processlist") },
+  { C_STRING_WITH_LEN("Connect") },
+  { C_STRING_WITH_LEN("Kill") },
+  { C_STRING_WITH_LEN("Debug") },
+  { C_STRING_WITH_LEN("Ping") },
+  { C_STRING_WITH_LEN("Time") },
+  { C_STRING_WITH_LEN("Delayed insert") },
+  { C_STRING_WITH_LEN("Change user") },
+  { C_STRING_WITH_LEN("Binlog Dump") },
+  { C_STRING_WITH_LEN("Table Dump") },
+  { C_STRING_WITH_LEN("Connect Out") },
+  { C_STRING_WITH_LEN("Register Slave") },
+  { C_STRING_WITH_LEN("Prepare") },
+  { C_STRING_WITH_LEN("Execute") },
+  { C_STRING_WITH_LEN("Long Data") },
+  { C_STRING_WITH_LEN("Close stmt") },
+  { C_STRING_WITH_LEN("Reset stmt") },
+  { C_STRING_WITH_LEN("Set option") },
+  { C_STRING_WITH_LEN("Fetch") },
+  { C_STRING_WITH_LEN("Daemon") },
+  { C_STRING_WITH_LEN("Error") }  // Last command number
 };
 
 const char *xa_state_names[]={
@@ -300,6 +300,7 @@ pthread_handler_t handle_bootstrap(void *arg)
   THD *thd=(THD*) arg;
   FILE *file=bootstrap_file;
   char *buff;
+  const char* found_semicolon= NULL;
 
   /* The following must be called before DBUG_ENTER */
   thd->thread_stack= (char*) &thd;
@@ -380,7 +381,7 @@ pthread_handler_t handle_bootstrap(void *arg)
     */
     thd->query_id=next_query_id();
     thd->set_time();
-    mysql_parse(thd,thd->query,length);
+    mysql_parse(thd, thd->query, length, & found_semicolon);
     close_thread_tables(thd);			// Free tables
 
     if (thd->is_fatal_error)
@@ -894,17 +895,19 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char *packet_end= thd->query + thd->query_length;
     /* 'b' stands for 'buffer' parameter', special for 'my_snprintf' */
     const char *format= "%.*b";
+    const char* found_semicolon= NULL;
+
     general_log_print(thd, command, format, thd->query_length, thd->query);
     DBUG_PRINT("query",("%-.4096s",thd->query));
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
 
-    mysql_parse(thd,thd->query, thd->query_length);
+    mysql_parse(thd, thd->query, thd->query_length, & found_semicolon);
 
-    while (!thd->killed && thd->lex->found_semicolon && !thd->net.report_error)
+    while (!thd->killed && found_semicolon && !thd->net.report_error)
     {
-      char *next_packet= thd->lex->found_semicolon;
+      char *next_packet= (char*) found_semicolon;
       net->no_send_error= 0;
       /*
         Multiple queries exits, execute them individually
@@ -929,7 +932,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->set_time(); /* Reset the query start time. */
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
-      mysql_parse(thd, next_packet, length);
+      mysql_parse(thd, next_packet, length, & found_semicolon);
     }
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -951,7 +954,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     uint dummy;
 
     /* used as fields initializator */
-    lex_start(thd, 0, 0);
+    lex_start(thd);
 
     statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_FIELDS],
 			&LOCK_status);
@@ -990,7 +993,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     /* init structures for VIEW processing */
     table_list.select_lex= &(thd->lex->select_lex);
-    mysql_init_query(thd, "", 0);
+
+    lex_start(thd);
+    mysql_reset_thd_for_next_command(thd);
+
     thd->lex->
       select_lex.table_list.link_in_list((byte*) &table_list,
                                          (byte**) &table_list.next_local);
@@ -2158,7 +2164,13 @@ mysql_execute_command(THD *thd)
       select_lex->options|= SELECT_NO_UNLOCK;
       unit->set_limit(select_lex);
 
-      if (!(res= open_and_lock_tables(thd, select_tables)))
+      if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+      {
+        lex->link_first_table_back(create_table, link_to_local);
+        create_table->create= TRUE;
+      }
+
+      if (!(res= open_and_lock_tables(thd, lex->query_tables)))
       {
         /*
           Is table which we are changing used somewhere in other parts
@@ -2167,6 +2179,7 @@ mysql_execute_command(THD *thd)
         if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
         {
           TABLE_LIST *duplicate;
+          create_table= lex->unlink_first_table(&link_to_local);
           if ((duplicate= unique_table(thd, create_table, select_tables, 0)))
           {
             update_non_unique_table_error(create_table, "CREATE", duplicate);
@@ -2192,6 +2205,12 @@ mysql_execute_command(THD *thd)
           }
         }
 
+        /*
+          FIXME Temporary hack which will go away once Kostja pushes
+                his uber-fix for ALTER/CREATE TABLE.
+        */
+        lex->create_info.table_existed= 0;
+
         if ((result= new select_create(create_table,
 				       &lex->create_info,
 				       lex->create_list,
@@ -2211,6 +2230,9 @@ mysql_execute_command(THD *thd)
 	lex->create_list.empty();
 	lex->key_list.empty();
       }
+      else if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+        create_table= lex->unlink_first_table(&link_to_local);
+
     }
     else
     {
@@ -4570,7 +4592,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
   if (schema_db)
   {
-    if (want_access & ~(SELECT_ACL | EXTRA_ACL))
+    if (!(sctx->master_access & FILE_ACL) && (want_access & FILE_ACL) ||
+        (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
     {
       if (!no_errors)
       {
@@ -5043,20 +5066,6 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
 }
 
 
-/****************************************************************************
-  Initialize global thd variables needed for query
-****************************************************************************/
-
-void
-mysql_init_query(THD *thd, const char *buf, uint length)
-{
-  DBUG_ENTER("mysql_init_query");
-  lex_start(thd, buf, length);
-  mysql_reset_thd_for_next_command(thd);
-  DBUG_VOID_RETURN;
-}
-
-
 /*
  Reset THD part responsible for command processing state.
 
@@ -5268,22 +5277,55 @@ void mysql_init_multi_delete(LEX *lex)
   mysql_test_parse_for_slave() in this same file.
 */
 
-void mysql_parse(THD *thd, char *inBuf, uint length)
+/**
+  Parse a query.
+  @param thd Current thread
+  @param inBuf Begining of the query text
+  @param length Length of the query text
+  @param [out] semicolon For multi queries, position of the character of
+  the next query in the query text.
+*/
+
+void mysql_parse(THD *thd, const char *inBuf, uint length,
+                 const char ** found_semicolon)
 {
   DBUG_ENTER("mysql_parse");
 
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
 
-  mysql_init_query(thd, inBuf, length);
+  /*
+    Warning.
+    The purpose of query_cache_send_result_to_client() is to lookup the
+    query in the query cache first, to avoid parsing and executing it.
+    So, the natural implementation would be to:
+    - first, call query_cache_send_result_to_client,
+    - second, if caching failed, initialise the lexical and syntactic parser.
+    The problem is that the query cache depends on a clean initialization
+    of (among others) lex->safe_to_cache_query and thd->server_status,
+    which are reset respectively in
+    - lex_start()
+    - mysql_reset_thd_for_next_command()
+    So, initializing the lexical analyser *before* using the query cache
+    is required for the cache to work properly.
+    FIXME: cleanup the dependencies in the code to simplify this.
+  */
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
 
-  if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
+  if (query_cache_send_result_to_client(thd, (char*) inBuf, length) <= 0)
   {
     LEX *lex= thd->lex;
-    
+
     sp_cache_flush_obsolete(&thd->sp_proc_cache);
     sp_cache_flush_obsolete(&thd->sp_func_cache);
-    
-    if (!MYSQLparse((void *)thd) && ! thd->is_fatal_error)
+
+    Lex_input_stream lip(thd, inBuf, length);
+    thd->m_lip= &lip;
+
+    int err= MYSQLparse(thd);
+    *found_semicolon= lip.found_semicolon;
+
+    if (!err && ! thd->is_fatal_error)
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (mqh_used && thd->user_connect &&
@@ -5306,8 +5348,8 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
             PROCESSLIST.
             Note that we don't need LOCK_thread_count to modify query_length.
           */
-          if (lex->found_semicolon &&
-              (thd->query_length= (ulong)(lex->found_semicolon - thd->query)))
+          if (lip.found_semicolon &&
+              (thd->query_length= (ulong)(lip.found_semicolon - thd->query)))
             thd->query_length--;
           /* Actually execute the query */
 	  mysql_execute_command(thd);
@@ -5334,6 +5376,12 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
     thd->cleanup_after_query();
     DBUG_ASSERT(thd->change_list.is_empty());
   }
+  else
+  {
+    /* There are no multi queries in the cache. */
+    *found_semicolon= NULL;
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -5354,8 +5402,13 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
   bool error= 0;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
-  mysql_init_query(thd, inBuf, length);
-  if (!MYSQLparse((void*) thd) && ! thd->is_fatal_error &&
+  Lex_input_stream lip(thd, inBuf, length);
+  thd->m_lip= &lip;
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
+  int err= MYSQLparse((void*) thd);
+
+  if (!err && ! thd->is_fatal_error &&
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
     error= 1;                  /* Ignore question */
   thd->end_statement();
@@ -6406,8 +6459,9 @@ bool check_simple_select()
   if (lex->current_select != &lex->select_lex)
   {
     char command[80];
-    strmake(command, lex->yylval->symbol.str,
-	    min(lex->yylval->symbol.length, sizeof(command)-1));
+    Lex_input_stream *lip= thd->m_lip;
+    strmake(command, lip->yylval->symbol.str,
+	    min(lip->yylval->symbol.length, sizeof(command)-1));
     my_error(ER_CANT_USE_OPTION_HERE, MYF(0), command);
     return 1;
   }
