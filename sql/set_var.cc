@@ -490,7 +490,7 @@ static sys_var_rand_seed1	sys_rand_seed1("rand_seed1");
 static sys_var_rand_seed2	sys_rand_seed2("rand_seed2");
 
 static sys_var_thd_ulong        sys_default_week_format("default_week_format",
-					                &SV::default_week_format);
+                                                     &SV::default_week_format);
 
 sys_var_thd_ulong               sys_group_concat_max_len("group_concat_max_len",
                                                          &SV::group_concat_max_len);
@@ -992,7 +992,6 @@ bool update_sys_var_str(sys_var_str *var_str, rw_lock_t *var_mutex,
   return 0;
 }
 
-
 static bool sys_update_init_connect(THD *thd, set_var *var)
 {
   return update_sys_var_str(&sys_init_connect, &LOCK_sys_init_connect, var);
@@ -1032,6 +1031,11 @@ static bool sys_update_ftb_syntax(THD *thd, set_var * var)
 {
   strmake(ft_boolean_syntax, var->value->str_value.c_ptr(),
 	  sizeof(ft_boolean_syntax)-1);
+
+#ifdef HAVE_QUERY_CACHE
+  query_cache.flush();
+#endif /* HAVE_QUERY_CACHE */
+
   return 0;
 }
 
