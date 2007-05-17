@@ -331,8 +331,8 @@ class Item_decimal_typecast :public Item_func
 public:
   Item_decimal_typecast(Item *a, int len, int dec) :Item_func(a)
   {
-    max_length= len + 2;
     decimals= dec;
+    max_length= my_decimal_precision_to_length(len, dec, unsigned_flag);
   }
   String *val_str(String *str);
   double val_real();
@@ -687,15 +687,24 @@ class Item_func_min_max :public Item_func
   Item_result cmp_type;
   String tmp_value;
   int cmp_sign;
+  /* TRUE <=> arguments should be compared in the DATETIME context. */
+  bool compare_as_dates;
+  /* An item used for issuing warnings while string to DATETIME conversion. */
+  Item *datetime_item;
+  THD *thd;
+
 public:
   Item_func_min_max(List<Item> &list,int cmp_sign_arg) :Item_func(list),
-    cmp_type(INT_RESULT), cmp_sign(cmp_sign_arg) {}
+    cmp_type(INT_RESULT), cmp_sign(cmp_sign_arg), compare_as_dates(FALSE),
+    datetime_item(0) {}
   double val_real();
   longlong val_int();
   String *val_str(String *);
   my_decimal *val_decimal(my_decimal *);
   void fix_length_and_dec();
   enum Item_result result_type () const { return cmp_type; }
+  bool result_as_longlong() { return compare_as_dates; };
+  uint cmp_datetimes(ulonglong *value);
 };
 
 class Item_func_min :public Item_func_min_max
