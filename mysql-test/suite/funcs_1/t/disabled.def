@@ -10,6 +10,6 @@
 #
 ##############################################################################
 
-innodb_storedproc: switched off (too much changed output from WL#2984, needs to be checked)
-memory_storedproc: switched off (too much changed output from WL#2984, needs to be checked)
-myisam_storedproc: switched off (too much changed output from WL#2984, needs to be checked)
+innodb_storedproc: (changes of WL#2984, using storeproc_nn instead)
+memory_storedproc: (changes of WL#2984, using storeproc_nn instead)
+myisam_storedproc: (changes of WL#2984, using storeproc_nn instead)
