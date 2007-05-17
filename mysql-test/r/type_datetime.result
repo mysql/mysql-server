@@ -352,3 +352,27 @@ select left(f1,10) = curdate() from t1;
 left(f1,10) = curdate()
 1
 drop table t1;
+create table t1(f1 date);
+insert into t1 values('01-01-01'),('02-02-02'),('01-01-01'),('02-02-02');
+set @bug28261='';
+select if(@bug28261 = f1, '', @bug28261:= f1) from t1;
+if(@bug28261 = f1, '', @bug28261:= f1)
+2001-01-01
+2002-02-02
+2001-01-01
+2002-02-02
+Warnings:
+Warning	1292	Incorrect date value: '' for column 'f1' at row 1
+select if(@bug28261 = f1, '', @bug28261:= f1) from t1;
+if(@bug28261 = f1, '', @bug28261:= f1)
+2001-01-01
+2002-02-02
+2001-01-01
+2002-02-02
+select if(@bug28261 = f1, '', @bug28261:= f1) from t1;
+if(@bug28261 = f1, '', @bug28261:= f1)
+2001-01-01
+2002-02-02
+2001-01-01
+2002-02-02
+drop table t1;
