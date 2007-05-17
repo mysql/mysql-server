@@ -21,6 +21,7 @@
 #include <ndb_limits.h>
 #include <pc.hpp>
 #include <signaldata/TupFrag.hpp>
+#include <signaldata/FsRef.hpp>
 #include <signaldata/FsConf.hpp>
 #include <signaldata/FsRemoveReq.hpp>
 #include <signaldata/DropTab.hpp>
@@ -1933,24 +1934,109 @@ done:
   TablerecPtr tabPtr;
   tabPtr.i= tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
-  
+
+  /**
+   * Remove LCP's for fragment
+   */
+  tabPtr.p->m_dropTable.m_lcpno = 0;
+  tabPtr.p->m_dropTable.m_fragPtrI = fragPtr.i;
+  drop_fragment_fsremove(signal, tabPtr, fragPtr);
+}
+
+void
+Dbtup::drop_fragment_fsremove_done(Signal* signal,
+                                   TablerecPtr tabPtr,
+                                   FragrecordPtr fragPtr)
+{
+  /**
+   * LCP's removed...
+   *   now continue with "next"
+   */
+  Uint32 logfile_group_id = fragPtr.p->m_logfile_group_id ;
+
+  Uint32 i;
   for(i= 0; i<MAX_FRAG_PER_NODE; i++)
     if(tabPtr.p->fragrec[i] == fragPtr.i)
       break;
 
-  Uint32 logfile_group_id = fragPtr.p->m_logfile_group_id ;
-  
   ndbrequire(i != MAX_FRAG_PER_NODE);
   tabPtr.p->fragid[i]= RNIL;
   tabPtr.p->fragrec[i]= RNIL;
   releaseFragrec(fragPtr);
-  
+
   signal->theData[0]= ZREL_FRAG;
   signal->theData[1]= tabPtr.i;
   signal->theData[2]= logfile_group_id;
-  sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);  
-  return;
+  sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
+
 }
+
+// Remove LCP
+void
+Dbtup::drop_fragment_fsremove(Signal* signal, 
+                              TablerecPtr tabPtr, 
+                              FragrecordPtr fragPtr)
+{
+  FsRemoveReq* req = (FsRemoveReq*)signal->getDataPtrSend();
+  req->userReference = reference();
+  req->userPointer = tabPtr.i;
+  req->directory = 0;
+  req->ownDirectory = 0;
+  
+  Uint32 lcpno = tabPtr.p->m_dropTable.m_lcpno;
+  Uint32 fragId = fragPtr.p->fragmentId;
+  Uint32 tableId = fragPtr.p->fragTableId;
+
+  FsOpenReq::setVersion(req->fileNumber, 5);
+  FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
+  FsOpenReq::v5_setLcpNo(req->fileNumber, lcpno);
+  FsOpenReq::v5_setTableId(req->fileNumber, tableId);
+  FsOpenReq::v5_setFragmentId(req->fileNumber, fragId);
+  sendSignal(NDBFS_REF, GSN_FSREMOVEREQ, signal, 
+             FsRemoveReq::SignalLength, JBB);
+}
+
+void
+Dbtup::execFSREMOVEREF(Signal* signal)
+{
+  jamEntry();
+  FsRef* ref = (FsRef*)signal->getDataPtr();
+  Uint32 userPointer = ref->userPointer;
+  FsConf* conf = (FsConf*)signal->getDataPtrSend();
+  conf->userPointer = userPointer;
+  execFSREMOVECONF(signal);
+}
+
+void
+Dbtup::execFSREMOVECONF(Signal* signal)
+{
+  jamEntry();
+  FsConf* conf = (FsConf*)signal->getDataPtrSend();
+  
+  TablerecPtr tabPtr; 
+  FragrecordPtr fragPtr;
+
+  tabPtr.i = conf->userPointer;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+
+  ndbrequire(tabPtr.p->tableStatus == DROPPING);
+  
+  fragPtr.i = tabPtr.p->m_dropTable.m_fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+
+  tabPtr.p->m_dropTable.m_lcpno++;
+  if (tabPtr.p->m_dropTable.m_lcpno < 3)
+  {
+    jam();
+    drop_fragment_fsremove(signal, tabPtr, fragPtr);
+  }
+  else
+  {
+    jam();
+    drop_fragment_fsremove_done(signal, tabPtr, fragPtr);
+  }
+}
+// End remove LCP
 
 void
 Dbtup::start_restore_lcp(Uint32 tableId, Uint32 fragId)

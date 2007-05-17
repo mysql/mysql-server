@@ -2567,6 +2567,12 @@ private:
                       const SchemaFile::TableEntry *, 
                       const SchemaFile::TableEntry *);
   void restartDropTab_complete(Signal*, Uint32 callback, Uint32);
+
+  void restartDropObj(Signal*, Uint32, const SchemaFile::TableEntry *);
+  void restartDropObj_prepare_start_done(Signal*, Uint32, Uint32);
+  void restartDropObj_prepare_complete_done(Signal*, Uint32, Uint32);
+  void restartDropObj_commit_start_done(Signal*, Uint32, Uint32);
+  void restartDropObj_commit_complete_done(Signal*, Uint32, Uint32);
   
   void restart_checkSchemaStatusComplete(Signal*, Uint32 callback, Uint32);
   void restart_writeSchemaConf(Signal*, Uint32 callbackData, Uint32);
@@ -2659,7 +2665,8 @@ public:
   void send_drop_fg(Signal*, SchemaOp*, DropFilegroupImplReq::RequestInfo);
 
   void drop_undofile_prepare_start(Signal* signal, SchemaOp*);
-
+  void drop_undofile_commit_complete(Signal* signal, SchemaOp*);
+  
   int checkSingleUserMode(Uint32 senderRef);
 };
 

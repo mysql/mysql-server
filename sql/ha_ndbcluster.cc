@@ -3336,17 +3336,24 @@ int ha_ndbcluster::ndb_write_row(byte *record, bool primary_key_update,
   {
     // Table has hidden primary key
     Ndb *ndb= get_ndb();
-    int ret;
     Uint64 auto_value;
     uint retries= NDB_AUTO_INCREMENT_RETRIES;
-    do {
+    int retry_sleep= 30; /* 30 milliseconds, transaction */
+    for (;;)
+    {
       Ndb_tuple_id_range_guard g(m_share);
-      ret= ndb->getAutoIncrementValue(m_table, g.range, auto_value, 1);
-    } while (ret == -1 && 
-             --retries &&
-             ndb->getNdbError().status == NdbError::TemporaryError);
-    if (ret == -1)
-      ERR_RETURN(ndb->getNdbError());
+      if (ndb->getAutoIncrementValue(m_table, g.range, auto_value, 1) == -1)
+      {
+        if (--retries &&
+            ndb->getNdbError().status == NdbError::TemporaryError);
+        {
+          my_sleep(retry_sleep);
+          continue;
+        }
+        ERR_RETURN(ndb->getNdbError());
+      }
+      break;
+    }
     set_hidden_key(row, auto_value);
   } 
 
@@ -6645,24 +6652,28 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
            m_rows_to_insert - m_rows_inserted :
            ((m_rows_to_insert > m_autoincrement_prefetch) ?
             m_rows_to_insert : m_autoincrement_prefetch));
-  int ret;
   uint retries= NDB_AUTO_INCREMENT_RETRIES;
-  do {
-    Ndb_tuple_id_range_guard g(m_share);
-    ret=
-      m_skip_auto_increment ? 
-      ndb->readAutoIncrementValue(m_table, g.range, auto_value) :
-      ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size);
-  } while (ret == -1 && 
-           --retries &&
-           ndb->getNdbError().status == NdbError::TemporaryError);
-  if (ret == -1)
+  int retry_sleep= 30; /* 30 milliseconds, transaction */
+  for (;;)
   {
-    const NdbError err= ndb->getNdbError();
-    sql_print_error("Error %lu in ::get_auto_increment(): %s",
-                    (ulong) err.code, err.message);
-    *first_value= ~(ulonglong) 0;
-    DBUG_VOID_RETURN;
+    Ndb_tuple_id_range_guard g(m_share);
+    if (m_skip_auto_increment &&
+        ndb->readAutoIncrementValue(m_table, g.range, auto_value) ||
+        ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size))
+    {
+      if (--retries &&
+          ndb->getNdbError().status == NdbError::TemporaryError);
+      {
+        my_sleep(retry_sleep);
+        continue;
+      }
+      const NdbError err= ndb->getNdbError();
+      sql_print_error("Error %lu in ::get_auto_increment(): %s",
+                      (ulong) err.code, err.message);
+      *first_value= ~(ulonglong) 0;
+      DBUG_VOID_RETURN;
+    }
+    break;
   }
   *first_value= (longlong)auto_value;
   /* From the point of view of MySQL, NDB reserves one row at a time */
@@ -6871,23 +6882,23 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   set_dbname(name);
   set_tabname(name);
   
-  if (check_ndb_connection())
+  if ((res= check_ndb_connection()) ||
+      (res= get_metadata(name)))
   {
     /* ndb_share reference handler free */
     DBUG_PRINT("NDB_SHARE", ("%s handler free  use_count: %u",
                              m_share->key, m_share->use_count));
     free_share(&m_share);
     m_share= 0;
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    DBUG_RETURN(res);
   }
-  
-  res= get_metadata(name);
-  if (!res)
+  while (1)
   {
     Ndb *ndb= get_ndb();
     if (ndb->setDatabaseName(m_dbname))
     {
-      ERR_RETURN(ndb->getNdbError());
+      res= ndb_to_mysql_error(&ndb->getNdbError());
+      break;
     }
     struct Ndb_statistics stat;
     res= ndb_get_table_statistics(NULL, FALSE, ndb, m_ndb_statistics_record,
@@ -6897,14 +6908,20 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     stats.records= stat.row_count;
     if(!res)
       res= info(HA_STATUS_CONST);
+    break;
   }
-
+  if (res)
+  {
+    free_share(&m_share);
+    m_share= 0;
+    release_metadata(current_thd, get_ndb());
+    DBUG_RETURN(res);
+  }
 #ifdef HAVE_NDB_BINLOG
   if (!ndb_binlog_tables_inited && ndb_binlog_running)
     table->db_stat|= HA_READ_ONLY;
 #endif
-
-  DBUG_RETURN(res);
+  DBUG_RETURN(0);
 }
 
 /*
