@@ -585,6 +585,8 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
                             ER_WARN_TOO_FEW_RECORDS, 
                             ER(ER_WARN_TOO_FEW_RECORDS), thd->row_count);
+        if (!field->maybe_null() && field->type() == FIELD_TYPE_TIMESTAMP)
+            ((Field_timestamp*) field)->set_time();
       }
       else
       {
@@ -770,6 +772,8 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                      thd->row_count);
             DBUG_RETURN(1);
           }
+          if (!field->maybe_null() && field->type() == FIELD_TYPE_TIMESTAMP)
+              ((Field_timestamp*) field)->set_time();
           /*
             QQ: We probably should not throw warning for each field.
             But how about intention to always have the same number

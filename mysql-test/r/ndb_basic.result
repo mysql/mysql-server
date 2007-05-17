@@ -667,6 +667,12 @@ counter	datavalue
 57	newval
 58	newval
 drop table t1;
+create table t1 (a int primary key auto_increment) engine = ndb;
+insert into t1() values (),(),(),(),(),(),(),(),(),(),(),();
+insert into t1(a) values (20),(28);
+insert into t1() values (),(),(),(),(),(),(),(),(),(),(),();
+insert into t1() values (21), (22);
+drop table t1;
 CREATE TABLE t1 ( b INT ) PACK_KEYS = 0 ENGINE = ndb;
 select * from t1;
 b

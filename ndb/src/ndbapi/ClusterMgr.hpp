@@ -50,6 +50,7 @@ public:
   void startThread();
 
   void forceHB();
+  void set_max_api_reg_req_interval(unsigned int millisec) { m_max_api_reg_req_interval = millisec; }
 
 private:
   void threadMain();
@@ -83,6 +84,7 @@ public:
 
   Uint32        m_connect_count;
 private:
+  Uint32        m_max_api_reg_req_interval;
   Uint32        noOfAliveNodes;
   Uint32        noOfConnectedNodes;
   Node          theNodes[MAX_NODES];
