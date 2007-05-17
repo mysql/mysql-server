@@ -5202,9 +5202,9 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
 {
   jamEntry();
 
-  if(refToBlock(signal->getSendersBlockRef()) == DBLQH){
+  if(refToBlock(signal->getSendersBlockRef()) == DBLQH)
+  {
     jam();
-    reenable_expand_after_redo_log_exection_complete(signal);
     return;
   }
 
