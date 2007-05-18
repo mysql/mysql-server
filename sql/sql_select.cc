@@ -988,6 +988,12 @@ JOIN::optimize()
     }
   }
 
+  if (conds &&!outer_join && const_table_map != found_const_table_map && 
+      (select_options & SELECT_DESCRIBE) &&
+      select_lex->master_unit() == &thd->lex->unit) // upper level SELECT
+  {
+    conds=new Item_int((longlong) 0,1);	// Always false
+  }
   if (make_join_select(this, select, conds))
   {
     zero_result_cause=
@@ -9133,8 +9139,7 @@ Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
   if (item->field_type() == MYSQL_TYPE_VARCHAR)
   {
     Field *field;
-    if (item->max_length > MAX_FIELD_VARCHARLENGTH /
-        item->collation.collation->mbmaxlen)
+    if (item->max_length > MAX_FIELD_VARCHARLENGTH)
       field= new Field_blob(item->max_length, item->maybe_null,
                             item->name, item->collation.collation);
     else

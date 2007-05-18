@@ -3558,7 +3558,8 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
           prev_subselect_item->const_item_cache= 0;
           set_field(*from_field);
           if (!last_checked_context->select_lex->having_fix_field &&
-              select->group_list.elements)
+              select->group_list.elements &&
+              (place == SELECT_LIST || place == IN_HAVING))
           {
             Item_outer_ref *rf;
             /*
