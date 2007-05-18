@@ -1029,6 +1029,9 @@ row_merge_block_merge(
 			offset3 = row_merge_store_rec_to_block(
 				mrec1->rec, rec_offsets, new_block1, offset3);
 		} else {
+			ut_a(row_merge_rec_fits_to_block(rec_offsets,
+							 offset4));
+
 			offset4 = row_merge_store_rec_to_block(
 				mrec1->rec, rec_offsets, new_block2, offset4);
 		}
