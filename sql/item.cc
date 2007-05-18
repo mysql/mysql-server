@@ -2312,6 +2312,7 @@ default_set_param_func(Item_param *param,
 
 
 Item_param::Item_param(unsigned pos_in_query_arg) :
+  strict_type(FALSE),
   state(NO_VALUE),
   item_result_type(STRING_RESULT),
   /* Don't pretend to be a literal unless value for this item is set. */
@@ -2506,6 +2507,8 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
   if (entry && entry->value)
   {
     item_result_type= entry->type;
+    if (strict_type && required_result_type != item_result_type)
+      DBUG_RETURN(1);
     switch (entry->type) {
     case REAL_RESULT:
       set_double(*(double*)entry->value);
