@@ -173,7 +173,7 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
     }
     else
     {
-      MAX_RECEIVED_SIGNALS = rand() % 128;
+      MAX_RECEIVED_SIGNALS = 1 + (rand() % 128);
     }
     ndbout_c("MAX_RECEIVED_SIGNALS: %d", MAX_RECEIVED_SIGNALS);
     CLEAR_ERROR_INSERT_VALUE;
