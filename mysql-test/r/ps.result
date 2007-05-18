@@ -1190,6 +1190,214 @@ EXECUTE b12651;
 DROP VIEW b12651_V1;
 DROP TABLE b12651_T1, b12651_T2;
 DEALLOCATE PREPARE b12651;
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (i INT);
+PREPARE st_19182
+FROM "CREATE TABLE t2 (i INT, j INT, KEY (i), KEY(j)) SELECT i FROM t1";
+EXECUTE st_19182;
+DESC t2;
+Field	Type	Null	Key	Default	Extra
+j	int(11)	YES	MUL	NULL	
+i	int(11)	YES	MUL	NULL	
+DROP TABLE t2;
+EXECUTE st_19182;
+DESC t2;
+Field	Type	Null	Key	Default	Extra
+j	int(11)	YES	MUL	NULL	
+i	int(11)	YES	MUL	NULL	
+DEALLOCATE PREPARE st_19182;
+DROP TABLE t2, t1;
+drop database if exists mysqltest;
+drop table if exists t1, t2;
+create database mysqltest character set utf8;
+prepare stmt1 from "create table mysqltest.t1 (c char(10))";
+prepare stmt2 from "create table mysqltest.t2 select 'test'";
+execute stmt1;
+execute stmt2;
+show create table mysqltest.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8
+show create table mysqltest.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `test` varchar(4) character set latin1 NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=utf8
+drop table mysqltest.t1;
+drop table mysqltest.t2;
+alter database mysqltest character set latin1;
+execute stmt1;
+execute stmt2;
+show create table mysqltest.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) character set utf8 default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table mysqltest.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `test` varchar(4) NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop database mysqltest;
+deallocate prepare stmt1;
+deallocate prepare stmt2;
+execute stmt;
+show create table t1;
+drop table t1;
+execute stmt;
+show create table t1;
+drop table t1;
+deallocate prepare stmt;
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (2), (3), (1);
+PREPARE st1 FROM
+'(SELECT a FROM t1) UNION (SELECT a+10 FROM t1) ORDER BY RAND()*0+a';
+EXECUTE st1;
+a
+1
+2
+3
+11
+12
+13
+EXECUTE st1;
+a
+1
+2
+3
+11
+12
+13
+DEALLOCATE PREPARE st1;
+DROP TABLE t1;
+End of 4.1 tests.
+create table t1 (a varchar(20));
+insert into t1 values ('foo');
+prepare stmt FROM 'SELECT char_length (a) FROM t1';
+ERROR 42000: FUNCTION test.char_length does not exist
+drop table t1;
+create table t1 (a char(3) not null, b char(3) not null,
+c char(3) not null, primary key  (a, b, c));
+create table t2 like t1;
+prepare stmt from
+"select t1.a from (t1 left outer join t2 on t2.a=1 and t1.b=t2.b)
+  where t1.a=1";
+execute stmt;
+a
+execute stmt;
+a
+execute stmt;
+a
+prepare stmt from
+"select t1.a, t1.b, t1.c, t2.a, t2.b, t2.c from
+(t1 left outer join t2 on t2.a=? and t1.b=t2.b)
+left outer join t2 t3 on t3.a=? where t1.a=?";
+set @a:=1, @b:=1, @c:=1;
+execute stmt using @a, @b, @c;
+a	b	c	a	b	c
+execute stmt using @a, @b, @c;
+a	b	c	a	b	c
+execute stmt using @a, @b, @c;
+a	b	c	a	b	c
+deallocate prepare stmt;
+drop table t1,t2;
+SET @aux= "SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.COLUMNS A,
+                INFORMATION_SCHEMA.COLUMNS B
+                WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
+                AND A.TABLE_NAME = B.TABLE_NAME
+                AND A.COLUMN_NAME = B.COLUMN_NAME AND
+                A.TABLE_NAME = 'user'";
+prepare my_stmt from @aux;
+execute my_stmt;
+COUNT(*)
+37
+execute my_stmt;
+COUNT(*)
+37
+execute my_stmt;
+COUNT(*)
+37
+deallocate prepare my_stmt;
+drop procedure if exists p1|
+drop table if exists t1|
+create table t1 (id int)|
+insert into t1 values(1)|
+create procedure p1(a int, b int)
+begin
+declare c int;
+select max(id)+1 into c from t1;
+insert into t1 select a+b;
+insert into t1 select a-b;
+insert into t1 select a-c;
+end|
+set @a= 3, @b= 4|
+prepare stmt from "call p1(?, ?)"|
+execute stmt using @a, @b|
+execute stmt using @a, @b|
+select * from t1|
+id
+1
+7
+-1
+1
+7
+-1
+-5
+deallocate prepare stmt|
+drop procedure p1|
+drop table t1|
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+prepare stmt from "select * from t1 limit ?, ?";
+set @offset=0, @limit=1;
+execute stmt using @offset, @limit;
+a
+1
+select * from t1 limit 0, 1;
+a
+1
+set @offset=3, @limit=2;
+execute stmt using @offset, @limit;
+a
+4
+5
+select * from t1 limit 3, 2;
+a
+4
+5
+prepare stmt from "select * from t1 limit ?";
+execute stmt using @limit;
+a
+1
+2
+prepare stmt from "select * from t1 where a in (select a from t1 limit ?)";
+ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+prepare stmt from "select * from t1 union all select * from t1 limit ?, ?";
+set @offset=9;
+set @limit=2;
+execute stmt using @offset, @limit;
+a
+10
+1
+prepare stmt from "(select * from t1 limit ?, ?) union all
+                   (select * from t1 limit ?, ?) order by a limit ?";
+execute stmt using @offset, @limit, @offset, @limit, @limit;
+a
+10
+10
+drop table t1;
+deallocate prepare stmt;
+CREATE TABLE b12651_T1(a int) ENGINE=MYISAM;
+CREATE TABLE b12651_T2(b int) ENGINE=MYISAM;
+CREATE VIEW  b12651_V1 as SELECT b FROM b12651_T2;
+PREPARE b12651 FROM 'SELECT 1 FROM b12651_T1 WHERE a IN (SELECT b FROM b12651_V1)';
+EXECUTE b12651;
+1
+DROP VIEW b12651_V1;
+DROP TABLE b12651_T1, b12651_T2;
+DEALLOCATE PREPARE b12651;
 create table t1 (id int);
 prepare ins_call from "insert into t1 (id) values (1)";
 execute ins_call;
