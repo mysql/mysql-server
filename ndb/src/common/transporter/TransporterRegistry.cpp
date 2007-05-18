@@ -841,6 +841,7 @@ TransporterRegistry::poll_OSE(Uint32 timeOutMillis)
 Uint32 
 TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
 {
+  bool hasdata = false;
   if (false && nTCPTransporters == 0)
   {
     tcpReadSelectReply = 0;
@@ -885,6 +886,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
       // Put the connected transporters in the socket read-set 
       FD_SET(socket, &tcpReadset);
     }
+    hasdata |= t->hasReceiveData();
   }
   
   // The highest socket value plus one
@@ -901,7 +903,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
   }
 #endif
   
-  return tcpReadSelectReply;
+  return tcpReadSelectReply || hasdata;
 }
 #endif
 
@@ -937,26 +939,26 @@ TransporterRegistry::performReceive()
 #endif
 
 #ifdef NDB_TCP_TRANSPORTER
-  if(tcpReadSelectReply > 0)
+  for (int i=0; i<nTCPTransporters; i++) 
   {
-    for (int i=0; i<nTCPTransporters; i++) 
-    {
-      checkJobBuffer();
-      TCP_Transporter *t = theTCPTransporters[i];
-      const NodeId nodeId = t->getRemoteNodeId();
-      const NDB_SOCKET_TYPE socket    = t->getSocket();
-      if(is_connected(nodeId)){
-	if(t->isConnected() && FD_ISSET(socket, &tcpReadset)) 
+    checkJobBuffer();
+    TCP_Transporter *t = theTCPTransporters[i];
+    const NodeId nodeId = t->getRemoteNodeId();
+    const NDB_SOCKET_TYPE socket    = t->getSocket();
+    if(is_connected(nodeId)){
+      if(t->isConnected())
+      {
+        if (FD_ISSET(socket, &tcpReadset))
 	{
-	  const int receiveSize = t->doReceive();
-	  if(receiveSize > 0)
-	  {
-	    Uint32 * ptr;
-	    Uint32 sz = t->getReceiveData(&ptr);
-	    transporter_recv_from(callbackObj, nodeId);
-	    Uint32 szUsed = unpack(ptr, sz, nodeId, ioStates[nodeId]);
-	    t->updateReceiveDataPtr(szUsed);
-          }
+	  t->doReceive();
+        }
+
+        if (t->hasReceiveData())
+        {
+          Uint32 * ptr;
+          Uint32 sz = t->getReceiveData(&ptr);
+          Uint32 szUsed = unpack(ptr, sz, nodeId, ioStates[nodeId]);
+          t->updateReceiveDataPtr(szUsed);
 	}
       } 
     }
