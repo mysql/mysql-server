@@ -773,7 +773,7 @@ static int NEAR_F merge_many_buff(MI_SORT_PARAM *info, uint keys,
     {
       if (merge_buffers(info,keys,from_file,to_file,sort_keys,lastbuff++,
                         buffpek+i,buffpek+i+MERGEBUFF-1))
-        break; /* purecov: inspected */
+        goto cleanup;
     }
     if (merge_buffers(info,keys,from_file,to_file,sort_keys,lastbuff++,
                       buffpek+i,buffpek+ *maxbuffer))
@@ -783,6 +783,7 @@ static int NEAR_F merge_many_buff(MI_SORT_PARAM *info, uint keys,
     temp=from_file; from_file=to_file; to_file=temp;
     *maxbuffer= (int) (lastbuff-buffpek)-1;
   }
+cleanup:
   close_cached_file(to_file);                   /* This holds old result */
   if (to_file == t_file)
     *t_file=t_file2;                            /* Copy result file */

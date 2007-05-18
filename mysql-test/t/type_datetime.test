@@ -205,6 +205,53 @@ SELECT 1 from dual where NOW() BETWEEN CURRENT_DATE() - INTERVAL 1 DAY AND CURRE
 drop table t1;
 
 #
+# Bug#28133: Wrong DATE/DATETIME comparison in IN() function.
+#
+create table t1 (f1 date);
+insert into t1 values('01-01-01'),('01-01-02'),('01-01-03');
+select * from t1 where f1 in ('01-01-01','2001-01-02','2001-01-03 00:00:00');
+create table t2(f2 datetime);
+insert into t2 values('01-01-01 00:00:00'),('01-02-03 12:34:56'),('02-04-06 11:22:33');
+select * from t2 where f2 in ('01-01-01','01-02-03 12:34:56','01-02-03');
+select * from t1,t2 where '01-01-02' in (f1, cast(f2 as date));
+select * from t1,t2 where '01-01-01' in (f1, '01-02-03');
+select * from t1,t2 where if(1,'01-02-03 12:34:56','') in (f1, f2);
+create table t3(f3 varchar(20));
+insert into t3 select * from t2;
+select * from t2,t3 where f2 in (f3,'03-04-05');
+select f1,f2,f3 from t1,t2,t3 where (f1,'1') in ((f2,'1'),(f3,'1'));
+select f1 from t1 where ('1',f1) in (('1','01-01-01'),('1','2001-1-1 0:0:0'),('1','02-02-02'));
+drop table t1,t2,t3;
+
+#
+# Bug#27759: Wrong DATE/DATETIME comparison in LEAST()/GREATEST() functions.
+#
+select least(cast('01-01-01' as date), '01-01-02');
+select greatest(cast('01-01-01' as date), '01-01-02');
+select least(cast('01-01-01' as date), '01-01-02') + 0;
+select greatest(cast('01-01-01' as date), '01-01-02') + 0;
+select least(cast('01-01-01' as datetime), '01-01-02') + 0;
+select cast(least(cast('01-01-01' as datetime), '01-01-02') as signed);
+select cast(least(cast('01-01-01' as datetime), '01-01-02') as decimal(16,2));
+--disable_warnings
+DROP PROCEDURE IF EXISTS test27759 ;
+--enable_warnings
+DELIMITER |;
+CREATE PROCEDURE test27759()
+BEGIN
+declare v_a date default '2007-4-10';
+declare v_b date default '2007-4-11';
+declare v_c datetime default '2004-4-9 0:0:0';
+select v_a as a,v_b as b,
+       least( v_a, v_b ) as a_then_b,
+       least( v_b, v_a ) as b_then_a,
+       least( v_c, v_a ) as c_then_a;
+END;|
+DELIMITER ;|
+call test27759();
+drop procedure test27759;
+
+#
 # Test of storing datetime into date fields
 #
 

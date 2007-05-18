@@ -1414,4 +1414,39 @@ id	val
 DROP TRIGGER trg27006_a_insert;
 DROP TRIGGER trg27006_a_update;
 drop table t1,t2;
+drop table if exists t1, t2, t3;
+create table t1 (i int);
+create trigger t1_bi before insert on t1 for each row set new.i = 7;
+create trigger t1_ai after insert on t1 for each row set @a := 7;
+create table t2 (j int);
+insert into t2 values (1), (2);
+set @a:="";
+create table if not exists t1 select * from t2;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+i
+7
+7
+select @a;
+@a
+7
+drop trigger t1_bi;
+drop trigger t1_ai;
+create table t3 (isave int);
+create trigger t1_bi before insert on t1 for each row insert into t3 values (new.i);
+create table if not exists t1 select * from t2;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+i
+7
+7
+1
+2
+select * from t3;
+isave
+1
+2
+drop table t1, t2, t3;
 End of 5.0 tests

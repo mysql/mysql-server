@@ -739,7 +739,7 @@ static struct my_option my_long_options[] =
    "Number of seconds before connection timeout.",
    (gptr*) &opt_connect_timeout,
    (gptr*) &opt_connect_timeout, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 3600*12, 0,
-   0, 1},
+   0, 0},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
    "Max packet length to send to, or receive from server",
    (gptr*) &opt_max_allowed_packet, (gptr*) &opt_max_allowed_packet, 0, GET_ULONG,
