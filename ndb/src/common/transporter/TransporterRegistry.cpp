@@ -849,22 +849,6 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
     return 0;
   }
   
-  struct timeval timeout;
-#ifdef NDB_OSE
-  // Return directly if there are no TCP transporters configured
-  
-  if(timeOutMillis <= 1){
-    timeout.tv_sec  = 0;
-    timeout.tv_usec = 1025;
-  } else {
-    timeout.tv_sec  = timeOutMillis / 1000;
-    timeout.tv_usec = (timeOutMillis % 1000) * 1000;
-  }
-#else  
-  timeout.tv_sec  = timeOutMillis / 1000;
-  timeout.tv_usec = (timeOutMillis % 1000) * 1000;
-#endif
-
   NDB_SOCKET_TYPE maxSocketValue = -1;
   
   // Needed for TCP/IP connections
@@ -890,6 +874,24 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
     hasdata |= t->hasReceiveData();
   }
   
+  timeOutMillis = hasdata ? 0 : timeOutMillis;
+  
+  struct timeval timeout;
+#ifdef NDB_OSE
+  // Return directly if there are no TCP transporters configured
+  
+  if(timeOutMillis <= 1){
+    timeout.tv_sec  = 0;
+    timeout.tv_usec = 1025;
+  } else {
+    timeout.tv_sec  = timeOutMillis / 1000;
+    timeout.tv_usec = (timeOutMillis % 1000) * 1000;
+  }
+#else  
+  timeout.tv_sec  = timeOutMillis / 1000;
+  timeout.tv_usec = (timeOutMillis % 1000) * 1000;
+#endif
+
   // The highest socket value plus one
   maxSocketValue++; 
   
