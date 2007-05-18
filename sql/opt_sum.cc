@@ -271,7 +271,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
                  we have a >= predicate for the MIN argument.
               */
               error= table->file->index_read(table->record[0], ref.key_buff,
-                                             ref.key_length, 
+                                             make_prev_keypart_map(ref.key_parts),
                                              HA_READ_KEY_OR_NEXT);
             else
             {
@@ -282,7 +282,8 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
                 We need to scan the next bigger record first.
               */
               error= table->file->index_read(table->record[0], ref.key_buff, 
-                                             ref.key_length, HA_READ_AFTER_KEY);
+                                             make_prev_keypart_map(ref.key_parts),
+                                             HA_READ_AFTER_KEY);
               /* 
                  If the found record is outside the group formed by the search
                  prefix, or there is no such record at all, check if all
@@ -305,7 +306,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
               {
                 DBUG_ASSERT(item_field->field->real_maybe_null());
                 error= table->file->index_read(table->record[0], ref.key_buff,
-                                               ref.key_length, 
+                                               make_prev_keypart_map(ref.key_parts),
                                                HA_READ_KEY_EXACT);
               }
             }
