@@ -271,7 +271,7 @@ enum enum_commands {
   Q_EXEC, Q_DELIMITER,
   Q_DISABLE_ABORT_ON_ERROR, Q_ENABLE_ABORT_ON_ERROR,
   Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
-  Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL, Q_SORTED_RESULTS,
+  Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL, Q_SORTED_RESULT,
   Q_START_TIMER, Q_END_TIMER,
   Q_CHARACTER_SET, Q_DISABLE_PS_PROTOCOL, Q_ENABLE_PS_PROTOCOL,
   Q_DISABLE_RECONNECT, Q_ENABLE_RECONNECT,
@@ -341,7 +341,7 @@ const char *command_names[]=
   "horizontal_results",
   "query_vertical",
   "query_horizontal",
-  "sorted_results",
+  "sorted_result",
   "start_timer",
   "end_timer",
   "character_set",
@@ -6161,7 +6161,7 @@ int main(int argc, char **argv)
       case Q_DISPLAY_HORIZONTAL_RESULTS:
 	display_result_vertically= FALSE;
         break;
-      case Q_SORTED_RESULTS:
+      case Q_SORTED_RESULT:
         /*
           Turn on sorting of result set, will be reset after next
           command
@@ -6370,7 +6370,7 @@ int main(int argc, char **argv)
       */
       free_all_replace();
 
-      /* Also reset "sorted_results" */
+      /* Also reset "sorted_result" */
       display_result_sorted= FALSE;
     }
     last_command_executed= command_executed;
