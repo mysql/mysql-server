@@ -1087,4 +1087,26 @@ t2	CREATE TABLE `t2` (
 drop database mysqltest;
 deallocate prepare stmt1;
 deallocate prepare stmt2;
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (2), (3), (1);
+PREPARE st1 FROM
+'(SELECT a FROM t1) UNION (SELECT a+10 FROM t1) ORDER BY RAND()*0+a';
+EXECUTE st1;
+a
+1
+2
+3
+11
+12
+13
+EXECUTE st1;
+a
+1
+2
+3
+11
+12
+13
+DEALLOCATE PREPARE st1;
+DROP TABLE t1;
 End of 4.1 tests.
