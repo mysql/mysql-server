@@ -271,7 +271,7 @@ enum enum_commands {
   Q_EXEC, Q_DELIMITER,
   Q_DISABLE_ABORT_ON_ERROR, Q_ENABLE_ABORT_ON_ERROR,
   Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
-  Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL, Q_QUERY_SORTED,
+  Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL, Q_SORTED_RESULT,
   Q_START_TIMER, Q_END_TIMER,
   Q_CHARACTER_SET, Q_DISABLE_PS_PROTOCOL, Q_ENABLE_PS_PROTOCOL,
   Q_DISABLE_RECONNECT, Q_ENABLE_RECONNECT,
@@ -341,7 +341,7 @@ const char *command_names[]=
   "horizontal_results",
   "query_vertical",
   "query_horizontal",
-  "query_sorted",
+  "sorted_result",
   "start_timer",
   "end_timer",
   "character_set",
@@ -6181,13 +6181,19 @@ int main(int argc, char **argv)
       case Q_DISPLAY_HORIZONTAL_RESULTS:
 	display_result_vertically= FALSE;
         break;
+      case Q_SORTED_RESULT:
+        /*
+          Turn on sorting of result set, will be reset after next
+          command
+        */
+	display_result_sorted= TRUE;
+        break;
       case Q_LET: do_let(command); break;
       case Q_EVAL_RESULT:
         eval_result = 1; break;
       case Q_EVAL:
       case Q_QUERY_VERTICAL:
       case Q_QUERY_HORIZONTAL:
-      case Q_QUERY_SORTED:
 	if (command->query == command->query_buf)
         {
           /* Skip the first part of command, i.e query_xxx */
@@ -6199,7 +6205,6 @@ int main(int argc, char **argv)
       case Q_REAP:
       {
 	my_bool old_display_result_vertically= display_result_vertically;
-	my_bool old_display_result_sorted= display_result_sorted;
         /* Default is full query, both reap and send  */
         int flags= QUERY_REAP_FLAG | QUERY_SEND_FLAG;
 
@@ -6216,7 +6221,6 @@ int main(int argc, char **argv)
 
         /* Check for special property for this query */
         display_result_vertically|= (command->type == Q_QUERY_VERTICAL);
-        display_result_sorted= (command->type == Q_QUERY_SORTED);
 
 	if (save_file[0])
 	{
@@ -6229,7 +6233,6 @@ int main(int argc, char **argv)
 
         /* Restore settings */
 	display_result_vertically= old_display_result_vertically;
-	display_result_sorted= old_display_result_sorted;
 
 	break;
       }
@@ -6390,6 +6393,9 @@ int main(int argc, char **argv)
         the replace structures should be cleared
       */
       free_all_replace();
+
+      /* Also reset "sorted_result" */
+      display_result_sorted= FALSE;
     }
     last_command_executed= command_executed;
 
