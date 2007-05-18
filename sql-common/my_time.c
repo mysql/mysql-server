@@ -1152,6 +1152,7 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
  ok:
   part1=(long) (nr/LL(1000000));
   part2=(long) (nr - (longlong) part1*LL(1000000));
+  bzero((char*) time_res, sizeof(*time_res));
   time_res->year=  (int) (part1/10000L);  part1%=10000L;
   time_res->month= (int) part1 / 100;
   time_res->day=   (int) part1 % 100;
