@@ -2393,10 +2393,17 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         VOID(pthread_mutex_unlock(&LOCK_open));
       }
     }
-    if ((thd->locked_tables) && (thd->locked_tables->lock_count > 0))
-      my_error(ER_TABLE_NOT_LOCKED, MYF(0), alias);
-    else
+    /*
+      No table in the locked tables list. In case of explicit LOCK TABLES
+      this can happen if a user did not include the able into the list.
+      In case of pre-locked mode locked tables list is generated automatically,
+      so we may only end up here if the table did not exist when
+      locked tables list was created.
+    */
+    if (thd->prelocked_mode == PRELOCKED)
       my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->alias);
+    else
+      my_error(ER_TABLE_NOT_LOCKED, MYF(0), alias);
     DBUG_RETURN(0);
   }
 
