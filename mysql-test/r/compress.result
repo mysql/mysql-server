@@ -3,7 +3,7 @@ Variable_name	Value
 Compression	ON
 select * from information_schema.session_status where variable_name= 'COMPRESSION';
 VARIABLE_NAME	VARIABLE_VALUE
-COMPRESSION	1.0000000
+COMPRESSION	ON
 drop table if exists t1,t2,t3,t4;
 CREATE TABLE t1 (
 Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
