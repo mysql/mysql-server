@@ -1237,7 +1237,6 @@ trx_undo_report_row_operation(
 {
 	trx_t*		trx;
 	trx_undo_t*	undo;
-	ulint		offset;
 	ulint		page_no;
 	trx_rseg_t*	rseg;
 	mtr_t		mtr;
@@ -1310,6 +1309,7 @@ trx_undo_report_row_operation(
 	for (;;) {
 		buf_block_t*	undo_block;
 		page_t*		undo_page;
+		ulint		offset;
 
 		undo_block = buf_page_get_gen(undo->space, undo->zip_size,
 					      page_no, RW_X_LATCH,
@@ -1329,7 +1329,7 @@ trx_undo_report_row_operation(
 				cmpl_info, &mtr);
 		}
 
-		if (offset == 0) {
+		if (UNIV_UNLIKELY(offset == 0)) {
 			/* The record did not fit on the page. We erase the
 			end segment of the undo log page and write a log
 			record of it: this is to ensure that in the debug
@@ -1352,7 +1352,14 @@ trx_undo_report_row_operation(
 			UT_DULINT_INC(trx->undo_no);
 
 			mutex_exit(&trx->undo_mutex);
-			break;
+
+			*roll_ptr = trx_undo_build_roll_ptr(
+				op_type == TRX_UNDO_INSERT_OP,
+				rseg->id, page_no, offset);
+			if (UNIV_LIKELY_NULL(heap)) {
+				mem_heap_free(heap);
+			}
+			return(DB_SUCCESS);
 		}
 
 		ut_ad(page_no == undo->last_page_no);
@@ -1382,13 +1389,6 @@ trx_undo_report_row_operation(
 			return(DB_OUT_OF_FILE_SPACE);
 		}
 	}
-
-	*roll_ptr = trx_undo_build_roll_ptr(op_type == TRX_UNDO_INSERT_OP,
-					    rseg->id, page_no, offset);
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
-	return(DB_SUCCESS);
 }
 
 /***************************************************************************
@@ -1419,8 +1419,6 @@ trx_undo_report_dict_operation(
 					inserted undo log record */
 {
 	trx_undo_t*	undo;
-	buf_block_t*	undo_block;
-	ulint		offset;
 	ulint		page_no;
 	trx_rseg_t*	rseg;
 	mtr_t		mtr;
@@ -1469,6 +1467,9 @@ trx_undo_report_dict_operation(
 	mtr_start(&mtr);
 
 	for (;;) {
+		buf_block_t*	undo_block;
+		ulint		offset;
+
 		undo_block = buf_page_get_gen(undo->space, undo->zip_size,
 					     page_no, RW_X_LATCH,
 					     undo->guess_block, BUF_GET,
@@ -1515,7 +1516,7 @@ trx_undo_report_dict_operation(
 			return(DB_ERROR);
 		}
 
-		if (offset == 0) {
+		if (UNIV_UNLIKELY(offset == 0)) {
 			/* The record did not fit on the page. We erase the
 			end segment of the undo log page and write a log
 			record of it: this is to ensure that in the debug
@@ -1523,14 +1524,25 @@ trx_undo_report_dict_operation(
 			records stays identical to the original page */
 
 			trx_undo_erase_page_end(undo_block->frame, &mtr);
-		}
-
-		mtr_commit(&mtr);
-
-		if (offset != 0) {
+			mtr_commit(&mtr);
+		} else {
 			/* Success */
+			mtr_commit(&mtr);
 
-			break;
+			undo->empty = FALSE;
+			undo->top_page_no = page_no;
+			undo->top_offset  = offset;
+			undo->top_undo_no = trx->undo_no;
+			undo->guess_block = undo_block;
+
+			UT_DULINT_INC(trx->undo_no);
+
+			mutex_exit(&(trx->undo_mutex));
+
+			*roll_ptr = trx_undo_build_roll_ptr(TRUE, rseg->id,
+							    page_no, offset);
+
+			return(DB_SUCCESS);
 		}
 
 		ut_ad(page_no == undo->last_page_no);
@@ -1558,20 +1570,6 @@ trx_undo_report_dict_operation(
 			return(DB_OUT_OF_FILE_SPACE);
 		}
 	}
-
-	undo->empty = FALSE;
-	undo->top_page_no = page_no;
-	undo->top_offset  = offset;
-	undo->top_undo_no = trx->undo_no;
-	undo->guess_block = undo_block;
-
-	UT_DULINT_INC(trx->undo_no);
-
-	mutex_exit(&(trx->undo_mutex));
-
-	*roll_ptr = trx_undo_build_roll_ptr(TRUE, rseg->id, page_no, offset);
-
-	return(DB_SUCCESS);
 }
 
 /*============== BUILDING PREVIOUS VERSION OF A RECORD ===============*/
