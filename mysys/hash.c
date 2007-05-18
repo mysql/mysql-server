@@ -315,6 +315,13 @@ my_bool my_hash_insert(HASH *info,const byte *record)
   LINT_INIT(gpos); LINT_INIT(gpos2);
   LINT_INIT(ptr_to_rec); LINT_INIT(ptr_to_rec2);
 
+  if (HASH_UNIQUE & info->flags)
+  {
+    byte *key= (byte*) hash_key(info, record, &idx, 1);
+    if (hash_search(info, key, idx))
+      return(TRUE);				/* Duplicate entry */
+  }
+
   flag=0;
   if (!(empty=(HASH_LINK*) alloc_dynamic(&info->array)))
     return(TRUE);				/* No more memory */
@@ -530,6 +537,19 @@ my_bool hash_update(HASH *hash,byte *record,byte *old_key,uint old_key_length)
   uint idx,new_index,new_pos_index,blength,records,empty;
   HASH_LINK org_link,*data,*previous,*pos;
   DBUG_ENTER("hash_update");
+  
+  if (HASH_UNIQUE & hash->flags)
+  {
+    HASH_SEARCH_STATE state;
+    byte *found, *new_key= hash_key(hash, record, &idx, 1);
+    if ((found= hash_first(hash, new_key, idx, &state)))
+      do 
+      {
+        if (found != record)
+          DBUG_RETURN(1);		/* Duplicate entry */
+      } 
+      while ((found= hash_next(hash, new_key, idx, &state)));
+  }
 
   data=dynamic_element(&hash->array,0,HASH_LINK*);
   blength=hash->blength; records=hash->records;

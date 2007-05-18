@@ -31,6 +31,7 @@ class Load_log_event;
 class Slave_log_event;
 class sp_rcontext;
 class sp_cache;
+class Lex_input_stream;
 class Rows_log_event;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
@@ -171,7 +172,7 @@ public:
 
 #include "sql_lex.h"				/* Must be here */
 
-class delayed_insert;
+class Delayed_insert;
 class select_result;
 class Time_zone;
 
@@ -182,6 +183,20 @@ class Time_zone;
 
 struct system_variables
 {
+  /*
+    How dynamically allocated system variables are handled:
+    
+    The global_system_variables and max_system_variables are "authoritative"
+    They both should have the same 'version' and 'size'.
+    When attempting to access a dynamic variable, if the session version
+    is out of date, then the session version is updated and realloced if
+    neccessary and bytes copied from global to make up for missing data.
+  */ 
+  ulong dynamic_variables_version;
+  char* dynamic_variables_ptr;
+  uint dynamic_variables_head;  /* largest valid variable offset */
+  uint dynamic_variables_size;  /* how many bytes are in use */
+  
   ulonglong myisam_max_extra_sort_file_size;
   ulonglong myisam_max_sort_file_size;
   ulonglong max_heap_table_size;
@@ -252,8 +267,6 @@ struct system_variables
   my_bool old_mode;
   my_bool query_cache_wlock_invalidate;
   my_bool engine_condition_pushdown;
-  my_bool innodb_table_locks;
-  my_bool innodb_support_xa;
   my_bool ndb_force_send;
   my_bool ndb_use_copying_alter_table;
   my_bool ndb_use_exact_count;
@@ -263,7 +276,7 @@ struct system_variables
   my_bool old_alter_table;
   my_bool old_passwords;
 
-  handlerton *table_type;
+  plugin_ref table_plugin;
 
   /* Only charset part of these variables is sensible */
   CHARSET_INFO  *character_set_filesystem;
@@ -1001,7 +1014,7 @@ public:
   time_t     start_time,time_after_lock,user_time;
   time_t     connect_time,thr_create_time; // track down slow pthread_create
   thr_lock_type update_lock_default;
-  delayed_insert *di;
+  Delayed_insert *di;
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
@@ -1423,6 +1436,16 @@ public:
     */
     query_id_t first_query_id;
   } binlog_evt_union;
+
+  /**
+    Character input stream consumed by the lexical analyser,
+    used during parsing.
+    Note that since the parser is not re-entrant, we keep only one input
+    stream here. This member is valid only when executing code during parsing,
+    and may point to invalid memory after that.
+  */
+  Lex_input_stream *m_lip;
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *work_part_info;
 #endif

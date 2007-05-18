@@ -694,10 +694,10 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
 
   for (i= 0; i < table->s->keys; i++)
   {
-    struct st_plugin_int *parser= table->key_info[i].parser;
+    plugin_ref parser= table->key_info[i].parser;
     if (table->key_info[i].flags & HA_USES_PARSER)
       file->s->keyinfo[i].parser=
-        (struct st_mysql_ftparser *)parser->plugin->info;
+        (struct st_mysql_ftparser *)plugin_decl(parser)->info;
     table->key_info[i].block_size= file->s->keyinfo[i].block_length;
   }
   my_errno= 0;
@@ -723,7 +723,7 @@ int ha_myisam::close(void)
 
 int ha_myisam::write_row(byte * buf)
 {
-  statistic_increment(table->in_use->status_var.ha_write_count,&LOCK_status);
+  ha_statistic_increment(&SSV::ha_write_count);
 
   /* If we have a timestamp column, update it to the current time */
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
@@ -1596,7 +1596,7 @@ bool ha_myisam::is_crashed() const
 
 int ha_myisam::update_row(const byte * old_data, byte * new_data)
 {
-  statistic_increment(table->in_use->status_var.ha_update_count,&LOCK_status);
+  ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
   return mi_update(file,old_data,new_data);
@@ -1604,7 +1604,7 @@ int ha_myisam::update_row(const byte * old_data, byte * new_data)
 
 int ha_myisam::delete_row(const byte * buf)
 {
-  statistic_increment(table->in_use->status_var.ha_delete_count,&LOCK_status);
+  ha_statistic_increment(&SSV::ha_delete_count);
   return mi_delete(file,buf);
 }
 
@@ -1612,8 +1612,7 @@ int ha_myisam::index_read(byte *buf, const byte *key, key_part_map keypart_map,
                           enum ha_rkey_function find_flag)
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_key_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_key_count);
   int error=mi_rkey(file, buf, active_index, key, keypart_map, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -1623,8 +1622,7 @@ int ha_myisam::index_read_idx(byte *buf, uint index, const byte *key,
                               key_part_map keypart_map,
                               enum ha_rkey_function find_flag)
 {
-  statistic_increment(table->in_use->status_var.ha_read_key_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_key_count);
   int error=mi_rkey(file, buf, index, key, keypart_map, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -1635,8 +1633,7 @@ int ha_myisam::index_read_last(byte *buf, const byte *key,
 {
   DBUG_ENTER("ha_myisam::index_read_last");
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_key_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_key_count);
   int error=mi_rkey(file, buf, active_index, key, keypart_map,
                     HA_READ_PREFIX_LAST);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -1646,8 +1643,7 @@ int ha_myisam::index_read_last(byte *buf, const byte *key,
 int ha_myisam::index_next(byte * buf)
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_next_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_next_count);
   int error=mi_rnext(file,buf,active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -1656,8 +1652,7 @@ int ha_myisam::index_next(byte * buf)
 int ha_myisam::index_prev(byte * buf)
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_prev_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_prev_count);
   int error=mi_rprev(file,buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -1666,8 +1661,7 @@ int ha_myisam::index_prev(byte * buf)
 int ha_myisam::index_first(byte * buf)
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_first_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_first_count);
   int error=mi_rfirst(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -1676,8 +1670,7 @@ int ha_myisam::index_first(byte * buf)
 int ha_myisam::index_last(byte * buf)
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_last_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_last_count);
   int error=mi_rlast(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -1688,8 +1681,7 @@ int ha_myisam::index_next_same(byte * buf,
 			       uint length __attribute__((unused)))
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_next_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_next_count);
   int error=mi_rnext_same(file,buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -1705,8 +1697,7 @@ int ha_myisam::rnd_init(bool scan)
 
 int ha_myisam::rnd_next(byte *buf)
 {
-  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
   int error=mi_scan(file, buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -1719,8 +1710,7 @@ int ha_myisam::restart_rnd_next(byte *buf, byte *pos)
 
 int ha_myisam::rnd_pos(byte * buf, byte *pos)
 {
-  statistic_increment(table->in_use->status_var.ha_read_rnd_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_count);
   int error=mi_rrnd(file, buf, my_get_ptr(pos,ref_length));
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;

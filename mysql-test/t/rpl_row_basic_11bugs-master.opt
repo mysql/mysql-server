@@ -1,2 +1,2 @@
---binlog_ignore_db=test_ignore --innodb
+--binlog_ignore_db=test_ignore --loose-innodb
 

@@ -60,3 +60,27 @@ CREATE TABLE t1
   ENGINE=NDB;
 --exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep ForceVarPart
 DROP TABLE t1;
+
+# test of bug
+create table t1 (a int auto_increment primary key, b varchar(1000)) engine = ndb;
+insert into t1(b) values ('0123456789');
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+select count(*) from t1;
+begin;
+update t1 set b = concat(b,b);
+update t1 set b = concat(b,b);
+update t1 set b = concat(b,b);
+update t1 set b = concat(b,b);
+update t1 set b = concat(b,b);
+rollback;
+select count(*),b from t1 group by b;
+drop table t1;

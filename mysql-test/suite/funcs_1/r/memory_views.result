@@ -452,7 +452,8 @@ SET @x=0;
 CREATE or REPLACE VIEW v1 AS Select 1 INTO @x;
 ERROR HY000: View's SELECT contains a 'INTO' clause
 Select @x;
-ERROR HY000: View's SELECT contains a variable or parameter
+@x
+0
 CREATE or REPLACE VIEW v1 AS Select 1
 FROM (SELECT 1 FROM t1) my_table;
 ERROR HY000: View's SELECT contains a subquery in the FROM clause
@@ -589,7 +590,9 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE or REPLACE view v1 as Select f59, f60
 from tb2 by group f59  ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'by group f59' at line 2
-ERROR HY000: View's SELECT contains a variable or parameter
+
+Testcase 3.3.1.5 
+--------------------------------------------------------------------------------
 DROP VIEW  IF EXISTS v1 ;
 CREATE VIEW v1 SELECT * FROM tb2 limit 100 ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT * FROM tb2 limit 100' at line 1
@@ -609,7 +612,9 @@ CREATE VIEW v1    SELECT 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1' at line 1
 CREATE VIEW v1 AS         ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
-ERROR HY000: View's SELECT contains a variable or parameter
+
+Testcase 3.3.1.6 
+--------------------------------------------------------------------------------
 DROP VIEW  IF EXISTS v1 ;
 CREATE or REPLACE                       VIEW v1
 as SELECT * from tb2 limit 100 ;
@@ -1794,7 +1799,9 @@ ERROR HY000: View's SELECT contains a subquery in the FROM clause
 SELECT * FROM test.v1      ;
 ERROR 42S02: Table 'test.v1' doesn't exist
 Drop view if exists test.v1 ;
-ERROR HY000: View's SELECT contains a variable or parameter
+
+Testcase 3.3.1.40 
+--------------------------------------------------------------------------------
 Drop view if exists test.v1 ;
 Set @var1 = 'ABC' ;
 Set @var2 = 'XYZ' ;
@@ -1803,7 +1810,9 @@ ERROR HY000: View's SELECT contains a variable or parameter
 CREATE VIEW test.v1 AS SELECT @@global.sort_buffer_size;
 ERROR HY000: View's SELECT contains a variable or parameter
 Drop view if exists test.v1 ;
-ERROR HY000: View's SELECT contains a variable or parameter
+
+Testcase 3.3.1.41 
+--------------------------------------------------------------------------------
 Drop view if exists test.v1 ;
 Drop procedure if exists sp1 ;
 Create procedure sp1() DETERMINISTIC
@@ -1820,7 +1829,9 @@ Warnings:
 Note	1051	Unknown table 'test.v1'
 Drop procedure sp1 ;
 ERROR 42000: PROCEDURE test.sp1 does not exist
-ERROR HY000: View's SELECT contains a variable or parameter
+
+Testcase 3.3.1.42 
+--------------------------------------------------------------------------------
 Drop VIEW if exists test.v1 ;
 CREATE TEMPORARY VIEW test.v1 AS
 SELECT * FROM test.tb2 limit 2 ;
@@ -1832,7 +1843,9 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT * FROM test.tb2 limit 2' at line 1
 Drop view if exists test.v1 ;
 Use test;
-ERROR HY000: View's SELECT contains a variable or parameter
+
+Testcase 3.3.1.43 
+--------------------------------------------------------------------------------
 Drop view if exists test.v1 ;
 CREATE VIEW test.v1 AS SELECT f59,f60 FROM test.tb2;
 INSERT INTO test.v1 values(122,432);
