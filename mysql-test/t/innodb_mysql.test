@@ -169,6 +169,31 @@ INSERT INTO t1 (c1) VALUES ('1b') ON DUPLICATE KEY UPDATE cnt=cnt+1;
 SELECT * FROM t1;
 DROP TABLE t1;
 
+#
+# Bug #28272: EXPLAIN for SELECT from an empty InnoDB table
+#
+
+CREATE TABLE t1 (
+  a1 decimal(10,0) DEFAULT NULL,
+  a2 blob,
+  a3 time DEFAULT NULL,
+  a4 blob,
+  a5 char(175) DEFAULT NULL,
+  a6 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  a7 tinyblob,
+  INDEX idx (a6,a7(239),a5)
+) ENGINE=InnoDB;
+
+EXPLAIN SELECT a4 FROM t1 WHERE
+a6=NULL AND
+a4='UNcT5pIde4I6c2SheTo4gt92OV1jgJCVkXmzyf325R1DwLURkbYHwhydANIZMbKTgdcR5xS';
+
+EXPLAIN SELECT t1.a4 FROM t1, t1 t WHERE
+t.a6=t.a6 AND t1.a6=NULL AND
+t1.a4='UNcT5pIde4I6c2SheTo4gt92OV1jgJCVkXmzyf325R1DwLURkbYHwhydANIZMbKTgdcR5xS';
+
+DROP TABLE t1;
+
 --echo End of 4.1 tests
 #
 # Bug #12882  	min/max inconsistent on empty table
