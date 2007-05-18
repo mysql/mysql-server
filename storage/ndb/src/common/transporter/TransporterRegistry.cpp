@@ -750,10 +750,6 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
     return 0;
   }
   
-  struct timeval timeout;
-  timeout.tv_sec  = timeOutMillis / 1000;
-  timeout.tv_usec = (timeOutMillis % 1000) * 1000;
-
   NDB_SOCKET_TYPE maxSocketValue = -1;
   
   // Needed for TCP/IP connections
@@ -779,6 +775,12 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
     hasdata |= t->hasReceiveData();
   }
   
+  timeOutMillis = hasdata ? 0 : timeOutMillis;
+  
+  struct timeval timeout;
+  timeout.tv_sec  = timeOutMillis / 1000;
+  timeout.tv_usec = (timeOutMillis % 1000) * 1000;
+
   // The highest socket value plus one
   maxSocketValue++; 
   
