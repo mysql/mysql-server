@@ -91,7 +91,7 @@ NULL	test	test
 set @g=1;
 select @g,(@g:=c),@g from t1;
 @g	(@g:=c)	@g
-1	test	test
+1	test	0
 select @c, @d, @e, @f;
 @c	@d	@e	@f
 1	1	2	test
