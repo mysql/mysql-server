@@ -526,7 +526,7 @@ row_undo_build_dict_undo_list(
 	}
 
 	/* We will do our own deletes */
-	trx->table_id = ut_dulint_create(0, 0);
+	trx->table_id = ut_dulint_zero;
 
 	if (trx->dict_undo_list == NULL) {
 		dict_undo_create_list(trx);

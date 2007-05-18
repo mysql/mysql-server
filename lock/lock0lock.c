@@ -4054,8 +4054,7 @@ lock_release_off_kernel(
 			ut_ad(lock_get_type(lock) & LOCK_TABLE);
 
 			if (lock_get_mode(lock) != LOCK_IS
-			    && 0 != ut_dulint_cmp(trx->undo_no,
-						  ut_dulint_zero)) {
+			    && !ut_dulint_is_zero(trx->undo_no)) {
 
 				/* The trx may have modified the table. We
 				block the use of the MySQL query cache for

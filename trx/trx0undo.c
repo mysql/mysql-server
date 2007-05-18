@@ -1120,7 +1120,7 @@ trx_undo_truncate_start(
 
 	ut_ad(mutex_own(&(rseg->mutex)));
 
-	if (0 == ut_dulint_cmp(limit, ut_dulint_zero)) {
+	if (ut_dulint_is_zero(limit)) {
 
 		return;
 	}
