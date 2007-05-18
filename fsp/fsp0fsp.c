@@ -1789,8 +1789,7 @@ fsp_seg_inode_page_find_used(
 		inode = fsp_seg_inode_page_get_nth_inode(
 			page, i, zip_size, mtr);
 
-		if (ut_dulint_cmp(mach_read_from_8(inode + FSEG_ID),
-				  ut_dulint_zero) != 0) {
+		if (!ut_dulint_is_zero(mach_read_from_8(inode + FSEG_ID))) {
 			/* This is used */
 
 			return(i);
@@ -1820,8 +1819,7 @@ fsp_seg_inode_page_find_free(
 		inode = fsp_seg_inode_page_get_nth_inode(
 			page, i, zip_size, mtr);
 
-		if (ut_dulint_cmp(mach_read_from_8(inode + FSEG_ID),
-				  ut_dulint_zero) == 0) {
+		if (ut_dulint_is_zero(mach_read_from_8(inode + FSEG_ID))) {
 			/* This is unused */
 
 			return(i);
@@ -2507,7 +2505,7 @@ fseg_alloc_free_page_low(
 	      == FSEG_MAGIC_N_VALUE);
 	seg_id = mtr_read_dulint(seg_inode + FSEG_ID, mtr);
 
-	ut_ad(ut_dulint_cmp(seg_id, ut_dulint_zero) > 0);
+	ut_ad(!ut_dulint_is_zero(seg_id));
 
 	reserved = fseg_n_reserved_pages_low(seg_inode, &used, mtr);
 
@@ -3955,9 +3953,8 @@ fsp_validate(
 
 			seg_inode = fsp_seg_inode_page_get_nth_inode(
 				seg_inode_page, n, zip_size, &mtr);
-			ut_a(ut_dulint_cmp(
-				     mach_read_from_8(seg_inode + FSEG_ID),
-				     ut_dulint_zero) != 0);
+			ut_a(!ut_dulint_is_zero(
+				     mach_read_from_8(seg_inode + FSEG_ID)));
 			fseg_validate_low(seg_inode, &mtr);
 
 			descr_count += flst_get_len(seg_inode + FSEG_FREE,
@@ -4002,9 +3999,8 @@ fsp_validate(
 
 			seg_inode = fsp_seg_inode_page_get_nth_inode(
 				seg_inode_page, n, zip_size, &mtr);
-			if (ut_dulint_cmp(
-				    mach_read_from_8(seg_inode + FSEG_ID),
-				    ut_dulint_zero) != 0) {
+			if (!ut_dulint_is_zero(
+				    mach_read_from_8(seg_inode + FSEG_ID))) {
 				fseg_validate_low(seg_inode, &mtr);
 
 				descr_count += flst_get_len(
@@ -4142,9 +4138,8 @@ fsp_print(
 
 			seg_inode = fsp_seg_inode_page_get_nth_inode(
 				seg_inode_page, n, zip_size, &mtr);
-			ut_a(ut_dulint_cmp(
-				     mach_read_from_8(seg_inode + FSEG_ID),
-				     ut_dulint_zero) != 0);
+			ut_a(!ut_dulint_is_zero(
+				     mach_read_from_8(seg_inode + FSEG_ID)));
 			fseg_print_low(seg_inode, &mtr);
 
 			n_segs++;
@@ -4181,9 +4176,8 @@ fsp_print(
 
 			seg_inode = fsp_seg_inode_page_get_nth_inode(
 				seg_inode_page, n, zip_size, &mtr);
-			if (ut_dulint_cmp(
-				    mach_read_from_8(seg_inode + FSEG_ID),
-				    ut_dulint_zero) != 0) {
+			if (!ut_dulint_is_zero(
+				    mach_read_from_8(seg_inode + FSEG_ID))) {
 
 				fseg_print_low(seg_inode, &mtr);
 				n_segs++;

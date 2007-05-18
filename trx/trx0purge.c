@@ -541,7 +541,7 @@ trx_purge_truncate_history(void)
 	trx_purge_arr_get_biggest(purge_sys->arr, &limit_trx_no,
 				  &limit_undo_no);
 
-	if (ut_dulint_cmp(limit_trx_no, ut_dulint_zero) == 0) {
+	if (ut_dulint_is_zero(limit_trx_no)) {
 
 		limit_trx_no = purge_sys->purge_trx_no;
 		limit_undo_no = purge_sys->purge_undo_no;

@@ -238,7 +238,7 @@ dict_mem_index_create(
 	heap = mem_heap_create(DICT_HEAP_SIZE);
 	index = mem_heap_alloc(heap, sizeof(dict_index_t));
 
-	index->id = ut_dulint_create(0, 0);
+	index->id = ut_dulint_zero;
 	index->heap = heap;
 
 	index->type = type;
@@ -257,7 +257,7 @@ dict_mem_index_create(
 
 	index->cached = FALSE;
 	index->to_be_dropped = FALSE;
-	index->trx_id = ut_dulint_create(0, 0);
+	index->trx_id = ut_dulint_zero;
 	memset(&index->lock, 0, sizeof index->lock);
 #ifdef UNIV_DEBUG
 	index->magic_n = DICT_INDEX_MAGIC_N;
