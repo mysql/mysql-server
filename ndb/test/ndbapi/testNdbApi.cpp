@@ -1131,7 +1131,36 @@ int runBug_11133(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+int 
+runBug28443(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int records = ctx->getNumRecords();
+  
+  NdbRestarter restarter;
 
+  restarter.insertErrorInAllNodes(9003);
+
+  for (Uint32 i = 0; i<ctx->getNumLoops(); i++)
+  {
+    HugoTransactions hugoTrans(*ctx->getTab());
+    if (hugoTrans.loadTable(GETNDB(step), records, 2048) != 0)
+    {
+      result = NDBT_FAILED;
+      goto done;
+    }
+    if (runClearTable(ctx, step) != 0)
+    {
+      result = NDBT_FAILED;
+      goto done;
+    }
+  }
+  
+done:
+  restarter.insertErrorInAllNodes(9003);
+
+  return result;
+}
 
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
@@ -1210,6 +1239,11 @@ TESTCASE("ReadWithoutGetValue",
 TESTCASE("Bug_11133", 
 	 "Test ReadEx-Delete-Write\n"){ 
   INITIALIZER(runBug_11133);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug28443", 
+	 ""){ 
+  INITIALIZER(runBug28443);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNdbApi);
