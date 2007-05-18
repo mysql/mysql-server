@@ -507,4 +507,18 @@ SELECT GROUP_CONCAT(DISTINCT UCASE(a)) FROM t1;
 SELECT GROUP_CONCAT(DISTINCT UCASE(b)) FROM t1;
 DROP TABLE t1;
 
+#
+# Bug #28273: GROUP_CONCAT and ORDER BY: No warning when result gets truncated.
+#
+CREATE TABLE t1( a VARCHAR( 10 ), b INT );
+INSERT INTO t1 VALUES ( repeat( 'a', 10 ), 1), 
+                      ( repeat( 'b', 10 ), 2);
+SET group_concat_max_len = 20;
+SELECT GROUP_CONCAT( a ) FROM t1;
+SELECT GROUP_CONCAT( DISTINCT a ) FROM t1;  
+SELECT GROUP_CONCAT( a ORDER BY b ) FROM t1;          
+SELECT GROUP_CONCAT( DISTINCT a ORDER BY b ) FROM t1; 
+SET group_concat_max_len = DEFAULT;
+DROP TABLE t1;
+
 --echo End of 5.0 tests

@@ -73,8 +73,8 @@ variable_name LIKE 'SSL_CALLBACK_CACHE_HITS';
 END$$
 SELECT variable_name, variable_value FROM thread_status;
 variable_name	variable_value
-SSL_ACCEPTS	0.0000000
-SSL_CALLBACK_CACHE_HITS	0.0000000
+SSL_ACCEPTS	0
+SSL_CALLBACK_CACHE_HITS	0
 DROP TABLE thread_status;
 SET GLOBAL event_scheduler=0;
 End of 5.1 tests
