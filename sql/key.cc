@@ -214,23 +214,34 @@ void key_restore(byte *to_record, byte *from_key, KEY *key_info,
     }
     if (key_part->key_part_flag & HA_BLOB_PART)
     {
+      /*
+        This in fact never happens, as we have only partial BLOB
+        keys yet anyway, so it's difficult to find any sence to
+        restore the part of a record.
+        Maybe this branch is to be removed, but now we
+        have to ignore GCov compaining.
+      */
       uint blob_length= uint2korr(from_key);
+      Field_blob *field= (Field_blob*) key_part->field;
       from_key+= HA_KEY_BLOB_LENGTH;
       key_length-= HA_KEY_BLOB_LENGTH;
-      ((Field_blob*) key_part->field)->set_ptr((ulong) blob_length,
-					       (char*) from_key);
+      field->set_ptr_offset(to_record - field->table->record[0],
+                            (ulong) blob_length, (char*) from_key);
       length= key_part->length;
     }
     else if (key_part->key_part_flag & HA_VAR_LENGTH_PART)
     {
+      Field *field= key_part->field;
       my_bitmap_map *old_map;
+      my_ptrdiff_t ptrdiff= to_record - field->table->record[0];
+      field->move_field_offset(ptrdiff);
       key_length-= HA_KEY_BLOB_LENGTH;
       length= min(key_length, key_part->length);
-      old_map= dbug_tmp_use_all_columns(key_part->field->table,
-                                        key_part->field->table->write_set);
-      key_part->field->set_key_image((char *) from_key, length);
-      dbug_tmp_restore_column_map(key_part->field->table->write_set, old_map);
+      old_map= dbug_tmp_use_all_columns(field->table, field->table->write_set);
+      field->set_key_image((char *) from_key, length);
+      dbug_tmp_restore_column_map(field->table->write_set, old_map);
       from_key+= HA_KEY_BLOB_LENGTH;
+      field->move_field_offset(-ptrdiff);
     }
     else
     {

@@ -2874,6 +2874,14 @@ FROM t1;
 
 DROP TABLE t1,t2;
 
+#
+# Bug #27807: Server crash when executing subquery with EXPLAIN
+#  
+CREATE TABLE t1 (a int, b int, KEY (a)); 
+INSERT INTO t1 VALUES (1,1),(2,1);
+EXPLAIN SELECT 1 FROM t1 WHERE a = (SELECT COUNT(*) FROM t1 GROUP BY b);
+DROP TABLE t1;
+
 --echo End of 5.0 tests.
 
 #

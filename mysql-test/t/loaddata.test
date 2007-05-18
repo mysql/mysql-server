@@ -156,6 +156,32 @@ select * from t2;
 --exec rm $MYSQLTEST_VARDIR/tmp/t1
 SET @@SQL_MODE=@OLD_SQL_MODE;
 drop table t1,t2;
+
+#
+# Bug#27670: LOAD DATA does not set CURRENT_TIMESTAMP default value for a
+#            TIMESTAMP field when no value has been provided.
+#
+create table t1(f1 int, f2 timestamp not null default current_timestamp);
+create table t2(f1 int);
+insert into t2 values(1),(2);
+disable_query_log;
+eval select * into outfile '$MYSQLTEST_VARDIR/tmp/t2' from t2;
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t2' into table t1;
+enable_query_log;
+select f1 from t1 where f2 <> '0000-00-00 00:00:00' order by f1;
+--exec rm $MYSQLTEST_VARDIR/tmp/t2
+delete from t1;
+disable_query_log;
+eval SELECT * INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t2'
+FIELDS TERMINATED BY '' OPTIONALLY ENCLOSED BY '' LINES TERMINATED BY '\r\n'
+FROM t2;
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t2' into table t1
+FIELDS TERMINATED BY '' OPTIONALLY ENCLOSED BY '' LINES TERMINATED BY '\r\n';
+enable_query_log;
+select f1 from t1 where f2 <> '0000-00-00 00:00:00' order by f1;
+--exec rm $MYSQLTEST_VARDIR/tmp/t2
+drop table t1,t2;
+
 # End of 5.0 tests
 
 

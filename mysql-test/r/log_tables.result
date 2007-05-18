@@ -169,6 +169,8 @@ lock tables mysql.slow_log READ LOCAL, mysql.general_log READ LOCAL;
 unlock tables;
 set global general_log='OFF';
 set global slow_query_log='OFF';
+set @save_storage_engine= @@session.storage_engine;
+set storage_engine= MEMORY;
 alter table mysql.slow_log engine=ndb;
 ERROR HY000: This storage engine cannot be used for log tables"
 alter table mysql.slow_log engine=innodb;
@@ -177,6 +179,7 @@ alter table mysql.slow_log engine=archive;
 ERROR HY000: This storage engine cannot be used for log tables"
 alter table mysql.slow_log engine=blackhole;
 ERROR HY000: This storage engine cannot be used for log tables"
+set storage_engine= @save_storage_engine;
 drop table mysql.slow_log;
 drop table mysql.general_log;
 drop table mysql.general_log;

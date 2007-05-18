@@ -255,7 +255,8 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 	open_cached_file(outfile,mysql_tmpdir,TEMP_PREFIX,READ_RECORD_BUFFER,
 			  MYF(MY_WME)))
       goto err;
-    reinit_io_cache(outfile,WRITE_CACHE,0L,0,0);
+    if (reinit_io_cache(outfile,WRITE_CACHE,0L,0,0))
+      goto err;
 
     /*
       Use also the space previously used by string pointers in sort_buffer
@@ -375,6 +376,8 @@ static BUFFPEK *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count)
   ulong length;
   BUFFPEK *tmp;
   DBUG_ENTER("read_buffpek_from_file");
+  if (count > UINT_MAX/sizeof(BUFFPEK))
+    return 0; /* sizeof(BUFFPEK)*count will overflow */
   tmp=(BUFFPEK*) my_malloc(length=sizeof(BUFFPEK)*count, MYF(MY_WME));
   if (tmp)
   {
@@ -625,6 +628,9 @@ write_keys(SORTPARAM *param, register uchar **sort_keys, uint count,
       open_cached_file(tempfile, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
                        MYF(MY_WME)))
     goto err;                                   /* purecov: inspected */
+  /* check we won't have more buffpeks than we can possibly keep in memory */
+  if (my_b_tell(buffpek_pointers) + sizeof(BUFFPEK) > (ulonglong)UINT_MAX)
+    goto err;
   buffpek.file_pos= my_b_tell(tempfile);
   if ((ha_rows) count > param->max_rows)
     count=(uint) param->max_rows;               /* purecov: inspected */
@@ -983,7 +989,7 @@ static bool save_index(SORTPARAM *param, uchar **sort_keys, uint count,
 int merge_many_buff(SORTPARAM *param, uchar *sort_buffer,
 		    BUFFPEK *buffpek, uint *maxbuffer, IO_CACHE *t_file)
 {
-  register int i;
+  register uint i;
   IO_CACHE t_file2,*from_file,*to_file,*temp;
   BUFFPEK *lastbuff;
   DBUG_ENTER("merge_many_buff");
@@ -998,14 +1004,16 @@ int merge_many_buff(SORTPARAM *param, uchar *sort_buffer,
   from_file= t_file ; to_file= &t_file2;
   while (*maxbuffer >= MERGEBUFF2)
   {
-    reinit_io_cache(from_file,READ_CACHE,0L,0,0);
-    reinit_io_cache(to_file,WRITE_CACHE,0L,0,0);
+    if (reinit_io_cache(from_file,READ_CACHE,0L,0,0))
+      goto cleanup;
+    if (reinit_io_cache(to_file,WRITE_CACHE,0L,0,0))
+      goto cleanup;
     lastbuff=buffpek;
-    for (i=0 ; i <= (int) *maxbuffer-MERGEBUFF*3/2 ; i+=MERGEBUFF)
+    for (i=0 ; i <= *maxbuffer-MERGEBUFF*3/2 ; i+=MERGEBUFF)
     {
       if (merge_buffers(param,from_file,to_file,sort_buffer,lastbuff++,
 			buffpek+i,buffpek+i+MERGEBUFF-1,0))
-	break;					/* purecov: inspected */
+      goto cleanup;
     }
     if (merge_buffers(param,from_file,to_file,sort_buffer,lastbuff++,
 		      buffpek+i,buffpek+ *maxbuffer,0))
@@ -1017,6 +1025,7 @@ int merge_many_buff(SORTPARAM *param, uchar *sort_buffer,
     setup_io_cache(to_file);
     *maxbuffer= (uint) (lastbuff-buffpek)-1;
   }
+cleanup:
   close_cached_file(to_file);			// This holds old result
   if (to_file == t_file)
   {

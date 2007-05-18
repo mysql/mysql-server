@@ -21,8 +21,8 @@ basedir	VALUE
 server_id	VALUE
 shutdown-delay	VALUE
 skip-stack-trace	VALUE
-skip-innodb	VALUE
-skip-ndbcluster	VALUE
+loose-skip-innodb	VALUE
+loose-skip-ndbcluster	VALUE
 log-output	VALUE
 SHOW INSTANCE OPTIONS mysqld2;
 option_name	value
@@ -40,8 +40,8 @@ basedir	VALUE
 server_id	VALUE
 shutdown-delay	VALUE
 skip-stack-trace	VALUE
-skip-innodb	VALUE
-skip-ndbcluster	VALUE
+loose-skip-innodb	VALUE
+loose-skip-ndbcluster	VALUE
 nonguarded	VALUE
 log-output	VALUE
 START INSTANCE mysqld2;
