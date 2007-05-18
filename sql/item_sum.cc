@@ -3360,6 +3360,10 @@ String* Item_func_group_concat::val_str(String* str)
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
+  if (!result.length() && tree)
+    /* Tree is used for sorting as in ORDER BY */
+    tree_walk(tree, (tree_walk_action)&dump_leaf_key, (void*)this,
+              left_root_right);
   if (count_cut_values && !warning)
   {
     /*
@@ -3371,11 +3375,6 @@ String* Item_func_group_concat::val_str(String* str)
                           ER_CUT_VALUE_GROUP_CONCAT,
                           ER(ER_CUT_VALUE_GROUP_CONCAT));
   }
-  if (result.length())
-    return &result;
-  if (tree)
-    tree_walk(tree, (tree_walk_action)&dump_leaf_key, (void*)this,
-              left_root_right);
   return &result;
 }
 
