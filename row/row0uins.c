@@ -28,7 +28,7 @@ Created 2/25/1997 Heikki Tuuri
 #include "que0que.h"
 #include "ibuf0ibuf.h"
 #include "log0log.h"
-#include "row0merge.h"
+#include "row0mysql.h"
 
 /*******************************************************************
 Removes a clustered index record. The pcur in node was positioned on the
@@ -65,8 +65,7 @@ row_undo_ins_remove_clust_rec(
 			thawed_dictionary = TRUE;
 		}
 
-		if (trx->dict_operation_lock_mode == 0
-		    || trx->dict_operation_lock_mode != RW_X_LATCH) {
+		if (trx->dict_operation_lock_mode != RW_X_LATCH) {
 
 			row_mysql_lock_data_dictionary(trx);
 
@@ -295,8 +294,8 @@ row_undo_ins_parse_undo_rec(
 
 		trx = node->trx;
 
-		/* If it's sytem table then we have to acquire the
-		dictionary lock in X mode.*/
+		/* If it is a system table, acquire the
+		dictionary lock in exclusive mode. */
 
 		if (ut_dulint_cmp(table_id, DICT_FIELDS_ID) <= 0) {
 			if (trx->dict_operation_lock_mode == RW_S_LATCH) {
@@ -305,8 +304,7 @@ row_undo_ins_parse_undo_rec(
 				thawed_dictionary = TRUE;
 			}
 
-			if (trx->dict_operation_lock_mode == 0
-			|| trx->dict_operation_lock_mode != RW_X_LATCH) {
+			if (trx->dict_operation_lock_mode != RW_X_LATCH) {
 
 				row_mysql_lock_data_dictionary(trx);
 
@@ -351,8 +349,6 @@ row_undo_ins(
 				/* out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 	undo_node_t*	node)	/* in: row undo node */
 {
-	ulint		err = DB_SUCCESS;
-
 	ut_ad(node);
 	ut_ad(node->state == UNDO_NODE_INSERT);
 
@@ -362,38 +358,38 @@ row_undo_ins(
 
 	if (node->rec_type == TRX_UNDO_DICTIONARY_REC) {
 
-		err = row_undo_build_dict_undo_list(node);
+		return(row_undo_build_dict_undo_list(node));
 
-	} else if (!node->table || !row_undo_search_clust_to_pcur(node)) {
-
-		trx_undo_rec_release(node->trx, node->undo_no);
-
-	} else {
-
-		/* Iterate over all the indexes and undo the insert.*/
-
-		/* Skip the clustered index (the first index) */
-		node->index = dict_table_get_next_index(
-			dict_table_get_first_index(node->table));
-
-		while (node->index != NULL) {
-			dtuple_t*	entry;
-
-			entry = row_build_index_entry(node->row, node->ext,
-						      node->index, node->heap);
-
-			err = row_undo_ins_remove_sec(node->index, entry);
-
-			if (err != DB_SUCCESS) {
-
-				return(err);
-			}
-
-			node->index = dict_table_get_next_index(node->index);
-		}
-
-		err = row_undo_ins_remove_clust_rec(node);
 	}
 
-	return(err);
+	if (!node->table || !row_undo_search_clust_to_pcur(node)) {
+		trx_undo_rec_release(node->trx, node->undo_no);
+
+		return(DB_SUCCESS);
+	}
+
+	/* Iterate over all the indexes and undo the insert.*/
+
+	/* Skip the clustered index (the first index) */
+	node->index = dict_table_get_next_index(
+		dict_table_get_first_index(node->table));
+
+	while (node->index != NULL) {
+		dtuple_t*	entry;
+		ulint		err;
+
+		entry = row_build_index_entry(node->row, node->ext,
+					      node->index, node->heap);
+
+		err = row_undo_ins_remove_sec(node->index, entry);
+
+		if (err != DB_SUCCESS) {
+
+			return(err);
+		}
+
+		node->index = dict_table_get_next_index(node->index);
+	}
+
+	return(row_undo_ins_remove_clust_rec(node));
 }
