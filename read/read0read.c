@@ -173,8 +173,7 @@ read_view_oldest_copy_or_open_new(
 
 	n = old_view->n_trx_ids;
 
-	if (ut_dulint_cmp(old_view->creator_trx_id,
-			  ut_dulint_create(0,0)) != 0) {
+	if (!ut_dulint_is_zero(old_view->creator_trx_id)) {
 		n++;
 	} else {
 		needs_insert = FALSE;
@@ -251,7 +250,7 @@ read_view_open_now(
 
 	view->creator_trx_id = cr_trx_id;
 	view->type = VIEW_NORMAL;
-	view->undo_no = ut_dulint_create(0, 0);
+	view->undo_no = ut_dulint_zero;
 
 	/* No future transactions should be visible in the view */
 

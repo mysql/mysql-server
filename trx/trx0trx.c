@@ -127,7 +127,7 @@ trx_create(
 	trx->must_flush_log_later = FALSE;
 
 	trx->dict_operation = FALSE;
-	trx->table_id = ut_dulint_create(0, 0);
+	trx->table_id = ut_dulint_zero;
 	trx->dict_undo_list = NULL;
 	trx->dict_redo_list = NULL;
 	trx->sync_cb = NULL;
@@ -1774,7 +1774,7 @@ trx_print(
 		fputs(", holds adaptive hash latch", f);
 	}
 
-	if (ut_dulint_cmp(trx->undo_no, ut_dulint_zero) != 0) {
+	if (!ut_dulint_is_zero(trx->undo_no)) {
 		newline = TRUE;
 		fprintf(f, ", undo log entries %lu",
 			(ulong) ut_dulint_get_low(trx->undo_no));
