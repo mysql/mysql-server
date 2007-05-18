@@ -92,6 +92,10 @@ private:
   virtual void updateReceiveDataPtr(Uint32 bytesRead);
 
   virtual Uint32 get_free_buffer() const;
+
+  inline bool hasReceiveData () const {
+    return receiveBuffer.sizeOfData > 0;
+  }
 protected:
   /**
    * Setup client/server and perform connect/accept
