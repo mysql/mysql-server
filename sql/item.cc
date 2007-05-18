@@ -2506,16 +2506,14 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
   if (entry && entry->value)
   {
     item_result_type= entry->type;
-    switch (entry->type) {
+    switch (item_result_type) {
     case REAL_RESULT:
       set_double(*(double*)entry->value);
       item_type= Item::REAL_ITEM;
-      item_result_type= REAL_RESULT;
       break;
     case INT_RESULT:
       set_int(*(longlong*)entry->value, MY_INT64_NUM_DECIMAL_DIGITS);
       item_type= Item::INT_ITEM;
-      item_result_type= INT_RESULT;
       break;
     case STRING_RESULT:
     {
@@ -2537,7 +2535,6 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
         charset of connection, so we have to set it later.
       */
       item_type= Item::STRING_ITEM;
-      item_result_type= STRING_RESULT;
 
       if (set_str((const char *)entry->value, entry->length))
         DBUG_RETURN(1);
@@ -2551,6 +2548,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
       decimals= ent_value->frac;
       max_length= my_decimal_precision_to_length(ent_value->precision(),
                                                  decimals, unsigned_flag);
+      item_type= Item::DECIMAL_ITEM;
       break;
     }
     default:
