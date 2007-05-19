@@ -796,4 +796,28 @@ lock table t2 write;
 alter table t2 modify i int default 4, rename t1;
 unlock tables;
 drop table t1;
+drop table if exists t1;
+create table t1 (i int);
+insert into t1 values ();
+lock table t1 write;
+alter table t1 modify i int default 1;
+insert into t1 values ();
+select * from t1;
+i
+NULL
+1
+alter table t1 change i c char(10) default "Two";
+insert into t1 values ();
+select * from t1;
+c
+NULL
+1
+Two
+unlock tables;
+select * from t1;
+c
+NULL
+1
+Two
+drop tables t1;
 End of 5.1 tests
