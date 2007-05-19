@@ -99,7 +99,6 @@ static bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
                          TABLE_LIST *table_desc, MEM_ROOT *mem_root);
 static void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
                                  bool send_refresh);
-static bool reopen_table(TABLE *table);
 static bool
 has_two_write_locked_tables_with_auto_increment(TABLE_LIST *tables);
 
@@ -681,7 +680,7 @@ TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name)
 */
 
 
-static void close_handle_and_leave_table_as_lock(TABLE *table)
+void close_handle_and_leave_table_as_lock(TABLE *table)
 {
   TABLE_SHARE *share, *old_share= table->s;
   char *key_buff;
@@ -2712,7 +2711,7 @@ TABLE *find_locked_table(THD *thd, const char *db,const char *table_name)
    1  error. The old table object is not changed.
 */
 
-static bool reopen_table(TABLE *table)
+bool reopen_table(TABLE *table)
 {
   TABLE tmp;
   bool error= 1;
@@ -2795,27 +2794,55 @@ static bool reopen_table(TABLE *table)
 }
 
 
-/*
-  Used with ALTER TABLE:
-  Close all instanses of table when LOCK TABLES is in used;
-  Close first all instances of table and then reopen them
+/**
+    @brief Close all instances of a table open by this thread and replace
+           them with exclusive name-locks.
+
+    @param thd        Thread context
+    @param db         Database name for the table to be closed
+    @param table_name Name of the table to be closed
+
+    @note This function assumes that if we are not under LOCK TABLES,
+          then there is only one table open and locked. This means that
+          the function probably has to be adjusted before it can be used
+          anywhere outside ALTER TABLE.
 */
 
-bool close_data_tables(THD *thd,const char *db, const char *table_name)
+void close_data_files_and_morph_locks(THD *thd, const char *db,
+                                      const char *table_name)
 {
   TABLE *table;
-  DBUG_ENTER("close_data_tables");
+  DBUG_ENTER("close_data_files_and_morph_locks");
 
+  safe_mutex_assert_owner(&LOCK_open);
+
+  if (thd->lock)
+  {
+    /*
+      If we are not under LOCK TABLES we should have only one table
+      open and locked so it makes sense to remove the lock at once.
+    */
+    mysql_unlock_tables(thd, thd->lock);
+    thd->lock= 0;
+  }
+
+  /*
+    Note that open table list may contain a name-lock placeholder
+    for target table name if we process ALTER TABLE ... RENAME.
+    So loop below makes sense even if we are not under LOCK TABLES.
+  */
   for (table=thd->open_tables; table ; table=table->next)
   {
     if (!strcmp(table->s->table_name.str, table_name) &&
 	!strcmp(table->s->db.str, db))
     {
-      mysql_lock_remove(thd, thd->locked_tables,table);
+      if (thd->locked_tables)
+        mysql_lock_remove(thd, thd->locked_tables, table);
+      table->open_placeholder= 1;
       close_handle_and_leave_table_as_lock(table);
     }
   }
-  DBUG_RETURN(0);                               // For the future
+  DBUG_VOID_RETURN;
 }
 
 
