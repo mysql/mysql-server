@@ -440,7 +440,7 @@ ALTER TABLE event ADD sql_mode
                             'HIGH_NOT_PRECEDENCE'
                             ) DEFAULT '' NOT NULL AFTER on_completion;
 ALTER TABLE event MODIFY name char(64) CHARACTER SET utf8 NOT NULL default '';
-ALTER TABLE event ADD COLUMN originator INT(10) NOT NULL;
+ALTER TABLE event ADD COLUMN originator INT(10) NOT NULL AFTER comment;
 ALTER TABLE event MODIFY COLUMN status ENUM('ENABLED','DISABLED','SLAVESIDE_DISABLED') NOT NULL default 'ENABLED';
 
 ALTER TABLE event ADD COLUMN time_zone char(64) CHARACTER SET latin1
