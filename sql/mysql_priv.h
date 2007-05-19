@@ -1032,8 +1032,11 @@ TABLE *table_cache_insert_placeholder(THD *thd, const char *key,
 bool lock_table_name_if_not_cached(THD *thd, const char *db,
                                    const char *table_name, TABLE **table);
 TABLE *find_locked_table(THD *thd, const char *db,const char *table_name);
+bool reopen_table(TABLE *table);
 bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
-bool close_data_tables(THD *thd,const char *db, const char *table_name);
+void close_data_files_and_morph_locks(THD *thd, const char *db,
+                                      const char *table_name);
+void close_handle_and_leave_table_as_lock(TABLE *table);
 bool wait_for_tables(THD *thd);
 bool table_is_used(TABLE *table, bool wait_for_name_lock);
 TABLE *drop_locked_tables(THD *thd,const char *db, const char *table_name);
