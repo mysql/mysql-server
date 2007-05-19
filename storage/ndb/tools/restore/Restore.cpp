@@ -741,6 +741,9 @@ BackupFile::BackupFile(void (* _free_data_callback)())
   m_buffer = malloc(m_buffer_sz);
   m_buffer_ptr = m_buffer;
   m_buffer_data_left = 0;
+
+  m_file_size = 0;
+  m_file_pos = 0;
 }
 
 BackupFile::~BackupFile(){
@@ -755,9 +758,30 @@ BackupFile::openFile(){
   if(m_file != NULL){
     fclose(m_file);
     m_file = 0;
+    m_file_size = 0;
+    m_file_pos = 0;
   }
   
+  info.setLevel(254);
+  info << "Opening file '" << m_fileName << "'\n";
   m_file = fopen(m_fileName, "r");
+
+  if (m_file)
+  {
+    struct stat buf;
+    if (fstat(fileno(m_file), &buf) == 0)
+    {
+      m_file_size = (Uint64)buf.st_size;
+      info << "File size " << m_file_size << " bytes\n";
+    }
+    else
+    {
+      info << "Progress reporting degraded output since fstat failed,"
+           << "errno: " << errno << endl;
+      m_file_size = 0;
+    }
+  }
+
   return m_file != 0;
 }
 
@@ -772,6 +796,7 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
     memcpy(m_buffer, m_buffer_ptr, m_buffer_data_left);
 
     size_t r = fread(((char *)m_buffer) + m_buffer_data_left, 1, m_buffer_sz - m_buffer_data_left, m_file);
+    m_file_pos += r;
     m_buffer_data_left += r;
     m_buffer_ptr = m_buffer;
 
