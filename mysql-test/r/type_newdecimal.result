@@ -1465,4 +1465,7 @@ Error	1264	Out of range value adjusted for column 'cast(a as DECIMAL(3,2))' at r
 Error	1264	Out of range value adjusted for column 'cast(a as DECIMAL(3,2))' at row 1
 Error	1264	Out of range value adjusted for column 'cast(a as DECIMAL(3,2))' at row 1
 Error	1264	Out of range value adjusted for column 'cast(a as DECIMAL(3,2))' at row 1
+SELECT 1.000000000000 * 99.999999999998 / 100 a,1.000000000000 * (99.999999999998 / 100) b;
+a	b
+0.9999999999999800000000000000	0.9999999999999800000000000000
 End of 5.0 tests
