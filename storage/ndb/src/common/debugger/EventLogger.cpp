@@ -27,6 +27,8 @@
 
 #include <ndbd_exit_codes.h>
 
+#define make_uint64(a,b) (((Uint64)(a)) + (((Uint64)(b)) << 32))
+
 //
 // PUBLIC
 //
@@ -820,6 +822,21 @@ void getTextBackupCompleted(QQQQ) {
 		       theData[3], theData[4], theData[6], theData[8],
 		       theData[5], theData[7]);
 }
+void getTextBackupStatus(QQQQ) {
+  if (theData[1])
+    BaseString::snprintf(m_text, m_text_len, 
+                         "Local backup status: backup %u started from node %u\n" 
+                         " #Records: %llu #LogRecords: %llu\n"
+                         " Data: %llu bytes Log: %llu bytes",
+                         theData[2], refToNode(theData[1]),
+                         make_uint64(theData[5], theData[6]),
+                         make_uint64(theData[9], theData[10]),
+                         make_uint64(theData[3], theData[4]),
+                         make_uint64(theData[7], theData[8]));
+  else
+    BaseString::snprintf(m_text, m_text_len, 
+                         "Backup not started");
+}
 void getTextBackupAborted(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
 		       "Backup %d started from %d has been aborted. Error: %d",
@@ -1025,6 +1042,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
 
   // Backup
   ROW(BackupStarted,           LogLevel::llBackup, 7, Logger::LL_INFO ),
+  ROW(BackupStatus,            LogLevel::llBackup, 7, Logger::LL_INFO ),
   ROW(BackupCompleted,         LogLevel::llBackup, 7, Logger::LL_INFO ),
   ROW(BackupFailedToStart,     LogLevel::llBackup, 7, Logger::LL_ALERT),
   ROW(BackupAborted,           LogLevel::llBackup, 7, Logger::LL_ALERT )
