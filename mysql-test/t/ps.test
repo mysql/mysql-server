@@ -1128,4 +1128,22 @@ drop database mysqltest;
 deallocate prepare stmt1;
 deallocate prepare stmt2;
 #
+
+#
+# Bug #27937: crash on the second execution for prepared statement 
+#             from UNION with ORDER BY an expression containing RAND()
+#
+
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (2), (3), (1);
+
+PREPARE st1 FROM
+  '(SELECT a FROM t1) UNION (SELECT a+10 FROM t1) ORDER BY RAND()*0+a';
+
+EXECUTE st1;
+EXECUTE st1;
+
+DEALLOCATE PREPARE st1;
+DROP TABLE t1;
+
 --echo End of 4.1 tests.
