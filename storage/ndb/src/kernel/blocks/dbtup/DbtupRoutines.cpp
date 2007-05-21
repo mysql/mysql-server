@@ -40,6 +40,7 @@ Dbtup::setUpQueryRoutines(Tablerec *regTabPtr)
     Uint32 charset = AttributeOffset::getCharsetFlag(attrOffset);
     Uint32 size = AttributeDescriptor::getSize(attrDescr);
     Uint32 bytes = AttributeDescriptor::getSizeInBytes(attrDescr);
+    Uint32 words = AttributeDescriptor::getSizeInWords(attrDescr);
     Uint32 nullable = AttributeDescriptor::getNullable(attrDescr);
     Uint32 dynamic = AttributeDescriptor::getDynamic(attrDescr);
 
@@ -218,7 +219,7 @@ Dbtup::setUpQueryRoutines(Tablerec *regTabPtr)
             regTabPtr->readFunctionArray[i]= &Dbtup::readDynBitsNULLable;
             regTabPtr->updateFunctionArray[i]= &Dbtup::updateDynBitsNULLable;
           } 
-          else if (size > InternalMaxDynFix) 
+          else if (words > InternalMaxDynFix) 
           {
             jam();
             regTabPtr->readFunctionArray[i]= 
@@ -251,7 +252,7 @@ Dbtup::setUpQueryRoutines(Tablerec *regTabPtr)
             regTabPtr->readFunctionArray[i]= &Dbtup::readDynBitsNotNULL;
             regTabPtr->updateFunctionArray[i]= &Dbtup::updateDynBitsNotNULL;
           } 
-          else if (size > InternalMaxDynFix) 
+          else if (words > InternalMaxDynFix) 
           {
             jam();
             regTabPtr->readFunctionArray[i]= 

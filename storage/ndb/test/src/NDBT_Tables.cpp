@@ -288,7 +288,7 @@ NDBT_Attribute T14Attribs[] = {
   NDBT_Attribute("KOL20", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("KOL30", NdbDictionary::Column::Int),
   NDBT_Attribute("KOL40", NdbDictionary::Column::Float),
-  NDBT_Attribute("KOL50", NdbDictionary::Column::Char, 200)
+  NDBT_Attribute("KOL50", NdbDictionary::Column::Char, 200, false, false, 0, MM, true)
 };
 
 
