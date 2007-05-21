@@ -3718,7 +3718,11 @@ bool mysql_unpack_partition(THD *thd,
 
   thd->lex= &lex;
   thd->variables.character_set_client= system_charset_info;
-  lex_start(thd, part_buf, part_info_len);
+
+  Lex_input_stream lip(thd, part_buf, part_info_len);
+  thd->m_lip= &lip;
+
+  lex_start(thd);
   /*
     We need to use the current SELECT_LEX since I need to keep the
     Name_resolution_context object which is referenced from the

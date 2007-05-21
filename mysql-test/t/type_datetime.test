@@ -227,6 +227,28 @@ call test27759();
 drop procedure test27759;
 
 #
+# Bug#28208: Wrong result of a non-const STRING function with a const
+#            DATETIME function.
+#
+create table t1 (f1 date);
+insert into t1 values (curdate());
+select left(f1,10) = curdate() from t1;
+drop table t1;
+
+#
+# Bug#28261: Wrong DATETIME comparison result when the GET_USER_VAR function
+#            is involved.
+#
+create table t1(f1 date);
+insert into t1 values('01-01-01'),('02-02-02'),('01-01-01'),('02-02-02');
+set @bug28261='';
+select if(@bug28261 = f1, '', @bug28261:= f1) from t1;
+select if(@bug28261 = f1, '', @bug28261:= f1) from t1;
+select if(@bug28261 = f1, '', @bug28261:= f1) from t1;
+drop table t1;
+
+
+#
 # Test of storing datetime into date fields
 #
 
