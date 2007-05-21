@@ -50,7 +50,10 @@ show binary logs;
 Log_name	File_size
 master-bin.000002	363
 master-bin.000003	407
-purge master logs before now();
+select @time_for_purge:=DATE_ADD(UPDATE_TIME, INTERVAL 1 SECOND)
+from information_schema.tables
+where TABLE_SCHEMA="test" and TABLE_NAME="t2";
+purge master logs before (@time_for_purge);
 show binary logs;
 Log_name	File_size
 master-bin.000003	407
