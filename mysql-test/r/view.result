@@ -3346,6 +3346,19 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using filesort
 DROP VIEW v1;
 DROP TABLE t1;
+CREATE VIEW v1 AS SELECT CAST( 1.23456789 AS DECIMAL( 7,5 ) ) AS col;
+SELECT * FROM v1;
+col
+1.23457
+DESCRIBE v1;
+Field	Type	Null	Key	Default	Extra
+col	decimal(7,5)	NO		0.00000	
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT CAST(1.23456789 AS DECIMAL(8,0)) AS col;
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(1.23456789 as decimal(8,0)) AS `col`
+DROP VIEW v1;
 End of 5.0 tests.
 DROP DATABASE IF EXISTS `d-1`;
 CREATE DATABASE `d-1`;
