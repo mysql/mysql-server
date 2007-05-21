@@ -53,7 +53,6 @@ get_lock('test_bug16407', 60)
 create event e_16407 on schedule every 60 second do
 begin
 select get_lock('test_bug16407', 60);
-drop table "hashed_num";
 end|
 "Now if everything is fine the event has compiled and is locked"
 select /*1*/ user, host, db, info from information_schema.processlist where command!='Daemon' and (info is null or info not like '%processlist%') order by info;
