@@ -1159,6 +1159,11 @@ select cast(a as DECIMAL(3,2)), count(*)
   UNION select 12.1234
  ) t group by 1;
 
+#
+# Bug #27984 Long Decimal Maths produces truncated results 
+#
+
+SELECT 1.000000000000 * 99.999999999998 / 100 a,1.000000000000 * (99.999999999998 / 100) b;
 --echo End of 5.0 tests
 
 #
