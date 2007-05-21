@@ -478,7 +478,9 @@ row_build_row_ref_in_tuple(
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-	ut_a(ref && index && rec);
+	ut_a(ref);
+	ut_a(index);
+	ut_a(rec);
 
 	if (UNIV_UNLIKELY(!index->table)) {
 		fputs("InnoDB: table ", stderr);

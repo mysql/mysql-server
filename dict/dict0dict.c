@@ -3363,7 +3363,8 @@ dict_create_foreign_constraints(
 	ulint			err;
 	mem_heap_t*		heap;
 
-	ut_a(trx && trx->mysql_thd);
+	ut_a(trx);
+	ut_a(trx->mysql_thd);
 
 	str = dict_strip_comments(sql_string);
 	heap = mem_heap_create(10000);
@@ -3405,7 +3406,8 @@ dict_foreign_parse_drop_constraints(
 	FILE*			ef	= dict_foreign_err_file;
 	struct charset_info_st*	cs;
 
-	ut_a(trx && trx->mysql_thd);
+	ut_a(trx);
+	ut_a(trx->mysql_thd);
 
 	cs = innobase_get_charset(trx->mysql_thd);
 

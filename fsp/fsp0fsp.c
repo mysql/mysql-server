@@ -3649,7 +3649,11 @@ fsp_validate(
 	n_full_frag_pages = FSP_EXTENT_SIZE
 		* flst_get_len(header + FSP_FULL_FRAG, &mtr);
 
-	ut_a(free_limit <= size || (space != 0 && size < FSP_EXTENT_SIZE));
+	if (UNIV_UNLIKELY(free_limit > size)) {
+
+		ut_a(space != 0);
+		ut_a(size < FSP_EXTENT_SIZE);
+	}
 
 	flst_validate(header + FSP_FREE, &mtr);
 	flst_validate(header + FSP_FREE_FRAG, &mtr);

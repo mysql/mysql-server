@@ -433,7 +433,11 @@ row_ins_cascade_calc_update_vec(
 	ulint		i;
 	ulint		j;
 
-	ut_a(node && foreign && cascade && table && index);
+	ut_a(node);
+	ut_a(foreign);
+	ut_a(cascade);
+	ut_a(table);
+	ut_a(index);
 
 	/* Calculate the appropriate update vector which will set the fields
 	in the child index record to the same value (possibly padded with
@@ -776,7 +780,10 @@ row_ins_foreign_check_on_constraint(
 	trx_t*		trx;
 	mem_heap_t*	tmp_heap	= NULL;
 
-	ut_a(thr && foreign && pcur && mtr);
+	ut_a(thr);
+	ut_a(foreign);
+	ut_a(pcur);
+	ut_a(mtr);
 
 	trx = thr_get_trx(thr);
 
@@ -1293,7 +1300,8 @@ run_again:
 		goto exit_func;
 	}
 
-	ut_a(check_table && check_index);
+	ut_a(check_table);
+	ut_a(check_index);
 
 	if (check_table != table) {
 		/* We already have a LOCK_IX on table, but not necessarily
