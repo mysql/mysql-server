@@ -431,7 +431,7 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
     break;
   case STRING_RESULT:
     if (max_length/collation.collation->mbmaxlen <= 255 ||
-        convert_blob_length >=UINT_MAX16 ||
+        convert_blob_length > Field_varstring::MAX_SIZE ||
         !convert_blob_length)
       return make_string_field(table);
     field= new Field_varstring(convert_blob_length, maybe_null,
@@ -3290,14 +3290,20 @@ bool Item_func_group_concat::setup(THD *thd)
   tmp_table_param->force_copy_fields= force_copy_fields;
   DBUG_ASSERT(table == 0);
   /*
+    Currently we have to force conversion of BLOB values to VARCHAR's
+    if we are to store them in TREE objects used for ORDER BY and
+    DISTINCT. This leads to truncation if the BLOB's size exceeds
+    Field_varstring::MAX_SIZE.
+  */
+  if (arg_count_order > 0 || distinct)
+    set_if_smaller(tmp_table_param->convert_blob_length, 
+                   Field_varstring::MAX_SIZE);
+  /*
     We have to create a temporary table to get descriptions of fields
     (types, sizes and so on).
 
     Note that in the table, we first have the ORDER BY fields, then the
     field list.
-
-    We need to set set_sum_field in true for storing value of blob in buffer
-    of a record instead of a pointer of one.
   */
   if (!(table= create_tmp_table(thd, tmp_table_param, all_fields,
                                 (ORDER*) 0, 0, TRUE,
