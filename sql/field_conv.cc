@@ -529,7 +529,21 @@ void Copy_field::set(char *to,Field *from)
 }
 
 
+/*
+  To do: 
 
+  If 'save\ is set to true and the 'from' is a blob field, do_copy is set to
+  do_save_blob rather than do_conv_blob.  The only differences between them
+  appears to be:
+
+  - do_save_blob allocates and uses an intermediate buffer before calling 
+    Field_blob::store. Is this in order to trigger the call to 
+    well_formed_copy_nchars, by changing the pointer copy->tmp.ptr()?
+    That call will take place anyway in all known cases.
+
+  - The above causes a truncation to MAX_FIELD_WIDTH. Is this the intended 
+    effect? Truncation is handled by well_formed_copy_nchars anyway.
+ */
 void Copy_field::set(Field *to,Field *from,bool save)
 {
   if (to->type() == MYSQL_TYPE_NULL)
