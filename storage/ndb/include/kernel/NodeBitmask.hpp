@@ -16,8 +16,8 @@
 #ifndef NODE_BITMASK_HPP
 #define NODE_BITMASK_HPP
 
-#include <ndb_limits.h>
-#include <kernel_types.h>
+#include "ndb_limits.h"
+#include "kernel_types.h"
 #include <Bitmask.hpp>
 
 /**

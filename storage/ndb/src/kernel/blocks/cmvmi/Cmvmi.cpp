@@ -934,9 +934,24 @@ recurse(char * buf, int loops, int arg){
     return tmp[arg/loops] + recurse(tmp, loops - 1, arg);
 }
 
+#define check_block(block,val) \
+(((val) >= DumpStateOrd::_ ## block ## Min) && ((val) <= DumpStateOrd::_ ## block ## Max))
+
 void
 Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 {
+  Uint32 val = signal->theData[0];
+  if (val >= DumpStateOrd::OneBlockOnly)
+  {
+    if (check_block(Backup, val))
+    {
+      sendSignal(BACKUP_REF, GSN_DUMP_STATE_ORD, signal, signal->length(), JBB);
+    }
+    else if (check_block(TC, val))
+    {
+    }
+    return;
+  }
 
   sendSignal(QMGR_REF, GSN_DUMP_STATE_ORD,    signal, signal->length(), JBB);
   sendSignal(NDBCNTR_REF, GSN_DUMP_STATE_ORD, signal, signal->length(), JBB);

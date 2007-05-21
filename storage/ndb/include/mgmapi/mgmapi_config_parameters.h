@@ -112,6 +112,7 @@
 #define CFG_DB_CHECKPOINT_SPEED_SR    165
 
 #define CFG_DB_MEMREPORT_FREQUENCY    166
+#define CFG_DB_BACKUP_REPORT_FREQUENCY    167
 
 #define CFG_DB_SGA                    198 /* super pool mem */
 #define CFG_DB_DATA_MEM_2             199 /* used in special build in 5.1 */

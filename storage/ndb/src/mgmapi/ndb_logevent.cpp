@@ -23,6 +23,7 @@
 #include <InputStream.hpp>
 
 #include <debugger/EventLogger.hpp>
+#include <kernel/NodeBitmask.hpp>
 
 #include "ndb_logevent.hpp"
 
@@ -307,6 +308,21 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
   ROW( BackupCompleted,     "n_records",     6, n_records), 
   ROW( BackupCompleted,     "n_log_bytes",   7, n_log_bytes),
   ROW( BackupCompleted,     "n_log_records", 8, n_log_records),
+  ROW( BackupCompleted,     "n_bytes_hi",    9+NdbNodeBitmask::Size, n_bytes_hi),
+  ROW( BackupCompleted,     "n_records_hi", 10+NdbNodeBitmask::Size, n_records_hi), 
+  ROW( BackupCompleted,     "n_log_bytes_hi",   11+NdbNodeBitmask::Size, n_log_bytes_hi),
+  ROW( BackupCompleted,     "n_log_records_hi", 12+NdbNodeBitmask::Size, n_log_records_hi), 
+
+  ROW_FN( BackupStatus,     "starting_node",    1, starting_node, ref_to_node),
+  ROW( BackupStatus,        "backup_id",        2, backup_id), 
+  ROW( BackupStatus,        "n_bytes_lo",       3, n_bytes_lo),
+  ROW( BackupStatus,        "n_bytes_hi",       4, n_bytes_hi),
+  ROW( BackupStatus,        "n_records_lo",     5, n_records_lo), 
+  ROW( BackupStatus,        "n_records_hi",     6, n_records_hi), 
+  ROW( BackupStatus,        "n_log_bytes_lo",   7, n_log_bytes_lo),
+  ROW( BackupStatus,        "n_log_bytes_hi",   8, n_log_bytes_hi),
+  ROW( BackupStatus,        "n_log_records_lo", 9, n_log_records_lo),
+  ROW( BackupStatus,        "n_log_records_hi",10, n_log_records_hi),
 
   ROW_FN( BackupAborted,    "starting_node", 1, starting_node, ref_to_node),
   ROW( BackupAborted,       "backup_id",     2, backup_id),
