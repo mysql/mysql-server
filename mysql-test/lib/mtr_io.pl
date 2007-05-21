@@ -120,7 +120,11 @@ sub mtr_get_opts_from_file ($) {
       $arg =~ s/\$(\w+)/envsubst($1)/ge;
 
 #      print STDERR "ARG: $arg\n";
-      push(@args, $arg);
+      # Do not pass empty string since my_getopt is not capable to handle it.
+      if (length($arg))
+      {
+        push(@args, $arg)
+      }
     }
   }
   close FILE;
