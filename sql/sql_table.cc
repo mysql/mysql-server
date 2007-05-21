@@ -4035,8 +4035,8 @@ err:
   */
   if (error_if_not_empty && thd->row_count)
   {
-    const char *f_val;
-    enum enum_mysql_timestamp_type t_type;
+    const char *f_val= 0;
+    enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
     switch (new_datetime_field->sql_type)
     {
       case MYSQL_TYPE_DATE:
