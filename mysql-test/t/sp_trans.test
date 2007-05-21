@@ -559,12 +559,8 @@ set @@session.max_heap_table_size=default|
 #            breaks stmt-based binlog
 # Bug #27395 OPTION_STATUS_NO_TRANS_UPDATE is not preserved at the end of SF()
 #
---disable_warnings
-drop function if exists bug23333|
-drop table if exists t1,t2|
---enable_warnings
- CREATE TABLE t1 (a int  NOT NULL auto_increment primary key) ENGINE=MyISAM|
- CREATE TABLE t2 (a int  NOT NULL auto_increment, b int, PRIMARY KEY (a)) ENGINE=InnoDB|
+CREATE TABLE t1 (a int  NOT NULL auto_increment primary key) ENGINE=MyISAM|
+CREATE TABLE t2 (a int  NOT NULL auto_increment, b int, PRIMARY KEY (a)) ENGINE=InnoDB|
 
 insert into t2 values (1,1)|
 
@@ -583,6 +579,7 @@ insert into t2 values (bug23333(),1)|
 --replace_column 2 # 5 # 6 #
 show binlog events from 98 /* with fixes for #23333 will show there is the query */|
 select count(*),@a from t1 /* must be 1,1 */|
+drop table t1, t2|
 
 #
 # BUG#NNNN: New bug synopsis
