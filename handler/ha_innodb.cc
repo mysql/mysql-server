@@ -8712,7 +8712,7 @@ bool ha_innobase::check_if_incompatible_data(
 }
 
 /***********************************************************************
-Fill the dynamic table information_schema.innodb_buddy. */
+Fill the dynamic table information_schema.innodb_zip. */
 static
 int
 innobase_stat_zip_fill(
@@ -8720,7 +8720,8 @@ innobase_stat_zip_fill(
 				/* out: 0 on success, 1 on failure */
 	THD*		thd,	/* in: thread */
 	TABLE_LIST*	tables,	/* in/out: tables to fill */
-	COND*		cond)	/* in: condition (ignored) */
+	COND*		cond,	/* in: condition (ignored) */
+	ibool		reset)	/* in: TRUE=reset cumulated counts */
 {
 	TABLE*	table	= (TABLE *) tables->table;
 	int	status	= 0;
@@ -8736,11 +8737,27 @@ innobase_stat_zip_fill(
 	for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
 		table->field[0]->store(BUF_BUDDY_LOW << x);
 		table->field[1]->store(buf_buddy_relocated[x]);
+		if (reset) {
+			/* This is protected by buf_pool->mutex. */
+			buf_buddy_relocated[x] = 0;
+		}
+
 		if (x > y) {
+			/* The cumulated counts are not protected by
+			any mutex.  Thus, some operation in page0zip.c
+			could increment a counter between the time we
+			read it and clear it.  We could introduce
+			mutex protection, but it could cause a
+			measureable performance hit in page0zip.c. */
 			const uint i = x - y;
 			table->field[2]->store(page_zip_compress_count[i]);
 			table->field[3]->store(page_zip_compress_ok[i]);
 			table->field[4]->store(page_zip_decompress_count[i]);
+			if (reset) {
+				page_zip_compress_count[i] = 0;
+				page_zip_compress_ok[i] = 0;
+				page_zip_decompress_count[i] = 0;
+			}
 		} else {
 			table->field[2]->store(0);
 			table->field[3]->store(0);
@@ -8758,7 +8775,35 @@ innobase_stat_zip_fill(
 	DBUG_RETURN(status);
 }
 
-/* Fields of the dynamic table information_schema.innodb_buddy. */
+/***********************************************************************
+Fill the dynamic table information_schema.innodb_zip. */
+static
+int
+innobase_stat_zip_fill(
+/*===================*/
+				/* out: 0 on success, 1 on failure */
+	THD*		thd,	/* in: thread */
+	TABLE_LIST*	tables,	/* in/out: tables to fill */
+	COND*		cond)	/* in: condition (ignored) */
+{
+	return(innobase_stat_zip_fill(thd, tables, cond, FALSE));
+}
+
+/***********************************************************************
+Fill the dynamic table information_schema.innodb_zip_reset. */
+static
+int
+innobase_stat_zip_reset_fill(
+/*=========================*/
+				/* out: 0 on success, 1 on failure */
+	THD*		thd,	/* in: thread */
+	TABLE_LIST*	tables,	/* in/out: tables to fill */
+	COND*		cond)	/* in: condition (ignored) */
+{
+	return(innobase_stat_zip_fill(thd, tables, cond, TRUE));
+}
+
+/* Fields of the dynamic table information_schema.innodb_zip. */
 static ST_FIELD_INFO innobase_stat_zip_fields[] =
 {
   {"SIZE", 5, MYSQL_TYPE_LONG, 0, 0, "Block Size"},
@@ -8774,7 +8819,7 @@ static ST_FIELD_INFO innobase_stat_zip_fields[] =
 };
 
 /***********************************************************************
-Bind the dynamic table information_schema.innodb_buddy. */
+Bind the dynamic table information_schema.innodb_zip. */
 static
 int
 innobase_stat_zip_init(
@@ -8792,7 +8837,25 @@ innobase_stat_zip_init(
 }
 
 /***********************************************************************
-Unbind the dynamic table information_schema.innodb_buddy. */
+Bind the dynamic table information_schema.innodb_zip_reset. */
+static
+int
+innobase_stat_zip_reset_init(
+/*=========================*/
+			/* out: 0 on success */
+	void*	p)	/* in/out: table schema object */
+{
+	DBUG_ENTER("innobase_stat_zip_reset_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = innobase_stat_zip_fields;
+	schema->fill_table = innobase_stat_zip_reset_fill;
+
+	DBUG_RETURN(0);
+}
+
+/***********************************************************************
+Unbind a dynamic table in information_schema. */
 static
 int
 innobase_stat_zip_deinit(
@@ -9062,6 +9125,18 @@ mysql_declare_plugin(innobase)
   "Statistics for the InnoDB compressed buffer pool",
   PLUGIN_LICENSE_GPL,
   innobase_stat_zip_init,
+  innobase_stat_zip_deinit,
+  0x0100 /* 1.0 */,
+  NULL, NULL, NULL
+},
+{
+  MYSQL_INFORMATION_SCHEMA_PLUGIN,
+  &innobase_stat_zip,
+  "INNODB_ZIP_RESET",
+  "Innobase Oy",
+  "Statistics for the InnoDB compressed buffer pool; reset cumulated counts",
+  PLUGIN_LICENSE_GPL,
+  innobase_stat_zip_reset_init,
   innobase_stat_zip_deinit,
   0x0100 /* 1.0 */,
   NULL, NULL, NULL
