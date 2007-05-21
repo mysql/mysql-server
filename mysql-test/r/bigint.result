@@ -352,6 +352,16 @@ select c1 mod 50 as result from t1;
 result
 6
 drop table t1;
+select cast(19999999999999999999 as signed);
+cast(19999999999999999999 as signed)
+9223372036854775807
+Warnings:
+Error	1292	Truncated incorrect DECIMAL value: ''
+select cast(-19999999999999999999 as signed);
+cast(-19999999999999999999 as signed)
+-9223372036854775808
+Warnings:
+Error	1292	Truncated incorrect DECIMAL value: ''
 create table t1 select -9223372036854775808 bi;
 describe t1;
 Field	Type	Null	Key	Default	Extra
