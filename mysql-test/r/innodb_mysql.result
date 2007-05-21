@@ -144,6 +144,27 @@ SELECT * FROM t1;
 c1	cnt
 1a	2
 DROP TABLE t1;
+CREATE TABLE t1 (
+a1 decimal(10,0) DEFAULT NULL,
+a2 blob,
+a3 time DEFAULT NULL,
+a4 blob,
+a5 char(175) DEFAULT NULL,
+a6 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+a7 tinyblob,
+INDEX idx (a6,a7(239),a5)
+) ENGINE=InnoDB;
+EXPLAIN SELECT a4 FROM t1 WHERE
+a6=NULL AND
+a4='UNcT5pIde4I6c2SheTo4gt92OV1jgJCVkXmzyf325R1DwLURkbYHwhydANIZMbKTgdcR5xS';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT t1.a4 FROM t1, t1 t WHERE
+t.a6=t.a6 AND t1.a6=NULL AND
+t1.a4='UNcT5pIde4I6c2SheTo4gt92OV1jgJCVkXmzyf325R1DwLURkbYHwhydANIZMbKTgdcR5xS';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+DROP TABLE t1;
 End of 4.1 tests
 create table t1m (a int) engine=myisam;
 create table t1i (a int) engine=innodb;
@@ -544,4 +565,56 @@ id	c	counter
 3	b	2
 4	a	2
 drop table t1;
+CREATE TABLE t1(
+id int AUTO_INCREMENT PRIMARY KEY,
+stat_id int NOT NULL,
+acct_id int DEFAULT NULL,
+INDEX idx1 (stat_id, acct_id),
+INDEX idx2 (acct_id)
+) ENGINE=MyISAM;
+CREATE TABLE t2(
+id int AUTO_INCREMENT PRIMARY KEY,
+stat_id int NOT NULL,
+acct_id int DEFAULT NULL,
+INDEX idx1 (stat_id, acct_id),
+INDEX idx2 (acct_id)
+) ENGINE=InnoDB;
+INSERT INTO t1(stat_id,acct_id) VALUES
+(1,759), (2,831), (3,785), (4,854), (1,921),
+(1,553), (2,589), (3,743), (2,827), (2,545),
+(4,779), (4,783), (1,597), (1,785), (4,832),
+(1,741), (1,833), (3,788), (2,973), (1,907);
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+UPDATE t1 SET acct_id=785 
+WHERE MOD(stat_id,2)=0 AND MOD(id,stat_id)=MOD(acct_id,stat_id);
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+40960
+SELECT COUNT(*) FROM t1 WHERE acct_id=785;
+COUNT(*)
+8702
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE stat_id IN (1,3) AND acct_id=785;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	idx1,idx2	idx1	9	NULL	2	Using where; Using index
+INSERT INTO t2 SELECT * FROM t1;
+OPTIMIZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	optimize	status	OK
+EXPLAIN SELECT COUNT(*) FROM t2 WHERE stat_id IN (1,3) AND acct_id=785;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	idx1,idx2	idx1	9	NULL	2	Using where; Using index
+DROP TABLE t1,t2;
 End of 5.0 tests
