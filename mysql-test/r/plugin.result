@@ -1,6 +1,7 @@
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 Warnings:
-Error	1286	Unknown table engine 'EXAMPLE'
+Warning	1286	Unknown table engine 'EXAMPLE'
+Warning	1266	Using storage engine MyISAM for table 't1'
 DROP TABLE t1;
 INSTALL PLUGIN example SONAME 'ha_example.so';
 INSTALL PLUGIN EXAMPLE SONAME 'ha_example.so';
