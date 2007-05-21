@@ -70,10 +70,14 @@ event_queue_element_compare_q(void *vptr, byte* a, byte *b)
 */
 
 Event_queue::Event_queue()
-  :mutex_last_locked_at_line(0), mutex_last_unlocked_at_line(0),
+  :next_activation_at(0),
+   mutex_last_locked_at_line(0),
+   mutex_last_unlocked_at_line(0),
+   mutex_last_locked_in_func("n/a"),
+   mutex_last_unlocked_in_func("n/a"),
+   mutex_last_attempted_lock_in_func("n/a"),
    mutex_last_attempted_lock_at_line(0),
    mutex_queue_data_locked(FALSE),
-   next_activation_at(0),
    mutex_queue_data_attempting_lock(FALSE)
 {
   mutex_last_unlocked_in_func= mutex_last_locked_in_func=
@@ -739,8 +743,11 @@ Event_queue::dump_internal_status()
 
   MYSQL_TIME time;
   my_tz_UTC->gmt_sec_to_TIME(&time, next_activation_at);
-  printf("Next activation : %04d-%02d-%02d %02d:%02d:%02d\n",
-         time.year, time.month, time.day, time.hour, time.minute, time.second);
+  if (time.year != 1970)
+    printf("Next activation : %04d-%02d-%02d %02d:%02d:%02d\n",
+           time.year, time.month, time.day, time.hour, time.minute, time.second);
+  else
+    printf("Next activation : never");
 
   DBUG_VOID_RETURN;
 }
