@@ -5702,7 +5702,8 @@ ha_innobase::info(
 	}
 
 	if (flag & HA_STATUS_ERRKEY) {
-		ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
+		ut_a(prebuilt->trx);
+		ut_a(prebuilt->trx->magic_n == TRX_MAGIC_N);
 
 		errkey = (unsigned int) row_get_mysql_key_number_for_index(
 			(dict_index_t*) trx_get_error_info(prebuilt->trx));
@@ -5787,7 +5788,8 @@ ha_innobase::check(
 	ulint		ret;
 
 	DBUG_ASSERT(thd == ha_thd());
-	ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
+	ut_a(prebuilt->trx);
+	ut_a(prebuilt->trx->magic_n == TRX_MAGIC_N);
 	ut_a(prebuilt->trx == thd_to_trx(thd));
 
 	if (prebuilt->mysql_template == NULL) {
