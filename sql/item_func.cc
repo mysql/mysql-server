@@ -1050,18 +1050,61 @@ longlong Item_decimal_typecast::val_int()
 my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
 {
   my_decimal tmp_buf, *tmp= args[0]->val_decimal(&tmp_buf);
+  bool sign;
+  uint precision;
+
   if ((null_value= args[0]->null_value))
     return NULL;
   my_decimal_round(E_DEC_FATAL_ERROR, tmp, decimals, FALSE, dec);
+  sign= dec->sign();
+  if (unsigned_flag)
+  {
+    if (sign)
+    {
+      my_decimal_set_zero(dec);
+      goto err;
+    }
+  }
+  precision= my_decimal_length_to_precision(max_length,
+                                            decimals, unsigned_flag);
+  if (precision - decimals < (uint) my_decimal_intg(dec))
+  {
+    max_my_decimal(dec, precision, decimals);
+    dec->sign(sign);
+    goto err;
+  }
+  return dec;
+
+err:
+  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                      ER_WARN_DATA_OUT_OF_RANGE,
+                      ER(ER_WARN_DATA_OUT_OF_RANGE),
+                      name, 1);
   return dec;
 }
 
 
 void Item_decimal_typecast::print(String *str)
 {
+  char len_buf[20*3 + 1];
+  char *end;
+
+  uint precision= my_decimal_length_to_precision(max_length, decimals,
+                                                 unsigned_flag);
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(str);
-  str->append(STRING_WITH_LEN(" as decimal)"));
+  str->append(STRING_WITH_LEN(" as decimal("));
+
+  end=int10_to_str(precision, len_buf,10);
+  str->append(len_buf, (uint32) (end - len_buf));
+
+  str->append(',');
+
+  end=int10_to_str(decimals, len_buf,10);
+  str->append(len_buf, (uint32) (end - len_buf));
+
+  str->append(')');
+  str->append(')');
 }
 
 
@@ -4407,7 +4450,7 @@ int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     List<set_var_base> tmp_var_list;
     LEX *sav_lex= thd->lex, lex_tmp;
     thd->lex= &lex_tmp;
-    lex_start(thd, NULL, 0);
+    lex_start(thd);
     tmp_var_list.push_back(new set_var_user(new Item_func_set_user_var(name,
                                                                        new Item_null())));
     /* Create the variable */
