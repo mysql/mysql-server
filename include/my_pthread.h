@@ -722,16 +722,24 @@ extern uint thd_lib_detected;
   Warning:
   When compiling without threads, this file is not included.
   See the *other* declarations of thread_safe_xxx in include/my_global.h
+
+  Second warning:
+  See include/config-win.h, for yet another implementation.
 */
 #ifdef THREAD
+#ifndef thread_safe_increment
 #define thread_safe_increment(V,L) \
         (pthread_mutex_lock((L)), (V)++, pthread_mutex_unlock((L)))
 #define thread_safe_decrement(V,L) \
         (pthread_mutex_lock((L)), (V)--, pthread_mutex_unlock((L)))
+#endif
+
+#ifndef thread_safe_add
 #define thread_safe_add(V,C,L) \
         (pthread_mutex_lock((L)), (V)+=(C), pthread_mutex_unlock((L)))
 #define thread_safe_sub(V,C,L) \
         (pthread_mutex_lock((L)), (V)-=(C), pthread_mutex_unlock((L)))
+#endif
 #endif
 
 /*
