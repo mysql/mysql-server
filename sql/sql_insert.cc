@@ -2538,7 +2538,7 @@ bool Delayed_insert::handle_inserts(void)
 
     if (table->s->blob_fields)
       free_delayed_insert_blobs(table);
-    thread_safe_sub(delayed_rows_in_use,1,&LOCK_delayed_status);
+    thread_safe_decrement(delayed_rows_in_use,&LOCK_delayed_status);
     thread_safe_increment(delayed_insert_writes,&LOCK_delayed_status);
     pthread_mutex_lock(&mutex);
 
