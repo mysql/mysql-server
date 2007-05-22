@@ -495,13 +495,13 @@ row_check_table_for_mysql(
 					handle */
 #endif /* !UNIV_HOTBACKUP */
 /*************************************************************************
-Build new indexes to a table by reading a cluster index,
+Build new indexes to a table by reading a clustered index,
 creating a temporary file containing index entries, merge sorting
 these index entries and inserting sorted index entries to indexes. */
 
 ulint
 row_build_index_for_mysql(
-/*=====================*/
+/*======================*/
 					/* out: 0 or error code */
 	trx_t*		trx,		/* in: transaction */
 	dict_table_t*	old_table,	/* in: Table where rows are
