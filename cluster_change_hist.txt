@@ -2,6 +2,11 @@
 mysql-5.1.15-ndb-6.1.X
 ==================================================
 
+mysql-5.1.15-ndb-6.1.9 ()
+
+  Bug #28593 cluster backup scans in acc index order, bad for disk data
+  Bug #28443 transporter gets stuck when >1024 signals received at once
+ 
 mysql-5.1.15-ndb-6.1.8 (2007-05-18)
 
   Bug #28491 Expand check gets disabled in some cases (initial node restart)
