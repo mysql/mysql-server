@@ -12246,10 +12246,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   LINT_INIT(ref_key_parts);
 
   /*
-    Check which keys can be used to resolve ORDER BY.
-    We must not try to use disabled keys.
+    Keys disabled by ALTER TABLE ... DISABLE KEYS should have already
+    been taken into account.
   */
-  usable_keys= table->s->keys_in_use;
+  usable_keys= table->keys_in_use_for_query;
+  DBUG_ASSERT(usable_keys.is_subset(table->s->keys_in_use));
 
   for (ORDER *tmp_order=order; tmp_order ; tmp_order=tmp_order->next)
   {
