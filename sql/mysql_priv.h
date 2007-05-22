@@ -179,7 +179,7 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define STACK_MIN_SIZE          12000   // Abort if less stack during eval.
 
 #define STACK_MIN_SIZE_FOR_OPEN 1024*80
-#define STACK_BUFF_ALLOC	256	// For stack overrun checks
+#define STACK_BUFF_ALLOC        352     // For stack overrun checks
 #ifndef MYSQLD_NET_RETRY_COUNT
 #define MYSQLD_NET_RETRY_COUNT  10	// Abort read after this many int.
 #endif
