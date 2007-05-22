@@ -4464,7 +4464,7 @@ row_create_index_graph_for_mysql(
 }
 
 /*************************************************************************
-Build new indexes to a table by reading a cluster index,
+Build new indexes to a table by reading a clustered index,
 creating a temporary file containing index entries, merge sorting
 these index entries and inserting sorted index entries to indexes. */
 

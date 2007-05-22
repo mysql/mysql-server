@@ -1416,7 +1416,7 @@ row_merge_read_clustered_index(
 	ulint		num_of_idx)	/* in: number of indexes to be
 					created */
 {
-	dict_index_t*	clust_index;		/* Cluster index */
+	dict_index_t*	clust_index;		/* Clustered index */
 	merge_rec_t*	new_mrec;		/* New merge record */
 	mem_heap_t*	row_heap;		/* Heap memory to create
 						clustered index records */
@@ -1426,13 +1426,9 @@ row_merge_read_clustered_index(
 						are stored for memory sort and
 						then written to the disk */
 	merge_rec_list_t**	merge_list;	/* Temporary list for records*/
-	rec_t*		rec;			/* Record in the persistent
-						cursor*/
 	btr_pcur_t	pcur;			/* Persistent cursor on the
-						cluster index */
+						clustered index */
 	mtr_t		mtr;			/* Mini transaction */
-	ibool		more_records_exists;	/* TRUE if we reached end of
-						the cluster index */
 	ulint		err = DB_SUCCESS;	/* Return code */
 	ulint		idx_num = 0;		/* Index number */
 	ulint		n_blocks = 0;		/* Number of blocks written
@@ -1442,9 +1438,12 @@ row_merge_read_clustered_index(
 
 	*sec_offsets_ = (sizeof sec_offsets_) / sizeof *sec_offsets_;
 
-	trx->op_info="reading cluster index";
+	trx->op_info="reading clustered index";
 
-	ut_a(trx && table && index && files);
+	ut_ad(trx);
+	ut_ad(table);
+	ut_ad(index);
+	ut_ad(files);
 
 	/* Create block where index entries are stored */
 	block = row_merge_block_create();
@@ -1470,22 +1469,31 @@ row_merge_read_clustered_index(
 
 	row_heap = mem_heap_create(512);
 
-	/* Get first record from the clustered index */
-	rec = btr_pcur_get_rec(&pcur);
-
 	/* Iterate all records in the clustered index */
-	while (rec) {
+	for (;;) {
+		const rec_t*	rec;
 		dtuple_t*	row;
 		row_ext_t*	ext;
 
-		/* Infimum and supremum records are skipped */
+		/* When switching pages, commit the mini-transaction
+		in order to release the latch on the old page. */
 
-		if (!page_rec_is_user_rec(rec)) {
+		if (btr_pcur_is_after_last_on_page(&pcur, &mtr)) {
+			btr_pcur_store_position(&pcur, &mtr);
+			mtr_commit(&mtr);
+			mtr_start(&mtr);
+			btr_pcur_restore_position(BTR_SEARCH_LEAF,
+						  &pcur, &mtr);
+		}
 
-			goto next_record;
+		if (!btr_pcur_move_to_next(&pcur, &mtr)) {
+			break;
+		}
+
+		rec = btr_pcur_get_rec(&pcur);
 
 		/* We don't count the delete marked records as "Inserted" */
-		} else if (!rec_get_deleted_flag(rec, page_rec_is_comp(rec))) {
+		if (!rec_get_deleted_flag(rec, dict_table_is_comp(table))) {
 
 			srv_n_rows_inserted++;
 		}
@@ -1498,7 +1506,7 @@ row_merge_read_clustered_index(
 
 		/* If the user has requested the creation of several indexes
 		for the same table. We build all index entries in a single
-		pass over the cluster index. */
+		pass over the clustered index. */
 
 		for (idx_num = 0; idx_num < num_of_idx; idx_num++) {
 
@@ -1549,29 +1557,6 @@ row_merge_read_clustered_index(
 				n_blocks++;
 				files[idx_num].num_of_blocks++;
 			}
-		}
-
-
-next_record:
-		/* Persistent cursor has to be stored and mtr committed
-		if we move to a new page in cluster index. */
-
-		if (btr_pcur_is_after_last_on_page(&pcur, &mtr)) {
-			btr_pcur_store_position(&pcur, &mtr);
-			mtr_commit(&mtr);
-			mtr_start(&mtr);
-			btr_pcur_restore_position(BTR_SEARCH_LEAF, &pcur, &mtr);
-		}
-
-		more_records_exists = btr_pcur_move_to_next(&pcur, &mtr);
-
-		/* If no records are left we have created file for merge
-		sort */
-
-		if (more_records_exists == TRUE) {
-			rec = btr_pcur_get_rec(&pcur);
-		} else {
-			rec = NULL;
 		}
 	}
 
