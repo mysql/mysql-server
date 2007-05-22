@@ -132,6 +132,7 @@ Cmvmi::~Cmvmi()
 
 #ifdef ERROR_INSERT
 NodeBitmask c_error_9000_nodes_mask;
+extern Uint32 MAX_RECEIVED_SIGNALS;
 #endif
 
 void Cmvmi::execNDB_TAMPER(Signal* signal) 
@@ -159,6 +160,22 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
   if(ERROR_INSERTED(9995)){
     simulate_error_during_shutdown= SIGSEGV;
     kill(getpid(), SIGABRT);
+  }
+#endif
+
+#ifdef ERROR_INSERT
+  if (signal->theData[0] == 9003)
+  {
+    if (MAX_RECEIVED_SIGNALS < 1024)
+    {
+      MAX_RECEIVED_SIGNALS = 1024;
+    }
+    else
+    {
+      MAX_RECEIVED_SIGNALS = 1 + (rand() % 128);
+    }
+    ndbout_c("MAX_RECEIVED_SIGNALS: %d", MAX_RECEIVED_SIGNALS);
+    CLEAR_ERROR_INSERT_VALUE;
   }
 #endif
 }//execNDB_TAMPER()
