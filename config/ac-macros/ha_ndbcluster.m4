@@ -43,7 +43,7 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       if test -f "$mysql_sci_dir/lib/libsisci.a" -a \ 
               -f "$mysql_sci_dir/include/sisci_api.h"; then
         NDB_SCI_INCLUDES="-I$mysql_sci_dir/include"
-        NDB_SCI_LIBS="-L$mysql_sci_dir/lib -lsisci"
+        NDB_SCI_LIBS="$mysql_sci_dir/lib/libsisci.a"
         AC_MSG_RESULT([-- including sci transporter])
         AC_DEFINE([NDB_SCI_TRANSPORTER], [1],
                   [Including Ndb Cluster DB sci transporter])
