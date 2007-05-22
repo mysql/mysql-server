@@ -362,7 +362,7 @@ rec_get_offsets_reverse(
 				in reverse order, excluding the fixed-size
 				REC_N_NEW_EXTRA_BYTES */
 	dict_index_t*	index,	/* in: record descriptor */
-	ibool		node_ptr,/* in: TRUE=node pointer, FALSE=leaf node */
+	ulint		node_ptr,/* in: nonzero=node pointer, 0=leaf node */
 	ulint*		offsets);/* in/out: array consisting of offsets[0]
 				allocated elements */
 
