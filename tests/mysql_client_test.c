@@ -16080,7 +16080,6 @@ static void test_bug24179()
 static void test_bug28075()
 {
   int rc;
-  MYSQL_STMT *stmt;
 
   DBUG_ENTER("test_bug28075");
   myheader("test_bug28075");

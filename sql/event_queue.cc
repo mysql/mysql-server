@@ -73,16 +73,14 @@ Event_queue::Event_queue()
   :next_activation_at(0),
    mutex_last_locked_at_line(0),
    mutex_last_unlocked_at_line(0),
+   mutex_last_attempted_lock_at_line(0),
    mutex_last_locked_in_func("n/a"),
    mutex_last_unlocked_in_func("n/a"),
    mutex_last_attempted_lock_in_func("n/a"),
-   mutex_last_attempted_lock_at_line(0),
    mutex_queue_data_locked(FALSE),
-   mutex_queue_data_attempting_lock(FALSE)
+   mutex_queue_data_attempting_lock(FALSE),
+   waiting_on_cond(FALSE)
 {
-  mutex_last_unlocked_in_func= mutex_last_locked_in_func=
-    mutex_last_attempted_lock_in_func= "";
-
   pthread_mutex_init(&LOCK_event_queue, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_queue_state, NULL);
 }
