@@ -411,16 +411,7 @@ inline double ulonglong2double(ulonglong value)
 #ifdef __NT__  /* This should also work on Win98 but .. */
 #define thread_safe_add(V,C,L) InterlockedExchangeAdd((long*) &(V),(C))
 #define thread_safe_sub(V,C,L) InterlockedExchangeAdd((long*) &(V),-(long) (C))
-#define statistic_add(V,C,L) thread_safe_add((V),(C),(L))
-#else
-#define thread_safe_add(V,C,L) \
-	pthread_mutex_lock((L)); (V)+=(C); pthread_mutex_unlock((L));
-#define thread_safe_sub(V,C,L) \
-	pthread_mutex_lock((L)); (V)-=(C); pthread_mutex_unlock((L));
-#define statistic_add(V,C,L)	 (V)+=(C)
 #endif
-#define statistic_increment(V,L) thread_safe_increment((V),(L))
-#define statistic_decrement(V,L) thread_safe_decrement((V),(L))
 
 #define shared_memory_buffer_length 16000
 #define default_shared_memory_base_name "MYSQL"
