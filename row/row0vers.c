@@ -343,7 +343,7 @@ row_vers_old_has_index_entry(
 		to a different binary value in a char field, but the
 		collation identifies the old and new value anyway! */
 
-		if (dtuple_datas_are_ordering_equal(ientry, entry)) {
+		if (!dtuple_coll_cmp(ientry, entry)) {
 
 			mem_heap_free(heap);
 
@@ -386,7 +386,7 @@ row_vers_old_has_index_entry(
 			a char field, but the collation identifies the old
 			and new value anyway! */
 
-			if (dtuple_datas_are_ordering_equal(ientry, entry)) {
+			if (!dtuple_coll_cmp(ientry, entry)) {
 
 				mem_heap_free(heap);
 
