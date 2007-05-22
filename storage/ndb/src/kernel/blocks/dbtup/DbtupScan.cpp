@@ -62,13 +62,11 @@ Dbtup::execACC_SCANREQ(Signal* signal)
 	break;
       }
 
-#if BUG_27776_FIXED
       if (!AccScanReq::getNoDiskScanFlag(req->requestInfo)
 	  && tablePtr.p->m_no_of_disk_attributes)
       {
 	bits |= ScanOp::SCAN_DD;
       }
-#endif
       
       bool mm = (bits & ScanOp::SCAN_DD);
       if (tablePtr.p->m_attributes[mm].m_no_of_varsize > 0) {
