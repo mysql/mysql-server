@@ -8800,7 +8800,7 @@ Field* create_tmp_field_from_field(THD *thd, Field* org_field,
     Make sure that the blob fits into a Field_varstring which has 
     2-byte lenght. 
   */
-  if (convert_blob_length && convert_blob_length < UINT_MAX16 &&
+  if (convert_blob_length && convert_blob_length <= Field_varstring::MAX_SIZE &&
       (org_field->flags & BLOB_FLAG))
     new_field= new Field_varstring(convert_blob_length,
                                    org_field->maybe_null(),
@@ -8891,7 +8891,8 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
       2-byte lenght. 
     */
     else if (item->max_length/item->collation.collation->mbmaxlen > 255 &&
-             convert_blob_length < UINT_MAX16 && convert_blob_length)
+             convert_blob_length <= Field_varstring::MAX_SIZE && 
+             convert_blob_length)
       new_field= new Field_varstring(convert_blob_length, maybe_null,
                                      item->name, table,
                                      item->collation.collation);
