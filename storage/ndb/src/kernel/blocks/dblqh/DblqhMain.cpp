@@ -8507,9 +8507,32 @@ void Dblqh::continueAfterReceivingAllAiLab(Signal* signal)
   AccScanReq::setLockMode(req->requestInfo, scanptr.p->scanLockMode);
   AccScanReq::setReadCommittedFlag(req->requestInfo, scanptr.p->readCommitted);
   AccScanReq::setDescendingFlag(req->requestInfo, scanptr.p->descending);
-  AccScanReq::setNoDiskScanFlag(req->requestInfo, 
-				!tcConnectptr.p->m_disk_table);
-  AccScanReq::setLcpScanFlag(req->requestInfo, scanptr.p->lcpScan);
+
+  if (refToBlock(tcConnectptr.p->clientBlockref) == BACKUP)
+  {
+    if (scanptr.p->lcpScan)
+    {
+      AccScanReq::setNoDiskScanFlag(req->requestInfo, 1);
+      AccScanReq::setLcpScanFlag(req->requestInfo, 1);
+    }
+    else
+    {
+      /* If backup scan disktables in disk order */
+      AccScanReq::setNoDiskScanFlag(req->requestInfo,
+                                    !tcConnectptr.p->m_disk_table);
+      AccScanReq::setLcpScanFlag(req->requestInfo, 0);
+    }
+  }
+  else
+  {
+#if BUG_27776_FIXED
+    AccScanReq::setNoDiskScanFlag(req->requestInfo,
+                                  !tcConnectptr.p->m_disk_table);
+#else
+    AccScanReq::setNoDiskScanFlag(req->requestInfo, 1);
+#endif
+    AccScanReq::setLcpScanFlag(req->requestInfo, 0);
+  }
   
   req->transId1 = tcConnectptr.p->transid[0];
   req->transId2 = tcConnectptr.p->transid[1];
