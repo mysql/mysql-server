@@ -212,6 +212,97 @@ rec_get_n_extern_new(
 }
 
 /**********************************************************
+Determine the offset to each field in a leaf-page record
+in ROW_FORMAT=COMPACT.  This is a special case of
+rec_init_offsets() and rec_get_offsets_func(). */
+
+void
+rec_init_offsets_comp_ordinary(
+/*===========================*/
+	const rec_t*	rec,	/* in: physical record in ROW_FORMAT=COMPACT */
+	ulint		extra,	/* in: number of bytes to reserve between
+				the record header and the data payload
+				(usually REC_N_NEW_EXTRA_BYTES) */
+	dict_index_t*	index,	/* in: record descriptor */
+	ulint*		offsets)/* in/out: array of offsets;
+				in: n=rec_offs_n_fields(offsets) */
+{
+	ulint		i		= 0;
+	ulint		offs		= 0;
+	ulint		any_ext		= 0;
+	const byte*	nulls		= rec - (extra + 1);
+	const byte*	lens		= nulls - (index->n_nullable + 7) / 8;;
+	dict_field_t*	field;
+	ulint		null_mask	= 1;
+
+	/* read the lengths of fields 0..n */
+	do {
+		ulint	len;
+
+		field = dict_index_get_nth_field(index, i);
+		if (!(dict_field_get_col(field)->prtype
+		      & DATA_NOT_NULL)) {
+			/* nullable field => read the null flag */
+
+			if (UNIV_UNLIKELY(!(byte) null_mask)) {
+				nulls--;
+				null_mask = 1;
+			}
+
+			if (*nulls & null_mask) {
+				null_mask <<= 1;
+				/* No length is stored for NULL fields.
+				We do not advance offs, and we set
+				the length to zero and enable the
+				SQL NULL flag in offsets[]. */
+				len = offs | REC_OFFS_SQL_NULL;
+				goto resolved;
+			}
+			null_mask <<= 1;
+		}
+
+		if (UNIV_UNLIKELY(!field->fixed_len)) {
+			/* Variable-length field: read the length */
+			const dict_col_t*	col
+				= dict_field_get_col(field);
+			len = *lens--;
+			if (UNIV_UNLIKELY(col->len > 255)
+			    || UNIV_UNLIKELY(col->mtype
+					     == DATA_BLOB)) {
+				if (len & 0x80) {
+					/* 1exxxxxxx xxxxxxxx */
+					len <<= 8;
+					len |= *lens--;
+
+					offs += len & 0x3fff;
+					if (UNIV_UNLIKELY(len
+							  & 0x4000)) {
+						ut_ad(dict_index_is_clust
+						      (index));
+						any_ext = REC_OFFS_EXTERNAL;
+						len = offs
+							| REC_OFFS_EXTERNAL;
+					} else {
+						len = offs;
+					}
+
+					goto resolved;
+				}
+			}
+
+			len = offs += len;
+		} else {
+			len = offs += field->fixed_len;
+		}
+resolved:
+		rec_offs_base(offsets)[i + 1] = len;
+	} while (++i < rec_offs_n_fields(offsets));
+
+	*rec_offs_base(offsets)
+		= (rec - (lens + 1)) | REC_OFFS_COMPACT | any_ext;
+}
+
+/**********************************************************
 The following function determines the offsets to each field in the
 record.	 The offsets are written to a previously allocated array of
 ulint, where rec_offs_n_fields(offsets) has been initialized to the
@@ -240,7 +331,6 @@ rec_init_offsets(
 	rec_offs_make_valid(rec, index, offsets);
 
 	if (dict_table_is_comp(index->table)) {
-		ulint		any_ext;
 		const byte*	nulls;
 		const byte*	lens;
 		dict_field_t*	field;
@@ -261,13 +351,15 @@ rec_init_offsets(
 				= dict_index_get_n_unique_in_tree(index);
 			break;
 		case REC_STATUS_ORDINARY:
-			break;
+			rec_init_offsets_comp_ordinary(rec,
+						       REC_N_NEW_EXTRA_BYTES,
+						       index, offsets);
+			return;
 		}
 
 		nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
 		lens = nulls - (index->n_nullable + 7) / 8;
 		offs = 0;
-		any_ext = 0;
 		null_mask = 1;
 
 		/* read the lengths of fields 0..n */
@@ -313,17 +405,9 @@ rec_init_offsets(
 						len <<= 8;
 						len |= *lens--;
 
-						offs += len & 0x3fff;
-						if (UNIV_UNLIKELY(len
-								  & 0x4000)) {
-							ut_ad(dict_index_is_clust
-							      (index));
-							any_ext = REC_OFFS_EXTERNAL;
-							len = offs
-								| REC_OFFS_EXTERNAL;
-						} else {
-							len = offs;
-						}
+						ut_a(len <= 0x3fff);
+						offs += len;
+						len = offs;
 
 						goto resolved;
 					}
@@ -338,7 +422,7 @@ resolved:
 		} while (++i < rec_offs_n_fields(offsets));
 
 		*rec_offs_base(offsets)
-			= (rec - (lens + 1)) | REC_OFFS_COMPACT | any_ext;
+			= (rec - (lens + 1)) | REC_OFFS_COMPACT;
 	} else {
 		/* Old-style record: determine extra size and end offsets */
 		offs = REC_N_OLD_EXTRA_BYTES;
@@ -623,15 +707,15 @@ rec_get_nth_field_offs_old(
 }
 
 /**************************************************************
-The following function returns the size of a data tuple when converted to
-a new-style physical record. */
+Determines the size of a data tuple in ROW_FORMAT=COMPACT. */
 
 ulint
-rec_get_converted_size_new(
-/*=======================*/
+rec_get_converted_size_comp(
+/*========================*/
 				/* out: size */
-	dict_index_t*	index,	/* in: record descriptor */
-	const dtuple_t*	dtuple,
+	dict_index_t*	index,	/* in: record descriptor;
+				dict_table_is_comp() is assumed to hold */
+	const dtuple_t*	dtuple,	/* in: data tuple */
 	const ulint*	ext,	/* in: array of extern field numbers */
 	ulint		n_ext)	/* in: number of elements in ext */
 {
@@ -641,7 +725,7 @@ rec_get_converted_size_new(
 	ulint		j;
 	ulint		n_fields;
 	ut_ad(index && dtuple);
-	ut_ad(dict_table_is_comp(index->table));
+	ut_ad(dtuple_validate(dtuple));
 
 	switch (dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK) {
 	case REC_STATUS_ORDINARY:
@@ -883,15 +967,16 @@ rec_convert_dtuple_to_rec_old(
 }
 
 /*************************************************************
-Builds a new-style physical record out of a data tuple and
-stores it beginning from the start of the given buffer. */
-static
-rec_t*
-rec_convert_dtuple_to_rec_new(
-/*==========================*/
-				/* out: pointer to the origin
-				of physical record */
-	byte*		buf,	/* in: start address of the physical record */
+Builds a ROW_FORMAT=COMPACT record out of a data tuple. */
+
+byte*
+rec_convert_dtuple_to_rec_comp(
+/*===========================*/
+				/* out: pointer to the start of data payload */
+	byte*		buf,	/* in: start address of the data area */
+	ulint		extra,	/* in: number of bytes to reserve between
+				the record header and the data payload
+				(usually REC_N_NEW_EXTRA_BYTES) */
 	dict_index_t*	index,	/* in: record descriptor */
 	const dtuple_t*	dtuple,	/* in: data tuple */
 	const ulint*	ext,	/* in: array of extern field numbers,
@@ -900,7 +985,7 @@ rec_convert_dtuple_to_rec_new(
 {
 	const dfield_t*	field;
 	const dtype_t*	type;
-	rec_t*		rec		= buf + REC_N_NEW_EXTRA_BYTES;
+	rec_t*		rec		= buf + extra;
 	byte*		end;
 	byte*		nulls;
 	byte*		lens;
@@ -917,7 +1002,7 @@ rec_convert_dtuple_to_rec_new(
 	/* Try to ensure that the memset() between the for() loops
 	completes fast.	 The address is not exact, but UNIV_PREFETCH
 	should never generate a memory fault. */
-	UNIV_PREFETCH_RW(rec - REC_N_NEW_EXTRA_BYTES - n_fields);
+	UNIV_PREFETCH_RW(buf - n_fields);
 	UNIV_PREFETCH_RW(rec);
 
 	switch (UNIV_EXPECT(dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK,
@@ -986,13 +1071,10 @@ rec_convert_dtuple_to_rec_new(
 init:
 	ut_ad(j == n_ext);
 	end = rec;
-	nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
+	nulls = rec - (extra + 1);
 	lens = nulls - (index->n_nullable + 7) / 8;
 	/* clear the SQL-null flags */
-	memset (lens + 1, 0, nulls - lens);
-
-	/* Set the info bits of the record */
-	rec_set_info_and_status_bits(rec, dtuple_get_info_bits(dtuple));
+	memset(lens + 1, 0, nulls - lens);
 
 	/* Store the data and the offsets */
 
@@ -1059,6 +1141,31 @@ init:
 	}
 
 	ut_ad(j == n_ext);
+
+	return(rec);
+}
+
+/*************************************************************
+Builds a new-style physical record out of a data tuple and
+stores it beginning from the start of the given buffer. */
+static
+rec_t*
+rec_convert_dtuple_to_rec_new(
+/*==========================*/
+				/* out: pointer to the origin
+				of physical record */
+	byte*		buf,	/* in: start address of the physical record */
+	dict_index_t*	index,	/* in: record descriptor */
+	const dtuple_t*	dtuple,	/* in: data tuple */
+	const ulint*	ext,	/* in: array of extern field numbers,
+				in ascending order */
+	ulint		n_ext)	/* in: number of elements in ext */
+{
+	rec_t*	rec = rec_convert_dtuple_to_rec_comp(
+		buf, REC_N_NEW_EXTRA_BYTES, index, dtuple, ext, n_ext);
+
+	/* Set the info bits of the record */
+	rec_set_info_and_status_bits(rec, dtuple_get_info_bits(dtuple));
 
 	return(rec);
 }

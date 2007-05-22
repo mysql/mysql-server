@@ -336,6 +336,22 @@ rec_get_offsets_func(
 	rec_get_offsets_func(rec,index,offsets,n,heap,__FILE__,__LINE__)
 
 /**********************************************************
+Determine the offset to each field in a leaf-page record
+in ROW_FORMAT=COMPACT.  This is a special case of
+rec_init_offsets() and rec_get_offsets_func(). */
+
+void
+rec_init_offsets_comp_ordinary(
+/*===========================*/
+	const rec_t*	rec,	/* in: physical record in ROW_FORMAT=COMPACT */
+	ulint		extra,	/* in: number of bytes to reserve between
+				the record header and the data payload
+				(usually REC_N_NEW_EXTRA_BYTES) */
+	dict_index_t*	index,	/* in: record descriptor */
+	ulint*		offsets);/* in/out: array of offsets;
+				in: n=rec_offs_n_fields(offsets) */
+
+/**********************************************************
 The following function determines the offsets to each field
 in the record.  It can reuse a previously allocated array. */
 
@@ -589,6 +605,22 @@ rec_fold(
 	dulint		tree_id)	/* in: index tree id */
 	__attribute__((pure));
 /*************************************************************
+Builds a ROW_FORMAT=COMPACT record out of a data tuple. */
+
+byte*
+rec_convert_dtuple_to_rec_comp(
+/*===========================*/
+				/* out: pointer to the start of data payload */
+	byte*		buf,	/* in: start address of the data area */
+	ulint		extra,	/* in: number of bytes to reserve between
+				the record header and the data payload
+				(usually REC_N_NEW_EXTRA_BYTES) */
+	dict_index_t*	index,	/* in: record descriptor */
+	const dtuple_t*	dtuple,	/* in: data tuple */
+	const ulint*	ext,	/* in: array of extern field numbers,
+				in ascending order */
+	ulint		n_ext);	/* in: number of elements in ext */
+/*************************************************************
 Builds a physical record out of a data tuple and
 stores it into the given buffer. */
 
@@ -616,6 +648,18 @@ rec_get_converted_extra_size(
 	ulint	n_fields,	/* in: number of fields */
 	ulint	n_ext)		/* in: number of externally stored columns */
 		__attribute__((const));
+/**************************************************************
+Determines the size of a data tuple in ROW_FORMAT=COMPACT. */
+
+ulint
+rec_get_converted_size_comp(
+/*========================*/
+				/* out: size */
+	dict_index_t*	index,	/* in: record descriptor;
+				dict_table_is_comp() is assumed to hold */
+	const dtuple_t*	dtuple,	/* in: data tuple */
+	const ulint*	ext,	/* in: array of extern field numbers */
+	ulint		n_ext);	/* in: number of elements in ext */
 /**************************************************************
 The following function returns the size of a data tuple when converted to
 a physical record. */
