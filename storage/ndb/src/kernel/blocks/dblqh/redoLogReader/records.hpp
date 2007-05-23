@@ -135,7 +135,7 @@ public:
   Uint32 getLogRecordSize();
   bool lastPage();
   Uint32 lastWord();
-protected:
+//protected:
   Uint32 m_checksum;
   Uint32 m_lap;
   Uint32 m_max_gci_completed;

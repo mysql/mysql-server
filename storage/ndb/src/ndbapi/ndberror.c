@@ -619,6 +619,24 @@ ErrorBundle ErrorCodes[] = {
   { 4273, DMEC, IE, "No blob table in dict cache" },
   { 4274, DMEC, IE, "Corrupted main table PK in blob operation" },
   { 4275, DMEC, AE, "The blob method is incompatible with operation type or lock mode" },
+  { 4276, DMEC, AE, "Missing NULL ptr in end of keyData list" },
+  { 4277, DMEC, AE, "Key part len is to small for column" },
+  { 4278, DMEC, AE, "Supplied buffer to small" },
+  { 4279, DMEC, AE, "Malformed string" },
+  { 4280, DMEC, AE, "Inconsistent key part length" },
+  { 4281, DMEC, AE, "Too many keys specified for key bound in scanIndex" },
+  { 4282, DMEC, AE, "range_no not strictly increasing in ordered multi-range index scan" },
+  { 4283, DMEC, AE, "key_record in index scan is not an index ndbrecord" },
+  { 4284, DMEC, AE, "Cannot mix NdbRecAttr and NdbRecord operations" },
+  { 4285, DMEC, AE, "NULL NdbRecord pointer" },
+  { 4286, DMEC, AE, "Invalid range_no (must be < 4096)" },
+  { 4287, DMEC, AE, "The key_record and attribute_record in primary key operation do not belong to the same table" },
+  { 4288, DMEC, AE, "Blob handle for column not available" },
+  { 4289, DMEC, AE, "API version mismatch or wrong sizeof(NdbDictionary::RecordSpecification)" },
+  { 4290, DMEC, AE, "Missing column specification in NdbDictionary::RecordSpecification" },
+  { 4291, DMEC, AE, "Duplicate column specification in NdbDictionary::RecordSpecification" },
+  { 4292, DMEC, AE, "NdbRecord for tuple access is not an index key NdbRecord" },
+  { 4293, DMEC, AE, "Error returned from application scanIndex() callback" }
 };
 
 static

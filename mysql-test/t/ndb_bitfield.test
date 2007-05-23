@@ -97,6 +97,20 @@ INSERT INTO `t1` VALUES
 (7,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'000000',b'001100',b'111111',4,5,5,5,5,5,5,5,5,5,3,2,1),
 (8,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'111111',b'000000',b'000000',4,5,5,5,5,5,5,5,5,5,3,2,1);
 --exec $MYSQL_DUMP --hex-blob --compact --order-by-primary --skip-extended-insert --no-create-info test t1
+
+select a001, a010, a012, a015, a016, a017, a019, a029
+       a030, a031, a032, a042, a043, a044, a3001, a3002,
+       a3003, a3004, a3005, a3021, a3022, hex(a), hex(b), hex(c),
+       d, e, f, g, h, i, j, k, l, m, n, o, a034
+from t1
+order by dummyKey;
+
+select a001, a010, a012, a015, a016, a017, a019, a029
+       a030, a031, a032, a042, a043, a044, a3001, a3002,
+       a3003, a3004, a3005, a3021, a3022, hex(a), hex(b), hex(c),
+       d, e, f, g, h, i, j, k, l, m, n, o, a034
+from t1 where dummyKey = 1;
+
 drop table t1;
 
 --error 1005

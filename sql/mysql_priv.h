@@ -357,7 +357,11 @@ MY_LOCALE *my_locale_by_number(uint number);
   fulltext functions when reading from it.
 */
 #define TMP_TABLE_FORCE_MYISAM          (ULL(1) << 32)
-
+/*
+  Dont report errors for individual rows,
+  But just report error on commit (or read ofcourse)
+*/
+#define OPTION_ALLOW_BATCH              (ULL(1) << 33) // THD, intern (slave)
 
 /*
   Maximum length of time zone name that we support
@@ -1648,6 +1652,7 @@ extern ulong query_cache_size, query_cache_min_res_unit;
 extern ulong slow_launch_threads, slow_launch_time;
 extern ulong table_cache_size, table_def_size;
 extern ulong max_connections,max_connect_errors, connect_timeout;
+extern my_bool slave_allow_batching;
 extern ulong slave_net_timeout, slave_trans_retries;
 extern uint max_user_connections;
 extern ulong what_to_log,flush_time;

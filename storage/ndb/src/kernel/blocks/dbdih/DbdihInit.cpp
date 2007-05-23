@@ -259,6 +259,11 @@ Dbdih::Dbdih(Block_context& ctx):
   
   addRecSignal(GSN_START_FRAGREF,
 	       &Dbdih::execSTART_FRAGREF);
+
+  addRecSignal(GSN_PREPARE_COPY_FRAG_REF,
+	       &Dbdih::execPREPARE_COPY_FRAG_REF);
+  addRecSignal(GSN_PREPARE_COPY_FRAG_CONF,
+	       &Dbdih::execPREPARE_COPY_FRAG_CONF);
   
   apiConnectRecord = 0;
   connectRecord = 0;

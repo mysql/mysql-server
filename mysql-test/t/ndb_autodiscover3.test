@@ -13,7 +13,7 @@ drop table if exists t1, t2;
 # Workaround for Bug#27644
 # ndb: connecting api node/mysqld may "steal" node_id from running mysqld
 # - let ndb_waiter use a fixed node id so "steal" cannot happen
---let connect_str = "nodeid=6;$NDB_CONNECTSTRING"
+--let connect_str = "nodeid=255;$NDB_CONNECTSTRING"
 
 #
 # Transaction ongoing while cluster is restarted

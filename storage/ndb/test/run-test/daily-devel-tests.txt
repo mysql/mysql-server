@@ -231,7 +231,17 @@ args: -n CreateDropNR -l 1
 #
 max-time: 600
 cmd: test_event_merge
-args: --no-implicit-nulls --separate-events --maxops 10000
+args: --no-implicit-nulls --separate-events --blob-version 1
+
+#
+max-time: 600
+cmd: test_event_merge
+args: --no-implicit-nulls --separate-events
+
+#
+max-time: 600
+cmd: test_event_merge
+args: --no-implicit-nulls --no-multiops --blob-version 1
 
 #
 max-time: 600

@@ -75,6 +75,18 @@ public:
   static void setLcpScanFlag(Uint32 & requestInfo, Uint32 val);
 };
 
+/*
+  The KEYINFO20 signal is sent from LQH to API for each row in a scan when the
+  ScanTabReq::getKeyinfoFlag() is set in requestInfo in the SCAN_TABREQ signal.
+
+  The '20' in the signal name refers to the number of keyInfo data words in
+  the signal, which is actually a bit misleading since now it is sent as a
+  single long signal if the keyinfo has more than 20 words.
+
+  The information in this signal is used in the NDB API to request the take
+  over of a lock from the scan with a TCKEYREQ, using the primary key info
+  sent as data and the scanInfo_Node word to identify the lock.
+*/
 class KeyInfo20 {
   /**
    * Sender(s)
@@ -99,10 +111,23 @@ public:
 public:
   Uint32 clientOpPtr;
   Uint32 keyLen;
+  /*
+    The scanInfo_Node word contains the information needed to identify the
+    row and lock to take over in the TCKEYREQ signal. It has two parts:
+     1. ScanInfo      Lower 20 bits
+     2. ScanFragment  Upper 14 bits
+  */
   Uint32 scanInfo_Node;
   Uint32 transId1;
   Uint32 transId2;
   Uint32 keyData[DataLength];
+  /*
+    Note that if the key info data does not fit within the maximum of 20
+    in-signal words, the entire key info is instead sent in long signal
+    section 0.
+    The data here is a word string suitable for sending as KEYINFO in
+    the TCKEYREQ signal.
+  */
 };
 
 class ScanFragConf {

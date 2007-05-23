@@ -89,6 +89,7 @@ DictTabInfo::AttributeMapping[] = {
   DTIMAP2(Attribute, AttributeNullableFlag, AttributeNullableFlag, 0, 1),
   DTIMAP2(Attribute, AttributeDKey, AttributeDKey, 0, 1),
   DTIMAP2(Attribute, AttributeStorageType, AttributeStorageType, 0, 1),
+  DTIMAP2(Attribute, AttributeDynamic, AttributeDynamic, 0, 1),
   DTIMAP(Attribute, AttributeExtType, AttributeExtType),
   DTIMAP(Attribute, AttributeExtPrecision, AttributeExtPrecision),
   DTIMAP(Attribute, AttributeExtScale, AttributeExtScale),
@@ -188,6 +189,7 @@ DictTabInfo::Attribute::init(){
   AttributeExtLength = 0,
   AttributeAutoIncrement = false;
   AttributeStorageType = 0;
+  AttributeDynamic = 0;                         // Default is not dynamic
   memset(AttributeDefaultValue, 0, sizeof(AttributeDefaultValue));//AttributeDefaultValue[0] = 0;
 }
 

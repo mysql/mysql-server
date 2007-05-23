@@ -592,7 +592,7 @@ MgmtSrvr::start(BaseString &error_string)
       DBUG_RETURN(false);
     }
   }
-  theFacade= new TransporterFacade();
+  theFacade= new TransporterFacade(0);
   
   if(theFacade == 0) {
     DEBUG("MgmtSrvr.cpp: theFacade is NULL.");
@@ -757,9 +757,11 @@ MgmtSrvr::start(int nodeId)
  *****************************************************************************/
 
 int 
-MgmtSrvr::versionNode(int nodeId, Uint32 &version, const char **address)
+MgmtSrvr::versionNode(int nodeId, Uint32 &version, Uint32& mysql_version,
+		      const char **address)
 {
   version= 0;
+  mysql_version = 0;
   if (getOwnNodeId() == nodeId)
   {
     /**
@@ -772,8 +774,9 @@ MgmtSrvr::versionNode(int nodeId, Uint32 &version, const char **address)
      * If we don't get an address (i.e. no db nodes),
      * we get the address from the configuration.
      */
-    sendVersionReq(nodeId, version, address);
+    sendVersionReq(nodeId, version, mysql_version, address);
     version= NDB_VERSION;
+    mysql_version = NDB_MYSQL_VERSION_D;
     if(!*address)
     {
       ndb_mgm_configuration_iterator
@@ -793,20 +796,26 @@ MgmtSrvr::versionNode(int nodeId, Uint32 &version, const char **address)
   {
     ClusterMgr::Node node= theFacade->theClusterMgr->getNodeInfo(nodeId);
     if(node.connected)
+    {
       version= node.m_info.m_version;
+      mysql_version = node.m_info.m_mysql_version;
+    }
     *address= get_connect_address(nodeId);
   }
   else if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_API ||
 	   getNodeType(nodeId) == NDB_MGM_NODE_TYPE_MGM)
   {
-    return sendVersionReq(nodeId, version, address);
+    return sendVersionReq(nodeId, version, mysql_version, address);
   }
 
   return 0;
 }
 
 int 
-MgmtSrvr::sendVersionReq(int v_nodeId, Uint32 &version, const char **address)
+MgmtSrvr::sendVersionReq(int v_nodeId, 
+			 Uint32 &version, 
+			 Uint32& mysql_version,
+			 const char **address)
 {
   SignalSender ss(theFacade);
   ss.lock();
@@ -859,6 +868,9 @@ MgmtSrvr::sendVersionReq(int v_nodeId, Uint32 &version, const char **address)
 	CAST_CONSTPTR(ApiVersionConf, signal->getDataPtr());
       assert((int) conf->nodeId == v_nodeId);
       version = conf->version;
+      mysql_version = conf->mysql_version;
+      if (version < NDBD_SPLIT_VERSION)
+	mysql_version = 0;
       struct in_addr in;
       in.s_addr= conf->inet_addr;
       *address= inet_ntoa(in);
@@ -874,7 +886,7 @@ MgmtSrvr::sendVersionReq(int v_nodeId, Uint32 &version, const char **address)
     case GSN_NODE_FAILREP:{
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
-      if (NodeBitmask::get(rep->theNodes,nodeId))
+      if (NdbNodeBitmask::get(rep->theNodes,nodeId))
 	do_send = 1; // retry with other node
       continue;
     }
@@ -973,7 +985,7 @@ int MgmtSrvr::sendStopMgmd(NodeId nodeId,
  */
 
 int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
-			   NodeBitmask &stoppedNodes,
+			   NdbNodeBitmask &stoppedNodes,
 			   Uint32 singleUserNodeId,
 			   bool abort,
 			   bool stop,
@@ -1034,7 +1046,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
   }
 
   // send the signals
-  NodeBitmask nodes;
+  NdbNodeBitmask nodes;
   NodeId nodeId= 0;
   int use_master_node= 0;
   int do_send= 0;
@@ -1223,7 +1235,7 @@ int MgmtSrvr::stopNodes(const Vector<NodeId> &node_ids,
 	return OPERATION_NOT_ALLOWED_START_STOP;
     }
   }
-  NodeBitmask nodes;
+  NdbNodeBitmask nodes;
   int ret= sendSTOP_REQ(node_ids,
                         nodes,
                         0,
@@ -1266,7 +1278,7 @@ int MgmtSrvr::shutdownMGM(int *stopCount, bool abort, int *stopSelf)
 
 int MgmtSrvr::shutdownDB(int * stopCount, bool abort)
 {
-  NodeBitmask nodes;
+  NdbNodeBitmask nodes;
   Vector<NodeId> node_ids;
 
   int tmp;
@@ -1302,7 +1314,7 @@ int MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId)
        (node.m_state.startLevel != NodeState::SL_NOTHING))
       return OPERATION_NOT_ALLOWED_START_STOP;
   }
-  NodeBitmask nodes;
+  NdbNodeBitmask nodes;
   Vector<NodeId> node_ids;
   int stopSelf;
   int ret = sendSTOP_REQ(node_ids,
@@ -1328,7 +1340,7 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
                            bool initialStart, bool abort,
                            int *stopSelf)
 {
-  NodeBitmask nodes;
+  NdbNodeBitmask nodes;
   int ret= sendSTOP_REQ(node_ids,
                         nodes,
                         0,
@@ -1359,10 +1371,11 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
     while (s != NDB_MGM_NODE_STATUS_NOT_STARTED && waitTime > 0)
     {
       Uint32 startPhase = 0, version = 0, dynamicId = 0, nodeGroup = 0;
+      Uint32 mysql_version = 0;
       Uint32 connectCount = 0;
       bool system;
       const char *address;
-      status(nodeId, &s, &version, &startPhase, 
+      status(nodeId, &s, &version, &mysql_version, &startPhase, 
              &system, &dynamicId, &nodeGroup, &connectCount, &address);
       NdbSleep_MilliSleep(100);  
       waitTime = (maxTime - NdbTick_CurrentMillisecond());
@@ -1386,7 +1399,7 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
 int MgmtSrvr::restartDB(bool nostart, bool initialStart,
                         bool abort, int * stopCount)
 {
-  NodeBitmask nodes;
+  NdbNodeBitmask nodes;
   Vector<NodeId> node_ids;
   int tmp;
 
@@ -1427,10 +1440,11 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
 #endif
     while (s != NDB_MGM_NODE_STATUS_NOT_STARTED && waitTime > 0) {
       Uint32 startPhase = 0, version = 0, dynamicId = 0, nodeGroup = 0;
+      Uint32 mysql_version = 0;
       Uint32 connectCount = 0;
       bool system;
       const char *address;
-      status(nodeId, &s, &version, &startPhase, 
+      status(nodeId, &s, &version, &mysql_version, &startPhase, 
 	     &system, &dynamicId, &nodeGroup, &connectCount, &address);
       NdbSleep_MilliSleep(100);  
       waitTime = (maxTime - NdbTick_CurrentMillisecond());
@@ -1509,6 +1523,7 @@ int
 MgmtSrvr::status(int nodeId, 
                  ndb_mgm_node_status * _status, 
 		 Uint32 * version,
+		 Uint32 * mysql_version,
 		 Uint32 * _phase, 
 		 bool * _system,
 		 Uint32 * dynamic,
@@ -1518,7 +1533,7 @@ MgmtSrvr::status(int nodeId,
 {
   if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_API ||
       getNodeType(nodeId) == NDB_MGM_NODE_TYPE_MGM) {
-    versionNode(nodeId, *version, address);
+    versionNode(nodeId, *version, *mysql_version, address);
   } else {
     *address= get_connect_address(nodeId);
   }
@@ -1533,6 +1548,7 @@ MgmtSrvr::status(int nodeId,
   
   if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB) {
     * version = node.m_info.m_version;
+    * mysql_version = node.m_info.m_mysql_version;
   }
 
   * dynamic = node.m_state.dynamicId;
@@ -1997,7 +2013,7 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
     break;
   case GSN_EVENT_REP:
   {
-    eventReport(signal->getDataPtr());
+    eventReport(signal->getDataPtr(), signal->getLength());
     break;
   }
 
@@ -2045,7 +2061,7 @@ MgmtSrvr::handleStatus(NodeId nodeId, bool alive, bool nfComplete)
     }
   }
   rep->setNodeId(_ownNodeId);
-  eventReport(theData);
+  eventReport(theData, 1);
   DBUG_VOID_RETURN;
 }
 
@@ -2105,7 +2121,7 @@ MgmtSrvr::get_connected_nodes(NodeBitmask &connected_nodes) const
 {
   if (theFacade && theFacade->theClusterMgr) 
   {
-    for(Uint32 i = 0; i < MAX_NODES; i++)
+    for(Uint32 i = 0; i < MAX_NDB_NODES; i++)
     {
       if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB)
       {
@@ -2562,16 +2578,16 @@ MgmtSrvr::getNextNodeId(NodeId * nodeId, enum ndb_mgm_node_type type) const
 #include "Services.hpp"
 
 void
-MgmtSrvr::eventReport(const Uint32 * theData)
+MgmtSrvr::eventReport(const Uint32 * theData, Uint32 len)
 {
   const EventReport * const eventReport = (EventReport *)&theData[0];
   
   NodeId nodeId = eventReport->getNodeId();
   Ndb_logevent_type type = eventReport->getEventType();
   // Log event
-  g_eventLogger.log(type, theData, nodeId, 
+  g_eventLogger.log(type, theData, len, nodeId, 
 		    &m_event_listner[0].m_logLevel);  
-  m_event_listner.log(type, theData, nodeId);
+  m_event_listner.log(type, theData, len, nodeId);
 }
 
 /***************************************************************************
@@ -2708,7 +2724,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
     case GSN_NODE_FAILREP:{
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
-      if (NodeBitmask::get(rep->theNodes,nodeId) ||
+      if (NdbNodeBitmask::get(rep->theNodes,nodeId) ||
 	  waitCompleted == 1)
 	return 1326;
       // wait for next signal

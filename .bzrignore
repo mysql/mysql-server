@@ -1071,6 +1071,7 @@ libmysqld/ha_myisam.cc
 libmysqld/ha_myisammrg.cc
 libmysqld/ha_ndbcluster.cc
 libmysqld/ha_ndbcluster_binlog.cc
+libmysqld/ha_ndbcluster_cond.cc
 libmysqld/ha_partition.cc
 libmysqld/ha_tina.cc
 libmysqld/handler.cc
@@ -2672,6 +2673,7 @@ storage/ndb/src/kernel/blocks/dbdict/ndb_print_schema_file
 storage/ndb/src/kernel/blocks/dbdih/libdbdih.dsp
 storage/ndb/src/kernel/blocks/dbdih/ndb_print_sys_file
 storage/ndb/src/kernel/blocks/dblqh/libdblqh.dsp
+storage/ndb/src/kernel/blocks/dblqh/ndbd_redo_log_reader
 storage/ndb/src/kernel/blocks/dbtc/libdbtc.dsp
 storage/ndb/src/kernel/blocks/dbtup/libdbtup.dsp
 storage/ndb/src/kernel/blocks/dbtup/test_varpage
@@ -2989,4 +2991,3 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
-libmysqld/ha_ndbcluster_cond.cc

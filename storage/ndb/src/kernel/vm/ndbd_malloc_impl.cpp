@@ -25,16 +25,11 @@ extern EventLogger g_eventLogger;
 extern EventLogger g_eventLogger;
 #endif
 
-#ifdef NDBD_MALLOC_METHOD
-#if NDBD_MALLOC_METHOD == sbrk
-static const char * f_method = "sbrk";
+static int f_method_idx = 0;
+#ifdef NDBD_MALLOC_METHOD_SBRK
+static const char * f_method = "SMsm";
 #else
-static const char * f_method = "malloc";
-#endif
-#elif SIZEOF_CHARP == 8
-static const char * f_method = "sbrk";
-#else
-static const char * f_method = "malloc";
+static const char * f_method = "MSms";
 #endif
 #define MAX_CHUNKS 10
 
@@ -54,28 +49,42 @@ do_malloc(Uint32 pages, InitChunk* chunk)
   pages += 1;
   void * ptr = 0;
   Uint32 sz = pages;
-  if (strcmp(f_method, "sbrk") == 0)
+
+retry:
+  char method = f_method[f_method_idx];
+  switch(method){
+  case 0:
+    return false;
+  case 'S':
+  case 's':
   {
     ptr = 0;
     while (ptr == 0)
     {
       ptr = sbrk(sizeof(Alloc_page) * sz);
+      
       if (ptr == (void*)-1)
       {
+	if (method == 'S')
+	{
+	  f_method_idx++;
+	  goto retry;
+	}
+	
 	ptr = 0;
 	sz = 1 + (9 * sz) / 10;
 	if (pages >= 32 && sz < 32)
 	{
 	  sz = pages;
-	  f_method = "malloc";
-	  g_eventLogger.info("sbrk(%lld) failed, trying malloc",
-			     (Uint64)(sizeof(Alloc_page) * sz));
-	  break;
+	  f_method_idx++;
+	  goto retry;
 	}
       }
     }
+    break;
   }
-  if (strcmp(f_method, "malloc") == 0)
+  case 'M':
+  case 'm':
   {
     ptr = 0;
     while (ptr == 0)
@@ -83,15 +92,26 @@ do_malloc(Uint32 pages, InitChunk* chunk)
       ptr = malloc(sizeof(Alloc_page) * sz);
       if (ptr == 0)
       {
+	if (method == 'M')
+	{
+	  f_method_idx++;
+	  goto retry;
+	}
+
 	sz = 1 + (9 * sz) / 10;
 	if (pages >= 32 && sz < 32)
 	{
-	  return false;
+	  f_method_idx++;
+	  goto retry;
 	}
       }
     }
+    break;
   }
-
+  default:
+    return false;
+  }
+  
   chunk->m_cnt = sz;
   chunk->m_ptr = (Alloc_page*)ptr;
   const UintPtr align = sizeof(Alloc_page) - 1;
@@ -151,6 +171,12 @@ Ndbd_mem_manager::Ndbd_mem_manager()
   }
 }
 
+/**
+ * m_min = reserved
+ * m_curr = current
+ * m_max = max alloc, 0 = no limit
+ */
+
 void
 Ndbd_mem_manager::set_resource_limit(const Resource_limit& rl)
 {
@@ -175,6 +201,40 @@ Ndbd_mem_manager::get_resource_limit(Uint32 id, Resource_limit& rl) const
   }
   return false;
 }
+
+static
+inline
+void
+check_resource_limits(Resource_limit* rl)
+{
+#ifdef VM_TRACE
+  Uint32 curr = 0;
+  Uint32 res_alloc = 0;
+  Uint32 shared_alloc = 0;
+  Uint32 sumres = 0;
+  for (Uint32 i = 1; i<XX_RL_COUNT; i++)
+  {
+    curr += rl[i].m_curr;
+    sumres += rl[i].m_min;
+    assert(rl[i].m_max == 0 || rl[i].m_curr <= rl[i].m_max);
+    if (rl[i].m_curr > rl[i].m_min)
+    {
+      shared_alloc += rl[i].m_curr - rl[i].m_min;
+      res_alloc += rl[i].m_min;
+    }
+    else
+    {
+      res_alloc += rl[i].m_curr;
+    }
+  }
+  assert(curr == rl[0].m_curr);
+  assert(res_alloc + shared_alloc == curr);
+  assert(res_alloc <= sumres);
+  assert(sumres == res_alloc + rl[0].m_min);
+  assert(rl[0].m_curr <= rl[0].m_max);
+#endif
+}
+
 
 bool
 Ndbd_mem_manager::init(bool alloc_less_memory)
@@ -292,6 +352,8 @@ Ndbd_mem_manager::init(bool alloc_less_memory)
     grow(chunks[i].m_start, chunks[i].m_cnt);
   }
   
+  check_resource_limits(m_resource_limit);
+
   return true;
 }
 
@@ -321,30 +383,39 @@ Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
     cnt--; // last page is always marked as empty
   }
   
-  if (!m_used_bitmap_pages.get(start_bmp))
-  {
-    if (start != (start_bmp << BPP_2LOG))
-    {
-      ndbout_c("ndbd_malloc_impl.cpp:%d:grow(%d, %d) %d!=%d"
-	       " - Unable to use due to bitmap pages missaligned!!",
-	       __LINE__, start, cnt, start, (start_bmp << BPP_2LOG));
-      g_eventLogger.error("ndbd_malloc_impl.cpp:%d:grow(%d, %d)"
-			  " - Unable to use due to bitmap pages missaligned!!",
-			  __LINE__, start, cnt);
-      return;
-    }
+  for (Uint32 i = 0; i<m_used_bitmap_pages.size(); i++)
+    if (m_used_bitmap_pages[i] == start_bmp)
+      goto found;
 
-#ifdef UNIT_TEST
-    ndbout_c("creating bitmap page %d", start_bmp);
-#endif
+  if (start != (start_bmp << BPP_2LOG))
+  {
     
+    ndbout_c("ndbd_malloc_impl.cpp:%d:grow(%d, %d) %d!=%d not using %uMb"
+	     " - Unable to use due to bitmap pages missaligned!!",
+	     __LINE__, start, cnt, start, (start_bmp << BPP_2LOG),
+	     (cnt >> (20 - 15)));
+    g_eventLogger.error("ndbd_malloc_impl.cpp:%d:grow(%d, %d) not using %uMb"
+			" - Unable to use due to bitmap pages missaligned!!",
+			__LINE__, start, cnt,
+			(cnt >> (20 - 15)));
+
+    dump();
+    return;
+  }
+  
+#ifdef UNIT_TEST
+  ndbout_c("creating bitmap page %d", start_bmp);
+#endif
+  
+  {
     Alloc_page* bmp = m_base_page + start;
     memset(bmp, 0, sizeof(Alloc_page));
-    m_used_bitmap_pages.set(start_bmp);
     cnt--;
     start++;
   }
-
+  m_used_bitmap_pages.push_back(start_bmp);
+  
+found:
   if (cnt)
   {
     m_resource_limit[0].m_curr += cnt;
@@ -427,8 +498,7 @@ Ndbd_mem_manager::alloc(Uint32* ret, Uint32 *pages, Uint32 min)
 	clear(start, start+cnt-1);
       }
       * ret = start;
-      m_resource_limit[0].m_curr += cnt;
-      assert(m_resource_limit[0].m_curr <= m_resource_limit[0].m_max);
+      assert(m_resource_limit[0].m_curr + cnt <= m_resource_limit[0].m_max);
       return;
     }
   }
@@ -459,8 +529,7 @@ Ndbd_mem_manager::alloc(Uint32* ret, Uint32 *pages, Uint32 min)
 
       * ret = start;
       * pages = sz;
-      m_resource_limit[0].m_curr += sz;
-      assert(m_resource_limit[0].m_curr <= m_resource_limit[0].m_max);
+      assert(m_resource_limit[0].m_curr + sz <= m_resource_limit[0].m_max);
       return;
     }
   }
@@ -548,6 +617,15 @@ Ndbd_mem_manager::dump() const
     }
     printf("EOL\n");
   }
+
+  for (Uint32 i = 0; i<XX_RL_COUNT; i++)
+  {
+    printf("ri: %d min: %d curr: %d max: %d\n",
+	   i, 
+	   m_resource_limit[i].m_min,
+	   m_resource_limit[i].m_curr,
+	   m_resource_limit[i].m_max);
+  }
 }
 
 void*
@@ -558,18 +636,25 @@ Ndbd_mem_manager::alloc_page(Uint32 type, Uint32* i)
   Resource_limit tot = m_resource_limit[0];
   Resource_limit rl = m_resource_limit[idx];
 
-  Uint32 add = (rl.m_curr < rl.m_min) ? 0 : 1; // Over min ?
+  Uint32 cnt = 1;
+  Uint32 res0 = (rl.m_curr < rl.m_min) ? 1 : 0;
   Uint32 limit = (rl.m_max == 0 || rl.m_curr < rl.m_max) ? 0 : 1; // Over limit
   Uint32 free = (tot.m_min + tot.m_curr < tot.m_max) ? 1 : 0; // Has free
   
-  if (likely(add == 0 || (limit == 0 && free == 1)))
+  assert(tot.m_min >= res0);
+
+  if (likely(res0 == 1 || (limit == 0 && free == 1)))
   {
-    Uint32 cnt = 1;
     alloc(i, &cnt, 1);
-    assert(cnt);
-    m_resource_limit[0].m_curr = tot.m_curr + add;
-    m_resource_limit[idx].m_curr = rl.m_curr + 1;
-    return m_base_page + *i;
+    if (likely(cnt))
+    {
+      m_resource_limit[0].m_curr = tot.m_curr + cnt;
+      m_resource_limit[0].m_min = tot.m_min - res0;
+      m_resource_limit[idx].m_curr = rl.m_curr + cnt;
+
+      check_resource_limits(m_resource_limit);
+      return m_base_page + *i;
+    }
   }
   return 0;
 }
@@ -582,10 +667,101 @@ Ndbd_mem_manager::release_page(Uint32 type, Uint32 i)
   Resource_limit tot = m_resource_limit[0];
   Resource_limit rl = m_resource_limit[idx];
   
-  Uint32 sub = (rl.m_curr < rl.m_min) ? 0 : 1; // Over min ?
+  Uint32 sub = (rl.m_curr <= rl.m_min) ? 1 : 0; // Over min ?
   release(i, 1);
-  m_resource_limit[0].m_curr = tot.m_curr - sub;
+  m_resource_limit[0].m_curr = tot.m_curr - 1;
+  m_resource_limit[0].m_min = tot.m_min + sub;
   m_resource_limit[idx].m_curr = rl.m_curr - 1;
+
+  check_resource_limits(m_resource_limit);
+}
+
+void
+Ndbd_mem_manager::alloc_pages(Uint32 type, Uint32* i, Uint32 *cnt, Uint32 min)
+{
+  Uint32 idx = type & RG_MASK;
+  assert(idx && idx < XX_RL_COUNT);
+  Resource_limit tot = m_resource_limit[0];
+  Resource_limit rl = m_resource_limit[idx];
+
+  Uint32 req = *cnt;
+
+  Uint32 max = rl.m_max - rl.m_curr;
+  Uint32 res0 = rl.m_min - rl.m_curr;
+  Uint32 free_shared = tot.m_max - (tot.m_min + tot.m_curr);
+
+  Uint32 res1;
+  if (rl.m_curr + req <= rl.m_min)
+  {
+    // all is reserved...
+    res0 = req;
+    res1 = 0;
+  }
+  else
+  {
+    req = rl.m_max ? max : req;
+    res0 = (rl.m_curr > rl.m_min) ? 0 : res0;
+    res1 = req - res0;
+    
+    if (unlikely(res1 > free_shared))
+    {
+      res1 = free_shared;
+      req = res0 + res1;
+    }
+  }
+
+  // req = pages to alloc
+  // res0 = portion that is reserved
+  // res1 = part that is over reserver
+  assert (res0 + res1 == req);
+  assert (tot.m_min >= res0);
+  
+  if (likely(req))
+  {
+    alloc(i, &req, 1); 
+    * cnt = req;
+    if (unlikely(req < res0)) // Got min than what was reserved :-(
+    {
+      res0 = req;
+    }
+    assert(tot.m_min >= res0);
+    assert(tot.m_curr + req <= tot.m_max);
+    
+    m_resource_limit[0].m_curr = tot.m_curr + req;
+    m_resource_limit[0].m_min = tot.m_min - res0;
+    m_resource_limit[idx].m_curr = rl.m_curr + req;
+    check_resource_limits(m_resource_limit);
+    return ;
+  }
+  * cnt = req;
+  return;
+}
+
+void
+Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt)
+{
+  Uint32 idx = type & RG_MASK;
+  assert(idx && idx < XX_RL_COUNT);
+  Resource_limit tot = m_resource_limit[0];
+  Resource_limit rl = m_resource_limit[idx];
+  
+  release(i, cnt);
+
+  Uint32 currnew = rl.m_curr - cnt;
+  if (rl.m_curr > rl.m_min)
+  {
+    if (currnew < rl.m_min)
+    {
+      m_resource_limit[0].m_min = tot.m_min + (rl.m_min - currnew);
+    }
+  }
+  else
+  {
+    m_resource_limit[0].m_min = tot.m_min + cnt;
+  }
+  m_resource_limit[0].m_curr = tot.m_curr - cnt;
+  m_resource_limit[idx].m_curr = currnew;
+  check_resource_limits(m_resource_limit);
 }
 
 #ifdef UNIT_TEST
@@ -781,3 +957,4 @@ main(int argc, char** argv)
 template class Vector<Chunk>;
 
 #endif
+template class Vector<Uint32>;

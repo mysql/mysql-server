@@ -19,7 +19,7 @@
 class AttributeOffset {
   friend class Dbtup;
   
-private:
+public:
   static void   setOffset(Uint32 & desc, Uint32 offset);
   static void   setCharsetPos(Uint32 & desc, Uint32 offset);
   static void   setNullFlagPos(Uint32 & desc, Uint32 offset);
@@ -29,6 +29,7 @@ private:
   static Uint32 getCharsetPos(const Uint32 &);
   static Uint32 getNullFlagPos(const Uint32 &);
   static Uint32 getNullFlagOffset(const Uint32 &);
+  static Uint32 getNullFlagByteOffset(const Uint32 & desc);
   static Uint32 getNullFlagBitOffset(const Uint32 &);
   
   Uint32 m_data;
@@ -44,7 +45,7 @@ private:
  * c = Has charset flag           1  bits 11-11
  * s = Charset pointer position - 7  bits 12-18 ( in table descriptor )
  * f = Null flag offset in word - 5  bits 20-24 ( address 32 bits )
- * w = Null word offset         - 7  bits 25-32 ( f+w addr 4096 attrs )
+ * w = Null word offset         - 7  bits 25-31 ( f+w addr 4096 attrs )
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
@@ -63,6 +64,7 @@ private:
 
 #define AO_NULL_FLAG_WORD_MASK          31      // f
 #define AO_NULL_FLAG_OFFSET_SHIFT       5
+#define AO_NULL_FLAG_BYTE_OFFSET_SHIFT  3
 
 inline
 void
@@ -115,11 +117,20 @@ AttributeOffset::getNullFlagPos(const Uint32 & desc)
   return ((desc >> AO_NULL_FLAG_POS_SHIFT) & AO_NULL_FLAG_POS_MASK);
 }
 
+/* Offset of NULL bit in 32-bit words. */
 inline
 Uint32
 AttributeOffset::getNullFlagOffset(const Uint32 & desc)
 {
   return (getNullFlagPos(desc) >> AO_NULL_FLAG_OFFSET_SHIFT);
+}
+
+/* Offset of NULL bit in bytes. */
+inline
+Uint32
+AttributeOffset::getNullFlagByteOffset(const Uint32 & desc)
+{
+  return (getNullFlagPos(desc) >> AO_NULL_FLAG_BYTE_OFFSET_SHIFT);
 }
 
 inline

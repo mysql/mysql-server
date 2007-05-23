@@ -640,5 +640,9 @@ const GsnName SignalNames [] = {
 
   ,{ GSN_ROUTE_ORD, "ROUTE_ORD" }
   ,{ GSN_NODE_VERSION_REP, "NODE_VERSION_REP" }
+
+  ,{ GSN_PREPARE_COPY_FRAG_REQ,   "PREPARE_COPY_FRAG_REQ" }
+  ,{ GSN_PREPARE_COPY_FRAG_REF,   "PREPARE_COPY_FRAG_REF" }
+  ,{ GSN_PREPARE_COPY_FRAG_CONF,  "PREPARE_COPY_FRAG_CONF" }
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

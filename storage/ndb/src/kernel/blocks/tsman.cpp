@@ -181,7 +181,6 @@ struct TsmanChunk
   Vector<Uint32> bitmask;
 };
 template class Vector<TsmanChunk>;
-template class Vector<Uint32>;
 #endif
 
 void

@@ -151,8 +151,15 @@ public:
 
   /*
     data_length() return the "real size" of the data in memory.
+    For varstrings, this does _not_ include the length bytes.
   */
   virtual uint32 data_length() { return pack_length(); }
+  /*
+    used_length() returns the number of bytes actually used to store the data
+    of the field. So for a varstring it includes both lenght byte(s) and
+    string data, and anything after data_length() bytes are unused.
+  */
+  virtual uint32 used_length() { return pack_length(); }
   virtual uint32 sort_length() const { return pack_length(); }
   virtual int reset(void) { bzero(ptr,pack_length()); return 0; }
   virtual void reset_fields() {}
@@ -1235,6 +1242,7 @@ public:
   uint packed_col_length(const char *to, uint length);
   uint max_packed_col_length(uint max_length);
   uint32 data_length();
+  uint32 used_length();
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return MYSQL_TYPE_VARCHAR; }
   bool has_charset(void) const

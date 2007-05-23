@@ -66,16 +66,6 @@ print_std(const SubTableData * sdata, LinearSectionPtr ptr[3])
 
 // EventBufData
 
-Uint32
-EventBufData::get_blob_part_no() const
-{
-  assert(ptr[0].sz > 2);
-  Uint32 pos = AttributeHeader(ptr[0].p[0]).getDataSize() +
-              AttributeHeader(ptr[0].p[1]).getDataSize();
-  Uint32 no = ptr[1].p[pos];
-  return no;
-}
-
 void
 EventBufData::add_part_size(Uint32 & full_count, Uint32 & full_sz) const
 {
@@ -173,6 +163,7 @@ NdbEventOperationImpl::init(NdbEventImpl& evnt)
   theBlobList = NULL;
   theBlobOpList = NULL;
   theMainOp = NULL;
+  theBlobVersion = 0;
 
   m_data_item= NULL;
   m_eventImpl = NULL;
@@ -433,6 +424,7 @@ NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo, int n)
       // pointer to main table op
       tBlobOp->theMainOp = this;
       tBlobOp->m_mergeEvents = m_mergeEvents;
+      tBlobOp->theBlobVersion = tAttrInfo->m_blobVersion;
 
       // to hide blob op it is linked under main op, not under m_ndb
       if (tLastBlopOp == NULL)
@@ -465,15 +457,46 @@ NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo, int n)
   DBUG_RETURN(tBlob);
 }
 
+Uint32
+NdbEventOperationImpl::get_blob_part_no(bool hasDist)
+{
+  assert(theBlobVersion == 1 || theBlobVersion == 2);
+  assert(theMainOp != NULL);
+  const NdbTableImpl* mainTable = theMainOp->m_eventImpl->m_tableImpl;
+  assert(m_data_item != NULL);
+  LinearSectionPtr (&ptr)[3] = m_data_item->ptr;
+
+  uint pos = 0; // PK and possibly DIST to skip
+
+  if (unlikely(theBlobVersion == 1)) {
+    pos += AttributeHeader(ptr[0].p[0]).getDataSize();
+    assert(hasDist);
+    pos += AttributeHeader(ptr[0].p[1]).getDataSize();
+  } else {
+    uint n = mainTable->m_noOfKeys;
+    uint i;
+    for (i = 0; i < n; i++) {
+      pos += AttributeHeader(ptr[0].p[i]).getDataSize();
+    }
+    if (hasDist)
+      pos += AttributeHeader(ptr[0].p[n]).getDataSize();
+  }
+
+  assert(pos < ptr[1].sz);
+  Uint32 no = ptr[1].p[pos];
+  return no;
+}
+
 int
 NdbEventOperationImpl::readBlobParts(char* buf, NdbBlob* blob,
-                                     Uint32 part, Uint32 count)
+                                     Uint32 part, Uint32 count, Uint16* lenLoc)
 {
   DBUG_ENTER_EVENT("NdbEventOperationImpl::readBlobParts");
   DBUG_PRINT_EVENT("info", ("part=%u count=%u post/pre=%d",
                       part, count, blob->theEventBlobVersion));
 
   NdbEventOperationImpl* blob_op = blob->theBlobEventOp;
+  const bool hasDist = (blob->theStripeSize != 0);
 
   EventBufData* main_data = m_data_item;
   DBUG_PRINT_EVENT("info", ("main_data=%p", main_data));
@@ -501,22 +524,37 @@ NdbEventOperationImpl::readBlobParts(char* buf, NdbBlob* blob,
     /*
      * Hack part no directly out of buffer since it is not returned
      * in pre data (PK buglet).  For part data use receive_event().
-     * This means extra copy.
+     * This means extra copy. XXX fix
      */
     blob_op->m_data_item = data;
     int r = blob_op->receive_event();
     assert(r > 0);
-    Uint32 no = data->get_blob_part_no();
-    Uint32 sz = blob->thePartSize;
-    const char* src = blob->theBlobEventDataBuf.data;
+    // XXX should be: no = blob->theBlobEventPartValue
+    Uint32 no = blob_op->get_blob_part_no(hasDist);
 
-    DBUG_PRINT_EVENT("info", ("part_data=%p part no=%u part sz=%u", data, no, sz));
+    DBUG_PRINT_EVENT("info", ("part_data=%p part no=%u part", data, no));
 
     if (part <= no && no < part + count)
     {
       DBUG_PRINT_EVENT("info", ("part within read range"));
+
+      const char* src = blob->theBlobEventDataBuf.data;
+      Uint32 sz = 0;
+      if (blob->theFixedDataFlag) {
+        sz = blob->thePartSize;
+      } else {
+        const uchar* p = (const uchar*)blob->theBlobEventDataBuf.data;
+        sz = p[0] + (p[1] << 8);
+        src += 2;
+      }
       memcpy(buf + (no - part) * sz, src, sz);
       nparts++;
+      if (lenLoc != NULL) {
+        assert(count == 1);
+        *lenLoc = sz;
+      } else {
+        assert(sz == blob->thePartSize);
+      }
     }
     else
     {
@@ -2440,35 +2478,6 @@ end:
  * NUL event on main table.  The real event replaces it later.
  */
 
-// write attribute headers for concatened PK
-static void
-split_concatenated_pk(const NdbTableImpl* t, Uint32* ah_buffer,
-                      const Uint32* pk_buffer, Uint32 pk_sz)
-{
-  Uint32 sz = 0; // words parsed so far
-  Uint32 n;  // pk attr count
-  Uint32 i;
-  for (i = n = 0; i < t->m_columns.size() && n < t->m_noOfKeys; i++)
-  {
-    const NdbColumnImpl* c = t->getColumn(i);
-    assert(c != NULL);
-    if (! c->m_pk)
-      continue;
-
-    assert(sz < pk_sz);
-    Uint32 bytesize = c->m_attrSize * c->m_arraySize;
-    Uint32 lb, len;
-    bool ok = NdbSqlUtil::get_var_length(c->m_type, &pk_buffer[sz], bytesize,
-                                         lb, len);
-    assert(ok);
-
-    AttributeHeader ah(i, lb + len);
-    ah_buffer[n++] = ah.m_value;
-    sz += ah.getDataSize();
-  }
-  assert(n == t->m_noOfKeys && sz <= pk_sz);
-}
-
 int
 NdbEventBuffer::get_main_data(Gci_container* bucket,
                               EventBufData_hash::Pos& hpos,
@@ -2476,20 +2485,82 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::get_main_data");
 
+  int blobVersion = blob_data->m_event_op->theBlobVersion;
+  assert(blobVersion == 1 || blobVersion == 2);
+
   NdbEventOperationImpl* main_op = blob_data->m_event_op->theMainOp;
   assert(main_op != NULL);
   const NdbTableImpl* mainTable = main_op->m_eventImpl->m_tableImpl;
 
   // create LinearSectionPtr for main table key
   LinearSectionPtr ptr[3];
-  Uint32 ah_buffer[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
+
+  Uint32 pk_ah[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
+  Uint32* pk_data = blob_data->ptr[1].p;
+  Uint32 pk_size = 0;
+
+  if (unlikely(blobVersion == 1)) {
+    /*
+     * Blob PK attribute 0 is concatenated table PK null padded
+     * to fixed maximum size.  The actual size and attributes of
+     * table PK must be discovered.
+     */
+    Uint32 max_size = AttributeHeader(blob_data->ptr[0].p[0]).getDataSize();
+
+    Uint32 sz = 0; // words parsed so far
+    Uint32 n = 0;
+    Uint32 i;
+    for (i = 0; n < mainTable->m_noOfKeys; i++) {
+      const NdbColumnImpl* c = mainTable->getColumn(i);
+      assert(c != NULL);
+      if (! c->m_pk)
+        continue;
+
+      Uint32 bytesize = c->m_attrSize * c->m_arraySize;
+      Uint32 lb, len;
+      assert(sz < max_size);
+      bool ok = NdbSqlUtil::get_var_length(c->m_type, &pk_data[sz],
+                                           bytesize, lb, len);
+      assert(ok);
+
+      AttributeHeader ah(i, lb + len);
+      pk_ah[n] = ah.m_value;
+      sz += ah.getDataSize();
+      n++;
+    }
+    assert(n == mainTable->m_noOfKeys);
+    assert(sz <= max_size);
+    pk_size = sz;
+  } else {
+    /*
+     * Blob PK starts with separate table PKs.  Total size must be
+     * counted and blob attribute ids changed to table attribute ids.
+     */
+    Uint32 sz = 0; // count size
+    Uint32 n = 0;
+    Uint32 i;
+    for (i = 0; n < mainTable->m_noOfKeys; i++) {
+      const NdbColumnImpl* c = mainTable->getColumn(i);
+      assert(c != NULL);
+      if (! c->m_pk)
+        continue;
+
+      AttributeHeader ah(blob_data->ptr[0].p[n]);
+      ah.setAttributeId(i);
+      pk_ah[n] = ah.m_value;
+      sz += ah.getDataSize();
+      n++;
+    }
+    assert(n == mainTable->m_noOfKeys);
+    pk_size = sz;
+  }
+
   ptr[0].sz = mainTable->m_noOfKeys;
-  ptr[0].p = ah_buffer;
-  ptr[1].sz = AttributeHeader(blob_data->ptr[0].p[0]).getDataSize();
-  ptr[1].p = blob_data->ptr[1].p;
+  ptr[0].p = pk_ah;
+  ptr[1].sz = pk_size;
+  ptr[1].p = pk_data;
   ptr[2].sz = 0;
   ptr[2].p = 0;
-  split_concatenated_pk(mainTable, ptr[0].p, ptr[1].p, ptr[1].sz);
 
   DBUG_DUMP_EVENT("ah", (char*)ptr[0].p, ptr[0].sz << 2);
   DBUG_DUMP_EVENT("pk", (char*)ptr[1].p, ptr[1].sz << 2);

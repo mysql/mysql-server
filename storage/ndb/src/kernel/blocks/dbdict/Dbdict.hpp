@@ -1163,9 +1163,11 @@ private:
 
     // For alter table
     Uint32 m_changeMask;
+    Uint32 m_new_cols;
     bool m_alterTableFailed;
     AlterTableRef m_alterTableRef;
     Uint32 m_alterTableId;
+    Uint32 m_tupAlterTabPtr;                    // Connect ptr towards TUP
 
     /* Previous table name (used for reverting failed table rename) */
     char previousTableName[MAX_TAB_NAME_SIZE];

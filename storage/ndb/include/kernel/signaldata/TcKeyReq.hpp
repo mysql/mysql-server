@@ -96,7 +96,7 @@ private:
   //  Conditional part = can be present in signal. 
   //  These four words will be sent only if their indicator is set.
   // ----------------------------------------------------------------------
-  UintR scanInfo;             // DATA 8   Various flags for scans
+  UintR scanInfo;             // DATA 8   Various flags for scans, see below
   UintR distrGroupHashValue;  // DATA 9
   UintR distributionKeySize;  // DATA 10
   UintR storedProcId;         // DATA 11
@@ -223,9 +223,18 @@ private:
 /**
  * Scan Info
  *
+ * Scan Info is used to identify the row and lock to take over from a scan.
+ *
+ * If "Scan take over indicator" is set, this operation will take over a lock
+ * currently held on a row being scanned.
+ * Scan locks not taken over in this way (by same or other transaction) are
+ * released when fetching the next batch of rows (SCAN_NEXTREQ signal).
+ * The value for "take over node" and "scan info" are obtained from the
+ * KEYINFO20 signal sent to NDB API by LQH if requested in SCAN_TABREQ.
+ *
  t = Scan take over indicator -  1 Bit
- n = Take over node           - 12 Bits -> max 65535
- p = Scan Info                - 18 Bits -> max 4095
+ n = Take over node           - 12 Bits -> max 4095
+ p = Scan Info                - 18 Bits -> max 0x3ffff
 
            1111111111222222222233
  01234567890123456789012345678901
@@ -238,7 +247,7 @@ private:
 #define TAKE_OVER_FRAG_MASK  (4095)
 
 #define SCAN_INFO_SHIFT      (1)
-#define SCAN_INFO_MASK       (262143)
+#define SCAN_INFO_MASK       (0x3ffff)
 
 /**
  * Attr Len
