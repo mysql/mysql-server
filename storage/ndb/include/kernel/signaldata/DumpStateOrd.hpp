@@ -51,6 +51,16 @@ class DumpStateOrd {
 
 public:
   enum DumpStateType {
+    /* any dumps above this value should go to one block only */
+    OneBlockOnly = 100000,
+
+    _BackupMin   = 100000,
+    BackupStatus = 100000,
+    _BackupMax   = 100999,
+
+    _TCMin       = 101000,
+    _TCMax       = 101999,
+
     // 1 QMGR Dump information about phase 1 variables
     // 13 CMVMI Dump signal counter
     // 13 NDBCNTR Dump start phase information
