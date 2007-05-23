@@ -632,7 +632,7 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
 
     DUMP(&query_cache);
     BLOCK_LOCK_WR(query_block);
-    DBUG_PRINT("qcache", ("insert parequestedcket %lu bytes long",length));
+    DBUG_PRINT("qcache", ("insert packet %lu bytes long",length));
 
     /*
       On success STRUCT_UNLOCK(&query_cache.structure_guard_mutex) will be
