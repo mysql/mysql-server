@@ -6911,7 +6911,8 @@ err:
     }
     bool save_abort_on_warning= thd->abort_on_warning;
     thd->abort_on_warning= TRUE;
-    make_truncated_value_warning(thd, f_val, strlength(f_val), t_type,
+    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                 f_val, strlength(f_val), t_type,
                                  new_datetime_field->field_name);
     thd->abort_on_warning= save_abort_on_warning;
   }
