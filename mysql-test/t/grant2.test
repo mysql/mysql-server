@@ -554,3 +554,6 @@ use test;
 drop database mysqltest_1;
 drop database mysqltest_2;
 drop user mysqltest_u1@localhost;
+
+--echo End of 5.0 tests
+
