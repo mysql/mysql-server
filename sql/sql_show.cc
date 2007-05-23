@@ -5513,8 +5513,8 @@ ST_FIELD_INFO columns_fields_info[]=
   {"EXTRA", 20, MYSQL_TYPE_STRING, 0, 0, "Extra"},
   {"PRIVILEGES", 80, MYSQL_TYPE_STRING, 0, 0, "Privileges"},
   {"COLUMN_COMMENT", 255, MYSQL_TYPE_STRING, 0, 0, "Comment"},
-  {"COLUMN_STORAGE", 8, MYSQL_TYPE_STRING, 0, 0, "Storage"},
-  {"COLUMN_FORMAT", 8, MYSQL_TYPE_STRING, 0, 0, "Format"},
+  {"STORAGE", 8, MYSQL_TYPE_STRING, 0, 0, "Storage"},
+  {"FORMAT", 8, MYSQL_TYPE_STRING, 0, 0, "Format"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 

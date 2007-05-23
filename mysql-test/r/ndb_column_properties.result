@@ -12,10 +12,10 @@ ENGINE NDB;
 create table t1 (a int column_format DYNAMIC STORAGE DISK) TABLESPACE ts1 engine NDB;
 Warnings:
 Warning	1466	DYNAMIC column a with STORAGE DISK is not supported, column will become FIXED
-select * from information_schema.columns
+select column_name, storage, format from information_schema.columns
 where table_name = "t1";
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	COLUMN_STORAGE	COLUMN_FORMAT
-NULL	test	t1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Disk	Dynamic
+column_name	storage	format
+a	Disk	Dynamic
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -63,21 +63,21 @@ t1	CREATE TABLE `t1` (
   `f1` char(100) NOT NULL STORAGE DISK COLUMN_FORMAT DYNAMIC,
   KEY `b` (`b`)
 ) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
-select * from information_schema.columns
+select column_name, storage, format from information_schema.columns
 where table_name = "t1";
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	COLUMN_STORAGE	COLUMN_FORMAT
-NULL	test	t1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Fixed
-NULL	test	t1	a1	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Fixed
-NULL	test	t1	b	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)	MUL		select,insert,update,references		Default	Dynamic
-NULL	test	t1	b1	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Disk	Fixed
-NULL	test	t1	c	5	NULL	YES	varchar	100	100	NULL	NULL	latin1	latin1_swedish_ci	varchar(100)			select,insert,update,references		Default	Fixed
-NULL	test	t1	c1	6	NULL	YES	varchar	100	100	NULL	NULL	latin1	latin1_swedish_ci	varchar(100)			select,insert,update,references		Memory	Dynamic
-NULL	test	t1	d	7	NULL	NO	varchar	100	100	NULL	NULL	latin1	latin1_swedish_ci	varchar(100)			select,insert,update,references		Default	Fixed
-NULL	test	t1	d1	8	NULL	NO	varchar	100	100	NULL	NULL	latin1	latin1_swedish_ci	varchar(100)			select,insert,update,references		Default	Dynamic
-NULL	test	t1	e	9	NULL	YES	char	100	100	NULL	NULL	latin1	latin1_swedish_ci	char(100)			select,insert,update,references		Default	Fixed
-NULL	test	t1	e1	10	NULL	YES	char	100	100	NULL	NULL	latin1	latin1_swedish_ci	char(100)			select,insert,update,references		Default	Dynamic
-NULL	test	t1	f	11	NULL	NO	char	100	100	NULL	NULL	latin1	latin1_swedish_ci	char(100)			select,insert,update,references		Default	Fixed
-NULL	test	t1	f1	12	NULL	NO	char	100	100	NULL	NULL	latin1	latin1_swedish_ci	char(100)			select,insert,update,references		Disk	Dynamic
+column_name	storage	format
+a	Default	Fixed
+a1	Default	Fixed
+b	Default	Dynamic
+b1	Disk	Fixed
+c	Default	Fixed
+c1	Memory	Dynamic
+d	Default	Fixed
+d1	Default	Dynamic
+e	Default	Fixed
+e1	Default	Dynamic
+f	Default	Fixed
+f1	Disk	Dynamic
 alter table t1 change column a a int storage disk;
 Warnings:
 Warning	1466	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
