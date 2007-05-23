@@ -306,7 +306,7 @@ create table t3 like t1;
 create table t3 like mysqltest.t3;
 --error 1049
 create table non_existing_database.t1 like t1;
---error 1051
+--error ER_NO_SUCH_TABLE
 create table t3 like non_existing_table;
 --error 1050
 create temporary table t3 like t1;
