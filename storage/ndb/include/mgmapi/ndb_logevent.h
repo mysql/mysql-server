@@ -163,6 +163,8 @@ extern "C" {
     /** NDB_MGM_EVENT_CATEGORY_BACKUP */
     NDB_LE_BackupFailedToStart = 55,
     /** NDB_MGM_EVENT_CATEGORY_BACKUP */
+    NDB_LE_BackupStatus = 62,
+    /** NDB_MGM_EVENT_CATEGORY_BACKUP */
     NDB_LE_BackupCompleted = 56,
     /** NDB_MGM_EVENT_CATEGORY_BACKUP */
     NDB_LE_BackupAborted = 57,
@@ -175,9 +177,9 @@ extern "C" {
     /** NDB_MGM_EVENT_CATEGORY_STARTUP */
     NDB_LE_StartReport = 60
 
-    /* 60 unused */
     /* 61 unused */
-    /* 62 unused */
+    /* 62 used */
+    /* 63 unused */
 
   };
 
@@ -628,7 +630,24 @@ extern "C" {
 	unsigned n_log_records;
 	unsigned n_bytes;
 	unsigned n_log_bytes;
+	unsigned n_records_hi;
+	unsigned n_log_records_hi;
+	unsigned n_bytes_hi;
+	unsigned n_log_bytes_hi;
       } BackupCompleted;
+      /** Log event data @ref NDB_LE_BackupStatus */
+      struct {
+	unsigned starting_node;
+	unsigned backup_id; 
+	unsigned n_records_lo; 
+	unsigned n_records_hi; 
+	unsigned n_log_records_lo;
+	unsigned n_log_records_hi;
+	unsigned n_bytes_lo;
+	unsigned n_bytes_hi;
+	unsigned n_log_bytes_lo;
+	unsigned n_log_bytes_hi;
+      } BackupStatus;
       /** Log event data @ref NDB_LE_BackupAborted */
       struct {
 	unsigned starting_node;

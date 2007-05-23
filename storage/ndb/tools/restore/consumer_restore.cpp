@@ -929,6 +929,7 @@ BackupRestore::table(const TableS & table){
       }
       return false;
     }
+    info.setLevel(254);
     info << "Successfully restored table `"
          << table.getTableName() << "`" << endl;
   }  
@@ -979,6 +980,7 @@ BackupRestore::table(const TableS & table){
 	dict->dropTable(split[2].c_str());
 	return false;
       }
+      info.setLevel(254);
       info << "Successfully restored table event " << event_name << endl ;
     }
   }
@@ -1489,6 +1491,7 @@ BackupRestore::endOfLogEntrys()
   if (!m_restore)
     return;
 
+  info.setLevel(254);
   info << "Restored " << m_dataCount << " tuples and "
        << m_logCount << " log entries" << endl;
 }

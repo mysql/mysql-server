@@ -1322,6 +1322,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     STR_VALUE(MAX_INT_RNIL) },
   
+  { 
+    CFG_DB_BACKUP_REPORT_FREQUENCY,
+    "BackupReportFrequency",
+    DB_TOKEN,
+    "Frequency of backup status reports during backup in seconds",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    STR_VALUE(MAX_INT_RNIL) },
+  
   /***************************************************************************
    * API
    ***************************************************************************/
