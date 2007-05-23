@@ -2035,7 +2035,9 @@ static bool show_status_array(THD *thd, const char *wild,
                               const char *prefix, TABLE *table,
                               bool ucase_names)
 {
-  char buff[SHOW_VAR_FUNC_BUFF_SIZE], *prefix_end;
+  MY_ALIGNED_BYTE_ARRAY(buff_data, SHOW_VAR_FUNC_BUFF_SIZE, long);
+  char * const buff= (char *) &buff_data;
+  char *prefix_end;
   /* the variable name should not be longer than 64 characters */
   char name_buffer[64];
   int len;
