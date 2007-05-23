@@ -923,8 +923,8 @@ static Item *create_comparator(MY_XPATH *xpath,
   else if (a->type() == Item::XPATH_NODESET &&
            b->type() == Item::XPATH_NODESET)
   {
-    uint len= context->end - context->beg;
-    set_if_bigger(len, 32);
+    uint len= xpath->query.end - context->beg;
+    set_if_smaller(len, 32);
     my_printf_error(ER_UNKNOWN_ERROR,
                     "XPATH error: "
                     "comparison of two nodesets is not supported: '%.*s'",
@@ -2591,12 +2591,10 @@ void Item_xml_str_func::fix_length_and_dec()
 
   if (!rc)
   {
-    char context[32];
     uint clen= xpath.query.end - xpath.lasttok.beg;
-    set_if_bigger(clen, sizeof(context) - 1);
-    strmake(context, xpath.lasttok.beg, clen);
-    my_printf_error(ER_UNKNOWN_ERROR, "XPATH syntax error: '%s'", 
-                    MYF(0), context);
+    set_if_smaller(clen, 32);
+    my_printf_error(ER_UNKNOWN_ERROR, "XPATH syntax error: '%.*s'",
+                    MYF(0), clen, xpath.lasttok.beg);
     return;
   }
 

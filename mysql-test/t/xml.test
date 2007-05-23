@@ -523,3 +523,13 @@ CALL spxml('<a><b>b1</b><b>b2</b></a>', '1 and string');
 CALL spxml('<a><b>b1</b><b>b2</b></a>', 'string and 1');
 CALL spxml('<a><b>b1</b><b>b2</b></a>', 'string');
 DROP PROCEDURE spxml;
+
+#
+# Bug#28558 UpdateXML called with garbage crashes server
+#
+--error 1105
+select UpdateXML('<a>a</a>',repeat('a b ',1000),'');
+--error 1105
+select ExtractValue('<a>a</a>', '/a[@x=@y0123456789_0123456789_0123456789_0123456789]');
+--error 1105
+select ExtractValue('<a>a</a>', '/a[@x=$y0123456789_0123456789_0123456789_0123456789]');
