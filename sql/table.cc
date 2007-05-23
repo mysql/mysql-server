@@ -121,6 +121,8 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
 
     share->version=       refresh_version;
 
+    share->tablespace=    NULL;
+
     /*
       This constant is used to mark that no table map version has been
       assigned.  No arithmetic is done on the value: it will be
@@ -188,7 +190,7 @@ void init_tmp_table_share(TABLE_SHARE *share, const char *key,
   share->normalized_path.str=    (char*) path;
   share->path.length= share->normalized_path.length= strlen(path);
   share->frm_version= 		 FRM_VER_TRUE_VARCHAR;
-
+  share->tablespace=             NULL;
   /*
     Temporary tables are not replicated, but we set up these fields
     anyway to be able to catch errors.
@@ -474,6 +476,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   const char **interval_array;
   enum legacy_db_type legacy_db_type;
   my_bitmap_map *bitmaps;
+  char *buff= 0;
+  char *field_extra_info= 0;
   DBUG_ENTER("open_binary_frm");
 
   new_field_pack_flag= head[27];
@@ -647,21 +651,19 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if ((n_length= uint4korr(head+55)))
   {
     /* Read extra data segment */
-    char *buff, *next_chunk, *buff_end;
+    char *next_chunk, *buff_end;
     DBUG_PRINT("info", ("extra segment size is %u bytes", n_length));
     if (!(next_chunk= buff= my_malloc(n_length, MYF(MY_WME))))
       goto err;
     if (my_pread(file, (byte*)buff, n_length, record_offset + share->reclength,
                  MYF(MY_NABP)))
     {
-      my_free(buff, MYF(0));
       goto err;
     }
     share->connect_string.length= uint2korr(buff);
     if (! (share->connect_string.str= strmake_root(&share->mem_root,
             next_chunk + 2, share->connect_string.length)))
     {
-      my_free(buff, MYF(0));
       goto err;
     }
     next_chunk+= share->connect_string.length + 2;
@@ -726,7 +728,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
               memdup_root(&share->mem_root, next_chunk + 4,
                           partition_info_len + 1)))
         {
-          my_free(buff, MYF(0));
           goto err;
         }
       }
@@ -734,7 +735,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       if (partition_info_len)
       {
         DBUG_PRINT("info", ("WITH_PARTITION_STORAGE_ENGINE is not defined"));
-        my_free(buff, MYF(0));
         goto err;
       }
 #endif
@@ -771,22 +771,52 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         {
           DBUG_PRINT("error",
                      ("fulltext key uses parser that is not defined in .frm"));
-          my_free(buff, MYF(0));
           goto err;
         }
         parser_name.str= next_chunk;
         parser_name.length= strlen(next_chunk);
+        next_chunk+= (parser_name.length + 1);
         keyinfo->parser= my_plugin_lock_by_name(NULL, &parser_name,
                                                 MYSQL_FTPARSER_PLUGIN);
         if (! keyinfo->parser)
         {
           my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), parser_name.str);
-          my_free(buff, MYF(0));
           goto err;
         }
       }
     }
-    my_free(buff, MYF(0));
+    DBUG_ASSERT (next_chunk <= buff_end);
+    {
+      if ((char*)next_chunk >= buff_end)
+      {
+        DBUG_PRINT("info", ("Found no field extra info"));
+        abort();
+      }
+      else
+      {
+        DBUG_PRINT("info", ("Found field extra info"));
+        const uint format_section_header_size= 8;
+        uint format_section_len= uint2korr(next_chunk+0);
+        uint flags=              uint4korr(next_chunk+2);
+
+        share->default_storage_media= (enum ha_storage_media) (flags & 0x7);
+
+        const char *tablespace= next_chunk + format_section_header_size;
+        uint tablespace_len= strlen(tablespace);
+        if (tablespace_len != 0) 
+        {
+          share->tablespace= (char *) alloc_root(&share->mem_root,
+                                                 tablespace_len+1);
+          strxmov(share->tablespace, tablespace, NullS);
+        }
+        else
+          share->tablespace= NULL;
+
+        field_extra_info= next_chunk + format_section_header_size + tablespace_len + 1;
+        next_chunk+= format_section_len;
+      }
+    }
+    DBUG_ASSERT (next_chunk <= buff_end);
   }
   share->key_block_size= uint2korr(head+62);
 
@@ -929,10 +959,21 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   {
     uint pack_flag, interval_nr, unireg_type, recpos, field_length;
     enum_field_types field_type;
+    enum ha_storage_media storage_type= HA_SM_DEFAULT;
+    enum column_format_type column_format= COLUMN_FORMAT_TYPE_DEFAULT;
     CHARSET_INFO *charset=NULL;
     Field::geometry_type geom_type= Field::GEOM_GEOMETRY;
     LEX_STRING comment;
 
+    if (field_extra_info)
+    {
+      char tmp= field_extra_info[i];
+      storage_type= (enum ha_storage_media)(tmp & STORAGE_TYPE_MASK);
+      column_format= (enum column_format_type)
+                    ((tmp >> COLUMN_FORMAT_SHIFT) & COLUMN_FORMAT_MASK);
+      DBUG_PRINT("info", ("Field extra: storage %u format %u",
+                          storage_type, column_format));
+    }
     if (new_frm_ver >= 3)
     {
       /* new frm file in 4.1 */
@@ -1065,6 +1106,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       goto err;			/* purecov: inspected */
     }
 
+    reg_field->flags|= ((uint)storage_type << FIELD_STORAGE_FLAGS);
+    reg_field->flags|= ((uint)column_format << COLUMN_FORMAT_FLAGS);
     reg_field->field_index= i;
     reg_field->comment=comment;
     if (field_type == MYSQL_TYPE_BIT && !f_bit_as_char(pack_flag))
@@ -1356,9 +1399,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (use_hash)
     (void) hash_check(&share->name_hash);
 #endif
+  if (buff)
+    my_free(buff, MYF(0));
   DBUG_RETURN (0);
 
  err:
+  if (buff)
+    my_free(buff, MYF(0));
   share->error= error;
   share->open_errno= my_errno;
   share->errarg= errarg;
@@ -2251,6 +2298,8 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->table_options= share->db_create_options;
   create_info->avg_row_length= share->avg_row_length;
   create_info->row_type= share->row_type;
+  create_info->default_storage_media= share->default_storage_media;
+  create_info->tablespace= share->tablespace;
   create_info->default_table_charset= share->table_charset;
   create_info->table_charset= 0;
 

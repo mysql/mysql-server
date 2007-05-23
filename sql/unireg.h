@@ -175,6 +175,10 @@
 
 #define DEFAULT_KEY_CACHE_NAME "default"
 
+#define STORAGE_TYPE_MASK 7
+#define COLUMN_FORMAT_MASK 7
+#define COLUMN_FORMAT_SHIFT 3
+
 /* Include prototypes for unireg */
 
 #include "mysqld_error.h"

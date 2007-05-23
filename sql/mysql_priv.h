@@ -1170,6 +1170,8 @@ void set_item_name(Item *item,char *pos,uint length);
 bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types type,
 		       char *length, char *decimal,
 		       uint type_modifier,
+                       enum ha_storage_media storage_type,
+                       enum column_format_type column_format,
 		       Item *default_value, Item *on_update_value,
 		       LEX_STRING *comment,
 		       char *change, List<String> *interval_list,

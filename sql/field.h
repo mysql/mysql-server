@@ -428,6 +428,18 @@ public:
     return field_length / charset()->mbmaxlen;
   }
 
+  inline  enum ha_storage_media field_storage_type() const
+  {
+    return (enum ha_storage_media)
+      ((flags >> FIELD_STORAGE_FLAGS) & STORAGE_TYPE_MASK);
+  }
+
+  inline enum column_format_type column_format() const
+  {
+    return (enum column_format_type)
+      ((flags >> COLUMN_FORMAT_FLAGS) & COLUMN_FORMAT_MASK);
+  }
+
   /* Hash value */
   virtual void hash(ulong *nr, ulong *nr2);
   friend bool reopen_table(THD *,struct st_table *,bool);
@@ -1628,6 +1640,8 @@ public:
 
   uint8 row,col,sc_length,interval_id;	// For rea_create_table
   uint	offset,pack_flag;
+  enum ha_storage_media field_storage_type;
+  enum column_format_type column_format;
   create_field() :after(0) {}
   create_field(Field *field, Field *orig_field);
   void create_length_to_internal_length(void);
@@ -1641,7 +1655,9 @@ public:
             char *decimals, uint type_modifier, Item *default_value,
             Item *on_update_value, LEX_STRING *comment, char *change,
             List<String> *interval_list, CHARSET_INFO *cs,
-            uint uint_geom_type);
+            uint uint_geom_type,
+            enum ha_storage_media storage_type,
+            enum column_format_type column_format);
 };
 
 

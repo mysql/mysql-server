@@ -1532,6 +1532,17 @@ bool handler::check_if_log_table_locking_is_allowed(uint sql_command,
   return TRUE;
 }
 
+/**
+   Get tablespace name from handler 
+   Returns the tablespace name associated
+   with the table or NULL if not defined
+*/
+const 
+char* handler::get_tablespace_name()
+{
+  return table->s->tablespace;
+}
+
 /** @brief
   Open database-handler.
 

@@ -5257,14 +5257,16 @@ ndb_blob_striping()
   return false;
 }
 
-static int create_ndb_column(NDBCOL &col,
+static int create_ndb_column(THD *thd,
+                             NDBCOL &col,
                              Field *field,
-                             HA_CREATE_INFO *info)
+                             HA_CREATE_INFO *create_info)
 {
+  DBUG_ENTER("create_ndb_column");
   // Set name
   if (col.setName(field->field_name))
   {
-    return (my_errno= errno);
+    DBUG_RETURN(my_errno= errno);
   }
   // Get char set
   CHARSET_INFO *cs= field->charset();
@@ -5421,7 +5423,7 @@ static int create_ndb_column(NDBCOL &col,
       }
       else
       {
-        return HA_ERR_UNSUPPORTED;
+        DBUG_RETURN(HA_ERR_UNSUPPORTED);
       }
       col.setLength(field->field_length);
     }
@@ -5520,7 +5522,7 @@ static int create_ndb_column(NDBCOL &col,
     goto mysql_type_unsupported;
   mysql_type_unsupported:
   default:
-    return HA_ERR_UNSUPPORTED;
+    DBUG_RETURN(HA_ERR_UNSUPPORTED);
   }
   // Set nullable and pk
   col.setNullable(field->maybe_null());
@@ -5532,14 +5534,97 @@ static int create_ndb_column(NDBCOL &col,
     char buff[22];
 #endif
     col.setAutoIncrement(TRUE);
-    ulonglong value= info->auto_increment_value ?
-      info->auto_increment_value : (ulonglong) 1;
+    ulonglong value= create_info->auto_increment_value ?
+      create_info->auto_increment_value : (ulonglong) 1;
     DBUG_PRINT("info", ("Autoincrement key, initial: %s", llstr(value, buff)));
     col.setAutoIncrementInitialValue(value);
   }
   else
     col.setAutoIncrement(FALSE);
-  return 0;
+ 
+  NDBCOL::StorageType type;
+  bool dynamic;
+
+  switch (field->field_storage_type()) {
+  case(HA_SM_DEFAULT):
+    if (create_info->default_storage_media == HA_SM_DISK)
+      type= NDBCOL::StorageTypeDisk;
+    else
+      type= NDBCOL::StorageTypeMemory;
+    break;
+  case(HA_SM_DISK):
+    type= NDBCOL::StorageTypeDisk;
+    break;
+  case(HA_SM_MEMORY):
+    type= NDBCOL::StorageTypeMemory;
+    break;
+  }
+
+  switch (field->column_format()) {
+  case(COLUMN_FORMAT_TYPE_FIXED):
+    dynamic= FALSE;
+    break;
+  case(COLUMN_FORMAT_TYPE_DYNAMIC):
+    dynamic= TRUE;
+    break;
+  case(COLUMN_FORMAT_TYPE_DEFAULT):
+  default:
+    if (create_info->row_type == ROW_TYPE_DEFAULT)
+    {
+      bool is_dynamic= field_type_forces_var_part(field->type());
+      dynamic= is_dynamic;
+    }
+    else
+      dynamic= create_info->row_type == ROW_TYPE_DYNAMIC;
+    break;
+  }
+  DBUG_PRINT("info", ("Column %s is declared %s", field->field_name,
+                      (dynamic) ? "dynamic" : "static"));
+  if (type == NDBCOL::StorageTypeDisk)
+  {
+    if (dynamic)
+    {
+      DBUG_PRINT("info", ("Dynamic disk stored column %s changed to static",
+                          field->field_name));
+      dynamic= false;
+    }
+    if (thd && field->column_format() == COLUMN_FORMAT_TYPE_DYNAMIC)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          "DYNAMIC column %s with "
+                          "STORAGE DISK is not supported, "
+                          "column will become FIXED",
+                          field->field_name);
+    }
+  }
+
+  switch (create_info->row_type) {
+  case ROW_TYPE_FIXED:
+    if (thd && field_type_forces_var_part(field->type()))
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                          ndbcluster_hton_name,
+                          "Row format FIXED incompatible with "
+                          "variable sized attribute");
+      DBUG_RETURN(HA_ERR_UNSUPPORTED);
+    }
+    break;
+  case ROW_TYPE_DYNAMIC:
+    /*
+      Future: make columns dynamic in this case
+    */
+    break;
+  default:
+    break;
+  }
+
+  col.setStorageType(type);
+  col.setDynamic(dynamic);
+
+  DBUG_RETURN(0);
 }
 
 /*
@@ -5557,7 +5642,8 @@ int ha_ndbcluster::create(const char *name,
   const void *data= NULL, *pack_data= NULL;
   bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
   bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
-  char tablespace[FN_LEN];
+  const char *tablespace= create_info->tablespace;
+  bool use_disk= FALSE;
   NdbDictionary::Table::SingleUserMode single_user_mode= NdbDictionary::Table::SingleUserModeLocked;
 
   DBUG_ENTER("ha_ndbcluster::create");
@@ -5573,14 +5659,13 @@ int ha_ndbcluster::create(const char *name,
   Ndb *ndb= get_ndb();
   NDBDICT *dict= ndb->getDictionary();
 
+  DBUG_PRINT("info", ("Tablespace %s,%s", form->s->tablespace, create_info->tablespace));
   if (is_truncate)
   {
     {
       Ndb_table_guard ndbtab_g(dict, m_tabname);
       if (!(m_table= ndbtab_g.get_table()))
 	ERR_RETURN(dict->getNdbError());
-      if ((get_tablespace_name(thd, tablespace, FN_LEN)))
-	create_info->tablespace= tablespace;    
       m_table= NULL;
     }
     DBUG_PRINT("info", ("Dropping and re-creating table for TRUNCATE"));
@@ -5644,32 +5729,6 @@ int ha_ndbcluster::create(const char *name,
   my_free((char*)pack_data, MYF(0));
   
   /*
-    Check for disk options
-  */
-  if (create_info->storage_media == HA_SM_DISK)
-  { 
-    if (create_info->tablespace)
-      tab.setTablespaceName(create_info->tablespace);
-    else
-      tab.setTablespaceName("DEFAULT-TS");
-  }
-  else if (create_info->tablespace)
-  {
-    if (create_info->storage_media == HA_SM_MEMORY)
-    {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-			  ER_ILLEGAL_HA_CREATE_OPTION,
-			  ER(ER_ILLEGAL_HA_CREATE_OPTION),
-			  ndbcluster_hton_name,
-			  "TABLESPACE currently only supported for "
-			  "STORAGE DISK");
-      DBUG_RETURN(HA_ERR_UNSUPPORTED);
-    }
-    tab.setTablespaceName(create_info->tablespace);
-    create_info->storage_media = HA_SM_DISK;  //if use tablespace, that also means store on disk
-  }
-
-  /*
     Handle table row type
 
     Default is to let table rows have var part reference so that online 
@@ -5697,38 +5756,19 @@ int ha_ndbcluster::create(const char *name,
   for (i= 0; i < form->s->fields; i++) 
   {
     Field *field= form->field[i];
-    DBUG_PRINT("info", ("name: %s  type: %u  pack_length: %d", 
+    DBUG_PRINT("info", ("name: %s  type: %u  storage: %u  format: %u  "
+                        "pack_length: %d", 
                         field->field_name, field->real_type(),
+                        field->field_storage_type(),
+                        field->column_format(),
                         field->pack_length()));
-    if ((my_errno= create_ndb_column(col, field, create_info)))
+    if ((my_errno= create_ndb_column(thd, col, field, create_info)))
       DBUG_RETURN(my_errno);
- 
-    if (create_info->storage_media == HA_SM_DISK)
-      col.setStorageType(NdbDictionary::Column::StorageTypeDisk);
-    else
-      col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
 
-    switch (create_info->row_type) {
-    case ROW_TYPE_FIXED:
-      if (field_type_forces_var_part(field->type()))
-      {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                            ER_ILLEGAL_HA_CREATE_OPTION,
-                            ER(ER_ILLEGAL_HA_CREATE_OPTION),
-                            ndbcluster_hton_name,
-                            "Row format FIXED incompatible with "
-                            "variable sized attribute");
-        DBUG_RETURN(HA_ERR_UNSUPPORTED);
-      }
-      break;
-    case ROW_TYPE_DYNAMIC:
-      /*
-        Future: make columns dynamic in this case
-      */
-      break;
-    default:
-      break;
-    }
+    if (!use_disk &&
+        col.getStorageType() == NDBCOL::StorageTypeDisk)
+      use_disk= TRUE;
+
     if (tab.addColumn(col))
     {
       DBUG_RETURN(my_errno= errno);
@@ -5737,14 +5777,51 @@ int ha_ndbcluster::create(const char *name,
       pk_length += (field->pack_length() + 3) / 4;
   }
 
+  if (use_disk)
+  { 
+    if (tablespace)
+      tab.setTablespaceName(tablespace);
+    else
+      tab.setTablespaceName("DEFAULT-TS");
+  }
+  else if (create_info->tablespace && 
+           create_info->default_storage_media == HA_SM_MEMORY)
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                        ER_ILLEGAL_HA_CREATE_OPTION,
+                        ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                        ndbcluster_hton_name,
+                        "TABLESPACE currently only supported for "
+                        "STORAGE DISK"); 
+    DBUG_RETURN(HA_ERR_UNSUPPORTED);
+  }
+
+  DBUG_PRINT("info", ("Table %s is %s stored with tablespace %s",
+                      m_tabname,
+                      (use_disk) ? "disk" : "memory",
+                      (use_disk) ? tab.getTablespaceName() : "N/A"));
+ 
   KEY* key_info;
   for (i= 0, key_info= form->key_info; i < form->s->keys; i++, key_info++)
   {
     KEY_PART_INFO *key_part= key_info->key_part;
     KEY_PART_INFO *end= key_part + key_info->key_parts;
     for (; key_part != end; key_part++)
+    {
+      if (key_part->field->field_storage_type() == HA_SM_DISK)
+      {
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                            ER_ILLEGAL_HA_CREATE_OPTION,
+                            ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                            ndbcluster_hton_name,
+                            "Index on field "
+                            "declared with "
+                            "STORAGE DISK is not supported");
+        DBUG_RETURN(HA_ERR_UNSUPPORTED);
+      }
       tab.getColumn(key_part->fieldnr-1)->setStorageType(
                              NdbDictionary::Column::StorageTypeMemory);
+    }
   }
 
   // No primary key, create shadow key as 64 bit, auto increment  
@@ -6119,6 +6196,17 @@ int ha_ndbcluster::create_ndb_index(const char *name,
   for (; key_part != end; key_part++) 
   {
     Field *field= key_part->field;
+    if (field->field_storage_type() == HA_SM_DISK)
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                          ndbcluster_hton_name,
+                          "Index on field "
+                          "declared with "
+                          "STORAGE DISK is not supported");
+      DBUG_RETURN(HA_ERR_UNSUPPORTED);
+    }
     DBUG_PRINT("info", ("attr: %s", field->field_name));
     if (ndb_index.addColumnName(field->field_name))
     {
@@ -10159,48 +10247,6 @@ ha_ndbcluster::cond_pop()
 
 
 /*
-  get table space info for SHOW CREATE TABLE
-*/
-char* ha_ndbcluster::get_tablespace_name(THD *thd, char* name, uint name_len)
-{
-  Ndb *ndb= check_ndb_in_thd(thd);
-  NDBDICT *ndbdict= ndb->getDictionary();
-  NdbError ndberr;
-  Uint32 id;
-  ndb->setDatabaseName(m_dbname);
-  const NDBTAB *ndbtab= m_table;
-  DBUG_ASSERT(ndbtab != NULL);
-  if (!ndbtab->getTablespace(&id))
-  {
-    return 0;
-  }
-  {
-    NdbDictionary::Tablespace ts= ndbdict->getTablespace(id);
-    ndberr= ndbdict->getNdbError();
-    if(ndberr.classification != NdbError::NoError)
-      goto err;
-    DBUG_PRINT("info", ("Found tablespace '%s'", ts.getName()));
-    if (name)
-    {
-      strxnmov(name, name_len, ts.getName(), NullS);
-      return name;
-    }
-    else
-      return (my_strdup(ts.getName(), MYF(0)));
-  }
-err:
-  if (ndberr.status == NdbError::TemporaryError)
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-			ER_GET_TEMPORARY_ERRMSG, ER(ER_GET_TEMPORARY_ERRMSG),
-			ndberr.code, ndberr.message, "NDB");
-  else
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-			ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
-			ndberr.code, ndberr.message, "NDB");
-  return 0;
-}
-
-/*
   Implements the SHOW NDB STATUS command.
 */
 bool
@@ -10589,6 +10635,7 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *create_info,
   DBUG_ENTER("ha_ndbcluster::check_if_incompatible_data");
   uint i;
   const NDBTAB *tab= (const NDBTAB *) m_table;
+  NDBCOL new_col;
 
   if (current_thd->variables.ndb_use_copying_alter_table)
   {
@@ -10599,17 +10646,13 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *create_info,
   int pk= 0;
   int ai= 0;
 
-  if (create_info->tablespace)
-    create_info->storage_media = HA_SM_DISK;
-  else
-    create_info->storage_media = HA_SM_MEMORY;
-
   for (i= 0; i < table->s->fields; i++) 
   {
     Field *field= table->field[i];
     const NDBCOL *col= tab->getColumn(i);
-    if (col->getStorageType() == NDB_STORAGETYPE_MEMORY && create_info->storage_media != HA_SM_MEMORY ||
-        col->getStorageType() == NDB_STORAGETYPE_DISK && create_info->storage_media != HA_SM_DISK)
+
+    create_ndb_column(0, new_col, field, create_info);
+    if (col->getStorageType() != new_col.getStorageType())
     {
       DBUG_PRINT("info", ("Column storage media is changed"));
       DBUG_RETURN(COMPATIBLE_DATA_NO);
@@ -10633,35 +10676,28 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *create_info,
       ai=1;
   }
 
-  char tablespace_name[FN_LEN]; 
-  if (get_tablespace_name(current_thd, tablespace_name, FN_LEN))
+/*
+  char tablespace_name[FN_LEN];
+  if (get_tablespace_name(current_thd, tablespace_name, FN_LEN) != create_info->tablespace)
   {
-    if (create_info->tablespace) 
+    if (get_tablespace_name(current_thd, tablespace_name, FN_LEN) == 0 ||
+        create_info->tablespace == 0 ||
+        strcmp(create_info->tablespace, tablespace_name))
     {
-      if (strcmp(create_info->tablespace, tablespace_name))
-      {
-        DBUG_PRINT("info", ("storage media is changed, old tablespace=%s, new tablespace=%s",
-          tablespace_name, create_info->tablespace));
-        DBUG_RETURN(COMPATIBLE_DATA_NO);
-      }
-    }
-    else
-    {
-      DBUG_PRINT("info", ("storage media is changed, old is DISK and tablespace=%s, new is MEM",
-        tablespace_name));
+      DBUG_PRINT("info", ("storage media is changed, old tablespace=%s, new tablespace=%s",
+                          tablespace_name, create_info->tablespace));
       DBUG_RETURN(COMPATIBLE_DATA_NO);
     }
   }
-  else
-  {
-    if (create_info->storage_media != HA_SM_MEMORY)
-    {
-      DBUG_PRINT("info", ("storage media is changed, old is MEM, new is DISK and tablespace=%s",
-        create_info->tablespace));
-      DBUG_RETURN(COMPATIBLE_DATA_NO);
-    }
-  }
+*/
 
+  if (create_info->default_storage_media !=  table->s->default_storage_media ||
+      create_info->tablespace != table->s->tablespace)
+  {
+    DBUG_PRINT("info", ("storage media is changed, old tablespace=%s, new tablespace=%s",
+                         table->s->tablespace, create_info->tablespace));
+    DBUG_RETURN(COMPATIBLE_DATA_NO);
+  }
   if (table_changes != IS_EQUAL_YES)
     DBUG_RETURN(COMPATIBLE_DATA_NO);
   

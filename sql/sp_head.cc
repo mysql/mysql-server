@@ -1959,7 +1959,9 @@ sp_head::fill_field_definition(THD *thd, LEX *lex,
                       &lex->interval_list,
                       (lex->charset ? lex->charset :
                                       sp_db_info.default_table_charset),
-                      lex->uint_geom_type))
+                      lex->uint_geom_type,
+                      (enum ha_storage_media)0,
+                      (enum column_format_type)0))
     return TRUE;
 
   if (field_def->interval_list.elements)
