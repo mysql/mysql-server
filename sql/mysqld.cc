@@ -371,7 +371,8 @@ const char *opt_ndb_connectstring= 0;
 char opt_ndb_constrbuf[1024]= {0};
 unsigned opt_ndb_constrbuf_len= 0;
 my_bool	opt_ndb_shm, opt_ndb_optimized_node_selection;
-ulong opt_ndb_cache_check_time;
+ulong opt_ndb_cache_check_time, opt_ndb_wait_connected;
+ulong opt_ndb_cluster_connection_pool;
 const char *opt_ndb_mgmd;
 ulong opt_ndb_nodeid;
 ulong ndb_extra_logging;
@@ -427,6 +428,7 @@ ulong thread_stack, what_to_log;
 ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_net_timeout, slave_trans_retries;
+my_bool slave_allow_batching;
 ulong thread_cache_size=0, thread_pool_size= 0;
 ulong binlog_cache_size=0, max_binlog_cache_size=0;
 ulong query_cache_size=0;
@@ -4916,6 +4918,8 @@ enum options_mysqld
   OPT_NDB_USE_EXACT_COUNT, OPT_NDB_USE_TRANSACTIONS,
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
   OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
+  OPT_NDB_WAIT_CONNECTED,
+  OPT_NDB_CLUSTER_CONNECTION_POOL,
   OPT_NDB_MGMD, OPT_NDB_NODEID,
   OPT_NDB_DISTRIBUTION,
   OPT_NDB_INDEX_STAT_ENABLE,
@@ -4935,7 +4939,7 @@ enum options_mysqld
   OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
   OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE,
   OPT_RELAY_LOG, OPT_RELAY_LOG_INDEX, OPT_RELAY_LOG_INFO_FILE,
-  OPT_SLAVE_SKIP_ERRORS, OPT_DES_KEY_FILE, OPT_LOCAL_INFILE,
+  OPT_SLAVE_SKIP_ERRORS, OPT_SLAVE_ALLOW_BATCHING, OPT_DES_KEY_FILE, OPT_LOCAL_INFILE,
   OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA,
   OPT_SSL_CAPATH, OPT_SSL_CIPHER,
   OPT_BACK_LOG, OPT_BINLOG_CACHE_SIZE,
@@ -5519,13 +5523,22 @@ master-ssl",
    (gptr*) &global_system_variables.ndb_index_stat_enable,
    (gptr*) &max_system_variables.ndb_index_stat_enable,
    0, GET_BOOL, OPT_ARG, 0, 0, 1, 0, 0, 0},
-#endif
   {"ndb-use-copying-alter-table",
    OPT_NDB_USE_COPYING_ALTER_TABLE,
    "Force ndbcluster to always copy tables at alter table (should only be used if on-line alter table fails).",
    (gptr*) &global_system_variables.ndb_use_copying_alter_table,
    (gptr*) &global_system_variables.ndb_use_copying_alter_table,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},  
+  { "ndb-wait-connected", OPT_NDB_WAIT_CONNECTED,
+    "Time (in seconds) for mysqld to wait for connection to cluster management and data nodes.",
+    (gptr*) &opt_ndb_wait_connected, (gptr*) &opt_ndb_wait_connected,
+    0, GET_ULONG, REQUIRED_ARG, 0, 0, LONG_TIMEOUT, 0, 0, 0},
+  { "ndb-cluster-connection-pool", OPT_NDB_CLUSTER_CONNECTION_POOL,
+    "Pool of cluster connections to cluster to be used by mysql server.",
+    (gptr*) &opt_ndb_cluster_connection_pool,
+    (gptr*) &opt_ndb_cluster_connection_pool,
+    0, GET_ULONG, REQUIRED_ARG, 1, 1, 63, 0, 0, 0},
+#endif
   {"new", 'n', "Use very new possible 'unsafe' functions.",
    (gptr*) &global_system_variables.new_mode,
    (gptr*) &max_system_variables.new_mode,
@@ -6207,6 +6220,10 @@ The minimum value for this variable is 4096.",
    "before giving up and stopping.",
    (gptr*) &slave_trans_retries, (gptr*) &slave_trans_retries, 0,
    GET_ULONG, REQUIRED_ARG, 10L, 0L, (longlong) ULONG_MAX, 0, 1, 0},
+  {"slave-allow-batching", OPT_SLAVE_ALLOW_BATCHING,
+   "Allow slave to batch requests.",
+   (gptr*) &slave_allow_batching, (gptr*) &slave_allow_batching,
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
 #endif /* HAVE_REPLICATION */
   {"slow_launch_time", OPT_SLOW_LAUNCH_TIME,
    "If creating the thread takes longer than this value (in seconds), the Slow_launch_threads counter will be incremented.",

@@ -36,11 +36,11 @@ class CntrMasterConf {
    */
   
 public:
-  STATIC_CONST( SignalLength = 1 + NodeBitmask::Size );
+  STATIC_CONST( SignalLength = 1 + NdbNodeBitmask::Size );
 private:
   
   Uint32 noStartNodes;
-  Uint32 theNodes[NodeBitmask::Size];
+  Uint32 theNodes[NdbNodeBitmask::Size];
 };
 
 #endif

@@ -207,24 +207,49 @@ Dbtup::alloc_page(Tablerec* tabPtrP, Fragrecord* fragPtrP,
 {
   Uint32 pages = fragPtrP->noOfPages;
   
-  if (page_no >= pages)
+  DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
+  Uint32 * ptr = map.set(page_no);
+  if (unlikely(ptr == 0))
   {
-    Uint32 start = pages;
-    while(page_no >= pages)
-      pages += (pages >> 3) + (pages >> 4) + 2;
-    allocFragPages(fragPtrP, pages - start);
-    if (page_no >= (pages = fragPtrP->noOfPages))
-    {
-      terrorCode = ZMEM_NOMEM_ERROR;
-      return 1;
-    }
+    jam();
+    terrorCode = ZMEM_NOMEM_ERROR;
+    return 1;
   }
   
   PagePtr pagePtr;
-  c_page_pool.getPtr(pagePtr, getRealpid(fragPtrP, page_no));
-  
   LocalDLList<Page> alloc_pages(c_page_pool, fragPtrP->emptyPrimPage);
   LocalDLFifoList<Page> free_pages(c_page_pool, fragPtrP->thFreeFirst);
+  
+  pagePtr.i = * ptr;
+  if (likely(pagePtr.i != RNIL))
+  {
+    jam();
+    c_page_pool.getPtr(pagePtr);
+  }
+  else
+  {
+    jam();
+    Uint32 noOfPagesAllocated = 0;
+    allocConsPages(1, noOfPagesAllocated, pagePtr.i);
+    if (unlikely(noOfPagesAllocated == 0))
+    {
+      jam();
+      terrorCode = ZMEM_NOMEM_ERROR;
+      return 1;
+    }
+    * ptr = pagePtr.i; // Save in map
+    c_page_pool.getPtr(pagePtr);
+    init_page(fragPtrP, pagePtr, page_no);
+    
+    if (page_no >= pages)
+    {
+      jam();
+      fragPtrP->noOfPages = page_no + 1;
+    }
+    alloc_pages.add(pagePtr);
+  }
+  
+  
   if (pagePtr.p->page_state == ZEMPTY_MM)
   {
     convertThPage((Fix_page*)pagePtr.p, tabPtrP, MM);

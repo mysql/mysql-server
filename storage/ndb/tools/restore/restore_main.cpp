@@ -684,7 +684,7 @@ main(int argc, char** argv)
   char buf[NDB_VERSION_STRING_BUF_SZ];
   info.setLevel(254);
   info << "Ndb version in backup files: " 
-       <<  getVersionString(version, 0, buf, sizeof(buf)) << endl;
+       <<  getVersionString(version, 0, 0, buf, sizeof(buf)) << endl;
   
   /**
    * check wheater we can restore the backup (right version).
@@ -694,9 +694,9 @@ main(int argc, char** argv)
   if (version >= MAKE_VERSION(5,1,3) && version <= MAKE_VERSION(5,1,9))
   {
     err << "Restore program incompatible with backup versions between "
-        << getVersionString(MAKE_VERSION(5,1,3), 0, buf, sizeof(buf))
+        << getVersionString(MAKE_VERSION(5,1,3), 0, 0, buf, sizeof(buf))
         << " and "
-        << getVersionString(MAKE_VERSION(5,1,9), 0, buf, sizeof(buf))
+        << getVersionString(MAKE_VERSION(5,1,9), 0, 0, buf, sizeof(buf))
         << endl;
     exitHandler(NDBT_FAILED);
   }

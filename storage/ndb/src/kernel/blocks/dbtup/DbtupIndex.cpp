@@ -414,7 +414,8 @@ Dbtup::execBUILDINDXREQ(Signal* signal)
     }
     // memory page format
     buildPtr.p->m_build_vs =
-      tablePtr.p->m_attributes[MM].m_no_of_varsize > 0;
+      (tablePtr.p->m_attributes[MM].m_no_of_varsize +
+       tablePtr.p->m_attributes[MM].m_no_of_dynamic) > 0;
     if (DictTabInfo::isOrderedIndex(buildReq->getIndexType())) {
       jam();
       const DLList<TupTriggerData>& triggerList = 

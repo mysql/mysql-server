@@ -368,7 +368,7 @@ LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
 --enable_warnings
 
 # Ndb doesn't support renaming attributes on-line
-set @t1_id = (select id from ndb_show_tables where name like '%t1%');
+set @t1_id = (select id from ndb_show_tables where name = 't1');
 truncate ndb_show_tables;
 
 alter table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
@@ -377,9 +377,9 @@ alter table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
 --enable_warnings
 
-select 'no_copy' from ndb_show_tables where id = @t1_id and name like '%t1%';
+select 'no_copy' from ndb_show_tables where id = @t1_id and name = 't1';
 
-set @t1_id = (select id from ndb_show_tables where name like '%t1%');
+set @t1_id = (select id from ndb_show_tables where name = 't1');
 truncate ndb_show_tables;
 
 create index i1 on t1(medium);
@@ -392,7 +392,7 @@ LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
 --exec rm $MYSQLTEST_VARDIR/master-data/test/tmp.dat || true
 --enable_warnings
 
-select 'no_copy' from ndb_show_tables where id = @t1_id and name like '%t1%';
+select 'no_copy' from ndb_show_tables where id = @t1_id and name = 't1';
 
 DROP TABLE t1, ndb_show_tables;
 

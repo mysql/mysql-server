@@ -798,6 +798,8 @@ status_ackumulate(struct ndb_mgm_node_state * state,
     state->node_group = atoi(value);
   } else if(strcmp("version", field) == 0){
     state->version = atoi(value);
+  } else if(strcmp("mysql_version", field) == 0){
+    state->mysql_version = atoi(value);
   } else if(strcmp("connect_count", field) == 0){
     state->connect_count = atoi(value);    
   } else if(strcmp("address", field) == 0){
@@ -2726,7 +2728,11 @@ int ndb_mgm_get_version(NdbMgmHandle handle,
     MGM_ARG("id", Int, Mandatory, "ID"),
     MGM_ARG("major", Int, Mandatory, "Major"),
     MGM_ARG("minor", Int, Mandatory, "Minor"),
+    MGM_ARG("build", Int, Optional, "Build"),
     MGM_ARG("string", String, Mandatory, "String"),
+    MGM_ARG("mysql_major", Int, Optional, "MySQL major"),
+    MGM_ARG("mysql_minor", Int, Optional, "MySQL minor"),
+    MGM_ARG("mysql_build", Int, Optional, "MySQL build"),
     MGM_END()
   };
 

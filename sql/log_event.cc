@@ -6014,6 +6014,12 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
         thd->options|= OPTION_RELAXED_UNIQUE_CHECKS;
     else
         thd->options&= ~OPTION_RELAXED_UNIQUE_CHECKS;
+    
+    if (slave_allow_batching)
+      thd->options|= OPTION_ALLOW_BATCH;
+    else
+      thd->options&= ~OPTION_ALLOW_BATCH;
+    
     /* A small test to verify that objects have consistent types */
     DBUG_ASSERT(sizeof(thd->options) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
@@ -7248,6 +7254,22 @@ static int find_and_fetch_row(TABLE *table, byte *key)
                                  table->s->reclength) == 0);
 
     */
+
+    /*
+      Ndb does not need read before delete/update (and no updates are sent)
+      if primary key specified
+      
+      (Actually uniquekey will also do, but pk will be in each
+      row if table has pk)
+
+      Also set ignore no key, as we don't really know if row exists...
+    */
+    if (table->file->ht->db_type == DB_TYPE_NDBCLUSTER)
+    {
+      table->file->extra(HA_EXTRA_IGNORE_NO_KEY);
+      DBUG_RETURN(0);
+    }
+    
     table->file->position(table->record[0]);
     int error= table->file->rnd_pos(table->record[0], table->file->ref);
     /*

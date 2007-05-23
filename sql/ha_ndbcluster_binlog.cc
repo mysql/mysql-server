@@ -116,8 +116,6 @@ static NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
 static void ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object,
                                    bool have_lock);
 
-static Uint64 *p_latest_trans_gci= 0;
-
 /*
   Global variables for holding the ndb_binlog_index table reference
 */
@@ -127,6 +125,28 @@ static TABLE_LIST binlog_tables;
 /*
   Helper functions
 */
+
+static ulonglong get_latest_trans_gci()
+{
+  unsigned i;
+  ulonglong val= *g_ndb_cluster_connection->get_latest_trans_gci();
+  for (i= 1; i < g_ndb_cluster_connection_pool_alloc; i++)
+  {
+    ulonglong tmp= *g_ndb_cluster_connection_pool[i]->get_latest_trans_gci();
+    if (tmp > val)
+      val= tmp;
+  }
+  return val;
+}
+
+static void set_latest_trans_gci(ulonglong val)
+{
+  unsigned i;
+  for (i= 0; i < g_ndb_cluster_connection_pool_alloc; i++)
+  {
+    *g_ndb_cluster_connection_pool[i]->get_latest_trans_gci()= val;
+  }
+}
 
 #ifndef DBUG_OFF
 /* purecov: begin deadcode */
@@ -452,7 +472,7 @@ static void ndbcluster_binlog_wait(THD *thd)
   {
     DBUG_ENTER("ndbcluster_binlog_wait");
     const char *save_info= thd ? thd->proc_info : 0;
-    ulonglong wait_epoch= *p_latest_trans_gci;
+    ulonglong wait_epoch= get_latest_trans_gci();
     int count= 30;
     if (thd)
       thd->proc_info= "Waiting for ndbcluster binlog update to "
@@ -3126,6 +3146,152 @@ ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
 ********************************************************************/
 
 /*
+  Unpack a record read from NDB 
+
+  SYNOPSIS
+    ndb_unpack_record()
+    buf                 Buffer to store read row
+
+  NOTE
+    The data for each row is read directly into the
+    destination buffer. This function is primarily 
+    called in order to check if any fields should be 
+    set to null.
+*/
+
+static void ndb_unpack_record(TABLE *table, NdbValue *value,
+                              MY_BITMAP *defined, byte *buf)
+{
+  Field **p_field= table->field, *field= *p_field;
+  my_ptrdiff_t row_offset= (my_ptrdiff_t) (buf - table->record[0]);
+  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
+  DBUG_ENTER("ndb_unpack_record");
+
+  /*
+    Set the filler bits of the null byte, since they are
+    not touched in the code below.
+    
+    The filler bits are the MSBs in the last null byte
+  */ 
+  if (table->s->null_bytes > 0)
+       buf[table->s->null_bytes - 1]|= 256U - (1U <<
+					       table->s->last_null_bit_pos);
+  /*
+    Set null flag(s)
+  */
+  for ( ; field;
+       p_field++, value++, field= *p_field)
+  {
+    field->set_notnull(row_offset);       
+    if ((*value).ptr)
+    {
+      if (!(field->flags & BLOB_FLAG))
+      {
+        int is_null= (*value).rec->isNULL();
+        if (is_null)
+        {
+          if (is_null > 0)
+          {
+	    DBUG_PRINT("info",("[%u] NULL",
+                               (*value).rec->getColumn()->getColumnNo()));
+            field->set_null(row_offset);
+          }
+          else
+          {
+            DBUG_PRINT("info",("[%u] UNDEFINED",
+                               (*value).rec->getColumn()->getColumnNo()));
+            bitmap_clear_bit(defined,
+                             (*value).rec->getColumn()->getColumnNo());
+          }
+        }
+        else if (field->type() == MYSQL_TYPE_BIT)
+        {
+          Field_bit *field_bit= static_cast<Field_bit*>(field);
+
+          /*
+            Move internal field pointer to point to 'buf'.  Calling
+            the correct member function directly since we know the
+            type of the object.
+           */
+          field_bit->Field_bit::move_field_offset(row_offset);
+          if (field->pack_length() < 5)
+          {
+            DBUG_PRINT("info", ("bit field H'%.8X", 
+                                (*value).rec->u_32_value()));
+            field_bit->Field_bit::store((longlong) (*value).rec->u_32_value(),
+                                        FALSE);
+          }
+          else
+          {
+            DBUG_PRINT("info", ("bit field H'%.8X%.8X",
+                                *(Uint32 *)(*value).rec->aRef(),
+                                *((Uint32 *)(*value).rec->aRef()+1)));
+#ifdef WORDS_BIGENDIAN
+            /* lsw is stored first */
+            Uint32 *buf= (Uint32 *)(*value).rec->aRef();
+            field_bit->Field_bit::store((((longlong)*buf)
+                                         & 0x000000000FFFFFFFFLL)
+                                        |
+                                        ((((longlong)*(buf+1)) << 32)
+                                         & 0xFFFFFFFF00000000LL),
+                                        TRUE);
+#else
+            field_bit->Field_bit::store((longlong)
+                                        (*value).rec->u_64_value(), TRUE);
+#endif
+          }
+          /*
+            Move back internal field pointer to point to original
+            value (usually record[0]).
+           */
+          field_bit->Field_bit::move_field_offset(-row_offset);
+          DBUG_PRINT("info",("[%u] SET",
+                             (*value).rec->getColumn()->getColumnNo()));
+          DBUG_DUMP("info", (const char*) field->ptr, field->pack_length());
+        }
+        else
+        {
+          DBUG_PRINT("info",("[%u] SET",
+                             (*value).rec->getColumn()->getColumnNo()));
+          DBUG_DUMP("info", (const char*) field->ptr, field->pack_length());
+        }
+      }
+      else
+      {
+        NdbBlob *ndb_blob= (*value).blob;
+        uint col_no = ndb_blob->getColumn()->getColumnNo();
+        int isNull;
+        ndb_blob->getDefined(isNull);
+        if (isNull == 1)
+        {
+          DBUG_PRINT("info",("[%u] NULL", col_no));
+          field->set_null(row_offset);
+        }
+        else if (isNull == -1)
+        {
+          DBUG_PRINT("info",("[%u] UNDEFINED", col_no));
+          bitmap_clear_bit(defined, col_no);
+        }
+        else
+        {
+#ifndef DBUG_OFF
+          // pointer vas set in get_ndb_blobs_value
+          Field_blob *field_blob= (Field_blob*)field;
+          char* ptr;
+          field_blob->get_ptr(&ptr, row_offset);
+          uint32 len= field_blob->get_length(row_offset);
+          DBUG_PRINT("info",("[%u] SET ptr: 0x%lx  len: %u",
+                             col_no, (long) ptr, len));
+#endif
+        }
+      }
+    }
+  }
+  dbug_tmp_restore_column_map(table->write_set, old_map);
+  DBUG_VOID_RETURN;
+}
+
+/*
   Handle error states on events from the storage nodes
 */
 static int ndb_binlog_thread_handle_error(Ndb *ndb, NdbEventOperation *pOp,
@@ -3640,8 +3806,6 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   */
   injector_thd= thd;
   injector_ndb= i_ndb;
-  p_latest_trans_gci= 
-    injector_ndb->get_ndb_cluster_connection().get_latest_trans_gci();
   schema_ndb= s_ndb;
 
   if (opt_bin_log)
@@ -3747,7 +3911,7 @@ restart:
                         "ndb_latest_handled_binlog_epoch: %u, while current epoch: %u. "
                         "RESET MASTER should be issued. Resetting ndb_latest_handled_binlog_epoch.",
                         (unsigned) ndb_latest_handled_binlog_epoch, (unsigned) schema_gci);
-        *p_latest_trans_gci= 0;
+        set_latest_trans_gci(0);
         ndb_latest_handled_binlog_epoch= 0;
         ndb_latest_applied_binlog_epoch= 0;
         ndb_latest_received_binlog_epoch= 0;
@@ -3775,7 +3939,7 @@ restart:
   do_ndbcluster_binlog_close_connection= BCCC_running;
   for ( ; !((ndbcluster_binlog_terminating ||
              do_ndbcluster_binlog_close_connection) &&
-            ndb_latest_handled_binlog_epoch >= *p_latest_trans_gci) &&
+            ndb_latest_handled_binlog_epoch >= get_latest_trans_gci()) &&
           do_ndbcluster_binlog_close_connection != BCCC_restart; )
   {
 #ifndef DBUG_OFF
@@ -3783,10 +3947,10 @@ restart:
     {
       DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection: %d, "
                           "ndb_latest_handled_binlog_epoch: %lu, "
-                          "*p_latest_trans_gci: %lu",
+                          "*get_latest_trans_gci(): %lu",
                           do_ndbcluster_binlog_close_connection,
                           (ulong) ndb_latest_handled_binlog_epoch,
-                          (ulong) *p_latest_trans_gci));
+                          (ulong) get_latest_trans_gci()));
     }
 #endif
 #ifdef RUN_NDB_BINLOG_TIMER
@@ -3834,7 +3998,7 @@ restart:
 
     if ((ndbcluster_binlog_terminating ||
          do_ndbcluster_binlog_close_connection) &&
-        (ndb_latest_handled_binlog_epoch >= *p_latest_trans_gci ||
+        (ndb_latest_handled_binlog_epoch >= get_latest_trans_gci() ||
          !ndb_binlog_running))
       break; /* Shutting down server */
 
@@ -3884,11 +4048,11 @@ restart:
           {
             DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection= BCCC_restart"));
             do_ndbcluster_binlog_close_connection= BCCC_restart;
-            if (ndb_latest_received_binlog_epoch < *p_latest_trans_gci && ndb_binlog_running)
+            if (ndb_latest_received_binlog_epoch < get_latest_trans_gci() && ndb_binlog_running)
             {
               sql_print_error("NDB Binlog: latest transaction in epoch %lu not in binlog "
                               "as latest received epoch is %lu",
-                              (ulong) *p_latest_trans_gci,
+                              (ulong) get_latest_trans_gci(),
                               (ulong) ndb_latest_received_binlog_epoch);
             }
           }
@@ -4082,11 +4246,11 @@ restart:
             {
               DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection= BCCC_restart"));
               do_ndbcluster_binlog_close_connection= BCCC_restart;
-              if (ndb_latest_received_binlog_epoch < *p_latest_trans_gci && ndb_binlog_running)
+              if (ndb_latest_received_binlog_epoch < get_latest_trans_gci() && ndb_binlog_running)
               {
                 sql_print_error("NDB Binlog: latest transaction in epoch %lu not in binlog "
                                 "as latest received epoch is %lu",
-                                (ulong) *p_latest_trans_gci,
+                                (ulong) get_latest_trans_gci(),
                                 (ulong) ndb_latest_received_binlog_epoch);
               }
             }
@@ -4161,7 +4325,6 @@ err:
   /* don't mess with the injector_ndb anymore from other threads */
   injector_thd= 0;
   injector_ndb= 0;
-  p_latest_trans_gci= 0;
   schema_ndb= 0;
   pthread_mutex_unlock(&injector_mutex);
   thd->db= 0; // as not to try to free memory
@@ -4278,7 +4441,7 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
                "latest_handled_binlog_epoch=%s, "
                "latest_applied_binlog_epoch=%s",
                llstr(ndb_latest_epoch, buff1),
-               llstr(*p_latest_trans_gci, buff2),
+               llstr(get_latest_trans_gci(), buff2),
                llstr(ndb_latest_received_binlog_epoch, buff3),
                llstr(ndb_latest_handled_binlog_epoch, buff4),
                llstr(ndb_latest_applied_binlog_epoch, buff5));

@@ -141,6 +141,7 @@ class TableS {
 
   bool isSysTable;
   TableS *m_main_table;
+  Uint32 m_main_column_id;
   Uint32 m_local_id;
 
   Uint64 m_noOfRecords;
@@ -307,6 +308,7 @@ class RestoreMetaData : public BackupFile {
   bool readMetaFileHeader();
   bool readMetaTableDesc();
   bool markSysTables();
+  bool fixBlobs();
 		
   bool readGCPEntry();
   bool readFragmentInfo();

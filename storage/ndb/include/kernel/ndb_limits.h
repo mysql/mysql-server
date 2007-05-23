@@ -25,7 +25,7 @@
  *  since NodeId = 0 can not be used
  */
 #define MAX_NDB_NODES 49
-#define MAX_NODES     64
+#define MAX_NODES     256
 #define UNDEF_NODEGROUP 0xFFFF
 
 /**
@@ -121,7 +121,10 @@
 /*
  * Blobs.
  */
-#define NDB_BLOB_HEAD_SIZE 2        /* sizeof(NdbBlob::Head) >> 2 */
+#define NDB_BLOB_V1 1
+#define NDB_BLOB_V2 2
+#define NDB_BLOB_V1_HEAD_SIZE 2     /* sizeof(Uint64) >> 2 */
+#define NDB_BLOB_V2_HEAD_SIZE 4     /* 2 + 2 + 4 + 8 bytes, see NdbBlob.hpp */
 
 /*
  * Character sets.

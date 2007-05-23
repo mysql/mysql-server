@@ -22,6 +22,9 @@ class Ndb;
 struct charset_info_st;
 typedef struct charset_info_st CHARSET_INFO;
 
+/* Forward declaration only. */
+class NdbRecord;
+
 /**
  * @class NdbDictionary
  * @brief Data dictionary class
@@ -111,6 +114,7 @@ public:
       IndexTrigger = 8,       ///< Index maintenance, internal
       SubscriptionTrigger = 9,///< Backup or replication, internal
       ReadOnlyConstraint = 10,///< Trigger, internal
+      TableEvent = 11,        ///< Table event
       Tablespace = 20,        ///< Tablespace
       LogfileGroup = 21,      ///< Logfile group
       Datafile = 22,          ///< Datafile
@@ -352,8 +356,7 @@ public:
 
     /**
      * For blob, get "inline size" i.e. number of initial bytes
-     * to store in table's blob attribute.  This part is normally in
-     * main memory and can be indexed and interpreted.
+     * to store in table's blob attribute.
      */
     int getInlineSize() const;
 
@@ -400,6 +403,11 @@ public:
 
     ArrayType getArrayType() const;
     StorageType getStorageType() const;
+
+    /**
+     * Get if the column is dynamic (NULL values not stored)
+     */
+    bool getDynamic() const;
 
     /** @} *******************************************************************/
 
@@ -477,22 +485,38 @@ public:
     void setCharset(CHARSET_INFO* cs);
 
     /**
-     * For blob, get "inline size" i.e. number of initial bytes
+     * For blob, set "inline size" i.e. number of initial bytes
      * to store in table's blob attribute.  This part is normally in
-     * main memory and can be indexed and interpreted.
+     * main memory.  It can not currently be indexed.
      */
     void setInlineSize(int size);
 
     /**
-     * For blob, get "part size" i.e. number of bytes to store in
+     * For blob, set "part size" i.e. number of bytes to store in
      * each tuple of the "blob table".  Can be set to zero to omit parts
      * and to allow only inline bytes ("tinyblob").
      */
     void setPartSize(int size);
 
     /**
-     * For blob, get "stripe size" i.e. number of consecutive
-     * <em>parts</em> to store in each node group.
+     * For blob, set "stripe size" i.e. number of consecutive
+     * <em>parts</em> to store in a fragment, before moving to
+     * another (random) fragment.
+     *
+     * Striping may improve performance for large blobs
+     * since blob part operations are done in parallel.
+     * Optimal stripe size depends on the transport e.g. tcp/ip.
+     *
+     * Example: Given part size 2048 bytes, set stripe size 8.
+     * This assigns i/o in 16k chunks to each fragment.
+     *
+     * Blobs V1 required non-zero stripe size.  Blobs V2
+     * (created in version >= 5.1.x) have following behaviour:
+     *
+     * Default stripe size is zero, which means no striping and
+     * also that blob part data is stored in the same node group
+     * as the primary table row.  This is done by giving blob parts
+     * table same partition key as the primary table.
      */
     void setStripeSize(int size);
 
@@ -511,6 +535,11 @@ public:
 
     void setArrayType(ArrayType type);
     void setStorageType(StorageType type);
+
+    /**
+     * Set whether column is dynamic.
+     */
+    void setDynamic(bool);
 
     /** @} *******************************************************************/
 
@@ -538,6 +567,9 @@ public:
     static const Column * COPY_ROWID;
     
     int getSizeInBytes() const;
+
+    int getBlobVersion() const; // NDB_BLOB_V1 or NDB_BLOB_V2
+    void setBlobVersion(int blobVersion); // default NDB_BLOB_V2
 #endif
     
   private:
@@ -988,6 +1020,13 @@ public:
      */
     int validate(struct NdbError& error);
 
+    /**
+     * Return partitionId given a hashvalue
+     *   Note, if table is not retreived (e.i using getTable) result
+     *   will most likely be wrong
+     */
+    Uint32 getPartitionId(Uint32 hashvalue) const ;
+
   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class Ndb;
@@ -1017,7 +1056,7 @@ public:
     const char * getName() const;
     
     /**
-     * Get the name of the table being indexed
+     * Get the name of the underlying table being indexed
      */
     const char * getTable() const;
     
@@ -1436,6 +1475,42 @@ public:
     Event(NdbEventImpl&);
   };
 
+  /* Flags for createRecord(). */
+  enum NdbRecordFlags {
+    /*
+      Use special mysqld varchar format in index keys, used only from
+      inside mysqld.
+    */
+    RecMysqldShrinkVarchar= 0x1,
+    /* Use the mysqld record format for bitfields, only used inside mysqld. */
+    RecMysqldBitfield= 0x2
+  };
+  struct RecordSpecification {
+    /*
+      Column described by this entry (the column maximum size defines field
+      size in row).
+      Note that even when creating an NdbRecord for an index, the column
+      pointers must be to columns obtained from the underlying table, not
+      from the index itself.
+    */
+    const Column *column;
+    /*
+      Offset of data from start of a row.
+      
+      For reading blobs, the blob handle (NdbBlob *) will be writted into the
+      row, not the actual blob data. So at least sizeof(NdbBlob *) must be
+      available in the row.
+    */
+    Uint32 offset;
+    /*
+      Offset from start of row of byte containing NULL bit.
+      Not used for columns that are not NULLable.
+    */
+    Uint32 nullbit_byte_offset;
+    /* NULL bit, 0-7. Not used for columns that are not NULLable. */
+    Uint32 nullbit_bit_in_byte;
+  };
+
   struct AutoGrowSpecification {
     Uint32 min_free;
     Uint64 max_size;
@@ -1779,6 +1854,14 @@ public:
      */
     const Event * getEvent(const char * eventName);
 
+    /**
+     * List defined events
+     * @param list   List of events returned in the dictionary
+     * @return 0 if successful otherwise -1.
+     */
+    int listEvents(List & list);
+    int listEvents(List & list) const;
+
     /** @} *******************************************************************/
 
     /** 
@@ -1813,12 +1896,13 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**
      * Alter defined table given defined Table instance
-     * @param table Table to alter
+     * @param f Table to alter
+     * @param t New definition of table
      * @return  -2 (incompatible version) <br>
      *          -1 general error          <br>
      *           0 success                 
      */
-    int alterTable(const Table &table);
+    int alterTable(const Table & f, const Table & t);
 
     /**
      * Invalidate cached table object
@@ -1935,6 +2019,31 @@ public:
     int removeIndexGlobal(const Index &ndbidx, int invalidate) const;
     int removeTableGlobal(const Table &ndbtab, int invalidate) const;
 #endif
+
+    /*
+      Create an NdbRecord for use in table operations.
+    */
+    NdbRecord *createRecord(const Table *table,
+                            const RecordSpecification *recSpec,
+                            Uint32 length,
+                            Uint32 elemSize,
+                            Uint32 flags= 0);
+
+    /*
+      Create an NdbRecord for use in index operations.
+    */
+    NdbRecord *createRecord(const Index *index,
+                            const Table *table,
+                            const RecordSpecification *recSpec,
+                            Uint32 length,
+                            Uint32 elemSize,
+                            Uint32 flags= 0);
+    NdbRecord *createRecord(const Index *index,
+                            const RecordSpecification *recSpec,
+                            Uint32 length,
+                            Uint32 elemSize,
+                            Uint32 flags= 0);
+    void releaseRecord(NdbRecord *rec);
   };
 };
 
