@@ -25,6 +25,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "btr0sea.h"
 #include "os0proc.h"
 #include "trx0xa.h"
+#include "ha_prototypes.h"
 
 /* Copy of the prototype for innobase_mysql_print_thd: this
 copy MUST be equal to the one in mysql/sql/ha_innodb.cc ! */
