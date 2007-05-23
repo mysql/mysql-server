@@ -632,7 +632,7 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
 
     DUMP(&query_cache);
     BLOCK_LOCK_WR(query_block);
-    DBUG_PRINT("qcache", ("insert packet %lu bytes long",length));
+    DBUG_PRINT("qcache", ("insert parequestedcket %lu bytes long",length));
 
     /*
       On success STRUCT_UNLOCK(&query_cache.structure_guard_mutex) will be
@@ -799,12 +799,26 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
   DBUG_PRINT("qcache", ("from %lu to %lu",query_cache_size,
 			query_cache_size_arg));
   DBUG_ASSERT(initialized);
+
   STRUCT_LOCK(&structure_guard_mutex);
-  free_cache();
-  query_cache_size= query_cache_size_arg;
-  ::query_cache_size= init_cache();
+  while (flush_in_progress)
+    pthread_cond_wait(&COND_flush_finished, &structure_guard_mutex);
+  flush_in_progress= TRUE;
   STRUCT_UNLOCK(&structure_guard_mutex);
-  DBUG_RETURN(::query_cache_size);
+
+  free_cache();
+
+  query_cache_size= query_cache_size_arg;
+  ulong new_query_cache_size= init_cache();
+
+  DBUG_EXECUTE("check_querycache",check_integrity(0););
+
+  STRUCT_LOCK(&structure_guard_mutex);
+  flush_in_progress= FALSE;
+  pthread_cond_signal(&COND_flush_finished);
+  STRUCT_UNLOCK(&structure_guard_mutex);
+
+  DBUG_RETURN(new_query_cache_size);
 }
 
 
@@ -1575,6 +1589,7 @@ ulong Query_cache::init_cache()
   int align;
 
   DBUG_ENTER("Query_cache::init_cache");
+
   approx_additional_data_size = (sizeof(Query_cache) +
 				 sizeof(gptr)*(def_query_hash_size+
 					       def_table_hash_size));
@@ -1753,58 +1768,28 @@ void Query_cache::make_disabled()
   mem_bin_num= mem_bin_steps= 0;
   queries_in_cache= 0;
   first_block= 0;
+  total_blocks= 0;
+  tables_blocks= 0;
   DBUG_VOID_RETURN;
 }
 
 
-/*
-  free_cache() - free all resources allocated by the cache.
-
-  SYNOPSIS
-    free_cache()
-
-  DESCRIPTION
-    This function frees all resources allocated by the cache.  You
-    have to call init_cache() before using the cache again.
+/**
+  @class Query_cache
+  @brief Free all resources allocated by the cache.
+  @details  This function frees all resources allocated by the cache.  You
+    have to call init_cache() before using the cache again. This function requires
+    the structure_guard_mutex to be locked.
 */
 
 void Query_cache::free_cache()
 {
   DBUG_ENTER("Query_cache::free_cache");
-  if (query_cache_size > 0)
-    flush_cache();
-  /*
-    There may be two free_cache() calls in progress, because we
-    release 'structure_guard_mutex' in flush_cache().  When the second
-    flush_cache() wakes up from the wait on 'COND_flush_finished', the
-    first call to free_cache() has done its job.  So we have to test
-    'query_cache_size > 0' the second time to see if the cache wasn't
-    reset by other thread, or if it was reset and was re-enabled then.
-    If the cache was reset, then we have nothing to do here.
-  */
-  if (query_cache_size > 0)
-  {
-#ifndef DBUG_OFF
-    if (bins[0].free_blocks == 0)
-    {
-      wreck(__LINE__,"no free memory found in (bins[0].free_blocks");
-      DBUG_VOID_RETURN;
-    }
-#endif
 
-    /* Becasue we did a flush, all cache memory must be in one this block */
-    bins[0].free_blocks->destroy();
-    total_blocks--;
-#ifndef DBUG_OFF
-    if (free_memory != query_cache_size)
-      DBUG_PRINT("qcache", ("free memory %lu (should be %lu)",
-			    free_memory , query_cache_size));
-#endif
-    my_free((gptr) cache, MYF(MY_ALLOW_ZERO_PTR));
-    make_disabled();
-    hash_free(&queries);
-    hash_free(&tables);
-  }
+  my_free((gptr) cache, MYF(MY_ALLOW_ZERO_PTR));
+  make_disabled();
+  hash_free(&queries);
+  hash_free(&tables);
   DBUG_VOID_RETURN;
 }
 
