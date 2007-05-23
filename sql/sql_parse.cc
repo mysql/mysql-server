@@ -5375,6 +5375,8 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
 bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
 		       char *length, char *decimals,
 		       uint type_modifier,
+                       enum ha_storage_media storage_type,
+                       enum column_format_type column_format,
 		       Item *default_value, Item *on_update_value,
                        LEX_STRING *comment,
 		       char *change,
@@ -5461,7 +5463,8 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   if (!(new_field= new create_field()) ||
       new_field->init(thd, field_name->str, type, length, decimals, type_modifier,
                       default_value, on_update_value, comment, change,
-                      interval_list, cs, uint_geom_type))
+                      interval_list, cs, uint_geom_type,
+                      storage_type, column_format))
     DBUG_RETURN(1);
 
   lex->create_list.push_back(new_field);

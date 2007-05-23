@@ -4654,7 +4654,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   char tmp_path[FN_REFLEN];
 #endif
-  char ts_name[FN_LEN];
   TABLE_LIST src_tables_list, dst_tables_list;
   DBUG_ENTER("mysql_create_like_table");
 
@@ -4735,18 +4734,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
 
   if (simple_open_n_lock_tables(thd, &src_tables_list))
     DBUG_RETURN(TRUE);
-
-  /*
-    For bug#25875, Newly created table through CREATE TABLE .. LIKE
-                   has no ndb_dd attributes;
-    Add something to get possible tablespace info from src table,
-    it can get valid tablespace name only for disk-base ndb table
-  */
-  if ((src_tables_list.table->file->get_tablespace_name(thd, ts_name, FN_LEN)))
-  {
-    create_info->tablespace= ts_name;
-    create_info->storage_media= HA_SM_DISK;
-  }
 
   /*
     Validate the destination table
@@ -5420,6 +5407,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
   thd->proc_info="init";
+  bzero((char*) &create_info,sizeof(create_info));
   if (!(create_info= copy_create_info(lex_create_info)))
   {
     DBUG_RETURN(TRUE);
@@ -5715,15 +5703,6 @@ view_err:
   if (!(used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
     create_info->key_block_size= table->s->key_block_size;
 
-  if (!create_info->tablespace && create_info->storage_media != HA_SM_MEMORY)
-  {
-    /* 
-       Regular alter table of disk stored table (no tablespace/storage change)
-       Copy tablespace name
-    */
-    if ((table->file->get_tablespace_name(thd, tablespace, FN_LEN)))
-      create_info->tablespace= tablespace;
-  }
   restore_record(table, s->default_values);     // Empty record for DEFAULT
   List_iterator<Alter_drop> drop_it(alter_info->drop_list);
   List_iterator<create_field> def_it(fields);
@@ -6262,6 +6241,20 @@ view_err:
   else
     create_info->data_file_name=create_info->index_file_name=0;
 
+  if (new_db_type == old_db_type)
+  {
+    /*
+      Table has not changed storage engine.
+      If STORAGE and TABLESPACE have not been changed than copy them
+      from the original table
+    */
+    if (!create_info->tablespace && 
+	table->s->tablespace &&
+        create_info->default_storage_media == HA_SM_DEFAULT)
+      create_info->tablespace= table->s->tablespace;
+    if (create_info->default_storage_media == HA_SM_DEFAULT)
+      create_info->default_storage_media= table->s->default_storage_media;
+  }
   /*
     Create a table with a temporary name.
     With create_info->frm_only == 1 this creates a .frm file only.

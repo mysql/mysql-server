@@ -199,6 +199,7 @@ static SYMBOL symbols[] = {
   { "FALSE",		SYM(FALSE_SYM)},
   { "FAST",		SYM(FAST_SYM)},
   { "FETCH",            SYM(FETCH_SYM)},
+  { "COLUMN_FORMAT",	SYM(COLUMN_FORMAT_SYM)},
   { "FIELDS",		SYM(COLUMNS)},
   { "FILE",		SYM(FILE_SYM)},
   { "FIRST",		SYM(FIRST_SYM)},

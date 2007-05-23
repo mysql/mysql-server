@@ -465,6 +465,7 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
   enum ha_key_alg key_alg;
   handlerton *db_type;
   enum row_type row_type;
+  enum column_format_type column_format_type;
   enum ha_rkey_function ha_rkey_mode;
   enum enum_tx_isolation tx_isolation;
   enum Cast_target cast_type;
@@ -669,6 +670,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  FALSE_SYM                     /* SQL-2003-R */
 %token  FAST_SYM
 %token  FETCH_SYM                     /* SQL-2003-R */
+%token  COLUMN_FORMAT_SYM
 %token  FILE_SYM
 %token  FIRST_SYM                     /* SQL-2003-N */
 %token  FIXED_SYM
@@ -1182,6 +1184,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <db_type> storage_engines known_storage_engines
 
 %type <row_type> row_types
+
+%type <column_format_type> column_format_types
 
 %type <tx_isolation> isolation_types
 
@@ -4360,8 +4364,8 @@ create_table_option:
 	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.data_file_name= $4.str; Lex->create_info.used_fields|= HA_CREATE_USED_DATADIR; }
 	| INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str;  Lex->create_info.used_fields|= HA_CREATE_USED_INDEXDIR; }
         | TABLESPACE ident {Lex->create_info.tablespace= $2.str;}
-        | STORAGE_SYM DISK_SYM {Lex->create_info.storage_media= HA_SM_DISK;}
-        | STORAGE_SYM MEMORY_SYM {Lex->create_info.storage_media= HA_SM_MEMORY;}
+        | STORAGE_SYM DISK_SYM {Lex->create_info.default_storage_media= HA_SM_DISK;}
+        | STORAGE_SYM MEMORY_SYM {Lex->create_info.default_storage_media= HA_SM_MEMORY;}
 	| CONNECTION_SYM opt_equal TEXT_STRING_sys { Lex->create_info.connect_string.str= $3.str; Lex->create_info.connect_string.length= $3.length;  Lex->create_info.used_fields|= HA_CREATE_USED_CONNECTION; }
 	| KEY_BLOCK_SIZE opt_equal ulong_num
 	  {
@@ -4423,8 +4427,7 @@ storage_engines:
                                 ER(ER_UNKNOWN_STORAGE_ENGINE),
                                 $1.str);
           }
-	}
-        ;
+        };
 
 known_storage_engines:
 	ident_or_text
@@ -4437,8 +4440,12 @@ known_storage_engines:
 	    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
 	    MYSQL_YYABORT;
 	  }
-	}
-        ;
+	};
+
+column_format_types:
+	DEFAULT		{ $$= COLUMN_FORMAT_TYPE_DEFAULT; }
+	| FIXED_SYM	{ $$= COLUMN_FORMAT_TYPE_FIXED; }
+	| DYNAMIC_SYM	{ $$= COLUMN_FORMAT_TYPE_DYNAMIC; };
 
 row_types:
 	DEFAULT		{ $$= ROW_TYPE_DEFAULT; }
@@ -4560,12 +4567,15 @@ field_spec:
 	   lex->default_value= lex->on_update_value= 0;
            lex->comment=null_lex_str;
 	   lex->charset=NULL;
+           lex->storage_type= HA_SM_DEFAULT;
+           lex->column_format= COLUMN_FORMAT_TYPE_DEFAULT;
 	 }
 	type opt_attribute
 	{
 	  LEX *lex=Lex;
 	  if (add_field_to_list(lex->thd, &$1, (enum enum_field_types) $3,
 				lex->length,lex->dec,lex->type,
+                                lex->storage_type, lex->column_format,
 				lex->default_value, lex->on_update_value, 
                                 &lex->comment,
 				lex->change,&lex->interval_list,lex->charset,
@@ -4764,6 +4774,9 @@ opt_attribute_list:
 
 attribute:
 	NULL_SYM	  { Lex->type&= ~ NOT_NULL_FLAG; }
+        | STORAGE_SYM DISK_SYM {Lex->storage_type= HA_SM_DISK;}
+        | STORAGE_SYM MEMORY_SYM {Lex->storage_type= HA_SM_MEMORY;}
+        | COLUMN_FORMAT_SYM column_format_types { Lex->column_format= $2; }
 	| not NULL_SYM	  { Lex->type|= NOT_NULL_FLAG; }
 	| DEFAULT now_or_signed_literal { Lex->default_value=$2; }
 	| ON UPDATE_SYM NOW_SYM optional_braces 
@@ -5125,7 +5138,7 @@ alter:
 	  lex->alter_info.reset();
 	  lex->alter_info.flags= 0;
           lex->no_write_to_binlog= 0;
-          lex->create_info.storage_media= HA_SM_DEFAULT;	
+          lex->create_info.default_storage_media= HA_SM_DEFAULT;	
 	}
 	alter_commands
 	{}
@@ -5516,6 +5529,8 @@ alter_list_item:
             lex->comment=null_lex_str;
 	    lex->charset= NULL;
 	    lex->alter_info.flags|= ALTER_CHANGE_COLUMN;
+            lex->storage_type= HA_SM_DEFAULT;
+            lex->column_format= COLUMN_FORMAT_TYPE_DEFAULT;
           }
           type opt_attribute
           {
@@ -5523,6 +5538,7 @@ alter_list_item:
             if (add_field_to_list(lex->thd,&$3,
                                   (enum enum_field_types) $5,
                                   lex->length,lex->dec,lex->type,
+                                  lex->storage_type, lex->column_format,
                                   lex->default_value, lex->on_update_value,
                                   &lex->comment,
 				  $3.str, &lex->interval_list, lex->charset,
@@ -8824,7 +8840,7 @@ show_param:
 	    if (!lex->select_lex.add_table_to_list(YYTHD, $3, NULL,0))
 	      MYSQL_YYABORT;
             lex->only_view= 0;
-	    lex->create_info.storage_media= HA_SM_DEFAULT;
+	    lex->create_info.default_storage_media= HA_SM_DEFAULT;
 	  }
         | CREATE VIEW_SYM table_ident
           {
