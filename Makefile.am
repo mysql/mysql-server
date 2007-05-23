@@ -157,6 +157,8 @@ test-bt:
 	@PERL@ ./mysql-test-run.pl --force --comment=funcs1_ps --ps-protocol --suite=funcs_1
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --force --comment=funcs2 --suite=funcs_2
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	@PERL@ ./mysql-test-run.pl --force --comment=rowlock --suite=row_lock
 
 test-bt-debug:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
