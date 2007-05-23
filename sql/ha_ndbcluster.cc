@@ -5627,6 +5627,62 @@ static int create_ndb_column(THD *thd,
   DBUG_RETURN(0);
 }
 
+void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
+{
+  DBUG_ENTER("update_create_info");
+  TABLE_SHARE *share= table->s;
+  if (share->mysql_version < MYSQL_VERSION_TABLESPACE_IN_FRM)
+  {
+     DBUG_PRINT("info", ("Restored an old table %s, pre-frm_version 7", 
+	                 share->table_name.str));
+     if (!create_info->tablespace && !share->tablespace)
+     {
+       DBUG_PRINT("info", ("Checking for tablespace in ndb"));
+       THD *thd= current_thd;
+       Ndb *ndb= check_ndb_in_thd(thd);
+       NDBDICT *ndbdict= ndb->getDictionary();
+       NdbError ndberr;
+       Uint32 id;
+       ndb->setDatabaseName(m_dbname);
+       const NDBTAB *ndbtab= m_table;
+       DBUG_ASSERT(ndbtab != NULL);
+       if (!ndbtab->getTablespace(&id))
+       {
+         DBUG_VOID_RETURN;
+       }
+       {
+         NdbDictionary::Tablespace ts= ndbdict->getTablespace(id);
+         ndberr= ndbdict->getNdbError();
+         if(ndberr.classification != NdbError::NoError)
+           goto err;
+	 const char *tablespace= ts.getName();
+         DBUG_PRINT("info", ("Found tablespace '%s'", tablespace));
+         uint tablespace_len= strlen(tablespace);
+         if (tablespace_len != 0) 
+         {
+           share->tablespace= (char *) alloc_root(&share->mem_root,
+                                                  tablespace_len+1);
+           strxmov(share->tablespace, tablespace, NullS);
+	   create_info->tablespace= share->tablespace;
+         }
+         DBUG_VOID_RETURN;
+       }
+err:
+       if (ndberr.status == NdbError::TemporaryError)
+         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                             ER_GET_TEMPORARY_ERRMSG, 
+                             ER(ER_GET_TEMPORARY_ERRMSG),
+                             ndberr.code, ndberr.message, "NDB");
+       else
+         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                             ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                             ndberr.code, ndberr.message, "NDB");
+    }
+  }
+
+  DBUG_VOID_RETURN;
+}
+
 /*
   Create a table in NDB Cluster
 */

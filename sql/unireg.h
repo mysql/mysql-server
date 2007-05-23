@@ -157,6 +157,8 @@
 #define MTYP_NOEMPTY_BIT 128
 
 #define FRM_VER_TRUE_VARCHAR (FRM_VER+4) /* 10 */
+#define MYSQL_VERSION_TABLESPACE_IN_FRM 50119
+
 /*
   Minimum length pattern before Turbo Boyer-Moore is used
   for SELECT "text" LIKE "%pattern%", excluding the two
