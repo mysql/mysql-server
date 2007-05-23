@@ -1683,4 +1683,13 @@ execute stmt;
 ERROR 42S22: Unknown column 'y.value' in 'field list'
 deallocate prepare stmt;
 drop tables t1;
+prepare stmt from "create table t1 select ?";
+set @a=1.0;
+execute stmt using @a;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `?` decimal(2,1) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
 End of 5.0 tests.
