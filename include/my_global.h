@@ -867,12 +867,11 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define isnan(x) ((x) != (x))
 #endif
 
-#if !defined(HAVE_ISINF)
-/* The configure check for "isinf with math.h" has failed */
-#ifdef isinf
-#undef isinf
-#endif
-#define isinf(X) (!finite(X) && !isnan(X))
+#ifdef HAVE_ISINF
+/* isinf() can be used in both C and C++ code */
+#define my_isinf(X) isinf(X)
+#else
+#define my_isinf(X) (!finite(X) && !isnan(X))
 #endif
 
 /* Define missing math constants. */
