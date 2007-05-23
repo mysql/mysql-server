@@ -296,6 +296,7 @@ class ha_ndbcluster: public handler
   int external_lock(THD *thd, int lock_type);
   void unlock_row();
   int start_stmt(THD *thd, thr_lock_type lock_type);
+  void update_create_info(HA_CREATE_INFO *create_info);
   void print_error(int error, myf errflag);
   const char * table_type() const;
   const char ** bas_ext() const;
