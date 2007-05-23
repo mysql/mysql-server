@@ -1006,3 +1006,9 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: 'string          '
 Warning	1292	Truncated incorrect INTEGER value: 'string          '
 DROP PROCEDURE spxml;
+select UpdateXML('<a>a</a>',repeat('a b ',1000),'');
+ERROR HY000: XPATH syntax error: 'b a b a b a b a b a b a b a b a '
+select ExtractValue('<a>a</a>', '/a[@x=@y0123456789_0123456789_0123456789_0123456789]');
+ERROR HY000: XPATH error: comparison of two nodesets is not supported: '=@y0123456789_0123456789_0123456'
+select ExtractValue('<a>a</a>', '/a[@x=$y0123456789_0123456789_0123456789_0123456789]');
+ERROR HY000: Unknown XPATH variable at: '$y0123456789_0123456789_01234567'
