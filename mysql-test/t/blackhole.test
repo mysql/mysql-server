@@ -126,4 +126,13 @@ show binlog events;
 
 drop table t1,t2,t3;
 
+#
+# BUG#27998 - mysqld crashed when executing INSERT DELAYED on a BLACKHOLE
+#             table
+#
+CREATE TABLE t1(a INT) ENGINE=BLACKHOLE;
+--error 1031
+INSERT DELAYED INTO t1 VALUES(1);
+DROP TABLE t1;
+
 # End of 4.1 tests
