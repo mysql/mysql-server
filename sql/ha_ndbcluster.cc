@@ -234,11 +234,6 @@ inline
 int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans,
 		      bool force_release)
 {
-#ifdef NOT_USED
-  int m_batch_execute= 0;
-  if (m_batch_execute)
-    return 0;
-#endif
   h->release_completed_operations(trans, force_release);
   return trans->execute(NdbTransaction::NoCommit,
                         NdbTransaction::AbortOnError,
@@ -248,11 +243,6 @@ int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans,
 inline
 int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
 {
-#ifdef NOT_USED
-  int m_batch_execute= 0;
-  if (m_batch_execute)
-    return 0;
-#endif
   return trans->execute(NdbTransaction::Commit,
                         NdbTransaction::AbortOnError,
                         h->m_force_send);
@@ -261,11 +251,6 @@ int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
 inline
 int execute_commit(THD *thd, NdbTransaction *trans)
 {
-#ifdef NOT_USED
-  int m_batch_execute= 0;
-  if (m_batch_execute)
-    return 0;
-#endif
   return trans->execute(NdbTransaction::Commit,
                         NdbTransaction::AbortOnError,
                         thd->variables.ndb_force_send);
@@ -275,11 +260,6 @@ inline
 int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans,
 			 bool force_release)
 {
-#ifdef NOT_USED
-  int m_batch_execute= 0;
-  if (m_batch_execute)
-    return 0;
-#endif
   h->release_completed_operations(trans, force_release);
   return trans->execute(NdbTransaction::NoCommit,
                         NdbTransaction::AO_IgnoreError,
