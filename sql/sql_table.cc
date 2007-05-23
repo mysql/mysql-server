@@ -37,7 +37,8 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
                                     List<create_field> &create, bool ignore,
 				    uint order_num, ORDER *order,
 				    ha_rows *copied,ha_rows *deleted,
-                                    enum enum_enable_or_disable keys_onoff);
+                                    enum enum_enable_or_disable keys_onoff,
+                                    bool error_if_not_empty);
 
 static bool prepare_blob_field(THD *thd, create_field *sql_field);
 static bool check_engine(THD *, const char *, HA_CREATE_INFO *);
@@ -5405,6 +5406,16 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   legacy_db_type table_type;
   HA_CREATE_INFO *create_info;
   frm_type_enum frm_type;
+  /*
+    Throw an error if the table to be altered isn't empty.
+    Used in DATE/DATETIME fields default value checking.
+  */
+  bool error_if_not_empty= FALSE;
+  /*
+    A field used for error reporting in DATE/DATETIME fields default
+    value checking.
+  */
+  create_field *new_datetime_field= 0;
   uint need_copy_table= 0;
   bool no_table_reopen= FALSE, varchar= FALSE;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -5878,6 +5889,22 @@ view_err:
     {
       my_error(ER_BAD_FIELD_ERROR, MYF(0), def->change, table_name);
       goto err;
+    }
+    /*
+      Check that the DATE/DATETIME not null field we are going to add is
+      either has a default value or the '0000-00-00' is allowed by the
+      set sql mode.
+      If the '0000-00-00' value isn't allowed then raise the error_if_not_empty
+      flag to allow ALTER TABLE only if the table to be altered is empty.
+    */
+    if ((def->sql_type == MYSQL_TYPE_DATE ||
+         def->sql_type == MYSQL_TYPE_NEWDATE ||
+         def->sql_type == MYSQL_TYPE_DATETIME) && !new_datetime_field &&
+         !(~def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)) &&
+         thd->variables.sql_mode & MODE_NO_ZERO_DATE)
+    {
+        new_datetime_field= def;
+        error_if_not_empty= TRUE;
     }
     if (!def->after)
       create_list.push_back(def);
@@ -6369,7 +6396,8 @@ view_err:
     new_table->next_number_field=new_table->found_next_number_field;
     error=copy_data_between_tables(table, new_table, create_list, ignore,
                                    order_num, order, &copied, &deleted,
-                                   alter_info->keys_onoff);
+                                   alter_info->keys_onoff,
+                                   error_if_not_empty);
   }
   else
   {
@@ -6856,6 +6884,37 @@ err1:
     VOID(quick_rm_table(new_db_type, new_db, tmp_name, FN_IS_TMP));
 
 err:
+  /*
+    No default value was provided for a DATE/DATETIME field, the
+    current sql_mode doesn't allow the '0000-00-00' value and
+    the table to be altered isn't empty.
+    Report error here.
+  */
+  if (error_if_not_empty && thd->row_count)
+  {
+    const char *f_val= 0;
+    enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
+    switch (new_datetime_field->sql_type)
+    {
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_NEWDATE:
+        f_val= "0000-00-00";
+        t_type= MYSQL_TIMESTAMP_DATE;
+        break;
+      case MYSQL_TYPE_DATETIME:
+        f_val= "0000-00-00 00:00:00";
+        t_type= MYSQL_TIMESTAMP_DATETIME;
+        break;
+      default:
+        /* Shouldn't get here. */
+        DBUG_ASSERT(0);
+    }
+    bool save_abort_on_warning= thd->abort_on_warning;
+    thd->abort_on_warning= TRUE;
+    make_truncated_value_warning(thd, f_val, strlength(f_val), t_type,
+                                 new_datetime_field->field_name);
+    thd->abort_on_warning= save_abort_on_warning;
+  }
   if (name_lock)
   {
     pthread_mutex_lock(&LOCK_open);
@@ -6873,7 +6932,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 			 uint order_num, ORDER *order,
 			 ha_rows *copied,
 			 ha_rows *deleted,
-                         enum enum_enable_or_disable keys_onoff)
+                         enum enum_enable_or_disable keys_onoff,
+                         bool error_if_not_empty)
 {
   int error;
   Copy_field *copy,*copy_end;
@@ -6985,6 +7045,12 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       break;
     }
     thd->row_count++;
+    /* Return error if source table isn't empty. */
+    if (error_if_not_empty)
+    {
+      error= 1;
+      break;
+    }
     if (to->next_number_field)
     {
       if (auto_increment_field_copied)
