@@ -24,7 +24,9 @@
   my_off_t pos     The expected position (absolute or relative)
   int whence       A direction parameter and one of 
                    {SEEK_SET, SEEK_CUR, SEEK_END}
-  myf MyFlags      Not used.
+  myf MyFlags      MY_THREADSAFE must be set in case my_seek may be mixed
+                   with my_pread/my_pwrite calls and fd is shared among
+                   threads.
 
   DESCRIPTION
     The my_seek  function  is a wrapper around the system call lseek and
@@ -51,7 +53,16 @@ my_off_t my_seek(File fd, my_off_t pos, int whence,
 		   whence, MyFlags));
   DBUG_ASSERT(pos != MY_FILEPOS_ERROR);		/* safety check */
 
-  newpos=lseek(fd, pos, whence);
+#if defined(THREAD) && !defined(HAVE_PREAD)
+  if (MyFlags & MY_THREADSAFE)
+  {
+    pthread_mutex_lock(&my_file_info[fd].mutex);
+    newpos= lseek(fd, pos, whence);
+    pthread_mutex_unlock(&my_file_info[fd].mutex);
+  }
+  else
+#endif
+    newpos= lseek(fd, pos, whence);
   if (newpos == (os_off_t) -1)
   {
     my_errno=errno;
