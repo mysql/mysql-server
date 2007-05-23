@@ -41,3 +41,85 @@ select 1;
 select RELEASE_LOCK("a");
 RELEASE_LOCK("a")
 1
+create table t1(f1 int);
+create function bug27563() returns int(11)
+deterministic
+begin
+declare continue handler for sqlstate '70100' set @a:= 'killed';
+declare continue handler for sqlexception set @a:= 'exception';
+set @a= get_lock("lock27563", 10);
+return 1;
+end|
+select get_lock("lock27563",10);
+get_lock("lock27563",10)
+1
+insert into t1 values (bug27563());
+ERROR 70100: Query execution was interrupted
+select @a;
+@a
+NULL
+select * from t1;
+f1
+insert into t1 values(0);
+update t1 set f1= bug27563();
+ERROR 70100: Query execution was interrupted
+select @a;
+@a
+NULL
+select * from t1;
+f1
+0
+insert into t1 values(1);
+delete from t1 where bug27563() is null;
+ERROR 70100: Query execution was interrupted
+select @a;
+@a
+NULL
+select * from t1;
+f1
+0
+1
+select * from t1 where f1= bug27563();
+ERROR 70100: Query execution was interrupted
+select @a;
+@a
+NULL
+create procedure proc27563()
+begin
+declare continue handler for sqlstate '70100' set @a:= 'killed';
+declare continue handler for sqlexception set @a:= 'exception';
+select get_lock("lock27563",10);
+select "shouldn't be selected";
+end|
+call proc27563();
+get_lock("lock27563",10)
+NULL
+ERROR 70100: Query execution was interrupted
+select @a;
+@a
+NULL
+create table t2 (f2 int);
+create trigger trg27563 before insert on t1 for each row 
+begin 
+declare continue handler for sqlstate '70100' set @a:= 'killed';
+declare continue handler for sqlexception set @a:= 'exception';
+set @a:= get_lock("lock27563",10);
+insert into t2 values(1);
+end|
+insert into t1 values(2),(3);
+ERROR 70100: Query execution was interrupted
+select @a;
+@a
+NULL
+select * from t1;
+f1
+0
+1
+select * from t2;
+f2
+select release_lock("lock27563");
+release_lock("lock27563")
+1
+drop table t1, t2;
+drop function bug27563;
+drop procedure proc27563;
