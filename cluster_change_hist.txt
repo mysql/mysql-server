@@ -2,8 +2,22 @@
 mysql-5.1.15-ndb-6.1.X
 ==================================================
 
-mysql-5.1.15-ndb-6.1.7 (not released)
+mysql-5.1.15-ndb-6.1.9 ()
 
+  Bug #28593 cluster backup scans in acc index order, bad for disk data
+  Bug #28443 transporter gets stuck when >1024 signals received at once
+ 
+mysql-5.1.15-ndb-6.1.8 (2007-05-18)
+
+  Bug #28491 Expand check gets disabled in some cases (initial node restart)
+  Bug #28348 Dropped tables not removed from LCP
+  Bug #20535 NDB API implicit insert of NULL does not overwrite old value
+  Bug #27437 NDB Data node crashes during mysqldump inserts
+  Bug #27942 node failure during massive insert
+
+mysql-5.1.15-ndb-6.1.7 (2007-05-05)
+
+  Bug #26121 mysqldump includes LOCK TABLES general_log WRITE
   Bug #28161 Detached triggers + DD and only MM update could cause node failure
   Bug #25530 --with-readline fails with commercial source packages
   Bug #25741 AllocNodeIdRef::NodeFailureHandlingNotCompleted
