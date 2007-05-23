@@ -371,7 +371,7 @@ ERROR 42S01: Table 't3' already exists
 create table non_existing_database.t1 like t1;
 ERROR 42000: Unknown database 'non_existing_database'
 create table t3 like non_existing_table;
-ERROR 42S02: Unknown table 'non_existing_table'
+ERROR 42S02: Table 'test.non_existing_table' doesn't exist
 create temporary table t3 like t1;
 ERROR 42S01: Table 't3' already exists
 drop table t1, t2, t3;
