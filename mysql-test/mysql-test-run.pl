@@ -2307,16 +2307,23 @@ sub  check_running_as_root () {
     close FILE;
   }
 
-  chmod(oct("0755"), $test_file);
-  unlink($test_file);
+  # Some filesystems( for example CIFS) allows reading a file
+  # although mode was set to 0000, but in that case a stat on
+  # the file will not return 0000
+  my $file_mode= (stat($test_file))[2] & 07777;
 
   $ENV{'MYSQL_TEST_ROOT'}= "NO";
-  if ($result eq "MySQL")
+  mtr_verbose("result: $result, file_mode: $file_mode");
+  if ($result eq "MySQL" && $file_mode == 0)
   {
     mtr_warning("running this script as _root_ will cause some " .
                 "tests to be skipped");
     $ENV{'MYSQL_TEST_ROOT'}= "YES";
   }
+
+  chmod(oct("0755"), $test_file);
+  unlink($test_file);
+
 }
 
 
