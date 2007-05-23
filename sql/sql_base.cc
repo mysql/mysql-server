@@ -5444,7 +5444,7 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
     table= (*ptr)->table;
     table->auto_increment_field_not_null= FALSE;
   }
-  while ((field = *ptr++))
+  while ((field = *ptr++) && !thd->net.report_error)
   {
     value=v++;
     table= field->table;
