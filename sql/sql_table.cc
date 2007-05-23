@@ -4665,114 +4665,51 @@ bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
   SYNOPSIS
     mysql_create_like_table()
     thd		Thread object
-    table	Table list (one table only)
+    table       Table list element for target table
+    src_table   Table list element for source table
     create_info Create info
-    table_ident Src table_ident
 
   RETURN VALUES
     FALSE OK
     TRUE  error
 */
 
-bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
-                             HA_CREATE_INFO *lex_create_info,
-                             Table_ident *table_ident)
+bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
+                             HA_CREATE_INFO *lex_create_info)
 {
-  TABLE *tmp_table, *name_lock= 0;
+  TABLE *name_lock= 0;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
-  char src_table_name_buff[FN_REFLEN], src_db_name_buff[FN_REFLEN];
   uint dst_path_length;
   char *db= table->db;
   char *table_name= table->table_name;
-  char *src_db;
-  char *src_table= table_ident->table.str;
   int  err;
   bool res= TRUE;
-  enum legacy_db_type not_used;
+  uint not_used;
   HA_CREATE_INFO *create_info;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   char tmp_path[FN_REFLEN];
 #endif
   char ts_name[FN_LEN];
-  TABLE_LIST src_tables_list;
   DBUG_ENTER("mysql_create_like_table");
 
   if (!(create_info= copy_create_info(lex_create_info)))
   {
     DBUG_RETURN(TRUE);
   }
-  DBUG_ASSERT(table_ident->db.str); /* Must be set in the parser */
-  src_db= table_ident->db.str;
+
+  /* CREATE TABLE ... LIKE is not allowed for views. */
+  src_table->required_type= FRMTYPE_TABLE;
 
   /*
-    Validate the source table
+    By opening source table we guarantee that it exists and no concurrent
+    DDL operation will mess with it. Later we also take an exclusive
+    name-lock on target table name, which makes copying of .frm file,
+    call to ha_create_table() and binlogging atomic against concurrent DML
+    and DDL operations on target table. Thus by holding both these "locks"
+    we ensure that our statement is properly isolated from all concurrent
+    operations which matter.
   */
-  if (check_string_char_length(&table_ident->table, "", NAME_CHAR_LEN,
-                               system_charset_info, 1) ||
-      (table_ident->table.length &&
-       check_table_name(src_table,table_ident->table.length)))
-  {
-    my_error(ER_WRONG_TABLE_NAME, MYF(0), src_table);
-    DBUG_RETURN(TRUE);
-  }
-  if (!src_db || check_db_name(&table_ident->db))
-  {
-    my_error(ER_WRONG_DB_NAME, MYF(0), src_db ? src_db : "NULL");
-    DBUG_RETURN(-1);
-  }
-
-  if ((tmp_table= find_temporary_table(thd, src_db, src_table)))
-    strxmov(src_path, tmp_table->s->path.str, reg_ext, NullS);
-  else
-  {
-    build_table_filename(src_path, sizeof(src_path),
-                         src_db, src_table, reg_ext, 0);
-    /* Resolve symlinks (for windows) */
-    unpack_filename(src_path, src_path);
-    if (lower_case_table_names)
-      my_casedn_str(files_charset_info, src_path);
-    if (access(src_path, F_OK))
-    {
-      my_error(ER_BAD_TABLE_ERROR, MYF(0), src_table);
-      goto err;
-    }
-  }
-
-  /* 
-     create like should be not allowed for Views, Triggers, ... 
-  */
-  if (mysql_frm_type(thd, src_path, &not_used) != FRMTYPE_TABLE)
-  {
-    my_error(ER_WRONG_OBJECT, MYF(0), src_db, src_table, "BASE TABLE");
-    goto err;
-  }
-
-  if (lower_case_table_names)
-  {
-    if (src_db)
-    {
-      strmake(src_db_name_buff, src_db,
-              min(sizeof(src_db_name_buff) - 1, table_ident->db.length));
-      my_casedn_str(files_charset_info, src_db_name_buff);
-      src_db= src_db_name_buff;
-    }
-    if (src_table)
-    {
-      strmake(src_table_name_buff, src_table,
-              min(sizeof(src_table_name_buff) - 1, table_ident->table.length));
-      my_casedn_str(files_charset_info, src_table_name_buff);
-      src_table= src_table_name_buff;
-    }
-  }
-
-  bzero((gptr)&src_tables_list, sizeof(src_tables_list));
-  src_tables_list.db= src_db;
-  src_tables_list.db_length= table_ident->db.length;
-  src_tables_list.lock_type= TL_READ;
-  src_tables_list.table_name= src_table;
-  src_tables_list.alias= src_table;
-
-  if (simple_open_n_lock_tables(thd, &src_tables_list))
+  if (open_tables(thd, &src_table, &not_used, 0))
     DBUG_RETURN(TRUE);
 
   /*
@@ -4781,17 +4718,19 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
     Add something to get possible tablespace info from src table,
     it can get valid tablespace name only for disk-base ndb table
   */
-  if ((src_tables_list.table->file->get_tablespace_name(thd, ts_name, FN_LEN)))
+  if ((src_table->table->file->get_tablespace_name(thd, ts_name, FN_LEN)))
   {
     create_info->tablespace= ts_name;
     create_info->storage_media= HA_SM_DISK;
   }
 
-  /*
-    Validate the destination table
+  strxmov(src_path, src_table->table->s->path.str, reg_ext, NullS);
 
-    skip the destination table name checking as this is already
-    validated.
+  DBUG_EXECUTE_IF("sleep_create_like_before_check_if_exists", my_sleep(6000000););
+
+  /*
+    Check that destination tables does not exist. Note that its name
+    was already checked when it was added to the table list.
   */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
@@ -4812,15 +4751,29 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
       goto table_exists;
   }
 
+  DBUG_EXECUTE_IF("sleep_create_like_before_copy", my_sleep(6000000););
+
   /*
     Create a new table by copying from source table
+
+    Altough exclusive name-lock on target table protects us from concurrent
+    DML and DDL operations on it we still want to wrap .FRM creation and call
+    to ha_create_table() in critical section protected by LOCK_open in order
+    to provide minimal atomicity against operations which disregard name-locks,
+    like I_S implementation, for example. This is a temporary and should not
+    be copied. Instead we should fix our code to always honor name-locks.
+
+    Also some engines (e.g. NDB cluster) require that LOCK_open should be held
+    during the call to ha_create_table(). See bug #28614 for more info.
   */
+  VOID(pthread_mutex_lock(&LOCK_open));
   if (my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE)))
   {
     if (my_errno == ENOENT)
       my_error(ER_BAD_DB_ERROR,MYF(0),db);
     else
       my_error(ER_CANT_CREATE_FILE,MYF(0),dst_path,my_errno);
+    VOID(pthread_mutex_unlock(&LOCK_open));
     goto err;
   }
 
@@ -4842,10 +4795,12 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   strmov(src_path, tmp_path);
   my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE));
 #endif
+
+  DBUG_EXECUTE_IF("sleep_create_like_before_ha_create", my_sleep(6000000););
+
   dst_path[dst_path_length - reg_ext_length]= '\0';  // Remove .frm
-  pthread_mutex_lock(&LOCK_open);  
   err= ha_create_table(thd, dst_path, db, table_name, create_info, 1);
-  pthread_mutex_unlock(&LOCK_open);
+  VOID(pthread_mutex_unlock(&LOCK_open));
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
     if (err || !open_temporary_table(thd, dst_path, db, table_name, 1))
@@ -4861,6 +4816,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
 			  table_name, 0); /* purecov: inspected */
     goto err;	    /* purecov: inspected */
   }
+
+  DBUG_EXECUTE_IF("sleep_create_like_before_binlogging", my_sleep(6000000););
 
   /*
     We have to write the query before we unlock the tables.
@@ -4881,14 +4838,10 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
            3    temporary    normal Nothing
            4    temporary temporary Nothing
            ==== ========= ========= ==============================
-
-       The variable 'tmp_table' below is used to see if the source
-       table is a temporary table: if it is set, then the source table
-       was a temporary table and we can take apropriate actions.
     */
     if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
     {
-      if (tmp_table)                            // Case 2
+      if (src_table->table->s->tmp_table)               // Case 2
       {
         char buf[2048];
         String query(buf, sizeof(buf), system_charset_info);

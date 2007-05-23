@@ -1579,7 +1579,6 @@ create:
 	  lex->create_info.default_table_charset= NULL;
 	  lex->name.str= 0;
           lex->name.length= 0;
-         lex->like_name= 0;
 	}
 	create2
 	{
@@ -3603,27 +3602,15 @@ create2:
           create3 {}
         | LIKE table_ident
           {
-            THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-            if (!(lex->like_name= $2))
+            Lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
+            if (!Lex->select_lex.add_table_to_list(YYTHD, $2, NULL, 0, TL_READ))
               MYSQL_YYABORT;
-            if ($2->db.str == NULL &&
-                thd->copy_db_to(&($2->db.str), &($2->db.length)))
-            {
-              MYSQL_YYABORT;
-            }
           }
         | '(' LIKE table_ident ')'
           {
-            THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-            if (!(lex->like_name= $3))
+            Lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
+            if (!Lex->select_lex.add_table_to_list(YYTHD, $3, NULL, 0, TL_READ))
               MYSQL_YYABORT;
-            if ($3->db.str == NULL &&
-                thd->copy_db_to(&($3->db.str), &($3->db.length)))
-            {
-              MYSQL_YYABORT;
-            }
           }
         ;
 
@@ -5112,7 +5099,6 @@ alter:
 	  lex->key_list.empty();
 	  lex->col_list.empty();
           lex->select_lex.init_order();
-	  lex->like_name= 0;
 	  lex->select_lex.db=
             ((TABLE_LIST*) lex->select_lex.table_list.first)->db;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
