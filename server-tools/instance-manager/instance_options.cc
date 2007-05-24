@@ -156,7 +156,7 @@ int Instance_options::get_default_option(char *result, size_t result_len,
     goto err;
 
   /* +2 eats first "--" from the option string (E.g. "--datadir") */
-  rc= parse_output_and_get_value(cmd.buffer, option_name + 2,
+  rc= parse_output_and_get_value((char*) cmd.buffer, option_name + 2,
                                  result, result_len, GET_VALUE);
 err:
   return rc;
@@ -194,7 +194,7 @@ bool Instance_options::fill_instance_version()
 
   bzero(result, MAX_VERSION_LENGTH);
 
-  if (parse_output_and_get_value(cmd.buffer, "Ver", result,
+  if (parse_output_and_get_value((char*) cmd.buffer, "Ver", result,
                                  MAX_VERSION_LENGTH, GET_LINE))
   {
     log_error("Failed to get version of '%s': unexpected output.",
@@ -255,7 +255,7 @@ bool Instance_options::fill_mysqld_real_path()
 
   bzero(result, FN_REFLEN);
 
-  if (parse_output_and_get_value(cmd.buffer, "Usage: ",
+  if (parse_output_and_get_value((char*) cmd.buffer, "Usage: ",
                                  result, FN_REFLEN,
                                  GET_LINE))
   {
@@ -466,13 +466,9 @@ bool Instance_options::complete_initialization()
       Need to copy the path to allocated memory, as convert_dirname() might
       need to change it
     */
-    mysqld_path.str=
-      alloc_root(&alloc, strlen(Options::Main::default_mysqld_path) + 1);
-
+    mysqld_path.str= strdup_root(&alloc, Options::Main::default_mysqld_path);
     if (!mysqld_path.str)
       return TRUE;
-
-    strcpy(mysqld_path.str, Options::Main::default_mysqld_path);
   }
 
   mysqld_path.length= strlen(mysqld_path.str);

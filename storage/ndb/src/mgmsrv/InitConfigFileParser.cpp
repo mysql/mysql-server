@@ -781,19 +781,19 @@ InitConfigFileParser::parse_mycnf()
       const ConfigInfo::ParamInfo& param = ConfigInfo::m_ParamInfo[i];
       switch(param._type){
       case ConfigInfo::CI_BOOL:
-	opt.value = (gptr*)malloc(sizeof(int));
+	opt.value = (uchar **)malloc(sizeof(int));
 	opt.var_type = GET_INT;
 	break;
       case ConfigInfo::CI_INT: 
-	opt.value = (gptr*)malloc(sizeof(int));
+	opt.value = (uchar**)malloc(sizeof(int));
 	opt.var_type = GET_INT;
 	break;
       case ConfigInfo::CI_INT64:
-	opt.value = (gptr*)malloc(sizeof(Int64));
+	opt.value = (uchar**)malloc(sizeof(Int64));
 	opt.var_type = GET_LL;
 	break;
       case ConfigInfo::CI_STRING: 
-	opt.value = (gptr*)malloc(sizeof(char *));
+	opt.value = (uchar**)malloc(sizeof(char *));
 	opt.var_type = GET_STR;
 	break;
       default:
@@ -819,28 +819,28 @@ InitConfigFileParser::parse_mycnf()
     bzero(&opt, sizeof(opt));
     opt.name = "ndbd";
     opt.id = 256;
-    opt.value = (gptr*)malloc(sizeof(char*));
+    opt.value = (uchar**)malloc(sizeof(char*));
     opt.var_type = GET_STR;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
 
     opt.name = "ndb_mgmd";
     opt.id = 256;
-    opt.value = (gptr*)malloc(sizeof(char*));
+    opt.value = (uchar**)malloc(sizeof(char*));
     opt.var_type = GET_STR;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
 
     opt.name = "mysqld";
     opt.id = 256;
-    opt.value = (gptr*)malloc(sizeof(char*));
+    opt.value = (uchar**)malloc(sizeof(char*));
     opt.var_type = GET_STR;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
 
     opt.name = "ndbapi";
     opt.id = 256;
-    opt.value = (gptr*)malloc(sizeof(char*));
+    opt.value = (uchar**)malloc(sizeof(char*));
     opt.var_type = GET_STR;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);

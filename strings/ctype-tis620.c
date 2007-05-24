@@ -462,7 +462,7 @@ static uchar NEAR sort_order_tis620[]=
     len			Length of tstr
 */
 
-static uint thai2sortable(uchar *tstr, uint len)
+static size_t thai2sortable(uchar *tstr, size_t len)
 {
   uchar	*p;
   int	tlen;
@@ -527,8 +527,8 @@ static uint thai2sortable(uchar *tstr, uint len)
 
 static
 int my_strnncoll_tis620(CHARSET_INFO *cs __attribute__((unused)),
-                        const uchar * s1, uint len1, 
-                        const uchar * s2, uint len2,
+                        const uchar *s1, size_t len1, 
+                        const uchar *s2, size_t len2,
                         my_bool s2_is_prefix)
 {
   uchar	buf[80] ;
@@ -557,12 +557,12 @@ int my_strnncoll_tis620(CHARSET_INFO *cs __attribute__((unused)),
 
 static
 int my_strnncollsp_tis620(CHARSET_INFO * cs __attribute__((unused)),
-			  const uchar *a0, uint a_length, 
-			  const uchar *b0, uint b_length,
+			  const uchar *a0, size_t a_length, 
+			  const uchar *b0, size_t b_length,
                           my_bool diff_if_only_endspace_difference)
 {
   uchar	buf[80], *end, *a, *b, *alloced= NULL;
-  uint length;
+  size_t length;
   int res= 0;
 
 #ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
@@ -633,13 +633,13 @@ ret:
 */
 
 static
-int my_strnxfrm_tis620(CHARSET_INFO *cs __attribute__((unused)),
-                       uchar * dest, uint len,
-                       const uchar * src, uint srclen)
+size_t my_strnxfrm_tis620(CHARSET_INFO *cs __attribute__((unused)),
+                          uchar *dest, size_t len,
+                          const uchar *src, size_t srclen)
 {
-  uint dstlen= len;
-  len= (uint) (strmake((char*) dest, (char*) src, min(len, srclen)) -
-	       (char*) dest);
+  size_t dstlen= len;
+  len= (size_t) (strmake((char*) dest, (char*) src, min(len, srclen)) -
+                 (char*) dest);
   len= thai2sortable(dest, len);
   if (dstlen > len)
     bfill(dest + len, dstlen - len, ' ');
@@ -681,7 +681,7 @@ static unsigned short cs_to_uni[256]={
 0x0E50,0x0E51,0x0E52,0x0E53,0x0E54,0x0E55,0x0E56,0x0E57,
 0x0E58,0x0E59,0x0E5A,0x0E5B,0xFFFD,0xFFFD,0xFFFD,0xFFFD
 };
-static unsigned char pl00[256]={
+static uchar pl00[256]={
 0x0000,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,
 0x0008,0x0009,0x000A,0x000B,0x000C,0x000D,0x000E,0x000F,
 0x0010,0x0011,0x0012,0x0013,0x0014,0x0015,0x0016,0x0017,
@@ -715,7 +715,7 @@ static unsigned char pl00[256]={
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000
 };
-static unsigned char pl0E[256]={
+static uchar pl0E[256]={
 0x0000,0x00A1,0x00A2,0x00A3,0x00A4,0x00A5,0x00A6,0x00A7,
 0x00A8,0x00A9,0x00AA,0x00AB,0x00AC,0x00AD,0x00AE,0x00AF,
 0x00B0,0x00B1,0x00B2,0x00B3,0x00B4,0x00B5,0x00B6,0x00B7,
@@ -749,7 +749,7 @@ static unsigned char pl0E[256]={
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000
 };
-static unsigned char plFF[256]={
+static uchar plFF[256]={
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
@@ -783,7 +783,7 @@ static unsigned char plFF[256]={
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000,0x0000,0x00FF,0x0000,0x0000
 };
-static unsigned char *uni_to_cs[256]={
+static uchar *uni_to_cs[256]={
 pl00,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
 NULL,NULL,NULL,NULL,NULL,NULL,pl0E,NULL,
 NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
@@ -822,8 +822,8 @@ NULL,NULL,NULL,NULL,NULL,NULL,NULL,plFF
 static
 int my_mb_wc_tis620(CHARSET_INFO *cs  __attribute__((unused)),
 		  my_wc_t *wc,
-		  const unsigned char *str,
-		  const unsigned char *end __attribute__((unused)))
+		  const uchar *str,
+		  const uchar *end __attribute__((unused)))
 {
   if (str >= end)
     return MY_CS_TOOSMALL;
@@ -835,10 +835,10 @@ int my_mb_wc_tis620(CHARSET_INFO *cs  __attribute__((unused)),
 static
 int my_wc_mb_tis620(CHARSET_INFO *cs  __attribute__((unused)),
 		  my_wc_t wc,
-		  unsigned char *str,
-		  unsigned char *end __attribute__((unused)))
+		  uchar *str,
+		  uchar *end __attribute__((unused)))
 {
-  unsigned char *pl;
+  uchar *pl;
   
   if (str >= end)
     return MY_CS_TOOSMALL;

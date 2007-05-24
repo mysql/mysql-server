@@ -19,7 +19,7 @@
 	   Read previous row with the same key as previous read
 	*/
 
-int myrg_rprev(MYRG_INFO *info, byte *buf, int inx)
+int myrg_rprev(MYRG_INFO *info, uchar *buf, int inx)
 {
   int err;
   MI_INFO *mi;
@@ -42,7 +42,7 @@ int myrg_rprev(MYRG_INFO *info, byte *buf, int inx)
   else
   {
     /* Found here, adding to queue */
-    queue_top(&(info->by_key))=(byte *)(info->current_table);
+    queue_top(&(info->by_key))=(uchar *)(info->current_table);
     queue_replaced(&(info->by_key));
   }
 

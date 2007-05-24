@@ -117,7 +117,7 @@ static ulong opt_compatible_mode= 0;
 #define MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL 1
 #define MYSQL_OPT_MASTER_DATA_COMMENTED_SQL 2
 static uint     opt_mysql_port= 0, opt_master_data;
-static my_string opt_mysql_unix_port=0;
+static char * opt_mysql_unix_port=0;
 static int   first_error=0;
 static DYNAMIC_STRING extended_row;
 #include <sslopt-vars.h>
@@ -177,106 +177,106 @@ HASH ignore_table;
 static struct my_option my_long_options[] =
 {
   {"all", 'a', "Deprecated. Use --create-options instead.",
-   (gptr*) &create_options, (gptr*) &create_options, 0, GET_BOOL, NO_ARG, 1,
+   (uchar**) &create_options, (uchar**) &create_options, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
   {"all-databases", 'A',
    "Dump all the databases. This will be same as --databases with all databases selected.",
-   (gptr*) &opt_alldbs, (gptr*) &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   (uchar**) &opt_alldbs, (uchar**) &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"all-tablespaces", 'Y',
    "Dump all the tablespaces.",
-   (gptr*) &opt_alltspcs, (gptr*) &opt_alltspcs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   (uchar**) &opt_alltspcs, (uchar**) &opt_alltspcs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"no-tablespaces", 'y',
    "Do not dump any tablespace information.",
-   (gptr*) &opt_notspcs, (gptr*) &opt_notspcs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   (uchar**) &opt_notspcs, (uchar**) &opt_notspcs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"add-drop-database", OPT_DROP_DATABASE, "Add a 'DROP DATABASE' before each create.",
-   (gptr*) &opt_drop_database, (gptr*) &opt_drop_database, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   (uchar**) &opt_drop_database, (uchar**) &opt_drop_database, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
   {"add-drop-table", OPT_DROP, "Add a 'drop table' before each create.",
-   (gptr*) &opt_drop, (gptr*) &opt_drop, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
+   (uchar**) &opt_drop, (uchar**) &opt_drop, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
   {"add-locks", OPT_LOCKS, "Add locks around insert statements.",
-   (gptr*) &opt_lock, (gptr*) &opt_lock, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
+   (uchar**) &opt_lock, (uchar**) &opt_lock, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
   {"allow-keywords", OPT_KEYWORDS,
-   "Allow creation of column names that are keywords.", (gptr*) &opt_keywords,
-   (gptr*) &opt_keywords, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   "Allow creation of column names that are keywords.", (uchar**) &opt_keywords,
+   (uchar**) &opt_keywords, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __NETWARE__
   {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory where character sets are.", (gptr*) &charsets_dir,
-   (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Directory where character sets are.", (uchar**) &charsets_dir,
+   (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"comments", 'i', "Write additional information.",
-   (gptr*) &opt_comments, (gptr*) &opt_comments, 0, GET_BOOL, NO_ARG,
+   (uchar**) &opt_comments, (uchar**) &opt_comments, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
   {"compatible", OPT_COMPATIBLE,
    "Change the dump to be compatible with a given mode. By default tables are dumped in a format optimized for MySQL. Legal modes are: ansi, mysql323, mysql40, postgresql, oracle, mssql, db2, maxdb, no_key_options, no_table_options, no_field_options. One can use several modes separated by commas. Note: Requires MySQL server version 4.1.0 or higher. This option is ignored with earlier server versions.",
-   (gptr*) &opt_compatible_mode_str, (gptr*) &opt_compatible_mode_str, 0,
+   (uchar**) &opt_compatible_mode_str, (uchar**) &opt_compatible_mode_str, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compact", OPT_COMPACT,
    "Give less verbose output (useful for debugging). Disables structure comments and header/footer constructs.  Enables options --skip-add-drop-table --no-set-names --skip-disable-keys --skip-add-locks",
-   (gptr*) &opt_compact, (gptr*) &opt_compact, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   (uchar**) &opt_compact, (uchar**) &opt_compact, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"complete-insert", 'c', "Use complete insert statements.",
-   (gptr*) &opt_complete_insert, (gptr*) &opt_complete_insert, 0, GET_BOOL,
+   (uchar**) &opt_complete_insert, (uchar**) &opt_complete_insert, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
-   (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"create-options", OPT_CREATE_OPTIONS,
    "Include all MySQL specific create options.",
-   (gptr*) &create_options, (gptr*) &create_options, 0, GET_BOOL, NO_ARG, 1,
+   (uchar**) &create_options, (uchar**) &create_options, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
   {"databases", 'B',
    "To dump several databases. Note the difference in usage; In this case no tables are given. All name arguments are regarded as databasenames. 'USE db_name;' will be included in the output.",
-   (gptr*) &opt_databases, (gptr*) &opt_databases, 0, GET_BOOL, NO_ARG, 0, 0,
+   (uchar**) &opt_databases, (uchar**) &opt_databases, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit",
    0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
-  {"debug", '#', "Output debug log", (gptr*) &default_dbug_option,
-   (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log", (uchar**) &default_dbug_option,
+   (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.", (gptr*) &info_flag,
-   (gptr*) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.", (uchar**) &info_flag,
+   (uchar**) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
-   "Set the default character set.", (gptr*) &default_charset,
-   (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Set the default character set.", (uchar**) &default_charset,
+   (uchar**) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delayed-insert", OPT_DELAYED, "Insert rows with INSERT DELAYED; ",
-   (gptr*) &opt_delayed, (gptr*) &opt_delayed, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   (uchar**) &opt_delayed, (uchar**) &opt_delayed, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"delete-master-logs", OPT_DELETE_MASTER_LOGS,
    "Delete logs on master after backup. This automatically enables --master-data.",
-   (gptr*) &opt_delete_master_logs, (gptr*) &opt_delete_master_logs, 0,
+   (uchar**) &opt_delete_master_logs, (uchar**) &opt_delete_master_logs, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"disable-keys", 'K',
-   "'/*!40000 ALTER TABLE tb_name DISABLE KEYS */; and '/*!40000 ALTER TABLE tb_name ENABLE KEYS */; will be put in the output.", (gptr*) &opt_disable_keys,
-   (gptr*) &opt_disable_keys, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+   "'/*!40000 ALTER TABLE tb_name DISABLE KEYS */; and '/*!40000 ALTER TABLE tb_name ENABLE KEYS */; will be put in the output.", (uchar**) &opt_disable_keys,
+   (uchar**) &opt_disable_keys, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"events", 'E', "Dump events.",
-     (gptr*) &opt_events, (gptr*) &opt_events, 0, GET_BOOL,
+     (uchar**) &opt_events, (uchar**) &opt_events, 0, GET_BOOL,
      NO_ARG, 0, 0, 0, 0, 0, 0},
   {"extended-insert", 'e',
    "Allows utilization of the new, much faster INSERT syntax.",
-   (gptr*) &extended_insert, (gptr*) &extended_insert, 0, GET_BOOL, NO_ARG,
+   (uchar**) &extended_insert, (uchar**) &extended_insert, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
   {"fields-terminated-by", OPT_FTB,
-   "Fields in the textfile are terminated by ...", (gptr*) &fields_terminated,
-   (gptr*) &fields_terminated, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Fields in the textfile are terminated by ...", (uchar**) &fields_terminated,
+   (uchar**) &fields_terminated, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"fields-enclosed-by", OPT_ENC,
-   "Fields in the importfile are enclosed by ...", (gptr*) &enclosed,
-   (gptr*) &enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0 ,0, 0},
+   "Fields in the importfile are enclosed by ...", (uchar**) &enclosed,
+   (uchar**) &enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0 ,0, 0},
   {"fields-optionally-enclosed-by", OPT_O_ENC,
-   "Fields in the i.file are opt. enclosed by ...", (gptr*) &opt_enclosed,
-   (gptr*) &opt_enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0 ,0, 0},
+   "Fields in the i.file are opt. enclosed by ...", (uchar**) &opt_enclosed,
+   (uchar**) &opt_enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0 ,0, 0},
   {"fields-escaped-by", OPT_ESC, "Fields in the i.file are escaped by ...",
-   (gptr*) &escaped, (gptr*) &escaped, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (uchar**) &escaped, (uchar**) &escaped, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"first-slave", 'x', "Deprecated, renamed to --lock-all-tables.",
-   (gptr*) &opt_lock_all_tables, (gptr*) &opt_lock_all_tables, 0, GET_BOOL, NO_ARG,
+   (uchar**) &opt_lock_all_tables, (uchar**) &opt_lock_all_tables, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"flush-logs", 'F', "Flush logs file in server before starting dump. "
    "Note that if you dump many databases at once (using the option "
@@ -287,44 +287,44 @@ static struct my_option my_long_options[] =
    "to the moment all tables are locked. So if you want your dump and "
    "the log flush to happen at the same exact moment you should use "
    "--lock-all-tables or --master-data with --flush-logs",
-   (gptr*) &flush_logs, (gptr*) &flush_logs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   (uchar**) &flush_logs, (uchar**) &flush_logs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"flush-privileges", OPT_ESC, "Emit a FLUSH PRIVILEGES statement "
    "after dumping the mysql database.  This option should be used any "
    "time the dump contains the mysql database and any other database "
    "that depends on the data in the mysql database for proper restore. ",
-   (gptr*) &flush_privileges, (gptr*) &flush_privileges, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   (uchar**) &flush_privileges, (uchar**) &flush_privileges, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"force", 'f', "Continue even if we get an sql-error.",
-   (gptr*) &ignore_errors, (gptr*) &ignore_errors, 0, GET_BOOL, NO_ARG,
+   (uchar**) &ignore_errors, (uchar**) &ignore_errors, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"hex-blob", OPT_HEXBLOB, "Dump binary strings (BINARY, "
     "VARBINARY, BLOB) in hexadecimal format.",
-   (gptr*) &opt_hex_blob, (gptr*) &opt_hex_blob, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"host", 'h', "Connect to host.", (gptr*) &current_host,
-   (gptr*) &current_host, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (uchar**) &opt_hex_blob, (uchar**) &opt_hex_blob, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"host", 'h', "Connect to host.", (uchar**) &current_host,
+   (uchar**) &current_host, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"ignore-table", OPT_IGNORE_TABLE,
    "Do not dump the specified table. To specify more than one table to ignore, "
    "use the directive multiple times, once for each table.  Each table must "
    "be specified with both database and table names, e.g. --ignore-table=database.table",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
-   (gptr*) &opt_ignore, (gptr*) &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   (uchar**) &opt_ignore, (uchar**) &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"lines-terminated-by", OPT_LTB, "Lines in the i.file are terminated by ...",
-   (gptr*) &lines_terminated, (gptr*) &lines_terminated, 0, GET_STR,
+   (uchar**) &lines_terminated, (uchar**) &lines_terminated, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lock-all-tables", 'x', "Locks all tables across all databases. This "
    "is achieved by taking a global read lock for the duration of the whole "
    "dump. Automatically turns --single-transaction and --lock-tables off.",
-   (gptr*) &opt_lock_all_tables, (gptr*) &opt_lock_all_tables, 0, GET_BOOL, NO_ARG,
+   (uchar**) &opt_lock_all_tables, (uchar**) &opt_lock_all_tables, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"lock-tables", 'l', "Lock all tables for read.", (gptr*) &lock_tables,
-   (gptr*) &lock_tables, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"lock-tables", 'l', "Lock all tables for read.", (uchar**) &lock_tables,
+   (uchar**) &lock_tables, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"log-error", OPT_ERROR_LOG_FILE, "Append warnings and errors to given file.",
-   (gptr*) &log_error_file, (gptr*) &log_error_file, 0, GET_STR,
+   (uchar**) &log_error_file, (uchar**) &log_error_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"master-data", OPT_MASTER_DATA,
    "This causes the binary log position and filename to be appended to the "
@@ -336,29 +336,29 @@ static struct my_option my_long_options[] =
    "- don't forget to read about --single-transaction below). In all cases "
    "any action on logs will happen at the exact moment of the dump."
    "Option automatically turns --lock-tables off.",
-   (gptr*) &opt_master_data, (gptr*) &opt_master_data, 0,
+   (uchar**) &opt_master_data, (uchar**) &opt_master_data, 0,
    GET_UINT, OPT_ARG, 0, 0, MYSQL_OPT_MASTER_DATA_COMMENTED_SQL, 0, 0, 0},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
-    (gptr*) &opt_max_allowed_packet, (gptr*) &opt_max_allowed_packet, 0,
+    (uchar**) &opt_max_allowed_packet, (uchar**) &opt_max_allowed_packet, 0,
     GET_ULONG, REQUIRED_ARG, 24*1024*1024, 4096,
    (longlong) 2L*1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
-    (gptr*) &opt_net_buffer_length, (gptr*) &opt_net_buffer_length, 0,
+    (uchar**) &opt_net_buffer_length, (uchar**) &opt_net_buffer_length, 0,
     GET_ULONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 16*1024L*1024L,
    MALLOC_OVERHEAD-1024, 1024, 0},
   {"no-autocommit", OPT_AUTOCOMMIT,
    "Wrap tables with autocommit/commit statements.",
-   (gptr*) &opt_autocommit, (gptr*) &opt_autocommit, 0, GET_BOOL, NO_ARG,
+   (uchar**) &opt_autocommit, (uchar**) &opt_autocommit, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"no-create-db", 'n',
    "'CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;' will not be put in the output. The above line will be added otherwise, if --databases or --all-databases option was given.}.",
-   (gptr*) &opt_create_db, (gptr*) &opt_create_db, 0, GET_BOOL, NO_ARG, 0, 0,
+   (uchar**) &opt_create_db, (uchar**) &opt_create_db, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"no-create-info", 't', "Don't write table creation info.",
-   (gptr*) &opt_no_create_info, (gptr*) &opt_no_create_info, 0, GET_BOOL,
+   (uchar**) &opt_no_create_info, (uchar**) &opt_no_create_info, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"no-data", 'd', "No row information.", (gptr*) &opt_no_data,
-   (gptr*) &opt_no_data, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-data", 'd', "No row information.", (uchar**) &opt_no_data,
+   (uchar**) &opt_no_data, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-set-names", 'N',
    "Deprecated. Use --skip-set-charset instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -367,7 +367,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"order-by-primary", OPT_ORDER_BY_PRIMARY,
    "Sorts each table's rows by primary key, or first unique key, if such a key exists.  Useful when dumping a MyISAM table to be loaded into an InnoDB table, but will make the dump itself take considerably longer.",
-   (gptr*) &opt_order_by_primary, (gptr*) &opt_order_by_primary, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   (uchar**) &opt_order_by_primary, (uchar**) &opt_order_by_primary, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's solicited on the tty.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -375,35 +375,35 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
-   (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
+  {"port", 'P', "Port number to use for connection.", (uchar**) &opt_mysql_port,
+   (uchar**) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
   {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"quick", 'q', "Don't buffer query, dump directly to stdout.",
-   (gptr*) &quick, (gptr*) &quick, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+   (uchar**) &quick, (uchar**) &quick, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"quote-names",'Q', "Quote table and column names with backticks (`).",
-   (gptr*) &opt_quoted, (gptr*) &opt_quoted, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0,
+   (uchar**) &opt_quoted, (uchar**) &opt_quoted, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0,
    0, 0},
   {"replace", OPT_MYSQL_REPLACE_INTO, "Use REPLACE INTO instead of INSERT INTO.",
-   (gptr*) &opt_replace_into, (gptr*) &opt_replace_into, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   (uchar**) &opt_replace_into, (uchar**) &opt_replace_into, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"result-file", 'r',
    "Direct output to a given file. This option should be used in MSDOS, because it prevents new line '\\n' from being converted to '\\r\\n' (carriage return + line feed).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"routines", 'R', "Dump stored routines (functions and procedures).",
-     (gptr*) &opt_routines, (gptr*) &opt_routines, 0, GET_BOOL,
+     (uchar**) &opt_routines, (uchar**) &opt_routines, 0, GET_BOOL,
      NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-charset", OPT_SET_CHARSET,
    "Add 'SET NAMES default_character_set' to the output. Enabled by default; suppress with --skip-set-charset.",
-   (gptr*) &opt_set_charset, (gptr*) &opt_set_charset, 0, GET_BOOL, NO_ARG, 1,
+   (uchar**) &opt_set_charset, (uchar**) &opt_set_charset, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
-   "Base name of shared memory.", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name,
+   "Base name of shared memory.", (uchar**) &shared_memory_base_name, (uchar**) &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   /*
@@ -417,37 +417,37 @@ static struct my_option my_long_options[] =
    "support multiversioning (currently only InnoDB does); the dump is NOT "
    "guaranteed to be consistent for other storage engines. Option "
    "automatically turns off --lock-tables.",
-   (gptr*) &opt_single_transaction, (gptr*) &opt_single_transaction, 0,
+   (uchar**) &opt_single_transaction, (uchar**) &opt_single_transaction, 0,
    GET_BOOL, NO_ARG,  0, 0, 0, 0, 0, 0},
   {"skip-opt", OPT_SKIP_OPTIMIZATION,
    "Disable --opt. Disables --add-drop-table, --add-locks, --create-options, --quick, --extended-insert, --lock-tables, --set-charset, and --disable-keys.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
-   (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
+   (uchar**) &opt_mysql_unix_port, (uchar**) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
   {"tab",'T',
    "Creates tab separated textfile for each table to given path. (creates .sql and .txt files). NOTE: This only works if mysqldump is run on the same machine as the mysqld daemon.",
-   (gptr*) &path, (gptr*) &path, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (uchar**) &path, (uchar**) &path, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tables", OPT_TABLES, "Overrides option --databases (-B).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
    {"triggers", OPT_TRIGGERS, "Dump triggers for each dumped table",
-     (gptr*) &opt_dump_triggers, (gptr*) &opt_dump_triggers, 0, GET_BOOL,
+     (uchar**) &opt_dump_triggers, (uchar**) &opt_dump_triggers, 0, GET_BOOL,
      NO_ARG, 1, 0, 0, 0, 0, 0},
   {"tz-utc", OPT_TZ_UTC,
     "SET TIME_ZONE='+00:00' at top of dump to allow dumping of TIMESTAMP data when a server has data in different time zones or data is being moved between servers with different time zones.",
-    (gptr*) &opt_tz_utc, (gptr*) &opt_tz_utc, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+    (uchar**) &opt_tz_utc, (uchar**) &opt_tz_utc, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.",
-   (gptr*) &current_user, (gptr*) &current_user, 0, GET_STR, REQUIRED_ARG,
+   (uchar**) &current_user, (uchar**) &current_user, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
 #endif
   {"verbose", 'v', "Print info about the various stages.",
-   (gptr*) &verbose, (gptr*) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   (uchar**) &verbose, (uchar**) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version",'V', "Output version information and exit.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"where", 'w', "Dump only selected records; QUOTES mandatory!",
-   (gptr*) &where, (gptr*) &where, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (uchar**) &where, (uchar**) &where, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"xml", 'X', "Dump a database as well formed XML.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -655,18 +655,18 @@ static void write_footer(FILE *sql_file)
   }
 } /* write_footer */
 
-static void free_table_ent(char *key)
 
+static void free_table_ent(char *key)
 {
-  my_free((gptr) key, MYF(0));
+  my_free(key, MYF(0));
 }
 
 
-byte* get_table_key(const char *entry, uint *length,
-                                my_bool not_used __attribute__((unused)))
+uchar* get_table_key(const char *entry, size_t *length,
+                     my_bool not_used __attribute__((unused)))
 {
   *length= strlen(entry);
-  return (byte*) entry;
+  return (uchar*) entry;
 }
 
 
@@ -753,7 +753,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fprintf(stderr, "Illegal use of option --ignore-table=<database>.<table>\n");
       exit(1);
     }
-    if (my_hash_insert(&ignore_table, (byte*)my_strdup(argument, MYF(0))))
+    if (my_hash_insert(&ignore_table, (uchar*)my_strdup(argument, MYF(0))))
       exit(EX_EOM);
     break;
   }
@@ -832,13 +832,13 @@ static int get_options(int *argc, char ***argv)
     return(EX_EOM);
   /* Don't copy internal log tables */
   if (my_hash_insert(&ignore_table,
-                     (byte*) my_strdup("mysql.apply_status", MYF(MY_WME))) ||
+                     (uchar*) my_strdup("mysql.apply_status", MYF(MY_WME))) ||
       my_hash_insert(&ignore_table,
-                     (byte*) my_strdup("mysql.schema", MYF(MY_WME))) ||
+                     (uchar*) my_strdup("mysql.schema", MYF(MY_WME))) ||
       my_hash_insert(&ignore_table,
-                     (byte*) my_strdup("mysql.general_log", MYF(MY_WME))) ||
+                     (uchar*) my_strdup("mysql.general_log", MYF(MY_WME))) ||
       my_hash_insert(&ignore_table,
-                     (byte*) my_strdup("mysql.slow_log", MYF(MY_WME))))
+                     (uchar*) my_strdup("mysql.slow_log", MYF(MY_WME))))
     return(EX_EOM);
 
   if ((ho_error= handle_options(argc, argv, my_long_options, get_one_option)))
@@ -2287,10 +2287,10 @@ static void dump_triggers_for_table(char *table,
         we should check if we have this column before accessing it.
       */
 
-      uint       user_name_len;
+      size_t     user_name_len;
       char       user_name_str[USERNAME_LENGTH + 1];
       char       quoted_user_name_str[USERNAME_LENGTH * 2 + 3];
-      uint       host_name_len;
+      size_t     host_name_len;
       char       host_name_str[HOSTNAME_LENGTH + 1];
       char       quoted_host_name_str[HOSTNAME_LENGTH * 2 + 3];
 
@@ -3342,9 +3342,9 @@ static int init_dumping(char *database, int init_func(char*))
 
 /* Return 1 if we should copy the table */
 
-my_bool include_table(byte* hash_key, uint len)
+my_bool include_table(uchar* hash_key, uint len)
 {
-  return !hash_search(&ignore_table, (byte*) hash_key, len);
+  return !hash_search(&ignore_table, (uchar*) hash_key, len);
 }
 
 
@@ -4132,10 +4132,10 @@ static my_bool get_view_structure(char *table, char* db)
       Surround it with !50013 comments
     */
     {
-      uint       user_name_len;
+      size_t     user_name_len;
       char       user_name_str[USERNAME_LENGTH + 1];
       char       quoted_user_name_str[USERNAME_LENGTH * 2 + 3];
-      uint       host_name_len;
+      size_t     host_name_len;
       char       host_name_str[HOSTNAME_LENGTH + 1];
       char       quoted_host_name_str[HOSTNAME_LENGTH * 2 + 3];
 

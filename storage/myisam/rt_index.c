@@ -141,11 +141,11 @@ static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag,
   res = 1;
 
 ok:
-  my_afree((byte*)page_buf);
+  my_afree((uchar*)page_buf);
   return res;
 
 err1:
-  my_afree((byte*)page_buf);
+  my_afree((uchar*)page_buf);
   info->lastpos = HA_OFFSET_ERROR;
   return -1;
 }
@@ -356,11 +356,11 @@ static int rtree_get_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint key_length,
   res = 1;
 
 ok:
-  my_afree((byte*)page_buf);
+  my_afree((uchar*)page_buf);
   return res;
 
 err1:
-  my_afree((byte*)page_buf);
+  my_afree((uchar*)page_buf);
   info->lastpos = HA_OFFSET_ERROR;
   return -1;
 }
@@ -602,11 +602,11 @@ static int rtree_insert_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   }
 
 ok:
-  my_afree((byte*)page_buf);
+  my_afree((uchar*)page_buf);
   DBUG_RETURN(res);
 
 err1:
-  my_afree((byte*)page_buf);
+  my_afree((uchar*)page_buf);
   DBUG_RETURN(-1); /* purecov: inspected */
 }
 
@@ -690,10 +690,10 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
       DBUG_PRINT("rtree", ("new root page: %lu  level: %d  nod_flag: %u",
                            (ulong) new_root, 0, mi_test_if_nod(new_root_buf)));
 
-      my_afree((byte*)new_root_buf);
+      my_afree((uchar*)new_root_buf);
       break;
 err1:
-      my_afree((byte*)new_root_buf);
+      my_afree((uchar*)new_root_buf);
       DBUG_RETURN(-1); /* purecov: inspected */
     }
     default:
@@ -739,7 +739,7 @@ static int rtree_fill_reinsert_list(stPageList *ReinsertList, my_off_t page,
   if (ReinsertList->n_pages == ReinsertList->m_pages)
   {
     ReinsertList->m_pages += REINSERT_BUFFER_INC;
-    if (!(ReinsertList->pages = (stPageLevel*)my_realloc((gptr)ReinsertList->pages, 
+    if (!(ReinsertList->pages = (stPageLevel*)my_realloc((uchar*)ReinsertList->pages, 
       ReinsertList->m_pages * sizeof(stPageLevel), MYF(MY_ALLOW_ZERO_PTR))))
       goto err1;
   }
@@ -891,11 +891,11 @@ static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   res = 1;
 
 ok:
-  my_afree((byte*)page_buf);
+  my_afree((uchar*)page_buf);
   DBUG_RETURN(res);
 
 err1:
-  my_afree((byte*)page_buf);
+  my_afree((uchar*)page_buf);
   DBUG_RETURN(-1); /* purecov: inspected */
 }
 
@@ -968,7 +968,7 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
           if ((res= rtree_insert_level(info, keynr, k, key_length,
                                        ReinsertList.pages[i].level)) == -1)
           {
-            my_afree((byte*)page_buf);
+            my_afree((uchar*)page_buf);
             goto err1;
           }
           if (res)
@@ -984,13 +984,13 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
             }
           }
         }
-        my_afree((byte*)page_buf);
+        my_afree((uchar*)page_buf);
         if (_mi_dispose(info, keyinfo, ReinsertList.pages[i].offs,
             DFLT_INIT_HITS))
           goto err1;
       }
       if (ReinsertList.pages)
-        my_free((byte*) ReinsertList.pages, MYF(0));
+        my_free((uchar*) ReinsertList.pages, MYF(0));
 
       /* check for redundant root (not leaf, 1 child) and eliminate */
       if ((old_root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
@@ -1117,11 +1117,11 @@ ha_rows rtree_estimate(MI_INFO *info, uint keynr, uchar *key,
       res = HA_POS_ERROR;
   }
 
-  my_afree((byte*)page_buf);
+  my_afree((uchar*)page_buf);
   return res;
 
 err1:
-  my_afree((byte*)page_buf);
+  my_afree((uchar*)page_buf);
   return HA_POS_ERROR;
 }
 

@@ -120,12 +120,12 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
                          u_table->table->s->base.keys,
                          u_table->table->s->base.fields, false))
     {
-      my_free((gptr) recinfo, MYF(0));
+      my_free((uchar*) recinfo, MYF(0));
       error= HA_ERR_WRONG_MRG_TABLE_DEF;
       goto err;
     }
   }
-  my_free((gptr) recinfo, MYF(0));
+  my_free((uchar*) recinfo, MYF(0));
 #if !defined(BIG_TABLES) || SIZEOF_OFF_T == 4
   /* Merge table has more than 2G rows */
   if (table->s->crashed)
@@ -146,7 +146,7 @@ int ha_myisammrg::close(void)
   return myrg_close(file);
 }
 
-int ha_myisammrg::write_row(byte * buf)
+int ha_myisammrg::write_row(uchar * buf)
 {
   ha_statistic_increment(&SSV::ha_write_count);
 
@@ -164,7 +164,7 @@ int ha_myisammrg::write_row(byte * buf)
   return myrg_write(file,buf);
 }
 
-int ha_myisammrg::update_row(const byte * old_data, byte * new_data)
+int ha_myisammrg::update_row(const uchar * old_data, uchar * new_data)
 {
   ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
@@ -172,13 +172,13 @@ int ha_myisammrg::update_row(const byte * old_data, byte * new_data)
   return myrg_update(file,old_data,new_data);
 }
 
-int ha_myisammrg::delete_row(const byte * buf)
+int ha_myisammrg::delete_row(const uchar * buf)
 {
   ha_statistic_increment(&SSV::ha_delete_count);
   return myrg_delete(file,buf);
 }
 
-int ha_myisammrg::index_read(byte * buf, const byte * key,
+int ha_myisammrg::index_read(uchar * buf, const uchar * key,
                              key_part_map keypart_map,
                              enum ha_rkey_function find_flag)
 {
@@ -188,7 +188,7 @@ int ha_myisammrg::index_read(byte * buf, const byte * key,
   return error;
 }
 
-int ha_myisammrg::index_read_idx(byte * buf, uint index, const byte * key,
+int ha_myisammrg::index_read_idx(uchar * buf, uint index, const uchar * key,
 				 key_part_map keypart_map,
                                  enum ha_rkey_function find_flag)
 {
@@ -198,7 +198,7 @@ int ha_myisammrg::index_read_idx(byte * buf, uint index, const byte * key,
   return error;
 }
 
-int ha_myisammrg::index_read_last(byte * buf, const byte * key,
+int ha_myisammrg::index_read_last(uchar * buf, const uchar * key,
                                   key_part_map keypart_map)
 {
   ha_statistic_increment(&SSV::ha_read_key_count);
@@ -208,7 +208,7 @@ int ha_myisammrg::index_read_last(byte * buf, const byte * key,
   return error;
 }
 
-int ha_myisammrg::index_next(byte * buf)
+int ha_myisammrg::index_next(uchar * buf)
 {
   ha_statistic_increment(&SSV::ha_read_next_count);
   int error=myrg_rnext(file,buf,active_index);
@@ -216,7 +216,7 @@ int ha_myisammrg::index_next(byte * buf)
   return error;
 }
 
-int ha_myisammrg::index_prev(byte * buf)
+int ha_myisammrg::index_prev(uchar * buf)
 {
   ha_statistic_increment(&SSV::ha_read_prev_count);
   int error=myrg_rprev(file,buf, active_index);
@@ -224,7 +224,7 @@ int ha_myisammrg::index_prev(byte * buf)
   return error;
 }
 
-int ha_myisammrg::index_first(byte * buf)
+int ha_myisammrg::index_first(uchar * buf)
 {
   ha_statistic_increment(&SSV::ha_read_first_count);
   int error=myrg_rfirst(file, buf, active_index);
@@ -232,7 +232,7 @@ int ha_myisammrg::index_first(byte * buf)
   return error;
 }
 
-int ha_myisammrg::index_last(byte * buf)
+int ha_myisammrg::index_last(uchar * buf)
 {
   ha_statistic_increment(&SSV::ha_read_last_count);
   int error=myrg_rlast(file, buf, active_index);
@@ -240,8 +240,8 @@ int ha_myisammrg::index_last(byte * buf)
   return error;
 }
 
-int ha_myisammrg::index_next_same(byte * buf,
-                                  const byte *key __attribute__((unused)),
+int ha_myisammrg::index_next_same(uchar * buf,
+                                  const uchar *key __attribute__((unused)),
                                   uint length __attribute__((unused)))
 {
   ha_statistic_increment(&SSV::ha_read_next_count);
@@ -257,7 +257,7 @@ int ha_myisammrg::rnd_init(bool scan)
 }
 
 
-int ha_myisammrg::rnd_next(byte *buf)
+int ha_myisammrg::rnd_next(uchar *buf)
 {
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
   int error=myrg_rrnd(file, buf, HA_OFFSET_ERROR);
@@ -266,7 +266,7 @@ int ha_myisammrg::rnd_next(byte *buf)
 }
 
 
-int ha_myisammrg::rnd_pos(byte * buf, byte *pos)
+int ha_myisammrg::rnd_pos(uchar * buf, uchar *pos)
 {
   ha_statistic_increment(&SSV::ha_read_rnd_count);
   int error=myrg_rrnd(file, buf, my_get_ptr(pos,ref_length));
@@ -274,7 +274,7 @@ int ha_myisammrg::rnd_pos(byte * buf, byte *pos)
   return error;
 }
 
-void ha_myisammrg::position(const byte *record)
+void ha_myisammrg::position(const uchar *record)
 {
   ulonglong row_position= myrg_position(file);
   my_store_ptr(ref, ref_length, (my_off_t) row_position);
@@ -464,8 +464,8 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
 	goto err;
 
       create_info->merge_list.elements++;
-      (*create_info->merge_list.next) = (byte*) ptr;
-      create_info->merge_list.next= (byte**) &ptr->next_local;
+      (*create_info->merge_list.next) = (uchar*) ptr;
+      create_info->merge_list.next= (uchar**) &ptr->next_local;
     }
     *create_info->merge_list.next=0;
   }
