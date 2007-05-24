@@ -2471,7 +2471,7 @@ static void test_ps_query_cache()
                           "(2, 'hh', 'hh'), (1, 'ii', 'ii'), (2, 'ii', 'ii')");
   myquery(rc);
 
-  for (iteration= TEST_QCACHE_ON; iteration < TEST_QCACHE_ON_OFF; iteration++)
+  for (iteration= TEST_QCACHE_ON; iteration <= TEST_QCACHE_ON_OFF; iteration++)
   {
 
     switch (iteration)
@@ -2610,7 +2610,9 @@ static void test_ps_query_cache()
     case TEST_QCACHE_ON_OFF:             /* should not have hit */
       DIE_UNLESS(hits2-hits1 == 0);
       break;
-    case TEST_QCACHE_ON_WITH_OTHER_CONN:
+    case TEST_QCACHE_ON_WITH_OTHER_CONN: /* should have hit */
+      DIE_UNLESS(hits2-hits1 == 1);
+      break;
       mysql_close(lmysql);
       mysql= org_mysql;
     }
