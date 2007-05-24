@@ -426,6 +426,23 @@
    fun:_dl_map_object
 }
 
+{
+   libc pthread_exit 6
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_map_object
+   fun:openaux
+   fun:_dl_catch_error 
+}
+
+{
+   libc pthread_exit 7
+   Memcheck:Leak
+   fun:malloc
+   fun:dl_open_worker
+   fun:_dl_catch_error
+   fun:_dl_open
+}
 
 #
 # This is seen internally in the system libraries on 64-bit RHAS3.
