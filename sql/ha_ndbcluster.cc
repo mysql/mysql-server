@@ -1910,7 +1910,7 @@ bool ha_ndbcluster::check_all_operations_for_error(NdbTransaction *trans,
  */
 static
 int
-check_null_in_record(const KEY* key_info, const byte *record)
+check_null_in_record(const KEY* key_info, const uchar *record)
 {
   KEY_PART_INFO *curr_part, *end_part;
   curr_part= key_info->key_part;

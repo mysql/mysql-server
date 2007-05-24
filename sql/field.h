@@ -1313,7 +1313,7 @@ public:
 #ifndef WORDS_BIGENDIAN
   static
 #endif
-  void store_length(char *i_ptr, uint i_packlength, uint32 i_number);
+  void store_length(uchar *i_ptr, uint i_packlength, uint32 i_number);
   inline void store_length(uint32 number)
   {
     store_length(ptr, packlength, number);
@@ -1336,9 +1336,9 @@ public:
       memcpy(ptr,length,packlength);
       memcpy_fixed(ptr+packlength,&data,sizeof(char*));
     }
-  void set_ptr_offset(my_ptrdiff_t ptr_diff, uint32 length,char *data)
+  void set_ptr_offset(my_ptrdiff_t ptr_diff, uint32 length, uchar *data)
     {
-      char *ptr_ofs= ADD_TO_PTR(ptr,ptr_diff,char*);
+      uchar *ptr_ofs= ADD_TO_PTR(ptr,ptr_diff,uchar*);
       store_length(ptr_ofs, packlength, length);
       memcpy_fixed(ptr_ofs+packlength,&data,sizeof(char*));
     }

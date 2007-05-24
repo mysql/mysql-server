@@ -915,8 +915,8 @@ class sys_var_trust_routine_creators :public sys_var_bool_ptr
 {
   /* We need a derived class only to have a warn_deprecated() */
 public:
-  sys_var_event_scheduler(sys_var_chain *chain, const char *name_arg) :
-    sys_var_long_ptr(chain, name_arg, NULL, NULL) {};
+  sys_var_trust_routine_creators(sys_var_chain *chain,
+                                 const char *name_arg, my_bool *value_arg) :
     sys_var_bool_ptr(chain, name_arg, value_arg) {};
   void warn_deprecated(THD *thd);
   void set_default(THD *thd, enum_var_type type);
@@ -967,8 +967,8 @@ class sys_var_event_scheduler :public sys_var_long_ptr
 {
   /* We need a derived class only to have a warn_deprecated() */
 public:
-  sys_var_event_scheduler(const char *name_arg) :
-    sys_var_long_ptr(name_arg, NULL, NULL) {};
+  sys_var_event_scheduler(sys_var_chain *chain, const char *name_arg) :
+    sys_var_long_ptr(chain, name_arg, NULL, NULL) {};
   bool update(THD *thd, set_var *var);
   uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
   SHOW_TYPE show_type() { return SHOW_CHAR; }

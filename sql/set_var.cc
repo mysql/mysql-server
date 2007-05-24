@@ -1863,19 +1863,6 @@ void sys_var_collation_sv::set_default(THD *thd, enum_var_type type)
 }
 
 
-bool sys_var_collation_server::update(THD *thd, set_var *var)
-{
-  if (var->type == OPT_GLOBAL)
-    global_system_variables.collation_server= var->save_result.charset;
-  else
-  {
-    thd->variables.collation_server= var->save_result.charset;
-    thd->update_charset();
-  }
-  return 0;
-}
-
-
 uchar *sys_var_collation_sv::value_ptr(THD *thd, enum_var_type type,
 				       LEX_STRING *base)
 {
@@ -2900,7 +2887,7 @@ void set_var_free()
 int mysql_append_static_vars(const SHOW_VAR *show_vars, uint count)
 {
   for (; count > 0; count--, show_vars++)
-    if (insert_dynamic(&fixed_show_vars, (char*) show_vars))
+    if (insert_dynamic(&fixed_show_vars, (uchar*) show_vars))
       return 1;
   return 0;
 }

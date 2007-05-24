@@ -177,9 +177,9 @@ public:
   { return !(plugin_var->flags & PLUGIN_VAR_THDLOCAL) && type != OPT_GLOBAL; }
   bool check_update_type(Item_result type);
   SHOW_TYPE show_type();
-  byte* real_value_ptr(THD *thd, enum_var_type type);
+  uchar* real_value_ptr(THD *thd, enum_var_type type);
   TYPELIB* plugin_var_typelib(void);
-  byte* value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+  uchar* value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
   bool check(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
   bool update(THD *thd, set_var *var);
@@ -628,7 +628,7 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc CALLER_INFO_PROTO)
                        (long) current_thd, pi->name.str, pi->ref_count));
 
     if (lex)
-      insert_dynamic(&lex->plugins, (gptr)&plugin);
+      insert_dynamic(&lex->plugins, (uchar*)&plugin);
     DBUG_RETURN(plugin);
   }
   DBUG_RETURN(NULL);
@@ -913,7 +913,7 @@ static void intern_plugin_unlock(LEX *lex, plugin_ref plugin)
   if (!pi->plugin_dl)
     DBUG_VOID_RETURN;
 #else
-  my_free((gptr) plugin, MYF(MY_WME));
+  my_free((uchar*) plugin, MYF(MY_WME));
 #endif
 
   DBUG_PRINT("info",("unlocking plugin, name= %s, ref_count= %d",
@@ -1056,12 +1056,12 @@ static uchar *get_hash_key(const uchar *buff, size_t *length,
 }
 
 
-static byte *get_bookmark_hash_key(const byte *buff, uint *length,
+static uchar *get_bookmark_hash_key(const uchar *buff, uint *length,
                    my_bool not_used __attribute__((unused)))
 {
   struct st_bookmark *var= (st_bookmark *)buff;
   *length= var->name_len + 1;
-  return (byte*) var->key;
+  return (uchar*) var->key;
 }
 
 
@@ -1233,13 +1233,13 @@ static bool register_builtin(struct st_mysql_plugin *plugin,
   tmp->ref_count= 0;
   tmp->plugin_dl= 0;
 
-  if (insert_dynamic(&plugin_array, (gptr)tmp))
+  if (insert_dynamic(&plugin_array, (uchar*)tmp))
     DBUG_RETURN(1);
 
   *ptr= dynamic_element(&plugin_array, plugin_array.elements - 1,
                         struct st_plugin_int *);
 
-  if (my_hash_insert(&plugin_hash[plugin->type],(byte*) *ptr))
+  if (my_hash_insert(&plugin_hash[plugin->type],(uchar*) *ptr))
     DBUG_RETURN(1);
 
   DBUG_RETURN(0);
@@ -1790,7 +1790,7 @@ typedef DECLARE_MYSQL_THDVAR_SIMPLE(thdvar_ulonglong_t, ulonglong);
 
 #define SET_PLUGIN_VAR_RESOLVE(opt)\
   *(mysql_sys_var_ptr_p*)&((opt)->resolve)= mysql_sys_var_ptr
-typedef byte *(*mysql_sys_var_ptr_p)(void* a_thd, int offset);
+typedef uchar *(*mysql_sys_var_ptr_p)(void* a_thd, int offset);
 
 
 /****************************************************************************
@@ -2103,7 +2103,7 @@ static st_bookmark *find_bookmark(const char *plugin, const char *name,
   varname[0]= flags & PLUGIN_VAR_TYPEMASK;
 
   result= (st_bookmark*) hash_search(&bookmark_hash,
-                                     (const byte*) varname, length - 1);
+                                     (const uchar*) varname, length - 1);
 
   my_afree(varname);
   return result;
@@ -2171,10 +2171,10 @@ static st_bookmark *register_var(const char *plugin, const char *name,
 
     if (new_size > global_variables_dynamic_size)
     {
-      global_system_variables.dynamic_variables_ptr=
+      global_system_variables.dynamic_variables_ptr= (char*)
         my_realloc(global_system_variables.dynamic_variables_ptr, new_size,
                    MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
-      max_system_variables.dynamic_variables_ptr=
+      max_system_variables.dynamic_variables_ptr= (char*)
         my_realloc(max_system_variables.dynamic_variables_ptr, new_size,
                    MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
       /*
@@ -2201,7 +2201,7 @@ static st_bookmark *register_var(const char *plugin, const char *name,
     result->version= global_system_variables.dynamic_variables_version;
 
     /* this should succeed because we have already checked if a dup exists */
-    if (my_hash_insert(&bookmark_hash, (byte*) result))
+    if (my_hash_insert(&bookmark_hash, (uchar*) result))
     {
       fprintf(stderr, "failed to add placeholder to hash");
       DBUG_ASSERT(0);
@@ -2218,13 +2218,13 @@ static st_bookmark *register_var(const char *plugin, const char *name,
   If required, will sync with global variables if the requested variable
   has not yet been allocated in the current thread.
 */
-static byte *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
+static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
 {
   DBUG_ASSERT(offset >= 0);
   DBUG_ASSERT((uint)offset <= global_system_variables.dynamic_variables_head);
 
   if (!thd)
-    return (byte*) global_system_variables.dynamic_variables_ptr + offset;
+    return (uchar*) global_system_variables.dynamic_variables_ptr + offset;
 
   /*
     dynamic_variables_head points to the largest valid offset
@@ -2236,7 +2236,7 @@ static byte *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
 
     rw_rdlock(&LOCK_system_variables_hash);
 
-    thd->variables.dynamic_variables_ptr=
+    thd->variables.dynamic_variables_ptr= (char*)
       my_realloc(thd->variables.dynamic_variables_ptr,
                  global_variables_dynamic_size,
                  MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
@@ -2294,10 +2294,10 @@ static byte *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
 
     rw_unlock(&LOCK_system_variables_hash);
   }
-  return (byte*)thd->variables.dynamic_variables_ptr + offset;
+  return (uchar*)thd->variables.dynamic_variables_ptr + offset;
 }
 
-static byte *mysql_sys_var_ptr(void* a_thd, int offset)
+static uchar *mysql_sys_var_ptr(void* a_thd, int offset)
 {
   return intern_sys_var_ptr((THD *)a_thd, offset, true);
 }
@@ -2398,7 +2398,7 @@ void plugin_thdvar_cleanup(THD *thd)
   {
     list= ((plugin_ref*) thd->lex->plugins.buffer) + idx - 1;
     DBUG_PRINT("info",("unlocking %d plugins", idx));
-    while ((char*) list >= thd->lex->plugins.buffer)
+    while ((uchar*) list >= thd->lex->plugins.buffer)
       intern_plugin_unlock(NULL, *list--);
   }
 
@@ -2485,7 +2485,7 @@ SHOW_TYPE sys_var_pluginvar::show_type()
 }
 
 
-byte* sys_var_pluginvar::real_value_ptr(THD *thd, enum_var_type type)
+uchar* sys_var_pluginvar::real_value_ptr(THD *thd, enum_var_type type)
 {
   DBUG_ASSERT(thd || (type == OPT_GLOBAL));
   if (plugin_var->flags & PLUGIN_VAR_THDLOCAL)
@@ -2495,7 +2495,7 @@ byte* sys_var_pluginvar::real_value_ptr(THD *thd, enum_var_type type)
 
     return intern_sys_var_ptr(thd, *(int*) (plugin_var+1), false);
   }
-  return *(byte**) (plugin_var+1);
+  return *(uchar**) (plugin_var+1);
 }
 
 
@@ -2517,15 +2517,15 @@ TYPELIB* sys_var_pluginvar::plugin_var_typelib(void)
 }
 
 
-byte* sys_var_pluginvar::value_ptr(THD *thd, enum_var_type type,
+uchar* sys_var_pluginvar::value_ptr(THD *thd, enum_var_type type,
                                    LEX_STRING *base)
 {
-  byte* result;
+  uchar* result;
 
   result= real_value_ptr(thd, type);
 
   if ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_ENUM)
-    result= (byte*) get_type(plugin_var_typelib(), *(ulong*)result);
+    result= (uchar*) get_type(plugin_var_typelib(), *(ulong*)result);
   else if ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_SET)
   {
     char buffer[STRING_BUFFER_USUAL_SIZE];
@@ -2543,9 +2543,9 @@ byte* sys_var_pluginvar::value_ptr(THD *thd, enum_var_type type,
       str.append(',');
     }
 
-    result= (byte*) "";
+    result= (uchar*) "";
     if (str.length())
-      result= (byte*) thd->strmake(str.ptr(), str.length()-1);
+      result= (uchar*) thd->strmake(str.ptr(), str.length()-1);
   }
   return result;
 }
@@ -2800,7 +2800,7 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
   options[0].arg_type= options[1].arg_type= NO_ARG;
   options[0].def_value= options[1].def_value= **enabled;
   options[0].value= options[0].u_max_value=
-  options[1].value= options[1].u_max_value= (gptr*) (name - 1);
+  options[1].value= options[1].u_max_value= (uchar**) (name - 1);
   options+= 2;
 
   /*
@@ -2925,7 +2925,7 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
       optnamelen= namelen + optnamelen + 1;
     }
     else
-      optname= memdup_root(mem_root, v->key + 1, (optnamelen= v->name_len) + 1);
+      optname= (char*) memdup_root(mem_root, v->key + 1, (optnamelen= v->name_len) + 1);
 
     /* convert '_' to '-' */
     for (p= optname; *p; p++)
@@ -2946,10 +2946,10 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
         (opt->flags & PLUGIN_VAR_TYPEMASK) != PLUGIN_VAR_SET)
     {
       if (opt->flags & PLUGIN_VAR_THDLOCAL)
-        options->value= options->u_max_value= (gptr*)
+        options->value= options->u_max_value= (uchar**)
           (global_system_variables.dynamic_variables_ptr + offset);
       else
-        options->value= options->u_max_value= *(gptr**) (opt + 1);
+        options->value= options->u_max_value= *(uchar***) (opt + 1);
     }
 
     options[1]= options[0];
@@ -3149,16 +3149,16 @@ void my_print_help_inc_plugins(my_option *main_options, uint size)
       /* Only options with a non-NULL comment are displayed in help text */
       for (;opt->id; opt++)
         if (opt->comment)
-          insert_dynamic(&all_options, (gptr) opt);
+          insert_dynamic(&all_options, (uchar*) opt);
     }
 
   for (;main_options->id; main_options++)
-    insert_dynamic(&all_options, (gptr) main_options);
+    insert_dynamic(&all_options, (uchar*) main_options);
 
   sort_dynamic(&all_options, (qsort_cmp) option_cmp);
 
   /* main_options now points to the empty option terminator */
-  insert_dynamic(&all_options, (gptr) main_options);
+  insert_dynamic(&all_options, (uchar*) main_options);
 
   my_print_help((my_option*) all_options.buffer);
   my_print_variables((my_option*) all_options.buffer);

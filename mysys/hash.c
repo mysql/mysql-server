@@ -317,7 +317,7 @@ my_bool my_hash_insert(HASH *info,const uchar *record)
 
   if (HASH_UNIQUE & info->flags)
   {
-    byte *key= (byte*) hash_key(info, record, &idx, 1);
+    char *key= (char*) hash_key(info, record, &idx, 1);
     if (hash_search(info, key, idx))
       return(TRUE);				/* Duplicate entry */
   }
@@ -542,7 +542,7 @@ my_bool hash_update(HASH *hash, uchar *record, uchar *old_key,
   if (HASH_UNIQUE & hash->flags)
   {
     HASH_SEARCH_STATE state;
-    byte *found, *new_key= hash_key(hash, record, &idx, 1);
+    char *found, *new_key= hash_key(hash, record, &idx, 1);
     if ((found= hash_first(hash, new_key, idx, &state)))
       do 
       {

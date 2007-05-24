@@ -227,7 +227,7 @@ void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
       from_key+= HA_KEY_BLOB_LENGTH;
       key_length-= HA_KEY_BLOB_LENGTH;
       field->set_ptr_offset(to_record - field->table->record[0],
-                            (ulong) blob_length, (char*) from_key);
+                            (ulong) blob_length, from_key);
       length= key_part->length;
     }
     else if (key_part->key_part_flag & HA_VAR_LENGTH_PART)
@@ -239,7 +239,7 @@ void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
       key_length-= HA_KEY_BLOB_LENGTH;
       length= min(key_length, key_part->length);
       old_map= dbug_tmp_use_all_columns(field->table, field->table->write_set);
-      field->set_key_image((char *) from_key, length);
+      field->set_key_image(from_key, length);
       dbug_tmp_restore_column_map(field->table->write_set, old_map);
       from_key+= HA_KEY_BLOB_LENGTH;
       field->move_field_offset(-ptrdiff);
