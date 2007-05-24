@@ -7251,6 +7251,11 @@ void Dblqh::continueScanNextReqLab(Signal* signal)
     return;
   }
 
+  /* maximum number of log file operations */
+  clfoFileSize = clogPageFileSize;
+  if (clfoFileSize < ZLFO_MIN_FILE_SIZE)
+    clfoFileSize = ZLFO_MIN_FILE_SIZE;
+
   // Update timer on tcConnectRecord
   tcConnectptr.p->tcTimer = cLqhTimeOutCount;
   init_acc_ptr_list(scanptr.p);
