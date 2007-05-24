@@ -1023,6 +1023,11 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
     clogPageFileSize+= (16 - mega_byte_part);
   }
 
+  /* maximum number of log file operations */
+  clfoFileSize = clogPageFileSize;
+  if (clfoFileSize < ZLFO_MIN_FILE_SIZE)
+    clfoFileSize = ZLFO_MIN_FILE_SIZE;
+
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TABLE, &ctabrecFileSize));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TC_CONNECT, 
 					&ctcConnectrecFileSize));
