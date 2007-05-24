@@ -39,6 +39,7 @@
    "FUNCTION" : "PROCEDURE")
 
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
+static bool check_show_create_table_access(THD *thd, TABLE_LIST *table);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -721,8 +722,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_INIT_DB:
   {
     LEX_STRING tmp;
-    statistic_increment(thd->status_var.com_stat[SQLCOM_CHANGE_DB],
-			&LOCK_status);
+    status_var_increment(thd->status_var.com_stat[SQLCOM_CHANGE_DB]);
     thd->convert_string(&tmp, system_charset_info,
 			packet, packet_length-1, thd->charset());
     if (!mysql_change_db(thd, &tmp, FALSE))
@@ -757,7 +757,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     }
 
-    statistic_increment(thd->status_var.com_other, &LOCK_status);
+    status_var_increment(thd->status_var.com_other);
     thd->enable_slow_log= opt_log_slow_admin_statements;
     db.str= thd->alloc(db_len + tbl_len + 2);
     db.length= db_len;
@@ -773,7 +773,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_CHANGE_USER:
   {
-    statistic_increment(thd->status_var.com_other, &LOCK_status);
+    status_var_increment(thd->status_var.com_other);
     char *user= (char*) packet, *packet_end= packet+ packet_length;
     char *passwd= strend(user)+1;
 
@@ -956,8 +956,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* used as fields initializator */
     lex_start(thd);
 
-    statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_FIELDS],
-			&LOCK_status);
+    status_var_increment(thd->status_var.com_stat[SQLCOM_SHOW_FIELDS]);
     bzero((char*) &table_list,sizeof(table_list));
     if (thd->copy_db_to(&table_list.db, &dummy))
       break;
@@ -1023,8 +1022,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       LEX_STRING db, alias;
       HA_CREATE_INFO create_info;
 
-      statistic_increment(thd->status_var.com_stat[SQLCOM_CREATE_DB],
-			  &LOCK_status);
+      status_var_increment(thd->status_var.com_stat[SQLCOM_CREATE_DB]);
       if (thd->LEX_STRING_make(&db, packet, packet_length -1) ||
           thd->LEX_STRING_make(&alias, db.str, db.length) ||
           check_db_name(&db))
@@ -1043,8 +1041,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
   case COM_DROP_DB:				// QQ: To be removed
     {
-      statistic_increment(thd->status_var.com_stat[SQLCOM_DROP_DB],
-			  &LOCK_status);
+      status_var_increment(thd->status_var.com_stat[SQLCOM_DROP_DB]);
       LEX_STRING db;
 
       if (thd->LEX_STRING_make(&db, packet, packet_length - 1) ||
@@ -1073,7 +1070,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       ushort flags;
       uint32 slave_server_id;
 
-      statistic_increment(thd->status_var.com_other,&LOCK_status);
+      status_var_increment(thd->status_var.com_other);
       thd->enable_slow_log= opt_log_slow_admin_statements;
       if (check_global_access(thd, REPL_SLAVE_ACL))
 	break;
@@ -1099,8 +1096,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_REFRESH:
   {
     bool not_used;
-    statistic_increment(thd->status_var.com_stat[SQLCOM_FLUSH],
-                        &LOCK_status);
+    status_var_increment(thd->status_var.com_stat[SQLCOM_FLUSH]);
     ulong options= (ulong) (uchar) packet[0];
     if (check_global_access(thd,RELOAD_ACL))
       break;
@@ -1112,7 +1108,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
   {
-    statistic_increment(thd->status_var.com_other, &LOCK_status);
+    status_var_increment(thd->status_var.com_other);
     if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
     /*
@@ -1164,8 +1160,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
 
     general_log_print(thd, command, NullS);
-    statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_STATUS],
-			&LOCK_status);
+    status_var_increment(thd->status_var.com_stat[SQLCOM_SHOW_STATUS]);
     calc_sum_of_all_status(&current_global_status_var);
     if (!(uptime= (ulong) (thd->start_time - server_start_time)))
       queries_per_second1000= 0;
@@ -1201,12 +1196,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
   case COM_PING:
-    statistic_increment(thd->status_var.com_other, &LOCK_status);
+    status_var_increment(thd->status_var.com_other);
     send_ok(thd);				// Tell client we are alive
     break;
   case COM_PROCESS_INFO:
-    statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_PROCESSLIST],
-			&LOCK_status);
+    status_var_increment(thd->status_var.com_stat[SQLCOM_SHOW_PROCESSLIST]);
     if (!thd->security_ctx->priv_user[0] &&
         check_global_access(thd, PROCESS_ACL))
       break;
@@ -1217,15 +1211,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   case COM_PROCESS_KILL:
   {
-    statistic_increment(thd->status_var.com_stat[SQLCOM_KILL], &LOCK_status);
+    status_var_increment(thd->status_var.com_stat[SQLCOM_KILL]);
     ulong id=(ulong) uint4korr(packet);
     sql_kill(thd,id,false);
     break;
   }
   case COM_SET_OPTION:
   {
-    statistic_increment(thd->status_var.com_stat[SQLCOM_SET_OPTION],
-			&LOCK_status);
+    status_var_increment(thd->status_var.com_stat[SQLCOM_SET_OPTION]);
     uint opt_command= uint2korr(packet);
 
     switch (opt_command) {
@@ -1244,7 +1237,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
   case COM_DEBUG:
-    statistic_increment(thd->status_var.com_other, &LOCK_status);
+    status_var_increment(thd->status_var.com_other);
     if (check_global_access(thd, SUPER_ACL))
       break;					/* purecov: inspected */
     mysql_print_status();
@@ -1783,8 +1776,7 @@ mysql_execute_command(THD *thd)
 #ifdef HAVE_REPLICATION
   } /* endif unlikely slave */
 #endif
-  statistic_increment(thd->status_var.com_stat[lex->sql_command],
-                      &LOCK_status);
+  status_var_increment(thd->status_var.com_stat[lex->sql_command]);
 
   switch (lex->sql_command) {
   case SQLCOM_SHOW_EVENTS:
@@ -2240,9 +2232,9 @@ mysql_execute_command(THD *thd)
       if (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)
         thd->options|= OPTION_KEEP_LOG;
       /* regular create */
-      if (lex->like_name)
-        res= mysql_create_like_table(thd, create_table, &lex->create_info, 
-                                     lex->like_name); 
+      if (lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
+        res= mysql_create_like_table(thd, create_table, select_tables,
+                                     &lex->create_info);
       else
       {
         res= mysql_create_table(thd, create_table->db,
@@ -2432,12 +2424,7 @@ end_with_restore_list:
       /* Ignore temporary tables if this is "SHOW CREATE VIEW" */
       if (lex->only_view)
         first_table->skip_temporary= 1;
-
-      if (check_access(thd, SELECT_ACL | EXTRA_ACL, first_table->db,
-		       &first_table->grant.privilege, 0, 0, 
-                       test(first_table->schema_table)))
-	goto error;
-      if (grant_option && check_grant(thd, SELECT_ACL, all_tables, 2, UINT_MAX, 0))
+      if (check_show_create_table_access(thd, first_table))
 	goto error;
       res= mysqld_show_create(thd, first_table);
       break;
@@ -6854,6 +6841,25 @@ bool insert_precheck(THD *thd, TABLE_LIST *tables)
 }
 
 
+/**
+    @brief  Check privileges for SHOW CREATE TABLE statement.
+
+    @param  thd    Thread context
+    @param  table  Target table
+
+    @retval TRUE  Failure
+    @retval FALSE Success
+*/
+
+static bool check_show_create_table_access(THD *thd, TABLE_LIST *table)
+{
+  return check_access(thd, SELECT_ACL | EXTRA_ACL, table->db,
+                      &table->grant.privilege, 0, 0,
+                      test(table->schema_table)) ||
+         grant_option && check_grant(thd, SELECT_ACL, table, 2, UINT_MAX, 0);
+}
+
+
 /*
   CREATE TABLE query pre-check
 
@@ -6917,6 +6923,11 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
     }
 #endif
     if (tables && check_table_access(thd, SELECT_ACL, tables,0))
+      goto err;
+  }
+  else if (lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
+  {
+    if (check_show_create_table_access(thd, tables))
       goto err;
   }
   error= FALSE;

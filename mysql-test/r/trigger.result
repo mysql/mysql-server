@@ -820,9 +820,9 @@ call p1();
 drop trigger t1_bi;
 create trigger t1_bi after insert on t1 for each row insert into t3 values (new.id);
 execute stmt1;
-ERROR HY000: Table 't3' was not locked with LOCK TABLES
+ERROR 42S02: Table 'test.t3' doesn't exist
 call p1();
-ERROR HY000: Table 't3' was not locked with LOCK TABLES
+ERROR 42S02: Table 'test.t3' doesn't exist
 deallocate prepare stmt1;
 drop procedure p1;
 drop table t1, t2, t3;

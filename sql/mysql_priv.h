@@ -978,9 +978,8 @@ bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        uint order_num, ORDER *order, bool ignore,
                        ALTER_INFO *alter_info, bool do_send_ok);
 bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool do_send_ok);
-bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
-                             HA_CREATE_INFO *create_info,
-                             Table_ident *src_table);
+bool mysql_create_like_table(THD *thd, TABLE_LIST *table, TABLE_LIST *src_table,
+                             HA_CREATE_INFO *create_info);
 bool mysql_rename_table(handlerton *base, const char *old_db,
                         const char * old_name, const char *new_db,
                         const char * new_name, uint flags);
@@ -1032,8 +1031,11 @@ TABLE *table_cache_insert_placeholder(THD *thd, const char *key,
 bool lock_table_name_if_not_cached(THD *thd, const char *db,
                                    const char *table_name, TABLE **table);
 TABLE *find_locked_table(THD *thd, const char *db,const char *table_name);
+bool reopen_table(TABLE *table);
 bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
-bool close_data_tables(THD *thd,const char *db, const char *table_name);
+void close_data_files_and_morph_locks(THD *thd, const char *db,
+                                      const char *table_name);
+void close_handle_and_leave_table_as_lock(TABLE *table);
 bool wait_for_tables(THD *thd);
 bool table_is_used(TABLE *table, bool wait_for_name_lock);
 TABLE *drop_locked_tables(THD *thd,const char *db, const char *table_name);
