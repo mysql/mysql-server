@@ -128,6 +128,17 @@ show binlog events;
 drop table t1,t2,t3;
 
 #
+# BUG#27998 - mysqld crashed when executing INSERT DELAYED on a BLACKHOLE
+#             table
+#
+CREATE TABLE t1(a INT) ENGINE=BLACKHOLE;
+--error 1031
+INSERT DELAYED INTO t1 VALUES(1);
+DROP TABLE t1;
+
+# End of 4.1 tests
+
+#
 #Bug#19717: DELETE Query Error on BLACKHOLE when using WHERE on column with UNIQUE INDEX
 #
 CREATE TABLE t1(a INT, b INT) ENGINE=BLACKHOLE;
@@ -142,4 +153,4 @@ ALTER TABLE t1 ADD PRIMARY KEY(a);
 DELETE FROM t1 WHERE a=10;
 DROP TABLE t1;
 
-# End of 4.1 tests
+# End of 5.0 tests
