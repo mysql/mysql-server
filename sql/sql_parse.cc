@@ -621,7 +621,7 @@ bool do_command(THD *thd)
     the client, the connection is closed or "net_wait_timeout"
     number of seconds has passed
   */
-  net_set_read_timeout(net, thd->variables.net_wait_timeout);
+  my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
 
   thd->clear_error();				// Clear error message
 
@@ -653,7 +653,7 @@ bool do_command(THD *thd)
   }
 
   /* Restore read timeout value */
-  net_set_read_timeout(net, thd->variables.net_read_timeout);
+  my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
   /*
     packet_length contains length of data, as it was stored in packet
