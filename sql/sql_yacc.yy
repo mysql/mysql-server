@@ -6214,6 +6214,9 @@ limit_options:
 	;
 limit_option:
         param_marker
+        {
+          ((Item_param *) $1)->set_strict_type(INT_RESULT);
+        }
         | ULONGLONG_NUM { $$= new Item_uint($1.str, $1.length); }
         | LONG_NUM     { $$= new Item_uint($1.str, $1.length); }
         | NUM           { $$= new Item_uint($1.str, $1.length); }
