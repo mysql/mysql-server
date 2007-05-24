@@ -1357,9 +1357,9 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	    goto err;
 	  }
 	}
-	key_copy((byte*) key,table->record[0],table->key_info+key_nr,0);
+	key_copy((uchar*) key,table->record[0],table->key_info+key_nr,0);
 	if ((error=(table->file->index_read_idx(table->record[1],key_nr,
-                                                (byte*) key, HA_WHOLE_KEY,
+                                                (uchar*) key, HA_WHOLE_KEY,
 						HA_READ_KEY_EXACT))))
 	  goto err;
       }
@@ -1830,8 +1830,8 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       thd->proc_info="got old table";
       if (tmp->thd.killed)
       {
-	if (tmp->thd.net.report_error)
-	{
+        if (tmp->thd.net.report_error)
+        {
           /*
             Copy the error message. Note that we don't treat fatal
             errors in the delayed thread as fatal errors in the
@@ -1847,7 +1847,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       if (thd->killed)
       {
 	tmp->unlock();
-        goto end_create;
+	goto end_create;
       }
     }
     pthread_mutex_unlock(&LOCK_delayed_create);
@@ -1863,9 +1863,10 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
   }
   /* Unlock the delayed insert object after its last access. */
   tmp->unlock();
-  DBUG_RETURN(table_list->table == NULL);
+  DBUG_RETURN((table_list->table == NULL));
 
 end_create:
+  thd->fatal_error();
   pthread_mutex_unlock(&LOCK_delayed_create);
   DBUG_RETURN(thd->net.report_error);
 }
@@ -1893,7 +1894,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   Field **field,**org_field, *found_next_number_field;
   TABLE *copy;
   TABLE_SHARE *share= table->s;
-  byte *bitmap;
+  uchar *bitmap;
   DBUG_ENTER("Delayed_insert::get_local_table");
 
   /* First request insert thread to get a lock */
@@ -1937,7 +1938,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   /* We don't need to change the file handler here */
   /* Assign the pointers for the field pointers array and the record. */
   field= copy->field= (Field**) (copy + 1);
-  bitmap= (byte*) (field + share->fields + 1);
+  bitmap= (uchar*) (field + share->fields + 1);
   copy->record[0]= (bitmap + share->column_bitmap_size * 2);
   memcpy((char*) copy->record[0], (char*) table->record[0], share->reclength);
   /*
@@ -2006,7 +2007,8 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
   Delayed_insert *di=thd->di;
   const Discrete_interval *forced_auto_inc;
   DBUG_ENTER("write_delayed");
-  DBUG_PRINT("enter", ("query = '%s' length %u", query.str, query.length));
+  DBUG_PRINT("enter", ("query = '%s' length %lu", query.str,
+                       (ulong) query.length));
 
   thd->proc_info="waiting for handler insert";
   pthread_mutex_lock(&di->mutex);
@@ -2393,7 +2395,7 @@ static void free_delayed_insert_blobs(register TABLE *table)
   {
     if ((*ptr)->flags & BLOB_FLAG)
     {
-      char *str;
+      uchar *str;
       ((Field_blob *) (*ptr))->get_ptr(&str);
       my_free(str,MYF(MY_ALLOW_ZERO_PTR));
       ((Field_blob *) (*ptr))->reset();
@@ -2455,8 +2457,9 @@ bool Delayed_insert::handle_inserts(void)
       use values from the previous interval (of the previous rows).
     */
     bool log_query= (row->log_query && row->query.str != NULL);
-    DBUG_PRINT("delayed", ("query: '%s'  length: %u", row->query.str ?
-                           row->query.str : "[NULL]", row->query.length));
+    DBUG_PRINT("delayed", ("query: '%s'  length: %lu", row->query.str ?
+                           row->query.str : "[NULL]",
+                           (ulong) row->query.length));
     if (log_query)
     {
       /*
@@ -2788,7 +2791,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       while ((item= li++))
       {
         item->transform(&Item::update_value_transformer,
-                        (byte*)lex->current_select);
+                        (uchar*)lex->current_select);
       }
     }
 
@@ -3264,7 +3267,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                                     create_info, *extra_fields, *keys, 0,
                                     select_field_count, 0))
     {
-
       if (create_info->table_existed &&
           !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
       {
@@ -3306,7 +3308,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
           close_temporary_table(thd, create_table);
         }
       }
-
     }
     reenable_binlog(thd);
     if (!table)                                   // open failed

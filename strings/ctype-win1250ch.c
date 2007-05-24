@@ -400,7 +400,7 @@ static uchar NEAR _sort_order_win1250ch2[] = {
 };
 
 struct wordvalue {
-	const uchar * word;
+	const uchar *word;
 	uchar pass1;
 	uchar pass2;
 };
@@ -423,8 +423,8 @@ static struct wordvalue doubles[] = {
 		if (value == 0xff) {					\
 			int i;						\
 			for (i = 0; i < (int) sizeof(doubles); i++) {	\
-				const uchar * patt = doubles[i].word;	\
-				const uchar * q = (const uchar *) p;	\
+				const uchar *patt = doubles[i].word;	\
+				const uchar *q = (const uchar *) p;	\
 				while (*patt				\
 					&& !(IS_END(q, src, len))	\
 					&& (*patt == *q)) {		\
@@ -446,12 +446,12 @@ static struct wordvalue doubles[] = {
 #define IS_END(p, src, len)	(((char *)p - (char *)src) >= (len))
 
 static int my_strnncoll_win1250ch(CHARSET_INFO *cs __attribute__((unused)), 
-				  const uchar * s1, uint len1,
-                                  const uchar * s2, uint len2,
+				  const uchar *s1, size_t len1,
+                                  const uchar *s2, size_t len2,
                                   my_bool s2_is_prefix)
 {
   int v1, v2;
-  const uchar * p1, * p2;
+  const uchar *p1, * p2;
   int pass1 = 0, pass2 = 0;
   int diff;
 
@@ -477,8 +477,8 @@ static int my_strnncoll_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
 
 static
 int my_strnncollsp_win1250ch(CHARSET_INFO * cs, 
-			     const uchar *s, uint slen, 
-			     const uchar *t, uint tlen,
+			     const uchar *s, size_t slen, 
+			     const uchar *t, size_t tlen,
                              my_bool diff_if_only_endspace_difference
                              __attribute__((unused)))
 {
@@ -488,14 +488,14 @@ int my_strnncollsp_win1250ch(CHARSET_INFO * cs,
 }
 
 
-static int my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
-				 uchar * dest, uint len, 
-				 const uchar * src, uint srclen)
+static size_t my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
+                                    uchar *dest, size_t len, 
+                                    const uchar *src, size_t srclen)
 {
   int value;
-  const uchar * p;
+  const uchar *p;
   int pass = 0;
-  uint totlen = 0;
+  size_t totlen = 0;
   p = src;
 
   do {
@@ -615,11 +615,11 @@ static uchar NEAR like_range_prefix_max_win1250ch[]=
 
 static my_bool
 my_like_range_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
-			const char *ptr, uint ptr_length,
+			const char *ptr, size_t ptr_length,
 			pbool escape, pbool w_one, pbool w_many,
-			uint res_length,
+			size_t res_length,
 			char *min_str, char *max_str,
-			uint *min_length, uint *max_length)
+			size_t *min_length, size_t *max_length)
 {
 
   int only_min_found= 1;
@@ -643,7 +643,7 @@ my_like_range_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
   }
 
   if (cs->state & MY_CS_BINSORT)
-    *min_length= (uint) (min_str - min_org);
+    *min_length= (size_t) (min_str - min_org);
   else
   {
     /* 'a\0\0... is the smallest possible string */

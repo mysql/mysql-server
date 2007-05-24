@@ -272,7 +272,7 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
 			   List<String> *names,
 			   String *name, String *description, String *example)
 {
-  char buff[8];	// Max int length
+  uchar buff[8];	// Max int length
   int count= 0;
   int iindex_topic, iindex_relations;
   Field *rtopic_id, *rkey_id;
@@ -295,20 +295,20 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
   rkey_id->store((longlong) key_id, TRUE);
   rkey_id->get_key_image(buff, rkey_id->pack_length(), Field::itRAW);
   int key_res= relations->file->index_read(relations->record[0],
-                                           (byte *) buff, (key_part_map)1,
+                                           buff, (key_part_map) 1,
                                            HA_READ_KEY_EXACT);
 
   for ( ;
         !key_res && key_id == (int16) rkey_id->val_int() ;
 	key_res= relations->file->index_next(relations->record[0]))
   {
-    char topic_id_buff[8];
+    uchar topic_id_buff[8];
     longlong topic_id= rtopic_id->val_int();
     Field *field= find_fields[help_topic_help_topic_id].field;
     field->store((longlong) topic_id, TRUE);
     field->get_key_image(topic_id_buff, field->pack_length(), Field::itRAW);
 
-    if (!topics->file->index_read(topics->record[0], (byte *)topic_id_buff,
+    if (!topics->file->index_read(topics->record[0], topic_id_buff,
 				  (key_part_map)1, HA_READ_KEY_EXACT))
     {
       memorize_variant_topic(thd,topics,count,find_fields,
@@ -637,7 +637,7 @@ bool mysqld_help(THD *thd, const char *mask)
   MEM_ROOT *mem_root= thd->mem_root;
   DBUG_ENTER("mysqld_help");
 
-  bzero((gptr)tables,sizeof(tables));
+  bzero((uchar*)tables,sizeof(tables));
   tables[0].alias= tables[0].table_name= (char*) "help_topic";
   tables[0].lock_type= TL_READ;
   tables[0].next_global= tables[0].next_local= 
