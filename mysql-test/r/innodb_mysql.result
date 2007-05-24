@@ -144,6 +144,27 @@ SELECT * FROM t1;
 c1	cnt
 1a	2
 DROP TABLE t1;
+CREATE TABLE t1 (
+a1 decimal(10,0) DEFAULT NULL,
+a2 blob,
+a3 time DEFAULT NULL,
+a4 blob,
+a5 char(175) DEFAULT NULL,
+a6 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+a7 tinyblob,
+INDEX idx (a6,a7(239),a5)
+) ENGINE=InnoDB;
+EXPLAIN SELECT a4 FROM t1 WHERE
+a6=NULL AND
+a4='UNcT5pIde4I6c2SheTo4gt92OV1jgJCVkXmzyf325R1DwLURkbYHwhydANIZMbKTgdcR5xS';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT t1.a4 FROM t1, t1 t WHERE
+t.a6=t.a6 AND t1.a6=NULL AND
+t1.a4='UNcT5pIde4I6c2SheTo4gt92OV1jgJCVkXmzyf325R1DwLURkbYHwhydANIZMbKTgdcR5xS';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+DROP TABLE t1;
 End of 4.1 tests
 create table t1m (a int) engine=myisam;
 create table t1i (a int) engine=innodb;
