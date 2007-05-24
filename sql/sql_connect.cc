@@ -936,8 +936,8 @@ bool login_connection(THD *thd)
   net->no_send_error= 0;
 
   /* Use "connect_timeout" value during connection phase */
-  net_set_read_timeout(net, connect_timeout);
-  net_set_write_timeout(net, connect_timeout);
+  my_net_set_read_timeout(net, connect_timeout);
+  my_net_set_write_timeout(net, connect_timeout);
 
   if ((error=check_connection(thd)))
   {						// Wrong permissions
@@ -951,8 +951,8 @@ bool login_connection(THD *thd)
     DBUG_RETURN(1);
   }
   /* Connect completed, set read/write timeouts back to default */
-  net_set_read_timeout(net, thd->variables.net_read_timeout);
-  net_set_write_timeout(net, thd->variables.net_write_timeout);
+  my_net_set_read_timeout(net, thd->variables.net_read_timeout);
+  my_net_set_write_timeout(net, thd->variables.net_write_timeout);
   DBUG_RETURN(0);
 }
 
