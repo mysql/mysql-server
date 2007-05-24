@@ -853,7 +853,7 @@ public:
     :in_longlong(elements), thd(current_thd), warn_item(warn_item_arg),
      lval_cache(0) {};
   void set(uint pos,Item *item);
-  byte *get_value(Item *item);
+  uchar *get_value(Item *item);
   friend int cmp_longlong(void *cmp_arg, packed_longlong *a,packed_longlong *b);
 };
 
@@ -1233,10 +1233,12 @@ public:
   cmp_item_row(): comparators(0), n(0) {}
   ~cmp_item_row();
   void store_value(Item *item);
+  inline void alloc_comparators();
   int cmp(Item *arg);
   int compare(cmp_item *arg);
   cmp_item *make_same();
   void store_value_by_template(cmp_item *tmpl, Item *);
+  friend void Item_func_in::fix_length_and_dec();
 };
 
 
@@ -1248,6 +1250,7 @@ public:
   ~in_row();
   void set(uint pos,Item *item);
   uchar *get_value(Item *item);
+  friend void Item_func_in::fix_length_and_dec();
   Item_result result_type() { return ROW_RESULT; }
 };
 

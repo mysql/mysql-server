@@ -704,7 +704,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       {
         LEX_STRING pname= { C_STRING_WITH_LEN( "partition" ) };
         if (str_db_type_length == pname.length &&
-            !strncmp(next_chunk + 2, pname.str, pname.length))
+            !strncmp((char *) next_chunk + 2, pname.str, pname.length))
         {
           /*
             Use partition handler
