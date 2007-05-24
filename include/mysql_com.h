@@ -353,6 +353,9 @@ my_bool	net_write_command(NET *net,unsigned char command,
 int	net_real_write(NET *net,const char *packet,unsigned long len);
 unsigned long my_net_read(NET *net);
 
+void my_net_set_write_timeout(NET *net, uint timeout);
+void my_net_set_read_timeout(NET *net, uint timeout);
+
 /*
   The following function is not meant for normal usage
   Currently it's used internally by manager.c
