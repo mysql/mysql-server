@@ -204,13 +204,14 @@ int vio_fastsend(Vio * vio __attribute__((unused)))
   {
 #ifdef __WIN__
     BOOL nodelay= 1;
-    r= setsockopt(vio->sd, IPPROTO_TCP, TCP_NODELAY, (const char*) &nodelay,
-                  sizeof(nodelay));
 #else
     int nodelay = 1;
-    r= setsockopt(vio->sd, IPPROTO_TCP, TCP_NODELAY, (void*) &nodelay,
+#endif
+
+    r= setsockopt(vio->sd, IPPROTO_TCP, TCP_NODELAY,
+                  IF_WIN(const char*, void*) &nodelay,
                   sizeof(nodelay));
-#endif                                          /* __WIN__ */
+
   }
   if (r)
   {
@@ -380,28 +381,39 @@ my_bool vio_poll_read(Vio *vio,uint timeout)
 
 void vio_timeout(Vio *vio, uint which, uint timeout)
 {
-/* TODO: some action should be taken if socket timeouts are not supported. */
 #if defined(SO_SNDTIMEO) && defined(SO_RCVTIMEO)
+  int r;
+  DBUG_ENTER("vio_timeout");
 
+  {
 #ifdef __WIN__
-
-  /* Windows expects time in milliseconds as int. */
+  /* Windows expects time in milliseconds as int */
   int wait_timeout= (int) timeout * 1000;
-
-#else  /* ! __WIN__ */
-
+#else
   /* POSIX specifies time as struct timeval. */
   struct timeval wait_timeout;
   wait_timeout.tv_sec= timeout;
   wait_timeout.tv_usec= 0;
+#endif
 
-#endif /* ! __WIN__ */
+  r= setsockopt(vio->sd, SOL_SOCKET, which ? SO_SNDTIMEO : SO_RCVTIMEO,
+                IF_WIN(const char*, const void*)&wait_timeout,
+                sizeof(wait_timeout));
 
-  /* TODO: return value should be checked. */
-  (void) setsockopt(vio->sd, SOL_SOCKET, which ? SO_SNDTIMEO : SO_RCVTIMEO,
-                    (char*) &wait_timeout, sizeof(wait_timeout));
+  }
 
-#endif /* defined(SO_SNDTIMEO) && defined(SO_RCVTIMEO) */
+#ifndef DBUG_OFF
+  if (r != 0)
+    DBUG_PRINT("error", ("setsockopt failed: %d, errno: %d", r, socket_errno));
+#endif
+
+  DBUG_VOID_RETURN;
+#else
+/*
+  Platforms not suporting setting of socket timeout should either use
+  thr_alarm or just run without read/write timeout(s)
+*/
+#endif
 }
 
 
