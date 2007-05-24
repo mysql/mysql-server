@@ -16074,6 +16074,27 @@ static void test_bug24179()
 
 
 /*
+  Bug#28075 "COM_DEBUG crashes mysqld"
+*/
+
+static void test_bug28075()
+{
+  int rc;
+
+  DBUG_ENTER("test_bug28075");
+  myheader("test_bug28075");
+
+  rc= mysql_dump_debug_info(mysql);
+  DIE_UNLESS(rc == 0);
+  
+  rc= mysql_ping(mysql);
+  DIE_UNLESS(rc == 0);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -16357,6 +16378,7 @@ static struct my_tests_st my_tests[]= {
   { "test_status",   test_status   },
   { "test_bug24179", test_bug24179 },
   { "test_ps_query_cache", test_ps_query_cache },
+  { "test_bug28075", test_bug28075 },
   { 0, 0 }
 };
 
