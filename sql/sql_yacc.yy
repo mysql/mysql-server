@@ -1483,7 +1483,6 @@ create:
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= (enum db_type) lex->thd->variables.table_type;
 	  lex->create_info.default_table_charset= NULL;
-	  lex->name=0;
 	}
 	create2
 	  { Lex->current_select= &Lex->select_lex; }
@@ -2763,27 +2762,15 @@ create2:
         | opt_create_table_options create3 {}
         | LIKE table_ident
           {
-            LEX *lex=Lex;
-            THD *thd= lex->thd;
-            if (!(lex->name= (char *)$2))
+            Lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
+            if (!Lex->select_lex.add_table_to_list(YYTHD, $2, NULL, 0, TL_READ))
               MYSQL_YYABORT;
-            if ($2->db.str == NULL &&
-                thd->copy_db_to(&($2->db.str), &($2->db.length)))
-            {
-              MYSQL_YYABORT;
-            }
           }
         | '(' LIKE table_ident ')'
           {
-            LEX *lex=Lex;
-            THD *thd= lex->thd;
-            if (!(lex->name= (char *)$3))
+            Lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
+            if (!Lex->select_lex.add_table_to_list(YYTHD, $3, NULL, 0, TL_READ))
               MYSQL_YYABORT;
-            if ($3->db.str == NULL &&
-                thd->copy_db_to(&($3->db.str), &($3->db.length)))
-            {
-              MYSQL_YYABORT;
-            }
           }
         ;
 
