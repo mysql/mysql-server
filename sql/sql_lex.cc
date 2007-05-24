@@ -1235,7 +1235,7 @@ void st_select_lex::init_select()
   linkage= UNSPECIFIED_TYPE;
   order_list.elements= 0;
   order_list.first= 0;
-  order_list.next= (byte**) &order_list.first;
+  order_list.next= (uchar**) &order_list.first;
   /* Set limit and offset to default values */
   select_limit= 0;      /* denotes the default limit = HA_POS_ERROR */
   offset_limit= 0;      /* denotes the default offset = 0 */
@@ -2059,7 +2059,7 @@ TABLE_LIST *st_lex::unlink_first_table(bool *link_to_local)
     {
       select_lex.context.table_list= 
         select_lex.context.first_name_resolution_table= first->next_local;
-      select_lex.table_list.first= (byte*) (first->next_local);
+      select_lex.table_list.first= (uchar*) (first->next_local);
       select_lex.table_list.elements--;	//safety
       first->next_local= 0;
       /*
@@ -2140,7 +2140,7 @@ void st_lex::link_first_table_back(TABLE_LIST *first,
     {
       first->next_local= (TABLE_LIST*) select_lex.table_list.first;
       select_lex.context.table_list= first;
-      select_lex.table_list.first= (byte*) first;
+      select_lex.table_list.first= (uchar*) first;
       select_lex.table_list.elements++;	//safety
     }
   }

@@ -28,6 +28,7 @@
 #include "md5.h"
 #include "sha1.h"
 #include "my_aes.h"
+#include <zlib.h>
 C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
@@ -2220,7 +2221,7 @@ String *Item_func_make_set::val_str(String *str)
 }
 
 
-Item *Item_func_make_set::transform(Item_transformer transformer, byte *arg)
+Item *Item_func_make_set::transform(Item_transformer transformer, uchar *arg)
 {
   DBUG_ASSERT(!current_thd->is_stmt_prepare());
 
@@ -2903,7 +2904,7 @@ String *Item_load_file::val_str(String *str)
     goto err;
   if ((file = my_open(file_name->c_ptr(), O_RDONLY, MYF(0))) < 0)
     goto err;
-  if (my_read(file, (byte*) tmp_value.ptr(), stat_info.st_size, MYF(MY_NABP)))
+  if (my_read(file, (uchar*) tmp_value.ptr(), stat_info.st_size, MYF(MY_NABP)))
   {
     my_close(file, MYF(0));
     goto err;

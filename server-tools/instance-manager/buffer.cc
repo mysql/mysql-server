@@ -44,12 +44,12 @@ const uint Buffer::MAX_BUFFER_SIZE= 16777216;
     1 - got an error in reserve()
 */
 
-int Buffer::append(uint position, const char *string, uint len_arg)
+int Buffer::append(size_t position, const char *string, size_t len_arg)
 {
   if (reserve(position, len_arg))
     return 1;
 
-  strnmov(buffer + position, string, len_arg);
+  strnmov((char*) buffer + position, string, len_arg);
   return 0;
 }
 
@@ -75,20 +75,20 @@ int Buffer::append(uint position, const char *string, uint len_arg)
     1 - realloc error or we have come to the 16Mb barrier
 */
 
-int Buffer::reserve(uint position, uint len_arg)
+int Buffer::reserve(size_t position, size_t len_arg)
 {
   if (position + len_arg >= MAX_BUFFER_SIZE)
     goto err;
 
   if (position + len_arg >= buffer_size)
   {
-    buffer= (char*) my_realloc(buffer,
+    buffer= (uchar*) my_realloc(buffer,
                                 min(MAX_BUFFER_SIZE,
                                     max((uint) (buffer_size*1.5),
                                         position + len_arg)), MYF(0));
     if (!(buffer))
       goto err;
-    buffer_size= (uint) (buffer_size*1.5);
+    buffer_size= (size_t) (buffer_size*1.5);
   }
   return 0;
 

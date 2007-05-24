@@ -32,7 +32,7 @@ typedef struct st_ft_info FT_INFO;
 struct _ft_vft
 {
   int       (*read_next)(FT_INFO *, char *);
-  float     (*find_relevance)(FT_INFO *, byte *, uint);
+  float     (*find_relevance)(FT_INFO *, uchar *, uint);
   void      (*close_search)(FT_INFO *);
   float     (*get_relevance)(FT_INFO *);
   void      (*reinit_search)(FT_INFO *);
@@ -62,8 +62,8 @@ void ft_free_stopwords(void);
 #define FT_SORTED 2
 #define FT_EXPAND 4   /* query expansion */
 
-FT_INFO *ft_init_search(uint,void *, uint, byte *, uint,CHARSET_INFO *, byte *);
-my_bool ft_boolean_check_syntax_string(const byte *);
+FT_INFO *ft_init_search(uint,void *, uint, uchar *, uint,CHARSET_INFO *, uchar *);
+my_bool ft_boolean_check_syntax_string(const uchar *);
 
 #ifdef  __cplusplus
 }

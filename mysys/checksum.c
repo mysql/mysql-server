@@ -15,7 +15,8 @@
 
 
 #include <my_global.h>
-#include "my_sys.h"
+#include <my_sys.h>
+#include <zlib.h>
 
 /*
   Calculate a long checksum for a memoryblock.
@@ -27,15 +28,15 @@
       length    length of the block
 */
 
-ha_checksum my_checksum(ha_checksum crc, const byte *pos, uint length)
+ha_checksum my_checksum(ha_checksum crc, const uchar *pos, size_t length)
 {
 #ifdef NOT_USED
-  const byte *end=pos+length;
+  const uchar *end=pos+length;
   for ( ; pos != end ; pos++)
     crc=((crc << 8) + *((uchar*) pos)) + (crc >> (8*sizeof(ha_checksum)-8));
   return crc;
 #else
-  return (ha_checksum)crc32((uint)crc, (const uchar *)pos, length);
+  return (ha_checksum)crc32((uint)crc, pos, length);
 #endif
 }
 

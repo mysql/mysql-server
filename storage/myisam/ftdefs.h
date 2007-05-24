@@ -96,44 +96,44 @@
 #define FTB_RQUOT (ft_boolean_syntax[11])
 
 typedef struct st_ft_word {
-  byte * pos;
+  uchar * pos;
   uint	 len;
   double weight;
 } FT_WORD;
 
 int is_stopword(char *word, uint len);
 
-uint _ft_make_key(MI_INFO *, uint , byte *, FT_WORD *, my_off_t);
+uint _ft_make_key(MI_INFO *, uint , uchar *, FT_WORD *, my_off_t);
 
-byte ft_get_word(CHARSET_INFO *, byte **, byte *, FT_WORD *,
-                 MYSQL_FTPARSER_BOOLEAN_INFO *);
-byte ft_simple_get_word(CHARSET_INFO *, byte **, const byte *,
-                        FT_WORD *, my_bool);
+uchar ft_get_word(CHARSET_INFO *, uchar **, uchar *, FT_WORD *,
+                  MYSQL_FTPARSER_BOOLEAN_INFO *);
+uchar ft_simple_get_word(CHARSET_INFO *, uchar **, const uchar *,
+                         FT_WORD *, my_bool);
 
 typedef struct _st_ft_seg_iterator {
   uint        num, len;
   HA_KEYSEG  *seg;
-  const byte *rec, *pos;
+  const uchar *rec, *pos;
 } FT_SEG_ITERATOR;
 
-void _mi_ft_segiterator_init(MI_INFO *, uint, const byte *, FT_SEG_ITERATOR *);
-void _mi_ft_segiterator_dummy_init(const byte *, uint, FT_SEG_ITERATOR *);
+void _mi_ft_segiterator_init(MI_INFO *, uint, const uchar *, FT_SEG_ITERATOR *);
+void _mi_ft_segiterator_dummy_init(const uchar *, uint, FT_SEG_ITERATOR *);
 uint _mi_ft_segiterator(FT_SEG_ITERATOR *);
 
 void ft_parse_init(TREE *, CHARSET_INFO *);
-int ft_parse(TREE *, byte *, int, struct st_mysql_ftparser *parser,
+int ft_parse(TREE *, uchar *, int, struct st_mysql_ftparser *parser,
              MYSQL_FTPARSER_PARAM *, MEM_ROOT *);
 FT_WORD * ft_linearize(TREE *, MEM_ROOT *);
-FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, const byte *, MEM_ROOT *);
-uint _mi_ft_parse(TREE *, MI_INFO *, uint, const byte *,
+FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, const uchar *, MEM_ROOT *);
+uint _mi_ft_parse(TREE *, MI_INFO *, uint, const uchar *,
                   MYSQL_FTPARSER_PARAM *, MEM_ROOT *);
 
-FT_INFO *ft_init_nlq_search(MI_INFO *, uint, byte *, uint, uint, byte *);
-FT_INFO *ft_init_boolean_search(MI_INFO *, uint, byte *, uint, CHARSET_INFO *);
+FT_INFO *ft_init_nlq_search(MI_INFO *, uint, uchar *, uint, uint, uchar *);
+FT_INFO *ft_init_boolean_search(MI_INFO *, uint, uchar *, uint, CHARSET_INFO *);
 
 extern const struct _ft_vft _ft_vft_nlq;
 int ft_nlq_read_next(FT_INFO *, char *);
-float ft_nlq_find_relevance(FT_INFO *, byte *, uint);
+float ft_nlq_find_relevance(FT_INFO *, uchar *, uint);
 void ft_nlq_close_search(FT_INFO *);
 float ft_nlq_get_relevance(FT_INFO *);
 my_off_t ft_nlq_get_docid(FT_INFO *);
@@ -141,7 +141,7 @@ void ft_nlq_reinit_search(FT_INFO *);
 
 extern const struct _ft_vft _ft_vft_boolean;
 int ft_boolean_read_next(FT_INFO *, char *);
-float ft_boolean_find_relevance(FT_INFO *, byte *, uint);
+float ft_boolean_find_relevance(FT_INFO *, uchar *, uint);
 void ft_boolean_close_search(FT_INFO *);
 float ft_boolean_get_relevance(FT_INFO *);
 my_off_t ft_boolean_get_docid(FT_INFO *);

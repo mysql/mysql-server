@@ -14,6 +14,10 @@ select hex(inet_aton('127.1.1'));
 
 select length(uuid()), charset(uuid()), length(unhex(replace(uuid(),_utf8'-',_utf8'')));
 
+# As we can assume we are the only user for the mysqld server, the difference
+# between two calls should be -1
+select cast(uuid_short()-uuid_short() as signed);
+
 #
 # Test for core dump with nan
 #

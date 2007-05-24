@@ -303,7 +303,7 @@ static st_plugin_dl *plugin_dl_insert_or_reuse(struct st_plugin_dl *plugin_dl)
       DBUG_RETURN(tmp);
     }
   }
-  if (insert_dynamic(&plugin_dl_array, (gptr)plugin_dl))
+  if (insert_dynamic(&plugin_dl_array, (uchar*)plugin_dl))
     DBUG_RETURN(0);
   DBUG_RETURN(dynamic_element(&plugin_dl_array, plugin_dl_array.elements - 1,
                               struct st_plugin_dl *));
@@ -319,7 +319,7 @@ static inline void free_plugin_mem(struct st_plugin_dl *p)
 #endif
   my_free(p->dl.str, MYF(MY_ALLOW_ZERO_PTR));
   if (p->version != MYSQL_PLUGIN_INTERFACE_VERSION)
-    my_free((gptr)p->plugins, MYF(MY_ALLOW_ZERO_PTR));
+    my_free((uchar*)p->plugins, MYF(MY_ALLOW_ZERO_PTR));
 }
 
 
@@ -471,7 +471,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
 
   /* Duplicate and convert dll name */
   plugin_dl.dl.length= dl->length * files_charset_info->mbmaxlen + 1;
-  if (! (plugin_dl.dl.str= my_malloc(plugin_dl.dl.length, MYF(0))))
+  if (! (plugin_dl.dl.str= (char*) my_malloc(plugin_dl.dl.length, MYF(0))))
   {
     free_plugin_mem(&plugin_dl);
     if (report & REPORT_TO_USER)
@@ -551,14 +551,14 @@ static struct st_plugin_int *plugin_find_internal(const LEX_STRING *name, int ty
     for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
     {
       struct st_plugin_int *plugin= (st_plugin_int *)
-        hash_search(&plugin_hash[i], (const byte *)name->str, name->length);
+        hash_search(&plugin_hash[i], (const uchar *)name->str, name->length);
       if (plugin)
         DBUG_RETURN(plugin);
     }
   }
   else
     DBUG_RETURN((st_plugin_int *)
-        hash_search(&plugin_hash[type], (const byte *)name->str, name->length));
+        hash_search(&plugin_hash[type], (const uchar *)name->str, name->length));
   DBUG_RETURN(0);
 }
 
@@ -676,7 +676,7 @@ static st_plugin_int *plugin_insert_or_reuse(struct st_plugin_int *plugin)
       DBUG_RETURN(tmp);
     }
   }
-  if (insert_dynamic(&plugin_array, (gptr)plugin))
+  if (insert_dynamic(&plugin_array, (uchar*)plugin))
     DBUG_RETURN(0);
   DBUG_RETURN(dynamic_element(&plugin_array, plugin_array.elements - 1,
                               struct st_plugin_int *));
@@ -737,13 +737,12 @@ static bool plugin_add(MEM_ROOT *tmp_root,
       tmp.name.length= name_len;
       tmp.ref_count= 0;
       tmp.state= PLUGIN_IS_UNINITIALIZED;
-
       if (!test_plugin_options(tmp_root, &tmp, argc, argv, true))
       {
         if ((tmp_plugin_ptr= plugin_insert_or_reuse(&tmp)))
         {
           plugin_array_version++;
-          if (!my_hash_insert(&plugin_hash[plugin->type], (byte*)tmp_plugin_ptr))
+          if (!my_hash_insert(&plugin_hash[plugin->type], (uchar*)tmp_plugin_ptr))
           {
             init_alloc_root(&tmp_plugin_ptr->mem_root, 4096, 4096);
             DBUG_RETURN(FALSE);
@@ -832,7 +831,7 @@ static void plugin_del(struct st_plugin_int *plugin)
   safe_mutex_assert_owner(&LOCK_plugin);
   /* Free allocated strings before deleting the plugin. */
   plugin_vars_free_values(plugin->system_vars);
-  hash_delete(&plugin_hash[plugin->plugin->type], (byte*)plugin);
+  hash_delete(&plugin_hash[plugin->plugin->type], (uchar*)plugin);
   if (plugin->plugin_dl)
     plugin_dl_del(&plugin->plugin_dl->dl);
   plugin->state= PLUGIN_IS_FREED;
@@ -1048,12 +1047,12 @@ err:
 }
 
 
-static byte *get_hash_key(const byte *buff, uint *length,
+static uchar *get_hash_key(const uchar *buff, size_t *length,
                    my_bool not_used __attribute__((unused)))
 {
   struct st_plugin_int *plugin= (st_plugin_int *)buff;
   *length= (uint)plugin->name.length;
-  return((byte *)plugin->name.str);
+  return((uchar *)plugin->name.str);
 }
 
 
@@ -1179,6 +1178,7 @@ int plugin_init(int *argc, char **argv, int flags)
   /*
     Now we initialize all remaining plugins
   */
+
   pthread_mutex_lock(&LOCK_plugin);
   reap= (st_plugin_int **) my_alloca((plugin_array.elements+1) * sizeof(void*));
   *(reap++)= NULL;
@@ -1212,6 +1212,7 @@ int plugin_init(int *argc, char **argv, int flags)
 
 end:
   free_root(&tmp_root, MYF(0));
+
   DBUG_RETURN(0);
 
 err_unlock:
@@ -1310,7 +1311,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   new_thd->store_globals();
   new_thd->db= my_strdup("mysql", MYF(0));
   new_thd->db_length= 5;
-  bzero((gptr)&tables, sizeof(tables));
+  bzero((uchar*)&tables, sizeof(tables));
   tables.alias= tables.table_name= (char*)"plugin";
   tables.lock_type= TL_READ;
   tables.db= new_thd->db;
@@ -1672,7 +1673,7 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   table->use_all_columns();
   table->field[0]->store(name->str, name->length, system_charset_info);
   if (! table->file->index_read_idx(table->record[0], 0,
-                                    (byte *)table->field[0]->ptr, HA_WHOLE_KEY,
+                                    (uchar *)table->field[0]->ptr, HA_WHOLE_KEY,
                                     HA_READ_KEY_EXACT))
   {
     int error;

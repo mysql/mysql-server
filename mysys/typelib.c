@@ -27,7 +27,7 @@ int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
   int res;
   const char **ptr;
 
-  if ((res= find_type((my_string) x, typelib, 2)) <= 0)
+  if ((res= find_type((char *) x, typelib, 2)) <= 0)
   {
     ptr= typelib->type_names;
     if (!*x)
@@ -67,10 +67,11 @@ int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
     >0  Offset+1 in typelib for matched string
 */
 
+
 int find_type(char *x, const TYPELIB *typelib, uint full_name)
 {
   int find,pos,findpos;
-  reg1 my_string i;
+  reg1 char * i;
   reg2 const char *j;
   DBUG_ENTER("find_type");
   DBUG_PRINT("enter",("x: '%s'  lib: 0x%lx", x, (long) typelib));
@@ -124,7 +125,7 @@ int find_type(char *x, const TYPELIB *typelib, uint full_name)
 	/* Get name of type nr 'nr' */
 	/* Warning first type is 1, 0 = empty field */
 
-void make_type(register my_string to, register uint nr,
+void make_type(register char * to, register uint nr,
 	       register TYPELIB *typelib)
 {
   DBUG_ENTER("make_type");
