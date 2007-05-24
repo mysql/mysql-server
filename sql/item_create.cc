@@ -2141,6 +2141,19 @@ protected:
 };
 
 
+class Create_func_uuid_short : public Create_func_arg0
+{
+public:
+  virtual Item *create(THD *thd);
+
+  static Create_func_uuid_short s_singleton;
+
+protected:
+  Create_func_uuid_short() {}
+  virtual ~Create_func_uuid_short() {}
+};
+
+
 class Create_func_version : public Create_func_arg0
 {
 public:
@@ -4533,6 +4546,16 @@ Create_func_uuid::create(THD *thd)
 }
 
 
+Create_func_uuid_short Create_func_uuid_short::s_singleton;
+
+Item*
+Create_func_uuid_short::create(THD *thd)
+{
+  thd->lex->binlog_row_based_if_mixed= TRUE;
+  return new (thd->mem_root) Item_func_uuid_short();
+}
+
+
 Create_func_version Create_func_version::s_singleton;
 
 Item*
@@ -4872,6 +4895,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("UPDATEXML") }, BUILDER(Create_func_xml_update)},
   { { C_STRING_WITH_LEN("UPPER") }, BUILDER(Create_func_ucase)},
   { { C_STRING_WITH_LEN("UUID") }, BUILDER(Create_func_uuid)},
+  { { C_STRING_WITH_LEN("UUID_SHORT") }, BUILDER(Create_func_uuid_short)},
   { { C_STRING_WITH_LEN("VERSION") }, BUILDER(Create_func_version)},
   { { C_STRING_WITH_LEN("WEEKDAY") }, BUILDER(Create_func_weekday)},
   { { C_STRING_WITH_LEN("WEEKOFYEAR") }, BUILDER(Create_func_weekofyear)},
@@ -4885,12 +4909,13 @@ static Native_func_registry func_array[] =
 
 static HASH native_functions_hash;
 
-extern "C" byte*
-get_native_fct_hash_key(const byte *buff, uint *length, my_bool /* unused */)
+extern "C" uchar*
+get_native_fct_hash_key(const uchar *buff, size_t *length,
+                        my_bool /* unused */)
 {
   Native_func_registry *func= (Native_func_registry*) buff;
   *length= func->name.length;
-  return (byte*) func->name.str;
+  return (uchar*) func->name.str;
 }
 
 /*
@@ -4917,7 +4942,7 @@ int item_create_init()
 
   for (func= func_array; func->builder != NULL; func++)
   {
-    if (my_hash_insert(& native_functions_hash, (byte*) func))
+    if (my_hash_insert(& native_functions_hash, (uchar*) func))
       DBUG_RETURN(1);
   }
 
@@ -4925,8 +4950,8 @@ int item_create_init()
   for (uint i=0 ; i < native_functions_hash.records ; i++)
   {
     func= (Native_func_registry*) hash_element(& native_functions_hash, i);
-    DBUG_PRINT("info", ("native function %s, length %d",
-                        func->name.str, func->name.length));
+    DBUG_PRINT("info", ("native function: %s  length: %u",
+                        func->name.str, (uint) func->name.length));
   }
 #endif
 
@@ -4954,7 +4979,7 @@ find_native_function_builder(THD *thd, LEX_STRING name)
 
   /* Thread safe */
   func= (Native_func_registry*) hash_search(& native_functions_hash,
-                                            (byte*) name.str,
+                                            (uchar*) name.str,
                                              name.length);
 
   if (func)

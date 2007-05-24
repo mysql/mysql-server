@@ -51,9 +51,11 @@ uint len;					/* 0 <= len <= 65535 */
 #else
 
 #ifndef HAVE_purify
-int bcmp(register const char *s1,register const char *s2, register uint len)
+size_t bcmp(register const uchar *s1,register const uchar *s2,
+            register size_t len)
 #else
-int my_bcmp(register const char *s1,register const char *s2, register uint len)
+size_t my_bcmp(register const uchar *s1,register const uchar *s2,
+               register size_t len)
 #endif
 {
   while (len-- != 0 && *s1++ == *s2++) ;

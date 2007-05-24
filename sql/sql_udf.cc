@@ -92,12 +92,12 @@ static char *init_syms(udf_func *tmp, char *nm)
 }
 
 
-extern "C" byte* get_hash_key(const byte *buff,uint *length,
+extern "C" uchar* get_hash_key(const uchar *buff, size_t *length,
 			      my_bool not_used __attribute__((unused)))
 {
   udf_func *udf=(udf_func*) buff;
   *length=(uint) udf->name.length;
-  return (byte*) udf->name.str;
+  return (uchar*) udf->name.str;
 }
 
 
@@ -137,7 +137,7 @@ void udf_init()
   new_thd->store_globals();
   new_thd->set_db(db, sizeof(db)-1);
 
-  bzero((gptr) &tables,sizeof(tables));
+  bzero((uchar*) &tables,sizeof(tables));
   tables.alias= tables.table_name= (char*) "func";
   tables.lock_type = TL_READ;
   tables.db= db;
@@ -260,7 +260,7 @@ static void del_udf(udf_func *udf)
   DBUG_ENTER("del_udf");
   if (!--udf->usage_count)
   {
-    hash_delete(&udf_hash,(byte*) udf);
+    hash_delete(&udf_hash,(uchar*) udf);
     using_udf_functions=udf_hash.records != 0;
   }
   else
@@ -274,7 +274,7 @@ static void del_udf(udf_func *udf)
     uint name_length=udf->name.length;
     udf->name.str=(char*) "*";
     udf->name.length=1;
-    hash_update(&udf_hash,(byte*) udf,(byte*) name,name_length);
+    hash_update(&udf_hash,(uchar*) udf,(uchar*) name,name_length);
   }
   DBUG_VOID_RETURN;
 }
@@ -294,7 +294,7 @@ void free_udf(udf_func *udf)
       We come here when someone has deleted the udf function
       while another thread still was using the udf
     */
-    hash_delete(&udf_hash,(byte*) udf);
+    hash_delete(&udf_hash,(uchar*) udf);
     using_udf_functions=udf_hash.records != 0;
     if (!find_udf_dl(udf->dl))
       dlclose(udf->dlhandle);
@@ -320,7 +320,7 @@ udf_func *find_udf(const char *name,uint length,bool mark_used)
   else
     rw_rdlock(&THR_LOCK_udf);  /* Called during parsing */
 
-  if ((udf=(udf_func*) hash_search(&udf_hash,(byte*) name,
+  if ((udf=(udf_func*) hash_search(&udf_hash,(uchar*) name,
 				   length ? length : (uint) strlen(name))))
   {
     if (!udf->dlhandle)
@@ -367,7 +367,7 @@ static udf_func *add_udf(LEX_STRING *name, Item_result ret, char *dl,
   tmp->returns = ret;
   tmp->type = type;
   tmp->usage_count=1;
-  if (my_hash_insert(&udf_hash,(byte*)  tmp))
+  if (my_hash_insert(&udf_hash,(uchar*)  tmp))
     return 0;
   using_udf_functions=1;
   return tmp;
@@ -415,7 +415,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
     thd->clear_current_stmt_binlog_row_based();
 
   rw_wrlock(&THR_LOCK_udf);
-  if ((hash_search(&udf_hash,(byte*) udf->name.str, udf->name.length)))
+  if ((hash_search(&udf_hash,(uchar*) udf->name.str, udf->name.length)))
   {
     my_error(ER_UDF_EXISTS, MYF(0), udf->name);
     goto err;
@@ -519,7 +519,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
     thd->clear_current_stmt_binlog_row_based();
 
   rw_wrlock(&THR_LOCK_udf);  
-  if (!(udf=(udf_func*) hash_search(&udf_hash,(byte*) udf_name->str,
+  if (!(udf=(udf_func*) hash_search(&udf_hash,(uchar*) udf_name->str,
 				    (uint) udf_name->length)))
   {
     my_error(ER_FUNCTION_NOT_DEFINED, MYF(0), udf_name->str);
@@ -543,7 +543,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   table->use_all_columns();
   table->field[0]->store(exact_name_str, exact_name_len, &my_charset_bin);
   if (!table->file->index_read_idx(table->record[0], 0,
-				   (byte*) table->field[0]->ptr, HA_WHOLE_KEY,
+				   (uchar*) table->field[0]->ptr, HA_WHOLE_KEY,
 				   HA_READ_KEY_EXACT))
   {
     int error;

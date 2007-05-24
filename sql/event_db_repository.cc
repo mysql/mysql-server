@@ -303,7 +303,7 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
   CHARSET_INFO *scs= system_charset_info;
   KEY *key_info;
   uint key_len;
-  byte *key_buf= NULL;
+  uchar *key_buf= NULL;
   LINT_INIT(key_buf);
 
   DBUG_ENTER("Event_db_repository::index_read_for_db_for_i_s");
@@ -324,7 +324,7 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
   event_table->field[ET_FIELD_DB]->store(db, strlen(db), scs);
   key_len= key_info->key_part[0].store_length;
 
-  if (!(key_buf= (byte *)alloc_root(thd->mem_root, key_len)))
+  if (!(key_buf= (uchar *)alloc_root(thd->mem_root, key_len)))
   {
     /* Don't send error, it would be done by sql_alloc_error_handler() */
     ret= 1;
@@ -521,7 +521,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   if (open_event_table(thd, TL_WRITE, &table))
     goto end;
 
-  DBUG_PRINT("info", ("name: %.*s", parse_data->name.length,
+  DBUG_PRINT("info", ("name: %.*s", (int) parse_data->name.length,
              parse_data->name.str));
 
   DBUG_PRINT("info", ("check existance of an event with the same name"));
@@ -757,9 +757,9 @@ bool
 Event_db_repository::find_named_event(LEX_STRING db, LEX_STRING name,
                                       TABLE *table)
 {
-  byte key[MAX_KEY_LENGTH];
+  uchar key[MAX_KEY_LENGTH];
   DBUG_ENTER("Event_db_repository::find_named_event");
-  DBUG_PRINT("enter", ("name: %.*s", name.length, name.str));
+  DBUG_PRINT("enter", ("name: %.*s", (int) name.length, name.str));
 
   /*
     Create key to find row. We have to use field->store() to be able to
@@ -879,7 +879,8 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
   bool ret;
 
   DBUG_ENTER("Event_db_repository::load_named_event");
-  DBUG_PRINT("enter",("thd: 0x%lx  name: %*s", (long) thd, name.length, name.str));
+  DBUG_PRINT("enter",("thd: 0x%lx  name: %*s", (long) thd,
+                      (int) name.length, name.str));
 
   if (!(ret= open_event_table(thd, TL_READ, &table)))
   {

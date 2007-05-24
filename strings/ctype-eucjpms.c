@@ -185,7 +185,7 @@ static uchar NEAR sort_order_eucjpms[]=
 #define iseucjpms_ss3(c) (((c)&0xff) == 0x8f)
 
 
-static int ismbchar_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
+static uint ismbchar_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
 		  const char* p, const char *e)
 {
   return ((*(uchar*)(p)<0x80)? 0:\
@@ -195,7 +195,7 @@ static int ismbchar_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
     0);
 }
 
-static int mbcharlen_eucjpms(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static uint mbcharlen_eucjpms(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (iseucjpms(c)? 2: iseucjpms_ss2(c)? 2: iseucjpms_ss3(c)? 3: 1);
 }
@@ -8387,8 +8387,9 @@ my_jisx0212_uni_onechar(int code){
 */
 
 static
-uint my_well_formed_len_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
-                             const char *beg, const char *end, uint pos, int *error)
+size_t my_well_formed_len_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
+                                  const char *beg, const char *end, size_t pos,
+                                  int *error)
 {
   const uchar *b= (uchar *) beg;
   *error=0;
@@ -8427,19 +8428,19 @@ uint my_well_formed_len_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
         *b >= 0xA1 && *b <= 0xFE)   /* [xA1-xFE][xA1-xFE] */
       continue;
     *error=1;
-    return (uint) (chbeg - beg);    /* invalid sequence */
+    return (size_t) (chbeg - beg);    /* invalid sequence */
   }
-  return (uint) (b - (uchar *) beg);
+  return (size_t) (b - (uchar *) beg);
 }
 
 
 static
-uint my_numcells_eucjp(CHARSET_INFO *cs __attribute__((unused)),
-                       const char *str, const char *str_end)
+size_t my_numcells_eucjp(CHARSET_INFO *cs __attribute__((unused)),
+                         const char *str, const char *str_end)
 {
-  uint clen= 0;
-  const unsigned char *b= (const unsigned char *) str;
-  const unsigned char *e= (const unsigned char *) str_end;
+  size_t clen;
+  const uchar *b= (const uchar *) str;
+  const uchar *e= (const uchar *) str_end;
   
   for (clen= 0; b < e; )
   {
@@ -8555,9 +8556,9 @@ my_mb_wc_euc_jp(CHARSET_INFO *cs,my_wc_t *pwc, const uchar *s, const uchar *e)
 }
 
 static int
-my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
+my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, uchar *s, uchar *e)
 {
-  unsigned char c1;
+  uchar c1;
   int jp;
   
   if (s >= e)

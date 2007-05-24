@@ -747,7 +747,7 @@ void close_files()
       DBUG_PRINT("info", ("closing file: %s", cur_file->file_name));
       my_fclose(cur_file->file, MYF(0));
     }
-    my_free((gptr)cur_file->file_name, MYF(MY_ALLOW_ZERO_PTR));
+    my_free((uchar*) cur_file->file_name, MYF(MY_ALLOW_ZERO_PTR));
     cur_file->file_name= 0;
   }
   DBUG_VOID_RETURN;
@@ -766,8 +766,8 @@ void free_used_memory()
   for (i= 0 ; i < q_lines.elements ; i++)
   {
     struct st_command **q= dynamic_element(&q_lines, i, struct st_command**);
-    my_free((gptr) (*q)->query_buf,MYF(MY_ALLOW_ZERO_PTR));
-    my_free((gptr) (*q),MYF(0));
+    my_free((*q)->query_buf,MYF(MY_ALLOW_ZERO_PTR));
+    my_free((*q),MYF(0));
   }
   for (i= 0; i < 10; i++)
   {
@@ -1014,7 +1014,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
   if (!eval_result && (uint) stat_info.st_size != ds->length)
   {
     DBUG_PRINT("info",("Size differs:  result size: %u  file size: %lu",
-		       ds->length, (ulong) stat_info.st_size));
+		       (uint) ds->length, (ulong) stat_info.st_size));
     DBUG_PRINT("info",("result: '%s'", ds->str));
     DBUG_RETURN(RESULT_LENGTH_MISMATCH);
   }
@@ -1023,7 +1023,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
 
   if ((fd = my_open(eval_file, O_RDONLY, MYF(MY_WME))) < 0)
     die("Failed to open file %s", eval_file);
-  if (my_read(fd, (byte*)tmp, stat_info.st_size, MYF(MY_WME|MY_NABP)))
+  if (my_read(fd, (uchar*)tmp, stat_info.st_size, MYF(MY_WME|MY_NABP)))
     die("Failed to read from file %s, errno: %d", eval_file, errno);
   tmp[stat_info.st_size] = 0;
   init_dynamic_string(&res_ds, "", stat_info.st_size+256, 256);
@@ -1054,7 +1054,7 @@ err:
                 res_ptr, res_len);
 
   dynstr_free(&res_ds);
-  my_free((gptr) tmp, MYF(0));
+  my_free(tmp, MYF(0));
   my_close(fd, MYF(MY_WME));
 
   DBUG_RETURN(res);
@@ -1127,13 +1127,13 @@ void check_require(DYNAMIC_STRING* ds, const char *fname)
 }
 
 
-static byte *get_var_key(const byte* var, uint* len,
-                  my_bool __attribute__((unused)) t)
+static uchar *get_var_key(const uchar* var, size_t *len,
+                          my_bool __attribute__((unused)) t)
 {
   register char* key;
   key = ((VAR*)var)->name;
   *len = ((VAR*)var)->name_len;
-  return (byte*)key;
+  return (uchar*)key;
 }
 
 
@@ -1177,7 +1177,7 @@ void var_free(void *v)
 {
   my_free(((VAR*) v)->str_val, MYF(MY_WME));
   if (((VAR*)v)->alloced)
-    my_free((char*) v, MYF(MY_WME));
+    my_free(v, MYF(MY_WME));
 }
 
 
@@ -1189,7 +1189,7 @@ VAR* var_from_env(const char *name, const char *def_val)
     tmp = def_val;
 
   v = var_init(0, name, strlen(name), tmp, strlen(tmp));
-  my_hash_insert(&var_hash, (byte*)v);
+  my_hash_insert(&var_hash, (uchar*)v);
   return v;
 }
 
@@ -1256,7 +1256,7 @@ VAR *var_obtain(const char *name, int len)
   if ((v = (VAR*)hash_search(&var_hash, name, len)))
     return v;
   v = var_init(0, name, len, "", 0);
-  my_hash_insert(&var_hash, (byte*)v);
+  my_hash_insert(&var_hash, (uchar*)v);
   return v;
 }
 
@@ -1308,7 +1308,7 @@ void var_set(const char *var_name, const char *var_name_end,
     if (!(v->env_s= my_strdup(buf, MYF(MY_WME))))
       die("Out of memory");
     putenv(v->env_s);
-    my_free((gptr)old_env_s, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(old_env_s, MYF(MY_ALLOW_ZERO_PTR));
   }
   DBUG_VOID_RETURN;
 }
@@ -1613,9 +1613,10 @@ FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode)
 static void init_builtin_echo(void)
 {
 #ifdef __WIN__
+  size_t echo_length;
 
   /* Look for "echo.exe" in same dir as mysqltest was started from */
-  dirname_part(builtin_echo, my_progname);
+  dirname_part(builtin_echo, my_progname, &echo_length);
   fn_format(builtin_echo, ".\\echo.exe",
             builtin_echo, "", MYF(MY_REPLACE_DIR));
 
@@ -2087,8 +2088,8 @@ void read_until_delimiter(DYNAMIC_STRING *ds,
 {
   char c;
   DBUG_ENTER("read_until_delimiter");
-  DBUG_PRINT("enter", ("delimiter: %s, length: %d",
-                       ds_delimiter->str, ds_delimiter->length));
+  DBUG_PRINT("enter", ("delimiter: %s, length: %u",
+                       ds_delimiter->str, (uint) ds_delimiter->length));
 
   if (ds_delimiter->length > MAX_DELIMITER_LENGTH)
     die("Max delimiter length(%d) exceeded", MAX_DELIMITER_LENGTH);
@@ -2246,7 +2247,7 @@ void do_cat_file(struct st_command *command)
 
   if ((fd= my_open(ds_filename.str, O_RDONLY, MYF(0))) < 0)
     die("Failed to open file %s", ds_filename.str);
-  while((len= my_read(fd, (byte*)&buff,
+  while((len= my_read(fd, (uchar*)&buff,
                       sizeof(buff), MYF(0))) > 0)
   {
     char *p= buff, *start= buff;
@@ -2314,10 +2315,10 @@ void do_diff_files(struct st_command *command)
     my_close(fd, MYF(0));
     die("Failed to open second file %s", ds_filename2.str);
   }
-  while((len= my_read(fd, (byte*)&buff,
+  while((len= my_read(fd, (uchar*)&buff,
                       sizeof(buff), MYF(0))) > 0)
   {
-    if ((len2= my_read(fd2, (byte*)&buff2,
+    if ((len2= my_read(fd2, (uchar*)&buff2,
                        sizeof(buff2), MYF(0))) != len)
     {
       /* File 2 was smaller */
@@ -2331,7 +2332,7 @@ void do_diff_files(struct st_command *command)
       break;
     }
   }
-  if (my_read(fd2, (byte*)&buff2,
+  if (my_read(fd2, (uchar*)&buff2,
               sizeof(buff2), MYF(0)) > 0)
   {
     /* File 1 was smaller */
@@ -3819,7 +3820,7 @@ int read_line(char *buf, int size)
 	my_fclose(cur_file->file, MYF(0));
         cur_file->file= 0;
       }
-      my_free((gptr)cur_file->file_name, MYF(MY_ALLOW_ZERO_PTR));
+      my_free((uchar*) cur_file->file_name, MYF(MY_ALLOW_ZERO_PTR));
       cur_file->file_name= 0;
       if (cur_file == file_stack)
       {
@@ -4172,12 +4173,12 @@ int read_command(struct st_command** command_ptr)
 
   if (parser.current_line < parser.read_lines)
   {
-    get_dynamic(&q_lines, (gptr) command_ptr, parser.current_line) ;
+    get_dynamic(&q_lines, (uchar*) command_ptr, parser.current_line) ;
     DBUG_RETURN(0);
   }
   if (!(*command_ptr= command=
         (struct st_command*) my_malloc(sizeof(*command), MYF(MY_WME))) ||
-      insert_dynamic(&q_lines, (gptr) &command))
+      insert_dynamic(&q_lines, (uchar*) &command))
     die(NullS);
 
   command->require_file[0]= 0;
@@ -4233,18 +4234,18 @@ static struct my_option my_long_options[] =
 {
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"basedir", 'b', "Basedir for tests.", (gptr*) &opt_basedir,
-   (gptr*) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"basedir", 'b', "Basedir for tests.", (uchar**) &opt_basedir,
+   (uchar**) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory where character sets are.", (gptr*) &opt_charsets_dir,
-   (gptr*) &opt_charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Directory where character sets are.", (uchar**) &opt_charsets_dir,
+   (uchar**) &opt_charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use the compressed server/client protocol.",
-   (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"cursor-protocol", OPT_CURSOR_PROTOCOL, "Use cursors for prepared statements.",
-   (gptr*) &cursor_protocol, (gptr*) &cursor_protocol, 0,
+   (uchar**) &cursor_protocol, (uchar**) &cursor_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"database", 'D', "Database to use.", (gptr*) &opt_db, (gptr*) &opt_db, 0,
+  {"database", 'D', "Database to use.", (uchar**) &opt_db, (uchar**) &opt_db, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit",
@@ -4253,51 +4254,51 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"host", 'h', "Connect to host.", (gptr*) &opt_host, (gptr*) &opt_host, 0,
+  {"host", 'h', "Connect to host.", (uchar**) &opt_host, (uchar**) &opt_host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"include", 'i', "Include SQL before each test case.", (gptr*) &opt_include,
-   (gptr*) &opt_include, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"logdir", OPT_LOG_DIR, "Directory for log files", (gptr*) &opt_logdir,
-   (gptr*) &opt_logdir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"include", 'i', "Include SQL before each test case.", (uchar**) &opt_include,
+   (uchar**) &opt_include, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"logdir", OPT_LOG_DIR, "Directory for log files", (uchar**) &opt_logdir,
+   (uchar**) &opt_logdir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"mark-progress", OPT_MARK_PROGRESS,
    "Write linenumber and elapsed time to <testname>.progress ",
-   (gptr*) &opt_mark_progress, (gptr*) &opt_mark_progress, 0,
+   (uchar**) &opt_mark_progress, (uchar**) &opt_mark_progress, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"max-connect-retries", OPT_MAX_CONNECT_RETRIES,
    "Max number of connection attempts when connecting to server",
-   (gptr*) &opt_max_connect_retries, (gptr*) &opt_max_connect_retries, 0,
+   (uchar**) &opt_max_connect_retries, (uchar**) &opt_max_connect_retries, 0,
    GET_INT, REQUIRED_ARG, 500, 1, 10000, 0, 0, 0},
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_port,
-   (gptr*) &opt_port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection.", (uchar**) &opt_port,
+   (uchar**) &opt_port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"ps-protocol", OPT_PS_PROTOCOL, "Use prepared statements protocol for communication",
-   (gptr*) &ps_protocol, (gptr*) &ps_protocol, 0,
+   (uchar**) &ps_protocol, (uchar**) &ps_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"quiet", 's', "Suppress all normal output.", (gptr*) &silent,
-   (gptr*) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"quiet", 's', "Suppress all normal output.", (uchar**) &silent,
+   (uchar**) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"record", 'r', "Record output of test_file into result file.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"result-file", 'R', "Read/Store result from/in this file.",
-   (gptr*) &result_file_name, (gptr*) &result_file_name, 0,
+   (uchar**) &result_file_name, (uchar**) &result_file_name, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-arg", 'A', "Send option value to embedded server as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-file", 'F', "Read embedded server arguments from file.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's', "Suppress all normal output. Synonym for --quiet.",
-   (gptr*) &silent, (gptr*) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   (uchar**) &silent, (uchar**) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-safemalloc", OPT_SKIP_SAFEMALLOC,
    "Don't use the memory allocation checking.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"sleep", 'T', "Sleep always this many seconds on sleep commands.",
-   (gptr*) &opt_sleep, (gptr*) &opt_sleep, 0, GET_INT, REQUIRED_ARG, -1, 0, 0,
+   (uchar**) &opt_sleep, (uchar**) &opt_sleep, 0, GET_INT, REQUIRED_ARG, -1, 0, 0,
    0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
-   (gptr*) &unix_sock, (gptr*) &unix_sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
+   (uchar**) &unix_sock, (uchar**) &unix_sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
   {"sp-protocol", OPT_SP_PROTOCOL, "Use stored procedures for select",
-   (gptr*) &sp_protocol, (gptr*) &sp_protocol, 0,
+   (uchar**) &sp_protocol, (uchar**) &sp_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
   {"test-file", 'x', "Read test from/in this file (default stdin).",
@@ -4306,14 +4307,14 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Temporary directory where sockets are put.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"user", 'u', "User for login.", (gptr*) &opt_user, (gptr*) &opt_user, 0,
+  {"user", 'u', "User for login.", (uchar**) &opt_user, (uchar**) &opt_user, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"verbose", 'v', "Write more.", (gptr*) &verbose, (gptr*) &verbose, 0,
+  {"verbose", 'v', "Write more.", (uchar**) &verbose, (uchar**) &verbose, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select",
-   (gptr*) &view_protocol, (gptr*) &view_protocol, 0,
+   (uchar**) &view_protocol, (uchar**) &view_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -4529,7 +4530,7 @@ void str_to_file2(const char *fname, char *str, int size, my_bool append)
     die("Could not open %s: errno = %d", buff, errno);
   if (append && my_seek(fd, 0, SEEK_END, MYF(0)) == MY_FILEPOS_ERROR)
     die("Could not find end of file %s: errno = %d", buff, errno);
-  if (my_write(fd, (byte*)str, size, MYF(MY_WME|MY_FNABP)))
+  if (my_write(fd, (uchar*)str, size, MYF(MY_WME|MY_FNABP)))
     die("write failed");
   my_close(fd, MYF(0));
 }
@@ -4646,7 +4647,7 @@ void init_win_path_patterns()
       continue;
     }
 
-    if (insert_dynamic(&patterns, (gptr) &p))
+    if (insert_dynamic(&patterns, (uchar*) &p))
       die(NullS);
 
     DBUG_PRINT("info", ("p: %s", p));
@@ -4666,7 +4667,7 @@ void free_win_path_patterns()
   for (i=0 ; i < patterns.elements ; i++)
   {
     const char** pattern= dynamic_element(&patterns, i, const char**);
-    my_free((gptr) *pattern, MYF(0));
+    my_free(*pattern, MYF(0));
   }
   delete_dynamic(&patterns);
 }
@@ -4848,12 +4849,12 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
   for (i= 0; i < num_fields; i++)
   {
     /* Free data for output */
-    my_free((gptr)my_bind[i].buffer, MYF(MY_WME | MY_FAE));
+    my_free(my_bind[i].buffer, MYF(MY_WME | MY_FAE));
   }
   /* Free array with bind structs, lengths and NULL flags */
-  my_free((gptr)my_bind    , MYF(MY_WME | MY_FAE));
-  my_free((gptr)length  , MYF(MY_WME | MY_FAE));
-  my_free((gptr)is_null , MYF(MY_WME | MY_FAE));
+  my_free(my_bind    , MYF(MY_WME | MY_FAE));
+  my_free(length  , MYF(MY_WME | MY_FAE));
+  my_free(is_null , MYF(MY_WME | MY_FAE));
 }
 
 
@@ -6561,15 +6562,15 @@ void free_replace_column()
 
 typedef struct st_pointer_array {		/* when using array-strings */
   TYPELIB typelib;				/* Pointer to strings */
-  byte	*str;					/* Strings is here */
+  uchar	*str;					/* Strings is here */
   int7	*flag;					/* Flag about each var. */
   uint	array_allocs,max_count,length,max_length;
 } POINTER_ARRAY;
 
 struct st_replace;
-struct st_replace *init_replace(my_string *from, my_string *to, uint count,
-				my_string word_end_chars);
-int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name);
+struct st_replace *init_replace(char * *from, char * *to, uint count,
+				char * word_end_chars);
+int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name);
 void replace_strings_append(struct st_replace *rep, DYNAMIC_STRING* ds,
                             const char *from, int len);
 void free_pointer_array(POINTER_ARRAY *pa);
@@ -6633,7 +6634,7 @@ void free_replace()
   DBUG_ENTER("free_replace");
   if (glob_replace)
   {
-    my_free((char*) glob_replace,MYF(0));
+    my_free(glob_replace,MYF(0));
     glob_replace=0;
   }
   DBUG_VOID_RETURN;
@@ -6844,7 +6845,7 @@ struct st_replace_regex* init_replace_regex(char* expr)
       reg.icase= 1;
 
     /* done parsing the statement, now place it in regex_arr */
-    if (insert_dynamic(&res->regex_arr,(gptr) &reg))
+    if (insert_dynamic(&res->regex_arr,(uchar*) &reg))
       die("Out of memory");
   }
   res->odd_buf_len= res->even_buf_len= 8192;
@@ -6855,7 +6856,7 @@ struct st_replace_regex* init_replace_regex(char* expr)
   return res;
 
 err:
-  my_free((gptr)res,0);
+  my_free(res,0);
   die("Error parsing replace_regex \"%s\"", expr);
   return 0;
 }
@@ -6896,7 +6897,7 @@ int multi_reg_replace(struct st_replace_regex* r,char* val)
     struct st_regex re;
     char* save_out_buf= out_buf;
 
-    get_dynamic(&r->regex_arr,(gptr)&re,i);
+    get_dynamic(&r->regex_arr,(uchar*)&re,i);
 
     if (!reg_replace(&out_buf, buf_len_p, re.pattern, re.replace,
                      in_buf, re.icase))
@@ -6949,7 +6950,7 @@ void free_replace_regex()
     delete_dynamic(&glob_replace_regex->regex_arr);
     my_free(glob_replace_regex->even_buf,MYF(MY_ALLOW_ZERO_PTR));
     my_free(glob_replace_regex->odd_buf,MYF(MY_ALLOW_ZERO_PTR));
-    my_free((char*) glob_replace_regex,MYF(0));
+    my_free(glob_replace_regex,MYF(0));
     glob_replace_regex=0;
   }
 }
@@ -7144,7 +7145,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
       str_p= str_end;
     }
   }
-  my_free((gptr)subs, MYF(0));
+  my_free(subs, MYF(0));
   my_regfree(&r);
   *res_p= 0;
   *buf_p= buf;
@@ -7204,13 +7205,13 @@ int get_next_bit(REP_SET *set,uint lastpos);
 int find_set(REP_SETS *sets,REP_SET *find);
 int find_found(FOUND_SET *found_set,uint table_offset,
                int found_offset);
-uint start_at_word(my_string pos);
-uint end_of_word(my_string pos);
+uint start_at_word(char * pos);
+uint end_of_word(char * pos);
 
 static uint found_sets=0;
 
 
-uint replace_len(my_string str)
+uint replace_len(char * str)
 {
   uint len=0;
   while (*str)
@@ -7225,8 +7226,8 @@ uint replace_len(my_string str)
 
 /* Init a replace structure for further calls */
 
-REPLACE *init_replace(my_string *from, my_string *to,uint count,
-		      my_string word_end_chars)
+REPLACE *init_replace(char * *from, char * *to,uint count,
+		      char * word_end_chars)
 {
   static const int SPACE_CHAR= 256;
   static const int START_OF_LINE= 257;
@@ -7235,7 +7236,7 @@ REPLACE *init_replace(my_string *from, my_string *to,uint count,
   uint i,j,states,set_nr,len,result_len,max_length,found_end,bits_set,bit_nr;
   int used_sets,chr,default_state;
   char used_chars[LAST_CHAR_CODE],is_word_end[256];
-  my_string pos,to_pos,*to_array;
+  char * pos, *to_pos, **to_array;
   REP_SETS sets;
   REP_SET *set,*start_states,*word_states,*new_set;
   FOLLOWS *follow,*follow_ptr;
@@ -7280,7 +7281,7 @@ REPLACE *init_replace(my_string *from, my_string *to,uint count,
   if (!(follow=(FOLLOWS*) my_malloc((states+2)*sizeof(FOLLOWS),MYF(MY_WME))))
   {
     free_sets(&sets);
-    my_free((gptr) found_set,MYF(0));
+    my_free(found_set,MYF(0));
     DBUG_RETURN(0);
   }
 
@@ -7471,12 +7472,12 @@ REPLACE *init_replace(my_string *from, my_string *to,uint count,
 
   if ((replace=(REPLACE*) my_malloc(sizeof(REPLACE)*(sets.count)+
 				    sizeof(REPLACE_STRING)*(found_sets+1)+
-				    sizeof(my_string)*count+result_len,
+				    sizeof(char *)*count+result_len,
 				    MYF(MY_WME | MY_ZEROFILL))))
   {
     rep_str=(REPLACE_STRING*) (replace+sets.count);
-    to_array=(my_string*) (rep_str+found_sets+1);
-    to_pos=(my_string) (to_array+count);
+    to_array= (char **) (rep_str+found_sets+1);
+    to_pos=(char *) (to_array+count);
     for (i=0 ; i < count ; i++)
     {
       to_array[i]=to_pos;
@@ -7502,9 +7503,9 @@ REPLACE *init_replace(my_string *from, my_string *to,uint count,
 	  replace[i].next[j]=(REPLACE*) (rep_str+(-sets.set[i].next[j]-1));
     }
   }
-  my_free((gptr) follow,MYF(0));
+  my_free(follow,MYF(0));
   free_sets(&sets);
-  my_free((gptr) found_set,MYF(0));
+  my_free(found_set,MYF(0));
   DBUG_PRINT("exit",("Replace table has %d states",sets.count));
   DBUG_RETURN(replace);
 }
@@ -7520,7 +7521,7 @@ int init_sets(REP_SETS *sets,uint states)
   if (!(sets->bit_buffer=(uint*) my_malloc(sizeof(uint)*sets->size_of_bits*
 					   SET_MALLOC_HUNC,MYF(MY_WME))))
   {
-    my_free((gptr) sets->set,MYF(0));
+    my_free(sets->set,MYF(0));
     return 1;
   }
   return 0;
@@ -7552,13 +7553,13 @@ REP_SET *make_new_set(REP_SETS *sets)
     return set;
   }
   count=sets->count+sets->invisible+SET_MALLOC_HUNC;
-  if (!(set=(REP_SET*) my_realloc((gptr) sets->set_buffer,
+  if (!(set=(REP_SET*) my_realloc((uchar*) sets->set_buffer,
                                   sizeof(REP_SET)*count,
 				  MYF(MY_WME))))
     return 0;
   sets->set_buffer=set;
   sets->set=set+sets->invisible;
-  if (!(bit_buffer=(uint*) my_realloc((gptr) sets->bit_buffer,
+  if (!(bit_buffer=(uint*) my_realloc((uchar*) sets->bit_buffer,
 				      (sizeof(uint)*sets->size_of_bits)*count,
 				      MYF(MY_WME))))
     return 0;
@@ -7581,8 +7582,8 @@ void free_last_set(REP_SETS *sets)
 
 void free_sets(REP_SETS *sets)
 {
-  my_free((gptr)sets->set_buffer,MYF(0));
-  my_free((gptr)sets->bit_buffer,MYF(0));
+  my_free(sets->set_buffer,MYF(0));
+  my_free(sets->bit_buffer,MYF(0));
   return;
 }
 
@@ -7609,13 +7610,13 @@ void or_bits(REP_SET *to,REP_SET *from)
 
 void copy_bits(REP_SET *to,REP_SET *from)
 {
-  memcpy((byte*) to->bits,(byte*) from->bits,
+  memcpy((uchar*) to->bits,(uchar*) from->bits,
 	 (size_t) (sizeof(uint) * to->size_of_bits));
 }
 
 int cmp_bits(REP_SET *set1,REP_SET *set2)
 {
-  return bcmp((byte*) set1->bits,(byte*) set2->bits,
+  return bcmp((uchar*) set1->bits,(uchar*) set2->bits,
 	      sizeof(uint) * set1->size_of_bits);
 }
 
@@ -7683,14 +7684,14 @@ int find_found(FOUND_SET *found_set,uint table_offset, int found_offset)
 
 /* Return 1 if regexp starts with \b or ends with \b*/
 
-uint start_at_word(my_string pos)
+uint start_at_word(char * pos)
 {
   return (((!bcmp(pos,"\\b",2) && pos[2]) || !bcmp(pos,"\\^",2)) ? 1 : 0);
 }
 
-uint end_of_word(my_string pos)
+uint end_of_word(char * pos)
 {
-  my_string end=strend(pos);
+  char * end=strend(pos);
   return ((end > pos+2 && !bcmp(end-2,"\\b",2)) ||
 	  (end >= pos+2 && !bcmp(end-2,"\\$",2))) ?
     1 : 0;
@@ -7703,10 +7704,10 @@ uint end_of_word(my_string pos)
 #define PC_MALLOC		256	/* Bytes for pointers */
 #define PS_MALLOC		512	/* Bytes for data */
 
-int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name)
+int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
 {
   uint i,length,old_count;
-  byte *new_pos;
+  uchar *new_pos;
   const char **new_array;
   DBUG_ENTER("insert_pointer_name");
 
@@ -7714,16 +7715,16 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name)
   {
     if (!(pa->typelib.type_names=(const char **)
 	  my_malloc(((PC_MALLOC-MALLOC_OVERHEAD)/
-		     (sizeof(my_string)+sizeof(*pa->flag))*
-		     (sizeof(my_string)+sizeof(*pa->flag))),MYF(MY_WME))))
+		     (sizeof(char *)+sizeof(*pa->flag))*
+		     (sizeof(char *)+sizeof(*pa->flag))),MYF(MY_WME))))
       DBUG_RETURN(-1);
-    if (!(pa->str= (byte*) my_malloc((uint) (PS_MALLOC-MALLOC_OVERHEAD),
+    if (!(pa->str= (uchar*) my_malloc((uint) (PS_MALLOC-MALLOC_OVERHEAD),
 				     MYF(MY_WME))))
     {
-      my_free((gptr) pa->typelib.type_names,MYF(0));
+      my_free(pa->typelib.type_names,MYF(0));
       DBUG_RETURN (-1);
     }
-    pa->max_count=(PC_MALLOC-MALLOC_OVERHEAD)/(sizeof(byte*)+
+    pa->max_count=(PC_MALLOC-MALLOC_OVERHEAD)/(sizeof(uchar*)+
 					       sizeof(*pa->flag));
     pa->flag= (int7*) (pa->typelib.type_names+pa->max_count);
     pa->length=0;
@@ -7733,7 +7734,7 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name)
   length=(uint) strlen(name)+1;
   if (pa->length+length >= pa->max_length)
   {
-    if (!(new_pos= (byte*) my_realloc((gptr) pa->str,
+    if (!(new_pos= (uchar*) my_realloc((uchar*) pa->str,
 				      (uint) (pa->max_length+PS_MALLOC),
 				      MYF(MY_WME))))
       DBUG_RETURN(1);
@@ -7752,17 +7753,17 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name)
     int len;
     pa->array_allocs++;
     len=(PC_MALLOC*pa->array_allocs - MALLOC_OVERHEAD);
-    if (!(new_array=(const char **) my_realloc((gptr) pa->typelib.type_names,
+    if (!(new_array=(const char **) my_realloc((uchar*) pa->typelib.type_names,
 					       (uint) len/
-                                               (sizeof(byte*)+sizeof(*pa->flag))*
-                                               (sizeof(byte*)+sizeof(*pa->flag)),
+                                               (sizeof(uchar*)+sizeof(*pa->flag))*
+                                               (sizeof(uchar*)+sizeof(*pa->flag)),
                                                MYF(MY_WME))))
       DBUG_RETURN(1);
     pa->typelib.type_names=new_array;
     old_count=pa->max_count;
-    pa->max_count=len/(sizeof(byte*) + sizeof(*pa->flag));
+    pa->max_count=len/(sizeof(uchar*) + sizeof(*pa->flag));
     pa->flag= (int7*) (pa->typelib.type_names+pa->max_count);
-    memcpy((byte*) pa->flag,(my_string) (pa->typelib.type_names+old_count),
+    memcpy((uchar*) pa->flag,(char *) (pa->typelib.type_names+old_count),
 	   old_count*sizeof(*pa->flag));
   }
   pa->flag[pa->typelib.count]=0;			/* Reset flag */
@@ -7781,9 +7782,9 @@ void free_pointer_array(POINTER_ARRAY *pa)
   if (pa->typelib.count)
   {
     pa->typelib.count=0;
-    my_free((gptr) pa->typelib.type_names,MYF(0));
+    my_free(pa->typelib.type_names,MYF(0));
     pa->typelib.type_names=0;
-    my_free((gptr) pa->str,MYF(0));
+    my_free(pa->str,MYF(0));
   }
 } /* free_pointer_array */
 
@@ -7880,7 +7881,7 @@ void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
     *line_end= 0;
 
     /* Insert pointer to the line in array */
-    if (insert_dynamic(&lines, (gptr) &start))
+    if (insert_dynamic(&lines, (uchar*) &start))
       die("Out of memory inserting lines to sort");
 
     start= line_end+1;

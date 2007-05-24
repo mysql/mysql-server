@@ -345,10 +345,10 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
                                 DFLT_INIT_HITS, new_page);
   DBUG_PRINT("rtree", ("split new block: %lu", (ulong) *new_page_offs));
 
-  my_afree((byte*)new_page);
+  my_afree((uchar*)new_page);
 
 split_err:
-  my_afree((byte*) coord_buf);
+  my_afree((uchar*) coord_buf);
   DBUG_RETURN(err_code);
 }
 

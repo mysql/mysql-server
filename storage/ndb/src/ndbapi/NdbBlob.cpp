@@ -536,7 +536,7 @@ int
 NdbBlob::setTableKeyValue(NdbOperation* anOp)
 {
   DBUG_ENTER("NdbBlob::setTableKeyValue");
-  DBUG_DUMP("info", theKeyBuf.data, 4 * theTable->m_keyLenInWords);
+  DBUG_DUMP("info", (uchar*) theKeyBuf.data, 4 * theTable->m_keyLenInWords);
   const Uint32* data = (const Uint32*)theKeyBuf.data;
   const unsigned columns = theTable->m_columns.size();
   unsigned pos = 0;
@@ -562,7 +562,8 @@ int
 NdbBlob::setAccessKeyValue(NdbOperation* anOp)
 {
   DBUG_ENTER("NdbBlob::setAccessKeyValue");
-  DBUG_DUMP("info", theAccessKeyBuf.data, 4 * theAccessTable->m_keyLenInWords);
+  DBUG_DUMP("info", (uchar*) theAccessKeyBuf.data,
+            4 * theAccessTable->m_keyLenInWords);
   const Uint32* data = (const Uint32*)theAccessKeyBuf.data;
   const unsigned columns = theAccessTable->m_columns.size();
   unsigned pos = 0;
@@ -587,7 +588,7 @@ NdbBlob::setPartKeyValue(NdbOperation* anOp, Uint32 part)
 {
   DBUG_ENTER("NdbBlob::setPartKeyValue");
   DBUG_PRINT("info", ("dist=%u part=%u packkey=", getDistKey(part), part));
-  DBUG_DUMP("info", thePackKeyBuf.data, 4 * thePackKeyBuf.size);
+  DBUG_DUMP("info", (uchar*) thePackKeyBuf.data, 4 * thePackKeyBuf.size);
   // TODO use attr ids after compatibility with 4.1.7 not needed
   if (anOp->equal("PK", thePackKeyBuf.data) == -1 ||
       anOp->equal("DIST", getDistKey(part)) == -1 ||
