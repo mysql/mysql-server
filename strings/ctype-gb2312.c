@@ -165,13 +165,13 @@ static uchar NEAR sort_order_gb2312[]=
 #define isgb2312tail(c) (0xa1<=(uchar)(c) && (uchar)(c)<=0xfe)
 
 
-static int ismbchar_gb2312(CHARSET_INFO *cs __attribute__((unused)),
+static uint ismbchar_gb2312(CHARSET_INFO *cs __attribute__((unused)),
 		    const char* p, const char *e)
 {
   return (isgb2312head(*(p)) && (e)-(p)>1 && isgb2312tail(*((p)+1))? 2: 0);
 }
 
-static int mbcharlen_gb2312(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static uint mbcharlen_gb2312(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (isgb2312head(c)? 2 : 1);
 }
@@ -5688,10 +5688,10 @@ my_mb_wc_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
 /*
   Returns well formed length of a EUC-KR string.
 */
-static uint
+static size_t
 my_well_formed_len_gb2312(CHARSET_INFO *cs __attribute__((unused)),
                           const char *b, const char *e,
-                          uint pos, int *error)
+                          size_t pos, int *error)
 {
   const char *b0= b;
   const char *emb= e - 1; /* Last possible end of an MB character */
@@ -5716,7 +5716,7 @@ my_well_formed_len_gb2312(CHARSET_INFO *cs __attribute__((unused)),
       break;
     }
   }
-  return (uint) (b - b0);
+  return (size_t) (b - b0);
 }
 
 

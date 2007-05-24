@@ -78,20 +78,20 @@ typedef struct st_myrg_info
 	/* Prototypes for merge-functions */
 
 extern int myrg_close(MYRG_INFO *file);
-extern int myrg_delete(MYRG_INFO *file,const byte *buff);
+extern int myrg_delete(MYRG_INFO *file,const uchar *buff);
 extern MYRG_INFO *myrg_open(const char *name,int mode,int wait_if_locked);
 extern int myrg_panic(enum ha_panic_function function);
-extern int myrg_rfirst(MYRG_INFO *file,byte *buf,int inx);
-extern int myrg_rlast(MYRG_INFO *file,byte *buf,int inx);
-extern int myrg_rnext(MYRG_INFO *file,byte *buf,int inx);
-extern int myrg_rprev(MYRG_INFO *file,byte *buf,int inx);
-extern int myrg_rnext_same(MYRG_INFO *file,byte *buf);
-extern int myrg_rkey(MYRG_INFO *info,byte *buf,int inx, const byte *key,
+extern int myrg_rfirst(MYRG_INFO *file,uchar *buf,int inx);
+extern int myrg_rlast(MYRG_INFO *file,uchar *buf,int inx);
+extern int myrg_rnext(MYRG_INFO *file,uchar *buf,int inx);
+extern int myrg_rprev(MYRG_INFO *file,uchar *buf,int inx);
+extern int myrg_rnext_same(MYRG_INFO *file,uchar *buf);
+extern int myrg_rkey(MYRG_INFO *info,uchar *buf,int inx, const uchar *key,
                      key_part_map keypart_map, enum ha_rkey_function search_flag);
-extern int myrg_rrnd(MYRG_INFO *file,byte *buf,ulonglong pos);
-extern int myrg_rsame(MYRG_INFO *file,byte *record,int inx);
-extern int myrg_update(MYRG_INFO *file,const byte *old,byte *new_rec);
-extern int myrg_write(MYRG_INFO *info,byte *rec);
+extern int myrg_rrnd(MYRG_INFO *file,uchar *buf,ulonglong pos);
+extern int myrg_rsame(MYRG_INFO *file,uchar *record,int inx);
+extern int myrg_update(MYRG_INFO *file,const uchar *old,uchar *new_rec);
+extern int myrg_write(MYRG_INFO *info,uchar *rec);
 extern int myrg_status(MYRG_INFO *file,MYMERGE_INFO *x,int flag);
 extern int myrg_lock_database(MYRG_INFO *file,int lock_type);
 extern int myrg_create(const char *name, const char **table_names,

@@ -29,16 +29,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
                            uchar *head, File file);
 static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
 			      uint types, char **names);
-static uint find_field(Field **fields, byte *record, uint start, uint length);
+static uint find_field(Field **fields, uchar *record, uint start, uint length);
 
 
 /* Get column name from column hash */
 
-static byte *get_field_name(Field **buff, uint *length,
-			    my_bool not_used __attribute__((unused)))
+static uchar *get_field_name(Field **buff, size_t *length,
+                             my_bool not_used __attribute__((unused)))
 {
   *length= (uint) strlen((*buff)->field_name);
-  return (byte*) (*buff)->field_name;
+  return (uchar*) (*buff)->field_name;
 }
 
 
@@ -373,7 +373,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   }
 
   error= 4;
-  if (my_read(file,(byte*) head, 64, MYF(MY_NABP)))
+  if (my_read(file, head, 64, MYF(MY_NABP)))
     goto err;
 
   if (head[0] == (uchar) 254 && head[1] == 1)
@@ -463,7 +463,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   uint extra_rec_buf_length;
   uint i,j;
   bool use_hash;
-  char *keynames, *record, *names, *comment_pos;
+  char *keynames, *names, *comment_pos;
+  uchar *record;
   uchar *disk_buff, *strpos, *null_flags, *null_pos;
   ulong pos, record_offset, *rec_per_key, rec_buff_length;
   handler *handler_file= 0;
@@ -548,7 +549,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   /* Read keyinformation */
   key_info_length= (uint) uint2korr(head+28);
   VOID(my_seek(file,(ulong) uint2korr(head+6),MY_SEEK_SET,MYF(0)));
-  if (read_string(file,(gptr*) &disk_buff,key_info_length))
+  if (read_string(file,(uchar**) &disk_buff,key_info_length))
     goto err;                                   /* purecov: inspected */
   if (disk_buff[0] & 0x80)
   {
@@ -647,19 +648,21 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if ((n_length= uint4korr(head+55)))
   {
     /* Read extra data segment */
-    char *buff, *next_chunk, *buff_end;
+    uchar *buff, *next_chunk, *buff_end;
     DBUG_PRINT("info", ("extra segment size is %u bytes", n_length));
-    if (!(next_chunk= buff= my_malloc(n_length, MYF(MY_WME))))
+    if (!(next_chunk= buff= (uchar*) my_malloc(n_length, MYF(MY_WME))))
       goto err;
-    if (my_pread(file, (byte*)buff, n_length, record_offset + share->reclength,
+    if (my_pread(file, buff, n_length, record_offset + share->reclength,
                  MYF(MY_NABP)))
     {
       my_free(buff, MYF(0));
       goto err;
     }
     share->connect_string.length= uint2korr(buff);
-    if (! (share->connect_string.str= strmake_root(&share->mem_root,
-            next_chunk + 2, share->connect_string.length)))
+    if (!(share->connect_string.str= strmake_root(&share->mem_root,
+                                                  (char*) next_chunk + 2,
+                                                  share->connect_string.
+                                                  length)))
     {
       my_free(buff, MYF(0));
       goto err;
@@ -669,7 +672,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if (next_chunk + 2 < buff_end)
     {
       uint str_db_type_length= uint2korr(next_chunk);
-      LEX_STRING name= { next_chunk + 2, str_db_type_length };
+      LEX_STRING name;
+      name.str= (char*) next_chunk + 2;
+      name.length= str_db_type_length;
+
       plugin_ref tmp_plugin= ha_resolve_by_name(thd, &name);
       if (tmp_plugin != NULL && !plugin_equals(tmp_plugin, share->db_plugin))
       {
@@ -698,7 +704,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       {
         LEX_STRING pname= { C_STRING_WITH_LEN( "partition" ) };
         if (str_db_type_length == pname.length &&
-            !strncmp(next_chunk + 2, pname.str, pname.length))
+            !strncmp((char *) next_chunk + 2, pname.str, pname.length))
         {
           /*
             Use partition handler
@@ -722,7 +728,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       if ((share->partition_info_len= partition_info_len))
       {
-        if (!(share->partition_info=
+        if (!(share->partition_info= (char*)
               memdup_root(&share->mem_root, next_chunk + 4,
                           partition_info_len + 1)))
         {
@@ -774,8 +780,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           my_free(buff, MYF(0));
           goto err;
         }
-        parser_name.str= next_chunk;
-        parser_name.length= strlen(next_chunk);
+        parser_name.str= (char*) next_chunk;
+        parser_name.length= strlen((char*) next_chunk);
         keyinfo->parser= my_plugin_lock_by_name(NULL, &parser_name,
                                                 MYSQL_FTPARSER_PLUGIN);
         if (! keyinfo->parser)
@@ -794,16 +800,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   extra_rec_buf_length= uint2korr(head+59);
   rec_buff_length= ALIGN_SIZE(share->reclength + 1 + extra_rec_buf_length);
   share->rec_buff_length= rec_buff_length;
-  if (!(record= (char *) alloc_root(&share->mem_root,
-                                    rec_buff_length)))
+  if (!(record= (uchar *) alloc_root(&share->mem_root,
+                                     rec_buff_length)))
     goto err;                                   /* purecov: inspected */
-  share->default_values= (byte *) record;
-  if (my_pread(file,(byte*) record, (uint) share->reclength,
+  share->default_values= record;
+  if (my_pread(file, record, (size_t) share->reclength,
                record_offset, MYF(MY_NABP)))
     goto err;                                   /* purecov: inspected */
 
   VOID(my_seek(file,pos,MY_SEEK_SET,MYF(0)));
-  if (my_read(file,(byte*) head,288,MYF(MY_NABP)))
+  if (my_read(file, head,288,MYF(MY_NABP)))
     goto err;
 #ifdef HAVE_CRYPTED_FRM
   if (crypted)
@@ -833,14 +839,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 		   (uint) ((share->fields+1)*sizeof(Field*)+
 			   interval_count*sizeof(TYPELIB)+
 			   (share->fields+interval_parts+
-			    keys+3)*sizeof(my_string)+
+			    keys+3)*sizeof(char *)+
 			   (n_length+int_length+com_length)))))
     goto err;                                   /* purecov: inspected */
 
   share->field= field_ptr;
   read_length=(uint) (share->fields * field_pack_length +
 		      pos+ (uint) (n_length+int_length+com_length));
-  if (read_string(file,(gptr*) &disk_buff,read_length))
+  if (read_string(file,(uchar**) &disk_buff,read_length))
     goto err;                                   /* purecov: inspected */
 #ifdef HAVE_CRYPTED_FRM
   if (crypted)
@@ -896,7 +902,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                       share->db_type())))
     goto err;
 
-  record= (char*) share->default_values-1;	/* Fieldstart = 1 */
+  record= share->default_values-1;              /* Fieldstart = 1 */
   if (share->null_field_first)
   {
     null_flags= null_pos= (uchar*) record+1;
@@ -1090,7 +1096,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
     if (use_hash)
       (void) my_hash_insert(&share->name_hash,
-                            (byte*) field_ptr); // never fail
+                            (uchar*) field_ptr); // never fail
   }
   *field_ptr=0;					// End marker
 
@@ -1149,7 +1155,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         key_part->type= field->key_type();
         if (field->null_ptr)
         {
-          key_part->null_offset=(uint) ((byte*) field->null_ptr -
+          key_part->null_offset=(uint) ((uchar*) field->null_ptr -
                                         share->default_values);
           key_part->null_bit= field->null_bit;
           key_part->store_length+=HA_KEY_NULL_LENGTH;
@@ -1290,7 +1296,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   }
   else
     share->primary_key= MAX_KEY;
-  x_free((gptr) disk_buff);
+  x_free((uchar*) disk_buff);
   disk_buff=0;
   if (new_field_pack_flag <= 1)
   {
@@ -1362,7 +1368,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->error= error;
   share->open_errno= my_errno;
   share->errarg= errarg;
-  x_free((gptr) disk_buff);
+  x_free((uchar*) disk_buff);
   delete crypted;
   delete handler_file;
   hash_free(&share->name_hash);
@@ -1404,7 +1410,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   int error;
   uint records, i, bitmap_size;
   bool error_reported= FALSE;
-  byte *record, *bitmaps;
+  uchar *record, *bitmaps;
   Field **field_ptr;
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
@@ -1439,7 +1445,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   if (prgflag & (READ_ALL+EXTRA_RECORD))
     records++;
 
-  if (!(record= (byte*) alloc_root(&outparam->mem_root,
+  if (!(record= (uchar*) alloc_root(&outparam->mem_root,
                                    share->rec_buff_length * records)))
     goto err;                                   /* purecov: inspected */
 
@@ -1479,7 +1485,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
   outparam->field= field_ptr;
 
-  record= (byte*) outparam->record[0]-1;	/* Fieldstart = 1 */
+  record= (uchar*) outparam->record[0]-1;	/* Fieldstart = 1 */
   if (share->null_field_first)
     outparam->null_flags= (uchar*) record+1;
   else
@@ -1601,7 +1607,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   /* Allocate bitmaps */
 
   bitmap_size= share->column_bitmap_size;
-  if (!(bitmaps= (byte*) alloc_root(&outparam->mem_root, bitmap_size*3)))
+  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size*3)))
     goto err;
   bitmap_init(&outparam->def_read_set,
               (my_bitmap_map*) bitmaps, share->fields, FALSE);
@@ -1768,7 +1774,7 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
   DBUG_ENTER("get_form_pos");
 
   names=uint2korr(head+8);
-  a_length=(names+2)*sizeof(my_string);		/* Room for two extra */
+  a_length=(names+2)*sizeof(char *);		/* Room for two extra */
 
   if (!save_names)
     a_length=0;
@@ -1779,12 +1785,12 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
   {
     length=uint2korr(head+4);
     VOID(my_seek(file,64L,MY_SEEK_SET,MYF(0)));
-    if (!(buf= (uchar*) my_malloc((uint) length+a_length+names*4,
+    if (!(buf= (uchar*) my_malloc((size_t) length+a_length+names*4,
 				  MYF(MY_WME))) ||
-	my_read(file,(byte*) buf+a_length,(uint) (length+names*4),
+	my_read(file, buf+a_length, (size_t) (length+names*4),
 		MYF(MY_NABP)))
     {						/* purecov: inspected */
-      x_free((gptr) buf);			/* purecov: inspected */
+      x_free((uchar*) buf);			/* purecov: inspected */
       DBUG_RETURN(0L);				/* purecov: inspected */
     }
     pos= buf+a_length+length;
@@ -1793,7 +1799,7 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
   if (! save_names)
   {
     if (names)
-      my_free((gptr) buf,MYF(0));
+      my_free((uchar*) buf,MYF(0));
   }
   else if (!names)
     bzero((char*) save_names,sizeof(save_names));
@@ -1807,19 +1813,24 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
 }
 
 
-	/* Read string from a file with malloc */
+/*
+  Read string from a file with malloc
 
-int read_string(File file, gptr *to, uint length)
+  NOTES:
+    We add an \0 at end of the read string to make reading of C strings easier
+*/
+
+int read_string(File file, uchar**to, size_t length)
 {
   DBUG_ENTER("read_string");
 
-  x_free((gptr) *to);
-  if (!(*to= (gptr) my_malloc(length+1,MYF(MY_WME))) ||
-      my_read(file,(byte*) *to,length,MYF(MY_NABP)))
+  x_free(*to);
+  if (!(*to= (uchar*) my_malloc(length+1,MYF(MY_WME))) ||
+      my_read(file, *to, length,MYF(MY_NABP)))
   {
-    x_free((gptr) *to); /* purecov: inspected */
-    *to= 0; /* purecov: inspected */
-    DBUG_RETURN(1); /* purecov: inspected */
+    x_free(*to);                              /* purecov: inspected */
+    *to= 0;                                   /* purecov: inspected */
+    DBUG_RETURN(1);                           /* purecov: inspected */
   }
   *((char*) *to+length)= '\0';
   DBUG_RETURN (0);
@@ -1833,7 +1844,7 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
 {
   uint i,bufflength,maxlength,n_length,length,names;
   ulong endpos,newpos;
-  char buff[IO_SIZE];
+  uchar buff[IO_SIZE];
   uchar *pos;
   DBUG_ENTER("make_new_entry");
 
@@ -1853,17 +1864,17 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
     while (endpos > maxlength)
     {
       VOID(my_seek(file,(ulong) (endpos-bufflength),MY_SEEK_SET,MYF(0)));
-      if (my_read(file,(byte*) buff,bufflength,MYF(MY_NABP+MY_WME)))
+      if (my_read(file, buff, bufflength, MYF(MY_NABP+MY_WME)))
 	DBUG_RETURN(0L);
       VOID(my_seek(file,(ulong) (endpos-bufflength+IO_SIZE),MY_SEEK_SET,
 		   MYF(0)));
-      if ((my_write(file,(byte*) buff,bufflength,MYF(MY_NABP+MY_WME))))
+      if ((my_write(file, buff,bufflength,MYF(MY_NABP+MY_WME))))
 	DBUG_RETURN(0);
       endpos-=bufflength; bufflength=IO_SIZE;
     }
     bzero(buff,IO_SIZE);			/* Null new block */
     VOID(my_seek(file,(ulong) maxlength,MY_SEEK_SET,MYF(0)));
-    if (my_write(file,(byte*) buff,bufflength,MYF(MY_NABP+MY_WME)))
+    if (my_write(file,buff,bufflength,MYF(MY_NABP+MY_WME)))
 	DBUG_RETURN(0L);
     maxlength+=IO_SIZE;				/* Fix old ref */
     int2store(fileinfo+6,maxlength);
@@ -1878,15 +1889,15 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
   if (n_length == 1 )
   {						/* First name */
     length++;
-    VOID(strxmov(buff,"/",newname,"/",NullS));
+    VOID(strxmov((char*) buff,"/",newname,"/",NullS));
   }
   else
-    VOID(strxmov(buff,newname,"/",NullS)); /* purecov: inspected */
+    VOID(strxmov((char*) buff,newname,"/",NullS)); /* purecov: inspected */
   VOID(my_seek(file,63L+(ulong) n_length,MY_SEEK_SET,MYF(0)));
-  if (my_write(file,(byte*) buff,(uint) length+1,MYF(MY_NABP+MY_WME)) ||
-      (names && my_write(file,(byte*) (*formnames->type_names+n_length-1),
+  if (my_write(file, buff, (size_t) length+1,MYF(MY_NABP+MY_WME)) ||
+      (names && my_write(file,(uchar*) (*formnames->type_names+n_length-1),
 			 names*4, MYF(MY_NABP+MY_WME))) ||
-      my_write(file,(byte*) fileinfo+10,(uint) 4,MYF(MY_NABP+MY_WME)))
+      my_write(file, fileinfo+10, 4,MYF(MY_NABP+MY_WME)))
     DBUG_RETURN(0L); /* purecov: inspected */
 
   int2store(fileinfo+8,names+1);
@@ -2046,7 +2057,7 @@ TYPELIB *typelib(MEM_ROOT *mem_root, List<String> &strings)
    #  field number +1
 */
 
-static uint find_field(Field **fields, byte *record, uint start, uint length)
+static uint find_field(Field **fields, uchar *record, uint start, uint length)
 {
   Field **field;
   uint i, pos;
@@ -2159,7 +2170,7 @@ File create_frm(THD *thd, const char *name, const char *db,
 {
   register File file;
   ulong length;
-  char fill[IO_SIZE];
+  uchar fill[IO_SIZE];
   int create_flags= O_RDWR | O_TRUNC;
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
@@ -2222,7 +2233,7 @@ File create_frm(THD *thd, const char *name, const char *db,
     bzero(fill,IO_SIZE);
     for (; length > IO_SIZE ; length-= IO_SIZE)
     {
-      if (my_write(file,(byte*) fill,IO_SIZE,MYF(MY_WME | MY_NABP)))
+      if (my_write(file,fill, IO_SIZE, MYF(MY_WME | MY_NABP)))
       {
 	VOID(my_close(file,MYF(0)));
 	VOID(my_delete(name,MYF(0)));
@@ -2333,7 +2344,7 @@ char *get_field(MEM_ROOT *mem, Field *field)
     given a buffer with a key value, and a map of keyparts
     that are present in this value, returns the length of the value
 */
-uint calculate_key_len(TABLE *table, uint key, const byte *buf,
+uint calculate_key_len(TABLE *table, uint key, const uchar *buf,
                        key_part_map keypart_map)
 {
   /* works only with key prefixes */
@@ -2778,7 +2789,7 @@ bool st_table_list::setup_underlying(THD *thd)
     List_iterator_fast<Item> it(select->item_list);
     uint field_count= 0;
 
-    if (check_stack_overrun(thd, STACK_MIN_SIZE, (char *)&field_count))
+    if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*) &field_count))
     {
       DBUG_RETURN(TRUE);
     }
@@ -3153,7 +3164,7 @@ bool st_table_list::set_insert_values(MEM_ROOT *mem_root)
   if (table)
   {
     if (!table->insert_values &&
-        !(table->insert_values= (byte *)alloc_root(mem_root,
+        !(table->insert_values= (uchar *)alloc_root(mem_root,
                                                    table->s->rec_buff_length)))
       return TRUE;
   }
@@ -4404,6 +4415,24 @@ bool st_table_list::process_index_hints(TABLE *table)
   /* make sure covering_keys don't include indexes disabled with a hint */
   table->covering_keys.intersect(table->keys_in_use_for_query);
   return 0;
+}
+
+
+size_t max_row_length(TABLE *table, const uchar *data)
+{
+  TABLE_SHARE *table_s= table->s;
+  size_t length= table_s->reclength + 2 * table_s->fields;
+  uint *const beg= table_s->blob_field;
+  uint *const end= beg + table_s->blob_fields;
+
+  for (uint *ptr= beg ; ptr != end ; ++ptr)
+  {
+    Field_blob* const blob= (Field_blob*) table->field[*ptr];
+    length+= blob->get_length((const uchar*)
+                              (data + blob->offset(table->record[0]))) +
+      HA_KEY_BLOB_LENGTH;
+  }
+  return length;
 }
 
 /*****************************************************************************

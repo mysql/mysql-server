@@ -1078,7 +1078,8 @@ bool st_relay_log_info::cached_charset_compare(char *charset) const
 {
   DBUG_ENTER("st_relay_log_info::cached_charset_compare");
 
-  if (bcmp(cached_charset, charset, sizeof(cached_charset)))
+  if (bcmp((uchar*) cached_charset, (uchar*) charset,
+           sizeof(cached_charset)))
   {
     memcpy(const_cast<char*>(cached_charset), charset, sizeof(cached_charset));
     DBUG_RETURN(1);
@@ -1168,7 +1169,7 @@ void st_relay_log_info::clear_tables_to_lock()
 {
   while (tables_to_lock)
   {
-    gptr to_free= reinterpret_cast<gptr>(tables_to_lock);
+    uchar* to_free= reinterpret_cast<uchar*>(tables_to_lock);
     if (tables_to_lock->m_tabledef_valid)
     {
       tables_to_lock->m_tabledef.table_def::~table_def();

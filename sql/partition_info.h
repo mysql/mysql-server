@@ -87,12 +87,12 @@ public:
     partition functions we must allocate field buffers for the field of
     the fields in the partition function.
   */
-  char **part_field_buffers;
-  char **subpart_field_buffers;
-  char **full_part_field_buffers;
-  char **restore_part_field_ptrs;
-  char **restore_subpart_field_ptrs;
-  char **restore_full_part_field_ptrs;
+  uchar **part_field_buffers;
+  uchar **subpart_field_buffers;
+  uchar **full_part_field_buffers;
+  uchar **restore_part_field_ptrs;
+  uchar **restore_subpart_field_ptrs;
+  uchar **restore_full_part_field_ptrs;
 
   Item *part_expr;
   Item *subpart_expr;

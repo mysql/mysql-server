@@ -50,7 +50,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "md5"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -94,7 +94,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "concat"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 class Item_func_concat_ws :public Item_str_func
@@ -116,7 +116,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "reverse"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -148,13 +148,13 @@ class Item_str_conv :public Item_str_func
 {
 protected:
   uint multiply;
-  uint (*converter)(CHARSET_INFO *cs, char *src, uint srclen,
-                                      char *dst, uint dstlen);
+  size_t (*converter)(CHARSET_INFO *cs, char *src, size_t srclen,
+                      char *dst, size_t dstlen);
   String tmp_value;
 public:
   Item_str_conv(Item *item) :Item_str_func(item) {}
   String *val_str(String *);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -455,7 +455,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "soundex"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -491,12 +491,12 @@ public:
   void update_used_tables();
   const char *func_name() const { return "make_set"; }
 
-  bool walk(Item_processor processor, bool walk_subquery, byte *arg)
+  bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
   {
     return item->walk(processor, walk_subquery, arg) ||
       Item_str_func::walk(processor, walk_subquery, arg);
   }
-  Item *transform(Item_transformer transformer, byte *arg);
+  Item *transform(Item_transformer transformer, uchar *arg);
   void print(String *str);
 };
 
@@ -549,7 +549,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "rpad"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -562,7 +562,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "lpad"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -577,7 +577,7 @@ public:
     collation.set(default_charset());
     max_length= 64;
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -594,7 +594,7 @@ public:
     decimals=0;
     max_length=args[0]->max_length*2*collation.collation->mbmaxlen;
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 class Item_func_unhex :public Item_str_func
@@ -614,7 +614,7 @@ public:
     decimals=0;
     max_length=(1+args[0]->max_length)/2;
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -638,7 +638,7 @@ public:
   }
   void print(String *str);
   const char *func_name() const { return "cast_as_binary"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -678,7 +678,7 @@ public:
   String* val_str(String* str);
   const char *func_name() const { return "inet_ntoa"; }
   void fix_length_and_dec() { decimals = 0; max_length=3*8+7; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 class Item_func_quote :public Item_str_func
@@ -693,7 +693,7 @@ public:
     collation.set(args[0]->collation);
     max_length= args[0]->max_length * 2 + 2;
   }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 class Item_func_conv_charset :public Item_str_func
@@ -794,7 +794,7 @@ public:
   const char *func_name() const { return "crc32"; }
   void fix_length_and_dec() { max_length=10; }
   longlong val_int();
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 class Item_func_uncompressed_length : public Item_int_func

@@ -54,8 +54,8 @@ static int make_new_olap_select(LEX *lex, SELECT_LEX *select_lex, List<Item> new
   new_select->linkage=OLAP_TYPE;
   new_select->olap=NON_EXISTING_ONE;
   new_select->group_list.elements=0;
-  new_select->group_list.first=(byte *)0;
-  new_select->group_list.next=(byte **)&new_select->group_list.first;
+  new_select->group_list.first=(uchar *)0;
+  new_select->group_list.next=(uchar **)&new_select->group_list.first;
   List<Item> privlist;
   
   List_iterator<Item> list_it(select_lex->item_list);

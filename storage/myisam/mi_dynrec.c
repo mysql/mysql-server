@@ -28,15 +28,15 @@
 /* Enough for comparing if number is zero */
 static char zero_string[]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
-static int write_dynamic_record(MI_INFO *info,const byte *record,
+static int write_dynamic_record(MI_INFO *info,const uchar *record,
 				ulong reclength);
 static int _mi_find_writepos(MI_INFO *info,ulong reclength,my_off_t *filepos,
 			     ulong *length);
-static int update_dynamic_record(MI_INFO *info,my_off_t filepos,byte *record,
+static int update_dynamic_record(MI_INFO *info,my_off_t filepos,uchar *record,
 				 ulong reclength);
 static int delete_dynamic_record(MI_INFO *info,my_off_t filepos,
 				 uint second_read);
-static int _mi_cmp_buffer(File file, const byte *buff, my_off_t filepos,
+static int _mi_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
 			  uint length);
 
 #ifdef THREAD
@@ -79,13 +79,13 @@ my_bool mi_dynmap_file(MI_INFO *info, my_off_t size)
       mapping. When swap space is not reserved one might get SIGSEGV
       upon a write if no physical memory is available.
   */
-  info->s->file_map= (byte*)
+  info->s->file_map= (uchar*)
                   my_mmap(0, (size_t)(size + MEMMAP_EXTRA_MARGIN),
                           info->s->mode==O_RDONLY ? PROT_READ :
                           PROT_READ | PROT_WRITE,
                           MAP_SHARED | MAP_NORESERVE,
                           info->dfile, 0L);
-  if (info->s->file_map == (byte*) MAP_FAILED)
+  if (info->s->file_map == (uchar*) MAP_FAILED)
   {
     info->s->file_map= NULL;
     DBUG_RETURN(1);
@@ -135,7 +135,7 @@ void mi_remap_file(MI_INFO *info, my_off_t size)
     0  ok
 */
 
-uint mi_mmap_pread(MI_INFO *info, byte *Buffer,
+uint mi_mmap_pread(MI_INFO *info, uchar *Buffer,
                     uint Count, my_off_t offset, myf MyFlags)
 {
   DBUG_PRINT("info", ("mi_read with mmap %d\n", info->dfile));
@@ -167,7 +167,7 @@ uint mi_mmap_pread(MI_INFO *info, byte *Buffer,
 
         /* wrapper for my_pread in case if mmap isn't used */
 
-uint mi_nommap_pread(MI_INFO *info, byte *Buffer,
+uint mi_nommap_pread(MI_INFO *info, uchar *Buffer,
                       uint Count, my_off_t offset, myf MyFlags)
 {
   return my_pread(info->dfile, Buffer, Count, offset, MyFlags);
@@ -190,7 +190,7 @@ uint mi_nommap_pread(MI_INFO *info, byte *Buffer,
     !=0  error.  In this case return error from pwrite
 */
 
-uint mi_mmap_pwrite(MI_INFO *info, byte *Buffer,
+uint mi_mmap_pwrite(MI_INFO *info, uchar *Buffer,
                      uint Count, my_off_t offset, myf MyFlags)
 {
   DBUG_PRINT("info", ("mi_write with mmap %d\n", info->dfile));
@@ -224,28 +224,28 @@ uint mi_mmap_pwrite(MI_INFO *info, byte *Buffer,
 
         /* wrapper for my_pwrite in case if mmap isn't used */
 
-uint mi_nommap_pwrite(MI_INFO *info, byte *Buffer,
+uint mi_nommap_pwrite(MI_INFO *info, uchar *Buffer,
                       uint Count, my_off_t offset, myf MyFlags)
 {
   return my_pwrite(info->dfile, Buffer, Count, offset, MyFlags);
 }
 
 
-int _mi_write_dynamic_record(MI_INFO *info, const byte *record)
+int _mi_write_dynamic_record(MI_INFO *info, const uchar *record)
 {
   ulong reclength=_mi_rec_pack(info,info->rec_buff,record);
   return (write_dynamic_record(info,info->rec_buff,reclength));
 }
 
-int _mi_update_dynamic_record(MI_INFO *info, my_off_t pos, const byte *record)
+int _mi_update_dynamic_record(MI_INFO *info, my_off_t pos, const uchar *record)
 {
   uint length=_mi_rec_pack(info,info->rec_buff,record);
   return (update_dynamic_record(info,pos,info->rec_buff,length));
 }
 
-int _mi_write_blob_record(MI_INFO *info, const byte *record)
+int _mi_write_blob_record(MI_INFO *info, const uchar *record)
 {
-  byte *rec_buff;
+  uchar *rec_buff;
   int error;
   ulong reclength,reclength2,extra;
 
@@ -260,7 +260,7 @@ int _mi_write_blob_record(MI_INFO *info, const byte *record)
     return -1;
   }
 #endif
-  if (!(rec_buff=(byte*) my_alloca(reclength)))
+  if (!(rec_buff=(uchar*) my_alloca(reclength)))
   {
     my_errno= HA_ERR_OUT_OF_MEM; /* purecov: inspected */
     return(-1);
@@ -277,9 +277,9 @@ int _mi_write_blob_record(MI_INFO *info, const byte *record)
 }
 
 
-int _mi_update_blob_record(MI_INFO *info, my_off_t pos, const byte *record)
+int _mi_update_blob_record(MI_INFO *info, my_off_t pos, const uchar *record)
 {
-  byte *rec_buff;
+  uchar *rec_buff;
   int error;
   ulong reclength,extra;
 
@@ -294,7 +294,7 @@ int _mi_update_blob_record(MI_INFO *info, my_off_t pos, const byte *record)
     return -1;
   }
 #endif
-  if (!(rec_buff=(byte*) my_alloca(reclength)))
+  if (!(rec_buff=(uchar*) my_alloca(reclength)))
   {
     my_errno= HA_ERR_OUT_OF_MEM; /* purecov: inspected */
     return(-1);
@@ -317,7 +317,7 @@ int _mi_delete_dynamic_record(MI_INFO *info)
 
 	/* Write record to data-file */
 
-static int write_dynamic_record(MI_INFO *info, const byte *record,
+static int write_dynamic_record(MI_INFO *info, const uchar *record,
 				ulong reclength)
 {
   int flag;
@@ -333,7 +333,7 @@ static int write_dynamic_record(MI_INFO *info, const byte *record,
     if (_mi_write_part_record(info,filepos,length,
                               (info->append_insert_at_end ?
                                HA_OFFSET_ERROR : info->s->state.dellink),
-			      (byte**) &record,&reclength,&flag))
+			      (uchar**) &record,&reclength,&flag))
       goto err;
   } while (reclength);
 
@@ -543,7 +543,7 @@ static int delete_dynamic_record(MI_INFO *info, my_off_t filepos,
       bfill(block_info.header+12,8,255);
     else
       mi_sizestore(block_info.header+12,block_info.next_filepos);
-    if (info->s->file_write(info,(byte*) block_info.header,20,filepos,
+    if (info->s->file_write(info,(uchar*) block_info.header,20,filepos,
 		  MYF(MY_NABP)))
       DBUG_RETURN(1);
     info->s->state.dellink = filepos;
@@ -566,12 +566,12 @@ int _mi_write_part_record(MI_INFO *info,
 			  my_off_t filepos,	/* points at empty block */
 			  ulong length,		/* length of block */
 			  my_off_t next_filepos,/* Next empty block */
-			  byte **record,	/* pointer to record ptr */
+			  uchar **record,	/* pointer to record ptr */
 			  ulong *reclength,	/* length of *record */
 			  int *flag)		/* *flag == 0 if header */
 {
   ulong head_length,res_length,extra_length,long_block,del_length;
-  byte *pos,*record_end;
+  uchar *pos,*record_end;
   my_off_t  next_delete_block;
   uchar temp[MI_SPLIT_LENGTH+MI_DYN_DELETE_BLOCK_HEADER];
   DBUG_ENTER("_mi_write_part_record");
@@ -615,7 +615,7 @@ int _mi_write_part_record(MI_INFO *info,
 	temp[0]=13;
 	mi_int4store(temp+1,*reclength);
 	mi_int3store(temp+5,length-head_length);
-	mi_sizestore((byte*) temp+8,next_filepos);
+	mi_sizestore((uchar*) temp+8,next_filepos);
       }
       else
       {
@@ -625,13 +625,13 @@ int _mi_write_part_record(MI_INFO *info,
 	{
 	  mi_int3store(temp+1,*reclength);
 	  mi_int3store(temp+4,length-head_length);
-	  mi_sizestore((byte*) temp+7,next_filepos);
+	  mi_sizestore((uchar*) temp+7,next_filepos);
 	}
 	else
 	{
 	  mi_int2store(temp+1,*reclength);
 	  mi_int2store(temp+3,length-head_length);
-	  mi_sizestore((byte*) temp+5,next_filepos);
+	  mi_sizestore((uchar*) temp+5,next_filepos);
 	}
       }
     }
@@ -642,12 +642,12 @@ int _mi_write_part_record(MI_INFO *info,
       if (long_block)
       {
 	mi_int3store(temp+1,length-head_length);
-	mi_sizestore((byte*) temp+4,next_filepos);
+	mi_sizestore((uchar*) temp+4,next_filepos);
       }
       else
       {
 	mi_int2store(temp+1,length-head_length);
-	mi_sizestore((byte*) temp+3,next_filepos);
+	mi_sizestore((uchar*) temp+3,next_filepos);
       }
     }
   }
@@ -668,14 +668,14 @@ int _mi_write_part_record(MI_INFO *info,
     }
     length=	  *reclength+head_length;	/* Write only what is needed */
   }
-  DBUG_DUMP("header",(byte*) temp,head_length);
+  DBUG_DUMP("header",(uchar*) temp,head_length);
 
 	/* Make a long block for one write */
   record_end= *record+length-head_length;
   del_length=(res_length ? MI_DYN_DELETE_BLOCK_HEADER : 0);
-  bmove((byte*) (*record-head_length),(byte*) temp,head_length);
+  bmove((uchar*) (*record-head_length),(uchar*) temp,head_length);
   memcpy(temp,record_end,(size_t) (extra_length+del_length));
-  bzero((byte*) record_end,extra_length);
+  bzero((uchar*) record_end,extra_length);
 
   if (res_length)
   {
@@ -715,18 +715,18 @@ int _mi_write_part_record(MI_INFO *info,
     if (info->update & HA_STATE_EXTEND_BLOCK)
     {
       info->update&= ~HA_STATE_EXTEND_BLOCK;
-      if (my_block_write(&info->rec_cache,(byte*) *record-head_length,
+      if (my_block_write(&info->rec_cache,(uchar*) *record-head_length,
 			 length+extra_length+del_length,filepos))
       goto err;
     }
-    else if (my_b_write(&info->rec_cache,(byte*) *record-head_length,
+    else if (my_b_write(&info->rec_cache,(uchar*) *record-head_length,
 			length+extra_length+del_length))
       goto err;
   }
   else
   {
     info->rec_cache.seek_not_done=1;
-    if (info->s->file_write(info,(byte*) *record-head_length,length+extra_length+
+    if (info->s->file_write(info,(uchar*) *record-head_length,length+extra_length+
 		  del_length,filepos,info->s->write_flag))
       goto err;
   }
@@ -752,7 +752,7 @@ err:
 
 	/* update record from datafile */
 
-static int update_dynamic_record(MI_INFO *info, my_off_t filepos, byte *record,
+static int update_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *record,
 				 ulong reclength)
 {
   int flag;
@@ -836,7 +836,7 @@ static int update_dynamic_record(MI_INFO *info, my_off_t filepos, byte *record,
 	      mi_int3store(del_block.header+1, rest_length);
 	      mi_sizestore(del_block.header+4,info->s->state.dellink);
 	      bfill(del_block.header+12,8,255);
-	      if (info->s->file_write(info,(byte*) del_block.header,20, next_pos,
+	      if (info->s->file_write(info,(uchar*) del_block.header,20, next_pos,
 			    MYF(MY_NABP)))
 		DBUG_RETURN(1);
 	      info->s->state.dellink= next_pos;
@@ -875,10 +875,11 @@ err:
 
 	/* Pack a record. Return new reclength */
 
-uint _mi_rec_pack(MI_INFO *info, register byte *to, register const byte *from)
+uint _mi_rec_pack(MI_INFO *info, register uchar *to,
+                  register const uchar *from)
 {
   uint		length,new_length,flag,bit,i;
-  char		*pos,*end,*startpos,*packpos;
+  uchar		*pos,*end,*startpos,*packpos;
   enum en_fieldtype type;
   reg3 MI_COLUMNDEF *rec;
   MI_BLOB	*blob;
@@ -901,7 +902,7 @@ uint _mi_rec_pack(MI_INFO *info, register byte *to, register const byte *from)
 	{
 	  char *temp_pos;
 	  size_t tmp_length=length-mi_portable_sizeof_char_ptr;
-	  memcpy((byte*) to,from,tmp_length);
+	  memcpy((uchar*) to,from,tmp_length);
 	  memcpy_fixed(&temp_pos,from+tmp_length,sizeof(char*));
 	  memcpy(to+tmp_length,temp_pos,(size_t) blob->length);
 	  to+=tmp_length+blob->length;
@@ -910,17 +911,17 @@ uint _mi_rec_pack(MI_INFO *info, register byte *to, register const byte *from)
       }
       else if (type == FIELD_SKIP_ZERO)
       {
-	if (memcmp((byte*) from,zero_string,length) == 0)
+	if (memcmp((uchar*) from,zero_string,length) == 0)
 	  flag|=bit;
 	else
 	{
-	  memcpy((byte*) to,from,(size_t) length); to+=length;
+	  memcpy((uchar*) to,from,(size_t) length); to+=length;
 	}
       }
       else if (type == FIELD_SKIP_ENDSPACE ||
 	       type == FIELD_SKIP_PRESPACE)
       {
-	pos= (byte*) from; end= (byte*) from + length;
+	pos= (uchar*) from; end= (uchar*) from + length;
 	if (type == FIELD_SKIP_ENDSPACE)
 	{					/* Pack trailing spaces */
 	  while (end > from && *(end-1) == ' ')
@@ -943,7 +944,7 @@ uint _mi_rec_pack(MI_INFO *info, register byte *to, register const byte *from)
 	  }
 	  else
 	    *to++= (char) new_length;
-	  memcpy((byte*) to,pos,(size_t) new_length); to+=new_length;
+	  memcpy((uchar*) to,pos,(size_t) new_length); to+=new_length;
 	  flag|=bit;
 	}
 	else
@@ -1000,11 +1001,11 @@ uint _mi_rec_pack(MI_INFO *info, register byte *to, register const byte *from)
   Returns 0 if record is ok.
 */
 
-my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *rec_buff,
+my_bool _mi_rec_check(MI_INFO *info,const uchar *record, uchar *rec_buff,
                       ulong packed_length, my_bool with_checksum)
 {
   uint		length,new_length,flag,bit,i;
-  char		*pos,*end,*packpos,*to;
+  uchar		*pos,*end,*packpos,*to;
   enum en_fieldtype type;
   reg3 MI_COLUMNDEF *rec;
   DBUG_ENTER("_mi_rec_check");
@@ -1029,7 +1030,7 @@ my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *rec_buff,
       }
       else if (type == FIELD_SKIP_ZERO)
       {
-	if (memcmp((byte*) record,zero_string,length) == 0)
+	if (memcmp((uchar*) record,zero_string,length) == 0)
 	{
 	  if (!(flag & bit))
 	    goto err;
@@ -1040,7 +1041,7 @@ my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *rec_buff,
       else if (type == FIELD_SKIP_ENDSPACE ||
 	       type == FIELD_SKIP_PRESPACE)
       {
-	pos= (byte*) record; end= (byte*) record + length;
+	pos= (uchar*) record; end= (uchar*) record + length;
 	if (type == FIELD_SKIP_ENDSPACE)
 	{					/* Pack trailing spaces */
 	  while (end > record && *(end-1) == ' ')
@@ -1122,12 +1123,12 @@ err:
 	/* Returns -1 and my_errno =HA_ERR_RECORD_DELETED if reclength isn't */
 	/* right. Returns reclength (>0) if ok */
 
-ulong _mi_rec_unpack(register MI_INFO *info, register byte *to, byte *from,
+ulong _mi_rec_unpack(register MI_INFO *info, register uchar *to, uchar *from,
 		     ulong found_length)
 {
   uint flag,bit,length,rec_length,min_pack_length;
   enum en_fieldtype type;
-  byte *from_end,*to_end,*packpos;
+  uchar *from_end,*to_end,*packpos;
   reg3 MI_COLUMNDEF *rec,*end_field;
   DBUG_ENTER("_mi_rec_unpack");
 
@@ -1173,7 +1174,7 @@ ulong _mi_rec_unpack(register MI_INFO *info, register byte *to, byte *from,
       if (flag & bit)
       {
 	if (type == FIELD_BLOB || type == FIELD_SKIP_ZERO)
-	  bzero((byte*) to,rec_length);
+	  bzero((uchar*) to,rec_length);
 	else if (type == FIELD_SKIP_ENDSPACE ||
 		 type == FIELD_SKIP_PRESPACE)
 	{
@@ -1195,13 +1196,13 @@ ulong _mi_rec_unpack(register MI_INFO *info, register byte *to, byte *from,
 	    goto err;
 	  if (type == FIELD_SKIP_ENDSPACE)
 	  {
-	    memcpy(to,(byte*) from,(size_t) length);
-	    bfill((byte*) to+length,rec_length-length,' ');
+	    memcpy(to,(uchar*) from,(size_t) length);
+	    bfill((uchar*) to+length,rec_length-length,' ');
 	  }
 	  else
 	  {
-	    bfill((byte*) to,rec_length-length,' ');
-	    memcpy(to+rec_length-length,(byte*) from,(size_t) length);
+	    bfill((uchar*) to,rec_length-length,' ');
+	    memcpy(to+rec_length-length,(uchar*) from,(size_t) length);
 	  }
 	  from+=length;
 	}
@@ -1215,9 +1216,9 @@ ulong _mi_rec_unpack(register MI_INFO *info, register byte *to, byte *from,
             from_left - size_length < blob_length ||
             from_left - size_length - blob_length < min_pack_length)
           goto err;
-	memcpy((byte*) to,(byte*) from,(size_t) size_length);
+	memcpy((uchar*) to,(uchar*) from,(size_t) size_length);
 	from+=size_length;
-	memcpy_fixed((byte*) to+size_length,(byte*) &from,sizeof(char*));
+	memcpy_fixed((uchar*) to+size_length,(uchar*) &from,sizeof(char*));
 	from+=blob_length;
       }
       else
@@ -1226,7 +1227,7 @@ ulong _mi_rec_unpack(register MI_INFO *info, register byte *to, byte *from,
 	  min_pack_length--;
 	if (min_pack_length + rec_length > (uint) (from_end - from))
 	  goto err;
-	memcpy(to,(byte*) from,(size_t) rec_length); from+=rec_length;
+	memcpy(to,(uchar*) from,(size_t) rec_length); from+=rec_length;
       }
       if ((bit= bit << 1) >= 256)
       {
@@ -1238,7 +1239,7 @@ ulong _mi_rec_unpack(register MI_INFO *info, register byte *to, byte *from,
       if (min_pack_length > (uint) (from_end - from))
 	goto err;
       min_pack_length-=rec_length;
-      memcpy(to, (byte*) from, (size_t) rec_length);
+      memcpy(to, (uchar*) from, (size_t) rec_length);
       from+=rec_length;
     }
   }
@@ -1251,14 +1252,14 @@ err:
   my_errno= HA_ERR_WRONG_IN_RECORD;
   DBUG_PRINT("error",("to_end: 0x%lx -> 0x%lx  from_end: 0x%lx -> 0x%lx",
 		      (long) to, (long) to_end, (long) from, (long) from_end));
-  DBUG_DUMP("from",(byte*) info->rec_buff,info->s->base.min_pack_length);
+  DBUG_DUMP("from",(uchar*) info->rec_buff,info->s->base.min_pack_length);
   DBUG_RETURN(MY_FILE_ERROR);
 } /* _mi_rec_unpack */
 
 
 	/* Calc length of blob. Update info in blobs->length */
 
-ulong _my_calc_total_blob_length(MI_INFO *info, const byte *record)
+ulong _my_calc_total_blob_length(MI_INFO *info, const uchar *record)
 {
   ulong length;
   MI_BLOB *blob,*end;
@@ -1274,7 +1275,7 @@ ulong _my_calc_total_blob_length(MI_INFO *info, const byte *record)
 }
 
 
-ulong _mi_calc_blob_length(uint length, const byte *pos)
+ulong _mi_calc_blob_length(uint length, const uchar *pos)
 {
   switch (length) {
   case 1:
@@ -1292,7 +1293,7 @@ ulong _mi_calc_blob_length(uint length, const byte *pos)
 }
 
 
-void _my_store_blob_length(byte *pos,uint pack_length,uint length)
+void _my_store_blob_length(uchar *pos,uint pack_length,uint length)
 {
   switch (pack_length) {
   case 1:
@@ -1345,11 +1346,11 @@ void _my_store_blob_length(byte *pos,uint pack_length,uint length)
     -1          Error
 */
 
-int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, byte *buf)
+int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *buf)
 {
   int block_of_record;
   uint b_type,left_length;
-  byte *to;
+  uchar *to;
   MI_BLOCK_INFO block_info;
   File file;
   DBUG_ENTER("mi_read_dynamic_record");
@@ -1405,7 +1406,7 @@ int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, byte *buf)
           prefetch_len= block_info.data_len;
         if (prefetch_len)
         {
-          memcpy((byte*) to, block_info.header + offset, prefetch_len);
+          memcpy((uchar*) to, block_info.header + offset, prefetch_len);
           block_info.data_len-= prefetch_len;
           left_length-= prefetch_len;
           to+= prefetch_len;
@@ -1423,7 +1424,7 @@ int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, byte *buf)
           there is no equivalent without seeking. We are at the right
           position already. :(
         */
-        if (info->s->file_read(info, (byte*) to, block_info.data_len,
+        if (info->s->file_read(info, (uchar*) to, block_info.data_len,
                                filepos, MYF(MY_NABP)))
           goto panic;
         left_length-=block_info.data_len;
@@ -1450,9 +1451,9 @@ err:
 	/* compare unique constraint between stored rows */
 
 int _mi_cmp_dynamic_unique(MI_INFO *info, MI_UNIQUEDEF *def,
-			   const byte *record, my_off_t pos)
+			   const uchar *record, my_off_t pos)
 {
-  byte *rec_buff,*old_record;
+  uchar *rec_buff,*old_record;
   int error;
   DBUG_ENTER("_mi_cmp_dynamic_unique");
 
@@ -1478,11 +1479,11 @@ int _mi_cmp_dynamic_unique(MI_INFO *info, MI_UNIQUEDEF *def,
 
 	/* Compare of record one disk with packed record in memory */
 
-int _mi_cmp_dynamic_record(register MI_INFO *info, register const byte *record)
+int _mi_cmp_dynamic_record(register MI_INFO *info, register const uchar *record)
 {
   uint flag,reclength,b_type;
   my_off_t filepos;
-  byte *buffer;
+  uchar *buffer;
   MI_BLOCK_INFO block_info;
   DBUG_ENTER("_mi_cmp_dynamic_record");
 
@@ -1504,7 +1505,7 @@ int _mi_cmp_dynamic_record(register MI_INFO *info, register const byte *record)
   {						/* If check isn't disabled  */
     if (info->s->base.blobs)
     {
-      if (!(buffer=(byte*) my_alloca(info->s->base.pack_reclength+
+      if (!(buffer=(uchar*) my_alloca(info->s->base.pack_reclength+
 				     _my_calc_total_blob_length(info,record))))
 	DBUG_RETURN(-1);
     }
@@ -1552,14 +1553,14 @@ int _mi_cmp_dynamic_record(register MI_INFO *info, register const byte *record)
   my_errno=0;
 err:
   if (buffer != info->rec_buff)
-    my_afree((gptr) buffer);
+    my_afree((uchar*) buffer);
   DBUG_RETURN(my_errno);
 }
 
 
 	/* Compare file to buffert */
 
-static int _mi_cmp_buffer(File file, const byte *buff, my_off_t filepos,
+static int _mi_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
 			  uint length)
 {
   uint next_length;
@@ -1571,7 +1572,7 @@ static int _mi_cmp_buffer(File file, const byte *buff, my_off_t filepos,
   while (length > IO_SIZE*2)
   {
     if (my_pread(file,temp_buff,next_length,filepos, MYF(MY_NABP)) ||
-	memcmp((byte*) buff,temp_buff,next_length))
+	memcmp((uchar*) buff,temp_buff,next_length))
       goto err;
     filepos+=next_length;
     buff+=next_length;
@@ -1580,7 +1581,7 @@ static int _mi_cmp_buffer(File file, const byte *buff, my_off_t filepos,
   }
   if (my_pread(file,temp_buff,length,filepos,MYF(MY_NABP)))
     goto err;
-  DBUG_RETURN(memcmp((byte*) buff,temp_buff,length));
+  DBUG_RETURN(memcmp((uchar*) buff,temp_buff,length));
 err:
   DBUG_RETURN(1);
 }
@@ -1620,13 +1621,13 @@ err:
     != 0        Error
 */
 
-int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
+int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
 				register my_off_t filepos,
 				my_bool skip_deleted_blocks)
 {
   int block_of_record, info_read, save_errno;
   uint left_len,b_type;
-  byte *to;
+  uchar *to;
   MI_BLOCK_INFO block_info;
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("_mi_read_rnd_dynamic_record");
@@ -1672,7 +1673,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
     }
     if (info->opt_flag & READ_CACHE_USED)
     {
-      if (_mi_read_cache(&info->rec_cache,(byte*) block_info.header,filepos,
+      if (_mi_read_cache(&info->rec_cache,(uchar*) block_info.header,filepos,
 			 sizeof(block_info.header),
 			 (!block_of_record && skip_deleted_blocks ?
                           READING_NEXT : 0) | READING_HEADER))
@@ -1735,7 +1736,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
 	tmp_length= block_info.data_len;
       if (tmp_length)
       {
-	memcpy((byte*) to, block_info.header+offset,tmp_length);
+	memcpy((uchar*) to, block_info.header+offset,tmp_length);
 	block_info.data_len-=tmp_length;
 	left_len-=tmp_length;
 	to+=tmp_length;
@@ -1747,7 +1748,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
     {
       if (info->opt_flag & READ_CACHE_USED)
       {
-	if (_mi_read_cache(&info->rec_cache,(byte*) to,filepos,
+	if (_mi_read_cache(&info->rec_cache,(uchar*) to,filepos,
 			   block_info.data_len,
 			   (!block_of_record && skip_deleted_blocks) ?
                            READING_NEXT : 0))
@@ -1761,7 +1762,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
             flush_io_cache(&info->rec_cache))
           goto err;
 	/* VOID(my_seek(info->dfile,filepos,MY_SEEK_SET,MYF(0))); */
-	if (my_read(info->dfile,(byte*) to,block_info.data_len,MYF(MY_NABP)))
+	if (my_read(info->dfile,(uchar*) to,block_info.data_len,MYF(MY_NABP)))
 	{
 	  if (my_errno == -1)
 	    my_errno= HA_ERR_WRONG_IN_RECORD;	/* Unexpected end of file */
@@ -1818,7 +1819,7 @@ uint _mi_get_block_info(MI_BLOCK_INFO *info, File file, my_off_t filepos)
 	sizeof(info->header))
       goto err;
   }
-  DBUG_DUMP("header",(byte*) header,MI_BLOCK_INFO_HEADER_LENGTH);
+  DBUG_DUMP("header",(uchar*) header,MI_BLOCK_INFO_HEADER_LENGTH);
   if (info->second_read)
   {
     if (info->header[0] <= 6 || info->header[0] == 13)
