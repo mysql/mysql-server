@@ -94,7 +94,7 @@ static int send_file(THD *thd)
     the job
   */
   old_timeout= net->read_timeout;
-  net_set_read_timeout(net, thd->variables.net_wait_timeout);
+  my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
 
   /*
     We need net_flush here because the client will not know it needs to send
@@ -138,7 +138,7 @@ static int send_file(THD *thd)
   error = 0;
 
  err:
-  net_set_read_timeout(net, old_timeout);
+  my_net_set_read_timeout(net, old_timeout);
   if (fd >= 0)
     (void) my_close(fd, MYF(0));
   if (errmsg)

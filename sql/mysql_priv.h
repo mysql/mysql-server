@@ -89,9 +89,6 @@ void kill_one_thread(THD *thd, ulong id, bool only_kill_query);
 bool net_request_file(NET* net, const char* fname);
 char* query_table_status(THD *thd,const char *db,const char *table_name);
 
-void net_set_write_timeout(NET *net, uint timeout);
-void net_set_read_timeout(NET *net, uint timeout);
-
 #define x_free(A)	{ my_free((gptr) (A),MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR)); }
 #define safeFree(x)	{ if(x) { my_free((gptr) x,MYF(0)); x = NULL; } }
 #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
