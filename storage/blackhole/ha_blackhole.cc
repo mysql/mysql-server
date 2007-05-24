@@ -247,7 +247,7 @@ static st_blackhole_share *get_share(const char *table_name)
   pthread_mutex_lock(&blackhole_mutex);
     
   if (!(share= (st_blackhole_share*) hash_search(&blackhole_open_tables,
-                                                 (byte*) table_name, length)))
+                                                 (uchar*) table_name, length)))
   {
     if (!(share= (st_blackhole_share*) my_malloc(sizeof(st_blackhole_share) +
                                                  length,
@@ -257,9 +257,9 @@ static st_blackhole_share *get_share(const char *table_name)
     share->table_name_length= length;
     strmov(share->table_name, table_name);
     
-    if (my_hash_insert(&blackhole_open_tables, (byte*) share))
+    if (my_hash_insert(&blackhole_open_tables, (uchar*) share))
     {
-      my_free((gptr) share, MYF(0));
+      my_free((uchar*) share, MYF(0));
       share= NULL;
       goto error;
     }
@@ -277,21 +277,21 @@ static void free_share(st_blackhole_share *share)
 {
   pthread_mutex_lock(&blackhole_mutex);
   if (!--share->use_count)
-    hash_delete(&blackhole_open_tables, (byte*) share);
+    hash_delete(&blackhole_open_tables, (uchar*) share);
   pthread_mutex_unlock(&blackhole_mutex);
 }
 
 static void blackhole_free_key(st_blackhole_share *share)
 {
   thr_lock_delete(&share->lock);
-  my_free((gptr) share, MYF(0));
+  my_free((uchar*) share, MYF(0));
 }
 
-static byte* blackhole_get_key(st_blackhole_share *share, uint *length,
+static uchar* blackhole_get_key(st_blackhole_share *share, uint *length,
                                my_bool not_used __attribute__((unused)))
 {
   *length= share->table_name_length;
-  return (byte*) share->table_name;
+  return (uchar*) share->table_name;
 }
 
 static int blackhole_init(void *p)

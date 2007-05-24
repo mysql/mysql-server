@@ -2060,7 +2060,7 @@ TABLE *table_cache_insert_placeholder(THD *thd, const char *key,
 
   if (my_hash_insert(&open_cache, (uchar*)table))
   {
-    my_free((gptr) table, MYF(0));
+    my_free((uchar*) table, MYF(0));
     DBUG_RETURN(NULL);
   }
 

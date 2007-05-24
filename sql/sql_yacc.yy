@@ -10190,7 +10190,8 @@ option_type_value:
               else
                 qbuff.length= lip->tok_end - sp->m_tmp_query;
 
-              if (!(qbuff.str= alloc_root(thd->mem_root, qbuff.length + 5)))
+              if (!(qbuff.str= (char*) alloc_root(thd->mem_root,
+	                                          qbuff.length + 5)))
                 MYSQL_YYABORT;
 
               strmake(strmake(qbuff.str, "SET ", 4), sp->m_tmp_query,

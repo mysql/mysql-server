@@ -2901,7 +2901,7 @@ void in_datetime::set(uint pos,Item *item)
   buff->unsigned_flag= 1L;
 }
 
-byte *in_datetime::get_value(Item *item)
+uchar *in_datetime::get_value(Item *item)
 {
   bool is_null;
   Item **tmp_item= lval_cache ? &lval_cache : &item;
@@ -2909,7 +2909,7 @@ byte *in_datetime::get_value(Item *item)
   if (item->null_value)
     return 0;
   tmp.unsigned_flag= 1L;
-  return (byte*) &tmp;
+  return (uchar*) &tmp;
 }
 
 in_double::in_double(uint elements)
