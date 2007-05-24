@@ -55,12 +55,17 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
 
   block_length= keyinfo[0].block_length;
 
-  /* Check whether all indexes use the same block size */
-  for (i= 1 ; i < keys ; i++)
+  if (ignore_leaves)
   {
-    if (keyinfo[i].block_length != block_length)
-      DBUG_RETURN(my_errno= HA_ERR_NON_UNIQUE_BLOCK_SIZE);
+    /* Check whether all indexes use the same block size */
+    for (i= 1 ; i < keys ; i++)
+    {
+      if (keyinfo[i].block_length != block_length)
+        DBUG_RETURN(my_errno= HA_ERR_NON_UNIQUE_BLOCK_SIZE);
+    }
   }
+  else
+    block_length= share->key_cache->key_cache_block_size;
 
   length= info->preload_buff_size/block_length * block_length;
   set_if_bigger(length, block_length);
