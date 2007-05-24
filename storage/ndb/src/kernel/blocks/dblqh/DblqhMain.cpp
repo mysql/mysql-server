@@ -992,6 +992,11 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_REDO_BUFFER,  
 			    &log_page_size);
 
+  /* maximum number of log file operations */
+  clfoFileSize = (log_page_size+32768-1)/32768;
+  if (clfoFileSize < ZLFO_MIN_FILE_SIZE)
+    clfoFileSize = ZLFO_MIN_FILE_SIZE;
+
   /**
    * Always set page size in half MBytes
    */
