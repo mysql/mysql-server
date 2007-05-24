@@ -56,7 +56,8 @@ static double scaler1[] = {
 double my_strtod(const char *str, char **end_ptr, int *error)
 {
   double result= 0.0;
-  uint negative= 0, ndigits, dec_digits= 0, neg_exp= 0;
+  uint negative= 0, neg_exp= 0;
+  size_t ndigits, dec_digits= 0;
   int exponent= 0, digits_after_dec_point= 0, tmp_exp;
   const char *old_str, *end= *end_ptr, *start_of_number;
   char next_char;
@@ -100,7 +101,7 @@ double my_strtod(const char *str, char **end_ptr, int *error)
     }
     start_of_number= 0;                         /* Found digit */
   }
-  ndigits= (uint) (str-old_str);
+  ndigits= (size_t) (str-old_str);
 
   if (next_char == '.' && str < end-1)
   {
@@ -124,7 +125,7 @@ double my_strtod(const char *str, char **end_ptr, int *error)
       }
     }
     /* If we found just '+.' or '.' then point at first character */
-    if (!(dec_digits= (uint) (str-old_str)) && start_of_number)
+    if (!(dec_digits= (size_t) (str-old_str)) && start_of_number)
       str= start_of_number;                     /* Point at '+' or '.' */
   }
   if ((next_char == 'e' || next_char == 'E') &&

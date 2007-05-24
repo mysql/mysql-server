@@ -24,12 +24,20 @@
 #include <zlib.h>
 
 /*
-** This replaces the packet with a compressed packet
-** Returns 1 on error
-** *complen is 0 if the packet wasn't compressed
+   This replaces the packet with a compressed packet
+
+   SYNOPSIS
+     my_compress()
+     packet	Data to compress. This is is replaced with the compressed data.
+     len	Length of data to compress at 'packet'
+     complen	out: 0 if packet was not compressed
+
+   RETURN
+     1   error. 'len' is not changed'
+     0   ok.  In this case 'len' contains the size of the compressed packet
 */
 
-my_bool my_compress(byte *packet, ulong *len, ulong *complen)
+my_bool my_compress(uchar *packet, size_t *len, size_t *complen)
 {
   DBUG_ENTER("my_compress");
   if (*len < MIN_COMPRESS_LENGTH)
@@ -39,27 +47,36 @@ my_bool my_compress(byte *packet, ulong *len, ulong *complen)
   }
   else
   {
-    byte *compbuf=my_compress_alloc(packet,len,complen);
+    uchar *compbuf=my_compress_alloc(packet,len,complen);
     if (!compbuf)
       DBUG_RETURN(*complen ? 0 : 1);
     memcpy(packet,compbuf,*len);
-    my_free(compbuf,MYF(MY_WME));						  }
+    my_free(compbuf,MYF(MY_WME));
+  }
   DBUG_RETURN(0);
 }
 
 
-byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen)
+uchar *my_compress_alloc(const uchar *packet, size_t *len, size_t *complen)
 {
-  byte *compbuf;
+  uchar *compbuf;
+  uLongf tmp_complen;
+  int res;
   *complen=  *len * 120 / 100 + 12;
-  if (!(compbuf= (byte *) my_malloc(*complen,MYF(MY_WME))))
+
+  if (!(compbuf= (uchar *) my_malloc(*complen, MYF(MY_WME))))
     return 0;					/* Not enough memory */
-  if (compress((Bytef*) compbuf,(ulong *) complen, (Bytef*) packet,
-	       (uLong) *len ) != Z_OK)
+
+  tmp_complen= *complen;
+  res= compress((Bytef*) compbuf, &tmp_complen, (Bytef*) packet, *len);
+  *complen=    tmp_complen;
+
+  if (res != Z_OK)
   {
-    my_free(compbuf,MYF(MY_WME));
+    my_free(compbuf, MYF(MY_WME));
     return 0;
   }
+
   if (*complen >= *len)
   {
     *complen= 0;
@@ -67,50 +84,68 @@ byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen)
     DBUG_PRINT("note",("Packet got longer on compression; Not compressed"));
     return 0;
   }
-  swap_variables(ulong, *len, *complen);       /* *len is now packet length */
+  /* Store length of compressed packet in *len */
+  swap_variables(size_t, *len, *complen);
   return compbuf;
 }
 
 
-my_bool my_uncompress (byte *packet, ulong *len, ulong *complen)
+/*
+  Uncompress packet
+
+   SYNOPSIS
+     my_uncompress()
+     packet	Compressed data. This is is replaced with the orignal data.
+     len	Length of compressed data
+     complen	Length of the packet buffer (must be enough for the original
+	        data)
+
+   RETURN
+     1   error
+     0   ok.  In this case 'complen' contains the updated size of the
+              real data.
+*/
+
+my_bool my_uncompress(uchar *packet, size_t len, size_t *complen)
 {
+  uLongf tmp_complen;
   DBUG_ENTER("my_uncompress");
+
   if (*complen)					/* If compressed */
   {
-    byte *compbuf= (byte *) my_malloc(*complen,MYF(MY_WME));
+    uchar *compbuf= (uchar *) my_malloc(*complen,MYF(MY_WME));
     int error;
     if (!compbuf)
       DBUG_RETURN(1);				/* Not enough memory */
-    if ((error=uncompress((Bytef*) compbuf, complen, (Bytef*) packet, *len))
-	!= Z_OK)
+
+    tmp_complen= *complen;
+    error= uncompress((Bytef*) compbuf, &tmp_complen, (Bytef*) packet,
+                      len);
+    *complen= tmp_complen;
+    if (error != Z_OK)
     {						/* Probably wrong packet */
       DBUG_PRINT("error",("Can't uncompress packet, error: %d",error));
       my_free(compbuf, MYF(MY_WME));
       DBUG_RETURN(1);
     }
-    *len= *complen;
-    memcpy(packet, compbuf, *len);
+    memcpy(packet, compbuf, *complen);
     my_free(compbuf, MYF(MY_WME));
   }
+  else
+    *complen= len;
   DBUG_RETURN(0);
 }
 
 /*
-  Internal representation of the frm blob
+  Internal representation of the frm blob is:
+
+  ver	  4 bytes
+  orglen  4 bytes
+  complen 4 bytes
 */
 
-struct frm_blob_header
-{
-  uint ver;      /* Version of header                         */
-  uint orglen;   /* Original length of compressed data        */
-  uint complen;  /* Compressed length of data, 0=uncompressed */
-};
+#define BLOB_HEADER 12
 
-struct frm_blob_struct
-{
-  struct frm_blob_header head;
-  char data[1];
-};
 
 /*
   packfrm is a method used to compress the frm file for storage in a
@@ -129,43 +164,42 @@ struct frm_blob_struct
     >0                      Failure
 */
 
-int packfrm(const void *data, uint len,
-            const void **pack_data, uint *pack_len)
+int packfrm(const uchar *data, size_t len,
+            uchar **pack_data, size_t *pack_len)
 {
   int error;
-  ulong org_len, comp_len;
-  uint blob_len;
-  struct frm_blob_struct *blob;
+  size_t org_len, comp_len, blob_len;
+  uchar *blob;
   DBUG_ENTER("packfrm");
-  DBUG_PRINT("enter", ("data: 0x%lx, len: %d", (long) data, len));
+  DBUG_PRINT("enter", ("data: 0x%lx  len: %lu", (long) data, (ulong) len));
 
   error= 1;
   org_len= len;
-  if (my_compress((byte*)data, &org_len, &comp_len))
+  if (my_compress((uchar*)data, &org_len, &comp_len))
     goto err;
 
   DBUG_PRINT("info", ("org_len: %lu  comp_len: %lu", org_len, comp_len));
   DBUG_DUMP("compressed", (char*)data, org_len);
 
   error= 2;
-  blob_len= sizeof(struct frm_blob_header)+org_len;
-  if (!(blob= (struct frm_blob_struct*) my_malloc(blob_len,MYF(MY_WME))))
+  blob_len= BLOB_HEADER + org_len;
+  if (!(blob= (uchar*) my_malloc(blob_len,MYF(MY_WME))))
     goto err;
 
   /* Store compressed blob in machine independent format */
-  int4store((char*)(&blob->head.ver), 1);
-  int4store((char*)(&blob->head.orglen), comp_len);
-  int4store((char*)(&blob->head.complen), org_len);
+  int4store(blob, 1);
+  int4store(blob+4, (uint32) len);
+  int4store(blob+8, (uint32) org_len);          /* compressed length */
 
   /* Copy frm data into blob, already in machine independent format */
-  memcpy(blob->data, data, org_len);
+  memcpy(blob+BLOB_HEADER, data, org_len);
 
   *pack_data= blob;
-  *pack_len= blob_len;
+  *pack_len=  blob_len;
   error= 0;
 
-  DBUG_PRINT("exit", ("pack_data: 0x%lx  pack_len: %d",
-                      (long) *pack_data, *pack_len));
+  DBUG_PRINT("exit", ("pack_data: 0x%lx  pack_len: %lu",
+                      (long) *pack_data, (ulong) *pack_len));
 err:
   DBUG_RETURN(error);
 
@@ -187,40 +221,40 @@ err:
     >0                      Failure
 */
 
-int unpackfrm(const void **unpack_data, uint *unpack_len,
-              const void *pack_data)
+int unpackfrm(uchar **unpack_data, size_t *unpack_len,
+              const uchar *pack_data)
 {
-   const struct frm_blob_struct *blob= (struct frm_blob_struct*)pack_data;
-   byte *data;
-   ulong complen, orglen, ver;
+   uchar *data;
+   size_t complen, orglen;
+   ulong ver;
    DBUG_ENTER("unpackfrm");
    DBUG_PRINT("enter", ("pack_data: 0x%lx", (long) pack_data));
 
-   complen=     uint4korr((char*)&blob->head.complen);
-   orglen=      uint4korr((char*)&blob->head.orglen);
-   ver=         uint4korr((char*)&blob->head.ver);
+   ver=         uint4korr(pack_data);
+   orglen=      uint4korr(pack_data+4);
+   complen=     uint4korr(pack_data+8);
 
    DBUG_PRINT("blob",("ver: %lu  complen: %lu  orglen: %lu",
-                     ver,complen,orglen));
-   DBUG_DUMP("blob->data", (char*) blob->data, complen);
+                      ver, complen, orglen));
+   DBUG_DUMP("blob->data", pack_data + BLOB_HEADER, complen);
 
    if (ver != 1)
      DBUG_RETURN(1);
    if (!(data= my_malloc(max(orglen, complen), MYF(MY_WME))))
      DBUG_RETURN(2);
-   memcpy(data, blob->data, complen);
+   memcpy(data, pack_data + BLOB_HEADER, complen);
 
-
-   if (my_uncompress(data, &complen, &orglen))
+   if (my_uncompress(data, complen, &orglen))
    {
-     my_free((char*)data, MYF(0));
+     my_free(data, MYF(0));
      DBUG_RETURN(3);
    }
 
    *unpack_data= data;
-   *unpack_len= complen;
+   *unpack_len=  orglen;
 
-   DBUG_PRINT("exit", ("frmdata: 0x%lx  len: %d", (long) *unpack_data, *unpack_len));
+   DBUG_PRINT("exit", ("frmdata: 0x%lx  len: %lu", (long) *unpack_data,
+                       (ulong) *unpack_len));
    DBUG_RETURN(0);
 }
 #endif /* HAVE_COMPRESS */

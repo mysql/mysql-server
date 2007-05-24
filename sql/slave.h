@@ -94,9 +94,9 @@ class MASTER_INFO;
 extern ulong master_retry_count;
 extern MY_BITMAP slave_error_mask;
 extern bool use_slave_mask;
-extern char* slave_load_tmpdir;
-extern my_string master_info_file,relay_log_info_file;
-extern my_string opt_relay_logname, opt_relaylog_index_name;
+extern char *slave_load_tmpdir;
+extern char *master_info_file, *relay_log_info_file;
+extern char *opt_relay_logname, *opt_relaylog_index_name;
 extern my_bool opt_skip_slave_start, opt_reckless_slave;
 extern my_bool opt_log_slave_updates;
 extern ulonglong relay_log_space_limit;
@@ -201,13 +201,13 @@ extern int disconnect_slave_event_count, abort_slave_event_count ;
 
 /* the master variables are defaults read from my.cnf or command line */
 extern uint master_port, master_connect_retry, report_port;
-extern my_string master_user, master_password, master_host,
-       master_info_file, relay_log_info_file, report_user, report_host,
-       report_password;
+extern char * master_user, *master_password, *master_host;
+extern char *master_info_file, *relay_log_info_file, *report_user;
+extern char *report_host, *report_password;
 
 extern my_bool master_ssl;
-extern my_string master_ssl_ca, master_ssl_capath, master_ssl_cert,
-       master_ssl_cipher, master_ssl_key;
+extern char *master_ssl_ca, *master_ssl_capath, *master_ssl_cert;
+extern char *master_ssl_cipher, *master_ssl_key;
        
 extern I_List<THD> threads;
 

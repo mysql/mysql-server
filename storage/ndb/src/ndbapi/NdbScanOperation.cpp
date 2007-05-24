@@ -1311,7 +1311,7 @@ NdbIndexScanOperation::getKeyFromSCANTABREQ(Uint32* data, Uint32 size)
     }
     pos += rem;
   }
-  DBUG_DUMP("key", (char*)data, size << 2);
+  DBUG_DUMP("key", (uchar*) data, size << 2);
   DBUG_RETURN(size);
 }
 

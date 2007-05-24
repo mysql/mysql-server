@@ -27,8 +27,8 @@ void	vio_ignore_timeout(Vio *vio, uint which, uint timeout);
 #ifdef HAVE_OPENSSL
 #include "my_net.h"			/* needed because of struct in_addr */
 
-int	vio_ssl_read(Vio *vio,gptr buf,	int size);
-int	vio_ssl_write(Vio *vio,const gptr buf,int size);
+size_t	vio_ssl_read(Vio *vio,uchar* buf,	size_t size);
+size_t	vio_ssl_write(Vio *vio,const uchar* buf, size_t size);
 
 /* When the workday is over... */
 int vio_ssl_close(Vio *vio);

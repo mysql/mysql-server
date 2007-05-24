@@ -94,10 +94,8 @@ my_ulonglong net_field_length_ll(uchar **packet)
    Position in 'pkg' after the packed length
 */
 
-char *
-net_store_length(char *pkg, ulonglong length)
+uchar *net_store_length(uchar *packet, ulonglong length)
 {
-  uchar *packet=(uchar*) pkg;
   if (length < (ulonglong) LL(251))
   {
     *packet=(uchar) length;
