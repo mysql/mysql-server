@@ -38,7 +38,6 @@ synchronization          : Bug#24529  	Test 'synchronization' fails on Mac pushb
 #ndb_binlog_discover      : bug#21806 2006-08-24
 #ndb_autodiscover3        : bug#21806
 
-plugin                   : Bug#25659 memory leak via "plugins" test
 #rpl_ndb_dd_advance	 : Bug#25913 rpl_ndb_dd_advance fails randomly
 
 ndb_partition_error2	 : HF is not sure if the test can work as internded on all the platforms
