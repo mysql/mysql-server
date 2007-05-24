@@ -2047,13 +2047,11 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 
   /* If user set read_timeout, let it override the default */
   if (mysql->options.read_timeout)
-    net->read_timeout= mysql->options.read_timeout;
-  vio_timeout(net->vio, 0, net->read_timeout);
+    my_net_set_read_timeout(net, mysql->options.read_timeout);
 
   /* If user set write_timeout, let it override the default */
   if (mysql->options.write_timeout)
-    net->write_timeout= mysql->options.write_timeout;
-  vio_timeout(net->vio, 1, net->write_timeout);
+    my_net_set_write_timeout(net, mysql->options.write_timeout);
 
   if (mysql->options.max_allowed_packet)
     net->max_packet_size= mysql->options.max_allowed_packet;
