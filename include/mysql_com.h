@@ -223,7 +223,7 @@ typedef struct st_net {
     'query_cache_query' should be accessed only via query cache
     functions and methods to maintain proper locking.
   */
-  gptr query_cache_query;
+  unsigned char *query_cache_query;
 
   my_bool report_error; /* We should report error (we have unreported error) */
   my_bool return_errno;
@@ -344,13 +344,13 @@ my_bool	my_net_init(NET *net, Vio* vio);
 void	my_net_local_init(NET *net);
 void	net_end(NET *net);
   void	net_clear(NET *net, my_bool clear_buffer);
-my_bool net_realloc(NET *net, unsigned long length);
+my_bool net_realloc(NET *net, size_t length);
 my_bool	net_flush(NET *net);
-my_bool	my_net_write(NET *net,const char *packet,unsigned long len);
+my_bool	my_net_write(NET *net,const unsigned char *packet, size_t len);
 my_bool	net_write_command(NET *net,unsigned char command,
-			  const char *header, unsigned long head_len,
-			  const char *packet, unsigned long len);
-int	net_real_write(NET *net,const char *packet,unsigned long len);
+			  const unsigned char *header, size_t head_len,
+			  const unsigned char *packet, size_t len);
+int	net_real_write(NET *net,const unsigned char *packet, size_t len);
 unsigned long my_net_read(NET *net);
 
 /*
@@ -446,7 +446,7 @@ void my_thread_end(void);
 #ifdef _global_h
 ulong STDCALL net_field_length(uchar **packet);
 my_ulonglong net_field_length_ll(uchar **packet);
-char *net_store_length(char *pkg, ulonglong length);
+uchar *net_store_length(uchar *pkg, ulonglong length);
 #endif
 
 #ifdef __cplusplus

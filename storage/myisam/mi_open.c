@@ -92,7 +92,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   lock_error=1;
   errpos=0;
   head_length=sizeof(share_buff.state.header);
-  bzero((byte*) &info,sizeof(info));
+  bzero((uchar*) &info,sizeof(info));
 
   my_realpath(name_buff, fn_format(org_name,name,"",MI_NAME_IEXT,
                                    MY_UNPACK_FILENAME),MYF(0));
@@ -100,7 +100,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   if (!(old_info=test_if_reopen(name_buff)))
   {
     share= &share_buff;
-    bzero((gptr) &share_buff,sizeof(share_buff));
+    bzero((uchar*) &share_buff,sizeof(share_buff));
     share_buff.state.rec_per_key_part=rec_per_key_part;
     share_buff.state.key_root=key_root;
     share_buff.state.key_del=key_del;
@@ -127,8 +127,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       my_errno= HA_ERR_NOT_A_TABLE;
       goto err;
     }
-    if (memcmp((byte*) share->state.header.file_version,
-	       (byte*) myisam_file_magic, 4))
+    if (memcmp((uchar*) share->state.header.file_version,
+	       (uchar*) myisam_file_magic, 4))
     {
       DBUG_PRINT("error",("Wrong header in %s",name_buff));
       DBUG_DUMP("error_dump",(char*) share->state.header.file_version,
@@ -504,7 +504,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     }
     else if (share->options & HA_OPTION_PACK_RECORD)
       share->data_file_type = DYNAMIC_RECORD;
-    my_afree((gptr) disk_cache);
+    my_afree((uchar*) disk_cache);
     mi_setup_functions(share);
     share->is_log_table= FALSE;
 #ifdef THREAD
@@ -642,7 +642,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   if (myisam_log_file >= 0)
   {
     intern_filename(name_buff,share->index_file_name);
-    _myisam_log(MI_LOG_OPEN,m_info,name_buff,(uint) strlen(name_buff));
+    _myisam_log(MI_LOG_OPEN, m_info,name_buff, strlen(name_buff));
   }
   DBUG_RETURN(m_info);
 
@@ -654,7 +654,7 @@ err:
     mi_report_error(save_errno, name);
   switch (errpos) {
   case 6:
-    my_free((gptr) m_info,MYF(0));
+    my_free((uchar*) m_info,MYF(0));
     /* fall through */
   case 5:
     VOID(my_close(info.dfile,MYF(0)));
@@ -662,14 +662,14 @@ err:
       break;					/* Don't remove open table */
     /* fall through */
   case 4:
-    my_free((gptr) share,MYF(0));
+    my_free((uchar*) share,MYF(0));
     /* fall through */
   case 3:
     if (! lock_error)
       VOID(my_lock(kfile, F_UNLCK, 0L, F_TO_EOF, MYF(MY_SEEK_NOT_DONE)));
     /* fall through */
   case 2:
-    my_afree((gptr) disk_cache);
+    my_afree((uchar*) disk_cache);
     /* fall through */
   case 1:
     VOID(my_close(kfile,MYF(0)));
@@ -684,7 +684,7 @@ err:
 } /* mi_open */
 
 
-byte *mi_alloc_rec_buff(MI_INFO *info, ulong length, byte **buf)
+uchar *mi_alloc_rec_buff(MI_INFO *info, ulong length, uchar **buf)
 {
   uint extra;
   uint32 old_length;
@@ -692,7 +692,7 @@ byte *mi_alloc_rec_buff(MI_INFO *info, ulong length, byte **buf)
 
   if (! *buf || length > (old_length=mi_get_rec_buff_len(info, *buf)))
   {
-    byte *newptr = *buf;
+    uchar *newptr = *buf;
 
     /* to simplify initial init of info->rec_buf in mi_open and mi_extra */
     if (length == (ulong) -1)
@@ -709,7 +709,7 @@ byte *mi_alloc_rec_buff(MI_INFO *info, ulong length, byte **buf)
 	    MI_REC_BUFF_OFFSET : 0);
     if (extra && newptr)
       newptr-= MI_REC_BUFF_OFFSET;
-    if (!(newptr=(byte*) my_realloc((gptr)newptr, length+extra+8,
+    if (!(newptr=(uchar*) my_realloc((uchar*)newptr, length+extra+8,
                                      MYF(MY_ALLOW_ZERO_PTR))))
       return newptr;
     *((uint32 *) newptr)= (uint32) length;
@@ -899,10 +899,10 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite)
   }
 
   if (pWrite & 1)
-    DBUG_RETURN(my_pwrite(file,(char*) buff, (uint) (ptr-buff), 0L,
-			  MYF(MY_NABP | MY_THREADSAFE)));
-  DBUG_RETURN(my_write(file,  (char*) buff, (uint) (ptr-buff),
-		       MYF(MY_NABP)));
+    DBUG_RETURN(my_pwrite(file, buff, (size_t) (ptr-buff), 0L,
+			  MYF(MY_NABP | MY_THREADSAFE)) != 0);
+  DBUG_RETURN(my_write(file, buff, (size_t) (ptr-buff),
+		       MYF(MY_NABP)) != 0);
 }
 
 
@@ -968,10 +968,10 @@ uint mi_state_info_read_dsk(File file, MI_STATE_INFO *state, my_bool pRead)
     if (pRead)
     {
       if (my_pread(file, buff, state->state_length,0L, MYF(MY_NABP)))
-	return (MY_FILE_ERROR);
+	return 1;
     }
     else if (my_read(file, buff, state->state_length,MYF(MY_NABP)))
-      return (MY_FILE_ERROR);
+      return 1;
     mi_state_info_read((uchar*) buff, state);
   }
   return 0;
@@ -1013,7 +1013,7 @@ uint mi_base_info_write(File file, MI_BASE_INFO *base)
   mi_int2store(ptr,base->raid_chunks);			ptr +=2;
   mi_int4store(ptr,base->raid_chunksize);		ptr +=4;
   bzero(ptr,6);						ptr +=6; /* extra */
-  return my_write(file,(char*) buff, (uint) (ptr-buff), MYF(MY_NABP));
+  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 
@@ -1073,7 +1073,7 @@ uint mi_keydef_write(File file, MI_KEYDEF *keydef)
   mi_int2store(ptr,keydef->keylength);		ptr +=2;
   mi_int2store(ptr,keydef->minlength);		ptr +=2;
   mi_int2store(ptr,keydef->maxlength);		ptr +=2;
-  return my_write(file,(char*) buff, (uint) (ptr-buff), MYF(MY_NABP));
+  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 char *mi_keydef_read(char *ptr, MI_KEYDEF *keydef)
@@ -1117,7 +1117,7 @@ int mi_keyseg_write(File file, const HA_KEYSEG *keyseg)
   mi_int4store(ptr, pos);
   ptr+=4;
   
-  return my_write(file,(char*) buff, (uint) (ptr-buff), MYF(MY_NABP));
+  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 
@@ -1157,7 +1157,7 @@ uint mi_uniquedef_write(File file, MI_UNIQUEDEF *def)
   *ptr++=  (uchar) def->key;
   *ptr++ = (uchar) def->null_are_equal;
 
-  return my_write(file,(char*) buff, (uint) (ptr-buff), MYF(MY_NABP));
+  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 char *mi_uniquedef_read(char *ptr, MI_UNIQUEDEF *def)
@@ -1181,7 +1181,7 @@ uint mi_recinfo_write(File file, MI_COLUMNDEF *recinfo)
   mi_int2store(ptr,recinfo->length);	ptr +=2;
   *ptr++ = recinfo->null_bit;
   mi_int2store(ptr,recinfo->null_pos);	ptr+= 2;
-  return my_write(file,(char*) buff, (uint) (ptr-buff), MYF(MY_NABP));
+  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 char *mi_recinfo_read(char *ptr, MI_COLUMNDEF *recinfo)
@@ -1202,7 +1202,8 @@ The argument file_to_dup is here for the future if there would on some OS
 exist a dup()-like call that would give us two different file descriptors.
 *************************************************************************/
 
-int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, File file_to_dup __attribute__((unused)))
+int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share,
+                     File file_to_dup __attribute__((unused)))
 {
 #ifdef USE_RAID
   if (share->base.raid_type)

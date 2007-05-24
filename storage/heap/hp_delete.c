@@ -17,9 +17,9 @@
 
 #include "heapdef.h"
 
-int heap_delete(HP_INFO *info, const byte *record)
+int heap_delete(HP_INFO *info, const uchar *record)
 {
-  byte *pos;
+  uchar *pos;
   HP_SHARE *share=info->s;
   HP_KEYDEF *keydef, *end, *p_lastinx;
   DBUG_ENTER("heap_delete");
@@ -43,7 +43,7 @@ int heap_delete(HP_INFO *info, const byte *record)
   }
 
   info->update=HA_STATE_DELETED;
-  *((byte**) pos)=share->del_link;
+  *((uchar**) pos)=share->del_link;
   share->del_link=pos;
   pos[share->reclength]=0;		/* Record deleted */
   share->deleted++;
@@ -65,7 +65,7 @@ err:
 */
 
 int hp_rb_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
-		   const byte *record, byte *recpos, int flag)
+		   const uchar *record, uchar *recpos, int flag)
 {
   heap_rb_param custom_arg;
   uint old_allocated;
@@ -105,7 +105,7 @@ int hp_rb_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
 */
 
 int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
-		  const byte *record, byte *recpos, int flag)
+		  const uchar *record, uchar *recpos, int flag)
 {
   ulong blength,pos2,pos_hashnr,lastpos_hashnr;
   HASH_INFO *lastpos,*gpos,*pos,*pos3,*empty,*last_ptr;

@@ -150,7 +150,7 @@ unsigned short cs_to_uni[256]={
 0x00F0,0x00F1,0x00F2,0x00F3,0x00F4,0x00F5,0x00F6,0x00F7,
 0x00F8,0x00F9,0x00FA,0x00FB,0x00FC,0x00FD,0x00FE,0x00FF
 };
-unsigned char pl00[256]={
+uchar pl00[256]={
 0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
 0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F,
 0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
@@ -184,7 +184,7 @@ unsigned char pl00[256]={
 0xF0,0xF1,0xF2,0xF3,0xF4,0xF5,0xF6,0xF7,
 0xF8,0xF9,0xFA,0xFB,0xFC,0xFD,0xFE,0xFF
 };
-unsigned char pl01[256]={
+uchar pl01[256]={
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -218,7 +218,7 @@ unsigned char pl01[256]={
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 };
-unsigned char pl02[256]={
+uchar pl02[256]={
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -252,7 +252,7 @@ unsigned char pl02[256]={
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 };
-unsigned char pl20[256]={
+uchar pl20[256]={
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x96,0x97,0x00,0x00,0x00,
@@ -286,7 +286,7 @@ unsigned char pl20[256]={
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 };
-unsigned char pl21[256]={
+uchar pl21[256]={
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -320,7 +320,7 @@ unsigned char pl21[256]={
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 };
-unsigned char *uni_to_cs[256]={
+uchar *uni_to_cs[256]={
 pl00,pl01,pl02,NULL,NULL,NULL,NULL,NULL,
 NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
 NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
@@ -358,8 +358,8 @@ NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL
 static
 int my_mb_wc_latin1(CHARSET_INFO *cs  __attribute__((unused)),
 		    my_wc_t *wc,
-		    const unsigned char *str,
-		    const unsigned char *end __attribute__((unused)))
+		    const uchar *str,
+		    const uchar *end __attribute__((unused)))
 {
   if (str >= end)
     return MY_CS_TOOSMALL;
@@ -371,10 +371,10 @@ int my_mb_wc_latin1(CHARSET_INFO *cs  __attribute__((unused)),
 static
 int my_wc_mb_latin1(CHARSET_INFO *cs  __attribute__((unused)),
 		    my_wc_t wc,
-		    unsigned char *str,
-		    unsigned char *end __attribute__((unused)))
+		    uchar *str,
+		    uchar *end __attribute__((unused)))
 {
-  unsigned char *pl;
+  uchar *pl;
   
   if (str >= end)
     return MY_CS_TOOSMALL;
@@ -543,8 +543,8 @@ uchar combo2map[]={
 
 
 static int my_strnncoll_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
-				  const uchar *a, uint a_length,
-				  const uchar *b, uint b_length,
+				  const uchar *a, size_t a_length,
+				  const uchar *b, size_t b_length,
                                   my_bool b_is_prefix)
 {
   const uchar *a_end= a + a_length;
@@ -584,8 +584,8 @@ static int my_strnncoll_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static int my_strnncollsp_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
-				    const uchar *a, uint a_length,
-				    const uchar *b, uint b_length,
+				    const uchar *a, size_t a_length,
+				    const uchar *b, size_t b_length,
                                     my_bool diff_if_only_endspace_difference)
 {
   const uchar *a_end= a + a_length, *b_end= b + b_length;
@@ -655,9 +655,9 @@ static int my_strnncollsp_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static int my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
-				 uchar * dest, uint len,
-				 const uchar * src, uint srclen)
+static size_t my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
+                                    uchar *dest, size_t len,
+                                    const uchar *src, size_t srclen)
 {
   const uchar *de = dest + len;
   const uchar *se = src + srclen;
@@ -675,7 +675,7 @@ static int my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 
 
 void my_hash_sort_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
-			    const uchar *key, uint len,
+			    const uchar *key, size_t len,
 			    ulong *nr1, ulong *nr2)
 {
   const uchar *end= key+len;

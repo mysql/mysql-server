@@ -30,7 +30,7 @@ enum Log_type
 
 Command *parse_command(const char *text);
 
-bool parse_option_value(const char *text, uint *text_len, char **value);
+bool parse_option_value(const char *text, size_t *text_len, char **value);
 
 void skip_spaces(const char **text);
 
@@ -138,7 +138,7 @@ inline Named_value Named_value_arr::get_element(int idx) const
   DBUG_ASSERT(0 <= idx && (uint) idx < arr.elements);
 
   Named_value option;
-  get_dynamic((DYNAMIC_ARRAY *) &arr, (gptr) &option, idx);
+  get_dynamic((DYNAMIC_ARRAY *) &arr, (uchar*) &option, idx);
 
   return option;
 }
@@ -156,7 +156,7 @@ inline void Named_value_arr::remove_element(int idx)
 
 inline bool Named_value_arr::add_element(Named_value *option)
 {
-  return insert_dynamic(&arr, (gptr) option);
+  return insert_dynamic(&arr, (uchar*) option);
 }
 
 
@@ -166,7 +166,7 @@ inline bool Named_value_arr::replace_element(int idx, Named_value *option)
 
   get_element(idx).free();
 
-  return set_dynamic(&arr, (gptr) option, idx);
+  return set_dynamic(&arr, (uchar*) option, idx);
 }
 
 /************************************************************************/
@@ -177,7 +177,7 @@ inline bool Named_value_arr::replace_element(int idx, Named_value *option)
   if not found returns pointer to first non-space or to '\0', word_len == 0
 */
 
-inline void get_word(const char **text, uint *word_len,
+inline void get_word(const char **text, size_t *word_len,
                      enum_seek_method seek_method= ALPHANUM)
 {
   const char *word_end;

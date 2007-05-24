@@ -84,10 +84,10 @@ public:
     first_link=last_link=0;
   }
 
-  hash_filo_element *search(gptr key,uint length)
+  hash_filo_element *search(uchar* key, size_t length)
   {
     hash_filo_element *entry=(hash_filo_element*)
-      hash_search(&cache,(byte*) key,length);
+      hash_search(&cache,(uchar*) key,length);
     if (entry)
     {						// Found; link it first
       if (entry != first_link)
@@ -113,9 +113,9 @@ public:
     {
       hash_filo_element *tmp=last_link;
       last_link=last_link->prev_used;
-      hash_delete(&cache,(byte*) tmp);
+      hash_delete(&cache,(uchar*) tmp);
     }
-    if (my_hash_insert(&cache,(byte*) entry))
+    if (my_hash_insert(&cache,(uchar*) entry))
     {
       if (free_element)
 	(*free_element)(entry);		// This should never happen

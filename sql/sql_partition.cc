@@ -123,23 +123,23 @@ uint32 get_partition_id_hash_sub(partition_info *part_info);
 uint32 get_partition_id_key_sub(partition_info *part_info); 
 uint32 get_partition_id_linear_hash_sub(partition_info *part_info); 
 uint32 get_partition_id_linear_key_sub(partition_info *part_info); 
+static uint32 get_next_partition_via_walking(PARTITION_ITERATOR*);
+static void set_up_range_analysis_info(partition_info *part_info);
+static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR*);
 #endif
 
-static uint32 get_next_partition_via_walking(PARTITION_ITERATOR*);
-static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR*);
 uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter);
 uint32 get_next_partition_id_list(PARTITION_ITERATOR* part_iter);
 int get_part_iter_for_interval_via_mapping(partition_info *part_info,
                                            bool is_subpart,
-                                           char *min_value, char *max_value,
+                                           uchar *min_value, uchar *max_value,
                                            uint flags,
                                            PARTITION_ITERATOR *part_iter);
 int get_part_iter_for_interval_via_walking(partition_info *part_info,
                                            bool is_subpart,
-                                           char *min_value, char *max_value,
+                                           uchar *min_value, uchar *max_value,
                                            uint flags,
                                            PARTITION_ITERATOR *part_iter);
-static void set_up_range_analysis_info(partition_info *part_info);
 
 /*
   A routine used by the parser to decide whether we are specifying a full
@@ -318,8 +318,8 @@ bool check_reorganise_list(partition_info *new_part_info,
     > 0                     Error code
 */
 
-int get_parts_for_update(const byte *old_data, byte *new_data,
-                         const byte *rec0, partition_info *part_info,
+int get_parts_for_update(const uchar *old_data, uchar *new_data,
+                         const uchar *rec0, partition_info *part_info,
                          uint32 *old_part_id, uint32 *new_part_id,
                          longlong *new_func_value)
 {
@@ -392,7 +392,7 @@ int get_parts_for_update(const byte *old_data, byte *new_data,
     calculate the partition id.
 */
 
-int get_part_for_delete(const byte *buf, const byte *rec0,
+int get_part_for_delete(const uchar *buf, const uchar *rec0,
                         partition_info *part_info, uint32 *part_id)
 {
   int error;
@@ -931,7 +931,7 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   context->table_list= &tables;
   context->first_name_resolution_table= &tables;
   context->last_name_resolution_table= NULL;
-  func_expr->walk(&Item::change_context_processor, 0, (byte*) context);
+  func_expr->walk(&Item::change_context_processor, 0, (uchar*) context);
   save_where= thd->where;
   thd->where= "partition function";
   /*
@@ -1697,7 +1697,7 @@ end:
 
 static int add_write(File fptr, const char *buf, uint len)
 {
-  uint len_written= my_write(fptr, (const byte*)buf, len, MYF(0));
+  uint len_written= my_write(fptr, (const uchar*)buf, len, MYF(0));
 
   if (likely(len == len_written))
     return 0;
@@ -2144,13 +2144,13 @@ char *generate_partition_syntax(partition_info *part_info,
     goto close_file;
   *buf_length= (uint)buffer_length;
   if (use_sql_alloc)
-    buf= sql_alloc(*buf_length+1);
+    buf= (char*) sql_alloc(*buf_length+1);
   else
-    buf= my_malloc(*buf_length+1, MYF(MY_WME));
+    buf= (char*) my_malloc(*buf_length+1, MYF(MY_WME));
   if (!buf)
     goto close_file;
 
-  if (unlikely(my_read(fptr, (byte*)buf, *buf_length, MYF(MY_FNABP))))
+  if (unlikely(my_read(fptr, (uchar*)buf, *buf_length, MYF(MY_FNABP))))
   {
     if (!use_sql_alloc)
       my_free(buf, MYF(0));
@@ -2413,8 +2413,8 @@ static uint32 get_part_id_linear_key(partition_info *part_info,
 */
 
 static void copy_to_part_field_buffers(Field **ptr,
-                                       char **field_bufs,
-                                       char **restore_ptr)
+                                       uchar **field_bufs,
+                                       uchar **restore_ptr)
 {
   Field *field;
   while ((field= *(ptr++)))
@@ -2425,7 +2425,7 @@ static void copy_to_part_field_buffers(Field **ptr,
     {
       CHARSET_INFO *cs= ((Field_str*)field)->charset();
       uint len= field->pack_length();
-      char *field_buf= *field_bufs;
+      uchar *field_buf= *field_bufs;
       /*
          We only use the field buffer for VARCHAR and CHAR strings
          which isn't of a binary collation. We also only use the
@@ -2436,17 +2436,17 @@ static void copy_to_part_field_buffers(Field **ptr,
       if (field->type() == MYSQL_TYPE_VARCHAR)
       {
         uint len_bytes= ((Field_varstring*)field)->length_bytes;
-        my_strnxfrm(cs, (uchar*)(field_buf + len_bytes), (len - len_bytes),
-                    (uchar*)(field->ptr + len_bytes), field->field_length);
+        my_strnxfrm(cs, field_buf + len_bytes, (len - len_bytes),
+                    field->ptr + len_bytes, field->field_length);
         if (len_bytes == 1)
-          *field_buf= (uchar)field->field_length;
+          *field_buf= (uchar) field->field_length;
         else
           int2store(field_buf, field->field_length);
       }
       else
       {
-        my_strnxfrm(cs, (uchar*)field_buf, len,
-                    (uchar*)field->ptr, field->field_length);
+        my_strnxfrm(cs, field_buf, len,
+                    field->ptr, field->field_length);
       }
       field->ptr= field_buf;
     }
@@ -2465,7 +2465,7 @@ static void copy_to_part_field_buffers(Field **ptr,
   RETURN VALUES
 */
 
-static void restore_part_field_pointers(Field **ptr, char **restore_ptr)
+static void restore_part_field_pointers(Field **ptr, uchar **restore_ptr)
 {
   Field *field;
   while ((field= *(ptr++)))
@@ -3307,16 +3307,16 @@ static bool check_part_func_bound(Field **ptr)
     get the partition identity and restore field pointers afterwards.
 */
 
-static uint32 get_sub_part_id_from_key(const TABLE *table,byte *buf,
+static uint32 get_sub_part_id_from_key(const TABLE *table,uchar *buf,
                                        KEY *key_info,
                                        const key_range *key_spec)
 {
-  byte *rec0= table->record[0];
+  uchar *rec0= table->record[0];
   partition_info *part_info= table->part_info;
   uint32 part_id;
   DBUG_ENTER("get_sub_part_id_from_key");
 
-  key_restore(buf, (byte*)key_spec->key, key_info, key_spec->length);
+  key_restore(buf, (uchar*)key_spec->key, key_info, key_spec->length);
   if (likely(rec0 == buf))
     part_id= part_info->get_subpartition_id(part_info);
   else
@@ -3350,16 +3350,16 @@ static uint32 get_sub_part_id_from_key(const TABLE *table,byte *buf,
     get the partition identity and restore field pointers afterwards.
 */
 
-bool get_part_id_from_key(const TABLE *table, byte *buf, KEY *key_info,
+bool get_part_id_from_key(const TABLE *table, uchar *buf, KEY *key_info,
                           const key_range *key_spec, uint32 *part_id)
 {
   bool result;
-  byte *rec0= table->record[0];
+  uchar *rec0= table->record[0];
   partition_info *part_info= table->part_info;
   longlong func_value;
   DBUG_ENTER("get_part_id_from_key");
 
-  key_restore(buf, (byte*)key_spec->key, key_info, key_spec->length);
+  key_restore(buf, (uchar*)key_spec->key, key_info, key_spec->length);
   if (likely(rec0 == buf))
     result= part_info->get_part_partition_id(part_info, part_id,
                                              &func_value);
@@ -3395,18 +3395,18 @@ bool get_part_id_from_key(const TABLE *table, byte *buf, KEY *key_info,
     get the partition identity and restore field pointers afterwards.
 */
 
-void get_full_part_id_from_key(const TABLE *table, byte *buf,
+void get_full_part_id_from_key(const TABLE *table, uchar *buf,
                                KEY *key_info,
                                const key_range *key_spec,
                                part_id_range *part_spec)
 {
   bool result;
   partition_info *part_info= table->part_info;
-  byte *rec0= table->record[0];
+  uchar *rec0= table->record[0];
   longlong func_value;
   DBUG_ENTER("get_full_part_id_from_key");
 
-  key_restore(buf, (byte*)key_spec->key, key_info, key_spec->length);
+  key_restore(buf, (uchar*)key_spec->key, key_info, key_spec->length);
   if (likely(rec0 == buf))
     result= part_info->get_partition_id(part_info, &part_spec->start_part,
                                         &func_value);
@@ -3494,7 +3494,7 @@ void prune_partition_set(const TABLE *table, part_id_range *part_spec)
   RETURN VALUE
     part_spec
 */
-void get_partition_set(const TABLE *table, byte *buf, const uint index,
+void get_partition_set(const TABLE *table, uchar *buf, const uint index,
                        const key_range *key_spec, part_id_range *part_spec)
 {
   partition_info *part_info= table->part_info;
@@ -3835,9 +3835,9 @@ bool mysql_unpack_partition(THD *thd,
     char *part_func_string= NULL;
     char *subpart_func_string= NULL;
     if ((part_func_len &&
-        !((part_func_string= thd->alloc(part_func_len)))) ||
+         !((part_func_string= (char*) thd->alloc(part_func_len)))) ||
         (subpart_func_len &&
-        !((subpart_func_string= thd->alloc(subpart_func_len)))))
+         !((subpart_func_string= (char*) thd->alloc(subpart_func_len)))))
     {
       mem_alloc_error(part_func_len);
       thd->free_items();
@@ -6408,8 +6408,8 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
     also for other programs.
 */
 
-void set_field_ptr(Field **ptr, const byte *new_buf,
-                   const byte *old_buf)
+void set_field_ptr(Field **ptr, const uchar *new_buf,
+                   const uchar *old_buf)
 {
   my_ptrdiff_t diff= (new_buf - old_buf);
   DBUG_ENTER("set_field_ptr");
@@ -6442,8 +6442,8 @@ void set_field_ptr(Field **ptr, const byte *new_buf,
     also for other programs.
 */
 
-void set_key_field_ptr(KEY *key_info, const byte *new_buf,
-                       const byte *old_buf)
+void set_key_field_ptr(KEY *key_info, const uchar *new_buf,
+                       const uchar *old_buf)
 {
   KEY_PART_INFO *key_part= key_info->key_part;
   uint key_parts= key_info->key_parts;
@@ -6694,7 +6694,7 @@ typedef uint32 (*get_endpoint_func)(partition_info*, bool left_endpoint,
 
 int get_part_iter_for_interval_via_mapping(partition_info *part_info,
                                            bool is_subpart,
-                                           char *min_value, char *max_value,
+                                           uchar *min_value, uchar *max_value,
                                            uint flags,
                                            PARTITION_ITERATOR *part_iter)
 {
@@ -6850,7 +6850,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
 
 int get_part_iter_for_interval_via_walking(partition_info *part_info,
                                            bool is_subpart,
-                                           char *min_value, char *max_value,
+                                           uchar *min_value, uchar *max_value,
                                            uint flags,
                                            PARTITION_ITERATOR *part_iter)
 {

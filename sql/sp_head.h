@@ -245,7 +245,7 @@ public:
   {
     sp_instr *i;
 
-    get_dynamic(&m_instr, (gptr)&i, m_instr.elements-1);
+    get_dynamic(&m_instr, (uchar*)&i, m_instr.elements-1);
     return i;
   }
 
@@ -327,7 +327,7 @@ public:
     sp_instr *ip;
 
     if (i < m_instr.elements)
-      get_dynamic(&m_instr, (gptr)&ip, i);
+      get_dynamic(&m_instr, (uchar*)&ip, i);
     else
       ip= NULL;
     return ip;

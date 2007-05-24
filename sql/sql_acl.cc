@@ -160,11 +160,11 @@ public:
 };
 
 
-static byte* acl_entry_get_key(acl_entry *entry,uint *length,
-			       my_bool not_used __attribute__((unused)))
+static uchar* acl_entry_get_key(acl_entry *entry, size_t *length,
+                                my_bool not_used __attribute__((unused)))
 {
   *length=(uint) entry->length;
-  return (byte*) entry->key;
+  return (uchar*) entry->key;
 }
 
 #define IP_ADDR_STRLEN (3+1+3+1+3+1+3)
@@ -362,9 +362,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 	host.access|=REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL;
     }
 #endif
-    VOID(push_dynamic(&acl_hosts,(gptr) &host));
+    VOID(push_dynamic(&acl_hosts,(uchar*) &host));
   }
-  qsort((gptr) dynamic_element(&acl_hosts,0,ACL_HOST*),acl_hosts.elements,
+  qsort((uchar*) dynamic_element(&acl_hosts,0,ACL_HOST*),acl_hosts.elements,
 	sizeof(ACL_HOST),(qsort_cmp) acl_compare);
   end_read_record(&read_record_info);
   freeze_size(&acl_hosts);
@@ -546,13 +546,13 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           user.access|= SUPER_ACL | EXECUTE_ACL;
 #endif
       }
-      VOID(push_dynamic(&acl_users,(gptr) &user));
+      VOID(push_dynamic(&acl_users,(uchar*) &user));
       if (!user.host.hostname ||
 	  (user.host.hostname[0] == wild_many && !user.host.hostname[1]))
         allow_all_hosts=1;			// Anyone can connect
     }
   }
-  qsort((gptr) dynamic_element(&acl_users,0,ACL_USER*),acl_users.elements,
+  qsort((uchar*) dynamic_element(&acl_users,0,ACL_USER*),acl_users.elements,
 	sizeof(ACL_USER),(qsort_cmp) acl_compare);
   end_read_record(&read_record_info);
   freeze_size(&acl_users);
@@ -609,9 +609,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 	db.access|=REFERENCES_ACL | INDEX_ACL | ALTER_ACL;
     }
 #endif
-    VOID(push_dynamic(&acl_dbs,(gptr) &db));
+    VOID(push_dynamic(&acl_dbs,(uchar*) &db));
   }
-  qsort((gptr) dynamic_element(&acl_dbs,0,ACL_DB*),acl_dbs.elements,
+  qsort((uchar*) dynamic_element(&acl_dbs,0,ACL_DB*),acl_dbs.elements,
 	sizeof(ACL_DB),(qsort_cmp) acl_compare);
   end_read_record(&read_record_info);
   freeze_size(&acl_dbs);
@@ -1152,11 +1152,11 @@ bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
   DBUG_RETURN(res);
 }
 
-static byte* check_get_key(ACL_USER *buff,uint *length,
-			   my_bool not_used __attribute__((unused)))
+static uchar* check_get_key(ACL_USER *buff, size_t *length,
+                            my_bool not_used __attribute__((unused)))
 {
   *length=buff->hostname_length;
-  return (byte*) buff->host.hostname;
+  return (uchar*) buff->host.hostname;
 }
 
 
@@ -1237,11 +1237,11 @@ static void acl_insert_user(const char *user, const char *host,
 
   set_user_salt(&acl_user, password, password_len);
 
-  VOID(push_dynamic(&acl_users,(gptr) &acl_user));
+  VOID(push_dynamic(&acl_users,(uchar*) &acl_user));
   if (!acl_user.host.hostname ||
       (acl_user.host.hostname[0] == wild_many && !acl_user.host.hostname[1]))
     allow_all_hosts=1;		// Anyone can connect /* purecov: tested */
-  qsort((gptr) dynamic_element(&acl_users,0,ACL_USER*),acl_users.elements,
+  qsort((uchar*) dynamic_element(&acl_users,0,ACL_USER*),acl_users.elements,
 	sizeof(ACL_USER),(qsort_cmp) acl_compare);
 
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
@@ -1303,8 +1303,8 @@ static void acl_insert_db(const char *user, const char *host, const char *db,
   acl_db.db=strdup_root(&mem,db);
   acl_db.access=privileges;
   acl_db.sort=get_sort(3,acl_db.host.hostname,acl_db.db,acl_db.user);
-  VOID(push_dynamic(&acl_dbs,(gptr) &acl_db));
-  qsort((gptr) dynamic_element(&acl_dbs,0,ACL_DB*),acl_dbs.elements,
+  VOID(push_dynamic(&acl_dbs,(uchar*) &acl_db));
+  qsort((uchar*) dynamic_element(&acl_dbs,0,ACL_DB*),acl_dbs.elements,
 	sizeof(ACL_DB),(qsort_cmp) acl_compare);
 }
 
@@ -1321,7 +1321,8 @@ ulong acl_get(const char *host, const char *ip,
               const char *user, const char *db, my_bool db_is_pattern)
 {
   ulong host_access= ~(ulong)0, db_access= 0;
-  uint i,key_length;
+  uint i;
+  size_t key_length;
   char key[ACL_KEY_LENGTH],*tmp_db,*end;
   acl_entry *entry;
   DBUG_ENTER("acl_get");
@@ -1333,8 +1334,9 @@ ulong acl_get(const char *host, const char *ip,
     my_casedn_str(files_charset_info, tmp_db);
     db=tmp_db;
   }
-  key_length=(uint) (end-key);
-  if (!db_is_pattern && (entry=(acl_entry*) acl_cache->search(key,key_length)))
+  key_length= (size_t) (end-key);
+  if (!db_is_pattern && (entry=(acl_entry*) acl_cache->search((uchar*) key,
+                                                              key_length)))
   {
     db_access=entry->access;
     VOID(pthread_mutex_unlock(&acl_cache->lock));
@@ -1388,7 +1390,7 @@ exit:
   {
     entry->access=(db_access & host_access);
     entry->length=key_length;
-    memcpy((gptr) entry->key,key,key_length);
+    memcpy((uchar*) entry->key,key,key_length);
     acl_cache->add(entry);
   }
   VOID(pthread_mutex_unlock(&acl_cache->lock));
@@ -1430,12 +1432,12 @@ static void init_check_host(void)
 	    break;				// already stored
 	}
 	if (j == acl_wild_hosts.elements)	// If new
-	  (void) push_dynamic(&acl_wild_hosts,(char*) &acl_user->host);
+	  (void) push_dynamic(&acl_wild_hosts,(uchar*) &acl_user->host);
       }
-      else if (!hash_search(&acl_check_hosts,(byte*) acl_user->host.hostname,
-			    (uint) strlen(acl_user->host.hostname)))
+      else if (!hash_search(&acl_check_hosts,(uchar*) acl_user->host.hostname,
+			    strlen(acl_user->host.hostname)))
       {
-	if (my_hash_insert(&acl_check_hosts,(byte*) acl_user))
+	if (my_hash_insert(&acl_check_hosts,(uchar*) acl_user))
 	{					// End of memory
 	  allow_all_hosts=1;			// Should never happen
 	  DBUG_VOID_RETURN;
@@ -1473,8 +1475,8 @@ bool acl_check_host(const char *host, const char *ip)
     return 0;
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
-  if (host && hash_search(&acl_check_hosts,(byte*) host,(uint) strlen(host)) ||
-      ip && hash_search(&acl_check_hosts,(byte*) ip,(uint) strlen(ip)))
+  if (host && hash_search(&acl_check_hosts,(uchar*) host,strlen(host)) ||
+      ip && hash_search(&acl_check_hosts,(uchar*) ip, strlen(ip)))
   {
     VOID(pthread_mutex_unlock(&acl_cache->lock));
     return 0;					// Found host
@@ -1533,7 +1535,7 @@ bool check_change_password(THD *thd, const char *host, const char *user,
                MYF(0));
     return(1);
   }
-  uint len=strlen(new_password);
+  size_t len= strlen(new_password);
   if (len && len != SCRAMBLED_PASSWORD_CHAR_LENGTH &&
       len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
   {
@@ -1567,7 +1569,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   /* Buffer should be extended when password length is extended. */
   char buff[512];
   ulong query_length;
-  uint new_password_len= strlen(new_password);
+  uint new_password_len= (uint) strlen(new_password);
   bool result= 1;
   DBUG_ENTER("change_password");
   DBUG_PRINT("enter",("host: '%s'  user: '%s'  new_password: '%s'",
@@ -1768,8 +1770,8 @@ bool hostname_requires_resolving(const char *hostname)
   char cur;
   if (!hostname)
     return FALSE;
-  int namelen= strlen(hostname);
-  int lhlen= strlen(my_localhost);
+  size_t namelen= strlen(hostname);
+  size_t lhlen= strlen(my_localhost);
   if ((namelen == lhlen) &&
       !my_strnncoll(system_charset_info, (const uchar *)hostname,  namelen,
 		    (const uchar *)my_localhost, strlen(my_localhost)))
@@ -1809,11 +1811,11 @@ static bool update_user_table(THD *thd, TABLE *table,
   table->use_all_columns();
   table->field[0]->store(host,(uint) strlen(host), system_charset_info);
   table->field[1]->store(user,(uint) strlen(user), system_charset_info);
-  key_copy((byte *) user_key, table->record[0], table->key_info,
+  key_copy((uchar *) user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
   if (table->file->index_read_idx(table->record[0], 0,
-				  (byte *) user_key, HA_WHOLE_KEY,
+				  (uchar *) user_key, HA_WHOLE_KEY,
 				  HA_READ_KEY_EXACT))
   {
     my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
@@ -1878,7 +1880,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   const char *password= "";
   uint password_len= 0;
   char what= (revoke_grant) ? 'N' : 'Y';
-  byte user_key[MAX_KEY_LENGTH];
+  uchar user_key[MAX_KEY_LENGTH];
   LEX *lex= thd->lex;
   DBUG_ENTER("replace_user_table");
 
@@ -2096,7 +2098,7 @@ static int replace_db_table(TABLE *table, const char *db,
   bool old_row_exists=0;
   int error;
   char what= (revoke_grant) ? 'N' : 'Y';
-  byte user_key[MAX_KEY_LENGTH];
+  uchar user_key[MAX_KEY_LENGTH];
   DBUG_ENTER("replace_db_table");
 
   if (!initialized)
@@ -2198,16 +2200,16 @@ public:
   uint key_length;
   GRANT_COLUMN(String &c,  ulong y) :rights (y)
   {
-    column= memdup_root(&memex,c.ptr(), key_length=c.length());
+    column= (char*) memdup_root(&memex,c.ptr(), key_length=c.length());
   }
 };
 
 
-static byte* get_key_column(GRANT_COLUMN *buff,uint *length,
+static uchar* get_key_column(GRANT_COLUMN *buff, size_t *length,
 			    my_bool not_used __attribute__((unused)))
 {
   *length=buff->key_length;
-  return (byte*) buff->column;
+  return (uchar*) buff->column;
 }
 
 
@@ -2218,7 +2220,7 @@ public:
   char *db, *user, *tname, *hash_key;
   ulong privs;
   ulong sort;
-  uint key_length;
+  size_t key_length;
   GRANT_NAME(const char *h, const char *d,const char *u,
              const char *t, ulong p);
   GRANT_NAME (TABLE *form);
@@ -2257,8 +2259,8 @@ GRANT_NAME::GRANT_NAME(const char *h, const char *d,const char *u,
     my_casedn_str(files_charset_info, db);
     my_casedn_str(files_charset_info, tname);
   }
-  key_length =(uint) strlen(d)+(uint) strlen(u)+(uint) strlen(t)+3;
-  hash_key = (char*) alloc_root(&memex,key_length);
+  key_length= strlen(d) + strlen(u)+ strlen(t)+3;
+  hash_key=   (char*) alloc_root(&memex,key_length);
   strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
 }
 
@@ -2292,9 +2294,8 @@ GRANT_NAME::GRANT_NAME(TABLE *form)
     my_casedn_str(files_charset_info, db);
     my_casedn_str(files_charset_info, tname);
   }
-  key_length = ((uint) strlen(db) + (uint) strlen(user) +
-                (uint) strlen(tname) + 3);
-  hash_key = (char*) alloc_root(&memex,key_length);
+  key_length= (strlen(db) + strlen(user) + strlen(tname) + 3);
+  hash_key=   (char*) alloc_root(&memex, key_length);
   strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
   privs = (ulong) form->field[6]->val_int();
   privs = fix_rights_for_table(privs);
@@ -2304,7 +2305,7 @@ GRANT_NAME::GRANT_NAME(TABLE *form)
 GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
   :GRANT_NAME(form)
 {
-  byte key[MAX_KEY_LENGTH];
+  uchar key[MAX_KEY_LENGTH];
 
   if (!db || !tname)
   {
@@ -2338,7 +2339,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
     col_privs->field[4]->store("",0, &my_charset_latin1);
 
     col_privs->file->ha_index_init(0, 1);
-    if (col_privs->file->index_read(col_privs->record[0], (byte*) key,
+    if (col_privs->file->index_read(col_privs->record[0], (uchar*) key,
                                     (key_part_map)15, HA_READ_KEY_EXACT))
     {
       cols = 0; /* purecov: deadcode */
@@ -2359,7 +2360,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
         privs = cols = 0;			/* purecov: deadcode */
         return;				/* purecov: deadcode */
       }
-      my_hash_insert(&hash_columns, (byte *) mem_check);
+      my_hash_insert(&hash_columns, (uchar *) mem_check);
     } while (!col_privs->file->index_next(col_privs->record[0]) &&
              !key_cmp_if_same(col_privs,key,0,key_prefix_len));
     col_privs->file->ha_index_end();
@@ -2373,11 +2374,11 @@ GRANT_TABLE::~GRANT_TABLE()
 }
 
 
-static byte* get_grant_table(GRANT_NAME *buff,uint *length,
+static uchar* get_grant_table(GRANT_NAME *buff, size_t *length,
 			     my_bool not_used __attribute__((unused)))
 {
   *length=buff->key_length;
-  return (byte*) buff->hash_key;
+  return (uchar*) buff->hash_key;
 }
 
 
@@ -2401,10 +2402,10 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
   HASH_SEARCH_STATE state;
 
   len  = (uint) (strmov(strmov(strmov(helping,user)+1,db)+1,tname)-helping)+ 1;
-  for (grant_name= (GRANT_NAME*) hash_first(name_hash, (byte*) helping,
+  for (grant_name= (GRANT_NAME*) hash_first(name_hash, (uchar*) helping,
                                             len, &state);
        grant_name ;
-       grant_name= (GRANT_NAME*) hash_next(name_hash,(byte*) helping,
+       grant_name= (GRANT_NAME*) hash_next(name_hash,(uchar*) helping,
                                            len, &state))
   {
     if (exact)
@@ -2449,7 +2450,7 @@ table_hash_search(const char *host, const char *ip, const char *db,
 inline GRANT_COLUMN *
 column_hash_search(GRANT_TABLE *t, const char *cname, uint length)
 {
-  return (GRANT_COLUMN*) hash_search(&t->hash_columns, (byte*) cname,length);
+  return (GRANT_COLUMN*) hash_search(&t->hash_columns, (uchar*) cname,length);
 }
 
 
@@ -2460,7 +2461,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 				ulong rights, bool revoke_grant)
 {
   int error=0,result=0;
-  byte key[MAX_KEY_LENGTH];
+  uchar key[MAX_KEY_LENGTH];
   uint key_prefix_length;
   KEY_PART_INFO *key_part= table->key_info->key_part;
   DBUG_ENTER("replace_column_table");
@@ -2491,7 +2492,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
   {
     ulong privileges= column->rights;
     bool old_row_exists=0;
-    byte user_key[MAX_KEY_LENGTH];
+    uchar user_key[MAX_KEY_LENGTH];
 
     key_restore(table->record[0],key,table->key_info,
                 key_prefix_length);
@@ -2562,7 +2563,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	goto end;				/* purecov: inspected */
       }
       grant_column= new GRANT_COLUMN(column->column,privileges);
-      my_hash_insert(&g_t->hash_columns,(byte*) grant_column);
+      my_hash_insert(&g_t->hash_columns,(uchar*) grant_column);
     }
   }
 
@@ -2573,7 +2574,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 
   if (revoke_grant)
   {
-    byte user_key[MAX_KEY_LENGTH];
+    uchar user_key[MAX_KEY_LENGTH];
     key_copy(user_key, table->record[0], table->key_info,
              key_prefix_length);
 
@@ -2625,7 +2626,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	    goto end;				/* purecov: deadcode */
 	  }
 	  if (grant_column)
-	    hash_delete(&g_t->hash_columns,(byte*) grant_column);
+	    hash_delete(&g_t->hash_columns,(uchar*) grant_column);
 	}
       }
     } while (!table->file->index_next(table->record[0]) &&
@@ -2648,7 +2649,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   int old_row_exists = 1;
   int error=0;
   ulong store_table_rights, store_col_rights;
-  byte user_key[MAX_KEY_LENGTH];
+  uchar user_key[MAX_KEY_LENGTH];
   DBUG_ENTER("replace_table_table");
 
   strxmov(grantor, thd->security_ctx->user, "@",
@@ -2748,7 +2749,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   }
   else
   {
-    hash_delete(&column_priv_hash,(byte*) grant_table);
+    hash_delete(&column_priv_hash,(uchar*) grant_table);
   }
   DBUG_RETURN(0);
 
@@ -2802,7 +2803,7 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   store_record(table,record[1]);			// store at pos 1
 
   if (table->file->index_read_idx(table->record[0], 0,
-				  (byte*) table->field[0]->ptr, HA_WHOLE_KEY,
+				  (uchar*) table->field[0]->ptr, HA_WHOLE_KEY,
 				  HA_READ_KEY_EXACT))
   {
     /*
@@ -2865,7 +2866,7 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   }
   else
   {
-    hash_delete(is_proc ? &proc_priv_hash : &func_priv_hash,(byte*) grant_name);
+    hash_delete(is_proc ? &proc_priv_hash : &func_priv_hash,(uchar*) grant_name);
   }
   DBUG_RETURN(0);
 
@@ -3081,7 +3082,7 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 	result= TRUE;				/* purecov: deadcode */
 	continue;				/* purecov: deadcode */
       }
-      my_hash_insert(&column_priv_hash,(byte*) grant_table);
+      my_hash_insert(&column_priv_hash,(uchar*) grant_table);
     }
 
     /* If revoke_grant, calculate the new column privilege for tables_priv */
@@ -3300,7 +3301,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
         result= TRUE;
 	continue;
       }
-      my_hash_insert(is_proc ? &proc_priv_hash : &func_priv_hash,(byte*) grant_name);
+      my_hash_insert(is_proc ? &proc_priv_hash : &func_priv_hash,(uchar*) grant_name);
     }
 
     if (replace_routine_table(thd, grant_name, tables[1].table, *Str,
@@ -3572,7 +3573,7 @@ static my_bool grant_load(TABLE_LIST *tables)
 
       if (! mem_check->ok())
 	delete mem_check;
-      else if (my_hash_insert(&column_priv_hash,(byte*) mem_check))
+      else if (my_hash_insert(&column_priv_hash,(uchar*) mem_check))
       {
 	delete mem_check;
 	grant_option= FALSE;
@@ -3628,7 +3629,7 @@ static my_bool grant_load(TABLE_LIST *tables)
       mem_check->privs= fix_rights_for_procedure(mem_check->privs);
       if (! mem_check->ok())
 	delete mem_check;
-      else if (my_hash_insert(hash, (byte*) mem_check))
+      else if (my_hash_insert(hash, (uchar*) mem_check))
       {
 	delete mem_check;
 	grant_option= FALSE;
@@ -5002,7 +5003,7 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
   char *user_str= user_from->user.str;
   const char *host;
   const char *user;
-  byte user_key[MAX_KEY_LENGTH];
+  uchar user_key[MAX_KEY_LENGTH];
   uint key_prefix_length;
   DBUG_ENTER("handle_grant_table");
 
@@ -5239,11 +5240,11 @@ static int handle_grant_struct(uint struct_no, bool drop,
         break;
 
       case 2:
-        hash_delete(&column_priv_hash, (byte*) grant_name);
+        hash_delete(&column_priv_hash, (uchar*) grant_name);
 	break;
 
       case 3:
-        hash_delete(&proc_priv_hash, (byte*) grant_name);
+        hash_delete(&proc_priv_hash, (uchar*) grant_name);
 	break;
       }
       elements--;
@@ -6081,15 +6082,15 @@ void update_schema_privilege(TABLE *table, char *buff, const char* db,
   int i= 2;
   CHARSET_INFO *cs= system_charset_info;
   restore_record(table, s->default_values);
-  table->field[0]->store(buff, strlen(buff), cs);
+  table->field[0]->store(buff, (uint) strlen(buff), cs);
   if (db)
-    table->field[i++]->store(db, strlen(db), cs);
+    table->field[i++]->store(db, (uint) strlen(db), cs);
   if (t_name)
-    table->field[i++]->store(t_name, strlen(t_name), cs);
+    table->field[i++]->store(t_name, (uint) strlen(t_name), cs);
   if (column)
     table->field[i++]->store(column, col_length, cs);
   table->field[i++]->store(priv, priv_length, cs);
-  table->field[i]->store(is_grantable, strlen(is_grantable), cs);
+  table->field[i]->store(is_grantable, (uint) strlen(is_grantable), cs);
   table->file->ha_write_row(table->record[0]);
 }
 

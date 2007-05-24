@@ -49,27 +49,27 @@ write_escaped_string(IO_CACHE *file, LEX_STRING *val_s)
     */
     switch(*ptr) {
     case '\\': // escape character
-      if (my_b_append(file, (const byte *)STRING_WITH_LEN("\\\\")))
+      if (my_b_append(file, (const uchar *)STRING_WITH_LEN("\\\\")))
 	return TRUE;
       break;
     case '\n': // parameter value delimiter
-      if (my_b_append(file, (const byte *)STRING_WITH_LEN("\\n")))
+      if (my_b_append(file, (const uchar *)STRING_WITH_LEN("\\n")))
 	return TRUE;
       break;
     case '\0': // problem for some string processing utilities
-      if (my_b_append(file, (const byte *)STRING_WITH_LEN("\\0")))
+      if (my_b_append(file, (const uchar *)STRING_WITH_LEN("\\0")))
 	return TRUE;
       break;
     case 26: // problem for windows utilities (Ctrl-Z)
-      if (my_b_append(file, (const byte *)STRING_WITH_LEN("\\z")))
+      if (my_b_append(file, (const uchar *)STRING_WITH_LEN("\\z")))
 	return TRUE;
       break;
     case '\'': // list of string delimiter
-      if (my_b_append(file, (const byte *)STRING_WITH_LEN("\\\'")))
+      if (my_b_append(file, (const uchar *)STRING_WITH_LEN("\\\'")))
 	return TRUE;
       break;
     default:
-      if (my_b_append(file, (const byte *)ptr, 1))
+      if (my_b_append(file, (const uchar *)ptr, 1))
 	return TRUE;
     }
   }
@@ -93,7 +93,7 @@ write_escaped_string(IO_CACHE *file, LEX_STRING *val_s)
 */
 
 static my_bool
-write_parameter(IO_CACHE *file, gptr base, File_option *parameter,
+write_parameter(IO_CACHE *file, uchar* base, File_option *parameter,
 		ulonglong *old_version)
 {
   char num_buf[20];			// buffer for numeric operations
@@ -105,7 +105,7 @@ write_parameter(IO_CACHE *file, gptr base, File_option *parameter,
   case FILE_OPTIONS_STRING:
   {
     LEX_STRING *val_s= (LEX_STRING *)(base + parameter->offset);
-    if (my_b_append(file, (const byte *)val_s->str, val_s->length))
+    if (my_b_append(file, (const uchar *)val_s->str, val_s->length))
       DBUG_RETURN(TRUE);
     break;
   }
@@ -118,7 +118,7 @@ write_parameter(IO_CACHE *file, gptr base, File_option *parameter,
   case FILE_OPTIONS_ULONGLONG:
   {
     num.set(*((ulonglong *)(base + parameter->offset)), &my_charset_bin);
-    if (my_b_append(file, (const byte *)num.ptr(), num.length()))
+    if (my_b_append(file, (const uchar *)num.ptr(), num.length()))
       DBUG_RETURN(TRUE);
     break;
   }
@@ -127,7 +127,7 @@ write_parameter(IO_CACHE *file, gptr base, File_option *parameter,
     ulonglong *val_i= (ulonglong *)(base + parameter->offset);
     *old_version= (*val_i)++;
     num.set(*val_i, &my_charset_bin);
-    if (my_b_append(file, (const byte *)num.ptr(), num.length()))
+    if (my_b_append(file, (const uchar *)num.ptr(), num.length()))
       DBUG_RETURN(TRUE);
     break;
   }
@@ -140,7 +140,7 @@ write_parameter(IO_CACHE *file, gptr base, File_option *parameter,
     get_date(val_s->str, GETDATE_DATE_TIME|GETDATE_GMT|GETDATE_FIXEDLENGTH,
 	     tm);
     val_s->length= PARSE_FILE_TIMESTAMPLENGTH;
-    if (my_b_append(file, (const byte *)val_s->str,
+    if (my_b_append(file, (const uchar *)val_s->str,
                     PARSE_FILE_TIMESTAMPLENGTH))
       DBUG_RETURN(TRUE);
     break;
@@ -154,10 +154,10 @@ write_parameter(IO_CACHE *file, gptr base, File_option *parameter,
     while ((str= it++))
     {
       // We need ' ' after string to detect list continuation
-      if ((!first && my_b_append(file, (const byte *)STRING_WITH_LEN(" "))) ||
-	  my_b_append(file, (const byte *)STRING_WITH_LEN("\'")) ||
+      if ((!first && my_b_append(file, (const uchar *)STRING_WITH_LEN(" "))) ||
+	  my_b_append(file, (const uchar *)STRING_WITH_LEN("\'")) ||
           write_escaped_string(file, str) ||
-	  my_b_append(file, (const byte *)STRING_WITH_LEN("\'")))
+	  my_b_append(file, (const uchar *)STRING_WITH_LEN("\'")))
       {
 	DBUG_RETURN(TRUE);
       }
@@ -175,8 +175,8 @@ write_parameter(IO_CACHE *file, gptr base, File_option *parameter,
     {
       num.set(*val, &my_charset_bin);
       // We need ' ' after string to detect list continuation
-      if ((!first && my_b_append(file, (const byte *)STRING_WITH_LEN(" "))) ||
-          my_b_append(file, (const byte *)num.ptr(), num.length()))
+      if ((!first && my_b_append(file, (const uchar *)STRING_WITH_LEN(" "))) ||
+          my_b_append(file, (const uchar *)num.ptr(), num.length()))
       {
         DBUG_RETURN(TRUE);
       }
@@ -212,7 +212,7 @@ write_parameter(IO_CACHE *file, gptr base, File_option *parameter,
 my_bool
 sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
 			   const LEX_STRING *type,
-			   gptr base, File_option *parameters,
+			   uchar* base, File_option *parameters,
 			   uint max_versions)
 {
   File handler;
@@ -254,19 +254,19 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
     goto err_w_file;
 
   // write header (file signature)
-  if (my_b_append(&file, (const byte *)STRING_WITH_LEN("TYPE=")) ||
-      my_b_append(&file, (const byte *)type->str, type->length) ||
-      my_b_append(&file, (const byte *)STRING_WITH_LEN("\n")))
+  if (my_b_append(&file, (const uchar *)STRING_WITH_LEN("TYPE=")) ||
+      my_b_append(&file, (const uchar *)type->str, type->length) ||
+      my_b_append(&file, (const uchar *)STRING_WITH_LEN("\n")))
     goto err_w_file;
 
   // write parameters to temporary file
   for (param= parameters; param->name.str; param++)
   {
-    if (my_b_append(&file, (const byte *)param->name.str,
+    if (my_b_append(&file, (const uchar *)param->name.str,
                     param->name.length) ||
-	my_b_append(&file, (const byte *)STRING_WITH_LEN("=")) ||
+	my_b_append(&file, (const uchar *)STRING_WITH_LEN("=")) ||
 	write_parameter(&file, base, param, &old_version) ||
-	my_b_append(&file, (const byte *)STRING_WITH_LEN("\n")))
+	my_b_append(&file, (const uchar *)STRING_WITH_LEN("\n")))
       goto err_w_cache;
   }
 
@@ -423,7 +423,7 @@ sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
 		  bool bad_format_errors)
 {
   MY_STAT stat_info;
-  uint len;
+  size_t len;
   char *end, *sign;
   File_parser *parser;
   File file;
@@ -445,7 +445,7 @@ sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
     DBUG_RETURN(0);
   }
 
-  if (!(parser->buff= alloc_root(mem_root, stat_info.st_size+1)))
+  if (!(parser->buff= (char*) alloc_root(mem_root, stat_info.st_size+1)))
   {
     DBUG_RETURN(0);
   }
@@ -455,7 +455,7 @@ sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
     DBUG_RETURN(0);
   }
   
-  if ((len= my_read(file, (byte *)parser->buff,
+  if ((len= my_read(file, (uchar *)parser->buff,
                     stat_info.st_size, MYF(MY_WME))) ==
       MY_FILE_ERROR)
   {
@@ -533,11 +533,8 @@ parse_string(char *ptr, char *end, MEM_ROOT *mem_root, LEX_STRING *str)
 
   str->length= eol - ptr;
 
-  if (!(str->str= alloc_root(mem_root, str->length+1)))
+  if (!(str->str= strmake_root(mem_root, ptr, str->length)))
     return 0;
-
-  memcpy(str->str, ptr, str->length);
-  str->str[str->length]= '\0'; // just for safety
   return eol+1;
 }
 
@@ -623,7 +620,7 @@ parse_escaped_string(char *ptr, char *end, MEM_ROOT *mem_root, LEX_STRING *str)
   char *eol= strchr(ptr, '\n');
 
   if (eol == 0 || eol >= end ||
-      !(str->str= alloc_root(mem_root, (eol - ptr) + 1)) ||
+      !(str->str= (char*) alloc_root(mem_root, (eol - ptr) + 1)) ||
       read_escaped_string(ptr, eol, str))
     return 0;
     
@@ -668,7 +665,7 @@ parse_quoted_escaped_string(char *ptr, char *end,
 
   // process string
   if (eol >= end ||
-      !(str->str= alloc_root(mem_root, result_len + 1)) ||
+      !(str->str= (char*) alloc_root(mem_root, result_len + 1)) ||
       read_escaped_string(ptr, eol, str))
     return 0;
 
@@ -691,7 +688,7 @@ parse_quoted_escaped_string(char *ptr, char *end,
 */
 
 bool get_file_options_ulllist(char *&ptr, char *end, char *line,
-                              gptr base, File_option *parameter,
+                              uchar* base, File_option *parameter,
                               MEM_ROOT *mem_root)
 {
   List<ulonglong> *nlist= (List<ulonglong>*)(base + parameter->offset);
@@ -754,7 +751,7 @@ nlist_err:
 */
 
 my_bool
-File_parser::parse(gptr base, MEM_ROOT *mem_root,
+File_parser::parse(uchar* base, MEM_ROOT *mem_root,
                    struct File_option *parameters, uint required,
                    Unknown_key_hook *hook)
 {
@@ -963,7 +960,7 @@ list_err:
 
 bool
 File_parser_dummy_hook::process_unknown_string(char *&unknown_key,
-                                               gptr base, MEM_ROOT *mem_root,
+                                               uchar* base, MEM_ROOT *mem_root,
                                                char *end)
 {
   DBUG_ENTER("file_parser_dummy_hook::process_unknown_string");

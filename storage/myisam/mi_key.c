@@ -31,7 +31,7 @@
               set_if_smaller(char_length,length);                           \
             } while(0)
 
-static int _mi_put_key_in_record(MI_INFO *info,uint keynr,byte *record);
+static int _mi_put_key_in_record(MI_INFO *info,uint keynr,uchar *record);
 
 /*
   Make a intern key from a record
@@ -49,9 +49,9 @@ static int _mi_put_key_in_record(MI_INFO *info,uint keynr,byte *record);
 */
 
 uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
-		  const byte *record, my_off_t filepos)
+		  const uchar *record, my_off_t filepos)
 {
-  byte *pos;
+  uchar *pos;
   uchar *start;
   reg1 HA_KEYSEG *keyseg;
   my_bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
@@ -90,7 +90,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
     char_length= ((!is_ft && cs && cs->mbmaxlen > 1) ? length/cs->mbmaxlen :
                   length);
 
-    pos= (byte*) record+keyseg->start;
+    pos= (uchar*) record+keyseg->start;
     if (type == HA_KEYTYPE_BIT)
     {
       if (keyseg->bit_length)
@@ -100,7 +100,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
         *key++= bits;
         length--;
       }
-      memcpy((byte*) key, pos, length);
+      memcpy((uchar*) key, pos, length);
       key+= length;
       continue;
     }
@@ -112,14 +112,14 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       }
       else
       {
-        byte *end= pos + length;
+        uchar *end= pos + length;
 	while (pos < end && pos[0] == ' ')
 	  pos++;
 	length=(uint) (end-pos);
       }
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
-      memcpy((byte*) key,(byte*) pos,(size_t) char_length);
+      memcpy((uchar*) key,(uchar*) pos,(size_t) char_length);
       key+=char_length;
       continue;
     }
@@ -132,18 +132,18 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       set_if_smaller(length,tmp_length);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
-      memcpy((byte*) key,(byte*) pos,(size_t) char_length);
+      memcpy((uchar*) key,(uchar*) pos,(size_t) char_length);
       key+= char_length;
       continue;
     }
     else if (keyseg->flag & HA_BLOB_PART)
     {
       uint tmp_length=_mi_calc_blob_length(keyseg->bit_start,pos);
-      memcpy_fixed((byte*) &pos,pos+keyseg->bit_start,sizeof(char*));
+      memcpy_fixed((uchar*) &pos,pos+keyseg->bit_start,sizeof(char*));
       set_if_smaller(length,tmp_length);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
-      memcpy((byte*) key,(byte*) pos,(size_t) char_length);
+      memcpy((uchar*) key,(uchar*) pos,(size_t) char_length);
       key+= char_length;
       continue;
     }
@@ -182,14 +182,14 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       continue;
     }
     FIX_LENGTH(cs, pos, length, char_length);
-    memcpy((byte*) key, pos, char_length);
+    memcpy((uchar*) key, pos, char_length);
     if (length > char_length)
       cs->cset->fill(cs, (char*) key+char_length, length-char_length, ' ');
     key+= length;
   }
   _mi_dpointer(info,key,filepos);
   DBUG_PRINT("exit",("keynr: %d",keynr));
-  DBUG_DUMP("key",(byte*) start,(uint) (key-start)+keyseg->length);
+  DBUG_DUMP("key",(uchar*) start,(uint) (key-start)+keyseg->length);
   DBUG_EXECUTE("key",
 	       _mi_print_key(DBUG_FILE,info->s->keyinfo[keynr].seg,start,
 			     (uint) (key-start)););
@@ -267,7 +267,7 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
       length=(uint) (end-pos);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
-      memcpy((byte*) key,pos,(size_t) char_length);
+      memcpy((uchar*) key,pos,(size_t) char_length);
       key+= char_length;
       continue;
     }
@@ -280,7 +280,7 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
       old+=2;					/* Skip length */
-      memcpy((byte*) key, pos,(size_t) char_length);
+      memcpy((uchar*) key, pos,(size_t) char_length);
       key+= char_length;
       continue;
     }
@@ -292,7 +292,7 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
       continue;
     }
     FIX_LENGTH(cs, pos, length, char_length);
-    memcpy((byte*) key, pos, char_length);
+    memcpy((uchar*) key, pos, char_length);
     if (length > char_length)
       cs->cset->fill(cs, (char*) key+char_length, length-char_length, ' ');
     key+= length;
@@ -325,16 +325,16 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
 */
 
 static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
-				 byte *record)
+				 uchar *record)
 {
-  reg2 byte *key;
-  byte *pos,*key_end;
+  reg2 uchar *key;
+  uchar *pos,*key_end;
   reg1 HA_KEYSEG *keyseg;
-  byte *blob_ptr;
+  uchar *blob_ptr;
   DBUG_ENTER("_mi_put_key_in_record");
 
-  blob_ptr= (byte*) info->lastkey2;             /* Place to put blob parts */
-  key=(byte*) info->lastkey;                    /* KEy that was read */
+  blob_ptr= (uchar*) info->lastkey2;             /* Place to put blob parts */
+  key=(uchar*) info->lastkey;                    /* KEy that was read */
   key_end=key+info->lastkey_length;
   for (keyseg=info->s->keyinfo[keynr].seg ; keyseg->type ;keyseg++)
   {
@@ -363,7 +363,7 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
         clr_rec_bits(record + keyseg->bit_pos, keyseg->bit_start,
                      keyseg->bit_length);
       }
-      memcpy(record + keyseg->start, (byte*) key, length);
+      memcpy(record + keyseg->start, (uchar*) key, length);
       key+= length;
       continue;
     }
@@ -406,7 +406,7 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
       else
         int2store(record+keyseg->start, length);
       /* And key data */
-      memcpy(record+keyseg->start + keyseg->bit_start, (byte*) key, length);
+      memcpy(record+keyseg->start + keyseg->bit_start, (uchar*) key, length);
       key+= length;
     }
     else if (keyseg->flag & HA_BLOB_PART)
@@ -431,8 +431,8 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
     }
     else if (keyseg->flag & HA_SWAP_KEY)
     {
-      byte *to=  record+keyseg->start+keyseg->length;
-      byte *end= key+keyseg->length;
+      uchar *to=  record+keyseg->start+keyseg->length;
+      uchar *end= key+keyseg->length;
 #ifdef CHECK_KEYS
       if (end > key_end)
 	goto err;
@@ -449,7 +449,7 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
       if (key+keyseg->length > key_end)
 	goto err;
 #endif
-      memcpy(record+keyseg->start,(byte*) key,
+      memcpy(record+keyseg->start,(uchar*) key,
 	     (size_t) keyseg->length);
       key+= keyseg->length;
     }
@@ -463,7 +463,7 @@ err:
 
 	/* Here when key reads are used */
 
-int _mi_read_key_record(MI_INFO *info, my_off_t filepos, byte *buf)
+int _mi_read_key_record(MI_INFO *info, my_off_t filepos, uchar *buf)
 {
   fast_mi_writeinfo(info);
   if (filepos != HA_OFFSET_ERROR)
@@ -498,7 +498,7 @@ int _mi_read_key_record(MI_INFO *info, my_off_t filepos, byte *buf)
     less than zero.
 */
 
-ulonglong retrieve_auto_increment(MI_INFO *info,const byte *record)
+ulonglong retrieve_auto_increment(MI_INFO *info,const uchar *record)
 {
   ulonglong value= 0;			/* Store unsigned values here */
   longlong s_value= 0;			/* Store signed values here */

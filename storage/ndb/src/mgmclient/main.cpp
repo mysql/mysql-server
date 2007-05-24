@@ -71,11 +71,11 @@ static struct my_option my_long_options[] =
   NDB_STD_OPTS("ndb_mgm"),
   { "execute", 'e',
     "execute command and exit", 
-    (gptr*) &opt_execute_str, (gptr*) &opt_execute_str, 0,
+    (uchar**) &opt_execute_str, (uchar**) &opt_execute_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "try-reconnect", 't',
     "Specify number of tries for connecting to ndb_mgmd (0 = infinite)", 
-    (gptr*) &_try_reconnect, (gptr*) &_try_reconnect, 0,
+    (uchar**) &_try_reconnect, (uchar**) &_try_reconnect, 0,
     GET_UINT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
