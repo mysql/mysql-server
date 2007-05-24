@@ -131,6 +131,8 @@ test-bt:
 	@PERL@ ./mysql-test-run.pl --force --comment=rpl --suite=rpl
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --force --comment=partitions --suite=parts
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	@PERL@ ./mysql-test-run.pl --force --comment=rowlock --suite=row_lock
 
 # Re-enable the "jp" suite when bug#28563 is fixed
 #	-cd mysql-test ; MTR_BUILD_THREAD=auto \
