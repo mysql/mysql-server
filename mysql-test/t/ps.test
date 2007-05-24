@@ -1194,6 +1194,24 @@ show create table t1;
 --enable_warnings
 drop table t1;
 deallocate prepare stmt;
+#
+
+#
+# Bug #27937: crash on the second execution for prepared statement 
+#             from UNION with ORDER BY an expression containing RAND()
+#
+
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (2), (3), (1);
+
+PREPARE st1 FROM
+  '(SELECT a FROM t1) UNION (SELECT a+10 FROM t1) ORDER BY RAND()*0+a';
+
+EXECUTE st1;
+EXECUTE st1;
+
+DEALLOCATE PREPARE st1;
+DROP TABLE t1;
 
 --echo End of 4.1 tests.
 
@@ -1773,5 +1791,13 @@ execute stmt;
 deallocate prepare stmt;
 drop tables t1;
 
+#
+# Bug #28509: strange behaviour: passing a decimal value to PS
+#
+prepare stmt from "create table t1 select ?";
+set @a=1.0;
+execute stmt using @a;
+show create table t1;
+drop table t1;
 
 --echo End of 5.0 tests.
