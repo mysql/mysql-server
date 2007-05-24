@@ -3233,4 +3233,23 @@ CREATE VIEW v1 AS SELECT CAST(1.23456789 AS DECIMAL(8,0)) AS col;
 SHOW CREATE VIEW v1;
 DROP VIEW v1;
 
+#
+# Bug #28561: update on multi-table view with CHECK OPTION and
+#             a subquery in WHERE condition
+#
+
+CREATE TABLE t1 (id int);
+CREATE TABLE t2 (id int, c int DEFAULT 0);
+INSERT INTO t1 (id) VALUES (1);
+INSERT INTO t2 (id) VALUES (1);
+
+CREATE VIEW v1 AS 
+  SELECT t2.c FROM t1, t2 
+    WHERE t1.id=t2.id AND 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
+
+UPDATE v1 SET c=1;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
 --echo End of 5.0 tests.
