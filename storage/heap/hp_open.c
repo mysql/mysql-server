@@ -51,8 +51,8 @@ HP_INFO *heap_open(const char *name, int mode)
   pthread_mutex_unlock(&THR_LOCK_heap);
 
   info->s= share;
-  info->lastkey= (byte*) (info + 1);
-  info->recbuf= (byte*) (info->lastkey + share->max_key_length);
+  info->lastkey= (uchar*) (info + 1);
+  info->recbuf= (uchar*) (info->lastkey + share->max_key_length);
   info->mode= mode;
   info->current_record= (ulong) ~0L;		/* No current record */
   info->current_ptr= 0;

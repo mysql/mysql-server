@@ -53,23 +53,23 @@ class ha_myisammrg: public handler
 
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
-  int write_row(byte * buf);
-  int update_row(const byte * old_data, byte * new_data);
-  int delete_row(const byte * buf);
-  int index_read(byte * buf, const byte * key, key_part_map keypart_map,
+  int write_row(uchar * buf);
+  int update_row(const uchar * old_data, uchar * new_data);
+  int delete_row(const uchar * buf);
+  int index_read(uchar * buf, const uchar * key, key_part_map keypart_map,
                  enum ha_rkey_function find_flag);
-  int index_read_idx(byte * buf, uint index, const byte * key,
+  int index_read_idx(uchar * buf, uint index, const uchar * key,
                      key_part_map keypart_map, enum ha_rkey_function find_flag);
-  int index_read_last(byte * buf, const byte * key, key_part_map keypart_map);
-  int index_next(byte * buf);
-  int index_prev(byte * buf);
-  int index_first(byte * buf);
-  int index_last(byte * buf);
-  int index_next_same(byte *buf, const byte *key, uint keylen);
+  int index_read_last(uchar * buf, const uchar * key, key_part_map keypart_map);
+  int index_next(uchar * buf);
+  int index_prev(uchar * buf);
+  int index_first(uchar * buf);
+  int index_last(uchar * buf);
+  int index_next_same(uchar *buf, const uchar *key, uint keylen);
   int rnd_init(bool scan);
-  int rnd_next(byte *buf);
-  int rnd_pos(byte * buf, byte *pos);
-  void position(const byte *record);
+  int rnd_next(uchar *buf);
+  int rnd_pos(uchar * buf, uchar *pos);
+  void position(const uchar *record);
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   int info(uint);
   int reset(void);
