@@ -88,7 +88,7 @@ function (const char *nptr,char **endptr,int base)
   register unsigned int cutlim;
   register ulongtype i;
   register const char *s;
-  register unsigned char c;
+  register uchar c;
   const char *save;
   int overflow;
 

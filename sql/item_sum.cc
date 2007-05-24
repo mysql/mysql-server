@@ -403,7 +403,7 @@ Item *Item_sum::get_tmp_table_item(THD *thd)
 
 
 bool Item_sum::walk (Item_processor processor, bool walk_subquery,
-                     byte *argument)
+                     uchar *argument)
 {
   if (arg_count)
   {
@@ -1434,7 +1434,7 @@ my_decimal *Item_sum_variance::val_decimal(my_decimal *dec_buf)
 void Item_sum_variance::reset_field()
 {
   double nr;
-  char *res= result_field->ptr;
+  uchar *res= result_field->ptr;
 
   nr= args[0]->val_real();              /* sets null_value as side-effect */
 
@@ -1457,7 +1457,7 @@ void Item_sum_variance::reset_field()
 void Item_sum_variance::update_field()
 {
   ulonglong field_count;
-  char *res=result_field->ptr;
+  uchar *res=result_field->ptr;
 
   double nr= args[0]->val_real();       /* sets null_value as side-effect */
 
@@ -1821,7 +1821,7 @@ bool Item_sum_and::add()
 void Item_sum_num::reset_field()
 {
   double nr= args[0]->val_real();
-  char *res=result_field->ptr;
+  uchar *res=result_field->ptr;
 
   if (maybe_null)
   {
@@ -1943,7 +1943,7 @@ void Item_sum_sum::reset_field()
 
 void Item_sum_count::reset_field()
 {
-  char *res=result_field->ptr;
+  uchar *res=result_field->ptr;
   longlong nr=0;
 
   if (!args[0]->maybe_null || !args[0]->is_null())
@@ -1954,7 +1954,7 @@ void Item_sum_count::reset_field()
 
 void Item_sum_avg::reset_field()
 {
-  char *res=result_field->ptr;
+  uchar *res=result_field->ptr;
   if (hybrid_type == DECIMAL_RESULT)
   {
     longlong tmp;
@@ -1995,7 +1995,7 @@ void Item_sum_bit::reset_field()
 
 void Item_sum_bit::update_field()
 {
-  char *res=result_field->ptr;
+  uchar *res=result_field->ptr;
   bits= uint8korr(res);
   add();
   int8store(res, bits);
@@ -2030,7 +2030,7 @@ void Item_sum_sum::update_field()
   else
   {
     double old_nr,nr;
-    char *res=result_field->ptr;
+    uchar *res=result_field->ptr;
 
     float8get(old_nr,res);
     nr= args[0]->val_real();
@@ -2047,7 +2047,7 @@ void Item_sum_sum::update_field()
 void Item_sum_count::update_field()
 {
   longlong nr;
-  char *res=result_field->ptr;
+  uchar *res=result_field->ptr;
 
   nr=sint8korr(res);
   if (!args[0]->maybe_null || !args[0]->is_null())
@@ -2059,7 +2059,7 @@ void Item_sum_count::update_field()
 void Item_sum_avg::update_field()
 {
   longlong field_count;
-  char *res=result_field->ptr;
+  uchar *res=result_field->ptr;
   if (hybrid_type == DECIMAL_RESULT)
   {
     my_decimal value, *arg_val= args[0]->val_decimal(&value);
@@ -2228,7 +2228,7 @@ double Item_avg_field::val_real()
   // fix_fields() never calls for this Item
   double nr;
   longlong count;
-  char *res;
+  uchar *res;
 
   if (hybrid_type == DECIMAL_RESULT)
     return val_real_from_decimal();
@@ -2361,10 +2361,10 @@ double Item_variance_field::val_real()
 ** COUNT(DISTINCT ...)
 ****************************************************************************/
 
-int simple_str_key_cmp(void* arg, byte* key1, byte* key2)
+int simple_str_key_cmp(void* arg, uchar* key1, uchar* key2)
 {
   Field *f= (Field*) arg;
-  return f->cmp((const char*)key1, (const char*)key2);
+  return f->cmp(key1, key2);
 }
 
 /*
@@ -2374,7 +2374,7 @@ int simple_str_key_cmp(void* arg, byte* key1, byte* key2)
   static
 */
 
-int composite_key_cmp(void* arg, byte* key1, byte* key2)
+int composite_key_cmp(void* arg, uchar* key1, uchar* key2)
 {
   Item_sum_count_distinct* item = (Item_sum_count_distinct*)arg;
   Field **field    = item->table->field;
@@ -2384,7 +2384,7 @@ int composite_key_cmp(void* arg, byte* key1, byte* key2)
   {
     Field* f = *field;
     int len = *lengths++;
-    int res = f->cmp((char *) key1, (char *) key2);
+    int res = f->cmp(key1, key2);
     if (res)
       return res;
     key1 += len;
@@ -2839,8 +2839,8 @@ String *Item_sum_udf_str::val_str(String *str)
   GROUP_CONCAT(DISTINCT expr,...)
 */
 
-int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
-				       byte* key2)
+int group_concat_key_cmp_with_distinct(void* arg, uchar* key1,
+				       uchar* key2)
 {
   Item_func_group_concat* grp_item= (Item_func_group_concat*)arg;
   TABLE *table= grp_item->table;
@@ -2865,7 +2865,7 @@ int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
       int res;
       uint offset= (field->offset(field->table->record[0]) - 
                     table->s->null_bytes);
-      if ((res= field->cmp((char *) key1 + offset, (char *) key2 + offset)))
+      if ((res= field->cmp(key1 + offset, key2 + offset)))
 	return res;
     }
   }
@@ -2878,7 +2878,7 @@ int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
   GROUP_CONCAT(expr,... ORDER BY col,... )
 */
 
-int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
+int group_concat_key_cmp_with_order(void* arg, uchar* key1, uchar* key2)
 {
   Item_func_group_concat* grp_item= (Item_func_group_concat*) arg;
   ORDER **order_item, **end;
@@ -2904,7 +2904,7 @@ int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
       int res;
       uint offset= (field->offset(field->table->record[0]) -
                     table->s->null_bytes);
-      if ((res= field->cmp((char *) key1 + offset, (char *) key2 + offset)))
+      if ((res= field->cmp(key1 + offset, key2 + offset)))
         return (*order_item)->asc ? res : -res;
     }
   }
@@ -2927,8 +2927,8 @@ int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
     the duplicated values when inserting things sorted by ORDER BY
 */
 
-int group_concat_key_cmp_with_distinct_and_order(void* arg,byte* key1,
-						 byte* key2)
+int group_concat_key_cmp_with_distinct_and_order(void* arg,uchar* key1,
+						 uchar* key2)
 {
   if (!group_concat_key_cmp_with_distinct(arg,key1,key2))
     return 0;
@@ -2940,7 +2940,7 @@ int group_concat_key_cmp_with_distinct_and_order(void* arg,byte* key1,
   Append data from current leaf to item->result
 */
 
-int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
+int dump_leaf_key(uchar* key, element_count count __attribute__((unused)),
                   Item_func_group_concat *item)
 {
   TABLE *table= item->table;
@@ -2974,7 +2974,7 @@ int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
       uint offset= (field->offset(field->table->record[0]) -
                     table->s->null_bytes);
       DBUG_ASSERT(offset < table->s->reclength);
-      res= field->val_str(&tmp, (char *) key + offset);
+      res= field->val_str(&tmp, key + offset);
     }
     else
       res= (*arg)->val_str(&tmp);

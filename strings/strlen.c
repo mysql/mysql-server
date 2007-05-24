@@ -31,7 +31,7 @@
 
 #if VaxAsm
 
-size_s strlen(char *s)
+size_t strlen(char *s)
 {
  asm("locc  $0,$65535,*4(ap)");
  asm("subl3 r0,$65535,r0");
@@ -40,7 +40,7 @@ size_s strlen(char *s)
 #else
 #if defined(MC68000) && defined(DS90)
 
-size_s strlen(char *s)
+size_t strlen(char *s)
 {
 asm("		movl	4(a7),a0	");
 asm("		movl	a0,a1		");
@@ -52,13 +52,13 @@ asm("		subql	#1,d0		");
 }
 #else
 
-size_s strlen(register char *s)
+size_t strlen(register char *s)
 {
   register char *startpos;
 
   startpos = s;
   while (*s++);
-  return ((size_s) (s-startpos-1));
+  return ((size_t) (s-startpos-1));
 }
 
 #endif

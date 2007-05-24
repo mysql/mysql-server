@@ -22,7 +22,7 @@ extern "C" {
 typedef struct st_trie_node
 {
   uint16 leaf;                /* Depth from root node if match, 0 else */
-  byte c;                     /* Label on this edge */
+  uchar c;                    /* Label on this edge */
   struct st_trie_node *next;  /* Next label */
   struct st_trie_node *links; /* Array of edges leaving this node */
   struct st_trie_node *fail;  /* AC failure function */
@@ -45,14 +45,14 @@ typedef struct st_ac_trie_state
 
 extern TRIE *trie_init (TRIE *trie, CHARSET_INFO *charset);
 extern void trie_free (TRIE *trie);
-extern my_bool trie_insert (TRIE *trie, const byte *key, uint keylen);
+extern my_bool trie_insert (TRIE *trie, const uchar *key, uint keylen);
 extern my_bool ac_trie_prepare (TRIE *trie);
 extern void ac_trie_init (TRIE *trie, AC_TRIE_STATE *state);
 
 
 /* `trie_goto' is internal function and shouldn't be used. */
 
-static inline TRIE_NODE *trie_goto (TRIE_NODE *root, TRIE_NODE *node, byte c)
+static inline TRIE_NODE *trie_goto (TRIE_NODE *root, TRIE_NODE *node, uchar c)
 {
   TRIE_NODE *next;
   DBUG_ENTER("trie_goto");
@@ -67,7 +67,7 @@ static inline TRIE_NODE *trie_goto (TRIE_NODE *root, TRIE_NODE *node, byte c)
 
 /*
   SYNOPSIS
-    int ac_trie_next (AC_TRIE_STATE *state, byte *c);
+    int ac_trie_next (AC_TRIE_STATE *state, uchar *c);
     state - valid pointer to `AC_TRIE_STATE'
     c - character to lookup
 
@@ -79,7 +79,7 @@ static inline TRIE_NODE *trie_goto (TRIE_NODE *root, TRIE_NODE *node, byte c)
     `ac_trie_next' returns length of matched word or 0.
 */
 
-static inline int ac_trie_next (AC_TRIE_STATE *state, byte *c)
+static inline int ac_trie_next (AC_TRIE_STATE *state, uchar *c)
 {
   TRIE_NODE *root, *node;
   DBUG_ENTER("ac_trie_next");
@@ -94,7 +94,7 @@ static inline int ac_trie_next (AC_TRIE_STATE *state, byte *c)
 
 /*
   SYNOPSIS
-    my_bool trie_search (TRIE *trie, const byte *key, uint keylen);
+    my_bool trie_search (TRIE *trie, const uchar *key, uint keylen);
     trie - valid pointer to `TRIE'
     key - valid pointer to key to insert
     keylen - non-0 key length
@@ -113,7 +113,7 @@ static inline int ac_trie_next (AC_TRIE_STATE *state, byte *c)
     consecutive loop better (tested)
 */
 
-static inline my_bool trie_search (TRIE *trie, const byte *key, uint keylen)
+static inline my_bool trie_search (TRIE *trie, const uchar *key, uint keylen)
 {
   TRIE_NODE *node;
   uint k;
@@ -123,7 +123,7 @@ static inline my_bool trie_search (TRIE *trie, const byte *key, uint keylen)
 
   for (k= 0; k < keylen; k++)
   {
-    byte p;
+    uchar p;
     if (! (node= node->links))
       DBUG_RETURN(FALSE);
     p= key[k];

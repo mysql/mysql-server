@@ -19,7 +19,7 @@
 static int const gz_magic[2] = {0x1f, 0x8b}; /* gzip magic header */
 static int const az_magic[3] = {0xfe, 0x03, 0x01}; /* az magic header */
 
-/* gzip flag byte */
+/* gzip flag uchar */
 #define ASCII_FLAG   0x01 /* bit 0 set: file probably ascii text */
 #define HEAD_CRC     0x02 /* bit 1 set: header CRC present */
 #define EXTRA_FIELD  0x04 /* bit 2 set: extra field present */
@@ -139,8 +139,8 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   }
   else if (s->mode == 'w') 
   {
-    unsigned char buffer[AZHEADER_SIZE + AZMETA_BUFFER_SIZE];
-    my_pread(s->file, (byte*) buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0,
+    uchar buffer[AZHEADER_SIZE + AZMETA_BUFFER_SIZE];
+    my_pread(s->file, buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0,
              MYF(0));
     read_header(s, buffer); /* skip the .az header */
     my_seek(s->file, 0, MY_SEEK_END, MYF(0));
@@ -224,7 +224,7 @@ int get_byte(s)
   if (s->stream.avail_in == 0) 
   {
     errno = 0;
-    s->stream.avail_in = my_read(s->file, (byte *)s->inbuf, AZ_BUFSIZE_READ, MYF(0));
+    s->stream.avail_in = my_read(s->file, (uchar *)s->inbuf, AZ_BUFSIZE_READ, MYF(0));
     if (s->stream.avail_in == 0) 
     {
       s->z_eof = 1;
@@ -248,8 +248,8 @@ int get_byte(s)
 */
 void check_header(azio_stream *s)
 {
-  int method; /* method byte */
-  int flags;  /* flags byte */
+  int method; /* method uchar */
+  int flags;  /* flags uchar */
   uInt len;
   int c;
 
@@ -260,7 +260,7 @@ void check_header(azio_stream *s)
   if (len < 2) {
     if (len) s->inbuf[0] = s->stream.next_in[0];
     errno = 0;
-    len = (uInt)my_read(s->file, (byte *)s->inbuf + len, AZ_BUFSIZE_READ >> len, MYF(0));
+    len = (uInt)my_read(s->file, (uchar *)s->inbuf + len, AZ_BUFSIZE_READ >> len, MYF(0));
     if (len == 0) s->z_err = Z_ERRNO;
     s->stream.avail_in += len;
     s->stream.next_in = s->inbuf;
@@ -442,7 +442,7 @@ unsigned int ZEXPORT azread ( azio_stream *s, voidp buf, unsigned int len, int *
       if (s->stream.avail_out > 0) 
       {
         s->stream.avail_out -=
-          (uInt)my_read(s->file, (byte *)next_out, s->stream.avail_out, MYF(0));
+          (uInt)my_read(s->file, (uchar *)next_out, s->stream.avail_out, MYF(0));
       }
       len -= s->stream.avail_out;
       s->in  += len;
@@ -455,7 +455,7 @@ unsigned int ZEXPORT azread ( azio_stream *s, voidp buf, unsigned int len, int *
     if (s->stream.avail_in == 0 && !s->z_eof) {
 
       errno = 0;
-      s->stream.avail_in = (uInt)my_read(s->file, (byte *)s->inbuf, AZ_BUFSIZE_READ, MYF(0));
+      s->stream.avail_in = (uInt)my_read(s->file, (uchar *)s->inbuf, AZ_BUFSIZE_READ, MYF(0));
       if (s->stream.avail_in == 0) 
       {
         s->z_eof = 1;
@@ -522,7 +522,7 @@ unsigned int azwrite (azio_stream *s, voidpc buf, unsigned int len)
     {
 
       s->stream.next_out = s->outbuf;
-      if (my_write(s->file, (byte *)s->outbuf, AZ_BUFSIZE_WRITE, 
+      if (my_write(s->file, (uchar *)s->outbuf, AZ_BUFSIZE_WRITE, 
                    MYF(0)) != AZ_BUFSIZE_WRITE) 
       {
         s->z_err = Z_ERRNO;
@@ -569,7 +569,7 @@ int do_flush (azio_stream *s, int flush)
     if (len != 0) 
     {
       s->check_point= my_tell(s->file, MYF(0));
-      if ((uInt)my_write(s->file, (byte *)s->outbuf, len, MYF(0)) != len) 
+      if ((uInt)my_write(s->file, (uchar *)s->outbuf, len, MYF(0)) != len) 
       {
         s->z_err = Z_ERRNO;
         return Z_ERRNO;
@@ -611,7 +611,7 @@ int ZEXPORT azflush (s, flush)
   if (s->mode == 'r') 
   {
     unsigned char buffer[AZHEADER_SIZE + AZMETA_BUFFER_SIZE];
-    my_pread(s->file, (byte*) buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0,
+    my_pread(s->file, (uchar*) buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0,
              MYF(0));
     read_header(s, buffer); /* skip the .az header */
 
@@ -748,7 +748,7 @@ my_off_t ZEXPORT aztell (file)
 void putLong (File file, uLong x)
 {
   int n;
-  byte buffer[1];
+  uchar buffer[1];
 
   for (n = 0; n < 4; n++) 
   {

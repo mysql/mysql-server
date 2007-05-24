@@ -104,7 +104,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 		  screens, create_info->table_options,
                   data_offset, db_file))
   {
-    my_free((gptr) screen_buff,MYF(0));
+    my_free(screen_buff, MYF(0));
     if (thd->net.last_errno != ER_TOO_MANY_FIELDS)
       DBUG_RETURN(1);
 
@@ -116,7 +116,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
                     create_fields,info_length,
 		    screens, create_info->table_options, data_offset, db_file))
     {
-      my_free((gptr) screen_buff,MYF(0));
+      my_free(screen_buff, MYF(0));
       DBUG_RETURN(1);
     }
   }
@@ -152,7 +152,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   if ((file=create_frm(thd, file_name, db, table, reclength, fileinfo,
 		       create_info, keys)) < 0)
   {
-    my_free((gptr) screen_buff,MYF(0));
+    my_free(screen_buff, MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -200,8 +200,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 #endif
   int2store(fileinfo+59,db_file->extra_rec_buf_length());
 
-  if (my_pwrite(file,(byte*) fileinfo,64,0L,MYF_RW) ||
-      my_pwrite(file,(byte*) keybuff,key_info_length,
+  if (my_pwrite(file, fileinfo, 64, 0L, MYF_RW) ||
+      my_pwrite(file, keybuff, key_info_length,
 		(ulong) uint2korr(fileinfo+6),MYF_RW))
     goto err;
   VOID(my_seek(file,
@@ -213,14 +213,14 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     goto err;
 
   int2store(buff, create_info->connect_string.length);
-  if (my_write(file, (const byte*)buff, 2, MYF(MY_NABP)) ||
-      my_write(file, (const byte*)create_info->connect_string.str,
+  if (my_write(file, (const uchar*)buff, 2, MYF(MY_NABP)) ||
+      my_write(file, (const uchar*)create_info->connect_string.str,
                create_info->connect_string.length, MYF(MY_NABP)))
       goto err;
 
   int2store(buff, str_db_type.length);
-  if (my_write(file, (const byte*)buff, 2, MYF(MY_NABP)) ||
-      my_write(file, (const byte*)str_db_type.str,
+  if (my_write(file, (const uchar*)buff, 2, MYF(MY_NABP)) ||
+      my_write(file, (const uchar*)str_db_type.str,
                str_db_type.length, MYF(MY_NABP)))
     goto err;
 
@@ -229,32 +229,32 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   {
     char auto_partitioned= part_info->is_auto_partitioned ? 1 : 0;
     int4store(buff, part_info->part_info_len);
-    if (my_write(file, (const byte*)buff, 4, MYF_RW) ||
-        my_write(file, (const byte*)part_info->part_info_string,
+    if (my_write(file, (const uchar*)buff, 4, MYF_RW) ||
+        my_write(file, (const uchar*)part_info->part_info_string,
                  part_info->part_info_len + 1, MYF_RW) ||
-        my_write(file, (const byte*)&auto_partitioned, 1, MYF_RW))
+        my_write(file, (const uchar*)&auto_partitioned, 1, MYF_RW))
       goto err;
   }
   else
 #endif
   {
-    bzero(buff, 6);
-    if (my_write(file, (byte*) buff, 6, MYF_RW))
+    bzero((uchar*) buff, 6);
+    if (my_write(file, (uchar*) buff, 6, MYF_RW))
       goto err;
   }
   for (i= 0; i < keys; i++)
   {
     if (key_info[i].parser_name)
     {
-      if (my_write(file, (const byte*)key_info[i].parser_name->str,
+      if (my_write(file, (const uchar*)key_info[i].parser_name->str,
                    key_info[i].parser_name->length + 1, MYF(MY_NABP)))
         goto err;
     }
   }
 
   VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
-  if (my_write(file,(byte*) forminfo,288,MYF_RW) ||
-      my_write(file,(byte*) screen_buff,info_length,MYF_RW) ||
+  if (my_write(file, forminfo, 288, MYF_RW) ||
+      my_write(file, screen_buff, info_length, MYF_RW) ||
       pack_fields(file, create_fields, data_offset))
     goto err;
 
@@ -267,7 +267,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
       goto err;
     uint read_length=uint2korr(forminfo)-256;
     VOID(my_seek(file,filepos+256,MY_SEEK_SET,MYF(0)));
-    if (read_string(file,(gptr*) &disk_buff,read_length))
+    if (read_string(file,(uchar**) &disk_buff,read_length))
       goto err;
     crypted->encode(disk_buff,read_length);
     delete crypted;
@@ -280,8 +280,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   }
 #endif
 
-  my_free((gptr) screen_buff,MYF(0));
-  my_free((gptr) keybuff, MYF(0));
+  my_free(screen_buff,MYF(0));
+  my_free(keybuff, MYF(0));
 
   if (opt_sync_frm && !(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
       my_sync(file, MYF(MY_WME)))
@@ -308,8 +308,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   DBUG_RETURN(0);
 
 err:
-  my_free((gptr) screen_buff,MYF(0));
-  my_free((gptr) keybuff, MYF(0));
+  my_free(screen_buff, MYF(0));
+  my_free(keybuff, MYF(0));
 err2:
   VOID(my_close(file,MYF(MY_WME)));
 err3:
@@ -417,7 +417,7 @@ static uchar *pack_screens(List<create_field> &create_fields,
       pos[0]= (uchar) start_row-2;	/* Header string */
       pos[1]= (uchar) (cols >> 2);
       pos[2]= (uchar) (cols >> 1) +1;
-      strfill((my_string) pos+3,(uint) (cols >> 1),' ');
+      strfill((char *) pos+3,(uint) (cols >> 1),' ');
       pos+=(cols >> 1)+4;
     }
     length=(uint) strlen(cfield->field_name);
@@ -626,7 +626,8 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
           length= field->save_interval->type_lengths[pos];
           hex_length= length * 2;
           field->interval->type_lengths[pos]= hex_length;
-          field->interval->type_names[pos]= dst= sql_alloc(hex_length + 1);
+          field->interval->type_names[pos]= dst= (char*) sql_alloc(hex_length +
+                                                                   1);
           octet2hex(dst, src, length);
         }
       }
@@ -756,13 +757,13 @@ static bool pack_fields(File file, List<create_field> &create_fields,
     int2store(buff+15, field->comment.length);
     comment_length+= field->comment.length;
     set_if_bigger(int_count,field->interval_id);
-    if (my_write(file,(byte*) buff,FCOMP,MYF_RW))
+    if (my_write(file, buff, FCOMP, MYF_RW))
       DBUG_RETURN(1);
   }
 
 	/* Write fieldnames */
   buff[0]=(uchar) NAMES_SEP_CHAR;
-  if (my_write(file,(byte*) buff,1,MYF_RW))
+  if (my_write(file, buff, 1, MYF_RW))
     DBUG_RETURN(1);
   i=0;
   it.rewind();
@@ -772,7 +773,7 @@ static bool pack_fields(File file, List<create_field> &create_fields,
     *pos++=NAMES_SEP_CHAR;
     if (i == create_fields.elements-1)
       *pos++=0;
-    if (my_write(file,(byte*) buff,(uint) (pos-(char*) buff),MYF_RW))
+    if (my_write(file, buff, (size_t) (pos-(char*) buff),MYF_RW))
       DBUG_RETURN(1);
     i++;
   }
@@ -832,7 +833,7 @@ static bool pack_fields(File file, List<create_field> &create_fields,
         tmp.append('\0');                      // End of intervall
       }
     }
-    if (my_write(file,(byte*) tmp.ptr(),tmp.length(),MYF_RW))
+    if (my_write(file,(uchar*) tmp.ptr(),tmp.length(),MYF_RW))
       DBUG_RETURN(1);
   }
   if (comment_length)
@@ -842,7 +843,7 @@ static bool pack_fields(File file, List<create_field> &create_fields,
     while ((field=it++))
     {
       if (field->comment.length)
-	if (my_write(file, (byte*) field->comment.str, field->comment.length,
+	if (my_write(file, (uchar*) field->comment.str, field->comment.length,
 		     MYF_RW))
 	  DBUG_RETURN(1);
     }
@@ -875,7 +876,7 @@ static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
   bzero((char*) &share, sizeof(share));
   table.s= &share;
 
-  if (!(buff=(uchar*) my_malloc((uint) reclength,MYF(MY_WME | MY_ZEROFILL))))
+  if (!(buff=(uchar*) my_malloc((size_t) reclength,MYF(MY_WME | MY_ZEROFILL))))
   {
     DBUG_RETURN(1);
   }
@@ -900,7 +901,7 @@ static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
       regfield don't have to be deleted as it's allocated with sql_alloc()
     */
     Field *regfield= make_field(&share,
-                                (char*) buff+field->offset + data_offset,
+                                buff+field->offset + data_offset,
                                 field->length,
                                 null_pos + null_count / 8,
                                 null_count & 7,
@@ -968,10 +969,10 @@ static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
   if (null_count & 7)
     *(null_pos + null_count / 8)|= ~(((uchar) 1 << (null_count & 7)) - 1);
 
-  error=(int) my_write(file,(byte*) buff, (uint) reclength,MYF_RW);
+  error= my_write(file, buff, (size_t) reclength,MYF_RW) != 0;
 
 err:
-  my_free((gptr) buff,MYF(MY_FAE));
+  my_free(buff, MYF(MY_FAE));
   thd->count_cuted_fields= old_count_cuted_fields;
   DBUG_RETURN(error);
 } /* make_empty_rec */
