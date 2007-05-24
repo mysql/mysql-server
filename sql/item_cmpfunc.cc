@@ -690,7 +690,13 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
 
   if (cmp_type != CMP_DATE_DFLT)
   {
-    if (cmp_type != CMP_DATE_WITH_DATE && str_arg->const_item())
+    /*
+      Do not cache GET_USER_VAR() function as its const_item() may return TRUE
+      for the current thread but it still may change during the execution.
+    */
+    if (cmp_type != CMP_DATE_WITH_DATE && str_arg->const_item() &&
+        (str_arg->type() != Item::FUNC_ITEM ||
+        ((Item_func*)str_arg)->functype() != Item_func::GUSERVAR_FUNC))
     {
       THD *thd= current_thd;
       ulonglong value;
@@ -718,7 +724,7 @@ int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
                                         Item_result type)
 {
   enum enum_date_cmp_type cmp_type;
-  ulonglong const_value;
+  ulonglong const_value= (ulonglong)-1;
   a= a1;
   b= a2;
 
@@ -731,8 +737,7 @@ int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
     a_cache= 0;
     b_cache= 0;
 
-    if (cmp_type != CMP_DATE_WITH_DATE &&
-        ((*b)->const_item() || (*a)->const_item()))
+    if (const_value != (ulonglong)-1)
     {
       Item_cache_int *cache= new Item_cache_int();
       /* Mark the cache as non-const to prevent re-caching. */
@@ -838,7 +843,12 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
       MYSQL_TYPE_DATE ? MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME;
     value= get_date_from_str(thd, str, t_type, warn_item->name, &error);
   }
-  if (item->const_item() && cache_arg)
+  /*
+    Do not cache GET_USER_VAR() function as its const_item() may return TRUE
+    for the current thread but it still may change during the execution.
+  */
+  if (item->const_item() && cache_arg && (item->type() != Item::FUNC_ITEM ||
+      ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
   {
     Item_cache_int *cache= new Item_cache_int();
     /* Mark the cache as non-const to prevent re-caching. */

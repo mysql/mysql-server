@@ -87,7 +87,6 @@ delimiter |;
 create event e_16407 on schedule every 60 second do
 begin
   select get_lock('test_bug16407', 60);
-  drop table "hashed_num";
 end|
 delimiter ;|
 

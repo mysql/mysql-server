@@ -2035,7 +2035,9 @@ static bool show_status_array(THD *thd, const char *wild,
                               const char *prefix, TABLE *table,
                               bool ucase_names)
 {
-  char buff[SHOW_VAR_FUNC_BUFF_SIZE], *prefix_end;
+  MY_ALIGNED_BYTE_ARRAY(buff_data, SHOW_VAR_FUNC_BUFF_SIZE, long);
+  char * const buff= (char *) &buff_data;
+  char *prefix_end;
   /* the variable name should not be longer than 64 characters */
   char name_buffer[64];
   int len;
@@ -4516,9 +4518,19 @@ int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond)
   int res= 0;
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
+  enum enum_schema_tables schema_table_idx=
+    get_schema_table_idx(tables->schema_table);
+  enum enum_var_type option_type= OPT_SESSION;
+  bool upper_case_names= (schema_table_idx != SCH_VARIABLES);
+  bool sorted_vars= (schema_table_idx == SCH_VARIABLES);
+
+  if (lex->option_type == OPT_GLOBAL ||
+      schema_table_idx == SCH_GLOBAL_VARIABLES)
+    option_type= OPT_GLOBAL;
+
   rw_rdlock(&LOCK_system_variables_hash);
-  res= show_status_array(thd, wild, enumerate_sys_vars(thd, TRUE),
-                         lex->option_type, 0, "", tables->table, 0);
+  res= show_status_array(thd, wild, enumerate_sys_vars(thd, sorted_vars),
+                         option_type, NULL, "", tables->table, upper_case_names);
   rw_unlock(&LOCK_system_variables_hash);
   DBUG_RETURN(res);
 }
@@ -4530,16 +4542,38 @@ int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   int res= 0;
-  STATUS_VAR tmp;
+  STATUS_VAR *tmp1, tmp;
+  enum enum_schema_tables schema_table_idx=
+    get_schema_table_idx(tables->schema_table);
+  enum enum_var_type option_type;
+  bool upper_case_names= (schema_table_idx != SCH_STATUS);
+
+  if (schema_table_idx == SCH_STATUS)
+  {
+    option_type= lex->option_type;
+    if (option_type == OPT_GLOBAL)
+      tmp1= &tmp;
+    else
+      tmp1= thd->initial_status_var;
+  }
+  else if (schema_table_idx == SCH_GLOBAL_STATUS)
+  {
+    option_type= OPT_GLOBAL;
+    tmp1= &tmp;
+  }
+  else
+  { 
+    option_type= OPT_SESSION;
+    tmp1= &thd->status_var;
+  }
+
   pthread_mutex_lock(&LOCK_status);
-  if (lex->option_type == OPT_GLOBAL)
+  if (option_type == OPT_GLOBAL)
     calc_sum_of_all_status(&tmp);
   res= show_status_array(thd, wild,
                          (SHOW_VAR *)all_status_vars.buffer,
-                         OPT_GLOBAL,
-                         (lex->option_type == OPT_GLOBAL ?
-                          &tmp: thd->initial_status_var),
-                         "", tables->table, 0);
+                         option_type, tmp1, "", tables->table,
+                         upper_case_names);
   pthread_mutex_unlock(&LOCK_status);
   DBUG_RETURN(res);
 }
@@ -4782,12 +4816,10 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
       /* Don't let unimplemented types pass through. Could be a grave error. */
       DBUG_ASSERT(fields_info->field_type == MYSQL_TYPE_STRING);
 
-      /* this should be changed when Item_empty_string is fixed(in 4.1) */
-      if (!(item= new Item_empty_string("", 0, cs)))
+      if (!(item= new Item_empty_string("", fields_info->field_length, cs)))
       {
         DBUG_RETURN(0);
       }
-      item->max_length= fields_info->field_length * cs->mbmaxlen;
       item->set_name(fields_info->field_name,
                      strlen(fields_info->field_name), cs);
       break;
@@ -5228,172 +5260,6 @@ int fill_schema_files(THD *thd, TABLE_LIST *tables, COND *cond)
   DBUG_RETURN(0);
 }
 
-int fill_schema_status(THD *thd, SHOW_VAR *variables,
-                       struct system_status_var *status_var,
-                       const char *prefix, TABLE *table)
-{
-  SHOW_VAR tmp, *var;
-  SHOW_TYPE show_type;
-  LEX_STRING null_lex_str;
-  char buff[SHOW_VAR_FUNC_BUFF_SIZE];
-  char name_buf[64], *name_pos;
-  int name_len;
-  DBUG_ENTER("fill_schema_status");
-  
-  null_lex_str.str= 0;
-  null_lex_str.length= 0;
-  
-  name_pos= strnmov(name_buf, prefix, sizeof(name_buf) - 1);
-  if (*prefix)
-    *name_pos++= '_';
-  name_len= name_buf + sizeof(name_buf) - name_pos;
-  
-  for (; variables->name; variables++)
-  {
-    strnmov(name_pos, variables->name, name_len);
-    name_buf[sizeof(name_buf) - 1]= 0;
-    make_upper(name_buf);
-    
-    for (var= variables; var->type == SHOW_FUNC; var= &tmp)
-      ((mysql_show_var_func)(var->value))(thd, &tmp, buff);
-      
-    show_type= var->type;
-    
-    if (show_type == SHOW_ARRAY)
-    {
-      fill_schema_status(thd, (SHOW_VAR*) var->value,
-                         status_var, name_buf, table);
-    }
-    else
-    {
-      char *value= var->value;
-      
-      restore_record(table, s->default_values);
-      table->field[0]->store(name_buf, strlen(name_buf), system_charset_info);
-      
-      if (show_type == SHOW_SYS)
-      {
-        show_type= ((sys_var*) value)->show_type();
-        value= (char*) ((sys_var*) value)->value_ptr(thd, OPT_GLOBAL,
-                                                     &null_lex_str);
-      }
-                                                     
-      switch (show_type)
-      {
-      case SHOW_DOUBLE_STATUS:
-        value= (char*) status_var + (ulong) value;
-        table->field[1]->store(*(double*) value);
-        break;
-      case SHOW_LONG_STATUS:
-        value= (char*) status_var + (ulong) value;
-        /* fall through */
-      case SHOW_LONG:
-      case SHOW_LONG_NOFLUSH: /* the difference lies in refresh_status() */
-        table->field[1]->store((longlong) *(long*) value, false);
-        break;
-      case SHOW_LONGLONG:
-        table->field[1]->store(*(longlong*) value, false);
-        break;
-      case SHOW_HA_ROWS:
-        table->field[1]->store((longlong) *(ha_rows*) value, false);
-        break;
-      case SHOW_BOOL:
-        table->field[1]->store((longlong) *(bool*) value, false);
-        break;
-      case SHOW_MY_BOOL:
-        table->field[1]->store((longlong) *(my_bool*) value, false);
-        break;
-      case SHOW_INT:
-        table->field[1]->store((longlong) *(uint32*) value, false);
-        break;
-      case SHOW_HAVE: /* always displayed as 0 */
-        table->field[1]->store((longlong) 0, false);
-        break;
-      case SHOW_CHAR_PTR:
-        value= *(char**) value;
-        /* fall through */
-      case SHOW_CHAR: /* always displayed as 0 */
-        table->field[1]->store((longlong) 0, false);
-        break;
-      case SHOW_KEY_CACHE_LONG:
-        value= (char*) dflt_key_cache + (ulong) value;
-        table->field[1]->store((longlong) *(long*) value, false);
-        break;
-      case SHOW_KEY_CACHE_LONGLONG:
-        value= (char*) dflt_key_cache + (ulong) value;
-        table->field[1]->store(*(longlong*) value, false);
-        break;
-      case SHOW_UNDEF: /* always displayed as 0 */
-        table->field[1]->store((longlong) 0, false);
-        break;
-      case SHOW_SYS: /* cannot happen */
-      default:
-        DBUG_ASSERT(0);
-        break;
-      }
-      
-      table->field[1]->set_notnull();
-      if (schema_table_store_record(thd, table))
-        DBUG_RETURN(1);
-    }
-  }
-  
-  DBUG_RETURN(0);
-}
-
-int fill_schema_global_status(THD *thd, TABLE_LIST *tables, COND *cond)
-{
-  STATUS_VAR tmp;
-  int res= 0;
-  DBUG_ENTER("fill_schema_global_status");
-  
-  pthread_mutex_lock(&LOCK_status);
-  calc_sum_of_all_status(&tmp);
-  res= fill_schema_status(thd, (SHOW_VAR*) all_status_vars.buffer,
-                          &tmp, "", tables->table);
-  pthread_mutex_unlock(&LOCK_status);
-  
-  DBUG_RETURN(res);
-}
-
-int fill_schema_session_status(THD *thd, TABLE_LIST *tables, COND *cond)
-{
-  int res= 0;
-  DBUG_ENTER("fill_schema_session_status");
-  
-  pthread_mutex_lock(&LOCK_status);
-  res= fill_schema_status(thd, (SHOW_VAR*) all_status_vars.buffer,
-                          &thd->status_var, "", tables->table);
-  pthread_mutex_unlock(&LOCK_status);
-  
-  DBUG_RETURN(res);
-}
-
-int fill_schema_global_variables(THD *thd, TABLE_LIST *tables, COND *cond)
-{
-  int res= 0;
-  DBUG_ENTER("fill_schema_global_variables");
-  
-  rw_rdlock(&LOCK_system_variables_hash);
-  res= show_status_array(thd, "", enumerate_sys_vars(thd, FALSE), OPT_GLOBAL,
-                         NULL, "", tables->table, 1);
-  rw_unlock(&LOCK_system_variables_hash);
-  
-  DBUG_RETURN(res);
-}
-
-int fill_schema_session_variables(THD *thd, TABLE_LIST *tables, COND *cond)
-{
-  int res= 0;
-  DBUG_ENTER("fill_schema_session_variables");
-  
-  rw_rdlock(&LOCK_system_variables_hash);
-  res= show_status_array(thd, "", enumerate_sys_vars(thd, FALSE), OPT_SESSION,
-                         NULL, "", tables->table, 1);
-  rw_unlock(&LOCK_system_variables_hash);
-  
-  DBUG_RETURN(res);
-}
 
 ST_FIELD_INFO schema_fields_info[]=
 {
@@ -5763,24 +5629,8 @@ ST_FIELD_INFO partitions_fields_info[]=
 
 ST_FIELD_INFO variables_fields_info[]=
 {
-  {"Variable_name", 80, MYSQL_TYPE_STRING, 0, 0, "Variable_name"},
-  {"Value", FN_REFLEN, MYSQL_TYPE_STRING, 0, 0, "Value"},
-  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
-};
-
-
-ST_FIELD_INFO status_fields_info[]=
-{
   {"VARIABLE_NAME", 64, MYSQL_TYPE_STRING, 0, 0, "Variable_name"},
-  {"VARIABLE_VALUE", 2207, MYSQL_TYPE_DECIMAL, 0, 0, "Value"},
-  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
-};
-
-
-ST_FIELD_INFO system_variables_fields_info[]=
-{
-  {"VARIABLE_NAME", 64, MYSQL_TYPE_STRING, 0, 0, "Variable_name"},
-  {"VARIABLE_VALUE", 65535, MYSQL_TYPE_STRING, 0, 1, "Value"},
+  {"VARIABLE_VALUE", 20480, MYSQL_TYPE_STRING, 0, 1, "Value"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -5920,10 +5770,10 @@ ST_SCHEMA_TABLE schema_tables[]=
    Events::fill_schema_events, make_old_format, 0, -1, -1, 0},
   {"FILES", files_fields_info, create_schema_table,
    fill_schema_files, 0, 0, -1, -1, 0},
-  {"GLOBAL_STATUS", status_fields_info, create_schema_table,
-   fill_schema_global_status, make_old_format, 0, -1, -1, 0},
-  {"GLOBAL_VARIABLES", system_variables_fields_info, create_schema_table,
-   fill_schema_global_variables, make_old_format, 0, -1, -1, 0},
+  {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
+   fill_status, make_old_format, 0, -1, -1, 0},
+  {"GLOBAL_VARIABLES", variables_fields_info, create_schema_table,
+   fill_variables, make_old_format, 0, -1, -1, 0},
   {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
     get_all_tables, 0, get_schema_key_column_usage_record, 4, 5, 0},
   {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
@@ -5943,10 +5793,10 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_schema_shemata, make_schemata_old_format, 0, 1, -1, 0},
   {"SCHEMA_PRIVILEGES", schema_privileges_fields_info, create_schema_table,
     fill_schema_schema_privileges, 0, 0, -1, -1, 0},
-  {"SESSION_STATUS", status_fields_info, create_schema_table,
-    fill_schema_session_status, make_old_format, 0, -1, -1, 0},
-  {"SESSION_VARIABLES", system_variables_fields_info, create_schema_table,
-    fill_schema_session_variables, make_old_format, 0, -1, -1, 0},
+  {"SESSION_STATUS", variables_fields_info, create_schema_table,
+    fill_status, make_old_format, 0, -1, -1, 0},
+  {"SESSION_VARIABLES", variables_fields_info, create_schema_table,
+    fill_variables, make_old_format, 0, -1, -1, 0},
   {"STATISTICS", stat_fields_info, create_schema_table, 
     get_all_tables, make_old_format, get_schema_stat_record, 1, 2, 0},
   {"STATUS", variables_fields_info, create_schema_table, fill_status, 
