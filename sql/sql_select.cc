@@ -6288,8 +6288,7 @@ make_join_readinfo(JOIN *join, ulonglong options)
 	join->thd->server_status|=SERVER_QUERY_NO_GOOD_INDEX_USED;
 	tab->read_first_record= join_init_quick_read_record;
 	if (statistics)
-	  statistic_increment(join->thd->status_var.select_range_check_count,
-			      &LOCK_status);
+	  status_var_increment(join->thd->status_var.select_range_check_count);
       }
       else
       {
@@ -6299,15 +6298,13 @@ make_join_readinfo(JOIN *join, ulonglong options)
 	  if (tab->select && tab->select->quick)
 	  {
 	    if (statistics)
-	      statistic_increment(join->thd->status_var.select_range_count,
-				  &LOCK_status);
+	      status_var_increment(join->thd->status_var.select_range_count);
 	  }
 	  else
 	  {
 	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
 	    if (statistics)
-	      statistic_increment(join->thd->status_var.select_scan_count,
-				  &LOCK_status);
+	      status_var_increment(join->thd->status_var.select_scan_count);
 	  }
 	}
 	else
@@ -6315,15 +6312,13 @@ make_join_readinfo(JOIN *join, ulonglong options)
 	  if (tab->select && tab->select->quick)
 	  {
 	    if (statistics)
-	      statistic_increment(join->thd->status_var.select_full_range_join_count,
-				  &LOCK_status);
+	      status_var_increment(join->thd->status_var.select_full_range_join_count);
 	  }
 	  else
 	  {
 	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
 	    if (statistics)
-	      statistic_increment(join->thd->status_var.select_full_join_count,
-				  &LOCK_status);
+	      status_var_increment(join->thd->status_var.select_full_join_count);
 	  }
 	}
 	if (!table->no_keyread)
@@ -9382,7 +9377,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
               (int) distinct, (int) save_sum_fields,
               (ulong) rows_limit,test(group)));
 
-  statistic_increment(thd->status_var.created_tmp_tables, &LOCK_status);
+  status_var_increment(thd->status_var.created_tmp_tables);
 
   if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
     temp_pool_slot = bitmap_lock_set_next(&temp_pool);
@@ -10254,8 +10249,7 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
     table->db_stat=0;
     goto err;
   }
-  statistic_increment(table->in_use->status_var.created_tmp_disk_tables,
-		      &LOCK_status);
+  status_var_increment(table->in_use->status_var.created_tmp_disk_tables);
   share->db_record_offset= 1;
   DBUG_RETURN(0);
  err:

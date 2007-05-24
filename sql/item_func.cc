@@ -36,7 +36,6 @@
 #define sp_restore_security_context(A,B) while (0) {}
 #endif
 
-
 bool check_reserved_words(LEX_STRING *name)
 {
   if (!my_strcasecmp(system_charset_info, name->str, "GLOBAL") ||
@@ -4451,7 +4450,7 @@ int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     > set @a:=1;
     > insert into t1 values (@a), (@a:=@a+1), (@a:=@a+1);
     We have to write to binlog value @a= 1.
-    
+
     We allocate the user_var_event on user_var_events_alloc pool, not on
     the this-statement-execution pool because in SPs user_var_event objects 
     may need to be valid after current [SP] statement execution pool is
@@ -4461,7 +4460,7 @@ int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
   if (!(user_var_event= (BINLOG_USER_VAR_EVENT *)
         alloc_root(thd->user_var_events_alloc, size)))
     goto err;
-  
+
   user_var_event->value= (char*) user_var_event +
     ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT));
   user_var_event->user_var_event= var_entry;
@@ -4483,7 +4482,7 @@ int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
   var_entry->used_query_id= thd->query_id;
   if (insert_dynamic(&thd->user_var_events, (gptr) &user_var_event))
     goto err;
-  
+
   *out_entry= var_entry;
   return 0;
 
@@ -4491,7 +4490,6 @@ err:
   *out_entry= var_entry;
   return 1;
 }
-
 
 void Item_func_get_user_var::fix_length_and_dec()
 {
@@ -4503,10 +4501,19 @@ void Item_func_get_user_var::fix_length_and_dec()
 
   error= get_var_with_binlog(thd, thd->lex->sql_command, name, &var_entry);
 
+  /*
+    If the variable didn't exist it has been created as a STRING-type.
+    'var_entry' is NULL only if there occured an error during the call to
+    get_var_with_binlog.
+  */
   if (var_entry)
   {
+    m_cached_result_type= var_entry->type;
+    unsigned_flag= var_entry->unsigned_flag;
+    max_length= var_entry->length;
+
     collation.set(var_entry->collation);
-    switch (var_entry->type) {
+    switch(m_cached_result_type) {
     case REAL_RESULT:
       max_length= DBL_DIG + 8;
       break;
@@ -4531,6 +4538,8 @@ void Item_func_get_user_var::fix_length_and_dec()
   {
     collation.set(&my_charset_bin, DERIVATION_IMPLICIT);
     null_value= 1;
+    m_cached_result_type= STRING_RESULT;
+    max_length= MAX_BLOB_WIDTH;
   }
 
   if (error)
@@ -4548,12 +4557,7 @@ bool Item_func_get_user_var::const_item() const
 
 enum Item_result Item_func_get_user_var::result_type() const
 {
-  user_var_entry *entry;
-  if (!(entry = (user_var_entry*) hash_search(&current_thd->user_vars,
-					      (byte*) name.str,
-					      name.length)))
-    return STRING_RESULT;
-  return entry->type;
+  return m_cached_result_type;
 }
 
 

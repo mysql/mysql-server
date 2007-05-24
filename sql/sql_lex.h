@@ -1066,7 +1066,6 @@ typedef struct st_lex : public Query_tables_list
 
   char *length,*dec,*change;
   LEX_STRING name;
-  Table_ident *like_name;
   char *help_arg;
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */

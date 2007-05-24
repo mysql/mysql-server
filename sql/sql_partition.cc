@@ -3776,20 +3776,15 @@ bool mysql_unpack_partition(THD *thd,
              ha_legacy_type(default_db_type)));
   if (is_create_table_ind && old_lex->sql_command == SQLCOM_CREATE_TABLE)
   {
-    if (old_lex->like_name)
+    if (old_lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
     {
       /*
-        This code is executed when we do a CREATE TABLE t1 LIKE t2
-        old_lex->like_name contains the t2 and the table we are opening has 
-        name t1.
+        This code is executed when we create table in CREATE TABLE t1 LIKE t2.
+        old_lex->query_tables contains table list element for t2 and the table
+        we are opening has name t1.
       */
-      Table_ident *table_ident= old_lex->like_name;
-      char *src_db= table_ident->db.str ? table_ident->db.str : thd->db;
-      char *src_table= table_ident->table.str;
-      char buf[FN_REFLEN];
-      build_table_filename(buf, sizeof(buf), src_db, src_table, "", 0);
-      if (partition_default_handling(table, part_info,
-                                     FALSE, buf))
+      if (partition_default_handling(table, part_info, FALSE,
+                                     old_lex->query_tables->table->s->path.str))
       {
         result= TRUE;
         goto end;

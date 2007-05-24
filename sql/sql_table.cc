@@ -4670,114 +4670,51 @@ bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
   SYNOPSIS
     mysql_create_like_table()
     thd		Thread object
-    table	Table list (one table only)
+    table       Table list element for target table
+    src_table   Table list element for source table
     create_info Create info
-    table_ident Src table_ident
 
   RETURN VALUES
     FALSE OK
     TRUE  error
 */
 
-bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
-                             HA_CREATE_INFO *lex_create_info,
-                             Table_ident *table_ident)
+bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
+                             HA_CREATE_INFO *lex_create_info)
 {
-  TABLE *tmp_table, *name_lock= 0;
+  TABLE *name_lock= 0;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
-  char src_table_name_buff[FN_REFLEN], src_db_name_buff[FN_REFLEN];
   uint dst_path_length;
   char *db= table->db;
   char *table_name= table->table_name;
-  char *src_db;
-  char *src_table= table_ident->table.str;
   int  err;
   bool res= TRUE;
-  enum legacy_db_type not_used;
+  uint not_used;
   HA_CREATE_INFO *create_info;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   char tmp_path[FN_REFLEN];
 #endif
   char ts_name[FN_LEN];
-  TABLE_LIST src_tables_list;
   DBUG_ENTER("mysql_create_like_table");
 
   if (!(create_info= copy_create_info(lex_create_info)))
   {
     DBUG_RETURN(TRUE);
   }
-  DBUG_ASSERT(table_ident->db.str); /* Must be set in the parser */
-  src_db= table_ident->db.str;
+
+  /* CREATE TABLE ... LIKE is not allowed for views. */
+  src_table->required_type= FRMTYPE_TABLE;
 
   /*
-    Validate the source table
+    By opening source table we guarantee that it exists and no concurrent
+    DDL operation will mess with it. Later we also take an exclusive
+    name-lock on target table name, which makes copying of .frm file,
+    call to ha_create_table() and binlogging atomic against concurrent DML
+    and DDL operations on target table. Thus by holding both these "locks"
+    we ensure that our statement is properly isolated from all concurrent
+    operations which matter.
   */
-  if (check_string_char_length(&table_ident->table, "", NAME_CHAR_LEN,
-                               system_charset_info, 1) ||
-      (table_ident->table.length &&
-       check_table_name(src_table,table_ident->table.length)))
-  {
-    my_error(ER_WRONG_TABLE_NAME, MYF(0), src_table);
-    DBUG_RETURN(TRUE);
-  }
-  if (!src_db || check_db_name(&table_ident->db))
-  {
-    my_error(ER_WRONG_DB_NAME, MYF(0), src_db ? src_db : "NULL");
-    DBUG_RETURN(-1);
-  }
-
-  if ((tmp_table= find_temporary_table(thd, src_db, src_table)))
-    strxmov(src_path, tmp_table->s->path.str, reg_ext, NullS);
-  else
-  {
-    build_table_filename(src_path, sizeof(src_path),
-                         src_db, src_table, reg_ext, 0);
-    /* Resolve symlinks (for windows) */
-    unpack_filename(src_path, src_path);
-    if (lower_case_table_names)
-      my_casedn_str(files_charset_info, src_path);
-    if (access(src_path, F_OK))
-    {
-      my_error(ER_BAD_TABLE_ERROR, MYF(0), src_table);
-      goto err;
-    }
-  }
-
-  /* 
-     create like should be not allowed for Views, Triggers, ... 
-  */
-  if (mysql_frm_type(thd, src_path, &not_used) != FRMTYPE_TABLE)
-  {
-    my_error(ER_WRONG_OBJECT, MYF(0), src_db, src_table, "BASE TABLE");
-    goto err;
-  }
-
-  if (lower_case_table_names)
-  {
-    if (src_db)
-    {
-      strmake(src_db_name_buff, src_db,
-              min(sizeof(src_db_name_buff) - 1, table_ident->db.length));
-      my_casedn_str(files_charset_info, src_db_name_buff);
-      src_db= src_db_name_buff;
-    }
-    if (src_table)
-    {
-      strmake(src_table_name_buff, src_table,
-              min(sizeof(src_table_name_buff) - 1, table_ident->table.length));
-      my_casedn_str(files_charset_info, src_table_name_buff);
-      src_table= src_table_name_buff;
-    }
-  }
-
-  bzero((gptr)&src_tables_list, sizeof(src_tables_list));
-  src_tables_list.db= src_db;
-  src_tables_list.db_length= table_ident->db.length;
-  src_tables_list.lock_type= TL_READ;
-  src_tables_list.table_name= src_table;
-  src_tables_list.alias= src_table;
-
-  if (simple_open_n_lock_tables(thd, &src_tables_list))
+  if (open_tables(thd, &src_table, &not_used, 0))
     DBUG_RETURN(TRUE);
 
   /*
@@ -4786,17 +4723,19 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
     Add something to get possible tablespace info from src table,
     it can get valid tablespace name only for disk-base ndb table
   */
-  if ((src_tables_list.table->file->get_tablespace_name(thd, ts_name, FN_LEN)))
+  if ((src_table->table->file->get_tablespace_name(thd, ts_name, FN_LEN)))
   {
     create_info->tablespace= ts_name;
     create_info->storage_media= HA_SM_DISK;
   }
 
-  /*
-    Validate the destination table
+  strxmov(src_path, src_table->table->s->path.str, reg_ext, NullS);
 
-    skip the destination table name checking as this is already
-    validated.
+  DBUG_EXECUTE_IF("sleep_create_like_before_check_if_exists", my_sleep(6000000););
+
+  /*
+    Check that destination tables does not exist. Note that its name
+    was already checked when it was added to the table list.
   */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
@@ -4817,15 +4756,29 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
       goto table_exists;
   }
 
+  DBUG_EXECUTE_IF("sleep_create_like_before_copy", my_sleep(6000000););
+
   /*
     Create a new table by copying from source table
+
+    Altough exclusive name-lock on target table protects us from concurrent
+    DML and DDL operations on it we still want to wrap .FRM creation and call
+    to ha_create_table() in critical section protected by LOCK_open in order
+    to provide minimal atomicity against operations which disregard name-locks,
+    like I_S implementation, for example. This is a temporary and should not
+    be copied. Instead we should fix our code to always honor name-locks.
+
+    Also some engines (e.g. NDB cluster) require that LOCK_open should be held
+    during the call to ha_create_table(). See bug #28614 for more info.
   */
+  VOID(pthread_mutex_lock(&LOCK_open));
   if (my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE)))
   {
     if (my_errno == ENOENT)
       my_error(ER_BAD_DB_ERROR,MYF(0),db);
     else
       my_error(ER_CANT_CREATE_FILE,MYF(0),dst_path,my_errno);
+    VOID(pthread_mutex_unlock(&LOCK_open));
     goto err;
   }
 
@@ -4847,10 +4800,12 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   strmov(src_path, tmp_path);
   my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE));
 #endif
+
+  DBUG_EXECUTE_IF("sleep_create_like_before_ha_create", my_sleep(6000000););
+
   dst_path[dst_path_length - reg_ext_length]= '\0';  // Remove .frm
-  pthread_mutex_lock(&LOCK_open);  
   err= ha_create_table(thd, dst_path, db, table_name, create_info, 1);
-  pthread_mutex_unlock(&LOCK_open);
+  VOID(pthread_mutex_unlock(&LOCK_open));
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
     if (err || !open_temporary_table(thd, dst_path, db, table_name, 1))
@@ -4866,6 +4821,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
 			  table_name, 0); /* purecov: inspected */
     goto err;	    /* purecov: inspected */
   }
+
+  DBUG_EXECUTE_IF("sleep_create_like_before_binlogging", my_sleep(6000000););
 
   /*
     We have to write the query before we unlock the tables.
@@ -4886,14 +4843,10 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
            3    temporary    normal Nothing
            4    temporary temporary Nothing
            ==== ========= ========= ==============================
-
-       The variable 'tmp_table' below is used to see if the source
-       table is a temporary table: if it is set, then the source table
-       was a temporary table and we can take apropriate actions.
     */
     if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
     {
-      if (tmp_table)                            // Case 2
+      if (src_table->table->s->tmp_table)               // Case 2
       {
         char buf[2048];
         String query(buf, sizeof(buf), system_charset_info);
@@ -5411,7 +5364,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   HA_CREATE_INFO *create_info;
   frm_type_enum frm_type;
   uint need_copy_table= 0;
-  bool no_table_reopen= FALSE, varchar= FALSE;
+  bool varchar= FALSE;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   uint fast_alter_partition= 0;
   bool partition_changed= FALSE;
@@ -5670,6 +5623,7 @@ view_err:
       VOID(pthread_mutex_lock(&LOCK_open));
       wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
       VOID(pthread_mutex_unlock(&LOCK_open));
+      DBUG_EXECUTE_IF("sleep_alter_enable_indexes", my_sleep(6000000););
       error= table->file->enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
       /* COND_refresh will be signaled in close_thread_tables() */
       break;
@@ -6585,9 +6539,19 @@ view_err:
   }
 
   /*
-    Data is copied.  Now we rename the old table to a temp name,
-    rename the new one to the old name, remove all entries about the old table
-    from the cache, free all locks, close the old table and remove it.
+    Data is copied. Now we:
+    1) Wait until all other threads close old version of table.
+    2) Close instances of table open by this thread and replace them
+       with exclusive name-locks.
+    3) Rename the old table to a temp name, rename the new one to the
+       old name.
+    4) If we are under LOCK TABLES and don't do ALTER TABLE ... RENAME
+       we reopen new version of table.
+    5) Write statement to the binary log.
+    6) If we are under LOCK TABLES and do ALTER TABLE ... RENAME we
+       remove name-locks from list of open tables and table cache.
+    7) If we are not not under LOCK TABLES we rely on close_thread_tables()
+       call to remove name-locks from table cache and list of open table.
   */
 
   thd->proc_info="rename result table";
@@ -6596,38 +6560,8 @@ view_err:
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, old_name);
 
-#if !defined( __WIN__)
-  if (table->file->has_transactions())
-#endif
-  {
-    /*
-      Win32 and InnoDB can't drop a table that is in use, so we must
-      close the original table before doing the rename
-    */
-    close_cached_table(thd, table);
-    table=0;					// Marker that table is closed
-    no_table_reopen= TRUE;
-  }
-#if !defined( __WIN__)
-  else
-    table->file->extra(HA_EXTRA_FORCE_REOPEN);	// Don't use this file anymore
-#endif
-
-  if (new_name != table_name || new_db != db)
-  {
-    /*
-      Check that there is no table with target name. See the
-      comment describing code for 'simple' ALTER TABLE ... RENAME.
-    */
-    if (!access(new_name_buff,F_OK))
-    {
-      error=1;
-      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_name_buff);
-      VOID(quick_rm_table(new_db_type, new_db, tmp_name, FN_IS_TMP));
-      VOID(pthread_mutex_unlock(&LOCK_open));
-      goto err;
-    }
-  }
+  wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_DELETE);
+  close_data_files_and_morph_locks(thd, db, table_name);
 
   error=0;
   save_old_db_type= old_db_type;
@@ -6672,121 +6606,64 @@ view_err:
 
   if (error)
   {
-    /*
-      This shouldn't happen.  We solve this the safe way by
-      closing the locked table.
-    */
-    if (table)
-    {
-      close_cached_table(thd,table);
-    }
-    VOID(pthread_mutex_unlock(&LOCK_open));
-    goto err;
+    /* This shouldn't happen. But let us play it safe. */
+    goto err_with_placeholders;
   }
+
   if (! need_copy_table)
   {
-    bool needs_unlink= FALSE;
-    if (! table)
+    /*
+      Now we have to inform handler that new .FRM file is in place.
+      To do this we need to obtain a handler object for it.
+    */
+    TABLE *t_table;
+    if (new_name != table_name || new_db != db)
     {
-      if (new_name != table_name || new_db != db)
-      {
-        table_list->alias= new_name;
-        table_list->table_name= new_name;
-        table_list->table_name_length= strlen(new_name);
-        table_list->db= new_db;
-        table_list->db_length= strlen(new_db);
-      }
-      else
-      {
-        /*
-          TODO: Creation of name-lock placeholder here is a temporary
-          work-around. Long term we should change close_cached_table() call
-          which we invoke before table renaming operation in such way that
-          it will leave placeholders for table in table cache/THD::open_tables
-          list. By doing this we will be able easily reopen and relock these
-          tables later and therefore behave under LOCK TABLES in the same way
-          on all platforms.
-        */
-        char  key[MAX_DBKEY_LENGTH];
-        uint  key_length;
-        key_length= create_table_def_key(thd, key, table_list, 0);
-        if (!(name_lock= table_cache_insert_placeholder(thd, key,
-                                                        key_length)))
-        {
-          VOID(pthread_mutex_unlock(&LOCK_open));
-          goto err;
-        }
-        name_lock->next= thd->open_tables;
-        thd->open_tables= name_lock;
-      }
+      table_list->alias= new_name;
+      table_list->table_name= new_name;
+      table_list->table_name_length= strlen(new_name);
+      table_list->db= new_db;
+      table_list->db_length= strlen(new_db);
       table_list->table= name_lock;
       if (reopen_name_locked_table(thd, table_list, FALSE))
-      {
-        VOID(pthread_mutex_unlock(&LOCK_open));
-        goto err;
-      }
-      table= table_list->table;
-      /*
-        We can't rely on later close_cached_table() calls to close
-        this instance of the table since it was not properly locked.
-      */
-      needs_unlink= TRUE;
+        goto err_with_placeholders;
+      t_table= table_list->table;
+    }
+    else
+    {
+      if (reopen_table(table))
+        goto err_with_placeholders;
+      t_table= table;
     }
     /* Tell the handler that a new frm file is in place. */
-    if (table->file->create_handler_files(path, NULL, CHF_INDEX_FLAG,
-                                          create_info))
+    if (t_table->file->create_handler_files(path, NULL, CHF_INDEX_FLAG,
+                                            create_info))
+      goto err_with_placeholders;
+    if (thd->locked_tables && new_name == table_name && new_db == db)
     {
-      VOID(pthread_mutex_unlock(&LOCK_open));
-      goto err;
-    }
-    if (needs_unlink)
-    {
-      unlink_open_table(thd, table, FALSE);
-      table= name_lock= 0;
+      /*
+        We are going to reopen table down on the road, so we have to restore
+        state of the TABLE object which we used for obtaining of handler
+        object to make it suitable for reopening.
+      */
+      DBUG_ASSERT(t_table == table);
+      table->open_placeholder= 1;
+      close_handle_and_leave_table_as_lock(table);
     }
   }
 
-  if (thd->lock || new_name != table_name || no_table_reopen)  // True if WIN32
+  VOID(quick_rm_table(old_db_type, db, old_name, FN_IS_TMP));
+
+  if (thd->locked_tables && new_name == table_name && new_db == db)
   {
-    /*
-      Not table locking or alter table with rename.
-      Free locks and remove old table
-    */
-    if (table)
-    {
-      close_cached_table(thd,table);
-    }
-    VOID(quick_rm_table(old_db_type, db, old_name, FN_IS_TMP));
-  }
-  else
-  {
-    /*
-      Using LOCK TABLES without rename.
-      This code is never executed on WIN32!
-      Remove old renamed table, reopen table and get new locks
-    */
-    if (table)
-    {
-      VOID(table->file->extra(HA_EXTRA_FORCE_REOPEN)); // Use new file
-      /* Mark in-use copies old */
-      remove_table_from_cache(thd,db,table_name,RTFC_NO_FLAG);
-      /* end threads waiting on lock */
-      mysql_lock_abort(thd,table, TRUE);
-    }
-    VOID(quick_rm_table(old_db_type, db, old_name, FN_IS_TMP));
-    if (close_data_tables(thd,db,table_name) ||
-	reopen_tables(thd,1,0))
-    {						// This shouldn't happen
-      if (table)
-      {
-	close_cached_table(thd,table);		// Remove lock for table
-      }
-      VOID(pthread_mutex_unlock(&LOCK_open));
-      goto err;
-    }
+    thd->in_lock_tables= 1;
+    error= reopen_tables(thd, 1, 0);
+    thd->in_lock_tables= 0;
+    if (error)
+      goto err_with_placeholders;
   }
   VOID(pthread_mutex_unlock(&LOCK_open));
-  broadcast_refresh();
+
   /*
     The ALTER TABLE is always in its own transaction.
     Commit must not be called while LOCK_open is locked. It could call
@@ -6802,6 +6679,8 @@ view_err:
       goto err;
   }
   thd->proc_info="end";
+
+  DBUG_EXECUTE_IF("sleep_alter_before_main_binlog", my_sleep(6000000););
 
   ha_binlog_log_query(thd, create_info->db_type, LOGCOM_ALTER_TABLE,
                       thd->query, thd->query_length,
@@ -6820,12 +6699,13 @@ view_err:
       shutdown.
     */
     char path[FN_REFLEN];
+    TABLE *t_table;
     build_table_filename(path, sizeof(path), new_db, table_name, "", 0);
-    table=open_temporary_table(thd, path, new_db, tmp_name,0);
-    if (table)
+    t_table= open_temporary_table(thd, path, new_db, tmp_name, 0);
+    if (t_table)
     {
-      intern_close_table(table);
-      my_free((char*) table, MYF(0));
+      intern_close_table(t_table);
+      my_free((char*) t_table, MYF(0));
     }
     else
       sql_print_warning("Could not open table %s.%s after rename\n",
@@ -6835,9 +6715,16 @@ view_err:
   table_list->table=0;				// For query cache
   query_cache_invalidate3(thd, table_list, 0);
 
-  if (name_lock)
+  if (thd->locked_tables && (new_name != table_name || new_db != db))
   {
+    /*
+      If are we under LOCK TABLES and did ALTER TABLE with RENAME we need
+      to remove placeholders for the old table and for the target table
+      from the list of open tables and table cache. If we are not under
+      LOCK TABLES we can rely on close_thread_tables() doing this job.
+    */
     pthread_mutex_lock(&LOCK_open);
+    unlink_open_table(thd, table, FALSE);
     unlink_open_table(thd, name_lock, FALSE);
     pthread_mutex_unlock(&LOCK_open);
   }
@@ -6867,6 +6754,18 @@ err:
     unlink_open_table(thd, name_lock, FALSE);
     pthread_mutex_unlock(&LOCK_open);
   }
+  DBUG_RETURN(TRUE);
+
+err_with_placeholders:
+  /*
+    An error happened while we were holding exclusive name-lock on table
+    being altered. To be safe under LOCK TABLES we should remove placeholders
+    from list of open tables list and table cache.
+  */
+  unlink_open_table(thd, table, FALSE);
+  if (name_lock)
+    unlink_open_table(thd, name_lock, FALSE);
+  VOID(pthread_mutex_unlock(&LOCK_open));
   DBUG_RETURN(TRUE);
 }
 /* mysql_alter_table */

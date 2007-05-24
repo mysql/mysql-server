@@ -171,11 +171,11 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 
   if (select && select->quick)
   {
-    statistic_increment(thd->status_var.filesort_range_count, &LOCK_status);
+    status_var_increment(thd->status_var.filesort_range_count);
   }
   else
   {
-    statistic_increment(thd->status_var.filesort_scan_count, &LOCK_status);
+    status_var_increment(thd->status_var.filesort_scan_count);
   }
 #ifdef CAN_TRUST_RANGE
   if (select && select->quick && select->quick->records > 0L)
@@ -1129,8 +1129,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   THD::killed_state not_killable;
   DBUG_ENTER("merge_buffers");
 
-  statistic_increment(current_thd->status_var.filesort_merge_passes,
-		      &LOCK_status);
+  status_var_increment(current_thd->status_var.filesort_merge_passes);
   if (param->not_killable)
   {
     killed= &not_killable;
