@@ -112,8 +112,8 @@ C_MODE_START
 void my_net_local_init(NET *net)
 {
   net->max_packet= net_buffer_length;
-  net->read_timeout= net_read_timeout;
-  net->write_timeout= net_write_timeout;
+  my_net_set_read_timeout(net, (uint)net_read_timeout);
+  my_net_set_write_timeout(net, (uint)net_write_timeout);
   net->retry_count= net_retry_count;
   net->max_packet_size= max_allowed_packet;
 }
