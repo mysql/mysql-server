@@ -1813,6 +1813,18 @@ sub environment_setup () {
   $ENV{'CHARSETSDIR'}=              $path_charsetsdir;
   $ENV{'UMASK'}=              "0660"; # The octal *string*
   $ENV{'UMASK_DIR'}=          "0770"; # The octal *string*
+  
+  #
+  # MySQL tests can produce output in various character sets
+  # (especially, ctype_xxx.test). To avoid confusing Perl
+  # with output which is incompatible with the current locale
+  # settings, we reset the current values of LC_ALL and LC_CTYPE to "C".
+  # For details, please see
+  # Bug#27636 tests fails if LC_* variables set to *_*.UTF-8
+  #
+  $ENV{'LC_ALL'}=             "C";
+  $ENV{'LC_CTYPE'}=           "C";
+  
   $ENV{'LC_COLLATE'}=         "C";
   $ENV{'USE_RUNNING_SERVER'}= $opt_extern;
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
