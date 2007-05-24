@@ -406,7 +406,9 @@ Next alarm time: %lu\n",
   if (thd)
     thd->proc_info="malloc";
   my_checkmalloc();
+  fprintf(stdout,"\nBegin safemalloc memory dump:\n"); // tag needed for test suite
   TERMINATE(stdout);				// Write malloc information
+  fprintf(stdout,"\nEnd safemalloc memory dump.\n");  
 
 #ifdef HAVE_MALLINFO
   struct mallinfo info= mallinfo();
