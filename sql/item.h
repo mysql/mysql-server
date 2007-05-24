@@ -1359,8 +1359,10 @@ class Item_param :public Item
   char cnvbuf[MAX_FIELD_WIDTH];
   String cnvstr;
   Item *cnvitem;
-public:
+  bool strict_type;
+  enum Item_result required_result_type;
 
+public:
   enum enum_item_param_state
   {
     NO_VALUE, NULL_VALUE, INT_VALUE, REAL_VALUE,
@@ -1488,6 +1490,11 @@ public:
     Otherwise return FALSE.
   */
   bool eq(const Item *item, bool binary_cmp) const;
+  void set_strict_type(enum Item_result result_type_arg)
+  {
+    strict_type= TRUE;
+    required_result_type= result_type_arg;
+  }
 };
 
 
