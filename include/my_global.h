@@ -911,6 +911,9 @@ typedef unsigned long long my_size_t;
 #define ADD_TO_PTR(ptr,size,type) (type) ((byte*) (ptr)+size)
 #define PTR_BYTE_DIFF(A,B) (my_ptrdiff_t) ((byte*) (A) - (byte*) (B))
 
+#define MY_DIV_UP(A, B) (((A) + (B) - 1) / (B))
+#define MY_ALIGNED_BYTE_ARRAY(N, S, T) T N[MY_DIV_UP(S, sizeof(T))]
+
 /*
   Custom version of standard offsetof() macro which can be used to get
   offsets of members in class for non-POD types (according to the current

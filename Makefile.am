@@ -127,6 +127,14 @@ test-bt:
 	@PERL@ ./mysql-test-run.pl --force --comment=funcs1_ps --ps-protocol --suite=funcs_1
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --force --comment=funcs2 --suite=funcs_2
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	@PERL@ ./mysql-test-run.pl --force --comment=rpl --suite=rpl
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	@PERL@ ./mysql-test-run.pl --force --comment=partitions --suite=parts
+
+# Re-enable the "jp" suite when bug#28563 is fixed
+#	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+#	@PERL@ ./mysql-test-run.pl --force --comment=jp --suite=jp
 
 test-bt-debug:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
@@ -151,7 +159,7 @@ test-ext-rpl:
 
 test-ext-partitions:
 	cd mysql-test ; \
-	@PERL@ ./mysql-test-run.pl --force --suite=partitions
+	@PERL@ ./mysql-test-run.pl --force --suite=parts
 
 test-ext-jp:
 	cd mysql-test ; \

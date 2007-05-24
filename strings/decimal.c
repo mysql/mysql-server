@@ -1089,7 +1089,11 @@ int decimal2longlong(decimal_t *from, longlong *to)
     x=x*DIG_BASE - *buf++;
     if (unlikely(y < (LONGLONG_MIN/DIG_BASE) || x > y))
     {
-      *to= from->sign ? y : -y;
+      /*
+        the decimal is bigger than any possible integer
+        return border integer depending on the sign
+      */
+      *to= from->sign ? LONGLONG_MIN : LONGLONG_MAX;
       return E_DEC_OVERFLOW;
     }
   }
