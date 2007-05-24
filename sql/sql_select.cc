@@ -6375,7 +6375,6 @@ void JOIN::cleanup(bool full)
       for (tab= join_tab, end= tab+tables; tab != end; tab++)
 	tab->cleanup();
       table= 0;
-      tables= 0;
     }
     else
     {
