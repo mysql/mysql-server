@@ -1139,8 +1139,8 @@ pthread_handler_t handle_one_connection(void *arg)
     net->no_send_error= 0;
 
     /* Use "connect_timeout" value during connection phase */
-    net_set_read_timeout(net, connect_timeout);
-    net_set_write_timeout(net, connect_timeout);
+    my_net_set_read_timeout(net, connect_timeout);
+    my_net_set_write_timeout(net, connect_timeout);
 
     if ((error=check_connection(thd)))
     {						// Wrong permissions
@@ -1183,8 +1183,8 @@ pthread_handler_t handle_one_connection(void *arg)
     }
 
     /* Connect completed, set read/write timeouts back to tdefault */
-    net_set_read_timeout(net, thd->variables.net_read_timeout);
-    net_set_write_timeout(net, thd->variables.net_write_timeout);
+    my_net_set_read_timeout(net, thd->variables.net_read_timeout);
+    my_net_set_write_timeout(net, thd->variables.net_write_timeout);
 
     while (!net->error && net->vio != 0 &&
            !(thd->killed == THD::KILL_CONNECTION))
@@ -1536,7 +1536,7 @@ bool do_command(THD *thd)
     the client, the connection is closed or "net_wait_timeout"
     number of seconds has passed
   */
-  net_set_read_timeout(net, thd->variables.net_wait_timeout);
+  my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
 
   thd->clear_error();				// Clear error message
 
@@ -1568,7 +1568,7 @@ bool do_command(THD *thd)
   }
 
   /* Restore read timeout value */
-  net_set_read_timeout(net, thd->variables.net_read_timeout);
+  my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
   /*
     packet_length contains length of data, as it was stored in packet
