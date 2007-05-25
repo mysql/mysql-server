@@ -1123,7 +1123,8 @@ void my_net_set_read_timeout(NET *net, uint timeout)
   DBUG_PRINT("enter", ("timeout: %d", timeout));
   net->read_timeout= timeout;
 #ifdef NO_ALARM
-  vio_timeout(net->vio, 0, timeout);
+  if (net->vio)
+    vio_timeout(net->vio, 0, timeout);
 #endif
   DBUG_VOID_RETURN;
 }
@@ -1135,7 +1136,8 @@ void my_net_set_write_timeout(NET *net, uint timeout)
   DBUG_PRINT("enter", ("timeout: %d", timeout));
   net->write_timeout= timeout;
 #ifdef NO_ALARM
-  vio_timeout(net->vio, 1, timeout);
+  if (net->vio)
+    vio_timeout(net->vio, 1, timeout);
 #endif
   DBUG_VOID_RETURN;
 }
