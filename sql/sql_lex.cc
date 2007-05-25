@@ -1112,8 +1112,8 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
 char *skip_rear_comments(CHARSET_INFO *cs, char *begin, char *end)
 {
   while (begin < end && (end[-1] == '*' ||
-                         end[-1] == '/' || end[-1] == ';') ||
-                         my_isspace(cs, end[-1]))
+                         end[-1] == '/' || end[-1] == ';' ||
+                         my_isspace(cs, end[-1])))
     end-= 1;
   return end;
 }
