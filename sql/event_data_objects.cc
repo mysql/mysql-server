@@ -413,7 +413,8 @@ Event_parse_data::init_interval(THD *thd)
   default:
     ;/* these are the microsec stuff */
   }
-  if (interval_tmp.neg || expression > EVEX_MAX_INTERVAL_VALUE)
+  if (interval_tmp.neg || expression == 0 ||
+      expression > EVEX_MAX_INTERVAL_VALUE)
   {
     my_error(ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG, MYF(0));
     DBUG_RETURN(EVEX_BAD_PARAMS);
