@@ -1261,7 +1261,7 @@ class Item_func_get_user_var :public Item_func,
 public:
   LEX_STRING name; // keep it public
   Item_func_get_user_var(LEX_STRING a):
-    Item_func(), name(a), m_cached_result_type(STRING_RESULT) {}
+    Item_func(), m_cached_result_type(STRING_RESULT), name(a) {}
   enum Functype functype() const { return GUSERVAR_FUNC; }
   LEX_STRING get_name() { return name; }
   double val_real();

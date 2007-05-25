@@ -1786,8 +1786,6 @@ st_lex::st_lex()
   :result(0), yacc_yyss(0), yacc_yyvs(0),
    sql_command(SQLCOM_END), option_type(OPT_DEFAULT)
 {
-  /* Check that plugins_static_buffer is declared immediately after plugins */
-  compile_time_assert((&plugins + 1) == (DYNAMIC_ARRAY*)plugins_static_buffer);
 
   my_init_dynamic_array2(&plugins, sizeof(plugin_ref),
                          plugins_static_buffer,
