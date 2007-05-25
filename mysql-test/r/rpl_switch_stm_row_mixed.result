@@ -425,19 +425,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values("work_8_")
-master-bin.000001	#	User var	#	#	@`string`=_latin1 0x656D657267656E63795F375F COLLATE latin1_swedish_ci
-master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select 'emergency_7_'
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values("work_9_")
-master-bin.000001	#	User var	#	#	@`string`=_latin1 0x656D657267656E63795F375F COLLATE latin1_swedish_ci
-master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select 'emergency_7_'
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values("for_10_")
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select "yesterday_11_"
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values("work_13_")
-master-bin.000001	#	User var	#	#	@`string`=_latin1 0x656D657267656E63795F31325F COLLATE latin1_swedish_ci
-master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select 'emergency_12_'
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values("work_14_")
-master-bin.000001	#	User var	#	#	@`string`=_latin1 0x656D657267656E63795F31325F COLLATE latin1_swedish_ci
-master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select 'emergency_12_'
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values("for_15_")
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select "yesterday_16_"
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values("work_18_")
@@ -445,15 +441,13 @@ master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	User var	#	#	@`string`=_latin1 0x656D657267656E63795F31375F COLLATE latin1_swedish_ci
-master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select 'emergency_17_'
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select "yesterday_21_"
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	User var	#	#	@`string`=_latin1 0x656D657267656E63795F31375F COLLATE latin1_swedish_ci
-master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select 'emergency_17_'
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select "yesterday_24_"
@@ -735,19 +729,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values("work_8_")
-master-bin.000001	#	User var	#	#	@`string`=_latin1 0x656D657267656E63795F375F COLLATE latin1_swedish_ci
-master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select 'emergency_7_'
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values("work_9_")
-master-bin.000001	#	User var	#	#	@`string`=_latin1 0x656D657267656E63795F375F COLLATE latin1_swedish_ci
-master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select 'emergency_7_'
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values("for_10_")
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select "yesterday_11_"
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values("work_13_")
-master-bin.000001	#	User var	#	#	@`string`=_latin1 0x656D657267656E63795F31325F COLLATE latin1_swedish_ci
-master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select 'emergency_12_'
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values("work_14_")
-master-bin.000001	#	User var	#	#	@`string`=_latin1 0x656D657267656E63795F31325F COLLATE latin1_swedish_ci
-master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select 'emergency_12_'
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values("for_15_")
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select "yesterday_16_"
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values("work_18_")
@@ -755,15 +745,13 @@ master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	User var	#	#	@`string`=_latin1 0x656D657267656E63795F31375F COLLATE latin1_swedish_ci
-master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select 'emergency_17_'
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select "yesterday_21_"
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	User var	#	#	@`string`=_latin1 0x656D657267656E63795F31375F COLLATE latin1_swedish_ci
-master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select 'emergency_17_'
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select "yesterday_24_"
