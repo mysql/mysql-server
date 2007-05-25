@@ -3052,9 +3052,9 @@ loop:
 		goto loop;
 	}
 
-       /* Check that there are no longer transactions. We need this wait even
-        for the 'very fast' shutdown, because the InnoDB layer may have
-        committed or prepared transactions and we don't want to lose them. */
+	/* Check that there are no longer transactions. We need this wait even
+	for the 'very fast' shutdown, because the InnoDB layer may have
+	committed or prepared transactions and we don't want to lose them. */
 
 	if (trx_n_mysql_transactions > 0
 	    || UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
