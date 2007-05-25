@@ -981,6 +981,7 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
   String buf;
   const String *val;
   uint32 length= 0;
+  THD *thd= stmt->thd;
 
   DBUG_ENTER("insert_params_from_vars");
 
@@ -991,34 +992,20 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
   {
     Item_param *param= *it;
     varname= var_it++;
-    if (get_var_with_binlog(stmt->thd, stmt->lex->sql_command,
-                            *varname, &entry))
-        DBUG_RETURN(1);
 
-    if (param->set_from_user_var(stmt->thd, entry))
+    entry= (user_var_entry *) hash_search(&thd->user_vars, (byte*) varname->str,
+                                          varname->length);
+    /*
+      We have to call the setup_one_conversion_function() here to set
+      the parameter's members that might be needed further
+      (e.g. value.cs_info.character_set_client is used in the query_val_str()).
+    */
+    setup_one_conversion_function(thd, param, param->param_type);
+    if (param->set_from_user_var(thd, entry))
       DBUG_RETURN(1);
-    /* Insert @'escaped-varname' instead of parameter in the query */
-    if (entry)
-    {
-      char *start, *ptr;
-      buf.length(0);
-      if (buf.reserve(entry->name.length*2+3))
-        DBUG_RETURN(1);
+    val= param->query_val_str(&buf);
 
-      start= ptr= buf.c_ptr_quick();
-      *ptr++= '@';
-      *ptr++= '\'';
-      ptr+= escape_string_for_mysql(&my_charset_utf8_general_ci,
-                                    ptr, 0, entry->name.str,
-                                    entry->name.length);
-      *ptr++= '\'';
-      buf.length(ptr - start);
-      val= &buf;
-    }
-    else
-      val= &my_null_string;
-
-    if (param->convert_str_value(stmt->thd))
+    if (param->convert_str_value(thd))
       DBUG_RETURN(1);                           /* out of memory */
 
     if (query->replace(param->pos_in_query+length, 1, *val))
