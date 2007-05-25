@@ -528,4 +528,33 @@ DROP EVENT e3;
 DROP EVENT e2;
 DROP EVENT e1;
 SET TIME_ZONE=@save_time_zone;
+drop event if exists new_event;
+CREATE EVENT new_event ON SCHEDULE EVERY 0 SECOND DO SELECT 1;
+ERROR HY000: INTERVAL is either not positive or too big
+CREATE EVENT new_event ON SCHEDULE EVERY (SELECT 0) SECOND DO SELECT 1;
+ERROR HY000: INTERVAL is either not positive or too big
+CREATE EVENT new_event ON SCHEDULE EVERY "abcdef" SECOND DO SELECT 1;
+ERROR HY000: INTERVAL is either not positive or too big
+CREATE EVENT new_event ON SCHEDULE EVERY "0abcdef" SECOND DO SELECT 1;
+ERROR HY000: INTERVAL is either not positive or too big
+CREATE EVENT new_event ON SCHEDULE EVERY "a1bcdef" SECOND DO SELECT 1;
+ERROR HY000: INTERVAL is either not positive or too big
+CREATE EVENT new_event ON SCHEDULE EVERY (SELECT "abcdef" UNION SELECT "abcdef") SECOND DO SELECT 1;
+ERROR HY000: INTERVAL is either not positive or too big
+CREATE EVENT new_event ON SCHEDULE EVERY (SELECT "0abcdef") SECOND DO SELECT 1;
+ERROR HY000: INTERVAL is either not positive or too big
+CREATE EVENT new_event ON SCHEDULE EVERY (SELECT "a1bcdef") SECOND DO SELECT 1;
+ERROR HY000: INTERVAL is either not positive or too big
+CREATE EVENT new_event ON SCHEDULE AT "every day" DO SELECT 1;
+ERROR HY000: Incorrect AT value: 'every day'
+CREATE EVENT new_event ON SCHEDULE AT "0every day" DO SELECT 1;
+ERROR HY000: Incorrect AT value: '0every day'
+CREATE EVENT new_event ON SCHEDULE AT (SELECT "every day") DO SELECT 1;
+ERROR HY000: Incorrect AT value: 'every day'
+CREATE EVENT new_event ON SCHEDULE AT NOW() STARTS NOW() DO SELECT 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STARTS NOW() DO SELECT 1' at line 1
+CREATE EVENT new_event ON SCHEDULE AT NOW() ENDS NOW() DO SELECT 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ENDS NOW() DO SELECT 1' at line 1
+CREATE EVENT new_event ON SCHEDULE AT NOW() STARTS NOW() ENDS NOW() DO SELECT 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STARTS NOW() ENDS NOW() DO SELECT 1' at line 1
 drop database events_test;
