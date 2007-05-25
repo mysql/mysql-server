@@ -293,31 +293,6 @@ connection master;
 drop table t1, t2;
 
 #
-# Bug #26842: master binary log contains invalid queries - replication fails
-#
-save_master_pos;
-connection slave;
-sync_with_master;
-reset master;
-
-connection master;
-create table t1 (a int); 
-prepare s from "insert into t1 values (@a),(?)";
-set @a=98; execute s using @a;
-prepare s from "insert into t1 values (?)";
-set @a=99; execute s using @a;
-prepare s from "insert into t1 select 100 limit ?";
-set @a=100; execute s using @a;
-
-save_master_pos;
-connection slave;
-sync_with_master;
-show binlog events limit 1,100;
-select * from t1;
-connection master;
-drop table t1;
-
-#
 # Bug #12826: Possible to get inconsistent slave using SQL syntax Prepared Statements
 #
 connection master;

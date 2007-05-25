@@ -224,31 +224,6 @@ k
 100
 42
 drop table t1, t2;
-reset master;
-create table t1 (a int);
-prepare s from "insert into t1 values (@a),(?)";
-set @a=98;
-execute s using @a;
-prepare s from "insert into t1 values (?)";
-set @a=99;
-execute s using @a;
-prepare s from "insert into t1 select 100 limit ?";
-set @a=100;
-execute s using @a;
-show binlog events limit 1,100;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	106	Query	1	192	use `test`; create table t1 (a int)
-slave-bin.000001	192	User var	2	234	@`a`=98
-slave-bin.000001	234	Query	1	328	use `test`; insert into t1 values (@a),(98)
-slave-bin.000001	328	Query	1	417	use `test`; insert into t1 values (99)
-slave-bin.000001	417	Query	1	515	use `test`; insert into t1 select 100 limit 100
-select * from t1;
-a
-98
-98
-99
-100
-drop table t1;
 create table t1(a int, b int);
 prepare s1 from 'insert into t1 values (@x:=@x+1, ?)';
 set @x=1;
