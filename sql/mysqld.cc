@@ -2148,6 +2148,16 @@ later when used with nscd), disable LDAP in your nsswitch.conf, or use a\n\
 mysqld that is not statically linked.\n");
 #endif
 
+#ifdef HAVE_NPTL
+  if (thd_lib_detected == THD_LIB_LT && !getenv("LD_ASSUME_KERNEL"))
+    fprintf(stderr,"\n\
+You are running a statically-linked LinuxThreads binary on an NPTL system.\n\
+This can result in crashes on some distributions due to LT/NPTL conflicts.\n\
+You should either build a dynamically-linked binary, or force LinuxThreads\n\
+to be used with the LD_ASSUME_KERNEL environment variable. Please consult\n\
+the documentation for your distribution on how to do that.\n");
+#endif
+  
   if (locked_in_memory)
   {
     fprintf(stderr, "\n\
