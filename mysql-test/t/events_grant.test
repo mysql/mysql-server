@@ -101,8 +101,14 @@ disconnect ev_con1;
 connection default;
 DROP USER ev_test@localhost;
 DROP DATABASE events_test2;
+
+# 
+# End of tests
 #
-## EVENTS grants test end
-#
+
+let $wait_condition=
+  select count(*) = 0 from information_schema.processlist
+  where db='events_test' and command = 'Connect' and user=current_user();
+--source include/wait_condition.inc
 
 DROP DATABASE events_test;

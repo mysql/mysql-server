@@ -557,4 +557,4 @@ CREATE EVENT new_event ON SCHEDULE AT NOW() ENDS NOW() DO SELECT 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ENDS NOW() DO SELECT 1' at line 1
 CREATE EVENT new_event ON SCHEDULE AT NOW() STARTS NOW() ENDS NOW() DO SELECT 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STARTS NOW() ENDS NOW() DO SELECT 1' at line 1
-drop database events_test;
+DROP DATABASE events_test;
