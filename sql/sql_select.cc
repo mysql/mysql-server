@@ -5905,13 +5905,13 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       */ 
 
       /* First push down constant conditions from on expressions */
-      for (JOIN_TAB *tab= join->join_tab+join->const_tables;
-           tab < join->join_tab+join->tables ; tab++)
+      for (JOIN_TAB *join_tab= join->join_tab+join->const_tables;
+           join_tab < join->join_tab+join->tables ; join_tab++)
       {
-        if (*tab->on_expr_ref)
+        if (*join_tab->on_expr_ref)
         {
-          JOIN_TAB *cond_tab= tab->first_inner;
-          COND *tmp= make_cond_for_table(*tab->on_expr_ref,
+          JOIN_TAB *cond_tab= join_tab->first_inner;
+          COND *tmp= make_cond_for_table(*join_tab->on_expr_ref,
                                          join->const_table_map,
                                          (table_map) 0);
           if (!tmp)
