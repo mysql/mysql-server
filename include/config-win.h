@@ -250,8 +250,6 @@ inline double ulonglong2double(ulonglong value)
 #endif
 
 
-#define STACK_DIRECTION -1
-
 /* Optimized store functions for Intel x86 */
 
 #ifndef _WIN64
