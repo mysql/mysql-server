@@ -5318,6 +5318,8 @@ Item_func_sp::execute()
   {
     null_value= 1;
     context->process_error(thd);
+    if (thd->killed)
+      thd->send_kill_message();
     return TRUE;
   }
 
