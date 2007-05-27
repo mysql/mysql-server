@@ -264,7 +264,10 @@ AC_TRY_RUN([
                 AC_MSG_RESULT("ptr")],
                [AC_DEFINE(SPRINTF_RETURNS_GARBAGE, [1], [Broken sprintf])
                 AC_MSG_RESULT("garbage")])
-   ])
+   ],
+   # Cross compile, assume POSIX
+   [AC_DEFINE(SPRINTF_RETURNS_INT, [1], [POSIX sprintf])
+    AC_MSG_RESULT("int (we assume)")])
     ;;
 esac
 
@@ -1784,8 +1787,6 @@ MYSQL_TYPE_ACCEPT
 #---END:
 # Figure out what type of struct rlimit to use with setrlimit
 MYSQL_TYPE_STRUCT_RLIMIT
-# Find where the stack goes
-MYSQL_STACK_DIRECTION
 # We want to skip alloca on irix unconditionally. It may work on some version..
 MYSQL_FUNC_ALLOCA
 # Do struct timespec have members tv_sec or ts_sec
