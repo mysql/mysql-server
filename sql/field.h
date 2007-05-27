@@ -1108,6 +1108,11 @@ public:
 
 class Field_varstring :public Field_longstr {
 public:
+  /*
+    The maximum space available in a Field_varstring, in bytes. See
+    length_bytes.
+  */
+  static const uint MAX_SIZE= UINT_MAX16;
   /* Store number of bytes used to store length (1 or 2) */
   uint32 length_bytes;
   Field_varstring(char *ptr_arg,

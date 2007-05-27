@@ -1321,6 +1321,9 @@ err_with_cleanup:
   free_root(&call_mem_root, MYF(0));
   thd->spcont= octx;
 
+  if (thd->killed)
+    thd->send_kill_message();
+
   DBUG_RETURN(err_status);
 }
 
