@@ -89,7 +89,9 @@ select export_set(3, _latin1'foo', _utf8'bar', ',', 4);
 #
 # Test for BUG#9535
 #
+--disable_warnings
 create table t1 as select uuid(), length(uuid());
+--enable_warnings
 show create table t1;
 drop table t1;
 
