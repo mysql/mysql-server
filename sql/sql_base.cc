@@ -5167,7 +5167,12 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
       get_key_map_from_key_list(&map, table, table_list->use_index);
       if (map.is_set_all())
 	DBUG_RETURN(1);
-      table->keys_in_use_for_query=map;
+      /* 
+	 Don't introduce keys in keys_in_use_for_query that weren't there 
+	 before. FORCE/USE INDEX should not add keys, it should only remove
+	 all keys except the key(s) specified in the hint.
+      */
+      table->keys_in_use_for_query.intersect(map);
     }
     if (table_list->ignore_index)
     {
@@ -5800,7 +5805,7 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
     table= (*ptr)->table;
     table->auto_increment_field_not_null= FALSE;
   }
-  while ((field = *ptr++))
+  while ((field = *ptr++) && !thd->net.report_error)
   {
     value=v++;
     table= field->table;
