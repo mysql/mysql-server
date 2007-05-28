@@ -27,10 +27,7 @@ void
 ut_dulint_sort(dulint* arr, dulint* aux_arr, ulint low, ulint high)
 /*===============================================================*/
 {
-#define ut_dulint_sort_ctx(c,a,aux,lo,hi) ut_dulint_sort(a,aux,lo,hi)
-#define ut_dulint_cmp_ctx(c,a,b) ut_dulint_cmp(a,b)
-
-	UT_SORT_FUNCTION_BODY(ut_dulint_sort_ctx,, arr, aux_arr, low, high,
-			      ut_dulint_cmp_ctx);
+	UT_SORT_FUNCTION_BODY(ut_dulint_sort, arr, aux_arr, low, high,
+			      ut_dulint_cmp);
 }
 #endif /* notdefined */
