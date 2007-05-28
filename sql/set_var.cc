@@ -1864,7 +1864,7 @@ void sys_var_collation_sv::set_default(THD *thd, enum_var_type type)
 
 
 uchar *sys_var_collation_sv::value_ptr(THD *thd, enum_var_type type,
-				       LEX_STRING *base)
+                                       LEX_STRING *base)
 {
   CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
 		     global_system_variables.*offset : thd->variables.*offset);
