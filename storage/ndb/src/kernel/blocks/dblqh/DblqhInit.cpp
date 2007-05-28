@@ -305,6 +305,11 @@ Dblqh::Dblqh(Block_context& ctx):
   
   initData();
 
+  /* maximum number of log file operations */
+  clfoFileSize = clogPageFileSize;
+  if (clfoFileSize < ZLFO_MIN_FILE_SIZE)
+    clfoFileSize = ZLFO_MIN_FILE_SIZE;
+
 #ifdef VM_TRACE
   {
     void* tmp[] = { 
