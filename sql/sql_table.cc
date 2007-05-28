@@ -49,7 +49,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                            handler *file, KEY **key_info_buffer,
                            uint *key_count, int select_field_count);
 static bool
-mysql_prepare_alter_table(THD *thd, HA_CREATE_INFO *create_info,
+mysql_prepare_alter_table(THD *thd, TABLE *table,
+                          HA_CREATE_INFO *create_info,
                           Alter_info *alter_info);
 
 #define MYSQL50_TABLE_NAME_PREFIX         "#mysql50#"
