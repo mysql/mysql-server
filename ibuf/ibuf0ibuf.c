@@ -565,7 +565,8 @@ ibuf_bitmap_page_init(
 
 	bit_offset = XDES_DESCRIBED_PER_PAGE * IBUF_BITS_PER_PAGE;
 
-	byte_offset = bit_offset / 8 + 1; /* better: (bit_offset + 7) / 8 */
+	byte_offset = bit_offset / 8 + 1;
+	/* better: byte_offset = UT_BITS_IN_BYTES(bit_offset); */
 
 	fil_page_set_type(page, FIL_PAGE_IBUF_BITMAP);
 

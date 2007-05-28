@@ -3716,7 +3716,7 @@ dict_index_calc_min_rec_len(
 		}
 
 		/* round the NULL flags up to full bytes */
-		sum += (nullable + 7) / 8;
+		sum += UT_BITS_IN_BYTES(nullable);
 
 		return(sum);
 	}
