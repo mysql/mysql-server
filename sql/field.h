@@ -1622,6 +1622,9 @@ public:
   uint	offset,pack_flag;
   create_field() :after(0) {}
   create_field(Field *field, Field *orig_field);
+  /* Used to make a clone of this object for ALTER/CREATE TABLE */
+  create_field *clone(MEM_ROOT *mem_root) const
+    { return new (mem_root) create_field(*this); }
   void create_length_to_internal_length(void);
 
   /* Init for a tmp table field. To be extended if need be. */

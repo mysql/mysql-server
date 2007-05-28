@@ -960,32 +960,26 @@ int prepare_create_field(create_field *sql_field,
 			 longlong table_flags);
 bool mysql_create_table(THD *thd,const char *db, const char *table_name,
                         HA_CREATE_INFO *create_info,
-                        List<create_field> &fields, List<Key> &keys,
-                        bool tmp_table, uint select_field_count,
-                        bool use_copy_create_info);
+                        Alter_info *alter_info,
+                        bool tmp_table, uint select_field_count);
 bool mysql_create_table_no_lock(THD *thd, const char *db,
                                 const char *table_name,
                                 HA_CREATE_INFO *create_info,
-                                List<create_field> &fields, List<Key> &keys,
-                                bool tmp_table, uint select_field_count,
-                                bool use_copy_create_info);
+                                Alter_info *alter_info,
+                                bool tmp_table, uint select_field_count);
 
 bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
-                       List<create_field> &fields,
-                       List<Key> &keys,
-                       uint order_num, ORDER *order, bool ignore,
-                       ALTER_INFO *alter_info, bool do_send_ok);
-bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool do_send_ok);
-bool mysql_create_like_table(THD *thd, TABLE_LIST *table, TABLE_LIST *src_table,
+                       Alter_info *alter_info,
+                       uint order_num, ORDER *order, bool ignore);
+bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list);
+bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
+                             TABLE_LIST *src_table,
                              HA_CREATE_INFO *create_info);
 bool mysql_rename_table(handlerton *base, const char *old_db,
                         const char * old_name, const char *new_db,
                         const char * new_name, uint flags);
-bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
-bool mysql_drop_index(THD *thd, TABLE_LIST *table_list,
-                      ALTER_INFO *alter_info);
 bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
                           Item **conds, uint order_num, ORDER *order);
 int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
@@ -1309,14 +1303,13 @@ char *make_default_log_name(char *buff,const char* log_ext);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 uint fast_alter_partition_table(THD *thd, TABLE *table,
-                                ALTER_INFO *alter_info,
+                                Alter_info *alter_info,
                                 HA_CREATE_INFO *create_info,
                                 TABLE_LIST *table_list,
-                                List<create_field> *create_list,
-                                List<Key> *key_list, char *db,
+                                char *db,
                                 const char *table_name,
                                 uint fast_alter_partition);
-uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
+uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
                            handlerton *old_db_type,
                            bool *partition_changed,
@@ -1348,11 +1341,7 @@ typedef struct st_lock_param_type
   ulonglong deleted;
   THD *thd;
   HA_CREATE_INFO *create_info;
-  ALTER_INFO *alter_info;
-  List<create_field> *create_list;
-  List<create_field> new_create_list;
-  List<Key> *key_list;
-  List<Key> new_key_list;
+  Alter_info *alter_info;
   TABLE *table;
   KEY *key_info_buffer;
   const char *db;

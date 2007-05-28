@@ -141,30 +141,6 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
                                            PARTITION_ITERATOR *part_iter);
 static void set_up_range_analysis_info(partition_info *part_info);
 
-/*
-  A routine used by the parser to decide whether we are specifying a full
-  partitioning or if only partitions to add or to split.
-
-  SYNOPSIS
-    is_partition_management()
-    lex                    Reference to the lex object
-
-  RETURN VALUE
-    TRUE                   Yes, it is part of a management partition command
-    FALSE                  No, not a management partition command
-
-  DESCRIPTION
-    This needs to be outside of WITH_PARTITION_STORAGE_ENGINE since it is
-    used from the sql parser that doesn't have any #ifdef's
-*/
-
-my_bool is_partition_management(LEX *lex)
-{
-  return (lex->sql_command == SQLCOM_ALTER_TABLE &&
-          (lex->alter_info.flags == ALTER_ADD_PARTITION ||
-           lex->alter_info.flags == ALTER_REORGANIZE_PARTITION));
-}
-
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 /*
   A support function to check if a name is in a list of strings
@@ -4125,7 +4101,7 @@ error:
     change patterns.
 */
 
-uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
+uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
                            handlerton *old_db_type,
                            bool *partition_changed,
@@ -5991,8 +5967,6 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
     alter_info                    ALTER TABLE info
     create_info                   Create info for CREATE TABLE
     table_list                    List of the table involved
-    create_list                   The fields in the resulting table
-    key_list                      The keys in the resulting table
     db                            Database name of new table
     table_name                    Table name of new table
 
@@ -6006,11 +5980,10 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
 */
 
 uint fast_alter_partition_table(THD *thd, TABLE *table,
-                                ALTER_INFO *alter_info,
+                                Alter_info *alter_info,
                                 HA_CREATE_INFO *create_info,
                                 TABLE_LIST *table_list,
-                                List<create_field> *create_list,
-                                List<Key> *key_list, char *db,
+                                char *db,
                                 const char *table_name,
                                 uint fast_alter_partition)
 {
@@ -6027,8 +6000,6 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
   lpt->part_info= part_info;
   lpt->alter_info= alter_info;
   lpt->create_info= create_info;
-  lpt->create_list= create_list;
-  lpt->key_list= key_list;
   lpt->db_options= create_info->table_options;
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
     lpt->db_options|= HA_OPTION_PACK_RECORD;
@@ -6106,7 +6077,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
  
       The first approach here was to downgrade locks. Now a different approach
       is decided upon. The idea is that the handler will have access to the
-      ALTER_INFO when store_lock arrives with TL_WRITE_ALLOW_READ. So if the
+      Alter_info when store_lock arrives with TL_WRITE_ALLOW_READ. So if the
       handler knows that this functionality can be handled with a lower lock
       level it will set the lock level to TL_WRITE_ALLOW_WRITE immediately.
       Thus the need to downgrade the lock disappears.
@@ -6379,7 +6350,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
     user
   */
   DBUG_RETURN(fast_end_partition(thd, lpt->copied, lpt->deleted,
-                                 table, table_list, FALSE, lpt,
+                                 table, table_list, FALSE, NULL,
                                  written_bin_log));
 }
 #endif
