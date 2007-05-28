@@ -1159,6 +1159,19 @@ select cast(a as DECIMAL(3,2)), count(*)
   UNION select 12.1234
  ) t group by 1;
 
+#
+# Bug #28361 Buffer overflow in DECIMAL code on Windows 
+#
+
+create table t1 (s varchar(100));
+insert into t1 values (0.00000000010000000000000000364321973154977415791655470655996396089904010295867919921875);
+drop table t1;
+
+#
+# Bug #27984 Long Decimal Maths produces truncated results 
+#
+
+SELECT 1.000000000000 * 99.999999999998 / 100 a,1.000000000000 * (99.999999999998 / 100) b;
 --echo End of 5.0 tests
 
 #
