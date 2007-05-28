@@ -1056,7 +1056,7 @@ static uchar *get_hash_key(const uchar *buff, size_t *length,
 }
 
 
-static uchar *get_bookmark_hash_key(const uchar *buff, uint *length,
+static uchar *get_bookmark_hash_key(const uchar *buff, size_t *length,
                    my_bool not_used __attribute__((unused)))
 {
   struct st_bookmark *var= (st_bookmark *)buff;
