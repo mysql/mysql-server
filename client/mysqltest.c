@@ -1014,7 +1014,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
   if (!eval_result && (uint) stat_info.st_size != ds->length)
   {
     DBUG_PRINT("info",("Size differs:  result size: %u  file size: %lu",
-		       (uint) ds->length, (ulong) stat_info.st_size));
+               (uint) ds->length, (ulong) stat_info.st_size));
     DBUG_PRINT("info",("result: '%s'", ds->str));
     DBUG_RETURN(RESULT_LENGTH_MISMATCH);
   }

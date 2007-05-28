@@ -41,8 +41,8 @@
 */
 
 my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
-			    void *init_buffer, uint init_alloc, 
-			    uint alloc_increment CALLER_INFO_PROTO)
+                            void *init_buffer, uint init_alloc, 
+                            uint alloc_increment CALLER_INFO_PROTO)
 {
   DBUG_ENTER("init_dynamic_array");
   if (!alloc_increment)
@@ -72,8 +72,8 @@ my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
 } 
 
 my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
-			   uint init_alloc, 
-			   uint alloc_increment CALLER_INFO_PROTO)
+                           uint init_alloc, 
+                           uint alloc_increment CALLER_INFO_PROTO)
 {
   /* placeholder to preserve ABI */
   return my_init_dynamic_array_ci(array, element_size, init_alloc, 
@@ -139,18 +139,18 @@ uchar *alloc_dynamic(DYNAMIC_ARRAY *array)
         so we have to create an all-new malloc since we overflowed
       */
       if (!(new_ptr= (char *) my_malloc((array->max_element+
-				         array->alloc_increment) *
-				        array->size_of_element,
-				        MYF(MY_WME))))
+                                         array->alloc_increment) *
+                                        array->size_of_element,
+                                        MYF(MY_WME))))
         return 0;
       memcpy(new_ptr, array->buffer, 
              array->elements * array->size_of_element);
     }
     else
     if (!(new_ptr=(char*) my_realloc(array->buffer,(array->max_element+
-				     array->alloc_increment)*
-				     array->size_of_element,
-				     MYF(MY_WME | MY_ALLOW_ZERO_PTR))))
+                                     array->alloc_increment)*
+                                     array->size_of_element,
+                                     MYF(MY_WME | MY_ALLOW_ZERO_PTR))))
       return 0;
     array->buffer=new_ptr;
     array->max_element+=array->alloc_increment;
@@ -213,26 +213,26 @@ my_bool set_dynamic(DYNAMIC_ARRAY *array, uchar* element, uint idx)
           so we have to create an all-new malloc since we overflowed
         */
         if (!(new_ptr= (char *) my_malloc(size *
-				          array->size_of_element,
-				          MYF(MY_WME))))
+                                          array->size_of_element,
+                                          MYF(MY_WME))))
           return 0;
         memcpy(new_ptr, array->buffer, 
                array->elements * array->size_of_element);
       }
       else
       if (!(new_ptr=(char*) my_realloc(array->buffer,size*
-				       array->size_of_element,
-				       MYF(MY_WME | MY_ALLOW_ZERO_PTR))))
+                                       array->size_of_element,
+                                       MYF(MY_WME | MY_ALLOW_ZERO_PTR))))
 	return TRUE;
       array->buffer=new_ptr;
       array->max_element=size;
     }
     bzero((uchar*) (array->buffer+array->elements*array->size_of_element),
-	  (idx - array->elements)*array->size_of_element);
+          (idx - array->elements)*array->size_of_element);
     array->elements=idx+1;
   }
   memcpy(array->buffer+(idx * array->size_of_element),element,
-	 (size_t) array->size_of_element);
+         (size_t) array->size_of_element);
   return FALSE;
 }
 
@@ -251,12 +251,12 @@ void get_dynamic(DYNAMIC_ARRAY *array, uchar* element, uint idx)
   if (idx >= array->elements)
   {
     DBUG_PRINT("warning",("To big array idx: %d, array size is %d",
-			  idx,array->elements));
+                          idx,array->elements));
     bzero(element,array->size_of_element);
     return;
   }
   memcpy(element,array->buffer+idx*array->size_of_element,
-	 (size_t) array->size_of_element);
+         (size_t) array->size_of_element);
 }
 
 
@@ -290,7 +290,7 @@ void delete_dynamic(DYNAMIC_ARRAY *array)
   SYNOPSIS
     delete_dynamic_element()
       array
-      idx	Index of element to be deleted
+      idx        Index of element to be deleted
 */
 
 void delete_dynamic_element(DYNAMIC_ARRAY *array, uint idx)
@@ -298,7 +298,7 @@ void delete_dynamic_element(DYNAMIC_ARRAY *array, uint idx)
   char *ptr=array->buffer+array->size_of_element*idx;
   array->elements--;
   memmove(ptr,ptr+array->size_of_element,
-	  (array->elements-idx)*array->size_of_element);
+          (array->elements-idx)*array->size_of_element);
 }
 
 
@@ -324,8 +324,8 @@ void freeze_size(DYNAMIC_ARRAY *array)
   if (array->buffer && array->max_element != elements)
   {
     array->buffer=(char*) my_realloc(array->buffer,
-				     elements*array->size_of_element,
-				     MYF(MY_WME));
+                                     elements*array->size_of_element,
+                                     MYF(MY_WME));
     array->max_element=elements;
   }
 }
