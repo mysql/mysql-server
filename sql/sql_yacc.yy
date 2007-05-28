@@ -491,7 +491,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser					/* We have threads */
 /*
-  Currently there is 287 shift/reduce conflict. We should not introduce
+  Currently there is 286 shift/reduce conflict. We should not introduce
   new conflicts any more.
 */
 %expect 286
@@ -1569,8 +1569,7 @@ create:
 						 TL_OPTION_UPDATING,
 						 TL_WRITE))
 	    MYSQL_YYABORT;
-	  lex->create_list.empty();
-	  lex->key_list.empty();
+          lex->alter_info.reset();
 	  lex->col_list.empty();
 	  lex->change=NullS;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
@@ -1603,21 +1602,23 @@ create:
 							NULL,
 							TL_OPTION_UPDATING))
 	      MYSQL_YYABORT;
-	    lex->create_list.empty();
-	    lex->key_list.empty();
+            lex->alter_info.reset();
+            lex->alter_info.flags= ALTER_ADD_INDEX;
 	    lex->col_list.empty();
 	    lex->change=NullS;
 	  }
 	   '(' key_list ')' key_options
 	  {
 	    LEX *lex=Lex;
+            Key *key;
 	    if ($2 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
 	    {
 	      my_parse_error(ER(ER_SYNTAX_ERROR));
 	      MYSQL_YYABORT;
 	    }
-	    lex->key_list.push_back(new Key($2, $4.str, &lex->key_create_info, 0,
-					   lex->col_list));
+            key= new Key($2, $4.str, &lex->key_create_info, 0,
+                         lex->col_list);
+            lex->alter_info.key_list.push_back(key);
 	    lex->col_list.empty();
 	  }
 	| CREATE DATABASE opt_if_not_exists ident
@@ -3931,7 +3932,7 @@ opt_part_values:
         /* empty */
         {
           LEX *lex= Lex;
-          if (!is_partition_management(lex))
+          if (! lex->is_partition_management())
           {
             if (lex->part_info->part_type == RANGE_PARTITION)
             {
@@ -3952,7 +3953,7 @@ opt_part_values:
         | VALUES LESS_SYM THAN_SYM part_func_max
         {
           LEX *lex= Lex;
-          if (!is_partition_management(lex))
+          if (! lex->is_partition_management())
           {
             if (Lex->part_info->part_type != RANGE_PARTITION)
             {
@@ -3967,7 +3968,7 @@ opt_part_values:
         | VALUES IN_SYM '(' part_list_func ')'
         {
           LEX *lex= Lex;
-          if (!is_partition_management(lex))
+          if (! lex->is_partition_management())
           {
             if (Lex->part_info->part_type != LIST_PARTITION)
             {
@@ -4478,8 +4479,9 @@ key_def:
 	      my_parse_error(ER(ER_SYNTAX_ERROR));
 	      MYSQL_YYABORT;
 	    }
-	    lex->key_list.push_back(new Key($1,$2, &lex->key_create_info, 0,
-					   lex->col_list));
+            Key *key= new Key($1, $2, &lex->key_create_info, 0,
+                              lex->col_list);
+	    lex->alter_info.key_list.push_back(key);
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| opt_constraint constraint_key_type opt_ident key_alg
@@ -4487,24 +4489,27 @@ key_def:
 	  {
 	    LEX *lex=Lex;
 	    const char *key_name= $3 ? $3 : $1;
-	    lex->key_list.push_back(new Key($2, key_name, &lex->key_create_info, 0,
-					    lex->col_list));
+            Key *key= new Key($2, key_name, &lex->key_create_info, 0,
+                              lex->col_list);
+	    lex->alter_info.key_list.push_back(key);
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
 	  {
 	    LEX *lex=Lex;
-	    lex->key_list.push_back(new foreign_key($4 ? $4:$1, lex->col_list,
-				    $8,
-				    lex->ref_list,
-				    lex->fk_delete_opt,
-				    lex->fk_update_opt,
-				    lex->fk_match_option));
-	    lex->key_list.push_back(new Key(Key::MULTIPLE, $4 ? $4 : $1,
-					    &default_key_create_info, 1,
-					    lex->col_list));
+            const char *key_name= $4 ? $4 : $1;
+            Key *key= new foreign_key(key_name, lex->col_list,
+                                      $8,
+                                      lex->ref_list,
+                                      lex->fk_delete_opt,
+                                      lex->fk_update_opt,
+                                      lex->fk_match_option);
+            lex->alter_info.key_list.push_back(key);
+            key= new Key(Key::MULTIPLE, key_name,
+                         &default_key_create_info, 1,
+                         lex->col_list);
+            lex->alter_info.key_list.push_back(key);
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
-
             /* Only used for ALTER TABLE. Ignored otherwise. */
             lex->alter_info.flags|= ALTER_FOREIGN_KEY;
 	  }
@@ -5095,8 +5100,7 @@ alter:
 	  if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
 						 TL_OPTION_UPDATING))
 	    MYSQL_YYABORT;
-	  lex->create_list.empty();
-	  lex->key_list.empty();
+          lex->alter_info.reset();
 	  lex->col_list.empty();
           lex->select_lex.init_order();
 	  lex->select_lex.db=
@@ -5105,8 +5109,7 @@ alter:
 	  lex->create_info.db_type= 0;
 	  lex->create_info.default_table_charset= NULL;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
-	  lex->alter_info.reset();
-	  lex->alter_info.flags= 0;
+          lex->alter_info.reset();
           lex->no_write_to_binlog= 0;
           lex->create_info.storage_media= HA_SM_DEFAULT;	
 	}
@@ -8141,7 +8144,8 @@ drop:
 	  {
 	     LEX *lex=Lex;
 	     lex->sql_command= SQLCOM_DROP_INDEX;
-	     lex->alter_info.drop_list.empty();
+	     lex->alter_info.reset();
+             lex->alter_info.flags= ALTER_DROP_INDEX;
 	     lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::KEY,
                                                                 $3.str));
 	     if (!lex->current_select->add_table_to_list(lex->thd, $5, NULL,

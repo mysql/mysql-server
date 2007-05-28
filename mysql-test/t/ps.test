@@ -1118,6 +1118,113 @@ EXECUTE stmt USING @a;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
+#
+# Bug#19182: CREATE TABLE bar (m INT) SELECT n FROM foo; doesn't work
+# from stored procedure.
+#
+# The cause of a bug was that cached LEX::create_list was modified,
+# and then together with LEX::key_list was reset.
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1 (i INT);
+
+PREPARE st_19182
+FROM "CREATE TABLE t2 (i INT, j INT, KEY (i), KEY(j)) SELECT i FROM t1";
+
+EXECUTE st_19182;
+DESC t2;
+
+DROP TABLE t2;
+
+# Check that on second execution we don't loose 'j' column and the keys
+# on 'i' and 'j' columns.
+EXECUTE st_19182;
+DESC t2;
+
+DEALLOCATE PREPARE st_19182;
+DROP TABLE t2, t1;
+
+#
+# Bug #22060 "ALTER TABLE x AUTO_INCREMENT=y in SP crashes server"
+#
+# Code which implemented CREATE/ALTER TABLE and CREATE DATABASE
+# statement modified HA_CREATE_INFO structure in LEX, making these
+# statements PS/SP-unsafe (their re-execution might have resulted
+# in incorrect results).
+#
+--disable_warnings
+drop database if exists mysqltest;
+drop table if exists t1, t2;
+--enable_warnings
+# CREATE TABLE and CREATE TABLE ... SELECT
+create database mysqltest character set utf8;
+prepare stmt1 from "create table mysqltest.t1 (c char(10))";
+prepare stmt2 from "create table mysqltest.t2 select 'test'";
+execute stmt1;
+execute stmt2;
+show create table mysqltest.t1;
+show create table mysqltest.t2;
+drop table mysqltest.t1;
+drop table mysqltest.t2;
+alter database mysqltest character set latin1;
+execute stmt1;
+execute stmt2;
+show create table mysqltest.t1;
+show create table mysqltest.t2;
+drop database mysqltest;
+deallocate prepare stmt1;
+deallocate prepare stmt2;
+#
+# CREATE TABLE with DATA DIRECTORY option
+#
+# Protect ourselves from data left in tmp/ by a previos possibly failed
+# test
+--system rm -f $MYSQLTEST_VARDIR/tmp/t1.*
+--disable_warnings
+--disable_query_log
+eval prepare stmt from "create table t1 (c char(10)) data directory='$MYSQLTEST_VARDIR/tmp'";
+--enable_query_log
+execute stmt;
+#
+# DATA DIRECTORY option does not always work: if the operating
+# system does not support symlinks, have_symlinks option is automatically
+# disabled.
+# In this case DATA DIRECTORY is silently ignored when
+# creating a table, and is not output by SHOW CREATE TABLE.
+#
+--disable_result_log
+show create table t1;
+--enable_result_log
+drop table t1;
+execute stmt;
+--disable_result_log
+show create table t1;
+--enable_result_log
+--enable_warnings
+drop table t1;
+deallocate prepare stmt;
+#
+
+#
+# Bug #27937: crash on the second execution for prepared statement 
+#             from UNION with ORDER BY an expression containing RAND()
+#
+
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (2), (3), (1);
+
+PREPARE st1 FROM
+  '(SELECT a FROM t1) UNION (SELECT a+10 FROM t1) ORDER BY RAND()*0+a';
+
+EXECUTE st1;
+EXECUTE st1;
+
+DEALLOCATE PREPARE st1;
+DROP TABLE t1;
+
 --echo End of 4.1 tests.
 
 ############################# 5.0 tests start ################################
@@ -1596,6 +1703,77 @@ EXECUTE stmt USING @arg;
 DEALLOCATE PREPARE stmt;
 
 DROP TABLE t1,t2;
+#
+# Bug#4968 "Stored procedure crash if cursor opened on altered table"
+# The bug is not repeatable any more after the fix for
+# Bug#15217 "Bug #15217   Using a SP cursor on a table created with PREPARE
+# fails with weird error", however ALTER TABLE is not re-execution friendly
+# and that caused a valgrind warning. Check that the warning is gone.
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (s1 char(20));
+prepare stmt from "alter table t1 modify s1 int";
+execute stmt;
+execute stmt;
+drop table t1;
+deallocate prepare stmt;
+
+#
+# Bug#6895 "Prepared Statements: ALTER TABLE DROP COLUMN does nothing"
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int, b int);
+prepare s_6895 from "alter table t1 drop column b";
+execute s_6895;
+show columns from t1;
+drop table t1;
+create table t1 (a int, b int);
+execute s_6895;
+show columns from t1;
+drop table t1;
+create table t1 (a int, b int);
+execute s_6895;
+show columns from t1;
+deallocate prepare s_6895;
+drop table t1;
+
+#
+# Bug #22060 "ALTER TABLE x AUTO_INCREMENT=y in SP crashes server"
+#
+# 5.0 part of the test.
+#
+
+# ALTER TABLE
+create table t1 (i int primary key auto_increment) comment='comment for table t1';
+create table t2 (i int, j int, k int);
+prepare stmt from "alter table t1 auto_increment=100";
+execute stmt;
+show create table t1;
+# Let us trash table-cache's memory
+flush tables;
+select * from t2;
+execute stmt;
+show create table t1;
+deallocate prepare stmt;
+drop table t1, t2;
+# 5.1 part of the test.
+# CREATE DATABASE
+set @old_character_set_server= @@character_set_server;
+set @@character_set_server= latin1; 
+prepare stmt from "create database mysqltest_1";
+execute stmt;
+show create database mysqltest_1;
+drop database mysqltest_1;
+set @@character_set_server= utf8; 
+execute stmt;
+show create database mysqltest_1;
+drop database mysqltest_1;
+deallocate prepare stmt;
+set @@character_set_server= @old_character_set_server;
 
 
 #
@@ -2570,5 +2748,21 @@ connection default;
 
 DROP TABLE t1, t2;
 
+#
+# Bug #24879 Prepared Statements: CREATE TABLE (UTF8 KEY) produces a growing
+# key length
+#
+# Test that parse information is not altered by subsequent executions of a
+# prepared statement
+#
+drop table if exists t1;
+prepare stmt
+from "create table t1 (c char(100) character set utf8, key (c(10)))";
+execute stmt;
+show create table t1;
+drop table t1;
+execute stmt;
+show create table t1;
+drop table t1;
 
 --echo End of 5.1 tests.
