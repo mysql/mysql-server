@@ -6099,13 +6099,39 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       }
       
       /* 
-        Push down all predicates from on expressions.
-        Each of these predicated are guarded by a variable
+        Push down conditions from all on expressions.
+        Each of these conditions are guarded by a variable
         that turns if off just before null complemented row for
-        outer joins is formed. Thus, the predicates from an
+        outer joins is formed. Thus, the condition from an
         'on expression' are guaranteed not to be checked for
         the null complemented row.
       */ 
+
+      /* First push down constant conditions from on expressions */
+      for (JOIN_TAB *join_tab= join->join_tab+join->const_tables;
+           join_tab < join->join_tab+join->tables ; join_tab++)
+      {
+        if (*join_tab->on_expr_ref)
+        {
+          JOIN_TAB *cond_tab= join_tab->first_inner;
+          COND *tmp= make_cond_for_table(*join_tab->on_expr_ref,
+                                         join->const_table_map,
+                                         (table_map) 0);
+          if (!tmp)
+            continue;
+          tmp= new Item_func_trig_cond(tmp, &cond_tab->not_null_compl);
+          if (!tmp)
+            DBUG_RETURN(1);
+          tmp->quick_fix_field();
+          cond_tab->select_cond= !cond_tab->select_cond ? tmp :
+	                            new Item_cond_and(cond_tab->select_cond,tmp);
+          if (!cond_tab->select_cond)
+	    DBUG_RETURN(1);
+          cond_tab->select_cond->quick_fix_field();
+        }       
+      }
+
+      /* Push down non-constant conditions from on expressions */
       JOIN_TAB *last_tab= tab;
       while (first_inner_tab && first_inner_tab->last_inner == last_tab)
       {  
@@ -6558,7 +6584,6 @@ void JOIN::cleanup(bool full)
       for (tab= join_tab, end= tab+tables; tab != end; tab++)
 	tab->cleanup();
       table= 0;
-      tables= 0;
     }
     else
     {
@@ -8997,7 +9022,7 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
     Make sure that the blob fits into a Field_varstring which has 
     2-byte lenght. 
   */
-  if (convert_blob_length && convert_blob_length < UINT_MAX16 &&
+  if (convert_blob_length && convert_blob_length <= Field_varstring::MAX_SIZE &&
       (org_field->flags & BLOB_FLAG))
     new_field= new Field_varstring(convert_blob_length,
                                    org_field->maybe_null(),
@@ -9090,7 +9115,8 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
       2-byte lenght. 
     */
     else if (item->max_length/item->collation.collation->mbmaxlen > 255 &&
-             convert_blob_length < UINT_MAX16 && convert_blob_length)
+             convert_blob_length <= Field_varstring::MAX_SIZE && 
+             convert_blob_length)
       new_field= new Field_varstring(convert_blob_length, maybe_null,
                                      item->name, table->s,
                                      item->collation.collation);
