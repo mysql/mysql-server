@@ -1587,9 +1587,6 @@ dict_index_copy_types(
 		ifield = dict_index_get_nth_field(index, i);
 		dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
 		dict_col_copy_type(dict_field_get_col(ifield), dfield_type);
-		if (UNIV_UNLIKELY(ifield->prefix_len)) {
-			dfield_type->len = ifield->prefix_len;
-		}
 	}
 }
 
