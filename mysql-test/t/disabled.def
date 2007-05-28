@@ -10,7 +10,6 @@
 #
 ##############################################################################
 
-ndb_load        : Bug#17233
 user_limits     : Bug#23921 random failure of user_limits.test
 im_life_cycle        : Bug#27851: Instance manager test im_life_cycle fails randomly
 im_daemon_life_cycle : Bug#20294: Instance manager tests fail randomly
