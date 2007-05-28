@@ -6570,6 +6570,34 @@ drop procedure proc_21462_b|
 
 
 #
+# Bug#19733 "Repeated alter, or repeated create/drop, fails"
+# Check that CREATE/DROP INDEX is re-execution friendly.
+# 
+--disable_warnings
+drop table if exists t3|
+drop procedure if exists proc_bug19733|
+--enable_warnings
+create table t3 (s1 int)|
+
+create procedure proc_bug19733()
+begin
+  declare v int default 0;
+  while v < 100 do
+    create index i on t3 (s1);
+    drop index i on t3;
+    set v = v + 1;
+  end while;
+end|
+
+call proc_bug19733()|
+call proc_bug19733()|
+call proc_bug19733()|
+
+drop procedure proc_bug19733|
+drop table t3|
+
+
+#
 # BUG#20492: Subsequent calls to stored procedure yeild incorrect
 # result if join is used 
 #
