@@ -1866,7 +1866,6 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
   DBUG_RETURN((table_list->table == NULL));
 
 end_create:
-  thd->fatal_error();
   pthread_mutex_unlock(&LOCK_delayed_create);
   DBUG_RETURN(thd->net.report_error);
 }
