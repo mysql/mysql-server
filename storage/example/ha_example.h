@@ -82,7 +82,12 @@ public:
   */
   ulonglong table_flags() const
   {
-    return 0;
+    /*
+      We are saying that this engine is just row capable to have an
+      engine that can only handle row-based logging. This is used in
+      testing.
+    */
+    return HA_BINLOG_ROW_CAPABLE;
   }
 
   /** @brief

@@ -117,6 +117,18 @@
 #define HA_HAS_RECORDS	       (LL(1) << 32) /* records() gives exact count*/
 /* Has it's own method of binlog logging */
 #define HA_HAS_OWN_BINLOGGING  (LL(1) << 33)
+/*
+  Engine is capable of row-format and statement-format logging,
+  respectively
+*/
+#define HA_BINLOG_ROW_CAPABLE  (LL(1) << 34)
+#define HA_BINLOG_STMT_CAPABLE (LL(1) << 35)
+
+/*
+  Set of all binlog flags. Currently only contain the capabilities
+  flags.
+ */
+#define HA_BINLOG_FLAGS (HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE)
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -687,7 +699,7 @@ struct handlerton
 };
 
 
-/* Possible flags of a handlerton */
+/* Possible flags of a handlerton (there can be 32 of them) */
 #define HTON_NO_FLAGS                 0
 #define HTON_CLOSE_CURSORS_AT_COMMIT (1 << 0)
 #define HTON_ALTER_NOT_SUPPORTED     (1 << 1) //Engine does not support alter
@@ -889,10 +901,13 @@ class handler :public Sql_alloc
 {
   friend class ha_partition;
 
+public:
+  typedef ulonglong Table_flags;
+
  protected:
   struct st_table_share *table_share;   /* The table definition */
   struct st_table *table;               /* The current open table */
-  ulonglong cached_table_flags;         /* Set on init() and open() */
+  Table_flags cached_table_flags;       /* Set on init() and open() */
 
   virtual int index_init(uint idx, bool sorted) { active_index=idx; return 0; }
   virtual int index_end() { active_index=MAX_KEY; return 0; }
@@ -905,7 +920,7 @@ class handler :public Sql_alloc
   */
   virtual int rnd_init(bool scan) =0;
   virtual int rnd_end() { return 0; }
-  virtual ulonglong table_flags(void) const =0;
+  virtual Table_flags table_flags(void) const =0;
   void ha_statistic_increment(ulong SSV::*offset) const;
 
   ha_rows estimation_rows_to_insert;
@@ -1115,7 +1130,7 @@ public:
   {
     return inited == INDEX ? ha_index_end() : inited == RND ? ha_rnd_end() : 0;
   }
-  longlong ha_table_flags() { return cached_table_flags; }
+  Table_flags ha_table_flags() const { return cached_table_flags; }
 
   /*
     Signal that the table->read_set and table->write_set table maps changed
