@@ -90,6 +90,17 @@ public:
   uint length;
   key_part_spec(const char *name,uint len=0) :field_name(name), length(len) {}
   bool operator==(const key_part_spec& other) const;
+  /**
+    Construct a copy of this key_part_spec. field_name is copied
+    by-pointer as it is known to never change. At the same time
+    'length' may be reset in mysql_prepare_create_table, and this
+    is why we supply it with a copy.
+
+    @return If out of memory, 0 is returned and an error is set in
+    THD.
+  */
+  key_part_spec *clone(MEM_ROOT *mem_root) const
+  { return new (mem_root) key_part_spec(*this); }
 };
 
 
@@ -100,6 +111,12 @@ public:
   enum drop_type type;
   Alter_drop(enum drop_type par_type,const char *par_name)
     :name(par_name), type(par_type) {}
+  /**
+    Used to make a clone of this object for ALTER/CREATE TABLE
+    @sa comment for key_part_spec::clone
+  */
+  Alter_drop *clone(MEM_ROOT *mem_root) const
+    { return new (mem_root) Alter_drop(*this); }
 };
 
 
@@ -109,6 +126,12 @@ public:
   Item *def;
   Alter_column(const char *par_name,Item *literal)
     :name(par_name), def(literal) {}
+  /**
+    Used to make a clone of this object for ALTER/CREATE TABLE
+    @sa comment for key_part_spec::clone
+  */
+  Alter_column *clone(MEM_ROOT *mem_root) const
+    { return new (mem_root) Alter_column(*this); }
 };
 
 
@@ -127,9 +150,16 @@ public:
     :type(type_par), key_create_info(*key_info_arg), columns(cols),
     name(name_arg), generated(generated_arg)
   {}
-  ~Key() {}
+  Key(const Key &rhs, MEM_ROOT *mem_root);
+  virtual ~Key() {}
   /* Equality comparison of keys (ignoring name) */
   friend bool foreign_key_prefix(Key *a, Key *b);
+  /**
+    Used to make a clone of this object for ALTER/CREATE TABLE
+    @sa comment for key_part_spec::clone
+  */
+  virtual Key *clone(MEM_ROOT *mem_root) const
+    { return new (mem_root) Key(*this, mem_root); }
 };
 
 class Table_ident;
@@ -152,6 +182,13 @@ public:
     delete_opt(delete_opt_arg), update_opt(update_opt_arg),
     match_opt(match_opt_arg)
   {}
+  foreign_key(const foreign_key &rhs, MEM_ROOT *mem_root);
+  /**
+    Used to make a clone of this object for ALTER/CREATE TABLE
+    @sa comment for key_part_spec::clone
+  */
+  virtual Key *clone(MEM_ROOT *mem_root) const
+  { return new (mem_root) foreign_key(*this, mem_root); }
 };
 
 typedef struct st_mysql_lock
@@ -1944,20 +1981,20 @@ class select_insert :public select_result_interceptor {
 class select_create: public select_insert {
   ORDER *group;
   TABLE_LIST *create_table;
-  List<create_field> *extra_fields;
-  List<Key> *keys;
   HA_CREATE_INFO *create_info;
+  Alter_info *alter_info;
   Field **field;
 public:
-  select_create (TABLE_LIST *table_arg,
-		 HA_CREATE_INFO *create_info_par,
-		 List<create_field> &fields_par,
-		 List<Key> &keys_par,
-		 List<Item> &select_fields,enum_duplicates duplic, bool ignore)
-    :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, ignore),
-    create_table(table_arg), extra_fields(&fields_par),keys(&keys_par),
-    create_info(create_info_par)
-    {}
+  select_create(TABLE_LIST *table_arg,
+                HA_CREATE_INFO *create_info_arg,
+                Alter_info *alter_info_arg,
+                List<Item> &select_fields,
+                enum_duplicates duplic, bool ignore)
+    :select_insert(NULL, NULL, &select_fields, 0, 0, duplic, ignore),
+    create_table(table_arg),
+    create_info(create_info_arg),
+    alter_info(alter_info_arg)
+  {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 
   void binlog_show_create_table(TABLE **tables, uint count);

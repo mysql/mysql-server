@@ -5617,6 +5617,23 @@ Called B
 Called B
 drop procedure proc_21462_a|
 drop procedure proc_21462_b|
+drop table if exists t3|
+drop procedure if exists proc_bug19733|
+create table t3 (s1 int)|
+create procedure proc_bug19733()
+begin
+declare v int default 0;
+while v < 100 do
+create index i on t3 (s1);
+drop index i on t3;
+set v = v + 1;
+end while;
+end|
+call proc_bug19733()|
+call proc_bug19733()|
+call proc_bug19733()|
+drop procedure proc_bug19733|
+drop table t3|
 DROP PROCEDURE IF EXISTS p1|
 DROP VIEW IF EXISTS v1, v2|
 DROP TABLE IF EXISTS t3, t4|

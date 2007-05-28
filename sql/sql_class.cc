@@ -91,6 +91,40 @@ bool key_part_spec::operator==(const key_part_spec& other) const
   return length == other.length && !strcmp(field_name, other.field_name);
 }
 
+/**
+  Construct an (almost) deep copy of this key. Only those
+  elements that are known to never change are not copied.
+  If out of memory, a partial copy is returned and an error is set
+  in THD.
+*/
+
+Key::Key(const Key &rhs, MEM_ROOT *mem_root)
+  :type(rhs.type),
+  key_create_info(rhs.key_create_info),
+  columns(rhs.columns, mem_root),
+  name(rhs.name),
+  generated(rhs.generated)
+{
+  list_copy_and_replace_each_value(columns, mem_root);
+}
+
+/**
+  Construct an (almost) deep copy of this foreign key. Only those
+  elements that are known to never change are not copied.
+  If out of memory, a partial copy is returned and an error is set
+  in THD.
+*/
+
+foreign_key::foreign_key(const foreign_key &rhs, MEM_ROOT *mem_root)
+  :Key(rhs),
+  ref_table(rhs.ref_table),
+  ref_columns(rhs.ref_columns),
+  delete_opt(rhs.delete_opt),
+  update_opt(rhs.update_opt),
+  match_opt(rhs.match_opt)
+{
+  list_copy_and_replace_each_value(ref_columns, mem_root);
+}
 
 /*
   Test if a foreign key (= generated key) is a prefix of the given key
