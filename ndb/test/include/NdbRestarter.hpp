@@ -65,6 +65,8 @@ public:
   int getRandomNodeOtherNodeGroup(int nodeId, int randomNumber);
   int getRandomNotMasterNodeId(int randomNumber);
   
+  NdbMgmHandle handle;
+  
 protected:
 
   int waitClusterState(ndb_mgm_node_status _status,
@@ -87,7 +89,6 @@ protected:
   
   bool connected;
   BaseString addr;
-  NdbMgmHandle handle;
   ndb_mgm_configuration * m_config;
 protected:
   ndb_mgm_configuration * getConfig();
