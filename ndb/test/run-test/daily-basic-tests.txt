@@ -492,6 +492,10 @@ max-time: 1500
 cmd: testDict
 args: -n CreateAndDrop 
 
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug28717 T1
+
 max-time: 1500
 cmd: testDict
 args: -n CreateAndDropAtRandom -l 200 T1
