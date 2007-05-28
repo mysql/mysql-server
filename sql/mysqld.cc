@@ -434,8 +434,6 @@ ulong slow_launch_threads = 0, sync_binlog_period;
 ulong expire_logs_days = 0;
 ulong rpl_recovery_rank=0;
 
-double log_10[32];			/* 10 potences */
-double log_01[32];
 time_t server_start_time;
 
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];

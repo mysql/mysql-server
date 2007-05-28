@@ -105,6 +105,10 @@ extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
 extern char NEAR _dig_vec_upper[];
 extern char NEAR _dig_vec_lower[];
 
+/* Defined in strtod.c */
+extern const double log_10[310];
+extern const double log_01[310];
+
 #ifdef BAD_STRING_COMPILER
 #define strmov(A,B)  (memccpy(A,B,0,INT_MAX)-1)
 #else
