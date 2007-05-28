@@ -16,6 +16,7 @@
 
 #include <ndb_global.h>
 #include <my_pthread.h>
+#include <sys/times.h>
 
 #include "WatchDog.hpp"
 #include "GlobalData.hpp"
@@ -129,6 +130,13 @@ WatchDog::run(){
         break;
       }//switch
       g_eventLogger.warning("Ndb kernel is stuck in: %s", last_stuck_action);
+      {
+        struct tms my_tms;
+        times(&my_tms);
+        g_eventLogger.info("User time: %llu  System time: %llu",
+                           (Uint64)my_tms.tms_utime,
+                           (Uint64)my_tms.tms_stime);
+      }
       if(alerts == 3){
 	shutdownSystem(last_stuck_action);
       }
