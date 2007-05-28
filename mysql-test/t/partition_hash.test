@@ -130,6 +130,7 @@ drop table t1;
 # BUG# 14524 Partitions: crash if blackhole
 #
 CREATE TABLE t1 (s1 int) ENGINE=BLACKHOLE PARTITION BY HASH (s1);
+--error 0,ER_BINLOG_ROW_FORMAT_FORBIDDEN
 INSERT INTO t1 VALUES (0);
 DROP TABLE t1;
 

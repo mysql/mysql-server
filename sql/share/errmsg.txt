@@ -6062,3 +6062,9 @@ ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT
 ER_BINLOG_UNSAFE_STATEMENT
         eng "Statement is not safe to log in statement format."
         swe "Detta är inte säkert att logga i statement-format."
+ER_BINLOG_ENGINES_INCOMPATIBLE
+        eng "It is not possible to log anything with this combination of engines"
+ER_BINLOG_STMT_FORMAT_FORBIDDEN
+        eng "Attempting to log statement in in statement format, but statement format is not possible with this combination of engines"
+ER_BINLOG_ROW_FORMAT_FORBIDDEN
+        eng "Attempting to log statement in in row format, but row format is not possible with this combination of engines"

@@ -1,0 +1,86 @@
+CREATE TABLE t1m (m INT, n INT) ENGINE=MYISAM;
+CREATE TABLE t1b (b INT, c INT) ENGINE=BLACKHOLE;
+CREATE TABLE t1n (e INT, f INT) ENGINE=NDB;
+SET SESSION BINLOG_FORMAT=STATEMENT;
+INSERT INTO t1m VALUES (1,1), (1,2), (2,1), (2,2);
+INSERT INTO t1b VALUES (1,1), (1,2), (2,1), (2,2);
+INSERT INTO t1n VALUES (1,1), (1,2), (2,1), (2,2);
+ERROR HY000: Attempting to log statement in in statement format, but statement format is not possible with this combination of engines
+UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c;
+UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
+ERROR HY000: Attempting to log statement in in statement format, but statement format is not possible with this combination of engines
+UPDATE t1n, t1b SET e = 2, b = 3 WHERE f = c;
+ERROR HY000: It is not possible to log anything with this combination of engines
+TRUNCATE t1m;
+TRUNCATE t1b;
+TRUNCATE t1n;
+SET SESSION BINLOG_FORMAT=MIXED;
+INSERT INTO t1m VALUES (1,1), (1,2), (2,1), (2,2);
+INSERT INTO t1b VALUES (1,1), (1,2), (2,1), (2,2);
+INSERT INTO t1n VALUES (1,1), (1,2), (2,1), (2,2);
+UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c;
+UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
+UPDATE t1n, t1b SET e = 2, b = 3 WHERE f = c;
+ERROR HY000: It is not possible to log anything with this combination of engines
+TRUNCATE t1m;
+TRUNCATE t1b;
+TRUNCATE t1n;
+SET SESSION BINLOG_FORMAT=ROW;
+INSERT INTO t1m VALUES (1,1), (1,2), (2,1), (2,2);
+INSERT INTO t1b VALUES (1,1), (1,2), (2,1), (2,2);
+ERROR HY000: Attempting to log statement in in row format, but row format is not possible with this combination of engines
+INSERT INTO t1n VALUES (1,1), (1,2), (2,1), (2,2);
+UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c;
+ERROR HY000: Attempting to log statement in in row format, but row format is not possible with this combination of engines
+UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
+UPDATE t1n, t1b SET e = 2, b = 3 WHERE f = c;
+ERROR HY000: It is not possible to log anything with this combination of engines
+TRUNCATE t1m;
+TRUNCATE t1b;
+TRUNCATE t1n;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1m (m INT, n INT) ENGINE=MYISAM
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1b (b INT, c INT) ENGINE=BLACKHOLE
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1n (e INT, f INT) ENGINE=NDB
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1m VALUES (1,1), (1,2), (2,1), (2,2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1b VALUES (1,1), (1,2), (2,1), (2,2)
+master-bin.000001	#	Query	#	#	use `test`; UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1m
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1b
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1n
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1m VALUES (1,1), (1,2), (2,1), (2,2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1b VALUES (1,1), (1,2), (2,1), (2,2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1n VALUES (1,1), (1,2), (2,1), (2,2)
+master-bin.000001	#	Query	#	#	use `test`; UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c
+master-bin.000001	#	Query	#	#	use `test`; UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1m
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1b
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1n)
+master-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Update_rows	#	#	table_id: #
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1n
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1m)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1m)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1n)
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1m
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1b
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1n)
+master-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Update_rows	#	#	table_id: #
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1n
+DROP TABLE t1m, t1b, t1n;
