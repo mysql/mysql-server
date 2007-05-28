@@ -987,8 +987,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (check_access(thd,SELECT_ACL,table_list.db,&table_list.grant.privilege,
 		     0, 0, test(table_list.schema_table)))
       break;
-    if (grant_option &&
-	check_grant(thd, SELECT_ACL, &table_list, 2, UINT_MAX, 0))
+    if (check_grant(thd, SELECT_ACL, &table_list, 2, UINT_MAX, 0))
       break;
     /* init structures for VIEW processing */
     table_list.select_lex= &(thd->lex->select_lex);
@@ -2049,12 +2048,10 @@ mysql_execute_command(THD *thd)
 		     &first_table->grant.privilege, 0, 0,
                      test(first_table->schema_table)))
       goto error;				/* purecov: inspected */
-    if (grant_option)
-    {
-      /* Check that the first table has CREATE privilege */
-      if (check_grant(thd, CREATE_ACL, all_tables, 0, 1, 0))
-	goto error;
-    }
+    /* Check that the first table has CREATE privilege */
+    if (check_grant(thd, CREATE_ACL, all_tables, 0, 1, 0))
+      goto error;
+
     pthread_mutex_lock(&LOCK_active_mi);
     /*
       fetch_master_table will send the error to the client on failure.
@@ -2320,22 +2317,20 @@ end_with_restore_list:
 				   (TABLE_LIST *)
 				   lex->create_info.merge_list.first))
 	goto error;				/* purecov: inspected */
-      if (grant_option)
-      {
-	if (check_grant(thd, priv_needed, all_tables, 0, UINT_MAX, 0))
-	  goto error;
-	if (lex->name.str && !test_all_bits(priv,INSERT_ACL | CREATE_ACL))
-	{					// Rename of table
-	  TABLE_LIST tmp_table;
-	  bzero((char*) &tmp_table,sizeof(tmp_table));
-	  tmp_table.table_name= lex->name.str;
-	  tmp_table.db=select_lex->db;
-	  tmp_table.grant.privilege=priv;
-	  if (check_grant(thd, INSERT_ACL | CREATE_ACL, &tmp_table, 0,
-			  UINT_MAX, 0))
-	    goto error;
-	}
+      if (check_grant(thd, priv_needed, all_tables, 0, UINT_MAX, 0))
+        goto error;
+      if (lex->name.str && !test_all_bits(priv,INSERT_ACL | CREATE_ACL))
+      { // Rename of table
+          TABLE_LIST tmp_table;
+          bzero((char*) &tmp_table,sizeof(tmp_table));
+          tmp_table.table_name= lex->name.str;
+          tmp_table.db=select_lex->db;
+          tmp_table.grant.privilege=priv;
+          if (check_grant(thd, INSERT_ACL | CREATE_ACL, &tmp_table, 0,
+              UINT_MAX, 0))
+            goto error;
       }
+
       /* Don't yet allow changing of symlinks with ALTER TABLE */
       if (lex->create_info.data_file_name)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
@@ -2377,21 +2372,18 @@ end_with_restore_list:
 		       &table->next_local->grant.privilege, 0, 0,
                        test(table->next_local->schema_table)))
 	goto error;
-      if (grant_option)
-      {
-	TABLE_LIST old_list, new_list;
-	/*
-	  we do not need initialize old_list and new_list because we will
-	  come table[0] and table->next[0] there
-	*/
-	old_list= table[0];
-	new_list= table->next_local[0];
-	if (check_grant(thd, ALTER_ACL | DROP_ACL, &old_list, 0, 1, 0) ||
-	    (!test_all_bits(table->next_local->grant.privilege,
-			    INSERT_ACL | CREATE_ACL) &&
-	     check_grant(thd, INSERT_ACL | CREATE_ACL, &new_list, 0, 1, 0)))
-	  goto error;
-      }
+      TABLE_LIST old_list, new_list;
+      /*
+        we do not need initialize old_list and new_list because we will
+        come table[0] and table->next[0] there
+      */
+      old_list= table[0];
+      new_list= table->next_local[0];
+      if (check_grant(thd, ALTER_ACL | DROP_ACL, &old_list, 0, 1, 0) ||
+         (!test_all_bits(table->next_local->grant.privilege,
+                         INSERT_ACL | CREATE_ACL) &&
+          check_grant(thd, INSERT_ACL | CREATE_ACL, &new_list, 0, 1, 0)))
+        goto error;
     }
     query_cache_invalidate3(thd, first_table, 0);
     if (end_active_trans(thd) || mysql_rename_tables(thd, first_table, 0))
@@ -2898,7 +2890,7 @@ end_with_restore_list:
     goto error;
 #else
     {
-      if (grant_option && check_access(thd, FILE_ACL, any_db,0,0,0,0))
+      if (check_access(thd, FILE_ACL, any_db,0,0,0,0))
 	goto error;
       res= ha_show_status(thd, lex->create_info.db_type, HA_ENGINE_LOGS);
       break;
@@ -3345,8 +3337,7 @@ end_with_restore_list:
         uint grants= lex->all_privileges 
 		   ? (PROC_ACLS & ~GRANT_ACL) | (lex->grant & GRANT_ACL)
 		   : lex->grant;
-        if (grant_option && 
-	    check_grant_routine(thd, grants | GRANT_ACL, all_tables,
+        if (check_grant_routine(thd, grants | GRANT_ACL, all_tables,
                                 lex->type == TYPE_ENUM_PROCEDURE, 0))
 	  goto error;
         /* Conditionally writes to binlog */
@@ -3357,10 +3348,8 @@ end_with_restore_list:
       }
       else
       {
-	if (grant_option && check_grant(thd,
-					(lex->grant | lex->grant_tot_col |
-					 GRANT_ACL),
-					all_tables, 0, UINT_MAX, 0))
+	if (check_grant(thd,(lex->grant | lex->grant_tot_col | GRANT_ACL),
+                        all_tables, 0, UINT_MAX, 0))
 	  goto error;
         /* Conditionally writes to binlog */
         res= mysql_table_grant(thd, all_tables, lex->users_list,
@@ -4475,8 +4464,7 @@ bool check_single_table_access(THD *thd, ulong privilege,
     goto deny;
 
   /* Show only 1 table for check_grant */
-  if (grant_option &&
-      !(all_tables->belong_to_view &&
+  if (!(all_tables->belong_to_view &&
         (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)) &&
       check_grant(thd, privilege, all_tables, 0, 1, no_errors))
     goto deny;
@@ -4644,9 +4632,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
                      db_access, want_access));
   db_access= ((*save_priv=(db_access | sctx->master_access)) & want_access);
 
-  /* grant_option is set if there exists a single table or column grant */
   if (db_access == want_access ||
-      (grant_option && !dont_check_global_grants &&
+      (!dont_check_global_grants &&
        !(want_access & ~(db_access | TABLE_ACLS | PROC_ACLS))))
     DBUG_RETURN(FALSE);				/* Ok */
 
@@ -4745,8 +4732,7 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
                      test(dst_table->schema_table)))
       return FALSE;
 
-    return (grant_option &&
-            check_grant(thd, SELECT_ACL, dst_table, 2, UINT_MAX, FALSE));
+    return (check_grant(thd, SELECT_ACL, dst_table, 2, UINT_MAX, FALSE));
   }
   default:
     break;
@@ -4783,8 +4769,6 @@ bool
 check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
 		   bool no_errors)
 {
-  uint found=0;
-  ulong found_access=0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   TABLE_LIST *org_tables= tables;
 #endif
@@ -4835,26 +4819,17 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
       tables->grant.privilege= want_access;
     else if (tables->db && thd->db && strcmp(tables->db, thd->db) == 0)
     {
-      if (found && !grant_option)		// db already checked
-	tables->grant.privilege=found_access;
-      else
-      {
-	if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
+      if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
 			 0, no_errors, test(tables->schema_table)))
-	  goto deny;                            // Access denied
-	found_access=tables->grant.privilege;
-	found=1;
-      }
+        goto deny;                            // Access denied
     }
     else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
 			  0, no_errors, test(tables->schema_table)))
       goto deny;
   }
   thd->security_ctx= backup_ctx;
-  if (grant_option)
-    return check_grant(thd,want_access & ~EXTRA_ACL,org_tables,
+  return check_grant(thd,want_access & ~EXTRA_ACL,org_tables,
 		       test(want_access & EXTRA_ACL), UINT_MAX, no_errors);
-  return FALSE;
 deny:
   thd->security_ctx= backup_ctx;
   return TRUE;
@@ -4884,11 +4859,10 @@ check_routine_access(THD *thd, ulong want_access,char *db, char *name,
     return TRUE;
   
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (grant_option)
     return check_grant_routine(thd, want_access, tables, is_proc, no_errors);
-#endif
-
+#else
   return FALSE;
+#endif
 }
 
 
@@ -4950,7 +4924,7 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
       if (!check_access(thd, access, table->db,
                         &table->grant.privilege, 0, 1,
                         test(table->schema_table)) &&
-          !grant_option || !check_grant(thd, access, table, 0, 1, 1))
+          !check_grant(thd, access, table, 0, 1, 1))
         DBUG_RETURN(0);
     }
   }
@@ -6611,12 +6585,11 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
     else if ((check_access(thd, UPDATE_ACL, table->db,
                            &table->grant.privilege, 0, 1,
                            test(table->schema_table)) ||
-              grant_option &&
               check_grant(thd, UPDATE_ACL, table, 0, 1, 1)) &&
              (check_access(thd, SELECT_ACL, table->db,
                            &table->grant.privilege, 0, 0,
                            test(table->schema_table)) ||
-              grant_option && check_grant(thd, SELECT_ACL, table, 0, 1, 0)))
+              check_grant(thd, SELECT_ACL, table, 0, 1, 0)))
       DBUG_RETURN(TRUE);
 
     table->table_in_first_from_clause= 1;
@@ -6634,7 +6607,7 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
 	if (check_access(thd, SELECT_ACL, table->db,
 			 &table->grant.privilege, 0, 0,
                          test(table->schema_table)) ||
-	    grant_option && check_grant(thd, SELECT_ACL, table, 0, 1, 0))
+	    check_grant(thd, SELECT_ACL, table, 0, 1, 0))
 	  DBUG_RETURN(TRUE);
       }
     }
@@ -6856,7 +6829,7 @@ static bool check_show_create_table_access(THD *thd, TABLE_LIST *table)
   return check_access(thd, SELECT_ACL | EXTRA_ACL, table->db,
                       &table->grant.privilege, 0, 0,
                       test(table->schema_table)) ||
-         grant_option && check_grant(thd, SELECT_ACL, table, 2, UINT_MAX, 0);
+         check_grant(thd, SELECT_ACL, table, 2, UINT_MAX, 0);
 }
 
 
@@ -6893,7 +6866,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
 			       (TABLE_LIST *)
 			       lex->create_info.merge_list.first))
     goto err;
-  if (grant_option && want_priv != CREATE_TMP_ACL &&
+  if (want_priv != CREATE_TMP_ACL &&
       check_grant(thd, want_priv, create_table, 0, 1, 0))
     goto err;
 

@@ -706,7 +706,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   else
     db_access= (acl_get(sctx->host, sctx->ip, sctx->priv_user, dbname, 0) |
 		sctx->master_access);
-  if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
+  if (!(db_access & DB_ACLS) && check_grant_db(thd,dbname))
   {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
              sctx->priv_user, sctx->host_or_ip, dbname);
@@ -2649,7 +2649,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
                       &thd->col_access, 0, 1, with_i_schema) ||
         sctx->master_access & (DB_ACLS | SHOW_DB_ACL) ||
 	acl_get(sctx->host, sctx->ip, sctx->priv_user, base_name,0) ||
-	(grant_option && !check_grant_db(thd, base_name)))
+	!check_grant_db(thd, base_name))
 #endif
     {
       List<char> files;
@@ -2849,7 +2849,7 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (sctx->master_access & (DB_ACLS | SHOW_DB_ACL) ||
 	acl_get(sctx->host, sctx->ip, sctx->priv_user, file_name,0) ||
-	(grant_option && !check_grant_db(thd, file_name)))
+	!check_grant_db(thd, file_name))
 #endif
     {
       load_db_opt_by_name(thd, file_name, &create);
