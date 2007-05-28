@@ -40,3 +40,6 @@ rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
 
 rpl_ndb_stm_innodb       : Bug#26783
 ndb_partition_error2	 : HF is not sure if the test can work as internded on all the platforms
+
+mysql_client_test	 : safemalloc memory dump reported as memory leak although it isn't. Fix PB!
+
