@@ -376,11 +376,8 @@ void
 ut_ulint_sort(ulint* arr, ulint* aux_arr, ulint low, ulint high)
 /*============================================================*/
 {
-#define ut_ulint_sort_ctx(c,a,aux,lo,hi) ut_ulint_sort(a,aux,lo,hi)
-#define ut_ulint_cmp_ctx(c,a,b) ut_ulint_cmp(a,b)
-
-	UT_SORT_FUNCTION_BODY(ut_ulint_sort_ctx,, arr, aux_arr, low, high,
-			      ut_ulint_cmp_ctx);
+	UT_SORT_FUNCTION_BODY(ut_ulint_sort, arr, aux_arr, low, high,
+			      ut_ulint_cmp);
 }
 
 /*****************************************************************
