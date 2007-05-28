@@ -3585,14 +3585,93 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     in prelocked mode.
   */
   DBUG_ASSERT(!thd->prelocked_mode || !thd->lex->requires_prelocking());
-
   *need_reopen= FALSE;
 
-  /*
-    CREATE ... SELECT UUID() locks no tables, we have to test here.
-  */
-  if (thd->lex->is_stmt_unsafe())
-    thd->set_current_stmt_binlog_row_based_if_mixed();
+  if (mysql_bin_log.is_open() && (thd->options | OPTION_BIN_LOG))
+  {
+    /*
+      Compute the capabilities vector for the involved storage engines
+      and mask out the flags for the binary log. Right now, the binlog
+      flags only include the capabilities of the storage engines, so
+      this is safe.
+    */
+    handler::Table_flags binlog_flags= ~handler::Table_flags();
+    DBUG_PRINT("info", ("HA_BINLOG_FLAGS: 0x%0llx",
+                        (ulonglong) HA_BINLOG_FLAGS));
+    for (table= tables; table; table= table->next_global)
+      if (!table->placeholder() && table->lock_type >= TL_WRITE_ALLOW_WRITE)
+      {
+        DBUG_PRINT("info", ("table: %s; ha_table_flags: 0x%0llx",
+                            table->table_name,
+                            (ulonglong) table->table->file->ha_table_flags()));
+        binlog_flags &= table->table->file->ha_table_flags();
+      }
+    binlog_flags&= HA_BINLOG_FLAGS;
+    DBUG_PRINT("info", ("binlog_flags: 0x%0llx", (ulonglong) binlog_flags));
+    DBUG_PRINT("info", ("thd->variables.binlog_format: %ld",
+                        thd->variables.binlog_format));
+
+    /*
+      We have three alternatives that prevent the statement from being
+      loggable:
+
+      1. If there are no capabilities left (all flags are clear) it is
+         not possible to log the statement at all, so we roll back the
+         statement and report an error.
+
+      2. Statement mode is set, but the capabilities indicate that
+         statement format is not possible.
+
+      3. Row mode is set, but the capabilities indicate that row
+         format is not possible.
+
+      4. Statement is unsafe, but the capabilities indicate that row
+         format is not possible.
+    */
+    int error= 0;
+    if (binlog_flags == 0)
+    {
+      error= ER_BINLOG_ENGINES_INCOMPATIBLE;
+    }
+    else if (thd->variables.binlog_format == BINLOG_FORMAT_STMT &&
+             (binlog_flags & HA_BINLOG_STMT_CAPABLE) == 0)
+    {
+      error= ER_BINLOG_STMT_FORMAT_FORBIDDEN;
+    }
+    else if ((thd->variables.binlog_format == BINLOG_FORMAT_ROW ||
+              thd->lex->is_stmt_unsafe()) &&
+             (binlog_flags & HA_BINLOG_ROW_CAPABLE) == 0)
+    {
+      error= ER_BINLOG_ROW_FORMAT_FORBIDDEN;
+    }
+
+    DBUG_PRINT("info", ("error: %d", error));
+
+    if (error)
+    {
+      ha_rollback_stmt(thd);
+      my_error(error, MYF(0));
+      DBUG_RETURN(-1);
+    }
+
+    /*
+      We switch to row-based format if we are in mixed mode and one of
+      the following are true:
+
+      1. If the statement is unsafe
+      2. If statement format cannot be used
+
+      Observe that point to cannot be decided before the tables
+      involved in a statement has been checked, i.e., we cannot put
+      this code in reset_current_stmt_binlog_row_based(), it has to be
+      here.
+     */
+    if (thd->lex->is_stmt_unsafe() ||
+        (binlog_flags | HA_BINLOG_STMT_CAPABLE) == 0)
+    {
+      thd->set_current_stmt_binlog_row_based_if_mixed();
+    }
+  }
 
   if (!tables && !thd->lex->requires_prelocking())
     DBUG_RETURN(0);
