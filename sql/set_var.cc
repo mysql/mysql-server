@@ -1343,16 +1343,6 @@ bool sys_var_thd_binlog_format::is_readonly() const
     my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
     return 1;    
   }
-#ifdef HAVE_NDB_BINLOG
-  /*
-    Cluster does not support changing the binlog format on the fly yet.
-  */
-  if (opt_bin_log && (have_ndbcluster == SHOW_OPTION_YES))
-  {
-    my_error(ER_NDB_CANT_SWITCH_BINLOG_FORMAT, MYF(0));
-    return 1;
-  }
-#endif /* HAVE_NDB_BINLOG */
   return sys_var_thd_enum::is_readonly();
 }
 
