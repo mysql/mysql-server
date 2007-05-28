@@ -3676,7 +3676,7 @@ int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
 int Field_float::store(double nr)
 {
   int error= truncate(&nr, FLT_MAX);
-  float j= nr;
+  float j= (float)nr;
 
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
