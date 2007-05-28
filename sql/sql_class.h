@@ -1359,7 +1359,14 @@ public:
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
 
-  enum killed_state { NOT_KILLED=0, KILL_BAD_DATA=1, KILL_CONNECTION=ER_SERVER_SHUTDOWN, KILL_QUERY=ER_QUERY_INTERRUPTED };
+  enum killed_state
+  {
+    NOT_KILLED=0,
+    KILL_BAD_DATA=1,
+    KILL_CONNECTION=ER_SERVER_SHUTDOWN,
+    KILL_QUERY=ER_QUERY_INTERRUPTED,
+    KILLED_NO_VALUE      /* means neither of the states */
+  };
   killed_state volatile killed;
 
   /* scramble - random string sent to client on handshake */
@@ -1610,7 +1617,8 @@ public:
   void end_statement();
   inline int killed_errno() const
   {
-    return killed != KILL_BAD_DATA ? killed : 0;
+    killed_state killed_val; /* to cache the volatile 'killed' */
+    return (killed_val= killed) != KILL_BAD_DATA ? killed_val : 0;
   }
   inline void send_kill_message() const
   {
