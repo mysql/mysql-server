@@ -257,8 +257,12 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
       {
         info->update|= HA_STATE_AKTIV;
         ftparser_param->flags= MYSQL_FTFLAGS_NEED_COPY;
-        _mi_ft_parse(&wtree, info, keynr, record, ftparser_param,
-                     &wtree.mem_root);
+        if (unlikely(_mi_ft_parse(&wtree, info, keynr, record, ftparser_param,
+                                  &wtree.mem_root)))
+        {
+          delete_queue(&best);
+          goto err;
+        }
       }
     }
     delete_queue(&best);
