@@ -349,8 +349,8 @@ insert into t1 values (1e199), (-1e199);
 insert into t1 values (1e200), (-1e200);
 insert into t1 values (2e200), (-2e200);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'f1' at row 1
-Warning	1264	Out of range value adjusted for column 'f1' at row 2
+Warning	1264	Out of range value for column 'f1' at row 1
+Warning	1264	Out of range value for column 'f1' at row 2
 select f1 + 0e0 from t1;
 f1 + 0e0
 1e+199
@@ -365,8 +365,8 @@ insert into t1 values (1e29), (-1e29);
 insert into t1 values (1e30), (-1e30);
 insert into t1 values (2e30), (-2e30);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'f1' at row 1
-Warning	1264	Out of range value adjusted for column 'f1' at row 2
+Warning	1264	Out of range value for column 'f1' at row 1
+Warning	1264	Out of range value for column 'f1' at row 2
 select f1 + 0e0 from t1;
 f1 + 0e0
 1.0000000150475e+29
