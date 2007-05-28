@@ -3675,56 +3675,9 @@ int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
 
 int Field_float::store(double nr)
 {
-  float j;
-  int error= 0;
+  int error= truncate(&nr, FLT_MAX);
+  float j= nr;
 
-  if (isnan(nr))
-  {
-    j= 0;
-    set_null();
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-    error= 1;
-  }
-  else if (unsigned_flag && nr < 0)
-  {
-    j= 0;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-    error= 1;
-  }
-  else
-  {
-    double max_value;
-    if (dec >= NOT_FIXED_DEC)
-    {
-      max_value= FLT_MAX;
-    }
-    else
-    {
-      uint tmp=min(field_length,array_elements(log_10)-1);
-      max_value= (log_10[tmp]-1)/log_10[dec];
-      /*
-	The following comparison is needed to not get an overflow if nr
-	is close to FLT_MAX
-      */
-      if (fabs(nr) < FLT_MAX/10.0e+32)
-	nr= floor(nr*log_10[dec]+0.5)/log_10[dec];
-    }
-    if (nr < -max_value)
-    {
-      j= (float)-max_value;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (nr > max_value)
-    {
-      j= (float)max_value;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else
-      j= (float) nr;
-  }
-  
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
@@ -3963,48 +3916,7 @@ int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
 
 int Field_double::store(double nr)
 {
-  int error= 0;
-
-  if (isnan(nr))
-  {
-    nr= 0;
-    set_null();
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-    error= 1;
-  }
-  else if (unsigned_flag && nr < 0)
-  {
-    nr= 0;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-    error= 1;
-  }
-  else 
-  {
-    double max_value;
-    if (not_fixed)
-    {
-      max_value= DBL_MAX;
-    }
-    else
-    {
-      uint tmp=min(field_length,array_elements(log_10)-1);
-      max_value= (log_10[tmp]-1)/log_10[dec];
-      if (fabs(nr) < DBL_MAX/10.0e+32)
-	nr= floor(nr*log_10[dec]+0.5)/log_10[dec];
-    }
-    if (nr < -max_value)
-    {
-      nr= -max_value;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (nr > max_value)
-    {
-      nr= max_value;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-  }
+  int error= truncate(&nr, DBL_MAX);
 
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -4021,6 +3933,63 @@ int Field_double::store(double nr)
 int Field_double::store(longlong nr, bool unsigned_val)
 {
   return store(unsigned_val ? ulonglong2double((ulonglong) nr) : (double) nr);
+}
+
+/*
+  If a field has fixed length, truncate the double argument pointed to by 'nr'
+  appropriately.
+  Also ensure that the argument is within [-max_value; max_value] range.
+*/
+
+int Field_real::truncate(double *nr, double max_value)
+{
+  int error= 1;
+  double res= *nr;
+  
+  if (isnan(res))
+  {
+    res= 0;
+    set_null();
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    goto end;
+  }
+  else if (unsigned_flag && res < 0)
+  {
+    res= 0;
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    goto end;
+  }
+
+  if (!not_fixed)
+  {
+    uint order= field_length - dec;
+    uint step= array_elements(log_10) - 1;
+    max_value= 1.0;
+    for (; order > step; order-= step)
+      max_value*= log_10[step];
+    max_value*= log_10[order];
+    max_value-= 1.0 / log_10[dec];
+
+    double tmp= rint((res - floor(res)) * log_10[dec]) / log_10[dec];
+    res= floor(res) + tmp;
+  }
+  
+  if (res < -max_value)
+  {
+   res= -max_value;
+   set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+  }
+  else if (res > max_value)
+  {
+    res= max_value;
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+  }
+  else
+    error= 0;
+
+end:
+  *nr= res;
+  return error;
 }
 
 
