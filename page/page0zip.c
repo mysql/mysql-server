@@ -1261,11 +1261,8 @@ page_zip_dir_sort(
 	ulint	low,	/* in: lower bound of the sorting area, inclusive */
 	ulint	high)	/* in: upper bound of the sorting area, exclusive */
 {
-#define page_zip_dir_sort_ctx(c,a,aux,lo,hi) page_zip_dir_sort(a,aux,lo,hi)
-#define page_zip_dir_cmp_ctx(c,a,b) page_zip_dir_cmp(a,b)
-
-	UT_SORT_FUNCTION_BODY(page_zip_dir_sort_ctx,, arr, aux_arr, low, high,
-			      page_zip_dir_cmp_ctx);
+	UT_SORT_FUNCTION_BODY(page_zip_dir_sort, arr, aux_arr, low, high,
+			      page_zip_dir_cmp);
 }
 
 /**************************************************************************

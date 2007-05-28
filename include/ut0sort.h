@@ -24,17 +24,16 @@ The sort function uses mergesort and must be defined separately
 for each type of array.
 Also the comparison function has to be defined individually
 for each array cell type. SORT_FUN is the sort function name.
-CTX is extra context passed as the first parameter of SORT_FUN.
 The function takes the array to be sorted (ARR),
 the array of auxiliary space (AUX_ARR) of same size,
 and the low (LOW), inclusive, and high (HIGH), noninclusive,
 limits for the sort interval as arguments.
-CMP_FUN is the comparison function name. It takes as arguments CTX and
+CMP_FUN is the comparison function name. It takes as arguments
 two elements from the array and returns 1, if the first is bigger,
 0 if equal, and -1 if the second bigger. For an eaxmaple of use
 see test program in tsut.c. */
 
-#define UT_SORT_FUNCTION_BODY(SORT_FUN, CTX, ARR, AUX_ARR, LOW, HIGH, CMP_FUN)\
+#define UT_SORT_FUNCTION_BODY(SORT_FUN, ARR, AUX_ARR, LOW, HIGH, CMP_FUN)\
 {\
 	ulint		ut_sort_mid77;\
 	ulint		ut_sort_i77;\
@@ -48,7 +47,7 @@ see test program in tsut.c. */
 	if ((LOW) == (HIGH) - 1) {\
 		return;\
 	} else if ((LOW) == (HIGH) - 2) {\
-		if (CMP_FUN(CTX, (ARR)[LOW], (ARR)[(HIGH) - 1]) > 0) {\
+		if (CMP_FUN((ARR)[LOW], (ARR)[(HIGH) - 1]) > 0) {\
 			(AUX_ARR)[LOW] = (ARR)[LOW];\
 			(ARR)[LOW] = (ARR)[(HIGH) - 1];\
 			(ARR)[(HIGH) - 1] = (AUX_ARR)[LOW];\
@@ -58,8 +57,8 @@ see test program in tsut.c. */
 \
 	ut_sort_mid77 = ((LOW) + (HIGH)) / 2;\
 \
-	SORT_FUN(CTX, (ARR), (AUX_ARR), (LOW), ut_sort_mid77);\
-	SORT_FUN(CTX, (ARR), (AUX_ARR), ut_sort_mid77, (HIGH));\
+	SORT_FUN((ARR), (AUX_ARR), (LOW), ut_sort_mid77);\
+	SORT_FUN((ARR), (AUX_ARR), ut_sort_mid77, (HIGH));\
 \
 	ut_sort_low77 = (LOW);\
 	ut_sort_high77 = ut_sort_mid77;\
@@ -72,7 +71,7 @@ see test program in tsut.c. */
 		} else if (ut_sort_high77 >= (HIGH)) {\
 			(AUX_ARR)[ut_sort_i77] = (ARR)[ut_sort_low77];\
 			ut_sort_low77++;\
-		} else if (CMP_FUN(CTX, (ARR)[ut_sort_low77],\
+		} else if (CMP_FUN((ARR)[ut_sort_low77],\
 				   (ARR)[ut_sort_high77]) > 0) {\
 			(AUX_ARR)[ut_sort_i77] = (ARR)[ut_sort_high77];\
 			ut_sort_high77++;\
