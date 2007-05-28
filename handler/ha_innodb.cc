@@ -439,7 +439,6 @@ server. Used in srv_conc_enter_innodb() to determine if the thread
 should be allowed to enter InnoDB - the replication thread is treated
 differently than other threads. Also used in
 srv_conc_force_exit_innodb(). */
-
 extern "C"
 ibool
 thd_is_replication_slave_thread(
@@ -511,7 +510,6 @@ Returns true if the transaction this thread is processing has edited
 non-transactional tables. Used by the deadlock detector when deciding
 which transaction to rollback in case of a deadlock - we try to avoid
 rolling back transactions that have edited non-transactional tables. */
-
 extern "C"
 ibool
 thd_has_edited_nontrans_tables(
