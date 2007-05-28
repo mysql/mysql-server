@@ -1,0 +1,106 @@
+create function bug27563() 
+RETURNS int(11)
+DETERMINISTIC
+begin
+select get_lock("a", 10)  into @a;
+return 1;
+end|
+create function bug27565() 
+RETURNS int(11)
+DETERMINISTIC
+begin
+select a from t1 where a=1  into @a for update;
+return 1;
+end|
+create table t1 (a int auto_increment, b int, PRIMARY KEY (a)) ENGINE=InnoDB;
+create table t2 (a int auto_increment, b int, PRIMARY KEY (a)) ENGINE=MyISAM;
+create table t3 (a int auto_increment, b int, PRIMARY KEY (a)) ENGINE=InnoDB;
+reset master;
+select get_lock("a", 20);
+get_lock("a", 20)
+1
+insert into t1 values (bug27563(),1);
+kill query 3;
+affected rows: 1
+show master status /* must be only FD event unless Bug#27563 */;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	260		
+select count(*) from t1 /* must be zero unless Bug#27563 */;
+count(*)
+1
+begin;
+insert into t1 values (bug27563(),1);
+kill query 3;
+affected rows: 1
+select count(*) from t1 /* must be zero unless Bug#27563 */;
+count(*)
+2
+commit;
+reset master;
+insert into t2 values (bug27563(),1);
+kill query 3;
+select count(*) from t2 /* must be one */;
+count(*)
+1
+show master status  /* must have the insert event more to FD */;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	225		
+select RELEASE_LOCK("a");
+RELEASE_LOCK("a")
+1
+delete from t1;
+delete from t2;
+insert into t1 values (1,1);
+insert into t2 values (1,1);
+begin;
+update t1 set b=0 where a=1;
+update t2 set b=bug27565()-1 where a=1;
+kill query 3;
+commit;
+Got one of the listed errors
+select * from t1 /* must be: (1,0) */;
+a	b
+1	0
+select * from t2 /* must be as before: (1,1) */;
+a	b
+1	1
+delete from t3;
+reset master;
+begin;
+update t1 set b=0 where a=1;
+insert into t3 values  (0,0),(1,bug27565());
+kill query 3;
+rollback;
+Got one of the listed errors
+select count(*) from t3 /* must be zero */;
+count(*)
+0
+show master status /* nothing in binlog */;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	98		
+delete from t2;
+reset master;
+begin;
+update t1 set b=0 where a=1;
+insert into t2 values (0,0),(1,bug27565()) /* non-ta t2 */;
+kill query 3;
+rollback;
+Got one of the listed errors
+select count(*) from t2    /* count must be one */;
+count(*)
+1
+show master status /* insert into non-ta must be in binlog */;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	247		
+select
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog"))
+is not null;
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog"))
+is not null
+1
+select @a like "%#%error_code=1317%" /* must return 1 */;
+@a like "%#%error_code=1317%"
+1
+drop table t1,t2,t3;
+drop function bug27563;
+drop function bug27565;

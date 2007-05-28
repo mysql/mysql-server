@@ -804,7 +804,8 @@ public:
 #ifndef MYSQL_CLIENT
 
   Query_log_event(THD* thd_arg, const char* query_arg, ulong query_length,
-		  bool using_trans, bool suppress_use);
+                  bool using_trans, bool suppress_use,
+                  THD::killed_state killed_err_arg= THD::KILLED_NO_VALUE);
   const char* get_db() { return db; }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
