@@ -3770,7 +3770,7 @@ int Field_float::store(double nr)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int error= truncate(&nr, FLT_MAX);
-  float j= nr;
+  float j= (float)nr;
 
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
