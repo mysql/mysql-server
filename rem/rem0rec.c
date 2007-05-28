@@ -189,7 +189,7 @@ rec_init_offsets(
 		}
 
 		nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
-		lens = nulls - (index->n_nullable + 7) / 8;
+		lens = nulls - UT_BITS_IN_BYTES(index->n_nullable);
 		offs = 0;
 		null_mask = 1;
 
@@ -440,7 +440,7 @@ rec_get_converted_size_new(
 	dtuple_t*	dtuple)	/* in: data tuple */
 {
 	ulint		size		= REC_N_NEW_EXTRA_BYTES
-		+ (index->n_nullable + 7) / 8;
+		+ UT_BITS_IN_BYTES(index->n_nullable);
 	ulint		i;
 	ulint		n_fields;
 	ut_ad(index && dtuple);
@@ -586,7 +586,7 @@ rec_set_nth_field_extern_bit_new(
 				we do not write to log about the change */
 {
 	byte*		nulls	= rec - (REC_N_NEW_EXTRA_BYTES + 1);
-	byte*		lens	= nulls - (index->n_nullable + 7) / 8;
+	byte*		lens	= nulls - UT_BITS_IN_BYTES(index->n_nullable);
 	ulint		i;
 	ulint		n_fields;
 	ulint		null_mask	= 1;
@@ -875,7 +875,7 @@ rec_convert_dtuple_to_rec_new(
 
 	/* Calculate the offset of the origin in the physical record.
 	We must loop over all fields to do this. */
-	rec += (index->n_nullable + 7) / 8;
+	rec += UT_BITS_IN_BYTES(index->n_nullable);
 
 	for (i = 0; i < n_fields; i++) {
 		if (UNIV_UNLIKELY(i == n_node_ptr_field)) {
@@ -915,7 +915,7 @@ rec_convert_dtuple_to_rec_new(
 init:
 	end = rec;
 	nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
-	lens = nulls - (index->n_nullable + 7) / 8;
+	lens = nulls - UT_BITS_IN_BYTES(index->n_nullable);
 	/* clear the SQL-null flags */
 	memset (lens + 1, 0, nulls - lens);
 
@@ -1172,7 +1172,7 @@ rec_copy_prefix_to_buf(
 	}
 
 	nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
-	lens = nulls - (index->n_nullable + 7) / 8;
+	lens = nulls - UT_BITS_IN_BYTES(index->n_nullable);
 	UNIV_PREFETCH_R(lens);
 	prefix_len = 0;
 	null_mask = 1;

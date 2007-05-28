@@ -205,10 +205,9 @@ the extent are free and which contain old tuple version to clean. */
 					space */
 #define	XDES_FSEG		4	/* extent belongs to a segment */
 
-/* File extent data structure size in bytes. The "+ 7 ) / 8" part in the
-definition rounds the number of bytes upward. */
+/* File extent data structure size in bytes. */
 #define	XDES_SIZE							\
-	(XDES_BITMAP + (FSP_EXTENT_SIZE * XDES_BITS_PER_PAGE + 7) / 8)
+	(XDES_BITMAP + UT_BITS_IN_BYTES(FSP_EXTENT_SIZE * XDES_BITS_PER_PAGE))
 
 /* Offset of the descriptor array on a descriptor page */
 #define	XDES_ARR_OFFSET		(FSP_HEADER_OFFSET + FSP_HEADER_SIZE)
