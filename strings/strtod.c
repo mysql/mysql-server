@@ -244,8 +244,8 @@ double my_strtod(const char *str, char **end_ptr, int *error)
     else
       step= array_elements(log_10) - 1;
     for (; exponent > step; exponent-= step)
-      result*= neg_exp ? log_01[step] : log_10[step];
-    result*= neg_exp ? log_01[exponent] : log_10[exponent];
+      result= neg_exp ? result / log_10[step] : result * log_10[step];
+    result= neg_exp ? result / log_10[exponent] : result * log_10[exponent];
   }
 
 done:
