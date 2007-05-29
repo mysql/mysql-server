@@ -1921,6 +1921,7 @@ class select_insert :public select_result_interceptor {
 class select_create: public select_insert {
   ORDER *group;
   TABLE_LIST *create_table;
+  TABLE_LIST *select_tables;
   List<create_field> *extra_fields;
   List<Key> *keys;
   HA_CREATE_INFO *create_info;
@@ -1930,10 +1931,11 @@ public:
 		 HA_CREATE_INFO *create_info_par,
 		 List<create_field> &fields_par,
 		 List<Key> &keys_par,
-		 List<Item> &select_fields,enum_duplicates duplic, bool ignore)
+		 List<Item> &select_fields,enum_duplicates duplic, bool ignore,
+                 TABLE_LIST *select_tables_arg)
     :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, ignore),
     create_table(table_arg), extra_fields(&fields_par),keys(&keys_par),
-    create_info(create_info_par)
+    create_info(create_info_par), select_tables(select_tables_arg)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 
