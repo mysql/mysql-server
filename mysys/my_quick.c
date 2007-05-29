@@ -50,7 +50,7 @@ size_t my_quick_write(File Filedes,const uchar *Buffer,size_t Count)
 #ifndef DBUG_OFF
        writtenbytes =
 #endif
-       write(Filedes,Buffer,Count)) != Count)
+       (size_t) write(Filedes,Buffer,Count)) != Count)
   {
 #ifndef DBUG_OFF
     if ((writtenbytes == 0 || writtenbytes == (size_t) -1) && errno == EINTR)

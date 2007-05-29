@@ -48,7 +48,7 @@ mapped_files::mapped_files(const char * filename,uchar *magic,uint magic_length)
     if (map && memcmp(map,magic,magic_length))
     {
       my_error(ER_WRONG_MAGIC, MYF(0), name);
-      VOID(my_munmap(map,size));
+      VOID(my_munmap((char*) map,size));
       map=0;
     }
     if (!map)
@@ -66,7 +66,7 @@ mapped_files::~mapped_files()
 #ifdef HAVE_MMAP
   if (file >= 0)
   {
-    VOID(my_munmap(map,size));
+    VOID(my_munmap((char*) map,size));
     VOID(my_close(file,MYF(0)));
     file= -1; map=0;
   }
