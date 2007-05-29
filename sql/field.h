@@ -470,6 +470,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   int truncate(double *nr, double max_length);
   uint32 max_display_length() { return field_length; }
+  uint size_of() const { return sizeof(*this); }
 };
 
 
@@ -794,7 +795,6 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return sizeof(double); }
   void sql_type(String &str) const;
-  uint size_of() const { return sizeof(*this); }
 };
 
 
