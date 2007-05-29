@@ -1222,7 +1222,8 @@ VAR* var_get(const char *var_name, const char **var_name_end, my_bool raw,
     if (length >= MAX_VAR_NAME_LENGTH)
       die("Too long variable name: %s", save_var_name);
 
-    if (!(v = (VAR*) hash_search(&var_hash, save_var_name, length)))
+    if (!(v = (VAR*) hash_search(&var_hash, (const uchar*) save_var_name,
+                                            length)))
     {
       char buff[MAX_VAR_NAME_LENGTH+1];
       strmake(buff, save_var_name, length);
@@ -1253,7 +1254,7 @@ err:
 VAR *var_obtain(const char *name, int len)
 {
   VAR* v;
-  if ((v = (VAR*)hash_search(&var_hash, name, len)))
+  if ((v = (VAR*)hash_search(&var_hash, (const uchar *) name, len)))
     return v;
   v = var_init(0, name, len, "", 0);
   my_hash_insert(&var_hash, (uchar*)v);
@@ -4667,7 +4668,7 @@ void free_win_path_patterns()
   for (i=0 ; i < patterns.elements ; i++)
   {
     const char** pattern= dynamic_element(&patterns, i, const char**);
-    my_free(*pattern, MYF(0));
+    my_free((char*) *pattern, MYF(0));
   }
   delete_dynamic(&patterns);
 }
@@ -7488,7 +7489,8 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
     for (i=1 ; i <= found_sets ; i++)
     {
       pos=from[found_set[i-1].table_offset];
-      rep_str[i].found= !bcmp(pos,"\\^",3) ? 2 : 1;
+      rep_str[i].found= !bcmp((const uchar*) pos,
+			      (const uchar*) "\\^", 3) ? 2 : 1;
       rep_str[i].replace_string=to_array[found_set[i-1].table_offset];
       rep_str[i].to_offset=found_set[i-1].found_offset-start_at_word(pos);
       rep_str[i].from_offset=found_set[i-1].found_offset-replace_len(pos)+
@@ -7686,15 +7688,17 @@ int find_found(FOUND_SET *found_set,uint table_offset, int found_offset)
 
 uint start_at_word(char * pos)
 {
-  return (((!bcmp(pos,"\\b",2) && pos[2]) || !bcmp(pos,"\\^",2)) ? 1 : 0);
+  return (((!bcmp((const uchar*) pos, (const uchar*) "\\b",2) && pos[2]) ||
+           !bcmp((const uchar*) pos, (const uchar*) "\\^", 2)) ? 1 : 0);
 }
 
 uint end_of_word(char * pos)
 {
   char * end=strend(pos);
-  return ((end > pos+2 && !bcmp(end-2,"\\b",2)) ||
-	  (end >= pos+2 && !bcmp(end-2,"\\$",2))) ?
-    1 : 0;
+  return ((end > pos+2 && !bcmp((const uchar*) end-2,
+                                (const uchar*) "\\b", 2)) ||
+	  (end >= pos+2 && !bcmp((const uchar*) end-2,
+                                (const uchar*) "\\$",2))) ? 1 : 0;
 }
 
 /****************************************************************************
@@ -7721,7 +7725,7 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
     if (!(pa->str= (uchar*) my_malloc((uint) (PS_MALLOC-MALLOC_OVERHEAD),
 				     MYF(MY_WME))))
     {
-      my_free(pa->typelib.type_names,MYF(0));
+      my_free((char*) pa->typelib.type_names,MYF(0));
       DBUG_RETURN (-1);
     }
     pa->max_count=(PC_MALLOC-MALLOC_OVERHEAD)/(sizeof(uchar*)+
@@ -7767,9 +7771,9 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
 	   old_count*sizeof(*pa->flag));
   }
   pa->flag[pa->typelib.count]=0;			/* Reset flag */
-  pa->typelib.type_names[pa->typelib.count++]= pa->str+pa->length;
+  pa->typelib.type_names[pa->typelib.count++]= (char*) pa->str+pa->length;
   pa->typelib.type_names[pa->typelib.count]= NullS;	/* Put end-mark */
-  VOID(strmov(pa->str+pa->length,name));
+  VOID(strmov((char*) pa->str+pa->length,name));
   pa->length+=length;
   DBUG_RETURN(0);
 } /* insert_pointer_name */
@@ -7782,7 +7786,7 @@ void free_pointer_array(POINTER_ARRAY *pa)
   if (pa->typelib.count)
   {
     pa->typelib.count=0;
-    my_free(pa->typelib.type_names,MYF(0));
+    my_free((char*) pa->typelib.type_names,MYF(0));
     pa->typelib.type_names=0;
     my_free(pa->str,MYF(0));
   }
