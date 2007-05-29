@@ -228,8 +228,8 @@ LEFT JOIN
 t8
 ON t7.b=t8.b AND t6.b < 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join cache
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	SIMPLE	t7	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer
 1	SIMPLE	t8	ALL	NULL	NULL	NULL	NULL	2	100.00	
 Warnings:
 Note	1003	select `test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b` from `test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t7`.`b` = `test`.`t8`.`b`) and (`test`.`t6`.`b` < 10))) where 1
@@ -543,8 +543,8 @@ WHERE t0.a=1 AND
 t0.b=t1.b AND          
 (t2.a >= 4 OR t2.c IS NULL);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join cache
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	
@@ -638,16 +638,16 @@ t0.b=t1.b AND
 (t8.b=t9.b OR t8.c IS NULL) AND
 (t9.a=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join cache
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t8	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join cache
-1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t8	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer
 Warnings:
 Note	1003	select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or isnull(`test`.`t3`.`c`)) and ((`test`.`t6`.`b` = 2) or isnull(`test`.`t6`.`c`)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t6`.`c`) or isnull(`test`.`t8`.`c`)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or isnull(`test`.`t2`.`c`)) and ((`test`.`t3`.`a` < 5) or isnull(`test`.`t3`.`c`)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t4`.`c`)) and ((`test`.`t5`.`a` >= 2) or isnull(`test`.`t5`.`c`)) and ((`test`.`t6`.`a` >= 4) or isnull(`test`.`t6`.`c`)) and ((`test`.`t7`.`a` <= 2) or isnull(`test`.`t7`.`c`)) and ((`test`.`t8`.`a` < 1) or isnull(`test`.`t8`.`c`)) and ((`test`.`t9`.`b` = `test`.`t8`.`b`) or isnull(`test`.`t8`.`c`)))
 SELECT t9.a,t9.b
@@ -835,8 +835,8 @@ t2
 ON t3.a=1 AND t2.b=t4.b
 WHERE t1.a <= 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join cache
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	
 Warnings:
@@ -849,8 +849,8 @@ LEFT JOIN
 (t1,t2)
 ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join cache
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer
 1	SIMPLE	t2	ref	idx_b	idx_b	5	test.t3.b	2	100.00	
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
@@ -905,16 +905,16 @@ t0.b=t1.b AND
 (t8.b=t9.b OR t8.c IS NULL) AND
 (t9.a=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join cache
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t8	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join cache
-1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t8	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer
 Warnings:
 Note	1003	select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or isnull(`test`.`t3`.`c`)) and ((`test`.`t6`.`b` = 2) or isnull(`test`.`t6`.`c`)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t6`.`c`) or isnull(`test`.`t8`.`c`)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or isnull(`test`.`t2`.`c`)) and ((`test`.`t3`.`a` < 5) or isnull(`test`.`t3`.`c`)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t4`.`c`)) and ((`test`.`t5`.`a` >= 2) or isnull(`test`.`t5`.`c`)) and ((`test`.`t6`.`a` >= 4) or isnull(`test`.`t6`.`c`)) and ((`test`.`t7`.`a` <= 2) or isnull(`test`.`t7`.`c`)) and ((`test`.`t8`.`a` < 1) or isnull(`test`.`t8`.`c`)) and ((`test`.`t9`.`b` = `test`.`t8`.`b`) or isnull(`test`.`t8`.`c`)))
 CREATE INDEX idx_b ON t4(b);
@@ -955,16 +955,16 @@ t0.b=t1.b AND
 (t8.b=t9.b OR t8.c IS NULL) AND
 (t9.a=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join cache
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t4	ref	idx_b	idx_b	5	test.t2.b	2	100.00	Using where
 1	SIMPLE	t5	ALL	idx_b	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t8	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join cache
-1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t8	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer
 Warnings:
 Note	1003	select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or isnull(`test`.`t3`.`c`)) and ((`test`.`t6`.`b` = 2) or isnull(`test`.`t6`.`c`)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t6`.`c`) or isnull(`test`.`t8`.`c`)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or isnull(`test`.`t2`.`c`)) and ((`test`.`t3`.`a` < 5) or isnull(`test`.`t3`.`c`)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t4`.`c`)) and ((`test`.`t5`.`a` >= 2) or isnull(`test`.`t5`.`c`)) and ((`test`.`t6`.`a` >= 4) or isnull(`test`.`t6`.`c`)) and ((`test`.`t7`.`a` <= 2) or isnull(`test`.`t7`.`c`)) and ((`test`.`t8`.`a` < 1) or isnull(`test`.`t8`.`c`)) and ((`test`.`t9`.`b` = `test`.`t8`.`b`) or isnull(`test`.`t8`.`c`)))
 CREATE INDEX idx_b ON t8(b);
@@ -1004,16 +1004,16 @@ t0.b=t1.b AND
 (t8.b=t9.b OR t8.c IS NULL) AND
 (t9.a=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join cache
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t4	ref	idx_b	idx_b	5	test.t2.b	2	100.00	Using where
 1	SIMPLE	t5	ALL	idx_b	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t8	ref	idx_b	idx_b	5	test.t5.b	2	100.00	Using where; Using join cache
-1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t8	ref	idx_b	idx_b	5	test.t5.b	2	100.00	Using where
+1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer
 Warnings:
 Note	1003	select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or isnull(`test`.`t3`.`c`)) and ((`test`.`t6`.`b` = 2) or isnull(`test`.`t6`.`c`)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t6`.`c`) or isnull(`test`.`t8`.`c`)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or isnull(`test`.`t2`.`c`)) and ((`test`.`t3`.`a` < 5) or isnull(`test`.`t3`.`c`)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t4`.`c`)) and ((`test`.`t5`.`a` >= 2) or isnull(`test`.`t5`.`c`)) and ((`test`.`t6`.`a` >= 4) or isnull(`test`.`t6`.`c`)) and ((`test`.`t7`.`a` <= 2) or isnull(`test`.`t7`.`c`)) and ((`test`.`t8`.`a` < 1) or isnull(`test`.`t8`.`c`)) and ((`test`.`t9`.`b` = `test`.`t8`.`b`) or isnull(`test`.`t8`.`c`)))
 CREATE INDEX idx_b ON t1(b);
@@ -1062,8 +1062,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	ALL	idx_b	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t8	ref	idx_b	idx_b	5	test.t5.b	2	100.00	Using where; Using join cache
-1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t8	ref	idx_b	idx_b	5	test.t5.b	2	100.00	Using where
+1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer
 Warnings:
 Note	1003	select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or isnull(`test`.`t3`.`c`)) and ((`test`.`t6`.`b` = 2) or isnull(`test`.`t6`.`c`)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t6`.`c`) or isnull(`test`.`t8`.`c`)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or isnull(`test`.`t2`.`c`)) and ((`test`.`t3`.`a` < 5) or isnull(`test`.`t3`.`c`)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t4`.`c`)) and ((`test`.`t5`.`a` >= 2) or isnull(`test`.`t5`.`c`)) and ((`test`.`t6`.`a` >= 4) or isnull(`test`.`t6`.`c`)) and ((`test`.`t7`.`a` <= 2) or isnull(`test`.`t7`.`c`)) and ((`test`.`t8`.`a` < 1) or isnull(`test`.`t8`.`c`)) and ((`test`.`t9`.`b` = `test`.`t8`.`b`) or isnull(`test`.`t8`.`c`)))
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
