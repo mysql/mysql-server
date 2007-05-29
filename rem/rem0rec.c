@@ -484,9 +484,9 @@ rec_get_converted_size_new(
 		}
 
 		ut_ad(len <= col->len || col->mtype == DATA_BLOB);
-		ut_ad(!field->fixed_len || len == field->fixed_len);
 
 		if (field->fixed_len) {
+			ut_ad(len == field->fixed_len);
 		} else if (len < 128
 			   || (col->len < 256 && col->mtype != DATA_BLOB)) {
 			size++;
