@@ -254,8 +254,8 @@ select a,b, oref,
 from t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
-2	DEPENDENT SUBQUERY	t1	ref_or_null	a	a	5	func	2	100.00	Using where; Full scan on NULL key; Using join cache
-2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	ref_or_null	a	a	5	func	2	100.00	Using where; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where; Using join buffer
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t4` where ((`test`.`t1`.`c` = `test`.`t2`.`oref`) and trigcond(((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`))) and trigcond(((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`b`) or isnull(`test`.`t1`.`b`)))) having (trigcond(<is_not_null_test>(`test`.`t1`.`a`)) and trigcond(<is_not_null_test>(`test`.`t1`.`b`))))) AS `Z` from `test`.`t2`
