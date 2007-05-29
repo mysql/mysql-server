@@ -15564,8 +15564,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
             break;
           }
         }
-        if (tab->next_select == sub_select_cache)
-          extra.append(STRING_WITH_LEN("; Using join cache"));
+        if (i > 0 && tab[-1].next_select == sub_select_cache)
+          extra.append(STRING_WITH_LEN("; Using join buffer"));
         
         /* Skip initial "; "*/
         const char *str= extra.ptr();
