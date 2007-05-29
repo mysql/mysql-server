@@ -16079,6 +16079,7 @@ static void test_bug24179()
   Bug#28075 "COM_DEBUG crashes mysqld"
   Note: Test disabled because of failure in PushBuild.
 */
+#ifdef fix_bug_in_pb_first 
 static void test_bug28075()
 {
   int rc;
@@ -16094,6 +16095,7 @@ static void test_bug28075()
 
   DBUG_VOID_RETURN;
 }
+#endif
 
 /*
   Read and parse arguments and MySQL options from my.cnf
