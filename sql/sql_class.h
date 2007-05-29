@@ -1079,32 +1079,6 @@ public:
   }
 #endif /* MYSQL_CLIENT */
 
-#ifndef MYSQL_CLIENT
-public:
-  enum enum_binlog_query_type {
-      /*
-        The query can be logged row-based or statement-based
-      */
-      ROW_QUERY_TYPE,
-
-      /*
-        The query has to be logged statement-based
-      */
-      STMT_QUERY_TYPE,
-
-      /*
-        The query represents a change to a table in the "mysql"
-        database and is currently mapped to ROW_QUERY_TYPE.
-      */
-      MYSQL_QUERY_TYPE,
-      QUERY_TYPE_COUNT
-  };
-
-  int binlog_query(enum_binlog_query_type qtype,
-                   char const *query, ulong query_len,
-                   bool is_trans, bool suppress_use);
-#endif
-
 public:
 
   struct st_transactions {
@@ -1491,6 +1465,33 @@ public:
   void close_active_vio();
 #endif
   void awake(THD::killed_state state_to_set);
+
+#ifndef MYSQL_CLIENT
+  enum enum_binlog_query_type {
+    /*
+      The query can be logged row-based or statement-based
+    */
+    ROW_QUERY_TYPE,
+    
+    /*
+      The query has to be logged statement-based
+    */
+    STMT_QUERY_TYPE,
+    
+    /*
+      The query represents a change to a table in the "mysql"
+      database and is currently mapped to ROW_QUERY_TYPE.
+    */
+    MYSQL_QUERY_TYPE,
+    QUERY_TYPE_COUNT
+  };
+  
+  int binlog_query(enum_binlog_query_type qtype,
+                   char const *query, ulong query_len,
+                   bool is_trans, bool suppress_use,
+                   THD::killed_state killed_err_arg= THD::KILLED_NO_VALUE);
+#endif
+
   /*
     For enter_cond() / exit_cond() to work the mutex must be got before
     enter_cond(); this mutex is then released by exit_cond().

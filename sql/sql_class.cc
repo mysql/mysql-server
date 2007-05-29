@@ -3048,9 +3048,9 @@ void THD::binlog_delete_pending_rows_event()
   RETURN VALUE
     Error code, or 0 if no error.
 */
-int THD::binlog_query(THD::enum_binlog_query_type qtype,
-                      char const *query, ulong query_len,
-                      bool is_trans, bool suppress_use)
+int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query,
+                      ulong query_len, bool is_trans, bool suppress_use,
+                      THD::killed_state killed_status_arg)
 {
   DBUG_ENTER("THD::binlog_query");
   DBUG_PRINT("enter", ("qtype=%d, query='%s'", qtype, query));
@@ -3089,7 +3089,8 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
       flush the pending rows event if necessary.
      */
     {
-      Query_log_event qinfo(this, query, query_len, is_trans, suppress_use);
+      Query_log_event qinfo(this, query, query_len, is_trans, suppress_use,
+                            killed_status_arg);
       qinfo.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
       /*
         Binlog table maps will be irrelevant after a Query_log_event
