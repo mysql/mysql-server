@@ -2879,9 +2879,9 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
       if (!opt->update)
       {
         opt->update= update_func_str;
-        if (!(opt->flags & PLUGIN_VAR_MEMALLOC))
+        if (!(opt->flags & PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_READONLY))
         {
-          opt->flags |= PLUGIN_VAR_READONLY;
+          opt->flags|= PLUGIN_VAR_READONLY;
           sql_print_warning("Server variable %s of plugin %s was forced "
                             "to be read-only: string variable without "
                             "update_func and PLUGIN_VAR_MEMALLOC flag",
