@@ -3928,11 +3928,15 @@ create_sp_error:
             already puts on CREATE FUNCTION.
           */
           /* Conditionally writes to binlog */
-          if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
-            sp_result= sp_update_procedure(thd, lex->spname,
-                                           &lex->sp_chistics);
-          else
-            sp_result= sp_update_function(thd, lex->spname, &lex->sp_chistics);
+
+          int type= lex->sql_command == SQLCOM_ALTER_PROCEDURE ?
+                    TYPE_ENUM_PROCEDURE :
+                    TYPE_ENUM_FUNCTION;
+
+          sp_result= sp_update_routine(thd,
+                                       type,
+                                       lex->spname,
+                                       &lex->sp_chistics);
         }
       }
       switch (sp_result)
@@ -3982,10 +3986,12 @@ create_sp_error:
 	}
 #endif
         /* Conditionally writes to binlog */
-	if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
-	  sp_result= sp_drop_procedure(thd, lex->spname);
-	else
-	  sp_result= sp_drop_function(thd, lex->spname);
+
+        int type= lex->sql_command == SQLCOM_DROP_PROCEDURE ?
+                  TYPE_ENUM_PROCEDURE :
+                  TYPE_ENUM_FUNCTION;
+
+        sp_result= sp_drop_routine(thd, type, lex->spname);
       }
       else
       {
@@ -4042,8 +4048,8 @@ create_sp_error:
     }
   case SQLCOM_SHOW_CREATE_PROC:
     {
-      if (sp_show_create_procedure(thd, lex->spname) != SP_OK)
-      {			/* We don't distinguish between errors for now */
+      if (sp_show_create_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname))
+      {
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
                  SP_COM_STRING(lex), lex->spname->m_name.str);
 	goto error;
@@ -4052,8 +4058,8 @@ create_sp_error:
     }
   case SQLCOM_SHOW_CREATE_FUNC:
     {
-      if (sp_show_create_function(thd, lex->spname) != SP_OK)
-      {			/* We don't distinguish between errors for now */
+      if (sp_show_create_routine(thd, TYPE_ENUM_FUNCTION, lex->spname))
+      {
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
                  SP_COM_STRING(lex), lex->spname->m_name.str);
 	goto error;
@@ -4063,14 +4069,14 @@ create_sp_error:
 #ifdef NOT_USED
   case SQLCOM_SHOW_STATUS_PROC:
     {
-      res= sp_show_status_procedure(thd, (lex->wild ?
-					  lex->wild->ptr() : NullS));
+      res= sp_show_status_routine(thd, TYPE_ENUM_PROCEDURE,
+                                  (lex->wild ? lex->wild->ptr() : NullS));
       break;
     }
   case SQLCOM_SHOW_STATUS_FUNC:
     {
-      res= sp_show_status_function(thd, (lex->wild ? 
-					 lex->wild->ptr() : NullS));
+      res= sp_show_status_routine(thd, TYPE_ENUM_FUNCTION,
+                                  (lex->wild ? lex->wild->ptr() : NullS));
       break;
     }
 #endif
