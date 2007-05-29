@@ -1,5 +1,5 @@
 /* QQ: TODO multi-pinbox */
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,10 +32,11 @@
 
   Pins are used to solve ABA problem. To use pins one must obey
   a pinning protocol:
+
    1. Let's assume that PTR is a shared pointer to an object. Shared means
       that any thread may modify it anytime to point to a different object
       and free the old object. Later the freed object may be potentially
-      allocated by another thread. If we're unlucky that another thread may
+      allocated by another thread. If we're unlucky that other thread may
       set PTR to point to this object again. This is ABA problem.
    2. Create a local pointer LOCAL_PTR.
    3. Pin the PTR in a loop:
@@ -70,12 +71,34 @@
       pins you have is limited (and small), keeping an object pinned
       prevents its reuse and cause unnecessary mallocs.
 
+  Explanations:
+
+   3. The loop is important. The following can occur:
+        thread1> LOCAL_PTR= PTR
+        thread2> free(PTR); PTR=0;
+        thread1> pin(PTR, PIN_NUMBER);
+      now thread1 cannot access LOCAL_PTR, even if it's pinned,
+      because it points to a freed memory. That is, it *must*
+      verify that it has indeed pinned PTR, the shared pointer.
+
+   6. When a thread wants to free some LOCAL_PTR, and it scans
+      all lists of pins to see whether it's pinned, it does it
+      upwards, from low pin numbers to high. Thus another thread
+      must copy an address from one pin to another in the same
+      direction - upwards, otherwise the scanning thread may
+      miss it.
+
   Implementation details:
+
   Pins are given away from a "pinbox". Pinbox is stack-based allocator.
   It used dynarray for storing pins, new elements are allocated by dynarray
   as necessary, old are pushed in the stack for reuse. ABA is solved by
-  versioning a pointer - because we use an array, a pointer to pins is 32 bit,
-  upper 32 bits are used for a version.
+  versioning a pointer - because we use an array, a pointer to pins is 16 bit,
+  upper 16 bits are used for a version.
+
+  It is assumed that pins belong to a thread and are not transferable
+  between threads (LF_PINS::stack_ends_here being a primary reason
+  for this limitation).
 */
 
 #include <my_global.h>
@@ -93,11 +116,11 @@ static void _lf_pinbox_real_free(LF_PINS *pins);
 void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
                     lf_pinbox_free_func *free_func, void *free_func_arg)
 {
-  DBUG_ASSERT(sizeof(LF_PINS) == 128);
   DBUG_ASSERT(free_ptr_offset % sizeof(void *) == 0);
-  lf_dynarray_init(&pinbox->pinstack, sizeof(LF_PINS));
+  compile_time_assert(sizeof(LF_PINS) == 128);
+  lf_dynarray_init(&pinbox->pinarray, sizeof(LF_PINS));
   pinbox->pinstack_top_ver= 0;
-  pinbox->pins_in_stack= 0;
+  pinbox->pins_in_array= 0;
   pinbox->free_ptr_offset= free_ptr_offset;
   pinbox->free_func= free_func;
   pinbox->free_func_arg= free_func_arg;
@@ -105,38 +128,72 @@ void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
 
 void lf_pinbox_destroy(LF_PINBOX *pinbox)
 {
-  lf_dynarray_destroy(&pinbox->pinstack);
+  lf_dynarray_destroy(&pinbox->pinarray);
 }
 
 /*
   Get pins from a pinbox. Usually called via lf_alloc_get_pins() or
   lf_hash_get_pins().
 
+  SYNOPSYS
+    pinbox      -
+    stack_end   - a pointer to the end (top/bottom, depending on the
+                  STACK_DIRECTION) of stack. Used for safe alloca. There's
+                  no safety margin deducted, a caller should take care of it,
+                  if necessary.
+
   DESCRIPTION
     get a new LF_PINS structure from a stack of unused pins,
     or allocate a new one out of dynarray.
+
+  NOTE
+    It is assumed that pins belong to a thread and are not transferable
+    between threads.
 */
-LF_PINS *_lf_pinbox_get_pins(LF_PINBOX *pinbox)
+LF_PINS *_lf_pinbox_get_pins(LF_PINBOX *pinbox, void *stack_end)
 {
   uint32 pins, next, top_ver;
   LF_PINS *el;
-
+  /*
+    We have an array of max. 64k elements.
+    The highest index currently allocated is pinbox->pins_in_array.
+    Freed elements are in a lifo stack, pinstack_top_ver.
+    pinstack_top_ver is 32 bits; 16 low bits are the index in the
+    array, to the first element of the list. 16 high bits are a version
+    (every time the 16 low bits are updated, the 16 high bits are
+    incremented). Versioniong prevents the ABA problem.
+  */
   top_ver= pinbox->pinstack_top_ver;
   do
   {
     if (!(pins= top_ver % LF_PINBOX_MAX_PINS))
     {
-      pins= my_atomic_add32(&pinbox->pins_in_stack, 1)+1;
-      el= (LF_PINS *)_lf_dynarray_lvalue(&pinbox->pinstack, pins);
+      /* the stack of free elements is empty */
+      pins= my_atomic_add32(&pinbox->pins_in_array, 1)+1;
+      if (unlikely(pins >= LF_PINBOX_MAX_PINS))
+        return 0;
+      /*
+        note that the first allocated element has index 1 (pins==1).
+        index 0 is reserved to mean "NULL pointer"
+      */
+      el= (LF_PINS *)_lf_dynarray_lvalue(&pinbox->pinarray, pins);
+      if (unlikely(!el))
+        return 0;
       break;
     }
-    el= (LF_PINS *)_lf_dynarray_value(&pinbox->pinstack, pins);
+    el= (LF_PINS *)_lf_dynarray_value(&pinbox->pinarray, pins);
     next= el->link;
   } while (!my_atomic_cas32(&pinbox->pinstack_top_ver, &top_ver,
                             top_ver-pins+next+LF_PINBOX_MAX_PINS));
+  /*
+    set el->link to the index of el in the dynarray (el->link has two usages:
+    - if element is allocated, it's its own index
+    - if element is free, it's its next element in the free stack
+  */
   el->link= pins;
   el->purgatory_count= 0;
   el->pinbox= pinbox;
+  el->stack_ends_here= stack_end;
   return el;
 }
 
@@ -171,25 +228,17 @@ void _lf_pinbox_put_pins(LF_PINS *pins)
     _lf_pinbox_real_free(pins);
     if (pins->purgatory_count)
     {
-      my_atomic_rwlock_wrunlock(&pins->pinbox->pinstack.lock);
+      my_atomic_rwlock_wrunlock(&pins->pinbox->pinarray.lock);
       pthread_yield();
-      my_atomic_rwlock_wrlock(&pins->pinbox->pinstack.lock);
+      my_atomic_rwlock_wrlock(&pins->pinbox->pinarray.lock);
     }
   }
   top_ver= pinbox->pinstack_top_ver;
-  if (nr == pinbox->pins_in_stack)
-  {
-    int32 tmp= nr;
-    if (my_atomic_cas32(&pinbox->pins_in_stack, &tmp, tmp-1))
-      goto ret;
-  }
-
   do
   {
     pins->link= top_ver % LF_PINBOX_MAX_PINS;
   } while (!my_atomic_cas32(&pinbox->pinstack_top_ver, &top_ver,
                             top_ver-pins->link+nr+LF_PINBOX_MAX_PINS));
-ret:
   return;
 }
 
@@ -228,7 +277,7 @@ struct st_harvester {
 
 /*
   callback for _lf_dynarray_iterate:
-  scan all pins or all threads and accumulate all pins
+  scan all pins of all threads and accumulate all pins
 */
 static int harvest_pins(LF_PINS *el, struct st_harvester *hv)
 {
@@ -243,13 +292,19 @@ static int harvest_pins(LF_PINS *el, struct st_harvester *hv)
         *hv->granary++= p;
     }
   }
+  /*
+    hv->npins may become negative below, but it means that
+    we're on the last dynarray page and harvest_pins() won't be
+    called again. We don't bother to make hv->npins() correct
+    (that is 0) in this case.
+  */
   hv->npins-= LF_DYNARRAY_LEVEL_LENGTH;
   return 0;
 }
 
 /*
   callback for _lf_dynarray_iterate:
-  scan all pins or all threads and see if addr is present there
+  scan all pins of all threads and see if addr is present there
 */
 static int match_pins(LF_PINS *el, void *addr)
 {
@@ -262,28 +317,35 @@ static int match_pins(LF_PINS *el, void *addr)
   return 0;
 }
 
+#if STACK_DIRECTION < 0
+#define available_stack_size(END,CUR) (long) ((char*)(CUR) - (char*)(END))
+#else
+#define available_stack_size(END,CUR) (long) ((char*)(END) - (char*)(CUR))
+#endif
+
 /*
-  Scan the purgatory as free everything that can be freed
+  Scan the purgatory and free everything that can be freed
 */
 static void _lf_pinbox_real_free(LF_PINS *pins)
 {
-  int npins;
-  void *list;
-  void **addr;
+  int npins, alloca_size;
+  void *list, **addr;
+  struct st_lf_alloc_node *first, *last= NULL;
   LF_PINBOX *pinbox= pins->pinbox;
 
-  npins= pinbox->pins_in_stack+1;
+  npins= pinbox->pins_in_array+1;
 
 #ifdef HAVE_ALLOCA
+  alloca_size= sizeof(void *)*LF_PINBOX_PINS*npins;
   /* create a sorted list of pinned addresses, to speed up searches */
-  if (sizeof(void *)*LF_PINBOX_PINS*npins < my_thread_stack_size)
+  if (available_stack_size(&pinbox, pins->stack_ends_here) > alloca_size)
   {
     struct st_harvester hv;
-    addr= (void **) alloca(sizeof(void *)*LF_PINBOX_PINS*npins);
+    addr= (void **) alloca(alloca_size);
     hv.granary= addr;
     hv.npins= npins;
     /* scan the dynarray and accumulate all pinned addresses */
-    _lf_dynarray_iterate(&pinbox->pinstack,
+    _lf_dynarray_iterate(&pinbox->pinarray,
                          (lf_dynarray_func)harvest_pins, &hv);
 
     npins= hv.granary-addr;
@@ -307,7 +369,7 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
       if (addr) /* use binary search */
       {
         void **a, **b, **c;
-        for (a= addr, b= addr+npins-1, c= a+(b-a)/2; b-a>1; c= a+(b-a)/2)
+        for (a= addr, b= addr+npins-1, c= a+(b-a)/2; (b-a) > 1; c= a+(b-a)/2)
           if (cur == *c)
             a= b= c;
           else if (cur > *c)
@@ -319,33 +381,23 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
       }
       else /* no alloca - no cookie. linear search here */
       {
-        if (_lf_dynarray_iterate(&pinbox->pinstack,
+        if (_lf_dynarray_iterate(&pinbox->pinarray,
                                  (lf_dynarray_func)match_pins, cur))
           goto found;
       }
     }
     /* not pinned - freeing */
-    pinbox->free_func(cur, pinbox->free_func_arg);
+    if (last)
+      last= last->next= (struct st_lf_alloc_node *)cur;
+    else
+      first= last= (struct st_lf_alloc_node *)cur;
     continue;
 found:
     /* pinned - keeping */
     add_to_purgatory(pins, cur);
   }
-}
-
-/*
-  callback for _lf_pinbox_real_free to free an unpinned object -
-  add it back to the allocator stack
-*/
-static void alloc_free(struct st_lf_alloc_node *node, LF_ALLOCATOR *allocator)
-{
-  struct st_lf_alloc_node *tmp;
-  tmp= allocator->top;
-  do
-  {
-    node->next= tmp;
-  } while (!my_atomic_casptr((void **)&allocator->top, (void **)&tmp, node) &&
-           LF_BACKOFF);
+  if (last)
+    pinbox->free_func(first, last, pinbox->free_func_arg);
 }
 
 /* lock-free memory allocator for fixed-size objects */
@@ -353,7 +405,28 @@ static void alloc_free(struct st_lf_alloc_node *node, LF_ALLOCATOR *allocator)
 LF_REQUIRE_PINS(1);
 
 /*
-  initialize lock-free allocatod.
+  callback for _lf_pinbox_real_free to free a list of unpinned objects -
+  add it back to the allocator stack
+
+  DESCRIPTION
+    'first' and 'last' are the ends of the linked list of st_lf_alloc_node's:
+    first->el->el->....->el->last. Use first==last to free only one element.
+*/
+static void alloc_free(struct st_lf_alloc_node *first,
+                       struct st_lf_alloc_node *last,
+                       LF_ALLOCATOR *allocator)
+{
+  struct st_lf_alloc_node *tmp;
+  tmp= allocator->top;
+  do
+  {
+    last->next= tmp;
+  } while (!my_atomic_casptr((void **)&allocator->top, (void **)&tmp, first) &&
+           LF_BACKOFF);
+}
+
+/*
+  initialize lock-free allocator
 
   SYNOPSYS
     allocator           -
@@ -362,6 +435,8 @@ LF_REQUIRE_PINS(1);
                         memory that is guaranteed to be unused after
                         the object is put in the purgatory. Unused by ANY
                         thread, not only the purgatory owner.
+                        This memory will be used to link waiting-to-be-freed
+                        objects in a purgatory list.
 */
 void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset)
 {
@@ -370,12 +445,19 @@ void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset)
   allocator->top= 0;
   allocator->mallocs= 0;
   allocator->element_size= size;
-  DBUG_ASSERT(size >= (int)sizeof(void *));
-  DBUG_ASSERT(free_ptr_offset < size);
+  DBUG_ASSERT(size >= sizeof(void*) + free_ptr_offset);
 }
 
 /*
   destroy the allocator, free everything that's in it
+
+  NOTE
+    As every other init/destroy function here and elsewhere it
+    is not thread safe. No, this function is no different, ensure
+    that no thread needs the allocator before destroying it.
+    We are not responsible for any damage that may be caused by
+    accessing the allocator when it is being or has been destroyed.
+    Oh yes, and don't put your cat in a microwave.
 */
 void lf_alloc_destroy(LF_ALLOCATOR *allocator)
 {
@@ -410,16 +492,14 @@ void *_lf_alloc_new(LF_PINS *pins)
     } while (node != allocator->top && LF_BACKOFF);
     if (!node)
     {
-      if (!(node= (void *)my_malloc(allocator->element_size,
-                                    MYF(MY_WME|MY_ZEROFILL))))
-        break;
+      node= (void *)my_malloc(allocator->element_size, MYF(MY_WME));
 #ifdef MY_LF_EXTRA_DEBUG
-      my_atomic_add32(&allocator->mallocs, 1);
+      if (likely(node))
+        my_atomic_add32(&allocator->mallocs, 1);
 #endif
       break;
     }
-    if (my_atomic_casptr((void **)&allocator->top,
-                         (void *)&node, *(void **)node))
+    if (my_atomic_casptr((void **)&allocator->top, (void *)&node, node->next))
       break;
   }
   _lf_unpin(pins, 0);
@@ -432,7 +512,7 @@ void *_lf_alloc_new(LF_PINS *pins)
   NOTE
     This is NOT thread-safe !!!
 */
-uint lf_alloc_in_pool(LF_ALLOCATOR *allocator)
+uint lf_alloc_pool_count(LF_ALLOCATOR *allocator)
 {
   uint i;
   struct st_lf_alloc_node *node;

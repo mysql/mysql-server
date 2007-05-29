@@ -89,7 +89,7 @@ int maria_delete(MARIA_HA *info,const byte *record)
     }
   }
 
-  if ((*share->delete_record)(info))
+  if ((*share->delete_record)(info, record))
     goto err;				/* Remove record from database */
 
   /*

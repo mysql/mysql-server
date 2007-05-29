@@ -25,12 +25,14 @@
 #include <myisampack.h>
 #include <my_bit.h>
 #include "ha_maria.h"
+#include "trnman_public.h"
 
 #include "maria_def.h"
 #include "ma_rt_index.h"
 #include "ma_blockrec.h"
 
 ulong maria_recover_options= HA_RECOVER_NONE;
+static handlerton *maria_hton;
 
 /* bits in maria_recover_options */
 const char *maria_recover_names[]=
@@ -464,7 +466,7 @@ ha_maria::ha_maria(handlerton *hton, TABLE_SHARE *table_arg):
 handler(hton, table_arg), file(0),
 int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
                 HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
-                HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
+                HA_FILE_BASED | HA_CAN_GEOMETRY |
                 HA_CAN_INSERT_DELAYED | HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
                 HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT),
 can_enable_indexes(1)
@@ -1846,14 +1848,69 @@ int ha_maria::delete_table(const char *name)
   return maria_delete_table(name);
 }
 
+#define THD_TRN (*(TRN **)thd_ha_data(thd, maria_hton))
 
 int ha_maria::external_lock(THD *thd, int lock_type)
 {
-  return maria_lock_database(file, !table->s->tmp_table ?
-                             lock_type : ((lock_type == F_UNLCK) ?
-                                          F_UNLCK : F_EXTRA_LCK));
+  TRN *trn= THD_TRN;
+  DBUG_ENTER("ha_maria::external_lock");
+  if (!trn && lock_type != F_UNLCK) /* no transaction yet - open it now */
+  {
+    trn= trnman_new_trn(& thd->mysys_var->mutex,
+                        & thd->mysys_var->suspend,
+                        thd->thread_stack + STACK_DIRECTION *
+                        (my_thread_stack_size - STACK_MIN_SIZE));
+    if (!trn)
+      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+
+    DBUG_PRINT("info", ("THD_TRN set to 0x%lx", (ulong)trn));
+    THD_TRN= trn;
+    if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+      trans_register_ha(thd, true, maria_hton);
+  }
+  if (lock_type != F_UNLCK)
+  {
+    this->file->trn= trn;
+    if (!trnman_increment_locked_tables(trn))
+    {
+      trans_register_ha(thd, FALSE, maria_hton);
+      trnman_new_statement(trn);
+    }
+  }
+  else
+  {
+    this->file->trn= 0; /* TODO: remove it also in commit and rollback */
+    if (trn && trnman_has_locked_tables(trn))
+    {
+      if (!trnman_decrement_locked_tables(trn))
+      {
+        /* autocommit ? rollback a transaction */
+        if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+        {
+          trnman_rollback_trn(trn);
+          DBUG_PRINT("info", ("THD_TRN set to 0x0"));
+          THD_TRN= 0;
+        }
+      }
+    }
+  }
+  DBUG_RETURN(maria_lock_database(file, !table->s->tmp_table ?
+                                  lock_type : ((lock_type == F_UNLCK) ?
+                                               F_UNLCK : F_EXTRA_LCK)));
 }
 
+int ha_maria::start_stmt(THD *thd, thr_lock_type lock_type)
+{
+  TRN *trn= THD_TRN;
+  DBUG_ASSERT(trn); // this may be called only after external_lock()
+  DBUG_ASSERT(lock_type != F_UNLCK);
+  if (!trnman_increment_locked_tables(trn))
+  {
+    trans_register_ha(thd, false, maria_hton);
+    trnman_new_statement(trn);
+  }
+  return 0;
+}
 
 THR_LOCK_DATA **ha_maria::store_lock(THD *thd,
                                      THR_LOCK_DATA **to,
@@ -1936,6 +1993,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
                                  share->avg_row_length);
   create_info.data_file_name= ha_create_info->data_file_name;
   create_info.index_file_name= ha_create_info->index_file_name;
+  create_info.transactional= row_type == BLOCK_RECORD;
 
   if (ha_create_info->options & HA_LEX_CREATE_TMP_TABLE)
     create_flags|= HA_CREATE_TMP_TABLE;
@@ -2089,25 +2147,71 @@ bool ha_maria::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
-extern int maria_panic(enum ha_panic_function flag);
-int maria_panic(handlerton *hton, ha_panic_function flag)
+
+static int maria_hton_panic(handlerton *hton, ha_panic_function flag)
 {
   return maria_panic(flag);
 }
 
+
+static int maria_commit(handlerton *hton __attribute__ ((unused)),
+                        THD *thd, bool all)
+{
+  TRN *trn= THD_TRN;
+  DBUG_ENTER("maria_commit");
+  trnman_reset_locked_tables(trn);
+  /* statement or transaction ? */
+  if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) && !all)
+    DBUG_RETURN(0); // end of statement
+  DBUG_PRINT("info", ("THD_TRN set to 0x0"));
+  THD_TRN= 0;
+  DBUG_RETURN(trnman_commit_trn(trn) ?
+              HA_ERR_OUT_OF_MEM : 0); // end of transaction
+}
+
+
+static int maria_rollback(handlerton *hton __attribute__ ((unused)),
+                          THD *thd, bool all)
+{
+  TRN *trn= THD_TRN;
+  DBUG_ENTER("maria_rollback");
+  trnman_reset_locked_tables(trn);
+  /* statement or transaction ? */
+  if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) && !all)
+  {
+    trnman_rollback_statement(trn);
+    DBUG_RETURN(0); // end of statement
+  }
+  DBUG_PRINT("info", ("THD_TRN set to 0x0"));
+  THD_TRN= 0;
+  DBUG_RETURN(trnman_rollback_trn(trn) ?
+              HA_ERR_OUT_OF_MEM : 0); // end of transaction
+}
+
+
 static int ha_maria_init(void *p)
 {
-  handlerton *maria_hton;
-
   maria_hton= (handlerton *)p;
   maria_hton->state= SHOW_OPTION_YES;
   maria_hton->db_type= DB_TYPE_MARIA;
   maria_hton->create= maria_create_handler;
-  maria_hton->panic= maria_panic;
+  maria_hton->panic= maria_hton_panic;
+  maria_hton->commit= maria_commit;
+  maria_hton->rollback= maria_rollback;
   /* TODO: decide if we support Maria being used for log tables */
   maria_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
-  return test(maria_init());
+  bzero(maria_log_pagecache, sizeof(*maria_log_pagecache));
+  maria_data_root= mysql_real_data_home;
+  return (test(maria_init() || ma_control_file_create_or_open() ||
+               (init_pagecache(maria_log_pagecache,
+                               TRANSLOG_PAGECACHE_SIZE, 0, 0,
+                               TRANSLOG_PAGE_SIZE) == 0) ||
+               translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
+                             MYSQL_VERSION_ID, server_id, maria_log_pagecache,
+                             TRANSLOG_DEFAULT_FLAGS) ||
+               trnman_init()));
 }
+
 
 struct st_mysql_storage_engine maria_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };

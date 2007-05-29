@@ -24,8 +24,11 @@
 #include "../trnman.h"
 
 pthread_mutex_t rt_mutex;
-int rt_num_threads;
+pthread_attr_t attr;
+size_t stacksize= 0;
+#define STACK_SIZE (((int)stacksize-2048)*STACK_DIRECTION)
 
+int rt_num_threads;
 int litmus;
 
 /*
@@ -34,11 +37,11 @@ int litmus;
 #define MAX_ITER 100
 pthread_handler_t test_trnman(void *arg)
 {
-  int    m= (*(int *)arg);
   uint   x, y, i, n;
   TRN    *trn[MAX_ITER];
   pthread_mutex_t mutexes[MAX_ITER];
   pthread_cond_t conds[MAX_ITER];
+  int    m= (*(int *)arg);
 
   for (i= 0; i < MAX_ITER; i++)
   {
@@ -52,7 +55,7 @@ pthread_handler_t test_trnman(void *arg)
     m-= n= x % MAX_ITER;
     for (i= 0; i < n; i++)
     {
-      trn[i]= trnman_new_trn(&mutexes[i], &conds[i]);
+      trn[i]= trnman_new_trn(&mutexes[i], &conds[i], &m + STACK_SIZE);
       if (!trn[i])
       {
         diag("trnman_new_trn() failed");
@@ -96,7 +99,7 @@ void run_test(const char *test, pthread_handler handler, int n, int m)
   diag("Testing %s with %d threads, %d iterations... ", test, n, m);
   rt_num_threads= n;
   for (i= 0; i < n ; i++)
-    if (pthread_create(threads+i, 0, handler, &m))
+    if (pthread_create(threads+i, &attr, handler, &m))
     {
       diag("Could not create thread");
       abort();
@@ -112,7 +115,7 @@ void run_test(const char *test, pthread_handler handler, int n, int m)
   i= trnman_can_read_from(trn[T1], trn[T2]->trid);       \
   ok(i == RES, "trn" #T1 " %s read from trn" #T2, i ? "can" : "cannot")
 #define start_transaction(T)                            \
-  trn[T]= trnman_new_trn(&mutexes[T], &conds[T])
+  trn[T]= trnman_new_trn(&mutexes[T], &conds[T], &i + STACK_SIZE)
 #define commit(T)               trnman_commit_trn(trn[T])
 #define abort(T)                trnman_abort_trn(trn[T])
 
@@ -161,6 +164,12 @@ int main()
     return exit_status();
 
   pthread_mutex_init(&rt_mutex, 0);
+  pthread_attr_init(&attr);
+#ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
+  pthread_attr_getstacksize(&attr, &stacksize);
+  if (stacksize == 0)
+#endif
+    stacksize= PTHREAD_STACK_MIN;
 
 #define CYCLES 10000
 #define THREADS 10

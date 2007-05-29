@@ -19,6 +19,7 @@
 #include "ma_sp_defs.h"
 #include "ma_rt_index.h"
 #include "ma_blockrec.h"
+#include "trnman.h"
 #include <m_ctype.h>
 
 #if defined(MSDOS) || defined(__WIN__)
@@ -431,6 +432,9 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       share->base_length+= TRANS_ROW_EXTRA_HEADER_SIZE;
     share->base.default_rec_buff_size= max(share->base.pack_reclength,
                                            share->base.max_key_length);
+    share->page_type= (share->base.transactional ? PAGECACHE_LSN_PAGE :
+                       PAGECACHE_PLAIN_PAGE);
+
     if (share->data_file_type == DYNAMIC_RECORD)
     {
       share->base.extra_rec_buff_size=
@@ -634,6 +638,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     share->delay_key_write=1;
 
   info.state= &share->state.state;	/* Change global values by default */
+  info.trn=   &dummy_transaction_object;
   pthread_mutex_unlock(&share->intern_lock);
 
   /* Allocate buffer for one record */

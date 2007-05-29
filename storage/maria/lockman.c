@@ -538,7 +538,7 @@ void lockman_destroy(LOCKMAN *lm)
   {
     intptr next= el->link;
     if (el->hashnr & 1)
-      lf_alloc_real_free(&lm->alloc, el);
+      lf_alloc_direct_free(&lm->alloc, el);
     else
       my_free((void *)el, MYF(0));
     el= (LOCK *)next;

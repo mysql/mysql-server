@@ -4507,7 +4507,8 @@ static int sort_delete_record(MARIA_SORT_PARAM *sort_param)
     if (sort_param->calc_checksum)
       param->glob_crc-=(*info->s->calc_checksum)(info, sort_param->record);
   }
-  error=flush_io_cache(&info->rec_cache) || (*info->s->delete_record)(info);
+  error= (flush_io_cache(&info->rec_cache) ||
+          (*info->s->delete_record)(info, sort_param->record));
   info->dfile.file= old_file;			/* restore actual value */
   info->state->records--;
   DBUG_RETURN(error);

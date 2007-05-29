@@ -110,6 +110,7 @@ public:
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset(void);
   int external_lock(THD * thd, int lock_type);
+  int start_stmt(THD *thd, thr_lock_type lock_type);
   int delete_all_rows(void);
   int disable_indexes(uint mode);
   int enable_indexes(uint mode);

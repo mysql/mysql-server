@@ -78,10 +78,15 @@ explain select a,b,c from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
 drop table t1;
+set autocommit=0;
+begin;
 CREATE TABLE t1 (a INT);
 INSERT INTO  t1 VALUES (1), (2), (3);
 LOCK TABLES t1 WRITE;
 INSERT INTO  t1 VALUES (1), (2), (3);
+commit;
+set autocommit=1;
+UNLOCK TABLES;
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
@@ -522,12 +527,15 @@ create table t1 (a int not null, primary key(a)) ROW_FORMAT=FIXED;
 create table t2 (a int not null, b int not null, primary key(a,b)) ROW_FORMAT=FIXED;
 insert into t1 values (1),(2),(3),(4),(5),(6);
 insert into t2 values (1,1),(2,1);
+set autocommit=0;
+begin;
 lock tables t1 read local, t2 read local;
 select straight_join * from t1,t2 force index (primary) where t1.a=t2.a;
 a	a	b
 1	1	1
 2	2	1
 insert into t2 values(2,0);
+commit;
 select straight_join * from t1,t2 force index (primary) where t1.a=t2.a;
 a	a	b
 1	1	1

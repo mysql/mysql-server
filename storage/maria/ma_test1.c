@@ -33,7 +33,7 @@ static uint insert_count, update_count, remove_count;
 static uint pack_keys=0, pack_seg=0, key_length;
 static uint unique_key=HA_NOSAME;
 static my_bool pagecacheing, null_fields, silent, skip_update, opt_unique,
-  verbose, skip_delete;
+  verbose, skip_delete, transactional;
 static MARIA_COLUMNDEF recinfo[4];
 static MARIA_KEYDEF keyinfo[10];
 static HA_KEYSEG keyseg[10];
@@ -152,6 +152,7 @@ static int run_test(const char *filename)
   create_info.max_rows=(ulong) (rec_pointer_size ?
 				(1L << (rec_pointer_size*8))/40 :
 				0);
+  create_info.transactional= transactional;
   if (maria_create(filename, record_type, 1, keyinfo,2+opt_unique,recinfo,
 		uniques, &uniquedef, &create_info,
 		create_flag))
@@ -595,6 +596,9 @@ static struct my_option my_long_options[] =
    (gptr*) &skip_delete, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-update", 'D', "Don't test updates", (gptr*) &skip_update,
    (gptr*) &skip_update, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"transactional", 'T', "Test in transactional mode. (Only works with block format)",
+   (gptr*) &transactional, (gptr*) &transactional, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
   {"unique", 'C', "Undocumented", (gptr*) &opt_unique, (gptr*) &opt_unique, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"update-rows", 'u', "Undocumented", (gptr*) &update_count,

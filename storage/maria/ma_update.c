@@ -162,7 +162,7 @@ int maria_update(register MARIA_HA *info, const byte *oldrec, byte *newrec)
     memcpy((char*) &state, (char*) info->state, sizeof(state));
     org_split=	     share->state.split;
     org_delete_link= share->state.dellink;
-    if ((*share->update_record)(info,pos,newrec))
+    if ((*share->update_record)(info, pos, oldrec, newrec))
       goto err;
     if (!key_changed &&
 	(memcmp((char*) &state, (char*) info->state, sizeof(state)) ||

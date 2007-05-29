@@ -124,12 +124,16 @@ void writer(int num)
   {
     uint len= get_len();
     lens[num][i]= len;
+    LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 1];
 
     int2store(long_tr_id, num);
     int4store(long_tr_id + 2, i);
+    parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
+    parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
     if (translog_write_record(&lsn,
                               LOGREC_LONG_TRANSACTION_ID,
-                              num, NULL, 6, long_tr_id, 0))
+                              num, NULL, NULL, 6, TRANSLOG_INTERNAL_PARTS + 1,
+                              parts))
     {
       fprintf(stderr, "Can't write LOGREC_LONG_TRANSACTION_ID record #%lu "
               "thread %i\n", (ulong) i, num);
@@ -140,9 +144,13 @@ void writer(int num)
       return;
     }
     lsns1[num][i]= lsn;
+    parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_buffer;
+    parts[TRANSLOG_INTERNAL_PARTS + 0].length= len;
     if (translog_write_record(&lsn,
                               LOGREC_REDO_INSERT_ROW_HEAD,
-                              num, NULL, len, long_buffer, 0))
+                              num, NULL, NULL,
+                              len, TRANSLOG_INTERNAL_PARTS + 1,
+                              parts))
     {
       fprintf(stderr, "Can't write variable record #%lu\n", (ulong) i);
       translog_destroy();
@@ -277,14 +285,18 @@ int main(int argc, char **argv __attribute__ ((unused)))
 
   srandom(122334817L);
   {
+    LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 1];
     byte long_tr_id[6]=
     {
       0x11, 0x22, 0x33, 0x44, 0x55, 0x66
     };
 
+    parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
+    parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
     if (translog_write_record(&first_lsn,
                               LOGREC_LONG_TRANSACTION_ID,
-                              0, NULL, 6, long_tr_id, 0))
+                              0, NULL, NULL, 6, TRANSLOG_INTERNAL_PARTS + 1,
+                              parts))
     {
       fprintf(stderr, "Can't write the first record\n");
       translog_destroy();

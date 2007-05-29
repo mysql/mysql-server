@@ -1837,7 +1837,7 @@ err:
 
 
 /*
-  Free full pages from bitmap
+  Free full pages from bitmap and pagecache
 
   SYNOPSIS
     _ma_bitmap_free_full_pages()
@@ -1846,7 +1846,8 @@ err:
     count               Number of extents
 
   IMPLEMENTATION
-    Mark all full pages (not tails) from extents as free
+    Mark all full pages (not tails) from extents as free, both in bitmap
+    and page cache.
 
   RETURN
     0  ok
@@ -1865,6 +1866,9 @@ my_bool _ma_bitmap_free_full_pages(MARIA_HA *info, const byte *extents,
     uint page_count= uint2korr(extents + ROW_EXTENT_PAGE_SIZE);
     if (!(page_count & TAIL_BIT))
     {
+      if (pagecache_delete_pages(info->s->pagecache, &info->dfile, page,
+                                 page_count, PAGECACHE_LOCK_WRITE, 1))
+        DBUG_RETURN(1);
       if (_ma_reset_full_page_bits(info, &info->s->bitmap, page, page_count))
       {
         pthread_mutex_unlock(&info->s->bitmap.bitmap_lock);

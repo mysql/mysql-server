@@ -43,6 +43,7 @@ int maria_init(void)
     maria_inited= TRUE;
     pthread_mutex_init(&THR_LOCK_maria,MY_MUTEX_INIT_SLOW);
     _ma_init_block_record_data();
+    loghandler_init();
   }
   return 0;
 }

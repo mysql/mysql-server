@@ -237,6 +237,7 @@ my_bool _ma_write_dynamic_record(MARIA_HA *info, const byte *record)
 }
 
 my_bool _ma_update_dynamic_record(MARIA_HA *info, MARIA_RECORD_POS pos,
+                                  const byte *oldrec __attribute__ ((unused)),
                                   const byte *record)
 {
   uint length= _ma_rec_pack(info, info->rec_buff + MARIA_REC_BUFF_OFFSET,
@@ -277,6 +278,7 @@ my_bool _ma_write_blob_record(MARIA_HA *info, const byte *record)
 
 
 my_bool _ma_update_blob_record(MARIA_HA *info, MARIA_RECORD_POS pos,
+                               const byte *oldrec __attribute__ ((unused)),
                                const byte *record)
 {
   byte *rec_buff;
@@ -309,7 +311,8 @@ my_bool _ma_update_blob_record(MARIA_HA *info, MARIA_RECORD_POS pos,
 }
 
 
-my_bool _ma_delete_dynamic_record(MARIA_HA *info)
+my_bool _ma_delete_dynamic_record(MARIA_HA *info,
+                                  const byte *record __attribute__ ((unused)))
 {
   return delete_dynamic_record(info, info->cur_row.lastpos, 0);
 }
@@ -1371,7 +1374,7 @@ int _ma_read_dynamic_record(MARIA_HA *info, byte *buf,
                             MARIA_RECORD_POS filepos)
 {
   int block_of_record;
-  uint b_type,left_length;
+  uint b_type;
   MARIA_BLOCK_INFO block_info;
   File file;
   DBUG_ENTER("_ma_read_dynamic_record");

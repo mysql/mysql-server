@@ -1034,6 +1034,8 @@ typedef long intptr;
 #error
 #endif
 
+#define MY_ERRPTR ((void*)(intptr)1)
+
 #ifdef USE_RAID
 /*
   The following is done with a if to not get problems with pre-processors

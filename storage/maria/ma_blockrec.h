@@ -102,6 +102,9 @@ enum en_page_type { UNALLOCATED_PAGE, HEAD_PAGE, TAIL_PAGE, BLOB_PAGE, MAX_PAGE_
 */
 #define MAX_TAIL_SIZE(block_size) ((block_size) *3 / 4)
 
+/* Don't allocate memory for too many row extents on the stack */
+#define ROW_EXTENTS_ON_STACK	32
+
 extern uchar maria_bitmap_marker[2];
 
 /* Functions to convert MARIA_RECORD_POS to/from page:offset */
@@ -130,8 +133,8 @@ my_bool _ma_init_block_record(MARIA_HA *info);
 void _ma_end_block_record(MARIA_HA *info);
 
 my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS pos,
-                                const byte *record);
-my_bool _ma_delete_block_record(MARIA_HA *info);
+                                const byte *oldrec, const byte *newrec);
+my_bool _ma_delete_block_record(MARIA_HA *info, const byte *record);
 int     _ma_read_block_record(MARIA_HA *info, byte *record,
                               MARIA_RECORD_POS record_pos);
 int _ma_read_block_record2(MARIA_HA *info, byte *record,

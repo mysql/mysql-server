@@ -56,6 +56,9 @@ typedef enum enum_control_file_error {
 #define CONTROL_FILE_UPDATE_ONLY_LSN 1
 #define CONTROL_FILE_UPDATE_ONLY_LOGNO 2
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
 
 /*
   Looks for the control file. If absent, it's a fresh start, create file.
@@ -74,3 +77,7 @@ int ma_control_file_write_and_force(const LSN checkpoint_lsn, uint32 logno,
 
 /* Free resources taken by control file subsystem */
 int ma_control_file_end();
+
+#ifdef	__cplusplus
+}
+#endif

@@ -25,9 +25,13 @@
 #include <my_no_pthread.h>
 #endif
 
-#include <pagecache.h>
 #include "ma_loghandler.h"
 #include "ma_control_file.h"
+
+#define MAX_NONMAPPED_INSERTS 1000
+#define MARIA_MAX_TREE_LEVELS 32
+
+struct st_transaction;
 
 /* undef map from my_nosys; We need test-if-disk full */
 #undef my_write	
@@ -205,8 +209,6 @@ typedef struct st_maria_file_bitmap
 } MARIA_FILE_BITMAP;
 
 
-#define MAX_NONMAPPED_INSERTS 1000
-
 typedef struct st_maria_share
 {					/* Shared between opens */
   MARIA_STATE_INFO state;
@@ -250,8 +252,8 @@ typedef struct st_maria_share
   /* Called when write failed */
   my_bool (*write_record_abort)(struct st_maria_info *);
   my_bool (*update_record)(struct st_maria_info *, MARIA_RECORD_POS,
-                           const byte *);
-  my_bool (*delete_record)(struct st_maria_info *);
+                           const byte *, const byte *);
+  my_bool (*delete_record)(struct st_maria_info *, const byte *record);
   my_bool (*compare_record)(struct st_maria_info *, const byte *);
   /* calculate checksum for a row */
   ha_checksum(*calc_checksum)(struct st_maria_info *, const byte *);
@@ -288,6 +290,7 @@ typedef struct st_maria_share
   uint base_length;
   myf write_flag;
   enum data_file_type data_file_type;
+  enum pagecache_page_type page_type;   /* value depending transactional */
   my_bool temporary;
   /* Below flag is needed to make log tables work with concurrent insert */
   my_bool is_log_table;
@@ -345,7 +348,6 @@ typedef struct st_maria_row
   MARIA_RECORD_POS *tail_positions;
   ha_checksum checksum;
   byte *empty_bits, *field_lengths;
-  byte *empty_bits_buffer;              /* For storing cur_row.empty_bits */
   uint *null_field_lengths;             /* All null field lengths */
   ulong *blob_lengths;                  /* Length for each blob */
   ulong base_length, normal_length, char_length, varchar_length, blob_length;
@@ -371,6 +373,7 @@ typedef struct st_maria_block_scan
 struct st_maria_info
 {
   MARIA_SHARE *s;			/* Shared between open:s */
+  struct st_transaction *trn;           /* Pointer to active transaction */
   MARIA_STATUS_INFO *state, save_state;
   MARIA_ROW cur_row;                    /* The active row that we just read */
   MARIA_ROW new_row;			/* Storage for a row during update */
@@ -378,8 +381,10 @@ struct st_maria_info
   MARIA_BLOB *blobs;			/* Pointer to blobs */
   MARIA_BIT_BUFF bit_buff;
   DYNAMIC_ARRAY bitmap_blocks;
+  DYNAMIC_ARRAY pinned_pages;
   /* accumulate indexfile changes between write's */
   TREE *bulk_insert;
+  LEX_STRING *log_row_parts;		/* For logging */
   DYNAMIC_ARRAY *ft1_to_ft2;		/* used only in ft1->ft2 conversion */
   MEM_ROOT      ft_memroot;             /* used by the parser               */
   MYSQL_FTPARSER_PARAM *ftparser_param;	/* share info between init/deinit */
@@ -391,6 +396,7 @@ struct st_maria_info
   byte *rec_buff;			/* Temp buffer for recordpack */
   byte *int_keypos,			/* Save position for next/previous */
    *int_maxpos;				/* -""- */
+  byte *update_field_data;		/* Used by update in rows-in-block */
   uint int_nod_flag;			/* -""- */
   uint32 int_keytree_version;		/* -""- */
   int (*read_record) (struct st_maria_info *, byte*, MARIA_RECORD_POS);
@@ -568,8 +574,8 @@ extern pthread_mutex_t THR_LOCK_maria;
 #define rw_unlock(A) {}
 #endif
 
-	/* Some extern variables */
 
+/* Some extern variables */
 extern LIST *maria_open_list;
 extern uchar NEAR maria_file_magic[], NEAR maria_pack_file_magic[];
 extern uint NEAR maria_read_vec[], NEAR maria_readnext_vec[];
@@ -578,8 +584,8 @@ extern const char *maria_data_root;
 extern byte maria_zero_string[];
 extern my_bool maria_inited;
 
-	/* This is used by _ma_calc_xxx_key_length och _ma_store_key */
 
+/* This is used by _ma_calc_xxx_key_length och _ma_store_key */
 typedef struct st_maria_s_param
 {
   uint ref_length, key_length, n_ref_length;
@@ -589,26 +595,34 @@ typedef struct st_maria_s_param
   bool store_not_null;
 } MARIA_KEY_PARAM;
 
-	/* Prototypes for intern functions */
 
+/* Used to store reference to pinned page */
+typedef struct st_pinned_page
+{
+  PAGECACHE_PAGE_LINK link;
+  enum pagecache_page_lock unlock;
+} MARIA_PINNED_PAGE;
+
+
+/* Prototypes for intern functions */
 extern int _ma_read_dynamic_record(MARIA_HA *, byte *, MARIA_RECORD_POS);
 extern int _ma_read_rnd_dynamic_record(MARIA_HA *, byte *, MARIA_RECORD_POS,
                                        my_bool);
 extern my_bool _ma_write_dynamic_record(MARIA_HA *, const byte *);
 extern my_bool _ma_update_dynamic_record(MARIA_HA *, MARIA_RECORD_POS,
-                                         const byte *);
-extern my_bool _ma_delete_dynamic_record(MARIA_HA *info);
+                                         const byte *, const byte *);
+extern my_bool _ma_delete_dynamic_record(MARIA_HA *info, const byte *record);
 extern my_bool _ma_cmp_dynamic_record(MARIA_HA *info, const byte *record);
 extern my_bool _ma_write_blob_record(MARIA_HA *, const byte *);
 extern my_bool _ma_update_blob_record(MARIA_HA *, MARIA_RECORD_POS,
-                                      const byte *);
+                                      const byte *, const byte *);
 extern int _ma_read_static_record(MARIA_HA *info, byte *, MARIA_RECORD_POS);
 extern int _ma_read_rnd_static_record(MARIA_HA *, byte *, MARIA_RECORD_POS,
                                       my_bool);
 extern my_bool _ma_write_static_record(MARIA_HA *, const byte *);
 extern my_bool _ma_update_static_record(MARIA_HA *, MARIA_RECORD_POS,
-                                        const byte *);
-extern my_bool _ma_delete_static_record(MARIA_HA *info);
+                                        const byte *, const byte *);
+extern my_bool _ma_delete_static_record(MARIA_HA *info, const byte *record);
 extern my_bool _ma_cmp_static_record(MARIA_HA *info, const byte *record);
 extern int _ma_ck_write(MARIA_HA *info, uint keynr, byte *key,
                         uint length);
@@ -891,3 +905,8 @@ int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
                              ulong);
 int _ma_sync_table_files(const MARIA_HA *info);
 int _ma_initialize_data_file(File dfile, MARIA_SHARE *share);
+
+void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn);
+
+extern PAGECACHE *maria_log_pagecache;
+

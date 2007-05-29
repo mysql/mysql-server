@@ -46,7 +46,7 @@ static void copy_key(struct st_maria_info *info,uint inx,
 static	int verbose=0,testflag=0,
 	    first_key=0,async_io=0,pagecacheing=0,write_cacheing=0,locking=0,
             rec_pointer_size=0,pack_fields=1,silent=0,
-            opt_quick_mode=0;
+            opt_quick_mode=0, transactional= 0;
 static int pack_seg=HA_SPACE_PACK,pack_type=HA_PACK_KEY,remove_count=-1;
 static int create_flag= 0, srand_arg= 0;
 static ulong pagecache_size=IO_SIZE*16;
@@ -209,6 +209,7 @@ int main(int argc, char *argv[])
 				  (1L << (rec_pointer_size*8))/
 				  reclength : 0);
   create_info.reloc_rows=(ha_rows) 100;
+  create_info.transactional= transactional;
   if (maria_create(filename, record_type, keys,&keyinfo[first_key],
 		use_blob ? 7 : 6, &recinfo[0],
 		0,(MARIA_UNIQUEDEF*) 0,
@@ -993,6 +994,9 @@ static void get_options(int argc, char **argv)
     case 't':
       testflag=atoi(++pos);		/* testmod */
       break;
+    case 'T':
+      transactional= 1;
+      break;
     case 'q':
       opt_quick_mode=1;
       break;
@@ -1007,7 +1011,7 @@ static void get_options(int argc, char **argv)
     case 'V':
       printf("%s  Ver 1.0 for %s at %s\n",progname,SYSTEM_TYPE,MACHINE_TYPE);
       puts("By Monty, for your professional use\n");
-      printf("Usage: %s [-?AbBcDIKLPRqSsVWltv] [-k#] [-f#] [-m#] [-e#] [-E#] [-t#]\n",
+      printf("Usage: %s [-?AbBcDIKLPRqSsTVWltv] [-k#] [-f#] [-m#] [-e#] [-E#] [-t#]\n",
 	     progname);
       exit(0);
     case '#':

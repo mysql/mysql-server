@@ -16,10 +16,12 @@
 #ifndef _trnman_h
 #define _trnman_h
 
-#include "lockman.h"
+C_MODE_START
 
-typedef uint64 TrID; /* our TrID is 6 bytes */
-typedef struct st_transaction TRN;
+#include <lf.h>
+#include "lockman.h"
+#include "trnman_public.h"
+#include "ma_loghandler_lsn.h"
 
 /*
   trid - 6 byte transaction identifier. Assigned when a transaction
@@ -29,28 +31,28 @@ typedef struct st_transaction TRN;
   short_trid - 2-byte transaction identifier, identifies a running
   transaction, is reassigned when transaction ends.
 */
+
+/*
+  short transaction id is at the same time its identifier
+  for a lock manager - its lock owner identifier (loid)
+*/
+
+#define short_id locks.loid
+
 struct st_transaction
 {
   LOCK_OWNER           locks; /* must be the first! see short_trid_to_TRN() */
   LF_PINS             *pins;
   TrID                 trid, min_read_from, commit_trid;
   TRN                 *next, *prev;
+  LSN		       undo_lsn;
+  uint                 locked_tables;
   /* Note! if locks.loid is 0, trn is NOT initialized */
 };
 
-#define SHORT_TRID_MAX 65535
+TRN dummy_transaction_object;
 
-extern uint trnman_active_transactions, trnman_allocated_transactions;
-
-int trnman_init(void);
-void trnman_destroy(void);
-TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond);
-void trnman_end_trn(TRN *trn, my_bool commit);
-#define trnman_commit_trn(T) trnman_end_trn(T, TRUE)
-#define trnman_abort_trn(T)  trnman_end_trn(T, FALSE)
-void trnman_free_trn(TRN *trn);
-my_bool trnman_can_read_from(TRN *trn, TrID trid);
-my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com);
+C_MODE_END
 
 #endif
 
