@@ -1599,9 +1599,6 @@ dict_index_copy_types(
 		ifield = dict_index_get_nth_field(index, i);
 		dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
 		dict_col_copy_type(dict_field_get_col(ifield), dfield_type);
-		if (UNIV_UNLIKELY(ifield->prefix_len)) {
-			dfield_type->len = ifield->prefix_len;
-		}
 	}
 }
 
@@ -3517,7 +3514,8 @@ dict_create_foreign_constraints(
 	ulint			err;
 	mem_heap_t*		heap;
 
-	ut_a(trx && trx->mysql_thd);
+	ut_a(trx);
+	ut_a(trx->mysql_thd);
 
 	str = dict_strip_comments(sql_string);
 	heap = mem_heap_create(10000);
@@ -3559,7 +3557,8 @@ dict_foreign_parse_drop_constraints(
 	FILE*			ef	= dict_foreign_err_file;
 	struct charset_info_st*	cs;
 
-	ut_a(trx && trx->mysql_thd);
+	ut_a(trx);
+	ut_a(trx->mysql_thd);
 
 	cs = innobase_get_charset(trx->mysql_thd);
 
@@ -3883,7 +3882,7 @@ dict_index_calc_min_rec_len(
 		}
 
 		/* round the NULL flags up to full bytes */
-		sum += (nullable + 7) / 8;
+		sum += UT_BITS_IN_BYTES(nullable);
 
 		return(sum);
 	}

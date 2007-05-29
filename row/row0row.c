@@ -79,7 +79,6 @@ row_build_index_entry(
 	dfield_t*	dfield;
 	const dfield_t*	dfield2;
 	ulint		i;
-	ulint		storage_len;
 
 	ut_ad(row && index && heap);
 	ut_ad(dtuple_check_typed(row));
@@ -127,19 +126,12 @@ row_build_index_entry(
 		}
 
 		/* If a column prefix index, take only the prefix */
-		if (ind_field->prefix_len) {
-			if (dfield_get_len(dfield) != UNIV_SQL_NULL) {
-
-				storage_len = dtype_get_at_most_n_mbchars(
-					col->prtype,
-					col->mbminlen, col->mbmaxlen,
-					ind_field->prefix_len,
-					dfield->len, dfield->data);
-
-				dfield_set_len(dfield, storage_len);
-			}
-
-			dfield_get_type(dfield)->len = ind_field->prefix_len;
+		if (ind_field->prefix_len > 0
+		    && dfield->len != UNIV_SQL_NULL) {
+			dfield->len = dtype_get_at_most_n_mbchars(
+				col->prtype, col->mbminlen, col->mbmaxlen,
+				ind_field->prefix_len,
+				dfield->len, dfield->data);
 		}
 	}
 
@@ -482,7 +474,9 @@ row_build_row_ref_in_tuple(
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-	ut_a(ref && index && rec);
+	ut_a(ref);
+	ut_a(index);
+	ut_a(rec);
 
 	if (UNIV_UNLIKELY(!index->table)) {
 		fputs("InnoDB: table ", stderr);
