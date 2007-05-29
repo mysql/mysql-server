@@ -571,7 +571,7 @@ sp_head::init_strings(THD *thd, LEX *lex)
     Trim "garbage" at the end. This is sometimes needed with the
     "/ * ! VERSION... * /" wrapper in dump files.
   */
-  endp= skip_rear_comments(m_body_begin, endp);
+  endp= skip_rear_comments(thd->charset(), m_body_begin, endp);
 
   m_body.length= endp - m_body_begin;
   m_body.str= strmake_root(root, m_body_begin, m_body.length);
