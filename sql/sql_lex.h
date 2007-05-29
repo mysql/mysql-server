@@ -1417,7 +1417,8 @@ extern void lex_free(void);
 extern void lex_start(THD *thd);
 extern void lex_end(LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
-extern const char *skip_rear_comments(const char *ubegin, const char *uend);
+extern const char *skip_rear_comments(CHARSET_INFO *cs, const char *ubegin,
+                                      const char *uend);
 
 extern bool is_lex_native_function(const LEX_STRING *name);
 
