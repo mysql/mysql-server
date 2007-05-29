@@ -1930,9 +1930,10 @@ loop:
 			mutex_exit(&srv_monitor_file_mutex);
 		}
 
-	    if (srv_print_innodb_tablespace_monitor
-		&& difftime(current_time, last_tablespace_monitor_time) > 60) {
-		last_tablespace_monitor_time = time(NULL);	
+		if (srv_print_innodb_tablespace_monitor
+		    && difftime(current_time,
+				last_tablespace_monitor_time) > 60) {
+			last_tablespace_monitor_time = time(NULL);
 
 			fputs("========================"
 			      "========================\n",
