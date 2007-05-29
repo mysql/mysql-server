@@ -30,11 +30,11 @@ void Dblqh::initData()
   cgcprecFileSize = ZGCPREC_FILE_SIZE;
   chostFileSize = MAX_NDB_NODES;
   clcpFileSize = ZNO_CONCURRENT_LCP;
-  clfoFileSize = ZLFO_FILE_SIZE;
+  clfoFileSize = 0;
   clogFileFileSize = 0;
   clogPartFileSize = ZLOG_PART_FILE_SIZE;
   cpageRefFileSize = ZPAGE_REF_FILE_SIZE;
-  cscanrecFileSize = ZSCANREC_FILE_SIZE;
+  cscanrecFileSize = 0;
   ctabrecFileSize = 0;
   ctcConnectrecFileSize = 0;
   ctcNodeFailrecFileSize = MAX_NDB_NODES;

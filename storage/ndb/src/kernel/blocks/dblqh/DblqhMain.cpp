@@ -1002,6 +1002,11 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
     clogPageFileSize+= (16 - mega_byte_part);
   }
 
+  /* maximum number of log file operations */
+  clfoFileSize = clogPageFileSize;
+  if (clfoFileSize < ZLFO_MIN_FILE_SIZE)
+    clfoFileSize = ZLFO_MIN_FILE_SIZE;
+
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TABLE, &ctabrecFileSize));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TC_CONNECT, 
 					&ctcConnectrecFileSize));
@@ -8478,9 +8483,32 @@ void Dblqh::continueAfterReceivingAllAiLab(Signal* signal)
   AccScanReq::setLockMode(req->requestInfo, scanptr.p->scanLockMode);
   AccScanReq::setReadCommittedFlag(req->requestInfo, scanptr.p->readCommitted);
   AccScanReq::setDescendingFlag(req->requestInfo, scanptr.p->descending);
-  AccScanReq::setNoDiskScanFlag(req->requestInfo, 
-				!tcConnectptr.p->m_disk_table);
-  AccScanReq::setLcpScanFlag(req->requestInfo, scanptr.p->lcpScan);
+
+  if (refToBlock(tcConnectptr.p->clientBlockref) == BACKUP)
+  {
+    if (scanptr.p->lcpScan)
+    {
+      AccScanReq::setNoDiskScanFlag(req->requestInfo, 1);
+      AccScanReq::setLcpScanFlag(req->requestInfo, 1);
+    }
+    else
+    {
+      /* If backup scan disktables in disk order */
+      AccScanReq::setNoDiskScanFlag(req->requestInfo,
+                                    !tcConnectptr.p->m_disk_table);
+      AccScanReq::setLcpScanFlag(req->requestInfo, 0);
+    }
+  }
+  else
+  {
+#if BUG_27776_FIXED
+    AccScanReq::setNoDiskScanFlag(req->requestInfo,
+                                  !tcConnectptr.p->m_disk_table);
+#else
+    AccScanReq::setNoDiskScanFlag(req->requestInfo, 1);
+#endif
+    AccScanReq::setLcpScanFlag(req->requestInfo, 0);
+  }
   
   req->transId1 = tcConnectptr.p->transid[0];
   req->transId2 = tcConnectptr.p->transid[1];
