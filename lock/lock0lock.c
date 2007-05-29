@@ -3332,7 +3332,8 @@ lock_deadlock_occurs(
 	ulint		ret;
 	ulint		cost	= 0;
 
-	ut_ad(trx && lock);
+	ut_ad(trx);
+	ut_ad(lock);
 	ut_ad(mutex_own(&kernel_mutex));
 retry:
 	/* We check that adding this trx to the waits-for graph
@@ -3404,7 +3405,9 @@ lock_deadlock_recursive(
 	trx_t*	lock_trx;
 	ulint	ret;
 
-	ut_a(trx && start && wait_lock);
+	ut_a(trx);
+	ut_a(start);
+	ut_a(wait_lock);
 	ut_ad(mutex_own(&kernel_mutex));
 
 	if (trx->deadlock_mark == 1) {
@@ -3515,8 +3518,8 @@ lock_deadlock_recursive(
 					return(LOCK_VICTIM_IS_START);
 				}
 
-				if (ut_dulint_cmp(wait_lock->trx->undo_no,
-						  start->undo_no) >= 0) {
+				if (trx_weight_cmp(wait_lock->trx,
+						   start) >= 0) {
 					/* Our recursion starting point
 					transaction is 'smaller', let us
 					choose 'start' as the victim and roll
