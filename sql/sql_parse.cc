@@ -2193,7 +2193,8 @@ mysql_execute_command(THD *thd)
 				       lex->key_list,
 				       select_lex->item_list,
 				       lex->duplicates,
-				       lex->ignore)))
+				       lex->ignore,
+                                       select_tables)))
         {
           /*
             CREATE from SELECT give its SELECT_LEX for SELECT,

@@ -804,18 +804,36 @@ typedef struct st_key_create_information
 class TABLEOP_HOOKS
 {
 public:
+  TABLEOP_HOOKS() {}
+  virtual ~TABLEOP_HOOKS() {}
+
   inline void prelock(TABLE **tables, uint count)
   {
     do_prelock(tables, count);
   }
-  virtual ~TABLEOP_HOOKS() {}
-  TABLEOP_HOOKS() {}
 
+  inline int postlock(TABLE **tables, uint count)
+  {
+    return do_postlock(tables, count);
+  }
 private:
   /* Function primitive that is called prior to locking tables */
   virtual void do_prelock(TABLE **tables, uint count)
   {
     /* Default is to do nothing */
+  }
+
+  /**
+     Primitive called after tables are locked.
+
+     If an error is returned, the tables will be unlocked and error
+     handling start.
+
+     @return Error code or zero.
+   */
+  virtual int do_postlock(TABLE **tables, uint count)
+  {
+    return 0;                           /* Default is to do nothing */
   }
 };
 
