@@ -898,7 +898,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
           Query_log_event qinfo(thd, thd->query, thd->query_length,
                                 transactional_table, FALSE,
                                 (error>0) ? thd->killed : THD::NOT_KILLED);
-          assert(thd->killed != THD::KILL_BAD_DATA || error > 0);
+          DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
           if (mysql_bin_log.write(&qinfo) && transactional_table)
             error=1;
         }
