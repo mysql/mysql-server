@@ -1893,16 +1893,16 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           pthread_mutex_lock(&LOCK_open);
           if (ndbcluster_check_if_local_table(schema->db, schema->name))
           {
-            DBUG_PRINT("info", ("NDB binlog: Skipping locally defined table '%s.%s'",
+            DBUG_PRINT("info", ("NDB Binlog: Skipping locally defined table '%s.%s'",
                                 schema->db, schema->name));
-            sql_print_error("NDB binlog: Skipping locally defined table '%s.%s' from "
+            sql_print_error("NDB Binlog: Skipping locally defined table '%s.%s' from "
                             "binlog schema event '%s' from node %d. ",
                             schema->db, schema->name, schema->query,
                             schema->node_id);
           }
           else if (ndb_create_table_from_engine(thd, schema->db, schema->name))
           {
-            sql_print_error("NDB binlog: Could not discover table '%s.%s' from "
+            sql_print_error("NDB Binlog: Could not discover table '%s.%s' from "
                             "binlog schema event '%s' from node %d. "
                             "my_errno: %d",
                             schema->db, schema->name, schema->query,
@@ -1910,7 +1910,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
             List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
             MYSQL_ERROR *err;
             while ((err= it++))
-              sql_print_warning("NDB binlog: (%d)%s", err->code, err->msg);
+              sql_print_warning("NDB Binlog: (%d)%s", err->code, err->msg);
           }
           pthread_mutex_unlock(&LOCK_open);
           log_query= 1;
@@ -1931,7 +1931,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           else
           {
             /* Database contained local tables, leave it */
-            sql_print_error("NDB binlog: Skipping drop database '%s' since it contained local tables "
+            sql_print_error("NDB Binlog: Skipping drop database '%s' since it contained local tables "
                             "binlog schema event '%s' from node %d. ",
                             schema->db, schema->query,
                             schema->node_id);
@@ -2179,23 +2179,23 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           pthread_mutex_lock(&LOCK_open);
           if (ndbcluster_check_if_local_table(schema->db, schema->name))
           {
-            DBUG_PRINT("info", ("NDB binlog: Skipping locally defined table '%s.%s'",
+            DBUG_PRINT("info", ("NDB Binlog: Skipping locally defined table '%s.%s'",
                                 schema->db, schema->name));
-            sql_print_error("NDB binlog: Skipping locally defined table '%s.%s' from "
+            sql_print_error("NDB Binlog: Skipping locally defined table '%s.%s' from "
                             "binlog schema event '%s' from node %d. ",
                             schema->db, schema->name, schema->query,
                             schema->node_id);
           }
           else if (ndb_create_table_from_engine(thd, schema->db, schema->name))
           {
-            sql_print_error("NDB binlog: Could not discover table '%s.%s' from "
+            sql_print_error("NDB Binlog: Could not discover table '%s.%s' from "
                             "binlog schema event '%s' from node %d. my_errno: %d",
                             schema->db, schema->name, schema->query,
                             schema->node_id, my_errno);
             List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
             MYSQL_ERROR *err;
             while ((err= it++))
-              sql_print_warning("NDB binlog: (%d)%s", err->code, err->msg);
+              sql_print_warning("NDB Binlog: (%d)%s", err->code, err->msg);
           }
           pthread_mutex_unlock(&LOCK_open);
         }
@@ -4113,7 +4113,7 @@ restart:
           injector::transaction::binlog_pos start= trans.start_pos();
           if (int r= trans.commit())
           {
-            sql_print_error("NDB binlog: "
+            sql_print_error("NDB Binlog: "
                             "Error during COMMIT of GCI. Error: %d",
                             r);
             /* TODO: Further handling? */
