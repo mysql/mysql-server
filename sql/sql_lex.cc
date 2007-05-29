@@ -1151,6 +1151,7 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
 
   SYNOPSIS
     skip_rear_comments()
+      cs      character set
       begin   pointer to the beginning of statement
       end     pointer to the end of statement
 
@@ -1161,10 +1162,12 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
     Pointer to the last non-comment symbol of the statement.
 */
 
-const char *skip_rear_comments(const char *begin, const char *end)
+const char *skip_rear_comments(CHARSET_INFO *cs, const char *begin,
+                               const char *end)
 {
-  while (begin < end && (end[-1] <= ' ' || end[-1] == '*' ||
-                         end[-1] == '/' || end[-1] == ';'))
+  while (begin < end && (end[-1] == '*' ||
+                         end[-1] == '/' || end[-1] == ';' ||
+                         my_isspace(cs, end[-1])))
     end-= 1;
   return end;
 }
