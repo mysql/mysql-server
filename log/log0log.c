@@ -3046,9 +3046,9 @@ loop:
 	if (srv_fast_shutdown < 2
 	   && (srv_error_monitor_active
 	      || srv_lock_timeout_and_monitor_active)) {
-		
+
 		mutex_exit(&kernel_mutex);
-		
+
 		goto loop;
 	}
 
