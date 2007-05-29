@@ -28,6 +28,7 @@ connection con1;
 eval kill query $ID;
 
 connection con2;
+--error 0,ER_QUERY_INTERRUPTED
 reap;
 select count(*) from t2 /* must be 3 */;
 
