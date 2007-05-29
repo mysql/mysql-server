@@ -8239,6 +8239,13 @@ Field *Field_bit::new_key_field(MEM_ROOT *root,
 }
 
 
+uint Field_bit::is_equal(create_field *new_field) 
+{
+  return (new_field->sql_type == real_type() &&
+          new_field->length == max_display_length());
+}
+
+                       
 int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
