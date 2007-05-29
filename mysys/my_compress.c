@@ -68,7 +68,7 @@ uchar *my_compress_alloc(const uchar *packet, size_t *len, size_t *complen)
     return 0;					/* Not enough memory */
 
   tmp_complen= *complen;
-  res= compress((Bytef*) compbuf, &tmp_complen, (Bytef*) packet, *len);
+  res= compress((Bytef*) compbuf, &tmp_complen, (Bytef*) packet, (uLong) *len);
   *complen=    tmp_complen;
 
   if (res != Z_OK)
@@ -120,7 +120,7 @@ my_bool my_uncompress(uchar *packet, size_t len, size_t *complen)
 
     tmp_complen= *complen;
     error= uncompress((Bytef*) compbuf, &tmp_complen, (Bytef*) packet,
-                      len);
+                      (uLong) len);
     *complen= tmp_complen;
     if (error != Z_OK)
     {						/* Probably wrong packet */
