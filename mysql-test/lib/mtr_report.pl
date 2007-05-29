@@ -270,6 +270,7 @@ sub mtr_report_stats ($) {
 			    "\\[ERROR\\]",
 			    "^Error:", "^==.* at 0x",
 			    "InnoDB: Warning",
+			    "^safe_mutex:",
 			    "missing DBUG_RETURN",
 			    "mysqld: Warning",
 			    "allocated at line",
@@ -286,6 +287,7 @@ sub mtr_report_stats ($) {
           {
             # Skip some non fatal warnings from the log files
             if (
+		/"SELECT UNIX_TIMESTAMP()" failed on master/ or
 		/Aborted connection/ or
 		/Client requested master to start replication from impossible position/ or
 		/Could not find first log file name in binary log/ or
@@ -293,8 +295,8 @@ sub mtr_report_stats ($) {
 		/Error reading master configuration/ or
 		/Error reading packet/ or
 		/Event Scheduler/ or
-		/Failed to open the existing master info file/ or
 		/Failed to open log/ or
+		/Failed to open the existing master info file/ or
 		/Forcing shutdown of [0-9]* plugins/ or
 		/Got error [0-9]* when reading table/ or
 		/Incorrect definition of table/ or
@@ -304,25 +306,30 @@ sub mtr_report_stats ($) {
 		/Lock wait timeout exceeded/ or
 		/Log entry on master is longer than max_allowed_packet/ or
 		/NDB Binlog:/ or
+		/NDB: failed to setup table/ or
+		/NDB: only row based binary logging/ or
 		/Neither --relay-log nor --relay-log-index were used/ or
 		/Query partially completed/ or
 		/Slave I.O thread aborted while waiting for relay log/ or
 		/Slave SQL thread is stopped because UNTIL condition/ or
+		/Slave SQL thread retried transaction/ or
 		/Slave \(additional info\)/ or
+		/Slave: .*Duplicate column name/ or
+		/Slave: .*master may suffer from/ or
 		/Slave: According to the master's version/ or
+		/Slave: Column [0-9]* type mismatch/ or
+		/Slave: Error .* doesn't exist/ or
 		/Slave: Error .*Deadlock found/ or
 		/Slave: Error .*Unknown table/ or
+		/Slave: Error in Write_rows event: / or
+		/Slave: Field .* of table .* has no default value/ or
 		/Slave: Query caused different errors on master and slave/ or
+		/Slave: Table .* doesn't exist/ or
+		/Slave: Table width mismatch/ or
 		/Slave: The incident LOST_EVENTS occured on the master/ or
 		/Slave: Unknown error.* 1105/ or
-		/Slave: .*master may suffer from/ or
-		/Slave: Error in Write_rows event: / or
-		/Slave: Table width mismatch/ or
-		/Slave: Error .* doesn't exist/ or
-		/Slave: Column [0-9]* type mismatch/ or
-		/Slave: Table .* doesn't exist/ or
-		/Slave: Field .* of table .* has no default value/ or
 		/Sort aborted/ or
+		/Time-out in NDB/ or
 		/Warning:\s+One can only use the --user.*root/ or
 		/Warning:\s+Setting lower_case_table_names=2/ or
 		/Warning:\s+Table:.* on (delete|rename)/ or
