@@ -608,7 +608,7 @@ args: -n Bug_11133 T1
 
 max-time: 1000
 cmd: testNdbApi
-args: -n BugBug28443
+args: -n Bug28443
 
 #max-time: 500
 #cmd: testInterpreter
