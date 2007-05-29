@@ -50,6 +50,7 @@ removing -DMYSQL_SERVER from ../Makefile.am as well. */
 #define thd_killed(thd) (thd)->killed
 #define thd_slave_thread(thd) (thd)->slave_thread
 #define thd_query(thd) (&(thd)->query)
+#define thd_non_transactional_update(thd) ((thd)->no_trans_update.all)
 #define mysql_bin_log_file_name() mysql_bin_log.get_log_fname()
 #define mysql_bin_log_file_pos() mysql_bin_log.get_log_file()->pos_in_file
 #define mysql_tmpfile() fileno(tmpfile())/* BUGGY: leaks memory, Bug #3998 */
@@ -449,7 +450,6 @@ server. Used in srv_conc_enter_innodb() to determine if the thread
 should be allowed to enter InnoDB - the replication thread is treated
 differently than other threads. Also used in
 srv_conc_force_exit_innodb(). */
-
 extern "C"
 ibool
 thd_is_replication_slave_thread(
@@ -514,6 +514,22 @@ innobase_release_stat_resources(
 
 		srv_conc_force_exit_innodb(trx);
 	}
+}
+
+/**********************************************************************
+Returns true if the transaction this thread is processing has edited
+non-transactional tables. Used by the deadlock detector when deciding
+which transaction to rollback in case of a deadlock - we try to avoid
+rolling back transactions that have edited non-transactional tables. */
+extern "C"
+ibool
+thd_has_edited_nontrans_tables(
+/*===========================*/
+			/* out: true if non-transactional tables have
+			been edited */
+	void*	thd)	/* in: thread handle (THD*) */
+{
+	return((ibool) thd_non_transactional_update((THD*) thd));
 }
 
 /************************************************************************
@@ -1323,6 +1339,19 @@ trx_is_interrupted(
 	return(trx && trx->mysql_thd && thd_killed((THD*) trx->mysql_thd));
 }
 
+/******************************************************************
+Resets some fields of a prebuilt struct. The template is used in fast
+retrieval of just those column values MySQL needs in its processing. */
+static
+void
+reset_template(
+/*===========*/
+	row_prebuilt_t*	prebuilt)	/* in/out: prebuilt struct */
+{
+	prebuilt->keep_other_fields_on_keyread = 0;
+	prebuilt->read_just_key = 0;
+}
+
 /*********************************************************************
 Call this when you have opened a new table handle in HANDLER, before you
 call index_read_idx() etc. Actually, we can let the cursor stay open even
@@ -1381,11 +1410,8 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 	/* We want always to fetch all columns in the whole row? Or do
 	we???? */
 
-	prebuilt->read_just_key = FALSE;
-
 	prebuilt->used_in_HANDLER = TRUE;
-
-	prebuilt->keep_other_fields_on_keyread = FALSE;
+	reset_template(prebuilt);
 }
 
 /*************************************************************************
@@ -3109,7 +3135,7 @@ static
 void
 build_template(
 /*===========*/
-	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct */
+	row_prebuilt_t*	prebuilt,	/* in/out: prebuilt struct */
 	THD*		thd,		/* in: current user thread, used
 					only if templ_type is
 					ROW_MYSQL_REC_FIELDS */
@@ -5793,7 +5819,8 @@ ha_innobase::info(
 	if (flag & HA_STATUS_ERRKEY) {
 		dict_index_t* err_index;
 
-		ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
+		ut_a(prebuilt->trx);
+		ut_a(prebuilt->trx->magic_n == TRX_MAGIC_N);
 
 		err_index = (dict_index_t*)trx_get_error_info(prebuilt->trx);
 
@@ -5884,7 +5911,8 @@ ha_innobase::check(
 	ulint		ret;
 
 	DBUG_ASSERT(thd == ha_thd());
-	ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
+	ut_a(prebuilt->trx);
+	ut_a(prebuilt->trx->magic_n == TRX_MAGIC_N);
 	ut_a(prebuilt->trx == thd_to_trx(thd));
 
 	if (prebuilt->mysql_template == NULL) {
@@ -6250,8 +6278,7 @@ ha_innobase::extra(
 			}
 			break;
 		case HA_EXTRA_RESET_STATE:
-			prebuilt->keep_other_fields_on_keyread = 0;
-			prebuilt->read_just_key = 0;
+			reset_template(prebuilt);
 			break;
 		case HA_EXTRA_NO_KEYREAD:
 			prebuilt->read_just_key = 0;
@@ -6262,17 +6289,24 @@ ha_innobase::extra(
 		case HA_EXTRA_KEYREAD_PRESERVE_FIELDS:
 			prebuilt->keep_other_fields_on_keyread = 1;
 			break;
+
+			/* IMPORTANT: prebuilt->trx can be obsolete in
+			this method, because it is not sure that MySQL
+			calls external_lock before this method with the
+			parameters below.  We must not invoke update_thd()
+			either, because the calling threads may change.
+			CAREFUL HERE, OR MEMORY CORRUPTION MAY OCCUR! */
 		case HA_EXTRA_IGNORE_DUP_KEY:
-			prebuilt->trx->duplicates |= TRX_DUP_IGNORE;
+			thd_to_trx(ha_thd())->duplicates |= TRX_DUP_IGNORE;
 			break;
 		case HA_EXTRA_WRITE_CAN_REPLACE:
-			prebuilt->trx->duplicates |= TRX_DUP_REPLACE;
+			thd_to_trx(ha_thd())->duplicates |= TRX_DUP_REPLACE;
 			break;
 		case HA_EXTRA_WRITE_CANNOT_REPLACE:
-			prebuilt->trx->duplicates &= ~TRX_DUP_REPLACE;
+			thd_to_trx(ha_thd())->duplicates &= ~TRX_DUP_REPLACE;
 			break;
 		case HA_EXTRA_NO_IGNORE_DUP_KEY:
-			prebuilt->trx->duplicates &=
+			thd_to_trx(ha_thd())->duplicates &=
 				~(TRX_DUP_IGNORE | TRX_DUP_REPLACE);
 			break;
 		default:/* Do nothing */
@@ -6287,8 +6321,7 @@ int ha_innobase::reset()
   if (prebuilt->blob_heap) {
     row_mysql_prebuilt_free_blob_heap(prebuilt);
   }
-  prebuilt->keep_other_fields_on_keyread = 0;
-  prebuilt->read_just_key = 0;
+  reset_template(prebuilt);
   return 0;
 }
 
@@ -6329,8 +6362,7 @@ ha_innobase::start_stmt(
 
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
-	prebuilt->read_just_key = 0;
-	prebuilt->keep_other_fields_on_keyread = FALSE;
+	reset_template(prebuilt);
 
 	if (!prebuilt->mysql_has_locked) {
 		/* This handle is for a temporary table created inside
@@ -6422,8 +6454,7 @@ ha_innobase::external_lock(
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
 
-	prebuilt->read_just_key = 0;
-	prebuilt->keep_other_fields_on_keyread = FALSE;
+	reset_template(prebuilt);
 
 	if (lock_type == F_WRLCK) {
 
@@ -6580,8 +6611,7 @@ ha_innobase::transactional_table_lock(
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
 
-	prebuilt->read_just_key = 0;
-	prebuilt->keep_other_fields_on_keyread = FALSE;
+	reset_template(prebuilt);
 
 	if (lock_type == F_WRLCK) {
 		prebuilt->select_lock_type = LOCK_X;

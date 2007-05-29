@@ -164,7 +164,7 @@ rec_get_n_extern_new(
 	}
 
 	nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
-	lens = nulls - (index->n_nullable + 7) / 8;
+	lens = nulls - UT_BITS_IN_BYTES(index->n_nullable);
 	null_mask = 1;
 	n_extern = 0;
 	i = 0;
@@ -231,7 +231,8 @@ rec_init_offsets_comp_ordinary(
 	ulint		offs		= 0;
 	ulint		any_ext		= 0;
 	const byte*	nulls		= rec - (extra + 1);
-	const byte*	lens		= nulls - (index->n_nullable + 7) / 8;;
+	const byte*	lens		= nulls
+		- UT_BITS_IN_BYTES(index->n_nullable);
 	dict_field_t*	field;
 	ulint		null_mask	= 1;
 
@@ -358,7 +359,7 @@ rec_init_offsets(
 		}
 
 		nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
-		lens = nulls - (index->n_nullable + 7) / 8;
+		lens = nulls - UT_BITS_IN_BYTES(index->n_nullable);
 		offs = 0;
 		null_mask = 1;
 
@@ -571,7 +572,7 @@ rec_get_offsets_reverse(
 	rec_offs_set_n_fields(offsets, n);
 
 	nulls = extra;
-	lens = nulls + (index->n_nullable + 7) / 8;
+	lens = nulls + UT_BITS_IN_BYTES(index->n_nullable);
 	i = offs = 0;
 	null_mask = 1;
 	any_ext = 0;
@@ -720,7 +721,7 @@ rec_get_converted_size_comp(
 	ulint		n_ext)	/* in: number of elements in ext */
 {
 	ulint		size		= REC_N_NEW_EXTRA_BYTES
-		+ (index->n_nullable + 7) / 8;
+		+ UT_BITS_IN_BYTES(index->n_nullable);
 	ulint		i;
 	ulint		j;
 	ulint		n_fields;
@@ -765,9 +766,9 @@ rec_get_converted_size_comp(
 		}
 
 		ut_ad(len <= col->len || col->mtype == DATA_BLOB);
-		ut_ad(!field->fixed_len || len == field->fixed_len);
 
 		if (field->fixed_len) {
+			ut_ad(len == field->fixed_len);
 		} else if (UNIV_UNLIKELY(j < n_ext) && i == ext[j]) {
 			j++;
 			size += 2;
@@ -1028,7 +1029,7 @@ rec_convert_dtuple_to_rec_comp(
 
 	/* Calculate the offset of the origin in the physical record.
 	We must loop over all fields to do this. */
-	rec += (index->n_nullable + 7) / 8;
+	rec += UT_BITS_IN_BYTES(index->n_nullable);
 
 	for (i = j = 0; i < n_fields; i++) {
 		if (UNIV_UNLIKELY(i == n_node_ptr_field)) {
@@ -1072,7 +1073,7 @@ init:
 	ut_ad(j == n_ext);
 	end = rec;
 	nulls = rec - (extra + 1);
-	lens = nulls - (index->n_nullable + 7) / 8;
+	lens = nulls - UT_BITS_IN_BYTES(index->n_nullable);
 	/* clear the SQL-null flags */
 	memset(lens + 1, 0, nulls - lens);
 
@@ -1359,7 +1360,7 @@ rec_copy_prefix_to_buf(
 	}
 
 	nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
-	lens = nulls - (index->n_nullable + 7) / 8;
+	lens = nulls - UT_BITS_IN_BYTES(index->n_nullable);
 	UNIV_PREFETCH_R(lens);
 	prefix_len = 0;
 	null_mask = 1;

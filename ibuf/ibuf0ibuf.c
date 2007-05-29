@@ -581,9 +581,10 @@ ibuf_bitmap_page_init(
 	/* Write all zeros to the bitmap */
 
 	if (!zip_size) {
-		byte_offset = (UNIV_PAGE_SIZE * IBUF_BITS_PER_PAGE + 7) / 8;
+		byte_offset = UT_BITS_IN_BYTES(UNIV_PAGE_SIZE
+					       * IBUF_BITS_PER_PAGE);
 	} else {
-		byte_offset = (zip_size * IBUF_BITS_PER_PAGE + 7) / 8;
+		byte_offset = UT_BITS_IN_BYTES(zip_size * IBUF_BITS_PER_PAGE);
 	}
 
 	memset(page + IBUF_BITMAP, 0, byte_offset);
