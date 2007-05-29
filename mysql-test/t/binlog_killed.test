@@ -15,6 +15,7 @@ create table t3 (a int auto_increment, b int, PRIMARY KEY (a)) ENGINE=InnoDB;
 # effective test for bug#22725
 #
 
+let $counter=200; # max 20 seconds to wait for insert performed the 1st row
 connection con1;
 select get_lock("a", 20);
 
@@ -25,7 +26,24 @@ send insert into t2 values (null, null), (null, get_lock("a", 10)),(null, get_lo
 
 
 connection con1;
+
+disable_abort_on_error;
+disable_query_log;
+disable_result_log;
+
+while (`select count(*) from t2`)
+{  
+  sleep 0.1;
+  dec $counter;
+  if (!$counter)
+  {
+    die("Waited too long for query to suceed");
+  }
+}
 eval kill query $ID;
+enable_abort_on_error;
+enable_query_log;
+enable_result_log;
 
 connection con2;
 --error 0,ER_QUERY_INTERRUPTED
@@ -39,7 +57,7 @@ eval select
 is not null;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 eval select @a like "%#%error_code=0%" /* must return 1 */;
-eval select @a like "%insert%" /* must return 1 */;
+eval select @a like "%insert into%" /* must return 1 */;
 # the functions are either *insensitive* to killing or killing can cause
 # strange problmes with the error propagation out of SF's stack
 #  Bug#27563, Bug#27565, BUG#24971
@@ -227,7 +245,7 @@ drop function bug27563;
 drop function bug27565;
 }
 
-system rm $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog ;
+#system rm $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog ;
 
 drop table t1,t2,t3;
 
