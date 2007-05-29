@@ -946,9 +946,11 @@ Pgman::process_map(Signal* signal)
 #ifdef VM_TRACE
   debugOut << "PGMAN: >process_map" << endl;
 #endif
-  int max_count = m_param.m_max_io_waits - m_stats.m_current_io_waits;
-  if (max_count > 0)
+  int max_count = 0;
+  if (m_param.m_max_io_waits > m_stats.m_current_io_waits) {
+    max_count = m_param.m_max_io_waits - m_stats.m_current_io_waits;
     max_count = max_count / 2 + 1;
+  }
   Page_sublist& pl_map = *m_page_sublist[Page_entry::SL_MAP];
 
   while (! pl_map.isEmpty() && --max_count >= 0)
@@ -1100,15 +1102,10 @@ Pgman::process_cleanup(Signal* signal)
   }
 
   int max_loop_count = m_param.m_max_loop_count;
-  int max_count = m_param.m_max_io_waits - m_stats.m_current_io_waits;
-
-  if (max_count > 0)
-  {
+  int max_count = 0;
+  if (m_param.m_max_io_waits > m_stats.m_current_io_waits) {
+    max_count = m_param.m_max_io_waits - m_stats.m_current_io_waits;
     max_count = max_count / 2 + 1;
-    /*
-     * Possibly add code here to avoid writing too rapidly.  May be
-     * unnecessary since only cold pages are cleaned.
-     */
   }
 
   Ptr<Page_entry> ptr = m_cleanup_ptr;
@@ -1210,9 +1207,12 @@ bool
 Pgman::process_lcp(Signal* signal)
 {
   Page_hashlist& pl_hash = m_page_hashlist;
-  int max_count = m_param.m_max_io_waits - m_stats.m_current_io_waits;
-  if (max_count > 0)
+
+  int max_count = 0;
+  if (m_param.m_max_io_waits > m_stats.m_current_io_waits) {
+    max_count = m_param.m_max_io_waits - m_stats.m_current_io_waits;
     max_count = max_count / 2 + 1;
+  }
 
 #ifdef VM_TRACE
   debugOut
