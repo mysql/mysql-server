@@ -32,6 +32,7 @@ class NdbColumnImpl;
 class NdbBlob;
 class TcKeyReq;
 class NdbRecord;
+class NdbInterpretedCode;
 
 /**
  * @class NdbOperation
@@ -1183,6 +1184,8 @@ protected:
     #include <Bitmask.hpp> in application code.
   */
   Uint32 m_read_mask[(NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5];
+  /* Interpreted program for NdbRecord operations. */
+  const NdbInterpretedCode *m_interpreted_code;
 
   Uint32 m_any_value;                           // Valid if m_use_any_value!=0
 
