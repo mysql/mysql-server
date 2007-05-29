@@ -6152,3 +6152,14 @@ count(*)
 3
 drop table t1,t2;
 drop function   bug27354;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+CREATE FUNCTION metered(a INT) RETURNS INT RETURN 12;
+CREATE VIEW v1 AS SELECT test.metered(a) as metered FROM t1;
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`metered`(`t1`.`a`) AS `metered` from `t1`
+DROP VIEW v1;
+DROP FUNCTION metered;
+DROP TABLE t1;
+End of 5.0 tests
