@@ -5548,7 +5548,12 @@ ha_innobase::info(
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
 
-                DBUG_RETURN(HA_ERR_CRASHED);
+		/* We return success (0) instead of HA_ERR_CRASHED,
+		because we want MySQL to process this query and not
+		stop, like it would do if it received the error code
+		HA_ERR_CRASHED. */
+
+		DBUG_RETURN(0);
 	}
 
 	/* We do not know if MySQL can call this function before calling
