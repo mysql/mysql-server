@@ -225,11 +225,8 @@ public:
   bool
   execute_procedure(THD *thd, List<Item> *args);
 
-  int
-  show_create_procedure(THD *thd);
-
-  int
-  show_create_function(THD *thd);
+  bool
+  show_create_routine(THD *thd, int type);
 
   void
   add_instr(sp_instr *instr);
