@@ -2,7 +2,13 @@
 mysql-5.1.15-ndb-6.1.X
 ==================================================
 
-mysql-5.1.15-ndb-6.1.9 ()
+mysql-5.1.15-ndb-6.1.10 ()
+
+  Bug #28717 Race between NODE_FAILREP and COPY_GCIREQ
+  Bug #28525 Node failures in PGMAN at ndbrequire (line 430)
+  Bug #28653 Fast GCP + high load + high RedoBuffer causes ndbrequire
+
+mysql-5.1.15-ndb-6.1.9 (2007-05-24)
 
   Bug #28593 cluster backup scans in acc index order, bad for disk data
   Bug #28443 transporter gets stuck when >1024 signals received at once
