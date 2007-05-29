@@ -21,6 +21,7 @@
 #include <Ndb.hpp>
 #include <NdbRecAttr.hpp>
 #include "NdbUtil.hpp"
+#include "NdbInterpretedCode.hpp"
 
 #include "Interpreter.hpp"
 #include <AttributeHeader.hpp>
@@ -617,6 +618,8 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
   Uint32 remain;
   int res;
   Uint32 no_disk_flag;
+  Uint32 interpreted_code_end;
+  Uint32 *update_len_addr;
 
   assert(theStatus==UseNdbRecord);
   /* Not yet support for NdbRecord with interpreted operations. */
@@ -705,6 +708,34 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
     (theTupKeyLen > TcKeyReq::MaxKeyInfo ? TcKeyReq::MaxKeyInfo : theTupKeyLen);
 
   no_disk_flag= m_no_disk_flag;
+
+  /* Handle any interpreted program. */
+  const NdbInterpretedCode *code= m_interpreted_code;
+  if (code)
+  {
+    if (code->m_flags & NdbInterpretedCode::UsesDisk)
+      no_disk_flag = 0;
+    Uint32 sizes[5];
+    sizes[0] = 0;               // Initial read.
+    sizes[1] = code->m_instructions_length;
+    sizes[2] = 0;               // Update size, filled later
+    update_len_addr= attrInfoPtr + 2;
+    sizes[3] = 0;               // Final read size, ToDo
+    sizes[4] = 0;               // Subroutine size, ToDo
+    res = insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
+                                       (const char *)sizes,
+                                       sizeof(sizes),
+                                       &attrInfoPtr, &remain);
+    if (res)
+      return res;
+    res = insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
+                                       (const char *)(code->m_buffer),
+                                       code->m_instructions_length*4,
+                                       &attrInfoPtr, &remain);
+    if (res)
+      return res;
+    interpreted_code_end= theTotalCurrAI_Len;
+  }
 
   OperationType tOpType= theOperationType;
   if ((tOpType == InsertRequest) || (tOpType == WriteRequest) ||
@@ -854,6 +885,15 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
       return res;
   }
 
+  if (code)
+  {
+    /* ToDo: This only handles update currently. */
+    Uint32 update_word_length= theTotalCurrAI_Len - interpreted_code_end;
+    *update_len_addr = update_word_length;
+for (Uint32 i= 0; i < 5; i++) {fprintf(stderr, "%2d %p 0x%08x    %u  %p 0x%08x\n", i, tcKeyReq->attrInfo, tcKeyReq->attrInfo[i], update_word_length, update_len_addr-2, update_len_addr[(int)i - 2]);}
+assert(update_word_length > 0);
+  }
+
   Uint32 signalLength= hdrSize +
     (theTupKeyLen > TcKeyReq::MaxKeyInfo ?
          TcKeyReq::MaxKeyInfo : theTupKeyLen) +
@@ -906,7 +946,7 @@ NdbOperation::fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
   TcKeyReq::setSimpleFlag(reqInfo, theSimpleIndicator);
   TcKeyReq::setCommitFlag(reqInfo, theCommitIndicator);
   TcKeyReq::setStartFlag(reqInfo, theStartIndicator);
-  TcKeyReq::setInterpretedFlag(reqInfo, theInterpretIndicator);
+  TcKeyReq::setInterpretedFlag(reqInfo, (m_interpreted_code != NULL));
   /* We will setNoDiskFlag() later when we have checked all columns. */
   TcKeyReq::setDirtyFlag(reqInfo, theDirtyIndicator);
   TcKeyReq::setOperationType(reqInfo, theOperationType);
