@@ -4025,7 +4025,6 @@ bool check_grant_all_columns(THD *thd, ulong want_access, GRANT_INFO *grant,
 
 err:
   rw_unlock(&LOCK_grant);
-err2:
   char command[128];
   get_privilege_desc(command, sizeof(command), want_access);
   my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
