@@ -6809,7 +6809,7 @@ int Write_rows_log_event::do_after_row_operations(TABLE *table, int error)
     fires bug#27077
     todo: explain or fix
   */
-  if (local_error= table->file->ha_end_bulk_insert())
+  if ((local_error= table->file->ha_end_bulk_insert()))
   {
     table->file->print_error(local_error, MYF(0));
   }
