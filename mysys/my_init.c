@@ -262,6 +262,34 @@ void my_parameter_handler(const wchar_t * expression, const wchar_t * function,
 }
 
 
+#ifdef __MSVC_RUNTIME_CHECKS
+#include <rtcapi.h>
+
+/* Turn off runtime checks for 'handle_rtc_failure' */
+#pragma runtime_checks("", off)
+
+/*
+  handle_rtc_failure
+  Catch the RTC error and dump it to stderr
+*/
+
+int handle_rtc_failure(int err_type, const char *file, int line,
+                       const char* module, const char *format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  fprintf(stderr, "Error:");
+  vfprintf(stderr, format, args);
+  fprintf(stderr, " At %s:%d\n", file, line);
+  va_end(args);
+  (void) fflush(stderr);
+
+  return 0; /* Error is handled */
+}
+#pragma runtime_checks("", on)
+#endif
+
+
 static void my_win_init(void)
 {
   HKEY	hSoftMysql ;
@@ -292,6 +320,14 @@ static void my_win_init(void)
   _set_invalid_parameter_handler(my_parameter_handler);
 #endif
 #endif  
+#ifdef __MSVC_RUNTIME_CHECKS
+  /*
+    Install handler to send RTC (Runtime Error Check) warnings
+    to log file
+  */
+  _RTC_SetErrorFunc(handle_rtc_failure);
+#endif
+
   _tzset();
 
   /* apre la chiave HKEY_LOCAL_MACHINES\software\MySQL */
