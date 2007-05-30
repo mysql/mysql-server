@@ -1442,6 +1442,10 @@ TESTCASE("Scan_4006",
   INITIALIZER(runScan_4006);
   FINALIZER(runClearTable);
 }
+TESTCASE("Bug28443", 
+	 ""){ 
+  INITIALIZER(runBug28443);
+}
 TESTCASE("ExecuteAsynch", 
 	 "Check that executeAsync() works (BUG#27495)\n"){ 
   INITIALIZER(runTestExecuteAsynch);
