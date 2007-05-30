@@ -1,4 +1,5 @@
 -- source include/have_innodb.inc
+-- source include/have_binlog_format_mixed_or_statement.inc
 
 ###
 ### bug#22725 : incorrect killed error in binlogged query
