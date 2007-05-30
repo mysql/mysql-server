@@ -7643,6 +7643,8 @@ int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
 	tmp=0;
 	set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
       }
+      if (!table->in_use->count_cuted_fields)
+        err= 0;
     }
     else
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
