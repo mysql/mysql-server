@@ -617,6 +617,10 @@ max-time: 500
 cmd: testNdbApi
 args: -n ExecuteAsynch T1
 
+max-time: 1000
+cmd: testNdbApi
+args: -n BugBug28443
+
 #max-time: 500
 #cmd: testInterpreter
 #args: T1 
