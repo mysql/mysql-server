@@ -911,15 +911,14 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   DBUG_ENTER("Log_event::read_log_event(char*,...)");
   DBUG_ASSERT(description_event != 0);
   DBUG_PRINT("info", ("binlog_version: %d", description_event->binlog_version));
+  /* Check the integrity */
   if (event_len < EVENT_LEN_OFFSET ||
+      buf[EVENT_TYPE_OFFSET] >= ENUM_END_EVENT ||
       (uint) event_len != uint4korr(buf+EVENT_LEN_OFFSET))
   {
     *error="Sanity check failed";		// Needed to free buffer
     DBUG_RETURN(NULL); // general sanity check - will fail on a partial read
   }
-
-  /* To check the integrity of the Log_event_type enumeration */
-  DBUG_ASSERT(buf[EVENT_TYPE_OFFSET] < ENUM_END_EVENT);
 
   switch(buf[EVENT_TYPE_OFFSET]) {
   case QUERY_EVENT:
