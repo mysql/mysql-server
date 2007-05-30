@@ -1736,6 +1736,12 @@ AC_ARG_WITH(client-ldflags,
     [CLIENT_EXTRA_LDFLAGS=])
 AC_SUBST(CLIENT_EXTRA_LDFLAGS)
 
+AC_ARG_WITH(mysqld-libs,
+    [  --with-mysqld-libs   Extra libraries to link with for mysqld],
+    [MYSQLD_EXTRA_LIBS=$withval],
+    [MYSQLD_EXTRA_LIBS=])
+AC_SUBST(MYSQLD_EXTRA_LIBS)
+
 AC_ARG_WITH(lib-ccflags,
     [  --with-lib-ccflags      Extra CC options for libraries],
     [LIB_EXTRA_CCFLAGS=$withval],
