@@ -2141,7 +2141,7 @@ sp_head::show_create_routine(THD *thd, int type)
 
   /* Send header. */
 
-  fields.push_back(new Item_empty_string(col1_caption, NAME_LEN));
+  fields.push_back(new Item_empty_string(col1_caption, NAME_CHAR_LEN));
   fields.push_back(new Item_empty_string("sql_mode", sql_mode.length));
 
   {
