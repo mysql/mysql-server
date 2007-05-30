@@ -2779,7 +2779,7 @@ CREATE TABLE t1 (i int, j int);
 CREATE VIEW v1 AS SELECT COALESCE(i,j) FROM t1;
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
-COALESCE(i,j)	int(11)	YES		NULL	
+COALESCE(i,j)	bigint(11)	YES		NULL	
 CREATE TABLE t2 SELECT COALESCE(i,j) FROM t1;
 DESCRIBE t2;
 Field	Type	Null	Key	Default	Extra
