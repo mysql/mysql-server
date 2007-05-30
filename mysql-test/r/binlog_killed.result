@@ -6,20 +6,7 @@ get_lock("a", 20)
 1
 reset master;
 insert into t2 values (null, null), (null, get_lock("a", 10)),(null, get_lock("a", 10));
-kill query 3;
-select count(*) from t2 /* must be 3 */;
-count(*)
-3
-select
-(@a:=load_file("MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog"))
-is not null;
-(@a:=load_file("MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog"))
-is not null
-1
-select @a like "%#%error_code=0%" /* must return 1 */;
-@a like "%#%error_code=0%"
-1
-select @a like "%insert%" /* must return 1 */;
-@a like "%insert%"
-1
+select @result /* must be zero either way */;
+@result
+0
 drop table t1,t2,t3;
