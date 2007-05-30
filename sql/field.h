@@ -1552,6 +1552,7 @@ public:
             bit_ptr == ((Field_bit *)field)->bit_ptr &&
             bit_ofs == ((Field_bit *)field)->bit_ofs);
   }
+  uint is_equal(create_field *new_field);
   void move_field_offset(my_ptrdiff_t ptr_diff)
   {
     Field::move_field_offset(ptr_diff);
