@@ -936,7 +936,7 @@ reopen_tables:
       if (check_access(thd, want_privilege,
                        tl->db, &tl->grant.privilege, 0, 0, 
                        test(tl->schema_table)) ||
-          (grant_option && check_grant(thd, want_privilege, tl, 0, 1, 0)))
+          check_grant(thd, want_privilege, tl, 0, 1, 0))
         DBUG_RETURN(TRUE);
     }
   }
