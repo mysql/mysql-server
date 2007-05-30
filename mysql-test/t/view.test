@@ -3233,4 +3233,20 @@ CREATE VIEW v1 AS SELECT CAST(1.23456789 AS DECIMAL(8,0)) AS col;
 SHOW CREATE VIEW v1;
 DROP VIEW v1;
 
+#
+# Bug #28716: CHECK OPTION expression is evaluated over expired record buffers
+# when VIEW is updated via temporary tables
+#
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b INT, c INT DEFAULT 0);
+INSERT INTO t1 (a) VALUES (1), (2);
+INSERT INTO t2 (b) VALUES (1), (2);
+CREATE VIEW v1 AS SELECT t2.b,t2.c FROM t1, t2
+  WHERE t1.a=t2.b AND t2.b < 3 WITH CHECK OPTION;
+SELECT * FROM v1;
+UPDATE v1 SET c=1 WHERE b=1;
+SELECT * FROM v1;
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
 --echo End of 5.0 tests.
