@@ -1014,8 +1014,8 @@ sp_show_create_routine(THD *thd, int type, sp_name *name)
 {
   bool err_status= TRUE;
   sp_head *sp;
-  sp_cache *cache = type == TYPE_ENUM_PROCEDURE ?
-                    thd->sp_proc_cache : thd->sp_func_cache;
+  sp_cache **cache = type == TYPE_ENUM_PROCEDURE ?
+                     &thd->sp_proc_cache : &thd->sp_func_cache;
 
   DBUG_ENTER("sp_show_create_routine");
   DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
@@ -1038,7 +1038,7 @@ sp_show_create_routine(THD *thd, int type, sp_name *name)
     thd->variables.max_sp_recursion_depth++;
   }
 
-  if ((sp= sp_find_routine(thd, type, name, &cache, FALSE)))
+  if ((sp= sp_find_routine(thd, type, name, cache, FALSE)))
     err_status= sp->show_create_routine(thd, type);
 
   if (type == TYPE_ENUM_PROCEDURE)
