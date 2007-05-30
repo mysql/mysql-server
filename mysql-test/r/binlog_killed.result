@@ -5,7 +5,7 @@ select get_lock("a", 20);
 get_lock("a", 20)
 1
 reset master;
-insert into t2 values (null, null), (null, get_lock("a", 10)),(null, get_lock("a", 10));
+insert into t2 values (null, null), (null, get_lock("a", 10));
 select @result /* must be zero either way */;
 @result
 0
