@@ -652,7 +652,7 @@ AsyncFile*
 Ndbfs::createAsyncFile(){
 
   // Check limit of open files
-  if (m_maxFiles !=0 && theFiles.size()+1 ==  m_maxFiles) {
+  if (m_maxFiles !=0 && theFiles.size() ==  m_maxFiles) {
     // Print info about all open files
     for (unsigned i = 0; i < theFiles.size(); i++){
       AsyncFile* file = theFiles[i];
