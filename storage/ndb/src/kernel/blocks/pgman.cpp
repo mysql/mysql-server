@@ -1559,6 +1559,7 @@ Pgman::execFSWRITEREF(Signal* signal)
 int
 Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
 {
+  jamEntry();
 #ifdef VM_TRACE
   Ptr<Page_request> tmp = { &page_req, RNIL};
   debugOut << "PGMAN: >get_page" << endl;
@@ -1706,6 +1707,7 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
 void
 Pgman::update_lsn(Ptr<Page_entry> ptr, Uint32 block, Uint64 lsn)
 {
+  jamEntry();
 #ifdef VM_TRACE
   const char* bname = getBlockName(block, "?");
   debugOut << "PGMAN: >update_lsn: block=" << bname << " lsn=" << lsn << endl;
