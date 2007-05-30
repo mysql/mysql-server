@@ -152,15 +152,13 @@ bool mysql_create_frm(THD *thd, const char *file_name,
       create_info->extra_size+= key_info[i].parser_name->length + 1;
   }
   /* Add space for storage type and field format array of fields */
-  {
-    if (create_info->tablespace)
-      tablespace_len= strlen(create_info->tablespace);
-    format_section_len=
-      format_section_header_size +
-      tablespace_len + 1 +
-      create_fields.elements;
-    create_info->extra_size+= format_section_len;
-  }
+  if (create_info->tablespace)
+    tablespace_len= strlen(create_info->tablespace);
+  format_section_len=
+    format_section_header_size +
+    tablespace_len + 1 +
+    create_fields.elements;
+  create_info->extra_size+= format_section_len;
 
   if ((file=create_frm(thd, file_name, db, table, reclength, fileinfo,
 		       create_info, keys)) < 0)
@@ -280,19 +278,15 @@ bool mysql_create_frm(THD *thd, const char *file_name,
       /* 2 bytes left for future use */
     }
     /* write header */
-    {
-      if (my_write(file, buff, format_section_header_size, MYF_RW))
-        goto err;
-    }
+    if (my_write(file, buff, format_section_header_size, MYF_RW))
+      goto err;
     /* write tablespace name */
-    {
-      if (tablespace_len > 0)
-        if (my_write(file, create_info->tablespace, tablespace_len, MYF_RW))
-          goto err;
-      buff[0]= 0;
-      if (my_write(file, buff, 1, MYF_RW))
+    if (tablespace_len > 0)
+      if (my_write(file, create_info->tablespace, tablespace_len, MYF_RW))
         goto err;
-    }
+    buff[0]= 0;
+    if (my_write(file, buff, 1, MYF_RW))
+      goto err;
     /* write column info, 1 byte per column */
     {
       List_iterator<create_field> it(create_fields);
