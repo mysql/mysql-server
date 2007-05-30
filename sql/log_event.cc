@@ -6756,10 +6756,23 @@ int Write_rows_log_event::do_before_row_operations(TABLE *table)
     lex->duplicates flag.
   */
   thd->lex->sql_command= SQLCOM_REPLACE;
-
-  table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);  // Needed for ndbcluster
-  table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);  // Needed for ndbcluster
-  table->file->extra(HA_EXTRA_IGNORE_NO_KEY);   // Needed for ndbcluster
+  /* 
+     Do not raise the error flag in case of hitting to an unique attribute
+  */
+  table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  /* 
+     NDB specific: update from ndb master wrapped as Write_rows
+  */
+  /*
+    so that the event should be applied to replace slave's row
+  */
+  table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
+  /* 
+     NDB specific: if update from ndb master wrapped as Write_rows
+     does not find the row it's assumed idempotent binlog applying
+     is taking place; don't raise the error.
+  */
+  table->file->extra(HA_EXTRA_IGNORE_NO_KEY);
   /*
     TODO: the cluster team (Tomas?) says that it's better if the engine knows
     how many rows are going to be inserted, then it can allocate needed memory
@@ -6787,9 +6800,20 @@ int Write_rows_log_event::do_before_row_operations(TABLE *table)
 
 int Write_rows_log_event::do_after_row_operations(TABLE *table, int error)
 {
-  if (error == 0)
-    error= table->file->ha_end_bulk_insert();
-  return error;
+  int local_error= 0;
+  table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+  table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
+  /*
+    reseting the extra with 
+    table->file->extra(HA_EXTRA_NO_IGNORE_NO_KEY); 
+    fires bug#27077
+    todo: explain or fix
+  */
+  if (local_error= table->file->ha_end_bulk_insert())
+  {
+    table->file->print_error(local_error, MYF(0));
+  }
+  return error? error : local_error;
 }
 
 int Write_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
