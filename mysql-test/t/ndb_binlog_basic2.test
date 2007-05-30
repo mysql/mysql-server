@@ -1,4 +1,5 @@
 -- source include/have_ndb.inc
+-- source include/have_log_bin.inc
 
 --error ER_NDB_CANT_SWITCH_BINLOG_FORMAT
 set session binlog_format=row;
