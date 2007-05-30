@@ -1,4 +1,5 @@
 -- source include/have_innodb.inc
+--source include/not_embedded.inc
 
 ###
 ### bug#22725 : incorrect killed error in binlogged query
@@ -15,7 +16,6 @@ create table t3 (a int auto_increment, b int, PRIMARY KEY (a)) ENGINE=InnoDB;
 # effective test for bug#22725
 #
 
-let $counter=200; # max 20 seconds to wait for insert performed the 1st row
 connection con1;
 select get_lock("a", 20);
 
