@@ -189,15 +189,12 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
       return -1;
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (grant_option)
-    {
-      Field_iterator_table field_it;
-      field_it.set_table(table);
-      if (check_grant_all_columns(thd, INSERT_ACL, &table->grant,
-                                  table->s->db.str, table->s->table_name.str,
-                                  &field_it))
-        return -1;
-    }
+    Field_iterator_table field_it;
+    field_it.set_table(table);
+    if (check_grant_all_columns(thd, INSERT_ACL, &table->grant,
+                                table->s->db.str, table->s->table_name.str,
+                                &field_it))
+      return -1;
 #endif
     clear_timestamp_auto_bits(table->timestamp_field_type,
                               TIMESTAMP_AUTO_SET_ON_INSERT);
