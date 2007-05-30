@@ -3692,10 +3692,41 @@ static int do_unlock_tables(MYSQL *mysql_con)
   return mysql_query_with_error_report(mysql_con, 0, "UNLOCK TABLES");
 }
 
-
-static int do_reset_master(MYSQL *mysql_con)
+static int get_bin_log_name(MYSQL *mysql_con, 
+                                 char* buff_log_name, uint buff_len)
 {
-  return mysql_query_with_error_report(mysql_con, 0, "RESET MASTER");
+  MYSQL_RES *res;
+  MYSQL_ROW row;
+
+  if (mysql_query(mysql, "SHOW MASTER STATUS") ||
+      !(res= mysql_store_result(mysql)))
+    return 1;
+
+  if (!(row= mysql_fetch_row(res)))
+  {
+    mysql_free_result(res);
+    return 1;
+  }
+  /*
+    Only one row is returned, and the first column is the name of the
+    active log.
+  */
+  strmake(buff_log_name, row[0], buff_len - 1);
+
+  mysql_free_result(res);
+  return 0;
+}
+
+static int purge_bin_logs_to(MYSQL *mysql_con, char* log_name)
+{
+  DYNAMIC_STRING str;
+  int err;
+  init_dynamic_string_checked(&str, "PURGE BINARY LOGS TO '", 1024, 1024);
+  dynstr_append_checked(&str, log_name);
+  dynstr_append_checked(&str, "'");
+  err = mysql_query_with_error_report(mysql_con, 0, str.str);
+  dynstr_free(&str);
+  return err;
 }
 
 
@@ -4219,6 +4250,7 @@ static void dynstr_realloc_checked(DYNAMIC_STRING *str, ulong additional_size)
 
 int main(int argc, char **argv)
 {
+  char bin_log_name[FN_REFLEN];
   int exit_code;
   MY_INIT("mysqldump");
 
@@ -4255,8 +4287,13 @@ int main(int argc, char **argv)
     goto err;
   if (opt_single_transaction && start_transaction(mysql))
       goto err;
-  if (opt_delete_master_logs && do_reset_master(mysql))
-    goto err;
+  if (opt_delete_master_logs)
+  {
+    if (mysql_refresh(mysql, REFRESH_LOG) ||
+        get_bin_log_name(mysql, bin_log_name, sizeof(bin_log_name)))
+      goto err;
+    flush_logs= 0;
+  }
   if (opt_lock_all_tables || opt_master_data)
   {
     if (flush_logs && mysql_refresh(mysql, REFRESH_LOG))
@@ -4291,6 +4328,18 @@ int main(int argc, char **argv)
       dump_tablespaces_for_databases(argv);
     dump_databases(argv);
   }
+
+  /* ensure dumped data flushed */
+  if (md_result_file && fflush(md_result_file))
+  {
+    if (!first_error)
+      first_error= EX_MYSQLERR;
+    goto err;
+  }
+  /* everything successful, purge the old logs files */
+  if (opt_delete_master_logs && purge_bin_logs_to(mysql, bin_log_name))
+    goto err;
+
 #ifdef HAVE_SMEM
   my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
 #endif
