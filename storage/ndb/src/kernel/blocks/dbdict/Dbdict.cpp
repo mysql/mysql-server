@@ -698,6 +698,9 @@ void Dbdict::execFSCLOSECONF(Signal* signal)
   case FsConnectRecord::OPEN_READ_SCHEMA2:
     openSchemaFile(signal, 1, fsPtr.i, false, false);
     break;
+  case FsConnectRecord::OPEN_READ_TAB_FILE2:
+    openTableFile(signal, 1, fsPtr.i, c_readTableRecord.tableId, false);
+    break;
   default:
     jamLine((fsPtr.p->fsState & 0xFFF));
     ndbrequire(false);
@@ -1073,8 +1076,11 @@ void Dbdict::readTableConf(Signal* signal,
 void Dbdict::readTableRef(Signal* signal,
                           FsConnectRecordPtr fsPtr)
 {
+  /**
+   * First close corrupt file
+   */
   fsPtr.p->fsState = FsConnectRecord::OPEN_READ_TAB_FILE2;
-  openTableFile(signal, 1, fsPtr.i, c_readTableRecord.tableId, false);
+  closeFile(signal, fsPtr.p->filePtr, fsPtr.i);
   return;
 }//Dbdict::readTableRef()
 
