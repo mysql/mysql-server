@@ -619,6 +619,10 @@ max-time: 1500
 cmd: testDict
 args: -l 25 -n DictRestart T1
 
+max-time: 500
+cmd: testDict
+args: -n Bug24631 T1
+
 #
 # TEST NDBAPI
 #
@@ -699,6 +703,10 @@ args: -n Bug_WritePartialIgnoreError T1
 max-time: 500
 cmd: testNdbApi
 args: -n ExecuteAsynch T1
+
+max-time: 1000
+cmd: testNdbApi
+args: -n BugBug28443
 
 #max-time: 500
 #cmd: testInterpreter

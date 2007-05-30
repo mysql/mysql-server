@@ -3553,10 +3553,10 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     ScanFragReq::setHoldLockFlag(req->requestInfo, 0);
     ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
     ScanFragReq::setAttrLen(req->requestInfo,attrLen); 
+    ScanFragReq::setTupScanFlag(req->requestInfo, 1);
     if (ptr.p->is_lcp())
     {
       ScanFragReq::setScanPrio(req->requestInfo, 1);
-      ScanFragReq::setTupScanFlag(req->requestInfo, 1);
       ScanFragReq::setNoDiskFlag(req->requestInfo, 1);
       ScanFragReq::setLcpScanFlag(req->requestInfo, 1);
     }

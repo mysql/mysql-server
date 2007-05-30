@@ -1767,22 +1767,6 @@ sub environment_setup () {
   }
 
   # --------------------------------------------------------------------------
-  # Add the path where mysqld will find udf_example.so
-  # --------------------------------------------------------------------------
-  if ( $lib_udf_example )
-  {
-    push(@ld_library_paths, dirname($lib_udf_example));
-  }
-
-  # --------------------------------------------------------------------------
-  # Add the path where mysqld will find ha_example.so
-  # --------------------------------------------------------------------------
-  if ( $lib_example_plugin )
-  {
-    push(@ld_library_paths, dirname($lib_example_plugin));
-  }
-
-  # --------------------------------------------------------------------------
   # Valgrind need to be run with debug libraries otherwise it's almost
   # impossible to add correct supressions, that means if "/usr/lib/debug"
   # is available, it should be added to
@@ -2060,12 +2044,16 @@ sub environment_setup () {
   # ----------------------------------------------------
   $ENV{'UDF_EXAMPLE_LIB'}=
     ($lib_udf_example ? basename($lib_udf_example) : "");
+  $ENV{'UDF_EXAMPLE_LIB_OPT'}=
+    ($lib_udf_example ? "--plugin_dir=" . dirname($lib_udf_example) : "");
 
   # ----------------------------------------------------
   # Add the path where mysqld will find ha_example.so
   # ----------------------------------------------------
   $ENV{'EXAMPLE_PLUGIN'}=
     ($lib_example_plugin ? basename($lib_example_plugin) : "");
+  $ENV{'EXAMPLE_PLUGIN_OPT'}=
+    ($lib_example_plugin ? "--plugin_dir=" . dirname($lib_example_plugin) : "");
 
   # ----------------------------------------------------
   # We are nice and report a bit about our settings
@@ -3834,9 +3822,6 @@ sub mysqld_arguments ($$$$) {
 	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
       }
     }
-
-      mtr_add_arg($args, "%s--plugin_dir=%s", $prefix,
-		  dirname($lib_example_plugin));
   }
   else
   {
