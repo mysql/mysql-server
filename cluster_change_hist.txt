@@ -4,6 +4,7 @@ mysql-5.1.15-ndb-6.1.X
 
 mysql-5.1.15-ndb-6.1.10 (2007-05-30)
 
+  Bug #28770 file already opened error when corrupt schema file
   Bug #28717 Race between NODE_FAILREP and COPY_GCIREQ
   Bug #28525 Node failures in PGMAN at ndbrequire (line 430)
   Bug #28653 Fast GCP + high load + high RedoBuffer causes ndbrequire
