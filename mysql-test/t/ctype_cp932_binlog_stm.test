@@ -25,5 +25,13 @@ DROP TABLE t4|
 SHOW BINLOG EVENTS FROM 369|
 delimiter ;|
 
-# End of 5.0 tests
+--echo End of 5.0 tests
 
+#
+# #28436: Incorrect position in SHOW BINLOG EVENTS causes server coredump 
+# Note: 364 is a magic position (found experimentally, depends on 
+# the log's contents) that caused the server crash.
+--error 1220
+SHOW BINLOG EVENTS FROM 364;
+
+--echo End of 5.1 tests
