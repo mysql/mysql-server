@@ -1679,9 +1679,9 @@ Dbtup::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId,
       
       Ptr<Extent_info> ext;
       ndbrequire(c_extent_pool.seize(ext));
-      
+#ifdef VM_TRACE
       ndbout << "allocated " << pages << " pages: " << *key << endl;
-      
+#endif      
       ext.p->m_key = *key;
       ext.p->m_first_page_no = ext.p->m_key.m_page_no;
       ext.p->m_free_space= 0;
