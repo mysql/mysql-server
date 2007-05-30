@@ -43,3 +43,7 @@ END
 master-bin.000001	783	Query	1	1002	use `test`; INSERT INTO t4 VALUES ( NAME_CONST('ins1',_latin1 0x466F6F2773206120426172),  NAME_CONST('ins2',_cp932 0xED40ED41ED42),  NAME_CONST('ind',47.93))
 master-bin.000001	1002	Query	1	1091	use `test`; DROP PROCEDURE bug18293
 master-bin.000001	1091	Query	1	1170	use `test`; DROP TABLE t4
+End of 5.0 tests
+SHOW BINLOG EVENTS FROM 364;
+ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Wrong offset or I/O error
+End of 5.1 tests
