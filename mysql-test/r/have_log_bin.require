@@ -1,2 +1,2 @@
 Variable_name	Value
-have_log_bin	ON
+log_bin	ON
