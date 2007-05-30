@@ -3607,6 +3607,9 @@ sub do_before_start_master ($) {
 
   # FIXME what about second master.....
 
+  # Don't delete anything if starting dirty
+  return if ($opt_start_dirty);
+
   foreach my $bin ( glob("$opt_vardir/log/master*-bin*") )
   {
     unlink($bin);
@@ -3637,6 +3640,9 @@ sub do_before_start_slave ($) {
 
   my $tname= $tinfo->{'name'};
   my $init_script= $tinfo->{'master_sh'};
+
+  # Don't delete anything if starting dirty
+  return if ($opt_start_dirty);
 
   foreach my $bin ( glob("$opt_vardir/log/slave*-bin*") )
   {
