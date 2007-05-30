@@ -635,6 +635,7 @@ Create_file event for file_id: %u\n",exv->file_id);
       print_event_info->common_header_len=
         glob_description_event->common_header_len;
       ev->print(result_file, print_event_info);
+      ev->temp_buf= 0; // as the event ref is zeroed
       /*
         We don't want this event to be deleted now, so let's hide it (I
         (Guilhem) should later see if this triggers a non-serious Valgrind
