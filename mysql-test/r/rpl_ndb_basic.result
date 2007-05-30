@@ -159,8 +159,8 @@ Replicate_Do_Table
 Replicate_Ignore_Table	<Replicate_Ignore_Table>
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1105
-Last_Error	Unknown error
+Last_Errno	<Last_Errno>
+Last_Error	<Last_Error>
 Skip_Counter	0
 Exec_Master_Log_Pos	<Exec_Master_Log_Pos>
 Relay_Log_Space	<Relay_Log_Space>
