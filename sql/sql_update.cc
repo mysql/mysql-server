@@ -1529,8 +1529,9 @@ int multi_update::do_updates(bool from_send_error)
       uint field_num= 0;
       do
       {
-        if((local_error= tbl->file->rnd_pos(tbl->record[0],
-                                            tmp_table->field[field_num]->ptr)))
+        if((local_error=
+              tbl->file->rnd_pos(tbl->record[0],
+                                (byte *) tmp_table->field[field_num]->ptr)))
           goto err;
         field_num++;
       } while((tbl= check_opt_it++));
