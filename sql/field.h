@@ -742,7 +742,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 4; }
   void sql_type(String &str) const;
-  uint32 max_display_length() { return 11; }
+  uint32 max_display_length() { return MY_INT32_NUM_DECIMAL_DIGITS; }
 };
 
 

@@ -9090,8 +9090,13 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
                                 item->name, item->decimals, TRUE);
     break;
   case INT_RESULT:
-    /* Select an integer type with the minimal fit precision */
-    if (item->max_length > MY_INT32_NUM_DECIMAL_DIGITS)
+    /* 
+      Select an integer type with the minimal fit precision.
+      MY_INT32_NUM_DECIMAL_DIGITS is sign inclusive, don't consider the sign.
+      Values with MY_INT32_NUM_DECIMAL_DIGITS digits may or may not fit into 
+      Field_long : make them Field_longlong.  
+    */
+    if (item->max_length >= (MY_INT32_NUM_DECIMAL_DIGITS - 1))
       new_field=new Field_longlong(item->max_length, maybe_null,
                                    item->name, item->unsigned_flag);
     else
