@@ -3692,13 +3692,13 @@ static int do_unlock_tables(MYSQL *mysql_con)
   return mysql_query_with_error_report(mysql_con, 0, "UNLOCK TABLES");
 }
 
-static int get_bin_log_name(MYSQL *mysql_con, 
-                                 char* buff_log_name, uint buff_len)
+static int get_bin_log_name(MYSQL *mysql_con,
+                            char* buff_log_name, uint buff_len)
 {
   MYSQL_RES *res;
   MYSQL_ROW row;
 
-  if (mysql_query(mysql, "SHOW MASTER STATUS") ||
+  if (mysql_query(mysql_con, "SHOW MASTER STATUS") ||
       !(res= mysql_store_result(mysql)))
     return 1;
 
