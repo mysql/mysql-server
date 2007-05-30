@@ -22,7 +22,7 @@ select get_lock("a", 20);
 connection con2;
 let $ID= `select connection_id()`;
 reset master;
-send insert into t2 values (null, null), (null, get_lock("a", 10)),(null, get_lock("a", 10));
+send insert into t2 values (null, null), (null, get_lock("a", 10));
 
 
 connection con1;
@@ -36,7 +36,7 @@ eval kill query $ID;
 connection con2;
 --error 0,ER_QUERY_INTERRUPTED
 reap;
-let $rows= `select count(*) from t2  /* must be 1 or 0 */`;
+let $rows= `select count(*) from t2  /* must be 2 or 0 */`;
 
 --exec $MYSQL_BINLOG --start-position=126 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
@@ -46,7 +46,7 @@ is not null;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 let $error_code= `select @a like "%#%error_code=0%" /* must return 1 or 0*/`;
 let $insert_binlogged= `select @a like "%insert into%" /* must return 1 or 0 */`;
-eval set @result= $rows-2*$error_code - $insert_binlogged;
+eval set @result= $rows- $error_code - $insert_binlogged;
 
 enable_abort_on_error;
 enable_query_log;
