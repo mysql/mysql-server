@@ -863,7 +863,7 @@ err:
   view->query.str= NULL;
   view->query.length= 0;
   view->md5.str= NULL;
-  view->md5.length= NULL;
+  view->md5.length= 0;
   DBUG_RETURN(error);
 }
 
