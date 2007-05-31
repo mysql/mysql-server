@@ -317,3 +317,10 @@ SHOW COUNT(*) WARNINGS;
 SHOW COUNT(*) ERRORS;
 @@session.error_count
 1
+create table t1(f1 int);
+insert into t1 values(1),(1),(2);
+select @a:=f1, count(f1) from t1 group by 1;
+@a:=f1	count(f1)
+1	2
+2	1
+drop table t1;
