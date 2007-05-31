@@ -3103,6 +3103,27 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query,
     if (int error= binlog_flush_pending_rows_event(TRUE))
       DBUG_RETURN(error);
 
+  /*
+    If we are in statement mode and trying to log an unsafe statement,
+    we should print a warning.
+  */
+  if (lex->is_stmt_unsafe() &&
+      variables.binlog_format == BINLOG_FORMAT_STMT)
+  {
+    DBUG_ASSERT(this->query != NULL);
+    push_warning(this, MYSQL_ERROR::WARN_LEVEL_WARN,
+                 ER_BINLOG_UNSAFE_STATEMENT,
+                 ER(ER_BINLOG_UNSAFE_STATEMENT));
+    if (!(binlog_flags & BINLOG_FLAG_UNSAFE_STMT_PRINTED))
+    {
+      char warn_buf[MYSQL_ERRMSG_SIZE];
+      my_snprintf(warn_buf, MYSQL_ERRMSG_SIZE, "%s Statement: %s",
+                  ER(ER_BINLOG_UNSAFE_STATEMENT), this->query);
+      sql_print_warning(warn_buf);
+      binlog_flags|= BINLOG_FLAG_UNSAFE_STMT_PRINTED;
+    }
+  }
+
   switch (qtype) {
   case THD::ROW_QUERY_TYPE:
     if (current_stmt_binlog_row_based)
@@ -3118,23 +3139,6 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query,
       to how you treat this.
     */
   case THD::STMT_QUERY_TYPE:
-    if (lex->is_stmt_unsafe())
-    {
-      DBUG_ASSERT(this->query != NULL);
-      push_warning(this, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   ER_BINLOG_UNSAFE_STATEMENT,
-                   ER(ER_BINLOG_UNSAFE_STATEMENT));
-      if (!(binlog_flags & BINLOG_FLAG_UNSAFE_STMT_PRINTED))
-      {
-        
-        char warn_buf[MYSQL_ERRMSG_SIZE];
-        my_snprintf(warn_buf, MYSQL_ERRMSG_SIZE, "%s Statement: %s",
-                    ER(ER_BINLOG_UNSAFE_STATEMENT), this->query);
-        sql_print_warning(warn_buf);
-        binlog_flags|= BINLOG_FLAG_UNSAFE_STMT_PRINTED;
-      }
-    }
-
     /*
       The MYSQL_LOG::write() function will set the STMT_END_F flag and
       flush the pending rows event if necessary.
