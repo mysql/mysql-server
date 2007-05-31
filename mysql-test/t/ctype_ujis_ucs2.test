@@ -1,0 +1,1306 @@
+-- source include/have_ujis.inc
+-- source include/have_ucs2.inc
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+#
+# Tests for UJIS-to-Unicode and Unicode-to-UJIS mapping
+#
+# MySQL's "ujis" is x-eucjp-unicode-0.9.
+#
+
+#
+# A helper table, with codes 0xA1..0xFE
+#
+create table t2 (code binary(1));
+insert into t2 values (0xA1),(0xA2),(0xA3),(0xA4),(0xA5),(0xA6),(0xA7);
+insert into t2 values (0xA8),(0xA9),(0xAA),(0xAB),(0xAC),(0xAD),(0xAE),(0xAF);
+insert into t2 values (0xB0),(0xB1),(0xB2),(0xB3),(0xB4),(0xB5),(0xB6),(0xB7);
+insert into t2 values (0xB8),(0xB9),(0xBA),(0xBB),(0xBC),(0xBD),(0xBE),(0xBF);
+insert into t2 values (0xC0),(0xC1),(0xC2),(0xC3),(0xC4),(0xC5),(0xC6),(0xC7);
+insert into t2 values (0xC8),(0xC9),(0xCA),(0xCB),(0xCC),(0xCD),(0xCE),(0xCF);
+insert into t2 values (0xD0),(0xD1),(0xD2),(0xD3),(0xD4),(0xD5),(0xD6),(0xD7);
+insert into t2 values (0xD8),(0xD9),(0xDA),(0xDB),(0xDC),(0xDD),(0xDE),(0xDF);
+insert into t2 values (0xE0),(0xE1),(0xE2),(0xE3),(0xE4),(0xE5),(0xE6),(0xE7);
+insert into t2 values (0xE8),(0xE9),(0xEA),(0xEB),(0xEC),(0xED),(0xEE),(0xEF);
+insert into t2 values (0xF0),(0xF1),(0xF2),(0xF3),(0xF4),(0xF5),(0xF6),(0xF7);
+insert into t2 values (0xF8),(0xF9),(0xFA),(0xFB),(0xFC),(0xFD),(0xFE);
+
+create table t1
+(
+  ujis varchar(1) character set ujis collate ujis_bin primary key,
+  ucs2 varchar(1) character set ucs2 not null default '',
+  ujis2 varchar(1) character set ujis not null default '',
+  name varchar(64) character set ujis not null default ''
+);
+
+#
+# A character from the ASCII (code set 0)
+# is represented by one byte, in the range 0x00 - 0x7E.
+#
+
+insert into t1 set ujis=0x00, name='U+0000 NULL';
+insert into t1 set ujis=0x01, name='U+0001 START OF HEADING';
+insert into t1 set ujis=0x02, name='U+0002 START OF TEXT';
+insert into t1 set ujis=0x03, name='U+0003 END OF TEXT';
+insert into t1 set ujis=0x04, name='U+0004 END OF TRANSMISSION';
+insert into t1 set ujis=0x05, name='U+0005 ENQUIRY';
+insert into t1 set ujis=0x06, name='U+0006 ACKNOWLEDGE';
+insert into t1 set ujis=0x07, name='U+0007 BELL';
+insert into t1 set ujis=0x08, name='U+0008 BACKSPACE';
+insert into t1 set ujis=0x09, name='U+0009 HORIZONTAL TABULATION';
+insert into t1 set ujis=0x0A, name='U+000A LINE FEED';
+insert into t1 set ujis=0x0B, name='U+000B VERTICAL TABULATION';
+insert into t1 set ujis=0x0C, name='U+000C FORM FEED';
+insert into t1 set ujis=0x0D, name='U+000D CARRIAGE RETURN';
+insert into t1 set ujis=0x0E, name='U+000E SHIFT OUT';
+insert into t1 set ujis=0x0F, name='U+000F SHIFT IN';
+insert into t1 set ujis=0x10, name='U+0010 DATA LINK ESCAPE';
+insert into t1 set ujis=0x11, name='U+0011 DEVICE CONTROL ONE';
+insert into t1 set ujis=0x12, name='U+0012 DEVICE CONTROL TWO';
+insert into t1 set ujis=0x13, name='U+0013 DEVICE CONTROL THREE';
+insert into t1 set ujis=0x14, name='U+0014 DEVICE CONTROL FOUR';
+insert into t1 set ujis=0x15, name='U+0015 NEGATIVE ACKNOWLEDGE';
+insert into t1 set ujis=0x16, name='U+0016 SYNCHRONOUS IDLE';
+insert into t1 set ujis=0x17, name='U+0017 END OF TRANSMISSION BLOCK';
+insert into t1 set ujis=0x18, name='U+0018 CANCEL';
+insert into t1 set ujis=0x19, name='U+0019 END OF MEDIUM';
+insert into t1 set ujis=0x1A, name='U+001A SUBSTITUTE';
+insert into t1 set ujis=0x1B, name='U+001B ESCAPE';
+insert into t1 set ujis=0x1C, name='U+001C FILE SEPARATOR';
+insert into t1 set ujis=0x1D, name='U+001D GROUP SEPARATOR';
+insert into t1 set ujis=0x1E, name='U+001E RECORD SEPARATOR';
+insert into t1 set ujis=0x1F, name='U+001F UNIT SEPARATOR';
+insert into t1 set ujis=0x20, name='U+0020 SPACE';
+insert into t1 set ujis=0x21, name='U+0021 EXCLAMATION MARK';
+insert into t1 set ujis=0x22, name='U+0022 QUOTATION MARK';
+insert into t1 set ujis=0x23, name='U+0023 NUMBER SIGN';
+insert into t1 set ujis=0x24, name='U+0024 DOLLAR SIGN';
+insert into t1 set ujis=0x25, name='U+0025 PERCENT SIGN';
+insert into t1 set ujis=0x26, name='U+0026 AMPERSAND';
+insert into t1 set ujis=0x27, name='U+0027 APOSTROPHE';
+insert into t1 set ujis=0x28, name='U+0028 LEFT PARENTHESIS';
+insert into t1 set ujis=0x29, name='U+0029 RIGHT PARENTHESIS';
+insert into t1 set ujis=0x2A, name='U+002A ASTERISK';
+insert into t1 set ujis=0x2B, name='U+002B PLUS SIGN';
+insert into t1 set ujis=0x2C, name='U+002C COMMA';
+insert into t1 set ujis=0x2D, name='U+002D HYPHEN-MINUS';
+insert into t1 set ujis=0x2E, name='U+002E FULL STOP';
+insert into t1 set ujis=0x2F, name='U+002F SOLIDUS';
+insert into t1 set ujis=0x30, name='U+0030 DIGIT ZERO';
+insert into t1 set ujis=0x31, name='U+0031 DIGIT ONE';
+insert into t1 set ujis=0x32, name='U+0032 DIGIT TWO';
+insert into t1 set ujis=0x33, name='U+0033 DIGIT THREE';
+insert into t1 set ujis=0x34, name='U+0034 DIGIT FOUR';
+insert into t1 set ujis=0x35, name='U+0035 DIGIT FIVE';
+insert into t1 set ujis=0x36, name='U+0036 DIGIT SIX';
+insert into t1 set ujis=0x37, name='U+0037 DIGIT SEVEN';
+insert into t1 set ujis=0x38, name='U+0038 DIGIT EIGHT';
+insert into t1 set ujis=0x39, name='U+0039 DIGIT NINE';
+insert into t1 set ujis=0x3A, name='U+003A COLON';
+insert into t1 set ujis=0x3B, name='U+003B SEMICOLON';
+insert into t1 set ujis=0x3C, name='U+003C LESS-THAN SIGN';
+insert into t1 set ujis=0x3D, name='U+003D EQUALS SIGN';
+insert into t1 set ujis=0x3E, name='U+003E GREATER-THAN SIGN';
+insert into t1 set ujis=0x3F, name='U+003F QUESTION MARK';
+insert into t1 set ujis=0x40, name='U+0040 COMMERCIAL AT';
+insert into t1 set ujis=0x41, name='U+0041 LATIN CAPITAL LETTER A';
+insert into t1 set ujis=0x42, name='U+0042 LATIN CAPITAL LETTER B';
+insert into t1 set ujis=0x43, name='U+0043 LATIN CAPITAL LETTER C';
+insert into t1 set ujis=0x44, name='U+0044 LATIN CAPITAL LETTER D';
+insert into t1 set ujis=0x45, name='U+0045 LATIN CAPITAL LETTER E';
+insert into t1 set ujis=0x46, name='U+0046 LATIN CAPITAL LETTER F';
+insert into t1 set ujis=0x47, name='U+0047 LATIN CAPITAL LETTER G';
+insert into t1 set ujis=0x48, name='U+0048 LATIN CAPITAL LETTER H';
+insert into t1 set ujis=0x49, name='U+0049 LATIN CAPITAL LETTER I';
+insert into t1 set ujis=0x4A, name='U+004A LATIN CAPITAL LETTER J';
+insert into t1 set ujis=0x4B, name='U+004B LATIN CAPITAL LETTER K';
+insert into t1 set ujis=0x4C, name='U+004C LATIN CAPITAL LETTER L';
+insert into t1 set ujis=0x4D, name='U+004D LATIN CAPITAL LETTER M';
+insert into t1 set ujis=0x4E, name='U+004E LATIN CAPITAL LETTER N';
+insert into t1 set ujis=0x4F, name='U+004F LATIN CAPITAL LETTER O';
+insert into t1 set ujis=0x50, name='U+0050 LATIN CAPITAL LETTER P';
+insert into t1 set ujis=0x51, name='U+0051 LATIN CAPITAL LETTER Q';
+insert into t1 set ujis=0x52, name='U+0052 LATIN CAPITAL LETTER R';
+insert into t1 set ujis=0x53, name='U+0053 LATIN CAPITAL LETTER S';
+insert into t1 set ujis=0x54, name='U+0054 LATIN CAPITAL LETTER T';
+insert into t1 set ujis=0x55, name='U+0055 LATIN CAPITAL LETTER U';
+insert into t1 set ujis=0x56, name='U+0056 LATIN CAPITAL LETTER V';
+insert into t1 set ujis=0x57, name='U+0057 LATIN CAPITAL LETTER W';
+insert into t1 set ujis=0x58, name='U+0058 LATIN CAPITAL LETTER X';
+insert into t1 set ujis=0x59, name='U+0059 LATIN CAPITAL LETTER Y';
+insert into t1 set ujis=0x5A, name='U+005A LATIN CAPITAL LETTER Z';
+insert into t1 set ujis=0x5B, name='U+005B LEFT SQUARE BRACKET';
+insert into t1 set ujis=0x5C, name='U+005C REVERSE SOLIDUS';
+insert into t1 set ujis=0x5D, name='U+005D RIGHT SQUARE BRACKET';
+insert into t1 set ujis=0x5E, name='U+005E CIRCUMFLEX ACCENT';
+insert into t1 set ujis=0x5F, name='U+005F LOW LINE';
+insert into t1 set ujis=0x60, name='U+0060 GRAVE ACCENT';
+insert into t1 set ujis=0x61, name='U+0061 LATIN SMALL LETTER A';
+insert into t1 set ujis=0x62, name='U+0062 LATIN SMALL LETTER B';
+insert into t1 set ujis=0x63, name='U+0063 LATIN SMALL LETTER C';
+insert into t1 set ujis=0x64, name='U+0064 LATIN SMALL LETTER D';
+insert into t1 set ujis=0x65, name='U+0065 LATIN SMALL LETTER E';
+insert into t1 set ujis=0x66, name='U+0066 LATIN SMALL LETTER F';
+insert into t1 set ujis=0x67, name='U+0067 LATIN SMALL LETTER G';
+insert into t1 set ujis=0x68, name='U+0068 LATIN SMALL LETTER H';
+insert into t1 set ujis=0x69, name='U+0069 LATIN SMALL LETTER I';
+insert into t1 set ujis=0x6A, name='U+006A LATIN SMALL LETTER J';
+insert into t1 set ujis=0x6B, name='U+006B LATIN SMALL LETTER K';
+insert into t1 set ujis=0x6C, name='U+006C LATIN SMALL LETTER L';
+insert into t1 set ujis=0x6D, name='U+006D LATIN SMALL LETTER M';
+insert into t1 set ujis=0x6E, name='U+006E LATIN SMALL LETTER N';
+insert into t1 set ujis=0x6F, name='U+006F LATIN SMALL LETTER O';
+insert into t1 set ujis=0x70, name='U+0070 LATIN SMALL LETTER P';
+insert into t1 set ujis=0x71, name='U+0071 LATIN SMALL LETTER Q';
+insert into t1 set ujis=0x72, name='U+0072 LATIN SMALL LETTER R';
+insert into t1 set ujis=0x73, name='U+0073 LATIN SMALL LETTER S';
+insert into t1 set ujis=0x74, name='U+0074 LATIN SMALL LETTER T';
+insert into t1 set ujis=0x75, name='U+0075 LATIN SMALL LETTER U';
+insert into t1 set ujis=0x76, name='U+0076 LATIN SMALL LETTER V';
+insert into t1 set ujis=0x77, name='U+0077 LATIN SMALL LETTER W';
+insert into t1 set ujis=0x78, name='U+0078 LATIN SMALL LETTER X';
+insert into t1 set ujis=0x79, name='U+0079 LATIN SMALL LETTER Y';
+insert into t1 set ujis=0x7A, name='U+007A LATIN SMALL LETTER Z';
+insert into t1 set ujis=0x7B, name='U+007B LEFT CURLY BRACKET';
+insert into t1 set ujis=0x7C, name='U+007C VERTICAL LINE';
+insert into t1 set ujis=0x7D, name='U+007D RIGHT CURLY BRACKET';
+insert into t1 set ujis=0x7E, name='U+007E TILDE';
+insert into t1 set ujis=0x7F, name='U+007F DELETE';
+
+
+#
+# A character from JIS-X-0208 (code set 1)
+# is represented by two bytes,
+# both in the range 0xA1 - 0xFE.
+# Codes according to:
+# ftp://ftp.unicode.org/Public/MAPPINGS/OBSOLETE/EASTASIA/JIS/JIS0208.TXT
+#
+# Fill table t1 with codes "[A1..FE][A1..FE]" using helper table t2.
+# 8836 codes total:
+#
+insert into t1 (ujis) select concat(t21.code,t22.code) from t2 t21, t2 t22 order by 1;
+
+update t1 set name='U+3000 IDEOGRAPHIC SPACE' where ujis=0xA1A1;
+update t1 set name='U+3001 IDEOGRAPHIC COMMA' where ujis=0xA1A2;
+update t1 set name='U+3002 IDEOGRAPHIC FULL STOP' where ujis=0xA1A3;
+update t1 set name='U+FF0C FULLWIDTH COMMA' where ujis=0xA1A4;
+update t1 set name='U+FF0E FULLWIDTH FULL STOP' where ujis=0xA1A5;
+update t1 set name='U+30FB KATAKANA MIDDLE DOT' where ujis=0xA1A6;
+update t1 set name='U+FF1A FULLWIDTH COLON' where ujis=0xA1A7;
+update t1 set name='U+FF1B FULLWIDTH SEMICOLON' where ujis=0xA1A8;
+update t1 set name='U+FF1F FULLWIDTH QUESTION MARK' where ujis=0xA1A9;
+update t1 set name='U+FF01 FULLWIDTH EXCLAMATION MARK' where ujis=0xA1AA;
+update t1 set name='U+309B KATAKANA-HIRAGANA VOICED SOUND MARK' where ujis=0xA1AB;
+update t1 set name='U+309C KATAKANA-HIRAGANA SEMI-VOICED SOUND MARK' where ujis=0xA1AC;
+update t1 set name='U+00B4 ACUTE ACCENT' where ujis=0xA1AD;
+update t1 set name='U+FF40 FULLWIDTH GRAVE ACCENT' where ujis=0xA1AE;
+update t1 set name='U+00A8 DIAERESIS' where ujis=0xA1AF;
+update t1 set name='U+FF3E FULLWIDTH CIRCUMFLEX ACCENT' where ujis=0xA1B0;
+update t1 set name='U+FFE3 FULLWIDTH MACRON' where ujis=0xA1B1;
+update t1 set name='U+FF3F FULLWIDTH LOW LINE' where ujis=0xA1B2;
+update t1 set name='U+30FD KATAKANA ITERATION MARK' where ujis=0xA1B3;
+update t1 set name='U+30FE KATAKANA VOICED ITERATION MARK' where ujis=0xA1B4;
+update t1 set name='U+309D HIRAGANA ITERATION MARK' where ujis=0xA1B5;
+update t1 set name='U+309E HIRAGANA VOICED ITERATION MARK' where ujis=0xA1B6;
+update t1 set name='U+3003 DITTO MARK' where ujis=0xA1B7;
+update t1 set name='U+4EDD <CJK>' where ujis=0xA1B8;
+update t1 set name='U+3005 IDEOGRAPHIC ITERATION MARK' where ujis=0xA1B9;
+update t1 set name='U+3006 IDEOGRAPHIC CLOSING MARK' where ujis=0xA1BA;
+update t1 set name='U+3007 IDEOGRAPHIC NUMBER ZERO' where ujis=0xA1BB;
+update t1 set name='U+30FC KATAKANA-HIRAGANA PROLONGED SOUND MARK' where ujis=0xA1BC;
+update t1 set name='U+2015 HORIZONTAL BAR' where ujis=0xA1BD;
+update t1 set name='U+2010 HYPHEN' where ujis=0xA1BE;
+update t1 set name='U+FF0F FULLWIDTH SOLIDUS' where ujis=0xA1BF;
+update t1 set name='U+005C REVERSE SOLIDUS' where ujis=0xA1C0;
+update t1 set name='U+301C WAVE DASH' where ujis=0xA1C1;
+update t1 set name='U+2016 DOUBLE VERTICAL LINE' where ujis=0xA1C2;
+update t1 set name='U+FF5C FULLWIDTH VERTICAL LINE' where ujis=0xA1C3;
+update t1 set name='U+2026 HORIZONTAL ELLIPSIS' where ujis=0xA1C4;
+update t1 set name='U+2025 TWO DOT LEADER' where ujis=0xA1C5;
+update t1 set name='U+2018 LEFT SINGLE QUOTATION MARK' where ujis=0xA1C6;
+update t1 set name='U+2019 RIGHT SINGLE QUOTATION MARK' where ujis=0xA1C7;
+update t1 set name='U+201C LEFT DOUBLE QUOTATION MARK' where ujis=0xA1C8;
+update t1 set name='U+201D RIGHT DOUBLE QUOTATION MARK' where ujis=0xA1C9;
+update t1 set name='U+FF08 FULLWIDTH LEFT PARENTHESIS' where ujis=0xA1CA;
+update t1 set name='U+FF09 FULLWIDTH RIGHT PARENTHESIS' where ujis=0xA1CB;
+update t1 set name='U+3014 LEFT TORTOISE SHELL BRACKET' where ujis=0xA1CC;
+update t1 set name='U+3015 RIGHT TORTOISE SHELL BRACKET' where ujis=0xA1CD;
+update t1 set name='U+FF3B FULLWIDTH LEFT SQUARE BRACKET' where ujis=0xA1CE;
+update t1 set name='U+FF3D FULLWIDTH RIGHT SQUARE BRACKET' where ujis=0xA1CF;
+update t1 set name='U+FF5B FULLWIDTH LEFT CURLY BRACKET' where ujis=0xA1D0;
+update t1 set name='U+FF5D FULLWIDTH RIGHT CURLY BRACKET' where ujis=0xA1D1;
+update t1 set name='U+3008 LEFT ANGLE BRACKET' where ujis=0xA1D2;
+update t1 set name='U+3009 RIGHT ANGLE BRACKET' where ujis=0xA1D3;
+update t1 set name='U+300A LEFT DOUBLE ANGLE BRACKET' where ujis=0xA1D4;
+update t1 set name='U+300B RIGHT DOUBLE ANGLE BRACKET' where ujis=0xA1D5;
+update t1 set name='U+300C LEFT CORNER BRACKET' where ujis=0xA1D6;
+update t1 set name='U+300D RIGHT CORNER BRACKET' where ujis=0xA1D7;
+update t1 set name='U+300E LEFT WHITE CORNER BRACKET' where ujis=0xA1D8;
+update t1 set name='U+300F RIGHT WHITE CORNER BRACKET' where ujis=0xA1D9;
+update t1 set name='U+3010 LEFT BLACK LENTICULAR BRACKET' where ujis=0xA1DA;
+update t1 set name='U+3011 RIGHT BLACK LENTICULAR BRACKET' where ujis=0xA1DB;
+update t1 set name='U+FF0B FULLWIDTH PLUS SIGN' where ujis=0xA1DC;
+update t1 set name='U+2212 MINUS SIGN' where ujis=0xA1DD;
+update t1 set name='U+00B1 PLUS-MINUS SIGN' where ujis=0xA1DE;
+update t1 set name='U+00D7 MULTIPLICATION SIGN' where ujis=0xA1DF;
+update t1 set name='U+00F7 DIVISION SIGN' where ujis=0xA1E0;
+update t1 set name='U+FF1D FULLWIDTH EQUALS SIGN' where ujis=0xA1E1;
+update t1 set name='U+2260 NOT EQUAL TO' where ujis=0xA1E2;
+update t1 set name='U+FF1C FULLWIDTH LESS-THAN SIGN' where ujis=0xA1E3;
+update t1 set name='U+FF1E FULLWIDTH GREATER-THAN SIGN' where ujis=0xA1E4;
+update t1 set name='U+2266 LESS-THAN OVER EQUAL TO' where ujis=0xA1E5;
+update t1 set name='U+2267 GREATER-THAN OVER EQUAL TO' where ujis=0xA1E6;
+update t1 set name='U+221E INFINITY' where ujis=0xA1E7;
+update t1 set name='U+2234 THEREFORE' where ujis=0xA1E8;
+update t1 set name='U+2642 MALE SIGN' where ujis=0xA1E9;
+update t1 set name='U+2640 FEMALE SIGN' where ujis=0xA1EA;
+update t1 set name='U+00B0 DEGREE SIGN' where ujis=0xA1EB;
+update t1 set name='U+2032 PRIME' where ujis=0xA1EC;
+update t1 set name='U+2033 DOUBLE PRIME' where ujis=0xA1ED;
+update t1 set name='U+2103 DEGREE CELSIUS' where ujis=0xA1EE;
+update t1 set name='U+FFE5 FULLWIDTH YEN SIGN' where ujis=0xA1EF;
+update t1 set name='U+FF04 FULLWIDTH DOLLAR SIGN' where ujis=0xA1F0;
+update t1 set name='U+00A2 CENT SIGN' where ujis=0xA1F1;
+update t1 set name='U+00A3 POUND SIGN' where ujis=0xA1F2;
+update t1 set name='U+FF05 FULLWIDTH PERCENT SIGN' where ujis=0xA1F3;
+update t1 set name='U+FF03 FULLWIDTH NUMBER SIGN' where ujis=0xA1F4;
+update t1 set name='U+FF06 FULLWIDTH AMPERSAND' where ujis=0xA1F5;
+update t1 set name='U+FF0A FULLWIDTH ASTERISK' where ujis=0xA1F6;
+update t1 set name='U+FF20 FULLWIDTH COMMERCIAL AT' where ujis=0xA1F7;
+update t1 set name='U+00A7 SECTION SIGN' where ujis=0xA1F8;
+update t1 set name='U+2606 WHITE STAR' where ujis=0xA1F9;
+update t1 set name='U+2605 BLACK STAR' where ujis=0xA1FA;
+update t1 set name='U+25CB WHITE CIRCLE' where ujis=0xA1FB;
+update t1 set name='U+25CF BLACK CIRCLE' where ujis=0xA1FC;
+update t1 set name='U+25CE BULLSEYE' where ujis=0xA1FD;
+update t1 set name='U+25C7 WHITE DIAMOND' where ujis=0xA1FE;
+update t1 set name='U+25C6 BLACK DIAMOND' where ujis=0xA2A1;
+update t1 set name='U+25A1 WHITE SQUARE' where ujis=0xA2A2;
+update t1 set name='U+25A0 BLACK SQUARE' where ujis=0xA2A3;
+update t1 set name='U+25B3 WHITE UP-POINTING TRIANGLE' where ujis=0xA2A4;
+update t1 set name='U+25B2 BLACK UP-POINTING TRIANGLE' where ujis=0xA2A5;
+update t1 set name='U+25BD WHITE DOWN-POINTING TRIANGLE' where ujis=0xA2A6;
+update t1 set name='U+25BC BLACK DOWN-POINTING TRIANGLE' where ujis=0xA2A7;
+update t1 set name='U+203B REFERENCE MARK' where ujis=0xA2A8;
+update t1 set name='U+3012 POSTAL MARK' where ujis=0xA2A9;
+update t1 set name='U+2192 RIGHTWARDS ARROW' where ujis=0xA2AA;
+update t1 set name='U+2190 LEFTWARDS ARROW' where ujis=0xA2AB;
+update t1 set name='U+2191 UPWARDS ARROW' where ujis=0xA2AC;
+update t1 set name='U+2193 DOWNWARDS ARROW' where ujis=0xA2AD;
+update t1 set name='U+3013 GETA MARK' where ujis=0xA2AE;
+update t1 set name='U+2208 ELEMENT OF' where ujis=0xA2BA;
+update t1 set name='U+220B CONTAINS AS MEMBER' where ujis=0xA2BB;
+update t1 set name='U+2286 SUBset OF OR EQUAL TO' where ujis=0xA2BC;
+update t1 set name='U+2287 SUPERset OF OR EQUAL TO' where ujis=0xA2BD;
+update t1 set name='U+2282 SUBset OF' where ujis=0xA2BE;
+update t1 set name='U+2283 SUPERset OF' where ujis=0xA2BF;
+update t1 set name='U+222A UNION' where ujis=0xA2C0;
+update t1 set name='U+2229 INTERSECTION' where ujis=0xA2C1;
+update t1 set name='U+2227 LOGICAL AND' where ujis=0xA2CA;
+update t1 set name='U+2228 LOGICAL OR' where ujis=0xA2CB;
+update t1 set name='U+00AC NOT SIGN' where ujis=0xA2CC;
+update t1 set name='U+21D2 RIGHTWARDS DOUBLE ARROW' where ujis=0xA2CD;
+update t1 set name='U+21D4 LEFT RIGHT DOUBLE ARROW' where ujis=0xA2CE;
+update t1 set name='U+2200 FOR ALL' where ujis=0xA2CF;
+update t1 set name='U+2203 THERE EXISTS' where ujis=0xA2D0;
+update t1 set name='U+2220 ANGLE' where ujis=0xA2DC;
+update t1 set name='U+22A5 UP TACK' where ujis=0xA2DD;
+update t1 set name='U+2312 ARC' where ujis=0xA2DE;
+update t1 set name='U+2202 PARTIAL DIFFERENTIAL' where ujis=0xA2DF;
+update t1 set name='U+2207 NABLA' where ujis=0xA2E0;
+update t1 set name='U+2261 IDENTICAL TO' where ujis=0xA2E1;
+update t1 set name='U+2252 APPROXIMATELY EQUAL TO OR THE IMAGE OF' where ujis=0xA2E2;
+update t1 set name='U+226A MUCH LESS-THAN' where ujis=0xA2E3;
+update t1 set name='U+226B MUCH GREATER-THAN' where ujis=0xA2E4;
+update t1 set name='U+221A SQUARE ROOT' where ujis=0xA2E5;
+update t1 set name='U+223D REVERSED TILDE' where ujis=0xA2E6;
+update t1 set name='U+221D PROPORTIONAL TO' where ujis=0xA2E7;
+update t1 set name='U+2235 BECAUSE' where ujis=0xA2E8;
+update t1 set name='U+222B INTEGRAL' where ujis=0xA2E9;
+update t1 set name='U+222C DOUBLE INTEGRAL' where ujis=0xA2EA;
+update t1 set name='U+212B ANGSTROM SIGN' where ujis=0xA2F2;
+update t1 set name='U+2030 PER MILLE SIGN' where ujis=0xA2F3;
+update t1 set name='U+266F MUSIC SHARP SIGN' where ujis=0xA2F4;
+update t1 set name='U+266D MUSIC FLAT SIGN' where ujis=0xA2F5;
+update t1 set name='U+266A EIGHTH NOTE' where ujis=0xA2F6;
+update t1 set name='U+2020 DAGGER' where ujis=0xA2F7;
+update t1 set name='U+2021 DOUBLE DAGGER' where ujis=0xA2F8;
+update t1 set name='U+00B6 PILCROW SIGN' where ujis=0xA2F9;
+update t1 set name='U+25EF LARGE CIRCLE' where ujis=0xA2FE;
+update t1 set name='U+FF10 FULLWIDTH DIGIT ZERO' where ujis=0xA3B0;
+update t1 set name='U+FF11 FULLWIDTH DIGIT ONE' where ujis=0xA3B1;
+update t1 set name='U+FF12 FULLWIDTH DIGIT TWO' where ujis=0xA3B2;
+update t1 set name='U+FF13 FULLWIDTH DIGIT THREE' where ujis=0xA3B3;
+update t1 set name='U+FF14 FULLWIDTH DIGIT FOUR' where ujis=0xA3B4;
+update t1 set name='U+FF15 FULLWIDTH DIGIT FIVE' where ujis=0xA3B5;
+update t1 set name='U+FF16 FULLWIDTH DIGIT SIX' where ujis=0xA3B6;
+update t1 set name='U+FF17 FULLWIDTH DIGIT SEVEN' where ujis=0xA3B7;
+update t1 set name='U+FF18 FULLWIDTH DIGIT EIGHT' where ujis=0xA3B8;
+update t1 set name='U+FF19 FULLWIDTH DIGIT NINE' where ujis=0xA3B9;
+update t1 set name='U+FF21 FULLWIDTH LATIN CAPITAL LETTER A' where ujis=0xA3C1;
+update t1 set name='U+FF22 FULLWIDTH LATIN CAPITAL LETTER B' where ujis=0xA3C2;
+update t1 set name='U+FF23 FULLWIDTH LATIN CAPITAL LETTER C' where ujis=0xA3C3;
+update t1 set name='U+FF24 FULLWIDTH LATIN CAPITAL LETTER D' where ujis=0xA3C4;
+update t1 set name='U+FF25 FULLWIDTH LATIN CAPITAL LETTER E' where ujis=0xA3C5;
+update t1 set name='U+FF26 FULLWIDTH LATIN CAPITAL LETTER F' where ujis=0xA3C6;
+update t1 set name='U+FF27 FULLWIDTH LATIN CAPITAL LETTER G' where ujis=0xA3C7;
+update t1 set name='U+FF28 FULLWIDTH LATIN CAPITAL LETTER H' where ujis=0xA3C8;
+update t1 set name='U+FF29 FULLWIDTH LATIN CAPITAL LETTER I' where ujis=0xA3C9;
+update t1 set name='U+FF2A FULLWIDTH LATIN CAPITAL LETTER J' where ujis=0xA3CA;
+update t1 set name='U+FF2B FULLWIDTH LATIN CAPITAL LETTER K' where ujis=0xA3CB;
+update t1 set name='U+FF2C FULLWIDTH LATIN CAPITAL LETTER L' where ujis=0xA3CC;
+update t1 set name='U+FF2D FULLWIDTH LATIN CAPITAL LETTER M' where ujis=0xA3CD;
+update t1 set name='U+FF2E FULLWIDTH LATIN CAPITAL LETTER N' where ujis=0xA3CE;
+update t1 set name='U+FF2F FULLWIDTH LATIN CAPITAL LETTER O' where ujis=0xA3CF;
+update t1 set name='U+FF30 FULLWIDTH LATIN CAPITAL LETTER P' where ujis=0xA3D0;
+update t1 set name='U+FF31 FULLWIDTH LATIN CAPITAL LETTER Q' where ujis=0xA3D1;
+update t1 set name='U+FF32 FULLWIDTH LATIN CAPITAL LETTER R' where ujis=0xA3D2;
+update t1 set name='U+FF33 FULLWIDTH LATIN CAPITAL LETTER S' where ujis=0xA3D3;
+update t1 set name='U+FF34 FULLWIDTH LATIN CAPITAL LETTER T' where ujis=0xA3D4;
+update t1 set name='U+FF35 FULLWIDTH LATIN CAPITAL LETTER U' where ujis=0xA3D5;
+update t1 set name='U+FF36 FULLWIDTH LATIN CAPITAL LETTER V' where ujis=0xA3D6;
+update t1 set name='U+FF37 FULLWIDTH LATIN CAPITAL LETTER W' where ujis=0xA3D7;
+update t1 set name='U+FF38 FULLWIDTH LATIN CAPITAL LETTER X' where ujis=0xA3D8;
+update t1 set name='U+FF39 FULLWIDTH LATIN CAPITAL LETTER Y' where ujis=0xA3D9;
+update t1 set name='U+FF3A FULLWIDTH LATIN CAPITAL LETTER Z' where ujis=0xA3DA;
+update t1 set name='U+FF41 FULLWIDTH LATIN SMALL LETTER A' where ujis=0xA3E1;
+update t1 set name='U+FF42 FULLWIDTH LATIN SMALL LETTER B' where ujis=0xA3E2;
+update t1 set name='U+FF43 FULLWIDTH LATIN SMALL LETTER C' where ujis=0xA3E3;
+update t1 set name='U+FF44 FULLWIDTH LATIN SMALL LETTER D' where ujis=0xA3E4;
+update t1 set name='U+FF45 FULLWIDTH LATIN SMALL LETTER E' where ujis=0xA3E5;
+update t1 set name='U+FF46 FULLWIDTH LATIN SMALL LETTER F' where ujis=0xA3E6;
+update t1 set name='U+FF47 FULLWIDTH LATIN SMALL LETTER G' where ujis=0xA3E7;
+update t1 set name='U+FF48 FULLWIDTH LATIN SMALL LETTER H' where ujis=0xA3E8;
+update t1 set name='U+FF49 FULLWIDTH LATIN SMALL LETTER I' where ujis=0xA3E9;
+update t1 set name='U+FF4A FULLWIDTH LATIN SMALL LETTER J' where ujis=0xA3EA;
+update t1 set name='U+FF4B FULLWIDTH LATIN SMALL LETTER K' where ujis=0xA3EB;
+update t1 set name='U+FF4C FULLWIDTH LATIN SMALL LETTER L' where ujis=0xA3EC;
+update t1 set name='U+FF4D FULLWIDTH LATIN SMALL LETTER M' where ujis=0xA3ED;
+update t1 set name='U+FF4E FULLWIDTH LATIN SMALL LETTER N' where ujis=0xA3EE;
+update t1 set name='U+FF4F FULLWIDTH LATIN SMALL LETTER O' where ujis=0xA3EF;
+update t1 set name='U+FF50 FULLWIDTH LATIN SMALL LETTER P' where ujis=0xA3F0;
+update t1 set name='U+FF51 FULLWIDTH LATIN SMALL LETTER Q' where ujis=0xA3F1;
+update t1 set name='U+FF52 FULLWIDTH LATIN SMALL LETTER R' where ujis=0xA3F2;
+update t1 set name='U+FF53 FULLWIDTH LATIN SMALL LETTER S' where ujis=0xA3F3;
+update t1 set name='U+FF54 FULLWIDTH LATIN SMALL LETTER T' where ujis=0xA3F4;
+update t1 set name='U+FF55 FULLWIDTH LATIN SMALL LETTER U' where ujis=0xA3F5;
+update t1 set name='U+FF56 FULLWIDTH LATIN SMALL LETTER V' where ujis=0xA3F6;
+update t1 set name='U+FF57 FULLWIDTH LATIN SMALL LETTER W' where ujis=0xA3F7;
+update t1 set name='U+FF58 FULLWIDTH LATIN SMALL LETTER X' where ujis=0xA3F8;
+update t1 set name='U+FF59 FULLWIDTH LATIN SMALL LETTER Y' where ujis=0xA3F9;
+update t1 set name='U+FF5A FULLWIDTH LATIN SMALL LETTER Z' where ujis=0xA3FA;
+update t1 set name='U+3041 HIRAGANA LETTER SMALL A' where ujis=0xA4A1;
+update t1 set name='U+3042 HIRAGANA LETTER A' where ujis=0xA4A2;
+update t1 set name='U+3043 HIRAGANA LETTER SMALL I' where ujis=0xA4A3;
+update t1 set name='U+3044 HIRAGANA LETTER I' where ujis=0xA4A4;
+update t1 set name='U+3045 HIRAGANA LETTER SMALL U' where ujis=0xA4A5;
+update t1 set name='U+3046 HIRAGANA LETTER U' where ujis=0xA4A6;
+update t1 set name='U+3047 HIRAGANA LETTER SMALL E' where ujis=0xA4A7;
+update t1 set name='U+3048 HIRAGANA LETTER E' where ujis=0xA4A8;
+update t1 set name='U+3049 HIRAGANA LETTER SMALL O' where ujis=0xA4A9;
+update t1 set name='U+304A HIRAGANA LETTER O' where ujis=0xA4AA;
+update t1 set name='U+304B HIRAGANA LETTER KA' where ujis=0xA4AB;
+update t1 set name='U+304C HIRAGANA LETTER GA' where ujis=0xA4AC;
+update t1 set name='U+304D HIRAGANA LETTER KI' where ujis=0xA4AD;
+update t1 set name='U+304E HIRAGANA LETTER GI' where ujis=0xA4AE;
+update t1 set name='U+304F HIRAGANA LETTER KU' where ujis=0xA4AF;
+update t1 set name='U+3050 HIRAGANA LETTER GU' where ujis=0xA4B0;
+update t1 set name='U+3051 HIRAGANA LETTER KE' where ujis=0xA4B1;
+update t1 set name='U+3052 HIRAGANA LETTER GE' where ujis=0xA4B2;
+update t1 set name='U+3053 HIRAGANA LETTER KO' where ujis=0xA4B3;
+update t1 set name='U+3054 HIRAGANA LETTER GO' where ujis=0xA4B4;
+update t1 set name='U+3055 HIRAGANA LETTER SA' where ujis=0xA4B5;
+update t1 set name='U+3056 HIRAGANA LETTER ZA' where ujis=0xA4B6;
+update t1 set name='U+3057 HIRAGANA LETTER SI' where ujis=0xA4B7;
+update t1 set name='U+3058 HIRAGANA LETTER ZI' where ujis=0xA4B8;
+update t1 set name='U+3059 HIRAGANA LETTER SU' where ujis=0xA4B9;
+update t1 set name='U+305A HIRAGANA LETTER ZU' where ujis=0xA4BA;
+update t1 set name='U+305B HIRAGANA LETTER SE' where ujis=0xA4BB;
+update t1 set name='U+305C HIRAGANA LETTER ZE' where ujis=0xA4BC;
+update t1 set name='U+305D HIRAGANA LETTER SO' where ujis=0xA4BD;
+update t1 set name='U+305E HIRAGANA LETTER ZO' where ujis=0xA4BE;
+update t1 set name='U+305F HIRAGANA LETTER TA' where ujis=0xA4BF;
+update t1 set name='U+3060 HIRAGANA LETTER DA' where ujis=0xA4C0;
+update t1 set name='U+3061 HIRAGANA LETTER TI' where ujis=0xA4C1;
+update t1 set name='U+3062 HIRAGANA LETTER DI' where ujis=0xA4C2;
+update t1 set name='U+3063 HIRAGANA LETTER SMALL TU' where ujis=0xA4C3;
+update t1 set name='U+3064 HIRAGANA LETTER TU' where ujis=0xA4C4;
+update t1 set name='U+3065 HIRAGANA LETTER DU' where ujis=0xA4C5;
+update t1 set name='U+3066 HIRAGANA LETTER TE' where ujis=0xA4C6;
+update t1 set name='U+3067 HIRAGANA LETTER DE' where ujis=0xA4C7;
+update t1 set name='U+3068 HIRAGANA LETTER TO' where ujis=0xA4C8;
+update t1 set name='U+3069 HIRAGANA LETTER DO' where ujis=0xA4C9;
+update t1 set name='U+306A HIRAGANA LETTER NA' where ujis=0xA4CA;
+update t1 set name='U+306B HIRAGANA LETTER NI' where ujis=0xA4CB;
+update t1 set name='U+306C HIRAGANA LETTER NU' where ujis=0xA4CC;
+update t1 set name='U+306D HIRAGANA LETTER NE' where ujis=0xA4CD;
+update t1 set name='U+306E HIRAGANA LETTER NO' where ujis=0xA4CE;
+update t1 set name='U+306F HIRAGANA LETTER HA' where ujis=0xA4CF;
+update t1 set name='U+3070 HIRAGANA LETTER BA' where ujis=0xA4D0;
+update t1 set name='U+3071 HIRAGANA LETTER PA' where ujis=0xA4D1;
+update t1 set name='U+3072 HIRAGANA LETTER HI' where ujis=0xA4D2;
+update t1 set name='U+3073 HIRAGANA LETTER BI' where ujis=0xA4D3;
+update t1 set name='U+3074 HIRAGANA LETTER PI' where ujis=0xA4D4;
+update t1 set name='U+3075 HIRAGANA LETTER HU' where ujis=0xA4D5;
+update t1 set name='U+3076 HIRAGANA LETTER BU' where ujis=0xA4D6;
+update t1 set name='U+3077 HIRAGANA LETTER PU' where ujis=0xA4D7;
+update t1 set name='U+3078 HIRAGANA LETTER HE' where ujis=0xA4D8;
+update t1 set name='U+3079 HIRAGANA LETTER BE' where ujis=0xA4D9;
+update t1 set name='U+307A HIRAGANA LETTER PE' where ujis=0xA4DA;
+update t1 set name='U+307B HIRAGANA LETTER HO' where ujis=0xA4DB;
+update t1 set name='U+307C HIRAGANA LETTER BO' where ujis=0xA4DC;
+update t1 set name='U+307D HIRAGANA LETTER PO' where ujis=0xA4DD;
+update t1 set name='U+307E HIRAGANA LETTER MA' where ujis=0xA4DE;
+update t1 set name='U+307F HIRAGANA LETTER MI' where ujis=0xA4DF;
+update t1 set name='U+3080 HIRAGANA LETTER MU' where ujis=0xA4E0;
+update t1 set name='U+3081 HIRAGANA LETTER ME' where ujis=0xA4E1;
+update t1 set name='U+3082 HIRAGANA LETTER MO' where ujis=0xA4E2;
+update t1 set name='U+3083 HIRAGANA LETTER SMALL YA' where ujis=0xA4E3;
+update t1 set name='U+3084 HIRAGANA LETTER YA' where ujis=0xA4E4;
+update t1 set name='U+3085 HIRAGANA LETTER SMALL YU' where ujis=0xA4E5;
+update t1 set name='U+3086 HIRAGANA LETTER YU' where ujis=0xA4E6;
+update t1 set name='U+3087 HIRAGANA LETTER SMALL YO' where ujis=0xA4E7;
+update t1 set name='U+3088 HIRAGANA LETTER YO' where ujis=0xA4E8;
+update t1 set name='U+3089 HIRAGANA LETTER RA' where ujis=0xA4E9;
+update t1 set name='U+308A HIRAGANA LETTER RI' where ujis=0xA4EA;
+update t1 set name='U+308B HIRAGANA LETTER RU' where ujis=0xA4EB;
+update t1 set name='U+308C HIRAGANA LETTER RE' where ujis=0xA4EC;
+update t1 set name='U+308D HIRAGANA LETTER RO' where ujis=0xA4ED;
+update t1 set name='U+308E HIRAGANA LETTER SMALL WA' where ujis=0xA4EE;
+update t1 set name='U+308F HIRAGANA LETTER WA' where ujis=0xA4EF;
+update t1 set name='U+3090 HIRAGANA LETTER WI' where ujis=0xA4F0;
+update t1 set name='U+3091 HIRAGANA LETTER WE' where ujis=0xA4F1;
+update t1 set name='U+3092 HIRAGANA LETTER WO' where ujis=0xA4F2;
+update t1 set name='U+3093 HIRAGANA LETTER N' where ujis=0xA4F3;
+update t1 set name='U+30A1 KATAKANA LETTER SMALL A' where ujis=0xA5A1;
+update t1 set name='U+30A2 KATAKANA LETTER A' where ujis=0xA5A2;
+update t1 set name='U+30A3 KATAKANA LETTER SMALL I' where ujis=0xA5A3;
+update t1 set name='U+30A4 KATAKANA LETTER I' where ujis=0xA5A4;
+update t1 set name='U+30A5 KATAKANA LETTER SMALL U' where ujis=0xA5A5;
+update t1 set name='U+30A6 KATAKANA LETTER U' where ujis=0xA5A6;
+update t1 set name='U+30A7 KATAKANA LETTER SMALL E' where ujis=0xA5A7;
+update t1 set name='U+30A8 KATAKANA LETTER E' where ujis=0xA5A8;
+update t1 set name='U+30A9 KATAKANA LETTER SMALL O' where ujis=0xA5A9;
+update t1 set name='U+30AA KATAKANA LETTER O' where ujis=0xA5AA;
+update t1 set name='U+30AB KATAKANA LETTER KA' where ujis=0xA5AB;
+update t1 set name='U+30AC KATAKANA LETTER GA' where ujis=0xA5AC;
+update t1 set name='U+30AD KATAKANA LETTER KI' where ujis=0xA5AD;
+update t1 set name='U+30AE KATAKANA LETTER GI' where ujis=0xA5AE;
+update t1 set name='U+30AF KATAKANA LETTER KU' where ujis=0xA5AF;
+update t1 set name='U+30B0 KATAKANA LETTER GU' where ujis=0xA5B0;
+update t1 set name='U+30B1 KATAKANA LETTER KE' where ujis=0xA5B1;
+update t1 set name='U+30B2 KATAKANA LETTER GE' where ujis=0xA5B2;
+update t1 set name='U+30B3 KATAKANA LETTER KO' where ujis=0xA5B3;
+update t1 set name='U+30B4 KATAKANA LETTER GO' where ujis=0xA5B4;
+update t1 set name='U+30B5 KATAKANA LETTER SA' where ujis=0xA5B5;
+update t1 set name='U+30B6 KATAKANA LETTER ZA' where ujis=0xA5B6;
+update t1 set name='U+30B7 KATAKANA LETTER SI' where ujis=0xA5B7;
+update t1 set name='U+30B8 KATAKANA LETTER ZI' where ujis=0xA5B8;
+update t1 set name='U+30B9 KATAKANA LETTER SU' where ujis=0xA5B9;
+update t1 set name='U+30BA KATAKANA LETTER ZU' where ujis=0xA5BA;
+update t1 set name='U+30BB KATAKANA LETTER SE' where ujis=0xA5BB;
+update t1 set name='U+30BC KATAKANA LETTER ZE' where ujis=0xA5BC;
+update t1 set name='U+30BD KATAKANA LETTER SO' where ujis=0xA5BD;
+update t1 set name='U+30BE KATAKANA LETTER ZO' where ujis=0xA5BE;
+update t1 set name='U+30BF KATAKANA LETTER TA' where ujis=0xA5BF;
+update t1 set name='U+30C0 KATAKANA LETTER DA' where ujis=0xA5C0;
+update t1 set name='U+30C1 KATAKANA LETTER TI' where ujis=0xA5C1;
+update t1 set name='U+30C2 KATAKANA LETTER DI' where ujis=0xA5C2;
+update t1 set name='U+30C3 KATAKANA LETTER SMALL TU' where ujis=0xA5C3;
+update t1 set name='U+30C4 KATAKANA LETTER TU' where ujis=0xA5C4;
+update t1 set name='U+30C5 KATAKANA LETTER DU' where ujis=0xA5C5;
+update t1 set name='U+30C6 KATAKANA LETTER TE' where ujis=0xA5C6;
+update t1 set name='U+30C7 KATAKANA LETTER DE' where ujis=0xA5C7;
+update t1 set name='U+30C8 KATAKANA LETTER TO' where ujis=0xA5C8;
+update t1 set name='U+30C9 KATAKANA LETTER DO' where ujis=0xA5C9;
+update t1 set name='U+30CA KATAKANA LETTER NA' where ujis=0xA5CA;
+update t1 set name='U+30CB KATAKANA LETTER NI' where ujis=0xA5CB;
+update t1 set name='U+30CC KATAKANA LETTER NU' where ujis=0xA5CC;
+update t1 set name='U+30CD KATAKANA LETTER NE' where ujis=0xA5CD;
+update t1 set name='U+30CE KATAKANA LETTER NO' where ujis=0xA5CE;
+update t1 set name='U+30CF KATAKANA LETTER HA' where ujis=0xA5CF;
+update t1 set name='U+30D0 KATAKANA LETTER BA' where ujis=0xA5D0;
+update t1 set name='U+30D1 KATAKANA LETTER PA' where ujis=0xA5D1;
+update t1 set name='U+30D2 KATAKANA LETTER HI' where ujis=0xA5D2;
+update t1 set name='U+30D3 KATAKANA LETTER BI' where ujis=0xA5D3;
+update t1 set name='U+30D4 KATAKANA LETTER PI' where ujis=0xA5D4;
+update t1 set name='U+30D5 KATAKANA LETTER HU' where ujis=0xA5D5;
+update t1 set name='U+30D6 KATAKANA LETTER BU' where ujis=0xA5D6;
+update t1 set name='U+30D7 KATAKANA LETTER PU' where ujis=0xA5D7;
+update t1 set name='U+30D8 KATAKANA LETTER HE' where ujis=0xA5D8;
+update t1 set name='U+30D9 KATAKANA LETTER BE' where ujis=0xA5D9;
+update t1 set name='U+30DA KATAKANA LETTER PE' where ujis=0xA5DA;
+update t1 set name='U+30DB KATAKANA LETTER HO' where ujis=0xA5DB;
+update t1 set name='U+30DC KATAKANA LETTER BO' where ujis=0xA5DC;
+update t1 set name='U+30DD KATAKANA LETTER PO' where ujis=0xA5DD;
+update t1 set name='U+30DE KATAKANA LETTER MA' where ujis=0xA5DE;
+update t1 set name='U+30DF KATAKANA LETTER MI' where ujis=0xA5DF;
+update t1 set name='U+30E0 KATAKANA LETTER MU' where ujis=0xA5E0;
+update t1 set name='U+30E1 KATAKANA LETTER ME' where ujis=0xA5E1;
+update t1 set name='U+30E2 KATAKANA LETTER MO' where ujis=0xA5E2;
+update t1 set name='U+30E3 KATAKANA LETTER SMALL YA' where ujis=0xA5E3;
+update t1 set name='U+30E4 KATAKANA LETTER YA' where ujis=0xA5E4;
+update t1 set name='U+30E5 KATAKANA LETTER SMALL YU' where ujis=0xA5E5;
+update t1 set name='U+30E6 KATAKANA LETTER YU' where ujis=0xA5E6;
+update t1 set name='U+30E7 KATAKANA LETTER SMALL YO' where ujis=0xA5E7;
+update t1 set name='U+30E8 KATAKANA LETTER YO' where ujis=0xA5E8;
+update t1 set name='U+30E9 KATAKANA LETTER RA' where ujis=0xA5E9;
+update t1 set name='U+30EA KATAKANA LETTER RI' where ujis=0xA5EA;
+update t1 set name='U+30EB KATAKANA LETTER RU' where ujis=0xA5EB;
+update t1 set name='U+30EC KATAKANA LETTER RE' where ujis=0xA5EC;
+update t1 set name='U+30ED KATAKANA LETTER RO' where ujis=0xA5ED;
+update t1 set name='U+30EE KATAKANA LETTER SMALL WA' where ujis=0xA5EE;
+update t1 set name='U+30EF KATAKANA LETTER WA' where ujis=0xA5EF;
+update t1 set name='U+30F0 KATAKANA LETTER WI' where ujis=0xA5F0;
+update t1 set name='U+30F1 KATAKANA LETTER WE' where ujis=0xA5F1;
+update t1 set name='U+30F2 KATAKANA LETTER WO' where ujis=0xA5F2;
+update t1 set name='U+30F3 KATAKANA LETTER N' where ujis=0xA5F3;
+update t1 set name='U+30F4 KATAKANA LETTER VU' where ujis=0xA5F4;
+update t1 set name='U+30F5 KATAKANA LETTER SMALL KA' where ujis=0xA5F5;
+update t1 set name='U+30F6 KATAKANA LETTER SMALL KE' where ujis=0xA5F6;
+update t1 set name='U+0391 GREEK CAPITAL LETTER ALPHA' where ujis=0xA6A1;
+update t1 set name='U+0392 GREEK CAPITAL LETTER BETA' where ujis=0xA6A2;
+update t1 set name='U+0393 GREEK CAPITAL LETTER GAMMA' where ujis=0xA6A3;
+update t1 set name='U+0394 GREEK CAPITAL LETTER DELTA' where ujis=0xA6A4;
+update t1 set name='U+0395 GREEK CAPITAL LETTER EPSILON' where ujis=0xA6A5;
+update t1 set name='U+0396 GREEK CAPITAL LETTER ZETA' where ujis=0xA6A6;
+update t1 set name='U+0397 GREEK CAPITAL LETTER ETA' where ujis=0xA6A7;
+update t1 set name='U+0398 GREEK CAPITAL LETTER THETA' where ujis=0xA6A8;
+update t1 set name='U+0399 GREEK CAPITAL LETTER IOTA' where ujis=0xA6A9;
+update t1 set name='U+039A GREEK CAPITAL LETTER KAPPA' where ujis=0xA6AA;
+update t1 set name='U+039B GREEK CAPITAL LETTER LAMDA' where ujis=0xA6AB;
+update t1 set name='U+039C GREEK CAPITAL LETTER MU' where ujis=0xA6AC;
+update t1 set name='U+039D GREEK CAPITAL LETTER NU' where ujis=0xA6AD;
+update t1 set name='U+039E GREEK CAPITAL LETTER XI' where ujis=0xA6AE;
+update t1 set name='U+039F GREEK CAPITAL LETTER OMICRON' where ujis=0xA6AF;
+update t1 set name='U+03A0 GREEK CAPITAL LETTER PI' where ujis=0xA6B0;
+update t1 set name='U+03A1 GREEK CAPITAL LETTER RHO' where ujis=0xA6B1;
+update t1 set name='U+03A3 GREEK CAPITAL LETTER SIGMA' where ujis=0xA6B2;
+update t1 set name='U+03A4 GREEK CAPITAL LETTER TAU' where ujis=0xA6B3;
+update t1 set name='U+03A5 GREEK CAPITAL LETTER UPSILON' where ujis=0xA6B4;
+update t1 set name='U+03A6 GREEK CAPITAL LETTER PHI' where ujis=0xA6B5;
+update t1 set name='U+03A7 GREEK CAPITAL LETTER CHI' where ujis=0xA6B6;
+update t1 set name='U+03A8 GREEK CAPITAL LETTER PSI' where ujis=0xA6B7;
+update t1 set name='U+03A9 GREEK CAPITAL LETTER OMEGA' where ujis=0xA6B8;
+update t1 set name='U+03B1 GREEK SMALL LETTER ALPHA' where ujis=0xA6C1;
+update t1 set name='U+03B2 GREEK SMALL LETTER BETA' where ujis=0xA6C2;
+update t1 set name='U+03B3 GREEK SMALL LETTER GAMMA' where ujis=0xA6C3;
+update t1 set name='U+03B4 GREEK SMALL LETTER DELTA' where ujis=0xA6C4;
+update t1 set name='U+03B5 GREEK SMALL LETTER EPSILON' where ujis=0xA6C5;
+update t1 set name='U+03B6 GREEK SMALL LETTER ZETA' where ujis=0xA6C6;
+update t1 set name='U+03B7 GREEK SMALL LETTER ETA' where ujis=0xA6C7;
+update t1 set name='U+03B8 GREEK SMALL LETTER THETA' where ujis=0xA6C8;
+update t1 set name='U+03B9 GREEK SMALL LETTER IOTA' where ujis=0xA6C9;
+update t1 set name='U+03BA GREEK SMALL LETTER KAPPA' where ujis=0xA6CA;
+update t1 set name='U+03BB GREEK SMALL LETTER LAMDA' where ujis=0xA6CB;
+update t1 set name='U+03BC GREEK SMALL LETTER MU' where ujis=0xA6CC;
+update t1 set name='U+03BD GREEK SMALL LETTER NU' where ujis=0xA6CD;
+update t1 set name='U+03BE GREEK SMALL LETTER XI' where ujis=0xA6CE;
+update t1 set name='U+03BF GREEK SMALL LETTER OMICRON' where ujis=0xA6CF;
+update t1 set name='U+03C0 GREEK SMALL LETTER PI' where ujis=0xA6D0;
+update t1 set name='U+03C1 GREEK SMALL LETTER RHO' where ujis=0xA6D1;
+update t1 set name='U+03C3 GREEK SMALL LETTER SIGMA' where ujis=0xA6D2;
+update t1 set name='U+03C4 GREEK SMALL LETTER TAU' where ujis=0xA6D3;
+update t1 set name='U+03C5 GREEK SMALL LETTER UPSILON' where ujis=0xA6D4;
+update t1 set name='U+03C6 GREEK SMALL LETTER PHI' where ujis=0xA6D5;
+update t1 set name='U+03C7 GREEK SMALL LETTER CHI' where ujis=0xA6D6;
+update t1 set name='U+03C8 GREEK SMALL LETTER PSI' where ujis=0xA6D7;
+update t1 set name='U+03C9 GREEK SMALL LETTER OMEGA' where ujis=0xA6D8;
+update t1 set name='U+0410 CYRILLIC CAPITAL LETTER A' where ujis=0xA7A1;
+update t1 set name='U+0411 CYRILLIC CAPITAL LETTER BE' where ujis=0xA7A2;
+update t1 set name='U+0412 CYRILLIC CAPITAL LETTER VE' where ujis=0xA7A3;
+update t1 set name='U+0413 CYRILLIC CAPITAL LETTER GHE' where ujis=0xA7A4;
+update t1 set name='U+0414 CYRILLIC CAPITAL LETTER DE' where ujis=0xA7A5;
+update t1 set name='U+0415 CYRILLIC CAPITAL LETTER IE' where ujis=0xA7A6;
+update t1 set name='U+0401 CYRILLIC CAPITAL LETTER IO' where ujis=0xA7A7;
+update t1 set name='U+0416 CYRILLIC CAPITAL LETTER ZHE' where ujis=0xA7A8;
+update t1 set name='U+0417 CYRILLIC CAPITAL LETTER ZE' where ujis=0xA7A9;
+update t1 set name='U+0418 CYRILLIC CAPITAL LETTER I' where ujis=0xA7AA;
+update t1 set name='U+0419 CYRILLIC CAPITAL LETTER SHORT I' where ujis=0xA7AB;
+update t1 set name='U+041A CYRILLIC CAPITAL LETTER KA' where ujis=0xA7AC;
+update t1 set name='U+041B CYRILLIC CAPITAL LETTER EL' where ujis=0xA7AD;
+update t1 set name='U+041C CYRILLIC CAPITAL LETTER EM' where ujis=0xA7AE;
+update t1 set name='U+041D CYRILLIC CAPITAL LETTER EN' where ujis=0xA7AF;
+update t1 set name='U+041E CYRILLIC CAPITAL LETTER O' where ujis=0xA7B0;
+update t1 set name='U+041F CYRILLIC CAPITAL LETTER PE' where ujis=0xA7B1;
+update t1 set name='U+0420 CYRILLIC CAPITAL LETTER ER' where ujis=0xA7B2;
+update t1 set name='U+0421 CYRILLIC CAPITAL LETTER ES' where ujis=0xA7B3;
+update t1 set name='U+0422 CYRILLIC CAPITAL LETTER TE' where ujis=0xA7B4;
+update t1 set name='U+0423 CYRILLIC CAPITAL LETTER U' where ujis=0xA7B5;
+update t1 set name='U+0424 CYRILLIC CAPITAL LETTER EF' where ujis=0xA7B6;
+update t1 set name='U+0425 CYRILLIC CAPITAL LETTER HA' where ujis=0xA7B7;
+update t1 set name='U+0426 CYRILLIC CAPITAL LETTER TSE' where ujis=0xA7B8;
+update t1 set name='U+0427 CYRILLIC CAPITAL LETTER CHE' where ujis=0xA7B9;
+update t1 set name='U+0428 CYRILLIC CAPITAL LETTER SHA' where ujis=0xA7BA;
+update t1 set name='U+0429 CYRILLIC CAPITAL LETTER SHCHA' where ujis=0xA7BB;
+update t1 set name='U+042A CYRILLIC CAPITAL LETTER HARD SIGN' where ujis=0xA7BC;
+update t1 set name='U+042B CYRILLIC CAPITAL LETTER YERU' where ujis=0xA7BD;
+update t1 set name='U+042C CYRILLIC CAPITAL LETTER SOFT SIGN' where ujis=0xA7BE;
+update t1 set name='U+042D CYRILLIC CAPITAL LETTER E' where ujis=0xA7BF;
+update t1 set name='U+042E CYRILLIC CAPITAL LETTER YU' where ujis=0xA7C0;
+update t1 set name='U+042F CYRILLIC CAPITAL LETTER YA' where ujis=0xA7C1;
+update t1 set name='U+0430 CYRILLIC SMALL LETTER A' where ujis=0xA7D1;
+update t1 set name='U+0431 CYRILLIC SMALL LETTER BE' where ujis=0xA7D2;
+update t1 set name='U+0432 CYRILLIC SMALL LETTER VE' where ujis=0xA7D3;
+update t1 set name='U+0433 CYRILLIC SMALL LETTER GHE' where ujis=0xA7D4;
+update t1 set name='U+0434 CYRILLIC SMALL LETTER DE' where ujis=0xA7D5;
+update t1 set name='U+0435 CYRILLIC SMALL LETTER IE' where ujis=0xA7D6;
+update t1 set name='U+0451 CYRILLIC SMALL LETTER IO' where ujis=0xA7D7;
+update t1 set name='U+0436 CYRILLIC SMALL LETTER ZHE' where ujis=0xA7D8;
+update t1 set name='U+0437 CYRILLIC SMALL LETTER ZE' where ujis=0xA7D9;
+update t1 set name='U+0438 CYRILLIC SMALL LETTER I' where ujis=0xA7DA;
+update t1 set name='U+0439 CYRILLIC SMALL LETTER SHORT I' where ujis=0xA7DB;
+update t1 set name='U+043A CYRILLIC SMALL LETTER KA' where ujis=0xA7DC;
+update t1 set name='U+043B CYRILLIC SMALL LETTER EL' where ujis=0xA7DD;
+update t1 set name='U+043C CYRILLIC SMALL LETTER EM' where ujis=0xA7DE;
+update t1 set name='U+043D CYRILLIC SMALL LETTER EN' where ujis=0xA7DF;
+update t1 set name='U+043E CYRILLIC SMALL LETTER O' where ujis=0xA7E0;
+update t1 set name='U+043F CYRILLIC SMALL LETTER PE' where ujis=0xA7E1;
+update t1 set name='U+0440 CYRILLIC SMALL LETTER ER' where ujis=0xA7E2;
+update t1 set name='U+0441 CYRILLIC SMALL LETTER ES' where ujis=0xA7E3;
+update t1 set name='U+0442 CYRILLIC SMALL LETTER TE' where ujis=0xA7E4;
+update t1 set name='U+0443 CYRILLIC SMALL LETTER U' where ujis=0xA7E5;
+update t1 set name='U+0444 CYRILLIC SMALL LETTER EF' where ujis=0xA7E6;
+update t1 set name='U+0445 CYRILLIC SMALL LETTER HA' where ujis=0xA7E7;
+update t1 set name='U+0446 CYRILLIC SMALL LETTER TSE' where ujis=0xA7E8;
+update t1 set name='U+0447 CYRILLIC SMALL LETTER CHE' where ujis=0xA7E9;
+update t1 set name='U+0448 CYRILLIC SMALL LETTER SHA' where ujis=0xA7EA;
+update t1 set name='U+0449 CYRILLIC SMALL LETTER SHCHA' where ujis=0xA7EB;
+update t1 set name='U+044A CYRILLIC SMALL LETTER HARD SIGN' where ujis=0xA7EC;
+update t1 set name='U+044B CYRILLIC SMALL LETTER YERU' where ujis=0xA7ED;
+update t1 set name='U+044C CYRILLIC SMALL LETTER SOFT SIGN' where ujis=0xA7EE;
+update t1 set name='U+044D CYRILLIC SMALL LETTER E' where ujis=0xA7EF;
+update t1 set name='U+044E CYRILLIC SMALL LETTER YU' where ujis=0xA7F0;
+update t1 set name='U+044F CYRILLIC SMALL LETTER YA' where ujis=0xA7F1;
+update t1 set name='U+2500 BOX DRAWINGS LIGHT HORIZONTAL' where ujis=0xA8A1;
+update t1 set name='U+2502 BOX DRAWINGS LIGHT VERTICAL' where ujis=0xA8A2;
+update t1 set name='U+250C BOX DRAWINGS LIGHT DOWN AND RIGHT' where ujis=0xA8A3;
+update t1 set name='U+2510 BOX DRAWINGS LIGHT DOWN AND LEFT' where ujis=0xA8A4;
+update t1 set name='U+2518 BOX DRAWINGS LIGHT UP AND LEFT' where ujis=0xA8A5;
+update t1 set name='U+2514 BOX DRAWINGS LIGHT UP AND RIGHT' where ujis=0xA8A6;
+update t1 set name='U+251C BOX DRAWINGS LIGHT VERTICAL AND RIGHT' where ujis=0xA8A7;
+update t1 set name='U+252C BOX DRAWINGS LIGHT DOWN AND HORIZONTAL' where ujis=0xA8A8;
+update t1 set name='U+2524 BOX DRAWINGS LIGHT VERTICAL AND LEFT' where ujis=0xA8A9;
+update t1 set name='U+2534 BOX DRAWINGS LIGHT UP AND HORIZONTAL' where ujis=0xA8AA;
+update t1 set name='U+253C BOX DRAWINGS LIGHT VERTICAL AND HORIZONTAL' where ujis=0xA8AB;
+update t1 set name='U+2501 BOX DRAWINGS HEAVY HORIZONTAL' where ujis=0xA8AC;
+update t1 set name='U+2503 BOX DRAWINGS HEAVY VERTICAL' where ujis=0xA8AD;
+update t1 set name='U+250F BOX DRAWINGS HEAVY DOWN AND RIGHT' where ujis=0xA8AE;
+update t1 set name='U+2513 BOX DRAWINGS HEAVY DOWN AND LEFT' where ujis=0xA8AF;
+update t1 set name='U+251B BOX DRAWINGS HEAVY UP AND LEFT' where ujis=0xA8B0;
+update t1 set name='U+2517 BOX DRAWINGS HEAVY UP AND RIGHT' where ujis=0xA8B1;
+update t1 set name='U+2523 BOX DRAWINGS HEAVY VERTICAL AND RIGHT' where ujis=0xA8B2;
+update t1 set name='U+2533 BOX DRAWINGS HEAVY DOWN AND HORIZONTAL' where ujis=0xA8B3;
+update t1 set name='U+252B BOX DRAWINGS HEAVY VERTICAL AND LEFT' where ujis=0xA8B4;
+update t1 set name='U+253B BOX DRAWINGS HEAVY UP AND HORIZONTAL' where ujis=0xA8B5;
+update t1 set name='U+254B BOX DRAWINGS HEAVY VERTICAL AND HORIZONTAL' where ujis=0xA8B6;
+update t1 set name='U+2520 BOX DRAWINGS VERTICAL HEAVY AND RIGHT LIGHT' where ujis=0xA8B7;
+update t1 set name='U+252F BOX DRAWINGS DOWN LIGHT AND HORIZONTAL HEAVY' where ujis=0xA8B8;
+update t1 set name='U+2528 BOX DRAWINGS VERTICAL HEAVY AND LEFT LIGHT' where ujis=0xA8B9;
+update t1 set name='U+2537 BOX DRAWINGS UP LIGHT AND HORIZONTAL HEAVY' where ujis=0xA8BA;
+update t1 set name='U+253F BOX DRAWINGS VERTICAL LIGHT AND HORIZONTAL HEAVY' where ujis=0xA8BB;
+update t1 set name='U+251D BOX DRAWINGS VERTICAL LIGHT AND RIGHT HEAVY' where ujis=0xA8BC;
+update t1 set name='U+2530 BOX DRAWINGS DOWN HEAVY AND HORIZONTAL LIGHT' where ujis=0xA8BD;
+update t1 set name='U+2525 BOX DRAWINGS VERTICAL LIGHT AND LEFT HEAVY' where ujis=0xA8BE;
+update t1 set name='U+2538 BOX DRAWINGS UP HEAVY AND HORIZONTAL LIGHT' where ujis=0xA8BF;
+update t1 set name='U+2542 BOX DRAWINGS VERTICAL HEAVY AND HORIZONTAL LIGHT' where ujis=0xA8C0;
+
+#
+# [B0..BF][A1..FE] - 16*94=1504 codes assigned 
+#
+update t1 set name='<CJK>' where ujis >= 0xB0A1 AND ujis <= 0xBFFE;
+
+#
+# [C0..CE][A1..FE] = 15*94=1410 codes assigned
+#
+update t1 set name='<CJK>' where ujis >= 0xC0A1 AND ujis <= 0xCEFE;
+
+#
+# 0xCFxx - 51 codes assigned
+#
+update t1 set name='U+84EE <CJK>' where ujis=0xCFA1;
+update t1 set name='U+9023 <CJK>' where ujis=0xCFA2;
+update t1 set name='U+932C <CJK>' where ujis=0xCFA3;
+update t1 set name='U+5442 <CJK>' where ujis=0xCFA4;
+update t1 set name='U+9B6F <CJK>' where ujis=0xCFA5;
+update t1 set name='U+6AD3 <CJK>' where ujis=0xCFA6;
+update t1 set name='U+7089 <CJK>' where ujis=0xCFA7;
+update t1 set name='U+8CC2 <CJK>' where ujis=0xCFA8;
+update t1 set name='U+8DEF <CJK>' where ujis=0xCFA9;
+update t1 set name='U+9732 <CJK>' where ujis=0xCFAA;
+update t1 set name='U+52B4 <CJK>' where ujis=0xCFAB;
+update t1 set name='U+5A41 <CJK>' where ujis=0xCFAC;
+update t1 set name='U+5ECA <CJK>' where ujis=0xCFAD;
+update t1 set name='U+5F04 <CJK>' where ujis=0xCFAE;
+update t1 set name='U+6717 <CJK>' where ujis=0xCFAF;
+update t1 set name='U+697C <CJK>' where ujis=0xCFB0;
+update t1 set name='U+6994 <CJK>' where ujis=0xCFB1;
+update t1 set name='U+6D6A <CJK>' where ujis=0xCFB2;
+update t1 set name='U+6F0F <CJK>' where ujis=0xCFB3;
+update t1 set name='U+7262 <CJK>' where ujis=0xCFB4;
+update t1 set name='U+72FC <CJK>' where ujis=0xCFB5;
+update t1 set name='U+7BED <CJK>' where ujis=0xCFB6;
+update t1 set name='U+8001 <CJK>' where ujis=0xCFB7;
+update t1 set name='U+807E <CJK>' where ujis=0xCFB8;
+update t1 set name='U+874B <CJK>' where ujis=0xCFB9;
+update t1 set name='U+90CE <CJK>' where ujis=0xCFBA;
+update t1 set name='U+516D <CJK>' where ujis=0xCFBB;
+update t1 set name='U+9E93 <CJK>' where ujis=0xCFBC;
+update t1 set name='U+7984 <CJK>' where ujis=0xCFBD;
+update t1 set name='U+808B <CJK>' where ujis=0xCFBE;
+update t1 set name='U+9332 <CJK>' where ujis=0xCFBF;
+update t1 set name='U+8AD6 <CJK>' where ujis=0xCFC0;
+update t1 set name='U+502D <CJK>' where ujis=0xCFC1;
+update t1 set name='U+548C <CJK>' where ujis=0xCFC2;
+update t1 set name='U+8A71 <CJK>' where ujis=0xCFC3;
+update t1 set name='U+6B6A <CJK>' where ujis=0xCFC4;
+update t1 set name='U+8CC4 <CJK>' where ujis=0xCFC5;
+update t1 set name='U+8107 <CJK>' where ujis=0xCFC6;
+update t1 set name='U+60D1 <CJK>' where ujis=0xCFC7;
+update t1 set name='U+67A0 <CJK>' where ujis=0xCFC8;
+update t1 set name='U+9DF2 <CJK>' where ujis=0xCFC9;
+update t1 set name='U+4E99 <CJK>' where ujis=0xCFCA;
+update t1 set name='U+4E98 <CJK>' where ujis=0xCFCB;
+update t1 set name='U+9C10 <CJK>' where ujis=0xCFCC;
+update t1 set name='U+8A6B <CJK>' where ujis=0xCFCD;
+update t1 set name='U+85C1 <CJK>' where ujis=0xCFCE;
+update t1 set name='U+8568 <CJK>' where ujis=0xCFCF;
+update t1 set name='U+6900 <CJK>' where ujis=0xCFD0;
+update t1 set name='U+6E7E <CJK>' where ujis=0xCFD1;
+update t1 set name='U+7897 <CJK>' where ujis=0xCFD2;
+update t1 set name='U+8155 <CJK>' where ujis=0xCFD3;
+
+#
+# [D0..DF][A1..FE] - all 16*94=1504 codes assigned 
+#
+update t1 set name='<CJK>' where ujis >= 0xD0A1 AND ujis <= 0xDFFE;
+
+#
+# [E0..EF][A1..FE] - all codes assigned, 16*94=1504 total
+#
+update t1 set name='<CJK>' where ujis >= 0xE0A1 AND ujis <= 0xEFFE;
+
+#
+# [F0..F3][A1..FE] - all codes assigned, 4*94=376 total
+#
+update t1 set name='<CJK>' where ujis >= 0xF0A1 AND ujis <= 0xF3FE;
+
+# 0xF4xx - six codes assigned
+update t1 set name='U+582F <CJK>' where ujis=0xF4A1;
+update t1 set name='U+69C7 <CJK>' where ujis=0xF4A2;
+update t1 set name='U+9059 <CJK>' where ujis=0xF4A3;
+update t1 set name='U+7464 <CJK>' where ujis=0xF4A4;
+update t1 set name='U+51DC <CJK>' where ujis=0xF4A5;
+update t1 set name='U+7199 <CJK>' where ujis=0xF4A6;
+
+# [F5..FE][A1..FE] - User defined range
+update t1 set name='User defined range #1' where ujis >= 0xF5A1 AND ujis <= 0xFEFE;
+
+
+# A character from the upper half of JIS-X-0201
+# (half-width kana, code set 2)
+# is represented by two bytes:
+# the first being 0x8E,
+# the second in the range 0xA1 - 0xDF.
+# Codes according to:
+# ftp://ftp.unicode.org/Public/MAPPINGS/OBSOLETE/EASTASIA/JIS/JIS0201.TXT
+
+insert into t1 (ujis,name) values (0x8EA1,'U+FF61 HALFWIDTH IDEOGRAPHIC FULL STOP');
+insert into t1 (ujis,name) values (0x8EA2,'U+FF62 HALFWIDTH LEFT CORNER BRACKET');
+insert into t1 (ujis,name) values (0x8EA3,'U+FF63 HALFWIDTH RIGHT CORNER BRACKET');
+insert into t1 (ujis,name) values (0x8EA4,'U+FF64 HALFWIDTH IDEOGRAPHIC COMMA');
+insert into t1 (ujis,name) values (0x8EA5,'U+FF65 HALFWIDTH KATAKANA MIDDLE DOT');
+insert into t1 (ujis,name) values (0x8EA6,'U+FF66 HALFWIDTH KATAKANA LETTER WO');
+insert into t1 (ujis,name) values (0x8EA7,'U+FF67 HALFWIDTH KATAKANA LETTER SMALL A');
+insert into t1 (ujis,name) values (0x8EA8,'U+FF68 HALFWIDTH KATAKANA LETTER SMALL I');
+insert into t1 (ujis,name) values (0x8EA9,'U+FF69 HALFWIDTH KATAKANA LETTER SMALL U');
+insert into t1 (ujis,name) values (0x8EAA,'U+FF6A HALFWIDTH KATAKANA LETTER SMALL E');
+insert into t1 (ujis,name) values (0x8EAB,'U+FF6B HALFWIDTH KATAKANA LETTER SMALL O');
+insert into t1 (ujis,name) values (0x8EAC,'U+FF6C HALFWIDTH KATAKANA LETTER SMALL YA');
+insert into t1 (ujis,name) values (0x8EAD,'U+FF6D HALFWIDTH KATAKANA LETTER SMALL YU');
+insert into t1 (ujis,name) values (0x8EAE,'U+FF6E HALFWIDTH KATAKANA LETTER SMALL YO');
+insert into t1 (ujis,name) values (0x8EAF,'U+FF6F HALFWIDTH KATAKANA LETTER SMALL TU');
+insert into t1 (ujis,name) values (0x8EB0,'U+FF70 HALFWIDTH KATAKANA-HIRAGANA PROLONGED SOUND MARK');
+insert into t1 (ujis,name) values (0x8EB1,'U+FF71 HALFWIDTH KATAKANA LETTER A');
+insert into t1 (ujis,name) values (0x8EB2,'U+FF72 HALFWIDTH KATAKANA LETTER I');
+insert into t1 (ujis,name) values (0x8EB3,'U+FF73 HALFWIDTH KATAKANA LETTER U');
+insert into t1 (ujis,name) values (0x8EB4,'U+FF74 HALFWIDTH KATAKANA LETTER E');
+insert into t1 (ujis,name) values (0x8EB5,'U+FF75 HALFWIDTH KATAKANA LETTER O');
+insert into t1 (ujis,name) values (0x8EB6,'U+FF76 HALFWIDTH KATAKANA LETTER KA');
+insert into t1 (ujis,name) values (0x8EB7,'U+FF77 HALFWIDTH KATAKANA LETTER KI');
+insert into t1 (ujis,name) values (0x8EB8,'U+FF78 HALFWIDTH KATAKANA LETTER KU');
+insert into t1 (ujis,name) values (0x8EB9,'U+FF79 HALFWIDTH KATAKANA LETTER KE');
+insert into t1 (ujis,name) values (0x8EBA,'U+FF7A HALFWIDTH KATAKANA LETTER KO');
+insert into t1 (ujis,name) values (0x8EBB,'U+FF7B HALFWIDTH KATAKANA LETTER SA');
+insert into t1 (ujis,name) values (0x8EBC,'U+FF7C HALFWIDTH KATAKANA LETTER SI');
+insert into t1 (ujis,name) values (0x8EBD,'U+FF7D HALFWIDTH KATAKANA LETTER SU');
+insert into t1 (ujis,name) values (0x8EBE,'U+FF7E HALFWIDTH KATAKANA LETTER SE');
+insert into t1 (ujis,name) values (0x8EBF,'U+FF7F HALFWIDTH KATAKANA LETTER SO');
+insert into t1 (ujis,name) values (0x8EC0,'U+FF80 HALFWIDTH KATAKANA LETTER TA');
+insert into t1 (ujis,name) values (0x8EC1,'U+FF81 HALFWIDTH KATAKANA LETTER TI');
+insert into t1 (ujis,name) values (0x8EC2,'U+FF82 HALFWIDTH KATAKANA LETTER TU');
+insert into t1 (ujis,name) values (0x8EC3,'U+FF83 HALFWIDTH KATAKANA LETTER TE');
+insert into t1 (ujis,name) values (0x8EC4,'U+FF84 HALFWIDTH KATAKANA LETTER TO');
+insert into t1 (ujis,name) values (0x8EC5,'U+FF85 HALFWIDTH KATAKANA LETTER NA');
+insert into t1 (ujis,name) values (0x8EC6,'U+FF86 HALFWIDTH KATAKANA LETTER NI');
+insert into t1 (ujis,name) values (0x8EC7,'U+FF87 HALFWIDTH KATAKANA LETTER NU');
+insert into t1 (ujis,name) values (0x8EC8,'U+FF88 HALFWIDTH KATAKANA LETTER NE');
+insert into t1 (ujis,name) values (0x8EC9,'U+FF89 HALFWIDTH KATAKANA LETTER NO');
+insert into t1 (ujis,name) values (0x8ECA,'U+FF8A HALFWIDTH KATAKANA LETTER HA');
+insert into t1 (ujis,name) values (0x8ECB,'U+FF8B HALFWIDTH KATAKANA LETTER HI');
+insert into t1 (ujis,name) values (0x8ECC,'U+FF8C HALFWIDTH KATAKANA LETTER HU');
+insert into t1 (ujis,name) values (0x8ECD,'U+FF8D HALFWIDTH KATAKANA LETTER HE');
+insert into t1 (ujis,name) values (0x8ECE,'U+FF8E HALFWIDTH KATAKANA LETTER HO');
+insert into t1 (ujis,name) values (0x8ECF,'U+FF8F HALFWIDTH KATAKANA LETTER MA');
+insert into t1 (ujis,name) values (0x8ED0,'U+FF90 HALFWIDTH KATAKANA LETTER MI');
+insert into t1 (ujis,name) values (0x8ED1,'U+FF91 HALFWIDTH KATAKANA LETTER MU');
+insert into t1 (ujis,name) values (0x8ED2,'U+FF92 HALFWIDTH KATAKANA LETTER ME');
+insert into t1 (ujis,name) values (0x8ED3,'U+FF93 HALFWIDTH KATAKANA LETTER MO');
+insert into t1 (ujis,name) values (0x8ED4,'U+FF94 HALFWIDTH KATAKANA LETTER YA');
+insert into t1 (ujis,name) values (0x8ED5,'U+FF95 HALFWIDTH KATAKANA LETTER YU');
+insert into t1 (ujis,name) values (0x8ED6,'U+FF96 HALFWIDTH KATAKANA LETTER YO');
+insert into t1 (ujis,name) values (0x8ED7,'U+FF97 HALFWIDTH KATAKANA LETTER RA');
+insert into t1 (ujis,name) values (0x8ED8,'U+FF98 HALFWIDTH KATAKANA LETTER RI');
+insert into t1 (ujis,name) values (0x8ED9,'U+FF99 HALFWIDTH KATAKANA LETTER RU');
+insert into t1 (ujis,name) values (0x8EDA,'U+FF9A HALFWIDTH KATAKANA LETTER RE');
+insert into t1 (ujis,name) values (0x8EDB,'U+FF9B HALFWIDTH KATAKANA LETTER RO');
+insert into t1 (ujis,name) values (0x8EDC,'U+FF9C HALFWIDTH KATAKANA LETTER WA');
+insert into t1 (ujis,name) values (0x8EDD,'U+FF9D HALFWIDTH KATAKANA LETTER N');
+insert into t1 (ujis,name) values (0x8EDE,'U+FF9E HALFWIDTH KATAKANA VOICED SOUND MARK');
+insert into t1 (ujis,name) values (0x8EDF,'U+FF9F HALFWIDTH KATAKANA SEMI-VOICED SOUND MARK');
+
+
+#
+# A character from JIS-X-0212 (code set 3)
+# is represented by three bytes,
+# the first being 0x8F,
+# the following two in the range 0xA1 - 0xFE.
+# ftp://ftp.unicode.org/Public/MAPPINGS/OBSOLETE/EASTASIA/JIS/JIS0212.TXT
+#
+# Fill table t1 with codes [8F][A1..FE][A1..FE] using helper table t2,
+# 8836 codes total
+#
+insert into t1 (ujis) select concat(0x8F,t21.code,t22.code) from t2 t21, t2 t22 order by 1;
+
+update t1 set name='U+02D8 BREVE' where ujis=0x8FA2AF;
+update t1 set name='U+02C7 CARON (Mandarin Chinese third tone)' where ujis=0x8FA2B0;
+update t1 set name='U+00B8 CEDILLA' where ujis=0x8FA2B1;
+update t1 set name='U+02D9 DOT ABOVE (Mandarin Chinese light tone)' where ujis=0x8FA2B2;
+update t1 set name='U+02DD DOUBLE ACUTE ACCENT' where ujis=0x8FA2B3;
+update t1 set name='U+00AF MACRON' where ujis=0x8FA2B4;
+update t1 set name='U+02DB OGONEK' where ujis=0x8FA2B5;
+update t1 set name='U+02DA RING ABOVE' where ujis=0x8FA2B6;
+update t1 set name='U+007E TILDE' where ujis=0x8FA2B7;
+update t1 set name='U+0384 GREEK TONOS' where ujis=0x8FA2B8;
+update t1 set name='U+0385 GREEK DIALYTIKA TONOS' where ujis=0x8FA2B9;
+update t1 set name='U+00A1 INVERTED EXCLAMATION MARK' where ujis=0x8FA2C2;
+update t1 set name='U+00A6 BROKEN BAR' where ujis=0x8FA2C3;
+update t1 set name='U+00BF INVERTED QUESTION MARK' where ujis=0x8FA2C4;
+update t1 set name='U+00BA MASCULINE ORDINAL INDICATOR' where ujis=0x8FA2EB;
+update t1 set name='U+00AA FEMININE ORDINAL INDICATOR' where ujis=0x8FA2EC;
+update t1 set name='U+00A9 COPYRIGHT SIGN' where ujis=0x8FA2ED;
+update t1 set name='U+00AE REGISTERED SIGN' where ujis=0x8FA2EE;
+update t1 set name='U+2122 TRADE MARK SIGN' where ujis=0x8FA2EF;
+update t1 set name='U+00A4 CURRENCY SIGN' where ujis=0x8FA2F0;
+update t1 set name='U+2116 NUMERO SIGN' where ujis=0x8FA2F1;
+update t1 set name='U+0386 GREEK CAPITAL LETTER ALPHA WITH TONOS' where ujis=0x8FA6E1;
+update t1 set name='U+0388 GREEK CAPITAL LETTER EPSILON WITH TONOS' where ujis=0x8FA6E2;
+update t1 set name='U+0389 GREEK CAPITAL LETTER ETA WITH TONOS' where ujis=0x8FA6E3;
+update t1 set name='U+038A GREEK CAPITAL LETTER IOTA WITH TONOS' where ujis=0x8FA6E4;
+update t1 set name='U+03AA GREEK CAPITAL LETTER IOTA WITH DIALYTIKA' where ujis=0x8FA6E5;
+update t1 set name='U+038C GREEK CAPITAL LETTER OMICRON WITH TONOS' where ujis=0x8FA6E7;
+update t1 set name='U+038E GREEK CAPITAL LETTER UPSILON WITH TONOS' where ujis=0x8FA6E9;
+update t1 set name='U+03AB GREEK CAPITAL LETTER UPSILON WITH DIALYTIKA' where ujis=0x8FA6EA;
+update t1 set name='U+038F GREEK CAPITAL LETTER OMEGA WITH TONOS' where ujis=0x8FA6EC;
+update t1 set name='U+03AC GREEK SMALL LETTER ALPHA WITH TONOS' where ujis=0x8FA6F1;
+update t1 set name='U+03AD GREEK SMALL LETTER EPSILON WITH TONOS' where ujis=0x8FA6F2;
+update t1 set name='U+03AE GREEK SMALL LETTER ETA WITH TONOS' where ujis=0x8FA6F3;
+update t1 set name='U+03AF GREEK SMALL LETTER IOTA WITH TONOS' where ujis=0x8FA6F4;
+update t1 set name='U+03CA GREEK SMALL LETTER IOTA WITH DIALYTIKA' where ujis=0x8FA6F5;
+update t1 set name='U+0390 GREEK SMALL LETTER IOTA WITH DIALYTIKA AND TONOS' where ujis=0x8FA6F6;
+update t1 set name='U+03CC GREEK SMALL LETTER OMICRON WITH TONOS' where ujis=0x8FA6F7;
+update t1 set name='U+03C2 GREEK SMALL LETTER FINAL SIGMA' where ujis=0x8FA6F8;
+update t1 set name='U+03CD GREEK SMALL LETTER UPSILON WITH TONOS' where ujis=0x8FA6F9;
+update t1 set name='U+03CB GREEK SMALL LETTER UPSILON WITH DIALYTIKA' where ujis=0x8FA6FA;
+update t1 set name='U+03B0 GREEK SMALL LETTER UPSILON WITH DIALYTIKA AND TONOS' where ujis=0x8FA6FB;
+update t1 set name='U+03CE GREEK SMALL LETTER OMEGA WITH TONOS' where ujis=0x8FA6FC;
+update t1 set name='U+0402 CYRILLIC CAPITAL LETTER DJE' where ujis=0x8FA7C2;
+update t1 set name='U+0403 CYRILLIC CAPITAL LETTER GJE' where ujis=0x8FA7C3;
+update t1 set name='U+0404 CYRILLIC CAPITAL LETTER UKRAINIAN IE' where ujis=0x8FA7C4;
+update t1 set name='U+0405 CYRILLIC CAPITAL LETTER DZE' where ujis=0x8FA7C5;
+update t1 set name='U+0406 CYRILLIC CAPITAL LETTER BYELORUSSIAN-UKRAINIAN I' where ujis=0x8FA7C6;
+update t1 set name='U+0407 CYRILLIC CAPITAL LETTER YI' where ujis=0x8FA7C7;
+update t1 set name='U+0408 CYRILLIC CAPITAL LETTER JE' where ujis=0x8FA7C8;
+update t1 set name='U+0409 CYRILLIC CAPITAL LETTER LJE' where ujis=0x8FA7C9;
+update t1 set name='U+040A CYRILLIC CAPITAL LETTER NJE' where ujis=0x8FA7CA;
+update t1 set name='U+040B CYRILLIC CAPITAL LETTER TSHE' where ujis=0x8FA7CB;
+update t1 set name='U+040C CYRILLIC CAPITAL LETTER KJE' where ujis=0x8FA7CC;
+update t1 set name='U+040E CYRILLIC CAPITAL LETTER SHORT U' where ujis=0x8FA7CD;
+update t1 set name='U+040F CYRILLIC CAPITAL LETTER DZHE' where ujis=0x8FA7CE;
+update t1 set name='U+0452 CYRILLIC SMALL LETTER DJE' where ujis=0x8FA7F2;
+update t1 set name='U+0453 CYRILLIC SMALL LETTER GJE' where ujis=0x8FA7F3;
+update t1 set name='U+0454 CYRILLIC SMALL LETTER UKRAINIAN IE' where ujis=0x8FA7F4;
+update t1 set name='U+0455 CYRILLIC SMALL LETTER DZE' where ujis=0x8FA7F5;
+update t1 set name='U+0456 CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I' where ujis=0x8FA7F6;
+update t1 set name='U+0457 CYRILLIC SMALL LETTER YI' where ujis=0x8FA7F7;
+update t1 set name='U+0458 CYRILLIC SMALL LETTER JE' where ujis=0x8FA7F8;
+update t1 set name='U+0459 CYRILLIC SMALL LETTER LJE' where ujis=0x8FA7F9;
+update t1 set name='U+045A CYRILLIC SMALL LETTER NJE' where ujis=0x8FA7FA;
+update t1 set name='U+045B CYRILLIC SMALL LETTER TSHE' where ujis=0x8FA7FB;
+update t1 set name='U+045C CYRILLIC SMALL LETTER KJE' where ujis=0x8FA7FC;
+update t1 set name='U+045E CYRILLIC SMALL LETTER SHORT U' where ujis=0x8FA7FD;
+update t1 set name='U+045F CYRILLIC SMALL LETTER DZHE' where ujis=0x8FA7FE;
+update t1 set name='U+00C6 LATIN CAPITAL LIGATURE AE' where ujis=0x8FA9A1;
+update t1 set name='U+0110 LATIN CAPITAL LETTER D WITH STROKE' where ujis=0x8FA9A2;
+update t1 set name='U+0126 LATIN CAPITAL LETTER H WITH STROKE' where ujis=0x8FA9A4;
+update t1 set name='U+0132 LATIN CAPITAL LIGATURE IJ' where ujis=0x8FA9A6;
+update t1 set name='U+0141 LATIN CAPITAL LETTER L WITH STROKE' where ujis=0x8FA9A8;
+update t1 set name='U+013F LATIN CAPITAL LETTER L WITH MIDDLE DOT' where ujis=0x8FA9A9;
+update t1 set name='U+014A LATIN CAPITAL LETTER ENG' where ujis=0x8FA9AB;
+update t1 set name='U+00D8 LATIN CAPITAL LETTER O WITH STROKE' where ujis=0x8FA9AC;
+update t1 set name='U+0152 LATIN CAPITAL LIGATURE OE' where ujis=0x8FA9AD;
+update t1 set name='U+0166 LATIN CAPITAL LETTER T WITH STROKE' where ujis=0x8FA9AF;
+update t1 set name='U+00DE LATIN CAPITAL LETTER THORN' where ujis=0x8FA9B0;
+update t1 set name='U+00E6 LATIN SMALL LIGATURE AE' where ujis=0x8FA9C1;
+update t1 set name='U+0111 LATIN SMALL LETTER D WITH STROKE' where ujis=0x8FA9C2;
+update t1 set name='U+00F0 LATIN SMALL LETTER ETH' where ujis=0x8FA9C3;
+update t1 set name='U+0127 LATIN SMALL LETTER H WITH STROKE' where ujis=0x8FA9C4;
+update t1 set name='U+0131 LATIN SMALL LETTER DOTLESS I' where ujis=0x8FA9C5;
+update t1 set name='U+0133 LATIN SMALL LIGATURE IJ' where ujis=0x8FA9C6;
+update t1 set name='U+0138 LATIN SMALL LETTER KRA' where ujis=0x8FA9C7;
+update t1 set name='U+0142 LATIN SMALL LETTER L WITH STROKE' where ujis=0x8FA9C8;
+update t1 set name='U+0140 LATIN SMALL LETTER L WITH MIDDLE DOT' where ujis=0x8FA9C9;
+update t1 set name='U+0149 LATIN SMALL LETTER N PRECEDED BY APOSTROPHE' where ujis=0x8FA9CA;
+update t1 set name='U+014B LATIN SMALL LETTER ENG' where ujis=0x8FA9CB;
+update t1 set name='U+00F8 LATIN SMALL LETTER O WITH STROKE' where ujis=0x8FA9CC;
+update t1 set name='U+0153 LATIN SMALL LIGATURE OE' where ujis=0x8FA9CD;
+update t1 set name='U+00DF LATIN SMALL LETTER SHARP S' where ujis=0x8FA9CE;
+update t1 set name='U+0167 LATIN SMALL LETTER T WITH STROKE' where ujis=0x8FA9CF;
+update t1 set name='U+00FE LATIN SMALL LETTER THORN' where ujis=0x8FA9D0;
+update t1 set name='U+00C1 LATIN CAPITAL LETTER A WITH ACUTE' where ujis=0x8FAAA1;
+update t1 set name='U+00C0 LATIN CAPITAL LETTER A WITH GRAVE' where ujis=0x8FAAA2;
+update t1 set name='U+00C4 LATIN CAPITAL LETTER A WITH DIAERESIS' where ujis=0x8FAAA3;
+update t1 set name='U+00C2 LATIN CAPITAL LETTER A WITH CIRCUMFLEX' where ujis=0x8FAAA4;
+update t1 set name='U+0102 LATIN CAPITAL LETTER A WITH BREVE' where ujis=0x8FAAA5;
+update t1 set name='U+01CD LATIN CAPITAL LETTER A WITH CARON' where ujis=0x8FAAA6;
+update t1 set name='U+0100 LATIN CAPITAL LETTER A WITH MACRON' where ujis=0x8FAAA7;
+update t1 set name='U+0104 LATIN CAPITAL LETTER A WITH OGONEK' where ujis=0x8FAAA8;
+update t1 set name='U+00C5 LATIN CAPITAL LETTER A WITH RING ABOVE' where ujis=0x8FAAA9;
+update t1 set name='U+00C3 LATIN CAPITAL LETTER A WITH TILDE' where ujis=0x8FAAAA;
+update t1 set name='U+0106 LATIN CAPITAL LETTER C WITH ACUTE' where ujis=0x8FAAAB;
+update t1 set name='U+0108 LATIN CAPITAL LETTER C WITH CIRCUMFLEX' where ujis=0x8FAAAC;
+update t1 set name='U+010C LATIN CAPITAL LETTER C WITH CARON' where ujis=0x8FAAAD;
+update t1 set name='U+00C7 LATIN CAPITAL LETTER C WITH CEDILLA' where ujis=0x8FAAAE;
+update t1 set name='U+010A LATIN CAPITAL LETTER C WITH DOT ABOVE' where ujis=0x8FAAAF;
+update t1 set name='U+010E LATIN CAPITAL LETTER D WITH CARON' where ujis=0x8FAAB0;
+update t1 set name='U+00C9 LATIN CAPITAL LETTER E WITH ACUTE' where ujis=0x8FAAB1;
+update t1 set name='U+00C8 LATIN CAPITAL LETTER E WITH GRAVE' where ujis=0x8FAAB2;
+update t1 set name='U+00CB LATIN CAPITAL LETTER E WITH DIAERESIS' where ujis=0x8FAAB3;
+update t1 set name='U+00CA LATIN CAPITAL LETTER E WITH CIRCUMFLEX' where ujis=0x8FAAB4;
+update t1 set name='U+011A LATIN CAPITAL LETTER E WITH CARON' where ujis=0x8FAAB5;
+update t1 set name='U+0116 LATIN CAPITAL LETTER E WITH DOT ABOVE' where ujis=0x8FAAB6;
+update t1 set name='U+0112 LATIN CAPITAL LETTER E WITH MACRON' where ujis=0x8FAAB7;
+update t1 set name='U+0118 LATIN CAPITAL LETTER E WITH OGONEK' where ujis=0x8FAAB8;
+update t1 set name='U+011C LATIN CAPITAL LETTER G WITH CIRCUMFLEX' where ujis=0x8FAABA;
+update t1 set name='U+011E LATIN CAPITAL LETTER G WITH BREVE' where ujis=0x8FAABB;
+update t1 set name='U+0122 LATIN CAPITAL LETTER G WITH CEDILLA' where ujis=0x8FAABC;
+update t1 set name='U+0120 LATIN CAPITAL LETTER G WITH DOT ABOVE' where ujis=0x8FAABD;
+update t1 set name='U+0124 LATIN CAPITAL LETTER H WITH CIRCUMFLEX' where ujis=0x8FAABE;
+update t1 set name='U+00CD LATIN CAPITAL LETTER I WITH ACUTE' where ujis=0x8FAABF;
+update t1 set name='U+00CC LATIN CAPITAL LETTER I WITH GRAVE' where ujis=0x8FAAC0;
+update t1 set name='U+00CF LATIN CAPITAL LETTER I WITH DIAERESIS' where ujis=0x8FAAC1;
+update t1 set name='U+00CE LATIN CAPITAL LETTER I WITH CIRCUMFLEX' where ujis=0x8FAAC2;
+update t1 set name='U+01CF LATIN CAPITAL LETTER I WITH CARON' where ujis=0x8FAAC3;
+update t1 set name='U+0130 LATIN CAPITAL LETTER I WITH DOT ABOVE' where ujis=0x8FAAC4;
+update t1 set name='U+012A LATIN CAPITAL LETTER I WITH MACRON' where ujis=0x8FAAC5;
+update t1 set name='U+012E LATIN CAPITAL LETTER I WITH OGONEK' where ujis=0x8FAAC6;
+update t1 set name='U+0128 LATIN CAPITAL LETTER I WITH TILDE' where ujis=0x8FAAC7;
+update t1 set name='U+0134 LATIN CAPITAL LETTER J WITH CIRCUMFLEX' where ujis=0x8FAAC8;
+update t1 set name='U+0136 LATIN CAPITAL LETTER K WITH CEDILLA' where ujis=0x8FAAC9;
+update t1 set name='U+0139 LATIN CAPITAL LETTER L WITH ACUTE' where ujis=0x8FAACA;
+update t1 set name='U+013D LATIN CAPITAL LETTER L WITH CARON' where ujis=0x8FAACB;
+update t1 set name='U+013B LATIN CAPITAL LETTER L WITH CEDILLA' where ujis=0x8FAACC;
+update t1 set name='U+0143 LATIN CAPITAL LETTER N WITH ACUTE' where ujis=0x8FAACD;
+update t1 set name='U+0147 LATIN CAPITAL LETTER N WITH CARON' where ujis=0x8FAACE;
+update t1 set name='U+0145 LATIN CAPITAL LETTER N WITH CEDILLA' where ujis=0x8FAACF;
+update t1 set name='U+00D1 LATIN CAPITAL LETTER N WITH TILDE' where ujis=0x8FAAD0;
+update t1 set name='U+00D3 LATIN CAPITAL LETTER O WITH ACUTE' where ujis=0x8FAAD1;
+update t1 set name='U+00D2 LATIN CAPITAL LETTER O WITH GRAVE' where ujis=0x8FAAD2;
+update t1 set name='U+00D6 LATIN CAPITAL LETTER O WITH DIAERESIS' where ujis=0x8FAAD3;
+update t1 set name='U+00D4 LATIN CAPITAL LETTER O WITH CIRCUMFLEX' where ujis=0x8FAAD4;
+update t1 set name='U+01D1 LATIN CAPITAL LETTER O WITH CARON' where ujis=0x8FAAD5;
+update t1 set name='U+0150 LATIN CAPITAL LETTER O WITH DOUBLE ACUTE' where ujis=0x8FAAD6;
+update t1 set name='U+014C LATIN CAPITAL LETTER O WITH MACRON' where ujis=0x8FAAD7;
+update t1 set name='U+00D5 LATIN CAPITAL LETTER O WITH TILDE' where ujis=0x8FAAD8;
+update t1 set name='U+0154 LATIN CAPITAL LETTER R WITH ACUTE' where ujis=0x8FAAD9;
+update t1 set name='U+0158 LATIN CAPITAL LETTER R WITH CARON' where ujis=0x8FAADA;
+update t1 set name='U+0156 LATIN CAPITAL LETTER R WITH CEDILLA' where ujis=0x8FAADB;
+update t1 set name='U+015A LATIN CAPITAL LETTER S WITH ACUTE' where ujis=0x8FAADC;
+update t1 set name='U+015C LATIN CAPITAL LETTER S WITH CIRCUMFLEX' where ujis=0x8FAADD;
+update t1 set name='U+0160 LATIN CAPITAL LETTER S WITH CARON' where ujis=0x8FAADE;
+update t1 set name='U+015E LATIN CAPITAL LETTER S WITH CEDILLA' where ujis=0x8FAADF;
+update t1 set name='U+0164 LATIN CAPITAL LETTER T WITH CARON' where ujis=0x8FAAE0;
+update t1 set name='U+0162 LATIN CAPITAL LETTER T WITH CEDILLA' where ujis=0x8FAAE1;
+update t1 set name='U+00DA LATIN CAPITAL LETTER U WITH ACUTE' where ujis=0x8FAAE2;
+update t1 set name='U+00D9 LATIN CAPITAL LETTER U WITH GRAVE' where ujis=0x8FAAE3;
+update t1 set name='U+00DC LATIN CAPITAL LETTER U WITH DIAERESIS' where ujis=0x8FAAE4;
+update t1 set name='U+00DB LATIN CAPITAL LETTER U WITH CIRCUMFLEX' where ujis=0x8FAAE5;
+update t1 set name='U+016C LATIN CAPITAL LETTER U WITH BREVE' where ujis=0x8FAAE6;
+update t1 set name='U+01D3 LATIN CAPITAL LETTER U WITH CARON' where ujis=0x8FAAE7;
+update t1 set name='U+0170 LATIN CAPITAL LETTER U WITH DOUBLE ACUTE' where ujis=0x8FAAE8;
+update t1 set name='U+016A LATIN CAPITAL LETTER U WITH MACRON' where ujis=0x8FAAE9;
+update t1 set name='U+0172 LATIN CAPITAL LETTER U WITH OGONEK' where ujis=0x8FAAEA;
+update t1 set name='U+016E LATIN CAPITAL LETTER U WITH RING ABOVE' where ujis=0x8FAAEB;
+update t1 set name='U+0168 LATIN CAPITAL LETTER U WITH TILDE' where ujis=0x8FAAEC;
+update t1 set name='U+01D7 LATIN CAPITAL LETTER U WITH DIAERESIS AND ACUTE' where ujis=0x8FAAED;
+update t1 set name='U+01DB LATIN CAPITAL LETTER U WITH DIAERESIS AND GRAVE' where ujis=0x8FAAEE;
+update t1 set name='U+01D9 LATIN CAPITAL LETTER U WITH DIAERESIS AND CARON' where ujis=0x8FAAEF;
+update t1 set name='U+01D5 LATIN CAPITAL LETTER U WITH DIAERESIS AND MACRON' where ujis=0x8FAAF0;
+update t1 set name='U+0174 LATIN CAPITAL LETTER W WITH CIRCUMFLEX' where ujis=0x8FAAF1;
+update t1 set name='U+00DD LATIN CAPITAL LETTER Y WITH ACUTE' where ujis=0x8FAAF2;
+update t1 set name='U+0178 LATIN CAPITAL LETTER Y WITH DIAERESIS' where ujis=0x8FAAF3;
+update t1 set name='U+0176 LATIN CAPITAL LETTER Y WITH CIRCUMFLEX' where ujis=0x8FAAF4;
+update t1 set name='U+0179 LATIN CAPITAL LETTER Z WITH ACUTE' where ujis=0x8FAAF5;
+update t1 set name='U+017D LATIN CAPITAL LETTER Z WITH CARON' where ujis=0x8FAAF6;
+update t1 set name='U+017B LATIN CAPITAL LETTER Z WITH DOT ABOVE' where ujis=0x8FAAF7;
+update t1 set name='U+00E1 LATIN SMALL LETTER A WITH ACUTE' where ujis=0x8FABA1;
+update t1 set name='U+00E0 LATIN SMALL LETTER A WITH GRAVE' where ujis=0x8FABA2;
+update t1 set name='U+00E4 LATIN SMALL LETTER A WITH DIAERESIS' where ujis=0x8FABA3;
+update t1 set name='U+00E2 LATIN SMALL LETTER A WITH CIRCUMFLEX' where ujis=0x8FABA4;
+update t1 set name='U+0103 LATIN SMALL LETTER A WITH BREVE' where ujis=0x8FABA5;
+update t1 set name='U+01CE LATIN SMALL LETTER A WITH CARON' where ujis=0x8FABA6;
+update t1 set name='U+0101 LATIN SMALL LETTER A WITH MACRON' where ujis=0x8FABA7;
+update t1 set name='U+0105 LATIN SMALL LETTER A WITH OGONEK' where ujis=0x8FABA8;
+update t1 set name='U+00E5 LATIN SMALL LETTER A WITH RING ABOVE' where ujis=0x8FABA9;
+update t1 set name='U+00E3 LATIN SMALL LETTER A WITH TILDE' where ujis=0x8FABAA;
+update t1 set name='U+0107 LATIN SMALL LETTER C WITH ACUTE' where ujis=0x8FABAB;
+update t1 set name='U+0109 LATIN SMALL LETTER C WITH CIRCUMFLEX' where ujis=0x8FABAC;
+update t1 set name='U+010D LATIN SMALL LETTER C WITH CARON' where ujis=0x8FABAD;
+update t1 set name='U+00E7 LATIN SMALL LETTER C WITH CEDILLA' where ujis=0x8FABAE;
+update t1 set name='U+010B LATIN SMALL LETTER C WITH DOT ABOVE' where ujis=0x8FABAF;
+update t1 set name='U+010F LATIN SMALL LETTER D WITH CARON' where ujis=0x8FABB0;
+update t1 set name='U+00E9 LATIN SMALL LETTER E WITH ACUTE' where ujis=0x8FABB1;
+update t1 set name='U+00E8 LATIN SMALL LETTER E WITH GRAVE' where ujis=0x8FABB2;
+update t1 set name='U+00EB LATIN SMALL LETTER E WITH DIAERESIS' where ujis=0x8FABB3;
+update t1 set name='U+00EA LATIN SMALL LETTER E WITH CIRCUMFLEX' where ujis=0x8FABB4;
+update t1 set name='U+011B LATIN SMALL LETTER E WITH CARON' where ujis=0x8FABB5;
+update t1 set name='U+0117 LATIN SMALL LETTER E WITH DOT ABOVE' where ujis=0x8FABB6;
+update t1 set name='U+0113 LATIN SMALL LETTER E WITH MACRON' where ujis=0x8FABB7;
+update t1 set name='U+0119 LATIN SMALL LETTER E WITH OGONEK' where ujis=0x8FABB8;
+update t1 set name='U+01F5 LATIN SMALL LETTER G WITH ACUTE' where ujis=0x8FABB9;
+update t1 set name='U+011D LATIN SMALL LETTER G WITH CIRCUMFLEX' where ujis=0x8FABBA;
+update t1 set name='U+011F LATIN SMALL LETTER G WITH BREVE' where ujis=0x8FABBB;
+update t1 set name='U+0121 LATIN SMALL LETTER G WITH DOT ABOVE' where ujis=0x8FABBD;
+update t1 set name='U+0125 LATIN SMALL LETTER H WITH CIRCUMFLEX' where ujis=0x8FABBE;
+update t1 set name='U+00ED LATIN SMALL LETTER I WITH ACUTE' where ujis=0x8FABBF;
+update t1 set name='U+00EC LATIN SMALL LETTER I WITH GRAVE' where ujis=0x8FABC0;
+update t1 set name='U+00EF LATIN SMALL LETTER I WITH DIAERESIS' where ujis=0x8FABC1;
+update t1 set name='U+00EE LATIN SMALL LETTER I WITH CIRCUMFLEX' where ujis=0x8FABC2;
+update t1 set name='U+01D0 LATIN SMALL LETTER I WITH CARON' where ujis=0x8FABC3;
+update t1 set name='U+012B LATIN SMALL LETTER I WITH MACRON' where ujis=0x8FABC5;
+update t1 set name='U+012F LATIN SMALL LETTER I WITH OGONEK' where ujis=0x8FABC6;
+update t1 set name='U+0129 LATIN SMALL LETTER I WITH TILDE' where ujis=0x8FABC7;
+update t1 set name='U+0135 LATIN SMALL LETTER J WITH CIRCUMFLEX' where ujis=0x8FABC8;
+update t1 set name='U+0137 LATIN SMALL LETTER K WITH CEDILLA' where ujis=0x8FABC9;
+update t1 set name='U+013A LATIN SMALL LETTER L WITH ACUTE' where ujis=0x8FABCA;
+update t1 set name='U+013E LATIN SMALL LETTER L WITH CARON' where ujis=0x8FABCB;
+update t1 set name='U+013C LATIN SMALL LETTER L WITH CEDILLA' where ujis=0x8FABCC;
+update t1 set name='U+0144 LATIN SMALL LETTER N WITH ACUTE' where ujis=0x8FABCD;
+update t1 set name='U+0148 LATIN SMALL LETTER N WITH CARON' where ujis=0x8FABCE;
+update t1 set name='U+0146 LATIN SMALL LETTER N WITH CEDILLA' where ujis=0x8FABCF;
+update t1 set name='U+00F1 LATIN SMALL LETTER N WITH TILDE' where ujis=0x8FABD0;
+update t1 set name='U+00F3 LATIN SMALL LETTER O WITH ACUTE' where ujis=0x8FABD1;
+update t1 set name='U+00F2 LATIN SMALL LETTER O WITH GRAVE' where ujis=0x8FABD2;
+update t1 set name='U+00F6 LATIN SMALL LETTER O WITH DIAERESIS' where ujis=0x8FABD3;
+update t1 set name='U+00F4 LATIN SMALL LETTER O WITH CIRCUMFLEX' where ujis=0x8FABD4;
+update t1 set name='U+01D2 LATIN SMALL LETTER O WITH CARON' where ujis=0x8FABD5;
+update t1 set name='U+0151 LATIN SMALL LETTER O WITH DOUBLE ACUTE' where ujis=0x8FABD6;
+update t1 set name='U+014D LATIN SMALL LETTER O WITH MACRON' where ujis=0x8FABD7;
+update t1 set name='U+00F5 LATIN SMALL LETTER O WITH TILDE' where ujis=0x8FABD8;
+update t1 set name='U+0155 LATIN SMALL LETTER R WITH ACUTE' where ujis=0x8FABD9;
+update t1 set name='U+0159 LATIN SMALL LETTER R WITH CARON' where ujis=0x8FABDA;
+update t1 set name='U+0157 LATIN SMALL LETTER R WITH CEDILLA' where ujis=0x8FABDB;
+update t1 set name='U+015B LATIN SMALL LETTER S WITH ACUTE' where ujis=0x8FABDC;
+update t1 set name='U+015D LATIN SMALL LETTER S WITH CIRCUMFLEX' where ujis=0x8FABDD;
+update t1 set name='U+0161 LATIN SMALL LETTER S WITH CARON' where ujis=0x8FABDE;
+update t1 set name='U+015F LATIN SMALL LETTER S WITH CEDILLA' where ujis=0x8FABDF;
+update t1 set name='U+0165 LATIN SMALL LETTER T WITH CARON' where ujis=0x8FABE0;
+update t1 set name='U+0163 LATIN SMALL LETTER T WITH CEDILLA' where ujis=0x8FABE1;
+update t1 set name='U+00FA LATIN SMALL LETTER U WITH ACUTE' where ujis=0x8FABE2;
+update t1 set name='U+00F9 LATIN SMALL LETTER U WITH GRAVE' where ujis=0x8FABE3;
+update t1 set name='U+00FC LATIN SMALL LETTER U WITH DIAERESIS' where ujis=0x8FABE4;
+update t1 set name='U+00FB LATIN SMALL LETTER U WITH CIRCUMFLEX' where ujis=0x8FABE5;
+update t1 set name='U+016D LATIN SMALL LETTER U WITH BREVE' where ujis=0x8FABE6;
+update t1 set name='U+01D4 LATIN SMALL LETTER U WITH CARON' where ujis=0x8FABE7;
+update t1 set name='U+0171 LATIN SMALL LETTER U WITH DOUBLE ACUTE' where ujis=0x8FABE8;
+update t1 set name='U+016B LATIN SMALL LETTER U WITH MACRON' where ujis=0x8FABE9;
+update t1 set name='U+0173 LATIN SMALL LETTER U WITH OGONEK' where ujis=0x8FABEA;
+update t1 set name='U+016F LATIN SMALL LETTER U WITH RING ABOVE' where ujis=0x8FABEB;
+update t1 set name='U+0169 LATIN SMALL LETTER U WITH TILDE' where ujis=0x8FABEC;
+update t1 set name='U+01D8 LATIN SMALL LETTER U WITH DIAERESIS AND ACUTE' where ujis=0x8FABED;
+update t1 set name='U+01DC LATIN SMALL LETTER U WITH DIAERESIS AND GRAVE' where ujis=0x8FABEE;
+update t1 set name='U+01DA LATIN SMALL LETTER U WITH DIAERESIS AND CARON' where ujis=0x8FABEF;
+update t1 set name='U+01D6 LATIN SMALL LETTER U WITH DIAERESIS AND MACRON' where ujis=0x8FABF0;
+update t1 set name='U+0175 LATIN SMALL LETTER W WITH CIRCUMFLEX' where ujis=0x8FABF1;
+update t1 set name='U+00FD LATIN SMALL LETTER Y WITH ACUTE' where ujis=0x8FABF2;
+update t1 set name='U+00FF LATIN SMALL LETTER Y WITH DIAERESIS' where ujis=0x8FABF3;
+update t1 set name='U+0177 LATIN SMALL LETTER Y WITH CIRCUMFLEX' where ujis=0x8FABF4;
+update t1 set name='U+017A LATIN SMALL LETTER Z WITH ACUTE' where ujis=0x8FABF5;
+update t1 set name='U+017E LATIN SMALL LETTER Z WITH CARON' where ujis=0x8FABF6;
+update t1 set name='U+017C LATIN SMALL LETTER Z WITH DOT ABOVE' where ujis=0x8FABF7;
+
+# [8F][B0..BF][A1..FE] - all 16*94=1504 codes assigned
+update t1 set name='<CJK>' where ujis >= 0x8FB0A1 AND ujis <= 0x8FBFFE;
+
+# [8F][C0..CF][A1..FE] - all 16*94=1504 codes assigned
+update t1 set name='<CJK>' where ujis >= 0x8FC0A1 AND ujis <= 0x8FCFFE;
+
+# [8F][D0..DF][A1..FE] - all 16*94=1504 codes assigned
+update t1 set name='<CJK>' where ujis >= 0x8FD0A1 AND ujis <= 0x8FDFFE;
+
+# [8F][E0..EC][A1..FE] - all 13*94=1222 codes assigned
+update t1 set name='<CJK>' where ujis >= 0x8FE0A1 AND ujis <= 0x8FECFE;
+
+#
+update t1 set name='U+9EF8 <CJK>' where ujis=0x8FEDA1;
+update t1 set name='U+9EFF <CJK>' where ujis=0x8FEDA2;
+update t1 set name='U+9F02 <CJK>' where ujis=0x8FEDA3;
+update t1 set name='U+9F03 <CJK>' where ujis=0x8FEDA4;
+update t1 set name='U+9F09 <CJK>' where ujis=0x8FEDA5;
+update t1 set name='U+9F0F <CJK>' where ujis=0x8FEDA6;
+update t1 set name='U+9F10 <CJK>' where ujis=0x8FEDA7;
+update t1 set name='U+9F11 <CJK>' where ujis=0x8FEDA8;
+update t1 set name='U+9F12 <CJK>' where ujis=0x8FEDA9;
+update t1 set name='U+9F14 <CJK>' where ujis=0x8FEDAA;
+update t1 set name='U+9F16 <CJK>' where ujis=0x8FEDAB;
+update t1 set name='U+9F17 <CJK>' where ujis=0x8FEDAC;
+update t1 set name='U+9F19 <CJK>' where ujis=0x8FEDAD;
+update t1 set name='U+9F1A <CJK>' where ujis=0x8FEDAE;
+update t1 set name='U+9F1B <CJK>' where ujis=0x8FEDAF;
+
+update t1 set name='U+9F1F <CJK>' where ujis=0x8FEDB0;
+update t1 set name='U+9F22 <CJK>' where ujis=0x8FEDB1;
+update t1 set name='U+9F26 <CJK>' where ujis=0x8FEDB2;
+update t1 set name='U+9F2A <CJK>' where ujis=0x8FEDB3;
+update t1 set name='U+9F2B <CJK>' where ujis=0x8FEDB4;
+update t1 set name='U+9F2F <CJK>' where ujis=0x8FEDB5;
+update t1 set name='U+9F31 <CJK>' where ujis=0x8FEDB6;
+update t1 set name='U+9F32 <CJK>' where ujis=0x8FEDB7;
+update t1 set name='U+9F34 <CJK>' where ujis=0x8FEDB8;
+update t1 set name='U+9F37 <CJK>' where ujis=0x8FEDB9;
+update t1 set name='U+9F39 <CJK>' where ujis=0x8FEDBA;
+update t1 set name='U+9F3A <CJK>' where ujis=0x8FEDBB;
+update t1 set name='U+9F3C <CJK>' where ujis=0x8FEDBC;
+update t1 set name='U+9F3D <CJK>' where ujis=0x8FEDBD;
+update t1 set name='U+9F3F <CJK>' where ujis=0x8FEDBE;
+update t1 set name='U+9F41 <CJK>' where ujis=0x8FEDBF;
+
+update t1 set name='U+9F43 <CJK>' where ujis=0x8FEDC0;
+update t1 set name='U+9F44 <CJK>' where ujis=0x8FEDC1;
+update t1 set name='U+9F45 <CJK>' where ujis=0x8FEDC2;
+update t1 set name='U+9F46 <CJK>' where ujis=0x8FEDC3;
+update t1 set name='U+9F47 <CJK>' where ujis=0x8FEDC4;
+update t1 set name='U+9F53 <CJK>' where ujis=0x8FEDC5;
+update t1 set name='U+9F55 <CJK>' where ujis=0x8FEDC6;
+update t1 set name='U+9F56 <CJK>' where ujis=0x8FEDC7;
+update t1 set name='U+9F57 <CJK>' where ujis=0x8FEDC8;
+update t1 set name='U+9F58 <CJK>' where ujis=0x8FEDC9;
+update t1 set name='U+9F5A <CJK>' where ujis=0x8FEDCA;
+update t1 set name='U+9F5D <CJK>' where ujis=0x8FEDCB;
+update t1 set name='U+9F5E <CJK>' where ujis=0x8FEDCC;
+update t1 set name='U+9F68 <CJK>' where ujis=0x8FEDCD;
+update t1 set name='U+9F69 <CJK>' where ujis=0x8FEDCE;
+update t1 set name='U+9F6D <CJK>' where ujis=0x8FEDCF;
+
+update t1 set name='U+9F6E <CJK>' where ujis=0x8FEDD0;
+update t1 set name='U+9F6F <CJK>' where ujis=0x8FEDD1;
+update t1 set name='U+9F70 <CJK>' where ujis=0x8FEDD2;
+update t1 set name='U+9F71 <CJK>' where ujis=0x8FEDD3;
+update t1 set name='U+9F73 <CJK>' where ujis=0x8FEDD4;
+update t1 set name='U+9F75 <CJK>' where ujis=0x8FEDD5;
+update t1 set name='U+9F7A <CJK>' where ujis=0x8FEDD6;
+update t1 set name='U+9F7D <CJK>' where ujis=0x8FEDD7;
+update t1 set name='U+9F8F <CJK>' where ujis=0x8FEDD8;
+update t1 set name='U+9F90 <CJK>' where ujis=0x8FEDD9;
+update t1 set name='U+9F91 <CJK>' where ujis=0x8FEDDA;
+update t1 set name='U+9F92 <CJK>' where ujis=0x8FEDDB;
+update t1 set name='U+9F94 <CJK>' where ujis=0x8FEDDC;
+update t1 set name='U+9F96 <CJK>' where ujis=0x8FEDDD;
+update t1 set name='U+9F97 <CJK>' where ujis=0x8FEDDE;
+update t1 set name='U+9F9E <CJK>' where ujis=0x8FEDDF;
+
+update t1 set name='U+9FA1 <CJK>' where ujis=0x8FEDE0;
+update t1 set name='U+9FA2 <CJK>' where ujis=0x8FEDE1;
+update t1 set name='U+9FA3 <CJK>' where ujis=0x8FEDE2;
+update t1 set name='U+9FA5 <CJK>' where ujis=0x8FEDE3;
+
+# [8F][F5..FE][A1..FE] - User defined range
+update t1 set name='User defined range #2' where ujis >= 0x8FF5A1 and ujis <= 0x8FFEFE;
+
+# Other characters are not assigned
+update t1 set name='UNASSIGNED' where name='';
+
+update t1 set ucs2=ujis, ujis2=ucs2;
+--echo Characters with safe Unicode round trip
+select hex(ujis), hex(ucs2), hex(ujis2), name from t1 where ujis=ujis2 order by ujis;
+--echo Characters with unsafe Unicode round trip
+select hex(ujis), hex(ucs2), hex(ujis2), name from t1 where ujis<>ujis2 order by ujis;
+drop table t1;
+
+drop table t2;
+
+#
+# Tricky characters, which have different mapping
+# in various euc-jp versions. See WL#1820 for details.
+#
+create table t1 (
+  ujis varchar(1) character set ujis,
+  name varchar(64),
+  ucs2 varchar(1) character set ucs2,
+  ujis2 varchar(1) character set ujis
+);
+insert into t1 (ujis,name) values (0x5C,     'U+005C REVERSE SOLIDUS');
+insert into t1 (ujis,name) values (0x7E,     'U+007E TILDE');
+insert into t1 (ujis,name) values (0xA1B1,   'U+FFE3 FULLWIDTH MACRON');
+insert into t1 (ujis,name) values (0xA1BD,   'U+2015 HORIZONTAL BAR');
+insert into t1 (ujis,name) values (0xA1C0,   'U+005C REVERSE SOLIDUS');
+insert into t1 (ujis,name) values (0xA1C1,   'U+301C WAVE DASH');
+insert into t1 (ujis,name) values (0xA1C2,   'U+2016 DOUBLE VERTICAL LINE');
+insert into t1 (ujis,name) values (0xA1DD,   'U+2212 MINUS SIGN');
+insert into t1 (ujis,name) values (0xA1F1,   'U+00A2 CENT SIGN');
+insert into t1 (ujis,name) values (0xA1F2,   'U+00A3 POUND SIGN');
+insert into t1 (ujis,name) values (0xA1EF,   'U+FFE5 FULLWIDTH YEN SIGN');
+insert into t1 (ujis,name) values (0xA2CC,   'U+00AC NOT SIGN');
+insert into t1 (ujis,name) values (0x8FA2B7, 'U+007E TILDE');
+insert into t1 (ujis,name) values (0x8FA2C3, 'U+00A6 BROKEN BAR');
+update t1 set ucs2=ujis, ujis2=ucs2;
+select hex(ujis), hex(ucs2), hex(ujis2), name from t1;
+drop table t1;
+
+#
+# Unicode characters which are not in x-eucjp-unicode-0.9
+#
+create table t1 (
+  ujis char(1) character set ujis,
+  ucs2 char(1) character set ucs2,
+  name char(64)
+);
+insert into t1 (ucs2,name) values (0x00A5,'U+00A5 YEN SIGN');
+insert into t1 (ucs2,name) values (0x2014,'U+2014 EM DASH');
+insert into t1 (ucs2,name) values (0x203E,'U+203E OVERLINE');
+insert into t1 (ucs2,name) values (0x2225,'U+2225 PARALLEL TO');
+insert into t1 (ucs2,name) values (0xFF0D,'U+FF0D FULLWIDTH HYPHEN-MINUS');
+insert into t1 (ucs2,name) values (0xFF3C,'U+FF3C FULLWIDTH REVERSE SOLIDUS');
+insert into t1 (ucs2,name) values (0xFF5E,'U+FF5E FULLWIDTH TILDE');
+insert into t1 (ucs2,name) values (0xFFE0,'U+FFE0 FULLWIDTH CENT SIGN');
+insert into t1 (ucs2,name) values (0xFFE1,'U+FFE1 FULLWIDTH POUND SIGN');
+insert into t1 (ucs2,name) values (0xFFE2,'U+FFE2 FULLWIDTH NOT SIGN');
+insert into t1 (ucs2,name) values (0xFFE4,'U+FFE4 FULLWIDTH BROKEN BAR');
+update t1 set ujis=ucs2;
+select hex(ucs2),hex(ujis),name from t1 order by name;
+drop table t1;
+
+--echo End of 5.1 tests
