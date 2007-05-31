@@ -350,7 +350,10 @@ inline double ulonglong2double(ulonglong value)
 #define SPRINTF_RETURNS_INT
 #define HAVE_SETFILEPOINTER
 #define HAVE_VIO_READ_BUFF
+#if defined(_MSC_VER) && _MSC_VER >= 1400
+/* strnlen() appeared in Studio 2005 */
 #define HAVE_STRNLEN
+#endif
 #define HAVE_WINSOCK2
 
 #define strcasecmp stricmp

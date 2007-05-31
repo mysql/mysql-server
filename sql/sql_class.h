@@ -1116,32 +1116,6 @@ public:
   }
 #endif /* MYSQL_CLIENT */
 
-#ifndef MYSQL_CLIENT
-public:
-  enum enum_binlog_query_type {
-      /*
-        The query can be logged row-based or statement-based
-      */
-      ROW_QUERY_TYPE,
-
-      /*
-        The query has to be logged statement-based
-      */
-      STMT_QUERY_TYPE,
-
-      /*
-        The query represents a change to a table in the "mysql"
-        database and is currently mapped to ROW_QUERY_TYPE.
-      */
-      MYSQL_QUERY_TYPE,
-      QUERY_TYPE_COUNT
-  };
-
-  int binlog_query(enum_binlog_query_type qtype,
-                   char const *query, ulong query_len,
-                   bool is_trans, bool suppress_use);
-#endif
-
 public:
 
   struct st_transactions {
@@ -1396,7 +1370,14 @@ public:
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
 
-  enum killed_state { NOT_KILLED=0, KILL_BAD_DATA=1, KILL_CONNECTION=ER_SERVER_SHUTDOWN, KILL_QUERY=ER_QUERY_INTERRUPTED };
+  enum killed_state
+  {
+    NOT_KILLED=0,
+    KILL_BAD_DATA=1,
+    KILL_CONNECTION=ER_SERVER_SHUTDOWN,
+    KILL_QUERY=ER_QUERY_INTERRUPTED,
+    KILLED_NO_VALUE      /* means neither of the states */
+  };
   killed_state volatile killed;
 
   /* scramble - random string sent to client on handshake */
@@ -1521,6 +1502,33 @@ public:
   void close_active_vio();
 #endif
   void awake(THD::killed_state state_to_set);
+
+#ifndef MYSQL_CLIENT
+  enum enum_binlog_query_type {
+    /*
+      The query can be logged row-based or statement-based
+    */
+    ROW_QUERY_TYPE,
+    
+    /*
+      The query has to be logged statement-based
+    */
+    STMT_QUERY_TYPE,
+    
+    /*
+      The query represents a change to a table in the "mysql"
+      database and is currently mapped to ROW_QUERY_TYPE.
+    */
+    MYSQL_QUERY_TYPE,
+    QUERY_TYPE_COUNT
+  };
+  
+  int binlog_query(enum_binlog_query_type qtype,
+                   char const *query, ulong query_len,
+                   bool is_trans, bool suppress_use,
+                   THD::killed_state killed_err_arg= THD::KILLED_NO_VALUE);
+#endif
+
   /*
     For enter_cond() / exit_cond() to work the mutex must be got before
     enter_cond(); this mutex is then released by exit_cond().
@@ -1647,7 +1655,8 @@ public:
   void end_statement();
   inline int killed_errno() const
   {
-    return killed != KILL_BAD_DATA ? killed : 0;
+    killed_state killed_val; /* to cache the volatile 'killed' */
+    return (killed_val= killed) != KILL_BAD_DATA ? killed_val : 0;
   }
   inline void send_kill_message() const
   {
