@@ -16,7 +16,9 @@ select length(uuid()), charset(uuid()), length(unhex(replace(uuid(),_utf8'-',_ut
 
 # As we can assume we are the only user for the mysqld server, the difference
 # between two calls should be -1
-select cast(uuid_short()-uuid_short() as signed);
+set @a= uuid_short();
+set @b= uuid_short();
+select cast(@a - @b as signed);
 
 #
 # Test for core dump with nan

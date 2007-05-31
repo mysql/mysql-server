@@ -308,7 +308,8 @@ static int hashcmp(const HASH *hash, HASH_LINK *pos, const uchar *key,
 my_bool my_hash_insert(HASH *info,const uchar *record)
 {
   int flag;
-  uint halfbuff,hash_nr,first_index,idx;
+  size_t idx;
+  uint halfbuff,hash_nr,first_index;
   uchar *ptr_to_rec,*ptr_to_rec2;
   HASH_LINK *data,*empty,*gpos,*gpos2,*pos;
 
@@ -535,7 +536,8 @@ exit:
 my_bool hash_update(HASH *hash, uchar *record, uchar *old_key,
                     size_t old_key_length)
 {
-  uint idx,new_index,new_pos_index,blength,records,empty;
+  uint new_index,new_pos_index,blength,records,empty;
+  size_t idx;
   HASH_LINK org_link,*data,*previous,*pos;
   DBUG_ENTER("hash_update");
   
@@ -546,7 +548,7 @@ my_bool hash_update(HASH *hash, uchar *record, uchar *old_key,
     if ((found= hash_first(hash, new_key, idx, &state)))
       do 
       {
-        if (found != record)
+        if (found != (char*) record)
           DBUG_RETURN(1);		/* Duplicate entry */
       } 
       while ((found= hash_next(hash, new_key, idx, &state)));

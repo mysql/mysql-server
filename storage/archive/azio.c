@@ -557,6 +557,7 @@ int do_flush (azio_stream *s, int flush)
 {
   uInt len;
   int done = 0;
+  my_off_t afterwrite_pos;
 
   if (s == NULL || s->mode != 'w') return Z_STREAM_ERROR;
 
@@ -597,7 +598,10 @@ int do_flush (azio_stream *s, int flush)
     s->dirty= AZ_STATE_CLEAN; /* Mark it clean, we should be good now */
   else
     s->dirty= AZ_STATE_SAVED; /* Mark it clean, we should be good now */
+
+  afterwrite_pos= my_tell(s->file, MYF(0));
   write_header(s);
+  my_seek(s->file, afterwrite_pos, SEEK_SET, MYF(0));
 
   return  s->z_err == Z_STREAM_END ? Z_OK : s->z_err;
 }
