@@ -20,7 +20,7 @@ begin;
 insert t2 values (5);
 commit;
 # first COMMIT must be Query_log_event, second - Xid_log_event
---replace_result "xid=21" "xid=12"
+--replace_result "xid=22" "xid=13"
 --replace_column 2 # 5 #
 show binlog events from 98;
 drop table t1,t2;
@@ -42,7 +42,7 @@ while ($1)
 --enable_query_log
 commit;
 drop table t1;
---replace_result "xid=32" "xid=19"
+--replace_result "xid=33" "xid=20"
 --replace_column 2 # 5 #
 show binlog events in 'master-bin.000001' from 98;
 --replace_column 2 # 5 #
