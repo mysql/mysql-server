@@ -2995,7 +2995,7 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       }
     }
   }
-  grant_option=TRUE;
+  
   thd->mem_root= old_root;
   pthread_mutex_unlock(&acl_cache->lock);
 
@@ -3162,7 +3162,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       continue;
     }
   }
-  grant_option=TRUE;
+  
   thd->mem_root= old_root;
   pthread_mutex_unlock(&acl_cache->lock);
   if (!result && !no_error)
@@ -3338,6 +3338,8 @@ my_bool grant_init()
   delete thd;
   /* Remember that we don't have a THD */
   my_pthread_setspecific_ptr(THR_THD,  0);
+  /* Set the grant option flag so we will check grants */
+  grant_option= TRUE;
   DBUG_RETURN(return_val);
 }
 
@@ -3367,7 +3369,6 @@ static my_bool grant_load(TABLE_LIST *tables)
                                                            THR_MALLOC);
   DBUG_ENTER("grant_load");
 
-  grant_option = FALSE;
   (void) hash_init(&column_priv_hash,system_charset_info,
 		   0,0,0, (hash_get_key) get_grant_table,
 		   (hash_free_key) free_grant_table,0);
@@ -3478,7 +3479,6 @@ static my_bool grant_load(TABLE_LIST *tables)
     }
     while (!p_table->file->index_next(p_table->record[0]));
   }
-  grant_option= TRUE;
   return_val=0;					// Return ok
 
 end_unlock:
@@ -3511,7 +3511,6 @@ my_bool grant_reload(THD *thd)
 {
   TABLE_LIST tables[3];
   HASH old_column_priv_hash, old_proc_priv_hash, old_func_priv_hash;
-  bool old_grant_option;
   MEM_ROOT old_mem;
   my_bool return_val= 1;
   DBUG_ENTER("grant_reload");
@@ -3541,7 +3540,6 @@ my_bool grant_reload(THD *thd)
   old_column_priv_hash= column_priv_hash;
   old_proc_priv_hash= proc_priv_hash;
   old_func_priv_hash= func_priv_hash;
-  old_grant_option= grant_option;
   old_mem= memex;
 
   if ((return_val= grant_load(tables)))
@@ -3551,7 +3549,6 @@ my_bool grant_reload(THD *thd)
     column_priv_hash= old_column_priv_hash;	/* purecov: deadcode */
     proc_priv_hash= old_proc_priv_hash;
     func_priv_hash= old_func_priv_hash;
-    grant_option= old_grant_option;		/* purecov: deadcode */
     memex= old_mem;				/* purecov: deadcode */
   }
   else
