@@ -1462,20 +1462,31 @@ Query_log_event::Query_log_event()
 
 
 /*
-  Query_log_event::Query_log_event()
+  SYNOPSIS
+    Query_log_event::Query_log_event()
+      thd               - thread handle
+      query_arg         - array of char representing the query
+      query_length      - size of the  `query_arg' array
+      using_trans       - there is a modified transactional table
+      suppress_use      - suppress the generation of 'USE' statements
+      killed_status_arg - an optional with default to THD::KILLED_NO_VALUE
+                          if the value is different from the default, the arg
+                          is set to the current thd->killed value.
+                          A caller might need to masquerade thd->killed with
+                          THD::NOT_KILLED.
+  DESCRIPTION
+  Creates an event for binlogging
+  The value for local `killed_status' can be supplied by caller.
 */
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans,
-				 bool suppress_use)
+				 bool suppress_use, THD::killed_state killed_status_arg)
   :Log_event(thd_arg,
 	     ((thd_arg->tmp_table_used ? LOG_EVENT_THREAD_SPECIFIC_F : 0)
 	      | (suppress_use          ? LOG_EVENT_SUPPRESS_USE_F    : 0)),
 	     using_trans),
    data_buf(0), query(query_arg), catalog(thd_arg->catalog),
    db(thd_arg->db), q_len((uint32) query_length),
-   error_code((thd_arg->killed != THD::NOT_KILLED) ?
-              ((thd_arg->system_thread & SYSTEM_THREAD_DELAYED_INSERT) ?
-               0 : thd->killed_errno()) : thd_arg->net.last_errno),
    thread_id(thd_arg->thread_id),
    /* save the original thread id; we already know the server id */
    slave_proxy_id(thd_arg->variables.pseudo_thread_id),
@@ -1487,6 +1498,14 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
    charset_database_number(0)
 {
   time_t end_time;
+
+  if (killed_status_arg == THD::KILLED_NO_VALUE)
+    killed_status_arg= thd_arg->killed;
+  error_code=
+    (killed_status_arg == THD::NOT_KILLED) ? thd_arg->net.last_errno :
+    ((thd_arg->system_thread & SYSTEM_THREAD_DELAYED_INSERT) ? 0 :
+     thd->killed_errno());
+  
   time(&end_time);
   exec_time = (ulong) (end_time  - thd->start_time);
   catalog_len = (catalog) ? (uint32) strlen(catalog) : 0;
@@ -6737,10 +6756,23 @@ int Write_rows_log_event::do_before_row_operations(TABLE *table)
     lex->duplicates flag.
   */
   thd->lex->sql_command= SQLCOM_REPLACE;
-
-  table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);  // Needed for ndbcluster
-  table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);  // Needed for ndbcluster
-  table->file->extra(HA_EXTRA_IGNORE_NO_KEY);   // Needed for ndbcluster
+  /* 
+     Do not raise the error flag in case of hitting to an unique attribute
+  */
+  table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  /* 
+     NDB specific: update from ndb master wrapped as Write_rows
+  */
+  /*
+    so that the event should be applied to replace slave's row
+  */
+  table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
+  /* 
+     NDB specific: if update from ndb master wrapped as Write_rows
+     does not find the row it's assumed idempotent binlog applying
+     is taking place; don't raise the error.
+  */
+  table->file->extra(HA_EXTRA_IGNORE_NO_KEY);
   /*
     TODO: the cluster team (Tomas?) says that it's better if the engine knows
     how many rows are going to be inserted, then it can allocate needed memory
@@ -6768,9 +6800,20 @@ int Write_rows_log_event::do_before_row_operations(TABLE *table)
 
 int Write_rows_log_event::do_after_row_operations(TABLE *table, int error)
 {
-  if (error == 0)
-    error= table->file->ha_end_bulk_insert();
-  return error;
+  int local_error= 0;
+  table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+  table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
+  /*
+    reseting the extra with 
+    table->file->extra(HA_EXTRA_NO_IGNORE_NO_KEY); 
+    fires bug#27077
+    todo: explain or fix
+  */
+  if ((local_error= table->file->ha_end_bulk_insert()))
+  {
+    table->file->print_error(local_error, MYF(0));
+  }
+  return error? error : local_error;
 }
 
 int Write_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,

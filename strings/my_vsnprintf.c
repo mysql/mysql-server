@@ -95,8 +95,7 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       reg2 char	*par = va_arg(ap, char *);
       uint plen,left_len = (uint)(end-to)+1;
       if (!par) par = (char*)"(null)";
-      plen = (uint) strlen(par);
-      set_if_smaller(plen,width);
+      plen= (uint) strnlen(par, width);
       if (left_len <= plen)
 	plen = left_len - 1;
       to=strnmov(to,par,plen);
