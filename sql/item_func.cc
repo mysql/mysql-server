@@ -4259,9 +4259,11 @@ void Item_func_set_user_var::make_field(Send_field *tmp_field)
     TRUE        Error
 */
 
-int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions)
+int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions,
+                                          bool can_use_result_field)
 {
-  bool use_result_field= (result_field && result_field != field);
+  bool use_result_field= (!can_use_result_field ? 0 :
+                          (result_field && result_field != field));
   int error;
 
   /* Update the value of the user variable */

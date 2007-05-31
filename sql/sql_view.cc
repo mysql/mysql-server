@@ -706,7 +706,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   DBUG_PRINT("info", ("View: %s", str.ptr()));
 
   /* fill structure */
-  view->query.str= str.c_ptr();
+  view->query.str= str.c_ptr_safe();
   view->query.length= str.length();
   view->source.str= thd->query + thd->lex->create_view_select_start;
   endp= view->source.str;
