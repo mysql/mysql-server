@@ -307,7 +307,7 @@ static st_plugin_dl *plugin_dl_insert_or_reuse(struct st_plugin_dl *plugin_dl)
     DBUG_RETURN(0);
   tmp= *dynamic_element(&plugin_dl_array, plugin_dl_array.elements - 1,
                         struct st_plugin_dl **)=
-      (struct st_plugin_dl *) memdup_root(&plugin_mem_root, (gptr)plugin_dl,
+      (struct st_plugin_dl *) memdup_root(&plugin_mem_root, (uchar*)plugin_dl,
                                            sizeof(struct st_plugin_dl));
   DBUG_RETURN(tmp);
 }
@@ -683,7 +683,7 @@ static st_plugin_int *plugin_insert_or_reuse(struct st_plugin_int *plugin)
     DBUG_RETURN(0);
   tmp= *dynamic_element(&plugin_array, plugin_array.elements - 1,
                         struct st_plugin_int **)=
-       (struct st_plugin_int *) memdup_root(&plugin_mem_root, (gptr)plugin,
+       (struct st_plugin_int *) memdup_root(&plugin_mem_root, (uchar*)plugin,
                                             sizeof(struct st_plugin_int));
   DBUG_RETURN(tmp);
 }
@@ -1244,7 +1244,7 @@ static bool register_builtin(struct st_mysql_plugin *plugin,
 
   *ptr= *dynamic_element(&plugin_array, plugin_array.elements - 1,
                          struct st_plugin_int **)=
-        (struct st_plugin_int *) memdup_root(&plugin_mem_root, (gptr)tmp,
+        (struct st_plugin_int *) memdup_root(&plugin_mem_root, (uchar*)tmp,
                                              sizeof(struct st_plugin_int));
 
   if (my_hash_insert(&plugin_hash[plugin->type],(uchar*) *ptr))
