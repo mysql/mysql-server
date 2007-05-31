@@ -206,9 +206,11 @@ terribly wrong...\n");
   fprintf(stderr, "Stack trace seems successful - bottom reached\n");
 
 end:
-  fprintf(stderr, "Please read http://dev.mysql.com/doc/mysql/en/using-stack-trace.html and follow instructions on how to resolve the stack trace. Resolved\n\
-stack trace is much more helpful in diagnosing the problem, so please do \n\
-resolve it\n");
+  fprintf(stderr,
+          "Please read http://dev.mysql.com/doc/refman/5.1/en/resolve-stack-dump.html\n"
+          "and follow instructions on how to resolve the stack trace.\n"
+          "Resolved stack trace is much more helpful in diagnosing the\n"
+          "problem, so please do resolve it\n");
 }
 #endif /* TARGET_OS_LINUX */
 #endif /* HAVE_STACKTRACE */

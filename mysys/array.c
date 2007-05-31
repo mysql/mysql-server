@@ -63,7 +63,7 @@ my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
   array->size_of_element=element_size;
   if ((array->buffer= init_buffer))
     DBUG_RETURN(FALSE);
-  if (!(array->buffer=(char*) my_malloc_ci(element_size*init_alloc,MYF(MY_WME))))
+  if (!(array->buffer=(uchar*) my_malloc_ci(element_size*init_alloc,MYF(MY_WME))))
   {
     array->max_element=0;
     DBUG_RETURN(TRUE);
@@ -132,7 +132,7 @@ uchar *alloc_dynamic(DYNAMIC_ARRAY *array)
   if (array->elements == array->max_element)
   {
     char *new_ptr;
-    if (array->buffer == (char *)(array + 1))
+    if (array->buffer == (uchar *)(array + 1))
     {
       /*
         In this senerio, the buffer is statically preallocated,
@@ -152,7 +152,7 @@ uchar *alloc_dynamic(DYNAMIC_ARRAY *array)
                                      array->size_of_element,
                                      MYF(MY_WME | MY_ALLOW_ZERO_PTR))))
       return 0;
-    array->buffer=new_ptr;
+    array->buffer= (uchar*) new_ptr;
     array->max_element+=array->alloc_increment;
   }
   return array->buffer+(array->elements++ * array->size_of_element);
@@ -206,7 +206,7 @@ my_bool set_dynamic(DYNAMIC_ARRAY *array, uchar* element, uint idx)
       char *new_ptr;
       size=(idx+array->alloc_increment)/array->alloc_increment;
       size*= array->alloc_increment;
-      if (array->buffer == (char *)(array + 1))
+      if (array->buffer == (uchar *)(array + 1))
       {
         /*
           In this senerio, the buffer is statically preallocated,
@@ -224,7 +224,7 @@ my_bool set_dynamic(DYNAMIC_ARRAY *array, uchar* element, uint idx)
                                        array->size_of_element,
                                        MYF(MY_WME | MY_ALLOW_ZERO_PTR))))
 	return TRUE;
-      array->buffer=new_ptr;
+      array->buffer= (uchar*) new_ptr;
       array->max_element=size;
     }
     bzero((uchar*) (array->buffer+array->elements*array->size_of_element),
@@ -273,7 +273,7 @@ void delete_dynamic(DYNAMIC_ARRAY *array)
   /*
     Just mark as empty if we are using a static buffer
   */
-  if (array->buffer == (char *)(array + 1))
+  if (array->buffer == (uchar *)(array + 1))
     array->elements= 0;
   else
   if (array->buffer)
@@ -295,7 +295,7 @@ void delete_dynamic(DYNAMIC_ARRAY *array)
 
 void delete_dynamic_element(DYNAMIC_ARRAY *array, uint idx)
 {
-  char *ptr=array->buffer+array->size_of_element*idx;
+  char *ptr= (char*) array->buffer+array->size_of_element*idx;
   array->elements--;
   memmove(ptr,ptr+array->size_of_element,
           (array->elements-idx)*array->size_of_element);
@@ -318,12 +318,12 @@ void freeze_size(DYNAMIC_ARRAY *array)
   /*
     Do nothing if we are using a static buffer
   */
-  if (array->buffer == (char *)(array + 1))
+  if (array->buffer == (uchar *)(array + 1))
     return;
     
   if (array->buffer && array->max_element != elements)
   {
-    array->buffer=(char*) my_realloc(array->buffer,
+    array->buffer=(uchar*) my_realloc(array->buffer,
                                      elements*array->size_of_element,
                                      MYF(MY_WME));
     array->max_element=elements;

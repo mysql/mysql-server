@@ -601,9 +601,9 @@ void slave_print_msg(enum loglevel level, RELAY_LOG_INFO const *rli,
   my_vsnprintf(pbuff, pbuffsize, msg, args);
   /* If the msg string ends with '.', do not add a ',' it would be ugly */
   if (pbuff[0] && (*(strend(pbuff)-1) == '.'))
-    (*report_function)("Slave: %s Error_code: %d", pbuff, err_code);
+    (*report_function)("Slave: %s  Error_code: %d", pbuff, err_code);
   else
-    (*report_function)("Slave: %s, Error_code: %d", pbuff, err_code);
+    (*report_function)("Slave: %s. Error_code: %d", pbuff, err_code);
   DBUG_VOID_RETURN;
 }
 

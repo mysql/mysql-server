@@ -1965,7 +1965,7 @@ bool ha_partition::create_handler_file(const char *name)
 		       MYF(MY_WME))) >= 0)
   {
     result= my_write(file, (uchar *) file_buffer, tot_len_byte,
-			   MYF(MY_WME | MY_NABP));
+                     MYF(MY_WME | MY_NABP)) != 0;
     VOID(my_close(file, MYF(0)));
   }
   else

@@ -114,7 +114,7 @@ pthread_mutex_t example_mutex;
   Function we use in the creation of our hash to get key.
 */
 
-static uchar* example_get_key(EXAMPLE_SHARE *share,uint *length,
+static uchar* example_get_key(EXAMPLE_SHARE *share, size_t *length,
                              my_bool not_used __attribute__((unused)))
 {
   *length=share->table_name_length;
