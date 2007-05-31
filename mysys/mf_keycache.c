@@ -173,7 +173,7 @@ static void test_key_cache(KEY_CACHE *keycache,
 #endif
 
 #define KEYCACHE_HASH(f, pos)                                                 \
-(((ulong) ((pos) >> keycache->key_cache_shift)+                               \
+(((ulong) ((pos) / keycache->key_cache_block_size) +                          \
                                      (ulong) (f)) & (keycache->hash_entries-1))
 #define FILE_HASH(f)                 ((uint) (f) & (CHANGED_BLOCKS_HASH-1))
 
@@ -329,7 +329,6 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
 
   keycache->key_cache_mem_size= use_mem;
   keycache->key_cache_block_size= key_cache_block_size;
-  keycache->key_cache_shift= my_bit_log2(key_cache_block_size);
   DBUG_PRINT("info", ("key_cache_block_size: %u",
 		      key_cache_block_size));
 
@@ -352,7 +351,7 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
 		       ALIGN_SIZE(hash_links * sizeof(HASH_LINK)) +
 		       ALIGN_SIZE(sizeof(HASH_LINK*) *
                                   keycache->hash_entries))) +
-	     ((ulong) blocks << keycache->key_cache_shift) > use_mem)
+	     ((ulong) blocks * keycache->key_cache_block_size) > use_mem)
         blocks--;
       /* Allocate memory for cache page buffers */
       if ((keycache->block_mem=
@@ -1807,7 +1806,7 @@ byte *key_cache_read(KEY_CACHE *keycache,
     uint status;
     int page_st;
 
-    offset= (uint) (filepos & (keycache->key_cache_block_size-1));
+    offset= (uint) (filepos % keycache->key_cache_block_size);
     /* Read data in key_cache_block_size increments */
     do
     {
@@ -1946,7 +1945,7 @@ int key_cache_insert(KEY_CACHE *keycache,
     int error;
     uint offset;
 
-    offset= (uint) (filepos & (keycache->key_cache_block_size-1));
+    offset= (uint) (filepos % keycache->key_cache_block_size);
     do
     {
       keycache_pthread_mutex_lock(&keycache->cache_lock);
@@ -2081,7 +2080,7 @@ int key_cache_write(KEY_CACHE *keycache,
     int page_st;
     uint offset;
 
-    offset= (uint) (filepos & (keycache->key_cache_block_size-1));
+    offset= (uint) (filepos % keycache->key_cache_block_size);
     do
     {
       keycache_pthread_mutex_lock(&keycache->cache_lock);

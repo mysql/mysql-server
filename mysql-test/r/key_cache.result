@@ -341,3 +341,30 @@ Warning	1438	Cannot drop default keycache
 select @@global.key_buffer_size;
 @@global.key_buffer_size
 2097152
+SET @bug28478_key_cache_block_size= @@global.key_cache_block_size;
+SET GLOBAL key_cache_block_size= 1536;
+CREATE TABLE t1 (
+id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c1 CHAR(150),
+c2 CHAR(150),
+c3 CHAR(150),
+KEY(c1, c2, c3)
+) ENGINE= MyISAM;
+INSERT INTO t1 (c1, c2, c3) VALUES
+('a', 'b', 'c'), ('b', 'c', 'd'), ('c', 'd', 'e'), ('d', 'e', 'f'),
+('e', 'f', 'g'), ('f', 'g', 'h'), ('g', 'h', 'i'), ('h', 'i', 'j'),
+('i', 'j', 'k'), ('j', 'k', 'l'), ('k', 'l', 'm'), ('l', 'm', 'n'),
+('m', 'n', 'o'), ('n', 'o', 'p'), ('o', 'p', 'q'), ('p', 'q', 'r'),
+('q', 'r', 's'), ('r', 's', 't'), ('s', 't', 'u'), ('t', 'u', 'v'),
+('u', 'v', 'w'), ('v', 'w', 'x'), ('w', 'x', 'y'), ('x', 'y', 'z');
+INSERT INTO t1 (c1, c2, c3) SELECT c1, c2, c3 from t1;
+INSERT INTO t1 (c1, c2, c3) SELECT c1, c2, c3 from t1;
+INSERT INTO t1 (c1, c2, c3) SELECT c1, c2, c3 from t1;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW VARIABLES LIKE 'key_cache_block_size';
+Variable_name	Value
+key_cache_block_size	1536
+SET GLOBAL key_cache_block_size= @bug28478_key_cache_block_size;
+DROP TABLE t1;
