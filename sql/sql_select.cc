@@ -4893,7 +4893,6 @@ best_extension_by_limited_search(JOIN      *join,
   if (thd->killed)  // Abort
     DBUG_RETURN(TRUE);
 
-  DBUG_ENTER("best_extension_by_limited_search");
   DBUG_EXECUTE("opt", print_plan(join, idx, read_time, record_count, idx,
                                  "SOFAR:"););
 
