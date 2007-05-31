@@ -1484,7 +1484,10 @@ void my_hash_sort_ucs2_bin(CHARSET_INFO *cs __attribute__((unused)),
   const uchar *pos = key;
   
   key+= len;
-  
+
+  while (key > pos+1 && key[-1] == ' ' && key[-2] == '\0')
+    key-= 2;
+
   for (; pos < (uchar*) key ; pos++)
   {
     nr1[0]^=(ulong) ((((uint) nr1[0] & 63)+nr2[0]) * 
