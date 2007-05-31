@@ -118,6 +118,7 @@ public:
   int  executeStatus(int processId, const char* parameters, bool all);
   int  executeEventReporting(int processId, const char* parameters, bool all);
   int  executeDumpState(int processId, const char* parameters, bool all);
+  int  executeReport(int processId, const char* parameters, bool all);
   int  executeStartBackup(char * parameters, bool interactive);
   int  executeAbortBackup(char * parameters);
   int  executeStop(Vector<BaseString> &command_list, unsigned command_pos,
@@ -276,6 +277,7 @@ static const char* helpText =
 "<id> CLUSTERLOG {<category>=<level>}+  Set log level for cluster log\n"
 "PURGE STALE SESSIONS                   Reset reserved nodeid's in the mgmt server\n"
 "CONNECT [<connectstring>]              Connect to management server (reconnect if already connected)\n"
+"<id> REPORT <report type specifier>   Query reporting of information about the cluster\n"
 "QUIT                                   Quit management client\n"
 ;
 
@@ -564,6 +566,17 @@ static const char* helpTextConnect =
 "                   is used. \n"
 ;
 
+static const char* helpTextReport =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for REPORT command\n"
+"---------------------------------------------------------------------------\n"
+"REPORT  Query reporting of information about the cluster\n\n"
+"REPORT <report type specifier> \n"
+"                   The report will show in the clusterlog if the\n"
+"                   log level is set.\n"
+;
+static void helpTextReportFn();
+
 static const char* helpTextQuit =
 "---------------------------------------------------------------------------\n"
 " NDB Cluster -- Management Client -- Help for QUIT command\n"
@@ -600,35 +613,37 @@ static const char* helpTextDebug =
 struct st_cmd_help {
   const char *cmd;
   const char * help;
+  void (* help_fn)();
 }help_items[]={
-  {"SHOW", helpTextShow},
-  {"HELP", helpTextHelp},
-  {"BACKUP", helpTextBackup},
-  {"START BACKUP", helpTextStartBackup},
-  {"START BACKUP NOWAIT", helpTextStartBackup},
-  {"START BACKUP WAIT STARTED", helpTextStartBackup},
-  {"START BACKUP WAIT", helpTextStartBackup},
-  {"START BACKUP WAIT COMPLETED", helpTextStartBackup},
-  {"ABORT BACKUP", helpTextAbortBackup},
-  {"SHUTDOWN", helpTextShutdown},
-  {"CLUSTERLOG ON", helpTextClusterlogOn},
-  {"CLUSTERLOG OFF", helpTextClusterlogOff},
-  {"CLUSTERLOG TOGGLE", helpTextClusterlogToggle},
-  {"CLUSTERLOG INFO", helpTextClusterlogInfo},
-  {"START", helpTextStart},
-  {"RESTART", helpTextRestart},
-  {"STOP", helpTextStop},
-  {"ENTER SINGLE USER MODE", helpTextEnterSingleUserMode},
-  {"EXIT SINGLE USER MODE", helpTextExitSingleUserMode},
-  {"STATUS", helpTextStatus},
-  {"CLUSTERLOG", helpTextClusterlog},
-  {"PURGE STALE SESSIONS", helpTextPurgeStaleSessions},
-  {"CONNECT", helpTextConnect},
-  {"QUIT", helpTextQuit},
+  {"SHOW", helpTextShow, NULL},
+  {"HELP", helpTextHelp, NULL},
+  {"BACKUP", helpTextBackup, NULL},
+  {"START BACKUP", helpTextStartBackup, NULL},
+  {"START BACKUP NOWAIT", helpTextStartBackup, NULL},
+  {"START BACKUP WAIT STARTED", helpTextStartBackup, NULL},
+  {"START BACKUP WAIT", helpTextStartBackup, NULL},
+  {"START BACKUP WAIT COMPLETED", helpTextStartBackup, NULL},
+  {"ABORT BACKUP", helpTextAbortBackup, NULL},
+  {"SHUTDOWN", helpTextShutdown, NULL},
+  {"CLUSTERLOG ON", helpTextClusterlogOn, NULL},
+  {"CLUSTERLOG OFF", helpTextClusterlogOff, NULL},
+  {"CLUSTERLOG TOGGLE", helpTextClusterlogToggle, NULL},
+  {"CLUSTERLOG INFO", helpTextClusterlogInfo, NULL},
+  {"START", helpTextStart, NULL},
+  {"RESTART", helpTextRestart, NULL},
+  {"STOP", helpTextStop, NULL},
+  {"ENTER SINGLE USER MODE", helpTextEnterSingleUserMode, NULL},
+  {"EXIT SINGLE USER MODE", helpTextExitSingleUserMode, NULL},
+  {"STATUS", helpTextStatus, NULL},
+  {"CLUSTERLOG", helpTextClusterlog, NULL},
+  {"PURGE STALE SESSIONS", helpTextPurgeStaleSessions, NULL},
+  {"CONNECT", helpTextConnect, NULL},
+  {"REPORT", helpTextReport, helpTextReportFn},
+  {"QUIT", helpTextQuit, NULL},
 #ifdef VM_TRACE // DEBUG ONLY
-  {"DEBUG", helpTextDebug},
+  {"DEBUG", helpTextDebug, NULL},
 #endif //VM_TRACE
-  {NULL, NULL}
+  {NULL, NULL, NULL}
 };
 
 static bool
@@ -1092,6 +1107,7 @@ static const CommandInterpreter::CommandFunctionPair commands[] = {
   ,{ "SET", &CommandInterpreter::executeSet }
   ,{ "GETSTAT", &CommandInterpreter::executeGetStat }
   ,{ "DUMP", &CommandInterpreter::executeDumpState }
+  ,{ "REPORT", &CommandInterpreter::executeReport }
 };
 
 
@@ -1327,7 +1343,10 @@ CommandInterpreter::executeHelp(char* parameters)
     {
       if (strcasecmp(parameters, help_items[i].cmd) == 0)
       {
-        ndbout << help_items[i].help;
+        if (help_items[i].help)
+          ndbout << help_items[i].help;
+        if (help_items[i].help_fn)
+          (*help_items[i].help_fn)();
         break;
       }     
     }
@@ -2032,6 +2051,87 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
   
   struct ndb_mgm_reply reply;
   return ndb_mgm_dump_state(m_mgmsrv, processId, pars, no, &reply);
+}
+
+struct st_report_cmd
+{
+  const char *name;
+  const char *help;
+  Ndb_logevent_type ndb_logevent_type;
+  Uint32 dump_cmd;
+};
+
+static struct st_report_cmd report_cmds[] = {
+  {  "BackupStatus", "Report backup status of respective node",
+     NDB_LE_BackupStatus, 100000 }
+#if 0
+  ,{ "MemoryUsage",  "Report memory usage of respective node",
+     NDB_LE_MemoryUsage, 1000 }
+#endif
+};
+
+static unsigned n_report_cmds =
+sizeof(report_cmds)/sizeof(struct st_report_cmd);
+
+int
+CommandInterpreter::executeReport(int processId, const char* parameters,
+                                  bool all) 
+{
+  if (emptyString(parameters))
+  {
+    ndbout_c("  missing report type specifier");
+    return -1;
+  }
+
+  Vector<BaseString> args;
+  BaseString(parameters).split(args);
+  int found = -1;
+  unsigned len = args[0].length();
+  for (unsigned i = 0; i < n_report_cmds; i++)
+  {
+    if (strncasecmp(report_cmds[i].name, args[0].c_str(), len) == 0)
+    {
+      if (found >= 0)
+      {
+        found = -1;
+        break;
+      }
+      found = i;
+      if (len == strlen(report_cmds[i].name))
+        break;
+    }
+  }
+
+  if (found >= 0)
+  {
+    struct st_report_cmd &cmd = report_cmds[found];
+    if (cmd.dump_cmd)
+    {
+      int pars[25];
+      Uint32 no = 1;
+      pars[0] = cmd.dump_cmd;
+      struct ndb_mgm_reply reply;
+      return ndb_mgm_dump_state(m_mgmsrv, processId, pars, no, &reply);
+    }
+    else
+    {
+      ndbout_c("do ndb_le_ %u",
+               (unsigned) cmd.ndb_logevent_type);
+    }
+    return 0;
+  }
+
+  ndbout_c("  '%s' - report type specifier unknown or ambiguous", args[0].c_str());
+  return -1;
+}
+
+static void helpTextReportFn()
+{
+  ndbout_c("<report type specifier> =");
+  for (unsigned i = 0; i < n_report_cmds; i++)
+  {
+    ndbout_c("  %s\t- %s", report_cmds[i].name, report_cmds[i].help);
+  }
 }
 
 int
