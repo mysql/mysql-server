@@ -249,3 +249,56 @@ select release_lock("lock27563");
 drop table t1, t2;
 drop function bug27563;
 drop procedure proc27563;
+
+#
+# Bug#28598: mysqld crash when killing a long-running explain query.
+#
+--disable_query_log
+connection con1;
+let $ID= `select connection_id()`;
+let $tab_count= 40;
+
+let $i= $tab_count;
+while ($i)
+{
+  eval CREATE TABLE t$i (a$i int, KEY(a$i));
+  eval INSERT INTO t$i VALUES (1),(2),(3),(4),(5),(6),(7);
+  dec $i ;
+}
+set session optimizer_search_depth=0;
+
+let $i=$tab_count;
+while ($i)
+{
+ let $a= a$i;
+ let $t= t$i;
+ dec $i;
+ if ($i)
+ {
+   let $comma=,;
+   let $from=$comma$t$from;
+   let $where=a$i=$a $and $where;
+ }
+ if (!$i) 
+ {
+   let $from=FROM $t$from;
+   let $where=WHERE $where;
+ }
+ let $and=AND;
+}
+
+--enable_query_log
+eval PREPARE stmt FROM 'EXPLAIN SELECT * $from $where';
+send EXECUTE stmt;
+--disable_query_log
+
+connection con2;
+real_sleep 2;
+eval kill query $ID;
+let $i= $tab_count;
+while ($i)
+{
+  eval DROP TABLE t$i;
+  dec $i ;
+}
+--enable_query_log
