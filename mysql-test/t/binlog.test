@@ -1,6 +1,7 @@
 #
 # misc binlogging tests that do not require a slave running
 #
+-- source include/have_log_bin.inc
 -- source include/not_embedded.inc
 -- source include/have_bdb.inc
 -- source include/have_innodb.inc
