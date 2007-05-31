@@ -1586,8 +1586,8 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
 
 
 
-ulong my_scan_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-                   const char *str, const char *end, int sequence_type)
+size_t my_scan_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+                    const char *str, const char *end, int sequence_type)
 {
   const char *str0= str;
   end--; /* for easier loop condition, because of two bytes per character */
@@ -1600,7 +1600,7 @@ ulong my_scan_ucs2(CHARSET_INFO *cs __attribute__((unused)),
       if (str[0] != '\0' || str[1] != ' ')
         break;
     }
-    return (ulong) (str - str0);
+    return (size_t) (str - str0);
   default:
     return 0;
   }

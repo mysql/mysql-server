@@ -125,6 +125,7 @@ char* my_cgets(char *buffer, size_t clen, size_t* plen)
 {
   ULONG state;
   char *result;
+  DWORD plen_res;
   CONSOLE_SCREEN_BUFFER_INFO csbi;
   
   pthread_auto_mutex_decl(my_conio_cs);
@@ -171,7 +172,8 @@ char* my_cgets(char *buffer, size_t clen, size_t* plen)
   do
   {
     clen= min(clen, (size_t) csbi.dwSize.X*csbi.dwSize.Y);
-    if (!ReadConsole((HANDLE)my_coninpfh, (LPVOID)buffer, clen - 1, plen, NULL))
+    if (!ReadConsole((HANDLE)my_coninpfh, (LPVOID)buffer, clen - 1, &plen_res,
+                     NULL))
     {
       result= NULL;
       clen>>= 1;
@@ -183,7 +185,7 @@ char* my_cgets(char *buffer, size_t clen, size_t* plen)
     }
   }
   while (GetLastError() == ERROR_NOT_ENOUGH_MEMORY);
-
+  *plen= plen_res;
 
   if (result != NULL)
   {

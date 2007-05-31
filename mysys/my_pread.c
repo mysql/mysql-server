@@ -182,6 +182,7 @@ size_t my_pwrite(int Filedes, const uchar *Buffer, size_t Count,
     else
       break;					/* Return bytes written */
   }
+  DBUG_EXECUTE_IF("check", my_seek(Filedes, -1, SEEK_SET, MYF(0)););
   if (MyFlags & (MY_NABP | MY_FNABP))
     DBUG_RETURN(0);			/* Want only errors */
   DBUG_RETURN(writenbytes+written); /* purecov: inspected */
