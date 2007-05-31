@@ -626,7 +626,6 @@ NdbBlob::copyKeyFromRow(const NdbRecord *record, const char *row,
 
   bool index_flag= isInsertOp();
 
-  assert(record->flags & NdbRecord::RecIsKeyRecord || index_flag);
   assert(record->flags & NdbRecord::RecHasAllKeys);
 
   char *packed= packedBuf.data;
@@ -635,10 +634,6 @@ NdbBlob::copyKeyFromRow(const NdbRecord *record, const char *row,
   for (Uint32 i= 0; i < record->key_index_length; i++)
   {
     const NdbRecord::Attr *col= &record->columns[record->key_indexes[i]];
-
-    /* Special case for insert, where extra non-key columns may be present. */
-    if (index_flag && !(col->flags & NdbRecord::IsKey))
-      continue;
 
     Uint32 len= ~0;
     bool len_ok;

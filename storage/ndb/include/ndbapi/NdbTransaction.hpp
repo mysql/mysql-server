@@ -571,8 +571,9 @@ public:
     key operation. If it is for an index, it will be a unique key operation
     using that index.
 
-    The key_row passed in defined the primary or unique key of the affected
-    tuple, and must remain valid until execute() is called.
+    The key_row passed in defines the primary or unique key of the affected
+    tuple, and must remain valid until execute() is called. The key_rec must
+    include all columns of the key.
 
     The mask, if != NULL, defines a subset of attributes to read, update, or
     insert. Only if (mask[attrId >> 3] & (1<<(attrId & 7))) is set is the
@@ -627,10 +628,10 @@ public:
   /*
     Do an index range scan (optionally ordered) of a table.
 
-    The key_record describes the index to be scanned. It must be a
-    primary key record for the index, ie. it must specify exactly the
-    key columns of the index. And it must be created from the index to
-    be scanned (not from the underlying table).
+    The key_record describes the index to be scanned. It must be a key record
+    for the index, ie. it must specify (at least) all the key columns of the
+    index. And it must be created from the index to be scanned (not from the
+    underlying table).
 
     The result_record describes the rows to be returned from the scan. For an
     ordered index scan, result_record must be a key record for the index to
