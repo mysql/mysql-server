@@ -29,7 +29,7 @@ insert into t2 select * from t1;
 commit;
 
 --replace_column 5 #
---replace_result "xid=14" "xid=8"
+--replace_result "xid=15" "xid=9"
 show binlog events from 98;
 
 delete from t1;
@@ -58,7 +58,7 @@ rollback to savepoint my_savepoint;
 commit;
 
 --replace_column 5 #
---replace_result "xid=47" "xid=25"
+--replace_result "xid=48" "xid=26"
 show binlog events from 98;
 
 delete from t1;
@@ -76,7 +76,7 @@ commit;
 select a from t1 order by a; # check that savepoints work :)
 
 --replace_column 5 #
---replace_result "xid=69" "xid=37"
+--replace_result "xid=70" "xid=38"
 show binlog events from 98;
 
 # and when ROLLBACK is not explicit?
@@ -109,7 +109,7 @@ insert into t1 values(9);
 insert into t2 select * from t1;
 
 --replace_column 5 #
---replace_result "xid=117" "xid=60"
+--replace_result "xid=118" "xid=61"
 show binlog events from 98;
 
 # Check that when the query updat1ng the MyISAM table is the first in the
@@ -122,13 +122,13 @@ insert into t1 values(10); # first make t1 non-empty
 begin;
 insert into t2 select * from t1;
 --replace_column 5 #
---replace_result "xid=131" "xid=66"
+--replace_result "xid=132" "xid=67"
 show binlog events from 98;
 insert into t1 values(11);
 commit;
 
 --replace_column 5 #
---replace_result "xid=131" "xid=66" "xid=134" "xid=68"
+--replace_result "xid=132" "xid=67" "xid=135" "xid=69"
 show binlog events from 98;
 
 
@@ -147,7 +147,7 @@ insert into t2 select * from t1;
 commit;
 
 --replace_column 5 #
---replace_result "xid=153" "xid=78"
+--replace_result "xid=154" "xid=79"
 show binlog events from 98;
 
 delete from t1;
@@ -175,7 +175,7 @@ rollback to savepoint my_savepoint;
 commit;
 
 --replace_column 5 #
---replace_result "xid=185" "xid=94"
+--replace_result "xid=186" "xid=95"
 show binlog events from 98;
 
 delete from t1;
@@ -193,7 +193,7 @@ commit;
 select a from t1 order by a; # check that savepoints work :)
 
 --replace_column 5 #
---replace_result "xid=206" "xid=105"
+--replace_result "xid=207" "xid=106"
 show binlog events from 98;
 
 # Test for BUG#5714, where a MyISAM update in the transaction used to
@@ -254,7 +254,7 @@ disconnect con2;
 connection con3;
 select get_lock("lock1",60);
 --replace_column 5 #
---replace_result "xid=206" "xid=105" "xid=224" "xid=114" "xid=227" "xid=115" "xid=231" "xid=117" "xid=258" "xid=132"
+--replace_result "xid=207" "xid=106" "xid=225" "xid=115" "xid=228" "xid=116" "xid=232" "xid=118" "xid=259" "xid=133"
 show binlog events from 98;
 do release_lock("lock1");
 drop table t0,t2;
