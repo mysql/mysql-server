@@ -2160,7 +2160,7 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
                           const unsigned char *result_mask)
 {
   /* Check that the NdbRecord specifies the full primary key. */
-  if (!(key_rec->flags & NdbRecord::RecIsKeyRecord))
+  if (!(key_rec->flags & NdbRecord::RecHasAllKeys))
   {
     setOperationErrorCodeAbort(4292);
     return NULL;
@@ -2225,7 +2225,7 @@ NdbTransaction::updateTuple(const NdbRecord *key_rec, const char *key_row,
                             const unsigned char *mask)
 {
   /* Check that the NdbRecord specifies the full primary key. */
-  if (!(key_rec->flags & NdbRecord::RecIsKeyRecord))
+  if (!(key_rec->flags & NdbRecord::RecHasAllKeys))
   {
     setOperationErrorCodeAbort(4292);
     return NULL;
@@ -2247,7 +2247,7 @@ NdbOperation *
 NdbTransaction::deleteTuple(const NdbRecord *key_rec, const char *key_row)
 {
   /* Check that the NdbRecord specifies the full primary key. */
-  if (!(key_rec->flags & NdbRecord::RecIsKeyRecord))
+  if (!(key_rec->flags & NdbRecord::RecHasAllKeys))
   {
     setOperationErrorCodeAbort(4292);
     return NULL;
@@ -2278,7 +2278,7 @@ NdbTransaction::writeTuple(const NdbRecord *key_rec, const char *key_row,
                            const unsigned char *mask)
 {
   /* Check that the NdbRecord specifies the full primary key. */
-  if (!(key_rec->flags & NdbRecord::RecIsKeyRecord))
+  if (!(key_rec->flags & NdbRecord::RecHasAllKeys))
   {
     setOperationErrorCodeAbort(4292);
     return NULL;
@@ -2496,7 +2496,7 @@ NdbTransaction::scanIndex(
   Uint32 column_count;
   bool haveBlob= false;
 
-  if (!(key_record->flags & NdbRecord::RecIsKeyRecord))
+  if (!(key_record->flags & NdbRecord::RecHasAllKeys))
   {
     setOperationErrorCodeAbort(4292);
     return NULL;
