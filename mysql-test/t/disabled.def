@@ -31,6 +31,7 @@ rpl_ddl                  : BUG#26418 2007-03-01 mleich Slave out of sync after C
 rpl_ndb_innodb2ndb       : Bug #19710  Cluster replication to partition table fails on DELETE FROM statement
 rpl_ndb_myisam2ndb       : Bug #19710  Cluster replication to partition table fails on DELETE FROM statement
 #rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
+rpl_ndb_ddl              : BUG#28798 2007-05-31  lars  Valgrind failure in NDB
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 #ndb_binlog_ddl_multi     : BUG#18976 2006-04-10 kent    CRBR: multiple binlog, second binlog may miss schema log events
