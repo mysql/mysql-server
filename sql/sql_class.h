@@ -1110,6 +1110,17 @@ public:
 
 private:
   uint binlog_table_maps; // Number of table maps currently in the binlog
+
+  enum enum_binlog_flag {
+    BINLOG_FLAG_UNSAFE_STMT_PRINTED,
+    BINLOG_FLAG_COUNT
+  };
+
+  /**
+     Flags with per-thread information regarding the status of the
+     binary log.
+   */
+  uint32 binlog_flags;
 public:
   uint get_binlog_table_maps() const {
     return binlog_table_maps;
@@ -1680,6 +1691,7 @@ public:
   void restore_sub_statement_state(Sub_statement_state *backup);
   void set_n_backup_active_arena(Query_arena *set, Query_arena *backup);
   void restore_active_arena(Query_arena *set, Query_arena *backup);
+
   inline void set_current_stmt_binlog_row_based_if_mixed()
   {
     /*
