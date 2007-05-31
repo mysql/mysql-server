@@ -1,5 +1,7 @@
 # We are using .opt file since we need small binlog size
 
+-- source include/have_log_bin.inc
+
 # Embedded server doesn't support binlogging
 -- source include/not_embedded.inc
 
