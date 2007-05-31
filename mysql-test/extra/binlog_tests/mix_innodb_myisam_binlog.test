@@ -4,7 +4,7 @@
 # slave is always with --skip-innodb in the testsuite. I (Guilhem) however
 # did some tests manually on a slave; tables are replicated fine and
 # Exec_Master_Log_Pos advances as expected.
-
+-- source include/have_log_bin.inc
 # Embedded server doesn't support binlogging
 -- source include/not_embedded.inc
 
