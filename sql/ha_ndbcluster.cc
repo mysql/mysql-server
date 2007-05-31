@@ -3524,7 +3524,8 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
    * If IGNORE the ignore constraint violations on primary and unique keys,
    * but check that it is not part of INSERT ... ON DUPLICATE KEY UPDATE
    */
-  if (m_ignore_dup_key && thd->lex->sql_command == SQLCOM_UPDATE)
+  if (m_ignore_dup_key && (thd->lex->sql_command == SQLCOM_UPDATE ||
+                           thd->lex->sql_command == SQLCOM_UPDATE_MULTI))
   {
     int peek_res= peek_indexed_rows(new_data, pk_update);
     

@@ -2107,7 +2107,10 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
                               const char *key_row,
                               const NdbRecord *attribute_record,
                               const char *attribute_row,
-                              const unsigned char *mask)
+                              const unsigned char *mask,
+                              const Uint32 *setPartitionId,
+                              const void *getSetValue,
+                              const NdbInterpretedCode *interpreted_code)
 {
   NdbOperation *op;
   /*
@@ -2143,6 +2146,14 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
   op->m_attribute_record= attribute_record;
   op->m_attribute_row= attribute_row;
   attribute_record->copyMask(op->m_read_mask, mask);
+
+  assert(getSetValue == NULL);                  // ToDo
+  if (setPartitionId != NULL)
+  {
+    op->theDistributionKey= *setPartitionId;
+    op->theDistrKeyIndicator_= 1;
+  }
+  op->m_interpreted_code= interpreted_code;
 
   if (unlikely(attribute_record->flags & NdbRecord::RecHasBlob))
   {
@@ -2222,7 +2233,10 @@ NdbTransaction::insertTuple(const NdbRecord *rec, const char *row,
 NdbOperation *
 NdbTransaction::updateTuple(const NdbRecord *key_rec, const char *key_row,
                             const NdbRecord *attr_rec, const char *attr_row,
-                            const unsigned char *mask)
+                            const unsigned char *mask,
+                            const Uint32 *setPartitionId,
+                            const void *getSetValue,
+                            const NdbInterpretedCode *interpreted_code)
 {
   /* Check that the NdbRecord specifies the full primary key. */
   if (!(key_rec->flags & NdbRecord::RecIsKeyRecord))
@@ -2233,7 +2247,8 @@ NdbTransaction::updateTuple(const NdbRecord *key_rec, const char *key_row,
 
   NdbOperation *op= setupRecordOp(NdbOperation::UpdateRequest,
                                   NdbOperation::LM_Exclusive, key_rec, key_row,
-                                  attr_rec, attr_row, mask);
+                                  attr_rec, attr_row, mask, setPartitionId,
+                                  getSetValue, interpreted_code);
   if(!op)
     return op;
 

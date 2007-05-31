@@ -153,6 +153,12 @@ Interpreter::Write(Uint32 AttrId, Uint32 Register){
 
 inline
 Uint32
+Interpreter::LoadNull(Uint32 Register){
+  return (Register << 6) + LOAD_CONST_NULL;
+}
+
+inline
+Uint32
 Interpreter::LoadConst16(Uint32 Register, Uint32 Value){
   return (Value << 16) + (Register << 6) + LOAD_CONST16;
 }
