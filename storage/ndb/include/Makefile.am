@@ -41,7 +41,8 @@ ndbapi/NdbScanFilter.hpp \
 ndbapi/NdbScanOperation.hpp \
 ndbapi/NdbIndexScanOperation.hpp \
 ndbapi/NdbIndexStat.hpp \
-ndbapi/ndberror.h
+ndbapi/ndberror.h \
+ndbapi/NdbInterpretedCode.hpp
 
 mgmapiinclude_HEADERS = \
 mgmapi/mgmapi.h \

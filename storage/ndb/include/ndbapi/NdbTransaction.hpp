@@ -30,6 +30,7 @@ class NdbIndexOperation;
 class NdbApiSignal;
 class Ndb;
 class NdbBlob;
+class NdbInterpretedCode;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 // to be documented later
@@ -590,7 +591,10 @@ public:
                             const unsigned char *mask= 0);
   NdbOperation *updateTuple(const NdbRecord *key_rec, const char *key_row,
                             const NdbRecord *attr_rec, const char *attr_row,
-                            const unsigned char *mask= 0);
+                            const unsigned char *mask= 0,
+                            const Uint32 *setPartitionId = 0,
+                            const void *getSetValue = 0,
+                            const NdbInterpretedCode *interpreted_code = 0);
   NdbOperation *writeTuple(const NdbRecord *key_rec, const char *key_row,
                            const NdbRecord *attr_rec, const char *attr_row,
                            const unsigned char *mask= 0);
@@ -814,7 +818,10 @@ private:
                               const char *key_row,
                               const NdbRecord *attribute_record,
                               const char *attribute_row,
-                              const unsigned char *mask);
+                              const unsigned char *mask,
+                              const Uint32 *setPartitionId = 0,
+                              const void *getSetValue = 0,
+                              const NdbInterpretedCode *interpreted_code = 0);
 
   void		handleExecuteCompletion();
   
