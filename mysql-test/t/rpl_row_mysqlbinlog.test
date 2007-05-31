@@ -183,67 +183,67 @@ select "--- Test 3 First Remote test --" as "";
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
 
 # This part is disabled due to bug #17654
-################### Start Bug 17654 ######################
-#--disable_query_log
-#select "--- Test 4 Second Remote test --" as "";
-#--enable_query_log
-#--exec $MYSQL_BINLOG --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 > $MYSQLTEST_VARDIR/tmp/remote.sql
 
-#--exec $MYSQL_BINLOG --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002 >> $MYSQLTEST_VARDIR/tmp/remote.sql
+--disable_query_log
+select "--- Test 4 Second Remote test --" as "";
+--enable_query_log
+--exec $MYSQL_BINLOG --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 > $MYSQLTEST_VARDIR/tmp/remote.sql
+
+--exec $MYSQL_BINLOG --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002 >> $MYSQLTEST_VARDIR/tmp/remote.sql
 
 # Now that we have our file, lets get rid of the current database.
 # Cleanup the master and the slave and try to recreate.
 
-#DROP TABLE t1;
-#DROP TABLE t2;
-#DROP TABLE t3;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
 
-#sync_slave_with_master;
+sync_slave_with_master;
 
 #we expect STOP SLAVE to produce a warning as the slave is stopped
 #(the server was started with skip-slave-start)
 
-#--disable_warnings
-#stop slave;
-#--enable_warnings
-#--require r/slave-stopped.result
-#show status like 'Slave_running';
-#connection master;
-#reset master;
-#connection slave;
-#reset slave;
-#start slave;
-#--require r/slave-running.result
-#show status like 'Slave_running';
-#connection master;
+--disable_warnings
+stop slave;
+--enable_warnings
+--require r/slave-stopped.result
+show status like 'Slave_running';
+connection master;
+reset master;
+connection slave;
+reset slave;
+start slave;
+--require r/slave-running.result
+show status like 'Slave_running';
+connection master;
 
 # We should be clean at this point, now we will run in the file from above.
 
-#--exec $MYSQL -e "source $MYSQLTEST_VARDIR/tmp/remote.sql"
+--exec $MYSQL -e "source $MYSQLTEST_VARDIR/tmp/remote.sql"
 
 # Lets Check the tables on the Master
 
-#SELECT COUNT(*) from t1;
-#SELECT COUNT(*) from t2;
-#SELECT COUNT(*) from t3;
-#SELECT * FROM t1 ORDER BY word LIMIT 5;
-#SELECT * FROM t2 ORDER BY id LIMIT 5;
-#SELECT c1, c3, c4, c5  FROM t3 ORDER BY c1 LIMIT 5;
+SELECT COUNT(*) from t1;
+SELECT COUNT(*) from t2;
+SELECT COUNT(*) from t3;
+SELECT * FROM t1 ORDER BY word LIMIT 5;
+SELECT * FROM t2 ORDER BY id LIMIT 5;
+SELECT c1, c3, c4, c5  FROM t3 ORDER BY c1 LIMIT 5;
 
 # Should have the same on the slave;
 
-#sync_slave_with_master;
-#SELECT COUNT(*) from t1;
-#SELECT COUNT(*) from t2;
-#SELECT COUNT(*) from t3;
-#SELECT * FROM t1 ORDER BY word LIMIT 5;
-#SELECT * FROM t2 ORDER BY id LIMIT 5;
-#SELECT c1, c3, c4, c5  FROM t3 ORDER BY c1 LIMIT 5;
-#connection master;
+sync_slave_with_master;
+SELECT COUNT(*) from t1;
+SELECT COUNT(*) from t2;
+SELECT COUNT(*) from t3;
+SELECT * FROM t1 ORDER BY word LIMIT 5;
+SELECT * FROM t2 ORDER BY id LIMIT 5;
+SELECT c1, c3, c4, c5  FROM t3 ORDER BY c1 LIMIT 5;
+connection master;
 
 # We should be gold by the time, so I will get rid of our file.
 
-#--exec rm $MYSQLTEST_VARDIR/tmp/remote.sql
+--exec rm $MYSQLTEST_VARDIR/tmp/remote.sql
 ################### End Bug 17654 ######################
 
 # LOAD DATA
@@ -315,7 +315,34 @@ select "--- Test cleanup --" as "";
 --enable_query_log
 # clean up
 connection master;
-DROP TABLE IF EXISTS t1, t2, t3, t04, t05, t4, t5; 
 sync_slave_with_master;
+
+connection master;
+
+# BUG#17654 also test mysqlbinlog to ensure it can read the binlog from a remote server 
+# and ensure that the results are the same as if read from a file (the same file).
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT NOT NULL KEY, b INT);
+
+INSERT INTO t1 VALUES(1,1);
+
+SELECT * FROM t1;
+
+FLUSH LOGS;
+
+--exec $MYSQL_BINLOG --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 > $MYSQLTEST_VARDIR/tmp/remote.sql
+--exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/local.sql
+
+--diff_files $MYSQLTEST_VARDIR/tmp/local.sql $MYSQLTEST_VARDIR/tmp/remote.sql
+
+--exec rm $MYSQLTEST_VARDIR/tmp/remote.sql
+
+--exec rm $MYSQLTEST_VARDIR/tmp/local.sql
+
+DROP TABLE IF EXISTS t1, t2, t3, t04, t05, t4, t5; 
 
 # End of 4.1 tests

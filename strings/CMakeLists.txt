@@ -24,4 +24,4 @@ ADD_LIBRARY(strings bchange.c bcmp.c bfill.c bmove512.c bmove_upp.c ctype-big5.c
                 is_prefix.c llstr.c longlong2str.c my_strtoll10.c my_vsnprintf.c r_strinstr.c
                 str2int.c str_alloc.c strcend.c strend.c strfill.c strmake.c strmov.c strnmov.c 
                 strtod.c strtol.c strtoll.c strtoul.c strtoull.c strxmov.c strxnmov.c xml.c
-		my_strchr.c strcont.c strinstr.c)
+		my_strchr.c strcont.c strinstr.c strnlen.c)

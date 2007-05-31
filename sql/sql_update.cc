@@ -621,6 +621,37 @@ int mysql_update(THD *thd,
     thd->row_count++;
   }
   dup_key_found= 0;
+
+  /*
+    todo bug#27571: to avoid asynchronization of `error' and
+    `error_code' of binlog event constructor
+
+    The concept, which is a bit different for insert(!), is to
+    replace `error' assignment with the following lines
+
+       killed_status= thd->killed; // get the status of the volatile 
+    
+    Notice: thd->killed is type of "state" whereas the lhs has
+    "status" the suffix which translates according to WordNet: a state
+    at a particular time - at the time of the end of per-row loop in
+    our case. Binlogging ops are conducted with the status.
+
+       error= (killed_status == THD::NOT_KILLED)?  error : 1;
+    
+    which applies to most mysql_$query functions.
+    Event's constructor will accept `killed_status' as an argument:
+    
+       Query_log_event qinfo(..., killed_status);
+    
+    thd->killed might be changed after killed_status had got cached and this
+    won't affect binlogging event but other effects remain.
+
+    Open issue: In a case the error happened not because of KILLED -
+    and then KILLED was caught later still within the loop - we shall
+    do something to avoid binlogging of incorrect ER_SERVER_SHUTDOWN
+    error_code.
+  */
+
   if (thd->killed && !error)
     error= 1;					// Aborted
   else if (will_batch &&
