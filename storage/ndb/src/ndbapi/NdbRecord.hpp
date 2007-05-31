@@ -24,13 +24,14 @@ public:
     /*
       This flag tells whether this NdbRecord is a PK record for the table,
       ie. that it describes _exactly_ the primary key attributes, no more and
-      no less. This is a requirement for the PK record used in read/update.
+      no less.
     */
     RecIsKeyRecord= 0x1,
 
     /*
       This flag tells whether this NdbRecord includes _at least_ all PK columns
-      (and possibly other columns), which is a requirement for insert.
+      (and possibly other columns). This is a requirement for many key-based
+      operations.
     */
     RecHasAllKeys= 0x2,
 
