@@ -1,6 +1,5 @@
 -- source include/not_embedded.inc
 -- source include/have_cp932.inc
--- source include/have_log_bin.inc
 
 --character_set cp932
 --disable_warnings
