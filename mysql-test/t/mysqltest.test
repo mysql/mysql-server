@@ -1,3 +1,5 @@
+-- source include/have_log_bin.inc
+
 # This test should work in embedded server after mysqltest is fixed
 -- source include/not_embedded.inc
 
