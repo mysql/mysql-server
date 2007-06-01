@@ -1329,6 +1329,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
 
       if (part_info)
       {
+        TABLE_SHARE *share= lpt->table->s;
         if (!(part_syntax_buf= generate_partition_syntax(part_info,
                                                          &syntax_len,
                                                          TRUE, TRUE)))
@@ -1336,7 +1337,16 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
           DBUG_RETURN(TRUE);
         }
         part_info->part_info_string= part_syntax_buf;
-        part_info->part_info_len= syntax_len;
+        share->partition_info_len= part_info->part_info_len= syntax_len;
+        if (share->partition_info_buffer_size < syntax_len + 1)
+        {
+          share->partition_info_buffer_size= syntax_len+1;
+          if (!(share->partition_info=
+                  alloc_root(&share->mem_root, syntax_len+1)))
+            DBUG_RETURN(TRUE);
+
+        }
+        memcpy((char*) share->partition_info, part_syntax_buf, syntax_len + 1);
       }
     }
 #endif

@@ -720,7 +720,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     {
       uint32 partition_info_len = uint4korr(next_chunk);
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-      if ((share->partition_info_len= partition_info_len))
+      if ((share->partition_info_buffer_size=
+             share->partition_info_len= partition_info_len))
       {
         if (!(share->partition_info=
               memdup_root(&share->mem_root, next_chunk + 4,
