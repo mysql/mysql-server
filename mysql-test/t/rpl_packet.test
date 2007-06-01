@@ -58,7 +58,7 @@ START SLAVE;
 
 # Reconnect to master for new setting to take effect
 disconnect master;
-connect (master, localhost, root)
+connect (master, localhost, root);
 connection master;
 
 CREATE TABLe `t1` (`f1` LONGTEXT) ENGINE=MyISAM;
