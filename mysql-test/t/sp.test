@@ -6975,7 +6975,7 @@ use test|
 --disable_warnings
 drop function if exists bug20777|
 drop table if exists examplebug20777|
---enabled_warnings
+--enable_warnings
 create function bug20777(f1 bigint unsigned) returns bigint unsigned
 begin
   set f1 = (f1 - 10); set f1 = (f1 + 10);
