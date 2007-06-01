@@ -53,7 +53,7 @@
 */
 
 static int
-event_queue_element_compare_q(void *vptr, byte* a, byte *b)
+event_queue_element_compare_q(void *vptr, uchar* a, uchar *b)
 {
   my_time_t lhs = ((Event_queue_element *)a)->execute_at;
   my_time_t rhs = ((Event_queue_element *)b)->execute_at;
@@ -195,7 +195,7 @@ Event_queue::create_event(THD *thd, Event_queue_element *new_element,
   DBUG_PRINT("info", ("new event in the queue: 0x%lx", (long) new_element));
 
   LOCK_QUEUE_DATA();
-  *created= (queue_insert_safe(&queue, (byte *) new_element) == FALSE);
+  *created= (queue_insert_safe(&queue, (uchar *) new_element) == FALSE);
   dbug_dump_queue(thd->query_start());
   pthread_cond_broadcast(&COND_queue_state);
   UNLOCK_QUEUE_DATA();
@@ -244,7 +244,7 @@ Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
   if (new_element)
   {
     DBUG_PRINT("info", ("new event in the queue: 0x%lx", (long) new_element));
-    queue_insert_safe(&queue, (byte *) new_element);
+    queue_insert_safe(&queue, (uchar *) new_element);
     pthread_cond_broadcast(&COND_queue_state);
   }
 

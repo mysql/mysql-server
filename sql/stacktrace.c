@@ -94,7 +94,7 @@ inline uint32* find_prev_pc(uint32* pc, uchar** fp)
 #endif /* defined(__alpha__) && defined(__GNUC__) */
 
 
-void  print_stacktrace(gptr stack_bottom, ulong thread_stack)
+void  print_stacktrace(uchar* stack_bottom, ulong thread_stack)
 {
   uchar** fp;
   uint frame_count = 0, sigreturn_frame_count;
@@ -129,11 +129,11 @@ terribly wrong...\n");
     return;
   }
 
-  if (!stack_bottom || (gptr) stack_bottom > (gptr) &fp)
+  if (!stack_bottom || (uchar*) stack_bottom > (uchar*) &fp)
   {
     ulong tmp= min(0x10000,thread_stack);
     /* Assume that the stack starts at the previous even 65K */
-    stack_bottom= (gptr) (((ulong) &fp + tmp) &
+    stack_bottom= (uchar*) (((ulong) &fp + tmp) &
 			  ~(ulong) 0xFFFF);
     fprintf(stderr, "Cannot determine thread, fp=%p, backtrace may not be correct.\n", fp);
   }
@@ -206,9 +206,11 @@ terribly wrong...\n");
   fprintf(stderr, "Stack trace seems successful - bottom reached\n");
 
 end:
-  fprintf(stderr, "Please read http://dev.mysql.com/doc/mysql/en/using-stack-trace.html and follow instructions on how to resolve the stack trace. Resolved\n\
-stack trace is much more helpful in diagnosing the problem, so please do \n\
-resolve it\n");
+  fprintf(stderr,
+          "Please read http://dev.mysql.com/doc/refman/5.1/en/resolve-stack-dump.html\n"
+          "and follow instructions on how to resolve the stack trace.\n"
+          "Resolved stack trace is much more helpful in diagnosing the\n"
+          "problem, so please do resolve it\n");
 }
 #endif /* TARGET_OS_LINUX */
 #endif /* HAVE_STACKTRACE */

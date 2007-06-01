@@ -28,8 +28,8 @@ extern "C" {
 */
 #define my_vle_sizeof(ITEM) (((sizeof(ITEM) * CHAR_BIT) + 6) / 7)
 
-byte *my_vle_encode(byte *vle, my_size_t max, ulong value);
-byte const *my_vle_decode(ulong *value_ptr, byte const *vle);
+uchar *my_vle_encode(uchar *vle, size_t max, ulong value);
+uchar const *my_vle_decode(ulong *value_ptr, uchar const *vle);
 
 #ifdef __cplusplus
 }
