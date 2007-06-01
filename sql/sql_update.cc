@@ -545,8 +545,8 @@ int mysql_update(THD *thd,
         else
         {
           /* Non-batched update */
-	  error= table->file->ha_update_row((byte*) table->record[1],
-	                                   (byte*) table->record[0]);
+	  error= table->file->ha_update_row(table->record[1],
+                                            table->record[0]);
         }
         if (!error)
 	{
@@ -1163,7 +1163,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 						sizeof(*tl));
       if (!tl)
 	DBUG_RETURN(1);
-      update.link_in_list((byte*) tl, (byte**) &tl->next_local);
+      update.link_in_list((uchar*) tl, (uchar**) &tl->next_local);
       tl->shared= table_count++;
       table->no_keyread=1;
       table->covering_keys.clear_all();
@@ -1568,7 +1568,7 @@ int multi_update::do_updates(bool from_send_error)
     DBUG_RETURN(0);
   for (cur_table= update_tables; cur_table; cur_table= cur_table->next_local)
   {
-    byte *ref_pos;
+    uchar *ref_pos;
     bool can_compare_record;
 
     table = cur_table->table;
@@ -1601,7 +1601,7 @@ int multi_update::do_updates(bool from_send_error)
                          bitmap_is_subset(table->write_set,
                                           table->read_set));
 
-    ref_pos= (byte*) tmp_table->field[0]->ptr;
+    ref_pos= tmp_table->field[0]->ptr;
     for (;;)
     {
       if (thd->killed && trans_safe)

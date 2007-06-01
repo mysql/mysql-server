@@ -74,7 +74,7 @@ int mi_log(int activate_log)
 	/* All logs starts with command(1) dfile(2) process(4) result(2) */
 
 void _myisam_log(enum myisam_log_commands command, MI_INFO *info,
-		 const byte *buffert, uint length)
+		 const uchar *buffert, uint length)
 {
   char buff[11];
   int error,old_errno;
@@ -98,7 +98,7 @@ void _myisam_log(enum myisam_log_commands command, MI_INFO *info,
 
 
 void _myisam_log_command(enum myisam_log_commands command, MI_INFO *info,
-			 const byte *buffert, uint length, int result)
+			 const uchar *buffert, uint length, int result)
 {
   char buff[9];
   int error,old_errno;
@@ -122,7 +122,7 @@ void _myisam_log_command(enum myisam_log_commands command, MI_INFO *info,
 
 
 void _myisam_log_record(enum myisam_log_commands command, MI_INFO *info,
-			const byte *record, my_off_t filepos, int result)
+			const uchar *record, my_off_t filepos, int result)
 {
   char buff[21],*pos;
   int error,old_errno;
@@ -143,7 +143,7 @@ void _myisam_log_record(enum myisam_log_commands command, MI_INFO *info,
   pthread_mutex_lock(&THR_LOCK_myisam);
   error=my_lock(myisam_log_file,F_WRLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
   VOID(my_write(myisam_log_file,buff,sizeof(buff),MYF(0)));
-  VOID(my_write(myisam_log_file,(byte*) record,info->s->base.reclength,MYF(0)));
+  VOID(my_write(myisam_log_file,(uchar*) record,info->s->base.reclength,MYF(0)));
   if (info->s->base.blobs)
   {
     MI_BLOB *blob,*end;

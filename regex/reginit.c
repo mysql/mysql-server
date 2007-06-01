@@ -16,7 +16,7 @@ void my_regex_init(CHARSET_INFO *cs)
   if (!regex_inited)
   {
     regex_inited=1;
-    bzero((gptr) &count,sizeof(count));
+    bzero((uchar*) &count,sizeof(count));
 
     for (i=1 ; i<= 255; i++)
     {

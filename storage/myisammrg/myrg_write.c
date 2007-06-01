@@ -17,7 +17,7 @@
 
 #include "myrg_def.h"
 
-int myrg_write(register MYRG_INFO *info, byte *rec)
+int myrg_write(register MYRG_INFO *info, uchar *rec)
 {
   /* [phi] MERGE_WRITE_DISABLED is handled by the else case */
   if (info->merge_insert_method == MERGE_INSERT_TO_FIRST)

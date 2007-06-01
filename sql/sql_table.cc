@@ -319,11 +319,11 @@ static bool read_ddl_log_file_entry(uint entry_no)
 {
   bool error= FALSE;
   File file_id= global_ddl_log.file_id;
-  char *file_entry_buf= (char*)global_ddl_log.file_entry_buf;
+  uchar *file_entry_buf= (uchar*)global_ddl_log.file_entry_buf;
   uint io_size= global_ddl_log.io_size;
   DBUG_ENTER("read_ddl_log_file_entry");
 
-  if (my_pread(file_id, (byte*)file_entry_buf, io_size, io_size * entry_no,
+  if (my_pread(file_id, file_entry_buf, io_size, io_size * entry_no,
                MYF(MY_WME)) != io_size)
     error= TRUE;
   DBUG_RETURN(error);
@@ -347,7 +347,7 @@ static bool write_ddl_log_file_entry(uint entry_no)
   char *file_entry_buf= (char*)global_ddl_log.file_entry_buf;
   DBUG_ENTER("write_ddl_log_file_entry");
 
-  if (my_pwrite(file_id, (byte*)file_entry_buf,
+  if (my_pwrite(file_id, (uchar*)file_entry_buf,
                 IO_SIZE, IO_SIZE * entry_no, MYF(MY_WME)) != IO_SIZE)
     error= TRUE;
   DBUG_RETURN(error);
@@ -560,7 +560,9 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
   int error= TRUE;
   char to_path[FN_REFLEN];
   char from_path[FN_REFLEN];
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   char *par_ext= (char*)".par";
+#endif
   handlerton *hton;
   DBUG_ENTER("execute_ddl_log_action");
 
@@ -1143,13 +1145,13 @@ void release_ddl_log()
   while (used_list)
   {
     DDL_LOG_MEMORY_ENTRY *tmp= used_list->next_log_entry;
-    my_free((char*)used_list, MYF(0));
+    my_free(used_list, MYF(0));
     used_list= tmp;
   }
   while (free_list)
   {
     DDL_LOG_MEMORY_ENTRY *tmp= free_list->next_log_entry;
-    my_free((char*)free_list, MYF(0));
+    my_free(free_list, MYF(0));
     free_list= tmp;
   }
   close_ddl_log();
@@ -1268,13 +1270,13 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       handlers that have the main version of the frm file stored in the
       handler.
     */
-    const void *data= 0;
-    uint length= 0;
+    uchar *data;
+    size_t length;
     if (readfrm(shadow_path, &data, &length) ||
         packfrm(data, length, &lpt->pack_frm_data, &lpt->pack_frm_len))
     {
-      my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
-      my_free((char*)lpt->pack_frm_data, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(data, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(lpt->pack_frm_data, MYF(MY_ALLOW_ZERO_PTR));
       mem_alloc_error(length);
       error= 1;
       goto end;
@@ -2926,7 +2928,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     DBUG_RETURN(TRUE);
   }
   /* Sort keys in optimized order */
-  qsort((gptr) *key_info_buffer, *key_count, sizeof(KEY),
+  qsort((uchar*) *key_info_buffer, *key_count, sizeof(KEY),
 	(qsort_cmp) sort_keys);
   create_info->null_bits= null_fields;
 
@@ -3478,7 +3480,7 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
   /* Wait for any database locks */
   pthread_mutex_lock(&LOCK_lock_db);
   while (!thd->killed &&
-         hash_search(&lock_db_cache,(byte*) db, strlen(db)))
+         hash_search(&lock_db_cache,(uchar*) db, strlen(db)))
   {
     wait_for_condition(thd, &LOCK_lock_db, &COND_refresh);
     pthread_mutex_lock(&LOCK_lock_db);
@@ -4021,7 +4023,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->next_global= 0;
       save_next_local= table->next_local;
       table->next_local= 0;
-      select->table_list.first= (byte*)table;
+      select->table_list.first= (uchar*)table;
       /*
         Time zone tables and SP tables can be add to lex->query_tables list,
         so it have to be prepared.
@@ -6438,7 +6440,7 @@ view_err:
   {
     /* Close the intermediate table that will be the new table */
     intern_close_table(new_table);
-    my_free((gptr) new_table,MYF(0));
+    my_free(new_table,MYF(0));
   }
   VOID(pthread_mutex_lock(&LOCK_open));
   if (error)
@@ -6619,7 +6621,7 @@ view_err:
     if (t_table)
     {
       intern_close_table(t_table);
-      my_free((char*) t_table, MYF(0));
+      my_free(t_table, MYF(0));
     }
     else
       sql_print_warning("Could not open table %s.%s after rename\n",
@@ -6815,7 +6817,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       copy_ptr->do_copy(copy_ptr);
     }
     prev_insert_id= to->file->next_insert_id;
-    error=to->file->write_row((byte*) to->record[0]);
+    error=to->file->write_row(to->record[0]);
     to->auto_increment_field_not_null= FALSE;
     if (error)
     {
@@ -6996,10 +6998,10 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 	      {
 		String tmp;
 		f->val_str(&tmp);
-		row_crc= my_checksum(row_crc, (byte*) tmp.ptr(), tmp.length());
+		row_crc= my_checksum(row_crc, (uchar*) tmp.ptr(), tmp.length());
 	      }
 	      else
-		row_crc= my_checksum(row_crc, (byte*) f->ptr,
+		row_crc= my_checksum(row_crc, f->ptr,
 				     f->pack_length());
 	    }
 

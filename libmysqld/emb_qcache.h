@@ -15,8 +15,8 @@
 
 class Querycache_stream
 {
-  byte *cur_data;
-  byte *data_end;
+  uchar *cur_data;
+  uchar *data_end;
   Query_cache_block *block;
   uint headers_len;
 public:
@@ -27,7 +27,7 @@ public:
   Querycache_stream(Query_cache_block *ini_block, uint ini_headers_len) :
     block(ini_block), headers_len(ini_headers_len)    
   {
-    cur_data= ((byte*)block)+headers_len;
+    cur_data= ((uchar*)block)+headers_len;
     data_end= cur_data + (block->used-headers_len);
 #ifndef DBUG_OFF
     first_block= ini_block;
@@ -54,7 +54,7 @@ public:
     else
       DBUG_ASSERT(block->type == Query_cache_block::RES_CONT);
 
-    cur_data= ((byte*)block)+headers_len;
+    cur_data= ((uchar*)block)+headers_len;
     data_end= cur_data + (block->used-headers_len);
   }
 

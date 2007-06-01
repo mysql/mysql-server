@@ -76,7 +76,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   LINT_INIT(file);
   errpos=0;
   options=0;
-  bzero((byte*) &share,sizeof(share));
+  bzero((uchar*) &share,sizeof(share));
 
   if (flags & HA_DONT_TOUCH_DATA)
   {
@@ -498,7 +498,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     goto err;
   }
 
-  bmove(share.state.header.file_version,(byte*) myisam_file_magic,4);
+  bmove(share.state.header.file_version,(uchar*) myisam_file_magic,4);
   ci->old_options=options| (ci->old_options & HA_OPTION_TEMP_COMPRESS_RECORD ?
 			HA_OPTION_COMPRESS_RECORD |
 			HA_OPTION_TEMP_COMPRESS_RECORD: 0);
