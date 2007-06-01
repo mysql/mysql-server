@@ -1871,7 +1871,7 @@ DROP TABLE t1;
 --disable_query_log
 --exec $MYSQL_TEST --help 2>&1 > /dev/null
 --exec $MYSQL_TEST --version 2>&1 > /dev/null
---enable_quary_log
+--enable_query_log
 --disable_abort_on_error
 --error 1
 --exec $MYSQL_TEST a b c 2>&1 > /dev/null
