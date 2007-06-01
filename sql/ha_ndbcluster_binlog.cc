@@ -387,6 +387,8 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
   DBUG_ENTER("ndbcluster_binlog_init_share");
 
   share->connect_count= g_ndb_cluster_connection->get_connect_count();
+  share->m_resolve_size= 0;
+  share->m_resolve_column= 0;
 
   share->op= 0;
   share->table= 0;

@@ -1,0 +1,8 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--let col_type = int unsigned
+--source t/rpl_ndb_conflict_1.inc
+--let col_type = bigint unsigned
+--source t/rpl_ndb_conflict_1.inc

@@ -33,6 +33,7 @@
 #include "ha_ndbcluster_cond.h"
 #include <../util/Bitmask.hpp>
 #include <ndbapi/NdbIndexStat.hpp>
+#include <ndbapi/NdbInterpretedCode.hpp>
 
 #include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_tables.h"
@@ -302,7 +303,8 @@ check_completed_operations(NdbTransaction *trans, const NdbOperation *first)
     const NdbError &err= first->getNdbError();
     if (err.classification != NdbError::NoError &&
         err.classification != NdbError::ConstraintViolation &&
-        err.classification != NdbError::NoDataFound)
+        err.classification != NdbError::NoDataFound &&
+        err.code != 9999)
       DBUG_RETURN(err.code);
     first= trans->getNextCompletedOperation(first);
   }
@@ -810,6 +812,14 @@ ha_ndbcluster::get_row_buffer()
   Thd_ndb *thd_ndb= get_thd_ndb(table->in_use);
   return alloc_root(&(thd_ndb->m_batch_mem_root),
                     table->s->reclength + m_extra_reclength);
+}
+
+/* Return a row buffer, valid until next execute(). */
+char *
+ha_ndbcluster::get_buffer(uint size)
+{
+  Thd_ndb *thd_ndb= get_thd_ndb(table->in_use);
+  return alloc_root(&(thd_ndb->m_batch_mem_root), size);
 }
 
 /*
@@ -3520,6 +3530,165 @@ int ha_ndbcluster::primary_key_cmp(const byte * old_row, const byte * new_row)
   return 0;
 }
 
+#ifdef HAVE_NDB_BINLOG
+int ha_ndbcluster::slave_set_resolve_highest(uint field_index)
+{
+  DBUG_ENTER("ha_ndbcluster::slave_set_resolve_highest");
+  const NDBCOL *c= m_table->getColumn(field_index);
+  switch (c->getType())
+  {
+  case  NDBCOL::Unsigned:
+    m_share->m_resolve_size= sizeof(Uint32);
+    m_share->m_resolve_column= field_index;
+    DBUG_PRINT("info", ("resolve column Uint32%u",
+                        m_share->m_resolve_column));
+    DBUG_RETURN(0);
+    break;
+  case  NDBCOL::Bigunsigned:
+    m_share->m_resolve_size= sizeof(Uint64);
+    m_share->m_resolve_column= field_index;
+    DBUG_PRINT("info", ("resolve column Uint64 %u",
+                        m_share->m_resolve_column));
+    DBUG_RETURN(0);
+    break;
+  default:
+    DBUG_PRINT("info", ("resolve column %u has wrong type",
+                        m_share->m_resolve_column));
+    DBUG_RETURN(0);
+    break;
+  }
+  DBUG_RETURN(-1);
+}
+
+/*
+  To perform conflict resolution, an interpreted program is used to read
+  the timestamp stored loaclly and compare to what is going to be applied.
+  If timestamp is lower, an error for this operation (9999) will be raised,
+  and new row will not be applied. The error codes for the operations will
+  be checked on return.  For this to work is is vital that the operation
+  is run with ignore error option.
+*/
+
+int
+ha_ndbcluster::update_row_timestamp_resolve(const byte *old_data, byte *new_data, NdbInterpretedCode *code)
+{
+  const int do_before_image_check= 0;
+  uint32 resolve_column= m_share->m_resolve_column;
+  uint32 resolve_size= m_share->m_resolve_size;
+
+  DBUG_ASSERT(resolve_size == 4 || resolve_size == 8);
+
+  const uint error_wrong_before_image= 9998;
+  const uint error_lower_timestamp= 9999;
+  const uint label_0= 0, label_1= 1;
+  const Uint32 RegNewValue= 1, RegCurrentValue= 2;
+  int r;
+  Field *field= table->field[resolve_column];
+  DBUG_PRINT("info", ("interpreted update post equal"));
+  /*
+   * read new value from record
+   */
+  union {
+    uint32 new_value_32;
+    uint64 new_value_64;
+  };
+  {
+    const byte* field_ptr= field->ptr + (new_data - table->record[0]);
+    if (resolve_size == 4)
+    {
+      memcpy(&new_value_32, field_ptr, resolve_size);
+      DBUG_PRINT("info", ("new_value_32: %u", new_value_32));
+    }
+    else
+    {
+      memcpy(&new_value_64, field_ptr, resolve_size);
+      DBUG_PRINT("info", ("new_value_64: %llu",
+                          (unsigned long long) new_value_64));
+    }
+  }
+  /*
+   * Load registers RegNewValue and RegCurrentValue
+   */
+  if (resolve_size == 4)
+    r= code->load_const_u32(RegNewValue, new_value_32);
+  else
+    r= code->load_const_u64(RegNewValue, new_value_64);
+  DBUG_ASSERT(r == 0);
+  r= code->read_attr(m_table, resolve_column, RegCurrentValue);
+  DBUG_ASSERT(r == 0);
+  /*
+   * if RegNewValue > RegCurrentValue goto label_0
+   * else raise error for this row
+   */
+  r= code->branch_gt(RegCurrentValue, RegNewValue, label_0);
+  DBUG_ASSERT(r == 0);
+  r= code->interpret_exit_nok(error_lower_timestamp);
+  DBUG_ASSERT(r == 0);
+  r= code->def_label(label_0);
+  DBUG_ASSERT(r == 0);
+  if (do_before_image_check)
+  {
+    /* reuse register, new value not needed */
+    const Uint32 RegOldValue= RegNewValue;
+    /*
+     * Now also check that old values are the same
+     */
+
+    /*
+     * read old value from record
+     */
+    union {
+      uint32 old_value_32;
+      uint64 old_value_64;
+    };
+    {
+      const byte* field_ptr= field->ptr + (old_data - table->record[0]);
+      if (resolve_size == 4)
+      {
+        memcpy(&old_value_32, field_ptr, resolve_size);
+        DBUG_PRINT("info", ("old_value_32: %u", old_value_32));
+      }
+      else
+      {
+        memcpy(&old_value_64, field_ptr, resolve_size);
+        DBUG_PRINT("info", ("old_value_64: %llu",
+                            (unsigned long long) old_value_64));
+      }
+    }
+    /*
+     * Load register RegOldValue
+     */
+    if (resolve_size == 4)
+      r= code->load_const_u32(RegOldValue, old_value_32);
+    else
+      r= code->load_const_u64(RegOldValue, old_value_64);
+    DBUG_ASSERT(r == 0);
+    // RegCurrentValue already stored
+    /*
+     * if RegOldValue == RegCurrentValue goto label label_1
+     * else raise error for this row
+     */
+    r= code->branch_eq(RegOldValue, RegCurrentValue, label_1);
+    DBUG_ASSERT(r == 0);
+    if (error_wrong_before_image)
+      r= code->interpret_exit_nok(error_wrong_before_image);
+    else
+      r= code->interpret_exit_nok(0);
+    DBUG_ASSERT(r == 0);
+    /*
+     * Exit ok and let transaction continue without error
+     */
+    r= code->def_label(label_1);
+    DBUG_ASSERT(r == 1);
+  }
+  r= code->interpret_exit_ok();
+  DBUG_ASSERT(r == 0);
+  r= code->backpatch();
+  DBUG_ASSERT(r == 0);
+  return r;
+}
+#endif
+
 /*
   Update one record in NDB using primary key
 */
@@ -3702,7 +3871,30 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       key_row= (const char *)(&m_ref);
     }
 
-    if (!(op= trans->updateTuple(key_rec, key_row, m_ndb_record, row, mask)))
+    NdbInterpretedCode *code= NULL;
+#ifdef HAVE_NDB_BINLOG
+    if (m_share->m_resolve_size)
+    {
+      DBUG_PRINT("info", ("interpreted update pre equal on column %u",
+                          m_share->m_resolve_column));
+      /*
+        Room for 10 instruction words, two labels, and two jumps.
+        + 2 extra words for the case of resolve_size == 8
+      */
+      uint code_size= 16;
+      uint struct_size= sizeof(*code);
+      char *mem= get_buffer(struct_size + code_size*sizeof(Uint32));
+      Uint32* buffer= (Uint32 *)(mem + struct_size);
+      code= new(mem) NdbInterpretedCode(buffer, code_size, 2);
+      if (update_row_timestamp_resolve(old_data, new_data, code))
+      {
+        /* ToDo error handling */
+        abort();
+      }
+    }
+#endif
+    if (!(op= trans->updateTuple(key_rec, key_row, m_ndb_record, row, mask,
+                                 NULL, NULL, code)))
       ERR_RETURN(trans->getNdbError());  
   }
 

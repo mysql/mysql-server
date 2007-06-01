@@ -1,0 +1,136 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1 (a int key, b varchar(32), X int unsigned) engine ndb;
+create table t2 (a int key, b varchar(32), c int unsigned) engine ndb;
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=10", 10);
+insert into t1 values (2, "Master t1 a=2 at X=10", 10);
+insert into t1 values (3, "Master t1 a=3 at X=10", 10);
+insert into t2 values (1, "Master t2 a=1 at c=10", 10);
+insert into t2 values (2, "Master t2 a=2 at c=10", 10);
+insert into t2 values (3, "Master t2 a=3 at c=10", 10);
+commit;
+select * from t1 order by a;
+a	b	X
+1	Master t1 a=1 at X=10	10
+2	Master t1 a=2 at X=10	10
+3	Master t1 a=3 at X=10	10
+select * from t2 order by a;
+a	b	c
+1	Master t2 a=1 at c=10	10
+2	Master t2 a=2 at c=10	10
+3	Master t2 a=3 at c=10	10
+begin;
+update t1 set b="Slave t1 a=1 at X=12", X=12 where a=1;
+update t1 set b="Slave t1 a=2 at X=12", X=12 where a=2;
+update t1 set b="Slave t1 a=3 at X=12", X=12 where a=3;
+update t2 set b="Slave t2 a=1 at c=12", c=12 where a=1;
+update t2 set b="Slave t2 a=2 at c=12", c=12 where a=2;
+update t2 set b="Slave t2 a=3 at c=12", c=12 where a=3;
+commit;
+begin;
+update t1 set b="Master t1 a=1 at X=11", X=11 where a=1;
+update t1 set b="Master t1 a=2 at X=11", X=11 where a=2;
+update t1 set b="Master t1 a=3 at X=11", X=11 where a=3;
+update t2 set b="Master t2 a=1 at c=11", c=11 where a=1;
+update t2 set b="Master t2 a=2 at c=11", c=11 where a=2;
+update t2 set b="Master t2 a=3 at c=11", c=11 where a=3;
+commit;
+select * from t1 order by a;
+a	b	X
+1	Slave t1 a=1 at X=12	12
+2	Slave t1 a=2 at X=12	12
+3	Slave t1 a=3 at X=12	12
+select * from t2 order by a;
+a	b	c
+1	Master t2 a=1 at c=11	11
+2	Master t2 a=2 at c=11	11
+3	Master t2 a=3 at c=11	11
+begin;
+update t1 set b="Master t1 a=1 at X=13", X=13 where a=1;
+update t1 set b="Master t1 a=2 at X=13", X=13 where a=2;
+update t1 set b="Master t1 a=3 at X=13", X=13 where a=3;
+update t2 set b="Master t2 a=1 at c=13", c=13 where a=1;
+update t2 set b="Master t2 a=2 at c=13", c=13 where a=2;
+update t2 set b="Master t2 a=3 at c=13", c=13 where a=3;
+commit;
+select * from t1 order by a;
+a	b	X
+1	Master t1 a=1 at X=13	13
+2	Master t1 a=2 at X=13	13
+3	Master t1 a=3 at X=13	13
+select * from t2 order by a;
+a	b	c
+1	Master t2 a=1 at c=13	13
+2	Master t2 a=2 at c=13	13
+3	Master t2 a=3 at c=13	13
+drop table t1, t2;
+create table t1 (a int key, b varchar(32), X bigint unsigned) engine ndb;
+create table t2 (a int key, b varchar(32), c int unsigned) engine ndb;
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=10", 10);
+insert into t1 values (2, "Master t1 a=2 at X=10", 10);
+insert into t1 values (3, "Master t1 a=3 at X=10", 10);
+insert into t2 values (1, "Master t2 a=1 at c=10", 10);
+insert into t2 values (2, "Master t2 a=2 at c=10", 10);
+insert into t2 values (3, "Master t2 a=3 at c=10", 10);
+commit;
+select * from t1 order by a;
+a	b	X
+1	Master t1 a=1 at X=10	10
+2	Master t1 a=2 at X=10	10
+3	Master t1 a=3 at X=10	10
+select * from t2 order by a;
+a	b	c
+1	Master t2 a=1 at c=10	10
+2	Master t2 a=2 at c=10	10
+3	Master t2 a=3 at c=10	10
+begin;
+update t1 set b="Slave t1 a=1 at X=12", X=12 where a=1;
+update t1 set b="Slave t1 a=2 at X=12", X=12 where a=2;
+update t1 set b="Slave t1 a=3 at X=12", X=12 where a=3;
+update t2 set b="Slave t2 a=1 at c=12", c=12 where a=1;
+update t2 set b="Slave t2 a=2 at c=12", c=12 where a=2;
+update t2 set b="Slave t2 a=3 at c=12", c=12 where a=3;
+commit;
+begin;
+update t1 set b="Master t1 a=1 at X=11", X=11 where a=1;
+update t1 set b="Master t1 a=2 at X=11", X=11 where a=2;
+update t1 set b="Master t1 a=3 at X=11", X=11 where a=3;
+update t2 set b="Master t2 a=1 at c=11", c=11 where a=1;
+update t2 set b="Master t2 a=2 at c=11", c=11 where a=2;
+update t2 set b="Master t2 a=3 at c=11", c=11 where a=3;
+commit;
+select * from t1 order by a;
+a	b	X
+1	Slave t1 a=1 at X=12	12
+2	Slave t1 a=2 at X=12	12
+3	Slave t1 a=3 at X=12	12
+select * from t2 order by a;
+a	b	c
+1	Master t2 a=1 at c=11	11
+2	Master t2 a=2 at c=11	11
+3	Master t2 a=3 at c=11	11
+begin;
+update t1 set b="Master t1 a=1 at X=13", X=13 where a=1;
+update t1 set b="Master t1 a=2 at X=13", X=13 where a=2;
+update t1 set b="Master t1 a=3 at X=13", X=13 where a=3;
+update t2 set b="Master t2 a=1 at c=13", c=13 where a=1;
+update t2 set b="Master t2 a=2 at c=13", c=13 where a=2;
+update t2 set b="Master t2 a=3 at c=13", c=13 where a=3;
+commit;
+select * from t1 order by a;
+a	b	X
+1	Master t1 a=1 at X=13	13
+2	Master t1 a=2 at X=13	13
+3	Master t1 a=3 at X=13	13
+select * from t2 order by a;
+a	b	c
+1	Master t2 a=1 at c=13	13
+2	Master t2 a=2 at c=13	13
+3	Master t2 a=3 at c=13	13
+drop table t1, t2;
