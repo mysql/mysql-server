@@ -3577,7 +3577,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
    */  
   if (pk_update || old_part_id != new_part_id)
   {
-    int read_res, insert_res, delete_res, undo_res;
+    int read_res, insert_res, delete_res;
 
     DBUG_PRINT("info", ("primary key update or partition change, "
                         "doing read+delete+insert"));
@@ -3606,6 +3606,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       {
         trans->execute(NdbTransaction::Rollback);
 #ifdef FIXED_OLD_DATA_TO_ACTUALLY_CONTAIN_GOOD_DATA
+        int undo_res;
         // Undo delete_row(old_data)
         undo_res= ndb_write_row((byte *)old_data, TRUE, batched_update);
         if (undo_res)
@@ -5144,18 +5145,7 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
 
   if (thd->options & OPTION_ALLOW_BATCH)
   {
-    if ((res= trans->execute(Commit, AO_IgnoreError, 1)) != 0)
-    {
-      const NdbError err= trans->getNdbError();
-      if (err.classification == NdbError::ConstraintViolation ||
-	  err.classification == NdbError::NoDataFound)
-      {
-	/*
-	  This is ok...
-	*/
-	res= 0;
-      }
-    }
+    res= execute_commit(trans, 1, TRUE);
   }
   else
   {
