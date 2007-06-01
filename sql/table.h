@@ -243,6 +243,7 @@ typedef struct st_table_share
   bool auto_partitioned;
   const char *partition_info;
   uint  partition_info_len;
+  uint  partition_info_buffer_size;
   const char *part_state;
   uint part_state_len;
   handlerton *default_part_db_type;
