@@ -290,47 +290,66 @@ void ha_ndbcluster::reset_state_at_execute()
   thd_ndb->m_unsent_bytes= 0;
 }
 
-int execute_no_commit_ignore_no_key(ha_ndbcluster *h, NdbTransaction *trans)
+static int
+check_completed_operations(NdbTransaction *trans, const NdbOperation *first)
 {
-  int res= trans->execute(NdbTransaction::NoCommit,
-                          NdbOperation::AO_IgnoreError,
-                          h->m_force_send);
-  h->reset_state_at_execute();
-  if (res == -1)
-    return -1;
-
-  const NdbError &err= trans->getNdbError();
-  if (err.classification != NdbError::NoError &&
-      err.classification != NdbError::ConstraintViolation &&
-      err.classification != NdbError::NoDataFound)
-    return -1;
-
-  return 0;
+  DBUG_ENTER("check_completed_operations");
+  /*
+    Check that all errors are "accepted" errors
+  */
+  while (first)
+  {
+    const NdbError &err= first->getNdbError();
+    if (err.classification != NdbError::NoError &&
+        err.classification != NdbError::ConstraintViolation &&
+        err.classification != NdbError::NoDataFound)
+      DBUG_RETURN(err.code);
+    first= trans->getNextCompletedOperation(first);
+  }
+  DBUG_RETURN(0);
 }
 
 inline
 int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans,
 		      bool force_release)
 {
+  DBUG_ENTER("execute_no_commit");
   h->release_completed_operations(trans, force_release);
-  if (h->m_ignore_no_key)
-    return execute_no_commit_ignore_no_key(h,trans);
-  else
+  const NdbOperation *first= trans->getFirstDefinedOperation();
+  if (trans->execute(NdbTransaction::NoCommit,
+                      NdbOperation::AO_IgnoreError,
+                      h->m_force_send))
   {
-    int res= trans->execute(NdbTransaction::NoCommit,
-                            NdbOperation::AbortOnError,
-                            h->m_force_send);
     h->reset_state_at_execute();
-    return res;
+    DBUG_RETURN(-1);
   }
+  h->reset_state_at_execute();
+  if (!h->m_ignore_no_key || trans->getNdbError().code == 0)
+    DBUG_RETURN(trans->getNdbError().code);
+
+  DBUG_RETURN(check_completed_operations(trans, first));
+}
+
+inline
+int execute_commit(NdbTransaction *trans, int force_send, int ignore_error)
+{
+  DBUG_ENTER("execute_commit");
+  const NdbOperation *first= trans->getFirstDefinedOperation();
+  if (trans->execute(NdbTransaction::Commit,
+                     NdbOperation::AO_IgnoreError,
+                     force_send))
+  {
+    DBUG_RETURN(-1);
+  }
+  if (!ignore_error || trans->getNdbError().code == 0)
+    DBUG_RETURN(trans->getNdbError().code);
+  DBUG_RETURN(check_completed_operations(trans, first));
 }
 
 inline
 int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
 {
-  int res= trans->execute(NdbTransaction::Commit,
-                          NdbOperation::AbortOnError,
-                          h->m_force_send);
+  int res= execute_commit(trans, h->m_force_send, h->m_ignore_no_key);
   h->reset_state_at_execute();
   return res;
 }
@@ -343,21 +362,20 @@ int execute_commit(THD *thd, NdbTransaction *trans)
     end time, and we will not take further action after this (nor can we
     easily, as we execute outside the context of the ha_ndbcluster object).
   */
-  return trans->execute(NdbTransaction::Commit,
-                        NdbOperation::AbortOnError,
-                        thd->variables.ndb_force_send);
+  return execute_commit(trans, thd->variables.ndb_force_send, FALSE);
 }
 
 inline
 int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans,
 			 bool force_release)
 {
+  DBUG_ENTER("execute_no_commit_ie");
   h->release_completed_operations(trans, force_release);
   int res= trans->execute(NdbTransaction::NoCommit,
                           NdbOperation::AO_IgnoreError,
                           h->m_force_send);
   h->reset_state_at_execute();
-  return res;
+  DBUG_RETURN(res);
 }
 
 /*
@@ -3586,6 +3604,8 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       DBUG_PRINT("info", ("insert failed"));
       if (trans->commitStatus() == NdbConnection::Started)
       {
+        trans->execute(NdbTransaction::Rollback);
+#ifdef FIXED_OLD_DATA_TO_ACTUALLY_CONTAIN_GOOD_DATA
         // Undo delete_row(old_data)
         undo_res= ndb_write_row((byte *)old_data, TRUE, batched_update);
         if (undo_res)
@@ -3593,6 +3613,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
                        MYSQL_ERROR::WARN_LEVEL_WARN, 
                        undo_res, 
                        "NDB failed undoing delete at primary key update");
+#endif
       }
       DBUG_RETURN(insert_res);
     }
