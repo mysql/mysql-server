@@ -1669,6 +1669,7 @@ public:
   */
   virtual void use_hidden_primary_key();
 
+  virtual int slave_set_resolve_highest(uint field_index) { return 0; }
 private:
   /*
     Row-level primitives for storage engines.  These should be
