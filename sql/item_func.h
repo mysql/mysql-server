@@ -1248,7 +1248,13 @@ public:
   void print(String *str);
   void print_as_stmt(String *str);
   const char *func_name() const { return "set_user_var"; }
-  int save_in_field(Field *field, bool no_conversions);
+  int save_in_field(Field *field, bool no_conversions,
+                    bool can_use_result_field);
+  int save_in_field(Field *field, bool no_conversions)
+  {
+    return save_in_field(field, no_conversions, 1);
+  }
+  void save_org_in_field(Field *field) { (void)save_in_field(field, 1, 0); }
 };
 
 

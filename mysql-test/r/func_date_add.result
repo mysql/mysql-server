@@ -84,4 +84,15 @@ CAST('2006-09-26' AS DATE) + INTERVAL 1 YEAR
 SELECT CAST('2006-09-26' AS DATE) + INTERVAL 1 WEEK;
 CAST('2006-09-26' AS DATE) + INTERVAL 1 WEEK
 2006-10-03
+create table t1 (a int, b varchar(10));
+insert into t1 values (1, '2001-01-01'),(2, '2002-02-02');
+select '2007-01-01' + interval a day from t1;
+'2007-01-01' + interval a day
+2007-01-02
+2007-01-03
+select b + interval a day from t1;
+b + interval a day
+2001-01-02
+2002-02-04
+drop table t1;
 End of 5.0 tests
