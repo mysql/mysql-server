@@ -104,8 +104,6 @@ our $glob_mysql_bench_dir=        undef;
 our $glob_hostname=               undef;
 our $glob_scriptname=             undef;
 our $glob_timers=                 undef;
-our $glob_use_running_ndbcluster= 0;
-our $glob_use_running_ndbcluster_slave= 0;
 our $glob_use_embedded_server=    0;
 our @glob_test_mode;
 
@@ -930,40 +928,6 @@ sub command_line_setup () {
   }
 
   # --------------------------------------------------------------------------
-  # Ndb cluster flags
-  # --------------------------------------------------------------------------
-
-  if ( $opt_ndbconnectstring )
-  {
-    $glob_use_running_ndbcluster= 1;
-    mtr_error("Can't specify --ndb-connectstring and --skip-ndbcluster")
-      if $opt_skip_ndbcluster;
-    mtr_error("Can't specify --ndb-connectstring and --ndbcluster-port")
-      if $opt_ndbcluster_port;
-  }
-  else
-  {
-    # Set default connect string
-    $opt_ndbconnectstring= "host=localhost:$opt_ndbcluster_port";
-  }
-
-  if ( $opt_ndbconnectstring_slave )
-  {
-      $glob_use_running_ndbcluster_slave= 1;
-      mtr_error("Can't specify ndb-connectstring_slave and " .
-		"--skip-ndbcluster-slave")
-	if $opt_skip_ndbcluster;
-      mtr_error("Can't specify --ndb-connectstring-slave and " .
-		"--ndbcluster-port-slave")
-	if $opt_ndbcluster_port_slave;
-  }
-  else
-  {
-    # Set default connect string
-    $opt_ndbconnectstring_slave= "host=localhost:$opt_ndbcluster_port_slave";
-  }
-
-  # --------------------------------------------------------------------------
   # Bench flags
   # --------------------------------------------------------------------------
   if ( $opt_small_bench )
@@ -1206,7 +1170,7 @@ sub command_line_setup () {
    nodes           => 2,
    port            => "$opt_ndbcluster_port",
    data_dir        => "$data_dir",
-   connect_string  => "$opt_ndbconnectstring",
+   connect_string  => "host=localhost:$opt_ndbcluster_port",
    path_pid        => "$data_dir/ndb_3.pid", # Nodes + 1
    pid             => 0, # pid of ndb_mgmd
    installed_ok    => 0,
@@ -1219,7 +1183,7 @@ sub command_line_setup () {
    nodes           => 1,
    port            => "$opt_ndbcluster_port_slave",
    data_dir        => "$data_dir",
-   connect_string  => "$opt_ndbconnectstring_slave",
+   connect_string  => "host=localhost:$opt_ndbcluster_port_slave",
    path_pid        => "$data_dir/ndb_2.pid", # Nodes + 1
    pid             => 0, # pid of ndb_mgmd
    installed_ok    => 0,
@@ -1241,6 +1205,9 @@ sub command_line_setup () {
     }
   }
 
+  # --------------------------------------------------------------------------
+  # extern
+  # --------------------------------------------------------------------------
   if ( $opt_extern )
   {
     # Turn off features not supported when running with extern server
@@ -1256,6 +1223,38 @@ sub command_line_setup () {
     mtr_error("--socket can only be used in combination with --extern")
       if $opt_socket;
   }
+
+
+  # --------------------------------------------------------------------------
+  # ndbconnectstring and ndbconnectstring_slave
+  # --------------------------------------------------------------------------
+  if ( $opt_ndbconnectstring )
+  {
+    # ndbconnectstring was supplied by user, the tests shoudl be run
+    # against an already started cluster, change settings
+    my $cluster= $clusters->[0]; # Master cluster
+    $cluster->{'connect_string'}= $opt_ndbconnectstring;
+    $cluster->{'use_running'}= 1;
+
+    mtr_error("Can't specify --ndb-connectstring and --skip-ndbcluster")
+      if $opt_skip_ndbcluster;
+  }
+  $ENV{'NDB_CONNECTSTRING'}= $clusters->[0]->{'connect_string'};
+
+
+  if ( $opt_ndbconnectstring_slave )
+  {
+    # ndbconnectstring-slave was supplied by user, the tests should be run
+    # agains an already started slave cluster, change settings
+    my $cluster= $clusters->[1]; # Slave cluster
+    $cluster->{'connect_string'}= $opt_ndbconnectstring_slave;
+    $cluster->{'use_running'}= 1;
+
+    mtr_error("Can't specify ndb-connectstring_slave and " .
+	      "--skip-ndbcluster-slave")
+      if $opt_skip_ndbcluster_slave;
+  }
+
 
   $path_timefile=  "$opt_vardir/log/mysqltest-time";
   $path_mysqltest_log=  "$opt_vardir/log/mysqltest.log";
@@ -1844,7 +1843,6 @@ sub environment_setup () {
     $ENV{'NDB_DATA_DIR'}=             $clusters->[0]->{'data_dir'};
     $ENV{'NDB_TOOLS_DIR'}=            $path_ndb_tools_dir;
     $ENV{'NDB_TOOLS_OUTPUT'}=         $path_ndb_testrun_log;
-    $ENV{'NDB_CONNECTSTRING'}=        $opt_ndbconnectstring;
 
     if ( $mysql_version_id >= 50000 )
     {
@@ -2676,7 +2674,7 @@ sub ndbcluster_start ($$) {
 
   mtr_verbose("ndbcluster_start '$cluster->{'name'}'");
 
-  if ( $glob_use_running_ndbcluster )
+  if ( $cluster->{'use_running'} )
   {
     return 0;
   }
@@ -2893,30 +2891,34 @@ sub mysql_install_db () {
 
   my $cluster_started_ok= 1; # Assume it can be started
 
-  if ($opt_skip_ndbcluster || $glob_use_running_ndbcluster ||
-      $clusters->[0]->{executable_setup_failed})
+  my $cluster= $clusters->[0]; # Master cluster
+  if ($opt_skip_ndbcluster ||
+      $cluster->{'use_running'} ||
+      $cluster->{executable_setup_failed})
   {
     # Don't install master cluster
   }
-  elsif (ndbcluster_start_install($clusters->[0]))
+  elsif (ndbcluster_start_install($cluster))
   {
-    mtr_warning("Failed to start install of $clusters->[0]->{name}");
+    mtr_warning("Failed to start install of $cluster->{name}");
     $cluster_started_ok= 0;
   }
 
+  $cluster= $clusters->[1]; # Slave cluster
   if ($max_slave_num == 0 ||
-      $opt_skip_ndbcluster_slave || $glob_use_running_ndbcluster_slave ||
-      $clusters->[1]->{executable_setup_failed})
+      $opt_skip_ndbcluster_slave ||
+      $cluster->{'use_running'} ||
+      $cluster->{executable_setup_failed})
   {
     # Don't install slave cluster
   }
-  elsif (ndbcluster_start_install($clusters->[1]))
+  elsif (ndbcluster_start_install($cluster))
   {
-    mtr_warning("Failed to start install of $clusters->[1]->{name}");
+    mtr_warning("Failed to start install of $cluster->{name}");
     $cluster_started_ok= 0;
   }
 
-  foreach my $cluster (@{$clusters})
+  foreach $cluster (@{$clusters})
   {
 
     next if !$cluster->{'pid'};
@@ -3191,8 +3193,15 @@ sub run_testcase_check_skip_test($)
   {
     foreach my $cluster (@{$clusters})
     {
+      # Slave cluster is skipped and thus not
+      # installed, no need to perform checks
       last if ($opt_skip_ndbcluster_slave and
 	       $cluster->{'name'} eq 'Slave');
+
+      # Using running cluster - no need
+      # to check if test should be skipped
+      # will be done by test itself
+      last if ($cluster->{'use_running'});
 
       # If test needs this cluster, check binaries was found ok
       if ( $cluster->{'executable_setup_failed'} )
@@ -3807,12 +3816,8 @@ sub mysqld_arguments ($$$$) {
     }
 
     my $cluster= $clusters->[$mysqld->{'cluster'}];
-    if ( $opt_skip_ndbcluster ||
-	 !$cluster->{'pid'})
-    {
-      mtr_add_arg($args, "%s--loose-skip-ndbcluster", $prefix);
-    }
-    else
+    if ( $cluster->{'pid'} ||           # Cluster is started
+	 $cluster->{'use_running'} )    # Using running cluster
     {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
@@ -3821,6 +3826,10 @@ sub mysqld_arguments ($$$$) {
       {
 	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
       }
+    }
+    else
+    {
+      mtr_add_arg($args, "%s--loose-skip-ndbcluster", $prefix);
     }
   }
   else
@@ -3877,23 +3886,24 @@ sub mysqld_arguments ($$$$) {
       mtr_add_arg($args, "%s--rpl-recovery-rank=%d", $prefix, $slave_rpl_rank);
     }
 
-    if ( $opt_skip_ndbcluster_slave ||
-         $mysqld->{'cluster'} == -1 ||
-	 !$clusters->[$mysqld->{'cluster'}]->{'pid'} )
-    {
-      mtr_add_arg($args, "%s--loose-skip-ndbcluster", $prefix);
-    }
-    else
+    my $cluster= $clusters->[$mysqld->{'cluster'}];
+    if ( $cluster->{'pid'} ||         # Slave cluster is started
+	 $cluster->{'use_running'} )  # Using running slave cluster
     {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
-		  $clusters->[$mysqld->{'cluster'}]->{'connect_string'});
+		  $cluster->{'connect_string'});
 
       if ( $mysql_version_id >= 50100 )
       {
 	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
       }
     }
+    else
+    {
+      mtr_add_arg($args, "%s--loose-skip-ndbcluster", $prefix);
+    }
+
   } # end slave
 
   if ( $opt_debug )
@@ -4442,7 +4452,8 @@ sub run_testcase_start_servers($) {
 
     }
 
-    if ( $clusters->[0]->{'pid'} and ! $master->[1]->{'pid'} and
+    if ( $clusters->[0]->{'pid'} || $clusters->[0]->{'use_running'}
+	 and ! $master->[1]->{'pid'} and
 	 $tinfo->{'master_num'} > 1 )
     {
       # Test needs cluster, start an extra mysqld connected to cluster
