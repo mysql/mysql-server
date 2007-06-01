@@ -319,7 +319,7 @@ SHOW COUNT(*) ERRORS;
 1
 create table t1(f1 int);
 insert into t1 values(1),(1),(2);
-select @a:=f1, count(f1) from t1 group by 1;
+select @a:=f1, count(f1) from t1 group by 1 order by 1;
 @a:=f1	count(f1)
 1	2
 2	1
