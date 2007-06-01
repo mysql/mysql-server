@@ -1003,7 +1003,7 @@ DROP USER bug23556@localhost;
 # Bug #6774: Replication fails with Wrong usage of DB GRANT and GLOBAL PRIVILEGES
 #
 # Check if GRANT ... ON * ... fails when no database is selected
-connect (con1, localhost, root,,*NO-ONE*)
+connect (con1, localhost, root,,*NO-ONE*);
 connection con1;
 --error ER_NO_DB_ERROR
 GRANT PROCESS ON * TO user@localhost;
