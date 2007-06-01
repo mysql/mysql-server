@@ -2719,7 +2719,8 @@ bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
   SYNOPSIS
     mysql_create_like_table()
     thd		Thread object
-    table	Table list (one table only)
+    table       Table list element for target table
+    src_table   Table list element for source table
     create_info Create info
     table_ident Src table_ident
 
@@ -2728,61 +2729,52 @@ bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
     TRUE  error
 */
 
-bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
-                             HA_CREATE_INFO *create_info,
-                             Table_ident *table_ident)
+bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST *src_table,
+                             HA_CREATE_INFO *create_info)
 {
   TABLE **tmp_table;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
   char *db= table->db;
   char *table_name= table->table_name;
-  char *src_db;
-  char *src_table= table_ident->table.str;
   int  err;
   bool res= TRUE;
   db_type not_used;
-
-  TABLE_LIST src_tables_list;
   DBUG_ENTER("mysql_create_like_table");
-  DBUG_ASSERT(table_ident->db.str); /* Must be set in the parser */
-  src_db= table_ident->db.str;
 
   /*
-    Validate the source table
+    By taking name-lock on the source table and holding LOCK_open mutex we
+    ensure that no concurrent DDL operation will mess with this table. Note
+    that holding only name-lock is not enough for this, because it won't block
+    other DDL statements that only take name-locks on the table and don't
+    open it (simple name-locks are not exclusive between each other).
+
+    Unfortunately, simply opening this table is not enough for our purproses,
+    since in 5.0 ALTER TABLE may change .FRM files on disk even if there are
+    connections that still have old version of table open. This 'optimization'
+    was removed in 5.1 so there we open the source table instead of taking
+    name-lock on it.
+
+    We also have to acquire LOCK_open to make copying of .frm file, call to
+    ha_create_table() and binlogging atomic against concurrent DML and DDL
+    operations on the target table.
   */
-  if (table_ident->table.length > NAME_LEN ||
-      (table_ident->table.length &&
-       check_table_name(src_table,table_ident->table.length)))
-  {
-    my_error(ER_WRONG_TABLE_NAME, MYF(0), src_table);
-    DBUG_RETURN(TRUE);
-  }
-  if (!src_db || check_db_name(src_db))
-  {
-    my_error(ER_WRONG_DB_NAME, MYF(0), src_db ? src_db : "NULL");
-    DBUG_RETURN(-1);
-  }
-
-  bzero((gptr)&src_tables_list, sizeof(src_tables_list));
-  src_tables_list.db= src_db;
-  src_tables_list.table_name= src_table;
-
-  if (lock_and_wait_for_table_name(thd, &src_tables_list))
+  if (lock_and_wait_for_table_name(thd, src_table))
     goto err;
 
-  if ((tmp_table= find_temporary_table(thd, src_db, src_table)))
+  pthread_mutex_lock(&LOCK_open);
+
+  if ((tmp_table= find_temporary_table(thd, src_table->db,
+                                       src_table->table_name)))
     strxmov(src_path, (*tmp_table)->s->path, reg_ext, NullS);
   else
   {
-    strxmov(src_path, mysql_data_home, "/", src_db, "/", src_table,
-	    reg_ext, NullS);
+    strxmov(src_path, mysql_data_home, "/", src_table->db, "/",
+            src_table->table_name, reg_ext, NullS);
     /* Resolve symlinks (for windows) */
     fn_format(src_path, src_path, "", "", MYF(MY_UNPACK_FILENAME));
-    if (lower_case_table_names)
-      my_casedn_str(files_charset_info, src_path);
     if (access(src_path, F_OK))
     {
-      my_error(ER_BAD_TABLE_ERROR, MYF(0), src_table);
+      my_error(ER_BAD_TABLE_ERROR, MYF(0), src_table->table_name);
       goto err;
     }
   }
@@ -2792,9 +2784,12 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   */
   if (mysql_frm_type(thd, src_path, &not_used) != FRMTYPE_TABLE)
   {
-    my_error(ER_WRONG_OBJECT, MYF(0), src_db, src_table, "BASE TABLE");
+    my_error(ER_WRONG_OBJECT, MYF(0), src_table->db, src_table->table_name,
+             "BASE TABLE");
     goto err;
   }
+
+  DBUG_EXECUTE_IF("sleep_create_like_before_check_if_exists", my_sleep(6000000););
 
   /*
     Validate the destination table
@@ -2811,26 +2806,21 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   }
   else
   {
-    bool exists;
     strxmov(dst_path, mysql_data_home, "/", db, "/", table_name,
 	    reg_ext, NullS);
     fn_format(dst_path, dst_path, "", "", MYF(MY_UNPACK_FILENAME));
 
     /*
-      Note that this critical section should actually cover most
-      of mysql_create_like_table() function. See bugs #18950 and
-      #23667 for more information.
-      Also note that starting from 5.1 we obtain name-lock on
-      target table instead of inspecting table cache for presence
+      Note that starting from 5.1 we obtain name-lock on target
+      table instead of inspecting table cache for presence
       of open placeholders (see comment in mysql_create_table()).
     */
-    pthread_mutex_lock(&LOCK_open);
-    exists= (table_cache_has_open_placeholder(thd, db, table_name) ||
-             !access(dst_path, F_OK));
-    pthread_mutex_unlock(&LOCK_open);
-    if (exists)
+    if (table_cache_has_open_placeholder(thd, db, table_name) ||
+        !access(dst_path, F_OK))
       goto table_exists;
   }
+
+  DBUG_EXECUTE_IF("sleep_create_like_before_copy", my_sleep(6000000););
 
   /*
     Create a new table by copying from source table
@@ -2843,6 +2833,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
       my_error(ER_CANT_CREATE_FILE,MYF(0),dst_path,my_errno);
     goto err;
   }
+
+  DBUG_EXECUTE_IF("sleep_create_like_before_ha_create", my_sleep(6000000););
 
   /*
     As mysql_truncate don't work on a new table at this stage of
@@ -2868,6 +2860,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
     goto err;	    /* purecov: inspected */
   }
 
+  DBUG_EXECUTE_IF("sleep_create_like_before_binlogging", my_sleep(6000000););
+
   // Must be written before unlock
   if (mysql_bin_log.is_open())
   {
@@ -2892,8 +2886,7 @@ table_exists:
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
 
 err:
-  pthread_mutex_lock(&LOCK_open);
-  unlock_table_name(thd, &src_tables_list);
+  unlock_table_name(thd, src_table);
   pthread_mutex_unlock(&LOCK_open);
   DBUG_RETURN(res);
 }
