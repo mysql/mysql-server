@@ -1125,6 +1125,50 @@ void check_require(DYNAMIC_STRING* ds, const char *fname)
 }
 
 
+/*
+   Remove surrounding chars from string
+
+   Return 1 if first character is found but not last
+*/
+static int strip_surrounding(char* str, char c1, char c2)
+{
+  char* ptr= str;
+
+  /* Check if the first non space character is c1 */
+  while(*ptr && my_isspace(charset_info, *ptr))
+    ptr++;
+  if (*ptr == c1)
+  {
+    /* Replace it with a space */
+    *ptr= ' ';
+
+    /* Last non space charecter should be c2 */
+    ptr= strend(str)-1;
+    while(*ptr && my_isspace(charset_info, *ptr))
+      ptr--;
+    if (*ptr == c2)
+    {
+      /* Replace it with \0 */
+      *ptr= 0;
+    }
+    else
+    {
+      /* Mismatch detected */
+      return 1;
+    }
+  }
+  return 0;
+}
+
+
+static void strip_parentheses(struct st_command *command)
+{
+  if (strip_surrounding(command->first_argument, '(', ')'))
+      die("%.*s - argument list started with '%c' must be ended with '%c'",
+          command->first_word_len, command->query, '(', ')');
+}
+
+
 static byte *get_var_key(const byte* var, uint* len,
                   my_bool __attribute__((unused)) t)
 {
@@ -1380,12 +1424,11 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
   init_dynamic_string(&ds_query, 0, (end - query) + 32, 256);
   do_eval(&ds_query, query, end, FALSE);
 
-  if (mysql_real_query(mysql, ds_query.str, ds_query.length) ||
-      !(res = mysql_store_result(mysql)))
-  {
+  if (mysql_real_query(mysql, ds_query.str, ds_query.length))
     die("Error running query '%s': %d %s", ds_query.str,
 	mysql_errno(mysql), mysql_error(mysql));
-  }
+  if (!(res= mysql_store_result(mysql)))
+    die("Query '%s' didn't return a result set", ds_query.str);
   dynstr_free(&ds_query);
 
   if ((row = mysql_fetch_row(res)) && row[0])
@@ -1440,6 +1483,130 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
 }
 
 
+/*
+  Set variable from the result of a field in a query
+
+  This function is useful when checking for a certain value
+  in the output from a query that can't be restricted to only
+  return some values. A very good example of that is most SHOW
+  commands.
+
+  SYNOPSIS
+  var_set_query_get_value()
+
+  DESCRIPTION
+  let $variable= query_get_value(<query to run>,<column name>,<row no>);
+
+  <query to run> -    The query that should be sent to the server
+  <column name> -     Name of the column that holds the field be compared
+                      against the expected value
+  <row no> -          Number of the row that holds the field to be
+                      compared against the expected value
+
+*/
+
+void var_set_query_get_value(struct st_command *command, VAR *var)
+{
+  ulong row_no;
+  int col_no= -1;
+  MYSQL_RES* res;
+  MYSQL* mysql= &cur_con->mysql;
+  LINT_INIT(res);
+
+  static DYNAMIC_STRING ds_query;
+  static DYNAMIC_STRING ds_col;
+  static DYNAMIC_STRING ds_row;
+  const struct command_arg query_get_value_args[] = {
+    "query", ARG_STRING, TRUE, &ds_query, "Query to run",
+    "column name", ARG_STRING, TRUE, &ds_col, "Name of column",
+    "row number", ARG_STRING, TRUE, &ds_row, "Number for row",
+  };
+
+  DBUG_ENTER("var_set_query_get_value");
+
+  strip_parentheses(command);
+  DBUG_PRINT("info", ("query: %s", command->query));
+  check_command_args(command, command->first_argument, query_get_value_args,
+                     sizeof(query_get_value_args)/sizeof(struct command_arg),
+                     ',');
+
+  DBUG_PRINT("info", ("query: %s", ds_query.str));
+  DBUG_PRINT("info", ("col: %s", ds_col.str));
+
+  /* Convert row number to int */
+  if (!str2int(ds_row.str, 10, (long) 0, (long) INT_MAX, &row_no))
+    die("Invalid row number: '%s'", ds_row.str);
+  DBUG_PRINT("info", ("row: %s, row_no: %ld", ds_row.str, row_no));
+  dynstr_free(&ds_row);
+
+  /* Remove any surrounding "'s from the query - if there is any */
+  if (strip_surrounding(ds_query.str, '"', '"'))
+    die("Mismatched \"'s around query '%s'", ds_query.str);
+
+  /* Run the query */
+  if (mysql_real_query(mysql, ds_query.str, ds_query.length))
+    die("Error running query '%s': %d %s", ds_query.str,
+	mysql_errno(mysql), mysql_error(mysql));
+  if (!(res= mysql_store_result(mysql)))
+    die("Query '%s' didn't return a result set", ds_query.str);
+
+  {
+    /* Find column number from the given column name */
+    uint i;
+    uint num_fields= mysql_num_fields(res);
+    MYSQL_FIELD *fields= mysql_fetch_fields(res);
+
+    for (i= 0; i < num_fields; i++)
+    {
+      if (strcmp(fields[i].name, ds_col.str) == 0 &&
+          strlen(fields[i].name) == ds_col.length)
+      {
+        col_no= i;
+        break;
+      }
+    }
+    if (col_no == -1)
+    {
+      mysql_free_result(res);
+      die("Could not find column '%s' in the result of '%s'",
+          ds_col.str, ds_query.str);
+    }
+    DBUG_PRINT("info", ("Found column %d with name '%s'",
+                        i, fields[i].name));
+  }
+  dynstr_free(&ds_col);
+
+  {
+    /* Get the value */
+    MYSQL_ROW row;
+    ulong rows= 0;
+    const char* value= "No such row";
+
+    while ((row= mysql_fetch_row(res)))
+    {
+      if (++rows == row_no)
+      {
+
+        DBUG_PRINT("info", ("At row %ld, column %d is '%s'",
+                            row_no, col_no, row[col_no]));
+        /* Found the row to get */
+        if (row[col_no])
+          value= row[col_no];
+        else
+          value= "NULL";
+
+        break;
+      }
+    }
+    eval_expr(var, value, 0);
+  }
+  dynstr_free(&ds_query);
+  mysql_free_result(res);
+
+  DBUG_VOID_RETURN;
+}
+
+
 void var_copy(VAR *dest, VAR *src)
 {
   dest->int_val= src->int_val;
@@ -1463,26 +1630,47 @@ void var_copy(VAR *dest, VAR *src)
 
 void eval_expr(VAR *v, const char *p, const char **p_end)
 {
-  static int MIN_VAR_ALLOC= 32; /* MASV why 32? */
-  VAR *vp;
+
+  DBUG_ENTER("eval_expr");
+  DBUG_PRINT("enter", ("p: '%s'", p));
+
   if (*p == '$')
   {
+    VAR *vp;
     if ((vp= var_get(p, p_end, 0, 0)))
-    {
       var_copy(v, vp);
-      return;
-    }
+    DBUG_VOID_RETURN;
   }
-  else if (*p == '`')
+
+  if (*p == '`')
   {
     var_query_set(v, p, p_end);
+    DBUG_VOID_RETURN;
   }
-  else
+
+  {
+    /* Check if this is a "let $var= query_get_value()" */
+    const char* get_value_str= "query_get_value";
+    const size_t len= strlen(get_value_str);
+    if (strncmp(p, get_value_str, len)==0)
+    {
+      struct st_command command;
+      memset(&command, 0, sizeof(command));
+      command.query= (char*)p;
+      command.first_word_len= len;
+      command.first_argument= command.query + len;
+      command.end= (char*)*p_end;
+      var_set_query_get_value(&command, v);
+      DBUG_VOID_RETURN;
+    }
+  }
+
   {
     int new_val_len = (p_end && *p_end) ?
       (int) (*p_end - p) : (int) strlen(p);
     if (new_val_len + 1 >= v->alloced_len)
     {
+      static int MIN_VAR_ALLOC= 32;
       v->alloced_len = (new_val_len < MIN_VAR_ALLOC - 1) ?
         MIN_VAR_ALLOC : new_val_len + 1;
       if (!(v->str_val =
@@ -1495,9 +1683,10 @@ void eval_expr(VAR *v, const char *p, const char **p_end)
     memcpy(v->str_val, p, new_val_len);
     v->str_val[new_val_len] = 0;
     v->int_val=atoi(p);
+    DBUG_PRINT("info", ("atoi on '%s', returns: %d", p, v->int_val));
     v->int_dirty=0;
   }
-  return;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3432,7 +3621,6 @@ void do_connect(struct st_command *command)
   int con_port= port;
   char *con_options;
   bool con_ssl= 0, con_compress= 0;
-  char *ptr;
 
   static DYNAMIC_STRING ds_connection_name;
   static DYNAMIC_STRING ds_host;
@@ -3460,20 +3648,7 @@ void do_connect(struct st_command *command)
   DBUG_ENTER("do_connect");
   DBUG_PRINT("enter",("connect: %s", command->first_argument));
 
-  /* Remove parenteses around connect arguments */
-  if ((ptr= strstr(command->first_argument, "(")))
-  {
-    /* Replace it with a space */
-    *ptr= ' ';
-    if ((ptr= strstr(command->first_argument, ")")))
-    {
-      /* Replace it with \0 */
-      *ptr= 0;
-    }
-    else
-      die("connect - argument list started with '(' must be ended with ')'");
-  }
-
+  strip_parentheses(command);
   check_command_args(command, command->first_argument, connect_args,
                      sizeof(connect_args)/sizeof(struct command_arg),
                      ',');
@@ -4173,16 +4348,12 @@ int read_command(struct st_command** command_ptr)
     DBUG_RETURN(0);
   }
   if (!(*command_ptr= command=
-        (struct st_command*) my_malloc(sizeof(*command), MYF(MY_WME))) ||
+        (struct st_command*) my_malloc(sizeof(*command),
+                                       MYF(MY_WME|MY_ZEROFILL))) ||
       insert_dynamic(&q_lines, (gptr) &command))
     die(NullS);
-
-  command->require_file[0]= 0;
-  command->first_word_len= 0;
-  command->query_len= 0;
-
   command->type= Q_UNKNOWN;
-  command->query_buf= command->query= 0;
+
   read_command_buf[0]= 0;
   if (read_line(read_command_buf, sizeof(read_command_buf)))
   {
