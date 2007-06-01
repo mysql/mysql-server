@@ -361,7 +361,7 @@ public:
   Item *get_tmp_table_item(THD *thd);
   virtual Field *create_tmp_field(bool group, TABLE *table,
                                   uint convert_blob_length);
-  bool walk(Item_processor processor, bool walk_subquery, byte *argument);
+  bool walk(Item_processor processor, bool walk_subquery, uchar *argument);
   bool init_sum_func_check(THD *thd);
   bool check_sum_func(THD *thd, Item **ref);
   bool register_sum_func(THD *thd, Item **ref);
@@ -587,8 +587,8 @@ class Item_sum_count_distinct :public Item_sum_int
   bool always_null;		// Set to 1 if the result is always NULL
 
 
-  friend int composite_key_cmp(void* arg, byte* key1, byte* key2);
-  friend int simple_str_key_cmp(void* arg, byte* key1, byte* key2);
+  friend int composite_key_cmp(void* arg, uchar* key1, uchar* key2);
+  friend int simple_str_key_cmp(void* arg, uchar* key1, uchar* key2);
 
 public:
   Item_sum_count_distinct(List<Item> &list)
@@ -1183,14 +1183,14 @@ class Item_func_group_concat : public Item_sum
   */
   Item_func_group_concat *original;
 
-  friend int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
-					      byte* key2);
-  friend int group_concat_key_cmp_with_order(void* arg, byte* key1,
-					     byte* key2);
+  friend int group_concat_key_cmp_with_distinct(void* arg, uchar* key1,
+					      uchar* key2);
+  friend int group_concat_key_cmp_with_order(void* arg, uchar* key1,
+					     uchar* key2);
   friend int group_concat_key_cmp_with_distinct_and_order(void* arg,
-							byte* key1,
-							byte* key2);
-  friend int dump_leaf_key(byte* key,
+							uchar* key1,
+							uchar* key2);
+  friend int dump_leaf_key(uchar* key,
                            element_count count __attribute__((unused)),
 			   Item_func_group_concat *group_concat_item);
 
@@ -1243,6 +1243,6 @@ public:
   Item *copy_or_same(THD* thd);
   void no_rows_in_result() {}
   void print(String *str);
-  virtual bool change_context_processor(byte *cntx)
+  virtual bool change_context_processor(uchar *cntx)
     { context= (Name_resolution_context *)cntx; return FALSE; }
 };

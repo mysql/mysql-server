@@ -17,6 +17,9 @@ im_cmd_line              : Bug#20294 2007-05-14 alik      Instance manager tests
 im_utils                 : Bug#20294 2007-05-30 alik      Instance manager tests fail randomly
 im_instance_conf         : Bug#20294 2007-05-30 alik      Instance manager tests fail randomly
 im_life_cycle            : BUG#27851 Instance manager dies on ASSERT in ~Thread_registry() or from not being able to close a mysqld instance.
+im_instance_conf         : BUG#28743 Instance manager generates warnings in test suite
+im_utils                 : BUG#28743 Instance manager generates warnings in test suite
+
 concurrent_innodb        : BUG#21579 2006-08-11 mleich innodb_concurrent random failures with varying differences
 ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
 ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog

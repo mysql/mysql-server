@@ -83,7 +83,7 @@
 	below for what are the "special values"
 */
 
-static uchar * CZ_SORT_TABLE[] = {
+static uchar *CZ_SORT_TABLE[] = {
   (uchar*) "\000\000\000\000\000\000\000\000\000\002\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\002\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\043\044\045\046\047\050\051\052\053\054\000\000\000\000\000\000\000\003\004\377\007\010\011\012\013\015\016\017\020\022\023\024\025\026\027\031\033\034\035\036\037\040\041\000\000\000\000\000\000\003\004\377\007\010\011\012\013\015\016\017\020\022\023\024\025\026\027\031\033\034\035\036\037\040\041\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\003\000\021\000\020\032\000\000\032\032\033\042\000\042\042\000\003\000\021\000\020\032\000\000\032\032\033\042\000\042\042\027\003\003\003\003\020\006\006\006\010\010\010\010\015\015\007\007\023\023\024\024\024\024\000\030\034\034\034\034\040\033\000\027\003\003\003\003\020\006\006\006\010\010\010\010\015\015\007\007\023\023\024\024\024\024\000\030\034\034\034\034\040\033\000",
   (uchar*) "\000\000\000\000\000\000\000\000\000\002\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\002\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\106\107\110\111\112\113\114\115\116\117\000\000\000\000\000\000\000\003\011\377\016\021\026\027\030\032\035\036\037\043\044\047\054\055\056\061\065\070\075\076\077\100\102\000\000\000\000\000\000\003\011\377\016\021\026\027\030\032\035\036\037\043\044\047\054\055\056\061\065\070\075\076\077\100\102\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\010\000\042\000\041\063\000\000\062\064\066\104\000\103\105\000\010\000\042\000\041\063\000\000\062\064\066\104\000\103\105\057\004\005\007\006\040\014\015\013\022\025\024\023\033\034\017\020\046\045\050\051\053\052\000\060\072\071\074\073\101\067\000\057\004\005\007\006\040\014\015\013\022\025\024\023\033\034\017\020\046\045\050\051\053\052\000\060\072\071\074\073\101\067\000",
 (uchar*) "\000\000\000\000\000\000\000\000\000\002\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\002\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\212\213\214\215\216\217\220\221\222\223\000\000\000\000\000\000\000\004\020\377\032\040\052\054\056\063\071\073\075\105\107\115\127\131\133\141\151\157\171\173\175\177\203\000\000\000\000\000\000\003\017\377\031\037\051\053\055\062\070\072\074\104\106\114\126\130\132\140\150\156\170\172\174\176\202\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\016\000\103\000\101\145\000\000\143\147\153\207\000\205\211\000\015\000\102\000\100\144\000\000\142\146\152\206\000\204\210\135\006\010\014\012\077\026\030\024\042\050\046\044\065\067\034\036\113\111\117\121\125\123\000\137\163\161\167\165\201\155\000\134\005\007\013\011\076\025\027\023\041\047\045\043\064\066\033\035\112\110\116\120\124\122\000\136\162\160\166\164\200\154\000",
@@ -99,7 +99,7 @@ static uchar * CZ_SORT_TABLE[] = {
 struct wordvalue
 	{
 	  const char * word;
-	  uchar * outvalue;
+	  uchar *outvalue;
 	};
 static struct wordvalue doubles[] = {
 	{ "ch", (uchar*) "\014\031\057\057" },
@@ -190,8 +190,8 @@ while (1)						\
   { p++; continue; } /* ignore value */			\
   if (value == 2) /* space */				\
   {							\
-    const uchar * tmp;					\
-    const uchar * runner = ++p;				\
+    const uchar *tmp;					\
+    const uchar *runner = ++p;				\
     while (!(IS_END(runner, src, len)) && (CZ_SORT_TABLE[pass][*runner] == 2)) \
      runner++;	/* skip all spaces */			\
     if (IS_END(runner, src, len) && SKIP_TRAILING_SPACES) \
@@ -240,12 +240,12 @@ while (1)						\
 */
 
 static int my_strnncoll_czech(CHARSET_INFO *cs __attribute__((unused)),
-			      const uchar * s1, uint len1, 
-			      const uchar * s2, uint len2,
+			      const uchar *s1, size_t len1, 
+			      const uchar *s2, size_t len2,
                               my_bool s2_is_prefix)
 {
   int v1, v2;
-  const uchar * p1, * p2, * store1, * store2;
+  const uchar *p1, * p2, * store1, * store2;
   int pass1 = 0, pass2 = 0;
 
   if (s2_is_prefix && len1 > len2)
@@ -274,8 +274,8 @@ static int my_strnncoll_czech(CHARSET_INFO *cs __attribute__((unused)),
 
 static
 int my_strnncollsp_czech(CHARSET_INFO * cs, 
-                         const uchar *s, uint slen, 
-                         const uchar *t, uint tlen,
+                         const uchar *s, size_t slen, 
+                         const uchar *t, size_t tlen,
                          my_bool diff_if_only_endspace_difference
                          __attribute__((unused)))
 {
@@ -290,14 +290,14 @@ int my_strnncollsp_czech(CHARSET_INFO * cs,
   the length of the strings being specified
 */
 
-static int my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)), 
-			     uchar * dest, uint len,
-			     const uchar * src, uint srclen)
+static size_t my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)), 
+                                uchar *dest, size_t len,
+                                const uchar *src, size_t srclen)
 {
   int value;
-  const uchar * p, * store;
+  const uchar *p, * store;
   int pass = 0;
-  uint totlen = 0;
+  size_t totlen = 0;
   p = src;	store = src;
 
   do
@@ -361,11 +361,11 @@ static int my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)),
 #define EXAMPLE
 
 static my_bool my_like_range_czech(CHARSET_INFO *cs __attribute__((unused)),
-				   const char *ptr,uint ptr_length,
+				   const char *ptr,size_t ptr_length,
 				   pbool escape, pbool w_one, pbool w_many,
-				   uint res_length, char *min_str,
+				   size_t res_length, char *min_str,
 				   char *max_str,
-				   uint *min_length,uint *max_length)
+				   size_t *min_length,size_t *max_length)
 {
 #ifdef EXAMPLE
   uchar value;
@@ -396,7 +396,7 @@ static my_bool my_like_range_czech(CHARSET_INFO *cs __attribute__((unused)),
   }
 
   if (cs->state & MY_CS_BINSORT)
-    *min_length= (uint) (min_str - min_org);
+    *min_length= (size_t) (min_str - min_org);
   else
   {
     /* 'a\0\0... is the smallest possible string */

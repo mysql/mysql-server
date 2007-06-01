@@ -25,10 +25,10 @@
 
 #ifndef HAVE_STRNLEN
 
-uint strnlen(register const char *s, register uint maxlen)
+size_t strnlen(register const char *s, register size_t maxlen)
 {
   const char *end= (const char *)memchr(s, '\0', maxlen);
-  return end ? (uint) (end - s) : maxlen;
+  return end ? (size_t) (end - s) : maxlen;
 }
 
 #endif

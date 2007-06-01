@@ -25,14 +25,14 @@
 #define HIGHFIND 4
 #define HIGHUSED 8
 
-static byte *next_free_record_pos(HP_SHARE *info);
+static uchar *next_free_record_pos(HP_SHARE *info);
 static HASH_INFO *hp_find_free_hash(HP_SHARE *info, HP_BLOCK *block,
 				     ulong records);
 
-int heap_write(HP_INFO *info, const byte *record)
+int heap_write(HP_INFO *info, const uchar *record)
 {
   HP_KEYDEF *keydef, *end;
-  byte *pos;
+  uchar *pos;
   HP_SHARE *share=info->s;
   DBUG_ENTER("heap_write");
 #ifndef DBUG_OFF
@@ -88,7 +88,7 @@ err:
   } 
 
   share->deleted++;
-  *((byte**) pos)=share->del_link;
+  *((uchar**) pos)=share->del_link;
   share->del_link=pos;
   pos[share->reclength]=0;			/* Record deleted */
 
@@ -99,8 +99,8 @@ err:
   Write a key to rb_tree-index 
 */
 
-int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *record, 
-		    byte *recpos)
+int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record, 
+		    uchar *recpos)
 {
   heap_rb_param custom_arg;
   uint old_allocated;
@@ -130,17 +130,17 @@ int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *record,
 
 	/* Find where to place new record */
 
-static byte *next_free_record_pos(HP_SHARE *info)
+static uchar *next_free_record_pos(HP_SHARE *info)
 {
   int block_pos;
-  byte *pos;
-  ulong length;
+  uchar *pos;
+  size_t length;
   DBUG_ENTER("next_free_record_pos");
 
   if (info->del_link)
   {
     pos=info->del_link;
-    info->del_link= *((byte**) pos);
+    info->del_link= *((uchar**) pos);
     info->deleted--;
     DBUG_PRINT("exit",("Used old position: 0x%lx",(long) pos));
     DBUG_RETURN(pos);
@@ -158,9 +158,9 @@ static byte *next_free_record_pos(HP_SHARE *info)
     info->data_length+=length;
   }
   DBUG_PRINT("exit",("Used new position: 0x%lx",
-		     (long) ((byte*) info->block.level_info[0].last_blocks+
+		     (long) ((uchar*) info->block.level_info[0].last_blocks+
                              block_pos * info->block.recbuffer)));
-  DBUG_RETURN((byte*) info->block.level_info[0].last_blocks+
+  DBUG_RETURN((uchar*) info->block.level_info[0].last_blocks+
 	      block_pos*info->block.recbuffer);
 }
 
@@ -191,12 +191,12 @@ static byte *next_free_record_pos(HP_SHARE *info)
 */
 
 int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
-		 const byte *record, byte *recpos)
+		 const uchar *record, uchar *recpos)
 {
   HP_SHARE *share = info->s;
   int flag;
   ulong halfbuff,hashnr,first_index;
-  byte *ptr_to_rec,*ptr_to_rec2;
+  uchar *ptr_to_rec,*ptr_to_rec2;
   HASH_INFO *empty,*gpos,*gpos2,*pos;
   DBUG_ENTER("hp_write_key");
 
@@ -390,7 +390,7 @@ static HASH_INFO *hp_find_free_hash(HP_SHARE *info,
 				     HP_BLOCK *block, ulong records)
 {
   uint block_pos;
-  ulong length;
+  size_t length;
 
   if (records < block->last_allocated)
     return hp_find_hash(block,records);
@@ -401,6 +401,6 @@ static HASH_INFO *hp_find_free_hash(HP_SHARE *info,
     info->index_length+=length;
   }
   block->last_allocated=records+1;
-  return((HASH_INFO*) ((byte*) block->level_info[0].last_blocks+
+  return((HASH_INFO*) ((uchar*) block->level_info[0].last_blocks+
 		       block_pos*block->recbuffer));
 }

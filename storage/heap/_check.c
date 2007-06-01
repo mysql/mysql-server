@@ -167,7 +167,7 @@ static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
   HP_KEYDEF *keydef= info->s->keydef + keynr;
   int error= 0;
   ulong found= 0;
-  byte *key, *recpos;
+  uchar *key, *recpos;
   uint key_length;
   uint not_used[2];
   
@@ -176,7 +176,7 @@ static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
   {
     do
     {
-      memcpy(&recpos, key + (*keydef->get_key_length)(keydef,key), sizeof(byte*));
+      memcpy(&recpos, key + (*keydef->get_key_length)(keydef,key), sizeof(uchar*));
       key_length= hp_rb_make_key(keydef, info->recbuf, recpos, 0);
       if (ha_key_cmp(keydef->seg, (uchar*) info->recbuf, (uchar*) key,
 		     key_length, SEARCH_FIND | SEARCH_SAME, not_used))

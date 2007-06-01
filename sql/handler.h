@@ -379,9 +379,9 @@ struct xid_t {
     return sizeof(formatID)+sizeof(gtrid_length)+sizeof(bqual_length)+
            gtrid_length+bqual_length;
   }
-  byte *key()
+  uchar *key()
   {
-    return (byte *)&gtrid_length;
+    return (uchar *)&gtrid_length;
   }
   uint key_length()
   {
@@ -675,8 +675,8 @@ struct handlerton
                         struct handler_iterator *fill_this_in);
    int (*discover)(handlerton *hton, THD* thd, const char *db, 
                    const char *name,
-                   const void** frmblob, 
-                   uint* frmlen);
+                   uchar **frmblob, 
+                   size_t *frmlen);
    int (*find_files)(handlerton *hton, THD *thd,
                      const char *db,
                      const char *path,
@@ -836,9 +836,9 @@ typedef struct st_ha_check_opt
 
 typedef struct st_handler_buffer
 {
-  const byte *buffer;         /* Buffer one can start using */
-  const byte *buffer_end;     /* End of buffer */
-  byte *end_of_used_area;     /* End of area that was used by handler */
+  const uchar *buffer;         /* Buffer one can start using */
+  const uchar *buffer_end;     /* End of buffer */
+  uchar *end_of_used_area;     /* End of area that was used by handler */
 } HANDLER_BUFFER;
 
 typedef struct system_status_var SSV;
@@ -868,7 +868,7 @@ public:
   {}
 };
 
-uint calculate_key_len(TABLE *, uint, const byte *, key_part_map);
+uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
 /*
   bitmap with first N+1 bits set
   (keypart_map for a key prefix of [0..N] keyparts)
@@ -919,8 +919,8 @@ class handler :public Sql_alloc
   virtual int end_bulk_insert() {return 0; }
 public:
   handlerton *ht;                 /* storage engine of this handler */
-  byte *ref;				/* Pointer to current row */
-  byte *dup_ref;			/* Pointer to duplicate row */
+  uchar *ref;				/* Pointer to current row */
+  uchar *dup_ref;			/* Pointer to duplicate row */
 
   ha_statistics stats;
 
@@ -1143,9 +1143,9 @@ public:
     and delete_row() below.
    */
   int ha_external_lock(THD *thd, int lock_type);
-  int ha_write_row(byte * buf);
-  int ha_update_row(const byte * old_data, byte * new_data);
-  int ha_delete_row(const byte * buf);
+  int ha_write_row(uchar * buf);
+  int ha_update_row(const uchar * old_data, uchar * new_data);
+  int ha_delete_row(const uchar * buf);
 
   /*
     SYNOPSIS
@@ -1178,7 +1178,7 @@ public:
       0   Bulk delete used by handler
       1   Bulk delete not used, normal operation used
   */
-  virtual int bulk_update_row(const byte *old_data, byte *new_data,
+  virtual int bulk_update_row(const uchar *old_data, uchar *new_data,
                               uint *dup_key_found)
   {
     DBUG_ASSERT(FALSE);
@@ -1227,7 +1227,7 @@ public:
     return HA_ERR_WRONG_COMMAND;
   }
   private:
-  virtual int index_read(byte * buf, const byte * key, uint key_len,
+  virtual int index_read(uchar * buf, const uchar * key, uint key_len,
                          enum ha_rkey_function find_flag)
    { return  HA_ERR_WRONG_COMMAND; }
   public:
@@ -1237,7 +1237,7 @@ public:
   row if available. If the key value is null, begin at the first key of the
   index.
 */
-  virtual int index_read(byte * buf, const byte * key, key_part_map keypart_map,
+  virtual int index_read(uchar * buf, const uchar * key, key_part_map keypart_map,
                          enum ha_rkey_function find_flag)
    {
      uint key_len= calculate_key_len(table, active_index, key, keypart_map);
@@ -1249,20 +1249,20 @@ public:
   row if available. If the key value is null, begin at the first key of the
   index.
 */
-  virtual int index_read_idx(byte * buf, uint index, const byte * key,
+  virtual int index_read_idx(uchar * buf, uint index, const uchar * key,
                              key_part_map keypart_map,
                              enum ha_rkey_function find_flag);
-  virtual int index_next(byte * buf)
+  virtual int index_next(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
-  virtual int index_prev(byte * buf)
+  virtual int index_prev(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
-  virtual int index_first(byte * buf)
+  virtual int index_first(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
-  virtual int index_last(byte * buf)
+  virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
-  virtual int index_next_same(byte *buf, const byte *key, uint keylen);
+  virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
   private:
-  virtual int index_read_last(byte * buf, const byte * key, uint key_len)
+  virtual int index_read_last(uchar * buf, const uchar * key, uint key_len)
    { return (my_errno=HA_ERR_WRONG_COMMAND); }
   public:
 /**
@@ -1270,7 +1270,7 @@ public:
   The following functions works like index_read, but it find the last
   row with the current key value or prefix.
 */
-  virtual int index_read_last(byte * buf, const byte * key,
+  virtual int index_read_last(uchar * buf, const uchar * key,
                               key_part_map keypart_map)
    {
      uint key_len= calculate_key_len(table, active_index, key, keypart_map);
@@ -1289,21 +1289,21 @@ public:
   void ft_end() { ft_handler=NULL; }
   virtual FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
     { return NULL; }
-  virtual int ft_read(byte *buf) { return HA_ERR_WRONG_COMMAND; }
-  virtual int rnd_next(byte *buf)=0;
-  virtual int rnd_pos(byte * buf, byte *pos)=0;
-  virtual int read_first_row(byte *buf, uint primary_key);
+  virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
+  virtual int rnd_next(uchar *buf)=0;
+  virtual int rnd_pos(uchar * buf, uchar *pos)=0;
+  virtual int read_first_row(uchar *buf, uint primary_key);
   /*
     The following function is only needed for tables that may be temporary
     tables during joins
   */
-  virtual int restart_rnd_next(byte *buf, byte *pos)
+  virtual int restart_rnd_next(uchar *buf, uchar *pos)
     { return HA_ERR_WRONG_COMMAND; }
-  virtual int rnd_same(byte *buf, uint inx)
+  virtual int rnd_same(uchar *buf, uint inx)
     { return HA_ERR_WRONG_COMMAND; }
   virtual ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key)
     { return (ha_rows) 10; }
-  virtual void position(const byte *record)=0;
+  virtual void position(const uchar *record)=0;
   virtual int info(uint)=0; // see my_base.h for full description
   virtual void get_dynamic_partition_info(PARTITION_INFO *stat_info,
                                           uint part_id);
@@ -1559,8 +1559,8 @@ public:
                                 const char *path,
                                 ulonglong *copied,
                                 ulonglong *deleted,
-                                const void *pack_frm_data,
-                                uint pack_frm_len)
+                                const uchar *pack_frm_data,
+                                size_t pack_frm_len)
   { return HA_ERR_WRONG_COMMAND; }
   virtual int drop_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
@@ -1603,7 +1603,7 @@ public:
     false otherwise
  */
  virtual bool primary_key_is_clustered() { return FALSE; }
- virtual int cmp_ref(const byte *ref1, const byte *ref2)
+ virtual int cmp_ref(const uchar *ref1, const uchar *ref2)
  {
    return memcmp(ref1, ref2, ref_length);
  }
@@ -1648,18 +1648,18 @@ public:
  { return COMPATIBLE_DATA_NO; }
 
  /* These are only called from sql_select for internal temporary tables */
-  virtual int write_row(byte *buf __attribute__((unused)))
+  virtual int write_row(uchar *buf __attribute__((unused)))
   {
     return HA_ERR_WRONG_COMMAND;
   }
 
-  virtual int update_row(const byte *old_data __attribute__((unused)),
-                         byte *new_data __attribute__((unused)))
+  virtual int update_row(const uchar *old_data __attribute__((unused)),
+                         uchar *new_data __attribute__((unused)))
   {
     return HA_ERR_WRONG_COMMAND;
   }
 
-  virtual int delete_row(const byte *buf __attribute__((unused)))
+  virtual int delete_row(const uchar *buf __attribute__((unused)))
   {
     return HA_ERR_WRONG_COMMAND;
   }
@@ -1752,7 +1752,7 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat);
 /* discovery */
 int ha_create_table_from_engine(THD* thd, const char *db, const char *name);
 int ha_discover(THD* thd, const char* dbname, const char* name,
-                const void** frmblob, uint* frmlen);
+                uchar** frmblob, size_t* frmlen);
 int ha_find_files(THD *thd,const char *db,const char *path,
                   const char *wild, bool dir,List<char>* files);
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);

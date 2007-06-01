@@ -23,11 +23,11 @@
 
 	/* My memory allocator */
 
-gptr my_malloc(unsigned int size, myf my_flags)
+void *my_malloc(size_t size, myf my_flags)
 {
-  gptr point;
+  void* point;
   DBUG_ENTER("my_malloc");
-  DBUG_PRINT("my",("size: %u  my_flags: %d",size, my_flags));
+  DBUG_PRINT("my",("size: %lu  my_flags: %d", (ulong) size, my_flags));
 
   if (!size)
     size=1;					/* Safety */
@@ -44,14 +44,14 @@ gptr my_malloc(unsigned int size, myf my_flags)
   else if (my_flags & MY_ZEROFILL)
     bzero(point,size);
   DBUG_PRINT("exit",("ptr: 0x%lx", (long) point));
-  DBUG_RETURN(point);
+  DBUG_RETURN((void*) point);
 } /* my_malloc */
 
 
 	/* Free memory allocated with my_malloc */
 	/*ARGSUSED*/
 
-void my_no_flags_free(gptr ptr)
+void my_no_flags_free(void* ptr)
 {
   DBUG_ENTER("my_free");
   DBUG_PRINT("my",("ptr: 0x%lx", (long) ptr));
@@ -63,32 +63,32 @@ void my_no_flags_free(gptr ptr)
 
 	/* malloc and copy */
 
-gptr my_memdup(const byte *from, uint length, myf my_flags)
+void* my_memdup(const void *from, size_t length, myf my_flags)
 {
-  gptr ptr;
-  if ((ptr=my_malloc(length,my_flags)) != 0)
-    memcpy((byte*) ptr, (byte*) from,(size_t) length);
+  void *ptr;
+  if ((ptr= my_malloc(length,my_flags)) != 0)
+    memcpy(ptr, from, length);
   return(ptr);
 }
 
 
 char *my_strdup(const char *from, myf my_flags)
 {
-  gptr ptr;
-  uint length=(uint) strlen(from)+1;
-  if ((ptr=my_malloc(length,my_flags)) != 0)
-    memcpy((byte*) ptr, (byte*) from,(size_t) length);
-  return((my_string) ptr);
+  char *ptr;
+  size_t length= strlen(from)+1;
+  if ((ptr= (char*) my_malloc(length, my_flags)))
+    memcpy((uchar*) ptr, (uchar*) from,(size_t) length);
+  return(ptr);
 }
 
 
-char *my_strndup(const char *from, uint length, myf my_flags)
+char *my_strndup(const char *from, size_t length, myf my_flags)
 {
-  gptr ptr;
-  if ((ptr=my_malloc(length+1,my_flags)) != 0)
+  char *ptr;
+  if ((ptr= (char*) my_malloc(length+1,my_flags)) != 0)
   {
-    memcpy((byte*) ptr, (byte*) from,(size_t) length);
-    ((char*) ptr)[length]=0;
+    memcpy((uchar*) ptr, (uchar*) from, length);
+    ptr[length]=0;
   }
   return((char*) ptr);
 }

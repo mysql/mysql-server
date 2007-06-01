@@ -16,7 +16,7 @@
 #include "myrg_def.h"
 
 
-int myrg_rnext_same(MYRG_INFO *info, byte *buf)
+int myrg_rnext_same(MYRG_INFO *info, uchar *buf)
 {
   int err;
   MI_INFO *mi;
@@ -39,7 +39,7 @@ int myrg_rnext_same(MYRG_INFO *info, byte *buf)
   else
   {
     /* Found here, adding to queue */
-    queue_top(&(info->by_key))=(byte *)(info->current_table);
+    queue_top(&(info->by_key))=(uchar *)(info->current_table);
     queue_replaced(&(info->by_key));
   }
 

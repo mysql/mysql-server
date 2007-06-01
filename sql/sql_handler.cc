@@ -92,7 +92,7 @@ static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, uint mode_flags);
     Pointer to the TABLE_LIST struct.
 */
 
-static char *mysql_ha_hash_get_key(TABLE_LIST *tables, uint *key_len_p,
+static char *mysql_ha_hash_get_key(TABLE_LIST *tables, size_t *key_len_p,
                                    my_bool first __attribute__((unused)))
 {
   *key_len_p= strlen(tables->alias) + 1 ; /* include '\0' in comparisons */
@@ -167,7 +167,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   }
   else if (! reopen) /* Otherwise we have 'tables' already. */
   {
-    if (hash_search(&thd->handler_tables_hash, (byte*) tables->alias,
+    if (hash_search(&thd->handler_tables_hash, (uchar*) tables->alias,
                     strlen(tables->alias) + 1))
     {
       DBUG_PRINT("info",("duplicate '%s'", tables->alias));
@@ -208,10 +208,10 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     namelen= strlen(tables->table_name) + 1;
     aliaslen= strlen(tables->alias) + 1;
     if (!(my_multi_malloc(MYF(MY_WME),
-                          &hash_tables, sizeof(*hash_tables),
-                          &db, dblen,
-                          &name, namelen,
-                          &alias, aliaslen,
+                          &hash_tables, (uint) sizeof(*hash_tables),
+                          &db, (uint) dblen,
+                          &name, (uint) namelen,
+                          &alias, (uint) aliaslen,
                           NullS)))
       goto err;
     /* structure copy */
@@ -224,7 +224,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     memcpy(hash_tables->alias, tables->alias, aliaslen);
 
     /* add to hash */
-    if (my_hash_insert(&thd->handler_tables_hash, (byte*) hash_tables))
+    if (my_hash_insert(&thd->handler_tables_hash, (uchar*) hash_tables))
     {
       my_free((char*) hash_tables, MYF(0));
       mysql_ha_close(thd, tables);
@@ -270,7 +270,7 @@ bool mysql_ha_close(THD *thd, TABLE_LIST *tables)
                       tables->db, tables->table_name, tables->alias));
 
   if ((hash_tables= (TABLE_LIST*) hash_search(&thd->handler_tables_hash,
-                                              (byte*) tables->alias,
+                                              (uchar*) tables->alias,
                                               strlen(tables->alias) + 1)))
   {
     /*
@@ -295,7 +295,7 @@ bool mysql_ha_close(THD *thd, TABLE_LIST *tables)
       }
       VOID(pthread_mutex_unlock(&LOCK_open));
     }
-    hash_delete(&thd->handler_tables_hash, (byte*) hash_tables);
+    hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
   }
   else
   {
@@ -345,7 +345,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   String	buffer(buff, sizeof(buff), system_charset_info);
   int           error, keyno= -1;
   uint          num_rows;
-  byte		*key;
+  uchar		*key;
   uint		key_len;
   bool          not_used;
   DBUG_ENTER("mysql_ha_read");
@@ -362,7 +362,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   it++;
 
   if ((hash_tables= (TABLE_LIST*) hash_search(&thd->handler_tables_hash,
-                                              (byte*) tables->alias,
+                                              (uchar*) tables->alias,
                                               strlen(tables->alias) + 1)))
   {
     table= hash_tables->table;
@@ -536,7 +536,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
         keypart_map= (keypart_map << 1) | 1;
       }
 
-      if (!(key= (byte*) thd->calloc(ALIGN_SIZE(key_len))))
+      if (!(key= (uchar*) thd->calloc(ALIGN_SIZE(key_len))))
 	goto err;
       table->file->ha_index_or_rnd_end();
       table->file->ha_index_init(keyno, 1);
@@ -732,13 +732,13 @@ static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, uint mode_flags)
                       table->alias, mode_flags));
 
   if ((hash_tables= (TABLE_LIST*) hash_search(&thd->handler_tables_hash,
-                                              (byte*) table->alias,
+                                              (uchar*) table->alias,
                                               strlen(table->alias) + 1)))
   {
     if (! (mode_flags & MYSQL_HA_REOPEN_ON_USAGE))
     {
       /* This is a final close. Remove from hash. */
-      hash_delete(&thd->handler_tables_hash, (byte*) hash_tables);
+      hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
     }
     else
     {
@@ -791,7 +791,7 @@ void mysql_ha_mark_tables_for_reopen(THD *thd, TABLE *table)
     {
       TABLE_LIST *hash_tables;
       if ((hash_tables= (TABLE_LIST*) hash_search(&thd->handler_tables_hash,
-                                                  (byte*) table->alias,
+                                                  (uchar*) table->alias,
                                                   strlen(table->alias) + 1)))
       {
         /* Mark table as ready for reopen. */

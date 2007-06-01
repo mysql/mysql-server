@@ -38,11 +38,11 @@ my_bool hash_check(HASH *hash);
 
 void free_record(void *record);
 
-static byte *hash2_key(const byte *rec,uint *length,
+static uchar *hash2_key(const uchar *rec,uint *length,
 		       my_bool not_used __attribute__((unused)))
 {
   *length=(uint) (uchar) rec[reclength-1];
-  return (byte*) rec;
+  return (uchar*) rec;
 }
 
 /* main program */
@@ -196,7 +196,7 @@ static int do_test()
   pos=0;
   while ((recpos=hash_element(&hash,0)))
   {
-    record=(byte*) my_malloc(reclength,MYF(MY_FAE));
+    record=(uchar*) my_malloc(reclength,MYF(MY_FAE));
     memcpy(record,recpos,reclength);
     record[reclength-1]=rnd(5)+1;
     if (my_hash_insert(&hash2,record))
