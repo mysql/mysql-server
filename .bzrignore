@@ -1785,6 +1785,8 @@ netware/.deps/mysqld_safe.Po
 netware/init_db.sql
 netware/libmysql.imp
 netware/test_db.sql
+patches/*
+.pc/*
 pack_isam/*.ds?
 perror/*.ds?
 perror/*.vcproj
