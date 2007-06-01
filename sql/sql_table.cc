@@ -3776,6 +3776,9 @@ view_err:
                             alter_info->keys_onoff);
     table->file->external_lock(thd, F_UNLCK);
     VOID(pthread_mutex_unlock(&LOCK_open));
+    error= ha_commit_stmt(thd);
+    if (ha_commit(thd))
+      error= 1;
   }
 
   thd->last_insert_id=next_insert_id;		// Needed for correct log
@@ -3945,16 +3948,6 @@ view_err:
       VOID(pthread_mutex_unlock(&LOCK_open));
       goto err;
     }
-  }
-  /* The ALTER TABLE is always in its own transaction */
-  error = ha_commit_stmt(thd);
-  if (ha_commit(thd))
-    error=1;
-  if (error)
-  {
-    VOID(pthread_mutex_unlock(&LOCK_open));
-    broadcast_refresh();
-    goto err;
   }
   thd->proc_info="end";
   if (mysql_bin_log.is_open())
@@ -4165,8 +4158,12 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   }
   to->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
-  ha_enable_transaction(thd,TRUE);
-
+  if (ha_enable_transaction(thd, TRUE))
+  {
+    error= 1;
+    goto err;
+  }
+  
   /*
     Ensure that the new table is saved properly to disk so that we
     can do a rename
