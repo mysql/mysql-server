@@ -177,8 +177,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
   }
   if (current_thd->count_cuted_fields == CHECK_FIELD_WARN)
   {
-    field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
-                       ER_WARN_NULL_TO_NOTNULL, 1);
+    field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_BAD_NULL_ERROR, 1);
     return 0;
   }
   if (!current_thd->no_errors)

@@ -2283,6 +2283,11 @@ class multi_update :public select_result_interceptor
   List <Item> *fields, *values;
   List <Item> **fields_for_table, **values_for_table;
   uint table_count;
+  /*
+   List of tables referenced in the CHECK OPTION condition of
+   the updated view excluding the updated table. 
+  */
+  List <TABLE> unupdated_check_opt_tables;
   Copy_field *copy_field;
   enum enum_duplicates handle_duplicates;
   bool do_update, trans_safe;
