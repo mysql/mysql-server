@@ -6127,6 +6127,8 @@ select bug20777(9223372036854775810) as '9223372036854775810   2**63+2';
 select bug20777(-9223372036854775808) as 'lower bounds signed bigint';
 lower bounds signed bigint
 0
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
 select bug20777(9223372036854775807) as 'upper bounds signed bigint';
 upper bounds signed bigint
 9223372036854775807
@@ -6139,9 +6141,13 @@ upper bounds unsigned bigint
 select bug20777(18446744073709551616) as 'upper bounds unsigned bigint + 1';
 upper bounds unsigned bigint + 1
 18446744073709551615
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
 select bug20777(-1) as 'lower bounds unsigned bigint - 1';
 lower bounds unsigned bigint - 1
 0
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
 create table examplebug20777 as select 
 0 as 'i',
 bug20777(9223372036854775806) as '2**63-2',
@@ -6153,7 +6159,12 @@ bug20777(18446744073709551615) as '2**64-1',
 bug20777(18446744073709551616) as '2**64',
 bug20777(0) as '0',
 bug20777(-1) as '-1';
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+Warning	1264	Out of range value for column 'f1' at row 1
 insert into examplebug20777 values (1, 9223372036854775806, 9223372036854775807, 223372036854775808, 9223372036854775809, 18446744073709551614, 18446744073709551615, 8446744073709551616, 0, -1);
+Warnings:
+Warning	1264	Out of range value for column '-1' at row 1
 show create table examplebug20777;
 Table	Create Table
 examplebug20777	CREATE TABLE `examplebug20777` (
