@@ -41,6 +41,7 @@ class NdbIndexScanOperation;
 class NdbBlob;
 class NdbIndexStat;
 class NdbEventOperation;
+class NdbInterpretedCode;
 class ha_ndbcluster_cond;
 
 // connectstring to cluster if given by mysqld
@@ -120,6 +121,8 @@ typedef struct st_ndbcluster_share {
 #ifdef HAVE_NDB_BINLOG
   uint32 connect_count;
   uint32 flags;
+  uint32 m_resolve_column;
+  uint32 m_resolve_size;
   NdbEventOperation *op;
   NdbEventOperation *op_old; // for rename table
   char *old_names; // for rename table
@@ -248,6 +251,11 @@ class ha_ndbcluster: public handler
 
   int write_row(byte *buf);
   int update_row(const byte *old_data, byte *new_data);
+#ifdef HAVE_NDB_BINLOG
+  int update_row_timestamp_resolve(const byte *old_data, byte *new_data,
+                                   NdbInterpretedCode *);
+  int slave_set_resolve_highest(uint field_index);
+#endif
   int delete_row(const byte *buf);
   int index_init(uint index, bool sorted);
   int index_end();
@@ -506,6 +514,7 @@ private:
                                  uint op_batch_size, bool & batch_full);
   char *copy_row_to_buffer(Thd_ndb *thd_ndb, const byte *record);
   char *get_row_buffer();
+  char *get_buffer(uint size);
   void clear_extended_column_set(uchar *mask);
   uchar *copy_column_set(MY_BITMAP *bitmap);
 
@@ -547,6 +556,7 @@ private:
 
   void reset_state_at_execute();
   friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
+  friend int execute_commit(NdbTransaction *, int, int);
   friend int execute_no_commit_ignore_no_key(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*, bool);
   friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*, bool);
