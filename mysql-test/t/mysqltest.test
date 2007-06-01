@@ -1876,6 +1876,7 @@ DROP TABLE t1;
 --error 1
 --exec $MYSQL_TEST a b c 2>&1 > /dev/null
 --enable_abort_on_error
+--enable_query_log
 
 # ----------------------------------------------------------------------------
 # test for query_get_value
