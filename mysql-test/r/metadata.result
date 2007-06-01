@@ -130,3 +130,14 @@ def			v3		renamed	8	12	0	Y	32896	0	63
 renamed
 drop table t1;
 drop view v1,v2,v3;
+select a.* from (select 2147483648 as v_large) a;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			a	v_large	v_large	8	10	10	N	32769	0	63
+v_large
+2147483648
+select a.* from (select 214748364 as v_small) a;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			a	v_small	v_small	3	9	9	N	32769	0	63
+v_small
+214748364
+End of 5.0 tests

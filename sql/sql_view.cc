@@ -692,6 +692,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   bool can_be_merged;
   char dir_buff[FN_REFLEN], file_buff[FN_REFLEN];
   LEX_STRING dir, file;
+  int error= 0;
   DBUG_ENTER("mysql_register_view");
 
   /* print query */
@@ -702,80 +703,16 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     lex->unit.print(&str);
     thd->variables.sql_mode|= sql_mode;
   }
-  str.append('\0');
   DBUG_PRINT("info", ("View: %s", str.ptr()));
 
-  /* print file name */
-  (void) my_snprintf(dir_buff, FN_REFLEN, "%s/%s/",
-		     mysql_data_home, view->db);
-  unpack_filename(dir_buff, dir_buff);
-  dir.str= dir_buff;
-  dir.length= strlen(dir_buff);
-
-  file.str= file_buff;
-  file.length= (strxnmov(file_buff, FN_REFLEN, view->table_name, reg_ext,
-                         NullS) - file_buff);
-  /* init timestamp */
-  if (!view->timestamp.str)
-    view->timestamp.str= view->timestamp_buffer;
-
-  /* check old .frm */
-  {
-    char path_buff[FN_REFLEN];
-    LEX_STRING path;
-    File_parser *parser;
-
-    path.str= path_buff;
-    fn_format(path_buff, file.str, dir.str, 0, MY_UNPACK_FILENAME);
-    path.length= strlen(path_buff);
-
-    if (!access(path.str, F_OK))
-    {
-      if (mode == VIEW_CREATE_NEW)
-      {
-	my_error(ER_TABLE_EXISTS_ERROR, MYF(0), view->alias);
-	DBUG_RETURN(-1);
-      }
-
-      if (!(parser= sql_parse_prepare(&path, thd->mem_root, 0)))
-	DBUG_RETURN(1);
-
-      if (!parser->ok() || !is_equal(&view_type, parser->type()))
-      {
-        my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
-        DBUG_RETURN(-1);
-      }
-
-      /*
-        read revision number
-
-        TODO: read dependence list, too, to process cascade/restrict
-        TODO: special cascade/restrict procedure for alter?
-      */
-      if (parser->parse((gptr)view, thd->mem_root,
-                        view_parameters + revision_number_position, 1,
-                        &file_parser_dummy_hook))
-      {
-        DBUG_RETURN(thd->net.report_error? -1 : 0);
-      }
-    }
-    else
-    {
-      if (mode == VIEW_ALTER)
-      {
-	my_error(ER_NO_SUCH_TABLE, MYF(0), view->db, view->alias);
-	DBUG_RETURN(-1);
-      }
-    }
-  }
   /* fill structure */
-  view->query.str= (char*)str.ptr();
-  view->query.length= str.length()-1; // we do not need last \0
+  view->query.str= str.c_ptr_safe();
+  view->query.length= str.length();
   view->source.str= thd->query + thd->lex->create_view_select_start;
-  view->source.length= (char *)skip_rear_comments((char *)view->source.str,
-                                                  (char *)thd->query +
-                                                  thd->query_length) -
-                        view->source.str;
+  view->source.length= skip_rear_comments((char *)view->source.str,
+                                          (char *)thd->query +
+                                          thd->query_length) -
+                       view->source.str;
   view->file_version= 1;
   view->calc_md5(md5);
   view->md5.str= md5;
@@ -817,6 +754,76 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     }
   }
 loop_out:
+  /* print file name */
+  (void) my_snprintf(dir_buff, FN_REFLEN, "%s/%s/",
+		     mysql_data_home, view->db);
+  unpack_filename(dir_buff, dir_buff);
+  dir.str= dir_buff;
+  dir.length= strlen(dir_buff);
+
+  file.str= file_buff;
+  file.length= (strxnmov(file_buff, FN_REFLEN, view->table_name, reg_ext,
+                         NullS) - file_buff);
+  /* init timestamp */
+  if (!view->timestamp.str)
+    view->timestamp.str= view->timestamp_buffer;
+
+  /* check old .frm */
+  {
+    char path_buff[FN_REFLEN];
+    LEX_STRING path;
+    File_parser *parser;
+
+    path.str= path_buff;
+    fn_format(path_buff, file.str, dir.str, 0, MY_UNPACK_FILENAME);
+    path.length= strlen(path_buff);
+
+    if (!access(path.str, F_OK))
+    {
+      if (mode == VIEW_CREATE_NEW)
+      {
+	my_error(ER_TABLE_EXISTS_ERROR, MYF(0), view->alias);
+        error= -1;
+        goto err;
+      }
+
+      if (!(parser= sql_parse_prepare(&path, thd->mem_root, 0)))
+      {
+        error= 1;
+        goto err;
+      }
+
+      if (!parser->ok() || !is_equal(&view_type, parser->type()))
+      {
+        my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
+        error= -1;
+        goto err;
+      }
+
+      /*
+        read revision number
+
+        TODO: read dependence list, too, to process cascade/restrict
+        TODO: special cascade/restrict procedure for alter?
+      */
+      if (parser->parse((gptr)view, thd->mem_root,
+                        view_parameters + revision_number_position, 1,
+                        &file_parser_dummy_hook))
+      {
+        error= thd->net.report_error? -1 : 0;
+        goto err;
+      }
+    }
+    else
+    {
+      if (mode == VIEW_ALTER)
+      {
+	my_error(ER_NO_SUCH_TABLE, MYF(0), view->db, view->alias);
+        error= -1;
+        goto err;
+      }
+    }
+  }
   /*
     Check that table of main select do not used in subqueries.
 
@@ -841,15 +848,23 @@ loop_out:
       !view->updatable_view)
   {
     my_error(ER_VIEW_NONUPD_CHECK, MYF(0), view->db, view->table_name);
-    DBUG_RETURN(-1);
+    error= -1;
+    goto err;
   }
 
   if (sql_create_definition_file(&dir, &file, view_file_type,
 				 (gptr)view, view_parameters, num_view_backups))
   {
-    DBUG_RETURN(thd->net.report_error? -1 : 1);
+    error= thd->net.report_error? -1 : 1;
+    goto err;
   }
   DBUG_RETURN(0);
+err:
+  view->query.str= NULL;
+  view->query.length= 0;
+  view->md5.str= NULL;
+  view->md5.length= 0;
+  DBUG_RETURN(error);
 }
 
 

@@ -996,6 +996,8 @@ longlong Item_func_unsigned::val_int()
     my_decimal tmp, *dec= args[0]->val_decimal(&tmp);
     if (!(null_value= args[0]->null_value))
       my_decimal2int(E_DEC_FATAL_ERROR, dec, 1, &value);
+    else
+      value= 0;
     return value;
   }
   else if (args[0]->cast_to_int_type() != STRING_RESULT ||
@@ -4288,9 +4290,11 @@ void Item_func_set_user_var::make_field(Send_field *tmp_field)
     TRUE        Error
 */
 
-int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions)
+int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions,
+                                          bool can_use_result_field)
 {
-  bool use_result_field= (result_field && result_field != field);
+  bool use_result_field= (!can_use_result_field ? 0 :
+                          (result_field && result_field != field));
   int error;
 
   /* Update the value of the user variable */
@@ -5213,10 +5217,11 @@ Item_func_sp::func_name() const
 {
   THD *thd= current_thd;
   /* Calculate length to avoid reallocation of string for sure */
-  uint len= ((m_name->m_explicit_name ? m_name->m_db.length : 0 +
+  uint len= (((m_name->m_explicit_name ? m_name->m_db.length : 0) +
               m_name->m_name.length)*2 + //characters*quoting
              2 +                         // ` and `
-             1 +                         // .
+             (m_name->m_explicit_name ?
+              3 : 0) +                   // '`', '`' and '.' for the db
              1 +                         // end of string
              ALIGN_SIZE(1));             // to avoid String reallocation
   String qname((char *)alloc_root(thd->mem_root, len), len,
