@@ -410,7 +410,6 @@ mysqltest: At line 1: Wrong column number to replace_column in 'replace_column a
 mysqltest: At line 1: Wrong column number to replace_column in 'replace_column a 1'
 mysqltest: At line 1: Wrong column number to replace_column in 'replace_column 1 b c '
 mysqltest: At line 1: Invalid integer argument "10!"
-mysqltest: At line 1: End of line junk detected: "!"
 mysqltest: At line 1: Invalid integer argument "a"
 mysqltest: At line 1: Missing required argument 'connection name' to command 'connect'
 mysqltest: At line 1: Missing required argument 'connection name' to command 'connect'

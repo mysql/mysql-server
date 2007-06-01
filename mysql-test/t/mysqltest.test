@@ -1227,11 +1227,9 @@ select "a" as col1, "c" as col2;
 # Test sync_with_master
 # ----------------------------------------------------------------------------
 --error 1
---exec echo "save_master_pos; sync_with_master 10!;" | $MYSQL_TEST 2>&1
+--exec echo "sync_with_master 10!;" | $MYSQL_TEST 2>&1
 --error 1
---exec echo "save_master_pos; sync_with_master 10 !;" | $MYSQL_TEST 2>&1
---error 1
---exec echo "save_master_pos; sync_with_master a;" | $MYSQL_TEST 2>&1
+--exec echo "sync_with_master a;" | $MYSQL_TEST 2>&1
 
 # ----------------------------------------------------------------------------
 # Test connect
