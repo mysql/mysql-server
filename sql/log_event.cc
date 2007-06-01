@@ -5952,6 +5952,25 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
           const_cast<RELAY_LOG_INFO*>(rli)->clear_tables_to_lock();
           DBUG_RETURN(ERR_BAD_TABLE_DEF);
         }
+#ifndef WL3867_INTERFACE_DONE_PROPERLY
+        {
+           TABLE *table= ptr->table;
+          /*
+            Check if table has resolve setup and for which column
+            Until we have a proper interface for this we have this
+            dummy loop that does it on column name
+          */
+          for (uint j= 0; j < table->s->fields; j++)
+          {
+            Field *field= table->s->field[j];
+            if (strcmp("X", field->field_name) == 0)
+            {
+              table->file->slave_set_resolve_highest(j);
+              break;
+            }
+          }
+        }
+#endif
       }
     }
 
