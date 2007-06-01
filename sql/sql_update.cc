@@ -946,6 +946,7 @@ bool mysql_multi_update(THD *thd,
                         SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex)
 {
   multi_update *result;
+  bool res;
   DBUG_ENTER("mysql_multi_update");
 
   if (!(result= new multi_update(table_list,
@@ -960,7 +961,7 @@ bool mysql_multi_update(THD *thd,
                                MODE_STRICT_ALL_TABLES));
 
   List<Item> total_list;
-  (void) mysql_select(thd, &select_lex->ref_pointer_array,
+  res= mysql_select(thd, &select_lex->ref_pointer_array,
                       table_list, select_lex->with_wild,
                       total_list,
                       conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
@@ -968,6 +969,15 @@ bool mysql_multi_update(THD *thd,
                       options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                       OPTION_SETUP_TABLES_DONE,
                       result, unit, select_lex);
+  DBUG_PRINT("info",("res: %d  report_error: %d", res,
+                     thd->net.report_error));
+  res|= thd->net.report_error;
+  if (unlikely(res))
+  {
+    /* If we had a another error reported earlier then this will be ignored */
+    result->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
+    result->abort();
+  }
   delete result;
   thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);
@@ -1281,8 +1291,9 @@ multi_update::~multi_update()
   if (copy_field)
     delete [] copy_field;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		// Restore this setting
-  if (!trans_safe)
+  if (!trans_safe)  // todo: remove since redundant
     thd->no_trans_update.all= TRUE;
+  DBUG_ASSERT(trans_safe || thd->no_trans_update.all);
 }
 
 
@@ -1368,8 +1379,15 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	}
         else
         {
-          if (!table->file->has_transactions())
+          /* non-transactional or transactional table got modified   */
+          /* either multi_update class' flag is raised in its branch */
+          if (table->file->has_transactions())
+            transactional_tables= 1;
+          else
+          {
+            trans_safe= 0;
             thd->no_trans_update.stmt= TRUE;
+          }
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                                 TRG_ACTION_AFTER, TRUE))
@@ -1410,8 +1428,8 @@ void multi_update::send_error(uint errcode,const char *err)
   my_error(errcode, MYF(0), err);
 
   /* If nothing updated return */
-  if (!updated)
-    return;
+  if (updated == 0) /* the counter might be reset in send_eof */
+    return;         /* and then the query has been binlogged */
 
   /* Something already updated so we have to invalidate cache */
   query_cache_invalidate3(thd, update_tables, 1);
@@ -1422,11 +1440,43 @@ void multi_update::send_error(uint errcode,const char *err)
   */
 
   if (trans_safe)
-    ha_rollback_stmt(thd);
-  else if (do_update && table_count > 1)
   {
-    /* Add warning here */
-    VOID(do_updates(0));
+    DBUG_ASSERT(transactional_tables);
+    (void) ha_autocommit_or_rollback(thd, 1);
+  }
+  else
+  { 
+    DBUG_ASSERT(thd->no_trans_update.stmt);
+    if (do_update && table_count > 1)
+    {
+      /* Add warning here */
+      /* 
+         todo/fixme: do_update() is never called with the arg 1.
+         should it change the signature to become argless?
+      */
+      VOID(do_updates(0));
+    }
+  }
+  if (thd->no_trans_update.stmt)
+  {
+    /*
+      The query has to binlog because there's a modified non-transactional table
+      either from the query's list or via a stored routine: bug#13270,23333
+    */
+    if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+                            transactional_tables, FALSE);
+      mysql_bin_log.write(&qinfo);
+    }
+    if (!trans_safe)
+      thd->no_trans_update.all= TRUE;
+  }
+  DBUG_ASSERT(trans_safe || !updated || thd->no_trans_update.stmt);
+  
+  if (transactional_tables)
+  {
+    (void) ha_autocommit_or_rollback(thd, 1);
   }
 }
 
@@ -1533,9 +1583,12 @@ int multi_update::do_updates(bool from_send_error)
     if (updated != org_updated)
     {
       if (table->file->has_transactions())
-	transactional_tables= 1;
+        transactional_tables= 1;
       else
-	trans_safe= 0;				// Can't do safe rollback
+      {
+        trans_safe= 0;				// Can't do safe rollback
+        thd->no_trans_update.stmt= TRUE;
+      }
     }
     (void) table->file->ha_rnd_end();
     (void) tmp_table->file->ha_rnd_end();
@@ -1558,7 +1611,10 @@ err2:
     if (table->file->has_transactions())
       transactional_tables= 1;
     else
+    {
       trans_safe= 0;
+      thd->no_trans_update.stmt= TRUE;
+    }
   }
   DBUG_RETURN(1);
 }
@@ -1587,20 +1643,26 @@ bool multi_update::send_eof()
     Write the SQL statement to the binlog if we updated
     rows and we succeeded or if we updated some non
     transactional tables.
+    
+    The query has to binlog because there's a modified non-transactional table
+    either from the query's list or via a stored routine: bug#13270,23333
   */
 
-  if ((local_error == 0) || (updated && !trans_safe))
+  DBUG_ASSERT(trans_safe || !updated || thd->no_trans_update.stmt);
+  if (local_error == 0 || thd->no_trans_update.stmt)
   {
     if (mysql_bin_log.is_open())
     {
       if (local_error == 0)
         thd->clear_error();
+      else
+        updated= 0; /* if there's an error binlog it here not in ::send_error */
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_tables, FALSE);
       if (mysql_bin_log.write(&qinfo) && trans_safe)
         local_error= 1;				// Rollback update
     }
-    if (!transactional_tables)
+    if (!trans_safe)
       thd->no_trans_update.all= TRUE;
   }
 
@@ -1612,7 +1674,7 @@ bool multi_update::send_eof()
 
   if (local_error > 0) // if the above log write did not fail ...
   {
-    /* Safety: If we haven't got an error before (should not happen) */
+    /* Safety: If we haven't got an error before (can happen in do_updates) */
     my_message(ER_UNKNOWN_ERROR, "An error occured in multi-table update",
 	       MYF(0));
     return TRUE;
