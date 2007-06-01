@@ -3992,7 +3992,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
   /*
     CREATE ... SELECT UUID() locks no tables, we have to test here.
   */
-  if (thd->lex->binlog_row_based_if_mixed)
+  if (thd->lex->is_stmt_unsafe())
     thd->set_current_stmt_binlog_row_based_if_mixed();
 
   if (!tables && !thd->lex->requires_prelocking())
@@ -4033,7 +4033,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
       if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
           has_two_write_locked_tables_with_auto_increment(tables))
       {
-        thd->lex->binlog_row_based_if_mixed= TRUE;
+        thd->lex->set_stmt_unsafe();
         thd->set_current_stmt_binlog_row_based_if_mixed();
       }
     }
