@@ -155,6 +155,13 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count, uint flags)
     if (thr_multi_lock(sql_lock->locks + sql_lock->lock_count,
                        sql_lock->lock_count))
     {
+      /*
+        reset_lock_data is required here. If thr_multi_lock fails it
+        resets lock type for tables, which were locked before (and
+        including) one that caused error. Lock type for other tables
+        preserved.
+      */
+      reset_lock_data(sql_lock);
       thd->some_tables_deleted=1;		// Try again
       sql_lock->lock_count=0;			// Locks are alread freed
     }
