@@ -951,14 +951,6 @@ public:
   uint     sroutines_list_own_elements;
 
   /*
-    Tells if the parsing stage detected that some items require row-based
-    binlogging to give a reliable binlog/replication, or if we will use
-    stored functions or triggers which themselves need require row-based
-    binlogging.
-  */
-  bool binlog_row_based_if_mixed;
-
-  /*
     These constructor and destructor serve for creation/destruction
     of Query_tables_list instances which are used as backup storage.
   */
@@ -1005,12 +997,48 @@ public:
       query_tables_own_last= 0;
     }
   }
+
+  /**
+     Has the parser/scanner detected that this statement is unsafe?
+   */
+  inline bool is_stmt_unsafe() const {
+    return binlog_stmt_flags & (1U << BINLOG_STMT_FLAG_UNSAFE);
+  }
+
+  /**
+     Flag the current (top-level) statement as unsafe.
+
+     The flag will be reset after the statement has finished.
+
+   */
+  inline void set_stmt_unsafe() {
+    binlog_stmt_flags|= (1U << BINLOG_STMT_FLAG_UNSAFE);
+  }
+
+  inline void clear_stmt_unsafe() {
+    binlog_stmt_flags&= ~(1U << BINLOG_STMT_FLAG_UNSAFE);
+  }
+
   /**
     true if the parsed tree contains references to stored procedures
     or functions, false otherwise
   */
   bool uses_stored_routines() const
   { return sroutines_list.elements != 0; }
+
+private:
+  enum enum_binlog_stmt_flag {
+    BINLOG_STMT_FLAG_UNSAFE,
+    BINLOG_STMT_FLAG_COUNT
+  };
+
+  /*
+    Tells if the parsing stage detected properties of the statement,
+    for example: that some items require row-based binlogging to give
+    a reliable binlog/replication, or if we will use stored functions
+    or triggers which themselves need require row-based binlogging.
+  */
+  uint32 binlog_stmt_flags;
 };
 
 
