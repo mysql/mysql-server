@@ -2067,6 +2067,7 @@ private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(RELAY_LOG_INFO const *rli);
   virtual int do_update_pos(RELAY_LOG_INFO *rli);
+  virtual enum_skip_reason do_shall_skip(RELAY_LOG_INFO *rli);
 #endif
 
 #ifndef MYSQL_CLIENT
@@ -2245,6 +2246,7 @@ private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(RELAY_LOG_INFO const *rli);
   virtual int do_update_pos(RELAY_LOG_INFO *rli);
+  virtual enum_skip_reason do_shall_skip(RELAY_LOG_INFO *rli);
 
   /*
     Primitive to prepare for a sequence of row executions.
