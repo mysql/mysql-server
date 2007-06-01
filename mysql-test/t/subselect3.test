@@ -260,11 +260,11 @@ insert into t2 values
   ('dd', 1, NULL);
 alter table t1 add index idx(ie1,ie2);
 
---cc 3 NULL NULL
+# cc 3 NULL NULL
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) Z from t2 where a=3 and b is null ;
 insert into t2 values ('new1', 10,10);
 insert into t1 values ('new1', 1234, 10, NULL); 
--- new1, 10, 10, NULL,
+# new1, 10, 10, NULL,
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) Z from t2 where a=10 and b=10; 
 explain extended
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) Z from t2 where a=10 and b=10; 
