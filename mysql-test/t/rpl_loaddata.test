@@ -158,9 +158,7 @@ CREATE TABLE t1 (word CHAR(20) NOT NULL PRIMARY KEY) ENGINE=INNODB;
 --error 1062
 LOAD DATA INFILE "../std_data_ln/words.dat" INTO TABLE t1;
 
---disable warnings
-DROP TABLE IF EXISTS t1;
---enable warnings
+DROP TABLE t1;
 
 sync_with_master;
 # End of 4.1 tests
