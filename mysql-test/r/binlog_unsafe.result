@@ -10,4 +10,4 @@ SHOW WARNINGS;
 Level	Warning
 Code	1588
 Message	Statement is not safe to log in statement format.
-DROP TABLE t1;
+DROP TABLE t1,t2,t3;
