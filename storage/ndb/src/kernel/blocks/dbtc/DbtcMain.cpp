@@ -5211,19 +5211,6 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	return;
       }
       
-      /* Only ref in certain situations */
-      {
-	const Uint32 opType = regTcPtr->operation;
-	if (   (opType == ZDELETE && errCode != ZNOT_FOUND)
-	    || (opType == ZINSERT && errCode != ZALREADYEXIST)
-	    || (opType == ZUPDATE && errCode != ZNOT_FOUND)
-	    || (opType == ZWRITE  && errCode != 839 && errCode != 840))
-	{
-	  TCKEY_abort(signal, 49);
-	  return;
-	}
-      }
-
       /* *************** */
       /*    TCKEYREF   < */
       /* *************** */
