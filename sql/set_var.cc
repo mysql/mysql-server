@@ -67,6 +67,7 @@ extern ulong ndb_extra_logging;
 #ifdef HAVE_NDB_BINLOG
 extern ulong ndb_report_thresh_binlog_epoch_slip;
 extern ulong ndb_report_thresh_binlog_mem_usage;
+extern my_bool opt_ndb_log_update_as_write;
 #endif
 
 extern CHARSET_INFO *character_set_filesystem;
@@ -493,6 +494,8 @@ sys_ndb_report_thresh_binlog_epoch_slip(&vars, "ndb_report_thresh_binlog_epoch_s
 static sys_var_long_ptr
 sys_ndb_report_thresh_binlog_mem_usage(&vars, "ndb_report_thresh_binlog_mem_usage",
                                        &ndb_report_thresh_binlog_mem_usage);
+static sys_var_bool_ptr
+sys_ndb_log_update_as_write(&vars, "ndb_log_update_as_write", &opt_ndb_log_update_as_write);
 #endif
 static sys_var_thd_bool
 sys_ndb_use_exact_count(&vars, "ndb_use_exact_count", &SV::ndb_use_exact_count);

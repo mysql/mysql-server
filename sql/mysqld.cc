@@ -379,6 +379,7 @@ ulong ndb_extra_logging;
 #ifdef HAVE_NDB_BINLOG
 ulong ndb_report_thresh_binlog_epoch_slip;
 ulong ndb_report_thresh_binlog_mem_usage;
+my_bool opt_ndb_log_update_as_write;
 #endif
 
 extern const char *ndb_distribution_names[];
@@ -4927,6 +4928,7 @@ enum options_mysqld
   OPT_NDB_REPORT_THRESH_BINLOG_EPOCH_SLIP,
   OPT_NDB_REPORT_THRESH_BINLOG_MEM_USAGE,
   OPT_NDB_USE_COPYING_ALTER_TABLE,
+  OPT_NDB_LOG_UPDATE_AS_WRITE,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -5481,6 +5483,13 @@ master-ssl",
    (gptr*) &ndb_report_thresh_binlog_mem_usage,
    (gptr*) &ndb_report_thresh_binlog_mem_usage,
    0, GET_ULONG, REQUIRED_ARG, 10, 0, 100, 0, 0, 0},
+  {"ndb-log-update-as-write", OPT_NDB_LOG_UPDATE_AS_WRITE,
+   "For efficiency log only after image as a write event."
+   "Ignore before image.  This may cause compatability problems if"
+   "replicating to other storage engines than ndbcluster",
+   (gptr*) &opt_ndb_log_update_as_write,
+   (gptr*) &opt_ndb_log_update_as_write,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
 #endif
   {"ndb-use-exact-count", OPT_NDB_USE_EXACT_COUNT,
    "Use exact records count during query planning and for fast "
