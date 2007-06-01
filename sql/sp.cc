@@ -1017,7 +1017,9 @@ sp_show_create_routine(THD *thd, int type, sp_name *name)
                      &thd->sp_proc_cache : &thd->sp_func_cache;
 
   DBUG_ENTER("sp_show_create_routine");
-  DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s",
+                       (int) name->m_name.length,
+                       name->m_name.str));
 
   DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
               type == TYPE_ENUM_FUNCTION);
