@@ -862,7 +862,7 @@ CREATE TABLE mysqltest1.t2 (int_field INT);
 CREATE USER mysqltest_1@localhost;
 GRANT SELECT ON mysqltest1.t1 TO mysqltest_1@localhost;
 
---connect (conn42,localhost,mysqltest_1,,mysqltest1);
+connect (conn42,localhost,mysqltest_1,,mysqltest1);
 SELECT USER();
 SHOW GRANTS;
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -873,7 +873,7 @@ ALTER TABLE t1 RENAME TO t2;
 --connection default
 GRANT DROP ON mysqltest1.t1 TO mysqltest_1@localhost;
 
---connect (conn42,localhost,mysqltest_1,,mysqltest1);
+connect (conn42,localhost,mysqltest_1,,mysqltest1);
 --error ER_TABLEACCESS_DENIED_ERROR
 RENAME TABLE t1 TO t2;
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -882,7 +882,7 @@ ALTER TABLE t1 RENAME TO t2;
 --connection default
 GRANT ALTER ON mysqltest1.t1 TO mysqltest_1@localhost;
 
---connect (conn42,localhost,mysqltest_1,,mysqltest1);
+connect (conn42,localhost,mysqltest_1,,mysqltest1);
 SHOW GRANTS;
 --error ER_TABLEACCESS_DENIED_ERROR
 RENAME TABLE t1 TO t2;
@@ -891,7 +891,7 @@ ALTER TABLE t1 RENAME TO t2;
 --disconnect conn42
 --connection default
 GRANT INSERT, CREATE ON mysqltest1.t1 TO mysqltest_1@localhost;
---connect (conn42,localhost,mysqltest_1,,mysqltest1);
+connect (conn42,localhost,mysqltest_1,,mysqltest1);
 SHOW GRANTS;
 --error ER_TABLEACCESS_DENIED_ERROR
 --disconnect conn42
@@ -899,7 +899,7 @@ SHOW GRANTS;
 GRANT INSERT, SELECT, CREATE, ALTER, DROP ON mysqltest1.t2 TO mysqltest_1@localhost;
 DROP TABLE mysqltest1.t2;
 
---connect (conn42,localhost,mysqltest_1,,mysqltest1);
+connect (conn42,localhost,mysqltest_1,,mysqltest1);
 SHOW GRANTS;
 RENAME TABLE t1 TO t2;
 RENAME TABLE t2 TO t1;
@@ -910,7 +910,7 @@ ALTER TABLE t2 RENAME TO t1;
 REVOKE DROP, INSERT ON mysqltest1.t1 FROM mysqltest_1@localhost;
 REVOKE DROP, INSERT ON mysqltest1.t2 FROM mysqltest_1@localhost;
 
---connect (conn42,localhost,mysqltest_1,,mysqltest1);
+connect (conn42,localhost,mysqltest_1,,mysqltest1);
 SHOW GRANTS;
 --error ER_TABLEACCESS_DENIED_ERROR
 RENAME TABLE t1 TO t2;
@@ -1003,7 +1003,7 @@ DROP USER bug23556@localhost;
 # Bug #6774: Replication fails with Wrong usage of DB GRANT and GLOBAL PRIVILEGES
 #
 # Check if GRANT ... ON * ... fails when no database is selected
-connect (con1, localhost, root,,*NO-ONE*)
+connect (con1, localhost, root,,*NO-ONE*);
 connection con1;
 --error ER_NO_DB_ERROR
 GRANT PROCESS ON * TO user@localhost;
