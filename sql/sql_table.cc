@@ -5315,7 +5315,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
   if (!create_info->tablespace && create_info->storage_media != HA_SM_MEMORY)
   {
-    char *tablespace= thd->alloc(FN_LEN);
+    char *tablespace= static_cast<char *>(thd->alloc(FN_LEN));
     /*
        Regular alter table of disk stored table (no tablespace/storage change)
        Copy tablespace name
