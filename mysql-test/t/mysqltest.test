@@ -46,11 +46,6 @@ select otto from (select 1 as otto) as t1;
 --error 0
 select otto from (select 1 as otto) as t1;
 
-# expectation <> response
--- // --error 1054
--- // select otto from (select 1 as otto) as t1;
-
-
 # ----------------------------------------------------------------------------
 # Negative case(statement):
 # The derived table t1 does not contain a column named 'friedrich' . 
@@ -331,9 +326,9 @@ select 3 from t1 ;
 # This is a comment
 # This is a ;  comment
 # This is a -- comment
--- This is also a comment
--- # This is also a comment
--- This is also a ; comment
+# -- This is also a comment
+# -- # This is also a comment
+# -- This is also a ; comment
 
 # ----------------------------------------------------------------------------
 # Test comments with embedded command
