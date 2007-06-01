@@ -33,6 +33,8 @@
 #define assert(x) do { if(x) break; ::printf("%s %d: assert failed: %s\n", __FILE__, __LINE__, #x); ::fflush(stdout); ::signal(SIGABRT,SIG_DFL); ::abort(); ::kill(::getpid(),6); ::kill(::getpid(),9); } while (0)
 #endif
 
+extern my_bool opt_ndb_log_update_as_write;
+
 /*
   defines for cluster replication table names
 */
@@ -3546,7 +3548,8 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
       ndb_unpack_record(table, share->ndb_value[0],
                         &b, table->record[0]);
       DBUG_EXECUTE("info", print_records(table, table->record[0]););
-      if (table->s->primary_key != MAX_KEY) 
+      if (table->s->primary_key != MAX_KEY &&
+          opt_ndb_log_update_as_write) 
       {
         /*
           since table has a primary key, we can do a write
