@@ -2906,4 +2906,18 @@ SELECT id, st FROM t1
 
 DROP TABLE t1,t2;
 
+#
+# Bug #28728: crash with EXPLAIN EXTENDED for a query with a derived table
+#             over a grouping subselect
+# 
+
+CREATE TABLE t1 (a int);
+
+INSERT INTO t1 VALUES (1), (2);
+
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT count(*) FROM t1 GROUP BY a) as res;
+
+DROP TABLE t1;
+
 --echo End of 5.0 tests.
