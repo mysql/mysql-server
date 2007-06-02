@@ -2075,6 +2075,17 @@ JOIN::exec()
   thd->examined_row_count+= curr_join->examined_rows;
   DBUG_PRINT("counts", ("thd->examined_row_count: %lu",
                         (ulong) thd->examined_row_count));
+
+  /* 
+    With EXPLAIN EXTENDED we have to restore original ref_array
+    for a derived table which is always materialized.
+    Otherwise we would not be able to print the query  correctly.
+  */ 
+  if (items0 &&
+      (thd->lex->describe & DESCRIBE_EXTENDED) &&
+      select_lex->linkage == DERIVED_TABLE_TYPE)      
+    set_items_ref_array(items0);
+
   DBUG_VOID_RETURN;
 }
 
