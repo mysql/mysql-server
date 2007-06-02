@@ -73,16 +73,16 @@ extern const char *primary_key_name;
 #include "unireg.h"
 
 void init_sql_alloc(MEM_ROOT *root, uint block_size, uint pre_alloc_size);
-gptr sql_alloc(unsigned size);
-gptr sql_calloc(unsigned size);
+void *sql_alloc(size_t);
+void *sql_calloc(size_t);
 char *sql_strdup(const char *str);
-char *sql_strmake(const char *str,uint len);
-gptr sql_memdup(const void * ptr,unsigned size);
+char *sql_strmake(const char *str, size_t len);
+void *sql_memdup(const void * ptr, size_t size);
 void sql_element_free(void *ptr);
-char *sql_strmake_with_convert(const char *str, uint32 arg_length,
+char *sql_strmake_with_convert(const char *str, size_t arg_length,
 			       CHARSET_INFO *from_cs,
-			       uint32 max_res_length,
-			       CHARSET_INFO *to_cs, uint32 *result_length);
+			       size_t max_res_length,
+			       CHARSET_INFO *to_cs, size_t *result_length);
 uint kill_one_thread(THD *thd, ulong id, bool only_kill_query);
 void sql_kill(THD *thd, ulong id, bool only_kill_query);
 bool net_request_file(NET* net, const char* fname);
@@ -91,15 +91,15 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 void net_set_write_timeout(NET *net, uint timeout);
 void net_set_read_timeout(NET *net, uint timeout);
 
-#define x_free(A)	{ my_free((gptr) (A),MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR)); }
-#define safeFree(x)	{ if(x) { my_free((gptr) x,MYF(0)); x = NULL; } }
+#define x_free(A)	{ my_free((uchar*) (A),MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR)); }
+#define safeFree(x)	{ if(x) { my_free((uchar*) x,MYF(0)); x = NULL; } }
 #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 #define all_bits_set(A,B) ((A) & (B) != (B))
 
 #define WARN_DEPRECATED(Thd,Ver,Old,New)                                             \
   do {                                                                               \
     DBUG_ASSERT(strncmp(Ver, MYSQL_SERVER_VERSION, sizeof(Ver)-1) > 0);              \
-    if (((gptr)Thd) != NULL)                                                         \
+    if (((uchar*)Thd) != NULL)                                                         \
       push_warning_printf(((THD *)Thd), MYSQL_ERROR::WARN_LEVEL_WARN,                \
                         ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX),    \
                         (Old), (Ver), (New));                                        \
@@ -385,7 +385,7 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define MODE_NO_KEY_OPTIONS             8192
 #define MODE_NO_TABLE_OPTIONS           16384
 #define MODE_NO_FIELD_OPTIONS           32768
-#define MODE_MYSQL323                   65536
+#define MODE_MYSQL323                   65536L
 #define MODE_MYSQL40                    (MODE_MYSQL323*2)
 #define MODE_ANSI	                (MODE_MYSQL40*2)
 #define MODE_NO_AUTO_VALUE_ON_ZERO      (MODE_ANSI*2)
@@ -400,6 +400,8 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define MODE_NO_AUTO_CREATE_USER	(MODE_TRADITIONAL*2)
 #define MODE_HIGH_NOT_PRECEDENCE	(MODE_NO_AUTO_CREATE_USER*2)
 #define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
+#define MODE_PAD_CHAR_TO_FULL_LENGTH    (ULL(1) << 31)
+
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
   use strictly more than 64 bits by adding one more define above, you should
@@ -499,8 +501,8 @@ class THD;
 
 typedef struct st_sql_list {
   uint elements;
-  byte *first;
-  byte **next;
+  uchar *first;
+  uchar **next;
 
   st_sql_list() {}                              /* Remove gcc warning */
   inline void empty()
@@ -509,7 +511,7 @@ typedef struct st_sql_list {
     first=0;
     next= &first;
   }
-  inline void link_in_list(byte *element,byte **next_ptr)
+  inline void link_in_list(uchar *element,uchar **next_ptr)
   {
     elements++;
     (*next)=element;
@@ -887,9 +889,9 @@ my_bool is_partition_management(LEX *lex);
   All methods presume that there is at least one field to change.
 */
 
-void set_field_ptr(Field **ptr, const byte *new_buf, const byte *old_buf);
-void set_key_field_ptr(KEY *key_info, const byte *new_buf,
-                       const byte *old_buf);
+void set_field_ptr(Field **ptr, const uchar *new_buf, const uchar *old_buf);
+void set_key_field_ptr(KEY *key_info, const uchar *new_buf,
+                       const uchar *old_buf);
 
 bool mysql_backup_table(THD* thd, TABLE_LIST* table_list);
 bool mysql_restore_table(THD* thd, TABLE_LIST* table_list);
@@ -1355,11 +1357,11 @@ typedef struct st_lock_param_type
   KEY *key_info_buffer;
   const char *db;
   const char *table_name;
-  const void *pack_frm_data;
+  uchar *pack_frm_data;
   enum thr_lock_type old_lock_type;
   uint key_count;
   uint db_options;
-  uint pack_frm_len;
+  size_t pack_frm_len;
   partition_info *part_info;
 } ALTER_PARTITION_PARAM_TYPE;
 
@@ -1522,16 +1524,16 @@ void print_plan(JOIN* join,uint idx, double record_count, double read_time,
 #endif
 void mysql_print_status();
 /* key.cc */
-int find_ref_key(KEY *key, uint key_count, byte *record, Field *field,
+int find_ref_key(KEY *key, uint key_count, uchar *record, Field *field,
                  uint *key_length, uint *keypart);
-void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length);
-void key_restore(byte *to_record, byte *from_key, KEY *key_info,
+void key_copy(uchar *to_key, uchar *from_record, KEY *key_info, uint key_length);
+void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
                  uint key_length);
-bool key_cmp_if_same(TABLE *form,const byte *key,uint index,uint key_length);
+bool key_cmp_if_same(TABLE *form,const uchar *key,uint index,uint key_length);
 void key_unpack(String *to,TABLE *form,uint index);
 bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields);
-int key_cmp(KEY_PART_INFO *key_part, const byte *key, uint key_length);
-int key_rec_cmp(void *key_info, byte *a, byte *b);
+int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length);
+int key_rec_cmp(void *key_info, uchar *a, uchar *b);
 
 bool init_errmessage(void);
 #endif /* MYSQL_SERVER */
@@ -1556,7 +1558,7 @@ bool slow_log_print(THD *thd, const char *query, uint query_length,
 bool general_log_print(THD *thd, enum enum_server_command command,
                        const char *format,...);
 
-bool fn_format_relative_to_data_home(my_string to, const char *name,
+bool fn_format_relative_to_data_home(char * to, const char *name,
 				     const char *dir, const char *extension);
 #ifdef MYSQL_SERVER
 File open_binlog(IO_CACHE *log, const char *log_file_name,
@@ -1823,8 +1825,8 @@ int rea_create_table(THD *thd, const char *path,
   		     List<create_field> &create_field,
                      uint key_count,KEY *key_info,
                      handler *file);
-int format_number(uint inputflag,uint max_length,my_string pos,uint length,
-		  my_string *errpos);
+int format_number(uint inputflag,uint max_length,char * pos,uint length,
+		  char * *errpos);
 
 /* table.cc */
 TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
@@ -1837,10 +1839,10 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg);
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
                           TABLE *outparam, bool is_create_table);
-int readfrm(const char *name, const void** data, uint* length);
-int writefrm(const char* name, const void* data, uint len);
+int readfrm(const char *name, uchar **data, size_t *length);
+int writefrm(const char* name, const uchar* data, size_t len);
 int closefrm(TABLE *table, bool free_share);
-int read_string(File file, gptr *to, uint length);
+int read_string(File file, uchar* *to, size_t length);
 void free_blobs(TABLE *table);
 int set_zone(int nr,int min_zone,int max_zone);
 ulong convert_period_to_month(ulong period);
@@ -1885,7 +1887,7 @@ ulonglong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
                              Item *warn_item, bool *is_null);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
-void change_byte(byte *,uint,char,char);
+void change_byte(uchar *,uint,char,char);
 void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
 		      SQL_SELECT *select,
 		      int use_record_cache, bool print_errors);
@@ -1897,7 +1899,7 @@ ha_rows filesort(THD *thd, TABLE *form,struct st_sort_field *sortorder,
 		 ha_rows max_rows, bool sort_positions,
                  ha_rows *examined_rows);
 void filesort_free_buffers(TABLE *table, bool full);
-void change_double_for_sort(double nr,byte *to);
+void change_double_for_sort(double nr,uchar *to);
 double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);
 int get_quick_record(SQL_SELECT *select);
@@ -1905,7 +1907,7 @@ int get_quick_record(SQL_SELECT *select);
 int calc_weekday(long daynr,bool sunday_first_day_of_week);
 uint calc_week(MYSQL_TIME *l_time, uint week_behaviour, uint *year);
 void find_date(char *pos,uint *vek,uint flag);
-TYPELIB *convert_strings_to_array_type(my_string *typelibs, my_string *end);
+TYPELIB *convert_strings_to_array_type(char * *typelibs, char * *end);
 TYPELIB *typelib(MEM_ROOT *mem_root, List<String> &strings);
 ulong get_form_pos(File file, uchar *head, TYPELIB *save_names);
 ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
@@ -1940,7 +1942,7 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
 
 /* from hostname.cc */
 struct in_addr;
-my_string ip_to_hostname(struct in_addr *in,uint *errors);
+char * ip_to_hostname(struct in_addr *in,uint *errors);
 void inc_host_errors(struct in_addr *in);
 void reset_host_errors(struct in_addr *in);
 bool hostname_cache_init();
@@ -2104,7 +2106,7 @@ inline bool is_user_table(TABLE * table)
 #ifndef EMBEDDED_LIBRARY
 extern "C" void unireg_abort(int exit_code) __attribute__((noreturn));
 void kill_delayed_threads(void);
-bool check_stack_overrun(THD *thd, long margin, char *dummy);
+bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
 #else
 #define unireg_abort(exit_code) DBUG_RETURN(exit_code)
 inline void kill_delayed_threads(void) {}

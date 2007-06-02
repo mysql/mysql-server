@@ -71,7 +71,7 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50/BACKUP* $(distdir)/std_data/ndb_backup50
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51/BACKUP* $(distdir)/std_data/ndb_backup51
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(distdir)/lib
-	-rm -rf `find $(distdir)/suite -type d -name SCCS`
+	-rm -rf `find $(distdir)/suite -type d -name SCCS` $(distdir)/suite/row_lock
 
 install-data-local:
 	$(mkinstalldirs) \
@@ -113,7 +113,7 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup50
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(DESTDIR)$(testdir)/lib
-	for f in `(cd $(srcdir); find suite -type f | grep -v SCCS)`; \
+	for f in `(cd $(srcdir); find suite -type f | egrep -v 'SCCS|row_lock')`; \
 	do \
 	  d=$(DESTDIR)$(testdir)/`dirname $$f`; \
 	  mkdir -p $$d ; \

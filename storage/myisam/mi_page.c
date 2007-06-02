@@ -29,7 +29,7 @@ uchar *_mi_fetch_keypage(register MI_INFO *info, MI_KEYDEF *keyinfo,
   DBUG_PRINT("enter",("page: %ld", (long) page));
 
   tmp=(uchar*) key_cache_read(info->s->key_cache,
-                             info->s->kfile, page, level, (byte*) buff,
+                             info->s->kfile, page, level, (uchar*) buff,
 			     (uint) keyinfo->block_length,
 			     (uint) keyinfo->block_length,
 			     return_buffer);
@@ -80,7 +80,7 @@ int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     DBUG_RETURN((-1));
   }
   DBUG_PRINT("page",("write page at: %lu",(long) page));
-  DBUG_DUMP("buff",(byte*) buff,mi_getint(buff));
+  DBUG_DUMP("buff",(uchar*) buff,mi_getint(buff));
 #endif
 
   if ((length=keyinfo->block_length) > IO_SIZE*2 &&
@@ -89,12 +89,12 @@ int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 #ifdef HAVE_purify
   {
     length=mi_getint(buff);
-    bzero((byte*) buff+length,keyinfo->block_length-length);
+    bzero((uchar*) buff+length,keyinfo->block_length-length);
     length=keyinfo->block_length;
   }
 #endif
   DBUG_RETURN((key_cache_write(info->s->key_cache,
-                         info->s->kfile,page, level, (byte*) buff,length,
+                         info->s->kfile,page, level, (uchar*) buff,length,
 			 (uint) keyinfo->block_length,
 			 (int) ((info->lock_type != F_UNLCK) ||
 				info->s->delay_key_write))));

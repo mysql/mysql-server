@@ -29,12 +29,12 @@
 #define T_PREFILL '1'
 
 static char from_buff[100],to_buff[100];
-static my_string from,to;
+static char * from, *to;
 static int errors,tests;
 static int test_strarg(const char *name,...);
 static void init_strings (void);	/* Init from and to */
 void test_arg (const char *message,long func_value,long value);
-int compare_buff(const char *message,my_string b1,my_string b2,int length,
+int compare_buff(const char *message,char * b1,char * b2,int length,
 		  pchar fill, pchar prefill);
 
 static int my_test(int a)
@@ -228,7 +228,7 @@ static int test_strarg(const char *message,...)
 
 	/* test if function made right value */
 
-int compare_buff(const char *message, my_string b1, my_string b2, int length,
+int compare_buff(const char *message, char * b1, char * b2, int length,
 		 pchar fill, pchar prefill)
 {
   int i,error=0;

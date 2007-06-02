@@ -63,7 +63,7 @@ class ha_tina: public handler
   off_t current_position;  /* Current position in the file during a file scan */
   off_t next_position;     /* Next position in the file scan */
   off_t local_saved_data_file_length; /* save position for reads */
-  byte byte_buffer[IO_SIZE];
+  uchar byte_buffer[IO_SIZE];
   Transparent_file *file_buff;
   File data_file;                   /* File handler for readers */
   File update_temp_file;
@@ -76,7 +76,7 @@ class ha_tina: public handler
   tina_set chain_buffer[DEFAULT_CHAIN_LENGTH];
   tina_set *chain;
   tina_set *chain_ptr;
-  byte chain_alloced;
+  uchar chain_alloced;
   uint32 chain_size;
   bool records_is_known;
 
@@ -90,7 +90,7 @@ public:
   ~ha_tina()
   {
     if (chain_alloced)
-      my_free((gptr)chain, 0);
+      my_free(chain, 0);
     if (file_buff)
       delete file_buff;
   }
@@ -133,12 +133,12 @@ public:
                                            bool called_by_logger_thread);
   int open(const char *name, int mode, uint open_options);
   int close(void);
-  int write_row(byte * buf);
-  int update_row(const byte * old_data, byte * new_data);
-  int delete_row(const byte * buf);
+  int write_row(uchar * buf);
+  int update_row(const uchar * old_data, uchar * new_data);
+  int delete_row(const uchar * buf);
   int rnd_init(bool scan=1);
-  int rnd_next(byte *buf);
-  int rnd_pos(byte * buf, byte *pos);
+  int rnd_next(uchar *buf);
+  int rnd_pos(uchar * buf, uchar *pos);
   bool check_and_repair(THD *thd);
   int check(THD* thd, HA_CHECK_OPT* check_opt);
   bool is_crashed() const;
@@ -146,7 +146,7 @@ public:
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
   /* This is required for SQL layer to know that we support autorepair */
   bool auto_repair() const { return 1; }
-  void position(const byte *record);
+  void position(const uchar *record);
   int info(uint);
   int extra(enum ha_extra_function operation);
   int delete_all_rows(void);
@@ -165,8 +165,8 @@ public:
   void update_status();
 
   /* The following methods were added just for TINA */
-  int encode_quote(byte *buf);
-  int find_current_row(byte *buf);
+  int encode_quote(uchar *buf);
+  int find_current_row(uchar *buf);
   int chain_append();
 };
 

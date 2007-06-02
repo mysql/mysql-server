@@ -63,8 +63,8 @@ static struct my_option my_long_options[]=
   {"debug", '#', "This is a non-debug version. Catch this and exit",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
-  {"debug", '#', "Output debug log", (gptr *) & default_dbug_option,
-   (gptr *) & default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log", (uchar* *) & default_dbug_option,
+   (uchar* *) & default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", 0,
@@ -73,16 +73,16 @@ static struct my_option my_long_options[]=
    "Directory where character sets are.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", OPT_COMPRESS, "Use compression in server/client protocol.",
-   (gptr*)&not_used, (gptr*)&not_used, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   (uchar**)&not_used, (uchar**)&not_used, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f', "Force execution of mysqlcheck even if mysql_upgrade "
    "has already been executed for the current version of MySQL.",
-   (gptr*)&opt_force, (gptr*)&opt_force, 0,
+   (uchar**)&opt_force, (uchar**)&opt_force, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host",'h', "Connect to host.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given"
-   " it's solicited on the tty.", (gptr*) &opt_password,(gptr*) &opt_password,
+   " it's solicited on the tty.", (uchar**) &opt_password,(uchar**) &opt_password,
    0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0,
@@ -100,11 +100,11 @@ static struct my_option my_long_options[]=
 #endif
   {"socket", 'S', "Socket file to use for connection.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"user", 'u', "User for login if not current user.", (gptr*) &opt_user,
-   (gptr*) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login if not current user.", (uchar**) &opt_user,
+   (uchar**) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
   {"verbose", 'v', "Display more output about the process",
-   (gptr*) &opt_verbose, (gptr*) &opt_verbose, 0,
+   (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -387,13 +387,14 @@ static void find_tool(char *tool_path, const char *tool_name)
   }
   do
   {
+    size_t path_len;
     DBUG_PRINT("enter", ("path: %s", path));
 
     /* Chop off last char(since it might be a /) */
     path[max((strlen(path)-1), 0)]= 0;
 
     /* Chop off last dir part */
-    dirname_part(path, path);
+    dirname_part(path, path, &path_len);
 
     /* Format name of the tool to search for */
     fn_format(tool_path, tool_name,

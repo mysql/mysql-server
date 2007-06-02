@@ -39,12 +39,12 @@ public:
   inline void insert(sp_head *sp)
   {
     /* TODO: why don't we check return value? */
-    my_hash_insert(&m_hashtable, (const byte *)sp);
+    my_hash_insert(&m_hashtable, (const uchar *)sp);
   }
 
   inline sp_head *lookup(char *name, uint namelen)
   {
-    return (sp_head *)hash_search(&m_hashtable, (const byte *)name, namelen);
+    return (sp_head *)hash_search(&m_hashtable, (const uchar *)name, namelen);
   }
 
 #ifdef NOT_USED
@@ -53,7 +53,7 @@ public:
     sp_head *sp= lookup(name, namelen);
     if (sp)
     {
-      hash_delete(&m_hashtable, (byte *)sp);
+      hash_delete(&m_hashtable, (uchar *)sp);
       return TRUE;
     }
     return FALSE;
@@ -130,7 +130,7 @@ void sp_cache_insert(sp_cache **cp, sp_head *sp)
       return;                                   // End of memory error
     c->version= Cversion;      // No need to lock when reading long variable
   }
-  DBUG_PRINT("info",("sp_cache: inserting: %.*s", sp->m_qname.length,
+  DBUG_PRINT("info",("sp_cache: inserting: %.*s", (int) sp->m_qname.length,
                      sp->m_qname.str));
   c->insert(sp);
   *cp= c;                                       // Update *cp if it was NULL
@@ -214,12 +214,12 @@ void sp_cache_flush_obsolete(sp_cache **cp)
   Internal functions 
  *************************************************************************/
 
-static byte *hash_get_key_for_sp_head(const byte *ptr, uint *plen,
-			       my_bool first)
+static uchar *hash_get_key_for_sp_head(const uchar *ptr, size_t *plen,
+                                       my_bool first)
 {
   sp_head *sp= (sp_head *)ptr;
   *plen= sp->m_qname.length;
-  return (byte*) sp->m_qname.str;
+  return (uchar*) sp->m_qname.str;
 }
 
 

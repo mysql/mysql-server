@@ -178,7 +178,7 @@ void ha_heap::update_key_stats()
 }
 
 
-int ha_heap::write_row(byte * buf)
+int ha_heap::write_row(uchar * buf)
 {
   int res;
   ha_statistic_increment(&SSV::ha_write_count);
@@ -202,7 +202,7 @@ int ha_heap::write_row(byte * buf)
   return res;
 }
 
-int ha_heap::update_row(const byte * old_data, byte * new_data)
+int ha_heap::update_row(const uchar * old_data, uchar * new_data)
 {
   int res;
   ha_statistic_increment(&SSV::ha_update_count);
@@ -221,7 +221,7 @@ int ha_heap::update_row(const byte * old_data, byte * new_data)
   return res;
 }
 
-int ha_heap::delete_row(const byte * buf)
+int ha_heap::delete_row(const uchar * buf)
 {
   int res;
   ha_statistic_increment(&SSV::ha_delete_count);
@@ -238,7 +238,7 @@ int ha_heap::delete_row(const byte * buf)
   return res;
 }
 
-int ha_heap::index_read(byte * buf, const byte * key, key_part_map keypart_map,
+int ha_heap::index_read(uchar * buf, const uchar * key, key_part_map keypart_map,
 			enum ha_rkey_function find_flag)
 {
   DBUG_ASSERT(inited==INDEX);
@@ -248,7 +248,7 @@ int ha_heap::index_read(byte * buf, const byte * key, key_part_map keypart_map,
   return error;
 }
 
-int ha_heap::index_read_last(byte *buf, const byte *key, key_part_map keypart_map)
+int ha_heap::index_read_last(uchar *buf, const uchar *key, key_part_map keypart_map)
 {
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&SSV::ha_read_key_count);
@@ -258,7 +258,7 @@ int ha_heap::index_read_last(byte *buf, const byte *key, key_part_map keypart_ma
   return error;
 }
 
-int ha_heap::index_read_idx(byte * buf, uint index, const byte * key,
+int ha_heap::index_read_idx(uchar * buf, uint index, const uchar * key,
 			    key_part_map keypart_map,
                             enum ha_rkey_function find_flag)
 {
@@ -268,7 +268,7 @@ int ha_heap::index_read_idx(byte * buf, uint index, const byte * key,
   return error;
 }
 
-int ha_heap::index_next(byte * buf)
+int ha_heap::index_next(uchar * buf)
 {
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&SSV::ha_read_next_count);
@@ -277,7 +277,7 @@ int ha_heap::index_next(byte * buf)
   return error;
 }
 
-int ha_heap::index_prev(byte * buf)
+int ha_heap::index_prev(uchar * buf)
 {
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&SSV::ha_read_prev_count);
@@ -286,7 +286,7 @@ int ha_heap::index_prev(byte * buf)
   return error;
 }
 
-int ha_heap::index_first(byte * buf)
+int ha_heap::index_first(uchar * buf)
 {
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&SSV::ha_read_first_count);
@@ -295,7 +295,7 @@ int ha_heap::index_first(byte * buf)
   return error;
 }
 
-int ha_heap::index_last(byte * buf)
+int ha_heap::index_last(uchar * buf)
 {
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&SSV::ha_read_last_count);
@@ -309,7 +309,7 @@ int ha_heap::rnd_init(bool scan)
   return scan ? heap_scan_init(file) : 0;
 }
 
-int ha_heap::rnd_next(byte *buf)
+int ha_heap::rnd_next(uchar *buf)
 {
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
   int error=heap_scan(file, buf);
@@ -317,7 +317,7 @@ int ha_heap::rnd_next(byte *buf)
   return error;
 }
 
-int ha_heap::rnd_pos(byte * buf, byte *pos)
+int ha_heap::rnd_pos(uchar * buf, uchar *pos)
 {
   int error;
   HEAP_PTR heap_position;
@@ -328,7 +328,7 @@ int ha_heap::rnd_pos(byte * buf, byte *pos)
   return error;
 }
 
-void ha_heap::position(const byte *record)
+void ha_heap::position(const uchar *record)
 {
   *(HEAP_PTR*) ref= heap_position(file);	// Ref is aligned
 }
@@ -668,7 +668,7 @@ int ha_heap::create(const char *name, TABLE *table_arg,
 			       share->max_rows) ? 
 			      share->max_rows : max_rows),
 		     (ulong) share->min_rows, &hp_create_info);
-  my_free((gptr) keydef, MYF(0));
+  my_free((uchar*) keydef, MYF(0));
   if (file)
     info(HA_STATUS_NO_LOCK | HA_STATUS_CONST | HA_STATUS_VARIABLE);
   return (error);

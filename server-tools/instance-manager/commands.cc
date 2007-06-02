@@ -170,7 +170,7 @@ int Show_instances::write_data(st_net *net)
   while ((instance= iterator.next()))
   {
     Buffer send_buf;  /* buffer for packets */
-    uint pos= 0;
+    size_t pos= 0;
 
     instance->lock();
 
@@ -356,7 +356,7 @@ int Show_instance_status::write_data(st_net *net, Instance *instance)
 {
   Buffer send_buf;  /* buffer for packets */
   char version_num_buf[MAX_VERSION_LENGTH];
-  uint pos= 0;
+  size_t pos= 0;
 
   const char *state_name= instance->get_state_name();
   const char *version_tag= "unknown";
@@ -379,7 +379,7 @@ int Show_instance_status::write_data(st_net *net, Instance *instance)
       store_to_protocol_packet(&send_buf, version_num, &pos) ||
       store_to_protocol_packet(&send_buf, version_tag, &pos) ||
       store_to_protocol_packet(&send_buf, mysqld_compatible_status, &pos) ||
-      my_net_write(net, send_buf.buffer, (uint) pos))
+      my_net_write(net, send_buf.buffer, pos))
   {
     return ER_OUT_OF_RESOURCES;
   }
@@ -455,7 +455,7 @@ int Show_instance_options::write_header(st_net *net)
 int Show_instance_options::write_data(st_net *net, Instance *instance)
 {
   Buffer send_buff;  /* buffer for packets */
-  uint pos= 0;
+  size_t pos= 0;
 
   if (store_to_protocol_packet(&send_buff, "instance_name", &pos) ||
       store_to_protocol_packet(&send_buff, get_instance_name()->str, &pos) ||
@@ -618,7 +618,7 @@ bool Create_instance::init(const char **text)
 
 bool Create_instance::parse_args(const char **text)
 {
-  uint len;
+  size_t len;
 
   /* Check if we have something (and trim leading spaces). */
 
@@ -991,13 +991,13 @@ int Show_instance_log::write_header(st_net *net)
 int Show_instance_log::write_data(st_net *net, Instance *instance)
 {
   Buffer send_buff;  /* buffer for packets */
-  uint pos= 0;
+  size_t pos= 0;
 
   const char *logpath= instance->options.logs[log_type];
   File fd;
 
   size_t buff_size;
-  int read_len;
+  size_t read_len;
 
   MY_STAT file_stat;
   Buffer read_buff;
@@ -1020,8 +1020,8 @@ int Show_instance_log::write_data(st_net *net, Instance *instance)
   /* read in one chunk */
   read_len= (int)my_seek(fd, file_stat.st_size - size, MY_SEEK_SET, MYF(0));
 
-  if ((read_len= my_read(fd, (byte*) read_buff.buffer,
-                         buff_size, MYF(0))) < 0)
+  if ((read_len= my_read(fd, read_buff.buffer, buff_size, MYF(0))) ==
+      MY_FILE_ERROR)
   {
     close(fd);
     return ER_READ_FILE;
@@ -1029,7 +1029,8 @@ int Show_instance_log::write_data(st_net *net, Instance *instance)
 
   close(fd);
 
-  if (store_to_protocol_packet(&send_buff, read_buff.buffer, &pos, read_len) ||
+  if (store_to_protocol_packet(&send_buff, (char*) read_buff.buffer, &pos,
+                               read_len) ||
       my_net_write(net, send_buff.buffer, pos))
   {
     return ER_OUT_OF_RESOURCES;
@@ -1142,7 +1143,7 @@ int Show_instance_log_files::write_data(st_net *net, Instance *instance)
     enum { LOG_NAME_BUFFER_SIZE= 20 };
     char buff[LOG_NAME_BUFFER_SIZE];
 
-    uint pos= 0;
+    size_t pos= 0;
 
     const char *log_path= "";
     const char *log_size= "0";
@@ -1227,12 +1228,12 @@ bool Instance_options_list::init()
 
 C_MODE_START
 
-static byte* get_item_key(const byte* item, uint* len,
-                          my_bool __attribute__((unused)) t)
+static uchar* get_item_key(const uchar* item, size_t* len,
+                           my_bool __attribute__((unused)) t)
 {
   const Instance_options_list *lst= (const Instance_options_list *) item;
   *len= lst->get_instance_name()->length;
-  return (byte *) lst->get_instance_name()->str;
+  return (uchar *) lst->get_instance_name()->str;
 }
 
 static void delete_item(void *item)
@@ -1358,7 +1359,7 @@ Abstract_option_cmd::get_instance_options_list(const LEX_STRING *instance_name)
 {
   Instance_options_list *lst=
     (Instance_options_list *) hash_search(&instance_options_map,
-                                        (byte *) instance_name->str,
+                                        (uchar *) instance_name->str,
                                         instance_name->length);
 
   if (!lst)
@@ -1368,7 +1369,7 @@ Abstract_option_cmd::get_instance_options_list(const LEX_STRING *instance_name)
     if (!lst)
       return NULL;
 
-    if (lst->init() || my_hash_insert(&instance_options_map, (byte *) lst))
+    if (lst->init() || my_hash_insert(&instance_options_map, (uchar *) lst))
     {
       delete lst;
       return NULL;
@@ -1458,7 +1459,7 @@ int Abstract_option_cmd::execute_impl(st_net *net, ulong connection_id)
 
 bool Set_option::parse_args(const char **text)
 {
-  uint len;
+  size_t len;
 
   /* Check if we have something (and trim leading spaces). */
 
@@ -1632,7 +1633,7 @@ int Set_option::process_option(Instance *instance, Named_value *option)
 
 bool Unset_option::parse_args(const char **text)
 {
-  uint len;
+  size_t len;
 
   /* Check if we have something (and trim leading spaces). */
 

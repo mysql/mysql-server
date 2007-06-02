@@ -192,7 +192,7 @@ uint sql_command_flags[SQLCOM_END+1];
 
 void init_update_queries(void)
 {
-  bzero((gptr) &sql_command_flags, sizeof(sql_command_flags));
+  bzero((uchar*) &sql_command_flags, sizeof(sql_command_flags));
 
   sql_command_flags[SQLCOM_CREATE_TABLE]=   CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_INDEX]=   CF_CHANGES_DATA;
@@ -371,8 +371,9 @@ pthread_handler_t handle_bootstrap(void *arg)
       continue;
 
     thd->query_length=length;
-    thd->query= thd->memdup_w_gap(buff, length+1, 
-				  thd->db_length+1+QUERY_CACHE_FLAGS_SIZE);
+    thd->query= (char*) thd->memdup_w_gap(buff, length+1, 
+                                          thd->db_length+1+
+                                          QUERY_CACHE_FLAGS_SIZE);
     thd->query[length] = '\0';
     DBUG_PRINT("query",("%-.4096s",thd->query));
     /*
@@ -759,13 +760,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     statistic_increment(thd->status_var.com_other, &LOCK_status);
     thd->enable_slow_log= opt_log_slow_admin_statements;
-    db.str= thd->alloc(db_len + tbl_len + 2);
-    db.length= db_len;
+    db.str= (char*) thd->alloc(db_len + tbl_len + 2);
     if (!db.str)
     {
       my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
       break;
     }
+    db.length= db_len;
     tbl_name= strmake(db.str, packet + 1, db_len)+1;
     strmake(tbl_name, packet + db_len + 2, tbl_len);
     mysql_table_dump(thd, &db, tbl_name);
@@ -853,8 +854,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (save_user_connect)
 	decrease_user_connections(save_user_connect);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
-      x_free((gptr) save_db);
-      x_free((gptr)  save_security_ctx.user);
+      x_free((uchar*) save_db);
+      x_free((uchar*)  save_security_ctx.user);
     }
     break;
   }
@@ -951,7 +952,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* Locked closure of all tables */
     TABLE_LIST table_list;
     LEX_STRING conv_name;
-    uint dummy;
+    size_t dummy;
 
     /* used as fields initializator */
     lex_start(thd);
@@ -979,7 +980,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
 
     thd->query_length= (uint) (packet_end - packet); // Don't count end \0
-    if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
+    if (!(thd->query=fields= (char*) thd->memdup(packet,thd->query_length+1)))
       break;
     general_log_print(thd, command, "%s %s", table_list.table_name, fields);
     if (lower_case_table_names)
@@ -998,8 +999,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     mysql_reset_thd_for_next_command(thd);
 
     thd->lex->
-      select_lex.table_list.link_in_list((byte*) &table_list,
-                                         (byte**) &table_list.next_local);
+      select_lex.table_list.link_in_list((uchar*) &table_list,
+                                         (uchar**) &table_list.next_local);
     thd->lex->add_to_query_tables(&table_list);
 
     /* switch on VIEW optimisation: do not fill temporary tables */
@@ -1195,7 +1196,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
 #endif
 #ifndef EMBEDDED_LIBRARY
-    VOID(my_net_write(net, buff, length));
+    VOID(my_net_write(net, (uchar*) buff, length));
       VOID(net_flush(net));
 #endif
     break;
@@ -1394,7 +1395,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
 #else
     {
       LEX_STRING db;
-      uint dummy;
+      size_t dummy;
       if (lex->select_lex.db == NULL &&
           thd->copy_db_to(&lex->select_lex.db, &dummy))
       {
@@ -1495,7 +1496,7 @@ bool alloc_query(THD *thd, const char *packet, uint packet_length)
   }
   /* We must allocate some extra memory for query cache */
   thd->query_length= 0;                        // Extra safety: Avoid races
-  if (!(thd->query= (char*) thd->memdup_w_gap((gptr) (packet),
+  if (!(thd->query= (char*) thd->memdup_w_gap((uchar*) (packet),
 					      packet_length,
 					      thd->db_length+ 1 +
 					      QUERY_CACHE_FLAGS_SIZE)))
@@ -1960,7 +1961,7 @@ mysql_execute_command(THD *thd)
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_backup_table(thd, first_table);
-    select_lex->table_list.first= (byte*) first_table;
+    select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
     break;
   }
@@ -1972,7 +1973,7 @@ mysql_execute_command(THD *thd)
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_restore_table(thd, first_table);
-    select_lex->table_list.first= (byte*) first_table;
+    select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
     break;
   }
@@ -2471,7 +2472,7 @@ end_with_restore_list:
                           thd->query, thd->query_length, 0, FALSE);
       }
     }
-    select_lex->table_list.first= (byte*) first_table;
+    select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
     break;
   }
@@ -2482,7 +2483,7 @@ end_with_restore_list:
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_check_table(thd, first_table, &lex->check_opt);
-    select_lex->table_list.first= (byte*) first_table;
+    select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
     break;
   }
@@ -2506,7 +2507,7 @@ end_with_restore_list:
                           thd->query, thd->query_length, 0, FALSE);
       }
     }
-    select_lex->table_list.first= (byte*) first_table;
+    select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
     break;
   }
@@ -2533,7 +2534,7 @@ end_with_restore_list:
                           thd->query, thd->query_length, 0, FALSE);
       }
     }
-    select_lex->table_list.first= (byte*) first_table;
+    select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
     break;
   }
@@ -2699,7 +2700,7 @@ end_with_restore_list:
     {
       /* Skip first table, which is the table we are inserting in */
       TABLE_LIST *second_table= first_table->next_local;
-      select_lex->table_list.first= (byte*) second_table;
+      select_lex->table_list.first= (uchar*) second_table;
       select_lex->context.table_list= 
         select_lex->context.first_name_resolution_table= second_table;
       res= mysql_insert_select_prepare(thd);
@@ -2732,7 +2733,7 @@ end_with_restore_list:
         delete sel_result;
       }
       /* revert changes for SP */
-      select_lex->table_list.first= (byte*) first_table;
+      select_lex->table_list.first= (uchar*) first_table;
     }
 
     /*
@@ -4996,17 +4997,14 @@ bool check_merge_table_access(THD *thd, char *db,
 	Check stack size; Send error if there isn't enough stack to continue
 ****************************************************************************/
 
-#if STACK_DIRECTION < 0
-#define used_stack(A,B) (long) (A - B)
-#else
-#define used_stack(A,B) (long) (B - A)
-#endif
+#ifndef EMBEDDED_LIBRARY
+
+#define used_stack(A,B) (long)(A > B ? A - B : B - A)
 
 #ifndef DBUG_OFF
 long max_stack_used;
 #endif
 
-#ifndef EMBEDDED_LIBRARY
 /*
   Note: The 'buf' parameter is necessary, even if it is unused here.
   - fix_fields functions has a "dummy" buffer large enough for the
@@ -5014,7 +5012,7 @@ long max_stack_used;
   - Passing to check_stack_overrun() prevents the compiler from removing it.
  */
 bool check_stack_overrun(THD *thd, long margin,
-			 char *buf __attribute__((unused)))
+			 uchar *buf __attribute__((unused)))
 {
   long stack_used;
   DBUG_ASSERT(thd == current_thd);
@@ -5046,19 +5044,19 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
   if (!lex->yacc_yyvs)
     old_info= *yystacksize;
   *yystacksize= set_zone((*yystacksize)*2,MY_YACC_INIT,MY_YACC_MAX);
-  if (!(lex->yacc_yyvs= (char*)
-	my_realloc((gptr) lex->yacc_yyvs,
+  if (!(lex->yacc_yyvs= (uchar*)
+	my_realloc(lex->yacc_yyvs,
 		   *yystacksize*sizeof(**yyvs),
 		   MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))) ||
-      !(lex->yacc_yyss= (char*)
-	my_realloc((gptr) lex->yacc_yyss,
+      !(lex->yacc_yyss= (uchar*)
+	my_realloc(lex->yacc_yyss,
 		   *yystacksize*sizeof(**yyss),
 		   MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))))
     return 1;
   if (old_info)
   {						// Copy old info from stack
-    memcpy(lex->yacc_yyss, (gptr) *yyss, old_info*sizeof(**yyss));
-    memcpy(lex->yacc_yyvs, (gptr) *yyvs, old_info*sizeof(**yyvs));
+    memcpy(lex->yacc_yyss, (uchar*) *yyss, old_info*sizeof(**yyss));
+    memcpy(lex->yacc_yyvs, (uchar*) *yyvs, old_info*sizeof(**yyvs));
   }
   *yyss=(short*) lex->yacc_yyss;
   *yyvs=(YYSTYPE*) lex->yacc_yyvs;
@@ -5541,7 +5539,7 @@ add_proc_to_list(THD* thd, Item *item)
   *item_ptr= item;
   order->item=item_ptr;
   order->free_me=0;
-  thd->lex->proc_list.link_in_list((byte*) order,(byte**) &order->next);
+  thd->lex->proc_list.link_in_list((uchar*) order,(uchar**) &order->next);
   return 0;
 }
 
@@ -5563,7 +5561,7 @@ bool add_to_list(THD *thd, SQL_LIST &list,Item *item,bool asc)
   order->free_me=0;
   order->used=0;
   order->counter_used= 0;
-  list.link_in_list((byte*) order,(byte**) &order->next);
+  list.link_in_list((uchar*) order,(uchar**) &order->next);
   DBUG_RETURN(0);
 }
 
@@ -5628,7 +5626,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
                  ER(ER_DERIVED_MUST_HAVE_ALIAS), MYF(0));
       DBUG_RETURN(0);
     }
-    if (!(alias_str=thd->memdup(alias_str,table->table.length+1)))
+    if (!(alias_str= (char*) thd->memdup(alias_str,table->table.length+1)))
       DBUG_RETURN(0);
   }
   if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
@@ -5715,7 +5713,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     previous table reference to 'ptr'. Here we also add one element to the
     list 'table_list'.
   */
-  table_list.link_in_list((byte*) ptr, (byte**) &ptr->next_local);
+  table_list.link_in_list((uchar*) ptr, (uchar**) &ptr->next_local);
   ptr->next_name_resolution_table= NULL;
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
@@ -5754,7 +5752,7 @@ bool st_select_lex::init_nested_join(THD *thd)
                                        sizeof(NESTED_JOIN))))
     DBUG_RETURN(1);
   nested_join= ptr->nested_join=
-    ((NESTED_JOIN*) ((byte*) ptr + ALIGN_SIZE(sizeof(TABLE_LIST))));
+    ((NESTED_JOIN*) ((uchar*) ptr + ALIGN_SIZE(sizeof(TABLE_LIST))));
 
   join_list->push_front(ptr);
   ptr->embedding= embedding;
@@ -5840,7 +5838,7 @@ TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
                                        sizeof(NESTED_JOIN))))
     DBUG_RETURN(0);
   nested_join= ptr->nested_join=
-    ((NESTED_JOIN*) ((byte*) ptr + ALIGN_SIZE(sizeof(TABLE_LIST))));
+    ((NESTED_JOIN*) ((uchar*) ptr + ALIGN_SIZE(sizeof(TABLE_LIST))));
 
   ptr->embedding= embedding;
   ptr->join_list= join_list;
@@ -6433,7 +6431,7 @@ bool append_file_to_dir(THD *thd, const char **filename_ptr,
   /* Fix is using unix filename format on dos */
   strmov(buff,*filename_ptr);
   end=convert_dirname(buff, *filename_ptr, NullS);
-  if (!(ptr=thd->alloc((uint) (end-buff)+(uint) strlen(table_name)+1)))
+  if (!(ptr= (char*) thd->alloc((size_t) (end-buff) + strlen(table_name)+1)))
     return 1;					// End of memory
   *filename_ptr=ptr;
   strxmov(ptr,buff,table_name,NullS);
