@@ -4179,6 +4179,40 @@ my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val)
 }
 
 
+double Item_func_set_user_var::val_real_result()
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_real(&null_value);
+}
+
+longlong Item_func_set_user_var::val_int_result()
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_int(&null_value);
+}
+
+String *Item_func_set_user_var::val_str_result(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_str(&null_value, str, decimals);
+}
+
+
+my_decimal *Item_func_set_user_var::val_decimal_result(my_decimal *val)
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_decimal(&null_value, val);
+}
+
+
 void Item_func_set_user_var::print(String *str)
 {
   str->append(STRING_WITH_LEN("(@"));
