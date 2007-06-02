@@ -23,7 +23,7 @@
       fd	File descriptor
 */
 
-my_string my_filename(File fd)
+char * my_filename(File fd)
 {
   DBUG_ENTER("my_filename");
   if ((uint) fd >= (uint) my_file_limit)

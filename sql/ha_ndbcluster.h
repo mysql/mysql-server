@@ -84,7 +84,7 @@ typedef struct ndb_index_data {
 typedef union { const NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
 
 int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
-                        byte*& buffer, uint& buffer_size,
+                        uchar*& buffer, uint& buffer_size,
                         my_ptrdiff_t ptrdiff);
 
 typedef enum {
@@ -115,7 +115,7 @@ typedef struct st_ndbcluster_share {
   char *old_names; // for rename table
   TABLE_SHARE *table_share;
   TABLE *table;
-  byte *record[2]; // pointer to allocated records for receiving data
+  uchar *record[2]; // pointer to allocated records for receiving data
   NdbValue *ndb_value[2];
   MY_BITMAP *subscriber_bitmap;
 #endif
@@ -224,30 +224,30 @@ class ha_ndbcluster: public handler
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
 
-  int write_row(byte *buf);
-  int update_row(const byte *old_data, byte *new_data);
-  int delete_row(const byte *buf);
+  int write_row(uchar *buf);
+  int update_row(const uchar *old_data, uchar *new_data);
+  int delete_row(const uchar *buf);
   int index_init(uint index, bool sorted);
   int index_end();
-  int index_read(byte *buf, const byte *key, uint key_len, 
+  int index_read(uchar *buf, const uchar *key, uint key_len, 
                  enum ha_rkey_function find_flag);
-  int index_next(byte *buf);
-  int index_prev(byte *buf);
-  int index_first(byte *buf);
-  int index_last(byte *buf);
-  int index_read_last(byte * buf, const byte * key, uint key_len);
+  int index_next(uchar *buf);
+  int index_prev(uchar *buf);
+  int index_first(uchar *buf);
+  int index_last(uchar *buf);
+  int index_read_last(uchar * buf, const uchar * key, uint key_len);
   int rnd_init(bool scan);
   int rnd_end();
-  int rnd_next(byte *buf);
-  int rnd_pos(byte *buf, byte *pos);
-  void position(const byte *record);
+  int rnd_next(uchar *buf);
+  int rnd_pos(uchar *buf, uchar *pos);
+  void position(const uchar *record);
   int read_range_first(const key_range *start_key,
                        const key_range *end_key,
                        bool eq_range, bool sorted);
   int read_range_first_to_buf(const key_range *start_key,
                               const key_range *end_key,
                               bool eq_range, bool sorted,
-                              byte* buf);
+                              uchar* buf);
   int read_range_next();
   int alter_tablespace(st_alter_tablespace *info);
 
@@ -416,56 +416,56 @@ private:
   char* get_tablespace_name(THD *thd, char *name, uint name_len);
   int set_range_data(void *tab, partition_info* part_info);
   int set_list_data(void *tab, partition_info* part_info);
-  int complemented_read(const byte *old_data, byte *new_data,
+  int complemented_read(const uchar *old_data, uchar *new_data,
                         uint32 old_part_id);
-  int pk_read(const byte *key, uint key_len, byte *buf, uint32 part_id);
+  int pk_read(const uchar *key, uint key_len, uchar *buf, uint32 part_id);
   int ordered_index_scan(const key_range *start_key,
                          const key_range *end_key,
-                         bool sorted, bool descending, byte* buf,
+                         bool sorted, bool descending, uchar* buf,
                          part_id_range *part_spec);
-  int unique_index_read(const byte *key, uint key_len, 
-                        byte *buf);
+  int unique_index_read(const uchar *key, uint key_len, 
+                        uchar *buf);
   int unique_index_scan(const KEY* key_info, 
-			const byte *key, 
+			const uchar *key, 
 			uint key_len,
-			byte *buf);
-  int full_table_scan(byte * buf);
+			uchar *buf);
+  int full_table_scan(uchar * buf);
 
   bool check_all_operations_for_error(NdbTransaction *trans,
                                       const NdbOperation *first,
                                       const NdbOperation *last,
                                       uint errcode);
-  int peek_indexed_rows(const byte *record, bool check_pk);
+  int peek_indexed_rows(const uchar *record, bool check_pk);
   int fetch_next(NdbScanOperation* op);
-  int next_result(byte *buf); 
-  int define_read_attrs(byte* buf, NdbOperation* op);
-  int filtered_scan(const byte *key, uint key_len, 
-                    byte *buf,
+  int next_result(uchar *buf); 
+  int define_read_attrs(uchar* buf, NdbOperation* op);
+  int filtered_scan(const uchar *key, uint key_len, 
+                    uchar *buf,
                     enum ha_rkey_function find_flag);
   int close_scan();
-  void unpack_record(byte *buf);
+  void unpack_record(uchar *buf);
   int get_ndb_lock_type(enum thr_lock_type type);
 
   void set_dbname(const char *pathname);
   void set_tabname(const char *pathname);
 
   bool set_hidden_key(NdbOperation*,
-                      uint fieldnr, const byte* field_ptr);
+                      uint fieldnr, const uchar* field_ptr);
   int set_ndb_key(NdbOperation*, Field *field,
-                  uint fieldnr, const byte* field_ptr);
+                  uint fieldnr, const uchar* field_ptr);
   int set_ndb_value(NdbOperation*, Field *field, uint fieldnr,
 		    int row_offset= 0, bool *set_blob_value= 0);
-  int get_ndb_value(NdbOperation*, Field *field, uint fieldnr, byte*);
+  int get_ndb_value(NdbOperation*, Field *field, uint fieldnr, uchar*);
   int get_ndb_partition_id(NdbOperation *);
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
-  int set_primary_key(NdbOperation *op, const byte *key);
-  int set_primary_key_from_record(NdbOperation *op, const byte *record);
-  int set_index_key_from_record(NdbOperation *op, const byte *record,
+  int set_primary_key(NdbOperation *op, const uchar *key);
+  int set_primary_key_from_record(NdbOperation *op, const uchar *record);
+  int set_index_key_from_record(NdbOperation *op, const uchar *record,
                                 uint keyno);
   int set_bounds(NdbIndexScanOperation*, uint inx, bool rir,
                  const key_range *keys[2], uint= 0);
-  int key_cmp(uint keynr, const byte * old_row, const byte * new_row);
-  int set_index_key(NdbOperation *, const KEY *key_info, const byte *key_ptr);
+  int key_cmp(uint keynr, const uchar * old_row, const uchar * new_row);
+  int set_index_key(NdbOperation *, const KEY *key_info, const uchar *key_ptr);
   void print_results();
 
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
@@ -508,10 +508,10 @@ private:
   THD_NDB_SHARE *m_thd_ndb_share;
   // NdbRecAttr has no reference to blob
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
-  byte m_ref[NDB_HIDDEN_PRIMARY_KEY_LENGTH];
+  uchar m_ref[NDB_HIDDEN_PRIMARY_KEY_LENGTH];
   partition_info *m_part_info;
   uint32 m_part_id;
-  byte *m_rec0;
+  uchar *m_rec0;
   Field **m_part_field_array;
   bool m_use_partition_function;
   bool m_sorted;
@@ -534,7 +534,7 @@ private:
   bool m_slow_path;
   my_ptrdiff_t m_blobs_offset;
   // memory for blobs in one tuple
-  char *m_blobs_buffer;
+  uchar *m_blobs_buffer;
   uint32 m_blobs_buffer_size;
   uint m_dupkey;
   // set from thread variables at external lock
@@ -545,12 +545,12 @@ private:
 
   ha_ndbcluster_cond *m_cond;
   bool m_disable_multi_read;
-  byte *m_multi_range_result_ptr;
+  uchar *m_multi_range_result_ptr;
   KEY_MULTI_RANGE *m_multi_ranges;
   KEY_MULTI_RANGE *m_multi_range_defined;
   const NdbOperation *m_current_multi_operation;
   NdbIndexScanOperation *m_multi_cursor;
-  byte *m_multi_range_cursor_result_ptr;
+  uchar *m_multi_range_cursor_result_ptr;
   int setup_recattr(const NdbRecAttr*);
   Ndb *get_ndb();
 };

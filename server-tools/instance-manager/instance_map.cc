@@ -37,12 +37,12 @@ C_MODE_START
   HASH-routines: get key of instance for storing in hash.
 */
 
-static byte* get_instance_key(const byte* u, uint* len,
-                          my_bool __attribute__((unused)) t)
+static uchar* get_instance_key(const uchar* u, size_t* len,
+                               my_bool __attribute__((unused)) t)
 {
   const Instance *instance= (const Instance *) u;
   *len= instance->options.instance_name.length;
-  return (byte *) instance->options.instance_name.str;
+  return (uchar *) instance->options.instance_name.str;
 }
 
 /**
@@ -165,7 +165,7 @@ int Instance_map::process_one_option(const LEX_STRING *group,
     return 0;
   }
 
-  if (!(instance= (Instance *) hash_search(&hash, (byte *) group->str,
+  if (!(instance= (Instance *) hash_search(&hash, (uchar *) group->str,
                                            group->length)))
   {
     if (!(instance= new Instance()))
@@ -332,7 +332,7 @@ bool Instance_map::is_there_active_instance()
 
 int Instance_map::add_instance(Instance *instance)
 {
-  return my_hash_insert(&hash, (byte *) instance);
+  return my_hash_insert(&hash, (uchar *) instance);
 }
 
 
@@ -344,7 +344,7 @@ int Instance_map::add_instance(Instance *instance)
 
 int Instance_map::remove_instance(Instance *instance)
 {
-  return hash_delete(&hash, (byte *) instance);
+  return hash_delete(&hash, (uchar *) instance);
 }
 
 
@@ -425,7 +425,7 @@ int Instance_map::create_instance(const LEX_STRING *instance_name,
 
 Instance * Instance_map::find(const LEX_STRING *name)
 {
-  return (Instance *) hash_search(&hash, (byte *) name->str, name->length);
+  return (Instance *) hash_search(&hash, (uchar *) name->str, name->length);
 }
 
 
@@ -603,12 +603,12 @@ int create_instance_in_file(const LEX_STRING *instance_name,
     return ER_ACCESS_OPTION_FILE;
   }
 
-  if (my_write(cnf_file, (byte*)NEWLINE, NEWLINE_LEN, MYF(MY_NABP)) ||
-      my_write(cnf_file, (byte*)"[", 1, MYF(MY_NABP)) ||
-      my_write(cnf_file, (byte*)instance_name->str, instance_name->length,
+  if (my_write(cnf_file, (uchar*)NEWLINE, NEWLINE_LEN, MYF(MY_NABP)) ||
+      my_write(cnf_file, (uchar*)"[", 1, MYF(MY_NABP)) ||
+      my_write(cnf_file, (uchar*)instance_name->str, instance_name->length,
                MYF(MY_NABP)) ||
-      my_write(cnf_file, (byte*)"]", 1,   MYF(MY_NABP)) ||
-      my_write(cnf_file, (byte*)NEWLINE, NEWLINE_LEN, MYF(MY_NABP)))
+      my_write(cnf_file, (uchar*)"]", 1,   MYF(MY_NABP)) ||
+      my_write(cnf_file, (uchar*)NEWLINE, NEWLINE_LEN, MYF(MY_NABP)))
   {
     log_error("Can not write to configuration file (%s): %s.",
               (const char *) Options::Main::config_file,
@@ -631,8 +631,8 @@ int create_instance_in_file(const LEX_STRING *instance_name,
 
     option_str_len= ptr - option_str;
 
-    if (my_write(cnf_file, (byte*)option_str, option_str_len, MYF(MY_NABP)) ||
-        my_write(cnf_file, (byte*)NEWLINE, NEWLINE_LEN, MYF(MY_NABP)))
+    if (my_write(cnf_file, (uchar*)option_str, option_str_len, MYF(MY_NABP)) ||
+        my_write(cnf_file, (uchar*)NEWLINE, NEWLINE_LEN, MYF(MY_NABP)))
     {
       log_error("Can not write to configuration file (%s): %s.",
                 (const char *) Options::Main::config_file,

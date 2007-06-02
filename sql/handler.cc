@@ -368,7 +368,7 @@ static int ha_finish_errors(void)
   /* Allocate a pointer array for the error message strings. */
   if (! (errmsgs= my_error_unregister(HA_ERR_FIRST, HA_ERR_LAST)))
     return 1;
-  my_free((gptr) errmsgs, MYF(0));
+  my_free((uchar*) errmsgs, MYF(0));
   return 0;
 }
 
@@ -406,7 +406,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
     }
   }
 
-  my_free((gptr)hton, MYF(0));
+  my_free((uchar*)hton, MYF(0));
 
   DBUG_RETURN(0);
 }
@@ -1053,7 +1053,7 @@ static my_bool xarecover_handlerton(THD *unused, plugin_ref plugin,
         }
         // recovery mode
         if (info->commit_list ?
-            hash_search(info->commit_list, (byte *)&x, sizeof(x)) != 0 :
+            hash_search(info->commit_list, (uchar *)&x, sizeof(x)) != 0 :
             tc_heuristic_recover == TC_HEURISTIC_RECOVER_COMMIT)
         {
 #ifndef DBUG_OFF
@@ -1123,7 +1123,7 @@ int ha_recover(HASH *commit_list)
   plugin_foreach(NULL, xarecover_handlerton, 
                  MYSQL_STORAGE_ENGINE_PLUGIN, &info);
 
-  my_free((gptr)info.list, MYF(0));
+  my_free((uchar*)info.list, MYF(0));
   if (info.found_foreign_xids)
     sql_print_warning("Found %d prepared XA transactions", 
                       info.found_foreign_xids);
@@ -1247,7 +1247,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
   {
     int err;
     DBUG_ASSERT((*ht)->savepoint_set != 0);
-    if ((err= (*(*ht)->savepoint_rollback)(*ht, thd, (byte *)(sv+1)+(*ht)->savepoint_offset)))
+    if ((err= (*(*ht)->savepoint_rollback)(*ht, thd, (uchar *)(sv+1)+(*ht)->savepoint_offset)))
     { // cannot happen
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
       error=1;
@@ -1296,7 +1296,7 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
       error=1;
       break;
     }
-    if ((err= (*(*ht)->savepoint_set)(*ht, thd, (byte *)(sv+1)+(*ht)->savepoint_offset)))
+    if ((err= (*(*ht)->savepoint_set)(*ht, thd, (uchar *)(sv+1)+(*ht)->savepoint_offset)))
     { // cannot happen
       my_error(ER_GET_ERRNO, MYF(0), err);
       error=1;
@@ -1323,7 +1323,7 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv)
     if (!(*ht)->savepoint_release)
       continue;
     if ((err= (*(*ht)->savepoint_release)(*ht, thd, 
-                                          (byte *)(sv+1)+
+                                          (uchar *)(sv+1)+
                                           (*ht)->savepoint_offset)))
     { // cannot happen
       my_error(ER_GET_ERRNO, MYF(0), err);
@@ -1573,7 +1573,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
       table->db_stat|=HA_READ_ONLY;
     (void) extra(HA_EXTRA_NO_READCHECK);	// Not needed in SQL
 
-    if (!(ref= (byte*) alloc_root(&table->mem_root, ALIGN_SIZE(ref_length)*2)))
+    if (!(ref= (uchar*) alloc_root(&table->mem_root, ALIGN_SIZE(ref_length)*2)))
     {
       close();
       error=HA_ERR_OUT_OF_MEM;
@@ -1591,7 +1591,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   This is never called for InnoDB tables, as these table types
   has the HA_STATS_RECORDS_IS_EXACT set.
 */
-int handler::read_first_row(byte * buf, uint primary_key)
+int handler::read_first_row(uchar * buf, uint primary_key)
 {
   register int error;
   DBUG_ENTER("handler::read_first_row");
@@ -2000,7 +2000,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   }
   else
   {
-    byte key[MAX_KEY_LENGTH];
+    uchar key[MAX_KEY_LENGTH];
     key_copy(key, table->record[0],
              table->key_info + table->s->next_number_index,
              table->s->next_number_key_offset);
@@ -2359,12 +2359,12 @@ static bool update_frm_version(TABLE *table)
 
     int4store(version, MYSQL_VERSION_ID);
 
-    if ((result= my_pwrite(file,(byte*) version,4,51L,MYF_RW)))
+    if ((result= my_pwrite(file,(uchar*) version,4,51L,MYF_RW)))
       goto err;
 
-    for (entry=(TABLE*) hash_first(&open_cache,(byte*) key,key_length, &state);
+    for (entry=(TABLE*) hash_first(&open_cache,(uchar*) key,key_length, &state);
          entry;
-         entry= (TABLE*) hash_next(&open_cache,(byte*) key,key_length, &state))
+         entry= (TABLE*) hash_next(&open_cache,(uchar*) key,key_length, &state))
       entry->s->mysql_version= MYSQL_VERSION_ID;
   }
 err:
@@ -2527,7 +2527,7 @@ int ha_enable_transaction(THD *thd, bool on)
   DBUG_RETURN(error);
 }
 
-int handler::index_next_same(byte *buf, const byte *key, uint keylen)
+int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
 {
   int error;
   if (!(error=index_next(buf)))
@@ -2636,8 +2636,8 @@ err:
 int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
 {
   int error;
-  const void *frmblob;
-  uint frmlen;
+  uchar *frmblob;
+  size_t frmlen;
   char path[FN_REFLEN];
   HA_CREATE_INFO create_info;
   TABLE table;
@@ -2645,7 +2645,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   DBUG_ENTER("ha_create_table_from_engine");
   DBUG_PRINT("enter", ("name '%s'.'%s'", db, name));
 
-  bzero((char*) &create_info,sizeof(create_info));
+  bzero((uchar*) &create_info,sizeof(create_info));
   if ((error= ha_discover(thd, db, name, &frmblob, &frmlen)))
   {
     /* Table could not be discovered and thus not created */
@@ -2660,7 +2660,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   (void)strxnmov(path,FN_REFLEN-1,mysql_data_home,"/",db,"/",name,NullS);
   // Save the frm file
   error= writefrm(path, frmblob, frmlen);
-  my_free((char*) frmblob, MYF(0));
+  my_free(frmblob, MYF(0));
   if (error)
     DBUG_RETURN(2);
 
@@ -2802,8 +2802,8 @@ struct st_discover_args
 {
   const char *db;
   const char *name;
-  const void** frmblob; 
-  uint* frmlen;
+  uchar **frmblob; 
+  size_t *frmlen;
 };
 
 static my_bool discover_handlerton(THD *thd, plugin_ref plugin,
@@ -2821,7 +2821,7 @@ static my_bool discover_handlerton(THD *thd, plugin_ref plugin,
 }
 
 int ha_discover(THD *thd, const char *db, const char *name,
-		const void **frmblob, uint *frmlen)
+		uchar **frmblob, size_t *frmlen)
 {
   int error= -1; // Table does not exist in any handler
   DBUG_ENTER("ha_discover");
@@ -3311,7 +3311,7 @@ int handler::compare_key(key_range *range)
 }
 
 
-int handler::index_read_idx(byte * buf, uint index, const byte * key,
+int handler::index_read_idx(uchar * buf, uint index, const uchar * key,
                             key_part_map keypart_map,
                             enum ha_rkey_function find_flag)
 {
@@ -3571,8 +3571,8 @@ namespace
 
   template<class RowsEventT> int
   binlog_log_row(TABLE* table,
-                 const byte *before_record,
-                 const byte *after_record)
+                 const uchar *before_record,
+                 const uchar *after_record)
   {
     if (table->file->ha_table_flags() & HA_HAS_OWN_BINLOGGING)
       return 0;
@@ -3621,13 +3621,13 @@ namespace
   */
 
   template int
-  binlog_log_row<Write_rows_log_event>(TABLE *, const byte *, const byte *);
+  binlog_log_row<Write_rows_log_event>(TABLE *, const uchar *, const uchar *);
 
   template int
-  binlog_log_row<Delete_rows_log_event>(TABLE *, const byte *, const byte *);
+  binlog_log_row<Delete_rows_log_event>(TABLE *, const uchar *, const uchar *);
 
   template int
-  binlog_log_row<Update_rows_log_event>(TABLE *, const byte *, const byte *);
+  binlog_log_row<Update_rows_log_event>(TABLE *, const uchar *, const uchar *);
 }
 
 
@@ -3651,9 +3651,9 @@ int handler::ha_reset()
 {
   DBUG_ENTER("ha_reset");
   /* Check that we have called all proper deallocation functions */
-  DBUG_ASSERT((byte*) table->def_read_set.bitmap +
+  DBUG_ASSERT((uchar*) table->def_read_set.bitmap +
               table->s->column_bitmap_size ==
-              (byte*) table->def_write_set.bitmap);
+              (uchar*) table->def_write_set.bitmap);
   DBUG_ASSERT(bitmap_is_set_all(&table->s->all_set));
   DBUG_ASSERT(table->key_read == 0);
   /* ensure that ha_index_end / ha_rnd_end has been called */
@@ -3664,7 +3664,7 @@ int handler::ha_reset()
 }
 
 
-int handler::ha_write_row(byte *buf)
+int handler::ha_write_row(uchar *buf)
 {
   int error;
   if (unlikely(error= write_row(buf)))
@@ -3674,7 +3674,7 @@ int handler::ha_write_row(byte *buf)
   return 0;
 }
 
-int handler::ha_update_row(const byte *old_data, byte *new_data)
+int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 {
   int error;
 
@@ -3691,7 +3691,7 @@ int handler::ha_update_row(const byte *old_data, byte *new_data)
   return 0;
 }
 
-int handler::ha_delete_row(const byte *buf)
+int handler::ha_delete_row(const uchar *buf)
 {
   int error;
   if (unlikely(error= delete_row(buf)))
@@ -3814,7 +3814,7 @@ int fl_log_iterator_next(struct handler_iterator *iterator,
 
 void fl_log_iterator_destroy(struct handler_iterator *iterator)
 {
-  my_free((gptr)iterator->buffer, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((uchar*)iterator->buffer, MYF(MY_ALLOW_ZERO_PTR));
 }
 
 
@@ -3827,7 +3827,7 @@ fl_log_iterator_buffer_init(struct handler_iterator *iterator)
   MY_DIR *dirp;
   struct fl_buff *buff;
   char *name_ptr;
-  byte *ptr;
+  uchar *ptr;
   FILEINFO *file;
   uint32 i;
 
@@ -3838,7 +3838,7 @@ fl_log_iterator_buffer_init(struct handler_iterator *iterator)
   {
     return HA_ITERATOR_ERROR;
   }
-  if ((ptr= (byte*)my_malloc(ALIGN_SIZE(sizeof(fl_buff)) +
+  if ((ptr= (uchar*)my_malloc(ALIGN_SIZE(sizeof(fl_buff)) +
                              ((ALIGN_SIZE(sizeof(LEX_STRING)) +
                                sizeof(enum log_status) +
                                + FN_REFLEN) *

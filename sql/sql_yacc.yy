@@ -4344,10 +4344,10 @@ create_table_option:
 	    lex->create_info.merge_list= lex->select_lex.table_list;
 	    lex->create_info.merge_list.elements--;
 	    lex->create_info.merge_list.first=
-	      (byte*) (table_list->next_local);
+	      (uchar*) (table_list->next_local);
 	    lex->select_lex.table_list.elements=1;
 	    lex->select_lex.table_list.next=
-	      (byte**) &(table_list->next_local);
+	      (uchar**) &(table_list->next_local);
 	    table_list->next_local= 0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
@@ -5581,10 +5581,10 @@ alter_list_item:
 	  {
             THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
-	    uint dummy;
+	    size_t dummy;
 	    lex->select_lex.db=$3->db.str;
             if (lex->select_lex.db == NULL &&
-                thd->copy_db_to(&lex->select_lex.db, &dummy))
+	                thd->copy_db_to(&lex->select_lex.db, &dummy))
             {
               MYSQL_YYABORT;
             }
@@ -7990,7 +7990,7 @@ procedure_clause:
 	    }
 	    lex->proc_list.elements=0;
 	    lex->proc_list.first=0;
-	    lex->proc_list.next= (byte**) &lex->proc_list.first;
+	    lex->proc_list.next= (uchar**) &lex->proc_list.first;
 	    if (add_proc_to_list(lex->thd, new Item_field(&lex->
                                                           current_select->
                                                           context,
@@ -9560,8 +9560,9 @@ simple_ident_q:
               Let us add this item to list of all Item_trigger_field objects
               in trigger.
             */
-            lex->trg_table_fields.link_in_list((byte *)trg_fld,
-              (byte**)&trg_fld->next_trg_field);
+            lex->trg_table_fields.link_in_list((uchar*) trg_fld,
+	              			       (uchar**) &trg_fld->
+						next_trg_field);
 
             $$= (Item *)trg_fld;
           }
@@ -10189,7 +10190,8 @@ option_type_value:
               else
                 qbuff.length= lip->tok_end - sp->m_tmp_query;
 
-              if (!(qbuff.str= alloc_root(thd->mem_root, qbuff.length + 5)))
+              if (!(qbuff.str= (char*) alloc_root(thd->mem_root,
+                                                  qbuff.length + 5)))
                 MYSQL_YYABORT;
 
               strmake(strmake(qbuff.str, "SET ", 4), sp->m_tmp_query,
@@ -10275,8 +10277,9 @@ sys_option_value:
               Let us add this item to list of all Item_trigger_field
               objects in trigger.
             */
-            lex->trg_table_fields.link_in_list((byte *)trg_fld,
-                                    (byte **)&trg_fld->next_trg_field);
+            lex->trg_table_fields.link_in_list((uchar *)trg_fld,
+                                               (uchar **) &trg_fld->
+					       next_trg_field);
 
             lex->sphead->add_instr(sp_fld);
           }
@@ -10849,7 +10852,7 @@ grant_ident:
 	  {
             THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
-            uint dummy;
+            size_t dummy;
             if (thd->copy_db_to(&lex->current_select->db, &dummy))
               MYSQL_YYABORT;
 	    if (lex->grant == GLOBAL_ACLS)

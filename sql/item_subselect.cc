@@ -149,7 +149,7 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   DBUG_ASSERT(fixed == 0);
   engine->set_thd((thd= thd_param));
 
-  if (check_stack_overrun(thd, STACK_MIN_SIZE, (gptr)&res))
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&res))
     return TRUE;
 
   res= engine->prepare();
@@ -206,7 +206,7 @@ err:
 
 
 bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
-                          byte *argument)
+                          uchar *argument)
 {
 
   if (walk_subquery)
@@ -449,7 +449,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
       'upper' select is not really dependent => we remove this dependence
     */
     substitution->walk(&Item::remove_dependence_processor, 0,
-		       (byte *) select_lex->outer_select());
+		       (uchar *) select_lex->outer_select());
     return RES_REDUCE;
   }
   return RES_OK;

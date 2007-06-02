@@ -93,11 +93,11 @@ int sort_set (tina_set *a, tina_set *b)
   return ( a->begin > b->begin ? 1 : ( a->begin < b->begin ? -1 : 0 ) );
 }
 
-static byte* tina_get_key(TINA_SHARE *share,uint *length,
+static uchar* tina_get_key(TINA_SHARE *share, size_t *length,
                           my_bool not_used __attribute__((unused)))
 {
   *length=share->table_name_length;
-  return (byte*) share->table_name;
+  return (uchar*) share->table_name;
 }
 
 static int tina_init_func(void *p)
@@ -144,7 +144,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
     initialize its members.
   */
   if (!(share=(TINA_SHARE*) hash_search(&tina_open_tables,
-                                        (byte*) table_name,
+                                        (uchar*) table_name,
                                        length)))
   {
     if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
@@ -174,7 +174,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
       goto error;
     share->saved_data_file_length= file_stat.st_size;
 
-    if (my_hash_insert(&tina_open_tables, (byte*) share))
+    if (my_hash_insert(&tina_open_tables, (uchar*) share))
       goto error;
     thr_lock_init(&share->lock);
     pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST);
@@ -203,7 +203,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
 
 error:
   pthread_mutex_unlock(&tina_mutex);
-  my_free((gptr) share, MYF(0));
+  my_free((uchar*) share, MYF(0));
 
   return NULL;
 }
@@ -236,7 +236,7 @@ static int read_meta_file(File meta_file, ha_rows *rows)
   DBUG_ENTER("ha_tina::read_meta_file");
 
   VOID(my_seek(meta_file, 0, MY_SEEK_SET, MYF(0)));
-  if (my_read(meta_file, (byte*)meta_buffer, META_BUFFER_SIZE, 0)
+  if (my_read(meta_file, (uchar*)meta_buffer, META_BUFFER_SIZE, 0)
       != META_BUFFER_SIZE)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
@@ -305,7 +305,7 @@ static int write_meta_file(File meta_file, ha_rows rows, bool dirty)
   *ptr= (uchar)dirty;
 
   VOID(my_seek(meta_file, 0, MY_SEEK_SET, MYF(0)));
-  if (my_write(meta_file, (byte *)meta_buffer, META_BUFFER_SIZE, 0)
+  if (my_write(meta_file, (uchar *)meta_buffer, META_BUFFER_SIZE, 0)
       != META_BUFFER_SIZE)
     DBUG_RETURN(-1);
 
@@ -376,10 +376,10 @@ static int free_share(TINA_SHARE *share)
       share->tina_write_opened= FALSE;
     }
 
-    hash_delete(&tina_open_tables, (byte*) share);
+    hash_delete(&tina_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
     pthread_mutex_destroy(&share->mutex);
-    my_free((gptr) share, MYF(0));
+    my_free((uchar*) share, MYF(0));
   }
   pthread_mutex_unlock(&tina_mutex);
 
@@ -454,7 +454,7 @@ ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
   Encode a buffer into the quoted format.
 */
 
-int ha_tina::encode_quote(byte *buf)
+int ha_tina::encode_quote(uchar *buf)
 {
   char attribute_buffer[1024];
   String attribute(attribute_buffer, sizeof(attribute_buffer),
@@ -558,7 +558,7 @@ int ha_tina::chain_append()
       if (chain_alloced)
       {
         /* Must cast since my_malloc unlike malloc doesn't have a void ptr */
-        if ((chain= (tina_set *) my_realloc((gptr)chain,
+        if ((chain= (tina_set *) my_realloc((uchar*)chain,
                                             chain_size, MYF(MY_WME))) == NULL)
           return -1;
       }
@@ -584,7 +584,7 @@ int ha_tina::chain_append()
 /*
   Scans for a row.
 */
-int ha_tina::find_current_row(byte *buf)
+int ha_tina::find_current_row(uchar *buf)
 {
   off_t end_offset, curr_offset= current_position;
   int eoln_len;
@@ -851,7 +851,7 @@ int ha_tina::close(void)
   of the file and appends the data. In an error case it really should
   just truncate to the original position (this is not done yet).
 */
-int ha_tina::write_row(byte * buf)
+int ha_tina::write_row(uchar * buf)
 {
   int size;
   DBUG_ENTER("ha_tina::write_row");
@@ -871,7 +871,7 @@ int ha_tina::write_row(byte * buf)
       DBUG_RETURN(-1);
 
    /* use pwrite, as concurrent reader could have changed the position */
-  if (my_write(share->tina_write_filedes, (byte*)buffer.ptr(), size,
+  if (my_write(share->tina_write_filedes, (uchar*)buffer.ptr(), size,
                MYF(MY_WME | MY_NABP)))
     DBUG_RETURN(-1);
 
@@ -916,7 +916,7 @@ int ha_tina::open_update_temp_file_if_needed()
   This will be called in a table scan right before the previous ::rnd_next()
   call.
 */
-int ha_tina::update_row(const byte * old_data, byte * new_data)
+int ha_tina::update_row(const uchar * old_data, uchar * new_data)
 {
   int size;
   DBUG_ENTER("ha_tina::update_row");
@@ -934,7 +934,7 @@ int ha_tina::update_row(const byte * old_data, byte * new_data)
   if (open_update_temp_file_if_needed())
     DBUG_RETURN(-1);
 
-  if (my_write(update_temp_file, (byte*)buffer.ptr(), size,
+  if (my_write(update_temp_file, (uchar*)buffer.ptr(), size,
                MYF(MY_WME | MY_NABP)))
     DBUG_RETURN(-1);
 
@@ -954,7 +954,7 @@ int ha_tina::update_row(const byte * old_data, byte * new_data)
   The table will then be deleted/positioned based on the ORDER (so RANDOM,
   DESC, ASC).
 */
-int ha_tina::delete_row(const byte * buf)
+int ha_tina::delete_row(const uchar * buf)
 {
   DBUG_ENTER("ha_tina::delete_row");
   ha_statistic_increment(&SSV::ha_delete_count);
@@ -1033,7 +1033,7 @@ int ha_tina::rnd_init(bool scan)
   NULL and "". This is ok since this table handler is for spreadsheets and
   they don't know about them either :)
 */
-int ha_tina::rnd_next(byte *buf)
+int ha_tina::rnd_next(uchar *buf)
 {
   int rc;
   DBUG_ENTER("ha_tina::rnd_next");
@@ -1065,7 +1065,7 @@ int ha_tina::rnd_next(byte *buf)
   its just a position. Look at the bdb code if you want to see a case
   where something other then a number is stored.
 */
-void ha_tina::position(const byte *record)
+void ha_tina::position(const uchar *record)
 {
   DBUG_ENTER("ha_tina::position");
   my_store_ptr(ref, ref_length, current_position);
@@ -1078,7 +1078,7 @@ void ha_tina::position(const byte *record)
   my_get_ptr() retrieves the data for you.
 */
 
-int ha_tina::rnd_pos(byte * buf, byte *pos)
+int ha_tina::rnd_pos(uchar * buf, uchar *pos)
 {
   DBUG_ENTER("ha_tina::rnd_pos");
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
@@ -1178,7 +1178,7 @@ int ha_tina::rnd_end()
       /* if there is something to write, write it */
       if ((write_end - write_begin) &&
           (my_write(update_temp_file,
-                    (byte*)(file_buff->ptr() +
+                    (uchar*)(file_buff->ptr() +
                             (write_begin - file_buff->start())),
                     write_end - write_begin, MYF_RW)))
         goto error;
@@ -1266,7 +1266,7 @@ error:
 int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
 {
   char repaired_fname[FN_REFLEN];
-  byte *buf;
+  uchar *buf;
   File repair_file;
   int rc;
   ha_rows rows_repaired= 0;
@@ -1282,7 +1282,7 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
 
   /* Don't assert in field::val() functions */
   table->use_all_columns();
-  if (!(buf= (byte*) my_malloc(table->s->reclength, MYF(MY_WME))))
+  if (!(buf= (uchar*) my_malloc(table->s->reclength, MYF(MY_WME))))
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
   /* position buffer to the start of the file */
@@ -1338,7 +1338,7 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
   {
     write_end= min(file_buff->end(), current_position);
     if ((write_end - write_begin) &&
-        (my_write(repair_file, (byte*)file_buff->ptr(),
+        (my_write(repair_file, (uchar*)file_buff->ptr(),
                   write_end - write_begin, MYF_RW)))
       DBUG_RETURN(-1);
 
@@ -1442,13 +1442,13 @@ int ha_tina::create(const char *name, TABLE *table_arg,
 int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
 {
   int rc= 0;
-  byte *buf;
+  uchar *buf;
   const char *old_proc_info;
   ha_rows count= share->rows_recorded;
   DBUG_ENTER("ha_tina::check");
 
   old_proc_info= thd_proc_info(thd, "Checking table");
-  if (!(buf= (byte*) my_malloc(table->s->reclength, MYF(MY_WME))))
+  if (!(buf= (uchar*) my_malloc(table->s->reclength, MYF(MY_WME))))
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
   /* position buffer to the start of the file */

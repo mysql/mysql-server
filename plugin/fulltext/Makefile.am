@@ -22,3 +22,6 @@ pkglib_LTLIBRARIES= mypluglib.la
 mypluglib_la_SOURCES= plugin_example.c
 mypluglib_la_LDFLAGS= -module -rpath $(pkglibdir)
 mypluglib_la_CFLAGS= -DMYSQL_DYNAMIC_PLUGIN
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%
