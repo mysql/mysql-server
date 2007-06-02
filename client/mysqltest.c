@@ -1528,7 +1528,6 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
   int col_no= -1;
   MYSQL_RES* res;
   MYSQL* mysql= &cur_con->mysql;
-  LINT_INIT(res);
 
   static DYNAMIC_STRING ds_query;
   static DYNAMIC_STRING ds_col;
@@ -1540,6 +1539,7 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
   };
 
   DBUG_ENTER("var_set_query_get_value");
+  LINT_INIT(res);
 
   strip_parentheses(command);
   DBUG_PRINT("info", ("query: %s", command->query));
