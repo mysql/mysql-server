@@ -709,10 +709,11 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view->query.str= str.c_ptr_safe();
   view->query.length= str.length();
   view->source.str= thd->query + thd->lex->create_view_select_start;
-  view->source.length= skip_rear_comments((char *)view->source.str,
-                                          (char *)thd->query +
-                                          thd->query_length) -
-                       view->source.str;
+  view->source.length= (char *)skip_rear_comments(thd->charset(),
+                                                  (char *)view->source.str,
+                                                  (char *)thd->query +
+                                                  thd->query_length) -
+                        view->source.str;
   view->file_version= 1;
   view->calc_md5(md5);
   view->md5.str= md5;
@@ -815,7 +816,7 @@ loop_out:
       }
     }
     else
-    {
+   {
       if (mode == VIEW_ALTER)
       {
 	my_error(ER_NO_SUCH_TABLE, MYF(0), view->db, view->alias);
@@ -824,103 +825,7 @@ loop_out:
       }
     }
   }
-  /* fill structure */
-  view->query.str= (char*)str.ptr();
-  view->query.length= str.length()-1; // we do not need last \0
-  view->source.str= thd->query + thd->lex->create_view_select_start;
-  view->source.length= (char *)skip_rear_comments((char *)view->source.str,
-                                                  (char *)thd->query +
-                                                  thd->query_length) -
-                        view->source.str;
-  view->file_version= 1;
-  view->calc_md5(md5);
-  view->md5.str= md5;
-  view->md5.length= 32;
-  can_be_merged= lex->can_be_merged();
-  if (lex->create_view_algorithm == VIEW_ALGORITHM_MERGE &&
-      !lex->can_be_merged())
-  {
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_VIEW_MERGE,
-                 ER(ER_WARN_VIEW_MERGE));
-    lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
-  }
-  view->algorithm= lex->create_view_algorithm;
-  view->definer.user= lex->definer->user;
-  view->definer.host= lex->definer->host;
-  view->view_suid= lex->create_view_suid;
-  view->with_check= lex->create_view_check;
-  if ((view->updatable_view= (can_be_merged &&
-                              view->algorithm != VIEW_ALGORITHM_TMPTABLE)))
-  {
-    /* TODO: change here when we will support UNIONs */
-    for (TABLE_LIST *tbl= (TABLE_LIST *)lex->select_lex.table_list.first;
-	 tbl;
-	 tbl= tbl->next_local)
-    {
-      if ((tbl->view && !tbl->updatable_view) || tbl->schema_table)
-      {
-	view->updatable_view= 0;
-	break;
-      }
-      for (TABLE_LIST *up= tbl; up; up= up->embedding)
-      {
-	if (up->outer_join)
-	{
-	  view->updatable_view= 0;
-	  goto loop_out;
-	}
-      }
-    }
-  }
-  /* fill structure */
-  view->query.str= (char*)str.ptr();
-  view->query.length= str.length()-1; // we do not need last \0
-  view->source.str= thd->query + thd->lex->create_view_select_start;
-  view->source.length= (char *)skip_rear_comments(thd->charset(),
-                                                  (char *)view->source.str,
-                                                  (char *)thd->query +
-                                                  thd->query_length) -
-                        view->source.str;
-  view->file_version= 1;
-  view->calc_md5(md5);
-  view->md5.str= md5;
-  view->md5.length= 32;
-  can_be_merged= lex->can_be_merged();
-  if (lex->create_view_algorithm == VIEW_ALGORITHM_MERGE &&
-      !lex->can_be_merged())
-  {
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_VIEW_MERGE,
-                 ER(ER_WARN_VIEW_MERGE));
-    lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
-  }
-  view->algorithm= lex->create_view_algorithm;
-  view->definer.user= lex->definer->user;
-  view->definer.host= lex->definer->host;
-  view->view_suid= lex->create_view_suid;
-  view->with_check= lex->create_view_check;
-  if ((view->updatable_view= (can_be_merged &&
-                              view->algorithm != VIEW_ALGORITHM_TMPTABLE)))
-  {
-    /* TODO: change here when we will support UNIONs */
-    for (TABLE_LIST *tbl= (TABLE_LIST *)lex->select_lex.table_list.first;
-	 tbl;
-	 tbl= tbl->next_local)
-    {
-      if ((tbl->view && !tbl->updatable_view) || tbl->schema_table)
-      {
-	view->updatable_view= 0;
-	break;
-      }
-      for (TABLE_LIST *up= tbl; up; up= up->embedding)
-      {
-	if (up->outer_join)
-	{
-	  view->updatable_view= 0;
-	  goto loop_out;
-	}
-      }
-    }
-  }
+
   /*
     Check that table of main select do not used in subqueries.
 
