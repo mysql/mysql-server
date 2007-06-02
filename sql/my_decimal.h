@@ -110,7 +110,7 @@ public:
 
 #ifndef DBUG_OFF
 void print_decimal(const my_decimal *dec);
-void print_decimal_buff(const my_decimal *dec, const byte* ptr, int length);
+void print_decimal_buff(const my_decimal *dec, const uchar* ptr, int length);
 const char *dbug_decimal_as_string(char *buff, const my_decimal *val);
 #else
 #define dbug_decimal_as_string(A) NULL
@@ -200,16 +200,15 @@ void my_decimal2decimal(const my_decimal *from, my_decimal *to)
 }
 
 
-int my_decimal2binary(uint mask, const my_decimal *d, char *bin, int prec,
+int my_decimal2binary(uint mask, const my_decimal *d, uchar *bin, int prec,
 		      int scale);
 
 
 inline
-int binary2my_decimal(uint mask, const char *bin, my_decimal *d, int prec,
+int binary2my_decimal(uint mask, const uchar *bin, my_decimal *d, int prec,
 		      int scale)
 {
-  return check_result(mask, bin2decimal((char *)bin, (decimal_t*) d, prec,
-					scale));
+  return check_result(mask, bin2decimal(bin, (decimal_t*) d, prec, scale));
 }
 
 

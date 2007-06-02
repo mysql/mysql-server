@@ -22,6 +22,11 @@ hex(inet_aton('127.1.1'))
 select length(uuid()), charset(uuid()), length(unhex(replace(uuid(),_utf8'-',_utf8'')));
 length(uuid())	charset(uuid())	length(unhex(replace(uuid(),_utf8'-',_utf8'')))
 36	utf8	16
+set @a= uuid_short();
+set @b= uuid_short();
+select cast(@a - @b as signed);
+cast(@a - @b as signed)
+-1
 select length(format('nan', 2)) > 0;
 length(format('nan', 2)) > 0
 1

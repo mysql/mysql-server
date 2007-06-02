@@ -45,6 +45,6 @@ int hp_close(register HP_INFO *info)
   heap_open_list=list_delete(heap_open_list,&info->open_list);
   if (!--info->s->open_count && info->s->delete_on_close)
     hp_free(info->s);				/* Table was deleted */
-  my_free((gptr) info,MYF(0));
+  my_free((uchar*) info,MYF(0));
   DBUG_RETURN(error);
 }

@@ -50,7 +50,7 @@
 int
 my_b_copy_to_file(IO_CACHE *cache, FILE *file)
 {
-  uint bytes_in_cache;
+  size_t bytes_in_cache;
   DBUG_ENTER("my_b_copy_to_file");
 
   /* Reinit the cache to read from the beginning of the cache */
@@ -60,7 +60,7 @@ my_b_copy_to_file(IO_CACHE *cache, FILE *file)
   do
   {
     if (my_fwrite(file, cache->read_pos, bytes_in_cache,
-                  MYF(MY_WME | MY_NABP)) == (uint) -1)
+                  MYF(MY_WME | MY_NABP)) == (size_t) -1)
       DBUG_RETURN(1);
     cache->read_pos= cache->read_end;
   } while ((bytes_in_cache= my_b_fill(cache)));
@@ -175,18 +175,24 @@ void my_b_seek(IO_CACHE *info,my_off_t pos)
 
 
 /*
-  Fill buffer.  Note that this assumes that you have already used
-  all characters in the CACHE, independent of the read_pos value!
-  return:  0 on error or EOF (info->error = -1 on error)
-  number of characters
+  Fill buffer of the cache.
+
+  NOTES
+    This assumes that you have already used all characters in the CACHE,
+    independent of the read_pos value!
+
+  RETURN
+  0  On error or EOF (info->error = -1 on error)
+  #  Number of characters
 */
 
-uint my_b_fill(IO_CACHE *info)
+
+size_t my_b_fill(IO_CACHE *info)
 {
   my_off_t pos_in_file=(info->pos_in_file+
-			(uint) (info->read_end - info->buffer));
-  my_off_t max_length;
-  uint diff_length,length;
+			(size_t) (info->read_end - info->buffer));
+  size_t diff_length, length, max_length;
+
   if (info->seek_not_done)
   {					/* File touched, do seek */
     if (my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)) ==
@@ -197,17 +203,18 @@ uint my_b_fill(IO_CACHE *info)
     }
     info->seek_not_done=0;
   }
-  diff_length=(uint) (pos_in_file & (IO_SIZE-1));
-  max_length= (my_off_t) (info->end_of_file - pos_in_file);
-  if (max_length > (my_off_t) (info->read_length-diff_length))
-    max_length=(my_off_t) (info->read_length-diff_length);
+  diff_length=(size_t) (pos_in_file & (IO_SIZE-1));
+  max_length=(info->read_length-diff_length);
+  if (max_length >= (info->end_of_file - pos_in_file))
+    max_length= (size_t) (info->end_of_file - pos_in_file);
+
   if (!max_length)
   {
     info->error= 0;
     return 0;					/* EOF */
   }
-   else if ((length=my_read(info->file,info->buffer,(uint) max_length,
-			   info->myflags)) == (uint) -1)
+  if ((length= my_read(info->file,info->buffer,max_length,
+                       info->myflags)) == (size_t) -1)
   {
     info->error= -1;
     return 0;
@@ -226,15 +233,17 @@ uint my_b_fill(IO_CACHE *info)
   If buffer is full then to[max_length-1] will be set to \0.
 */
 
-uint my_b_gets(IO_CACHE *info, char *to, uint max_length)
+size_t my_b_gets(IO_CACHE *info, char *to, size_t max_length)
 {
   char *start = to;
-  uint length;
+  size_t length;
   max_length--;					/* Save place for end \0 */
+
   /* Calculate number of characters in buffer */
   if (!(length= my_b_bytes_in_cache(info)) &&
       !(length= my_b_fill(info)))
     return 0;
+
   for (;;)
   {
     char *pos,*end;
@@ -246,7 +255,7 @@ uint my_b_gets(IO_CACHE *info, char *to, uint max_length)
       {
 	info->read_pos=pos;
 	*to='\0';
-	return (uint) (to-start);
+	return (size_t) (to-start);
       }
     }
     if (!(max_length-=length))
@@ -254,7 +263,7 @@ uint my_b_gets(IO_CACHE *info, char *to, uint max_length)
      /* Found enough charcters;  Return found string */
       info->read_pos=pos;
       *to='\0';
-      return (uint) (to-start);
+      return (size_t) (to-start);
     }
     if (!(length=my_b_fill(info)))
       return 0;
@@ -265,26 +274,22 @@ uint my_b_gets(IO_CACHE *info, char *to, uint max_length)
 my_off_t my_b_filelength(IO_CACHE *info)
 {
   if (info->type == WRITE_CACHE)
-  {
     return my_b_tell(info);
-  }
-  else
-  {
-    info->seek_not_done=1;
-    return my_seek(info->file,0L,MY_SEEK_END,MYF(0));
-  }
+
+  info->seek_not_done= 1;
+  return my_seek(info->file, 0L, MY_SEEK_END, MYF(0));
 }
 
 
 /*
   Simple printf version.  Supports '%s', '%d', '%u', "%ld" and "%lu"
   Used for logging in MySQL
-  returns number of written character, or (uint) -1 on error
+  returns number of written character, or (size_t) -1 on error
 */
 
-uint my_b_printf(IO_CACHE *info, const char* fmt, ...)
+size_t my_b_printf(IO_CACHE *info, const char* fmt, ...)
 {
-  int result;
+  size_t result;
   va_list args;
   va_start(args,fmt);
   result=my_b_vprintf(info, fmt, args);
@@ -293,9 +298,9 @@ uint my_b_printf(IO_CACHE *info, const char* fmt, ...)
 }
 
 
-uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
+size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
 {
-  uint out_length=0;
+  size_t out_length= 0;
   uint minimum_width; /* as yet unimplemented */
   uint minimum_width_sign;
   uint precision; /* as yet unimplemented for anything but %b */
@@ -312,19 +317,17 @@ uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
   {
     /* Copy everything until '%' or end of string */
     const char *start=fmt;
-    uint length;
+    size_t length;
     
     for (; (*fmt != '\0') && (*fmt != '%'); fmt++) ;
 
-    length= (uint) (fmt - start);
+    length= (size_t) (fmt - start);
     out_length+=length;
     if (my_b_write(info, start, length))
       goto err;
 
     if (*fmt == '\0')				/* End of format */
-    {
       return out_length;
-    }
 
     /* 
       By this point, *fmt must be a percent;  Keep track of this location and
@@ -339,10 +342,13 @@ uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
     minimum_width_sign= 1;
     /* Skip if max size is used (to be compatible with printf) */
     while (*fmt == '-') { fmt++; minimum_width_sign= -1; }
-    if (*fmt == '*') {
+    if (*fmt == '*')
+    {
       precision= (int) va_arg(args, int);
       fmt++;
-    } else {
+    }
+    else
+    {
       while (my_isdigit(&my_charset_latin1, *fmt)) {
         minimum_width=(minimum_width * 10) + (*fmt - '0');
         fmt++;
@@ -350,12 +356,15 @@ uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
     }
     minimum_width*= minimum_width_sign;
 
-    if (*fmt == '.') {
+    if (*fmt == '.')
+    {
       fmt++;
       if (*fmt == '*') {
         precision= (int) va_arg(args, int);
         fmt++;
-      } else {
+      }
+      else
+      {
         while (my_isdigit(&my_charset_latin1, *fmt)) {
           precision=(precision * 10) + (*fmt - '0');
           fmt++;
@@ -366,7 +375,7 @@ uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
     if (*fmt == 's')				/* String parameter */
     {
       reg2 char *par = va_arg(args, char *);
-      uint length2 = (uint) strlen(par);
+      size_t length2 = strlen(par);
       /* TODO: implement minimum width and precision */
       out_length+= length2;
       if (my_b_write(info, par, length2))
@@ -382,14 +391,14 @@ uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
     else if (*fmt == 'd' || *fmt == 'u')	/* Integer parameter */
     {
       register int iarg;
-      uint length2;
+      size_t length2;
       char buff[17];
 
       iarg = va_arg(args, int);
       if (*fmt == 'd')
-	length2= (uint) (int10_to_str((long) iarg,buff, -10) - buff);
+	length2= (size_t) (int10_to_str((long) iarg,buff, -10) - buff);
       else
-	length2= (uint) (int10_to_str((long) (uint) iarg,buff,10)- buff);
+	length2= (size_t) (int10_to_str((long) (uint) iarg,buff,10)- buff);
       out_length+= length2;
       if (my_b_write(info, buff, length2))
 	goto err;
@@ -398,14 +407,14 @@ uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
       /* long parameter */
     {
       register long iarg;
-      uint length2;
+      size_t length2;
       char buff[17];
 
       iarg = va_arg(args, long);
       if (*++fmt == 'd')
-	length2= (uint) (int10_to_str(iarg,buff, -10) - buff);
+	length2= (size_t) (int10_to_str(iarg,buff, -10) - buff);
       else
-	length2= (uint) (int10_to_str(iarg,buff,10)- buff);
+	length2= (size_t) (int10_to_str(iarg,buff,10)- buff);
       out_length+= length2;
       if (my_b_write(info, buff, length2))
 	goto err;
@@ -421,5 +430,5 @@ uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
   return out_length;
 
 err:
-  return (uint) -1;
+  return (size_t) -1;
 }

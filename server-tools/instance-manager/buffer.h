@@ -45,7 +45,7 @@ public:
     /*
       As append() will invokes realloc() anyway, it's ok if malloc returns 0
     */
-    if (!(buffer= (char*) my_malloc(buffer_size, MYF(0))))
+    if (!(buffer= (uchar*) my_malloc(buffer_size, MYF(0))))
         buffer_size= 0;
   }
 
@@ -55,11 +55,11 @@ public:
   }
 
 public:
-  char *buffer;
+  uchar *buffer;
   int get_size();
   int is_error();
-  int append(uint position, const char *string, uint len_arg);
-  int reserve(uint position, uint len_arg);
+  int append(size_t position, const char *string, size_t len_arg);
+  int reserve(size_t position, size_t len_arg);
 };
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_BUFFER_H */

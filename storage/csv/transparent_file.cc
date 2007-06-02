@@ -22,12 +22,12 @@
 
 Transparent_file::Transparent_file() : lower_bound(0), buff_size(IO_SIZE)
 { 
-  buff= (byte *) my_malloc(buff_size*sizeof(byte),  MYF(MY_WME)); 
+  buff= (uchar *) my_malloc(buff_size*sizeof(uchar),  MYF(MY_WME)); 
 }
 
 Transparent_file::~Transparent_file()
 { 
-  my_free((gptr)buff, MYF(MY_ALLOW_ZERO_PTR)); 
+  my_free((uchar*)buff, MYF(MY_ALLOW_ZERO_PTR)); 
 }
 
 void Transparent_file::init_buff(File filedes_arg)
@@ -40,7 +40,7 @@ void Transparent_file::init_buff(File filedes_arg)
     upper_bound= my_read(filedes, buff, buff_size, MYF(0));
 }
 
-byte *Transparent_file::ptr()
+uchar *Transparent_file::ptr()
 { 
   return buff; 
 }
@@ -57,18 +57,18 @@ off_t Transparent_file::end()
 
 off_t Transparent_file::read_next()
 {
-  off_t bytes_read;
+  size_t bytes_read;
 
   /*
      No need to seek here, as the file managed by Transparent_file class
      always points to upper_bound byte
   */
   if ((bytes_read= my_read(filedes, buff, buff_size, MYF(0))) == MY_FILE_ERROR)
-    return -1;
+    return (off_t) -1;
 
   /* end of file */
   if (!bytes_read)
-    return -1;
+    return (off_t) -1;
 
   lower_bound= upper_bound;
   upper_bound+= bytes_read;
@@ -79,26 +79,24 @@ off_t Transparent_file::read_next()
 
 char Transparent_file::get_value(off_t offset)
 {
-  off_t bytes_read;
+  size_t bytes_read;
 
   /* check boundaries */
   if ((lower_bound <= offset) && (offset < upper_bound))
     return buff[offset - lower_bound];
-  else
-  {
-    VOID(my_seek(filedes, offset, MY_SEEK_SET, MYF(0)));
-    /* read appropriate portion of the file */
-    if ((bytes_read= my_read(filedes, buff, buff_size,
-                             MYF(0))) == MY_FILE_ERROR)
-      return 0;
 
-    lower_bound= offset;
-    upper_bound= lower_bound + bytes_read;
+  VOID(my_seek(filedes, offset, MY_SEEK_SET, MYF(0)));
+  /* read appropriate portion of the file */
+  if ((bytes_read= my_read(filedes, buff, buff_size,
+                           MYF(0))) == MY_FILE_ERROR)
+    return 0;
 
-    /* end of file */
-    if (upper_bound == offset)
-      return 0;
+  lower_bound= offset;
+  upper_bound= lower_bound + bytes_read;
 
-    return buff[0];
-  }
+  /* end of file */
+  if (upper_bound == offset)
+    return 0;
+
+  return buff[0];
 }

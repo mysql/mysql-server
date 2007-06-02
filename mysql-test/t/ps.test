@@ -1,4 +1,5 @@
 -- source include/not_embedded.inc
+-- source include/have_log_bin.inc
 #
 # SQL Syntax for Prepared Statements test
 #

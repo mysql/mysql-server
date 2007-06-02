@@ -13715,7 +13715,7 @@ static void test_bug11111()
   for (i=0; i < 2; i++)
   {
     my_bind[i].buffer_type= MYSQL_TYPE_STRING;
-    my_bind[i].buffer= (gptr *)&buf[i];
+    my_bind[i].buffer= (uchar* *)&buf[i];
     my_bind[i].buffer_length= 20;
     my_bind[i].length= &len[i];
   }
@@ -14100,7 +14100,7 @@ static void test_bug11656()
   for (i=0; i < 2; i++)
   {
     my_bind[i].buffer_type= MYSQL_TYPE_STRING;
-    my_bind[i].buffer= (gptr *)&buf[i];
+    my_bind[i].buffer= (uchar* *)&buf[i];
     my_bind[i].buffer_length= strlen(buf[i]);
   }
   mysql_stmt_bind_param(stmt, my_bind);
@@ -16082,23 +16082,23 @@ static char **defaults_argv;
 
 static struct my_option client_test_long_options[] =
 {
-  {"basedir", 'b', "Basedir for tests.", (gptr*) &opt_basedir,
-   (gptr*) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"count", 't', "Number of times test to be executed", (char **) &opt_count,
-   (char **) &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
-  {"database", 'D', "Database to use", (char **) &opt_db, (char **) &opt_db,
+  {"basedir", 'b', "Basedir for tests.", (uchar**) &opt_basedir,
+   (uchar**) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"count", 't', "Number of times test to be executed", (uchar **) &opt_count,
+   (uchar **) &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
+  {"database", 'D', "Database to use", (uchar **) &opt_db, (uchar **) &opt_db,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"debug", '#', "Output debug log", (gptr*) &default_dbug_option,
-   (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log", (uchar**) &default_dbug_option,
+   (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
-  {"host", 'h', "Connect to host", (char **) &opt_host, (char **) &opt_host,
+  {"host", 'h', "Connect to host", (uchar **) &opt_host, (uchar **) &opt_host,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"port", 'P', "Port number to use for connection", (char **) &opt_port,
-   (char **) &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection", (uchar **) &opt_port,
+   (uchar **) &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-arg", 'A', "Send embedded server this as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"show-tests", 'T', "Show all tests' names", 0, 0, 0, GET_NO_ARG, NO_ARG,
@@ -16106,19 +16106,19 @@ static struct my_option client_test_long_options[] =
   {"silent", 's', "Be more silent", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
    0},
   {"socket", 'S', "Socket file to use for connection",
-   (char **) &opt_unix_socket, (char **) &opt_unix_socket, 0, GET_STR,
+   (uchar **) &opt_unix_socket, (uchar **) &opt_unix_socket, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"testcase", 'c',
    "May disable some code when runs as mysql-test-run testcase.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
-  {"user", 'u', "User for login if not current user", (char **) &opt_user,
-   (char **) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login if not current user", (uchar **) &opt_user,
+   (uchar **) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"vardir", 'v', "Data dir for tests.", (gptr*) &opt_vardir,
-   (gptr*) &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"vardir", 'v', "Data dir for tests.", (uchar**) &opt_vardir,
+   (uchar**) &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"getopt-ll-test", 'g', "Option for testing bug in getopt library",
-   (char **) &opt_getopt_ll_test, (char **) &opt_getopt_ll_test, 0,
+   (uchar **) &opt_getopt_ll_test, (uchar **) &opt_getopt_ll_test, 0,
    GET_LL, REQUIRED_ARG, 0, 0, LONGLONG_MAX, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
