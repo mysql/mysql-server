@@ -6171,7 +6171,7 @@ view_err:
            (uint*) thd->alloc(sizeof(uint) * prepared_key_list.elements)))
       goto err;
     /* Check how much the tables differ. */
-    bool res= compare_tables(table, &prepared_create_list,
+    uint res= compare_tables(table, &prepared_create_list,
                                     key_info_buffer, key_count,
                                     create_info, alter_info, order_num,
                                     index_drop_buffer, &index_drop_count,
