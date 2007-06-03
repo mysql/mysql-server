@@ -1236,9 +1236,9 @@ public:
   longlong val_int();
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
-  double val_real_result();
+  double val_result();
   longlong val_int_result();
-  String *val_str_result(String *str);
+  String *str_result(String *str);
   my_decimal *val_decimal_result(my_decimal *);
   bool update_hash(void *ptr, uint length, enum Item_result type,
   		   CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
