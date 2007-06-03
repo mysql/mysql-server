@@ -669,6 +669,7 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
         jam();
         move_cleanup_ptr(ptr);
         pl_queue.remove(ptr);
+        state &= ~ Page_entry::ONQUEUE;
       }
       if (state & Page_entry::BOUND)
       {
@@ -699,6 +700,12 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
     pl_stack.add(ptr);
     state |= Page_entry::ONSTACK;
     state |= Page_entry::HOT;
+    // it could be on queue already
+    if (state & Page_entry::ONQUEUE) {
+      jam();
+      pl_queue.remove(ptr);
+      state &= ~Page_entry::ONQUEUE;
+    }
   }
 
   set_page_state(ptr, state);
