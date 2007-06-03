@@ -7,12 +7,12 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 5.1.15-ndb-6.1.10)
+AM_INIT_AUTOMAKE(mysql, 5.1.15-ndb-6.1.11)
 AM_CONFIG_HEADER(config.h)
 
 NDB_VERSION_MAJOR=6
 NDB_VERSION_MINOR=1
-NDB_VERSION_BUILD=10
+NDB_VERSION_BUILD=11
 NDB_VERSION_STATUS="-beta"
 
 PROTOCOL_VERSION=10
