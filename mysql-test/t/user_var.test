@@ -226,8 +226,14 @@ SHOW COUNT(*) ERRORS;
 #
 # Bug#28494: Grouping by Item_func_set_user_var produces incorrect result.
 #
-create table t1(f1 int);
-insert into t1 values(1),(1),(2),(3),(4),(1),(3),(1);
+create table t1(f1 int, f2 varchar(2), f3 float, f4 decimal(2,1));
+insert into t1 values 
+  (1, "a", 1.5, 1.6), (1, "a", 1.5, 1.6), (2, "b", 2.5, 2.6),
+  (3, "c", 3.5, 3.6), (4, "d", 4.5, 4.6), (1, "a", 1.5, 1.6),
+  (3, "c", 3.5, 3.6), (1, "a", 1.5, 1.6);
 select @a:=f1, count(f1) from t1 group by 1 desc;
 select @a:=f1, count(f1) from t1 group by 1 asc;
+select @a:=f2, count(f2) from t1 group by 1 desc;
+select @a:=f3, count(f3) from t1 group by 1 desc;
+select @a:=f4, count(f4) from t1 group by 1 desc;
 drop table t1;
