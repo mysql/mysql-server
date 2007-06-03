@@ -5932,6 +5932,7 @@ view_err:
         goto err;
       }
       find_it.after(def);			// Put element after this
+      need_copy_table= ALTER_TABLE_DATA_CHANGED;
     }
   }
   if (alter_info->alter_list.elements)
@@ -6170,12 +6171,14 @@ view_err:
            (uint*) thd->alloc(sizeof(uint) * prepared_key_list.elements)))
       goto err;
     /* Check how much the tables differ. */
-    need_copy_table= compare_tables(table, &prepared_create_list,
+    uint res= compare_tables(table, &prepared_create_list,
                                     key_info_buffer, key_count,
                                     create_info, alter_info, order_num,
                                     index_drop_buffer, &index_drop_count,
                                     index_add_buffer, &index_add_count,
                                     varchar);
+    if (!need_copy_table)
+      need_copy_table= res;
   }
 
   /*
