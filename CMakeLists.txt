@@ -157,7 +157,7 @@ IF(EMBED_MANIFESTS)
     STRING(REGEX MATCH "MANIFEST:NO" tmp_manifest ${CMAKE_EXE_LINKER_FLAGS})
     IF(NOT tmp_manifest)
         SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /MANIFEST:NO")
-    ENDIF(tmp_manifest)
+    ENDIF(NOT tmp_manifest)
     # Set the processor architecture.
     IF(CMAKE_GENERATOR MATCHES "Visual Studio 8 2005 Win64")
     	SET(PROCESSOR_ARCH "X64") 
