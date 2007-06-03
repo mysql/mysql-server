@@ -1259,6 +1259,7 @@ public:
     return save_in_field(field, no_conversions, 1);
   }
   void save_org_in_field(Field *field) { (void)save_in_field(field, 1, 0); }
+  bool register_field_in_read_map(uchar *arg);
 };
 
 
