@@ -1226,7 +1226,11 @@ static void sys_default_ftb_syntax(THD *thd, enum_var_type type)
 
 static void fix_low_priority_updates(THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL)
+  if (type == OPT_GLOBAL)
+    thr_upgraded_concurrent_insert_lock= 
+      (global_system_variables.low_priority_updates ?
+       TL_WRITE_LOW_PRIORITY : TL_WRITE);
+  else
     thd->update_lock_default= (thd->variables.low_priority_updates ?
 			       TL_WRITE_LOW_PRIORITY : TL_WRITE);
 }
