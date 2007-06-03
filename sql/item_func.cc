@@ -4035,7 +4035,8 @@ bool
 Item_func_set_user_var::check(bool use_result_field)
 {
   DBUG_ENTER("Item_func_set_user_var::check");
-  DBUG_ASSERT(!use_result_field || result_field);
+  if (use_result_field && !result_field)
+    use_result_field= FALSE;
 
   switch (cached_result_type) {
   case REAL_RESULT:
