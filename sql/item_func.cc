@@ -3800,6 +3800,23 @@ Item_func_set_user_var::fix_length_and_dec()
 
 
 /*
+  Mark field in read_map
+
+  NOTES
+    This is used by filesort to register used fields in a a temporary
+    column read set or to register used fields in a view
+*/
+
+bool Item_func_set_user_var::register_field_in_read_map(uchar *arg)
+{
+  TABLE *table= (TABLE *) arg;
+  if (result_field->table == table || !table)
+    bitmap_set_bit(result_field->table->read_set, result_field->field_index);
+  return 0;
+}
+
+
+/*
   Set value to user variable.
 
   SYNOPSYS
@@ -4035,7 +4052,8 @@ bool
 Item_func_set_user_var::check(bool use_result_field)
 {
   DBUG_ENTER("Item_func_set_user_var::check");
-  DBUG_ASSERT(!use_result_field || result_field);
+  if (use_result_field && !result_field)
+    use_result_field= FALSE;
 
   switch (cached_result_type) {
   case REAL_RESULT:
@@ -4174,6 +4192,40 @@ my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val)
 {
   DBUG_ASSERT(fixed == 1);
   check(0);
+  update();					// Store expression
+  return entry->val_decimal(&null_value, val);
+}
+
+
+double Item_func_set_user_var::val_result()
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_real(&null_value);
+}
+
+longlong Item_func_set_user_var::val_int_result()
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_int(&null_value);
+}
+
+String *Item_func_set_user_var::str_result(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_str(&null_value, str, decimals);
+}
+
+
+my_decimal *Item_func_set_user_var::val_decimal_result(my_decimal *val)
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
   update();					// Store expression
   return entry->val_decimal(&null_value, val);
 }

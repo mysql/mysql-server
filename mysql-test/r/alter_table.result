@@ -1103,3 +1103,17 @@ Field	Type	Null	Key	Default	Extra
 unsigned_int_field	bigint(20) unsigned	NO	MUL		
 char_field	char(10)	YES		NULL	
 DROP TABLE t2;
+CREATE TABLE t1 (f1 INT, f2 INT, f3 INT);
+INSERT INTO t1 VALUES (1, 2, NULL);
+SELECT * FROM t1;
+f1	f2	f3
+1	2	NULL
+ALTER TABLE t1 MODIFY COLUMN f3 INT AFTER f1;
+SELECT * FROM t1;
+f1	f3	f2
+1	NULL	2
+ALTER TABLE t1 MODIFY COLUMN f3 INT AFTER f2;
+SELECT * FROM t1;
+f1	f2	f3
+1	2	NULL
+DROP TABLE t1;
