@@ -6561,7 +6561,7 @@ insert_lock_option:
               insert visible only after the table unlocking but everyone can
               read table.
             */
-            $$= (Lex->sphead ? TL_WRITE :TL_WRITE_CONCURRENT_INSERT);
+            $$= (Lex->sphead ? TL_WRITE_DEFAULT : TL_WRITE_CONCURRENT_INSERT);
 #else
             $$= TL_WRITE_CONCURRENT_INSERT;
 #endif
@@ -6739,7 +6739,7 @@ insert_update_elem:
 	  };
 
 opt_low_priority:
-	/* empty */	{ $$= YYTHD->update_lock_default; }
+	/* empty */	{ $$= TL_WRITE_DEFAULT; }
 	| LOW_PRIORITY	{ $$= TL_WRITE_LOW_PRIORITY; };
 
 /* Delete rows from a table */
@@ -6750,7 +6750,7 @@ delete:
 	  LEX *lex= Lex;
 	  lex->sql_command= SQLCOM_DELETE;
 	  mysql_init_select(lex);
-	  lex->lock_option= lex->thd->update_lock_default;
+	  lex->lock_option= TL_WRITE_DEFAULT;
 	  lex->ignore= 0;
 	  lex->select_lex.init_order();
 	}
@@ -7415,7 +7415,7 @@ opt_local:
 	| LOCAL_SYM	{ $$=1;};
 
 load_data_lock:
-	/* empty */	{ $$= YYTHD->update_lock_default; }
+	/* empty */	{ $$= TL_WRITE_DEFAULT; }
 	| CONCURRENT
           {
 #ifdef HAVE_QUERY_CACHE
@@ -7423,7 +7423,7 @@ load_data_lock:
               Ignore this option in SP to avoid problem with query cache
             */
             if (Lex->sphead != 0)
-              $$= YYTHD->update_lock_default;
+              $$= TL_WRITE_DEFAULT;
             else
 #endif
               $$= TL_WRITE_CONCURRENT_INSERT;
@@ -8736,7 +8736,7 @@ table_lock:
 
 lock_option:
 	READ_SYM	{ $$=TL_READ_NO_INSERT; }
-	| WRITE_SYM     { $$=YYTHD->update_lock_default; }
+	| WRITE_SYM     { $$=TL_WRITE_DEFAULT; }
 	| LOW_PRIORITY WRITE_SYM { $$=TL_WRITE_LOW_PRIORITY; }
 	| READ_SYM LOCAL_SYM { $$= TL_READ; }
         ;
