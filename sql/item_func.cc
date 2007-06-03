@@ -4208,7 +4208,7 @@ my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val)
 }
 
 
-double Item_func_set_user_var::val_real_result()
+double Item_func_set_user_var::val_result()
 {
   DBUG_ASSERT(fixed == 1);
   check(TRUE);
@@ -4224,7 +4224,7 @@ longlong Item_func_set_user_var::val_int_result()
   return entry->val_int(&null_value);
 }
 
-String *Item_func_set_user_var::val_str_result(String *str)
+String *Item_func_set_user_var::str_result(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   check(TRUE);
