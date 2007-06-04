@@ -772,7 +772,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view->query.str= (char*)str.ptr();
   view->query.length= str.length()-1; // we do not need last \0
   view->source.str= thd->query + thd->lex->create_view_select_start;
-  view->source.length= (char *)skip_rear_comments((char *)view->source.str,
+  view->source.length= (char *)skip_rear_comments(thd->charset(),
+                                                  (char *)view->source.str,
                                                   (char *)thd->query +
                                                   thd->query_length) -
                         view->source.str;

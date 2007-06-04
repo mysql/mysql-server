@@ -75,6 +75,7 @@ static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static void remove_escape(char *name);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
+static bool check_show_create_table_access(THD *thd, TABLE_LIST *table);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -3080,9 +3081,9 @@ mysql_execute_command(THD *thd)
     else
     {
       /* regular create */
-      if (lex->name)
-        res= mysql_create_like_table(thd, create_table, &create_info,
-                                     (Table_ident *)lex->name);
+      if (lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
+        res= mysql_create_like_table(thd, create_table, select_tables,
+                                     &create_info);
       else
       {
         res= mysql_create_table(thd, create_table->db,
@@ -3319,11 +3320,7 @@ end_with_restore_list:
         first_table->skip_temporary= 1;
 
       if (check_db_used(thd, all_tables) ||
-	  check_access(thd, SELECT_ACL | EXTRA_ACL, first_table->db,
-		       &first_table->grant.privilege, 0, 0, 
-                       test(first_table->schema_table)))
-	goto error;
-      if (grant_option && check_grant(thd, SELECT_ACL, all_tables, 2, UINT_MAX, 0))
+          check_show_create_table_access(thd, first_table))
 	goto error;
       res= mysqld_show_create(thd, first_table);
       break;
@@ -7519,6 +7516,25 @@ bool insert_precheck(THD *thd, TABLE_LIST *tables)
 }
 
 
+/**
+   @brief  Check privileges for SHOW CREATE TABLE statement.
+
+   @param  thd    Thread context
+   @param  table  Target table
+
+   @retval TRUE  Failure
+   @retval FALSE Success
+*/
+
+static bool check_show_create_table_access(THD *thd, TABLE_LIST *table)
+{
+  return check_access(thd, SELECT_ACL | EXTRA_ACL, table->db,
+                      &table->grant.privilege, 0, 0,
+                      test(table->schema_table)) ||
+         grant_option && check_grant(thd, SELECT_ACL, table, 2, UINT_MAX, 0);
+}
+
+
 /*
   CREATE TABLE query pre-check
 
@@ -7581,6 +7597,11 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
     }
 #endif
     if (tables && check_table_access(thd, SELECT_ACL, tables,0))
+      goto err;
+  }
+  else if (lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
+  {
+    if (check_show_create_table_access(thd, tables))
       goto err;
   }
   error= FALSE;

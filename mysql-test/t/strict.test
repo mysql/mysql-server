@@ -975,9 +975,7 @@ select * from t1;
 # Check that select don't abort even in strict mode (for now)
 set sql_mode='traditional';
 
---disable_ps_warnings
 select count(*) from t1 where STR_TO_DATE('2004.12.12 10:22:61','%Y.%m.%d %T') IS NULL;
---enable_ps_warnings
 
 drop table t1;
 
