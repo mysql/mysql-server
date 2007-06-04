@@ -7056,10 +7056,15 @@ ha_innobase::innobase_read_and_init_auto_inc(
 	longlong	auto_inc;
 	ulint		old_select_lock_type;
 	ibool		trx_was_not_started	= FALSE;
+	ibool		stmt_start;
 	int		error;
 
 	ut_a(prebuilt);
 	ut_a(prebuilt->table);
+
+	/* Remember if we are in the beginning of an SQL statement.
+	This function must not change that flag. */
+	stmt_start = prebuilt->sql_stat_start;
 
 	/* Prepare prebuilt->trx in the table handle */
 	update_thd(ha_thd());
@@ -7181,6 +7186,8 @@ func_exit_early:
 
 		innobase_commit_low(prebuilt->trx);
 	}
+
+	prebuilt->sql_stat_start = stmt_start;
 
 	return(error);
 }
