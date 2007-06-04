@@ -6385,6 +6385,9 @@ view_err:
                             alter_info->keys_onoff);
     table->file->ha_external_lock(thd, F_UNLCK);
     VOID(pthread_mutex_unlock(&LOCK_open));
+    error= ha_commit_stmt(thd);
+    if (ha_commit(thd))
+      error= 1;
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
@@ -6787,20 +6790,6 @@ view_err:
   }
   VOID(pthread_mutex_unlock(&LOCK_open));
   broadcast_refresh();
-  /*
-    The ALTER TABLE is always in its own transaction.
-    Commit must not be called while LOCK_open is locked. It could call
-    wait_if_global_read_lock(), which could create a deadlock if called
-    with LOCK_open.
-  */
-  if (!committed)
-  {
-    error = ha_commit_stmt(thd);
-    if (ha_commit(thd))
-      error=1;
-    if (error)
-      goto err;
-  }
   thd->proc_info="end";
 
   ha_binlog_log_query(thd, create_info->db_type, LOGCOM_ALTER_TABLE,
@@ -7045,8 +7034,12 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   }
   to->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
-  ha_enable_transaction(thd,TRUE);
-
+  if (ha_enable_transaction(thd, TRUE))
+  {
+    error= 1;
+    goto err;
+  }
+  
   /*
     Ensure that the new table is saved properly to disk so that we
     can do a rename
