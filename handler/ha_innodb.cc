@@ -8282,7 +8282,9 @@ err_exit:
 			num_of_idx);
 
 		if (error == DB_SUCCESS && new_primary) {
-			row_merge_mark_prebuilt_obsolete(trx, innodb_table);
+			row_mysql_lock_data_dictionary(trx);
+			row_prebuilt_table_obsolete(innodb_table);
+			row_mysql_unlock_data_dictionary(trx);
 		}
 	}
 
@@ -8624,10 +8626,6 @@ ha_innobase::final_drop_index(
 	with innodb_flush_log_at_trx_commit = 0 */
 
 	log_buffer_flush_to_disk();
-
-#ifdef UNIV_DEBUG_INDEX_CREATE
-	row_merge_print_table(prebuilt->table);
-#endif
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */

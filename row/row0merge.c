@@ -1839,50 +1839,6 @@ row_merge_file_create(
 	merge_file->num_of_blocks = 0;
 }
 
-#ifdef UNIV_DEBUG_INDEX_CREATE
-/*************************************************************************
-Print definition of a table in the dictionary */
-
-void
-row_merge_print_table(
-/*==================*/
-	dict_table_t*	table)	/* in: table */
-{
-	dict_table_print(table);
-}
-#endif
-
-/*************************************************************************
-Mark all prebuilts using the table obsolete. These prebuilts are
-rebuilt later. */
-
-void
-row_merge_mark_prebuilt_obsolete(
-/*=============================*/
-
-	trx_t*		trx,		/* in: trx */
-	dict_table_t*	table)		/* in: table */
-{
-	row_prebuilt_t*	prebuilt;
-
-	row_mysql_lock_data_dictionary(trx);
-
-	prebuilt = UT_LIST_GET_FIRST(table->prebuilts);
-
-	while (prebuilt) {
-		prebuilt->magic_n = ROW_PREBUILT_OBSOLETE;
-		prebuilt->magic_n2 = ROW_PREBUILT_OBSOLETE;
-
-		prebuilt = UT_LIST_GET_NEXT(prebuilts, prebuilt);
-	}
-
-	/* This table will be dropped when there are no more references
-	to it */
-	table->to_be_dropped = 1;
-
-	row_mysql_unlock_data_dictionary(trx);
-}
-
 /*************************************************************************
 Create a temporary table using a definition of the old table. You must
 lock data dictionary before calling this function. */

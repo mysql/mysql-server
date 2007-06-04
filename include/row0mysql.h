@@ -162,6 +162,14 @@ row_update_prebuilt(
 	row_prebuilt_t*	prebuilt,	/* in: Innobase table handle */
 	dict_table_t*   table);		/* in: table */
 /*************************************************************************
+Mark all prebuilt structs that use a table obsolete.  They will
+be rebuilt later. */
+
+void
+row_prebuilt_table_obsolete(
+/*========================*/
+	dict_table_t*	table);		/* in: table */
+/*************************************************************************
 Unlocks an AUTO_INC type lock possibly reserved by trx. */
 
 void

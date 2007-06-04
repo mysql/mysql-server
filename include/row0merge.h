@@ -125,23 +125,6 @@ row_merge_file_create(
 	merge_file_t*	merge_file);	/* out: merge file structure */
 
 /*************************************************************************
-Print definition of a table in the dictionary */
-
-void
-row_merge_print_table(
-/*==================*/
-	dict_table_t*	table);	/* in: table */
-/*************************************************************************
-Mark all prebuilts using the table obsolete. These prebuilts are
-rebuilded later. */
-
-void
-row_merge_mark_prebuilt_obsolete(
-/*=============================*/
-
-	trx_t*		trx,		/* in: trx */
-	dict_table_t*	table);		/* in: table */
-/*************************************************************************
 Create a temporary table using a definition of the old table. You must
 lock data dictionary before calling this function. */
 
