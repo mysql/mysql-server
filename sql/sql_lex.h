@@ -830,26 +830,60 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_REMOVE_PARTITIONING (1L << 25)
 #define ALTER_FOREIGN_KEY         (1L << 26)
 
-typedef struct st_alter_info
+/**
+  @brief Parsing data for CREATE or ALTER TABLE.
+
+  This structure contains a list of columns or indexes to be created,
+  altered or dropped.
+*/
+
+class Alter_info
 {
+public:
   List<Alter_drop>            drop_list;
   List<Alter_column>          alter_list;
+  List<Key>                   key_list;
+  List<create_field>          create_list;
   uint                        flags;
   enum enum_enable_or_disable keys_onoff;
   enum tablespace_op_type     tablespace_op;
   List<char>                  partition_names;
   uint                        no_parts;
 
-  st_alter_info(){clear();}
-  void clear()
+  Alter_info() :
+    flags(0),
+    keys_onoff(LEAVE_AS_IS),
+    tablespace_op(NO_TABLESPACE_OP),
+    no_parts(0)
+  {}
+
+  void reset()
   {
+    drop_list.empty();
+    alter_list.empty();
+    key_list.empty();
+    create_list.empty();
+    flags= 0;
     keys_onoff= LEAVE_AS_IS;
     tablespace_op= NO_TABLESPACE_OP;
     no_parts= 0;
     partition_names.empty();
   }
-  void reset(){drop_list.empty();alter_list.empty();clear();}
-} ALTER_INFO;
+  /**
+    Construct a copy of this object to be used for mysql_alter_table
+    and mysql_create_table. Historically, these two functions modify
+    their Alter_info arguments. This behaviour breaks re-execution of
+    prepared statements and stored procedures and is compensated by
+    always supplying a copy of Alter_info to these functions.
+
+    @return You need to use check the error in THD for out
+    of memory condition after calling this function.
+  */
+  Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root);
+private:
+  Alter_info &operator=(const Alter_info &rhs); // not implemented
+  Alter_info(const Alter_info &rhs);            // not implemented
+};
 
 struct st_sp_chistics
 {
@@ -1066,7 +1100,6 @@ typedef struct st_lex : public Query_tables_list
 
   char *length,*dec,*change;
   LEX_STRING name;
-  Table_ident *like_name;
   char *help_arg;
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
@@ -1104,8 +1137,6 @@ typedef struct st_lex : public Query_tables_list
   List<String>	      interval_list;
   List<LEX_USER>      users_list;
   List<LEX_COLUMN>    columns;
-  List<Key>	      key_list;
-  List<create_field>  create_list;
   List<Item>	      *insert_list,field_list,value_list,update_list;
   List<List_item>     many_values;
   List<set_var_base>  var_list;
@@ -1203,7 +1234,7 @@ typedef struct st_lex : public Query_tables_list
   bool safe_to_cache_query;
   bool subqueries, ignore;
   st_parsing_options parsing_options;
-  ALTER_INFO alter_info;
+  Alter_info alter_info;
   /* Prepared statements SQL syntax:*/
   LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */
   /*
@@ -1362,6 +1393,7 @@ typedef struct st_lex : public Query_tables_list
   void restore_backup_query_tables_list(Query_tables_list *backup);
 
   bool table_or_sp_used();
+  bool is_partition_management() const;
 } LEX;
 
 struct st_lex_local: public st_lex
@@ -1385,7 +1417,8 @@ extern void lex_free(void);
 extern void lex_start(THD *thd);
 extern void lex_end(LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
-extern const char *skip_rear_comments(const char *ubegin, const char *uend);
+extern const char *skip_rear_comments(CHARSET_INFO *cs, const char *ubegin,
+                                      const char *uend);
 
 extern bool is_lex_native_function(const LEX_STRING *name);
 

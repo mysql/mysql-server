@@ -379,7 +379,13 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
 
 ulong hp_hashnr(register HP_KEYDEF *keydef, register const uchar *key)
 {
-  register ulong nr=0;
+  /*
+    Note, if a key consists of a combination of numeric and
+    a text columns, it most likely won't work well.
+    Making text columns work with NEW_HASH_FUNCTION
+    needs also changes in strings/ctype-xxx.c.
+  */
+  ulong nr= 1, nr2= 4;
   HA_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
@@ -401,14 +407,15 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const uchar *key)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      seg->charset->hash_sort(seg->charset,pos,((uchar*)key)-pos,&nr,NULL);
+      seg->charset->coll->hash_sort(seg->charset, pos, ((uchar*)key)-pos,
+                                    &nr, &nr2);
     }
     else if (seg->type == HA_KEYTYPE_VARTEXT1)  /* Any VARCHAR segments */
     {
       uint pack_length= 2;                      /* Key packing is constant */
       uint length= uint2korr(pos);
-      seg->charset->hash_sort(seg->charset, pos+pack_length, length, &nr,
-                              NULL);
+      seg->charset->coll->hash_sort(seg->charset, pos+pack_length, length,
+                                    &nr, &nr2);
       key+= pack_length;
     }
     else
@@ -428,7 +435,7 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const uchar *key)
 
 ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
 {
-  register ulong nr=0;
+  ulong nr= 1, nr2= 4;
   HA_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
@@ -444,14 +451,16 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      seg->charset->hash_sort(seg->charset,pos,((uchar*)key)-pos,&nr,NULL);
+      uint char_length= seg->length; /* TODO: fix to use my_charpos() */
+      seg->charset->coll->hash_sort(seg->charset, pos, char_length,
+                                    &nr, &nr2);
     }
     else if (seg->type == HA_KEYTYPE_VARTEXT1)  /* Any VARCHAR segments */
     {
       uint pack_length= seg->bit_start;
       uint length= (pack_length == 1 ? (uint) *(uchar*) pos : uint2korr(pos));
-      seg->charset->hash_sort(seg->charset, pos+pack_length,
-                              length, &nr, NULL);
+      seg->charset->coll->hash_sort(seg->charset, pos+pack_length,
+                                    length, &nr, &nr2);
     }
     else
     {

@@ -1,13 +1,42 @@
-# Grant tests not performed with embedded server
--- source include/not_embedded.inc
--- source include/have_query_cache.inc
-# See at the end of the test why we disable the ps protocol (*)
--- disable_ps_protocol
+################### include/grant_cache.inc ####################
+#
+# Test grants with query cache
+#
+# Last update:
+# 2007-05-03 ML - Move t/grant_cache.test to include/grant_cache.inc
+#               - Remove the disabling of the ps-protocol
+#               - minor improvements like error names instead of numbers
+#               - Create two toplevel tests sourcing this routine
+#
+# Running this test with and without "--ps-protocol" produces different
+# Qcache_not_cached results because of the following reason:
+# In normal protocol, a SELECT failing due to insufficient privileges
+# increments Qcache_not_cached, while in ps-protocol, no.
+# In detail:
+# - In normal protocol,
+#   the "access denied" errors on SELECT are issued at (stack trace):
+#   mysql_parse/mysql_execute_command/execute_sqlcom_select/handle_select/
+#   mysql_select/JOIN::prepare/setup_wild/insert_fields/
+#   check_grant_all_columns/my_error/my_message_sql, which then calls
+#   push_warning/query_cache_abort: at this moment,
+#   query_cache_store_query() has been called, so query exists in cache,
+#   so thd->net.query_cache_query!=NULL, so query_cache_abort() removes
+#   the query from cache, which causes a query_cache.refused++ (thus,
+#   a Qcache_not_cached++).
+# - In ps-protocol,
+#   the error is issued at prepare time;
+#   for this mysql_test_select() is called, not execute_sqlcom_select()
+#   (and that also leads to JOIN::prepare/etc). Thus, as
+#   query_cache_store_query() has not been called,
+#   thd->net.query_cache_query==NULL, so query_cache_abort() does nothing:
+#   Qcache_not_cached is not incremented.
+#
+# A run of this tests with sp/cursor/view protocol does not make sense
+# because these protocols serve totally different purposes than this test.
+#
 
 --source include/add_anonymous_users.inc
 
-#
-# Test grants with query cache
 #
 --disable_warnings
 drop table if exists test.t1,mysqltest.t1,mysqltest.t2;
@@ -18,6 +47,7 @@ set GLOBAL query_cache_size=1355776;
 
 reset query cache;
 flush status;
+--echo ----- establish connection root -----
 connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection root;
 show grants for current_user;
@@ -33,6 +63,7 @@ insert into mysqltest.t2 values (3,3,3);
 create table test.t1 (a char (10));
 insert into test.t1 values ("test.t1");
 select * from t1;
+--echo ----- establish connection root2 -----
 connect (root2,localhost,root,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection root2;
 # put queries in cache
@@ -51,6 +82,7 @@ grant SELECT on test.t1 to mysqltest_2@localhost;
 grant SELECT(a) on mysqltest.t1 to mysqltest_3@localhost;
 
 # The following queries should be fetched from cache
+--echo ----- establish connection user1 (user=mysqltest_1) -----
 connect (user1,localhost,mysqltest_1,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection user1;
 show grants for current_user();
@@ -76,12 +108,14 @@ show status like "Qcache_hits";
 show status like "Qcache_not_cached";
 
 
+--echo ----- establish connection unkuser (user=unkuser) -----
 # Don't use '' as user because it will pick Unix login
 connect (unkuser,localhost,unkuser,,,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection unkuser;
 show grants for current_user();
 
 # The following queries should be fetched from cache
+--echo ----- establish connection user2 (user=mysqltest_2) -----
 connect (user2,localhost,mysqltest_2,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection user2;
 select "user2";
@@ -90,39 +124,41 @@ select a from t1;
 select c from t1;
 select * from mysqltest.t1,test.t1;
 --replace_result 127.0.0.1 localhost
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 select * from t2;
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_hits";
 show status like "Qcache_not_cached";
 
 # The following queries should not be fetched from cache
+--echo ----- establish connection user3 (user=mysqltest_3) -----
 connect (user3,localhost,mysqltest_3,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection user3;
 select "user3";
 --replace_result 127.0.0.1 localhost
---error 1143
+--error ER_COLUMNACCESS_DENIED_ERROR
 select * from t1;
 select a from t1;
 --replace_result 127.0.0.1 localhost
---error 1143
+--error ER_COLUMNACCESS_DENIED_ERROR
 select c from t1;
 --replace_result 127.0.0.1 localhost
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 select * from t2;
 --replace_result 127.0.0.1 localhost
---error 1143
+--error ER_COLUMNACCESS_DENIED_ERROR
 select mysqltest.t1.c from test.t1,mysqltest.t1;
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_hits";
 show status like "Qcache_not_cached";
 
 # Connect without a database
+--echo ----- establish connection user4 (user=mysqltest_1) -----
 connect (user4,localhost,mysqltest_1,,*NO-ONE*,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection user4;
 select "user4";
 show grants;
---error 1046
+--error ER_NO_DB_ERROR
 select a from t1;
 # The following query is not cached before (different database)
 select * from mysqltest.t1,test.t1;
@@ -135,7 +171,16 @@ show status like "Qcache_not_cached";
 
 # Cleanup
 
-connection root;
+--echo ----- switch to connection default and close connections -----
+connection default;
+disconnect root;
+disconnect root2;
+disconnect user1;
+disconnect user2;
+disconnect user3;
+disconnect user4;
+disconnect unkuser;
+
 #
 # A temporary 4.1 workaround to make this test pass if
 # mysql was compiled with other than latin1 --with-charset=XXX.
@@ -156,30 +201,3 @@ drop database mysqltest;
 set GLOBAL query_cache_size=default;
 
 --source include/delete_anonymous_users.inc
-
-
-# End of 4.1 tests
-
-# (*) Why we disable the ps protocol: because in normal protocol,
-# a SELECT failing due to insufficient privileges increments
-# Qcache_not_cached, while in ps-protocol, no.
-# In detail: in normal protocol,
-# the "access denied" errors on SELECT are issued at (stack trace):
-# mysql_parse/mysql_execute_command/execute_sqlcom_select/handle_select/
-# mysql_select/JOIN::prepare/setup_wild/insert_fields/
-# check_grant_all_columns/my_error/my_message_sql, which then calls
-# push_warning/query_cache_abort: at this moment,
-# query_cache_store_query() has been called, so query exists in cache,
-# so thd->net.query_cache_query!=NULL, so query_cache_abort() removes
-# the query from cache, which causes a query_cache.refused++ (thus,
-# a Qcache_not_cached++).
-# While in ps-protocol, the error is issued at prepare time;
-# for this mysql_test_select() is called, not execute_sqlcom_select()
-# (and that also leads to JOIN::prepare/etc). Thus, as
-# query_cache_store_query() has not been called,
-# thd->net.query_cache_query==NULL, so query_cache_abort() does nothing:
-# Qcache_not_cached is not incremented.
-# As this test prints Qcache_not_cached after SELECT failures,
-# we cannot enable this test in ps-protocol.
-
---enable_ps_protocol

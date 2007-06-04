@@ -3,6 +3,7 @@ drop database if exists mysqltest;
 set GLOBAL query_cache_size=1355776;
 reset query cache;
 flush status;
+----- establish connection root -----
 show grants for current_user;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
@@ -19,6 +20,7 @@ insert into test.t1 values ("test.t1");
 select * from t1;
 a
 test.t1
+----- establish connection root2 -----
 select * from t1;
 a	b	c
 1	1	1
@@ -48,6 +50,7 @@ grant SELECT on mysqltest.* to mysqltest_1@localhost;
 grant SELECT on mysqltest.t1 to mysqltest_2@localhost;
 grant SELECT on test.t1 to mysqltest_2@localhost;
 grant SELECT(a) on mysqltest.t1 to mysqltest_3@localhost;
+----- establish connection user1 (user=mysqltest_1) -----
 show grants for current_user();
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
@@ -112,9 +115,11 @@ Qcache_hits	3
 show status like "Qcache_not_cached";
 Variable_name	Value
 Qcache_not_cached	1
+----- establish connection unkuser (user=unkuser) -----
 show grants for current_user();
 Grants for @localhost
 GRANT USAGE ON *.* TO ''@'localhost'
+----- establish connection user2 (user=mysqltest_2) -----
 select "user2";
 user2
 user2
@@ -145,6 +150,7 @@ Qcache_hits	7
 show status like "Qcache_not_cached";
 Variable_name	Value
 Qcache_not_cached	2
+----- establish connection user3 (user=mysqltest_3) -----
 select "user3";
 user3
 user3
@@ -169,6 +175,7 @@ Qcache_hits	7
 show status like "Qcache_not_cached";
 Variable_name	Value
 Qcache_not_cached	7
+----- establish connection user4 (user=mysqltest_1) -----
 select "user4";
 user4
 user4
@@ -199,6 +206,7 @@ Qcache_hits	8
 show status like "Qcache_not_cached";
 Variable_name	Value
 Qcache_not_cached	8
+----- switch to connection default and close connections -----
 set names binary;
 delete from mysql.user where user in ("mysqltest_1","mysqltest_2","mysqltest_3");
 delete from mysql.db where user in ("mysqltest_1","mysqltest_2","mysqltest_3");

@@ -104,7 +104,6 @@ private:
   bool mutex_queue_data_locked;
   bool mutex_queue_data_attempting_lock;
   bool waiting_on_cond;
-
 };
 
 #endif /* _EVENT_QUEUE_H_ */

@@ -639,7 +639,7 @@ int ha_prepare(THD *thd)
     for (; *ht; ht++)
     {
       int err;
-      statistic_increment(thd->status_var.ha_prepare_count,&LOCK_status);
+      status_var_increment(thd->status_var.ha_prepare_count);
       if ((*ht)->prepare)
       {
         if ((err= (*(*ht)->prepare)(*ht, thd, all)))
@@ -734,7 +734,7 @@ int ha_commit_trans(THD *thd, bool all)
           my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
           error= 1;
         }
-        statistic_increment(thd->status_var.ha_prepare_count,&LOCK_status);
+        status_var_increment(thd->status_var.ha_prepare_count);
       }
       DBUG_EXECUTE_IF("crash_commit_after_prepare", abort(););
       if (error || (is_real_trans && xid &&
@@ -781,7 +781,7 @@ int ha_commit_one_phase(THD *thd, bool all)
         my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
         error=1;
       }
-      statistic_increment(thd->status_var.ha_commit_count,&LOCK_status);
+      status_var_increment(thd->status_var.ha_commit_count);
       *ht= 0;
     }
     trans->nht=0;
@@ -837,7 +837,7 @@ int ha_rollback_trans(THD *thd, bool all)
         my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
         error=1;
       }
-      statistic_increment(thd->status_var.ha_rollback_count,&LOCK_status);
+      status_var_increment(thd->status_var.ha_rollback_count);
       *ht= 0;
     }
     trans->nht=0;
@@ -1252,8 +1252,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
       error=1;
     }
-    statistic_increment(thd->status_var.ha_savepoint_rollback_count,
-                        &LOCK_status);
+    status_var_increment(thd->status_var.ha_savepoint_rollback_count);
     trans->no_2pc|=(*ht)->prepare == 0;
   }
   /*
@@ -1268,7 +1267,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
       error=1;
     }
-    statistic_increment(thd->status_var.ha_rollback_count,&LOCK_status);
+    status_var_increment(thd->status_var.ha_rollback_count);
     *ht=0; // keep it conveniently zero-filled
   }
   DBUG_RETURN(error);
@@ -1301,7 +1300,7 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
       my_error(ER_GET_ERRNO, MYF(0), err);
       error=1;
     }
-    statistic_increment(thd->status_var.ha_savepoint_count,&LOCK_status);
+    status_var_increment(thd->status_var.ha_savepoint_count);
   }
   sv->nht=trans->nht;
 #endif /* USING_TRANSACTIONS */
@@ -1489,7 +1488,7 @@ handler *handler::clone(MEM_ROOT *mem_root)
 
 void handler::ha_statistic_increment(ulong SSV::*offset) const
 {
-  statistic_increment(table->in_use->status_var.*offset, &LOCK_status);
+  status_var_increment(table->in_use->status_var.*offset);
 }
 
 void **handler::ha_data(THD *thd) const
@@ -2836,7 +2835,7 @@ int ha_discover(THD *thd, const char *db, const char *name,
     error= 0;
 
   if (!error)
-    statistic_increment(thd->status_var.ha_discover_count,&LOCK_status);
+    status_var_increment(thd->status_var.ha_discover_count);
   DBUG_RETURN(error);
 }
 

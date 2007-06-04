@@ -44,37 +44,20 @@ sp_exist_routines(THD *thd, TABLE_LIST *procs, bool any, bool no_error);
 int
 sp_routine_exists_in_table(THD *thd, int type, sp_name *name);
 
-int
-sp_create_procedure(THD *thd, sp_head *sp);
+bool
+sp_show_create_routine(THD *thd, int type, sp_name *name);
 
 int
-sp_drop_procedure(THD *thd, sp_name *name);
-
-
-int
-sp_update_procedure(THD *thd, sp_name *name, st_sp_chistics *chistics);
+sp_show_status_routine(THD *thd, int type, const char *wild);
 
 int
-sp_show_create_procedure(THD *thd, sp_name *name);
+sp_create_routine(THD *thd, int type, sp_head *sp);
 
 int
-sp_show_status_procedure(THD *thd, const char *wild);
+sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics);
 
 int
-sp_create_function(THD *thd, sp_head *sp);
-
-int
-sp_drop_function(THD *thd, sp_name *name);
-
-int
-sp_update_function(THD *thd, sp_name *name, st_sp_chistics *chistics);
-
-int
-sp_show_create_function(THD *thd, sp_name *name);
-
-int
-sp_show_status_function(THD *thd, const char *wild);
-
+sp_drop_routine(THD *thd, int type, sp_name *name);
 
 /*
   Procedures for pre-caching of stored routines and building table list

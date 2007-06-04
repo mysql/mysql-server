@@ -1277,7 +1277,6 @@ mysql-test/r/*.err
 mysql-test/r/*.log
 mysql-test/r/*.out
 mysql-test/r/*.reject
-mysql-test/r/*.warnings
 mysql-test/r/alter_table.err
 mysql-test/r/archive.err
 mysql-test/r/backup.log
