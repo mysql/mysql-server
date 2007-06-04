@@ -76,7 +76,8 @@ int sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex,
 int sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
                                                   TABLE_LIST *table);
 
-extern "C" byte* sp_sroutine_key(const byte *ptr, uint *plen, my_bool first);
+extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
+                                  my_bool first);
 
 /*
   Routines which allow open/lock and close mysql.proc table even when

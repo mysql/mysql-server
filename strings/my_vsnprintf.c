@@ -40,10 +40,11 @@
     length of result string
 */
 
-int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
+size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
 {
   char *start=to, *end=to+n-1;
-  uint length, width, pre_zero, have_long;
+  size_t length, width;
+  uint pre_zero, have_long;
 
   for (; *fmt ; fmt++)
   {
@@ -58,7 +59,8 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
     /* Read max fill size (only used with %d and %u) */
     if (*fmt == '-')
       fmt++;
-    length= width= pre_zero= have_long= 0;
+    length= width= 0;
+    pre_zero= have_long= 0;
     if (*fmt == '*')
     {
       fmt++;
@@ -93,7 +95,7 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
     if (*fmt == 's')				/* String parameter */
     {
       reg2 char	*par = va_arg(ap, char *);
-      uint plen,left_len = (uint)(end-to)+1;
+      size_t plen,left_len = (size_t) (end - to) + 1;
       if (!par) par = (char*)"(null)";
       plen= (uint) strnlen(par, width);
       if (left_len <= plen)
@@ -114,11 +116,11 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
     else if (*fmt == 'd' || *fmt == 'u'|| *fmt== 'x')	/* Integer parameter */
     {
       register long larg;
-      uint res_length, to_length;
+      size_t res_length, to_length;
       char *store_start= to, *store_end;
       char buff[32];
 
-      if ((to_length= (uint) (end-to)) < 16 || length)
+      if ((to_length= (size_t) (end-to)) < 16 || length)
 	store_start= buff;
       if (have_long)
         larg = va_arg(ap, long);
@@ -134,7 +136,7 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
           store_end= int10_to_str(larg, store_start, 10);
         else
           store_end= int2str(larg, store_start, 16, 0);
-      if ((res_length= (uint) (store_end - store_start)) > to_length)
+      if ((res_length= (size_t) (store_end - store_start)) > to_length)
 	break;					/* num doesn't fit in output */
       /* If %#d syntax was used, we have to pre-zero/pre-space the string */
       if (store_start == buff)
@@ -142,7 +144,7 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
 	length= min(length, to_length);
 	if (res_length < length)
 	{
-	  uint diff= (length- res_length);
+	  size_t diff= (length- res_length);
 	  bfill(to, diff, pre_zero ? '0' : ' ');
 	  to+= diff;
 	}
@@ -168,10 +170,11 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
   }
   DBUG_ASSERT(to <= end);
   *to='\0';				/* End of errmessage */
-  return (uint) (to - start);
+  return (size_t) (to - start);
 }
 
-int my_snprintf(char* to, size_t n, const char* fmt, ...)
+
+size_t my_snprintf(char* to, size_t n, const char* fmt, ...)
 {
   int result;
   va_list args;

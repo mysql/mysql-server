@@ -73,16 +73,16 @@ enum release_type { RELEASE_NORMAL, RELEASE_WAIT_FOR_DROP };
 
 typedef struct st_filesort_info
 {
-  IO_CACHE *io_cache;           /* If sorted through filebyte                */
-  uchar   **sort_keys;          /* Buffer for sorting keys                   */
-  byte     *buffpek;            /* Buffer for buffpek structures             */
-  uint      buffpek_len;        /* Max number of buffpeks in the buffer      */
-  byte     *addon_buf;          /* Pointer to a buffer if sorted with fields */
-  uint      addon_length;       /* Length of the buffer                      */
+  IO_CACHE *io_cache;           /* If sorted through filesort */
+  uchar     **sort_keys;        /* Buffer for sorting keys */
+  uchar     *buffpek;           /* Buffer for buffpek structures */
+  uint      buffpek_len;        /* Max number of buffpeks in the buffer */
+  uchar     *addon_buf;         /* Pointer to a buffer if sorted with fields */
+  size_t    addon_length;       /* Length of the buffer */
   struct st_sort_addon_field *addon_field;     /* Pointer to the fields info */
-  void    (*unpack)(struct st_sort_addon_field *, byte *); /* To unpack back */
-  byte     *record_pointers;    /* If sorted in memory                       */
-  ha_rows   found_records;      /* How many records in sort                  */
+  void    (*unpack)(struct st_sort_addon_field *, uchar *); /* To unpack back */
+  uchar     *record_pointers;    /* If sorted in memory */
+  ha_rows   found_records;      /* How many records in sort */
 } FILESORT_INFO;
 
 
@@ -137,7 +137,7 @@ typedef struct st_table_share
   KEY  *key_info;			/* data of keys in database */
   uint	*blob_field;			/* Index to blobs in Field arrray*/
 
-  byte	*default_values;		/* row with default values */
+  uchar	*default_values;		/* row with default values */
   LEX_STRING comment;			/* Comment about table */
   CHARSET_INFO *table_charset;		/* Default charset of string fields */
 
@@ -328,10 +328,10 @@ struct st_table {
   THD	*in_use;                        /* Which thread uses this */
   Field **field;			/* Pointer to fields */
 
-  byte *record[2];			/* Pointer to records */
-  byte *write_row_record;		/* Used as optimisation in
+  uchar *record[2];			/* Pointer to records */
+  uchar *write_row_record;		/* Used as optimisation in
 					   THD::write_row */
-  byte *insert_values;                  /* used by INSERT ... UPDATE */
+  uchar *insert_values;                  /* used by INSERT ... UPDATE */
   /* 
     Map of keys that can be used to retrieve all data from this table 
     needed by the query without reading the row.
@@ -429,12 +429,14 @@ struct st_table {
   /*
     If true, the current table row is considered to have all columns set to 
     NULL, including columns declared as "not null" (see maybe_null).
+  */
+  my_bool null_row;
 
-    TODO: Each of these flags take up 8 bits. They can just as easily
+  /*
+    TODO: Each of the following flags take up 8 bits. They can just as easily
     be put into one single unsigned long and instead of taking up 18
     bytes, it would take up 4.
   */
-  my_bool null_row;
   my_bool force_index;
   my_bool distinct,const_table,no_rows;
   my_bool key_read, no_keyread;
@@ -887,8 +889,8 @@ typedef struct st_table_list
   thr_lock_type lock_type;
   uint		outer_join;		/* Which join type */
   uint		shared;			/* Used in multi-upd */
-  uint          db_length;
-  uint32        table_name_length;
+  size_t        db_length;
+  size_t        table_name_length;
   bool          updatable;		/* VIEW/TABLE can be updated now */
   bool		straight;		/* optimize with prev table */
   bool          updating;               /* for replicate-do/ignore table */
@@ -909,6 +911,8 @@ typedef struct st_table_list
   bool          compact_view_format;    /* Use compact format for SHOW CREATE VIEW */
   /* view where processed */
   bool          where_processed;
+  /* TRUE <=> VIEW CHECK OPTION expression has been processed */
+  bool          check_option_processed;
   /* FRMTYPE_ERROR if any type is acceptable */
   enum frm_type_enum required_type;
   handlerton	*db_type;		/* table_type for handler */
@@ -1192,3 +1196,6 @@ static inline void dbug_tmp_restore_column_map(MY_BITMAP *bitmap,
   tmp_restore_column_map(bitmap, old);
 #endif
 }
+
+size_t max_row_length(TABLE *table, const uchar *data);
+

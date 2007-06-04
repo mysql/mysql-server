@@ -886,9 +886,9 @@ static bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
     {
       i++;
       /* Change values[0...i-1] -> values[0...count-1] */
-      bmove_upp((char*) (values+count), (char*) (values+i),
+      bmove_upp((uchar*) (values+count), (uchar*) (values+i),
 		sizeof(*values)*i);
-      bzero((char*) values, sizeof(*values)*(count-i));
+      bzero((uchar*) values, sizeof(*values)*(count-i));
       break;
     }
   }
@@ -1223,7 +1223,7 @@ bool get_interval_value(Item *args,interval_type int_type,
   ulonglong array[5];
   longlong value;
   const char *str;
-  uint32 length;
+  size_t length;
   CHARSET_INFO *cs=str_value->charset();
 
   LINT_INIT(value);
@@ -1258,7 +1258,7 @@ bool get_interval_value(Item *args,interval_type int_type,
       interval->neg=1;
       str++;
     }
-    length=(uint32) (end-str);		// Set up pointers to new str
+    length= (size_t) (end-str);		// Set up pointers to new str
   }
 
   switch (int_type) {
@@ -2058,27 +2058,6 @@ bool Item_date_add_interval::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 
   if ((null_value= date_add_interval(ltime, int_type, interval)))
     return 1;
-
-  /* Adjust cached_field_type according to the detected type. */
-  if (cached_field_type == MYSQL_TYPE_STRING)
-  {
-    switch (ltime->time_type)
-    {
-    case MYSQL_TIMESTAMP_DATE:
-      cached_field_type= MYSQL_TYPE_DATE;
-      break;
-    case MYSQL_TIMESTAMP_DATETIME:
-      cached_field_type= MYSQL_TYPE_DATETIME;
-      break;
-    case MYSQL_TIMESTAMP_TIME:
-      cached_field_type= MYSQL_TYPE_TIME;
-      break;
-    default:
-      /* Shouldn't get here. */
-      DBUG_ASSERT(0);
-      break;
-    }
-  }
   return 0;
 }
 

@@ -3225,6 +3225,93 @@ CREATE VIEW v1 AS SELECT CAST(1.23456789 AS DECIMAL(8,0)) AS col;
 SHOW CREATE VIEW v1;
 DROP VIEW v1;
 
+#
+# Bug #28716: CHECK OPTION expression is evaluated over expired record buffers
+# when VIEW is updated via temporary tables
+#
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b INT, c INT DEFAULT 0);
+INSERT INTO t1 (a) VALUES (1), (2);
+INSERT INTO t2 (b) VALUES (1), (2);
+CREATE VIEW v1 AS SELECT t2.b,t2.c FROM t1, t2
+  WHERE t1.a=t2.b AND t2.b < 3 WITH CHECK OPTION;
+SELECT * FROM v1;
+UPDATE v1 SET c=1 WHERE b=1;
+SELECT * FROM v1;
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
+#
+# Bug #28561: update on multi-table view with CHECK OPTION and
+#             a subquery in WHERE condition
+#
+
+CREATE TABLE t1 (id int);
+CREATE TABLE t2 (id int, c int DEFAULT 0);
+INSERT INTO t1 (id) VALUES (1);
+INSERT INTO t2 (id) VALUES (1);
+
+CREATE VIEW v1 AS 
+  SELECT t2.c FROM t1, t2 
+    WHERE t1.id=t2.id AND 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
+
+UPDATE v1 SET c=1;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
+#
+# Bug #27827: CHECK OPTION ignores ON conditions when updating
+#             a multi-table view with CHECK OPTION.
+#
+
+CREATE TABLE t1 (a1 INT, c INT DEFAULT 0);
+CREATE TABLE t2 (a2 INT);
+CREATE TABLE t3 (a3 INT);
+CREATE TABLE t4 (a4 INT);
+INSERT INTO t1 (a1) VALUES (1),(2);
+INSERT INTO t2 (a2) VALUES (1),(2);
+INSERT INTO t3 (a3) VALUES (1),(2);
+INSERT INTO t4 (a4) VALUES (1),(2);
+
+CREATE VIEW v1 AS
+  SELECT t1.a1, t1.c FROM t1 JOIN t2 ON t1.a1=t2.a2 AND t1.c < 3
+    WITH CHECK OPTION;
+SELECT * FROM v1;
+--error 1369
+UPDATE v1 SET c=3;
+PREPARE t FROM 'UPDATE v1 SET c=3';
+--error 1369
+EXECUTE t;
+--error 1369
+EXECUTE t;
+--error 1369
+INSERT INTO v1(a1, c) VALUES (3, 3);
+UPDATE v1 SET c=1 WHERE a1=1;
+SELECT * FROM v1;
+SELECT * FROM t1;
+
+CREATE VIEW v2 AS SELECT t1.a1, t1.c
+  FROM (t1 JOIN t2 ON t1.a1=t2.a2 AND t1.c < 3)
+  JOIN (t3 JOIN t4 ON t3.a3=t4.a4)
+    ON t2.a2=t3.a3 WITH CHECK OPTION;
+SELECT * FROM v2;
+--error 1369
+UPDATE v2 SET c=3;
+PREPARE t FROM 'UPDATE v2 SET c=3';
+--error 1369
+EXECUTE t;
+--error 1369
+EXECUTE t;
+--error 1369
+INSERT INTO v2(a1, c) VALUES (3, 3);
+UPDATE v2 SET c=2 WHERE a1=1;
+SELECT * FROM v2;
+SELECT * FROM t1;
+
+DROP VIEW v1,v2;
+DROP TABLE t1,t2,t3,t4;
+
 --echo End of 5.0 tests.
 
 #

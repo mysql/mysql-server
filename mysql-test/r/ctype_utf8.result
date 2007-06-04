@@ -1454,8 +1454,8 @@ insert into t1 values ('123'), ('456');
 explain
 select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Y	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort; Using join cache
-1	SIMPLE	Z	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	Y	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+1	SIMPLE	Z	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
 select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
 substr(Z.a,-1)	a
 3	123

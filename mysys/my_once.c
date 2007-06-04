@@ -36,10 +36,10 @@
     No DBUG_ENTER... here to get smaller dbug-startup 
 */
 
-gptr my_once_alloc(unsigned int Size, myf MyFlags)
+void* my_once_alloc(size_t Size, myf MyFlags)
 {
-  uint get_size,max_left;
-  gptr point;
+  size_t get_size, max_left;
+  uchar* point;
   reg1 USED_MEM *next;
   reg2 USED_MEM **prev;
 
@@ -63,36 +63,36 @@ gptr my_once_alloc(unsigned int Size, myf MyFlags)
       my_errno=errno;
       if (MyFlags & (MY_FAE+MY_WME))
 	my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG),get_size);
-      return((gptr) 0);
+      return((uchar*) 0);
     }
-    DBUG_PRINT("test",("my_once_malloc %u byte malloced",get_size));
+    DBUG_PRINT("test",("my_once_malloc %lu byte malloced", (ulong) get_size));
     next->next= 0;
     next->size= get_size;
     next->left= get_size-ALIGN_SIZE(sizeof(USED_MEM));
     *prev=next;
   }
-  point= (gptr) ((char*) next+ (next->size-next->left));
+  point= (uchar*) ((char*) next+ (next->size-next->left));
   next->left-= Size;
 
   if (MyFlags & MY_ZEROFILL)
     bzero(point, Size);
-  return(point);
+  return((void*) point);
 } /* my_once_alloc */
 
 
 char *my_once_strdup(const char *src,myf myflags)
 {
-  uint len= (uint) strlen(src)+1;
-  char *dst=my_once_alloc(len, myflags);
+  size_t len= strlen(src)+1;
+  uchar *dst= my_once_alloc(len, myflags);
   if (dst)
     memcpy(dst, src, len);
-  return dst;
+  return (char*) dst;
 }
 
 
-char *my_once_memdup(const char *src, uint len, myf myflags)
+void *my_once_memdup(const void *src, size_t len, myf myflags)
 {
-  char *dst=my_once_alloc(len, myflags);
+  uchar *dst= my_once_alloc(len, myflags);
   if (dst)
     memcpy(dst, src, len);
   return dst;
@@ -114,7 +114,7 @@ void my_once_free(void)
   for (next=my_once_root_block ; next ; )
   {
     old=next; next= next->next ;
-    free((gptr) old);
+    free((uchar*) old);
   }
   my_once_root_block=0;
 

@@ -206,10 +206,10 @@ void STDCALL mysql_manager_close(MYSQL_MANAGER* con)
     allocated in my_multimalloc() along with con->host, freeing
     con->hosts frees the whole block
   */
-  my_free((gptr)con->host,MYF(MY_ALLOW_ZERO_PTR));
+  my_free((uchar*)con->host,MYF(MY_ALLOW_ZERO_PTR));
   net_end(&con->net);
   if (con->free_me)
-    my_free((gptr)con,MYF(0));
+    my_free((uchar*)con,MYF(0));
 }
 
 

@@ -152,4 +152,16 @@ drop view v1;
 
 sync_slave_with_master;
 
+#
+# BUG#28244 CREATE VIEW breaks replication when view exists
+#
+connection master;
+CREATE TABLE t1(a INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+--error ER_TABLE_EXISTS_ERROR
+CREATE VIEW v1 AS SELECT * FROM t1;
+DROP VIEW v1;
+DROP TABLE t1;
+sync_slave_with_master;
+
 --echo End of 5.0 tests

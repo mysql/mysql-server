@@ -438,7 +438,7 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b)
 {
   handler *file= (handler*)arg;
-  return file->cmp_ref((const byte*)a, (const byte*)b);
+  return file->cmp_ref((const uchar*)a, (const uchar*)b);
 }
 
 /*

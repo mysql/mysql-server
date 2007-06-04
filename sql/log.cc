@@ -1435,7 +1435,7 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
   DBUG_ASSERT(mysql_bin_log.is_open() && trx_data->empty());
   thd->ha_data[binlog_hton->slot]= 0;
   trx_data->~binlog_trx_data();
-  my_free((gptr)trx_data, MYF(0));
+  my_free((uchar*)trx_data, MYF(0));
   return 0;
 }
 
@@ -1670,7 +1670,7 @@ int check_binlog_magic(IO_CACHE* log, const char** errmsg)
   char magic[4];
   DBUG_ASSERT(my_b_tell(log) == 0);
 
-  if (my_b_read(log, (byte*) magic, sizeof(magic)))
+  if (my_b_read(log, (uchar*) magic, sizeof(magic)))
   {
     *errmsg = "I/O error reading the header from the binary log";
     sql_print_error("%s, errno=%d, io cache code=%d", *errmsg, my_errno,
@@ -1772,15 +1772,16 @@ static int find_uniq_filename(char *name)
   struct st_my_dir     *dir_info;
   reg1 struct fileinfo *file_info;
   ulong                 max_found=0;
-
+  size_t		buf_length, length;
+  char			*start, *end;
   DBUG_ENTER("find_uniq_filename");
 
-  uint  length = dirname_part(buff,name);
-  char *start  = name + length;
-  char *end    = strend(start);
+  length= dirname_part(buff, name, &buf_length);
+  start=  name + length;
+  end=    strend(start);
 
   *end='.';
-  length= (uint) (end-start+1);
+  length= (size_t) (end-start+1);
 
   if (!(dir_info = my_dir(buff,MYF(MY_DONT_SORT))))
   {						// This shouldn't happen
@@ -1790,7 +1791,7 @@ static int find_uniq_filename(char *name)
   file_info= dir_info->dir_entry;
   for (i=dir_info->number_off_files ; i-- ; file_info++)
   {
-    if (bcmp(file_info->name,start,length) == 0 &&
+    if (bcmp((uchar*) file_info->name, (uchar*) start, length) == 0 &&
 	test_if_number(file_info->name+length, &number,0))
     {
       set_if_bigger(max_found,(ulong) number);
@@ -1894,7 +1895,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
                        );
     end= strnmov(buff + len, "Time                 Id Command    Argument\n",
                  sizeof(buff) - len);
-    if (my_b_write(&log_file, (byte*) buff, (uint) (end-buff)) ||
+    if (my_b_write(&log_file, (uchar*) buff, (uint) (end-buff)) ||
 	flush_io_cache(&log_file))
       goto err;
   }
@@ -2102,30 +2103,30 @@ bool MYSQL_QUERY_LOG::write(time_t event_time, const char *user_host,
                                    start.tm_mday, start.tm_hour,
                                    start.tm_min, start.tm_sec);
 
-        if (my_b_write(&log_file, (byte*) &time_buff, time_buff_len))
+        if (my_b_write(&log_file, (uchar*) &time_buff, time_buff_len))
           goto err;
       }
       else
-        if (my_b_write(&log_file, (byte*) "\t\t" ,2) < 0)
+        if (my_b_write(&log_file, (uchar*) "\t\t" ,2) < 0)
           goto err;
 
       /* command_type, thread_id */
       length= my_snprintf(buff, 32, "%5ld ", (long) thread_id);
 
-    if (my_b_write(&log_file, (byte*) buff, length))
+    if (my_b_write(&log_file, (uchar*) buff, length))
       goto err;
 
-    if (my_b_write(&log_file, (byte*) command_type, command_type_len))
+    if (my_b_write(&log_file, (uchar*) command_type, command_type_len))
       goto err;
 
-    if (my_b_write(&log_file, (byte*) "\t", 1))
+    if (my_b_write(&log_file, (uchar*) "\t", 1))
       goto err;
 
     /* sql_text */
-    if (my_b_write(&log_file, (byte*) sql_text, sql_text_len))
+    if (my_b_write(&log_file, (uchar*) sql_text, sql_text_len))
       goto err;
 
-    if (my_b_write(&log_file, (byte*) "\n", 1) ||
+    if (my_b_write(&log_file, (uchar*) "\n", 1) ||
         flush_io_cache(&log_file))
       goto err;
   }
@@ -2205,7 +2206,7 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
                               start.tm_min, start.tm_sec);
 
         /* Note that my_b_write() assumes it knows the length for this */
-        if (my_b_write(&log_file, (byte*) buff, buff_len))
+        if (my_b_write(&log_file, (uchar*) buff, buff_len))
           tmp_errno= errno;
       }
       if (my_b_printf(&log_file, "# User@Host: ", sizeof("# User@Host: ") - 1)
@@ -2213,7 +2214,7 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
         tmp_errno= errno;
       if (my_b_printf(&log_file, user_host, user_host_len) != user_host_len)
         tmp_errno= errno;
-      if (my_b_write(&log_file, (byte*) "\n", 1))
+      if (my_b_write(&log_file, (uchar*) "\n", 1))
         tmp_errno= errno;
     }
     /* For slow query log */
@@ -2261,18 +2262,18 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
     {
       *end++=';';
       *end='\n';
-      if (my_b_write(&log_file, (byte*) "SET ", 4) ||
-          my_b_write(&log_file, (byte*) buff + 1, (uint) (end-buff)))
+      if (my_b_write(&log_file, (uchar*) "SET ", 4) ||
+          my_b_write(&log_file, (uchar*) buff + 1, (uint) (end-buff)))
         tmp_errno= errno;
     }
     if (is_command)
     {
       end= strxmov(buff, "# administrator command: ", NullS);
       buff_len= (ulong) (end - buff);
-      my_b_write(&log_file, (byte*) buff, buff_len);
+      my_b_write(&log_file, (uchar*) buff, buff_len);
     }
-    if (my_b_write(&log_file, (byte*) sql_text, sql_text_len) ||
-        my_b_write(&log_file, (byte*) ";\n",2) ||
+    if (my_b_write(&log_file, (uchar*) sql_text, sql_text_len) ||
+        my_b_write(&log_file, (uchar*) ";\n",2) ||
         flush_io_cache(&log_file))
       tmp_errno= errno;
     if (tmp_errno)
@@ -2456,7 +2457,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
 	an extension for the binary log files.
 	In this case we write a standard header to it.
       */
-      if (my_b_safe_write(&log_file, (byte*) BINLOG_MAGIC,
+      if (my_b_safe_write(&log_file, (uchar*) BINLOG_MAGIC,
 			  BIN_LOG_HEADER_SIZE))
         goto err;
       bytes_written+= BIN_LOG_HEADER_SIZE;
@@ -2528,9 +2529,9 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
         As this is a new log file, we write the file name to the index
         file. As every time we write to the index file, we sync it.
       */
-      if (my_b_write(&index_file, (byte*) log_file_name,
+      if (my_b_write(&index_file, (uchar*) log_file_name,
 		     strlen(log_file_name)) ||
-	  my_b_write(&index_file, (byte*) "\n", 1) ||
+	  my_b_write(&index_file, (uchar*) "\n", 1) ||
 	  flush_io_cache(&index_file) ||
           my_sync(index_file.file, MYF(MY_WME)))
 	goto err;
@@ -2598,7 +2599,7 @@ static bool copy_up_file_and_fill(IO_CACHE *index_file, my_off_t offset)
   int bytes_read;
   my_off_t init_offset= offset;
   File file= index_file->file;
-  byte io_buf[IO_SIZE*2];
+  uchar io_buf[IO_SIZE*2];
   DBUG_ENTER("copy_up_file_and_fill");
 
   for (;; offset+= bytes_read)
@@ -2610,7 +2611,7 @@ static bool copy_up_file_and_fill(IO_CACHE *index_file, my_off_t offset)
     if (!bytes_read)
       break;					// end of file
     (void) my_seek(file, offset-init_offset, MY_SEEK_SET, MYF(0));
-    if (my_write(file, (byte*) io_buf, bytes_read, MYF(MY_WME | MY_NABP)))
+    if (my_write(file, io_buf, bytes_read, MYF(MY_WME | MY_NABP)))
       goto err;
   }
   /* The following will either truncate the file or fill the end with \n' */
@@ -2822,7 +2823,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
     need_start_event=1;
   if (!open_index_file(index_file_name, 0))
     open(save_name, log_type, 0, io_cache_type, no_auto_events, max_size, 0);
-  my_free((gptr) save_name, MYF(0));
+  my_free((uchar*) save_name, MYF(0));
 
 err:
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -3324,7 +3325,7 @@ bool MYSQL_BIN_LOG::appendv(const char* buf, uint len,...)
   safe_mutex_assert_owner(&LOCK_log);
   do
   {
-    if (my_b_append(&log_file,(byte*) buf,len))
+    if (my_b_append(&log_file,(uchar*) buf,len))
     {
       error= 1;
       goto err;
@@ -3398,7 +3399,7 @@ int THD::binlog_setup_trx_data()
       open_cached_file(&trx_data->trans_log, mysql_tmpdir,
                        LOG_PREFIX, binlog_cache_size, MYF(MY_WME)))
   {
-    my_free((gptr)trx_data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free((uchar*)trx_data, MYF(MY_ALLOW_ZERO_PTR));
     ha_data[binlog_hton->slot]= 0;
     DBUG_RETURN(1);                      // Didn't manage to set it up
   }
@@ -3804,7 +3805,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
           for (uint i= 0; i < thd->user_var_events.elements; i++)
           {
             BINLOG_USER_VAR_EVENT *user_var_event;
-            get_dynamic(&thd->user_var_events,(gptr) &user_var_event, i);
+            get_dynamic(&thd->user_var_events,(uchar*) &user_var_event, i);
             User_var_log_event e(thd, user_var_event->user_var_event->name.str,
                                  user_var_event->user_var_event->name.length,
                                  user_var_event->value,
@@ -4131,8 +4132,16 @@ void MYSQL_BIN_LOG::close(uint exiting)
     if (log_file.type == WRITE_CACHE && log_type == LOG_BIN)
     {
       my_off_t offset= BIN_LOG_HEADER_SIZE + FLAGS_OFFSET;
-      byte flags=0; // clearing LOG_EVENT_BINLOG_IN_USE_F
+      my_off_t org_position= my_tell(log_file.file, MYF(0));
+      uchar flags= 0;            // clearing LOG_EVENT_BINLOG_IN_USE_F
       my_pwrite(log_file.file, &flags, 1, offset, MYF(0));
+      /*
+        Restore position so that anything we have in the IO_cache is written
+        to the correct position.
+        We need the seek here, as my_pwrite() is not guaranteed to keep the
+        original position on system that doesn't support pwrite().
+      */
+      my_seek(log_file.file, org_position, MY_SEEK_SET, MYF(0));
     }
 
     /* this will cleanup IO_CACHE, sync and close the file */
@@ -4256,17 +4265,21 @@ bool flush_error_log()
     (void) my_delete(err_temp, MYF(0)); 
     if (freopen(err_temp,"a+",stdout))
     {
+      int fd;
+      size_t bytes;
+      uchar buf[IO_SIZE];
+
       freopen(err_temp,"a+",stderr);
       (void) my_delete(err_renamed, MYF(0));
       my_rename(log_error_file,err_renamed,MYF(0));
       if (freopen(log_error_file,"a+",stdout))
         freopen(log_error_file,"a+",stderr);
-      int fd, bytes;
-      char buf[IO_SIZE];
+
       if ((fd = my_open(err_temp, O_RDONLY, MYF(0))) >= 0)
       {
-        while ((bytes = (int) my_read(fd, (byte*) buf, IO_SIZE, MYF(0))) > 0)
-             my_fwrite(stderr, (byte*) buf, bytes, MYF(0));
+        while ((bytes= my_read(fd, buf, IO_SIZE, MYF(0))) &&
+               bytes != MY_FILE_ERROR)
+          my_fwrite(stderr, buf, bytes, MYF(0));
         my_close(fd, MYF(0));
       }
       (void) my_delete(err_temp, MYF(0)); 
@@ -4840,9 +4853,9 @@ void TC_LOG_MMAP::close()
       pthread_cond_destroy(&pages[i].cond);
     }
   case 3:
-    my_free((gptr)pages, MYF(0));
+    my_free((uchar*)pages, MYF(0));
   case 2:
-    my_munmap((byte*)data, (size_t)file_length);
+    my_munmap((char*)data, (size_t)file_length);
   case 1:
     my_close(fd, MYF(0));
   }
@@ -4876,13 +4889,13 @@ int TC_LOG_MMAP::recover()
   }
 
   if (hash_init(&xids, &my_charset_bin, tc_log_page_size/3, 0,
-            sizeof(my_xid), 0, 0, MYF(0)))
+                sizeof(my_xid), 0, 0, MYF(0)))
     goto err1;
 
   for ( ; p < end_p ; p++)
   {
     for (my_xid *x=p->start; x < p->end; x++)
-      if (*x && my_hash_insert(&xids, (byte *)x))
+      if (*x && my_hash_insert(&xids, (uchar *)x))
         goto err2; // OOM
   }
 
@@ -5075,7 +5088,7 @@ int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
 
   if (! fdle->is_valid() ||
       hash_init(&xids, &my_charset_bin, TC_LOG_PAGE_SIZE/3, 0,
-            sizeof(my_xid), 0, 0, MYF(0)))
+                sizeof(my_xid), 0, 0, MYF(0)))
     goto err1;
 
   init_alloc_root(&mem_root, TC_LOG_PAGE_SIZE, TC_LOG_PAGE_SIZE);
@@ -5087,8 +5100,8 @@ int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
     if (ev->get_type_code() == XID_EVENT)
     {
       Xid_log_event *xev=(Xid_log_event *)ev;
-      byte *x=(byte *)memdup_root(&mem_root, (char *)& xev->xid,
-                                  sizeof(xev->xid));
+      uchar *x= (uchar *) memdup_root(&mem_root, (uchar*) &xev->xid,
+                                      sizeof(xev->xid));
       if (! x)
         goto err2;
       my_hash_insert(&xids, x);

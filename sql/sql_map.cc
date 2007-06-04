@@ -24,7 +24,7 @@
 #include <sys/mman.h>
 #endif
 
-mapped_files::mapped_files(const my_string filename,byte *magic,uint magic_length)
+mapped_files::mapped_files(const char * filename,uchar *magic,uint magic_length)
 {
 #ifdef HAVE_MMAP
   name=my_strdup(filename,MYF(0));
@@ -37,18 +37,18 @@ mapped_files::mapped_files(const my_string filename,byte *magic,uint magic_lengt
     struct stat stat_buf;
     if (!fstat(file,&stat_buf))
     {
-      if (!(map=(byte*) my_mmap(0,(size=(ulong) stat_buf.st_size),PROT_READ,
+      if (!(map=(uchar*) my_mmap(0,(size=(ulong) stat_buf.st_size),PROT_READ,
 			     MAP_SHARED | MAP_NORESERVE,file,
 			     0L)))
       {
 	error=errno;
-	my_error(ER_NO_FILE_MAPPING, MYF(0), (my_string) name, error);
+	my_error(ER_NO_FILE_MAPPING, MYF(0), (char *) name, error);
       }
     }
     if (map && memcmp(map,magic,magic_length))
     {
       my_error(ER_WRONG_MAGIC, MYF(0), name);
-      VOID(my_munmap(map,size));
+      VOID(my_munmap((char*) map,size));
       map=0;
     }
     if (!map)
@@ -66,7 +66,7 @@ mapped_files::~mapped_files()
 #ifdef HAVE_MMAP
   if (file >= 0)
   {
-    VOID(my_munmap(map,size));
+    VOID(my_munmap((char*) map,size));
     VOID(my_close(file,MYF(0)));
     file= -1; map=0;
   }
@@ -82,7 +82,7 @@ static I_List<mapped_files> maps_in_use;
 **  else alloc new object
 */
 
-mapped_files *map_file(const my_string name,byte *magic,uint magic_length)
+mapped_files *map_file(const char * name,uchar *magic,uint magic_length)
 {
 #ifdef HAVE_MMAP
   VOID(pthread_mutex_lock(&LOCK_mapped_file));
