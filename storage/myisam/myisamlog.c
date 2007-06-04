@@ -32,14 +32,14 @@ struct file_info {
   long process;
   int  filenr,id;
   uint rnd;
-  my_string name,show_name,record;
+  char *name, *show_name, *record;
   MI_INFO *isam;
   bool closed,used;
   ulong accessed;
 };
 
 struct test_if_open_param {
-  my_string name;
+  char * name;
   int max_id;
 };
 
@@ -53,24 +53,25 @@ struct st_access_param
 
 extern int main(int argc,char * *argv);
 static void get_options(int *argc,char ***argv);
-static int examine_log(my_string file_name,char **table_names);
-static int read_string(IO_CACHE *file,gptr *to,uint length);
+static int examine_log(char * file_name,char **table_names);
+static int read_string(IO_CACHE *file,uchar* *to,uint length);
 static int file_info_compare(void *cmp_arg, void *a,void *b);
 static int test_if_open(struct file_info *key,element_count count,
 			struct test_if_open_param *param);
-static void fix_blob_pointers(MI_INFO *isam,byte *record);
+static void fix_blob_pointers(MI_INFO *isam,uchar *record);
 static int test_when_accessed(struct file_info *key,element_count count,
 			      struct st_access_param *access_param);
 static void file_info_free(struct file_info *info);
 static int close_some_file(TREE *tree);
 static int reopen_closed_file(TREE *tree,struct file_info *file_info);
-static int find_record_with_key(struct file_info *file_info,byte *record);
+static int find_record_with_key(struct file_info *file_info,uchar *record);
 static void printf_log(const char *str,...);
-static bool cmp_filename(struct file_info *file_info,my_string name);
+static bool cmp_filename(struct file_info *file_info,char * name);
 
 static uint verbose=0,update=0,test_info=0,max_files=0,re_open_count=0,
   recover=0,prefix_remove=0,opt_processes=0;
-static my_string log_filename=0,filepath=0,write_filename=0,record_pos_file=0;
+static char *log_filename=0, *filepath=0, *write_filename=0;
+static char *record_pos_file= 0;
 static ulong com_count[10][3],number_of_commands=(ulong) ~0L,
 	     isamlog_process;
 static my_off_t isamlog_filepos,start_offset=0,record_pos= HA_OFFSET_ERROR;
@@ -296,7 +297,7 @@ static void get_options(register int *argc, register char ***argv)
 }
 
 
-static int examine_log(my_string file_name, char **table_names)
+static int examine_log(char * file_name, char **table_names)
 {
   uint command,result,files_open;
   ulong access_time,length;
@@ -304,7 +305,7 @@ static int examine_log(my_string file_name, char **table_names)
   int lock_command,mi_result;
   char isam_file_name[FN_REFLEN],llbuff[21],llbuff2[21];
   uchar head[20];
-  gptr	buff;
+  uchar*	buff;
   struct test_if_open_param open_param;
   IO_CACHE cache;
   File file;
@@ -327,7 +328,7 @@ static int examine_log(my_string file_name, char **table_names)
   }
 
   init_io_cache(&cache,file,0,READ_CACHE,start_offset,0,MYF(0));
-  bzero((gptr) com_count,sizeof(com_count));
+  bzero((uchar*) com_count,sizeof(com_count));
   init_tree(&tree,0,0,sizeof(file_info),(qsort_cmp2) file_info_compare,1,
 	    (tree_element_free) file_info_free, NULL);
   VOID(init_key_cache(dflt_key_cache,KEY_CACHE_BLOCK_SIZE,KEY_CACHE_SIZE,
@@ -335,7 +336,7 @@ static int examine_log(my_string file_name, char **table_names)
 
   files_open=0; access_time=0;
   while (access_time++ != number_of_commands &&
-	 !my_b_read(&cache,(byte*) head,9))
+	 !my_b_read(&cache,(uchar*) head,9))
   {
     isamlog_filepos=my_b_tell(&cache)-9L;
     file_info.filenr= mi_uint2korr(head+1);
@@ -375,14 +376,15 @@ static int examine_log(my_string file_name, char **table_names)
       }
 
       if (curr_file_info)
-	printf("\nWarning: %s is opened with same process and filenumber\nMaybe you should use the -P option ?\n",
+	printf("\nWarning: %s is opened with same process and filenumber\n"
+               "Maybe you should use the -P option ?\n",
 	       curr_file_info->show_name);
-      if (my_b_read(&cache,(byte*) head,2))
+      if (my_b_read(&cache,(uchar*) head,2))
 	goto err;
       file_info.name=0;
       file_info.show_name=0;
       file_info.record=0;
-      if (read_string(&cache,(gptr*) &file_info.name,
+      if (read_string(&cache,(uchar**) &file_info.name,
 		      (uint) mi_uint2korr(head)))
 	goto err;
       {
@@ -455,7 +457,7 @@ static int examine_log(my_string file_name, char **table_names)
 	files_open++;
 	file_info.closed=0;
       }
-      VOID(tree_insert(&tree, (gptr) &file_info, 0, tree.custom_arg));
+      VOID(tree_insert(&tree, (uchar*) &file_info, 0, tree.custom_arg));
       if (file_info.used)
       {
 	if (verbose && !record_pos_file)
@@ -474,11 +476,11 @@ static int examine_log(my_string file_name, char **table_names)
       {
 	if (!curr_file_info->closed)
 	  files_open--;
-        VOID(tree_delete(&tree, (gptr) curr_file_info, 0, tree.custom_arg));
+        VOID(tree_delete(&tree, (uchar*) curr_file_info, 0, tree.custom_arg));
       }
       break;
     case MI_LOG_EXTRA:
-      if (my_b_read(&cache,(byte*) head,1))
+      if (my_b_read(&cache,(uchar*) head,1))
 	goto err;
       extra_command=(enum ha_extra_function) head[0];
       if (verbose && !record_pos_file &&
@@ -499,7 +501,7 @@ static int examine_log(my_string file_name, char **table_names)
       }
       break;
     case MI_LOG_DELETE:
-      if (my_b_read(&cache,(byte*) head,8))
+      if (my_b_read(&cache,(uchar*) head,8))
 	goto err;
       filepos=mi_sizekorr(head);
       if (verbose && (!record_pos_file ||
@@ -534,7 +536,7 @@ static int examine_log(my_string file_name, char **table_names)
       break;
     case MI_LOG_WRITE:
     case MI_LOG_UPDATE:
-      if (my_b_read(&cache,(byte*) head,12))
+      if (my_b_read(&cache,(uchar*) head,12))
 	goto err;
       filepos=mi_sizekorr(head);
       length=mi_uint4korr(head+8);
@@ -616,7 +618,7 @@ static int examine_log(my_string file_name, char **table_names)
       my_free(buff,MYF(0));
       break;
     case MI_LOG_LOCK:
-      if (my_b_read(&cache,(byte*) head,sizeof(lock_command)))
+      if (my_b_read(&cache,(uchar*) head,sizeof(lock_command)))
 	goto err;
       memcpy_fixed(&lock_command,head,sizeof(lock_command));
       if (verbose && !record_pos_file &&
@@ -675,14 +677,14 @@ static int examine_log(my_string file_name, char **table_names)
 }
 
 
-static int read_string(IO_CACHE *file, register gptr *to, register uint length)
+static int read_string(IO_CACHE *file, register uchar* *to, register uint length)
 {
   DBUG_ENTER("read_string");
 
   if (*to)
-    my_free((gptr) *to,MYF(0));
-  if (!(*to= (gptr) my_malloc(length+1,MYF(MY_WME))) ||
-      my_b_read(file,(byte*) *to,length))
+    my_free((uchar*) *to,MYF(0));
+  if (!(*to= (uchar*) my_malloc(length+1,MYF(MY_WME))) ||
+      my_b_read(file,(uchar*) *to,length))
   {
     if (*to)
       my_free(*to,MYF(0));
@@ -717,9 +719,9 @@ static int test_if_open (struct file_info *key,
 }
 
 
-static void fix_blob_pointers(MI_INFO *info, byte *record)
+static void fix_blob_pointers(MI_INFO *info, uchar *record)
 {
-  byte *pos;
+  uchar *pos;
   MI_BLOB *blob,*end;
 
   pos=record+info->s->base.reclength;
@@ -801,7 +803,7 @@ static int reopen_closed_file(TREE *tree, struct file_info *fileinfo)
 
 	/* Try to find record with uniq key */
 
-static int find_record_with_key(struct file_info *file_info, byte *record)
+static int find_record_with_key(struct file_info *file_info, uchar *record)
 {
   uint key;
   MI_INFO *info=file_info->isam;
@@ -836,7 +838,7 @@ static void printf_log(const char *format,...)
 }
 
 
-static bool cmp_filename(struct file_info *file_info, my_string name)
+static bool cmp_filename(struct file_info *file_info, char * name)
 {
   if (!file_info)
     return 1;

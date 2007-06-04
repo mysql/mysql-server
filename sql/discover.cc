@@ -39,14 +39,13 @@
    frmdata and len are set to 0 on error
 */
 
-int readfrm(const char *name,
-	    const void **frmdata, uint *len)
+int readfrm(const char *name, uchar **frmdata, size_t *len)
 {
   int    error;
   char	 index_file[FN_REFLEN];
   File	 file;
-  ulong read_len;
-  char *read_data;
+  size_t read_len;
+  uchar *read_data;
   MY_STAT state;  
   DBUG_ENTER("readfrm");
   DBUG_PRINT("enter",("name: '%s'",name));
@@ -68,12 +67,12 @@ int readfrm(const char *name,
 
   // Read whole frm file
   error= 3;
-  read_data= 0; 
+  read_data= 0;                                 // Nothing to free
   if (read_string(file, &read_data, read_len))
     goto err;
 
   // Setup return data
-  *frmdata= (void*) read_data;
+  *frmdata= (uchar*) read_data;
   *len= read_len;
   error= 0;
   
@@ -102,21 +101,20 @@ int readfrm(const char *name,
    2    Could not write file
 */
 
-int writefrm(const char *name, const void *frmdata, uint len)
+int writefrm(const char *name, const uchar *frmdata, size_t len)
 {
   File file;
   char	 index_file[FN_REFLEN];
   int error;
   DBUG_ENTER("writefrm");
-  DBUG_PRINT("enter",("name: '%s' len: %d ",name,len));
-  //DBUG_DUMP("frmdata", (char*)frmdata, len);
+  DBUG_PRINT("enter",("name: '%s' len: %lu ",name, (ulong) len));
 
   error= 0;
   if ((file=my_create(fn_format(index_file,name,"",reg_ext,
                       MY_UNPACK_FILENAME|MY_APPEND_EXT),
 		      CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {
-    if (my_write(file,(byte*)frmdata,len,MYF(MY_WME | MY_NABP)))
+    if (my_write(file, frmdata, len,MYF(MY_WME | MY_NABP)))
       error= 2;
     VOID(my_close(file,MYF(0)));
   }

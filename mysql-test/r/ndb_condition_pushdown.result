@@ -1730,8 +1730,8 @@ pk1	attr1	attr2	attr3	attr4
 explain
 select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using temporary; Using filesort; Using join cache
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using temporary; Using filesort
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using join buffer
 select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
 pk1	attr1	attr2	attr3	pk1	attr1	attr2	attr3	attr4
 0	0	0	a	0	0	0	0	a
@@ -1746,8 +1746,8 @@ pk1	attr1	attr2	attr3	attr4
 explain
 select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	range	attr1	attr1	4	NULL	#	Using where with pushed condition; Using temporary; Using filesort; Using join cache
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	#	Using where
+1	SIMPLE	t4	range	attr1	attr1	4	NULL	#	Using where with pushed condition; Using temporary; Using filesort
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	#	Using where; Using join buffer
 select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
 pk1	attr1	attr2	attr3	attr4	pk1	attr1	attr2	attr3	attr4
 2	2	9223372036854775804	2	c	2	2	9223372036854775804	2	c

@@ -147,10 +147,10 @@ static TABLE *open_proc_table_for_update(THD *thd)
 static int
 db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
 {
-  byte key[MAX_KEY_LENGTH];	// db, name, optional key length type
+  uchar key[MAX_KEY_LENGTH];	// db, name, optional key length type
   DBUG_ENTER("db_find_routine_aux");
-  DBUG_PRINT("enter", ("type: %d name: %.*s",
-		       type, name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("type: %d  name: %.*s",
+		       type, (int) name->m_name.length, name->m_name.str));
 
   /*
     Create key to find row. We have to use field->store() to be able to
@@ -215,7 +215,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   Open_tables_state open_tables_state_backup;
   DBUG_ENTER("db_find_routine");
   DBUG_PRINT("enter", ("type: %d name: %.*s",
-		       type, name->m_name.length, name->m_name.str));
+		       type, (int) name->m_name.length, name->m_name.str));
 
   *sphp= 0;                                     // In case of errors
   if (!(table= open_proc_table_for_read(thd, &open_tables_state_backup)))
@@ -466,7 +466,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   char definer[USER_HOST_BUFF_SIZE];
 
   DBUG_ENTER("sp_create_routine");
-  DBUG_PRINT("enter", ("type: %d name: %.*s",type,sp->m_name.length,
+  DBUG_PRINT("enter", ("type: %d  name: %.*s",type, (int) sp->m_name.length,
                        sp->m_name.str));
 
   DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
@@ -627,8 +627,8 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
   TABLE *table;
   int ret;
   DBUG_ENTER("sp_drop_routine");
-  DBUG_PRINT("enter", ("type: %d name: %.*s",
-		       type, name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("type: %d  name: %.*s",
+		       type, (int) name->m_name.length, name->m_name.str));
 
   DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
               type == TYPE_ENUM_FUNCTION);
@@ -688,15 +688,14 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
   TABLE *table;
   int ret;
   DBUG_ENTER("sp_update_routine");
-  DBUG_PRINT("enter", ("type: %d name: %.*s",
-		       type, name->m_name.length, name->m_name.str));
-
+  DBUG_PRINT("enter", ("type: %d  name: %.*s",
+		       type, (int) name->m_name.length, name->m_name.str));
 
   DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
               type == TYPE_ENUM_FUNCTION);
   /*
     This statement will be replicated as a statement, even when using
-    row-based replication.  The flag will be reset at the end of the
+    row-based replication. The flag will be reset at the end of the
     statement.
   */
   thd->clear_current_stmt_binlog_row_based();
@@ -960,7 +959,7 @@ sp_drop_db_routines(THD *thd, char *db)
   ret= SP_OK;
   table->file->ha_index_init(0, 1);
   if (! table->file->index_read(table->record[0],
-                                (byte *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
+                                (uchar *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
                                 (key_part_map)1, HA_READ_KEY_EXACT))
   {
     int nxtres;
@@ -977,7 +976,7 @@ sp_drop_db_routines(THD *thd, char *db)
 	break;
       }
     } while (! (nxtres= table->file->index_next_same(table->record[0],
-                                (byte *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
+                                (uchar *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
 						     key_len)));
     if (nxtres != HA_ERR_END_OF_FILE)
       ret= SP_KEY_NOT_FOUND;
@@ -1018,7 +1017,9 @@ sp_show_create_routine(THD *thd, int type, sp_name *name)
                      &thd->sp_proc_cache : &thd->sp_func_cache;
 
   DBUG_ENTER("sp_show_create_routine");
-  DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s",
+                       (int) name->m_name.length,
+                       name->m_name.str));
 
   DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
               type == TYPE_ENUM_FUNCTION);
@@ -1075,9 +1076,9 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
                 thd->variables.max_sp_recursion_depth :
                 0);
   DBUG_ENTER("sp_find_routine");
-  DBUG_PRINT("enter", ("name:  %.*s.%.*s, type: %d, cache only %d",
-                       name->m_db.length, name->m_db.str,
-                       name->m_name.length, name->m_name.str,
+  DBUG_PRINT("enter", ("name:  %.*s.%.*s  type: %d  cache only %d",
+                       (int) name->m_db.length, name->m_db.str,
+                       (int) name->m_name.length, name->m_name.str,
                        type, cache_only));
 
   if ((sp= sp_cache_lookup(cp, name)))
@@ -1264,11 +1265,12 @@ struct Sroutine_hash_entry
 };
 
 
-extern "C" byte* sp_sroutine_key(const byte *ptr, uint *plen, my_bool first)
+extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
+                                  my_bool first)
 {
   Sroutine_hash_entry *rn= (Sroutine_hash_entry *)ptr;
   *plen= rn->key.length;
-  return (byte *)rn->key.str;
+  return (uchar *)rn->key.str;
 }
 
 
@@ -1349,7 +1351,7 @@ static bool add_used_routine(LEX *lex, Query_arena *arena,
                 Query_tables_list::START_SROUTINES_HASH_SIZE,
                 0, 0, sp_sroutine_key, 0, 0);
 
-  if (!hash_search(&lex->sroutines, (byte *)key->str, key->length))
+  if (!hash_search(&lex->sroutines, (uchar *)key->str, key->length))
   {
     Sroutine_hash_entry *rn=
       (Sroutine_hash_entry *)arena->alloc(sizeof(Sroutine_hash_entry) +
@@ -1359,8 +1361,8 @@ static bool add_used_routine(LEX *lex, Query_arena *arena,
     rn->key.length= key->length;
     rn->key.str= (char *)rn + sizeof(Sroutine_hash_entry);
     memcpy(rn->key.str, key->str, key->length);
-    my_hash_insert(&lex->sroutines, (byte *)rn);
-    lex->sroutines_list.link_in_list((byte *)rn, (byte **)&rn->next);
+    my_hash_insert(&lex->sroutines, (uchar *)rn);
+    lex->sroutines_list.link_in_list((uchar *)rn, (uchar **)&rn->next);
     rn->belong_to_view= belong_to_view;
     return TRUE;
   }
@@ -1418,7 +1420,7 @@ void sp_remove_not_own_routines(LEX *lex)
       but we want to be more future-proof.
     */
     next_rt= not_own_rt->next;
-    hash_delete(&lex->sroutines, (byte *)not_own_rt);
+    hash_delete(&lex->sroutines, (uchar *)not_own_rt);
   }
 
   *(Sroutine_hash_entry **)lex->sroutines_list_own_last= NULL;
@@ -1450,8 +1452,8 @@ void sp_update_sp_used_routines(HASH *dst, HASH *src)
   for (uint i=0 ; i < src->records ; i++)
   {
     Sroutine_hash_entry *rt= (Sroutine_hash_entry *)hash_element(src, i);
-    if (!hash_search(dst, (byte *)rt->key.str, rt->key.length))
-      my_hash_insert(dst, (byte *)rt);
+    if (!hash_search(dst, (uchar *)rt->key.str, rt->key.length))
+      my_hash_insert(dst, (uchar *)rt);
   }
 }
 

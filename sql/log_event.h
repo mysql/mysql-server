@@ -753,7 +753,7 @@ public:
 
   static void operator delete(void *ptr, size_t size)
   {
-    my_free((gptr) ptr, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
+    my_free((uchar*) ptr, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
   }
 
   /* Placement version of the above operators */
@@ -1041,7 +1041,7 @@ public:
   ~Query_log_event()
   {
     if (data_buf)
-      my_free((gptr) data_buf, MYF(0));
+      my_free((uchar*) data_buf, MYF(0));
   }
   Log_event_type get_type_code() { return QUERY_EVENT; }
 #ifndef MYSQL_CLIENT
@@ -1363,7 +1363,7 @@ public:
   Format_description_log_event(uint8 binlog_ver, const char* server_ver=0);
   Format_description_log_event(const char* buf, uint event_len,
                                const Format_description_log_event* description_event);
-  ~Format_description_log_event() { my_free((gptr)post_header_len, MYF(0)); }
+  ~Format_description_log_event() { my_free((uchar*)post_header_len, MYF(0)); }
   Log_event_type get_type_code() { return FORMAT_DESCRIPTION_EVENT;}
 #ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
@@ -1646,7 +1646,7 @@ public:
   ~Rotate_log_event()
   {
     if (flags & DUP_NAME)
-      my_free((gptr) new_log_ident, MYF(MY_ALLOW_ZERO_PTR));
+      my_free((uchar*) new_log_ident, MYF(MY_ALLOW_ZERO_PTR));
   }
   Log_event_type get_type_code() { return ROTATE_EVENT;}
   int get_data_size() { return  ident_len + ROTATE_HEADER_LEN;}
@@ -2071,20 +2071,20 @@ private:
 #endif
 
 #ifndef MYSQL_CLIENT
-  TABLE      *m_table;
+  TABLE         *m_table;
 #endif
   char const    *m_dbnam;
-  my_size_t      m_dblen;
+  size_t         m_dblen;
   char const    *m_tblnam;
-  my_size_t      m_tbllen;
+  size_t         m_tbllen;
   ulong          m_colcnt;
-  unsigned char *m_coltype;
+  uchar         *m_coltype;
 
-  gptr           m_memory;
+  uchar         *m_memory;
   ulong          m_table_id;
   flag_set       m_flags;
 
-  my_size_t      m_data_size;
+  size_t         m_data_size;
 };
 
 
@@ -2162,7 +2162,7 @@ public:
 #endif
 
 #ifndef MYSQL_CLIENT
-  int add_row_data(byte *data, my_size_t length)
+  int add_row_data(uchar *data, size_t length)
   {
     return do_add_row_data(data,length); 
   }
@@ -2172,7 +2172,7 @@ public:
   virtual int get_data_size();
 
   MY_BITMAP const *get_cols() const { return &m_cols; }
-  my_size_t get_width() const       { return m_width; }
+  size_t get_width() const          { return m_width; }
   ulong get_table_id() const        { return m_table_id; }
 
 #ifndef MYSQL_CLIENT
@@ -2211,7 +2211,7 @@ protected:
 #endif
 
 #ifndef MYSQL_CLIENT
-  virtual int do_add_row_data(byte *data, my_size_t length);
+  virtual int do_add_row_data(uchar *data, size_t length);
 #endif
 
 #ifndef MYSQL_CLIENT
@@ -2235,9 +2235,9 @@ protected:
   uint32    m_bitbuf[128/(sizeof(uint32)*8)];
   uint32    m_bitbuf_ai[128/(sizeof(uint32)*8)];
 
-  byte    *m_rows_buf;		/* The rows in packed format */
-  byte    *m_rows_cur;		/* One-after the end of the data */
-  byte    *m_rows_end;		/* One-after the end of the allocated space */
+  uchar    *m_rows_buf;		/* The rows in packed format */
+  uchar    *m_rows_cur;		/* One-after the end of the data */
+  uchar    *m_rows_end;		/* One-after the end of the allocated space */
 
   flag_set m_flags;		/* Flags for row-level events */
 
@@ -2296,7 +2296,8 @@ private:
       Error code, if something went wrong, 0 otherwise.
    */
   virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
-                             char const *row_start, char const **row_end) = 0;
+                             uchar const *row_start,
+                             uchar const **row_end) = 0;
 
   /*
     Primitive to do the actual execution necessary for a row.
@@ -2344,9 +2345,9 @@ public:
                                           bool is_transactional,
                                           MY_BITMAP *cols,
                                           uint fields,
-                                          const byte *before_record
+                                          const uchar *before_record
                                           __attribute__((unused)),
-                                          const byte *after_record)
+                                          const uchar *after_record)
   {
     return thd->binlog_write_row(table, is_transactional,
                                  cols, fields, after_record);
@@ -2361,13 +2362,13 @@ private:
 #endif
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  gptr  m_memory;
-  byte *m_after_image;
+  uchar *m_memory;
+  uchar *m_after_image;
 
   virtual int do_before_row_operations(TABLE *table);
   virtual int do_after_row_operations(TABLE *table, int error);
   virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
-                             char const *row_start, char const **row_end);
+                             uchar const *row_start, uchar const **row_end);
   virtual int do_exec_row(TABLE *table);
 #endif
 };
@@ -2419,8 +2420,8 @@ public:
                                           bool is_transactional,
                                           MY_BITMAP *cols,
                                           uint fields,
-                                          const byte *before_record,
-                                          const byte *after_record)
+                                          const uchar *before_record,
+                                          const uchar *after_record)
   {
     return thd->binlog_update_row(table, is_transactional,
                                   cols, fields, before_record, after_record);
@@ -2440,14 +2441,14 @@ protected:
 #endif
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  gptr  m_memory;
-  byte *m_key;
-  byte *m_after_image;
+  uchar *m_memory;
+  uchar *m_key;
+  uchar *m_after_image;
 
   virtual int do_before_row_operations(TABLE *table);
   virtual int do_after_row_operations(TABLE *table, int error);
   virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
-                             char const *row_start, char const **row_end);
+                             uchar const *row_start, uchar const **row_end);
   virtual int do_exec_row(TABLE *table);
 #endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */
 };
@@ -2494,8 +2495,8 @@ public:
                                           bool is_transactional,
                                           MY_BITMAP *cols,
                                           uint fields,
-                                          const byte *before_record,
-                                          const byte *after_record
+                                          const uchar *before_record,
+                                          const uchar *after_record
                                           __attribute__((unused)))
   {
     return thd->binlog_delete_row(table, is_transactional,
@@ -2511,14 +2512,14 @@ protected:
 #endif
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  gptr  m_memory;
-  byte *m_key;
-  byte *m_after_image;
+  uchar *m_memory;
+  uchar *m_key;
+  uchar *m_after_image;
 
   virtual int do_before_row_operations(TABLE *table);
   virtual int do_after_row_operations(TABLE *table, int error);
   virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
-                             char const *row_start, char const **row_end);
+                             uchar const *row_start, uchar const **row_end);
   virtual int do_exec_row(TABLE *table);
 #endif
 };

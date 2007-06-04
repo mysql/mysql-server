@@ -110,7 +110,7 @@ static int my_xml_scan(MY_XML_PARSER *p,MY_XML_ATTR *a)
 {
   int lex;
   
-  for(  ; ( p->cur < p->end) && my_xml_is_space(p->cur[0]) ;  p->cur++);
+  for (; ( p->cur < p->end) && my_xml_is_space(p->cur[0]) ;  p->cur++);
   
   if (p->cur >= p->end)
   {
@@ -125,7 +125,7 @@ static int my_xml_scan(MY_XML_PARSER *p,MY_XML_ATTR *a)
   
   if ((p->end - p->cur > 3) && !bcmp(p->cur,"<!--",4))
   {
-    for( ; (p->cur < p->end) && bcmp(p->cur, "-->", 3); p->cur++)
+    for (; (p->cur < p->end) && bcmp(p->cur, "-->", 3); p->cur++)
     {}
     if (!bcmp(p->cur, "-->", 3))
       p->cur+=3;
@@ -155,7 +155,7 @@ static int my_xml_scan(MY_XML_PARSER *p,MY_XML_ATTR *a)
   else if ( (p->cur[0] == '"') || (p->cur[0] == '\'') )
   {
     p->cur++;
-    for(  ; ( p->cur < p->end ) && (p->cur[0] != a->beg[0]); p->cur++)
+    for (; ( p->cur < p->end ) && (p->cur[0] != a->beg[0]); p->cur++)
     {}
     a->end=p->cur;
     if (a->beg[0] == p->cur[0])p->cur++;
@@ -185,15 +185,15 @@ ret:
 }
 
 
-static int my_xml_value(MY_XML_PARSER *st, const char *str, uint len)
+static int my_xml_value(MY_XML_PARSER *st, const char *str, size_t len)
 {
   return (st->value) ? (st->value)(st,str,len) : MY_XML_OK;
 }
 
 
-static int my_xml_enter(MY_XML_PARSER *st, const char *str, uint len)
+static int my_xml_enter(MY_XML_PARSER *st, const char *str, size_t len)
 {
-  if ((uint) (st->attrend-st->attr+len+1) > sizeof(st->attr))
+  if ((size_t) (st->attrend-st->attr+len+1) > sizeof(st->attr))
   {
     sprintf(st->errstr,"To deep XML");
     return MY_XML_ERROR;
@@ -213,7 +213,7 @@ static int my_xml_enter(MY_XML_PARSER *st, const char *str, uint len)
 }
 
 
-static void mstr(char *s,const char *src,uint l1, uint l2)
+static void mstr(char *s,const char *src,size_t l1, size_t l2)
 {
   l1 = l1<l2 ? l1 : l2;
   memcpy(s,src,l1);
@@ -221,17 +221,17 @@ static void mstr(char *s,const char *src,uint l1, uint l2)
 }
 
 
-static int my_xml_leave(MY_XML_PARSER *p, const char *str, uint slen)
+static int my_xml_leave(MY_XML_PARSER *p, const char *str, size_t slen)
 {
   char *e;
-  uint glen;
+  size_t glen;
   char s[32];
   char g[32];
   int  rc;
 
   /* Find previous '/' or beginning */
-  for( e=p->attrend; (e>p->attr) && (e[0] != '/') ; e--);
-  glen = (uint) ((e[0] == '/') ? (p->attrend-e-1) : p->attrend-e);
+  for (e=p->attrend; (e>p->attr) && (e[0] != '/') ; e--);
+  glen = (size_t) ((e[0] == '/') ? (p->attrend-e-1) : p->attrend-e);
   
   if (str && (slen != glen))
   {
@@ -249,7 +249,8 @@ static int my_xml_leave(MY_XML_PARSER *p, const char *str, uint slen)
   if (p->flags & MY_XML_FLAG_RELATIVE_NAMES)
     rc= p->leave_xml ? p->leave_xml(p, str, slen) : MY_XML_OK;
   else
-    rc = p->leave_xml ?  p->leave_xml(p,p->attr,p->attrend-p->attr) : MY_XML_OK;
+    rc= (p->leave_xml ?  p->leave_xml(p,p->attr,p->attrend-p->attr) :
+         MY_XML_OK);
   
   *e='\0';
   p->attrend=e;
@@ -258,7 +259,7 @@ static int my_xml_leave(MY_XML_PARSER *p, const char *str, uint slen)
 }
 
 
-int my_xml_parse(MY_XML_PARSER *p,const char *str, uint len)
+int my_xml_parse(MY_XML_PARSER *p,const char *str, size_t len)
 {
   p->attrend=p->attr;
   p->beg=str;
@@ -283,7 +284,7 @@ int my_xml_parse(MY_XML_PARSER *p,const char *str, uint len)
       {
         a.beg+= 9;
         a.end-= 3;
-        my_xml_value(p, a.beg, (uint) (a.end-a.beg));
+        my_xml_value(p, a.beg, (size_t) (a.end-a.beg));
         continue;
       }
       
@@ -296,7 +297,7 @@ int my_xml_parse(MY_XML_PARSER *p,const char *str, uint len)
           sprintf(p->errstr,"%s unexpected (ident wanted)",lex2str(lex));
           return MY_XML_ERROR;
         }
-        if (MY_XML_OK != my_xml_leave(p,a.beg,(uint) (a.end-a.beg)))
+        if (MY_XML_OK != my_xml_leave(p,a.beg,(size_t) (a.end-a.beg)))
           return MY_XML_ERROR;
         lex=my_xml_scan(p,&a);
         goto gt;
@@ -316,7 +317,7 @@ int my_xml_parse(MY_XML_PARSER *p,const char *str, uint len)
       if (MY_XML_IDENT == lex)
       {
         p->current_node_type= MY_XML_NODE_TAG;
-        if (MY_XML_OK != my_xml_enter(p,a.beg,(uint) (a.end-a.beg)))
+        if (MY_XML_OK != my_xml_enter(p,a.beg,(size_t) (a.end-a.beg)))
           return MY_XML_ERROR;
       }
       else
@@ -336,9 +337,9 @@ int my_xml_parse(MY_XML_PARSER *p,const char *str, uint len)
           if ( (lex == MY_XML_IDENT) || (lex == MY_XML_STRING) )
           {
             p->current_node_type= MY_XML_NODE_ATTR;
-            if ((MY_XML_OK != my_xml_enter(p,a.beg,(uint) (a.end-a.beg)))  ||
-                (MY_XML_OK != my_xml_value(p,b.beg,(uint) (b.end-b.beg)))  ||
-                (MY_XML_OK != my_xml_leave(p,a.beg,(uint) (a.end-a.beg))))
+            if ((MY_XML_OK != my_xml_enter(p,a.beg,(size_t) (a.end-a.beg)))  ||
+                (MY_XML_OK != my_xml_value(p,b.beg,(size_t) (b.end-b.beg)))  ||
+                (MY_XML_OK != my_xml_leave(p,a.beg,(size_t) (a.end-a.beg))))
               return MY_XML_ERROR;
           }
           else
@@ -351,8 +352,8 @@ int my_xml_parse(MY_XML_PARSER *p,const char *str, uint len)
         else if ((MY_XML_STRING == lex) || (MY_XML_IDENT == lex))
         {
           p->current_node_type= MY_XML_NODE_ATTR;
-          if ((MY_XML_OK != my_xml_enter(p,a.beg,(uint) (a.end-a.beg))) ||
-              (MY_XML_OK != my_xml_leave(p,a.beg,(uint) (a.end-a.beg))))
+          if ((MY_XML_OK != my_xml_enter(p,a.beg,(size_t) (a.end-a.beg))) ||
+              (MY_XML_OK != my_xml_leave(p,a.beg,(size_t) (a.end-a.beg))))
            return MY_XML_ERROR;
         }
         else
@@ -401,7 +402,7 @@ gt:
         my_xml_norm_text(&a);
       if (a.beg != a.end)
       {
-        my_xml_value(p,a.beg,(uint) (a.end-a.beg));
+        my_xml_value(p,a.beg,(size_t) (a.end-a.beg));
       }
     }
   }
@@ -428,14 +429,14 @@ void my_xml_parser_free(MY_XML_PARSER *p  __attribute__((unused)))
 
 void my_xml_set_value_handler(MY_XML_PARSER *p,
 			      int (*action)(MY_XML_PARSER *p, const char *s,
-					    uint l))
+					    size_t l))
 {
   p->value=action;
 }
 
 void my_xml_set_enter_handler(MY_XML_PARSER *p,
 			      int (*action)(MY_XML_PARSER *p, const char *s,
-					    uint l))
+					    size_t l))
 {
   p->enter=action;
 }
@@ -443,7 +444,7 @@ void my_xml_set_enter_handler(MY_XML_PARSER *p,
 
 void my_xml_set_leave_handler(MY_XML_PARSER *p,
 			      int (*action)(MY_XML_PARSER *p, const char *s,
-					    uint l))
+					    size_t l))
 {
   p->leave_xml=action;
 }
@@ -461,7 +462,7 @@ const char *my_xml_error_string(MY_XML_PARSER *p)
 }
 
 
-uint my_xml_error_pos(MY_XML_PARSER *p)
+size_t my_xml_error_pos(MY_XML_PARSER *p)
 {
   const char *beg=p->beg;
   const char *s;
@@ -470,7 +471,7 @@ uint my_xml_error_pos(MY_XML_PARSER *p)
     if (s[0] == '\n')
       beg=s;
   }
-  return (uint) (p->cur-beg);
+  return (size_t) (p->cur-beg);
 }
 
 uint my_xml_error_lineno(MY_XML_PARSER *p)

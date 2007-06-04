@@ -42,7 +42,7 @@ Event_queue_element_for_exec::init(LEX_STRING db, LEX_STRING n)
     return TRUE;
   if (!(name.str= my_strndup(n.str, name.length= n.length, MYF(MY_WME))))
   {
-    my_free((gptr) dbname.str, MYF(0));
+    my_free((uchar*) dbname.str, MYF(0));
     return TRUE;
   }
   return FALSE;
@@ -58,8 +58,8 @@ Event_queue_element_for_exec::init(LEX_STRING db, LEX_STRING n)
 
 Event_queue_element_for_exec::~Event_queue_element_for_exec()
 {
-  my_free((gptr) dbname.str, MYF(0));
-  my_free((gptr) name.str, MYF(0));
+  my_free((uchar*) dbname.str, MYF(0));
+  my_free((uchar*) name.str, MYF(0));
 }
 
 
@@ -620,7 +620,7 @@ Event_parse_data::init_definer(THD *thd)
   /* + 1 for @ */
   DBUG_PRINT("info",("init definer as whole"));
   definer.length= definer_user_len + definer_host_len + 1;
-  definer.str= thd->alloc(definer.length + 1);
+  definer.str= (char*) thd->alloc(definer.length + 1);
 
   DBUG_PRINT("info",("copy the user"));
   memcpy(definer.str, definer_user, definer_user_len);
@@ -1636,7 +1636,7 @@ Event_queue_element::update_timing_fields(THD *thd)
 
   DBUG_ENTER("Event_queue_element::update_timing_fields");
 
-  DBUG_PRINT("enter", ("name: %*s", name.length, name.str));
+  DBUG_PRINT("enter", ("name: %*s", (int) name.length, name.str));
 
   /* No need to update if nothing has changed */
   if (!(status_changed || last_executed_changed))
@@ -1696,7 +1696,8 @@ Event_timed::get_create_event(THD *thd, String *buf)
   expr_buf.length(0);
 
   DBUG_ENTER("get_create_event");
-  DBUG_PRINT("ret_info",("body_len=[%d]body=[%s]", body.length, body.str));
+  DBUG_PRINT("ret_info",("body_len=[%d]body=[%s]",
+                         (int) body.length, body.str));
 
   if (expression && Events::reconstruct_interval_expression(&expr_buf, interval,
                                                             expression))

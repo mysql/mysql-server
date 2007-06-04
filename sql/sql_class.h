@@ -472,30 +472,31 @@ public:
   inline bool is_conventional() const
   { return state == CONVENTIONAL_EXECUTION; }
 
-  inline gptr alloc(unsigned int size) { return alloc_root(mem_root,size); }
-  inline gptr calloc(unsigned int size)
+  inline void* alloc(size_t size) { return alloc_root(mem_root,size); }
+  inline void* calloc(size_t size)
   {
-    gptr ptr;
+    void *ptr;
     if ((ptr=alloc_root(mem_root,size)))
-      bzero((char*) ptr,size);
+      bzero(ptr, size);
     return ptr;
   }
   inline char *strdup(const char *str)
   { return strdup_root(mem_root,str); }
-  inline char *strmake(const char *str, uint size)
+  inline char *strmake(const char *str, size_t size)
   { return strmake_root(mem_root,str,size); }
-  inline bool LEX_STRING_make(LEX_STRING *lex_str, const char *str, uint size)
+  inline bool LEX_STRING_make(LEX_STRING *lex_str, const char *str,
+                              size_t size)
   {
     return ((lex_str->str= 
              strmake_root(mem_root, str, (lex_str->length= size)))) == 0;
   }
 
-  inline char *memdup(const char *str, uint size)
+  inline void *memdup(const void *str, size_t size)
   { return memdup_root(mem_root,str,size); }
-  inline char *memdup_w_gap(const char *str, uint size, uint gap)
+  inline void *memdup_w_gap(const void *str, size_t size, uint gap)
   {
-    gptr ptr;
-    if ((ptr=alloc_root(mem_root,size+gap)))
+    void *ptr;
+    if ((ptr= alloc_root(mem_root,size+gap)))
       memcpy(ptr,str,size);
     return ptr;
   }
@@ -617,7 +618,7 @@ public:
   Statement *find_by_name(LEX_STRING *name)
   {
     Statement *stmt;
-    stmt= (Statement*)hash_search(&names_hash, (byte*)name->str,
+    stmt= (Statement*)hash_search(&names_hash, (uchar*)name->str,
                                   name->length);
     return stmt;
   }
@@ -627,7 +628,7 @@ public:
     if (last_found_statement == 0 || id != last_found_statement->id)
     {
       Statement *stmt;
-      stmt= (Statement *) hash_search(&st_hash, (byte *) &id, sizeof(id));
+      stmt= (Statement *) hash_search(&st_hash, (uchar *) &id, sizeof(id));
       if (stmt && stmt->name.str)
         return NULL;
       last_found_statement= stmt;
@@ -1070,14 +1071,14 @@ public:
   void binlog_set_stmt_begin();
   int binlog_write_table_map(TABLE *table, bool is_transactional);
   int binlog_write_row(TABLE* table, bool is_transactional,
-                       MY_BITMAP const* cols, my_size_t colcnt,
-                       const byte *buf);
+                       MY_BITMAP const* cols, size_t colcnt,
+                       const uchar *buf);
   int binlog_delete_row(TABLE* table, bool is_transactional,
-                        MY_BITMAP const* cols, my_size_t colcnt,
-                        const byte *buf);
+                        MY_BITMAP const* cols, size_t colcnt,
+                        const uchar *buf);
   int binlog_update_row(TABLE* table, bool is_transactional,
-                        MY_BITMAP const* cols, my_size_t colcnt,
-                        const byte *old_data, const byte *new_data);
+                        MY_BITMAP const* cols, size_t colcnt,
+                        const uchar *old_data, const uchar *new_data);
 
   void set_server_id(uint32 sid) { server_id = sid; }
 
@@ -1087,24 +1088,12 @@ public:
   template <class RowsEventT> Rows_log_event*
     binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
                                       MY_BITMAP const* cols,
-                                      my_size_t colcnt,
-                                      my_size_t needed,
+                                      size_t colcnt,
+                                      size_t needed,
                                       bool is_transactional,
 				      RowsEventT* hint);
   Rows_log_event* binlog_get_pending_rows_event() const;
   void            binlog_set_pending_rows_event(Rows_log_event* ev);
-  
-  my_size_t max_row_length_blob(TABLE* table, const byte *data) const;
-  my_size_t max_row_length(TABLE* table, const byte *data) const
-  {
-    TABLE_SHARE *table_s= table->s;
-    my_size_t length= table_s->reclength + 2 * table_s->fields;
-    if (table_s->blob_fields == 0)
-      return length;
-
-    return (length+max_row_length_blob(table,data));
-  }
-
   int binlog_flush_pending_rows_event(bool stmt_end);
   void binlog_delete_pending_rows_event();
 
@@ -1595,7 +1584,7 @@ public:
   {
     return !stmt_arena->is_stmt_prepare();
   }
-  inline gptr trans_alloc(unsigned int size)
+  inline void* trans_alloc(unsigned int size)
   {
     return alloc_root(&transaction.mem_root,size);
   }
@@ -1748,7 +1737,7 @@ public:
     This way the user will notice the error as there will be no current
     database selected (in addition to the error message set by malloc).
   */
-  bool set_db(const char *new_db, uint new_db_len)
+  bool set_db(const char *new_db, size_t new_db_len)
   {
     /* Do not reallocate memory if current chunk is big enough. */
     if (db && new_db && db_length >= new_db_len)
@@ -1761,7 +1750,7 @@ public:
     db_length= db ? new_db_len : 0;
     return new_db && !db;
   }
-  void reset_db(char *new_db, uint new_db_len)
+  void reset_db(char *new_db, size_t new_db_len)
   {
     db= new_db;
     db_length= new_db_len;
@@ -1771,7 +1760,7 @@ public:
     allocate memory for a deep copy: current database may be freed after
     a statement is parsed but before it's executed.
   */
-  bool copy_db_to(char **p_db, uint *p_db_length)
+  bool copy_db_to(char **p_db, size_t *p_db_length)
   {
     if (db == NULL)
     {
@@ -2050,7 +2039,7 @@ public:
   List<Item> save_copy_funcs;
   Copy_field *copy_field, *copy_field_end;
   Copy_field *save_copy_field, *save_copy_field_end;
-  byte	    *group_buff;
+  uchar	    *group_buff;
   Item	    **items_to_copy;			/* Fields in tmp table */
   MI_COLUMNDEF *recinfo,*start_recinfo;
   KEY *keyinfo;
@@ -2256,7 +2245,7 @@ class Unique :public Sql_alloc
   ulonglong max_in_memory_size;
   IO_CACHE file;
   TREE tree;
-  byte *record_pointers;
+  uchar *record_pointers;
   bool flush();
   uint size;
 
@@ -2289,8 +2278,8 @@ public:
   void reset();
   bool walk(tree_walk_action action, void *walk_action_arg);
 
-  friend int unique_write_to_file(gptr key, element_count count, Unique *unique);
-  friend int unique_write_to_ptrs(gptr key, element_count count, Unique *unique);
+  friend int unique_write_to_file(uchar* key, element_count count, Unique *unique);
+  friend int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique);
 };
 
 
@@ -2331,6 +2320,11 @@ class multi_update :public select_result_interceptor
   List <Item> *fields, *values;
   List <Item> **fields_for_table, **values_for_table;
   uint table_count;
+  /*
+   List of tables referenced in the CHECK OPTION condition of
+   the updated view excluding the updated table. 
+  */
+  List <TABLE> unupdated_check_opt_tables;
   Copy_field *copy_field;
   enum enum_duplicates handle_duplicates;
   bool do_update, trans_safe;

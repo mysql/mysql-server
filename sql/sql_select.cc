@@ -49,15 +49,15 @@ static int sort_keyuse(KEYUSE *a,KEYUSE *b);
 static void set_position(JOIN *join,uint index,JOIN_TAB *table,KEYUSE *key);
 static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 			       table_map used_tables);
-static void choose_plan(JOIN *join,table_map join_tables);
+static bool choose_plan(JOIN *join,table_map join_tables);
 
 static void best_access_path(JOIN *join, JOIN_TAB *s, THD *thd,
                              table_map remaining_tables, uint idx,
                              double record_count, double read_time);
 static void optimize_straight_join(JOIN *join, table_map join_tables);
-static void greedy_search(JOIN *join, table_map remaining_tables,
+static bool greedy_search(JOIN *join, table_map remaining_tables,
                              uint depth, uint prune_level);
-static void best_extension_by_limited_search(JOIN *join,
+static bool best_extension_by_limited_search(JOIN *join,
                                              table_map remaining_tables,
                                              uint idx, double record_count,
                                              double read_time, uint depth,
@@ -69,14 +69,14 @@ static int join_tab_cmp_straight(const void* ptr1, const void* ptr2);
   TODO: 'find_best' is here only temporarily until 'greedy_search' is
   tested and approved.
 */
-static void find_best(JOIN *join,table_map rest_tables,uint index,
+static bool find_best(JOIN *join,table_map rest_tables,uint index,
 		      double record_count,double read_time);
 static uint cache_record_length(JOIN *join,uint index);
 static double prev_record_reads(JOIN *join, uint idx, table_map found_ref);
 static bool get_best_combination(JOIN *join);
 static store_key *get_store_key(THD *thd,
 				KEYUSE *keyuse, table_map used_tables,
-				KEY_PART_INFO *key_part, char *key_buff,
+				KEY_PART_INFO *key_part, uchar *key_buff,
 				uint maybe_null);
 static bool make_simple_join(JOIN *join,TABLE *tmp_table);
 static void make_outerjoin_info(JOIN *join);
@@ -1304,7 +1304,7 @@ JOIN::optimize()
       for (ORDER *tmp_order= order; tmp_order ; tmp_order=tmp_order->next)
       {
         Item *item= *tmp_order->item;
-        if (item->walk(&Item::is_expensive_processor, 0, (byte*)0))
+        if (item->walk(&Item::is_expensive_processor, 0, (uchar*)0))
         {
           /* Force tmp table without sort */
           need_tmp=1; simple_order=simple_group=0;
@@ -1537,7 +1537,7 @@ JOIN::save_join_tab()
 {
   if (!join_tab_save && select_lex->master_unit()->uncacheable)
   {
-    if (!(join_tab_save= (JOIN_TAB*)thd->memdup((gptr) join_tab,
+    if (!(join_tab_save= (JOIN_TAB*)thd->memdup((uchar*) join_tab,
 						sizeof(JOIN_TAB) * tables)))
       return 1;
   }
@@ -2104,6 +2104,17 @@ JOIN::exec()
   thd->examined_row_count+= curr_join->examined_rows;
   DBUG_PRINT("counts", ("thd->examined_row_count: %lu",
                         (ulong) thd->examined_row_count));
+
+  /* 
+    With EXPLAIN EXTENDED we have to restore original ref_array
+    for a derived table which is always materialized.
+    Otherwise we would not be able to print the query  correctly.
+  */ 
+  if (items0 &&
+      (thd->lex->describe & DESCRIBE_EXTENDED) &&
+      select_lex->linkage == DERIVED_TABLE_TYPE)      
+    set_items_ref_array(items0);
+
   DBUG_VOID_RETURN;
 }
 
@@ -2755,11 +2766,12 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
   if (join->const_tables != join->tables)
   {
     optimize_keyuse(join, keyuse_array);
-    choose_plan(join, all_table_map & ~join->const_table_map);
+    if (choose_plan(join, all_table_map & ~join->const_table_map))
+      DBUG_RETURN(TRUE);
   }
   else
   {
-    memcpy((gptr) join->best_positions,(gptr) join->positions,
+    memcpy((uchar*) join->best_positions,(uchar*) join->positions,
 	   sizeof(POSITION)*join->const_tables);
     join->best_read=1.0;
   }
@@ -3380,7 +3392,7 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 	  keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
           keyuse.null_rejecting= key_field->null_rejecting;
           keyuse.cond_guard= key_field->cond_guard;
-	  VOID(insert_dynamic(keyuse_array,(gptr) &keyuse));
+	  VOID(insert_dynamic(keyuse_array,(uchar*) &keyuse));
 	}
       }
     }
@@ -3447,7 +3459,7 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
   keyuse.used_tables=cond_func->key_item()->used_tables();
   keyuse.optimize= 0;
   keyuse.keypart_map= 0;
-  VOID(insert_dynamic(keyuse_array,(gptr) &keyuse));
+  VOID(insert_dynamic(keyuse_array,(uchar*) &keyuse));
 }
 
 
@@ -3662,7 +3674,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 	  (qsort_cmp) sort_keyuse);
 
     bzero((char*) &key_end,sizeof(key_end));    /* Add for easy testing */
-    VOID(insert_dynamic(keyuse,(gptr) &key_end));
+    VOID(insert_dynamic(keyuse,(uchar*) &key_end));
 
     use=save_pos=dynamic_element(keyuse,0,KEYUSE*);
     prev= &key_end;
@@ -3697,7 +3709,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       save_pos++;
     }
     i=(uint) (save_pos-(KEYUSE*) keyuse->buffer);
-    VOID(set_dynamic(keyuse,(gptr) &key_end,i));
+    VOID(set_dynamic(keyuse,(uchar*) &key_end,i));
     keyuse->elements=i;
   }
   return FALSE;
@@ -3778,7 +3790,7 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
   { /* Collect all query fields referenced in the GROUP clause. */
     for (cur_group= join->group_list; cur_group; cur_group= cur_group->next)
       (*cur_group->item)->walk(&Item::collect_item_field_processor, 0,
-                               (byte*) &indexed_fields);
+                               (uchar*) &indexed_fields);
   }
   else if (join->select_distinct)
   { /* Collect all query fields referenced in the SELECT clause. */
@@ -3787,7 +3799,7 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
     Item *item;
     while ((item= select_items_it++))
       item->walk(&Item::collect_item_field_processor, 0,
-                 (byte*) &indexed_fields);
+                 (uchar*) &indexed_fields);
   }
   else
     return;
@@ -4404,11 +4416,12 @@ best_access_path(JOIN      *join,
     the array 'join->best_positions', and the cost of the plan in
     'join->best_read'.
 
-  RETURN
-    None
+  RETURN VALUES
+    FALSE       ok
+    TRUE        Fatal error
 */
 
-static void
+static bool
 choose_plan(JOIN *join, table_map join_tables)
 {
   uint search_depth= join->thd->variables.optimizer_search_depth;
@@ -4441,14 +4454,16 @@ choose_plan(JOIN *join, table_map join_tables)
         the greedy version. Will be removed when greedy_search is approved.
       */
       join->best_read= DBL_MAX;
-      find_best(join, join_tables, join->const_tables, 1.0, 0.0);
+      if (find_best(join, join_tables, join->const_tables, 1.0, 0.0))
+        DBUG_RETURN(TRUE);
     } 
     else
     {
       if (search_depth == 0)
         /* Automatically determine a reasonable value for 'search_depth' */
         search_depth= determine_search_depth(join);
-      greedy_search(join, join_tables, search_depth, prune_level);
+      if (greedy_search(join, join_tables, search_depth, prune_level))
+        DBUG_RETURN(TRUE);
     }
   }
 
@@ -4456,7 +4471,7 @@ choose_plan(JOIN *join, table_map join_tables)
     Store the cost of this query into a user variable
   */
   join->thd->status_var.last_query_cost= join->best_read;
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -4608,7 +4623,7 @@ optimize_straight_join(JOIN *join, table_map join_tables)
   if (join->sort_by_table &&
       join->sort_by_table != join->positions[join->const_tables].table->table)
     read_time+= record_count;  // We have to make a temp table
-  memcpy((gptr) join->best_positions, (gptr) join->positions,
+  memcpy((uchar*) join->best_positions, (uchar*) join->positions,
          sizeof(POSITION)*idx);
   join->best_read= read_time;
 }
@@ -4684,11 +4699,12 @@ optimize_straight_join(JOIN *join, table_map join_tables)
     In the future, 'greedy_search' might be extended to support other
     implementations of 'best_extension', e.g. some simpler quadratic procedure.
 
-  RETURN
-    None
+  RETURN VALUES
+    FALSE       ok
+    TRUE        Fatal error
 */
 
-static void
+static bool
 greedy_search(JOIN      *join,
               table_map remaining_tables,
               uint      search_depth,
@@ -4710,8 +4726,9 @@ greedy_search(JOIN      *join,
   do {
     /* Find the extension of the current QEP with the lowest cost */
     join->best_read= DBL_MAX;
-    best_extension_by_limited_search(join, remaining_tables, idx, record_count,
-                                     read_time, search_depth, prune_level);
+    if (best_extension_by_limited_search(join, remaining_tables, idx, record_count,
+                                         read_time, search_depth, prune_level))
+      DBUG_RETURN(TRUE);
 
     if (size_remain <= search_depth)
     {
@@ -4722,7 +4739,7 @@ greedy_search(JOIN      *join,
       DBUG_EXECUTE("opt", print_plan(join, join->tables,
                                      record_count, read_time, read_time,
                                      "optimal"););
-      DBUG_VOID_RETURN;
+      DBUG_RETURN(FALSE);
     }
 
     /* select the first table in the optimal extension as most promising */
@@ -4867,11 +4884,12 @@ greedy_search(JOIN      *join,
     The parameter 'search_depth' provides control over the recursion
     depth, and thus the size of the resulting optimal plan.
 
-  RETURN
-    None
+  RETURN VALUES
+    FALSE       ok
+    TRUE        Fatal error
 */
 
-static void
+static bool
 best_extension_by_limited_search(JOIN      *join,
                                  table_map remaining_tables,
                                  uint      idx,
@@ -4880,11 +4898,12 @@ best_extension_by_limited_search(JOIN      *join,
                                  uint      search_depth,
                                  uint      prune_level)
 {
+  DBUG_ENTER("best_extension_by_limited_search");
+
   THD *thd= join->thd;
   if (thd->killed)  // Abort
-    return;
+    DBUG_RETURN(TRUE);
 
-  DBUG_ENTER("best_extension_by_limited_search");
   DBUG_EXECUTE("opt", print_plan(join, idx, read_time, record_count, idx,
                                  "SOFAR:"););
 
@@ -4966,15 +4985,14 @@ best_extension_by_limited_search(JOIN      *join,
       if ( (search_depth > 1) && (remaining_tables & ~real_table_bit) )
       { /* Recursively expand the current partial plan */
         swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
-        best_extension_by_limited_search(join,
-                                         remaining_tables & ~real_table_bit,
-                                         idx + 1,
-                                         current_record_count,
-                                         current_read_time,
-                                         search_depth - 1,
-                                         prune_level);
-        if (thd->killed)
-          DBUG_VOID_RETURN;
+        if (best_extension_by_limited_search(join,
+                                             remaining_tables & ~real_table_bit,
+                                             idx + 1,
+                                             current_record_count,
+                                             current_read_time,
+                                             search_depth - 1,
+                                             prune_level))
+          DBUG_RETURN(TRUE);
         swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
       }
       else
@@ -4990,7 +5008,7 @@ best_extension_by_limited_search(JOIN      *join,
           current_read_time+= current_record_count;
         if ((search_depth == 1) || (current_read_time < join->best_read))
         {
-          memcpy((gptr) join->best_positions, (gptr) join->positions,
+          memcpy((uchar*) join->best_positions, (uchar*) join->positions,
                  sizeof(POSITION) * (idx + 1));
           join->best_read= current_read_time - 0.001;
         }
@@ -5003,19 +5021,26 @@ best_extension_by_limited_search(JOIN      *join,
       restore_prev_nj_state(s);
     }
   }
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(FALSE);
 }
 
 
 /*
   TODO: this function is here only temporarily until 'greedy_search' is
   tested and accepted.
+
+  RETURN VALUES
+    FALSE       ok
+    TRUE        Fatal error
 */
-static void
+static bool
 find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  double read_time)
 {
+  DBUG_ENTER("find_best");
   THD *thd= join->thd;
+  if (thd->killed)
+    DBUG_RETURN(TRUE);
   if (!rest_tables)
   {
     DBUG_PRINT("best",("read_time: %g  record_count: %g",read_time,
@@ -5028,14 +5053,14 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
       read_time+=record_count;			// We have to make a temp table
     if (read_time < join->best_read)
     {
-      memcpy((gptr) join->best_positions,(gptr) join->positions,
+      memcpy((uchar*) join->best_positions,(uchar*) join->positions,
 	     sizeof(POSITION)*idx);
       join->best_read= read_time - 0.001;
     }
-    return;
+    DBUG_RETURN(FALSE);
   }
   if (read_time+record_count/(double) TIME_FOR_COMPARE >= join->best_read)
-    return;					/* Found better before */
+    DBUG_RETURN(FALSE);					/* Found better before */
 
   JOIN_TAB *s;
   double best_record_count=DBL_MAX,best_read_time=DBL_MAX;
@@ -5068,10 +5093,9 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  best_read_time=current_read_time;
 	}
 	swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
-	find_best(join,rest_tables & ~real_table_bit,idx+1,
-		  current_record_count,current_read_time);
-        if (thd->killed)
-          return;
+	if (find_best(join,rest_tables & ~real_table_bit,idx+1,
+                      current_record_count,current_read_time))
+          DBUG_RETURN(TRUE);
 	swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
       }
       restore_prev_nj_state(s);
@@ -5079,6 +5103,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	break;				// Don't test all combinations
     }
   }
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -5339,7 +5364,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   j->ref.key_parts=keyparts;
   j->ref.key_length=length;
   j->ref.key=(int) key;
-  if (!(j->ref.key_buff= (byte*) thd->calloc(ALIGN_SIZE(length)*2)) ||
+  if (!(j->ref.key_buff= (uchar*) thd->calloc(ALIGN_SIZE(length)*2)) ||
       !(j->ref.key_copy= (store_key**) thd->alloc((sizeof(store_key*) *
 						   (keyparts+1)))) ||
       !(j->ref.items=    (Item**) thd->alloc(sizeof(Item*)*keyparts)) ||
@@ -5353,7 +5378,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   keyuse=org_keyuse;
 
   store_key **ref_key= j->ref.key_copy;
-  byte *key_buff=j->ref.key_buff, *null_ref_key= 0;
+  uchar *key_buff=j->ref.key_buff, *null_ref_key= 0;
   bool keyuse_uses_no_tables= TRUE;
   if (ftkey)
   {
@@ -5384,8 +5409,8 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 	  !(join->select_options & SELECT_DESCRIBE))
       {					// Compare against constant
 	store_key_item tmp(thd, keyinfo->key_part[i].field,
-                           (char*)key_buff + maybe_null,
-                           maybe_null ?  (char*) key_buff : 0,
+                           key_buff + maybe_null,
+                           maybe_null ?  key_buff : 0,
                            keyinfo->key_part[i].length, keyuse->val);
 	if (thd->is_fatal_error)
 	  DBUG_RETURN(TRUE);
@@ -5395,7 +5420,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 	*ref_key++= get_store_key(thd,
 				  keyuse,join->const_table_map,
 				  &keyinfo->key_part[i],
-				  (char*) key_buff,maybe_null);
+				  key_buff, maybe_null);
       /*
 	Remember if we are going to use REF_OR_NULL
 	But only if field _really_ can be null i.e. we force JT_REF
@@ -5439,7 +5464,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 
 static store_key *
 get_store_key(THD *thd, KEYUSE *keyuse, table_map used_tables,
-	      KEY_PART_INFO *key_part, char *key_buff, uint maybe_null)
+	      KEY_PART_INFO *key_part, uchar *key_buff, uint maybe_null)
 {
   if (!((~used_tables) & keyuse->used_tables))		// if const item
   {
@@ -5938,7 +5963,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       {
 	DBUG_EXECUTE("where",print_where(tmp,tab->table->alias););
 	SQL_SELECT *sel= tab->select= ((SQL_SELECT*)
-                                       thd->memdup((gptr) select,
+                                       thd->memdup((uchar*) select,
                                                    sizeof(*select)));
 	if (!sel)
 	  DBUG_RETURN(1);			// End of memory
@@ -6090,7 +6115,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	    {
 	      DBUG_EXECUTE("where",print_where(tmp,"cache"););
 	      tab->cache.select=(SQL_SELECT*)
-		thd->memdup((gptr) sel, sizeof(SQL_SELECT));
+		thd->memdup((uchar*) sel, sizeof(SQL_SELECT));
 	      tab->cache.select->cond=tmp;
 	      tab->cache.select->read_tables=join->const_table_map;
 	    }
@@ -6099,13 +6124,39 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       }
       
       /* 
-        Push down all predicates from on expressions.
-        Each of these predicated are guarded by a variable
+        Push down conditions from all on expressions.
+        Each of these conditions are guarded by a variable
         that turns if off just before null complemented row for
-        outer joins is formed. Thus, the predicates from an
+        outer joins is formed. Thus, the condition from an
         'on expression' are guaranteed not to be checked for
         the null complemented row.
       */ 
+
+      /* First push down constant conditions from on expressions */
+      for (JOIN_TAB *join_tab= join->join_tab+join->const_tables;
+           join_tab < join->join_tab+join->tables ; join_tab++)
+      {
+        if (*join_tab->on_expr_ref)
+        {
+          JOIN_TAB *cond_tab= join_tab->first_inner;
+          COND *tmp= make_cond_for_table(*join_tab->on_expr_ref,
+                                         join->const_table_map,
+                                         (table_map) 0);
+          if (!tmp)
+            continue;
+          tmp= new Item_func_trig_cond(tmp, &cond_tab->not_null_compl);
+          if (!tmp)
+            DBUG_RETURN(1);
+          tmp->quick_fix_field();
+          cond_tab->select_cond= !cond_tab->select_cond ? tmp :
+	                            new Item_cond_and(cond_tab->select_cond,tmp);
+          if (!cond_tab->select_cond)
+	    DBUG_RETURN(1);
+          cond_tab->select_cond->quick_fix_field();
+        }       
+      }
+
+      /* Push down non-constant conditions from on expressions */
       JOIN_TAB *last_tab= tab;
       while (first_inner_tab && first_inner_tab->last_inner == last_tab)
       {  
@@ -6553,7 +6604,6 @@ void JOIN::cleanup(bool full)
       for (tab= join_tab, end= tab+tables; tab != end; tab++)
 	tab->cleanup();
       table= 0;
-      tables= 0;
     }
     else
     {
@@ -7527,11 +7577,11 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
       as soon the field is not of a string type or the field reference is
       an argument of a comparison predicate. 
     */ 
-    byte *is_subst_valid= (byte *) 1;
+    uchar *is_subst_valid= (uchar *) 1;
     cond= cond->compile(&Item::subst_argument_checker,
                         &is_subst_valid, 
                         &Item::equal_fields_propagator,
-                        (byte *) inherited);
+                        (uchar *) inherited);
     cond->update_used_tables();
   }
   return cond;
@@ -8992,7 +9042,7 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
     Make sure that the blob fits into a Field_varstring which has 
     2-byte lenght. 
   */
-  if (convert_blob_length && convert_blob_length < UINT_MAX16 &&
+  if (convert_blob_length && convert_blob_length <= Field_varstring::MAX_SIZE &&
       (org_field->flags & BLOB_FLAG))
     new_field= new Field_varstring(convert_blob_length,
                                    org_field->maybe_null(),
@@ -9060,8 +9110,13 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
                                 item->name, item->decimals, TRUE);
     break;
   case INT_RESULT:
-    /* Select an integer type with the minimal fit precision */
-    if (item->max_length > MY_INT32_NUM_DECIMAL_DIGITS)
+    /* 
+      Select an integer type with the minimal fit precision.
+      MY_INT32_NUM_DECIMAL_DIGITS is sign inclusive, don't consider the sign.
+      Values with MY_INT32_NUM_DECIMAL_DIGITS digits may or may not fit into 
+      Field_long : make them Field_longlong.  
+    */
+    if (item->max_length >= (MY_INT32_NUM_DECIMAL_DIGITS - 1))
       new_field=new Field_longlong(item->max_length, maybe_null,
                                    item->name, item->unsigned_flag);
     else
@@ -9085,7 +9140,8 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
       2-byte lenght. 
     */
     else if (item->max_length/item->collation.collation->mbmaxlen > 255 &&
-             convert_blob_length < UINT_MAX16 && convert_blob_length)
+             convert_blob_length <= Field_varstring::MAX_SIZE && 
+             convert_blob_length)
       new_field= new Field_varstring(convert_blob_length, maybe_null,
                                      item->name, table->s,
                                      item->collation.collation);
@@ -9290,7 +9346,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     a tmp_set bitmap to be used by things like filesort.
 */
 
-void setup_tmp_table_column_bitmaps(TABLE *table, byte *bitmaps)
+void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
 {
   uint field_count= table->s->fields;
   bitmap_init(&table->def_read_set, (my_bitmap_map*) bitmaps, field_count,
@@ -9360,7 +9416,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   bool  use_packed_rows= 0;
   bool  not_all_columns= !(select_options & TMP_TABLE_ALL_COLUMNS);
   char	*tmpname,path[FN_REFLEN];
-  byte	*pos, *group_buff, *bitmaps;
+  uchar	*pos, *group_buff, *bitmaps;
   uchar *null_flags;
   Field **reg_field, **from_field, **default_field;
   uint *blob_field;
@@ -9704,7 +9760,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   {
     uint alloc_length=ALIGN_SIZE(reclength+MI_UNIQUE_HASH_LENGTH+1);
     share->rec_buff_length= alloc_length;
-    if (!(table->record[0]= (byte*)
+    if (!(table->record[0]= (uchar*)
                             alloc_root(&table->mem_root, alloc_length*3)))
       goto err;
     table->record[1]= table->record[0]+alloc_length;
@@ -9720,7 +9776,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   pos=table->record[0]+ null_pack_length;
   if (null_pack_length)
   {
-    bzero((byte*) recinfo,sizeof(*recinfo));
+    bzero((uchar*) recinfo,sizeof(*recinfo));
     recinfo->type=FIELD_NORMAL;
     recinfo->length=null_pack_length;
     recinfo++;
@@ -9736,7 +9792,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   {
     Field *field= *reg_field;
     uint length;
-    bzero((byte*) recinfo,sizeof(*recinfo));
+    bzero((uchar*) recinfo,sizeof(*recinfo));
 
     if (!(field->flags & NOT_NULL_FLAG))
     {
@@ -9750,19 +9806,19 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	recinfo->length=1;
 	recinfo->type=FIELD_NORMAL;
 	recinfo++;
-	bzero((byte*) recinfo,sizeof(*recinfo));
+	bzero((uchar*) recinfo,sizeof(*recinfo));
       }
       else
       {
 	recinfo->null_bit= 1 << (null_count & 7);
 	recinfo->null_pos= null_count/8;
       }
-      field->move_field((char*) pos,null_flags+null_count/8,
+      field->move_field(pos,null_flags+null_count/8,
 			1 << (null_count & 7));
       null_count++;
     }
     else
-      field->move_field((char*) pos,(uchar*) 0,0);
+      field->move_field(pos,(uchar*) 0,0);
     if (field->type() == MYSQL_TYPE_BIT)
     {
       /* We have to reserve place for extra bits among null bits */
@@ -9880,10 +9936,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       {
 	cur_group->buff=(char*) group_buff;
 	if (!(cur_group->field= field->new_key_field(thd->mem_root,table,
-                                                 (char*) group_buff +
-                                                 test(maybe_null),
-                                                 field->null_ptr,
-                                                 field->null_bit)))
+                                                     group_buff +
+                                                     test(maybe_null),
+                                                     field->null_ptr,
+                                                     field->null_bit)))
 	  goto err; /* purecov: inspected */
 	if (maybe_null)
 	{
@@ -9945,7 +10001,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       key_part_info->null_bit=0;
       key_part_info->offset=hidden_null_pack_length;
       key_part_info->length=null_pack_length;
-      key_part_info->field= new Field_string((char*) table->record[0],
+      key_part_info->field= new Field_string(table->record[0],
                                              (uint32) key_part_info->length,
                                              (uchar*) 0,
                                              (uint) 0,
@@ -10034,7 +10090,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<create_field> &field_list)
   uint null_count= 0;                 /* number of columns which may be null */
   uint null_pack_length;              /* NULL representation array length */
   uint *blob_field;
-  byte *bitmaps;
+  uchar *bitmaps;
   TABLE *table;
   TABLE_SHARE *share;
 
@@ -10085,7 +10141,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<create_field> &field_list)
   null_pack_length= (null_count + 7)/8;
   share->reclength= record_length + null_pack_length;
   share->rec_buff_length= ALIGN_SIZE(share->reclength + 1);
-  table->record[0]= (byte*) thd->alloc(share->rec_buff_length);
+  table->record[0]= (uchar*) thd->alloc(share->rec_buff_length);
   if (!table->record[0])
     goto error;
 
@@ -10099,18 +10155,18 @@ TABLE *create_virtual_tmp_table(THD *thd, List<create_field> &field_list)
   table->in_use= thd;           /* field->reset() may access table->in_use */
   {
     /* Set up field pointers */
-    byte *null_pos= table->record[0];
-    byte *field_pos= null_pos + share->null_bytes;
+    uchar *null_pos= table->record[0];
+    uchar *field_pos= null_pos + share->null_bytes;
     uint null_bit= 1;
 
     for (field= table->field; *field; ++field)
     {
       Field *cur_field= *field;
       if ((cur_field->flags & NOT_NULL_FLAG))
-        cur_field->move_field((char*) field_pos);
+        cur_field->move_field(field_pos);
       else
       {
-        cur_field->move_field((char*) field_pos, (uchar*) null_pos, null_bit);
+        cur_field->move_field(field_pos, (uchar*) null_pos, null_bit);
         null_bit<<= 1;
         if (null_bit == (1 << 8))
         {
@@ -10179,7 +10235,7 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
       uniquedef.null_are_equal=1;
 
       /* Create extra column for hash value */
-      bzero((byte*) param->recinfo,sizeof(*param->recinfo));
+      bzero((uchar*) param->recinfo,sizeof(*param->recinfo));
       param->recinfo->type= FIELD_CHECK;
       param->recinfo->length=MI_UNIQUE_HASH_LENGTH;
       param->recinfo++;
@@ -11228,7 +11284,7 @@ join_read_const(JOIN_TAB *tab)
     else
     {
       error=table->file->index_read_idx(table->record[0],tab->ref.key,
-					(byte*) tab->ref.key_buff,
+					(uchar*) tab->ref.key_buff,
                                         make_prev_keypart_map(tab->ref.key_parts),
                                         HA_READ_KEY_EXACT);
     }
@@ -11805,7 +11861,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	if (item->maybe_null)
 	{
 	  Field *field=item->get_tmp_table_field();
-	  field->ptr[-1]= (byte) (field->is_null() ? 1 : 0);
+	  field->ptr[-1]= (uchar) (field->is_null() ? 1 : 0);
 	}
       }
     }
@@ -12994,7 +13050,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
 {
   handler *file=table->file;
   char *org_record,*new_record;
-  byte *record;
+  uchar *record;
   int error;
   ulong reclength= table->s->reclength-offset;
   DBUG_ENTER("remove_dup_with_compare");
@@ -13085,7 +13141,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 				      ulong key_length,
 				      Item *having)
 {
-  byte *key_buffer, *key_pos, *record=table->record[0];
+  uchar *key_buffer, *key_pos, *record=table->record[0];
   int error;
   handler *file= table->file;
   ulong extra_length= ALIGN_SIZE(key_length)-key_length;
@@ -13129,7 +13185,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
   key_pos=key_buffer;
   for (;;)
   {
-    byte *org_key_pos;
+    uchar *org_key_pos;
     if (thd->killed)
     {
       thd->send_kill_message();
@@ -13156,7 +13212,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
     field_length=field_lengths;
     for (Field **ptr= first_field ; *ptr ; ptr++)
     {
-      (*ptr)->sort_string((char*) key_pos,*field_length);
+      (*ptr)->sort_string(key_pos,*field_length);
       key_pos+= *field_length++;
     }
     /* Check if it exists before */
@@ -13259,7 +13315,7 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
 
 		  sizeof(CACHE_FIELD*))))
   {
-    my_free((gptr) cache->buff,MYF(0));		/* purecov: inspected */
+    my_free((uchar*) cache->buff,MYF(0));		/* purecov: inspected */
     cache->buff=0;				/* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
   }
@@ -13292,7 +13348,7 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
     /* Copy null bits from table */
     if (null_fields && tables[i].table->s->null_fields)
     {						/* must copy null bits */
-      copy->str=(char*) tables[i].table->null_flags;
+      copy->str= tables[i].table->null_flags;
       copy->length= tables[i].table->s->null_bytes;
       copy->strip=0;
       copy->blob_field=0;
@@ -13303,7 +13359,7 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
     /* If outer join table, copy null_row flag */
     if (tables[i].table->maybe_null)
     {
-      copy->str= (char*) &tables[i].table->null_row;
+      copy->str= (uchar*) &tables[i].table->null_row;
       copy->length=sizeof(tables[i].table->null_row);
       copy->strip=0;
       copy->blob_field=0;
@@ -13366,13 +13422,13 @@ store_record_in_cache(JOIN_CACHE *cache)
     {
       if (last_record)
       {
-	copy->blob_field->get_image((char*) pos,copy->length+sizeof(char*), 
+	copy->blob_field->get_image(pos, copy->length+sizeof(char*), 
 				    copy->blob_field->charset());
 	pos+=copy->length+sizeof(char*);
       }
       else
       {
-	copy->blob_field->get_image((char*) pos,copy->length, // blob length
+	copy->blob_field->get_image(pos, copy->length, // blob length
 				    copy->blob_field->charset());
 	memcpy(pos+copy->length,copy->str,copy->blob_length);  // Blob data
 	pos+=copy->length+copy->blob_length;
@@ -13382,7 +13438,7 @@ store_record_in_cache(JOIN_CACHE *cache)
     {
       if (copy->strip)
       {
-	char *str,*end;
+	uchar *str,*end;
 	for (str=copy->str,end= str+copy->length;
 	     end > str && end[-1] == ' ' ;
 	     end--) ;
@@ -13438,13 +13494,13 @@ read_cached_record(JOIN_TAB *tab)
     {
       if (last_record)
       {
-	copy->blob_field->set_image((char*) pos,copy->length+sizeof(char*),
+	copy->blob_field->set_image(pos, copy->length+sizeof(char*),
 				    copy->blob_field->charset());
 	pos+=copy->length+sizeof(char*);
       }
       else
       {
-	copy->blob_field->set_ptr((char*) pos,(char*) pos+copy->length);
+	copy->blob_field->set_ptr(pos, pos+copy->length);
 	pos+=copy->length+copy->blob_field->get_length();
       }
     }
@@ -14194,7 +14250,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   for (i= 0; (pos= li++); i++)
   {
     Field *field;
-    char *tmp;
+    uchar *tmp;
     Item *real_pos= pos->real_item();
     if (real_pos->type() == Item::FIELD_ITEM)
     {
@@ -14239,8 +14295,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
           another extra byte to not get warnings from purify in
           Field_string::val_int
         */
-	tmp= (char*) sql_alloc(field->pack_length()+2);
-	if (!tmp)
+	if (!(tmp= (uchar*) sql_alloc(field->pack_length()+2)))
 	  goto err;
         if (copy)
         {
@@ -15532,8 +15587,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
             break;
           }
         }
-        if (tab->next_select == sub_select_cache)
-          extra.append(STRING_WITH_LEN("; Using join cache"));
+        if (i > 0 && tab[-1].next_select == sub_select_cache)
+          extra.append(STRING_WITH_LEN("; Using join buffer"));
         
         /* Skip initial "; "*/
         const char *str= extra.ptr();
