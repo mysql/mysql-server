@@ -179,7 +179,7 @@ ErrorBundle ErrorCodes[] = {
   { 873,  DMEC, TR, "Out of attrinfo records for scan in tuple manager" },
   { 899,  DMEC, TR, "Rowid already allocated" },
   { 1217, DMEC, TR, "Out of operation records in local data manager (increase MaxNoOfLocalOperations)" },
-  { 1220, DMEC, TR, "REDO log files overloaded, consult online manual (decrease TimeBetweenLocalCheckpoints, and|or increase NoOfFragmentLogFiles)" },
+  { 1220, DMEC, TR, "REDO log files overloaded, consult online manual (increase FragmentLogFileSize)" },
   { 1222, DMEC, TR, "Out of transaction markers in LQH" },
   { 4021, DMEC, TR, "Out of Send Buffer space in NDB API" },
   { 4022, DMEC, TR, "Out of Send Buffer space in NDB API" },
