@@ -810,6 +810,36 @@ row_prebuilt_free(
 }
 
 /*************************************************************************
+Mark all prebuilt structs that use a table obsolete.  They will
+be rebuilt later. */
+
+void
+row_prebuilt_table_obsolete(
+/*========================*/
+	dict_table_t*	table)		/* in: table */
+{
+	row_prebuilt_t*	prebuilt;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	prebuilt = UT_LIST_GET_FIRST(table->prebuilts);
+
+	while (prebuilt) {
+		prebuilt->magic_n = ROW_PREBUILT_OBSOLETE;
+		prebuilt->magic_n2 = ROW_PREBUILT_OBSOLETE;
+
+		prebuilt = UT_LIST_GET_NEXT(prebuilts, prebuilt);
+	}
+
+	/* This table will be dropped when there are no more references
+	to it */
+	table->to_be_dropped = 1;
+}
+
+/*************************************************************************
 Updates the transaction pointers in query graphs stored in the prebuilt
 struct. */
 
