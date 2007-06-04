@@ -283,8 +283,19 @@ sub mtr_report_stats ($) {
             mtr_warning("can't read $errlog");
             next;
           }
+          my $leak_reports_expected= undef;
           while ( <ERR> )
           {
+            # There is a test case that purposely provokes a
+            # SAFEMALLOC leak report, even though there is no actual
+            # leak. We need to detect this, and ignore the warning in
+            # that case.
+            if (/Begin safemalloc memory dump:/) {
+              $leak_reports_expected= 1;
+            } elsif (/End safemalloc memory dump./) {
+              $leak_reports_expected= undef;
+            }
+
             # Skip some non fatal warnings from the log files
             if (
 		/\"SELECT UNIX_TIMESTAMP\(\)\" failed on master/ or
@@ -354,6 +365,9 @@ sub mtr_report_stats ($) {
             }
             if ( /$pattern/ )
             {
+              if ($leak_reports_expected) {
+                next;
+              }
               $found_problems= 1;
               print WARN $_;
             }

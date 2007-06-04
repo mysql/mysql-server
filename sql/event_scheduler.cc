@@ -42,7 +42,6 @@ Event_db_repository *Event_worker_thread::db_repository;
 static
 const LEX_STRING scheduler_states_names[] =
 {
-  { C_STRING_WITH_LEN("UNINITIALIZED") },
   { C_STRING_WITH_LEN("INITIALIZED") },
   { C_STRING_WITH_LEN("RUNNING") },
   { C_STRING_WITH_LEN("STOPPING") }
@@ -331,9 +330,15 @@ end:
 
 
 Event_scheduler::Event_scheduler(Event_queue *queue_arg)
-  :state(UNINITIALIZED),
+  :state(INITIALIZED),
   scheduler_thd(NULL),
   queue(queue_arg),
+  mutex_last_locked_at_line(0),
+  mutex_last_unlocked_at_line(0),
+  mutex_last_locked_in_func("n/a"),
+  mutex_last_unlocked_in_func("n/a"),
+  mutex_scheduler_data_locked(FALSE),
+  waiting_on_cond(FALSE),
   started_events(0)
 {
   pthread_mutex_init(&LOCK_scheduler_state, MY_MUTEX_INIT_FAST);

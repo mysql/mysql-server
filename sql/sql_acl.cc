@@ -3137,7 +3137,6 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       }
     }
   }
-  grant_option=TRUE;
   thd->mem_root= old_root;
   pthread_mutex_unlock(&acl_cache->lock);
 
@@ -3311,7 +3310,6 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       continue;
     }
   }
-  grant_option=TRUE;
   thd->mem_root= old_root;
   pthread_mutex_unlock(&acl_cache->lock);
   if (!result && !no_error)
@@ -3459,7 +3457,6 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 void  grant_free(void)
 {
   DBUG_ENTER("grant_free");
-  grant_option = FALSE;
   hash_free(&column_priv_hash);
   hash_free(&proc_priv_hash);
   hash_free(&func_priv_hash);
@@ -3523,7 +3520,6 @@ static my_bool grant_load(TABLE_LIST *tables)
                                                            THR_MALLOC);
   DBUG_ENTER("grant_load");
 
-  grant_option = FALSE;
   (void) hash_init(&column_priv_hash,system_charset_info,
 		   0,0,0, (hash_get_key) get_grant_table,
 		   (hash_free_key) free_grant_table,0);
@@ -3553,7 +3549,6 @@ static my_bool grant_load(TABLE_LIST *tables)
       if (!(mem_check=new (memex_ptr) GRANT_TABLE(t_table,c_table)))
       {
 	/* This could only happen if we are out memory */
-	grant_option= FALSE;
 	goto end_unlock;
       }
 
@@ -3576,7 +3571,6 @@ static my_bool grant_load(TABLE_LIST *tables)
       else if (my_hash_insert(&column_priv_hash,(uchar*) mem_check))
       {
 	delete mem_check;
-	grant_option= FALSE;
 	goto end_unlock;
       }
     }
@@ -3593,7 +3587,6 @@ static my_bool grant_load(TABLE_LIST *tables)
       if (!(mem_check=new (&memex) GRANT_NAME(p_table)))
       {
 	/* This could only happen if we are out memory */
-	grant_option= FALSE;
 	goto end_unlock;
       }
 
@@ -3632,13 +3625,11 @@ static my_bool grant_load(TABLE_LIST *tables)
       else if (my_hash_insert(hash, (uchar*) mem_check))
       {
 	delete mem_check;
-	grant_option= FALSE;
 	goto end_unlock;
       }
     }
     while (!p_table->file->index_next(p_table->record[0]));
   }
-  grant_option= TRUE;
   return_val=0;					// Return ok
 
 end_unlock:
@@ -3671,7 +3662,6 @@ my_bool grant_reload(THD *thd)
 {
   TABLE_LIST tables[3];
   HASH old_column_priv_hash, old_proc_priv_hash, old_func_priv_hash;
-  bool old_grant_option;
   MEM_ROOT old_mem;
   my_bool return_val= 1;
   DBUG_ENTER("grant_reload");
@@ -3701,7 +3691,6 @@ my_bool grant_reload(THD *thd)
   old_column_priv_hash= column_priv_hash;
   old_proc_priv_hash= proc_priv_hash;
   old_func_priv_hash= func_priv_hash;
-  old_grant_option= grant_option;
   old_mem= memex;
 
   if ((return_val= grant_load(tables)))
@@ -3711,7 +3700,6 @@ my_bool grant_reload(THD *thd)
     column_priv_hash= old_column_priv_hash;	/* purecov: deadcode */
     proc_priv_hash= old_proc_priv_hash;
     func_priv_hash= old_func_priv_hash;
-    grant_option= old_grant_option;		/* purecov: deadcode */
     memex= old_mem;				/* purecov: deadcode */
   }
   else
@@ -4008,8 +3996,6 @@ bool check_grant_all_columns(THD *thd, ulong want_access, GRANT_INFO *grant,
   want_access &= ~grant->privilege;
   if (!want_access)
     return 0;				// Already checked
-  if (!grant_option)
-    goto err2;
 
   rw_rdlock(&LOCK_grant);
 
@@ -4040,7 +4026,6 @@ bool check_grant_all_columns(THD *thd, ulong want_access, GRANT_INFO *grant,
 
 err:
   rw_unlock(&LOCK_grant);
-err2:
   char command[128];
   get_privilege_desc(command, sizeof(command), want_access);
   my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
@@ -4199,18 +4184,15 @@ bool check_routine_level_acl(THD *thd, const char *db, const char *name,
                              bool is_proc)
 {
   bool no_routine_acl= 1;
-  if (grant_option)
-  {
-    GRANT_NAME *grant_proc;
-    Security_context *sctx= thd->security_ctx;
-    rw_rdlock(&LOCK_grant);
-    if ((grant_proc= routine_hash_search(sctx->priv_host,
-                                         sctx->ip, db,
-                                         sctx->priv_user,
-                                         name, is_proc, 0)))
-      no_routine_acl= !(grant_proc->privs & SHOW_PROC_ACLS);
-    rw_unlock(&LOCK_grant);
-  }
+  GRANT_NAME *grant_proc;
+  Security_context *sctx= thd->security_ctx;
+  rw_rdlock(&LOCK_grant);
+  if ((grant_proc= routine_hash_search(sctx->priv_host,
+                                       sctx->ip, db,
+                                       sctx->priv_user,
+                                       name, is_proc, 0)))
+    no_routine_acl= !(grant_proc->privs & SHOW_PROC_ACLS);
+  rw_unlock(&LOCK_grant);
   return no_routine_acl;
 }
 
@@ -6403,12 +6385,6 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
 
   /* db privileges */
   grant->privilege|= acl_get(sctx->host, sctx->ip, sctx->priv_user, db, 0);
-
-  if (!grant_option)
-  {
-    DBUG_PRINT("info", ("privilege 0x%lx", grant->privilege));
-    DBUG_VOID_RETURN;
-  }
 
   /* table privileges */
   rw_rdlock(&LOCK_grant);

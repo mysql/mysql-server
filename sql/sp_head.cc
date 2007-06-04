@@ -570,7 +570,7 @@ sp_head::init_strings(THD *thd, LEX *lex)
     Trim "garbage" at the end. This is sometimes needed with the
     "/ * ! VERSION... * /" wrapper in dump files.
   */
-  endp= skip_rear_comments(m_body_begin, endp);
+  endp= skip_rear_comments(thd->charset(), m_body_begin, endp);
 
   m_body.length= endp - m_body_begin;
   m_body.str= strmake_root(root, m_body_begin, m_body.length);
@@ -636,17 +636,10 @@ int
 sp_head::create(THD *thd)
 {
   DBUG_ENTER("sp_head::create");
-  int ret;
-
   DBUG_PRINT("info", ("type: %d name: %s params: %s body: %s",
 		      m_type, m_name.str, m_params.str, m_body.str));
 
-  if (m_type == TYPE_ENUM_FUNCTION)
-    ret= sp_create_function(thd, this);
-  else
-    ret= sp_create_procedure(thd, this);
-
-  DBUG_RETURN(ret);
+  DBUG_RETURN(sp_create_routine(thd, m_type, this));
 }
 
 sp_head::~sp_head()
@@ -2104,47 +2097,95 @@ bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access)
 }
 
 
-int
-sp_head::show_create_procedure(THD *thd)
+/**
+  Implement SHOW CREATE statement for stored routines.
+
+  @param thd  Thread context.
+  @param type         Stored routine type
+                      (TYPE_ENUM_PROCEDURE or TYPE_ENUM_FUNCTION)
+
+  @return Error status.
+    @retval FALSE on success
+    @retval TRUE on error
+*/
+
+bool
+sp_head::show_create_routine(THD *thd, int type)
 {
+  const char *col1_caption= type == TYPE_ENUM_PROCEDURE ?
+                            "Procedure" : "Function";
+
+  const char *col3_caption= type == TYPE_ENUM_PROCEDURE ?
+                            "Create Procedure" : "Create Function";
+
+  bool err_status;
+
   Protocol *protocol= thd->protocol;
-  char buff[2048];
-  String buffer(buff, sizeof(buff), system_charset_info);
-  int res;
-  List<Item> field_list;
+  List<Item> fields;
+
   LEX_STRING sql_mode;
+
   bool full_access;
-  DBUG_ENTER("sp_head::show_create_procedure");
-  DBUG_PRINT("info", ("procedure %s", m_name.str));
+
+  DBUG_ENTER("sp_head::show_create_routine");
+  DBUG_PRINT("info", ("routine %s", m_name.str));
+
+  DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
+              type == TYPE_ENUM_FUNCTION);
 
   if (check_show_routine_access(thd, this, &full_access))
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
 
-  sys_var_thd_sql_mode::symbolic_mode_representation(thd, m_sql_mode,
-                                                     &sql_mode);
-  field_list.push_back(new Item_empty_string("Procedure", NAME_CHAR_LEN));
-  field_list.push_back(new Item_empty_string("sql_mode", sql_mode.length));
-  // 1024 is for not to confuse old clients
-  Item_empty_string *definition=
-    new Item_empty_string("Create Procedure", max(buffer.length(),1024));
-  definition->maybe_null= TRUE;
-  field_list.push_back(definition);
+  sys_var_thd_sql_mode::symbolic_mode_representation(
+      thd, m_sql_mode, &sql_mode);
 
-  if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
-                                         Protocol::SEND_EOF))
-    DBUG_RETURN(1);
+  /* Send header. */
+
+  fields.push_back(new Item_empty_string(col1_caption, NAME_CHAR_LEN));
+  fields.push_back(new Item_empty_string("sql_mode", sql_mode.length));
+
+  {
+    /*
+      NOTE: SQL statement field must be not less than 1024 in order not to
+      confuse old clients.
+    */
+
+    Item_empty_string *stmt_fld=
+      new Item_empty_string(col3_caption,
+                            max(m_defstr.length, 1024));
+
+    stmt_fld->maybe_null= TRUE;
+
+    fields.push_back(stmt_fld);
+  }
+
+  if (protocol->send_fields(&fields,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  {
+    DBUG_RETURN(TRUE);
+  }
+
+  /* Send data. */
+
   protocol->prepare_for_resend();
+
   protocol->store(m_name.str, m_name.length, system_charset_info);
-  protocol->store((char*) sql_mode.str, sql_mode.length, system_charset_info);
+  protocol->store(sql_mode.str, sql_mode.length, system_charset_info);
+
   if (full_access)
-    protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
+    protocol->store(m_defstr.str, m_defstr.length, &my_charset_bin);
   else
     protocol->store_null();
-  res= protocol->write();
-  send_eof(thd);
 
-  DBUG_RETURN(res);
+  err_status= protocol->write();
+
+  if (!err_status)
+    send_eof(thd);
+
+  DBUG_RETURN(err_status);
 }
+
+
 
 
 /*
@@ -2167,48 +2208,6 @@ void sp_head::add_instr(sp_instr *instr)
   */
   instr->mem_root= &main_mem_root;
   insert_dynamic(&m_instr, (uchar*)&instr);
-}
-
-
-int
-sp_head::show_create_function(THD *thd)
-{
-  Protocol *protocol= thd->protocol;
-  char buff[2048];
-  String buffer(buff, sizeof(buff), system_charset_info);
-  int res;
-  List<Item> field_list;
-  LEX_STRING sql_mode;
-  bool full_access;
-  DBUG_ENTER("sp_head::show_create_function");
-  DBUG_PRINT("info", ("procedure %s", m_name.str));
-
-  if (check_show_routine_access(thd, this, &full_access))
-    DBUG_RETURN(1);
-
-  sys_var_thd_sql_mode::symbolic_mode_representation(thd, m_sql_mode,
-                                                     &sql_mode);
-  field_list.push_back(new Item_empty_string("Function",NAME_CHAR_LEN));
-  field_list.push_back(new Item_empty_string("sql_mode", sql_mode.length));
-  Item_empty_string *definition=
-    new Item_empty_string("Create Function", max(buffer.length(),1024));
-  definition->maybe_null= TRUE;
-  field_list.push_back(definition);
-
-  if (protocol->send_fields(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(1);
-  protocol->prepare_for_resend();
-  protocol->store(m_name.str, m_name.length, system_charset_info);
-  protocol->store(sql_mode.str, sql_mode.length, system_charset_info);
-  if (full_access)
-    protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
-  else
-    protocol->store_null();
-  res= protocol->write();
-  send_eof(thd);
-
-  DBUG_RETURN(res);
 }
 
 

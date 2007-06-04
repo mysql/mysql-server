@@ -322,11 +322,11 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   */
   if ((check_access(thd, CREATE_VIEW_ACL, view->db, &view->grant.privilege,
                     0, 0, is_schema_db(view->db)) ||
-       grant_option && check_grant(thd, CREATE_VIEW_ACL, view, 0, 1, 0)) ||
+       check_grant(thd, CREATE_VIEW_ACL, view, 0, 1, 0)) ||
       (mode != VIEW_CREATE_NEW &&
        (check_access(thd, DROP_ACL, view->db, &view->grant.privilege,
                      0, 0, is_schema_db(view->db)) ||
-        grant_option && check_grant(thd, DROP_ACL, view, 0, 1, 0))))
+        check_grant(thd, DROP_ACL, view, 0, 1, 0))))
   {
     res= TRUE;
     goto err;
@@ -379,7 +379,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       {
         if (check_access(thd, SELECT_ACL, tbl->db,
                          &tbl->grant.privilege, 0, 0, test(tbl->schema_table)) ||
-            grant_option && check_grant(thd, SELECT_ACL, tbl, 0, 1, 0))
+            check_grant(thd, SELECT_ACL, tbl, 0, 1, 0))
         {
           res= TRUE;
           goto err;
@@ -775,7 +775,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view->query.length= str.length()-1; // we do not need last \0
   view->source.str= thd->query + thd->lex->create_view_select_start;
   endp= view->source.str;
-  endp= skip_rear_comments(endp, thd->query + thd->query_length);
+  endp= skip_rear_comments(thd->charset(), endp, thd->query + thd->query_length);
   view->source.length= endp - view->source.str;
   view->file_version= 1;
   view->calc_md5(md5);

@@ -1118,11 +1118,40 @@ int MYSQLlex(void *arg, void *yythd)
 }
 
 
+Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
+  :drop_list(rhs.drop_list, mem_root),
+  alter_list(rhs.alter_list, mem_root),
+  key_list(rhs.key_list, mem_root),
+  create_list(rhs.create_list, mem_root),
+  flags(rhs.flags),
+  keys_onoff(rhs.keys_onoff),
+  tablespace_op(rhs.tablespace_op),
+  partition_names(rhs.partition_names, mem_root),
+  no_parts(rhs.no_parts)
+{
+  /*
+    Make deep copies of used objects.
+    This is not a fully deep copy - clone() implementations
+    of Alter_drop, Alter_column, Key, foreign_key, key_part_spec
+    do not copy string constants. At the same length the only
+    reason we make a copy currently is that ALTER/CREATE TABLE
+    code changes input Alter_info definitions, but string
+    constants never change.
+  */
+  list_copy_and_replace_each_value(drop_list, mem_root);
+  list_copy_and_replace_each_value(alter_list, mem_root);
+  list_copy_and_replace_each_value(key_list, mem_root);
+  list_copy_and_replace_each_value(create_list, mem_root);
+  /* partition_names are not deeply copied currently */
+}
+
+
 /*
   Skip comment in the end of statement.
 
   SYNOPSIS
     skip_rear_comments()
+      cs      character set
       begin   pointer to the beginning of statement
       end     pointer to the end of statement
 
@@ -1133,10 +1162,12 @@ int MYSQLlex(void *arg, void *yythd)
     Pointer to the last non-comment symbol of the statement.
 */
 
-const char *skip_rear_comments(const char *begin, const char *end)
+const char *skip_rear_comments(CHARSET_INFO *cs, const char *begin,
+                               const char *end)
 {
-  while (begin < end && (end[-1] <= ' ' || end[-1] == '*' ||
-                         end[-1] == '/' || end[-1] == ';'))
+  while (begin < end && (end[-1] == '*' ||
+                         end[-1] == '/' || end[-1] == ';' ||
+                         my_isspace(cs, end[-1])))
     end-= 1;
   return end;
 }
@@ -1786,8 +1817,6 @@ st_lex::st_lex()
   :result(0), yacc_yyss(0), yacc_yyvs(0),
    sql_command(SQLCOM_END), option_type(OPT_DEFAULT)
 {
-  /* Check that plugins_static_buffer is declared immediately after plugins */
-  compile_time_assert((&plugins + 1) == (DYNAMIC_ARRAY*)plugins_static_buffer);
 
   my_init_dynamic_array2(&plugins, sizeof(plugin_ref),
                          plugins_static_buffer,
@@ -2381,3 +2410,22 @@ bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
                                             current_index_hint_clause,
                                             str, length));
 }
+
+/**
+  A routine used by the parser to decide whether we are specifying a full
+  partitioning or if only partitions to add or to split.
+
+  @note  This needs to be outside of WITH_PARTITION_STORAGE_ENGINE since it
+  is used from the sql parser that doesn't have any #ifdef's
+
+  @retval  TRUE    Yes, it is part of a management partition command
+  @retval  FALSE          No, not a management partition command
+*/
+
+bool st_lex::is_partition_management() const
+{
+  return (sql_command == SQLCOM_ALTER_TABLE &&
+          (alter_info.flags == ALTER_ADD_PARTITION ||
+           alter_info.flags == ALTER_REORGANIZE_PARTITION));
+}
+

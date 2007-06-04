@@ -189,15 +189,12 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
       return -1;
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (grant_option)
-    {
-      Field_iterator_table field_it;
-      field_it.set_table(table);
-      if (check_grant_all_columns(thd, INSERT_ACL, &table->grant,
-                                  table->s->db.str, table->s->table_name.str,
-                                  &field_it))
-        return -1;
-    }
+    Field_iterator_table field_it;
+    field_it.set_table(table);
+    if (check_grant_all_columns(thd, INSERT_ACL, &table->grant,
+                                table->s->db.str, table->s->table_name.str,
+                                &field_it))
+      return -1;
 #endif
     clear_timestamp_auto_bits(table->timestamp_field_type,
                               TIMESTAMP_AUTO_SET_ON_INSERT);
@@ -846,10 +843,36 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         if (mysql_bin_log.is_open())
         {
           if (error <= 0)
+          {
+            /*
+              [Guilhem wrote] Temporary errors may have filled
+              thd->net.last_error/errno.  For example if there has
+              been a disk full error when writing the row, and it was
+              MyISAM, then thd->net.last_error/errno will be set to
+              "disk full"... and the my_pwrite() will wait until free
+              space appears, and so when it finishes then the
+              write_row() was entirely successful
+            */
+            /* todo: consider removing */
             thd->clear_error();
+          }
+          /* bug#22725:
+
+          A query which per-row-loop can not be interrupted with
+          KILLED, like INSERT, and that does not invoke stored
+          routines can be binlogged with neglecting the KILLED error.
+          
+          If there was no error (error == zero) until after the end of
+          inserting loop the KILLED flag that appeared later can be
+          disregarded since previously possible invocation of stored
+          routines did not result in any error due to the KILLED.  In
+          such case the flag is ignored for constructing binlog event.
+          */
+          DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
           if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                                 thd->query, thd->query_length,
-                                transactional_table, FALSE) &&
+                                transactional_table, FALSE,
+                                (error>0) ? thd->killed : THD::NOT_KILLED) &&
               transactional_table)
           {
             error=1;
@@ -861,7 +884,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     if (transactional_table)
       error=ha_autocommit_or_rollback(thd,error);
-
+    
     if (thd->lock)
     {
       mysql_unlock_tables(thd, thd->lock);
@@ -2540,7 +2563,7 @@ bool Delayed_insert::handle_inserts(void)
 
     if (table->s->blob_fields)
       free_delayed_insert_blobs(table);
-    thread_safe_sub(delayed_rows_in_use,1,&LOCK_delayed_status);
+    thread_safe_decrement(delayed_rows_in_use,&LOCK_delayed_status);
     thread_safe_increment(delayed_insert_writes,&LOCK_delayed_status);
     pthread_mutex_lock(&mutex);
 
@@ -3140,11 +3163,11 @@ bool select_insert::send_eof()
                           temporary table flag)
       create_table in     Pointer to TABLE_LIST object providing database
                           and name for table to be created or to be open
-      extra_fields in/out Initial list of fields for table to be created
-      keys         in     List of keys for table to be created
+      alter_info   in/out Initial list of columns and indexes for the table
+                          to be created
       items        in     List of items which should be used to produce rest
                           of fields for the table (corresponding fields will
-                          be added to the end of 'extra_fields' list)
+                          be added to the end of alter_info->create_list)
       lock         out    Pointer to the MYSQL_LOCK object for table created
                           (or open temporary table) will be returned in this
                           parameter. Since this table is not included in
@@ -3173,8 +3196,7 @@ bool select_insert::send_eof()
 
 static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                                       TABLE_LIST *create_table,
-                                      List<create_field> *extra_fields,
-                                      List<Key> *keys,
+                                      Alter_info *alter_info,
                                       List<Item> *items,
                                       MYSQL_LOCK **lock,
                                       TABLEOP_HOOKS *hooks)
@@ -3238,7 +3260,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(0);
     if (item->maybe_null)
       cr_field->flags &= ~NOT_NULL_FLAG;
-    extra_fields->push_back(cr_field);
+    alter_info->create_list.push_back(cr_field);
   }
 
   DBUG_EXECUTE_IF("sleep_create_select_before_create", my_sleep(6000000););
@@ -3263,8 +3285,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     tmp_disable_binlog(thd);
     if (!mysql_create_table_no_lock(thd, create_table->db,
                                     create_table->table_name,
-                                    create_info, *extra_fields, *keys, 0,
-                                    select_field_count, 0))
+                                    create_info, alter_info, 0,
+                                    select_field_count))
     {
       if (create_info->table_existed &&
           !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
@@ -3388,7 +3410,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   }
 
   if (!(table= create_table_from_items(thd, create_info, create_table,
-                                       extra_fields, keys, &values,
+                                       alter_info, &values,
                                        &thd->extra_lock, hook_ptr)))
     DBUG_RETURN(-1);				// abort() deletes table
 

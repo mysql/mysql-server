@@ -91,6 +91,40 @@ bool key_part_spec::operator==(const key_part_spec& other) const
   return length == other.length && !strcmp(field_name, other.field_name);
 }
 
+/**
+  Construct an (almost) deep copy of this key. Only those
+  elements that are known to never change are not copied.
+  If out of memory, a partial copy is returned and an error is set
+  in THD.
+*/
+
+Key::Key(const Key &rhs, MEM_ROOT *mem_root)
+  :type(rhs.type),
+  key_create_info(rhs.key_create_info),
+  columns(rhs.columns, mem_root),
+  name(rhs.name),
+  generated(rhs.generated)
+{
+  list_copy_and_replace_each_value(columns, mem_root);
+}
+
+/**
+  Construct an (almost) deep copy of this foreign key. Only those
+  elements that are known to never change are not copied.
+  If out of memory, a partial copy is returned and an error is set
+  in THD.
+*/
+
+foreign_key::foreign_key(const foreign_key &rhs, MEM_ROOT *mem_root)
+  :Key(rhs),
+  ref_table(rhs.ref_table),
+  ref_columns(rhs.ref_columns),
+  delete_opt(rhs.delete_opt),
+  update_opt(rhs.update_opt),
+  match_opt(rhs.match_opt)
+{
+  list_copy_and_replace_each_value(ref_columns, mem_root);
+}
 
 /*
   Test if a foreign key (= generated key) is a prefix of the given key
@@ -3026,9 +3060,9 @@ void THD::binlog_delete_pending_rows_event()
   RETURN VALUE
     Error code, or 0 if no error.
 */
-int THD::binlog_query(THD::enum_binlog_query_type qtype,
-                      char const *query, ulong query_len,
-                      bool is_trans, bool suppress_use)
+int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query,
+                      ulong query_len, bool is_trans, bool suppress_use,
+                      THD::killed_state killed_status_arg)
 {
   DBUG_ENTER("THD::binlog_query");
   DBUG_PRINT("enter", ("qtype=%d, query='%s'", qtype, query));
@@ -3067,7 +3101,8 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
       flush the pending rows event if necessary.
      */
     {
-      Query_log_event qinfo(this, query, query_len, is_trans, suppress_use);
+      Query_log_event qinfo(this, query, query_len, is_trans, suppress_use,
+                            killed_status_arg);
       qinfo.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
       /*
         Binlog table maps will be irrelevant after a Query_log_event

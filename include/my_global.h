@@ -441,17 +441,7 @@ C_MODE_END
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
-#ifdef HAVE_ATOMIC_ADD
-#define new my_arg_new
-#define need_to_restore_new 1
-C_MODE_START
-#include <asm/atomic.h>
-C_MODE_END
-#ifdef need_to_restore_new /* probably safer than #ifdef new */
-#undef new
-#undef need_to_restore_new
-#endif
-#endif
+
 #include <errno.h>				/* Recommended by debian */
 /* We need the following to go around a problem with openssl on solaris */
 #if defined(HAVE_CRYPT_H)
@@ -1431,10 +1421,13 @@ do { doubleget_union _tmp; \
 
 #ifndef THREAD
 #define thread_safe_increment(V,L) (V)++
+#define thread_safe_decrement(V,L) (V)--
 #define thread_safe_add(V,C,L)     (V)+=(C)
 #define thread_safe_sub(V,C,L)     (V)-=(C)
 #define statistic_increment(V,L)   (V)++
+#define statistic_decrement(V,L)   (V)--
 #define statistic_add(V,C,L)       (V)+=(C)
+#define statistic_sub(V,C,L)       (V)-=(C)
 #endif
 
 #ifdef HAVE_CHARSET_utf8
