@@ -816,7 +816,7 @@ loop_out:
       }
     }
     else
-    {
+   {
       if (mode == VIEW_ALTER)
       {
 	my_error(ER_NO_SUCH_TABLE, MYF(0), view->db, view->alias);
@@ -825,6 +825,7 @@ loop_out:
       }
     }
   }
+
   /*
     Check that table of main select do not used in subqueries.
 
