@@ -1934,6 +1934,8 @@ uint filename_to_tablename(const char *from, char *to, uint to_length);
 uint tablename_to_filename(const char *from, char *to, uint to_length);
 uint build_table_filename(char *buff, size_t bufflen, const char *db,
                           const char *table, const char *ext, uint flags);
+uint build_table_shadow_filename(char *buff, size_t bufflen, 
+                                 ALTER_PARTITION_PARAM_TYPE *lpt);
 /* Flags for conversion functions. */
 #define FN_FROM_IS_TMP  (1 << 0)
 #define FN_TO_IS_TMP    (1 << 1)
