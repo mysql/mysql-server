@@ -893,6 +893,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
+    CFG_DB_REDOLOG_FILE_SIZE,
+    "FragmentLogFileSize",
+    DB_TOKEN,
+    "Size of each Redo log file",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "16M",
+    "4M",
+    "1G" },
+
+  {
     CFG_DB_MAX_OPEN_FILES,
     "MaxNoOfOpenFiles",
     DB_TOKEN,
