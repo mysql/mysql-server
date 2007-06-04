@@ -218,3 +218,27 @@ k	HEX(a)	HEX(b)
 2	0	8
 **** On Master **** 
 DROP TABLE IF EXISTS t1_myisam, t1_innodb, t2_myisam, t2_innodb;
+drop table if exists t1, t2;
+CREATE TABLE `t1` (
+`a` int(11) NOT NULL auto_increment,
+`b` int(11) default NULL,
+PRIMARY KEY  (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
+CREATE TABLE `t2` (
+`a` int(11) NOT NULL auto_increment,
+`b` int(11) default NULL,
+PRIMARY KEY  (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
+insert into t1 values (1,1),(2,2);
+insert into t2 values (1,1),(4,4);
+UPDATE t2,t1 SET t2.a=t1.a+2;
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+select * from t2 /* must be (3,1), (4,4) */;
+a	b
+3	1
+4	4
+select * from t2 /* must be (3,1), (4,4) */;
+a	b
+3	1
+4	4
+drop table t1,t2;
