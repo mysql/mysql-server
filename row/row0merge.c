@@ -1744,11 +1744,11 @@ err_exit:
 }
 
 /*************************************************************************
-Remove a index from system tables */
+Drop an index from the InnoDB system tables. */
 
-ulint
-row_merge_remove_index(
-/*===================*/
+void
+row_merge_drop_index(
+/*=================*/
 				/* out: error code or DB_SUCCESS */
 	dict_index_t*	index,	/* in: index to be removed */
 	dict_table_t*	table,	/* in: table */
@@ -1804,8 +1804,25 @@ row_merge_remove_index(
 	}
 
 	trx->op_info = "";
+}
 
-	return(err);
+/*************************************************************************
+Drop those indexes which were created before an error occurred
+when building an index. */
+
+void
+row_merge_drop_indexes(
+/*===================*/
+	trx_t*		trx,		/* in: transaction */
+	dict_table_t*	table,		/* in: table containing the indexes */
+	dict_index_t**	index,		/* in: indexes to drop */
+	ulint		num_created)	/* in: number of elements in index[] */
+{
+	ulint	key_num;
+
+	for (key_num = 0; key_num < num_created; key_num++) {
+		row_merge_drop_index(index[key_num], table, trx);
+	}
 }
 
 /*************************************************************************

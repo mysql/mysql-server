@@ -523,19 +523,6 @@ row_create_index_graph_for_mysql(
 	trx_t*		trx,		/* in: trx */
 	dict_table_t*	table,		/* in: table */
 	dict_index_t*	index);		/* in: index */
-/*************************************************************************
-Remove those indexes which were created before a error happened in
-the index build */
-
-ulint
-row_remove_indexes_for_mysql(
-/*=========================*/
-					/* out: 0 or error code */
-	trx_t*		trx,		/* in: transaction */
-	dict_table_t*	table,		/* in: Table where index is created */
-	dict_index_t**	index,		/* in: Indexes to be created */
-	ulint		num_created);	/* in: Number of indexes created
-					before error and now must be removed */
 /***************************************************************************
 Writes information to an undo log about dictionary operation, create_table.
 This information is used in a rollback of the transaction. */
