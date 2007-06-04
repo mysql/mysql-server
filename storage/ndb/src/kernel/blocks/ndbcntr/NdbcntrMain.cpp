@@ -2741,16 +2741,34 @@ void Ndbcntr::execSTART_ORD(Signal* signal){
   c_missra.execSTART_ORD(signal);
 }
 
+#define CLEAR_DX 13
+#define CLEAR_LCP 3
+
 void
-Ndbcntr::clearFilesystem(Signal* signal){
+Ndbcntr::clearFilesystem(Signal* signal)
+{
+  const Uint32 lcp = c_fsRemoveCount >= CLEAR_DX;
+  
   FsRemoveReq * req  = (FsRemoveReq *)signal->getDataPtrSend();
   req->userReference = reference();
   req->userPointer   = 0;
   req->directory     = 1;
   req->ownDirectory  = 1;
-  FsOpenReq::setVersion(req->fileNumber, 3);
-  FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL); // Can by any...
-  FsOpenReq::v1_setDisk(req->fileNumber, c_fsRemoveCount);
+
+  if (lcp == 0)
+  {
+    FsOpenReq::setVersion(req->fileNumber, 3);
+    FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL); // Can by any...
+    FsOpenReq::v1_setDisk(req->fileNumber, c_fsRemoveCount);
+  }
+  else
+  {
+    FsOpenReq::setVersion(req->fileNumber, 5);
+    FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
+    FsOpenReq::v5_setLcpNo(req->fileNumber, c_fsRemoveCount - CLEAR_DX);
+    FsOpenReq::v5_setTableId(req->fileNumber, 0);
+    FsOpenReq::v5_setFragmentId(req->fileNumber, 0);
+  }
   sendSignal(NDBFS_REF, GSN_FSREMOVEREQ, signal, 
              FsRemoveReq::SignalLength, JBA);
   c_fsRemoveCount++;
@@ -2759,12 +2777,12 @@ Ndbcntr::clearFilesystem(Signal* signal){
 void
 Ndbcntr::execFSREMOVECONF(Signal* signal){
   jamEntry();
-  if(c_fsRemoveCount == 13){
+  if(c_fsRemoveCount == CLEAR_DX + CLEAR_LCP){
     jam();
     sendSttorry(signal);
   } else {
     jam();
-    ndbrequire(c_fsRemoveCount < 13);
+    ndbrequire(c_fsRemoveCount < CLEAR_DX + CLEAR_LCP);
     clearFilesystem(signal);
   }//if
 }
