@@ -597,4 +597,12 @@ EXPLAIN SELECT COUNT(*) FROM t2 WHERE stat_id IN (1,3) AND acct_id=785;
 
 DROP TABLE t1,t2; 
 
+#
+# Bug #28652: assert when alter innodb table operation
+#
+create table t1(a int) engine=innodb;
+alter table t1 comment '123';
+show create table t1;
+drop table t1;
+
 --echo End of 5.0 tests
