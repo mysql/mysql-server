@@ -2317,8 +2317,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	a	a	10	const,test.t1.b	2	Using where; Using index
 EXPLAIN SELECT * FROM v2 WHERE a=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	5	const	1	Using where; Using index; Using join cache
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	ref	a	a	5	const	1	Using where; Using index
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
 DROP VIEW v1,v2;
 DROP TABLE t1,t2,t3;
 create table t1 (f1 int);
@@ -2771,7 +2771,7 @@ CREATE TABLE t1 (i int, j int);
 CREATE VIEW v1 AS SELECT COALESCE(i,j) FROM t1;
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
-COALESCE(i,j)	int(11)	YES		NULL	
+COALESCE(i,j)	bigint(11)	YES		NULL	
 CREATE TABLE t2 SELECT COALESCE(i,j) FROM t1;
 DESCRIBE t2;
 Field	Type	Null	Key	Default	Extra
@@ -3359,6 +3359,94 @@ SHOW CREATE VIEW v1;
 View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(1.23456789 as decimal(8,0)) AS `col`
 DROP VIEW v1;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b INT, c INT DEFAULT 0);
+INSERT INTO t1 (a) VALUES (1), (2);
+INSERT INTO t2 (b) VALUES (1), (2);
+CREATE VIEW v1 AS SELECT t2.b,t2.c FROM t1, t2
+WHERE t1.a=t2.b AND t2.b < 3 WITH CHECK OPTION;
+SELECT * FROM v1;
+b	c
+1	0
+2	0
+UPDATE v1 SET c=1 WHERE b=1;
+SELECT * FROM v1;
+b	c
+1	1
+2	0
+DROP VIEW v1;
+DROP TABLE t1,t2;
+CREATE TABLE t1 (id int);
+CREATE TABLE t2 (id int, c int DEFAULT 0);
+INSERT INTO t1 (id) VALUES (1);
+INSERT INTO t2 (id) VALUES (1);
+CREATE VIEW v1 AS 
+SELECT t2.c FROM t1, t2 
+WHERE t1.id=t2.id AND 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
+UPDATE v1 SET c=1;
+DROP VIEW v1;
+DROP TABLE t1,t2;
+CREATE TABLE t1 (a1 INT, c INT DEFAULT 0);
+CREATE TABLE t2 (a2 INT);
+CREATE TABLE t3 (a3 INT);
+CREATE TABLE t4 (a4 INT);
+INSERT INTO t1 (a1) VALUES (1),(2);
+INSERT INTO t2 (a2) VALUES (1),(2);
+INSERT INTO t3 (a3) VALUES (1),(2);
+INSERT INTO t4 (a4) VALUES (1),(2);
+CREATE VIEW v1 AS
+SELECT t1.a1, t1.c FROM t1 JOIN t2 ON t1.a1=t2.a2 AND t1.c < 3
+WITH CHECK OPTION;
+SELECT * FROM v1;
+a1	c
+1	0
+2	0
+UPDATE v1 SET c=3;
+ERROR HY000: CHECK OPTION failed 'test.v1'
+PREPARE t FROM 'UPDATE v1 SET c=3';
+EXECUTE t;
+ERROR HY000: CHECK OPTION failed 'test.v1'
+EXECUTE t;
+ERROR HY000: CHECK OPTION failed 'test.v1'
+INSERT INTO v1(a1, c) VALUES (3, 3);
+ERROR HY000: CHECK OPTION failed 'test.v1'
+UPDATE v1 SET c=1 WHERE a1=1;
+SELECT * FROM v1;
+a1	c
+1	1
+2	0
+SELECT * FROM t1;
+a1	c
+1	1
+2	0
+CREATE VIEW v2 AS SELECT t1.a1, t1.c
+FROM (t1 JOIN t2 ON t1.a1=t2.a2 AND t1.c < 3)
+JOIN (t3 JOIN t4 ON t3.a3=t4.a4)
+ON t2.a2=t3.a3 WITH CHECK OPTION;
+SELECT * FROM v2;
+a1	c
+1	1
+2	0
+UPDATE v2 SET c=3;
+ERROR HY000: CHECK OPTION failed 'test.v2'
+PREPARE t FROM 'UPDATE v2 SET c=3';
+EXECUTE t;
+ERROR HY000: CHECK OPTION failed 'test.v2'
+EXECUTE t;
+ERROR HY000: CHECK OPTION failed 'test.v2'
+INSERT INTO v2(a1, c) VALUES (3, 3);
+ERROR HY000: CHECK OPTION failed 'test.v2'
+UPDATE v2 SET c=2 WHERE a1=1;
+SELECT * FROM v2;
+a1	c
+1	2
+2	0
+SELECT * FROM t1;
+a1	c
+1	2
+2	0
+DROP VIEW v1,v2;
+DROP TABLE t1,t2,t3,t4;
 End of 5.0 tests.
 DROP DATABASE IF EXISTS `d-1`;
 CREATE DATABASE `d-1`;
