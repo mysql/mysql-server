@@ -130,7 +130,8 @@ typedef long long longlong;
 #include <m_string.h>		/* To get strmov() */
 #else
 /* when compiled as standalone */
-#define strmov(a,b) strcpy(a,b)
+#include <string.h>
+#define strmov(a,b) stpcpy(a,b)
 #define bzero(a,b) memset(a,0,b)
 #define memcpy_fixed(a,b,c) memcpy(a,b,c)
 #endif

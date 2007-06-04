@@ -4071,6 +4071,16 @@ id	st
 2	GA
 4	FL
 DROP TABLE t1,t2;
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1), (2);
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT count(*) FROM t1 GROUP BY a) as res;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+Warnings:
+Note	1003	select `res`.`count(*)` AS `count(*)` from (select count(0) AS `count(*)` from `test`.`t1` group by `test`.`t1`.`a`) `res`
+DROP TABLE t1;
 End of 5.0 tests.
 CREATE TABLE t1 (a int, b int);
 INSERT INTO t1 VALUES (2,22),(1,11),(2,22);
