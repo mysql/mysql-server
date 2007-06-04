@@ -26,10 +26,12 @@
 
 USE test;
 --disable_warnings
+DROP VIEW IF EXISTS v1,v11;
 DROP TABLE IF EXISTS t1,t2,t3,t11,t12,t13;
-DROP VIEW IF EXISTS v1,v2;
 DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p11;
 DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
 --enable_warnings
 
 
@@ -259,12 +261,17 @@ UPDATE t13 SET c='';
 --exec rm $MYSQLTEST_VARDIR/tmp/rpl_invoked_features_slave.sql
 
 # Remove tables,views,procedures,functions
+--connection master
 --echo
 --disable_warnings
+DROP VIEW IF EXISTS v1,v11;
 DROP TABLE IF EXISTS t1,t2,t3,t11,t12,t13;
-DROP VIEW IF EXISTS v1,v2;
 DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p11;
 DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
 --enable_warnings
+
+--sync_slave_with_master slave
 
 # End 5.1 test case
