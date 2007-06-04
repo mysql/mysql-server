@@ -95,7 +95,27 @@ row_merge_sort_linked_list_in_disk(
 	dict_index_t*	index,		/* in: index to be created */
 	os_file_t	file,		/* in: File handle */
 	int*		error);		/* out: 0 or error */
+/*************************************************************************
+Drop an index from the InnoDB system tables. */
 
+void
+row_merge_drop_index(
+/*=================*/
+				/* out: error code or DB_SUCCESS */
+	dict_index_t*	index,	/* in: index to be removed */
+	dict_table_t*	table,	/* in: table */
+	trx_t*		trx);	/* in: transaction handle */
+/*************************************************************************
+Drop those indexes which were created before an error occurred
+when building an index. */
+
+void
+row_merge_drop_indexes(
+/*===================*/
+	trx_t*		trx,		/* in: transaction */
+	dict_table_t*	table,		/* in: table containing the indexes */
+	dict_index_t**	index,		/* in: indexes to drop */
+	ulint		num_created);	/* in: number of elements in index[] */
 /*************************************************************************
 Initialize memory for a merge file structure */
 
@@ -103,16 +123,6 @@ void
 row_merge_file_create(
 /*==================*/
 	merge_file_t*	merge_file);	/* out: merge file structure */
-/*************************************************************************
-Remove a index from system tables */
-
-ulint
-row_merge_remove_index(
-/*===================*/
-				/* out: error code or DB_SUCCESS */
-	dict_index_t*	index,	/* in: index to be removed */
-	dict_table_t*	table,	/* in: table */
-	trx_t*		trx);	/* in: transaction handle */
 
 /*************************************************************************
 Print definition of a table in the dictionary */
