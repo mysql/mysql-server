@@ -4332,10 +4332,10 @@ create_table_option:
 	    lex->create_info.merge_list= lex->select_lex.table_list;
 	    lex->create_info.merge_list.elements--;
 	    lex->create_info.merge_list.first=
-	      (byte*) (table_list->next_local);
+	      (uchar*) (table_list->next_local);
 	    lex->select_lex.table_list.elements=1;
 	    lex->select_lex.table_list.next=
-	      (byte**) &(table_list->next_local);
+	      (uchar**) &(table_list->next_local);
 	    table_list->next_local= 0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
@@ -5570,10 +5570,10 @@ alter_list_item:
 	  {
             THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
-	    uint dummy;
+	    size_t dummy;
 	    lex->select_lex.db=$3->db.str;
             if (lex->select_lex.db == NULL &&
-                thd->copy_db_to(&lex->select_lex.db, &dummy))
+	                thd->copy_db_to(&lex->select_lex.db, &dummy))
             {
               MYSQL_YYABORT;
             }
@@ -7979,7 +7979,7 @@ procedure_clause:
 	    }
 	    lex->proc_list.elements=0;
 	    lex->proc_list.first=0;
-	    lex->proc_list.next= (byte**) &lex->proc_list.first;
+	    lex->proc_list.next= (uchar**) &lex->proc_list.first;
 	    if (add_proc_to_list(lex->thd, new Item_field(&lex->
                                                           current_select->
                                                           context,
@@ -8295,7 +8295,7 @@ insert_lock_option:
               insert visible only after the table unlocking but everyone can
               read table.
             */
-            $$= (Lex->sphead ? TL_WRITE :TL_WRITE_CONCURRENT_INSERT);
+            $$= (Lex->sphead ? TL_WRITE_DEFAULT : TL_WRITE_CONCURRENT_INSERT);
 #else
             $$= TL_WRITE_CONCURRENT_INSERT;
 #endif
@@ -8473,7 +8473,7 @@ insert_update_elem:
 	  };
 
 opt_low_priority:
-	/* empty */	{ $$= YYTHD->update_lock_default; }
+	/* empty */	{ $$= TL_WRITE_DEFAULT; }
 	| LOW_PRIORITY	{ $$= TL_WRITE_LOW_PRIORITY; };
 
 /* Delete rows from a table */
@@ -8484,7 +8484,7 @@ delete:
 	  LEX *lex= Lex;
 	  lex->sql_command= SQLCOM_DELETE;
 	  mysql_init_select(lex);
-	  lex->lock_option= lex->thd->update_lock_default;
+	  lex->lock_option= TL_WRITE_DEFAULT;
 	  lex->ignore= 0;
 	  lex->select_lex.init_order();
 	}
@@ -9176,7 +9176,7 @@ opt_local:
 	| LOCAL_SYM	{ $$=1;};
 
 load_data_lock:
-	/* empty */	{ $$= YYTHD->update_lock_default; }
+	/* empty */	{ $$= TL_WRITE_DEFAULT; }
 	| CONCURRENT
           {
 #ifdef HAVE_QUERY_CACHE
@@ -9184,7 +9184,7 @@ load_data_lock:
               Ignore this option in SP to avoid problem with query cache
             */
             if (Lex->sphead != 0)
-              $$= YYTHD->update_lock_default;
+              $$= TL_WRITE_DEFAULT;
             else
 #endif
               $$= TL_WRITE_CONCURRENT_INSERT;
@@ -9550,8 +9550,9 @@ simple_ident_q:
               Let us add this item to list of all Item_trigger_field objects
               in trigger.
             */
-            lex->trg_table_fields.link_in_list((byte *)trg_fld,
-              (byte**)&trg_fld->next_trg_field);
+            lex->trg_table_fields.link_in_list((uchar*) trg_fld,
+	              			       (uchar**) &trg_fld->
+						next_trg_field);
 
             $$= (Item *)trg_fld;
           }
@@ -10179,7 +10180,8 @@ option_type_value:
               else
                 qbuff.length= lip->tok_end - sp->m_tmp_query;
 
-              if (!(qbuff.str= alloc_root(thd->mem_root, qbuff.length + 5)))
+              if (!(qbuff.str= (char*) alloc_root(thd->mem_root,
+                                                  qbuff.length + 5)))
                 MYSQL_YYABORT;
 
               strmake(strmake(qbuff.str, "SET ", 4), sp->m_tmp_query,
@@ -10265,8 +10267,9 @@ sys_option_value:
               Let us add this item to list of all Item_trigger_field
               objects in trigger.
             */
-            lex->trg_table_fields.link_in_list((byte *)trg_fld,
-                                    (byte **)&trg_fld->next_trg_field);
+            lex->trg_table_fields.link_in_list((uchar *)trg_fld,
+                                               (uchar **) &trg_fld->
+					       next_trg_field);
 
             lex->sphead->add_instr(sp_fld);
           }
@@ -10543,7 +10546,7 @@ table_lock:
 
 lock_option:
 	READ_SYM	{ $$=TL_READ_NO_INSERT; }
-	| WRITE_SYM     { $$=YYTHD->update_lock_default; }
+	| WRITE_SYM     { $$=TL_WRITE_DEFAULT; }
 	| LOW_PRIORITY WRITE_SYM { $$=TL_WRITE_LOW_PRIORITY; }
 	| READ_SYM LOCAL_SYM { $$= TL_READ; }
         ;
@@ -10839,7 +10842,7 @@ grant_ident:
 	  {
             THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
-            uint dummy;
+            size_t dummy;
             if (thd->copy_db_to(&lex->current_select->db, &dummy))
               MYSQL_YYABORT;
 	    if (lex->grant == GLOBAL_ACLS)

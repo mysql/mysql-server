@@ -23,8 +23,8 @@ extern "C" {
 struct _db_code_state_;
 extern	int _db_keyword_(struct _db_code_state_ *cs, const char *keyword);
 extern  int _db_strict_keyword_(const char *keyword);
-extern  int _db_explain_(struct _db_code_state_ *cs, char *buf, int len);
-extern  int _db_explain_init_(char *buf, int len);
+extern  int _db_explain_(struct _db_code_state_ *cs, char *buf, size_t len);
+extern  int _db_explain_init_(char *buf, size_t len);
 extern	void _db_setjmp_(void);
 extern	void _db_longjmp_(void);
 extern  void _db_process_(const char *name);
@@ -40,8 +40,8 @@ extern	void _db_return_(uint _line_,const char **_sfunc_,const char **_sfile_,
 extern	void _db_pargs_(uint _line_,const char *keyword);
 extern	void _db_doprnt_ _VARARGS((const char *format,...))
   ATTRIBUTE_FORMAT(printf, 1, 2);
-extern	void _db_dump_(uint _line_,const char *keyword,const char *memory,
-		       uint length);
+extern	void _db_dump_(uint _line_,const char *keyword,
+                       const unsigned char *memory, size_t length);
 extern	void _db_end_(void);
 extern	void _db_lock_file_(void);
 extern	void _db_unlock_file_(void);

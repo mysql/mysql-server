@@ -1129,7 +1129,25 @@ create table t3 (c1 int) engine=myisam pack_keys=default;
 create table t4 (c1 int) engine=myisam pack_keys=2;
 drop table t1, t2, t3;
 
+
+#
+# Bug#28476: force index on a disabled myisam index gives error 124
+#
+CREATE TABLE t1(a INT, b INT, KEY inx (a), UNIQUE KEY uinx (b)) ENGINE=MyISAM;
+INSERT INTO t1(a,b) VALUES (1,1),(2,2),(3,3),(4,4),(5,5);
+SELECT a FROM t1 FORCE INDEX (inx) WHERE a=1;
+ALTER TABLE t1 DISABLE KEYS;
+SELECT a FROM t1 FORCE INDEX (inx) WHERE a=1;
+SELECT a FROM t1 USE INDEX (inx) WHERE a=1;
+SELECT b FROM t1 FORCE INDEX (uinx) WHERE b=1;
+SELECT b FROM t1 USE INDEX (uinx) WHERE b=1;
+SELECT a FROM t1 FORCE INDEX (inx,uinx) WHERE a=1;
+ALTER TABLE t1 ENABLE KEYS;
+SELECT a FROM t1 FORCE INDEX (inx) WHERE a=1;
+DROP TABLE t1;
+
 --echo End of 5.0 tests
+
 
 #
 # Test of key_block_size

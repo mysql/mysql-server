@@ -51,7 +51,7 @@
 
 typedef struct st_pointer_array {		/* when using array-strings */
   TYPELIB typelib;				/* Pointer to strings */
-  byte	*str;					/* Strings is here */
+  uchar *str;					/* Strings is here */
   int7	*flag;					/* Flag about each var. */
   uint  array_allocs,max_count,length,max_length;
 } POINTER_ARRAY;
@@ -83,14 +83,14 @@ static int static_get_options(int *argc,char * * *argv);
 static int get_replace_strings(int *argc,char * * *argv,
 				   POINTER_ARRAY *from_array,
 				   POINTER_ARRAY *to_array);
-static int insert_pointer_name(POINTER_ARRAY *pa, my_string name);
+static int insert_pointer_name(POINTER_ARRAY *pa, char * name);
 static void free_pointer_array(POINTER_ARRAY *pa);
 static int convert_pipe(REPLACE *,FILE *,FILE *);
-static int convert_file(REPLACE *, my_string);
-static REPLACE *init_replace(my_string *from, my_string *to,uint count,
-                             my_string word_end_chars);
-static uint replace_strings(REPLACE *rep, my_string *start,uint *max_length,
-                            my_string from);
+static int convert_file(REPLACE *, char *);
+static REPLACE *init_replace(char * *from, char * *to,uint count,
+                             char * word_end_chars);
+static uint replace_strings(REPLACE *rep, char * *start,uint *max_length,
+                            char * from);
 static int initialize_buffer(void);
 static void reset_buffer(void);
 static void free_buffer(void);
@@ -245,10 +245,10 @@ POINTER_ARRAY *from_array,*to_array;
   return 0;
 }
 
-static int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name)
+static int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
 {
   uint i,length,old_count;
-  byte *new_pos;
+  uchar *new_pos;
   const char **new_array;
   DBUG_ENTER("insert_pointer_name");
 
@@ -256,16 +256,16 @@ static int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name)
   {
     if (!(pa->typelib.type_names=(const char **)
 	  my_malloc(((PC_MALLOC-MALLOC_OVERHEAD)/
-		     (sizeof(my_string)+sizeof(*pa->flag))*
-		     (sizeof(my_string)+sizeof(*pa->flag))),MYF(MY_WME))))
+		     (sizeof(char *)+sizeof(*pa->flag))*
+		     (sizeof(char *)+sizeof(*pa->flag))),MYF(MY_WME))))
       DBUG_RETURN(-1);
-    if (!(pa->str= (byte*) my_malloc((uint) (PS_MALLOC-MALLOC_OVERHEAD),
+    if (!(pa->str= (uchar*) my_malloc((uint) (PS_MALLOC-MALLOC_OVERHEAD),
 				     MYF(MY_WME))))
     {
-      my_free((gptr) pa->typelib.type_names,MYF(0));
+      my_free((uchar*) pa->typelib.type_names,MYF(0));
       DBUG_RETURN (-1);
     }
-    pa->max_count=(PC_MALLOC-MALLOC_OVERHEAD)/(sizeof(byte*)+
+    pa->max_count=(PC_MALLOC-MALLOC_OVERHEAD)/(sizeof(uchar*)+
 					       sizeof(*pa->flag));
     pa->flag= (int7*) (pa->typelib.type_names+pa->max_count);
     pa->length=0;
@@ -277,7 +277,7 @@ static int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name)
   {
     pa->max_length=(pa->length+length+MALLOC_OVERHEAD+PS_MALLOC-1)/PS_MALLOC;
     pa->max_length=pa->max_length*PS_MALLOC-MALLOC_OVERHEAD;
-    if (!(new_pos= (byte*) my_realloc((gptr) pa->str,
+    if (!(new_pos= (uchar*) my_realloc((uchar*) pa->str,
 				      (uint) pa->max_length,
 				      MYF(MY_WME))))
       DBUG_RETURN(1);
@@ -295,17 +295,17 @@ static int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name)
     int len;
     pa->array_allocs++;
     len=(PC_MALLOC*pa->array_allocs - MALLOC_OVERHEAD);
-    if (!(new_array=(const char **) my_realloc((gptr) pa->typelib.type_names,
+    if (!(new_array=(const char **) my_realloc((uchar*) pa->typelib.type_names,
 					       (uint) len/
-					 (sizeof(byte*)+sizeof(*pa->flag))*
-					 (sizeof(byte*)+sizeof(*pa->flag)),
+					 (sizeof(uchar*)+sizeof(*pa->flag))*
+					 (sizeof(uchar*)+sizeof(*pa->flag)),
 					 MYF(MY_WME))))
       DBUG_RETURN(1);
     pa->typelib.type_names=new_array;
     old_count=pa->max_count;
-    pa->max_count=len/(sizeof(byte*) + sizeof(*pa->flag));
+    pa->max_count=len/(sizeof(uchar*) + sizeof(*pa->flag));
     pa->flag= (int7*) (pa->typelib.type_names+pa->max_count);
-    memcpy((byte*) pa->flag,(my_string) (pa->typelib.type_names+old_count),
+    memcpy((uchar*) pa->flag,(char *) (pa->typelib.type_names+old_count),
 	   old_count*sizeof(*pa->flag));
   }
   pa->flag[pa->typelib.count]=0;			/* Reset flag */
@@ -324,9 +324,9 @@ static void free_pointer_array(reg1 POINTER_ARRAY *pa)
   if (pa->typelib.count)
   {
     pa->typelib.count=0;
-    my_free((gptr) pa->typelib.type_names,MYF(0));
+    my_free((uchar*) pa->typelib.type_names,MYF(0));
     pa->typelib.type_names=0;
-    my_free((gptr) pa->str,MYF(0));
+    my_free((uchar*) pa->str,MYF(0));
   }
   return;
 } /* free_pointer_array */
@@ -380,23 +380,23 @@ static int get_next_bit(REP_SET *set,uint lastpos);
 static short find_set(REP_SETS *sets,REP_SET *find);
 static short find_found(FOUND_SET *found_set,uint table_offset,
                         int found_offset);
-static uint start_at_word(my_string pos);
-static uint end_of_word(my_string pos);
-static uint replace_len(my_string pos);
+static uint start_at_word(char * pos);
+static uint end_of_word(char * pos);
+static uint replace_len(char * pos);
 
 static uint found_sets=0;
 
 
 	/* Init a replace structure for further calls */
 
-static REPLACE *init_replace(my_string *from, my_string *to,uint count,
-                             my_string word_end_chars)
+static REPLACE *init_replace(char * *from, char * *to,uint count,
+                             char * word_end_chars)
 {
   uint i,j,states,set_nr,len,result_len,max_length,found_end,bits_set,bit_nr;
   int used_sets,chr;
   short default_state;
   char used_chars[LAST_CHAR_CODE],is_word_end[256];
-  my_string pos,to_pos,*to_array;
+  char * pos, *to_pos, **to_array;
   REP_SETS sets;
   REP_SET *set,*start_states,*word_states,*new_set;
   FOLLOWS *follow,*follow_ptr;
@@ -441,7 +441,7 @@ static REPLACE *init_replace(my_string *from, my_string *to,uint count,
   if (!(follow=(FOLLOWS*) my_malloc((states+2)*sizeof(FOLLOWS),MYF(MY_WME))))
   {
     free_sets(&sets);
-    my_free((gptr) found_set,MYF(0));
+    my_free((uchar*) found_set,MYF(0));
     DBUG_RETURN(0);
   }
 
@@ -632,12 +632,12 @@ static REPLACE *init_replace(my_string *from, my_string *to,uint count,
 
   if ((replace=(REPLACE*) my_malloc(sizeof(REPLACE)*(sets.count)+
 				    sizeof(REPLACE_STRING)*(found_sets+1)+
-				    sizeof(my_string)*count+result_len,
+				    sizeof(char *)*count+result_len,
 				    MYF(MY_WME | MY_ZEROFILL))))
   {
     rep_str=(REPLACE_STRING*) (replace+sets.count);
-    to_array=(my_string*) (rep_str+found_sets+1);
-    to_pos=(my_string) (to_array+count);
+    to_array=(char **) (rep_str+found_sets+1);
+    to_pos=(char *) (to_array+count);
     for (i=0 ; i < count ; i++)
     {
       to_array[i]=to_pos;
@@ -663,9 +663,9 @@ static REPLACE *init_replace(my_string *from, my_string *to,uint count,
 	  replace[i].next[j]=(REPLACE*) (rep_str+(-sets.set[i].next[j]-1));
     }
   }
-  my_free((gptr) follow,MYF(0));
+  my_free((uchar*) follow,MYF(0));
   free_sets(&sets);
-  my_free((gptr) found_set,MYF(0));
+  my_free((uchar*) found_set,MYF(0));
   DBUG_PRINT("exit",("Replace table has %d states",sets.count));
   DBUG_RETURN(replace);
 }
@@ -681,7 +681,7 @@ static int init_sets(REP_SETS *sets,uint states)
   if (!(sets->bit_buffer=(uint*) my_malloc(sizeof(uint)*sets->size_of_bits*
 					   SET_MALLOC_HUNC,MYF(MY_WME))))
   {
-    my_free((gptr) sets->set,MYF(0));
+    my_free((uchar*) sets->set,MYF(0));
     return 1;
   }
   return 0;
@@ -713,13 +713,13 @@ static REP_SET *make_new_set(REP_SETS *sets)
     return set;
   }
   count=sets->count+sets->invisible+SET_MALLOC_HUNC;
-  if (!(set=(REP_SET*) my_realloc((gptr) sets->set_buffer,
+  if (!(set=(REP_SET*) my_realloc((uchar*) sets->set_buffer,
 				   sizeof(REP_SET)*count,
 				  MYF(MY_WME))))
     return 0;
   sets->set_buffer=set;
   sets->set=set+sets->invisible;
-  if (!(bit_buffer=(uint*) my_realloc((gptr) sets->bit_buffer,
+  if (!(bit_buffer=(uint*) my_realloc((uchar*) sets->bit_buffer,
 				      (sizeof(uint)*sets->size_of_bits)*count,
 				      MYF(MY_WME))))
     return 0;
@@ -742,8 +742,8 @@ static void free_last_set(REP_SETS *sets)
 
 static void free_sets(REP_SETS *sets)
 {
-  my_free((gptr)sets->set_buffer,MYF(0));
-  my_free((gptr)sets->bit_buffer,MYF(0));
+  my_free((uchar*)sets->set_buffer,MYF(0));
+  my_free((uchar*)sets->bit_buffer,MYF(0));
   return;
 }
 
@@ -770,13 +770,13 @@ static void or_bits(REP_SET *to,REP_SET *from)
 
 static void copy_bits(REP_SET *to,REP_SET *from)
 {
-  memcpy((byte*) to->bits,(byte*) from->bits,
+  memcpy((uchar*) to->bits,(uchar*) from->bits,
 	 (size_t) (sizeof(uint) * to->size_of_bits));
 }
 
 static int cmp_bits(REP_SET *set1,REP_SET *set2)
 {
-  return bcmp((byte*) set1->bits,(byte*) set2->bits,
+  return bcmp((uchar*) set1->bits,(uchar*) set2->bits,
 	      sizeof(uint) * set1->size_of_bits);
 }
 
@@ -847,21 +847,21 @@ static short find_found(FOUND_SET *found_set,uint table_offset,
 
 	/* Return 1 if regexp starts with \b or ends with \b*/
 
-static uint start_at_word(my_string pos)
+static uint start_at_word(char * pos)
 {
   return (((!bcmp(pos,"\\b",2) && pos[2]) || !bcmp(pos,"\\^",2)) ? 1 : 0);
 }
 
-static uint end_of_word(my_string pos)
+static uint end_of_word(char * pos)
 {
-  my_string end=strend(pos);
+  char * end=strend(pos);
   return ((end > pos+2 && !bcmp(end-2,"\\b",2)) ||
 	  (end >= pos+2 && !bcmp(end-2,"\\$",2))) ?
 	    1 : 0;
 }
 
 
-static uint replace_len(my_string str)
+static uint replace_len(char * str)
 {
   uint len=0;
   while (*str)
@@ -877,12 +877,12 @@ static uint replace_len(my_string str)
 
 	/* The actual loop */
 
-static uint replace_strings(REPLACE *rep, my_string *start,uint *max_length,
-                            my_string from)
+static uint replace_strings(REPLACE *rep, char **start, uint *max_length,
+                            char *from)
 {
   reg1 REPLACE *rep_pos;
   reg2 REPLACE_STRING *rep_str;
-  my_string to,end,pos,new;
+  char *to, *end, *pos, *new;
 
   end=(to= *start) + *max_length-1;
   rep_pos=rep+1;
@@ -903,7 +903,7 @@ static uint replace_strings(REPLACE *rep, my_string *start,uint *max_length,
     }
     if (!(rep_str = ((REPLACE_STRING*) rep_pos))->replace_string)
       return (uint) (to - *start)-1;
-    updated=1;			/* Some my_string is replaced */
+    updated=1;			/* Some char * is replaced */
     to-=rep_str->to_offset;
     for (pos=rep_str->replace_string; *pos ; pos++)
     {
@@ -1047,7 +1047,7 @@ FILE *in,*out;
 }
 
 
-static int convert_file(REPLACE *rep, my_string name)
+static int convert_file(REPLACE *rep, char * name)
 {
   int error;
   FILE *in,*out;
@@ -1056,6 +1056,7 @@ static int convert_file(REPLACE *rep, my_string name)
   char link_name[FN_REFLEN];
 #endif
   File temp_file;
+  size_t dir_buff_length;
   DBUG_ENTER("convert_file");
 
   /* check if name is a symlink */
@@ -1065,7 +1066,7 @@ static int convert_file(REPLACE *rep, my_string name)
 #endif
   if (!(in= my_fopen(org_name,O_RDONLY,MYF(MY_WME))))
     DBUG_RETURN(1);
-  dirname_part(dir_buff,org_name);
+  dirname_part(dir_buff, org_name, &dir_buff_length);
   if ((temp_file= create_temp_file(tempname, dir_buff, "PR", O_WRONLY,
                                    MYF(MY_WME))) < 0)
   {

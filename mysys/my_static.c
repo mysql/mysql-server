@@ -27,7 +27,7 @@
 my_bool timed_mutexes= 0;
 
 	/* from my_init */
-my_string	home_dir=0;
+char *	home_dir=0;
 const char      *my_progname=0;
 char		NEAR curr_dir[FN_REFLEN]= {0},
 		NEAR home_dir_buff[FN_REFLEN]= {0};
@@ -74,8 +74,8 @@ uint sf_malloc_prehunc=0,		/* If you have problem with core- */
 ulong sf_malloc_cur_memory= 0L;		/* Current memory usage */
 ulong sf_malloc_max_memory= 0L;		/* Maximum memory usage */
 uint  sf_malloc_count= 0;		/* Number of times NEW() was called */
-byte *sf_min_adress= (byte*) ~(unsigned long) 0L,
-     *sf_max_adress= (byte*) 0L;
+uchar *sf_min_adress= (uchar*) ~(unsigned long) 0L,
+     *sf_max_adress= (uchar*) 0L;
 /* Root of the linked list of struct st_irem */
 struct st_irem *sf_malloc_root = NULL;
 

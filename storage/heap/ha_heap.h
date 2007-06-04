@@ -68,26 +68,26 @@ public:
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   void set_keys_for_scanning(void);
-  int write_row(byte * buf);
-  int update_row(const byte * old_data, byte * new_data);
-  int delete_row(const byte * buf);
+  int write_row(uchar * buf);
+  int update_row(const uchar * old_data, uchar * new_data);
+  int delete_row(const uchar * buf);
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values);
-  int index_read(byte * buf, const byte * key, key_part_map keypart_map,
+  int index_read(uchar * buf, const uchar * key, key_part_map keypart_map,
                  enum ha_rkey_function find_flag);
-  int index_read_last(byte *buf, const byte *key, key_part_map keypart_map);
-  int index_read_idx(byte * buf, uint index, const byte * key,
+  int index_read_last(uchar *buf, const uchar *key, key_part_map keypart_map);
+  int index_read_idx(uchar * buf, uint index, const uchar * key,
                      key_part_map keypart_map, enum ha_rkey_function find_flag);
-  int index_next(byte * buf);
-  int index_prev(byte * buf);
-  int index_first(byte * buf);
-  int index_last(byte * buf);
+  int index_next(uchar * buf);
+  int index_prev(uchar * buf);
+  int index_first(uchar * buf);
+  int index_last(uchar * buf);
   int rnd_init(bool scan);
-  int rnd_next(byte *buf);
-  int rnd_pos(byte * buf, byte *pos);
-  void position(const byte *record);
+  int rnd_next(uchar *buf);
+  int rnd_pos(uchar * buf, uchar *pos);
+  void position(const uchar *record);
   int info(uint);
   int extra(enum ha_extra_function operation);
   int reset();
@@ -105,7 +105,7 @@ public:
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
-  int cmp_ref(const byte *ref1, const byte *ref2)
+  int cmp_ref(const uchar *ref1, const uchar *ref2)
   {
     HEAP_PTR ptr1=*(HEAP_PTR*)ref1;
     HEAP_PTR ptr2=*(HEAP_PTR*)ref2;

@@ -49,11 +49,11 @@
 */
 
 int init_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
-	       pbool max_at_top, int (*compare) (void *, byte *, byte *),
+	       pbool max_at_top, int (*compare) (void *, uchar *, uchar *),
 	       void *first_cmp_arg)
 {
   DBUG_ENTER("init_queue");
-  if ((queue->root= (byte **) my_malloc((max_elements+1)*sizeof(void*),
+  if ((queue->root= (uchar **) my_malloc((max_elements+1)*sizeof(void*),
 					 MYF(MY_WME))) == 0)
     DBUG_RETURN(1);
   queue->elements=0;
@@ -92,7 +92,7 @@ int init_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
 */
 
 int init_queue_ex(QUEUE *queue, uint max_elements, uint offset_to_key,
-	       pbool max_at_top, int (*compare) (void *, byte *, byte *),
+	       pbool max_at_top, int (*compare) (void *, uchar *, uchar *),
 	       void *first_cmp_arg, uint auto_extent)
 {
   int ret;
@@ -129,7 +129,7 @@ int init_queue_ex(QUEUE *queue, uint max_elements, uint offset_to_key,
 */
 
 int reinit_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
-		 pbool max_at_top, int (*compare) (void *, byte *, byte *),
+		 pbool max_at_top, int (*compare) (void *, uchar *, uchar *),
 		 void *first_cmp_arg)
 {
   DBUG_ENTER("reinit_queue");
@@ -162,11 +162,11 @@ int reinit_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
 
 int resize_queue(QUEUE *queue, uint max_elements)
 {
-  byte **new_root;
+  uchar **new_root;
   DBUG_ENTER("resize_queue");
   if (queue->max_elements == max_elements)
     DBUG_RETURN(0);
-  if ((new_root= (byte **) my_realloc((void *)queue->root,
+  if ((new_root= (uchar **) my_realloc((void *)queue->root,
 				      (max_elements+1)*sizeof(void*),
 				      MYF(MY_WME))) == 0)
     DBUG_RETURN(1);
@@ -196,7 +196,7 @@ void delete_queue(QUEUE *queue)
   DBUG_ENTER("delete_queue");
   if (queue->root)
   {
-    my_free((gptr) queue->root,MYF(0));
+    my_free((uchar*) queue->root,MYF(0));
     queue->root=0;
   }
   DBUG_VOID_RETURN;
@@ -205,7 +205,7 @@ void delete_queue(QUEUE *queue)
 
 	/* Code for insert, search and delete of elements */
 
-void queue_insert(register QUEUE *queue, byte *element)
+void queue_insert(register QUEUE *queue, uchar *element)
 {
   reg2 uint idx, next;
   int cmp;
@@ -234,7 +234,7 @@ void queue_insert(register QUEUE *queue, byte *element)
   
 */
 
-int queue_insert_safe(register QUEUE *queue, byte *element)
+int queue_insert_safe(register QUEUE *queue, uchar *element)
 {
 
   if (queue->elements == queue->max_elements)
@@ -253,9 +253,9 @@ int queue_insert_safe(register QUEUE *queue, byte *element)
 	/* Remove item from queue */
 	/* Returns pointer to removed element */
 
-byte *queue_remove(register QUEUE *queue, uint idx)
+uchar *queue_remove(register QUEUE *queue, uint idx)
 {
-  byte *element;
+  uchar *element;
   DBUG_ASSERT(idx < queue->max_elements);
   element= queue->root[++idx];  /* Intern index starts from 1 */
   queue->root[idx]= queue->root[queue->elements--];
@@ -276,7 +276,7 @@ void queue_replaced(QUEUE *queue)
 
 void _downheap(register QUEUE *queue, uint idx)
 {
-  byte *element;
+  uchar *element;
   uint elements,half_queue,offset_to_key, next_index;
   bool first= TRUE;
   uint start_idx= idx;
@@ -332,7 +332,7 @@ void _downheap(register QUEUE *queue, uint idx)
 	/* Fix heap when index have changed */
 void _downheap(register QUEUE *queue, uint idx)
 {
-  byte *element;
+  uchar *element;
   uint elements,half_queue,next_index,offset_to_key;
   int cmp;
 
@@ -483,7 +483,7 @@ void calculate_end_next(uint part)
   }
   return;
 }
-static int test_compare(void *null_arg, byte *a, byte *b)
+static int test_compare(void *null_arg, uchar *a, uchar *b)
 {
   uint a_num= (*(uint*)a) & 0x3FFFFF;
   uint b_num= (*(uint*)b) & 0x3FFFFF;
@@ -541,9 +541,9 @@ void perform_insert(QUEUE *queue)
     }
     num_array[i]= num + (i << 22);
     if (fix_used)
-      queue_element(queue, i-1)= (byte*)&num_array[i];
+      queue_element(queue, i-1)= (uchar*)&num_array[i];
     else
-      queue_insert(queue, (byte*)&num_array[i]);
+      queue_insert(queue, (uchar*)&num_array[i]);
   } while (++i <= no_parts);
   if (fix_used)
   {
@@ -573,7 +573,7 @@ bool perform_ins_del(QUEUE *queue, bool max_ind)
         num_array[part]-= part;
       else
         num_array[part]+= part;
-      queue_top(queue)= (byte*)&num_array[part];
+      queue_top(queue)= (uchar*)&num_array[part];
       queue_replaced(queue);
     }
   } while (++i < no_loops);
@@ -665,7 +665,7 @@ static void benchmark_test()
     num+= 16;
     part= num >> 22;
     num_array[part]= num;
-    queue_top(queue)= (byte*)&num_array[part];
+    queue_top(queue)= (uchar*)&num_array[part];
     queue_replaced(queue);
   }
   for (i= 0; i < 16; i++)

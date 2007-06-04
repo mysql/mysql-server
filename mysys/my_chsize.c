@@ -40,12 +40,12 @@
 int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
 {
   my_off_t oldsize;
-  char buff[IO_SIZE];
+  uchar buff[IO_SIZE];
   DBUG_ENTER("my_chsize");
   DBUG_PRINT("my",("fd: %d  length: %lu  MyFlags: %d",fd,(ulong) newlength,
 		   MyFlags));
 
-  if ((oldsize = my_seek(fd, 0L, MY_SEEK_END, MYF(MY_WME+MY_FAE))) == newlength)
+  if ((oldsize= my_seek(fd, 0L, MY_SEEK_END, MYF(MY_WME+MY_FAE))) == newlength)
     DBUG_RETURN(0);
 
   DBUG_PRINT("info",("old_size: %ld", (ulong) oldsize));
@@ -98,11 +98,11 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
   bfill(buff, IO_SIZE, filler);
   while (newlength-oldsize > IO_SIZE)
   {
-    if (my_write(fd,(byte*) buff,IO_SIZE,MYF(MY_NABP)))
+    if (my_write(fd, buff, IO_SIZE, MYF(MY_NABP)))
       goto err;
     oldsize+= IO_SIZE;
   }
-  if (my_write(fd,(byte*) buff,(uint) (newlength-oldsize),MYF(MY_NABP)))
+  if (my_write(fd,buff,(size_t) (newlength-oldsize), MYF(MY_NABP)))
     goto err;
   DBUG_RETURN(0);
 

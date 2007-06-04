@@ -25,14 +25,14 @@
 #include <my_global.h>
 #include "m_string.h"
 
-uint r_strinstr(reg1 my_string str,int from, reg4 my_string search)
+size_t r_strinstr(reg1 const char * str, size_t from, reg4 const char * search)
 {
-  reg2 my_string	i, j;
-  uint		len = (uint) strlen(search);
+  reg2 const char *i, *j;
+  size_t	len = strlen(search);
   /* pointer to the last char of buff */
-  my_string	start = str + from - 1;
+  const char *	start = str + from - 1;
   /* pointer to the last char of search */
-  my_string	search_end = search + len - 1;
+  const char *	search_end = search + len - 1;
 
  skip:
   while (start >= str)		/* Cant be != because the first char */
@@ -43,7 +43,7 @@ uint r_strinstr(reg1 my_string str,int from, reg4 my_string search)
       while (j >= search && start > str)
 	if (*i-- != *j--)
 	  goto skip;
-      return (uint) ((start - len) - str + 3);
+      return (size_t) ((start - len) - str + 3);
     }
   }
   return (0);
