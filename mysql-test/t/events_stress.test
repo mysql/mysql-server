@@ -133,4 +133,5 @@ DROP USER event_user3@localhost;
 #
 # DROP DATABASE test end (bug #16406)
 #
+
 DROP DATABASE events_test;

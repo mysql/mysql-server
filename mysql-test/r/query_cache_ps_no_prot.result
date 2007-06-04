@@ -1,0 +1,362 @@
+---- establish connection con1 (root) ----
+---- switch to connection default ----
+set @initial_query_cache_size = @@global.query_cache_size;
+set @@global.query_cache_size=100000;
+flush status;
+drop table if exists t1;
+create table t1(c1 int);
+insert into t1 values(1),(10),(100);
+prepare stmt1 from "select * from t1 where c1=10";
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	0
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	0
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	1
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	2
+prepare stmt2 from "select * from t1 where c1=10";
+execute stmt2;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	3
+execute stmt2;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	4
+execute stmt2;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	5
+---- switch to connection con1 ----
+prepare stmt3 from "select * from t1 where c1=10";
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	6
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	7
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	8
+---- switch to connection default ----
+prepare stmt10 from "SELECT * FROM t1 WHERE c1 = 100";
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	8
+execute stmt10;
+c1
+100
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	8
+execute stmt10;
+c1
+100
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	9
+SELECT * FROM t1 WHERE c1 = 100;
+c1
+100
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	10
+---- switch to connection con1 ----
+SELECT * FROM t1 WHERE c1 = 100;
+c1
+100
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	11
+---- switch to connection default ----
+prepare stmt11 from "SELECT * FROM t1 WHERE c1 = 1";
+---- switch to connection con1 ----
+prepare stmt12 from "SELECT * FROM t1 WHERE c1 = 1";
+---- switch to connection default ----
+SELECT * FROM t1 WHERE c1 = 1;
+c1
+1
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	11
+SELECT * FROM t1 WHERE c1 = 1;
+c1
+1
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	12
+execute stmt11;
+c1
+1
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	13
+---- switch to connection con1 ----
+execute stmt12;
+c1
+1
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	14
+---- switch to connection default ----
+prepare stmt1 from "select * from t1 where c1=?";
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	14
+set @a=1;
+execute stmt1 using @a;
+c1
+1
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	14
+execute stmt1 using @a;
+c1
+1
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	14
+---- switch to connection con1 ----
+set @a=1;
+prepare stmt4 from "select * from t1 where c1=?";
+execute stmt4 using @a;
+c1
+1
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	14
+---- switch to connection default ----
+prepare stmt1 from "select * from t1 where c1=10";
+set global query_cache_size=0;
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	14
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	14
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	14
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	14
+---- switch to connection con1 ----
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	14
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	14
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	14
+---- switch to connection default ----
+set global query_cache_size=100000;
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	14
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	15
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	16
+---- switch to connection con1 ----
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	17
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	18
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+---- switch to connection default ----
+set global query_cache_size=0;
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+---- switch to connection con1 ----
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+---- switch to connection default ----
+set global query_cache_size=0;
+prepare stmt1 from "select * from t1 where c1=10";
+---- switch to connection con1 ----
+prepare stmt3 from "select * from t1 where c1=10";
+---- switch to connection default ----
+set global query_cache_size=100000;
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+---- switch to connection con1 ----
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+---- switch to connection default ----
+set global query_cache_size=0;
+prepare stmt1 from "select * from t1 where c1=?";
+set global query_cache_size=100000;
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+set @a=1;
+execute stmt1 using @a;
+c1
+1
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+set @a=100;
+execute stmt1 using @a;
+c1
+100
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+set @a=10;
+execute stmt1 using @a;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+drop table t1;
+---- disconnect connection con1 ----
+set @@global.query_cache_size=@initial_query_cache_size;
+flush status;

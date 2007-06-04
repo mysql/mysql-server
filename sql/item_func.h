@@ -1256,11 +1256,12 @@ class Item_func_get_user_var :public Item_func,
                               private Settable_routine_parameter
 {
   user_var_entry *var_entry;
+  Item_result m_cached_result_type;
 
 public:
   LEX_STRING name; // keep it public
   Item_func_get_user_var(LEX_STRING a):
-    Item_func(), name(a) {}
+    Item_func(), m_cached_result_type(STRING_RESULT), name(a) {}
   enum Functype functype() const { return GUSERVAR_FUNC; }
   LEX_STRING get_name() { return name; }
   double val_real();
@@ -1274,13 +1275,11 @@ public:
     We must always return variables as strings to guard against selects of type
     select @t1:=1,@t1,@t:="hello",@t from foo where (@t1:= t2.b)
   */
-  enum_field_types field_type() const  { return MYSQL_TYPE_VARCHAR; }
   const char *func_name() const { return "get_user_var"; }
   bool const_item() const;
   table_map used_tables() const
   { return const_item() ? 0 : RAND_TABLE_BIT; }
   bool eq(const Item *item, bool binary_cmp) const;
-
 private:
   bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
 

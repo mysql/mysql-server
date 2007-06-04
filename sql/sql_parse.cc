@@ -39,6 +39,7 @@
    "FUNCTION" : "PROCEDURE")
 
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
+static bool check_show_create_table_access(THD *thd, TABLE_LIST *table);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -722,8 +723,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_INIT_DB:
   {
     LEX_STRING tmp;
-    statistic_increment(thd->status_var.com_stat[SQLCOM_CHANGE_DB],
-			&LOCK_status);
+    status_var_increment(thd->status_var.com_stat[SQLCOM_CHANGE_DB]);
     thd->convert_string(&tmp, system_charset_info,
 			packet, packet_length-1, thd->charset());
     if (!mysql_change_db(thd, &tmp, FALSE))
@@ -758,7 +758,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     }
 
-    statistic_increment(thd->status_var.com_other, &LOCK_status);
+    status_var_increment(thd->status_var.com_other);
     thd->enable_slow_log= opt_log_slow_admin_statements;
     db.str= (char*) thd->alloc(db_len + tbl_len + 2);
     if (!db.str)
@@ -774,7 +774,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_CHANGE_USER:
   {
-    statistic_increment(thd->status_var.com_other, &LOCK_status);
+    status_var_increment(thd->status_var.com_other);
     char *user= (char*) packet, *packet_end= packet+ packet_length;
     char *passwd= strend(user)+1;
 
@@ -957,8 +957,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* used as fields initializator */
     lex_start(thd);
 
-    statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_FIELDS],
-			&LOCK_status);
+    status_var_increment(thd->status_var.com_stat[SQLCOM_SHOW_FIELDS]);
     bzero((char*) &table_list,sizeof(table_list));
     if (thd->copy_db_to(&table_list.db, &dummy))
       break;
@@ -989,8 +988,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (check_access(thd,SELECT_ACL,table_list.db,&table_list.grant.privilege,
 		     0, 0, test(table_list.schema_table)))
       break;
-    if (grant_option &&
-	check_grant(thd, SELECT_ACL, &table_list, 2, UINT_MAX, 0))
+    if (check_grant(thd, SELECT_ACL, &table_list, 2, UINT_MAX, 0))
       break;
     /* init structures for VIEW processing */
     table_list.select_lex= &(thd->lex->select_lex);
@@ -1024,8 +1022,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       LEX_STRING db, alias;
       HA_CREATE_INFO create_info;
 
-      statistic_increment(thd->status_var.com_stat[SQLCOM_CREATE_DB],
-			  &LOCK_status);
+      status_var_increment(thd->status_var.com_stat[SQLCOM_CREATE_DB]);
       if (thd->LEX_STRING_make(&db, packet, packet_length -1) ||
           thd->LEX_STRING_make(&alias, db.str, db.length) ||
           check_db_name(&db))
@@ -1044,8 +1041,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
   case COM_DROP_DB:				// QQ: To be removed
     {
-      statistic_increment(thd->status_var.com_stat[SQLCOM_DROP_DB],
-			  &LOCK_status);
+      status_var_increment(thd->status_var.com_stat[SQLCOM_DROP_DB]);
       LEX_STRING db;
 
       if (thd->LEX_STRING_make(&db, packet, packet_length - 1) ||
@@ -1074,7 +1070,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       ushort flags;
       uint32 slave_server_id;
 
-      statistic_increment(thd->status_var.com_other,&LOCK_status);
+      status_var_increment(thd->status_var.com_other);
       thd->enable_slow_log= opt_log_slow_admin_statements;
       if (check_global_access(thd, REPL_SLAVE_ACL))
 	break;
@@ -1100,8 +1096,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_REFRESH:
   {
     bool not_used;
-    statistic_increment(thd->status_var.com_stat[SQLCOM_FLUSH],
-                        &LOCK_status);
+    status_var_increment(thd->status_var.com_stat[SQLCOM_FLUSH]);
     ulong options= (ulong) (uchar) packet[0];
     if (check_global_access(thd,RELOAD_ACL))
       break;
@@ -1113,7 +1108,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
   {
-    statistic_increment(thd->status_var.com_other, &LOCK_status);
+    status_var_increment(thd->status_var.com_other);
     if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
     /*
@@ -1165,8 +1160,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
 
     general_log_print(thd, command, NullS);
-    statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_STATUS],
-			&LOCK_status);
+    status_var_increment(thd->status_var.com_stat[SQLCOM_SHOW_STATUS]);
     calc_sum_of_all_status(&current_global_status_var);
     if (!(uptime= (ulong) (thd->start_time - server_start_time)))
       queries_per_second1000= 0;
@@ -1202,12 +1196,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
   case COM_PING:
-    statistic_increment(thd->status_var.com_other, &LOCK_status);
+    status_var_increment(thd->status_var.com_other);
     send_ok(thd);				// Tell client we are alive
     break;
   case COM_PROCESS_INFO:
-    statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_PROCESSLIST],
-			&LOCK_status);
+    status_var_increment(thd->status_var.com_stat[SQLCOM_SHOW_PROCESSLIST]);
     if (!thd->security_ctx->priv_user[0] &&
         check_global_access(thd, PROCESS_ACL))
       break;
@@ -1218,15 +1211,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   case COM_PROCESS_KILL:
   {
-    statistic_increment(thd->status_var.com_stat[SQLCOM_KILL], &LOCK_status);
+    status_var_increment(thd->status_var.com_stat[SQLCOM_KILL]);
     ulong id=(ulong) uint4korr(packet);
     sql_kill(thd,id,false);
     break;
   }
   case COM_SET_OPTION:
   {
-    statistic_increment(thd->status_var.com_stat[SQLCOM_SET_OPTION],
-			&LOCK_status);
+    status_var_increment(thd->status_var.com_stat[SQLCOM_SET_OPTION]);
     uint opt_command= uint2korr(packet);
 
     switch (opt_command) {
@@ -1245,7 +1237,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
   case COM_DEBUG:
-    statistic_increment(thd->status_var.com_other, &LOCK_status);
+    status_var_increment(thd->status_var.com_other);
     if (check_global_access(thd, SUPER_ACL))
       break;					/* purecov: inspected */
     mysql_print_status();
@@ -1784,8 +1776,7 @@ mysql_execute_command(THD *thd)
 #ifdef HAVE_REPLICATION
   } /* endif unlikely slave */
 #endif
-  statistic_increment(thd->status_var.com_stat[lex->sql_command],
-                      &LOCK_status);
+  status_var_increment(thd->status_var.com_stat[lex->sql_command]);
 
   switch (lex->sql_command) {
   case SQLCOM_SHOW_EVENTS:
@@ -2058,12 +2049,10 @@ mysql_execute_command(THD *thd)
 		     &first_table->grant.privilege, 0, 0,
                      test(first_table->schema_table)))
       goto error;				/* purecov: inspected */
-    if (grant_option)
-    {
-      /* Check that the first table has CREATE privilege */
-      if (check_grant(thd, CREATE_ACL, all_tables, 0, 1, 0))
-	goto error;
-    }
+    /* Check that the first table has CREATE privilege */
+    if (check_grant(thd, CREATE_ACL, all_tables, 0, 1, 0))
+      goto error;
+
     pthread_mutex_lock(&LOCK_active_mi);
     /*
       fetch_master_table will send the error to the client on failure.
@@ -2095,23 +2084,47 @@ mysql_execute_command(THD *thd)
     // Skip first table, which is the table we are creating
     TABLE_LIST *create_table= lex->unlink_first_table(&link_to_local);
     TABLE_LIST *select_tables= lex->query_tables;
+    /*
+      Code below (especially in mysql_create_table() and select_create
+      methods) may modify HA_CREATE_INFO structure in LEX, so we have to
+      use a copy of this structure to make execution prepared statement-
+      safe. A shallow copy is enough as this code won't modify any memory
+      referenced from this structure.
+    */
+    HA_CREATE_INFO create_info(lex->create_info);
+    /*
+      We need to copy alter_info for the same reasons of re-execution
+      safety, only in case of Alter_info we have to do (almost) a deep
+      copy.
+    */
+    Alter_info alter_info(lex->alter_info, thd->mem_root);
+
+    if (thd->is_fatal_error)
+    {
+      /* If out of memory when creating a copy of alter_info. */
+      res= 1;
+      goto end_with_restore_list;
+    }
 
     if ((res= create_table_precheck(thd, select_tables, create_table)))
       goto end_with_restore_list;
 
+    /* Might have been updated in create_table_precheck */
+    create_info.alias= create_table->alias;
+
 #ifndef HAVE_READLINK
-    if (lex->create_info.data_file_name)
+    if (create_info.data_file_name)
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
                    "DATA DIRECTORY option ignored");
-    if (lex->create_info.index_file_name)
+    if (create_info.index_file_name)
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
                    "INDEX DIRECTORY option ignored");
-    lex->create_info.data_file_name=lex->create_info.index_file_name=0;
+    create_info.data_file_name= create_info.index_file_name= NULL;
 #else
     /* Fix names if symlinked tables */
-    if (append_file_to_dir(thd, &lex->create_info.data_file_name,
+    if (append_file_to_dir(thd, &create_info.data_file_name,
 			   create_table->table_name) ||
-	append_file_to_dir(thd, &lex->create_info.index_file_name,
+	append_file_to_dir(thd, &create_info.index_file_name,
 			   create_table->table_name))
       goto end_with_restore_list;
 #endif
@@ -2119,14 +2132,14 @@ mysql_execute_command(THD *thd)
       If we are using SET CHARSET without DEFAULT, add an implicit
       DEFAULT to not confuse old users. (This may change).
     */
-    if ((lex->create_info.used_fields & 
+    if ((create_info.used_fields &
 	 (HA_CREATE_USED_DEFAULT_CHARSET | HA_CREATE_USED_CHARSET)) ==
 	HA_CREATE_USED_CHARSET)
     {
-      lex->create_info.used_fields&= ~HA_CREATE_USED_CHARSET;
-      lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
-      lex->create_info.default_table_charset= lex->create_info.table_charset;
-      lex->create_info.table_charset= 0;
+      create_info.used_fields&= ~HA_CREATE_USED_CHARSET;
+      create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
+      create_info.default_table_charset= create_info.table_charset;
+      create_info.table_charset= 0;
     }
     /*
       The create-select command will open and read-lock the select table
@@ -2165,7 +2178,7 @@ mysql_execute_command(THD *thd)
       select_lex->options|= SELECT_NO_UNLOCK;
       unit->set_limit(select_lex);
 
-      if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+      if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
       {
         lex->link_first_table_back(create_table, link_to_local);
         create_table->create= TRUE;
@@ -2177,7 +2190,7 @@ mysql_execute_command(THD *thd)
           Is table which we are changing used somewhere in other parts
           of query
         */
-        if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+        if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
         {
           TABLE_LIST *duplicate;
           create_table= lex->unlink_first_table(&link_to_local);
@@ -2189,10 +2202,10 @@ mysql_execute_command(THD *thd)
           }
         }
         /* If we create merge table, we have to test tables in merge, too */
-        if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
+        if (create_info.used_fields & HA_CREATE_USED_UNION)
         {
           TABLE_LIST *tab;
-          for (tab= (TABLE_LIST*) lex->create_info.merge_list.first;
+          for (tab= (TABLE_LIST*) create_info.merge_list.first;
                tab;
                tab= tab->next_local)
           {
@@ -2207,18 +2220,15 @@ mysql_execute_command(THD *thd)
         }
 
         /*
-          FIXME Temporary hack which will go away once Kostja pushes
-                his uber-fix for ALTER/CREATE TABLE.
+          select_create is currently not re-execution friendly and
+          needs to be created for every execution of a PS/SP.
         */
-        lex->create_info.table_existed= 0;
-
         if ((result= new select_create(create_table,
-				       &lex->create_info,
-				       lex->create_list,
-				       lex->key_list,
-				       select_lex->item_list,
-				       lex->duplicates,
-				       lex->ignore)))
+                                       &create_info,
+                                       &alter_info,
+                                       select_lex->item_list,
+                                       lex->duplicates,
+                                       lex->ignore)))
         {
           /*
             CREATE from SELECT give its SELECT_LEX for SELECT,
@@ -2227,29 +2237,25 @@ mysql_execute_command(THD *thd)
           res= handle_select(thd, lex, result, 0);
           delete result;
         }
-	/* reset for PS */
-	lex->create_list.empty();
-	lex->key_list.empty();
       }
-      else if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+      else if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
         create_table= lex->unlink_first_table(&link_to_local);
 
     }
     else
     {
       /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
-      if (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)
+      if (create_info.options & HA_LEX_CREATE_TMP_TABLE)
         thd->options|= OPTION_KEEP_LOG;
       /* regular create */
-      if (lex->like_name)
-        res= mysql_create_like_table(thd, create_table, &lex->create_info, 
-                                     lex->like_name); 
+      if (create_info.options & HA_LEX_CREATE_TABLE_LIKE)
+        res= mysql_create_like_table(thd, create_table, select_tables,
+                                     &create_info);
       else
       {
         res= mysql_create_table(thd, create_table->db,
-				create_table->table_name, &lex->create_info,
-				lex->create_list,
-				lex->key_list, 0, 0, 1);
+                                create_table->table_name, &create_info,
+                                &alter_info, 0, 0);
       }
       if (!res)
 	send_ok(thd);
@@ -2261,15 +2267,46 @@ end_with_restore_list:
     break;
   }
   case SQLCOM_CREATE_INDEX:
+    /* Fall through */
+  case SQLCOM_DROP_INDEX:
+  /*
+    CREATE INDEX and DROP INDEX are implemented by calling ALTER
+    TABLE with proper arguments.
+
+    In the future ALTER TABLE will notice that the request is to
+    only add indexes and create these one by one for the existing
+    table without having to do a full rebuild.
+  */
+  {
+    /* Prepare stack copies to be re-execution safe */
+    HA_CREATE_INFO create_info;
+    Alter_info alter_info(lex->alter_info, thd->mem_root);
+
+    if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
+      goto error;
+
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (check_one_table_access(thd, INDEX_ACL, all_tables))
       goto error; /* purecov: inspected */
-    thd->enable_slow_log= opt_log_slow_admin_statements;
     if (end_active_trans(thd))
       goto error;
-    res= mysql_create_index(thd, first_table, lex->key_list);
-    break;
+    /*
+      Currently CREATE INDEX or DROP INDEX cause a full table rebuild
+      and thus classify as slow administrative statements just like
+      ALTER TABLE.
+    */
+    thd->enable_slow_log= opt_log_slow_admin_statements;
 
+    bzero((char*) &create_info, sizeof(create_info));
+    create_info.db_type= 0;
+    create_info.row_type= ROW_TYPE_NOT_USED;
+    create_info.default_table_charset= thd->variables.collation_database;
+
+    res= mysql_alter_table(thd, first_table->db, first_table->table_name,
+                           &create_info, first_table, &alter_info,
+                           0, (ORDER*) 0, 0);
+    break;
+  }
 #ifdef HAVE_REPLICATION
   case SQLCOM_SLAVE_START:
   {
@@ -2312,10 +2349,21 @@ end_with_restore_list:
       ulong priv=0;
       ulong priv_needed= ALTER_ACL;
       /*
+        Code in mysql_alter_table() may modify its HA_CREATE_INFO argument,
+        so we have to use a copy of this structure to make execution
+        prepared statement- safe. A shallow copy is enough as no memory
+        referenced from this structure will be modified.
+      */
+      HA_CREATE_INFO create_info(lex->create_info);
+      Alter_info alter_info(lex->alter_info, thd->mem_root);
+
+      if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
+        goto error;
+      /*
         We also require DROP priv for ALTER TABLE ... DROP PARTITION, as well
         as for RENAME TO, as being done by SQLCOM_RENAME_TABLE
       */
-      if (lex->alter_info.flags & (ALTER_DROP_PARTITION | ALTER_RENAME))
+      if (alter_info.flags & (ALTER_DROP_PARTITION | ALTER_RENAME))
         priv_needed|= DROP_ACL;
 
       /* Must be set in the parser */
@@ -2327,32 +2375,30 @@ end_with_restore_list:
                        is_schema_db(select_lex->db))||
 	  check_merge_table_access(thd, first_table->db,
 				   (TABLE_LIST *)
-				   lex->create_info.merge_list.first))
+				   create_info.merge_list.first))
 	goto error;				/* purecov: inspected */
-      if (grant_option)
-      {
-	if (check_grant(thd, priv_needed, all_tables, 0, UINT_MAX, 0))
-	  goto error;
-	if (lex->name.str && !test_all_bits(priv,INSERT_ACL | CREATE_ACL))
-	{					// Rename of table
-	  TABLE_LIST tmp_table;
-	  bzero((char*) &tmp_table,sizeof(tmp_table));
-	  tmp_table.table_name= lex->name.str;
-	  tmp_table.db=select_lex->db;
-	  tmp_table.grant.privilege=priv;
-	  if (check_grant(thd, INSERT_ACL | CREATE_ACL, &tmp_table, 0,
-			  UINT_MAX, 0))
-	    goto error;
-	}
+      if (check_grant(thd, priv_needed, all_tables, 0, UINT_MAX, 0))
+        goto error;
+      if (lex->name.str && !test_all_bits(priv,INSERT_ACL | CREATE_ACL))
+      { // Rename of table
+          TABLE_LIST tmp_table;
+          bzero((char*) &tmp_table,sizeof(tmp_table));
+          tmp_table.table_name= lex->name.str;
+          tmp_table.db=select_lex->db;
+          tmp_table.grant.privilege=priv;
+          if (check_grant(thd, INSERT_ACL | CREATE_ACL, &tmp_table, 0,
+              UINT_MAX, 0))
+            goto error;
       }
+
       /* Don't yet allow changing of symlinks with ALTER TABLE */
-      if (lex->create_info.data_file_name)
+      if (create_info.data_file_name)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
                      "DATA DIRECTORY option ignored");
-      if (lex->create_info.index_file_name)
+      if (create_info.index_file_name)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
                      "INDEX DIRECTORY option ignored");
-      lex->create_info.data_file_name=lex->create_info.index_file_name=0;
+      create_info.data_file_name= create_info.index_file_name= NULL;
       /* ALTER TABLE ends previous transaction */
       if (end_active_trans(thd))
 	goto error;
@@ -2366,12 +2412,12 @@ end_with_restore_list:
 
       thd->enable_slow_log= opt_log_slow_admin_statements;
       res= mysql_alter_table(thd, select_lex->db, lex->name.str,
-                             &lex->create_info,
-                             first_table, lex->create_list,
-                             lex->key_list,
+                             &create_info,
+                             first_table,
+                             &alter_info,
                              select_lex->order_list.elements,
                              (ORDER *) select_lex->order_list.first,
-                             lex->ignore, &lex->alter_info, 1);
+                             lex->ignore);
       break;
     }
   case SQLCOM_RENAME_TABLE:
@@ -2386,21 +2432,18 @@ end_with_restore_list:
 		       &table->next_local->grant.privilege, 0, 0,
                        test(table->next_local->schema_table)))
 	goto error;
-      if (grant_option)
-      {
-	TABLE_LIST old_list, new_list;
-	/*
-	  we do not need initialize old_list and new_list because we will
-	  come table[0] and table->next[0] there
-	*/
-	old_list= table[0];
-	new_list= table->next_local[0];
-	if (check_grant(thd, ALTER_ACL | DROP_ACL, &old_list, 0, 1, 0) ||
-	    (!test_all_bits(table->next_local->grant.privilege,
-			    INSERT_ACL | CREATE_ACL) &&
-	     check_grant(thd, INSERT_ACL | CREATE_ACL, &new_list, 0, 1, 0)))
-	  goto error;
-      }
+      TABLE_LIST old_list, new_list;
+      /*
+        we do not need initialize old_list and new_list because we will
+        come table[0] and table->next[0] there
+      */
+      old_list= table[0];
+      new_list= table->next_local[0];
+      if (check_grant(thd, ALTER_ACL | DROP_ACL, &old_list, 0, 1, 0) ||
+         (!test_all_bits(table->next_local->grant.privilege,
+                         INSERT_ACL | CREATE_ACL) &&
+          check_grant(thd, INSERT_ACL | CREATE_ACL, &new_list, 0, 1, 0)))
+        goto error;
     }
     query_cache_invalidate3(thd, first_table, 0);
     if (end_active_trans(thd) || mysql_rename_tables(thd, first_table, 0))
@@ -2433,12 +2476,7 @@ end_with_restore_list:
       /* Ignore temporary tables if this is "SHOW CREATE VIEW" */
       if (lex->only_view)
         first_table->skip_temporary= 1;
-
-      if (check_access(thd, SELECT_ACL | EXTRA_ACL, first_table->db,
-		       &first_table->grant.privilege, 0, 0, 
-                       test(first_table->schema_table)))
-	goto error;
-      if (grant_option && check_grant(thd, SELECT_ACL, all_tables, 2, UINT_MAX, 0))
+      if (check_show_create_table_access(thd, first_table))
 	goto error;
       res= mysqld_show_create(thd, first_table);
       break;
@@ -2519,7 +2557,7 @@ end_with_restore_list:
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res= (specialflag & (SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC)) ?
-      mysql_recreate_table(thd, first_table, 1) :
+      mysql_recreate_table(thd, first_table) :
       mysql_optimize_table(thd, first_table, &lex->check_opt);
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
@@ -2872,14 +2910,6 @@ end_with_restore_list:
 			lex->drop_temporary);
   }
   break;
-  case SQLCOM_DROP_INDEX:
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_one_table_access(thd, INDEX_ACL, all_tables))
-      goto error;				/* purecov: inspected */
-    if (end_active_trans(thd))
-      goto error;
-    res= mysql_drop_index(thd, first_table, &lex->alter_info);
-    break;
   case SQLCOM_SHOW_PROCESSLIST:
     if (!thd->security_ctx->priv_user[0] &&
         check_global_access(thd,PROCESS_ACL))
@@ -2912,7 +2942,7 @@ end_with_restore_list:
     goto error;
 #else
     {
-      if (grant_option && check_access(thd, FILE_ACL, any_db,0,0,0,0))
+      if (check_access(thd, FILE_ACL, any_db,0,0,0,0))
 	goto error;
       res= ha_show_status(thd, lex->create_info.db_type, HA_ENGINE_LOGS);
       break;
@@ -3019,6 +3049,12 @@ end_with_restore_list:
     break;
   case SQLCOM_CREATE_DB:
   {
+    /*
+      As mysql_create_db() may modify HA_CREATE_INFO structure passed to
+      it, we need to use a copy of LEX::create_info to make execution
+      prepared statement- safe.
+    */
+    HA_CREATE_INFO create_info(lex->create_info);
     if (end_active_trans(thd))
     {
       res= -1;
@@ -3051,7 +3087,7 @@ end_with_restore_list:
                      is_schema_db(lex->name.str)))
       break;
     res= mysql_create_db(thd,(lower_case_table_names == 2 ? alias :
-                              lex->name.str), &lex->create_info, 0);
+                              lex->name.str), &create_info, 0);
     break;
   }
   case SQLCOM_DROP_DB:
@@ -3144,6 +3180,7 @@ end_with_restore_list:
   case SQLCOM_ALTER_DB:
   {
     LEX_STRING *db= &lex->name;
+    HA_CREATE_INFO create_info(lex->create_info);
     if (check_db_name(db))
     {
       my_error(ER_WRONG_DB_NAME, MYF(0), db->str);
@@ -3173,7 +3210,7 @@ end_with_restore_list:
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
       goto error;
     }
-    res= mysql_alter_db(thd, db->str, &lex->create_info);
+    res= mysql_alter_db(thd, db->str, &create_info);
     break;
   }
   case SQLCOM_SHOW_CREATE_DB:
@@ -3359,8 +3396,7 @@ end_with_restore_list:
         uint grants= lex->all_privileges 
 		   ? (PROC_ACLS & ~GRANT_ACL) | (lex->grant & GRANT_ACL)
 		   : lex->grant;
-        if (grant_option && 
-	    check_grant_routine(thd, grants | GRANT_ACL, all_tables,
+        if (check_grant_routine(thd, grants | GRANT_ACL, all_tables,
                                 lex->type == TYPE_ENUM_PROCEDURE, 0))
 	  goto error;
         /* Conditionally writes to binlog */
@@ -3371,10 +3407,8 @@ end_with_restore_list:
       }
       else
       {
-	if (grant_option && check_grant(thd,
-					(lex->grant | lex->grant_tot_col |
-					 GRANT_ACL),
-					all_tables, 0, UINT_MAX, 0))
+	if (check_grant(thd,(lex->grant | lex->grant_tot_col | GRANT_ACL),
+                        all_tables, 0, UINT_MAX, 0))
 	  goto error;
         /* Conditionally writes to binlog */
         res= mysql_table_grant(thd, all_tables, lex->users_list,
@@ -3764,7 +3798,7 @@ create_sp_error:
             goto error;
         }
 
-	my_bool nsok= thd->net.no_send_ok;
+	my_bool save_no_send_ok= thd->net.no_send_ok;
 	thd->net.no_send_ok= TRUE;
 	if (sp->m_flags & sp_head::MULTI_RESULTS)
 	{
@@ -3775,7 +3809,7 @@ create_sp_error:
               back
             */
 	    my_error(ER_SP_BADSELECT, MYF(0), sp->m_qname.str);
-	    thd->net.no_send_ok= nsok;
+	    thd->net.no_send_ok= save_no_send_ok;
 	    goto error;
 	  }
           /*
@@ -3791,7 +3825,7 @@ create_sp_error:
 	if (check_routine_access(thd, EXECUTE_ACL,
 				 sp->m_db.str, sp->m_name.str, TRUE, FALSE))
 	{
-	  thd->net.no_send_ok= nsok;
+	  thd->net.no_send_ok= save_no_send_ok;
 	  goto error;
 	}
 #endif
@@ -3816,7 +3850,7 @@ create_sp_error:
 
 	thd->variables.select_limit= select_limit;
 
-	thd->net.no_send_ok= nsok;
+	thd->net.no_send_ok= save_no_send_ok;
         thd->server_status&= ~bits_to_be_cleared;
 
 	if (!res)
@@ -3884,11 +3918,15 @@ create_sp_error:
             already puts on CREATE FUNCTION.
           */
           /* Conditionally writes to binlog */
-          if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
-            sp_result= sp_update_procedure(thd, lex->spname,
-                                           &lex->sp_chistics);
-          else
-            sp_result= sp_update_function(thd, lex->spname, &lex->sp_chistics);
+
+          int type= lex->sql_command == SQLCOM_ALTER_PROCEDURE ?
+                    TYPE_ENUM_PROCEDURE :
+                    TYPE_ENUM_FUNCTION;
+
+          sp_result= sp_update_routine(thd,
+                                       type,
+                                       lex->spname,
+                                       &lex->sp_chistics);
         }
       }
       switch (sp_result)
@@ -3938,10 +3976,12 @@ create_sp_error:
 	}
 #endif
         /* Conditionally writes to binlog */
-	if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
-	  sp_result= sp_drop_procedure(thd, lex->spname);
-	else
-	  sp_result= sp_drop_function(thd, lex->spname);
+
+        int type= lex->sql_command == SQLCOM_DROP_PROCEDURE ?
+                  TYPE_ENUM_PROCEDURE :
+                  TYPE_ENUM_FUNCTION;
+
+        sp_result= sp_drop_routine(thd, type, lex->spname);
       }
       else
       {
@@ -3998,8 +4038,8 @@ create_sp_error:
     }
   case SQLCOM_SHOW_CREATE_PROC:
     {
-      if (sp_show_create_procedure(thd, lex->spname) != SP_OK)
-      {			/* We don't distinguish between errors for now */
+      if (sp_show_create_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname))
+      {
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
                  SP_COM_STRING(lex), lex->spname->m_name.str);
 	goto error;
@@ -4008,8 +4048,8 @@ create_sp_error:
     }
   case SQLCOM_SHOW_CREATE_FUNC:
     {
-      if (sp_show_create_function(thd, lex->spname) != SP_OK)
-      {			/* We don't distinguish between errors for now */
+      if (sp_show_create_routine(thd, TYPE_ENUM_FUNCTION, lex->spname))
+      {
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
                  SP_COM_STRING(lex), lex->spname->m_name.str);
 	goto error;
@@ -4019,14 +4059,14 @@ create_sp_error:
 #ifdef NOT_USED
   case SQLCOM_SHOW_STATUS_PROC:
     {
-      res= sp_show_status_procedure(thd, (lex->wild ?
-					  lex->wild->ptr() : NullS));
+      res= sp_show_status_routine(thd, TYPE_ENUM_PROCEDURE,
+                                  (lex->wild ? lex->wild->ptr() : NullS));
       break;
     }
   case SQLCOM_SHOW_STATUS_FUNC:
     {
-      res= sp_show_status_function(thd, (lex->wild ? 
-					 lex->wild->ptr() : NullS));
+      res= sp_show_status_routine(thd, TYPE_ENUM_FUNCTION,
+                                  (lex->wild ? lex->wild->ptr() : NullS));
       break;
     }
 #endif
@@ -4489,8 +4529,7 @@ bool check_single_table_access(THD *thd, ulong privilege,
     goto deny;
 
   /* Show only 1 table for check_grant */
-  if (grant_option &&
-      !(all_tables->belong_to_view &&
+  if (!(all_tables->belong_to_view &&
         (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)) &&
       check_grant(thd, privilege, all_tables, 0, 1, no_errors))
     goto deny;
@@ -4658,9 +4697,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
                      db_access, want_access));
   db_access= ((*save_priv=(db_access | sctx->master_access)) & want_access);
 
-  /* grant_option is set if there exists a single table or column grant */
   if (db_access == want_access ||
-      (grant_option && !dont_check_global_grants &&
+      (!dont_check_global_grants &&
        !(want_access & ~(db_access | TABLE_ACLS | PROC_ACLS))))
     DBUG_RETURN(FALSE);				/* Ok */
 
@@ -4759,8 +4797,7 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
                      test(dst_table->schema_table)))
       return FALSE;
 
-    return (grant_option &&
-            check_grant(thd, SELECT_ACL, dst_table, 2, UINT_MAX, FALSE));
+    return (check_grant(thd, SELECT_ACL, dst_table, 2, UINT_MAX, FALSE));
   }
   default:
     break;
@@ -4797,8 +4834,6 @@ bool
 check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
 		   bool no_errors)
 {
-  uint found=0;
-  ulong found_access=0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   TABLE_LIST *org_tables= tables;
 #endif
@@ -4849,26 +4884,17 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
       tables->grant.privilege= want_access;
     else if (tables->db && thd->db && strcmp(tables->db, thd->db) == 0)
     {
-      if (found && !grant_option)		// db already checked
-	tables->grant.privilege=found_access;
-      else
-      {
-	if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
+      if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
 			 0, no_errors, test(tables->schema_table)))
-	  goto deny;                            // Access denied
-	found_access=tables->grant.privilege;
-	found=1;
-      }
+        goto deny;                            // Access denied
     }
     else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
 			  0, no_errors, test(tables->schema_table)))
       goto deny;
   }
   thd->security_ctx= backup_ctx;
-  if (grant_option)
-    return check_grant(thd,want_access & ~EXTRA_ACL,org_tables,
+  return check_grant(thd,want_access & ~EXTRA_ACL,org_tables,
 		       test(want_access & EXTRA_ACL), UINT_MAX, no_errors);
-  return FALSE;
 deny:
   thd->security_ctx= backup_ctx;
   return TRUE;
@@ -4898,11 +4924,10 @@ check_routine_access(THD *thd, ulong want_access,char *db, char *name,
     return TRUE;
   
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (grant_option)
     return check_grant_routine(thd, want_access, tables, is_proc, no_errors);
-#endif
-
+#else
   return FALSE;
+#endif
 }
 
 
@@ -4964,7 +4989,7 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
       if (!check_access(thd, access, table->db,
                         &table->grant.privilege, 0, 1,
                         test(table->schema_table)) &&
-          !grant_option || !check_grant(thd, access, table, 0, 1, 1))
+          !check_grant(thd, access, table, 0, 1, 1))
         DBUG_RETURN(0);
     }
   }
@@ -5443,18 +5468,22 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   }
   if (type_modifier & PRI_KEY_FLAG)
   {
+    Key *key;
     lex->col_list.push_back(new key_part_spec(field_name->str, 0));
-    lex->key_list.push_back(new Key(Key::PRIMARY, NullS,
-                                    &default_key_create_info,
-				    0, lex->col_list));
+    key= new Key(Key::PRIMARY, NullS,
+                      &default_key_create_info,
+                      0, lex->col_list);
+    lex->alter_info.key_list.push_back(key);
     lex->col_list.empty();
   }
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
+    Key *key;
     lex->col_list.push_back(new key_part_spec(field_name->str, 0));
-    lex->key_list.push_back(new Key(Key::UNIQUE, NullS,
-                                    &default_key_create_info, 0,
-				    lex->col_list));
+    key= new Key(Key::UNIQUE, NullS,
+                 &default_key_create_info, 0,
+                 lex->col_list);
+    lex->alter_info.key_list.push_back(key);
     lex->col_list.empty();
   }
 
@@ -5514,7 +5543,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
                       interval_list, cs, uint_geom_type))
     DBUG_RETURN(1);
 
-  lex->create_list.push_back(new_field);
+  lex->alter_info.create_list.push_back(new_field);
   lex->last_field=new_field;
   DBUG_RETURN(0);
 }
@@ -6537,55 +6566,6 @@ Item * all_any_subquery_creator(Item *left_expr,
 
 
 /*
-  CREATE INDEX and DROP INDEX are implemented by calling ALTER TABLE with
-  the proper arguments.  This isn't very fast but it should work for most
-  cases.
-
-  In the future ALTER TABLE will notice that only added indexes
-  and create these one by one for the existing table without having to do
-  a full rebuild.
-
-  One should normally create all indexes with CREATE TABLE or ALTER TABLE.
-*/
-
-bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
-{
-  List<create_field> fields;
-  ALTER_INFO alter_info;
-  alter_info.flags= ALTER_ADD_INDEX;
-  HA_CREATE_INFO create_info;
-  DBUG_ENTER("mysql_create_index");
-  bzero((char*) &create_info,sizeof(create_info));
-  create_info.db_type= 0;
-  create_info.default_table_charset= thd->variables.collation_database;
-  create_info.row_type= ROW_TYPE_NOT_USED;
-  DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->table_name,
-				&create_info, table_list,
-				fields, keys, 0, (ORDER*)0,
-                                0, &alter_info, 1));
-}
-
-
-bool mysql_drop_index(THD *thd, TABLE_LIST *table_list, ALTER_INFO *alter_info)
-{
-  List<create_field> fields;
-  List<Key> keys;
-  HA_CREATE_INFO create_info;
-  DBUG_ENTER("mysql_drop_index");
-  bzero((char*) &create_info,sizeof(create_info));
-  create_info.db_type= 0;
-  create_info.default_table_charset= thd->variables.collation_database;
-  create_info.row_type= ROW_TYPE_NOT_USED;
-  alter_info->clear();
-  alter_info->flags= ALTER_DROP_INDEX;
-  DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->table_name,
-				&create_info, table_list,
-				fields, keys, 0, (ORDER*)0,
-                                0, alter_info, 1));
-}
-
-
-/*
   Multi update query pre-check
 
   SYNOPSIS
@@ -6622,12 +6602,11 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
     else if ((check_access(thd, UPDATE_ACL, table->db,
                            &table->grant.privilege, 0, 1,
                            test(table->schema_table)) ||
-              grant_option &&
               check_grant(thd, UPDATE_ACL, table, 0, 1, 1)) &&
              (check_access(thd, SELECT_ACL, table->db,
                            &table->grant.privilege, 0, 0,
                            test(table->schema_table)) ||
-              grant_option && check_grant(thd, SELECT_ACL, table, 0, 1, 0)))
+              check_grant(thd, SELECT_ACL, table, 0, 1, 0)))
       DBUG_RETURN(TRUE);
 
     table->table_in_first_from_clause= 1;
@@ -6645,7 +6624,7 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
 	if (check_access(thd, SELECT_ACL, table->db,
 			 &table->grant.privilege, 0, 0,
                          test(table->schema_table)) ||
-	    grant_option && check_grant(thd, SELECT_ACL, table, 0, 1, 0))
+	    check_grant(thd, SELECT_ACL, table, 0, 1, 0))
 	  DBUG_RETURN(TRUE);
       }
     }
@@ -6852,6 +6831,25 @@ bool insert_precheck(THD *thd, TABLE_LIST *tables)
 }
 
 
+/**
+    @brief  Check privileges for SHOW CREATE TABLE statement.
+
+    @param  thd    Thread context
+    @param  table  Target table
+
+    @retval TRUE  Failure
+    @retval FALSE Success
+*/
+
+static bool check_show_create_table_access(THD *thd, TABLE_LIST *table)
+{
+  return check_access(thd, SELECT_ACL | EXTRA_ACL, table->db,
+                      &table->grant.privilege, 0, 0,
+                      test(table->schema_table)) ||
+         check_grant(thd, SELECT_ACL, table, 2, UINT_MAX, 0);
+}
+
+
 /*
   CREATE TABLE query pre-check
 
@@ -6877,7 +6875,6 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
 
   want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
               CREATE_TMP_ACL : CREATE_ACL);
-  lex->create_info.alias= create_table->alias;
   if (check_access(thd, want_priv, create_table->db,
 		   &create_table->grant.privilege, 0, 0,
                    test(create_table->schema_table)) ||
@@ -6885,7 +6882,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
 			       (TABLE_LIST *)
 			       lex->create_info.merge_list.first))
     goto err;
-  if (grant_option && want_priv != CREATE_TMP_ACL &&
+  if (want_priv != CREATE_TMP_ACL &&
       check_grant(thd, want_priv, create_table, 0, 1, 0))
     goto err;
 
@@ -6915,6 +6912,11 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
     }
 #endif
     if (tables && check_table_access(thd, SELECT_ACL, tables,0))
+      goto err;
+  }
+  else if (lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
+  {
+    if (check_show_create_table_access(thd, tables))
       goto err;
   }
   error= FALSE;

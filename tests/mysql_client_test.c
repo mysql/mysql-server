@@ -2471,7 +2471,7 @@ static void test_ps_query_cache()
                           "(2, 'hh', 'hh'), (1, 'ii', 'ii'), (2, 'ii', 'ii')");
   myquery(rc);
 
-  for (iteration= TEST_QCACHE_ON; iteration < TEST_QCACHE_ON_OFF; iteration++)
+  for (iteration= TEST_QCACHE_ON; iteration <= TEST_QCACHE_ON_OFF; iteration++)
   {
 
     switch (iteration)
@@ -2610,7 +2610,9 @@ static void test_ps_query_cache()
     case TEST_QCACHE_ON_OFF:             /* should not have hit */
       DIE_UNLESS(hits2-hits1 == 0);
       break;
-    case TEST_QCACHE_ON_WITH_OTHER_CONN:
+    case TEST_QCACHE_ON_WITH_OTHER_CONN: /* should have hit */
+      DIE_UNLESS(hits2-hits1 == 1);
+      break;
       mysql_close(lmysql);
       mysql= org_mysql;
     }
@@ -16074,6 +16076,92 @@ static void test_bug24179()
 
 
 /*
+  Bug#28075 "COM_DEBUG crashes mysqld"
+  Note: Test disabled because of failure in PushBuild.
+*/
+#ifdef fix_bug_in_pb_first 
+static void test_bug28075()
+{
+  int rc;
+
+  DBUG_ENTER("test_bug28075");
+  myheader("test_bug28075");
+
+  rc= mysql_dump_debug_info(mysql);
+  DIE_UNLESS(rc == 0);
+  
+  rc= mysql_ping(mysql);
+  DIE_UNLESS(rc == 0);
+
+  DBUG_VOID_RETURN;
+}
+#endif
+
+
+/*
+  Bug#27876 (SF with cyrillic variable name fails during execution (regression))
+*/
+static void test_bug27876()
+{
+  int rc;
+  MYSQL_RES *result;
+
+  char utf8_func[] =
+  {
+    0xd1, 0x84, 0xd1, 0x83, 0xd0, 0xbd, 0xd0, 0xba,
+    0xd1, 0x86, 0xd0, 0xb8, 0xd0, 0xb9, 0xd0, 0xba,
+    0xd0, 0xb0,
+    0x00
+  };
+
+  char utf8_param[] =
+  {
+    0xd0, 0xbf, 0xd0, 0xb0, 0xd1, 0x80, 0xd0, 0xb0,
+    0xd0, 0xbc, 0xd0, 0xb5, 0xd1, 0x82, 0xd1, 0x8a,
+    0xd1, 0x80, 0x5f, 0xd0, 0xb2, 0xd0, 0xb5, 0xd1,
+    0x80, 0xd1, 0x81, 0xd0, 0xb8, 0xd1, 0x8f,
+    0x00
+  };
+
+  char query[500];
+
+  DBUG_ENTER("test_bug27876");
+  myheader("test_bug27876");
+
+  rc= mysql_query(mysql, "set names utf8");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "select version()");
+  myquery(rc);
+  result= mysql_store_result(mysql);
+  mytest(result);
+
+  sprintf(query, "DROP FUNCTION IF EXISTS %s", utf8_func);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
+  sprintf(query,
+          "CREATE FUNCTION %s( %s VARCHAR(25))"
+          " RETURNS VARCHAR(25) DETERMINISTIC RETURN %s",
+          utf8_func, utf8_param, utf8_param);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+  sprintf(query, "SELECT %s(VERSION())", utf8_func);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+  result= mysql_store_result(mysql);
+  mytest(result);
+
+  sprintf(query, "DROP FUNCTION %s", utf8_func);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
+  rc= mysql_query(mysql, "set names default");
+  myquery(rc);
+}
+
+
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -16357,6 +16445,10 @@ static struct my_tests_st my_tests[]= {
   { "test_status",   test_status   },
   { "test_bug24179", test_bug24179 },
   { "test_ps_query_cache", test_ps_query_cache },
+#ifdef fix_bug_in_pb_first 
+  { "test_bug28075", test_bug28075 },
+#endif
+  { "test_bug27876", test_bug27876 },
   { 0, 0 }
 };
 

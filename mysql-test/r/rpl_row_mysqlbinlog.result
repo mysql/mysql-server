@@ -190,6 +190,75 @@ DELIMITER ;
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
+--- Test 4 Second Remote test --
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+stop slave;
+reset master;
+reset slave;
+start slave;
+SELECT COUNT(*) from t1;
+COUNT(*)
+352
+SELECT COUNT(*) from t2;
+COUNT(*)
+500
+SELECT COUNT(*) from t3;
+COUNT(*)
+500
+SELECT * FROM t1 ORDER BY word LIMIT 5;
+word
+Aarhus
+Aarhus
+Aarhus
+Aarhus
+Aarhus
+SELECT * FROM t2 ORDER BY id LIMIT 5;
+id
+1
+2
+3
+4
+5
+SELECT c1, c3, c4, c5  FROM t3 ORDER BY c1 LIMIT 5;
+c1	c3	c4	c5
+1	2006-02-22 00:00:00	Tested in Texas	2.2
+2	2006-02-22 00:00:00	Tested in Texas	4.4
+3	2006-02-22 00:00:00	Tested in Texas	6.6
+4	2006-02-22 00:00:00	Tested in Texas	8.8
+5	2006-02-22 00:00:00	Tested in Texas	11
+SELECT COUNT(*) from t1;
+COUNT(*)
+352
+SELECT COUNT(*) from t2;
+COUNT(*)
+500
+SELECT COUNT(*) from t3;
+COUNT(*)
+500
+SELECT * FROM t1 ORDER BY word LIMIT 5;
+word
+Aarhus
+Aarhus
+Aarhus
+Aarhus
+Aarhus
+SELECT * FROM t2 ORDER BY id LIMIT 5;
+id
+1
+2
+3
+4
+5
+SELECT c1, c3, c4, c5  FROM t3 ORDER BY c1 LIMIT 5;
+c1	c3	c4	c5
+1	2006-02-22 00:00:00	Tested in Texas	2.2
+2	2006-02-22 00:00:00	Tested in Texas	4.4
+3	2006-02-22 00:00:00	Tested in Texas	6.6
+4	2006-02-22 00:00:00	Tested in Texas	8.8
+5	2006-02-22 00:00:00	Tested in Texas	11
+
 --- Test 5 LOAD DATA --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
@@ -273,4 +342,11 @@ HEX(f)
 835C
 
 --- Test cleanup --
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT NOT NULL KEY, b INT);
+INSERT INTO t1 VALUES(1,1);
+SELECT * FROM t1;
+a	b
+1	1
+FLUSH LOGS;
 DROP TABLE IF EXISTS t1, t2, t3, t04, t05, t4, t5;

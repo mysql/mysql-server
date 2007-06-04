@@ -727,7 +727,58 @@ ALTER TABLE t1 MODIFY COLUMN v VARCHAR(4);
 SELECT * FROM t1;
 DROP TABLE t1;
 
-# End of 5.0 tests
+--echo End of 5.0 tests
+
+#
+# Extended test coverage for ALTER TABLE behaviour under LOCK TABLES
+# It should be consistent across all platforms and for all engines
+# (Before 5.1 this was not true as behavior was different between 
+# Unix/Windows and transactional/non-transactional tables).
+# See also innodb_mysql.test
+#
+--disable_warnings
+drop table if exists t1, t2, t3;
+--enable_warnings
+create table t1 (i int);
+create table t3 (j int);
+insert into t1 values ();
+insert into t3 values ();
+# Table which is altered under LOCK TABLES it should stay in list of locked
+# tables and be available after alter takes place unless ALTER contains RENAME
+# clause. We should see the new definition of table, of course.
+lock table t1 write, t3 read;
+# Example of so-called 'fast' ALTER TABLE
+alter table t1 modify i int default 1;
+insert into t1 values ();
+select * from t1;
+# And now full-blown ALTER TABLE
+alter table t1 change i c char(10) default "Two";
+insert into t1 values ();
+select * from t1;
+# If table is renamed then it should be removed from the list
+# of locked tables. 'Fast' ALTER TABLE with RENAME clause:
+alter table t1 modify c char(10) default "Three", rename to t2;
+--error ER_TABLE_NOT_LOCKED
+select * from t1;
+--error ER_TABLE_NOT_LOCKED
+select * from t2;
+select * from t3;
+unlock tables;
+insert into t2 values ();
+select * from t2;
+lock table t2 write, t3 read;
+# Full ALTER TABLE with RENAME
+alter table t2 change c vc varchar(100) default "Four", rename to t1;
+--error ER_TABLE_NOT_LOCKED
+select * from t1;
+--error ER_TABLE_NOT_LOCKED
+select * from t2;
+select * from t3;
+unlock tables;
+insert into t1 values ();
+select * from t1;
+drop tables t1, t3;
+
 
 #
 # Bug#18775 - Temporary table from alter table visible to other threads

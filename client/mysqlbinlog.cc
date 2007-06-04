@@ -635,6 +635,7 @@ Create_file event for file_id: %u\n",exv->file_id);
       print_event_info->common_header_len=
         glob_description_event->common_header_len;
       ev->print(result_file, print_event_info);
+      ev->temp_buf= 0; // as the event ref is zeroed
       /*
         We don't want this event to be deleted now, so let's hide it (I
         (Guilhem) should later see if this triggers a non-serious Valgrind
@@ -682,8 +683,16 @@ Begin_load_query event for file_id: %u\n", exlq->file_id);
 
 end:
   rec_count++;
+  /*
+    Destroy the log_event object. If reading from a remote host,
+    set the temp_buf to NULL so that memory isn't freed twice.
+  */
   if (ev)
+  {
+    if (remote_opt)
+      ev->temp_buf= 0;
     delete ev;
+  }
   DBUG_RETURN(0);
 }
 
@@ -1172,6 +1181,12 @@ could be out of memory");
       error= 1;
       goto err;
     }   
+    /*
+      If reading from a remote host, ensure the temp_buf for the
+      Log_event class is pointing to the incoming stream.
+    */
+    if (remote_opt)
+      ev->register_temp_buf((char*) net->read_pos + 1); 
 
     Log_event_type type= ev->get_type_code();
     if (glob_description_event->binlog_version >= 3 ||

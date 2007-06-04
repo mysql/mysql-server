@@ -442,15 +442,35 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
   delete field;
 }
 
-static int
-db_create_routine(THD *thd, int type, sp_head *sp)
+
+/**
+  Write stored-routine object into mysql.proc.
+
+  This operation stores attributes of the stored procedure/function into
+  the mysql.proc.
+
+  @param thd  Thread context.
+  @param type Stored routine type
+              (TYPE_ENUM_PROCEDURE or TYPE_ENUM_FUNCTION).
+  @param sp   Stored routine object to store.
+
+  @return Error code. SP_OK is returned on success. Other SP_ constants are
+  used to indicate about errors.
+*/
+
+int
+sp_create_routine(THD *thd, int type, sp_head *sp)
 {
   int ret;
   TABLE *table;
   char definer[USER_HOST_BUFF_SIZE];
-  DBUG_ENTER("db_create_routine");
+
+  DBUG_ENTER("sp_create_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",type, (int) sp->m_name.length,
                        sp->m_name.str));
+
+  DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
+              type == TYPE_ENUM_FUNCTION);
 
   /*
     This statement will be replicated as a statement, even when using
@@ -586,14 +606,32 @@ done:
 }
 
 
-static int
-db_drop_routine(THD *thd, int type, sp_name *name)
+/**
+  Delete the record for the stored routine object from mysql.proc.
+
+  The operation deletes the record for the stored routine specified by name
+  from the mysql.proc table and invalidates the stored-routine cache.
+
+  @param thd  Thread context.
+  @param type Stored routine type
+              (TYPE_ENUM_PROCEDURE or TYPE_ENUM_FUNCTION)
+  @param name Stored routine name.
+
+  @return Error code. SP_OK is returned on success. Other SP_ constants are
+  used to indicate about errors.
+*/
+
+int
+sp_drop_routine(THD *thd, int type, sp_name *name)
 {
   TABLE *table;
   int ret;
-  DBUG_ENTER("db_drop_routine");
+  DBUG_ENTER("sp_drop_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
 		       type, (int) name->m_name.length, name->m_name.str));
+
+  DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
+              type == TYPE_ENUM_FUNCTION);
 
   /*
     This statement will be replicated as a statement, even when using
@@ -618,6 +656,8 @@ db_drop_routine(THD *thd, int type, sp_name *name)
       thd->binlog_query(THD::MYSQL_QUERY_TYPE,
                         thd->query, thd->query_length, FALSE, FALSE);
     }
+
+    sp_cache_invalidate();
   }
 
   close_thread_tables(thd);
@@ -625,18 +665,37 @@ db_drop_routine(THD *thd, int type, sp_name *name)
 }
 
 
-static int
-db_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
+/**
+  Find and updated the record for the stored routine object in mysql.proc.
+
+  The operation finds the record for the stored routine specified by name
+  in the mysql.proc table and updates it with new attributes. After
+  successful update, the cache is invalidated.
+
+  @param thd      Thread context.
+  @param type     Stored routine type
+                  (TYPE_ENUM_PROCEDURE or TYPE_ENUM_FUNCTION)
+  @param name     Stored routine name.
+  @param chistics New values of stored routine attributes to write.
+
+  @return Error code. SP_OK is returned on success. Other SP_ constants are
+  used to indicate about errors.
+*/
+
+int
+sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
 {
   TABLE *table;
   int ret;
-  DBUG_ENTER("db_update_routine");
+  DBUG_ENTER("sp_update_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
 		       type, (int) name->m_name.length, name->m_name.str));
 
+  DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
+              type == TYPE_ENUM_FUNCTION);
   /*
     This statement will be replicated as a statement, even when using
-    row-based replication.  The flag will be reset at the end of the
+    row-based replication. The flag will be reset at the end of the
     statement.
   */
   thd->clear_current_stmt_binlog_row_based();
@@ -670,6 +729,8 @@ db_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
       thd->binlog_query(THD::MYSQL_QUERY_TYPE,
                         thd->query, thd->query_length, FALSE, FALSE);
     }
+
+    sp_cache_invalidate();
   }
 
   close_thread_tables(thd);
@@ -755,13 +816,28 @@ print_field_values(THD *thd, TABLE *table,
 }
 
 
-static int
-db_show_routine_status(THD *thd, int type, const char *wild)
+/**
+  Implement SHOW STATUS statement for stored routines.
+
+  @param thd          Thread context.
+  @param type         Stored routine type
+                      (TYPE_ENUM_PROCEDURE or TYPE_ENUM_FUNCTION)
+  @param name_pattern Stored routine name pattern.
+
+  @return Error code. SP_OK is returned on success. Other SP_ constants are
+  used to indicate about errors.
+*/
+
+int
+sp_show_status_routine(THD *thd, int type, const char *name_pattern)
 {
   TABLE *table;
   TABLE_LIST tables;
   int res;
-  DBUG_ENTER("db_show_routine_status");
+  DBUG_ENTER("sp_show_status_routine");
+
+  DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
+              type == TYPE_ENUM_FUNCTION);
 
   memset(&tables, 0, sizeof(tables));
   tables.db= (char*)"mysql";
@@ -789,14 +865,14 @@ db_show_routine_status(THD *thd, int type, const char *wild)
     {
       switch (used_field->field_type) {
       case MYSQL_TYPE_TIMESTAMP:
-	field_list.push_back(item=
-                             new Item_return_date_time(used_field->field_name,
-                                                       MYSQL_TYPE_DATETIME));
+	item= new Item_return_date_time(used_field->field_name,
+                                        MYSQL_TYPE_DATETIME);
+	field_list.push_back(item);
 	break;
       default:
-	field_list.push_back(item=new Item_empty_string(used_field->field_name,
-							used_field->
-							field_length));
+        item= new Item_empty_string(used_field->field_name,
+                                    used_field->field_length);
+	field_list.push_back(item);
 	break;
       }
     }
@@ -840,13 +916,16 @@ db_show_routine_status(THD *thd, int type, const char *wild)
       res= (res == HA_ERR_END_OF_FILE) ? 0 : SP_INTERNAL_ERROR;
       goto err_case1;
     }
-    if ((res= print_field_values(thd, table, used_fields, type, wild)))
-      goto err_case1;
-    while (!table->file->index_next(table->record[0]))
+
+    do
     {
-      if ((res= print_field_values(thd, table, used_fields, type, wild)))
+      res= print_field_values(thd, table, used_fields, type, name_pattern);
+
+      if (res)
 	goto err_case1;
     }
+    while (!table->file->index_next(table->record[0]));
+
     res= SP_OK;
   }
 
@@ -913,9 +992,62 @@ err:
 }
 
 
-/*****************************************************************************
-  PROCEDURE
-******************************************************************************/
+/**
+  Implement SHOW CREATE statement for stored routines.
+
+  The operation finds the stored routine object specified by name and then
+  calls sp_head::show_create_routine() for the object.
+
+  @param thd  Thread context.
+  @param type Stored routine type
+              (TYPE_ENUM_PROCEDURE or TYPE_ENUM_FUNCTION)
+  @param name Stored routine name.
+
+  @return Error status.
+    @retval FALSE on success
+    @retval TRUE on error
+*/
+
+bool
+sp_show_create_routine(THD *thd, int type, sp_name *name)
+{
+  bool err_status= TRUE;
+  sp_head *sp;
+  sp_cache **cache = type == TYPE_ENUM_PROCEDURE ?
+                     &thd->sp_proc_cache : &thd->sp_func_cache;
+
+  DBUG_ENTER("sp_show_create_routine");
+  DBUG_PRINT("enter", ("name: %.*s",
+                       (int) name->m_name.length,
+                       name->m_name.str));
+
+  DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
+              type == TYPE_ENUM_FUNCTION);
+
+  if (type == TYPE_ENUM_PROCEDURE)
+  {
+    /*
+       SHOW CREATE PROCEDURE may require two instances of one sp_head
+       object when SHOW CREATE PROCEDURE is called for the procedure that
+       is being executed. Basically, there is no actual recursion, so we
+       increase the recursion limit for this statement (kind of hack).
+
+       SHOW CREATE FUNCTION does not require this because SHOW CREATE
+       statements are prohibitted within stored functions.
+     */
+
+    thd->variables.max_sp_recursion_depth++;
+  }
+
+  if ((sp= sp_find_routine(thd, type, name, cache, FALSE)))
+    err_status= sp->show_create_routine(thd, type);
+
+  if (type == TYPE_ENUM_PROCEDURE)
+    thd->variables.max_sp_recursion_depth--;
+
+  DBUG_RETURN(err_status);
+}
+
 
 /*
   Obtain object representing stored procedure/function by its name from
@@ -1106,158 +1238,6 @@ sp_routine_exists_in_table(THD *thd, int type, sp_name *name)
     close_system_tables(thd, &open_tables_state_backup);
   }
   return ret;
-}
-
-
-int
-sp_create_procedure(THD *thd, sp_head *sp)
-{
-  int ret;
-  DBUG_ENTER("sp_create_procedure");
-  DBUG_PRINT("enter", ("name: %.*s", (int) sp->m_name.length, sp->m_name.str));
-
-  ret= db_create_routine(thd, TYPE_ENUM_PROCEDURE, sp);
-  DBUG_RETURN(ret);
-}
-
-
-int
-sp_drop_procedure(THD *thd, sp_name *name)
-{
-  int ret;
-  DBUG_ENTER("sp_drop_procedure");
-  DBUG_PRINT("enter", ("name: %.*s",
-                       (int) name->m_name.length, name->m_name.str));
-
-  ret= db_drop_routine(thd, TYPE_ENUM_PROCEDURE, name);
-  if (!ret)
-    sp_cache_invalidate();
-  DBUG_RETURN(ret);
-}
-
-
-int
-sp_update_procedure(THD *thd, sp_name *name, st_sp_chistics *chistics)
-{
-  int ret;
-  DBUG_ENTER("sp_update_procedure");
-  DBUG_PRINT("enter", ("name: %.*s",
-                       (int) name->m_name.length, name->m_name.str));
-
-  ret= db_update_routine(thd, TYPE_ENUM_PROCEDURE, name, chistics);
-  if (!ret)
-    sp_cache_invalidate();
-  DBUG_RETURN(ret);
-}
-
-
-int
-sp_show_create_procedure(THD *thd, sp_name *name)
-{
-  int ret= SP_KEY_NOT_FOUND;
-  sp_head *sp;
-  DBUG_ENTER("sp_show_create_procedure");
-  DBUG_PRINT("enter", ("name: %.*s",
-                       (int) name->m_name.length, name->m_name.str));
-
-  /*
-    Increase the recursion limit for this statement. SHOW CREATE PROCEDURE
-    does not do actual recursion.  
-  */
-  thd->variables.max_sp_recursion_depth++;
-  if ((sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, name,
-                           &thd->sp_proc_cache, FALSE)))
-    ret= sp->show_create_procedure(thd);
-
-  thd->variables.max_sp_recursion_depth--;
-  DBUG_RETURN(ret);
-}
-
-
-int
-sp_show_status_procedure(THD *thd, const char *wild)
-{
-  int ret;
-  DBUG_ENTER("sp_show_status_procedure");
-
-  ret= db_show_routine_status(thd, TYPE_ENUM_PROCEDURE, wild);
-  DBUG_RETURN(ret);
-}
-
-
-/*****************************************************************************
-  FUNCTION
-******************************************************************************/
-
-int
-sp_create_function(THD *thd, sp_head *sp)
-{
-  int ret;
-  DBUG_ENTER("sp_create_function");
-  DBUG_PRINT("enter", ("name: %.*s",
-                       (int) sp->m_name.length, sp->m_name.str));
-
-  ret= db_create_routine(thd, TYPE_ENUM_FUNCTION, sp);
-  DBUG_RETURN(ret);
-}
-
-
-int
-sp_drop_function(THD *thd, sp_name *name)
-{
-  int ret;
-  DBUG_ENTER("sp_drop_function");
-  DBUG_PRINT("enter", ("name: %.*s",
-                       (int) name->m_name.length, name->m_name.str));
-
-  ret= db_drop_routine(thd, TYPE_ENUM_FUNCTION, name);
-  if (!ret)
-    sp_cache_invalidate();
-  DBUG_RETURN(ret);
-}
-
-
-int
-sp_update_function(THD *thd, sp_name *name, st_sp_chistics *chistics)
-{
-  int ret;
-  DBUG_ENTER("sp_update_procedure");
-  DBUG_PRINT("enter", ("name: %.*s",
-                       (int) name->m_name.length, name->m_name.str));
-
-  ret= db_update_routine(thd, TYPE_ENUM_FUNCTION, name, chistics);
-  if (!ret)
-    sp_cache_invalidate();
-  DBUG_RETURN(ret);
-}
-
-
-int
-sp_show_create_function(THD *thd, sp_name *name)
-{
-  sp_head *sp;
-  DBUG_ENTER("sp_show_create_function");
-  DBUG_PRINT("enter", ("name: %.*s",
-                       (int) name->m_name.length, name->m_name.str));
-
-  if ((sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, name,
-                           &thd->sp_func_cache, FALSE)))
-  {
-    int ret= sp->show_create_function(thd);
-
-    DBUG_RETURN(ret);
-  }
-  DBUG_RETURN(SP_KEY_NOT_FOUND);
-}
-
-
-int
-sp_show_status_function(THD *thd, const char *wild)
-{
-  int ret;
-  DBUG_ENTER("sp_show_status_function");
-  ret= db_show_routine_status(thd, TYPE_ENUM_FUNCTION, wild);
-  DBUG_RETURN(ret);
 }
 
 

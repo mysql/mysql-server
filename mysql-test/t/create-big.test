@@ -1,12 +1,17 @@
-# Tests for various aspects of CREATE TABLE ... SELECT implementation
+# Tests for various concurrency-related aspects of CREATE TABLE ... SELECT
+# and CREATE TABLE like implementation.
 #
-# Note that we don't test general CREATE TABLE ... SELECT functionality here as
-# it is already covered by create.test. We are more interested in extreme cases.
+# Note that we don't test general CREATE TABLE ... SELECT/LIKE functionality
+# here as it is already covered by create.test. We are more interested in
+# extreme cases.
 #
 # This test takes rather long time so let us run it only in --big-test mode
 --source include/big_test.inc
 # We are using some debug-only features in this test
 --source include/have_debug.inc
+# Some of tests below also use binlog to check that statements are
+# executed and logged in correct order
+--source include/have_binlog_format_mixed_or_statement.inc
 
 # Create auxilliary connections
 connect (addconroot1, localhost, root,,);
@@ -20,7 +25,7 @@ drop table if exists t1,t2,t3,t4,t5;
 
 
 #
-# Tests for concurrency problems.
+# Tests for concurrency problems in CREATE TABLE ... SELECT
 #
 # We introduce delays between various stages of table creation
 # and check that other statements dealing with this table cannot
@@ -266,3 +271,122 @@ connection default;
 select * from t1;
 show create table t1;
 drop table t1, t2, t3;
+
+
+# Tests for possible concurrency issues with CREATE TABLE ... LIKE
+#
+# Bug #18950 "create table like does not obtain LOCK_open"
+# Bug #23667 "CREATE TABLE LIKE is not isolated from alteration by other
+#             connections"
+#
+# Again the idea of this test is that we introduce artificial delays on
+# various stages of table creation and check that concurrent statements
+# for tables from CREATE TABLE ... LIKE are not interfering.
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+# What happens if some statements sneak in right after we have
+# opened source table ?
+create table t1 (i int);
+set session debug="+d,sleep_create_like_before_check_if_exists";
+# Reset binlog to have clear start
+reset master;
+--send create table t2 like t1;
+connection addconroot1;
+--sleep 2
+# DML on source table should be allowed to run concurrently
+insert into t1 values (1);
+# And DDL should wait
+drop table t1;
+connection default;
+--reap
+show create table t2;
+drop table t2;
+# Let us check that statements were executed/binlogged in correct order
+--replace_column 2 # 5 #
+show binlog events in 'master-bin.000001' from 106;
+
+# Now let us check the gap between check for target table
+# existance and copying of .frm file. 
+create table t1 (i int);
+set session debug="-d,sleep_create_like_before_check_if_exists:+d,sleep_create_like_before_copy";
+# It should be impossible to create target table concurrently
+--send create table t2 like t1;
+connection addconroot1;
+--sleep 2
+create table if not exists t2 (j int);
+connection default;
+--reap
+show create table t2;
+drop table t2;
+# And concurrent DDL on the source table should be still disallowed 
+reset master;
+--send create table t2 like t1;
+connection addconroot1;
+--sleep 2
+drop table t1;
+connection default;
+--reap
+drop table t2;
+--replace_column 2 # 5 #
+show binlog events in 'master-bin.000001' from 106;
+
+# And now he gap between copying of .frm file and ha_create_table() call. 
+create table t1 (i int);
+set session debug="-d,sleep_create_like_before_copy:+d,sleep_create_like_before_ha_create";
+# Both DML and DDL on target table should wait till operation completes
+reset master;
+--send create table t2 like t1;
+connection addconroot1;
+--sleep 2
+insert into t2 values (1);
+connection default;
+--reap
+drop table t2;
+--send create table t2 like t1;
+connection addconroot1;
+--sleep 2
+drop table t2;
+connection default;
+--reap
+# Concurrent DDL on the source table still waits 
+--send create table t2 like t1;
+connection addconroot1;
+--sleep 2
+drop table t1;
+connection default;
+--reap
+drop table t2;
+--replace_column 2 # 5 #
+show binlog events in 'master-bin.000001' from 106;
+
+# Finally we check the gap between ha_create_table() and binlogging
+create table t1 (i int);
+set session debug="-d,sleep_create_like_before_ha_create:+d,sleep_create_like_before_binlogging";
+reset master;
+--send create table t2 like t1;
+connection addconroot1;
+--sleep 2
+insert into t2 values (1);
+connection default;
+--reap
+drop table t2;
+--send create table t2 like t1;
+connection addconroot1;
+--sleep 2
+drop table t2;
+connection default;
+--reap
+--send create table t2 like t1;
+connection addconroot1;
+--sleep 2
+drop table t1;
+connection default;
+--reap
+drop table t2;
+--replace_column 2 # 5 #
+show binlog events in 'master-bin.000001' from 106;
+
+set session debug="-d,sleep_create_like_before_binlogging";

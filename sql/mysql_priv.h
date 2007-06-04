@@ -962,33 +962,26 @@ int prepare_create_field(create_field *sql_field,
 			 longlong table_flags);
 bool mysql_create_table(THD *thd,const char *db, const char *table_name,
                         HA_CREATE_INFO *create_info,
-                        List<create_field> &fields, List<Key> &keys,
-                        bool tmp_table, uint select_field_count,
-                        bool use_copy_create_info);
+                        Alter_info *alter_info,
+                        bool tmp_table, uint select_field_count);
 bool mysql_create_table_no_lock(THD *thd, const char *db,
                                 const char *table_name,
                                 HA_CREATE_INFO *create_info,
-                                List<create_field> &fields, List<Key> &keys,
-                                bool tmp_table, uint select_field_count,
-                                bool use_copy_create_info);
+                                Alter_info *alter_info,
+                                bool tmp_table, uint select_field_count);
 
 bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
-                       List<create_field> &fields,
-                       List<Key> &keys,
-                       uint order_num, ORDER *order, bool ignore,
-                       ALTER_INFO *alter_info, bool do_send_ok);
-bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool do_send_ok);
+                       Alter_info *alter_info,
+                       uint order_num, ORDER *order, bool ignore);
+bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
-                             HA_CREATE_INFO *create_info,
-                             Table_ident *src_table);
+                             TABLE_LIST *src_table,
+                             HA_CREATE_INFO *create_info);
 bool mysql_rename_table(handlerton *base, const char *old_db,
                         const char * old_name, const char *new_db,
                         const char * new_name, uint flags);
-bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
-bool mysql_drop_index(THD *thd, TABLE_LIST *table_list,
-                      ALTER_INFO *alter_info);
 bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
                           Item **conds, uint order_num, ORDER *order);
 int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
@@ -1034,8 +1027,11 @@ TABLE *table_cache_insert_placeholder(THD *thd, const char *key,
 bool lock_table_name_if_not_cached(THD *thd, const char *db,
                                    const char *table_name, TABLE **table);
 TABLE *find_locked_table(THD *thd, const char *db,const char *table_name);
+bool reopen_table(TABLE *table);
 bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
-bool close_data_tables(THD *thd,const char *db, const char *table_name);
+void close_data_files_and_morph_locks(THD *thd, const char *db,
+                                      const char *table_name);
+void close_handle_and_leave_table_as_lock(TABLE *table);
 bool wait_for_tables(THD *thd);
 bool table_is_used(TABLE *table, bool wait_for_name_lock);
 TABLE *drop_locked_tables(THD *thd,const char *db, const char *table_name);
@@ -1309,14 +1305,13 @@ char *make_default_log_name(char *buff,const char* log_ext);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 uint fast_alter_partition_table(THD *thd, TABLE *table,
-                                ALTER_INFO *alter_info,
+                                Alter_info *alter_info,
                                 HA_CREATE_INFO *create_info,
                                 TABLE_LIST *table_list,
-                                List<create_field> *create_list,
-                                List<Key> *key_list, char *db,
+                                char *db,
                                 const char *table_name,
                                 uint fast_alter_partition);
-uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
+uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
                            handlerton *old_db_type,
                            bool *partition_changed,
@@ -1348,11 +1343,7 @@ typedef struct st_lock_param_type
   ulonglong deleted;
   THD *thd;
   HA_CREATE_INFO *create_info;
-  ALTER_INFO *alter_info;
-  List<create_field> *create_list;
-  List<create_field> new_create_list;
-  List<Key> *key_list;
-  List<Key> new_key_list;
+  Alter_info *alter_info;
   TABLE *table;
   KEY *key_info_buffer;
   const char *db;
@@ -1678,7 +1669,7 @@ extern ulong log_output_options;
 extern my_bool opt_log_queries_not_using_indexes;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern my_bool opt_character_set_client_handshake;
-extern bool volatile abort_loop, shutdown_in_progress, grant_option;
+extern bool volatile abort_loop, shutdown_in_progress;
 extern uint volatile thread_count, thread_running, global_read_lock;
 extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;

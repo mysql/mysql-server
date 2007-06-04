@@ -451,6 +451,10 @@ set global event_scheduler=off;
 --echo "Should have only our process now:"
 select /*4*/ user, host, db, command, state, info from information_schema.processlist where (command!='Daemon' || user='event_scheduler') and (info is null or info not like '%processlist%') order by info;
 drop event закачка21;
+let $wait_condition=
+  select count(*) = 0 from information_schema.processlist
+  where db='events_test' and command = 'Connect' and user=current_user();
+--source include/wait_condition.inc
 
 ####
 # Bug #16410  Events: CREATE EVENT is legal in a CREATE TRIGGER statement
@@ -724,5 +728,15 @@ insert into t1 (a) values (1)|
 drop table t1|
 drop event e1|
 delimiter ;|
+
+
+# 
+# End of tests
+#
+
+let $wait_condition=
+  select count(*) = 0 from information_schema.processlist
+  where db='events_test' and command = 'Connect' and user=current_user();
+--source include/wait_condition.inc
 
 drop database events_test;
