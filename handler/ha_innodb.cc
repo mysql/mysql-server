@@ -8313,7 +8313,7 @@ err_exit:
 		prebuilt->trx->error_key_num = trx->error_key_num;
 		/* fall through */
 	default:
-		row_remove_indexes_for_mysql(
+		row_merge_drop_indexes(
 			trx, indexed_table, index, num_created);
 		if (indexed_table != innodb_table) {
 			row_merge_drop_table(trx, indexed_table);
@@ -8580,7 +8580,6 @@ ha_innobase::final_drop_index(
 	dict_index_t*	index;		/* Index to be dropped */
 	trx_t*		trx;		/* Transaction */
 	THD*		thd;
-	ulint		error = DB_SUCCESS;/* DB_SUCCESS or error code */
 
 	DBUG_ENTER("ha_innobase::final_drop_index");
 	ut_ad(table);
@@ -8599,15 +8598,14 @@ ha_innobase::final_drop_index(
 
 	index = dict_table_get_first_index_noninline(prebuilt->table);
 
-	while (index && error == DB_SUCCESS) {
+	while (index) {
 		dict_index_t*	next_index;
 
 		next_index = dict_table_get_next_index_noninline(index);
 
-		if (index->to_be_dropped == TRUE) {
+		if (index->to_be_dropped) {
 
-			error = row_merge_remove_index(
-				index, prebuilt->table, trx);
+			row_merge_drop_index(index, prebuilt->table, trx);
 		}
 
 		index = next_index;
@@ -8638,9 +8636,7 @@ ha_innobase::final_drop_index(
 
 	trx_commit_for_mysql(trx);
 
-	error = convert_error_code_to_mysql(error, thd);
-
-	DBUG_RETURN((int) error);
+	DBUG_RETURN(0);
 }
 
 /***********************************************************************

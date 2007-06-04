@@ -4549,36 +4549,6 @@ func_exit:
 
 	return(error);
 }
-
-/*************************************************************************
-Remove those indexes which were created before a error happened in
-the index build */
-
-ulint
-row_remove_indexes_for_mysql(
-/*=========================*/
-					/* out: 0 or error code */
-	trx_t*		trx,		/* in: transaction */
-	dict_table_t*	table,		/* in: Table where index is created */
-	dict_index_t**	index,		/* in: Indexes to be created */
-	ulint		num_created)	/* in: Number of indexes created
-					before error and now must be removed */
-{
-	ulint		key_num;
-	ulint		error = DB_SUCCESS;
-
-	ut_ad(trx && table && index);
-
-	for (key_num = 0; key_num < num_created; key_num++) {
-		error = row_merge_remove_index(index[key_num], table, trx);
-
-		if (error != DB_SUCCESS) {
-			break;
-		}
-	}
-
-	return(error);
-}
 #endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
