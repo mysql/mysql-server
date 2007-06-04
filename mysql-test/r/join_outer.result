@@ -1239,3 +1239,18 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	6
 DROP TABLE t1,t2;
+CREATE TABLE t1 (c int  PRIMARY KEY, e int NOT NULL);
+INSERT INTO t1 VALUES (1,0), (2,1);
+CREATE TABLE t2 (d int PRIMARY KEY);
+INSERT INTO t2 VALUES (1), (2), (3);
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON e<>0 WHERE c=1 AND d IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t2	index	NULL	PRIMARY	4	NULL	3	Using where; Using index; Not exists
+SELECT * FROM t1 LEFT JOIN t2 ON e<>0 WHERE c=1 AND d IS NULL;
+c	e	d
+1	0	NULL
+SELECT * FROM t1 LEFT JOIN t2 ON e<>0 WHERE c=1 AND d<=>NULL;
+c	e	d
+1	0	NULL
+DROP TABLE t1,t2;

@@ -37,7 +37,8 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
                                     List<create_field> &create, bool ignore,
 				    uint order_num, ORDER *order,
 				    ha_rows *copied,ha_rows *deleted,
-                                    enum enum_enable_or_disable keys_onoff);
+                                    enum enum_enable_or_disable keys_onoff,
+                                    bool error_if_not_empty);
 
 static bool prepare_blob_field(THD *thd, create_field *sql_field);
 static bool check_engine(THD *, const char *, HA_CREATE_INFO *);
@@ -6069,14 +6070,18 @@ view_err:
     need_copy_table= ALTER_TABLE_DATA_CHANGED;
   else
   {
+    enum_compare_tables_result need_copy_table_res;
     /* Check how much the tables differ. */
     if (compare_tables(table, alter_info,
                        create_info, order_num,
-                       &need_copy_table,
+                       &need_copy_table_res,
                        &key_info_buffer,
                        &index_drop_buffer, &index_drop_count,
                        &index_add_buffer, &index_add_count))
       goto err;
+   
+    if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
+      need_copy_table= need_copy_table_res;
   }
 
   /*
@@ -6311,7 +6316,8 @@ view_err:
     error= copy_data_between_tables(table, new_table,
                                     alter_info->create_list, ignore,
                                     order_num, order, &copied, &deleted,
-                                    alter_info->keys_onoff);
+                                    alter_info->keys_onoff,
+                                    error_if_not_empty);
   }
   else
   {
@@ -6663,6 +6669,38 @@ err1:
     VOID(quick_rm_table(new_db_type, new_db, tmp_name, FN_IS_TMP));
 
 err:
+  /*
+    No default value was provided for a DATE/DATETIME field, the
+    current sql_mode doesn't allow the '0000-00-00' value and
+    the table to be altered isn't empty.
+    Report error here.
+  */
+  if (error_if_not_empty && thd->row_count)
+  {
+    const char *f_val= 0;
+    enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
+    switch (new_datetime_field->sql_type)
+    {
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_NEWDATE:
+        f_val= "0000-00-00";
+        t_type= MYSQL_TIMESTAMP_DATE;
+        break;
+      case MYSQL_TYPE_DATETIME:
+        f_val= "0000-00-00 00:00:00";
+        t_type= MYSQL_TIMESTAMP_DATETIME;
+        break;
+      default:
+        /* Shouldn't get here. */
+        DBUG_ASSERT(0);
+    }
+    bool save_abort_on_warning= thd->abort_on_warning;
+    thd->abort_on_warning= TRUE;
+    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                 f_val, strlength(f_val), t_type,
+                                 new_datetime_field->field_name);
+    thd->abort_on_warning= save_abort_on_warning;
+  }
   if (name_lock)
   {
     pthread_mutex_lock(&LOCK_open);
@@ -6692,7 +6730,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 			 uint order_num, ORDER *order,
 			 ha_rows *copied,
 			 ha_rows *deleted,
-                         enum enum_enable_or_disable keys_onoff)
+                         enum enum_enable_or_disable keys_onoff,
+                         bool error_if_not_empty)
 {
   int error;
   Copy_field *copy,*copy_end;
@@ -6804,6 +6843,12 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       break;
     }
     thd->row_count++;
+    /* Return error if source table isn't empty. */
+    if (error_if_not_empty)
+    {
+      error= 1;
+      break;
+    }
     if (to->next_number_field)
     {
       if (auto_increment_field_copied)
