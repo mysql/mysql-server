@@ -414,9 +414,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (error)
   {
-    if (transactional_table)
-      ha_autocommit_or_rollback(thd,error);
-
     if (read_file_from_client)
       while (!read_info.next_line())
 	;
@@ -460,6 +457,9 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       }
     }
 #endif /*!EMBEDDED_LIBRARY*/
+    if (transactional_table)
+      ha_autocommit_or_rollback(thd,error);
+
     error= -1;				// Error on read
     goto err;
   }
