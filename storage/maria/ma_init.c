@@ -55,6 +55,8 @@ void maria_end(void)
   {
     maria_inited= FALSE;
     ft_free_stopwords();
+    translog_destroy();
+    ma_control_file_end();
     pthread_mutex_destroy(&THR_LOCK_maria);
   }
 }

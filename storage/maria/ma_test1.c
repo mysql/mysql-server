@@ -18,6 +18,11 @@
 #include "maria.h"
 #include <my_getopt.h>
 #include <m_string.h>
+#include "ma_control_file.h"
+#include "ma_loghandler.h"
+
+extern PAGECACHE *maria_log_pagecache;
+extern const char *maria_data_root;
 
 #define MAX_REC_LENGTH 1024
 
@@ -49,10 +54,23 @@ int main(int argc,char *argv[])
 {
   MY_INIT(argv[0]);
   my_init();
-  maria_init();
   get_options(argc,argv);
+  maria_data_root= ".";
   /* Maria requires that we always have a page cache */
-  init_pagecache(maria_pagecache, IO_SIZE*16, 0, 0, maria_block_size);
+  if (maria_init() ||
+      (init_pagecache(maria_pagecache, IO_SIZE*16, 0, 0,
+                      maria_block_size) == 0) ||
+      ma_control_file_create_or_open() ||
+      (init_pagecache(maria_log_pagecache,
+                      TRANSLOG_PAGECACHE_SIZE, 0, 0,
+                      TRANSLOG_PAGE_SIZE) == 0) ||
+      translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
+                    0, 0, maria_log_pagecache,
+                    TRANSLOG_DEFAULT_FLAGS))
+  {
+    fprintf(stderr, "Error in initialization");
+    exit(1);
+  }
 
   exit(run_test("test1"));
 }

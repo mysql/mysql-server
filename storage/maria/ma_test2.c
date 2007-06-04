@@ -28,6 +28,7 @@
 #include <m_ctype.h>
 #include <my_bit.h>
 
+
 #define STANDARD_LENGTH 37
 #define MARIA_KEYS 6
 #define MAX_PARTS 4
@@ -219,8 +220,22 @@ int main(int argc, char *argv[])
     goto err;
   if (!silent)
     printf("- Writing key:s\n");
+  maria_data_root= ".";
   /* Maria requires that we always have a page cache */
-  init_pagecache(maria_pagecache, pagecache_size, 0, 0, maria_block_size);
+  if ((init_pagecache(maria_pagecache, pagecache_size, 0, 0,
+		      maria_block_size) == 0) ||
+      ma_control_file_create_or_open() ||
+      (init_pagecache(maria_log_pagecache,
+		      TRANSLOG_PAGECACHE_SIZE, 0, 0,
+		      TRANSLOG_PAGE_SIZE) == 0) ||
+      translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
+		    0, 0, maria_log_pagecache,
+		    TRANSLOG_DEFAULT_FLAGS))
+  {
+    fprintf(stderr, "Error in initialization");
+    exit(1);
+  }
+
   if (locking)
     maria_lock_database(file,F_WRLCK);
   if (write_cacheing)

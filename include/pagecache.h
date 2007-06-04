@@ -26,10 +26,11 @@ C_MODE_START
 /* Type of the page */
 enum pagecache_page_type
 {
-#ifndef DBUG_OFF
-  /* used only for control page type changing during debugging */
+  /*
+    Used only for control page type changing during debugging. This define
+    should only be using when using DBUG.
+  */
   PAGECACHE_EMPTY_PAGE,
-#endif
   /* the page does not contain LSN */
   PAGECACHE_PLAIN_PAGE,
   /* the page contain LSN (maria tablespace page) */

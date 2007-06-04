@@ -1,3 +1,18 @@
+/* Copyright (C) 2007 MySQL AB & Sanja Belkin
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 #include "maria_def.h"
 #include "ma_blockrec.h"
 
@@ -148,6 +163,8 @@ static struct st_translog_descriptor log_descriptor;
 /* Marker for end of log */
 static byte end_of_log= 0;
 
+static my_bool translog_inited;
+
 /* record classes */
 enum record_class
 {
@@ -288,7 +305,7 @@ static LOG_DESC INIT_LOGREC_UNDO_ROW_DELETE=
 static LOG_DESC INIT_LOGREC_UNDO_ROW_UPDATE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
- NULL, NULL, NULL, 2};
+ NULL, NULL, NULL, 1};
 
 static LOG_DESC INIT_LOGREC_UNDO_ROW_PURGE=
 {LOGRECTYPE_PSEUDOFIXEDLENGTH, LSN_STORE_SIZE, LSN_STORE_SIZE,
@@ -1861,6 +1878,9 @@ static uint16 translog_get_chunk_header_length(byte *page, uint16 offset)
     flags                flags (TRANSLOG_PAGE_CRC, TRANSLOG_SECTOR_PROTECTION
                            TRANSLOG_RECORD_CRC)
 
+  TODO
+    Free used resources in case of error.
+
   RETURN
     0  OK
     1  Error
@@ -1877,7 +1897,7 @@ my_bool translog_init(const char *directory,
   TRANSLOG_ADDRESS sure_page, last_page, last_valid_page;
   DBUG_ENTER("translog_init");
 
-  loghandler_init();
+  loghandler_init();                            /* Safe to do many times */
 
   if (pthread_mutex_init(&log_descriptor.sent_to_file_lock,
                          MY_MUTEX_INIT_FAST))
@@ -2164,6 +2184,7 @@ my_bool translog_init(const char *directory,
   log_descriptor.flushed--; /* offset decreased */
   log_descriptor.sent_to_file--; /* offset decreased */
 
+  translog_inited= 1;
   DBUG_RETURN(0);
 }
 
@@ -2198,8 +2219,6 @@ static void translog_buffer_destroy(struct st_translog_buffer *buffer)
     */
     translog_buffer_flush(buffer);
   }
-  DBUG_PRINT("info", ("Unlock mutex: 0x%lx", (ulong) &buffer->mutex));
-  pthread_mutex_unlock(&buffer->mutex);
   DBUG_PRINT("info", ("Destroy mutex: 0x%lx", (ulong) &buffer->mutex));
   pthread_mutex_destroy(&buffer->mutex);
   DBUG_VOID_RETURN;
@@ -2217,27 +2236,28 @@ void translog_destroy()
 {
   uint i;
   DBUG_ENTER("translog_destroy");
-  if (log_descriptor.bc.buffer->file != -1)
-    translog_finish_page(&log_descriptor.horizon, &log_descriptor.bc);
+  
+  if (translog_inited)
+  {
+    if (log_descriptor.bc.buffer->file != -1)
+      translog_finish_page(&log_descriptor.horizon, &log_descriptor.bc);
 
-  for (i= 0; i < TRANSLOG_BUFFERS_NO; i++)
-  {
-    struct st_translog_buffer *buffer= log_descriptor.buffers + i;
-    /*
-      Lock the buffer just for safety, there should not be other
-      threads running.
-    */
-    translog_buffer_lock(buffer);
-    translog_buffer_destroy(buffer);
+    for (i= 0; i < TRANSLOG_BUFFERS_NO; i++)
+    {
+      struct st_translog_buffer *buffer= log_descriptor.buffers + i;
+      translog_buffer_destroy(buffer);
+    }
+
+    /* close files */
+    for (i= 0; i < OPENED_FILES_NUM; i++)
+    {
+      if (log_descriptor.log_file_num[i] != -1)
+        translog_close_log_file(log_descriptor.log_file_num[i]);
+    }
+    pthread_mutex_destroy(&log_descriptor.sent_to_file_lock);
+    my_close(log_descriptor.directory_fd, MYF(MY_WME));
+    translog_inited= 0;
   }
-  /* close files */
-  for (i= 0; i < OPENED_FILES_NUM; i++)
-  {
-    if (log_descriptor.log_file_num[i] != -1)
-      translog_close_log_file(log_descriptor.log_file_num[i]);
-  }
-  pthread_mutex_destroy(&log_descriptor.sent_to_file_lock);
-  my_close(log_descriptor.directory_fd, MYF(MY_WME));
   DBUG_VOID_RETURN;
 }
 

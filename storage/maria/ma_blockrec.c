@@ -3640,7 +3640,6 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const byte *record,
   log_parts++;
 
   /* Stored bitmap over packed (zero length or all-zero fields) */
-  start_log_parts=   log_parts;
   log_parts->str=    info->cur_row.empty_bits;
   log_parts->length= share->base.pack_bytes;
   row_length+=       log_parts->length;
@@ -3800,7 +3799,7 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const byte *oldrec,
   uchar *field_data, *start_field_data;
   uchar *old_field_lengths= old_row->field_lengths;
   uchar *new_field_lengths= new_row->field_lengths;
-  size_t row_length;
+  size_t row_length= 0;
   uint field_count= 0;
   LEX_STRING *start_log_parts;
   my_bool new_column_is_empty;

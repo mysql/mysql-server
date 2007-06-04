@@ -505,6 +505,9 @@ static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
     bzero(bitmap->map, bitmap->block_size);
     memcpy(bitmap->map + share->block_size - 2, maria_bitmap_marker, 2);
     bitmap->used_size= 0;
+#ifndef DBUG_OFF
+    memcpy(bitmap->map + bitmap->block_size, bitmap->map, bitmap->block_size);
+#endif
     DBUG_RETURN(0);
   }
   bitmap->used_size= bitmap->total_size;

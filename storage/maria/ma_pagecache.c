@@ -169,15 +169,19 @@ enum PCBLOCK_TEMPERATURE { PCBLOCK_COLD /*free*/ , PCBLOCK_WARM , PCBLOCK_HOT };
 #ifndef DBUG_OFF
 static const char *page_cache_page_type_str[]=
 {
+  /* used only for control page type changing during debugging */
+  "EMPTY",
   "PLAIN",
   "LSN"
 };
+
 static const char *page_cache_page_write_mode_str[]=
 {
   "DELAY",
   "NOW",
   "DONE"
 };
+
 static const char *page_cache_page_lock_str[]=
 {
   "free -> free",
@@ -189,6 +193,7 @@ static const char *page_cache_page_lock_str[]=
   "write -> free",
   "write -> read"
 };
+
 static const char *page_cache_page_pin_str[]=
 {
   "pinned -> pinned",
@@ -196,17 +201,19 @@ static const char *page_cache_page_pin_str[]=
   "unpinned -> pinned",
   "pinned -> unpinned"
 };
-#endif
-#ifndef DBUG_OFF
+
+
 typedef struct st_pagecache_pin_info
 {
   struct st_pagecache_pin_info *next, **prev;
   struct st_my_thread_var *thread;
 }  PAGECACHE_PIN_INFO;
+
 /*
   st_pagecache_lock_info structure should be kept in next, prev, thread part
   compatible with st_pagecache_pin_info to be compatible in functions.
 */
+
 typedef struct st_pagecache_lock_info
 {
   struct st_pagecache_lock_info *next, **prev;
@@ -275,7 +282,8 @@ static PAGECACHE_PIN_INFO *info_find(PAGECACHE_PIN_INFO *list,
       return i;
   return 0;
 }
-#endif
+
+#endif /* !DBUG_OFF */
 
 /* page cache block */
 struct st_pagecache_block_link

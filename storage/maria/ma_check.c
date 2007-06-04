@@ -1632,7 +1632,7 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
                        &info->dfile,
                        (pos / block_size), 1,
                        page_buff,
-                       PAGECACHE_PLAIN_PAGE,
+                       info->s->page_type,
                        PAGECACHE_LOCK_LEFT_UNLOCKED, 0) == 0)
     {
       _ma_check_print_error(param,
