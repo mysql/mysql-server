@@ -60,6 +60,8 @@ void Dblqh::initData()
   cLqhTimeOutCheckCount = 0;
   cbookedAccOps = 0;
   m_backup_ptr = RNIL;
+  clogFileSize = 16;
+  cmaxLogFilesInPageZero = 40;
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 
@@ -260,6 +262,7 @@ Dblqh::Dblqh(Block_context& ctx):
   addRecSignal(GSN_START_FRAGREQ, &Dblqh::execSTART_FRAGREQ);
   addRecSignal(GSN_START_RECREF, &Dblqh::execSTART_RECREF);
   addRecSignal(GSN_GCP_SAVEREQ, &Dblqh::execGCP_SAVEREQ);
+  addRecSignal(GSN_FSOPENREF, &Dblqh::execFSOPENREF, true);
   addRecSignal(GSN_FSOPENCONF, &Dblqh::execFSOPENCONF);
   addRecSignal(GSN_FSCLOSECONF, &Dblqh::execFSCLOSECONF);
   addRecSignal(GSN_FSWRITECONF, &Dblqh::execFSWRITECONF);
