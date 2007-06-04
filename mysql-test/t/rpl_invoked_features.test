@@ -41,18 +41,22 @@ DROP FUNCTION IF EXISTS f1;
 
 --echo
 eval CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT, c VARCHAR(64)) ENGINE=$engine_type;
+--disable_warnings
 INSERT INTO t1 VALUES (1,1,'1');
 INSERT INTO t1 VALUES (2,2,UUID());
 eval CREATE TABLE t2 (a INT, b INT, c VARCHAR(64)) ENGINE=$engine_type;
 INSERT INTO t2 VALUES (1,1,'1');
 INSERT INTO t2 VALUES (2,2,UUID());
+--enable_warnings
 
 eval CREATE TABLE t11 (a INT NOT NULL PRIMARY KEY, b INT, c VARCHAR(64)) ENGINE=$engine_type2;
+--disable_warnings
 INSERT INTO t11 VALUES (1,1,'1');
 INSERT INTO t11 VALUES (2,2,UUID());
 eval CREATE TABLE t12 (a INT, b INT, c VARCHAR(64)) ENGINE=$engine_type2;
 INSERT INTO t12 VALUES (1,1,'1');
 INSERT INTO t12 VALUES (2,2,UUID());
+--enable_warnings
 
 # Create invoked features
 --echo
@@ -139,6 +143,7 @@ DELIMITER ;|
 
 # Do some actions for non-transactional tables
 --echo
+--disable_warnings
 CREATE TABLE t3 SELECT * FROM v1;
 INSERT INTO t1 VALUES (3,3,'');
 UPDATE t1 SET c='2' WHERE a = 1;
@@ -164,6 +169,7 @@ INSERT INTO t11 VALUES(6,6,f1(6));
 INSERT INTO t11 VALUES (102,102,'');
 INSERT INTO t11 VALUES(7,7,f2(7));
 INSERT INTO t11 VALUES (103,103,'');
+--enable_warnings
 
 # Scheduler is on
 --echo
