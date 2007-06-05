@@ -37,7 +37,8 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
                                     List<create_field> &create, bool ignore,
 				    uint order_num, ORDER *order,
 				    ha_rows *copied,ha_rows *deleted,
-                                    enum enum_enable_or_disable keys_onoff);
+                                    enum enum_enable_or_disable keys_onoff,
+                                    bool error_if_not_empty);
 
 static bool prepare_blob_field(THD *thd, create_field *sql_field);
 static bool check_engine(THD *, const char *, HA_CREATE_INFO *);
@@ -230,18 +231,6 @@ uint build_tmptable_filename(THD* thd, char *buff, size_t bufflen)
   DBUG_PRINT("exit", ("buff: '%s'", buff));
   DBUG_RETURN(length);
 }
-
-/*
-  Return values for compare_tables().
-  If you make compare_tables() non-static, move them to a header file.
-*/
-
-enum enum_compare_tables_result
-{
-  ALTER_TABLE_METADATA_ONLY= 0,
-  ALTER_TABLE_DATA_CHANGED= 1,
-  ALTER_TABLE_INDEX_CHANGED= 2
-};
 
 /*
 --------------------------------------------------------------------------
@@ -4920,7 +4909,7 @@ compare_tables(TABLE *table,
                Alter_info *alter_info,
                HA_CREATE_INFO *create_info,
                uint order_num,
-               enum enum_compare_tables_result *need_copy_table,
+               enum_alter_table_change_level *need_copy_table,
                KEY **key_info_buffer,
                uint **index_drop_buffer, uint *index_drop_count,
                uint **index_add_buffer, uint *index_add_count)
@@ -5413,6 +5402,23 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       my_error(ER_BAD_FIELD_ERROR, MYF(0), def->change, table->s->table_name);
       goto err;
     }
+    /*
+      Check that the DATE/DATETIME not null field we are going to add is
+      either has a default value or the '0000-00-00' is allowed by the
+      set sql mode.
+      If the '0000-00-00' value isn't allowed then raise the error_if_not_empty
+      flag to allow ALTER TABLE only if the table to be altered is empty.
+    */
+    if ((def->sql_type == MYSQL_TYPE_DATE ||
+         def->sql_type == MYSQL_TYPE_NEWDATE ||
+         def->sql_type == MYSQL_TYPE_DATETIME) &&
+         !alter_info->datetime_field &&
+         !(~def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)) &&
+         thd->variables.sql_mode & MODE_NO_ZERO_DATE)
+    {
+        alter_info->datetime_field= def;
+        alter_info->error_if_not_empty= TRUE;
+    }
     if (!def->after)
       new_create_list.push_back(def);
     else if (def->after == first_keyword)
@@ -5432,6 +5438,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         goto err;
       }
       find_it.after(def);			// Put element after this
+      alter_info->change_level= ALTER_TABLE_DATA_CHANGED;
     }
   }
   if (alter_info->alter_list.elements)
@@ -5673,7 +5680,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   handlerton *old_db_type, *new_db_type, *save_old_db_type;
   legacy_db_type table_type;
   frm_type_enum frm_type;
-  enum_compare_tables_result need_copy_table= ALTER_TABLE_METADATA_ONLY;
+  enum_alter_table_change_level need_copy_table= ALTER_TABLE_METADATA_ONLY;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   uint fast_alter_partition= 0;
   bool partition_changed= FALSE;
@@ -6057,6 +6064,8 @@ view_err:
 
   if (mysql_prepare_alter_table(thd, table, create_info, alter_info))
     goto err;
+  
+  need_copy_table= alter_info->change_level;
 
   set_table_default_charset(thd, create_info, db);
 
@@ -6069,14 +6078,18 @@ view_err:
     need_copy_table= ALTER_TABLE_DATA_CHANGED;
   else
   {
+    enum_alter_table_change_level need_copy_table_res;
     /* Check how much the tables differ. */
     if (compare_tables(table, alter_info,
                        create_info, order_num,
-                       &need_copy_table,
+                       &need_copy_table_res,
                        &key_info_buffer,
                        &index_drop_buffer, &index_drop_count,
                        &index_add_buffer, &index_add_count))
       goto err;
+   
+    if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
+      need_copy_table= need_copy_table_res;
   }
 
   /*
@@ -6311,7 +6324,8 @@ view_err:
     error= copy_data_between_tables(table, new_table,
                                     alter_info->create_list, ignore,
                                     order_num, order, &copied, &deleted,
-                                    alter_info->keys_onoff);
+                                    alter_info->keys_onoff,
+                                    alter_info->error_if_not_empty);
   }
   else
   {
@@ -6652,6 +6666,38 @@ err1:
     VOID(quick_rm_table(new_db_type, new_db, tmp_name, FN_IS_TMP));
 
 err:
+  /*
+    No default value was provided for a DATE/DATETIME field, the
+    current sql_mode doesn't allow the '0000-00-00' value and
+    the table to be altered isn't empty.
+    Report error here.
+  */
+  if (alter_info->error_if_not_empty && thd->row_count)
+  {
+    const char *f_val= 0;
+    enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
+    switch (alter_info->datetime_field->sql_type)
+    {
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_NEWDATE:
+        f_val= "0000-00-00";
+        t_type= MYSQL_TIMESTAMP_DATE;
+        break;
+      case MYSQL_TYPE_DATETIME:
+        f_val= "0000-00-00 00:00:00";
+        t_type= MYSQL_TIMESTAMP_DATETIME;
+        break;
+      default:
+        /* Shouldn't get here. */
+        DBUG_ASSERT(0);
+    }
+    bool save_abort_on_warning= thd->abort_on_warning;
+    thd->abort_on_warning= TRUE;
+    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                 f_val, strlength(f_val), t_type,
+                                 alter_info->datetime_field->field_name);
+    thd->abort_on_warning= save_abort_on_warning;
+  }
   if (name_lock)
   {
     pthread_mutex_lock(&LOCK_open);
@@ -6681,7 +6727,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 			 uint order_num, ORDER *order,
 			 ha_rows *copied,
 			 ha_rows *deleted,
-                         enum enum_enable_or_disable keys_onoff)
+                         enum enum_enable_or_disable keys_onoff,
+                         bool error_if_not_empty)
 {
   int error;
   Copy_field *copy,*copy_end;
@@ -6793,6 +6840,12 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       break;
     }
     thd->row_count++;
+    /* Return error if source table isn't empty. */
+    if (error_if_not_empty)
+    {
+      error= 1;
+      break;
+    }
     if (to->next_number_field)
     {
       if (auto_increment_field_copied)

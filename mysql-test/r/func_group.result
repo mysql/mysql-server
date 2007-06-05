@@ -613,8 +613,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain
 select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 > 'CA';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	k1	k1	7	NULL	1	Using where; Using index; Using join cache
-1	SIMPLE	t2	range	k1	k1	3	NULL	4	Using where; Using index
+1	SIMPLE	t1	range	k1	k1	7	NULL	1	Using where; Using index
+1	SIMPLE	t2	range	k1	k1	3	NULL	4	Using where; Using index; Using join buffer
 explain
 select min(a4 - 0.01) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -650,8 +650,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain
 select concat(min(t1.a1),min(t2.a4)) from t1, t2 where t2.a4 <> 'AME';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	k2	k2	4	NULL	6	Using where; Using index; Using join cache
-1	SIMPLE	t1	index	NULL	PRIMARY	3	NULL	15	Using index
+1	SIMPLE	t2	range	k2	k2	4	NULL	6	Using where; Using index
+1	SIMPLE	t1	index	NULL	PRIMARY	3	NULL	15	Using index; Using join buffer
 drop table t1, t2;
 create table t1 (a char(10));
 insert into t1 values ('a'),('b'),('c');

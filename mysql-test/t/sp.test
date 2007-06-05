@@ -7232,3 +7232,23 @@ select count(*) from t1 /* must be 3 */;
 
 drop table t1,t2;
 drop function   bug27354;
+
+#
+# Bug #28605: SHOW CREATE VIEW with views using stored_procedures no longer
+# showing SP names.
+#
+CREATE TABLE t1 (a INT); 
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE FUNCTION metered(a INT) RETURNS INT RETURN 12;
+
+CREATE VIEW v1 AS SELECT test.metered(a) as metered FROM t1;
+
+SHOW CREATE VIEW v1;
+
+DROP VIEW v1;
+DROP FUNCTION metered;
+DROP TABLE t1;
+
+
+--echo End of 5.0 tests
