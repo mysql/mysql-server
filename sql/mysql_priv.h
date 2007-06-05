@@ -813,9 +813,8 @@ bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        Alter_info *alter_info,
                        uint order_num, ORDER *order, bool ignore);
 bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list);
-bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
-                             HA_CREATE_INFO *create_info,
-                             Table_ident *src_table);
+bool mysql_create_like_table(THD *thd, TABLE_LIST *table, TABLE_LIST *src_table,
+                             HA_CREATE_INFO *create_info);
 bool mysql_rename_table(enum db_type base,
 			const char *old_db,
 			const char * old_name,
