@@ -26,6 +26,10 @@ my_atomic_rwlock_t rwl;
 LF_ALLOCATOR lf_allocator;
 LF_HASH lf_hash;
 
+pthread_attr_t attr;
+size_t stacksize= 0;
+#define STACK_SIZE (((int)stacksize-2048)*STACK_DIRECTION)
+
 /* add and sub a random number in a loop. Must get 0 at the end */
 pthread_handler_t test_atomic_add_handler(void *arg)
 {
@@ -119,12 +123,12 @@ pthread_handler_t test_lf_pinbox(void *arg)
   int32 x= 0;
   LF_PINS *pins;
 
-  pins= lf_pinbox_get_pins(&lf_allocator.pinbox);
+  pins= lf_pinbox_get_pins(&lf_allocator.pinbox, &m + STACK_SIZE);
 
   for (x= ((int)(intptr)(&m)); m ; m--)
   {
     lf_pinbox_put_pins(pins);
-    pins= lf_pinbox_get_pins(&lf_allocator.pinbox);
+    pins= lf_pinbox_get_pins(&lf_allocator.pinbox, &m + STACK_SIZE);
   }
   lf_pinbox_put_pins(pins);
   return 0;
@@ -141,7 +145,7 @@ pthread_handler_t test_lf_alloc(void *arg)
   int32 x,y= 0;
   LF_PINS *pins;
 
-  pins= lf_alloc_get_pins(&lf_allocator);
+  pins= lf_alloc_get_pins(&lf_allocator, &m + STACK_SIZE);
 
   for (x= ((int)(intptr)(&m)); m ; m--)
   {
@@ -165,9 +169,9 @@ pthread_handler_t test_lf_alloc(void *arg)
   if (my_atomic_add32(&N, -1) == 1)
   {
     diag("%d mallocs, %d pins in stack",
-         lf_allocator.mallocs, lf_allocator.pinbox.pins_in_stack);
+         lf_allocator.mallocs, lf_allocator.pinbox.pins_in_array);
 #ifdef MY_LF_EXTRA_DEBUG
-    a32|= lf_allocator.mallocs - lf_alloc_in_pool(&lf_allocator);
+    a32|= lf_allocator.mallocs - lf_alloc_pool_count(&lf_allocator);
 #endif
   }
   my_atomic_rwlock_wrunlock(&rwl);
@@ -181,7 +185,7 @@ pthread_handler_t test_lf_hash(void *arg)
   int32 x,y,z,sum= 0, ins= 0;
   LF_PINS *pins;
 
-  pins= lf_hash_get_pins(&lf_hash);
+  pins= lf_hash_get_pins(&lf_hash, &m + STACK_SIZE);
 
   for (x= ((int)(intptr)(&m)); m ; m--)
   {
@@ -213,7 +217,7 @@ pthread_handler_t test_lf_hash(void *arg)
   if (my_atomic_add32(&N, -1) == 1)
   {
     diag("%d mallocs, %d pins in stack, %d hash size, %d inserts",
-         lf_hash.alloc.mallocs, lf_hash.alloc.pinbox.pins_in_stack,
+         lf_hash.alloc.mallocs, lf_hash.alloc.pinbox.pins_in_array,
          lf_hash.size, b32);
     a32|= lf_hash.count;
   }
@@ -272,6 +276,13 @@ int main()
   lf_alloc_init(&lf_allocator, sizeof(TLA), offsetof(TLA, not_used));
   lf_hash_init(&lf_hash, sizeof(int), LF_HASH_UNIQUE, 0, sizeof(int), 0,
                &my_charset_bin);
+
+  pthread_attr_init(&attr);
+#ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
+  pthread_attr_getstacksize(&attr, &stacksize);
+  if (stacksize == 0)
+#endif
+    stacksize= PTHREAD_STACK_MIN;
 
 #ifdef MY_ATOMIC_MODE_RWLOCKS
 #define CYCLES 3000
