@@ -1016,6 +1016,8 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   cmaxAccOps = cscanrecFileSize * MAX_PARALLEL_OP_PER_SCAN;
 
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &c_diskless));
+  c_o_direct = true;
+  ndb_mgm_get_int_parameter(p, CFG_DB_O_DIRECT, &c_o_direct);
   
   Uint32 tmp= 0;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_FRAG, &tmp));
@@ -13307,7 +13309,9 @@ void Dblqh::openFileRw(Signal* signal, LogFileRecordPtr olfLogFilePtr)
   signal->theData[3] = olfLogFilePtr.p->fileName[1];
   signal->theData[4] = olfLogFilePtr.p->fileName[2];
   signal->theData[5] = olfLogFilePtr.p->fileName[3];
-  signal->theData[6] = ZOPEN_READ_WRITE | FsOpenReq::OM_AUTOSYNC | FsOpenReq::OM_CHECK_SIZE;
+  signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_AUTOSYNC | FsOpenReq::OM_CHECK_SIZE;
+  if (c_o_direct)
+    signal->theData[6] |= FsOpenReq::OM_DIRECT;
   req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
   Uint64 sz = clogFileSize;
   sz *= 1024; sz *= 1024;
@@ -13331,7 +13335,9 @@ void Dblqh::openLogfileInit(Signal* signal)
   signal->theData[3] = logFilePtr.p->fileName[1];
   signal->theData[4] = logFilePtr.p->fileName[2];
   signal->theData[5] = logFilePtr.p->fileName[3];
-  signal->theData[6] = 0x302 | FsOpenReq::OM_AUTOSYNC;
+  signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_TRUNCATE | FsOpenReq::OM_CREATE | FsOpenReq::OM_AUTOSYNC;
+  if (c_o_direct)
+    signal->theData[6] |= FsOpenReq::OM_DIRECT;
   req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }//Dblqh::openLogfileInit()
@@ -13367,7 +13373,9 @@ void Dblqh::openNextLogfile(Signal* signal)
     signal->theData[3] = onlLogFilePtr.p->fileName[1];
     signal->theData[4] = onlLogFilePtr.p->fileName[2];
     signal->theData[5] = onlLogFilePtr.p->fileName[3];
-    signal->theData[6] = 2 | FsOpenReq::OM_AUTOSYNC | FsOpenReq::OM_CHECK_SIZE;
+    signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_AUTOSYNC | FsOpenReq::OM_CHECK_SIZE;
+    if (c_o_direct)
+      signal->theData[6] |= FsOpenReq::OM_DIRECT;
     req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
     Uint64 sz = clogFileSize;
     sz *= 1024; sz *= 1024;

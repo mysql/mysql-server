@@ -39,6 +39,9 @@
 #include <AttributeDescriptor.hpp>
 #include <NdbSqlUtil.hpp>
 
+#include <EventLogger.hpp>
+extern EventLogger g_eventLogger;
+
 #define ljamEntry() jamEntryLine(30000 + __LINE__)
 #define ljam() jamLine(30000 + __LINE__)
 
@@ -656,13 +659,19 @@ SimulatedBlock::getBatSize(Uint16 blockNo){
   return sb->theBATSize;
 }
 
+void* SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear, Uint32 paramId)
+{
+  return allocRecordAligned(type, s, n, 0, 0, clear, paramId);
+}
+
 void* 
-SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear, Uint32 paramId) 
+SimulatedBlock::allocRecordAligned(const char * type, size_t s, size_t n, void **unaligned_buffer, Uint32 align, bool clear, Uint32 paramId)
 {
 
   void * p = NULL;
-  size_t size = n*s;
-  Uint64 real_size = (Uint64)((Uint64)n)*((Uint64)s);
+  Uint32 over_alloc = unaligned_buffer ? (align - 1) : 0;
+  size_t size = n*s + over_alloc;
+  Uint64 real_size = (Uint64)((Uint64)n)*((Uint64)s) + over_alloc;
   refresh_watch_dog(9);
   if (real_size > 0){
 #ifdef VM_TRACE_MEM
@@ -704,6 +713,16 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear, U
       }
       refresh_watch_dog(9);
       memset(ptr, 0, size);
+    }
+    if (unaligned_buffer)
+    {
+      *unaligned_buffer = p;
+      p = (void *)(((UintPtr)p + over_alloc) & ~(UintPtr)(over_alloc));
+#ifdef VM_TRACE
+      g_eventLogger.info("'%s' (%u) %llu %llu, alignment correction %u bytes",
+                         type, align, (Uint64)p, (Uint64)p+n*s,
+                         (Uint32)((UintPtr)p - (UintPtr)*unaligned_buffer));
+#endif
     }
   }
   return p;
