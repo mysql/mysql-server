@@ -572,6 +572,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
+    CFG_DB_WATCHDOG_INTERVAL_INITIAL,
+    "TimeBetweenWatchDogCheckInitial",
+    DB_TOKEN,
+    "Time between execution checks inside a database node in the early start phases when memory is allocated",
+    ConfigInfo::CI_USED,
+    true,
+    ConfigInfo::CI_INT,
+    "6000",
+    "70",
+    STR_VALUE(MAX_INT_RNIL) },
+
+  {
     CFG_DB_STOP_ON_ERROR,
     "StopOnError",
     DB_TOKEN,

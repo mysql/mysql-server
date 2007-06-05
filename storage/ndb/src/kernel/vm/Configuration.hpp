@@ -84,6 +84,7 @@ private:
   Uint32 _maxErrorLogs;
   Uint32 _lockPagesInMainMemory;
   Uint32 _timeBetweenWatchDogCheck;
+  Uint32 _timeBetweenWatchDogCheckInitial;
 
   ndb_mgm_configuration * m_ownConfig;
   ndb_mgm_configuration * m_clusterConfig;
