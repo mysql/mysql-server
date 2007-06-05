@@ -1313,6 +1313,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     STR_VALUE(MAX_INT_RNIL) },
   
+  {
+    CFG_DB_O_DIRECT,
+    "ODirect",
+    DB_TOKEN,
+    "Use O_DIRECT file write/read when possible",
+    ConfigInfo::CI_USED,
+    true,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"},
+
   /***************************************************************************
    * API
    ***************************************************************************/
