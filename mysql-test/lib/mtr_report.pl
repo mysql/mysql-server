@@ -265,8 +265,13 @@ sub mtr_report_stats ($) {
     else
     {
       # We report different types of problems in order
-      foreach my $pattern ( "^Warning:", "^Error:", "^==.* at 0x",
-			    "InnoDB: Warning", "missing DBUG_RETURN",
+      foreach my $pattern ( "^Warning:",
+			    "\\[Warning\\]",
+			    "\\[ERROR\\]",
+			    "^Error:", "^==.* at 0x",
+			    "InnoDB: Warning",
+			    "^safe_mutex:",
+			    "missing DBUG_RETURN",
 			    "mysqld: Warning",
 			    "allocated at line",
 			    "Attempting backtrace", "Assertion .* failed" )
@@ -278,18 +283,91 @@ sub mtr_report_stats ($) {
             mtr_warning("can't read $errlog");
             next;
           }
+          my $leak_reports_expected= undef;
           while ( <ERR> )
           {
+            # There is a test case that purposely provokes a
+            # SAFEMALLOC leak report, even though there is no actual
+            # leak. We need to detect this, and ignore the warning in
+            # that case.
+            if (/Begin safemalloc memory dump:/) {
+              $leak_reports_expected= 1;
+            } elsif (/End safemalloc memory dump./) {
+              $leak_reports_expected= undef;
+            }
+
             # Skip some non fatal warnings from the log files
-            if ( /Warning:\s+Table:.* on (delete|rename)/ or
-                 /Warning:\s+Setting lower_case_table_names=2/ or
-                 /Warning:\s+One can only use the --user.*root/ or
-	         /InnoDB: Warning: we did not need to do crash recovery/)
+            if (
+		/\"SELECT UNIX_TIMESTAMP\(\)\" failed on master/ or
+		/Aborted connection/ or
+		/Client requested master to start replication from impossible position/ or
+		/Could not find first log file name in binary log/ or
+		/Enabling keys got errno/ or
+		/Error reading master configuration/ or
+		/Error reading packet/ or
+		/Event Scheduler/ or
+		/Failed to open log/ or
+		/Failed to open the existing master info file/ or
+		/Forcing shutdown of [0-9]* plugins/ or
+		/Got error [0-9]* when reading table/ or
+		/Incorrect definition of table/ or
+		/Incorrect information in file/ or
+		/InnoDB: Warning: we did not need to do crash recovery/ or
+		/Invalid \(old\?\) table or database name/ or
+		/Lock wait timeout exceeded/ or
+		/Log entry on master is longer than max_allowed_packet/ or
+                /unknown option '--loose-/ or
+                /unknown variable 'loose-/ or
+		/You have forced lower_case_table_names to 0 through a command-line option/ or
+		/Setting lower_case_table_names=2/ or
+		/NDB Binlog:/ or
+		/NDB: failed to setup table/ or
+		/NDB: only row based binary logging/ or
+		/Neither --relay-log nor --relay-log-index were used/ or
+		/Query partially completed/ or
+		/Slave I.O thread aborted while waiting for relay log/ or
+		/Slave SQL thread is stopped because UNTIL condition/ or
+		/Slave SQL thread retried transaction/ or
+		/Slave \(additional info\)/ or
+		/Slave: .*Duplicate column name/ or
+		/Slave: .*master may suffer from/ or
+		/Slave: According to the master's version/ or
+		/Slave: Column [0-9]* type mismatch/ or
+		/Slave: Error .* doesn't exist/ or
+		/Slave: Error .*Deadlock found/ or
+		/Slave: Error .*Unknown table/ or
+		/Slave: Error in Write_rows event: / or
+		/Slave: Field .* of table .* has no default value/ or
+		/Slave: Query caused different errors on master and slave/ or
+		/Slave: Table .* doesn't exist/ or
+		/Slave: Table width mismatch/ or
+		/Slave: The incident LOST_EVENTS occured on the master/ or
+		/Slave: Unknown error.* 1105/ or
+		/Slave: Can't drop database.* database doesn't exist/ or
+		/Sort aborted/ or
+		/Time-out in NDB/ or
+		/Warning:\s+One can only use the --user.*root/ or
+		/Warning:\s+Setting lower_case_table_names=2/ or
+		/Warning:\s+Table:.* on (delete|rename)/ or
+		/You have an error in your SQL syntax/ or
+		/deprecated/ or
+		/description of time zone/ or
+		/equal MySQL server ids/ or
+		/error .*connecting to master/ or
+		/error reading log entry/ or
+		/lower_case_table_names is set/ or
+		/skip-name-resolve mode/ or
+		/slave SQL thread aborted/ or
+ 		/Slave: .*Duplicate entry/
+	       )
             {
               next;                       # Skip these lines
             }
             if ( /$pattern/ )
             {
+              if ($leak_reports_expected) {
+                next;
+              }
               $found_problems= 1;
               print WARN $_;
             }

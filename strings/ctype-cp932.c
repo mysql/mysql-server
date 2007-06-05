@@ -182,13 +182,13 @@ static uchar NEAR sort_order_cp932[]=
                        (0x80<=(c) && (c)<=0xfc))
 
 
-static int ismbchar_cp932(CHARSET_INFO *cs __attribute__((unused)),
+static uint ismbchar_cp932(CHARSET_INFO *cs __attribute__((unused)),
 			 const char* p, const char *e)
 {
   return (iscp932head((uchar) *p) && (e-p)>1 && iscp932tail((uchar)p[1]) ? 2: 0);
 }
 
-static int mbcharlen_cp932(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static uint mbcharlen_cp932(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (iscp932head((uchar) c) ? 2 : 1);
 }
@@ -198,8 +198,8 @@ static int mbcharlen_cp932(CHARSET_INFO *cs __attribute__((unused)),uint c)
 
 
 static int my_strnncoll_cp932_internal(CHARSET_INFO *cs,
-				      const uchar **a_res, uint a_length,
-				      const uchar **b_res, uint b_length)
+				      const uchar **a_res, size_t a_length,
+				      const uchar **b_res, size_t b_length)
 {
   const uchar *a= *a_res, *b= *b_res;
   const uchar *a_end= a + a_length;
@@ -230,8 +230,8 @@ static int my_strnncoll_cp932_internal(CHARSET_INFO *cs,
 
 
 static int my_strnncoll_cp932(CHARSET_INFO *cs __attribute__((unused)),
-			      const uchar *a, uint a_length, 
-			      const uchar *b, uint b_length,
+			      const uchar *a, size_t a_length, 
+			      const uchar *b, size_t b_length,
                               my_bool b_is_prefix)
 {
   int res= my_strnncoll_cp932_internal(cs, &a, a_length, &b, b_length);
@@ -242,8 +242,8 @@ static int my_strnncoll_cp932(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static int my_strnncollsp_cp932(CHARSET_INFO *cs __attribute__((unused)),
-                                const uchar *a, uint a_length, 
-                                const uchar *b, uint b_length,
+                                const uchar *a, size_t a_length, 
+                                const uchar *b, size_t b_length,
                                 my_bool diff_if_only_endspace_difference
                                 __attribute__((unused)))
 {
@@ -275,9 +275,9 @@ static int my_strnncollsp_cp932(CHARSET_INFO *cs __attribute__((unused)),
 
 
 
-static int my_strnxfrm_cp932(CHARSET_INFO *cs __attribute__((unused)),
-                     uchar *dest, uint len,
-                     const uchar *src, uint srclen)
+static size_t my_strnxfrm_cp932(CHARSET_INFO *cs __attribute__((unused)),
+                                uchar *dest, size_t len,
+                                const uchar *src, size_t srclen)
 {
   uchar *d_end = dest + len;
   uchar *s_end = (uchar*) src + srclen;
@@ -318,10 +318,11 @@ static int my_strnxfrm_cp932(CHARSET_INFO *cs __attribute__((unused)),
 #define max_sort_char ((char) 255)
 
 static my_bool my_like_range_cp932(CHARSET_INFO *cs __attribute__((unused)),
-				  const char *ptr,uint ptr_length,
-				  pbool escape, pbool w_one, pbool w_many,
-				  uint res_length, char *min_str,char *max_str,
-				  uint *min_length,uint *max_length)
+                                   const char *ptr,size_t ptr_length,
+                                   pbool escape, pbool w_one, pbool w_many,
+                                   size_t res_length,
+                                   char *min_str,char *max_str,
+                                   size_t *min_length, size_t *max_length)
 {
   const char *end=ptr+ptr_length;
   char *min_org=min_str;
@@ -350,7 +351,7 @@ static my_bool my_like_range_cp932(CHARSET_INFO *cs __attribute__((unused)),
     }
     if (*ptr == w_many)
     {						/* '%' in SQL */
-      *min_length = (uint)(min_str - min_org);
+      *min_length = (size_t)(min_str - min_org);
       *max_length = res_length;
       do
       {
@@ -361,7 +362,7 @@ static my_bool my_like_range_cp932(CHARSET_INFO *cs __attribute__((unused)),
     }
     *min_str++ = *max_str++ = *ptr++;
   }
-  *min_length = *max_length = (uint)(min_str - min_org);
+  *min_length = *max_length = (size_t) (min_str - min_org);
   while (min_str < min_end)
     *min_str++ = *max_str++ = ' ';	/* Because if key compression */
   return 0;
@@ -5378,12 +5379,12 @@ my_mb_wc_cp932(CHARSET_INFO *cs  __attribute__((unused)),
 }
 
 static
-uint my_numcells_cp932(CHARSET_INFO *cs __attribute__((unused)),
+size_t my_numcells_cp932(CHARSET_INFO *cs __attribute__((unused)),
                       const char *str, const char *str_end)
 {
-  uint clen= 0;
-  const unsigned char *b= (const unsigned char *) str;
-  const unsigned char *e= (const unsigned char *) str_end;
+  size_t clen= 0;
+  const uchar *b= (const uchar *) str;
+  const uchar *e= (const uchar *) str_end;
   
   for (clen= 0; b < e; )
   {
@@ -5410,9 +5411,11 @@ uint my_numcells_cp932(CHARSET_INFO *cs __attribute__((unused)),
   Returns a well formed length of a cp932 string.
   cp932 additional characters are also accepted.
 */
+
 static
-uint my_well_formed_len_cp932(CHARSET_INFO *cs __attribute__((unused)),
-                             const char *b, const char *e, uint pos, int *error)
+size_t my_well_formed_len_cp932(CHARSET_INFO *cs __attribute__((unused)),
+                                const char *b, const char *e,
+                                size_t pos, int *error)
 {
   const char *b0= b;
   *error= 0;
@@ -5445,7 +5448,7 @@ uint my_well_formed_len_cp932(CHARSET_INFO *cs __attribute__((unused)),
       break;
     }
   }
-  return (uint) (b - b0);
+  return (size_t) (b - b0);
 }
 
 

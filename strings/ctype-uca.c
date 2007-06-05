@@ -6740,7 +6740,7 @@ typedef struct my_uca_scanner_st
 typedef struct my_uca_scanner_handler_st 
 {
   void (*init)(my_uca_scanner *scanner, CHARSET_INFO *cs, 
-               const uchar *str, uint length);
+               const uchar *str, size_t length);
   int (*next)(my_uca_scanner *scanner);
 } my_uca_scanner_handler;
 
@@ -6767,7 +6767,7 @@ static uint16 nochar[]= {0,0};
 
 static void my_uca_scanner_init_ucs2(my_uca_scanner *scanner,
                                      CHARSET_INFO *cs __attribute__((unused)),
-                                     const uchar *str, uint length)
+                                     const uchar *str, size_t length)
 {
   scanner->wbeg= nochar; 
   if (length)
@@ -6859,8 +6859,8 @@ static int my_uca_scanner_next_ucs2(my_uca_scanner *scanner)
     if (scanner->sbeg > scanner->send)
       return -1;
     
-    scanner->page= (unsigned char)scanner->sbeg[0];
-    scanner->code= (unsigned char)scanner->sbeg[1];
+    scanner->page= (uchar)scanner->sbeg[0];
+    scanner->code= (uchar)scanner->sbeg[1];
     scanner->sbeg+= 2;
     
     if (scanner->contractions && (scanner->sbeg <= scanner->send))
@@ -6919,7 +6919,7 @@ static my_uca_scanner_handler my_ucs2_uca_scanner_handler=
 */
 static void my_uca_scanner_init_any(my_uca_scanner *scanner,
 				    CHARSET_INFO *cs __attribute__((unused)),
-				    const uchar *str, uint length)
+				    const uchar *str, size_t length)
 {
   /* Note, no needs to initialize scanner->wbeg */
   scanner->sbeg= str;
@@ -7055,8 +7055,8 @@ static my_uca_scanner_handler my_any_uca_scanner_handler=
 
 static int my_strnncoll_uca(CHARSET_INFO *cs, 
                             my_uca_scanner_handler *scanner_handler,
-			    const uchar *s, uint slen,
-                            const uchar *t, uint tlen,
+			    const uchar *s, size_t slen,
+                            const uchar *t, size_t tlen,
                             my_bool t_is_prefix)
 {
   my_uca_scanner sscanner;
@@ -7126,8 +7126,8 @@ static int my_strnncoll_uca(CHARSET_INFO *cs,
 
 static int my_strnncollsp_uca(CHARSET_INFO *cs, 
                               my_uca_scanner_handler *scanner_handler,
-                              const uchar *s, uint slen,
-                              const uchar *t, uint tlen,
+                              const uchar *s, size_t slen,
+                              const uchar *t, size_t tlen,
                               my_bool diff_if_only_endspace_difference)
 {
   my_uca_scanner sscanner, tscanner;
@@ -7204,7 +7204,7 @@ static int my_strnncollsp_uca(CHARSET_INFO *cs,
 
 static void my_hash_sort_uca(CHARSET_INFO *cs,
                              my_uca_scanner_handler *scanner_handler,
-			     const uchar *s, uint slen,
+			     const uchar *s, size_t slen,
 			     ulong *n1, ulong *n2)
 {
   int   s_res;
@@ -7254,12 +7254,12 @@ static void my_hash_sort_uca(CHARSET_INFO *cs,
     Number of bytes that have been written into the binary image.
 */
 
-static int my_strnxfrm_uca(CHARSET_INFO *cs, 
-                           my_uca_scanner_handler *scanner_handler,
-                           uchar *dst, uint dstlen,
-                           const uchar *src, uint srclen)
+static size_t my_strnxfrm_uca(CHARSET_INFO *cs, 
+                              my_uca_scanner_handler *scanner_handler,
+                              uchar *dst, size_t dstlen,
+                              const uchar *src, size_t srclen)
 {
-  uchar *de = dst + (dstlen & (uint) ~1); /* add even length for easier code */
+  uchar *de= dst + (dstlen & (size_t) ~1); /* add even length for easier code */
   int   s_res;
   my_uca_scanner scanner;
   scanner_handler->init(&scanner, cs, src, srclen);
@@ -7292,6 +7292,7 @@ static int my_strnxfrm_uca(CHARSET_INFO *cs,
   This fact allows us to use memcmp() safely, on both
   little-endian and big-endian machines.
 */
+
 static int my_uca_charcmp(CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
 {
   size_t page1= wc1 >> MY_UCA_PSHIFT;
@@ -7334,7 +7335,7 @@ int my_wildcmp_uca(CHARSET_INFO *cs,
   my_wc_t s_wc, w_wc;
   int scan;
   int (*mb_wc)(struct charset_info_st *, my_wc_t *,
-               const unsigned char *, const unsigned char *);
+               const uchar *, const uchar *);
   mb_wc= cs->cset->mb_wc;
   
   while (wildstr != wildend)
@@ -7566,7 +7567,7 @@ static void my_coll_lexem_print_error(MY_COLL_LEXEM *lexem,
 {
   char tail[30];
   size_t len= lexem->end - lexem->prev;
-  strmake (tail, lexem->prev, (uint) min(len, sizeof(tail)-1));
+  strmake (tail, lexem->prev, (size_t) min(len, sizeof(tail)-1));
   errstr[errsize-1]= '\0';
   my_snprintf(errstr,errsize-1,"%s at '%s'", txt, tail);
 }
@@ -7830,7 +7831,7 @@ static int my_coll_rule_parse(MY_COLL_RULE *rule, size_t mitems,
   default weights.
 */
 
-static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(uint))
+static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(size_t))
 {
   MY_COLL_RULE rule[MY_MAX_COLL_RULE];
   char errstr[128];
@@ -7979,15 +7980,15 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(uint))
   Should work for any character set.
 */
 
-static my_bool my_coll_init_uca(CHARSET_INFO *cs, void *(*alloc)(uint))
+static my_bool my_coll_init_uca(CHARSET_INFO *cs, void *(*alloc)(size_t))
 {
   cs->pad_char= ' ';
   return create_tailoring(cs, alloc);
 }
 
 static int my_strnncoll_any_uca(CHARSET_INFO *cs,
-                                const uchar *s, uint slen,
-                                const uchar *t, uint tlen,
+                                const uchar *s, size_t slen,
+                                const uchar *t, size_t tlen,
                                 my_bool t_is_prefix)
 {
   return my_strnncoll_uca(cs, &my_any_uca_scanner_handler,
@@ -7995,8 +7996,8 @@ static int my_strnncoll_any_uca(CHARSET_INFO *cs,
 }
 
 static int my_strnncollsp_any_uca(CHARSET_INFO *cs,
-                                  const uchar *s, uint slen,
-                                  const uchar *t, uint tlen,
+                                  const uchar *s, size_t slen,
+                                  const uchar *t, size_t tlen,
                                   my_bool diff_if_only_endspace_difference)
 {
   return my_strnncollsp_uca(cs, &my_any_uca_scanner_handler,
@@ -8005,15 +8006,15 @@ static int my_strnncollsp_any_uca(CHARSET_INFO *cs,
 }   
 
 static void my_hash_sort_any_uca(CHARSET_INFO *cs,
-                                 const uchar *s, uint slen,
+                                 const uchar *s, size_t slen,
                                  ulong *n1, ulong *n2)
 {
   my_hash_sort_uca(cs, &my_any_uca_scanner_handler, s, slen, n1, n2); 
 }
 
-static int my_strnxfrm_any_uca(CHARSET_INFO *cs, 
-                               uchar *dst, uint dstlen,
-                               const uchar *src, uint srclen)
+static size_t my_strnxfrm_any_uca(CHARSET_INFO *cs, 
+                                  uchar *dst, size_t dstlen,
+                                  const uchar *src, size_t srclen)
 {
   return my_strnxfrm_uca(cs, &my_any_uca_scanner_handler,
                          dst, dstlen, src, srclen);
@@ -8025,8 +8026,8 @@ static int my_strnxfrm_any_uca(CHARSET_INFO *cs,
   UCS2 optimized CHARSET_INFO compatible wrappers.
 */
 static int my_strnncoll_ucs2_uca(CHARSET_INFO *cs,
-                                 const uchar *s, uint slen,
-                                 const uchar *t, uint tlen,
+                                 const uchar *s, size_t slen,
+                                 const uchar *t, size_t tlen,
                                  my_bool t_is_prefix)
 {
   return my_strnncoll_uca(cs, &my_ucs2_uca_scanner_handler,
@@ -8034,8 +8035,8 @@ static int my_strnncoll_ucs2_uca(CHARSET_INFO *cs,
 }
 
 static int my_strnncollsp_ucs2_uca(CHARSET_INFO *cs,
-                                   const uchar *s, uint slen,
-                                   const uchar *t, uint tlen,
+                                   const uchar *s, size_t slen,
+                                   const uchar *t, size_t tlen,
                                    my_bool diff_if_only_endspace_difference)
 {
   return my_strnncollsp_uca(cs, &my_ucs2_uca_scanner_handler,
@@ -8044,15 +8045,15 @@ static int my_strnncollsp_ucs2_uca(CHARSET_INFO *cs,
 }   
 
 static void my_hash_sort_ucs2_uca(CHARSET_INFO *cs,
-                                  const uchar *s, uint slen,
+                                  const uchar *s, size_t slen,
                                   ulong *n1, ulong *n2)
 {
   my_hash_sort_uca(cs, &my_ucs2_uca_scanner_handler, s, slen, n1, n2); 
 }
 
-static int my_strnxfrm_ucs2_uca(CHARSET_INFO *cs, 
-                                uchar *dst, uint dstlen,
-                                const uchar *src, uint srclen)
+static size_t my_strnxfrm_ucs2_uca(CHARSET_INFO *cs, 
+                                   uchar *dst, size_t dstlen,
+                                   const uchar *src, size_t srclen)
 {
   return my_strnxfrm_uca(cs, &my_ucs2_uca_scanner_handler,
                          dst, dstlen, src, srclen);
@@ -8060,17 +8061,17 @@ static int my_strnxfrm_ucs2_uca(CHARSET_INFO *cs,
 
 MY_COLLATION_HANDLER my_collation_ucs2_uca_handler =
 {
-    my_coll_init_uca,	/* init */
-    my_strnncoll_ucs2_uca,
-    my_strnncollsp_ucs2_uca,
-    my_strnxfrm_ucs2_uca,
-    my_strnxfrmlen_simple,
-    my_like_range_ucs2,
-    my_wildcmp_uca,
-    NULL,
-    my_instr_mb,
-    my_hash_sort_ucs2_uca,
-    my_propagate_complex
+  my_coll_init_uca,	/* init */
+  my_strnncoll_ucs2_uca,
+  my_strnncollsp_ucs2_uca,
+  my_strnxfrm_ucs2_uca,
+  my_strnxfrmlen_simple,
+  my_like_range_ucs2,
+  my_wildcmp_uca,
+  NULL,
+  my_instr_mb,
+  my_hash_sort_ucs2_uca,
+  my_propagate_complex
 };
 
 CHARSET_INFO my_charset_ucs2_general_uca=

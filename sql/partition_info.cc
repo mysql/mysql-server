@@ -90,10 +90,11 @@ partition_info *partition_info::get_clone()
 
 #define MAX_PART_NAME_SIZE 8
 
-char *partition_info::create_default_partition_names(uint part_no, uint no_parts, 
+char *partition_info::create_default_partition_names(uint part_no,
+                                                     uint no_parts, 
                                                      uint start_no)
 {
-  char *ptr= sql_calloc(no_parts*MAX_PART_NAME_SIZE);
+  char *ptr= (char*) sql_calloc(no_parts*MAX_PART_NAME_SIZE);
   char *move_ptr= ptr;
   uint i= 0;
   DBUG_ENTER("create_default_partition_names");
@@ -129,7 +130,7 @@ char *partition_info::create_subpartition_name(uint subpart_no,
                                                const char *part_name)
 {
   uint size_alloc= strlen(part_name) + MAX_PART_NAME_SIZE;
-  char *ptr= sql_calloc(size_alloc);
+  char *ptr= (char*) sql_calloc(size_alloc);
   DBUG_ENTER("create_subpartition_name");
 
   if (likely(ptr != NULL))
@@ -902,7 +903,7 @@ void partition_info::print_no_partition_found(TABLE *table)
 bool partition_info::set_up_charset_field_preps()
 {
   Field *field, **ptr;
-  char **char_ptrs;
+  uchar **char_ptrs;
   unsigned i;
   bool found;
   size_t size;
@@ -927,14 +928,14 @@ bool partition_info::set_up_charset_field_preps()
       }
     }
     size= tot_part_fields * sizeof(char*);
-    if (!(char_ptrs= (char**)sql_calloc(size)))
+    if (!(char_ptrs= (uchar**)sql_calloc(size)))
       goto error;
     part_field_buffers= char_ptrs;
-    if (!(char_ptrs= (char**)sql_calloc(size)))
+    if (!(char_ptrs= (uchar**)sql_calloc(size)))
       goto error;
     restore_part_field_ptrs= char_ptrs;
     size= (tot_part_fields + 1) * sizeof(Field*);
-    if (!(char_ptrs= (char**)sql_alloc(size)))
+    if (!(char_ptrs= (uchar**)sql_alloc(size)))
       goto error;
     part_charset_field_array= (Field**)char_ptrs;
     ptr= part_field_array;
@@ -943,9 +944,9 @@ bool partition_info::set_up_charset_field_preps()
     {
       if (field_is_partition_charset(field))
       {
-        char *field_buf;
+        uchar *field_buf;
         size= field->pack_length();
-        if (!(field_buf= sql_calloc(size)))
+        if (!(field_buf= (uchar*) sql_calloc(size)))
           goto error;
         part_charset_field_array[i]= field;
         part_field_buffers[i++]= field_buf;
@@ -964,14 +965,14 @@ bool partition_info::set_up_charset_field_preps()
         tot_subpart_fields++;
     }
     size= tot_subpart_fields * sizeof(char*);
-    if (!(char_ptrs= (char**)sql_calloc(size)))
+    if (!(char_ptrs= (uchar**) sql_calloc(size)))
       goto error;
     subpart_field_buffers= char_ptrs;
-    if (!(char_ptrs= (char**)sql_calloc(size)))
+    if (!(char_ptrs= (uchar**) sql_calloc(size)))
       goto error;
     restore_subpart_field_ptrs= char_ptrs;
     size= (tot_subpart_fields + 1) * sizeof(Field*);
-    if (!(char_ptrs= (char**)sql_alloc(size)))
+    if (!(char_ptrs= (uchar**) sql_alloc(size)))
       goto error;
     subpart_charset_field_array= (Field**)char_ptrs;
     i= 0;
@@ -979,7 +980,7 @@ bool partition_info::set_up_charset_field_preps()
     {
       unsigned j= 0;
       CHARSET_INFO *cs;
-      char *field_buf;
+      uchar *field_buf;
       LINT_INIT(field_buf);
 
       if (!field_is_partition_charset(field))
@@ -995,12 +996,12 @@ bool partition_info::set_up_charset_field_preps()
       if (!found)
       {
         tot_fields++;
-        if (!(field_buf= sql_calloc(size)))
+        if (!(field_buf= (uchar*) sql_calloc(size)))
           goto error;
       }
       subpart_field_buffers[i++]= field_buf;
     }
-    if (!(char_ptrs= (char**)sql_calloc(size)))
+    if (!(char_ptrs= (uchar**) sql_calloc(size)))
       goto error;
     restore_subpart_field_ptrs= char_ptrs;
   }
@@ -1009,14 +1010,14 @@ bool partition_info::set_up_charset_field_preps()
     uint j,k,l;
 
     size= tot_fields*sizeof(char**);
-    if (!(char_ptrs= (char**)sql_calloc(size)))
+    if (!(char_ptrs= (uchar**)sql_calloc(size)))
       goto error;
     full_part_field_buffers= char_ptrs;
-    if (!(char_ptrs= (char**)sql_calloc(size)))
+    if (!(char_ptrs= (uchar**)sql_calloc(size)))
       goto error;
     restore_full_part_field_ptrs= char_ptrs;
     size= (tot_fields + 1) * sizeof(char**);
-    if (!(char_ptrs= (char**)sql_calloc(size)))
+    if (!(char_ptrs= (uchar**)sql_calloc(size)))
       goto error;
     full_part_charset_field_array= (Field**)char_ptrs;
     for (i= 0; i < tot_part_fields; i++)

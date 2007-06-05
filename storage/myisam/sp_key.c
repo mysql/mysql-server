@@ -31,25 +31,25 @@ static int sp_get_geometry_mbr(uchar *(*wkb), uchar *end, uint n_dims,
                               double *mbr, int top);
 static int sp_mbr_from_wkb(uchar (*wkb), uint size, uint n_dims, double *mbr);
 
-static void get_double(double *d, const byte *pos)
+static void get_double(double *d, const uchar *pos)
 {
   float8get(*d, pos);
 }
   
 uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
-		 const byte *record, my_off_t filepos)
+		 const uchar *record, my_off_t filepos)
 {
   HA_KEYSEG *keyseg;
   MI_KEYDEF *keyinfo = &info->s->keyinfo[keynr];
   uint len = 0;
-  byte *pos;
+  uchar *pos;
   uint dlen;
   uchar *dptr;
   double mbr[SPDIMS * 2];
   uint i;
   
   keyseg = &keyinfo->seg[-1];
-  pos = (byte*)record + keyseg->start;
+  pos = (uchar*)record + keyseg->start;
   
   dlen = _mi_calc_blob_length(keyseg->bit_start, pos);
   memcpy_fixed(&dptr, pos + keyseg->bit_start, sizeof(char*));
@@ -64,7 +64,7 @@ uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
   {
     uint length = keyseg->length;
     
-    pos = ((byte*)mbr) + keyseg->start;
+    pos = ((uchar*)mbr) + keyseg->start;
     if (keyseg->flag & HA_SWAP_KEY)
     {
 #ifdef HAVE_ISNAN
@@ -100,7 +100,7 @@ uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
     }
     else
     {
-      memcpy((byte*)key, pos, length);
+      memcpy((uchar*)key, pos, length);
       key += keyseg->length;
     }
     len += keyseg->length;
@@ -141,7 +141,7 @@ static int sp_add_point_to_mbr(uchar *(*wkb), uchar *end, uint n_dims,
   {
     if ((*wkb) > end - 8)
       return -1;
-    get_double(&ord, (const byte*) *wkb);
+    get_double(&ord, (const uchar*) *wkb);
     (*wkb)+= 8;
     if (ord < *mbr)
       float8store((char*) mbr, ord);

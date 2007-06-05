@@ -220,7 +220,7 @@ static uint16 big5strokexfrm(uint16 i)
 
 
 static int my_strnncoll_big5_internal(const uchar **a_res,
-				      const uchar **b_res, uint length)
+				      const uchar **b_res, size_t length)
 {
   const uchar *a= *a_res, *b= *b_res;
 
@@ -249,11 +249,11 @@ static int my_strnncoll_big5_internal(const uchar **a_res,
 /* Compare strings */
 
 static int my_strnncoll_big5(CHARSET_INFO *cs __attribute__((unused)), 
-			     const uchar *a, uint a_length,
-                             const uchar *b, uint b_length,
+			     const uchar *a, size_t a_length,
+                             const uchar *b, size_t b_length,
                              my_bool b_is_prefix)
 {
-  uint length= min(a_length, b_length);
+  size_t length= min(a_length, b_length);
   int res= my_strnncoll_big5_internal(&a, &b, length);
   return res ? res : (int)((b_is_prefix ? length : a_length) - b_length);
 }
@@ -262,11 +262,11 @@ static int my_strnncoll_big5(CHARSET_INFO *cs __attribute__((unused)),
 /* compare strings, ignore end space */
 
 static int my_strnncollsp_big5(CHARSET_INFO * cs __attribute__((unused)), 
-			       const uchar *a, uint a_length, 
-			       const uchar *b, uint b_length,
+			       const uchar *a, size_t a_length, 
+			       const uchar *b, size_t b_length,
                                my_bool diff_if_only_endspace_difference)
 {
-  uint length= min(a_length, b_length);
+  size_t length= min(a_length, b_length);
   int res= my_strnncoll_big5_internal(&a, &b, length);
 
 #ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
@@ -301,12 +301,12 @@ static int my_strnncollsp_big5(CHARSET_INFO * cs __attribute__((unused)),
 }
 
 
-static int my_strnxfrm_big5(CHARSET_INFO *cs __attribute__((unused)),
-                     uchar * dest, uint len, 
-                     const uchar * src, uint srclen)
+static size_t my_strnxfrm_big5(CHARSET_INFO *cs __attribute__((unused)),
+                               uchar *dest, size_t len, 
+                               const uchar *src, size_t srclen)
 {
   uint16 e;
-  uint dstlen= len;
+  size_t dstlen= len;
 
   len = srclen;
   while (len--)
@@ -327,7 +327,7 @@ static int my_strnxfrm_big5(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 #if 0
-static int my_strcoll_big5(const uchar * s1, const uchar * s2)
+static int my_strcoll_big5(const uchar *s1, const uchar *s2)
 {
 
   while (*s1 && *s2)
@@ -346,7 +346,7 @@ static int my_strcoll_big5(const uchar * s1, const uchar * s2)
   return 0;
 }
 
-static int my_strxfrm_big5(uchar * dest, const uchar * src, int len)
+static int my_strxfrm_big5(uchar *dest, const uchar *src, int len)
 {
   uint16 e;
   uchar *d = dest;
@@ -395,15 +395,16 @@ static int my_strxfrm_big5(uchar * dest, const uchar * src, int len)
 #define max_sort_char ((char) 255)
 
 static my_bool my_like_range_big5(CHARSET_INFO *cs __attribute__((unused)),
-				  const char *ptr,uint ptr_length,
+				  const char *ptr,size_t ptr_length,
 				  pbool escape, pbool w_one, pbool w_many,
-				  uint res_length, char *min_str,char *max_str,
-				  uint *min_length,uint *max_length)
+				  size_t res_length,
+                                  char *min_str, char *max_str,
+				  size_t *min_length, size_t *max_length)
 {
   const char *end= ptr + ptr_length;
   char *min_org=min_str;
   char *min_end=min_str+res_length;
-  uint charlen= res_length / cs->mbmaxlen;
+  size_t charlen= res_length / cs->mbmaxlen;
 
   for (; ptr != end && min_str != min_end && charlen > 0; ptr++, charlen--)
   {
@@ -435,7 +436,7 @@ static my_bool my_like_range_big5(CHARSET_INFO *cs __attribute__((unused)),
         'a\0\0... is the smallest possible string when we have space expand
         a\ff\ff... is the biggest possible string
       */
-      *min_length= ((cs->state & MY_CS_BINSORT) ? (uint) (min_str - min_org) :
+      *min_length= ((cs->state & MY_CS_BINSORT) ? (size_t) (min_str - min_org) :
                     res_length);
       *max_length= res_length;
       do {
@@ -447,21 +448,21 @@ static my_bool my_like_range_big5(CHARSET_INFO *cs __attribute__((unused)),
     *min_str++= *max_str++ = *ptr;
   }
 
- *min_length= *max_length= (uint) (min_str-min_org);
+ *min_length= *max_length= (size_t) (min_str-min_org);
   while (min_str != min_end)
     *min_str++= *max_str++= ' ';
   return 0;
 }
 
 
-static int ismbchar_big5(CHARSET_INFO *cs __attribute__((unused)),
-                  const char* p, const char *e)
+static uint ismbchar_big5(CHARSET_INFO *cs __attribute__((unused)),
+                         const char* p, const char *e)
 {
   return (isbig5head(*(p)) && (e)-(p)>1 && isbig5tail(*((p)+1))? 2: 0);
 }
 
 
-static int mbcharlen_big5(CHARSET_INFO *cs __attribute__((unused)), uint c)
+static uint mbcharlen_big5(CHARSET_INFO *cs __attribute__((unused)), uint c)
 {
   return (isbig5head(c)? 2 : 1);
 }
@@ -6239,7 +6240,7 @@ static int func_uni_big5_onechar(int code){
 
 static int
 my_wc_mb_big5(CHARSET_INFO *cs __attribute__((unused)),
-	      my_wc_t wc, unsigned char *s, unsigned char *e)
+	      my_wc_t wc, uchar *s, uchar *e)
 {
 
   int code;
@@ -6297,9 +6298,9 @@ my_mb_wc_big5(CHARSET_INFO *cs __attribute__((unused)),
   CP950 and HKSCS additional characters are also accepted.
 */
 static
-uint my_well_formed_len_big5(CHARSET_INFO *cs __attribute__((unused)),
-                             const char *b, const char *e,
-                             uint pos, int *error)
+size_t my_well_formed_len_big5(CHARSET_INFO *cs __attribute__((unused)),
+                               const char *b, const char *e,
+                               size_t pos, int *error)
 {
   const char *b0= b;
   const char *emb= e - 1; /* Last possible end of an MB character */
@@ -6324,7 +6325,7 @@ uint my_well_formed_len_big5(CHARSET_INFO *cs __attribute__((unused)),
       break;
     }
   }
-  return (uint) (b - b0);
+  return (size_t) (b - b0);
 }
 
 

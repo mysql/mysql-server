@@ -33,9 +33,9 @@ static void write_eof_packet(THD *thd, NET *net);
 #endif
 
 #ifndef EMBEDDED_LIBRARY
-bool Protocol::net_store_data(const char *from, uint length)
+bool Protocol::net_store_data(const uchar *from, size_t length)
 #else
-bool Protocol_binary::net_store_data(const char *from, uint length)
+bool Protocol_binary::net_store_data(const uchar *from, size_t length)
 #endif
 {
   ulong packet_length=packet->length();
@@ -46,10 +46,9 @@ bool Protocol_binary::net_store_data(const char *from, uint length)
   if (packet_length+9+length > packet->alloced_length() &&
       packet->realloc(packet_length+9+length))
     return 1;
-  char *to=(char*) net_store_length((char*) packet->ptr()+packet_length,
-				    length);
+  uchar *to= net_store_length((uchar*) packet->ptr()+packet_length, length);
   memcpy(to,from,length);
-  packet->length((uint) (to+length-packet->ptr()));
+  packet->length((uint) (to+length-(uchar*) packet->ptr()));
   return 0;
 }
 
@@ -227,7 +226,7 @@ net_printf_error(THD *thd, uint errcode, ...)
       memcpy(pos+3, mysql_errno_to_sqlstate(errcode), SQLSTATE_LENGTH);
     }
   }
-  VOID(net_real_write(net,(char*) net->buff,length+head_length+1+offset));
+  VOID(net_real_write(net, net->buff, length+head_length+1+offset));
 #else
   net->last_errno= errcode;
   strmake(net->last_error, text_pos, length);
@@ -271,7 +270,7 @@ void
 send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
 {
   NET *net= &thd->net;
-  char buff[MYSQL_ERRMSG_SIZE+10],*pos;
+  uchar buff[MYSQL_ERRMSG_SIZE+10],*pos;
   DBUG_ENTER("send_ok");
 
   if (net->no_send_ok || !net->vio)	// hack for re-parsing queries
@@ -307,8 +306,8 @@ send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
     pos+=2;
   }
   if (message)
-    pos=net_store_data((char*) pos, message, strlen(message));
-  VOID(my_net_write(net,buff,(uint) (pos-buff)));
+    pos= net_store_data(pos, (uchar*) message, strlen(message));
+  VOID(my_net_write(net, buff, (size_t) (pos-buff)));
   VOID(net_flush(net));
   /* We can't anymore send an error to the client */
   thd->net.report_error= 0;
@@ -318,7 +317,7 @@ send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
   DBUG_VOID_RETURN;
 }
 
-static char eof_buff[1]= { (char) 254 };        /* Marker for end of fields */
+static uchar eof_buff[1]= { (uchar) 254 };      /* Marker for end of fields */
 
 /*
   Send eof (= end of result set) to the client
@@ -383,7 +382,7 @@ static void write_eof_packet(THD *thd, NET *net)
     if (thd->is_fatal_error)
       thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
     int2store(buff+3, thd->server_status);
-    VOID(my_net_write(net, (char*) buff, 5));
+    VOID(my_net_write(net, buff, 5));
   }
   else
     VOID(my_net_write(net, eof_buff, 1));
@@ -411,7 +410,7 @@ void net_send_error_packet(THD *thd, uint sql_errno, const char *err)
 {
   NET *net= &thd->net;
   uint length;
-  char buff[MYSQL_ERRMSG_SIZE+2], *pos;
+  uchar buff[MYSQL_ERRMSG_SIZE+2], *pos;
 
   DBUG_ENTER("send_error_packet");
 
@@ -433,17 +432,19 @@ void net_send_error_packet(THD *thd, uint sql_errno, const char *err)
     {
       /* The first # is to make the protocol backward compatible */
       buff[2]= '#';
-      pos= strmov(buff+3, mysql_errno_to_sqlstate(sql_errno));
+      pos= (uchar*) strmov((char*) buff+3, mysql_errno_to_sqlstate(sql_errno));
     }
-    length= (uint) (strmake(pos, err, MYSQL_ERRMSG_SIZE-1) - buff);
-    err=buff;
+    length= (uint) (strmake((char*) pos, err, MYSQL_ERRMSG_SIZE-1) -
+                    (char*) buff);
+    err= (char*) buff;
   }
   else
   {
     length=(uint) strlen(err);
     set_if_smaller(length,MYSQL_ERRMSG_SIZE-1);
   }
-  VOID(net_write_command(net,(uchar) 255, "", 0, (char*) err,length));
+  VOID(net_write_command(net,(uchar) 255, (uchar*) "", 0, (uchar*) err,
+                         length));
   DBUG_VOID_RETURN;
 }
 
@@ -459,17 +460,16 @@ void net_send_error_packet(THD *thd, uint sql_errno, const char *err)
   ulonglong for bigger numbers.
 */
 
-static char *net_store_length_fast(char *pkg, uint length)
+static uchar *net_store_length_fast(uchar *packet, uint length)
 {
-  uchar *packet=(uchar*) pkg;
   if (length < 251)
   {
     *packet=(uchar) length;
-    return (char*) packet+1;
+    return packet+1;
   }
   *packet++=252;
   int2store(packet,(uint) length);
-  return (char*) packet+2;
+  return packet+2;
 }
 
 
@@ -480,14 +480,14 @@ static char *net_store_length_fast(char *pkg, uint length)
 
 /* The following will only be used for short strings < 65K */
 
-char *net_store_data(char *to,const char *from, uint length)
+uchar *net_store_data(uchar *to, const uchar *from, size_t length)
 {
   to=net_store_length_fast(to,length);
   memcpy(to,from,length);
   return to+length;
 }
 
-char *net_store_data(char *to,int32 from)
+uchar *net_store_data(uchar *to,int32 from)
 {
   char buff[20];
   uint length=(uint) (int10_to_str(from,buff,10)-buff);
@@ -496,7 +496,7 @@ char *net_store_data(char *to,int32 from)
   return to+length;
 }
 
-char *net_store_data(char *to,longlong from)
+uchar *net_store_data(uchar *to,longlong from)
 {
   char buff[22];
   uint length=(uint) (longlong10_to_str(from,buff,10)-buff);
@@ -555,7 +555,7 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
 {
   List_iterator_fast<Item> it(*list);
   Item *item;
-  char buff[80];
+  uchar buff[80];
   String tmp((char*) buff,sizeof(buff),&my_charset_bin);
   Protocol_text prot(thd);
   String *local_packet= prot.storage_packet();
@@ -564,8 +564,8 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
 
   if (flags & SEND_NUM_ROWS)
   {				// Packet with number of elements
-    char *pos=net_store_length(buff, list->elements);
-    (void) my_net_write(&thd->net, buff,(uint) (pos-buff));
+    uchar *pos= net_store_length(buff, list->elements);
+    (void) my_net_write(&thd->net, buff, (size_t) (pos-buff));
   }
 
 #ifndef DBUG_OFF
@@ -698,7 +698,8 @@ err:
 bool Protocol::write()
 {
   DBUG_ENTER("Protocol::write");
-  DBUG_RETURN(my_net_write(&thd->net, packet->ptr(), packet->length()));
+  DBUG_RETURN(my_net_write(&thd->net, (uchar*) packet->ptr(),
+                           packet->length()));
 }
 #endif /* EMBEDDED_LIBRARY */
 
@@ -785,7 +786,7 @@ bool Protocol_text::store_null()
   and store in network buffer.
 */
 
-bool Protocol::store_string_aux(const char *from, uint length,
+bool Protocol::store_string_aux(const char *from, size_t length,
                                 CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
 {
   /* 'tocs' is set 0 when client issues SET character_set_results=NULL */
@@ -794,15 +795,15 @@ bool Protocol::store_string_aux(const char *from, uint length,
       tocs != &my_charset_bin)
   {
     uint dummy_errors;
-    return convert->copy(from, length, fromcs, tocs, &dummy_errors) ||
-           net_store_data(convert->ptr(), convert->length());
+    return (convert->copy(from, length, fromcs, tocs, &dummy_errors) ||
+            net_store_data((uchar*) convert->ptr(), convert->length()));
   }
-  return net_store_data(from, length);
+  return net_store_data((uchar*) from, length);
 }
 
 
-bool Protocol_text::store(const char *from, uint length,
-			    CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
+bool Protocol_text::store(const char *from, size_t length,
+                          CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -817,7 +818,7 @@ bool Protocol_text::store(const char *from, uint length,
 }
 
 
-bool Protocol_text::store(const char *from, uint length,
+bool Protocol_text::store(const char *from, size_t length,
                           CHARSET_INFO *fromcs)
 {
   CHARSET_INFO *tocs= this->thd->variables.character_set_results;
@@ -841,8 +842,8 @@ bool Protocol_text::store_tiny(longlong from)
   field_pos++;
 #endif
   char buff[20];
-  return net_store_data((char*) buff,
-			(uint) (int10_to_str((int) from,buff, -10)-buff));
+  return net_store_data((uchar*) buff,
+			(size_t) (int10_to_str((int) from, buff, -10) - buff));
 }
 
 
@@ -855,8 +856,9 @@ bool Protocol_text::store_short(longlong from)
   field_pos++;
 #endif
   char buff[20];
-  return net_store_data((char*) buff,
-			(uint) (int10_to_str((int) from,buff, -10)-buff));
+  return net_store_data((uchar*) buff,
+			(size_t) (int10_to_str((int) from, buff, -10) -
+                                  buff));
 }
 
 
@@ -869,8 +871,9 @@ bool Protocol_text::store_long(longlong from)
   field_pos++;
 #endif
   char buff[20];
-  return net_store_data((char*) buff,
-			(uint) (int10_to_str((long int)from,buff, (from <0)?-10:10)-buff));
+  return net_store_data((uchar*) buff,
+			(size_t) (int10_to_str((long int)from, buff,
+                                               (from <0)?-10:10)-buff));
 }
 
 
@@ -882,10 +885,10 @@ bool Protocol_text::store_longlong(longlong from, bool unsigned_flag)
   field_pos++;
 #endif
   char buff[22];
-  return net_store_data((char*) buff,
-			(uint) (longlong10_to_str(from,buff,
-						  unsigned_flag ? 10 : -10)-
-				buff));
+  return net_store_data((uchar*) buff,
+			(size_t) (longlong10_to_str(from,buff,
+                                                    unsigned_flag ? 10 : -10)-
+                                  buff));
 }
 
 
@@ -899,7 +902,7 @@ bool Protocol_text::store_decimal(const my_decimal *d)
   char buff[DECIMAL_MAX_STR_LENGTH];
   String str(buff, sizeof(buff), &my_charset_bin);
   (void) my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str);
-  return net_store_data(str.ptr(), str.length());
+  return net_store_data((uchar*) str.ptr(), str.length());
 }
 
 
@@ -911,7 +914,7 @@ bool Protocol_text::store(float from, uint32 decimals, String *buffer)
   field_pos++;
 #endif
   buffer->set_real((double) from, decimals, thd->charset());
-  return net_store_data((char*) buffer->ptr(), buffer->length());
+  return net_store_data((uchar*) buffer->ptr(), buffer->length());
 }
 
 
@@ -923,7 +926,7 @@ bool Protocol_text::store(double from, uint32 decimals, String *buffer)
   field_pos++;
 #endif
   buffer->set_real(from, decimals, thd->charset());
-  return net_store_data((char*) buffer->ptr(), buffer->length());
+  return net_store_data((uchar*) buffer->ptr(), buffer->length());
 }
 
 
@@ -979,8 +982,9 @@ bool Protocol_text::store(MYSQL_TIME *tm)
 			   (int) tm->minute,
 			   (int) tm->second));
   if (tm->second_part)
-    length+= my_sprintf(buff+length,(buff+length, ".%06d", (int)tm->second_part));
-  return net_store_data((char*) buff, length);
+    length+= my_sprintf(buff+length,(buff+length, ".%06d",
+                                     (int)tm->second_part));
+  return net_store_data((uchar*) buff, length);
 }
 
 
@@ -992,8 +996,8 @@ bool Protocol_text::store_date(MYSQL_TIME *tm)
   field_pos++;
 #endif
   char buff[MAX_DATE_STRING_REP_LENGTH];
-  int length= my_date_to_str(tm, buff);
-  return net_store_data(buff, (uint) length);
+  size_t length= my_date_to_str(tm, buff);
+  return net_store_data((uchar*) buff, length);
 }
 
 
@@ -1020,7 +1024,7 @@ bool Protocol_text::store_time(MYSQL_TIME *tm)
 			   (int) tm->second));
   if (tm->second_part)
     length+= my_sprintf(buff+length,(buff+length, ".%06d", (int)tm->second_part));
-  return net_store_data((char*) buff, length);
+  return net_store_data((uchar*) buff, length);
 }
 
 
@@ -1057,12 +1061,12 @@ bool Protocol_binary::prepare_for_send(List<Item> *item_list)
 void Protocol_binary::prepare_for_resend()
 {
   packet->length(bit_fields+1);
-  bzero((char*) packet->ptr(), 1+bit_fields);
+  bzero((uchar*) packet->ptr(), 1+bit_fields);
   field_pos=0;
 }
 
 
-bool Protocol_binary::store(const char *from, uint length,
+bool Protocol_binary::store(const char *from, size_t length,
                             CHARSET_INFO *fromcs)
 {
   CHARSET_INFO *tocs= thd->variables.character_set_results;
@@ -1070,7 +1074,7 @@ bool Protocol_binary::store(const char *from, uint length,
   return store_string_aux(from, length, fromcs, tocs);
 }
 
-bool Protocol_binary::store(const char *from,uint length,
+bool Protocol_binary::store(const char *from, size_t length,
                             CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
 {
   field_pos++;

@@ -81,7 +81,7 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
     /* Read the next block of index file into the preload buffer */
     if ((my_off_t) length > (key_file_length-pos))
       length= (ulong) (key_file_length-pos);
-    if (my_pread(share->kfile, (byte*) buff, length, pos, MYF(MY_FAE|MY_FNABP)))
+    if (my_pread(share->kfile, (uchar*) buff, length, pos, MYF(MY_FAE|MY_FNABP)))
       goto err;
 
     if (ignore_leaves)
@@ -93,7 +93,7 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
         {
           if (key_cache_insert(share->key_cache,
                                share->kfile, pos, DFLT_INIT_HITS,
-                              (byte*) buff, block_length))
+                              (uchar*) buff, block_length))
 	    goto err;
 	}
         pos+= block_length;
@@ -105,7 +105,7 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
     {
       if (key_cache_insert(share->key_cache,
                            share->kfile, pos, DFLT_INIT_HITS,
-                           (byte*) buff, length))
+                           (uchar*) buff, length))
 	goto err;
       pos+= length;
     }

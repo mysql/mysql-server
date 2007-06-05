@@ -118,7 +118,7 @@ pthread_handler_t handle_manager(void *arg __attribute__((unused)))
     {
       struct handler_cb *next= cb->next;
       cb->action();
-      my_free((gptr)cb, MYF(0));
+      my_free((uchar*)cb, MYF(0));
       cb= next;
     }
 

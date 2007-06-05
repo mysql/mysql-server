@@ -111,8 +111,7 @@ private:
 
   enum enum_state
   {
-    UNINITIALIZED = 0,
-    INITIALIZED,
+    INITIALIZED = 0,
     RUNNING,
     STOPPING
   };

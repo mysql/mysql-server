@@ -688,7 +688,7 @@ struct st_my_thread_var
   struct st_my_thread_var *next,**prev;
   void *opt_info;
 #ifndef DBUG_OFF
-  gptr dbug;
+  void *dbug;
   char name[THREAD_NAME_SIZE+1];
 #endif
 };
@@ -710,33 +710,68 @@ extern uint my_thread_end_wait_time;
 
 extern uint thd_lib_detected;
 
-	/* statistics_xxx functions are for not essential statistic */
+/*
+  thread_safe_xxx functions are for critical statistic or counters.
+  The implementation is guaranteed to be thread safe, on all platforms.
+  Note that the calling code should *not* assume the counter is protected
+  by the mutex given, as the implementation of these helpers may change
+  to use my_atomic operations instead.
+*/
 
+/*
+  Warning:
+  When compiling without threads, this file is not included.
+  See the *other* declarations of thread_safe_xxx in include/my_global.h
+
+  Second warning:
+  See include/config-win.h, for yet another implementation.
+*/
+#ifdef THREAD
 #ifndef thread_safe_increment
-#ifdef HAVE_ATOMIC_ADD
-#define thread_safe_increment(V,L) atomic_inc((atomic_t*) &V)
-#define thread_safe_decrement(V,L) atomic_dec((atomic_t*) &V)
-#define thread_safe_add(V,C,L)     atomic_add((C),(atomic_t*) &V)
-#define thread_safe_sub(V,C,L)     atomic_sub((C),(atomic_t*) &V)
-#else
 #define thread_safe_increment(V,L) \
         (pthread_mutex_lock((L)), (V)++, pthread_mutex_unlock((L)))
 #define thread_safe_decrement(V,L) \
         (pthread_mutex_lock((L)), (V)--, pthread_mutex_unlock((L)))
-#define thread_safe_add(V,C,L) (pthread_mutex_lock((L)), (V)+=(C), pthread_mutex_unlock((L)))
+#endif
+
+#ifndef thread_safe_add
+#define thread_safe_add(V,C,L) \
+        (pthread_mutex_lock((L)), (V)+=(C), pthread_mutex_unlock((L)))
 #define thread_safe_sub(V,C,L) \
         (pthread_mutex_lock((L)), (V)-=(C), pthread_mutex_unlock((L)))
-#endif /* HAVE_ATOMIC_ADD */
+#endif
+#endif
+
+/*
+  statistics_xxx functions are for non critical statistic,
+  maintained in global variables.
+  When compiling with SAFE_STATISTICS:
+  - race conditions can not occur.
+  - some locking occurs, which may cause performance degradation.
+
+  When compiling without SAFE_STATISTICS:
+  - race conditions can occur, making the result slightly inaccurate.
+  - the lock given is not honored.
+*/
 #ifdef SAFE_STATISTICS
-#define statistic_increment(V,L)   thread_safe_increment((V),(L))
-#define statistic_decrement(V,L)   thread_safe_decrement((V),(L))
-#define statistic_add(V,C,L)       thread_safe_add((V),(C),(L))
+#define statistic_increment(V,L) thread_safe_increment((V),(L))
+#define statistic_decrement(V,L) thread_safe_decrement((V),(L))
+#define statistic_add(V,C,L)     thread_safe_add((V),(C),(L))
+#define statistic_sub(V,C,L)     thread_safe_sub((V),(C),(L))
 #else
 #define statistic_decrement(V,L) (V)--
 #define statistic_increment(V,L) (V)++
 #define statistic_add(V,C,L)     (V)+=(C)
+#define statistic_sub(V,C,L)     (V)-=(C)
 #endif /* SAFE_STATISTICS */
-#endif /* thread_safe_increment */
+
+/*
+  No locking needed, the counter is owned by the thread
+*/
+#define status_var_increment(V) (V)++
+#define status_var_decrement(V) (V)--
+#define status_var_add(V,C)     (V)+=(C)
+#define status_var_sub(V,C)     (V)-=(C)
 
 #ifdef  __cplusplus
 }
