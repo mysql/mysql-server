@@ -334,7 +334,8 @@ protected:
    * Refresh Watch Dog in initialising code
    *
    */
-  void refresh_watch_dog();
+  void refresh_watch_dog(Uint32 place = 1);
+  void update_watch_dog_timer(Uint32 interval);
 
   /**
    * Prog error
