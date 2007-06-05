@@ -1127,7 +1127,10 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
   keys_onoff(rhs.keys_onoff),
   tablespace_op(rhs.tablespace_op),
   partition_names(rhs.partition_names, mem_root),
-  no_parts(rhs.no_parts)
+  no_parts(rhs.no_parts),
+  change_level(rhs.change_level),
+  datetime_field(rhs.datetime_field),
+  error_if_not_empty(rhs.error_if_not_empty)
 {
   /*
     Make deep copies of used objects.

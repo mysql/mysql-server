@@ -1796,6 +1796,17 @@ sub environment_setup () {
 				  split(':', $ENV{'DYLD_LIBRARY_PATH'}) : ());
   mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
 
+  # The environment variable used for shared libs on AIX
+  $ENV{'SHLIB_PATH'}= join(":", @ld_library_paths,
+                           $ENV{'SHLIB_PATH'} ?
+                           split(':', $ENV{'SHLIB_PATH'}) : ());
+  mtr_debug("SHLIB_PATH: $ENV{'SHLIB_PATH'}");
+
+  # The environment variable used for shared libs on hp-ux
+  $ENV{'LIBPATH'}= join(":", @ld_library_paths,
+                        $ENV{'LIBPATH'} ?
+                        split(':', $ENV{'LIBPATH'}) : ());
+  mtr_debug("LIBPATH: $ENV{'LIBPATH'}");
 
   # --------------------------------------------------------------------------
   # Also command lines in .opt files may contain env vars
