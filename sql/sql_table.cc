@@ -1161,6 +1161,31 @@ void release_ddl_log()
 */
 
 
+/**
+   @brief construct a temporary shadow file name.
+
+   @details Make a shadow file name used by ALTER TABLE to construct the
+   modified table (with keeping the original). The modified table is then
+   moved back as original table. The name must start with the temp file
+   prefix so it gets filtered out by table files listing routines. 
+    
+   @param[out] buff      buffer to receive the constructed name
+   @param      bufflen   size of buff
+   @param      lpt       alter table data structure
+
+   @retval     path length
+*/
+
+uint build_table_shadow_filename(char *buff, size_t bufflen, 
+                                 ALTER_PARTITION_PARAM_TYPE *lpt)
+{
+  char tmp_name[FN_REFLEN];
+  my_snprintf (tmp_name, sizeof (tmp_name), "%s-%s", tmp_file_prefix,
+               lpt->table_name);
+  return build_table_filename(buff, bufflen, lpt->db, tmp_name, "", FN_IS_TMP);
+}
+
+
 /*
   SYNOPSIS
     mysql_write_frm()
@@ -1201,8 +1226,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   /*
     Build shadow frm file name
   */
-  build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
-                       lpt->table_name, "#", 0);
+  build_table_shadow_filename(shadow_path, sizeof(shadow_path), lpt);
   strxmov(shadow_frm_name, shadow_path, reg_ext, NullS);
   if (flags & WFRM_WRITE_SHADOW)
   {
