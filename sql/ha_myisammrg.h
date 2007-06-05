@@ -81,4 +81,5 @@ class ha_myisammrg: public handler
   void update_create_info(HA_CREATE_INFO *create_info);
   void append_create_info(String *packet);
   MYRG_INFO *myrg_info() { return file; }
+  int check(THD* thd, HA_CHECK_OPT* check_opt);
 };
