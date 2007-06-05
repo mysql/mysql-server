@@ -48,7 +48,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   uint length,max_key_length,packed,pack_bytes,pointer,real_length_diff,
        key_length,info_length,key_segs,options,min_key_length_skip,
        base_pos,long_varchar_count,varchar_length,
-       unique_key_parts,fulltext_keys,offset;
+       unique_key_parts,fulltext_keys,offset, not_block_record_extra_length;
   uint max_field_lengths, extra_header_size;
   ulong reclength, real_reclength,min_pack_length;
   char filename[FN_REFLEN],linkname[FN_REFLEN], *linkname_ptr;
@@ -65,6 +65,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   my_off_t key_root[HA_MAX_POSSIBLE_KEY];
   MARIA_CREATE_INFO tmp_create_info;
   my_bool tmp_table= FALSE; /* cache for presence of HA_OPTION_TMP_TABLE */
+  my_bool forced_packed;
   myf     sync_dir=  MY_SYNC_DIR;
   DBUG_ENTER("maria_create");
   DBUG_PRINT("enter", ("keys: %u  columns: %u  uniques: %u  flags: %u",
@@ -114,9 +115,10 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 
 	/* Start by checking fields and field-types used */
 
-  varchar_length=long_varchar_count=packed=
+  varchar_length=long_varchar_count=packed= not_block_record_extra_length=
     pack_reclength= max_field_lengths= 0;
   reclength= min_pack_length= ci->null_bytes;
+  forced_packed= 0;
 
   for (column= columndef, end_column= column + columns ;
        column != end_column ;
@@ -139,6 +141,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       column->empty_bit= (1 << (packed & 7));
       if (type == FIELD_BLOB)
       {
+        forced_packed= 1;
         packed++;
 	share.base.blobs++;
 	if (pack_reclength != INT_MAX32)
@@ -157,17 +160,16 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       else if (type == FIELD_SKIP_PRESPACE ||
 	       type == FIELD_SKIP_ENDSPACE)
       {
+        forced_packed= 1;
         max_field_lengths+= column->length > 255 ? 2 : 1;
-        if (datafile_type != BLOCK_RECORD)
-          min_pack_length++;
+        not_block_record_extra_length++;
         packed++;
       }
       else if (type == FIELD_VARCHAR)
       {
 	varchar_length+= column->length-1; /* Used for min_pack_length */
 	pack_reclength++;
-        if (datafile_type != BLOCK_RECORD)
-          min_pack_length++;
+        not_block_record_extra_length++;
         max_field_lengths++;
         packed++;
         column->fill_length= 1;
@@ -183,23 +185,47 @@ int maria_create(const char *name, enum data_file_type datafile_type,
         packed++;
       else
       {
-        if (datafile_type != BLOCK_RECORD || !column->null_bit)
+        if (!column->null_bit)
           min_pack_length+= column->length;
+        else
+          not_block_record_extra_length+= column->length;
         column->empty_pos= 0;
         column->empty_bit= 0;
       }
     }
     else					/* FIELD_NORMAL */
     {
-      if (datafile_type != BLOCK_RECORD || !column->null_bit)
-        min_pack_length+= column->length;
       if (!column->null_bit)
       {
+        min_pack_length+= column->length;
         share.base.fixed_not_null_fields++;
         share.base.fixed_not_null_fields_length+= column->length;
       }
+      else
+        not_block_record_extra_length+= column->length;
     }
   }
+
+  if (datafile_type == STATIC_RECORD && forced_packed)
+  {
+    /* Can't use fixed length records, revert to block records */
+    datafile_type= BLOCK_RECORD;
+  }
+
+  if (datafile_type == DYNAMIC_RECORD)
+    options|= HA_OPTION_PACK_RECORD;	/* Must use packed records */
+
+  if (datafile_type == STATIC_RECORD)
+  {
+    /* We can't use checksum with static length rows */
+    flags&= ~HA_CREATE_CHECKSUM;
+    options&= ~HA_OPTION_CHECKSUM;
+    min_pack_length+= varchar_length;
+    packed= 0;
+  }
+  if (datafile_type != BLOCK_RECORD)
+    min_pack_length+= not_block_record_extra_length;
+
   if ((packed & 7) == 1)
   {
     /*
@@ -229,18 +255,6 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   if (pack_reclength != INT_MAX32)
     pack_reclength+= max_field_lengths + long_varchar_count;
 
-  if (packed && datafile_type == STATIC_RECORD)
-    datafile_type= BLOCK_RECORD;
-  if (datafile_type == DYNAMIC_RECORD)
-    options|= HA_OPTION_PACK_RECORD;	/* Must use packed records */
-
-  if (datafile_type == STATIC_RECORD)
-  {
-    /* We can't use checksum with static length rows */
-    flags&= ~HA_CREATE_CHECKSUM;
-    options&= ~HA_OPTION_CHECKSUM;
-    min_pack_length+= varchar_length;
-  }
   if (flags & HA_CREATE_TMP_TABLE)
   {
     options|= HA_OPTION_TMP_TABLE;

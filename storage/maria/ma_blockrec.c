@@ -568,7 +568,10 @@ void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn)
   DBUG_PRINT("info", ("undo_lsn: %lu", (ulong) undo_lsn));
 
   /* True if not disk error */
-  DBUG_ASSERT(undo_lsn != 0 || info->s->base.transactional == 0);
+  DBUG_ASSERT(undo_lsn != 0 || !info->s->base.transactional);
+
+  if (!info->s->base.transactional)
+    undo_lsn= 0;                       /* Avoid assert in key cache */
 
   while (pinned_page-- != page_link)
     pagecache_unlock_by_link(info->s->pagecache, pinned_page->link,
@@ -2624,6 +2627,7 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const byte *record)
   if (info->cur_row.extents && free_full_pages(info, &info->cur_row))
     goto err;
 
+  if (info->s->base.transactional)
   {
     uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE +
                    DIR_COUNT_SIZE];

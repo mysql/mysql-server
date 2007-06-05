@@ -253,7 +253,13 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond,
   /* Nothing in the pool ? Allocate a new one */
   if (!trn)
   {
-    trn= (TRN *)my_malloc(sizeof(TRN), MYF(MY_WME));
+    /*
+      trn should be completely initalized at create time to allow
+      one to keep a known state on it.
+      (Like redo_lns, which is assumed to be 0 at start of row handling
+      and reset to zero before end of row handling)
+    */
+    trn= (TRN *)my_malloc(sizeof(TRN), MYF(MY_WME | MY_ZEROFILL));
     if (unlikely(!trn))
     {
       DBUG_PRINT("info", ("pthread_mutex_unlock LOCK_trn_list"));
@@ -286,6 +292,7 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond,
     trn->min_read_from= trn->trid;
 
   trn->commit_trid= 0;
+  trn->undo_lsn= 0;
 
   trn->locks.mutex= mutex;
   trn->locks.cond= cond;
