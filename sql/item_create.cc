@@ -4551,7 +4551,7 @@ Create_func_uuid_short Create_func_uuid_short::s_singleton;
 Item*
 Create_func_uuid_short::create(THD *thd)
 {
-  thd->lex->binlog_row_based_if_mixed= TRUE;
+  thd->lex->set_stmt_unsafe();
   return new (thd->mem_root) Item_func_uuid_short();
 }
 
