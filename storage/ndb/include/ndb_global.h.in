@@ -146,4 +146,6 @@ extern "C" {
 #define MAX(x,y) (((x)>(y))?(x):(y))
 #endif
 
+#define NDB_O_DIRECT_WRITE_ALIGNMENT 512
+
 #endif

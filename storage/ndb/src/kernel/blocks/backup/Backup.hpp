@@ -240,7 +240,7 @@ public:
      * Once per fragment
      */
     bool newFragment(Uint32 tableId, Uint32 fragNo);
-    bool fragComplete(Uint32 tableId, Uint32 fragNo);
+    bool fragComplete(Uint32 tableId, Uint32 fragNo, bool fill_record);
     
     /**
      * Once per scan frag (next) req/conf
@@ -534,6 +534,7 @@ public:
     Uint32 m_disk_write_speed;
     Uint32 m_disk_synch_size;
     Uint32 m_diskless;
+    Uint32 m_o_direct;
   };
   
   /**
