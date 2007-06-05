@@ -1,4 +1,20 @@
+/* Copyright (C) 2007 MySQL AB & Sanja Belkin
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 #include "maria_def.h"
+#include "ma_blockrec.h"
 
 /* number of opened log files in the pagecache (should be at least 2) */
 #define OPENED_FILES_NUM 3
@@ -34,14 +50,6 @@
 
 
 
-/* record part descriptor */
-struct st_translog_part
-{
-  translog_size_t len;
-  byte *buff;
-};
-
-
 /* record parts descriptor */
 struct st_translog_parts
 {
@@ -49,10 +57,12 @@ struct st_translog_parts
   translog_size_t record_length;
   /* full record length with chunk headers */
   translog_size_t total_record_length;
-  /* array of parts (st_translog_part) */
-  DYNAMIC_ARRAY parts;
   /* current part index */
   uint current;
+  /* total number of elements in parts */
+  uint elements;
+  /* array of parts (LEX_STRING) */
+  LEX_STRING *parts;
 };
 
 /* log write buffer descriptor */
@@ -153,6 +163,8 @@ static struct st_translog_descriptor log_descriptor;
 /* Marker for end of log */
 static byte end_of_log= 0;
 
+static my_bool translog_inited;
+
 /* record classes */
 enum record_class
 {
@@ -175,7 +187,7 @@ enum record_class
 #define TRANSLOG_CLSN_MAX_LEN  5       /* Maximum length of compressed LSN */
 
 typedef my_bool(*prewrite_rec_hook) (enum translog_record_type type,
-                                     void *tcb,
+                                     void *tcb, struct st_maria_share *share,
                                      struct st_translog_parts *parts);
 
 typedef my_bool(*inwrite_rec_hook) (enum translog_record_type type,
@@ -213,138 +225,208 @@ struct st_log_record_type_descriptor
 };
 
 
-static struct st_log_record_type_descriptor
-  log_record_type_descriptor[LOGREC_NUMBER_OF_TYPES]=
+/*
+  Initialize log_record_type_descriptors
+
+  NOTE that after first public Maria release, these can NOT be changed
+*/
+
+typedef struct st_log_record_type_descriptor LOG_DESC;
+
+static LOG_DESC log_record_type_descriptor[LOGREC_NUMBER_OF_TYPES];
+
+static LOG_DESC INIT_LOGREC_RESERVED_FOR_CHUNKS23=
+{ LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0 };
+
+static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_HEAD=
+{LOGRECTYPE_VARIABLE_LENGTH, 0,
+ FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_TAIL=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_BLOB=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 8, NULL, NULL, NULL, 0};
+
+/*QQQ:TODO:header???*/
+static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_BLOBS=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_REDO_PURGE_ROW_HEAD=
+{LOGRECTYPE_FIXEDLENGTH,
+ FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
+ FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
+ NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_REDO_PURGE_ROW_TAIL=
+{LOGRECTYPE_FIXEDLENGTH,
+ FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
+ FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
+ NULL, NULL, NULL, 0};
+
+/* QQQ: TODO: variable and fixed size??? */
+static LOG_DESC INIT_LOGREC_REDO_PURGE_BLOCKS=
+{LOGRECTYPE_VARIABLE_LENGTH,
+ FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE + PAGE_STORE_SIZE +
+ PAGERANGE_STORE_SIZE,
+ FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE + PAGE_STORE_SIZE +
+ PAGERANGE_STORE_SIZE,
+ NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_REDO_DELETE_ROW=
+{LOGRECTYPE_FIXEDLENGTH, 16, 16, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_REDO_UPDATE_ROW_HEAD=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_REDO_INDEX=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_REDO_UNDELETE_ROW=
+{LOGRECTYPE_FIXEDLENGTH, 16, 16, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_CLR_END=
+{LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, NULL, NULL, 1};
+
+static LOG_DESC INIT_LOGREC_PURGE_END=
+{LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, NULL, NULL, 1};
+
+static LOG_DESC INIT_LOGREC_UNDO_ROW_INSERT=
+{LOGRECTYPE_FIXEDLENGTH,
+ LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
+ LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
+ NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_UNDO_ROW_DELETE=
+{LOGRECTYPE_VARIABLE_LENGTH, 0,
+ LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
+ NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_UNDO_ROW_UPDATE=
+{LOGRECTYPE_VARIABLE_LENGTH, 0,
+ LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
+ NULL, NULL, NULL, 1};
+
+static LOG_DESC INIT_LOGREC_UNDO_ROW_PURGE=
+{LOGRECTYPE_PSEUDOFIXEDLENGTH, LSN_STORE_SIZE, LSN_STORE_SIZE,
+ NULL, NULL, NULL, 1};
+
+static LOG_DESC INIT_LOGREC_UNDO_KEY_INSERT=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 10, NULL, NULL, NULL, 1};
+
+static LOG_DESC INIT_LOGREC_UNDO_KEY_DELETE=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 15, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_PREPARE=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_PREPARE_WITH_UNDO_PURGE=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 5, NULL, NULL, NULL, 1};
+
+static LOG_DESC INIT_LOGREC_COMMIT=
+{LOGRECTYPE_FIXEDLENGTH, 0, 0, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_COMMIT_WITH_UNDO_PURGE=
+{LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, NULL, NULL, 1};
+
+static LOG_DESC INIT_LOGREC_CHECKPOINT_PAGE=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 6, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_CHECKPOINT_TRAN=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_CHECKPOINT_TABL=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 8, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_REDO_CREATE_TABLE=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_REDO_RENAME_TABLE=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_REDO_DROP_TABLE=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_REDO_TRUNCATE_TABLE=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_FILE_ID=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 4, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_LONG_TRANSACTION_ID=
+{LOGRECTYPE_FIXEDLENGTH, 6, 6, NULL, NULL, NULL, 0};
+
+
+void loghandler_init()
 {
-  /*LOGREC_RESERVED_FOR_CHUNKS23= 0 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*LOGREC_REDO_INSERT_ROW_HEAD= 1 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, NULL, NULL, 0},
-  /*LOGREC_REDO_INSERT_ROW_TAIL= 2 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, NULL, NULL, 0},
-  /*LOGREC_REDO_INSERT_ROW_BLOB= 3 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 8, NULL, NULL, NULL, 0},
-  /*LOGREC_REDO_INSERT_ROW_BLOBS= 4 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 10, NULL, NULL, NULL, 0},
-  /*LOGREC_REDO_PURGE_ROW= 5 */
-  {LOGRECTYPE_FIXEDLENGTH, 9, 9, NULL, NULL, NULL, 0},
-  /*LOGREC_REDO_PURGE_BLOCKS= 6 */
-  {LOGRECTYPE_FIXEDLENGTH, 10, 10, NULL, NULL, NULL, 0},
-  /*LOGREC_REDO_DELETE_ROW= 7 */
-  {LOGRECTYPE_FIXEDLENGTH, 16, 16, NULL, NULL, NULL, 0},
-  /*LOGREC_REDO_UPDATE_ROW_HEAD= 8 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, NULL, NULL, 0},
-  /*LOGREC_REDO_INDEX= 9 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, NULL, NULL, 0},
-  /*LOGREC_REDO_UNDELETE_ROW= 10 */
-  {LOGRECTYPE_FIXEDLENGTH, 16, 16, NULL, NULL, NULL, 0},
-  /*LOGREC_CLR_END= 11 */
-  {LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, NULL, NULL, 1},
-  /*LOGREC_PURGE_END= 12 */
-  {LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, NULL, NULL, 1},
-  /*LOGREC_UNDO_ROW_INSERT= 13 */
-  {LOGRECTYPE_PSEUDOFIXEDLENGTH, 14, 14, NULL, NULL, NULL, 1},
-  /*LOGREC_UNDO_ROW_DELETE= 14 */
-  {LOGRECTYPE_PSEUDOFIXEDLENGTH, 19, 19, NULL, NULL, NULL, 2},
-  /*LOGREC_UNDO_ROW_UPDATE= 15 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 14, NULL, NULL, NULL, 2},
-  /*LOGREC_UNDO_KEY_INSERT= 16 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 10, NULL, NULL, NULL, 1},
-  /*LOGREC_UNDO_KEY_DELETE= 17 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 15, NULL, NULL, NULL, 2},
-  /*LOGREC_PREPARE= 18 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0},
-  /*LOGREC_PREPARE_WITH_UNDO_PURGE= 19 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 5, NULL, NULL, NULL, 1},
-  /*LOGREC_COMMIT= 20 */
-  {LOGRECTYPE_FIXEDLENGTH, 0, 0, NULL, NULL, NULL, 0},
-  /*LOGREC_COMMIT_WITH_UNDO_PURGE= 21 */
-  {LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, NULL, NULL, 1},
-  /*LOGREC_CHECKPOINT_PAGE= 22 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 6, NULL, NULL, NULL, 0},
-  /*LOGREC_CHECKPOINT_TRAN= 23 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0},
-  /*LOGREC_CHECKPOINT_TABL= 24 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 8, NULL, NULL, NULL, 0},
-  /*LOGREC_REDO_CREATE_TABLE= 25 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0},
-  /*LOGREC_REDO_RENAME_TABLE= 26 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0},
-  /*LOGREC_REDO_DROP_TABLE= 27 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0},
-  /*LOGREC_REDO_TRUNCATE_TABLE= 28 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0},
-  /*LOGREC_FILE_ID= 29 */
-  {LOGRECTYPE_VARIABLE_LENGTH, 0, 4, NULL, NULL, NULL, 0},
-  /*LOGREC_LONG_TRANSACTION_ID= 30 */
-  {LOGRECTYPE_FIXEDLENGTH, 6, 6, NULL, NULL, NULL, 0},
-  /*31 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*32 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*33 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*34 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*35 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*36 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*37 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*38 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*39 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*40 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*41 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*42 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*43 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*44 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*45 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*46 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*47 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*48 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*49 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*50 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*51 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*52 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*53 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*54 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*55 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*56 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*57 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*58 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*59 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*60 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*61 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*62 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0},
-  /*LOGREC_RESERVED_FUTURE_EXTENSION= 63 */
-  {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0}
+  log_record_type_descriptor[LOGREC_RESERVED_FOR_CHUNKS23]=
+    INIT_LOGREC_RESERVED_FOR_CHUNKS23;
+  log_record_type_descriptor[LOGREC_REDO_INSERT_ROW_HEAD]=
+    INIT_LOGREC_REDO_INSERT_ROW_HEAD;
+  log_record_type_descriptor[LOGREC_REDO_INSERT_ROW_TAIL]=
+    INIT_LOGREC_REDO_INSERT_ROW_TAIL;
+  log_record_type_descriptor[LOGREC_REDO_INSERT_ROW_BLOB]=
+    INIT_LOGREC_REDO_INSERT_ROW_BLOB;
+  log_record_type_descriptor[LOGREC_REDO_INSERT_ROW_BLOBS]=
+    INIT_LOGREC_REDO_INSERT_ROW_BLOBS;
+  log_record_type_descriptor[LOGREC_REDO_PURGE_ROW_HEAD]=
+    INIT_LOGREC_REDO_PURGE_ROW_HEAD;
+  log_record_type_descriptor[LOGREC_REDO_PURGE_ROW_TAIL]=
+    INIT_LOGREC_REDO_PURGE_ROW_TAIL;
+  log_record_type_descriptor[LOGREC_REDO_PURGE_BLOCKS]=
+    INIT_LOGREC_REDO_PURGE_BLOCKS;
+  log_record_type_descriptor[LOGREC_REDO_DELETE_ROW]=
+    INIT_LOGREC_REDO_DELETE_ROW;
+  log_record_type_descriptor[LOGREC_REDO_UPDATE_ROW_HEAD]=
+    INIT_LOGREC_REDO_UPDATE_ROW_HEAD;
+  log_record_type_descriptor[LOGREC_REDO_INDEX]=
+    INIT_LOGREC_REDO_INDEX;
+  log_record_type_descriptor[LOGREC_REDO_UNDELETE_ROW]=
+    INIT_LOGREC_REDO_UNDELETE_ROW;
+  log_record_type_descriptor[LOGREC_CLR_END]=
+    INIT_LOGREC_CLR_END;
+  log_record_type_descriptor[LOGREC_PURGE_END]=
+    INIT_LOGREC_PURGE_END;
+  log_record_type_descriptor[LOGREC_UNDO_ROW_INSERT]=
+    INIT_LOGREC_UNDO_ROW_INSERT;
+  log_record_type_descriptor[LOGREC_UNDO_ROW_DELETE]=
+    INIT_LOGREC_UNDO_ROW_DELETE;
+  log_record_type_descriptor[LOGREC_UNDO_ROW_UPDATE]=
+    INIT_LOGREC_UNDO_ROW_UPDATE;
+  log_record_type_descriptor[LOGREC_UNDO_ROW_PURGE]=
+    INIT_LOGREC_UNDO_ROW_PURGE;
+  log_record_type_descriptor[LOGREC_UNDO_KEY_INSERT]=
+    INIT_LOGREC_UNDO_KEY_INSERT;
+  log_record_type_descriptor[LOGREC_UNDO_KEY_DELETE]=
+    INIT_LOGREC_UNDO_KEY_DELETE;
+  log_record_type_descriptor[LOGREC_PREPARE]=
+    INIT_LOGREC_PREPARE;
+  log_record_type_descriptor[LOGREC_PREPARE_WITH_UNDO_PURGE]=
+    INIT_LOGREC_PREPARE_WITH_UNDO_PURGE;
+  log_record_type_descriptor[LOGREC_COMMIT]=
+    INIT_LOGREC_COMMIT;
+  log_record_type_descriptor[LOGREC_COMMIT_WITH_UNDO_PURGE]=
+    INIT_LOGREC_COMMIT_WITH_UNDO_PURGE;
+  log_record_type_descriptor[LOGREC_CHECKPOINT_PAGE]=
+    INIT_LOGREC_CHECKPOINT_PAGE;
+  log_record_type_descriptor[LOGREC_CHECKPOINT_TRAN]=
+    INIT_LOGREC_CHECKPOINT_TRAN;
+  log_record_type_descriptor[LOGREC_CHECKPOINT_TABL]=
+    INIT_LOGREC_CHECKPOINT_TABL;
+  log_record_type_descriptor[LOGREC_REDO_CREATE_TABLE]=
+    INIT_LOGREC_REDO_CREATE_TABLE;
+  log_record_type_descriptor[LOGREC_REDO_RENAME_TABLE]=
+    INIT_LOGREC_REDO_RENAME_TABLE;
+  log_record_type_descriptor[LOGREC_REDO_DROP_TABLE]=
+    INIT_LOGREC_REDO_DROP_TABLE;
+  log_record_type_descriptor[LOGREC_REDO_TRUNCATE_TABLE]=
+    INIT_LOGREC_REDO_TRUNCATE_TABLE;
+  log_record_type_descriptor[LOGREC_FILE_ID]=
+    INIT_LOGREC_FILE_ID;
+  log_record_type_descriptor[LOGREC_LONG_TRANSACTION_ID]=
+    INIT_LOGREC_LONG_TRANSACTION_ID;
 };
+
 
 /* all possible flags page overheads */
 static uint page_overhead[TRANSLOG_FLAGS_NUM];
@@ -424,7 +506,7 @@ static File open_logfile_by_number_no_cache(uint32 file_no)
   char path[FN_REFLEN];
   DBUG_ENTER("open_logfile_by_number_no_cache");
 
-  /* Todo: add O_DIRECT to open flags (when buffer is aligned) */
+  /* TODO: add O_DIRECT to open flags (when buffer is aligned) */
   if ((file= my_open(translog_filename_by_fileno(file_no, path),
                      O_CREAT | O_BINARY | O_RDWR,
                      MYF(MY_WME))) < 0)
@@ -1367,6 +1449,7 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
   {
     PAGECACHE_FILE file;
     file.file= buffer->file;
+    DBUG_ASSERT(log_descriptor.pagecache->block_size == TRANSLOG_PAGE_SIZE);
     if (pagecache_write(log_descriptor.pagecache,
                         &file,
                         (LSN_OFFSET(buffer->offset) + i) / TRANSLOG_PAGE_SIZE,
@@ -1795,6 +1878,9 @@ static uint16 translog_get_chunk_header_length(byte *page, uint16 offset)
     flags                flags (TRANSLOG_PAGE_CRC, TRANSLOG_SECTOR_PROTECTION
                            TRANSLOG_RECORD_CRC)
 
+  TODO
+    Free used resources in case of error.
+
   RETURN
     0  OK
     1  Error
@@ -1811,6 +1897,7 @@ my_bool translog_init(const char *directory,
   TRANSLOG_ADDRESS sure_page, last_page, last_valid_page;
   DBUG_ENTER("translog_init");
 
+  loghandler_init();                            /* Safe to do many times */
 
   if (pthread_mutex_init(&log_descriptor.sent_to_file_lock,
                          MY_MUTEX_INIT_FAST))
@@ -2097,6 +2184,7 @@ my_bool translog_init(const char *directory,
   log_descriptor.flushed--; /* offset decreased */
   log_descriptor.sent_to_file--; /* offset decreased */
 
+  translog_inited= 1;
   DBUG_RETURN(0);
 }
 
@@ -2131,8 +2219,6 @@ static void translog_buffer_destroy(struct st_translog_buffer *buffer)
     */
     translog_buffer_flush(buffer);
   }
-  DBUG_PRINT("info", ("Unlock mutex: 0x%lx", (ulong) &buffer->mutex));
-  pthread_mutex_unlock(&buffer->mutex);
   DBUG_PRINT("info", ("Destroy mutex: 0x%lx", (ulong) &buffer->mutex));
   pthread_mutex_destroy(&buffer->mutex);
   DBUG_VOID_RETURN;
@@ -2150,27 +2236,28 @@ void translog_destroy()
 {
   uint i;
   DBUG_ENTER("translog_destroy");
-  if (log_descriptor.bc.buffer->file != -1)
-    translog_finish_page(&log_descriptor.horizon, &log_descriptor.bc);
+  
+  if (translog_inited)
+  {
+    if (log_descriptor.bc.buffer->file != -1)
+      translog_finish_page(&log_descriptor.horizon, &log_descriptor.bc);
 
-  for (i= 0; i < TRANSLOG_BUFFERS_NO; i++)
-  {
-    struct st_translog_buffer *buffer= log_descriptor.buffers + i;
-    /*
-      Lock the buffer just for safety, there should not be other
-      threads running.
-    */
-    translog_buffer_lock(buffer);
-    translog_buffer_destroy(buffer);
+    for (i= 0; i < TRANSLOG_BUFFERS_NO; i++)
+    {
+      struct st_translog_buffer *buffer= log_descriptor.buffers + i;
+      translog_buffer_destroy(buffer);
+    }
+
+    /* close files */
+    for (i= 0; i < OPENED_FILES_NUM; i++)
+    {
+      if (log_descriptor.log_file_num[i] != -1)
+        translog_close_log_file(log_descriptor.log_file_num[i]);
+    }
+    pthread_mutex_destroy(&log_descriptor.sent_to_file_lock);
+    my_close(log_descriptor.directory_fd, MYF(MY_WME));
+    translog_inited= 0;
   }
-  /* close files */
-  for (i= 0; i < OPENED_FILES_NUM; i++)
-  {
-    if (log_descriptor.log_file_num[i] != -1)
-      translog_close_log_file(log_descriptor.log_file_num[i]);
-  }
-  pthread_mutex_destroy(&log_descriptor.sent_to_file_lock);
-  my_close(log_descriptor.directory_fd, MYF(MY_WME));
   DBUG_VOID_RETURN;
 }
 
@@ -2365,7 +2452,7 @@ static my_bool translog_write_parts_on_page(TRANSLOG_ADDRESS *horizon,
   DBUG_PRINT("enter", ("Chunk length: %lu  parts: %u of %u. Page size: %u  "
                        "Buffer size: %lu (%lu)",
                        (ulong) length,
-                       (uint) (cur + 1), (uint) parts->parts.elements,
+                       (uint) (cur + 1), (uint) parts->elements,
                        (uint) cursor->current_page_fill,
                        (ulong) cursor->buffer->size,
                        (ulong) (cursor->ptr - cursor->buffer->buffer)));
@@ -2377,35 +2464,39 @@ static my_bool translog_write_parts_on_page(TRANSLOG_ADDRESS *horizon,
   do
   {
     translog_size_t len;
-    struct st_translog_part *part;
+    LEX_STRING *part;
     byte *buff;
 
-    DBUG_ASSERT(cur < parts->parts.elements);
-    part= dynamic_element(&parts->parts, cur, struct st_translog_part *);
-    buff= part->buff;
-    DBUG_PRINT("info", ("Part: %u  Length: %lu  left: %lu",
-                        (uint) (cur + 1), (ulong) part->len, (ulong) left));
+    DBUG_ASSERT(cur < parts->elements);
+    part= parts->parts + cur;
+    buff= (byte*) part->str;
+    DBUG_PRINT("info", ("Part: %u  Length: %lu  left: %lu  buff: 0x%lx",
+                        (uint) (cur + 1), (ulong) part->length, (ulong) left,
+                        (ulong) buff));
 
-    if (part->len > left)
+    if (part->length > left)
     {
       /* we should write less then the current part */
       len= left;
-      part->len-= len;
-      part->buff+= len;
+      part->length-= len;
+      part->str+= len;
       DBUG_PRINT("info", ("Set new part: %u  Length: %lu",
-                          (uint) (cur + 1), (ulong) part->len));
+                          (uint) (cur + 1), (ulong) part->length));
     }
     else
     {
-      len= part->len;
+      len= part->length;
       cur++;
       DBUG_PRINT("info", ("moved to next part (len: %lu)", (ulong) len));
     }
     DBUG_PRINT("info", ("copy: 0x%lx <- 0x%lx  %u",
                         (ulong) cursor->ptr, (ulong)buff, (uint)len));
-    memcpy(cursor->ptr, buff, len);
-    left-= len;
-    cursor->ptr+= len;
+    if (likely(len))
+    {
+      memcpy(cursor->ptr, buff, len);
+      left-= len;
+      cursor->ptr+= len;
+    }
   } while (left);
 
   DBUG_PRINT("info", ("Horizon: (%lu,0x%lx)  Length %lu(0x%lx)",
@@ -2452,10 +2543,11 @@ translog_write_variable_record_1group_header(struct st_translog_parts *parts,
                                              uint16 header_length,
                                              byte *chunk0_header)
 {
-  struct st_translog_part part;
+  LEX_STRING *part;
   DBUG_ASSERT(parts->current != 0);     /* first part is left for header */
-  parts->total_record_length+= (part.len= header_length);
-  part.buff= chunk0_header;
+  part= parts->parts + (--parts->current);
+  parts->total_record_length+= (part->length= header_length);
+  part->str= (char*)chunk0_header;
   /* puts chunk type */
   *chunk0_header= (byte) (type | TRANSLOG_CHUNK_LSN);
   int2store(chunk0_header + 1, short_trid);
@@ -2465,8 +2557,6 @@ translog_write_variable_record_1group_header(struct st_translog_parts *parts,
                                                  header_length);
   /* puts 0 as chunk length which indicate 1 group record */
   int2store(chunk0_header + header_length - 2, 0);
-  parts->current--;
-  set_dynamic(&parts->parts, (gptr) &part, parts->current);
 }
 
 
@@ -2581,7 +2671,7 @@ translog_write_variable_record_chunk3_page(struct st_translog_parts *parts,
                                            struct st_buffer_cursor *cursor)
 {
   struct st_translog_buffer *buffer_to_flush;
-  struct st_translog_part part;
+  LEX_STRING *part;
   int rc;
   byte chunk3_header[1 + 2];
   DBUG_ENTER("translog_write_variable_record_chunk3_page");
@@ -2605,14 +2695,13 @@ translog_write_variable_record_chunk3_page(struct st_translog_parts *parts,
   }
 
   DBUG_ASSERT(parts->current != 0);       /* first part is left for header */
-  parts->total_record_length+= (part.len= 1 + 2);
-  part.buff= chunk3_header;
+  part= parts->parts + (--parts->current);
+  parts->total_record_length+= (part->length= 1 + 2);
+  part->str= (char*)chunk3_header;
   /* Puts chunk type */
   *chunk3_header= (byte) (TRANSLOG_CHUNK_LNGTH);
   /* Puts chunk length */
   int2store(chunk3_header + 1, length);
-  parts->current--;
-  set_dynamic(&parts->parts, (gptr) &part, parts->current);
 
   translog_write_parts_on_page(horizon, cursor, length + 1 + 2, parts);
   DBUG_RETURN(0);
@@ -3179,7 +3268,7 @@ static byte *translog_get_LSN_from_diff(LSN base_lsn, byte *src, byte *dst)
                        (ulong) LSN_OFFSET(base_lsn),
                        (ulong) src, (ulong) dst));
   first_byte= *((uint8*) src);
-  code= first_byte >> 6;                        /* Length in 2 upmost bits */
+  code= first_byte >> 6; /* Length is in 2 most significant bits */
   first_byte&= 0x3F;
   src++;                                        /* Skip length + encode */
   file_no= LSN_FILE_NO(base_lsn);               /* Assume relative */
@@ -3242,61 +3331,63 @@ static my_bool translog_relative_LSN_encode(struct st_translog_parts *parts,
                                             LSN base_lsn,
                                             uint lsns, byte *compressed_LSNs)
 {
-  struct st_translog_part *part;
+  LEX_STRING *part;
   uint lsns_len= lsns * LSN_STORE_SIZE;
 
   DBUG_ENTER("translog_relative_LSN_encode");
 
-  part= dynamic_element(&parts->parts, parts->current,
-                        struct st_translog_part *);
+  part= parts->parts + parts->current;
   /* collect all LSN(s) in one chunk if it (they) is (are) divided */
-  if (part->len < lsns_len)
+  if (part->length < lsns_len)
   {
-    uint copied= part->len;
+    uint copied= part->length;
+    LEX_STRING *next_part;
     DBUG_PRINT("info", ("Using buffer: 0x%lx", (ulong) compressed_LSNs));
-    memcpy(compressed_LSNs, part->buff, part->len);
+    memcpy(compressed_LSNs, (byte*)part->str, part->length);
+    next_part= parts->parts + parts->current + 1;
     do
     {
-      struct st_translog_part *next_part;
-      next_part= dynamic_element(&parts->parts, parts->current + 1,
-                                 struct st_translog_part *);
-      if ((next_part->len + copied) < lsns_len)
+      DBUG_ASSERT(next_part < parts->parts + parts->elements);
+      if ((next_part->length + copied) < lsns_len)
       {
-        memcpy(compressed_LSNs + copied, next_part->buff, next_part->len);
-        copied+= next_part->len;
-        delete_dynamic_element(&parts->parts, parts->current + 1);
+        memcpy(compressed_LSNs + copied, (byte*)next_part->str,
+               next_part->length);
+        copied+= next_part->length;
+        next_part->length= 0; next_part->str= 0;
+        /* delete_dynamic_element(&parts->parts, parts->current + 1); */
+        next_part++;
       }
       else
       {
         uint len= lsns_len - copied;
-        memcpy(compressed_LSNs + copied, next_part->buff, len);
+        memcpy(compressed_LSNs + copied, (byte*)next_part->str, len);
         copied= lsns_len;
-        next_part->buff+= len;
-        next_part->len-= len;
+        next_part->str+= len;
+        next_part->length-= len;
       }
     } while (copied < lsns_len);
-    part->len= lsns_len;
-    part->buff= compressed_LSNs;
+    part->length= lsns_len;
+    part->str= (char*)compressed_LSNs;
   }
   {
     /* Compress */
     LSN ref;
     uint economy;
-    byte *ref_ptr= part->buff + lsns_len - LSN_STORE_SIZE;
-    byte *dst_ptr= part->buff + lsns_len;
-    for (; ref_ptr >= part->buff ; ref_ptr-= LSN_STORE_SIZE)
+    byte *ref_ptr= (byte*)part->str + lsns_len - LSN_STORE_SIZE;
+    byte *dst_ptr= (byte*)part->str + lsns_len;
+    for (; ref_ptr >= (byte*)part->str ; ref_ptr-= LSN_STORE_SIZE)
     {
       ref= lsn_korr(ref_ptr);
       if ((dst_ptr= translog_put_LSN_diff(base_lsn, ref, dst_ptr)) == NULL)
         DBUG_RETURN(1);
     }
     /* Note that dst_ptr did grow downward ! */
-    economy= (uint) (dst_ptr - part->buff);
+    economy= (uint) (dst_ptr - (byte*)part->str);
     DBUG_PRINT("info", ("Economy: %u", economy));
-    part->len-= economy;
+    part->length-= economy;
     parts->record_length-= economy;
     parts->total_record_length-= economy;
-    part->buff= dst_ptr;
+    part->str= (char*)dst_ptr;
   }
   DBUG_RETURN(0);
 }
@@ -3878,7 +3969,7 @@ static my_bool translog_write_fixed_record(LSN *lsn,
   byte chunk1_header[1 + 2];
   /* Max number of such LSNs per record is 2 */
   byte compressed_LSNs[2 * LSN_STORE_SIZE];
-  struct st_translog_part part;
+  LEX_STRING *part;
   int rc;
   DBUG_ENTER("translog_write_fixed_record");
   DBUG_ASSERT((log_record_type_descriptor[type].class ==
@@ -3948,12 +4039,11 @@ static my_bool translog_write_fixed_record(LSN *lsn,
     the destination page)
   */
   DBUG_ASSERT(parts->current != 0);       /* first part is left for header */
-  parts->total_record_length+= (part.len= 1 + 2);
-  part.buff= chunk1_header;
+  part= parts->parts + (--parts->current);
+  parts->total_record_length+= (part->length= 1 + 2);
+  part->str= (char*)chunk1_header;
   *chunk1_header= (byte) (type | TRANSLOG_CHUNK_FIXED);
   int2store(chunk1_header + 1, short_trid);
-  parts->current--;
-  set_dynamic(&parts->parts, (gptr) &part, parts->current);
 
   rc= translog_write_parts_on_page(&log_descriptor.horizon,
                                    &log_descriptor.bc,
@@ -3989,9 +4079,12 @@ err:
     short_trid           Sort transaction ID or 0 if it has no sense
     tcb                  Transaction control block pointer for hooks by
                          record log type
-    partN_length         length of Ns part of the log
-    partN_buffer         pointer on Ns part buffer
-    0                    sign of the end of parts
+    rec_len              record length or 0 (count it)
+    part_no              number of parts or 0 (count it)
+    parts_data           zero ended (in case of number of parts is 0)
+                         array of LEX_STRINGs (parts), first
+                         TRANSLOG_INTERNAL_PARTS positions in the log
+                         should be unused (need for loghandler)
 
   RETURN
     0  OK
@@ -4001,73 +4094,67 @@ err:
 my_bool translog_write_record(LSN *lsn,
                               enum translog_record_type type,
                               SHORT_TRANSACTION_ID short_trid,
-                              void *tcb,
-                              translog_size_t part1_length,
-                              byte *part1_buff, ...)
+                              void *tcb, struct st_maria_share *share,
+                              translog_size_t rec_len,
+                              uint part_no,
+                              LEX_STRING *parts_data)
 {
   struct st_translog_parts parts;
-  struct st_translog_part part;
-  va_list pvar;
+  LEX_STRING *part;
   int rc;
   DBUG_ENTER("translog_write_record");
   DBUG_PRINT("enter", ("type: %u  ShortTrID: %u",
                        (uint) type, (uint)short_trid));
 
-  /* move information about parts into dynamic array */
-  if (init_dynamic_array(&parts.parts, sizeof(struct st_translog_part),
-                         10, 10 CALLER_INFO))
+  if (share && !share->base.transactional)
   {
-    UNRECOVERABLE_ERROR(("init array failed"));
-    DBUG_RETURN(1);
+    DBUG_PRINT("info", ("It is not transactional table"));
+    DBUG_RETURN(0);
   }
 
-  /* reserve place for header */
-  parts.current= 1;
-  part.len= 0;
-  part.buff= 0;
-  if (insert_dynamic(&parts.parts, (gptr) &part))
-  {
-    UNRECOVERABLE_ERROR(("insert into array failed"));
-    DBUG_RETURN(1);
-  }
+  parts.parts= parts_data;
 
-  parts.record_length= part.len= part1_length;
-  part.buff= part1_buff;
-  if (insert_dynamic(&parts.parts, (gptr) &part))
+  /* count parts if they are not counted by upper level */
+  if (part_no == 0)
   {
-    UNRECOVERABLE_ERROR(("insert into array failed"));
-    DBUG_RETURN(1);
+    for (part_no= TRANSLOG_INTERNAL_PARTS;
+         parts_data[part_no].length != 0;
+         part_no++);
   }
-  DBUG_PRINT("info", ("record length: %lu  %lu ...",
-                      (ulong) parts.record_length,
-                      (ulong) parts.total_record_length));
+  parts.elements= part_no;
+  parts.current= TRANSLOG_INTERNAL_PARTS;
 
-  /* count record length */
-  va_start(pvar, part1_buff);
-  for (;;)
+  /* clear TRANSLOG_INTERNAL_PARTS */
+  DBUG_ASSERT(TRANSLOG_INTERNAL_PARTS == 1);
+  parts_data[0].str= 0;
+  parts_data[0].length= 0;
+
+  /* count length of the record */
+  if (rec_len == 0)
   {
-    part.len= va_arg(pvar, translog_size_t);
-    if (part.len == 0)
-      break;
-    parts.record_length+= part.len;
-    part.buff= va_arg(pvar, byte*);
-    if (insert_dynamic(&parts.parts, (gptr) &part))
+    for(part= parts_data + TRANSLOG_INTERNAL_PARTS;\
+        part < parts_data + part_no;
+        part++)
     {
-      UNRECOVERABLE_ERROR(("insert into array failed"));
-      DBUG_RETURN(1);
+      rec_len+= part->length;
     }
-    DBUG_PRINT("info", ("record length: %lu  %lu ...",
-                        (ulong) parts.record_length,
-                        (ulong) parts.total_record_length));
   }
-  va_end(pvar);
+  parts.record_length= rec_len;
 
+#ifndef DBUG_OFF
+  {
+    uint i;
+    uint len= 0;
+    for (i= TRANSLOG_INTERNAL_PARTS; i < part_no; i++)
+      len+= parts_data[i].length;
+    DBUG_ASSERT(len == rec_len);
+  }
+#endif
   /*
     Start total_record_length from record_length then overhead will
     be add
   */
   parts.total_record_length= parts.record_length;
-  va_end(pvar);
   DBUG_PRINT("info", ("record length: %lu  %lu",
                       (ulong) parts.record_length,
                       (ulong) parts.total_record_length));
@@ -4075,6 +4162,7 @@ my_bool translog_write_record(LSN *lsn,
   /* process this parts */
   if (!(rc= (log_record_type_descriptor[type].prewrite_hook &&
              (*log_record_type_descriptor[type].prewrite_hook) (type, tcb,
+                                                                share,
                                                                 &parts))))
   {
     switch (log_record_type_descriptor[type].class) {
@@ -4092,7 +4180,6 @@ my_bool translog_write_record(LSN *lsn,
     }
   }
 
-  delete_dynamic(&parts.parts);
   DBUG_RETURN(rc);
 }
 
@@ -4967,7 +5054,7 @@ static my_bool translog_init_reader_data(LSN lsn,
   SYNOPSIS
     translog_read_record_header()
     lsn                  log record serial number (address of the record)
-    offset               From the beginning of the record beginning (read§
+    offset               From the beginning of the record beginning (readÂ§
                          by translog_read_record_header).
     length               Length of record part which have to be read.
     buffer               Buffer where to read the record part (have to be at

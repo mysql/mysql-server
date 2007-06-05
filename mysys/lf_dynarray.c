@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,8 +21,6 @@
   Memory is allocated in non-contiguous chunks.
   This data structure is not space efficient for sparse arrays.
 
-  The number of elements is limited to 4311810304
-
   Every element is aligned to sizeof(element) boundary
   (to avoid false sharing if element is big enough).
 
@@ -31,6 +29,9 @@
   on the first level it's an array of LF_DYNARRAY_LEVEL_LENGTH pointers
   to arrays of elements, on the second level it's an array of pointers
   to arrays of pointers to arrays of elements. And so on.
+
+  With four levels the number of elements is limited to 4311810304
+  (but as in all functions index is uint, the real limit is 2^32-1)
 
   Actually, it's wait-free, not lock-free ;-)
 */
@@ -192,6 +193,9 @@ static int recursive_iterate(LF_DYNARRAY *array, void *ptr, int level,
     each. _lf_dynarray_iterate() calls user-supplied function on every array
     from the set. It is the fastest way to scan the array, faster than
       for (i=0; i < N; i++) { func(_lf_dynarray_value(dynarray, i)); }
+
+  NOTE
+    if func() returns non-zero, the scan is aborted
 */
 int _lf_dynarray_iterate(LF_DYNARRAY *array, lf_dynarray_func func, void *arg)
 {

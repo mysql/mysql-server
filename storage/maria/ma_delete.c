@@ -89,7 +89,7 @@ int maria_delete(MARIA_HA *info,const byte *record)
     }
   }
 
-  if ((*share->delete_record)(info))
+  if ((*share->delete_record)(info, record))
     goto err;				/* Remove record from database */
 
   /*
@@ -525,7 +525,7 @@ static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   DBUG_DUMP("leaf_buff",leaf_buff,maria_getint(leaf_buff));
 
   buff=info->buff;
-  info->keybuff_used=1;
+  info->keyread_buff_used=1;
   next_keypos=keypos;
   nod_flag=_ma_test_if_nod(leaf_buff);
   p_length=nod_flag+2;

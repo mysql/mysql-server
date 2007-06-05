@@ -28,6 +28,7 @@
 #include <m_ctype.h>
 #include <my_bit.h>
 
+
 #define STANDARD_LENGTH 37
 #define MARIA_KEYS 6
 #define MAX_PARTS 4
@@ -44,13 +45,12 @@ static void copy_key(struct st_maria_info *info,uint inx,
 		     uchar *record,uchar *key);
 
 static	int verbose=0,testflag=0,
-	    first_key=0,async_io=0,key_cacheing=0,write_cacheing=0,locking=0,
+	    first_key=0,async_io=0,pagecacheing=0,write_cacheing=0,locking=0,
             rec_pointer_size=0,pack_fields=1,silent=0,
-            opt_quick_mode=0;
+            opt_quick_mode=0, transactional= 0;
 static int pack_seg=HA_SPACE_PACK,pack_type=HA_PACK_KEY,remove_count=-1;
 static int create_flag= 0, srand_arg= 0;
-static ulong key_cache_size=IO_SIZE*16;
-static uint key_cache_block_size= KEY_CACHE_BLOCK_SIZE;
+static ulong pagecache_size=IO_SIZE*16;
 static enum data_file_type record_type= DYNAMIC_RECORD;
 
 static uint keys=MARIA_KEYS,recant=1000;
@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
   if (use_blob)
   {
     recinfo[6].type=FIELD_BLOB;
-    recinfo[6].length=4+maria_portable_sizeof_char_ptr;
+    recinfo[6].length=4+portable_sizeof_char_ptr;
     recinfo[6].null_bit=0;
     recinfo[6].null_pos=0;
   }
@@ -210,6 +210,7 @@ int main(int argc, char *argv[])
 				  (1L << (rec_pointer_size*8))/
 				  reclength : 0);
   create_info.reloc_rows=(ha_rows) 100;
+  create_info.transactional= transactional;
   if (maria_create(filename, record_type, keys,&keyinfo[first_key],
 		use_blob ? 7 : 6, &recinfo[0],
 		0,(MARIA_UNIQUEDEF*) 0,
@@ -219,8 +220,22 @@ int main(int argc, char *argv[])
     goto err;
   if (!silent)
     printf("- Writing key:s\n");
-  if (key_cacheing)
-    init_key_cache(maria_key_cache,key_cache_block_size,key_cache_size,0,0);
+  maria_data_root= ".";
+  /* Maria requires that we always have a page cache */
+  if ((init_pagecache(maria_pagecache, pagecache_size, 0, 0,
+		      maria_block_size) == 0) ||
+      ma_control_file_create_or_open() ||
+      (init_pagecache(maria_log_pagecache,
+		      TRANSLOG_PAGECACHE_SIZE, 0, 0,
+		      TRANSLOG_PAGE_SIZE) == 0) ||
+      translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
+		    0, 0, maria_log_pagecache,
+		    TRANSLOG_DEFAULT_FLAGS))
+  {
+    fprintf(stderr, "Error in initialization");
+    exit(1);
+  }
+
   if (locking)
     maria_lock_database(file,F_WRLCK);
   if (write_cacheing)
@@ -282,9 +297,11 @@ int main(int argc, char *argv[])
       goto end;
     }
   }
-  if (key_cacheing)
-    resize_key_cache(maria_key_cache,key_cache_block_size,key_cache_size*2,0,0);
-
+#ifdef REMOVE_WHEN_WE_HAVE_RESIZE
+  if (pagecacheing)
+    resize_pagecache(maria_pagecache, maria_block_size,
+                     pagecache_size * 2, 0, 0);
+#endif
   if (!silent)
     printf("- Delete\n");
   if (srand_arg)
@@ -859,13 +876,8 @@ end:
     if (rec_pointer_size)
       printf("Record pointer size:  %d\n",rec_pointer_size);
     printf("maria_block_size:    %lu\n", maria_block_size);
-    if (key_cacheing)
-    {
-      puts("Key cache used");
-      printf("key_cache_block_size: %u\n", key_cache_block_size);
-      if (write_cacheing)
-	puts("Key cache resized");
-    }
+    if (write_cacheing)
+      puts("Key cache resized");
     if (write_cacheing)
       puts("Write cacheing used");
     if (write_cacheing)
@@ -883,14 +895,14 @@ w_requests: %10lu\n\
 writes:     %10lu\n\
 r_requests: %10lu\n\
 reads:      %10lu\n",
-           maria_key_cache->blocks_used,
-           maria_key_cache->global_blocks_changed,
-           (ulong) maria_key_cache->global_cache_w_requests,
-           (ulong) maria_key_cache->global_cache_write,
-           (ulong) maria_key_cache->global_cache_r_requests,
-           (ulong) maria_key_cache->global_cache_read);
+           maria_pagecache->blocks_used,
+           maria_pagecache->global_blocks_changed,
+           (ulong) maria_pagecache->global_cache_w_requests,
+           (ulong) maria_pagecache->global_cache_write,
+           (ulong) maria_pagecache->global_cache_r_requests,
+           (ulong) maria_pagecache->global_cache_read);
   }
-  end_key_cache(maria_key_cache,1);
+  end_pagecache(maria_pagecache,1);
   my_free(blob_buffer, MYF(MY_ALLOW_ZERO_PTR));
   my_end(silent ? MY_CHECK_ERROR : MY_CHECK_ERROR | MY_GIVE_INFO);
   return(0);
@@ -922,9 +934,9 @@ static void get_options(int argc, char **argv)
         use_blob= atol(pos);
       break;
     case 'K':				/* Use key cacheing */
-      key_cacheing=1;
+      pagecacheing=1;
       if (*++pos)
-	key_cache_size=atol(pos);
+	pagecache_size=atol(pos);
       break;
     case 'W':				/* Use write cacheing */
       write_cacheing=1;
@@ -957,6 +969,7 @@ static void get_options(int argc, char **argv)
       }
       break;
     case 'e':				/* maria_block_length */
+    case 'E':
       if ((maria_block_size= atoi(++pos)) < MARIA_MIN_KEY_BLOCK_LENGTH ||
 	  maria_block_size > MARIA_MAX_KEY_BLOCK_LENGTH)
       {
@@ -964,15 +977,6 @@ static void get_options(int argc, char **argv)
 	exit(1);
       }
       maria_block_size= my_round_up_to_next_power(maria_block_size);
-      break;
-    case 'E':				/* maria_block_length */
-      if ((key_cache_block_size=atoi(++pos)) < MARIA_MIN_KEY_BLOCK_LENGTH ||
-	  key_cache_block_size > MARIA_MAX_KEY_BLOCK_LENGTH)
-      {
-	fprintf(stderr,"Wrong key_cache_block_size\n");
-	exit(1);
-      }
-      key_cache_block_size= my_round_up_to_next_power(key_cache_block_size);
       break;
     case 'f':
       if ((first_key=atoi(++pos)) < 0 || first_key >= MARIA_KEYS)
@@ -1005,6 +1009,9 @@ static void get_options(int argc, char **argv)
     case 't':
       testflag=atoi(++pos);		/* testmod */
       break;
+    case 'T':
+      transactional= 1;
+      break;
     case 'q':
       opt_quick_mode=1;
       break;
@@ -1019,7 +1026,7 @@ static void get_options(int argc, char **argv)
     case 'V':
       printf("%s  Ver 1.0 for %s at %s\n",progname,SYSTEM_TYPE,MACHINE_TYPE);
       puts("By Monty, for your professional use\n");
-      printf("Usage: %s [-?AbBcDIKLPRqSsVWltv] [-k#] [-f#] [-m#] [-e#] [-E#] [-t#]\n",
+      printf("Usage: %s [-?AbBcDIKLPRqSsTVWltv] [-k#] [-f#] [-m#] [-e#] [-E#] [-t#]\n",
 	     progname);
       exit(0);
     case '#':

@@ -162,7 +162,7 @@ int maria_update(register MARIA_HA *info, const byte *oldrec, byte *newrec)
     memcpy((char*) &state, (char*) info->state, sizeof(state));
     org_split=	     share->state.split;
     org_delete_link= share->state.dellink;
-    if ((*share->update_record)(info,pos,newrec))
+    if ((*share->update_record)(info, pos, oldrec, newrec))
       goto err;
     if (!key_changed &&
 	(memcmp((char*) &state, (char*) info->state, sizeof(state)) ||
@@ -177,7 +177,7 @@ int maria_update(register MARIA_HA *info, const byte *oldrec, byte *newrec)
     info->state->checksum+= (info->cur_row.checksum - old_checksum);
 
   /*
-    We can't yet have HA_STATE_ACTIVE here, as block_record dosn't support
+    We can't yet have HA_STATE_AKTIV here, as block_record dosn't support
     it
   */
   info->update= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED | key_changed);

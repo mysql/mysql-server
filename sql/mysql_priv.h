@@ -1664,6 +1664,9 @@ extern pthread_cond_t COND_global_read_lock;
 extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;
 extern I_List<NAMED_LIST> key_caches;
+#ifdef WITH_MARIA_STORAGE_ENGINE
+extern I_List<NAMED_LIST> pagecaches;
+#endif /* WITH_MARIA_STORAGE_ENGINE */
 extern MY_BITMAP temp_pool;
 extern String my_empty_string;
 extern const String my_null_string;

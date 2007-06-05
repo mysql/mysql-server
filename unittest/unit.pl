@@ -14,8 +14,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-use Test::Harness qw(&runtests $verbose);
+use Test::Harness;
 use File::Find;
+use Getopt::Long;
 
 use strict;
 
@@ -34,6 +35,15 @@ unit - Run unit tests in directory
   unit run
 
 =cut
+
+my $big=1;
+
+my $result = GetOptions (
+  "big!"        => \$big,
+  "verbose!"    => \$Test::Harness::verbose,
+);
+
+$ENV{'MYTAP_CONFIG'} = $big ? "big" : "";
 
 my $cmd = shift;
 

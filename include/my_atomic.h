@@ -225,6 +225,11 @@ make_atomic_fas(ptr)
 #undef make_atomic_fas_body
 #undef intptr
 
+/*
+  the macro below defines (as an expression) the code that
+  will be run in spin-loops. Intel manuals recummend to have PAUSE there.
+  It is expected to be defined in include/atomic/ *.h files
+*/
 #ifndef LF_BACKOFF
 #define LF_BACKOFF (1)
 #endif

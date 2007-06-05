@@ -71,7 +71,7 @@ int maria_status(MARIA_HA *info, register MARIA_INFO *x, uint flag)
     x->reclength	= share->base.reclength;
     x->max_data_file_length=share->base.max_data_file_length;
     x->max_index_file_length=info->s->base.max_key_file_length;
-    x->filenr	 = info->dfile;
+    x->filenr	 = info->dfile.file;
     x->options	 = share->options;
     x->create_time=share->state.create_time;
     x->reflength= maria_get_pointer_length(share->base.max_data_file_length,
@@ -85,7 +85,7 @@ int maria_status(MARIA_HA *info, register MARIA_INFO *x, uint flag)
     x->index_file_name  = share->index_file_name;
     x->data_file_type   = share->data_file_type;
   }
-  if ((flag & HA_STATUS_TIME) && !my_fstat(info->dfile,&state,MYF(0)))
+  if ((flag & HA_STATUS_TIME) && !my_fstat(info->dfile.file, &state, MYF(0)))
     x->update_time=state.st_mtime;
   else
     x->update_time=0;
@@ -126,10 +126,14 @@ void _ma_report_error(int errcode, const char *file_name)
 
   if ((length= strlen(file_name)) > 64)
   {
+    /* we first remove the directory */
     uint dir_length= dirname_length(file_name);
     file_name+= dir_length;
     if ((length-= dir_length) > 64)
+    {
+      /* still too long, chop start of table name */
       file_name+= length - 64;
+    }
   }
   my_error(errcode, MYF(ME_NOREFRESH), file_name);
   DBUG_VOID_RETURN;

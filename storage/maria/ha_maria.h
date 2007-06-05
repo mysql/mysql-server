@@ -59,10 +59,9 @@ public:
   }
   uint max_supported_keys() const
   { return MARIA_MAX_KEY; }
-  uint max_supported_key_length() const
-  { return HA_MAX_KEY_LENGTH; }
+  uint max_supported_key_length() const;
   uint max_supported_key_part_length() const
-  { return HA_MAX_KEY_LENGTH; }
+  { return max_supported_key_length(); }
   enum row_type get_row_type() const;
   uint checksum() const;
   virtual double scan_time();
@@ -111,6 +110,7 @@ public:
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset(void);
   int external_lock(THD * thd, int lock_type);
+  int start_stmt(THD *thd, thr_lock_type lock_type);
   int delete_all_rows(void);
   int disable_indexes(uint mode);
   int enable_indexes(uint mode);

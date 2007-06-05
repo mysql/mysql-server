@@ -108,6 +108,7 @@ int main(int argc, char *argv[])
   PAGECACHE pagecache;
   LSN lsn, lsn_base, first_lsn;
   TRANSLOG_HEADER_BUFFER rec;
+  LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 3];
   struct st_translog_scanner_data scanner;
   int rc;
 
@@ -163,9 +164,12 @@ int main(int argc, char *argv[])
   long_tr_id[5]= 0xff;
 
   int4store(long_tr_id, 0);
+  parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
+  parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
   if (translog_write_record(&lsn,
                             LOGREC_LONG_TRANSACTION_ID,
-                            0, NULL, 6, long_tr_id, 0))
+                            0, NULL, NULL,
+                            6, TRANSLOG_INTERNAL_PARTS + 1, parts))
   {
     fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);
     translog_destroy();
@@ -180,9 +184,13 @@ int main(int argc, char *argv[])
     if (i % 2)
     {
       lsn_store(lsn_buff, lsn_base);
-      if (translog_write_record(&lsn,
-                                LOGREC_CLR_END,
-                                (i % 0xFFFF), NULL, 7, lsn_buff, 0))
+      parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)lsn_buff;
+      parts[TRANSLOG_INTERNAL_PARTS + 0].length= LSN_STORE_SIZE;
+      /* check auto-count feature */
+      parts[TRANSLOG_INTERNAL_PARTS + 1].str= NULL;
+      parts[TRANSLOG_INTERNAL_PARTS + 1].length= 0;
+      if (translog_write_record(&lsn, LOGREC_CLR_END, (i % 0xFFFF), NULL,
+                                NULL, LSN_STORE_SIZE, 0, parts))
       {
         fprintf(stderr, "1 Can't write reference defore record #%lu\n",
                 (ulong) i);
@@ -194,10 +202,16 @@ int main(int argc, char *argv[])
       lsn_store(lsn_buff, lsn_base);
       if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 12)
         rec_len= 12;
+      parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)lsn_buff;
+      parts[TRANSLOG_INTERNAL_PARTS + 0].length= LSN_STORE_SIZE;
+      parts[TRANSLOG_INTERNAL_PARTS + 1].str= (char*)long_buffer;
+      parts[TRANSLOG_INTERNAL_PARTS + 1].length= rec_len;
+      /* check record length auto-counting */
       if (translog_write_record(&lsn,
                                 LOGREC_UNDO_KEY_INSERT,
                                 (i % 0xFFFF),
-                                NULL, 7, lsn_buff, rec_len, long_buffer, 0))
+                                NULL, NULL, 0, TRANSLOG_INTERNAL_PARTS + 2,
+                                parts))
       {
         fprintf(stderr, "1 Can't write var reference defore record #%lu\n",
                 (ulong) i);
@@ -211,9 +225,12 @@ int main(int argc, char *argv[])
     {
       lsn_store(lsn_buff, lsn_base);
       lsn_store(lsn_buff + LSN_STORE_SIZE, first_lsn);
+      parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)lsn_buff;
+      parts[TRANSLOG_INTERNAL_PARTS + 0].length= 23;
       if (translog_write_record(&lsn,
                                 LOGREC_UNDO_ROW_DELETE,
-                                (i % 0xFFFF), NULL, 23, lsn_buff, 0))
+                                (i % 0xFFFF), NULL, NULL,
+                                23, TRANSLOG_INTERNAL_PARTS + 1, parts))
       {
         fprintf(stderr, "0 Can't write reference defore record #%lu\n",
                 (ulong) i);
@@ -226,10 +243,15 @@ int main(int argc, char *argv[])
       lsn_store(lsn_buff + LSN_STORE_SIZE, first_lsn);
       if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 19)
         rec_len= 19;
+      parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)lsn_buff;
+      parts[TRANSLOG_INTERNAL_PARTS + 0].length= 14;
+      parts[TRANSLOG_INTERNAL_PARTS + 1].str= (char*)long_buffer;
+      parts[TRANSLOG_INTERNAL_PARTS + 1].length= rec_len;
       if (translog_write_record(&lsn,
                                 LOGREC_UNDO_KEY_DELETE,
                                 (i % 0xFFFF),
-                                NULL, 14, lsn_buff, rec_len, long_buffer, 0))
+                                NULL, NULL, 14 + rec_len,
+                                TRANSLOG_INTERNAL_PARTS + 2, parts))
       {
         fprintf(stderr, "0 Can't write var reference defore record #%lu\n",
                 (ulong) i);
@@ -240,9 +262,13 @@ int main(int argc, char *argv[])
       ok(1, "write LOGREC_UNDO_KEY_DELETE");
     }
     int4store(long_tr_id, i);
+    parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
+    parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
     if (translog_write_record(&lsn,
                               LOGREC_LONG_TRANSACTION_ID,
-                              (i % 0xFFFF), NULL, 6, long_tr_id, 0))
+                              (i % 0xFFFF), NULL, NULL, 6,
+                              TRANSLOG_INTERNAL_PARTS + 1,
+                              parts))
     {
       fprintf(stderr, "Can't write record #%lu\n", (ulong) i);
       translog_destroy();
@@ -255,9 +281,13 @@ int main(int argc, char *argv[])
 
     if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 9)
       rec_len= 9;
+    parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_buffer;
+    parts[TRANSLOG_INTERNAL_PARTS + 0].length= rec_len;
     if (translog_write_record(&lsn,
                               LOGREC_REDO_INSERT_ROW_HEAD,
-                              (i % 0xFFFF), NULL, rec_len, long_buffer, 0))
+                              (i % 0xFFFF), NULL, NULL, rec_len,
+                              TRANSLOG_INTERNAL_PARTS + 1,
+                              parts))
     {
       fprintf(stderr, "Can't write variable record #%lu\n", (ulong) i);
       translog_destroy();

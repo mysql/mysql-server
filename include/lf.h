@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (C) 2007 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,26 +96,28 @@ nolock_wrap(lf_dynarray_iterate, int,
 #define LF_PINBOX_PINS 4
 #define LF_PURGATORY_SIZE 10
 
-typedef void lf_pinbox_free_func(void *, void *);
+typedef void lf_pinbox_free_func(void *, void *, void*);
 
 typedef struct {
-  LF_DYNARRAY pinstack;
+  LF_DYNARRAY pinarray;
   lf_pinbox_free_func *free_func;
   void *free_func_arg;
   uint free_ptr_offset;
   uint32 volatile pinstack_top_ver;         /* this is a versioned pointer */
-  uint32 volatile pins_in_stack;            /* number of elements in array */
+  uint32 volatile pins_in_array;            /* number of elements in array */
 } LF_PINBOX;
 
 typedef struct {
   void * volatile pin[LF_PINBOX_PINS];
   LF_PINBOX *pinbox;
+  void  *stack_ends_here;
   void  *purgatory;
   uint32 purgatory_count;
   uint32 volatile link;
 /* we want sizeof(LF_PINS) to be 128 to avoid false sharing */
   char pad[128-sizeof(uint32)*2
               -sizeof(LF_PINBOX *)
+              -sizeof(void*)
               -sizeof(void *)*(LF_PINBOX_PINS+1)];
 } LF_PINS;
 
@@ -124,9 +126,9 @@ typedef struct {
   (e.g. lf_hash).
 */
 #define lf_rwlock_by_pins(PINS)   \
-  my_atomic_rwlock_wrlock(&(PINS)->pinbox->pinstack.lock)
+  my_atomic_rwlock_wrlock(&(PINS)->pinbox->pinarray.lock)
 #define lf_rwunlock_by_pins(PINS) \
-  my_atomic_rwlock_wrunlock(&(PINS)->pinbox->pinstack.lock)
+  my_atomic_rwlock_wrunlock(&(PINS)->pinbox->pinarray.lock)
 
 /*
   compile-time assert, to require "no less than N" pins
@@ -135,9 +137,9 @@ typedef struct {
 */
 #if defined(__GNUC__) && defined(MY_LF_EXTRA_DEBUG)
 #define LF_REQUIRE_PINS(N)                                      \
-  static const char require_pins[LF_PINBOX_PINS-N] __attribute__ ((unused)); \
-  static const int LF_NUM_PINS_IN_THIS_FILE= N
-
+  static const char require_pins[LF_PINBOX_PINS-N]              \
+                             __attribute__ ((unused));          \
+  static const int LF_NUM_PINS_IN_THIS_FILE= N;
 #define _lf_pin(PINS, PIN, ADDR)                                \
   (                                                             \
     assert(PIN < LF_NUM_PINS_IN_THIS_FILE),                     \
@@ -164,17 +166,17 @@ void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
 void lf_pinbox_destroy(LF_PINBOX *pinbox);
 
 lock_wrap(lf_pinbox_get_pins, LF_PINS *,
-          (LF_PINBOX *pinbox),
-          (pinbox),
-          &pinbox->pinstack.lock)
+          (LF_PINBOX *pinbox, void *stack_end),
+          (pinbox, stack_end),
+          &pinbox->pinarray.lock);
 lock_wrap_void(lf_pinbox_put_pins,
                (LF_PINS *pins),
                (pins),
-               &pins->pinbox->pinstack.lock)
+               &pins->pinbox->pinarray.lock);
 lock_wrap_void(lf_pinbox_free,
                (LF_PINS *pins, void *addr),
                (pins, addr),
-               &pins->pinbox->pinstack.lock)
+               &pins->pinbox->pinarray.lock);
 
 /*
   memory allocator, lf_alloc-pin.c
@@ -193,23 +195,23 @@ typedef struct st_lf_allocator {
 
 void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset);
 void lf_alloc_destroy(LF_ALLOCATOR *allocator);
-uint lf_alloc_in_pool(LF_ALLOCATOR *allocator);
+uint lf_alloc_pool_count(LF_ALLOCATOR *allocator);
 /*
   shortcut macros to access underlying pinbox functions from an LF_ALLOCATOR
   see _lf_pinbox_get_pins() and _lf_pinbox_put_pins()
 */
-#define _lf_alloc_free(PINS, PTR)   _lf_pinbox_free((PINS), (PTR))
-#define lf_alloc_free(PINS, PTR)    lf_pinbox_free((PINS), (PTR))
-#define _lf_alloc_get_pins(ALLOC)   _lf_pinbox_get_pins(&(ALLOC)->pinbox)
-#define lf_alloc_get_pins(ALLOC)    lf_pinbox_get_pins(&(ALLOC)->pinbox)
-#define _lf_alloc_put_pins(PINS)    _lf_pinbox_put_pins(PINS)
-#define lf_alloc_put_pins(PINS)     lf_pinbox_put_pins(PINS)
-#define lf_alloc_real_free(ALLOC, ADDR) my_free((gptr)(ADDR), MYF(0))
+#define _lf_alloc_free(PINS, PTR)     _lf_pinbox_free((PINS), (PTR))
+#define lf_alloc_free(PINS, PTR)       lf_pinbox_free((PINS), (PTR))
+#define _lf_alloc_get_pins(A, ST)     _lf_pinbox_get_pins(&(A)->pinbox, (ST))
+#define lf_alloc_get_pins(A, ST)       lf_pinbox_get_pins(&(A)->pinbox, (ST))
+#define _lf_alloc_put_pins(PINS)      _lf_pinbox_put_pins(PINS)
+#define lf_alloc_put_pins(PINS)        lf_pinbox_put_pins(PINS)
+#define lf_alloc_direct_free(ALLOC, ADDR) my_free((gptr)(ADDR), MYF(0))
 
 lock_wrap(lf_alloc_new, void *,
           (LF_PINS *pins),
           (pins),
-          &pins->pinbox->pinstack.lock)
+          &pins->pinbox->pinarray.lock);
 
 /*
   extendible hash, lf_hash.c
@@ -240,11 +242,11 @@ int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen);
   shortcut macros to access underlying pinbox functions from an LF_HASH
   see _lf_pinbox_get_pins() and _lf_pinbox_put_pins()
 */
-#define _lf_hash_get_pins(HASH)   _lf_alloc_get_pins(&(HASH)->alloc)
-#define lf_hash_get_pins(HASH)    lf_alloc_get_pins(&(HASH)->alloc)
-#define _lf_hash_put_pins(PINS)   _lf_pinbox_put_pins(PINS)
-#define lf_hash_put_pins(PINS)    lf_pinbox_put_pins(PINS)
-
+#define _lf_hash_get_pins(HASH, ST) _lf_alloc_get_pins(&(HASH)->alloc, (ST))
+#define lf_hash_get_pins(HASH, ST)   lf_alloc_get_pins(&(HASH)->alloc, (ST))
+#define _lf_hash_put_pins(PINS)     _lf_pinbox_put_pins(PINS)
+#define lf_hash_put_pins(PINS)       lf_pinbox_put_pins(PINS)
+#define lf_hash_search_unpin(PINS)   lf_unpin((PINS), 2)
 /*
   cleanup
 */

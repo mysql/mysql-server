@@ -18,6 +18,11 @@
 #include "maria.h"
 #include <my_getopt.h>
 #include <m_string.h>
+#include "ma_control_file.h"
+#include "ma_loghandler.h"
+
+extern PAGECACHE *maria_log_pagecache;
+extern const char *maria_data_root;
 
 #define MAX_REC_LENGTH 1024
 
@@ -32,8 +37,8 @@ static enum data_file_type record_type= DYNAMIC_RECORD;
 static uint insert_count, update_count, remove_count;
 static uint pack_keys=0, pack_seg=0, key_length;
 static uint unique_key=HA_NOSAME;
-static my_bool key_cacheing, null_fields, silent, skip_update, opt_unique,
-  verbose, skip_delete;
+static my_bool pagecacheing, null_fields, silent, skip_update, opt_unique,
+  verbose, skip_delete, transactional;
 static MARIA_COLUMNDEF recinfo[4];
 static MARIA_KEYDEF keyinfo[10];
 static HA_KEYSEG keyseg[10];
@@ -49,10 +54,23 @@ int main(int argc,char *argv[])
 {
   MY_INIT(argv[0]);
   my_init();
-  maria_init();
-  if (key_cacheing)
-    init_key_cache(maria_key_cache,KEY_CACHE_BLOCK_SIZE,IO_SIZE*16,0,0);
   get_options(argc,argv);
+  maria_data_root= ".";
+  /* Maria requires that we always have a page cache */
+  if (maria_init() ||
+      (init_pagecache(maria_pagecache, IO_SIZE*16, 0, 0,
+                      maria_block_size) == 0) ||
+      ma_control_file_create_or_open() ||
+      (init_pagecache(maria_log_pagecache,
+                      TRANSLOG_PAGECACHE_SIZE, 0, 0,
+                      TRANSLOG_PAGE_SIZE) == 0) ||
+      translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
+                    0, 0, maria_log_pagecache,
+                    TRANSLOG_DEFAULT_FLAGS))
+  {
+    fprintf(stderr, "Error in initialization");
+    exit(1);
+  }
 
   exit(run_test("test1"));
 }
@@ -73,12 +91,12 @@ static int run_test(const char *filename)
   /* First define 2 columns */
   create_info.null_bytes= 1;
   recinfo[0].type= key_field;
-  recinfo[0].length= (key_field == FIELD_BLOB ? 4+maria_portable_sizeof_char_ptr :
+  recinfo[0].length= (key_field == FIELD_BLOB ? 4+portable_sizeof_char_ptr :
 		      key_length);
   if (key_field == FIELD_VARCHAR)
     recinfo[0].length+= HA_VARCHAR_PACKLENGTH(key_length);
   recinfo[1].type=extra_field;
-  recinfo[1].length= (extra_field == FIELD_BLOB ? 4 + maria_portable_sizeof_char_ptr : 24);
+  recinfo[1].length= (extra_field == FIELD_BLOB ? 4 + portable_sizeof_char_ptr : 24);
   if (extra_field == FIELD_VARCHAR)
     recinfo[1].length+= HA_VARCHAR_PACKLENGTH(recinfo[1].length);
   if (opt_unique)
@@ -152,6 +170,7 @@ static int run_test(const char *filename)
   create_info.max_rows=(ulong) (rec_pointer_size ?
 				(1L << (rec_pointer_size*8))/40 :
 				0);
+  create_info.transactional= transactional;
   if (maria_create(filename, record_type, 1, keyinfo,2+opt_unique,recinfo,
 		uniques, &uniquedef, &create_info,
 		create_flag))
@@ -568,8 +587,8 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"key-blob", 'b', "Undocumented",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"key-cache", 'K', "Undocumented", (gptr*) &key_cacheing,
-   (gptr*) &key_cacheing, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"key-cache", 'K', "Undocumented", (gptr*) &pagecacheing,
+   (gptr*) &pagecacheing, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"key-length", 'k', "Undocumented", (gptr*) &key_length, (gptr*) &key_length,
    0, GET_UINT, REQUIRED_ARG, 6, 0, 0, 0, 0, 0},
   {"key-multiple", 'm', "Undocumented",
@@ -595,6 +614,9 @@ static struct my_option my_long_options[] =
    (gptr*) &skip_delete, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-update", 'D', "Don't test updates", (gptr*) &skip_update,
    (gptr*) &skip_update, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"transactional", 'T', "Test in transactional mode. (Only works with block format)",
+   (gptr*) &transactional, (gptr*) &transactional, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
   {"unique", 'C', "Undocumented", (gptr*) &opt_unique, (gptr*) &opt_unique, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"update-rows", 'u', "Undocumented", (gptr*) &update_count,
@@ -676,7 +698,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       record_type= DYNAMIC_RECORD;
     break;
   case 'K':                                     /* Use key cacheing */
-    key_cacheing=1;
+    pagecacheing=1;
     break;
   case 'V':
     printf("test1 Ver 1.2 \n");

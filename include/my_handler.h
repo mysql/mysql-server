@@ -111,4 +111,11 @@ extern int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 
 extern HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a);
 
+/*
+  Inside an in-memory data record, memory pointers to pieces of the
+  record (like BLOBs) are stored in their native byte order and in
+  this amount of bytes.
+*/
+#define portable_sizeof_char_ptr 8
+
 #endif /* _my_handler_h */

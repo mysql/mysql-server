@@ -27,8 +27,8 @@ extern "C" {
 #ifndef _m_ctype_h
 #include <m_ctype.h>
 #endif
-#ifndef _keycache_h
-#include "keycache.h"
+#ifndef _pagecache_h
+#include "pagecache.h"
 #endif
 #include "my_handler.h"
 #include "ft_global.h"
@@ -54,8 +54,8 @@ extern "C" {
 #define MARIA_KEY_BLOCK_LENGTH	8192		/* default key block length */
 #define MARIA_MIN_KEY_BLOCK_LENGTH	1024	/* Min key block length */
 #define MARIA_MAX_KEY_BLOCK_LENGTH	32768
-#define maria_portable_sizeof_char_ptr 8
-#define MARIA_MAX_KEY_LENGTH    1000        	/* Max length in bytes */
+/* Minimal page cache when we only want to be able to scan a table */
+#define MARIA_MIN_PAGE_CACHE_SIZE	65536
 
 /*
   In the following macros '_keyno_' is 0 .. keys-1.
@@ -150,6 +150,7 @@ typedef struct st_maria_create_info
   ulonglong auto_increment;
   ulonglong data_file_length;
   ulonglong key_file_length;
+  /* Size of null bitmap at start of row */
   uint null_bytes;
   uint old_options;
   enum data_file_type org_data_file_type;
@@ -226,11 +227,13 @@ typedef struct st_maria_columndef		/* column information */
   uint64 offset;				/* Offset to position in row */
   enum en_fieldtype type;
   uint16 length;				/* length of field */
+  /* Intern variable (size of total storage area for the row) */
   uint16 fill_length;
   uint16 null_pos;				/* Position for null marker */
   uint16 empty_pos;                             /* Position for empty marker */
   uint8 null_bit;				/* If column may be NULL */
-  uint8 empty_bit;				/* If column may be empty */
+  /* Intern. Set if column should be zero packed (part of empty_bits) */
+  uint8 empty_bit;
 
 #ifndef NOT_PACKED_DATABASES
   void(*unpack)(struct st_maria_columndef *rec,
@@ -246,10 +249,10 @@ typedef struct st_maria_columndef		/* column information */
 extern ulong maria_block_size;
 extern ulong maria_concurrent_insert;
 extern my_bool maria_flush, maria_single_user;
-extern my_bool maria_delay_key_write, maria_delay_rec_write;
+extern my_bool maria_delay_key_write;
 extern my_off_t maria_max_temp_length;
 extern ulong maria_bulk_insert_tree_size, maria_data_pointer_size;
-extern KEY_CACHE maria_key_cache_var, *maria_key_cache;
+extern PAGECACHE maria_pagecache_var, *maria_pagecache;
 
 
 	/* Prototypes for maria-functions */
@@ -418,10 +421,10 @@ my_bool maria_test_if_sort_rep(MARIA_HA *info, ha_rows rows, ulonglong key_map,
 int maria_init_bulk_insert(MARIA_HA *info, ulong cache_size, ha_rows rows);
 void maria_flush_bulk_insert(MARIA_HA *info, uint inx);
 void maria_end_bulk_insert(MARIA_HA *info);
-int maria_assign_to_key_cache(MARIA_HA *info, ulonglong key_map,
-			      KEY_CACHE *key_cache);
-void maria_change_key_cache(KEY_CACHE *old_key_cache,
-			    KEY_CACHE *new_key_cache);
+int maria_assign_to_pagecache(MARIA_HA *info, ulonglong key_map,
+			      PAGECACHE *key_cache);
+void maria_change_pagecache(PAGECACHE *old_key_cache,
+			    PAGECACHE *new_key_cache);
 int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves);
 
 /* fulltext functions */

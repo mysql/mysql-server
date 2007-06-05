@@ -236,7 +236,7 @@ int simple_pin_test()
                    0,
                    PAGECACHE_LOCK_READ_UNLOCK,
                    PAGECACHE_UNPIN,
-                   0);
+                   0, 0);
   if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
   {
     diag("Got error in flush_pagecache_blocks\n");
@@ -384,7 +384,7 @@ int simple_big_test()
       }
     }
   }
-  ok(1, "simple big file sequentally read");
+  ok(1, "Simple big file sequential read");
   /* chack random reads */
   for (i= 0; i < PCACHE_SIZE/(PAGE_SIZE); i++)
   {
@@ -403,7 +403,7 @@ int simple_big_test()
       }
     }
   }
-  ok(1, "simple big file random read");
+  ok(1, "Simple big file random read");
   flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
 
   ok((res= test(test_file(file1, file1_name, PCACHE_SIZE*2, PAGE_SIZE,
@@ -432,9 +432,14 @@ static void *test_thread(void *arg)
       !simple_read_change_write_read_test() ||
       !simple_pin_test() ||
       !simple_delete_forget_test() ||
-      !simple_delete_flush_test() ||
-      !simple_big_test())
+      !simple_delete_flush_test())
     exit(1);
+
+  SKIP_BIG_TESTS(4)
+  {
+    if (!simple_big_test())
+      exit(1);
+  }
 
   DBUG_PRINT("info", ("Thread %s ended\n", my_thread_name()));
   pthread_mutex_lock(&LOCK_thread_count);

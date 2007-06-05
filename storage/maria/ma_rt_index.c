@@ -127,11 +127,11 @@ static int maria_rtree_find_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
           info->int_keypos = info->buff;
           info->int_maxpos = info->buff + (last - after_key);
           memcpy(info->buff, after_key, last - after_key);
-          info->keybuff_used = 0;
+          info->keyread_buff_used = 0;
         }
         else
         {
-	  info->keybuff_used = 1;
+	  info->keyread_buff_used = 1;
         }
 
         res = 0;
@@ -192,7 +192,7 @@ int maria_rtree_find_first(MARIA_HA *info, uint keynr, byte *key,
   info->last_rkey_length = key_length;
 
   info->maria_rtree_recursion_depth = -1;
-  info->keybuff_used = 1;
+  info->keyread_buff_used = 1;
 
   nod_cmp_flag= ((search_flag & (MBR_EQUAL | MBR_WITHIN)) ?
                  MBR_WITHIN : MBR_INTERSECT);
@@ -227,7 +227,7 @@ int maria_rtree_find_next(MARIA_HA *info, uint keynr, uint search_flag)
                                   info->lastkey_length,
                                   search_flag);
 
-  if (!info->keybuff_used)
+  if (!info->keyread_buff_used)
   {
     byte *key= info->int_keypos;
 
@@ -245,7 +245,7 @@ int maria_rtree_find_next(MARIA_HA *info, uint keynr, uint search_flag)
         if (after_key < info->int_maxpos)
 	  info->int_keypos= after_key;
         else
-	  info->keybuff_used= 1;
+	  info->keyread_buff_used= 1;
         return 0;
       }
       key+= keyinfo->keylength;
@@ -342,11 +342,11 @@ static int maria_rtree_get_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uint key_l
         info->int_keypos = (byte*) saved_key;
         memcpy(info->buff, page_buf, keyinfo->block_length);
         info->int_maxpos = rt_PAGE_END(info->buff);
-        info->keybuff_used = 0;
+        info->keyread_buff_used = 0;
       }
       else
       {
-	info->keybuff_used = 1;
+	info->keyread_buff_used = 1;
       }
 
       res = 0;
@@ -389,7 +389,7 @@ int maria_rtree_get_first(MARIA_HA *info, uint keynr, uint key_length)
   }
 
   info->maria_rtree_recursion_depth = -1;
-  info->keybuff_used = 1;
+  info->keyread_buff_used = 1;
 
   return maria_rtree_get_req(info, &keyinfo[keynr], key_length, root, 0);
 }
@@ -409,7 +409,7 @@ int maria_rtree_get_next(MARIA_HA *info, uint keynr, uint key_length)
   my_off_t root;
   MARIA_KEYDEF *keyinfo = info->s->keyinfo + keynr;
 
-  if (!info->keybuff_used)
+  if (!info->keyread_buff_used)
   {
     uint k_len = keyinfo->keylength - info->s->base.rec_reflength;
     /* rt_PAGE_NEXT_KEY(info->int_keypos) */
@@ -425,7 +425,7 @@ int maria_rtree_get_next(MARIA_HA *info, uint keynr, uint key_length)
     *(int*)info->int_keypos = key - info->buff;
     if (after_key >= info->int_maxpos)
     {
-      info->keybuff_used = 1;
+      info->keyread_buff_used = 1;
     }
 
     return 0;
@@ -638,7 +638,7 @@ static int maria_rtree_insert_level(MARIA_HA *info, uint keynr, byte *key,
   {
     if ((old_root = _ma_new(info, keyinfo, DFLT_INIT_HITS)) == HA_OFFSET_ERROR)
       return -1;
-    info->keybuff_used = 1;
+    info->keyread_buff_used = 1;
     maria_putint(info->buff, 2, 0);
     res = maria_rtree_add_key(info, keyinfo, key, key_length, info->buff, NULL);
     if (_ma_write_keypage(info, keyinfo, old_root, DFLT_INIT_HITS, info->buff))

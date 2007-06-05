@@ -25,6 +25,7 @@ int main(int argc, char *argv[])
   PAGECACHE pagecache;
   LSN lsn;
   MY_STAT st, *stat;
+  LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 1];
 
   MY_INIT(argv[0]);
 
@@ -85,9 +86,12 @@ int main(int argc, char *argv[])
     exit(1);
   }
   int4store(long_tr_id, 0);
+  parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
+  parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
   if (translog_write_record(&lsn,
                             LOGREC_LONG_TRANSACTION_ID,
-                            0, NULL, 6, long_tr_id, 0))
+                            0, NULL, NULL, 6, TRANSLOG_INTERNAL_PARTS + 1,
+                            parts))
   {
     fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);
     translog_destroy();

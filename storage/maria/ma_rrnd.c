@@ -36,7 +36,6 @@ int maria_rrnd(MARIA_HA *info, byte *buf, MARIA_RECORD_POS filepos)
 #ifdef NOT_USED
   if (filepos == HA_OFFSET_ERROR)
   {
-    skip_deleted_blocks=1;
     if (info->cur_row.lastpos == HA_OFFSET_ERROR)  /* First read ? */
       filepos= info->s->pack.header_length;	   /* Read first record */
     else

@@ -117,10 +117,10 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	share.base.blobs++;
 	if (pack_reclength != INT_MAX32)
 	{
-	  if (rec->length == 4+mi_portable_sizeof_char_ptr)
+	  if (rec->length == 4+portable_sizeof_char_ptr)
 	    pack_reclength= INT_MAX32;
 	  else
-	    pack_reclength+=(1 << ((rec->length-mi_portable_sizeof_char_ptr)*8)); /* Max blob length */
+	    pack_reclength+=(1 << ((rec->length-portable_sizeof_char_ptr)*8)); /* Max blob length */
 	}
       }
       else if (type == FIELD_SKIP_PRESPACE ||

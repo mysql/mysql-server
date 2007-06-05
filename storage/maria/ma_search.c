@@ -157,7 +157,7 @@ int _ma_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   info->int_keytree_version=keyinfo->version;
   info->last_search_keypage=info->last_keypage;
   info->page_changed=0;
-  info->keybuff_used= (info->keyread_buff != buff); /* If we have to reread */
+  info->keyread_buff_used= (info->keyread_buff != buff); /* If we have to reread */
 
   DBUG_PRINT("exit",("found key at %lu",(ulong) info->cur_row.lastpos));
   DBUG_RETURN(0);
@@ -618,7 +618,7 @@ void _ma_kpointer(register MARIA_HA *info, register byte *buff, my_off_t pos)
   case 4: mi_int4store(buff,pos); break;
   case 3: mi_int3store(buff,pos); break;
   case 2: mi_int2store(buff,(uint) pos); break;
-  case 1: buff[0]= (char) (uchar) pos; break;
+  case 1: buff[0]= (byte) pos; break;
   default: abort();                             /* impossible */
   }
 } /* _ma_kpointer */
@@ -1219,10 +1219,10 @@ int _ma_search_next(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   uint nod_flag;
   byte lastkey[HA_MAX_KEY_BUFF];
   DBUG_ENTER("_ma_search_next");
-  DBUG_PRINT("enter",("nextflag: %u  lastpos: %lu  int_keypos: %lu  page_changed %d  keybuff_used: %d",
+  DBUG_PRINT("enter",("nextflag: %u  lastpos: %lu  int_keypos: %lu  page_changed %d  keyread_buff_used: %d",
                       nextflag, (ulong) info->cur_row.lastpos,
                       (ulong) info->int_keypos,
-                      info->page_changed, info->keybuff_used));
+                      info->page_changed, info->keyread_buff_used));
   DBUG_EXECUTE("key", _ma_print_key(DBUG_FILE,keyinfo->seg,key,key_length););
 
   /* Force full read if we are at last key or if we are not on a leaf
@@ -1235,16 +1235,16 @@ int _ma_search_next(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   if (((nextflag & SEARCH_BIGGER) && info->int_keypos >= info->int_maxpos) ||
       info->page_changed ||
       (info->int_keytree_version != keyinfo->version &&
-       (info->int_nod_flag || info->keybuff_used)))
+       (info->int_nod_flag || info->keyread_buff_used)))
     DBUG_RETURN(_ma_search(info,keyinfo,key, USE_WHOLE_KEY,
                            nextflag | SEARCH_SAVE_BUFF, pos));
 
-  if (info->keybuff_used)
+  if (info->keyread_buff_used)
   {
     if (!_ma_fetch_keypage(info,keyinfo,info->last_search_keypage,
                            DFLT_INIT_HITS,info->keyread_buff,0))
       DBUG_RETURN(-1);
-    info->keybuff_used=0;
+    info->keyread_buff_used=0;
   }
 
   /* Last used buffer is in info->keyread_buff */
@@ -1328,7 +1328,7 @@ int _ma_search_first(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   info->int_nod_flag=nod_flag;
   info->int_keytree_version=keyinfo->version;
   info->last_search_keypage=info->last_keypage;
-  info->page_changed=info->keybuff_used=0;
+  info->page_changed=info->keyread_buff_used=0;
   info->cur_row.lastpos= _ma_dpos(info,0,info->lastkey+info->lastkey_length);
 
   DBUG_PRINT("exit",("found key at %lu", (ulong) info->cur_row.lastpos));
@@ -1373,7 +1373,7 @@ int _ma_search_last(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   info->int_nod_flag=nod_flag;
   info->int_keytree_version=keyinfo->version;
   info->last_search_keypage=info->last_keypage;
-  info->page_changed=info->keybuff_used=0;
+  info->page_changed=info->keyread_buff_used=0;
 
   DBUG_PRINT("exit",("found key at %lu",(ulong) info->cur_row.lastpos));
   DBUG_RETURN(0);

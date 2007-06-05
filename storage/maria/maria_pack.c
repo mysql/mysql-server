@@ -307,9 +307,10 @@ static void usage(void)
   puts("and you are welcome to modify and redistribute it under the GPL license\n");
 
   puts("Pack a MARIA-table to take much less space.");
-  puts("Keys are not updated, you must run maria_chk -rq on the datafile");
+  puts("Keys are not updated, you must run maria_chk -rq on the index (.MAI) file");
   puts("afterwards to update the keys.");
-  puts("You should give the .MYI file as the filename argument.");
+  puts("You should give the .MAI file as the filename argument.");
+  puts("To unpack a packed table, run maria_chk -u on the table");
 
   VOID(printf("\nUsage: %s [OPTIONS] filename...\n", my_progname));
   my_print_help(my_long_options);
@@ -462,9 +463,9 @@ static bool open_isam_files(PACK_MRG_INFO *mrg,char **names,uint count)
     if (mrg->file[j]->s->base.reclength != mrg->file[j+1]->s->base.reclength ||
 	mrg->file[j]->s->base.fields != mrg->file[j+1]->s->base.fields)
       goto diff_file;
-    m1=mrg->file[j]->s->rec;
+    m1=mrg->file[j]->s->columndef;
     end=m1+mrg->file[j]->s->base.fields;
-    m2=mrg->file[j+1]->s->rec;
+    m2=mrg->file[j+1]->s->columndef;
     for ( ; m1 != end ; m1++,m2++)
     {
       if (m1->type != m2->type || m1->length != m2->length)
@@ -504,13 +505,21 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   trees=fields=0;
   huff_trees=0;
   huff_counts=0;
+  maria_block_size= isam_file->s->block_size;
 
   /* Create temporary or join file */
-
   if (backup)
     VOID(fn_format(org_name,isam_file->filename,"",MARIA_NAME_DEXT,2));
   else
     VOID(fn_format(org_name,isam_file->filename,"",MARIA_NAME_DEXT,2+4+16));
+
+  if (init_pagecache(maria_pagecache, MARIA_MIN_PAGE_CACHE_SIZE, 0, 0,
+                     maria_block_size) == 0)
+  {
+    fprintf(stderr, "Can't initialize page cache\n");
+    goto err;
+  }
+
   if (!test_only && result_table)
   {
     /* Make a new indexfile based on first file in list */
@@ -524,7 +533,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
     length=(uint) share->base.keystart;
     if (!(buff=my_malloc(length,MYF(MY_WME))))
       goto err;
-    if (my_pread(share->kfile,buff,length,0L,MYF(MY_WME | MY_NABP)) ||
+    if (my_pread(share->kfile.file, buff, length, 0L, MYF(MY_WME | MY_NABP)) ||
 	my_write(join_isam_file,buff,length,
 		 MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
     {
@@ -678,9 +687,9 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
     error|=my_close(new_file,MYF(MY_WME));
     if (!result_table)
     {
-      error|=my_close(isam_file->dfile,MYF(MY_WME));
-      isam_file->dfile= -1;		/* Tell maria_close file is closed */
-      isam_file->s->bitmap.file= -1;
+      error|=my_close(isam_file->dfile.file, MYF(MY_WME));
+      isam_file->dfile.file= -1;	/* Tell maria_close file is closed */
+      isam_file->s->bitmap.file.file= -1;
     }
   }
 
@@ -750,6 +759,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   DBUG_RETURN(0);
 
  err:
+  end_pagecache(maria_pagecache, 1);
   free_counts_and_tree_and_queue(huff_trees,trees,huff_counts,fields);
   if (new_file >= 0)
     VOID(my_close(new_file,MYF(0)));
@@ -773,8 +783,8 @@ static HUFF_COUNTS *init_huff_count(MARIA_HA *info,my_off_t records)
     for (i=0 ; i < info->s->base.fields ; i++)
     {
       enum en_fieldtype type;
-      count[i].field_length=info->s->rec[i].length;
-      type= count[i].field_type= (enum en_fieldtype) info->s->rec[i].type;
+      count[i].field_length=info->s->columndef[i].length;
+      type= count[i].field_type= (enum en_fieldtype) info->s->columndef[i].type;
       if (type == FIELD_INTERVALL ||
 	  type == FIELD_CONSTANT ||
 	  type == FIELD_ZERO)
@@ -1003,7 +1013,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
         /* Calculate pos, end_pos, and max_length for variable length fields. */
 	if (count->field_type == FIELD_BLOB)
 	{
-	  uint field_length=count->field_length -maria_portable_sizeof_char_ptr;
+	  uint field_length=count->field_length -portable_sizeof_char_ptr;
 	  ulong blob_length= _ma_calc_blob_length(field_length, start_pos);
 	  memcpy_fixed((char*) &pos,  start_pos+field_length,sizeof(char*));
 	  end_pos=pos+blob_length;
@@ -2656,7 +2666,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 	case FIELD_BLOB:
 	{
 	  ulong blob_length= _ma_calc_blob_length(field_length-
-						 maria_portable_sizeof_char_ptr,
+						 portable_sizeof_char_ptr,
 						 start_pos);
           /* Empty blobs are encoded with a single 1 bit. */
 	  if (!blob_length)
@@ -2673,7 +2683,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
             DBUG_PRINT("fields", ("FIELD_BLOB %lu bytes, bits: %2u",
                                   blob_length, count->length_bits));
 	    write_bits(blob_length,count->length_bits);
-	    memcpy_fixed(&blob,end_pos-maria_portable_sizeof_char_ptr,
+	    memcpy_fixed(&blob,end_pos-portable_sizeof_char_ptr,
 			 sizeof(char*));
 	    blob_end=blob+blob_length;
             /* Encode the blob bytes. */
@@ -2952,6 +2962,7 @@ static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,
 
   options|= HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA;
   mi_int2store(share->state.header.options,options);
+  /* Save the original file type of we have to undo the packing later */
   share->state.header.org_data_file_type= share->state.header.data_file_type;
   share->state.header.data_file_type= COMPRESSED_RECORD;
 
@@ -2983,10 +2994,10 @@ static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,
   share->changed=1;			/* Force write of header */
   share->state.open_count=0;
   share->global_changed=0;
-  VOID(my_chsize(share->kfile, share->base.keystart, 0, MYF(0)));
+  VOID(my_chsize(share->kfile.file, share->base.keystart, 0, MYF(0)));
   if (share->base.keys)
     isamchk_neaded=1;
-  DBUG_RETURN(_ma_state_info_write(share->kfile,&share->state,1+2));
+  DBUG_RETURN(_ma_state_info_write(share->kfile.file, &share->state, (1 + 2)));
 }
 
 

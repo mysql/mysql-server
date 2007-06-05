@@ -150,7 +150,6 @@ int maria_rkey(MARIA_HA *info, byte *buf, int inx, const byte *key,
   else
     info->last_rkey_length= pack_key_length;
 
-
   /* Check if we don't want to have record back, only error message */
   if (!buf)
   {

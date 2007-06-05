@@ -133,7 +133,7 @@ typedef struct st_handler_check_param
   ulong rec_per_key_part[HA_MAX_KEY_SEG * HA_MAX_POSSIBLE_KEY];
   uint out_flag, warning_printed, error_printed, verbose;
   uint opt_sort_key, total_files, max_level;
-  uint testflag, key_cache_block_size;
+  uint testflag, key_cache_block_size, pagecache_block_size;
   int tmpfile_createflag, err_count;
   myf myf_rw;
   uint8 language;

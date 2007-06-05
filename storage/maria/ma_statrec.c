@@ -86,6 +86,7 @@ my_bool _ma_write_static_record(MARIA_HA *info, const byte *record)
 }
 
 my_bool _ma_update_static_record(MARIA_HA *info, MARIA_RECORD_POS pos,
+                                 const byte *oldrec __attribute__ ((unused)),
                                  const byte *record)
 {
   info->rec_cache.seek_not_done=1;		/* We have done a seek */
@@ -96,7 +97,8 @@ my_bool _ma_update_static_record(MARIA_HA *info, MARIA_RECORD_POS pos,
 }
 
 
-my_bool _ma_delete_static_record(MARIA_HA *info)
+my_bool _ma_delete_static_record(MARIA_HA *info,
+                                 const byte *record __attribute__ ((unused)))
 {
   byte temp[9];                                 /* 1+sizeof(uint32) */
   info->state->del++;

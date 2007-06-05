@@ -162,6 +162,9 @@ run_pack_tests -S
 echo "Running tests with block row format"
 run_tests -M
 
+echo "Running tests with block row format and transactions"
+run_tests "-M -T"
+
 #
 # Tests that gives warnings
 #
