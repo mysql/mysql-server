@@ -993,7 +993,7 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
     Item_param *param= *it;
     varname= var_it++;
 
-    entry= (user_var_entry *) hash_search(&thd->user_vars, (byte*) varname->str,
+    entry= (user_var_entry *) hash_search(&thd->user_vars, (uchar*) varname->str,
                                           varname->length);
     /*
       We have to call the setup_one_conversion_function() here to set
