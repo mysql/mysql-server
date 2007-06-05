@@ -81,6 +81,8 @@
 #define CFG_DB_BACKUP_WRITE_SIZE          136
 #define CFG_DB_BACKUP_MAX_WRITE_SIZE      139
 
+#define CFG_DB_WATCHDOG_INTERVAL_INITIAL  141
+
 #define CFG_LOG_DESTINATION           147
 
 #define CFG_DB_DISCLESS               148
