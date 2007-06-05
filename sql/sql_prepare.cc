@@ -229,7 +229,7 @@ find_prepared_statement(THD *thd, ulong id, const char *where)
 static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
 {
   NET *net= &stmt->thd->net;
-  char buff[12];
+  uchar buff[12];
   uint tmp;
   DBUG_ENTER("send_prep_stmt");
 
@@ -946,7 +946,7 @@ static bool insert_params_from_vars(Prepared_statement *stmt,
     Item_param *param= *it;
     varname= var_it++;
     entry= (user_var_entry*)hash_search(&stmt->thd->user_vars,
-                                        (byte*) varname->str,
+                                        (uchar*) varname->str,
                                          varname->length);
     if (param->set_from_user_var(stmt->thd, entry) ||
         param->convert_str_value(stmt->thd))
@@ -1064,7 +1064,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     if (table_list->table)
     {
       // don't allocate insert_values
-      table_list->table->insert_values=(byte *)1;
+      table_list->table->insert_values=(uchar *)1;
     }
 
     if (mysql_prepare_insert(thd, table_list, table_list->table,
@@ -1591,7 +1591,7 @@ static bool mysql_insert_select_prepare_tester(THD *thd)
     next_local;
 
   /* Skip first table, which is the table we are inserting in */
-  first_select->table_list.first= (byte *) second_table;
+  first_select->table_list.first= (uchar *) second_table;
   thd->lex->select_lex.context.table_list=
     thd->lex->select_lex.context.first_name_resolution_table= second_table;
 
@@ -1622,7 +1622,7 @@ static bool mysql_test_insert_select(Prepared_statement *stmt,
   if (tables->table)
   {
     // don't allocate insert_values
-    tables->table->insert_values=(byte *)1;
+    tables->table->insert_values=(uchar *)1;
   }
 
   if (insert_precheck(stmt->thd, tables))
@@ -1637,7 +1637,7 @@ static bool mysql_test_insert_select(Prepared_statement *stmt,
                                     &mysql_insert_select_prepare_tester,
                                     OPTION_SETUP_TABLES_DONE);
   /* revert changes  made by mysql_insert_select_prepare_tester */
-  lex->select_lex.table_list.first= (byte*) first_local_table;
+  lex->select_lex.table_list.first= (uchar*) first_local_table;
   return res;
 }
 
@@ -1974,7 +1974,7 @@ static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
     */
     if ((entry=
          (user_var_entry*)hash_search(&thd->user_vars,
-                                      (byte*)lex->prepared_stmt_code.str,
+                                      (uchar*)lex->prepared_stmt_code.str,
                                       lex->prepared_stmt_code.length))
         && entry->value)
     {
@@ -2003,7 +2003,7 @@ static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
 
     len= (needs_conversion ? var_value->length() * to_cs->mbmaxlen :
           var_value->length());
-    if (!(query_str= alloc_root(thd->mem_root, len+1)))
+    if (!(query_str= (char*) alloc_root(thd->mem_root, len+1)))
       goto end;
 
     if (needs_conversion)
@@ -2356,7 +2356,7 @@ void mysql_sql_stmt_execute(THD *thd)
   /* Query text for binary, general or slow log, if any of them is open */
   String expanded_query;
   DBUG_ENTER("mysql_sql_stmt_execute");
-  DBUG_PRINT("info", ("EXECUTE: %.*s\n", name->length, name->str));
+  DBUG_PRINT("info", ("EXECUTE: %.*s\n", (int) name->length, name->str));
 
   if (!(stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
   {
@@ -2417,7 +2417,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
 
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
-  statistic_increment(thd->status_var.com_stmt_fetch, &LOCK_status);
+  status_var_increment(thd->status_var.com_stmt_fetch);
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_fetch")))
     DBUG_VOID_RETURN;
 
@@ -2481,7 +2481,7 @@ void mysql_stmt_reset(THD *thd, char *packet)
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
 
-  statistic_increment(thd->status_var.com_stmt_reset, &LOCK_status);
+  status_var_increment(thd->status_var.com_stmt_reset);
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_reset")))
     DBUG_VOID_RETURN;
 
@@ -2544,7 +2544,8 @@ void mysql_sql_stmt_close(THD *thd)
 {
   Prepared_statement* stmt;
   LEX_STRING *name= &thd->lex->prepared_stmt_name;
-  DBUG_PRINT("info", ("DEALLOCATE PREPARE: %.*s\n", name->length, name->str));
+  DBUG_PRINT("info", ("DEALLOCATE PREPARE: %.*s\n", (int) name->length,
+                      name->str));
 
   if (! (stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
   {
@@ -2585,7 +2586,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 #endif
   DBUG_ENTER("mysql_stmt_get_longdata");
 
-  statistic_increment(thd->status_var.com_stmt_send_long_data, &LOCK_status);
+  status_var_increment(thd->status_var.com_stmt_send_long_data);
 #ifndef EMBEDDED_LIBRARY
   /* Minimal size of long data packet is 6 bytes */
   if (packet_length <= MYSQL_LONG_DATA_HEADER)
@@ -2789,7 +2790,7 @@ void Prepared_statement::cleanup_stmt()
 bool Prepared_statement::set_name(LEX_STRING *name_arg)
 {
   name.length= name_arg->length;
-  name.str= memdup_root(mem_root, (char*) name_arg->str, name_arg->length);
+  name.str= (char*) memdup_root(mem_root, name_arg->str, name_arg->length);
   return name.str == 0;
 }
 
@@ -2836,7 +2837,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     However, it seems handy if com_stmt_prepare is increased always,
     no matter what kind of prepare is processed.
   */
-  statistic_increment(thd->status_var.com_stmt_prepare, &LOCK_status);
+  status_var_increment(thd->status_var.com_stmt_prepare);
 
   /*
     alloc_query() uses thd->memroot && thd->query, so we should call
@@ -2959,7 +2960,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   Query_arena *old_stmt_arena;
   bool error= TRUE;
 
-  statistic_increment(thd->status_var.com_stmt_execute, &LOCK_status);
+  status_var_increment(thd->status_var.com_stmt_execute);
 
   /* Check if we got an error when sending long data */
   if (state == Query_arena::ERROR)
@@ -3081,7 +3082,7 @@ error:
 bool Prepared_statement::deallocate()
 {
   /* We account deallocate in the same manner as mysql_stmt_close */
-  statistic_increment(thd->status_var.com_stmt_close, &LOCK_status);
+  status_var_increment(thd->status_var.com_stmt_close);
   if (flags & (uint) IS_IN_USE)
   {
     my_error(ER_PS_NO_RECURSION, MYF(0));

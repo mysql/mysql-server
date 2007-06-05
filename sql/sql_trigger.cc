@@ -114,7 +114,7 @@ public:
   Handle_old_incorrect_sql_modes_hook(char *file_path)
     :path(file_path)
   {};
-  virtual bool process_unknown_string(char *&unknown_key, gptr base,
+  virtual bool process_unknown_string(char *&unknown_key, uchar* base,
                                       MEM_ROOT *mem_root, char *end);
 };
 
@@ -125,7 +125,7 @@ public:
                                           LEX_STRING *trigger_table_arg)
     :path(file_path), trigger_table_value(trigger_table_arg)
   {};
-  virtual bool process_unknown_string(char *&unknown_key, gptr base,
+  virtual bool process_unknown_string(char *&unknown_key, uchar* base,
                                       MEM_ROOT *mem_root, char *end);
 private:
   char *path;
@@ -484,7 +484,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   trigname.trigger_table.length= tables->table_name_length;
 
   if (sql_create_definition_file(NULL, &trigname_file, &trigname_file_type,
-                                 (gptr)&trigname, trigname_file_parameters, 0))
+                                 (uchar*)&trigname, trigname_file_parameters, 0))
     return 1;
 
   /*
@@ -574,7 +574,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   /* Create trigger definition file. */
 
   if (!sql_create_definition_file(NULL, &file, &triggers_file_type,
-                                  (gptr)this, triggers_file_parameters, 0))
+                                  (uchar*)this, triggers_file_parameters, 0))
     return 0;
 
 err_with_cleanup:
@@ -654,7 +654,7 @@ static bool save_trigger_file(Table_triggers_list *triggers, const char *db,
                                     triggers_file_ext, 0);
   file.str= file_buff;
   return sql_create_definition_file(NULL, &file, &triggers_file_type,
-                                    (gptr)triggers, triggers_file_parameters,
+                                    (uchar*)triggers, triggers_file_parameters,
                                     0);
 }
 
@@ -865,7 +865,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       triggers->definition_modes_list.empty();
       triggers->definers_list.empty();
 
-      if (parser->parse((gptr)triggers, &table->mem_root,
+      if (parser->parse((uchar*)triggers, &table->mem_root,
                         triggers_file_parameters,
                         TRG_NUM_REQUIRED_PARAMETERS,
                         &sql_modes_hook))
@@ -945,7 +945,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         of routines used by statement.
       */
       triggers->sroutines_key.length= 1+strlen(db)+1+strlen(table_name)+1;
-      if (!(triggers->sroutines_key.str=
+      if (!(triggers->sroutines_key.str= (char*)
               alloc_root(&table->mem_root, triggers->sroutines_key.length)))
         DBUG_RETURN(1);
       triggers->sroutines_key.str[0]= TYPE_ENUM_TRIGGER;
@@ -1223,7 +1223,7 @@ add_table_for_trigger(THD *thd, sp_name *trig, bool if_exists,
     DBUG_RETURN(1);
   }
 
-  if (parser->parse((gptr)&trigname, thd->mem_root,
+  if (parser->parse((uchar*)&trigname, thd->mem_root,
                     trigname_file_parameters, 1,
                     &trigger_table_hook))
     DBUG_RETURN(1);
@@ -1360,8 +1360,8 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
       It is OK to allocate some memory on table's MEM_ROOT since this
       table instance will be thrown out at the end of rename anyway.
     */
-    new_def.str= memdup_root(&trigger_table->mem_root, buff.ptr(),
-                             buff.length());
+    new_def.str= (char*) memdup_root(&trigger_table->mem_root, buff.ptr(),
+                                     buff.length());
     new_def.length= buff.length();
     on_table_name->str= new_def.str + before_on_len;
     on_table_name->length= on_q_table_name_len;
@@ -1422,7 +1422,7 @@ Table_triggers_list::change_table_name_in_trignames(const char *db_name,
     trigname.trigger_table= *new_table_name;
 
     if (sql_create_definition_file(NULL, &trigname_file, &trigname_file_type,
-                                   (gptr)&trigname, trigname_file_parameters,
+                                   (uchar*)&trigname, trigname_file_parameters,
                                    0))
       return trigger;
   }
@@ -1663,7 +1663,7 @@ void Table_triggers_list::mark_fields_used(trg_event_type event)
 
 bool
 Handle_old_incorrect_sql_modes_hook::process_unknown_string(char *&unknown_key,
-                                                            gptr base,
+                                                            uchar* base,
                                                             MEM_ROOT *mem_root,
                                                             char *end)
 {
@@ -1706,7 +1706,7 @@ Handle_old_incorrect_sql_modes_hook::process_unknown_string(char *&unknown_key,
 
 bool
 Handle_old_incorrect_trigger_table_hook::
-process_unknown_string(char *&unknown_key, gptr base, MEM_ROOT *mem_root,
+process_unknown_string(char *&unknown_key, uchar* base, MEM_ROOT *mem_root,
                        char *end)
 {
   DBUG_ENTER("Handle_old_incorrect_trigger_table_hook::process_unknown_string");

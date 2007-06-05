@@ -182,15 +182,15 @@ static uchar NEAR sort_order_euc_kr[]=
 #define iseuc_kr(c)     ((0xa1<=(uchar)(c) && (uchar)(c)<=0xfe))
 
 
-static int ismbchar_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
-		    const char* p, const char *e)
+static uint ismbchar_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
+                            const char* p, const char *e)
 {
   return ((*(uchar*)(p)<0x80)? 0:\
           iseuc_kr(*(p)) && (e)-(p)>1 && iseuc_kr(*((p)+1))? 2:\
           0);
 }
 
-static int mbcharlen_euc_kr(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static uint mbcharlen_euc_kr(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (iseuc_kr(c) ? 2 : 1);
 }
@@ -8608,6 +8608,7 @@ my_wc_mb_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
   return 2;
 }
 
+
 static int 
 my_mb_wc_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
 		 my_wc_t *pwc, const uchar *s, const uchar *e)
@@ -8637,10 +8638,10 @@ my_mb_wc_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
 /*
   Returns well formed length of a EUC-KR string.
 */
-static uint
+static size_t
 my_well_formed_len_euckr(CHARSET_INFO *cs __attribute__((unused)),
                          const char *b, const char *e,
-                         uint pos, int *error)
+                         size_t pos, int *error)
 {
   const char *b0= b;
   const char *emb= e - 1; /* Last possible end of an MB character */
@@ -8665,7 +8666,7 @@ my_well_formed_len_euckr(CHARSET_INFO *cs __attribute__((unused)),
       break;
     }
   }
-  return (uint) (b - b0);
+  return (size_t) (b - b0);
 }
 
 

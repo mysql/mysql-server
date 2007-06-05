@@ -63,12 +63,12 @@ private:
   handler **m_reorged_file;             // Reorganised partitions
   handler **m_added_file;               // Added parts kept for errors
   partition_info *m_part_info;          // local reference to partition
-  byte *m_start_key_ref;                // Reference of start key in current
+  uchar *m_start_key_ref;                // Reference of start key in current
                                         // index scan info
   Field **m_part_field_array;           // Part field array locally to save acc
-  byte *m_ordered_rec_buffer;           // Row and key buffer for ord. idx scan
+  uchar *m_ordered_rec_buffer;           // Row and key buffer for ord. idx scan
   KEY *m_curr_key_info;                 // Current index
-  byte *m_rec0;                         // table->record[0]
+  uchar *m_rec0;                         // table->record[0]
   QUEUE m_queue;                        // Prio queue used by sorted read
   /*
     Since the partition handler is a handler on top of other handlers, it
@@ -199,8 +199,8 @@ public:
                                 const char *path,
                                 ulonglong *copied,
                                 ulonglong *deleted,
-                                const void *pack_frm_data,
-                                uint pack_frm_len);
+                                const uchar *pack_frm_data,
+                                size_t pack_frm_len);
   virtual int drop_partitions(const char *path);
   virtual int rename_partitions(const char *path);
   bool get_no_parts(const char *name, uint *no_parts)
@@ -310,9 +310,9 @@ public:
     number of calls to write_row.
     Not yet though.
   */
-  virtual int write_row(byte * buf);
-  virtual int update_row(const byte * old_data, byte * new_data);
-  virtual int delete_row(const byte * buf);
+  virtual int write_row(uchar * buf);
+  virtual int update_row(const uchar * old_data, uchar * new_data);
+  virtual int delete_row(const uchar * buf);
   virtual int delete_all_rows(void);
   virtual void start_bulk_insert(ha_rows rows);
   virtual int end_bulk_insert();
@@ -351,9 +351,9 @@ public:
   */
   virtual int rnd_init(bool scan);
   virtual int rnd_end();
-  virtual int rnd_next(byte * buf);
-  virtual int rnd_pos(byte * buf, byte * pos);
-  virtual void position(const byte * record);
+  virtual int rnd_next(uchar * buf);
+  virtual int rnd_pos(uchar * buf, uchar * pos);
+  virtual void position(const uchar * record);
 
   /*
     -------------------------------------------------------------------------
@@ -387,7 +387,7 @@ public:
     index_init initializes an index before using it and index_end does
     any end processing needed.
   */
-  virtual int index_read(byte * buf, const byte * key,
+  virtual int index_read(uchar * buf, const uchar * key,
                          key_part_map keypart_map,
                          enum ha_rkey_function find_flag);
   virtual int index_init(uint idx, bool sorted);
@@ -397,12 +397,12 @@ public:
     These methods are used to jump to next or previous entry in the index
     scan. There are also methods to jump to first and last entry.
   */
-  virtual int index_next(byte * buf);
-  virtual int index_prev(byte * buf);
-  virtual int index_first(byte * buf);
-  virtual int index_last(byte * buf);
-  virtual int index_next_same(byte * buf, const byte * key, uint keylen);
-  virtual int index_read_last(byte * buf, const byte * key,
+  virtual int index_next(uchar * buf);
+  virtual int index_prev(uchar * buf);
+  virtual int index_first(uchar * buf);
+  virtual int index_last(uchar * buf);
+  virtual int index_next_same(uchar * buf, const uchar * key, uint keylen);
+  virtual int index_read_last(uchar * buf, const uchar * key,
                               key_part_map keypart_map);
 
   /*
@@ -410,7 +410,7 @@ public:
     handler.cc, no storage engine has implemented it so neither
     will the partition handler.
     
-    virtual int read_first_row(byte *buf, uint primary_key);
+    virtual int read_first_row(uchar *buf, uint primary_key);
   */
 
   /*
@@ -428,27 +428,27 @@ public:
   virtual int read_range_next();
 
 private:
-  int common_index_read(byte * buf, const byte * key,
+  int common_index_read(uchar * buf, const uchar * key,
                         key_part_map keypart_map,
                         enum ha_rkey_function find_flag);
-  int common_first_last(byte * buf);
-  int partition_scan_set_up(byte * buf, bool idx_read_flag);
-  int handle_unordered_next(byte * buf, bool next_same);
-  int handle_unordered_scan_next_partition(byte * buf);
-  byte *queue_buf(uint part_id)
+  int common_first_last(uchar * buf);
+  int partition_scan_set_up(uchar * buf, bool idx_read_flag);
+  int handle_unordered_next(uchar * buf, bool next_same);
+  int handle_unordered_scan_next_partition(uchar * buf);
+  uchar *queue_buf(uint part_id)
     {
       return (m_ordered_rec_buffer +
               (part_id * (m_rec_length + PARTITION_BYTES_IN_POS)));
     }
-  byte *rec_buf(uint part_id)
+  uchar *rec_buf(uint part_id)
     {
       return (queue_buf(part_id) +
               PARTITION_BYTES_IN_POS);
     }
-  int handle_ordered_index_scan(byte * buf, bool reverse_order);
-  int handle_ordered_next(byte * buf, bool next_same);
-  int handle_ordered_prev(byte * buf);
-  void return_top_record(byte * buf);
+  int handle_ordered_index_scan(uchar * buf, bool reverse_order);
+  int handle_ordered_next(uchar * buf, bool next_same);
+  int handle_ordered_prev(uchar * buf);
+  void return_top_record(uchar * buf);
   void include_partition_fields_in_used_fields();
 public:
   /*
@@ -813,7 +813,7 @@ public:
     to check whether the rest of the reference part is also the same.
     -------------------------------------------------------------------------
   */
-  virtual int cmp_ref(const byte * ref1, const byte * ref2);
+  virtual int cmp_ref(const uchar * ref1, const uchar * ref2);
   /*
     -------------------------------------------------------------------------
     MODULE auto increment
@@ -877,10 +877,10 @@ public:
     Fulltext stuff not yet.
     -------------------------------------------------------------------------
     virtual int ft_init() { return HA_ERR_WRONG_COMMAND; }
-    virtual FT_INFO *ft_init_ext(uint flags,uint inx,const byte *key,
+    virtual FT_INFO *ft_init_ext(uint flags,uint inx,const uchar *key,
     uint keylen)
     { return NULL; }
-    virtual int ft_read(byte *buf) { return HA_ERR_WRONG_COMMAND; }
+    virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
   */
 
   /*
@@ -889,7 +889,7 @@ public:
      -------------------------------------------------------------------------
      The following method is only used by MyISAM when used as
      temporary tables in a join.
-     virtual int restart_rnd_next(byte *buf, byte *pos);
+     virtual int restart_rnd_next(uchar *buf, uchar *pos);
   */
 
   /*

@@ -1803,6 +1803,18 @@ sub environment_setup () {
   $ENV{'CHARSETSDIR'}=              $path_charsetsdir;
   $ENV{'UMASK'}=              "0660"; # The octal *string*
   $ENV{'UMASK_DIR'}=          "0770"; # The octal *string*
+  
+  #
+  # MySQL tests can produce output in various character sets
+  # (especially, ctype_xxx.test). To avoid confusing Perl
+  # with output which is incompatible with the current locale
+  # settings, we reset the current values of LC_ALL and LC_CTYPE to "C".
+  # For details, please see
+  # Bug#27636 tests fails if LC_* variables set to *_*.UTF-8
+  #
+  $ENV{'LC_ALL'}=             "C";
+  $ENV{'LC_CTYPE'}=           "C";
+  
   $ENV{'LC_COLLATE'}=         "C";
   $ENV{'USE_RUNNING_SERVER'}= $opt_extern;
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
@@ -3873,13 +3885,15 @@ sub mysqld_arguments ($$$$) {
     }
     else
     {
-      mtr_add_arg($args, "%s--master-user=root", $prefix);
-      mtr_add_arg($args, "%s--master-connect-retry=1", $prefix);
-      mtr_add_arg($args, "%s--master-host=127.0.0.1", $prefix);
-      mtr_add_arg($args, "%s--master-password=", $prefix);
-      mtr_add_arg($args, "%s--master-port=%d", $prefix,
-                  $master->[0]->{'port'}); # First master
-
+      if ($mysql_version_id < 50200)
+      {
+        mtr_add_arg($args, "%s--master-user=root", $prefix);
+        mtr_add_arg($args, "%s--master-connect-retry=1", $prefix);
+        mtr_add_arg($args, "%s--master-host=127.0.0.1", $prefix);
+        mtr_add_arg($args, "%s--master-password=", $prefix);
+        mtr_add_arg($args, "%s--master-port=%d", $prefix,
+    	            $master->[0]->{'port'}); # First master
+      }
       my $slave_server_id=  2 + $idx;
       my $slave_rpl_rank= $slave_server_id;
       mtr_add_arg($args, "%s--server-id=%d", $prefix, $slave_server_id);

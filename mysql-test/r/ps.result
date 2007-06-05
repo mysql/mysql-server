@@ -1062,6 +1062,87 @@ EXECUTE stmt USING @a;
 0	0
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (i INT);
+PREPARE st_19182
+FROM "CREATE TABLE t2 (i INT, j INT, KEY (i), KEY(j)) SELECT i FROM t1";
+EXECUTE st_19182;
+DESC t2;
+Field	Type	Null	Key	Default	Extra
+j	int(11)	YES	MUL	NULL	
+i	int(11)	YES	MUL	NULL	
+DROP TABLE t2;
+EXECUTE st_19182;
+DESC t2;
+Field	Type	Null	Key	Default	Extra
+j	int(11)	YES	MUL	NULL	
+i	int(11)	YES	MUL	NULL	
+DEALLOCATE PREPARE st_19182;
+DROP TABLE t2, t1;
+drop database if exists mysqltest;
+drop table if exists t1, t2;
+create database mysqltest character set utf8;
+prepare stmt1 from "create table mysqltest.t1 (c char(10))";
+prepare stmt2 from "create table mysqltest.t2 select 'test'";
+execute stmt1;
+execute stmt2;
+show create table mysqltest.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8
+show create table mysqltest.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `test` varchar(4) CHARACTER SET latin1 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=utf8
+drop table mysqltest.t1;
+drop table mysqltest.t2;
+alter database mysqltest character set latin1;
+execute stmt1;
+execute stmt2;
+show create table mysqltest.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table mysqltest.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `test` varchar(4) NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop database mysqltest;
+deallocate prepare stmt1;
+deallocate prepare stmt2;
+execute stmt;
+show create table t1;
+drop table t1;
+execute stmt;
+show create table t1;
+drop table t1;
+deallocate prepare stmt;
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (2), (3), (1);
+PREPARE st1 FROM
+'(SELECT a FROM t1) UNION (SELECT a+10 FROM t1) ORDER BY RAND()*0+a';
+EXECUTE st1;
+a
+1
+2
+3
+11
+12
+13
+EXECUTE st1;
+a
+1
+2
+3
+11
+12
+13
+DEALLOCATE PREPARE st1;
+DROP TABLE t1;
 End of 4.1 tests.
 create table t1 (a varchar(20));
 insert into t1 values ('foo');
@@ -1544,6 +1625,72 @@ a
 2
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1,t2;
+drop table if exists t1;
+create table t1 (s1 char(20));
+prepare stmt from "alter table t1 modify s1 int";
+execute stmt;
+execute stmt;
+drop table t1;
+deallocate prepare stmt;
+drop table if exists t1;
+create table t1 (a int, b int);
+prepare s_6895 from "alter table t1 drop column b";
+execute s_6895;
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+drop table t1;
+create table t1 (a int, b int);
+execute s_6895;
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+drop table t1;
+create table t1 (a int, b int);
+execute s_6895;
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+deallocate prepare s_6895;
+drop table t1;
+create table t1 (i int primary key auto_increment) comment='comment for table t1';
+create table t2 (i int, j int, k int);
+prepare stmt from "alter table t1 auto_increment=100";
+execute stmt;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`i`)
+) ENGINE=MyISAM AUTO_INCREMENT=100 DEFAULT CHARSET=latin1 COMMENT='comment for table t1'
+flush tables;
+select * from t2;
+i	j	k
+execute stmt;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`i`)
+) ENGINE=MyISAM AUTO_INCREMENT=100 DEFAULT CHARSET=latin1 COMMENT='comment for table t1'
+deallocate prepare stmt;
+drop table t1, t2;
+set @old_character_set_server= @@character_set_server;
+set @@character_set_server= latin1;
+prepare stmt from "create database mysqltest_1";
+execute stmt;
+show create database mysqltest_1;
+Database	Create Database
+mysqltest_1	CREATE DATABASE `mysqltest_1` /*!40100 DEFAULT CHARACTER SET latin1 */
+drop database mysqltest_1;
+set @@character_set_server= utf8;
+execute stmt;
+show create database mysqltest_1;
+Database	Create Database
+mysqltest_1	CREATE DATABASE `mysqltest_1` /*!40100 DEFAULT CHARACTER SET utf8 */
+drop database mysqltest_1;
+deallocate prepare stmt;
+set @@character_set_server= @old_character_set_server;
 drop tables if exists t1;
 create table t1 (id int primary key auto_increment, value varchar(10));
 insert into t1 (id, value) values (1, 'FIRST'), (2, 'SECOND'), (3, 'THIRD');
@@ -2533,4 +2680,25 @@ i	j
 4	5
 3	NULL
 DROP TABLE t1, t2;
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+prepare stmt
+from "create table t1 (c char(100) character set utf8, key (c(10)))";
+execute stmt;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(100) CHARACTER SET utf8 DEFAULT NULL,
+  KEY `c` (`c`(10))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+execute stmt;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(100) CHARACTER SET utf8 DEFAULT NULL,
+  KEY `c` (`c`(10))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
 End of 5.1 tests.

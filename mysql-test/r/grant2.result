@@ -381,3 +381,27 @@ drop table t2;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM `a@`@localhost;
 drop user `a@`@localhost;
 SET GLOBAL log_bin_trust_function_creators = 0;
+drop database if exists mysqltest_1;
+drop database if exists mysqltest_2;
+drop user mysqltest_u1@localhost;
+create database mysqltest_1;
+create database mysqltest_2;
+grant all on mysqltest_1.* to mysqltest_u1@localhost;
+use mysqltest_2;
+create table t1 (i int);
+show create table mysqltest_2.t1;
+ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for table 't1'
+create table t1 like mysqltest_2.t1;
+ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for table 't1'
+grant select on mysqltest_2.t1 to mysqltest_u1@localhost;
+show create table mysqltest_2.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+create table t1 like mysqltest_2.t1;
+use test;
+drop database mysqltest_1;
+drop database mysqltest_2;
+drop user mysqltest_u1@localhost;
+End of 5.0 tests

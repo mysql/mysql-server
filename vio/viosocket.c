@@ -28,12 +28,12 @@ int vio_errno(Vio *vio __attribute__((unused)))
 }
 
 
-int vio_read(Vio * vio, gptr buf, int size)
+size_t vio_read(Vio * vio, uchar* buf, size_t size)
 {
-  int r;
+  size_t r;
   DBUG_ENTER("vio_read");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", vio->sd, (long) buf,
-                       size));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
+                       (uint) size));
 
   /* Ensure nobody uses vio_read_buff and vio_read simultaneously */
   DBUG_ASSERT(vio->read_end == vio->read_pos);
@@ -44,12 +44,12 @@ int vio_read(Vio * vio, gptr buf, int size)
   r = read(vio->sd, buf, size);
 #endif /* __WIN__ */
 #ifndef DBUG_OFF
-  if (r < 0)
+  if (r == (size_t) -1)
   {
     DBUG_PRINT("vio_error", ("Got error %d during read",errno));
   }
 #endif /* DBUG_OFF */
-  DBUG_PRINT("exit", ("%d", r));
+  DBUG_PRINT("exit", ("%ld", (long) r));
   DBUG_RETURN(r);
 }
 
@@ -59,17 +59,17 @@ int vio_read(Vio * vio, gptr buf, int size)
   reduce number of syscalls.
 */
 
-int vio_read_buff(Vio *vio, gptr buf, int size)
+size_t vio_read_buff(Vio *vio, uchar* buf, size_t size)
 {
-  int rc;
+  size_t rc;
 #define VIO_UNBUFFERED_READ_MIN_SIZE 2048
   DBUG_ENTER("vio_read_buff");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", vio->sd, (long) buf,
-                       size));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
+                       (uint) size));
 
   if (vio->read_pos < vio->read_end)
   {
-    rc= min(vio->read_end - vio->read_pos, size);
+    rc= min((size_t) (vio->read_end - vio->read_pos), size);
     memcpy(buf, vio->read_pos, rc);
     vio->read_pos+= rc;
     /*
@@ -81,7 +81,7 @@ int vio_read_buff(Vio *vio, gptr buf, int size)
   else if (size < VIO_UNBUFFERED_READ_MIN_SIZE)
   {
     rc= vio_read(vio, vio->read_buffer, VIO_READ_BUFFER_SIZE);
-    if (rc > 0)
+    if (rc != 0 && rc != (size_t) -1)
     {
       if (rc > size)
       {
@@ -99,24 +99,24 @@ int vio_read_buff(Vio *vio, gptr buf, int size)
 }
 
 
-int vio_write(Vio * vio, const gptr buf, int size)
+size_t vio_write(Vio * vio, const uchar* buf, size_t size)
 {
-  int r;
+  size_t r;
   DBUG_ENTER("vio_write");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", vio->sd, (long) buf,
-                       size));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
+                       (uint) size));
 #ifdef __WIN__
   r = send(vio->sd, buf, size,0);
 #else
   r = write(vio->sd, buf, size);
 #endif /* __WIN__ */
 #ifndef DBUG_OFF
-  if (r < 0)
+  if (r == (size_t) -1)
   {
     DBUG_PRINT("vio_error", ("Got error on write: %d",socket_errno));
   }
 #endif /* DBUG_OFF */
-  DBUG_PRINT("exit", ("%d", r));
+  DBUG_PRINT("exit", ("%u", (uint) r));
   DBUG_RETURN(r);
 }
 
@@ -417,33 +417,33 @@ void vio_timeout(Vio *vio, uint which, uint timeout)
 
 
 #ifdef __WIN__
-int vio_read_pipe(Vio * vio, gptr buf, int size)
+size_t vio_read_pipe(Vio * vio, uchar* buf, size_t size)
 {
   DWORD length;
   DBUG_ENTER("vio_read_pipe");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", vio->sd, (long) buf,
-                       size));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
+                       (uint) size));
 
   if (!ReadFile(vio->hPipe, buf, size, &length, NULL))
     DBUG_RETURN(-1);
 
   DBUG_PRINT("exit", ("%d", length));
-  DBUG_RETURN(length);
+  DBUG_RETURN((size_t) length);
 }
 
 
-int vio_write_pipe(Vio * vio, const gptr buf, int size)
+size_t vio_write_pipe(Vio * vio, const uchar* buf, size_t size)
 {
   DWORD length;
   DBUG_ENTER("vio_write_pipe");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", vio->sd, (long) buf,
-                       size));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
+                       (uint) size));
 
   if (!WriteFile(vio->hPipe, (char*) buf, size, &length, NULL))
     DBUG_RETURN(-1);
 
   DBUG_PRINT("exit", ("%d", length));
-  DBUG_RETURN(length);
+  DBUG_RETURN((size_t) length);
 }
 
 int vio_close_pipe(Vio * vio)
@@ -475,12 +475,11 @@ void vio_ignore_timeout(Vio *vio __attribute__((unused)),
 
 #ifdef HAVE_SMEM
 
-int vio_read_shared_memory(Vio * vio, gptr buf, int size)
+size_t vio_read_shared_memory(Vio * vio, uchar* buf, size_t size)
 {
-  int length;
-  int remain_local;
+  size_t length;
+  size_t remain_local;
   char *current_postion;
-
   DBUG_ENTER("vio_read_shared_memory");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", vio->sd, (long) buf,
                        size));
@@ -497,7 +496,8 @@ int vio_read_shared_memory(Vio * vio, gptr buf, int size)
       /*
         WaitForMultipleObjects can return next values:
          WAIT_OBJECT_0+0 - event from vio->event_server_wrote
-         WAIT_OBJECT_0+1 - event from vio->event_conn_closed. We can't read anything
+         WAIT_OBJECT_0+1 - event from vio->event_conn_closed. We can't read
+		           anything
          WAIT_ABANDONED_0 and WAIT_TIMEOUT - fail.  We can't read anything
       */
       if (WaitForMultipleObjects(2, (HANDLE*)&events,FALSE,
@@ -526,23 +526,23 @@ int vio_read_shared_memory(Vio * vio, gptr buf, int size)
     remain_local-=length;
 
     if (!vio->shared_memory_remain)
-      if (!SetEvent(vio->event_client_read)) DBUG_RETURN(-1);
+    {
+      if (!SetEvent(vio->event_client_read))
+        DBUG_RETURN(-1);
+    }
   } while (remain_local);
   length = size;
 
-  DBUG_PRINT("exit", ("%d", length));
+  DBUG_PRINT("exit", ("%lu", (ulong) length));
   DBUG_RETURN(length);
 }
 
 
-int vio_write_shared_memory(Vio * vio, const gptr buf, int size)
+size_t vio_write_shared_memory(Vio * vio, const uchar* buf, size_t size)
 {
-  int length;
-  uint remain;
+  size_t length, remain, sz;
   HANDLE pos;
-  int sz;
-  char *current_postion;
-
+  const uchar *current_postion;
   DBUG_ENTER("vio_write_shared_memory");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", vio->sd, (long) buf,
                        size));
@@ -551,24 +551,27 @@ int vio_write_shared_memory(Vio * vio, const gptr buf, int size)
   current_postion = buf;
   while (remain != 0)
   {
-    if (WaitForSingleObject(vio->event_server_read, vio->net->write_timeout*1000) 
-                            != WAIT_OBJECT_0)
+    if (WaitForSingleObject(vio->event_server_read,
+                            vio->net->write_timeout*1000) !=
+        WAIT_OBJECT_0)
     {
-      DBUG_RETURN(-1);
-    };
+      DBUG_RETURN((size_t) -1);
+    }
 
-    sz = remain > shared_memory_buffer_length ? shared_memory_buffer_length: remain;
+    sz= (remain > shared_memory_buffer_length ? shared_memory_buffer_length :
+         remain);
 
     int4store(vio->handle_map,sz);
     pos = vio->handle_map + 4;
     memcpy(pos,current_postion,sz);
     remain-=sz;
     current_postion+=sz;
-    if (!SetEvent(vio->event_client_wrote)) DBUG_RETURN(-1);
+    if (!SetEvent(vio->event_client_wrote))
+      DBUG_RETURN((size_t) -1);
   }
   length = size;
 
-  DBUG_PRINT("exit", ("%d", length));
+  DBUG_PRINT("exit", ("%lu", (ulong) length));
   DBUG_RETURN(length);
 }
 

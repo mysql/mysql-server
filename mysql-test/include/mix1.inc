@@ -795,4 +795,33 @@ alter table t2 modify i int default 4, rename t1;
 unlock tables;
 drop table t1;
 
+
+# 
+# Some more tests for ALTER TABLE and LOCK TABLES for transactional tables.
+#
+# Table which is altered under LOCK TABLES should stay in list of locked
+# tables and be available after alter takes place unless ALTER contains
+# RENAME clause. We should see the new definition of table, of course.
+# Before 5.1 this behavior was inconsistent across the platforms and
+# different engines. See also tests in alter_table.test
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (i int);
+insert into t1 values ();
+lock table t1 write;
+# Example of so-called 'fast' ALTER TABLE
+alter table t1 modify i int default 1;
+insert into t1 values ();
+select * from t1;
+# And now full-blown ALTER TABLE
+alter table t1 change i c char(10) default "Two";
+insert into t1 values ();
+select * from t1;
+unlock tables;
+select * from t1;
+drop tables t1;
+
+
 --echo End of 5.1 tests

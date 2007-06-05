@@ -201,7 +201,7 @@ int pthread_attr_setprio(pthread_attr_t *connect_att,int priority)
 
 int pthread_attr_destroy(pthread_attr_t *connect_att)
 {
-  bzero((gptr) connect_att,sizeof(*connect_att));
+  bzero((uchar*) connect_att,sizeof(*connect_att));
   return 0;
 }
 

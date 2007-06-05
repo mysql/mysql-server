@@ -34,7 +34,7 @@
 */
 
 
-void get_date(register my_string to, int flag, time_t date)
+void get_date(register char * to, int flag, time_t date)
 {
    reg2 struct tm *start_time;
    time_t skr;
