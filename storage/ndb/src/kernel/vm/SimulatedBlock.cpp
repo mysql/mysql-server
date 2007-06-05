@@ -19,6 +19,7 @@
 #include <NdbOut.hpp>
 #include <GlobalData.hpp>
 #include <Emulator.hpp>
+#include <WatchDog.hpp>
 #include <ErrorHandlingMacros.hpp>
 #include <TimeQueue.hpp>
 #include <TransporterRegistry.hpp>
@@ -662,7 +663,7 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear, U
   void * p = NULL;
   size_t size = n*s;
   Uint64 real_size = (Uint64)((Uint64)n)*((Uint64)s);
-  refresh_watch_dog(); 
+  refresh_watch_dog(9);
   if (real_size > 0){
 #ifdef VM_TRACE_MEM
     ndbout_c("%s::allocRecord(%s, %u, %u) = %llu bytes", 
@@ -696,12 +697,12 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear, U
       char * ptr = (char*)p;
       const Uint32 chunk = 128 * 1024;
       while(size > chunk){
-	refresh_watch_dog(); 
+	refresh_watch_dog(9);
 	memset(ptr, 0, chunk);
 	ptr += chunk;
 	size -= chunk;
       }
-      refresh_watch_dog(); 
+      refresh_watch_dog(9);
       memset(ptr, 0, size);
     }
   }
@@ -720,9 +721,16 @@ SimulatedBlock::deallocRecord(void ** ptr,
 }
 
 void
-SimulatedBlock::refresh_watch_dog()
+SimulatedBlock::refresh_watch_dog(Uint32 place)
 {
-  globalData.incrementWatchDogCounter(1);
+  globalData.incrementWatchDogCounter(place);
+}
+
+void
+SimulatedBlock::update_watch_dog_timer(Uint32 interval)
+{
+  extern EmulatorData globalEmulatorData;
+  globalEmulatorData.theWatchDog->setCheckInterval(interval);
 }
 
 void
