@@ -116,6 +116,8 @@
 
 #define CFG_DB_MEMREPORT_FREQUENCY    166
 
+#define CFG_DB_O_DIRECT               168
+
 #define CFG_DB_SGA                    198 /* super pool mem */
 #define CFG_DB_DATA_MEM_2             199 /* used in special build in 5.1 */
 
