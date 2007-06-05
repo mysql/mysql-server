@@ -163,7 +163,12 @@ AsyncFile::run()
   theStartFlag = true;
   // Create write buffer for bigger writes
   theWriteBufferSize = WRITEBUFFERSIZE;
-  theWriteBuffer = (char *) ndbd_malloc(theWriteBufferSize); 
+  theWriteBufferUnaligned = (char *) ndbd_malloc(theWriteBufferSize +
+                                                 NDB_O_DIRECT_WRITE_ALIGNMENT-1);
+  theWriteBuffer = (char *)
+    (((UintPtr)theWriteBufferUnaligned + NDB_O_DIRECT_WRITE_ALIGNMENT - 1) &
+     ~(UintPtr)(NDB_O_DIRECT_WRITE_ALIGNMENT - 1));
+
   NdbMutex_Unlock(theStartMutexPtr);
   NdbCondition_Signal(theStartConditionPtr);
   
@@ -247,6 +252,78 @@ AsyncFile::run()
 static char g_odirect_readbuf[2*GLOBAL_PAGE_SIZE -1];
 #endif
 
+int
+AsyncFile::check_odirect_write(Uint32 flags, int& new_flags, int mode)
+{
+  assert(new_flags & (O_CREAT | O_TRUNC));
+#ifdef O_DIRECT
+  int ret;
+  char * bufptr = (char*)((UintPtr(g_odirect_readbuf)+(GLOBAL_PAGE_SIZE - 1)) & ~(GLOBAL_PAGE_SIZE - 1));
+  while (((ret = ::write(theFd, bufptr, GLOBAL_PAGE_SIZE)) == -1) && 
+         (errno == EINTR));
+  if (ret == -1)
+  {
+    new_flags &= ~O_DIRECT;
+    ndbout_c("%s Failed to write using O_DIRECT, disabling", 
+             theFileName.c_str());
+  }
+  
+  close(theFd);
+  theFd = ::open(theFileName.c_str(), new_flags, mode);
+  if (theFd == -1)
+    return errno;
+#endif
+
+  return 0;
+}
+
+int
+AsyncFile::check_odirect_read(Uint32 flags, int &new_flags, int mode)
+{
+#ifdef O_DIRECT
+  int ret;
+  char * bufptr = (char*)((UintPtr(g_odirect_readbuf)+(GLOBAL_PAGE_SIZE - 1)) & ~(GLOBAL_PAGE_SIZE - 1));
+  while (((ret = ::read(theFd, bufptr, GLOBAL_PAGE_SIZE)) == -1) && 
+         (errno == EINTR));
+  if (ret == -1)
+  {
+    ndbout_c("%s Failed to read using O_DIRECT, disabling", 
+             theFileName.c_str());
+    goto reopen;
+  }
+  
+  if(lseek(theFd, 0, SEEK_SET) != 0)
+  {
+    return errno;
+  }
+  
+  if ((flags & FsOpenReq::OM_CHECK_SIZE) == 0)
+  {
+    struct stat buf;
+    if ((fstat(theFd, &buf) == -1))
+    {
+      return errno;
+    } 
+    else if ((buf.st_size % GLOBAL_PAGE_SIZE) != 0)
+    {
+      ndbout_c("%s filesize not a multiple of %d, disabling O_DIRECT", 
+               theFileName.c_str(), GLOBAL_PAGE_SIZE);
+      goto reopen;
+    }
+  }
+  
+  return 0;
+  
+reopen:
+  close(theFd);
+  new_flags &= ~O_DIRECT;
+  theFd = ::open(theFileName.c_str(), new_flags, mode);
+  if (theFd == -1)
+    return errno;  
+#endif
+  return 0;
+}
+
 void AsyncFile::openReq(Request* request)
 {  
   m_auto_sync_freq = 0;
@@ -312,7 +389,7 @@ void AsyncFile::openReq(Request* request)
   }
 #else
   Uint32 flags = request->par.open.flags;
-  Uint32 new_flags = 0;
+  int new_flags = 0;
 
   // Convert file open flags from Solaris to Liux
   if (flags & FsOpenReq::OM_CREATE)
@@ -343,10 +420,6 @@ void AsyncFile::openReq(Request* request)
   {
     new_flags |= O_DIRECT;
   }
-#elif defined O_SYNC
-  {
-    flags |= FsOpenReq::OM_SYNC;
-  }
 #endif
   
   if ((flags & FsOpenReq::OM_SYNC) && ! (flags & FsOpenReq::OM_INIT))
@@ -355,15 +428,19 @@ void AsyncFile::openReq(Request* request)
     new_flags |= O_SYNC;
 #endif
   }
-    
+
+  const char * rw = "";
   switch(flags & 0x3){
   case FsOpenReq::OM_READONLY:
+    rw = "r";
     new_flags |= O_RDONLY;
     break;
   case FsOpenReq::OM_WRITEONLY:
+    rw = "w";
     new_flags |= O_WRONLY;
     break;
   case FsOpenReq::OM_READWRITE:
+    rw = "rw";
     new_flags |= O_RDWR;
     break;
   default:
@@ -404,11 +481,6 @@ no_odirect:
 	if (new_flags & O_DIRECT)
 	{
 	  new_flags &= ~O_DIRECT;
-	  flags |= FsOpenReq::OM_SYNC;
-#ifdef O_SYNC
-	  if (! (flags & FsOpenReq::OM_INIT))
-	    new_flags |= O_SYNC;
-#endif
 	  goto no_odirect;
 	}
 #endif
@@ -421,11 +493,6 @@ no_odirect:
     else if (new_flags & O_DIRECT)
     {
       new_flags &= ~O_DIRECT;
-      flags |= FsOpenReq::OM_SYNC;
-#ifdef O_SYNC
-      if (! (flags & FsOpenReq::OM_INIT))
-	new_flags |= O_SYNC;
-#endif
       goto no_odirect;
     }
 #endif
@@ -512,7 +579,6 @@ no_odirect:
 	{
 	  ndbout_c("error on first write(%d), disable O_DIRECT", err);
 	  new_flags &= ~O_DIRECT;
-	  flags |= FsOpenReq::OM_SYNC;
 	  close(theFd);
 	  theFd = ::open(theFileName.c_str(), new_flags, mode);
 	  if (theFd != -1)
@@ -532,26 +598,32 @@ no_odirect:
   else if (flags & FsOpenReq::OM_DIRECT)
   {
 #ifdef O_DIRECT
-    do {
-      int ret;
-      char * bufptr = (char*)((UintPtr(g_odirect_readbuf)+(GLOBAL_PAGE_SIZE - 1)) & ~(GLOBAL_PAGE_SIZE - 1));
-      while (((ret = ::read(theFd, bufptr, GLOBAL_PAGE_SIZE)) == -1) && (errno == EINTR));
-      if (ret == -1)
-      {
-	ndbout_c("%s Failed to read using O_DIRECT, disabling", theFileName.c_str());
-	flags |= FsOpenReq::OM_SYNC;
-	flags |= FsOpenReq::OM_INIT;
-	break;
-      }
-      if(lseek(theFd, 0, SEEK_SET) != 0)
-      {
-	request->error = errno;
-	return;
-      }
-    } while (0);
+    if (flags & (FsOpenReq::OM_TRUNCATE | FsOpenReq::OM_CREATE))
+    {
+      request->error = check_odirect_write(flags, new_flags, mode);
+    }
+    else
+    {
+      request->error = check_odirect_read(flags, new_flags, mode);
+    }
+    
+    if (request->error)
+      return;
 #endif
   }
-
+#ifdef VM_TRACE
+  if (flags & FsOpenReq::OM_DIRECT)
+  {
+#ifdef O_DIRECT
+    ndbout_c("%s %s O_DIRECT: %d",
+             theFileName.c_str(), rw,
+             !!(new_flags & O_DIRECT));
+#else
+    ndbout_c("%s %s O_DIRECT: 0",
+             theFileName.c_str(), rw);
+#endif
+  }
+#endif  
   if ((flags & FsOpenReq::OM_SYNC) && (flags & FsOpenReq::OM_INIT))
   {
 #ifdef O_SYNC
@@ -562,6 +634,10 @@ no_odirect:
     new_flags &= ~(O_CREAT | O_TRUNC);
     new_flags |= O_SYNC;
     theFd = ::open(theFileName.c_str(), new_flags, mode);
+    if (theFd == -1)
+    {
+      request->error = errno;
+    }
 #endif
   }
 #endif
@@ -1079,7 +1155,8 @@ AsyncFile::rmrfReq(Request * request, char * path, bool removePath){
 void AsyncFile::endReq()
 {
   // Thread is ended with return
-  if (theWriteBuffer) ndbd_free(theWriteBuffer, theWriteBufferSize);
+  if (theWriteBufferUnaligned)
+    ndbd_free(theWriteBufferUnaligned, theWriteBufferSize);
 }
 
 
