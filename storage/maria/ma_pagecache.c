@@ -2258,7 +2258,7 @@ static my_bool make_lock_and_pin(PAGECACHE *pagecache,
                          block->pins,
                          page_cache_page_lock_str[lock],
                          page_cache_page_pin_str[pin]));
-    BLOCK_INFO(block);
+    PCBLOCK_INFO(block);
   }
 #endif
 
@@ -3067,8 +3067,8 @@ my_bool pagecache_delete_pages(PAGECACHE *pagecache,
   page_end= pageno + page_count;
   do
   {
-    if (pagecache_delete_page(pagecache, file, pageno,
-                              lock, flush))
+    if (pagecache_delete(pagecache, file, pageno,
+                         lock, flush))
       DBUG_RETURN(1);
   } while (++pageno != page_end);
   DBUG_RETURN(0);

@@ -571,8 +571,9 @@ void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn)
   DBUG_ASSERT(undo_lsn != 0 || info->s->base.transactional == 0);
 
   while (pinned_page-- != page_link)
-    pagecache_unlock(info->s->pagecache, pinned_page->link,
-                     pinned_page->unlock, PAGECACHE_UNPIN, 0, undo_lsn);
+    pagecache_unlock_by_link(info->s->pagecache, pinned_page->link,
+                             pinned_page->unlock, PAGECACHE_UNPIN,
+                             0, undo_lsn);
 
   info->pinned_pages.elements= 0;
   DBUG_VOID_RETURN;
