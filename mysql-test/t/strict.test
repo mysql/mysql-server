@@ -890,11 +890,11 @@ INSERT INTO t1 (col1,col2,col3) VALUES (NULL, '', '2004-01-01');
 INSERT INTO t1 (col1,col2,col3) VALUES (102, NULL, '2004-01-01');
 --error 1048
 INSERT INTO t1 VALUES (103,'',NULL);
---error 1263
+--error 1048
 UPDATE t1 SET col1=NULL WHERE col1 =100;
---error 1263
+--error 1048
 UPDATE t1 SET col2 =NULL WHERE col2 ='hello';
---error 1263
+--error 1048
 UPDATE t1 SET col2 =NULL where col3 IS NOT NULL;
 INSERT IGNORE INTO t1 values (NULL,NULL,NULL);
 SELECT * FROM t1;
@@ -914,7 +914,7 @@ INSERT INTO t1 (col1) VALUES (2);
 INSERT INTO t1 VALUES(default(col1),default(col2));
 --error 1364
 INSERT INTO t1 (col1) SELECT 1;
---error 1263
+--error 1048
 INSERT INTO t1 SELECT 1,NULL;
 INSERT IGNORE INTO t1 values (NULL,NULL);
 INSERT IGNORE INTO t1 (col1) values (3);
