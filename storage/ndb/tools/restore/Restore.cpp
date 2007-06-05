@@ -873,13 +873,32 @@ bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
   
   debug << "RestoreDataIterator::getNextFragment" << endl;
   
-  if (buffer_read(&Header, sizeof(Header), 1) != 1){
+  while (1)
+  {
+    /* read first part of header */
+    if (buffer_read(&Header, 8, 1) != 1)
+    {
+      ret = 0;
+      return false;
+    } // if
+
+    /* skip if EMPTY_ENTRY */
+    Header.SectionType  = ntohl(Header.SectionType);
+    Header.SectionLength  = ntohl(Header.SectionLength);
+    if (Header.SectionType == BackupFormat::EMPTY_ENTRY)
+    {
+      void *tmp;
+      buffer_get_ptr(&tmp, Header.SectionLength*4-8, 1);
+      continue;
+    }
+    break;
+  }
+  /* read rest of header */
+  if (buffer_read(((char*)&Header)+8, sizeof(Header)-8, 1) != 1)
+  {
     ret = 0;
     return false;
-  } // if
-  
-  Header.SectionType  = ntohl(Header.SectionType);
-  Header.SectionLength  = ntohl(Header.SectionLength);
+  }
   Header.TableId  = ntohl(Header.TableId);
   Header.FragmentNo  = ntohl(Header.FragmentNo);
   Header.ChecksumType  = ntohl(Header.ChecksumType);

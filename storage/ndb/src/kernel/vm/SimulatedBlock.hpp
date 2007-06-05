@@ -334,7 +334,8 @@ protected:
    * Refresh Watch Dog in initialising code
    *
    */
-  void refresh_watch_dog();
+  void refresh_watch_dog(Uint32 place = 1);
+  void update_watch_dog_timer(Uint32 interval);
 
   /**
    * Prog error
@@ -377,6 +378,7 @@ protected:
    *
    */
   void* allocRecord(const char * type, size_t s, size_t n, bool clear = true, Uint32 paramId = 0);
+  void* allocRecordAligned(const char * type, size_t s, size_t n, void **unaligned_buffer, Uint32 align = NDB_O_DIRECT_WRITE_ALIGNMENT, bool clear = true, Uint32 paramId = 0);
   
   /**
    * Deallocate record
