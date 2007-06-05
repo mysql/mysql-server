@@ -378,6 +378,6 @@ new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
 void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd)
 {
   SSL_CTX_free(fd->ssl_context);
-  my_free((gptr) fd, MYF(0));
+  my_free((uchar*) fd, MYF(0));
 }
 #endif /* HAVE_OPENSSL */

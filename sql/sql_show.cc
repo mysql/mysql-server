@@ -706,7 +706,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   else
     db_access= (acl_get(sctx->host, sctx->ip, sctx->priv_user, dbname, 0) |
 		sctx->master_access);
-  if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
+  if (!(db_access & DB_ACLS) && check_grant_db(thd,dbname))
   {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
              sctx->priv_user, sctx->host_or_ip, dbname);
@@ -831,7 +831,7 @@ mysqld_dump_create_info(THD *thd, TABLE_LIST *table_list, int fd)
   }
   else
   {
-    if (my_write(fd, (const byte*) packet->ptr(), packet->length(),
+    if (my_write(fd, (const uchar*) packet->ptr(), packet->length(),
 		 MYF(MY_WME)))
       DBUG_RETURN(-1);
   }
@@ -1660,7 +1660,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 	if (tmp->peer_port && (tmp_sctx->host || tmp_sctx->ip) &&
             thd->security_ctx->host_or_ip[0])
 	{
-	  if ((thd_info->host= thd->alloc(LIST_PROCESS_HOST_LEN+1)))
+	  if ((thd_info->host= (char*) thd->alloc(LIST_PROCESS_HOST_LEN+1)))
 	    my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN,
 			"%s:%u", tmp_sctx->host_or_ip, tmp->peer_port);
 	}
@@ -1912,8 +1912,8 @@ int add_status_vars(SHOW_VAR *list)
     goto err;
   }
   while (list->name)
-    res|= insert_dynamic(&all_status_vars, (gptr)list++);
-  res|= insert_dynamic(&all_status_vars, (gptr)list); // appending NULL-element
+    res|= insert_dynamic(&all_status_vars, (uchar*)list++);
+  res|= insert_dynamic(&all_status_vars, (uchar*)list); // appending NULL-element
   all_status_vars.elements--; // but next insert_dynamic should overwite it
   if (status_vars_inited)
     sort_dynamic(&all_status_vars, show_var_cmp);
@@ -2651,7 +2651,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
                       &thd->col_access, 0, 1, with_i_schema) ||
         sctx->master_access & (DB_ACLS | SHOW_DB_ACL) ||
 	acl_get(sctx->host, sctx->ip, sctx->priv_user, base_name,0) ||
-	(grant_option && !check_grant_db(thd, base_name)))
+	!check_grant_db(thd, base_name))
 #endif
     {
       List<char> files;
@@ -2851,7 +2851,7 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (sctx->master_access & (DB_ACLS | SHOW_DB_ACL) ||
 	acl_get(sctx->host, sctx->ip, sctx->priv_user, file_name,0) ||
-	(grant_option && !check_grant_db(thd, file_name)))
+	!check_grant_db(thd, file_name))
 #endif
     {
       load_db_opt_by_name(thd, file_name, &create);
@@ -3100,7 +3100,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
   for (ptr=show_table->field; (field= *ptr) ; ptr++)
   {
     const char *tmp_buff;
-    byte *pos;
+    uchar *pos;
     bool is_blob;
     uint flags=field->flags;
     char tmp[MAX_FIELD_WIDTH];
@@ -3178,7 +3178,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
       table->field[5]->store("",0, cs);
       table->field[5]->set_notnull();
     }
-    pos=(byte*) ((flags & NOT_NULL_FLAG) ?  "NO" : "YES");
+    pos=(uchar*) ((flags & NOT_NULL_FLAG) ?  "NO" : "YES");
     table->field[6]->store((const char*) pos,
                            strlen((const char*) pos), cs);
     is_blob= (field->type() == MYSQL_TYPE_BLOB);
@@ -3246,16 +3246,16 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
 
     if (field->has_charset())
     {
-      pos=(byte*) field->charset()->csname;
+      pos=(uchar*) field->charset()->csname;
       table->field[12]->store((const char*) pos,
                               strlen((const char*) pos), cs);
       table->field[12]->set_notnull();
-      pos=(byte*) field->charset()->name;
+      pos=(uchar*) field->charset()->name;
       table->field[13]->store((const char*) pos,
                               strlen((const char*) pos), cs);
       table->field[13]->set_notnull();
     }
-    pos=(byte*) ((field->flags & PRI_KEY_FLAG) ? "PRI" :
+    pos=(uchar*) ((field->flags & PRI_KEY_FLAG) ? "PRI" :
                  (field->flags & UNIQUE_KEY_FLAG) ? "UNI" :
                  (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
     table->field[15]->store((const char*) pos,
@@ -3976,6 +3976,7 @@ static int get_schema_key_column_usage_record(THD *thd,
 }
 
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 static void collect_partition_expr(List<char> &field_list, String *str)
 {
   List_iterator<char> part_it(field_list);
@@ -3990,6 +3991,7 @@ static void collect_partition_expr(List<char> &field_list, String *str)
   }
   return;
 }
+#endif
 
 
 static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
@@ -5854,7 +5856,7 @@ int initialize_schema_table(st_plugin_int *plugin)
 
   DBUG_RETURN(0);
 err:
-  my_free((gptr)schema_table, MYF(0));
+  my_free(schema_table, MYF(0));
   DBUG_RETURN(1);
 }
 
@@ -5871,8 +5873,7 @@ int finalize_schema_table(st_plugin_int *plugin)
       DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
                              plugin->name.str));
     }
-    my_free((gptr)schema_table, MYF(0));
+    my_free(schema_table, MYF(0));
   }
-
   DBUG_RETURN(0);
 }

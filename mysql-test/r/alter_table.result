@@ -977,6 +977,59 @@ SELECT * FROM t1;
 v	b
 abc	5
 DROP TABLE t1;
+End of 5.0 tests
+drop table if exists t1, t2, t3;
+create table t1 (i int);
+create table t3 (j int);
+insert into t1 values ();
+insert into t3 values ();
+lock table t1 write, t3 read;
+alter table t1 modify i int default 1;
+insert into t1 values ();
+select * from t1;
+i
+NULL
+1
+alter table t1 change i c char(10) default "Two";
+insert into t1 values ();
+select * from t1;
+c
+NULL
+1
+Two
+alter table t1 modify c char(10) default "Three", rename to t2;
+select * from t1;
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+select * from t2;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+select * from t3;
+j
+NULL
+unlock tables;
+insert into t2 values ();
+select * from t2;
+c
+NULL
+1
+Three
+lock table t2 write, t3 read;
+alter table t2 change c vc varchar(100) default "Four", rename to t1;
+select * from t1;
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+select * from t2;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+select * from t3;
+j
+NULL
+unlock tables;
+insert into t1 values ();
+select * from t1;
+vc
+NULL
+1
+Three
+Four
+drop tables t1, t3;
 DROP TABLE IF EXISTS `t+1`, `t+2`;
 CREATE TABLE `t+1` (c1 INT);
 ALTER TABLE  `t+1` RENAME `t+2`;

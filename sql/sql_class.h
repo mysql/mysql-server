@@ -90,6 +90,17 @@ public:
   uint length;
   key_part_spec(const char *name,uint len=0) :field_name(name), length(len) {}
   bool operator==(const key_part_spec& other) const;
+  /**
+    Construct a copy of this key_part_spec. field_name is copied
+    by-pointer as it is known to never change. At the same time
+    'length' may be reset in mysql_prepare_create_table, and this
+    is why we supply it with a copy.
+
+    @return If out of memory, 0 is returned and an error is set in
+    THD.
+  */
+  key_part_spec *clone(MEM_ROOT *mem_root) const
+  { return new (mem_root) key_part_spec(*this); }
 };
 
 
@@ -100,6 +111,12 @@ public:
   enum drop_type type;
   Alter_drop(enum drop_type par_type,const char *par_name)
     :name(par_name), type(par_type) {}
+  /**
+    Used to make a clone of this object for ALTER/CREATE TABLE
+    @sa comment for key_part_spec::clone
+  */
+  Alter_drop *clone(MEM_ROOT *mem_root) const
+    { return new (mem_root) Alter_drop(*this); }
 };
 
 
@@ -109,6 +126,12 @@ public:
   Item *def;
   Alter_column(const char *par_name,Item *literal)
     :name(par_name), def(literal) {}
+  /**
+    Used to make a clone of this object for ALTER/CREATE TABLE
+    @sa comment for key_part_spec::clone
+  */
+  Alter_column *clone(MEM_ROOT *mem_root) const
+    { return new (mem_root) Alter_column(*this); }
 };
 
 
@@ -127,9 +150,16 @@ public:
     :type(type_par), key_create_info(*key_info_arg), columns(cols),
     name(name_arg), generated(generated_arg)
   {}
-  ~Key() {}
+  Key(const Key &rhs, MEM_ROOT *mem_root);
+  virtual ~Key() {}
   /* Equality comparison of keys (ignoring name) */
   friend bool foreign_key_prefix(Key *a, Key *b);
+  /**
+    Used to make a clone of this object for ALTER/CREATE TABLE
+    @sa comment for key_part_spec::clone
+  */
+  virtual Key *clone(MEM_ROOT *mem_root) const
+    { return new (mem_root) Key(*this, mem_root); }
 };
 
 class Table_ident;
@@ -152,6 +182,13 @@ public:
     delete_opt(delete_opt_arg), update_opt(update_opt_arg),
     match_opt(match_opt_arg)
   {}
+  foreign_key(const foreign_key &rhs, MEM_ROOT *mem_root);
+  /**
+    Used to make a clone of this object for ALTER/CREATE TABLE
+    @sa comment for key_part_spec::clone
+  */
+  virtual Key *clone(MEM_ROOT *mem_root) const
+  { return new (mem_root) foreign_key(*this, mem_root); }
 };
 
 typedef struct st_mysql_lock
@@ -435,30 +472,31 @@ public:
   inline bool is_conventional() const
   { return state == CONVENTIONAL_EXECUTION; }
 
-  inline gptr alloc(unsigned int size) { return alloc_root(mem_root,size); }
-  inline gptr calloc(unsigned int size)
+  inline void* alloc(size_t size) { return alloc_root(mem_root,size); }
+  inline void* calloc(size_t size)
   {
-    gptr ptr;
+    void *ptr;
     if ((ptr=alloc_root(mem_root,size)))
-      bzero((char*) ptr,size);
+      bzero(ptr, size);
     return ptr;
   }
   inline char *strdup(const char *str)
   { return strdup_root(mem_root,str); }
-  inline char *strmake(const char *str, uint size)
+  inline char *strmake(const char *str, size_t size)
   { return strmake_root(mem_root,str,size); }
-  inline bool LEX_STRING_make(LEX_STRING *lex_str, const char *str, uint size)
+  inline bool LEX_STRING_make(LEX_STRING *lex_str, const char *str,
+                              size_t size)
   {
     return ((lex_str->str= 
              strmake_root(mem_root, str, (lex_str->length= size)))) == 0;
   }
 
-  inline char *memdup(const char *str, uint size)
+  inline void *memdup(const void *str, size_t size)
   { return memdup_root(mem_root,str,size); }
-  inline char *memdup_w_gap(const char *str, uint size, uint gap)
+  inline void *memdup_w_gap(const void *str, size_t size, uint gap)
   {
-    gptr ptr;
-    if ((ptr=alloc_root(mem_root,size+gap)))
+    void *ptr;
+    if ((ptr= alloc_root(mem_root,size+gap)))
       memcpy(ptr,str,size);
     return ptr;
   }
@@ -580,7 +618,7 @@ public:
   Statement *find_by_name(LEX_STRING *name)
   {
     Statement *stmt;
-    stmt= (Statement*)hash_search(&names_hash, (byte*)name->str,
+    stmt= (Statement*)hash_search(&names_hash, (uchar*)name->str,
                                   name->length);
     return stmt;
   }
@@ -590,7 +628,7 @@ public:
     if (last_found_statement == 0 || id != last_found_statement->id)
     {
       Statement *stmt;
-      stmt= (Statement *) hash_search(&st_hash, (byte *) &id, sizeof(id));
+      stmt= (Statement *) hash_search(&st_hash, (uchar *) &id, sizeof(id));
       if (stmt && stmt->name.str)
         return NULL;
       last_found_statement= stmt;
@@ -1033,14 +1071,14 @@ public:
   void binlog_set_stmt_begin();
   int binlog_write_table_map(TABLE *table, bool is_transactional);
   int binlog_write_row(TABLE* table, bool is_transactional,
-                       MY_BITMAP const* cols, my_size_t colcnt,
-                       const byte *buf);
+                       MY_BITMAP const* cols, size_t colcnt,
+                       const uchar *buf);
   int binlog_delete_row(TABLE* table, bool is_transactional,
-                        MY_BITMAP const* cols, my_size_t colcnt,
-                        const byte *buf);
+                        MY_BITMAP const* cols, size_t colcnt,
+                        const uchar *buf);
   int binlog_update_row(TABLE* table, bool is_transactional,
-                        MY_BITMAP const* cols, my_size_t colcnt,
-                        const byte *old_data, const byte *new_data);
+                        MY_BITMAP const* cols, size_t colcnt,
+                        const uchar *old_data, const uchar *new_data);
 
   void set_server_id(uint32 sid) { server_id = sid; }
 
@@ -1050,24 +1088,12 @@ public:
   template <class RowsEventT> Rows_log_event*
     binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
                                       MY_BITMAP const* cols,
-                                      my_size_t colcnt,
-                                      my_size_t needed,
+                                      size_t colcnt,
+                                      size_t needed,
                                       bool is_transactional,
 				      RowsEventT* hint);
   Rows_log_event* binlog_get_pending_rows_event() const;
   void            binlog_set_pending_rows_event(Rows_log_event* ev);
-  
-  my_size_t max_row_length_blob(TABLE* table, const byte *data) const;
-  my_size_t max_row_length(TABLE* table, const byte *data) const
-  {
-    TABLE_SHARE *table_s= table->s;
-    my_size_t length= table_s->reclength + 2 * table_s->fields;
-    if (table_s->blob_fields == 0)
-      return length;
-
-    return (length+max_row_length_blob(table,data));
-  }
-
   int binlog_flush_pending_rows_event(bool stmt_end);
   void binlog_delete_pending_rows_event();
 
@@ -1078,32 +1104,6 @@ public:
     return binlog_table_maps;
   }
 #endif /* MYSQL_CLIENT */
-
-#ifndef MYSQL_CLIENT
-public:
-  enum enum_binlog_query_type {
-      /*
-        The query can be logged row-based or statement-based
-      */
-      ROW_QUERY_TYPE,
-
-      /*
-        The query has to be logged statement-based
-      */
-      STMT_QUERY_TYPE,
-
-      /*
-        The query represents a change to a table in the "mysql"
-        database and is currently mapped to ROW_QUERY_TYPE.
-      */
-      MYSQL_QUERY_TYPE,
-      QUERY_TYPE_COUNT
-  };
-
-  int binlog_query(enum_binlog_query_type qtype,
-                   char const *query, ulong query_len,
-                   bool is_trans, bool suppress_use);
-#endif
 
 public:
 
@@ -1359,7 +1359,14 @@ public:
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
 
-  enum killed_state { NOT_KILLED=0, KILL_BAD_DATA=1, KILL_CONNECTION=ER_SERVER_SHUTDOWN, KILL_QUERY=ER_QUERY_INTERRUPTED };
+  enum killed_state
+  {
+    NOT_KILLED=0,
+    KILL_BAD_DATA=1,
+    KILL_CONNECTION=ER_SERVER_SHUTDOWN,
+    KILL_QUERY=ER_QUERY_INTERRUPTED,
+    KILLED_NO_VALUE      /* means neither of the states */
+  };
   killed_state volatile killed;
 
   /* scramble - random string sent to client on handshake */
@@ -1484,6 +1491,33 @@ public:
   void close_active_vio();
 #endif
   void awake(THD::killed_state state_to_set);
+
+#ifndef MYSQL_CLIENT
+  enum enum_binlog_query_type {
+    /*
+      The query can be logged row-based or statement-based
+    */
+    ROW_QUERY_TYPE,
+    
+    /*
+      The query has to be logged statement-based
+    */
+    STMT_QUERY_TYPE,
+    
+    /*
+      The query represents a change to a table in the "mysql"
+      database and is currently mapped to ROW_QUERY_TYPE.
+    */
+    MYSQL_QUERY_TYPE,
+    QUERY_TYPE_COUNT
+  };
+  
+  int binlog_query(enum_binlog_query_type qtype,
+                   char const *query, ulong query_len,
+                   bool is_trans, bool suppress_use,
+                   THD::killed_state killed_err_arg= THD::KILLED_NO_VALUE);
+#endif
+
   /*
     For enter_cond() / exit_cond() to work the mutex must be got before
     enter_cond(); this mutex is then released by exit_cond().
@@ -1539,7 +1573,7 @@ public:
   {
     return !stmt_arena->is_stmt_prepare();
   }
-  inline gptr trans_alloc(unsigned int size)
+  inline void* trans_alloc(unsigned int size)
   {
     return alloc_root(&transaction.mem_root,size);
   }
@@ -1610,7 +1644,8 @@ public:
   void end_statement();
   inline int killed_errno() const
   {
-    return killed != KILL_BAD_DATA ? killed : 0;
+    killed_state killed_val; /* to cache the volatile 'killed' */
+    return (killed_val= killed) != KILL_BAD_DATA ? killed_val : 0;
   }
   inline void send_kill_message() const
   {
@@ -1690,7 +1725,7 @@ public:
     This way the user will notice the error as there will be no current
     database selected (in addition to the error message set by malloc).
   */
-  bool set_db(const char *new_db, uint new_db_len)
+  bool set_db(const char *new_db, size_t new_db_len)
   {
     /* Do not reallocate memory if current chunk is big enough. */
     if (db && new_db && db_length >= new_db_len)
@@ -1703,7 +1738,7 @@ public:
     db_length= db ? new_db_len : 0;
     return new_db && !db;
   }
-  void reset_db(char *new_db, uint new_db_len)
+  void reset_db(char *new_db, size_t new_db_len)
   {
     db= new_db;
     db_length= new_db_len;
@@ -1713,7 +1748,7 @@ public:
     allocate memory for a deep copy: current database may be freed after
     a statement is parsed but before it's executed.
   */
-  bool copy_db_to(char **p_db, uint *p_db_length)
+  bool copy_db_to(char **p_db, size_t *p_db_length)
   {
     if (db == NULL)
     {
@@ -1944,20 +1979,20 @@ class select_insert :public select_result_interceptor {
 class select_create: public select_insert {
   ORDER *group;
   TABLE_LIST *create_table;
-  List<create_field> *extra_fields;
-  List<Key> *keys;
   HA_CREATE_INFO *create_info;
+  Alter_info *alter_info;
   Field **field;
 public:
-  select_create (TABLE_LIST *table_arg,
-		 HA_CREATE_INFO *create_info_par,
-		 List<create_field> &fields_par,
-		 List<Key> &keys_par,
-		 List<Item> &select_fields,enum_duplicates duplic, bool ignore)
-    :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, ignore),
-    create_table(table_arg), extra_fields(&fields_par),keys(&keys_par),
-    create_info(create_info_par)
-    {}
+  select_create(TABLE_LIST *table_arg,
+                HA_CREATE_INFO *create_info_arg,
+                Alter_info *alter_info_arg,
+                List<Item> &select_fields,
+                enum_duplicates duplic, bool ignore)
+    :select_insert(NULL, NULL, &select_fields, 0, 0, duplic, ignore),
+    create_table(table_arg),
+    create_info(create_info_arg),
+    alter_info(alter_info_arg)
+  {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 
   void binlog_show_create_table(TABLE **tables, uint count);
@@ -1992,7 +2027,7 @@ public:
   List<Item> save_copy_funcs;
   Copy_field *copy_field, *copy_field_end;
   Copy_field *save_copy_field, *save_copy_field_end;
-  byte	    *group_buff;
+  uchar	    *group_buff;
   Item	    **items_to_copy;			/* Fields in tmp table */
   MI_COLUMNDEF *recinfo,*start_recinfo;
   KEY *keyinfo;
@@ -2198,7 +2233,7 @@ class Unique :public Sql_alloc
   ulonglong max_in_memory_size;
   IO_CACHE file;
   TREE tree;
-  byte *record_pointers;
+  uchar *record_pointers;
   bool flush();
   uint size;
 
@@ -2231,8 +2266,8 @@ public:
   void reset();
   bool walk(tree_walk_action action, void *walk_action_arg);
 
-  friend int unique_write_to_file(gptr key, element_count count, Unique *unique);
-  friend int unique_write_to_ptrs(gptr key, element_count count, Unique *unique);
+  friend int unique_write_to_file(uchar* key, element_count count, Unique *unique);
+  friend int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique);
 };
 
 

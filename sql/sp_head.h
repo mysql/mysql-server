@@ -225,11 +225,8 @@ public:
   bool
   execute_procedure(THD *thd, List<Item> *args);
 
-  int
-  show_create_procedure(THD *thd);
-
-  int
-  show_create_function(THD *thd);
+  bool
+  show_create_routine(THD *thd, int type);
 
   void
   add_instr(sp_instr *instr);
@@ -245,7 +242,7 @@ public:
   {
     sp_instr *i;
 
-    get_dynamic(&m_instr, (gptr)&i, m_instr.elements-1);
+    get_dynamic(&m_instr, (uchar*)&i, m_instr.elements-1);
     return i;
   }
 
@@ -327,7 +324,7 @@ public:
     sp_instr *ip;
 
     if (i < m_instr.elements)
-      get_dynamic(&m_instr, (gptr)&ip, i);
+      get_dynamic(&m_instr, (uchar*)&ip, i);
     else
       ip= NULL;
     return ip;

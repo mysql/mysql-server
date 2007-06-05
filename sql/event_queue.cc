@@ -53,7 +53,7 @@
 */
 
 static int
-event_queue_element_compare_q(void *vptr, byte* a, byte *b)
+event_queue_element_compare_q(void *vptr, uchar* a, uchar *b)
 {
   my_time_t lhs = ((Event_queue_element *)a)->execute_at;
   my_time_t rhs = ((Event_queue_element *)b)->execute_at;
@@ -70,15 +70,17 @@ event_queue_element_compare_q(void *vptr, byte* a, byte *b)
 */
 
 Event_queue::Event_queue()
-  :mutex_last_locked_at_line(0), mutex_last_unlocked_at_line(0),
+  :next_activation_at(0),
+   mutex_last_locked_at_line(0),
+   mutex_last_unlocked_at_line(0),
    mutex_last_attempted_lock_at_line(0),
+   mutex_last_locked_in_func("n/a"),
+   mutex_last_unlocked_in_func("n/a"),
+   mutex_last_attempted_lock_in_func("n/a"),
    mutex_queue_data_locked(FALSE),
-   next_activation_at(0),
-   mutex_queue_data_attempting_lock(FALSE)
+   mutex_queue_data_attempting_lock(FALSE),
+   waiting_on_cond(FALSE)
 {
-  mutex_last_unlocked_in_func= mutex_last_locked_in_func=
-    mutex_last_attempted_lock_in_func= "";
-
   pthread_mutex_init(&LOCK_event_queue, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_queue_state, NULL);
 }
@@ -193,7 +195,7 @@ Event_queue::create_event(THD *thd, Event_queue_element *new_element,
   DBUG_PRINT("info", ("new event in the queue: 0x%lx", (long) new_element));
 
   LOCK_QUEUE_DATA();
-  *created= (queue_insert_safe(&queue, (byte *) new_element) == FALSE);
+  *created= (queue_insert_safe(&queue, (uchar *) new_element) == FALSE);
   dbug_dump_queue(thd->query_start());
   pthread_cond_broadcast(&COND_queue_state);
   UNLOCK_QUEUE_DATA();
@@ -242,7 +244,7 @@ Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
   if (new_element)
   {
     DBUG_PRINT("info", ("new event in the queue: 0x%lx", (long) new_element));
-    queue_insert_safe(&queue, (byte *) new_element);
+    queue_insert_safe(&queue, (uchar *) new_element);
     pthread_cond_broadcast(&COND_queue_state);
   }
 
@@ -739,8 +741,11 @@ Event_queue::dump_internal_status()
 
   MYSQL_TIME time;
   my_tz_UTC->gmt_sec_to_TIME(&time, next_activation_at);
-  printf("Next activation : %04d-%02d-%02d %02d:%02d:%02d\n",
-         time.year, time.month, time.day, time.hour, time.minute, time.second);
+  if (time.year != 1970)
+    printf("Next activation : %04d-%02d-%02d %02d:%02d:%02d\n",
+           time.year, time.month, time.day, time.hour, time.minute, time.second);
+  else
+    printf("Next activation : never");
 
   DBUG_VOID_RETURN;
 }

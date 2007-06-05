@@ -27,7 +27,7 @@
 	** HA_ERR_END_OF_FILE   = End of file
 	*/
 
-int mi_rsame_with_pos(MI_INFO *info, byte *record, int inx, my_off_t filepos)
+int mi_rsame_with_pos(MI_INFO *info, uchar *record, int inx, my_off_t filepos)
 {
   DBUG_ENTER("mi_rsame_with_pos");
   DBUG_PRINT("enter",("index: %d  filepos: %ld", inx, (long) filepos));

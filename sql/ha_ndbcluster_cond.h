@@ -198,7 +198,7 @@ public:
         return value.item->str_value.ptr();
       break;
     case(NDB_FIELD):
-      return value.field_value->field->ptr; 
+      return (char*) value.field_value->field->ptr; 
     default:
       break;
     }
@@ -458,9 +458,9 @@ public:
   int generate_scan_filter_from_cond(NdbScanFilter& filter);
   int generate_scan_filter_from_key(NdbScanOperation* op,
                                     const KEY* key_info, 
-                                    const byte *key, 
+                                    const uchar *key, 
                                     uint key_len,
-                                    byte *buf);
+                                    uchar *buf);
 private:
   bool serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond,
 		      TABLE *table, const NdbDictionary::Table *ndb_table);

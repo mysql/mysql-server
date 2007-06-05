@@ -40,7 +40,7 @@ int _mi_ck_write_btree(register MI_INFO *info, uint keynr,uchar *key,
 
 	/* Write new record to database */
 
-int mi_write(MI_INFO *info, byte *record)
+int mi_write(MI_INFO *info, uchar *record)
 {
   MYISAM_SHARE *share=info->s;
   uint i;
@@ -286,7 +286,7 @@ int _mi_ck_write_btree(register MI_INFO *info, uint keynr, uchar *key,
     if (!error)
       error= _mi_ft_convert_to_ft2(info, keynr, key);
     delete_dynamic(info->ft1_to_ft2);
-    my_free((gptr)info->ft1_to_ft2, MYF(0));
+    my_free((uchar*)info->ft1_to_ft2, MYF(0));
     info->ft1_to_ft2=0;
   }
   DBUG_RETURN(error);
@@ -403,14 +403,14 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
         ft_intXstore(keypos, subkeys);
         if (!error)
           error=_mi_write_keypage(info,keyinfo,page,DFLT_INIT_HITS,temp_buff);
-        my_afree((byte*) temp_buff);
+        my_afree((uchar*) temp_buff);
         DBUG_RETURN(error);
       }
     }
     else /* not HA_FULLTEXT, normal HA_NOSAME key */
     {
       info->dupp_key_pos= dupp_key_pos;
-      my_afree((byte*) temp_buff);
+      my_afree((uchar*) temp_buff);
       my_errno=HA_ERR_FOUND_DUPP_KEY;
       DBUG_RETURN(-1);
     }
@@ -429,10 +429,10 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     if (_mi_write_keypage(info,keyinfo,page,DFLT_INIT_HITS,temp_buff))
       goto err;
   }
-  my_afree((byte*) temp_buff);
+  my_afree((uchar*) temp_buff);
   DBUG_RETURN(error);
 err:
-  my_afree((byte*) temp_buff);
+  my_afree((uchar*) temp_buff);
   DBUG_PRINT("exit",("Error: %d",my_errno));
   DBUG_RETURN (-1);
 } /* w_search */
@@ -488,7 +488,7 @@ int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   if (key_pos != anc_buff+2+nod_flag && (keyinfo->flag &
 					 (HA_BINARY_PACK_KEY | HA_PACK_KEY)))
   {
-    DBUG_DUMP("prev_key",(byte*) key_buff,_mi_keylength(keyinfo,key_buff));
+    DBUG_DUMP("prev_key",(uchar*) key_buff,_mi_keylength(keyinfo,key_buff));
   }
   if (keyinfo->flag & HA_PACK_KEY)
   {
@@ -506,7 +506,7 @@ int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(-1);
     }
-    bmove_upp((byte*) endpos+t_length,(byte*) endpos,(uint) (endpos-key_pos));
+    bmove_upp((uchar*) endpos+t_length,(uchar*) endpos,(uint) (endpos-key_pos));
   }
   else
   {
@@ -595,7 +595,7 @@ int _mi_split_page(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   MI_KEY_PARAM s_temp;
   DBUG_ENTER("mi_split_page");
   LINT_INIT(after_key);
-  DBUG_DUMP("buff",(byte*) buff,mi_getint(buff));
+  DBUG_DUMP("buff",(uchar*) buff,mi_getint(buff));
 
   if (info->s->keyinfo+info->lastinx == keyinfo)
     info->page_changed=1;			/* Info->buff is used */
@@ -619,7 +619,7 @@ int _mi_split_page(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   {
     DBUG_PRINT("test",("Splitting nod"));
     pos=key_pos-nod_flag;
-    memcpy((byte*) info->buff+2,(byte*) pos,(size_t) nod_flag);
+    memcpy((uchar*) info->buff+2,(uchar*) pos,(size_t) nod_flag);
   }
 
 	/* Move middle item to key and pointer to new page */
@@ -635,14 +635,14 @@ int _mi_split_page(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 				(uchar*) 0, (uchar*) 0,
 				key_buff, &s_temp);
   length=(uint) ((buff+a_length)-key_pos);
-  memcpy((byte*) info->buff+key_ref_length+t_length,(byte*) key_pos,
+  memcpy((uchar*) info->buff+key_ref_length+t_length,(uchar*) key_pos,
 	 (size_t) length);
   (*keyinfo->store_key)(keyinfo,info->buff+key_ref_length,&s_temp);
   mi_putint(info->buff,length+t_length+key_ref_length,nod_flag);
 
   if (_mi_write_keypage(info,keyinfo,new_pos,DFLT_INIT_HITS,info->buff))
     DBUG_RETURN(-1);
-  DBUG_DUMP("key",(byte*) key,_mi_keylength(keyinfo,key));
+  DBUG_DUMP("key",(uchar*) key,_mi_keylength(keyinfo,key));
   DBUG_RETURN(2);				/* Middle key up */
 } /* _mi_split_page */
 
@@ -764,7 +764,7 @@ static int _mi_balance_page(register MI_INFO *info, MI_KEYDEF *keyinfo,
        length,keys;
   uchar *pos,*buff,*extra_buff;
   my_off_t next_page,new_pos;
-  byte tmp_part_key[MI_MAX_KEY_BUFF];
+  uchar tmp_part_key[MI_MAX_KEY_BUFF];
   DBUG_ENTER("_mi_balance_page");
 
   k_length=keyinfo->keylength;
@@ -796,7 +796,7 @@ static int _mi_balance_page(register MI_INFO *info, MI_KEYDEF *keyinfo,
 
   if (!_mi_fetch_keypage(info,keyinfo,next_page,DFLT_INIT_HITS,info->buff,0))
     goto err;
-  DBUG_DUMP("next",(byte*) info->buff,mi_getint(info->buff));
+  DBUG_DUMP("next",(uchar*) info->buff,mi_getint(info->buff));
 
 	/* Test if there is room to share keys */
 
@@ -815,23 +815,23 @@ static int _mi_balance_page(register MI_INFO *info, MI_KEYDEF *keyinfo,
     if (left_length < new_left_length)
     {						/* Move keys buff -> leaf */
       pos=curr_buff+left_length;
-      memcpy((byte*) pos,(byte*) father_key_pos, (size_t) k_length);
-      memcpy((byte*) pos+k_length, (byte*) buff+2,
+      memcpy((uchar*) pos,(uchar*) father_key_pos, (size_t) k_length);
+      memcpy((uchar*) pos+k_length, (uchar*) buff+2,
 	     (size_t) (length=new_left_length - left_length - k_length));
       pos=buff+2+length;
-      memcpy((byte*) father_key_pos,(byte*) pos,(size_t) k_length);
-      bmove((byte*) buff+2,(byte*) pos+k_length,new_right_length);
+      memcpy((uchar*) father_key_pos,(uchar*) pos,(size_t) k_length);
+      bmove((uchar*) buff+2,(uchar*) pos+k_length,new_right_length);
     }
     else
     {						/* Move keys -> buff */
 
-      bmove_upp((byte*) buff+new_right_length,(byte*) buff+right_length,
+      bmove_upp((uchar*) buff+new_right_length,(uchar*) buff+right_length,
 		right_length-2);
       length=new_right_length-right_length-k_length;
-      memcpy((byte*) buff+2+length,father_key_pos,(size_t) k_length);
+      memcpy((uchar*) buff+2+length,father_key_pos,(size_t) k_length);
       pos=curr_buff+new_left_length;
-      memcpy((byte*) father_key_pos,(byte*) pos,(size_t) k_length);
-      memcpy((byte*) buff+2,(byte*) pos+k_length,(size_t) length);
+      memcpy((uchar*) father_key_pos,(uchar*) pos,(size_t) k_length);
+      memcpy((uchar*) buff+2,(uchar*) pos+k_length,(size_t) length);
     }
 
     if (_mi_write_keypage(info,keyinfo,next_page,DFLT_INIT_HITS,info->buff) ||
@@ -858,22 +858,22 @@ static int _mi_balance_page(register MI_INFO *info, MI_KEYDEF *keyinfo,
 
   /* move first largest keys to new page  */
   pos=buff+right_length-extra_length;
-  memcpy((byte*) extra_buff+2,pos,(size_t) extra_length);
+  memcpy((uchar*) extra_buff+2,pos,(size_t) extra_length);
   /* Save new parting key */
   memcpy(tmp_part_key, pos-k_length,k_length);
   /* Make place for new keys */
-  bmove_upp((byte*) buff+new_right_length,(byte*) pos-k_length,
+  bmove_upp((uchar*) buff+new_right_length,(uchar*) pos-k_length,
 	    right_length-extra_length-k_length-2);
   /* Copy keys from left page */
   pos= curr_buff+new_left_length;
-  memcpy((byte*) buff+2,(byte*) pos+k_length,
+  memcpy((uchar*) buff+2,(uchar*) pos+k_length,
 	 (size_t) (length=left_length-new_left_length-k_length));
   /* Copy old parting key */
-  memcpy((byte*) buff+2+length,father_key_pos,(size_t) k_length);
+  memcpy((uchar*) buff+2+length,father_key_pos,(size_t) k_length);
 
   /* Move new parting keys up to caller */
-  memcpy((byte*) (right ? key : father_key_pos),pos,(size_t) k_length);
-  memcpy((byte*) (right ? father_key_pos : key),tmp_part_key, k_length);
+  memcpy((uchar*) (right ? key : father_key_pos),pos,(size_t) k_length);
+  memcpy((uchar*) (right ? father_key_pos : key),tmp_part_key, k_length);
 
   if ((new_pos=_mi_new(info,keyinfo,DFLT_INIT_HITS)) == HA_OFFSET_ERROR)
     goto err;

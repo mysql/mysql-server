@@ -426,7 +426,7 @@ public:
 };
 
 
-typedef bool (Item::*Item_processor) (byte *arg);
+typedef bool (Item::*Item_processor) (uchar *arg);
 /*
   Analyzer function
     SYNOPSIS
@@ -438,8 +438,8 @@ typedef bool (Item::*Item_processor) (byte *arg);
       FALSE  Don't do it
 
 */
-typedef bool (Item::*Item_analyzer) (byte **argp);
-typedef Item* (Item::*Item_transformer) (byte *arg);
+typedef bool (Item::*Item_analyzer) (uchar **argp);
+typedef Item* (Item::*Item_transformer) (uchar *arg);
 typedef void (*Cond_traverser) (const Item *item, void *arg);
 
 
@@ -448,9 +448,9 @@ class Item {
   void operator=(Item &);
 public:
   static void *operator new(size_t size)
-  { return (void*) sql_alloc((uint) size); }
+  { return sql_alloc(size); }
   static void *operator new(size_t size, MEM_ROOT *mem_root)
-  { return (void*) alloc_root(mem_root, (uint) size); }
+  { return alloc_root(mem_root, size); }
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
 
@@ -476,9 +476,9 @@ public:
     save_in_field
   */
   String str_value;
-  my_string name;			/* Name from select */
+  char * name;			/* Name from select */
   /* Original item name (if it was renamed)*/
-  my_string orig_name;
+  char * orig_name;
   Item *next;
   uint32 max_length;
   uint name_length;                     /* Length of name */
@@ -779,12 +779,12 @@ public:
   static CHARSET_INFO *default_charset();
   virtual CHARSET_INFO *compare_collation() { return NULL; }
 
-  virtual bool walk(Item_processor processor, bool walk_subquery, byte *arg)
+  virtual bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
   {
     return (this->*processor)(arg);
   }
 
-  virtual Item* transform(Item_transformer transformer, byte *arg);
+  virtual Item* transform(Item_transformer transformer, uchar *arg);
 
   /*
     This function performs a generic "compilation" of the Item tree.
@@ -802,8 +802,8 @@ public:
     i.e. analysis is performed top-down while transformation is done
     bottom-up.      
   */
-  virtual Item* compile(Item_analyzer analyzer, byte **arg_p,
-                        Item_transformer transformer, byte *arg_t)
+  virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
+                        Item_transformer transformer, uchar *arg_t)
   {
     if ((this->*analyzer) (arg_p))
       return ((this->*transformer) (arg_t));
@@ -816,15 +816,15 @@ public:
      (*traverser)(this, arg);
    }
 
-  virtual bool remove_dependence_processor(byte * arg) { return 0; }
-  virtual bool remove_fixed(byte * arg) { fixed= 0; return 0; }
-  virtual bool cleanup_processor(byte *arg);
-  virtual bool collect_item_field_processor(byte * arg) { return 0; }
-  virtual bool find_item_in_field_list_processor(byte *arg) { return 0; }
-  virtual bool change_context_processor(byte *context) { return 0; }
-  virtual bool reset_query_id_processor(byte *query_id_arg) { return 0; }
-  virtual bool is_expensive_processor(byte *arg) { return 0; }
-  virtual bool register_field_in_read_map(byte *arg) { return 0; }
+  virtual bool remove_dependence_processor(uchar * arg) { return 0; }
+  virtual bool remove_fixed(uchar * arg) { fixed= 0; return 0; }
+  virtual bool cleanup_processor(uchar *arg);
+  virtual bool collect_item_field_processor(uchar * arg) { return 0; }
+  virtual bool find_item_in_field_list_processor(uchar *arg) { return 0; }
+  virtual bool change_context_processor(uchar *context) { return 0; }
+  virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
+  virtual bool is_expensive_processor(uchar *arg) { return 0; }
+  virtual bool register_field_in_read_map(uchar *arg) { return 0; }
   /*
     Check if a partition function is allowed
     SYNOPSIS
@@ -877,17 +877,17 @@ public:
     assumes that there are no multi-byte collations amongst the partition
     fields.
   */
-  virtual bool check_partition_func_processor(byte *bool_arg) { return TRUE;}
-  virtual bool subst_argument_checker(byte **arg)
+  virtual bool check_partition_func_processor(uchar *bool_arg) { return TRUE;}
+  virtual bool subst_argument_checker(uchar **arg)
   { 
     if (*arg)
       *arg= NULL; 
     return TRUE;     
   }
 
-  virtual Item *equal_fields_propagator(byte * arg) { return this; }
-  virtual bool set_no_const_sub(byte *arg) { return FALSE; }
-  virtual Item *replace_equal_field(byte * arg) { return this; }
+  virtual Item *equal_fields_propagator(uchar * arg) { return this; }
+  virtual bool set_no_const_sub(uchar *arg) { return FALSE; }
+  virtual Item *replace_equal_field(uchar * arg) { return this; }
 
   /*
     For SP local variable returns pointer to Item representing its
@@ -916,7 +916,7 @@ public:
   virtual Item_field *filed_for_view_update() { return 0; }
 
   virtual Item *neg_transformer(THD *thd) { return NULL; }
-  virtual Item *update_value_transformer(byte *select_arg) { return this; }
+  virtual Item *update_value_transformer(uchar *select_arg) { return this; }
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
   void delete_self()
   {
@@ -1224,7 +1224,7 @@ public:
   Item_num() {}                               /* Remove gcc warning */
   virtual Item_num *neg()= 0;
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(byte *int_arg) { return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 #define NO_CACHED_FIELD_INDEX ((uint)(-1))
@@ -1268,9 +1268,9 @@ public:
   Item_ident(THD *thd, Item_ident *item);
   const char *full_name() const;
   void cleanup();
-  bool remove_dependence_processor(byte * arg);
+  bool remove_dependence_processor(uchar * arg);
   void print(String *str);
-  virtual bool change_context_processor(byte *cntx)
+  virtual bool change_context_processor(uchar *cntx)
     { context= (Name_resolution_context *)cntx; return FALSE; }
   friend bool insert_fields(THD *thd, Name_resolution_context *context,
                             const char *db_name,
@@ -1379,25 +1379,25 @@ public:
   bool is_null() { return field->is_null(); }
   void update_null_value();
   Item *get_tmp_table_item(THD *thd);
-  bool collect_item_field_processor(byte * arg);
-  bool find_item_in_field_list_processor(byte *arg);
-  bool register_field_in_read_map(byte *arg);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool collect_item_field_processor(uchar * arg);
+  bool find_item_in_field_list_processor(uchar *arg);
+  bool register_field_in_read_map(uchar *arg);
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   void cleanup();
   bool result_as_longlong()
   {
     return field->can_be_compared_as_longlong();
   }
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
-  bool subst_argument_checker(byte **arg);
-  Item *equal_fields_propagator(byte *arg);
-  bool set_no_const_sub(byte *arg);
-  Item *replace_equal_field(byte *arg);
+  bool subst_argument_checker(uchar **arg);
+  Item *equal_fields_propagator(uchar *arg);
+  bool set_no_const_sub(uchar *arg);
+  Item *replace_equal_field(uchar *arg);
   inline uint32 max_disp_length() { return field->max_display_length(); }
   Item_field *filed_for_view_update() { return this; }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   int fix_outer_field(THD *thd, Field **field, Item **reference);
-  virtual Item *update_value_transformer(byte *select_arg);
+  virtual Item *update_value_transformer(uchar *select_arg);
   void print(String *str);
   friend class Item_default_value;
   friend class Item_insert_value;
@@ -1433,7 +1433,7 @@ public:
   bool is_null() { return 1; }
   void print(String *str) { str->append(STRING_WITH_LEN("NULL")); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 class Item_null_result :public Item_null
@@ -1446,7 +1446,7 @@ public:
   {
     save_in_field(result_field, no_conversions);
   }
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
+  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };  
 
 /* Item represents one placeholder ('?') of prepared statement */
@@ -1660,7 +1660,7 @@ public:
   Item_decimal(my_decimal *value_par);
   Item_decimal(longlong val, bool unsig);
   Item_decimal(double val, int precision, int scale);
-  Item_decimal(const char *bin, int precision, int scale);
+  Item_decimal(const uchar *bin, int precision, int scale);
 
   enum Type type() const { return DECIMAL_ITEM; }
   enum Item_result result_type () const { return DECIMAL_RESULT; }
@@ -1747,7 +1747,7 @@ public:
   {}
   void print(String *str) { str->append(func_name); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
+  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };
 
 
@@ -1829,7 +1829,7 @@ public:
   void print(String *str);
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -1844,7 +1844,7 @@ public:
   {}
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   void print(String *str) { str->append(func_name); }
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
+  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };
 
 
@@ -1856,7 +1856,7 @@ public:
                                   CHARSET_INFO *cs= NULL):
     Item_string(name, length, cs)
   {}
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
+  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };
 
 
@@ -1904,7 +1904,7 @@ public:
     unsigned_flag=1;
   }
   enum_field_types field_type() const { return int_field_type; }
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
+  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };
 
 
@@ -1931,7 +1931,7 @@ public:
   void cleanup() {}
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -2051,7 +2051,7 @@ public:
   {
     return ref ? (*ref)->real_item() : this;
   }
-  bool walk(Item_processor processor, bool walk_subquery, byte *arg)
+  bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
   { return (*ref)->walk(processor, walk_subquery, arg); }
   void print(String *str);
   bool result_as_longlong()
@@ -2230,7 +2230,7 @@ public:
   }
   Item *clone_item();
   virtual Item *real_item() { return ref; }
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
+  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };
 
 #ifdef MYSQL_SERVER
@@ -2339,7 +2339,7 @@ public:
 
 class Cached_item_field :public Cached_item
 {
-  char *buff;
+  uchar *buff;
   Field *field;
   uint length;
 
@@ -2347,7 +2347,7 @@ public:
   Cached_item_field(Item_field *item)
   {
     field= item->field;
-    buff= (char*) sql_calloc(length=field->pack_length());
+    buff= (uchar*) sql_calloc(length=field->pack_length());
   }
   bool cmp(void);
 };
@@ -2371,13 +2371,13 @@ public:
   int save_in_field(Field *field_arg, bool no_conversions);
   table_map used_tables() const { return (table_map)0L; }
 
-  bool walk(Item_processor processor, bool walk_subquery, byte *args)
+  bool walk(Item_processor processor, bool walk_subquery, uchar *args)
   {
     return arg->walk(processor, walk_subquery, args) ||
       (this->*processor)(args);
   }
 
-  Item *transform(Item_transformer transformer, byte *args);
+  Item *transform(Item_transformer transformer, uchar *args);
 };
 
 /*
@@ -2411,7 +2411,7 @@ public:
   */
   table_map used_tables() const { return RAND_TABLE_BIT; }
 
-  bool walk(Item_processor processor, bool walk_subquery, byte *args)
+  bool walk(Item_processor processor, bool walk_subquery, uchar *args)
   {
     return arg->walk(processor, walk_subquery, args) ||
 	    (this->*processor)(args);

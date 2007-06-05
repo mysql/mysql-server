@@ -899,7 +899,7 @@ end:
 */
 
 
-#define LOCK_CMP(A,B) ((byte*) (A->lock) - (uint) ((A)->type) < (byte*) (B->lock)- (uint) ((B)->type))
+#define LOCK_CMP(A,B) ((uchar*) (A->lock) - (uint) ((A)->type) < (uchar*) (B->lock)- (uint) ((B)->type))
 
 static void sort_locks(THR_LOCK_DATA **data,uint count)
 {
@@ -1600,7 +1600,7 @@ static void *test_thread(void *arg)
   thread_count--;
   VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
   pthread_mutex_unlock(&LOCK_thread_count);
-  free((gptr) arg);
+  free((uchar*) arg);
   return 0;
 }
 
