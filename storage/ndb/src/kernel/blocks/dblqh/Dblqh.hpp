@@ -114,9 +114,6 @@ class Dbtup;
 /* ------------------------------------------------------------------------- */
 /*       VARIOUS CONSTANTS USED AS FLAGS TO THE FILE MANAGER.                */
 /* ------------------------------------------------------------------------- */
-#define ZOPEN_READ 0
-#define ZOPEN_WRITE 1
-#define ZOPEN_READ_WRITE 2
 #define ZVAR_NO_LOG_PAGE_WORD 1
 #define ZLIST_OF_PAIRS 0
 #define ZLIST_OF_PAIRS_SYNCH 16
@@ -2687,6 +2684,7 @@ private:
   UintR clfoFileSize;
 
   LogPageRecord *logPageRecord;
+  void *logPageRecordUnaligned;
   LogPageRecordPtr logPagePtr;
   UintR cfirstfreeLogPage;
   UintR clogPageFileSize;
@@ -2890,6 +2888,7 @@ private:
   UintR ctransidHash[1024];
   
   Uint32 c_diskless;
+  Uint32 c_o_direct;
   Uint32 c_error_insert_table_id;
   
 public:
