@@ -277,6 +277,14 @@ void Ndbcntr::execSTTOR(Signal* signal)
     break;
   case ZSTART_PHASE_1:
     jam();
+    {
+      Uint32 db_watchdog_interval = 0;
+      const ndb_mgm_configuration_iterator * p = 
+        m_ctx.m_config.getOwnConfigIterator();
+      ndb_mgm_get_int_parameter(p, CFG_DB_WATCHDOG_INTERVAL, &db_watchdog_interval);
+      ndbrequire(db_watchdog_interval);
+      update_watch_dog_timer(db_watchdog_interval);
+    }
     startPhase1Lab(signal);
     break;
   case ZSTART_PHASE_2:
