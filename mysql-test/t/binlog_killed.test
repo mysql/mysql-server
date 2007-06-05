@@ -1,0 +1,247 @@
+-- source include/have_innodb.inc
+--source include/not_embedded.inc
+
+###
+### bug#22725 : incorrect killed error in binlogged query
+###
+
+connect (con1, localhost, root,,);
+connect (con2, localhost, root,,);
+
+create table t1 (a int auto_increment, b int, PRIMARY KEY (a)) ENGINE=InnoDB;
+create table t2 (a int auto_increment, b int, PRIMARY KEY (a)) ENGINE=MyISAM;
+create table t3 (a int auto_increment, b int, PRIMARY KEY (a)) ENGINE=InnoDB;
+
+#
+# effective test for bug#22725
+#
+
+connection con1;
+select get_lock("a", 20);
+
+connection con2;
+let $ID= `select connection_id()`;
+reset master;
+send insert into t2 values (null, null), (null, get_lock("a", 10));
+
+
+connection con1;
+
+disable_abort_on_error;
+disable_query_log;
+disable_result_log;
+
+eval kill query $ID;
+
+connection con2;
+--error 0,ER_QUERY_INTERRUPTED
+reap;
+let $rows= `select count(*) from t2  /* must be 2 or 0 */`;
+
+--exec $MYSQL_BINLOG --start-position=126 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval select
+(@a:=load_file("$MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog"))
+is not null;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+let $error_code= `select @a like "%#%error_code=0%" /* must return 1 or 0*/`;
+let $insert_binlogged= `select @a like "%insert into%" /* must return 1 or 0 */`;
+eval set @result= $rows- $error_code - $insert_binlogged;
+
+enable_abort_on_error;
+enable_query_log;
+enable_result_log;
+
+select @result /* must be zero either way */;
+
+# the functions are either *insensitive* to killing or killing can cause
+# strange problmes with the error propagation out of SF's stack
+#  Bug#27563, Bug#27565, BUG#24971
+#
+# TODO: use if's block as regression test for the bugs or remove
+#
+if (0)
+{
+delimiter |;
+create function bug27563() 
+RETURNS int(11)
+DETERMINISTIC
+begin
+  select get_lock("a", 10)  into @a;
+  return 1;
+end|
+delimiter ;|
+
+# the function is sensitive to killing requiring innodb though with wrong client error 
+# TO FIX in BUG#27565; TODO: remove --error 1105 afterwards
+delimiter |;
+create function bug27565() 
+RETURNS int(11)
+DETERMINISTIC
+begin
+  select a from t1 where a=1  into @a for update;
+  return 1;
+end|
+delimiter ;|
+
+reset master;
+
+
+### ta table case: killing causes rollback
+
+# A. autocommit ON
+connection con1;
+select get_lock("a", 20);
+
+connection con2;
+let $ID= `select connection_id()`;
+send insert into t1 values (bug27563(),1);
+
+connection con1;
+eval kill query $ID;
+
+connection con2;
+# todo (re-record test): after bugs 27563,27565 got fixed affected rows will report zero
+--enable_info
+# todo: remove 0 return after fixing Bug#27563
+--error 0,ER_QUERY_INTERRUPTED
+reap; ### pb: wrong error
+--disable_info
+###--replace_column 2 # 5 #
+### show binlog events from 98 /* nothing in binlog unless Bug#27563 */;
+show master status /* must be only FD event unless Bug#27563 */;
+select count(*) from t1 /* must be zero unless Bug#27563 */;
+
+# M. multi-statement-ta
+connection con2;
+let $ID= `select connection_id()`;
+begin;
+send insert into t1 values (bug27563(),1);
+
+connection con1;
+eval kill query $ID;
+connection con2;
+# todo (re-record test): after bugs 27563,27565 got fixed affected rows will report zero
+--enable_info
+# todo: remove 0 return after fixing  Bug#27563
+--error 0,ER_QUERY_INTERRUPTED
+reap;
+--disable_info
+select count(*) from t1 /* must be zero unless Bug#27563 */;
+commit;
+
+
+### non-ta table case: killing must be recorded in binlog
+
+reset master;
+
+connection con2;
+let $ID= `select connection_id()`;
+send insert into t2 values (bug27563(),1);
+
+connection con1;
+eval kill query $ID;
+
+connection con2;
+# todo: remove 0 return after fixing  Bug#27563
+--error 0,ER_QUERY_INTERRUPTED
+reap;
+select count(*) from t2 /* must be one */;
+#show binlog events from 98 /* must have the insert on non-ta table */;
+show master status  /* must have the insert event more to FD */;
+# the value of the error flag of KILLED_QUERY is tested further
+
+connection con1;
+select RELEASE_LOCK("a");
+
+### test with effective killing of SF()
+
+delete from t1;
+delete from t2;
+insert into t1 values (1,1);
+insert into t2 values (1,1);
+
+# 
+# Bug#27565
+# test where KILL is propagated as error to the top level
+# still another bug with the error message to the user
+# todo: fix reexecute the result file after fixing
+# 
+begin; update t1 set b=0 where a=1;
+
+connection con2;
+let $ID= `select connection_id()`;
+send update t2 set b=bug27565()-1 where a=1;
+
+connection con1;
+eval kill query $ID;
+commit;
+
+connection con2;
+# todo: fix Bug #27565 killed query of SF() is not reported correctly and 
+# remove 1105 (wrong)
+#--error ER_QUERY_INTERRUPTED
+--error 1105,ER_QUERY_INTERRUPTED
+reap; ### pb: wrong error
+select * from t1 /* must be: (1,0) */;
+select * from t2 /* must be as before: (1,1) */;
+
+## bug#22725 with effective and propagating killing
+#
+# top-level ta-table
+connection con1;
+delete from t3;
+reset master;
+begin; update t1 set b=0 where a=1;
+
+connection con2;
+let $ID= `select connection_id()`;
+# the query won't perform completely since the function gets interrupted
+send insert into t3 values  (0,0),(1,bug27565());
+
+connection con1;
+eval kill query $ID;
+rollback;
+
+connection con2;
+# todo: fix Bug #27565 killed query of SF() is not reported correctly and 
+# remove 1105 (wrong)
+#--error ER_QUERY_INTERRUPTED
+--error 1105,ER_QUERY_INTERRUPTED
+reap; ### pb: wrong error
+select count(*) from t3 /* must be zero */;
+show master status /* nothing in binlog */;
+
+# top-level non-ta-table
+connection con1;
+delete from t2;
+reset master;
+begin;  update t1 set b=0 where a=1;
+
+connection con2;
+let $ID= `select connection_id()`;
+# the query won't perform completely since the function gets intrurrupted
+send insert into t2 values (0,0),(1,bug27565()) /* non-ta t2 */;
+
+connection con1;
+eval kill query $ID;
+rollback;
+
+connection con2;
+# todo: fix Bug #27565 killed query of SF() is not reported correctly and 
+# remove 1105 (wrong)
+#--error ER_QUERY_INTERRUPTED
+--error 1105,ER_QUERY_INTERRUPTED
+reap; ### pb: wrong error
+
+select count(*) from t2    /* count must be one */;
+show master status /* insert into non-ta must be in binlog */;
+
+drop function bug27563;
+drop function bug27565;
+}
+
+system rm $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog ;
+
+drop table t1,t2,t3;
+
