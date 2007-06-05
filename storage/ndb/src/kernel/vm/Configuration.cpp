@@ -443,6 +443,11 @@ Configuration::setupConfiguration(){
 	      "TimeBetweenWatchDogCheck missing");
   }
 
+  if(iter.get(CFG_DB_WATCHDOG_INTERVAL_INITIAL, &_timeBetweenWatchDogCheckInitial)){
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
+	      "TimeBetweenWatchDogCheckInitial missing");
+  }
+
   /**
    * Get paths
    */  
@@ -462,9 +467,12 @@ Configuration::setupConfiguration(){
    * Create the watch dog thread
    */
   { 
-    Uint32 t = _timeBetweenWatchDogCheck;
+    if (_timeBetweenWatchDogCheckInitial < _timeBetweenWatchDogCheck)
+      _timeBetweenWatchDogCheckInitial = _timeBetweenWatchDogCheck;
+
+    Uint32 t = _timeBetweenWatchDogCheckInitial;
     t = globalEmulatorData.theWatchDog ->setCheckInterval(t);
-    _timeBetweenWatchDogCheck = t;
+    _timeBetweenWatchDogCheckInitial = t;
   }
   
   ConfigValues* cf = ConfigValuesFactory::extractCurrentSection(iter.m_config);

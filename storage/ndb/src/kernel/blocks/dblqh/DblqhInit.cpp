@@ -49,6 +49,7 @@ void Dblqh::initData()
   logFileRecord = 0;
   logFileOperationRecord = 0;
   logPageRecord = 0;
+  logPageRecordUnaligned= 0;
   pageRefRecord = 0;
   tablerec = 0;
   tcConnectionrec = 0;
@@ -107,10 +108,13 @@ void Dblqh::initRecords()
 		sizeof(LogFileOperationRecord), 
 		clfoFileSize);
 
-  logPageRecord = (LogPageRecord*)allocRecord("LogPageRecord",
-					      sizeof(LogPageRecord),
-					      clogPageFileSize,
-					      false);
+  logPageRecord =
+    (LogPageRecord*)allocRecordAligned("LogPageRecord",
+                                       sizeof(LogPageRecord),
+                                       clogPageFileSize,
+                                       &logPageRecordUnaligned,
+                                       NDB_O_DIRECT_WRITE_ALIGNMENT,
+                                       false);
 
   pageRefRecord = (PageRefRecord*)allocRecord("PageRefRecord",
 					      sizeof(PageRefRecord),
@@ -383,7 +387,7 @@ Dblqh::~Dblqh()
 		sizeof(LogFileOperationRecord), 
 		clfoFileSize);
   
-  deallocRecord((void**)&logPageRecord,
+  deallocRecord((void**)&logPageRecordUnaligned,
 		"LogPageRecord",
 		sizeof(LogPageRecord),
 		clogPageFileSize);
