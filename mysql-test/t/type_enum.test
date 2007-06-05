@@ -139,6 +139,14 @@ drop table t1;
 --echo End of 4.1 tests
 
 #
+# Bug#28729: Field_enum wrongly reported an error while storing an empty string.
+#
+create table t1(f1 set('a','b'), index(f1));
+insert into t1 values(''),(''),('a'),('b');
+select * from t1 where f1='';
+drop table t1;
+
+#
 # Bug#24660 "enum" field type definition problem
 #
 create table t1(russian enum('E','F','EÿF','FÿE') NOT NULL DEFAULT'E');

@@ -95,4 +95,10 @@ a	b
 1	6
 drop table t1;
 drop view v1;
+CREATE TABLE t1(a INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE VIEW v1 AS SELECT * FROM t1;
+ERROR 42S01: Table 'v1' already exists
+DROP VIEW v1;
+DROP TABLE t1;
 End of 5.0 tests
