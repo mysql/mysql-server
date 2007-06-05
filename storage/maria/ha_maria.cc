@@ -31,6 +31,11 @@
 #include "ma_rt_index.h"
 #include "ma_blockrec.h"
 
+#define MARIA_CANNOT_ROLLBACK HA_NO_TRANSACTIONS
+#ifdef MARIA_CANNOT_ROLLBACK
+#define trans_register_ha(A, B, C)  do { /* nothing */ } while(0)
+#endif
+
 ulong maria_recover_options= HA_RECOVER_NONE;
 static handlerton *maria_hton;
 
@@ -466,7 +471,7 @@ ha_maria::ha_maria(handlerton *hton, TABLE_SHARE *table_arg):
 handler(hton, table_arg), file(0),
 int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
                 HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
-                HA_FILE_BASED | HA_CAN_GEOMETRY |
+                HA_FILE_BASED | HA_CAN_GEOMETRY | MARIA_CANNOT_ROLLBACK |
                 HA_CAN_INSERT_DELAYED | HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
                 HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT),
 can_enable_indexes(1)
@@ -1885,12 +1890,17 @@ int ha_maria::external_lock(THD *thd, int lock_type)
       if (!trnman_decrement_locked_tables(trn))
       {
         /* autocommit ? rollback a transaction */
+#ifdef MARIA_CANNOT_ROLLBACK
+        trnman_commit_trn(trn);
+        THD_TRN= 0;
+#else
         if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
         {
           trnman_rollback_trn(trn);
           DBUG_PRINT("info", ("THD_TRN set to 0x0"));
           THD_TRN= 0;
         }
+#endif
       }
     }
   }
