@@ -1000,9 +1000,9 @@ create trigger t1_bi after insert on t1 for each row insert into t3 values (new.
 # Until we implement proper mechanism for invalidation of PS/SP when table
 # or SP's are changed these two statements will fail with 'Table ... was
 # not locked' error (this mechanism should be based on the new TDC).
---error 1100 #ER_TABLE_NOT_LOCKED
+--error ER_NO_SUCH_TABLE 
 execute stmt1;
---error 1100 #ER_TABLE_NOT_LOCKED
+--error ER_NO_SUCH_TABLE 
 call p1();
 deallocate prepare stmt1;
 drop procedure p1;

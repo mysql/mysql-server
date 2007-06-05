@@ -346,7 +346,15 @@ bool opt_endinfo, using_udf_functions;
 my_bool locked_in_memory;
 bool opt_using_transactions, using_update_log;
 bool volatile abort_loop;
-bool volatile shutdown_in_progress, grant_option;
+bool volatile shutdown_in_progress;
+/**
+   @brief 'grant_option' is used to indicate if privileges needs
+   to be checked, in which case the lock, LOCK_grant, is used
+   to protect access to the grant table.
+   @note This flag is dropped in 5.1 
+   @see grant_init()
+ */
+bool volatile grant_option;
 
 my_bool opt_skip_slave_start = 0; // If set, slave is not autostarted
 my_bool opt_reckless_slave = 0;
