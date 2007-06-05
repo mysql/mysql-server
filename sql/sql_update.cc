@@ -1001,6 +1001,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   List_iterator_fast<Item> field_it(*fields);
   List_iterator_fast<Item> value_it(*values);
   uint i, max_fields;
+  uint leaf_table_count= 0;
   DBUG_ENTER("multi_update::prepare");
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;
@@ -1034,6 +1035,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   {
     /* TODO: add support of view of join support */
     TABLE *table=table_ref->table;
+    leaf_table_count++;
     if (tables_to_update & table->map)
     {
       TABLE_LIST *tl= (TABLE_LIST*) thd->memdup((char*) table_ref,
@@ -1098,7 +1100,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   /* Allocate copy fields */
   max_fields=0;
   for (i=0 ; i < table_count ; i++)
-    set_if_bigger(max_fields, fields_for_table[i]->elements);
+    set_if_bigger(max_fields, fields_for_table[i]->elements + leaf_table_count);
   copy_field= new Copy_field[max_fields];
   DBUG_RETURN(thd->is_fatal_error != 0);
 }
@@ -1191,13 +1193,22 @@ multi_update::initialize_tables(JOIN *join)
   trans_safe= transactional_tables= main_table->file->has_transactions();
   table_to_update= 0;
 
+  /* Any update has at least one pair (field, value) */
+  DBUG_ASSERT(fields->elements);
+  /*
+   Only one table may be modified by UPDATE of an updatable view.
+   For an updatable view first_table_for_update indicates this
+   table.
+   For a regular multi-update it refers to some updated table.
+  */ 
+  TABLE *first_table_for_update= ((Item_field *) fields->head())->field->table;
+
   /* Create a temporary table for keys to all tables, except main table */
   for (table_ref= update_tables; table_ref; table_ref= table_ref->next_local)
   {
     TABLE *table=table_ref->table;
     uint cnt= table_ref->shared;
-    Item_field *ifield;
-    List<Item> temp_fields= *fields_for_table[cnt];
+    List<Item> temp_fields;
     ORDER     group;
 
     if (ignore)
@@ -1205,10 +1216,27 @@ multi_update::initialize_tables(JOIN *join)
     if (table == main_table)			// First table in join
     {
       if (safe_update_on_fly(thd, join->join_tab, table_ref, all_tables,
-                             &temp_fields))
+                             fields_for_table[cnt]))
       {
 	table_to_update= main_table;		// Update table on the fly
 	continue;
+      }
+    }
+
+    if (table == first_table_for_update && table_ref->check_option)
+    {
+      table_map unupdated_tables= table_ref->check_option->used_tables() &
+                                  ~first_table_for_update->map;
+      for (TABLE_LIST *tbl_ref =leaves;
+           unupdated_tables && tbl_ref;
+           tbl_ref= tbl_ref->next_leaf)
+      {
+        if (unupdated_tables & tbl_ref->table->map)
+          unupdated_tables&= ~tbl_ref->table->map;
+        else
+          continue;
+        if (unupdated_check_opt_tables.push_back(tbl_ref->table))
+          DBUG_RETURN(1);
       }
     }
 
@@ -1217,22 +1245,34 @@ multi_update::initialize_tables(JOIN *join)
     /*
       Create a temporary table to store all fields that are changed for this
       table. The first field in the temporary table is a pointer to the
-      original row so that we can find and update it
+      original row so that we can find and update it. For the updatable
+      VIEW a few following fields are rowids of tables used in the CHECK
+      OPTION condition.
     */
 
-    /* ok to be on stack as this is not referenced outside of this func */
-    Field_string offset(table->file->ref_length, 0, "offset",
-			table, &my_charset_bin);
-    /*
-      The field will be converted to varstring when creating tmp table if
-      table to be updated was created by mysql 4.1. Deny this.
-    */
-    offset.can_alter_field_type= 0;
-    if (!(ifield= new Item_field(((Field *) &offset))))
-      DBUG_RETURN(1);
-    ifield->maybe_null= 0;
-    if (temp_fields.push_front(ifield))
-      DBUG_RETURN(1);
+    List_iterator_fast<TABLE> tbl_it(unupdated_check_opt_tables);
+    TABLE *tbl= table;
+    do
+    {
+      Field_string *field= new Field_string(tbl->file->ref_length, 0,
+                                            tbl->alias,
+                                            tbl, &my_charset_bin);
+      if (!field)
+        DBUG_RETURN(1);
+      /*
+        The field will be converted to varstring when creating tmp table if
+        table to be updated was created by mysql 4.1. Deny this.
+      */
+      field->can_alter_field_type= 0;
+      Item_field *ifield= new Item_field((Field *) field);
+      if (!ifield)
+         DBUG_RETURN(1);
+      ifield->maybe_null= 0;
+      if (temp_fields.push_back(ifield))
+        DBUG_RETURN(1);
+    } while ((tbl= tbl_it++));
+
+    temp_fields.concat(fields_for_table[cnt]);
 
     /* Make an unique key over the first field to avoid duplicated updates */
     bzero((char*) &group, sizeof(group));
@@ -1381,10 +1421,26 @@ bool multi_update::send_data(List<Item> &not_used_values)
     {
       int error;
       TABLE *tmp_table= tmp_tables[offset];
-      fill_record(thd, tmp_table->field+1, *values_for_table[offset], 1);
-      /* Store pointer to row */
-      memcpy((char*) tmp_table->field[0]->ptr,
-	     (char*) table->file->ref, table->file->ref_length);
+      /* Store regular updated fields in the row. */
+      fill_record(thd,
+                  tmp_table->field + 1 + unupdated_check_opt_tables.elements,
+                  *values_for_table[offset], 1);
+      /*
+       For updatable VIEW store rowid of the updated table and
+       rowids of tables used in the CHECK OPTION condition.
+      */
+      uint field_num= 0;
+      List_iterator_fast<TABLE> tbl_it(unupdated_check_opt_tables);
+      TABLE *tbl= table;
+      do
+      {
+        if (tbl != table)
+          tbl->file->position(tbl->record[0]);
+        memcpy((char*) tmp_table->field[field_num]->ptr,
+               (char*) tbl->file->ref, tbl->file->ref_length);
+        field_num++;
+      } while ((tbl= tbl_it++));
+
       /* Write row, ignoring duplicated updates to a row */
       error= tmp_table->file->write_row(tmp_table->record[0]);
       if (error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE)
@@ -1434,9 +1490,10 @@ void multi_update::send_error(uint errcode,const char *err)
 int multi_update::do_updates(bool from_send_error)
 {
   TABLE_LIST *cur_table;
-  int local_error;
+  int local_error= 0;
   ha_rows org_updated;
   TABLE *table, *tmp_table;
+  List_iterator_fast<TABLE> check_opt_it(unupdated_check_opt_tables);
   DBUG_ENTER("do_updates");
 
   do_update= 0;					// Don't retry this function
@@ -1444,8 +1501,8 @@ int multi_update::do_updates(bool from_send_error)
     DBUG_RETURN(0);
   for (cur_table= update_tables; cur_table; cur_table= cur_table->next_local)
   {
-    byte *ref_pos;
     bool can_compare_record;
+    uint offset= cur_table->shared;
 
     table = cur_table->table;
     if (table == table_to_update)
@@ -1456,11 +1513,20 @@ int multi_update::do_updates(bool from_send_error)
     (void) table->file->ha_rnd_init(0);
     table->file->extra(HA_EXTRA_NO_CACHE);
 
+    check_opt_it.rewind();
+    while(TABLE *tbl= check_opt_it++)
+    {
+      if (tbl->file->ha_rnd_init(1))
+        goto err;
+      tbl->file->extra(HA_EXTRA_CACHE);
+    }
+
     /*
       Setup copy functions to copy fields from temporary table
     */
-    List_iterator_fast<Item> field_it(*fields_for_table[cur_table->shared]);
-    Field **field= tmp_table->field+1;		// Skip row pointer
+    List_iterator_fast<Item> field_it(*fields_for_table[offset]);
+    Field **field= tmp_table->field + 
+                   1 + unupdated_check_opt_tables.elements; // Skip row pointers
     Copy_field *copy_field_ptr= copy_field, *copy_field_end;
     for ( ; *field ; field++)
     {
@@ -1475,7 +1541,6 @@ int multi_update::do_updates(bool from_send_error)
     can_compare_record= !(table->file->table_flags() &
                           HA_PARTIAL_COLUMN_READ);
 
-    ref_pos= (byte*) tmp_table->field[0]->ptr;
     for (;;)
     {
       if (thd->killed && trans_safe)
@@ -1488,8 +1553,20 @@ int multi_update::do_updates(bool from_send_error)
 	  continue;				// May happen on dup key
 	goto err;
       }
-      if ((local_error= table->file->rnd_pos(table->record[0], ref_pos)))
-	goto err;
+
+      /* call rnd_pos() using rowids from temporary table */
+      check_opt_it.rewind();
+      TABLE *tbl= table;
+      uint field_num= 0;
+      do
+      {
+        if((local_error=
+              tbl->file->rnd_pos(tbl->record[0],
+                                (byte *) tmp_table->field[field_num]->ptr)))
+          goto err;
+        field_num++;
+      } while((tbl= check_opt_it++));
+
       table->status|= STATUS_UPDATED;
       store_record(table,record[1]);
 
@@ -1539,6 +1616,10 @@ int multi_update::do_updates(bool from_send_error)
     }
     (void) table->file->ha_rnd_end();
     (void) tmp_table->file->ha_rnd_end();
+    check_opt_it.rewind();
+    while (TABLE *tbl= check_opt_it++)
+        tbl->file->ha_rnd_end();
+
   }
   DBUG_RETURN(0);
 
@@ -1552,6 +1633,9 @@ err:
 err2:
   (void) table->file->ha_rnd_end();
   (void) tmp_table->file->ha_rnd_end();
+  check_opt_it.rewind();
+  while (TABLE *tbl= check_opt_it++)
+      tbl->file->ha_rnd_end();
 
   if (updated != org_updated)
   {

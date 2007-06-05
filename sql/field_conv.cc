@@ -177,8 +177,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
   }
   if (current_thd->count_cuted_fields == CHECK_FIELD_WARN)
   {
-    field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
-                       ER_WARN_NULL_TO_NOTNULL, 1);
+    field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_BAD_NULL_ERROR, 1);
     return 0;
   }
   if (!current_thd->no_errors)
@@ -530,7 +529,21 @@ void Copy_field::set(char *to,Field *from)
 }
 
 
+/*
+  To do: 
 
+  If 'save\ is set to true and the 'from' is a blob field, do_copy is set to
+  do_save_blob rather than do_conv_blob.  The only differences between them
+  appears to be:
+
+  - do_save_blob allocates and uses an intermediate buffer before calling 
+    Field_blob::store. Is this in order to trigger the call to 
+    well_formed_copy_nchars, by changing the pointer copy->tmp.ptr()?
+    That call will take place anyway in all known cases.
+
+  - The above causes a truncation to MAX_FIELD_WIDTH. Is this the intended 
+    effect? Truncation is handled by well_formed_copy_nchars anyway.
+ */
 void Copy_field::set(Field *to,Field *from,bool save)
 {
   if (to->type() == FIELD_TYPE_NULL)
