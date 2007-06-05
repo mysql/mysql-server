@@ -2226,6 +2226,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   HASH_SEARCH_STATE state;
   DBUG_ENTER("open_table");
 
+  DBUG_ASSERT (table_list->lock_type != TL_WRITE_DEFAULT);
   /* find a unused table in the open table cache */
   if (refresh)
     *refresh=0;
@@ -3531,6 +3532,12 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
   for (tables= *start; tables ;tables= tables->next_global)
   {
     safe_to_ignore_table= FALSE;                // 'FALSE', as per coding style
+
+    if (tables->lock_type == TL_WRITE_DEFAULT)
+    {
+      tables->lock_type= thd->update_lock_default;
+      DBUG_ASSERT (tables->lock_type >= TL_WRITE_ALLOW_WRITE);
+    }
     /*
       Ignore placeholders for derived tables. After derived tables
       processing, link to created temporary table will be put here.
@@ -6811,7 +6818,7 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
     table= (*ptr)->table;
     table->auto_increment_field_not_null= FALSE;
   }
-  while ((field = *ptr++))
+  while ((field = *ptr++) && !thd->net.report_error)
   {
     value=v++;
     table= field->table;
