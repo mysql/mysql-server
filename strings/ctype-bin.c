@@ -273,7 +273,8 @@ static int my_wc_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
 
 
 void my_hash_sort_8bit_bin(CHARSET_INFO *cs __attribute__((unused)),
-		      const uchar *key, uint len,ulong *nr1, ulong *nr2)
+                           const uchar *key, size_t len,
+                           ulong *nr1, ulong *nr2)
 {
   const uchar *pos = key;
   
