@@ -766,7 +766,12 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
   {
     value= item->val_int();
     *is_null= item->null_value;
-    if (item->field_type() == MYSQL_TYPE_DATE)
+    /*
+      Item_date_add_interval may return MYSQL_TYPE_STRING as the result
+      field type. To detect that the DATE value has been returned we
+      compare it with 1000000L - any DATE value should be less than it.
+    */
+    if (item->field_type() == MYSQL_TYPE_DATE || value < 100000000L)
       value*= 1000000L;
   }
   else

@@ -3590,6 +3590,11 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     freopen(log_error_file,"a+",stderr);
     FreeConsole();				// Remove window
   }
+  else
+  {
+    /* Don't show error dialog box when on foreground: it stops the server */ 
+    SetErrorMode(SEM_NOOPENFILEERRORBOX | SEM_FAILCRITICALERRORS);
+  }
 #endif
 
   /*
