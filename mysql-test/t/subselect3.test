@@ -571,3 +571,21 @@ SELECT (t1.id IN (SELECT t2.id FROM t2,t3
   FROM t1;
 
 DROP TABLE t1,t2,t3;   
+
+#
+# Bug #22855: Optimizer doesn't rewrite NOT IN subselects to a correlated 
+# subquery 
+#
+CREATE TABLE t1 (a INT NOT NULL);
+INSERT INTO t1 VALUES (1),(-1), (65),(66);
+
+CREATE TABLE t2 (a INT UNSIGNED NOT NULL PRIMARY KEY);
+INSERT INTO t2 VALUES (65),(66);
+
+SELECT a FROM t1 WHERE a NOT IN (65,66);
+SELECT a FROM t1 WHERE a NOT IN (SELECT a FROM t2);
+EXPLAIN SELECT a FROM t1 WHERE a NOT IN (SELECT a FROM t2);
+
+DROP TABLE t1;
+
+--echo End of 5.0 tests
