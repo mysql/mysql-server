@@ -2689,7 +2689,6 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
   if (make_lock_and_pin(pagecache, block, lock, pin))
     DBUG_ASSERT(0);                           /* should not happend */
 
-  remove_reader(block);
   /*
     Link the block into the LRU chain if it's the last submitted request
     for the block and block will not be pinned.
@@ -2754,7 +2753,6 @@ void pagecache_unpin_by_link(PAGECACHE *pagecache,
                         PAGECACHE_UNPIN))
     DBUG_ASSERT(0); /* should not happend */
 
-  remove_reader(block);
   /*
     Link the block into the LRU chain if it's the last submitted request
     for the block and block will not be pinned.
@@ -2891,16 +2889,14 @@ restart:
 #endif
     }
 
+    remove_reader(block);
     /*
       Link the block into the LRU chain if it's the last submitted request
       for the block and block will not be pinned.
       See NOTE for pagecache_unlock about registering requests.
     */
     if (pin == PAGECACHE_PIN_LEFT_UNPINNED || pin == PAGECACHE_UNPIN)
-    {
-      remove_reader(block);
       unreg_request(pagecache, block, 1);
-    }
     else
       *link= (PAGECACHE_PAGE_LINK)block;
 
@@ -3286,20 +3282,14 @@ restart:
         DBUG_ASSERT(0);
     }
 
+    /* Unregister the request */
+    DBUG_ASSERT(block->hash_link->requests > 0);
+    block->hash_link->requests--;
     /* See NOTE for pagecache_unlock about registering requests. */
     if (pin == PAGECACHE_PIN_LEFT_UNPINNED || pin == PAGECACHE_UNPIN)
-    {
-      /* Unregister the request */
-      DBUG_ASSERT(block->hash_link->requests > 0);
-      block->hash_link->requests--;
       unreg_request(pagecache, block, 1);
-    }
     else
-    {
-      if (pin == PAGECACHE_PIN_LEFT_PINNED)
-        block->hash_link->requests--;
       *link= (PAGECACHE_PAGE_LINK)block;
-    }
 
     if (block->status & PCBLOCK_ERROR)
       error= 1;
