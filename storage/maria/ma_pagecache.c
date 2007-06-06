@@ -2677,7 +2677,13 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
   inc_counter_for_resize_op(pagecache);
   if (first_REDO_LSN_for_page)
   {
-    DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK);
+    /*
+      LOCK_READ_UNLOCK is ok here as the page may have first locked
+      with WRITE lock that was temporarly converted to READ lock before
+      it's unpinned
+    */
+    DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK || 
+                lock == PAGECACHE_LOCK_READ_UNLOCK);
     DBUG_ASSERT(pin == PAGECACHE_UNPIN);
     set_if_bigger(block->rec_lsn, first_REDO_LSN_for_page);
   }

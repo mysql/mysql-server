@@ -1411,7 +1411,7 @@ uint _ma_pack_get_block_info(MARIA_HA *maria, MARIA_BIT_BUFF *bit_buff,
   {
     ref_length=maria->s->pack.ref_length;
     /*
-      We can't use my_pread() here because maria_read_rnd_pack_record assumes
+      We can't use my_pread() here because _ma_read_rnd_pack_record assumes
       position is ok
     */
     VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));

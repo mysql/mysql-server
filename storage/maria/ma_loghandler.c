@@ -3855,7 +3855,6 @@ static my_bool translog_write_variable_record(LSN *lsn,
   uint page_rest;
   /* Max number of such LSNs per record is 2 */
   byte compressed_LSNs[2 * LSN_STORE_SIZE];
-
   DBUG_ENTER("translog_write_variable_record");
 
   translog_lock();
@@ -3867,8 +3866,8 @@ static my_bool translog_write_variable_record(LSN *lsn,
                       header_length1, page_rest));
 
   /*
-     header and part which we should read have to fit in one chunk
-     TODO: allow to divide readable header
+    header and part which we should read have to fit in one chunk
+    TODO: allow to divide readable header
   */
   if (page_rest <
       (header_length1 + log_record_type_descriptor[type].read_header_len))

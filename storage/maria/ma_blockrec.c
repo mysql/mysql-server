@@ -553,6 +553,8 @@ static my_bool check_if_zero(byte *pos, uint length)
     We unpin pages in the reverse order as they where pinned; This may not
     be strictly necessary but may simplify things in the future.
 
+    info->s->rec_lsn contains the lsn for the first REDO
+
   RETURN
     0   ok
     1   error (fatal disk error)
@@ -576,8 +578,9 @@ void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn)
   while (pinned_page-- != page_link)
     pagecache_unlock_by_link(info->s->pagecache, pinned_page->link,
                              pinned_page->unlock, PAGECACHE_UNPIN,
-                             0, undo_lsn);
+                             info->trn->rec_lsn, undo_lsn);
 
+  info->trn->rec_lsn= 0;
   info->pinned_pages.elements= 0;
   DBUG_VOID_RETURN;
 }
@@ -1037,7 +1040,6 @@ static my_bool get_head_or_tail_page(MARIA_HA *info,
   else
   {
     byte *dir;
-    /* TODO: lock the page */
     /* Read old page */
     DBUG_ASSERT(share->pagecache->block_size == block_size);
     if (!(res->buff= pagecache_read(share->pagecache,
@@ -1046,13 +1048,8 @@ static my_bool get_head_or_tail_page(MARIA_HA *info,
                                     buff, share->page_type,
                                     lock, &page_link.link)))
       DBUG_RETURN(1);
-    if (lock != PAGECACHE_LOCK_LEFT_UNLOCKED)
-    {
-      page_link.unlock= (lock == PAGECACHE_LOCK_READ ?
-                         PAGECACHE_LOCK_READ_UNLOCK :
-                         PAGECACHE_LOCK_WRITE_UNLOCK);
-      push_dynamic(&info->pinned_pages, (void*) &page_link);
-    }
+    page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+    push_dynamic(&info->pinned_pages, (void*) &page_link);
 
     DBUG_ASSERT((res->buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == page_type);
     if (!(dir= find_free_position(res->buff, block_size, &res->rownr,
@@ -1144,7 +1141,8 @@ static my_bool write_tail(MARIA_HA *info,
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char*) row_pos.data;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= length;
-    if (translog_write_record(&lsn, LOGREC_REDO_INSERT_ROW_TAIL,
+    if (translog_write_record(!info->trn->rec_lsn ? &info->trn->rec_lsn : &lsn,
+                              LOGREC_REDO_INSERT_ROW_TAIL,
                               info->trn->short_id, NULL, share,
                               sizeof(log_data) + length,
                               TRANSLOG_INTERNAL_PARTS + 2,
@@ -1400,7 +1398,8 @@ static my_bool free_full_pages(MARIA_HA *info, MARIA_ROW *row)
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
   log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    row->extents;
   log_array[TRANSLOG_INTERNAL_PARTS + 1].length= extents_length;
-  if (translog_write_record(&lsn, LOGREC_REDO_PURGE_BLOCKS,
+  if (translog_write_record(!info->trn->rec_lsn ? &info->trn->rec_lsn : &lsn,
+                            LOGREC_REDO_PURGE_BLOCKS,
                             info->trn->short_id, NULL, info->s,
                             sizeof(log_data) + extents_length,
                             TRANSLOG_INTERNAL_PARTS + 2, log_array))
@@ -1417,6 +1416,9 @@ static my_bool free_full_pages(MARIA_HA *info, MARIA_ROW *row)
   NOTES
     This is very similar to free_full_pages()
 
+    We don't have to update trn->rec_lsn here as before calling this function
+    we have already generated REDO's for deleting the HEAD block.
+
   RETURN
     0   ok
     1   error
@@ -1427,28 +1429,32 @@ static my_bool free_full_page_range(MARIA_HA *info, ulonglong page, uint count)
   uchar log_data[FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
                  ROW_EXTENT_SIZE];
   LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
-  LSN lsn;
   my_bool res= 0;
 
   if (pagecache_delete_pages(info->s->pagecache, &info->dfile,
                              page, count, PAGECACHE_LOCK_WRITE, 0))
     res= 1;
 
-  fileid_store(log_data, info->dfile.file);
-  pagerange_store(log_data + FILEID_STORE_SIZE, 1);
-  int5store(log_data + FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE,
-            page);
-  int2store(log_data + FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE + 5,
-            count);
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
+  if (info->s->base.transactional)
+  {
+    LSN lsn;
+    DBUG_ASSERT(info->trn->rec_lsn);
+    fileid_store(log_data, info->dfile.file);
+    pagerange_store(log_data + FILEID_STORE_SIZE, 1);
+    int5store(log_data + FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE,
+              page);
+    int2store(log_data + FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE + 5,
+              count);
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
 
-  if (translog_write_record(&lsn, LOGREC_REDO_PURGE_BLOCKS,
-                            info->trn->short_id, NULL, info->s,
-                            sizeof(log_data),
-                            TRANSLOG_INTERNAL_PARTS + 1, log_array))
-    res= 1;
+    if (translog_write_record(&lsn, LOGREC_REDO_PURGE_BLOCKS,
+                              info->trn->short_id, NULL, info->s,
+                              sizeof(log_data),
+                              TRANSLOG_INTERNAL_PARTS + 1, log_array))
+      res= 1;
 
+  }
   pthread_mutex_lock(&info->s->bitmap.bitmap_lock);
   if (_ma_reset_full_page_bits(info, &info->s->bitmap, page,
                                count))
@@ -1951,7 +1957,8 @@ static my_bool write_block_record(MARIA_HA *info,
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char*) row_pos->data;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= data_length;
-    if (translog_write_record(&lsn, LOGREC_REDO_INSERT_ROW_HEAD,
+    if (translog_write_record(!info->trn->rec_lsn ? &info->trn->rec_lsn : &lsn,
+                              LOGREC_REDO_INSERT_ROW_HEAD,
                               info->trn->short_id, NULL, share,
                               sizeof(log_data) + data_length,
                               TRANSLOG_INTERNAL_PARTS + 2, log_array))
@@ -2066,6 +2073,7 @@ static my_bool write_block_record(MARIA_HA *info,
                                                              log_data);
     log_entry_length+= (log_pos - log_data);
 
+    /* trn->rec_lsn is already set earlier in this function */
     error= translog_write_record(&lsn, LOGREC_REDO_INSERT_ROW_BLOBS,
                                  info->trn->short_id, NULL, share,
                                  log_entry_length, (uint) (log_array_pos -
@@ -2524,7 +2532,7 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
 
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
-    if (translog_write_record(&lsn,
+    if (translog_write_record(!info->trn->rec_lsn ? &info->trn->rec_lsn : &lsn,
                               (head ? LOGREC_REDO_PURGE_ROW_HEAD :
                                LOGREC_REDO_PURGE_ROW_TAIL),
                               info->trn->short_id, NULL, share,
@@ -2557,7 +2565,8 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                     PAGERANGE_STORE_SIZE, 1);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
-    if (translog_write_record(&lsn, LOGREC_REDO_PURGE_BLOCKS,
+    if (translog_write_record(!info->trn->rec_lsn ? &info->trn->rec_lsn : &lsn,
+                              LOGREC_REDO_PURGE_BLOCKS,
                               info->trn->short_id, NULL, share,
                               sizeof(log_data), TRANSLOG_INTERNAL_PARTS + 1,
                               log_array))

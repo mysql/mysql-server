@@ -263,6 +263,7 @@ extern int maria_close(struct st_maria_info *file);
 extern int maria_delete(struct st_maria_info *file, const byte *buff);
 extern struct st_maria_info *maria_open(const char *name, int mode,
 					uint wait_if_locked);
+extern struct st_maria_info *maria_clone(struct st_maria_share *share, int mode);
 extern int maria_panic(enum ha_panic_function function);
 extern int maria_rfirst(struct st_maria_info *file, byte *buf, int inx);
 extern int maria_rkey(struct st_maria_info *file, byte *buf, int inx,

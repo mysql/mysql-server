@@ -72,8 +72,163 @@ MARIA_HA *_ma_test_if_reopen(char *filename)
 }
 
 
+/*
+  Open a new instance of an already opened Maria table
+
+  SYNOPSIS
+    maria_clone_internal()
+    share	Share of already open table
+    mode	Mode of table (O_RDONLY | O_RDWR)
+    data_file   Filedescriptor of data file to use < 0 if one should open
+	        open it.    
+ 
+  RETURN
+    #   Maria handler
+    0   Error
+*/
+
+
+static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
+                                      File data_file)
+{
+  int save_errno;
+  uint errpos;
+  MARIA_HA info,*m_info;
+  DBUG_ENTER("maria_clone_internal");
+
+  errpos= 0;
+  bzero((byte*) &info,sizeof(info));
+
+  if (mode == O_RDWR && share->mode == O_RDONLY)
+  {
+    my_errno=EACCES;				/* Can't open in write mode */
+    goto err;
+  }
+  if (data_file >= 0)
+    info.dfile.file= data_file;
+  else if (_ma_open_datafile(&info, share, -1))
+    goto err;
+  errpos= 5;
+
+  /* alloc and set up private structure parts */
+  if (!my_multi_malloc(MY_WME,
+		       &m_info,sizeof(MARIA_HA),
+		       &info.blobs,sizeof(MARIA_BLOB)*share->base.blobs,
+		       &info.buff,(share->base.max_key_block_length*2+
+				   share->base.max_key_length),
+		       &info.lastkey,share->base.max_key_length*3+1,
+		       &info.first_mbr_key, share->base.max_key_length,
+		       &info.maria_rtree_recursion_state,
+                       share->have_rtree ? 1024 : 0,
+		       NullS))
+    goto err;
+  errpos= 6;
+
+  memcpy(info.blobs,share->blobs,sizeof(MARIA_BLOB)*share->base.blobs);
+  info.lastkey2=info.lastkey+share->base.max_key_length;
+
+  info.s=share;
+  info.cur_row.lastpos= HA_OFFSET_ERROR;
+  info.update= (short) (HA_STATE_NEXT_FOUND+HA_STATE_PREV_FOUND);
+  info.opt_flag=READ_CHECK_USED;
+  info.this_unique= (ulong) info.dfile.file; /* Uniq number in process */
+  if (share->data_file_type == COMPRESSED_RECORD)
+    info.this_unique= share->state.unique;
+  info.this_loop=0;				/* Update counter */
+  info.last_unique= share->state.unique;
+  info.last_loop=   share->state.update_count;
+  info.lock_type=F_UNLCK;
+  info.quick_mode=0;
+  info.bulk_insert=0;
+  info.ft1_to_ft2=0;
+  info.errkey= -1;
+  info.page_changed=1;
+  info.keyread_buff= info.buff + share->base.max_key_block_length;
+  if ((*share->init)(&info))
+    goto err;
+
+  pthread_mutex_lock(&share->intern_lock);
+  info.read_record= share->read_record;
+  share->reopen++;
+  share->write_flag=MYF(MY_NABP | MY_WAIT_IF_FULL);
+  if (share->options & HA_OPTION_READ_ONLY_DATA)
+  {
+    info.lock_type=F_RDLCK;
+    share->r_locks++;
+    share->tot_locks++;
+  }
+  if (share->options & HA_OPTION_TMP_TABLE)
+  {
+    share->temporary= share->delay_key_write= 1;
+
+    share->write_flag=MYF(MY_NABP);
+    share->w_locks++;			/* We don't have to update status */
+    share->tot_locks++;
+    info.lock_type=F_WRLCK;
+  }
+  if ((share->options & HA_OPTION_DELAY_KEY_WRITE) &&
+      maria_delay_key_write)
+    share->delay_key_write=1;
+
+  info.state= &share->state.state;	/* Change global values by default */
+  info.trn=   &dummy_transaction_object;
+  pthread_mutex_unlock(&share->intern_lock);
+
+  /* Allocate buffer for one record */
+  /* prerequisites: info->rec_buffer == 0 && info->rec_buff_size == 0 */
+  if (_ma_alloc_buffer(&info.rec_buff, &info.rec_buff_size,
+                       share->base.default_rec_buff_size))
+    goto err;
+
+  bzero(info.rec_buff, share->base.default_rec_buff_size);
+
+  *m_info=info;
+#ifdef THREAD
+  thr_lock_data_init(&share->lock,&m_info->lock,(void*) m_info);
+#endif
+  m_info->open_list.data=(void*) m_info;
+  maria_open_list=list_add(maria_open_list,&m_info->open_list);
+
+  DBUG_RETURN(m_info);
+
+err:
+  save_errno=my_errno ? my_errno : HA_ERR_END_OF_FILE;
+  if ((save_errno == HA_ERR_CRASHED) ||
+      (save_errno == HA_ERR_CRASHED_ON_USAGE) ||
+      (save_errno == HA_ERR_CRASHED_ON_REPAIR))
+    _ma_report_error(save_errno, share->open_file_name);
+  switch (errpos) {
+  case 6:
+    (*share->end)(&info);
+    my_free((gptr) m_info,MYF(0));
+    /* fall through */
+  case 5:
+    if (data_file < 0)
+      VOID(my_close(info.dfile.file, MYF(0)));
+    break;
+  }
+  my_errno=save_errno;
+  DBUG_RETURN (NULL);
+} /* maria_clone_internal */
+
+
+/* Make a clone of a maria table */
+
+MARIA_HA *maria_clone(MARIA_SHARE *share, int mode)
+{
+  MARIA_HA *new_info;
+  pthread_mutex_lock(&THR_LOCK_maria);
+  new_info= maria_clone_internal(share, mode,
+                                 share->data_file_type == BLOCK_RECORD ?
+                                 share->bitmap.file.file : -1);
+  pthread_mutex_unlock(&THR_LOCK_maria);
+  return new_info;
+}
+
+
 /******************************************************************************
-  open a MARIA database.
+  open a MARIA table
+
   See my_base.h for the handle_locking argument
   if handle_locking and HA_OPEN_ABORT_IF_CRASHED then abort if the table
   is marked crashed or if we are not using locking and the table doesn't
@@ -82,7 +237,7 @@ MARIA_HA *_ma_test_if_reopen(char *filename)
 
 MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 {
-  int kfile,open_mode,save_errno,have_rtree=0;
+  int kfile,open_mode,save_errno;
   uint i,j,len,errpos,head_length,base_pos,info_length,keys,
     key_parts,unique_key_parts,fulltext_keys,uniques;
   char name_buff[FN_REFLEN], org_name[FN_REFLEN], index_name[FN_REFLEN],
@@ -93,6 +248,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
   ulong rec_per_key_part[HA_MAX_POSSIBLE_KEY*HA_MAX_KEY_SEG];
   my_off_t key_root[HA_MAX_POSSIBLE_KEY];
   ulonglong max_key_file_length, max_data_file_length;
+  File data_file= -1;
   DBUG_ENTER("maria_open");
 
   LINT_INIT(m_info);
@@ -288,6 +444,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 			 &share->unique_file_name,strlen(name_buff)+1,
 			 &share->index_file_name,strlen(index_name)+1,
 			 &share->data_file_name,strlen(data_name)+1,
+                         &share->open_file_name,strlen(name)+1,
 			 &share->state.key_root,keys*sizeof(my_off_t),
 #ifdef THREAD
 			 &share->key_root_lock,sizeof(rw_lock_t)*keys,
@@ -306,6 +463,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     share->unique_name_length= strlen(name_buff);
     strmov(share->index_file_name,  index_name);
     strmov(share->data_file_name,   data_name);
+    strmov(share->open_file_name,   name);
 
     share->block_size= share->base.block_size;
     {
@@ -317,7 +475,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
         disk_pos_assert(disk_pos + share->keyinfo[i].keysegs * HA_KEYSEG_SIZE,
  			end_pos);
         if (share->keyinfo[i].key_alg == HA_KEY_ALG_RTREE)
-          have_rtree=1;
+          share->have_rtree= 1;
 	share->keyinfo[i].seg=pos;
 	for (j=0 ; j < share->keyinfo[i].keysegs; j++,pos++)
 	{
@@ -458,35 +616,14 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       }
     }
     share->columndef[i].type=(int) FIELD_LAST;	/* End marker */
-#ifdef ASKMONTY
-    /*
-      This code was added to mi_open.c in this cset:
-      "ChangeSet 1.1616.2941.5 2007/01/22 16:34:58 svoj@mysql.com
-      BUG#24401 - MySQL server crashes if you try to retrieve data from
-      corrupted table
-      Accessing a table with corrupted column definition results in server
-      crash.
-      This is fixed by refusing to open such tables. Affects MyISAM only.
-      No test case, since it requires crashed table.
-      storage/myisam/mi_open.c 1.80.2.10 2007/01/22 16:34:57 svoj@mysql.com
-      Refuse to open MyISAM table with summary columns length bigger than
-      length of the record."
 
-      The problem is that the "offset" variable was removed (by Monty in the
-      rows-in-block patch). Monty will know how to merge that.
-      Guilhem will make sure to notify him.
-    */
-    if (offset > share->base.reclength)
+    if ((share->data_file_type == BLOCK_RECORD ||
+         share->data_file_type == COMPRESSED_RECORD))
     {
-      /* purecov: begin inspected */
-      my_errno= HA_ERR_CRASHED;
-      goto err;
-      /* purecov: end */
+      if (_ma_open_datafile(&info, share, -1))
+        goto err;
+      data_file= info.dfile.file;
     }
-#endif /* ASKMONTY */
-
-    if (_ma_open_datafile(&info, share, -1))
-      goto err;
     errpos= 5;
 
     share->kfile.file= kfile;
@@ -522,6 +659,13 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       }
     }
     share->is_log_table= FALSE;
+    if (open_flags & HA_OPEN_TMP_TABLE) 
+      share->options|= HA_OPTION_TMP_TABLE;
+    if (open_flags & HA_OPEN_DELAY_KEY_WRITE)
+      share->options|= HA_OPTION_DELAY_KEY_WRITE;
+    if (mode == O_RDONLY)
+      share->options|= HA_OPTION_READ_ONLY_DATA;
+
 #ifdef THREAD
     thr_lock_init(&share->lock);
     VOID(pthread_mutex_init(&share->intern_lock,MY_MUTEX_INIT_FAST));
@@ -541,7 +685,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 			   HA_OPTION_TEMP_COMPRESS_RECORD)) ||
 	 (open_flags & HA_OPEN_TMP_TABLE) ||
          share->data_file_type == BLOCK_RECORD ||
-	 have_rtree) ? 0 : 1;
+	 share->have_rtree) ? 0 : 1;
       if (share->concurrent_insert)
       {
 	share->lock.get_status=_ma_get_status;
@@ -556,106 +700,12 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
   else
   {
     share= old_info->s;
-    if (mode == O_RDWR && share->mode == O_RDONLY)
-    {
-      my_errno=EACCES;				/* Can't open in write mode */
-      goto err;
-    }
     if (share->data_file_type == BLOCK_RECORD)
-      info.dfile= share->bitmap.file;
-    else if (_ma_open_datafile(&info, share, old_info->dfile.file))
-      goto err;
-    errpos= 5;
-    have_rtree= old_info->maria_rtree_recursion_state != NULL;
+      data_file= share->bitmap.file.file;       /* Only opened once */
   }
 
-  /* alloc and set up private structure parts */
-  if (!my_multi_malloc(MY_WME,
-		       &m_info,sizeof(MARIA_HA),
-		       &info.blobs,sizeof(MARIA_BLOB)*share->base.blobs,
-		       &info.buff,(share->base.max_key_block_length*2+
-				   share->base.max_key_length),
-		       &info.lastkey,share->base.max_key_length*3+1,
-		       &info.first_mbr_key, share->base.max_key_length,
-		       &info.filename,strlen(name)+1,
-		       &info.maria_rtree_recursion_state,have_rtree ? 1024 : 0,
-		       NullS))
+  if (!(m_info= maria_clone_internal(share, mode, data_file)))
     goto err;
-  errpos= 6;
-
-  if (!have_rtree)
-    info.maria_rtree_recursion_state= NULL;
-
-  strmov(info.filename,name);
-  memcpy(info.blobs,share->blobs,sizeof(MARIA_BLOB)*share->base.blobs);
-  info.lastkey2=info.lastkey+share->base.max_key_length;
-
-  info.s=share;
-  info.cur_row.lastpos= HA_OFFSET_ERROR;
-  info.update= (short) (HA_STATE_NEXT_FOUND+HA_STATE_PREV_FOUND);
-  info.opt_flag=READ_CHECK_USED;
-  info.this_unique= (ulong) info.dfile.file; /* Uniq number in process */
-  if (share->data_file_type == COMPRESSED_RECORD)
-    info.this_unique= share->state.unique;
-  info.this_loop=0;				/* Update counter */
-  info.last_unique= share->state.unique;
-  info.last_loop=   share->state.update_count;
-  if (mode == O_RDONLY)
-    share->options|=HA_OPTION_READ_ONLY_DATA;
-  info.lock_type=F_UNLCK;
-  info.quick_mode=0;
-  info.bulk_insert=0;
-  info.ft1_to_ft2=0;
-  info.errkey= -1;
-  info.page_changed=1;
-  info.keyread_buff= info.buff + share->base.max_key_block_length;
-  if ((*share->init)(&info))
-    goto err;
-
-  pthread_mutex_lock(&share->intern_lock);
-  info.read_record= share->read_record;
-  share->reopen++;
-  share->write_flag=MYF(MY_NABP | MY_WAIT_IF_FULL);
-  if (share->options & HA_OPTION_READ_ONLY_DATA)
-  {
-    info.lock_type=F_RDLCK;
-    share->r_locks++;
-    share->tot_locks++;
-  }
-  if ((open_flags & HA_OPEN_TMP_TABLE) ||
-      (share->options & HA_OPTION_TMP_TABLE))
-  {
-    share->temporary= share->delay_key_write= 1;
-
-    share->write_flag=MYF(MY_NABP);
-    share->w_locks++;			/* We don't have to update status */
-    share->tot_locks++;
-    info.lock_type=F_WRLCK;
-  }
-  if (((open_flags & HA_OPEN_DELAY_KEY_WRITE) ||
-      (share->options & HA_OPTION_DELAY_KEY_WRITE)) &&
-      maria_delay_key_write)
-    share->delay_key_write=1;
-
-  info.state= &share->state.state;	/* Change global values by default */
-  info.trn=   &dummy_transaction_object;
-  pthread_mutex_unlock(&share->intern_lock);
-
-  /* Allocate buffer for one record */
-  /* prerequisites: info->rec_buffer == 0 && info->rec_buff_size == 0 */
-  if (_ma_alloc_buffer(&info.rec_buff, &info.rec_buff_size,
-                       share->base.default_rec_buff_size))
-    goto err;
-
-  bzero(info.rec_buff, share->base.default_rec_buff_size);
-
-  *m_info=info;
-#ifdef THREAD
-  thr_lock_data_init(&share->lock,&m_info->lock,(void*) m_info);
-#endif
-  m_info->open_list.data=(void*) m_info;
-  maria_open_list=list_add(maria_open_list,&m_info->open_list);
-
   pthread_mutex_unlock(&THR_LOCK_maria);
   DBUG_RETURN(m_info);
 
@@ -666,13 +716,9 @@ err:
       (save_errno == HA_ERR_CRASHED_ON_REPAIR))
     _ma_report_error(save_errno, name);
   switch (errpos) {
-  case 6:
-    (*share->end)(&info);
-    my_free((gptr) m_info,MYF(0));
-    /* fall through */
   case 5:
-    if (share->data_file_type != BLOCK_RECORD)
-      VOID(my_close(info.dfile.file, MYF(0)));
+    if (data_file >= 0)
+      VOID(my_close(data_file, MYF(0)));
     if (old_info)
       break;					/* Don't remove open table */
     (*share->once_end)(share);    
@@ -693,7 +739,7 @@ err:
     break;
   }
   pthread_mutex_unlock(&THR_LOCK_maria);
-  my_errno=save_errno;
+  my_errno= save_errno;
   DBUG_RETURN (NULL);
 } /* maria_open */
 
