@@ -459,10 +459,10 @@ rec_get_converted_size_new(
 		break;
 	case REC_STATUS_INFIMUM:
 	case REC_STATUS_SUPREMUM:
-		/* infimum or supremum record, 8 bytes */
-		return(8); /* no extra data needed */
+		/* infimum or supremum record, 8 data bytes */
+		return(REC_N_NEW_EXTRA_BYTES + 8);
 	default:
-		ut_a(0);
+		ut_error;
 		return(ULINT_UNDEFINED);
 	}
 
