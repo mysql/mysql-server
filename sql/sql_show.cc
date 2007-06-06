@@ -4044,7 +4044,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
       table->field[22]->store(part_elem->part_comment,
                               strlen(part_elem->part_comment), cs);
     else
-      table->field[22]->store(STRING_WITH_LEN("default"), cs);
+      table->field[22]->store(STRING_WITH_LEN(""), cs);
     if (part_elem->nodegroup_id != UNDEF_NODEGROUP)
       table->field[23]->store((longlong) part_elem->nodegroup_id, TRUE);
     else
