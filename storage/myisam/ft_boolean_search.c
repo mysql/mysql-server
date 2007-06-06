@@ -286,8 +286,8 @@ static int ftb_parse_query_internal(MYSQL_FTPARSER_PARAM *param,
 }
 
 
-static void _ftb_parse_query(FTB *ftb, uchar *query, uint len,
-                             struct st_mysql_ftparser *parser)
+static int _ftb_parse_query(FTB *ftb, uchar *query, uint len,
+                            struct st_mysql_ftparser *parser)
 {
   MYSQL_FTPARSER_PARAM *param;
   MY_FTB_PARAM ftb_param;
@@ -295,9 +295,9 @@ static void _ftb_parse_query(FTB *ftb, uchar *query, uint len,
   DBUG_ASSERT(parser);
 
   if (ftb->state != UNINITIALIZED)
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(0);
   if (! (param= ftparser_call_initializer(ftb->info, ftb->keynr, 0)))
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(1);
 
   ftb_param.ftb= ftb;
   ftb_param.depth= 0;
@@ -312,8 +312,7 @@ static void _ftb_parse_query(FTB *ftb, uchar *query, uint len,
   param->length= len;
   param->flags= 0;
   param->mode= MYSQL_FTPARSER_FULL_BOOLEAN_INFO;
-  parser->parse(param);
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(parser->parse(param));
 }
 
 
@@ -538,9 +537,10 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
   ftbe->phrase= NULL;
   ftbe->document= 0;
   ftb->root=ftbe;
-  _ftb_parse_query(ftb, query, query_len, keynr == NO_SUCH_KEY ?
-                                          &ft_default_parser :
-                                          info->s->keyinfo[keynr].parser);
+  if (unlikely(_ftb_parse_query(ftb, query, query_len,
+                                keynr == NO_SUCH_KEY ? &ft_default_parser :
+                                info->s->keyinfo[keynr].parser)))
+    goto err;
   /*
     Hack: instead of init_queue, we'll use reinit queue to be able
     to alloc queue with alloc_root()
@@ -622,7 +622,7 @@ static int ftb_check_phrase_internal(MYSQL_FTPARSER_PARAM *param,
   {
     param->mysql_add_word(param, word.pos, word.len, 0);
     if (phrase_param->match)
-      return 1;
+      break;
   }
   return 0;
 }
@@ -640,6 +640,7 @@ static int ftb_check_phrase_internal(MYSQL_FTPARSER_PARAM *param,
 
   RETURN VALUE
     1 is returned if phrase found, 0 else.
+    -1 is returned if error occurs.
 */
 
 static int _ftb_check_phrase(FTB *ftb, const uchar *document, uint len,
@@ -668,12 +669,13 @@ static int _ftb_check_phrase(FTB *ftb, const uchar *document, uint len,
   param->length= len;
   param->flags= 0;
   param->mode= MYSQL_FTPARSER_WITH_STOPWORDS;
-  parser->parse(param);
+  if (unlikely(parser->parse(param)))
+    return -1;
   DBUG_RETURN(ftb_param.match ? 1 : 0);
 }
 
 
-static void _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw, FT_SEG_ITERATOR *ftsi_orig)
+static int _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw, FT_SEG_ITERATOR *ftsi_orig)
 {
   FT_SEG_ITERATOR ftsi;
   FTB_EXPR *ftbe;
@@ -705,17 +707,19 @@ static void _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw, FT_SEG_ITERATOR *ftsi_
         weight=ftbe->cur_weight*ftbe->weight;
         if (mode && ftbe->phrase)
         {
-          int not_found=1;
+          int found= 0;
 
           memcpy(&ftsi, ftsi_orig, sizeof(ftsi));
-          while (_mi_ft_segiterator(&ftsi) && not_found)
+          while (_mi_ft_segiterator(&ftsi) && !found)
           {
             if (!ftsi.pos)
               continue;
-            not_found = ! _ftb_check_phrase(ftb, ftsi.pos, ftsi.len,
-                                            ftbe, parser);
+            found= _ftb_check_phrase(ftb, ftsi.pos, ftsi.len, ftbe, parser);
+            if (unlikely(found < 0))
+              return 1;
           }
-          if (not_found) break;
+          if (!found)
+            break;
         } /* ftbe->quot */
       }
       else
@@ -747,6 +751,7 @@ static void _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw, FT_SEG_ITERATOR *ftsi_
       weight*= ftbe->weight;
     }
   }
+  return 0;
 }
 
 
@@ -779,7 +784,11 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
   {
     while (curdoc == (ftbw=(FTB_WORD *)queue_top(& ftb->queue))->docid[0])
     {
-      _ftb_climb_the_tree(ftb, ftbw, 0);
+      if (unlikely(_ftb_climb_the_tree(ftb, ftbw, 0)))
+      {
+        my_errno= HA_ERR_OUT_OF_MEM;
+        goto err;
+      }
 
       /* update queue */
       _ft2_search(ftb, ftbw, 0);
@@ -855,7 +864,8 @@ static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
     if (ftbw->docid[1] == ftb->info->lastpos)
       continue;
     ftbw->docid[1]= ftb->info->lastpos;
-     _ftb_climb_the_tree(ftb, ftbw, ftb_param->ftsi);
+    if (unlikely(_ftb_climb_the_tree(ftb, ftbw, ftb_param->ftsi)))
+      return 1;
   }
   return(0);
 }
@@ -927,7 +937,8 @@ float ft_boolean_find_relevance(FT_INFO *ftb, uchar *record, uint length)
       continue;
     param->doc= (uchar *)ftsi.pos;
     param->length= ftsi.len;
-    parser->parse(param);
+    if (unlikely(parser->parse(param)))
+      return 0;
   }
   ftbe=ftb->root;
   if (ftbe->docid[1]==docid && ftbe->cur_weight>0 &&
