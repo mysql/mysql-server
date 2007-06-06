@@ -947,20 +947,24 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (values_list.elements == 1 && (!(thd->options & OPTION_WARNINGS) ||
 				    !thd->cuted_fields))
   {
-    thd->row_count_func= info.copied+info.deleted+info.updated;
+    thd->row_count_func= info.copied + info.deleted +
+                         ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
+                          info.touched : info.updated);
     send_ok(thd, (ulong) thd->row_count_func, id);
   }
   else
   {
     char buff[160];
+    ha_rows updated=((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
+                     info.touched : info.updated);
     if (ignore)
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (lock_type == TL_WRITE_DELAYED) ? (ulong) 0 :
 	      (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
     else
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	      (ulong) (info.deleted+info.updated), (ulong) thd->cuted_fields);
-    thd->row_count_func= info.copied+info.deleted+info.updated;
+	      (ulong) (info.deleted + updated), (ulong) thd->cuted_fields);
+    thd->row_count_func= info.copied + info.deleted + updated;
     ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
   }
   thd->abort_on_warning= 0;
@@ -2973,7 +2977,9 @@ bool select_insert::send_eof()
   else
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	    (ulong) (info.deleted+info.updated), (ulong) thd->cuted_fields);
-  thd->row_count_func= info.copied+info.deleted+info.updated;
+  thd->row_count_func= info.copied + info.deleted +
+                       ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
+                        info.touched : info.updated);
   ::send_ok(thd, (ulong) thd->row_count_func, last_insert_id, buff);
   DBUG_RETURN(0);
 }
