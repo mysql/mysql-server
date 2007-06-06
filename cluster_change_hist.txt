@@ -2,9 +2,13 @@
 mysql-5.1.15-ndb-6.1.X
 ==================================================
 
-mysql-5.1.15-ndb-6.1.11 ()
+mysql-5.1.15-ndb-6.1.11 (2007-05-06)
 
+  Bug #28751 Lots of memory locked in memory causes high kswapd
+  Bug #28899 not possible to set separate watchdog timeout at startup
+  Bug #28726 LCP files not removed after initial system restart
   Bug #20612 failed ndbrequire in PGMAN
+  make size of redo log files (fragment log files) configurable (error 1220)
 
 mysql-5.1.15-ndb-6.1.10 (2007-05-30)
 
