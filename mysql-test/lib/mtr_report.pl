@@ -358,7 +358,11 @@ sub mtr_report_stats ($) {
 		/lower_case_table_names is set/ or
 		/skip-name-resolve mode/ or
 		/slave SQL thread aborted/ or
- 		/Slave: .*Duplicate entry/
+		/Slave: .*Duplicate entry/ or
+		# Special case, made as specific as possible, for:
+		# Bug #28436: Incorrect position in SHOW BINLOG EVENTS causes
+		#             server coredump
+		/\QError in Log_event::read_log_event(): 'Sanity check failed', data_len: 258, event_type: 49\E/
 	       )
             {
               next;                       # Skip these lines
