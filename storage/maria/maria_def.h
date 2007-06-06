@@ -222,9 +222,9 @@ typedef struct st_maria_share
   MARIA_PACK pack;			/* Data about packed records */
   MARIA_BLOB *blobs;			/* Pointer to blobs */
   char *unique_file_name;		/* realpath() of index file */
-  char *data_file_name,			/* Resolved path names from
-						   symlinks */
-   *index_file_name;
+  char *data_file_name;			/* Resolved path names from symlinks */
+  char *index_file_name;
+  char *open_file_name;			/* parameter to open filename */
   byte *file_map;			/* mem-map of file if possible */
   PAGECACHE *pagecache;			/* ref to the current key cache */
   MARIA_DECODE_TREE *decode_trees;
@@ -299,6 +299,7 @@ typedef struct st_maria_share
     global_changed,			/* If changed since open */
     not_flushed, concurrent_insert;
   my_bool delay_key_write;
+  my_bool have_rtree;
 #ifdef THREAD
   THR_LOCK lock;
   pthread_mutex_t intern_lock;		/* Locking for use with _locking */
@@ -388,7 +389,6 @@ struct st_maria_info
   DYNAMIC_ARRAY *ft1_to_ft2;		/* used only in ft1->ft2 conversion */
   MEM_ROOT      ft_memroot;             /* used by the parser               */
   MYSQL_FTPARSER_PARAM *ftparser_param;	/* share info between init/deinit */
-  char *filename;			/* parameter to open filename */
   byte *buff;				/* page buffer */
   byte *keyread_buff;                   /* Buffer for last key read */
   byte *lastkey, *lastkey2;		/* Last used search key */

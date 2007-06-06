@@ -1058,7 +1058,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   param.thd= thd;
   param.tmpdir= &mysql_tmpdir_list;
   param.out_flag= 0;
-  strmov(fixed_name, file->filename);
+  strmov(fixed_name, file->s->open_file_name);
 
 #ifndef TO_BE_FIXED
   /* QQ: Until we have repair for block format, lie that it succeded */
@@ -1793,11 +1793,11 @@ int ha_maria::info(uint flag)
        if table is symlinked (Ie;  Real name is not same as generated name)
     */
     data_file_name= index_file_name= 0;
-    fn_format(name_buff, file->filename, "", MARIA_NAME_DEXT,
+    fn_format(name_buff, file->s->open_file_name, "", MARIA_NAME_DEXT,
               MY_APPEND_EXT | MY_UNPACK_FILENAME);
     if (strcmp(name_buff, maria_info.data_file_name))
       data_file_name=maria_info.data_file_name;
-    fn_format(name_buff, file->filename, "", MARIA_NAME_IEXT,
+    fn_format(name_buff, file->s->open_file_name, "", MARIA_NAME_IEXT,
               MY_APPEND_EXT | MY_UNPACK_FILENAME);
     if (strcmp(name_buff, maria_info.index_file_name))
       index_file_name=maria_info.index_file_name;

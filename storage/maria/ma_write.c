@@ -180,8 +180,8 @@ int maria_write(MARIA_HA *info, byte *record)
   VOID(_ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE));
   if (info->invalidator != 0)
   {
-    DBUG_PRINT("info", ("invalidator... '%s' (update)", info->filename));
-    (*info->invalidator)(info->filename);
+    DBUG_PRINT("info", ("invalidator... '%s' (update)", info->s->open_file_name));
+    (*info->invalidator)(info->s->open_file_name);
     info->invalidator=0;
   }
 
