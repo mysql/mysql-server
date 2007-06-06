@@ -918,6 +918,15 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     DBUG_RETURN(0);
   }
 
+  if (table->use_index || table->ignore_index)
+  {
+      my_error(ER_WRONG_USAGE, MYF(0),
+               table->ignore_index ? "IGNORE INDEX" :
+                 (table->force_index ? "FORCE INDEX" : "USE INDEX"), 
+               "VIEW");
+      DBUG_RETURN(TRUE);
+  }
+
   /* check loop via view definition */
   for (TABLE_LIST *precedent= table->referencing_view;
        precedent;
