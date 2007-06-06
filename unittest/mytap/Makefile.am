@@ -21,3 +21,6 @@ noinst_HEADERS     = tap.h
 libmytap_a_SOURCES = tap.c
 
 SUBDIRS            = . t
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%
