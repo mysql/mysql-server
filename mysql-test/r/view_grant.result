@@ -603,9 +603,9 @@ Warnings:
 Note	1449	There is no 'no-such-user'@'localhost' registered
 SHOW CREATE VIEW v;
 View	Create View
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`no-such-user`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t1`.`a` AS `a` from `t1`
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`no-such-user`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `test`.`t1`.`a` AS `a` from `t1`
 Warnings:
-Note	1449	There is no 'no-such-user'@'localhost' registered
+Warning	1356	View 'test.v' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 SELECT * FROM v;
 ERROR HY000: There is no 'no-such-user'@'localhost' registered
 DROP VIEW v;
