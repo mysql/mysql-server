@@ -15,7 +15,7 @@
 
 
 #include <ndb_global.h>
-#include "NdbTick.h"
+#include <NdbTick.h>
 
 #define NANOSEC_PER_SEC  1000000000
 #define MICROSEC_PER_SEC 1000000
@@ -71,7 +71,6 @@ NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros){
 }
 
 #endif
-#ifdef TIME_MEASUREMENT
 int
 NdbTick_getMicroTimer(struct MicroSecondTimer* input_timer)
 {
@@ -102,4 +101,3 @@ NdbTick_getMicrosPassed(struct MicroSecondTimer start,
   }
   return ret_value;
 }
-#endif

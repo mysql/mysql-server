@@ -43,7 +43,6 @@ rpl_ndb_ddl              : BUG#28798 2007-05-31  lars  Valgrind failure in NDB
 
 #rpl_ndb_dd_advance	 : Bug#25913 rpl_ndb_dd_advance fails randomly
 
-rpl_ndb_stm_innodb       : Bug#26783
 ndb_partition_error2	 : HF is not sure if the test can work as internded on all the platforms
 
 im_options_set       : Bug#20294: Instance manager tests fail randomly
