@@ -1,5 +1,5 @@
--- connect (con1,localhost,,,)
--- connect (con2,localhost,,,)
+-- connect (con1,localhost,root,,)
+-- connect (con2,localhost,root,,)
 
 -- connection con1
 SET autocommit=0;
