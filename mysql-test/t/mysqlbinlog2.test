@@ -1,6 +1,8 @@
 # Test for the new options --start-datetime, stop-datetime,
 # and a few others.
 
+-- source include/have_log_bin.inc
+
 # Embedded server doesn't support binlogging
 -- source include/not_embedded.inc
 
