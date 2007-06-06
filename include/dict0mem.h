@@ -164,6 +164,14 @@ struct dict_col_struct{
 					of an index */
 };
 
+/* DICT_MAX_INDEX_COL_LEN is measured in bytes and is the maximum
+indexed column length (or indexed prefix length). It is set to 3*256,
+so that one can create a column prefix index on 256 characters of a
+TEXT or VARCHAR column also in the UTF-8 charset. In that charset,
+a character may take at most 3 bytes.
+This constant MUST NOT BE CHANGED, or the compatibility of InnoDB data
+files would be at risk! */
+
 #define DICT_MAX_INDEX_COL_LEN		REC_MAX_INDEX_COL_LEN
 
 /* Data structure for a field in an index */
