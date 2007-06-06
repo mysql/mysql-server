@@ -1262,7 +1262,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
         {
           share->partition_info_buffer_size= syntax_len+1;
           if (!(share->partition_info=
-                  alloc_root(&share->mem_root, syntax_len+1)))
+                  (char*) alloc_root(&share->mem_root, syntax_len+1)))
             DBUG_RETURN(TRUE);
 
         }
