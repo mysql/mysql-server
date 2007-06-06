@@ -3,6 +3,8 @@
 # We verify that we did not introduce a deadlock.
 # This is intended to mimick how mysqldump and innobackup work.
 
+-- source include/have_log_bin.inc
+
 # And it requires InnoDB
 -- source include/not_embedded.inc
 -- source include/have_innodb.inc

@@ -959,6 +959,7 @@ TransporterRegistry::performReceive()
         {
           Uint32 * ptr;
           Uint32 sz = t->getReceiveData(&ptr);
+          transporter_recv_from(callbackObj, nodeId);
           Uint32 szUsed = unpack(ptr, sz, nodeId, ioStates[nodeId]);
           t->updateReceiveDataPtr(szUsed);
 	}
