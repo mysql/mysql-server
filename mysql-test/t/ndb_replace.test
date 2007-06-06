@@ -21,7 +21,7 @@ replace into t1 (gesuchnr,benutzer_id) values (1,1);
 insert into t1 (gesuchnr, benutzer_id) value (3,2);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 (gesuchnr,benutzer_id) values (1,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 select * from t1 order by gesuchnr;

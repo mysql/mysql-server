@@ -195,9 +195,9 @@ select * from t6 order by a,b;
 insert into t1 values (99,NULL);
 select * from t4 where a+0 > 90;
 # bug#4008 - cannot determine a unique key that caused "dupl. key error"
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert t5 values (1,1);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert t6 values (2,1);
 insert t5 values (1,1) on duplicate key update b=b+10;
 insert t6 values (2,1) on duplicate key update b=b+20;

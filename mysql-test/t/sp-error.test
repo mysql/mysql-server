@@ -586,7 +586,7 @@ begin
 end|
 
 set @x = 0|
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 call bug3279(@x)|
 select @x|
 drop procedure bug3279|

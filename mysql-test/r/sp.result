@@ -1497,10 +1497,10 @@ insert into t3 (a) values (1)|
 create procedure h_ee()
 deterministic
 begin
-declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
+declare continue handler for 1062 -- ER_DUP_ENTRY
 select 'Outer (bad)' as 'h_ee';
 begin
-declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
+declare continue handler for 1062 -- ER_DUP_ENTRY
 select 'Inner (good)' as 'h_ee';
 insert into t3 values (1);
 end;
@@ -1508,7 +1508,7 @@ end|
 create procedure h_es()
 deterministic
 begin
-declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
+declare continue handler for 1062 -- ER_DUP_ENTRY
 select 'Outer (good)' as 'h_es';
 begin
 -- integrity constraint violation
@@ -1545,7 +1545,7 @@ end|
 create procedure h_ex()
 deterministic
 begin
-declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
+declare continue handler for 1062 -- ER_DUP_ENTRY
 select 'Outer (good)' as 'h_ex';
 begin
 declare continue handler for sqlexception
@@ -1560,7 +1560,7 @@ begin
 declare continue handler for sqlstate '23000' 
 select 'Outer (bad)' as 'h_se';
 begin
-declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
+declare continue handler for 1062 -- ER_DUP_ENTRY
 select 'Inner (good)' as 'h_se';
 insert into t3 values (1);
 end;
@@ -1700,7 +1700,7 @@ begin
 declare continue handler for sqlexception
 select 'Outer (bad)' as 'h_xe';
 begin
-declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
+declare continue handler for 1062 -- ER_DUP_ENTRY
 select 'Inner (good)' as 'h_xe';
 insert into t3 values (1);
 end;
@@ -4705,10 +4705,10 @@ insert into t3 values (1)|
 create procedure bug15011()
 deterministic
 begin
-declare continue handler for 1582
+declare continue handler for 1062
 select 'Outer' as 'Handler';
 begin
-declare continue handler for 1582
+declare continue handler for 1062
 select 'Inner' as 'Handler';
 insert into t3 values (1);
 end;

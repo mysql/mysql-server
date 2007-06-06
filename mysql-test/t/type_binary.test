@@ -31,7 +31,7 @@ drop table t1;
 create table t1 (s1 binary(2) primary key);
 insert into t1 values (0x01);
 insert into t1 values (0x0120);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values (0x0100);
 select hex(s1) from t1 order by s1;
 # check index search

@@ -89,7 +89,7 @@ create function bug10015_5(i int) returns int
     end if;
     return i;
   end|
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values (bug10015_5(4)), (bug10015_5(5))|
 select * from t1|
 drop function bug10015_5|

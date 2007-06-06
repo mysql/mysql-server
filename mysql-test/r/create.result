@@ -285,7 +285,7 @@ ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
 show warnings;
 Level	Code	Message
 Note	1050	Table 't1' already exists
-Error	1582	Duplicate entry '3' for key 'PRIMARY'
+Error	1062	Duplicate entry '3' for key 'PRIMARY'
 show status like "Opened_tables";
 Variable_name	Value
 Opened_tables	2

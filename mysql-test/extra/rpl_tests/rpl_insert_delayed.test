@@ -42,7 +42,7 @@ if ($binlog_format_statement)
 {
   # statement below will be converted to non-delayed INSERT and so
   # will stop at first error, guaranteeing replication.
-  --error ER_DUP_ENTRY_WITH_KEY_NAME
+  --error ER_DUP_ENTRY
   insert delayed into t1 values(10, "is Bond"), (20, "James Bond");
 }
 if (!$binlog_format_statement)
@@ -64,7 +64,7 @@ if ($binlog_format_statement)
   # statement below will be converted to non-delayed INSERT and so
   # will be binlogged with its ER_DUP_ENTRY error code, guaranteeing
   # replication (slave will hit the same error code and so be fine).
-  --error ER_DUP_ENTRY_WITH_KEY_NAME
+  --error ER_DUP_ENTRY
   insert delayed into t1 values(20, "is Bond"), (10, "James Bond");
 }
 if (!$binlog_format_statement)

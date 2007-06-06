@@ -433,7 +433,7 @@ SELECT COUNT(*) FROM t1;
 #
 # Insert duplicate rows
 # 
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 INSERT INTO t1 VALUES (1,1,1);
 
 --error 1022
