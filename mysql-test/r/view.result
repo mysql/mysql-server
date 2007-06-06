@@ -612,7 +612,7 @@ drop table t1;
 create table t1 (a int, b int);
 create view v1 as select a, sum(b) from t1 group by a;
 select b from v1 use index (some_index) where b=1;
-ERROR HY000: Key 'some_index' doesn't exist in table 'v1'
+ERROR HY000: Incorrect usage of USE INDEX and VIEW
 drop view v1;
 drop table t1;
 create table t1 (col1 char(5),col2 char(5));
@@ -3455,4 +3455,15 @@ a1	c
 2	0
 DROP VIEW v1,v2;
 DROP TABLE t1,t2,t3,t4;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT * FROM v1 USE KEY(non_existant);
+ERROR HY000: Incorrect usage of USE INDEX and VIEW
+SELECT * FROM v1 FORCE KEY(non_existant);
+ERROR HY000: Incorrect usage of FORCE INDEX and VIEW
+SELECT * FROM v1 IGNORE KEY(non_existant);
+ERROR HY000: Incorrect usage of IGNORE INDEX and VIEW
+DROP VIEW v1;
+DROP TABLE t1;
 End of 5.0 tests.
