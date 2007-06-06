@@ -131,12 +131,10 @@ lock data dictionary before calling this function. */
 dict_table_t*
 row_merge_create_temporary_table(
 /*=============================*/
-					/* out: new temporary table
-					definition */
+					/* out: table, or NULL on error */
 	const char*	table_name,	/* in: new table name */
 	dict_table_t*	table,		/* in: old table definition */
-	trx_t*		trx,		/* in: trx */
-	ulint*		error);		/* in:out/ error code or DB_SUCCESS */
+	trx_t*		trx);		/* in/out: trx (sets error_state) */
 /*************************************************************************
 Update all prebuilts for this table */
 
@@ -146,19 +144,6 @@ row_merge_prebuilts_update(
 
 	trx_t*		trx,		/* in: trx */
 	dict_table_t*	old_table);	/* in: old table */
-/*************************************************************************
-Create a temporary table using a definition of the old table. You must
-lock data dictionary before calling this function. */
-
-dict_table_t*
-row_merge_create_temporary_table(
-/*=============================*/
-					/* out: new temporary table
-					definition */
-	const char*	table_name,	/* in: new table name */
-	dict_table_t*	table,		/* in: old table definition */
-	trx_t*		trx,		/* in: trx */
-	ulint*		error);		/* in:out/ error code or DB_SUCCESS */
 /*************************************************************************
 Rename the indexes in the dicitionary. */
 
@@ -172,12 +157,11 @@ row_merge_rename_index(
 /*************************************************************************
 Create the index and load in to the dicitionary. */
 
-ulint
+dict_index_t*
 row_merge_create_index(
 /*===================*/
-					/* out: DB_SUCCESS if all OK */
-	trx_t*		trx,		/* in: transaction */
-	dict_index_t**	index,		/* out: the instance of the index */
+					/* out: index, or NULL on error */
+	trx_t*		trx,		/* in/out: trx (sets error_state) */
 	dict_table_t*	table,		/* in: the index is on this table */
 	const merge_index_def_t*	/* in: the index definition */
 			index_def);
