@@ -807,7 +807,7 @@ drop table t1,t2;
 # insert ignore
 create table t1 (a int not null primary key, b int not null) engine=ndb;
 insert into t1 values (1,10), (2,20), (3,30);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 set a=1, b=100;
 insert ignore into t1 set a=1, b=100;
 select * from t1 order by a;
@@ -820,12 +820,12 @@ create table t1 (a int not null primary key, b int not null) engine=ndb;
 create table t2 (c int not null primary key, d int not null) engine=ndb;
 insert into t1 values (1,10), (2,10), (3,30), (4, 30);
 insert into t2 values (1,10), (2,10), (3,30), (4, 30);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 update t1 set a = 1 where a = 3;
 select * from t1 order by a;
 update t1 set b = 1 where a > 1 order by a desc limit 1;
 select * from t1 order by a;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 update t1,t2 set a = 1, c = 1 where a = 3 and c = 3;
 select * from t1 order by a;
 update ignore t1,t2 set a = 1, c = 1 where a = 3 and c = 3;

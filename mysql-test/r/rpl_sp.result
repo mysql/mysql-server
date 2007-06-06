@@ -107,7 +107,7 @@ call foo4();
 ERROR 23000: Duplicate entry '20' for key 'a'
 show warnings;
 Level	Code	Message
-Error	1582	Duplicate entry '20' for key 'a'
+Error	1062	Duplicate entry '20' for key 'a'
 select * from t2;
 a
 20
@@ -241,7 +241,7 @@ return 10;
 end|
 do fn1(100);
 Warnings:
-Error	1582	Duplicate entry '100' for key 'a'
+Error	1062	Duplicate entry '100' for key 'a'
 select fn1(20);
 ERROR 23000: Duplicate entry '20' for key 'a'
 select * from t2;

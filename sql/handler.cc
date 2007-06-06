@@ -2053,8 +2053,7 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
   {
     /* Key is unknown */
     str.copy("", 0, system_charset_info);
-    my_printf_error(ER_DUP_ENTRY_WITH_KEY_NAME, msg,
-		    MYF(0), str.c_ptr(), "*UNKNOWN*");
+    my_printf_error(ER_DUP_ENTRY, msg, MYF(0), str.c_ptr(), "*UNKNOWN*");
   }
   else
   {
@@ -2066,7 +2065,7 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
       str.length(max_length-4);
       str.append(STRING_WITH_LEN("..."));
     }
-    my_printf_error(ER_DUP_ENTRY_WITH_KEY_NAME, msg,
+    my_printf_error(ER_DUP_ENTRY, msg,
 		    MYF(0), str.c_ptr(), table->key_info[key_nr].name);
   }
 }

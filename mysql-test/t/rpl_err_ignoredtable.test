@@ -11,7 +11,7 @@ connection master;
 create table t1 (a int primary key);
 create table t4 (a int primary key);
 # generate an error that goes to the binlog
---error 1022, ER_DUP_ENTRY_WITH_KEY_NAME
+--error 1022, ER_DUP_ENTRY
 insert into t1 values (1),(1);
 insert into t4 values (1),(2);
 save_master_pos;
