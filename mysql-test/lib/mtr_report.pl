@@ -358,7 +358,8 @@ sub mtr_report_stats ($) {
 		/lower_case_table_names is set/ or
 		/skip-name-resolve mode/ or
 		/slave SQL thread aborted/ or
- 		/Slave: .*Duplicate entry/
+ 		/Slave: .*Duplicate entry/ or
+                /Statement is not safe to log in statement format/
 	       )
             {
               next;                       # Skip these lines
