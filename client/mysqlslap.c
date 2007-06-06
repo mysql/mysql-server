@@ -35,7 +35,8 @@
   Supply your own create and query SQL statements, with 50 clients 
   querying (200 selects for each):
 
-    mysqlslap --create="CREATE TABLE A (a int);INSERT INTO A (23)" \
+    mysqlslap --delimiter=";" \
+              --create="CREATE TABLE A (a int);INSERT INTO A VALUES (23)" \
               --query="SELECT * FROM A" --concurrency=50 --iterations=200
 
   Let the program build the query SQL statement with a table of two int
@@ -554,7 +555,7 @@ static struct my_option my_long_options[] =
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (uchar**) &host, (uchar**) &host, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"iterations", 'i', "Number of times too run the tests.", (uchar**) &iterations,
+  {"iterations", 'i', "Number of times to run the tests.", (uchar**) &iterations,
     (uchar**) &iterations, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   {"number-char-cols", 'x', 
     "Number of VARCHAR columns to create table with if specifying --auto-generate-sql ",

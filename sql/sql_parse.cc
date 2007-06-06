@@ -5022,17 +5022,14 @@ bool check_merge_table_access(THD *thd, char *db,
 	Check stack size; Send error if there isn't enough stack to continue
 ****************************************************************************/
 
-#if STACK_DIRECTION < 0
-#define used_stack(A,B) (long) (A - B)
-#else
-#define used_stack(A,B) (long) (B - A)
-#endif
+#ifndef EMBEDDED_LIBRARY
+
+#define used_stack(A,B) (long)(A > B ? A - B : B - A)
 
 #ifndef DBUG_OFF
 long max_stack_used;
 #endif
 
-#ifndef EMBEDDED_LIBRARY
 /*
   Note: The 'buf' parameter is necessary, even if it is unused here.
   - fix_fields functions has a "dummy" buffer large enough for the
