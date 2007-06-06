@@ -4,6 +4,7 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X)");
 create table t1 (a int key, b varchar(32), X int unsigned) engine ndb;
 create table t2 (a int key, b varchar(32), c int unsigned) engine ndb;
 begin;

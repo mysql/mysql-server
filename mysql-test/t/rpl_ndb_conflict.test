@@ -1,8 +1,37 @@
+#
+# Test engine native conflict resolution for ndb
+#
+#
 --source include/have_ndb.inc
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
+--disable_warnings
+--disable_query_log
+--connection slave
+drop table if exists mysql.ndb_replication;
+CREATE TABLE mysql.ndb_replication
+  (db VARBINARY(63),
+   table_name VARBINARY(63),
+   server_id INT UNSIGNED,
+   binlog_type INT UNSIGNED,
+   conflict_fn VARBINARY(128),
+   PRIMARY KEY USING HASH (db,table_name,server_id))
+  ENGINE=NDB PARTITION BY KEY(db,table_name);
+--enable_warnings
+--enable_query_log
+
+#
+# test native NDB$MAX() conflict resulution
+#
+--connection slave
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X)");
 --let col_type = int unsigned
 --source extra/rpl_tests/rpl_ndb_conflict_1.test
 --let col_type = bigint unsigned
 --source extra/rpl_tests/rpl_ndb_conflict_1.test
+
+--disable_query_log
+--connection slave
+drop table mysql.ndb_replication;
+--enable_query_log
