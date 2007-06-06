@@ -2733,7 +2733,7 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
   const char *db= share->db;
   const char *table_name= share->table_name;
   NdbError ndberror;
-  int error;
+  int error= 0;
   const char *error_str= "<none>";
 
   ndb->setDatabaseName(ndb_rep_db);
