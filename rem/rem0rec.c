@@ -742,7 +742,7 @@ rec_get_converted_size_comp(
 	case REC_STATUS_INFIMUM:
 	case REC_STATUS_SUPREMUM:
 		/* infimum or supremum record, 8 bytes */
-		return(size + 8); /* no extra data needed */
+		return(8); /* no extra data needed */
 	default:
 		ut_error;
 		return(ULINT_UNDEFINED);
@@ -758,10 +758,13 @@ rec_get_converted_size_comp(
 		len = dtuple_get_nth_field(dtuple, i)->len;
 		col = dict_field_get_col(field);
 
-		ut_ad(len != UNIV_SQL_NULL || !(col->prtype & DATA_NOT_NULL));
+		ut_ad(dict_col_type_assert_equal(
+			      col, dfield_get_type(dtuple_get_nth_field(
+							   dtuple, i))));
 
 		if (len == UNIV_SQL_NULL) {
 			/* No length is stored for NULL fields. */
+			ut_ad(!(col->prtype & DATA_NOT_NULL));
 			continue;
 		}
 
@@ -769,6 +772,9 @@ rec_get_converted_size_comp(
 
 		if (field->fixed_len) {
 			ut_ad(len == field->fixed_len);
+			/* dict_index_add_col() should guarantee this */
+			ut_ad(!field->prefix_len
+			      || field->fixed_len == field->prefix_len);
 		} else if (UNIV_UNLIKELY(j < n_ext) && i == ext[j]) {
 			j++;
 			size += 2;
@@ -776,6 +782,10 @@ rec_get_converted_size_comp(
 			   || (col->len < 256 && col->mtype != DATA_BLOB)) {
 			size++;
 		} else {
+			/* For variable-length columns, we look up the
+			maximum length from the column itself.  If this
+			is a prefix index column shorter than 256 bytes,
+			this will waste one byte. */
 			size += 2;
 		}
 		size += len;
@@ -1045,6 +1055,11 @@ rec_convert_dtuple_to_rec_comp(
 		type = dfield_get_type(field);
 		len = dfield_get_len(field);
 		fixed_len = dict_index_get_nth_field(index, i)->fixed_len;
+
+		ut_ad(dict_col_type_assert_equal(
+			      dict_field_get_col(dict_index_get_nth_field(
+							 index, i)),
+			      dfield_get_type(field)));
 
 		if (!(dtype_get_prtype(type) & DATA_NOT_NULL)) {
 			if (len == UNIV_SQL_NULL)

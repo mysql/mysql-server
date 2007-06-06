@@ -1542,6 +1542,12 @@ dict_index_add_col(
 	if (field->fixed_len > DICT_MAX_INDEX_COL_LEN) {
 		field->fixed_len = 0;
 	}
+#if DICT_MAX_INDEX_COL_LEN != 768
+	/* The comparison limit above must be constant.  If it were
+	changed, the disk format of some fixed-length columns would
+	change, which would be a disaster. */
+# error "DICT_MAX_INDEX_COL_LEN != 768"
+#endif
 
 	if (!(col->prtype & DATA_NOT_NULL)) {
 		index->n_nullable++;
