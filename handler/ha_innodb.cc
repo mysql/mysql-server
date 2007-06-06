@@ -8213,12 +8213,13 @@ err_exit:
 
 		/* Clone table and write UNDO log record */
 		indexed_table = row_merge_create_temporary_table(
-			new_table_name, innodb_table, trx, &error);
+			new_table_name, innodb_table, trx);
 
 		row_mysql_unlock_data_dictionary(trx);
 
 		if (!indexed_table) {
 
+			error = trx->error_state;
 			goto err_exit;
 		}
 	} else if (!trx->dict_redo_list) {
@@ -8244,10 +8245,15 @@ err_exit:
 
 	/* Create the indexes in SYS_INDEXES and load into dictionary.*/
 
-	for (ulint i = 0; i < num_of_idx && error == DB_SUCCESS; i++) {
+	for (ulint i = 0; i < num_of_idx; i++) {
 
-		error = row_merge_create_index(
-			trx, &index[i], indexed_table, index_defs[i]);
+		index[i] = row_merge_create_index(trx, indexed_table,
+						  index_defs[i]);
+
+		if (!index[i]) {
+			error = trx->error_state;
+			goto error_handling;
+		}
 
 		if (index_defs[i]->ind_type & DICT_UNIQUE) {
 
@@ -8310,13 +8316,13 @@ err_exit:
 	ignore that in the dup index check.*/
 	//dict_table_check_for_dup_indexes(prebuilt->table);
 #endif
-
+error_handling:
 	if (dict_locked) {
 		row_mysql_unlock_data_dictionary(trx);
 	}
 
 	/* After an error, remove all those index definitions from the
-	dictionary which were defined.*/
+	dictionary which were defined. */
 
 	switch (error) {
 	case DB_SUCCESS:

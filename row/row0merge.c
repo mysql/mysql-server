@@ -1846,16 +1846,15 @@ lock data dictionary before calling this function. */
 dict_table_t*
 row_merge_create_temporary_table(
 /*=============================*/
-					/* out: new temporary table
-					definition */
+					/* out: table, or NULL on error */
 	const char*	table_name,	/* in: new table name */
 	dict_table_t*	table,		/* in: old table definition */
-	trx_t*		trx,		/* in: trx */
-	ulint*		error)		/* in:out/ error code or DB_SUCCESS */
+	trx_t*		trx)		/* in/out: trx (sets error_state) */
 {
 	ulint		i;
 	dict_table_t*	new_table = NULL;
 	ulint		n_cols = dict_table_get_n_user_cols(table);
+	ulint		error;
 
 	ut_ad(table_name && table && error);
 
@@ -1863,9 +1862,9 @@ row_merge_create_temporary_table(
 	ut_ad(mutex_own(&dict_sys->mutex));
 #endif /* UNIV_SYNC_DEBUG */
 
-	*error = row_undo_report_create_table_dict_operation(trx, table_name);
+	error = row_undo_report_create_table_dict_operation(trx, table_name);
 
-	if (*error == DB_SUCCESS) {
+	if (error == DB_SUCCESS) {
 
 		mem_heap_t*	heap = mem_heap_create(1000);
 		log_buffer_flush_to_disk();
@@ -1884,8 +1883,17 @@ row_merge_create_temporary_table(
 				col->mtype, col->prtype, col->len);
 		}
 
-		*error = row_create_table_for_mysql(new_table, trx);
+		error = row_create_table_for_mysql(new_table, trx);
 		mem_heap_free(heap);
+
+		if (error != DB_SUCCESS) {
+			dict_mem_table_free(new_table);
+			new_table = NULL;
+		}
+	}
+
+	if (error != DB_SUCCESS) {
+		trx->error_state = error;
 	}
 
 	return(new_table);
@@ -1950,17 +1958,18 @@ row_merge_rename_index(
 }
 
 /*************************************************************************
-Create the index and load in to the dicitionary. */
+Create the index and load in to the dictionary. */
 
-ulint
+dict_index_t*
 row_merge_create_index(
 /*===================*/
-	trx_t*		trx,		/* in: transaction */
-	dict_index_t**	index,		/* out: the instance of the index */
+					/* out: index, or NULL on error */
+	trx_t*		trx,		/* in/out: trx (sets error_state) */
 	dict_table_t*	table,		/* in: the index is on this table */
 	const merge_index_def_t*	/* in: the index definition */
 			index_def)
 {
+	dict_index_t*	index;
 	ulint		err = DB_SUCCESS;
 	ulint		n_fields = index_def->n_fields;
 
@@ -1968,21 +1977,21 @@ row_merge_create_index(
 	a persistent operation. We pass 0 as the space id, and determine at
 	a lower level the space id where to store the table.*/
 
-	*index = dict_mem_index_create(
-		table->name, index_def->name, 0, index_def->ind_type, n_fields);
+	index = dict_mem_index_create(table->name, index_def->name,
+				      0, index_def->ind_type, n_fields);
 
-	ut_a(*index);
+	ut_a(index);
 
 	/* Create the index id, as it will be required when we build
 	the index. We assign the id here because we want to write an
-	UNDO record before we insert the entry into SYS_INDEXES.*/
-	ut_a(ut_dulint_is_zero((*index)->id));
+	UNDO record before we insert the entry into SYS_INDEXES. */
+	ut_a(ut_dulint_is_zero(index->id));
 
-	(*index)->id = dict_hdr_get_new_id(DICT_HDR_INDEX_ID);
-	(*index)->table = table;
+	index->id = dict_hdr_get_new_id(DICT_HDR_INDEX_ID);
+	index->table = table;
 
 	/* Write the UNDO record for the create index */
-	err = row_undo_report_create_index_dict_operation(trx, *index);
+	err = row_undo_report_create_index_dict_operation(trx, index);
 
 	if (err == DB_SUCCESS) {
 		ulint		i;
@@ -1995,39 +2004,43 @@ row_merge_create_index(
 
 			ifield = &index_def->fields[i];
 
-			dict_mem_index_add_field(*index,
+			dict_mem_index_add_field(index,
 						 ifield->field_name,
 						 ifield->prefix_len);
 		}
 
 		/* Add the index to SYS_INDEXES, this will use the prototype
-		to create an entry in SYS_INDEXES.*/
-		err = row_create_index_graph_for_mysql(trx, table, *index);
+		to create an entry in SYS_INDEXES. */
+		err = row_create_index_graph_for_mysql(trx, table, index);
 
 		if (err == DB_SUCCESS) {
 
-			*index = row_merge_dict_table_get_index(
+			index = row_merge_dict_table_get_index(
 				table, index_def);
 
-			ut_a(*index);
+			ut_a(index);
 
 			/* Note the id of the transaction that created this
 			index, we use it to restrict readers from accessing
-			this index, to ensure read consistency.*/
-			(*index)->trx_id = trx->id;
+			this index, to ensure read consistency. */
+			index->trx_id = trx->id;
 
 			/* Create element and append to list in trx. So that
-			we can rename from temp name to real name.*/
+			we can rename from temp name to real name. */
 			if (trx->dict_redo_list) {
 				dict_redo_t*	dict_redo;
 
 				dict_redo = dict_redo_create_element(trx);
-				dict_redo->index = *index;
+				dict_redo->index = index;
 			}
 		}
 	}
 
-	return(err);
+	if (err != DB_SUCCESS) {
+		trx->error_state = err;
+	}
+
+	return(index);
 }
 
 /*************************************************************************
