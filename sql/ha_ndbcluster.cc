@@ -3531,34 +3531,6 @@ int ha_ndbcluster::primary_key_cmp(const byte * old_row, const byte * new_row)
 }
 
 #ifdef HAVE_NDB_BINLOG
-int ha_ndbcluster::slave_set_resolve_highest(uint field_index)
-{
-  DBUG_ENTER("ha_ndbcluster::slave_set_resolve_highest");
-  const NDBCOL *c= m_table->getColumn(field_index);
-  switch (c->getType())
-  {
-  case  NDBCOL::Unsigned:
-    m_share->m_resolve_size= sizeof(Uint32);
-    m_share->m_resolve_column= field_index;
-    DBUG_PRINT("info", ("resolve column Uint32%u",
-                        m_share->m_resolve_column));
-    DBUG_RETURN(0);
-    break;
-  case  NDBCOL::Bigunsigned:
-    m_share->m_resolve_size= sizeof(Uint64);
-    m_share->m_resolve_column= field_index;
-    DBUG_PRINT("info", ("resolve column Uint64 %u",
-                        m_share->m_resolve_column));
-    DBUG_RETURN(0);
-    break;
-  default:
-    DBUG_PRINT("info", ("resolve column %u has wrong type",
-                        m_share->m_resolve_column));
-    DBUG_RETURN(0);
-    break;
-  }
-  DBUG_RETURN(-1);
-}
 
 /*
   To perform conflict resolution, an interpreted program is used to read
@@ -6079,8 +6051,11 @@ int ha_ndbcluster::create(const char *name,
 
     while (!IS_TMP_PREFIX(m_tabname))
     {
+      ndbcluster_read_binlog_replication(thd, ndb, share, m_table, ::server_id);
+
       String event_name(INJECTOR_EVENT_LEN);
-      ndb_rep_event_name(&event_name,m_dbname,m_tabname);
+      ndb_rep_event_name(&event_name, m_dbname, m_tabname,
+                         get_binlog_full(share));
       int do_event_op= ndb_binlog_running;
 
       if (!ndb_schema_share &&
@@ -6518,18 +6493,23 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   {
     is_old_table_tmpfile= 0;
     String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, from + sizeof(share_prefix) - 1, 0);
+    ndb_rep_event_name(&event_name, from + sizeof(share_prefix) - 1, 0,
+                       get_binlog_full(share));
     ndbcluster_handle_drop_table(ndb, event_name.c_ptr(), share,
                                  "rename table");
   }
 
   if (!result && !IS_TMP_PREFIX(new_tabname))
   {
-    /* always create an event for the table */
-    String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, to + sizeof(share_prefix) - 1, 0);
     Ndb_table_guard ndbtab_g2(dict, new_tabname);
     const NDBTAB *ndbtab= ndbtab_g2.get_table();
+
+    ndbcluster_read_binlog_replication(current_thd, ndb, share, ndbtab, ::server_id);
+
+    /* always create an event for the table */
+    String event_name(INJECTOR_EVENT_LEN);
+    ndb_rep_event_name(&event_name, to + sizeof(share_prefix) - 1, 0,
+                       get_binlog_full(share));
 
     if (!ndbcluster_create_event(ndb, ndbtab, event_name.c_ptr(), share,
                                  share && ndb_binlog_running ? 2 : 1/* push warning */))
@@ -6756,7 +6736,8 @@ retry_temporary_error1:
   if (!IS_TMP_PREFIX(table_name))
   {
     String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, path + sizeof(share_prefix) - 1, 0);
+    ndb_rep_event_name(&event_name, path + sizeof(share_prefix) - 1, 0,
+                       get_binlog_full(share));
     ndbcluster_handle_drop_table(ndb,
                                  table_dropped ? event_name.c_ptr() : 0,
                                  share, "delete table");

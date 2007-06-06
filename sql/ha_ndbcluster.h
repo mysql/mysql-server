@@ -172,6 +172,21 @@ struct Ndb_tuple_id_range_guard {
 #define NSF_HIDDEN_PK 1 /* table has hidden primary key */
 #define NSF_BLOB_FLAG 2 /* table has blob attributes */
 #define NSF_NO_BINLOG 4 /* table should not be binlogged */
+#define NSF_BINLOG_FULL        8 /* table should be binlogged with full rows */
+#define NSF_BINLOG_USE_UPDATE 16  /* table update should be binlogged using
+                                     update log event */
+inline void set_binlog_nologging(NDB_SHARE *share)
+{ share->flags|= NSF_NO_BINLOG; }
+inline my_bool get_binlog_nologging(NDB_SHARE *share)
+{ return (share->flags & NSF_NO_BINLOG) != 0; }
+inline void set_binlog_full(NDB_SHARE *share)
+{ share->flags|= NSF_BINLOG_FULL; }
+inline my_bool get_binlog_full(NDB_SHARE *share)
+{ return (share->flags & NSF_BINLOG_FULL) != 0; }
+inline void set_binlog_use_update(NDB_SHARE *share)
+{ share->flags|= NSF_BINLOG_USE_UPDATE; }
+inline my_bool get_binlog_use_update(NDB_SHARE *share)
+{ return (share->flags & NSF_BINLOG_USE_UPDATE) != 0; }
 #endif
 
 typedef enum ndb_query_state_bits {
@@ -251,11 +266,6 @@ class ha_ndbcluster: public handler
 
   int write_row(byte *buf);
   int update_row(const byte *old_data, byte *new_data);
-#ifdef HAVE_NDB_BINLOG
-  int update_row_timestamp_resolve(const byte *old_data, byte *new_data,
-                                   NdbInterpretedCode *);
-  int slave_set_resolve_highest(uint field_index);
-#endif
   int delete_row(const byte *buf);
   int index_init(uint index, bool sorted);
   int index_end();
@@ -410,6 +420,10 @@ static void set_tabname(const char *pathname, char *tabname);
 				  uint table_changes);
 
 private:
+#ifdef HAVE_NDB_BINLOG
+  int update_row_timestamp_resolve(const byte *old_data, byte *new_data,
+                                   NdbInterpretedCode *);
+#endif
   friend int ndbcluster_drop_database_impl(const char *path);
   friend int ndb_handle_schema_change(THD *thd, 
                                       Ndb *ndb, NdbEventOperation *pOp,

@@ -155,7 +155,14 @@ int ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
                                  NDB_SHARE *share,
                                  const char *type_str);
 void ndb_rep_event_name(String *event_name,
-                        const char *db, const char *tbl);
+                        const char *db, const char *tbl, my_bool full);
+
+int
+ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
+                                   NDB_SHARE *share,
+                                   const NDBTAB *ndbtab,
+                                   uint server_id);
+
 int ndb_create_table_from_engine(THD *thd, const char *db,
                                  const char *table_name);
 int ndbcluster_binlog_start();

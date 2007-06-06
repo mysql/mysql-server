@@ -21,3 +21,15 @@
 #define OLD_NDB_APPLY_TABLE "apply_status"
 #define NDB_SCHEMA_TABLE "ndb_schema"
 #define OLD_NDB_SCHEMA_TABLE "schema"
+#define NDB_REPLICATION_TABLE "ndb_replication"
+
+enum Ndb_binlog_type
+{
+  NBT_DEFAULT                   = 0
+  ,NBT_NO_LOGGING               = 1
+  ,NBT_FULL                     = 2
+  ,NBT_UPDATED                  = 3
+  ,NBT_USE_UPDATE               = 4             // bit 0x4 indicates USE_UPDATE
+  ,NBT_FULL_USE_UPDATE          = 4+NBT_FULL    // bit 0x4 indicates USE_UPDATE
+  ,NBT_UPDATED_USE_UPDATE       = 4+NBT_UPDATED // bit 0x4 indicates USE_UPDATE
+};
