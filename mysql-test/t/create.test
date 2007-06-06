@@ -153,7 +153,7 @@ drop table if exists t1,t2;
 
 CREATE TABLE t1 (a int not null);
 INSERT INTO t1 values (1),(2),(1);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TABLE t2 (primary key(a)) SELECT * FROM t1;
 --error 1146
 SELECT * from t2;
@@ -232,7 +232,7 @@ insert into t1 values (1,1);
 create table if not exists t1 select 2;
 select * from t1;
 create table if not exists t1 select 3 as 'a',4 as 'b';
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 create table if not exists t1 select 3 as 'a',3 as 'b';
 show warnings;
 show status like "Opened_tables";
@@ -698,7 +698,7 @@ create table t1 (a int);
 create table if not exists t1 select 1 as a, 2 as b;
 drop table t1;
 # Finally error which happens during insert
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 create table t1 (primary key (a)) (select 1 as a) union all (select 1 as a);
 # What happens if table already exists ?
 create table t1 (i int);
@@ -712,7 +712,7 @@ create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1
 select * from t1;
 # Error which happens during insertion of rows
 alter table t1 add primary key (i);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 create table if not exists t1 (select 2 as i) union all (select 2 as i);
 select * from t1;
 drop table t1;
@@ -798,30 +798,30 @@ drop table t1;
 
 CREATE TABLE t1 (a int, b int);
 insert into t1 values (1,1),(1,2);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TABLE t2 (primary key (a)) select * from t1;
 # This should give warning
 drop table if exists t2;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE t2 (primary key (a)) select * from t1;
 # This should give warning
 drop table if exists t2;
 CREATE TABLE t2 (a int, b int, primary key (a));
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
 SELECT * from t2;
 TRUNCATE table t2;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 INSERT INTO t2 select * from t1;
 SELECT * from t2;
 drop table t2;
 
 CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a));
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
 SELECT * from t2;
 TRUNCATE table t2;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 INSERT INTO t2 select * from t1;
 SELECT * from t2;
 drop table t1,t2;

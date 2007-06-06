@@ -38,9 +38,9 @@ create table t1 (
 # ok
 insert into t1 values('aAa');
 # fail
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values('aaa');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values('AAA');
 # 1
 select * from t1 order by a;
@@ -61,9 +61,9 @@ create table t1 (
 ) engine=ndb;
 #
 insert into t1 values ('A'),('b '),('C  '),('d      '),('E'),('f');
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t1 values('b');
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t1 values('a         ');
 #
 select a,length(a) from t1 order by a;
@@ -106,9 +106,9 @@ create table t1 (
 # ok
 insert into t1 values(1, 'aAa');
 # fail
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values(2, 'aaa');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values(3, 'AAA');
 # 1
 select * from t1 order by p;
@@ -131,9 +131,9 @@ create table t1 (
 ) engine=ndb;
 #
 insert into t1 values (1,'A'),(2,'b '),(3,'C  '),(4,'d      '),(5,'E'),(6,'f');
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t1 values(99,'b');
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t1 values(99,'a         ');
 #
 select a,length(a) from t1 order by a;
@@ -231,7 +231,7 @@ drop table t1;
 #  ('a','A '),('B   ','b'),('c','C    '),('D','d'),('e  ','E'),('F','f  '),
 #  ('A','b '),('b   ','C'),('C','d  '),('d','E'),('E  ','f'),
 #  ('a','C '),('B   ','d'),('c','E  '),('D','f');
-#-- error ER_DUP_ENTRY_WITH_KEY_NAME
+#-- error ER_DUP_ENTRY
 #insert into t1 values('d','f');
 #
 #select a,b,length(a),length(b) from t1 order by a,b limit 3;

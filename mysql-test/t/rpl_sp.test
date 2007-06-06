@@ -153,7 +153,7 @@ create procedure foo4()
 
 delimiter ;|
 
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 call foo4();
 show warnings;
 
@@ -308,7 +308,7 @@ delimiter ;|
 
 do fn1(100);
 
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 select fn1(20);
 
 select * from t2;

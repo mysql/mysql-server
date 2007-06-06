@@ -453,9 +453,9 @@ create table t1 (a int not null auto_increment primary key, b text not null, uni
 insert into t1 (b) values ('a'),('b'),('c');
 select concat(b,'.') from t1;
 update t1 set b='b ' where a=2;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 update t1 set b='b  ' where a > 1;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 (b) values ('b');
 select * from t1;
 delete from t1 where b='b';
