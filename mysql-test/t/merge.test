@@ -486,4 +486,25 @@ insert into t1 values (1);
 drop table t2;
 drop table t1;
 
+#
+# BUG#26976 - Missing table in merge not noted in related error msg + SHOW
+#             CREATE TABLE fails
+#
+CREATE TABLE tm1(a INT) ENGINE=MERGE UNION=(t1, t2);
+--error 1168
+SELECT * FROM tm1;
+CHECK TABLE tm1;
+CREATE TABLE t1(a INT);
+--error 1168
+SELECT * FROM tm1;
+CHECK TABLE tm1;
+CREATE TABLE t2(a BLOB);
+--error 1168
+SELECT * FROM tm1;
+CHECK TABLE tm1;
+ALTER TABLE t2 MODIFY a INT;
+SELECT * FROM tm1;
+CHECK TABLE tm1;
+DROP TABLE tm1, t1, t2;
+
 --echo End of 5.0 tests
