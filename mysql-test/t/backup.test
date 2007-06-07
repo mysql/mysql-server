@@ -1,3 +1,8 @@
+
+# The server need to be started in $MYSQLTEST_VARDIR since it
+# uses ../std_data_ln/
+-- source include/uses_vardir.inc
+
 #
 # This test is a bit tricky as we can't use backup table to overwrite an old
 # table
