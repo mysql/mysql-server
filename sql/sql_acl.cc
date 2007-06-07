@@ -978,14 +978,15 @@ bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
   */
   for (i=0 ; i < acl_users.elements ; i++)
   {
-    acl_user= dynamic_element(&acl_users,i,ACL_USER*);
-    if ((!acl_user->user && !user[0]) ||
-	(acl_user->user && strcmp(user, acl_user->user) == 0))
+    ACL_USER *acl_user_tmp= dynamic_element(&acl_users,i,ACL_USER*);
+    if ((!acl_user_tmp->user && !user[0]) ||
+        (acl_user_tmp->user && strcmp(user, acl_user_tmp->user) == 0))
     {
-      if (compare_hostname(&acl_user->host, host, ip))
+      if (compare_hostname(&acl_user_tmp->host, host, ip))
       {
-	res= 0;
-	break;
+        acl_user= acl_user_tmp;
+        res= 0;
+        break;
       }
     }
   }
