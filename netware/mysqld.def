@@ -6,7 +6,7 @@ COPYRIGHT "(c) 2003-2005 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Res
 DESCRIPTION "MySQL Database Server"
 VERSION 4, 0
 MULTIPLE
-STACKSIZE 65536
+STACKSIZE 131072
 XDCDATA ../netware/mysql.xdc
 #DEBUG
 
