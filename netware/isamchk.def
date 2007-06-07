@@ -6,7 +6,7 @@ SCREENNAME "MySQL ISAM Table Check Tool"
 COPYRIGHT "(c) 2003-2005 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
 DESCRIPTION "MySQL ISAM Table Check Tool"
 VERSION 4, 0
-STACKSIZE 65536
+STACKSIZE 131072
 XDCDATA ../netware/mysql.xdc
 #DEBUG
 
