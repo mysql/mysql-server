@@ -1475,6 +1475,8 @@ row_merge_read_clustered_index(
 		dtuple_t*	row;
 		row_ext_t*	ext;
 
+		btr_pcur_move_to_next_on_page(&pcur, &mtr);
+
 		/* When switching pages, commit the mini-transaction
 		in order to release the latch on the old page. */
 
@@ -1484,10 +1486,9 @@ row_merge_read_clustered_index(
 			mtr_start(&mtr);
 			btr_pcur_restore_position(BTR_SEARCH_LEAF,
 						  &pcur, &mtr);
-		}
-
-		if (!btr_pcur_move_to_next(&pcur, &mtr)) {
-			break;
+			if (!btr_pcur_move_to_next_user_rec(&pcur, &mtr)) {
+				break;
+			}
 		}
 
 		rec = btr_pcur_get_rec(&pcur);
