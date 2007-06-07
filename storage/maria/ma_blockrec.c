@@ -3315,12 +3315,16 @@ my_bool _ma_cmp_block_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
 
 my_bool _ma_scan_init_block_record(MARIA_HA *info)
 {
-  byte *ptr;
   DBUG_ENTER("_ma_scan_init_block_record");
-  if (!(ptr= (byte *) my_malloc(info->s->block_size * 2, MYF(MY_WME))))
+  /*
+    bitmap_buff may already be allocated if this is the second call to
+    rnd_init() without a rnd_end() in between, see sql/handler.h
+  */
+  if (!(info->scan.bitmap_buff ||
+        ((info->scan.bitmap_buff=
+          (byte *) my_malloc(info->s->block_size * 2, MYF(MY_WME))))))
     DBUG_RETURN(1);
-  info->scan.bitmap_buff= ptr;
-  info->scan.page_buff= ptr + info->s->block_size;
+  info->scan.page_buff= info->scan.bitmap_buff + info->s->block_size;
   info->scan.bitmap_end= info->scan.bitmap_buff + info->s->bitmap.total_size;
 
   /* Set scan variables to get _ma_scan_block() to start with reading bitmap */
