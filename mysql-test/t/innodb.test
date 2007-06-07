@@ -13,6 +13,7 @@
 
 -- source include/not_embedded.inc
 -- source include/have_innodb.inc
+-- source include/have_log_bin.inc
 
 #
 # Small basic test with ignore

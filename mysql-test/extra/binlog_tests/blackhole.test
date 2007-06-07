@@ -4,6 +4,7 @@
 #
 -- source include/not_embedded.inc
 -- source include/have_blackhole.inc
+-- source include/have_log_bin.inc
 
 # The server need to be started in $MYSQLTEST_VARDIR since it
 # uses ../std_data_ln/
