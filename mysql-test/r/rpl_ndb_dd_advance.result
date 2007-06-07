@@ -188,8 +188,6 @@ ADD DATAFILE 'datafile04.dat'
 INITIAL_SIZE 5M
 ENGINE=NDB;
 DROP DATABASE IF EXISTS tpcb;
-Warnings:
-Note	1008	Can't drop database 'tpcb'; database doesn't exist
 CREATE DATABASE tpcb;
 
 CREATE TABLE tpcb.account
