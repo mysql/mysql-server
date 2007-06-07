@@ -210,7 +210,7 @@ let engine_type=NDBCLUSTER;
 let table_space=ts2;
 let format='RBR';
 
---source include/tpcb_DiskData.inc
+--source include/tpcb_disk_data.inc
 
 --echo ****** TEST 2 test time *********************************
 USE tpcb;
