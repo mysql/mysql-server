@@ -2015,12 +2015,13 @@ connected:
   {
     /*
       Register ourselves with the master.
-      If fails, this is not fatal - we just print the error message and go
-      on with life.
     */
     thd->proc_info = "Registering slave on master";
-    if (register_slave_on_master(mysql) ||  update_slave_list(mysql, mi))
+    if (register_slave_on_master(mysql))
+    {
+      sql_print_error("Slave I/O thread couldn't register on master");
       goto err;
+    }
   }
 
   DBUG_PRINT("info",("Starting reading binary log from master"));
