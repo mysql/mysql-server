@@ -1448,4 +1448,21 @@ drop table t1;
 create table t1 (s1 bigint) partition by list (s1) (partition p1 values in (-9223372036854775808));
 drop table t1;
 
+#
+# Bug #28806: Running SHOW TABLE STATUS during high INSERT load crashes server
+#
+create table t1(a int auto_increment, b int, primary key (b, a)) 
+  partition by hash(b) partitions 2;
+insert into t1 values (null, 1);
+--replace_column 9 0 12 NULL 13 NULL 14 NULL
+show table status;
+drop table t1;
+
+create table t1(a int auto_increment primary key)
+  partition by key(a) partitions 2;
+insert into t1 values (null), (null), (null);
+--replace_column 9 0 12 NULL 13 NULL 14 NULL
+show table status;
+drop table t1;
+
 --echo End of 5.1 tests
