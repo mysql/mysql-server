@@ -540,7 +540,7 @@ void *create_embedded_thd(int client_flag)
   thd->set_time();
   thd->init_for_queries();
   thd->client_capabilities= client_flag;
-  thd->real_id= (pthread_t) thd;
+  thd->real_id= thd->thread_id;
 
   thd->db= NULL;
   thd->db_length= 0;
