@@ -622,7 +622,7 @@ our @tags=
 (
  ["include/have_innodb.inc", "innodb_test", 1],
  ["include/have_binlog_format_row.inc", "binlog_format", "row"],
- ["include/have_binlog.inc", "need_binlog", 1],
+ ["include/have_log_bin.inc", "need_binlog", 1],
  ["include/have_binlog_format_statement.inc", "binlog_format", "statement"],
  ["include/have_binlog_format_mixed.inc", "binlog_format", "mixed"],
  ["include/big_test.inc", "big_test", 1],
