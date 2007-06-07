@@ -151,9 +151,10 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
                              const char *new_db,
                              const char *new_table_name,
                              int have_lock_open);
-int ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
+int ndbcluster_handle_drop_table(Ndb *ndb,
                                  NDB_SHARE *share,
-                                 const char *type_str);
+                                 const char *type_str,
+                                 const char *event_name_postfix);
 void ndb_rep_event_name(String *event_name,
                         const char *db, const char *tbl, my_bool full);
 

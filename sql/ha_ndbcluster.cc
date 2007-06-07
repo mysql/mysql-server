@@ -6492,11 +6492,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   if (!IS_TMP_PREFIX(m_tabname))
   {
     is_old_table_tmpfile= 0;
-    String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, from + sizeof(share_prefix) - 1, 0,
-                       get_binlog_full(share));
-    ndbcluster_handle_drop_table(ndb, event_name.c_ptr(), share,
-                                 "rename table");
+    ndbcluster_handle_drop_table(ndb, share, "rename table",
+                                 from + sizeof(share_prefix) - 1);
   }
 
   if (!result && !IS_TMP_PREFIX(new_tabname))
@@ -6735,12 +6732,10 @@ retry_temporary_error1:
 
   if (!IS_TMP_PREFIX(table_name))
   {
-    String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, path + sizeof(share_prefix) - 1, 0,
-                       get_binlog_full(share));
     ndbcluster_handle_drop_table(ndb,
-                                 table_dropped ? event_name.c_ptr() : 0,
-                                 share, "delete table");
+                                 share, "delete table",
+                                 table_dropped ?
+                                 (path + sizeof(share_prefix) - 1) : 0);
   }
 
   if (share)
