@@ -4253,22 +4253,16 @@ int ha_partition::info(uint flag)
 
   if (flag & HA_STATUS_AUTO)
   {
-    ulonglong nb_reserved_values;
+    ulonglong auto_increment_value= 0;
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
-    /* we don't want to reserve any values, it's pure information */
-
-    if (table->found_next_number_field)
+    file_array= m_file;
+    do
     {
-      /*
-        Can only call get_auto_increment for tables that actually
-        have auto_increment columns, otherwise there will be
-        problems in handlers that don't expect get_auto_increment
-        for non-autoincrement tables.
-      */
-      get_auto_increment(0, 0, 0, &stats.auto_increment_value,
-                         &nb_reserved_values);
-      release_auto_increment();
-    }
+      file= *file_array;
+      file->info(HA_STATUS_AUTO);
+      set_if_bigger(auto_increment_value, file->stats.auto_increment_value);
+    } while (*(++file_array));
+    stats.auto_increment_value= auto_increment_value;
   }
   if (flag & HA_STATUS_VARIABLE)
   {
