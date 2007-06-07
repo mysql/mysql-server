@@ -1,0 +1,29 @@
+-- source include/have_debug.inc
+
+#
+# Bug #28499: crash for grouping query when tmp_table_size is too small
+#
+
+DROP TABLE IF EXISTS t1;
+
+CREATE TABLE t1 (
+  a varchar(32) character set utf8 collate utf8_bin NOT NULL,
+  b varchar(32) character set utf8 collate utf8_bin NOT NULL )
+ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+INSERT INTO t1 VALUES
+  ('AAAAAAAAAA','AAAAAAAAAA'), ('AAAAAAAAAB','AAAAAAAAAB '),
+  ('AAAAAAAAAB','AAAAAAAAAB'), ('AAAAAAAAAC','AAAAAAAAAC'),
+  ('AAAAAAAAAD','AAAAAAAAAD'), ('AAAAAAAAAE','AAAAAAAAAE'),
+  ('AAAAAAAAAF','AAAAAAAAAF'), ('AAAAAAAAAG','AAAAAAAAAG'),
+  ('AAAAAAAAAH','AAAAAAAAAH'), ('AAAAAAAAAI','AAAAAAAAAI'),
+  ('AAAAAAAAAJ','AAAAAAAAAJ'), ('AAAAAAAAAK','AAAAAAAAAK');
+
+set tmp_table_size=1024;
+
+--error ER_DUP_KEY
+SELECT MAX(a) FROM t1 GROUP BY a,b;
+
+set tmp_table_size=default;
+
+DROP TABLE t1;
