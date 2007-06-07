@@ -1,0 +1,71 @@
+<charsets>
+
+  <charset name="utf8">
+    <collation name="utf8_test_ci" id="240">
+      <rules>
+        <reset>a</reset>
+        <s>b</s>
+      </rules>
+    </collation>
+
+  </charset>
+
+  <charset name="ucs2">
+    <collation name="ucs2_test_ci" id="241">
+      <rules>
+        <reset>a</reset>
+        <s>b</s>
+      </rules>
+    </collation>
+    <collation name="ucs2_vn_ci" id="242">
+      <!-- Vietnamese experimental collation -->
+      <rules>
+        <reset>A</reset>
+        <p>\u0103</p><t>\u0102</t>
+        <s>\u1EB1</s><t>\u1EB0</t>
+        <s>\u1EB3</s><t>\u1EB2</t>
+        <s>\u1EB5</s><t>\u1EB4</t>
+        <s>\u1EAF</s><t>\u1EAE</t>
+        <s>\u1EB7</s><t>\u1EB6</t>
+        <p>\u00E2</p><t>\u00C2</t>
+        <s>\u1EA7</s><t>\u1EA6</t>
+        <s>\u1EA9</s><t>\u1EA8</t>
+        <s>\u1EAB</s><t>\u1EAA</t>
+        <s>\u1EA5</s><t>\u1EA4</t>
+        <s>\u1EAD</s><t>\u1EAC</t>
+        <reset>D</reset>
+        <p>\u0111</p><t>\u0110</t>
+        <reset>E</reset>
+        <p>\u00EA</p><t>\u00CA</t>
+        <s>\u1EC1</s><t>\u1EC0</t>
+        <s>\u1EC3</s><t>\u1EC2</t>
+        <s>\u1EC5</s><t>\u1EC4</t>
+        <s>\u1EBF</s><t>\u1EBE</t>
+        <s>\u1EC7</s><t>\u1EC6</t>
+        <reset>O</reset>
+        <p>\u00F4</p><t>\u00D4</t>
+        <s>\u1ED3</s><t>\u1ED2</t>
+        <s>\u1ED5</s><t>\u1ED4</t>
+        <s>\u1ED7</s><t>\u1ED6</t>
+        <s>\u1ED1</s><t>\u1ED0</t>
+        <s>\u1ED9</s><t>\u1ED8</t>
+        <p>\u01A1</p><t>\u01A0</t>
+        <s>\u1EDD</s><t>\u1EDC</t>
+        <s>\u1EDF</s><t>\u1EDE</t>
+        <s>\u1EE1</s><t>\u1EE0</t>
+        <s>\u1EDB</s><t>\u1EDA</t>
+        <s>\u1EE3</s><t>\u1EE2</t>
+        <reset>U</reset>
+        <p>\u01B0</p><t>\u01AF</t>
+        <s>\u1EEB</s><t>\u1EEA</t>
+        <s>\u1EED</s><t>\u1EEC</t>
+        <s>\u1EEF</s><t>\u1EEE</t>
+        <s>\u1EE9</s><t>\u1EE8</t>
+        <s>\u1EF1</s><t>\u1EF0</t>
+      </rules>
+
+    </collation>
+
+  </charset>
+
+</charsets>
