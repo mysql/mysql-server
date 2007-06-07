@@ -2,10 +2,10 @@
 # MySQL Test Run
 #------------------------------------------------------------------------------
 MODULE	libc.nlm
-STACKSIZE 65536
 SCREENNAME "MySQL Test Run"
 COPYRIGHT "(c) 2003-2005 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
 DESCRIPTION "MySQL Test Run"
 VERSION 4, 0
+STACKSIZE 131072
 XDCDATA ../netware/mysql.xdc
 #DEBUG
