@@ -1,17 +1,13 @@
 drop table if exists t1;
-SHOW GLOBAL VARIABLES LIKE "%_format%";
+SHOW GLOBAL VARIABLES LIKE "%e_format";
 Variable_name	Value
-binlog_format	<format>
 date_format	%d.%m.%Y
 datetime_format	%Y-%m-%d %H:%i:%s
-default_week_format	0
 time_format	%H.%i.%s
-SHOW SESSION VARIABLES LIKE "%_format%";
+SHOW SESSION VARIABLES LIKE "%e_format";
 Variable_name	Value
-binlog_format	<format>
 date_format	%d.%m.%Y
 datetime_format	%Y-%m-%d %H:%i:%s
-default_week_format	0
 time_format	%H.%i.%s
 SET time_format='%H%i%s';
 SET time_format='%H:%i:%s.%f';
@@ -30,12 +26,10 @@ set datetime_format= '%H:%i:%s %Y-%m-%d';
 set datetime_format= '%H:%i:%s.%f %m-%d-%Y';
 set datetime_format= '%h:%i:%s %p %Y-%m-%d';
 set datetime_format= '%h:%i:%s.%f %p %Y-%m-%d';
-SHOW SESSION VARIABLES LIKE "%format";
+SHOW SESSION VARIABLES LIKE "%e_format";
 Variable_name	Value
-binlog_format	<format>
 date_format	%m-%d-%Y
 datetime_format	%h:%i:%s.%f %p %Y-%m-%d
-default_week_format	0
 time_format	%h:%i:%s%p
 SET time_format='%h:%i:%s';
 ERROR 42000: Variable 'time_format' can't be set to the value of '%h:%i:%s'

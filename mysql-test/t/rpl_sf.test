@@ -1,3 +1,5 @@
+-- source include/have_log_bin.inc
+
 # Bug#16456 RBR: rpl_sp.test expects query to fail, but passes in RBR
 
 # save status
