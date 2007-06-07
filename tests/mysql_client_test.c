@@ -15653,12 +15653,12 @@ static void test_bug27592()
 
   for (i= 0; i < NUM_ITERATIONS; i++)
   {
-    time_val.year=1000+lrand48()%1000;
-    time_val.month=1+lrand48()%12;
-    time_val.day=1+lrand48()%31;
-    time_val.hour=lrand48()%23;
-    time_val.minute=lrand48()%59;
-    time_val.second=lrand48()%59;
+    time_val.year= 2007;
+    time_val.month= 6;
+    time_val.day= 7;
+    time_val.hour= 18;
+    time_val.minute= 41;
+    time_val.second= 3;
 
     time_val.second_part=0;
     time_val.neg=0;
