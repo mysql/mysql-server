@@ -1,6 +1,8 @@
 # This test uses chmod, can't be run with root permissions
 -- source include/not_as_root.inc
 
+-- source include/have_log_bin.inc
+
 #
 # Test is run with max_binlog_size=2048 to force automatic rotation of the
 # binary log
