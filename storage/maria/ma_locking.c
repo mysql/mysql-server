@@ -190,6 +190,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
       share->tot_locks++;
       break;
     default:
+      DBUG_ASSERT(0);
       break;				/* Impossible */
     }
   }

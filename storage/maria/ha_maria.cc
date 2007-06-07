@@ -1806,6 +1806,7 @@ int ha_maria::info(uint flag)
               MY_APPEND_EXT | MY_UNPACK_FILENAME);
     if (strcmp(name_buff, maria_info.index_file_name))
       index_file_name=maria_info.index_file_name;
+    data_file_type= maria_info.data_file_type;
   }
   if (flag & HA_STATUS_ERRKEY)
   {
