@@ -1601,6 +1601,7 @@ extern int creating_table;    // How many mysql_create_table() are running
 */
 
 extern time_t server_start_time;
+extern uint mysql_data_home_len;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[],
             def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
