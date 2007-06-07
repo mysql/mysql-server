@@ -7889,24 +7889,20 @@ innobase_create_index_field_def(
 /***********************************************************************
 Create index definition for key */
 static
-merge_index_def_t*
+void
 innobase_create_index_def(
 /*======================*/
-					/* out: Index definition */
-	KEY*		key,		/* in: key definition */
-	bool		new_primary,	/* in: TRUE=generating
-					a new primary key */
-	mem_heap_t*	heap)		/* in: heap where memory
-					is allocated */
+	KEY*			key,		/* in: key definition */
+	bool			new_primary,	/* in: TRUE=generating
+						a new primary key */
+	merge_index_def_t*	index,		/* out: index definition */
+	mem_heap_t*		heap)		/* in: heap where memory
+						is allocated */
 {
 	ulint			len;
-	merge_index_def_t*	index;
 	ulint			n_fields = key->key_parts;
 
 	DBUG_ENTER("innobase_create_index_def");
-
-	index = (merge_index_def_t*) mem_heap_alloc_noninline(
-			heap, sizeof(merge_index_def_t));
 
 	index->fields = (merge_index_field_t*) mem_heap_alloc_noninline(
 		heap, n_fields * sizeof *index->fields);
@@ -7938,7 +7934,7 @@ innobase_create_index_def(
 						&index->fields[i]);
 	}
 
-	DBUG_RETURN(index);
+	DBUG_VOID_RETURN;
 }
 
 /***********************************************************************
@@ -7965,20 +7961,17 @@ innobase_copy_index_field_def(
 /***********************************************************************
 Copy index definition for the index */
 static
-merge_index_def_t*
+void
 innobase_copy_index_def(
 /*====================*/
-				/* out: Index definition */
-	dict_index_t*	index,	/* in: index definition to copy */
-	mem_heap_t*	heap)	/* in: heap where memory is allocated */
+	dict_index_t*		index,	/* in: index definition to copy */
+	merge_index_def_t*	new_index,/* out: Index definition */
+	mem_heap_t*		heap)	/* in: heap where allocated */
 {
-	merge_index_def_t*	new_index;
-	ulint			n_fields;
-	ulint			i;
+	ulint	n_fields;
+	ulint	i;
 
 	DBUG_ENTER("innobase_copy_index_def");
-
-	ut_a(index && heap);
 
 	if (!dict_index_is_clust(index)) {
 		/* Note that from the secondary index we take only
@@ -7990,9 +7983,6 @@ innobase_copy_index_def(
 	} else {
 		n_fields = index->n_fields;
 	}
-
-	new_index = (merge_index_def_t*) mem_heap_alloc_noninline(
-					heap, sizeof(merge_index_def_t));
 
 	new_index->fields = (merge_index_field_t*) mem_heap_alloc_noninline(
 		heap, n_fields * sizeof *new_index->fields);
@@ -8006,7 +7996,7 @@ innobase_copy_index_def(
 					      &new_index->fields[i]);
 	}
 
-	DBUG_RETURN(new_index);
+	DBUG_VOID_RETURN;
 }
 
 /***********************************************************************
@@ -8026,7 +8016,7 @@ ENDIF
 
 */
 static
-merge_index_def_t**
+merge_index_def_t*
 innobase_create_key_def(
 /*====================*/
 					/* out: key definitions or NULL */
@@ -8039,8 +8029,8 @@ innobase_create_key_def(
 					be created */
 {
 	ulint			i = 0;
-	merge_index_def_t**	indexdef;
-	merge_index_def_t**	indexdefs;
+	merge_index_def_t*	indexdef;
+	merge_index_def_t*	indexdefs;
 	bool			new_primary;
 
 	DBUG_ENTER("innobase_create_key_def");
@@ -8048,9 +8038,8 @@ innobase_create_key_def(
 	/* We do not need to count the original primary key */
 	const ulint n_indexes = n_keys + UT_LIST_GET_LEN(table->indexes) - 1;
 
-	indexdef = indexdefs = (merge_index_def_t**)
+	indexdef = indexdefs = (merge_index_def_t*)
 		mem_heap_alloc_noninline(heap, sizeof *indexdef * n_indexes);
-
 
 	/* Primary key if defined is always the first index defined for
 	the table */
@@ -8062,8 +8051,8 @@ innobase_create_key_def(
 		dict_index_t*   index;
 
 		/* Create the PRIMARY key index definition */
-		*indexdef = innobase_create_index_def(key_info,
-						      new_primary, heap);
+		innobase_create_index_def(key_info, new_primary,
+					  indexdef++, heap);
 
 		row_mysql_lock_data_dictionary(trx);
 
@@ -8074,13 +8063,11 @@ innobase_create_key_def(
 
 		/* Copy the definitions of old secondary indexes */
 
-		++indexdef; /* Since we've copied the primary key info */
-
 		while (index) {
 
 			ut_a(!dict_index_is_clust(index));
 
-			*indexdef++ = innobase_copy_index_def(index, heap);
+			innobase_copy_index_def(index, indexdef++, heap);
 			index = dict_table_get_next_index_noninline(index);
 		}
 
@@ -8093,8 +8080,8 @@ innobase_create_key_def(
 	/* Create definitions for added secondary indexes. */
 
 	while (i < n_keys) {
-		*indexdef++ = innobase_create_index_def(&key_info[i++],
-							new_primary, heap);
+		innobase_create_index_def(&key_info[i++], new_primary,
+					  indexdef++, heap);
 	}
 
 	n_keys = indexdef - indexdefs;
@@ -8140,7 +8127,7 @@ ha_innobase::add_index(
 	dict_index_t**	index;		/* Index to be created */
 	dict_table_t*	innodb_table;	/* InnoDB table in dictionary */
 	dict_table_t*	indexed_table;	/* Table where indexes are created */
-	merge_index_def_t** index_defs; /* Index definitions */
+	merge_index_def_t* index_defs; /* Index definitions */
 	mem_heap_t*     heap;		/* Heap for index definitions */
 	trx_t*		trx;		/* Transaction */
 	trx_t*		parent_trx;
@@ -8205,7 +8192,7 @@ err_exit:
 	to drop all original secondary indexes from the table. These
 	indexes will be rebuilt below. */
 
-	new_primary = 0 != (DICT_CLUSTERED & index_defs[0]->ind_type);
+	new_primary = 0 != (DICT_CLUSTERED & index_defs[0].ind_type);
 
 	if (new_primary) {
 		char*	new_table_name = innobase_create_temporary_tablename(
@@ -8250,14 +8237,14 @@ err_exit:
 	for (ulint i = 0; i < num_of_idx; i++) {
 
 		index[i] = row_merge_create_index(trx, indexed_table,
-						  index_defs[i]);
+						  &index_defs[i]);
 
 		if (!index[i]) {
 			error = trx->error_state;
 			goto error_handling;
 		}
 
-		if (index_defs[i]->ind_type & DICT_UNIQUE) {
+		if (index_defs[i].ind_type & DICT_UNIQUE) {
 
 			new_unique = TRUE;
 		}
