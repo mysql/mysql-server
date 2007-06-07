@@ -4072,34 +4072,16 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     */
     if (!table->table)
     {
-      char buf[ERRMSGSIZE+ERRMSGSIZE+2];
-      const char *err_msg;
-      protocol->prepare_for_resend();
-      protocol->store(table_name, system_charset_info);
-      protocol->store(operator_name, system_charset_info);
-      protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-      if (!(err_msg=thd->net.last_error))
-	err_msg=ER(ER_CHECK_NO_SUCH_TABLE);
+      if (!thd->warn_list.elements)
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                     ER_CHECK_NO_SUCH_TABLE, ER(ER_CHECK_NO_SUCH_TABLE));
       /* if it was a view will check md5 sum */
       if (table->view &&
           view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
-      {
-        strxmov(buf, err_msg, "; ", ER(ER_VIEW_CHECKSUM), NullS);
-        err_msg= (const char *)buf;
-      }
-      protocol->store(err_msg, system_charset_info);
-      lex->cleanup_after_one_table_open();
-      thd->clear_error();
-      /*
-        View opening can be interrupted in the middle of process so some
-        tables can be left opening
-      */
-      ha_autocommit_or_rollback(thd, 1);
-      close_thread_tables(thd);
-      lex->reset_query_tables_list(FALSE);
-      if (protocol->write())
-	goto err;
-      continue;
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                     ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
+      result_code= HA_ADMIN_CORRUPT;
+      goto send_result;
     }
 
     if (table->view)
@@ -4185,6 +4167,21 @@ send_result:
 
     lex->cleanup_after_one_table_open();
     thd->clear_error();  // these errors shouldn't get client
+    {
+      List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
+      MYSQL_ERROR *err;
+      while ((err= it++))
+      {
+        protocol->prepare_for_resend();
+        protocol->store(table_name, system_charset_info);
+        protocol->store((char*) operator_name, system_charset_info);
+        protocol->store(warning_level_names[err->level], system_charset_info);
+        protocol->store(err->msg, system_charset_info);
+        if (protocol->write())
+          goto err;
+      }
+      mysql_reset_errors(thd, true);
+    }
     protocol->prepare_for_resend();
     protocol->store(table_name, system_charset_info);
     protocol->store(operator_name, system_charset_info);
@@ -4788,7 +4785,7 @@ bool mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
   DBUG_ENTER("mysql_check_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
 				"check", lock_type,
-				0, HA_OPEN_FOR_REPAIR, 0, 0,
+				0, 0, HA_OPEN_FOR_REPAIR, 0,
 				&handler::ha_check, &view_checksum));
 }
 

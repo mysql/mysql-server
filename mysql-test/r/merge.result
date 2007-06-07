@@ -847,4 +847,36 @@ insert into t1 values (1);
 ERROR HY000: Table 't1' is read only
 drop table t2;
 drop table t1;
+CREATE TABLE tm1(a INT) ENGINE=MERGE UNION=(t1, t2);
+SELECT * FROM tm1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+CHECK TABLE tm1;
+Table	Op	Msg_type	Msg_text
+test.tm1	check	Error	Table './test/t1' is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	Error	Table './test/t2' is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	error	Corrupt
+CREATE TABLE t1(a INT);
+SELECT * FROM tm1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+CHECK TABLE tm1;
+Table	Op	Msg_type	Msg_text
+test.tm1	check	Error	Table './test/t2' is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	error	Corrupt
+CREATE TABLE t2(a BLOB);
+SELECT * FROM tm1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+CHECK TABLE tm1;
+Table	Op	Msg_type	Msg_text
+test.tm1	check	Error	Table './test/t2' is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	error	Corrupt
+ALTER TABLE t2 MODIFY a INT;
+SELECT * FROM tm1;
+a
+CHECK TABLE tm1;
+Table	Op	Msg_type	Msg_text
+test.tm1	check	status	OK
+DROP TABLE tm1, t1, t2;
 End of 5.0 tests
