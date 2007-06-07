@@ -1304,6 +1304,11 @@ public:
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(byte *select_arg);
   void print(String *str);
+  Field::geometry_type get_geometry_type()
+  {
+    DBUG_ASSERT(field_type() == MYSQL_TYPE_GEOMETRY);
+    return field->get_geometry_type();
+  }
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
@@ -2563,6 +2568,7 @@ class Item_type_holder: public Item
 protected:
   TYPELIB *enum_set_typelib;
   enum_field_types fld_type;
+  Field::geometry_type geometry_type;
 
   void get_full_info(Item *item);
 
@@ -2582,6 +2588,7 @@ public:
   Field *make_field_by_type(TABLE *table);
   static uint32 display_length(Item *item);
   static enum_field_types get_real_type(Item *);
+  Field::geometry_type get_geometry_type() { return geometry_type; };
 };
 
 
