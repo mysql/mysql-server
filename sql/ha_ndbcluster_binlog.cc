@@ -3540,15 +3540,26 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
   (unless it has already dropped... then share->op == 0)
 */
 int
-ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
-                             NDB_SHARE *share, const char *type_str)
+ndbcluster_handle_drop_table(Ndb *ndb, NDB_SHARE *share, const char *type_str,
+                             const char *event_name_prefix)
 {
   DBUG_ENTER("ndbcluster_handle_drop_table");
   THD *thd= current_thd;
 
-  NDBDICT *dict= ndb->getDictionary();
-  if (event_name && dict->dropEvent(event_name))
+  /*
+    There might be 2 types of events setup for the table, we cannot know
+    which ones are supposed to be there as they may have been created
+    differently for different mysqld's.  So we drop both
+  */
+  for (uint i= 0; event_name_prefix && i < 1; i++)
   {
+    NDBDICT *dict= ndb->getDictionary();
+    String event_name(INJECTOR_EVENT_LEN);
+    ndb_rep_event_name(&event_name, event_name_prefix, 0, i);
+
+    if (!dict->dropEvent(event_name.c_ptr()))
+      continue;
+
     if (dict->getNdbError().code != 4710)
     {
       /* drop event failed for some reason, issue a warning */
@@ -3559,7 +3570,7 @@ ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
       /* error is not that the event did not exist */
       sql_print_error("NDB Binlog: Unable to drop event in database. "
                       "Event: %s Error Code: %d Message: %s",
-                      event_name,
+                      event_name.c_ptr(),
                       dict->getNdbError().code,
                       dict->getNdbError().message);
       /* ToDo; handle error? */
