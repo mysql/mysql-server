@@ -205,8 +205,8 @@ void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
     TRUE  Error sending data to client
 */
 
-static const char *warning_level_names[]= {"Note", "Warning", "Error", "?"};
-static int warning_level_length[]= { 4, 7, 5, 1 };
+const char *warning_level_names[]= {"Note", "Warning", "Error", "?"};
+int warning_level_length[]= { 4, 7, 5, 1 };
 
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 {  

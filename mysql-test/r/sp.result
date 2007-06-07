@@ -4409,55 +4409,58 @@ Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 test.t2	repair	status	OK
 test.t3	repair	status	OK
-test.v1	repair	error	'test.v1' is not BASE TABLE
+test.v1	repair	Error	'test.v1' is not BASE TABLE
+test.v1	repair	error	Corrupt
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 test.t2	optimize	status	OK
 test.t3	optimize	status	OK
-test.v1	optimize	error	'test.v1' is not BASE TABLE
+test.v1	optimize	Error	'test.v1' is not BASE TABLE
+test.v1	optimize	error	Corrupt
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 test.t2	analyze	status	Table is already up to date
 test.t3	analyze	status	Table is already up to date
-test.v1	analyze	error	'test.v1' is not BASE TABLE
-Warnings:
-Error	1347	'test.v1' is not BASE TABLE
+test.v1	analyze	Error	'test.v1' is not BASE TABLE
+test.v1	analyze	error	Corrupt
 call bug13012()|
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 test.t2	repair	status	OK
 test.t3	repair	status	OK
-test.v1	repair	error	'test.v1' is not BASE TABLE
+test.v1	repair	Error	'test.v1' is not BASE TABLE
+test.v1	repair	error	Corrupt
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 test.t2	optimize	status	OK
 test.t3	optimize	status	OK
-test.v1	optimize	error	'test.v1' is not BASE TABLE
+test.v1	optimize	Error	'test.v1' is not BASE TABLE
+test.v1	optimize	error	Corrupt
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 test.t2	analyze	status	Table is already up to date
 test.t3	analyze	status	Table is already up to date
-test.v1	analyze	error	'test.v1' is not BASE TABLE
-Warnings:
-Error	1347	'test.v1' is not BASE TABLE
+test.v1	analyze	Error	'test.v1' is not BASE TABLE
+test.v1	analyze	error	Corrupt
 call bug13012()|
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 test.t2	repair	status	OK
 test.t3	repair	status	OK
-test.v1	repair	error	'test.v1' is not BASE TABLE
+test.v1	repair	Error	'test.v1' is not BASE TABLE
+test.v1	repair	error	Corrupt
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 test.t2	optimize	status	OK
 test.t3	optimize	status	OK
-test.v1	optimize	error	'test.v1' is not BASE TABLE
+test.v1	optimize	Error	'test.v1' is not BASE TABLE
+test.v1	optimize	error	Corrupt
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 test.t2	analyze	status	Table is already up to date
 test.t3	analyze	status	Table is already up to date
-test.v1	analyze	error	'test.v1' is not BASE TABLE
-Warnings:
-Error	1347	'test.v1' is not BASE TABLE
+test.v1	analyze	Error	'test.v1' is not BASE TABLE
+test.v1	analyze	error	Corrupt
 drop procedure bug13012|
 drop view v1;
 select * from t1|
