@@ -103,6 +103,13 @@ static byte *trn_get_hash_key(const byte *trn, uint* len,
 int trnman_init()
 {
   DBUG_ENTER("trnman_init");
+
+  short_trid_to_active_trn= (TRN **)my_malloc(SHORT_TRID_MAX*sizeof(TRN*),
+                                     MYF(MY_WME|MY_ZEROFILL));
+  if (unlikely(!short_trid_to_active_trn))
+    DBUG_RETURN(1);
+  short_trid_to_active_trn--; /* min short_trid is 1 */
+
   /*
     Initialize lists.
     active_list_max.min_read_from must be larger than any trid,
@@ -136,11 +143,6 @@ int trnman_init()
   pthread_mutex_init(&LOCK_trn_list, MY_MUTEX_INIT_FAST);
   my_atomic_rwlock_init(&LOCK_short_trid_to_trn);
   my_atomic_rwlock_init(&LOCK_pool);
-  short_trid_to_active_trn= (TRN **)my_malloc(SHORT_TRID_MAX*sizeof(TRN*),
-                                     MYF(MY_WME|MY_ZEROFILL));
-  if (unlikely(!short_trid_to_active_trn))
-    DBUG_RETURN(1);
-  short_trid_to_active_trn--; /* min short_trid is 1 */
 
 #ifdef NOT_USED
   lockman_init(&maria_lockman, (loid_to_lo_func *)&short_trid_to_TRN, 10000);
@@ -157,6 +159,9 @@ int trnman_init()
 void trnman_destroy()
 {
   DBUG_ENTER("trnman_destroy");
+
+  if (short_trid_to_active_trn == NULL) /* trnman already destroyed */
+    DBUG_VOID_RETURN;
   DBUG_ASSERT(trid_to_committed_trn.count == 0);
   DBUG_ASSERT(trnman_active_transactions == 0);
   DBUG_ASSERT(trnman_committed_transactions == 0);
@@ -178,6 +183,7 @@ void trnman_destroy()
   my_atomic_rwlock_destroy(&LOCK_short_trid_to_trn);
   my_atomic_rwlock_destroy(&LOCK_pool);
   my_free((void *)(short_trid_to_active_trn+1), MYF(0));
+  short_trid_to_active_trn= NULL;
 #ifdef NOT_USED
   lockman_destroy(&maria_lockman);
 #endif
