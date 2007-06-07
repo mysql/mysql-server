@@ -2,8 +2,7 @@
 # TODO: Need to look at making a row based version once the new row based client is completed. [jbm]
 -- source include/have_binlog_format_mixed_or_statement.inc
 
-# Embedded server doesn't support binlogging
--- source include/not_embedded.inc
+-- source include/have_log_bin.inc
 
 # we need this for getting fixed timestamps inside of this test
 set timestamp=1000000000;
