@@ -1,5 +1,5 @@
 # Replication tests need binlog
-source include/have_binlog.inc;
+source include/have_log_bin.inc;
 
 connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
 connect (master1,127.0.0.1,root,,test,$MASTER_MYPORT,);
