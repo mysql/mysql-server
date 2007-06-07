@@ -1,3 +1,4 @@
+-- source include/have_log_bin.inc
 #####################
 # Change Author: JBM
 # Change Date: 2006-01-17
