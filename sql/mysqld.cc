@@ -491,6 +491,7 @@ key_map key_map_full(0);                        // Will be initialized later
 
 const char *opt_date_time_formats[3];
 
+uint mysql_data_home_len;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
@@ -3770,6 +3771,7 @@ int main(int argc, char **argv)
   mysql_data_home= mysql_data_home_buff;
   mysql_data_home[0]=FN_CURLIB;		// all paths are relative from here
   mysql_data_home[1]=0;
+  mysql_data_home_len= 2;
 
   if ((user_info= check_user(mysqld_user)))
   {
@@ -7056,6 +7058,7 @@ static void mysql_init_variables(void)
 	  sizeof(mysql_real_data_home)-1);
   mysql_data_home_buff[0]=FN_CURLIB;	// all paths are relative from here
   mysql_data_home_buff[1]=0;
+  mysql_data_home_len= 2;
 
   /* Replication parameters */
   master_user= (char*) "test";
@@ -7217,6 +7220,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     strmake(mysql_real_data_home,argument, sizeof(mysql_real_data_home)-1);
     /* Correct pointer set by my_getopt (for embedded library) */
     mysql_data_home= mysql_real_data_home;
+    mysql_data_home_len= strlen(mysql_data_home);
     break;
   case 'u':
     if (!mysqld_user || !strcmp(mysqld_user, argument))
