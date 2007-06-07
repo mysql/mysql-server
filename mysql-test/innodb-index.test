@@ -271,9 +271,11 @@ insert into t1 values (44,repeat('adfd72nh9k',440),repeat('adfd72nh9k',880),'adf
 
 select count(*) from t1 where a=44;
 select a,b=repeat(d,10*a),c=repeat(d,20*a) from t1;
+select a,length(b),length(c),d from t1;
 alter table t1 add primary key (a), add key (b(20));
 select count(*) from t1 where a=44;
 select a,b=repeat(d,10*a),c=repeat(d,20*a) from t1;
+select a,length(b),length(c),d from t1;
 insert into t1 values (33,repeat('adfdpplkeock',330),repeat('adfdpplkeock',660),'adfdpplkeock');
 insert into t1 values (55,repeat('adfdijnmnb78k',550),repeat('adfdijnmnb78k',1100),'adfdijnmnb78k');
 insert into t1 values (66,repeat('adfdijn0loKNHJik',660),repeat('adfdijn0loKNHJik',1320),'adfdijn0loKNHJik');
@@ -281,4 +283,5 @@ show create table t1;
 check table t1;
 explain select * from t1 where b like 'adfd%';
 select a,b=repeat(d,10*a),c=repeat(d,20*a) from t1;
+select a,length(b),length(c),d from t1;
 drop table t1;
