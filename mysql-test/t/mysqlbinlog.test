@@ -1,7 +1,6 @@
 # We are using .opt file since we need small binlog size
 
-# Embedded server doesn't support binlogging
--- source include/not_embedded.inc
+-- source include/have_log_bin.inc
 
 # we need this for getting fixed timestamps inside of this test
 set timestamp=1000000000;
