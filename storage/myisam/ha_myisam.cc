@@ -84,6 +84,14 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
   }
   length=(uint) (strxmov(name, param->db_name,".",param->table_name,NullS) -
 		 name);
+  /*
+    TODO: switch from protocol to push_warning here. The main reason we didn't
+    it yet is parallel repair. Due to following trace:
+    mi_check_print_msg/push_warning/sql_alloc/my_pthread_getspecific_ptr.
+
+    Also we likely need to lock mutex here (in both cases with protocol and
+    push_warning).
+  */
   protocol->prepare_for_resend();
   protocol->store(name, length, system_charset_info);
   protocol->store(param->op_name, system_charset_info);
