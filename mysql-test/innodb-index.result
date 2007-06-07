@@ -947,6 +947,10 @@ select a,b=repeat(d,10*a),c=repeat(d,20*a) from t1;
 a	b=repeat(d,10*a)	c=repeat(d,20*a)
 22	1	1
 44	1	1
+select a,length(b),length(c),d from t1;
+a	length(b)	length(c)	d
+22	2200	4400	jejdkrun87
+44	4400	8800	adfd72nh9k
 alter table t1 add primary key (a), add key (b(20));
 select count(*) from t1 where a=44;
 count(*)
@@ -955,6 +959,10 @@ select a,b=repeat(d,10*a),c=repeat(d,20*a) from t1;
 a	b=repeat(d,10*a)	c=repeat(d,20*a)
 22	1	1
 44	1	1
+select a,length(b),length(c),d from t1;
+a	length(b)	length(c)	d
+22	2200	4400	jejdkrun87
+44	4400	8800	adfd72nh9k
 insert into t1 values (33,repeat('adfdpplkeock',330),repeat('adfdpplkeock',660),'adfdpplkeock');
 insert into t1 values (55,repeat('adfdijnmnb78k',550),repeat('adfdijnmnb78k',1100),'adfdijnmnb78k');
 insert into t1 values (66,repeat('adfdijn0loKNHJik',660),repeat('adfdijn0loKNHJik',1320),'adfdijn0loKNHJik');
@@ -981,4 +989,11 @@ a	b=repeat(d,10*a)	c=repeat(d,20*a)
 44	1	1
 55	1	1
 66	1	1
+select a,length(b),length(c),d from t1;
+a	length(b)	length(c)	d
+22	2200	4400	jejdkrun87
+33	3960	7920	adfdpplkeock
+44	4400	8800	adfd72nh9k
+55	7150	14300	adfdijnmnb78k
+66	10560	21120	adfdijn0loKNHJik
 drop table t1;
