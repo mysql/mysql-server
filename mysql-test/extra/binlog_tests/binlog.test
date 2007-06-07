@@ -4,6 +4,7 @@
 
 -- source include/not_embedded.inc
 -- source include/have_innodb.inc
+-- source include/have_log_bin.inc
 -- source include/have_debug.inc
 
 --disable_warnings
