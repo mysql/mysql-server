@@ -3,6 +3,7 @@
 
 -- source include/have_binlog_format_mixed_or_statement.inc
 -- source include/have_cp932.inc
+-- source include/have_log_bin.inc
 
 # Bug#16217 (mysql client did not know how not switch its internal charset)
 flush logs;
