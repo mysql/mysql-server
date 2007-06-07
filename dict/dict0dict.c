@@ -4811,13 +4811,13 @@ dict_redo_remove_index(
 }
 
 /**************************************************************************
-Add the indexes to SYS_INDEX.*/
+Add the indexes to SYS_INDEX. */
 
 ulint
 dict_rename_indexes(
 /*================*/
-	trx_t*		trx,		/* in: transaction */
-	ibool		commit_flag)	/* in: UNUSED */
+	trx_t*	trx,		/* in: transaction */
+	ibool	commit_flag)	/* in: TRUE=commit, FALSE=rollback */
 {
 	dict_redo_t*	dict_redo;
 	ulint		err = DB_SUCCESS;
@@ -4835,10 +4835,9 @@ dict_rename_indexes(
 		ut_a(index->table);
 		ut_a(!ut_dulint_is_zero(index->id));
 		ut_a(index->space == index->table->space);
-#ifdef UNIV_DEBUG
+#if 0
 		fprintf(stderr, "Renaming index: %s\n", index->name);
-#endif /* UNIV_DEBUG */
-
+#endif
 		err = row_merge_rename_index(trx, index->table, index);
 
 		dict_redo = UT_LIST_GET_NEXT(node, dict_redo);

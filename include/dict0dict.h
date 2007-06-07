@@ -1174,13 +1174,13 @@ dict_redo_free_list(
 /*================*/
 	trx_t*		trx);	/* in: free this trx's redo list */
 /**************************************************************************
-Add the indexes to SYS_INDEX.*/
+Add the indexes to SYS_INDEX. */
 
 ulint
 dict_rename_indexes(
 /*================*/
-	trx_t*		trx,/* in: transaction */
-	ibool		commit_flag); /* in: ignored for now */
+	trx_t*	trx,		/* in: transaction */
+	ibool	commit_flag);	/* in: TRUE=commit, FALSE=rollback */
 /**************************************************************************
 Remove the index from the transaction's REDO list.*/
 
