@@ -364,6 +364,7 @@ public:
   {
     /* shouldn't get here. */
     DBUG_ASSERT(0);
+    return GEOM_GEOMETRY;
   }
   friend bool reopen_table(THD *,struct st_table *,bool);
   friend int cre_myisam(my_string name, register TABLE *form, uint options,
