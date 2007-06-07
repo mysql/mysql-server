@@ -1235,4 +1235,18 @@ aaa	2
 drop table t1;
 create table t1 (s1 bigint) partition by list (s1) (partition p1 values in (-9223372036854775808));
 drop table t1;
+create table t1(a int auto_increment, b int, primary key (b, a)) 
+partition by hash(b) partitions 2;
+insert into t1 values (null, 1);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	9	9	0	0	0	1	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+drop table t1;
+create table t1(a int auto_increment primary key)
+partition by key(a) partitions 2;
+insert into t1 values (null), (null), (null);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	3	7	21	0	0	0	4	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+drop table t1;
 End of 5.1 tests

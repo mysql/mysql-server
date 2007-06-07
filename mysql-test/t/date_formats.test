@@ -7,9 +7,9 @@ drop table if exists t1;
 --enable_warnings
 
 --replace_result ROW <format> STATEMENT <format> MIXED <format>
-SHOW GLOBAL VARIABLES LIKE "%_format%";
+SHOW GLOBAL VARIABLES LIKE "%e_format";
 --replace_result ROW <format> STATEMENT <format> MIXED <format>
-SHOW SESSION VARIABLES LIKE "%_format%";
+SHOW SESSION VARIABLES LIKE "%e_format";
 
 #
 # Test setting a lot of different formats to see which formats are accepted and
@@ -37,7 +37,7 @@ set datetime_format= '%h:%i:%s %p %Y-%m-%d';
 set datetime_format= '%h:%i:%s.%f %p %Y-%m-%d';
 
 --replace_result ROW <format> STATEMENT <format> MIXED <format>
-SHOW SESSION VARIABLES LIKE "%format";
+SHOW SESSION VARIABLES LIKE "%e_format";
 
 --error 1231
 SET time_format='%h:%i:%s';

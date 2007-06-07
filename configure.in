@@ -1867,6 +1867,19 @@ else
 fi
 AC_SUBST(TERMCAP_LIB)
 
+# Check if the termcap function 'tgoto' is already declared in
+# system header files or if it need to be declared locally
+AC_CHECK_DECLS(tgoto,,,[
+#ifdef HAVE_CURSES_H
+# include <curses.h>
+#elif HAVE_NCURSES_H
+# include <ncurses.h>
+#endif
+#ifdef HAVE_TERM_H
+# include <term.h>
+#endif
+])
+
 LIBEDIT_LOBJECTS=""
 AC_CHECK_FUNC(strunvis, ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS unvis.o"])
 AC_CHECK_FUNC(strvis,   ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS vis.o"])
