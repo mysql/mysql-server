@@ -73,16 +73,16 @@ enum release_type { RELEASE_NORMAL, RELEASE_WAIT_FOR_DROP };
 
 typedef struct st_filesort_info
 {
-  IO_CACHE *io_cache;           /* If sorted through filebyte                */
-  uchar   **sort_keys;          /* Buffer for sorting keys                   */
-  byte     *buffpek;            /* Buffer for buffpek structures             */
-  uint      buffpek_len;        /* Max number of buffpeks in the buffer      */
-  byte     *addon_buf;          /* Pointer to a buffer if sorted with fields */
-  uint      addon_length;       /* Length of the buffer                      */
+  IO_CACHE *io_cache;           /* If sorted through filesort */
+  uchar     **sort_keys;        /* Buffer for sorting keys */
+  uchar     *buffpek;           /* Buffer for buffpek structures */
+  uint      buffpek_len;        /* Max number of buffpeks in the buffer */
+  uchar     *addon_buf;         /* Pointer to a buffer if sorted with fields */
+  size_t    addon_length;       /* Length of the buffer */
   struct st_sort_addon_field *addon_field;     /* Pointer to the fields info */
-  void    (*unpack)(struct st_sort_addon_field *, byte *); /* To unpack back */
-  byte     *record_pointers;    /* If sorted in memory                       */
-  ha_rows   found_records;      /* How many records in sort                  */
+  void    (*unpack)(struct st_sort_addon_field *, uchar *); /* To unpack back */
+  uchar     *record_pointers;    /* If sorted in memory */
+  ha_rows   found_records;      /* How many records in sort */
 } FILESORT_INFO;
 
 
@@ -137,7 +137,7 @@ typedef struct st_table_share
   KEY  *key_info;			/* data of keys in database */
   uint	*blob_field;			/* Index to blobs in Field arrray*/
 
-  byte	*default_values;		/* row with default values */
+  uchar	*default_values;		/* row with default values */
   LEX_STRING comment;			/* Comment about table */
   CHARSET_INFO *table_charset;		/* Default charset of string fields */
 
@@ -172,7 +172,12 @@ typedef struct st_table_share
   ulong   timestamp_offset;		/* Set to offset+1 of record */
   ulong   reclength;			/* Recordlength */
 
-  handlerton *db_type;			/* table_type for handler */
+  plugin_ref db_plugin;			/* storage engine plugin */
+  inline handlerton *db_type() const	/* table_type for handler */
+  { 
+    // DBUG_ASSERT(db_plugin);
+    return db_plugin ? plugin_data(db_plugin, handlerton*) : NULL;
+  }
   enum row_type row_type;		/* How rows are stored */
   enum tmp_table_type tmp_table;
 
@@ -299,6 +304,8 @@ typedef struct st_table_share
 } TABLE_SHARE;
 
 
+extern ulong refresh_version;
+
 /* Information for one open table */
 enum index_hint_type
 {
@@ -314,17 +321,17 @@ struct st_table {
   handler	*file;
 #ifdef NOT_YET
   struct st_table *used_next, **used_prev;	/* Link to used tables */
-#endif
   struct st_table *open_next, **open_prev;	/* Link to open tables */
+#endif
   struct st_table *next, *prev;
 
   THD	*in_use;                        /* Which thread uses this */
   Field **field;			/* Pointer to fields */
 
-  byte *record[2];			/* Pointer to records */
-  byte *write_row_record;		/* Used as optimisation in
+  uchar *record[2];			/* Pointer to records */
+  uchar *write_row_record;		/* Used as optimisation in
 					   THD::write_row */
-  byte *insert_values;                  /* used by INSERT ... UPDATE */
+  uchar *insert_values;                  /* used by INSERT ... UPDATE */
   /* 
     Map of keys that can be used to retrieve all data from this table 
     needed by the query without reading the row.
@@ -422,16 +429,35 @@ struct st_table {
   /*
     If true, the current table row is considered to have all columns set to 
     NULL, including columns declared as "not null" (see maybe_null).
+  */
+  my_bool null_row;
 
-    TODO: Each of these flags take up 8 bits. They can just as easily
+  /*
+    TODO: Each of the following flags take up 8 bits. They can just as easily
     be put into one single unsigned long and instead of taking up 18
     bytes, it would take up 4.
   */
-  my_bool null_row;
   my_bool force_index;
   my_bool distinct,const_table,no_rows;
   my_bool key_read, no_keyread;
-  my_bool locked_by_flush;
+  /*
+    Placeholder for an open table which prevents other connections
+    from taking name-locks on this table. Typically used with
+    TABLE_SHARE::version member to take an exclusive name-lock on
+    this table name -- a name lock that not only prevents other
+    threads from opening the table, but also blocks other name
+    locks. This is achieved by:
+    - setting open_placeholder to 1 - this will block other name
+      locks, as wait_for_locked_table_name will be forced to wait,
+      see table_is_used for details.
+    - setting version to 0 - this will force other threads to close
+      the instance of this table and wait (this is the same approach
+      as used for usual name locks).
+    An exclusively name-locked table currently can have no handler
+    object associated with it (db_stat is always 0), but please do
+    not rely on that.
+  */
+  my_bool open_placeholder;
   my_bool locked_by_logger;
   my_bool no_replicate;
   my_bool locked_by_name;
@@ -492,7 +518,13 @@ struct st_table {
     read_set= &def_read_set;
     write_set= &def_write_set;
   }
-
+  /* Is table open or should be treated as such by name-locking? */
+  inline bool is_name_opened() { return db_stat || open_placeholder; }
+  /*
+    Is this instance of the table should be reopen or represents a name-lock?
+  */
+  inline bool needs_reopen_or_name_lock()
+  { return s->version != refresh_version; }
 };
 
 enum enum_schema_table_state
@@ -857,8 +889,8 @@ typedef struct st_table_list
   thr_lock_type lock_type;
   uint		outer_join;		/* Which join type */
   uint		shared;			/* Used in multi-upd */
-  uint          db_length;
-  uint32        table_name_length;
+  size_t        db_length;
+  size_t        table_name_length;
   bool          updatable;		/* VIEW/TABLE can be updated now */
   bool		straight;		/* optimize with prev table */
   bool          updating;               /* for replicate-do/ignore table */
@@ -879,6 +911,8 @@ typedef struct st_table_list
   bool          compact_view_format;    /* Use compact format for SHOW CREATE VIEW */
   /* view where processed */
   bool          where_processed;
+  /* TRUE <=> VIEW CHECK OPTION expression has been processed */
+  bool          check_option_processed;
   /* FRMTYPE_ERROR if any type is acceptable */
   enum frm_type_enum required_type;
   handlerton	*db_type;		/* table_type for handler */
@@ -888,6 +922,12 @@ typedef struct st_table_list
     used for implicit LOCK TABLES only and won't be used in real statement.
   */
   bool          prelocking_placeholder;
+  /*
+    This TABLE_LIST object corresponds to the table to be created
+    so it is possible that it does not exist (used in CREATE TABLE
+    ... SELECT implementation).
+  */
+  bool          create;
 
   enum enum_schema_table_state schema_table_state;
   void calc_md5(char *buffer);
@@ -895,7 +935,11 @@ typedef struct st_table_list
   int view_check_option(THD *thd, bool ignore_failure);
   bool setup_underlying(THD *thd);
   void cleanup_items();
-  bool placeholder() {return derived || view || schema_table || !table; }
+  bool placeholder()
+  {
+    return derived || view || schema_table || create && !table->db_stat ||
+           !table;
+  }
   void print(THD *thd, String *str);
   bool check_single_table(st_table_list **table, table_map map,
                           st_table_list *view);
@@ -1152,3 +1196,6 @@ static inline void dbug_tmp_restore_column_map(MY_BITMAP *bitmap,
   tmp_restore_column_map(bitmap, old);
 #endif
 }
+
+size_t max_row_length(TABLE *table, const uchar *data);
+

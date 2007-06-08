@@ -139,8 +139,7 @@ static int ksrflow;
 /* Dummy call to force a backgrounded readline to stop before it tries
    to get the tty settings. */
 static void
-set_winsize (tty)
-     int tty;
+set_winsize (int tty __attribute__((unused)))
 {
 #if defined (TIOCGWINSZ)
   struct winsize w;

@@ -10,7 +10,13 @@ select cast(-5 as unsigned) -1, cast(-5 as unsigned) + 1;
 select ~5, cast(~5 as signed);
 explain extended select ~5, cast(~5 as signed);
 select cast(5 as unsigned) -6.0;
-select cast(NULL as signed), cast(1/0 as signed); 
+select cast(NULL as signed), cast(1/0 as signed);
+#
+# Bug #28250: Run-Time Check Failure #3 - The variable 'value' is being used 
+# without being def
+# 
+# The following line causes Run-Time Check Failure on 
+# binaries built with Visual C++ 2005
 select cast(NULL as unsigned), cast(1/0 as unsigned); 
 select cast("A" as binary) = "a", cast(BINARY "a" as CHAR) = "A";
 select cast("2001-1-1" as DATE), cast("2001-1-1" as DATETIME);
@@ -181,6 +187,12 @@ DROP TABLE t1;
 #
 
 select isnull(date(NULL)), isnull(cast(NULL as DATE));
+
+#
+# Bug#23656: Wrong result of CAST from DATE to int
+#
+SELECT CAST(cast('01-01-01' as date) AS UNSIGNED);
+SELECT CAST(cast('01-01-01' as date) AS SIGNED);
 
 --echo End of 4.1 tests
 

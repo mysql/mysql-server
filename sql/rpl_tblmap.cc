@@ -104,11 +104,11 @@ int table_mapping::set_table(ulong table_id, TABLE* table)
     m_free= m_free->next;
   }
   else
-    hash_delete(&m_table_ids,(byte *)e);
+    hash_delete(&m_table_ids,(uchar *)e);
 
   e->table_id= table_id;
   e->table= table;
-  my_hash_insert(&m_table_ids,(byte *)e);
+  my_hash_insert(&m_table_ids,(uchar *)e);
 
   DBUG_PRINT("info", ("tid %lu -> table 0x%lx (%s)", 
 		      table_id, (long) e->table,
@@ -121,7 +121,7 @@ int table_mapping::remove_table(ulong table_id)
   entry *e= find_entry(table_id);
   if (e)
   {
-    hash_delete(&m_table_ids,(byte *)e);
+    hash_delete(&m_table_ids,(uchar *)e);
     /* we add this entry to the chain of free (free for use) entries */
     e->next= m_free;
     m_free= e;

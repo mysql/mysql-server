@@ -587,12 +587,31 @@ sub collect_one_test_case($$$$$$$) {
     if ( $tinfo->{'innodb_test'} )
     {
       # This is a test that need innodb
-      if ( $::mysqld_variables{'innodb'} eq "FALSE" )
+      if ( $::mysqld_variables{'innodb'} ne "TRUE" )
       {
 	# innodb is not supported, skip it
 	$tinfo->{'skip'}= 1;
 	$tinfo->{'comment'}= "No innodb support";
 	return;
+      }
+    }
+
+    if ( $tinfo->{'need_binlog'} )
+    {
+      if (grep(/^--skip-log-bin/,  @::opt_extra_mysqld_opt) )
+      {
+	$tinfo->{'skip'}= 1;
+	$tinfo->{'comment'}= "Test need binlog";
+	return;
+      }
+    }
+    else
+    {
+      if ( $::mysql_version_id >= 50100 )
+      {
+	# Test does not need binlog, add --skip-binlog to
+	# the options used when starting it
+	push(@{$tinfo->{'master_opt'}}, "--skip-log-bin");
       }
     }
 
@@ -606,6 +625,7 @@ our @tags=
 (
  ["include/have_innodb.inc", "innodb_test", 1],
  ["include/have_binlog_format_row.inc", "binlog_format", "row"],
+ ["include/have_log_bin.inc", "need_binlog", 1],
  ["include/have_binlog_format_statement.inc", "binlog_format", "statement"],
  ["include/have_binlog_format_mixed.inc", "binlog_format", "mixed"],
  ["include/big_test.inc", "big_test", 1],

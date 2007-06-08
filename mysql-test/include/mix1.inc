@@ -197,6 +197,31 @@ INSERT INTO t1 (c1) VALUES ('1b') ON DUPLICATE KEY UPDATE cnt=cnt+1;
 SELECT * FROM t1;
 DROP TABLE t1;
 
+#
+# Bug #28272: EXPLAIN for SELECT from an empty InnoDB table
+#
+
+CREATE TABLE t1 (
+  a1 decimal(10,0) DEFAULT NULL,
+  a2 blob,
+  a3 time DEFAULT NULL,
+  a4 blob,
+  a5 char(175) DEFAULT NULL,
+  a6 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  a7 tinyblob,
+  INDEX idx (a6,a7(239),a5)
+) ENGINE=InnoDB;
+
+EXPLAIN SELECT a4 FROM t1 WHERE
+a6=NULL AND
+a4='UNcT5pIde4I6c2SheTo4gt92OV1jgJCVkXmzyf325R1DwLURkbYHwhydANIZMbKTgdcR5xS';
+
+EXPLAIN SELECT t1.a4 FROM t1, t1 t WHERE
+t.a6=t.a6 AND t1.a6=NULL AND
+t1.a4='UNcT5pIde4I6c2SheTo4gt92OV1jgJCVkXmzyf325R1DwLURkbYHwhydANIZMbKTgdcR5xS';
+
+DROP TABLE t1;
+
 --echo End of 4.1 tests
 
 
@@ -554,6 +579,68 @@ select * from t1;
 
 drop table t1;
 
+#
+# Bug #28189: optimizer erroniously prefers ref access to range access 
+#             for an InnoDB table
+#
+
+CREATE TABLE t1(
+  id int AUTO_INCREMENT PRIMARY KEY,
+  stat_id int NOT NULL,
+  acct_id int DEFAULT NULL,
+  INDEX idx1 (stat_id, acct_id),
+  INDEX idx2 (acct_id)
+) ENGINE=MyISAM;
+
+CREATE TABLE t2(
+  id int AUTO_INCREMENT PRIMARY KEY,
+  stat_id int NOT NULL,
+  acct_id int DEFAULT NULL,
+  INDEX idx1 (stat_id, acct_id),
+  INDEX idx2 (acct_id)
+) ENGINE=InnoDB;
+
+INSERT INTO t1(stat_id,acct_id) VALUES
+  (1,759), (2,831), (3,785), (4,854), (1,921),
+  (1,553), (2,589), (3,743), (2,827), (2,545),
+  (4,779), (4,783), (1,597), (1,785), (4,832),
+  (1,741), (1,833), (3,788), (2,973), (1,907);
+
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+INSERT INTO t1(stat_id,acct_id) SELECT stat_id, mod(id+100000, acct_id) FROM t1;
+UPDATE t1 SET acct_id=785 
+  WHERE MOD(stat_id,2)=0 AND MOD(id,stat_id)=MOD(acct_id,stat_id);
+OPTIMIZE TABLE t1;
+
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE acct_id=785;
+
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE stat_id IN (1,3) AND acct_id=785; 
+
+INSERT INTO t2 SELECT * FROM t1;
+OPTIMIZE TABLE t2;
+
+EXPLAIN SELECT COUNT(*) FROM t2 WHERE stat_id IN (1,3) AND acct_id=785;
+
+DROP TABLE t1,t2; 
+
+#
+# Bug #28652: assert when alter innodb table operation
+#
+create table t1(a int) engine=innodb;
+alter table t1 comment '123';
+show create table t1;
+drop table t1;
+
 --echo End of 5.0 tests
 
 #
@@ -562,24 +649,24 @@ drop table t1;
 
 CREATE TABLE t1 (a int, b int);
 insert into t1 values (1,1),(1,2);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TABLE t2 (primary key (a)) select * from t1;
 # This should give warning
 drop table if exists t2;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE t2 (primary key (a)) select * from t1;
 # This should give warning
 drop table if exists t2;
 CREATE TABLE t2 (a int, b int, primary key (a));
 BEGIN;
 INSERT INTO t2 values(100,100);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
 SELECT * from t2;
 ROLLBACK;
 SELECT * from t2;
 TRUNCATE table t2;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 INSERT INTO t2 select * from t1;
 SELECT * from t2;
 drop table t2;
@@ -587,19 +674,19 @@ drop table t2;
 CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a));
 BEGIN;
 INSERT INTO t2 values(100,100);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
 SELECT * from t2;
 COMMIT;
 BEGIN;
 INSERT INTO t2 values(101,101);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
 SELECT * from t2;
 ROLLBACK;
 SELECT * from t2;
 TRUNCATE table t2;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 INSERT INTO t2 select * from t1;
 SELECT * from t2;
 drop table t1,t2;
@@ -687,5 +774,54 @@ select last_insert_id();
 select * from t2;
 
 drop table t2;
+
+
+#
+# Tests for bug #28415 "Some ALTER TABLE statements no longer work
+# under LOCK TABLES" and some aspects of fast ALTER TABLE behaviour
+# for transactional tables.
+#
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+create table t1 (i int);
+alter table t1 modify i int default 1;
+alter table t1 modify i int default 2, rename t2;
+lock table t2 write;
+alter table t2 modify i int default 3;
+unlock tables;
+lock table t2 write;
+alter table t2 modify i int default 4, rename t1;
+unlock tables;
+drop table t1;
+
+
+# 
+# Some more tests for ALTER TABLE and LOCK TABLES for transactional tables.
+#
+# Table which is altered under LOCK TABLES should stay in list of locked
+# tables and be available after alter takes place unless ALTER contains
+# RENAME clause. We should see the new definition of table, of course.
+# Before 5.1 this behavior was inconsistent across the platforms and
+# different engines. See also tests in alter_table.test
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (i int);
+insert into t1 values ();
+lock table t1 write;
+# Example of so-called 'fast' ALTER TABLE
+alter table t1 modify i int default 1;
+insert into t1 values ();
+select * from t1;
+# And now full-blown ALTER TABLE
+alter table t1 change i c char(10) default "Two";
+insert into t1 values ();
+select * from t1;
+unlock tables;
+select * from t1;
+drop tables t1;
+
 
 --echo End of 5.1 tests

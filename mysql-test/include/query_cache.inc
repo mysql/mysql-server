@@ -90,7 +90,7 @@ delete from t3 where t1_id = 1 and t2_id = 1;
 select t1.* from t1, t2, t3 where t3.state & 1 = 0 and t3.t1_id = t1.id and t3.t2_id = t2.id and t1.id = 1 order by t1.a asc;
 begin;
 insert into t3 VALUES ( NULL, 1, 1, 2 );
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t3 VALUES ( NULL, 1, 1, 2 );
 commit;
 select t1.* from t1, t2, t3 where t3.state & 1 = 0 and t3.t1_id = t1.id and t3.t2_id = t2.id and t1.id = 1 order by t1.a asc;

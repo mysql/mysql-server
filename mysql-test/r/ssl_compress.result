@@ -611,11 +611,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t3	ref	period	period	4	test.t1.period	4181	
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	index	period	period	4	NULL	41810	
+1	SIMPLE	t3	ALL	period	NULL	NULL	NULL	41810	Using filesort
 1	SIMPLE	t1	ref	period	period	4	test.t3.period	4181	
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t1.period limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	period	period	4	NULL	41810	
+1	SIMPLE	t1	ALL	period	NULL	NULL	NULL	41810	Using filesort
 1	SIMPLE	t3	ref	period	period	4	test.t1.period	4181	
 select period from t1;
 period
@@ -1435,7 +1435,7 @@ companynr	companynr
 explain select distinct t2.companynr,t4.companynr from t2,t4 where t2.companynr=t4.companynr+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t4	index	NULL	PRIMARY	1	NULL	12	Using index; Using temporary
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where; Using join buffer
 select t2.fld1,t2.companynr,fld3,period from t3,t2 where t2.fld1 = 38208 and t2.fld1=t3.t2nr and period = 1008 or t2.fld1 = 38008 and t2.fld1 =t3.t2nr and period = 1008;
 fld1	companynr	fld3	period
 038008	37	reporters	1008

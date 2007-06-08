@@ -19,7 +19,7 @@ set sql_log_bin=0;
 insert into t1 values(2);
 set sql_log_bin=1;
 save_master_pos;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values(1),(2);
 drop table t1;
 save_master_pos;

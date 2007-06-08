@@ -29,10 +29,10 @@ static HANDLE my_coninpfh= 0;     /* console input */
   if found useful they are to be exported in mysys
 */
 
+
 /*
   int my_pthread_auto_mutex_lock(HANDLE* ph, const char* name, 
                                  int id, int time)
-
   NOTES
     creates a mutex with given name and tries to lock it time msec.
     mutex name is appended with id to allow system wide or process wide
@@ -41,8 +41,8 @@ static HANDLE my_coninpfh= 0;     /* console input */
   RETURN
     0	              thread owns mutex
     <>0	            error
-
 */
+
 static
 int my_pthread_auto_mutex_lock(HANDLE* ph, const char* name, int id, int time)
 {
@@ -68,7 +68,6 @@ int my_pthread_auto_mutex_lock(HANDLE* ph, const char* name, int id, int time)
 
 /*
   int my_pthread_auto_mutex_free(HANDLE* ph)
-
 
   NOTES
     releases a mutex.
@@ -103,7 +102,7 @@ int my_pthread_auto_mutex_free(HANDLE* ph)
 
 
 /*
-  char* my_cgets(char *string, unsigned long clen, unsigned long* plen)
+  char* my_cgets()
 
   NOTES
     Replaces _cgets from libc to support input of more than 255 chars.
@@ -121,10 +120,12 @@ int my_pthread_auto_mutex_free(HANDLE* ph)
     NULL	          Error
 
 */
-char* my_cgets(char *buffer, unsigned long clen, unsigned long* plen)
+
+char* my_cgets(char *buffer, size_t clen, size_t* plen)
 {
   ULONG state;
   char *result;
+  DWORD plen_res;
   CONSOLE_SCREEN_BUFFER_INFO csbi;
   
   pthread_auto_mutex_decl(my_conio_cs);
@@ -170,8 +171,9 @@ char* my_cgets(char *buffer, unsigned long clen, unsigned long* plen)
   clen= min(clen, 65535);
   do
   {
-    clen= min(clen, (unsigned long)csbi.dwSize.X*csbi.dwSize.Y);
-    if (!ReadConsole((HANDLE)my_coninpfh, (LPVOID)buffer, clen - 1, plen, NULL))
+    clen= min(clen, (size_t) csbi.dwSize.X*csbi.dwSize.Y);
+    if (!ReadConsole((HANDLE)my_coninpfh, (LPVOID)buffer, clen - 1, &plen_res,
+                     NULL))
     {
       result= NULL;
       clen>>= 1;
@@ -183,7 +185,7 @@ char* my_cgets(char *buffer, unsigned long clen, unsigned long* plen)
     }
   }
   while (GetLastError() == ERROR_NOT_ENOUGH_MEMORY);
-
+  *plen= plen_res;
 
   if (result != NULL)
   {

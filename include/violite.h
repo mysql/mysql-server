@@ -51,8 +51,8 @@ Vio* vio_new_win32shared_memory(NET *net,HANDLE handle_file_map,
                                 HANDLE event_client_wrote,
                                 HANDLE event_client_read,
                                 HANDLE event_conn_closed);
-int vio_read_pipe(Vio *vio, gptr buf, int size);
-int vio_write_pipe(Vio *vio, const gptr buf, int size);
+size_t vio_read_pipe(Vio *vio, uchar * buf, size_t size);
+size_t vio_write_pipe(Vio *vio, const uchar * buf, size_t size);
 int vio_close_pipe(Vio * vio);
 #else
 #define HANDLE void *
@@ -62,9 +62,9 @@ void	vio_delete(Vio* vio);
 int	vio_close(Vio* vio);
 void    vio_reset(Vio* vio, enum enum_vio_type type,
                   my_socket sd, HANDLE hPipe, uint flags);
-int	vio_read(Vio *vio, gptr	buf, int size);
-int     vio_read_buff(Vio *vio, gptr buf, int size);
-int	vio_write(Vio *vio, const gptr buf, int size);
+size_t	vio_read(Vio *vio, uchar *	buf, size_t size);
+size_t  vio_read_buff(Vio *vio, uchar * buf, size_t size);
+size_t	vio_write(Vio *vio, const uchar * buf, size_t size);
 int	vio_blocking(Vio *vio, my_bool onoff, my_bool *old_mode);
 my_bool	vio_is_blocking(Vio *vio);
 /* setsockopt TCP_NODELAY at IPPROTO_TCP level, when possible */
@@ -88,7 +88,6 @@ my_bool	vio_peer_addr(Vio* vio, char *buf, uint16 *port);
 /* Remotes in_addr */
 void	vio_in_addr(Vio *vio, struct in_addr *in);
 my_bool	vio_poll_read(Vio *vio,uint timeout);
-void	vio_timeout(Vio *vio,uint which, uint timeout);
 
 #ifdef HAVE_OPENSSL
 #include <openssl/opensslv.h>
@@ -128,8 +127,8 @@ void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 #endif /* HAVE_OPENSSL */
 
 #ifdef HAVE_SMEM
-int vio_read_shared_memory(Vio *vio, gptr buf, int size);
-int vio_write_shared_memory(Vio *vio, const gptr buf, int size);
+size_t vio_read_shared_memory(Vio *vio, uchar * buf, size_t size);
+size_t vio_write_shared_memory(Vio *vio, const uchar * buf, size_t size);
 int vio_close_shared_memory(Vio * vio);
 #endif
 
@@ -187,8 +186,8 @@ struct st_vio
   /* function pointers. They are similar for socket/SSL/whatever */
   void    (*viodelete)(Vio*);
   int     (*vioerrno)(Vio*);
-  int     (*read)(Vio*, gptr, int);
-  int     (*write)(Vio*, const gptr, int);
+  size_t  (*read)(Vio*, uchar *, size_t);
+  size_t  (*write)(Vio*, const uchar *, size_t);
   int     (*vioblocking)(Vio*, my_bool, my_bool *);
   my_bool (*is_blocking)(Vio*);
   int     (*viokeepalive)(Vio*, my_bool);
@@ -210,7 +209,7 @@ struct st_vio
   HANDLE  event_client_wrote;
   HANDLE  event_client_read;
   HANDLE  event_conn_closed;
-  long    shared_memory_remain;
+  size_t  shared_memory_remain;
   char    *shared_memory_pos;
   NET     *net;
 #endif /* HAVE_SMEM */

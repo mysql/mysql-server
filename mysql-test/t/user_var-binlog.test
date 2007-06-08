@@ -1,8 +1,6 @@
 # Requires statement logging
 -- source include/have_binlog_format_mixed_or_statement.inc
 # TODO: Create row based version once $MYSQL_BINLOG has new RB version
-# Embedded server does not support binlogging
---source include/not_embedded.inc
 
 # Check that user variables are binlogged correctly (BUG#3875)
 create table t1 (a varchar(50));

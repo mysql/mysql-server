@@ -46,11 +46,6 @@ select otto from (select 1 as otto) as t1;
 --error 0
 select otto from (select 1 as otto) as t1;
 
-# expectation <> response
--- // --error 1054
--- // select otto from (select 1 as otto) as t1;
-
-
 # ----------------------------------------------------------------------------
 # Negative case(statement):
 # The derived table t1 does not contain a column named 'friedrich' . 
@@ -331,9 +326,9 @@ select 3 from t1 ;
 # This is a comment
 # This is a ;  comment
 # This is a -- comment
--- This is also a comment
--- # This is also a comment
--- This is also a ; comment
+# -- This is also a comment
+# -- # This is also a comment
+# -- This is also a ; comment
 
 # ----------------------------------------------------------------------------
 # Test comments with embedded command
@@ -1227,11 +1222,9 @@ select "a" as col1, "c" as col2;
 # Test sync_with_master
 # ----------------------------------------------------------------------------
 --error 1
---exec echo "save_master_pos; sync_with_master 10!;" | $MYSQL_TEST 2>&1
+--exec echo "sync_with_master 10!;" | $MYSQL_TEST 2>&1
 --error 1
---exec echo "save_master_pos; sync_with_master 10 !;" | $MYSQL_TEST 2>&1
---error 1
---exec echo "save_master_pos; sync_with_master a;" | $MYSQL_TEST 2>&1
+--exec echo "sync_with_master a;" | $MYSQL_TEST 2>&1
 
 # ----------------------------------------------------------------------------
 # Test connect
@@ -1740,23 +1733,130 @@ EOF
 --exec echo "echo Some output; exit; echo Not this;" | $MYSQL_TEST 2>&1
 
 # ----------------------------------------------------------------------------
-# test for query_sorted
+# test for sorted_result
 # ----------------------------------------------------------------------------
 
 create table t1( a int, b char(255), c timestamp);
 insert into t1 values(1, 'Line 1', '2007-04-05'), (2, "Part 2", '2007-04-05');
 insert into t1 values(1, 'Line 1', '2007-04-05'), (2, "Part 3", '2007-04-05');
 select * from t1;
-query_sorted select * from t1;
+--sorted_result
+select * from t1;
+# Should not be sorted
+select * from t1;
 disable_result_log;
-query_sorted select * from t1;
+sorted_result;
+select * from t1;
 enable_result_log;
-query_sorted select '';
-query_sorted select "h";
-query_sorted select "he";
-query_sorted select "hep";
-query_sorted select "hepp";
+--sorted_result
+select '';
+sorted_result;
+select "h";
+--sorted_result
+select "he";
+--sorted_result
+select "hep";
+--sorted_result
+select "hepp";
 
+drop table t1;
+
+# 1. Assignment of result set sorting
+sorted_result;
+ SELECT 2 as "my_col"
+UNION
+SELECT 1;
+#
+--sorted_result
+SELECT 2 as "my_col" UNION SELECT 1;
+--sorted_result
+SELECT 2 as "my_col"
+UNION
+SELECT 1;
+
+# 2. Ensure that the table header will be not sorted into the result
+--sorted_result
+SELECT '2' as "3"
+UNION
+SELECT '1';
+
+# 3. Ensure that an empty result set does not cause problems
+CREATE TABLE t1( a CHAR);
+--sorted_result
+SELECT * FROM t1;
+DROP TABLE t1;
+
+# 4. Ensure that NULL values within the result set do not cause problems
+SELECT NULL as "my_col1",2 AS "my_col2"
+UNION
+SELECT NULL,1;
+--sorted_result
+SELECT NULL as "my_col1",2 AS "my_col2"
+UNION
+SELECT NULL,1;
+#
+SELECT 2 as "my_col1",NULL AS "my_col2"
+UNION
+SELECT 1,NULL;
+--sorted_result
+SELECT 2 as "my_col1",NULL AS "my_col2"
+UNION
+SELECT 1,NULL;
+
+# 5. "sorted_result" changes nothing when applied to a non query statement.
+sorted_result;
+ SET @a = 17;
+#
+# 6. Show that "sorted_result;" before the "SET @a = 17;" above does not affect
+# the now following query.
+SELECT 2 as "my_col"
+UNION
+SELECT 1;
+
+# 7. Ensure that "sorted_result" in combination with $variables works
+let $my_stmt=SELECT 2 as "my_col"
+UNION
+SELECT 1;
+--sorted_result
+eval $my_stmt;
+
+# 8. Ensure that "sorted_result " does not change the semantics of
+#    "--error ...." or the protocol output after such an expected failure
+--sorted_result
+--error 1146
+SELECT '2' as "my_col1",2 as "my_col2"
+UNION
+SELECT '1',1 from t2;
+
+# 9. Ensure that several result formatting options including "sorted_result" 
+#    - have all an effect
+#    - "--sorted_result" does not need to be direct before the statement
+#    - Row sorting is applied after modification of the column content
+--sorted_result
+--replace_column 1 #
+SELECT '1' as "my_col1",2 as "my_col2"
+UNION
+SELECT '2',1;
+
+# 10. Ensure that at least 1024 rows within a result set do not cause problems
+#
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 SET f1 = 1024;
+INSERT INTO t1 SELECT f1 - 1 FROM t1;
+INSERT INTO t1 SELECT f1 - 2 FROM t1;
+INSERT INTO t1 SELECT f1 - 4 FROM t1;
+INSERT INTO t1 SELECT f1 - 8 FROM t1;
+INSERT INTO t1 SELECT f1 - 16 FROM t1;
+INSERT INTO t1 SELECT f1 - 32 FROM t1;
+INSERT INTO t1 SELECT f1 - 64 FROM t1;
+INSERT INTO t1 SELECT f1 - 128 FROM t1;
+INSERT INTO t1 SELECT f1 - 256 FROM t1;
+INSERT INTO t1 SELECT f1 - 512 FROM t1;
+--disable_result_log
+--sorted_result
+SELECT * FROM t1;
+--enable_result_log
+DROP TABLE t1;
 # ----------------------------------------------------------------------------
 # Some coverage tests
 # ----------------------------------------------------------------------------
@@ -1764,10 +1864,132 @@ query_sorted select "hepp";
 --disable_query_log
 --exec $MYSQL_TEST --help 2>&1 > /dev/null
 --exec $MYSQL_TEST --version 2>&1 > /dev/null
---enable_quary_log
+--enable_query_log
 --disable_abort_on_error
 --error 1
 --exec $MYSQL_TEST a b c 2>&1 > /dev/null
 --enable_abort_on_error
+--enable_query_log
+
+# ----------------------------------------------------------------------------
+# test for query_get_value
+# ----------------------------------------------------------------------------
+
+CREATE TABLE t1(
+ a int, b varchar(255), c datetime
+);
+SHOW COLUMNS FROM t1;
+
+#------------ Positive tests ------------
+# 1. constant parameters
+#    value is simple string without spaces
+let $value= query_get_value(SHOW COLUMNS FROM t1, Type, 1);
+--echo statement=SHOW COLUMNS FROM t1 row_number=1, column_name="Type", Value=$value
+let $value= query_get_value("SHOW COLUMNS FROM t1", Type, 1);
+--echo statement="SHOW COLUMNS FROM t1" row_number=1, column_name="Type", Value=$value
+#
+# 2. $variables as parameters
+#    value IS NULL
+let $my_show= SHOW COLUMNS FROM t1;
+let $column_name= Default;
+let $row_number= 1;
+let $value= query_get_value($my_show, $column_name, $row_number);
+--echo statement=$my_show row_number=$row_number, column_name=$column_name, Value=$value
+#
+# 3. result set of a SELECT (not recommended, because projection and
+#         selection could be done much better by pure SELECT functionality)
+#    value is string with space in the middle
+let $value= query_get_value(SELECT 'A B' AS "MyColumn", MyColumn, 1);
+--echo value= ->$value<-
+#
+# 4. column name with space
+let $value= query_get_value(SELECT 1 AS "My Column", My Column, 1);
+--echo value= $value
+#
+#------------ Negative tests ------------
+# 5. Incomplete statement including missing parameters
+# 5.1 incomplete statement
+--error 1
+--exec echo "let \$value= query_get_value(SHOW;" | $MYSQL_TEST 2>&1
+# 5.2 missing query
+--error 1
+--exec echo "let \$value= query_get_value;" | $MYSQL_TEST 2>&1
+# 5.3 missing column name
+--error 1
+--exec echo "let \$value= query_get_value(SHOW COLUMNS FROM t1);" | $MYSQL_TEST 2>&1
+# 5.4 missing row number
+--error 1
+--exec echo "let \$value= query_get_value(SHOW COLUMNS FROM t1, Field);" | $MYSQL_TEST 2>&1
+#
+# 6. Somehow "wrong" value of parameters
+# 6.1 row parameter
+# 6.1.1 non sense number 0
+let $value= initialized;
+let $value= query_get_value(SHOW COLUMNS FROM t1, Field, 0);
+--echo value= $value
+# 6.1.2 after the last row
+let $value= initialized;
+let $value= query_get_value(SHOW COLUMNS FROM t1, Field, 10);
+--echo value= $value
+# 6.1.3 invalid row number
+--error 1
+--exec echo "let \$value= query_get_value(SHOW COLUMNS FROM t1, Field, notnumber);" | $MYSQL_TEST 2>&1
+# 6.2 column name parameter, name of not existing column
+--error 1
+--exec echo "let \$value= query_get_value(SHOW COLUMNS FROM t1, column_not_exists, 1);" | $MYSQL_TEST 2>&1
+# 6.3. statement which never gives a result set
+--error 1
+--exec echo "let \$value= query_get_value(SET @A = 1, Field, 1);" | $MYSQL_TEST 2>&1
+# 6.4. statement contains a ","
+#      Note: There is no need to improve this, because we need query_get_value
+#            for SHOW commands only.
+--error 1
+--exec echo "let \$value= query_get_value(SELECT 1 AS "A", 1 AS "B", 1);" | $MYSQL_TEST 2>&1
+#
+# 7. empty result set
+let $value= initialized;
+let $value= query_get_value(SELECT a FROM t1, a, 1);
+--echo value= $value
+#
+# 9. failing statement
+--error 1
+--exec echo "let \$value= query_get_value(SHOW COLNS FROM t1, Field, 1);" | $MYSQL_TEST 2>&1
+#
+# 10. Artificial example how to process a complete SHOW result set:
+let $show_statement= SHOW COLUMNS FROM t1;
+let $rowno= 1;
+let $run=1;
+let $count= 0;
+--echo
+--echo Field Type Null Key Default Extra
+while ($run)
+{
+   let $Field=   query_get_value($show_statement, Field,   $rowno);
+   if (`SELECT '$Field' = 'No such row'`)
+   {
+      let $run= 0;
+   }
+   if (`SELECT '$Field' <> 'No such row'`)
+   {
+      let $Type=    query_get_value($show_statement, Type,    $rowno);
+      let $Null=    query_get_value($show_statement, Null,    $rowno);
+      if (`SELECT '$Null' = 'YES'`)
+      {
+         inc $count;
+      }
+      let $Key=     query_get_value($show_statement, Key,     $rowno);
+      let $Default= query_get_value($show_statement, Default, $rowno);
+      let $Extra=   query_get_value($show_statement, Extra,   $rowno);
+      --echo $Field $Type $Null ->$Key<- $Default $Extra
+      inc $rowno;
+   }
+}
+--echo
+--echo Number of columns with Default NULL: $count
+--echo
+eval $show_statement;
+
+drop table t1;
 
 --echo End of tests
+

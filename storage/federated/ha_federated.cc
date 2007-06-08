@@ -414,11 +414,11 @@ static handler *federated_create_handler(handlerton *hton,
 
 /* Function we use in the creation of our hash to get key */
 
-static byte *federated_get_key(FEDERATED_SHARE *share, uint *length,
+static uchar *federated_get_key(FEDERATED_SHARE *share, size_t *length,
                                my_bool not_used __attribute__ ((unused)))
 {
   *length= share->share_key_length;
-  return (byte*) share->share_key;
+  return (uchar*) share->share_key;
 }
 
 /*
@@ -725,8 +725,8 @@ static int parse_url(MEM_ROOT *mem_root, FEDERATED_SHARE *share, TABLE *table,
   share->port= 0;
   share->socket= 0;
   DBUG_PRINT("info", ("share at %lx", (long unsigned int) share));
-  DBUG_PRINT("info", ("Length: %d", table->s->connect_string.length));
-  DBUG_PRINT("info", ("String: '%.*s'", table->s->connect_string.length,
+  DBUG_PRINT("info", ("Length: %u", (uint) table->s->connect_string.length));
+  DBUG_PRINT("info", ("String: '%.*s'", (int) table->s->connect_string.length,
                       table->s->connect_string.str));
   share->connection_string= strmake_root(mem_root, table->s->connect_string.str,
                                        table->s->connect_string.length);
@@ -930,7 +930,7 @@ ha_federated::ha_federated(handlerton *hton,
     0   After fields have had field values stored from record
 */
 
-uint ha_federated::convert_row_to_internal_format(byte *record,
+uint ha_federated::convert_row_to_internal_format(uchar *record,
                                                   MYSQL_ROW row,
                                                   MYSQL_RES *result)
 {
@@ -978,7 +978,7 @@ static bool emit_key_part_name(String *to, KEY_PART_INFO *part)
 
 static bool emit_key_part_element(String *to, KEY_PART_INFO *part,
                                   bool needs_quotes, bool is_like,
-                                  const byte *ptr, uint len)
+                                  const uchar *ptr, uint len)
 {
   Field *field= part->field;
   DBUG_ENTER("emit_key_part_element");
@@ -1019,7 +1019,7 @@ static bool emit_key_part_element(String *to, KEY_PART_INFO *part,
     char strbuff[MAX_FIELD_WIDTH];
     String str(strbuff, sizeof(strbuff), part->field->charset()), *res;
 
-    res= field->val_str(&str, (char *)ptr);
+    res= field->val_str(&str, ptr);
 
     if (field->result_type() == STRING_RESULT)
     {
@@ -1286,7 +1286,7 @@ bool ha_federated::create_where_from_key(String *to,
 {
   bool both_not_null=
     (start_key != NULL && end_key != NULL) ? TRUE : FALSE;
-  const byte *ptr;
+  const uchar *ptr;
   uint remainder, length;
   char tmpbuff[FEDERATED_QUERY_BUFFER_SIZE];
   String tmp(tmpbuff, sizeof(tmpbuff), system_charset_info);
@@ -1325,7 +1325,7 @@ bool ha_federated::create_where_from_key(String *to,
       uint store_length= key_part->store_length;
       uint part_length= min(store_length, length);
       needs_quotes= field->str_needs_quotes();
-      DBUG_DUMP("key, start of loop", (char *) ptr, length);
+      DBUG_DUMP("key, start of loop", ptr, length);
 
       if (key_part->null_bit)
       {
@@ -1507,7 +1507,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
 
   /* TODO: change tmp_share.scheme to LEX_STRING object */
   if (!(share= (FEDERATED_SHARE *) hash_search(&federated_open_tables,
-                                               (byte*) tmp_share.share_key,
+                                               (uchar*) tmp_share.share_key,
                                                tmp_share.
                                                share_key_length)))
   {
@@ -1537,7 +1537,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
     DBUG_PRINT("info",
                ("share->select_query %s", share->select_query));
 
-    if (my_hash_insert(&federated_open_tables, (byte*) share))
+    if (my_hash_insert(&federated_open_tables, (uchar*) share))
       goto error;
     thr_lock_init(&share->lock);
     pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
@@ -1571,7 +1571,7 @@ static int free_share(FEDERATED_SHARE *share)
   pthread_mutex_lock(&federated_mutex);
   if (!--share->use_count)
   {
-    hash_delete(&federated_open_tables, (byte*) share);
+    hash_delete(&federated_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
     VOID(pthread_mutex_destroy(&share->mutex));
     free_root(&mem_root, MYF(0));
@@ -1755,7 +1755,7 @@ static inline uint field_in_record_is_null(TABLE *table,
   sql_insert.cc, sql_select.cc, sql_table.cc, sql_udf.cc, and sql_update.cc.
 */
 
-int ha_federated::write_row(byte *buf)
+int ha_federated::write_row(uchar *buf)
 {
   /*
     I need a bool again, in 5.0, I used table->s->fields to accomplish this.
@@ -1832,7 +1832,7 @@ int ha_federated::write_row(byte *buf)
   values_string.length(0);
   insert_string.length(0);
   insert_field_value_string.length(0);
-  statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
+  ha_statistic_increment(&SSV::ha_write_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
 
@@ -2010,7 +2010,7 @@ int ha_federated::repair(THD* thd, HA_CHECK_OPT* check_opt)
   Called from sql_select.cc, sql_acl.cc, sql_update.cc, and sql_insert.cc.
 */
 
-int ha_federated::update_row(const byte *old_data, byte *new_data)
+int ha_federated::update_row(const uchar *old_data, uchar *new_data)
 {
   /*
     This used to control how the query was built. If there was a
@@ -2044,7 +2044,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
   String where_string(where_buffer,
                       sizeof(where_buffer),
                       &my_charset_bin);
-  byte *record= table->record[0];
+  uchar *record= table->record[0];
   DBUG_ENTER("ha_federated::update_row");
   /*
     set string lengths to 0 to avoid misc chars in string
@@ -2103,7 +2103,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
         bool needs_quote= (*field)->str_needs_quotes();
         where_string.append(STRING_WITH_LEN(" = "));
         (*field)->val_str(&field_value,
-                          (char*) (old_data + (*field)->offset(record)));
+                          (old_data + (*field)->offset(record)));
         if (needs_quote)
           where_string.append('\'');
         field_value.print(&where_string);
@@ -2155,7 +2155,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
   calls.
 */
 
-int ha_federated::delete_row(const byte *buf)
+int ha_federated::delete_row(const uchar *buf)
 {
   char delete_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   char data_buffer[FEDERATED_QUERY_BUFFER_SIZE];
@@ -2225,7 +2225,7 @@ int ha_federated::delete_row(const byte *buf)
   a WHERE clause on a non-primary key index, simply calls index_read_idx.
 */
 
-int ha_federated::index_read(byte *buf, const byte *key,
+int ha_federated::index_read(uchar *buf, const uchar *key,
                              uint key_len, ha_rkey_function find_flag)
 {
   DBUG_ENTER("ha_federated::index_read");
@@ -2251,7 +2251,7 @@ int ha_federated::index_read(byte *buf, const byte *key,
     returns.  We need to be able to be calable from ha_rnd_pos()
 */
 
-int ha_federated::index_read_idx(byte *buf, uint index, const byte *key,
+int ha_federated::index_read_idx(uchar *buf, uint index, const uchar *key,
                                  uint key_len, enum ha_rkey_function find_flag)
 {
   int retval;
@@ -2277,8 +2277,8 @@ int ha_federated::index_read_idx(byte *buf, uint index, const byte *key,
                table->status == STATUS_NOT_FOUND
 */
 
-int ha_federated::index_read_idx_with_result_set(byte *buf, uint index,
-                                                 const byte *key,
+int ha_federated::index_read_idx_with_result_set(uchar *buf, uint index,
+                                                 const uchar *key,
                                                  uint key_len,
                                                  ha_rkey_function find_flag,
                                                  MYSQL_RES **result)
@@ -2299,8 +2299,7 @@ int ha_federated::index_read_idx_with_result_set(byte *buf, uint index,
   *result= 0;                                   // In case of errors
   index_string.length(0);
   sql_query.length(0);
-  statistic_increment(table->in_use->status_var.ha_read_key_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_key_count);
 
   sql_query.append(share->select_query);
 
@@ -2411,11 +2410,10 @@ int ha_federated::read_range_next()
 
 
 /* Used to read forward through the index.  */
-int ha_federated::index_next(byte *buf)
+int ha_federated::index_next(uchar *buf)
 {
   DBUG_ENTER("ha_federated::index_next");
-  statistic_increment(table->in_use->status_var.ha_read_next_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_next_count);
   DBUG_RETURN(read_next(buf, stored_result));
 }
 
@@ -2525,7 +2523,7 @@ int ha_federated::index_end(void)
   sql_table.cc, and sql_update.cc.
 */
 
-int ha_federated::rnd_next(byte *buf)
+int ha_federated::rnd_next(uchar *buf)
 {
   DBUG_ENTER("ha_federated::rnd_next");
 
@@ -2562,7 +2560,7 @@ int ha_federated::rnd_next(byte *buf)
       0    no error 
 */
 
-int ha_federated::read_next(byte *buf, MYSQL_RES *result)
+int ha_federated::read_next(uchar *buf, MYSQL_RES *result)
 {
   int retval;
   MYSQL_ROW row;
@@ -2591,11 +2589,11 @@ int ha_federated::read_next(byte *buf, MYSQL_RES *result)
   Called from filesort.cc, sql_select.cc, sql_delete.cc and sql_update.cc.
 */
 
-void ha_federated::position(const byte *record)
+void ha_federated::position(const uchar *record)
 {
   DBUG_ENTER("ha_federated::position");
   if (table->s->primary_key != MAX_KEY)
-    key_copy(ref, (byte *)record, table->key_info + table->s->primary_key,
+    key_copy(ref, (uchar *)record, table->key_info + table->s->primary_key,
              ref_length);
   else
     memcpy(ref, record, ref_length);
@@ -2612,12 +2610,11 @@ void ha_federated::position(const byte *record)
   Called from filesort.cc records.cc sql_insert.cc sql_select.cc sql_update.cc.
 */
 
-int ha_federated::rnd_pos(byte *buf, byte *pos)
+int ha_federated::rnd_pos(uchar *buf, uchar *pos)
 {
   int result;
   DBUG_ENTER("ha_federated::rnd_pos");
-  statistic_increment(table->in_use->status_var.ha_read_rnd_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_count);
   if (table->s->primary_key != MAX_KEY)
   {
     /* We have a primary key, so use index_read_idx to find row */

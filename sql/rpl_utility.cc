@@ -17,7 +17,7 @@
 
 uint32
 field_length_from_packed(enum_field_types const field_type, 
-                         byte const *const data)
+                         uchar const *const data)
 {
   uint32 length;
 

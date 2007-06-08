@@ -123,10 +123,25 @@ test-bt:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --comment=NDB            --force --timer \
 	--with-ndbcluster-only
+	-if [ -e bin/mysqltest_embedded -o -e libmysqld/examples/mysqltest_embedded ] ; then \
+	  cd mysql-test ; MTR_BUILD_THREAD=auto \
+	  @PERL@ ./mysql-test-run.pl --comment=embedded --force --timer \
+	    --embedded-server --skip-rpl --skip-ndbcluster ; \
+	fi
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --force --comment=funcs1_ps --ps-protocol --suite=funcs_1
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --force --comment=funcs2 --suite=funcs_2
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	@PERL@ ./mysql-test-run.pl --force --comment=rpl --suite=rpl
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	@PERL@ ./mysql-test-run.pl --force --comment=partitions --suite=parts
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	@PERL@ ./mysql-test-run.pl --force --comment=rowlock --suite=row_lock
+
+# Re-enable the "jp" suite when bug#28563 is fixed
+#	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+#	@PERL@ ./mysql-test-run.pl --force --comment=jp --suite=jp
 
 test-bt-debug:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
@@ -151,7 +166,7 @@ test-ext-rpl:
 
 test-ext-partitions:
 	cd mysql-test ; \
-	@PERL@ ./mysql-test-run.pl --force --suite=partitions
+	@PERL@ ./mysql-test-run.pl --force --suite=parts
 
 test-ext-jp:
 	cd mysql-test ; \

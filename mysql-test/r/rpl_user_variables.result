@@ -223,10 +223,19 @@ SELECT * from t2;
 k
 100
 42
+drop table t1, t2;
+create table t1(a int, b int);
+prepare s1 from 'insert into t1 values (@x:=@x+1, ?)';
+set @x=1;
+execute s1 using @x;
+select * from t1;
+a	b
+2	1
+select * from t1;
+a	b
+2	1
+drop table t1;
 End of 5.0 tests.
-DROP TABLE t1;
-DROP TABLE t2;
-DROP TABLE IF EXISTS t1;
 DROP FUNCTION IF EXISTS f1;
 DROP FUNCTION IF EXISTS f2;
 CREATE TABLE t1 (i INT);

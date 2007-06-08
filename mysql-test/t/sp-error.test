@@ -586,7 +586,7 @@ begin
 end|
 
 set @x = 0|
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 call bug3279(@x)|
 select @x|
 drop procedure bug3279|
@@ -1458,7 +1458,7 @@ select bug12329();
 # Until we implement proper mechanism for invalidation of PS/SP when table
 # or SP's are changed the following statement will fail with 'Table ... was
 # not locked' error (this mechanism should be based on the new TDC).
---error 1100 
+--error ER_NO_SUCH_TABLE 
 execute stmt1;
 deallocate prepare stmt1;
 drop function bug12329; 
@@ -1643,13 +1643,13 @@ create trigger t1_ai after insert on t1 for each row insert into t2 values (new.
 create view v1 as select * from t1;
 drop table t2;
 # Limitation, the desired error is ER_VIEW_INVALID
---error ER_TABLE_NOT_LOCKED
+--error ER_NO_SUCH_TABLE
 insert into v1 values (1);
 drop trigger t1_ai;
 create function bug11555_1() returns int return (select max(i) from t2);
 create trigger t1_ai after insert on t1 for each row set @a:=bug11555_1();
 # Limitation, the desired error is ER_VIEW_INVALID
---error ER_TABLE_NOT_LOCKED
+--error ER_NO_SUCH_TABLE 
 insert into v1 values (2);
 drop function bug11555_1;
 drop table t1;

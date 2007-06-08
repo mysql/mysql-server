@@ -11,8 +11,10 @@ use events_test;
 select @@event_scheduler;
 let $wait_condition=select count(distinct name)=3 from execution_log;
 --source include/wait_condition.inc
---echo "Should get 3 rows : abc1, abc2, abc3
-select distinct name from execution_log order by name;
 drop table execution_log;
 # Will drop all events
 drop database events_test;
+
+let $wait_condition=
+  select count(*) = 0 from information_schema.processlist
+  where db='events_test' and command = 'Connect' and user=current_user();

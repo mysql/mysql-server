@@ -4,6 +4,11 @@
 #
 -- source include/not_embedded.inc
 -- source include/have_blackhole.inc
+-- source include/have_log_bin.inc
+
+# The server need to be started in $MYSQLTEST_VARDIR since it
+# uses ../std_data_ln/
+-- source include/uses_vardir.inc
 
 --disable_warnings
 drop table if exists t1,t2;
@@ -109,7 +114,7 @@ insert into t1 values(1);
 insert ignore into t1 values(1);
 replace into t1 values(100);
 create table t2 (a varchar(200)) engine=blackhole;
-load data infile '../std_data_ln/words.dat' into table t2;
+eval load data infile '../std_data_ln/words.dat' into table t2;
 alter table t1 add b int;
 alter table t1 drop b;
 create table t3 like t1;
@@ -123,6 +128,16 @@ select * from t3;
 let $VERSION=`select version()`;
 source include/show_binlog_events.inc;
 drop table t1,t2,t3;
+
+#
+# BUG#27998 - mysqld crashed when executing INSERT DELAYED on a BLACKHOLE
+#             table
+#
+CREATE TABLE t1(a INT) ENGINE=BLACKHOLE;
+INSERT DELAYED INTO t1 VALUES(1);
+DROP TABLE t1;
+
+# End of 4.1 tests
 
 #
 #Bug#19717: DELETE Query Error on BLACKHOLE when using WHERE on column with UNIQUE INDEX
@@ -139,7 +154,8 @@ ALTER TABLE t1 ADD PRIMARY KEY(a);
 DELETE FROM t1 WHERE a=10;
 DROP TABLE t1;
 
-# End of 4.1 tests
+# End of 5.0 tests
+
 # Test that a transaction which is rolled back does not go into binlog
 # and that a transaction which is committed does
 
@@ -156,4 +172,4 @@ set autocommit=1;
 source include/show_binlog_events.inc;
 drop table if exists t1;
 
-# End of 5.0 tests
+# End of 5.1 tests

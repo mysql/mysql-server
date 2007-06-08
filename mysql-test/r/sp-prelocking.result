@@ -254,4 +254,17 @@ execute stmt;
 deallocate prepare stmt;
 drop function bug19634;
 drop table t1, t2, t3;
+drop table if exists bug_27907_logs;
+drop table if exists bug_27907_t1;
+create table bug_27907_logs (a int);
+create table bug_27907_t1 (a int);
+create trigger bug_27907_t1_ai after insert on bug_27907_t1
+for each row
+begin
+insert into bug_27907_logs (a) values (1);
+end|
+drop table bug_27907_logs;
+insert into bug_27907_t1(a) values (1);
+ERROR 42S02: Table 'test.bug_27907_logs' doesn't exist
+drop table bug_27907_t1;
 End of 5.0 tests

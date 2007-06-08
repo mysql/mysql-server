@@ -32,7 +32,7 @@ begin
 end|
 
 reset master|
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t2 values (bug23333(),1)| 
 --replace_column 2 # 5 # 6 #
 show binlog events from 106 /* with fixes for #23333 will show there is the query */|

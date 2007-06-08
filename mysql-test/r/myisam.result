@@ -346,11 +346,11 @@ t1	1	c_2	2	a	A	5	NULL	NULL		BTREE
 explain select * from t1,t2 where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer
 explain select * from t1,t2 force index(a) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer
 explain select * from t1 force index(a),t2 force index(a) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
@@ -362,7 +362,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t1,t2 force index(c) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer
 explain select * from t1 where a=0 or a=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
@@ -1768,6 +1768,32 @@ create table t3 (c1 int) engine=myisam pack_keys=default;
 create table t4 (c1 int) engine=myisam pack_keys=2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2' at line 1
 drop table t1, t2, t3;
+CREATE TABLE t1(a INT, b INT, KEY inx (a), UNIQUE KEY uinx (b)) ENGINE=MyISAM;
+INSERT INTO t1(a,b) VALUES (1,1),(2,2),(3,3),(4,4),(5,5);
+SELECT a FROM t1 FORCE INDEX (inx) WHERE a=1;
+a
+1
+ALTER TABLE t1 DISABLE KEYS;
+SELECT a FROM t1 FORCE INDEX (inx) WHERE a=1;
+a
+1
+SELECT a FROM t1 USE INDEX (inx) WHERE a=1;
+a
+1
+SELECT b FROM t1 FORCE INDEX (uinx) WHERE b=1;
+b
+1
+SELECT b FROM t1 USE INDEX (uinx) WHERE b=1;
+b
+1
+SELECT a FROM t1 FORCE INDEX (inx,uinx) WHERE a=1;
+a
+1
+ALTER TABLE t1 ENABLE KEYS;
+SELECT a FROM t1 FORCE INDEX (inx) WHERE a=1;
+a
+1
+DROP TABLE t1;
 End of 5.0 tests
 create table t1 (a int not null, key `a` (a) key_block_size=1024);
 show create table t1;

@@ -2582,7 +2582,7 @@ static uint16 gbksortorder(uint16 i)
 
 
 int my_strnncoll_gbk_internal(const uchar **a_res, const uchar **b_res,
-			      uint length)
+			      size_t length)
 {
   const uchar *a= *a_res, *b= *b_res;
   uint a_char,b_char; 
@@ -2612,22 +2612,22 @@ int my_strnncoll_gbk_internal(const uchar **a_res, const uchar **b_res,
 
 
 int my_strnncoll_gbk(CHARSET_INFO *cs __attribute__((unused)),
-		     const uchar *a, uint a_length,
-                     const uchar *b, uint b_length,
+		     const uchar *a, size_t a_length,
+                     const uchar *b, size_t b_length,
                      my_bool b_is_prefix)
 {
-  uint length= min(a_length, b_length);
+  size_t length= min(a_length, b_length);
   int res= my_strnncoll_gbk_internal(&a, &b, length);
   return res ? res : (int) ((b_is_prefix ? length : a_length) - b_length);
 }
 
 
 static int my_strnncollsp_gbk(CHARSET_INFO * cs __attribute__((unused)),
-			      const uchar *a, uint a_length, 
-			      const uchar *b, uint b_length,
+			      const uchar *a, size_t a_length, 
+			      const uchar *b, size_t b_length,
                               my_bool diff_if_only_endspace_difference)
 {
-  uint length= min(a_length, b_length);
+  size_t length= min(a_length, b_length);
   int res= my_strnncoll_gbk_internal(&a, &b, length);
 
 #ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
@@ -2662,12 +2662,12 @@ static int my_strnncollsp_gbk(CHARSET_INFO * cs __attribute__((unused)),
 }
 
 
-static int my_strnxfrm_gbk(CHARSET_INFO *cs __attribute__((unused)),
-                    uchar * dest, uint len,
-                    const uchar * src, uint srclen)
+static size_t my_strnxfrm_gbk(CHARSET_INFO *cs __attribute__((unused)),
+                              uchar *dest, size_t len,
+                              const uchar *src, size_t srclen)
 {
   uint16 e;
-  uint dstlen= len;
+  size_t dstlen= len;
 
   len = srclen;
   while (len--)
@@ -2708,15 +2708,16 @@ static int my_strnxfrm_gbk(CHARSET_INFO *cs __attribute__((unused)),
 #define max_sort_char ((uchar) 255)
 
 static my_bool my_like_range_gbk(CHARSET_INFO *cs __attribute__((unused)),
-                                 const char *ptr,uint ptr_length,
+                                 const char *ptr,size_t ptr_length,
                                  pbool escape, pbool w_one, pbool w_many,
-                                 uint res_length, char *min_str,char *max_str,
-                                 uint *min_length,uint *max_length)
+                                 size_t res_length,
+                                 char *min_str,char *max_str,
+                                 size_t *min_length,size_t *max_length)
 {
   const char *end= ptr + ptr_length;
   char *min_org=min_str;
   char *min_end=min_str+res_length;
-  uint charlen= res_length / cs->mbmaxlen;
+  size_t charlen= res_length / cs->mbmaxlen;
 
   for (; ptr != end && min_str != min_end && charlen > 0; ptr++, charlen--)
   {
@@ -2748,7 +2749,7 @@ static my_bool my_like_range_gbk(CHARSET_INFO *cs __attribute__((unused)),
         'a\0\0... is the smallest possible string when we have space expand
         a\ff\ff... is the biggest possible string
       */
-      *min_length= ((cs->state & MY_CS_BINSORT) ? (uint) (min_str - min_org) :
+      *min_length= ((cs->state & MY_CS_BINSORT) ? (size_t) (min_str - min_org) :
                     res_length);
       *max_length= res_length;
       do {
@@ -2760,20 +2761,20 @@ static my_bool my_like_range_gbk(CHARSET_INFO *cs __attribute__((unused)),
     *min_str++= *max_str++ = *ptr;
   }
 
-  *min_length= *max_length = (uint) (min_str - min_org);
+  *min_length= *max_length = (size_t) (min_str - min_org);
   while (min_str != min_end)
     *min_str++= *max_str++= ' ';           /* Because if key compression */
   return 0;
 }
 
 
-static int ismbchar_gbk(CHARSET_INFO *cs __attribute__((unused)),
+static uint ismbchar_gbk(CHARSET_INFO *cs __attribute__((unused)),
 		 const char* p, const char *e)
 {
   return (isgbkhead(*(p)) && (e)-(p)>1 && isgbktail(*((p)+1))? 2: 0);
 }
 
-static int mbcharlen_gbk(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static uint mbcharlen_gbk(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (isgbkhead(c)? 2 : 1);
 }
@@ -9940,9 +9941,9 @@ my_mb_wc_gbk(CHARSET_INFO *cs __attribute__((unused)),
   Returns well formed length of a GBK string.
 */
 static
-uint my_well_formed_len_gbk(CHARSET_INFO *cs __attribute__((unused)),
-                            const char *b, const char *e,
-                            uint pos, int *error)
+size_t my_well_formed_len_gbk(CHARSET_INFO *cs __attribute__((unused)),
+                              const char *b, const char *e,
+                              size_t pos, int *error)
 {
   const char *b0= b;
   const char *emb= e - 1; /* Last possible end of an MB character */
@@ -9967,7 +9968,7 @@ uint my_well_formed_len_gbk(CHARSET_INFO *cs __attribute__((unused)),
       break;
     }
   }
-  return (uint) (b - b0);
+  return (size_t) (b - b0);
 }
 
 

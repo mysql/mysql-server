@@ -22,7 +22,7 @@ select * from t1 where b = 4 order by b;
 insert into t1 values(7,8,3);
 select * from t1 where b = 4 order by a;
 
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t1 values(8, 2, 3);
 select * from t1 order by a;
 delete from t1 where a = 1;
@@ -59,7 +59,7 @@ select * from t1 use index (bc) where b IS NULL and c IS NULL order by a;
 select * from t1 use index (bc) where b IS NULL and c = 2 order by a;
 select * from t1 use index (bc) where b < 4 order by a;
 select * from t1 use index (bc) where b IS NOT NULL order by a;
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t1 values(5,1,1);
 drop table t1;
 
@@ -82,7 +82,7 @@ select * from t2 where c = 6;
 insert into t2 values(7,8,3);
 select * from t2 where b = 4 order by a;
 
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t2 values(8, 2, 3);
 select * from t2 order by a;
 delete from t2 where a = 1;
@@ -91,7 +91,7 @@ select * from t2 order by a;
 
 # Bug #24818 CREATE UNIQUE INDEX (...) USING HASH on a NDB table crashes mysqld
 create unique index bi using hash on t2(b);
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t2 values(9, 3, 1);
 alter table t2 drop index bi;
 insert into t2 values(9, 3, 1);
@@ -154,7 +154,7 @@ insert into t1 values (-1,NULL), (0,0), (1,NULL),(2,2),(3,NULL),(4,4);
 
 select * from t1 order by pk;
 
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values (5,0);
 select * from t1 order by pk;
 delete from t1 where a = 0;
@@ -173,7 +173,7 @@ insert into t2 values (-1,1,17,NULL),(0,NULL,18,NULL),(1,3,19,'abc');
 
 select * from t2 order by pk;
 
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t2 values(2,3,19,'abc');
 select * from t2 order by pk;
 delete from t2 where c IS NOT NULL;
@@ -342,7 +342,7 @@ create table t1 (a int primary key, b varchar(1000) not null, unique key (b))
 engine=ndb charset=utf8;
 
 insert into t1 values (1, repeat(_utf8 0xe288ab6474, 200));
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values (2, repeat(_utf8 0xe288ab6474, 200));
 select a, sha1(b) from t1;
 

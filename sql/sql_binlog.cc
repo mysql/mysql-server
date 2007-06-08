@@ -33,8 +33,8 @@ void mysql_client_binlog_statement(THD* thd)
 {
   DBUG_ENTER("mysql_client_binlog_statement");
   DBUG_PRINT("info",("binlog base64: '%*s'",
-                     (thd->lex->comment.length < 2048 ?
-                      thd->lex->comment.length : 2048),
+                     (int) (thd->lex->comment.length < 2048 ?
+                            thd->lex->comment.length : 2048),
                      thd->lex->comment.str));
 
   /*
@@ -44,8 +44,8 @@ void mysql_client_binlog_statement(THD* thd)
   my_bool nsok= thd->net.no_send_ok;
   thd->net.no_send_ok= TRUE;
 
-  my_size_t coded_len= thd->lex->comment.length + 1;
-  my_size_t decoded_len= base64_needed_decoded_length(coded_len);
+  size_t coded_len= thd->lex->comment.length + 1;
+  size_t decoded_len= base64_needed_decoded_length(coded_len);
   DBUG_ASSERT(coded_len > 0);
 
   /*

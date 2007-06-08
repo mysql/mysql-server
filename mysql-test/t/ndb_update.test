@@ -23,11 +23,11 @@ UPDATE t1 set b = c;
 select * from t1 order by pk1;
 UPDATE t1 set pk1 = 4 where pk1 = 1;
 select * from t1 order by pk1;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 UPDATE t1 set pk1 = 4 where pk1 = 2;
 UPDATE IGNORE t1 set pk1 = 4 where pk1 = 2;
 select * from t1 order by pk1;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 UPDATE t1 set pk1 = 1, c = 2 where pk1 = 4;
 UPDATE IGNORE t1 set pk1 = 1, c = 2 where pk1 = 4;
 select * from t1 order by pk1;

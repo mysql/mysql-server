@@ -128,7 +128,7 @@ SELECT * FROM t1 WHERE b=NULL;
 explain SELECT * FROM t1 WHERE b IS NULL;
 SELECT * FROM t1 WHERE b<=>NULL;
 
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 INSERT INTO t1 VALUES (1,3);
 DROP TABLE t1;
 
@@ -260,4 +260,27 @@ select a from t1 where a in (1,3);
 explain select a from t1 where a in (1,3);
 drop table t1;
 
-# End of 4.1 tests
+--echo End of 4.1 tests
+
+#
+# Bug #27643: query failed : 1114 (The table '' is full)
+#
+# Check that HASH indexes disregard trailing spaces when comparing 
+# strings with binary collations
+
+CREATE TABLE t1(col1 VARCHAR(32) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, 
+                col2 VARCHAR(32) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, 
+                UNIQUE KEY key1 USING HASH (col1, col2)) ENGINE=MEMORY;
+INSERT INTO t1 VALUES('A', 'A');
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES('A ', 'A ');
+DROP TABLE t1;
+CREATE TABLE t1(col1 VARCHAR(32) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL, 
+                col2 VARCHAR(32) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL, 
+                UNIQUE KEY key1 USING HASH (col1, col2)) ENGINE=MEMORY;
+INSERT INTO t1 VALUES('A', 'A');
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES('A ', 'A ');
+DROP TABLE t1;
+
+--echo End of 5.0 tests

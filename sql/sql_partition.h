@@ -56,11 +56,11 @@ bool check_reorganise_list(partition_info *new_part_info,
                            partition_info *old_part_info,
                            List<char> list_part_names);
 handler *get_ha_partition(partition_info *part_info);
-int get_parts_for_update(const byte *old_data, byte *new_data,
-                         const byte *rec0, partition_info *part_info,
+int get_parts_for_update(const uchar *old_data, uchar *new_data,
+                         const uchar *rec0, partition_info *part_info,
                          uint32 *old_part_id, uint32 *new_part_id,
                          longlong *func_value);
-int get_part_for_delete(const byte *buf, const byte *rec0,
+int get_part_for_delete(const uchar *buf, const uchar *rec0,
                         partition_info *part_info, uint32 *part_id);
 void prune_partition_set(const TABLE *table, part_id_range *part_spec);
 bool check_partition_info(partition_info *part_info,handlerton **eng_type,
@@ -70,10 +70,10 @@ char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length, bool use_sql_alloc,
                                 bool show_partition_options);
 bool partition_key_modified(TABLE *table, const MY_BITMAP *fields);
-void get_partition_set(const TABLE *table, byte *buf, const uint index,
+void get_partition_set(const TABLE *table, uchar *buf, const uint index,
                        const key_range *key_spec,
                        part_id_range *part_spec);
-void get_full_part_id_from_key(const TABLE *table, byte *buf,
+void get_full_part_id_from_key(const TABLE *table, uchar *buf,
                                KEY *key_info,
                                const key_range *key_spec,
                                part_id_range *part_spec);
@@ -201,7 +201,7 @@ typedef struct st_partition_iter
 
 typedef int (*get_partitions_in_range_iter)(partition_info *part_info,
                                             bool is_subpart,
-                                            char *min_val, char *max_val,
+                                            uchar *min_val, uchar *max_val,
                                             uint flags,
                                             PARTITION_ITERATOR *part_iter);
 

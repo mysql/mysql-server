@@ -153,6 +153,11 @@ IF(EMBED_MANIFESTS)
     # Disable automatic manifest generation.
     STRING(REPLACE "/MANIFEST" "/MANIFEST:NO" CMAKE_EXE_LINKER_FLAGS 
     	   ${CMAKE_EXE_LINKER_FLAGS})
+    # Explicitly disable it since it is the default for newer versions of VS
+    STRING(REGEX MATCH "MANIFEST:NO" tmp_manifest ${CMAKE_EXE_LINKER_FLAGS})
+    IF(NOT tmp_manifest)
+        SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /MANIFEST:NO")
+    ENDIF(NOT tmp_manifest)
     # Set the processor architecture.
     IF(CMAKE_GENERATOR MATCHES "Visual Studio 8 2005 Win64")
     	SET(PROCESSOR_ARCH "X64") 

@@ -36,13 +36,17 @@ C_MODE_END
 
 /* maximum length of buffer in our big digits (uint32) */
 #define DECIMAL_BUFF_LENGTH 9
+
+/* the number of digits that my_decimal can possibly contain */
+#define DECIMAL_MAX_POSSIBLE_PRECISION (DECIMAL_BUFF_LENGTH * 9)
+
 /*
   maximum guaranteed precision of number in decimal digits (number of our
   digits * number of decimal digits in one our big digit - number of decimal
-  digits in one our big digit decreased on 1 (because we always put decimal
+  digits in one our big digit decreased by 1 (because we always put decimal
   point on the border of our big digits))
 */
-#define DECIMAL_MAX_PRECISION ((DECIMAL_BUFF_LENGTH * 9) - 8*2)
+#define DECIMAL_MAX_PRECISION (DECIMAL_MAX_POSSIBLE_PRECISION - 8*2)
 #define DECIMAL_MAX_SCALE 30
 #define DECIMAL_NOT_SPECIFIED 31
 
@@ -50,7 +54,7 @@ C_MODE_END
   maximum length of string representation (number of maximum decimal
   digits + 1 position for sign + 1 position for decimal point)
 */
-#define DECIMAL_MAX_STR_LENGTH (DECIMAL_MAX_PRECISION + 2)
+#define DECIMAL_MAX_STR_LENGTH (DECIMAL_MAX_POSSIBLE_PRECISION + 2)
 /*
   maximum size of packet length
 */
@@ -110,7 +114,7 @@ public:
 
 #ifndef DBUG_OFF
 void print_decimal(const my_decimal *dec);
-void print_decimal_buff(const my_decimal *dec, const byte* ptr, int length);
+void print_decimal_buff(const my_decimal *dec, const uchar* ptr, int length);
 const char *dbug_decimal_as_string(char *buff, const my_decimal *val);
 #else
 #define dbug_decimal_as_string(A) NULL
@@ -200,16 +204,15 @@ void my_decimal2decimal(const my_decimal *from, my_decimal *to)
 }
 
 
-int my_decimal2binary(uint mask, const my_decimal *d, char *bin, int prec,
+int my_decimal2binary(uint mask, const my_decimal *d, uchar *bin, int prec,
 		      int scale);
 
 
 inline
-int binary2my_decimal(uint mask, const char *bin, my_decimal *d, int prec,
+int binary2my_decimal(uint mask, const uchar *bin, my_decimal *d, int prec,
 		      int scale)
 {
-  return check_result(mask, bin2decimal((char *)bin, (decimal_t*) d, prec,
-					scale));
+  return check_result(mask, bin2decimal(bin, (decimal_t*) d, prec, scale));
 }
 
 
@@ -393,6 +396,9 @@ int my_decimal_intg(const my_decimal *a)
 {
   return decimal_intg((decimal_t*) a);
 }
+
+
+void my_decimal_trim(ulong *precision, uint *scale);
 
 
 #endif /*my_decimal_h*/
