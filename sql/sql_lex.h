@@ -221,7 +221,7 @@ enum tablespace_op_type
   Keep in sync with index_hint_type.
 */
 extern const char * index_hint_type_name[];
-typedef byte index_clause_map;
+typedef uchar index_clause_map;
 
 /*
   Bits in index_clause_map : one for each possible FOR clause in
@@ -409,7 +409,7 @@ public:
 
   static void *operator new(size_t size)
   {
-    return (void*) sql_alloc((uint) size);
+    return sql_alloc(size);
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
@@ -543,7 +543,7 @@ public:
   void set_thd(THD *thd_arg) { thd= thd_arg; }
   inline bool is_union (); 
 
-  friend void lex_start(THD *thd, const char *buf, uint length);
+  friend void lex_start(THD *thd);
   friend int subselect_union_engine::exec();
 
   List<Item> *get_unit_column_types();
@@ -733,7 +733,7 @@ public:
   {
     order_list.elements= 0;
     order_list.first= 0;
-    order_list.next= (byte**) &order_list.first;
+    order_list.next= (uchar**) &order_list.first;
   }
   /*
     This method created for reiniting LEX in mysql_admin_table() and can be
@@ -744,7 +744,7 @@ public:
   void cut_subtree() { slave= 0; }
   bool test_limit();
 
-  friend void lex_start(THD *thd, const char *buf, uint length);
+  friend void lex_start(THD *thd);
   st_select_lex() : n_sum_items(0), n_child_sum_items(0) {}
   void make_empty_select()
   {
@@ -830,26 +830,77 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_REMOVE_PARTITIONING (1L << 25)
 #define ALTER_FOREIGN_KEY         (1L << 26)
 
-typedef struct st_alter_info
+enum enum_alter_table_change_level
 {
-  List<Alter_drop>            drop_list;
-  List<Alter_column>          alter_list;
-  uint                        flags;
-  enum enum_enable_or_disable keys_onoff;
-  enum tablespace_op_type     tablespace_op;
-  List<char>                  partition_names;
-  uint                        no_parts;
+  ALTER_TABLE_METADATA_ONLY= 0,
+  ALTER_TABLE_DATA_CHANGED= 1,
+  ALTER_TABLE_INDEX_CHANGED= 2
+};
 
-  st_alter_info(){clear();}
-  void clear()
+/**
+  @brief Parsing data for CREATE or ALTER TABLE.
+
+  This structure contains a list of columns or indexes to be created,
+  altered or dropped.
+*/
+
+class Alter_info
+{
+public:
+  List<Alter_drop>              drop_list;
+  List<Alter_column>            alter_list;
+  List<Key>                     key_list;
+  List<create_field>            create_list;
+  uint                          flags;
+  enum enum_enable_or_disable   keys_onoff;
+  enum tablespace_op_type       tablespace_op;
+  List<char>                    partition_names;
+  uint                          no_parts;
+  enum_alter_table_change_level change_level;
+  create_field                 *datetime_field;
+  bool                          error_if_not_empty;  
+    
+
+  Alter_info() :
+    flags(0),
+    keys_onoff(LEAVE_AS_IS),
+    tablespace_op(NO_TABLESPACE_OP),
+    no_parts(0),
+    change_level(ALTER_TABLE_METADATA_ONLY),
+    datetime_field(NULL),
+    error_if_not_empty(FALSE)
+  {}
+
+  void reset()
   {
+    drop_list.empty();
+    alter_list.empty();
+    key_list.empty();
+    create_list.empty();
+    flags= 0;
     keys_onoff= LEAVE_AS_IS;
     tablespace_op= NO_TABLESPACE_OP;
     no_parts= 0;
     partition_names.empty();
+    change_level= ALTER_TABLE_METADATA_ONLY;
+    datetime_field= 0;
+    error_if_not_empty= FALSE;
   }
-  void reset(){drop_list.empty();alter_list.empty();clear();}
-} ALTER_INFO;
+  /**
+    Construct a copy of this object to be used for mysql_alter_table
+    and mysql_create_table. Historically, these two functions modify
+    their Alter_info arguments. This behaviour breaks re-execution of
+    prepared statements and stored procedures and is compensated by
+    always supplying a copy of Alter_info to these functions.
+
+    @return You need to use check the error in THD for out
+    of memory condition after calling this function.
+  */
+  Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root);
+private:
+  Alter_info &operator=(const Alter_info &rhs); // not implemented
+  Alter_info(const Alter_info &rhs);            // not implemented
+};
 
 struct st_sp_chistics
 {
@@ -913,7 +964,7 @@ public:
     in which it was right after query parsing.
   */
   SQL_LIST sroutines_list;
-  byte     **sroutines_list_own_last;
+  uchar    **sroutines_list_own_last;
   uint     sroutines_list_own_elements;
 
   /*
@@ -971,6 +1022,12 @@ public:
       query_tables_own_last= 0;
     }
   }
+  /**
+    true if the parsed tree contains references to stored procedures
+    or functions, false otherwise
+  */
+  bool uses_stored_routines() const
+  { return sroutines_list.elements != 0; }
 };
 
 
@@ -991,32 +1048,79 @@ struct st_parsing_options
 };
 
 
+/**
+  This class represents the character input stream consumed during
+  lexical analysis.
+*/
+class Lex_input_stream
+{
+public:
+  Lex_input_stream(THD *thd, const char* buff, unsigned int length);
+  ~Lex_input_stream();
+
+  /** Current thread. */
+  THD *m_thd;
+
+  /** Current line number. */
+  uint yylineno;
+
+  /** Length of the last token parsed. */
+  uint yytoklen;
+
+  /** Interface with bison, value of the last token parsed. */
+  LEX_YYSTYPE yylval;
+
+  /** Pointer to the current position in the input stream. */
+  const char* ptr;
+
+  /** Starting position of the last token parsed. */
+  const char* tok_start;
+
+  /** Ending position of the last token parsed. */
+  const char* tok_end;
+
+  /** End of the query text in the input stream. */
+  const char* end_of_query;
+
+  /** Starting position of the previous token parsed. */
+  const char* tok_start_prev;
+
+  /** Begining of the query text in the input stream. */
+  const char* buf;
+
+  /** Current state of the lexical analyser. */
+  enum my_lex_states next_state;
+
+  /** Position of ';' in the stream, to delimit multiple queries. */
+  const char* found_semicolon;
+
+  /** SQL_MODE = IGNORE_SPACE. */
+  bool ignore_space;
+  /*
+    TRUE if we're parsing a prepared statement: in this mode
+    we should allow placeholders and disallow multi-statements.
+  */
+  bool stmt_prepare_mode;
+};
+
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 typedef struct st_lex : public Query_tables_list
 {
-  uint	 yylineno,yytoklen;			/* Simulate lex */
-  LEX_YYSTYPE yylval;
   SELECT_LEX_UNIT unit;                         /* most upper unit */
   SELECT_LEX select_lex;                        /* first SELECT_LEX */
   /* current SELECT_LEX in parsing */
   SELECT_LEX *current_select;
   /* list of all SELECT_LEX */
   SELECT_LEX *all_selects_list;
-  const char *buf;		/* The beginning of string, used by SPs */
-  const char *ptr,*tok_start,*tok_end,*end_of_query;
-  
-  /* The value of tok_start as they were one call of MYSQLlex before */
-  const char *tok_start_prev;
 
   char *length,*dec,*change;
   LEX_STRING name;
-  Table_ident *like_name;
   char *help_arg;
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
   char* x509_subject,*x509_issuer,*ssl_cipher;
-  char* found_semicolon;                        /* For multi queries - next query */
   String *wild;
   sql_exchange *exchange;
   select_result *result;
@@ -1024,8 +1128,13 @@ typedef struct st_lex : public Query_tables_list
   LEX_STRING comment, ident;
   LEX_USER *grant_user;
   XID *xid;
-  gptr yacc_yyss,yacc_yyvs;
+  uchar* yacc_yyss, *yacc_yyvs;
   THD *thd;
+
+  /* maintain a list of used plugins for this LEX */
+  DYNAMIC_ARRAY plugins;
+  plugin_ref plugins_static_buffer[INITIAL_LEX_PLUGIN_LIST_SIZE];
+  
   CHARSET_INFO *charset, *underscore_charset;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
@@ -1045,8 +1154,6 @@ typedef struct st_lex : public Query_tables_list
   List<String>	      interval_list;
   List<LEX_USER>      users_list;
   List<LEX_COLUMN>    columns;
-  List<Key>	      key_list;
-  List<create_field>  create_list;
   List<Item>	      *insert_list,field_list,value_list,update_list;
   List<List_item>     many_values;
   List<set_var_base>  var_list;
@@ -1100,7 +1207,6 @@ typedef struct st_lex : public Query_tables_list
 
   thr_lock_type lock_option;
   enum SSL_type ssl_type;			/* defined in violite.h */
-  enum my_lex_states next_state;
   enum enum_duplicates duplicates;
   enum enum_tx_isolation tx_isolation;
   enum enum_ha_read_modes ha_read_mode;
@@ -1132,7 +1238,7 @@ typedef struct st_lex : public Query_tables_list
   uint8 create_view_algorithm;
   uint8 create_view_check;
   bool drop_if_exists, drop_temporary, local_file, one_shot_set;
-  bool in_comment, ignore_space, verbose, no_write_to_binlog;
+  bool in_comment, verbose, no_write_to_binlog;
   bool tx_chain, tx_release;
   /*
     Special JOIN::prepare mode: changing of query is prohibited.
@@ -1142,15 +1248,10 @@ typedef struct st_lex : public Query_tables_list
     to an .frm file. We need this definition to stay untouched.
   */
   bool view_prepare_mode;
-  /*
-    TRUE if we're parsing a prepared statement: in this mode
-    we should allow placeholders and disallow multistatements.
-  */
-  bool stmt_prepare_mode;
   bool safe_to_cache_query;
   bool subqueries, ignore;
   st_parsing_options parsing_options;
-  ALTER_INFO alter_info;
+  Alter_info alter_info;
   /* Prepared statements SQL syntax:*/
   LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */
   /*
@@ -1209,7 +1310,8 @@ typedef struct st_lex : public Query_tables_list
     Pointers to part of LOAD DATA statement that should be rewritten
     during replication ("LOCAL 'filename' REPLACE INTO" part).
   */
-  const char *fname_start, *fname_end;
+  const char *fname_start;
+  const char *fname_end;
 
   /*
     Reference to a struct that contains information in various commands
@@ -1224,6 +1326,8 @@ typedef struct st_lex : public Query_tables_list
   virtual ~st_lex()
   {
     destroy_query_tables_list();
+    plugin_unlock_list(NULL, (plugin_ref *)plugins.buffer, plugins.elements);
+    delete_dynamic(&plugins);
   }
 
   inline void uncacheable(uint8 cause)
@@ -1306,13 +1410,14 @@ typedef struct st_lex : public Query_tables_list
   void restore_backup_query_tables_list(Query_tables_list *backup);
 
   bool table_or_sp_used();
+  bool is_partition_management() const;
 } LEX;
 
 struct st_lex_local: public st_lex
 {
   static void *operator new(size_t size)
   {
-    return (void*) sql_alloc((uint) size);
+    return sql_alloc(size);
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   {
@@ -1326,10 +1431,11 @@ struct st_lex_local: public st_lex
 
 extern void lex_init(void);
 extern void lex_free(void);
-extern void lex_start(THD *thd, const char *buf, uint length);
+extern void lex_start(THD *thd);
 extern void lex_end(LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
-extern const char *skip_rear_comments(const char *ubegin, const char *uend);
+extern const char *skip_rear_comments(CHARSET_INFO *cs, const char *ubegin,
+                                      const char *uend);
 
 extern bool is_lex_native_function(const LEX_STRING *name);
 

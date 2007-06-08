@@ -99,31 +99,31 @@ static struct my_option my_long_options[]=
   {"debug", '#', "This is a non-debug version. Catch this and exit",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
-  {"debug", '#', "Output debug log", (gptr *) & default_dbug_option,
-   (gptr *) & default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log", (uchar**) & default_dbug_option,
+   (uchar**) & default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"debug-info", 'T', "Print some debug info at exit.", (gptr *) & info_flag,
-   (gptr *) & info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", 'T', "Print some debug info at exit.", (uchar**) & info_flag,
+   (uchar**) & info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Displays this help and exits.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Prints version", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"charset", 'C', "Charset dir", (gptr *) & charsets_dir,
-   (gptr *) & charsets_dir,
+  {"charset", 'C', "Charset dir", (uchar**) & charsets_dir,
+   (uchar**) & charsets_dir,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"in_file", 'F', "Input file", (gptr *) & TXTFILE, (gptr *) & TXTFILE,
+  {"in_file", 'F', "Input file", (uchar**) & TXTFILE, (uchar**) & TXTFILE,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"out_dir", 'D', "Output base directory", (gptr *) & DATADIRECTORY,
-   (gptr *) & DATADIRECTORY,
+  {"out_dir", 'D', "Output base directory", (uchar**) & DATADIRECTORY,
+   (uchar**) & DATADIRECTORY,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"out_file", 'O', "Output filename (errmsg.sys)", (gptr *) & OUTFILE,
-   (gptr *) & OUTFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"header_file", 'H', "mysqld_error.h file ", (gptr *) & HEADERFILE,
-   (gptr *) & HEADERFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"name_file", 'N', "mysqld_ername.h file ", (gptr *) & NAMEFILE,
-   (gptr *) & NAMEFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"state_file", 'S', "sql_state.h file", (gptr *) & STATEFILE,
-   (gptr *) & STATEFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"out_file", 'O', "Output filename (errmsg.sys)", (uchar**) & OUTFILE,
+   (uchar**) & OUTFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"header_file", 'H', "mysqld_error.h file ", (uchar**) & HEADERFILE,
+   (uchar**) & HEADERFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"name_file", 'N', "mysqld_ername.h file ", (uchar**) & NAMEFILE,
+   (uchar**) & NAMEFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"state_file", 'S', "sql_state.h file", (uchar**) & STATEFILE,
+   (uchar**) & STATEFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -241,7 +241,7 @@ static int create_header_files(struct errors *error_head)
     /* generating sql_state.h file */
     if (tmp_error->sql_code1[0] || tmp_error->sql_code2[0])
       fprintf(sql_statef,
-	      "%-40s,\"%s\", \"%s\",\n", tmp_error->er_name,
+	      "{ %-40s,\"%s\", \"%s\" },\n", tmp_error->er_name,
 	      tmp_error->sql_code1, tmp_error->sql_code2);
     /*generating er_name file */
     fprintf(er_namef, "{ \"%s\", %d },\n", tmp_error->er_name,
@@ -329,21 +329,21 @@ static int create_sys_files(struct languages *lang_head,
 
     /* continue with header of the errmsg.sys file */
     length= ftell(to) - HEADER_LENGTH - row_count * 2;
-    bzero((gptr) head, HEADER_LENGTH);
-    bmove((byte *) head, (byte *) file_head, 4);
+    bzero((uchar*) head, HEADER_LENGTH);
+    bmove((uchar *) head, (uchar *) file_head, 4);
     head[4]= 1;
     int2store(head + 6, length);
     int2store(head + 8, row_count);
     head[30]= csnum;
 
     my_fseek(to, 0l, MY_SEEK_SET, MYF(0));
-    if (my_fwrite(to, (byte*) head, HEADER_LENGTH, MYF(MY_WME | MY_FNABP)))
+    if (my_fwrite(to, (uchar*) head, HEADER_LENGTH, MYF(MY_WME | MY_FNABP)))
       goto err;
 
     for (i= 0; i < row_count; i++)
     {
       int2store(head, file_pos[i]);
-      if (my_fwrite(to, (byte*) head, 2, MYF(MY_WME | MY_FNABP)))
+      if (my_fwrite(to, (uchar*) head, 2, MYF(MY_WME | MY_FNABP)))
 	goto err;
     }
     my_fclose(to, MYF(0));
@@ -362,7 +362,7 @@ static void clean_up(struct languages *lang_head, struct errors *error_head)
   struct errors *tmp_error, *next_error;
   uint count, i;
 
-  my_free((gptr) default_language, MYF(0));
+  my_free((uchar*) default_language, MYF(0));
 
   for (tmp_lang= lang_head; tmp_lang; tmp_lang= next_language)
   {
@@ -370,7 +370,7 @@ static void clean_up(struct languages *lang_head, struct errors *error_head)
     my_free(tmp_lang->lang_short_name, MYF(0));
     my_free(tmp_lang->lang_long_name, MYF(0));
     my_free(tmp_lang->charset, MYF(0));
-    my_free((gptr) tmp_lang, MYF(0));
+    my_free((uchar*) tmp_lang, MYF(0));
   }
 
   for (tmp_error= error_head; tmp_error; tmp_error= next_error)
@@ -381,17 +381,17 @@ static void clean_up(struct languages *lang_head, struct errors *error_head)
     {
       struct message *tmp;
       tmp= dynamic_element(&tmp_error->msg, i, struct message*);
-      my_free((gptr) tmp->lang_short_name, MYF(0));
-      my_free((gptr) tmp->text, MYF(0));
+      my_free((uchar*) tmp->lang_short_name, MYF(0));
+      my_free((uchar*) tmp->text, MYF(0));
     }
 
     delete_dynamic(&tmp_error->msg);
     if (tmp_error->sql_code1[0])
-      my_free((gptr) tmp_error->sql_code1, MYF(0));
+      my_free((uchar*) tmp_error->sql_code1, MYF(0));
     if (tmp_error->sql_code2[0])
-      my_free((gptr) tmp_error->sql_code2, MYF(0));
-    my_free((gptr) tmp_error->er_name, MYF(0));
-    my_free((gptr) tmp_error, MYF(0));
+      my_free((uchar*) tmp_error->sql_code2, MYF(0));
+    my_free((uchar*) tmp_error->er_name, MYF(0));
+    my_free((uchar*) tmp_error, MYF(0));
   }
 }
 
@@ -471,7 +471,7 @@ static int parse_input_file(const char *file_name, struct errors **top_error,
 		current_error->er_name, current_message.lang_short_name);
 	DBUG_RETURN(0);
       }
-      if (insert_dynamic(&current_error->msg, (byte *) & current_message))
+      if (insert_dynamic(&current_error->msg, (uchar *) & current_message))
 	DBUG_RETURN(0);
       continue;
     }
@@ -534,7 +534,7 @@ static uint parse_error_offset(char *str)
 
   end= 0;
   ioffset= (uint) my_strtoll10(soffset, &end, &error);
-  my_free((gptr) soffset, MYF(0));
+  my_free((uchar*) soffset, MYF(0));
   DBUG_RETURN(ioffset);
 }
 

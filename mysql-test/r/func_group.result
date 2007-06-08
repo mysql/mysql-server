@@ -614,7 +614,7 @@ explain
 select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 > 'CA';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	k1	k1	7	NULL	1	Using where; Using index
-1	SIMPLE	t2	range	k1	k1	3	NULL	4	Using where; Using index
+1	SIMPLE	t2	range	k1	k1	3	NULL	4	Using where; Using index; Using join buffer
 explain
 select min(a4 - 0.01) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -651,7 +651,7 @@ explain
 select concat(min(t1.a1),min(t2.a4)) from t1, t2 where t2.a4 <> 'AME';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	k2	k2	4	NULL	6	Using where; Using index
-1	SIMPLE	t1	index	NULL	PRIMARY	3	NULL	15	Using index
+1	SIMPLE	t1	index	NULL	PRIMARY	3	NULL	15	Using index; Using join buffer
 drop table t1, t2;
 create table t1 (a char(10));
 insert into t1 values ('a'),('b'),('c');
@@ -1321,4 +1321,51 @@ SELECT a,AVG(DISTINCT b) AS average FROM t1 GROUP BY a HAVING average > 50;
 a	average
 1	32768.5000
 DROP TABLE t1;
+CREATE TABLE t1 ( a INT, b INT, KEY(a) );
+INSERT INTO t1 VALUES (NULL, 1), (NULL, 2);
+EXPLAIN SELECT MIN(a), MIN(b) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT MIN(a), MIN(b) FROM t1;
+MIN(a)	MIN(b)
+NULL	1
+CREATE TABLE t2( a INT, b INT, c INT, KEY(a, b) );
+INSERT INTO t2 ( a, b, c ) VALUES ( 1, NULL, 2 ), ( 1, 3, 4 ), ( 1, 4, 4 );
+EXPLAIN SELECT MIN(b), MIN(c) FROM t2 WHERE a = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	a	a	5	const	2	Using where
+SELECT MIN(b), MIN(c) FROM t2 WHERE a = 1;
+MIN(b)	MIN(c)
+3	2
+CREATE TABLE t3 (a INT, b INT, c int, KEY(a, b));
+INSERT INTO t3 VALUES (1, NULL, 1), (2, NULL, 2),  (2, NULL, 2),  (3, NULL, 3);
+EXPLAIN SELECT MIN(a), MIN(b) FROM t3 where a = 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT MIN(a), MIN(b) FROM t3 where a = 2;
+MIN(a)	MIN(b)
+2	NULL
+CREATE TABLE t4 (a INT, b INT, c int, KEY(a, b));
+INSERT INTO t4 VALUES (1, 1, 1), (2, NULL, 2),  (2, NULL, 2),  (3, 1, 3);
+EXPLAIN SELECT MIN(a), MIN(b) FROM t4 where a = 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT MIN(a), MIN(b) FROM t4 where a = 2;
+MIN(a)	MIN(b)
+2	NULL
+SELECT MIN(b), min(c) FROM t4 where a = 2;
+MIN(b)	min(c)
+NULL	2
+CREATE TABLE t5( a INT, b INT, KEY( a, b) );
+INSERT INTO t5 VALUES( 1, 1 ), ( 1, 2 );
+EXPLAIN SELECT MIN(a), MIN(b) FROM t5 WHERE a = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT MIN(a), MIN(b) FROM t5 WHERE a = 1;
+MIN(a)	MIN(b)
+1	1
+SELECT MIN(a), MIN(b) FROM t5 WHERE a = 1 and b > 1;
+MIN(a)	MIN(b)
+1	2
+DROP TABLE t1, t2, t3, t4, t5;
 End of 5.0 tests

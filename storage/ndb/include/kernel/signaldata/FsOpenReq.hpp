@@ -44,6 +44,8 @@ class FsOpenReq {
   friend class Restore;
   friend class Dblqh;
 
+  friend class Dbtup;
+
   /**
    * For printing
    */

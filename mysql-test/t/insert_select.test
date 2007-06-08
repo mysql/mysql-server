@@ -10,7 +10,7 @@ create table t1 (bandID MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, payoutID SMALLI
 insert into t1 (bandID,payoutID) VALUES (1,6),(2,6),(3,4),(4,9),(5,10),(6,1),(7,12),(8,12);
 create table t2 (payoutID SMALLINT UNSIGNED NOT NULL PRIMARY KEY);
 insert into t2 (payoutID) SELECT DISTINCT payoutID FROM t1;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t2 (payoutID) SELECT payoutID+10 FROM t1;
 insert ignore into t2 (payoutID) SELECT payoutID+10 FROM t1;
 select * from t2;
@@ -101,7 +101,7 @@ create table t1 (a int not null primary key, b char(10));
 create table t2 (a int not null, b char(10));
 insert into t1 values (1,"t1:1"),(3,"t1:3");
 insert into t2 values (2,"t2:2"), (3,"t2:3");
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 select * from t2;
 select * from t1;
 # REPLACE .. SELECT is not yet supported by PS

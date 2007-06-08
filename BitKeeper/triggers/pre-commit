@@ -20,4 +20,3 @@ then
  echo "Set REAL_EMAIL and retry."
  exit 1
 fi
-

@@ -385,11 +385,13 @@ sub mtr_kill_leftovers () {
 
   if ( ! $::opt_skip_ndbcluster )
   {
-    # Start shutdown of clusters.
-    mtr_debug("Shutting down cluster...");
 
     foreach my $cluster (@{$::clusters})
     {
+
+      # Don't shut down a "running" cluster
+      next if $cluster->{'use_running'};
+
       mtr_debug("  - cluster " .
 		"(pid: $cluster->{pid}; " .
 		"pid file: '$cluster->{path_pid})");

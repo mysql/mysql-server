@@ -87,20 +87,21 @@ my_bool my_thread_global_init(void)
     fprintf(stderr,"Can't initialize threads: error %d\n", pth_ret);
     return 1;
   }
-  
+
 #ifdef NPTL_PTHREAD_EXIT_BUG
   /*
-    BUG#24507: Race conditions inside current NPTL pthread_exit() 
+    BUG#24507: Race conditions inside current NPTL pthread_exit()
     implementation.
 
     To avoid a possible segmentation fault during concurrent
     executions of pthread_exit(), a dummy thread is spawned which
     initializes internal variables of pthread lib. See bug description
     for a full explanation.
-  
+
     TODO: Remove this code when fixed versions of glibc6 are in common
     use.
   */
+  if (thd_lib_detected == THD_LIB_NPTL)
   {
     pthread_t       dummy_thread;
     pthread_attr_t  dummy_thread_attr;

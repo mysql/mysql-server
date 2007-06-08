@@ -31,6 +31,14 @@ static handler *blackhole_create_handler(handlerton *hton,
 }
 
 
+/* Static declarations for shared structures */
+
+static pthread_mutex_t blackhole_mutex;
+static HASH blackhole_open_tables;
+
+static st_blackhole_share *get_share(const char *table_name);
+static void free_share(st_blackhole_share *share);
+
 /*****************************************************************************
 ** BLACKHOLE tables
 *****************************************************************************/
@@ -53,15 +61,18 @@ const char **ha_blackhole::bas_ext() const
 int ha_blackhole::open(const char *name, int mode, uint test_if_locked)
 {
   DBUG_ENTER("ha_blackhole::open");
-  thr_lock_init(&thr_lock);
-  thr_lock_data_init(&thr_lock,&lock,NULL);
+
+  if (!(share= get_share(name)))
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+
+  thr_lock_data_init(&share->lock, &lock, NULL);
   DBUG_RETURN(0);
 }
 
 int ha_blackhole::close(void)
 {
   DBUG_ENTER("ha_blackhole::close");
-  thr_lock_delete(&thr_lock);
+  free_share(share);
   DBUG_RETURN(0);
 }
 
@@ -83,7 +94,7 @@ const char *ha_blackhole::index_type(uint key_number)
                HA_KEY_ALG_RTREE) ? "RTREE" : "BTREE");
 }
 
-int ha_blackhole::write_row(byte * buf)
+int ha_blackhole::write_row(uchar * buf)
 {
   DBUG_ENTER("ha_blackhole::write_row");
   DBUG_RETURN(0);
@@ -96,14 +107,14 @@ int ha_blackhole::rnd_init(bool scan)
 }
 
 
-int ha_blackhole::rnd_next(byte *buf)
+int ha_blackhole::rnd_next(uchar *buf)
 {
   DBUG_ENTER("ha_blackhole::rnd_next");
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
 
-int ha_blackhole::rnd_pos(byte * buf, byte *pos)
+int ha_blackhole::rnd_pos(uchar * buf, uchar *pos)
 {
   DBUG_ENTER("ha_blackhole::rnd_pos");
   DBUG_ASSERT(0);
@@ -111,7 +122,7 @@ int ha_blackhole::rnd_pos(byte * buf, byte *pos)
 }
 
 
-void ha_blackhole::position(const byte *record)
+void ha_blackhole::position(const uchar *record)
 {
   DBUG_ENTER("ha_blackhole::position");
   DBUG_ASSERT(0);
@@ -136,22 +147,44 @@ int ha_blackhole::external_lock(THD *thd, int lock_type)
 }
 
 
-uint ha_blackhole::lock_count(void) const
-{
-  DBUG_ENTER("ha_blackhole::lock_count");
-  DBUG_RETURN(0);
-}
-
 THR_LOCK_DATA **ha_blackhole::store_lock(THD *thd,
                                          THR_LOCK_DATA **to,
                                          enum thr_lock_type lock_type)
 {
   DBUG_ENTER("ha_blackhole::store_lock");
+  if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK)
+  {
+    /*
+      Here is where we get into the guts of a row level lock.
+      If TL_UNLOCK is set
+      If we are not doing a LOCK TABLE or DISCARD/IMPORT
+      TABLESPACE, then allow multiple writers
+    */
+
+    if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
+         lock_type <= TL_WRITE) && !thd_in_lock_tables(thd)
+        && !thd_tablespace_op(thd))
+      lock_type = TL_WRITE_ALLOW_WRITE;
+
+    /*
+      In queries of type INSERT INTO t1 SELECT ... FROM t2 ...
+      MySQL would use the lock TL_READ_NO_INSERT on t2, and that
+      would conflict with TL_WRITE_ALLOW_WRITE, blocking all inserts
+      to t2. Convert the lock to a normal read lock to allow
+      concurrent inserts to t2.
+    */
+
+    if (lock_type == TL_READ_NO_INSERT && !thd_in_lock_tables(thd))
+      lock_type = TL_READ;
+
+    lock.type= lock_type;
+  }
+  *to++= &lock;
   DBUG_RETURN(to);
 }
 
 
-int ha_blackhole::index_read(byte * buf, const byte * key,
+int ha_blackhole::index_read(uchar * buf, const uchar * key,
                              key_part_map keypart_map,
                              enum ha_rkey_function find_flag)
 {
@@ -160,7 +193,7 @@ int ha_blackhole::index_read(byte * buf, const byte * key,
 }
 
 
-int ha_blackhole::index_read_idx(byte * buf, uint idx, const byte * key,
+int ha_blackhole::index_read_idx(uchar * buf, uint idx, const uchar * key,
                                  key_part_map keypart_map,
                                  enum ha_rkey_function find_flag)
 {
@@ -169,7 +202,7 @@ int ha_blackhole::index_read_idx(byte * buf, uint idx, const byte * key,
 }
 
 
-int ha_blackhole::index_read_last(byte * buf, const byte * key,
+int ha_blackhole::index_read_last(uchar * buf, const uchar * key,
                                   key_part_map keypart_map)
 {
   DBUG_ENTER("ha_blackhole::index_read_last");
@@ -177,31 +210,88 @@ int ha_blackhole::index_read_last(byte * buf, const byte * key,
 }
 
 
-int ha_blackhole::index_next(byte * buf)
+int ha_blackhole::index_next(uchar * buf)
 {
   DBUG_ENTER("ha_blackhole::index_next");
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
 
-int ha_blackhole::index_prev(byte * buf)
+int ha_blackhole::index_prev(uchar * buf)
 {
   DBUG_ENTER("ha_blackhole::index_prev");
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
 
-int ha_blackhole::index_first(byte * buf)
+int ha_blackhole::index_first(uchar * buf)
 {
   DBUG_ENTER("ha_blackhole::index_first");
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
 
-int ha_blackhole::index_last(byte * buf)
+int ha_blackhole::index_last(uchar * buf)
 {
   DBUG_ENTER("ha_blackhole::index_last");
   DBUG_RETURN(HA_ERR_END_OF_FILE);
+}
+
+
+static st_blackhole_share *get_share(const char *table_name)
+{
+  st_blackhole_share *share;
+  uint length;
+
+  length= (uint) strlen(table_name);
+  pthread_mutex_lock(&blackhole_mutex);
+    
+  if (!(share= (st_blackhole_share*) hash_search(&blackhole_open_tables,
+                                                 (uchar*) table_name, length)))
+  {
+    if (!(share= (st_blackhole_share*) my_malloc(sizeof(st_blackhole_share) +
+                                                 length,
+                                                 MYF(MY_WME | MY_ZEROFILL))))
+      goto error;
+
+    share->table_name_length= length;
+    strmov(share->table_name, table_name);
+    
+    if (my_hash_insert(&blackhole_open_tables, (uchar*) share))
+    {
+      my_free((uchar*) share, MYF(0));
+      share= NULL;
+      goto error;
+    }
+    
+    thr_lock_init(&share->lock);
+  }
+  share->use_count++;
+  
+error:
+  pthread_mutex_unlock(&blackhole_mutex);
+  return share;
+}
+
+static void free_share(st_blackhole_share *share)
+{
+  pthread_mutex_lock(&blackhole_mutex);
+  if (!--share->use_count)
+    hash_delete(&blackhole_open_tables, (uchar*) share);
+  pthread_mutex_unlock(&blackhole_mutex);
+}
+
+static void blackhole_free_key(st_blackhole_share *share)
+{
+  thr_lock_delete(&share->lock);
+  my_free((uchar*) share, MYF(0));
+}
+
+static uchar* blackhole_get_key(st_blackhole_share *share, size_t *length,
+                                my_bool not_used __attribute__((unused)))
+{
+  *length= share->table_name_length;
+  return (uchar*) share->table_name;
 }
 
 static int blackhole_init(void *p)
@@ -212,6 +302,20 @@ static int blackhole_init(void *p)
   blackhole_hton->db_type= DB_TYPE_BLACKHOLE_DB;
   blackhole_hton->create= blackhole_create_handler;
   blackhole_hton->flags= HTON_CAN_RECREATE;
+  
+  VOID(pthread_mutex_init(&blackhole_mutex, MY_MUTEX_INIT_FAST));
+  (void) hash_init(&blackhole_open_tables, system_charset_info,32,0,0,
+                   (hash_get_key) blackhole_get_key,
+                   (hash_free_key) blackhole_free_key, 0);
+
+  return 0;
+}
+
+static int blackhole_fini(void *p)
+{
+  hash_free(&blackhole_open_tables);
+  pthread_mutex_destroy(&blackhole_mutex);
+
   return 0;
 }
 
@@ -227,7 +331,7 @@ mysql_declare_plugin(blackhole)
   "/dev/null storage engine (anything you write to it disappears)",
   PLUGIN_LICENSE_GPL,
   blackhole_init, /* Plugin Init */
-  NULL, /* Plugin Deinit */
+  blackhole_fini, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   NULL,                       /* status variables                */
   NULL,                       /* system variables                */

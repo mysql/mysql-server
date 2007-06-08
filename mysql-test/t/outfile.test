@@ -41,9 +41,9 @@ eval select * into dumpfile "../tmp/outfile-test.2" from t1;
 eval select * into dumpfile "../tmp/outfile-test.3" from t1;
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.not-exist"));
---exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.1
---exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.2
---exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.3
+--remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.1
+--remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.2
+--remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.3
 drop table t1;
 
 # Bug#8191
@@ -51,7 +51,7 @@ disable_query_log;
 eval select 1 into outfile "../tmp/outfile-test.4";
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.4"));
---exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.4
+--remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.4
 
 #
 # Bug #5382: 'explain select into outfile' crashes the server
@@ -75,7 +75,7 @@ eval SELECT * INTO OUTFILE "../tmp/outfile-test.4"
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
 FROM information_schema.schemata LIMIT 0, 5;
 # enable_query_log;
---exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.4
+--remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.4
 
 use information_schema;
 # disable_query_log;
@@ -83,7 +83,7 @@ eval SELECT * INTO OUTFILE "../tmp/outfile-test.4"
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
 FROM schemata LIMIT 0, 5;
 enable_query_log;
---exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.4
+--remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.4
 use test;
 
 #
@@ -95,4 +95,39 @@ create table t1(a int);
 --error 1290
 eval select * into outfile "$MYSQL_TEST_DIR/outfile-test1" from t1;
 drop table t1;
+
+#
+# Bug#28181 Access denied to 'information_schema when
+# select into out file (regression)
+#
+create database mysqltest;
+create user user_1@localhost;
+grant all on mysqltest.* to user_1@localhost;
+connect (con28181_1,localhost,user_1,,mysqltest);
+
+--error 1044
+eval select schema_name
+into outfile "../tmp/outfile-test.4"
+fields terminated by ',' optionally enclosed by '"'
+ lines terminated by '\n'
+from information_schema.schemata
+where schema_name like 'mysqltest';
+
+connection default;
+grant file on *.* to user_1@localhost;
+
+connect (con28181_2,localhost,user_1,,mysqltest);
+eval select schema_name
+into outfile "../tmp/outfile-test.4"
+fields terminated by ',' optionally enclosed by '"'
+ lines terminated by '\n'
+from information_schema.schemata
+where schema_name like 'mysqltest';
+
+connection default;
+--exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.4
+use test;
+revoke all privileges on *.* from user_1@localhost;
+drop user user_1@localhost;
+drop database mysqltest;
 

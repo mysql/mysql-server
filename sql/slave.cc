@@ -450,7 +450,7 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
 
 
 #ifdef NOT_USED_YET
-static int end_slave_on_walk(MASTER_INFO* mi, gptr /*unused*/)
+static int end_slave_on_walk(MASTER_INFO* mi, uchar* /*unused*/)
 {
   DBUG_ENTER("end_slave_on_walk");
 
@@ -601,9 +601,9 @@ void slave_print_msg(enum loglevel level, RELAY_LOG_INFO const *rli,
   my_vsnprintf(pbuff, pbuffsize, msg, args);
   /* If the msg string ends with '.', do not add a ',' it would be ugly */
   if (pbuff[0] && (*(strend(pbuff)-1) == '.'))
-    (*report_function)("Slave: %s Error_code: %d", pbuff, err_code);
+    (*report_function)("Slave: %s  Error_code: %d", pbuff, err_code);
   else
-    (*report_function)("Slave: %s, Error_code: %d", pbuff, err_code);
+    (*report_function)("Slave: %s. Error_code: %d", pbuff, err_code);
   DBUG_VOID_RETURN;
 }
 
@@ -620,7 +620,7 @@ void skip_load_data_infile(NET *net)
 
   (void)net_request_file(net, "/dev/null");
   (void)my_net_read(net);                               // discard response
-  (void)net_write_command(net, 0, "", 0, "", 0);        // Send ok
+  (void)net_write_command(net, 0, (uchar*) "", 0, (uchar*) "", 0); // ok
   DBUG_VOID_RETURN;
 }
 
@@ -628,7 +628,8 @@ void skip_load_data_infile(NET *net)
 bool net_request_file(NET* net, const char* fname)
 {
   DBUG_ENTER("net_request_file");
-  DBUG_RETURN(net_write_command(net, 251, fname, strlen(fname), "", 0));
+  DBUG_RETURN(net_write_command(net, 251, (uchar*) fname, strlen(fname),
+                                (uchar*) "", 0));
 }
 
 /*
@@ -923,6 +924,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   handler *file;
   ulonglong save_options;
   NET *net= &mysql->net;
+  const char *found_semicolon= NULL;
   DBUG_ENTER("create_table_from_dump");
 
   packet_len= my_net_read(net); // read create table statement
@@ -974,7 +976,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   thd->db = (char*)db;
   DBUG_ASSERT(thd->db != 0);
   thd->db_length= strlen(thd->db);
-  mysql_parse(thd, thd->query, packet_len); // run create table
+  mysql_parse(thd, thd->query, packet_len, &found_semicolon); // run create table
   thd->db = save_db;            // leave things the way the were before
   thd->db_length= save_db_length;
   thd->options = save_options;
@@ -1157,7 +1159,7 @@ static void write_ignored_events_info_to_relay_log(THD *thd, MASTER_INFO *mi)
 
 int register_slave_on_master(MYSQL* mysql)
 {
-  char buf[1024], *pos= buf;
+  uchar buf[1024], *pos= buf;
   uint report_host_len, report_user_len=0, report_password_len=0;
   DBUG_ENTER("register_slave_on_master");
 
@@ -1174,16 +1176,15 @@ int register_slave_on_master(MYSQL* mysql)
     DBUG_RETURN(0);                                     // safety
 
   int4store(pos, server_id); pos+= 4;
-  pos= net_store_data(pos, report_host, report_host_len);
-  pos= net_store_data(pos, report_user, report_user_len);
-  pos= net_store_data(pos, report_password, report_password_len);
+  pos= net_store_data(pos, (uchar*) report_host, report_host_len);
+  pos= net_store_data(pos, (uchar*) report_user, report_user_len);
+  pos= net_store_data(pos, (uchar*) report_password, report_password_len);
   int2store(pos, (uint16) report_port); pos+= 2;
   int4store(pos, rpl_recovery_rank);    pos+= 4;
   /* The master will fill in master_id */
   int4store(pos, 0);                    pos+= 4;
 
-  if (simple_command(mysql, COM_REGISTER_SLAVE, (char*) buf,
-                        (uint) (pos- buf), 0))
+  if (simple_command(mysql, COM_REGISTER_SLAVE, buf, (size_t) (pos- buf), 0))
   {
     sql_print_error("Error on COM_REGISTER_SLAVE: %d '%s'",
                     mysql_errno(mysql),
@@ -1370,7 +1371,7 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
     pthread_mutex_unlock(&mi->rli.data_lock);
     pthread_mutex_unlock(&mi->data_lock);
 
-    if (my_net_write(&thd->net, (char*)thd->packet.ptr(), packet->length()))
+    if (my_net_write(&thd->net, (uchar*) thd->packet.ptr(), packet->length()))
       DBUG_RETURN(TRUE);
   }
   send_eof(thd);
@@ -1498,7 +1499,7 @@ static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
 static int request_dump(MYSQL* mysql, MASTER_INFO* mi,
                         bool *suppress_warnings)
 {
-  char buf[FN_REFLEN + 10];
+  uchar buf[FN_REFLEN + 10];
   int len;
   int binlog_flags = 0; // for now
   char* logname = mi->master_log_name;
@@ -1532,10 +1533,9 @@ static int request_dump(MYSQL* mysql, MASTER_INFO* mi,
 
 static int request_table_dump(MYSQL* mysql, const char* db, const char* table)
 {
-  char buf[1024];
+  uchar buf[1024], *p = buf;
   DBUG_ENTER("request_table_dump");
 
-  char * p = buf;
   uint table_len = (uint) strlen(table);
   uint db_len = (uint) strlen(db);
   if (table_len + db_len > sizeof(buf) - 2)
@@ -2580,7 +2580,8 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
       }
       if (unlikely(!num_bytes)) /* eof */
       {
-        net_write_command(net, 0, "", 0, "", 0);/* 3.23 master wants it */
+	/* 3.23 master wants it */
+        net_write_command(net, 0, (uchar*) "", 0, (uchar*) "", 0);
         /*
           If we wrote Create_file_log_event, then we need to write
           Execute_load_log_event. If we did not write Create_file_log_event,
@@ -3295,7 +3296,7 @@ bool flush_relay_log_info(RELAY_LOG_INFO* rli)
   *pos++='\n';
   pos=longlong2str(rli->group_master_log_pos, pos, 10);
   *pos='\n';
-  if (my_b_write(file, (byte*) buff, (ulong) (pos-buff)+1))
+  if (my_b_write(file, (uchar*) buff, (size_t) (pos-buff)+1))
     error=1;
   if (flush_io_cache(file))
     error=1;

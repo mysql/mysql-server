@@ -44,6 +44,7 @@ typedef struct st_keycache_wqueue
 typedef struct st_key_cache
 {
   my_bool key_cache_inited;
+  my_bool in_resize;             /* true during resize operation             */
   my_bool resize_in_flush;       /* true during flush of resize operation    */
   my_bool can_be_used;           /* usage of cache for read/write is allowed */
   uint key_cache_shift;
@@ -65,13 +66,18 @@ typedef struct st_key_cache
   HASH_LINK **hash_root;         /* arr. of entries into hash table buckets  */
   HASH_LINK *hash_link_root;     /* memory for hash table links              */
   HASH_LINK *free_hash_list;     /* list of free hash links                  */
-  BLOCK_LINK *free_block_list; /* list of free blocks */
+  BLOCK_LINK *free_block_list;   /* list of free blocks */
   BLOCK_LINK *block_root;        /* memory for block links                   */
-  byte HUGE_PTR *block_mem;      /* memory for block buffers                 */
+  uchar HUGE_PTR *block_mem;     /* memory for block buffers                 */
   BLOCK_LINK *used_last;         /* ptr to the last block of the LRU chain   */
   BLOCK_LINK *used_ins;          /* ptr to the insertion block in LRU chain  */
   pthread_mutex_t cache_lock;    /* to lock access to the cache structure    */
   KEYCACHE_WQUEUE resize_queue;  /* threads waiting during resize operation  */
+  /*
+    Waiting for a zero resize count. Using a queue for symmetry though
+    only one thread can wait here.
+  */
+  KEYCACHE_WQUEUE waiting_for_resize_cnt;
   KEYCACHE_WQUEUE waiting_for_hash_link; /* waiting for a free hash link     */
   KEYCACHE_WQUEUE waiting_for_block;    /* requests waiting for a free block */
   BLOCK_LINK *changed_blocks[CHANGED_BLOCKS_HASH]; /* hash for dirty file bl.*/
@@ -109,16 +115,16 @@ extern int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
 			    uint age_threshold);
 extern void change_key_cache_param(KEY_CACHE *keycache, uint division_limit,
 				   uint age_threshold);
-extern byte *key_cache_read(KEY_CACHE *keycache,
+extern uchar *key_cache_read(KEY_CACHE *keycache,
                             File file, my_off_t filepos, int level,
-                            byte *buff, uint length,
+                            uchar *buff, uint length,
 			    uint block_length,int return_buffer);
 extern int key_cache_insert(KEY_CACHE *keycache,
                             File file, my_off_t filepos, int level,
-                            byte *buff, uint length);
+                            uchar *buff, uint length);
 extern int key_cache_write(KEY_CACHE *keycache,
                            File file, my_off_t filepos, int level,
-                           byte *buff, uint length,
+                           uchar *buff, uint length,
 			   uint block_length,int force_write);
 extern int flush_key_blocks(KEY_CACHE *keycache,
                             int file, enum flush_type type);
@@ -127,8 +133,8 @@ extern void end_key_cache(KEY_CACHE *keycache, my_bool cleanup);
 /* Functions to handle multiple key caches */
 extern my_bool multi_keycache_init(void);
 extern void multi_keycache_free(void);
-extern KEY_CACHE *multi_key_cache_search(byte *key, uint length);
-extern my_bool multi_key_cache_set(const byte *key, uint length,
+extern KEY_CACHE *multi_key_cache_search(uchar *key, uint length);
+extern my_bool multi_key_cache_set(const uchar *key, uint length,
 				   KEY_CACHE *key_cache);
 extern void multi_key_cache_change(KEY_CACHE *old_data,
 				   KEY_CACHE *new_data);

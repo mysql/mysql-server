@@ -31,11 +31,11 @@
 	NULL
 */
 
-gptr my_multi_malloc(myf myFlags, ...)
+void* my_multi_malloc(myf myFlags, ...)
 {
   va_list args;
   char **ptr,*start,*res;
-  uint tot_length,length;
+  size_t tot_length,length;
   DBUG_ENTER("my_multi_malloc");
 
   va_start(args,myFlags);
@@ -59,5 +59,5 @@ gptr my_multi_malloc(myf myFlags, ...)
     res+=ALIGN_SIZE(length);
   }
   va_end(args);
-  DBUG_RETURN((gptr) start);
+  DBUG_RETURN((void*) start);
 }

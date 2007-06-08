@@ -438,7 +438,7 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b)
 {
   handler *file= (handler*)arg;
-  return file->cmp_ref((const byte*)a, (const byte*)b);
+  return file->cmp_ref((const uchar*)a, (const uchar*)b);
 }
 
 /*
@@ -903,7 +903,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   /* If it is a temporary table, close and regenerate it */
   if (!dont_send_ok && (table= find_temporary_table(thd, table_list)))
   {
-    handlerton *table_type= table->s->db_type;
+    handlerton *table_type= table->s->db_type();
     TABLE_SHARE *share= table->s;
     if (!ha_check_storage_engine_flag(table_type, HTON_CAN_RECREATE))
       goto trunc_by_del;

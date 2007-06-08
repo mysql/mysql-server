@@ -15,6 +15,7 @@
 # Last_slave_errno in SHOW SLAVE STATUS (1st and 3rd commands did not: bug 986)
 
 -- source include/master-slave.inc
+source include/have_innodb.inc;
 
 connection slave;
 reset master;
@@ -130,7 +131,7 @@ connection master;
 reset master;
 eval create table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60),
 unique(day)) engine=$engine_type; # no transactions
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 load data infile '../std_data_ln/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
@@ -146,7 +147,7 @@ select * from t2;
 alter table t2 drop key day;
 connection master;
 delete from t2;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 load data infile '../std_data_ln/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
@@ -156,4 +157,15 @@ drop table t2;
 connection master;
 drop table t2;
 drop table t1;
+
+# BUG#17233 LOAD DATA INFILE: failure causes mysqld dbug_assert, binlog not flushed
+CREATE TABLE t1 (word CHAR(20) NOT NULL PRIMARY KEY) ENGINE=INNODB;
+
+--error ER_DUP_ENTRY
+LOAD DATA INFILE "../std_data_ln/words.dat" INTO TABLE t1;
+
+--disable warnings
+DROP TABLE IF EXISTS t1;
+--enable warnings
+
 # End of 4.1 tests

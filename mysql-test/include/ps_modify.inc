@@ -193,7 +193,7 @@ prepare stmt1 from 'insert into t1 values(6, ? )';
 execute stmt1 using @arg00;
 select a,b from t1 where b = @arg00;
 # the second insert fails, because the first column is primary key
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 execute stmt1 using @arg00;
 set @arg00=NULL ;
 prepare stmt1 from 'insert into t1 values(0, ? )';
@@ -272,7 +272,7 @@ execute stmt1 using @arg00, @arg01;
 select * from t1 order by a;
 set @arg00=81 ;
 set @arg01=1 ;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 execute stmt1 using @arg00, @arg01;
 
 ## insert, autoincrement column and ' SELECT LAST_INSERT_ID() '

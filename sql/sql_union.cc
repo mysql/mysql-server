@@ -144,17 +144,25 @@ void
 st_select_lex_unit::init_prepare_fake_select_lex(THD *thd_arg) 
 {
   thd_arg->lex->current_select= fake_select_lex;
-  fake_select_lex->table_list.link_in_list((byte *)&result_table_list,
-					   (byte **)
+  fake_select_lex->table_list.link_in_list((uchar *)&result_table_list,
+					   (uchar **)
 					   &result_table_list.next_local);
-  fake_select_lex->context.table_list= fake_select_lex->context.first_name_resolution_table= 
+  fake_select_lex->context.table_list= 
+    fake_select_lex->context.first_name_resolution_table= 
     fake_select_lex->get_table_list();
+  if (!fake_select_lex->first_execution)
+  {
+    for (ORDER *order= (ORDER *) global_parameters->order_list.first;
+         order;
+         order= order->next)
+      order->item= &order->item_ptr;
+  }
   for (ORDER *order= (ORDER *)global_parameters->order_list.first;
        order;
        order=order->next)
   {
     (*order->item)->walk(&Item::change_context_processor, 0,
-                         (byte*) &fake_select_lex->context);
+                         (uchar*) &fake_select_lex->context);
   }
 }
 

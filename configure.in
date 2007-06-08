@@ -10,7 +10,7 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.18-beta)
+AM_INIT_AUTOMAKE(mysql, 5.1.20-beta)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -1864,6 +1864,19 @@ else
 fi
 AC_SUBST(TERMCAP_LIB)
 
+# Check if the termcap function 'tgoto' is already declared in
+# system header files or if it need to be declared locally
+AC_CHECK_DECLS(tgoto,,,[
+#ifdef HAVE_CURSES_H
+# include <curses.h>
+#elif HAVE_NCURSES_H
+# include <ncurses.h>
+#endif
+#ifdef HAVE_TERM_H
+# include <term.h>
+#endif
+])
+
 LIBEDIT_LOBJECTS=""
 AC_CHECK_FUNC(strunvis, ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS unvis.o"])
 AC_CHECK_FUNC(strvis,   ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS vis.o"])
@@ -1926,12 +1939,20 @@ case "$target" in
     ;;
 esac
 
-# isinf() could be a function or a macro (HPUX)
-AC_MSG_CHECKING(for isinf with <math.h>)
+# Check that isinf() is available in math.h and can be used in both C and C++ 
+# code
+AC_MSG_CHECKING(for isinf in <math.h>)
 AC_TRY_LINK([#include <math.h>], [float f = 0.0; int r = isinf(f); return r],
- AC_MSG_RESULT(yes)
- AC_DEFINE(HAVE_ISINF, [1], [isinf() macro or function]),
- AC_MSG_RESULT(no))
+  AC_MSG_RESULT(yes)
+  AC_MSG_CHECKING(whether isinf() can be used in C++ code)
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_LINK([#include <math.h>], [float f = 0.0; int r = isinf(f); return r],
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAVE_ISINF, [1], [isinf() macro or function]),
+    AC_MSG_RESULT(no))
+  AC_LANG_RESTORE,
+  AC_MSG_RESULT(no))
  
 CFLAGS="$ORG_CFLAGS"
 

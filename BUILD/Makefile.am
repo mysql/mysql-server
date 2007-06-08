@@ -28,6 +28,7 @@ EXTRA_DIST =		FINISH.sh \
 			compile-alpha-debug \
 			compile-amd64-debug-max \
 			compile-amd64-max \
+			compile-amd64-max-sci \
 			compile-darwin-mwcc \
 			compile-dist \
 			compile-hpux11-parisc2-aCC \
@@ -52,6 +53,7 @@ EXTRA_DIST =		FINISH.sh \
 			compile-pentium-valgrind-max \
 			compile-pentium64-debug \
 			compile-pentium64-debug-max \
+			compile-pentium64-max-sci \
 			compile-pentium64-valgrind-max \
 			compile-ppc \
 			compile-ppc-debug \

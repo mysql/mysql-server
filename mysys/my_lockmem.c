@@ -25,17 +25,17 @@
 struct st_mem_list
 {
   LIST list;
-  byte *page;
+  uchar *page;
   uint size;
 };
 
 LIST *mem_list;
 
-byte *my_malloc_lock(uint size,myf MyFlags)
+uchar *my_malloc_lock(uint size,myf MyFlags)
 {
   int success;
   uint pagesize=sysconf(_SC_PAGESIZE);
-  byte *ptr;
+  uchar *ptr;
   struct st_mem_list *element;
   DBUG_ENTER("my_malloc_lock");
 
@@ -46,7 +46,7 @@ byte *my_malloc_lock(uint size,myf MyFlags)
       my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG),size);
     DBUG_RETURN(0);
   }
-  success = mlock((byte*) ptr,size);
+  success = mlock((uchar*) ptr,size);
   if (success != 0 && geteuid() == 0)
   {
     DBUG_PRINT("warning",("Failed to lock memory. errno %d\n",
@@ -59,11 +59,11 @@ byte *my_malloc_lock(uint size,myf MyFlags)
     /* Add block in a list for munlock */
     if (!(element=(struct st_mem_list*) my_malloc(sizeof(*element),MyFlags)))
     {
-      VOID(munlock((byte*) ptr,size));
+      VOID(munlock((uchar*) ptr,size));
       free(ptr);
       DBUG_RETURN(0);
     }
-    element->list.data=(byte*) element;
+    element->list.data=(uchar*) element;
     element->page=ptr;
     element->size=size;
     pthread_mutex_lock(&THR_LOCK_malloc);
@@ -74,7 +74,7 @@ byte *my_malloc_lock(uint size,myf MyFlags)
 }
 
 
-void my_free_lock(byte *ptr,myf Myflags __attribute__((unused)))
+void my_free_lock(uchar *ptr,myf Myflags __attribute__((unused)))
 {
   LIST *list;
   struct st_mem_list *element=0;
@@ -85,14 +85,14 @@ void my_free_lock(byte *ptr,myf Myflags __attribute__((unused)))
     element=(struct st_mem_list*) list->data;
     if (ptr == element->page)
     {						/* Found locked mem */
-      VOID(munlock((byte*) ptr,element->size));
+      VOID(munlock((uchar*) ptr,element->size));
       mem_list=list_delete(mem_list,list);
       break;
     }
   }
   pthread_mutex_unlock(&THR_LOCK_malloc);
   if (element)
-    my_free((gptr) element,MYF(0));
+    my_free((uchar*) element,MYF(0));
   free(ptr);					/* Free even if not locked */
 }
 

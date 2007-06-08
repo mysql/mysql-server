@@ -411,7 +411,7 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
     shared_memory_base_name is unique value for each server
     unique_part is uniquel value for each object (events and file-mapping)
   */
-  suffix_pos = strxmov(tmp,shared_memory_base_name,"_",NullS);
+  suffix_pos = strxmov(tmp, "Global\\", shared_memory_base_name, "_", NullS);
   strmov(suffix_pos, "CONNECT_REQUEST");
   if (!(event_connect_request= OpenEvent(event_access_rights, FALSE, tmp)))
   {
@@ -465,8 +465,8 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
     unique_part is uniquel value for each object (events and file-mapping)
     number_of_connection is number of connection between server and client
   */
-  suffix_pos = strxmov(tmp,shared_memory_base_name,"_",connect_number_char,
-		       "_",NullS);
+  suffix_pos = strxmov(tmp, "Global\\", shared_memory_base_name, "_", connect_number_char,
+		       "_", NullS);
   strmov(suffix_pos, "DATA");
   if ((handle_file_map = OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)) == NULL)
   {
@@ -644,14 +644,14 @@ void free_rows(MYSQL_DATA *cur)
   if (cur)
   {
     free_root(&cur->alloc,MYF(0));
-    my_free((gptr) cur,MYF(0));
+    my_free((uchar*) cur,MYF(0));
   }
 }
 
 my_bool
 cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
-		     const char *header, ulong header_length,
-		     const char *arg, ulong arg_length, my_bool skip_check,
+		     const uchar *header, ulong header_length,
+		     const uchar *arg, ulong arg_length, my_bool skip_check,
                      MYSQL_STMT *stmt __attribute__((unused)))
 {
   NET *net= &mysql->net;
@@ -914,8 +914,8 @@ mysql_free_result(MYSQL_RES *result)
     if (result->fields)
       free_root(&result->field_alloc,MYF(0));
     if (result->row)
-      my_free((gptr) result->row,MYF(0));
-    my_free((gptr) result,MYF(0));
+      my_free((uchar*) result->row,MYF(0));
+    my_free((uchar*) result,MYF(0));
   }
   DBUG_VOID_RETURN;
 }
@@ -958,7 +958,7 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
   }
 
   if (!(tmp= my_strdup(cmd,MYF(MY_WME))) ||
-      insert_dynamic(options->init_commands, (gptr)&tmp))
+      insert_dynamic(options->init_commands, (uchar*)&tmp))
   {
     my_free(tmp, MYF(MY_ALLOW_ZERO_PTR));
     return 1;
@@ -1170,7 +1170,7 @@ static void cli_fetch_lengths(ulong *to, MYSQL_ROW column,
 			      unsigned int field_count)
 { 
   ulong *prev_length;
-  byte *start=0;
+  char *start=0;
   MYSQL_ROW end;
 
   prev_length=0;				/* Keep gcc happy */
@@ -1589,7 +1589,7 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
 */
 
 const char * STDCALL
-mysql_get_ssl_cipher(MYSQL *mysql)
+mysql_get_ssl_cipher(MYSQL *mysql __attribute__((unused)))
 {
   DBUG_ENTER("mysql_get_ssl_cipher");
 #ifdef HAVE_OPENSSL
@@ -2047,13 +2047,11 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 
   /* If user set read_timeout, let it override the default */
   if (mysql->options.read_timeout)
-    net->read_timeout= mysql->options.read_timeout;
-  vio_timeout(net->vio, 0, net->read_timeout);
+    my_net_set_read_timeout(net, mysql->options.read_timeout);
 
   /* If user set write_timeout, let it override the default */
   if (mysql->options.write_timeout)
-    net->write_timeout= mysql->options.write_timeout;
-  vio_timeout(net->vio, 1, net->write_timeout);
+    my_net_set_write_timeout(net, mysql->options.write_timeout);
 
   if (mysql->options.max_allowed_packet)
     net->max_packet_size= mysql->options.max_allowed_packet;
@@ -2575,7 +2573,7 @@ static void mysql_close_free_options(MYSQL *mysql)
 
 static void mysql_close_free(MYSQL *mysql)
 {
-  my_free((gptr) mysql->host_info,MYF(MY_ALLOW_ZERO_PTR));
+  my_free((uchar*) mysql->host_info,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->passwd,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
@@ -2665,7 +2663,7 @@ void STDCALL mysql_close(MYSQL *mysql)
       (*mysql->methods->free_embedded_thd)(mysql);
 #endif
     if (mysql->free_me)
-      my_free((gptr) mysql,MYF(0));
+      my_free((uchar*) mysql,MYF(0));
   }
   DBUG_VOID_RETURN;
 }
@@ -2818,7 +2816,7 @@ MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
   if (!(result->data=
 	(*mysql->methods->read_rows)(mysql,mysql->fields,mysql->field_count)))
   {
-    my_free((gptr) result,MYF(0));
+    my_free((uchar*) result,MYF(0));
     DBUG_RETURN(0);
   }
   mysql->affected_rows= result->row_count= result->data->rows;
@@ -2868,7 +2866,7 @@ static MYSQL_RES * cli_use_result(MYSQL *mysql)
   if (!(result->row=(MYSQL_ROW)
 	my_malloc(sizeof(result->row[0])*(mysql->field_count+1), MYF(MY_WME))))
   {					/* Ptrs: to one row */
-    my_free((gptr) result,MYF(0));
+    my_free((uchar*) result,MYF(0));
     DBUG_RETURN(0);
   }
   result->fields=	mysql->fields;

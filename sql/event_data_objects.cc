@@ -42,7 +42,7 @@ Event_queue_element_for_exec::init(LEX_STRING db, LEX_STRING n)
     return TRUE;
   if (!(name.str= my_strndup(n.str, name.length= n.length, MYF(MY_WME))))
   {
-    my_free((gptr) dbname.str, MYF(0));
+    my_free((uchar*) dbname.str, MYF(0));
     return TRUE;
   }
   return FALSE;
@@ -58,8 +58,8 @@ Event_queue_element_for_exec::init(LEX_STRING db, LEX_STRING n)
 
 Event_queue_element_for_exec::~Event_queue_element_for_exec()
 {
-  my_free((gptr) dbname.str, MYF(0));
-  my_free((gptr) name.str, MYF(0));
+  my_free((uchar*) dbname.str, MYF(0));
+  my_free((uchar*) name.str, MYF(0));
 }
 
 
@@ -156,10 +156,14 @@ void
 Event_parse_data::init_body(THD *thd)
 {
   DBUG_ENTER("Event_parse_data::init_body");
-  DBUG_PRINT("info", ("body: '%s'  body_begin: 0x%lx end: 0x%lx", body_begin,
-                      (long) body_begin, (long) thd->lex->ptr));
 
-  body.length= thd->lex->ptr - body_begin;
+  /* This method is called from within the parser, from sql_yacc.yy */
+  DBUG_ASSERT(thd->m_lip != NULL);
+
+  DBUG_PRINT("info", ("body: '%s'  body_begin: 0x%lx end: 0x%lx", body_begin,
+                      (long) body_begin, (long) thd->m_lip->ptr));
+
+  body.length= thd->m_lip->ptr - body_begin;
   const char *body_end= body_begin + body.length - 1;
 
   /* Trim nuls or close-comments ('*'+'/') or spaces at the end */
@@ -409,7 +413,8 @@ Event_parse_data::init_interval(THD *thd)
   default:
     ;/* these are the microsec stuff */
   }
-  if (interval_tmp.neg || expression > EVEX_MAX_INTERVAL_VALUE)
+  if (interval_tmp.neg || expression == 0 ||
+      expression > EVEX_MAX_INTERVAL_VALUE)
   {
     my_error(ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG, MYF(0));
     DBUG_RETURN(EVEX_BAD_PARAMS);
@@ -615,7 +620,7 @@ Event_parse_data::init_definer(THD *thd)
   /* + 1 for @ */
   DBUG_PRINT("info",("init definer as whole"));
   definer.length= definer_user_len + definer_host_len + 1;
-  definer.str= thd->alloc(definer.length + 1);
+  definer.str= (char*) thd->alloc(definer.length + 1);
 
   DBUG_PRINT("info",("copy the user"));
   memcpy(definer.str, definer_user, definer_user_len);
@@ -1631,7 +1636,7 @@ Event_queue_element::update_timing_fields(THD *thd)
 
   DBUG_ENTER("Event_queue_element::update_timing_fields");
 
-  DBUG_PRINT("enter", ("name: %*s", name.length, name.str));
+  DBUG_PRINT("enter", ("name: %*s", (int) name.length, name.str));
 
   /* No need to update if nothing has changed */
   if (!(status_changed || last_executed_changed))
@@ -1691,7 +1696,8 @@ Event_timed::get_create_event(THD *thd, String *buf)
   expr_buf.length(0);
 
   DBUG_ENTER("get_create_event");
-  DBUG_PRINT("ret_info",("body_len=[%d]body=[%s]", body.length, body.str));
+  DBUG_PRINT("ret_info",("body_len=[%d]body=[%s]",
+                         (int) body.length, body.str));
 
   if (expression && Events::reconstruct_interval_expression(&expr_buf, interval,
                                                             expression))
@@ -1909,18 +1915,28 @@ Event_job_data::execute(THD *thd, bool drop)
   thd->variables.sql_mode= sql_mode;
   thd->variables.time_zone= time_zone;
 
+  /*
+    Peculiar initialization order is a crutch to avoid races in SHOW
+    PROCESSLIST which reads thd->{query/query_length} without a mutex.
+  */
+  thd->query_length= 0;
   thd->query= sp_sql.c_ptr_safe();
   thd->query_length= sp_sql.length();
 
-  lex_start(thd, thd->query, thd->query_length);
-
-  if (MYSQLparse(thd) || thd->is_fatal_error)
   {
-    sql_print_error("Event Scheduler: "
-                    "%serror during compilation of %s.%s",
-                    thd->is_fatal_error ? "fatal " : "",
-                    (const char *) dbname.str, (const char *) name.str);
-    goto end;
+    Lex_input_stream lip(thd, thd->query, thd->query_length);
+    thd->m_lip= &lip;
+    lex_start(thd);
+    int err= MYSQLparse(thd);
+
+    if (err || thd->is_fatal_error)
+    {
+      sql_print_error("Event Scheduler: "
+                      "%serror during compilation of %s.%s",
+                      thd->is_fatal_error ? "fatal " : "",
+                      (const char *) dbname.str, (const char *) name.str);
+      goto end;
+    }
   }
 
   {
@@ -1959,6 +1975,11 @@ end:
       ret= 1;
     else
     {
+      /*
+        Peculiar initialization order is a crutch to avoid races in SHOW
+        PROCESSLIST which reads thd->{query/query_length} without a mutex.
+      */
+      thd->query_length= 0;
       thd->query= sp_sql.c_ptr_safe();
       thd->query_length= sp_sql.length();
       if (Events::drop_event(thd, dbname, name, FALSE))

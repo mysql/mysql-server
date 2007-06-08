@@ -1431,4 +1431,38 @@ show create table t2;
 DROP TABLE t1, t2;
 set @@sql_mode=@org_mode;
 
+#
+# Bug #27123 partition + on duplicate key update + varchar = Can't find record in <table> 
+#
+create table t1 (c1 varchar(255),c2 tinyint,primary key(c1))
+   partition by key (c1) partitions 10 ;
+insert into t1 values ('aaa','1') on duplicate key update c2 = c2 + 1;
+insert into t1 values ('aaa','1') on duplicate key update c2 = c2 + 1;
+select * from t1;
+drop table t1;
+
+#
+# Bug #28005 Partitions: can't use -9223372036854775808 
+#
+
+create table t1 (s1 bigint) partition by list (s1) (partition p1 values in (-9223372036854775808));
+drop table t1;
+
+#
+# Bug #28806: Running SHOW TABLE STATUS during high INSERT load crashes server
+#
+create table t1(a int auto_increment, b int, primary key (b, a)) 
+  partition by hash(b) partitions 2;
+insert into t1 values (null, 1);
+--replace_column 9 0 12 NULL 13 NULL 14 NULL
+show table status;
+drop table t1;
+
+create table t1(a int auto_increment primary key)
+  partition by key(a) partitions 2;
+insert into t1 values (null), (null), (null);
+--replace_column 9 0 12 NULL 13 NULL 14 NULL
+show table status;
+drop table t1;
+
 --echo End of 5.1 tests
