@@ -21,17 +21,6 @@ Created 13/06/2005 Jan Lindstrom
 #include "btr0types.h"
 #include "row0mysql.h"
 
-/* Information about temporary files used in merge sort are stored
-to this structure */
-
-struct merge_file_struct {
-	os_file_t	file;			/* File descriptor */
-	ulint		offset;			/* File offset */
-	ulint		num_of_blocks;		/* Number of blocks */
-};
-
-typedef struct merge_file_struct merge_file_t;
-
 /* This structure holds index field definitions */
 
 struct merge_index_field_struct {
@@ -53,48 +42,6 @@ struct merge_index_def_struct {
 
 typedef struct merge_index_def_struct merge_index_def_t;
 
-/************************************************************************
-Reads clustered index of the table and create temporary files
-containing index entries for indexes to be built. */
-
-ulint
-row_merge_read_clustered_index(
-/*===========================*/
-					/* out: DB_SUCCESS if successfull,
-					or ERROR code */
-	trx_t*		trx,		/* in: transaction */
-	dict_table_t*	table,		/* in: table where index is created */
-	dict_index_t**	index,		/* in: indexes to be created */
-	merge_file_t*	files,		/* in: Files where to write index
-					entries */
-	ulint		num_of_idx);	/* in: number of indexes to be
-					created */
-/************************************************************************
-Read sorted file containing index data tuples and insert these data
-data tuples to the index */
-
-ulint
-row_merge_insert_index_tuples(
-/*==========================*/
-					/* out: 0 or error number */
-	trx_t*		trx, 		/* in: transaction */
-	dict_index_t*	index,		/* in: index */
-	dict_table_t*	table,		/* in: table */
-	os_file_t	file,		/* in: file handle */
-	ulint		offset);	/* in: offset where to start
-					reading */
-/*****************************************************************
-Merge sort for linked list in the disk. */
-
-ulint
-row_merge_sort_linked_list_in_disk(
-/*===============================*/
-					/* out: offset to first block in
-					the list or ULINT_UNDEFINED in
-					case of error */
-	dict_index_t*	index,		/* in: index to be created */
-	os_file_t	file,		/* in: File handle */
-	int*		error);		/* out: 0 or error */
 /*************************************************************************
 Drop an index from the InnoDB system tables. */
 
@@ -116,13 +63,6 @@ row_merge_drop_indexes(
 	dict_table_t*	table,		/* in: table containing the indexes */
 	dict_index_t**	index,		/* in: indexes to drop */
 	ulint		num_created);	/* in: number of elements in index[] */
-/*************************************************************************
-Initialize memory for a merge file structure */
-
-void
-row_merge_file_create(
-/*==================*/
-	merge_file_t*	merge_file);	/* out: merge file structure */
 
 /*************************************************************************
 Create a temporary table using a definition of the old table. You must
@@ -136,16 +76,7 @@ row_merge_create_temporary_table(
 	dict_table_t*	table,		/* in: old table definition */
 	trx_t*		trx);		/* in/out: trx (sets error_state) */
 /*************************************************************************
-Update all prebuilts for this table */
-
-void
-row_merge_prebuilts_update(
-/*=======================*/
-
-	trx_t*		trx,		/* in: trx */
-	dict_table_t*	old_table);	/* in: old table */
-/*************************************************************************
-Rename the indexes in the dicitionary. */
+Rename the indexes in the dictionary. */
 
 ulint
 row_merge_rename_index(
@@ -155,7 +86,7 @@ row_merge_rename_index(
 	dict_table_t*	table,		/* in: Table for index */
 	dict_index_t*	index);		/* in: Index to rename */
 /*************************************************************************
-Create the index and load in to the dicitionary. */
+Create the index and load in to the dictionary. */
 
 dict_index_t*
 row_merge_create_index(
@@ -166,7 +97,7 @@ row_merge_create_index(
 	const merge_index_def_t*	/* in: the index definition */
 			index_def);
 /*************************************************************************
-Check if a transaction can use an index.*/
+Check if a transaction can use an index. */
 
 ibool
 row_merge_is_index_usable(
@@ -177,13 +108,31 @@ row_merge_is_index_usable(
 	const dict_index_t*	index);	/* in: index to check */
 /*************************************************************************
 If there are views that refer to the old table name then we "attach" to
-the new instance of the table else we drop it immediately.*/
+the new instance of the table else we drop it immediately. */
 
 ulint
 row_merge_drop_table(
 /*=================*/
-					/* out: DB_SUCCESS if all OK else
-					error code.*/
+					/* out: DB_SUCCESS or error code */
 	trx_t*		trx,		/* in: transaction */
 	dict_table_t*	table);		/* in: table instance to drop */
+
+/*************************************************************************
+Build indexes on a table by reading a clustered index,
+creating a temporary file containing index entries, merge sorting
+these index entries and inserting sorted index entries to indexes. */
+
+ulint
+row_merge_build_indexes(
+/*====================*/
+					/* out: DB_SUCCESS or error code */
+	trx_t*		trx,		/* in: transaction */
+	dict_table_t*	old_table,	/* in: Table where rows are
+					read from */
+	dict_table_t*	new_table,	/* in: Table where indexes are
+					created. Note that old_table ==
+					new_table if we are creating a
+					secondary keys. */
+	dict_index_t**	indexes,	/* in: indexes to be created */
+	ulint		n_indexes);	/* in: size of indexes[] */
 #endif /* row0merge.h */

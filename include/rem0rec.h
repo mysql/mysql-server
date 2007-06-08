@@ -607,16 +607,17 @@ rec_fold(
 /*************************************************************
 Builds a ROW_FORMAT=COMPACT record out of a data tuple. */
 
-byte*
+void
 rec_convert_dtuple_to_rec_comp(
 /*===========================*/
-				/* out: pointer to the start of data payload */
-	byte*		buf,	/* in: start address of the data area */
+	rec_t*		rec,	/* in: origin of record */
 	ulint		extra,	/* in: number of bytes to reserve between
 				the record header and the data payload
 				(usually REC_N_NEW_EXTRA_BYTES) */
 	dict_index_t*	index,	/* in: record descriptor */
-	const dtuple_t*	dtuple,	/* in: data tuple */
+	ulint		status,	/* in: status bits of the record */
+	const dfield_t*	fields,	/* in: array of data fields */
+	ulint		n_fields,/* in: number of data fields */
 	const ulint*	ext,	/* in: array of extern field numbers,
 				in ascending order */
 	ulint		n_ext);	/* in: number of elements in ext */
@@ -657,9 +658,12 @@ rec_get_converted_size_comp(
 				/* out: size */
 	dict_index_t*	index,	/* in: record descriptor;
 				dict_table_is_comp() is assumed to hold */
-	const dtuple_t*	dtuple,	/* in: data tuple */
+	ulint		status,	/* in: status bits of the record */
+	const dfield_t*	fields,	/* in: array of data fields */
+	ulint		n_fields,/* in: number of data fields */
 	const ulint*	ext,	/* in: array of extern field numbers */
-	ulint		n_ext);	/* in: number of elements in ext */
+	ulint		n_ext,	/* in: number of elements in ext */
+	ulint*		extra);	/* out: extra size */
 /**************************************************************
 The following function returns the size of a data tuple when converted to
 a physical record. */

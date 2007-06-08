@@ -30,8 +30,7 @@ and the low (LOW), inclusive, and high (HIGH), noninclusive,
 limits for the sort interval as arguments.
 CMP_FUN is the comparison function name. It takes as arguments
 two elements from the array and returns 1, if the first is bigger,
-0 if equal, and -1 if the second bigger. For an eaxmaple of use
-see test program in tsut.c. */
+0 if equal, and -1 if the second bigger. */
 
 #define UT_SORT_FUNCTION_BODY(SORT_FUN, ARR, AUX_ARR, LOW, HIGH, CMP_FUN)\
 {\

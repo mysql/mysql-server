@@ -656,6 +656,14 @@ dict_table_get_sys_col_no(
 	const dict_table_t*	table,	/* in: table */
 	ulint			sys);	/* in: DATA_ROW_ID, ... */
 /************************************************************************
+Returns the minimum data size of an index record. */
+UNIV_INLINE
+ulint
+dict_index_get_min_size(
+/*====================*/
+					/* out: minimum data size in bytes */
+	const dict_index_t*	index);	/* in: index */
+/************************************************************************
 Check whether the table uses the compact page format. */
 UNIV_INLINE
 ibool
