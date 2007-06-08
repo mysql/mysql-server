@@ -1204,6 +1204,13 @@ protected:
    */
   Int8 m_abortOption;
 
+  /*
+   * For blob impl, option to not propagate error to trans level.
+   * Could be AO_IgnoreError variant if we want it public.
+   * Ignored unless AO_IgnoreError is also set.
+   */
+  Int8 m_noErrorPropagation;
+
   friend struct Ndb_free_list_t<NdbOperation>;
 
   Uint32 repack_read(Uint32 len);
