@@ -959,41 +959,37 @@ row_merge_blocks(
 	dict_index_t*		index,	/* in: index being created */
 	merge_file_t*		file,	/* in/out: file containing
 					index entries */
-	row_merge_block_t*	block1,	/* in/out: input buffer */
-	row_merge_block_t*	block2,	/* in/out: input buffer */
-	row_merge_block_t*	block3,	/* in/out: output buffer */
-	ulint*			foffs1,	/* in/out: offset of first
+	row_merge_block_t*	block,	/* in/out: 3 buffers */
+	ulint*			foffs0,	/* in/out: offset of first
 					source list in the file */
-	ulint*			foffs2,	/* in/out: offset of second
+	ulint*			foffs1,	/* in/out: offset of second
 					source list in the file */
 	merge_file_t*		of)	/* in/out: output file */
 {
-	mem_heap_t*	heap;	/* memory heap for offsets1, offsets2 */
+	mem_heap_t*	heap;	/* memory heap for offsets0, offsets1 */
 
-	mrec_buf_t	buf1;	/* buffer for handling split mrec1 in block1 */
-	mrec_buf_t	buf2;	/* buffer for handling split mrec2 in block2 */
-	mrec_buf_t	buf3;	/* buffer for handling split mrec in block3 */
-	const byte*	b1;	/* pointer to block1 */
-	const byte*	b2;	/* pointer to block2 */
-	byte*		b3;	/* pointer to block3 */
-	const mrec_t*	mrec1;	/* merge record, points to block1 or buf1 */
-	const mrec_t*	mrec2;	/* merge record, points to block2 or buf2 */
+	mrec_buf_t	buf[3];	/* buffer for handling split mrec in block[] */
+	const byte*	b0;	/* pointer to block[0] */
+	const byte*	b1;	/* pointer to block[1] */
+	byte*		b2;	/* pointer to block[2] */
+	const mrec_t*	mrec0;	/* merge rec, points to block[0] or buf[0] */
+	const mrec_t*	mrec1;	/* merge rec, points to block[1] or buf[1] */
+	ulint*		offsets0;/* offsets of mrec0 */
 	ulint*		offsets1;/* offsets of mrec1 */
-	ulint*		offsets2;/* offsets of mrec2 */
 
-	heap = row_merge_heap_create(index, &offsets1, &offsets2);
+	heap = row_merge_heap_create(index, &offsets0, &offsets1);
 
 	/* Write a record and read the next record.  Split the output
 	file in two halves, which can be merged on the following pass. */
 #define ROW_MERGE_WRITE_GET_NEXT(N, AT_END)				\
 	do {								\
-		b3 = row_merge_write_rec(block3, &buf3, b3,		\
+		b2 = row_merge_write_rec(&block[2], &buf[2], b2,	\
 					 of->fd, &of->offset,		\
 					 mrec##N, offsets##N);		\
-		if (UNIV_UNLIKELY(!b3)) {				\
+		if (UNIV_UNLIKELY(!b2)) {				\
 			goto corrupt;					\
 		}							\
-		b##N = row_merge_read_rec(block##N, &buf##N,		\
+		b##N = row_merge_read_rec(&block[N], &buf[N],		\
 					  b##N, index,			\
 					  file->fd, foffs##N,		\
 					  &mrec##N, offsets##N);	\
@@ -1005,30 +1001,30 @@ row_merge_blocks(
 		}							\
 	} while (0)
 
-	if (!row_merge_read(file->fd, *foffs1, block1)
-	    || !row_merge_read(file->fd, *foffs2, block2)) {
+	if (!row_merge_read(file->fd, *foffs0, &block[0])
+	    || !row_merge_read(file->fd, *foffs1, &block[1])) {
 corrupt:
 		mem_heap_free(heap);
 		return(DB_CORRUPTION);
 	}
 
-	b1 = *block1;
-	b2 = *block2;
-	b3 = *block3;
+	b0 = block[0];
+	b1 = block[1];
+	b2 = block[2];
 
-	b1 = row_merge_read_rec(block1, &buf1, b1, index, file->fd,
+	b0 = row_merge_read_rec(&block[0], &buf[0], b0, index, file->fd,
+				foffs0, &mrec0, offsets0);
+	b1 = row_merge_read_rec(&block[1], &buf[1], b1, index, file->fd,
 				foffs1, &mrec1, offsets1);
-	b2 = row_merge_read_rec(block2, &buf2, b2, index, file->fd,
-				foffs2, &mrec2, offsets2);
-	if (UNIV_UNLIKELY(!b1 && mrec1)
-	    || UNIV_UNLIKELY(!b2 && mrec2)) {
+	if (UNIV_UNLIKELY(!b0 && mrec0)
+	    || UNIV_UNLIKELY(!b1 && mrec1)) {
 
 		goto corrupt;
 	}
 
-	while (mrec1 && mrec2) {
-		switch (row_merge_cmp(mrec1, mrec2,
-				      offsets1, offsets2, index)) {
+	while (mrec0 && mrec1) {
+		switch (row_merge_cmp(mrec0, mrec1,
+				      offsets0, offsets1, index)) {
 		case 0:
 			if (UNIV_UNLIKELY
 			    (dict_index_is_unique(index))) {
@@ -1037,10 +1033,10 @@ corrupt:
 			}
 			/* fall through */
 		case -1:
-			ROW_MERGE_WRITE_GET_NEXT(1, goto merged);
+			ROW_MERGE_WRITE_GET_NEXT(0, goto merged);
 			break;
 		case 1:
-			ROW_MERGE_WRITE_GET_NEXT(2, goto merged);
+			ROW_MERGE_WRITE_GET_NEXT(1, goto merged);
 			break;
 		default:
 			ut_error;
@@ -1049,6 +1045,13 @@ corrupt:
 	}
 
 merged:
+	if (mrec0) {
+		/* append all mrec0 to output */
+		for (;;) {
+			ROW_MERGE_WRITE_GET_NEXT(0, break);
+		}
+	}
+
 	if (mrec1) {
 		/* append all mrec1 to output */
 		for (;;) {
@@ -1056,16 +1059,9 @@ merged:
 		}
 	}
 
-	if (mrec2) {
-		/* append all mrec2 to output */
-		for (;;) {
-			ROW_MERGE_WRITE_GET_NEXT(2, break);
-		}
-	}
-
 	mem_heap_free(heap);
-	b3 = row_merge_write_eof(block3, b3, of->fd, &of->offset);
-	return(b3 ? DB_SUCCESS : DB_CORRUPTION);
+	b2 = row_merge_write_eof(&block[2], b2, of->fd, &of->offset);
+	return(b2 ? DB_SUCCESS : DB_CORRUPTION);
 }
 
 /*****************************************************************
@@ -1079,14 +1075,12 @@ row_merge(
 	dict_index_t*		index,		/* in: index being created */
 	merge_file_t*		file,		/* in/out: file containing
 						index entries */
-	row_merge_block_t*	block1,		/* in/out: input buffer */
-	row_merge_block_t*	block2,		/* in/out: input buffer */
-	row_merge_block_t*	block3,		/* in/out: output buffer */
+	row_merge_block_t*	block,		/* in/out: 3 buffers */
 	int*			tmpfd)		/* in/out: temporary file
 						handle */
 {
-	ulint		foffs1;	/* first input offset */
-	ulint		foffs2;	/* second input offset */
+	ulint		foffs0;	/* first input offset */
+	ulint		foffs1;	/* second input offset */
 	ulint		half;	/* upper limit of foffs1 */
 	ulint		error;	/* error code */
 	merge_file_t	of;	/* output file */
@@ -1098,12 +1092,12 @@ row_merge(
 	half = file->offset / 2;
 
 	/* Merge blocks to the output file. */
-	foffs1 = 0;
-	foffs2 = half;
+	foffs0 = 0;
+	foffs1 = half;
 
-	for (; foffs1 < half; foffs1++, foffs2++) {
-		error = row_merge_blocks(index, file, block1, block2, block3,
-					 &foffs1, &foffs2, &of);
+	for (; foffs0 < half; foffs0++, foffs1++) {
+		error = row_merge_blocks(index, file, block,
+					 &foffs0, &foffs1, &of);
 
 		if (error != DB_SUCCESS) {
 			return(error);
@@ -1111,9 +1105,9 @@ row_merge(
 	}
 
 	/* Copy the last block, if there is one. */
-	while (foffs2 < file->offset) {
-		if (!row_merge_read(file->fd, foffs2++, block2)
-		    || !row_merge_write(of.fd, of.offset++, block2)) {
+	while (foffs1 < file->offset) {
+		if (!row_merge_read(file->fd, foffs1++, block)
+		    || !row_merge_write(of.fd, of.offset++, block)) {
 			return(DB_CORRUPTION);
 		}
 	}
@@ -1136,9 +1130,7 @@ row_merge_sort(
 	dict_index_t*		index,		/* in: index being created */
 	merge_file_t*		file,		/* in/out: file containing
 						index entries */
-	row_merge_block_t*	block1,		/* in/out: input buffer */
-	row_merge_block_t*	block2,		/* in/out: input buffer */
-	row_merge_block_t*	block3,		/* in/out: output buffer */
+	row_merge_block_t*	block,		/* in/out: 3 buffers */
 	int*			tmpfd)		/* in/out: temporary file
 						handle */
 {
@@ -1147,8 +1139,7 @@ row_merge_sort(
 	blksz = 1;
 
 	for (;; blksz *= 2) {
-		ulint	error = row_merge(index, file,
-					  block1, block2, block3, tmpfd);
+		ulint	error = row_merge(index, file, block, tmpfd);
 		if (error != DB_SUCCESS) {
 			return(error);
 		}
@@ -1658,9 +1649,8 @@ row_merge_build_indexes(
 	ulint		n_indexes)	/* in: size of indexes[] */
 {
 	merge_file_t*		merge_files;
-	row_merge_block_t*	block1;
-	row_merge_block_t*	block2;
-	row_merge_block_t*	block3;
+	row_merge_block_t*	block;
+	ulint			block_size;
 	ulint			i;
 	ulint			error;
 	int			tmpfd;
@@ -1677,9 +1667,8 @@ row_merge_build_indexes(
 	fields */
 
 	merge_files = mem_alloc(n_indexes * sizeof *merge_files);
-	block1 = mem_alloc(sizeof *block1);
-	block2 = mem_alloc(sizeof *block2);
-	block3 = mem_alloc(sizeof *block3);
+	block_size = 3 * sizeof *block;
+	block = os_mem_alloc_large(&block_size);
 
 	for (i = 0; i < n_indexes; i++) {
 
@@ -1692,7 +1681,7 @@ row_merge_build_indexes(
 	secondary index entries for merge sort */
 
 	error = row_merge_read_clustered_index(
-		trx, old_table, indexes, merge_files, n_indexes, block1);
+		trx, old_table, indexes, merge_files, n_indexes, block);
 
 	if (error != DB_SUCCESS) {
 
@@ -1706,12 +1695,12 @@ row_merge_build_indexes(
 
 	for (i = 0; i < n_indexes; i++) {
 		error = row_merge_sort(indexes[i], &merge_files[i],
-				       block1, block2, block3, &tmpfd);
+				       block, &tmpfd);
 
 		if (error == DB_SUCCESS) {
 			error = row_merge_insert_index_tuples(
 				trx, indexes[i], new_table,
-				merge_files[i].fd, block1);
+				merge_files[i].fd, block);
 		}
 
 		/* Close the temporary file to free up space. */
@@ -1731,9 +1720,7 @@ func_exit:
 	}
 
 	mem_free(merge_files);
-	mem_free(block1);
-	mem_free(block2);
-	mem_free(block3);
+	os_mem_free_large(block, block_size);
 
 	return(error);
 }
