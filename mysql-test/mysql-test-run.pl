@@ -912,6 +912,9 @@ sub command_line_setup () {
     $opt_skip_ndbcluster= 1;       # Turn off use of NDB cluster
     $opt_skip_ssl= 1;              # Turn off use of SSL
 
+    # Turn off use of bin log
+    push(@opt_extra_mysqld_opt, "--skip-log-bin");
+
     if ( $opt_extern )
     {
       mtr_error("Can't use --extern with --embedded-server");
