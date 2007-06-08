@@ -236,6 +236,14 @@ rec_init_offsets_comp_ordinary(
 	dict_field_t*	field;
 	ulint		null_mask	= 1;
 
+#ifdef UNIV_DEBUG
+	/* We cannot invoke rec_offs_make_valid() here, because it can hold
+	that extra != REC_N_NEW_EXTRA_BYTES.  Similarly, rec_offs_validate()
+	will fail in that case, because it invokes rec_get_status(). */
+	offsets[2] = (ulint) rec;
+	offsets[3] = (ulint) index;
+#endif /* UNIV_DEBUG */
+
 	/* read the lengths of fields 0..n */
 	do {
 		ulint	len;
@@ -713,40 +721,49 @@ Determines the size of a data tuple in ROW_FORMAT=COMPACT. */
 ulint
 rec_get_converted_size_comp(
 /*========================*/
-				/* out: size */
+				/* out: total size */
 	dict_index_t*	index,	/* in: record descriptor;
 				dict_table_is_comp() is assumed to hold */
-	const dtuple_t*	dtuple,	/* in: data tuple */
+	ulint		status,	/* in: status bits of the record */
+	const dfield_t*	fields,	/* in: array of data fields */
+	ulint		n_fields,/* in: number of data fields */
 	const ulint*	ext,	/* in: array of extern field numbers */
-	ulint		n_ext)	/* in: number of elements in ext */
+	ulint		n_ext,	/* in: number of elements in ext */
+	ulint*		extra)	/* out: extra size */
 {
-	ulint		size		= REC_N_NEW_EXTRA_BYTES
-		+ UT_BITS_IN_BYTES(index->n_nullable);
+	ulint		extra_size;
+	ulint		data_size;
 	ulint		i;
 	ulint		j;
-	ulint		n_fields;
-	ut_ad(index && dtuple);
-	ut_ad(dtuple_validate(dtuple));
+	ut_ad(index);
+	ut_ad(fields);
+	ut_ad(n_fields > 0);
 
-	switch (dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK) {
+	switch (UNIV_EXPECT(status, REC_STATUS_ORDINARY)) {
 	case REC_STATUS_ORDINARY:
-		n_fields = dict_index_get_n_fields(index);
-		ut_ad(n_fields == dtuple_get_n_fields(dtuple));
+		ut_ad(n_fields == dict_index_get_n_fields(index));
+		data_size = 0;
 		break;
 	case REC_STATUS_NODE_PTR:
-		n_fields = dict_index_get_n_unique_in_tree(index);
-		ut_ad(n_fields + 1 == dtuple_get_n_fields(dtuple));
-		ut_ad(dtuple_get_nth_field(dtuple, n_fields)->len == 4);
-		size += 4; /* child page number */
+		n_fields--;
+		ut_ad(n_fields == dict_index_get_n_unique_in_tree(index));
+		ut_ad(fields[n_fields].len == 4);
+		ut_ad(!n_ext);
+		data_size = 4; /* child page number */
 		break;
 	case REC_STATUS_INFIMUM:
 	case REC_STATUS_SUPREMUM:
 		/* infimum or supremum record, 8 data bytes */
-		return(REC_N_NEW_EXTRA_BYTES + 8);
+		extra_size = REC_N_NEW_EXTRA_BYTES;
+		data_size = 8;
+		goto func_exit;
 	default:
 		ut_error;
 		return(ULINT_UNDEFINED);
 	}
+
+	extra_size = REC_N_NEW_EXTRA_BYTES
+		+ UT_BITS_IN_BYTES(index->n_nullable);
 
 	/* read the lengths of fields 0..n */
 	for (i = j = 0; i < n_fields; i++) {
@@ -755,12 +772,11 @@ rec_get_converted_size_comp(
 		const dict_col_t*	col;
 
 		field = dict_index_get_nth_field(index, i);
-		len = dtuple_get_nth_field(dtuple, i)->len;
+		len = fields[i].len;
 		col = dict_field_get_col(field);
 
-		ut_ad(dict_col_type_assert_equal(
-			      col, dfield_get_type(dtuple_get_nth_field(
-							   dtuple, i))));
+		ut_ad(dict_col_type_assert_equal(col,
+						 dfield_get_type(&fields[i])));
 
 		if (len == UNIV_SQL_NULL) {
 			/* No length is stored for NULL fields. */
@@ -777,23 +793,28 @@ rec_get_converted_size_comp(
 			      || field->fixed_len == field->prefix_len);
 		} else if (UNIV_UNLIKELY(j < n_ext) && i == ext[j]) {
 			j++;
-			size += 2;
+			extra_size += 2;
 		} else if (len < 128
 			   || (col->len < 256 && col->mtype != DATA_BLOB)) {
-			size++;
+			extra_size++;
 		} else {
 			/* For variable-length columns, we look up the
 			maximum length from the column itself.  If this
 			is a prefix index column shorter than 256 bytes,
 			this will waste one byte. */
-			size += 2;
+			extra_size += 2;
 		}
-		size += len;
+		data_size += len;
 	}
 
 	ut_ad(j == n_ext);
 
-	return(size);
+func_exit:
+	if (UNIV_LIKELY_NULL(extra)) {
+		*extra = extra_size;
+	}
+
+	return(extra_size + data_size);
 }
 
 /***************************************************************
@@ -980,23 +1001,23 @@ rec_convert_dtuple_to_rec_old(
 /*************************************************************
 Builds a ROW_FORMAT=COMPACT record out of a data tuple. */
 
-byte*
+void
 rec_convert_dtuple_to_rec_comp(
 /*===========================*/
-				/* out: pointer to the start of data payload */
-	byte*		buf,	/* in: start address of the data area */
+	rec_t*		rec,	/* in: origin of record */
 	ulint		extra,	/* in: number of bytes to reserve between
 				the record header and the data payload
-				(usually REC_N_NEW_EXTRA_BYTES) */
+				(normally REC_N_NEW_EXTRA_BYTES) */
 	dict_index_t*	index,	/* in: record descriptor */
-	const dtuple_t*	dtuple,	/* in: data tuple */
+	ulint		status,	/* in: status bits of the record */
+	const dfield_t*	fields,	/* in: array of data fields */
+	ulint		n_fields,/* in: number of data fields */
 	const ulint*	ext,	/* in: array of extern field numbers,
 				in ascending order */
 	ulint		n_ext)	/* in: number of elements in ext */
 {
 	const dfield_t*	field;
 	const dtype_t*	type;
-	rec_t*		rec		= buf + extra;
 	byte*		end;
 	byte*		nulls;
 	byte*		lens;
@@ -1006,18 +1027,10 @@ rec_convert_dtuple_to_rec_comp(
 	ulint		n_node_ptr_field;
 	ulint		fixed_len;
 	ulint		null_mask	= 1;
-	const ulint	n_fields	= dtuple_get_n_fields(dtuple);
 	ut_ad(dict_table_is_comp(index->table));
 	ut_ad(n_fields > 0);
 
-	/* Try to ensure that the memset() between the for() loops
-	completes fast.	 The address is not exact, but UNIV_PREFETCH
-	should never generate a memory fault. */
-	UNIV_PREFETCH_RW(buf - n_fields);
-	UNIV_PREFETCH_RW(rec);
-
-	switch (UNIV_EXPECT(dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK,
-			    REC_STATUS_ORDINARY)) {
+	switch (UNIV_EXPECT(status, REC_STATUS_ORDINARY)) {
 	case REC_STATUS_ORDINARY:
 		ut_ad(n_fields <= dict_index_get_n_fields(index));
 		n_node_ptr_field = ULINT_UNDEFINED;
@@ -1030,62 +1043,12 @@ rec_convert_dtuple_to_rec_comp(
 	case REC_STATUS_SUPREMUM:
 		ut_ad(n_fields == 1);
 		n_node_ptr_field = ULINT_UNDEFINED;
-		ut_d(j = 0);
-		goto init;
+		break;
 	default:
 		ut_error;
-		return(0);
+		return;
 	}
 
-	/* Calculate the offset of the origin in the physical record.
-	We must loop over all fields to do this. */
-	rec += UT_BITS_IN_BYTES(index->n_nullable);
-
-	for (i = j = 0; i < n_fields; i++) {
-		if (UNIV_UNLIKELY(i == n_node_ptr_field)) {
-#ifdef UNIV_DEBUG
-			field = dtuple_get_nth_field(dtuple, i);
-			type = dfield_get_type(field);
-			ut_ad(dtype_get_prtype(type) & DATA_NOT_NULL);
-			ut_ad(dfield_get_len(field) == 4);
-#endif /* UNIV_DEBUG */
-			goto init;
-		}
-		field = dtuple_get_nth_field(dtuple, i);
-		type = dfield_get_type(field);
-		len = dfield_get_len(field);
-		fixed_len = dict_index_get_nth_field(index, i)->fixed_len;
-
-		ut_ad(dict_col_type_assert_equal(
-			      dict_field_get_col(dict_index_get_nth_field(
-							 index, i)),
-			      dfield_get_type(field)));
-
-		if (!(dtype_get_prtype(type) & DATA_NOT_NULL)) {
-			if (len == UNIV_SQL_NULL)
-				continue;
-		}
-		/* only nullable fields can be null */
-		ut_ad(len != UNIV_SQL_NULL);
-		if (fixed_len) {
-			ut_ad(len == fixed_len);
-		} else {
-			ut_ad(len <= dtype_get_len(type)
-			      || dtype_get_mtype(type) == DATA_BLOB);
-			rec++;
-			if (len >= 128
-			    && (dtype_get_len(type) >= 256
-				|| dtype_get_mtype(type) == DATA_BLOB)) {
-				rec++;
-			} else if (UNIV_UNLIKELY(j < n_ext) && i == ext[j]) {
-				j++;
-				rec++;
-			}
-		}
-	}
-
-init:
-	ut_ad(j == n_ext);
 	end = rec;
 	nulls = rec - (extra + 1);
 	lens = nulls - UT_BITS_IN_BYTES(index->n_nullable);
@@ -1094,8 +1057,7 @@ init:
 
 	/* Store the data and the offsets */
 
-	for (i = j = 0; i < n_fields; i++) {
-		field = dtuple_get_nth_field(dtuple, i);
+	for (i = j = 0, field = fields; i < n_fields; i++, field++) {
 		type = dfield_get_type(field);
 		len = dfield_get_len(field);
 
@@ -1106,7 +1068,6 @@ init:
 			end += 4;
 			break;
 		}
-		fixed_len = dict_index_get_nth_field(index, i)->fixed_len;
 
 		if (!(dtype_get_prtype(type) & DATA_NOT_NULL)) {
 			/* nullable field */
@@ -1130,6 +1091,9 @@ init:
 		}
 		/* only nullable fields can be null */
 		ut_ad(len != UNIV_SQL_NULL);
+
+		fixed_len = dict_index_get_nth_field(index, i)->fixed_len;
+
 		if (fixed_len) {
 			ut_ad(len == fixed_len);
 		} else {
@@ -1157,8 +1121,6 @@ init:
 	}
 
 	ut_ad(j == n_ext);
-
-	return(rec);
 }
 
 /*************************************************************
@@ -1177,8 +1139,19 @@ rec_convert_dtuple_to_rec_new(
 				in ascending order */
 	ulint		n_ext)	/* in: number of elements in ext */
 {
-	rec_t*	rec = rec_convert_dtuple_to_rec_comp(
-		buf, REC_N_NEW_EXTRA_BYTES, index, dtuple, ext, n_ext);
+	ulint	extra_size;
+	ulint	status;
+	rec_t*	rec;
+
+	status = dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK;
+	rec_get_converted_size_comp(index, status,
+				    dtuple->fields, dtuple->n_fields,
+				    ext, n_ext, &extra_size);
+	rec = buf + extra_size;
+
+	rec_convert_dtuple_to_rec_comp(
+		rec, REC_N_NEW_EXTRA_BYTES, index, status,
+		dtuple->fields, dtuple->n_fields, ext, n_ext);
 
 	/* Set the info bits of the record */
 	rec_set_info_and_status_bits(rec, dtuple_get_info_bits(dtuple));

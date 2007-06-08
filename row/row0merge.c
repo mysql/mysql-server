@@ -1,9 +1,10 @@
 /******************************************************
 New index creation routines using a merge sort
 
-(c) 2005 Innobase Oy
+(c) 2005,2007 Innobase Oy
 
 Created 12/4/2005 Jan Lindstrom
+Completed by Sunny Bains and Marko Makela
 *******************************************************/
 
 /******************************************************
@@ -14,15 +15,7 @@ TODO:
 
 2. Add more test cases and fix bugs founds.
 
-3. If we are using variable length keys, then in
-   some cases these keys do not fit into two empty blocks
-   in a different order. Therefore, some empty space is
-   left in every block. However, it has not been shown
-   that this empty space is enough for all cases. Therefore,
-   in the above case these overloaded records should be put
-   on another block.
-
-4. Run benchmarks.
+3. Run benchmarks.
 *******************************************************/
 
 #include "row0merge.h"
@@ -55,68 +48,405 @@ TODO:
 #include "pars0pars.h"
 #include "mem0mem.h"
 #include "log0log.h"
-
-/* Records are stored in the memory for main memory linked list
-to this structure */
-
-struct merge_rec_struct {
-	struct merge_rec_struct *next;	/* Pointer to next record
-					in the list */
-	rec_t*		rec;		/* Record */
-};
-
-typedef struct merge_rec_struct merge_rec_t;
-
-/* This structure is head element for main memory linked list
-used for main memory linked list merge sort */
-
-struct merge_rec_list_struct {
-	merge_rec_t*	head;		/* Pointer to head of the
-					list */
-	merge_rec_t*	tail;		/* Pointer to tail of the
-					list */
-#ifdef UNIV_DEBUG
-	ulint		n_records;	/* Number of records in
-					the list */
-#endif /* UNIV_DEBUG */
-	ulint		total_size;	/* Total size of all records in
-					the list */
-	mem_heap_t*	heap;		/* Heap where memory for this
-					list is allocated */
-};
-
-typedef struct merge_rec_list_struct merge_rec_list_t;
+#include "ut0sort.h"
 
 /* Block size for I/O operations in merge sort */
 
-#define MERGE_BLOCK_SIZE	1048576	/* 1M */
+typedef byte	row_merge_block_t[1048576];
 
-/* Intentional free space on every block */
-#define MERGE_BLOCK_SAFETY_MARGIN	128
+/* Secondary buffer for I/O operations of merge records */
 
-/* Enable faster index creation debug code */
-/* #define UNIV_DEBUG_INDEX_CREATE		1 */
+typedef byte	mrec_buf_t[UNIV_PAGE_SIZE / 2];
 
-/* This block header structure is used to create linked list of the
-blocks to the disk. Every block contains one header.*/
+/* Merge record in row_merge_block_t.  The format is the same as a
+record in ROW_FORMAT=COMPACT with the exception that the
+REC_N_NEW_EXTRA_BYTES are omitted. */
+typedef byte	mrec_t;
 
-struct merge_block_header_struct {
-	ulint	n_records;		/* Number of records in the block. */
-	ulint	offset;			/* Offset of this block */
-	ulint	next;			/* Offset of next block */
+/* Buffer for sorting in main memory. */
+struct row_merge_buf_struct {
+	mem_heap_t*	heap;		/* memory heap where allocated */
+	dict_index_t*	index;		/* the index the tuples belong to */
+	ulint		total_size;	/* total amount of data bytes */
+	ulint		n_tuples;	/* number of data tuples */
+	ulint		max_tuples;	/* maximum number of data tuples */
+	const dfield_t**tuples;		/* array of pointers to
+					arrays of fields that form
+					the data tuples */
+	const dfield_t**tmp_tuples;	/* temporary copy of tuples,
+					for sorting */
 };
 
-typedef struct merge_block_header_struct merge_block_header_t;
+typedef struct row_merge_buf_struct row_merge_buf_t;
 
-/* This block structure is used to hold index records in the disk
-and the memory */
+/* Information about temporary files used in merge sort are stored
+to this structure */
 
-struct merge_block_struct {
-	merge_block_header_t	header;	/* Block header information */
-	char			data[MERGE_BLOCK_SIZE - sizeof(merge_block_header_t)];/* Data area i.e. heap */
+struct merge_file_struct {
+	int	fd;		/* File descriptor */
+	ulint	offset;		/* File offset */
 };
 
-typedef struct merge_block_struct merge_block_t;
+typedef struct merge_file_struct merge_file_t;
+
+/**********************************************************
+Allocate a sort buffer. */
+static
+row_merge_buf_t*
+row_merge_buf_create_low(
+/*=====================*/
+					/* out,own: sort buffer */
+	mem_heap_t*	heap,		/* in: heap where allocated */
+	dict_index_t*	index,		/* in: secondary index */
+	ulint		buf_size,	/* in: size of the buffer, in bytes */
+	ulint		max_tuples)	/* in: maximum number of data tuples */
+{
+	row_merge_buf_t*	buf;
+
+	buf = mem_heap_alloc(heap, buf_size);
+	memset(buf, 0, buf_size);
+	buf->heap = heap;
+	buf->index = index;
+	buf->max_tuples = max_tuples;
+	buf->tuples = mem_heap_alloc(heap,
+				     2 * max_tuples * sizeof *buf->tuples);
+	buf->tmp_tuples = buf->tuples + max_tuples;
+
+	return(buf);
+}
+
+/**********************************************************
+Allocate a sort buffer. */
+static
+row_merge_buf_t*
+row_merge_buf_create(
+/*=================*/
+				/* out,own: sort buffer */
+	dict_index_t*	index)	/* in: secondary index */
+{
+	row_merge_buf_t*	buf;
+	ulint			max_tuples;
+	ulint			buf_size;
+	mem_heap_t*		heap;
+
+	max_tuples = sizeof(row_merge_block_t)
+		/ ut_max(1, dict_index_get_min_size(index));
+
+	buf_size = (sizeof *buf) + (max_tuples - 1) * sizeof *buf->tuples;
+
+	heap = mem_heap_create(buf_size + sizeof(row_merge_block_t));
+
+	buf = row_merge_buf_create_low(heap, index, max_tuples, buf_size);
+
+	return(buf);
+}
+
+/**********************************************************
+Empty a sort buffer. */
+static
+void
+row_merge_buf_empty(
+/*================*/
+	row_merge_buf_t*	buf)	/* in/out: sort buffer */
+{
+	ulint		buf_size;
+	ulint		max_tuples	= buf->max_tuples;
+	mem_heap_t*	heap		= buf->heap;
+	dict_index_t*	index		= buf->index;
+
+	buf_size = (sizeof *buf) + (max_tuples - 1) * sizeof *buf->tuples;
+
+	mem_heap_empty(heap);
+
+	buf = row_merge_buf_create_low(heap, index, max_tuples, buf_size);
+}
+
+/**********************************************************
+Deallocate a sort buffer. */
+static
+void
+row_merge_buf_free(
+/*===============*/
+	row_merge_buf_t*	buf)	/* in,own: sort buffer, to be freed */
+{
+	mem_heap_free(buf->heap);
+}
+
+/**********************************************************
+Insert a data tuple into a sort buffer. */
+static
+ibool
+row_merge_buf_add(
+/*==============*/
+					/* out: TRUE if added,
+					FALSE if out of space */
+	row_merge_buf_t*	buf,	/* in/out: sort buffer */
+	const dtuple_t*		row,	/* in: row in clustered index */
+	row_ext_t*		ext)	/* in/out: cache of externally stored
+					column prefixes, or NULL */
+{
+	ulint		i;
+	ulint		n_fields;
+	ulint		data_size;
+	ulint		extra_size;
+	dfield_t*	entry;
+	dfield_t*	field;
+
+	if (buf->n_tuples >= buf->max_tuples) {
+		return(FALSE);
+	}
+
+	n_fields = dict_index_get_n_fields(buf->index);
+
+	entry = mem_heap_alloc(buf->heap, n_fields * sizeof *entry);
+	buf->tuples[buf->n_tuples] = entry;
+	field = entry;
+
+	data_size = 0;
+	extra_size = UT_BITS_IN_BYTES(buf->index->n_nullable);
+
+	for (i = 0; i < n_fields; i++, field++) {
+		dict_field_t*		ifield;
+		const dict_col_t*	col;
+		ulint			col_no;
+		const dfield_t*		row_field;
+
+		ifield = dict_index_get_nth_field(buf->index, i);
+		col = ifield->col;
+		col_no = dict_col_get_no(col);
+		row_field = dtuple_get_nth_field(row, col_no);
+		dfield_copy(field, row_field);
+
+		if (UNIV_LIKELY_NULL(ext)
+		    && dfield_get_len(row_field) != UNIV_SQL_NULL) {
+			/* See if the column is stored externally. */
+			byte*	buf = row_ext_lookup(ext, col_no,
+						     row_field->data,
+						     row_field->len,
+						     &field->len);
+			if (UNIV_LIKELY_NULL(buf)) {
+				field->data = buf;
+			}
+		}
+
+		if (field->len == UNIV_SQL_NULL) {
+			ut_ad(!(col->prtype & DATA_NOT_NULL));
+			field->data = NULL;
+			continue;
+		}
+
+		/* If a column prefix index, take only the prefix */
+
+		if (ifield->prefix_len) {
+			field->len = dtype_get_at_most_n_mbchars(
+				col->prtype,
+				col->mbminlen, col->mbmaxlen,
+				ifield->prefix_len,
+				field->len, field->data);
+		}
+
+		ut_ad(field->len <= col->len || col->mtype == DATA_BLOB);
+
+		if (ifield->fixed_len) {
+			ut_ad(field->len == ifield->fixed_len);
+		} else if (field->len < 128
+			   || (col->len < 256 && col->mtype != DATA_BLOB)) {
+			extra_size++;
+		} else {
+			extra_size += 2;
+		}
+		data_size += field->len;
+	}
+
+#ifdef UNIV_DEBUG
+	{
+		ulint	size;
+		ulint	extra;
+
+		size = rec_get_converted_size_comp(buf->index,
+						   REC_STATUS_ORDINARY,
+						   entry, n_fields, NULL, 0,
+						   &extra);
+
+		ut_ad(data_size + extra_size + REC_N_NEW_EXTRA_BYTES == size);
+		ut_ad(extra_size + REC_N_NEW_EXTRA_BYTES == extra);
+	}
+#endif /* UNIV_DEBUG */
+
+	/* Add to the total size of the record in row_merge_block_t
+	the encoded length of extra_size and the extra bytes (extra_size).
+	See row_merge_buf_write() for the variable-length encoding
+	of extra_size. */
+	data_size += extra_size + (extra_size >= 127);
+
+	/* Reserve one byte for the end marker of row_merge_block_t. */
+	if (buf->total_size + data_size >= sizeof(row_merge_block_t) - 1) {
+		return(FALSE);
+	}
+
+	buf->total_size += data_size;
+	buf->n_tuples++;
+
+	field = entry;
+
+	/* Copy the data fields. */
+	for (i = 0; i < n_fields; i++, field++) {
+		if (field->len != UNIV_SQL_NULL) {
+			field->data = mem_heap_dup(buf->heap,
+						   field->data, field->len);
+		}
+	}
+
+	return(TRUE);
+}
+
+/*****************************************************************
+Compare two tuples. */
+static
+int
+row_merge_tuple_cmp(
+/*================*/
+					/* out: 1, 0, -1 if a is greater,
+					equal, less, respectively, than b */
+	ulint			n_field,/* in: number of fields */
+	ulint*			n_dup,	/* in/out: number of duplicates */
+	const dfield_t*		a,	/* in: first tuple to be compared */
+	const dfield_t*		b)	/* in: second tuple to be compared */
+{
+	int	cmp;
+
+	do {
+		cmp = cmp_dfield_dfield(a++, b++);
+	} while (!cmp && --n_field);
+
+	if (!cmp) {
+		(*n_dup)++;
+	}
+
+	return(cmp);
+}
+
+/**************************************************************************
+Merge sort the tuple buffer in main memory. */
+static
+void
+row_merge_tuple_sort(
+/*=================*/
+	ulint			n_field,/* in: number of fields */
+	ulint*			n_dup,	/* in/out: number of duplicates */
+	const dfield_t**	tuples,	/* in/out: tuples */
+	const dfield_t**	aux,	/* in/out: work area */
+	ulint			low,	/* in: lower bound of the
+					sorting area, inclusive */
+	ulint			high)	/* in: upper bound of the
+					sorting area, exclusive */
+{
+#define row_merge_tuple_sort_ctx(a,b,c,d) \
+	row_merge_tuple_sort(n_field, n_dup, a, b, c, d)
+#define row_merge_tuple_cmp_ctx(a,b) row_merge_tuple_cmp(n_field, n_dup, a, b)
+
+	UT_SORT_FUNCTION_BODY(row_merge_tuple_sort_ctx,
+			      tuples, aux, low, high, row_merge_tuple_cmp_ctx);
+}
+
+/**********************************************************
+Sort a buffer. */
+static
+ulint
+row_merge_buf_sort(
+/*===============*/
+					/* out: number of duplicates
+					encountered */
+	row_merge_buf_t*	buf)	/* in/out: sort buffer */
+{
+	ulint	n_dup	= 0;
+
+	row_merge_tuple_sort(dict_index_get_n_fields(buf->index), &n_dup,
+			     buf->tuples, buf->tmp_tuples, 0, buf->n_tuples);
+
+	return(n_dup);
+}
+
+/**********************************************************
+Write a buffer to a block. */
+static
+void
+row_merge_buf_write(
+/*================*/
+	const row_merge_buf_t*	buf,	/* in: sorted buffer */
+	row_merge_block_t*	block)	/* out: buffer for writing to file */
+{
+	dict_index_t*	index	= buf->index;
+	ulint		n_fields= dict_index_get_n_fields(index);
+	byte*		b	= &(*block)[0];
+
+	ulint	i;
+
+	for (i = 0; i < buf->n_tuples; i++) {
+		ulint		size;
+		ulint		extra_size;
+		const dfield_t*	entry	= buf->tuples[i];
+
+		size = rec_get_converted_size_comp(buf->index,
+						   REC_STATUS_ORDINARY,
+						   entry, n_fields, NULL, 0,
+						   &extra_size);
+		ut_ad(size > extra_size);
+		ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
+		extra_size -= REC_N_NEW_EXTRA_BYTES;
+		size -= REC_N_NEW_EXTRA_BYTES;
+
+		/* Encode extra_size + 1 */
+		if (extra_size + 1 < 0x80) {
+			*b++ = extra_size + 1;
+		} else {
+			ut_ad(extra_size < 0x8000);
+			*b++ = 0x80 | ((extra_size + 1) >> 8);
+			*b++ = (byte) (extra_size + 1);
+		}
+
+		ut_ad(b + size < block[1]);
+
+		rec_convert_dtuple_to_rec_comp(b + extra_size, 0, index,
+					       REC_STATUS_ORDINARY,
+					       entry, n_fields, NULL, 0);
+
+		b += size;
+	}
+
+	/* Write an "end-of-chunk" marker. */
+	ut_a(b < block[1]);
+	*b++ = 0;
+#ifdef UNIV_DEBUG_VALGRIND
+	/* The rest of the block is uninitialized.  Initialize it
+	to avoid bogus warnings. */
+	memset(b, 0, block[1] - b);
+#endif /* UNIV_DEBUG_VALGRIND */
+}
+
+/**********************************************************
+Create a memory heap and allocate space for row_merge_rec_offsets(). */
+static
+mem_heap_t*
+row_merge_heap_create(
+/*==================*/
+					/* out: memory heap */
+	dict_index_t*	index,		/* in: record descriptor */
+	ulint**		offsets1,	/* out: offsets */
+	ulint**		offsets2)	/* out: offsets */
+{
+	ulint		i	= REC_OFFS_HEADER_SIZE
+		+ dict_index_get_n_fields(index);
+	mem_heap_t*	heap	= mem_heap_create(2 * i * sizeof *offsets1);
+
+	*offsets1 = mem_heap_alloc(heap, i * sizeof *offsets1);
+	*offsets2 = mem_heap_alloc(heap, i * sizeof *offsets2);
+
+	(*offsets1)[0] = (*offsets2)[0] = i;
+	(*offsets1)[1] = (*offsets2)[1] = dict_index_get_n_fields(index);
+
+	return(heap);
+}
 
 /**************************************************************************
 Search an index object by name and column names.  If several indexes match,
@@ -149,73 +479,23 @@ row_merge_dict_table_get_index(
 }
 
 /************************************************************************
-Creates and initializes a merge block */
-static
-merge_block_t*
-row_merge_block_create(void)
-/*========================*/
-				/* out: pointer to block */
-{
-	merge_block_t*	mblock;
-
-	mblock = mem_alloc(sizeof *mblock);
-
-	memset(&mblock->header, 0, sizeof mblock->header);
-
-	return(mblock);
-}
-
-/************************************************************************
 Read a merge block from the file system. */
 static
 ibool
 row_merge_read(
 /*===========*/
-				/* out: TRUE if request was
-				successful, FALSE if fail */
-	os_file_t	file,	/* in: file handle */
-	ulint		offset,	/* in: offset where to read */
-	void*		buf,	/* out: data */
-	ulint		size)	/* in: number of bytes to read */
-{
-	ib_uint64_t	ofs = ((ib_uint64_t) offset) * MERGE_BLOCK_SIZE;
-
-	ut_ad(size <= MERGE_BLOCK_SIZE);
-
-	return(UNIV_LIKELY(os_file_read(file, buf,
-					(ulint) (ofs & 0xFFFFFFFF),
-					(ulint) (ofs >> 32),
-					size)));
-}
-
-/************************************************************************
-Read a merge block from the file system. */
-static
-ibool
-row_merge_block_read(
-/*=================*/
-				/* out: TRUE if request was
-				successful, FALSE if fail */
-	os_file_t	file,	/* in: file handle */
-	ulint		offset,	/* in: offset where to read */
-	merge_block_t*	block)	/* out: merge block */
-{
-	return(row_merge_read(file, offset, block, sizeof *block));
-}
-
-/************************************************************************
-Read a merge block header from the disk */
-static
-ibool
-row_merge_block_header_read(
-/*========================*/
 					/* out: TRUE if request was
 					successful, FALSE if fail */
-	os_file_t		file,	/* in: handle to a file */
+	int			fd,	/* in: file descriptor */
 	ulint			offset,	/* in: offset where to read */
-	merge_block_header_t*	header)	/* out: merge block header */
+	row_merge_block_t*	buf)	/* out: data */
 {
-	return(row_merge_read(file, offset, header, sizeof *header));
+	ib_uint64_t	ofs = ((ib_uint64_t) offset) * sizeof *buf;
+
+	return(UNIV_LIKELY(os_file_read(OS_FILE_FROM_FD(fd), buf,
+					(ulint) (ofs & 0xFFFFFFFF),
+					(ulint) (ofs >> 32),
+					sizeof *buf)));
 }
 
 /************************************************************************
@@ -226,235 +506,278 @@ row_merge_write(
 /*============*/
 				/* out: TRUE if request was
 				successful, FALSE if fail */
-	os_file_t	file,	/* in: file handle */
+	int		fd,	/* in: file descriptor */
 	ulint		offset,	/* in: offset where to write */
-	const void*	buf,	/* in: data */
-	ulint		size)	/* in: number of bytes to write */
+	const void*	buf)	/* in: data */
 {
-	ib_uint64_t	ofs = ((ib_uint64_t) offset) * MERGE_BLOCK_SIZE;
+	ib_uint64_t	ofs = ((ib_uint64_t) offset)
+		* sizeof(row_merge_block_t);
 
-	ut_ad(size <= MERGE_BLOCK_SIZE);
-
-	return(UNIV_LIKELY(os_file_write("(merge)", file, buf,
+	return(UNIV_LIKELY(os_file_write("(merge)", OS_FILE_FROM_FD(fd), buf,
 					 (ulint) (ofs & 0xFFFFFFFF),
 					 (ulint) (ofs >> 32),
-					 size)));
+					 sizeof(row_merge_block_t))));
 }
 
 /************************************************************************
-Write a merge block header to the disk */
+Read a merge record. */
 static
-ibool
-row_merge_block_header_write(
-/*=========================*/
-						/* out: TRUE if request was
-						successful, FALSE if fail */
-	os_file_t			file,	/* in: handle to a file */
-	const merge_block_header_t*	header)	/* in: block header */
+const byte*
+row_merge_read_rec(
+/*===============*/
+					/* out: pointer to next record,
+					or NULL on I/O error
+					or end of list */
+	row_merge_block_t*	block,	/* in/out: file buffer */
+	mrec_buf_t*		buf,	/* in/out: secondary buffer */
+	const byte*		b,	/* in: pointer to record */
+	dict_index_t*		index,	/* in: index of the record */
+	int			fd,	/* in: file descriptor */
+	ulint*			foffs,	/* in/out: file offset */
+	const mrec_t**		mrec,	/* out: pointer to merge record,
+					or NULL on end of list
+					(non-NULL on I/O error) */
+	ulint*			offsets)/* out: offsets of mrec */
 {
-	return(row_merge_write(file, header->offset, header, sizeof *header));
-}
+	ulint	extra_size;
+	ulint	data_size;
+	ulint	avail_size;
 
-/************************************************************************
-Write a merge block to the disk */
-static
-ibool
-row_merge_block_write(
-/*==================*/
-					/* out: TRUE if request was
-					successful, FALSE if fail */
-	os_file_t		file,	/* in: handle to a file */
-	ulint			offset,	/* in: file offset */
-	const merge_block_t*	block)	/* in: block header */
-{
-	ut_ad(offset == block->header.offset);
-
-	return(row_merge_write(file, offset, block, sizeof *block));
-}
-
-/**************************************************************
-Create a merge record and copy a index data tuple to the merge
-record */
-static
-merge_rec_t*
-row_merge_rec_create(
-/*=================*/
-				/* out: merge record */
-	const dtuple_t*	dtuple,	/* in: data tuple */
-	const ulint*	ext,	/* in: array of extern field numbers */
-	ulint		n_ext,	/* in: number of elements in ext */
-	dict_index_t*	index,	/* in: index record descriptor */
-	mem_heap_t*	heap)	/* in: heap where memory is allocated */
-{
-	merge_rec_t*	m_rec;
-	ulint		rec_size;
-	byte*		buf;
-
-	ut_ad(dtuple && index && heap);
-	ut_ad(dtuple_validate(dtuple));
-
-	m_rec = (merge_rec_t*) mem_heap_alloc(heap, sizeof(merge_rec_t));
-
-	rec_size = rec_get_converted_size(index, dtuple, ext, n_ext);
-	buf = mem_heap_alloc(heap, rec_size);
-
-	m_rec->rec  = rec_convert_dtuple_to_rec(buf, index, dtuple,
-						ext, n_ext);
-	m_rec->next = NULL;
-
-	return(m_rec);
-}
-
-/************************************************************************
-Checks that a record fits to a block */
-static
-ibool
-row_merge_rec_fits_to_block(
-/*========================*/
-				/* out: TRUE if record fits to merge block,
-				FALSE if record does not fit to block */
-	const ulint*	offsets,/* in: record offsets */
-	ulint		offset) /* in: offset where to store in the block */
-{
-	ulint		rec_len;
-
+	ut_ad(block);
+	ut_ad(buf);
+	ut_ad(b >= block[0]);
+	ut_ad(b < block[1]);
+	ut_ad(index);
+	ut_ad(foffs);
+	ut_ad(mrec);
 	ut_ad(offsets);
 
-	rec_len = mach_get_compressed_size(rec_offs_extra_size(offsets))
-		+ rec_offs_size(offsets);
+	ut_ad(*offsets == REC_OFFS_HEADER_SIZE
+	      + dict_index_get_n_fields(index));
 
-	/* Note that we intentionally leave free space on
-	every block. This free space might be later needed when two
-	blocks are merged and variable length keys are used. Variable
-	length keys on two blocks might be interleaved on such a manner
-	that they do not fit on two blocks if blocks are too full */
+	extra_size = *b++;
 
-	return((offset + rec_len) < (MERGE_BLOCK_SIZE
-				     - MERGE_BLOCK_SAFETY_MARGIN
-				     - sizeof(merge_block_header_t)));
+	if (UNIV_UNLIKELY(!extra_size)) {
+		/* End of list */
+		*mrec = NULL;
+		return(NULL);
+	}
+
+	if (extra_size >= 0x80) {
+		/* Read another byte of extra_size. */
+
+		if (UNIV_UNLIKELY(b >= block[1])) {
+			if (!row_merge_read(fd, ++(*foffs), block)) {
+err_exit:
+				/* Signal I/O error. */
+				*mrec = b;
+				return(NULL);
+			}
+
+			/* Wrap around to the beginning of the buffer. */
+			b = block[0];
+		}
+
+		extra_size = (extra_size & 0x7f) << 8;
+		extra_size |= *b++;
+	}
+
+	/* Normalize extra_size.  Above, value 0 signals "end of list. */
+	extra_size--;
+
+	/* Read the extra bytes. */
+
+	if (UNIV_UNLIKELY(b + extra_size >= block[1])) {
+		/* The record spans two blocks.  Copy the entire record
+		to the auxiliary buffer and handle this as a special
+		case. */
+
+		avail_size = block[1] - b;
+
+		memcpy(*buf, b, avail_size);
+
+		if (!row_merge_read(fd, ++(*foffs), block)) {
+
+			goto err_exit;
+		}
+
+		/* Wrap around to the beginning of the buffer. */
+		b = block[0];
+
+		/* Copy the record. */
+		memcpy(*buf + avail_size, b, extra_size - avail_size);
+		b += extra_size - avail_size;
+
+		*mrec = *buf + extra_size;
+
+		rec_init_offsets_comp_ordinary(*mrec, 0, index, offsets);
+
+		data_size = rec_offs_data_size(offsets);
+
+		/* These overflows should be impossible given that
+		records are much smaller than either buffer, and
+		the record starts near the beginning of each buffer. */
+		ut_a(extra_size + data_size < sizeof *buf);
+		ut_a(b + data_size < block[1]);
+
+		/* Copy the data bytes. */
+		memcpy(*buf + extra_size, b, data_size);
+		b += data_size;
+
+		return(b);
+	}
+
+	*mrec = b + extra_size;
+
+	rec_init_offsets_comp_ordinary(*mrec, 0, index, offsets);
+
+	data_size = rec_offs_data_size(offsets);
+	ut_ad(extra_size + data_size < sizeof *buf);
+
+	b += extra_size + data_size;
+
+	if (UNIV_LIKELY(b < block[1])) {
+		/* The record fits entirely in the block.
+		This is the normal case. */
+		return(b);
+	}
+
+	/* The record spans two blocks.  Copy it to buf. */
+
+	avail_size = block[1] - b;
+	memcpy(*buf, b, avail_size);
+	*mrec = *buf + extra_size;
+	rec_offs_make_valid(*mrec, index, offsets);
+
+	if (!row_merge_read(fd, ++(*foffs), block)) {
+
+		goto err_exit;
+	}
+
+	/* Wrap around to the beginning of the buffer. */
+	b = block[0];
+
+	/* Copy the rest of the record. */
+	memcpy(*buf + avail_size, b, extra_size + data_size - avail_size);
+	b += extra_size + data_size - avail_size;
+
+	return(b);
 }
 
 /************************************************************************
-Store a record to a merge file block. Note that this function does
-not check that the record fits to the block. */
+Write a merge record. */
 static
-ulint
-row_merge_store_rec_to_block(
-/*=========================*/
-				/* out: offset for next data tuple */
-	const rec_t*	rec,	/* in: record to be stored in the memory */
-	const ulint*	offsets,/* in: record offsets */
-	merge_block_t*	mblock, /* in: block where data tuple is stored */
-	ulint		offset) /* in: offset where to store */
+void
+row_merge_write_rec_low(
+/*====================*/
+	byte*		b,	/* out: buffer */
+	ulint		e,	/* in: encoded extra_size */
+	const mrec_t*	mrec,	/* in: record to write */
+	const ulint*	offsets)/* in: offsets of mrec */
 {
-	char*		dest_data;
-	ulint		rec_len;
-	ulint		extra_len;
-	ulint		storage_size;
-
-	ut_ad(rec && mblock && offsets);
-	ut_ad(rec_validate(rec, offsets));
-
-	/* Find the position in the block where this data tuple is stored.
-	If we are at the start of the block, remember to add size of header
-	to the offset */
-
-	if (offset == 0) {
-		dest_data = mblock->data;
+	if (e < 0x80) {
+		*b++ = e;
 	} else {
-		dest_data = ((char *)mblock + offset);
+		*b++ = 0x80 | (e >> 8);
+		*b++ = (byte) e;
 	}
 
-	ut_ad(dest_data < (char*) &mblock[1]);
-
-	extra_len = rec_offs_extra_size(offsets);
-	rec_len = rec_offs_size(offsets);
-
-	/* 1. Store the extra_len */
-	storage_size = mach_write_compressed((byte *)dest_data, extra_len);
-	dest_data+=storage_size;
-	ut_ad(dest_data < (char*) &mblock[1]);
-
-	/* 2. Store the record */
-	memcpy(dest_data, rec - extra_len, rec_len);
-	dest_data+=rec_len;
-	ut_ad(dest_data < (char*) &mblock[1]);
-
-	mblock->header.n_records++;
-
-	/* Return next offset */
-	return((char *)dest_data - (char *)mblock);
+	memcpy(b, mrec - rec_offs_extra_size(offsets), rec_offs_size(offsets));
 }
 
 /************************************************************************
-Read a record from the block */
+Write a merge record. */
 static
-merge_rec_t*
-row_merge_read_rec_from_block(
-/*==========================*/
-				/* out: record or NULL*/
-	merge_block_t*	mblock, /* in: memory block where to read */
-	ulint*		offset,	/* in/out: offset where to read a record */
-	mem_heap_t*	heap,	/* in: heap were this memory for this record
-				is allocated */
-	dict_index_t*	index)	/* in: index record desriptor */
+byte*
+row_merge_write_rec(
+/*================*/
+					/* out: pointer to end of block,
+					or NULL on error */
+	row_merge_block_t*	block,	/* in/out: file buffer */
+	mrec_buf_t*		buf,	/* in/out: secondary buffer */
+	byte*			b,	/* in: pointer to end of block */
+	int			fd,	/* in: file descriptor */
+	ulint*			foffs,	/* in/out: file offset */
+	const mrec_t*		mrec,	/* in: record to write */
+	const ulint*		offsets)/* in: offsets of mrec */
 {
-	merge_rec_t*	mrec;
-	char*		from_data;
-	ulint		extra_len;
-	ulint		data_len;
-	ulint		tmp_offset;
-	ulint		storage_len;
-	rec_t*		rec;
-	mem_heap_t*	offset_heap = NULL;
-	ulint		sec_offsets_[REC_OFFS_SMALL_SIZE];
-	ulint*		sec_offs	= sec_offsets_;
+	ulint	extra_size;
+	ulint	size;
+	ulint	avail_size;
 
-	*sec_offsets_ = (sizeof sec_offsets_) / sizeof *sec_offsets_;
+	ut_ad(block);
+	ut_ad(buf);
+	ut_ad(b >= block[0]);
+	ut_ad(b < block[1]);
+	ut_ad(mrec);
+	ut_ad(foffs);
+	ut_ad(mrec < block[0] || mrec > block[1]);
+	ut_ad(mrec < buf[0] || mrec > buf[1]);
 
-	ut_ad(mblock && offset && heap);
+	/* Normalize extra_size.  Value 0 signals "end of list". */
+	extra_size = rec_offs_extra_size(offsets) + 1;
 
-	tmp_offset = *offset;
+	size = extra_size + (extra_size >= 0x80)
+		+ rec_offs_data_size(offsets);
 
-	/* Find the position in the block where this data tuple is stored.
-	If we are at the start of the block, remember to add size of header
-	to the offset */
+	if (UNIV_UNLIKELY(b + size >= block[1])) {
+		/* The record spans two blocks.
+		Copy it to the temporary buffer first. */
+		avail_size = block[1] - b;
 
-	if (tmp_offset == 0) {
-		from_data = mblock->data;
+		row_merge_write_rec_low(buf[0], extra_size, mrec, offsets);
+
+		/* Copy the head of the temporary buffer, write
+		the completed block, and copy the tail of the
+		record to the head of the new block. */
+		memcpy(b, buf[0], avail_size);
+
+		if (!row_merge_write(fd, (*foffs)++, block)) {
+			return(NULL);
+		}
+
+		/* Copy the rest. */
+		b = block[0];
+		memcpy(b, buf[0] + avail_size, size - avail_size);
+		b += size - avail_size;
 	} else {
-		from_data = ((char *)mblock + tmp_offset);
+		row_merge_write_rec_low(b, extra_size, mrec, offsets);
+		b += rec_offs_size(offsets);
 	}
 
-	ut_ad(from_data < (const char*) &mblock[1]);
+	return(b);
+}
 
-	mrec = mem_heap_alloc(heap, sizeof(merge_rec_t));
+/************************************************************************
+Write an end-of-list marker. */
+static
+byte*
+row_merge_write_eof(
+/*================*/
+					/* out: pointer to end of block,
+					or NULL on error */
+	row_merge_block_t*	block,	/* in/out: file buffer */
+	byte*			b,	/* in: pointer to end of block */
+	int			fd,	/* in: file descriptor */
+	ulint*			foffs)	/* in/out: file offset */
+{
+	ut_ad(block);
+	ut_ad(b >= block[0]);
+	ut_ad(b < block[1]);
+	ut_ad(foffs);
 
-	/* 1. Read the extra len and calculate its storage length */
-	extra_len = mach_read_compressed((byte *)from_data);
-	storage_len = mach_get_compressed_size(extra_len);
-	from_data+=storage_len;
-	ut_ad(from_data < (const char*) &mblock[1]);
+	*b++ = 0;
+#ifdef UNIV_DEBUG_VALGRIND
+	/* The rest of the block is uninitialized.  Initialize it
+	to avoid bogus warnings. */
+	memset(b, 0, block[1] - b);
+#endif /* UNIV_DEBUG_VALGRIND */
 
-	/* 2. Read the record */
-	rec = (rec_t*)(from_data + extra_len);
-	mrec->rec = rec;
-	sec_offs = rec_get_offsets(mrec->rec, index, sec_offs, ULINT_UNDEFINED,
-				   &offset_heap);
-	data_len = rec_offs_size(sec_offs);
-	ut_ad(rec_validate(rec, sec_offs));
-
-	from_data+=data_len;
-	ut_ad(from_data < (const char*) &mblock[1]);
-
-	/* Return also start offset of the next data tuple */
-	*offset = ((char *)from_data - (char *)mblock);
-
-	if (offset_heap) {
-		mem_heap_free(offset_heap);
+	if (!row_merge_write(fd, (*foffs)++, block)) {
+		return(NULL);
 	}
 
-	return(mrec);
+	return(block[0]);
 }
 
 /*****************************************************************
@@ -466,995 +789,55 @@ row_merge_cmp(
 					/* out: 1, 0, -1 if mrec1 is
 					greater, equal, less,
 					respectively, than mrec2 */
-	merge_rec_t*	mrec1,		/* in: first merge record to be
+	const mrec_t*	mrec1,		/* in: first merge record to be
 					compared */
-	merge_rec_t*	mrec2,		/* in: second merge record to be
+	const mrec_t*	mrec2,		/* in: second merge record to be
 					compared */
 	const ulint*	offsets1,	/* in: first record offsets */
 	const ulint*	offsets2,	/* in: second record offsets */
 	dict_index_t*	index)		/* in: index */
 {
-	ut_ad(mrec1 && mrec2 && offsets1 && offsets2 && index);
-	ut_ad(rec_validate(mrec1->rec, offsets1));
-	ut_ad(rec_validate(mrec2->rec, offsets2));
-
-	return(cmp_rec_rec(mrec1->rec, mrec2->rec, offsets1, offsets2, index));
+	return(cmp_rec_rec_simple(mrec1, mrec2, offsets1, offsets2, index));
 }
-
-/*****************************************************************
-Merge sort for linked list in memory.
-
-Merge sort takes the input list and makes log N passes along
-the list and in each pass it combines each adjacent pair of
-small sorted lists into one larger sorted list. When only one
-pass is needed the whole output list must have been sorted.
-
-In each pass, two lists of size block_size are merged into lists of
-size block_size*2. Initially block_size=1. Merge starts by pointing
-a temporary pointer list1 at the head of the list and also preparing
-an empty list list_tail where elements will be appended. Then:
-
-	1) If list1 is NULL we terminate this pass.
-
-	2) Otherwise, there is at least one element in the next
-	pair of block_size lists therefore, increase the number of
-	merges performed in this pass.
-
-	3) Point another temporary pointer list2 as the same
-	place as list1. Iterate list2 by block_size elements
-	or until the end of the list. Let the list_size1 be the
-	number of elements in the list2.
-
-	4) Let list_size1=merge_size. Now we merge list starting at
-	list1 of length list_size2 with a list starting at list2 of
-	length at most list_size1.
-
-	5) So, as long as either the list1 is non-empty (list_size1)
-	or the list2 is non-empty (list_size2 and list2 pointing to
-	a element):
-
-		5.1) Select which list to take the next element from.
-		If either lists is empty, we choose from the other one.
-		If both lists are non-empty, compare the first element
-		of each and choose the lower one.
-
-		5.2) Remove that element, tmp, from the start of its
-		lists, by advancing list1 or list2 to next element
-		and decreasing list1_size or list2_size.
-
-		5.3) Append tmp to list_tail
-
-	6) At this point, we have advanced list1 until it is where
-	list2 started out and we have advanced list2 until it is
-	pointing at the next pair of block_size lists to merge.
-	Thus, set list1 to the value of list2 and go back to the
-	start of this loop.
-
-As soon as a pass like this is performed with only one merge, the
-algorithm terminates and output list list_head is sorted. Otherwise,
-double the value of block_size and go back to the beginning. */
-static
-ibool
-row_merge_sort_linked_list(
-/*=======================*/
-					/* out: FALSE on error */
-	dict_index_t*		index,	/* in: index to be created */
-	merge_rec_list_t*	list)	/* in: Pointer to head element */
-{
-	ibool		success;
-	merge_rec_t*	list1;
-	merge_rec_t*	list2;
-	merge_rec_t*	list_head;
-	merge_rec_t*	list_tail;
-	ulint		block_size;
-	ulint		list1_size;
-	ulint		list2_size;
-	ulint		i;
-	mem_heap_t*	heap = NULL;
-	ulint		offsets1_[REC_OFFS_SMALL_SIZE];
-	ulint*		offsets1 = offsets1_;
-	ulint		offsets2_[REC_OFFS_SMALL_SIZE];
-	ulint*		offsets2 = offsets2_;
-
-	ut_ad(list && list->head && index);
-
-	*offsets1_ = (sizeof offsets1_) / sizeof *offsets1_;
-	*offsets2_ = (sizeof offsets2_) / sizeof *offsets2_;
-
-	list_head = list->head;
-
-	for (block_size = 1;; block_size *= 2) {
-		ibool	sorted		= TRUE;
-
-		list1 = list_head;
-		list_head = NULL;
-		list_tail = NULL;
-
-		for (;;) {
-			list2 = list1;
-			list1_size = 0;
-			list2_size = block_size;
-
-			/* Step at most block_size elements along from
-			list2. */
-
-			for (i = 0; i < block_size; i++) {
-				list1_size++;
-				list2 = list2->next;
-
-				if (!list2) {
-					list2_size = 0;
-					break;
-				}
-			}
-
-			/* If list2 is not NULL, we have two lists to merge.
-			Otherwise, we have a sorted list. */
-
-			while (list1_size || list2_size) {
-				merge_rec_t*	tmp;
-				/* Merge sort two lists by deciding whether
-				next element of merge comes from list1 or
-				list2. */
-
-				if (list1_size == 0) {
-					/* First list is empty, next element
-					must come from the second list. */
-					goto pick2;
-				}
-
-				if (list2_size == 0) {
-					/* Second list is empty, next element
-					must come from the first list. */
-					goto pick1;
-				}
-
-				offsets1 = rec_get_offsets(list1->rec, index,
-							   offsets1,
-							   ULINT_UNDEFINED,
-							   &heap);
-				offsets2 = rec_get_offsets(list2->rec, index,
-							   offsets2,
-							   ULINT_UNDEFINED,
-							   &heap);
-
-				switch (row_merge_cmp(list1, list2,
-						      offsets1, offsets2,
-						      index)) {
-				case 0:
-					if (UNIV_UNLIKELY
-					    (dict_index_is_unique(index))) {
-						success = FALSE;
-						goto func_exit;
-					}
-					/* fall through */
-				case -1:
-pick1:
-					tmp = list1;
-					list1 = list1->next;
-					list1_size--;
-					break;
-				case 1:
-pick2:
-					tmp = list2;
-					list2 = list2->next;
-					if (list2) {
-						list2_size--;
-					} else {
-						list2_size = 0;
-					}
-					break;
-				default:
-					ut_error;
-				}
-
-				/* Append the element to the merged list */
-
-				if (list_tail) {
-					list_tail->next = tmp;
-				} else {
-					list_head = tmp;
-				}
-
-				list_tail = tmp;
-			}
-
-			if (!list2) {
-				if (!sorted) {
-					break;
-				}
-
-				list->head = list_head;
-				list_tail->next = NULL;
-				success = TRUE;
-				goto func_exit;
-			}
-
-			sorted = FALSE;
-			list1 = list2;
-		}
-
-		list_tail->next = NULL;
-	}
-
-func_exit:
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
-
-	return(success);
-}
-
-/*****************************************************************
-Create and initialize record list used for in-memory merge sort */
-static
-merge_rec_list_t*
-row_merge_create_list(void)
-/*=======================*/
-				/* out: pointer to list */
-{
-	merge_rec_list_t*	list_header;
-	mem_heap_t*		heap = NULL;
-
-	/* Create list header */
-	heap = mem_heap_create((MERGE_BLOCK_SIZE + sizeof(merge_rec_list_t)));
-
-	list_header = mem_heap_alloc(heap, sizeof(merge_rec_list_t));
-
-	list_header->head		= NULL;
-	list_header->tail		= NULL;
-	ut_d(list_header->n_records	= 0);
-	list_header->total_size		= sizeof(merge_rec_list_t);
-	list_header->heap		= heap;
-
-	return(list_header);
-}
-
-/*****************************************************************
-Add one record to the merge list */
-static
-void
-row_merge_list_add(
-/*===============*/
-	merge_rec_t*		m_rec,		/* in: record to be
-						inserted to the list */
-	ulint			rec_len,	/* in: record length */
-	merge_rec_list_t*	list_header)	/* in/out: list header */
-{
-	ut_ad(m_rec && list_header);
-
-	m_rec->next = NULL;
-	list_header->total_size+=rec_len;
-
-	if (list_header->tail == NULL) {
-
-		list_header->tail = list_header->head = m_rec;
-	} else {
-		list_header->tail->next = m_rec;
-		list_header->tail = m_rec;
-	}
-
-	ut_d(list_header->n_records++);
-}
-
-/*****************************************************************
-Write records from the list to the merge block */
-static
-merge_rec_list_t*
-row_merge_write_list_to_block(
-/*==========================*/
-					/* out: pointer to a new list
-					where rest of the items are stored */
-	merge_rec_list_t*	list,	/* in: Record list */
-	merge_block_t*		output,	/* in: Pointer to block */
-	dict_index_t*		index)	/* in: Record descriptor */
-{
-	ulint		offset		= 0;
-	merge_rec_t*	m_rec		= NULL;
-	merge_rec_list_t* new_list	= NULL;
-	mem_heap_t*	heap		= NULL;
-	ulint		sec_offsets_[REC_OFFS_SMALL_SIZE];
-	ulint*		sec_offs	= sec_offsets_;
-
-	ut_ad(list && output && index);
-
-	*sec_offsets_ = (sizeof sec_offsets_) / sizeof *sec_offsets_;
-	output->header.n_records = 0;
-
-	/* Write every record which fits to block to the block */
-
-	m_rec = list->head;
-
-	while (m_rec) {
-
-		sec_offs = rec_get_offsets(m_rec->rec, index, sec_offs,
-					   ULINT_UNDEFINED, &heap);
-
-		if (!row_merge_rec_fits_to_block(sec_offs, offset)) {
-			break;
-		}
-
-		offset = row_merge_store_rec_to_block(m_rec->rec,
-						      sec_offs, output, offset);
-
-		m_rec = m_rec->next;
-		ut_d(list->n_records--);
-	}
-
-	/* Now create a new list and store rest of the records there.
-	Note that records must be copied because we deallocate memory
-	allocated for the original list. */
-
-	new_list = row_merge_create_list();
-
-	while (m_rec) {
-		rec_t*	rec;
-		merge_rec_t*	n_rec;
-		void*	buff;
-
-		*sec_offsets_ = (sizeof sec_offsets_) / sizeof *sec_offsets_;
-
-		sec_offs = rec_get_offsets(m_rec->rec, index, sec_offs,
-					   ULINT_UNDEFINED, &heap);
-
-		buff = mem_heap_alloc(new_list->heap,
-				      rec_offs_size(sec_offs));
-
-		n_rec = mem_heap_alloc(new_list->heap, sizeof(merge_rec_t));
-		rec = rec_copy(buff, m_rec->rec, sec_offs);
-		n_rec->rec = rec;
-		row_merge_list_add(n_rec, rec_offs_size(sec_offs), new_list);
-		m_rec = m_rec->next;
-	}
-
-	/* We can now free original list */
-	mem_heap_free(list->heap);
-
-	if (heap) {
-		mem_heap_free(heap);
-	}
-
-	return(new_list);
-}
-
-#ifdef UNIV_DEBUG
-/*************************************************************************
-Validate contents of the block */
-static
-ibool
-row_merge_block_validate(
-/*=====================*/
-	merge_block_t*	block,	/* in: block to be printed */
-	dict_index_t*	index)	/* in: record descriptor */
-{
-	merge_rec_t*	mrec;
-	ulint		offset	= 0;
-	ulint		n_recs	= 0;
-	mem_heap_t*	heap;
-	ulint		sec_offsets1_[REC_OFFS_SMALL_SIZE];
-	ulint*		sec_offs1 = sec_offsets1_;
-	*sec_offsets1_ = (sizeof sec_offsets1_) / sizeof *sec_offsets1_;
-
-	ut_a(block && index);
-
-	heap = mem_heap_create(1024);
-
-	fprintf(stderr,
-		"Block validate %lu records, "
-		"offset %lu, next %lu\n",
-		block->header.n_records,
-		block->header.offset, block->header.next);
-
-	ut_a(block->header.n_records > 0);
-
-	for (n_recs = 0; n_recs < block->header.n_records; n_recs++) {
-
-		mrec = row_merge_read_rec_from_block(block, &offset, heap,
-						     index);
-
-		sec_offs1 = rec_get_offsets(mrec->rec, index, sec_offs1,
-					    ULINT_UNDEFINED, &heap);
-
-		ut_a(rec_validate(mrec->rec, sec_offs1));
-
-		mem_heap_empty(heap);
-	}
-
-	mem_heap_free(heap);
-
-	return(TRUE);
-}
-#endif /* UNIV_DEBUG */
-
-/*************************************************************************
-Merge two blocks resulting a two sorted blocks. */
-static
-merge_block_t*
-row_merge_block_merge(
-/*==================*/
-					/* out: Pointer to first sorted block
-					or NULL in case of error */
-	merge_block_t*	block1,		/* in: First block to be merged */
-	merge_block_t**	block2,		/* in/out: Second block to be merged.
-					Note that contents of the second sorted
-					block is returned with this parameter.*/
-	dict_index_t*	index)		/* in: Index to be created */
-{
-	merge_block_t*	new_block1;
-	merge_block_t*	new_block2;
-	merge_block_t*	tmp;
-	ulint		nth_rec1 = 0;
-	ulint		nth_rec2 = 0;
-	ulint		offset1 = 0;
-	ulint		offset2 = 0;
-	ulint		offset3 = 0;
-	ulint		offset4 = 0;
-	ibool		fits_to_new = TRUE;
-	mem_heap_t*	heap;
-	mem_heap_t*	offset_heap = NULL;
-	ulint		sec_offsets1_[REC_OFFS_SMALL_SIZE];
-	ulint*		sec_offs1 = sec_offsets1_;
-	ulint		sec_offsets2_[REC_OFFS_SMALL_SIZE];
-	ulint*		sec_offs2 = sec_offsets2_;
-
-	ut_ad(block1 && block2 && *block2 && index);
-	ut_ad(row_merge_block_validate(block1, index));
-	ut_ad(row_merge_block_validate(*block2, index));
-
-	*sec_offsets1_ = (sizeof sec_offsets1_) / sizeof *sec_offsets1_;
-	*sec_offsets2_ = (sizeof sec_offsets2_) / sizeof *sec_offsets2_;
-
-	new_block1 = row_merge_block_create();
-	new_block2 = row_merge_block_create();
-	tmp = *block2;
-	heap = mem_heap_create(256);
-
-	/* Copy block offset and next block offset to new blocks */
-
-	new_block1->header = block1->header;
-	new_block2->header = tmp->header;
-
-	new_block1->header.n_records = 0;
-	new_block2->header.n_records = 0;
-
-	/* Merge all records from both blocks */
-
-	while (nth_rec1 < block1->header.n_records ||
-	       nth_rec2 < tmp->header.n_records) {
-		merge_rec_t*	mrec1 = NULL;
-		merge_rec_t*	mrec2 = NULL;
-		const ulint*	rec_offsets;
-
-		mem_heap_empty(heap);
-
-		if (nth_rec1 < block1->header.n_records &&
-		    nth_rec2 >= tmp->header.n_records) {
-
-			/* If the second block is empty read record from
-			the first block */
-
-			mrec1 = row_merge_read_rec_from_block(
-				block1, &offset1, heap, index);
-
-			sec_offs1 = rec_get_offsets(
-				mrec1->rec, index, sec_offs1, ULINT_UNDEFINED,
-				&offset_heap);
-
-			rec_offsets = sec_offs1;
-
-			ut_ad(rec_validate(mrec1->rec, sec_offs1));
-
-			nth_rec1++;
-
-		} else if (nth_rec2 < tmp->header.n_records &&
-			   nth_rec1 >= block1->header.n_records) {
-
-			/* If the first block is empty read data tuple from
-			the second block */
-
-			mrec1 = row_merge_read_rec_from_block(
-				tmp, &offset2, heap, index);
-
-			sec_offs1 = rec_get_offsets(
-				mrec1->rec, index, sec_offs1, ULINT_UNDEFINED,
-				&offset_heap);
-
-			rec_offsets = sec_offs1;
-
-			ut_ad(rec_validate(mrec1->rec, sec_offs1));
-
-			nth_rec2++;
-		} else {
-			ulint tmp_offset1 = offset1;
-			ulint tmp_offset2 = offset2;
-
-			/* Both blocks contain record and thus they must
-			be compared */
-
-			mrec1 = row_merge_read_rec_from_block(
-				block1, &offset1, heap, index);
-
-			sec_offs1 = rec_get_offsets(
-				mrec1->rec, index, sec_offs1, ULINT_UNDEFINED,
-				&offset_heap);
-
-			ut_ad(rec_validate(mrec1->rec, sec_offs1));
-
-			mrec2 = row_merge_read_rec_from_block(
-				tmp, &offset2, heap, index);
-
-			sec_offs2 = rec_get_offsets(
-				mrec2->rec, index, sec_offs2, ULINT_UNDEFINED,
-				&offset_heap);
-
-			ut_ad(rec_validate(mrec2->rec, sec_offs2));
-
-			switch (row_merge_cmp(mrec1, mrec2,
-					      sec_offs1, sec_offs2, index)) {
-			case 0:
-				if (UNIV_UNLIKELY
-				    (dict_index_is_unique(index))) {
-					goto error_handling;
-				}
-				/* fall through */
-			case -1:
-				rec_offsets = sec_offs1;
-				nth_rec1++;
-				offset2 = tmp_offset2;
-				break;
-			case 1:
-				mrec1 = mrec2;
-				rec_offsets = sec_offs2;
-				nth_rec2++;
-				offset1 = tmp_offset1;
-				break;
-			default:
-				ut_error;
-			}
-		}
-
-		ut_ad(mrec1);
-		ut_ad(rec_validate(mrec1->rec, rec_offsets));
-
-		/* If the first output block is not yet full test whether this
-		new data tuple fits to block. If not this new data tuple must
-		be inserted to second output block */
-
-		if (fits_to_new) {
-			fits_to_new = row_merge_rec_fits_to_block(
-				rec_offsets, offset3);
-		}
-
-		if (fits_to_new) {
-			offset3 = row_merge_store_rec_to_block(
-				mrec1->rec, rec_offsets, new_block1, offset3);
-		} else {
-			ut_a(row_merge_rec_fits_to_block(rec_offsets,
-							 offset4));
-
-			offset4 = row_merge_store_rec_to_block(
-				mrec1->rec, rec_offsets, new_block2, offset4);
-		}
-
-		/* TODO: If we are using variable length keys, then in
-		some cases these keys do not fit to two empty blocks
-		in a different order. Therefore, some empty space is
-		left to every block. However, it has not been prooven
-		that this empty space is enough in all cases. Therefore,
-		here these overloaded records should be put on another
-		block. */
-	}
-
-	/* Free memory from old blocks and return pointers to new blocks */
-
-	if (offset_heap) {
-		mem_heap_free(offset_heap);
-	}
-
-	mem_heap_free(heap);
-	mem_free(block1);
-	mem_free(tmp);
-
-	ut_ad(row_merge_block_validate(new_block1, index));
-	ut_ad(row_merge_block_validate(new_block2, index));
-
-	*block2 = new_block2;
-
-	return(new_block1);
-
-error_handling:
-	/* Duplicate key was found and unique key was requested. Free all
-	allocated memory and return NULL */
-
-	if (offset_heap) {
-		mem_heap_free(offset_heap);
-	}
-
-	mem_heap_free(heap);
-	mem_free(block1);
-	mem_free(tmp);
-	mem_free(new_block1);
-	mem_free(new_block2);
-
-	return(NULL);
-}
-
-/*****************************************************************
-Merge sort for linked list in the disk.
-
-Merge sort takes the input list and makes log N passes along
-the list and in each pass it combines each adjacent pair of
-small sorted lists into one larger sorted list. When only one
-pass is needed the whole output list must have been sorted.
-
-The linked list is stored in the file system.  File blocks represent
-items of linked list.  The list is singly linked by the next offset
-stored in block header. Offset is calculated from the start of the
-file. Thus whenever next item in the list is requested this item is
-read from the disk. Similarly every item is witten back to the disk
-when we have sorted two blocks in the memory.
-
-In each pass, two lists of size block_size are merged into lists of
-size block_size*2. Initially block_size=1. Merge starts by pointing
-a temporary pointer list1 at the head of the list and also preparing
-an empty list list_tail where elements will be appended. Then:
-
-	1) If block1 is NULL we terminate this pass.
-
-	2) Otherwise, there is at least one element in the next
-	pair of block_size lists therefore, increase the number of
-	merges performed in this pass.
-
-	3) Point another temporary pointer list2 as the same
-	place as list1. Iterate list2 by block_size elements
-	or until the end of the list. Let the list_size1 be the
-	number of elements in the list2.
-
-	4) Let list_size1=merge_size. Now we merge list starting at
-	list1 of length list_size2 with a list starting at list2 of
-	length at most list_size1.
-
-	5) So, as long as either the list1 is non-empty (list_size1)
-	or the list2 is non-empty (list_size2 and list2 pointing to
-	a element):
-
-		5.1) Select which list to take the next element from.
-		If either lists is empty, we choose from the other one.
-		If both lists are non-empty, compare the first element
-		of each and choose the lower one.
-
-		5.2) Remove that element, tmp, from the start of its
-		lists, by advancing list1 or list2 to next element
-		and decreasing list1_size or list2_size.
-
-		5.3) Append tmp to list_tail
-
-	6) At this point, we have advanced list1 until it is where
-	list2 started out and we have advanced list2 until it is
-	pointing at the next pair of block_size lists to merge.
-	Thus, set list1 to the value of list2 and go back to the
-	start of this loop.
-
-As soon as a pass like this is performed with only one merge, the
-algorithm terminates. Otherwise, double the value of block_size
-and go back to the beginning. */
-
-ulint
-row_merge_sort_linked_list_in_disk(
-/*===============================*/
-					/* out: offset to first block in
-					the list or ULINT_UNDEFINED in
-					case of error */
-	dict_index_t*	index,		/* in: index to be created */
-	os_file_t	file,		/* in: File handle */
-	int*		error)		/* out: 0 or error */
-{
-	merge_block_t*		block1;
-	merge_block_t*		block2;
-	merge_block_t*		backup1;
-	merge_block_t*		backup2;
-	merge_file_t		output;
-	ulint			block_size;
-	ulint			list_head	= 0;
-
-	ut_ad(index);
-
-	/* Allocate memory for blocks */
-	backup1 = block1 = row_merge_block_create();
-	backup2 = block2 = row_merge_block_create();
-
-	output.file = file;
-
-	for (block_size = 1;; block_size *= 2) {
-		ibool	sorted		= TRUE;
-		ibool	list_is_empty	= TRUE;
-
-		block1 = backup1;
-
-		if (!row_merge_block_read(file, list_head, block1)) {
-file_error:
-			*error = DB_CORRUPTION;
-			goto err_exit;
-		}
-		ut_ad(row_merge_block_validate(block1, index));
-
-		for (;;) {
-			ulint	offset		= block1->header.offset;
-			ulint	list1_size	= 0;
-			ulint	list2_size	= block_size;
-			ulint	i;
-
-			/* Count how many list elements we have in the list. */
-
-			for (i = 0; i < block_size; i++) {
-				merge_block_header_t	header;
-
-				list1_size++;
-
-				/* Here read only the header to iterate the
-				list in the disk. */
-
-				if (!row_merge_block_header_read(file, offset,
-								 &header)) {
-					goto file_error;
-				}
-
-				offset = header.next;
-
-				/* If the offset is zero we have arrived to the
-				end of disk list */
-
-				if (!offset) {
-					break;
-				}
-			}
-
-			/* If offset is zero we have reached end of the list in
-			the disk. */
-
-			if (!offset) {
-				block2 = NULL;
-			} else {
-				block2 = backup2;
-				if (!row_merge_block_read(
-					    file, offset, block2)) {
-					goto file_error;
-				}
-				ut_ad(row_merge_block_validate(block2, index));
-			}
-
-			/* If list2 is not empty, we have two lists to merge.
-			Otherwise, we have a sorted list. */
-
-			while (list1_size > 0 || (list2_size > 0 && block2)) {
-				/* Merge sort two lists by deciding whether
-				next element of merge comes from list1 or
-				list2. */
-				merge_block_t*	tmp;
-
-				if (list1_size == 0) {
-					/* First list is empty, next element
-					must come from the second list. */
-
-					tmp = block2;
-
-					if (!block2->header.next) {
-						block2 = NULL;
-						list2_size = 0;
-					} else {
-						list2_size--;
-					}
-				} else if (list2_size == 0 || !block2) {
-					/* Second list is empty, next record
-					must come from the first list. */
-
-					tmp = block1;
-					list1_size--;
-				} else {
-					/* Both lists contain a block and we
-					need to merge records on these block */
-
-					tmp = row_merge_block_merge(
-						block1, &block2, index);
-
-					if (tmp == NULL) {
-						*error = DB_DUPLICATE_KEY;
-						goto err_exit;
-					}
-
-					block1 = backup1 = tmp;
-					backup2 = block2;
-
-					list1_size--;
-				}
-
-				/* Store the head offset of the disk
-				list.  Note that only records in the
-				blocks are changed not the order of
-				the blocks in the disk. */
-
-				if (list_is_empty) {
-					list_is_empty = FALSE;
-					list_head = tmp->header.offset;
-				}
-
-				ut_ad(row_merge_block_validate(tmp, index));
-
-				if (!row_merge_block_write(
-					    file, tmp->header.offset, tmp)) {
-					goto file_error;
-				}
-
-				/* Now we can read the next record from the
-				selected list if it contains more records */
-
-				if (tmp->header.next
-				    && !row_merge_block_read(file,
-							     tmp->header.next,
-							     tmp)) {
-					goto file_error;
-				}
-			}
-
-			/* Now we have processed block_size items from
-			the disk.  Swap blocks using pointers. */
-
-			if (!block2) {
-				if (sorted) {
-					goto func_exit;
-				}
-				break;
-			}
-
-			sorted = FALSE;
-			block2 = backup1;
-			block1 = backup2;
-			backup2 = block2;
-			backup1 = block1;
-		}
-	}
-
-err_exit:
-	list_head = ULINT_UNDEFINED;
-func_exit:
-	mem_free(backup1);
-	mem_free(backup2);
-	return(list_head);
-}
-
-/************************************************************************
-Merge sort linked list in the memory and store part of the linked
-list into a block and write this block to the disk. */
-static
-ibool
-row_merge_sort_and_store(
-/*=====================*/
-					/* out: FALSE on error */
-	dict_index_t*		index,	/* in: Index */
-	merge_file_t*		file,	/* in: File where to write index
-					entries */
-	merge_block_t*		block,	/* in/out: Block where to store
-					the list */
-	merge_rec_list_t**	list)	/* in/out: Pointer to the list */
-{
-	ut_ad(index && file && block && list);
-
-	/* Firstly, merge sort linked list in the memory */
-	if (!row_merge_sort_linked_list(index, *list)) {
-		return(FALSE);
-	}
-
-	/* Secondly, write part of the linked list to the block */
-	*list = row_merge_write_list_to_block(*list, block, index);
-
-	ut_ad(row_merge_block_validate(block, index));
-
-	/* Next block will be written directly behind this one. This will
-	create a 'linked list' of blocks to the disk. */
-
-	block->header.offset = file->offset;
-	block->header.next = ++file->offset;
-
-	/* Thirdly, write block to the disk */
-	return(row_merge_block_write(file->file, block->header.offset, block));
-}
-
-#ifdef UNIV_DEBUG_INDEX_CREATE
-/************************************************************************
-Pretty print data tuple */
-static
-void
-row_merge_dtuple_print(
-/*===================*/
-	FILE*		f,	/* in: output stream */
-	dtuple_t*	dtuple)	/* in: data tuple */
-{
-	ulint		n_fields;
-	ulint		i;
-
-	ut_ad(f && dtuple);
-
-	n_fields = dtuple_get_n_fields(dtuple);
-
-	fprintf(f, "DATA TUPLE: %lu fields;\n", (ulong) n_fields);
-
-	for (i = 0; i < n_fields; i++) {
-		dfield_t*	dfield;
-
-		dfield = dtuple_get_nth_field(dtuple, i);
-
-		fprintf(f, "%lu: ", (ulong) i);
-
-		if (dfield->len != UNIV_SQL_NULL) {
-			dfield_print_also_hex(dfield);
-		} else {
-			fputs(" SQL NULL", f);
-		}
-
-		putc(';', f);
-	}
-
-	putc('\n', f);
-	ut_ad(dtuple_validate(dtuple));
-}
-#endif /* UNIV_DEBUG_INDEX_CREATE */
 
 /************************************************************************
 Reads clustered index of the table and create temporary files
 containing index entries for indexes to be built. */
-
+static
 ulint
 row_merge_read_clustered_index(
 /*===========================*/
-					/* out: DB_SUCCESS if successfull,
-					or ERROR code */
-	trx_t*		trx,		/* in: transaction */
-	dict_table_t*	table,		/* in: table where index is created */
-	dict_index_t**	index,		/* in: indexes to be created */
-	merge_file_t*	files,		/* in: Files where to write index
-					entries */
-	ulint		num_of_idx)	/* in: number of indexes to be
-					created */
+					/* out: DB_SUCCESS or error */
+	trx_t*			trx,	/* in: transaction */
+	dict_table_t*		table,	/* in: table where index is created */
+	dict_index_t**		index,	/* in: indexes to be created */
+	merge_file_t*		files,	/* in: temporary files */
+	ulint			n_index,/* in: number of indexes to create */
+	row_merge_block_t*	block)	/* in/out: file buffer */
 {
-	dict_index_t*	clust_index;		/* Clustered index */
-	merge_rec_t*	new_mrec;		/* New merge record */
-	mem_heap_t*	row_heap;		/* Heap memory to create
+	dict_index_t*		clust_index;	/* Clustered index */
+	mem_heap_t*		row_heap;	/* Heap memory to create
 						clustered index records */
-	mem_heap_t*	heap;			/* Memory heap for
-						record lists and offsets */
-	merge_block_t*	block;			/* Merge block where records
-						are stored for memory sort and
-						then written to the disk */
-	merge_rec_list_t**	merge_list;	/* Temporary list for records*/
-	btr_pcur_t	pcur;			/* Persistent cursor on the
+	row_merge_buf_t**	merge_buf;	/* Temporary list for records*/
+	btr_pcur_t		pcur;		/* Persistent cursor on the
 						clustered index */
-	mtr_t		mtr;			/* Mini transaction */
-	ulint		err = DB_SUCCESS;	/* Return code */
-	ulint		idx_num = 0;		/* Index number */
-	ulint		n_blocks = 0;		/* Number of blocks written
-						to disk */
-	ulint		sec_offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		sec_offs	= sec_offsets_;
+	mtr_t			mtr;		/* Mini transaction */
+	ulint			err = DB_SUCCESS;/* Return code */
+	ulint			i;
 
-	*sec_offsets_ = (sizeof sec_offsets_) / sizeof *sec_offsets_;
-
-	trx->op_info="reading clustered index";
+	trx->op_info = "reading clustered index";
 
 	ut_ad(trx);
 	ut_ad(table);
 	ut_ad(index);
 	ut_ad(files);
 
-	/* Create block where index entries are stored */
-	block = row_merge_block_create();
+	/* Create and initialize memory for record buffers */
 
-	/* Create and initialize memory for record lists */
+	merge_buf = mem_alloc(n_index * sizeof *merge_buf);
 
-	heap = mem_heap_create(256);
-	merge_list = mem_heap_alloc(heap, num_of_idx * sizeof *merge_list);
-
-	for (idx_num = 0; idx_num < num_of_idx; idx_num++) {
-		merge_list[idx_num] = row_merge_create_list();
+	for (i = 0; i < n_index; i++) {
+		merge_buf[i] = row_merge_buf_create(index[i]);
 	}
 
 	mtr_start(&mtr);
@@ -1467,13 +850,14 @@ row_merge_read_clustered_index(
 	btr_pcur_open_at_index_side(
 		TRUE, clust_index, BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
 
-	row_heap = mem_heap_create(512);
+	row_heap = mem_heap_create(UNIV_PAGE_SIZE);
 
-	/* Iterate all records in the clustered index */
+	/* Scan the clustered index. */
 	for (;;) {
 		const rec_t*	rec;
 		dtuple_t*	row;
 		row_ext_t*	ext;
+		ibool		has_next = TRUE;
 
 		btr_pcur_move_to_next_on_page(&pcur, &mtr);
 
@@ -1486,174 +870,328 @@ row_merge_read_clustered_index(
 			mtr_start(&mtr);
 			btr_pcur_restore_position(BTR_SEARCH_LEAF,
 						  &pcur, &mtr);
-			if (!btr_pcur_move_to_next_user_rec(&pcur, &mtr)) {
-				break;
-			}
+			has_next = btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 		}
 
-		rec = btr_pcur_get_rec(&pcur);
+		if (UNIV_LIKELY(has_next)) {
+			rec = btr_pcur_get_rec(&pcur);
 
-		/* We don't count the delete marked records as "Inserted" */
-		if (!rec_get_deleted_flag(rec, dict_table_is_comp(table))) {
+			/* Skip delete marked records. */
+			if (rec_get_deleted_flag(rec,
+						 dict_table_is_comp(table))) {
+				continue;
+			}
 
 			srv_n_rows_inserted++;
+
+			/* Build row based on clustered index */
+
+			row = row_build(ROW_COPY_POINTERS, clust_index,
+					rec, NULL, &ext, row_heap);
+
+			/* Build all entries for all the indexes to be created
+			in a single scan of the clustered index. */
 		}
 
-		/* Build row based on clustered index */
+		for (i = 0; i < n_index; i++) {
+			row_merge_buf_t*	buf	= merge_buf[i];
+			merge_file_t*		file	= &files[i];
+
+			if (UNIV_LIKELY
+			    (has_next && row_merge_buf_add(buf, row, ext))) {
+				continue;
+			}
+
+			ut_ad(buf->n_tuples || !has_next);
+
+			/* We have enough data tuples to form a block.
+			Sort them and write to disk. */
+
+			if (buf->n_tuples
+			    && row_merge_buf_sort(buf)
+			    && dict_index_is_unique(buf->index)) {
+				err = DB_DUPLICATE_KEY;
+				goto func_exit;
+			}
+
+			row_merge_buf_write(buf, block);
+
+			if (!row_merge_write(file->fd, file->offset++,
+					     block)) {
+				trx->error_key_num = i;
+				err = DB_OUT_OF_FILE_SPACE;
+				goto func_exit;
+			}
+
+			row_merge_buf_empty(buf);
+		}
+
 		mem_heap_empty(row_heap);
 
-		row = row_build(ROW_COPY_POINTERS,
-				clust_index, rec, NULL, &ext, row_heap);
-
-		/* If the user has requested the creation of several indexes
-		for the same table. We build all index entries in a single
-		pass over the clustered index. */
-
-		for (idx_num = 0; idx_num < num_of_idx; idx_num++) {
-
-			dtuple_t*	index_tuple;
-
-			index_tuple = row_build_index_entry(
-				row, ext,
-				index[idx_num], merge_list[idx_num]->heap);
-
-#ifdef UNIV_DEBUG_INDEX_CREATE
-			row_merge_dtuple_print(stderr, index_tuple);
-#endif
-
-			new_mrec = row_merge_rec_create(
-				index_tuple,
-				ext ? ext->ext : NULL, ext ? ext->n_ext : 0,
-				index[idx_num], merge_list[idx_num]->heap);
-
-			sec_offs = rec_get_offsets(
-				new_mrec->rec, index[idx_num], sec_offs,
-				ULINT_UNDEFINED, &heap);
-
-			/* Add data tuple to linked list of data tuples */
-
-			row_merge_list_add(
-				new_mrec, rec_offs_size(sec_offs),
-				merge_list[idx_num]);
-
-			/* If we have enough data tuples to form a block
-			sort linked list and store it to the block and
-			write this block to the disk. Note that not all
-			data tuples in the list fit to the block.*/
-
-			if (merge_list[idx_num]->total_size >=
-			    MERGE_BLOCK_SIZE) {
-
-				if (!row_merge_sort_and_store(
-					    index[idx_num],
-					    &files[idx_num],
-					    block,
-					    &(merge_list[idx_num]))) {
-
-					trx->error_key_num = idx_num;
-					err = DB_DUPLICATE_KEY;
-					goto error_handling;
-				}
-
-				n_blocks++;
-				files[idx_num].num_of_blocks++;
-			}
+		if (UNIV_UNLIKELY(!has_next)) {
+			goto func_exit;
 		}
 	}
 
-	/* Now we have to write all remaining items in the list to
-	blocks and write these blocks to the disk */
-
-	for (idx_num = 0; idx_num < num_of_idx; idx_num++) {
-
-		/* While we have items in the list write them
-		to the block */
-		ut_ad(!merge_list[idx_num]->head
-		      == !merge_list[idx_num]->tail);
-		ut_ad(!merge_list[idx_num]->n_records
-		      == !merge_list[idx_num]->head);
-
-		if (merge_list[idx_num]->head) {
-
-			/* Next block will be written directly
-			behind this one. This will create a
-			'linked list' of blocks to the disk. */
-
-			block->header.offset = files[idx_num].offset;
-			block->header.next = files[idx_num].offset + 1;
-
-			if (!row_merge_sort_and_store(
-				    index[idx_num],
-				    &files[idx_num],
-				    block,
-				    &(merge_list[idx_num]))) {
-
-				trx->error_key_num = idx_num;
-				err = DB_DUPLICATE_KEY;
-				goto error_handling;
-			}
-
-			files[idx_num].num_of_blocks++;
-			n_blocks++;
-		}
-
-		/* Write the last block. */
-		block->header.next = 0; /* end-of-list marker */
-
-		if (!row_merge_block_header_write(
-			    files[idx_num].file, &block->header)) {
-			err = DB_CORRUPTION;
-			goto error_handling;
-		}
-	}
-
-#ifdef UNIV_DEBUG_INDEX_CREATE
-	fprintf(stderr, "Stored %lu blocks\n", n_blocks);
-#endif
-
-error_handling:
-
-	/* Cleanup resources */
-
+func_exit:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 	mem_heap_free(row_heap);
-	mem_free(block);
 
-	for (idx_num = 0; idx_num < num_of_idx; idx_num++) {
-		mem_heap_free(merge_list[idx_num]->heap);
+	for (i = 0; i < n_index; i++) {
+		row_merge_buf_free(merge_buf[i]);
+	}
+
+	mem_free(merge_buf);
+
+	trx->op_info = "";
+
+	return(err);
+}
+
+/*****************************************************************
+Merge two blocks of linked lists on disk and write a bigger block. */
+static
+ulint
+row_merge_blocks(
+/*=============*/
+					/* out: DB_SUCCESS or error code */
+	dict_index_t*		index,	/* in: index being created */
+	merge_file_t*		file,	/* in/out: file containing
+					index entries */
+	row_merge_block_t*	block1,	/* in/out: input buffer */
+	row_merge_block_t*	block2,	/* in/out: input buffer */
+	row_merge_block_t*	block3,	/* in/out: output buffer */
+	ulint*			foffs1,	/* in/out: offset of first
+					source list in the file */
+	ulint*			foffs2,	/* in/out: offset of second
+					source list in the file */
+	merge_file_t*		of)	/* in/out: output file */
+{
+	mem_heap_t*	heap;	/* memory heap for offsets1, offsets2 */
+
+	mrec_buf_t	buf1;	/* buffer for handling split mrec1 in block1 */
+	mrec_buf_t	buf2;	/* buffer for handling split mrec2 in block2 */
+	mrec_buf_t	buf3;	/* buffer for handling split mrec in block3 */
+	const byte*	b1;	/* pointer to block1 */
+	const byte*	b2;	/* pointer to block2 */
+	byte*		b3;	/* pointer to block3 */
+	const mrec_t*	mrec1;	/* merge record, points to block1 or buf1 */
+	const mrec_t*	mrec2;	/* merge record, points to block2 or buf2 */
+	ulint*		offsets1;/* offsets of mrec1 */
+	ulint*		offsets2;/* offsets of mrec2 */
+
+	heap = row_merge_heap_create(index, &offsets1, &offsets2);
+
+	/* Write a record and read the next record.  Split the output
+	file in two halves, which can be merged on the following pass. */
+#define ROW_MERGE_WRITE_GET_NEXT(N, AT_END)				\
+	do {								\
+		b3 = row_merge_write_rec(block3, &buf3, b3,		\
+					 of->fd, &of->offset,		\
+					 mrec##N, offsets##N);		\
+		if (UNIV_UNLIKELY(!b3)) {				\
+			goto corrupt;					\
+		}							\
+		b##N = row_merge_read_rec(block##N, &buf##N,		\
+					  b##N, index,			\
+					  file->fd, foffs##N,		\
+					  &mrec##N, offsets##N);	\
+		if (UNIV_UNLIKELY(!b##N)) {				\
+			if (mrec##N) {					\
+				goto corrupt;				\
+			}						\
+			AT_END;						\
+		}							\
+	} while (0)
+
+	if (!row_merge_read(file->fd, *foffs1, block1)
+	    || !row_merge_read(file->fd, *foffs2, block2)) {
+corrupt:
+		mem_heap_free(heap);
+		return(DB_CORRUPTION);
+	}
+
+	b1 = *block1;
+	b2 = *block2;
+	b3 = *block3;
+
+	b1 = row_merge_read_rec(block1, &buf1, b1, index, file->fd,
+				foffs1, &mrec1, offsets1);
+	b2 = row_merge_read_rec(block2, &buf2, b2, index, file->fd,
+				foffs2, &mrec2, offsets2);
+	if (UNIV_UNLIKELY(!b1 && mrec1)
+	    || UNIV_UNLIKELY(!b2 && mrec2)) {
+
+		goto corrupt;
+	}
+
+	while (mrec1 && mrec2) {
+		switch (row_merge_cmp(mrec1, mrec2,
+				      offsets1, offsets2, index)) {
+		case 0:
+			if (UNIV_UNLIKELY
+			    (dict_index_is_unique(index))) {
+				mem_heap_free(heap);
+				return(DB_DUPLICATE_KEY);
+			}
+			/* fall through */
+		case -1:
+			ROW_MERGE_WRITE_GET_NEXT(1, goto merged);
+			break;
+		case 1:
+			ROW_MERGE_WRITE_GET_NEXT(2, goto merged);
+			break;
+		default:
+			ut_error;
+		}
+
+	}
+
+merged:
+	if (mrec1) {
+		/* append all mrec1 to output */
+		for (;;) {
+			ROW_MERGE_WRITE_GET_NEXT(1, break);
+		}
+	}
+
+	if (mrec2) {
+		/* append all mrec2 to output */
+		for (;;) {
+			ROW_MERGE_WRITE_GET_NEXT(2, break);
+		}
 	}
 
 	mem_heap_free(heap);
+	b3 = row_merge_write_eof(block3, b3, of->fd, &of->offset);
+	return(b3 ? DB_SUCCESS : DB_CORRUPTION);
+}
 
-	trx->op_info="";
+/*****************************************************************
+Merge disk files. */
+static
+ulint
+row_merge(
+/*======*/
+						/* out: DB_SUCCESS
+						or error code */
+	dict_index_t*		index,		/* in: index being created */
+	merge_file_t*		file,		/* in/out: file containing
+						index entries */
+	row_merge_block_t*	block1,		/* in/out: input buffer */
+	row_merge_block_t*	block2,		/* in/out: input buffer */
+	row_merge_block_t*	block3,		/* in/out: output buffer */
+	int*			tmpfd)		/* in/out: temporary file
+						handle */
+{
+	ulint		foffs1;	/* first input offset */
+	ulint		foffs2;	/* second input offset */
+	ulint		half;	/* upper limit of foffs1 */
+	ulint		error;	/* error code */
+	merge_file_t	of;	/* output file */
 
-	return(err);
+	of.fd = *tmpfd;
+	of.offset = 0;
+
+	/* Split the input file in two halves. */
+	half = file->offset / 2;
+
+	/* Merge blocks to the output file. */
+	foffs1 = 0;
+	foffs2 = half;
+
+	for (; foffs1 < half; foffs1++, foffs2++) {
+		error = row_merge_blocks(index, file, block1, block2, block3,
+					 &foffs1, &foffs2, &of);
+
+		if (error != DB_SUCCESS) {
+			return(error);
+		}
+	}
+
+	/* Copy the last block, if there is one. */
+	while (foffs2 < file->offset) {
+		if (!row_merge_read(file->fd, foffs2++, block2)
+		    || !row_merge_write(of.fd, of.offset++, block2)) {
+			return(DB_CORRUPTION);
+		}
+	}
+
+	/* Swap file descriptors for the next pass. */
+	*tmpfd = file->fd;
+	*file = of;
+
+	return(DB_SUCCESS);
+}
+
+/*****************************************************************
+Merge disk files. */
+static
+ulint
+row_merge_sort(
+/*===========*/
+						/* out: DB_SUCCESS
+						or error code */
+	dict_index_t*		index,		/* in: index being created */
+	merge_file_t*		file,		/* in/out: file containing
+						index entries */
+	row_merge_block_t*	block1,		/* in/out: input buffer */
+	row_merge_block_t*	block2,		/* in/out: input buffer */
+	row_merge_block_t*	block3,		/* in/out: output buffer */
+	int*			tmpfd)		/* in/out: temporary file
+						handle */
+{
+	ulint	blksz;	/* block size */
+
+	blksz = 1;
+
+	for (;; blksz *= 2) {
+		ulint	error = row_merge(index, file,
+					  block1, block2, block3, tmpfd);
+		if (error != DB_SUCCESS) {
+			return(error);
+		}
+
+		if (blksz >= file->offset) {
+			/* everything is in a single block */
+			break;
+		}
+
+		/* Round up the file size to a multiple of blksz. */
+		file->offset = ut_2pow_round(file->offset - 1, blksz) + blksz;
+	}
+
+	return(DB_SUCCESS);
 }
 
 /************************************************************************
 Read sorted file containing index data tuples and insert these data
 tuples to the index */
-
+static
 ulint
 row_merge_insert_index_tuples(
 /*==========================*/
-					/* out: 0 or error number */
-	trx_t*		trx,		/* in: transaction */
-	dict_index_t*	index,		/* in: index */
-	dict_table_t*	table,		/* in: table */
-	os_file_t	file,		/* in: file handle */
-	ulint		offset)		/* in: offset where to start
-					reading */
+					/* out: DB_SUCCESS or error number */
+	trx_t*			trx,	/* in: transaction */
+	dict_index_t*		index,	/* in: index */
+	dict_table_t*		table,	/* in: table */
+	int			fd,	/* in: file descriptor */
+	row_merge_block_t*	block)	/* in/out: file buffer */
 {
-	merge_block_t*	block;
-	que_thr_t*	thr;
-	ins_node_t*	node;
-	mem_heap_t*	heap;
-	mem_heap_t*	graph_heap;
-	ulint		error = DB_SUCCESS;
+	mrec_buf_t		buf;
+	const byte*		b;
+	que_thr_t*		thr;
+	ins_node_t*		node;
+	mem_heap_t*		tuple_heap;
+	mem_heap_t*		graph_heap;
+	ulint			error = DB_SUCCESS;
+	ulint			foffs = 0;
+	ulint*			offsets;
 
-	ut_ad(trx && index && table);
+	ut_ad(trx);
+	ut_ad(index);
+	ut_ad(table);
 
 	/* We use the insert query graph as the dummy graph
 	needed in the row module call */
@@ -1667,70 +1205,67 @@ row_merge_insert_index_tuples(
 
 	que_thr_move_to_run_state_for_mysql(thr, trx);
 
-	block = row_merge_block_create();
-	heap = mem_heap_create(1000);
+	tuple_heap = mem_heap_create(1000);
 
-	do {
-		ulint	n_rec;
-		ulint	tuple_offset = 0;
+	{
+		ulint i	= REC_OFFS_HEADER_SIZE
+			+ dict_index_get_n_fields(index);
+		offsets = mem_heap_alloc(graph_heap, i * sizeof *offsets);
+		offsets[0] = i;
+		offsets[1] = dict_index_get_n_fields(index);
+	}
 
-		if (!row_merge_block_read(file, offset, block)) {
-			error = DB_CORRUPTION;
-			break;
-		}
+	b = *block;
 
-		ut_ad(row_merge_block_validate(block, index));
+	if (!row_merge_read(fd, foffs, block)) {
+		error = DB_CORRUPTION;
+	} else {
+		for (;;) {
+			const mrec_t*	mrec;
+			dtuple_t*	dtuple;
 
-		for (n_rec = 0; n_rec < block->header.n_records; n_rec++) {
-			merge_rec_t*	mrec = row_merge_read_rec_from_block(
-				block, &tuple_offset, heap, index);
-
-			if (!rec_get_deleted_flag(mrec->rec, 0)) {
-
-				dtuple_t* dtuple = row_rec_to_index_entry(
-					ROW_COPY_POINTERS,
-					index, mrec->rec, heap);
-
-				node->row = dtuple;
-				node->table = table;
-				node->trx_id = trx->id;
-
-				ut_ad(dtuple_validate(dtuple));
-
-#ifdef UNIV_DEBUG_INDEX_CREATE
-				row_merge_dtuple_print(stderr, dtuple);
-#endif
-
-				do {
-					thr->run_node = thr;
-					thr->prev_node = thr->common.parent;
-
-					error = row_ins_index_entry(
-						index, dtuple, NULL, 0, thr);
-
-					if (error == DB_SUCCESS) {
-						goto next_rec;
-					}
-
-					thr->lock_state = QUE_THR_LOCK_ROW;
-					trx->error_state = error;
-					que_thr_stop_for_mysql(thr);
-					thr->lock_state = QUE_THR_LOCK_NOLOCK;
-				} while (row_mysql_handle_errors(&error, trx,
-								 thr, NULL));
-
-				goto err_exit;
+			b = row_merge_read_rec(block, &buf, b, index,
+					       fd, &foffs, &mrec, offsets);
+			if (UNIV_UNLIKELY(!b)) {
+				/* End of list, or I/O error */
+				if (mrec) {
+					error = DB_CORRUPTION;
+				}
+				break;
 			}
 
+			dtuple = row_rec_to_index_entry_low(
+				mrec, index, offsets, tuple_heap);
+
+			node->row = dtuple;
+			node->table = table;
+			node->trx_id = trx->id;
+
+			ut_ad(dtuple_validate(dtuple));
+
+			do {
+				thr->run_node = thr;
+				thr->prev_node = thr->common.parent;
+
+				error = row_ins_index_entry(
+					index, dtuple, NULL, 0, thr);
+
+				if (UNIV_LIKELY(error == DB_SUCCESS)) {
+					goto next_rec;
+				}
+
+				thr->lock_state = QUE_THR_LOCK_ROW;
+				trx->error_state = error;
+				que_thr_stop_for_mysql(thr);
+				thr->lock_state = QUE_THR_LOCK_NOLOCK;
+			} while (row_mysql_handle_errors(&error, trx,
+							 thr, NULL));
+
+			goto err_exit;
 next_rec:
-			mem_heap_empty(heap);
+			mem_heap_empty(tuple_heap);
 		}
-
-		offset = block->header.next;
-
-		/* If we have reached the end of the disk list we have
-		inserted all of the index entries to the index. */
-	} while (offset);
+	}
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 err_exit:
@@ -1738,8 +1273,7 @@ err_exit:
 
 	trx->op_info = "";
 
-	mem_free(block);
-	mem_heap_free(heap);
+	mem_heap_free(tuple_heap);
 
 	return(error);
 }
@@ -1827,17 +1361,29 @@ row_merge_drop_indexes(
 }
 
 /*************************************************************************
-Allocate and initialize memory for a merge file structure */
-
+Create a merge file. */
+static
 void
 row_merge_file_create(
 /*==================*/
 	merge_file_t*	merge_file)	/* out: merge file structure */
 {
-	merge_file->file = innobase_mysql_tmpfile();
-
+	merge_file->fd = innobase_mysql_tmpfile();
 	merge_file->offset = 0;
-	merge_file->num_of_blocks = 0;
+}
+
+/*************************************************************************
+Destroy a merge file. */
+static
+void
+row_merge_file_destroy(
+/*===================*/
+	merge_file_t*	merge_file)	/* out: merge file structure */
+{
+	if (merge_file->fd != -1) {
+		close(merge_file->fd);
+		merge_file->fd = -1;
+	}
 }
 
 /*************************************************************************
@@ -1858,10 +1404,7 @@ row_merge_create_temporary_table(
 	ulint		error;
 
 	ut_ad(table_name && table && error);
-
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&dict_sys->mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	error = row_undo_report_create_table_dict_operation(trx, table_name);
 
@@ -1901,11 +1444,12 @@ row_merge_create_temporary_table(
 }
 
 /*************************************************************************
-Rename the indexes in the dicitionary. */
+Rename the indexes in the dictionary. */
 
 ulint
 row_merge_rename_index(
 /*===================*/
+					/* out: DB_SUCCESS if all OK */
 	trx_t*		trx,		/* in: Transaction */
 	dict_table_t*	table,		/* in: Table for index */
 	dict_index_t*	index)		/* in: Index to rename */
@@ -1976,7 +1520,7 @@ row_merge_create_index(
 
 	/* Create the index prototype, using the passed in def, this is not
 	a persistent operation. We pass 0 as the space id, and determine at
-	a lower level the space id where to store the table.*/
+	a lower level the space id where to store the table. */
 
 	index = dict_mem_index_create(table->name, index_def->name,
 				      0, index_def->ind_type, n_fields);
@@ -2045,7 +1589,7 @@ row_merge_create_index(
 }
 
 /*************************************************************************
-Check if a transaction can use an index.*/
+Check if a transaction can use an index. */
 
 ibool
 row_merge_is_index_usable(
@@ -2061,13 +1605,12 @@ row_merge_is_index_usable(
 }
 
 /*************************************************************************
-Drop the old table.*/
+Drop the old table. */
 
 ulint
 row_merge_drop_table(
 /*=================*/
-					/* out: DB_SUCCESS if all OK else
-					error code.*/
+					/* out: DB_SUCCESS or error code */
 	trx_t*		trx,		/* in: transaction */
 	dict_table_t*	table)		/* in: table to drop */
 {
@@ -2084,7 +1627,7 @@ row_merge_drop_table(
 
 	/* Drop the table immediately iff it is not references by MySQL */
 	if (table->n_mysql_handles_opened == 0) {
-		/* Set the commit flag to FALSE.*/
+		/* Set the commit flag to FALSE. */
 		err = row_drop_table_for_mysql(table->name, trx, FALSE);
 	}
 
@@ -2093,4 +1636,104 @@ row_merge_drop_table(
 	}
 
 	return(err);
+}
+
+/*************************************************************************
+Build indexes on a table by reading a clustered index,
+creating a temporary file containing index entries, merge sorting
+these index entries and inserting sorted index entries to indexes. */
+
+ulint
+row_merge_build_indexes(
+/*====================*/
+					/* out: DB_SUCCESS or error code */
+	trx_t*		trx,		/* in: transaction */
+	dict_table_t*	old_table,	/* in: Table where rows are
+					read from */
+	dict_table_t*	new_table,	/* in: Table where indexes are
+					created. Note that old_table ==
+					new_table if we are creating a
+					secondary keys. */
+	dict_index_t**	indexes,	/* in: indexes to be created */
+	ulint		n_indexes)	/* in: size of indexes[] */
+{
+	merge_file_t*		merge_files;
+	row_merge_block_t*	block1;
+	row_merge_block_t*	block2;
+	row_merge_block_t*	block3;
+	ulint			i;
+	ulint			error;
+	int			tmpfd;
+
+	ut_ad(trx);
+	ut_ad(old_table);
+	ut_ad(new_table);
+	ut_ad(indexes);
+	ut_ad(n_indexes);
+
+	trx_start_if_not_started(trx);
+
+	/* Allocate memory for merge file data structure and initialize
+	fields */
+
+	merge_files = mem_alloc(n_indexes * sizeof *merge_files);
+	block1 = mem_alloc(sizeof *block1);
+	block2 = mem_alloc(sizeof *block2);
+	block3 = mem_alloc(sizeof *block3);
+
+	for (i = 0; i < n_indexes; i++) {
+
+		row_merge_file_create(&merge_files[i]);
+	}
+
+	tmpfd = innobase_mysql_tmpfile();
+
+	/* Read clustered index of the table and create files for
+	secondary index entries for merge sort */
+
+	error = row_merge_read_clustered_index(
+		trx, old_table, indexes, merge_files, n_indexes, block1);
+
+	if (error != DB_SUCCESS) {
+
+		goto func_exit;
+	}
+
+	trx_start_if_not_started(trx);
+
+	/* Now we have files containing index entries ready for
+	sorting and inserting. */
+
+	for (i = 0; i < n_indexes; i++) {
+		error = row_merge_sort(indexes[i], &merge_files[i],
+				       block1, block2, block3, &tmpfd);
+
+		if (error == DB_SUCCESS) {
+			error = row_merge_insert_index_tuples(
+				trx, indexes[i], new_table,
+				merge_files[i].fd, block1);
+		}
+
+		/* Close the temporary file to free up space. */
+		row_merge_file_destroy(&merge_files[i]);
+
+		if (error != DB_SUCCESS) {
+			trx->error_key_num = i;
+			goto func_exit;
+		}
+	}
+
+func_exit:
+	close(tmpfd);
+
+	for (i = 0; i < n_indexes; i++) {
+		row_merge_file_destroy(&merge_files[i]);
+	}
+
+	mem_free(merge_files);
+	mem_free(block1);
+	mem_free(block2);
+	mem_free(block3);
+
+	return(error);
 }
