@@ -33,7 +33,6 @@ Created 9/17/2000 Heikki Tuuri
 #include "btr0sea.h"
 #include "fil0fil.h"
 #include "ibuf0ibuf.h"
-#include "row0merge.h"
 
 /* A dummy variable used to fool the compiler */
 ibool	row_mysql_identically_false	= FALSE;
@@ -4491,93 +4490,6 @@ row_create_index_graph_for_mysql(
 	que_graph_free((que_t*) que_node_get_parent(thr));
 
 	return(err);
-}
-
-/*************************************************************************
-Build new indexes to a table by reading a clustered index,
-creating a temporary file containing index entries, merge sorting
-these index entries and inserting sorted index entries to indexes. */
-
-ulint
-row_build_index_for_mysql(
-/*======================*/
-					/* out: 0 or error code */
-	trx_t*		trx,		/* in: transaction */
-	dict_table_t*	old_table,	/* in: Table where rows are
-					read from */
-	dict_table_t*	new_table,	/* in: Table where indexes are
-					created. Note that old_table ==
-					new_table if we are creating a
-					secondary keys. */
-	dict_index_t**	index,		/* in: Indexes to be created */
-	ulint		num_of_keys)	/* in: Number of indexes to be
-					created */
-{
-	merge_file_t*	merge_files;
-	ulint		index_num;
-	ulint		error;
-
-	ut_ad(trx && old_table && new_table && index && num_of_keys);
-
-	trx_start_if_not_started(trx);
-
-	/* Allocate memory for merge file data structure and initialize
-	fields */
-
-	merge_files = mem_alloc(num_of_keys * sizeof *merge_files);
-
-	for (index_num = 0; index_num < num_of_keys; index_num++) {
-
-		row_merge_file_create(&merge_files[index_num]);
-	}
-
-	/* Read clustered index of the table and create files for
-	secondary index entries for merge sort */
-
-	error = row_merge_read_clustered_index(
-		trx, old_table, index, merge_files, num_of_keys);
-
-	if (error != DB_SUCCESS) {
-
-		goto func_exit;
-	}
-
-	trx_start_if_not_started(trx);
-
-	/* Now we have files containing index entries ready for
-	sorting and inserting. */
-
-	for (index_num = 0; index_num < num_of_keys; index_num++) {
-
-		/* Do a merge sort and insert from those files
-		which we have written at least one block */
-
-		if (merge_files[index_num].num_of_blocks > 0) {
-			/* Merge sort file using linked list merge
-			sort for files. */
-
-			row_merge_sort_linked_list_in_disk(
-				index[index_num],
-				merge_files[index_num].file,
-				(int *)&error);
-
-			if (error == DB_SUCCESS) {
-				error = row_merge_insert_index_tuples(
-					trx, index[index_num], new_table,
-					merge_files[index_num].file, 0);
-			}
-
-			if (error != DB_SUCCESS) {
-				trx->error_key_num = index_num;
-				goto func_exit;
-			}
-		}
-	}
-
-func_exit:
-	mem_free(merge_files);
-
-	return(error);
 }
 #endif /* !UNIV_HOTBACKUP */
 

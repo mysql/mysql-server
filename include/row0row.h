@@ -68,7 +68,7 @@ row_build_index_entry(
 	mem_heap_t*	heap);	/* in: memory heap from which the memory for
 				the index entry is allocated */
 /***********************************************************************
-An inverse function to dict_row_build_index_entry. Builds a row from a
+An inverse function to row_build_index_entry. Builds a row from a
 record in a clustered index. */
 
 dtuple_t*
@@ -97,6 +97,21 @@ row_build(
 				needed is allocated */
 /***********************************************************************
 Converts an index record to a typed data tuple. */
+
+dtuple_t*
+row_rec_to_index_entry_low(
+/*=======================*/
+				/* out, index entry built; does not
+				set info_bits, and the data fields in
+				the entry will point directly to rec */
+	const rec_t*	rec,	/* in: record in the index */
+	dict_index_t*	index,	/* in: index */
+	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
+	mem_heap_t*	heap);	/* in: memory heap from which the memory
+				needed is allocated */
+/***********************************************************************
+Converts an index record to a typed data tuple. NOTE that externally
+stored (often big) fields are NOT copied to heap. */
 
 dtuple_t*
 row_rec_to_index_entry(

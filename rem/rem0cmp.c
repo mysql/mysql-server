@@ -704,6 +704,154 @@ cmp_dtuple_is_prefix_of_rec(
 	return(FALSE);
 }
 
+#ifndef UNIV_HOTBACKUP
+/*****************************************************************
+Compare two physical records that contain the same number of columns,
+none of which are stored externally. */
+
+int
+cmp_rec_rec_simple(
+/*===============*/
+				/* out: 1, 0 , -1 if rec1 is greater, equal,
+				less, respectively, than rec2 */
+	const rec_t*	rec1,	/* in: physical record */
+	const rec_t*	rec2,	/* in: physical record */
+	const ulint*	offsets1,/* in: rec_get_offsets(rec1, index) */
+	const ulint*	offsets2,/* in: rec_get_offsets(rec2, index) */
+	dict_index_t*	index)	/* in: data dictionary index */
+{
+	ulint		rec1_f_len;	/* length of current field in rec1 */
+	const byte*	rec1_b_ptr;	/* pointer to the current byte
+					in rec1 field */
+	ulint		rec1_byte;	/* value of current byte to be
+					compared in rec1 */
+	ulint		rec2_f_len;	/* length of current field in rec2 */
+	const byte*	rec2_b_ptr;	/* pointer to the current byte
+					in rec2 field */
+	ulint		rec2_byte;	/* value of current byte to be
+					compared in rec2 */
+	ulint		cur_field;	/* current field number */
+
+	ut_ad(!rec_offs_any_extern(offsets1));
+	ut_ad(!rec_offs_any_extern(offsets2));
+	ut_ad(rec_offs_comp(offsets1) == rec_offs_comp(offsets2));
+	ut_ad(rec_offs_n_fields(offsets1) == rec_offs_n_fields(offsets2));
+
+	for (cur_field = 0; cur_field < rec_offs_n_fields(offsets1);
+	     cur_field++) {
+
+		ulint	cur_bytes;
+		ulint	mtype;
+		ulint	prtype;
+
+		{
+			const dict_col_t*	col
+				= dict_index_get_nth_col(index, cur_field);
+
+			mtype = col->mtype;
+			prtype = col->prtype;
+		}
+
+		rec1_b_ptr = rec_get_nth_field(rec1, offsets1,
+					       cur_field, &rec1_f_len);
+		rec2_b_ptr = rec_get_nth_field(rec2, offsets2,
+					       cur_field, &rec2_f_len);
+
+		if (rec1_f_len == UNIV_SQL_NULL
+		    || rec2_f_len == UNIV_SQL_NULL) {
+
+			if (rec1_f_len == rec2_f_len) {
+
+				goto next_field;
+
+			} else if (rec2_f_len == UNIV_SQL_NULL) {
+
+				/* We define the SQL null to be the
+				smallest possible value of a field
+				in the alphabetical order */
+
+				return(1);
+			} else {
+				return(-1);
+			}
+		}
+
+		if (mtype >= DATA_FLOAT
+		    || (mtype == DATA_BLOB
+			&& 0 == (prtype & DATA_BINARY_TYPE)
+			&& dtype_get_charset_coll(prtype)
+			!= DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
+			int ret = cmp_whole_field(mtype, prtype,
+						  rec1_b_ptr,
+						  (unsigned) rec1_f_len,
+						  rec2_b_ptr,
+						  (unsigned) rec2_f_len);
+			if (ret) {
+				return(ret);
+			}
+
+			goto next_field;
+		}
+
+		/* Compare the fields */
+		for (cur_bytes = 0;; cur_bytes++, rec1_b_ptr++, rec2_b_ptr++) {
+			if (rec2_f_len <= cur_bytes) {
+
+				if (rec1_f_len <= cur_bytes) {
+
+					goto next_field;
+				}
+
+				rec2_byte = dtype_get_pad_char(mtype, prtype);
+
+				if (rec2_byte == ULINT_UNDEFINED) {
+					return(1);
+				}
+			} else {
+				rec2_byte = *rec2_b_ptr;
+			}
+
+			if (rec1_f_len <= cur_bytes) {
+				rec1_byte = dtype_get_pad_char(mtype, prtype);
+
+				if (rec1_byte == ULINT_UNDEFINED) {
+					return(-1);
+				}
+			} else {
+				rec1_byte = *rec1_b_ptr;
+			}
+
+			if (rec1_byte == rec2_byte) {
+				/* If the bytes are equal, they will remain
+				such even after the collation transformation
+				below */
+
+				continue;
+			}
+
+			if (mtype <= DATA_CHAR
+			    || (mtype == DATA_BLOB
+				&& !(prtype & DATA_BINARY_TYPE))) {
+
+				rec1_byte = cmp_collate(rec1_byte);
+				rec2_byte = cmp_collate(rec2_byte);
+			}
+
+			if (rec1_byte < rec2_byte) {
+				return(-1);
+			} else if (rec1_byte > rec2_byte) {
+				return(1);
+			}
+		}
+next_field:
+		continue;
+	}
+
+	/* If we ran out of fields, rec1 was equal to rec2. */
+	return(0);
+}
+#endif /* !UNIV_HOTBACKUP */
+
 /*****************************************************************
 This function is used to compare two physical records. Only the common
 first fields are compared, and if an externally stored field is

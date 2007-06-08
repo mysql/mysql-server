@@ -141,7 +141,7 @@ row_build_index_entry(
 }
 
 /***********************************************************************
-An inverse function to dict_row_build_index_entry. Builds a row from a
+An inverse function to row_build_index_entry. Builds a row from a
 record in a clustered index. */
 
 dtuple_t*
@@ -257,6 +257,53 @@ row_build(
 }
 
 /***********************************************************************
+Converts an index record to a typed data tuple. */
+
+dtuple_t*
+row_rec_to_index_entry_low(
+/*=======================*/
+				/* out, index entry built; does not
+				set info_bits, and the data fields in
+				the entry will point directly to rec */
+	const rec_t*	rec,	/* in: record in the index */
+	dict_index_t*	index,	/* in: index */
+	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
+	mem_heap_t*	heap)	/* in: memory heap from which the memory
+				needed is allocated */
+{
+	dtuple_t*	entry;
+	dfield_t*	dfield;
+	ulint		i;
+	const byte*	field;
+	ulint		len;
+	ulint		rec_len;
+
+	ut_ad(rec && heap && index);
+
+	rec_len = rec_offs_n_fields(offsets);
+
+	entry = dtuple_create(heap, rec_len);
+
+	dtuple_set_n_fields_cmp(entry,
+				dict_index_get_n_unique_in_tree(index));
+	ut_ad(rec_len == dict_index_get_n_fields(index));
+
+	dict_index_copy_types(entry, index, rec_len);
+
+	for (i = 0; i < rec_len; i++) {
+
+		dfield = dtuple_get_nth_field(entry, i);
+		field = rec_get_nth_field(rec, offsets, i, &len);
+
+		dfield_set_data(dfield, field, len);
+	}
+
+	ut_ad(dtuple_check_typed(entry));
+
+	return(entry);
+}
+
+/***********************************************************************
 Converts an index record to a typed data tuple. NOTE that externally
 stored (often big) fields are NOT copied to heap. */
 
@@ -281,11 +328,6 @@ row_rec_to_index_entry(
 				needed is allocated */
 {
 	dtuple_t*	entry;
-	dfield_t*	dfield;
-	ulint		i;
-	const byte*	field;
-	ulint		len;
-	ulint		rec_len;
 	byte*		buf;
 	mem_heap_t*	tmp_heap	= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -305,29 +347,12 @@ row_rec_to_index_entry(
 		rec_offs_make_valid(rec, index, offsets);
 	}
 
-	rec_len = rec_offs_n_fields(offsets);
-
-	entry = dtuple_create(heap, rec_len);
-
-	dtuple_set_n_fields_cmp(entry,
-				dict_index_get_n_unique_in_tree(index));
-	ut_ad(rec_len == dict_index_get_n_fields(index));
-
-	dict_index_copy_types(entry, index, rec_len);
+	entry = row_rec_to_index_entry_low(rec, index, offsets, heap);
 
 	dtuple_set_info_bits(entry,
 			     rec_get_info_bits(rec, rec_offs_comp(offsets)));
 
-	for (i = 0; i < rec_len; i++) {
-
-		dfield = dtuple_get_nth_field(entry, i);
-		field = rec_get_nth_field(rec, offsets, i, &len);
-
-		dfield_set_data(dfield, field, len);
-	}
-
-	ut_ad(dtuple_check_typed(entry));
-	if (tmp_heap) {
+	if (UNIV_LIKELY_NULL(tmp_heap)) {
 		mem_heap_free(tmp_heap);
 	}
 

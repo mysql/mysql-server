@@ -43,8 +43,10 @@ extern ulint	os_n_pending_writes;
 
 #ifdef __WIN__
 #define os_file_t	HANDLE
+#define OS_FILE_FROM_FD(fd) _get_osfhandle(fd)
 #else
 typedef int	os_file_t;
+#define OS_FILE_FROM_FD(fd) fd
 #endif
 
 extern ulint	os_innodb_umask;

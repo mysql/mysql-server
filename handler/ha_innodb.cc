@@ -8283,7 +8283,7 @@ err_exit:
 		/* Read clustered index of the table and build indexes
 		based on this information using temporary files and merge
 		sort.*/
-		error = row_build_index_for_mysql(
+		error = row_merge_build_indexes(
 			trx, innodb_table, indexed_table, index,
 			num_of_idx);
 
