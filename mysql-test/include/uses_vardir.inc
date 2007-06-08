@@ -7,9 +7,8 @@
 # outside of it's vardir anyway
 #
 
-let $datadir=
-  query_get_value("SHOW VARIABLES LIKE 'datadir'", Value, 1);
-if (`select LOCATE("$MYSQLTEST_VARDIR", "$datadir") != 1`)
+
+if (`select LOCATE('$MYSQLTEST_VARDIR', REPLACE(@@datadir, '\\\\', '/')) != 1`)
 {
   skip Need mysqld in MYSQLTEST_VARDIR;
 }

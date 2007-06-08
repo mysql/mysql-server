@@ -771,7 +771,7 @@ sub command_line_setup () {
   # Find out type of logging that are being used
   # --------------------------------------------------------------------------
   # NOTE if the default binlog format is changed, this has to be changed
-  $used_binlog_format= "stmt";
+  $used_binlog_format= "statement";
   if (!$opt_extern && $mysql_version_id >= 50100 )
   {
     $used_binlog_format= "mixed"; # Default value for binlog format
