@@ -1818,6 +1818,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_VARIABLES:
   case SQLCOM_SHOW_CHARSETS:
   case SQLCOM_SHOW_COLLATIONS:
+  case SQLCOM_SHOW_STORAGE_ENGINES:
   case SQLCOM_SELECT:
     thd->status_var.last_query_cost= 0.0;
     if (all_tables)
@@ -2919,9 +2920,6 @@ end_with_restore_list:
                            NullS :
                            thd->security_ctx->priv_user),
                           lex->verbose);
-    break;
-  case SQLCOM_SHOW_STORAGE_ENGINES:
-    res= mysqld_show_storage_engines(thd);
     break;
   case SQLCOM_SHOW_AUTHORS:
     res= mysqld_show_authors(thd);
