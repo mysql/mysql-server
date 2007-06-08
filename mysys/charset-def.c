@@ -24,7 +24,6 @@
 #ifdef HAVE_UCA_COLLATIONS
 
 #ifdef HAVE_CHARSET_ucs2
-extern CHARSET_INFO my_charset_ucs2_general_uca;
 extern CHARSET_INFO my_charset_ucs2_icelandic_uca_ci;
 extern CHARSET_INFO my_charset_ucs2_latvian_uca_ci;
 extern CHARSET_INFO my_charset_ucs2_romanian_uca_ci;
@@ -46,7 +45,6 @@ extern CHARSET_INFO my_charset_ucs2_hungarian_uca_ci;
 #endif
 
 #ifdef HAVE_CHARSET_utf8
-extern CHARSET_INFO my_charset_utf8_general_uca_ci;
 extern CHARSET_INFO my_charset_utf8_icelandic_uca_ci;
 extern CHARSET_INFO my_charset_utf8_latvian_uca_ci;
 extern CHARSET_INFO my_charset_utf8_romanian_uca_ci;
@@ -134,7 +132,7 @@ my_bool init_compiled_charsets(myf flags __attribute__((unused)))
   add_compiled_collation(&my_charset_ucs2_general_ci);
   add_compiled_collation(&my_charset_ucs2_bin);
 #ifdef HAVE_UCA_COLLATIONS
-  add_compiled_collation(&my_charset_ucs2_general_uca);
+  add_compiled_collation(&my_charset_ucs2_unicode_ci);
   add_compiled_collation(&my_charset_ucs2_icelandic_uca_ci);
   add_compiled_collation(&my_charset_ucs2_latvian_uca_ci);
   add_compiled_collation(&my_charset_ucs2_romanian_uca_ci);
@@ -168,7 +166,7 @@ my_bool init_compiled_charsets(myf flags __attribute__((unused)))
   add_compiled_collation(&my_charset_utf8_general_cs);
 #endif
 #ifdef HAVE_UCA_COLLATIONS
-  add_compiled_collation(&my_charset_utf8_general_uca_ci);
+  add_compiled_collation(&my_charset_utf8_unicode_ci);
   add_compiled_collation(&my_charset_utf8_icelandic_uca_ci);
   add_compiled_collation(&my_charset_utf8_latvian_uca_ci);
   add_compiled_collation(&my_charset_utf8_romanian_uca_ci);
