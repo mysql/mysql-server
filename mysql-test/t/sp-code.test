@@ -2,7 +2,7 @@
 # Test the debugging feature "show procedure/function code <name>" 
 #
 
--- source include/is_debug_build.inc
+-- source include/have_debug.inc
 
 --disable_warnings
 drop procedure if exists empty;

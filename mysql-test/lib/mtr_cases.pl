@@ -607,9 +607,12 @@ sub collect_one_test_case($$$$$$$) {
     }
     else
     {
-      # Test does not need binlog, add --skip-binlog to
-      # the options used when starting it
-      push(@{$tinfo->{'master_opt'}}, "--skip-log-bin");
+      if ( $::mysql_version_id >= 50100 )
+      {
+	# Test does not need binlog, add --skip-binlog to
+	# the options used when starting it
+	push(@{$tinfo->{'master_opt'}}, "--skip-log-bin");
+      }
     }
 
   }
