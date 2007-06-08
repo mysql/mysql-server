@@ -1224,11 +1224,7 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
   table->keys_in_use_for_query.clear_all();
 
   if (table_list->process_index_hints(table))
-  {
-    errmsg= thd->net.last_error;
-    error= HA_ADMIN_FAILED;
-    goto err;
-  }
+    DBUG_RETURN(HA_ADMIN_FAILED);
   map= ~(ulonglong) 0;
   if (!table->keys_in_use_for_query.is_clear_all())
     /* use all keys if there's no list specified by the user through hints */
@@ -1243,7 +1239,6 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
     error= HA_ADMIN_CORRUPT;
   }
 
- err:
   if (error != HA_ADMIN_OK)
   {
     /* Send error to user */
@@ -1278,11 +1273,7 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
   table->keys_in_use_for_query.clear_all();
 
   if (table_list->process_index_hints(table))
-  {
-    errmsg= thd->net.last_error;
-    error= HA_ADMIN_FAILED;
-    goto err;
-  }
+    DBUG_RETURN(HA_ADMIN_FAILED);
 
   map= ~(ulonglong) 0;
   /* Check validity of the index references */

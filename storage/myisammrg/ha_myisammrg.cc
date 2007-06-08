@@ -129,7 +129,6 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
                          u_table->table->s->base.keys,
                          u_table->table->s->base.fields, false))
     {
-      my_free((uchar*) recinfo, MYF(0));
       error= HA_ERR_WRONG_MRG_TABLE_DEF;
       if (test_if_locked & HA_OPEN_FOR_REPAIR)
         myrg_print_wrong_table(u_table->table->filename);

@@ -4175,7 +4175,9 @@ send_result:
         protocol->prepare_for_resend();
         protocol->store(table_name, system_charset_info);
         protocol->store((char*) operator_name, system_charset_info);
-        protocol->store(warning_level_names[err->level], system_charset_info);
+        protocol->store(warning_level_names[err->level].str,
+                        warning_level_names[err->level].length,
+                        system_charset_info);
         protocol->store(err->msg, system_charset_info);
         if (protocol->write())
           goto err;
@@ -4387,6 +4389,8 @@ send_result_message:
 bool mysql_backup_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_backup_table");
+  WARN_DEPRECATED(thd, "5.2", "BACKUP TABLE",
+                  "MySQL Administrator (mysqldump, mysql)");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
 				"backup", TL_READ, 0, 0, 0, 0,
 				&handler::backup, 0));
@@ -4396,6 +4400,8 @@ bool mysql_backup_table(THD* thd, TABLE_LIST* table_list)
 bool mysql_restore_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_restore_table");
+  WARN_DEPRECATED(thd, "5.2", "RESTORE TABLE",
+                  "MySQL Administrator (mysqldump, mysql)");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
 				"restore", TL_WRITE, 1, 1, 0,
 				&prepare_for_restore,
