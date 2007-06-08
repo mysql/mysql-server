@@ -168,7 +168,7 @@ typedef struct st_ma_base_info
 
   /* The following are from the header */
   uint key_parts, all_key_parts;
-  /* If false, we disable logging, versioning etc */
+  /* If false, we disable logging, versioning, transaction etc */
   my_bool transactional;
 } MARIA_BASE_INFO;
 

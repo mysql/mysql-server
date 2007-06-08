@@ -1860,6 +1860,8 @@ int ha_maria::external_lock(THD *thd, int lock_type)
 {
   TRN *trn= THD_TRN;
   DBUG_ENTER("ha_maria::external_lock");
+  if (!file->s->base.transactional)
+    goto skip_transaction;
   if (!trn && lock_type != F_UNLCK) /* no transaction yet - open it now */
   {
     trn= trnman_new_trn(& thd->mysys_var->mutex,
@@ -1872,7 +1874,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
     DBUG_PRINT("info", ("THD_TRN set to 0x%lx", (ulong)trn));
     THD_TRN= trn;
     if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
-      trans_register_ha(thd, true, maria_hton);
+      trans_register_ha(thd, TRUE, maria_hton);
   }
   if (lock_type != F_UNLCK)
   {
@@ -1905,6 +1907,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
       }
     }
   }
+skip_transaction:
   DBUG_RETURN(maria_lock_database(file, !table->s->tmp_table ?
                                   lock_type : ((lock_type == F_UNLCK) ?
                                                F_UNLCK : F_EXTRA_LCK)));
@@ -1913,11 +1916,11 @@ int ha_maria::external_lock(THD *thd, int lock_type)
 int ha_maria::start_stmt(THD *thd, thr_lock_type lock_type)
 {
   TRN *trn= THD_TRN;
-  DBUG_ASSERT(trn); // this may be called only after external_lock()
-  DBUG_ASSERT(lock_type != F_UNLCK);
-  if (!trnman_increment_locked_tables(trn))
+  if (file->s->base.transactional)
   {
-    trans_register_ha(thd, false, maria_hton);
+    DBUG_ASSERT(trn); // this may be called only after external_lock()
+    DBUG_ASSERT(lock_type != F_UNLCK);
+    /* As external_lock() was already called, don't increment locked_tables */
     trnman_new_statement(trn);
   }
   return 0;

@@ -246,6 +246,14 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       }
     }
   }
+
+  if (flags & HA_CREATE_TMP_TABLE)
+  {
+    options|= HA_OPTION_TMP_TABLE;
+    create_mode|= O_EXCL | O_NOFOLLOW;
+    /* temp tables are not crash-safe (dropped at restart) */
+    ci->transactional= FALSE;
+  }
   share.base.null_bytes= ci->null_bytes;
   share.base.original_null_bytes= ci->null_bytes;
   share.base.transactional= ci->transactional;
@@ -255,11 +263,6 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   if (pack_reclength != INT_MAX32)
     pack_reclength+= max_field_lengths + long_varchar_count;
 
-  if (flags & HA_CREATE_TMP_TABLE)
-  {
-    options|= HA_OPTION_TMP_TABLE;
-    create_mode|= O_EXCL | O_NOFOLLOW;
-  }
   if (flags & HA_CREATE_CHECKSUM || (options & HA_OPTION_CHECKSUM))
   {
     options|= HA_OPTION_CHECKSUM;
