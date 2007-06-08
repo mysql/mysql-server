@@ -8,7 +8,7 @@
 
 --disable_warnings
 --disable_query_log
---connection slave
+--connection master
 drop table if exists mysql.ndb_replication;
 CREATE TABLE mysql.ndb_replication
   (db VARBINARY(63),
@@ -21,17 +21,36 @@ CREATE TABLE mysql.ndb_replication
 --enable_warnings
 --enable_query_log
 
+##
+# test native NDB$MAX() conflict resolution
+# test with both allowed "conflict column" types, uint32 and uint64
 #
-# test native NDB$MAX() conflict resulution
-#
---connection slave
+--echo **** Test 1 ****
+--connection master
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X)");
 --let col_type = int unsigned
 --source extra/rpl_tests/rpl_ndb_conflict_1.test
+# test that setting binlog update option via table works equally well
+--echo **** Test 2 ****
+--connection master
+set global ndb_log_update_as_write=1;
+update mysql.ndb_replication set binlog_type=4;
 --let col_type = bigint unsigned
 --source extra/rpl_tests/rpl_ndb_conflict_1.test
 
+##
+# test that setting binlog type really also sets the "USE_UPDATE" flag
+# in this case it will result in conflict resolution failure, as
+# update_row never gets called
+#
+--echo **** Test 3 ****
+--connection master
+set global ndb_log_update_as_write=0;
+update mysql.ndb_replication set binlog_type=2;
+--let col_type = int unsigned
+--source extra/rpl_tests/rpl_ndb_conflict_1.test
+
 --disable_query_log
---connection slave
+--connection master
 drop table mysql.ndb_replication;
 --enable_query_log

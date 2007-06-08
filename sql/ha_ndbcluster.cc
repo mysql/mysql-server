@@ -6051,8 +6051,8 @@ int ha_ndbcluster::create(const char *name,
 
     while (!IS_TMP_PREFIX(m_tabname))
     {
-      ndbcluster_read_binlog_replication(thd, ndb, share, m_table, ::server_id);
-
+      if (share)
+        ndbcluster_read_binlog_replication(thd, ndb, share, m_table, ::server_id);
       String event_name(INJECTOR_EVENT_LEN);
       ndb_rep_event_name(&event_name, m_dbname, m_tabname,
                          get_binlog_full(share));
@@ -6086,7 +6086,7 @@ int ha_ndbcluster::create(const char *name,
         and (share && do_event_op)
       */
       if (share && !do_event_op)
-        share->flags|= NSF_NO_BINLOG;
+        set_binlog_nologging(share);
       ndbcluster_log_schema_op(thd, share,
                                thd->query, thd->query_length,
                                share->db, share->table_name,
@@ -6501,7 +6501,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     Ndb_table_guard ndbtab_g2(dict, new_tabname);
     const NDBTAB *ndbtab= ndbtab_g2.get_table();
 
-    ndbcluster_read_binlog_replication(current_thd, ndb, share, ndbtab, ::server_id);
+    if (share)
+      ndbcluster_read_binlog_replication(current_thd, ndb, share, ndbtab, ::server_id);
 
     /* always create an event for the table */
     String event_name(INJECTOR_EVENT_LEN);

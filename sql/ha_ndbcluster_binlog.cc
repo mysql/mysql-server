@@ -2461,32 +2461,40 @@ static void
 set_binlog_flags(NDB_SHARE *share,
                  Ndb_binlog_type ndb_binlog_type)
 {
-  /* set NSF_USE_UPDATE flag */
-  if (ndb_binlog_type & NBT_USE_UPDATE ||
-      !opt_ndb_log_update_as_write)
-    set_binlog_use_update(share);
-
-  /* set NSF_FULL and NSF_NO_BINLOG */
   switch (ndb_binlog_type)
   {
-  case NBT_UPDATED_USE_UPDATE:
-  case NBT_UPDATED:
-    /* Updates only, is default */
-    break;
   case NBT_NO_LOGGING:
     set_binlog_nologging(share);
-    /* fall through */
-  case NBT_USE_UPDATE:
-    /* fall through */
+    return;
   case NBT_DEFAULT:
     if (opt_ndb_log_updated_only)
-      break;
-    /* fall through */
+      set_binlog_updated_only(share);
+    else
+      set_binlog_full(share);
+    if (opt_ndb_log_update_as_write)
+      set_binlog_use_write(share);
+    else
+      set_binlog_use_update(share);
+    break;
+  case NBT_UPDATED_ONLY:
+    set_binlog_updated_only(share);
+    set_binlog_use_write(share);
+    break;
+  case NBT_USE_UPDATE:
+  case NBT_UPDATED_ONLY_USE_UPDATE:
+    set_binlog_updated_only(share);
+    set_binlog_use_update(share);
+    break;
   case NBT_FULL:
+    set_binlog_full(share);
+    set_binlog_use_write(share);
+    break;
   case NBT_FULL_USE_UPDATE:
     set_binlog_full(share);
+    set_binlog_use_update(share);
     break;
   }
+  set_binlog_logging(share);
 }
 static int
 slave_set_resolve_max(NDB_SHARE *share, const NDBTAB *ndbtab, uint field_index)
@@ -3090,6 +3098,16 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
      */
     ndbcluster_read_binlog_replication(current_thd, ndb, share, ndbtab, ::server_id);
 
+    /*
+      check if logging turned off for this table
+    */
+    if (get_binlog_nologging(share))
+    {
+      if (ndb_extra_logging)
+        sql_print_information("NDB Binlog: NOT logging %s", share->key);
+      DBUG_RETURN(0);
+    }
+
     String event_name(INJECTOR_EVENT_LEN);
     ndb_rep_event_name(&event_name, db, table_name, get_binlog_full(share));
     /*
@@ -3151,8 +3169,10 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
     DBUG_PRINT("info", ("share == NULL"));
     DBUG_RETURN(0);
   }
-  if (share->flags & NSF_NO_BINLOG)
+  if (get_binlog_nologging(share))
   {
+    if (ndb_extra_logging && ndb_binlog_running)
+      sql_print_information("NDB Binlog: NOT logging %s", share->key);
     DBUG_PRINT("info", ("share->flags & NSF_NO_BINLOG, flags: %x %d",
                         share->flags, share->flags & NSF_NO_BINLOG));
     DBUG_RETURN(0);
@@ -3324,7 +3344,7 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
 
   DBUG_ASSERT(share != 0);
 
-  if (share->flags & NSF_NO_BINLOG)
+  if (get_binlog_nologging(share))
   {
     DBUG_PRINT("info", ("share->flags & NSF_NO_BINLOG, flags: %x",
                         share->flags));
