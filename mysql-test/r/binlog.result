@@ -17,7 +17,7 @@ master-bin.000001	#	Query	1	#	use `test`; insert t1 values (5)
 master-bin.000001	#	Query	1	#	use `test`; COMMIT
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Query	1	#	use `test`; insert t2 values (5)
-master-bin.000001	#	Xid	1	#	COMMIT /* xid=12 */
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=13 */
 drop table t1,t2;
 reset master;
 create table t1 (n int) engine=innodb;
@@ -128,7 +128,7 @@ master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(4 + 4)
 master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(3 + 4)
 master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(2 + 4)
 master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(1 + 4)
-master-bin.000001	#	Xid	1	#	COMMIT /* xid=19 */
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=20 */
 master-bin.000001	#	Rotate	1	#	master-bin.000002;pos=4
 show binlog events in 'master-bin.000002' from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
