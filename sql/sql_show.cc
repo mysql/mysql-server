@@ -79,58 +79,6 @@ append_algorithm(TABLE_LIST *table, String *buff);
 ** List all table types supported
 ***************************************************************************/
 
-static my_bool show_handlerton(THD *thd, plugin_ref plugin,
-                               void *arg)
-{
-  handlerton *default_type= (handlerton *) arg;
-  Protocol *protocol= thd->protocol;
-  handlerton *hton= plugin_data(plugin, handlerton *);
-
-  if (!(hton->flags & HTON_HIDDEN))
-  {
-    protocol->prepare_for_resend();
-    protocol->store(plugin_name(plugin)->str, plugin_name(plugin)->length,
-                    system_charset_info);
-    const char *option_name= show_comp_option_name[(int) hton->state];
-
-    if (hton->state == SHOW_OPTION_YES && default_type == hton)
-      option_name= "DEFAULT";
-    protocol->store(option_name, system_charset_info);
-    protocol->store(plugin_decl(plugin)->descr, system_charset_info);
-    protocol->store(hton->commit ? "YES" : "NO", system_charset_info);
-    protocol->store(hton->prepare ? "YES" : "NO", system_charset_info);
-    protocol->store(hton->savepoint_set ? "YES" : "NO", system_charset_info);
-
-    return protocol->write() ? 1 : 0;
-  }
-  return 0;
-}
-
-bool mysqld_show_storage_engines(THD *thd)
-{
-  List<Item> field_list;
-  Protocol *protocol= thd->protocol;
-  DBUG_ENTER("mysqld_show_storage_engines");
-
-  field_list.push_back(new Item_empty_string("Engine",10));
-  field_list.push_back(new Item_empty_string("Support",10));
-  field_list.push_back(new Item_empty_string("Comment",80));
-  field_list.push_back(new Item_empty_string("Transactions",3));
-  field_list.push_back(new Item_empty_string("XA",3));
-  field_list.push_back(new Item_empty_string("Savepoints",3));
-
-  if (protocol->send_fields(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
-
-  if (plugin_foreach(thd, show_handlerton,
-                     MYSQL_STORAGE_ENGINE_PLUGIN, ha_default_handlerton(thd)))
-    DBUG_RETURN(TRUE);
-
-  send_eof(thd);
-  DBUG_RETURN(FALSE);
-}
-
 static int make_version_string(char *buf, int buf_length, uint version)
 {
   return my_snprintf(buf, buf_length, "%d.%d", version>>8,version&0xff);
@@ -3319,16 +3267,17 @@ static my_bool iter_schema_engines(THD *thd, plugin_ref plugin,
     if (!(wild && wild[0] &&
           wild_case_compare(scs, name->str,wild)))
     {
-      LEX_STRING state[2]= {{ C_STRING_WITH_LEN("ENABLED") },
-                            { C_STRING_WITH_LEN("DISABLED") }};
       LEX_STRING yesno[2]= {{ C_STRING_WITH_LEN("NO") },
                             { C_STRING_WITH_LEN("YES") }};
       LEX_STRING *tmp;
+      const char *option_name= show_comp_option_name[(int) hton->state];
       restore_record(table, s->default_values);
 
       table->field[0]->store(name->str, name->length, scs);
-      tmp= &state[test(hton->state)];
-      table->field[1]->store(tmp->str, tmp->length, scs);
+      if (hton->state == SHOW_OPTION_YES &&
+          hton == thd->variables.table_type)
+        option_name= "DEFAULT";
+      table->field[1]->store(option_name, strlen(option_name), scs);
       table->field[2]->store(plugin_decl(plugin)->descr,
                              strlen(plugin_decl(plugin)->descr), scs);
       tmp= &yesno[test(hton->commit)];
