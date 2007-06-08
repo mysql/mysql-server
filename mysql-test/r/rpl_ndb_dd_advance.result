@@ -56,6 +56,7 @@ undofile.dat	UNDO LOG	NULL	lg1
 undofile02.dat	UNDO LOG	NULL	lg1
 **** Do First Set of ALTERs in the master table ****
 CREATE INDEX t1_i ON t1(c2, c3);
+CREATE UNIQUE INDEX t1_i2 ON t1(c2);
 ALTER TABLE t1 ADD c4 TIMESTAMP;
 ALTER TABLE t1 ADD c5 DOUBLE;
 ALTER TABLE t1 ADD INDEX (c5);
@@ -68,6 +69,7 @@ t1	CREATE TABLE `t1` (
   `c4` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
+  UNIQUE KEY `t1_i2` (`c2`),
   KEY `t1_i` (`c2`,`c3`),
   KEY `c5` (`c5`)
 ) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
@@ -81,6 +83,7 @@ t1	CREATE TABLE `t1` (
   `c4` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
+  UNIQUE KEY `t1_i2` (`c2`),
   KEY `t1_i` (`c2`,`c3`),
   KEY `c5` (`c5`)
 ) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
@@ -101,6 +104,7 @@ t1	CREATE TABLE `t1` (
   `c4` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
+  UNIQUE KEY `t1_i2` (`c2`),
   KEY `t1_i` (`c2`,`c3`)
 ) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 **** Show second set of ALTERs on SLAVE ****
@@ -113,6 +117,7 @@ t1	CREATE TABLE `t1` (
   `c4` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
+  UNIQUE KEY `t1_i2` (`c2`),
   KEY `t1_i` (`c2`,`c3`)
 ) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 **** Third and last set of alters for test1  ****
@@ -135,6 +140,7 @@ t1	CREATE TABLE `t1` (
   `c3` blob,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
+  UNIQUE KEY `t1_i2` (`c2`),
   KEY `t1_i` (`c2`)
 ) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SELECT * FROM t1 ORDER BY c1 LIMIT 5;
@@ -153,8 +159,16 @@ t1	CREATE TABLE `t1` (
   `c3` blob,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
+  UNIQUE KEY `t1_i2` (`c2`),
   KEY `t1_i` (`c2`)
 ) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SELECT * FROM t1 ORDER BY c1 LIMIT 5;
+c1	c2	c3	c5
+1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
+2	4.00	b1b1b1b1b1b1b1b1b1b1	NULL
+3	6.00	0000-00-00 00:00:00	NULL
+4	8.00	0000-00-00 00:00:00	NULL
+5	10.00	0000-00-00 00:00:00	NULL
 SELECT * FROM t1 where c1 = 1;
 c1	c2	c3	c5
 1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
@@ -167,148 +181,44 @@ START SLAVE;
 CREATE TABLESPACE ts2
 ADD DATAFILE 'datafile03.dat'
 USE LOGFILE GROUP lg1
-INITIAL_SIZE 12M
+INITIAL_SIZE 10M
 ENGINE=NDB;
 ALTER TABLESPACE ts2
 ADD DATAFILE 'datafile04.dat'
-INITIAL_SIZE 12M
+INITIAL_SIZE 5M
 ENGINE=NDB;
 DROP DATABASE IF EXISTS tpcb;
-Warnings:
-Note	1008	Can't drop database 'tpcb'; database doesn't exist
 CREATE DATABASE tpcb;
-*********** Create TPCB Tables *****************
-CREATE TABLE tpcb.account 
+
+CREATE TABLE tpcb.account
 (id INT, bid INT, balance DECIMAL(10,2),
 filler CHAR(255), PRIMARY KEY(id))
-TABLESPACE ts1 STORAGE DISK 
-ENGINE=NDB;
-CREATE TABLE tpcb.branch 
-(bid INT, balance DECIMAL(10,2), filler VARCHAR(255),
-PRIMARY KEY(bid))
-ENGINE=NDB;
-CREATE TABLE tpcb.teller 
-(tid INT, balance DECIMAL(10,2), filler VARCHAR(255),
-PRIMARY KEY(tid))
 TABLESPACE ts2 STORAGE DISK
-ENGINE=NDB;
-CREATE TABLE tpcb.history 
+ENGINE=NDBCLUSTER;
+
+CREATE TABLE tpcb.branch
+(bid INT, balance DECIMAL(10,2), filler VARCHAR(255),
+PRIMARY KEY(bid))TABLESPACE ts2 STORAGE DISK
+ENGINE=NDBCLUSTER;
+
+CREATE TABLE tpcb.teller
+(tid INT, balance DECIMAL(10,2), filler VARCHAR(255),
+PRIMARY KEY(tid)) TABLESPACE ts2 STORAGE DISK
+ENGINE=NDBCLUSTER;
+
+CREATE TABLE tpcb.history
 (id MEDIUMINT NOT NULL AUTO_INCREMENT,aid INT,
 tid INT, bid INT,  amount DECIMAL(10,2),
 tdate DATETIME, teller CHAR(20), uuidf LONGBLOB,
 filler CHAR(80),PRIMARY KEY (id))
 TABLESPACE ts2 STORAGE DISK
-ENGINE=NDB;
-********* Create Procedures and Functions ************
-CREATE PROCEDURE tpcb.load()
-BEGIN
-DECLARE acct INT DEFAULT 1000;
-DECLARE brch INT DEFAULT 100;
-DECLARE tell INT DEFAULT 1000;
-DECLARE tmp INT DEFAULT 100;
-WHILE brch > 0 DO
-SET tmp = 100;
-WHILE tmp > 0 DO
-INSERT INTO tpcb.account VALUES (acct, brch, 0.0, "FRESH ACCOUNT");
-SET acct = acct - 1;
-SET tmp = tmp -1;
-END WHILE;
-INSERT INTO tpcb.branch VALUES (brch, 0.0, "FRESH BRANCH");
-SET brch = brch - 1;
-END WHILE;
-WHILE tell > 0 DO
-INSERT INTO tpcb.teller VALUES (tell, 0.0, "FRESH TELLER");
-SET tell = tell - 1;
-END WHILE;
-END|
-CREATE FUNCTION tpcb.account_id () RETURNS INT
-BEGIN
-DECLARE num INT;
-DECLARE ran INT;
-SELECT RAND() * 10 INTO ran;
-IF (ran < 2)
-THEN
-SELECT RAND() * 10 INTO num;
-ELSEIF (ran < 4)
-THEN
-SELECT RAND() * 100 INTO num;
-ELSE 
-SELECT RAND() * 1000 INTO num;
-END IF;
-IF (num < 1)
-THEN
-RETURN 1;
-END IF;
-RETURN  num;
-END|
-CREATE FUNCTION tpcb.teller_id () RETURNS INT
-BEGIN
-DECLARE num INT;
-DECLARE ran INT;
-SELECT RAND() * 10 INTO ran;
-IF (ran < 2)
-THEN
-SELECT RAND() * 10 INTO num;
-ELSEIF (ran < 5)
-THEN
-SELECT RAND() * 100 INTO num;
-ELSE
-SELECT RAND() * 1000 INTO num;
-END IF;
-IF (num < 1)
-THEN
-RETURN 1;
-END IF;
-RETURN  num;
-END|
-CREATE PROCEDURE tpcb.trans()
-BEGIN
-DECLARE acct INT DEFAULT 0;
-DECLARE brch INT DEFAULT 0;
-DECLARE tell INT DEFAULT 0;
-DECLARE bal  DECIMAL(10,2) DEFAULT 0.0;
-DECLARE amount DECIMAL(10,2) DEFAULT 1.00;
-DECLARE test INT DEFAULT 0;
-DECLARE bbal DECIMAL(10,2) DEFAULT 0.0;
-DECLARE tbal DECIMAL(10,2) DEFAULT 0.0;
-DECLARE local_uuid VARCHAR(255);
-DECLARE local_user VARCHAR(255);
-DECLARE local_time TIMESTAMP;
-SELECT RAND() * 10 INTO test;
-SELECT tpcb.account_id() INTO acct;
-SELECT tpcb.teller_id() INTO tell;
-SELECT account.balance INTO bal FROM tpcb.account WHERE id = acct;
-SELECT account.bid INTO brch FROM tpcb.account WHERE id = acct;
-SELECT teller.balance INTO tbal FROM tpcb.teller WHERE tid = tell;
-SELECT branch.balance INTO bbal FROM tpcb.branch WHERE bid = brch;
-IF (test < 5)
-THEN
-SET bal = bal + amount;
-SET bbal = bbal + amount;
-SET tbal = tbal + amount;
-UPDATE tpcb.account SET balance = bal, filler = 'account updated'
-     WHERE id = acct;
-UPDATE tpcb.branch SET balance = bbal, filler = 'branch updated'
-     WHERE bid = brch;
-UPDATE tpcb.teller SET balance = tbal, filler = 'teller updated'
-     WHERE tid = tell;
-ELSE
-SET bal = bal - amount;
-SET bbal = bbal - amount;
-SET tbal = tbal - amount;
-UPDATE tpcb.account SET balance = bal, filler = 'account updated'
-     WHERE id = acct;
-UPDATE tpcb.branch SET balance = bbal, filler = 'branch updated'
-     WHERE bid = brch;
-UPDATE tpcb.teller SET balance = tbal, filler = 'teller updated'
-     WHERE tid = tell;
-END IF;
-SET local_uuid=UUID();
-SET local_user=USER();
-SET local_time= NOW();
-INSERT INTO tpcb.history VALUES(NULL,acct,tell,brch,amount, local_time,local_user,
-local_uuid,'completed trans');
-END|
+ENGINE=NDBCLUSTER;
+
+--- Create stored procedures & functions ---
+
+
+*** Stored Procedures Created ***
+
 ****** TEST 2 test time *********************************
 USE tpcb;
 *********** Load up the database ******************
@@ -316,11 +226,11 @@ CALL tpcb.load();
 ********** Check load master and slave **************
 SELECT COUNT(*) FROM account;
 COUNT(*)
-10000
+1000
 USE tpcb;
 SELECT COUNT(*) FROM account;
 COUNT(*)
-10000
+1000
 ******** Run in some transactions ***************
 ***** Time to try slave sync ***********
 **** Must make sure slave is clean *****
@@ -351,10 +261,10 @@ DROP LOGFILE GROUP lg1 ENGINE=NDB;
 ********** Take a backup of the Master *************
 SELECT COUNT(*) FROM history;
 COUNT(*)
-1000
+100
 SELECT COUNT(*) FROM history;
 COUNT(*)
-2000
+200
 CREATE TEMPORARY TABLE IF NOT EXISTS mysql.backup_info (id INT, backup_id INT) ENGINE = HEAP;
 DELETE FROM mysql.backup_info;
 LOAD DATA INFILE '../tmp.dat' INTO TABLE mysql.backup_info FIELDS TERMINATED BY ',';
@@ -368,7 +278,7 @@ CREATE DATABASE tpcb;
 USE tpcb;
 SELECT COUNT(*) FROM account;
 COUNT(*)
-10000
+1000
 ***** Add some more records to master *********
 ***** Finsh the slave sync process *******
 @the_epoch:=MAX(epoch)
@@ -384,12 +294,12 @@ START SLAVE;
 USE tpcb;
 SELECT COUNT(*) FROM history;
 COUNT(*)
-4050
+400
 ****** SLAVE ********
 USE tpcb;
 SELECT COUNT(*) FROM history;
 COUNT(*)
-4050
+400
 *** DUMP MASTER & SLAVE FOR COMPARE ********
 *************** TEST 2 CLEANUP SECTION ********************
 DROP PROCEDURE IF EXISTS tpcb.load;

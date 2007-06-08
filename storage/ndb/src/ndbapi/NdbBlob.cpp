@@ -1794,6 +1794,7 @@ NdbBlob::deletePartsUnknown(Uint32 part)
         tOp->setPartitionId(thePartitionId);
       }
       tOp->m_abortOption= NdbOperation::AO_IgnoreError;
+      tOp->m_noErrorPropagation = true;
       n++;
     }
     DBUG_PRINT("info", ("bat=%u", bat));
@@ -2349,6 +2350,7 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
       }
       if (isWriteOp()) {
         tOp->m_abortOption = NdbOperation::AO_IgnoreError;
+        tOp->m_noErrorPropagation = true;
       }
       theHeadInlineReadOp = tOp;
       // execute immediately
@@ -2395,6 +2397,7 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
       }
       if (isWriteOp()) {
         tOp->m_abortOption = NdbOperation::AO_IgnoreError;
+        tOp->m_noErrorPropagation = true;
       }
       theHeadInlineReadOp = tOp;
       // execute immediately
