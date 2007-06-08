@@ -2874,6 +2874,52 @@ FROM t1;
 
 DROP TABLE t1,t2;
 
+#
+# Bug #27807: Server crash when executing subquery with EXPLAIN
+#  
+CREATE TABLE t1 (a int, b int, KEY (a)); 
+INSERT INTO t1 VALUES (1,1),(2,1);
+EXPLAIN SELECT 1 FROM t1 WHERE a = (SELECT COUNT(*) FROM t1 GROUP BY b);
+DROP TABLE t1;
+
+#
+# Bug #28377: grouping query with a correlated subquery in WHERE condition
+#  
+
+CREATE TABLE t1 (id int NOT NULL, st CHAR(2), INDEX idx(id));
+INSERT INTO t1 VALUES
+  (3,'FL'), (2,'GA'), (4,'FL'), (1,'GA'), (5,'NY'), (7,'FL'), (6,'NY');
+CREATE TABLE t2 (id int NOT NULL, INDEX idx(id));
+INSERT INTO t2 VALUES (7), (5), (1), (3);
+
+SELECT id, st FROM t1 
+  WHERE st IN ('GA','FL') AND EXISTS(SELECT 1 FROM t2 WHERE t2.id=t1.id);
+SELECT id, st FROM t1 
+  WHERE st IN ('GA','FL') AND EXISTS(SELECT 1 FROM t2 WHERE t2.id=t1.id)
+    GROUP BY id;
+
+SELECT id, st FROM t1 
+  WHERE st IN ('GA','FL') AND NOT EXISTS(SELECT 1 FROM t2 WHERE t2.id=t1.id);
+SELECT id, st FROM t1 
+  WHERE st IN ('GA','FL') AND NOT EXISTS(SELECT 1 FROM t2 WHERE t2.id=t1.id)
+    GROUP BY id;
+
+DROP TABLE t1,t2;
+
+#
+# Bug #28728: crash with EXPLAIN EXTENDED for a query with a derived table
+#             over a grouping subselect
+# 
+
+CREATE TABLE t1 (a int);
+
+INSERT INTO t1 VALUES (1), (2);
+
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT count(*) FROM t1 GROUP BY a) as res;
+
+DROP TABLE t1;
+
 --echo End of 5.0 tests.
 
 #

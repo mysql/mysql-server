@@ -222,7 +222,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
         Item *expr=item_sum->args[0];
         if (expr->real_item()->type() == Item::FIELD_ITEM)
         {
-          byte key_buff[MAX_KEY_LENGTH];
+          uchar key_buff[MAX_KEY_LENGTH];
           TABLE_REF ref;
           uint range_fl, prefix_len;
 
@@ -249,12 +249,69 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 
           if (!ref.key_length)
             error= table->file->index_first(table->record[0]);
-          else
-	    error= table->file->index_read(table->record[0],key_buff,
-                                           make_prev_keypart_map(ref.key_parts),
-					   range_fl & NEAR_MIN ?
-					   HA_READ_AFTER_KEY :
-					   HA_READ_KEY_OR_NEXT);
+          else 
+          {
+            /*
+              Use index to replace MIN/MAX functions with their values
+              according to the following rules:
+           
+              1) Insert the minimum non-null values where the WHERE clause still
+                 matches, or
+              2) a NULL value if there are only NULL values for key_part_k.
+              3) Fail, producing a row of nulls
+
+              Implementation: Read the smallest value using the search key. If
+              the interval is open, read the next value after the search
+              key. If read fails, and we're looking for a MIN() value for a
+              nullable column, test if there is an exact match for the key.
+            */
+            if (!(range_fl & NEAR_MIN))
+              /* 
+                 Closed interval: Either The MIN argument is non-nullable, or
+                 we have a >= predicate for the MIN argument.
+              */
+              error= table->file->index_read(table->record[0], ref.key_buff,
+                                             make_prev_keypart_map(ref.key_parts),
+                                             HA_READ_KEY_OR_NEXT);
+            else
+            {
+              /*
+                Open interval: There are two cases:
+                1) We have only MIN() and the argument column is nullable, or
+                2) there is a > predicate on it, nullability is irrelevant.
+                We need to scan the next bigger record first.
+              */
+              error= table->file->index_read(table->record[0], ref.key_buff, 
+                                             make_prev_keypart_map(ref.key_parts),
+                                             HA_READ_AFTER_KEY);
+              /* 
+                 If the found record is outside the group formed by the search
+                 prefix, or there is no such record at all, check if all
+                 records in that group have NULL in the MIN argument
+                 column. If that is the case return that NULL.
+
+                 Check if case 1 from above holds. If it does, we should read
+                 the skipped tuple.
+              */
+              if (ref.key_buff[prefix_len] == 1 && 
+                  /* 
+                     Last keypart (i.e. the argument to MIN) is set to NULL by
+                     find_key_for_maxmin only if all other keyparts are bound
+                     to constants in a conjunction of equalities. Hence, we
+                     can detect this by checking only if the last keypart is
+                     NULL.
+                  */                     
+                  (error == HA_ERR_KEY_NOT_FOUND ||
+                   key_cmp_if_same(table, ref.key_buff, ref.key, prefix_len)))
+              {
+                DBUG_ASSERT(item_field->field->real_maybe_null());
+                error= table->file->index_read(table->record[0], ref.key_buff,
+                                               make_prev_keypart_map(ref.key_parts),
+                                               HA_READ_KEY_EXACT);
+              }
+            }
+          }
+          /* Verify that the read tuple indeed matches the search key */
 	  if (!error && reckey_in_range(0, &ref, item_field->field, 
 			                conds, range_fl, prefix_len))
 	    error= HA_ERR_KEY_NOT_FOUND;
@@ -309,7 +366,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
         Item *expr=item_sum->args[0];
         if (expr->real_item()->type() == Item::FIELD_ITEM)
         {
-          byte key_buff[MAX_KEY_LENGTH];
+          uchar key_buff[MAX_KEY_LENGTH];
           TABLE_REF ref;
           uint range_fl, prefix_len;
 
@@ -603,7 +660,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     less_fl= 1-less_fl;                         // Convert '<' -> '>' (etc)
 
   /* Check if field is part of the tested partial key */
-  byte *key_ptr= ref->key_buff;
+  uchar *key_ptr= ref->key_buff;
   KEY_PART_INFO *part;
   for (part= keyinfo->key_part; ; key_ptr+= part++->store_length)
 
@@ -652,15 +709,15 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     if (is_null)
     {
       part->field->set_null();
-      *key_ptr= (byte) 1;
+      *key_ptr= (uchar) 1;
     }
     else
     {
       store_val_in_field(part->field, args[between && max_fl ? 2 : 1],
                          CHECK_FIELD_IGNORE);
       if (part->null_bit) 
-        *key_ptr++= (byte) test(part->field->is_null());
-      part->field->get_key_image((char*) key_ptr, part->length, Field::itRAW);
+        *key_ptr++= (uchar) test(part->field->is_null());
+      part->field->get_key_image(key_ptr, part->length, Field::itRAW);
     }
     if (is_field_part)
     {
@@ -784,16 +841,26 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
           if (!max_fl && key_part_used == key_part_to_use && part->null_bit)
           {
             /*
-              SELECT MIN(key_part2) FROM t1 WHERE key_part1=const
-              If key_part2 may be NULL, then we want to find the first row
-              that is not null
+              The query is on this form:
+
+              SELECT MIN(key_part_k) 
+              FROM t1 
+              WHERE key_part_1 = const and ... and key_part_k-1 = const
+
+              If key_part_k is nullable, we want to find the first matching row
+              where key_part_k is not null. The key buffer is now {const, ...,
+              NULL}. This will be passed to the handler along with a flag
+              indicating open interval. If a tuple is read that does not match
+              these search criteria, an attempt will be made to read an exact
+              match for the key buffer.
             */
+            /* Set the first byte of key_part_k to 1, that means NULL */
             ref->key_buff[ref->key_length]= 1;
             ref->key_length+= part->store_length;
             ref->key_parts++;
             DBUG_ASSERT(ref->key_parts == jdx+1);
             *range_fl&= ~NO_MIN_RANGE;
-            *range_fl|= NEAR_MIN;                // > NULL
+            *range_fl|= NEAR_MIN; // Open interval
           }
           /*
             The following test is false when the key in the key tree is

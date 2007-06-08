@@ -2471,7 +2471,7 @@ static void test_ps_query_cache()
                           "(2, 'hh', 'hh'), (1, 'ii', 'ii'), (2, 'ii', 'ii')");
   myquery(rc);
 
-  for (iteration= TEST_QCACHE_ON; iteration < TEST_QCACHE_ON_OFF; iteration++)
+  for (iteration= TEST_QCACHE_ON; iteration <= TEST_QCACHE_ON_OFF; iteration++)
   {
 
     switch (iteration)
@@ -2610,7 +2610,9 @@ static void test_ps_query_cache()
     case TEST_QCACHE_ON_OFF:             /* should not have hit */
       DIE_UNLESS(hits2-hits1 == 0);
       break;
-    case TEST_QCACHE_ON_WITH_OTHER_CONN:
+    case TEST_QCACHE_ON_WITH_OTHER_CONN: /* should have hit */
+      DIE_UNLESS(hits2-hits1 == 1);
+      break;
       mysql_close(lmysql);
       mysql= org_mysql;
     }
@@ -13715,7 +13717,7 @@ static void test_bug11111()
   for (i=0; i < 2; i++)
   {
     my_bind[i].buffer_type= MYSQL_TYPE_STRING;
-    my_bind[i].buffer= (gptr *)&buf[i];
+    my_bind[i].buffer= (uchar* *)&buf[i];
     my_bind[i].buffer_length= 20;
     my_bind[i].length= &len[i];
   }
@@ -14100,7 +14102,7 @@ static void test_bug11656()
   for (i=0; i < 2; i++)
   {
     my_bind[i].buffer_type= MYSQL_TYPE_STRING;
-    my_bind[i].buffer= (gptr *)&buf[i];
+    my_bind[i].buffer= (uchar* *)&buf[i];
     my_bind[i].buffer_length= strlen(buf[i]);
   }
   mysql_stmt_bind_param(stmt, my_bind);
@@ -16074,6 +16076,92 @@ static void test_bug24179()
 
 
 /*
+  Bug#28075 "COM_DEBUG crashes mysqld"
+  Note: Test disabled because of failure in PushBuild.
+*/
+#ifdef fix_bug_in_pb_first 
+static void test_bug28075()
+{
+  int rc;
+
+  DBUG_ENTER("test_bug28075");
+  myheader("test_bug28075");
+
+  rc= mysql_dump_debug_info(mysql);
+  DIE_UNLESS(rc == 0);
+  
+  rc= mysql_ping(mysql);
+  DIE_UNLESS(rc == 0);
+
+  DBUG_VOID_RETURN;
+}
+#endif
+
+
+/*
+  Bug#27876 (SF with cyrillic variable name fails during execution (regression))
+*/
+static void test_bug27876()
+{
+  int rc;
+  MYSQL_RES *result;
+
+  char utf8_func[] =
+  {
+    0xd1, 0x84, 0xd1, 0x83, 0xd0, 0xbd, 0xd0, 0xba,
+    0xd1, 0x86, 0xd0, 0xb8, 0xd0, 0xb9, 0xd0, 0xba,
+    0xd0, 0xb0,
+    0x00
+  };
+
+  char utf8_param[] =
+  {
+    0xd0, 0xbf, 0xd0, 0xb0, 0xd1, 0x80, 0xd0, 0xb0,
+    0xd0, 0xbc, 0xd0, 0xb5, 0xd1, 0x82, 0xd1, 0x8a,
+    0xd1, 0x80, 0x5f, 0xd0, 0xb2, 0xd0, 0xb5, 0xd1,
+    0x80, 0xd1, 0x81, 0xd0, 0xb8, 0xd1, 0x8f,
+    0x00
+  };
+
+  char query[500];
+
+  DBUG_ENTER("test_bug27876");
+  myheader("test_bug27876");
+
+  rc= mysql_query(mysql, "set names utf8");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "select version()");
+  myquery(rc);
+  result= mysql_store_result(mysql);
+  mytest(result);
+
+  sprintf(query, "DROP FUNCTION IF EXISTS %s", utf8_func);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
+  sprintf(query,
+          "CREATE FUNCTION %s( %s VARCHAR(25))"
+          " RETURNS VARCHAR(25) DETERMINISTIC RETURN %s",
+          utf8_func, utf8_param, utf8_param);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+  sprintf(query, "SELECT %s(VERSION())", utf8_func);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+  result= mysql_store_result(mysql);
+  mytest(result);
+
+  sprintf(query, "DROP FUNCTION %s", utf8_func);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
+  rc= mysql_query(mysql, "set names default");
+  myquery(rc);
+}
+
+
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -16082,23 +16170,23 @@ static char **defaults_argv;
 
 static struct my_option client_test_long_options[] =
 {
-  {"basedir", 'b', "Basedir for tests.", (gptr*) &opt_basedir,
-   (gptr*) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"count", 't', "Number of times test to be executed", (char **) &opt_count,
-   (char **) &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
-  {"database", 'D', "Database to use", (char **) &opt_db, (char **) &opt_db,
+  {"basedir", 'b', "Basedir for tests.", (uchar**) &opt_basedir,
+   (uchar**) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"count", 't', "Number of times test to be executed", (uchar **) &opt_count,
+   (uchar **) &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
+  {"database", 'D', "Database to use", (uchar **) &opt_db, (uchar **) &opt_db,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"debug", '#', "Output debug log", (gptr*) &default_dbug_option,
-   (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log", (uchar**) &default_dbug_option,
+   (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
-  {"host", 'h', "Connect to host", (char **) &opt_host, (char **) &opt_host,
+  {"host", 'h', "Connect to host", (uchar **) &opt_host, (uchar **) &opt_host,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"port", 'P', "Port number to use for connection", (char **) &opt_port,
-   (char **) &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection", (uchar **) &opt_port,
+   (uchar **) &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-arg", 'A', "Send embedded server this as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"show-tests", 'T', "Show all tests' names", 0, 0, 0, GET_NO_ARG, NO_ARG,
@@ -16106,19 +16194,19 @@ static struct my_option client_test_long_options[] =
   {"silent", 's', "Be more silent", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
    0},
   {"socket", 'S', "Socket file to use for connection",
-   (char **) &opt_unix_socket, (char **) &opt_unix_socket, 0, GET_STR,
+   (uchar **) &opt_unix_socket, (uchar **) &opt_unix_socket, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"testcase", 'c',
    "May disable some code when runs as mysql-test-run testcase.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
-  {"user", 'u', "User for login if not current user", (char **) &opt_user,
-   (char **) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login if not current user", (uchar **) &opt_user,
+   (uchar **) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"vardir", 'v', "Data dir for tests.", (gptr*) &opt_vardir,
-   (gptr*) &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"vardir", 'v', "Data dir for tests.", (uchar**) &opt_vardir,
+   (uchar**) &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"getopt-ll-test", 'g', "Option for testing bug in getopt library",
-   (char **) &opt_getopt_ll_test, (char **) &opt_getopt_ll_test, 0,
+   (uchar **) &opt_getopt_ll_test, (uchar **) &opt_getopt_ll_test, 0,
    GET_LL, REQUIRED_ARG, 0, 0, LONGLONG_MAX, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -16357,6 +16445,10 @@ static struct my_tests_st my_tests[]= {
   { "test_status",   test_status   },
   { "test_bug24179", test_bug24179 },
   { "test_ps_query_cache", test_ps_query_cache },
+#ifdef fix_bug_in_pb_first 
+  { "test_bug28075", test_bug28075 },
+#endif
+  { "test_bug27876", test_bug27876 },
   { 0, 0 }
 };
 

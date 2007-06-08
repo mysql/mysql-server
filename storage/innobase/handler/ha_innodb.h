@@ -47,8 +47,8 @@ class ha_innobase: public handler
 	THR_LOCK_DATA	lock;
 	INNOBASE_SHARE	*share;
 
-	byte*		upd_buff;	/* buffer used in updates */
-	byte*		key_val_buff;	/* buffer used in converting
+	uchar*		upd_buff;	/* buffer used in updates */
+	uchar*		key_val_buff;	/* buffer used in converting
 					search key values from MySQL format
 					to Innodb format */
 	ulong		upd_and_key_val_buff_len;
@@ -65,10 +65,10 @@ class ha_innobase: public handler
 	uint		num_write_row;	/* number of write_row() calls */
 
 	uint store_key_val_for_row(uint keynr, char* buff, uint buff_len,
-		const byte* record);
+                                   const uchar* record);
 	int update_thd(THD* thd);
 	int change_active_index(uint keynr);
-	int general_fetch(byte* buf, uint direction, uint match_mode);
+	int general_fetch(uchar* buf, uint direction, uint match_mode);
 	int innobase_read_and_init_auto_inc(longlong* ret);
 
 	/* Init values for the class: */
@@ -110,32 +110,32 @@ class ha_innobase: public handler
 	double scan_time();
 	double read_time(uint index, uint ranges, ha_rows rows);
 
-	int write_row(byte * buf);
-	int update_row(const byte * old_data, byte * new_data);
-	int delete_row(const byte * buf);
+	int write_row(uchar * buf);
+	int update_row(const uchar * old_data, uchar * new_data);
+	int delete_row(const uchar * buf);
 	bool was_semi_consistent_read();
 	void try_semi_consistent_read(bool yes);
 	void unlock_row();
 
 	int index_init(uint index, bool sorted);
 	int index_end();
-	int index_read(byte * buf, const byte * key,
+	int index_read(uchar * buf, const uchar * key,
 		uint key_len, enum ha_rkey_function find_flag);
-	int index_read_idx(byte * buf, uint index, const byte * key,
+	int index_read_idx(uchar * buf, uint index, const uchar * key,
 			   uint key_len, enum ha_rkey_function find_flag);
-	int index_read_last(byte * buf, const byte * key, uint key_len);
-	int index_next(byte * buf);
-	int index_next_same(byte * buf, const byte *key, uint keylen);
-	int index_prev(byte * buf);
-	int index_first(byte * buf);
-	int index_last(byte * buf);
+	int index_read_last(uchar * buf, const uchar * key, uint key_len);
+	int index_next(uchar * buf);
+	int index_next_same(uchar * buf, const uchar *key, uint keylen);
+	int index_prev(uchar * buf);
+	int index_first(uchar * buf);
+	int index_last(uchar * buf);
 
 	int rnd_init(bool scan);
 	int rnd_end();
-	int rnd_next(byte *buf);
-	int rnd_pos(byte * buf, byte *pos);
+	int rnd_next(uchar *buf);
+	int rnd_pos(uchar * buf, uchar *pos);
 
-	void position(const byte *record);
+	void position(const uchar *record);
 	int info(uint);
 	int analyze(THD* thd,HA_CHECK_OPT* check_opt);
 	int optimize(THD* thd,HA_CHECK_OPT* check_opt);
@@ -145,7 +145,7 @@ class ha_innobase: public handler
 	int external_lock(THD *thd, int lock_type);
 	int transactional_table_lock(THD *thd, int lock_type);
 	int start_stmt(THD *thd, thr_lock_type lock_type);
-	void position(byte *record);
+	void position(uchar *record);
 	ha_rows records_in_range(uint inx, key_range *min_key, key_range
 								*max_key);
 	ha_rows estimate_rows_upper_bound();
@@ -185,15 +185,13 @@ class ha_innobase: public handler
 	static char *get_mysql_bin_log_name();
 	static ulonglong get_mysql_bin_log_pos();
 	bool primary_key_is_clustered() { return true; }
-	int cmp_ref(const byte *ref1, const byte *ref2);
+	int cmp_ref(const uchar *ref1, const uchar *ref2);
 	bool check_if_incompatible_data(HA_CREATE_INFO *info,
 					uint table_changes);
 };
 
-extern ulong innobase_fast_shutdown;
-extern ulong innobase_large_page_size;
 extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
-extern longlong innobase_buffer_pool_size, innobase_log_file_size;
+extern long long innobase_buffer_pool_size, innobase_log_file_size;
 extern long innobase_log_buffer_size;
 extern long innobase_additional_mem_pool_size;
 extern long innobase_buffer_pool_awe_mem_mb;
@@ -203,16 +201,6 @@ extern long innobase_open_files;
 extern char *innobase_data_home_dir, *innobase_data_file_path;
 extern char *innobase_log_group_home_dir, *innobase_log_arch_dir;
 extern char *innobase_unix_file_flush_method;
-/* The following variables have to be my_bool for SHOW VARIABLES to work */
-extern my_bool innobase_log_archive,
-	innobase_use_doublewrite,
-	innobase_use_checksums,
-	innobase_use_large_pages,
-	innobase_use_native_aio,
-	innobase_file_per_table, innobase_locks_unsafe_for_binlog,
-	innobase_rollback_on_timeout,
-	innobase_create_status_file,
-	innobase_stats_on_metadata;
 extern "C" {
 extern ulong srv_max_buf_pool_modified_pct;
 extern ulong srv_max_purge_lag;

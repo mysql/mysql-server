@@ -67,8 +67,6 @@
 
 ulong 		net_buffer_length=8192;
 ulong		max_allowed_packet= 1024L*1024L*1024L;
-ulong		net_read_timeout=  CLIENT_NET_READ_TIMEOUT;
-ulong		net_write_timeout= CLIENT_NET_WRITE_TIMEOUT;
 
 
 #ifdef EMBEDDED_LIBRARY
@@ -625,7 +623,7 @@ mysql_connect(MYSQL *mysql,const char *host,
     if (!(res=mysql_real_connect(mysql,host,user,passwd,NullS,0,NullS,0)))
     {
       if (mysql->free_me)
-	my_free((gptr) mysql,MYF(0));
+	my_free((uchar*) mysql,MYF(0));
     }
     mysql->reconnect= 1;
     DBUG_RETURN(res);
@@ -946,7 +944,7 @@ static int default_local_infile_read(void *ptr, char *buf, uint buf_len)
   int count;
   default_local_infile_data*data = (default_local_infile_data *) ptr;
 
-  if ((count= (int) my_read(data->fd, (byte *) buf, buf_len, MYF(0))) < 0)
+  if ((count= (int) my_read(data->fd, (uchar *) buf, buf_len, MYF(0))) < 0)
   {
     data->error_num= EE_READ; /* the errmsg for not entire file read */
     my_snprintf(data->error_msg, sizeof(data->error_msg)-1,
@@ -1522,8 +1520,8 @@ my_bool STDCALL mysql_embedded(void)
 void my_net_local_init(NET *net)
 {
   net->max_packet=   (uint) net_buffer_length;
-  net->read_timeout= (uint) net_read_timeout;
-  net->write_timeout=(uint) net_write_timeout;
+  my_net_set_read_timeout(net, CLIENT_NET_READ_TIMEOUT);
+  my_net_set_write_timeout(net, CLIENT_NET_WRITE_TIMEOUT);
   net->retry_count=  1;
   net->max_packet_size= max(net_buffer_length, max_allowed_packet);
 }
@@ -4539,7 +4537,7 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
     }
     if (!((bit<<=1) & 255))
     {
-      bit= 1;					/* To next byte */
+      bit= 1;					/* To next uchar */
       null_ptr++;
     }
   }
@@ -4732,7 +4730,7 @@ static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data)
     DBUG_ASSERT(row <= row_end);
     if (!((bit<<=1) & 255))
     {
-      bit= 1;					/* To next byte */
+      bit= 1;					/* To next uchar */
       null_ptr++;
     }
   }
@@ -5043,7 +5041,7 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
     }
   }
 
-  my_free((gptr) stmt, MYF(MY_WME));
+  my_free((uchar*) stmt, MYF(MY_WME));
 
   DBUG_RETURN(test(rc));
 }

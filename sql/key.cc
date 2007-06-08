@@ -45,7 +45,7 @@
        key_length is set to length of key before (not including) field
 */
 
-int find_ref_key(KEY *key, uint key_count, byte *record, Field *field,
+int find_ref_key(KEY *key, uint key_count, uchar *record, Field *field,
                  uint *key_length, uint *keypart)
 {
   reg2 int i;
@@ -111,7 +111,8 @@ int find_ref_key(KEY *key, uint key_count, byte *record, Field *field,
     None
 */
 
-void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length)
+void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
+              uint key_length)
 {
   uint length;
   KEY_PART_INFO *key_part;
@@ -131,7 +132,7 @@ void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length)
       Field_bit *field= (Field_bit *) (key_part->field);
       if (field->bit_len)
       {
-        uchar bits= get_rec_bits((uchar*) from_record +
+        uchar bits= get_rec_bits(from_record +
                                  key_part->null_offset +
                                  (key_part->null_bit == 128),
                                  field->bit_ofs, field->bit_len);
@@ -144,7 +145,7 @@ void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length)
     {
       key_length-= HA_KEY_BLOB_LENGTH;
       length= min(key_length, key_part->length);
-      key_part->field->get_key_image((char*) to_key, length, Field::itRAW);
+      key_part->field->get_key_image(to_key, length, Field::itRAW);
       to_key+= HA_KEY_BLOB_LENGTH;
     }
     else
@@ -152,7 +153,7 @@ void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length)
       length= min(key_length, key_part->length);
       Field *field= key_part->field;
       CHARSET_INFO *cs= field->charset();
-      uint bytes= field->get_key_image((char*) to_key, length, Field::itRAW);
+      uint bytes= field->get_key_image(to_key, length, Field::itRAW);
       if (bytes < length)
         cs->cset->fill(cs, (char*) to_key + bytes, length - bytes, ' ');
     }
@@ -180,7 +181,7 @@ void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length)
     None
 */
 
-void key_restore(byte *to_record, byte *from_key, KEY *key_info,
+void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
                  uint key_length)
 {
   uint length;
@@ -214,23 +215,34 @@ void key_restore(byte *to_record, byte *from_key, KEY *key_info,
     }
     if (key_part->key_part_flag & HA_BLOB_PART)
     {
+      /*
+        This in fact never happens, as we have only partial BLOB
+        keys yet anyway, so it's difficult to find any sence to
+        restore the part of a record.
+        Maybe this branch is to be removed, but now we
+        have to ignore GCov compaining.
+      */
       uint blob_length= uint2korr(from_key);
+      Field_blob *field= (Field_blob*) key_part->field;
       from_key+= HA_KEY_BLOB_LENGTH;
       key_length-= HA_KEY_BLOB_LENGTH;
-      ((Field_blob*) key_part->field)->set_ptr((ulong) blob_length,
-					       (char*) from_key);
+      field->set_ptr_offset(to_record - field->table->record[0],
+                            (ulong) blob_length, from_key);
       length= key_part->length;
     }
     else if (key_part->key_part_flag & HA_VAR_LENGTH_PART)
     {
+      Field *field= key_part->field;
       my_bitmap_map *old_map;
+      my_ptrdiff_t ptrdiff= to_record - field->table->record[0];
+      field->move_field_offset(ptrdiff);
       key_length-= HA_KEY_BLOB_LENGTH;
       length= min(key_length, key_part->length);
-      old_map= dbug_tmp_use_all_columns(key_part->field->table,
-                                        key_part->field->table->write_set);
-      key_part->field->set_key_image((char *) from_key, length);
-      dbug_tmp_restore_column_map(key_part->field->table->write_set, old_map);
+      old_map= dbug_tmp_use_all_columns(field->table, field->table->write_set);
+      field->set_key_image(from_key, length);
+      dbug_tmp_restore_column_map(field->table->write_set, old_map);
       from_key+= HA_KEY_BLOB_LENGTH;
+      field->move_field_offset(-ptrdiff);
     }
     else
     {
@@ -264,11 +276,11 @@ void key_restore(byte *to_record, byte *from_key, KEY *key_info,
     1	Key has changed
 */
 
-bool key_cmp_if_same(TABLE *table,const byte *key,uint idx,uint key_length)
+bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
 {
   uint store_length;
   KEY_PART_INFO *key_part;
-  const byte *key_end= key + key_length;;
+  const uchar *key_end= key + key_length;;
 
   for (key_part=table->key_info[idx].key_part;
        key < key_end ; 
@@ -300,7 +312,7 @@ bool key_cmp_if_same(TABLE *table,const byte *key,uint idx,uint key_length)
     {
       CHARSET_INFO *cs= key_part->field->charset();
       uint char_length= key_part->length / cs->mbmaxlen;
-      const byte *pos= table->record[0] + key_part->offset;
+      const uchar *pos= table->record[0] + key_part->offset;
       if (length > char_length)
       {
         char_length= my_charpos(cs, pos, pos + length, char_length);
@@ -424,11 +436,11 @@ bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields)
     1			Key is larger than range
 */
 
-int key_cmp(KEY_PART_INFO *key_part, const byte *key, uint key_length)
+int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length)
 {
   uint store_length;
 
-  for (const byte *end=key + key_length;
+  for (const uchar *end=key + key_length;
        key < end;
        key+= store_length, key_part++)
   {
@@ -451,7 +463,7 @@ int key_cmp(KEY_PART_INFO *key_part, const byte *key, uint key_length)
       key++;					// Skip null byte
       store_length--;
     }
-    if ((cmp=key_part->field->key_cmp((byte*) key, key_part->length)) < 0)
+    if ((cmp=key_part->field->key_cmp(key, key_part->length)) < 0)
       return -1;
     if (cmp > 0)
       return 1;
@@ -484,13 +496,13 @@ int key_cmp(KEY_PART_INFO *key_part, const byte *key, uint key_length)
     and return the result of the comparison.
 */
 
-int key_rec_cmp(void *key, byte *first_rec, byte *second_rec)
+int key_rec_cmp(void *key, uchar *first_rec, uchar *second_rec)
 {
   KEY *key_info= (KEY*)key;
   uint key_parts= key_info->key_parts, i= 0;
   KEY_PART_INFO *key_part= key_info->key_part;
-  char *rec0= key_part->field->ptr - key_part->offset;
-  my_ptrdiff_t first_diff= first_rec - (byte*)rec0, sec_diff= second_rec - (byte*)rec0;
+  uchar *rec0= key_part->field->ptr - key_part->offset;
+  my_ptrdiff_t first_diff= first_rec - rec0, sec_diff= second_rec - rec0;
   int result= 0;
   DBUG_ENTER("key_rec_cmp");
 

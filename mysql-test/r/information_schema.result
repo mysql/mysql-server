@@ -290,7 +290,7 @@ information_schema.SCHEMATA b where
 a.ROUTINE_SCHEMA = b.SCHEMA_NAME;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	#	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	#	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	#	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
 select a.ROUTINE_NAME, b.name from information_schema.ROUTINES a,
 mysql.proc b where a.ROUTINE_NAME = convert(b.name using utf8) order by 1;
 ROUTINE_NAME	name
@@ -761,7 +761,6 @@ information_schema	COLUMNS	COLUMN_DEFAULT
 information_schema	COLUMNS	COLUMN_TYPE
 information_schema	EVENTS	EVENT_DEFINITION
 information_schema	EVENTS	SQL_MODE
-information_schema	GLOBAL_VARIABLES	VARIABLE_VALUE
 information_schema	PARTITIONS	PARTITION_EXPRESSION
 information_schema	PARTITIONS	SUBPARTITION_EXPRESSION
 information_schema	PARTITIONS	PARTITION_DESCRIPTION
@@ -769,7 +768,6 @@ information_schema	PLUGINS	PLUGIN_DESCRIPTION
 information_schema	PROCESSLIST	INFO
 information_schema	ROUTINES	ROUTINE_DEFINITION
 information_schema	ROUTINES	SQL_MODE
-information_schema	SESSION_VARIABLES	VARIABLE_VALUE
 information_schema	TRIGGERS	ACTION_CONDITION
 information_schema	TRIGGERS	ACTION_STATEMENT
 information_schema	TRIGGERS	SQL_MODE

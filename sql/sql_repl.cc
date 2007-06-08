@@ -72,7 +72,7 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
   int8store(buf+R_POS_OFFSET,position);
   packet->append(buf, ROTATE_HEADER_LEN);
   packet->append(p,ident_len);
-  if (my_net_write(net, (char*)packet->ptr(), packet->length()))
+  if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
   {
     *errmsg = "failed on my_net_write()";
     DBUG_RETURN(-1);
@@ -83,12 +83,13 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
 static int send_file(THD *thd)
 {
   NET* net = &thd->net;
-  int fd = -1,bytes, error = 1;
+  int fd = -1, error = 1;
+  size_t bytes;
   char fname[FN_REFLEN+1];
   const char *errmsg = 0;
   int old_timeout;
   unsigned long packet_len;
-  char buf[IO_SIZE];				// It's safe to alloc this
+  uchar buf[IO_SIZE];				// It's safe to alloc this
   DBUG_ENTER("send_file");
 
   /*
@@ -96,7 +97,7 @@ static int send_file(THD *thd)
     the job
   */
   old_timeout= net->read_timeout;
-  net_set_read_timeout(net, thd->variables.net_wait_timeout);
+  my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
 
   /*
     We need net_flush here because the client will not know it needs to send
@@ -121,7 +122,7 @@ static int send_file(THD *thd)
     goto err;
   }
 
-  while ((bytes = (int) my_read(fd, (byte*) buf, IO_SIZE, MYF(0))) > 0)
+  while ((long) (bytes= my_read(fd, buf, IO_SIZE, MYF(0))) > 0)
   {
     if (my_net_write(net, buf, bytes))
     {
@@ -131,7 +132,7 @@ static int send_file(THD *thd)
   }
 
  end:
-  if (my_net_write(net, "", 0) || net_flush(net) ||
+  if (my_net_write(net, (uchar*) "", 0) || net_flush(net) ||
       (my_net_read(net) == packet_error))
   {
     errmsg = "while negotiating file transfer close";
@@ -140,7 +141,7 @@ static int send_file(THD *thd)
   error = 0;
 
  err:
-  net_set_read_timeout(net, old_timeout);
+  my_net_set_read_timeout(net, old_timeout);
   if (fd >= 0)
     (void) my_close(fd, MYF(0));
   if (errmsg)
@@ -217,7 +218,8 @@ bool log_in_use(const char* log_name)
     if ((linfo = tmp->current_linfo))
     {
       pthread_mutex_lock(&linfo->lock);
-      result = !bcmp(log_name, linfo->log_file_name, log_name_len);
+      result = !bcmp((uchar*) log_name, (uchar*) linfo->log_file_name,
+                     log_name_len);
       pthread_mutex_unlock(&linfo->lock);
       if (result)
 	break;
@@ -480,7 +482,7 @@ impossible position";
          int4store((char*) packet->ptr()+LOG_EVENT_MINIMAL_HEADER_LEN+
                    ST_CREATED_OFFSET+1, (ulong) 0);
          /* send it */
-         if (my_net_write(net, (char*)packet->ptr(), packet->length()))
+         if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
          {
            errmsg = "Failed on my_net_write()";
            my_errno= ER_UNKNOWN_ERROR;
@@ -538,7 +540,7 @@ impossible position";
       else if ((*packet)[EVENT_TYPE_OFFSET+1] == STOP_EVENT)
         binlog_can_be_corrupted= FALSE;
 
-      if (my_net_write(net, (char*)packet->ptr(), packet->length()))
+      if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
       {
 	errmsg = "Failed on my_net_write()";
 	my_errno= ER_UNKNOWN_ERROR;
@@ -651,7 +653,7 @@ impossible position";
 	if (read_packet)
 	{
 	  thd->proc_info = "Sending binlog event to slave";
-	  if (my_net_write(net, (char*)packet->ptr(), packet->length()) )
+	  if (my_net_write(net, (uchar*) packet->ptr(), packet->length()) )
 	  {
 	    errmsg = "Failed on my_net_write()";
 	    my_errno= ER_UNKNOWN_ERROR;
@@ -1603,6 +1605,149 @@ int log_loaded_block(IO_CACHE* file)
     mysql_bin_log.write(&b);
     lf_info->wrote_create_file = 1;
     DBUG_SYNC_POINT("debug_lock.created_file_event",10);
+  }
+  return 0;
+}
+
+/*
+  Replication System Variables
+*/
+
+class sys_var_slave_skip_counter :public sys_var
+{
+public:
+  sys_var_slave_skip_counter(sys_var_chain *chain, const char *name_arg)
+    :sys_var(name_arg)
+  { chain_sys_var(chain); }
+  bool check(THD *thd, set_var *var);
+  bool update(THD *thd, set_var *var);
+  bool check_type(enum_var_type type) { return type != OPT_GLOBAL; }
+  /*
+    We can't retrieve the value of this, so we don't have to define
+    type() or value_ptr()
+  */
+};
+
+class sys_var_sync_binlog_period :public sys_var_long_ptr
+{
+public:
+  sys_var_sync_binlog_period(sys_var_chain *chain, const char *name_arg, 
+                             ulong *value_ptr)
+    :sys_var_long_ptr(chain, name_arg,value_ptr) {}
+  bool update(THD *thd, set_var *var);
+};
+
+static sys_var_chain vars = { NULL, NULL };
+
+static sys_var_bool_ptr	sys_relay_log_purge(&vars, "relay_log_purge",
+					    &relay_log_purge);
+static sys_var_long_ptr	sys_slave_net_timeout(&vars, "slave_net_timeout",
+					      &slave_net_timeout);
+static sys_var_long_ptr	sys_slave_trans_retries(&vars, "slave_transaction_retries",
+						&slave_trans_retries);
+static sys_var_sync_binlog_period sys_sync_binlog_period(&vars, "sync_binlog", &sync_binlog_period);
+static sys_var_slave_skip_counter sys_slave_skip_counter(&vars, "sql_slave_skip_counter");
+
+static int show_slave_skip_errors(THD *thd, SHOW_VAR *var, char *buff);
+
+
+static SHOW_VAR fixed_vars[]= {
+  {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_MY_BOOL},
+  {"relay_log_space_limit",   (char*) &relay_log_space_limit,       SHOW_LONGLONG},
+  {"slave_load_tmpdir",       (char*) &slave_load_tmpdir,           SHOW_CHAR_PTR},
+  {"slave_skip_errors",       (char*) &show_slave_skip_errors,      SHOW_FUNC},
+};
+
+static int show_slave_skip_errors(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type=SHOW_CHAR;
+  var->value= buff;
+  if (!use_slave_mask || bitmap_is_clear_all(&slave_error_mask))
+  {
+    var->value= const_cast<char *>("OFF");
+  }
+  else if (bitmap_is_set_all(&slave_error_mask))
+  {
+    var->value= const_cast<char *>("ALL");
+  }
+  else
+  {
+    /* 10 is enough assuming errors are max 4 digits */
+    int i;
+    var->value= buff;
+    for (i= 1;
+         i < MAX_SLAVE_ERROR &&
+         (buff - var->value) < SHOW_VAR_FUNC_BUFF_SIZE;
+         i++)
+    {
+      if (bitmap_is_set(&slave_error_mask, i))
+      {
+        buff= int10_to_str(i, buff, 10);
+        *buff++= ',';
+      }
+    }
+    if (var->value != buff)
+      buff--;				// Remove last ','
+    if (i < MAX_SLAVE_ERROR)
+      buff= strmov(buff, "...");  // Couldn't show all errors
+    *buff=0;
+  }
+  return 0;
+}
+
+bool sys_var_slave_skip_counter::check(THD *thd, set_var *var)
+{
+  int result= 0;
+  pthread_mutex_lock(&LOCK_active_mi);
+  pthread_mutex_lock(&active_mi->rli.run_lock);
+  if (active_mi->rli.slave_running)
+  {
+    my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
+    result=1;
+  }
+  pthread_mutex_unlock(&active_mi->rli.run_lock);
+  pthread_mutex_unlock(&LOCK_active_mi);
+  var->save_result.ulong_value= (ulong) var->value->val_int();
+  return result;
+}
+
+
+bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
+{
+  pthread_mutex_lock(&LOCK_active_mi);
+  pthread_mutex_lock(&active_mi->rli.run_lock);
+  /*
+    The following test should normally never be true as we test this
+    in the check function;  To be safe against multiple
+    SQL_SLAVE_SKIP_COUNTER request, we do the check anyway
+  */
+  if (!active_mi->rli.slave_running)
+  {
+    pthread_mutex_lock(&active_mi->rli.data_lock);
+    active_mi->rli.slave_skip_counter= var->save_result.ulong_value;
+    pthread_mutex_unlock(&active_mi->rli.data_lock);
+  }
+  pthread_mutex_unlock(&active_mi->rli.run_lock);
+  pthread_mutex_unlock(&LOCK_active_mi);
+  return 0;
+}
+
+
+bool sys_var_sync_binlog_period::update(THD *thd, set_var *var)
+{
+  sync_binlog_period= (ulong) var->save_result.ulonglong_value;
+  return 0;
+}
+
+int init_replication_sys_vars()
+{
+  mysql_append_static_vars(fixed_vars, sizeof(fixed_vars) / sizeof(SHOW_VAR));
+
+  if (mysql_add_sys_var_chain(vars.first, my_long_options))
+  {
+    /* should not happen */
+    fprintf(stderr, "failed to initialize replication system variables");
+    unireg_abort(1);
   }
   return 0;
 }

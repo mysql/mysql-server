@@ -28,8 +28,8 @@ typedef struct st_date_time_format {
 
 
 typedef struct st_keyfile_info {	/* used with ha_info() */
-  byte ref[MAX_REFLENGTH];		/* Pointer to current row */
-  byte dupp_ref[MAX_REFLENGTH];		/* Pointer to dupp row */
+  uchar ref[MAX_REFLENGTH];		/* Pointer to current row */
+  uchar dupp_ref[MAX_REFLENGTH];	/* Pointer to dupp row */
   uint ref_length;			/* Length of ref (1-8) */
   uint block_size;			/* index block size */
   File filenr;				/* (uniq) filenr for table */
@@ -83,7 +83,7 @@ typedef struct st_key {
   */
   union
   {
-    struct st_plugin_int *parser;       /* Fulltext [pre]parser */
+    plugin_ref parser;                  /* Fulltext [pre]parser */
     LEX_STRING *parser_name;            /* Fulltext [pre]parser name */
   };
   KEY_PART_INFO *key_part;
@@ -126,10 +126,10 @@ typedef struct st_read_record {			/* Parameter to read_record */
   uint cache_records;
   uint ref_length,struct_length,reclength,rec_cache_size,error_offset;
   uint index;
-  byte *ref_pos;				/* pointer to form->refpos */
-  byte *record;
-  byte *rec_buf;                /* to read field values  after filesort */
-  byte	*cache,*cache_pos,*cache_end,*read_positions;
+  uchar *ref_pos;				/* pointer to form->refpos */
+  uchar *record;
+  uchar *rec_buf;                /* to read field values  after filesort */
+  uchar	*cache,*cache_pos,*cache_end,*read_positions;
   IO_CACHE *io_cache;
   bool print_error, ignore_not_found_rows;
 } READ_RECORD;

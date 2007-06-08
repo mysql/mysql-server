@@ -410,7 +410,6 @@ mysqltest: At line 1: Wrong column number to replace_column in 'replace_column a
 mysqltest: At line 1: Wrong column number to replace_column in 'replace_column a 1'
 mysqltest: At line 1: Wrong column number to replace_column in 'replace_column 1 b c '
 mysqltest: At line 1: Invalid integer argument "10!"
-mysqltest: At line 1: End of line junk detected: "!"
 mysqltest: At line 1: Invalid integer argument "a"
 mysqltest: At line 1: Missing required argument 'connection name' to command 'connect'
 mysqltest: At line 1: Missing required argument 'connection name' to command 'connect'
@@ -557,6 +556,12 @@ a	b	c
 2	Part 2	2007-04-05 00:00:00
 2	Part 3	2007-04-05 00:00:00
 select * from t1;
+a	b	c
+1	Line 1	2007-04-05 00:00:00
+2	Part 2	2007-04-05 00:00:00
+1	Line 1	2007-04-05 00:00:00
+2	Part 3	2007-04-05 00:00:00
+select * from t1;
 select '';
 
 
@@ -572,4 +577,131 @@ hep
 select "hepp";
 hepp
 hepp
+drop table t1;
+SELECT 2 as "my_col"
+UNION
+SELECT 1;
+my_col
+1
+2
+SELECT 2 as "my_col" UNION SELECT 1;
+my_col
+1
+2
+SELECT 2 as "my_col"
+UNION
+SELECT 1;
+my_col
+1
+2
+SELECT '2' as "3"
+UNION
+SELECT '1';
+3
+1
+2
+CREATE TABLE t1( a CHAR);
+SELECT * FROM t1;
+a
+DROP TABLE t1;
+SELECT NULL as "my_col1",2 AS "my_col2"
+UNION
+SELECT NULL,1;
+my_col1	my_col2
+NULL	2
+NULL	1
+SELECT NULL as "my_col1",2 AS "my_col2"
+UNION
+SELECT NULL,1;
+my_col1	my_col2
+NULL	1
+NULL	2
+SELECT 2 as "my_col1",NULL AS "my_col2"
+UNION
+SELECT 1,NULL;
+my_col1	my_col2
+2	NULL
+1	NULL
+SELECT 2 as "my_col1",NULL AS "my_col2"
+UNION
+SELECT 1,NULL;
+my_col1	my_col2
+1	NULL
+2	NULL
+SET @a = 17;
+SELECT 2 as "my_col"
+UNION
+SELECT 1;
+my_col
+2
+1
+SELECT 2 as "my_col"
+UNION
+SELECT 1;
+my_col
+1
+2
+SELECT '2' as "my_col1",2 as "my_col2"
+UNION
+SELECT '1',1 from t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+SELECT '1' as "my_col1",2 as "my_col2"
+UNION
+SELECT '2',1;
+my_col1	my_col2
+#	1
+#	2
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 SET f1 = 1024;
+INSERT INTO t1 SELECT f1 - 1 FROM t1;
+INSERT INTO t1 SELECT f1 - 2 FROM t1;
+INSERT INTO t1 SELECT f1 - 4 FROM t1;
+INSERT INTO t1 SELECT f1 - 8 FROM t1;
+INSERT INTO t1 SELECT f1 - 16 FROM t1;
+INSERT INTO t1 SELECT f1 - 32 FROM t1;
+INSERT INTO t1 SELECT f1 - 64 FROM t1;
+INSERT INTO t1 SELECT f1 - 128 FROM t1;
+INSERT INTO t1 SELECT f1 - 256 FROM t1;
+INSERT INTO t1 SELECT f1 - 512 FROM t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1(
+a int, b varchar(255), c datetime
+);
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	varchar(255)	YES		NULL	
+c	datetime	YES		NULL	
+statement=SHOW COLUMNS FROM t1 row_number=1, column_name="Type", Value=int(11)
+statement="SHOW COLUMNS FROM t1" row_number=1, column_name="Type", Value=int(11)
+statement=SHOW COLUMNS FROM t1 row_number=1, column_name=Default, Value=NULL
+value= ->A B<-
+value= 1
+mysqltest: At line 1: query_get_value - argument list started with '(' must be ended with ')'
+mysqltest: At line 1: Missing required argument 'query' to command 'query_get_value'
+mysqltest: At line 1: Missing required argument 'column name' to command 'query_get_value'
+mysqltest: At line 1: Missing required argument 'row number' to command 'query_get_value'
+value= No such row
+value= No such row
+mysqltest: At line 1: Invalid row number: 'notnumber'
+mysqltest: At line 1: Could not find column 'column_not_exists' in the result of 'SHOW COLUMNS FROM t1'
+mysqltest: At line 1: Query 'SET @A = 1' didn't return a result set
+mysqltest: At line 1: Could not find column '1 AS B' in the result of 'SELECT 1 AS A'
+value= No such row
+mysqltest: At line 1: Error running query 'SHOW COLNS FROM t1': 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COLNS FROM t1' at line 1
+
+Field Type Null Key Default Extra
+a int(11) YES -><- NULL 
+b varchar(255) YES -><- NULL 
+c datetime YES -><- NULL 
+
+Number of columns with Default NULL: 3
+
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	varchar(255)	YES		NULL	
+c	datetime	YES		NULL	
+drop table t1;
 End of tests

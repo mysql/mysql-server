@@ -1,5 +1,6 @@
 # Embedded server doesn't support external clients
 --source include/not_embedded.inc
+--source include/have_log_bin.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1, `"t"1`, t1aa, t2, t2aa, t3;
@@ -1528,7 +1529,14 @@ drop user user2;
 
 drop database mysqldump_test_db;
 
+--echo #
+--echo # Bug #28522: buffer overrun by '\0' byte using --hex-blob.
+--echo #
 
+CREATE TABLE t1 (c1 INT, c2 LONGBLOB);
+INSERT INTO t1 SET c1=11, c2=REPEAT('q',509);
+--exec $MYSQL_DUMP --skip-create --compact --hex-blob test t1
+DROP TABLE t1;
 
 --echo #
 --echo # End of 5.0 tests

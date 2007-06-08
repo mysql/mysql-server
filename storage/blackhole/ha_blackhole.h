@@ -18,13 +18,24 @@
 #endif
 
 /*
+  Shared structure for correct LOCK operation
+*/
+struct st_blackhole_share {
+  THR_LOCK lock;
+  uint use_count;
+  uint table_name_length;
+  char table_name[1];
+};
+
+
+/*
   Class definition for the blackhole storage engine
   "Dumbest named feature ever"
 */
 class ha_blackhole: public handler
 {
   THR_LOCK_DATA lock;      /* MySQL lock */
-  THR_LOCK thr_lock;
+  st_blackhole_share *share;
 
 public:
   ha_blackhole(handlerton *hton, TABLE_SHARE *table_arg);
@@ -60,23 +71,22 @@ public:
   uint max_supported_key_part_length() const { return BLACKHOLE_MAX_KEY_LENGTH; }
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
-  int write_row(byte * buf);
+  int write_row(uchar * buf);
   int rnd_init(bool scan);
-  int rnd_next(byte *buf);
-  int rnd_pos(byte * buf, byte *pos);
-  int index_read(byte * buf, const byte * key, key_part_map keypart_map,
+  int rnd_next(uchar *buf);
+  int rnd_pos(uchar * buf, uchar *pos);
+  int index_read(uchar * buf, const uchar * key, key_part_map keypart_map,
                  enum ha_rkey_function find_flag);
-  int index_read_idx(byte * buf, uint idx, const byte * key,
+  int index_read_idx(uchar * buf, uint idx, const uchar * key,
                    key_part_map keypart_map, enum ha_rkey_function find_flag);
-  int index_read_last(byte * buf, const byte * key, key_part_map keypart_map);
-  int index_next(byte * buf);
-  int index_prev(byte * buf);
-  int index_first(byte * buf);
-  int index_last(byte * buf);
-  void position(const byte *record);
+  int index_read_last(uchar * buf, const uchar * key, key_part_map keypart_map);
+  int index_next(uchar * buf);
+  int index_prev(uchar * buf);
+  int index_first(uchar * buf);
+  int index_last(uchar * buf);
+  void position(const uchar *record);
   int info(uint flag);
   int external_lock(THD *thd, int lock_type);
-  uint lock_count(void) const;
   int create(const char *name, TABLE *table_arg,
              HA_CREATE_INFO *create_info);
   THR_LOCK_DATA **store_lock(THD *thd,

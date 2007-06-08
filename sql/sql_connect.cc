@@ -80,7 +80,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
   temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
   (void) pthread_mutex_lock(&LOCK_user_conn);
   if (!(uc = (struct  user_conn *) hash_search(&hash_user_connections,
-					       (byte*) temp_user, temp_len)))
+					       (uchar*) temp_user, temp_len)))
   {
     /* First connection for user; Create a user connection object */
     if (!(uc= ((struct user_conn*)
@@ -98,7 +98,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     uc->connections= uc->questions= uc->updates= uc->conn_per_hour= 0;
     uc->user_resources= *mqh;
     uc->intime= thd->thr_create_time;
-    if (my_hash_insert(&hash_user_connections, (byte*) uc))
+    if (my_hash_insert(&hash_user_connections, (uchar*) uc))
     {
       my_free((char*) uc,0);
       net_send_error(thd, 0, NullS);		// Out of memory
@@ -200,7 +200,7 @@ void decrease_user_connections(USER_CONN *uc)
   if (!--uc->connections && !mqh_used)
   {
     /* Last connection for user; Delete it */
-    (void) hash_delete(&hash_user_connections,(byte*) uc);
+    (void) hash_delete(&hash_user_connections,(uchar*) uc);
   }
   (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_VOID_RETURN;
@@ -512,11 +512,11 @@ int check_user(THD *thd, enum enum_server_command command,
   started with corresponding variable that is greater then 0.
 */
 
-extern "C" byte *get_key_conn(user_conn *buff, uint *length,
+extern "C" uchar *get_key_conn(user_conn *buff, size_t *length,
 			      my_bool not_used __attribute__((unused)))
 {
-  *length=buff->len;
-  return (byte*) buff->user;
+  *length= buff->len;
+  return (uchar*) buff->user;
 }
 
 
@@ -559,7 +559,7 @@ void reset_mqh(LEX_USER *lu, bool get_them= 0)
     memcpy(temp_user+lu->user.length+1,lu->host.str,lu->host.length);
     temp_user[lu->user.length]='\0'; temp_user[temp_len-1]=0;
     if ((uc = (struct  user_conn *) hash_search(&hash_user_connections,
-						(byte*) temp_user, temp_len)))
+						(uchar*) temp_user, temp_len)))
     {
       uc->questions=0;
       get_mqh(temp_user,&temp_user[lu->user.length+1],uc);
@@ -747,8 +747,8 @@ static int check_connection(THD *thd)
                  SCRAMBLE_LENGTH - SCRAMBLE_LENGTH_323) + 1;
 
     /* At this point we write connection message and read reply */
-    if (net_write_command(net, (uchar) protocol_version, "", 0, buff,
-			  (uint) (end-buff)) ||
+    if (net_write_command(net, (uchar) protocol_version, (uchar*) "", 0,
+                          (uchar*) buff, (size_t) (end-buff)) ||
 	(pkt_len= my_net_read(net)) == packet_error ||
 	pkt_len < MIN_HANDSHAKE_SIZE)
     {
@@ -936,8 +936,8 @@ bool login_connection(THD *thd)
   net->no_send_error= 0;
 
   /* Use "connect_timeout" value during connection phase */
-  net_set_read_timeout(net, connect_timeout);
-  net_set_write_timeout(net, connect_timeout);
+  my_net_set_read_timeout(net, connect_timeout);
+  my_net_set_write_timeout(net, connect_timeout);
 
   if ((error=check_connection(thd)))
   {						// Wrong permissions
@@ -951,8 +951,8 @@ bool login_connection(THD *thd)
     DBUG_RETURN(1);
   }
   /* Connect completed, set read/write timeouts back to default */
-  net_set_read_timeout(net, thd->variables.net_read_timeout);
-  net_set_write_timeout(net, thd->variables.net_write_timeout);
+  my_net_set_read_timeout(net, thd->variables.net_read_timeout);
+  my_net_set_write_timeout(net, thd->variables.net_write_timeout);
   DBUG_RETURN(0);
 }
 
@@ -967,6 +967,7 @@ bool login_connection(THD *thd)
 void end_connection(THD *thd)
 {
   NET *net= &thd->net;
+  plugin_thdvar_cleanup(thd);
   if (thd->user_connect)
     decrease_user_connections(thd->user_connect);
   if (net->error && net->vio != 0 && net->report_error)

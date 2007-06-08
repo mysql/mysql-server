@@ -30,7 +30,7 @@ check table t1 changed;
 check table t1 medium;
 check table t1 extended;
 show index from t1;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values (5,5,5);
 optimize table t1;
 optimize table t1;

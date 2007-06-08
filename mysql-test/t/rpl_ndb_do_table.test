@@ -32,11 +32,11 @@ SELECT COUNT(*) FROM t1;
 #
 connection master;
 
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 INSERT INTO t1 VALUES (3, repeat('bad',1));
 
 connection slave;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 INSERT INTO t1 VALUES (3, repeat('bad too',1));
 
 # cleanup

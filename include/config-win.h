@@ -310,10 +310,10 @@ inline double ulonglong2double(ulonglong value)
 #define doublestore(T,V) do { *((long *) T) = *((long*) &V); \
 			      *(((long *) T)+1) = *(((long*) &V)+1); } while(0)
 #define float4get(V,M) { *((long *) &(V)) = *((long*) (M)); }
-#define floatstore(T,V) memcpy((byte*)(T), (byte*)(&V), sizeof(float))
-#define floatget(V,M)   memcpy((byte*)(&V), (byte*)(M), sizeof(float))
+#define floatstore(T,V) memcpy((uchar*)(T), (uchar*)(&V), sizeof(float))
+#define floatget(V,M)   memcpy((uchar*)(&V), (uchar*)(M), sizeof(float))
 #define float8get(V,M) doubleget((V),(M))
-#define float4store(V,M) memcpy((byte*) V,(byte*) (&M),sizeof(float))
+#define float4store(V,M) memcpy((uchar*) V,(uchar*) (&M),sizeof(float))
 #define float8store(V,M) doublestore((V),(M))
 #endif /* _WIN64 */
 
@@ -350,7 +350,10 @@ inline double ulonglong2double(ulonglong value)
 #define SPRINTF_RETURNS_INT
 #define HAVE_SETFILEPOINTER
 #define HAVE_VIO_READ_BUFF
+#if defined(_MSC_VER) && _MSC_VER >= 1400
+/* strnlen() appeared in Studio 2005 */
 #define HAVE_STRNLEN
+#endif
 #define HAVE_WINSOCK2
 
 #define strcasecmp stricmp
@@ -411,16 +414,7 @@ inline double ulonglong2double(ulonglong value)
 #ifdef __NT__  /* This should also work on Win98 but .. */
 #define thread_safe_add(V,C,L) InterlockedExchangeAdd((long*) &(V),(C))
 #define thread_safe_sub(V,C,L) InterlockedExchangeAdd((long*) &(V),-(long) (C))
-#define statistic_add(V,C,L) thread_safe_add((V),(C),(L))
-#else
-#define thread_safe_add(V,C,L) \
-	pthread_mutex_lock((L)); (V)+=(C); pthread_mutex_unlock((L));
-#define thread_safe_sub(V,C,L) \
-	pthread_mutex_lock((L)); (V)-=(C); pthread_mutex_unlock((L));
-#define statistic_add(V,C,L)	 (V)+=(C)
 #endif
-#define statistic_increment(V,L) thread_safe_increment((V),(L))
-#define statistic_decrement(V,L) thread_safe_decrement((V),(L))
 
 #define shared_memory_buffer_length 16000
 #define default_shared_memory_base_name "MYSQL"

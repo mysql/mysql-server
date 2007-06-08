@@ -161,6 +161,7 @@ Hybrid_type_traits_integer::fix_length_and_dec(Item *item, Item *arg) const
 void item_init(void)
 {
   item_user_lock_init();
+  uuid_short_init();
 }
 
 
@@ -431,7 +432,7 @@ void Item::cleanup()
     arg - a dummy parameter, is not used here
 */
 
-bool Item::cleanup_processor(byte *arg)
+bool Item::cleanup_processor(uchar *arg)
 {
   if (fixed)
     cleanup();
@@ -494,7 +495,7 @@ void Item::rename(char *new_name)
     pointer to newly allocated item is returned.
 */
 
-Item* Item::transform(Item_transformer transformer, byte *arg)
+Item* Item::transform(Item_transformer transformer, uchar *arg)
 {
   DBUG_ASSERT(!current_thd->is_stmt_prepare());
 
@@ -552,7 +553,7 @@ void Item_ident::cleanup()
   DBUG_VOID_RETURN;
 }
 
-bool Item_ident::remove_dependence_processor(byte * arg)
+bool Item_ident::remove_dependence_processor(uchar * arg)
 {
   DBUG_ENTER("Item_ident::remove_dependence_processor");
   if (depended_from == (st_select_lex *) arg)
@@ -583,7 +584,7 @@ bool Item_ident::remove_dependence_processor(byte * arg)
           for the subsequent items.
 */
 
-bool Item_field::collect_item_field_processor(byte *arg)
+bool Item_field::collect_item_field_processor(uchar *arg)
 {
   DBUG_ENTER("Item_field::collect_item_field_processor");
   DBUG_PRINT("info", ("%s", field->field_name ? field->field_name : "noname"));
@@ -618,7 +619,7 @@ bool Item_field::collect_item_field_processor(byte *arg)
     FALSE otherwise
 */
 
-bool Item_field::find_item_in_field_list_processor(byte *arg)
+bool Item_field::find_item_in_field_list_processor(uchar *arg)
 {
   KEY_PART_INFO *first_non_group_part= *((KEY_PART_INFO **) arg);
   KEY_PART_INFO *last_part= *(((KEY_PART_INFO **) arg) + 1);
@@ -641,7 +642,7 @@ bool Item_field::find_item_in_field_list_processor(byte *arg)
     column read set or to register used fields in a view
 */
 
-bool Item_field::register_field_in_read_map(byte *arg)
+bool Item_field::register_field_in_read_map(uchar *arg)
 {
   TABLE *table= (TABLE *) arg;
   if (field->table == table || !table)
@@ -690,7 +691,7 @@ void Item::set_name(const char *str, uint length, CHARSET_INFO *cs)
   }
   if (!my_charset_same(cs, system_charset_info))
   {
-    uint32 res_length;
+    size_t res_length;
     name= sql_strmake_with_convert(str, name_length= length, cs,
 				   MAX_ALIAS_NAME, system_charset_info,
 				   &res_length);
@@ -785,7 +786,7 @@ Item *Item_string::safe_charset_converter(CHARSET_INFO *tocs)
     */
     return NULL;
   }
-  if (!(ptr= current_thd->memdup(cstr.ptr(), cstr.length() + 1 )))
+  if (!(ptr= current_thd->strmake(cstr.ptr(), cstr.length())))
     return NULL;
   conv->str_value.set(ptr, cstr.length(), cstr.charset());
   /* Ensure that no one is going to change the result string */
@@ -1057,6 +1058,7 @@ Item_splocal::Item_splocal(const LEX_STRING &sp_var_name,
   maybe_null= TRUE;
 
   m_type= sp_map_item_type(sp_var_type);
+  m_field_type= sp_var_type;
   m_result_type= sp_map_result_type(sp_var_type);
 }
 
@@ -2138,7 +2140,7 @@ Item_decimal::Item_decimal(my_decimal *value_par)
 }
 
 
-Item_decimal::Item_decimal(const char *bin, int precision, int scale)
+Item_decimal::Item_decimal(const uchar *bin, int precision, int scale)
 {
   binary2my_decimal(E_DEC_FATAL_ERROR, bin,
                     &decimal_value, precision, scale);
@@ -2347,6 +2349,7 @@ default_set_param_func(Item_param *param,
 
 
 Item_param::Item_param(unsigned pos_in_query_arg) :
+  strict_type(FALSE),
   state(NO_VALUE),
   item_result_type(STRING_RESULT),
   /* Don't pretend to be a literal unless value for this item is set. */
@@ -2541,16 +2544,16 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
   if (entry && entry->value)
   {
     item_result_type= entry->type;
-    switch (entry->type) {
+    if (strict_type && required_result_type != item_result_type)
+      DBUG_RETURN(1);
+    switch (item_result_type) {
     case REAL_RESULT:
       set_double(*(double*)entry->value);
       item_type= Item::REAL_ITEM;
-      item_result_type= REAL_RESULT;
       break;
     case INT_RESULT:
       set_int(*(longlong*)entry->value, MY_INT64_NUM_DECIMAL_DIGITS);
       item_type= Item::INT_ITEM;
-      item_result_type= INT_RESULT;
       break;
     case STRING_RESULT:
     {
@@ -2573,7 +2576,6 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
         charset of connection, so we have to set it later.
       */
       item_type= Item::STRING_ITEM;
-      item_result_type= STRING_RESULT;
 
       if (set_str((const char *)entry->value, entry->length))
         DBUG_RETURN(1);
@@ -2587,6 +2589,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
       decimals= ent_value->frac;
       max_length= my_decimal_precision_to_length(ent_value->precision(),
                                                  decimals, unsigned_flag);
+      item_type= Item::DECIMAL_ITEM;
       break;
     }
     default:
@@ -3557,7 +3560,8 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
           prev_subselect_item->const_item_cache= 0;
           set_field(*from_field);
           if (!last_checked_context->select_lex->having_fix_field &&
-              select->group_list.elements)
+              select->group_list.elements &&
+              (place == SELECT_LIST || place == IN_HAVING))
           {
             Item_outer_ref *rf;
             /*
@@ -4065,7 +4069,7 @@ Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal)
     FALSE  otherwise
 */
 
-bool Item_field::subst_argument_checker(byte **arg)
+bool Item_field::subst_argument_checker(uchar **arg)
 {
   return (result_type() != STRING_RESULT) || (*arg);
 }
@@ -4097,7 +4101,7 @@ bool Item_field::subst_argument_checker(byte **arg)
     pointer to the field item, otherwise.
 */
 
-Item *Item_field::equal_fields_propagator(byte *arg)
+Item *Item_field::equal_fields_propagator(uchar *arg)
 {
   if (no_const_subst)
     return this;
@@ -4128,7 +4132,7 @@ Item *Item_field::equal_fields_propagator(byte *arg)
   See comments in Arg_comparator::set_compare_func() for details
 */
 
-bool Item_field::set_no_const_sub(byte *arg)
+bool Item_field::set_no_const_sub(uchar *arg)
 {
   if (field->charset() != &my_charset_bin)
     no_const_subst=1;
@@ -4163,7 +4167,7 @@ bool Item_field::set_no_const_sub(byte *arg)
     this - otherwise.
 */
 
-Item *Item_field::replace_equal_field(byte *arg)
+Item *Item_field::replace_equal_field(uchar *arg)
 {
   if (item_equal)
   {
@@ -4313,42 +4317,42 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
   switch (field_type()) {
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
-    field= new Field_new_decimal((char*) 0, max_length, null_ptr, 0,
+    field= new Field_new_decimal((uchar*) 0, max_length, null_ptr, 0,
                                  Field::NONE, name, decimals, 0,
                                  unsigned_flag);
     break;
   case MYSQL_TYPE_TINY:
-    field= new Field_tiny((char*) 0, max_length, null_ptr, 0, Field::NONE,
+    field= new Field_tiny((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
 			  name, 0, unsigned_flag);
     break;
   case MYSQL_TYPE_SHORT:
-    field= new Field_short((char*) 0, max_length, null_ptr, 0, Field::NONE,
+    field= new Field_short((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
 			   name, 0, unsigned_flag);
     break;
   case MYSQL_TYPE_LONG:
-    field= new Field_long((char*) 0, max_length, null_ptr, 0, Field::NONE,
+    field= new Field_long((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
 			  name, 0, unsigned_flag);
     break;
 #ifdef HAVE_LONG_LONG
   case MYSQL_TYPE_LONGLONG:
-    field= new Field_longlong((char*) 0, max_length, null_ptr, 0, Field::NONE,
+    field= new Field_longlong((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
 			      name, 0, unsigned_flag);
     break;
 #endif
   case MYSQL_TYPE_FLOAT:
-    field= new Field_float((char*) 0, max_length, null_ptr, 0, Field::NONE,
+    field= new Field_float((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
 			   name, decimals, 0, unsigned_flag);
     break;
   case MYSQL_TYPE_DOUBLE:
-    field= new Field_double((char*) 0, max_length, null_ptr, 0, Field::NONE,
+    field= new Field_double((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
 			    name, decimals, 0, unsigned_flag);
     break;
   case MYSQL_TYPE_NULL:
-    field= new Field_null((char*) 0, max_length, Field::NONE,
+    field= new Field_null((uchar*) 0, max_length, Field::NONE,
 			  name, &my_charset_bin);
     break;
   case MYSQL_TYPE_INT24:
-    field= new Field_medium((char*) 0, max_length, null_ptr, 0, Field::NONE,
+    field= new Field_medium((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
 			    name, 0, unsigned_flag);
     break;
   case MYSQL_TYPE_NEWDATE:
@@ -4365,7 +4369,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     field= new Field_datetime(maybe_null, name, &my_charset_bin);
     break;
   case MYSQL_TYPE_YEAR:
-    field= new Field_year((char*) 0, max_length, null_ptr, 0, Field::NONE,
+    field= new Field_year((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
 			  name);
     break;
   case MYSQL_TYPE_BIT:
@@ -4730,7 +4734,6 @@ inline uint char_val(char X)
 
 Item_hex_string::Item_hex_string(const char *str, uint str_length)
 {
-  name=(char*) str-2;				// Lex makes this start with 0x
   max_length=(str_length+1)/2;
   char *ptr=(char*) sql_alloc(max_length+1);
   if (!ptr)
@@ -4841,7 +4844,6 @@ Item_bin_string::Item_bin_string(const char *str, uint str_length)
   uchar bits= 0;
   uint power= 1;
 
-  name= (char*) str - 2;
   max_length= (str_length + 7) >> 3;
   char *ptr= (char*) sql_alloc(max_length + 1);
   if (!ptr)
@@ -5031,7 +5033,7 @@ void Item_field::update_null_value()
     this field    otherwise
 */
 
-Item *Item_field::update_value_transformer(byte *select_arg)
+Item *Item_field::update_value_transformer(uchar *select_arg)
 {
   SELECT_LEX *select= (SELECT_LEX*)select_arg;
   DBUG_ASSERT(fixed);
@@ -5848,7 +5850,7 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
   same time it can replace some nodes in the tree
 */ 
 
-Item *Item_default_value::transform(Item_transformer transformer, byte *args)
+Item *Item_default_value::transform(Item_transformer transformer, uchar *args)
 {
   DBUG_ASSERT(!current_thd->is_stmt_prepare());
 
@@ -6790,7 +6792,7 @@ Field *Item_type_holder::make_field_by_type(TABLE *table)
   switch (fld_type) {
   case MYSQL_TYPE_ENUM:
     DBUG_ASSERT(enum_set_typelib);
-    field= new Field_enum((char *) 0, max_length, null_ptr, 0,
+    field= new Field_enum((uchar *) 0, max_length, null_ptr, 0,
                           Field::NONE, name,
                           get_enum_pack_length(enum_set_typelib->count),
                           enum_set_typelib, collation.collation);
@@ -6799,7 +6801,7 @@ Field *Item_type_holder::make_field_by_type(TABLE *table)
     return field;
   case MYSQL_TYPE_SET:
     DBUG_ASSERT(enum_set_typelib);
-    field= new Field_set((char *) 0, max_length, null_ptr, 0,
+    field= new Field_set((uchar *) 0, max_length, null_ptr, 0,
                          Field::NONE, name,
                          get_set_pack_length(enum_set_typelib->count),
                          enum_set_typelib, collation.collation);

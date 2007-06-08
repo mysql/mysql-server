@@ -92,6 +92,9 @@ extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
 extern char NEAR _dig_vec_upper[];
 extern char NEAR _dig_vec_lower[];
 
+/* Defined in strtod.c */
+extern const double log_10[309];
+
 #ifdef BAD_STRING_COMPILER
 #define strmov(A,B)  (memccpy(A,B,0,INT_MAX)-1)
 #else
@@ -112,59 +115,59 @@ extern char NEAR _dig_vec_lower[];
 	/* Prototypes for string functions */
 
 #if !defined(bfill) && !defined(HAVE_BFILL)
-extern	void bfill(gptr dst,uint len,pchar fill);
+extern	void bfill(uchar *dst,size_t len,pchar fill);
 #endif
 
 #if !defined(bzero) && !defined(HAVE_BZERO)
-extern	void bzero(gptr dst,uint len);
+extern	void bzero(uchar * dst,size_t len);
 #endif
 
 #if !defined(bcmp) && !defined(HAVE_BCMP)
-extern	int bcmp(const char *s1,const char *s2,uint len);
+extern	size_t bcmp(const uchar *s1,const uchar *s2,size_t len);
 #endif
 #ifdef HAVE_purify
-extern	int my_bcmp(const char *s1,const char *s2,uint len);
+extern	size_t my_bcmp(const uchar *s1,const uchar *s2,size_t len);
 #undef bcmp
 #define bcmp(A,B,C) my_bcmp((A),(B),(C))
 #endif
 
 #ifndef bmove512
-extern	void bmove512(gptr dst,const gptr src,uint len);
+extern	void bmove512(uchar *dst,const uchar *src,size_t len);
 #endif
 
 #if !defined(HAVE_BMOVE) && !defined(bmove)
-extern	void bmove(char *dst, const char *src,uint len);
+extern	void bmove(uuchar *dst, const uchar *src,size_t len);
 #endif
 
-extern	void bmove_upp(char *dst,const char *src,uint len);
-extern	void bchange(char *dst,uint old_len,const char *src,
-		     uint new_len,uint tot_len);
-extern	void strappend(char *s,uint len,pchar fill);
+extern	void bmove_upp(uchar *dst,const uchar *src,size_t len);
+extern	void bchange(uchar *dst,size_t old_len,const uchar *src,
+		     size_t new_len,size_t tot_len);
+extern	void strappend(char *s,size_t len,pchar fill);
 extern	char *strend(const char *s);
 extern  char *strcend(const char *, pchar);
 extern	char *strfield(char *src,int fields,int chars,int blanks,
 			   int tabch);
-extern	char *strfill(my_string s,uint len,pchar fill);
-extern	uint strinstr(const char *str,const char *search);
-extern  uint r_strinstr(reg1 my_string str,int from, reg4 my_string search);
+extern	char *strfill(char * s,size_t len,pchar fill);
+extern	size_t strinstr(const char *str,const char *search);
+extern  size_t r_strinstr(const char *str, size_t from, const char *search);
 extern	char *strkey(char *dst,char *head,char *tail,char *flags);
-extern	char *strmake(char *dst,const char *src,uint length);
+extern	char *strmake(char *dst,const char *src,size_t length);
 #ifndef strmake_overlapp
-extern	char *strmake_overlapp(char *dst,const char *src, uint length);
+extern	char *strmake_overlapp(char *dst,const char *src, size_t length);
 #endif
 
 #ifndef strmov
 extern	char *strmov(char *dst,const char *src);
 #endif
-extern	char *strnmov(char *dst,const char *src,uint n);
+extern	char *strnmov(char *dst,const char *src,size_t n);
 extern	char *strsuff(const char *src,const char *suffix);
 extern	char *strcont(const char *src,const char *set);
 extern	char *strxcat _VARARGS((char *dst,const char *src, ...));
 extern	char *strxmov _VARARGS((char *dst,const char *src, ...));
 extern	char *strxcpy _VARARGS((char *dst,const char *src, ...));
-extern	char *strxncat _VARARGS((char *dst,uint len, const char *src, ...));
-extern	char *strxnmov _VARARGS((char *dst,uint len, const char *src, ...));
-extern	char *strxncpy _VARARGS((char *dst,uint len, const char *src, ...));
+extern	char *strxncat _VARARGS((char *dst,size_t len, const char *src, ...));
+extern	char *strxnmov _VARARGS((char *dst,size_t len, const char *src, ...));
+extern	char *strxncpy _VARARGS((char *dst,size_t len, const char *src, ...));
 
 /* Prototypes of normal stringfunctions (with may ours) */
 
@@ -179,7 +182,7 @@ extern size_t strlen(const char *);
 #endif
 #endif
 #ifndef HAVE_STRNLEN
-extern uint strnlen(const char *s, uint n);
+extern size_t strnlen(const char *s, size_t n);
 #endif
 
 #if !defined(__cplusplus)
@@ -232,9 +235,9 @@ extern ulonglong strtoull(const char *str, char **ptr, int base);
 
 /* my_vsnprintf.c */
 
-extern int my_vsnprintf( char *str, size_t n,
-                                const char *format, va_list ap );
-extern int my_snprintf(char *to, size_t n, const char *fmt, ...)
+extern size_t my_vsnprintf(char *str, size_t n,
+                           const char *format, va_list ap);
+extern size_t my_snprintf(char *to, size_t n, const char *fmt, ...)
   ATTRIBUTE_FORMAT(printf, 3, 4);
 
 #if defined(__cplusplus)
@@ -245,17 +248,18 @@ extern int my_snprintf(char *to, size_t n, const char *fmt, ...)
   LEX_STRING -- a pair of a C-string and its length.
 
   NOTE: this exactly form of declaration is required for some C-compilers
-  (for one, Sun C 5.7 2005/01/07). Unfortunatelt with such declaration
+  (for one, Sun C 5.7 2005/01/07). Unfortunately with such declaration
   LEX_STRING can not be forward declared.
 */
 
 typedef struct
 {
   char *str;
-  uint length;
+  size_t length;
 } LEX_STRING;
 
-#define STRING_WITH_LEN(X) (X), ((uint) (sizeof(X) - 1))
-#define C_STRING_WITH_LEN(X) ((char *) (X)), ((uint) (sizeof(X) - 1))
+#define STRING_WITH_LEN(X) (X), ((size_t) (sizeof(X) - 1))
+#define USTRING_WITH_LEN(X) ((uchar*) X), ((size_t) (sizeof(X) - 1))
+#define C_STRING_WITH_LEN(X) ((char *) (X)), ((size_t) (sizeof(X) - 1))
 
 #endif

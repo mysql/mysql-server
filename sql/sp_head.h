@@ -176,7 +176,9 @@ public:
   */
   HASH m_sroutines;
   // Pointers set during parsing
-  const char *m_param_begin, *m_param_end, *m_body_begin;
+  const char *m_param_begin;
+  const char *m_param_end;
+  const char *m_body_begin;
 
   /*
     Security context for stored routine which should be run under
@@ -223,11 +225,8 @@ public:
   bool
   execute_procedure(THD *thd, List<Item> *args);
 
-  int
-  show_create_procedure(THD *thd);
-
-  int
-  show_create_function(THD *thd);
+  bool
+  show_create_routine(THD *thd, int type);
 
   void
   add_instr(sp_instr *instr);
@@ -243,7 +242,7 @@ public:
   {
     sp_instr *i;
 
-    get_dynamic(&m_instr, (gptr)&i, m_instr.elements-1);
+    get_dynamic(&m_instr, (uchar*)&i, m_instr.elements-1);
     return i;
   }
 
@@ -325,7 +324,7 @@ public:
     sp_instr *ip;
 
     if (i < m_instr.elements)
-      get_dynamic(&m_instr, (gptr)&ip, i);
+      get_dynamic(&m_instr, (uchar*)&ip, i);
     else
       ip= NULL;
     return ip;
@@ -989,6 +988,12 @@ public:
   virtual int execute(THD *thd, uint *nextp);
 
   virtual void print(String *str);
+
+  /* This instruction will not be short cut optimized. */
+  virtual uint opt_shortcut_jump(sp_head *sp, sp_instr *start)
+  {
+    return m_ip;
+  }
 
   virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
 

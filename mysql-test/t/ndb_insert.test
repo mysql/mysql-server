@@ -433,7 +433,7 @@ SELECT COUNT(*) FROM t1;
 #
 # Insert duplicate rows
 # 
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 INSERT INTO t1 VALUES (1,1,1);
 
 --error 1022
@@ -629,5 +629,14 @@ INSERT IGNORE INTO t1 VALUES (1,1),(2,2),(3,3);
 INSERT IGNORE INTO t1 VALUES (4,NULL),(5,NULL),(6,NULL),(7,4);
 SELECT * FROM t1 ORDER BY pk;
 DROP TABLE t1;
+
+#
+# Bug #27980  	INSERT IGNORE wrongly ignores NULLs in unique index
+#
+
+create table t1(a int primary key, b int, unique key(b)) engine=ndb;
+insert ignore into t1 values (1,0), (2,0), (2,null), (3,null);
+select * from t1 order by a;
+drop table t1;
 
 # End of 4.1 tests

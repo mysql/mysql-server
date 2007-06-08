@@ -53,7 +53,6 @@ typedef char my_bool;
 #else
 #define STDCALL __stdcall
 #endif
-typedef char * gptr;
 
 #ifndef my_socket_defined
 #ifdef __WIN__
@@ -67,7 +66,6 @@ typedef int my_socket;
 #include "mysql_version.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
-#include "typelib.h"
 
 #include "my_list.h" /* for LISTs used in 'MYSQL' and 'MYSQL_STMT' */
 
@@ -125,6 +123,8 @@ typedef unsigned __int64 my_ulonglong;
 typedef unsigned long long my_ulonglong;
 #endif
 #endif
+
+#include "typelib.h"
 
 #define MYSQL_COUNT_ERROR (~(my_ulonglong) 0)
 
@@ -251,9 +251,9 @@ struct st_mysql_stmt;
 typedef struct st_mysql
 {
   NET		net;			/* Communication parameters */
-  gptr		connector_fd;		/* ConnectorFd for SSL */
-  char		*host,*user,*passwd,*unix_socket,*server_version,*host_info,*info;
-  char          *db;
+  unsigned char	*connector_fd;		/* ConnectorFd for SSL */
+  char		*host,*user,*passwd,*unix_socket,*server_version,*host_info;
+  char          *info, *db;
   struct charset_info_st *charset;
   MYSQL_FIELD	*fields;
   MEM_ROOT	field_alloc;
@@ -752,9 +752,9 @@ typedef struct st_mysql_methods
   my_bool (*read_query_result)(MYSQL *mysql);
   my_bool (*advanced_command)(MYSQL *mysql,
 			      enum enum_server_command command,
-			      const char *header,
+			      const unsigned char *header,
 			      unsigned long header_length,
-			      const char *arg,
+			      const unsigned char *arg,
 			      unsigned long arg_length,
 			      my_bool skip_check,
                               MYSQL_STMT *stmt);
@@ -847,10 +847,10 @@ int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
 */
 
 #define simple_command(mysql, command, arg, length, skip_check) \
-  (*(mysql)->methods->advanced_command)(mysql, command, NullS,  \
+  (*(mysql)->methods->advanced_command)(mysql, command, 0,  \
                                         0, arg, length, skip_check, NULL)
 #define stmt_command(mysql, command, arg, length, stmt) \
-  (*(mysql)->methods->advanced_command)(mysql, command, NullS,  \
+  (*(mysql)->methods->advanced_command)(mysql, command, 0,  \
                                         0, arg, length, 1, stmt)
 
 #ifdef __NETWARE__

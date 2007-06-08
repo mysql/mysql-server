@@ -58,7 +58,7 @@ $Devel::Trace::TRACE= 0;       # Don't trace boring init stuff
 use File::Path;
 use File::Basename;
 use File::Copy;
-use File::Temp qw / tempdir /;
+use File::Temp qw /tempdir/;
 use Cwd;
 use Getopt::Long;
 use Sys::Hostname;
@@ -104,8 +104,6 @@ our $glob_mysql_bench_dir=        undef;
 our $glob_hostname=               undef;
 our $glob_scriptname=             undef;
 our $glob_timers=                 undef;
-our $glob_use_running_ndbcluster= 0;
-our $glob_use_running_ndbcluster_slave= 0;
 our $glob_use_embedded_server=    0;
 our @glob_test_mode;
 
@@ -113,6 +111,7 @@ our $glob_basedir;
 
 our $path_charsetsdir;
 our $path_client_bindir;
+our $path_share;
 our $path_language;
 our $path_timefile;
 our $path_snapshot;
@@ -666,6 +665,7 @@ sub command_line_setup () {
     $glob_mysql_test_dir= `cygpath -m "$glob_mysql_test_dir"`;
     chomp($glob_mysql_test_dir);
   }
+  $default_vardir= "$glob_mysql_test_dir/var";
 
   # In most cases, the base directory we find everything relative to,
   # is the parent directory of the "mysql-test" directory. For source
@@ -704,6 +704,15 @@ sub command_line_setup () {
 				       vs_config_dirs('client', ''),
 				       "$glob_basedir/client",
 				       "$glob_basedir/bin");
+
+  # Look for language files and charsetsdir, use same share
+  $path_share=      mtr_path_exists("$glob_basedir/share/mysql",
+                                    "$glob_basedir/sql/share",
+                                    "$glob_basedir/share");
+
+  $path_language=      mtr_path_exists("$path_share/english");
+  $path_charsetsdir=   mtr_path_exists("$path_share/charsets");
+
 
   if (!$opt_extern)
   {
@@ -762,7 +771,7 @@ sub command_line_setup () {
   # Find out type of logging that are being used
   # --------------------------------------------------------------------------
   # NOTE if the default binlog format is changed, this has to be changed
-  $used_binlog_format= "stmt";
+  $used_binlog_format= "statement";
   if (!$opt_extern && $mysql_version_id >= 50100 )
   {
     $used_binlog_format= "mixed"; # Default value for binlog format
@@ -827,7 +836,6 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Set the "var/" directory, as it is the base for everything else
   # --------------------------------------------------------------------------
-  $default_vardir= "$glob_mysql_test_dir/var";
   if ( ! $opt_vardir )
   {
     $opt_vardir= $default_vardir;
@@ -904,6 +912,9 @@ sub command_line_setup () {
     $opt_skip_ndbcluster= 1;       # Turn off use of NDB cluster
     $opt_skip_ssl= 1;              # Turn off use of SSL
 
+    # Turn off use of bin log
+    push(@opt_extra_mysqld_opt, "--skip-log-bin");
+
     if ( $opt_extern )
     {
       mtr_error("Can't use --extern with --embedded-server");
@@ -917,40 +928,6 @@ sub command_line_setup () {
   if ( $opt_ps_protocol )
   {
     push(@glob_test_mode, "ps-protocol");
-  }
-
-  # --------------------------------------------------------------------------
-  # Ndb cluster flags
-  # --------------------------------------------------------------------------
-
-  if ( $opt_ndbconnectstring )
-  {
-    $glob_use_running_ndbcluster= 1;
-    mtr_error("Can't specify --ndb-connectstring and --skip-ndbcluster")
-      if $opt_skip_ndbcluster;
-    mtr_error("Can't specify --ndb-connectstring and --ndbcluster-port")
-      if $opt_ndbcluster_port;
-  }
-  else
-  {
-    # Set default connect string
-    $opt_ndbconnectstring= "host=localhost:$opt_ndbcluster_port";
-  }
-
-  if ( $opt_ndbconnectstring_slave )
-  {
-      $glob_use_running_ndbcluster_slave= 1;
-      mtr_error("Can't specify ndb-connectstring_slave and " .
-		"--skip-ndbcluster-slave")
-	if $opt_skip_ndbcluster;
-      mtr_error("Can't specify --ndb-connectstring-slave and " .
-		"--ndbcluster-port-slave")
-	if $opt_ndbcluster_port_slave;
-  }
-  else
-  {
-    # Set default connect string
-    $opt_ndbconnectstring_slave= "host=localhost:$opt_ndbcluster_port_slave";
   }
 
   # --------------------------------------------------------------------------
@@ -1072,7 +1049,7 @@ sub command_line_setup () {
   # On some operating systems, there is a limit to the length of a
   # UNIX domain socket's path far below PATH_MAX, so try to avoid long
   # socket path names.
-  $sockdir = tempdir(CLEANUP => 0) if ( length($sockdir) >= 80 );
+  $sockdir = tempdir(CLEANUP => 0) if ( length($sockdir) >= 70 );
 
   $master->[0]=
   {
@@ -1196,7 +1173,7 @@ sub command_line_setup () {
    nodes           => 2,
    port            => "$opt_ndbcluster_port",
    data_dir        => "$data_dir",
-   connect_string  => "$opt_ndbconnectstring",
+   connect_string  => "host=localhost:$opt_ndbcluster_port",
    path_pid        => "$data_dir/ndb_3.pid", # Nodes + 1
    pid             => 0, # pid of ndb_mgmd
    installed_ok    => 0,
@@ -1209,7 +1186,7 @@ sub command_line_setup () {
    nodes           => 1,
    port            => "$opt_ndbcluster_port_slave",
    data_dir        => "$data_dir",
-   connect_string  => "$opt_ndbconnectstring_slave",
+   connect_string  => "host=localhost:$opt_ndbcluster_port_slave",
    path_pid        => "$data_dir/ndb_2.pid", # Nodes + 1
    pid             => 0, # pid of ndb_mgmd
    installed_ok    => 0,
@@ -1231,6 +1208,9 @@ sub command_line_setup () {
     }
   }
 
+  # --------------------------------------------------------------------------
+  # extern
+  # --------------------------------------------------------------------------
   if ( $opt_extern )
   {
     # Turn off features not supported when running with extern server
@@ -1246,6 +1226,38 @@ sub command_line_setup () {
     mtr_error("--socket can only be used in combination with --extern")
       if $opt_socket;
   }
+
+
+  # --------------------------------------------------------------------------
+  # ndbconnectstring and ndbconnectstring_slave
+  # --------------------------------------------------------------------------
+  if ( $opt_ndbconnectstring )
+  {
+    # ndbconnectstring was supplied by user, the tests shoudl be run
+    # against an already started cluster, change settings
+    my $cluster= $clusters->[0]; # Master cluster
+    $cluster->{'connect_string'}= $opt_ndbconnectstring;
+    $cluster->{'use_running'}= 1;
+
+    mtr_error("Can't specify --ndb-connectstring and --skip-ndbcluster")
+      if $opt_skip_ndbcluster;
+  }
+  $ENV{'NDB_CONNECTSTRING'}= $clusters->[0]->{'connect_string'};
+
+
+  if ( $opt_ndbconnectstring_slave )
+  {
+    # ndbconnectstring-slave was supplied by user, the tests should be run
+    # agains an already started slave cluster, change settings
+    my $cluster= $clusters->[1]; # Slave cluster
+    $cluster->{'connect_string'}= $opt_ndbconnectstring_slave;
+    $cluster->{'use_running'}= 1;
+
+    mtr_error("Can't specify ndb-connectstring_slave and " .
+	      "--skip-ndbcluster-slave")
+      if $opt_skip_ndbcluster_slave;
+  }
+
 
   $path_timefile=  "$opt_vardir/log/mysqltest-time";
   $path_mysqltest_log=  "$opt_vardir/log/mysqltest.log";
@@ -1345,10 +1357,15 @@ sub collect_mysqld_features () {
   my $found_variable_list_start= 0;
 
   #
-  # Execute "mysqld --no-defaults --help --verbose" to get a
+  # Execute "mysqld --help --verbose" to get a list
   # list of all features and settings
   #
-  my $list= `$exe_mysqld --no-defaults --verbose --help`;
+  # --no-defaults and --skip-grant-tables are to avoid loading
+  # system-wide configs and plugins
+  #
+  # --datadir must exist, mysqld will chdir into it
+  #
+  my $list= `$exe_mysqld --no-defaults --datadir=$path_language --language=$path_language --skip-grant-tables --verbose --help`;
 
   foreach my $line (split('\n', $list))
   {
@@ -1510,14 +1527,6 @@ sub executable_setup () {
       mtr_report("Using \"$exe_libtool\" when running valgrind or debugger");
     }
   }
-
-  # Look for language files and charsetsdir, use same share
-  my $path_share=      mtr_path_exists("$glob_basedir/share/mysql",
-				       "$glob_basedir/sql/share",
-				       "$glob_basedir/share");
-
-  $path_language=      mtr_path_exists("$path_share/english");
-  $path_charsetsdir=   mtr_path_exists("$path_share/charsets");
 
   # Look for my_print_defaults
   $exe_my_print_defaults=
@@ -1760,22 +1769,6 @@ sub environment_setup () {
   }
 
   # --------------------------------------------------------------------------
-  # Add the path where mysqld will find udf_example.so
-  # --------------------------------------------------------------------------
-  if ( $lib_udf_example )
-  {
-    push(@ld_library_paths, dirname($lib_udf_example));
-  }
-
-  # --------------------------------------------------------------------------
-  # Add the path where mysqld will find ha_example.so
-  # --------------------------------------------------------------------------
-  if ( $lib_example_plugin )
-  {
-    push(@ld_library_paths, dirname($lib_example_plugin));
-  }
-
-  # --------------------------------------------------------------------------
   # Valgrind need to be run with debug libraries otherwise it's almost
   # impossible to add correct supressions, that means if "/usr/lib/debug"
   # is available, it should be added to
@@ -1805,6 +1798,17 @@ sub environment_setup () {
 				  split(':', $ENV{'DYLD_LIBRARY_PATH'}) : ());
   mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
 
+  # The environment variable used for shared libs on AIX
+  $ENV{'SHLIB_PATH'}= join(":", @ld_library_paths,
+                           $ENV{'SHLIB_PATH'} ?
+                           split(':', $ENV{'SHLIB_PATH'}) : ());
+  mtr_debug("SHLIB_PATH: $ENV{'SHLIB_PATH'}");
+
+  # The environment variable used for shared libs on hp-ux
+  $ENV{'LIBPATH'}= join(":", @ld_library_paths,
+                        $ENV{'LIBPATH'} ?
+                        split(':', $ENV{'LIBPATH'}) : ());
+  mtr_debug("LIBPATH: $ENV{'LIBPATH'}");
 
   # --------------------------------------------------------------------------
   # Also command lines in .opt files may contain env vars
@@ -1813,6 +1817,18 @@ sub environment_setup () {
   $ENV{'CHARSETSDIR'}=              $path_charsetsdir;
   $ENV{'UMASK'}=              "0660"; # The octal *string*
   $ENV{'UMASK_DIR'}=          "0770"; # The octal *string*
+  
+  #
+  # MySQL tests can produce output in various character sets
+  # (especially, ctype_xxx.test). To avoid confusing Perl
+  # with output which is incompatible with the current locale
+  # settings, we reset the current values of LC_ALL and LC_CTYPE to "C".
+  # For details, please see
+  # Bug#27636 tests fails if LC_* variables set to *_*.UTF-8
+  #
+  $ENV{'LC_ALL'}=             "C";
+  $ENV{'LC_CTYPE'}=           "C";
+  
   $ENV{'LC_COLLATE'}=         "C";
   $ENV{'USE_RUNNING_SERVER'}= $opt_extern;
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
@@ -1853,7 +1869,6 @@ sub environment_setup () {
     $ENV{'NDB_DATA_DIR'}=             $clusters->[0]->{'data_dir'};
     $ENV{'NDB_TOOLS_DIR'}=            $path_ndb_tools_dir;
     $ENV{'NDB_TOOLS_OUTPUT'}=         $path_ndb_testrun_log;
-    $ENV{'NDB_CONNECTSTRING'}=        $opt_ndbconnectstring;
 
     if ( $mysql_version_id >= 50000 )
     {
@@ -2053,12 +2068,16 @@ sub environment_setup () {
   # ----------------------------------------------------
   $ENV{'UDF_EXAMPLE_LIB'}=
     ($lib_udf_example ? basename($lib_udf_example) : "");
+  $ENV{'UDF_EXAMPLE_LIB_OPT'}=
+    ($lib_udf_example ? "--plugin_dir=" . dirname($lib_udf_example) : "");
 
   # ----------------------------------------------------
   # Add the path where mysqld will find ha_example.so
   # ----------------------------------------------------
   $ENV{'EXAMPLE_PLUGIN'}=
     ($lib_example_plugin ? basename($lib_example_plugin) : "");
+  $ENV{'EXAMPLE_PLUGIN_OPT'}=
+    ($lib_example_plugin ? "--plugin_dir=" . dirname($lib_example_plugin) : "");
 
   # ----------------------------------------------------
   # We are nice and report a bit about our settings
@@ -2328,16 +2347,23 @@ sub  check_running_as_root () {
     close FILE;
   }
 
-  chmod(oct("0755"), $test_file);
-  unlink($test_file);
+  # Some filesystems( for example CIFS) allows reading a file
+  # although mode was set to 0000, but in that case a stat on
+  # the file will not return 0000
+  my $file_mode= (stat($test_file))[2] & 07777;
 
   $ENV{'MYSQL_TEST_ROOT'}= "NO";
-  if ($result eq "MySQL")
+  mtr_verbose("result: $result, file_mode: $file_mode");
+  if ($result eq "MySQL" && $file_mode == 0)
   {
     mtr_warning("running this script as _root_ will cause some " .
                 "tests to be skipped");
     $ENV{'MYSQL_TEST_ROOT'}= "YES";
   }
+
+  chmod(oct("0755"), $test_file);
+  unlink($test_file);
+
 }
 
 
@@ -2487,7 +2513,7 @@ sub ndbcluster_start_install ($) {
     else
     {
       $ndb_no_ord=32;
-      $ndb_con_op=5000;
+      $ndb_con_op=10000;
       $ndb_dmem="20M";
       $ndb_imem="1M";
       $ndb_pbmem="4M";
@@ -2674,7 +2700,7 @@ sub ndbcluster_start ($$) {
 
   mtr_verbose("ndbcluster_start '$cluster->{'name'}'");
 
-  if ( $glob_use_running_ndbcluster )
+  if ( $cluster->{'use_running'} )
   {
     return 0;
   }
@@ -2891,30 +2917,34 @@ sub mysql_install_db () {
 
   my $cluster_started_ok= 1; # Assume it can be started
 
-  if ($opt_skip_ndbcluster || $glob_use_running_ndbcluster ||
-      $clusters->[0]->{executable_setup_failed})
+  my $cluster= $clusters->[0]; # Master cluster
+  if ($opt_skip_ndbcluster ||
+      $cluster->{'use_running'} ||
+      $cluster->{executable_setup_failed})
   {
     # Don't install master cluster
   }
-  elsif (ndbcluster_start_install($clusters->[0]))
+  elsif (ndbcluster_start_install($cluster))
   {
-    mtr_warning("Failed to start install of $clusters->[0]->{name}");
+    mtr_warning("Failed to start install of $cluster->{name}");
     $cluster_started_ok= 0;
   }
 
+  $cluster= $clusters->[1]; # Slave cluster
   if ($max_slave_num == 0 ||
-      $opt_skip_ndbcluster_slave || $glob_use_running_ndbcluster_slave ||
-      $clusters->[1]->{executable_setup_failed})
+      $opt_skip_ndbcluster_slave ||
+      $cluster->{'use_running'} ||
+      $cluster->{executable_setup_failed})
   {
     # Don't install slave cluster
   }
-  elsif (ndbcluster_start_install($clusters->[1]))
+  elsif (ndbcluster_start_install($cluster))
   {
-    mtr_warning("Failed to start install of $clusters->[1]->{name}");
+    mtr_warning("Failed to start install of $cluster->{name}");
     $cluster_started_ok= 0;
   }
 
-  foreach my $cluster (@{$clusters})
+  foreach $cluster (@{$clusters})
   {
 
     next if !$cluster->{'pid'};
@@ -2972,8 +3002,8 @@ sub install_db ($$) {
   mtr_add_arg($args, "--bootstrap");
   mtr_add_arg($args, "--basedir=%s", $path_my_basedir);
   mtr_add_arg($args, "--datadir=%s", $data_dir);
-  mtr_add_arg($args, "--skip-innodb");
-  mtr_add_arg($args, "--skip-ndbcluster");
+  mtr_add_arg($args, "--loose-skip-innodb");
+  mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=.");
   mtr_add_arg($args, "--core-file");
 
@@ -3114,8 +3144,8 @@ basedir             = $path_my_basedir
 server_id           = $server_id
 shutdown-delay      = 10
 skip-stack-trace
-skip-innodb
-skip-ndbcluster
+loose-skip-innodb
+loose-skip-ndbcluster
 EOF
 ;
     if ( $mysql_version_id < 50100 )
@@ -3189,8 +3219,15 @@ sub run_testcase_check_skip_test($)
   {
     foreach my $cluster (@{$clusters})
     {
+      # Slave cluster is skipped and thus not
+      # installed, no need to perform checks
       last if ($opt_skip_ndbcluster_slave and
 	       $cluster->{'name'} eq 'Slave');
+
+      # Using running cluster - no need
+      # to check if test should be skipped
+      # will be done by test itself
+      last if ($cluster->{'use_running'});
 
       # If test needs this cluster, check binaries was found ok
       if ( $cluster->{'executable_setup_failed'} )
@@ -3644,6 +3681,9 @@ sub do_before_start_master ($) {
 
   # FIXME what about second master.....
 
+  # Don't delete anything if starting dirty
+  return if ($opt_start_dirty);
+
   foreach my $bin ( glob("$opt_vardir/log/master*-bin*") )
   {
     unlink($bin);
@@ -3665,6 +3705,9 @@ sub do_before_start_slave ($) {
 
   my $tname= $tinfo->{'name'};
   my $init_script= $tinfo->{'master_sh'};
+
+  # Don't delete anything if starting dirty
+  return if ($opt_start_dirty);
 
   foreach my $bin ( glob("$opt_vardir/log/slave*-bin*") )
   {
@@ -3788,23 +3831,19 @@ sub mysqld_arguments ($$$$) {
     mtr_add_arg($args, "%s--server-id=%d", $prefix,
 	       $idx > 0 ? $idx + 101 : 1);
 
-    mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:10M:autoextend",
+    mtr_add_arg($args, "%s--loose-innodb_data_file_path=ibdata1:10M:autoextend",
 		$prefix);
 
     mtr_add_arg($args, "%s--local-infile", $prefix);
 
     if ( $idx > 0 or !$use_innodb)
     {
-      mtr_add_arg($args, "%s--skip-innodb", $prefix);
+      mtr_add_arg($args, "%s--loose-skip-innodb", $prefix);
     }
 
     my $cluster= $clusters->[$mysqld->{'cluster'}];
-    if ( $opt_skip_ndbcluster ||
-	 !$cluster->{'pid'})
-    {
-      mtr_add_arg($args, "%s--skip-ndbcluster", $prefix);
-    }
-    else
+    if ( $cluster->{'pid'} ||           # Cluster is started
+	 $cluster->{'use_running'} )    # Using running cluster
     {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
@@ -3814,9 +3853,10 @@ sub mysqld_arguments ($$$$) {
 	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
       }
     }
-
-      mtr_add_arg($args, "%s--plugin_dir=%s", $prefix,
-		  dirname($lib_example_plugin));
+    else
+    {
+      mtr_add_arg($args, "%s--loose-skip-ndbcluster", $prefix);
+    }
   }
   else
   {
@@ -3839,7 +3879,7 @@ sub mysqld_arguments ($$$$) {
     mtr_add_arg($args, "%s--report-port=%d", $prefix,
                 $mysqld->{'port'});
     mtr_add_arg($args, "%s--report-user=root", $prefix);
-    mtr_add_arg($args, "%s--skip-innodb", $prefix);
+    mtr_add_arg($args, "%s--loose-skip-innodb", $prefix);
     mtr_add_arg($args, "%s--skip-slave-start", $prefix);
 
     # Directory where slaves find the dumps generated by "load data"
@@ -3859,36 +3899,39 @@ sub mysqld_arguments ($$$$) {
     }
     else
     {
-      mtr_add_arg($args, "%s--master-user=root", $prefix);
-      mtr_add_arg($args, "%s--master-connect-retry=1", $prefix);
-      mtr_add_arg($args, "%s--master-host=127.0.0.1", $prefix);
-      mtr_add_arg($args, "%s--master-password=", $prefix);
-      mtr_add_arg($args, "%s--master-port=%d", $prefix,
-                  $master->[0]->{'port'}); # First master
-
+      if ($mysql_version_id < 50200)
+      {
+        mtr_add_arg($args, "%s--master-user=root", $prefix);
+        mtr_add_arg($args, "%s--master-connect-retry=1", $prefix);
+        mtr_add_arg($args, "%s--master-host=127.0.0.1", $prefix);
+        mtr_add_arg($args, "%s--master-password=", $prefix);
+        mtr_add_arg($args, "%s--master-port=%d", $prefix,
+    	            $master->[0]->{'port'}); # First master
+      }
       my $slave_server_id=  2 + $idx;
       my $slave_rpl_rank= $slave_server_id;
       mtr_add_arg($args, "%s--server-id=%d", $prefix, $slave_server_id);
       mtr_add_arg($args, "%s--rpl-recovery-rank=%d", $prefix, $slave_rpl_rank);
     }
 
-    if ( $opt_skip_ndbcluster_slave ||
-         $mysqld->{'cluster'} == -1 ||
-	 !$clusters->[$mysqld->{'cluster'}]->{'pid'} )
-    {
-      mtr_add_arg($args, "%s--skip-ndbcluster", $prefix);
-    }
-    else
+    my $cluster= $clusters->[$mysqld->{'cluster'}];
+    if ( $cluster->{'pid'} ||         # Slave cluster is started
+	 $cluster->{'use_running'} )  # Using running slave cluster
     {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
-		  $clusters->[$mysqld->{'cluster'}]->{'connect_string'});
+		  $cluster->{'connect_string'});
 
       if ( $mysql_version_id >= 50100 )
       {
 	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
       }
     }
+    else
+    {
+      mtr_add_arg($args, "%s--loose-skip-ndbcluster", $prefix);
+    }
+
   } # end slave
 
   if ( $opt_debug )
@@ -4437,7 +4480,8 @@ sub run_testcase_start_servers($) {
 
     }
 
-    if ( $clusters->[0]->{'pid'} and ! $master->[1]->{'pid'} and
+    if ( $clusters->[0]->{'pid'} || $clusters->[0]->{'use_running'}
+	 and ! $master->[1]->{'pid'} and
 	 $tinfo->{'master_num'} > 1 )
     {
       # Test needs cluster, start an extra mysqld connected to cluster

@@ -96,7 +96,7 @@ INSERT INTO t1 VALUES (1,0,0),(3,1,1),(4,1,1),(8,2,2),(9,2,2),(17,3,2),(22,4,2),
 update t1 set parent_id=parent_id+100;
 select * from t1 where parent_id=102;
 update t1 set id=id+1000;
--- error ER_DUP_ENTRY_WITH_KEY_NAME,1022
+-- error ER_DUP_ENTRY,1022
 update t1 set id=1024 where id=1009;
 select * from t1;
 update ignore t1 set id=id+1; # This will change all rows
@@ -179,13 +179,13 @@ commit;
 select n, "after commit" from t1;
 commit;
 insert into t1 values (5);
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t1 values (4);
 commit;
 select n, "after commit" from t1;
 set autocommit=1;
 insert into t1 values (6);
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t1 values (4);
 select n from t1;
 set autocommit=0;
@@ -259,7 +259,7 @@ drop table t1;
 
 eval CREATE TABLE t1 (id char(8) not null primary key, val int not null) engine=$engine_type;
 insert into t1 values ('pippo', 12);
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t1 values ('pippo', 12); # Gives error
 delete from t1;
 delete from t1 where id = 'pippo';
@@ -390,9 +390,9 @@ eval CREATE TABLE t1 (
 
 insert into t1 (ggid,passwd) values ('test1','xxx');
 insert into t1 (ggid,passwd) values ('test2','yyy');
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t1 (ggid,passwd) values ('test2','this will fail');
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t1 (ggid,id) values ('this will fail',1);
 
 select * from t1 where ggid='test1';
@@ -401,7 +401,7 @@ select * from t1 where id=2;
 
 replace into t1 (ggid,id) values ('this will work',1);
 replace into t1 (ggid,passwd) values ('test2','this will work');
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 update t1 set id=100,ggid='test2' where id=1;
 select * from t1;
 select * from t1 where id=1;
@@ -572,7 +572,7 @@ drop table t1;
 eval create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(30),primary key (id,id2),index index_id3 (id3)) engine=$engine_type;
 insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
 LOCK TABLES t1 WRITE;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values (99,1,2,'D'),(1,1,2,'D');
 select id from t1;
 select id from t1;
@@ -583,7 +583,7 @@ eval create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 c
 insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
 LOCK TABLES t1 WRITE;
 begin;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values (99,1,2,'D'),(1,1,2,'D');
 select id from t1;
 insert ignore into t1 values (100,1,2,'D'),(1,1,99,'D');
@@ -1513,7 +1513,7 @@ eval create table t1 (rowid int not null auto_increment, val int not null,primar
 key (rowid), unique(val)) engine=$engine_type;
 replace into t1 (val) values ('1'),('2');
 replace into t1 (val) values ('1'),('2');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 (val) values ('1'),('2');
 select * from t1;
 drop table t1;
@@ -1528,7 +1528,7 @@ eval create table t1 (a int not null auto_increment primary key, val int) engine
 insert into t1 (val) values (1);
 update t1 set a=2 where a=1;
 # We should get the following error because InnoDB does not update the counter
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 (val) values (1);
 select * from t1;
 drop table t1;
@@ -1894,13 +1894,13 @@ eval create table t3 (s1 varchar(2) binary,primary key (s1)) engine=$engine_type
 eval create table t4 (s1 char(2) binary,primary key (s1)) engine=$engine_type;
 
 insert into t1 values (0x41),(0x4120),(0x4100);
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t2 values (0x41),(0x4120),(0x4100);
 insert into t2 values (0x41),(0x4120);
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t3 values (0x41),(0x4120),(0x4100);
 insert into t3 values (0x41),(0x4100);
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t4 values (0x41),(0x4120),(0x4100);
 insert into t4 values (0x41),(0x4100);
 select hex(s1) from t1;

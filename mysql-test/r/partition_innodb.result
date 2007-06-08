@@ -55,6 +55,7 @@ engine = x
 partition by key (a);
 Warnings:
 Warning	1286	Unknown table engine 'x'
+Warning	1266	Using storage engine MyISAM for table 't1'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

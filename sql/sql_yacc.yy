@@ -49,9 +49,9 @@ const LEX_STRING null_lex_str={0,0};
 
 #define MYSQL_YYABORT                         \
   do                                          \
-  {                                           \
+  {					\
     LEX::cleanup_lex_after_parse_error(YYTHD);\
-    YYABORT;                                  \
+    YYABORT;				\
   } while (0)
 
 #define MYSQL_YYABORT_UNLESS(A)         \
@@ -104,12 +104,13 @@ const LEX_STRING null_lex_str={0,0};
 void my_parse_error(const char *s)
 {
   THD *thd= current_thd;
+  Lex_input_stream *lip= thd->m_lip;
 
-  char *yytext= (char*) thd->lex->tok_start;
+  const char *yytext= lip->tok_start;
   /* Push an error into the error stack */
   my_printf_error(ER_PARSE_ERROR,  ER(ER_PARSE_ERROR), MYF(0), s,
-                  (yytext ? (char*) yytext : ""),
-                  thd->lex->yylineno);
+                  (yytext ? yytext : ""),
+                  lip->yylineno);
 }
 
 /**
@@ -490,7 +491,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser					/* We have threads */
 /*
-  Currently there is 287 shift/reduce conflict. We should not introduce
+  Currently there is 286 shift/reduce conflict. We should not introduce
   new conflicts any more.
 */
 %expect 286
@@ -1363,11 +1364,6 @@ deallocate:
         {
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
-          if (lex->stmt_prepare_mode)
-          {
-            my_parse_error(ER(ER_SYNTAX_ERROR));
-            MYSQL_YYABORT;
-          }
           lex->sql_command= SQLCOM_DEALLOCATE_PREPARE;
           lex->prepared_stmt_name= $3;
         };
@@ -1383,11 +1379,6 @@ prepare:
         {
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
-          if (lex->stmt_prepare_mode)
-          {
-            my_parse_error(ER(ER_SYNTAX_ERROR));
-            MYSQL_YYABORT;
-          }
           lex->sql_command= SQLCOM_PREPARE;
           lex->prepared_stmt_name= $2;
         };
@@ -1413,11 +1404,6 @@ execute:
         {
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
-          if (lex->stmt_prepare_mode)
-          {
-            my_parse_error(ER(ER_SYNTAX_ERROR));
-            MYSQL_YYABORT;
-          }
           lex->sql_command= SQLCOM_EXECUTE;
           lex->prepared_stmt_name= $2;
         }
@@ -1581,24 +1567,32 @@ create:
 	  lex->sql_command= SQLCOM_CREATE_TABLE;
 	  if (!lex->select_lex.add_table_to_list(thd, $5, NULL,
 						 TL_OPTION_UPDATING,
-						 (using_update_log ?
-						  TL_READ_NO_INSERT:
-						  TL_READ)))
+						 TL_WRITE))
 	    MYSQL_YYABORT;
-	  lex->create_list.empty();
-	  lex->key_list.empty();
+          lex->alter_info.reset();
 	  lex->col_list.empty();
 	  lex->change=NullS;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
-	  lex->create_info.db_type= lex->thd->variables.table_type;
+	  lex->create_info.db_type= ha_default_handlerton(thd);
 	  lex->create_info.default_table_charset= NULL;
 	  lex->name.str= 0;
           lex->name.length= 0;
-         lex->like_name= 0;
 	}
 	create2
-	  { Lex->current_select= &Lex->select_lex; }
+	{
+	  LEX *lex= YYTHD->lex;
+          lex->current_select= &lex->select_lex; 
+          if (!lex->create_info.db_type)
+          {
+            lex->create_info.db_type= ha_default_handlerton(YYTHD);
+            push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                ER_WARN_USING_OTHER_HANDLER,
+                                ER(ER_WARN_USING_OTHER_HANDLER),
+                                ha_resolve_storage_engine_name(lex->create_info.db_type),
+                                $5->table.str);
+          }
+        }
 	| CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON
 	  table_ident
 	  {
@@ -1608,21 +1602,23 @@ create:
 							NULL,
 							TL_OPTION_UPDATING))
 	      MYSQL_YYABORT;
-	    lex->create_list.empty();
-	    lex->key_list.empty();
+            lex->alter_info.reset();
+            lex->alter_info.flags= ALTER_ADD_INDEX;
 	    lex->col_list.empty();
 	    lex->change=NullS;
 	  }
 	   '(' key_list ')' key_options
 	  {
 	    LEX *lex=Lex;
+            Key *key;
 	    if ($2 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
 	    {
 	      my_parse_error(ER(ER_SYNTAX_ERROR));
 	      MYSQL_YYABORT;
 	    }
-	    lex->key_list.push_back(new Key($2, $4.str, &lex->key_create_info, 0,
-					   lex->col_list));
+            key= new Key($2, $4.str, &lex->key_create_info, 0,
+                         lex->col_list);
+            lex->alter_info.key_list.push_back(key);
 	    lex->col_list.empty();
 	  }
 	| CREATE DATABASE opt_if_not_exists ident
@@ -1837,7 +1833,9 @@ opt_ev_comment: /* empty */ { $$= 0; }
 
 ev_sql_stmt:
           {
-            LEX *lex= Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            Lex_input_stream *lip= thd->m_lip;
 
             /*
               This stops the following :
@@ -1874,22 +1872,23 @@ ev_sql_stmt:
             bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
             lex->sphead->m_chistics= &lex->sp_chistics;
 
-            lex->sphead->m_body_begin= lex->ptr;
+            lex->sphead->m_body_begin= lip->ptr;
             
-            Lex->event_parse_data->body_begin= lex->ptr;
+            lex->event_parse_data->body_begin= lip->ptr;
 
           }
           ev_sql_stmt_inner
           {
-            LEX *lex=Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
 
             /* return back to the original memory root ASAP */
-            lex->sphead->init_strings(YYTHD, lex);
-            lex->sphead->restore_thd_mem_root(YYTHD);
+            lex->sphead->init_strings(thd, lex);
+            lex->sphead->restore_thd_mem_root(thd);
 
             lex->sp_chistics.suid= SP_IS_SUID;  //always the definer!
 
-            Lex->event_parse_data->init_body(YYTHD);
+            lex->event_parse_data->init_body(thd);
           }
       ;
 
@@ -1983,7 +1982,9 @@ create_function_tail:
 	  }
 	| '('
 	  {
-	    LEX *lex= Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            Lex_input_stream *lip= thd->m_lip;
 	    sp_head *sp;
 
             /* 
@@ -2003,9 +2004,9 @@ create_function_tail:
 	    }
 	    /* Order is important here: new - reset - init */
 	    sp= new sp_head();
-	    sp->reset_thd_mem_root(YYTHD);
+	    sp->reset_thd_mem_root(thd);
 	    sp->init(lex);
-            sp->init_sp_name(YYTHD, lex->spname);
+            sp->init_sp_name(thd, lex->spname);
 
 	    sp->m_type= TYPE_ENUM_FUNCTION;
 	    lex->sphead= sp;
@@ -2014,15 +2015,17 @@ create_function_tail:
 	      stored procedure, otherwise yylex will chop it into pieces
 	      at each ';'.
 	    */
-            $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
-	    YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
-	    lex->sphead->m_param_begin= lex->tok_start+1;
+            $<ulong_num>$= thd->client_capabilities & CLIENT_MULTI_QUERIES;
+	    thd->client_capabilities &= ~CLIENT_MULTI_QUERIES;
+	    lex->sphead->m_param_begin= lip->tok_start+1;
 	  }
           sp_fdparam_list ')'
 	  {
-	    LEX *lex= Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            Lex_input_stream *lip= thd->m_lip;
 
-	    lex->sphead->m_param_end= lex->tok_start;
+	    lex->sphead->m_param_end= lip->tok_start;
 	  }
 	  RETURNS_SYM
 	  {
@@ -2057,10 +2060,12 @@ create_function_tail:
 	  }
 	  sp_c_chistics
 	  {
-	    LEX *lex= Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            Lex_input_stream *lip= thd->m_lip;
 
 	    lex->sphead->m_chistics= &lex->sp_chistics;
-	    lex->sphead->m_body_begin= lex->tok_start;
+	    lex->sphead->m_body_begin= lip->tok_start;
 	  }
 	  sp_proc_stmt
 	  {
@@ -2666,14 +2671,18 @@ sp_proc_stmt_if:
         
 sp_proc_stmt_statement:
 	  {
-	    LEX *lex= Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            Lex_input_stream *lip= thd->m_lip;
 
-	    lex->sphead->reset_lex(YYTHD);
-	    lex->sphead->m_tmp_query= lex->tok_start;
+	    lex->sphead->reset_lex(thd);
+	    lex->sphead->m_tmp_query= lip->tok_start;
 	  }
 	  statement
 	  {
-	    LEX *lex= Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            Lex_input_stream *lip= thd->m_lip;
 	    sp_head *sp= lex->sphead;
 
             sp->m_flags|= sp_get_flags_for_command(lex);
@@ -2700,15 +2709,15 @@ sp_proc_stmt_statement:
                 lex->tok_end otherwise.
               */
               if (yychar == YYEMPTY)
-                i->m_query.length= lex->ptr - sp->m_tmp_query;
+                i->m_query.length= lip->ptr - sp->m_tmp_query;
               else
-                i->m_query.length= lex->tok_end - sp->m_tmp_query;
-              i->m_query.str= strmake_root(YYTHD->mem_root,
+                i->m_query.length= lip->tok_end - sp->m_tmp_query;
+              i->m_query.str= strmake_root(thd->mem_root,
                                            sp->m_tmp_query,
                                            i->m_query.length);
               sp->add_instr(i);
             }
-	    sp->restore_lex(YYTHD);
+	    sp->restore_lex(thd);
           }
         ;
 
@@ -3594,27 +3603,15 @@ create2:
           create3 {}
         | LIKE table_ident
           {
-            THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-            if (!(lex->like_name= $2))
+            Lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
+            if (!Lex->select_lex.add_table_to_list(YYTHD, $2, NULL, 0, TL_READ))
               MYSQL_YYABORT;
-            if ($2->db.str == NULL &&
-                thd->copy_db_to(&($2->db.str), &($2->db.length)))
-            {
-              MYSQL_YYABORT;
-            }
           }
         | '(' LIKE table_ident ')'
           {
-            THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-            if (!(lex->like_name= $3))
+            Lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
+            if (!Lex->select_lex.add_table_to_list(YYTHD, $3, NULL, 0, TL_READ))
               MYSQL_YYABORT;
-            if ($3->db.str == NULL &&
-                thd->copy_db_to(&($3->db.str), &($3->db.length)))
-            {
-              MYSQL_YYABORT;
-            }
           }
         ;
 
@@ -3669,6 +3666,13 @@ partitioning:
         {
 #ifdef WITH_PARTITION_STORAGE_ENGINE
           LEX *lex= Lex;
+          LEX_STRING partition_name={C_STRING_WITH_LEN("partition")};
+          if (!plugin_is_ready(&partition_name, MYSQL_STORAGE_ENGINE_PLUGIN))
+          {
+            my_error(ER_FEATURE_DISABLED, MYF(0),
+                     "partitioning", "--with-partition");
+            MYSQL_YYABORT;
+          }
           lex->part_info= new partition_info();
           if (!lex->part_info)
           {
@@ -3928,7 +3932,7 @@ opt_part_values:
         /* empty */
         {
           LEX *lex= Lex;
-          if (!is_partition_management(lex))
+          if (! lex->is_partition_management())
           {
             if (lex->part_info->part_type == RANGE_PARTITION)
             {
@@ -3949,7 +3953,7 @@ opt_part_values:
         | VALUES LESS_SYM THAN_SYM part_func_max
         {
           LEX *lex= Lex;
-          if (!is_partition_management(lex))
+          if (! lex->is_partition_management())
           {
             if (Lex->part_info->part_type != RANGE_PARTITION)
             {
@@ -3964,7 +3968,7 @@ opt_part_values:
         | VALUES IN_SYM '(' part_list_func ')'
         {
           LEX *lex= Lex;
-          if (!is_partition_management(lex))
+          if (! lex->is_partition_management())
           {
             if (Lex->part_info->part_type != LIST_PARTITION)
             {
@@ -4328,10 +4332,10 @@ create_table_option:
 	    lex->create_info.merge_list= lex->select_lex.table_list;
 	    lex->create_info.merge_list.elements--;
 	    lex->create_info.merge_list.first=
-	      (byte*) (table_list->next_local);
+	      (uchar*) (table_list->next_local);
 	    lex->select_lex.table_list.elements=1;
 	    lex->select_lex.table_list.next=
-	      (byte**) &(table_list->next_local);
+	      (uchar**) &(table_list->next_local);
 	    table_list->next_local= 0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
@@ -4384,35 +4388,42 @@ default_collation:
             Lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
         };
 
-known_storage_engines:
-        ident_or_text
-        {
-          $$ = ha_resolve_by_name(YYTHD, &$1);
-          if ($$ == NULL)
-          {
-            my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
-            MYSQL_YYABORT;
-          }
-        }
-        ;
-
 storage_engines:
 	ident_or_text
 	{
-	  $$ = ha_resolve_by_name(YYTHD, &$1);
-	  if ($$ == NULL)
+          plugin_ref plugin= ha_resolve_by_name(YYTHD, &$1);
+
+          if (plugin)
+            $$= plugin_data(plugin, handlerton*);
+          else
           {
             if (YYTHD->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION)
-	    {
-	      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
-	      MYSQL_YYABORT;
-	    }
-
+            {
+              my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
+              MYSQL_YYABORT;
+            }
+            $$= 0;
             push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
                                 ER_UNKNOWN_STORAGE_ENGINE,
-                                ER(ER_UNKNOWN_STORAGE_ENGINE), $1.str);
+                                ER(ER_UNKNOWN_STORAGE_ENGINE),
+                                $1.str);
           }
-	};
+	}
+        ;
+
+known_storage_engines:
+	ident_or_text
+	{
+          plugin_ref plugin;
+          if ((plugin= ha_resolve_by_name(YYTHD, &$1)))
+            $$= plugin_data(plugin, handlerton*);
+          else
+	  {
+	    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
+	    MYSQL_YYABORT;
+	  }
+	}
+        ;
 
 row_types:
 	DEFAULT		{ $$= ROW_TYPE_DEFAULT; }
@@ -4468,8 +4479,9 @@ key_def:
 	      my_parse_error(ER(ER_SYNTAX_ERROR));
 	      MYSQL_YYABORT;
 	    }
-	    lex->key_list.push_back(new Key($1,$2, &lex->key_create_info, 0,
-					   lex->col_list));
+            Key *key= new Key($1, $2, &lex->key_create_info, 0,
+                              lex->col_list);
+	    lex->alter_info.key_list.push_back(key);
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| opt_constraint constraint_key_type opt_ident key_alg
@@ -4477,24 +4489,27 @@ key_def:
 	  {
 	    LEX *lex=Lex;
 	    const char *key_name= $3 ? $3 : $1;
-	    lex->key_list.push_back(new Key($2, key_name, &lex->key_create_info, 0,
-					    lex->col_list));
+            Key *key= new Key($2, key_name, &lex->key_create_info, 0,
+                              lex->col_list);
+	    lex->alter_info.key_list.push_back(key);
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
 	  {
 	    LEX *lex=Lex;
-	    lex->key_list.push_back(new foreign_key($4 ? $4:$1, lex->col_list,
-				    $8,
-				    lex->ref_list,
-				    lex->fk_delete_opt,
-				    lex->fk_update_opt,
-				    lex->fk_match_option));
-	    lex->key_list.push_back(new Key(Key::MULTIPLE, $4 ? $4 : $1,
-					    &default_key_create_info, 1,
-					    lex->col_list));
+            const char *key_name= $4 ? $4 : $1;
+            Key *key= new foreign_key(key_name, lex->col_list,
+                                      $8,
+                                      lex->ref_list,
+                                      lex->fk_delete_opt,
+                                      lex->fk_update_opt,
+                                      lex->fk_match_option);
+            lex->alter_info.key_list.push_back(key);
+            key= new Key(Key::MULTIPLE, key_name,
+                         &default_key_create_info, 1,
+                         lex->col_list);
+            lex->alter_info.key_list.push_back(key);
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
-
             /* Only used for ALTER TABLE. Ignored otherwise. */
             lex->alter_info.flags|= ALTER_FOREIGN_KEY;
 	  }
@@ -5085,19 +5100,16 @@ alter:
 	  if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
 						 TL_OPTION_UPDATING))
 	    MYSQL_YYABORT;
-	  lex->create_list.empty();
-	  lex->key_list.empty();
+          lex->alter_info.reset();
 	  lex->col_list.empty();
           lex->select_lex.init_order();
-	  lex->like_name= 0;
 	  lex->select_lex.db=
             ((TABLE_LIST*) lex->select_lex.table_list.first)->db;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= 0;
 	  lex->create_info.default_table_charset= NULL;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
-	  lex->alter_info.reset();
-	  lex->alter_info.flags= 0;
+          lex->alter_info.reset();
           lex->no_write_to_binlog= 0;
           lex->create_info.storage_media= HA_SM_DEFAULT;	
 	}
@@ -5155,7 +5167,7 @@ alter:
 	    lex->spname= $3;
 	  }
         | ALTER view_algorithm definer
-          {
+	  {
             Lex->create_view_mode= VIEW_ALTER;
           }
           view_tail
@@ -5169,10 +5181,10 @@ alter:
           {
             LEX *lex= Lex;
             lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
-            lex->create_view_mode= VIEW_ALTER;
-          }
+	    lex->create_view_mode= VIEW_ALTER;
+	  }
           view_tail
-          {}
+	  {}
 	| ALTER definer EVENT_SYM sp_name
           /*
             BE CAREFUL when you add a new rule to update the block where
@@ -5558,10 +5570,10 @@ alter_list_item:
 	  {
             THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
-	    uint dummy;
+	    size_t dummy;
 	    lex->select_lex.db=$3->db.str;
             if (lex->select_lex.db == NULL &&
-                thd->copy_db_to(&lex->select_lex.db, &dummy))
+	                thd->copy_db_to(&lex->select_lex.db, &dummy))
             {
               MYSQL_YYABORT;
             }
@@ -5982,7 +5994,7 @@ preload_keys:
 	;
 
 cache_keys_spec:
-        { 
+        {
           Lex->select_lex.alloc_index_hints(YYTHD);
           Select->set_index_hint_type(INDEX_HINT_USE, 
                                       global_system_variables.old_mode ? 
@@ -6089,7 +6101,7 @@ select_into:
 	| select_from into;
 
 select_from:
-        FROM join_table_list where_clause group_clause having_clause
+	  FROM join_table_list where_clause group_clause having_clause
 	       opt_order_clause opt_limit_clause procedure_clause
           {
             Select->context.table_list=
@@ -6196,26 +6208,36 @@ select_item_list:
 select_item:
 	  remember_name select_item2 remember_end select_alias
 	  {
-	    if (add_item_to_list(YYTHD, $2))
+            THD *thd= YYTHD;
+            DBUG_ASSERT($1 < $3);
+
+	    if (add_item_to_list(thd, $2))
 	      MYSQL_YYABORT;
 	    if ($4.str)
             {
               $2->is_autogenerated_name= FALSE;
 	      $2->set_name($4.str, $4.length, system_charset_info);
             }
-	    else if (!$2->name) {
-	      char *str = $1;
-	      if (str[-1] == '`')
-	        str--;
-	      $2->set_name(str,(uint) ($3 - str), YYTHD->charset());
+	    else if (!$2->name)
+            {
+	      $2->set_name($1, (uint) ($3 - $1), thd->charset());
 	    }
 	  };
 
+
 remember_name:
-	{ $$=(char*) Lex->tok_start; };
+        {
+          THD *thd= YYTHD;
+          Lex_input_stream *lip= thd->m_lip;
+          $$= (char*) lip->tok_start;
+        };
 
 remember_end:
-	{ $$=(char*) Lex->tok_end; };
+        {
+          THD *thd= YYTHD;
+          Lex_input_stream *lip= thd->m_lip;
+          $$=(char*) lip->tok_end;
+        };
 
 select_item2:
 	table_wild	{ $$=$1; } /* table.* */
@@ -6296,8 +6318,8 @@ bool_test:
           { $$= new (YYTHD->mem_root) Item_func_isfalse($1); }
         | bool_pri IS not FALSE_SYM
           { $$= new (YYTHD->mem_root) Item_func_isnotfalse($1); }
-        | bool_pri IS UNKNOWN_SYM { $$= new Item_func_isnull($1); }
-        | bool_pri IS not UNKNOWN_SYM { $$= new Item_func_isnotnull($1); }
+	| bool_pri IS UNKNOWN_SYM { $$= new Item_func_isnull($1); }
+	| bool_pri IS not UNKNOWN_SYM { $$= new Item_func_isnotnull($1); }
         | bool_pri
         ;
 
@@ -6312,11 +6334,11 @@ bool_pri:
 	| predicate ;
 
 predicate:
-          bit_expr IN_SYM '(' subselect ')'
+        bit_expr IN_SYM '(' subselect ')'
           {
             $$= new (YYTHD->mem_root) Item_in_subselect($1, $4);
           }
-        | bit_expr not IN_SYM '(' subselect ')'
+	| bit_expr not IN_SYM '(' subselect ')'
           {
             THD *thd= YYTHD;
             Item *item= new (thd->mem_root) Item_in_subselect($1, $5);
@@ -6326,23 +6348,23 @@ predicate:
           {
             $$= handle_sql2003_note184_exception(YYTHD, $1, true, $4);
           }
-        | bit_expr IN_SYM '(' expr ',' expr_list ')'
-          { 
-            $6->push_front($4);
-            $6->push_front($1);
+	| bit_expr IN_SYM '(' expr ',' expr_list ')'
+	  { 
+              $6->push_front($4);
+              $6->push_front($1);
             $$= new (YYTHD->mem_root) Item_func_in(*$6);
           }
         | bit_expr not IN_SYM '(' expr ')'
           {
             $$= handle_sql2003_note184_exception(YYTHD, $1, false, $5);
           }
-        | bit_expr not IN_SYM '(' expr ',' expr_list ')'
+	| bit_expr not IN_SYM '(' expr ',' expr_list ')'
           {
-            $7->push_front($5);
-            $7->push_front($1);
+              $7->push_front($5);
+              $7->push_front($1);
             Item_func_in *item = new (YYTHD->mem_root) Item_func_in(*$7);
-            item->negate();
-            $$= item;
+              item->negate();
+              $$= item;
           }
 	| bit_expr BETWEEN_SYM bit_expr AND_SYM predicate
 	  { $$= new Item_func_between($1,$3,$5); }
@@ -6477,15 +6499,13 @@ simple_expr:
           }
 	| BINARY simple_expr %prec NEG
 	  {
-            $$= create_func_cast(YYTHD, $2, ITEM_CAST_CHAR, -1, 0,
+            $$= create_func_cast(YYTHD, $2, ITEM_CAST_CHAR, NULL, NULL,
                                  &my_charset_bin);
 	  }
 	| CAST_SYM '(' expr AS cast_type ')'
 	  {
             LEX *lex= Lex;
-	    $$= create_func_cast(YYTHD, $3, $5,
-                                 lex->length ? atoi(lex->length) : -1,
-                                 lex->dec ? atoi(lex->dec) : 0,
+	    $$= create_func_cast(YYTHD, $3, $5, lex->length, lex->dec,
                                  lex->charset);
             if (!$$)
               MYSQL_YYABORT;
@@ -6494,10 +6514,8 @@ simple_expr:
 	  { $$= new (YYTHD->mem_root) Item_func_case(* $3, $2, $4 ); }
 	| CONVERT_SYM '(' expr ',' cast_type ')'
 	  {
-	    $$= create_func_cast(YYTHD, $3, $5,
-				 Lex->length ? atoi(Lex->length) : -1,
-                                 Lex->dec ? atoi(Lex->dec) : 0,
-				 Lex->charset);
+	    $$= create_func_cast(YYTHD, $3, $5, Lex->length, Lex->dec,
+                                 Lex->charset);
             if (!$$)
               MYSQL_YYABORT;
 	  }
@@ -7546,10 +7564,10 @@ opt_outer:
 
 index_hint_clause:
        /* empty */             
-         { 
+          {
             $$= global_system_variables.old_mode ? 
                   INDEX_HINT_MASK_JOIN : INDEX_HINT_MASK_ALL; 
-         } 
+	  }
        | FOR_SYM JOIN_SYM      { $$= INDEX_HINT_MASK_JOIN;  }
        | FOR_SYM ORDER_SYM BY  { $$= INDEX_HINT_MASK_ORDER; }
        | FOR_SYM GROUP_SYM BY  { $$= INDEX_HINT_MASK_GROUP; }
@@ -7562,12 +7580,12 @@ index_hint_type:
 
 index_hint_definition:
        index_hint_type key_or_index index_hint_clause
-       {
+          {
          Select->set_index_hint_type($1, $3);
-       }
+	  }
        '(' key_usage_list ')'
        | USE_SYM key_or_index index_hint_clause
-       {
+	  {
          Select->set_index_hint_type(INDEX_HINT_USE, $3);
        }
        '(' opt_key_usage_list ')'
@@ -7576,12 +7594,12 @@ index_hint_definition:
 index_hints_list:
        index_hint_definition         
        | index_hints_list index_hint_definition
-       ;
+	;
 
 opt_index_hints_list:
        /* empty */
        | { Select->alloc_index_hints(YYTHD); } index_hints_list
-       ;
+	;
 
 opt_key_definition:
        {  Select->clear_index_hints(); }
@@ -7595,7 +7613,7 @@ opt_key_usage_list:
 
 key_usage_element:
 	ident           { Select->add_index_hint(YYTHD, $1.str, $1.length); }
-	| PRIMARY_SYM   
+	| PRIMARY_SYM
           { 
             Select->add_index_hint(YYTHD, (char *)"PRIMARY", 7); 
           }
@@ -7882,6 +7900,9 @@ limit_options:
 	;
 limit_option:
         param_marker
+        {
+          ((Item_param *) $1)->set_strict_type(INT_RESULT);
+        }
         | ULONGLONG_NUM { $$= new Item_uint($1.str, $1.length); }
         | LONG_NUM     { $$= new Item_uint($1.str, $1.length); }
         | NUM           { $$= new Item_uint($1.str, $1.length); }
@@ -7961,7 +7982,7 @@ procedure_clause:
 	    }
 	    lex->proc_list.elements=0;
 	    lex->proc_list.first=0;
-	    lex->proc_list.next= (byte**) &lex->proc_list.first;
+	    lex->proc_list.next= (uchar**) &lex->proc_list.first;
 	    if (add_proc_to_list(lex->thd, new Item_field(&lex->
                                                           current_select->
                                                           context,
@@ -7983,12 +8004,14 @@ procedure_list2:
 procedure_item:
 	  remember_name expr
 	  {
-	    LEX *lex= Lex;
-	    if (add_proc_to_list(lex->thd, $2))
+            THD *thd= YYTHD;
+            Lex_input_stream *lip= thd->m_lip;
+
+	    if (add_proc_to_list(thd, $2))
 	      MYSQL_YYABORT;
 	    if (!$2->name)
-	      $2->set_name($1,(uint) ((char*) lex->tok_end - $1),
-                           YYTHD->charset());
+	      $2->set_name($1,(uint) ((char*) lip->tok_end - $1),
+                           thd->charset());
 	  }
           ;
 
@@ -8124,7 +8147,8 @@ drop:
 	  {
 	     LEX *lex=Lex;
 	     lex->sql_command= SQLCOM_DROP_INDEX;
-	     lex->alter_info.drop_list.empty();
+	     lex->alter_info.reset();
+             lex->alter_info.flags= ALTER_DROP_INDEX;
 	     lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::KEY,
                                                                 $3.str));
 	     if (!lex->current_select->add_table_to_list(lex->thd, $5, NULL,
@@ -8274,7 +8298,7 @@ insert_lock_option:
               insert visible only after the table unlocking but everyone can
               read table.
             */
-            $$= (Lex->sphead ? TL_WRITE :TL_WRITE_CONCURRENT_INSERT);
+            $$= (Lex->sphead ? TL_WRITE_DEFAULT : TL_WRITE_CONCURRENT_INSERT);
 #else
             $$= TL_WRITE_CONCURRENT_INSERT;
 #endif
@@ -8452,7 +8476,7 @@ insert_update_elem:
 	  };
 
 opt_low_priority:
-	/* empty */	{ $$= YYTHD->update_lock_default; }
+	/* empty */	{ $$= TL_WRITE_DEFAULT; }
 	| LOW_PRIORITY	{ $$= TL_WRITE_LOW_PRIORITY; };
 
 /* Delete rows from a table */
@@ -8463,7 +8487,7 @@ delete:
 	  LEX *lex= Lex;
 	  lex->sql_command= SQLCOM_DELETE;
 	  mysql_init_select(lex);
-	  lex->lock_option= lex->thd->update_lock_default;
+	  lex->lock_option= TL_WRITE_DEFAULT;
 	  lex->ignore= 0;
 	  lex->select_lex.init_order();
 	}
@@ -8632,7 +8656,7 @@ show_param:
 	  { Lex->create_info.db_type= NULL; }
 	| opt_full COLUMNS from_or_in table_ident opt_db wild_and_where
 	  {
- 	    LEX *lex= Lex;
+            LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_FIELDS;
 	    if ($5)
 	      $4->change_db($5);
@@ -9078,13 +9102,16 @@ use:	USE_SYM ident
 
 load:   LOAD DATA_SYM
         {
-          LEX *lex=Lex;
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
+
 	  if (lex->sphead)
 	  {
 	    my_error(ER_SP_BADSTATEMENT, MYF(0), "LOAD DATA");
 	    MYSQL_YYABORT;
 	  }
-          lex->fname_start= lex->ptr;
+          lex->fname_start= lip->ptr;
         }
         load_data
         {}
@@ -9118,8 +9145,10 @@ load_data:
         }
         opt_duplicate INTO
         {
-	  LEX *lex=Lex;
-	  lex->fname_end= lex->ptr;
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
+	  lex->fname_end= lip->ptr;
 	}
         TABLE_SYM table_ident
         {
@@ -9150,7 +9179,7 @@ opt_local:
 	| LOCAL_SYM	{ $$=1;};
 
 load_data_lock:
-	/* empty */	{ $$= YYTHD->update_lock_default; }
+	/* empty */	{ $$= TL_WRITE_DEFAULT; }
 	| CONCURRENT
           {
 #ifdef HAVE_QUERY_CACHE
@@ -9158,7 +9187,7 @@ load_data_lock:
               Ignore this option in SP to avoid problem with query cache
             */
             if (Lex->sphead != 0)
-              $$= YYTHD->update_lock_default;
+              $$= TL_WRITE_DEFAULT;
             else
 #endif
               $$= TL_WRITE_CONCURRENT_INSERT;
@@ -9300,14 +9329,15 @@ param_marker:
         PARAM_MARKER
         {
           THD *thd= YYTHD;
-	  LEX *lex= thd->lex;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
           Item_param *item;
           if (! lex->parsing_options.allows_variable)
           {
             my_error(ER_VIEW_SELECT_VARIABLE, MYF(0));
             MYSQL_YYABORT;
           }
-          item= new Item_param((uint) (lex->tok_start - thd->query));
+          item= new Item_param((uint) (lip->tok_start - thd->query));
           if (!($$= item) || lex->param_list.push_back(item))
           {
             my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
@@ -9330,8 +9360,11 @@ signed_literal:
 literal:
 	text_literal	{ $$ =	$1; }
 	| NUM_literal	{ $$ = $1; }
-	| NULL_SYM	{ $$ =	new Item_null();
-			  Lex->next_state=MY_LEX_OPERATOR_OR_IDENT;}
+	| NULL_SYM
+          {
+            $$ = new Item_null();
+            YYTHD->m_lip->next_state=MY_LEX_OPERATOR_OR_IDENT;
+          }
 	| FALSE_SYM	{ $$= new Item_int((char*) "FALSE",0,1); }
 	| TRUE_SYM	{ $$= new Item_int((char*) "TRUE",1,1); }
 	| HEX_NUM	{ $$ =	new Item_hex_string($1.str, $1.length);}
@@ -9421,8 +9454,10 @@ order_ident:
 simple_ident:
 	ident
 	{
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
 	  sp_variable_t *spv;
-	  LEX *lex = Lex;
           sp_pcontext *spc = lex->spcont;
 	  if (spc && (spv = spc->find_variable(&$1)))
 	  {
@@ -9435,7 +9470,7 @@ simple_ident:
 
             Item_splocal *splocal;
             splocal= new Item_splocal($1, spv->offset, spv->type,
-                                      lex->tok_start_prev - 
+                                      lip->tok_start_prev - 
                                       lex->sphead->m_tmp_query);
 #ifndef DBUG_OFF
             if (splocal)
@@ -9518,8 +9553,9 @@ simple_ident_q:
               Let us add this item to list of all Item_trigger_field objects
               in trigger.
             */
-            lex->trg_table_fields.link_in_list((byte *)trg_fld,
-              (byte**)&trg_fld->next_trg_field);
+            lex->trg_table_fields.link_in_list((uchar*) trg_fld,
+	              			       (uchar**) &trg_fld->
+						next_trg_field);
 
             $$= (Item *)trg_fld;
           }
@@ -10085,7 +10121,11 @@ option_value_list:
 
 option_type_value:
         {
-          if (Lex->sphead)
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
+
+          if (lex->sphead)
           {
             /*
               If we are in SP we want have own LEX for each assignment.
@@ -10097,9 +10137,8 @@ option_type_value:
 
               QQ: May be we should simply prohibit group assignments in SP?
             */
-            LEX *lex;
-            Lex->sphead->reset_lex(YYTHD);
-            lex= Lex;
+            lex->sphead->reset_lex(thd);
+            lex= thd->lex;
 
             /* Set new LEX as if we at start of set rule. */
 	    lex->sql_command= SQLCOM_SET_OPTION;
@@ -10107,12 +10146,14 @@ option_type_value:
 	    lex->option_type=OPT_SESSION;
 	    lex->var_list.empty();
             lex->one_shot_set= 0;
-	    lex->sphead->m_tmp_query= lex->tok_start;
+	    lex->sphead->m_tmp_query= lip->tok_start;
           }
         }
 	ext_option_value
         {
-          LEX *lex= Lex;
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
 
           if (lex->sphead)
           {
@@ -10134,15 +10175,16 @@ option_type_value:
 
               /*
                 Extract the query statement from the tokenizer.  The
-                end is either lex->ptr, if there was no lookahead,
-                lex->tok_end otherwise.
+                end is either lip->ptr, if there was no lookahead,
+                lip->tok_end otherwise.
               */
               if (yychar == YYEMPTY)
-                qbuff.length= lex->ptr - sp->m_tmp_query;
+                qbuff.length= lip->ptr - sp->m_tmp_query;
               else
-                qbuff.length= lex->tok_end - sp->m_tmp_query;
+                qbuff.length= lip->tok_end - sp->m_tmp_query;
 
-              if (!(qbuff.str= alloc_root(YYTHD->mem_root, qbuff.length + 5)))
+              if (!(qbuff.str= (char*) alloc_root(thd->mem_root,
+                                                  qbuff.length + 5)))
                 MYSQL_YYABORT;
 
               strmake(strmake(qbuff.str, "SET ", 4), sp->m_tmp_query,
@@ -10151,7 +10193,7 @@ option_type_value:
               i->m_query= qbuff;
               sp->add_instr(i);
             }
-            lex->sphead->restore_lex(YYTHD);
+            lex->sphead->restore_lex(thd);
           }
         };
 
@@ -10228,8 +10270,9 @@ sys_option_value:
               Let us add this item to list of all Item_trigger_field
               objects in trigger.
             */
-            lex->trg_table_fields.link_in_list((byte *)trg_fld,
-                                    (byte **)&trg_fld->next_trg_field);
+            lex->trg_table_fields.link_in_list((uchar *)trg_fld,
+                                               (uchar **) &trg_fld->
+					       next_trg_field);
 
             lex->sphead->add_instr(sp_fld);
           }
@@ -10271,7 +10314,7 @@ sys_option_value:
 	  LEX *lex=Lex;
 	  lex->option_type= $1;
 	  lex->var_list.push_back(new set_var(lex->option_type,
-                                              find_sys_var("tx_isolation"),
+                                              find_sys_var(YYTHD, "tx_isolation"),
                                               &null_lex_str,
                                               new Item_int((int32) $5)));
 	}
@@ -10360,7 +10403,7 @@ internal_variable_name:
 	  if (!spc || !(spv = spc->find_variable(&$1)))
 	  {
             /* Not an SP local variable */
-	    sys_var *tmp=find_sys_var($1.str, $1.length);
+	    sys_var *tmp=find_sys_var(YYTHD, $1.str, $1.length);
 	    if (!tmp)
 	      MYSQL_YYABORT;
 	    $$.var= tmp;
@@ -10415,7 +10458,7 @@ internal_variable_name:
             }
             else
             {
-              sys_var *tmp=find_sys_var($3.str, $3.length);
+              sys_var *tmp=find_sys_var(YYTHD, $3.str, $3.length);
               if (!tmp)
                 MYSQL_YYABORT;
               if (!tmp->is_struct())
@@ -10426,7 +10469,7 @@ internal_variable_name:
 	  }
 	| DEFAULT '.' ident
 	  {
-	    sys_var *tmp=find_sys_var($3.str, $3.length);
+	    sys_var *tmp=find_sys_var(YYTHD, $3.str, $3.length);
 	    if (!tmp)
 	      MYSQL_YYABORT;
 	    if (!tmp->is_struct())
@@ -10506,7 +10549,7 @@ table_lock:
 
 lock_option:
 	READ_SYM	{ $$=TL_READ_NO_INSERT; }
-	| WRITE_SYM     { $$=YYTHD->update_lock_default; }
+	| WRITE_SYM     { $$=TL_WRITE_DEFAULT; }
 	| LOW_PRIORITY WRITE_SYM { $$=TL_WRITE_LOW_PRIORITY; }
 	| READ_SYM LOCAL_SYM { $$= TL_READ; }
         ;
@@ -10802,7 +10845,7 @@ grant_ident:
 	  {
             THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
-            uint dummy;
+            size_t dummy;
             if (thd->copy_db_to(&lex->current_select->db, &dummy))
               MYSQL_YYABORT;
 	    if (lex->grant == GLOBAL_ACLS)
@@ -11400,7 +11443,9 @@ trigger_tail:
 	TRIGGER_SYM remember_name sp_name trg_action_time trg_event
 	ON remember_name table_ident FOR_SYM remember_name EACH_SYM ROW_SYM
 	{
-	  LEX *lex= Lex;
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
 	  sp_head *sp;
 
 	  if (lex->sphead)
@@ -11411,9 +11456,9 @@ trigger_tail:
 
 	  if (!(sp= new sp_head()))
 	    MYSQL_YYABORT;
-	  sp->reset_thd_mem_root(YYTHD);
+	  sp->reset_thd_mem_root(thd);
 	  sp->init(lex);
-          sp->init_sp_name(YYTHD, $3);
+          sp->init_sp_name(thd, $3);
 	  lex->stmt_definition_begin= $2;
           lex->ident.str= $7;
           lex->ident.length= $10 - $7;
@@ -11426,12 +11471,12 @@ trigger_tail:
 	    stored procedure, otherwise yylex will chop it into pieces
 	    at each ';'.
 	  */
-	  $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
-	  YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
+	  $<ulong_num>$= thd->client_capabilities & CLIENT_MULTI_QUERIES;
+	  thd->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 
 	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  lex->sphead->m_chistics= &lex->sp_chistics;
-	  lex->sphead->m_body_begin= lex->ptr;
+	  lex->sphead->m_body_begin= lip->ptr;
           while (my_isspace(system_charset_info, lex->sphead->m_body_begin[0]))
             ++lex->sphead->m_body_begin;
 	}
@@ -11510,24 +11555,30 @@ sp_tail:
 	}
         '('
 	{
-	  LEX *lex= Lex;
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
 
-	  lex->sphead->m_param_begin= lex->tok_start+1;
+	  lex->sphead->m_param_begin= lip->tok_start+1;
 	}
 	sp_pdparam_list
 	')'
 	{
-	  LEX *lex= Lex;
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
 
-	  lex->sphead->m_param_end= lex->tok_start;
+	  lex->sphead->m_param_end= lip->tok_start;
 	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	}
 	sp_c_chistics
 	{
-	  LEX *lex= Lex;
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
 
 	  lex->sphead->m_chistics= &lex->sp_chistics;
-	  lex->sphead->m_body_begin= lex->tok_start;
+	  lex->sphead->m_body_begin= lip->tok_start;
 	}
 	sp_proc_stmt
 	{
