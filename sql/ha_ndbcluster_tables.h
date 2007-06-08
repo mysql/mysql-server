@@ -27,9 +27,9 @@ enum Ndb_binlog_type
 {
   NBT_DEFAULT                   = 0
   ,NBT_NO_LOGGING               = 1
-  ,NBT_FULL                     = 2
-  ,NBT_UPDATED                  = 3
+  ,NBT_UPDATED_ONLY             = 2
+  ,NBT_FULL                     = 3
   ,NBT_USE_UPDATE               = 4 /* bit 0x4 indicates USE_UPDATE */
-  ,NBT_FULL_USE_UPDATE          = NBT_USE_UPDATE | NBT_FULL
-  ,NBT_UPDATED_USE_UPDATE       = NBT_USE_UPDATE | NBT_UPDATED
+  ,NBT_UPDATED_ONLY_USE_UPDATE  = NBT_UPDATED_ONLY | NBT_USE_UPDATE
+  ,NBT_FULL_USE_UPDATE          = NBT_FULL         | NBT_USE_UPDATE
 };
