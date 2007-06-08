@@ -277,7 +277,7 @@ row_merge_buf_add(
 	the encoded length of extra_size and the extra bytes (extra_size).
 	See row_merge_buf_write() for the variable-length encoding
 	of extra_size. */
-	data_size += extra_size + (extra_size >= 127);
+	data_size += (extra_size + 1) + ((extra_size + 1) >= 0x80);
 
 	/* Reserve one byte for the end marker of row_merge_block_t. */
 	if (buf->total_size + data_size >= sizeof(row_merge_block_t) - 1) {
@@ -400,7 +400,7 @@ row_merge_buf_write(
 		if (extra_size + 1 < 0x80) {
 			*b++ = extra_size + 1;
 		} else {
-			ut_ad(extra_size < 0x8000);
+			ut_ad((extra_size + 1) < 0x8000);
 			*b++ = 0x80 | ((extra_size + 1) >> 8);
 			*b++ = (byte) (extra_size + 1);
 		}
@@ -416,6 +416,7 @@ row_merge_buf_write(
 
 	/* Write an "end-of-chunk" marker. */
 	ut_a(b < block[1]);
+	ut_a(b == block[0] + buf->total_size);
 	*b++ = 0;
 #ifdef UNIV_DEBUG_VALGRIND
 	/* The rest of the block is uninitialized.  Initialize it
@@ -435,7 +436,7 @@ row_merge_heap_create(
 	ulint**		offsets1,	/* out: offsets */
 	ulint**		offsets2)	/* out: offsets */
 {
-	ulint		i	= REC_OFFS_HEADER_SIZE
+	ulint		i	= 1 + REC_OFFS_HEADER_SIZE
 		+ dict_index_get_n_fields(index);
 	mem_heap_t*	heap	= mem_heap_create(2 * i * sizeof *offsets1);
 
@@ -552,7 +553,7 @@ row_merge_read_rec(
 	ut_ad(mrec);
 	ut_ad(offsets);
 
-	ut_ad(*offsets == REC_OFFS_HEADER_SIZE
+	ut_ad(*offsets == 1 + REC_OFFS_HEADER_SIZE
 	      + dict_index_get_n_fields(index));
 
 	extra_size = *b++;
@@ -1048,16 +1049,17 @@ merged:
 	if (mrec0) {
 		/* append all mrec0 to output */
 		for (;;) {
-			ROW_MERGE_WRITE_GET_NEXT(0, break);
+			ROW_MERGE_WRITE_GET_NEXT(0, goto done0);
 		}
 	}
-
+done0:
 	if (mrec1) {
 		/* append all mrec1 to output */
 		for (;;) {
-			ROW_MERGE_WRITE_GET_NEXT(1, break);
+			ROW_MERGE_WRITE_GET_NEXT(1, goto done1);
 		}
 	}
+done1:
 
 	mem_heap_free(heap);
 	b2 = row_merge_write_eof(&block[2], b2, of->fd, &of->offset);
@@ -1199,7 +1201,7 @@ row_merge_insert_index_tuples(
 	tuple_heap = mem_heap_create(1000);
 
 	{
-		ulint i	= REC_OFFS_HEADER_SIZE
+		ulint i	= 1 + REC_OFFS_HEADER_SIZE
 			+ dict_index_get_n_fields(index);
 		offsets = mem_heap_alloc(graph_heap, i * sizeof *offsets);
 		offsets[0] = i;
