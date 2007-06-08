@@ -593,6 +593,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
+    CFG_DB_WATCHDOG_INTERVAL_INITIAL,
+    "TimeBetweenWatchDogCheckInitial",
+    DB_TOKEN,
+    "Time between execution checks inside a database node in the early start phases when memory is allocated",
+    ConfigInfo::CI_USED,
+    true,
+    ConfigInfo::CI_INT,
+    "6000",
+    "70",
+    STR_VALUE(MAX_INT_RNIL) },
+
+  {
     CFG_DB_STOP_ON_ERROR,
     "StopOnError",
     DB_TOKEN,
@@ -891,6 +903,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "16",
     "3",
     STR_VALUE(MAX_INT_RNIL) },
+
+  {
+    CFG_DB_REDOLOG_FILE_SIZE,
+    "FragmentLogFileSize",
+    DB_TOKEN,
+    "Size of each Redo log file",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "16M",
+    "4M",
+    "1G" },
 
   {
     CFG_DB_MAX_OPEN_FILES,
@@ -1334,6 +1358,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     STR_VALUE(MAX_INT_RNIL) },
   
+  {
+    CFG_DB_O_DIRECT,
+    "ODirect",
+    DB_TOKEN,
+    "Use O_DIRECT file write/read when possible",
+    ConfigInfo::CI_USED,
+    true,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"},
+
   /***************************************************************************
    * API
    ***************************************************************************/

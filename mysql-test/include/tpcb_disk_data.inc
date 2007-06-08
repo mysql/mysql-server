@@ -1,8 +1,8 @@
 ##################################################
 # Author: Jeb
-# Date:   2007/04
-# Purpose: To create a tpcb database, tables and 
-#          stored procedures to load the database
+# Date:   2007/05
+# Purpose: To create a tpcb database using Disk Data, 
+#          tables and stored procedures to load the database
 #          and run transactions against the DB
 ##################################################
 --disable_warnings
@@ -11,19 +11,30 @@ DROP DATABASE IF EXISTS tpcb;
 CREATE DATABASE tpcb;
 
 --echo
-CREATE TABLE tpcb.account (id INT, bid INT, balance DECIMAL(10,2),
-                           filler CHAR(255), PRIMARY KEY(id));
+eval CREATE TABLE tpcb.account
+                  (id INT, bid INT, balance DECIMAL(10,2),
+                   filler CHAR(255), PRIMARY KEY(id))
+                   TABLESPACE $table_space STORAGE DISK
+                   ENGINE=$engine_type;
 --echo
-CREATE TABLE tpcb.branch (bid INT, balance DECIMAL(10,2), filler VARCHAR(255),
-                          PRIMARY KEY(bid));
+eval CREATE TABLE tpcb.branch
+                  (bid INT, balance DECIMAL(10,2), filler VARCHAR(255),
+                   PRIMARY KEY(bid))TABLESPACE $table_space STORAGE DISK
+                   ENGINE=$engine_type;
 --echo
-CREATE TABLE tpcb.teller (tid INT, balance DECIMAL(10,2), filler VARCHAR(255),
-                          PRIMARY KEY(tid));
+eval CREATE TABLE tpcb.teller
+                  (tid INT, balance DECIMAL(10,2), filler VARCHAR(255),
+                   PRIMARY KEY(tid)) TABLESPACE $table_space STORAGE DISK
+                   ENGINE=$engine_type;
+
 --echo
-CREATE TABLE tpcb.history (id MEDIUMINT NOT NULL AUTO_INCREMENT,aid INT,
-                           tid INT, bid INT,  amount DECIMAL(10,2),
-                           tdate DATETIME, teller CHAR(20), uuidf LONGBLOB,
-                           filler CHAR(80),PRIMARY KEY (id));
+eval CREATE TABLE tpcb.history
+                  (id MEDIUMINT NOT NULL AUTO_INCREMENT,aid INT,
+                   tid INT, bid INT,  amount DECIMAL(10,2),
+                   tdate DATETIME, teller CHAR(20), uuidf LONGBLOB,
+                   filler CHAR(80),PRIMARY KEY (id))
+                   TABLESPACE $table_space STORAGE DISK
+                   ENGINE=$engine_type;
 
 --echo
 --echo --- Create stored procedures & functions ---

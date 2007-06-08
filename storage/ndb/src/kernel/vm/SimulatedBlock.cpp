@@ -19,6 +19,7 @@
 #include <NdbOut.hpp>
 #include <GlobalData.hpp>
 #include <Emulator.hpp>
+#include <WatchDog.hpp>
 #include <ErrorHandlingMacros.hpp>
 #include <TimeQueue.hpp>
 #include <TransporterRegistry.hpp>
@@ -37,6 +38,9 @@
 #include "Configuration.hpp"
 #include <AttributeDescriptor.hpp>
 #include <NdbSqlUtil.hpp>
+
+#include <EventLogger.hpp>
+extern EventLogger g_eventLogger;
 
 #define ljamEntry() jamEntryLine(30000 + __LINE__)
 #define ljam() jamLine(30000 + __LINE__)
@@ -655,14 +659,20 @@ SimulatedBlock::getBatSize(Uint16 blockNo){
   return sb->theBATSize;
 }
 
+void* SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear, Uint32 paramId)
+{
+  return allocRecordAligned(type, s, n, 0, 0, clear, paramId);
+}
+
 void* 
-SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear, Uint32 paramId) 
+SimulatedBlock::allocRecordAligned(const char * type, size_t s, size_t n, void **unaligned_buffer, Uint32 align, bool clear, Uint32 paramId)
 {
 
   void * p = NULL;
-  size_t size = n*s;
-  Uint64 real_size = (Uint64)((Uint64)n)*((Uint64)s);
-  refresh_watch_dog(); 
+  Uint32 over_alloc = unaligned_buffer ? (align - 1) : 0;
+  size_t size = n*s + over_alloc;
+  Uint64 real_size = (Uint64)((Uint64)n)*((Uint64)s) + over_alloc;
+  refresh_watch_dog(9);
   if (real_size > 0){
 #ifdef VM_TRACE_MEM
     ndbout_c("%s::allocRecord(%s, %u, %u) = %llu bytes", 
@@ -696,13 +706,23 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear, U
       char * ptr = (char*)p;
       const Uint32 chunk = 128 * 1024;
       while(size > chunk){
-	refresh_watch_dog(); 
+	refresh_watch_dog(9);
 	memset(ptr, 0, chunk);
 	ptr += chunk;
 	size -= chunk;
       }
-      refresh_watch_dog(); 
+      refresh_watch_dog(9);
       memset(ptr, 0, size);
+    }
+    if (unaligned_buffer)
+    {
+      *unaligned_buffer = p;
+      p = (void *)(((UintPtr)p + over_alloc) & ~(UintPtr)(over_alloc));
+#ifdef VM_TRACE
+      g_eventLogger.info("'%s' (%u) %llu %llu, alignment correction %u bytes",
+                         type, align, (Uint64)p, (Uint64)p+n*s,
+                         (Uint32)((UintPtr)p - (UintPtr)*unaligned_buffer));
+#endif
     }
   }
   return p;
@@ -720,9 +740,16 @@ SimulatedBlock::deallocRecord(void ** ptr,
 }
 
 void
-SimulatedBlock::refresh_watch_dog()
+SimulatedBlock::refresh_watch_dog(Uint32 place)
 {
-  globalData.incrementWatchDogCounter(1);
+  globalData.incrementWatchDogCounter(place);
+}
+
+void
+SimulatedBlock::update_watch_dog_timer(Uint32 interval)
+{
+  extern EmulatorData globalEmulatorData;
+  globalEmulatorData.theWatchDog->setCheckInterval(interval);
 }
 
 void
