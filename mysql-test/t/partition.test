@@ -1465,4 +1465,18 @@ ALTER TABLE t1 DROP PARTITION p1;
 
 DROP TABLE t1;
 
+#
+# Bug #27816: Log tables ran with partitions crashes the server when logging
+# is enabled.
+#
+
+USE mysql;
+SET GLOBAL general_log = 0;
+ALTER TABLE general_log ENGINE = MyISAM;
+--error ER_WRONG_USAGE
+ALTER TABLE general_log PARTITION BY RANGE (TO_DAYS(event_time))
+  (PARTITION p0 VALUES LESS THAN (733144), PARTITION p1 VALUES LESS THAN (3000000));
+ALTER TABLE general_log ENGINE = CSV;
+SET GLOBAL general_log = default;
+
 --echo End of 5.1 tests
