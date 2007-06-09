@@ -32,7 +32,7 @@ wait_for_slave_to_stop;
 # here table should be still not deleted
 select * from t1;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---replace_column 1 # 9 # 11 # 23 # 33 #
+--replace_column 1 # 9 # 11 # 23 # 33 # 34 # 35 #
 --query_vertical SHOW SLAVE STATUS;
 
 # this should fail right after start
@@ -42,7 +42,7 @@ select * from t1;
 sleep 2;
 wait_for_slave_to_stop;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---replace_column 1 # 9 # 11 # 23 # 33 #
+--replace_column 1 # 9 # 11 # 23 # 33 # 34 # 35 #
 --query_vertical SHOW SLAVE STATUS;
 
 # try replicate all up to and not including the second insert to t2;
@@ -51,7 +51,7 @@ sleep 2;
 wait_for_slave_to_stop;
 select * from t2;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---replace_column 1 # 9 # 11 # 23 # 33 #
+--replace_column 1 # 9 # 11 # 23 # 33 # 34 # 35 #
 --query_vertical SHOW SLAVE STATUS;
 
 # clean up
@@ -68,7 +68,7 @@ sleep 2;
 wait_for_slave_to_stop;
 # here the sql slave thread should be stopped
 --replace_result $MASTER_MYPORT MASTER_MYPORT bin.000005 bin.000004 bin.000006 bin.000004 bin.000007 bin.000004
---replace_column 1 # 9 # 23 # 33 #
+--replace_column 1 # 9 # 23 # 33 # 34 # 35 #
 --query_vertical SHOW SLAVE STATUS;
 
 #testing various error conditions
