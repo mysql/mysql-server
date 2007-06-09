@@ -123,7 +123,7 @@ UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 --connection slave
 --echo **** On Slave ****
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master>
+--replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master> 34 <Last_IO_Errno> 35 <Last_IO_Error>
 --query_vertical SHOW SLAVE STATUS;
 
 # now set max retries high enough to succeed, and start slave again

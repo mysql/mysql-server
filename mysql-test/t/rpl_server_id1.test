@@ -13,7 +13,7 @@ stop slave;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval change master to master_port=$SLAVE_MYPORT;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
---replace_column 16 # 18 #
+--replace_column 16 # 18 # 34 # 35 #
 show slave status;
 start slave;
 insert into t1 values (1);
