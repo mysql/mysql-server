@@ -289,7 +289,8 @@ static void *test_thread_writer(void *arg)
   DBUG_RETURN(0);
 }
 
-int main(int argc, char **argv __attribute__((unused)))
+int main(int argc __attribute__((unused)),
+         char **argv __attribute__((unused)))
 {
   pthread_t tid;
   pthread_attr_t thr_attr;

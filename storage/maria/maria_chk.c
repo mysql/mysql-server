@@ -1670,7 +1670,7 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
       DBUG_RETURN(-1);
     }
   }
-  used_length=maria_getint(buff);
+  used_length= maria_data_on_page(buff);
   keypos=buff+2+nod_flag;
   endpos=buff+used_length;
   for ( ;; )

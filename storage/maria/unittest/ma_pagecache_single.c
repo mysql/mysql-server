@@ -421,7 +421,9 @@ int simple_big_test()
 
 static void *test_thread(void *arg)
 {
-  int param=*((int*) arg);
+#ifndef DBUG_OFF
+  int param= *((int*) arg);
+#endif
 
   my_thread_init();
   DBUG_ENTER("test_thread");
@@ -452,7 +454,8 @@ static void *test_thread(void *arg)
 }
 
 
-int main(int argc, char **argv __attribute__((unused)))
+int main(int argc __attribute__((unused)),
+         char **argv __attribute__((unused)))
 {
   pthread_t tid;
   pthread_attr_t thr_attr;

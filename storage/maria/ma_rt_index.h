@@ -22,7 +22,7 @@
 #define rt_PAGE_FIRST_KEY(page, nod_flag) (page + 2 + nod_flag)
 #define rt_PAGE_NEXT_KEY(key, key_length, nod_flag) (key + key_length + \
               (nod_flag ? nod_flag : info->s->base.rec_reflength))
-#define rt_PAGE_END(page) (page + maria_getint(page))
+#define rt_PAGE_END(page) (page + maria_data_on_page(page))
 
 #define rt_PAGE_MIN_SIZE(block_length) ((uint)(block_length) / 3)
 

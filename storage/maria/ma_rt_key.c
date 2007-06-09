@@ -32,7 +32,7 @@
 int maria_rtree_add_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *key,
                         uint key_length, byte *page_buf, my_off_t *new_page)
 {
-  uint page_size = maria_getint(page_buf);
+  uint page_size = maria_data_on_page(page_buf);
   uint nod_flag = _ma_test_if_nod(page_buf);
 
   if (page_size + key_length + info->s->base.rec_reflength <=
@@ -68,7 +68,7 @@ int maria_rtree_add_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *key,
 int maria_rtree_delete_key(MARIA_HA *info, byte *page_buf, byte *key,
 		     uint key_length, uint nod_flag)
 {
-  uint16 page_size = maria_getint(page_buf);
+  uint16 page_size = maria_data_on_page(page_buf);
   byte *key_start;
 
   key_start= key - nod_flag;

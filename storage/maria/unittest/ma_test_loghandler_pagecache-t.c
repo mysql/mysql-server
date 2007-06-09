@@ -18,7 +18,7 @@ static char *first_translog_file= (char*)"maria_log.00000001";
 static char *file1_name= (char*)"page_cache_test_file_1";
 static PAGECACHE_FILE file1;
 
-int main(int argc, char *argv[])
+int main(int argc __attribute__((unused)), char *argv[])
 {
   uint pagen;
   byte long_tr_id[6];

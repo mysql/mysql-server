@@ -511,7 +511,7 @@ int _ma_insert(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
                                     USE_WHOLE_KEY););
 
   nod_flag=_ma_test_if_nod(anc_buff);
-  a_length=maria_getint(anc_buff);
+  a_length= maria_data_on_page(anc_buff);
   endpos= anc_buff+ a_length;
   prev_key=(key_pos == anc_buff+2+nod_flag ? (byte*) 0 : key_buff);
   t_length=(*keyinfo->pack_key)(keyinfo,nod_flag,
@@ -630,7 +630,7 @@ int _ma_split_page(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   MARIA_KEY_PARAM s_temp;
   DBUG_ENTER("maria_split_page");
   LINT_INIT(after_key);
-  DBUG_DUMP("buff",(byte*) buff,maria_getint(buff));
+  DBUG_DUMP("buff",(byte*) buff,maria_data_on_page(buff));
 
   if (info->s->keyinfo+info->lastinx == keyinfo)
     info->page_changed=1;			/* Info->buff is used */
@@ -646,7 +646,7 @@ int _ma_split_page(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
     DBUG_RETURN(-1);
 
   length=(uint) (key_pos-buff);
-  a_length=maria_getint(buff);
+  a_length= maria_data_on_page(buff);
   maria_putint(buff,length,nod_flag);
 
   key_pos=after_key;
@@ -699,7 +699,7 @@ byte *_ma_find_half_pos(uint nod_flag, MARIA_KEYDEF *keyinfo, byte *page,
   DBUG_ENTER("_ma_find_half_pos");
 
   key_ref_length=2+nod_flag;
-  length=maria_getint(page)-key_ref_length;
+  length= maria_data_on_page(page)-key_ref_length;
   page+=key_ref_length;
   if (!(keyinfo->flag &
 	(HA_PACK_KEY | HA_SPACE_PACK_USED | HA_VAR_LENGTH_KEY |
@@ -746,7 +746,7 @@ static byte *_ma_find_last_pos(MARIA_KEYDEF *keyinfo, byte *page,
   DBUG_ENTER("_ma_find_last_pos");
 
   key_ref_length=2;
-  length=maria_getint(page)-key_ref_length;
+  length= maria_data_on_page(page)-key_ref_length;
   page+=key_ref_length;
   if (!(keyinfo->flag &
 	(HA_PACK_KEY | HA_SPACE_PACK_USED | HA_VAR_LENGTH_KEY |
@@ -803,7 +803,7 @@ static int _ma_balance_page(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   DBUG_ENTER("_ma_balance_page");
 
   k_length=keyinfo->keylength;
-  father_length=maria_getint(father_buff);
+  father_length= maria_data_on_page(father_buff);
   father_keylength=k_length+info->s->base.key_reflength;
   nod_flag=_ma_test_if_nod(curr_buff);
   curr_keylength=k_length+nod_flag;
@@ -831,12 +831,12 @@ static int _ma_balance_page(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 
   if (!_ma_fetch_keypage(info,keyinfo,next_page,DFLT_INIT_HITS,info->buff,0))
     goto err;
-  DBUG_DUMP("next",(byte*) info->buff,maria_getint(info->buff));
+  DBUG_DUMP("next",(byte*) info->buff,maria_data_on_page(info->buff));
 
 	/* Test if there is room to share keys */
 
-  left_length=maria_getint(curr_buff);
-  right_length=maria_getint(buff);
+  left_length= maria_data_on_page(curr_buff);
+  right_length= maria_data_on_page(buff);
   keys=(left_length+right_length-4-nod_flag*2)/curr_keylength;
 
   if ((right ? right_length : left_length) + curr_keylength <=

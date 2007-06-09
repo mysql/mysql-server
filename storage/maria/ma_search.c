@@ -80,14 +80,14 @@ int _ma_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
                                 info->keyread_buff,
                                 test(!(nextflag & SEARCH_SAVE_BUFF)))))
     goto err;
-  DBUG_DUMP("page", buff, maria_getint(buff));
+  DBUG_DUMP("page", buff, maria_data_on_page(buff));
 
   flag=(*keyinfo->bin_search)(info,keyinfo,buff,key,key_len,nextflag,
                               &keypos,lastkey, &last_key);
   if (flag == MARIA_FOUND_WRONG_KEY)
     DBUG_RETURN(-1);
   nod_flag=_ma_test_if_nod(buff);
-  maxpos=buff+maria_getint(buff)-1;
+  maxpos=buff+maria_data_on_page(buff)-1;
 
   if (flag)
   {
@@ -187,8 +187,8 @@ int _ma_bin_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo, byte *page,
   LINT_INIT(flag);
   totlength=keyinfo->keylength+(nod_flag=_ma_test_if_nod(page));
   start=0; mid=1;
-  save_end=end=(int) ((maria_getint(page)-2-nod_flag)/totlength-1);
-  DBUG_PRINT("test",("page_length: %d  end: %d",maria_getint(page),end));
+  save_end=end=(int) ((maria_data_on_page(page)-2-nod_flag)/totlength-1);
+  DBUG_PRINT("test",("page_length: %d  end: %d",maria_data_on_page(page),end));
   page+=2+nod_flag;
 
   while (start != end)
@@ -249,7 +249,7 @@ int _ma_seq_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo, byte *page,
   DBUG_ENTER("_ma_seq_search");
 
   LINT_INIT(flag); LINT_INIT(length);
-  end= page+maria_getint(page);
+  end= page+maria_data_on_page(page);
   nod_flag=_ma_test_if_nod(page);
   page+=2+nod_flag;
   *ret_pos=page;
@@ -314,7 +314,7 @@ int _ma_prefix_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   LINT_INIT(saved_vseg);
 
   t_buff[0]=0;                                  /* Avoid bugs */
-  end= page+maria_getint(page);
+  end= page+maria_data_on_page(page);
   nod_flag=_ma_test_if_nod(page);
   page+=2+nod_flag;
   *ret_pos=page;
@@ -1324,7 +1324,7 @@ int _ma_search_first(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
                                                  info->lastkey)))
     DBUG_RETURN(-1);                            /* Crashed */
 
-  info->int_keypos=page; info->int_maxpos=info->keyread_buff+maria_getint(info->keyread_buff)-1;
+  info->int_keypos=page; info->int_maxpos=info->keyread_buff+maria_data_on_page(info->keyread_buff)-1;
   info->int_nod_flag=nod_flag;
   info->int_keytree_version=keyinfo->version;
   info->last_search_keypage=info->last_keypage;
@@ -1361,7 +1361,7 @@ int _ma_search_last(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
       info->cur_row.lastpos= HA_OFFSET_ERROR;
       DBUG_RETURN(-1);
     }
-    page= buff+maria_getint(buff);
+    page= buff+maria_data_on_page(buff);
     nod_flag=_ma_test_if_nod(buff);
   } while ((pos= _ma_kpos(nod_flag,page)) != HA_OFFSET_ERROR);
 

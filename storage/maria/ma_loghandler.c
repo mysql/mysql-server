@@ -700,7 +700,7 @@ static my_bool translog_buffer_lock(struct st_translog_buffer *buffer)
 }
 #else
 #define translog_buffer_lock(B) \
-  pthread_mutex_lock(&B->mutex);
+  pthread_mutex_lock(&B->mutex)
 #endif
 
 
@@ -734,7 +734,7 @@ static my_bool translog_buffer_unlock(struct st_translog_buffer *buffer)
 }
 #else
 #define translog_buffer_unlock(B) \
-  pthread_mutex_unlock(&B->mutex);
+  pthread_mutex_unlock(&B->mutex)
 #endif
 
 
@@ -1352,7 +1352,6 @@ static uint16 translog_get_total_chunk_length(byte *page, uint16 offset)
     if (rec_len + header_len < page_rest)
       DBUG_RETURN(rec_len + header_len);
     DBUG_RETURN(page_rest);
-    break;
   }
   case TRANSLOG_CHUNK_FIXED:
   {
@@ -1373,36 +1372,33 @@ static uint16 translog_get_total_chunk_length(byte *page, uint16 offset)
                   (uint) (log_record_type_descriptor[type].fixed_length + 3)));
       DBUG_RETURN(log_record_type_descriptor[type].fixed_length + 3);
     }
+
+    ptr= page + offset + 3;            /* first compressed LSN */
+    length= log_record_type_descriptor[type].fixed_length + 3;
+    for (i= 0; i < log_record_type_descriptor[type].compressed_LSN; i++)
     {
-      ptr= page + offset + 3;            /* first compressed LSN */
-      length= log_record_type_descriptor[type].fixed_length + 3;
-      for (i= 0; i < log_record_type_descriptor[type].compressed_LSN; i++)
-      {
-        /* first 2 bits is length - 2 */
-        uint len= ((((uint8) (*ptr)) & TRANSLOG_CLSN_LEN_BITS) >> 6) + 2;
-        ptr+= len;
-        /* subtract economized bytes */
-        length-= (TRANSLOG_CLSN_MAX_LEN - len);
-      }
-      DBUG_PRINT("info", ("Pseudo-fixed length: %u", length));
-      DBUG_RETURN(length);
+      /* first 2 bits is length - 2 */
+      uint len= ((((uint8) (*ptr)) & TRANSLOG_CLSN_LEN_BITS) >> 6) + 2;
+      ptr+= len;
+      /* subtract economized bytes */
+      length-= (TRANSLOG_CLSN_MAX_LEN - len);
     }
-    break;
+    DBUG_PRINT("info", ("Pseudo-fixed length: %u", length));
+    DBUG_RETURN(length);
   }
   case TRANSLOG_CHUNK_NOHDR:
     /* 2 no header chunk (till page end) */
     DBUG_PRINT("info", ("TRANSLOG_CHUNK_NOHDR  length: %u",
                         (uint) (TRANSLOG_PAGE_SIZE - offset)));
     DBUG_RETURN(TRANSLOG_PAGE_SIZE - offset);
-    break;
   case TRANSLOG_CHUNK_LNGTH:                   /* 3 chunk with chunk length */
     DBUG_PRINT("info", ("TRANSLOG_CHUNK_LNGTH"));
     DBUG_ASSERT(TRANSLOG_PAGE_SIZE - offset >= 3);
     DBUG_PRINT("info", ("length: %u", uint2korr(page + offset + 1) + 3));
     DBUG_RETURN(uint2korr(page + offset + 1) + 3);
-    break;
   default:
     DBUG_ASSERT(0);
+    DBUG_RETURN(0);
   }
 }
 
@@ -1839,9 +1835,9 @@ static uint16 translog_get_chunk_header_length(byte *page, uint16 offset)
     {
       /* TODO: fine header end */
       DBUG_ASSERT(0);
+      DBUG_RETURN(0);                               /* Keep compiler happy */
     }
     DBUG_RETURN(header_len);
-    break;
   }
   case TRANSLOG_CHUNK_FIXED:
   {
@@ -1861,6 +1857,7 @@ static uint16 translog_get_chunk_header_length(byte *page, uint16 offset)
     break;
   default:
     DBUG_ASSERT(0);
+    DBUG_RETURN(0);                               /* Keep compiler happy */
   }
 }
 
@@ -2628,6 +2625,7 @@ translog_write_variable_record_chunk2_page(struct st_translog_parts *parts,
   DBUG_ENTER("translog_write_variable_record_chunk2_page");
   chunk2_header[0]= TRANSLOG_CHUNK_NOHDR;
 
+  LINT_INIT(buffer_to_flush);
   rc= translog_page_next(horizon, cursor, &buffer_to_flush);
   if (buffer_to_flush != NULL)
   {
@@ -2676,6 +2674,7 @@ translog_write_variable_record_chunk3_page(struct st_translog_parts *parts,
   byte chunk3_header[1 + 2];
   DBUG_ENTER("translog_write_variable_record_chunk3_page");
 
+  LINT_INIT(buffer_to_flush);
   rc= translog_page_next(horizon, cursor, &buffer_to_flush);
   if (buffer_to_flush != NULL)
   {
@@ -4144,8 +4143,18 @@ my_bool translog_write_record(LSN *lsn,
   {
     uint i;
     uint len= 0;
+#ifdef HAVE_PURIFY
+    ha_checksum checksum= 0;
+#endif
     for (i= TRANSLOG_INTERNAL_PARTS; i < part_no; i++)
+    {
+#ifdef HAVE_PURIFY
+      /* Find unitialized bytes early */
+      checksum+= my_checksum(checksum, parts_data[i].str,
+                             parts_data[i].length);
+#endif
       len+= parts_data[i].length;
+    }
     DBUG_ASSERT(len == rec_len);
   }
 #endif
@@ -5219,7 +5228,6 @@ static void translog_force_current_buffer_to_finish()
   }
   else
   {
-    left= 0;
     log_descriptor.bc.current_page_fill= 0;
   }
 

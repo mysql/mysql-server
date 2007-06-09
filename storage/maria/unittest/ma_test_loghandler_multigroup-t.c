@@ -108,7 +108,7 @@ static uint32 get_len()
   return rec_len;
 }
 
-int main(int argc, char *argv[])
+int main(int argc __attribute__((unused)), char *argv[])
 {
   uint32 i;
   uint32 rec_len;

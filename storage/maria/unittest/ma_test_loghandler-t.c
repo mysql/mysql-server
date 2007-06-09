@@ -92,7 +92,7 @@ static my_bool read_and_check_content(TRANSLOG_HEADER_BUFFER *rec,
   return check_content(buffer + skip, rec->record_length - skip);
 }
 
-int main(int argc, char *argv[])
+int main(int argc __attribute__((unused)), char *argv[])
 {
   uint32 i;
   uint32 rec_len;

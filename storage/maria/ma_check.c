@@ -742,7 +742,7 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   char llbuff[22];
   uint diff_pos[2];
   DBUG_ENTER("chk_index");
-  DBUG_DUMP("buff",(byte*) buff,maria_getint(buff));
+  DBUG_DUMP("buff",(byte*) buff,maria_data_on_page(buff));
 
   /* TODO: implement appropriate check for RTree keys */
   if (keyinfo->flag & HA_SPATIAL)
@@ -759,7 +759,7 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   else
     comp_flag=SEARCH_SAME;			/* Keys in positionorder */
   nod_flag=_ma_test_if_nod(buff);
-  used_length=maria_getint(buff);
+  used_length= maria_data_on_page(buff);
   keypos=buff+2+nod_flag;
   endpos=buff+used_length;
 
@@ -2447,7 +2447,7 @@ static int sort_one_index(HA_CHECK *param, MARIA_HA *info,
   }
   if ((nod_flag=_ma_test_if_nod(buff)) || keyinfo->flag & HA_FULLTEXT)
   {
-    used_length=maria_getint(buff);
+    used_length= maria_data_on_page(buff);
     keypos=buff+2+nod_flag;
     endpos=buff+used_length;
     for ( ;; )
@@ -2491,7 +2491,7 @@ static int sort_one_index(HA_CHECK *param, MARIA_HA *info,
   }
 
   /* Fill block with zero and write it to the new index file */
-  length=maria_getint(buff);
+  length= maria_data_on_page(buff);
   bzero((byte*) buff+length,keyinfo->block_length-length);
   if (my_pwrite(new_file,(byte*) buff,(uint) keyinfo->block_length,
 		new_page_pos,MYF(MY_NABP | MY_WAIT_IF_FULL)))
@@ -4403,7 +4403,7 @@ static int sort_insert_key(MARIA_SORT_PARAM *sort_param,
     lastkey=0;					/* No previous key in block */
   }
   else
-    a_length=maria_getint(anc_buff);
+    a_length= maria_data_on_page(anc_buff);
 
 	/* Save pointer to previous block */
   if (nod_flag)
@@ -4440,7 +4440,7 @@ static int sort_insert_key(MARIA_SORT_PARAM *sort_param,
   else if (my_pwrite(info->s->kfile.file, anc_buff,
 		     (uint) keyinfo->block_length,filepos, param->myf_rw))
     DBUG_RETURN(1);
-  DBUG_DUMP("buff",anc_buff,maria_getint(anc_buff));
+  DBUG_DUMP("buff",anc_buff,maria_data_on_page(anc_buff));
 
 	/* Write separator-key to block in next level */
   if (sort_insert_key(sort_param,key_block+1,key_block->lastkey,filepos))
@@ -4532,7 +4532,7 @@ int _ma_flush_pending_blocks(MARIA_SORT_PARAM *sort_param)
   for (key_block=sort_info->key_block ; key_block->inited ; key_block++)
   {
     key_block->inited=0;
-    length=maria_getint(key_block->buff);
+    length= maria_data_on_page(key_block->buff);
     if (nod_flag)
       _ma_kpointer(info,key_block->end_pos,filepos);
     key_file_length=info->state->key_file_length;

@@ -485,7 +485,7 @@ struct st_maria_info
 #define READING_NEXT	1
 #define READING_HEADER	2
 
-#define maria_getint(x)	((uint) mi_uint2korr(x) & 32767)
+#define maria_data_on_page(x)	((uint) mi_uint2korr(x) & 32767)
 #define maria_putint(x,y,nod) { uint16 boh=(nod ? (uint16) 32768 : 0) + (uint16) (y);\
 			  mi_int2store(x,boh); }
 #define _ma_test_if_nod(x) (x[0] & 128 ? info->s->base.key_reflength : 0)

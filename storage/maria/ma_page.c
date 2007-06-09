@@ -48,7 +48,7 @@ byte *_ma_fetch_keypage(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     DBUG_RETURN(0);
   }
   info->last_keypage=page;
-  page_size=maria_getint(tmp);
+  page_size= maria_data_on_page(tmp);
   if (page_size < 4 || page_size > keyinfo->block_length)
   {
     DBUG_PRINT("error",("page %lu had wrong page length: %u",
@@ -70,7 +70,7 @@ int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 {
   DBUG_ENTER("_ma_write_keypage");
 
-#ifndef FAST					/* Safety check */
+#ifdef EXTRA_DEBUG				/* Safety check */
   if (page < info->s->base.keystart ||
       page+keyinfo->block_length > info->state->key_file_length ||
       (page & (MARIA_MIN_KEY_BLOCK_LENGTH-1)))
@@ -84,7 +84,16 @@ int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
     DBUG_RETURN((-1));
   }
   DBUG_PRINT("page",("write page at: %lu",(long) page));
-  DBUG_DUMP("buff",(byte*) buff,maria_getint(buff));
+  DBUG_DUMP("buff",(byte*) buff,maria_data_on_page(buff));
+#endif
+
+#ifdef HAVE_purify
+  {
+    /* Clear unitialized part of page to avoid valgrind/purify warnings */
+    uint length= maria_data_on_page(buff);
+    bzero((byte*) buff+length,keyinfo->block_length-length);
+    length=keyinfo->block_length;
+  }
 #endif
 
   DBUG_ASSERT(info->s->pagecache->block_size == keyinfo->block_length);

@@ -324,6 +324,7 @@ uint _ma_pack_key(register MARIA_HA *info, uint keynr, byte *key,
     key+=length;
   }
 #endif
+  DBUG_PRINT("exit", ("length: %u", (uint) (key-start_key)));
   DBUG_RETURN((uint) (key-start_key));
 } /* _ma_pack_key */
 

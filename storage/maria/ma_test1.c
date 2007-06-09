@@ -631,7 +631,7 @@ static struct my_option my_long_options[] =
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
-	       char *argument)
+	       char *argument __attribute__((unused)))
 {
   switch(optid) {
   case 'a':

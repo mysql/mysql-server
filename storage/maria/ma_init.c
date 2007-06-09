@@ -18,6 +18,7 @@
 #include "maria_def.h"
 #include <ft_global.h>
 #include "ma_blockrec.h"
+#include "trnman_public.h"
 
 my_bool maria_inited= FALSE;
 pthread_mutex_t THR_LOCK_maria;

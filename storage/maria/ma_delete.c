@@ -187,7 +187,7 @@ static int _ma_ck_real_delete(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     }
     else /* error == 1 */
     {
-      if (maria_getint(root_buff) <= (nod_flag=_ma_test_if_nod(root_buff))+3)
+      if (maria_data_on_page(root_buff) <= (nod_flag=_ma_test_if_nod(root_buff))+3)
       {
 	error=0;
 	if (nod_flag)
@@ -228,7 +228,7 @@ static int d_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   my_off_t leaf_page,next_block;
   byte lastkey[HA_MAX_KEY_BUFF];
   DBUG_ENTER("d_search");
-  DBUG_DUMP("page",anc_buff,maria_getint(anc_buff));
+  DBUG_DUMP("page",anc_buff,maria_data_on_page(anc_buff));
 
   search_key_length= (comp_flag & SEARCH_FIND) ? key_length : USE_WHOLE_KEY;
   flag=(*keyinfo->bin_search)(info,keyinfo,anc_buff,key, search_key_length,
@@ -338,7 +338,7 @@ static int d_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   else
   {						/* Found key */
     uint tmp;
-    length=maria_getint(anc_buff);
+    length= maria_data_on_page(anc_buff);
     if (!(tmp= remove_key(keyinfo,nod_flag,keypos,lastkey,anc_buff+length,
                           &next_block)))
       goto err;
@@ -375,7 +375,7 @@ static int d_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 			   (byte*) 0,(byte*) 0,(my_off_t) 0,(my_bool) 0);
     }
   }
-  if (ret_value == 0 && maria_getint(anc_buff) > keyinfo->block_length)
+  if (ret_value == 0 && maria_data_on_page(anc_buff) > keyinfo->block_length)
   {
     save_flag=1;
     ret_value= _ma_split_page(info,keyinfo,key,anc_buff,lastkey,0) | 2;
@@ -384,7 +384,7 @@ static int d_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
     ret_value|= _ma_write_keypage(info,keyinfo,page,DFLT_INIT_HITS,anc_buff);
   else
   {
-    DBUG_DUMP("page",anc_buff,maria_getint(anc_buff));
+    DBUG_DUMP("page",anc_buff,maria_data_on_page(anc_buff));
   }
   my_afree(leaf_buff);
   DBUG_PRINT("exit",("Return: %d",ret_value));
@@ -415,9 +415,9 @@ static int del(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   DBUG_ENTER("del");
   DBUG_PRINT("enter",("leaf_page: %ld  keypos: 0x%lx", (long) leaf_page,
 		      (ulong) keypos));
-  DBUG_DUMP("leaf_buff",leaf_buff,maria_getint(leaf_buff));
+  DBUG_DUMP("leaf_buff",leaf_buff,maria_data_on_page(leaf_buff));
 
-  endpos= leaf_buff+ maria_getint(leaf_buff);
+  endpos= leaf_buff+ maria_data_on_page(leaf_buff);
   if (!(key_start= _ma_get_last_key(info,keyinfo,leaf_buff,keybuff,endpos,
 				   &tmp)))
     DBUG_RETURN(-1);
@@ -432,16 +432,16 @@ static int del(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
       ret_value= -1;
     else
     {
-      DBUG_DUMP("next_page",next_buff,maria_getint(next_buff));
+      DBUG_DUMP("next_page",next_buff,maria_data_on_page(next_buff));
       if ((ret_value=del(info,keyinfo,key,anc_buff,next_page,next_buff,
 			 keypos,next_block,ret_key)) >0)
       {
-	endpos=leaf_buff+maria_getint(leaf_buff);
+	endpos=leaf_buff+maria_data_on_page(leaf_buff);
 	if (ret_value == 1)
 	{
 	  ret_value=underflow(info,keyinfo,leaf_buff,next_page,
 			      next_buff,endpos);
-	  if (ret_value == 0 && maria_getint(leaf_buff) > keyinfo->block_length)
+	  if (ret_value == 0 && maria_data_on_page(leaf_buff) > keyinfo->block_length)
 	  {
 	    ret_value= _ma_split_page(info,keyinfo,key,leaf_buff,ret_key,0) | 2;
 	  }
@@ -471,7 +471,7 @@ static int del(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 
 	/* Place last key in ancestor page on deleted key position */
 
-  a_length=maria_getint(anc_buff);
+  a_length= maria_data_on_page(anc_buff);
   endpos=anc_buff+a_length;
   if (keypos != anc_buff+2+share->base.key_reflength &&
       !_ma_get_last_key(info,keyinfo,anc_buff,ret_key,keypos,&tmp))
@@ -493,7 +493,7 @@ static int del(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   _ma_kpointer(info,keypos - share->base.key_reflength,next_block);
   maria_putint(anc_buff,a_length+length,share->base.key_reflength);
 
-  DBUG_RETURN( maria_getint(leaf_buff) <=
+  DBUG_RETURN( maria_data_on_page(leaf_buff) <=
 	       (info->quick_mode ? MARIA_MIN_KEYBLOCK_LENGTH :
 		(uint) keyinfo->underflow_block_length));
 err:
@@ -521,16 +521,16 @@ static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   DBUG_ENTER("underflow");
   DBUG_PRINT("enter",("leaf_page: %ld  keypos: 0x%lx",(long) leaf_page,
 		      (ulong) keypos));
-  DBUG_DUMP("anc_buff",anc_buff,maria_getint(anc_buff));
-  DBUG_DUMP("leaf_buff",leaf_buff,maria_getint(leaf_buff));
+  DBUG_DUMP("anc_buff",anc_buff,maria_data_on_page(anc_buff));
+  DBUG_DUMP("leaf_buff",leaf_buff,maria_data_on_page(leaf_buff));
 
   buff=info->buff;
   info->keyread_buff_used=1;
   next_keypos=keypos;
   nod_flag=_ma_test_if_nod(leaf_buff);
   p_length=nod_flag+2;
-  anc_length=maria_getint(anc_buff);
-  leaf_length=maria_getint(leaf_buff);
+  anc_length= maria_data_on_page(anc_buff);
+  leaf_length= maria_data_on_page(leaf_buff);
   key_reflength=share->base.key_reflength;
   if (info->s->keyinfo+info->lastinx == keyinfo)
     info->page_changed=1;
@@ -557,7 +557,7 @@ static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
     next_page= _ma_kpos(key_reflength,next_keypos);
     if (!_ma_fetch_keypage(info,keyinfo,next_page,DFLT_INIT_HITS,buff,0))
       goto err;
-    buff_length=maria_getint(buff);
+    buff_length= maria_data_on_page(buff);
     DBUG_DUMP("next",buff,buff_length);
 
     /* find keys to make a big key-page */
@@ -637,7 +637,7 @@ static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 					  (byte*) 0, (byte*) 0,
 					  leaf_key, &s_temp);
       /* t_length will always be > 0 for a new page !*/
-      length=(uint) ((buff+maria_getint(buff))-half_pos);
+      length=(uint) ((buff+maria_data_on_page(buff))-half_pos);
       bmove(buff+p_length+t_length, half_pos, (size_t) length);
       (*keyinfo->store_key)(keyinfo,buff+p_length,&s_temp);
       maria_putint(buff,length+t_length+p_length,nod_flag);
@@ -659,7 +659,7 @@ static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   next_page= _ma_kpos(key_reflength,keypos);
   if (!_ma_fetch_keypage(info,keyinfo,next_page,DFLT_INIT_HITS,buff,0))
       goto err;
-  buff_length=maria_getint(buff);
+  buff_length= maria_data_on_page(buff);
   endpos=buff+buff_length;
   DBUG_DUMP("prev",buff,buff_length);
 

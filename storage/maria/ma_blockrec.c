@@ -2056,7 +2056,9 @@ static my_bool write_block_record(MARIA_HA *info,
           blob_length-= (blob_length % FULL_PAGE_SIZE(block_size));
         if (blob_length)
         {
-          log_array_pos->str=    (char*) record + column->offset + length;
+          memcpy_fixed((byte*) &log_array_pos->str,
+                       record + column->offset + length,
+                       sizeof(byte*));
           log_array_pos->length= blob_length;
           log_entry_length+= blob_length;
           log_array_pos++;

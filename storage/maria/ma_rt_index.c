@@ -824,7 +824,7 @@ static int maria_rtree_delete_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
               if (_ma_write_keypage(info, keyinfo, page,
                                     DFLT_INIT_HITS, page_buf))
                 goto err1;
-              *page_size = maria_getint(page_buf);
+              *page_size = maria_data_on_page(page_buf);
             }
 
             goto ok;
@@ -839,7 +839,7 @@ static int maria_rtree_delete_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
             if (_ma_write_keypage(info, keyinfo, page,
                                   DFLT_INIT_HITS, page_buf))
               goto err1;
-            *page_size = maria_getint(page_buf);
+            *page_size = maria_data_on_page(page_buf);
             res = 0;
             goto ok;
           }
@@ -857,7 +857,7 @@ static int maria_rtree_delete_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
       if (!maria_rtree_key_cmp(keyinfo->seg, key, k, key_length, MBR_EQUAL | MBR_DATA))
       {
         maria_rtree_delete_key(info, page_buf, k, key_length, nod_flag);
-        *page_size = maria_getint(page_buf);
+        *page_size = maria_data_on_page(page_buf);
         if (*page_size == 2)
         {
           /* last key in the leaf */
@@ -963,7 +963,7 @@ int maria_rtree_delete(MARIA_HA *info, uint keynr, byte *key, uint key_length)
                              info->buff, 0))
         goto err1;
       nod_flag = _ma_test_if_nod(info->buff);
-      page_size = maria_getint(info->buff);
+      page_size = maria_data_on_page(info->buff);
       if (nod_flag && (page_size == 2 + key_length + nod_flag))
       {
         my_off_t new_root = _ma_kpos(nod_flag,

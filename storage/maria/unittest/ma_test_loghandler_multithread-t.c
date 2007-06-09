@@ -188,7 +188,8 @@ static void *test_thread_writer(void *arg)
 }
 
 
-int main(int argc, char **argv __attribute__ ((unused)))
+int main(int argc __attribute__((unused)),
+         char **argv __attribute__ ((unused)))
 {
   uint32 i;
   uint pagen;

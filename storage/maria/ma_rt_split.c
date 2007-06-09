@@ -265,7 +265,7 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   uint nod_flag= _ma_test_if_nod(page);
   uint full_length= key_length + (nod_flag ? nod_flag :
                                   info->s->base.rec_reflength);
-  int max_keys= (maria_getint(page)-2) / (full_length);
+  int max_keys= (maria_data_on_page(page)-2) / (full_length);
 
   n_dim = keyinfo->keysegs / 2;
 
@@ -296,7 +296,7 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   old_coord = next_coord;
 
   if (split_maria_rtree_node(task, max_keys + 1,
-       maria_getint(page) + full_length + 2, full_length,
+       maria_data_on_page(page) + full_length + 2, full_length,
        rt_PAGE_MIN_SIZE(keyinfo->block_length),
        2, 2, &next_coord, n_dim))
   {

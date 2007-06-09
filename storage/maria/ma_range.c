@@ -233,7 +233,7 @@ static uint _ma_keynr(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   uint nod_flag,keynr,max_key;
   byte t_buff[HA_MAX_KEY_BUFF],*end;
 
-  end= page+maria_getint(page);
+  end= page+maria_data_on_page(page);
   nod_flag=_ma_test_if_nod(page);
   page+=2+nod_flag;
 
