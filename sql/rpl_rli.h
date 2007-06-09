@@ -20,7 +20,7 @@
 #define MAX_SLAVE_ERRMSG      1024
 
 #include "rpl_tblmap.h"
-
+#include "rpl_reporting.h"
 
 /****************************************************************************
 
@@ -48,7 +48,7 @@
 
 *****************************************************************************/
 
-typedef struct st_relay_log_info
+typedef struct st_relay_log_info : public Slave_reporting_capability
 {
   /*
     If flag set, then rli does not store its state in any info file.
@@ -57,7 +57,7 @@ typedef struct st_relay_log_info
   */
   bool no_storage;
 
-  /*** The following variables can only be read when protect by data lock ****/
+  /* The following variables can only be read when protect by data lock */
 
   /*
     info_fd - file descriptor of the info file. set only during
@@ -165,7 +165,6 @@ typedef struct st_relay_log_info
 
   time_t last_master_timestamp; 
 
-  void clear_slave_error();
   void clear_until_condition();
 
   /*
@@ -179,11 +178,9 @@ typedef struct st_relay_log_info
   pthread_mutex_t log_space_lock;
   pthread_cond_t log_space_cond;
   THD * sql_thd;
-  int last_slave_errno;
 #ifndef DBUG_OFF
   int events_till_abort;
 #endif  
-  char last_slave_error[MAX_SLAVE_ERRMSG];
 
   /* if not set, the value of other members of the structure are undefined */
   bool inited;

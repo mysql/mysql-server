@@ -72,7 +72,7 @@ START SLAVE;
 --sync_slave_with_master
 --connection slave
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master>
+--replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master> 34 <Last_IO_Errno> 35 <Last_IO_Error>
 SHOW SLAVE STATUS;
 
 SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
