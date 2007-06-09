@@ -1,0 +1,19 @@
+source include/have_binlog_format_mixed_or_statement.inc;
+source include/master-slave.inc;
+
+# We do this little stunt to make sure that the slave has started
+# before we stop it again.
+connection master;
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,10);
+sync_slave_with_master;
+source include/show_slave_status.inc;
+
+# Now we feed it a load data infile, which should make it stop with a
+# fatal error.
+connection master;
+LOAD DATA INFILE '../std_data_ln/rpl_loaddata.dat' INTO TABLE t1;
+
+connection slave;
+wait_for_slave_to_stop;
+source include/show_slave_status.inc;
