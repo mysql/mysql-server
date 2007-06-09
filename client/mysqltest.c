@@ -480,6 +480,10 @@ void handle_error(struct st_command*,
 void handle_no_error(struct st_command*);
 
 #ifdef EMBEDDED_LIBRARY
+
+/* attributes of the query thread */
+pthread_attr_t cn_thd_attrib;
+
 /*
   send_one_query executes query in separate thread what is
   necessary in embedded library to run 'send' in proper way.
@@ -518,7 +522,7 @@ static int do_send_query(struct st_connection *cn, const char *q, int q_len,
   cn->cur_query= q;
   cn->cur_query_len= q_len;
   cn->query_done= 0;
-  if (pthread_create(&tid, NULL, send_one_query, (void*)cn))
+  if (pthread_create(&tid, &cn_thd_attrib, send_one_query, (void*)cn))
     die("Cannot start new thread for query");
 
   return 0;
@@ -5984,6 +5988,12 @@ int main(int argc, char **argv)
     (sizeof(connections)/sizeof(struct st_connection)) - 1;
   next_con= connections + 1;
   cur_con= connections;
+
+#ifdef EMBEDDED_LIBRARY
+  /* set appropriate stack for the 'query' threads */
+  (void) pthread_attr_init(&cn_thd_attrib);
+  pthread_attr_setstacksize(&cn_thd_attrib, DEFAULT_THREAD_STACK);
+#endif /*EMBEDDED_LIBRARY*/
 
   /* Init file stack */
   memset(file_stack, 0, sizeof(file_stack));
