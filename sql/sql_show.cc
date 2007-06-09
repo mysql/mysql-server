@@ -1463,6 +1463,8 @@ static bool show_status_array(THD *thd, const char *wild,
         case SHOW_LONG_CONST:
           end= int10_to_str(*(long*) value, buff, 10);
           break;
+        case SHOW_LONGLONG_STATUS:
+          value= ((char *) status_var + (ulonglong) value);
         case SHOW_LONGLONG:
           end= longlong10_to_str(*(longlong*) value, buff, 10);
           break;
