@@ -42,7 +42,7 @@ start slave;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 # Column 1 is replaced, since the output can be either
 # "Connecting to master" or "Waiting for master update"
---replace_column 1 # 7 # 8 # 9 # 22 # 23 #
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 # 34 # 35 #
 --vertical_results
 show slave status;
 

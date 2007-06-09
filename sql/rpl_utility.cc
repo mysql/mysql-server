@@ -128,11 +128,13 @@ table_def::compatible_with(RELAY_LOG_INFO const *rli_arg, TABLE *table)
   {
     DBUG_ASSERT(tsh->db.str && tsh->table_name.str);
     error= 1;
-    slave_print_msg(ERROR_LEVEL, rli, ER_BINLOG_ROW_WRONG_TABLE_DEF,
-                    "Table width mismatch - "
-                    "received %u columns, %s.%s has %u columns",
-                    (uint) size(), tsh->db.str, tsh->table_name.str,
-                    tsh->fields);
+    char buf[256];
+    my_snprintf(buf, sizeof(buf), "Table width mismatch - "
+                "received %u columns, %s.%s has %u columns",
+                (uint) size(), tsh->db.str, tsh->table_name.str,
+                tsh->fields);
+    rli->report(ERROR_LEVEL, ER_BINLOG_ROW_WRONG_TABLE_DEF,
+                ER(ER_BINLOG_ROW_WRONG_TABLE_DEF), buf);
   }
 
   for (uint col= 0 ; col < cols_to_check ; ++col)
@@ -142,11 +144,13 @@ table_def::compatible_with(RELAY_LOG_INFO const *rli_arg, TABLE *table)
       DBUG_ASSERT(col < size() && col < tsh->fields);
       DBUG_ASSERT(tsh->db.str && tsh->table_name.str);
       error= 1;
-      slave_print_msg(ERROR_LEVEL, rli, ER_BINLOG_ROW_WRONG_TABLE_DEF,
-                      "Column %d type mismatch - "
-                      "received type %d, %s.%s has type %d",
-                      col, type(col), tsh->db.str, tsh->table_name.str,
-                      table->field[col]->type());
+      char buf[256];
+      my_snprintf(buf, sizeof(buf), "Column %d type mismatch - "
+                  "received type %d, %s.%s has type %d",
+                  col, type(col), tsh->db.str, tsh->table_name.str,
+                  table->field[col]->type());
+      rli->report(ERROR_LEVEL, ER_BINLOG_ROW_WRONG_TABLE_DEF,
+                  ER(ER_BINLOG_ROW_WRONG_TABLE_DEF), buf);
     }
   }
 

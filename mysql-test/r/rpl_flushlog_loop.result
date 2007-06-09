@@ -52,3 +52,7 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
