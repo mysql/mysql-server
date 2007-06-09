@@ -3158,6 +3158,7 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
   DBUG_ENTER("get_schema_views_record");
   char definer[USER_HOST_BUFF_SIZE];
   uint definer_len;
+  bool updatable_view;
 
   if (tables->view)
   {
@@ -3195,7 +3196,34 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
     else
       table->field[4]->store(STRING_WITH_LEN("NONE"), cs);
 
-    if (tables->updatable_view)
+    updatable_view= 0;
+    if (tables->algorithm != VIEW_ALGORITHM_TMPTABLE)
+    {
+      /*
+        We should use tables->view->select_lex.item_list here and
+        can not use Field_iterator_view because the view always uses
+        temporary algorithm during opening for I_S and
+        TABLE_LIST fields 'field_translation' & 'field_translation_end'
+        are uninitialized is this case.
+      */
+      List<Item> *fields= &tables->view->select_lex.item_list;
+      List_iterator<Item> it(*fields);
+      Item *item;
+      Item_field *field;
+      /*
+        chech that at least one coulmn in view is updatable
+      */
+      while ((item= it++))
+      {
+        if ((field= item->filed_for_view_update()) && field->field &&
+            !field->field->table->pos_in_table_list->schema_table)
+        {
+          updatable_view= 1;
+          break;
+        }
+      }
+    }
+    if (updatable_view)
       table->field[5]->store(STRING_WITH_LEN("YES"), cs);
     else
       table->field[5]->store(STRING_WITH_LEN("NO"), cs);
