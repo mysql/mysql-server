@@ -55,6 +55,10 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4

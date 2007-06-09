@@ -136,6 +136,10 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+Last_IO_Errno	0
+Last_IO_Error	
+Last_SQL_Errno	1364
+Last_SQL_Error	Error in Write_rows event: error during transaction execution on table test.t1_nodef
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 INSERT INTO t9 VALUES (2);
@@ -160,7 +164,7 @@ Replicate_Ignore_Table
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	1522
-Last_Error	Table width mismatch - received 2 columns, test.t2 has 1 columns
+Last_Error	Table definition on master and slave does not match: Table width mismatch - received 2 columns, test.t2 has 1 columns
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -174,6 +178,10 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+Last_IO_Errno	0
+Last_IO_Error	
+Last_SQL_Errno	1522
+Last_SQL_Error	Table definition on master and slave does not match: Table width mismatch - received 2 columns, test.t2 has 1 columns
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 INSERT INTO t9 VALUES (4);
@@ -198,7 +206,7 @@ Replicate_Ignore_Table
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	1522
-Last_Error	Column 0 type mismatch - received type 3, test.t4 has type 4
+Last_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 3, test.t4 has type 4
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -212,6 +220,10 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+Last_IO_Errno	0
+Last_IO_Error	
+Last_SQL_Errno	1522
+Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 3, test.t4 has type 4
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 INSERT INTO t9 VALUES (5);
@@ -236,7 +248,7 @@ Replicate_Ignore_Table
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	1522
-Last_Error	Column 1 type mismatch - received type 3, test.t5 has type 4
+Last_Error	Table definition on master and slave does not match: Column 1 type mismatch - received type 3, test.t5 has type 4
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -250,6 +262,10 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+Last_IO_Errno	0
+Last_IO_Error	
+Last_SQL_Errno	1522
+Last_SQL_Error	Table definition on master and slave does not match: Column 1 type mismatch - received type 3, test.t5 has type 4
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 INSERT INTO t9 VALUES (6);
@@ -274,7 +290,7 @@ Replicate_Ignore_Table
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	1522
-Last_Error	Column 2 type mismatch - received type 3, test.t6 has type 4
+Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 3, test.t6 has type 4
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -288,6 +304,10 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+Last_IO_Errno	0
+Last_IO_Error	
+Last_SQL_Errno	1522
+Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 3, test.t6 has type 4
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 INSERT INTO t9 VALUES (6);
@@ -325,6 +345,10 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+Last_IO_Errno	0
+Last_IO_Error	
+Last_SQL_Errno	0
+Last_SQL_Error	
 INSERT INTO t7 VALUES (1),(2),(3);
 INSERT INTO t8 VALUES (1),(2),(3);
 SELECT * FROM t7 ORDER BY a;

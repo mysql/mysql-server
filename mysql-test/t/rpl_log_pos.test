@@ -15,7 +15,7 @@ source include/master-slave.inc;
 show master status;
 sync_slave_with_master;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 # 34 # 35 #
 show slave status;
 stop slave;
 change master to master_log_pos=74;
@@ -25,19 +25,19 @@ stop slave;
 
 change master to master_log_pos=74;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 # 34 # 35 #
 show slave status;
 start slave;
 sleep 5;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 # 34 # 35 #
 show slave status;
 stop slave;
 change master to master_log_pos=177;
 start slave;
 sleep 2;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 # 34 # 35 #
 show slave status;
 connection master;
 --replace_column 3 <Binlog_Ignore_DB>

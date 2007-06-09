@@ -62,7 +62,7 @@ create table t1 (s text);
 insert into t1 values('Could not break slave'),('Tried hard');
 sync_slave_with_master;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
+--replace_column 1 # 8 # 9 # 16 # 23 # 33 # 34 # 35 #
 show slave status;
 select * from t1;
 connection master;
@@ -115,7 +115,7 @@ show binary logs;
 insert into t2 values (65);
 sync_slave_with_master;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
+--replace_column 1 # 8 # 9 # 16 # 23 # 33 # 34 # 35 #
 show slave status;
 select * from t2;
 
@@ -147,7 +147,7 @@ sync_with_master;
 select * from t4;
 
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
+--replace_column 1 # 8 # 9 # 16 # 23 # 33 # 34 # 35 #
 show slave status;
 # because of concurrent insert, the table may not be up to date
 # if we do not lock

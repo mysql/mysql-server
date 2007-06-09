@@ -166,9 +166,6 @@ bool show_binlog_info(THD* thd);
 const char *print_slave_db_safe(const char *db);
 int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int error_code);
 void skip_load_data_infile(NET* net);
-void slave_print_msg(enum loglevel level, RELAY_LOG_INFO* rli,
-                     int err_code, const char* msg, ...)
-  ATTRIBUTE_FORMAT(printf, 4, 5);
 
 void end_slave(); /* clean up */
 void clear_until_condition(RELAY_LOG_INFO* rli);

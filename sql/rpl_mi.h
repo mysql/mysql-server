@@ -19,6 +19,8 @@
 
 #ifdef HAVE_REPLICATION
 
+#include "rpl_reporting.h"
+
 /*****************************************************************************
 
   Replication IO Thread
@@ -52,7 +54,7 @@
 
 *****************************************************************************/
 
-class MASTER_INFO
+class MASTER_INFO : public Slave_reporting_capability
 {
  public:
   MASTER_INFO();
