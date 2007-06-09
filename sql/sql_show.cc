@@ -3259,6 +3259,7 @@ static my_bool iter_schema_engines(THD *thd, plugin_ref plugin,
   handlerton *hton= plugin_data(plugin, handlerton *);
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   CHARSET_INFO *scs= system_charset_info;
+  handlerton *default_type= ha_default_handlerton(thd);
   DBUG_ENTER("iter_schema_engines");
 
   if (!(hton->flags & HTON_HIDDEN))
@@ -3274,8 +3275,7 @@ static my_bool iter_schema_engines(THD *thd, plugin_ref plugin,
       restore_record(table, s->default_values);
 
       table->field[0]->store(name->str, name->length, scs);
-      if (hton->state == SHOW_OPTION_YES &&
-          hton == thd->variables.table_type)
+      if (hton->state == SHOW_OPTION_YES && default_type == hton)
         option_name= "DEFAULT";
       table->field[1]->store(option_name, strlen(option_name), scs);
       table->field[2]->store(plugin_decl(plugin)->descr,
