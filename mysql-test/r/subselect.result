@@ -2853,7 +2853,6 @@ a
 3
 4
 DROP TABLE t1,t2,t3;
-purge master logs before (select adddate(current_timestamp(), interval -4 day));
 CREATE TABLE t1 (f1 INT);
 CREATE TABLE t2 (f2 INT);
 INSERT INTO t1 VALUES (1);
