@@ -38,8 +38,8 @@
 *****************************************************************************/
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<create_field>;
-template class List_iterator<create_field>;
+template class List<Create_field>;
+template class List_iterator<Create_field>;
 #endif
 
 uchar Field_null::null[1]={1};
@@ -2631,7 +2631,7 @@ void Field_new_decimal::sql_type(String &str) const
 }
 
 
-uint Field_new_decimal::is_equal(create_field *new_field)
+uint Field_new_decimal::is_equal(Create_field *new_field)
 {
   return ((new_field->sql_type == real_type()) &&
           ((new_field->flags & UNSIGNED_FLAG) == 
@@ -6100,7 +6100,7 @@ int Field_str::store(double nr)
 }
 
 
-uint Field::is_equal(create_field *new_field)
+uint Field::is_equal(Create_field *new_field)
 {
   return (new_field->sql_type == real_type());
 }
@@ -6108,7 +6108,7 @@ uint Field::is_equal(create_field *new_field)
 
 /* If one of the fields is binary and the other one isn't return 1 else 0 */
 
-bool Field_str::compare_str_field_flags(create_field *new_field, uint32 flags)
+bool Field_str::compare_str_field_flags(Create_field *new_field, uint32 flags)
 {
   return (((new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
           !(flags & (BINCMP_FLAG | BINARY_FLAG))) ||
@@ -6117,7 +6117,7 @@ bool Field_str::compare_str_field_flags(create_field *new_field, uint32 flags)
 }
 
 
-uint Field_str::is_equal(create_field *new_field)
+uint Field_str::is_equal(Create_field *new_field)
 {
   if (compare_str_field_flags(new_field, flags))
     return 0;
@@ -6969,7 +6969,7 @@ Field *Field_varstring::new_key_field(MEM_ROOT *root,
 }
 
 
-uint Field_varstring::is_equal(create_field *new_field)
+uint Field_varstring::is_equal(Create_field *new_field)
 {
   if (new_field->sql_type == real_type() &&
       new_field->charset == field_charset)
@@ -7651,7 +7651,7 @@ uint Field_blob::max_packed_col_length(uint max_length)
 }
 
 
-uint Field_blob::is_equal(create_field *new_field)
+uint Field_blob::is_equal(Create_field *new_field)
 {
   if (compare_str_field_flags(new_field, flags))
     return 0;
@@ -8187,7 +8187,7 @@ bool Field_num::eq_def(Field *field)
 }
 
 
-uint Field_num::is_equal(create_field *new_field)
+uint Field_num::is_equal(Create_field *new_field)
 {
   return ((new_field->sql_type == real_type()) &&
 	  ((new_field->flags & UNSIGNED_FLAG) == (uint) (flags &
@@ -8616,20 +8616,20 @@ void Field_bit_as_char::sql_type(String &res) const
 
 
 /*****************************************************************************
-  Handling of field and create_field
+  Handling of field and Create_field
 *****************************************************************************/
 
 /*
-  Convert create_field::length from number of characters to number of bytes
+  Convert Create_field::length from number of characters to number of bytes
 
   SYNOPSIS
-    create_field::create_length_to_internal_length()
+    Create_field::create_length_to_internal_length()
   
   DESCRIPTION
-    Convert create_field::length from number of characters to number of bytes.
+    Convert Create_field::length from number of characters to number of bytes.
 */
 
-void create_field::create_length_to_internal_length(void)
+void Create_field::create_length_to_internal_length(void)
 {
   switch (sql_type) {
   case MYSQL_TYPE_TINY_BLOB:
@@ -8676,7 +8676,7 @@ void create_field::create_length_to_internal_length(void)
 }
 
 
-void create_field::init_for_tmp_table(enum_field_types sql_type_arg,
+void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
                                       uint32 length_arg, uint32 decimals_arg,
                                       bool maybe_null, bool is_unsigned)
 {
@@ -8717,7 +8717,7 @@ void create_field::init_for_tmp_table(enum_field_types sql_type_arg,
     TRUE  on error
 */
 
-bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
+bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
                         char *fld_length, char *fld_decimals,
                         uint fld_type_modifier, Item *fld_default_value,
                         Item *fld_on_update_value, LEX_STRING *fld_comment,
@@ -8727,7 +8727,7 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   uint sign_len, allowed_type_modifier= 0;
   ulong max_field_charlength= MAX_FIELD_CHARLENGTH;
 
-  DBUG_ENTER("create_field::init()");
+  DBUG_ENTER("Create_field::init()");
   
   field= 0;
   field_name= fld_name;
@@ -9300,7 +9300,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
 
 /* Create a field suitable for create of table */
 
-create_field::create_field(Field *old_field,Field *orig_field)
+Create_field::Create_field(Field *old_field,Field *orig_field)
 {
   field=      old_field;
   field_name=change=old_field->field_name;

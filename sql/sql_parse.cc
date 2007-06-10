@@ -5459,7 +5459,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
                        List<String> *interval_list, CHARSET_INFO *cs,
 		       uint uint_geom_type)
 {
-  register create_field *new_field;
+  register Create_field *new_field;
   LEX  *lex= thd->lex;
   DBUG_ENTER("add_field_to_list");
 
@@ -5472,7 +5472,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   if (type_modifier & PRI_KEY_FLAG)
   {
     Key *key;
-    lex->col_list.push_back(new key_part_spec(field_name->str, 0));
+    lex->col_list.push_back(new Key_part_spec(field_name->str, 0));
     key= new Key(Key::PRIMARY, NullS,
                       &default_key_create_info,
                       0, lex->col_list);
@@ -5482,7 +5482,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
     Key *key;
-    lex->col_list.push_back(new key_part_spec(field_name->str, 0));
+    lex->col_list.push_back(new Key_part_spec(field_name->str, 0));
     key= new Key(Key::UNIQUE, NullS,
                  &default_key_create_info, 0,
                  lex->col_list);
@@ -5540,7 +5540,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
     WARN_DEPRECATED(thd, "5.2", buf, "'TIMESTAMP'");
   }
 
-  if (!(new_field= new create_field()) ||
+  if (!(new_field= new Create_field()) ||
       new_field->init(thd, field_name->str, type, length, decimals, type_modifier,
                       default_value, on_update_value, comment, change,
                       interval_list, cs, uint_geom_type))

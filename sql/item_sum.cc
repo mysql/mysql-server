@@ -912,8 +912,8 @@ void Item_sum_distinct::fix_length_and_dec()
 
 bool Item_sum_distinct::setup(THD *thd)
 {
-  List<create_field> field_list;
-  create_field field_def;                              /* field definition */
+  List<Create_field> field_list;
+  Create_field field_def;                              /* field definition */
   DBUG_ENTER("Item_sum_distinct::setup");
   DBUG_ASSERT(tree == 0);
 
