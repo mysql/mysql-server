@@ -9046,6 +9046,7 @@ purge:
 	{
 	  LEX *lex=Lex;
 	  lex->type=0;
+          lex->sql_command = SQLCOM_PURGE;
 	} purge_options
 	{}
 	;
@@ -9057,7 +9058,6 @@ purge_options:
 purge_option:
         TO_SYM TEXT_STRING_sys
         {
-	   Lex->sql_command = SQLCOM_PURGE;
 	   Lex->to_log = $2.str;
         }
 	| BEFORE_SYM expr
