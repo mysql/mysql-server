@@ -1822,13 +1822,6 @@ SELECT * FROM t1
 DROP TABLE t1,t2,t3;
 
 #
-# BUG #10308: purge log with subselect
-#
-
-purge master logs before (select adddate(current_timestamp(), interval -4 day));
-
-
-#
 # Bug#18503: Queries with a quantified subquery returning empty set may
 # return a wrong result. 
 #

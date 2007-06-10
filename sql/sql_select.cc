@@ -10414,7 +10414,9 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   */
   while (!table->file->rnd_next(new_table.record[1]))
   {
-    if ((write_err= new_table.file->write_row(new_table.record[1])))
+    write_err= new_table.file->write_row(new_table.record[1]);
+    DBUG_EXECUTE_IF("raise_error", write_err= HA_ERR_FOUND_DUPP_KEY ;);
+    if (write_err)
       goto err;
   }
   /* copy row that filled HEAP table */
@@ -10446,7 +10448,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
 
  err:
   DBUG_PRINT("error",("Got error: %d",write_err));
-  table->file->print_error(error,MYF(0));	// Give table is full error
+  table->file->print_error(write_err, MYF(0));	// Give table is full error
   (void) table->file->ha_rnd_end();
   (void) new_table.file->close();
  err1:
@@ -10454,6 +10456,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
  err2:
   delete new_table.file;
   thd->proc_info=save_proc_info;
+  table->mem_root= new_table.mem_root;
   DBUG_RETURN(1);
 }
 
