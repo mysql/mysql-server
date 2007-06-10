@@ -28,7 +28,7 @@
 
 class Send_field;
 class Protocol;
-class create_field;
+class Create_field;
 struct st_cache_field;
 int field_conv(Field *to,Field *from);
 
@@ -413,7 +413,7 @@ public:
   /* maximum possible display length */
   virtual uint32 max_display_length()= 0;
 
-  virtual uint is_equal(create_field *new_field);
+  virtual uint is_equal(Create_field *new_field);
   /* convert decimal to longlong with overflow check */
   longlong convert_decimal2longlong(const my_decimal *val, bool unsigned_flag,
                                     int *err);
@@ -468,14 +468,14 @@ public:
   Item_result result_type () const { return REAL_RESULT; }
   void prepend_zeros(String *value);
   void add_zerofill_and_unsigned(String &res) const;
-  friend class create_field;
+  friend class Create_field;
   void make_field(Send_field *);
   uint decimals() const { return (uint) dec; }
   uint size_of() const { return sizeof(*this); }
   bool eq_def(Field *field);
   int store_decimal(const my_decimal *);
   my_decimal *val_decimal(my_decimal *);
-  uint is_equal(create_field *new_field);
+  uint is_equal(Create_field *new_field);
   int check_int(CHARSET_INFO *cs, const char *str, int length,
                 const char *int_end, int error);
   bool get_int(CHARSET_INFO *cs, const char *from, uint len, 
@@ -506,11 +506,11 @@ public:
   { field_derivation= derivation_arg; }
   bool binary() const { return field_charset == &my_charset_bin; }
   uint32 max_display_length() { return field_length; }
-  friend class create_field;
+  friend class Create_field;
   my_decimal *val_decimal(my_decimal *);
   virtual bool str_needs_quotes() { return TRUE; }
-  bool compare_str_field_flags(create_field *new_field, uint32 flags);
-  uint is_equal(create_field *new_field);
+  bool compare_str_field_flags(Create_field *new_field, uint32 flags);
+  uint is_equal(Create_field *new_field);
 };
 
 
@@ -614,7 +614,7 @@ public:
   uint32 max_display_length() { return field_length; }
   uint size_of() const { return sizeof(*this); } 
   uint32 pack_length() const { return (uint32) bin_size; }
-  uint is_equal(create_field *new_field);
+  uint is_equal(Create_field *new_field);
 };
 
 
@@ -1246,7 +1246,7 @@ public:
   Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
                        uchar *new_ptr, uchar *new_null_ptr,
                        uint new_null_bit);
-  uint is_equal(create_field *new_field);
+  uint is_equal(Create_field *new_field);
   void hash(ulong *nr, ulong *nr2);
 };
 
@@ -1380,7 +1380,7 @@ public:
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   uint32 max_display_length();
-  uint is_equal(create_field *new_field);
+  uint is_equal(Create_field *new_field);
 };
 
 
@@ -1595,7 +1595,7 @@ public:
   Create field class for CREATE TABLE
 */
 
-class create_field :public Sql_alloc
+class Create_field :public Sql_alloc
 {
 public:
   const char *field_name;
@@ -1626,11 +1626,11 @@ public:
 
   uint8 row,col,sc_length,interval_id;	// For rea_create_table
   uint	offset,pack_flag;
-  create_field() :after(0) {}
-  create_field(Field *field, Field *orig_field);
+  Create_field() :after(0) {}
+  Create_field(Field *field, Field *orig_field);
   /* Used to make a clone of this object for ALTER/CREATE TABLE */
-  create_field *clone(MEM_ROOT *mem_root) const
-    { return new (mem_root) create_field(*this); }
+  Create_field *clone(MEM_ROOT *mem_root) const
+    { return new (mem_root) Create_field(*this); }
   void create_length_to_internal_length(void);
 
   /* Init for a tmp table field. To be extended if need be. */

@@ -126,7 +126,7 @@ public:
   int m_type;
   uint m_flags;                 // Boolean attributes of a stored routine
 
-  create_field m_return_field_def; /* This is used for FUNCTIONs only. */
+  Create_field m_return_field_def; /* This is used for FUNCTIONs only. */
 
   const char *m_tmp_query;	// Temporary pointer to sub query string
   st_sp_chistics *m_chistics;
@@ -290,7 +290,7 @@ public:
 
   bool fill_field_definition(THD *thd, LEX *lex,
                              enum enum_field_types field_type,
-                             create_field *field_def);
+                             Create_field *field_def);
 
   void set_info(longlong created, longlong modified,
 		st_sp_chistics *chistics, ulong sql_mode);

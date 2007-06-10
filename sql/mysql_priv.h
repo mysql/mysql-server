@@ -911,7 +911,7 @@ bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* table_list,
 bool mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
 int reassign_keycache_tables(THD* thd, KEY_CACHE *src_cache,
                              KEY_CACHE *dst_cache);
-TABLE *create_virtual_tmp_table(THD *thd, List<create_field> &field_list);
+TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list);
 
 bool mysql_xa_recover(THD *thd);
 
@@ -955,8 +955,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			bool table_cant_handle_bit_fields,
                         bool make_copy_field,
                         uint convert_blob_length);
-void sp_prepare_create_field(THD *thd, create_field *sql_field);
-int prepare_create_field(create_field *sql_field, 
+void sp_prepare_create_field(THD *thd, Create_field *sql_field);
+int prepare_create_field(Create_field *sql_field, 
 			 uint *blob_columns, 
 			 int *timestamps, int *timestamps_with_niladic,
 			 longlong table_flags);
@@ -1181,7 +1181,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types t
 		       char *change, List<String> *interval_list,
 		       CHARSET_INFO *cs,
 		       uint uint_geom_type);
-create_field * new_create_field(THD *thd, char *field_name, enum_field_types type,
+Create_field * new_create_field(THD *thd, char *field_name, enum_field_types type,
 				char *length, char *decimals,
 				uint type_modifier, 
 				Item *default_value, Item *on_update_value,
@@ -1808,12 +1808,12 @@ void unireg_end(void) __attribute__((noreturn));
 bool mysql_create_frm(THD *thd, const char *file_name,
                       const char *db, const char *table,
 		      HA_CREATE_INFO *create_info,
-		      List<create_field> &create_field,
+		      List<Create_field> &create_field,
 		      uint key_count,KEY *key_info,handler *db_type);
 int rea_create_table(THD *thd, const char *path,
                      const char *db, const char *table_name,
                      HA_CREATE_INFO *create_info,
-  		     List<create_field> &create_field,
+  		     List<Create_field> &create_field,
                      uint key_count,KEY *key_info,
                      handler *file);
 int format_number(uint inputflag,uint max_length,char * pos,uint length,

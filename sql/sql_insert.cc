@@ -3201,7 +3201,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                                       MYSQL_LOCK **lock,
                                       TABLEOP_HOOKS *hooks)
 {
-  TABLE tmp_table;		// Used during 'create_field()'
+  TABLE tmp_table;		// Used during 'Create_field()'
   TABLE_SHARE share;
   TABLE *table= 0;
   uint select_field_count= items->elements;
@@ -3245,7 +3245,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
   while ((item=it++))
   {
-    create_field *cr_field;
+    Create_field *cr_field;
     Field *field, *def_field;
     if (item->type() == Item::FUNC_ITEM)
       field= item->tmp_table_field(&tmp_table);
@@ -3254,7 +3254,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                               (Item ***) 0, &tmp_field, &def_field, 0, 0, 0, 0,
                               0);
     if (!field ||
-	!(cr_field=new create_field(field,(item->type() == Item::FIELD_ITEM ?
+	!(cr_field=new Create_field(field,(item->type() == Item::FIELD_ITEM ?
 					   ((Item_field *)item)->field :
 					   (Field*) 0))))
       DBUG_RETURN(0);
