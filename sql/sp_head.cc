@@ -581,7 +581,7 @@ sp_head::init_strings(THD *thd, LEX *lex)
 
 
 static TYPELIB *
-create_typelib(MEM_ROOT *mem_root, create_field *field_def, List<String> *src)
+create_typelib(MEM_ROOT *mem_root, Create_field *field_def, List<String> *src)
 {
   TYPELIB *result= NULL;
   CHARSET_INFO *cs= field_def->charset;
@@ -1905,7 +1905,7 @@ sp_head::backpatch(sp_label_t *lab)
 }
 
 /*
-  Prepare an instance of create_field for field creation (fill all necessary
+  Prepare an instance of Create_field for field creation (fill all necessary
   attributes).
 
   SYNOPSIS
@@ -1913,7 +1913,7 @@ sp_head::backpatch(sp_label_t *lab)
       thd         [IN] Thread handle
       lex         [IN] Yacc parsing context
       field_type  [IN] Field type
-      field_def   [OUT] An instance of create_field to be filled
+      field_def   [OUT] An instance of Create_field to be filled
 
   RETURN
     FALSE  on success
@@ -1923,7 +1923,7 @@ sp_head::backpatch(sp_label_t *lab)
 bool
 sp_head::fill_field_definition(THD *thd, LEX *lex,
                                enum enum_field_types field_type,
-                               create_field *field_def)
+                               Create_field *field_def)
 {
   HA_CREATE_INFO sp_db_info;
   LEX_STRING cmt = { 0, 0 };

@@ -422,7 +422,7 @@ sp_pcontext::find_cursor(LEX_STRING *name, uint *poff, my_bool scoped)
 
 
 void
-sp_pcontext::retrieve_field_definitions(List<create_field> *field_def_lst)
+sp_pcontext::retrieve_field_definitions(List<Create_field> *field_def_lst)
 {
   /* Put local/context fields in the result list. */
 

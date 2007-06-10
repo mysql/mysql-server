@@ -843,7 +843,7 @@ public:
   List<Alter_drop>            drop_list;
   List<Alter_column>          alter_list;
   List<Key>                   key_list;
-  List<create_field>          create_list;
+  List<Create_field>          create_list;
   uint                        flags;
   enum enum_enable_or_disable keys_onoff;
   enum tablespace_op_type     tablespace_op;
@@ -1132,8 +1132,8 @@ typedef struct st_lex : public Query_tables_list
   */
   LEX_USER *definer;
 
-  List<key_part_spec> col_list;
-  List<key_part_spec> ref_list;
+  List<Key_part_spec> col_list;
+  List<Key_part_spec> ref_list;
   List<String>	      interval_list;
   List<LEX_USER>      users_list;
   List<LEX_COLUMN>    columns;
@@ -1159,7 +1159,7 @@ typedef struct st_lex : public Query_tables_list
   List<LEX_STRING>     db_list;
 
   SQL_LIST	      proc_list, auxiliary_table_list, save_list;
-  create_field	      *last_field;
+  Create_field	      *last_field;
   Item_sum *in_sum_func;
   udf_func udf;
   HA_CHECK_OPT   check_opt;			// check/repair options
