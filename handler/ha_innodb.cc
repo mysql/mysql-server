@@ -8106,6 +8106,8 @@ innobase_create_temporary_tablename(
 	len = strlen(table_name) + 3;
 
 	name = (char*) mem_heap_alloc_noninline(heap, len);
+	/* The prefix must be 2 bytes, and the second byte must not be 'd'.
+	See fil_make_ibd_name(). */
 	name[0] = TEMP_TABLE_PREFIX;
 	name[1] = id;
 	memcpy(name + 2, table_name, len - 2);
