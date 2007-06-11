@@ -34,13 +34,13 @@ const char *primary_key_name="PRIMARY";
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
 static int copy_data_between_tables(TABLE *from,TABLE *to,
-                                    List<create_field> &create, bool ignore,
+                                    List<Create_field> &create, bool ignore,
 				    uint order_num, ORDER *order,
 				    ha_rows *copied,ha_rows *deleted,
                                     enum enum_enable_or_disable keys_onoff,
                                     bool error_if_not_empty);
 
-static bool prepare_blob_field(THD *thd, create_field *sql_field);
+static bool prepare_blob_field(THD *thd, Create_field *sql_field);
 static bool check_engine(THD *, const char *, HA_CREATE_INFO *);
 static bool
 mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
@@ -1909,7 +1909,7 @@ void calculate_interval_lengths(CHARSET_INFO *cs, TYPELIB *interval,
     table_flags   table flags
 
   DESCRIPTION
-    This function prepares a create_field instance.
+    This function prepares a Create_field instance.
     Fields such as pack_flag are valid after this call.
 
   RETURN VALUES
@@ -1917,7 +1917,7 @@ void calculate_interval_lengths(CHARSET_INFO *cs, TYPELIB *interval,
    1	Error
 */
 
-int prepare_create_field(create_field *sql_field, 
+int prepare_create_field(Create_field *sql_field, 
 			 uint *blob_columns, 
 			 int *timestamps, int *timestamps_with_niladic,
 			 longlong table_flags)
@@ -2108,7 +2108,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                            uint *key_count, int select_field_count)
 {
   const char	*key_name;
-  create_field	*sql_field,*dup_field;
+  Create_field	*sql_field,*dup_field;
   uint		field,null_fields,blob_columns,max_key_length;
   ulong		record_offset= 0;
   KEY		*key_info;
@@ -2116,8 +2116,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   int		timestamps= 0, timestamps_with_niladic= 0;
   int		field_no,dup_no;
   int		select_field_pos,auto_increment=0;
-  List_iterator<create_field> it(alter_info->create_list);
-  List_iterator<create_field> it2(alter_info->create_list);
+  List_iterator<Create_field> it(alter_info->create_list);
+  List_iterator<Create_field> it2(alter_info->create_list);
   uint total_uneven_bit_length= 0;
   DBUG_ENTER("mysql_prepare_create_table");
 
@@ -2171,7 +2171,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
          sql_field->sql_type == MYSQL_TYPE_ENUM))
     {
       /*
-        Starting from 5.1 we work here with a copy of create_field
+        Starting from 5.1 we work here with a copy of Create_field
         created by the caller, not with the instance that was
         originally created during parsing. It's OK to create
         a temporary item and initialize with it a member of the
@@ -2462,7 +2462,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     if (key->type == Key::FOREIGN_KEY)
     {
       fk_key_count++;
-      foreign_key *fk_key= (foreign_key*) key;
+      Foreign_key *fk_key= (Foreign_key*) key;
       if (fk_key->ref_columns.elements &&
 	  fk_key->ref_columns.elements != fk_key->columns.elements)
       {
@@ -2546,7 +2546,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   for (; (key=key_iterator++) ; key_number++)
   {
     uint key_length=0;
-    key_part_spec *column;
+    Key_part_spec *column;
 
     if (key->name == ignore_key)
     {
@@ -2655,12 +2655,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     if (key_info->block_size)
       key_info->flags|= HA_USES_BLOCK_SIZE;
 
-    List_iterator<key_part_spec> cols(key->columns), cols2(key->columns);
+    List_iterator<Key_part_spec> cols(key->columns), cols2(key->columns);
     CHARSET_INFO *ft_key_charset=0;  // for FULLTEXT
     for (uint column_nr=0 ; (column=cols++) ; column_nr++)
     {
       uint length;
-      key_part_spec *dup_column;
+      Key_part_spec *dup_column;
 
       it.rewind();
       field=0;
@@ -2970,7 +2970,7 @@ static void set_table_default_charset(THD *thd,
         In this case the error is given
 */
 
-static bool prepare_blob_field(THD *thd, create_field *sql_field)
+static bool prepare_blob_field(THD *thd, Create_field *sql_field)
 {
   DBUG_ENTER("prepare_blob_field");
 
@@ -3011,7 +3011,7 @@ static bool prepare_blob_field(THD *thd, create_field *sql_field)
 
 
 /*
-  Preparation of create_field for SP function return values.
+  Preparation of Create_field for SP function return values.
   Based on code used in the inner loop of mysql_prepare_create_table()
   above.
 
@@ -3025,7 +3025,7 @@ static bool prepare_blob_field(THD *thd, create_field *sql_field)
 
 */
 
-void sp_prepare_create_field(THD *thd, create_field *sql_field)
+void sp_prepare_create_field(THD *thd, Create_field *sql_field)
 {
   if (sql_field->sql_type == MYSQL_TYPE_SET ||
       sql_field->sql_type == MYSQL_TYPE_ENUM)
@@ -4917,8 +4917,8 @@ compare_tables(TABLE *table,
   Field **f_ptr, *field;
   uint changes= 0, tmp;
   uint key_count;
-  List_iterator_fast<create_field> new_field_it(alter_info->create_list);
-  create_field *new_field;
+  List_iterator_fast<Create_field> new_field_it(alter_info->create_list);
+  Create_field *new_field;
   KEY_PART_INFO *key_part;
   KEY_PART_INFO *end;
   /*
@@ -5265,16 +5265,16 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
                           Alter_info *alter_info)
 {
   /* New column definitions are added here */
-  List<create_field> new_create_list;
+  List<Create_field> new_create_list;
   /* New key definitions are added here */
   List<Key> new_key_list;
   List_iterator<Alter_drop> drop_it(alter_info->drop_list);
-  List_iterator<create_field> def_it(alter_info->create_list);
+  List_iterator<Create_field> def_it(alter_info->create_list);
   List_iterator<Alter_column> alter_it(alter_info->alter_list);
   List_iterator<Key> key_it(alter_info->key_list);
-  List_iterator<create_field> find_it(new_create_list);
-  List_iterator<create_field> field_it(new_create_list);
-  List<key_part_spec> key_parts;
+  List_iterator<Create_field> find_it(new_create_list);
+  List_iterator<Create_field> field_it(new_create_list);
+  List<Key_part_spec> key_parts;
   uint db_create_options= (table->s->db_create_options
                            & ~(HA_OPTION_PACK_RECORD));
   uint used_fields= create_info->used_fields;
@@ -5314,7 +5314,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       create_info->tablespace= tablespace;
   }
   restore_record(table, s->default_values);     // Empty record for DEFAULT
-  create_field *def;
+  Create_field *def;
 
   /*
     First collect all fields from table which isn't in drop_list
@@ -5370,7 +5370,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         This field was not dropped and not changed, add it to the list
         for the new table.
       */
-      def= new create_field(field, field);
+      def= new Create_field(field, field);
       new_create_list.push_back(def);
       alter_it.rewind();			// Change default if ALTER
       Alter_column *alter;
@@ -5425,7 +5425,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       new_create_list.push_front(def);
     else
     {
-      create_field *find;
+      Create_field *find;
       find_it.rewind();
       while ((find=find_it++))			// Add new columns
       {
@@ -5483,7 +5483,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       if (!key_part->field)
 	continue;				// Wrong field (from UNIREG)
       const char *key_part_name=key_part->field->field_name;
-      create_field *cfield;
+      Create_field *cfield;
       field_it.rewind();
       while ((cfield=field_it++))
       {
@@ -5525,7 +5525,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 	  key_part_length= 0;			// Use whole field
       }
       key_part_length /= key_part->field->charset()->mbmaxlen;
-      key_parts.push_back(new key_part_spec(cfield->field_name,
+      key_parts.push_back(new Key_part_spec(cfield->field_name,
 					    key_part_length));
     }
     if (key_parts.elements)
@@ -6722,7 +6722,7 @@ err_with_placeholders:
 
 static int
 copy_data_between_tables(TABLE *from,TABLE *to,
-			 List<create_field> &create,
+			 List<Create_field> &create,
                          bool ignore,
 			 uint order_num, ORDER *order,
 			 ha_rows *copied,
@@ -6776,8 +6776,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   save_sql_mode= thd->variables.sql_mode;
 
-  List_iterator<create_field> it(create);
-  create_field *def;
+  List_iterator<Create_field> it(create);
+  Create_field *def;
   copy_end=copy;
   for (Field **ptr=to->field ; *ptr ; ptr++)
   {

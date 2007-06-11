@@ -10080,12 +10080,12 @@ err:
     0 if out of memory, TABLE object in case of success
 */
 
-TABLE *create_virtual_tmp_table(THD *thd, List<create_field> &field_list)
+TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
 {
   uint field_count= field_list.elements;
   uint blob_count= 0;
   Field **field;
-  create_field *cdef;                           /* column definition */
+  Create_field *cdef;                           /* column definition */
   uint record_length= 0;
   uint null_count= 0;                 /* number of columns which may be null */
   uint null_pack_length;              /* NULL representation array length */
@@ -10113,7 +10113,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<create_field> &field_list)
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
   /* Create all fields and calculate the total length of record */
-  List_iterator_fast<create_field> it(field_list);
+  List_iterator_fast<Create_field> it(field_list);
   while ((cdef= it++))
   {
     *field= make_field(share, 0, cdef->length,
