@@ -328,6 +328,28 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
   ROW( BackupAborted,       "backup_id",     2, backup_id),
   ROW( BackupAborted,       "error",         3, error),
 
+  ROW( RestoreMetaData,     "backup_id",     1, backup_id),
+  ROW( RestoreMetaData,     "node_id",       2, node_id),
+  ROW( RestoreMetaData,     "n_tables",      3, n_tables),
+  ROW( RestoreMetaData,     "n_tablespaces", 4, n_tablespaces),
+  ROW( RestoreMetaData,     "n_logfilegroups", 5, n_logfilegroups),
+  ROW( RestoreMetaData,     "n_datafiles",   6, n_datafiles),
+  ROW( RestoreMetaData,     "n_undofiles",   7, n_undofiles),
+
+  ROW( RestoreData,         "backup_id",     1, backup_id),
+  ROW( RestoreData,         "node_id",       2, node_id),
+  ROW( RestoreData,         "n_records_lo",  3, n_records_lo),
+  ROW( RestoreData,         "n_records_hi",  4, n_records_hi),
+  ROW( RestoreData,         "n_bytes_lo",    5, n_bytes_lo),
+  ROW( RestoreData,         "n_bytes_hi",    6, n_bytes_hi),
+
+  ROW( RestoreLog,          "backup_id",     1, backup_id),
+  ROW( RestoreLog,          "node_id",       2, node_id),
+  ROW( RestoreLog,          "n_records_lo",  3, n_records_lo),
+  ROW( RestoreLog,          "n_records_hi",  4, n_records_hi),
+  ROW( RestoreLog,          "n_bytes_lo",    5, n_bytes_lo),
+  ROW( RestoreLog,          "n_bytes_hi",    6, n_bytes_hi),
+
   ROW( SingleUser,          "type",	     1, type),
   ROW( SingleUser,          "node_id",	     2, node_id),
   { NDB_LE_ILLEGAL_TYPE, 0, 0, 0, 0, 0}
