@@ -592,48 +592,26 @@ row_create_prebuilt(
 	dict_index_t*	clust_index;
 	dtuple_t*	ref;
 	ulint		ref_len;
-	ulint		i;
 
-	heap = mem_heap_create(128);
+	heap = mem_heap_create(sizeof *prebuilt + 128);
 
-	prebuilt = mem_heap_alloc(heap, sizeof(row_prebuilt_t));
+	prebuilt = mem_heap_alloc(heap, sizeof *prebuilt);
+
+	memset(prebuilt, 0, sizeof *prebuilt);
 
 	prebuilt->magic_n = ROW_PREBUILT_ALLOCATED;
 	prebuilt->magic_n2 = ROW_PREBUILT_ALLOCATED;
 
 	prebuilt->table = table;
 
-	prebuilt->trx = NULL;
-
 	prebuilt->sql_stat_start = TRUE;
-
-	prebuilt->mysql_has_locked = FALSE;
-
-	prebuilt->index = NULL;
-
-	prebuilt->used_in_HANDLER = FALSE;
-
-	prebuilt->n_template = 0;
-	prebuilt->mysql_template = NULL;
-
 	prebuilt->heap = heap;
-	prebuilt->ins_node = NULL;
-
-	prebuilt->ins_upd_rec_buff = NULL;
-
-	prebuilt->upd_node = NULL;
-	prebuilt->ins_graph = NULL;
-	prebuilt->upd_graph = NULL;
 
 	prebuilt->pcur = btr_pcur_create_for_mysql();
 	prebuilt->clust_pcur = btr_pcur_create_for_mysql();
 
 	prebuilt->select_lock_type = LOCK_NONE;
 	prebuilt->stored_select_lock_type = 99999999;
-
-	prebuilt->row_read_type = ROW_READ_WITH_LOCKS;
-
-	prebuilt->sel_graph = NULL;
 
 	prebuilt->search_tuple = dtuple_create(
 		heap, 2 * dict_table_get_n_cols(table));
@@ -650,16 +628,6 @@ row_create_prebuilt(
 	dict_index_copy_types(ref, clust_index, ref_len);
 
 	prebuilt->clust_ref = ref;
-
-	for (i = 0; i < MYSQL_FETCH_CACHE_SIZE; i++) {
-		prebuilt->fetch_cache[i] = NULL;
-	}
-
-	prebuilt->n_fetch_cached = 0;
-
-	prebuilt->blob_heap = NULL;
-
-	prebuilt->old_vers_heap = NULL;
 
 	UT_LIST_ADD_LAST(prebuilts, table->prebuilts, prebuilt);
 
