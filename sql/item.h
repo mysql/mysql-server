@@ -1763,7 +1763,7 @@ public:
       We have to have a different max_length than 'length' here to
       ensure that we get the right length if we do use the item
       to create a new table. In this case max_length must be the maximum
-      number of chars for a string of this type because we in create_field::
+      number of chars for a string of this type because we in Create_field::
       divide the max_length with mbmaxlen).
     */
     max_length= str_value.numchars()*cs->mbmaxlen;
