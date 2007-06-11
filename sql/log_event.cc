@@ -5279,10 +5279,10 @@ int Execute_load_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
       don't want to overwrite it with the filename.
       What we want instead is add the filename to the current error message.
     */
-    char *tmp= my_strdup(rli->last_error.message, MYF(MY_WME));
+    char *tmp= my_strdup(rli->last_error().message, MYF(MY_WME));
     if (tmp)
     {
-      rli->report(ERROR_LEVEL, rli->last_error.number,
+      rli->report(ERROR_LEVEL, rli->last_error().number,
                   "%s. Failed executing load from '%s'", tmp, fname);
       my_free(tmp,MYF(0));
     }
@@ -5757,7 +5757,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
 
   size_t const data_size= event_len - (ptr_rows_data - (const uchar *) buf);
   DBUG_PRINT("info",("m_table_id: %lu  m_flags: %d  m_width: %lu  data_size: %lu",
-                     m_table_id, m_flags, m_width, data_size));
+                     m_table_id, m_flags, m_width, (ulong) data_size));
 
   m_rows_buf= (uchar*) my_malloc(data_size, MYF(MY_WME));
   if (likely((bool)m_rows_buf))
@@ -6131,7 +6131,7 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
                 get_type_str(), table->s->db.str,
                 table->s->table_name.str);
 
-     /*
+    /*
       If one day we honour --skip-slave-errors in row-based replication, and
       the error should be skipped, then we would clear mappings, rollback,
       close tables, but the slave SQL thread would not stop and then may
@@ -6266,8 +6266,8 @@ Rows_log_event::do_update_pos(RELAY_LOG_INFO *rli)
       rli->report(ERROR_LEVEL, error,
                   "Error in %s event: commit of row events failed, "
                   "table `%s`.`%s`",
-                  get_type_str(), table->s->db.str,
-                  table->s->table_name.str);
+                  get_type_str(), m_table->s->db.str,
+                  m_table->s->table_name.str);
   }
   else
   {
@@ -6485,8 +6485,8 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   m_colcnt= net_field_length(&ptr_after_colcnt);
 
   DBUG_PRINT("info",("m_dblen: %lu  off: %ld  m_tbllen: %lu  off: %ld  m_colcnt: %lu  off: %ld",
-                     m_dblen, (long) (ptr_dblen-(const uchar*)vpart), 
-                     m_tbllen, (long) (ptr_tbllen-(const uchar*)vpart),
+                     (ulong) m_dblen, (long) (ptr_dblen-(const uchar*)vpart), 
+                     (ulong) m_tbllen, (long) (ptr_tbllen-(const uchar*)vpart),
                      m_colcnt, (long) (ptr_colcnt-(const uchar*)vpart)));
 
   /* Allocate mem for all fields in one go. If fails, catched in is_valid() */
@@ -6874,11 +6874,14 @@ int Write_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
   DBUG_ASSERT(table != NULL);
   DBUG_ASSERT(row_start && row_end);
 
-  int error;
-  error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
-                    &m_master_reclength, table->write_set, WRITE_ROWS_EVENT);
+  if (int error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
+                            &m_master_reclength, table->write_set, WRITE_ROWS_EVENT))
+  {
+    thd->net.last_errno= error;
+    return error;
+  }
   bitmap_copy(table->read_set, table->write_set);
-  return error;
+  return 0;
 }
 
 /*
@@ -7586,7 +7589,6 @@ int Delete_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
                                           uchar const *const row_start,
                                           uchar const **const row_end)
 {
-  int error;
   DBUG_ASSERT(row_start && row_end);
   /*
     This assertion actually checks that there is at least as many
@@ -7594,8 +7596,13 @@ int Delete_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
   */
   DBUG_ASSERT(table->s->fields >= m_width);
 
-  error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
-                    &m_master_reclength, table->read_set, DELETE_ROWS_EVENT);
+  if (int error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
+                            &m_master_reclength, table->read_set, DELETE_ROWS_EVENT))
+  {
+    thd->net.last_errno= error;
+    return error;
+  }
+
   /*
     If we will access rows using the random access method, m_key will
     be set to NULL, so we do not need to make a key copy in that case.
@@ -7607,7 +7614,7 @@ int Delete_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
     key_copy(m_key, table->record[0], key_info, 0);
   }
 
-  return error;
+  return 0;
 }
 
 int Delete_rows_log_event::do_exec_row(TABLE *table)
@@ -7776,13 +7783,23 @@ int Update_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
   */
 
   /* record[0] is the before image for the update */
-  error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
-                    &m_master_reclength, table->read_set, UPDATE_ROWS_EVENT);
+  if ((error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
+                         &m_master_reclength, table->read_set, UPDATE_ROWS_EVENT)))
+  {
+    thd->net.last_errno= error;
+    return error;
+  }
+
   store_record(table, record[1]);
   uchar const *next_start = *row_end;
   /* m_after_image is the after image for the update */
-  error= unpack_row(rli, table, m_width, next_start, &m_cols_ai, row_end,
-                    &m_master_reclength, table->write_set, UPDATE_ROWS_EVENT);
+  if ((error= unpack_row(rli, table, m_width, next_start, &m_cols_ai, row_end,
+                         &m_master_reclength, table->write_set, UPDATE_ROWS_EVENT)))
+  {
+    thd->net.last_errno= error;
+    return error;
+  }
+
   bmove_align(m_after_image, table->record[0], table->s->reclength);
   restore_record(table, record[1]);
 
@@ -7937,10 +7954,10 @@ int
 Incident_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
 {
   DBUG_ENTER("Incident_log_event::do_apply_event");
-  slave_print_msg(ERROR_LEVEL, rli, ER_SLAVE_INCIDENT,
-                  ER(ER_SLAVE_INCIDENT),
-                  description(),
-                  m_message.length > 0 ? m_message.str : "<none>");
+  rli->report(ERROR_LEVEL, ER_SLAVE_INCIDENT,
+              ER(ER_SLAVE_INCIDENT),
+              description(),
+              m_message.length > 0 ? m_message.str : "<none>");
   DBUG_RETURN(1);
 }
 #endif

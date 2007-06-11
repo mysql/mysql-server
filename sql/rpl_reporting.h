@@ -2,6 +2,11 @@
 #define RPL_REPORTING_H
 
 /**
+   Maximum size of an error message from a slave thread.
+ */
+#define MAX_SLAVE_ERRMSG      1024
+
+/**
    Mix-in to handle the message logging and reporting for relay log
    info and master log info structures.
 
@@ -31,7 +36,7 @@ public:
                         code, but can contain more information), in
                         printf() format.
   */
-  void report(loglevel level, int err_code, const char *msg, ...)
+  void report(loglevel level, int err_code, const char *msg, ...) const
     ATTRIBUTE_FORMAT(printf, 4, 5);
 
   /**
@@ -39,7 +44,7 @@ public:
      STATUS</code>.
    */
   void clear_error() {
-    last_error.clear();
+    m_last_error.clear();
   }
 
   /**
@@ -65,12 +70,14 @@ public:
     char message[MAX_SLAVE_ERRMSG];
   };
 
+  Error const& last_error() const { return m_last_error; }
+
+private:
   /**
      Last error produced by the I/O or SQL thread respectively.
    */
-  Error last_error;
+  mutable Error m_last_error;
 
-private:
   char const *const m_thread_name;
 };
 

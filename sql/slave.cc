@@ -1253,8 +1253,8 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
     rpl_filter->get_wild_ignore_table(&tmp);
     protocol->store(&tmp);
 
-    protocol->store(mi->rli.last_error.number);
-    protocol->store(mi->rli.last_error.message, &my_charset_bin);
+    protocol->store(mi->rli.last_error().number);
+    protocol->store(mi->rli.last_error().message, &my_charset_bin);
     protocol->store((uint32) mi->rli.slave_skip_counter);
     protocol->store((ulonglong) mi->rli.group_master_log_pos);
     protocol->store((ulonglong) mi->rli.log_space_total);
@@ -1316,13 +1316,13 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
     protocol->store(mi->ssl_verify_server_cert? "Yes":"No", &my_charset_bin);
 
     // Last_IO_Errno
-    protocol->store(mi->last_error.number);
+    protocol->store(mi->last_error().number);
     // Last_IO_Error
-    protocol->store(mi->last_error.message, &my_charset_bin);
+    protocol->store(mi->last_error().message, &my_charset_bin);
     // Last_SQL_Errno
-    protocol->store(mi->rli.last_error.number);
+    protocol->store(mi->rli.last_error().number);
     // Last_SQL_Error
-    protocol->store(mi->rli.last_error.message, &my_charset_bin);
+    protocol->store(mi->rli.last_error().message, &my_charset_bin);
 
     pthread_mutex_unlock(&mi->rli.data_lock);
     pthread_mutex_unlock(&mi->data_lock);
@@ -1780,13 +1780,13 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       */
       if (error)
       {
-        slave_print_msg(ERROR_LEVEL, rli, ER_UNKNOWN_ERROR,
-                        "It was not possible to update the positions"
-                        " of the relay log information: the slave may"
-                        " be in an inconsistent state."
-                        " Stopped in %s position %s",
-                        rli->group_relay_log_name,
-                        llstr(rli->group_relay_log_pos, buf));
+        rli->report(ERROR_LEVEL, ER_UNKNOWN_ERROR,
+                    "It was not possible to update the positions"
+                    " of the relay log information: the slave may"
+                    " be in an inconsistent state."
+                    " Stopped in %s position %s",
+                    rli->group_relay_log_name,
+                    llstr(rli->group_relay_log_pos, buf));
         DBUG_RETURN(1);
       }
     }
@@ -2377,7 +2377,7 @@ Slave SQL thread aborted. Can't execute init_slave query");
           codes and warnings and print this to the error log as to
           allow the user to locate the error
         */
-        uint32 const last_errno= rli->last_error.number;
+        uint32 const last_errno= rli->last_error().number;
 
         DBUG_PRINT("info", ("thd->net.last_errno=%d; rli->last_error.number=%d",
                             thd->net.last_errno, last_errno));
@@ -3732,9 +3732,9 @@ bool rpl_master_has_bug(RELAY_LOG_INFO *rli, uint bug_id)
                       " so slave stops; check error log on slave"
                       " for more info", MYF(0), bug_id);
       // a verbose message for the error log
-      slave_print_msg(ERROR_LEVEL, rli, ER_UNKNOWN_ERROR,
-                      "According to the master's version ('%s'),"
-                      " it is probable that master suffers from this bug:"
+      rli->report(ERROR_LEVEL, ER_UNKNOWN_ERROR,
+                  "According to the master's version ('%s'),"
+                  " it is probable that master suffers from this bug:"
                       " http://bugs.mysql.com/bug.php?id=%u"
                       " and thus replicating the current binary log event"
                       " may make the slave's data become different from the"

@@ -21,7 +21,7 @@ select @@global.max_relay_log_size;
 @@global.max_relay_log_size
 4096
 start slave;
-show slave status;
+SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
@@ -69,7 +69,7 @@ set global max_relay_log_size=(5*4096);
 select @@global.max_relay_log_size;
 @@global.max_relay_log_size	20480
 start slave;
-show slave status;
+SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
@@ -117,7 +117,7 @@ set global max_relay_log_size=0;
 select @@global.max_relay_log_size;
 @@global.max_relay_log_size	0
 start slave;
-show slave status;
+SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
@@ -162,7 +162,7 @@ Last_SQL_Error
 stop slave;
 reset slave;
 flush logs;
-show slave status;
+SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
@@ -208,7 +208,7 @@ reset slave;
 start slave;
 flush logs;
 create table t1 (a int);
-show slave status;
+SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
@@ -252,7 +252,7 @@ Last_SQL_Error
 #
 flush logs;
 drop table t1;
-show slave status;
+SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root

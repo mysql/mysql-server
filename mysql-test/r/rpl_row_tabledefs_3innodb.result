@@ -122,7 +122,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1105
+Last_Errno	1364
 Last_Error	Error in Write_rows event: error during transaction execution on table test.t1_nodef
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -183,7 +183,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
 Last_IO_Error	
-Last_SQL_Errno	1522
+Last_SQL_Errno	1523
 Last_SQL_Error	Table definition on master and slave does not match: Table width mismatch - received 2 columns, test.t2 has 1 columns
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -226,7 +226,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
 Last_IO_Error	
-Last_SQL_Errno	1522
+Last_SQL_Errno	1523
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 3, test.t4 has type 4
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -269,7 +269,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
 Last_IO_Error	
-Last_SQL_Errno	1522
+Last_SQL_Errno	1523
 Last_SQL_Error	Table definition on master and slave does not match: Column 1 type mismatch - received type 3, test.t5 has type 4
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -312,7 +312,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
 Last_IO_Error	
-Last_SQL_Errno	1522
+Last_SQL_Errno	1523
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 3, test.t6 has type 4
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
