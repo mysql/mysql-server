@@ -73,6 +73,7 @@ typedef struct st_copy_info {
   ha_rows updated;
   ha_rows copied;
   ha_rows error_count;
+  ha_rows touched; /* Number of touched records */
   enum enum_duplicates handle_duplicates;
   int escape_char, last_errno;
   bool ignore;

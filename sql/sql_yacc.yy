@@ -7509,7 +7509,8 @@ select_derived2:
         {
 	  LEX *lex= Lex;
 	  lex->derived_tables|= DERIVED_SUBQUERY;
-          if (!lex->expr_allows_subselect)
+          if (!lex->expr_allows_subselect ||
+              lex->sql_command == (int)SQLCOM_PURGE)
 	  {
             my_parse_error(ER(ER_SYNTAX_ERROR));
 	    MYSQL_YYABORT;
@@ -11231,7 +11232,8 @@ subselect_init:
 subselect_start:
 	{
 	  LEX *lex=Lex;
-          if (!lex->expr_allows_subselect)
+          if (!lex->expr_allows_subselect ||
+              lex->sql_command == (int)SQLCOM_PURGE)
 	  {
             my_parse_error(ER(ER_SYNTAX_ERROR));
 	    MYSQL_YYABORT;
