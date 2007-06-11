@@ -1397,6 +1397,17 @@ TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
 TRIGGERS	information_schema.TRIGGERS	1
 USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
 VIEWS	information_schema.VIEWS	1
+create table t1(f1 int);
+create view v1 as select f1+1 as a from t1;
+create table t2 (f1 int, f2 int);
+create view v2 as select f1+1 as a, f2 as b from t2;
+select table_name, is_updatable from information_schema.views;
+table_name	is_updatable
+v1	NO
+v2	YES
+delete from v1;
+drop view v1,v2;
+drop table t1,t2;
 End of 5.0 tests.
 select * from information_schema.engines WHERE ENGINE="MyISAM";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS

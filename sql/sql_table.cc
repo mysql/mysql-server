@@ -5790,8 +5790,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   strxnmov(new_name_buff, sizeof (new_name_buff) - 1, mysql_data_home, "/", db, 
            "/", table_name, reg_ext, NullS);
   (void) unpack_filename(new_name_buff, new_name_buff);
-  if (lower_case_table_names != 2)
-    my_casedn_str(files_charset_info, new_name_buff);
   /*
     If this is just a rename of a view, short cut to the
     following scenario: 1) lock LOCK_open 2) do a RENAME
