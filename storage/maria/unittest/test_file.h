@@ -1,5 +1,5 @@
 #include <m_string.h>
-#include <pagecache.h>
+#include "../ma_pagecache.h"
 
 /*
   File content descriptor

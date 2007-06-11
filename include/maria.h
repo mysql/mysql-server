@@ -27,9 +27,7 @@ extern "C" {
 #ifndef _m_ctype_h
 #include <m_ctype.h>
 #endif
-#ifndef _pagecache_h
-#include "pagecache.h"
-#endif
+#include "../storage/maria/ma_pagecache.h"
 #include "my_handler.h"
 #include "ft_global.h"
 #include <myisamchk.h>

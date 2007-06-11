@@ -2,12 +2,14 @@
 #include <stdio.h>
 #include <errno.h>
 #include <tap.h>
+#include "../trnman.h"
 
 extern my_bool maria_log_remove();
 
 #ifndef DBUG_OFF
 static const char *default_dbug_option;
 #endif
+static TRN *trn= &dummy_transaction_object;
 
 #define PCACHE_SIZE (1024*1024*10)
 
@@ -166,9 +168,10 @@ int main(int argc __attribute__((unused)), char *argv[])
   int4store(long_tr_id, 0);
   parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
   parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
+  trn->short_id= 0;
   if (translog_write_record(&lsn,
                             LOGREC_LONG_TRANSACTION_ID,
-                            0, NULL, NULL,
+                            trn, NULL,
                             6, TRANSLOG_INTERNAL_PARTS + 1, parts))
   {
     fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);
@@ -181,6 +184,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 
   for (i= 1; i < ITERATIONS; i++)
   {
+    trn->short_id= i % 0xFFFF;    
     if (i % 2)
     {
       lsn_store(lsn_buff, lsn_base);
@@ -189,7 +193,7 @@ int main(int argc __attribute__((unused)), char *argv[])
       /* check auto-count feature */
       parts[TRANSLOG_INTERNAL_PARTS + 1].str= NULL;
       parts[TRANSLOG_INTERNAL_PARTS + 1].length= 0;
-      if (translog_write_record(&lsn, LOGREC_CLR_END, (i % 0xFFFF), NULL,
+      if (translog_write_record(&lsn, LOGREC_CLR_END, trn,
                                 NULL, LSN_STORE_SIZE, 0, parts))
       {
         fprintf(stderr, "1 Can't write reference defore record #%lu\n",
@@ -209,8 +213,7 @@ int main(int argc __attribute__((unused)), char *argv[])
       /* check record length auto-counting */
       if (translog_write_record(&lsn,
                                 LOGREC_UNDO_KEY_INSERT,
-                                (i % 0xFFFF),
-                                NULL, NULL, 0, TRANSLOG_INTERNAL_PARTS + 2,
+                                trn, NULL, 0, TRANSLOG_INTERNAL_PARTS + 2,
                                 parts))
       {
         fprintf(stderr, "1 Can't write var reference defore record #%lu\n",
@@ -229,7 +232,7 @@ int main(int argc __attribute__((unused)), char *argv[])
       parts[TRANSLOG_INTERNAL_PARTS + 0].length= 23;
       if (translog_write_record(&lsn,
                                 LOGREC_UNDO_ROW_DELETE,
-                                (i % 0xFFFF), NULL, NULL,
+                                trn, NULL,
                                 23, TRANSLOG_INTERNAL_PARTS + 1, parts))
       {
         fprintf(stderr, "0 Can't write reference defore record #%lu\n",
@@ -249,8 +252,7 @@ int main(int argc __attribute__((unused)), char *argv[])
       parts[TRANSLOG_INTERNAL_PARTS + 1].length= rec_len;
       if (translog_write_record(&lsn,
                                 LOGREC_UNDO_KEY_DELETE,
-                                (i % 0xFFFF),
-                                NULL, NULL, 14 + rec_len,
+                                trn, NULL, 14 + rec_len,
                                 TRANSLOG_INTERNAL_PARTS + 2, parts))
       {
         fprintf(stderr, "0 Can't write var reference defore record #%lu\n",
@@ -266,7 +268,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
     if (translog_write_record(&lsn,
                               LOGREC_LONG_TRANSACTION_ID,
-                              (i % 0xFFFF), NULL, NULL, 6,
+                              trn, NULL, 6,
                               TRANSLOG_INTERNAL_PARTS + 1,
                               parts))
     {
@@ -285,7 +287,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     parts[TRANSLOG_INTERNAL_PARTS + 0].length= rec_len;
     if (translog_write_record(&lsn,
                               LOGREC_REDO_INSERT_ROW_HEAD,
-                              (i % 0xFFFF), NULL, NULL, rec_len,
+                              trn, NULL, rec_len,
                               TRANSLOG_INTERNAL_PARTS + 1,
                               parts))
     {

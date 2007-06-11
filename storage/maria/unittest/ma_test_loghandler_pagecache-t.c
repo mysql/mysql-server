@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <tap.h>
+#include "../trnman.h"
 
 extern my_bool maria_log_remove();
 
@@ -90,7 +91,8 @@ int main(int argc __attribute__((unused)), char *argv[])
   parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
   if (translog_write_record(&lsn,
                             LOGREC_LONG_TRANSACTION_ID,
-                            0, NULL, NULL, 6, TRANSLOG_INTERNAL_PARTS + 1,
+                            &dummy_transaction_object, NULL, 6,
+                            TRANSLOG_INTERNAL_PARTS + 1,
                             parts))
   {
     fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);

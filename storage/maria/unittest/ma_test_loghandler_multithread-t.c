@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <errno.h>
 #include <tap.h>
+#include "../trnman.h"
+
 extern my_bool maria_log_remove();
 
 #ifndef DBUG_OFF
@@ -117,9 +119,11 @@ static my_bool read_and_check_content(TRANSLOG_HEADER_BUFFER *rec,
 void writer(int num)
 {
   LSN lsn;
+  TRN trn;
   byte long_tr_id[6];
   uint i;
 
+  trn.short_id= num;
   for (i= 0; i < ITERATIONS; i++)
   {
     uint len= get_len();
@@ -132,7 +136,7 @@ void writer(int num)
     parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
     if (translog_write_record(&lsn,
                               LOGREC_LONG_TRANSACTION_ID,
-                              num, NULL, NULL, 6, TRANSLOG_INTERNAL_PARTS + 1,
+                              &trn, NULL, 6, TRANSLOG_INTERNAL_PARTS + 1,
                               parts))
     {
       fprintf(stderr, "Can't write LOGREC_LONG_TRANSACTION_ID record #%lu "
@@ -148,7 +152,7 @@ void writer(int num)
     parts[TRANSLOG_INTERNAL_PARTS + 0].length= len;
     if (translog_write_record(&lsn,
                               LOGREC_REDO_INSERT_ROW_HEAD,
-                              num, NULL, NULL,
+                              &trn, NULL,
                               len, TRANSLOG_INTERNAL_PARTS + 1,
                               parts))
     {
@@ -296,7 +300,8 @@ int main(int argc __attribute__((unused)),
     parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
     if (translog_write_record(&first_lsn,
                               LOGREC_LONG_TRANSACTION_ID,
-                              0, NULL, NULL, 6, TRANSLOG_INTERNAL_PARTS + 1,
+                              &dummy_transaction_object, NULL, 6,
+                              TRANSLOG_INTERNAL_PARTS + 1,
                               parts))
     {
       fprintf(stderr, "Can't write the first record\n");

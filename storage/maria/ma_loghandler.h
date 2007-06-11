@@ -180,6 +180,7 @@ struct st_translog_reader_data
   my_bool eor;                                  /* end of the record */
 };
 
+struct st_transaction;
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -191,8 +192,8 @@ extern my_bool translog_init(const char *directory, uint32 log_file_max_size,
 
 extern my_bool translog_write_record(LSN *lsn,
                                      enum translog_record_type type,
-                                     SHORT_TRANSACTION_ID short_trid,
-                                     void *tcb, struct st_maria_share *share,
+                                     struct st_transaction *trn,
+                                     struct st_maria_share *share,
                                      translog_size_t rec_len,
                                      uint part_no,
                                      LEX_STRING *parts_data);

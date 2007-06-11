@@ -15,6 +15,7 @@
 
 #include "maria_def.h"
 #include "ma_blockrec.h"
+#include "trnman.h"
 
 /* number of opened log files in the pagecache (should be at least 2) */
 #define OPENED_FILES_NUM 3
@@ -187,11 +188,11 @@ enum record_class
 #define TRANSLOG_CLSN_MAX_LEN  5       /* Maximum length of compressed LSN */
 
 typedef my_bool(*prewrite_rec_hook) (enum translog_record_type type,
-                                     void *tcb, struct st_maria_share *share,
+                                     TRN *trn, struct st_maria_share *share,
                                      struct st_translog_parts *parts);
 
 typedef my_bool(*inwrite_rec_hook) (enum translog_record_type type,
-                                    void *tcb,
+                                    TRN *trn,
                                     LSN *lsn,
                                     struct st_translog_parts *parts);
 
@@ -225,6 +226,13 @@ struct st_log_record_type_descriptor
 };
 
 
+static my_bool write_hook_for_redo(enum translog_record_type type,
+                                   TRN *trn, LSN *lsn,
+                                   struct st_translog_parts *parts);
+static my_bool write_hook_for_undo(enum translog_record_type type,
+                                   TRN *trn, LSN *lsn,
+                                   struct st_translog_parts *parts);
+
 /*
   Initialize log_record_type_descriptors
 
@@ -240,29 +248,31 @@ static LOG_DESC INIT_LOGREC_RESERVED_FOR_CHUNKS23=
 
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_HEAD=
 {LOGRECTYPE_VARIABLE_LENGTH, 0,
- FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE, NULL, NULL, NULL, 0};
+ FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE, NULL,
+ write_hook_for_redo, NULL, 0};
 
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_TAIL=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, NULL, NULL, 0};
+/* QQ shouldn't this 9 be 8? */
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, write_hook_for_redo, NULL, 0};
 
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_BLOB=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 8, NULL, NULL, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 8, NULL, write_hook_for_redo, NULL, 0};
 
 /*QQQ:TODO:header???*/
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_BLOBS=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, write_hook_for_redo, NULL, 0};
 
 static LOG_DESC INIT_LOGREC_REDO_PURGE_ROW_HEAD=
 {LOGRECTYPE_FIXEDLENGTH,
  FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
  FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
- NULL, NULL, NULL, 0};
+ NULL, write_hook_for_redo, NULL, 0};
 
 static LOG_DESC INIT_LOGREC_REDO_PURGE_ROW_TAIL=
 {LOGRECTYPE_FIXEDLENGTH,
  FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
  FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
- NULL, NULL, NULL, 0};
+ NULL, write_hook_for_redo, NULL, 0};
 
 /* QQQ: TODO: variable and fixed size??? */
 static LOG_DESC INIT_LOGREC_REDO_PURGE_BLOCKS=
@@ -271,22 +281,22 @@ static LOG_DESC INIT_LOGREC_REDO_PURGE_BLOCKS=
  PAGERANGE_STORE_SIZE,
  FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE + PAGE_STORE_SIZE +
  PAGERANGE_STORE_SIZE,
- NULL, NULL, NULL, 0};
+ NULL, write_hook_for_redo, NULL, 0};
 
 static LOG_DESC INIT_LOGREC_REDO_DELETE_ROW=
-{LOGRECTYPE_FIXEDLENGTH, 16, 16, NULL, NULL, NULL, 0};
+{LOGRECTYPE_FIXEDLENGTH, 16, 16, NULL, write_hook_for_redo, NULL, 0};
 
 static LOG_DESC INIT_LOGREC_REDO_UPDATE_ROW_HEAD=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, NULL, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, write_hook_for_redo, NULL, 0};
 
 static LOG_DESC INIT_LOGREC_REDO_INDEX=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, NULL, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, write_hook_for_redo, NULL, 0};
 
 static LOG_DESC INIT_LOGREC_REDO_UNDELETE_ROW=
-{LOGRECTYPE_FIXEDLENGTH, 16, 16, NULL, NULL, NULL, 0};
+{LOGRECTYPE_FIXEDLENGTH, 16, 16, NULL, write_hook_for_redo, NULL, 0};
 
 static LOG_DESC INIT_LOGREC_CLR_END=
-{LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, NULL, NULL, 1};
+{LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, write_hook_for_redo, NULL, 1};
 
 static LOG_DESC INIT_LOGREC_PURGE_END=
 {LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, NULL, NULL, 1};
@@ -295,27 +305,27 @@ static LOG_DESC INIT_LOGREC_UNDO_ROW_INSERT=
 {LOGRECTYPE_FIXEDLENGTH,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
- NULL, NULL, NULL, 0};
+ NULL, write_hook_for_undo, NULL, 0};
 
 static LOG_DESC INIT_LOGREC_UNDO_ROW_DELETE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
- NULL, NULL, NULL, 0};
+ NULL, write_hook_for_undo, NULL, 0};
 
 static LOG_DESC INIT_LOGREC_UNDO_ROW_UPDATE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
- NULL, NULL, NULL, 1};
+ NULL, write_hook_for_undo, NULL, 1};
 
 static LOG_DESC INIT_LOGREC_UNDO_ROW_PURGE=
 {LOGRECTYPE_PSEUDOFIXEDLENGTH, LSN_STORE_SIZE, LSN_STORE_SIZE,
  NULL, NULL, NULL, 1};
 
 static LOG_DESC INIT_LOGREC_UNDO_KEY_INSERT=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 10, NULL, NULL, NULL, 1};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 10, NULL, write_hook_for_undo, NULL, 1};
 
 static LOG_DESC INIT_LOGREC_UNDO_KEY_DELETE=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 15, NULL, NULL, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 15, NULL, write_hook_for_undo, NULL, 0};
 
 static LOG_DESC INIT_LOGREC_PREPARE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0};
@@ -2528,7 +2538,7 @@ static my_bool translog_write_parts_on_page(TRANSLOG_ADDRESS *horizon,
     translog_write_variable_record_1group_header()
     parts                Descriptor of record source parts
     type                 The log record type
-    short_trid           Sort transaction ID or 0 if it has no sense
+    short_trid           Short transaction ID or 0 if it has no sense
     header_length        Calculated header length of chunk type 0
     chunk0_header        Buffer for the chunk header writing
 */
@@ -2915,12 +2925,12 @@ static translog_size_t translog_get_current_group_size()
     translog_write_variable_record_1group()
     lsn                  LSN of the record will be written here
     type                 the log record type
-    short_trid           Sort transaction ID or 0 if it has no sense
+    short_trid           Short transaction ID or 0 if it has no sense
     parts                Descriptor of record source parts
     buffer_to_flush      Buffer which have to be flushed if it is not 0
     header_length        Calculated header length of chunk type 0
-    tcb                  Transaction control block pointer for hooks by
-                         record log type
+    trn                  Transaction structure pointer for hooks by
+                         record log type, for short_id
 
   RETURN
     0  OK
@@ -2934,7 +2944,7 @@ translog_write_variable_record_1group(LSN *lsn,
                                       struct st_translog_parts *parts,
                                       struct st_translog_buffer
                                       *buffer_to_flush, uint16 header_length,
-                                      void *tcb)
+                                      TRN *trn)
 {
   TRANSLOG_ADDRESS horizon;
   struct st_buffer_cursor cursor;
@@ -2947,7 +2957,7 @@ translog_write_variable_record_1group(LSN *lsn,
 
   *lsn= horizon= log_descriptor.horizon;
   if (log_record_type_descriptor[type].inwrite_hook &&
-      (*log_record_type_descriptor[type].inwrite_hook)(type, tcb, lsn, parts))
+      (*log_record_type_descriptor[type].inwrite_hook)(type, trn, lsn, parts))
   {
     translog_unlock();
     DBUG_RETURN(1);
@@ -3069,12 +3079,12 @@ translog_write_variable_record_1group(LSN *lsn,
     translog_write_variable_record_1chunk()
     lsn                  LSN of the record will be written here
     type                 the log record type
-    short_trid           Sort transaction ID or 0 if it has no sense
+    short_trid           Short transaction ID or 0 if it has no sense
     parts                Descriptor of record source parts
     buffer_to_flush      Buffer which have to be flushed if it is not 0
     header_length        Calculated header length of chunk type 0
-    tcb                  Transaction control block pointer for hooks by
-                         record log type
+    trn                  Transaction structure pointer for hooks by
+                         record log type, for short_id
 
   RETURN
     0  OK
@@ -3088,7 +3098,7 @@ translog_write_variable_record_1chunk(LSN *lsn,
                                       struct st_translog_parts *parts,
                                       struct st_translog_buffer
                                       *buffer_to_flush, uint16 header_length,
-                                      void *tcb)
+                                      TRN *trn)
 {
   int rc;
   byte chunk0_header[1 + 2 + 5 + 2];
@@ -3099,7 +3109,7 @@ translog_write_variable_record_1chunk(LSN *lsn,
 
   *lsn= log_descriptor.horizon;
   if (log_record_type_descriptor[type].inwrite_hook &&
-      (*log_record_type_descriptor[type].inwrite_hook)(type, tcb,
+      (*log_record_type_descriptor[type].inwrite_hook)(type, trn,
                                                        lsn, parts))
   {
     translog_unlock();
@@ -3399,13 +3409,13 @@ static my_bool translog_relative_LSN_encode(struct st_translog_parts *parts,
     translog_write_variable_record_mgroup()
     lsn                  LSN of the record will be written here
     type                 the log record type
-    short_trid           Sort transaction ID or 0 if it has no sense
+    short_trid           Short transaction ID or 0 if it has no sense
     parts                Descriptor of record source parts
     buffer_to_flush      Buffer which have to be flushed if it is not 0
     header_length        Header length calculated for 1 group
     buffer_rest          Beginning from which we plan to write in full pages
-    tcb                  Transaction control block pointer for hooks by
-                         record log type
+    trn                  Transaction structure pointer for hooks by
+                         record log type, for short_id
 
   RETURN
     0  OK
@@ -3421,7 +3431,7 @@ translog_write_variable_record_mgroup(LSN *lsn,
                                       *buffer_to_flush,
                                       uint16 header_length,
                                       translog_size_t buffer_rest,
-                                      void *tcb)
+                                      TRN *trn)
 {
   TRANSLOG_ADDRESS horizon;
   struct st_buffer_cursor cursor;
@@ -3757,7 +3767,7 @@ translog_write_variable_record_mgroup(LSN *lsn,
       first_chunk0= 0;
       *lsn= horizon;
       if (log_record_type_descriptor[type].inwrite_hook &&
-          (*log_record_type_descriptor[type].inwrite_hook) (type, tcb,
+          (*log_record_type_descriptor[type].inwrite_hook) (type, trn,
                                                             lsn, parts))
         goto err;
     }
@@ -3831,10 +3841,10 @@ err:
     translog_write_variable_record()
     lsn                  LSN of the record will be written here
     type                 the log record type
-    short_trid           Sort transaction ID or 0 if it has no sense
+    short_trid           Short transaction ID or 0 if it has no sense
     parts                Descriptor of record source parts
-    tcb                  Transaction control block pointer for hooks by
-                         record log type
+    trn                  Transaction structure pointer for hooks by
+                         record log type, for short_id
 
   RETURN
     0  OK
@@ -3845,7 +3855,7 @@ static my_bool translog_write_variable_record(LSN *lsn,
                                               enum translog_record_type type,
                                               SHORT_TRANSACTION_ID short_trid,
                                               struct st_translog_parts *parts,
-                                              void *tcb)
+                                              TRN *trn)
 {
   struct st_translog_buffer *buffer_to_flush= NULL;
   uint header_length1= 1 + 2 + 2 +
@@ -3920,7 +3930,7 @@ static my_bool translog_write_variable_record(LSN *lsn,
     /* following function makes translog_unlock(); */
     DBUG_RETURN(translog_write_variable_record_1chunk(lsn, type, short_trid,
                                                       parts, buffer_to_flush,
-                                                      header_length1, tcb));
+                                                      header_length1, trn));
   }
 
   buffer_rest= translog_get_current_group_size();
@@ -3930,13 +3940,13 @@ static my_bool translog_write_variable_record(LSN *lsn,
     /* following function makes translog_unlock(); */
     DBUG_RETURN(translog_write_variable_record_1group(lsn, type, short_trid,
                                                       parts, buffer_to_flush,
-                                                      header_length1, tcb));
+                                                      header_length1, trn));
   }
   /* following function makes translog_unlock(); */
   DBUG_RETURN(translog_write_variable_record_mgroup(lsn, type, short_trid,
                                                     parts, buffer_to_flush,
                                                     header_length1,
-                                                    buffer_rest, tcb));
+                                                    buffer_rest, trn));
 }
 
 
@@ -3947,10 +3957,10 @@ static my_bool translog_write_variable_record(LSN *lsn,
     translog_write_fixed_record()
     lsn                  LSN of the record will be written here
     type                 the log record type
-    short_trid           Sort transaction ID or 0 if it has no sense
+    short_trid           Short transaction ID or 0 if it has no sense
     parts                Descriptor of record source parts
-    tcb                  Transaction control block pointer for hooks by
-                         record log type
+    trn                  Transaction structure pointer for hooks by
+                         record log type, for short_id
 
   RETURN
     0  OK
@@ -3961,7 +3971,7 @@ static my_bool translog_write_fixed_record(LSN *lsn,
                                            enum translog_record_type type,
                                            SHORT_TRANSACTION_ID short_trid,
                                            struct st_translog_parts *parts,
-                                           void *tcb)
+                                           TRN *trn)
 {
   struct st_translog_buffer *buffer_to_flush= NULL;
   byte chunk1_header[1 + 2];
@@ -4012,7 +4022,7 @@ static my_bool translog_write_fixed_record(LSN *lsn,
 
   *lsn= log_descriptor.horizon;
   if (log_record_type_descriptor[type].inwrite_hook &&
-      (*log_record_type_descriptor[type].inwrite_hook) (type, tcb,
+      (*log_record_type_descriptor[type].inwrite_hook) (type, trn,
                                                         lsn, parts))
   {
     rc= 1;
@@ -4074,9 +4084,9 @@ err:
     translog_write_record()
     lsn                  LSN of the record will be written here
     type                 the log record type
-    short_trid           Sort transaction ID or 0 if it has no sense
-    tcb                  Transaction control block pointer for hooks by
-                         record log type
+    trn                  Transaction structure pointer for hooks by
+                         record log type, for short_id
+    share                MARIA_SHARE of table or NULL
     rec_len              record length or 0 (count it)
     part_no              number of parts or 0 (count it)
     parts_data           zero ended (in case of number of parts is 0)
@@ -4091,8 +4101,7 @@ err:
 
 my_bool translog_write_record(LSN *lsn,
                               enum translog_record_type type,
-                              SHORT_TRANSACTION_ID short_trid,
-                              void *tcb, struct st_maria_share *share,
+                              TRN *trn, struct st_maria_share *share,
                               translog_size_t rec_len,
                               uint part_no,
                               LEX_STRING *parts_data)
@@ -4100,6 +4109,7 @@ my_bool translog_write_record(LSN *lsn,
   struct st_translog_parts parts;
   LEX_STRING *part;
   int rc;
+  uint short_trid= trn->short_id;
   DBUG_ENTER("translog_write_record");
   DBUG_PRINT("enter", ("type: %u  ShortTrID: %u",
                        (uint) type, (uint)short_trid));
@@ -4169,17 +4179,17 @@ my_bool translog_write_record(LSN *lsn,
 
   /* process this parts */
   if (!(rc= (log_record_type_descriptor[type].prewrite_hook &&
-             (*log_record_type_descriptor[type].prewrite_hook) (type, tcb,
+             (*log_record_type_descriptor[type].prewrite_hook) (type, trn,
                                                                 share,
                                                                 &parts))))
   {
     switch (log_record_type_descriptor[type].class) {
     case LOGRECTYPE_VARIABLE_LENGTH:
-      rc= translog_write_variable_record(lsn, type, short_trid, &parts, tcb);
+      rc= translog_write_variable_record(lsn, type, short_trid, &parts, trn);
       break;
     case LOGRECTYPE_PSEUDOFIXEDLENGTH:
     case LOGRECTYPE_FIXEDLENGTH:
-      rc= translog_write_fixed_record(lsn, type, short_trid, &parts, tcb);
+      rc= translog_write_fixed_record(lsn, type, short_trid, &parts, trn);
       break;
     case LOGRECTYPE_NOT_ALLOWED:
     default:
@@ -4745,7 +4755,7 @@ translog_read_record_header_from_buffer(byte *page,
               TRANSLOG_CHUNK_FIXED);
   buff->type= (page[page_offset] & TRANSLOG_REC_TYPE);
   buff->short_trid= uint2korr(page + page_offset + 1);
-  DBUG_PRINT("info", ("Type %u, Sort TrID %u, LSN (%lu,0x%lx)",
+  DBUG_PRINT("info", ("Type %u, Short TrID %u, LSN (%lu,0x%lx)",
                       (uint) buff->type, (uint)buff->short_trid,
                       (ulong) LSN_FILE_NO(buff->lsn),
                       (ulong) LSN_OFFSET(buff->lsn)));
@@ -5385,4 +5395,33 @@ my_bool translog_flush(LSN lsn)
   rc|= my_sync(log_descriptor.directory_fd, MYF(MY_WME));
   translog_unlock();
   DBUG_RETURN(rc);
+}
+
+
+static my_bool write_hook_for_redo(enum translog_record_type type
+                                   __attribute__ ((unused)),
+                                   TRN *trn, LSN *lsn,
+                                   struct st_translog_parts *parts
+                                   __attribute__ ((unused)))
+{
+  if (trn->rec_lsn == 0)
+    trn->rec_lsn= *lsn;
+  return 0;
+}
+
+
+static my_bool write_hook_for_undo(enum translog_record_type type
+                                   __attribute__ ((unused)),
+                                   TRN *trn, LSN *lsn,
+                                   struct st_translog_parts *parts
+                                   __attribute__ ((unused)))
+{
+  trn->undo_lsn= *lsn;
+  if (trn->first_undo_lsn == 0)
+    trn->first_undo_lsn= *lsn;
+  return 0;
+  /*
+    when we implement purging, we will specialize this hook: UNDO_PURGE
+    records will additionally set trn->undo_purge_lsn
+  */
 }
