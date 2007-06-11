@@ -25,6 +25,7 @@ flush logs;
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
 is not null;
+
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 eval select
 @a like "%#%error_code=0%ROLLBACK/*!*/;%ROLLBACK /* added by mysqlbinlog */;%",
