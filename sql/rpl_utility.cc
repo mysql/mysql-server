@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "rpl_utility.h"
+#include "rpl_rli.h"
 
 uint32
 field_length_from_packed(enum_field_types const field_type, 

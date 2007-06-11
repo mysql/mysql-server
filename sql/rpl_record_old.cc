@@ -1,5 +1,6 @@
 
 #include "mysql_priv.h"
+#include "rpl_rli.h"
 #include "rpl_record_old.h"
 
 size_t
@@ -157,11 +158,11 @@ unpack_row_old(RELAY_LOG_INFO *rli,
     if (event_type == WRITE_ROWS_EVENT &&
         ((*field_ptr)->flags & mask) == mask)
     {
-      slave_print_msg(ERROR_LEVEL, rli, ER_NO_DEFAULT_FOR_FIELD,
-                      "Field `%s` of table `%s`.`%s` "
-                      "has no default value and cannot be NULL",
-                      (*field_ptr)->field_name, table->s->db.str,
-                      table->s->table_name.str);
+      rli->report(ERROR_LEVEL, ER_NO_DEFAULT_FOR_FIELD,
+                  "Field `%s` of table `%s`.`%s` "
+                  "has no default value and cannot be NULL",
+                  (*field_ptr)->field_name, table->s->db.str,
+                  table->s->table_name.str);
       error = ER_NO_DEFAULT_FOR_FIELD;
     }
     else

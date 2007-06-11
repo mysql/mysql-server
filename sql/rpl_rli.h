@@ -16,8 +16,6 @@
 #ifndef RPL_RLI_H
 #define RPL_RLI_H
 
-#define MAX_SLAVE_ERRMSG      1024
-
 #include "rpl_tblmap.h"
 #include "rpl_reporting.h"
 

@@ -18,8 +18,8 @@
 
 #ifdef HAVE_REPLICATION
 
-#include "rpl_reporting.h"
 #include "rpl_rli.h"
+#include "rpl_reporting.h"
 
 
 /*****************************************************************************

@@ -3,7 +3,8 @@
 #include "rpl_reporting.h"
 
 void
-Slave_reporting_capability::report(loglevel level, int err_code, const char *msg, ...)
+Slave_reporting_capability::report(loglevel level, int err_code,
+                                   const char *msg, ...) const
 {
   void (*report_function)(const char *, ...);
   char buff[MAX_SLAVE_ERRMSG];
@@ -19,9 +20,9 @@ Slave_reporting_capability::report(loglevel level, int err_code, const char *msg
       It's an error, it must be reported in Last_error and Last_errno in SHOW
       SLAVE STATUS.
     */
-    pbuff= last_error.message;
-    pbuffsize= sizeof(last_error.message);
-    last_error.number = err_code;
+    pbuff= m_last_error.message;
+    pbuffsize= sizeof(m_last_error.message);
+    m_last_error.number = err_code;
     report_function= sql_print_error;
     break;
   case WARNING_LEVEL:

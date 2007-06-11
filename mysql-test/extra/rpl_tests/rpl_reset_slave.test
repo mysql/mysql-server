@@ -13,26 +13,18 @@ connection master;
 save_master_pos;
 connection slave;
 sync_with_master;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
-show slave status;
+source include/show_slave_status.inc;
 
 stop slave;
 change master to master_user='test';
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
-show slave status;
+source include/show_slave_status.inc;
 
 reset slave;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
-show slave status;
+source include/show_slave_status.inc;
 
 start slave;
 sync_with_master;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
-show slave status;
+source include/show_slave_status.inc;
 
 # test of crash with temp tables & RESET SLAVE
 # (test to see if RESET SLAVE clears temp tables in memory and disk)
