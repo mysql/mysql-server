@@ -52,6 +52,7 @@ dict_mem_table_create(
 	table->flags = (unsigned int) flags;
 	table->name = mem_heap_strdup(heap, name);
 	table->dir_path_of_temp_table = NULL;
+	table->version_number = 0;
 	table->space = (unsigned int) space;
 	table->ibd_file_missing = FALSE;
 	table->tablespace_discarded = FALSE;
