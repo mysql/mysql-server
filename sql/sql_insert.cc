@@ -1664,6 +1664,7 @@ public:
       Statement-based replication of INSERT DELAYED has problems with RAND()
       and user vars, so in mixed mode we go to row-based.
     */
+    thd.lex->set_stmt_unsafe();
     thd.set_current_stmt_binlog_row_based_if_mixed();
 
     bzero((char*) &thd.net, sizeof(thd.net));		// Safety
