@@ -4397,7 +4397,7 @@ Field_timestamp::Field_timestamp(uchar *ptr_arg, uint32 len_arg,
 				 const char *field_name_arg,
 				 TABLE_SHARE *share,
 				 CHARSET_INFO *cs)
-  :Field_str(ptr_arg, 19, null_ptr_arg, null_bit_arg,
+  :Field_str(ptr_arg, MAX_DATETIME_WIDTH, null_ptr_arg, null_bit_arg,
 	     unireg_check_arg, field_name_arg, cs)
 {
   /* For 4.0 MYD and 4.0 InnoDB compatibility */
@@ -4414,7 +4414,8 @@ Field_timestamp::Field_timestamp(uchar *ptr_arg, uint32 len_arg,
 Field_timestamp::Field_timestamp(bool maybe_null_arg,
                                  const char *field_name_arg,
                                  CHARSET_INFO *cs)
-  :Field_str((uchar*) 0, 19, maybe_null_arg ? (uchar*) "": 0, 0,
+  :Field_str((uchar*) 0, MAX_DATETIME_WIDTH,
+             maybe_null_arg ? (uchar*) "": 0, 0,
 	     NONE, field_name_arg, cs)
 {
   /* For 4.0 MYD and 4.0 InnoDB compatibility */
@@ -4947,7 +4948,7 @@ String *Field_time::val_str(String *val_buffer,
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
-  val_buffer->alloc(19);
+  val_buffer->alloc(MAX_DATE_STRING_REP_LENGTH);
   long tmp=(long) sint3korr(ptr);
   ltime.neg= 0;
   if (tmp < 0)
@@ -5495,7 +5496,7 @@ int Field_newdate::store_time(MYSQL_TIME *ltime,timestamp_type time_type)
                      (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
                       MODE_INVALID_DATES))), &error))
     {
-      char buff[12];
+      char buff[MAX_DATE_STRING_REP_LENGTH];
       String str(buff, sizeof(buff), &my_charset_latin1);
       make_date((DATE_TIME_FORMAT *) 0, ltime, &str);
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
@@ -5726,7 +5727,7 @@ int Field_datetime::store_time(MYSQL_TIME *ltime,timestamp_type time_type)
                      (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
                       MODE_INVALID_DATES))), &error))
     {
-      char buff[19];
+      char buff[MAX_DATE_STRING_REP_LENGTH];
       String str(buff, sizeof(buff), &my_charset_latin1);
       make_datetime((DATE_TIME_FORMAT *) 0, ltime, &str);
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
@@ -5802,7 +5803,7 @@ String *Field_datetime::val_str(String *val_buffer,
   part1=(long) (tmp/LL(1000000));
   part2=(long) (tmp - (ulonglong) part1*LL(1000000));
 
-  pos=(char*) val_buffer->ptr()+19;
+  pos=(char*) val_buffer->ptr() + MAX_DATETIME_WIDTH;
   *pos--=0;
   *pos--= (char) ('0'+(char) (part2%10)); part2/=10;
   *pos--= (char) ('0'+(char) (part2%10)); part3= (int) (part2 / 10);
@@ -8911,15 +8912,18 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     break;
   case MYSQL_TYPE_TIMESTAMP:
     if (!fld_length)
-      length= 14;  /* Full date YYYYMMDDHHMMSS */
-    else if (length != 19)
+    {
+      /* Compressed date YYYYMMDDHHMMSS */
+      length= MAX_DATETIME_COMPRESSED_WIDTH;
+    }
+    else if (length != MAX_DATETIME_WIDTH)
     {
       /*
         We support only even TIMESTAMP lengths less or equal than 14
         and 19 as length of 4.1 compatible representation.
       */
       length= ((length+1)/2)*2; /* purecov: inspected */
-      length= min(length,14); /* purecov: inspected */
+      length= min(length, MAX_DATETIME_COMPRESSED_WIDTH); /* purecov: inspected */
     }
     flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
     if (fld_default_value)
@@ -8972,7 +8976,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     length= 10;
     break;
   case MYSQL_TYPE_DATETIME:
-    length= 19;
+    length= MAX_DATETIME_WIDTH;
     break;
   case MYSQL_TYPE_SET:
     {
