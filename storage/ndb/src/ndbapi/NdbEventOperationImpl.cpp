@@ -2910,7 +2910,7 @@ send_report:
   data[5]= apply_gci >> 32;
   data[6]= latest_gci & ~(Uint32)0;
   data[7]= latest_gci >> 32;
-  Ndb_internal().send_event_report(m_ndb, data,8);
+  Ndb_internal::send_event_report(m_ndb, data,8);
 #ifdef VM_TRACE
   assert(m_total_alloc >= m_free_data_sz);
 #endif
