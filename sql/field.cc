@@ -5887,6 +5887,7 @@ void Field_datetime::sql_type(String &res) const
     well_formed_error_pos    - where not well formed data was first met
     cannot_convert_error_pos - where a not-convertable character was first met
     end                      - end of the string
+    cs                       - character set of the string
 
   NOTES
     As of version 5.0 both cases return the same error:
@@ -5906,7 +5907,8 @@ static bool
 check_string_copy_error(Field_str *field,
                         const char *well_formed_error_pos,
                         const char *cannot_convert_error_pos,
-                        const char *end)
+                        const char *end,
+                        CHARSET_INFO *cs)
 {
   const char *pos, *end_orig;
   char tmp[64], *t;
@@ -5920,8 +5922,18 @@ check_string_copy_error(Field_str *field,
 
   for (t= tmp; pos < end; pos++)
   {
+    /*
+      If the source string is ASCII compatible (mbminlen==1)
+      and the source character is in ASCII printable range (0x20..0x7F),
+      then display the character as is.
+      
+      Otherwise, if the source string is not ASCII compatible (e.g. UCS2),
+      or the source character is not in the printable range,
+      then print the character using HEX notation.
+    */
     if (((unsigned char) *pos) >= 0x20 &&
-        ((unsigned char) *pos) <= 0x7F)
+        ((unsigned char) *pos) <= 0x7F &&
+        cs->mbminlen == 1)
     {
       *t++= *pos;
     }
@@ -6003,7 +6015,7 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
                               field_charset->pad_char);
 
   if (check_string_copy_error(this, well_formed_error_pos,
-                              cannot_convert_error_pos, from + length))
+                              cannot_convert_error_pos, from + length, cs))
     return 2;
 
   /*
@@ -6467,7 +6479,7 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
     int2store(ptr, copy_length);
 
   if (check_string_copy_error(this, well_formed_error_pos,
-                              cannot_convert_error_pos, from + length))
+                              cannot_convert_error_pos, from + length, cs))
     return 2;
 
   // Check if we lost something other than just trailing spaces
@@ -7144,7 +7156,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
   bmove(ptr+packlength,(uchar*) &tmp,sizeof(char*));
 
   if (check_string_copy_error(this, well_formed_error_pos,
-                              cannot_convert_error_pos, from + length))
+                              cannot_convert_error_pos, from + length, cs))
     return 2;
 
   if (from_end_pos < from + length)

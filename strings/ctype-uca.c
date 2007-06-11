@@ -8074,7 +8074,7 @@ MY_COLLATION_HANDLER my_collation_ucs2_uca_handler =
   my_propagate_complex
 };
 
-CHARSET_INFO my_charset_ucs2_general_uca=
+CHARSET_INFO my_charset_ucs2_unicode_ci=
 {
     128,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
@@ -8735,7 +8735,7 @@ static uchar ctype_utf8[] = {
 
 extern MY_CHARSET_HANDLER my_charset_utf8_handler;
 
-CHARSET_INFO my_charset_utf8_general_uca_ci=
+CHARSET_INFO my_charset_utf8_unicode_ci=
 {
     192,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
