@@ -168,6 +168,12 @@ extern "C" {
     NDB_LE_BackupCompleted = 56,
     /** NDB_MGM_EVENT_CATEGORY_BACKUP */
     NDB_LE_BackupAborted = 57,
+    /** NDB_MGM_EVENT_CATEGORY_BACKUP */
+    NDB_LE_RestoreMetaData = 63,
+    /** NDB_MGM_EVENT_CATEGORY_BACKUP */
+    NDB_LE_RestoreData = 64,
+    /** NDB_MGM_EVENT_CATEGORY_BACKUP */
+    NDB_LE_RestoreLog = 65,
 
     /** NDB_MGM_EVENT_CATEGORY_INFO */
     NDB_LE_EventBufferStatus = 58,
@@ -179,7 +185,9 @@ extern "C" {
 
     /* 61 unused */
     /* 62 used */
-    /* 63 unused */
+    /* 63 used */
+    /* 64 used */
+    /* 65 unused */
 
   };
 
@@ -654,6 +662,34 @@ extern "C" {
 	unsigned backup_id;
 	unsigned error;
       } BackupAborted;
+      /** Log event data @ref NDB_LE_RestoreMetaData */
+      struct {
+	unsigned backup_id;
+	unsigned node_id;
+	unsigned n_tables;
+	unsigned n_tablespaces;
+	unsigned n_logfilegroups;
+	unsigned n_datafiles;
+	unsigned n_undofiles;
+      } RestoreMetaData;
+      /** Log event data @ref NDB_LE_RestoreData */
+      struct {
+	unsigned backup_id;
+	unsigned node_id;
+	unsigned n_records_lo;
+	unsigned n_records_hi;
+	unsigned n_bytes_lo;
+	unsigned n_bytes_hi;
+      } RestoreData;
+      /** Log event data @ref NDB_LE_RestoreLog */
+      struct {
+	unsigned backup_id;
+	unsigned node_id;
+	unsigned n_records_lo;
+	unsigned n_records_hi;
+	unsigned n_bytes_lo;
+	unsigned n_bytes_hi;
+      } RestoreLog;
       /** Log event data @ref NDB_LE_SingleUser */
       struct {
         unsigned type;
