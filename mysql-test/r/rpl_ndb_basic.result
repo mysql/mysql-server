@@ -177,8 +177,8 @@ Seconds_Behind_Master	<Seconds_Behind_Master>
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	<Last_IO_Errno>
 Last_IO_Error	<Last_IO_Error>
-Last_SQL_Errno	146
-Last_SQL_Error	Error in Write_rows event: error during transaction execution on table test.t1
+Last_SQL_Errno	<Last_SQL_Errno>
+Last_SQL_Error	<Last_SQL_Error>
 set GLOBAL slave_transaction_retries=10;
 START SLAVE;
 select * from t1 order by nid;

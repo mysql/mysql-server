@@ -23,19 +23,19 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_MYPORT
+Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	784
-Relay_Log_File	slave-relay-bin.000004
+Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	#
+Slave_IO_Running	Yes
 Slave_SQL_Running	No
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	0
@@ -69,19 +69,19 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_MYPORT
+Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	784
-Relay_Log_File	slave-relay-bin.000004
+Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	#
+Slave_IO_Running	Yes
 Slave_SQL_Running	No
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	0
@@ -113,19 +113,19 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_MYPORT
+Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	784
-Relay_Log_File	slave-relay-bin.000004
+Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	#
+Slave_IO_Running	Yes
 Slave_SQL_Running	No
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	0
@@ -155,11 +155,11 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_MYPORT
+Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	784
-Relay_Log_File	slave-relay-bin.000004
+Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
 Slave_IO_Running	Yes
@@ -167,7 +167,7 @@ Slave_SQL_Running	No
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	0

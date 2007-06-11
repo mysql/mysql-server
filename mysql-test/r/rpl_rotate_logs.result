@@ -14,9 +14,45 @@ create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables");
 create table t1 (s text);
 insert into t1 values('Could not break slave'),('Tried hard');
-show slave status;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master	Last_IO_Errno	Last_IO_Error	Last_SQL_Errno	Last_SQL_Error
-#	127.0.0.1	root	MASTER_PORT	60	master-bin.000001	552	#	#	master-bin.000001	Yes	Yes				#			0		0	552	#	None		0	No						#	#	#	0	
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_PORT
+Connect_Retry	60
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	556
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	Yes
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	#
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	556
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
 select * from t1;
 s
 Could not break slave
@@ -55,9 +91,45 @@ show binary logs;
 Log_name	File_size
 master-bin.000003	415
 insert into t2 values (65);
-show slave status;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master	Last_IO_Errno	Last_IO_Error	Last_SQL_Errno	Last_SQL_Error
-#	127.0.0.1	root	MASTER_PORT	60	master-bin.000003	500	#	#	master-bin.000003	Yes	Yes				#			0		0	500	#	None		0	No						#	#	#	0	
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_PORT
+Connect_Retry	60
+Master_Log_File	master-bin.000003
+Read_Master_Log_Pos	504
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000003
+Slave_IO_Running	Yes
+Slave_SQL_Running	Yes
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	#
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	504
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
 select * from t2;
 m
 34
@@ -83,9 +155,45 @@ master-bin.000005	2040
 select * from t4;
 a
 testing temporary tables part 2
-show slave status;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master	Last_IO_Errno	Last_IO_Error	Last_SQL_Errno	Last_SQL_Error
-#	127.0.0.1	root	MASTER_PORT	60	master-bin.000005	2036	#	#	master-bin.000005	Yes	Yes				#			0		0	2036	#	None		0	No						#	#	#	0	
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_PORT
+Connect_Retry	60
+Master_Log_File	master-bin.000005
+Read_Master_Log_Pos	2040
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000005
+Slave_IO_Running	Yes
+Slave_SQL_Running	Yes
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	#
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	2040
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
 lock tables t3 read;
 select count(*) from t3 where n >= 4;
 count(*)
