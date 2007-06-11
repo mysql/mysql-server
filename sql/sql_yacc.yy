@@ -456,7 +456,7 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
   List<Item> *item_list;
   List<String> *string_list;
   String *string;
-  key_part_spec *key_part;
+  Key_part_spec *key_part;
   TABLE_LIST *table_list;
   udf_func *udf;
   LEX_USER *lex_user;
@@ -4498,7 +4498,7 @@ key_def:
 	  {
 	    LEX *lex=Lex;
             const char *key_name= $4 ? $4 : $1;
-            Key *key= new foreign_key(key_name, lex->col_list,
+            Key *key= new Foreign_key(key_name, lex->col_list,
                                       $8,
                                       lex->ref_list,
                                       lex->fk_delete_opt,
@@ -4925,8 +4925,8 @@ opt_ref_list:
 	| '(' ref_list ')' opt_on_delete {};
 
 ref_list:
-	ref_list ',' ident	{ Lex->ref_list.push_back(new key_part_spec($3.str)); }
-	| ident			{ Lex->ref_list.push_back(new key_part_spec($1.str)); };
+	ref_list ',' ident	{ Lex->ref_list.push_back(new Key_part_spec($3.str)); }
+	| ident			{ Lex->ref_list.push_back(new Key_part_spec($1.str)); };
 
 
 opt_on_delete:
@@ -4940,16 +4940,16 @@ opt_on_delete_list:
 opt_on_delete_item:
 	ON DELETE_SYM delete_option   { Lex->fk_delete_opt= $3; }
 	| ON UPDATE_SYM delete_option { Lex->fk_update_opt= $3; }
-	| MATCH FULL	{ Lex->fk_match_option= foreign_key::FK_MATCH_FULL; }
-	| MATCH PARTIAL { Lex->fk_match_option= foreign_key::FK_MATCH_PARTIAL; }
-	| MATCH SIMPLE_SYM { Lex->fk_match_option= foreign_key::FK_MATCH_SIMPLE; };
+	| MATCH FULL	{ Lex->fk_match_option= Foreign_key::FK_MATCH_FULL; }
+	| MATCH PARTIAL { Lex->fk_match_option= Foreign_key::FK_MATCH_PARTIAL; }
+	| MATCH SIMPLE_SYM { Lex->fk_match_option= Foreign_key::FK_MATCH_SIMPLE; };
 
 delete_option:
-	RESTRICT	 { $$= (int) foreign_key::FK_OPTION_RESTRICT; }
-	| CASCADE	 { $$= (int) foreign_key::FK_OPTION_CASCADE; }
-	| SET NULL_SYM   { $$= (int) foreign_key::FK_OPTION_SET_NULL; }
-	| NO_SYM ACTION  { $$= (int) foreign_key::FK_OPTION_NO_ACTION; }
-	| SET DEFAULT    { $$= (int) foreign_key::FK_OPTION_DEFAULT;  };
+	RESTRICT	 { $$= (int) Foreign_key::FK_OPTION_RESTRICT; }
+	| CASCADE	 { $$= (int) Foreign_key::FK_OPTION_CASCADE; }
+	| SET NULL_SYM   { $$= (int) Foreign_key::FK_OPTION_SET_NULL; }
+	| NO_SYM ACTION  { $$= (int) Foreign_key::FK_OPTION_NO_ACTION; }
+	| SET DEFAULT    { $$= (int) Foreign_key::FK_OPTION_DEFAULT;  };
 
 key_type:
 	key_or_index			    { $$= Key::MULTIPLE; }
@@ -5061,7 +5061,7 @@ key_list:
 	| key_part order_dir		{ Lex->col_list.push_back($1); };
 
 key_part:
-	ident			{ $$=new key_part_spec($1.str); }
+	ident			{ $$=new Key_part_spec($1.str); }
 	| ident '(' NUM ')'
         {
           int key_part_len= atoi($3.str);
@@ -5069,7 +5069,7 @@ key_part:
           {
             my_error(ER_KEY_PART_0, MYF(0), $1.str);
           }
-          $$=new key_part_spec($1.str,(uint) key_part_len);
+          $$=new Key_part_spec($1.str,(uint) key_part_len);
         };
 
 opt_ident:
