@@ -6161,6 +6161,20 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
   DBUG_RETURN(0);
 }
 
+Log_event::enum_skip_reason
+Rows_log_event::do_shall_skip(RELAY_LOG_INFO *rli)
+{
+  /*
+    If the slave skip counter is 1 and this event does not end a
+    statement, then we should not start executing on the next event.
+    Otherwise, we defer the decision to the normal skipping logic.
+  */
+  if (rli->slave_skip_counter == 1 && !get_flags(STMT_END_F))
+    return Log_event::EVENT_SKIP_IGNORE;
+  else
+    return Log_event::do_shall_skip(rli);
+}
+
 int
 Rows_log_event::do_update_pos(RELAY_LOG_INFO *rli)
 {
@@ -6625,6 +6639,19 @@ int Table_map_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
 err:
   my_free(memory, MYF(MY_WME));
   DBUG_RETURN(error);
+}
+
+Log_event::enum_skip_reason
+Table_map_log_event::do_shall_skip(RELAY_LOG_INFO *rli)
+{
+  /*
+    If the slave skip counter is 1, then we should not start executing
+    on the next event.
+  */
+  if (rli->slave_skip_counter == 1)
+    return Log_event::EVENT_SKIP_IGNORE;
+  else
+    return Log_event::do_shall_skip(rli);
 }
 
 int Table_map_log_event::do_update_pos(RELAY_LOG_INFO *rli)
