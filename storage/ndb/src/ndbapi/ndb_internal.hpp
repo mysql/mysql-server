@@ -22,6 +22,6 @@ private:
   friend class BackupRestore;
   Ndb_internal() {}
   virtual ~Ndb_internal() {}
-  int send_event_report(Ndb *ndb, Uint32 *data, Uint32 length)
+  static int send_event_report(Ndb *ndb, Uint32 *data, Uint32 length)
     { return ndb->theImpl->send_event_report(data, length); }
 };
