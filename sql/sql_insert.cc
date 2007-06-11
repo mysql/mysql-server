@@ -1404,23 +1404,18 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           goto before_trg_err;
 
         table->file->restore_auto_increment();
-        if ((error=table->file->update_row(table->record[1],table->record[0])))
-        {
-          if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
-          {
-            goto ok_or_after_trg_err;
-          }
-          goto err;
-        }
-
-        if (table->next_number_field)
-          table->file->adjust_next_insert_id_after_explicit_value(
-            table->next_number_field->val_int());
-        info->touched++;
-
         if ((table->file->table_flags() & HA_PARTIAL_COLUMN_READ) ||
             compare_record(table, thd->query_id))
         {
+          if ((error=table->file->update_row(table->record[1],table->record[0])))
+          {
+            if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
+            {
+              goto ok_or_after_trg_err;
+            }
+            goto err;
+          }
+
           info->updated++;
           trg_error= (table->triggers &&
                       table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
@@ -1428,6 +1423,11 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
                                                         TRUE));
           info->copied++;
         }
+
+        if (table->next_number_field)
+          table->file->adjust_next_insert_id_after_explicit_value(
+            table->next_number_field->val_int());
+        info->touched++;
 
         goto ok_or_after_trg_err;
       }
