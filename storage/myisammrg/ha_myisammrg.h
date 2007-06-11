@@ -84,4 +84,5 @@ class ha_myisammrg: public handler
   void append_create_info(String *packet);
   MYRG_INFO *myrg_info() { return file; }
   bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
+  int check(THD* thd, HA_CHECK_OPT* check_opt);
 };
