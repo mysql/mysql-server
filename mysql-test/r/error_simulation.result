@@ -14,6 +14,6 @@ INSERT INTO t1 VALUES
 ('AAAAAAAAAJ','AAAAAAAAAJ'), ('AAAAAAAAAK','AAAAAAAAAK');
 set tmp_table_size=1024;
 SELECT MAX(a) FROM t1 GROUP BY a,b;
-ERROR 23000: Can't write; duplicate key in table ''
+ERROR 23000: Can't write; duplicate key in table 'tmp_table'
 set tmp_table_size=default;
 DROP TABLE t1;
