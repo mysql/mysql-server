@@ -2363,6 +2363,16 @@ fil_make_ibd_name(
 	if (is_temp) {
 		memcpy(filename, name, namelen);
 		memcpy(filename + namelen, ".ibd", sizeof ".ibd");
+	} else if (name[0] == TEMP_TABLE_PREFIX) {
+		/* Create a temporary tablespace for fast index creation.
+		See innobase_create_temporary_tablename(). */
+		memcpy(filename, fil_path_to_mysql_datadir, dirlen);
+		filename[dirlen] = '/';
+
+		memcpy(filename + dirlen + 1, name + 2, namelen - 2);
+		memcpy(filename + dirlen + namelen - 1, ".ibd", sizeof ".ibd");
+		/* Replace the 'd' in ".ibd" with the tablename prefix. */
+		filename[dirlen + namelen + 2] = name[1];
 	} else {
 		memcpy(filename, fil_path_to_mysql_datadir, dirlen);
 		filename[dirlen] = '/';
