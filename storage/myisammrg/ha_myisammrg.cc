@@ -52,6 +52,13 @@ extern int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
                             uint t1_keys, uint t1_recs,
                             MI_KEYDEF *t2_keyinfo, MI_COLUMNDEF *t2_recinfo,
                             uint t2_keys, uint t2_recs, bool strict);
+extern "C" void myrg_print_wrong_table(const char *table_name)
+{
+  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                      ER_ADMIN_WRONG_MRG_TABLE, ER(ER_ADMIN_WRONG_MRG_TABLE),
+                      table_name);
+}
+
 
 const char **ha_myisammrg::bas_ext() const
 {
@@ -102,6 +109,8 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
   {
     DBUG_PRINT("error",("reclength: %lu  mean_rec_length: %lu",
 			table->s->reclength, stats.mean_rec_length));
+    if (test_if_locked & HA_OPEN_FOR_REPAIR)
+      myrg_print_wrong_table(file->open_tables->table->filename);
     error= HA_ERR_WRONG_MRG_TABLE_DEF;
     goto err;
   }
@@ -120,12 +129,19 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
                          u_table->table->s->base.keys,
                          u_table->table->s->base.fields, false))
     {
-      my_free((uchar*) recinfo, MYF(0));
       error= HA_ERR_WRONG_MRG_TABLE_DEF;
-      goto err;
+      if (test_if_locked & HA_OPEN_FOR_REPAIR)
+        myrg_print_wrong_table(u_table->table->filename);
+      else
+      {
+        my_free((uchar*) recinfo, MYF(0));
+        goto err;
+      }
     }
   }
   my_free((uchar*) recinfo, MYF(0));
+  if (error == HA_ERR_WRONG_MRG_TABLE_DEF)
+    goto err;
 #if !defined(BIG_TABLES) || SIZEOF_OFF_T == 4
   /* Merge table has more than 2G rows */
   if (table->s->crashed)
@@ -592,6 +608,13 @@ bool ha_myisammrg::check_if_incompatible_data(HA_CREATE_INFO *info,
   */
   return COMPATIBLE_DATA_NO;
 }
+
+
+int ha_myisammrg::check(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  return HA_ADMIN_OK;
+}
+
 
 extern int myrg_panic(enum ha_panic_function flag);
 int myisammrg_panic(handlerton *hton, ha_panic_function flag)
