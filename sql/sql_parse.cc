@@ -259,7 +259,6 @@ bool is_update_query(enum enum_sql_command command)
   return (sql_command_flags[command] & CF_CHANGES_DATA) != 0;
 }
 
-
 void execute_init_command(THD *thd, sys_var_str *init_command_var,
 			  rw_lock_t *var_mutex)
 {
