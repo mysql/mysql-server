@@ -267,8 +267,7 @@ static LOG_DESC INIT_LOGREC_REDO_PURGE_ROW_TAIL=
 /* QQQ: TODO: variable and fixed size??? */
 static LOG_DESC INIT_LOGREC_REDO_PURGE_BLOCKS=
 {LOGRECTYPE_VARIABLE_LENGTH,
- FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE + PAGE_STORE_SIZE +
- PAGERANGE_STORE_SIZE,
+ 0,
  FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE + PAGE_STORE_SIZE +
  PAGERANGE_STORE_SIZE,
  NULL, NULL, NULL, 0};
@@ -1418,6 +1417,7 @@ static uint16 translog_get_total_chunk_length(byte *page, uint16 offset)
 static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
 {
   uint32 i;
+  PAGECACHE_FILE file;
   DBUG_ENTER("translog_buffer_flush");
   DBUG_PRINT("enter",
              ("Buffer: #%u 0x%lx: "
@@ -1441,11 +1441,11 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
     translog_buffer_lock(buffer);
   }
 
+  file.file= buffer->file;
   for (i= 0; i < buffer->size; i+= TRANSLOG_PAGE_SIZE)
   {
-    PAGECACHE_FILE file;
-    file.file= buffer->file;
     DBUG_ASSERT(log_descriptor.pagecache->block_size == TRANSLOG_PAGE_SIZE);
+    DBUG_ASSERT(i + TRANSLOG_PAGE_SIZE <= buffer->size);
     if (pagecache_write(log_descriptor.pagecache,
                         &file,
                         (LSN_OFFSET(buffer->offset) + i) / TRANSLOG_PAGE_SIZE,
