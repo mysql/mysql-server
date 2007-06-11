@@ -3307,7 +3307,7 @@ with --log-bin instead.");
   }
     else
   {
-      global_system_variables.binlog_format= BINLOG_FORMAT_UNSPEC;
+      global_system_variables.binlog_format= BINLOG_FORMAT_MIXED;
     }
   else
     if (opt_binlog_format_id == BINLOG_FORMAT_UNSPEC)
