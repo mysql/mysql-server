@@ -1429,6 +1429,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           }
           goto err;
         }
+        info->touched++;
         if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) ||
              compare_record(table))
         {
