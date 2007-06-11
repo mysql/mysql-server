@@ -63,9 +63,7 @@ insert into temp_table values ("testing temporary tables");
 create table t1 (s text);
 insert into t1 values('Could not break slave'),('Tried hard');
 sync_slave_with_master;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
-show slave status;
+source include/show_slave_status.inc;
 select * from t1;
 connection master;
 flush logs;
@@ -125,9 +123,7 @@ purge master logs before (@time_for_purge);
 show binary logs;
 insert into t2 values (65);
 sync_slave_with_master;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
-show slave status;
+source include/show_slave_status.inc;
 select * from t2;
 
 #
@@ -157,9 +153,7 @@ connection slave;
 sync_with_master;
 select * from t4;
 
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
-show slave status;
+source include/show_slave_status.inc;
 # because of concurrent insert, the table may not be up to date
 # if we do not lock
 lock tables t3 read;
