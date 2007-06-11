@@ -4074,6 +4074,32 @@ CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1), (2);
 EXPLAIN EXTENDED
 SELECT * FROM (SELECT count(*) FROM t1 GROUP BY a) as res;
+CREATE TABLE t1 (
+a varchar(255) default NULL,
+b timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+INDEX idx(a,b)
+);
+CREATE TABLE t2 (
+a varchar(255) default NULL
+);
+INSERT INTO t1 VALUES ('abcdefghijk','2007-05-07 06:00:24');
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO `t1` VALUES ('asdf','2007-02-08 01:11:26');
+INSERT INTO `t2` VALUES ('abcdefghijk');
+INSERT INTO `t2` VALUES ('asdf');
+SET session sort_buffer_size=8192;
+SELECT (SELECT 1 FROM  t1 WHERE t1.a=t2.a ORDER BY t1.b LIMIT 1) AS d1 FROM t2;
+d1
+1
+1
+DROP TABLE t1,t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	100.00	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
