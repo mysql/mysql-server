@@ -1141,12 +1141,9 @@ static my_bool write_tail(MARIA_HA *info,
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char*) row_pos.data;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= length;
-    if (translog_write_record(!info->trn->rec_lsn ? &info->trn->rec_lsn : &lsn,
-                              LOGREC_REDO_INSERT_ROW_TAIL,
-                              info->trn->short_id, NULL, share,
-                              sizeof(log_data) + length,
-                              TRANSLOG_INTERNAL_PARTS + 2,
-                              log_array))
+    if (translog_write_record(&lsn, LOGREC_REDO_INSERT_ROW_TAIL,
+                              info->trn, share, sizeof(log_data) + length,
+                              TRANSLOG_INTERNAL_PARTS + 2, log_array))
       DBUG_RETURN(1);
   }
 
@@ -1398,10 +1395,8 @@ static my_bool free_full_pages(MARIA_HA *info, MARIA_ROW *row)
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
   log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    row->extents;
   log_array[TRANSLOG_INTERNAL_PARTS + 1].length= extents_length;
-  if (translog_write_record(!info->trn->rec_lsn ? &info->trn->rec_lsn : &lsn,
-                            LOGREC_REDO_PURGE_BLOCKS,
-                            info->trn->short_id, NULL, info->s,
-                            sizeof(log_data) + extents_length,
+  if (translog_write_record(&lsn, LOGREC_REDO_PURGE_BLOCKS, info->trn,
+                            info->s, sizeof(log_data) + extents_length,
                             TRANSLOG_INTERNAL_PARTS + 2, log_array))
     DBUG_RETURN(1);
 
@@ -1415,9 +1410,6 @@ static my_bool free_full_pages(MARIA_HA *info, MARIA_ROW *row)
 
   NOTES
     This is very similar to free_full_pages()
-
-    We don't have to update trn->rec_lsn here as before calling this function
-    we have already generated REDO's for deleting the HEAD block.
 
   RETURN
     0   ok
@@ -1449,8 +1441,7 @@ static my_bool free_full_page_range(MARIA_HA *info, ulonglong page, uint count)
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
 
     if (translog_write_record(&lsn, LOGREC_REDO_PURGE_BLOCKS,
-                              info->trn->short_id, NULL, info->s,
-                              sizeof(log_data),
+                              info->trn, info->s, sizeof(log_data),
                               TRANSLOG_INTERNAL_PARTS + 1, log_array))
       res= 1;
 
@@ -1957,10 +1948,8 @@ static my_bool write_block_record(MARIA_HA *info,
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char*) row_pos->data;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= data_length;
-    if (translog_write_record(!info->trn->rec_lsn ? &info->trn->rec_lsn : &lsn,
-                              LOGREC_REDO_INSERT_ROW_HEAD,
-                              info->trn->short_id, NULL, share,
-                              sizeof(log_data) + data_length,
+    if (translog_write_record(&lsn, LOGREC_REDO_INSERT_ROW_HEAD, info->trn,
+                              share, sizeof(log_data) + data_length,
                               TRANSLOG_INTERNAL_PARTS + 2, log_array))
       goto disk_err;
   }
@@ -2077,9 +2066,8 @@ static my_bool write_block_record(MARIA_HA *info,
 
     /* trn->rec_lsn is already set earlier in this function */
     error= translog_write_record(&lsn, LOGREC_REDO_INSERT_ROW_BLOBS,
-                                 info->trn->short_id, NULL, share,
-                                 log_entry_length, (uint) (log_array_pos -
-                                                           log_array),
+                                 info->trn, share, log_entry_length,
+                                 (uint) (log_array_pos - log_array),
                                  log_array);
     if (log_array != tmp_log_array)
       my_free((gptr) log_array, MYF(0));
@@ -2109,11 +2097,9 @@ static my_bool write_block_record(MARIA_HA *info,
     if (!old_record)
     {
       /* Write UNDO log record for the INSERT */
-      if (translog_write_record(&info->trn->undo_lsn, LOGREC_UNDO_ROW_INSERT,
-                                info->trn->short_id, NULL, share,
-                                sizeof(log_data),
-                                TRANSLOG_INTERNAL_PARTS + 1,
-                                log_array))
+      if (translog_write_record(&lsn, LOGREC_UNDO_ROW_INSERT,
+                                info->trn, share, sizeof(log_data),
+                                TRANSLOG_INTERNAL_PARTS + 1, log_array))
         goto disk_err;
     }
     else
@@ -2125,9 +2111,8 @@ static my_bool write_block_record(MARIA_HA *info,
                                          info->log_row_parts +
                                          TRANSLOG_INTERNAL_PARTS + 1,
                                          &row_parts_count);
-      if (translog_write_record(&info->trn->undo_lsn, LOGREC_UNDO_ROW_UPDATE,
-                                info->trn->short_id, NULL, share,
-                                sizeof(log_data) + row_length,
+      if (translog_write_record(&lsn, LOGREC_UNDO_ROW_UPDATE, info->trn,
+                                share, sizeof(log_data) + row_length,
                                 TRANSLOG_INTERNAL_PARTS + 1 + row_parts_count,
                                 log_array))
       goto disk_err;
@@ -2293,6 +2278,7 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
 
   if (info->s->base.transactional)
   {
+    LSN lsn;
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     uchar log_data[LSN_STORE_SIZE];
 
@@ -2302,15 +2288,16 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
       really undo a failed insert. Note that this UNDO will cause recover
       to ignore the LOGREC_UNDO_ROW_INSERT that is the previous entry
       in the UNDO chain.
+      We will soon change that: we will here execute the UNDO records
+      generated while we were trying to write the row; this will log some CLRs
+      which will replace this LOGREC_UNDO_PURGE. RECOVERY TODO BUG.
     */
     lsn_store(log_data, info->trn->undo_lsn);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
-    if (translog_write_record(&info->trn->undo_lsn, LOGREC_UNDO_ROW_PURGE,
-                              info->trn->short_id, NULL, info->s,
-                              sizeof(log_data),
-                              TRANSLOG_INTERNAL_PARTS + 1,
-                              log_array))
+    if (translog_write_record(&lsn, LOGREC_UNDO_ROW_PURGE,
+                              info->trn, info->s, sizeof(log_data),
+                              TRANSLOG_INTERNAL_PARTS + 1, log_array))
       res= 1;
   }
   _ma_unpin_all_pages(info, info->trn->undo_lsn);
@@ -2534,12 +2521,10 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
 
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
-    if (translog_write_record(!info->trn->rec_lsn ? &info->trn->rec_lsn : &lsn,
-                              (head ? LOGREC_REDO_PURGE_ROW_HEAD :
-                               LOGREC_REDO_PURGE_ROW_TAIL),
-                              info->trn->short_id, NULL, share,
-                              sizeof(log_data), TRANSLOG_INTERNAL_PARTS + 1,
-                              log_array))
+    if (translog_write_record(&lsn, (head ? LOGREC_REDO_PURGE_ROW_HEAD :
+                                     LOGREC_REDO_PURGE_ROW_TAIL),
+                              info->trn, share, sizeof(log_data),
+                              TRANSLOG_INTERNAL_PARTS + 1, log_array))
       DBUG_RETURN(1);
     if (pagecache_write(share->pagecache,
                         &info->dfile, page, 0,
@@ -2564,14 +2549,12 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
     pagerange_store(log_data + FILEID_STORE_SIZE, 1);
     page_store(log_data+ FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE, page);
     pagerange_store(log_data + FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
-                    PAGERANGE_STORE_SIZE, 1);
+                    PAGE_STORE_SIZE, 1);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
-    if (translog_write_record(!info->trn->rec_lsn ? &info->trn->rec_lsn : &lsn,
-                              LOGREC_REDO_PURGE_BLOCKS,
-                              info->trn->short_id, NULL, share,
-                              sizeof(log_data), TRANSLOG_INTERNAL_PARTS + 1,
-                              log_array))
+    if (translog_write_record(&lsn, LOGREC_REDO_PURGE_BLOCKS,
+                              info->trn, share, sizeof(log_data),
+                              TRANSLOG_INTERNAL_PARTS + 1, log_array))
       DBUG_RETURN(1);
     DBUG_ASSERT(empty_space >= info->s->bitmap.sizes[0]);
   }
@@ -2640,6 +2623,7 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const byte *record)
 
   if (info->s->base.transactional)
   {
+    LSN lsn;
     uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE +
                    DIR_COUNT_SIZE];
     size_t row_length;
@@ -2658,9 +2642,8 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const byte *record)
                                        TRANSLOG_INTERNAL_PARTS + 1,
                                        &row_parts_count);
 
-    if (translog_write_record(&info->trn->undo_lsn, LOGREC_UNDO_ROW_DELETE,
-                              info->trn->short_id, NULL, info->s,
-                              sizeof(log_data) + row_length,
+    if (translog_write_record(&lsn, LOGREC_UNDO_ROW_DELETE, info->trn,
+                              info->s, sizeof(log_data) + row_length,
                               TRANSLOG_INTERNAL_PARTS + 1 + row_parts_count,
                               info->log_row_parts))
       goto err;

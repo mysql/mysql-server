@@ -298,7 +298,7 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond,
     trn->min_read_from= trn->trid;
 
   trn->commit_trid= 0;
-  trn->undo_lsn= 0;
+  trn->rec_lsn= trn->undo_lsn= trn->first_undo_lsn= 0;
 
   trn->locks.mutex= mutex;
   trn->locks.cond= cond;

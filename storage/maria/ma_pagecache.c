@@ -41,7 +41,7 @@
 
 #include "maria_def.h"
 #include <m_string.h>
-#include <pagecache.h>
+#include "ma_pagecache.h"
 #include <my_bit.h>
 #include <errno.h>
 #include <stdarg.h>

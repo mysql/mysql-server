@@ -2,12 +2,14 @@
 #include <stdio.h>
 #include <errno.h>
 #include <tap.h>
+#include "../trnman.h"
 
 extern my_bool maria_log_remove();
 
 #ifndef DBUG_OFF
 static const char *default_dbug_option;
 #endif
+static TRN *trn= &dummy_transaction_object;
 
 #define PCACHE_SIZE (1024*1024*10)
 
@@ -186,7 +188,8 @@ int main(int argc __attribute__((unused)), char *argv[])
   int4store(long_tr_id, 0);
   parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
   parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
-  if (translog_write_record(&lsn, LOGREC_LONG_TRANSACTION_ID, 0, NULL, NULL,
+  trn->short_id= 0;
+  if (translog_write_record(&lsn, LOGREC_LONG_TRANSACTION_ID, trn, NULL,
                             6, TRANSLOG_INTERNAL_PARTS + 1, parts))
   {
     fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);
@@ -204,9 +207,10 @@ int main(int argc __attribute__((unused)), char *argv[])
       lsn_store(lsn_buff, lsn_base);
       parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)lsn_buff;
       parts[TRANSLOG_INTERNAL_PARTS + 0].length= LSN_STORE_SIZE;
+      trn->short_id= i % 0xFFFF;
       if (translog_write_record(&lsn,
                                 LOGREC_CLR_END,
-                                (i % 0xFFFF), NULL, NULL,
+                                trn, NULL,
                                 LSN_STORE_SIZE,
                                 TRANSLOG_INTERNAL_PARTS + 1, parts))
       {
@@ -223,10 +227,10 @@ int main(int argc __attribute__((unused)), char *argv[])
       parts[TRANSLOG_INTERNAL_PARTS + 0].length= LSN_STORE_SIZE;
       parts[TRANSLOG_INTERNAL_PARTS + 1].str= (char*)long_buffer;
       parts[TRANSLOG_INTERNAL_PARTS + 1].length= rec_len;
+      trn->short_id= i % 0xFFFF;
       if (translog_write_record(&lsn,
                                 LOGREC_UNDO_KEY_INSERT,
-                                (i % 0xFFFF),
-                                NULL, NULL, LSN_STORE_SIZE + rec_len,
+                                trn, NULL, LSN_STORE_SIZE + rec_len,
                                 TRANSLOG_INTERNAL_PARTS + 2,
                                 parts))
       {
@@ -244,9 +248,10 @@ int main(int argc __attribute__((unused)), char *argv[])
       lsn_store(lsn_buff + LSN_STORE_SIZE, first_lsn);
       parts[TRANSLOG_INTERNAL_PARTS + 1].str= (char*)lsn_buff;
       parts[TRANSLOG_INTERNAL_PARTS + 1].length= 23;
+      trn->short_id= i % 0xFFFF;
       if (translog_write_record(&lsn,
                                 LOGREC_UNDO_ROW_DELETE,
-                                (i % 0xFFFF), NULL, NULL, 23,
+                                trn, NULL, 23,
                                 TRANSLOG_INTERNAL_PARTS + 1,
                                 parts))
       {
@@ -264,10 +269,10 @@ int main(int argc __attribute__((unused)), char *argv[])
       parts[TRANSLOG_INTERNAL_PARTS + 0].length= LSN_STORE_SIZE * 2;
       parts[TRANSLOG_INTERNAL_PARTS + 1].str= (char*)long_buffer;
       parts[TRANSLOG_INTERNAL_PARTS + 1].length= rec_len;
+      trn->short_id= i % 0xFFFF;
       if (translog_write_record(&lsn,
                                 LOGREC_UNDO_KEY_DELETE,
-                                (i % 0xFFFF),
-                                NULL, NULL, LSN_STORE_SIZE * 2 + rec_len,
+                                trn, NULL, LSN_STORE_SIZE * 2 + rec_len,
                                 TRANSLOG_INTERNAL_PARTS + 2,
                                 parts))
       {
@@ -282,9 +287,10 @@ int main(int argc __attribute__((unused)), char *argv[])
     int4store(long_tr_id, i);
     parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
     parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
+    trn->short_id= i % 0xFFFF;
     if (translog_write_record(&lsn,
                               LOGREC_LONG_TRANSACTION_ID,
-                              (i % 0xFFFF), NULL, NULL, 6,
+                              trn, NULL, 6,
                               TRANSLOG_INTERNAL_PARTS + 1, parts))
     {
       fprintf(stderr, "Can't write record #%lu\n", (ulong) i);
@@ -299,9 +305,10 @@ int main(int argc __attribute__((unused)), char *argv[])
     rec_len= get_len();
     parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_buffer;
     parts[TRANSLOG_INTERNAL_PARTS + 0].length= rec_len;
+    trn->short_id= i % 0xFFFF;
     if (translog_write_record(&lsn,
                               LOGREC_REDO_INSERT_ROW_HEAD,
-                              (i % 0xFFFF), NULL, NULL, rec_len,
+                              trn, NULL, rec_len,
                               TRANSLOG_INTERNAL_PARTS + 1, parts))
     {
       fprintf(stderr, "Can't write variable record #%lu\n", (ulong) i);

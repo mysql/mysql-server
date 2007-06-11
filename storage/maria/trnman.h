@@ -45,7 +45,7 @@ struct st_transaction
   LF_PINS             *pins;
   TrID                 trid, min_read_from, commit_trid;
   TRN                 *next, *prev;
-  LSN		       rec_lsn, undo_lsn;
+  LSN		       rec_lsn, undo_lsn, first_undo_lsn;
   uint                 locked_tables;
   /* Note! if locks.loid is 0, trn is NOT initialized */
 };

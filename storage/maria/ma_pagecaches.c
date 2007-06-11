@@ -23,7 +23,7 @@
 */
 
 #include "maria_def.h"
-#include <pagecache.h>
+#include "ma_pagecache.h"
 #include <hash.h>
 #include <m_string.h>
 #include "../../mysys/my_safehash.h"

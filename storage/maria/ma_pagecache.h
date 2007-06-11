@@ -16,11 +16,11 @@
 
 /* Page cache variable structures */
 
-#ifndef _pagecache_h
-#define _pagecache_h
+#ifndef _ma_pagecache_h
+#define _ma_pagecache_h
 C_MODE_START
 
-#include "../storage/maria/ma_loghandler_lsn.h"
+#include "ma_loghandler_lsn.h"
 #include <m_string.h>
 
 /* Type of the page */
