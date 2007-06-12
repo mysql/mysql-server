@@ -1419,20 +1419,20 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           goto before_trg_err;
 
         table->file->restore_auto_increment(prev_insert_id);
-        if ((error=table->file->ha_update_row(table->record[1],
-                                              table->record[0])))
-	{
-          if (info->ignore &&
-              !table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
-          {
-            goto ok_or_after_trg_err;
-          }
-          goto err;
-        }
-        info->touched++;
-        if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) ||
-             compare_record(table))
+        if ((table->file->table_flags() & HA_PARTIAL_COLUMN_READ) ||
+            compare_record(table, thd->query_id))
         {
+          if ((error=table->file->ha_update_row(table->record[1],
+                                                table->record[0])))
+          {
+            if (info->ignore &&
+                !table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+            {
+              goto ok_or_after_trg_err;
+            }
+            goto err;
+          }
+
           info->updated++;
           /*
             If ON DUP KEY UPDATE updates a row instead of inserting one, it's
@@ -1450,6 +1450,11 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
                                                         TRG_ACTION_AFTER, TRUE));
           info->copied++;
         }
+
+        if (table->next_number_field)
+          table->file->adjust_next_insert_id_after_explicit_value(
+            table->next_number_field->val_int());
+        info->touched++;
 
         goto ok_or_after_trg_err;
       }
