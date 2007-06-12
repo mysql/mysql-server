@@ -15694,7 +15694,6 @@ static void test_bug28934()
 {
   MYSQL *l_mysql;
   my_bool error= 0;
-  my_ulonglong res;
   MYSQL_BIND bind[5];
   MYSQL_STMT *stmt;
   int cnt;
