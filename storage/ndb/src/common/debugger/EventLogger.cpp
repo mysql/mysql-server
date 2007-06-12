@@ -844,12 +844,18 @@ void getTextBackupAborted(QQQQ) {
 		       refToNode(theData[1]), 
 		       theData[3]);
 }
+void getTextRestoreStarted(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "Restore started: backup %u from node %u",
+                       theData[1], theData[2]);
+}
 void getTextRestoreMetaData(QQQQ)
 {
   BaseString::snprintf(m_text, m_text_len,
                        "Restore meta data: backup %u from node %u "
                        "#Tables: %u\n"
-                       " #Tablespaces: %u #Logfilegroups %u "
+                       " #Tablespaces: %u #Logfilegroups: %u "
                        "#datafiles: %u #undofiles: %u",
                        theData[1], theData[2], theData[3],
                        theData[4], theData[5], theData[6], theData[7]);
@@ -871,6 +877,12 @@ void getTextRestoreLog(QQQQ)
                        theData[1], theData[2],
                        make_uint64(theData[3], theData[4]),
                        make_uint64(theData[5], theData[6]));
+}
+void getTextRestoreCompleted(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "Restore completed: backup %u from node %u",
+                       theData[1], theData[2]);
 }
 
 void getTextSingleUser(QQQQ) {
@@ -1074,9 +1086,11 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(BackupCompleted,         LogLevel::llBackup, 7, Logger::LL_INFO ),
   ROW(BackupFailedToStart,     LogLevel::llBackup, 7, Logger::LL_ALERT),
   ROW(BackupAborted,           LogLevel::llBackup, 7, Logger::LL_ALERT),
+  ROW(RestoreStarted,          LogLevel::llBackup, 7, Logger::LL_INFO ),
   ROW(RestoreMetaData,         LogLevel::llBackup, 7, Logger::LL_INFO ),
   ROW(RestoreData,             LogLevel::llBackup, 7, Logger::LL_INFO ),
-  ROW(RestoreLog,              LogLevel::llBackup, 7, Logger::LL_INFO )
+  ROW(RestoreLog,              LogLevel::llBackup, 7, Logger::LL_INFO ),
+  ROW(RestoreCompleted,        LogLevel::llBackup, 7, Logger::LL_INFO )
 };
 
 const Uint32 EventLoggerBase::matrixSize=

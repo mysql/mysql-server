@@ -83,10 +83,11 @@ public:
   virtual bool createSystable(const TableS & table);
   virtual bool table_equal(const TableS & table);
   virtual bool update_apply_status(const RestoreMetaData &metaData);
+  virtual bool report_started(unsigned node_id, unsigned backup_id);
   virtual bool report_meta_data(unsigned node_id, unsigned backup_id);
   virtual bool report_data(unsigned node_id, unsigned backup_id);
   virtual bool report_log(unsigned node_id, unsigned backup_id);
-  virtual bool report_done();
+  virtual bool report_completed(unsigned node_id, unsigned backup_id);
   void connectToMysql();
   bool map_in_frm(char *new_data, const char *data,
                   uint data_len, uint *new_data_len);

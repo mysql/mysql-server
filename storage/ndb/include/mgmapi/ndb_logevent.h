@@ -174,6 +174,10 @@ extern "C" {
     NDB_LE_RestoreData = 64,
     /** NDB_MGM_EVENT_CATEGORY_BACKUP */
     NDB_LE_RestoreLog = 65,
+    /** NDB_MGM_EVENT_CATEGORY_BACKUP */
+    NDB_LE_RestoreStarted = 66,
+    /** NDB_MGM_EVENT_CATEGORY_BACKUP */
+    NDB_LE_RestoreCompleted = 67,
 
     /** NDB_MGM_EVENT_CATEGORY_INFO */
     NDB_LE_EventBufferStatus = 58,
@@ -183,11 +187,9 @@ extern "C" {
     /** NDB_MGM_EVENT_CATEGORY_STARTUP */
     NDB_LE_StartReport = 60
 
-    /* 61 unused */
-    /* 62 used */
-    /* 63 used */
-    /* 64 used */
-    /* 65 unused */
+    /* 61 (used in upcoming patch) */
+    /* 62-67 used */
+    /* 68 unused */
 
   };
 
@@ -662,6 +664,11 @@ extern "C" {
 	unsigned backup_id;
 	unsigned error;
       } BackupAborted;
+      /** Log event data @ref NDB_LE_RestoreStarted */
+      struct {
+	unsigned backup_id;
+	unsigned node_id;
+      } RestoreStarted;
       /** Log event data @ref NDB_LE_RestoreMetaData */
       struct {
 	unsigned backup_id;
@@ -690,6 +697,11 @@ extern "C" {
 	unsigned n_bytes_lo;
 	unsigned n_bytes_hi;
       } RestoreLog;
+      /** Log event data @ref NDB_LE_RestoreCompleted */
+      struct {
+	unsigned backup_id;
+	unsigned node_id;
+      } RestoreCompleted;
       /** Log event data @ref NDB_LE_SingleUser */
       struct {
         unsigned type;

@@ -328,6 +328,9 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
   ROW( BackupAborted,       "backup_id",     2, backup_id),
   ROW( BackupAborted,       "error",         3, error),
 
+  ROW( RestoreStarted,      "backup_id",     1, backup_id),
+  ROW( RestoreStarted,      "node_id",       2, node_id),
+
   ROW( RestoreMetaData,     "backup_id",     1, backup_id),
   ROW( RestoreMetaData,     "node_id",       2, node_id),
   ROW( RestoreMetaData,     "n_tables",      3, n_tables),
@@ -349,6 +352,9 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
   ROW( RestoreLog,          "n_records_hi",  4, n_records_hi),
   ROW( RestoreLog,          "n_bytes_lo",    5, n_bytes_lo),
   ROW( RestoreLog,          "n_bytes_hi",    6, n_bytes_hi),
+
+  ROW( RestoreCompleted,    "backup_id",     1, backup_id),
+  ROW( RestoreCompleted,    "node_id",       2, node_id),
 
   ROW( SingleUser,          "type",	     1, type),
   ROW( SingleUser,          "node_id",	     2, node_id),

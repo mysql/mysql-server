@@ -782,6 +782,11 @@ main(int argc, char** argv)
     }
 
   }
+
+  /* report to clusterlog if applicable */
+  for (i = 0; i < g_consumers.size(); i++)
+    g_consumers[i]->report_started(ga_backupId, ga_nodeId);
+
   debug << "Restore objects (tablespaces, ..)" << endl;
   for(i = 0; i<metaData.getNoOfObjects(); i++)
   {
@@ -1033,6 +1038,10 @@ main(int argc, char** argv)
     }               
   }
   
+  /* report to clusterlog if applicable */
+  for (i = 0; i < g_consumers.size(); i++)
+    g_consumers[i]->report_completed(ga_backupId, ga_nodeId);
+
   clearConsumers();
 
   for(i = 0; i < metaData.getNoOfTables(); i++)
@@ -1045,9 +1054,6 @@ main(int argc, char** argv)
       table_output[i] = NULL;
     }
   }
-
-  for (j = 0; j < g_consumers.size(); j++) 
-    g_consumers[j]->report_done();
 
   if (opt_verbose)
     return NDBT_ProgramExit(NDBT_OK);
