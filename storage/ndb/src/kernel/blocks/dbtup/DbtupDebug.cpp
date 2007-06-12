@@ -74,6 +74,10 @@ Dbtup::reportMemoryUsage(Signal* signal, int incDec){
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
 }
 
+#ifdef VM_TRACE
+static Uint32 fc_left = 0, fc_right = 0, fc_remove = 0;
+#endif
+
 void
 Dbtup::execDUMP_STATE_ORD(Signal* signal)
 {
@@ -155,17 +159,25 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
     return;
   }//if
 #endif
-#if defined VM_TRACE && 0
-  if (type == 1211){
-    ndbout_c("Startar modul test av Page Manager");
+#if defined VM_TRACE
+  if (type == 1211 || type == 1212 || type == 1213){
+    Uint32 seed = time(0);
+    if (signal->getLength() > 1)
+      seed = signal->theData[1];
+    ndbout_c("Startar modul test av Page Manager (seed: 0x%x)", seed);
+    srand(seed);
 
     Vector<Chunk> chunks;
     const Uint32 LOOPS = 1000;
+    Uint32 sum_req = 0;
+    Uint32 sum_conf = 0;
+    Uint32 sum_loop = 0;
+    Uint32 max_loop = 0;
     for(Uint32 i = 0; i<LOOPS; i++){
 
       // Case
       Uint32 c = (rand() % 3);
-      const Uint32 free = c_page_pool.getSize() - cnoOfAllocatedPages;
+      const Uint32 free = c_no_of_pages - cnoOfAllocatedPages;
       
       Uint32 alloc = 0;
       if(free <= 1){
@@ -177,8 +189,15 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
       if(chunks.size() == 0 && c == 0){
 	c = 1 + rand() % 2;
       }
+      
+      if (type == 1211)
+        ndbout_c("loop=%d case=%d free=%d alloc=%d", i, c, free, alloc);
 
-      ndbout_c("loop=%d case=%d free=%d alloc=%d", i, c, free, alloc);
+      if (type == 1213)
+      {
+        c = 1;
+        alloc = 2 + (sum_conf >> 3) + (sum_conf >> 4);
+      }
       switch(c){ 
       case 0:{ // Release
 	const int ch = rand() % chunks.size();
@@ -190,28 +209,37 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
       case 2: { // Seize(n) - fail
 	alloc += free;
 	// Fall through
+        sum_req += free;
+        goto doalloc;
       }
       case 1: { // Seize(n) (success)
-
+        sum_req += alloc;
+    doalloc:
 	Chunk chunk;
 	allocConsPages(alloc, chunk.pageCount, chunk.pageId);
 	ndbrequire(chunk.pageCount <= alloc);
 	if(chunk.pageCount != 0){
 	  chunks.push_back(chunk);
 	  if(chunk.pageCount != alloc) {
-	    ndbout_c("  Tried to allocate %d - only allocated %d - free: %d",
-		     alloc, chunk.pageCount, free);
+	    if (type == 1211)
+              ndbout_c("  Tried to allocate %d - only allocated %d - free: %d",
+                       alloc, chunk.pageCount, free);
 	  }
 	} else {
 	  ndbout_c("  Failed to alloc %d pages with %d pages free",
 		   alloc, free);
 	}
 	
+        sum_conf += chunk.pageCount;
+        Uint32 tot = fc_left + fc_right + fc_remove;
+        sum_loop += tot;
+        if (tot > max_loop)
+          max_loop = tot;
+
 	for(Uint32 i = 0; i<chunk.pageCount; i++){
 	  PagePtr pagePtr;
 	  pagePtr.i = chunk.pageId + i;
 	  c_page_pool.getPtr(pagePtr);
-	  pagePtr.p->page_state = ~ZFREE_COMMON;
 	}
 
 	if(alloc == 1 && free > 0)
@@ -225,6 +253,10 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
       returnCommonArea(chunk.pageId, chunk.pageCount);      
       chunks.erase(chunks.size() - 1);
     }
+
+    ndbout_c("Got %u%% of requested allocs, loops : %u 100*avg: %u max: %u",
+             (100 * sum_conf) / sum_req, sum_loop, 100*sum_loop / LOOPS,
+             max_loop);
   }
 #endif
 }//Dbtup::execDUMP_STATE_ORD()

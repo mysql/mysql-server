@@ -27,6 +27,7 @@ struct restore_callback_t {
   int    retries;
   int error_code;
   Uint32 fragId;
+  Uint32 n_bytes;
   restore_callback_t *next;
 };
 
@@ -42,6 +43,12 @@ public:
     m_cluster_connection = 0;
     m_nodegroup_map = ng_map;
     m_nodegroup_map_len = ng_map_len;
+    m_n_tablespace = 0;
+    m_n_logfilegroup = 0;
+    m_n_datafile = 0;
+    m_n_undofile = 0;
+    m_n_tables = 0;
+    m_logBytes = m_dataBytes = 0;
     m_logCount = m_dataCount = 0;
     m_restore = false;
     m_restore_meta = false;
@@ -76,6 +83,11 @@ public:
   virtual bool createSystable(const TableS & table);
   virtual bool table_equal(const TableS & table);
   virtual bool update_apply_status(const RestoreMetaData &metaData);
+  virtual bool report_started(unsigned node_id, unsigned backup_id);
+  virtual bool report_meta_data(unsigned node_id, unsigned backup_id);
+  virtual bool report_data(unsigned node_id, unsigned backup_id);
+  virtual bool report_log(unsigned node_id, unsigned backup_id);
+  virtual bool report_completed(unsigned node_id, unsigned backup_id);
   void connectToMysql();
   bool map_in_frm(char *new_data, const char *data,
                   uint data_len, uint *new_data_len);
@@ -93,6 +105,16 @@ public:
   bool m_no_restore_disk;
   bool m_restore_epoch;
   bool m_no_upgrade; // for upgrade ArrayType from 5.0 backup file.
+
+  Uint32 m_n_tablespace;
+  Uint32 m_n_logfilegroup;
+  Uint32 m_n_datafile;
+  Uint32 m_n_undofile;
+  Uint32 m_n_tables;
+
+  Uint64 m_logBytes;
+  Uint64 m_dataBytes;
+
   Uint32 m_logCount;
   Uint32 m_dataCount;
 
