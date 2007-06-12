@@ -3581,10 +3581,10 @@ longlong Item_func_release_lock::val_int()
   }
   else
   {
-    DBUG_PRINT("info", ("ull->locked=%d ull->thread=%ld thd=%ld", 
+    DBUG_PRINT("info", ("ull->locked=%d ull->thread=%lu thd=%lu", 
                         (int) ull->locked,
-                        (long)ull->thread,
-                        (long)thd->real_id));
+                        (long)ull->thread_id,
+                        (long)thd->thread_id));
     if (ull->locked && current_thd->thread_id == ull->thread_id)
     {
       DBUG_PRINT("info", ("release lock"));
