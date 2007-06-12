@@ -432,6 +432,11 @@ void Dbtup::allocMoreFragPages(Fragrecord* const regFragPtr)
 // We will grow by 18.75% plus two more additional pages to grow
 // a little bit quicker in the beginning.
 /* -----------------------------------------------------------------*/
+
+  if (noAllocPages > m_max_allocate_pages)
+  {
+    noAllocPages = m_max_allocate_pages;
+  }
   Uint32 allocated = allocFragPages(regFragPtr, noAllocPages);
   regFragPtr->noOfPagesToGrow += allocated;
 }//Dbtup::allocMoreFragPages()
