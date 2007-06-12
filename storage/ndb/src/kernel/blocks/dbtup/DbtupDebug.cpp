@@ -177,7 +177,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 
       // Case
       Uint32 c = (rand() % 3);
-      const Uint32 free = c_page_pool.getSize() - cnoOfAllocatedPages;
+      const Uint32 free = c_no_of_pages - cnoOfAllocatedPages;
       
       Uint32 alloc = 0;
       if(free <= 1){
@@ -240,7 +240,6 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 	  PagePtr pagePtr;
 	  pagePtr.i = chunk.pageId + i;
 	  c_page_pool.getPtr(pagePtr);
-	  pagePtr.p->page_state = ~ZFREE_COMMON;
 	}
 
 	if(alloc == 1 && free > 0)
