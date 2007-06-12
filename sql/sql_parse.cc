@@ -2227,7 +2227,8 @@ mysql_execute_command(THD *thd)
                                        &alter_info,
                                        select_lex->item_list,
                                        lex->duplicates,
-                                       lex->ignore)))
+                                       lex->ignore,
+                                       select_tables)))
         {
           /*
             CREATE from SELECT give its SELECT_LEX for SELECT,
