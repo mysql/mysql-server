@@ -563,10 +563,13 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
     append_definer(thd, stmt_query, &definer_user, &definer_host);
   }
 
-  stmt_query->append(thd->lex->stmt_definition_begin,
-                     (char *) thd->lex->sphead->m_body_begin -
-                     thd->lex->stmt_definition_begin +
-                     thd->lex->sphead->m_body.length);
+  LEX_STRING stmt_definition;
+  stmt_definition.str= (char*) thd->lex->stmt_definition_begin;
+  stmt_definition.length= thd->lex->stmt_definition_end
+    - thd->lex->stmt_definition_begin;
+  trim_whitespace(thd->charset(), & stmt_definition);
+
+  stmt_query->append(stmt_definition.str, stmt_definition.length);
 
   trg_def->str= stmt_query->c_ptr();
   trg_def->length= stmt_query->length();
@@ -1032,7 +1035,11 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         if (!(on_table_name= (LEX_STRING*) alloc_root(&table->mem_root,
                                                       sizeof(LEX_STRING))))
           goto err_with_lex_cleanup;
-        *on_table_name= lex.ident;
+
+        on_table_name->str= (char*) lex.raw_trg_on_table_name_begin;
+        on_table_name->length= lex.raw_trg_on_table_name_end
+          - lex.raw_trg_on_table_name_begin;
+
         if (triggers->on_table_names_list.push_back(on_table_name, &table->mem_root))
           goto err_with_lex_cleanup;
 
@@ -1348,7 +1355,12 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
 
     /* Construct CREATE TRIGGER statement with new table name. */
     buff.length(0);
+
+    /* WARNING: 'on_table_name' is supposed to point inside 'def' */
+    DBUG_ASSERT(on_table_name->str > def->str);
+    DBUG_ASSERT(on_table_name->str < (def->str + def->length));
     before_on_len= on_table_name->str - def->str;
+
     buff.append(def->str, before_on_len);
     buff.append(STRING_WITH_LEN("ON "));
     append_identifier(thd, &buff, new_table_name->str, new_table_name->length);

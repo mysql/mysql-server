@@ -1049,14 +1049,258 @@ struct st_parsing_options
 
 
 /**
+  The state of the lexical parser, when parsing comments.
+*/
+enum enum_comment_state
+{
+  /**
+    Not parsing comments.
+  */
+  NO_COMMENT,
+  /**
+    Parsing comments that need to be preserved.
+    Typically, these are user comments '/' '*' ... '*' '/'.
+  */
+  PRESERVE_COMMENT,
+  /**
+    Parsing comments that need to be discarded.
+    Typically, these are special comments '/' '*' '!' ... '*' '/',
+    or '/' '*' '!' 'M' 'M' 'm' 'm' 'm' ... '*' '/', where the comment
+    markers should not be expanded.
+  */
+  DISCARD_COMMENT
+};
+
+
+/**
   This class represents the character input stream consumed during
   lexical analysis.
+  In addition to consuming the input stream, this class performs some
+  comment pre processing, by filtering out out of bound special text
+  from the query input stream.
+  Two buffers, with pointers inside each buffers, are maintained in
+  parallel. The 'raw' buffer is the original query text, which may
+  contain out-of-bound comments. The 'cpp' (for comments pre processor)
+  is the pre-processed buffer that contains only the query text that
+  should be seen once out-of-bound data is removed.
 */
 class Lex_input_stream
 {
 public:
   Lex_input_stream(THD *thd, const char* buff, unsigned int length);
   ~Lex_input_stream();
+
+  /**
+    Set the echo mode.
+    When echo is true, characters parsed from the raw input stream are
+    preserved. When false, characters parsed are silently ignored.
+    @param echo the echo mode.
+  */
+  void set_echo(bool echo)
+  {
+    m_echo= echo;
+  }
+
+  /**
+    Skip binary from the input stream.
+    @param n number of bytes to accept.
+  */
+  void skip_binary(int n)
+  {
+    if (m_echo)
+    {
+      memcpy(m_cpp_ptr, m_ptr, n);
+      m_cpp_ptr += n;
+    }
+    m_ptr += n;
+  }
+
+  /**
+    Get a character, and advance in the stream.
+    @return the next character to parse.
+  */
+  char yyGet()
+  {
+    char c= *m_ptr++;
+    if (m_echo)
+      *m_cpp_ptr++ = c;
+    return c;
+  }
+
+  /**
+    Get the last character accepted.
+    @return the last character accepted.
+  */
+  char yyGetLast()
+  {
+    return m_ptr[-1];
+  }
+
+  /**
+    Look at the next character to parse, but do not accept it.
+  */
+  char yyPeek()
+  {
+    return m_ptr[0];
+  }
+
+  /**
+    Look ahead at some character to parse.
+    @param n offset of the character to look up
+  */
+  char yyPeekn(int n)
+  {
+    return m_ptr[n];
+  }
+
+  /**
+    Cancel the effect of the last yyGet() or yySkip().
+    Note that the echo mode should not change between calls to yyGet / yySkip
+    and yyUnget. The caller is responsible for ensuring that.
+  */
+  void yyUnget()
+  {
+    m_ptr--;
+    if (m_echo)
+      m_cpp_ptr--;
+  }
+
+  /**
+    Accept a character, by advancing the input stream.
+  */
+  void yySkip()
+  {
+    if (m_echo)
+      *m_cpp_ptr++ = *m_ptr++;
+    else
+      m_ptr++;
+  }
+
+  /**
+    Accept multiple characters at once.
+    @param n the number of characters to accept.
+  */
+  void yySkipn(int n)
+  {
+    if (m_echo)
+    {
+      memcpy(m_cpp_ptr, m_ptr, n);
+      m_cpp_ptr += n;
+    }
+    m_ptr += n;
+  }
+
+  /**
+    End of file indicator for the query text to parse.
+    @return true if there are no more characters to parse
+  */
+  bool eof()
+  {
+    return (m_ptr >= m_end_of_query);
+  }
+
+  /**
+    End of file indicator for the query text to parse.
+    @param n number of characters expected
+    @return true if there are less than n characters to parse
+  */
+  bool eof(int n)
+  {
+    return ((m_ptr + n) >= m_end_of_query);
+  }
+
+  /** Get the raw query buffer. */
+  const char* get_buf()
+  {
+    return m_buf;
+  }
+
+  /** Get the pre-processed query buffer. */
+  const char* get_cpp_buf()
+  {
+    return m_cpp_buf;
+  }
+
+  /** Get the end of the raw query buffer. */
+  const char* get_end_of_query()
+  {
+    return m_end_of_query;
+  }
+
+  /** Mark the stream position as the start of a new token. */
+  void start_token()
+  {
+    m_tok_start_prev= m_tok_start;
+    m_tok_start= m_ptr;
+    m_tok_end= m_ptr;
+
+    m_cpp_tok_start_prev= m_cpp_tok_start;
+    m_cpp_tok_start= m_cpp_ptr;
+    m_cpp_tok_end= m_cpp_ptr;
+  }
+
+  /**
+    Adjust the starting position of the current token.
+    This is used to compensate for starting whitespace.
+  */
+  void restart_token()
+  {
+    m_tok_start= m_ptr;
+    m_cpp_tok_start= m_cpp_ptr;
+  }
+
+  /** Get the token start position, in the raw buffer. */
+  const char* get_tok_start()
+  {
+    return m_tok_start;
+  }
+
+  /** Get the token start position, in the pre-processed buffer. */
+  const char* get_cpp_tok_start()
+  {
+    return m_cpp_tok_start;
+  }
+
+  /** Get the token end position, in the raw buffer. */
+  const char* get_tok_end()
+  {
+    return m_tok_end;
+  }
+
+  /** Get the token end position, in the pre-processed buffer. */
+  const char* get_cpp_tok_end()
+  {
+    return m_cpp_tok_end;
+  }
+
+  /** Get the previous token start position, in the raw buffer. */
+  const char* get_tok_start_prev()
+  {
+    return m_tok_start_prev;
+  }
+
+  /** Get the current stream pointer, in the raw buffer. */
+  const char* get_ptr()
+  {
+    return m_ptr;
+  }
+
+  /** Get the current stream pointer, in the pre-processed buffer. */
+  const char* get_cpp_ptr()
+  {
+    return m_cpp_ptr;
+  }
+
+  /** Get the length of the current token, in the raw buffer. */
+  uint yyLength()
+  {
+    /*
+      The assumption is that the lexical analyser is always 1 character ahead,
+      which the -1 account for.
+    */
+    DBUG_ASSERT(m_ptr > m_tok_start);
+    return (uint) ((m_ptr - m_tok_start) - 1);
+  }
 
   /** Current thread. */
   THD *m_thd;
@@ -1070,37 +1314,74 @@ public:
   /** Interface with bison, value of the last token parsed. */
   LEX_YYSTYPE yylval;
 
-  /** Pointer to the current position in the input stream. */
-  const char* ptr;
+private:
+  /** Pointer to the current position in the raw input stream. */
+  const char* m_ptr;
 
-  /** Starting position of the last token parsed. */
-  const char* tok_start;
+  /** Starting position of the last token parsed, in the raw buffer. */
+  const char* m_tok_start;
 
-  /** Ending position of the last token parsed. */
-  const char* tok_end;
+  /** Ending position of the previous token parsed, in the raw buffer. */
+  const char* m_tok_end;
 
-  /** End of the query text in the input stream. */
-  const char* end_of_query;
+  /** End of the query text in the input stream, in the raw buffer. */
+  const char* m_end_of_query;
 
-  /** Starting position of the previous token parsed. */
-  const char* tok_start_prev;
+  /** Starting position of the previous token parsed, in the raw buffer. */
+  const char* m_tok_start_prev;
 
-  /** Begining of the query text in the input stream. */
-  const char* buf;
+  /** Begining of the query text in the input stream, in the raw buffer. */
+  const char* m_buf;
+
+  /** Echo the parsed stream to the pre-processed buffer. */
+  bool m_echo;
+
+  /** Pre-processed buffer. */
+  char* m_cpp_buf;
+
+  /** Pointer to the current position in the pre-processed input stream. */
+  char* m_cpp_ptr;
+
+  /**
+    Starting position of the last token parsed,
+    in the pre-processed buffer.
+  */
+  const char* m_cpp_tok_start;
+
+  /**
+    Starting position of the previous token parsed,
+    in the pre-procedded buffer.
+  */
+  const char* m_cpp_tok_start_prev;
+
+  /**
+    Ending position of the previous token parsed,
+    in the pre-processed buffer.
+  */
+  const char* m_cpp_tok_end;
+
+public:
 
   /** Current state of the lexical analyser. */
   enum my_lex_states next_state;
 
-  /** Position of ';' in the stream, to delimit multiple queries. */
+  /**
+    Position of ';' in the stream, to delimit multiple queries.
+    This delimiter is in the raw buffer.
+  */
   const char* found_semicolon;
 
   /** SQL_MODE = IGNORE_SPACE. */
   bool ignore_space;
-  /*
+
+  /**
     TRUE if we're parsing a prepared statement: in this mode
     we should allow placeholders and disallow multi-statements.
   */
   bool stmt_prepare_mode;
+
+  /** State of the lexical analyser for comments. */
+  enum_comment_state in_comment;
 };
 
 
@@ -1138,8 +1419,17 @@ typedef struct st_lex : public Query_tables_list
   CHARSET_INFO *charset, *underscore_charset;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
-  /* Position (first character index) of SELECT of CREATE VIEW statement */
-  uint create_view_select_start;
+
+  /** Start of SELECT of CREATE VIEW statement */
+  const char* create_view_select_start;
+  /** End of SELECT of CREATE VIEW statement */
+  const char* create_view_select_end;
+
+  /** Start of 'ON <table>', in trigger statements.  */
+  const char* raw_trg_on_table_name_begin;
+  /** End of 'ON <table>', in trigger statements. */
+  const char* raw_trg_on_table_name_end;
+
   /* Partition info structure filled in by PARTITION BY parse part */
   partition_info *part_info;
 
@@ -1238,7 +1528,9 @@ typedef struct st_lex : public Query_tables_list
   uint8 create_view_algorithm;
   uint8 create_view_check;
   bool drop_if_exists, drop_temporary, local_file, one_shot_set;
-  bool in_comment, verbose, no_write_to_binlog;
+
+  bool verbose, no_write_to_binlog;
+
   bool tx_chain, tx_release;
   /*
     Special JOIN::prepare mode: changing of query is prohibited.
@@ -1302,9 +1594,11 @@ typedef struct st_lex : public Query_tables_list
       - CREATE FUNCTION (points to "FUNCTION" or "AGGREGATE");
 
     This pointer is required to add possibly omitted DEFINER-clause to the
-    DDL-statement before dumping it to the binlog. 
+    DDL-statement before dumping it to the binlog.
   */
   const char *stmt_definition_begin;
+
+  const char *stmt_definition_end;
 
   /*
     Pointers to part of LOAD DATA statement that should be rewritten
@@ -1434,8 +1728,8 @@ extern void lex_free(void);
 extern void lex_start(THD *thd);
 extern void lex_end(LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
-extern const char *skip_rear_comments(CHARSET_INFO *cs, const char *ubegin,
-                                      const char *uend);
+
+extern void trim_whitespace(CHARSET_INFO *cs, LEX_STRING *str);
 
 extern bool is_lex_native_function(const LEX_STRING *name);
 
