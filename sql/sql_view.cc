@@ -690,7 +690,6 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   char md5[MD5_BUFF_LENGTH];
   bool can_be_merged;
   char dir_buff[FN_REFLEN], path_buff[FN_REFLEN];
-  const char *endp;
   LEX_STRING dir, file, path;
   int error= 0;
   DBUG_ENTER("mysql_register_view");
@@ -708,10 +707,12 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   /* fill structure */
   view->query.str= str.c_ptr_safe();
   view->query.length= str.length();
-  view->source.str= thd->query + thd->lex->create_view_select_start;
-  endp= view->source.str;
-  endp= skip_rear_comments(thd->charset(), endp, thd->query + thd->query_length);
-  view->source.length= endp - view->source.str;
+
+  view->source.str= (char*) thd->lex->create_view_select_start;
+  view->source.length= (thd->lex->create_view_select_end
+                        - thd->lex->create_view_select_start);
+  trim_whitespace(thd->charset(), & view->source);
+
   view->file_version= 1;
   view->calc_md5(md5);
   view->md5.str= md5;

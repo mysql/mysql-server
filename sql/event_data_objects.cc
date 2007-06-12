@@ -148,8 +148,7 @@ Event_parse_data::init_name(THD *thd, sp_name *spn)
     The body is extracted by copying all data between the
     start of the body set by another method and the current pointer in Lex.
 
-    Some questionable removal of characters is done in here, and that part
-    should be refactored when the parser is smarter.
+    See related code in sp_head::init_strings().
 */
 
 void
@@ -160,58 +159,9 @@ Event_parse_data::init_body(THD *thd)
   /* This method is called from within the parser, from sql_yacc.yy */
   DBUG_ASSERT(thd->m_lip != NULL);
 
-  DBUG_PRINT("info", ("body: '%s'  body_begin: 0x%lx end: 0x%lx", body_begin,
-                      (long) body_begin, (long) thd->m_lip->ptr));
-
-  body.length= thd->m_lip->ptr - body_begin;
-  const char *body_end= body_begin + body.length - 1;
-
-  /* Trim nuls or close-comments ('*'+'/') or spaces at the end */
-  while (body_begin < body_end)
-  {
-
-    if ((*body_end == '\0') ||
-        (my_isspace(thd->variables.character_set_client, *body_end)))
-    { /* consume NULs and meaningless whitespace */
-      --body.length;
-      --body_end;
-      continue;
-    }
-
-    /*
-       consume closing comments
-
-       This is arguably wrong, but it's the best we have until the parser is
-       changed to be smarter.   FIXME PARSER
-
-       See also the sp_head code, where something like this is done also.
-
-       One idea is to keep in the lexer structure the count of the number of
-       open-comments we've entered, and scan left-to-right looking for a
-       closing comment IFF the count is greater than zero.
-
-       Another idea is to remove the closing comment-characters wholly in the
-       parser, since that's where it "removes" the opening characters.
-    */
-    if ((*(body_end - 1) == '*') && (*body_end == '/'))
-    {
-      DBUG_PRINT("info", ("consumend one '*" "/' comment in the query '%s'",
-          body_begin));
-      body.length-= 2;
-      body_end-= 2;
-      continue;
-    }
-
-    break;  /* none were found, so we have excised all we can. */
-  }
-
-  /* the first is always whitespace which I cannot skip in the parser */
-  while (my_isspace(thd->variables.character_set_client, *body_begin))
-  {
-    ++body_begin;
-    --body.length;
-  }
+  body.length= thd->m_lip->get_cpp_ptr() - body_begin;
   body.str= thd->strmake(body_begin, body.length);
+  trim_whitespace(thd->charset(), & body);
 
   DBUG_VOID_RETURN;
 }
