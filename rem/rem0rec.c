@@ -478,7 +478,7 @@ rec_get_offsets_func(
 				/* out: the new offsets */
 	const rec_t*	rec,	/* in: physical record */
 	dict_index_t*	index,	/* in: record descriptor */
-	ulint*		offsets,/* in: array consisting of offsets[0]
+	ulint*		offsets,/* in/out: array consisting of offsets[0]
 				allocated elements, or an array from
 				rec_get_offsets(), or NULL */
 	ulint		n_fields,/* in: maximum number of initialized fields
