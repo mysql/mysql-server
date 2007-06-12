@@ -710,6 +710,20 @@ err:
 }
 
 bool
+BackupRestore::report_started(unsigned backup_id, unsigned node_id)
+{
+  if (m_ndb)
+  {
+    Uint32 data[3];
+    data[0]= NDB_LE_RestoreStarted;
+    data[1]= backup_id;
+    data[2]= node_id;
+    Ndb_internal::send_event_report(m_ndb, data, 3);
+  }
+  return true;
+}
+
+bool
 BackupRestore::report_meta_data(unsigned backup_id, unsigned node_id)
 {
   if (m_ndb)
@@ -764,8 +778,16 @@ BackupRestore::report_log(unsigned backup_id, unsigned node_id)
 }
 
 bool
-BackupRestore::report_done()
+BackupRestore::report_completed(unsigned backup_id, unsigned node_id)
 {
+  if (m_ndb)
+  {
+    Uint32 data[3];
+    data[0]= NDB_LE_RestoreCompleted;
+    data[1]= backup_id;
+    data[2]= node_id;
+    Ndb_internal::send_event_report(m_ndb, data, 3);
+  }
   return true;
 }
 
