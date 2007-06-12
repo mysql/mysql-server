@@ -6062,3 +6062,5 @@ ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT
 ER_BINLOG_UNSAFE_STATEMENT
         eng "Statement is not safe to log in statement format."
         swe "Detta är inte säkert att logga i statement-format."
+ER_BINLOG_LOGGING_IMPOSSIBLE
+        eng "Binary logging not possible. Message: %s"

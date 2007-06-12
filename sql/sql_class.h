@@ -2002,20 +2002,21 @@ class select_insert :public select_result_interceptor {
 class select_create: public select_insert {
   ORDER *group;
   TABLE_LIST *create_table;
+  TABLE_LIST *select_tables;
   HA_CREATE_INFO *create_info;
   Alter_info *alter_info;
   Field **field;
 public:
-  select_create(TABLE_LIST *table_arg,
-                HA_CREATE_INFO *create_info_arg,
-                Alter_info *alter_info_arg,
-                List<Item> &select_fields,
-                enum_duplicates duplic, bool ignore)
-    :select_insert(NULL, NULL, &select_fields, 0, 0, duplic, ignore),
+  select_create (TABLE_LIST *table_arg,
+		 HA_CREATE_INFO *create_info_par,
+		 List<create_field> &fields_par,
+		 List<Key> &keys_par,
+		 List<Item> &select_fields,enum_duplicates duplic, bool ignore,
+                 TABLE_LIST *select_tables_arg)
+    :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, ignore),
     create_table(table_arg),
-    create_info(create_info_arg),
-    alter_info(alter_info_arg)
-  {}
+    create_info(create_info_par), select_tables(select_tables_arg)
+    {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 
   void binlog_show_create_table(TABLE **tables, uint count);
