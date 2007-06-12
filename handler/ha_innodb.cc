@@ -5348,22 +5348,10 @@ innobase_rename_table(
 	if (error != DB_SUCCESS) {
 		FILE* ef = dict_foreign_err_file;
 
-		fputs("InnoDB: Rename from old name ", ef);
-
-		if (*norm_from != TEMP_TABLE_PREFIX) {
-			ut_print_name(ef, trx, TRUE, norm_from);
-		} else {
-			fputs(norm_from, ef);
-		}
-
+		fputs("InnoDB: Renaming table ", ef);
+		ut_print_name(ef, trx, TRUE, norm_from);
 		fputs(" to ", ef);
-
-		if (*norm_to != TEMP_TABLE_PREFIX) {
-			ut_print_name(ef, trx, TRUE, norm_to);
-		} else {
-			fputs(norm_to, ef);
-		}
-
+		ut_print_name(ef, trx, TRUE, norm_to);
 		fputs(" failed!\n", ef);
 	}
 

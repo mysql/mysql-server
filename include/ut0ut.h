@@ -15,6 +15,10 @@ Created 1/20/1994 Heikki Tuuri
 #include <ctype.h>
 #endif
 
+#define	TEMP_TABLE_PREFIX	'/'	/* Table name prefix for temporary
+					internal tables. Used in fast index
+					creation etc. */
+
 typedef time_t	ib_time_t;
 
 /************************************************************

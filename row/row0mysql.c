@@ -753,8 +753,6 @@ row_prebuilt_free(
 
 		added = row_add_table_to_background_drop_list(prebuilt->table);
 
-		assert(*prebuilt->table->name == TEMP_TABLE_PREFIX);
-
 		ut_print_timestamp(stderr);
 
 		if (added) {
@@ -769,6 +767,8 @@ row_prebuilt_free(
 				      prebuilt->table->name);
 			fputs(" to the background drop list.\n", stderr);
 		}
+
+		ut_a(*prebuilt->table->name == TEMP_TABLE_PREFIX);
 	}
 
 	UT_LIST_REMOVE(prebuilts, prebuilt->table->prebuilts, prebuilt);
