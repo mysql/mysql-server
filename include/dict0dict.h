@@ -1244,10 +1244,6 @@ struct dict_sys_struct{
 	dict_table_t*	sys_fields;	/* SYS_FIELDS table */
 };
 
-#define	TEMP_TABLE_PREFIX	'/'	/* Table name prefix for temporary
-					internal tables. Used in fast index
-					creation etc. */
-
 #ifndef UNIV_NONINL
 #include "dict0dict.ic"
 #endif
