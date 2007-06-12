@@ -344,8 +344,8 @@ struct system_variables
 
 typedef struct system_status_var
 {
-  ulong bytes_received;
-  ulong bytes_sent;
+  ulonglong bytes_received;
+  ulonglong bytes_sent;
   ulong com_other;
   ulong com_stat[(uint) SQLCOM_END];
   ulong created_tmp_disk_tables;
