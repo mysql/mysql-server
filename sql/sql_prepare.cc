@@ -562,6 +562,8 @@ void set_param_date(Item_param *param, uchar **pos, ulong len)
 static void set_param_str(Item_param *param, uchar **pos, ulong len)
 {
   ulong length= get_param_length(pos, len);
+  if (length > len)
+    length= len;
   param->set_str((const char *)*pos, length);
   *pos+= length;
 }
@@ -731,6 +733,8 @@ static bool insert_params_withlog(Prepared_statement *stmt, uchar *null_array,
         if (read_pos >= data_end)
           DBUG_RETURN(1);
         param->set_param_func(param, &read_pos, data_end - read_pos);
+        if (param->state == Item_param::NO_VALUE)
+          DBUG_RETURN(1);
       }
     }
     res= param->query_val_str(&str);
@@ -767,6 +771,8 @@ static bool insert_params(Prepared_statement *stmt, uchar *null_array,
         if (read_pos >= data_end)
           DBUG_RETURN(1);
         param->set_param_func(param, &read_pos, data_end - read_pos);
+        if (param->state == Item_param::NO_VALUE)
+          DBUG_RETURN(1);
       }
     }
     if (param->convert_str_value(stmt->thd))
@@ -849,6 +855,8 @@ static bool emb_insert_params(Prepared_statement *stmt, String *expanded_query)
                               client_param->length ?
                               *client_param->length :
                               client_param->buffer_length);
+        if (param->state == Item_param::NO_VALUE)
+          DBUG_RETURN(1);
       }
     }
     if (param->convert_str_value(thd))
@@ -890,6 +898,8 @@ static bool emb_insert_params_withlog(Prepared_statement *stmt, String *query)
                               client_param->length ?
                               *client_param->length :
                               client_param->buffer_length);
+        if (param->state == Item_param::NO_VALUE)
+          DBUG_RETURN(1);
       }
     }
     res= param->query_val_str(&str);
