@@ -6072,3 +6072,5 @@ ER_SLAVE_CREATE_EVENT_FAILURE
         eng "Failed to create %s"
 ER_SLAVE_MASTER_COM_FAILURE
         eng "Master command %s failed: %s"
+ER_BINLOG_LOGGING_IMPOSSIBLE
+        eng "Binary logging not possible. Message: %s"
