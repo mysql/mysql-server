@@ -54,7 +54,7 @@ class ha_innobase: public handler
 	ulong		upd_and_key_val_buff_len;
 					/* the length of each of the previous
 					two buffers */
-	ulong		int_table_flags;
+	Table_flags	int_table_flags;
 	uint		primary_key;
 	ulong		start_of_scan;	/* this is set to 1 when we are
 					starting a table scan but have not
@@ -84,7 +84,7 @@ class ha_innobase: public handler
 	const char* table_type() const { return("InnoDB");}
 	const char *index_type(uint key_number) { return "BTREE"; }
 	const char** bas_ext() const;
-	ulonglong table_flags() const { return int_table_flags; }
+	Table_flags table_flags() const;
 	ulong index_flags(uint idx, uint part, bool all_parts) const
 	{
 	  return (HA_READ_NEXT |

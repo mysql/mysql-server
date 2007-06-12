@@ -1003,6 +1003,7 @@ ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
 		  HA_CAN_SQL_HANDLER |
 		  HA_PRIMARY_KEY_REQUIRED_FOR_POSITION |
 		  HA_PRIMARY_KEY_IN_READ_INDEX |
+                  HA_BINLOG_ROW_CAPABLE |
 		  HA_CAN_GEOMETRY | HA_PARTIAL_COLUMN_READ |
 		  HA_TABLE_SCAN_ON_INDEX),
   start_of_scan(0),
@@ -2312,6 +2313,45 @@ ha_innobase::get_row_type() const
 	}
 	ut_ad(0);
 	return(ROW_TYPE_NOT_USED);
+}
+
+
+
+/********************************************************************
+Get the table flags to use for the statement. */
+handler::Table_flags
+ha_innobase::table_flags() const
+{
+	THD *const thd= current_thd;
+        /* We are using thd->variables.tx_isolation here instead of
+           trx->isolation_level since store_lock() has not been called
+           yet.
+
+           The trx->isolation_level is set inside store_lock() (which
+           is called from mysql_lock_tables()) until after this
+           function has been called (which is called in lock_tables()
+           before that function calls mysql_lock_tables()). */
+        ulong const tx_isolation= thd->variables.tx_isolation;
+        if (tx_isolation <= ISO_READ_COMMITTED)
+        {
+	        ulong const binlog_format= thd->variables.binlog_format;
+                /* Statement based binlogging does not work in these
+                   isolation levels since the necessary locks cannot
+                   be taken */
+        	if (binlog_format == BINLOG_FORMAT_STMT)
+          	{
+			char buf[256];
+	                my_snprintf(buf, sizeof(buf),
+                                    "Transaction level '%s' in InnoDB is"
+                                    " not safe for binlog mode '%s'",
+                                    tx_isolation_names[tx_isolation],
+                                    binlog_format_names[binlog_format]);
+                        my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), buf);
+                }
+                return int_table_flags;
+        }
+
+        return int_table_flags | HA_BINLOG_STMT_CAPABLE;
 }
 
 /********************************************************************
