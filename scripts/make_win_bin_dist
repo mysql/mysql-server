@@ -239,25 +239,45 @@ if [ x"$PACK_EMBEDDED" = x"" -a \
 fi
 
 # ----------------------------------------------------------------------
-# FIXME why not copy it all in "include"?!
+# Note: Make sure to sync with include/Makefile.am and WiX installer
+# XML specifications
 # ----------------------------------------------------------------------
 
 mkdir -p $DESTDIR/include
-cp include/conf*.h \
-   include/mysql*.h \
-   include/errmsg.h \
-   include/my_alloc.h \
-   include/my_getopt.h \
-   include/my_sys.h \
+cp include/mysql.h \
+   include/mysql_com.h \
+   include/mysql_time.h \
    include/my_list.h \
-   include/my_pthread.h \
+   include/my_alloc.h \
+   include/typelib.h \
    include/my_dbug.h \
    include/m_string.h \
-   include/m_ctype.h \
-   include/my_global.h \
+   include/my_sys.h \
+   include/my_xml.h \
+   include/mysql_embed.h \
+   include/my_pthread.h \
+   include/my_no_pthread.h \
    include/raid.h \
-   include/typelib.h $DESTDIR/include/
-cp libmysql/libmysql.def $DESTDIR/include/
+   include/decimal.h \
+   include/errmsg.h \
+   include/my_global.h \
+   include/my_net.h \
+   include/my_getopt.h \
+   include/sslopt-longopts.h \
+   include/my_dir.h \
+   include/sslopt-vars.h \
+   include/sslopt-case.h \
+   include/sql_common.h \
+   include/keycache.h \
+   include/m_ctype.h \
+   include/my_attribute.h \
+   include/mysqld_error.h \
+   include/sql_state.h \
+   include/mysqld_ername.h
+   include/mysql_version.h \
+   include/config-win.h \
+   libmysql/libmysql.def \
+   $DESTDIR/include/
 
 # ----------------------------------------------------------------------
 # Client libraries, and other libraries
