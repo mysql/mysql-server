@@ -475,6 +475,41 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
 		  filePtr.p->m_flags);
       }
     }
+
+    ndbout_c("m_curr_disk_write_speed: %u  m_words_written_this_period: %u  m_overflow_disk_write: %u",
+              m_curr_disk_write_speed, m_words_written_this_period, m_overflow_disk_write);
+    ndbout_c("m_reset_delay_used: %u  m_reset_disk_speed_time: %llu",
+             m_reset_delay_used, (Uint64)m_reset_disk_speed_time);
+    for(c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr))
+    {
+      ndbout_c("BackupRecord %u:  BackupId: %u  MasterRef: %x  ClientRef: %x",
+               ptr.i, ptr.p->backupId, ptr.p->masterRef, ptr.p->clientRef);
+      ndbout_c(" State: %u", ptr.p->slaveState.getState());
+      ndbout_c(" noOfByte: %llu  noOfRecords: %llu",
+               ptr.p->noOfBytes, ptr.p->noOfRecords);
+      ndbout_c(" noOfLogBytes: %llu  noOfLogRecords: %llu",
+               ptr.p->noOfLogBytes, ptr.p->noOfLogRecords);
+      ndbout_c(" errorCode: %u", ptr.p->errorCode);
+      BackupFilePtr filePtr;
+      for(ptr.p->files.first(filePtr); filePtr.i != RNIL; 
+	  ptr.p->files.next(filePtr))
+      {
+	ndbout_c(" file %u:  type: %u  flags: H'%x  tableId: %u  fragmentId: %u",
+                 filePtr.i, filePtr.p->fileType, filePtr.p->m_flags,
+                 filePtr.p->tableId, filePtr.p->fragmentNo);
+      }
+      if (ptr.p->slaveState.getState() == SCANNING && ptr.p->dataFilePtr != RNIL)
+      {
+        c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
+        OperationRecord & op = filePtr.p->operation;
+        Uint32 *tmp = NULL;
+        Uint32 sz = 0;
+        bool eof = FALSE;
+        bool ready = op.dataBuffer.getReadPtr(&tmp, &sz, &eof);
+        ndbout_c("ready: %s  eof: %s", ready ? "TRUE" : "FALSE", eof ? "TRUE" : "FALSE");
+      }
+    }
+    return;
   }
   if(signal->theData[0] == 24){
     /**

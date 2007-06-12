@@ -1335,6 +1335,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   { 
+    CFG_DB_MAX_ALLOCATE,
+    "MaxAllocate",
+    DB_TOKEN,
+    "Maximum size of allocation to use when allocating memory for tables",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "32M",
+    "1M",
+    "1G" },
+
+  { 
     CFG_DB_MEMREPORT_FREQUENCY,
     "MemReportFrequency",
     DB_TOKEN,

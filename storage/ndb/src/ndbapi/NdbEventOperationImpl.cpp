@@ -41,6 +41,7 @@
 #include <NdbEventOperation.hpp>
 #include "NdbEventOperationImpl.hpp"
 #include <signaldata/AlterTable.hpp>
+#include "ndb_internal.hpp"
 
 #include <EventLogger.hpp>
 extern EventLogger g_eventLogger;
@@ -2909,7 +2910,7 @@ send_report:
   data[5]= apply_gci >> 32;
   data[6]= latest_gci & ~(Uint32)0;
   data[7]= latest_gci >> 32;
-  m_ndb->theImpl->send_event_report(data,8);
+  Ndb_internal::send_event_report(m_ndb, data,8);
 #ifdef VM_TRACE
   assert(m_total_alloc >= m_free_data_sz);
 #endif

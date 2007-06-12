@@ -1057,6 +1057,7 @@ class Ndb
   friend class NdbImpl;
   friend class Ndb_cluster_connection;
   friend class Ndb_cluster_connection_impl;
+  friend class Ndb_internal;
 #endif
 
 public:

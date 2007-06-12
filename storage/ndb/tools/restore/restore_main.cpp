@@ -782,6 +782,11 @@ main(int argc, char** argv)
     }
 
   }
+
+  /* report to clusterlog if applicable */
+  for (i = 0; i < g_consumers.size(); i++)
+    g_consumers[i]->report_started(ga_backupId, ga_nodeId);
+
   debug << "Restore objects (tablespaces, ..)" << endl;
   for(i = 0; i<metaData.getNoOfObjects(); i++)
   {
@@ -870,6 +875,11 @@ main(int argc, char** argv)
       err << "Restore: Failed while closing tables" << endl;
       exitHandler(NDBT_FAILED);
     } 
+  /* report to clusterlog if applicable */
+  for(i= 0; i < g_consumers.size(); i++)
+  {
+    g_consumers[i]->report_meta_data(ga_backupId, ga_nodeId);
+  }
   debug << "Iterate over data" << endl; 
   if (ga_restore || ga_print) 
   {
@@ -942,6 +952,12 @@ main(int argc, char** argv)
       
       for (i= 0; i < g_consumers.size(); i++)
 	g_consumers[i]->endOfTuples();
+
+      /* report to clusterlog if applicable */
+      for(i= 0; i < g_consumers.size(); i++)
+      {
+        g_consumers[i]->report_data(ga_backupId, ga_nodeId);
+      }
     }
 
     if(_restore_data || _print_log)
@@ -975,6 +991,12 @@ main(int argc, char** argv)
       logIter.validateFooter(); //not implemented
       for (i= 0; i < g_consumers.size(); i++)
 	g_consumers[i]->endOfLogEntrys();
+
+      /* report to clusterlog if applicable */
+      for(i= 0; i < g_consumers.size(); i++)
+      {
+        g_consumers[i]->report_log(ga_backupId, ga_nodeId);
+      }
     }
     
     if(_restore_data)
@@ -1005,7 +1027,8 @@ main(int argc, char** argv)
       }
   }
 
-  for(Uint32 j= 0; j < g_consumers.size(); j++) 
+  unsigned j;
+  for(j= 0; j < g_consumers.size(); j++) 
   {
     if (g_consumers[j]->has_temp_error())
     {
@@ -1015,6 +1038,10 @@ main(int argc, char** argv)
     }               
   }
   
+  /* report to clusterlog if applicable */
+  for (i = 0; i < g_consumers.size(); i++)
+    g_consumers[i]->report_completed(ga_backupId, ga_nodeId);
+
   clearConsumers();
 
   for(i = 0; i < metaData.getNoOfTables(); i++)

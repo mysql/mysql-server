@@ -38,6 +38,16 @@ public:
   virtual bool finalize_table(const TableS &){return true;}
   virtual bool createSystable(const TableS &){ return true;}
   virtual bool update_apply_status(const RestoreMetaData &metaData){return true;}
+  virtual bool report_started(unsigned backup_id, unsigned node_id)
+    {return true;}
+  virtual bool report_meta_data(unsigned backup_id, unsigned node_id)
+    {return true;}
+  virtual bool report_data(unsigned backup_id, unsigned node_id)
+    {return true;}
+  virtual bool report_log(unsigned backup_id, unsigned node_id)
+    {return true;}
+  virtual bool report_completed(unsigned backup_id, unsigned node_id)
+    {return true;}
   NODE_GROUP_MAP *m_nodegroup_map;
   uint            m_nodegroup_map_len;
   virtual bool has_temp_error() {return false;}

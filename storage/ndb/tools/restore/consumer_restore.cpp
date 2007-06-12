@@ -18,6 +18,9 @@
 #include <my_sys.h>
 #include <NdbSleep.h>
 
+#include <ndb_internal.hpp>
+#include <ndb_logevent.h>
+
 extern my_bool opt_core;
 
 extern FilteredNdbOut err;
@@ -503,6 +506,7 @@ BackupRestore::object(Uint32 type, const void * ptr)
       debug << "Retreived tablespace: " << currptr->getName() 
 	    << " oldid: " << id << " newid: " << currptr->getObjectId() 
 	    << " " << (void*)currptr << endl;
+      m_n_tablespace++;
       return true;
     }
     
@@ -543,6 +547,7 @@ BackupRestore::object(Uint32 type, const void * ptr)
       debug << "Retreived logfile group: " << currptr->getName() 
 	    << " oldid: " << id << " newid: " << currptr->getObjectId() 
 	    << " " << (void*)currptr << endl;
+      m_n_logfilegroup++;
       return true;
     }
     
@@ -573,6 +578,7 @@ BackupRestore::object(Uint32 type, const void * ptr)
 	return false;
       }
       info << "done" << endl;
+      m_n_datafile++;
     }
     return true;
     break;
@@ -599,6 +605,7 @@ BackupRestore::object(Uint32 type, const void * ptr)
 	return false;
       }
       info << "done" << endl;
+      m_n_undofile++;
     }
     return true;
     break;
@@ -700,6 +707,88 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData)
 err:
   m_ndb->closeTransaction(trans);
   return result;
+}
+
+bool
+BackupRestore::report_started(unsigned backup_id, unsigned node_id)
+{
+  if (m_ndb)
+  {
+    Uint32 data[3];
+    data[0]= NDB_LE_RestoreStarted;
+    data[1]= backup_id;
+    data[2]= node_id;
+    Ndb_internal::send_event_report(m_ndb, data, 3);
+  }
+  return true;
+}
+
+bool
+BackupRestore::report_meta_data(unsigned backup_id, unsigned node_id)
+{
+  if (m_ndb)
+  {
+    Uint32 data[8];
+    data[0]= NDB_LE_RestoreMetaData;
+    data[1]= backup_id;
+    data[2]= node_id;
+    data[3]= m_n_tables;
+    data[4]= m_n_tablespace;
+    data[5]= m_n_logfilegroup;
+    data[6]= m_n_datafile;
+    data[7]= m_n_undofile;
+    Ndb_internal::send_event_report(m_ndb, data, 8);
+  }
+  return true;
+}
+bool
+BackupRestore::report_data(unsigned backup_id, unsigned node_id)
+{
+  if (m_ndb)
+  {
+    Uint32 data[7];
+    data[0]= NDB_LE_RestoreData;
+    data[1]= backup_id;
+    data[2]= node_id;
+    data[3]= m_dataCount & 0xFFFFFFFF;
+    data[4]= 0;
+    data[5]= m_dataBytes & 0xFFFFFFFF;
+    data[6]= (m_dataBytes >> 32) & 0xFFFFFFFF;
+    Ndb_internal::send_event_report(m_ndb, data, 7);
+  }
+  return true;
+}
+
+bool
+BackupRestore::report_log(unsigned backup_id, unsigned node_id)
+{
+  if (m_ndb)
+  {
+    Uint32 data[7];
+    data[0]= NDB_LE_RestoreLog;
+    data[1]= backup_id;
+    data[2]= node_id;
+    data[3]= m_logCount & 0xFFFFFFFF;
+    data[4]= 0;
+    data[5]= m_logBytes & 0xFFFFFFFF;
+    data[6]= (m_logBytes >> 32) & 0xFFFFFFFF;
+    Ndb_internal::send_event_report(m_ndb, data, 7);
+  }
+  return true;
+}
+
+bool
+BackupRestore::report_completed(unsigned backup_id, unsigned node_id)
+{
+  if (m_ndb)
+  {
+    Uint32 data[3];
+    data[0]= NDB_LE_RestoreCompleted;
+    data[1]= backup_id;
+    data[2]= node_id;
+    Ndb_internal::send_event_report(m_ndb, data, 3);
+  }
+  return true;
 }
 
 bool
@@ -987,6 +1076,9 @@ BackupRestore::table(const TableS & table){
   const NdbDictionary::Table* null = 0;
   m_new_tables.fill(table.m_dictTable->getTableId(), null);
   m_new_tables[table.m_dictTable->getTableId()] = tab;
+
+  m_n_tables++;
+
   return true;
 }
 
@@ -1083,6 +1175,7 @@ void BackupRestore::tuple(const TupleS & tup, Uint32 fragmentId)
 void BackupRestore::tuple_a(restore_callback_t *cb)
 {
   Uint32 partition_id = cb->fragId;
+  Uint32 n_bytes;
   while (cb->retries < 10) 
   {
     /**
@@ -1120,6 +1213,8 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
       err << "Error defining op: " << cb->connection->getNdbError() << endl;
       exitHandler();
     } // if
+
+    n_bytes= 0;
 
     if (table->getFragmentType() == NdbDictionary::Object::UserDefined)
     {
@@ -1196,6 +1291,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 		   size, arraySize, length);
 	  break;
 	}
+        n_bytes+= length;
       }
       if (ret < 0)
 	break;
@@ -1209,6 +1305,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
     }
 
     // Prepare transaction (the transaction is NOT yet sent to NDB)
+    cb->n_bytes= n_bytes;
     cb->connection->executeAsynchPrepare(NdbTransaction::Commit,
 					 &callback, cb);
     m_transactions++;
@@ -1246,6 +1343,7 @@ void BackupRestore::cback(int result, restore_callback_t *cb)
     cb->connection= 0;
     cb->next= m_free_callback;
     m_free_callback= cb;
+    m_dataBytes+= cb->n_bytes;
     m_dataCount++;
   }
 }
@@ -1423,6 +1521,7 @@ BackupRestore::logEntry(const LogEntry & tup)
   }
 
   Bitmask<4096> keys;
+  Uint32 n_bytes= 0;
   for (Uint32 i= 0; i < tup.size(); i++) 
   {
     const AttributeS * attr = tup[i];
@@ -1434,6 +1533,7 @@ BackupRestore::logEntry(const LogEntry & tup)
       tup.m_table->update_max_auto_val(dataPtr,size*arraySize);
 
     const Uint32 length = (size / 8) * arraySize;
+    n_bytes+= length;
     if (attr->Desc->m_column->getPrimaryKey())
     {
       if(!keys.get(attr->Desc->attrId))
@@ -1482,6 +1582,7 @@ BackupRestore::logEntry(const LogEntry & tup)
   }
   
   m_ndb->closeTransaction(trans);
+  m_logBytes+= n_bytes;
   m_logCount++;
 }
 
