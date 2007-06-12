@@ -75,7 +75,7 @@ Dbtup::reportMemoryUsage(Signal* signal, int incDec){
 }
 
 #ifdef VM_TRACE
-extern Uint32 fc_left, fc_right, fc_remove;
+static Uint32 fc_left = 0, fc_right = 0, fc_remove = 0;
 #endif
 
 void
