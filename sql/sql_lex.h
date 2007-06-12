@@ -830,6 +830,13 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_REMOVE_PARTITIONING (1L << 25)
 #define ALTER_FOREIGN_KEY         (1L << 26)
 
+enum enum_alter_table_change_level
+{
+  ALTER_TABLE_METADATA_ONLY= 0,
+  ALTER_TABLE_DATA_CHANGED= 1,
+  ALTER_TABLE_INDEX_CHANGED= 2
+};
+
 /**
   @brief Parsing data for CREATE or ALTER TABLE.
 
@@ -840,21 +847,28 @@ inline bool st_select_lex_unit::is_union ()
 class Alter_info
 {
 public:
-  List<Alter_drop>            drop_list;
-  List<Alter_column>          alter_list;
-  List<Key>                   key_list;
-  List<Create_field>          create_list;
-  uint                        flags;
-  enum enum_enable_or_disable keys_onoff;
-  enum tablespace_op_type     tablespace_op;
-  List<char>                  partition_names;
-  uint                        no_parts;
+  List<Alter_drop>              drop_list;
+  List<Alter_column>            alter_list;
+  List<Key>                     key_list;
+  List<Create_field>            create_list;
+  uint                          flags;
+  enum enum_enable_or_disable   keys_onoff;
+  enum tablespace_op_type       tablespace_op;
+  List<char>                    partition_names;
+  uint                          no_parts;
+  enum_alter_table_change_level change_level;
+  Create_field                 *datetime_field;
+  bool                          error_if_not_empty;  
+    
 
   Alter_info() :
     flags(0),
     keys_onoff(LEAVE_AS_IS),
     tablespace_op(NO_TABLESPACE_OP),
-    no_parts(0)
+    no_parts(0),
+    change_level(ALTER_TABLE_METADATA_ONLY),
+    datetime_field(NULL),
+    error_if_not_empty(FALSE)
   {}
 
   void reset()
@@ -868,6 +882,9 @@ public:
     tablespace_op= NO_TABLESPACE_OP;
     no_parts= 0;
     partition_names.empty();
+    change_level= ALTER_TABLE_METADATA_ONLY;
+    datetime_field= 0;
+    error_if_not_empty= FALSE;
   }
   /**
     Construct a copy of this object to be used for mysql_alter_table

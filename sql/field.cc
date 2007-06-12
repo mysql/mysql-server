@@ -8264,7 +8264,7 @@ Field *Field_bit::new_key_field(MEM_ROOT *root,
 }
 
 
-uint Field_bit::is_equal(create_field *new_field) 
+uint Field_bit::is_equal(Create_field *new_field) 
 {
   return (new_field->sql_type == real_type() &&
           new_field->length == max_display_length());
