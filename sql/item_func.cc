@@ -3449,6 +3449,7 @@ longlong Item_func_get_lock::val_int()
   THD *thd=current_thd;
   User_level_lock *ull;
   int error;
+  DBUG_ENTER("Item_func_get_lock::val_int");
 
   /*
     In slave thread no need to get locks, everything is serialized. Anyway
@@ -3458,7 +3459,7 @@ longlong Item_func_get_lock::val_int()
     it's not guaranteed to be same as on master.
   */
   if (thd->slave_thread)
-    return 1;
+    DBUG_RETURN(1);
 
   pthread_mutex_lock(&LOCK_user_locks);
 
@@ -3466,8 +3467,10 @@ longlong Item_func_get_lock::val_int()
   {
     pthread_mutex_unlock(&LOCK_user_locks);
     null_value=1;
-    return 0;
+    DBUG_RETURN(0);
   }
+  DBUG_PRINT("info", ("lock %.*s, thd=%ld", res->length(), res->ptr(),
+                      (long) thd->real_id));
   null_value=0;
 
   if (thd->ull)
@@ -3486,14 +3489,17 @@ longlong Item_func_get_lock::val_int()
       delete ull;
       pthread_mutex_unlock(&LOCK_user_locks);
       null_value=1;				// Probably out of memory
-      return 0;
+      DBUG_RETURN(0);
     }
     ull->thread=thd->real_id;
+    ull->thread_id=thd->thread_id;
     thd->ull=ull;
     pthread_mutex_unlock(&LOCK_user_locks);
-    return 1;					// Got new lock
+    DBUG_PRINT("info", ("made new lock"));
+    DBUG_RETURN(1);				// Got new lock
   }
   ull->count++;
+  DBUG_PRINT("info", ("ull->count=%d", ull->count));
 
   /*
     Structure is now initialized.  Try to get the lock.
@@ -3507,9 +3513,13 @@ longlong Item_func_get_lock::val_int()
   error= 0;
   while (ull->locked && !thd->killed)
   {
+    DBUG_PRINT("info", ("waiting on lock"));
     error= pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime);
     if (error == ETIMEDOUT || error == ETIME)
+    {
+      DBUG_PRINT("info", ("lock wait timeout"));
       break;
+    }
     error= 0;
   }
 
@@ -3533,6 +3543,7 @@ longlong Item_func_get_lock::val_int()
     ull->thread_id= thd->thread_id;
     thd->ull=ull;
     error=0;
+    DBUG_PRINT("info", ("got the lock"));
   }
   pthread_mutex_unlock(&LOCK_user_locks);
 
@@ -3542,7 +3553,7 @@ longlong Item_func_get_lock::val_int()
   thd->mysys_var->current_cond=  0;
   pthread_mutex_unlock(&thd->mysys_var->mutex);
 
-  return !error ? 1 : 0;
+  DBUG_RETURN(!error ? 1 : 0);
 }
 
 
@@ -3560,11 +3571,14 @@ longlong Item_func_release_lock::val_int()
   String *res=args[0]->val_str(&value);
   User_level_lock *ull;
   longlong result;
+  THD *thd=current_thd;
+  DBUG_ENTER("Item_func_release_lock::val_int");
   if (!res || !res->length())
   {
     null_value=1;
-    return 0;
+    DBUG_RETURN(0);
   }
+  DBUG_PRINT("info", ("lock %.*s", res->length(), res->ptr()));
   null_value=0;
 
   result=0;
@@ -3577,19 +3591,20 @@ longlong Item_func_release_lock::val_int()
   }
   else
   {
-#ifdef EMBEDDED_LIBRARY
-    if (ull->locked && pthread_equal(current_thd->real_id,ull->thread))
-#else
-    if (ull->locked && pthread_equal(pthread_self(),ull->thread))
-#endif
+    DBUG_PRINT("info", ("ull->locked=%d ull->thread=%ld thd=%ld", 
+                        (int) ull->locked,
+                        (long)ull->thread,
+                        (long)thd->real_id));
+    if (ull->locked && pthread_equal(thd->real_id,ull->thread))
     {
+      DBUG_PRINT("info", ("release lock"));
       result=1;					// Release is ok
       item_user_lock_release(ull);
-      current_thd->ull=0;
+      thd->ull=0;
     }
   }
   pthread_mutex_unlock(&LOCK_user_locks);
-  return result;
+  DBUG_RETURN(result);
 }
 
 
