@@ -8,7 +8,7 @@ multi line comment */;
 ;
 ERROR 42000: Query was empty
 select 1 /*!32301 +1 */;
-1 /*!32301 +1
+1  +1
 2
 select 1 /*!52301 +1 */;
 1
@@ -26,3 +26,13 @@ select 1 # The rest of the row will be ignored
 1
 1
 /* line with only comment */;
+select 1/*!2*/;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2*/' at line 1
+select 1/*!000002*/;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2*/' at line 1
+select 1/*!999992*/;
+1
+1
+select 1 + /*!00000 2 */ + 3 /*!99999 noise*/ + 4;
+1 +  2  + 3  + 4
+10

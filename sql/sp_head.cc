@@ -564,18 +564,17 @@ sp_head::init_strings(THD *thd, LEX *lex)
     m_params.str= strmake_root(root, m_param_begin, m_params.length);
   }
 
-  /* If ptr has overrun end_of_query then end_of_query is the end */
-  endp= (lip->ptr > lip->end_of_query ? lip->end_of_query : lip->ptr);
-  /*
-    Trim "garbage" at the end. This is sometimes needed with the
-    "/ * ! VERSION... * /" wrapper in dump files.
-  */
-  endp= skip_rear_comments(thd->charset(), m_body_begin, endp);
+  endp= lip->get_cpp_ptr();
+  lex->stmt_definition_end= endp;
 
   m_body.length= endp - m_body_begin;
   m_body.str= strmake_root(root, m_body_begin, m_body.length);
-  m_defstr.length= endp - lip->buf;
-  m_defstr.str= strmake_root(root, lip->buf, m_defstr.length);
+  trim_whitespace(thd->charset(), & m_body);
+
+  m_defstr.length= endp - lip->get_cpp_buf();
+  m_defstr.str= strmake_root(root, lip->get_cpp_buf(), m_defstr.length);
+  trim_whitespace(thd->charset(), & m_defstr);
+
   DBUG_VOID_RETURN;
 }
 
@@ -1826,8 +1825,6 @@ sp_head::reset_lex(THD *thd)
   sublex->trg_chistics= oldlex->trg_chistics;
   sublex->trg_table_fields.empty();
   sublex->sp_lex_in_use= FALSE;
-
-  sublex->in_comment= oldlex->in_comment;
 
   /* Reset type info. */
 

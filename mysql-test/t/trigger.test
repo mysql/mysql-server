@@ -1819,3 +1819,30 @@ SET SESSION LOW_PRIORITY_UPDATES=DEFAULT;
 SET GLOBAL LOW_PRIORITY_UPDATES=DEFAULT;
 
 --echo End of 5.0 tests
+
+#
+# Bug#25411 (trigger code truncated)
+#
+
+--disable_warnings
+drop table if exists table_25411_a;
+drop table if exists table_25411_b;
+--enable_warnings
+
+create table table_25411_a(a int);
+create table table_25411_b(b int);
+
+create trigger trg_25411a_ai after insert on table_25411_a
+for each row
+  insert into table_25411_b select new.*;
+
+select * from table_25411_a;
+
+--error ER_BAD_TABLE_ERROR
+insert into table_25411_a values (1);
+
+select * from table_25411_a;
+
+drop table table_25411_a;
+drop table table_25411_b;
+

@@ -588,10 +588,14 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
       log_query.append(STRING_WITH_LEN("CREATE "));
       append_definer(thd, &log_query, &thd->lex->definer->user,
                      &thd->lex->definer->host);
-      log_query.append(thd->lex->stmt_definition_begin,
-                       (char *)sp->m_body_begin -
-                       thd->lex->stmt_definition_begin +
-                       sp->m_body.length);
+
+      LEX_STRING stmt_definition;
+      stmt_definition.str= (char*) thd->lex->stmt_definition_begin;
+      stmt_definition.length= thd->lex->stmt_definition_end
+        - thd->lex->stmt_definition_begin;
+      trim_whitespace(thd->charset(), & stmt_definition);
+
+      log_query.append(stmt_definition.str, stmt_definition.length);
 
       /* Such a statement can always go directly to binlog, no trans cache */
       thd->binlog_query(THD::MYSQL_QUERY_TYPE,
