@@ -5747,21 +5747,31 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                    table_list->table_name_length,
                                    table_list->table_name, 0);
 
-    /* Disable alter of enabled log tables */
-    if (table_kind && logger.is_log_table_enabled(table_kind))
+    if (table_kind)
     {
-      my_error(ER_BAD_LOG_STATEMENT, MYF(0), "ALTER");
-      DBUG_RETURN(TRUE);
-    }
+      /* Disable alter of enabled log tables */
+      if (logger.is_log_table_enabled(table_kind))
+      {
+        my_error(ER_BAD_LOG_STATEMENT, MYF(0), "ALTER");
+        DBUG_RETURN(TRUE);
+      }
 
-    /* Disable alter of log tables to unsupported engine */
-    if (table_kind &&
-        (create_info->used_fields & HA_CREATE_USED_ENGINE) &&
-        (!create_info->db_type || /* unknown engine */
-        !(create_info->db_type->flags & HTON_SUPPORT_LOG_TABLES)))
-    {
-      my_error(ER_UNSUPORTED_LOG_ENGINE, MYF(0));
-      DBUG_RETURN(TRUE);
+      /* Disable alter of log tables to unsupported engine */
+      if ((create_info->used_fields & HA_CREATE_USED_ENGINE) &&
+          (!create_info->db_type || /* unknown engine */
+           !(create_info->db_type->flags & HTON_SUPPORT_LOG_TABLES)))
+      {
+        my_error(ER_UNSUPORTED_LOG_ENGINE, MYF(0));
+        DBUG_RETURN(TRUE);
+      }
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+      if (alter_info->flags & ALTER_PARTITION)
+      {
+	my_error(ER_WRONG_USAGE, MYF(0), "PARTITION", "log table");
+        DBUG_RETURN(TRUE);
+      }
+#endif
     }
   }
 
