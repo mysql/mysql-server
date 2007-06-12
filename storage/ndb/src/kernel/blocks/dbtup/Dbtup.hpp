@@ -2618,6 +2618,7 @@ private:
 
   ArrayPool<Page> c_page_pool;
   Uint32 cnoOfAllocatedPages;
+  Uint32 m_max_allocate_pages;
   
   Tablerec *tablerec;
   Uint32 cnoOfTablerec;

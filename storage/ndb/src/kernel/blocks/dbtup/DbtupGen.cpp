@@ -308,6 +308,12 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 noOfTriggers= 0;
   
   Uint32 tmp= 0;
+
+  if (ndb_mgm_get_int_parameter(p, CFG_DB_MAX_ALLOCATE, &tmp))
+    tmp = 32 * 1024 * 1024;
+  m_max_allocate_pages = (tmp + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE;
+
+  tmp = 0;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE_RANGE, &tmp));
   initPageRangeSize(tmp);
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_TABLE, &cnoOfTablerec));
