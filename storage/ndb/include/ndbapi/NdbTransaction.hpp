@@ -148,6 +148,17 @@ class NdbTransaction
 #endif
 
 public:
+#ifdef NDBAPI_50_COMPAT
+  enum AbortOption {
+    DefaultAbortOption = NdbOperation::DefaultAbortOption,
+    CommitIfFailFree = NdbOperation::AbortOnError,         
+    TryCommit = NdbOperation::AbortOnError,
+    AbortOnError= NdbOperation::AbortOnError,
+    CommitAsMuchAsPossible = NdbOperation::AO_IgnoreError,
+    AO_IgnoreError= NdbOperation::AO_IgnoreError
+  };
+#endif
+
 
   /**
    * Execution type of transaction
@@ -307,6 +318,7 @@ public:
    *                          the send.
    * @return 0 if successful otherwise -1.
    */
+#ifndef NDBAPI_50_COMPAT
   int execute(ExecType execType,
 	      NdbOperation::AbortOption = NdbOperation::DefaultAbortOption,
 	      int force = 0 );
@@ -317,6 +329,26 @@ public:
     return execute ((ExecType)execType,
 		    (NdbOperation::AbortOption)abortOption,
 		    force); }
+#endif
+#else
+  /**
+   * 50 compability layer
+   *   Check 50-docs for sematics
+   */
+
+  int execute(ExecType execType, NdbOperation::AbortOption, int force);
+  
+  int execute(NdbTransaction::ExecType execType,
+              NdbTransaction::AbortOption abortOption = AbortOnError,
+              int force = 0) 
+    {
+      int ret = execute ((ExecType)execType,
+                         (NdbOperation::AbortOption)abortOption,
+                         force); 
+      if (ret || (abortOption != AO_IgnoreError && theError.code))
+        return -1;
+      return 0;
+    }
 #endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
