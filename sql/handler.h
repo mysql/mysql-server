@@ -117,6 +117,18 @@
 #define HA_HAS_RECORDS	       (LL(1) << 32) /* records() gives exact count*/
 /* Has it's own method of binlog logging */
 #define HA_HAS_OWN_BINLOGGING  (LL(1) << 33)
+/*
+  Engine is capable of row-format and statement-format logging,
+  respectively
+*/
+#define HA_BINLOG_ROW_CAPABLE  (LL(1) << 34)
+#define HA_BINLOG_STMT_CAPABLE (LL(1) << 35)
+
+/*
+  Set of all binlog flags. Currently only contain the capabilities
+  flags.
+ */
+#define HA_BINLOG_FLAGS (HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE)
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -688,7 +700,7 @@ struct handlerton
 };
 
 
-/* Possible flags of a handlerton */
+/* Possible flags of a handlerton (there can be 32 of them) */
 #define HTON_NO_FLAGS                 0
 #define HTON_CLOSE_CURSORS_AT_COMMIT (1 << 0)
 #define HTON_ALTER_NOT_SUPPORTED     (1 << 1) //Engine does not support alter
@@ -793,18 +805,36 @@ typedef struct st_key_create_information
 class TABLEOP_HOOKS
 {
 public:
+  TABLEOP_HOOKS() {}
+  virtual ~TABLEOP_HOOKS() {}
+
   inline void prelock(TABLE **tables, uint count)
   {
     do_prelock(tables, count);
   }
-  virtual ~TABLEOP_HOOKS() {}
-  TABLEOP_HOOKS() {}
 
+  inline int postlock(TABLE **tables, uint count)
+  {
+    return do_postlock(tables, count);
+  }
 private:
   /* Function primitive that is called prior to locking tables */
   virtual void do_prelock(TABLE **tables, uint count)
   {
     /* Default is to do nothing */
+  }
+
+  /**
+     Primitive called after tables are locked.
+
+     If an error is returned, the tables will be unlocked and error
+     handling start.
+
+     @return Error code or zero.
+   */
+  virtual int do_postlock(TABLE **tables, uint count)
+  {
+    return 0;                           /* Default is to do nothing */
   }
 };
 
@@ -892,10 +922,13 @@ class handler :public Sql_alloc
   friend int ha_delete_table(THD*,handlerton*,const char*,const char*,
                              const char*,bool);
 
+public:
+  typedef ulonglong Table_flags;
+
  protected:
   struct st_table_share *table_share;   /* The table definition */
   struct st_table *table;               /* The current open table */
-  ulonglong cached_table_flags;         /* Set on init() and open() */
+  Table_flags cached_table_flags;       /* Set on init() and open() */
 
   virtual int index_init(uint idx, bool sorted) { active_index=idx; return 0; }
   virtual int index_end() { active_index=MAX_KEY; return 0; }
@@ -908,7 +941,7 @@ class handler :public Sql_alloc
   */
   virtual int rnd_init(bool scan) =0;
   virtual int rnd_end() { return 0; }
-  virtual ulonglong table_flags(void) const =0;
+  virtual Table_flags table_flags(void) const =0;
 
   void ha_statistic_increment(ulong SSV::*offset) const;
   void **ha_data(THD *) const;
@@ -1122,7 +1155,7 @@ public:
   {
     return inited == INDEX ? ha_index_end() : inited == RND ? ha_rnd_end() : 0;
   }
-  longlong ha_table_flags() { return cached_table_flags; }
+  Table_flags ha_table_flags() const { return cached_table_flags; }
 
   /*
     Signal that the table->read_set and table->write_set table maps changed
@@ -1686,6 +1719,8 @@ private:
 	/* Some extern variables used with handlers */
 
 extern const char *ha_row_type[];
+extern const char *tx_isolation_names[];
+extern const char *binlog_format_names[];
 extern TYPELIB tx_isolation_typelib;
 extern TYPELIB myisam_stats_method_typelib;
 extern ulong total_ha, total_ha_2pc;

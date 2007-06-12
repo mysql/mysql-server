@@ -3341,8 +3341,15 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   table->reginfo.lock_type=TL_WRITE;
   hooks->prelock(&table, 1);                    // Call prelock hooks
   if (! ((*lock)= mysql_lock_tables(thd, &table, 1,
-                                    MYSQL_LOCK_IGNORE_FLUSH, &not_used)))
+                                    MYSQL_LOCK_IGNORE_FLUSH, &not_used)) ||
+        hooks->postlock(&table, 1))
   {
+    if (*lock)
+    {
+      mysql_unlock_tables(thd, *lock);
+      *lock= 0;
+    }
+
     if (!create_info->table_existed)
       drop_open_table(thd, table, create_table->db, create_table->table_name);
     DBUG_RETURN(0);
@@ -3377,24 +3384,35 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
    */
   class MY_HOOKS : public TABLEOP_HOOKS {
   public:
-    MY_HOOKS(select_create *x) : ptr(x) { }
+    MY_HOOKS(select_create *x, TABLE_LIST *create_table,
+             TABLE_LIST *select_tables)
+      : ptr(x), all_tables(*create_table)
+      {
+        all_tables.next_global= select_tables;
+      }
 
   private:
-    virtual void do_prelock(TABLE **tables, uint count)
+    virtual int do_postlock(TABLE **tables, uint count)
     {
+      THD *thd= const_cast<THD*>(ptr->get_thd());
+      if (int error= decide_logging_format(thd, &all_tables))
+        return error;
+
       TABLE const *const table = *tables;
-      if (ptr->get_thd()->current_stmt_binlog_row_based  &&
+      if (thd->current_stmt_binlog_row_based  &&
           !table->s->tmp_table &&
           !ptr->get_create_info()->table_existed)
       {
         ptr->binlog_show_create_table(tables, count);
       }
+      return 0;
     }
 
     select_create *ptr;
+    TABLE_LIST all_tables;
   };
 
-  MY_HOOKS hooks(this);
+  MY_HOOKS hooks(this, create_table, select_tables);
   hook_ptr= &hooks;
 
   unit= u;
