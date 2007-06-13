@@ -832,7 +832,6 @@ public:
   longlong val_int();
   const char *func_name() const { return "ascii"; }
   void fix_length_and_dec() { max_length=3; }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 class Item_func_ord :public Item_int_func

@@ -538,17 +538,17 @@ select * from t1 where f_int1 between 5 and 15 order by f_int1;
 drop table t1;
 
 #  part2: bug in pruning code
-create table t1 (a char(10) binary)
-partition by list(ascii(a))
- (partition p1 values in (ascii('a')),
-  partition p2 values in (ascii('b')),
-  partition p3 values in (ascii('c')),
-  partition p4 values in (ascii('d')),
-  partition p5 values in (ascii('e')));
-insert into t1 values ('a'),('bb'),('ccc'),('dddd'),('eeEee');
-select * from t1 where a>='a' and a <= 'dddd';
-explain partitions select * from t1 where a>='a' and a <= 'dddd';
-drop table t1;
+#create table t1 (a char(10) binary)
+#partition by list(ascii(a))
+# (partition p1 values in (ascii('a')),
+#  partition p2 values in (ascii('b')),
+#  partition p3 values in (ascii('c')),
+#  partition p4 values in (ascii('d')),
+#  partition p5 values in (ascii('e')));
+#insert into t1 values ('a'),('bb'),('ccc'),('dddd'),('eeEee');
+#select * from t1 where a>='a' and a <= 'dddd';
+#explain partitions select * from t1 where a>='a' and a <= 'dddd';
+#drop table t1;
 
 # BUG#18659: Assertion failure when subpartitioning is used and partition is
 # "IS NULL"

@@ -3,42 +3,9 @@
 drop table if exists t1;
 --enable_warnings
 
-create table t1 (a char(5) character set koi8r)
-partition by list (ascii(a) mod 3)
-subpartition by hash(ascii(a))
-subpartitions 3
-(partition p1 values in (1),
- partition p2 values in (2),
- partition p0 values in (0));
-insert into t1 values ('a');
-explain partitions select * from t1 where a = 'a';
-select * from t1 where a = 'a';
-drop table t1;
-
-create table t1 (a char(5) character set cp1251)
-partition by list (ascii(a)) (partition pn values in (null));
-drop table t1;
-
 create table t1 (col1 datetime)
 partition by range(datediff(col1,col1))
 (partition p0 values less than (10), partition p1 values less than (30));
-drop table t1;
-
--- error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a char(5) character set big5)
-partition by list (ascii(a)) (partition pn values in (null));
-
-create table t1 (a char(1))
-partition by list(ascii(a))
-(partition p1 values in (ascii('i')));
-#insert into t1 values ('i');
-drop table t1;
-
-create table t1 (s1 char(5) character set latin5)
-partition by list (ascii(s1))
-(partition p1 values in (1));
-set names utf8;
-#insert into tn values ('¿¿');
 drop table t1;
 
 -- error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED

@@ -19,6 +19,4 @@ drop table t1;
 create table t1 (a varchar(1), primary key (a))
 partition by list (ascii(a))
 (partition p1 values in (65));
-insert into t1 values ('A');
-replace into t1 values ('A');
-drop table t1;
+ERROR HY000: This partition function is not allowed
