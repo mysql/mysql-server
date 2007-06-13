@@ -4542,6 +4542,7 @@ Item*
 Create_func_uuid::create(THD *thd)
 {
   thd->lex->binlog_row_based_if_mixed= TRUE;
+  thd->lex->safe_to_cache_query= 0;
   return new (thd->mem_root) Item_func_uuid();
 }
 
@@ -4552,6 +4553,7 @@ Item*
 Create_func_uuid_short::create(THD *thd)
 {
   thd->lex->binlog_row_based_if_mixed= TRUE;
+  thd->lex->safe_to_cache_query= 0;  
   return new (thd->mem_root) Item_func_uuid_short();
 }
 
