@@ -40,3 +40,4 @@ synchronization          : Bug#24529  	Test 'synchronization' fails on Mac pushb
 #rpl_ndb_dd_advance	 : Bug#25913 rpl_ndb_dd_advance fails randomly
 
 ndb_partition_error2	 : HF is not sure if the test can work as internded on all the platforms
+mysql_upgrade		 : Bug#28560 test links to /usr/local/mysql/lib libraries, causes non-determinism and failures on ABI breakage
