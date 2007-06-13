@@ -2,7 +2,12 @@
 mysql-5.1.15-ndb-6.1.X
 ==================================================
 
-mysql-5.1.15-ndb-6.1.11 (2007-05-06)
+mysql-5.1.15-ndb-6.1.12 (2007-06-13)
+
+  Bug #29044 memory buddy allocator "unoptimal" memory handling
+  extend backup dump to give more info
+
+mysql-5.1.15-ndb-6.1.11 (2007-06-06)
 
   Bug #28751 Lots of memory locked in memory causes high kswapd
   Bug #28899 not possible to set separate watchdog timeout at startup
