@@ -3578,7 +3578,7 @@ longlong Item_func_release_lock::val_int()
   else
   {
 #ifdef EMBEDDED_LIBRARY
-    if (ull->locked && pthread_equal(current_thd->real_id,ull->thread))
+    if (ull->locked && (current_thd->real_id == ull->thread))
 #else
     if (ull->locked && pthread_equal(pthread_self(),ull->thread))
 #endif
