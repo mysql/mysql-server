@@ -79,18 +79,20 @@ fi
 # commits@ or dev-private@ mail
 #--
 
-TO="commits"
+LIST="commits"
+TO="commits@lists.mysql.com"
 if [ -f .tree-is-private ]
 then
-  TO="dev-private"
+  LIST="dev-private"
+  TO="dev-private@mysql.com"
 fi
 
- echo "Notifying $TO list at $TO"
+ echo "Notifying $LIST list at $TO"
  (
    cat <<EOF
 List-ID: <bk.mysql-$VERSION>
 From: $FROM
-To: $TO@mysql.com
+To: $TO
 Subject: bk commit into $VERSION tree ($CHANGESET)$BS
 X-CSetKey: <$CSETKEY>
 $BH
