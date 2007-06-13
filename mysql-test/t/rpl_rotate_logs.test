@@ -96,7 +96,7 @@ connection master;
 set insert_id=1234;
 insert into t2 values(NULL);
 connection slave;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 
 #restart slave skipping one event
 set global sql_slave_skip_counter=1;
