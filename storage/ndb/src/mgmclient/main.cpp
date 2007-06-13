@@ -155,10 +155,31 @@ int main(int argc, char** argv){
   signal(SIGPIPE, handler);
   com = new Ndb_mgmclient(opt_connect_str,1);
   int ret= 0;
+  BaseString histfile;
   if (!opt_execute_str)
   {
+    char *histfile_env= getenv("NDB_MGM_HISTFILE");
+    if (histfile_env)
+      histfile.assign(histfile_env,strlen(histfile_env));
+    else if(getenv("HOME"))
+    {
+      histfile.assign(getenv("HOME"),strlen(getenv("HOME")));
+      histfile.append("/.ndb_mgm_history");
+    }
+    if (histfile.length())
+      read_history(histfile.c_str());
+
     ndbout << "-- NDB Cluster -- Management Client --" << endl;
     while(read_and_execute(_try_reconnect));
+
+    if (histfile.length())
+    {
+      BaseString histfile_tmp;
+      histfile_tmp.assign(histfile);
+      histfile_tmp.append(".TMP");
+      if(!write_history(histfile_tmp.c_str()))
+        my_rename(histfile_tmp.c_str(), histfile.c_str(), MYF(MY_WME));
+    }
   }
   else
   {
