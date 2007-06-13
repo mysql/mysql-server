@@ -127,7 +127,7 @@ public:
     max_length=10*my_charset_bin.mbmaxlen;
     maybe_null=1; 
   }
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
+  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };
 
 
@@ -301,7 +301,7 @@ class Item_func_dayname :public Item_func_weekday
     max_length=9*MY_CHARSET_BIN_MB_MAXLEN;
     maybe_null=1; 
   }
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
+  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };
 
 
