@@ -439,7 +439,7 @@ public:
   void fix_length_and_dec();
   void fix_num_length_and_dec();
   uint decimal_precision() const { return args[0]->decimal_precision(); }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -452,7 +452,7 @@ public:
   my_decimal *decimal_op(my_decimal *);
   const char *func_name() const { return "abs"; }
   void fix_length_and_dec();
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 // A class to handle logarithmic and trigonometric functions
@@ -619,7 +619,7 @@ public:
   longlong int_op();
   double real_op();
   my_decimal *decimal_op(my_decimal *);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -631,7 +631,7 @@ public:
   longlong int_op();
   double real_op();
   my_decimal *decimal_op(my_decimal *);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 /* This handles round and truncate */
