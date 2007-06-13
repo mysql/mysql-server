@@ -1405,7 +1405,14 @@ Only MyISAM tables	support collections	1
 Function MATCH ... AGAINST()	is used to do a search	1
 Full-text search in MySQL	implements vector space model	1
 drop function change_global;
+drop table t1;
 set GLOBAL query_cache_type=default;
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
+set GLOBAL query_cache_size= default;
+set GLOBAL query_cache_size=1000000;
+create table t1 (a char);
+insert into t1 values ('c');
+a
+drop table t1;
 set GLOBAL query_cache_size= default;
