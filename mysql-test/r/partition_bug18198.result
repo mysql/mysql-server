@@ -1,37 +1,7 @@
 drop table if exists t1;
-create table t1 (a char(5) character set koi8r)
-partition by list (ascii(a) mod 3)
-subpartition by hash(ascii(a))
-subpartitions 3
-(partition p1 values in (1),
-partition p2 values in (2),
-partition p0 values in (0));
-insert into t1 values ('a');
-explain partitions select * from t1 where a = 'a';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2_p2sp2	system	NULL	NULL	NULL	NULL	1	
-select * from t1 where a = 'a';
-a
-a
-drop table t1;
-create table t1 (a char(5) character set cp1251)
-partition by list (ascii(a)) (partition pn values in (null));
-drop table t1;
 create table t1 (col1 datetime)
 partition by range(datediff(col1,col1))
 (partition p0 values less than (10), partition p1 values less than (30));
-drop table t1;
-create table t1 (a char(5) character set big5)
-partition by list (ascii(a)) (partition pn values in (null));
-ERROR HY000: This partition function is not allowed
-create table t1 (a char(1))
-partition by list(ascii(a))
-(partition p1 values in (ascii('i')));
-drop table t1;
-create table t1 (s1 char(5) character set latin5)
-partition by list (ascii(s1))
-(partition p1 values in (1));
-set names utf8;
 drop table t1;
 create table t1 (col1 int)
 partition by range(greatest(col1,10))

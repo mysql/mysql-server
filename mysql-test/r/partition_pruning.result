@@ -676,24 +676,6 @@ f_int1	f_int2
 8	8
 9	9
 drop table t1;
-create table t1 (a char(10) binary)
-partition by list(ascii(a))
-(partition p1 values in (ascii('a')),
-partition p2 values in (ascii('b')),
-partition p3 values in (ascii('c')),
-partition p4 values in (ascii('d')),
-partition p5 values in (ascii('e')));
-insert into t1 values ('a'),('bb'),('ccc'),('dddd'),('eeEee');
-select * from t1 where a>='a' and a <= 'dddd';
-a
-a
-bb
-ccc
-dddd
-explain partitions select * from t1 where a>='a' and a <= 'dddd';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1,p2,p3,p4,p5	ALL	NULL	NULL	NULL	NULL	5	Using where
-drop table t1;
 create table t1 (f_int1 integer) partition by list(abs(mod(f_int1,2)))
 subpartition by hash(f_int1) subpartitions 2
 (
