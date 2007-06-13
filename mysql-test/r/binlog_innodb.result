@@ -14,12 +14,12 @@ SET BINLOG_FORMAT=STATEMENT;
 BEGIN;
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 UPDATE t1 SET b = 1*a WHERE a > 1;
-ERROR HY000: Logging not possible. Message: InnoDB: Transaction level 'READ-UNCOMMITTED' is not safe for binlog mode 'STATEMENT'
+ERROR HY000: Binary logging not possible. Message: Transaction level 'READ-UNCOMMITTED' in InnoDB is not safe for binlog mode 'STATEMENT'
 COMMIT;
 BEGIN;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 UPDATE t1 SET b = 2*a WHERE a > 2;
-ERROR HY000: Logging not possible. Message: InnoDB: Transaction level 'READ-COMMITTED' is not safe for binlog mode 'STATEMENT'
+ERROR HY000: Binary logging not possible. Message: Transaction level 'READ-COMMITTED' in InnoDB is not safe for binlog mode 'STATEMENT'
 COMMIT;
 BEGIN;
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;

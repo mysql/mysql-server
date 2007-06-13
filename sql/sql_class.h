@@ -1998,13 +1998,14 @@ class select_create: public select_insert {
 public:
   select_create (TABLE_LIST *table_arg,
 		 HA_CREATE_INFO *create_info_par,
-		 List<create_field> &fields_par,
-		 List<Key> &keys_par,
+                 Alter_info *alter_info_arg,
 		 List<Item> &select_fields,enum_duplicates duplic, bool ignore,
                  TABLE_LIST *select_tables_arg)
     :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, ignore),
     create_table(table_arg),
-    create_info(create_info_par), select_tables(select_tables_arg)
+    create_info(create_info_par),
+    select_tables(select_tables_arg),
+    alter_info(alter_info_arg)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 
