@@ -1141,19 +1141,23 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
         ((flags >> COLUMN_FORMAT_FLAGS) & COLUMN_FORMAT_MASK);
       if (storage_type)
       {
+        packet->append(STRING_WITH_LEN(" /*!"));
+        packet->append(STRING_WITH_LEN(MYSQL_VERSION_TABLESPACE_IN_FRM_STR));
         packet->append(STRING_WITH_LEN(" STORAGE"));
         if (storage_type == HA_SM_DISK)
-          packet->append(STRING_WITH_LEN(" DISK"));
+          packet->append(STRING_WITH_LEN(" DISK */"));
         else
-          packet->append(STRING_WITH_LEN(" MEMORY"));
+          packet->append(STRING_WITH_LEN(" MEMORY */"));
       }
       if (column_format)
       {
+        packet->append(STRING_WITH_LEN(" /*!"));
+        packet->append(STRING_WITH_LEN(MYSQL_VERSION_TABLESPACE_IN_FRM_STR));
         packet->append(STRING_WITH_LEN(" COLUMN_FORMAT"));
         if (column_format == COLUMN_FORMAT_TYPE_FIXED)
-          packet->append(STRING_WITH_LEN(" FIXED"));
+          packet->append(STRING_WITH_LEN(" FIXED */"));
         else
-          packet->append(STRING_WITH_LEN(" DYNAMIC"));
+          packet->append(STRING_WITH_LEN(" DYNAMIC */"));
       }
     }
     /* 
@@ -1298,12 +1302,34 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       to the CREATE TABLE statement
     */
 
-    if ((for_str= (char *)file->get_tablespace_name()))
-    {
-      packet->append(STRING_WITH_LEN(" /*!50100 TABLESPACE "));
-      packet->append(for_str, strlen(for_str));
+    switch (table->s->default_storage_media) {
+    case(HA_SM_DEFAULT):
+      if ((for_str= (char *)file->get_tablespace_name()))
+      {
+        packet->append(STRING_WITH_LEN(" /*!50100 TABLESPACE "));
+        packet->append(for_str, strlen(for_str));
+        packet->append(STRING_WITH_LEN(" */"));
+      }
+      break;
+    case(HA_SM_DISK):
+      packet->append(STRING_WITH_LEN(" /*!50100"));
+      if ((for_str= (char *)file->get_tablespace_name()))
+      {
+        packet->append(STRING_WITH_LEN(" TABLESPACE "));
+        packet->append(for_str, strlen(for_str));
+      }
       packet->append(STRING_WITH_LEN(" STORAGE DISK */"));
-    }
+      break;
+    case(HA_SM_MEMORY):
+      packet->append(STRING_WITH_LEN(" /*!50100"));
+      if ((for_str= (char *)file->get_tablespace_name()))
+      {
+        packet->append(STRING_WITH_LEN(" TABLESPACE "));
+        packet->append(for_str, strlen(for_str));
+      }
+      packet->append(STRING_WITH_LEN(" STORAGE MEMORY */"));
+      break;
+    };
 
     /*
       IF   check_create_info
