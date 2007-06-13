@@ -3294,16 +3294,15 @@ static uint32 get_sub_part_id_from_key(const TABLE *table,uchar *buf,
   uint32 part_id;
   DBUG_ENTER("get_sub_part_id_from_key");
 
+  key_restore(buf, (uchar*)key_spec->key, key_info, key_spec->length);
   if (likely(rec0 == buf))
   {
-    key_restore(buf, (uchar*)key_spec->key, key_info, key_spec->length);
     part_id= part_info->get_subpartition_id(part_info);
   }
   else
   {
     Field **part_field_array= part_info->subpart_field_array;
     set_field_ptr(part_field_array, buf, rec0);
-    key_restore(buf, (uchar*)key_spec->key, key_info, key_spec->length);
     part_id= part_info->get_subpartition_id(part_info);
     set_field_ptr(part_field_array, rec0, buf);
   }
@@ -3340,9 +3339,9 @@ bool get_part_id_from_key(const TABLE *table, uchar *buf, KEY *key_info,
   longlong func_value;
   DBUG_ENTER("get_part_id_from_key");
 
+  key_restore(buf, (uchar*)key_spec->key, key_info, key_spec->length);
   if (likely(rec0 == buf))
   {
-    key_restore(buf, (uchar*)key_spec->key, key_info, key_spec->length);
     result= part_info->get_part_partition_id(part_info, part_id,
                                              &func_value);
   }
@@ -3350,7 +3349,6 @@ bool get_part_id_from_key(const TABLE *table, uchar *buf, KEY *key_info,
   {
     Field **part_field_array= part_info->part_field_array;
     set_field_ptr(part_field_array, buf, rec0);
-    key_restore(buf, (uchar*)key_spec->key, key_info, key_spec->length);
     result= part_info->get_part_partition_id(part_info, part_id,
                                              &func_value);
     set_field_ptr(part_field_array, rec0, buf);
@@ -3390,9 +3388,9 @@ void get_full_part_id_from_key(const TABLE *table, uchar *buf,
   longlong func_value;
   DBUG_ENTER("get_full_part_id_from_key");
 
+  key_restore(buf, (uchar*)key_spec->key, key_info, key_spec->length);
   if (likely(rec0 == buf))
   {
-    key_restore(buf, (uchar*)key_spec->key, key_info, key_spec->length);
     result= part_info->get_partition_id(part_info, &part_spec->start_part,
                                         &func_value);
   }
@@ -3400,7 +3398,6 @@ void get_full_part_id_from_key(const TABLE *table, uchar *buf,
   {
     Field **part_field_array= part_info->full_part_field_array;
     set_field_ptr(part_field_array, buf, rec0);
-    key_restore(buf, (uchar*)key_spec->key, key_info, key_spec->length);
     result= part_info->get_partition_id(part_info, &part_spec->start_part,
                                         &func_value);
     set_field_ptr(part_field_array, rec0, buf);
