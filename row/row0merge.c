@@ -1471,7 +1471,7 @@ row_merge_rename_index(
 	trx_start_if_not_started(trx);
 	trx->op_info = "renaming index";
 
-	pars_info_add_str_literal(info, "name", index->name);
+	pars_info_add_str_literal(info, "name", index->name + 1);
 	pars_info_add_dulint_literal(info, "indexid", index->id);
 	pars_info_add_dulint_literal(info, "tableid", table->id);
 
