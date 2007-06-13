@@ -1,5 +1,12 @@
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
 drop database if exists mysqltest;
+CREATE TABLE t1 (
+pk1 INT NOT NULL PRIMARY KEY,
+attr1 INT NOT NULL,
+attr2 INT,
+attr3 VARCHAR(10)
+) ENGINE=ndbcluster;
+drop table t1;
 SHOW GLOBAL STATUS LIKE 'ndb%';
 Variable_name	Value
 Ndb_cluster_node_id	#
