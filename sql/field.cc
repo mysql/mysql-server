@@ -8707,7 +8707,7 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
                         char *fld_change, List<String> *fld_interval_list,
                         CHARSET_INFO *fld_charset, uint fld_geom_type,
                         enum ha_storage_media storage_type,
-                        enum column_format_type loc_column_format)
+                        enum column_format_type column_format)
 {
   uint sign_len, allowed_type_modifier= 0;
   ulong max_field_charlength= MAX_FIELD_CHARLENGTH;
@@ -8718,10 +8718,8 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   field_name= fld_name;
   def= fld_default_value;
   flags= fld_type_modifier;
-  field_storage_type= storage_type;
-  column_format= loc_column_format;
-  flags|= (((uint)storage_type << FIELD_STORAGE_FLAGS) & STORAGE_TYPE_MASK);
-  flags|= (((uint)column_format << COLUMN_FORMAT_FLAGS) & COLUMN_FORMAT_MASK);
+  flags|= (((uint)storage_type & STORAGE_TYPE_MASK) << FIELD_STORAGE_FLAGS);
+  flags|= (((uint)column_format & COLUMN_FORMAT_MASK) << COLUMN_FORMAT_FLAGS);
   unireg_check= (fld_type_modifier & AUTO_INCREMENT_FLAG ?
                  Field::NEXT_NUMBER : Field::NONE);
   decimals= fld_decimals ? (uint)atoi(fld_decimals) : 0;
@@ -9296,8 +9294,6 @@ create_field::create_field(Field *old_field,Field *orig_field)
   field_name=change=old_field->field_name;
   length=     old_field->field_length;
   flags=      old_field->flags;
-  field_storage_type= old_field->field_storage_type();
-  column_format= old_field->column_format();
   unireg_check=old_field->unireg_check;
   pack_length=old_field->pack_length();
   key_length= old_field->key_length();

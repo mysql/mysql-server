@@ -294,8 +294,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
       uchar storage_type, column_format, write_byte;
       while ((field=it++))
       {
-        storage_type= (uchar)field->field_storage_type & STORAGE_TYPE_MASK;
-        column_format= (uchar)field->column_format & COLUMN_FORMAT_MASK;
+        storage_type= (uchar)field->field_storage_type();
+        column_format= (uchar)field->column_format();
         write_byte= storage_type + (column_format << COLUMN_FORMAT_SHIFT);
         if (my_write(file, (const byte*)&write_byte, 1, MYF_RW))
           goto err;
