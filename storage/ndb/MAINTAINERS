@@ -1,0 +1,157 @@
+MySQL Cluster MAINTAINERS
+-------------------------
+
+This is a list of knowledgable people in parts of the NDB code.
+
+In changing that area of code, you probably want to talk to the
+people who know a lot about it to look over the patch.
+
+When sending patches and queries, always CC the mailing list.
+
+If no list specified, assume internals@lists.mysql.com
+
+P: Person
+M: Mail
+L: Mailing list
+W: Web page with status/info
+C: Comment
+SRC: Source directory (relative to this directory)
+T: SCM tree type and location
+S: Status, one of:
+
+	Supported: Somebody is paid to maintain this.
+	Maintained: Not their primary job, but maintained.
+	Orphan: No current obvious maintainer.
+	Obsolete: Replaced by something else.
+
+-------------------------------------------------------------
+
+Binlog Injector
+SRC: ha_ndbcluster_binlog.cc
+C: see also row based replication
+P: Stewart Smith
+M: stewart@mysql.com
+C: Original author
+P: Tomas Ulin
+M: tomas@mysql.com
+C: Lots of updates
+P: Martin Skold
+M: martin@mysql.com
+C: Metadata ops
+S: Supported
+
+BLOBs
+SRC: ha_ndbcluster.cc
+SRC: src/ndbapi/NdbBlob*
+P: Pekka
+M: pekka@mysql.com
+S: Supported
+
+cpcd/cpcc
+SRC: src/cw/cpcd
+SRC: src/cw/cpcc
+C: Maintained only as part of autotest
+P: Jonas Orland
+M: jonas@mysql.com
+S: Maintained
+
+cpcc-win32
+SRC: src/cw/cpcc-win32
+S: Obsolete
+
+Handler
+SRC: ha_ndbcluster.cc
+P: Martin Skold
+M: martin@mysql.com
+S: Supported
+
+Management Server
+SRC: src/mgmsrv/
+P: Stewart Smith
+M: stewart@mysql.com
+S: Supported
+
+Management Client
+SRC: src/mgmclient/
+P: Stewart Smith
+M: stewart@mysql.com
+S: Supported
+
+Management API
+SRC: src/mgmapi/
+P: Stewart Smith
+M: stewart@mysql.com
+S: Supported
+
+NDB API Examples
+SRC: ndbapi-examples/
+P: Tomas Ulin
+M: tomas@mysql.com
+C: Originally by Lars
+P: Lars Thalmann
+M: lars@mysql.com
+S: Maintained
+
+tsman
+C: Disk Data (Table Space MANager)
+SRC: src/kernel/blocks/tsman.cpp
+SRC: src/kernel/blocks/tsman.hpp
+P: Jonas Oreland
+M: jonas@mysql.com
+S: Supported
+
+lgman
+C: Disk Data (LoG MANager)
+SRC: src/kernel/blocks/lgman.cpp
+SRC: src/kernel/blocks/lgman.hpp
+P: Jonas Oreland
+M: jonas@mysql.com
+S: Supported
+
+pgman
+C: Disk Data (PaGe MANager)
+SRC: src/kernel/blocks/lgman.cpp
+SRC: src/kernel/blocks/lgman.hpp
+P: Jonas Oreland
+M: jonas@mysql.com
+S: Supported
+
+SUMA
+C: SUbscription MAnager
+C: Used for replication
+SRC: src/kernel/blocks/suma/
+P: Tomas Ulin
+P: tomas@mysql.com
+P: Jonas Oreland
+P: jonas@mysql.com
+S: Supported
+
+TRIX
+C: TRiggers and IndeXs (but only online Index build)
+SRC: src/kernel/blocks/trix
+P: Martin Skold
+P: mskold@mysql.com
+S: Supported
+
+QMGR
+C: Cluster (with a Q) ManaGeR
+C: Heartbeats etc
+SRC: src/kernel/blocks/qmgr
+S: Supported
+
+NDBFS
+C: NDB FileSystem
+C: File System abstraction
+SRC: src/kernel/blocks/ndbfs
+S: Supported
+
+TRIX
+C: TRiggers and IndeXs (but only online Index build)
+SRC: src/kernel/blocks/trix
+S: Supported
+
+TRIX
+C: TRiggers and IndeXs (but only online Index build)
+SRC: src/kernel/blocks/trix
+S: Supported
+
