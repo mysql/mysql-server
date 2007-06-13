@@ -4634,8 +4634,7 @@ create_table_def(
 
 	error = row_create_table_for_mysql(table, trx);
 
-	innodb_check_for_record_too_big_error(dict_table_is_comp(table),
-					      error);
+	innodb_check_for_record_too_big_error(flags & DICT_TF_COMPACT, error);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
