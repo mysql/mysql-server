@@ -20,9 +20,10 @@ set names latin1;
 select * from t1;
 drop table t1;
 
+-- error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
 create table t1 (a varchar(1), primary key (a))
 partition by list (ascii(a))
 (partition p1 values in (65));
-insert into t1 values ('A');
-replace into t1 values ('A');
-drop table t1;
+#insert into t1 values ('A');
+#replace into t1 values ('A');
+#drop table t1;
