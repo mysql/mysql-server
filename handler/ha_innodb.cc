@@ -4566,9 +4566,8 @@ innodb_check_for_record_too_big_error(
 	int	error)	/* in: error code to check */
 {
 	if (error == (int)DB_TOO_BIG_RECORD) {
-		ulint		max_row_size;
-
-		max_row_size = page_get_free_space_of_empty_noninline(comp);
+		ulint	max_row_size
+			= page_get_free_space_of_empty_noninline(comp) / 2;
 
 		my_error(ER_TOO_BIG_ROWSIZE, MYF(0), max_row_size);
 	}
@@ -4682,8 +4681,7 @@ create_table_def(
 
 	error = row_create_table_for_mysql(table, trx);
 
-	innodb_check_for_record_too_big_error(dict_table_is_comp(table),
-					      error);
+	innodb_check_for_record_too_big_error(flags & DICT_TF_COMPACT, error);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
