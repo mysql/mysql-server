@@ -1812,7 +1812,7 @@ innobase_start_trx_and_assign_read_view(
 	/* Set the MySQL flag to mark that there is an active transaction */
 
 	if (trx->active_trans == 0) {
-		innobase_register_trx_and_stmt(hton, current_thd);
+		innobase_register_trx_and_stmt(hton, thd);
 		trx->active_trans = 1;
 	}
 
@@ -8121,14 +8121,14 @@ ha_innobase::add_index(
 	ulint		num_of_idx;
 	ulint		num_created;
 	ibool		dict_locked = FALSE;
-	ibool		new_primary;
+	ulint		new_primary;
 	ibool		new_unique  = FALSE;
 	ulint		error;
 
 	DBUG_ENTER("ha_innobase::add_index");
 	ut_a(table && key_info && num_of_keys);
 
-	update_thd(current_thd);
+	update_thd(ha_thd());
 
 	heap = mem_heap_create_noninline(1024);
 
@@ -8179,9 +8179,9 @@ err_exit:
 	to drop all original secondary indexes from the table. These
 	indexes will be rebuilt below. */
 
-	new_primary = 0 != (DICT_CLUSTERED & index_defs[0].ind_type);
+	new_primary = DICT_CLUSTERED & index_defs[0].ind_type;
 
-	if (new_primary) {
+	if (UNIV_UNLIKELY(new_primary)) {
 		char*	new_table_name = innobase_create_temporary_tablename(
 			heap, '1', innodb_table->name);
 
@@ -8256,7 +8256,7 @@ err_exit:
 		error = row_lock_table_for_merge(trx, innodb_table, LOCK_X);
 	}
 
-	/* Set an exclusive table lock for the new table if a primary
+	/* Acquire an exclusive table lock on the new table if a primary
 	key is to be built.*/
 	if (error == DB_SUCCESS && new_primary) {
 
@@ -8313,8 +8313,7 @@ error_handling:
 		if (indexed_table != innodb_table) {
 			row_merge_drop_table(trx, indexed_table);
 		}
-		mem_heap_free_noninline(heap);
-		DBUG_RETURN(convert_error_code_to_mysql(error, user_thd));
+		goto func_exit;
 	}
 
 	/* If a new primary key was defined for the table and
@@ -8373,9 +8372,10 @@ error_handling:
 	}
 
 func_exit:
-	/* There might be work for utility threads.*/
 	mem_heap_free_noninline(heap);
+	innobase_commit_low(trx);
 
+	/* There might be work for utility threads.*/
 	srv_active_wake_master_thread();
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, user_thd));
