@@ -1620,8 +1620,14 @@ row_merge_drop_table(
 
 	/* Drop the table immediately iff it is not references by MySQL */
 	if (table->n_mysql_handles_opened == 0) {
+		/* Copy table->name, because table will have been
+		freed when row_drop_table_for_mysql_no_commit()
+		checks with dict_load_table() that the table was
+		indeed dropped. */
+		char* table_name = mem_strdup(table->name);
 		/* Set the commit flag to FALSE. */
-		err = row_drop_table_for_mysql(table->name, trx, FALSE);
+		err = row_drop_table_for_mysql(table_name, trx, FALSE);
+		mem_free(table_name);
 	}
 
 	if (dict_locked) {

@@ -749,26 +749,15 @@ row_prebuilt_free(
 	references to it now.*/
 	if (prebuilt->table->to_be_dropped
 	    && prebuilt->table->n_mysql_handles_opened == 0) {
-		ibool	added;
+		ut_a(*prebuilt->table->name == TEMP_TABLE_PREFIX);
 
-		added = row_add_table_to_background_drop_list(prebuilt->table);
-
-		ut_print_timestamp(stderr);
-
-		if (added) {
-			fputs("  InnoDB: Dropping table ", stderr);
-			ut_print_name(stderr, NULL, TRUE,
-				      prebuilt->table->name);
-			putc('\n', stderr);
-		} else {
+		if (!row_add_table_to_background_drop_list(prebuilt->table)) {
 			fputs("  InnoDB: Error: failed trying to add ",
 			      stderr);
 			ut_print_name(stderr, NULL, TRUE,
 				      prebuilt->table->name);
 			fputs(" to the background drop list.\n", stderr);
 		}
-
-		ut_a(*prebuilt->table->name == TEMP_TABLE_PREFIX);
 	}
 
 	UT_LIST_REMOVE(prebuilts, prebuilt->table->prebuilts, prebuilt);
