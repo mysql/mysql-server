@@ -68,7 +68,7 @@ load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
 save_master_pos;
 connection slave;
 # The SQL slave thread should be stopped now.
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 
 # Skip the bad event and see if error is cleared in SHOW SLAVE STATUS by START
 # SLAVE, even though we are not executing any event (as sql_slave_skip_counter
@@ -93,7 +93,7 @@ connection slave;
 # The SQL slave thread should be stopped now. 
 # Exec_Master_Log_Pos should point to the start of Execute event
 # for last load data.
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 
 # CHANGE MASTER and see if error is cleared in SHOW SLAVE STATUS.
 stop slave;
@@ -116,7 +116,7 @@ load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
 save_master_pos;
 connection slave;
 # The SQL slave thread should be stopped now.
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 
 # RESET SLAVE and see if error is cleared in SHOW SLAVE STATUS.
 stop slave;
@@ -152,7 +152,7 @@ load data infile '../std_data_ln/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
 connection slave;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 drop table t2;
 connection master;
 drop table t2;
