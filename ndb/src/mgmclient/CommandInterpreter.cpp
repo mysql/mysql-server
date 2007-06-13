@@ -2026,7 +2026,7 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
     return -1;
   }
 
-  if (!nostart)
+  if (nostart)
     ndbout_c("Shutting down nodes with \"-n, no start\" option, to subsequently start the nodes.");
 
   result= ndb_mgm_restart3(m_mgmsrv, no_of_nodes, node_ids,
@@ -2046,7 +2046,15 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
       ndbout << "Node";
       for (int i= 0; i < no_of_nodes; i++)
         ndbout << " " << node_ids[i];
-      ndbout_c(" is being restarted");
+      ndbout_c(": Is being restarted");
+
+      ndbout << "Node";
+      for (int i= 0; i < no_of_nodes; i++)
+        ndbout << " " << node_ids[i];
+      if (nostart)
+        ndbout_c(": No start");
+      else
+        ndbout_c(": Is rejoining the cluster");
     }
     if(need_disconnect)
       disconnect();
