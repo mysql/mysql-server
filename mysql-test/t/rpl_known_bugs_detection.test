@@ -25,7 +25,7 @@ connection master;
 INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10;
 SELECT * FROM t1;
 connection slave;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_to_stop.inc
 # show the error message
 --replace_column 1 # 4 # 7 # 8 # 9 # 23 # 33 #
 --query_vertical show slave status;
@@ -79,7 +79,7 @@ ON DUPLICATE KEY UPDATE
 t1.field_3 = t2.field_c;
 SELECT * FROM t1;
 connection slave;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_to_stop.inc
 # show the error message
 --replace_column 1 # 4 # 7 # 8 # 9 # 23 # 33 #
 --query_vertical show slave status;

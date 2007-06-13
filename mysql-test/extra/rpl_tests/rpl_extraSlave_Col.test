@@ -138,7 +138,7 @@ INSERT INTO t3 () VALUES(@b1,2,'Kyle, TEX'),(@b1,1,'JOE AUSTIN'),(@b1,4,'QA TEST
 --echo *** Expect slave to fail with Error 1522 ***
 --echo ********************************************
 connection slave;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
 --query_vertical SHOW SLAVE STATUS
@@ -183,7 +183,7 @@ INSERT INTO t4 () VALUES(100.22,2,'Kyle, TEX'),(200.26,1,'JOE AUSTIN'),
 --echo *** Expect slave to fail with Error 1522 ***
 --echo ********************************************
 connection slave;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
 --query_vertical SHOW SLAVE STATUS
@@ -228,7 +228,7 @@ INSERT INTO t5 () VALUES(1,'Kyle',200.23,1,'b1b1',23.00098),
 --echo *** Expect slave to fail with Error 1522 ***
 --echo ********************************************
 connection slave;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
 --query_vertical SHOW SLAVE STATUS
@@ -274,7 +274,7 @@ INSERT INTO t6 () VALUES(1,'Kyle',200.23,1),
 --echo *** Expect slave to fail with Error 1522 ***
 --echo ********************************************
 connection slave;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
 --query_vertical SHOW SLAVE STATUS
@@ -427,7 +427,7 @@ sync_slave_with_master;
 #connection slave;
 
 #--echo *** Select from T9 ***
-#wait_for_slave_to_stop;
+#--source include/wait_for_slave_sql_to_stop.inc
 #--replace_result $MASTER_MYPORT MASTER_PORT
 #--replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
 #--query_vertical SHOW SLAVE STATUS
@@ -469,7 +469,7 @@ INSERT INTO t10 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 --echo *** Expect slave to fail with Error 1522 ***
 --echo ********************************************
 connection slave;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
 --query_vertical SHOW SLAVE STATUS
@@ -513,7 +513,7 @@ INSERT INTO t11 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 --echo *** Expect slave to fail with Error 1522 ***
 --echo ********************************************
 connection slave;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
 --query_vertical SHOW SLAVE STATUS
@@ -723,7 +723,7 @@ ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5;
 --echo *** Expect slave to fail with Error 1060 ***
 --echo ********************************************
 connection slave;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
 --query_vertical SHOW SLAVE STATUS
@@ -832,7 +832,7 @@ INSERT INTO t17 () VALUES(9223372036854775807,2,'Kyle, TEX');
 --echo *** Expect slave to fail with Error 1522 ***
 --echo ********************************************
 connection slave;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
 --query_vertical SHOW SLAVE STATUS

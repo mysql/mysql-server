@@ -53,7 +53,7 @@ connection slave;
 
 # Here the slave will only stop if the query above actually started
 # inserting some rows into t2. Otherwise, it will hang forever.
-wait_for_slave_to_stop;
+--source include/wait_for_slave_to_stop.inc
 
 # The following should be 0
 SELECT COUNT(*) FROM t2;

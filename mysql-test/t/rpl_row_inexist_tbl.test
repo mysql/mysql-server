@@ -23,7 +23,7 @@ insert into t1 values (1);
 
 connection slave;
 # slave should have stopped because can't find table t1
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 # see if we have a good error message:
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 --replace_column 1 # 7 # 8 # 9 # 23 # 33 #
