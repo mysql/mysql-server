@@ -210,6 +210,11 @@ static void reap_plugins(void);
 /* declared in set_var.cc */
 extern sys_var *intern_find_sys_var(const char *str, uint length, bool no_error);
 
+#ifdef EMBEDDED_LIBRARY
+/* declared in sql_base.cc */
+extern bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists);
+#endif /* EMBEDDED_LIBRARY */
+
 
 /****************************************************************************
   Value type thunks, allows the C world to play in the C++ world
@@ -1299,6 +1304,9 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   READ_RECORD read_record_info;
   int error;
   THD *new_thd;
+#ifdef EMBEDDED_LIBRARY
+  bool table_exists;
+#endif /* EMBEDDED_LIBRARY */
   DBUG_ENTER("plugin_load");
 
   if (!(new_thd= new THD))
@@ -1315,6 +1323,20 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   tables.alias= tables.table_name= (char*)"plugin";
   tables.lock_type= TL_READ;
   tables.db= new_thd->db;
+
+#ifdef EMBEDDED_LIBRARY
+  /*
+    When building an embedded library, if the mysql.plugin table
+    does not exist, we silently ignore the missing table
+  */
+  pthread_mutex_lock(&LOCK_open);
+  if (check_if_table_exists(new_thd, &tables, &table_exists))
+    table_exists= FALSE;
+  pthread_mutex_unlock(&LOCK_open);
+  if (!table_exists)
+    goto end;
+#endif /* EMBEDDED_LIBRARY */
+
   if (simple_open_n_lock_tables(new_thd, &tables))
   {
     DBUG_PRINT("error",("Can't open plugin table"));
