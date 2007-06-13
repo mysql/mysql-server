@@ -61,7 +61,7 @@ sync_with_master;
 
 # select master_pos_wait("slave-bin.000001",137);
 
-# wait_for_slave_to_stop;
+# --source include/wait_for_slave_to_stop.inc
 
 # then BUG#13861 causes t3 to show up below (because stopped too
 # late).

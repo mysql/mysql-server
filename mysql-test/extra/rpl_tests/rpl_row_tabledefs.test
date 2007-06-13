@@ -113,7 +113,7 @@ sync_slave_with_master;
 connection master;
 INSERT INTO t1_nodef VALUES (1,2);
 connection slave;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
 --query_vertical SHOW SLAVE STATUS
@@ -127,7 +127,7 @@ sync_slave_with_master;
 connection master;
 INSERT INTO t2 VALUES (2,4);
 connection slave;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
 --query_vertical SHOW SLAVE STATUS
@@ -141,7 +141,7 @@ sync_slave_with_master;
 connection master;
 INSERT INTO t4 VALUES (4);
 connection slave;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
 --query_vertical SHOW SLAVE STATUS
@@ -155,7 +155,7 @@ sync_slave_with_master;
 connection master;
 INSERT INTO t5 VALUES (5,10,25);
 connection slave;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
 --query_vertical SHOW SLAVE STATUS
@@ -169,7 +169,7 @@ sync_slave_with_master;
 connection master;
 INSERT INTO t6 VALUES (6,12,36);
 connection slave;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
 --query_vertical SHOW SLAVE STATUS
