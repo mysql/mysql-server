@@ -23,6 +23,14 @@ drop database if exists mysqltest;
 #
 
 #
+# Show status and variables
+#
+--replace_column 2 #
+SHOW GLOBAL STATUS LIKE 'ndb%';
+--replace_column 2 #
+SHOW GLOBAL VARIABLES LIKE 'ndb%';
+
+#
 # Create a normal table with primary key
 #
 CREATE TABLE t1 (
