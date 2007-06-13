@@ -965,9 +965,33 @@ delimiter ;|
 select *, change_global() from t1;
 drop function change_global;
 
+drop table t1;
+
 set GLOBAL query_cache_type=default;
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
+set GLOBAL query_cache_size= default;
+
+
+#
+# Bug #28897  	UUID() returns non-unique values when query cache is enabled
+#
+
+set GLOBAL query_cache_size=1000000;
+
+create table t1 (a char);
+insert into t1 values ('c');
+
+let $q1= `select UUID(), a from t1`;
+let $q2= `select UUID(), a from t1`; 
+
+# disabling the logging of the query because the UUIDs are different each run.
+--disable_query_log
+eval select a  from t1 where "$q1" = "$q2";
+--enable_query_log
+
+drop table t1;
+
 set GLOBAL query_cache_size= default;
 
 # End of 5.0 tests

@@ -418,6 +418,7 @@ Item *create_func_unhex(Item* a)
 
 Item *create_func_uuid(void)
 {
+  current_thd->lex->safe_to_cache_query= 0;
   return new Item_func_uuid();
 }
 
