@@ -273,7 +273,7 @@ cp include/mysql.h \
    include/my_attribute.h \
    include/mysqld_error.h \
    include/sql_state.h \
-   include/mysqld_ername.h
+   include/mysqld_ername.h \
    include/mysql_version.h \
    include/config-win.h \
    libmysql/libmysql.def \
