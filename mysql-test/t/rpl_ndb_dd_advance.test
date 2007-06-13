@@ -341,6 +341,7 @@ while ($j)
 --echo ***** Finsh the slave sync process *******
 --disable_query_log
 # 1. 2. 3.
+--sync_slave_with_master
 --source include/ndb_setup_slave.inc
 --enable_query_log
 
