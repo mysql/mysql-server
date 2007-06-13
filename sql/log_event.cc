@@ -5488,7 +5488,7 @@ Execute_load_query_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
   buf= (char*) my_malloc(q_len + 1 - (fn_pos_end - fn_pos_start) +
                          (FN_REFLEN + 10) + 10 + 8 + 5, MYF(MY_WME));
 
-  DBUG_EXECUTE_IF("LOAD_DATA_INFILE_has_fatal_error", buf= NULL;);
+  DBUG_EXECUTE_IF("LOAD_DATA_INFILE_has_fatal_error", my_free(buf, MYF(0)); buf= NULL;);
 
   /* Replace filename and LOCAL keyword in query before executing it */
   if (buf == NULL)
