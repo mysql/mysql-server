@@ -1627,7 +1627,7 @@ public:
   uint decimal_precision() const
   { return (uint)(max_length - test(value < 0)); }
   bool eq(const Item *, bool binary_cmp) const;
-  bool check_partition_func_processor(byte *bool_arg) { return FALSE;}
+  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
 };
 
 
@@ -1645,7 +1645,7 @@ public:
   void print(String *str);
   Item_num *neg ();
   uint decimal_precision() const { return max_length; }
-  bool check_partition_func_processor(byte *bool_arg) { return FALSE;}
+  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
 };
 
 
@@ -1688,7 +1688,7 @@ public:
   uint decimal_precision() const { return decimal_value.precision(); }
   bool eq(const Item *, bool binary_cmp) const;
   void set_decimal_value(my_decimal *value_par);
-  bool check_partition_func_processor(byte *bool_arg) { return FALSE;}
+  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
 };
 
 
