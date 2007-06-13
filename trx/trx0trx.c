@@ -1576,7 +1576,7 @@ trx_commit_for_mysql(
 		ulint	err;
 
 		err = trx->sync_cb(trx, TRUE);
-		ut_a(err);
+		ut_a(err == DB_SUCCESS);
 		trx->sync_cb = NULL;
 	}
 
