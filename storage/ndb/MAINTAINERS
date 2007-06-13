@@ -92,6 +92,12 @@ P: Lars Thalmann
 M: lars@mysql.com
 S: Maintained
 
+NDB API NdbRecord Examples
+SRC: ndbapi-examples/
+P: Kristian Nielsen
+M: knielsen@mysql.com
+S: Maintained
+
 tsman
 C: Disk Data (Table Space MANager)
 SRC: src/kernel/blocks/tsman.cpp
