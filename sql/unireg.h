@@ -158,6 +158,7 @@
 
 #define FRM_VER_TRUE_VARCHAR (FRM_VER+4) /* 10 */
 #define MYSQL_VERSION_TABLESPACE_IN_FRM 50119
+#define MYSQL_VERSION_TABLESPACE_IN_FRM_STR "50119"
 
 /*
   Minimum length pattern before Turbo Boyer-Moore is used

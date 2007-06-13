@@ -4364,6 +4364,7 @@ create_table_option:
 	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.data_file_name= $4.str; Lex->create_info.used_fields|= HA_CREATE_USED_DATADIR; }
 	| INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str;  Lex->create_info.used_fields|= HA_CREATE_USED_INDEXDIR; }
         | TABLESPACE ident {Lex->create_info.tablespace= $2.str;}
+        | STORAGE_SYM DEFAULT {Lex->create_info.default_storage_media= HA_SM_DEFAULT;}
         | STORAGE_SYM DISK_SYM {Lex->create_info.default_storage_media= HA_SM_DISK;}
         | STORAGE_SYM MEMORY_SYM {Lex->create_info.default_storage_media= HA_SM_MEMORY;}
 	| CONNECTION_SYM opt_equal TEXT_STRING_sys { Lex->create_info.connect_string.str= $3.str; Lex->create_info.connect_string.length= $3.length;  Lex->create_info.used_fields|= HA_CREATE_USED_CONNECTION; }
@@ -4774,6 +4775,7 @@ opt_attribute_list:
 
 attribute:
 	NULL_SYM	  { Lex->type&= ~ NOT_NULL_FLAG; }
+        | STORAGE_SYM DEFAULT {Lex->storage_type= HA_SM_DEFAULT;}
         | STORAGE_SYM DISK_SYM {Lex->storage_type= HA_SM_DISK;}
         | STORAGE_SYM MEMORY_SYM {Lex->storage_type= HA_SM_MEMORY;}
         | COLUMN_FORMAT_SYM column_format_types { Lex->column_format= $2; }
