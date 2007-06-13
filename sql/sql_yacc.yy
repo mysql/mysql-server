@@ -8006,16 +8006,14 @@ procedure_list2:
 	| procedure_item;
 
 procedure_item:
-	  remember_name expr
+	  remember_name expr remember_end
 	  {
             THD *thd= YYTHD;
-            Lex_input_stream *lip= thd->m_lip;
 
 	    if (add_proc_to_list(thd, $2))
 	      MYSQL_YYABORT;
 	    if (!$2->name)
-              $2->set_name($1,(uint) ((char*) lip->get_tok_end() - $1),
-                           thd->charset());
+              $2->set_name($1, (uint) ($3 - $1), thd->charset());
 	  }
           ;
 
