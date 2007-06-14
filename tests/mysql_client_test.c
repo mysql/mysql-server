@@ -15627,62 +15627,19 @@ static void test_bug27876()
   Bug#28505: mysql_affected_rows() returns wrong value if CLIENT_FOUND_ROWS
   flag is set.
 */
+
 static void test_bug28505()
 {
-  MYSQL *l_mysql;
-  my_bool error= 0;
   my_ulonglong res;
 
-  if (!(l_mysql= mysql_init(NULL)))
-  {
-    myerror("mysql_init() failed");
-    DIE_UNLESS(1);
-  }
-  if (!(mysql_real_connect(l_mysql, opt_host, opt_user,
-                           opt_password, current_db, opt_port,
-                           opt_unix_socket, CLIENT_FOUND_ROWS)))
-  {
-    myerror("connection failed");
-    error= 1;
-    goto end;
-  }
-  l_mysql->reconnect= 1;
-  if (mysql_query(l_mysql, "drop table if exists t1"))
-  {
-    myerror(NULL);
-    error= 1;
-    goto end;
-  }
-  if (mysql_query(l_mysql, "create table t1(f1 int primary key)"))
-  {
-    myerror(NULL);
-    error= 1;
-    goto end;
-  }
-  if (mysql_query(l_mysql, "insert into t1 values(1)"))
-  {
-    myerror(NULL);
-    error= 1;
-    goto end;
-  }
-  if (mysql_query(l_mysql,
-                  "insert into t1 values(1) on duplicate key update f1=1"))
-  {
-    myerror(NULL);
-    error= 1;
-    goto end;
-  }
-  res= mysql_affected_rows(l_mysql);
-  if (!res)
-    error= 1;
-  if (mysql_query(l_mysql, "drop table t1"))
-  {
-    myerror(NULL);
-    error= 1;
-  }
-end:
-  mysql_close(l_mysql);
-  DIE_UNLESS(error == 0);
+  myquery(mysql_query(mysql, "drop table if exists t1"));
+  myquery(mysql_query(mysql, "create table t1(f1 int primary key)"));
+  myquery(mysql_query(mysql, "insert into t1 values(1)"));
+  myquery(mysql_query(mysql,
+                  "insert into t1 values(1) on duplicate key update f1=1"));
+  res= mysql_affected_rows(mysql);
+  DIE_UNLESS(!res);
+  myquery(mysql_query(mysql, "drop table t1"));
 }
 
 
@@ -15692,51 +15649,17 @@ end:
 
 static void test_bug28934()
 {
-  MYSQL *l_mysql;
   my_bool error= 0;
   MYSQL_BIND bind[5];
   MYSQL_STMT *stmt;
   int cnt;
 
-  if (!(l_mysql= mysql_init(NULL)))
-  {
-    myerror("mysql_init() failed");
-    DIE_UNLESS(1);
-  }
-  if (!(mysql_real_connect(l_mysql, opt_host, opt_user,
-                           opt_password, current_db, opt_port,
-                           opt_unix_socket, CLIENT_FOUND_ROWS)))
-  {
-    myerror("connection failed");
-    error= 1;
-    goto end;
-  }
-  l_mysql->reconnect= 1;
-  if (mysql_query(l_mysql, "drop table if exists t1"))
-  {
-    myerror(NULL);
-    error= 1;
-    goto end;
-  }
-  if (mysql_query(l_mysql, "create table t1(id int)"))
-  {
-    myerror(NULL);
-    error= 1;
-    goto end;
-  }
-  if (mysql_query(l_mysql, "insert into t1 values(1),(2),(3),(4),(5)"))
-  {
-    myerror(NULL);
-    error= 1;
-    goto end;
-  }
-  if (!(stmt= mysql_simple_prepare(l_mysql,
-                                   "select * from t1 where id in(?,?,?,?,?)")))
-  {
-    myerror(NULL);
-    error= 1;
-    goto end;
-  }
+  myquery(mysql_query(mysql, "drop table if exists t1"));
+  myquery(mysql_query(mysql, "create table t1(id int)"));
+
+  myquery(mysql_query(mysql, "insert into t1 values(1),(2),(3),(4),(5)"));
+  stmt= mysql_simple_prepare(mysql,"select * from t1 where id in(?,?,?,?,?)");
+  check_stmt(stmt);
 
   memset (&bind, 0, sizeof (bind));
   for (cnt= 0; cnt < 5; cnt++)
@@ -15745,25 +15668,15 @@ static void test_bug28934()
     bind[cnt].buffer= (char*)&cnt;
     bind[cnt].buffer_length= 0;
   }
-  if(mysql_stmt_bind_param(stmt, bind))
-  {
-    myerror(NULL);
-    error= 1;
-    goto end;
-  }
+  myquery(mysql_stmt_bind_param(stmt, bind));
+
   stmt->param_count=2;
   error= mysql_stmt_execute(stmt);
-  DIE_UNLESS (error != 0);
+  DIE_UNLESS(error != 0);
   myerror(NULL);
-  error= 0;
-  if (mysql_query(l_mysql, "drop table t1"))
-  {
-    myerror(NULL);
-    error= 1;
-  }
-end:
-  mysql_close(l_mysql);
-  DIE_UNLESS(error == 0);
+  mysql_stmt_close(stmt);
+
+  myquery(mysql_query(mysql, "drop table t1"));
 }
 
 
