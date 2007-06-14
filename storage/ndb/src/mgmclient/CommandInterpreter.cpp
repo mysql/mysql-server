@@ -19,6 +19,7 @@
 #include <mgmapi.h>
 #include <util/BaseString.hpp>
 #include <ndbd_exit_codes.h>
+#include <kernel/BlockNumbers.h>
 
 class MgmtSrvr;
 
@@ -742,6 +743,22 @@ printLogEvent(struct ndb_logevent* event)
       ndbout_c("Node %u: Backup %d started from node %d",
                R, Q(backup_id), Q(starting_node));
       break;
+#undef EVENT
+#define EVENT BackupStatus
+    case NDB_LE_BackupStatus:
+      if (Q(starting_node))
+        ndbout_c("Node %u: Local backup status: backup %u started from node %u\n" 
+                 " #Records: %llu #LogRecords: %llu\n"
+                 " Data: %llu bytes Log: %llu bytes", R,
+                 Q(backup_id),
+                 Q(starting_node),
+                 Q64(n_records),
+                 Q64(n_log_records),
+                 Q64(n_bytes),
+                 Q64(n_log_bytes));
+      else
+        ndbout_c("Node %u: Backup not started", R);
+      break;
 #undef  EVENT
 #define EVENT BackupFailedToStart
     case NDB_LE_BackupFailedToStart:
@@ -840,6 +857,21 @@ printLogEvent(struct ndb_logevent* event)
       ndbout_c("Node %u: Node shutdown aborted", R);
       break;
     /** 
+     * NDB_MGM_EVENT_CATEGORY_STATISTIC
+     */ 
+#undef EVENT
+#define EVENT MemoryUsage
+    case NDB_LE_MemoryUsage:
+    {
+      const int percent = Q(pages_total) ? (Q(pages_used)*100)/Q(pages_total) : 0;
+      ndbout_c("Node %u: %s usage %s %d%s(%d %dK pages of total %d)", R,
+               (Q(block) == DBACC ? "Index" : (Q(block) == DBTUP ?"Data":"<unknown>")),
+               (Q(gth) == 0 ? "is" : (Q(gth) > 0 ? "increased to" : "decreased to")),
+               percent, "%",
+               Q(pages_used), Q(page_size_kb)/1024, Q(pages_total));
+      break;
+    }
+    /** 
      * default nothing to print
      */ 
     default:
@@ -862,6 +894,7 @@ event_thread_run(void* p)
 
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP,
 		   1, NDB_MGM_EVENT_CATEGORY_STARTUP,
+                   5, NDB_MGM_EVENT_CATEGORY_STATISTIC,
 		   0 };
 
   NdbLogEventHandle log_handle= NULL;
@@ -2184,10 +2217,8 @@ struct st_report_cmd
 static struct st_report_cmd report_cmds[] = {
   {  "BackupStatus", "Report backup status of respective node",
      NDB_LE_BackupStatus, 100000 }
-#if 0
   ,{ "MemoryUsage",  "Report memory usage of respective node",
      NDB_LE_MemoryUsage, 1000 }
-#endif
 };
 
 static unsigned n_report_cmds =
