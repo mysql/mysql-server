@@ -2054,6 +2054,13 @@ sp_head::set_info(longlong created, longlong modified,
 
 
 void
+sp_head::set_body_begin_ptr(Lex_input_stream *lip, const char *begin_ptr)
+{
+  m_body_begin= begin_ptr;
+}
+
+
+void
 sp_head::set_definer(const char *definer, uint definerlen)
 {
   char user_name_holder[USERNAME_LENGTH + 1];
