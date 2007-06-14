@@ -23,6 +23,8 @@ extern "C" {
 #elif !defined(__NETWARE__)
 #include <readline/readline.h>
 extern "C" int add_history(const char *command); /* From readline directory */
+extern "C" int read_history(const char *command);
+extern "C" int write_history(const char *command);
 #define HAVE_READLINE
 #endif
 }
@@ -158,6 +160,7 @@ int main(int argc, char** argv){
   BaseString histfile;
   if (!opt_execute_str)
   {
+#ifdef HAVE_READLINE
     char *histfile_env= getenv("NDB_MGM_HISTFILE");
     if (histfile_env)
       histfile.assign(histfile_env,strlen(histfile_env));
@@ -168,10 +171,12 @@ int main(int argc, char** argv){
     }
     if (histfile.length())
       read_history(histfile.c_str());
+#endif
 
     ndbout << "-- NDB Cluster -- Management Client --" << endl;
     while(read_and_execute(_try_reconnect));
 
+#ifdef HAVE_READLINE
     if (histfile.length())
     {
       BaseString histfile_tmp;
@@ -180,6 +185,7 @@ int main(int argc, char** argv){
       if(!write_history(histfile_tmp.c_str()))
         my_rename(histfile_tmp.c_str(), histfile.c_str(), MYF(MY_WME));
     }
+#endif
   }
   else
   {
