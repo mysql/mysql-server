@@ -1873,9 +1873,6 @@ ev_sql_stmt:
             lex->sphead->m_chistics= &lex->sp_chistics;
 
             lex->sphead->m_body_begin= lip->get_cpp_ptr();
-            
-            lex->event_parse_data->body_begin= lip->get_cpp_ptr();
-
           }
           ev_sql_stmt_inner
           {
@@ -1888,7 +1885,7 @@ ev_sql_stmt:
 
             lex->sp_chistics.suid= SP_IS_SUID;  //always the definer!
 
-            lex->event_parse_data->init_body(thd);
+            lex->event_parse_data->body_changed= TRUE;
           }
       ;
 
