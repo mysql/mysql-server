@@ -1,6 +1,4 @@
-# Embedded server does not support binlogging
---source include/not_embedded.inc
---source include/have_log_bin.inc
+-- source include/have_log_bin.inc
 
 # Check that user variables are binlogged correctly (BUG#3875)
 create table t1 (a varchar(50));

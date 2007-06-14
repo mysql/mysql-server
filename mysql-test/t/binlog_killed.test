@@ -1,5 +1,6 @@
 -- source include/have_innodb.inc
 --source include/not_embedded.inc
+--source include/have_log_bin.inc
 
 ###
 ### bug#22725 : incorrect killed error in binlogged query

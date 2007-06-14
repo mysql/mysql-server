@@ -6,6 +6,10 @@
 -- source include/have_blackhole.inc
 -- source include/have_log_bin.inc
 
+# The server need to be started in $MYSQLTEST_VARDIR since it
+# uses ../std_data_ln/
+-- source include/uses_vardir.inc
+
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
@@ -110,7 +114,7 @@ insert into t1 values(1);
 insert ignore into t1 values(1);
 replace into t1 values(100);
 create table t2 (a varchar(200)) engine=blackhole;
-load data infile '../std_data_ln/words.dat' into table t2;
+eval load data infile '../std_data_ln/words.dat' into table t2;
 alter table t1 add b int;
 alter table t1 drop b;
 create table t3 like t1;

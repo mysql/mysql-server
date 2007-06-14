@@ -1,0 +1,4 @@
+--let $binlog_start=98
+--replace_column 5 #
+--replace_regex /\/\* xid=.* \*\//\/* XID *\//
+--eval show binlog events from $binlog_start
