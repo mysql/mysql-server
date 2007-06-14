@@ -1000,9 +1000,9 @@ create trigger t1_bi after insert on t1 for each row insert into t3 values (new.
 # Until we implement proper mechanism for invalidation of PS/SP when table
 # or SP's are changed these two statements will fail with 'Table ... was
 # not locked' error (this mechanism should be based on the new TDC).
---error 1100 #ER_TABLE_NOT_LOCKED
+--error ER_NO_SUCH_TABLE 
 execute stmt1;
---error 1100 #ER_TABLE_NOT_LOCKED
+--error ER_NO_SUCH_TABLE 
 call p1();
 deallocate prepare stmt1;
 drop procedure p1;
@@ -1736,5 +1736,86 @@ SELECT * FROM t2;
 DROP TRIGGER trg27006_a_insert;
 DROP TRIGGER trg27006_a_update;
 drop table t1,t2;
+
+#
+# Bug #20903 "Crash when using CREATE TABLE .. SELECT and triggers"
+#
+
+--disable_warnings
+drop table if exists t1, t2, t3;
+--enable_warnings
+create table t1 (i int);
+create trigger t1_bi before insert on t1 for each row set new.i = 7;
+create trigger t1_ai after insert on t1 for each row set @a := 7;
+create table t2 (j int);
+insert into t2 values (1), (2);
+set @a:="";
+create table if not exists t1 select * from t2;
+select * from t1;
+select @a;
+# Let us check that trigger that involves table also works ok.
+drop trigger t1_bi;
+drop trigger t1_ai;
+create table t3 (isave int);
+create trigger t1_bi before insert on t1 for each row insert into t3 values (new.i);
+create table if not exists t1 select * from t2;
+select * from t1;
+select * from t3;
+drop table t1, t2, t3;
+
+#
+# Bug #26162: Trigger DML ignores low_priority_updates setting
+#
+CREATE TABLE t1 (id INTEGER);
+CREATE TABLE t2 (id INTEGER);
+
+INSERT INTO t2 VALUES (1),(2);
+
+# trigger that produces the high priority insert, but should be low, adding
+# LOW_PRIORITY fixes this
+CREATE TRIGGER t1_test AFTER INSERT ON t1 FOR EACH ROW 
+  INSERT INTO t2 VALUES (new.id);
+
+CONNECT (rl_acquirer,  localhost, root,,);
+CONNECT (wl_acquirer,  localhost, root,,);
+CONNECT (rl_contender, localhost, root,,);
+
+SELECT GET_LOCK('B26162',20);
+
+CONNECTION rl_acquirer;
+--send
+SELECT 'rl_acquirer', GET_LOCK('B26162',5), id FROM t2 WHERE id = 1;
+
+CONNECTION wl_acquirer;
+SET SESSION LOW_PRIORITY_UPDATES=1;
+SET GLOBAL LOW_PRIORITY_UPDATES=1;
+--send
+INSERT INTO t1 VALUES (5);
+
+CONNECTION rl_contender;
+# must not "see" the row inserted by the INSERT (as it must run before the
+# INSERT)
+--send
+SELECT 'rl_contender', id FROM t2 WHERE id > 1;
+
+CONNECTION default;
+SELECT RELEASE_LOCK('B26162');
+
+CONNECTION wl_acquirer;
+--reap
+CONNECTION rl_acquirer;
+--reap
+CONNECTION rl_contender;
+--reap
+
+CONNECTION default;
+DISCONNECT rl_acquirer;
+DISCONNECT wl_acquirer;
+DISCONNECT rl_contender;
+
+DROP TRIGGER t1_test;
+DROP TABLE t1,t2;
+SET SESSION LOW_PRIORITY_UPDATES=DEFAULT;
+SET GLOBAL LOW_PRIORITY_UPDATES=DEFAULT;
 
 --echo End of 5.0 tests

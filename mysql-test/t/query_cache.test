@@ -899,3 +899,99 @@ insert into t1(c1) select c1 from v1;
 drop table t1, t2, t3;
 drop view v1;
 set global query_cache_size=0;
+
+#
+# Query cache and changes to system variables
+#
+
+create table t1 (a int);
+insert into t1 values (1),(2),(3);
+set GLOBAL query_cache_type=1;
+set GLOBAL query_cache_limit=10000;
+set GLOBAL query_cache_min_res_unit=0;
+set GLOBAL query_cache_size= 100000;
+
+# default_week_format
+reset query cache;
+set LOCAL default_week_format = 0;
+select week('2007-01-04');
+select week('2007-01-04') from t1;
+select extract(WEEK FROM '2007-01-04') from t1;
+
+set LOCAL default_week_format = 2;
+select week('2007-01-04');
+select week('2007-01-04') from t1;
+select extract(WEEK FROM '2007-01-04') from t1;
+
+# div_precision_increment
+reset query cache;
+set LOCAL div_precision_increment=2;
+select 1/7;
+select 1/7 from t1;
+
+set LOCAL div_precision_increment=4;
+select 1/7;
+select 1/7 from t1;
+
+drop table t1;
+
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
+INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
+                       ('Full-text indexes', 'are called collections'),
+                          ('Only MyISAM tables','support collections'),
+             ('Function MATCH ... AGAINST()','is used to do a search'),
+        ('Full-text search in MySQL', 'implements vector space model');
+
+
+set GLOBAL ft_boolean_syntax='+ -><()~*:""&|';
+
+select *, MATCH(a,b) AGAINST("+called +collections" IN BOOLEAN MODE) as x from t1;
+
+# swap +/-
+set GLOBAL ft_boolean_syntax='- +><()~*:""&|';
+
+select *, MATCH(a,b) AGAINST("+called +collections" IN BOOLEAN MODE) as x from t1;
+
+# If in the future we need to cache queries with functions
+# be sure not to cause dead lock if the query cache is flushed
+# while inserting a query in the query cache.
+delimiter |;
+create function change_global() returns integer
+begin
+  set global ft_boolean_syntax='+ -><()~*:""&|';
+  return 1;
+end|
+delimiter ;|
+select *, change_global() from t1;
+drop function change_global;
+
+drop table t1;
+
+set GLOBAL query_cache_type=default;
+set GLOBAL query_cache_limit=default;
+set GLOBAL query_cache_min_res_unit=default;
+set GLOBAL query_cache_size= default;
+
+
+#
+# Bug #28897  	UUID() returns non-unique values when query cache is enabled
+#
+
+set GLOBAL query_cache_size=1000000;
+
+create table t1 (a char);
+insert into t1 values ('c');
+
+let $q1= `select UUID(), a from t1`;
+let $q2= `select UUID(), a from t1`; 
+
+# disabling the logging of the query because the UUIDs are different each run.
+--disable_query_log
+eval select a  from t1 where "$q1" = "$q2";
+--enable_query_log
+
+drop table t1;
+
+set GLOBAL query_cache_size= default;
+
+# End of 5.0 tests

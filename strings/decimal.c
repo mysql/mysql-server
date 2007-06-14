@@ -1083,7 +1083,11 @@ int decimal2longlong(decimal_t *from, longlong *to)
     x=x*DIG_BASE - *buf++;
     if (unlikely(y < (LONGLONG_MIN/DIG_BASE) || x > y))
     {
-      *to= from->sign ? y : -y;
+      /*
+        the decimal is bigger than any possible integer
+        return border integer depending on the sign
+      */
+      *to= from->sign ? LONGLONG_MIN : LONGLONG_MAX;
       return E_DEC_OVERFLOW;
     }
   }
@@ -1513,9 +1517,10 @@ decimal_round(decimal_t *from, decimal_t *to, int scale,
     dec1 *p0= buf0+intg0+max(frac1, frac0);
     dec1 *p1= buf1+intg1+max(frac1, frac0);
 
-    to->buf[0]= 0;
     while (buf0 < p0)
       *(--p1) = *(--p0);
+    if (unlikely(intg1 > intg0))
+      to->buf[0]= 0;
 
     intg0= intg1;
     buf0=to->buf;
@@ -1909,6 +1914,14 @@ static int do_sub(decimal_t *from1, decimal_t *from2, decimal_t *to)
     *--buf0=0;
 
   return error;
+}
+
+int decimal_intg(decimal_t *from)
+{
+  int res;
+  dec1 *tmp_res;
+  tmp_res= remove_leading_zeroes(from, &res);
+  return res;
 }
 
 int decimal_add(decimal_t *from1, decimal_t *from2, decimal_t *to)

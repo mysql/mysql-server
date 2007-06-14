@@ -1685,7 +1685,14 @@ void handler::restore_auto_increment()
 {
   THD *thd= table->in_use;
   if (thd->next_insert_id)
+  {
     thd->next_insert_id= thd->prev_insert_id;
+    if (thd->next_insert_id == 0)
+    {
+      /* we didn't generate a value, engine will be called again */
+      thd->clear_next_insert_id= 0;
+    }
+  }
 }
 
 

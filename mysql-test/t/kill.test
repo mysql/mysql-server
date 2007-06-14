@@ -117,3 +117,188 @@ reap;
 select 1;
 connection con1;
 select RELEASE_LOCK("a");
+
+#
+# Bug#27563: Stored functions and triggers wasn't throwing an error when killed.
+#
+create table t1(f1 int);
+delimiter |;
+create function bug27563() returns int(11)
+deterministic
+begin
+  declare continue handler for sqlstate '70100' set @a:= 'killed';
+  declare continue handler for sqlexception set @a:= 'exception';
+  set @a= get_lock("lock27563", 10);
+  return 1;
+end|
+delimiter ;|
+# Test stored functions
+# Test INSERT
+connection con1;
+select get_lock("lock27563",10);
+connection con2;
+let $ID= `select connection_id()`;
+send insert into t1 values (bug27563());
+real_sleep 2;
+connection con1;
+disable_query_log;
+eval kill query $ID;
+enable_query_log;
+connection con2;
+--error 1317
+reap;
+select @a;
+connection con1;
+select * from t1;
+
+# Test UPDATE
+insert into t1 values(0);
+connection con2;
+send update t1 set f1= bug27563();
+real_sleep 2;
+connection con1;
+disable_query_log;
+eval kill query $ID;
+enable_query_log;
+connection con2;
+--error 1317
+reap;
+select @a;
+connection con1;
+select * from t1;
+
+# Test DELETE
+insert into t1 values(1);
+connection con2;
+send delete from t1 where bug27563() is null;
+real_sleep 2;
+connection con1;
+disable_query_log;
+eval kill query $ID;
+enable_query_log;
+connection con2;
+--error 1317
+reap;
+select @a;
+connection con1;
+select * from t1;
+
+# Test SELECT
+connection con2;
+send select * from t1 where f1= bug27563();
+real_sleep 2;
+connection con1;
+disable_query_log;
+eval kill query $ID;
+enable_query_log;
+connection con2;
+--error 1317
+reap;
+select @a;
+
+# Test PROCEDURE
+connection con2;
+delimiter |;
+create procedure proc27563()
+begin
+  declare continue handler for sqlstate '70100' set @a:= 'killed';
+  declare continue handler for sqlexception set @a:= 'exception';
+  select get_lock("lock27563",10);
+  select "shouldn't be selected";
+end|
+delimiter ;|
+send call proc27563();
+real_sleep 2;
+connection con1;
+disable_query_log;
+eval kill query $ID;
+enable_query_log;
+connection con2;
+--error 1317
+reap;
+select @a;
+
+# Test TRIGGERS
+connection con2;
+create table t2 (f2 int);
+delimiter |;
+create trigger trg27563 before insert on t1 for each row 
+begin 
+  declare continue handler for sqlstate '70100' set @a:= 'killed';
+  declare continue handler for sqlexception set @a:= 'exception';
+  set @a:= get_lock("lock27563",10);
+  insert into t2 values(1);
+end|
+delimiter ;|
+send insert into t1 values(2),(3);
+real_sleep 2;
+connection con1;
+disable_query_log;
+eval kill query $ID;
+enable_query_log;
+connection con2;
+--error 1317
+reap;
+select @a;
+connection con1;
+select * from t1;
+select * from t2;
+
+# Cleanup
+select release_lock("lock27563");
+drop table t1, t2;
+drop function bug27563;
+drop procedure proc27563;
+
+#
+# Bug#28598: mysqld crash when killing a long-running explain query.
+#
+--disable_query_log
+connection con1;
+let $ID= `select connection_id()`;
+let $tab_count= 40;
+
+let $i= $tab_count;
+while ($i)
+{
+  eval CREATE TABLE t$i (a$i int, KEY(a$i));
+  eval INSERT INTO t$i VALUES (1),(2),(3),(4),(5),(6),(7);
+  dec $i ;
+}
+set session optimizer_search_depth=0;
+
+let $i=$tab_count;
+while ($i)
+{
+ let $a= a$i;
+ let $t= t$i;
+ dec $i;
+ if ($i)
+ {
+   let $comma=,;
+   let $from=$comma$t$from;
+   let $where=a$i=$a $and $where;
+ }
+ if (!$i) 
+ {
+   let $from=FROM $t$from;
+   let $where=WHERE $where;
+ }
+ let $and=AND;
+}
+
+--enable_query_log
+eval PREPARE stmt FROM 'EXPLAIN SELECT * $from $where';
+send EXECUTE stmt;
+--disable_query_log
+
+connection con2;
+real_sleep 2;
+eval kill query $ID;
+let $i= $tab_count;
+while ($i)
+{
+  eval DROP TABLE t$i;
+  dec $i ;
+}
+--enable_query_log

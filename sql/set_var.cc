@@ -475,6 +475,8 @@ sys_var_thd_bool
 sys_ndb_use_transactions("ndb_use_transactions", &SV::ndb_use_transactions);
 sys_var_long_ptr
 sys_ndb_cache_check_time("ndb_cache_check_time", &ndb_cache_check_time);
+sys_var_const_str
+sys_ndb_connectstring("ndb_connectstring", opt_ndb_constrbuf);
 #endif
 
 /* Time/date/datetime formats */
@@ -792,6 +794,7 @@ sys_var *sys_variables[]=
 #ifdef HAVE_NDBCLUSTER_DB
   &sys_ndb_autoincrement_prefetch_sz,
   &sys_ndb_cache_check_time,
+  &sys_ndb_connectstring,
   &sys_ndb_force_send,
   &sys_ndb_use_exact_count,
   &sys_ndb_use_transactions,
@@ -996,6 +999,7 @@ struct show_var_st init_vars[]= {
   {sys_ndb_use_exact_count.name,(char*) &sys_ndb_use_exact_count,   SHOW_SYS},
   {sys_ndb_use_transactions.name,(char*) &sys_ndb_use_transactions, SHOW_SYS},
   {sys_ndb_cache_check_time.name,(char*) &sys_ndb_cache_check_time, SHOW_SYS},
+  {sys_ndb_connectstring.name,(char*) &sys_ndb_connectstring,       SHOW_SYS},
 #endif
   {sys_net_buffer_length.name,(char*) &sys_net_buffer_length,       SHOW_SYS},
   {sys_net_read_timeout.name, (char*) &sys_net_read_timeout,        SHOW_SYS},
@@ -1200,6 +1204,11 @@ static bool sys_update_ftb_syntax(THD *thd, set_var * var)
 {
   strmake(ft_boolean_syntax, var->value->str_value.c_ptr(),
 	  sizeof(ft_boolean_syntax)-1);
+
+#ifdef HAVE_QUERY_CACHE
+  query_cache.flush();
+#endif /* HAVE_QUERY_CACHE */
+
   return 0;
 }
 
@@ -1217,7 +1226,11 @@ static void sys_default_ftb_syntax(THD *thd, enum_var_type type)
 
 static void fix_low_priority_updates(THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL)
+  if (type == OPT_GLOBAL)
+    thr_upgraded_concurrent_insert_lock= 
+      (global_system_variables.low_priority_updates ?
+       TL_WRITE_LOW_PRIORITY : TL_WRITE);
+  else
     thd->update_lock_default= (thd->variables.low_priority_updates ?
 			       TL_WRITE_LOW_PRIORITY : TL_WRITE);
 }
@@ -1282,14 +1295,14 @@ static int check_completion_type(THD *thd, set_var *var)
 static void fix_net_read_timeout(THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
-    net_set_read_timeout(&thd->net, thd->variables.net_read_timeout);
+    my_net_set_read_timeout(&thd->net, thd->variables.net_read_timeout);
 }
 
 
 static void fix_net_write_timeout(THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
-    net_set_write_timeout(&thd->net, thd->variables.net_write_timeout);
+    my_net_set_write_timeout(&thd->net, thd->variables.net_write_timeout);
 }
 
 static void fix_net_retry_count(THD *thd, enum_var_type type)

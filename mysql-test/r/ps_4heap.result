@@ -1288,7 +1288,7 @@ set @arg00=NULL;
 set @arg01=2;
 execute stmt1 using @arg00, @arg01;
 Warnings:
-Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'a' at row 1
+Warning	1048	Column 'a' cannot be null
 select a,b from t1 order by a;
 a	b
 0	two
@@ -1911,8 +1911,8 @@ def					@arg07	253	23	1	Y	128	31	63
 def					@arg08	253	23	1	Y	128	31	63
 def					@arg09	253	23	1	Y	128	31	63
 def					@arg10	253	23	1	Y	128	31	63
-def					@arg11	253	67	6	Y	128	30	63
-def					@arg12	253	67	6	Y	128	30	63
+def					@arg11	253	83	6	Y	128	30	63
+def					@arg12	253	83	6	Y	128	30	63
 def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
@@ -1958,8 +1958,8 @@ def					@arg07	253	23	0	Y	128	31	63
 def					@arg08	253	23	0	Y	128	31	63
 def					@arg09	253	23	0	Y	128	31	63
 def					@arg10	253	23	0	Y	128	31	63
-def					@arg11	253	67	0	Y	128	30	63
-def					@arg12	253	67	0	Y	128	30	63
+def					@arg11	253	83	0	Y	128	30	63
+def					@arg12	253	83	0	Y	128	30	63
 def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
@@ -2008,8 +2008,8 @@ def					@arg07	253	23	1	Y	128	31	63
 def					@arg08	253	23	1	Y	128	31	63
 def					@arg09	253	23	1	Y	128	31	63
 def					@arg10	253	23	1	Y	128	31	63
-def					@arg11	253	67	6	Y	128	30	63
-def					@arg12	253	67	6	Y	128	30	63
+def					@arg11	253	83	6	Y	128	30	63
+def					@arg12	253	83	6	Y	128	30	63
 def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
@@ -2048,8 +2048,8 @@ def					@arg07	253	23	0	Y	128	31	63
 def					@arg08	253	23	0	Y	128	31	63
 def					@arg09	253	23	0	Y	128	31	63
 def					@arg10	253	23	0	Y	128	31	63
-def					@arg11	253	67	0	Y	128	30	63
-def					@arg12	253	67	0	Y	128	30	63
+def					@arg11	253	83	0	Y	128	30	63
+def					@arg12	253	83	0	Y	128	30	63
 def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
@@ -2096,8 +2096,8 @@ def					@arg07	253	23	1	Y	128	31	63
 def					@arg08	253	23	1	Y	128	31	63
 def					@arg09	253	23	1	Y	128	31	63
 def					@arg10	253	23	1	Y	128	31	63
-def					@arg11	253	67	6	Y	128	30	63
-def					@arg12	253	67	6	Y	128	30	63
+def					@arg11	253	83	6	Y	128	30	63
+def					@arg12	253	83	6	Y	128	30	63
 def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
@@ -2140,8 +2140,8 @@ def					@arg07	253	23	0	Y	128	31	63
 def					@arg08	253	23	0	Y	128	31	63
 def					@arg09	253	23	0	Y	128	31	63
 def					@arg10	253	23	0	Y	128	31	63
-def					@arg11	253	67	0	Y	128	30	63
-def					@arg12	253	67	0	Y	128	30	63
+def					@arg11	253	83	0	Y	128	30	63
+def					@arg12	253	83	0	Y	128	30	63
 def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
@@ -2186,8 +2186,8 @@ def					@arg07	253	23	1	Y	128	31	63
 def					@arg08	253	23	1	Y	128	31	63
 def					@arg09	253	23	1	Y	128	31	63
 def					@arg10	253	23	1	Y	128	31	63
-def					@arg11	253	67	6	Y	128	30	63
-def					@arg12	253	67	6	Y	128	30	63
+def					@arg11	253	83	6	Y	128	30	63
+def					@arg12	253	83	6	Y	128	30	63
 def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
@@ -2224,8 +2224,8 @@ def					@arg07	253	23	0	Y	128	31	63
 def					@arg08	253	23	0	Y	128	31	63
 def					@arg09	253	23	0	Y	128	31	63
 def					@arg10	253	23	0	Y	128	31	63
-def					@arg11	253	67	0	Y	128	30	63
-def					@arg12	253	67	0	Y	128	30	63
+def					@arg11	253	83	0	Y	128	30	63
+def					@arg12	253	83	0	Y	128	30	63
 def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
@@ -2945,20 +2945,26 @@ delete from t9 ;
 test_sequence
 -- insert into date/time columns --
 Warnings:
+Note	1265	Data truncated for column 'c13' at row 1
+Warning	1265	Data truncated for column 'c17' at row 1
+Warnings:
+Note	1265	Data truncated for column 'c13' at row 1
+Warning	1265	Data truncated for column 'c17' at row 1
+Warnings:
+Note	1265	Data truncated for column 'c13' at row 1
+Warning	1265	Data truncated for column 'c17' at row 1
+Warnings:
+Note	1265	Data truncated for column 'c13' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
+Note	1265	Data truncated for column 'c13' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
-Warning	1265	Data truncated for column 'c17' at row 1
-Warnings:
-Warning	1265	Data truncated for column 'c17' at row 1
-Warnings:
-Warning	1265	Data truncated for column 'c17' at row 1
-Warnings:
+Note	1265	Data truncated for column 'c13' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Warning	1264	Out of range value adjusted for column 'c13' at row 1
@@ -2989,6 +2995,7 @@ Warning	1265	Data truncated for column 'c15' at row 1
 Warning	1264	Out of range value adjusted for column 'c16' at row 1
 Warning	1264	Out of range value adjusted for column 'c17' at row 1
 Warnings:
+Note	1265	Data truncated for column 'c13' at row 1
 Warning	1265	Data truncated for column 'c15' at row 1
 Warning	1264	Out of range value adjusted for column 'c16' at row 1
 Warning	1264	Out of range value adjusted for column 'c17' at row 1

@@ -609,10 +609,10 @@ net_real_write(NET *net,const char *packet,ulong len)
 #ifndef NO_ALARM
   thr_alarm_init(&alarmed);
   if (net_blocking)
-    thr_alarm(&alarmed,(uint) net->write_timeout,&alarm_buff);
+    thr_alarm(&alarmed, net->write_timeout, &alarm_buff);
 #else
   alarmed=0;
-  /* Write timeout is set in net_set_write_timeout */
+  /* Write timeout is set in my_net_set_write_timeout */
 #endif /* NO_ALARM */
 
   pos=(char*) packet; end=pos+len;
@@ -624,7 +624,7 @@ net_real_write(NET *net,const char *packet,ulong len)
 #if (!defined(__WIN__) && !defined(__EMX__) && !defined(OS2))
       if ((interrupted || length==0) && !thr_alarm_in_use(&alarmed))
       {
-        if (!thr_alarm(&alarmed,(uint) net->write_timeout,&alarm_buff))
+        if (!thr_alarm(&alarmed, net->write_timeout, &alarm_buff))
         {                                       /* Always true for client */
 	  my_bool old_mode;
 	  while (vio_blocking(net->vio, TRUE, &old_mode) < 0)
@@ -805,7 +805,7 @@ my_real_read(NET *net, ulong *complen)
   if (net_blocking)
     thr_alarm(&alarmed,net->read_timeout,&alarm_buff);
 #else
-  /* Read timeout is set in net_set_read_timeout */
+  /* Read timeout is set in my_net_set_read_timeout */
 #endif /* NO_ALARM */
 
     pos = net->buff + net->where_b;		/* net->packet -4 */
@@ -1117,25 +1117,27 @@ my_net_read(NET *net)
 }
 
 
-void net_set_read_timeout(NET *net, uint timeout)
+void my_net_set_read_timeout(NET *net, uint timeout)
 {
-  DBUG_ENTER("net_set_read_timeout");
+  DBUG_ENTER("my_net_set_read_timeout");
   DBUG_PRINT("enter", ("timeout: %d", timeout));
   net->read_timeout= timeout;
 #ifdef NO_ALARM
-  vio_timeout(net->vio, 0, timeout);
+  if (net->vio)
+    vio_timeout(net->vio, 0, timeout);
 #endif
   DBUG_VOID_RETURN;
 }
 
 
-void net_set_write_timeout(NET *net, uint timeout)
+void my_net_set_write_timeout(NET *net, uint timeout)
 {
-  DBUG_ENTER("net_set_write_timeout");
+  DBUG_ENTER("my_net_set_write_timeout");
   DBUG_PRINT("enter", ("timeout: %d", timeout));
   net->write_timeout= timeout;
 #ifdef NO_ALARM
-  vio_timeout(net->vio, 1, timeout);
+  if (net->vio)
+    vio_timeout(net->vio, 1, timeout);
 #endif
   DBUG_VOID_RETURN;
 }

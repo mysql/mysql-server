@@ -1279,20 +1279,31 @@ Query_log_event::Query_log_event()
 
 
 /*
-  Query_log_event::Query_log_event()
+  SYNOPSIS
+    Query_log_event::Query_log_event()
+      thd               - thread handle
+      query_arg         - array of char representing the query
+      query_length      - size of the  `query_arg' array
+      using_trans       - there is a modified transactional table
+      suppress_use      - suppress the generation of 'USE' statements
+      killed_status_arg - an optional with default to THD::KILLED_NO_VALUE
+                          if the value is different from the default, the arg
+                          is set to the current thd->killed value.
+                          A caller might need to masquerade thd->killed with
+                          THD::NOT_KILLED.
+  DESCRIPTION
+  Creates an event for binlogging
+  The value for local `killed_status' can be supplied by caller.
 */
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans,
-				 bool suppress_use)
+				 bool suppress_use, THD::killed_state killed_status_arg)
   :Log_event(thd_arg,
 	     ((thd_arg->tmp_table_used ? LOG_EVENT_THREAD_SPECIFIC_F : 0)
 	      | (suppress_use          ? LOG_EVENT_SUPPRESS_USE_F    : 0)),
 	     using_trans),
    data_buf(0), query(query_arg), catalog(thd_arg->catalog),
    db(thd_arg->db), q_len((uint32) query_length),
-   error_code((thd_arg->killed != THD::NOT_KILLED) ?
-              ((thd_arg->system_thread & SYSTEM_THREAD_DELAYED_INSERT) ?
-               0 : thd->killed_errno()) : thd_arg->net.last_errno),
    thread_id(thd_arg->thread_id),
    /* save the original thread id; we already know the server id */
    slave_proxy_id(thd_arg->variables.pseudo_thread_id),
@@ -1304,6 +1315,14 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
    charset_database_number(0)
 {
   time_t end_time;
+
+  if (killed_status_arg == THD::KILLED_NO_VALUE)
+    killed_status_arg= thd_arg->killed;
+  error_code=
+    (killed_status_arg == THD::NOT_KILLED) ? thd_arg->net.last_errno :
+    ((thd_arg->system_thread & SYSTEM_THREAD_DELAYED_INSERT) ? 0 :
+     thd->killed_errno());
+  
   time(&end_time);
   exec_time = (ulong) (end_time  - thd->start_time);
   catalog_len = (catalog) ? (uint32) strlen(catalog) : 0;
@@ -1879,7 +1898,8 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli,
         thd->variables.collation_database= thd->db_charset;
       
       /* Execute the query (note that we bypass dispatch_command()) */
-      mysql_parse(thd, thd->query, thd->query_length);
+      const char* found_semicolon= NULL;
+      mysql_parse(thd, thd->query, thd->query_length, &found_semicolon);
 
     }
     else
@@ -2987,10 +3007,12 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   thd->query_error= 0;
   clear_all_errors(thd, rli);
   /*
-    Usually mysql_init_query() is called by mysql_parse(), but we need it here
+    Usually lex_start() is called by mysql_parse(), but we need it here
     as the present method does not call mysql_parse().
   */
-  mysql_init_query(thd, 0, 0);
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
+
   if (!use_rli_only_for_errors)
   {
     /* Saved for InnoDB, see comment in Query_log_event::exec_event() */

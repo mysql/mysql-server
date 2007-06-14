@@ -27,7 +27,12 @@ try
            var app_name= parts[1];
            break;
       case "version":
-           var app_version= parts[1];
+           var supp_version= parts[1];
+           // Clean up the supplied version string.
+           var end= supp_version.indexOf("-");
+           if (end == -1) end= supp_version.length;
+           var app_version= supp_version.substring(0, end);
+           app_version+= ".0";
            break;
       case "arch":
            var app_arch= parts[1];

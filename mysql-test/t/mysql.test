@@ -262,7 +262,7 @@ EOF
 --exec $MYSQL test -e "show status" 2>&1 > /dev/null
 --exec $MYSQL --help 2>&1 > /dev/null
 --exec $MYSQL --version 2>&1 > /dev/null
---enable_quary_log
+--enable_query_log
 
 #
 # bug #26851: Mysql Client --pager Buffer Overflow
