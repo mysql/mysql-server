@@ -76,7 +76,8 @@ NdbOperation::NdbOperation(Ndb* aNdb, NdbOperation::Type aType) :
   m_keyInfoGSN(GSN_KEYINFO),
   m_attrInfoGSN(GSN_ATTRINFO),
   theBlobList(NULL),
-  m_abortOption(-1)
+  m_abortOption(-1),
+  m_noErrorPropagation(false)
 {
   theReceiver.init(NdbReceiver::NDB_OPERATION, this);
   theError.code = 0;
@@ -101,7 +102,8 @@ NdbOperation::setErrorCode(int anErrorCode)
   theError.code = anErrorCode;
   theNdbCon->theErrorLine = theErrorLine;
   theNdbCon->theErrorOperation = this;
-  theNdbCon->setOperationErrorCode(anErrorCode);
+  if (!(m_abortOption == AO_IgnoreError && m_noErrorPropagation))
+    theNdbCon->setOperationErrorCode(anErrorCode);
 }
 
 /******************************************************************************
@@ -116,6 +118,7 @@ NdbOperation::setErrorCodeAbort(int anErrorCode)
   theError.code = anErrorCode;
   theNdbCon->theErrorLine = theErrorLine;
   theNdbCon->theErrorOperation = this;
+  // ignore m_noErrorPropagation
   theNdbCon->setOperationErrorCodeAbort(anErrorCode);
 }
 
@@ -161,6 +164,7 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection){
   theMagicNumber        = 0xABCDEF01;
   theBlobList = NULL;
   m_abortOption = -1;
+  m_noErrorPropagation = false;
   m_no_disk_flag = 1;
 
   tSignal = theNdb->getSignal();

@@ -19,6 +19,9 @@
 #include <ndberror.h>
 #include <m_string.h>
 
+#include "../mgmsrv/ndb_mgmd_error.h"
+
+
 typedef struct ErrorBundle {
   int code;
   int mysql_code;
@@ -179,7 +182,7 @@ ErrorBundle ErrorCodes[] = {
   { 873,  DMEC, TR, "Out of attrinfo records for scan in tuple manager" },
   { 899,  DMEC, TR, "Rowid already allocated" },
   { 1217, DMEC, TR, "Out of operation records in local data manager (increase MaxNoOfLocalOperations)" },
-  { 1220, DMEC, TR, "REDO log files overloaded, consult online manual (decrease TimeBetweenLocalCheckpoints, and|or increase NoOfFragmentLogFiles)" },
+  { 1220, DMEC, TR, "REDO log files overloaded, consult online manual (increase FragmentLogFileSize)" },
   { 1222, DMEC, TR, "Out of transaction markers in LQH" },
   { 4021, DMEC, TR, "Out of Send Buffer space in NDB API" },
   { 4022, DMEC, TR, "Out of Send Buffer space in NDB API" },
@@ -619,6 +622,33 @@ ErrorBundle ErrorCodes[] = {
   { 4273, DMEC, IE, "No blob table in dict cache" },
   { 4274, DMEC, IE, "Corrupted main table PK in blob operation" },
   { 4275, DMEC, AE, "The blob method is incompatible with operation type or lock mode" },
+
+  { NO_CONTACT_WITH_PROCESS, DMEC, AE,
+    "No contact with the process (dead ?)."},
+  { WRONG_PROCESS_TYPE, DMEC, AE,
+   "The process has wrong type. Expected a DB process."},
+  { SEND_OR_RECEIVE_FAILED, DMEC, AE,
+    "Send to process or receive failed."},
+  { INVALID_ERROR_NUMBER, DMEC, AE,
+    "Invalid error number. Should be >= 0."},
+  { INVALID_TRACE_NUMBER, DMEC, AE,
+    "Invalid trace number."},
+  { INVALID_BLOCK_NAME, DMEC, AE,
+    "Invalid block name"},
+  { NODE_SHUTDOWN_IN_PROGESS, DMEC, AE,
+    "Node shutdown in progress" },
+  { SYSTEM_SHUTDOWN_IN_PROGRESS, DMEC, AE,
+    "System shutdown in progress" },
+  { NODE_SHUTDOWN_WOULD_CAUSE_SYSTEM_CRASH, DMEC, AE,
+   "Node shutdown would cause system crash" },
+  { UNSUPPORTED_NODE_SHUTDOWN, DMEC, AE,
+   "Unsupported multi node shutdown. Abort option required." },
+  { NODE_NOT_API_NODE, DMEC, AE,
+    "The specified node is not an API node." },
+  { OPERATION_NOT_ALLOWED_START_STOP, DMEC, AE,
+   "Operation not allowed while nodes are starting or stopping."},
+  { NO_CONTACT_WITH_DB_NODES, DMEC, AE,
+    "No contact with database nodes" }
 };
 
 static

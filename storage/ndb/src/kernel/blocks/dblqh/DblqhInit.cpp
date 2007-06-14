@@ -49,6 +49,7 @@ void Dblqh::initData()
   logFileRecord = 0;
   logFileOperationRecord = 0;
   logPageRecord = 0;
+  logPageRecordUnaligned= 0;
   pageRefRecord = 0;
   tablerec = 0;
   tcConnectionrec = 0;
@@ -60,6 +61,8 @@ void Dblqh::initData()
   cLqhTimeOutCheckCount = 0;
   cbookedAccOps = 0;
   m_backup_ptr = RNIL;
+  clogFileSize = 16;
+  cmaxLogFilesInPageZero = 40;
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 
@@ -105,10 +108,13 @@ void Dblqh::initRecords()
 		sizeof(LogFileOperationRecord), 
 		clfoFileSize);
 
-  logPageRecord = (LogPageRecord*)allocRecord("LogPageRecord",
-					      sizeof(LogPageRecord),
-					      clogPageFileSize,
-					      false);
+  logPageRecord =
+    (LogPageRecord*)allocRecordAligned("LogPageRecord",
+                                       sizeof(LogPageRecord),
+                                       clogPageFileSize,
+                                       &logPageRecordUnaligned,
+                                       NDB_O_DIRECT_WRITE_ALIGNMENT,
+                                       false);
 
   pageRefRecord = (PageRefRecord*)allocRecord("PageRefRecord",
 					      sizeof(PageRefRecord),
@@ -260,6 +266,7 @@ Dblqh::Dblqh(Block_context& ctx):
   addRecSignal(GSN_START_FRAGREQ, &Dblqh::execSTART_FRAGREQ);
   addRecSignal(GSN_START_RECREF, &Dblqh::execSTART_RECREF);
   addRecSignal(GSN_GCP_SAVEREQ, &Dblqh::execGCP_SAVEREQ);
+  addRecSignal(GSN_FSOPENREF, &Dblqh::execFSOPENREF, true);
   addRecSignal(GSN_FSOPENCONF, &Dblqh::execFSOPENCONF);
   addRecSignal(GSN_FSCLOSECONF, &Dblqh::execFSCLOSECONF);
   addRecSignal(GSN_FSWRITECONF, &Dblqh::execFSWRITECONF);
@@ -377,7 +384,7 @@ Dblqh::~Dblqh()
 		sizeof(LogFileOperationRecord), 
 		clfoFileSize);
   
-  deallocRecord((void**)&logPageRecord,
+  deallocRecord((void**)&logPageRecordUnaligned,
 		"LogPageRecord",
 		sizeof(LogPageRecord),
 		clogPageFileSize);
