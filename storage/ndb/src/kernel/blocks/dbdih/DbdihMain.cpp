@@ -4741,12 +4741,18 @@ void Dbdih::failedNodeLcpHandling(Signal* signal, NodeRecordPtr failedNodePtr)
   jam();
   const Uint32 nodeId = failedNodePtr.i;
 
-  if (c_lcpState.m_participatingLQH.get(failedNodePtr.i)){
+  if (isMaster() && c_lcpState.m_participatingLQH.get(failedNodePtr.i))
+  {
     /*----------------------------------------------------*/
     /*  THE NODE WAS INVOLVED IN A LOCAL CHECKPOINT. WE   */
     /* MUST UPDATE THE ACTIVE STATUS TO INDICATE THAT     */
     /* THE NODE HAVE MISSED A LOCAL CHECKPOINT.           */
     /*----------------------------------------------------*/
+
+    /**
+     * Bug#28717, Only master should do this, as this status is copied
+     *   to other nodes
+     */
     switch (failedNodePtr.p->activeStatus) {
     case Sysfile::NS_Active:
       jam();

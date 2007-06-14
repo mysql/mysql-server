@@ -1055,6 +1055,7 @@ class Ndb
   friend class NdbDictInterface;
   friend class NdbBlob;
   friend class NdbImpl;
+  friend class Ndb_internal;
 #endif
 
 public:
