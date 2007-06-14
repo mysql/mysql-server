@@ -914,6 +914,10 @@ max-time: 120
 cmd: testMgm
 args: -n ApiSessionFailure T1
 
+max-time: 15
+cmd: testMgm
+args: -n ApiConnectTimeout T1
+
 max-time: 120
 cmd: testMgm
 args: -n ApiTimeoutBasic T1
