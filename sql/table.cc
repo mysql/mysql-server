@@ -343,10 +343,25 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   strxmov(path, share->normalized_path.str, reg_ext, NullS);
   if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
   {
-    if (strchr(share->table_name.str, '@'))
+    /*
+      We don't try to open 5.0 unencoded name, if
+      - non-encoded name contains '@' signs, 
+        because '@' can be misinterpreted.
+        It is not clear if '@' is escape character in 5.1,
+        or a normal character in 5.0.
+        
+      - non-encoded db or table name contain "#mysql50#" prefix.
+        This kind of tables must have been opened only by the
+        my_open() above.
+    */
+    if (strchr(share->table_name.str, '@') ||
+        !strncmp(share->db.str, MYSQL50_TABLE_NAME_PREFIX,
+                 MYSQL50_TABLE_NAME_PREFIX_LENGTH) ||
+        !strncmp(share->table_name.str, MYSQL50_TABLE_NAME_PREFIX,
+                 MYSQL50_TABLE_NAME_PREFIX_LENGTH))
       goto err_not_open;
 
-    /* Try unecoded 5.0 name */
+    /* Try unencoded 5.0 name */
     uint length;
     strxnmov(path, sizeof(path)-1,
              mysql_data_home, "/", share->db.str, "/",
