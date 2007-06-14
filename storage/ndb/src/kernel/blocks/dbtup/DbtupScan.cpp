@@ -696,13 +696,74 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             // move to next extent
             jam();
             pos.m_extent_info_ptr_i = ext_ptr.i;
-            Extent_info* ext = c_extent_pool.getPtr(pos.m_extent_info_ptr_i);
+            ext = c_extent_pool.getPtr(pos.m_extent_info_ptr_i);
             key.m_file_no = ext->m_key.m_file_no;
             key.m_page_no = ext->m_first_page_no;
           }
         }
         key.m_page_idx = 0;
         pos.m_get = ScanPos::Get_page_dd;
+        /*
+          read ahead for scan in disk order
+          do read ahead every 8:th page
+        */
+        if ((bits & ScanOp::SCAN_DD) &&
+            (((key.m_page_no - ext->m_first_page_no) & 7) == 0))
+        {
+          jam();
+          // initialize PGMAN request
+          Page_cache_client::Request preq;
+          preq.m_page = pos.m_key;
+          preq.m_callback = TheNULLCallback;
+
+          // set maximum read ahead
+          Uint32 read_ahead = m_max_page_read_ahead;
+
+          while (true)
+          {
+            // prepare page read ahead in current extent
+            Uint32 page_no = preq.m_page.m_page_no;
+            Uint32 page_no_limit = page_no + read_ahead;
+            Uint32 limit = ext->m_first_page_no + alloc.m_extent_size;
+            if (page_no_limit > limit)
+            {
+              jam();
+              // read ahead crosses extent, set limit for this extent
+              read_ahead = page_no_limit - limit;
+              page_no_limit = limit;
+              // and make sure we only read one extra extent next time around
+              if (read_ahead > alloc.m_extent_size)
+                read_ahead = alloc.m_extent_size;
+            }
+            else
+            {
+              jam();
+              read_ahead = 0; // no more to read ahead after this
+            }
+            // do read ahead pages for this extent
+            while (page_no < page_no_limit)
+            {
+              // page request to PGMAN
+              jam();
+              preq.m_page.m_page_no = page_no;
+              int flags = 0;
+              // ignore result
+              m_pgman.get_page(signal, preq, flags);
+              jamEntry();
+              page_no++;
+            }
+            if (!read_ahead || !list.next(ext_ptr))
+            {
+              // no more extents after this or read ahead done
+              jam();
+              break;
+            }
+            // move to next extent and initialize PGMAN request accordingly
+            Extent_info* ext = c_extent_pool.getPtr(ext_ptr.i);
+            preq.m_page.m_file_no = ext->m_key.m_file_no;
+            preq.m_page.m_page_no = ext->m_first_page_no;
+          }
+        } // if ScanOp::SCAN_DD read ahead
       }
       /*FALLTHRU*/
     case ScanPos::Get_page_dd:
@@ -735,6 +796,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           safe_cast(&Dbtup::disk_page_tup_scan_callback);
         int flags = 0;
         int res = m_pgman.get_page(signal, preq, flags);
+        jamEntry();
         if (res == 0) {
           jam();
           // request queued

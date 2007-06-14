@@ -30,9 +30,11 @@ int main(int argc, const char** argv){
   const char* _tabname = NULL;
   int _help = 0;
   int _batch = 512;
+  const char* db = "TEST_DB";
   
   struct getargs args[] = {
     { "batch", 'b', arg_integer, &_batch, "Number of operations in each transaction", "batch" },
+    { "database", 'd', arg_string, &db, "Database", "" },
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
@@ -55,7 +57,7 @@ int main(int argc, const char** argv){
   {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  Ndb MyNdb(&con, "TEST_DB" );
+  Ndb MyNdb(&con, db);
 
   if(MyNdb.init() != 0){
     ERR(MyNdb.getNdbError());
