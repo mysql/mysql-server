@@ -216,8 +216,10 @@ public:
   destroy();
 
   bool
-  execute_trigger(THD *thd, const char *db, const char *table,
-                  GRANT_INFO *grant_onfo);
+  execute_trigger(THD *thd,
+                  const LEX_STRING *db_name,
+                  const LEX_STRING *table_name,
+                  GRANT_INFO *grant_info);
 
   bool
   execute_function(THD *thd, Item **args, uint argcount, Field *return_fld);
