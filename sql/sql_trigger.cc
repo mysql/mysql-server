@@ -23,7 +23,7 @@
 static const LEX_STRING triggers_file_type=
   { C_STRING_WITH_LEN("TRIGGERS") };
 
-const char * const triggers_file_ext= ".TRG";
+const char * const TRG_EXT= ".TRG";
 
 /*
   Table of .TRG file field descriptors.
@@ -79,7 +79,7 @@ struct st_trigname
 static const LEX_STRING trigname_file_type=
   { C_STRING_WITH_LEN("TRIGGERNAME") };
 
-const char * const trigname_file_ext= ".TRN";
+const char * const TRN_EXT= ".TRN";
 
 static File_option trigname_file_parameters[]=
 {
@@ -131,6 +131,7 @@ private:
   char *path;
   LEX_STRING *trigger_table_value;
 };
+
 
 /*
   Create or drop trigger for table.
@@ -463,14 +464,14 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
     sql_create_definition_file() files handles renaming and backup of older
     versions
   */
-  file.length= build_table_filename(file_buff, FN_REFLEN-1,
+  file.length= build_table_filename(file_buff, FN_REFLEN - 1,
                                     tables->db, tables->table_name,
-                                    triggers_file_ext, 0);
+                                    TRG_EXT, 0);
   file.str= file_buff;
   trigname_file.length= build_table_filename(trigname_buff, FN_REFLEN-1,
                                              tables->db,
                                              lex->spname->m_name.str,
-                                             trigname_file_ext, 0);
+                                             TRN_EXT, 0);
   trigname_file.str= trigname_buff;
 
   /* Use the filesystem to enforce trigger namespace constraints. */
@@ -604,7 +605,7 @@ err_with_cleanup:
 static bool rm_trigger_file(char *path, const char *db,
                             const char *table_name)
 {
-  build_table_filename(path, FN_REFLEN-1, db, table_name, triggers_file_ext, 0);
+  build_table_filename(path, FN_REFLEN-1, db, table_name, TRG_EXT, 0);
   return my_delete(path, MYF(MY_WME));
 }
 
@@ -627,8 +628,7 @@ static bool rm_trigger_file(char *path, const char *db,
 static bool rm_trigname_file(char *path, const char *db,
                              const char *trigger_name)
 {
-  build_table_filename(path, FN_REFLEN-1,
-                       db, trigger_name, trigname_file_ext, 0);
+  build_table_filename(path, FN_REFLEN - 1, db, trigger_name, TRN_EXT, 0);
   return my_delete(path, MYF(MY_WME));
 }
 
@@ -653,8 +653,8 @@ static bool save_trigger_file(Table_triggers_list *triggers, const char *db,
   char file_buff[FN_REFLEN];
   LEX_STRING file;
 
-  file.length= build_table_filename(file_buff, FN_REFLEN-1, db, table_name,
-                                    triggers_file_ext, 0);
+  file.length= build_table_filename(file_buff, FN_REFLEN - 1, db, table_name,
+                                    TRG_EXT, 0);
   file.str= file_buff;
   return sql_create_definition_file(NULL, &file, &triggers_file_type,
                                     (uchar*)triggers, triggers_file_parameters,
@@ -834,8 +834,8 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
   DBUG_ENTER("Table_triggers_list::check_n_load");
 
-  path.length= build_table_filename(path_buff, FN_REFLEN-1,
-                                    db, table_name, triggers_file_ext, 0);
+  path.length= build_table_filename(path_buff, FN_REFLEN - 1,
+                                    db, table_name, TRG_EXT, 0);
   path.str= path_buff;
 
   // QQ: should we analyze errno somehow ?
@@ -981,12 +981,10 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         thd->variables.sql_mode= (ulong)*trg_sql_mode;
 
         Lex_input_stream lip(thd, trg_create_str->str, trg_create_str->length);
-        thd->m_lip= &lip;
         lex_start(thd);
         thd->spcont= 0;
-        int err= MYSQLparse((void *)thd);
 
-        if (err || thd->is_fatal_error)
+        if (parse_sql(thd, &lip))
         {
           /* Currently sphead is always deleted in case of a parse error */
           DBUG_ASSERT(lex.sphead == 0);
@@ -1108,7 +1106,7 @@ err_with_lex_cleanup:
       be merged into .FRM anyway.
     */
     my_error(ER_WRONG_OBJECT, MYF(0),
-             table_name, triggers_file_ext+1, "TRIGGER");
+             table_name, TRG_EXT + 1, "TRIGGER");
     DBUG_RETURN(1);
   }
 
@@ -1168,83 +1166,66 @@ bool Table_triggers_list::get_trigger_info(THD *thd, trg_event_type event,
 }
 
 
-/*
+/**
   Find trigger's table from trigger identifier and add it to
   the statement table list.
 
-  SYNOPSIS
-    mysql_table_for_trigger()
-      thd    - current thread context
-      trig   - identifier for trigger
-      if_exists - treat a not existing trigger as a warning if TRUE
-      table - pointer to TABLE_LIST object for the table trigger (output)
+  @param[in] thd       Thread context.
+  @param[in] trg_name  Trigger name.
+  @param[in] if_exists TRUE if SQL statement contains "IF EXISTS" clause.
+                       That means a warning instead of error should be
+                       thrown if trigger with given name does not exist.
+  @param[out] table    Pointer to TABLE_LIST object for the
+                       table trigger.
 
-  RETURN VALUE
-    0 Success
-    1 Error
+  @return Operation status
+    @retval FALSE On success.
+    @retval TRUE  Otherwise.
 */
 
-int
-add_table_for_trigger(THD *thd, sp_name *trig, bool if_exists,
-                      TABLE_LIST **table)
+bool add_table_for_trigger(THD *thd,
+                           sp_name *trg_name,
+                           bool if_exists,
+                           TABLE_LIST **table)
 {
   LEX *lex= thd->lex;
-  char path_buff[FN_REFLEN];
-  LEX_STRING path;
-  File_parser *parser;
-  struct st_trigname trigname;
-  Handle_old_incorrect_trigger_table_hook trigger_table_hook(
-                                          path_buff, &trigname.trigger_table);
-  
+  char trn_path_buff[FN_REFLEN];
+  LEX_STRING trn_path= { trn_path_buff, 0 };
+  LEX_STRING tbl_name;
+
   DBUG_ENTER("add_table_for_trigger");
-  DBUG_ASSERT(table != NULL);
 
-  path.length= build_table_filename(path_buff, FN_REFLEN-1,
-                                    trig->m_db.str, trig->m_name.str,
-                                    trigname_file_ext, 0);
-  path.str= path_buff;
+  build_trn_path(thd, trg_name, &trn_path);
 
-  if (access(path_buff, F_OK))
+  if (check_trn_exists(&trn_path))
   {
     if (if_exists)
     {
       push_warning_printf(thd,
-                         MYSQL_ERROR::WARN_LEVEL_NOTE,
-                         ER_TRG_DOES_NOT_EXIST,
-                         ER(ER_TRG_DOES_NOT_EXIST));
+                          MYSQL_ERROR::WARN_LEVEL_NOTE,
+                          ER_TRG_DOES_NOT_EXIST,
+                          ER(ER_TRG_DOES_NOT_EXIST));
+
       *table= NULL;
-      DBUG_RETURN(0);
+
+      DBUG_RETURN(FALSE);
     }
 
     my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   }
 
-  if (!(parser= sql_parse_prepare(&path, thd->mem_root, 1)))
-    DBUG_RETURN(1);
-
-  if (!is_equal(&trigname_file_type, parser->type()))
-  {
-    my_error(ER_WRONG_OBJECT, MYF(0), trig->m_name.str, trigname_file_ext+1,
-             "TRIGGERNAME");
-    DBUG_RETURN(1);
-  }
-
-  if (parser->parse((uchar*)&trigname, thd->mem_root,
-                    trigname_file_parameters, 1,
-                    &trigger_table_hook))
-    DBUG_RETURN(1);
+  if (load_table_name_for_trigger(thd, trg_name, &trn_path, &tbl_name))
+    DBUG_RETURN(TRUE);
 
   /* We need to reset statement table list to be PS/SP friendly. */
   lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
-  *table= sp_add_to_query_tables(thd, lex, trig->m_db.str,
-                                 trigname.trigger_table.str, TL_IGNORE);
 
-  if (! *table)
-    DBUG_RETURN(1);
+  *table= sp_add_to_query_tables(thd, lex, trg_name->m_db.str,
+                                 tbl_name.str, TL_IGNORE);
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(*table ? FALSE : TRUE);
 }
 
 
@@ -1428,7 +1409,7 @@ Table_triggers_list::change_table_name_in_trignames(const char *db_name,
   {
     trigname_file.length= build_table_filename(trigname_buff, FN_REFLEN-1,
                                                db_name, trigger->str,
-                                               trigname_file_ext, 0);
+                                               TRN_EXT, 0);
     trigname_file.str= trigname_buff;
 
     trigname.trigger_table= *new_table_name;
@@ -1537,77 +1518,54 @@ end:
 }
 
 
-bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
+/**
+  Execute trigger for given (event, time) pair.
+
+  The operation executes trigger for the specified event (insert, update,
+  delete) and time (after, before) if it is set.
+
+  @param thd
+  @param event
+  @param time_type,
+  @param old_row_is_record1
+
+  @return Error status.
+    @retval FALSE on success.
+    @retval TRUE  on error.
+*/
+
+bool Table_triggers_list::process_triggers(THD *thd,
+                                           trg_event_type event,
                                            trg_action_time_type time_type,
                                            bool old_row_is_record1)
 {
-  bool err_status= FALSE;
-  sp_head *sp_trigger= bodies[event][time_type];
+  bool err_status;
+  Sub_statement_state statement_state;
 
-  if (sp_trigger)
+  if (!bodies[event][time_type])
+    return FALSE;
+
+  if (old_row_is_record1)
   {
-    Sub_statement_state statement_state;
-
-    if (old_row_is_record1)
-    {
-      old_field= record1_field;
-      new_field= trigger_table->field;
-    }
-    else
-    {
-      new_field= record1_field;
-      old_field= trigger_table->field;
-    }
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    Security_context *sctx= &sp_trigger->m_security_ctx;
-    Security_context *save_ctx= NULL;
-
-
-    if (sp_trigger->m_chistics->suid != SP_IS_NOT_SUID &&
-        sctx->change_security_context(thd,
-                                      &sp_trigger->m_definer_user,
-                                      &sp_trigger->m_definer_host,
-                                      &sp_trigger->m_db,
-                                      &save_ctx))
-      return TRUE;
-
-    /*
-      Fetch information about table-level privileges to GRANT_INFO structure for
-      subject table. Check of privileges that will use it and information about
-      column-level privileges will happen in Item_trigger_field::fix_fields().
-    */
-
-    fill_effective_table_privileges(thd,
-                                    &subject_table_grants[event][time_type],
-                                    trigger_table->s->db.str,
-                                    trigger_table->s->table_name.str);
-
-    /* Check that the definer has TRIGGER privilege on the subject table. */
-
-    if (!(subject_table_grants[event][time_type].privilege & TRIGGER_ACL))
-    {
-      char priv_desc[128];
-      get_privilege_desc(priv_desc, sizeof(priv_desc), TRIGGER_ACL);
-
-      my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), priv_desc,
-               thd->security_ctx->priv_user, thd->security_ctx->host_or_ip,
-               trigger_table->s->table_name.str);
-
-      sctx->restore_security_context(thd, save_ctx);
-      return TRUE;
-    }
-#endif // NO_EMBEDDED_ACCESS_CHECKS
-
-    thd->reset_sub_statement_state(&statement_state, SUB_STMT_TRIGGER);
-    err_status= sp_trigger->execute_trigger
-      (thd, trigger_table->s->db.str, trigger_table->s->table_name.str,
-       &subject_table_grants[event][time_type]);
-    thd->restore_sub_statement_state(&statement_state);
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    sctx->restore_security_context(thd, save_ctx);
-#endif // NO_EMBEDDED_ACCESS_CHECKS
+    old_field= record1_field;
+    new_field= trigger_table->field;
   }
+  else
+  {
+    new_field= record1_field;
+    old_field= trigger_table->field;
+  }
+
+  thd->reset_sub_statement_state(&statement_state, SUB_STMT_TRIGGER);
+
+  err_status=
+    bodies[event][time_type]->execute_trigger(
+      thd,
+      &trigger_table->s->db,
+      &trigger_table->s->table_name,
+      &subject_table_grants[event][time_type]);
+
+  thd->restore_sub_statement_state(&statement_state);
 
   return err_status;
 }
@@ -1747,5 +1705,97 @@ process_unknown_string(char *&unknown_key, uchar* base, MEM_ROOT *mem_root,
     /* Set parsing pointer to the last symbol of string (\n). */
     unknown_key= ptr-1;
   }
+  DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Contruct path to TRN-file.
+
+  @param thd[in]        Thread context.
+  @param trg_name[in]   Trigger name.
+  @param trn_path[out]  Variable to store constructed path
+*/
+
+void build_trn_path(THD *thd, const sp_name *trg_name, LEX_STRING *trn_path)
+{
+  /* Construct path to the TRN-file. */
+
+  trn_path->length= build_table_filename(trn_path->str,
+                                         FN_REFLEN - 1,
+                                         trg_name->m_db.str,
+                                         trg_name->m_name.str,
+                                         TRN_EXT,
+                                         0);
+}
+
+
+/**
+  Check if TRN-file exists.
+
+  @return
+    @retval TRUE  if TRN-file does not exist.
+    @retval FALSE if TRN-file exists.
+*/
+
+bool check_trn_exists(const LEX_STRING *trn_path)
+{
+  return access(trn_path->str, F_OK) != 0;
+}
+
+
+/**
+  Retrieve table name for given trigger.
+
+  @param thd[in]        Thread context.
+  @param trg_name[in]   Trigger name.
+  @param trn_path[in]   Path to the corresponding TRN-file.
+  @param tbl_name[out]  Variable to store retrieved table name.
+
+  @return Error status.
+    @retval FALSE on success.
+    @retval TRUE  if table name could not be retrieved.
+*/
+
+bool load_table_name_for_trigger(THD *thd,
+                                 const sp_name *trg_name,
+                                 const LEX_STRING *trn_path,
+                                 LEX_STRING *tbl_name)
+{
+  File_parser *parser;
+  struct st_trigname trn_data;
+
+  Handle_old_incorrect_trigger_table_hook trigger_table_hook(
+                                          trn_path->str,
+                                          &trn_data.trigger_table);
+
+  DBUG_ENTER("load_table_name_for_trigger");
+
+  /* Parse the TRN-file. */
+
+  if (!(parser= sql_parse_prepare(trn_path, thd->mem_root, TRUE)))
+    DBUG_RETURN(TRUE);
+
+  if (!is_equal(&trigname_file_type, parser->type()))
+  {
+    my_error(ER_WRONG_OBJECT, MYF(0),
+             trg_name->m_name.str,
+             TRN_EXT + 1,
+             "TRIGGERNAME");
+
+    DBUG_RETURN(TRUE);
+  }
+
+  if (parser->parse((uchar*) &trn_data, thd->mem_root,
+                    trigname_file_parameters, 1,
+                    &trigger_table_hook))
+    DBUG_RETURN(TRUE);
+
+  /* Copy trigger table name. */
+
+  *tbl_name= trn_data.trigger_table;
+
+  /* That's all. */
+
   DBUG_RETURN(FALSE);
 }
