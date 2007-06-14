@@ -1268,30 +1268,31 @@ set_routine_security_ctx(THD *thd, sp_head *sp, bool is_proc,
 #endif // ! NO_EMBEDDED_ACCESS_CHECKS
 
 
-/*
-  Execute a trigger:
-   - changes security context for triggers
-   - switch to new memroot
-   - call sp_head::execute
-   - restore old memroot
-   - restores security context
+/**
+  Execute trigger stored program.
 
-  SYNOPSIS
-    sp_head::execute_trigger()
-      thd               Thread handle
-      db                database name
-      table             table name
-      grant_info        GRANT_INFO structure to be filled with
-                        information about definer's privileges
-                        on subject table
-   
-  RETURN
-    FALSE  on success
-    TRUE   on error
+  Execute a trigger:
+   - changes security context for triggers;
+   - switch to new memroot;
+   - call sp_head::execute;
+   - restore old memroot;
+   - restores security context.
+
+  @param thd        Thread context.
+  @param db_name    Database name.
+  @param table_name Table name.
+  @param grant_info GRANT_INFO structure to be filled with information
+                    about definer's privileges on subject table.
+
+  @return Error status.
+    @retval FALSE on success.
+    @retval TRUE  on error.
 */
 
 bool
-sp_head::execute_trigger(THD *thd, const char *db, const char *table,
+sp_head::execute_trigger(THD *thd,
+                         const LEX_STRING *db_name,
+                         const LEX_STRING *table_name,
                          GRANT_INFO *grant_info)
 {
   sp_rcontext *octx = thd->spcont;
@@ -1303,6 +1304,46 @@ sp_head::execute_trigger(THD *thd, const char *db, const char *table,
 
   DBUG_ENTER("sp_head::execute_trigger");
   DBUG_PRINT("info", ("trigger %s", m_name.str));
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context *save_ctx= NULL;
+
+
+  if (m_chistics->suid != SP_IS_NOT_SUID &&
+      m_security_ctx.change_security_context(thd,
+                                             &m_definer_user,
+                                             &m_definer_host,
+                                             &m_db,
+                                             &save_ctx))
+    DBUG_RETURN(TRUE);
+
+  /*
+    Fetch information about table-level privileges for subject table into
+    GRANT_INFO instance. The access check itself will happen in
+    Item_trigger_field, where this information will be used along with
+    information about column-level privileges.
+  */
+
+  fill_effective_table_privileges(thd,
+                                  grant_info,
+                                  db_name->str,
+                                  table_name->str);
+
+  /* Check that the definer has TRIGGER privilege on the subject table. */
+
+  if (!(grant_info->privilege & TRIGGER_ACL))
+  {
+    char priv_desc[128];
+    get_privilege_desc(priv_desc, sizeof(priv_desc), TRIGGER_ACL);
+
+    my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), priv_desc,
+             thd->security_ctx->priv_user, thd->security_ctx->host_or_ip,
+             table_name->str);
+
+    m_security_ctx.restore_security_context(thd, save_ctx);
+    DBUG_RETURN(TRUE);
+  }
+#endif // NO_EMBEDDED_ACCESS_CHECKS
 
   /*
     Prepare arena and memroot for objects which lifetime is whole
@@ -1336,6 +1377,11 @@ sp_head::execute_trigger(THD *thd, const char *db, const char *table,
 
 err_with_cleanup:
   thd->restore_active_arena(&call_arena, &backup_arena);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  m_security_ctx.restore_security_context(thd, save_ctx);
+#endif // NO_EMBEDDED_ACCESS_CHECKS
+
   delete nctx;
   call_arena.free_items();
   free_root(&call_mem_root, MYF(0));
