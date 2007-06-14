@@ -23,6 +23,8 @@ ndb_force_send	#
 ndb_index_stat_cache_entries	#
 ndb_index_stat_enable	#
 ndb_index_stat_update_freq	#
+ndb_log_update_as_write	#
+ndb_log_updated_only	#
 ndb_report_thresh_binlog_epoch_slip	#
 ndb_report_thresh_binlog_mem_usage	#
 ndb_use_copying_alter_table	#
