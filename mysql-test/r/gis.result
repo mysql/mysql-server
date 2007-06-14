@@ -864,4 +864,25 @@ SELECT Overlaps(@horiz1, @point2) FROM DUAL;
 Overlaps(@horiz1, @point2)
 0
 DROP TABLE t1;
+create table t1(f1 geometry, f2 point, f3 linestring);
+select f1 from t1 union select f1 from t1;
+f1
+insert into t1 (f2,f3) values (GeomFromText('POINT(1 1)'),
+GeomFromText('LINESTRING(0 0,1 1,2 2)'));
+select AsText(f2),AsText(f3) from t1;
+AsText(f2)	AsText(f3)
+POINT(1 1)	LINESTRING(0 0,1 1,2 2)
+select AsText(a) from (select f2 as a from t1 union select f3 from t1) t;
+AsText(a)
+POINT(1 1)
+LINESTRING(0 0,1 1,2 2)
+create table t2 as select f2 as a from t1 union select f3 from t1;
+desc t2;
+Field	Type	Null	Key	Default	Extra
+a	point	YES		NULL	
+select AsText(a) from t2;
+AsText(a)
+POINT(1 1)
+LINESTRING(0 0,1 1,2 2)
+drop table t1, t2;
 End of 5.0 tests
