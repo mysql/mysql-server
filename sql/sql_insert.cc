@@ -947,20 +947,24 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (values_list.elements == 1 && (!(thd->options & OPTION_WARNINGS) ||
 				    !thd->cuted_fields))
   {
-    thd->row_count_func= info.copied+info.deleted+info.updated;
+    thd->row_count_func= info.copied + info.deleted +
+                         ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
+                          info.touched : info.updated);
     send_ok(thd, (ulong) thd->row_count_func, id);
   }
   else
   {
     char buff[160];
+    ha_rows updated=((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
+                     info.touched : info.updated);
     if (ignore)
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (lock_type == TL_WRITE_DELAYED) ? (ulong) 0 :
 	      (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
     else
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	      (ulong) (info.deleted+info.updated), (ulong) thd->cuted_fields);
-    thd->row_count_func= info.copied+info.deleted+info.updated;
+	      (ulong) (info.deleted + updated), (ulong) thd->cuted_fields);
+    thd->row_count_func= info.copied + info.deleted + updated;
     ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
   }
   thd->abort_on_warning= 0;
@@ -1400,23 +1404,18 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           goto before_trg_err;
 
         table->file->restore_auto_increment();
-        if ((error=table->file->update_row(table->record[1],table->record[0])))
-        {
-          if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
-          {
-            goto ok_or_after_trg_err;
-          }
-          goto err;
-        }
-
-        if (table->next_number_field)
-          table->file->adjust_next_insert_id_after_explicit_value(
-            table->next_number_field->val_int());
-        info->touched++;
-
         if ((table->file->table_flags() & HA_PARTIAL_COLUMN_READ) ||
             compare_record(table, thd->query_id))
         {
+          if ((error=table->file->update_row(table->record[1],table->record[0])))
+          {
+            if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
+            {
+              goto ok_or_after_trg_err;
+            }
+            goto err;
+          }
+
           info->updated++;
           trg_error= (table->triggers &&
                       table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
@@ -1424,6 +1423,11 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
                                                         TRUE));
           info->copied++;
         }
+
+        if (table->next_number_field)
+          table->file->adjust_next_insert_id_after_explicit_value(
+            table->next_number_field->val_int());
+        info->touched++;
 
         goto ok_or_after_trg_err;
       }
@@ -2973,7 +2977,9 @@ bool select_insert::send_eof()
   else
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	    (ulong) (info.deleted+info.updated), (ulong) thd->cuted_fields);
-  thd->row_count_func= info.copied+info.deleted+info.updated;
+  thd->row_count_func= info.copied + info.deleted +
+                       ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
+                        info.touched : info.updated);
   ::send_ok(thd, (ulong) thd->row_count_func, last_insert_id, buff);
   DBUG_RETURN(0);
 }

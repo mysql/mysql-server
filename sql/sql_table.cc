@@ -3101,8 +3101,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 						   alter_info->tablespace_op));
   sprintf(new_name_buff,"%s/%s/%s%s",mysql_data_home, db, table_name, reg_ext);
   unpack_filename(new_name_buff, new_name_buff);
-  if (lower_case_table_names != 2)
-    my_casedn_str(files_charset_info, new_name_buff);
   frm_type= mysql_frm_type(thd, new_name_buff, &table_type);
   /* Rename a view */
   if (frm_type == FRMTYPE_VIEW && !(alter_info->flags & ~ALTER_RENAME))
