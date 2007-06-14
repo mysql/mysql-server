@@ -28,6 +28,7 @@ class Slave_log_event;
 class Format_description_log_event;
 class sp_rcontext;
 class sp_cache;
+class Lex_input_stream;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
@@ -494,7 +495,7 @@ public:
 };
 
 
-class delayed_insert;
+class Delayed_insert;
 class select_result;
 
 #define THD_SENTRY_MAGIC 0xfeedd1ff
@@ -593,7 +594,7 @@ struct system_variables
 
   Time_zone *time_zone;
 
-  /* DATE, DATETIME and TIME formats */
+  /* DATE, DATETIME and MYSQL_TIME formats */
   DATE_TIME_FORMAT *date_format;
   DATE_TIME_FORMAT *datetime_format;
   DATE_TIME_FORMAT *time_format;
@@ -1247,7 +1248,7 @@ public:
   time_t     start_time,time_after_lock,user_time;
   time_t     connect_time,thr_create_time; // track down slow pthread_create
   thr_lock_type update_lock_default;
-  delayed_insert *di;
+  Delayed_insert *di;
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
@@ -1396,7 +1397,14 @@ public:
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
 
-  enum killed_state { NOT_KILLED=0, KILL_BAD_DATA=1, KILL_CONNECTION=ER_SERVER_SHUTDOWN, KILL_QUERY=ER_QUERY_INTERRUPTED };
+  enum killed_state
+  {
+    NOT_KILLED=0,
+    KILL_BAD_DATA=1,
+    KILL_CONNECTION=ER_SERVER_SHUTDOWN,
+    KILL_QUERY=ER_QUERY_INTERRUPTED,
+    KILLED_NO_VALUE      /* means neither of the states */
+  };
   killed_state volatile killed;
 
   /* scramble - random string sent to client on handshake */
@@ -1431,6 +1439,10 @@ public:
   */
   bool       insert_id_used;
 
+  /* 
+    clear_next_insert_id is set if engine was called at least once
+    for this statement to generate auto_increment value.
+  */
   bool       clear_next_insert_id;
   /* for IS NULL => = last_insert_id() fix in remove_eq_conds() */
   bool       substitute_null_with_insert_id;
@@ -1495,6 +1507,15 @@ public:
     */
     query_id_t first_query_id;
   } binlog_evt_union;
+
+  /**
+    Character input stream consumed by the lexical analyser,
+    used during parsing.
+    Note that since the parser is not re-entrant, we keep only one input
+    stream here. This member is valid only when executing code during parsing,
+    and may point to invalid memory after that.
+  */
+  Lex_input_stream *m_lip;
 
   THD();
   ~THD();
@@ -1656,7 +1677,8 @@ public:
   void end_statement();
   inline int killed_errno() const
   {
-    return killed != KILL_BAD_DATA ? killed : 0;
+    killed_state killed_val; /* to cache the volatile 'killed' */
+    return (killed_val= killed) != KILL_BAD_DATA ? killed_val : 0;
   }
   inline void send_kill_message() const
   {
@@ -2269,6 +2291,11 @@ class multi_update :public select_result_interceptor
   List <Item> *fields, *values;
   List <Item> **fields_for_table, **values_for_table;
   uint table_count;
+  /*
+   List of tables referenced in the CHECK OPTION condition of
+   the updated view excluding the updated table. 
+  */
+  List <TABLE> unupdated_check_opt_tables;
   Copy_field *copy_field;
   enum enum_duplicates handle_duplicates;
   bool do_update, trans_safe;

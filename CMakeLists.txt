@@ -120,6 +120,9 @@ IF(CMAKE_GENERATOR MATCHES "Visual Studio 7" OR
 	STRING(REPLACE "/MDd" "/MTd" CMAKE_CXX_FLAGS_DEBUG 
 	       ${CMAKE_CXX_FLAGS_DEBUG})
 
+	# generate map files
+	SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /MAP /MAPINFO:EXPORTS")
+
 	# remove support for Exception handling
 	STRING(REPLACE "/GX" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 	STRING(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
@@ -151,6 +154,11 @@ IF(EMBED_MANIFESTS)
     # Disable automatic manifest generation.
     STRING(REPLACE "/MANIFEST" "/MANIFEST:NO" CMAKE_EXE_LINKER_FLAGS 
     	   ${CMAKE_EXE_LINKER_FLAGS})
+    # Explicitly disable it since it is the default for newer versions of VS
+    STRING(REGEX MATCH "MANIFEST:NO" tmp_manifest ${CMAKE_EXE_LINKER_FLAGS})
+    IF(NOT tmp_manifest)
+        SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /MANIFEST:NO")
+    ENDIF(NOT tmp_manifest)
     # Set the processor architecture.
     IF(CMAKE_GENERATOR MATCHES "Visual Studio 8 2005 Win64")
     	SET(PROCESSOR_ARCH "X64") 

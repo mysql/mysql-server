@@ -418,6 +418,7 @@ Item *create_func_unhex(Item* a)
 
 Item *create_func_uuid(void)
 {
+  current_thd->lex->safe_to_cache_query= 0;
   return new Item_func_uuid();
 }
 
@@ -445,11 +446,13 @@ Item *create_load_file(Item* a)
 }
 
 
-Item *create_func_cast(Item *a, Cast_target cast_type, int len, int dec,
+Item *create_func_cast(Item *a, Cast_target cast_type,
+                       const char *c_len, const char *c_dec,
 		       CHARSET_INFO *cs)
 {
   Item *res;
-  int tmp_len;
+  ulong len;
+  uint dec;
   LINT_INIT(res);
 
   switch (cast_type) {
@@ -460,21 +463,25 @@ Item *create_func_cast(Item *a, Cast_target cast_type, int len, int dec,
   case ITEM_CAST_TIME:		res= new Item_time_typecast(a); break;
   case ITEM_CAST_DATETIME:	res= new Item_datetime_typecast(a); break;
   case ITEM_CAST_DECIMAL:
-    tmp_len= (len>0) ? len : 10;
-    if (tmp_len < dec)
+    len= c_len ? atoi(c_len) : 0;
+    dec= c_dec ? atoi(c_dec) : 0;
+    my_decimal_trim(&len, &dec);
+    if (len < dec)
     {
       my_error(ER_M_BIGGER_THAN_D, MYF(0), "");
       return 0;
     }
-    res= new Item_decimal_typecast(a, tmp_len, dec ? dec : 2);
+    res= new Item_decimal_typecast(a, len, dec);
     break;
   case ITEM_CAST_CHAR:
+    len= c_len ? atoi(c_len) : -1;
     res= new Item_char_typecast(a, len, cs ? cs : 
 				current_thd->variables.collation_connection);
     break;
   }
   return res;
 }
+
 
 Item *create_func_is_free_lock(Item* a)
 {

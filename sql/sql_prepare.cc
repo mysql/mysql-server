@@ -969,6 +969,7 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
   String buf;
   const String *val;
   uint32 length= 0;
+  THD *thd= stmt->thd;
 
   DBUG_ENTER("insert_params_from_vars");
 
@@ -979,34 +980,20 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
   {
     Item_param *param= *it;
     varname= var_it++;
-    if (get_var_with_binlog(stmt->thd, stmt->lex->sql_command,
-                            *varname, &entry))
-        DBUG_RETURN(1);
 
-    if (param->set_from_user_var(stmt->thd, entry))
+    entry= (user_var_entry *) hash_search(&thd->user_vars, (byte*) varname->str,
+                                          varname->length);
+    /*
+      We have to call the setup_one_conversion_function() here to set
+      the parameter's members that might be needed further
+      (e.g. value.cs_info.character_set_client is used in the query_val_str()).
+    */
+    setup_one_conversion_function(thd, param, param->param_type);
+    if (param->set_from_user_var(thd, entry))
       DBUG_RETURN(1);
-    /* Insert @'escaped-varname' instead of parameter in the query */
-    if (entry)
-    {
-      char *start, *ptr;
-      buf.length(0);
-      if (buf.reserve(entry->name.length*2+3))
-        DBUG_RETURN(1);
+    val= param->query_val_str(&buf);
 
-      start= ptr= buf.c_ptr_quick();
-      *ptr++= '@';
-      *ptr++= '\'';
-      ptr+= escape_string_for_mysql(&my_charset_utf8_general_ci,
-                                    ptr, 0, entry->name.str,
-                                    entry->name.length);
-      *ptr++= '\'';
-      buf.length(ptr - start);
-      val= &buf;
-    }
-    else
-      val= &my_null_string;
-
-    if (param->convert_str_value(stmt->thd))
+    if (param->convert_str_value(thd))
       DBUG_RETURN(1);                           /* out of memory */
 
     if (query->replace(param->pos_in_query+length, 1, *val))
@@ -1164,8 +1151,9 @@ static int mysql_test_update(Prepared_statement *stmt,
     goto error;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  /* TABLE_LIST contain right privilages request */
-  want_privilege= table_list->grant.want_privilege;
+  /* Force privilege re-checking for views after they have been opened. */
+  want_privilege= (table_list->view ? UPDATE_ACL :
+                   table_list->grant.want_privilege);
 #endif
 
   if (mysql_prepare_update(thd, table_list, &select->where,
@@ -1491,8 +1479,21 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
 
   if (select_lex->item_list.elements)
   {
+    if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+    {
+      lex->link_first_table_back(create_table, link_to_local);
+      create_table->create= TRUE;
+    }
+
+    if (open_and_lock_tables(stmt->thd, lex->query_tables))
+      DBUG_RETURN(TRUE);
+
+    if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+      create_table= lex->unlink_first_table(&link_to_local);
+
     select_lex->context.resolve_in_select_list= TRUE;
-    res= select_like_stmt_test_with_open_n_lock(stmt, tables, 0, 0);
+
+    res= select_like_stmt_test(stmt, 0, 0);
   }
 
   /* put tables back for PS rexecuting */
@@ -1762,6 +1763,9 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_OPTIMIZE:
     break;
 
+  case SQLCOM_PREPARE:
+  case SQLCOM_EXECUTE:
+  case SQLCOM_DEALLOCATE_PREPARE:
   default:
     /* All other statements are not supported yet. */
     my_message(ER_UNSUPPORTED_PS, ER(ER_UNSUPPORTED_PS), MYF(0));
@@ -2799,11 +2803,15 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
 
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
-  lex_start(thd, (uchar*) thd->query, thd->query_length);
-  lex->safe_to_cache_query= FALSE;
-  lex->stmt_prepare_mode= TRUE;
 
-  error= MYSQLparse((void *)thd) || thd->is_fatal_error ||
+  Lex_input_stream lip(thd, thd->query, thd->query_length);
+  lip.stmt_prepare_mode= TRUE;
+  thd->m_lip= &lip;
+  lex_start(thd);
+  lex->safe_to_cache_query= FALSE;
+  int err= MYSQLparse((void *)thd);
+
+  error= err || thd->is_fatal_error ||
       thd->net.report_error || init_param_array(this);
 
   /*

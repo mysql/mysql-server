@@ -958,7 +958,8 @@ longlong Item_func_signed::val_int()
   longlong value;
   int error;
 
-  if (args[0]->cast_to_int_type() != STRING_RESULT)
+  if (args[0]->cast_to_int_type() != STRING_RESULT ||
+      args[0]->result_as_longlong())
   {
     value= args[0]->val_int();
     null_value= args[0]->null_value; 
@@ -995,9 +996,12 @@ longlong Item_func_unsigned::val_int()
     my_decimal tmp, *dec= args[0]->val_decimal(&tmp);
     if (!(null_value= args[0]->null_value))
       my_decimal2int(E_DEC_FATAL_ERROR, dec, 1, &value);
+    else
+      value= 0;
     return value;
   }
-  else if (args[0]->cast_to_int_type() != STRING_RESULT)
+  else if (args[0]->cast_to_int_type() != STRING_RESULT ||
+           args[0]->result_as_longlong())
   {
     value= args[0]->val_int();
     null_value= args[0]->null_value; 
@@ -1048,18 +1052,61 @@ longlong Item_decimal_typecast::val_int()
 my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
 {
   my_decimal tmp_buf, *tmp= args[0]->val_decimal(&tmp_buf);
+  bool sign;
+  uint precision;
+
   if ((null_value= args[0]->null_value))
     return NULL;
   my_decimal_round(E_DEC_FATAL_ERROR, tmp, decimals, FALSE, dec);
+  sign= dec->sign();
+  if (unsigned_flag)
+  {
+    if (sign)
+    {
+      my_decimal_set_zero(dec);
+      goto err;
+    }
+  }
+  precision= my_decimal_length_to_precision(max_length,
+                                            decimals, unsigned_flag);
+  if (precision - decimals < (uint) my_decimal_intg(dec))
+  {
+    max_my_decimal(dec, precision, decimals);
+    dec->sign(sign);
+    goto err;
+  }
+  return dec;
+
+err:
+  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                      ER_WARN_DATA_OUT_OF_RANGE,
+                      ER(ER_WARN_DATA_OUT_OF_RANGE),
+                      name, 1);
   return dec;
 }
 
 
 void Item_decimal_typecast::print(String *str)
 {
+  char len_buf[20*3 + 1];
+  char *end;
+
+  uint precision= my_decimal_length_to_precision(max_length, decimals,
+                                                 unsigned_flag);
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(str);
-  str->append(STRING_WITH_LEN(" as decimal)"));
+  str->append(STRING_WITH_LEN(" as decimal("));
+
+  end=int10_to_str(precision, len_buf,10);
+  str->append(len_buf, (uint32) (end - len_buf));
+
+  str->append(',');
+
+  end=int10_to_str(decimals, len_buf,10);
+  str->append(len_buf, (uint32) (end - len_buf));
+
+  str->append(')');
+  str->append(')');
 }
 
 
@@ -1980,9 +2027,9 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
   tmp=(abs_dec < array_elements(log_10) ?
        log_10[abs_dec] : pow(10.0,(double) abs_dec));
 
-  if (dec_negative && isinf(tmp))
+  if (dec_negative && my_isinf(tmp))
     tmp2= 0;
-  else if (!dec_negative && isinf(value * tmp))
+  else if (!dec_negative && my_isinf(value * tmp))
     tmp2= value;
   else if (truncate)
   {
@@ -2161,6 +2208,7 @@ double Item_func_units::val_real()
 void Item_func_min_max::fix_length_and_dec()
 {
   int max_int_part=0;
+  bool datetime_found= FALSE;
   decimals=0;
   max_length=0;
   maybe_null=0;
@@ -2174,18 +2222,88 @@ void Item_func_min_max::fix_length_and_dec()
     if (args[i]->maybe_null)
       maybe_null=1;
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
+    if (args[i]->result_type() != ROW_RESULT && args[i]->is_datetime())
+    {
+      datetime_found= TRUE;
+      if (!datetime_item || args[i]->field_type() == MYSQL_TYPE_DATETIME)
+        datetime_item= args[i];
+    }
   }
   if (cmp_type == STRING_RESULT)
+  {
     agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV, 1);
+    if (datetime_found)
+    {
+      thd= current_thd;
+      compare_as_dates= TRUE;
+    }
+  }
   else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
     max_length= my_decimal_precision_to_length(max_int_part+decimals, decimals,
                                             unsigned_flag);
 }
 
 
+/*
+  Compare item arguments in the DATETIME context.
+
+  SYNOPSIS
+    cmp_datetimes()
+    value [out]   found least/greatest DATE/DATETIME value
+
+  DESCRIPTION
+    Compare item arguments as DATETIME values and return the index of the
+    least/greatest argument in the arguments array.
+    The correct integer DATE/DATETIME value of the found argument is
+    stored to the value pointer, if latter is provided.
+
+  RETURN
+   0	If one of arguments is NULL
+   #	index of the least/greatest argument
+*/
+
+uint Item_func_min_max::cmp_datetimes(ulonglong *value)
+{
+  ulonglong min_max;
+  uint min_max_idx= 0;
+  LINT_INIT(min_max);
+
+  for (uint i=0; i < arg_count ; i++)
+  {
+    Item **arg= args + i;
+    bool is_null;
+    ulonglong res= get_datetime_value(thd, &arg, 0, datetime_item, &is_null);
+    if ((null_value= args[i]->null_value))
+      return 0;
+    if (i == 0 || (res < min_max ? cmp_sign : -cmp_sign) > 0)
+    {
+      min_max= res;
+      min_max_idx= i;
+    }
+  }
+  if (value)
+  {
+    *value= min_max;
+    if (datetime_item->field_type() == MYSQL_TYPE_DATE)
+      *value/= 1000000L;
+  }
+  return min_max_idx;
+}
+
+
 String *Item_func_min_max::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
+  if (compare_as_dates)
+  {
+    String *str_res;
+    uint min_max_idx= cmp_datetimes(NULL);
+    if (null_value)
+      return 0;
+    str_res= args[min_max_idx]->val_str(str);
+    str_res->set_charset(collation.collation);
+    return str_res;
+  }
   switch (cmp_type) {
   case INT_RESULT:
   {
@@ -2253,6 +2371,12 @@ double Item_func_min_max::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double value=0.0;
+  if (compare_as_dates)
+  {
+    ulonglong result= 0;
+    (void)cmp_datetimes(&result);
+    return (double)result;
+  }
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
@@ -2274,6 +2398,12 @@ longlong Item_func_min_max::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   longlong value=0;
+  if (compare_as_dates)
+  {
+    ulonglong result= 0;
+    (void)cmp_datetimes(&result);
+    return (longlong)result;
+  }
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
@@ -2297,6 +2427,13 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
   my_decimal tmp_buf, *tmp, *res;
   LINT_INIT(res);
 
+  if (compare_as_dates)
+  {
+    ulonglong value= 0;
+    (void)cmp_datetimes(&value);
+    ulonglong2decimal(value, dec);
+    return dec;
+  }
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
@@ -3926,8 +4063,8 @@ bool
 Item_func_set_user_var::check(bool use_result_field)
 {
   DBUG_ENTER("Item_func_set_user_var::check");
-  if (use_result_field)
-    DBUG_ASSERT(result_field);
+  if (use_result_field && !result_field)
+    use_result_field= FALSE;
 
   switch (cached_result_type) {
   case REAL_RESULT:
@@ -4071,6 +4208,40 @@ my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val)
 }
 
 
+double Item_func_set_user_var::val_result()
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_real(&null_value);
+}
+
+longlong Item_func_set_user_var::val_int_result()
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_int(&null_value);
+}
+
+String *Item_func_set_user_var::str_result(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_str(&null_value, str, decimals);
+}
+
+
+my_decimal *Item_func_set_user_var::val_decimal_result(my_decimal *val)
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_decimal(&null_value, val);
+}
+
+
 void Item_func_set_user_var::print(String *str)
 {
   str->append(STRING_WITH_LEN("(@"));
@@ -4153,9 +4324,11 @@ void Item_func_set_user_var::make_field(Send_field *tmp_field)
     TRUE        Error
 */
 
-int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions)
+int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions,
+                                          bool can_use_result_field)
 {
-  bool use_result_field= (result_field && result_field != field);
+  bool use_result_field= (!can_use_result_field ? 0 :
+                          (result_field && result_field != field));
   int error;
 
   /* Update the value of the user variable */
@@ -4315,7 +4488,7 @@ int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     List<set_var_base> tmp_var_list;
     LEX *sav_lex= thd->lex, lex_tmp;
     thd->lex= &lex_tmp;
-    lex_start(thd, NULL, 0);
+    lex_start(thd);
     tmp_var_list.push_back(new set_var_user(new Item_func_set_user_var(name,
                                                                        new Item_null())));
     /* Create the variable */
@@ -5078,10 +5251,11 @@ Item_func_sp::func_name() const
 {
   THD *thd= current_thd;
   /* Calculate length to avoid reallocation of string for sure */
-  uint len= ((m_name->m_explicit_name ? m_name->m_db.length : 0 +
+  uint len= (((m_name->m_explicit_name ? m_name->m_db.length : 0) +
               m_name->m_name.length)*2 + //characters*quoting
              2 +                         // ` and `
-             1 +                         // .
+             (m_name->m_explicit_name ?
+              3 : 0) +                   // '`', '`' and '.' for the db
              1 +                         // end of string
              ALIGN_SIZE(1));             // to avoid String reallocation
   String qname((char *)alloc_root(thd->mem_root, len), len,
@@ -5212,6 +5386,8 @@ Item_func_sp::execute()
   {
     null_value= 1;
     context->process_error(thd);
+    if (thd->killed)
+      thd->send_kill_message();
     return TRUE;
   }
 

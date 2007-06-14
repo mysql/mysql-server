@@ -1630,6 +1630,34 @@ bool ha_ndbcluster::check_all_operations_for_error(NdbTransaction *trans,
   DBUG_RETURN(true);
 }
 
+
+/**
+ * Check if record contains any null valued columns that are part of a key
+ */
+static
+int
+check_null_in_record(const KEY* key_info, const byte *record)
+{
+  KEY_PART_INFO *curr_part, *end_part;
+  curr_part= key_info->key_part;
+  end_part= curr_part + key_info->key_parts;
+
+  while (curr_part != end_part)
+  {
+    if (curr_part->null_bit &&
+        (record[curr_part->null_offset] & curr_part->null_bit))
+      return 1;
+    curr_part++;
+  }
+  return 0;
+  /*
+    We could instead pre-compute a bitmask in table_share with one bit for
+    every null-bit in the key, and so check this just by OR'ing the bitmask
+    with the null bitmap in the record.
+    But not sure it's worth it.
+  */
+}
+
 /*
  * Peek to check if any rows already exist with conflicting
  * primary key or unique index values
@@ -1671,7 +1699,17 @@ int ha_ndbcluster::peek_indexed_rows(const byte *record, bool check_pk)
     if (i != table->s->primary_key &&
         key_info->flags & HA_NOSAME)
     {
-      // A unique index is defined on table
+      /*
+        A unique index is defined on table.
+        We cannot look up a NULL field value in a unique index. But since
+        keys with NULLs are not indexed, such rows cannot conflict anyway, so
+        we just skip the index in this case.
+      */
+      if (check_null_in_record(key_info, record))
+      {
+	DBUG_PRINT("info", ("skipping check for key with NULL"));
+        continue;
+      } 
       NdbIndexOperation *iop;
       NDBINDEX *unique_index = (NDBINDEX *) m_index[i].unique_index;
       key_part= key_info->key_part;
@@ -2271,16 +2309,24 @@ int ha_ndbcluster::write_row(byte *record)
   {
     // Table has hidden primary key
     Ndb *ndb= get_ndb();
-    int ret;
     Uint64 auto_value;
     uint retries= NDB_AUTO_INCREMENT_RETRIES;
-    do {
-      ret= ndb->getAutoIncrementValue((const NDBTAB *) m_table, auto_value, 1);
-    } while (ret == -1 && 
-             --retries &&
-             ndb->getNdbError().status == NdbError::TemporaryError);
-    if (ret == -1)
-      ERR_RETURN(ndb->getNdbError());
+    int retry_sleep= 30; /* 30 milliseconds, transaction */
+    for (;;)
+    {
+      if (ndb->getAutoIncrementValue((const NDBTAB *) m_table,
+                                     auto_value, 1) == -1)
+      {
+        if (--retries &&
+            ndb->getNdbError().status == NdbError::TemporaryError);
+        {
+          my_sleep(retry_sleep);
+          continue;
+        }
+        ERR_RETURN(ndb->getNdbError());
+      }
+      break;
+    }
     if (set_hidden_key(op, table->s->fields, (const byte*)&auto_value))
       ERR_RETURN(op->getNdbError());
   } 
@@ -2816,7 +2862,7 @@ int ha_ndbcluster::index_end()
 }
 
 /**
- * Check if key contains null
+ * Check if key contains nullable columns
  */
 static
 int
@@ -4817,22 +4863,27 @@ ulonglong ha_ndbcluster::get_auto_increment()
            m_rows_to_insert - m_rows_inserted :
            ((m_rows_to_insert > m_autoincrement_prefetch) ?
             m_rows_to_insert : m_autoincrement_prefetch));
-  int ret;
   uint retries= NDB_AUTO_INCREMENT_RETRIES;
-  do {
-    ret=
-      m_skip_auto_increment ? 
-      ndb->readAutoIncrementValue((const NDBTAB *) m_table, auto_value) :
-      ndb->getAutoIncrementValue((const NDBTAB *) m_table, auto_value, cache_size);
-  } while (ret == -1 && 
-           --retries &&
-           ndb->getNdbError().status == NdbError::TemporaryError);
-  if (ret == -1)
+  int retry_sleep= 30; /* 30 milliseconds, transaction */
+  for (;;)
   {
-    const NdbError err= ndb->getNdbError();
-    sql_print_error("Error %lu in ::get_auto_increment(): %s",
-                    (ulong) err.code, err.message);
-    DBUG_RETURN(~(ulonglong) 0);
+    if (m_skip_auto_increment &&
+        ndb->readAutoIncrementValue((const NDBTAB *) m_table, auto_value) ||
+        ndb->getAutoIncrementValue((const NDBTAB *) m_table,
+                                   auto_value, cache_size))
+    {
+      if (--retries &&
+          ndb->getNdbError().status == NdbError::TemporaryError);
+      {
+        my_sleep(retry_sleep);
+        continue;
+      }
+      const NdbError err= ndb->getNdbError();
+      sql_print_error("Error %lu in ::get_auto_increment(): %s",
+                      (ulong) err.code, err.message);
+      DBUG_RETURN(~(ulonglong) 0);
+    }
+    break;
   }
   DBUG_RETURN((longlong)auto_value);
 }
@@ -4973,27 +5024,36 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   set_dbname(name);
   set_tabname(name);
   
-  if (check_ndb_connection()) {
-    free_share(m_share); m_share= 0;
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+  if ((res= check_ndb_connection()) || 
+      (res= get_metadata(name)))
+  {
+    free_share(m_share);
+    m_share= 0;
+    DBUG_RETURN(res);
   }
-  
-  res= get_metadata(name);
-  if (!res)
+  while (1)
   {
     Ndb *ndb= get_ndb();
     if (ndb->setDatabaseName(m_dbname))
     {
-      ERR_RETURN(ndb->getNdbError());
+      res= ndb_to_mysql_error(&ndb->getNdbError());
+      break;
     }
     struct Ndb_statistics stat;
     res= ndb_get_table_statistics(NULL, false, ndb, m_tabname, &stat);
     records= stat.row_count;
     if(!res)
       res= info(HA_STATUS_CONST);
+    break;
   }
-
-  DBUG_RETURN(res);
+  if (res)
+  {
+    free_share(m_share);
+    m_share= 0;
+    release_metadata();
+    DBUG_RETURN(res);
+  }
+  DBUG_RETURN(0);
 }
 
 

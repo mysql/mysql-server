@@ -1,6 +1,8 @@
 # This test uses chmod, can't be run with root permissions
 -- source include/not_as_root.inc
 
+-- source include/have_log_bin.inc
+
 #
 # Test is run with max_binlog_size=2048 to force automatic rotation of the
 # binary log
@@ -107,9 +109,18 @@ show master logs;
 # we just tests if synonyms are accepted
 purge binary logs to 'master-bin.000002';
 show binary logs;
-# sleeping 10 seconds or more would make the slave believe connection is down
---real_sleep 1
-purge master logs before now();
+
+# Calculate time to use in "purge master logs before" by taking
+# last modification time of t2 and adding 1 second
+# This is donw in order to handle the case where file system
+# time differs from mysqld's time
+--disable_result_log
+select @time_for_purge:=DATE_ADD(UPDATE_TIME, INTERVAL 1 SECOND)
+  from information_schema.tables
+    where TABLE_SCHEMA="test" and TABLE_NAME="t2";
+--enable_result_log
+
+purge master logs before (@time_for_purge);
 show binary logs;
 insert into t2 values (65);
 sync_slave_with_master;

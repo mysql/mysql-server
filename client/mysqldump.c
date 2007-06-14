@@ -1456,6 +1456,9 @@ static uint dump_routines_for_db(char *db)
   if (lock_tables)
     mysql_query(mysql, "LOCK TABLES mysql.proc READ");
 
+  if (opt_compact)
+    fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n");
+
   fprintf(sql_file, "DELIMITER ;;\n");
 
   /* 0, retrieve and dump functions, 1, procedures */
@@ -2106,8 +2109,11 @@ static void dump_triggers_for_table(char *table,
     DBUG_VOID_RETURN;
   }
   if (mysql_num_rows(result))
-    fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n\
-DELIMITER ;;\n");
+  {
+    if (opt_compact)
+      fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n");
+    fprintf(sql_file, "\nDELIMITER ;;\n");
+  }
   while ((row= mysql_fetch_row(result)))
   {
     fprintf(sql_file,
@@ -2529,15 +2535,18 @@ static void dump_table(char *table, char *db)
                   plus 2 bytes for '0x' prefix.
                   - In non-HEX mode we need up to 2 bytes per character,
                   plus 2 bytes for leading and trailing '\'' characters.
+                  Also we need to reserve 1 byte for terminating '\0'.
                 */
-                dynstr_realloc_checked(&extended_row,length * 2+2);
+                dynstr_realloc_checked(&extended_row,length * 2 + 2 + 1);
                 if (opt_hex_blob && is_blob)
                 {
                   dynstr_append_checked(&extended_row, "0x");
                   extended_row.length+= mysql_hex_string(extended_row.str +
                                                          extended_row.length,
                                                          row[i], length);
-                  extended_row.str[extended_row.length]= '\0';
+                  DBUG_ASSERT(extended_row.length+1 <= extended_row.max_length);
+                  /* mysql_hex_string() already terminated string by '\0' */
+                  DBUG_ASSERT(extended_row.str[extended_row.length] == '\0');
                 }
                 else
                 {
@@ -3262,10 +3271,41 @@ static int do_unlock_tables(MYSQL *mysql_con)
   return mysql_query_with_error_report(mysql_con, 0, "UNLOCK TABLES");
 }
 
-
-static int do_reset_master(MYSQL *mysql_con)
+static int get_bin_log_name(MYSQL *mysql_con,
+                            char* buff_log_name, uint buff_len)
 {
-  return mysql_query_with_error_report(mysql_con, 0, "RESET MASTER");
+  MYSQL_RES *res;
+  MYSQL_ROW row;
+
+  if (mysql_query(mysql_con, "SHOW MASTER STATUS") ||
+      !(res= mysql_store_result(mysql)))
+    return 1;
+
+  if (!(row= mysql_fetch_row(res)))
+  {
+    mysql_free_result(res);
+    return 1;
+  }
+  /*
+    Only one row is returned, and the first column is the name of the
+    active log.
+  */
+  strmake(buff_log_name, row[0], buff_len - 1);
+
+  mysql_free_result(res);
+  return 0;
+}
+
+static int purge_bin_logs_to(MYSQL *mysql_con, char* log_name)
+{
+  DYNAMIC_STRING str;
+  int err;
+  init_dynamic_string_checked(&str, "PURGE BINARY LOGS TO '", 1024, 1024);
+  dynstr_append_checked(&str, log_name);
+  dynstr_append_checked(&str, "'");
+  err = mysql_query_with_error_report(mysql_con, 0, str.str);
+  dynstr_free(&str);
+  return err;
 }
 
 
@@ -3789,6 +3829,7 @@ static void dynstr_realloc_checked(DYNAMIC_STRING *str, ulong additional_size)
 
 int main(int argc, char **argv)
 {
+  char bin_log_name[FN_REFLEN];
   int exit_code;
   MY_INIT("mysqldump");
 
@@ -3825,8 +3866,13 @@ int main(int argc, char **argv)
     goto err;
   if (opt_single_transaction && start_transaction(mysql))
       goto err;
-  if (opt_delete_master_logs && do_reset_master(mysql))
-    goto err;
+  if (opt_delete_master_logs)
+  {
+    if (mysql_refresh(mysql, REFRESH_LOG) ||
+        get_bin_log_name(mysql, bin_log_name, sizeof(bin_log_name)))
+      goto err;
+    flush_logs= 0;
+  }
   if (opt_lock_all_tables || opt_master_data)
   {
     if (flush_logs && mysql_refresh(mysql, REFRESH_LOG))
@@ -3850,6 +3896,18 @@ int main(int argc, char **argv)
     /* One or more databases, all tables */
     dump_databases(argv);
   }
+
+  /* ensure dumped data flushed */
+  if (md_result_file && fflush(md_result_file))
+  {
+    if (!first_error)
+      first_error= EX_MYSQLERR;
+    goto err;
+  }
+  /* everything successful, purge the old logs files */
+  if (opt_delete_master_logs && purge_bin_logs_to(mysql, bin_log_name))
+    goto err;
+
 #ifdef HAVE_SMEM
   my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
 #endif

@@ -260,11 +260,11 @@ insert into t2 values
   ('dd', 1, NULL);
 alter table t1 add index idx(ie1,ie2);
 
---cc 3 NULL NULL
+# cc 3 NULL NULL
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) Z from t2 where a=3 and b is null ;
 insert into t2 values ('new1', 10,10);
 insert into t1 values ('new1', 1234, 10, NULL); 
--- new1, 10, 10, NULL,
+# new1, 10, 10, NULL,
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) Z from t2 where a=10 and b=10; 
 explain extended
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) Z from t2 where a=10 and b=10; 
@@ -546,3 +546,46 @@ SELECT a FROM t1, t2 WHERE a=b AND (b NOT IN (SELECT a FROM t1));
 SELECT a FROM t1, t2 WHERE a=b AND (b NOT IN (SELECT a FROM t1 WHERE a > 4));
 
 DROP TABLE t1,t2;
+
+#
+# Bug #28375: crash for NOT IN subquery predicate when left operand becomes NULL  
+#
+
+CREATE TABLE t1 (id int);
+CREATE TABLE t2 (id int PRIMARY KEY);
+CREATE TABLE t3 (id int PRIMARY KEY, name varchar(10));
+INSERT INTO t1 VALUES (2), (NULL), (3), (1);
+INSERT INTO t2 VALUES (234), (345), (457);
+INSERT INTO t3 VALUES (222,'bbb'), (333,'ccc'), (111,'aaa');
+
+EXPLAIN
+SELECT * FROM t1
+  WHERE t1.id NOT IN (SELECT t2.id FROM t2,t3 
+                        WHERE t3.name='xxx' AND t2.id=t3.id);
+SELECT * FROM t1
+  WHERE t1.id NOT IN (SELECT t2.id FROM t2,t3 
+                        WHERE t3.name='xxx' AND t2.id=t3.id);
+
+SELECT (t1.id IN (SELECT t2.id FROM t2,t3 
+                    WHERE t3.name='xxx' AND t2.id=t3.id)) AS x
+  FROM t1;
+
+DROP TABLE t1,t2,t3;   
+
+#
+# Bug #22855: Optimizer doesn't rewrite NOT IN subselects to a correlated 
+# subquery 
+#
+CREATE TABLE t1 (a INT NOT NULL);
+INSERT INTO t1 VALUES (1),(-1), (65),(66);
+
+CREATE TABLE t2 (a INT UNSIGNED NOT NULL PRIMARY KEY);
+INSERT INTO t2 VALUES (65),(66);
+
+SELECT a FROM t1 WHERE a NOT IN (65,66);
+SELECT a FROM t1 WHERE a NOT IN (SELECT a FROM t2);
+EXPLAIN SELECT a FROM t1 WHERE a NOT IN (SELECT a FROM t2);
+
+DROP TABLE t1;
+
+--echo End of 5.0 tests
