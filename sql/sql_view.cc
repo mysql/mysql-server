@@ -893,7 +893,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   LEX *old_lex, *lex;
   Query_arena *arena, backup;
   TABLE_LIST *top_view= table->top_table();
-  int res;
+  bool res;
   bool result, view_is_mergeable;
   TABLE_LIST *view_main_select_tables;
   DBUG_ENTER("mysql_make_view");
@@ -1005,7 +1005,6 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 
   {
     Lex_input_stream lip(thd, table->query.str, table->query.length);
-    thd->m_lip= &lip;
     lex_start(thd);
     view_select= &lex->select_lex;
     view_select->select_number= ++thd->select_number;
@@ -1039,7 +1038,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
                                 MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
     CHARSET_INFO *save_cs= thd->variables.character_set_client;
     thd->variables.character_set_client= system_charset_info;
-    res= MYSQLparse((void *)thd);
+    res= parse_sql(thd, &lip);
 
     if ((old_lex->sql_command == SQLCOM_SHOW_FIELDS) ||
         (old_lex->sql_command == SQLCOM_SHOW_CREATE))
@@ -1048,7 +1047,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     thd->variables.character_set_client= save_cs;
     thd->variables.sql_mode= save_mode;
   }
-  if (!res && !thd->is_fatal_error)
+  if (!res)
   {
     TABLE_LIST *view_tables= lex->query_tables;
     TABLE_LIST *view_tables_tail= 0;

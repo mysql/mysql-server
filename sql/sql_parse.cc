@@ -5343,12 +5343,11 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
     sp_cache_flush_obsolete(&thd->sp_func_cache);
 
     Lex_input_stream lip(thd, inBuf, length);
-    thd->m_lip= &lip;
 
-    int err= MYSQLparse(thd);
+    bool err= parse_sql(thd, &lip);
     *found_semicolon= lip.found_semicolon;
 
-    if (!err && ! thd->is_fatal_error)
+    if (!err)
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (mqh_used && thd->user_connect &&
@@ -5371,8 +5370,8 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
             PROCESSLIST.
             Note that we don't need LOCK_thread_count to modify query_length.
           */
-          if (lip.found_semicolon &&
-              (thd->query_length= (ulong)(lip.found_semicolon - thd->query)))
+          if (*found_semicolon &&
+              (thd->query_length= (ulong)(*found_semicolon - thd->query)))
             thd->query_length--;
           /* Actually execute the query */
 	  mysql_execute_command(thd);
@@ -5426,12 +5425,10 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
   DBUG_ENTER("mysql_test_parse_for_slave");
 
   Lex_input_stream lip(thd, inBuf, length);
-  thd->m_lip= &lip;
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
-  int err= MYSQLparse((void*) thd);
 
-  if (!err && ! thd->is_fatal_error &&
+  if (!parse_sql(thd, &lip) &&
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
     error= 1;                  /* Ignore question */
   thd->end_statement();
@@ -7122,4 +7119,35 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
   if (!no_error)
     my_error(ER_WRONG_STRING_LENGTH, MYF(0), str->str, err_msg, max_char_length);
   return TRUE;
+}
+
+
+extern int MYSQLparse(void *thd); // from sql_yacc.cc
+
+
+/**
+  This is a wrapper of MYSQLparse(). All the code should call parse_sql()
+  instead of MYSQLparse().
+
+  @param thd Thread context.
+  @param lip Lexer context.
+
+  @return Error status.
+    @retval FALSE on success.
+    @retval TRUE on parsing error.
+*/
+
+bool parse_sql(THD *thd, Lex_input_stream *lip)
+{
+  bool err_status;
+
+  DBUG_ASSERT(thd->m_lip == NULL);
+
+  thd->m_lip= lip;
+
+  err_status= MYSQLparse(thd) != 0 || thd->is_fatal_error;
+
+  thd->m_lip= NULL;
+
+  return err_status;
 }
