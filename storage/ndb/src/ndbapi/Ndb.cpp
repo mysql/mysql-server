@@ -886,8 +886,8 @@ Ndb::getTupleIdFromNdb(const NdbTableImpl* table,
     DBUG_PRINT("info", ("Next value fetched from database %lu", (ulong) opValue));
     DBUG_PRINT("info", ("Increasing %lu by offset %lu, increment  is %lu", (ulong) (ulong) opValue, (ulong) offset, (ulong) step));
     Uint64 current, next;
-    next = ((Uint64) (opValue + step - offset)) / step;
-    next = next * step + offset;
+    Uint64 div = ((Uint64) (opValue + step - offset)) / step;
+    next = div * step + offset;
     current = (next < step) ? next : next - step;
     tupleId = (opValue <= current) ? current : next;
     DBUG_PRINT("info", ("Returning %lu", (ulong) tupleId));
