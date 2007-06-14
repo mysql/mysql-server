@@ -441,7 +441,7 @@ bool Log_to_csv_event_handler::
               CHARSET_INFO *client_cs)
 {
   TABLE *table= general_log.table;
-  int field_index;
+  uint field_index;
 
   /*
     "INSERT INTO general_log" can generate warning sometimes.
