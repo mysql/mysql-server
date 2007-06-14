@@ -753,7 +753,11 @@ rec_convert_dtuple_to_rec_old(
 	/* Calculate the offset of the origin in the physical record */
 
 	rec = buf + rec_get_converted_extra_size(data_size, n_fields);
-
+#ifdef UNIV_DEBUG
+	/* Suppress Valgrind warnings of ut_ad()
+	in mach_write_to_1(), mach_write_to_2() et al. */
+	memset(buf, 0xff, rec - buf + data_size);
+#endif /* UNIV_DEBUG */
 	/* Store the number of fields */
 	rec_set_n_fields_old(rec, n_fields);
 

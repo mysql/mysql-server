@@ -244,7 +244,15 @@ buf_LRU_search_and_free_block(
 			frame at all */
 
 			if (block->frame) {
+				/* The page was declared uninitialized
+				by buf_LRU_block_remove_hashed_page().
+				We need to flag the contents of the
+				page valid (which it still is) in
+				order to avoid bogus Valgrind
+				warnings. */
+				UNIV_MEM_VALID(block->frame, UNIV_PAGE_SIZE);
 				btr_search_drop_page_hash_index(block->frame);
+				UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
 			}
 
 			ut_a(block->buf_fix_count == 0);
@@ -449,6 +457,7 @@ loop:
 		mutex_enter(&block->mutex);
 
 		block->state = BUF_BLOCK_READY_FOR_USE;
+		UNIV_MEM_ALLOC(block->frame, UNIV_PAGE_SIZE);
 
 		mutex_exit(&block->mutex);
 
@@ -864,12 +873,15 @@ buf_LRU_block_free_non_file_page(
 
 	block->state = BUF_BLOCK_NOT_USED;
 
+	UNIV_MEM_ALLOC(block->frame, UNIV_PAGE_SIZE);
 #ifdef UNIV_DEBUG
 	/* Wipe contents of page to reveal possible stale pointers to it */
 	memset(block->frame, '\0', UNIV_PAGE_SIZE);
 #endif
 	UT_LIST_ADD_FIRST(free, buf_pool->free, block);
 	block->in_free_list = TRUE;
+
+	UNIV_MEM_FREE(block->frame, UNIV_PAGE_SIZE);
 
 	if (srv_use_awe && block->frame) {
 		/* Add to the list of mapped pages */
@@ -939,6 +951,7 @@ buf_LRU_block_remove_hashed_page(
 		    buf_page_address_fold(block->space, block->offset),
 		    block);
 
+	UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
 	block->state = BUF_BLOCK_REMOVE_HASH;
 }
 
