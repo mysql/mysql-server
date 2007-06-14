@@ -384,32 +384,32 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   if ((ret= sp_use_new_db(thd, name->m_db, &old_db, 1, &dbchanged)))
     goto end;
 
+  thd->spcont= NULL;
+
   {
     Lex_input_stream lip(thd, defstr.c_ptr(), defstr.length());
-    thd->m_lip= &lip;
     lex_start(thd);
-    ret= MYSQLparse(thd);
+
+    if (parse_sql(thd, &lip) || newlex.sphead == NULL)
+    {
+      sp_head *sp= newlex.sphead;
+
+      if (dbchanged && (ret= mysql_change_db(thd, &old_db, TRUE)))
+        goto end;
+      delete sp;
+      ret= SP_PARSE_ERROR;
+    }
+    else
+    {
+      if (dbchanged && (ret= mysql_change_db(thd, &old_db, TRUE)))
+        goto end;
+      *sphp= newlex.sphead;
+      (*sphp)->set_definer(&definer_user_name, &definer_host_name);
+      (*sphp)->set_info(created, modified, &chistics, sql_mode);
+      (*sphp)->optimize();
+    }
   }
 
-  thd->spcont= 0;
-  if (ret || thd->is_fatal_error || newlex.sphead == NULL)
-  {
-    sp_head *sp= newlex.sphead;
-
-    if (dbchanged && (ret= mysql_change_db(thd, &old_db, TRUE)))
-      goto end;
-    delete sp;
-    ret= SP_PARSE_ERROR;
-  }
-  else
-  {
-    if (dbchanged && (ret= mysql_change_db(thd, &old_db, TRUE)))
-      goto end;
-    *sphp= newlex.sphead;
-    (*sphp)->set_definer(&definer_user_name, &definer_host_name);
-    (*sphp)->set_info(created, modified, &chistics, sql_mode);
-    (*sphp)->optimize();
-  }
 end:
   lex_end(thd->lex);
   thd->spcont= old_spcont;
