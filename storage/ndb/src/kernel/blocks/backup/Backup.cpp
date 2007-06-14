@@ -448,6 +448,41 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
 		  filePtr.p->m_flags);
       }
     }
+
+    ndbout_c("m_curr_disk_write_speed: %u  m_words_written_this_period: %u  m_overflow_disk_write: %u",
+              m_curr_disk_write_speed, m_words_written_this_period, m_overflow_disk_write);
+    ndbout_c("m_reset_delay_used: %u  m_reset_disk_speed_time: %llu",
+             m_reset_delay_used, (Uint64)m_reset_disk_speed_time);
+    for(c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr))
+    {
+      ndbout_c("BackupRecord %u:  BackupId: %u  MasterRef: %x  ClientRef: %x",
+               ptr.i, ptr.p->backupId, ptr.p->masterRef, ptr.p->clientRef);
+      ndbout_c(" State: %u", ptr.p->slaveState.getState());
+      ndbout_c(" noOfByte: %llu  noOfRecords: %llu",
+               ptr.p->noOfBytes, ptr.p->noOfRecords);
+      ndbout_c(" noOfLogBytes: %llu  noOfLogRecords: %llu",
+               ptr.p->noOfLogBytes, ptr.p->noOfLogRecords);
+      ndbout_c(" errorCode: %u", ptr.p->errorCode);
+      BackupFilePtr filePtr;
+      for(ptr.p->files.first(filePtr); filePtr.i != RNIL; 
+	  ptr.p->files.next(filePtr))
+      {
+	ndbout_c(" file %u:  type: %u  flags: H'%x  tableId: %u  fragmentId: %u",
+                 filePtr.i, filePtr.p->fileType, filePtr.p->m_flags,
+                 filePtr.p->tableId, filePtr.p->fragmentNo);
+      }
+      if (ptr.p->slaveState.getState() == SCANNING && ptr.p->dataFilePtr != RNIL)
+      {
+        c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
+        OperationRecord & op = filePtr.p->operation;
+        Uint32 *tmp = NULL;
+        Uint32 sz = 0;
+        bool eof = FALSE;
+        bool ready = op.dataBuffer.getReadPtr(&tmp, &sz, &eof);
+        ndbout_c("ready: %s  eof: %s", ready ? "TRUE" : "FALSE", eof ? "TRUE" : "FALSE");
+      }
+    }
+    return;
   }
   if(signal->theData[0] == 24){
     /**
@@ -2771,6 +2806,8 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
   c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
   filePtr.p->m_flags |= BackupFile::BF_OPENING;
 
+  if (c_defaults.m_o_direct)
+    req->fileFlags |= FsOpenReq::OM_DIRECT;
   req->userPointer = filePtr.i;
   FsOpenReq::setVersion(req->fileNumber, 2);
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
@@ -3745,12 +3782,31 @@ Backup::OperationRecord::newFragment(Uint32 tableId, Uint32 fragNo)
 }
 
 bool
-Backup::OperationRecord::fragComplete(Uint32 tableId, Uint32 fragNo)
+Backup::OperationRecord::fragComplete(Uint32 tableId, Uint32 fragNo, bool fill_record)
 {
   Uint32 * tmp;
   const Uint32 footSz = sizeof(BackupFormat::DataFile::FragmentFooter) >> 2;
+  Uint32 sz = footSz + 1;
 
-  if(dataBuffer.getWritePtr(&tmp, footSz + 1)) {
+  if (fill_record)
+  {
+    Uint32 * new_tmp;
+    if (!dataBuffer.getWritePtr(&tmp, sz))
+      return false;
+    new_tmp = tmp + sz;
+
+    if ((UintPtr)new_tmp & (sizeof(Page32)-1))
+    {
+      /* padding is needed to get full write */
+      new_tmp += 2 /* to fit empty header minimum 2 words*/;
+      new_tmp = (Uint32 *)(((UintPtr)new_tmp + sizeof(Page32)-1) &
+                            ~(UintPtr)(sizeof(Page32)-1));
+      /* new write sz */
+      sz = new_tmp - tmp;
+    }
+  }
+
+  if(dataBuffer.getWritePtr(&tmp, sz)) {
     jam();
     * tmp = 0; // Finish record stream
     tmp++;
@@ -3762,7 +3818,17 @@ Backup::OperationRecord::fragComplete(Uint32 tableId, Uint32 fragNo)
     foot->FragmentNo    = htonl(fragNo);
     foot->NoOfRecords   = htonl(noOfRecords);
     foot->Checksum      = htonl(0);
-    dataBuffer.updateWritePtr(footSz + 1);
+
+    if (sz != footSz + 1)
+    {
+      tmp += footSz;
+      memset(tmp, 0, (sz - footSz - 1) * 4);
+      *tmp = htonl(BackupFormat::EMPTY_ENTRY);
+      tmp++;
+      *tmp = htonl(sz - footSz - 1);
+    }
+
+    dataBuffer.updateWritePtr(sz);
     return true;
   }//if
   return false;
@@ -3864,8 +3930,13 @@ Backup::fragmentCompleted(Signal* signal, BackupFilePtr filePtr)
     return;
   }//if
     
+  BackupRecordPtr ptr LINT_SET_PTR;
+  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+
   OperationRecord & op = filePtr.p->operation;
-  if(!op.fragComplete(filePtr.p->tableId, filePtr.p->fragmentNo)) {
+  if(!op.fragComplete(filePtr.p->tableId, filePtr.p->fragmentNo,
+                      c_defaults.m_o_direct))
+  {
     jam();
     signal->theData[0] = BackupContinueB::BUFFER_FULL_FRAG_COMPLETE;
     signal->theData[1] = filePtr.i;
@@ -3875,9 +3946,6 @@ Backup::fragmentCompleted(Signal* signal, BackupFilePtr filePtr)
   
   filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_SCAN_THREAD;
   
-  BackupRecordPtr ptr LINT_SET_PTR;
-  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
-
   if (ptr.p->is_lcp())
   {
     ptr.p->slaveState.setState(STOPPING);
@@ -4914,6 +4982,8 @@ Backup::lcp_open_file(Signal* signal, BackupRecordPtr ptr)
     FsOpenReq::OM_CREATE | 
     FsOpenReq::OM_APPEND |
     FsOpenReq::OM_AUTOSYNC;
+  if (c_defaults.m_o_direct)
+    req->fileFlags |= FsOpenReq::OM_DIRECT;
   FsOpenReq::v2_setCount(req->fileNumber, 0xFFFFFFFF);
   req->auto_sync_size = c_defaults.m_disk_synch_size;
   

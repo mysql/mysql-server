@@ -64,6 +64,7 @@
 
 #define CFG_DB_FILESYSTEM_PATH        125
 #define CFG_DB_NO_REDOLOG_FILES       126
+#define CFG_DB_REDOLOG_FILE_SIZE      140
 
 #define CFG_DB_LCP_DISC_PAGES_TUP     127
 #define CFG_DB_LCP_DISC_PAGES_TUP_SR  128
@@ -80,6 +81,8 @@
 #define CFG_DB_BACKUP_LOG_BUFFER_MEM      135
 #define CFG_DB_BACKUP_WRITE_SIZE          136
 #define CFG_DB_BACKUP_MAX_WRITE_SIZE      139
+
+#define CFG_DB_WATCHDOG_INTERVAL_INITIAL  141
 
 #define CFG_LOG_DESTINATION           147
 
@@ -112,6 +115,10 @@
 #define CFG_DB_CHECKPOINT_SPEED_SR    165
 
 #define CFG_DB_MEMREPORT_FREQUENCY    166
+
+#define CFG_DB_O_DIRECT               168
+
+#define CFG_DB_MAX_ALLOCATE           169
 
 #define CFG_DB_SGA                    198 /* super pool mem */
 #define CFG_DB_DATA_MEM_2             199 /* used in special build in 5.1 */
