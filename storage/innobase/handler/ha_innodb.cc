@@ -2285,7 +2285,7 @@ ha_innobase::table_flags() const
            is called from mysql_lock_tables()) until after this
            function has been called (which is called in lock_tables()
            before that function calls mysql_lock_tables()). */
-        ulong const tx_isolation= thd->variables.tx_isolation;
+        ulong const tx_isolation= thd_tx_isolation(thd);
         if (tx_isolation <= ISO_READ_COMMITTED)
         {
 	        ulong const binlog_format= thd->variables.binlog_format;
