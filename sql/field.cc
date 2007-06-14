@@ -6395,7 +6395,8 @@ uint Field_string::get_key_image(uchar *buff, uint length, imagetype type_arg)
                           length / field_charset->mbmaxlen);
   memcpy(buff, ptr, bytes);
   if (bytes < length)
-    bzero(buff + bytes, length - bytes);
+    field_charset->cset->fill(field_charset, (char*) buff + bytes,
+                              length - bytes, field_charset->pad_char);
   return bytes;
 }
 
