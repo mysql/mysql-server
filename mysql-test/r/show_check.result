@@ -752,4 +752,6 @@ Tables_in_test	Table_type
 été	BASE TABLE
 drop table `été`;
 set names latin1;
+show columns from `#mysql50#????????`;
+ERROR 42S02: Table 'test.#mysql50#????????' doesn't exist
 End of 5.1 tests

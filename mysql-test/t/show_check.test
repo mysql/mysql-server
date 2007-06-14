@@ -593,4 +593,10 @@ show full tables;
 drop table `été`;
 set names latin1;
 
+#
+# Bug#26402 Server crashes with old-style named table
+#
+--error ER_NO_SUCH_TABLE
+show columns from `#mysql50#????????`;
+
 --echo End of 5.1 tests
