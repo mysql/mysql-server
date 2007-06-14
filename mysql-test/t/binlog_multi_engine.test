@@ -1,5 +1,6 @@
 source include/have_blackhole.inc;
 source include/have_ndb.inc;
+source include/have_binlog_format_mixed_or_row.inc;
 
 CREATE TABLE t1m (m INT, n INT) ENGINE=MYISAM;
 CREATE TABLE t1b (b INT, c INT) ENGINE=BLACKHOLE;
@@ -50,10 +51,6 @@ UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
 error ER_BINLOG_LOGGING_IMPOSSIBLE;
 UPDATE t1n, t1b SET e = 2, b = 3 WHERE f = c;
 
-TRUNCATE t1m;
-TRUNCATE t1b;
-TRUNCATE t1n;
+DROP TABLE t1m, t1b, t1n;
 
 source include/show_binlog_events.inc;
-
-DROP TABLE t1m, t1b, t1n;
