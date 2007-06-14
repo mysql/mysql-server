@@ -1378,7 +1378,9 @@ test.t1	check	status	OK
 drop table t1;
 check table v1;
 Table	Op	Msg_type	Msg_text
-test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+test.v1	check	Error	Table 'test.t1' doesn't exist
+test.v1	check	Error	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+test.v1	check	error	Corrupt
 drop view v1;
 create table t1 (a int);
 create table t2 (a int);
@@ -1902,11 +1904,17 @@ CREATE VIEW v6 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t2;
 DROP TABLE t1;
 CHECK TABLE v1, v2, v3, v4, v5, v6;
 Table	Op	Msg_type	Msg_text
-test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+test.v1	check	Error	Table 'test.t1' doesn't exist
+test.v1	check	Error	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+test.v1	check	error	Corrupt
 test.v2	check	status	OK
-test.v3	check	error	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+test.v3	check	Error	Table 'test.t1' doesn't exist
+test.v3	check	Error	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+test.v3	check	error	Corrupt
 test.v4	check	status	OK
-test.v5	check	error	View 'test.v5' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+test.v5	check	Error	Table 'test.t1' doesn't exist
+test.v5	check	Error	View 'test.v5' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+test.v5	check	error	Corrupt
 test.v6	check	status	OK
 drop view v1, v2, v3, v4, v5, v6;
 drop table t2;
@@ -1926,11 +1934,17 @@ CREATE VIEW v6 AS SELECT f2() FROM t3;
 drop function f1;
 CHECK TABLE v1, v2, v3, v4, v5, v6;
 Table	Op	Msg_type	Msg_text
-test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+test.v1	check	Error	FUNCTION test.f1 does not exist
+test.v1	check	Error	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+test.v1	check	error	Corrupt
 test.v2	check	status	OK
-test.v3	check	error	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+test.v3	check	Error	FUNCTION test.f1 does not exist
+test.v3	check	Error	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+test.v3	check	error	Corrupt
 test.v4	check	status	OK
-test.v5	check	error	View 'test.v5' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+test.v5	check	Error	FUNCTION test.f1 does not exist
+test.v5	check	Error	View 'test.v5' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+test.v5	check	error	Corrupt
 test.v6	check	status	OK
 create function f1 () returns int return (select max(col1) from t1);
 DROP TABLE t1;
@@ -2366,35 +2380,29 @@ CREATE TABLE t1(id INT);
 CREATE VIEW v1 AS SELECT id FROM t1;
 OPTIMIZE TABLE v1;
 Table	Op	Msg_type	Msg_text
-test.v1	optimize	error	'test.v1' is not BASE TABLE
-Warnings:
-Error	1347	'test.v1' is not BASE TABLE
+test.v1	optimize	Error	'test.v1' is not BASE TABLE
+test.v1	optimize	error	Corrupt
 ANALYZE TABLE v1;
 Table	Op	Msg_type	Msg_text
-test.v1	analyze	error	'test.v1' is not BASE TABLE
-Warnings:
-Error	1347	'test.v1' is not BASE TABLE
+test.v1	analyze	Error	'test.v1' is not BASE TABLE
+test.v1	analyze	error	Corrupt
 REPAIR TABLE v1;
 Table	Op	Msg_type	Msg_text
-test.v1	repair	error	'test.v1' is not BASE TABLE
-Warnings:
-Error	1347	'test.v1' is not BASE TABLE
+test.v1	repair	Error	'test.v1' is not BASE TABLE
+test.v1	repair	error	Corrupt
 DROP TABLE t1;
 OPTIMIZE TABLE v1;
 Table	Op	Msg_type	Msg_text
-test.v1	optimize	error	'test.v1' is not BASE TABLE
-Warnings:
-Error	1347	'test.v1' is not BASE TABLE
+test.v1	optimize	Error	'test.v1' is not BASE TABLE
+test.v1	optimize	error	Corrupt
 ANALYZE TABLE v1;
 Table	Op	Msg_type	Msg_text
-test.v1	analyze	error	'test.v1' is not BASE TABLE
-Warnings:
-Error	1347	'test.v1' is not BASE TABLE
+test.v1	analyze	Error	'test.v1' is not BASE TABLE
+test.v1	analyze	error	Corrupt
 REPAIR TABLE v1;
 Table	Op	Msg_type	Msg_text
-test.v1	repair	error	'test.v1' is not BASE TABLE
-Warnings:
-Error	1347	'test.v1' is not BASE TABLE
+test.v1	repair	Error	'test.v1' is not BASE TABLE
+test.v1	repair	error	Corrupt
 DROP VIEW v1;
 create definer = current_user() sql security invoker view v1 as select 1;
 show create view v1;

@@ -6059,3 +6059,5 @@ ER_SLAVE_INCIDENT
         eng "The incident %s occured on the master. Message: %-.64s"
 ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT
         eng "Table has no partition for some existing values"
+ER_ADMIN_WRONG_MRG_TABLE
+	eng "Table '%-.64s' is differently defined or of non-MyISAM type or doesn't exist"
