@@ -6,6 +6,34 @@ attr1 INT NOT NULL,
 attr2 INT,
 attr3 VARCHAR(10)
 ) ENGINE=ndbcluster;
+drop table t1;
+SHOW GLOBAL STATUS LIKE 'ndb%';
+Variable_name	Value
+Ndb_cluster_node_id	#
+Ndb_config_from_host	#
+Ndb_config_from_port	#
+Ndb_number_of_data_nodes	#
+SHOW GLOBAL VARIABLES LIKE 'ndb%';
+Variable_name	Value
+ndb_autoincrement_prefetch_sz	#
+ndb_cache_check_time	#
+ndb_connectstring	#
+ndb_extra_logging	#
+ndb_force_send	#
+ndb_index_stat_cache_entries	#
+ndb_index_stat_enable	#
+ndb_index_stat_update_freq	#
+ndb_report_thresh_binlog_epoch_slip	#
+ndb_report_thresh_binlog_mem_usage	#
+ndb_use_copying_alter_table	#
+ndb_use_exact_count	#
+ndb_use_transactions	#
+CREATE TABLE t1 (
+pk1 INT NOT NULL PRIMARY KEY,
+attr1 INT NOT NULL,
+attr2 INT,
+attr3 VARCHAR(10)
+) ENGINE=ndbcluster;
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	pk1	A	0	NULL	NULL		BTREE	
