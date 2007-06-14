@@ -2969,6 +2969,9 @@ private:
   Uint32 cnoOfAllocatedPages;
   Uint32 c_no_of_pages;
 
+  /* read ahead in pages during disk order scan */
+  Uint32 m_max_page_read_ahead;
+  
   Tablerec *tablerec;
   Uint32 cnoOfTablerec;
 
