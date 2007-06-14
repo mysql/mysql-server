@@ -178,8 +178,11 @@ public:
   // Pointers set during parsing
   const char *m_param_begin;
   const char *m_param_end;
+
+private:
   const char *m_body_begin;
 
+public:
   /*
     Security context for stored routine which should be run under
     definer privileges.
@@ -296,6 +299,8 @@ public:
 
   void set_info(longlong created, longlong modified,
 		st_sp_chistics *chistics, ulong sql_mode);
+
+  void set_body_begin_ptr(Lex_input_stream *lip, const char *begin_ptr);
 
   void set_definer(const char *definer, uint definerlen);
   void set_definer(const LEX_STRING *user_name, const LEX_STRING *host_name);
