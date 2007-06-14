@@ -2620,6 +2620,9 @@ private:
   ArrayPool<Page> c_page_pool;
   Uint32 cnoOfAllocatedPages;
   Uint32 m_max_allocate_pages;
+
+  /* read ahead in pages during disk order scan */
+  Uint32 m_max_page_read_ahead;
   
   Tablerec *tablerec;
   Uint32 cnoOfTablerec;
