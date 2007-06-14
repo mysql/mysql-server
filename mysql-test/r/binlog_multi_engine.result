@@ -35,9 +35,7 @@ ERROR HY000: Binary logging not possible. Message: Row-based format required for
 UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
 UPDATE t1n, t1b SET e = 2, b = 3 WHERE f = c;
 ERROR HY000: Binary logging not possible. Message: Statement cannot be logged to the binary log in row-based nor statement-based format
-TRUNCATE t1m;
-TRUNCATE t1b;
-TRUNCATE t1n;
+DROP TABLE t1m, t1b, t1n;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1m (m INT, n INT) ENGINE=MYISAM
@@ -72,8 +70,6 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1m)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1n)
 master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1m
-master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1b
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1n)
 master-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
@@ -83,5 +79,4 @@ master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Update_rows	#	#	table_id: #
 master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1n
-DROP TABLE t1m, t1b, t1n;
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1m, t1b, t1n
