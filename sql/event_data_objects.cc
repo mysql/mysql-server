@@ -1875,11 +1875,9 @@ Event_job_data::execute(THD *thd, bool drop)
 
   {
     Lex_input_stream lip(thd, thd->query, thd->query_length);
-    thd->m_lip= &lip;
     lex_start(thd);
-    int err= MYSQLparse(thd);
 
-    if (err || thd->is_fatal_error)
+    if (parse_sql(thd, &lip))
     {
       sql_print_error("Event Scheduler: "
                       "%serror during compilation of %s.%s",

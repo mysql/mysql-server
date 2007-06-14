@@ -618,6 +618,8 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
                               uint max_char_length, CHARSET_INFO *cs,
                               bool no_error);
 
+bool parse_sql(THD *thd, class Lex_input_stream *lip);
+
 enum enum_mysql_completiontype {
   ROLLBACK_RELEASE=-2, ROLLBACK=1,  ROLLBACK_AND_CHAIN=7,
   COMMIT_RELEASE=-1,   COMMIT=0,    COMMIT_AND_CHAIN=6
@@ -1953,7 +1955,6 @@ void free_list(I_List <i_string_pair> *list);
 void free_list(I_List <i_string> *list);
 
 /* sql_yacc.cc */
-extern int MYSQLparse(void *thd);
 #ifndef DBUG_OFF
 extern void turn_parser_debug_on();
 #endif

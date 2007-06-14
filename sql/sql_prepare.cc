@@ -2858,12 +2858,11 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
 
   Lex_input_stream lip(thd, thd->query, thd->query_length);
   lip.stmt_prepare_mode= TRUE;
-  thd->m_lip= &lip;
   lex_start(thd);
-  int err= MYSQLparse((void *)thd);
 
-  error= err || thd->is_fatal_error ||
-      thd->net.report_error || init_param_array(this);
+  error= parse_sql(thd, &lip) ||
+         thd->net.report_error ||
+         init_param_array(this);
 
   /*
     While doing context analysis of the query (in check_prepared_statement)
