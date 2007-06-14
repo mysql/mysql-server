@@ -6,7 +6,7 @@
 -- source include/have_log_bin.inc
 
 # And it requires InnoDB
--- source include/not_embedded.inc
+-- source include/have_log_bin.inc
 -- source include/have_innodb.inc
 
 connect (con1,localhost,root,,);

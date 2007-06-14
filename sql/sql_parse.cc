@@ -1009,9 +1009,12 @@ static int check_connection(THD *thd)
     Old clients send null-terminated string as password; new clients send
     the size (1 byte) + string (not null-terminated). Hence in case of empty
     password both send '\0'.
+
+    Cast *passwd to an unsigned char, so that it doesn't extend the sign for
+    *passwd > 127 and become 2**32-127 after casting to uint.
   */
   uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
-    *passwd++ : strlen(passwd);
+    (uchar)(*passwd++) : strlen(passwd);
   db= thd->client_capabilities & CLIENT_CONNECT_WITH_DB ?
     db + passwd_len + 1 : 0;
   uint db_len= db ? strlen(db) : 0;
@@ -1697,11 +1700,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       Old clients send null-terminated string ('\0' for empty string) for
       password.  New clients send the size (1 byte) + string (not null
       terminated, so also '\0' for empty string).
+
+      Cast *passwd to an unsigned char, so that it doesn't extend the sign
+      for *passwd > 127 and become 2**32-127 after casting to uint.
     */
     char db_buff[NAME_LEN+1];               // buffer to store db in utf8
     char *db= passwd;
     uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
-      *passwd++ : strlen(passwd);
+      (uchar)(*passwd++) : strlen(passwd);
     db+= passwd_len + 1;
 #ifndef EMBEDDED_LIBRARY
     /* Small check for incoming packet */
