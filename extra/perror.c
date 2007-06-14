@@ -38,7 +38,7 @@ int mgmapi_error_string(int err_no, char *str, int size)
   int i;
   for (i= 0; i < ndb_mgm_noOfErrorMsgs; i++)
   {
-    if (ndb_mgm_error_msgs[i].code == err_no)
+    if ((int)ndb_mgm_error_msgs[i].code == err_no)
     {
       my_snprintf(str, size-1, "%s", ndb_mgm_error_msgs[i].msg);
       str[size-1]= '\0';
