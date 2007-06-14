@@ -62,13 +62,13 @@ foreach my $node (@nodes)
 	(($config_get_fs)?" with filesystem":"").
 	"\n\n";
     my $recurse= ($config_get_fs)?'-r ':'';
-    system 'scp '.$recurse.$config_username.config($node,'host').
+    system 'scp -p '.$recurse.$config_username.config($node,'host').
 	':'.config($node,'datadir')."/ndb_".$node."* ".
 	"$reportdir/\n";
 }
 
 print "\n\n Copying configuration file...\n\n\t$config_file\n\n";
-system "cp $config_file $reportdir/";
+system "cp -p $config_file $reportdir/";
 
 my $r = system 'bzip2 2>&1 > /dev/null  < /dev/null';
 my $outfile;
