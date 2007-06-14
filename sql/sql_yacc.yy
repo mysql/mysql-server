@@ -1872,7 +1872,7 @@ ev_sql_stmt:
             bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
             lex->sphead->m_chistics= &lex->sp_chistics;
 
-            lex->sphead->m_body_begin= lip->get_cpp_ptr();
+            lex->sphead->set_body_begin_ptr(lip, lip->get_cpp_ptr());
           }
           ev_sql_stmt_inner
           {
@@ -2066,7 +2066,7 @@ create_function_tail:
             Lex_input_stream *lip= thd->m_lip;
 
 	    lex->sphead->m_chistics= &lex->sp_chistics;
-            lex->sphead->m_body_begin= lip->get_cpp_tok_start();
+            lex->sphead->set_body_begin_ptr(lip, lip->get_cpp_tok_start());
 	  }
 	  sp_proc_stmt
 	  {
@@ -11489,7 +11489,7 @@ trigger_tail:
 
 	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  lex->sphead->m_chistics= &lex->sp_chistics;
-          lex->sphead->m_body_begin= lip->get_cpp_ptr();
+          lex->sphead->set_body_begin_ptr(lip, lip->get_cpp_ptr());
 	}
         sp_proc_stmt /* $16 */
         { /* $17 */
@@ -11592,7 +11592,7 @@ sp_tail:
           Lex_input_stream *lip= thd->m_lip;
 
 	  lex->sphead->m_chistics= &lex->sp_chistics;
-          lex->sphead->m_body_begin= lip->get_cpp_tok_start();
+          lex->sphead->set_body_begin_ptr(lip, lip->get_cpp_tok_start());
 	}
 	sp_proc_stmt
 	{
