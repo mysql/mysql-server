@@ -21,7 +21,8 @@ libndbmgmclient_la_LIBADD = ../mgmapi/libmgmapi.la \
 			    ../common/logger/liblogger.la \
 			    ../common/portlib/libportlib.la \
 			    ../common/util/libgeneral.la \
-			    ../common/portlib/libportlib.la
+			    ../common/portlib/libportlib.la \
+			    ../common/debugger/libtrace.la
 
 
 ndb_mgm_SOURCES = main.cpp
