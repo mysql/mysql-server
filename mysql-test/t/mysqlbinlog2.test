@@ -3,9 +3,6 @@
 
 -- source include/have_log_bin.inc
 
-# Embedded server doesn't support binlogging
--- source include/not_embedded.inc
-
 --disable_warnings
 drop table if exists t1;
 --enable_warnings

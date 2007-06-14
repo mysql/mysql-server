@@ -4,10 +4,8 @@
 # slave is always with --skip-innodb in the testsuite. I (Guilhem) however
 # did some tests manually on a slave; tables are replicated fine and
 # Exec_Master_Log_Pos advances as expected.
--- source include/have_log_bin.inc
-# Embedded server doesn't support binlogging
--- source include/not_embedded.inc
 
+-- source include/have_log_bin.inc
 -- source include/have_innodb.inc
 
 --disable_warnings
@@ -28,9 +26,7 @@ insert into t1 values(1);
 insert into t2 select * from t1;
 commit;
 
---replace_column 5 #
---replace_result "xid=15" "xid=9"
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 delete from t1;
 delete from t2;
@@ -42,8 +38,7 @@ insert into t2 select * from t1;
 # should say some changes to non-transact1onal tables couldn't be rolled back
 rollback;
 
---replace_column 5 #
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 delete from t1;
 delete from t2;
@@ -57,9 +52,7 @@ insert into t2 select * from t1;
 rollback to savepoint my_savepoint;
 commit;
 
---replace_column 5 #
---replace_result "xid=48" "xid=26"
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 delete from t1;
 delete from t2;
@@ -75,9 +68,7 @@ insert into t1 values(7);
 commit;
 select a from t1 order by a; # check that savepoints work :)
 
---replace_column 5 #
---replace_result "xid=70" "xid=38"
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 # and when ROLLBACK is not explicit?
 delete from t1;
@@ -97,8 +88,7 @@ connection con2;
 # so SHOW BINLOG EVENTS may come before con1 does the loggin. To be sure that
 # logging has been done, we use a user lock.
 select get_lock("a",10);
---replace_column 5 #
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 # and when not in a transact1on?
 delete from t1;
@@ -108,9 +98,7 @@ reset master;
 insert into t1 values(9);
 insert into t2 select * from t1;
 
---replace_column 5 #
---replace_result "xid=118" "xid=61"
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 # Check that when the query updat1ng the MyISAM table is the first in the
 # transaction, we log it immediately.
@@ -121,16 +109,11 @@ reset master;
 insert into t1 values(10); # first make t1 non-empty
 begin;
 insert into t2 select * from t1;
---replace_column 5 #
---replace_result "xid=132" "xid=67"
-show binlog events from 98;
+source include/show_binlog_events.inc;
 insert into t1 values(11);
 commit;
 
---replace_column 5 #
---replace_result "xid=132" "xid=67" "xid=135" "xid=69"
-show binlog events from 98;
-
+source include/show_binlog_events.inc;
 
 # Check that things work like before this BEGIN/ROLLBACK code was added,
 # when t2 is INNODB 
@@ -146,9 +129,7 @@ insert into t1 values(12);
 insert into t2 select * from t1;
 commit;
 
---replace_column 5 #
---replace_result "xid=154" "xid=79"
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 delete from t1;
 delete from t2;
@@ -159,8 +140,7 @@ insert into t1 values(13);
 insert into t2 select * from t1;
 rollback;
 
---replace_column 5 #
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 delete from t1;
 delete from t2;
@@ -174,9 +154,7 @@ insert into t2 select * from t1;
 rollback to savepoint my_savepoint;
 commit;
 
---replace_column 5 #
---replace_result "xid=186" "xid=95"
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 delete from t1;
 delete from t2;
@@ -192,9 +170,7 @@ insert into t1 values(18);
 commit;
 select a from t1 order by a; # check that savepoints work :)
 
---replace_column 5 #
---replace_result "xid=207" "xid=106"
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 # Test for BUG#5714, where a MyISAM update in the transaction used to
 # release row-level locks in InnoDB
@@ -253,9 +229,7 @@ insert into t2 values (3);
 disconnect con2;
 connection con3;
 select get_lock("lock1",60);
---replace_column 5 #
---replace_result "xid=207" "xid=106" "xid=225" "xid=115" "xid=228" "xid=116" "xid=232" "xid=118" "xid=259" "xid=133"
-show binlog events from 98;
+source include/show_binlog_events.inc;
 do release_lock("lock1");
 drop table t0,t2;
 

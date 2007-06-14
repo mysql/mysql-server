@@ -2,9 +2,6 @@
 
 -- source include/have_log_bin.inc
 
-# Embedded server doesn't support binlogging
--- source include/not_embedded.inc
-
 # we need this for getting fixed timestamps inside of this test
 set timestamp=1000000000;
 
