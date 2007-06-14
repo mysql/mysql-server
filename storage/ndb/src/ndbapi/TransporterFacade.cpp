@@ -1403,9 +1403,6 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
     }
     if (wait_time == -1)
     {
-#ifdef VM_TRACE
-      ndbout << "Waited WAITFOR_RESPONSE_TIMEOUT, continuing wait" << endl;
-#endif
       continue;
     }
     wait_time= max_time - NdbTick_CurrentMillisecond();
