@@ -2,8 +2,8 @@ use test;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
 Connected to Management Server at: :
 Waiting for completed, this may take several minutes
-Backup  started from node 
-Backup  started from node  completed
+Node : Backup  started from node 
+Node : Backup  started from node  completed
  StartGCP:  StopGCP: 
  #Records:  #LogRecords: 
  Data:  bytes Log:  bytes
@@ -57,8 +57,8 @@ insert into t1 values
 );
 Connected to Management Server at: :
 Waiting for completed, this may take several minutes
-Backup  started from node 
-Backup  started from node  completed
+Node : Backup  started from node 
+Node : Backup  started from node  completed
  StartGCP:  StopGCP: 
  #Records:  #LogRecords: 
  Data:  bytes Log:  bytes
