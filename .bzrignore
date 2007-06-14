@@ -3000,3 +3000,4 @@ storage/maria/unittest/ma_pagecache_consist_64kWR-t-big
 storage/maria/unittest/ma_pagecache_single_64k-t-big
 storage/maria/maria_control
 storage/maria/maria_log.*
+storage/maria/unittest/ma_test_loghandler_long-t-big

@@ -73,6 +73,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     translog_destroy();
     exit(1);
   }
+  example_loghandler_init();
 
   if ((stat= my_stat(first_translog_file, &st,  MYF(0))) == 0)
   {
@@ -90,7 +91,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
   parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
   if (translog_write_record(&lsn,
-                            LOGREC_LONG_TRANSACTION_ID,
+                            LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
                             &dummy_transaction_object, NULL, 6,
                             TRANSLOG_INTERNAL_PARTS + 1,
                             parts))
