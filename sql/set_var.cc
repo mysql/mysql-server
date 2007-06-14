@@ -699,8 +699,6 @@ static SHOW_VAR fixed_vars[]= {
 #ifdef HAVE_SYS_UN_H
   {"socket",                  (char*) &mysqld_unix_port,            SHOW_CHAR_PTR},
 #endif
-  {"table_definition_cache",  (char*) &table_def_size,              SHOW_LONG},
-  {"table_lock_wait_timeout", (char*) &table_lock_wait_timeout,     SHOW_LONG },
 #ifdef HAVE_THR_SETCONCURRENCY
   {"thread_concurrency",      (char*) &concurrency,                 SHOW_LONG},
 #endif

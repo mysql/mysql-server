@@ -29,6 +29,9 @@ SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name 
 
 # wait 3 seconds, so the event can trigger
 --real_sleep 3
+let $wait_condition= 
+  SELECT count(*) = 1 FROM t1 WHERE c = 'from justonce';
+--source include/wait_condition.inc  
 
 # check that table t1 contains something
 --echo "in the master"
