@@ -305,6 +305,9 @@ bool Log_to_csv_event_handler::open_log_table(uint log_table_type)
     table->table->use_all_columns();
     table->table->locked_by_logger= TRUE;
     table->table->no_replicate= TRUE;
+
+    /* Honor next number columns if present */
+    table->table->next_number_field= table->table->found_next_number_field;
   }
   /* restore thread settings */
   if (curr)
@@ -438,6 +441,7 @@ bool Log_to_csv_event_handler::
               CHARSET_INFO *client_cs)
 {
   TABLE *table= general_log.table;
+  int field_index;
 
   /*
     "INSERT INTO general_log" can generate warning sometimes.
@@ -487,6 +491,12 @@ bool Log_to_csv_event_handler::
   table->field[3]->set_notnull();
   table->field[4]->set_notnull();
   table->field[5]->set_notnull();
+
+  /* Set any extra columns to their default values */
+  for (field_index= 6 ; field_index < table->s->fields ; field_index++)
+  {
+    table->field[field_index]->set_default();
+  }
 
   /* log table entries are not replicated at the moment */
   tmp_disable_binlog(current_thd);
@@ -1329,6 +1339,7 @@ void Log_to_csv_event_handler::
   /* close the table */
   log_thd->store_globals();
   table->table->file->ha_rnd_end();
+  table->table->file->ha_release_auto_increment();
   /* discard logger mark before unlock*/
   table->table->locked_by_logger= FALSE;
   close_thread_tables(log_thd, lock_in_use);
