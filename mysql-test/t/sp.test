@@ -6975,7 +6975,7 @@ use test|
 --disable_warnings
 drop function if exists bug20777|
 drop table if exists examplebug20777|
---enabled_warnings
+--enable_warnings
 create function bug20777(f1 bigint unsigned) returns bigint unsigned
 begin
   set f1 = (f1 - 10); set f1 = (f1 + 10);
@@ -7054,6 +7054,17 @@ SELECT bug5274_f2()|
 DROP FUNCTION bug5274_f1|
 DROP FUNCTION bug5274_f2|
 
+#
+# Bug#21513 (SP having body starting with quoted label rendered unusable)
+#
+--disable_warnings
+drop procedure if exists proc_21513|
+--enable_warnings
+
+create procedure proc_21513()`my_label`:BEGIN END|
+show create procedure proc_21513|
+
+drop procedure proc_21513|
 
 ###
 --echo End of 5.0 tests.
@@ -7101,3 +7112,23 @@ select count(*) from t1 /* must be 3 */;
 
 drop table t1,t2;
 drop function   bug27354;
+
+#
+# Bug #28605: SHOW CREATE VIEW with views using stored_procedures no longer
+# showing SP names.
+#
+CREATE TABLE t1 (a INT); 
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE FUNCTION metered(a INT) RETURNS INT RETURN 12;
+
+CREATE VIEW v1 AS SELECT test.metered(a) as metered FROM t1;
+
+SHOW CREATE VIEW v1;
+
+DROP VIEW v1;
+DROP FUNCTION metered;
+DROP TABLE t1;
+
+
+--echo End of 5.0 tests

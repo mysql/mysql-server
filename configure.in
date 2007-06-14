@@ -7,7 +7,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 5.0.42)
+AM_INIT_AUTOMAKE(mysql, 5.0.44)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -23,7 +23,7 @@ NDB_SHARED_LIB_VERSION=$NDB_SHARED_LIB_MAJOR_VERSION:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=42
+NDB_VERSION_BUILD=44
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -1947,6 +1947,19 @@ else
 fi
 AC_SUBST(TERMCAP_LIB)
 
+# Check if the termcap function 'tgoto' is already declared in
+# system header files or if it need to be declared locally
+AC_CHECK_DECLS(tgoto,,,[
+#ifdef HAVE_CURSES_H
+# include <curses.h>
+#elif HAVE_NCURSES_H
+# include <ncurses.h>
+#endif
+#ifdef HAVE_TERM_H
+# include <term.h>
+#endif
+])
+
 LIBEDIT_LOBJECTS=""
 AC_CHECK_FUNC(strunvis, ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS unvis.o"])
 AC_CHECK_FUNC(strvis,   ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS vis.o"])
@@ -2007,12 +2020,20 @@ case "$target" in
     ;;
 esac
 
-# isinf() could be a function or a macro (HPUX)
-AC_MSG_CHECKING(for isinf with <math.h>)
+# Check that isinf() is available in math.h and can be used in both C and C++ 
+# code
+AC_MSG_CHECKING(for isinf in <math.h>)
 AC_TRY_LINK([#include <math.h>], [float f = 0.0; int r = isinf(f); return r],
- AC_MSG_RESULT(yes)
- AC_DEFINE(HAVE_ISINF, [1], [isinf() macro or function]),
- AC_MSG_RESULT(no))
+  AC_MSG_RESULT(yes)
+  AC_MSG_CHECKING(whether isinf() can be used in C++ code)
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_LINK([#include <math.h>], [float f = 0.0; int r = isinf(f); return r],
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAVE_ISINF, [1], [isinf() macro or function]),
+    AC_MSG_RESULT(no))
+  AC_LANG_RESTORE,
+  AC_MSG_RESULT(no))
  
 CFLAGS="$ORG_CFLAGS"
 

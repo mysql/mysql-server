@@ -40,6 +40,7 @@ class ha_ndbcluster_cond;
 // connectstring to cluster if given by mysqld
 extern const char *ndbcluster_connectstring;
 extern ulong ndb_cache_check_time;
+extern char opt_ndb_constrbuf[];
 
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,

@@ -903,6 +903,9 @@ sub command_line_setup () {
     $opt_skip_ndbcluster= 1;       # Turn off use of NDB cluster
     $opt_skip_ssl= 1;              # Turn off use of SSL
 
+    # Turn off use of bin log
+    push(@opt_extra_mysqld_opt, "--skip-log-bin");
+
     if ( $opt_extern )
     {
       mtr_error("Can't use --extern with --embedded-server");
@@ -1071,7 +1074,7 @@ sub command_line_setup () {
   # On some operating systems, there is a limit to the length of a
   # UNIX domain socket's path far below PATH_MAX, so try to avoid long
   # socket path names.
-  $sockdir = tempdir(CLEANUP => 0) if ( length($sockdir) >= 80 );
+  $sockdir = tempdir(CLEANUP => 0) if ( length($sockdir) >= 70 );
 
   $master->[0]=
   {
@@ -1784,6 +1787,17 @@ sub environment_setup () {
 				  split(':', $ENV{'DYLD_LIBRARY_PATH'}) : ());
   mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
 
+  # The environment variable used for shared libs on AIX
+  $ENV{'SHLIB_PATH'}= join(":", @ld_library_paths,
+                           $ENV{'SHLIB_PATH'} ?
+                           split(':', $ENV{'SHLIB_PATH'}) : ());
+  mtr_debug("SHLIB_PATH: $ENV{'SHLIB_PATH'}");
+
+  # The environment variable used for shared libs on hp-ux
+  $ENV{'LIBPATH'}= join(":", @ld_library_paths,
+                        $ENV{'LIBPATH'} ?
+                        split(':', $ENV{'LIBPATH'}) : ());
+  mtr_debug("LIBPATH: $ENV{'LIBPATH'}");
 
   # --------------------------------------------------------------------------
   # Also command lines in .opt files may contain env vars
@@ -1792,6 +1806,18 @@ sub environment_setup () {
   $ENV{'CHARSETSDIR'}=              $path_charsetsdir;
   $ENV{'UMASK'}=              "0660"; # The octal *string*
   $ENV{'UMASK_DIR'}=          "0770"; # The octal *string*
+  
+  #
+  # MySQL tests can produce output in various character sets
+  # (especially, ctype_xxx.test). To avoid confusing Perl
+  # with output which is incompatible with the current locale
+  # settings, we reset the current values of LC_ALL and LC_CTYPE to "C".
+  # For details, please see
+  # Bug#27636 tests fails if LC_* variables set to *_*.UTF-8
+  #
+  $ENV{'LC_ALL'}=             "C";
+  $ENV{'LC_CTYPE'}=           "C";
+  
   $ENV{'LC_COLLATE'}=         "C";
   $ENV{'USE_RUNNING_SERVER'}= $opt_extern;
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
@@ -2307,16 +2333,23 @@ sub  check_running_as_root () {
     close FILE;
   }
 
-  chmod(oct("0755"), $test_file);
-  unlink($test_file);
+  # Some filesystems( for example CIFS) allows reading a file
+  # although mode was set to 0000, but in that case a stat on
+  # the file will not return 0000
+  my $file_mode= (stat($test_file))[2] & 07777;
 
   $ENV{'MYSQL_TEST_ROOT'}= "NO";
-  if ($result eq "MySQL")
+  mtr_verbose("result: $result, file_mode: $file_mode");
+  if ($result eq "MySQL" && $file_mode == 0)
   {
     mtr_warning("running this script as _root_ will cause some " .
                 "tests to be skipped");
     $ENV{'MYSQL_TEST_ROOT'}= "YES";
   }
+
+  chmod(oct("0755"), $test_file);
+  unlink($test_file);
+
 }
 
 
@@ -3600,6 +3633,9 @@ sub do_before_start_master ($) {
 
   # FIXME what about second master.....
 
+  # Don't delete anything if starting dirty
+  return if ($opt_start_dirty);
+
   foreach my $bin ( glob("$opt_vardir/log/master*-bin*") )
   {
     unlink($bin);
@@ -3630,6 +3666,9 @@ sub do_before_start_slave ($) {
 
   my $tname= $tinfo->{'name'};
   my $init_script= $tinfo->{'master_sh'};
+
+  # Don't delete anything if starting dirty
+  return if ($opt_start_dirty);
 
   foreach my $bin ( glob("$opt_vardir/log/slave*-bin*") )
   {

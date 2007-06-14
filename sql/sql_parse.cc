@@ -75,6 +75,7 @@ static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static void remove_escape(char *name);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
+static bool check_show_create_table_access(THD *thd, TABLE_LIST *table);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -1008,9 +1009,12 @@ static int check_connection(THD *thd)
     Old clients send null-terminated string as password; new clients send
     the size (1 byte) + string (not null-terminated). Hence in case of empty
     password both send '\0'.
+
+    Cast *passwd to an unsigned char, so that it doesn't extend the sign for
+    *passwd > 127 and become 2**32-127 after casting to uint.
   */
   uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
-    *passwd++ : strlen(passwd);
+    (uchar)(*passwd++) : strlen(passwd);
   db= thd->client_capabilities & CLIENT_CONNECT_WITH_DB ?
     db + passwd_len + 1 : 0;
   uint db_len= db ? strlen(db) : 0;
@@ -1139,8 +1143,8 @@ pthread_handler_t handle_one_connection(void *arg)
     net->no_send_error= 0;
 
     /* Use "connect_timeout" value during connection phase */
-    net_set_read_timeout(net, connect_timeout);
-    net_set_write_timeout(net, connect_timeout);
+    my_net_set_read_timeout(net, connect_timeout);
+    my_net_set_write_timeout(net, connect_timeout);
 
     if ((error=check_connection(thd)))
     {						// Wrong permissions
@@ -1183,8 +1187,8 @@ pthread_handler_t handle_one_connection(void *arg)
     }
 
     /* Connect completed, set read/write timeouts back to tdefault */
-    net_set_read_timeout(net, thd->variables.net_read_timeout);
-    net_set_write_timeout(net, thd->variables.net_write_timeout);
+    my_net_set_read_timeout(net, thd->variables.net_read_timeout);
+    my_net_set_write_timeout(net, thd->variables.net_write_timeout);
 
     while (!net->error && net->vio != 0 &&
            !(thd->killed == THD::KILL_CONNECTION))
@@ -1238,6 +1242,7 @@ pthread_handler_t handle_bootstrap(void *arg)
   THD *thd=(THD*) arg;
   FILE *file=bootstrap_file;
   char *buff;
+  const char* found_semicolon= NULL;
 
   /* The following must be called before DBUG_ENTER */
   thd->thread_stack= (char*) &thd;
@@ -1314,7 +1319,7 @@ pthread_handler_t handle_bootstrap(void *arg)
     */
     thd->query_id=next_query_id();
     thd->set_time();
-    mysql_parse(thd,thd->query,length);
+    mysql_parse(thd, thd->query, length, & found_semicolon);
     close_thread_tables(thd);			// Free tables
 
     if (thd->is_fatal_error)
@@ -1535,7 +1540,7 @@ bool do_command(THD *thd)
     the client, the connection is closed or "net_wait_timeout"
     number of seconds has passed
   */
-  net_set_read_timeout(net, thd->variables.net_wait_timeout);
+  my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
 
   thd->clear_error();				// Clear error message
 
@@ -1567,7 +1572,7 @@ bool do_command(THD *thd)
   }
 
   /* Restore read timeout value */
-  net_set_read_timeout(net, thd->variables.net_read_timeout);
+  my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
   /*
     packet_length contains length of data, as it was stored in packet
@@ -1695,11 +1700,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       Old clients send null-terminated string ('\0' for empty string) for
       password.  New clients send the size (1 byte) + string (not null
       terminated, so also '\0' for empty string).
+
+      Cast *passwd to an unsigned char, so that it doesn't extend the sign
+      for *passwd > 127 and become 2**32-127 after casting to uint.
     */
     char db_buff[NAME_LEN+1];               // buffer to store db in utf8
     char *db= passwd;
     uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
-      *passwd++ : strlen(passwd);
+      (uchar)(*passwd++) : strlen(passwd);
     db+= passwd_len + 1;
 #ifndef EMBEDDED_LIBRARY
     /* Small check for incoming packet */
@@ -1793,17 +1801,19 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char *packet_end= thd->query + thd->query_length;
     /* 'b' stands for 'buffer' parameter', special for 'my_snprintf' */
     const char *format= "%.*b";
+    const char* found_semicolon= NULL;
+
     mysql_log.write(thd,command, format, thd->query_length, thd->query);
     DBUG_PRINT("query",("%-.4096s",thd->query));
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
 
-    mysql_parse(thd,thd->query, thd->query_length);
+    mysql_parse(thd, thd->query, thd->query_length, & found_semicolon);
 
-    while (!thd->killed && thd->lex->found_semicolon && !thd->net.report_error)
+    while (!thd->killed && found_semicolon && !thd->net.report_error)
     {
-      char *next_packet= thd->lex->found_semicolon;
+      char *next_packet= (char*) found_semicolon;
       net->no_send_error= 0;
       /*
         Multiple queries exits, execute them individually
@@ -1828,7 +1838,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->set_time(); /* Reset the query start time. */
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
-      mysql_parse(thd, next_packet, length);
+      mysql_parse(thd, next_packet, length, & found_semicolon);
     }
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -1849,7 +1859,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     LEX_STRING conv_name;
 
     /* used as fields initializator */
-    lex_start(thd, 0, 0);
+    lex_start(thd);
 
     statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_FIELDS],
 			&LOCK_status);
@@ -1886,7 +1896,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     /* init structures for VIEW processing */
     table_list.select_lex= &(thd->lex->select_lex);
-    mysql_init_query(thd, (uchar*)"", 0);
+
+    lex_start(thd);
+    mysql_reset_thd_for_next_command(thd);
+
     thd->lex->
       select_lex.table_list.link_in_list((byte*) &table_list,
                                          (byte**) &table_list.next_local);
@@ -3008,7 +3021,13 @@ mysql_execute_command(THD *thd)
       select_lex->options|= SELECT_NO_UNLOCK;
       unit->set_limit(select_lex);
 
-      if (!(res= open_and_lock_tables(thd, select_tables)))
+      if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+      {
+        lex->link_first_table_back(create_table, link_to_local);
+        create_table->create= TRUE;
+      }
+
+      if (!(res= open_and_lock_tables(thd, lex->query_tables)))
       {
         /*
           Is table which we are changing used somewhere in other parts
@@ -3017,6 +3036,7 @@ mysql_execute_command(THD *thd)
         if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
         {
           TABLE_LIST *duplicate;
+          create_table= lex->unlink_first_table(&link_to_local);
           if ((duplicate= unique_table(thd, create_table, select_tables, 0)))
           {
             update_non_unique_table_error(create_table, "CREATE", duplicate);
@@ -3060,13 +3080,16 @@ mysql_execute_command(THD *thd)
           delete sel_result;
         }
       }
+      else if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+        create_table= lex->unlink_first_table(&link_to_local);
+
     }
     else
     {
       /* regular create */
-      if (lex->name)
-        res= mysql_create_like_table(thd, create_table, &create_info,
-                                     (Table_ident *)lex->name);
+      if (lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
+        res= mysql_create_like_table(thd, create_table, select_tables,
+                                     &create_info);
       else
       {
         res= mysql_create_table(thd, create_table->db,
@@ -3303,11 +3326,7 @@ end_with_restore_list:
         first_table->skip_temporary= 1;
 
       if (check_db_used(thd, all_tables) ||
-	  check_access(thd, SELECT_ACL | EXTRA_ACL, first_table->db,
-		       &first_table->grant.privilege, 0, 0, 
-                       test(first_table->schema_table)))
-	goto error;
-      if (grant_option && check_grant(thd, SELECT_ACL, all_tables, 2, UINT_MAX, 0))
+          check_show_create_table_access(thd, first_table))
 	goto error;
       res= mysqld_show_create(thd, first_table);
       break;
@@ -5261,7 +5280,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
   if (schema_db)
   {
-    if (want_access & ~(SELECT_ACL | EXTRA_ACL))
+    if (!(sctx->master_access & FILE_ACL) && (want_access & FILE_ACL) ||
+        (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
     {
       if (!no_errors)
       {
@@ -5774,20 +5794,6 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
 }
 
 
-/****************************************************************************
-  Initialize global thd variables needed for query
-****************************************************************************/
-
-void
-mysql_init_query(THD *thd, uchar *buf, uint length)
-{
-  DBUG_ENTER("mysql_init_query");
-  lex_start(thd, buf, length);
-  mysql_reset_thd_for_next_command(thd);
-  DBUG_VOID_RETURN;
-}
-
-
 /*
  Reset THD part responsible for command processing state.
 
@@ -5974,21 +5980,55 @@ void mysql_init_multi_delete(LEX *lex)
   mysql_test_parse_for_slave() in this same file.
 */
 
-void mysql_parse(THD *thd, char *inBuf, uint length)
+/**
+  Parse a query.
+  @param thd Current thread
+  @param inBuf Begining of the query text
+  @param length Length of the query text
+  @param [out] semicolon For multi queries, position of the character of
+  the next query in the query text.
+*/
+
+void mysql_parse(THD *thd, const char *inBuf, uint length,
+                 const char ** found_semicolon)
 {
   DBUG_ENTER("mysql_parse");
 
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
 
-  mysql_init_query(thd, (uchar*) inBuf, length);
-  if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
+  /*
+    Warning.
+    The purpose of query_cache_send_result_to_client() is to lookup the
+    query in the query cache first, to avoid parsing and executing it.
+    So, the natural implementation would be to:
+    - first, call query_cache_send_result_to_client,
+    - second, if caching failed, initialise the lexical and syntactic parser.
+    The problem is that the query cache depends on a clean initialization
+    of (among others) lex->safe_to_cache_query and thd->server_status,
+    which are reset respectively in
+    - lex_start()
+    - mysql_reset_thd_for_next_command()
+    So, initializing the lexical analyser *before* using the query cache
+    is required for the cache to work properly.
+    FIXME: cleanup the dependencies in the code to simplify this.
+  */
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
+
+  if (query_cache_send_result_to_client(thd, (char*) inBuf, length) <= 0)
   {
     LEX *lex= thd->lex;
-    
+
     sp_cache_flush_obsolete(&thd->sp_proc_cache);
     sp_cache_flush_obsolete(&thd->sp_func_cache);
-    
-    if (!MYSQLparse((void *)thd) && ! thd->is_fatal_error)
+
+    Lex_input_stream lip(thd, inBuf, length);
+    thd->m_lip= &lip;
+
+    int err= MYSQLparse(thd);
+    *found_semicolon= lip.found_semicolon;
+
+    if (!err && ! thd->is_fatal_error)
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (mqh_used && thd->user_connect &&
@@ -6011,8 +6051,8 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
             PROCESSLIST.
             Note that we don't need LOCK_thread_count to modify query_length.
           */
-          if (lex->found_semicolon &&
-              (thd->query_length= (ulong)(lex->found_semicolon - thd->query)))
+          if (lip.found_semicolon &&
+              (thd->query_length= (ulong)(lip.found_semicolon - thd->query)))
             thd->query_length--;
           /* Actually execute the query */
 	  mysql_execute_command(thd);
@@ -6039,6 +6079,12 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
     thd->cleanup_after_query();
     DBUG_ASSERT(thd->change_list.is_empty());
   }
+  else
+  {
+    /* There are no multi queries in the cache. */
+    *found_semicolon= NULL;
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -6059,8 +6105,13 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
   bool error= 0;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
-  mysql_init_query(thd, (uchar*) inBuf, length);
-  if (!MYSQLparse((void*) thd) && ! thd->is_fatal_error &&
+  Lex_input_stream lip(thd, inBuf, length);
+  thd->m_lip= &lip;
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
+  int err= MYSQLparse((void*) thd);
+
+  if (!err && ! thd->is_fatal_error &&
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
     error= 1;                  /* Ignore question */
   thd->end_statement();
@@ -7119,8 +7170,9 @@ bool check_simple_select()
   if (lex->current_select != &lex->select_lex)
   {
     char command[80];
-    strmake(command, lex->yylval->symbol.str,
-	    min(lex->yylval->symbol.length, sizeof(command)-1));
+    Lex_input_stream *lip= thd->m_lip;
+    strmake(command, lip->yylval->symbol.str,
+	    min(lip->yylval->symbol.length, sizeof(command)-1));
     my_error(ER_CANT_USE_OPTION_HERE, MYF(0), command);
     return 1;
   }
@@ -7470,6 +7522,25 @@ bool insert_precheck(THD *thd, TABLE_LIST *tables)
 }
 
 
+/**
+   @brief  Check privileges for SHOW CREATE TABLE statement.
+
+   @param  thd    Thread context
+   @param  table  Target table
+
+   @retval TRUE  Failure
+   @retval FALSE Success
+*/
+
+static bool check_show_create_table_access(THD *thd, TABLE_LIST *table)
+{
+  return check_access(thd, SELECT_ACL | EXTRA_ACL, table->db,
+                      &table->grant.privilege, 0, 0,
+                      test(table->schema_table)) ||
+         grant_option && check_grant(thd, SELECT_ACL, table, 2, UINT_MAX, 0);
+}
+
+
 /*
   CREATE TABLE query pre-check
 
@@ -7532,6 +7603,11 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
     }
 #endif
     if (tables && check_table_access(thd, SELECT_ACL, tables,0))
+      goto err;
+  }
+  else if (lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
+  {
+    if (check_show_create_table_access(thd, tables))
       goto err;
   }
   error= FALSE;

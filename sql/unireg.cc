@@ -859,7 +859,9 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
 	(regfield->real_type() != FIELD_TYPE_YEAR ||
 	 field->def->val_int() != 0))
     {
-      if (field->def->save_in_field(regfield, 1))
+      int res= field->def->save_in_field(regfield, 1);
+      /* If not ok or warning of level 'note' */
+      if (res != 0 && res != 3)
       {
         my_error(ER_INVALID_DEFAULT, MYF(0), regfield->field_name);
         error= 1;

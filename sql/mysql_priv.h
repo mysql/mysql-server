@@ -89,9 +89,6 @@ void kill_one_thread(THD *thd, ulong id, bool only_kill_query);
 bool net_request_file(NET* net, const char* fname);
 char* query_table_status(THD *thd,const char *db,const char *table_name);
 
-void net_set_write_timeout(NET *net, uint timeout);
-void net_set_read_timeout(NET *net, uint timeout);
-
 #define x_free(A)	{ my_free((gptr) (A),MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR)); }
 #define safeFree(x)	{ if(x) { my_free((gptr) x,MYF(0)); x = NULL; } }
 #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
@@ -179,7 +176,7 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define STACK_MIN_SIZE          12000   // Abort if less stack during eval.
 
 #define STACK_MIN_SIZE_FOR_OPEN 1024*80
-#define STACK_BUFF_ALLOC	256	// For stack overrun checks
+#define STACK_BUFF_ALLOC        352     // For stack overrun checks
 #ifndef MYSQLD_NET_RETRY_COUNT
 #define MYSQLD_NET_RETRY_COUNT  10	// Abort read after this many int.
 #endif
@@ -640,6 +637,8 @@ struct Query_cache_query_flags
   ulong sql_mode;
   ulong max_sort_length;
   ulong group_concat_max_len;
+  ulong default_week_format;
+  ulong div_precision_increment;
   MY_LOCALE *lc_time_names;
 };
 #define QUERY_CACHE_FLAGS_SIZE sizeof(Query_cache_query_flags)
@@ -674,6 +673,8 @@ struct Query_cache_query_flags
 #define query_cache_invalidate_by_MyISAM_filename_ref NULL
 #endif /*HAVE_QUERY_CACHE*/
 
+uint build_table_path(char *buff, size_t bufflen, const char *db,
+                      const char *table, const char *ext);
 bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
 bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
@@ -694,13 +695,15 @@ bool do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db,
                       bool skip_error);
 bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name,
                      bool force_switch);
-void mysql_parse(THD *thd,char *inBuf,uint length);
+
+void mysql_parse(THD *thd, const char *inBuf, uint length,
+                 const char ** semicolon);
+
 bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
 bool is_update_query(enum enum_sql_command command);
 bool alloc_query(THD *thd, const char *packet, uint packet_length);
 void mysql_init_select(LEX *lex);
 void mysql_reset_thd_for_next_command(THD *thd);
-void mysql_init_query(THD *thd, uchar *buf, uint length);
 bool mysql_new_select(LEX *lex, bool move_down);
 void create_select_for_variable(const char *var_name);
 void mysql_init_multi_delete(LEX *lex);
@@ -810,9 +813,8 @@ bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        Alter_info *alter_info,
                        uint order_num, ORDER *order, bool ignore);
 bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list);
-bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
-                             HA_CREATE_INFO *create_info,
-                             Table_ident *src_table);
+bool mysql_create_like_table(THD *thd, TABLE_LIST *table, TABLE_LIST *src_table,
+                             HA_CREATE_INFO *create_info);
 bool mysql_rename_table(enum db_type base,
 			const char *old_db,
 			const char * old_name,
@@ -854,12 +856,14 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);
 TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT* mem,
 		  bool *refresh, uint flags);
-bool reopen_name_locked_table(THD* thd, TABLE_LIST* table);
+bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in);
+TABLE *table_cache_insert_placeholder(THD *thd, const char *key,
+                                      uint key_length);
+bool table_cache_has_open_placeholder(THD *thd, const char *db,
+                                      const char *table_name);
 TABLE *find_locked_table(THD *thd, const char *db,const char *table_name);
 bool reopen_table(TABLE *table,bool locked);
 bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
-void close_old_data_files(THD *thd, TABLE *table, bool abort_locks,
-			  bool send_refresh);
 bool close_data_tables(THD *thd,const char *db, const char *table_name);
 bool wait_for_tables(THD *thd);
 bool table_is_used(TABLE *table, bool wait_for_name_lock);
@@ -1015,6 +1019,8 @@ void add_join_natural(TABLE_LIST *a,TABLE_LIST *b,List<String> *using_fields,
                       SELECT_LEX *lex);
 bool add_proc_to_list(THD *thd, Item *item);
 TABLE *unlink_open_table(THD *thd,TABLE *list,TABLE *find);
+void drop_open_table(THD *thd, TABLE *table, const char *db_name,
+                     const char *table_name);
 void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
@@ -1262,12 +1268,10 @@ extern char language[FN_REFLEN], reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char log_error_file[FN_REFLEN], *opt_tc_log_file;
-extern double log_10[32];
-extern double log_01[32];
 extern ulonglong log_10_int[20];
 extern ulonglong keybuff_size;
 extern ulonglong thd_startup_options;
-extern ulong refresh_version,flush_version, thread_id;
+extern ulong flush_version, thread_id;
 extern ulong binlog_cache_use, binlog_cache_disk_use;
 extern ulong aborted_threads,aborted_connects;
 extern ulong delayed_insert_timeout;
@@ -1441,7 +1445,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
 #define MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK      0x0001
 #define MYSQL_LOCK_IGNORE_FLUSH                 0x0002
 #define MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN        0x0004
-#define MYSQL_OPEN_IGNORE_LOCKED_TABLES         0x0008
+#define MYSQL_OPEN_TEMPORARY_ONLY               0x0008
 
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
@@ -1500,16 +1504,22 @@ ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
-my_time_t TIME_to_timestamp(THD *thd, const TIME *t, my_bool *not_exist);
-bool str_to_time_with_warn(const char *str,uint length,TIME *l_time);
+my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *not_exist);
+bool str_to_time_with_warn(const char *str,uint length,MYSQL_TIME *l_time);
 timestamp_type str_to_datetime_with_warn(const char *str, uint length,
-                                         TIME *l_time, uint flags);
-void localtime_to_TIME(TIME *to, struct tm *from);
-void calc_time_from_sec(TIME *to, long seconds, long microseconds);
+                                         MYSQL_TIME *l_time, uint flags);
+void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
+void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds);
 
-void make_truncated_value_warning(THD *thd, const char *str_val,
-				  uint str_length, timestamp_type time_type,
-                                  const char *field_name);
+void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
+                                  const char *str_val,
+  				  uint str_length, timestamp_type time_type,
+                                    const char *field_name);
+  
+bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL interval);
+bool calc_time_diff(MYSQL_TIME *l_time1, MYSQL_TIME *l_time2, int l_sign,
+                      longlong *seconds_out, long *microseconds_out);
+
 extern DATE_TIME_FORMAT *date_time_format_make(timestamp_type format_type,
 					       const char *format_str,
 					       uint format_length);
@@ -1517,14 +1527,16 @@ extern DATE_TIME_FORMAT *date_time_format_copy(THD *thd,
 					       DATE_TIME_FORMAT *format);
 const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
 				     timestamp_type type);
-extern bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
+extern bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
 			   timestamp_type type, String *str);
-void make_datetime(const DATE_TIME_FORMAT *format, const TIME *l_time,
+void make_datetime(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
                    String *str);
-void make_date(const DATE_TIME_FORMAT *format, const TIME *l_time,
+void make_date(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
                String *str);
-void make_time(const DATE_TIME_FORMAT *format, const TIME *l_time,
+void make_time(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
                String *str);
+ulonglong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
+                             Item *warn_item, bool *is_null);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);
@@ -1543,7 +1555,7 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);
 int get_quick_record(SQL_SELECT *select);
 int calc_weekday(long daynr,bool sunday_first_day_of_week);
-uint calc_week(TIME *l_time, uint week_behaviour, uint *year);
+uint calc_week(MYSQL_TIME *l_time, uint week_behaviour, uint *year);
 void find_date(char *pos,uint *vek,uint flag);
 TYPELIB *convert_strings_to_array_type(my_string *typelibs, my_string *end);
 TYPELIB *typelib(MEM_ROOT *mem_root, List<String> &strings);

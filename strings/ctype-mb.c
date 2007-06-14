@@ -467,6 +467,13 @@ static void my_hash_sort_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
   
   key+= len;
   
+  /*
+     Remove trailing spaces. We have to do this to be able to compare
+    'A ' and 'A' as identical
+  */
+  while (key > pos && key[-1] == ' ')
+    key--;
+  
   for (; pos < (uchar*) key ; pos++)
   {
     nr1[0]^=(ulong) ((((uint) nr1[0] & 63)+nr2[0]) * 

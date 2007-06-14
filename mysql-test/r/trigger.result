@@ -820,9 +820,9 @@ call p1();
 drop trigger t1_bi;
 create trigger t1_bi after insert on t1 for each row insert into t3 values (new.id);
 execute stmt1;
-ERROR HY000: Table 't3' was not locked with LOCK TABLES
+ERROR 42S02: Table 'test.t3' doesn't exist
 call p1();
-ERROR HY000: Table 't3' was not locked with LOCK TABLES
+ERROR 42S02: Table 'test.t3' doesn't exist
 deallocate prepare stmt1;
 drop procedure p1;
 drop table t1, t2, t3;
@@ -1414,4 +1414,63 @@ id	val
 DROP TRIGGER trg27006_a_insert;
 DROP TRIGGER trg27006_a_update;
 drop table t1,t2;
+drop table if exists t1, t2, t3;
+create table t1 (i int);
+create trigger t1_bi before insert on t1 for each row set new.i = 7;
+create trigger t1_ai after insert on t1 for each row set @a := 7;
+create table t2 (j int);
+insert into t2 values (1), (2);
+set @a:="";
+create table if not exists t1 select * from t2;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+i
+7
+7
+select @a;
+@a
+7
+drop trigger t1_bi;
+drop trigger t1_ai;
+create table t3 (isave int);
+create trigger t1_bi before insert on t1 for each row insert into t3 values (new.i);
+create table if not exists t1 select * from t2;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+i
+7
+7
+1
+2
+select * from t3;
+isave
+1
+2
+drop table t1, t2, t3;
+CREATE TABLE t1 (id INTEGER);
+CREATE TABLE t2 (id INTEGER);
+INSERT INTO t2 VALUES (1),(2);
+CREATE TRIGGER t1_test AFTER INSERT ON t1 FOR EACH ROW 
+INSERT INTO t2 VALUES (new.id);
+SELECT GET_LOCK('B26162',20);
+GET_LOCK('B26162',20)
+1
+SELECT 'rl_acquirer', GET_LOCK('B26162',5), id FROM t2 WHERE id = 1;
+SET SESSION LOW_PRIORITY_UPDATES=1;
+SET GLOBAL LOW_PRIORITY_UPDATES=1;
+INSERT INTO t1 VALUES (5);
+SELECT 'rl_contender', id FROM t2 WHERE id > 1;
+SELECT RELEASE_LOCK('B26162');
+RELEASE_LOCK('B26162')
+0
+rl_acquirer	GET_LOCK('B26162',5)	id
+rl_acquirer	0	1
+rl_contender	id
+rl_contender	2
+DROP TRIGGER t1_test;
+DROP TABLE t1,t2;
+SET SESSION LOW_PRIORITY_UPDATES=DEFAULT;
+SET GLOBAL LOW_PRIORITY_UPDATES=DEFAULT;
 End of 5.0 tests

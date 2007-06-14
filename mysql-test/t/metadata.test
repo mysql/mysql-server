@@ -81,3 +81,14 @@ drop view v1,v2,v3;
 --disable_metadata
 
 # End of 4.1 tests
+
+#
+# Bug #28492: subselect returns LONG in >5.0.24a and LONGLONG in <=5.0.24a
+#
+--enable_metadata
+select a.* from (select 2147483648 as v_large) a;
+select a.* from (select 214748364 as v_small) a;
+--disable_metadata
+
+
+--echo End of 5.0 tests

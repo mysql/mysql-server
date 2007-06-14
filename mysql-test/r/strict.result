@@ -3,7 +3,7 @@ set @@sql_mode='ansi,traditional';
 select @@sql_mode;
 @@sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
-DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (col1 date);
 INSERT INTO t1 VALUES('2004-01-01'),('2004-02-29');
 INSERT INTO t1 VALUES('0000-10-31');
@@ -206,6 +206,8 @@ INSERT INTO t1 (col1) VALUES (STR_TO_DATE('15.10.2004','%d.%m.%Y'));
 INSERT INTO t1 (col2) VALUES (STR_TO_DATE('15.10.2004 10.15','%d.%m.%Y %H.%i'));
 INSERT INTO t1 (col3) VALUES (STR_TO_DATE('15.10.2004 10.15','%d.%m.%Y %H.%i'));
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
+Warnings:
+Note	1265	Data truncated for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('31.0.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect date value: '2004-00-31 15:30:00' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
@@ -991,16 +993,16 @@ ERROR 23000: Column 'col2' cannot be null
 INSERT INTO t1 VALUES (103,'',NULL);
 ERROR 23000: Column 'col3' cannot be null
 UPDATE t1 SET col1=NULL WHERE col1 =100;
-ERROR 22004: Column was set to data type implicit default; NULL supplied for NOT NULL column 'col1' at row 1
+ERROR 23000: Column 'col1' cannot be null
 UPDATE t1 SET col2 =NULL WHERE col2 ='hello';
-ERROR 22004: Column was set to data type implicit default; NULL supplied for NOT NULL column 'col2' at row 1
+ERROR 23000: Column 'col2' cannot be null
 UPDATE t1 SET col2 =NULL where col3 IS NOT NULL;
-ERROR 22004: Column was set to data type implicit default; NULL supplied for NOT NULL column 'col2' at row 1
+ERROR 23000: Column 'col2' cannot be null
 INSERT IGNORE INTO t1 values (NULL,NULL,NULL);
 Warnings:
-Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'col1' at row 1
-Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'col2' at row 1
-Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'col3' at row 1
+Warning	1048	Column 'col1' cannot be null
+Warning	1048	Column 'col2' cannot be null
+Warning	1048	Column 'col3' cannot be null
 SELECT * FROM t1;
 col1	col2	col3
 100	hello	2004-08-20
@@ -1025,11 +1027,11 @@ ERROR HY000: Field 'col2' doesn't have a default value
 INSERT INTO t1 (col1) SELECT 1;
 ERROR HY000: Field 'col2' doesn't have a default value
 INSERT INTO t1 SELECT 1,NULL;
-ERROR 22004: Column was set to data type implicit default; NULL supplied for NOT NULL column 'col2' at row 1
+ERROR 23000: Column 'col2' cannot be null
 INSERT IGNORE INTO t1 values (NULL,NULL);
 Warnings:
-Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'col1' at row 1
-Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'col2' at row 1
+Warning	1048	Column 'col1' cannot be null
+Warning	1048	Column 'col2' cannot be null
 INSERT IGNORE INTO t1 (col1) values (3);
 Warnings:
 Warning	1364	Field 'col2' doesn't have a default value

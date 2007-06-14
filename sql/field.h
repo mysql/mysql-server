@@ -98,7 +98,7 @@ public:
   virtual int  store(double nr)=0;
   virtual int  store(longlong nr, bool unsigned_val)=0;
   virtual int  store_decimal(const my_decimal *d)=0;
-  virtual int store_time(TIME *ltime, timestamp_type t_type);
+  virtual int store_time(MYSQL_TIME *ltime, timestamp_type t_type);
   virtual double val_real(void)=0;
   virtual longlong val_int(void)=0;
   virtual my_decimal *val_decimal(my_decimal *);
@@ -326,8 +326,8 @@ public:
   uint offset();			// Should be inline ...
   void copy_from_tmp(int offset);
   uint fill_cache_field(struct st_cache_field *copy);
-  virtual bool get_date(TIME *ltime,uint fuzzydate);
-  virtual bool get_time(TIME *ltime);
+  virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  virtual bool get_time(MYSQL_TIME *ltime);
   virtual CHARSET_INFO *charset(void) const { return &my_charset_bin; }
   virtual CHARSET_INFO *sort_charset(void) const { return charset(); }
   virtual bool has_charset(void) const { return FALSE; }
@@ -453,6 +453,7 @@ public:
 /* base class for float and double and decimal (old one) */
 class Field_real :public Field_num {
 public:
+  my_bool not_fixed;
 
   Field_real(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
              uchar null_bit_arg, utype unireg_check_arg,
@@ -460,13 +461,16 @@ public:
              struct st_table *table_arg,
              uint8 dec_arg, bool zero_arg, bool unsigned_arg)
     :Field_num(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, unireg_check_arg,
-               field_name_arg, table_arg, dec_arg, zero_arg, unsigned_arg)
+               field_name_arg, table_arg, dec_arg, zero_arg, unsigned_arg),
+    not_fixed(dec_arg >= NOT_FIXED_DEC)
     {}
 
 
   int store_decimal(const my_decimal *);
   my_decimal *val_decimal(my_decimal *);
+  int truncate(double *nr, double max_length);
   uint32 max_display_length() { return field_length; }
+  uint size_of() const { return sizeof(*this); }
 };
 
 
@@ -529,7 +533,7 @@ public:
   int  store(const char *to, uint length, CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
-  int store_time(TIME *ltime, timestamp_type t_type);
+  int store_time(MYSQL_TIME *ltime, timestamp_type t_type);
   int  store_decimal(const my_decimal *);
   double val_real(void);
   longlong val_int(void);
@@ -675,7 +679,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 4; }
   void sql_type(String &str) const;
-  uint32 max_display_length() { return 11; }
+  uint32 max_display_length() { return MY_INT32_NUM_DECIMAL_DIGITS; }
 };
 
 
@@ -758,7 +762,6 @@ public:
 
 class Field_double :public Field_real {
 public:
-  my_bool not_fixed;
   Field_double(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
 	       uchar null_bit_arg,
 	       enum utype unireg_check_arg, const char *field_name_arg,
@@ -766,21 +769,18 @@ public:
 	       uint8 dec_arg,bool zero_arg,bool unsigned_arg)
     :Field_real(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
                 unireg_check_arg, field_name_arg, table_arg,
-                dec_arg, zero_arg, unsigned_arg),
-     not_fixed(dec_arg >= NOT_FIXED_DEC)
+                dec_arg, zero_arg, unsigned_arg)
     {}
   Field_double(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
 	       struct st_table *table_arg, uint8 dec_arg)
     :Field_real((char*) 0, len_arg, maybe_null_arg ? (uchar*) "" : 0, (uint) 0,
-                NONE, field_name_arg, table_arg, dec_arg, 0, 0),
-     not_fixed(dec_arg >= NOT_FIXED_DEC)
+                NONE, field_name_arg, table_arg, dec_arg, 0, 0)
     {}
   Field_double(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
-	       struct st_table *table_arg, uint8 dec_arg, my_bool not_fixed_srg)
+	       struct st_table *table_arg, uint8 dec_arg, my_bool not_fixed_arg)
     :Field_real((char*) 0, len_arg, maybe_null_arg ? (uchar*) "" : 0, (uint) 0,
-	        NONE, field_name_arg, table_arg, dec_arg, 0, 0), 
-    not_fixed(not_fixed_srg)
-    {}
+                NONE, field_name_arg, table_arg, dec_arg, 0, 0)
+    {not_fixed= not_fixed_arg; }
   enum_field_types type() const { return FIELD_TYPE_DOUBLE;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_DOUBLE; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
@@ -795,7 +795,6 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return sizeof(double); }
   void sql_type(String &str) const;
-  uint size_of() const { return sizeof(*this); }
 };
 
 
@@ -879,8 +878,8 @@ public:
     longget(tmp,ptr);
     return tmp;
   }
-  bool get_date(TIME *ltime,uint fuzzydate);
-  bool get_time(TIME *ltime);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
   timestamp_auto_set_type get_auto_set_type() const;
 };
 
@@ -953,7 +952,7 @@ public:
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
-  int store_time(TIME *ltime, timestamp_type type);
+  int store_time(MYSQL_TIME *ltime, timestamp_type type);
   int reset(void) { ptr[0]=ptr[1]=ptr[2]=0; return 0; }
   double val_real(void);
   longlong val_int(void);
@@ -965,8 +964,8 @@ public:
   void sql_type(String &str) const;
   bool can_be_compared_as_longlong() const { return TRUE; }
   bool zero_pack() const { return 1; }
-  bool get_date(TIME *ltime,uint fuzzydate);
-  bool get_time(TIME *ltime);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
 };
 
 
@@ -985,7 +984,7 @@ public:
   enum_field_types type() const { return FIELD_TYPE_TIME;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_INT24; }
   enum Item_result cmp_type () const { return INT_RESULT; }
-  int store_time(TIME *ltime, timestamp_type type);
+  int store_time(MYSQL_TIME *ltime, timestamp_type type);
   int store(const char *to,uint length,CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);
@@ -993,9 +992,9 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
-  bool get_date(TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
   bool send_binary(Protocol *protocol);
-  bool get_time(TIME *ltime);
+  bool get_time(MYSQL_TIME *ltime);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 3; }
@@ -1026,7 +1025,7 @@ public:
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
-  int store_time(TIME *ltime, timestamp_type type);
+  int store_time(MYSQL_TIME *ltime, timestamp_type type);
   int reset(void)
   {
     ptr[0]=ptr[1]=ptr[2]=ptr[3]=ptr[4]=ptr[5]=ptr[6]=ptr[7]=0;
@@ -1042,8 +1041,8 @@ public:
   void sql_type(String &str) const;
   bool can_be_compared_as_longlong() const { return TRUE; }
   bool zero_pack() const { return 1; }
-  bool get_date(TIME *ltime,uint fuzzydate);
-  bool get_time(TIME *ltime);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
 };
 
 
@@ -1108,6 +1107,11 @@ public:
 
 class Field_varstring :public Field_longstr {
 public:
+  /*
+    The maximum space available in a Field_varstring, in bytes. See
+    length_bytes.
+  */
+  static const uint MAX_SIZE= UINT_MAX16;
   /* Store number of bytes used to store length (1 or 2) */
   uint32 length_bytes;
   Field_varstring(char *ptr_arg,

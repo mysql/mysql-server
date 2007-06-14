@@ -1,5 +1,5 @@
-# Embedded server doesn't support binlog
--- source include/not_embedded.inc
+--source include/have_log_bin.inc
+
 
 --disable_warnings
 drop database if exists `drop-temp+table-test`;
