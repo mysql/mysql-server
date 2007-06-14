@@ -1375,6 +1375,13 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
 {
   jamEntry();
 
+  if (ERROR_INSERTED(1001))
+  {
+    sendSignalWithDelay(reference(), GSN_NODE_FAILREP, signal, 100, 
+                        signal->getLength());
+    return;
+  }
+  
   const NodeFailRep * nodeFail = (NodeFailRep *)&signal->theData[0];
   NdbNodeBitmask allFailed; 
   allFailed.assign(NdbNodeBitmask::Size, nodeFail->theNodes);

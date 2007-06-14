@@ -175,5 +175,5 @@ private:
   char m_text[MAX_TEXT_LENGTH];
 };
 
-
+extern void getRestartAction(Uint32 action, BaseString &str);
 #endif
