@@ -13,10 +13,15 @@ static const char *default_dbug_option;
 
 #define LONG_BUFFER_SIZE (100 * 1024)
 
-
+#ifdef LONG_LOG_TEST
+#define LOG_FLAGS 0
+#define LOG_FILE_SIZE (1024L*1024L)
+#define ITERATIONS (1600*4)
+#else
 #define LOG_FLAGS TRANSLOG_SECTOR_PROTECTION | TRANSLOG_PAGE_CRC
-#define LOG_FILE_SIZE 1024L*1024L*3L
+#define LOG_FILE_SIZE (1024L*1024L*3L)
 #define ITERATIONS 1600
+#endif
 
 /*
 #define LOG_FLAGS 0
@@ -69,6 +74,23 @@ static my_bool check_content(byte *ptr, ulong length)
 
 
 /*
+  Report OK for read operation
+
+  SYNOPSIS
+    read_ok()
+    rec                  the record header
+*/
+
+void read_ok(TRANSLOG_HEADER_BUFFER *rec)
+{
+  char buff[80];
+  snprintf(buff, sizeof(buff), "read record type: %u  LSN: (%lu,0x%lx)",
+           rec->type, (ulong) LSN_FILE_NO(rec->lsn),
+           (ulong) LSN_OFFSET(rec->lsn));
+  ok(1, buff);
+}
+
+/*
   Read whole record content, and check content (put with offset)
 
   SYNOPSIS
@@ -91,6 +113,7 @@ static my_bool read_and_check_content(TRANSLOG_HEADER_BUFFER *rec,
       return 1;
   return check_content(buffer + skip, rec->record_length - skip);
 }
+
 
 int main(int argc __attribute__((unused)), char *argv[])
 {
@@ -156,6 +179,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     translog_destroy();
     exit(1);
   }
+  example_loghandler_init();
 
   plan(((ITERATIONS - 1) * 4 + 1)*2 + ITERATIONS - 1);
 
@@ -167,16 +191,16 @@ int main(int argc __attribute__((unused)), char *argv[])
   parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
   parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
   if (translog_write_record(&lsn,
-                            LOGREC_LONG_TRANSACTION_ID,
+                            LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
                             0, NULL, NULL,
                             6, TRANSLOG_INTERNAL_PARTS + 1, parts))
   {
     fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);
     translog_destroy();
-    ok(0, "write LOGREC_LONG_TRANSACTION_ID");
+    ok(0, "write LOGREC_FIXED_RECORD_0LSN_EXAMPLE");
     exit(1);
   }
-  ok(1, "write LOGREC_LONG_TRANSACTION_ID");
+  ok(1, "write LOGREC_FIXED_RECORD_0LSN_EXAMPLE");
   lsn_base= first_lsn= lsn;
 
   for (i= 1; i < ITERATIONS; i++)
@@ -189,16 +213,17 @@ int main(int argc __attribute__((unused)), char *argv[])
       /* check auto-count feature */
       parts[TRANSLOG_INTERNAL_PARTS + 1].str= NULL;
       parts[TRANSLOG_INTERNAL_PARTS + 1].length= 0;
-      if (translog_write_record(&lsn, LOGREC_CLR_END, (i % 0xFFFF), NULL,
+      if (translog_write_record(&lsn, LOGREC_FIXED_RECORD_1LSN_EXAMPLE,
+                                (i % 0xFFFF), NULL,
                                 NULL, LSN_STORE_SIZE, 0, parts))
       {
         fprintf(stderr, "1 Can't write reference defore record #%lu\n",
                 (ulong) i);
         translog_destroy();
-        ok(0, "write LOGREC_CLR_END");
+        ok(0, "write LOGREC_FIXED_RECORD_1LSN_EXAMPLE");
         exit(1);
       }
-      ok(1, "write LOGREC_CLR_END");
+      ok(1, "write LOGREC_FIXED_RECORD_1LSN_EXAMPLE");
       lsn_store(lsn_buff, lsn_base);
       if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 12)
         rec_len= 12;
@@ -208,7 +233,7 @@ int main(int argc __attribute__((unused)), char *argv[])
       parts[TRANSLOG_INTERNAL_PARTS + 1].length= rec_len;
       /* check record length auto-counting */
       if (translog_write_record(&lsn,
-                                LOGREC_UNDO_KEY_INSERT,
+                                LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE,
                                 (i % 0xFFFF),
                                 NULL, NULL, 0, TRANSLOG_INTERNAL_PARTS + 2,
                                 parts))
@@ -216,10 +241,10 @@ int main(int argc __attribute__((unused)), char *argv[])
         fprintf(stderr, "1 Can't write var reference defore record #%lu\n",
                 (ulong) i);
         translog_destroy();
-        ok(0, "write LOGREC_UNDO_KEY_INSERT");
+        ok(0, "write LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE");
         exit(1);
       }
-      ok(1, "write LOGREC_UNDO_KEY_INSERT");
+      ok(1, "write LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE");
     }
     else
     {
@@ -228,17 +253,17 @@ int main(int argc __attribute__((unused)), char *argv[])
       parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)lsn_buff;
       parts[TRANSLOG_INTERNAL_PARTS + 0].length= 23;
       if (translog_write_record(&lsn,
-                                LOGREC_UNDO_ROW_DELETE,
+                                LOGREC_FIXED_RECORD_2LSN_EXAMPLE,
                                 (i % 0xFFFF), NULL, NULL,
                                 23, TRANSLOG_INTERNAL_PARTS + 1, parts))
       {
         fprintf(stderr, "0 Can't write reference defore record #%lu\n",
                 (ulong) i);
         translog_destroy();
-        ok(0, "write LOGREC_UNDO_ROW_DELETE");
+        ok(0, "write LOGREC_FIXED_RECORD_2LSN_EXAMPLE");
         exit(1);
       }
-      ok(1, "write LOGREC_UNDO_ROW_DELETE");
+      ok(1, "write LOGREC_FIXED_RECORD_2LSN_EXAMPLE");
       lsn_store(lsn_buff, lsn_base);
       lsn_store(lsn_buff + LSN_STORE_SIZE, first_lsn);
       if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 19)
@@ -248,7 +273,7 @@ int main(int argc __attribute__((unused)), char *argv[])
       parts[TRANSLOG_INTERNAL_PARTS + 1].str= (char*)long_buffer;
       parts[TRANSLOG_INTERNAL_PARTS + 1].length= rec_len;
       if (translog_write_record(&lsn,
-                                LOGREC_UNDO_KEY_DELETE,
+                                LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE,
                                 (i % 0xFFFF),
                                 NULL, NULL, 14 + rec_len,
                                 TRANSLOG_INTERNAL_PARTS + 2, parts))
@@ -256,26 +281,26 @@ int main(int argc __attribute__((unused)), char *argv[])
         fprintf(stderr, "0 Can't write var reference defore record #%lu\n",
                 (ulong) i);
         translog_destroy();
-        ok(0, "write LOGREC_UNDO_KEY_DELETE");
+        ok(0, "write LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE");
         exit(1);
       }
-      ok(1, "write LOGREC_UNDO_KEY_DELETE");
+      ok(1, "write LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE");
     }
     int4store(long_tr_id, i);
     parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
     parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
     if (translog_write_record(&lsn,
-                              LOGREC_LONG_TRANSACTION_ID,
+                              LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
                               (i % 0xFFFF), NULL, NULL, 6,
                               TRANSLOG_INTERNAL_PARTS + 1,
                               parts))
     {
       fprintf(stderr, "Can't write record #%lu\n", (ulong) i);
       translog_destroy();
-      ok(0, "write LOGREC_LONG_TRANSACTION_ID");
+      ok(0, "write LOGREC_FIXED_RECORD_0LSN_EXAMPLE");
       exit(1);
     }
-    ok(1, "write LOGREC_LONG_TRANSACTION_ID");
+    ok(1, "write LOGREC_FIXED_RECORD_0LSN_EXAMPLE");
 
     lsn_base= lsn;
 
@@ -284,17 +309,17 @@ int main(int argc __attribute__((unused)), char *argv[])
     parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_buffer;
     parts[TRANSLOG_INTERNAL_PARTS + 0].length= rec_len;
     if (translog_write_record(&lsn,
-                              LOGREC_REDO_INSERT_ROW_HEAD,
+                              LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE,
                               (i % 0xFFFF), NULL, NULL, rec_len,
                               TRANSLOG_INTERNAL_PARTS + 1,
                               parts))
     {
       fprintf(stderr, "Can't write variable record #%lu\n", (ulong) i);
       translog_destroy();
-      ok(0, "write LOGREC_REDO_INSERT_ROW_HEAD");
+      ok(0, "write LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE");
       exit(1);
     }
-    ok(1, "write LOGREC_REDO_INSERT_ROW_HEAD");
+    ok(1, "write LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE");
     if (translog_flush(lsn))
     {
       fprintf(stderr, "Can't flush #%lu\n", (ulong) i);
@@ -327,6 +352,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     translog_destroy();
     exit(1);
   }
+  example_loghandler_init();
   srandom(122334817L);
 
 
@@ -339,12 +365,13 @@ int main(int argc __attribute__((unused)), char *argv[])
       fprintf(stderr, "translog_read_record_header failed (%d)\n", errno);
       goto err;
     }
-    if (rec.type !=LOGREC_LONG_TRANSACTION_ID || rec.short_trid != 0 ||
+    if (rec.type !=LOGREC_FIXED_RECORD_0LSN_EXAMPLE || rec.short_trid != 0 ||
         rec.record_length != 6 || uint4korr(rec.header) != 0 ||
         ((uchar)rec.header[4]) != 0 || ((uchar)rec.header[5]) != 0xFF ||
         first_lsn != rec.lsn)
     {
-      fprintf(stderr, "Incorrect LOGREC_LONG_TRANSACTION_ID data read(0)\n"
+      fprintf(stderr, "Incorrect LOGREC_FIXED_RECORD_0LSN_EXAMPLE "
+              "data read(0)\n"
               "type %u, strid %u, len %u, i: %u, 4: %u 5: %u, "
               "lsn(%lu,0x%lx)\n",
               (uint) rec.type, (uint) rec.short_trid, (uint) rec.record_length,
@@ -353,7 +380,7 @@ int main(int argc __attribute__((unused)), char *argv[])
               (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
       goto err;
     }
-    ok(1, "read record");
+    read_ok(&rec);
     translog_free_record_header(&rec);
     lsn= first_lsn;
     if (translog_init_scanner(first_lsn, 1, &scanner))
@@ -384,10 +411,12 @@ int main(int argc __attribute__((unused)), char *argv[])
       {
         LSN ref;
         ref= lsn_korr(rec.header);
-        if (rec.type !=LOGREC_CLR_END || rec.short_trid != (i % 0xFFFF) ||
+        if (rec.type != LOGREC_FIXED_RECORD_1LSN_EXAMPLE ||
+            rec.short_trid != (i % 0xFFFF) ||
             rec.record_length != 7 || ref != lsn)
         {
-          fprintf(stderr, "Incorrect LOGREC_CLR_END data read(%d) "
+          fprintf(stderr, "Incorrect LOGREC_FIXED_RECORD_1LSN_EXAMPLE "
+                  "data read(%d) "
                   "type: %u  strid: %u  len: %u"
                   "ref: (%lu,0x%lx)  (%lu,0x%lx)  "
                   "lsn(%lu,0x%lx)\n",
@@ -404,7 +433,7 @@ int main(int argc __attribute__((unused)), char *argv[])
         LSN ref1, ref2;
         ref1= lsn_korr(rec.header);
         ref2= lsn_korr(rec.header + LSN_STORE_SIZE);
-        if (rec.type != LOGREC_UNDO_ROW_DELETE ||
+        if (rec.type != LOGREC_FIXED_RECORD_2LSN_EXAMPLE ||
             rec.short_trid != (i % 0xFFFF) ||
             rec.record_length != 23 ||
             ref1 != lsn ||
@@ -419,7 +448,8 @@ int main(int argc __attribute__((unused)), char *argv[])
             ((uchar)rec.header[15]) != 0xAA ||
             ((uchar)rec.header[14]) != 0x55)
         {
-          fprintf(stderr, "Incorrect LOGREC_UNDO_ROW_DELETE data read(%d)"
+          fprintf(stderr, "Incorrect LOGREC_FIXED_RECORD_2LSN_EXAMPLE "
+                  "data read(%d) "
                   "type %u, strid %u, len %u, ref1(%lu,0x%lx), "
                   "ref2(%lu,0x%lx) %x%x%x%x%x%x%x%x%x "
                   "lsn(%lu,0x%lx)\n",
@@ -436,7 +466,7 @@ int main(int argc __attribute__((unused)), char *argv[])
           goto err;
         }
       }
-      ok(1, "read record");
+      read_ok(&rec);
       translog_free_record_header(&rec);
 
       len= translog_read_next_record_header(&scanner, &rec);
@@ -458,18 +488,19 @@ int main(int argc __attribute__((unused)), char *argv[])
         ref= lsn_korr(rec.header);
         if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 12)
           rec_len= 12;
-        if (rec.type !=LOGREC_UNDO_KEY_INSERT ||
+        if (rec.type != LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE ||
             rec.short_trid != (i % 0xFFFF) ||
             rec.record_length != rec_len + LSN_STORE_SIZE ||
             len != 12 || ref != lsn ||
             check_content(rec.header + LSN_STORE_SIZE, len - LSN_STORE_SIZE))
         {
-          fprintf(stderr, "Incorrect LOGREC_UNDO_KEY_INSERT data read(%d)"
+          fprintf(stderr, "Incorrect LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE "
+                  "data read(%d)"
                   "type %u (%d), strid %u (%d), len %lu, %lu + 7 (%d), "
                   "hdr len: %u (%d), "
                   "ref(%lu,0x%lx), lsn(%lu,0x%lx) (%d), content: %d\n",
                   i, (uint) rec.type,
-                  rec.type !=LOGREC_UNDO_KEY_INSERT,
+                  rec.type != LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE,
                   (uint) rec.short_trid,
                   rec.short_trid != (i % 0xFFFF),
                   (ulong) rec.record_length, (ulong) rec_len,
@@ -486,8 +517,8 @@ int main(int argc __attribute__((unused)), char *argv[])
         if (read_and_check_content(&rec, long_buffer, LSN_STORE_SIZE))
         {
           fprintf(stderr,
-                  "Incorrect LOGREC_UNDO_KEY_INSERT in whole rec read "
-                  "lsn(%lu,0x%lx)\n",
+                  "Incorrect LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE "
+                  "in whole rec read lsn(%lu,0x%lx)\n",
                   (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
           goto err;
         }
@@ -499,7 +530,7 @@ int main(int argc __attribute__((unused)), char *argv[])
         ref2= lsn_korr(rec.header + LSN_STORE_SIZE);
         if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 19)
           rec_len= 19;
-        if (rec.type !=LOGREC_UNDO_KEY_DELETE ||
+        if (rec.type != LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE ||
             rec.short_trid != (i % 0xFFFF) ||
             rec.record_length != rec_len + LSN_STORE_SIZE * 2 ||
             len != 19 ||
@@ -508,7 +539,8 @@ int main(int argc __attribute__((unused)), char *argv[])
             check_content(rec.header + LSN_STORE_SIZE * 2,
                           len - LSN_STORE_SIZE * 2))
         {
-          fprintf(stderr, "Incorrect LOGREC_UNDO_KEY_DELETE data read(%d)"
+          fprintf(stderr, "Incorrect LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE "
+                  "data read(%d) "
                   "type %u, strid %u, len %lu != %lu + 14, hdr len: %u, "
                   "ref1(%lu,0x%lx), ref2(%lu,0x%lx), "
                   "lsn(%lu,0x%lx)\n",
@@ -523,13 +555,13 @@ int main(int argc __attribute__((unused)), char *argv[])
         if (read_and_check_content(&rec, long_buffer, LSN_STORE_SIZE * 2))
         {
           fprintf(stderr,
-                  "Incorrect LOGREC_UNDO_KEY_DELETE in whole rec read "
-                  "lsn(%lu,0x%lx)\n",
+                  "Incorrect LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE "
+                  "in whole rec read lsn(%lu,0x%lx)\n",
                   (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
           goto err;
         }
       }
-      ok(1, "read record");
+      read_ok(&rec);
       translog_free_record_header(&rec);
 
       len= translog_read_next_record_header(&scanner, &rec);
@@ -545,12 +577,13 @@ int main(int argc __attribute__((unused)), char *argv[])
                 "instead of beginning of %u\n", i, ITERATIONS);
         goto err;
       }
-      if (rec.type !=LOGREC_LONG_TRANSACTION_ID ||
+      if (rec.type != LOGREC_FIXED_RECORD_0LSN_EXAMPLE ||
           rec.short_trid != (i % 0xFFFF) ||
           rec.record_length != 6 || uint4korr(rec.header) != i ||
           ((uchar)rec.header[4]) != 0 || ((uchar)rec.header[5]) != 0xFF)
       {
-        fprintf(stderr, "Incorrect LOGREC_LONG_TRANSACTION_ID data read(%d)\n"
+        fprintf(stderr, "Incorrect LOGREC_FIXED_RECORD_0LSN_EXAMPLE "
+                "data read(%d)\n"
                 "type %u, strid %u, len %u, i: %u, 4: %u 5: %u "
                 "lsn(%lu,0x%lx)\n",
                 i, (uint) rec.type, (uint) rec.short_trid,
@@ -561,18 +594,19 @@ int main(int argc __attribute__((unused)), char *argv[])
         goto err;
       }
       lsn= rec.lsn;
-      ok(1, "read record");
+      read_ok(&rec);
       translog_free_record_header(&rec);
 
       len= translog_read_next_record_header(&scanner, &rec);
       if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 9)
         rec_len= 9;
-      if (rec.type !=LOGREC_REDO_INSERT_ROW_HEAD ||
+      if (rec.type != LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE ||
           rec.short_trid != (i % 0xFFFF) ||
           rec.record_length != rec_len ||
           len != 9 || check_content(rec.header, len))
       {
-        fprintf(stderr, "Incorrect LOGREC_REDO_INSERT_ROW_HEAD data read(%d)"
+        fprintf(stderr, "Incorrect LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE "
+                "data read(%d) "
                 "type %u, strid %u, len %lu != %lu, hdr len: %u, "
                 "lsn(%lu,0x%lx)\n",
                 i, (uint) rec.type, (uint) rec.short_trid,
@@ -584,12 +618,12 @@ int main(int argc __attribute__((unused)), char *argv[])
       if (read_and_check_content(&rec, long_buffer, 0))
       {
         fprintf(stderr,
-                "Incorrect LOGREC_UNDO_KEY_DELETE in whole rec read "
-                "lsn(%lu,0x%lx)\n",
+                "Incorrect LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE "
+                "in whole rec read lsn(%lu,0x%lx)\n",
                 (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
         goto err;
       }
-      ok(1, "read record");
+      read_ok(&rec);
       translog_free_record_header(&rec);
     }
   }

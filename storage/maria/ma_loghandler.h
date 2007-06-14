@@ -55,7 +55,7 @@ struct st_maria_share;
 #define LOG_INTERNAL_PARTS 1
 
 /* position reserved in an array of parts of a log record */
-#define TRANSLOG_INTERNAL_PARTS 1
+#define TRANSLOG_INTERNAL_PARTS 2
 
 /* types of records in the transaction log */
 /* Todo: Set numbers for these when we have all entries figured out */
@@ -140,7 +140,7 @@ typedef struct st_translog_header_buffer
    /*
      Real compressed LSN(s) size economy (<number of LSN(s)>*7 - <real_size>)
   */
-  uint16 compressed_LSN_economy;
+  int16 compressed_LSN_economy;
   /* short transaction ID or 0 if it has no sense for the record */
   uint16 non_header_data_start_offset;
   /* non read body data length in this first chunk */
@@ -184,7 +184,16 @@ struct st_translog_reader_data
 extern "C" {
 #endif
 
-extern void loghandler_init();
+/* Records types for unittests */
+#define LOGREC_FIXED_RECORD_0LSN_EXAMPLE 1
+#define LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE 2
+#define LOGREC_FIXED_RECORD_1LSN_EXAMPLE 3
+#define LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE 4
+#define LOGREC_FIXED_RECORD_2LSN_EXAMPLE 5
+#define LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE 6
+
+extern void example_loghandler_init();
+
 extern my_bool translog_init(const char *directory, uint32 log_file_max_size,
 			     uint32 server_version, uint32 server_id,
 			     PAGECACHE *pagecache, uint flags);

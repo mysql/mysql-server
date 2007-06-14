@@ -48,7 +48,9 @@
     putchar('\n'); \
   } while(0);
 
-
+/* Maximum length of compressed LSNs (the worst case of whole LSN storing) */
+#define COMPRESSED_LSN_MAX_STORE_SIZE (2 + LSN_STORE_SIZE)
+#define MAX_NUMBER_OF_LSNS_PER_RECORD 2
 
 /* record parts descriptor */
 struct st_translog_parts
@@ -184,7 +186,6 @@ enum record_class
 
 /* compressed (relative) LSN constants */
 #define TRANSLOG_CLSN_LEN_BITS 0xC0    /* Mask to get compressed LSN length */
-#define TRANSLOG_CLSN_MAX_LEN  5       /* Maximum length of compressed LSN */
 
 typedef my_bool(*prewrite_rec_hook) (enum translog_record_type type,
                                      void *tcb, struct st_maria_share *share,
@@ -207,7 +208,10 @@ struct st_log_record_type_descriptor
 {
   /* internal class of the record */
   enum record_class class;
-  /* length for fixed-size record, or maximum length of pseudo-fixed */
+  /*
+    length for fixed-size record, pseudo-fixed record
+    length with uncompressed LSNs
+  */
   uint16 fixed_length;
   /* how much record body (belonged to headers too) read with headers */
   uint16 read_header_len;
@@ -230,20 +234,55 @@ struct st_log_record_type_descriptor
 
   NOTE that after first public Maria release, these can NOT be changed
 */
-
 typedef struct st_log_record_type_descriptor LOG_DESC;
 
 static LOG_DESC log_record_type_descriptor[LOGREC_NUMBER_OF_TYPES];
 
+static LOG_DESC INIT_LOGREC_FIXED_RECORD_0LSN_EXAMPLE=
+{LOGRECTYPE_FIXEDLENGTH, 6, 6, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_FIXED_RECORD_1LSN_EXAMPLE=
+{LOGRECTYPE_PSEUDOFIXEDLENGTH, 7, 7, NULL, NULL, NULL, 1};
+
+static LOG_DESC INIT_LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 12, NULL, NULL, NULL, 1};
+
+static LOG_DESC INIT_LOGREC_FIXED_RECORD_2LSN_EXAMPLE=
+{LOGRECTYPE_PSEUDOFIXEDLENGTH, 23, 23, NULL, NULL, NULL, 2};
+
+static LOG_DESC INIT_LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 19, NULL, NULL, NULL, 2};
+
+
+void example_loghandler_init()
+{
+  log_record_type_descriptor[LOGREC_FIXED_RECORD_0LSN_EXAMPLE]=
+    INIT_LOGREC_FIXED_RECORD_0LSN_EXAMPLE;
+  log_record_type_descriptor[LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE]=
+    INIT_LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE;
+  log_record_type_descriptor[LOGREC_FIXED_RECORD_1LSN_EXAMPLE]=
+    INIT_LOGREC_FIXED_RECORD_1LSN_EXAMPLE;
+  log_record_type_descriptor[LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE]=
+    INIT_LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE;
+  log_record_type_descriptor[LOGREC_FIXED_RECORD_2LSN_EXAMPLE]=
+    INIT_LOGREC_FIXED_RECORD_2LSN_EXAMPLE;
+  log_record_type_descriptor[LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE]=
+    INIT_LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE;
+}
+
+
 static LOG_DESC INIT_LOGREC_RESERVED_FOR_CHUNKS23=
-{ LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0 };
+{LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0 };
 
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_HEAD=
 {LOGRECTYPE_VARIABLE_LENGTH, 0,
  FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE, NULL, NULL, NULL, 0};
 
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_TAIL=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, NULL, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 8, NULL, NULL, NULL, 0};
 
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_BLOB=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 8, NULL, NULL, NULL, 0};
@@ -356,7 +395,7 @@ static LOG_DESC INIT_LOGREC_LONG_TRANSACTION_ID=
 {LOGRECTYPE_FIXEDLENGTH, 6, 6, NULL, NULL, NULL, 0};
 
 
-void loghandler_init()
+static void loghandler_init()
 {
   log_record_type_descriptor[LOGREC_RESERVED_FOR_CHUNKS23]=
     INIT_LOGREC_RESERVED_FOR_CHUNKS23;
@@ -1378,9 +1417,11 @@ static uint16 translog_get_total_chunk_length(byte *page, uint16 offset)
     {
       /* first 2 bits is length - 2 */
       uint len= ((((uint8) (*ptr)) & TRANSLOG_CLSN_LEN_BITS) >> 6) + 2;
+      if (ptr[0] == 0 && ((uint8) ptr[1]) == 1)
+        len+= LSN_STORE_SIZE; /* case of full LSN storing */
       ptr+= len;
       /* subtract economized bytes */
-      length-= (TRANSLOG_CLSN_MAX_LEN - len);
+      length-= (LSN_STORE_SIZE - len);
     }
     DBUG_PRINT("info", ("Pseudo-fixed length: %u", length));
     DBUG_RETURN(length);
@@ -3215,13 +3256,21 @@ static byte *translog_put_LSN_diff(LSN base_lsn, LSN lsn, byte *dst)
     offset_diff= base_offset - LSN_OFFSET(lsn);
     if (diff > 0x3f)
     {
-      /*TODO: error - too long transaction - panic!!! */
-      UNRECOVERABLE_ERROR(("Too big file diff: %lu", (ulong) diff));
-      DBUG_RETURN(NULL);
+      /*
+        It is full LSN after special 1 diff (which is impossible
+        in real life)
+      */
+      dst-= 2 + LSN_STORE_SIZE;
+      dst[0]= 0;
+      dst[1]= 1;
+      lsn_store(dst + 2, lsn);
     }
-    dst-= 5;
-    *dst= (0xC0 | diff);
-    int4store(dst + 1, offset_diff);
+    else
+    {
+      dst-= 5;
+      *dst= (0xC0 | diff);
+      int4store(dst + 1, offset_diff);
+    }
   }
   DBUG_PRINT("info", ("new dst: 0x%lx", (ulong) dst));
   DBUG_RETURN(dst);
@@ -3275,6 +3324,17 @@ static byte *translog_get_LSN_from_diff(LSN base_lsn, byte *src, byte *dst)
                       (uint) code, (ulong) first_byte));
   switch (code) {
   case 0:
+    if (first_byte == 0 && *((uint8*)src) == 1)
+    {
+      /*
+        It is full LSN after special 1 diff (which is impossible
+        in real life)
+      */
+      memcpy(dst, src + 1, LSN_STORE_SIZE);
+      DBUG_PRINT("info", ("Special case of full LSN, new src: 0x%lx",
+                          (ulong) (src + 1 + LSN_STORE_SIZE)));
+      DBUG_RETURN(src + 1 + LSN_STORE_SIZE);
+    }
     rec_offset= LSN_OFFSET(base_lsn) - ((first_byte << 8) + *((uint8*)src));
     break;
   case 1:
@@ -3306,7 +3366,7 @@ static byte *translog_get_LSN_from_diff(LSN base_lsn, byte *src, byte *dst)
   lsn= MAKE_LSN(file_no, rec_offset);
   src+= code + 1;
   lsn_store(dst, lsn);
-  DBUG_PRINT("info", ("new src: 0x%lx", (ulong) dst));
+  DBUG_PRINT("info", ("new src: 0x%lx", (ulong) src));
   DBUG_RETURN(src);
 }
 
@@ -3332,59 +3392,77 @@ static my_bool translog_relative_LSN_encode(struct st_translog_parts *parts,
 {
   LEX_STRING *part;
   uint lsns_len= lsns * LSN_STORE_SIZE;
+  char buffer_src[MAX_NUMBER_OF_LSNS_PER_RECORD * LSN_STORE_SIZE];
+  char *buffer= buffer_src;
 
   DBUG_ENTER("translog_relative_LSN_encode");
 
+  DBUG_ASSERT(parts->current != 0);
   part= parts->parts + parts->current;
+
   /* collect all LSN(s) in one chunk if it (they) is (are) divided */
   if (part->length < lsns_len)
   {
     uint copied= part->length;
     LEX_STRING *next_part;
     DBUG_PRINT("info", ("Using buffer: 0x%lx", (ulong) compressed_LSNs));
-    memcpy(compressed_LSNs, (byte*)part->str, part->length);
+    memcpy(buffer, (byte*)part->str, part->length);
     next_part= parts->parts + parts->current + 1;
     do
     {
       DBUG_ASSERT(next_part < parts->parts + parts->elements);
       if ((next_part->length + copied) < lsns_len)
       {
-        memcpy(compressed_LSNs + copied, (byte*)next_part->str,
+        memcpy(buffer + copied, (byte*)next_part->str,
                next_part->length);
         copied+= next_part->length;
         next_part->length= 0; next_part->str= 0;
         /* delete_dynamic_element(&parts->parts, parts->current + 1); */
         next_part++;
+        parts->current++;
+        part= parts->parts + parts->current;
       }
       else
       {
         uint len= lsns_len - copied;
-        memcpy(compressed_LSNs + copied, (byte*)next_part->str, len);
+        memcpy(buffer + copied, (byte*)next_part->str, len);
         copied= lsns_len;
         next_part->str+= len;
         next_part->length-= len;
       }
     } while (copied < lsns_len);
-    part->length= lsns_len;
-    part->str= (char*)compressed_LSNs;
   }
+  else
+  {
+    buffer= part->str;
+    part->str+= lsns_len;
+    part->length-= lsns_len;
+    parts->current--;
+    part= parts->parts + parts->current;
+  }
+
   {
     /* Compress */
     LSN ref;
-    uint economy;
-    byte *ref_ptr= (byte*)part->str + lsns_len - LSN_STORE_SIZE;
-    byte *dst_ptr= (byte*)part->str + lsns_len;
-    for (; ref_ptr >= (byte*)part->str ; ref_ptr-= LSN_STORE_SIZE)
+    int economy;
+    byte *src_ptr;
+    byte *dst_ptr= compressed_LSNs + (MAX_NUMBER_OF_LSNS_PER_RECORD *
+                                      COMPRESSED_LSN_MAX_STORE_SIZE);
+    for (src_ptr= buffer + lsns_len - LSN_STORE_SIZE;
+         src_ptr >=  buffer;
+         src_ptr-= LSN_STORE_SIZE)
     {
-      ref= lsn_korr(ref_ptr);
+      ref= lsn_korr(src_ptr);
       if ((dst_ptr= translog_put_LSN_diff(base_lsn, ref, dst_ptr)) == NULL)
         DBUG_RETURN(1);
     }
-    /* Note that dst_ptr did grow downward ! */
-    economy= (uint) (dst_ptr - (byte*)part->str);
-    DBUG_PRINT("info", ("Economy: %u", economy));
-    part->length-= economy;
-    parts->record_length-= economy;
+    part->length= (uint)((compressed_LSNs +
+                          (MAX_NUMBER_OF_LSNS_PER_RECORD *
+                           COMPRESSED_LSN_MAX_STORE_SIZE)) -
+                         dst_ptr);
+    parts->record_length-= (economy= lsns_len - part->length);
+    DBUG_PRINT("info", ("new length of LSNs: %u  economy: %d",
+                        part->length, economy));
     parts->total_record_length-= economy;
     part->str= (char*)dst_ptr;
   }
@@ -3853,7 +3931,8 @@ static my_bool translog_write_variable_record(LSN *lsn,
   ulong buffer_rest;
   uint page_rest;
   /* Max number of such LSNs per record is 2 */
-  byte compressed_LSNs[2 * LSN_STORE_SIZE];
+  byte compressed_LSNs[MAX_NUMBER_OF_LSNS_PER_RECORD *
+    COMPRESSED_LSN_MAX_STORE_SIZE];
   DBUG_ENTER("translog_write_variable_record");
 
   translog_lock();
@@ -3966,7 +4045,8 @@ static my_bool translog_write_fixed_record(LSN *lsn,
   struct st_translog_buffer *buffer_to_flush= NULL;
   byte chunk1_header[1 + 2];
   /* Max number of such LSNs per record is 2 */
-  byte compressed_LSNs[2 * LSN_STORE_SIZE];
+  byte compressed_LSNs[MAX_NUMBER_OF_LSNS_PER_RECORD *
+    COMPRESSED_LSN_MAX_STORE_SIZE];
   LEX_STRING *part;
   int rc;
   DBUG_ENTER("translog_write_fixed_record");
@@ -3976,8 +4056,7 @@ static my_bool translog_write_fixed_record(LSN *lsn,
                log_record_type_descriptor[type].fixed_length) ||
               (log_record_type_descriptor[type].class ==
                LOGRECTYPE_PSEUDOFIXEDLENGTH &&
-               (parts->record_length -
-                log_record_type_descriptor[type].compressed_LSN * 2) <=
+               parts->record_length ==
                log_record_type_descriptor[type].fixed_length));
 
   translog_lock();
@@ -3989,19 +4068,18 @@ static my_bool translog_write_fixed_record(LSN *lsn,
   DBUG_PRINT("info",
              ("Page size: %u  record: %u  next cond: %d",
               log_descriptor.bc.current_page_fill,
-              (parts->record_length -
+              (parts->record_length +
                log_record_type_descriptor[type].compressed_LSN * 2 + 3),
               ((((uint) log_descriptor.bc.current_page_fill) +
-                (parts->record_length -
+                (parts->record_length +
                  log_record_type_descriptor[type].compressed_LSN * 2 + 3)) >
                TRANSLOG_PAGE_SIZE)));
   /*
-     check that there is enough place on current page:
-     (log_record_type_descriptor[type].fixed_length - economized on compressed
-     LSNs) bytes
+     check that there is enough place on current page.
+     NOTE: compressing may increase page LSN size on two bytes for every LSN
   */
   if ((((uint) log_descriptor.bc.current_page_fill) +
-       (parts->record_length -
+       (parts->record_length +
         log_record_type_descriptor[type].compressed_LSN * 2 + 3)) >
       TRANSLOG_PAGE_SIZE)
   {
@@ -4123,7 +4201,7 @@ my_bool translog_write_record(LSN *lsn,
   parts.current= TRANSLOG_INTERNAL_PARTS;
 
   /* clear TRANSLOG_INTERNAL_PARTS */
-  DBUG_ASSERT(TRANSLOG_INTERNAL_PARTS == 1);
+  DBUG_ASSERT(TRANSLOG_INTERNAL_PARTS != 0);
   parts_data[0].str= 0;
   parts_data[0].length= 0;
 
@@ -4243,7 +4321,7 @@ translog_size_t translog_fixed_length_header(byte *page,
   byte *dst= buff->header;
   byte *start= src;
   uint lsns= desc->compressed_LSN;
-  uint length= desc->fixed_length + (lsns * 2);
+  uint length= desc->fixed_length;
 
   DBUG_ENTER("translog_fixed_length_header");
 
@@ -4256,7 +4334,7 @@ translog_size_t translog_fixed_length_header(byte *page,
     lsns*= LSN_STORE_SIZE;
     dst+= lsns;
     length-= lsns;
-    buff->compressed_LSN_economy= (uint16) (lsns - (src - start));
+    buff->compressed_LSN_economy= (lsns - (src - start));
   }
   else
     buff->compressed_LSN_economy= 0;
@@ -4575,7 +4653,7 @@ translog_size_t translog_variable_length_header(byte *page,
   LSN base_lsn;
   uint lsns= desc->compressed_LSN;
   uint16 chunk_len;
-  uint16 length= desc->read_header_len + (lsns * 2);
+  uint16 length= desc->read_header_len;
   uint16 buffer_length= length;
   uint16 body_len;
   TRANSLOG_SCANNER_DATA internal_scanner;
@@ -4697,10 +4775,10 @@ translog_size_t translog_variable_length_header(byte *page,
     dst+= lsns;
     length-= lsns;
     buff->record_length+= (buff->compressed_LSN_economy=
-                           (uint16) (lsns - (src - start)));
-    DBUG_PRINT("info", ("lsns: %u  length: %u  economy: %u  new length: %lu",
+                           (lsns - (src - start)));
+    DBUG_PRINT("info", ("lsns: %u  length: %u  economy: %d  new length: %lu",
                         lsns / LSN_STORE_SIZE, (uint) length,
-                        (uint) buff->compressed_LSN_economy,
+                        (int) buff->compressed_LSN_economy,
                         (ulong) buff->record_length));
     body_len-= (src - start);
   }
