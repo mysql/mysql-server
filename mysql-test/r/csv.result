@@ -5240,3 +5240,11 @@ CREATE TABLE `bug21328` (
 insert into bug21328 values (1,NULL,NULL);
 alter table bug21328 engine=myisam;
 drop table bug21328;
+create table t1(a blob, b int) engine=csv;
+insert into t1 values('a', 1);
+flush tables;
+update t1 set b=2;
+select * from t1;
+a	b
+a	2
+drop table t1;
