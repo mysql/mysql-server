@@ -131,6 +131,8 @@ public:
   virtual const char* get_filename(Uint32 fd) const { return "";}
 protected:
   static Callback TheEmptyCallback;
+  void TheNULLCallbackFunction(class Signal*, Uint32, Uint32);
+  static Callback TheNULLCallback;
   void execute(Signal* signal, Callback & c, Uint32 returnCode);
   
   
@@ -599,6 +601,8 @@ inline
 void
 SimulatedBlock::execute(Signal* signal, Callback & c, Uint32 returnCode){
   CallbackFunction fun = c.m_callbackFunction; 
+  if (fun == TheNULLCallback.m_callbackFunction)
+    return;
   ndbrequire(fun != 0);
   c.m_callbackFunction = NULL;
   (this->*fun)(signal, c.m_callbackData, returnCode);
