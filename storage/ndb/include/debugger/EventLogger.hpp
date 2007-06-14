@@ -174,5 +174,5 @@ private:
   STATIC_CONST(MAX_TEXT_LENGTH = 256);
 };
 
-
+extern void getRestartAction(Uint32 action, BaseString &str);
 #endif
