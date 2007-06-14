@@ -52,11 +52,22 @@ extern int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
                             uint t1_keys, uint t1_recs,
                             MI_KEYDEF *t2_keyinfo, MI_COLUMNDEF *t2_recinfo,
                             uint t2_keys, uint t2_recs, bool strict);
+static void split_file_name(const char *file_name,
+			    LEX_STRING *db, LEX_STRING *name);
+
+
 extern "C" void myrg_print_wrong_table(const char *table_name)
 {
+  LEX_STRING db, name;
+  char buf[FN_REFLEN];
+  split_file_name(table_name, &db, &name);
+  memcpy(buf, db.str, db.length);
+  buf[db.length]= '.';
+  memcpy(buf + db.length + 1, name.str, name.length);
+  buf[db.length + name.length + 1]= 0;
   push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                       ER_ADMIN_WRONG_MRG_TABLE, ER(ER_ADMIN_WRONG_MRG_TABLE),
-                      table_name);
+                      buf);
 }
 
 
