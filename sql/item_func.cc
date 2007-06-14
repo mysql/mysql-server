@@ -1954,7 +1954,13 @@ void Item_func_round::fix_length_and_dec()
   {
     max_length= args[0]->max_length;
     decimals= args[0]->decimals;
-    hybrid_type= REAL_RESULT;
+    if (args[0]->result_type() == DECIMAL_RESULT)
+    {
+      max_length++;
+      hybrid_type= DECIMAL_RESULT;
+    }
+    else
+      hybrid_type= REAL_RESULT;
     return;
   }
 
