@@ -423,6 +423,12 @@ public:
     return field_length / charset()->mbmaxlen;
   }
 
+  virtual geometry_type get_geometry_type()
+  {
+    /* shouldn't get here. */
+    DBUG_ASSERT(0);
+    return GEOM_GEOMETRY;
+  }
   /* Hash value */
   virtual void hash(ulong *nr, ulong *nr2);
   friend bool reopen_table(THD *,struct st_table *,bool);
@@ -1415,6 +1421,7 @@ public:
   uint get_key_image(uchar *buff,uint length,imagetype type);
   uint size_of() const { return sizeof(*this); }
   int  reset(void) { return !maybe_null() || Field_blob::reset(); }
+  geometry_type get_geometry_type() { return geom_type; };
 };
 #endif /*HAVE_SPATIAL*/
 

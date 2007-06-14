@@ -230,14 +230,8 @@ AC_CHECK_PROGS(YACC, ['bison -y -p MYSQL'])
 AC_CHECK_PROG(PDFMANUAL, pdftex, manual.pdf)
 AC_CHECK_PROG(DVIS,      tex,    manual.dvi)
 
-AC_MSG_CHECKING("return type of sprintf")
-
 #check the return type of sprintf
-case $SYSTEM_TYPE in
-  *netware*)
-    AC_DEFINE(SPRINTF_RETURNS_INT, [1]) AC_MSG_RESULT("int")
-    ;;
-  *)
+AC_MSG_CHECKING("return type of sprintf")
 AC_TRY_RUN([
   int main()
     {
@@ -263,10 +257,12 @@ AC_TRY_RUN([
                [AC_DEFINE(SPRINTF_RETURNS_PTR, [1], [Broken sprintf])
                 AC_MSG_RESULT("ptr")],
                [AC_DEFINE(SPRINTF_RETURNS_GARBAGE, [1], [Broken sprintf])
-                AC_MSG_RESULT("garbage")])
-   ])
-    ;;
-esac
+                AC_MSG_RESULT("garbage")]
+   )],
+   # Cross compile, assume POSIX
+   [AC_DEFINE(SPRINTF_RETURNS_INT, [1], [POSIX sprintf])
+    AC_MSG_RESULT("int (we assume)")]
+)
 
 AC_PATH_PROG(uname_prog, uname, no)
 
@@ -1664,6 +1660,12 @@ AC_ARG_WITH(client-ldflags,
     [CLIENT_EXTRA_LDFLAGS=])
 AC_SUBST(CLIENT_EXTRA_LDFLAGS)
 
+AC_ARG_WITH(mysqld-libs,
+    [  --with-mysqld-libs   Extra libraries to link with for mysqld],
+    [MYSQLD_EXTRA_LIBS=$withval],
+    [MYSQLD_EXTRA_LIBS=])
+AC_SUBST(MYSQLD_EXTRA_LIBS)
+
 AC_ARG_WITH(lib-ccflags,
     [  --with-lib-ccflags      Extra CC options for libraries],
     [LIB_EXTRA_CCFLAGS=$withval],
@@ -1781,8 +1783,6 @@ MYSQL_TYPE_ACCEPT
 #---END:
 # Figure out what type of struct rlimit to use with setrlimit
 MYSQL_TYPE_STRUCT_RLIMIT
-# Find where the stack goes
-MYSQL_STACK_DIRECTION
 # We want to skip alloca on irix unconditionally. It may work on some version..
 MYSQL_FUNC_ALLOCA
 # Do struct timespec have members tv_sec or ts_sec
