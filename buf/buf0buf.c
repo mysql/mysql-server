@@ -1648,6 +1648,15 @@ buf_page_init(
 
 	block->lock_hash_val	= lock_rec_hash(space, offset);
 
+#ifdef UNIV_DEBUG_VALGRIND
+	if (!space) {
+		/* Silence valid Valgrind warnings about uninitialized
+		data being written to data files.  There are some unused
+		bytes on some pages that InnoDB does not initialize. */
+		UNIV_MEM_VALID(block->frame, UNIV_PAGE_SIZE);
+	}
+#endif /* UNIV_DEBUG_VALGRIND */
+
 	/* Insert into the hash table of file pages */
 
 	if (buf_page_hash_get(space, offset)) {

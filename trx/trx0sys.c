@@ -868,7 +868,16 @@ trx_sysf_create(
 		trx_sysf_rseg_set_page_no(sys_header, i, FIL_NULL, mtr);
 	}
 
-	/* The remaining area (up to the page trailer) is uninitialized. */
+	/* The remaining area (up to the page trailer) is uninitialized.
+	Silence Valgrind warnings about it. */
+	UNIV_MEM_VALID(sys_header + (TRX_SYS_RSEGS
+				     + TRX_SYS_N_RSEGS * TRX_SYS_RSEG_SLOT_SIZE
+				     + TRX_SYS_RSEG_SPACE),
+		       (UNIV_PAGE_SIZE - FIL_PAGE_DATA_END
+			- (TRX_SYS_RSEGS
+			   + TRX_SYS_N_RSEGS * TRX_SYS_RSEG_SLOT_SIZE
+			   + TRX_SYS_RSEG_SPACE))
+		       + page - sys_header);
 
 	/* Create the first rollback segment in the SYSTEM tablespace */
 	page_no = trx_rseg_header_create(TRX_SYS_SPACE, ULINT_MAX, &slot_no,
