@@ -287,3 +287,71 @@ slow_log
 slow_log_new
 drop table slow_log_new, general_log_new;
 use test;
+SET GLOBAL LOG_OUTPUT = 'TABLE';
+SET GLOBAL general_log = 0;
+FLUSH LOGS;
+TRUNCATE TABLE mysql.general_log;
+ALTER TABLE mysql.general_log ENGINE = MyISAM;
+ALTER TABLE mysql.general_log
+ADD COLUMN seq BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY;
+SET GLOBAL general_log = 1;
+FLUSH LOGS;
+SELECT * FROM mysql.general_log;
+event_time	user_host	thread_id	server_id	command_type	argument	seq
+EVENT_TIME	USER_HOST	THREAD_ID	SERVER_ID	Query	FLUSH LOGS	1
+EVENT_TIME	USER_HOST	THREAD_ID	SERVER_ID	Query	SELECT * FROM mysql.general_log	2
+SELECT * FROM mysql.general_log;
+event_time	user_host	thread_id	server_id	command_type	argument	seq
+EVENT_TIME	USER_HOST	THREAD_ID	SERVER_ID	Query	FLUSH LOGS	1
+EVENT_TIME	USER_HOST	THREAD_ID	SERVER_ID	Query	SELECT * FROM mysql.general_log	2
+EVENT_TIME	USER_HOST	THREAD_ID	SERVER_ID	Query	SELECT * FROM mysql.general_log	3
+SELECT "My own query 1";
+My own query 1
+My own query 1
+SELECT "My own query 2";
+My own query 2
+My own query 2
+SELECT * FROM mysql.general_log;
+event_time	user_host	thread_id	server_id	command_type	argument	seq
+EVENT_TIME	USER_HOST	THREAD_ID	SERVER_ID	Query	FLUSH LOGS	1
+EVENT_TIME	USER_HOST	THREAD_ID	SERVER_ID	Query	SELECT * FROM mysql.general_log	2
+EVENT_TIME	USER_HOST	THREAD_ID	SERVER_ID	Query	SELECT * FROM mysql.general_log	3
+EVENT_TIME	USER_HOST	THREAD_ID	SERVER_ID	Query	SELECT "My own query 1"	4
+EVENT_TIME	USER_HOST	THREAD_ID	SERVER_ID	Query	SELECT "My own query 2"	5
+EVENT_TIME	USER_HOST	THREAD_ID	SERVER_ID	Query	SELECT * FROM mysql.general_log	6
+SET GLOBAL general_log = 0;
+FLUSH LOGS;
+ALTER TABLE mysql.general_log DROP COLUMN seq;
+ALTER TABLE mysql.general_log ENGINE = CSV;
+SET @old_long_query_time:=@@long_query_time;
+SET GLOBAL slow_query_log = 0;
+FLUSH LOGS;
+TRUNCATE TABLE mysql.slow_log;
+ALTER TABLE mysql.slow_log ENGINE = MyISAM;
+ALTER TABLE mysql.slow_log
+ADD COLUMN seq BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY;
+SET SESSION long_query_time = 1;
+SET GLOBAL slow_query_log = 1;
+FLUSH LOGS;
+SELECT "My own slow query", sleep(2);
+My own slow query	sleep(2)
+My own slow query	0
+SELECT "My own slow query", sleep(2);
+My own slow query	sleep(2)
+My own slow query	0
+SELECT "My own slow query", sleep(2);
+My own slow query	sleep(2)
+My own slow query	0
+SELECT "My own slow query", sleep(2);
+My own slow query	sleep(2)
+My own slow query	0
+SELECT * FROM mysql.slow_log WHERE seq >= 2 LIMIT 3;
+start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text	seq
+START_TIME	USER_HOST	QUERY_TIME	00:00:00	1	0	test	NULL	NULL	1	SELECT "My own slow query", sleep(2)	2
+START_TIME	USER_HOST	QUERY_TIME	00:00:00	1	0	test	NULL	NULL	1	SELECT "My own slow query", sleep(2)	3
+START_TIME	USER_HOST	QUERY_TIME	00:00:00	1	0	test	NULL	NULL	1	SELECT "My own slow query", sleep(2)	4
+SET GLOBAL slow_query_log = 0;
+SET SESSION long_query_time =@old_long_query_time;
+FLUSH LOGS;
+ALTER TABLE mysql.slow_log DROP COLUMN seq;
+ALTER TABLE mysql.slow_log ENGINE = CSV;
