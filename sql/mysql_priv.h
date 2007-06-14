@@ -101,7 +101,7 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
                         ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX),    \
                         (Old), (Ver), (New));                                        \
     else                                                                             \
-      sql_print_warning("The syntax %s is deprecated and will be removed "           \
+      sql_print_warning("The syntax '%s' is deprecated and will be removed "         \
                         "in MySQL %s. Please use %s instead.", (Old), (Ver), (New)); \
   } while(0)
 
@@ -617,6 +617,8 @@ bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
 bool check_string_char_length(LEX_STRING *str, const char *err_msg,
                               uint max_char_length, CHARSET_INFO *cs,
                               bool no_error);
+
+bool parse_sql(THD *thd, class Lex_input_stream *lip);
 
 enum enum_mysql_completiontype {
   ROLLBACK_RELEASE=-2, ROLLBACK=1,  ROLLBACK_AND_CHAIN=7,
@@ -1588,6 +1590,7 @@ bool check_db_dir_existence(const char *db_name);
 bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
 bool load_db_opt_by_name(THD *thd, const char *db_name,
                          HA_CREATE_INFO *db_create_info);
+CHARSET_INFO *get_default_db_collation(THD *thd, const char *db_name);
 bool my_dbopt_init(void);
 void my_dbopt_cleanup(void);
 extern int creating_database; // How many database locks are made
@@ -1608,8 +1611,8 @@ extern const char *first_keyword, *my_localhost, *delayed_user, *binary_keyword;
 extern const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
 extern const char *in_left_expr_name, *in_additional_cond, *in_having_cond;
-extern const char * const triggers_file_ext;
-extern const char * const trigname_file_ext;
+extern const char * const TRG_EXT;
+extern const char * const TRN_EXT;
 extern Eq_creator eq_creator;
 extern Ne_creator ne_creator;
 extern Gt_creator gt_creator;
@@ -1953,7 +1956,6 @@ void free_list(I_List <i_string_pair> *list);
 void free_list(I_List <i_string> *list);
 
 /* sql_yacc.cc */
-extern int MYSQLparse(void *thd);
 #ifndef DBUG_OFF
 extern void turn_parser_debug_on();
 #endif
@@ -2144,6 +2146,12 @@ bool schema_table_store_record(THD *thd, TABLE *table);
 /* sql/item_create.cc */
 int item_create_init();
 void item_create_cleanup();
+
+inline void lex_string_set(LEX_STRING *lex_str, const char *c_str)
+{
+  lex_str->str= (char *) c_str;
+  lex_str->length= strlen(c_str);
+}
 
 #endif /* MYSQL_SERVER */
 #endif /* MYSQL_CLIENT */
