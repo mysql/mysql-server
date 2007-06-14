@@ -46,6 +46,7 @@ ndbapi/NdbInterpretedCode.hpp
 
 mgmapiinclude_HEADERS = \
 mgmapi/mgmapi.h \
+mgmapi/mgmapi_error.h \
 mgmapi/mgmapi_debug.h \
 mgmapi/mgmapi_config_parameters.h \
 mgmapi/mgmapi_config_parameters_debug.h \
