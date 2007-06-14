@@ -1392,6 +1392,25 @@ bool ha_flush_logs(handlerton *db_type)
   return FALSE;
 }
 
+static const char *check_lowercase_names(handler *file, const char *path,
+                                         char *tmp_path)
+{
+  if (lower_case_table_names != 2 || (file->ha_table_flags() & HA_FILE_BASED))
+    return path;
+
+  /* Ensure that table handler get path in lower case */
+  if (tmp_path != path)
+    strmov(tmp_path, path);
+
+  /*
+    we only should turn into lowercase database/table part
+    so start the process after homedirectory
+  */
+  my_casedn_str(files_charset_info, tmp_path + mysql_data_home_len);
+  return tmp_path;
+}
+
+
 /** @brief
   This should return ENOENT if the file doesn't exists.
   The .frm file will be deleted only if we return 0 or ENOENT
@@ -1415,13 +1434,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
       ! (file=get_new_handler((TABLE_SHARE*)0, thd->mem_root, table_type)))
     DBUG_RETURN(ENOENT);
 
-  if (lower_case_table_names == 2 && !(file->ha_table_flags() & HA_FILE_BASED))
-  {
-    /* Ensure that table handler get path in lower case */
-    strmov(tmp_path, path);
-    my_casedn_str(files_charset_info, tmp_path);
-    path= tmp_path;
-  }
+  path= check_lowercase_names(file, path, tmp_path);
   if ((error= file->delete_table(path)) && generate_warning)
   {
     /*
@@ -2597,15 +2610,7 @@ int ha_create_table(THD *thd, const char *path,
   if (update_create_info)
     update_create_info_from_table(create_info, &table);
 
-  name= share.path.str;
-  if (lower_case_table_names == 2 &&
-      !(table.file->ha_table_flags() & HA_FILE_BASED))
-  {
-    /* Ensure that handler gets name in lower case */
-    strmov(name_buff, name);
-    my_casedn_str(files_charset_info, name_buff);
-    name= name_buff;
-  }
+  name= check_lowercase_names(table.file, share.path.str, name_buff);
 
   error= table.file->create(name, &table, create_info);
   VOID(closefrm(&table, 0));
@@ -2655,7 +2660,8 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
     frmblob and frmlen are set, write the frm to disk
   */
 
-  (void)strxnmov(path,FN_REFLEN-1,mysql_data_home,"/",db,"/",name,NullS);
+  (void)strxnmov(path,FN_REFLEN-1,mysql_data_home,FN_ROOTDIR,
+                 db,FN_ROOTDIR,name,NullS);
   // Save the frm file
   error= writefrm(path, frmblob, frmlen);
   my_free(frmblob, MYF(0));
@@ -2676,12 +2682,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   update_create_info_from_table(&create_info, &table);
   create_info.table_options|= HA_OPTION_CREATE_FROM_ENGINE;
 
-  if (lower_case_table_names == 2 &&
-      !(table.file->ha_table_flags() & HA_FILE_BASED))
-  {
-    /* Ensure that handler gets name in lower case */
-    my_casedn_str(files_charset_info, path);
-  }
+  check_lowercase_names(table.file, path, path);
   error=table.file->create(path,&table,&create_info);
   VOID(closefrm(&table, 1));
 

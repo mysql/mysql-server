@@ -40,6 +40,7 @@ C_MODE_END
 /* the number of digits that my_decimal can possibly contain */
 #define DECIMAL_MAX_POSSIBLE_PRECISION (DECIMAL_BUFF_LENGTH * 9)
 
+
 /*
   maximum guaranteed precision of number in decimal digits (number of our
   digits * number of decimal digits in one our big digit - number of decimal

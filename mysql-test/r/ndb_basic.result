@@ -770,35 +770,6 @@ c	abc	ab
 d	ab	ab
 e	abc	abc
 DROP TABLE t1;
-End of 5.0 tests
-CREATE TABLE t1 (a VARCHAR(255) NOT NULL,
-CONSTRAINT pk_a PRIMARY KEY (a))engine=ndb;
-CREATE TABLE t2(a VARCHAR(255) NOT NULL,
-b VARCHAR(255) NOT NULL,
-c VARCHAR(255) NOT NULL,
-CONSTRAINT pk_b_c_id PRIMARY KEY (b,c),
-CONSTRAINT fk_a FOREIGN KEY(a) REFERENCES t1(a))engine=ndb;
-drop table t1, t2;
-create table t1 (a int not null primary key, b int) engine=ndb;
-insert into t1 values(1,1),(2,2),(3,3);
-create table t2 like t1;
-insert into t2 select * from t1;
-select * from t1 order by a;
-a	b
-1	1
-2	2
-3	3
-select * from t2 order by a;
-a	b
-1	1
-2	2
-3	3
-drop table t1, t2;
-create table t1 (a int not null primary key, b int not null default 0, c varchar(254)) engine=ndb;
-create table if not exists t1 (a int not null primary key, b int not null default 0, c varchar(254)) engine=ndb;
-create table t2 like t1;
-rename table t1 to t10, t2 to t20;
-drop table t10,t20;
 create table t1 (a int not null primary key, b int not null) engine=ndb;
 create table t2 (a int not null primary key, b int not null) engine=ndb;
 insert into t1 values (1,10), (2,20), (3,30);
@@ -867,7 +838,36 @@ select * from t1 order by a;
 a	b
 1	10
 2	10
-3	1
+3	30
 4	1
 drop table t1,t2;
+End of 5.0 tests
+CREATE TABLE t1 (a VARCHAR(255) NOT NULL,
+CONSTRAINT pk_a PRIMARY KEY (a))engine=ndb;
+CREATE TABLE t2(a VARCHAR(255) NOT NULL,
+b VARCHAR(255) NOT NULL,
+c VARCHAR(255) NOT NULL,
+CONSTRAINT pk_b_c_id PRIMARY KEY (b,c),
+CONSTRAINT fk_a FOREIGN KEY(a) REFERENCES t1(a))engine=ndb;
+drop table t1, t2;
+create table t1 (a int not null primary key, b int) engine=ndb;
+insert into t1 values(1,1),(2,2),(3,3);
+create table t2 like t1;
+insert into t2 select * from t1;
+select * from t1 order by a;
+a	b
+1	1
+2	2
+3	3
+select * from t2 order by a;
+a	b
+1	1
+2	2
+3	3
+drop table t1, t2;
+create table t1 (a int not null primary key, b int not null default 0, c varchar(254)) engine=ndb;
+create table if not exists t1 (a int not null primary key, b int not null default 0, c varchar(254)) engine=ndb;
+create table t2 like t1;
+rename table t1 to t10, t2 to t20;
+drop table t10,t20;
 End of 5.1 tests
