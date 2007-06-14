@@ -122,7 +122,7 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
   
   if (page_buffer > 0)
   {
-    page_buffer /= GLOBAL_PAGE_SIZE; // in pages
+    page_buffer = (page_buffer + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE; // in pages
     m_param.m_max_pages = page_buffer;
     m_page_entry_pool.setSize(m_param.m_lirs_stack_mult * page_buffer);
     m_param.m_max_hot_pages = (page_buffer * 9) / 10;
@@ -144,7 +144,7 @@ Pgman::Param::Param() :
   m_lirs_stack_mult(10),
   m_max_hot_pages(56),
   m_max_loop_count(256),
-  m_max_io_waits(64),
+  m_max_io_waits(256),
   m_stats_loop_delay(1000),
   m_cleanup_loop_delay(200),
   m_lcp_loop_delay(0)
