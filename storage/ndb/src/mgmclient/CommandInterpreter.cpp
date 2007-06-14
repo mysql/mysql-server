@@ -723,6 +723,12 @@ CommandInterpreter::printError()
 /*
  * print log event from mgmsrv to console screen
  */
+#define make_uint64(a,b) (((Uint64)(a)) + (((Uint64)(b)) << 32))
+#define Q64(a) make_uint64(event->EVENT.a ## _lo, event->EVENT.a ## _hi)
+#define R event->source_nodeid
+#define Q(a) event->EVENT.a
+#define QVERSION getMajor(Q(version)), getMinor(Q(version)), getBuild(Q(version))
+#define NDB_LE_(a) NDB_LE_ ## a
 static void
 printLogEvent(struct ndb_logevent* event)
 {
@@ -730,71 +736,83 @@ printLogEvent(struct ndb_logevent* event)
     /** 
      * NDB_MGM_EVENT_CATEGORY_BACKUP
      */
-    case NDB_LE_BackupStarted:
-      ndbout_c("Backup %d started from node %d", 
-               event->BackupStarted.backup_id, event->BackupStarted.starting_node);
+#undef  EVENT
+#define EVENT BackupStarted
+  case NDB_LE_BackupStarted:
+      ndbout_c("Node %u: Backup %d started from node %d",
+               R, Q(backup_id), Q(starting_node));
       break;
+#undef  EVENT
+#define EVENT BackupFailedToStart
     case NDB_LE_BackupFailedToStart:
-      ndbout_c("Backup request from %d failed to start. Error: %d", 
-               event->BackupFailedToStart.starting_node, event->BackupFailedToStart.error);
+      ndbout_c("Node %u: Backup request from %d failed to start. Error: %d",
+               R, Q(starting_node), Q(error));
       break;
+#undef  EVENT
+#define EVENT BackupCompleted
     case NDB_LE_BackupCompleted:
-      ndbout_c("Backup %u started from node %u completed\n" 
+      ndbout_c("Node %u: Backup %u started from node %u completed\n" 
                " StartGCP: %u StopGCP: %u\n" 
                " #Records: %u #LogRecords: %u\n" 
-               " Data: %u bytes Log: %u bytes",
-               event->BackupCompleted.backup_id, event->BackupCompleted.starting_node,
-               event->BackupCompleted.start_gci, event->BackupCompleted.stop_gci,
-               event->BackupCompleted.n_records, event->BackupCompleted.n_log_records,
-               event->BackupCompleted.n_bytes, event->BackupCompleted.n_log_bytes);
+               " Data: %u bytes Log: %u bytes", R,
+               Q(backup_id), Q(starting_node),
+               Q(start_gci), Q(stop_gci),
+               Q(n_records), Q(n_log_records),
+               Q(n_bytes),   Q(n_log_bytes));
       break;
+#undef  EVENT
+#define EVENT BackupAborted
     case NDB_LE_BackupAborted:
-      ndbout_c("Backup %d started from %d has been aborted. Error: %d",
-               event->BackupAborted.backup_id, event->BackupAborted.starting_node, 
-               event->BackupAborted.error);
+      ndbout_c("Node %u: Backup %d started from %d has been aborted. Error: %d",
+               R, Q(backup_id), Q(starting_node), Q(error));
       break;
     /** 
      * NDB_MGM_EVENT_CATEGORY_STARTUP
      */ 
+#undef  EVENT
+#define EVENT NDBStartStarted
     case NDB_LE_NDBStartStarted:
-      ndbout_c("Start initiated (version %d.%d.%d)", 
-               getMajor(event->NDBStartStarted.version),
-               getMinor(event->NDBStartStarted.version),
-               getBuild(event->NDBStartStarted.version));
+      ndbout_c("Node %u: Start initiated (version %d.%d.%d)",
+               R, QVERSION);
       break;
+#undef  EVENT
+#define EVENT NDBStartCompleted
     case NDB_LE_NDBStartCompleted:
-      ndbout_c("Started (version %d.%d.%d)", 
-               getMajor(event->NDBStartCompleted.version),
-               getMinor(event->NDBStartCompleted.version),
-               getBuild(event->NDBStartCompleted.version));
+      ndbout_c("Node %u: Started (version %d.%d.%d)",
+               R, QVERSION);
       break;
+#undef  EVENT
+#define EVENT NDBStopStarted
     case NDB_LE_NDBStopStarted:
-      ndbout_c("%s shutdown initiated", 
-               (event->NDBStopStarted.stoptype == 1 ? "Cluster" : "Node"));
+      ndbout_c("Node %u: %s shutdown initiated", R,
+               (Q(stoptype) == 1 ? "Cluster" : "Node"));
       break;
+#undef  EVENT
+#define EVENT NDBStopCompleted
     case NDB_LE_NDBStopCompleted:
       {
         BaseString action_str("");
         BaseString signum_str("");
-        getRestartAction(event->NDBStopCompleted.action, action_str);
-        if (event->NDBStopCompleted.signum)
+        getRestartAction(Q(action), action_str);
+        if (Q(signum))
           signum_str.appfmt(" Initiated by signal %d.", 
-                            event->NDBStopCompleted.signum);
-        ndbout_c("Node shutdown completed%s.%s", 
-                 action_str.c_str(), 
-                 signum_str.c_str());
+                            Q(signum));
+        ndbout_c("Node %u: Node shutdown completed%s.%s", 
+                 R, action_str.c_str(), signum_str.c_str());
       }
       break;
+#undef  EVENT
+#define EVENT NDBStopForced
     case NDB_LE_NDBStopForced:
       {
         BaseString action_str("");
         BaseString reason_str("");
         BaseString sphase_str("");
-        int signum = event->NDBStopForced.signum;
-        int error = event->NDBStopForced.error; 
-        int sphase = event->NDBStopForced.sphase; 
-        int extra = event->NDBStopForced.extra; 
-        getRestartAction(event->NDBStopForced.action, action_str);
+        int signum = Q(signum);
+        int error = Q(error); 
+        int sphase = Q(sphase); 
+        int extra = Q(extra); 
+        getRestartAction(Q(action), action_str);
         if (signum)
           reason_str.appfmt(" Initiated by signal %d.", signum);
         if (error)
@@ -811,13 +829,15 @@ printLogEvent(struct ndb_logevent* event)
         }
         if (sphase < 255)
           sphase_str.appfmt(" Occured during startphase %u.", sphase);
-        ndbout_c("Forced node shutdown completed%s.%s%s", 
-                 action_str.c_str(), sphase_str.c_str(), 
+        ndbout_c("Node %u: Forced node shutdown completed%s.%s%s",
+                 R, action_str.c_str(), sphase_str.c_str(), 
                  reason_str.c_str());
       }
       break;
+#undef  EVENT
+#define EVENT StopAborted
     case NDB_LE_NDBStopAborted:
-      ndbout_c("Node shutdown aborted");
+      ndbout_c("Node %u: Node shutdown aborted", R);
       break;
     /** 
      * default nothing to print
