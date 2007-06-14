@@ -18,6 +18,7 @@
 
 #include "MgmtSrvr.hpp"
 #include "MgmtErrorReporter.hpp"
+#include "ndb_mgmd_error.h"
 #include <ConfigRetriever.hpp>
 
 #include <NdbOut.hpp>
@@ -239,13 +240,6 @@ MgmtSrvr::stopEventLog()
   // Nothing yet
 }
 
-class ErrorItem 
-{
-public:
-  int _errorCode;
-  const char * _errorText;
-};
-
 bool
 MgmtSrvr::setEventLogFilter(int severity, int enable)
 {
@@ -268,62 +262,6 @@ MgmtSrvr::isEventLogFilterEnabled(int severity)
   return g_eventLogger.isEnable((Logger::LoggerLevel)severity);
 }
 
-static ErrorItem errorTable[] = 
-{
-  {MgmtSrvr::NO_CONTACT_WITH_PROCESS, "No contact with the process (dead ?)."},
-  {MgmtSrvr::PROCESS_NOT_CONFIGURED, "The process is not configured."},
-  {MgmtSrvr::WRONG_PROCESS_TYPE, 
-   "The process has wrong type. Expected a DB process."},
-  {MgmtSrvr::COULD_NOT_ALLOCATE_MEMORY, "Could not allocate memory."},
-  {MgmtSrvr::SEND_OR_RECEIVE_FAILED, "Send to process or receive failed."},
-  {MgmtSrvr::INVALID_LEVEL, "Invalid level. Should be between 1 and 30."},
-  {MgmtSrvr::INVALID_ERROR_NUMBER, "Invalid error number. Should be >= 0."},
-  {MgmtSrvr::INVALID_TRACE_NUMBER, "Invalid trace number."},
-  {MgmtSrvr::NOT_IMPLEMENTED, "Not implemented."},
-  {MgmtSrvr::INVALID_BLOCK_NAME, "Invalid block name"},
-
-  {MgmtSrvr::CONFIG_PARAM_NOT_EXIST, 
-   "The configuration parameter does not exist for the process type."},
-  {MgmtSrvr::CONFIG_PARAM_NOT_UPDATEABLE, 
-   "The configuration parameter is not possible to update."},
-  {MgmtSrvr::VALUE_WRONG_FORMAT_INT_EXPECTED, 
-   "Incorrect value. Expected integer."},
-  {MgmtSrvr::VALUE_TOO_LOW, "Value is too low."},
-  {MgmtSrvr::VALUE_TOO_HIGH, "Value is too high."},
-  {MgmtSrvr::VALUE_WRONG_FORMAT_BOOL_EXPECTED, 
-   "Incorrect value. Expected TRUE or FALSE."},
-
-  {MgmtSrvr::CONFIG_FILE_OPEN_WRITE_ERROR, 
-   "Could not open configuration file for writing."},
-  {MgmtSrvr::CONFIG_FILE_OPEN_READ_ERROR, 
-   "Could not open configuration file for reading."},
-  {MgmtSrvr::CONFIG_FILE_WRITE_ERROR, 
-   "Write error when writing configuration file."},
-  {MgmtSrvr::CONFIG_FILE_READ_ERROR, 
-   "Read error when reading configuration file."},
-  {MgmtSrvr::CONFIG_FILE_CLOSE_ERROR, "Could not close configuration file."},
-
-  {MgmtSrvr::CONFIG_CHANGE_REFUSED_BY_RECEIVER, 
-   "The change was refused by the receiving process."},
-  {MgmtSrvr::COULD_NOT_SYNC_CONFIG_CHANGE_AGAINST_PHYSICAL_MEDIUM, 
-   "The change could not be synced against physical medium."},
-  {MgmtSrvr::CONFIG_FILE_CHECKSUM_ERROR, 
-   "The config file is corrupt. Checksum error."},
-  {MgmtSrvr::NOT_POSSIBLE_TO_SEND_CONFIG_UPDATE_TO_PROCESS_TYPE, 
-   "It is not possible to send an update of a configuration variable "
-   "to this kind of process."},
-  {MgmtSrvr::NODE_SHUTDOWN_IN_PROGESS, "Node shutdown in progress" },
-  {MgmtSrvr::SYSTEM_SHUTDOWN_IN_PROGRESS, "System shutdown in progress" },
-  {MgmtSrvr::NODE_SHUTDOWN_WOULD_CAUSE_SYSTEM_CRASH,
-   "Node shutdown would cause system crash" },
-  {MgmtSrvr::UNSUPPORTED_NODE_SHUTDOWN,
-   "Unsupported multi node shutdown. Abort option required." },
-  {MgmtSrvr::NODE_NOT_API_NODE, "The specified node is not an API node." },
-  {MgmtSrvr::OPERATION_NOT_ALLOWED_START_STOP, 
-   "Operation not allowed while nodes are starting or stopping."},
-  {MgmtSrvr::NO_CONTACT_WITH_DB_NODES, "No contact with database nodes" }
-};
-
 int MgmtSrvr::translateStopRef(Uint32 errCode)
 {
   switch(errCode){
@@ -342,8 +280,6 @@ int MgmtSrvr::translateStopRef(Uint32 errCode)
   }
   return 4999;
 }
-
-static int noOfErrorCodes = sizeof(errorTable) / sizeof(ErrorItem);
 
 int 
 MgmtSrvr::getNodeCount(enum ndb_mgm_node_type type) const 
@@ -1985,18 +1921,8 @@ MgmtSrvr::dumpState(int nodeId, const Uint32 args[], Uint32 no)
 
 const char* MgmtSrvr::getErrorText(int errorCode, char *buf, int buf_sz)
 {
-
-  for (int i = 0; i < noOfErrorCodes; ++i) {
-    if (errorCode == errorTable[i]._errorCode) {
-      BaseString::snprintf(buf, buf_sz, errorTable[i]._errorText);
-      buf[buf_sz-1]= 0;
-      return buf;
-    }
-  }
-
   ndb_error_string(errorCode, buf, buf_sz);
   buf[buf_sz-1]= 0;
-
   return buf;
 }
 
