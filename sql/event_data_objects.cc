@@ -94,17 +94,18 @@ Event_parse_data::Event_parse_data()
   :on_completion(Event_basic::ON_COMPLETION_DROP),
   status(Event_basic::ENABLED),
   do_not_create(FALSE),
-   item_starts(NULL), item_ends(NULL), item_execute_at(NULL),
-   starts_null(TRUE), ends_null(TRUE), execute_at_null(TRUE),
-   item_expression(NULL), expression(0)
+  body_changed(FALSE),
+  item_starts(NULL), item_ends(NULL), item_execute_at(NULL),
+  starts_null(TRUE), ends_null(TRUE), execute_at_null(TRUE),
+  item_expression(NULL), expression(0)
 {
   DBUG_ENTER("Event_parse_data::Event_parse_data");
 
   /* Actually in the parser STARTS is always set */
   starts= ends= execute_at= 0;
 
-  body.str= comment.str= NULL;
-  body.length= comment.length= 0;
+  comment.str= NULL;
+  comment.length= 0;
 
   DBUG_VOID_RETURN;
 }
@@ -132,36 +133,6 @@ Event_parse_data::init_name(THD *thd, sp_name *spn)
 
   if (spn->m_qname.length == 0)
     spn->init_qname(thd);
-
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Set body of the event - what should be executed.
-
-  SYNOPSIS
-    Event_parse_data::init_body()
-      thd   THD
-
-  NOTE
-    The body is extracted by copying all data between the
-    start of the body set by another method and the current pointer in Lex.
-
-    See related code in sp_head::init_strings().
-*/
-
-void
-Event_parse_data::init_body(THD *thd)
-{
-  DBUG_ENTER("Event_parse_data::init_body");
-
-  /* This method is called from within the parser, from sql_yacc.yy */
-  DBUG_ASSERT(thd->m_lip != NULL);
-
-  body.length= thd->m_lip->get_cpp_ptr() - body_begin;
-  body.str= thd->strmake(body_begin, body.length);
-  trim_whitespace(thd->charset(), & body);
 
   DBUG_VOID_RETURN;
 }
@@ -788,36 +759,32 @@ Event_timed::init()
 }
 
 
-/*
-  Loads an event's body from a row from mysql.event
+/**
+  Load an event's body from a row from mysql.event.
+  @details This method is silent on errors and should behave like that.
+  Callers should handle throwing of error messages. The reason is that the
+  class should not know about how to deal with communication.
 
-  SYNOPSIS
-    Event_job_data::load_from_row(THD *thd, TABLE *table)
-
-  RETURN VALUE
-    0                      OK
-    EVEX_GET_FIELD_FAILED  Error
-
-  NOTES
-    This method is silent on errors and should behave like that. Callers
-    should handle throwing of error messages. The reason is that the class
-    should not know about how to deal with communication.
+  @return Operation status
+    @retval FALSE OK
+    @retval TRUE  Error
 */
 
-int
+bool
 Event_job_data::load_from_row(THD *thd, TABLE *table)
 {
   char *ptr;
   uint len;
+  LEX_STRING tz_name;
+
   DBUG_ENTER("Event_job_data::load_from_row");
 
   if (!table)
-    goto error;
+    DBUG_RETURN(TRUE);
 
   if (table->s->fields < ET_FIELD_COUNT)
-    goto error;
+    DBUG_RETURN(TRUE);
 
-  LEX_STRING tz_name;
   if (load_string_fields(table->field,
                          ET_FIELD_DB, &dbname,
                          ET_FIELD_NAME, &name,
@@ -825,10 +792,10 @@ Event_job_data::load_from_row(THD *thd, TABLE *table)
                          ET_FIELD_DEFINER, &definer,
                          ET_FIELD_TIME_ZONE, &tz_name,
                          ET_FIELD_COUNT))
-    goto error;
+    DBUG_RETURN(TRUE);
 
   if (load_time_zone(thd, tz_name))
-    goto error;
+    DBUG_RETURN(TRUE);
 
   ptr= strchr(definer.str, '@');
 
@@ -845,29 +812,23 @@ Event_job_data::load_from_row(THD *thd, TABLE *table)
 
   sql_mode= (ulong) table->field[ET_FIELD_SQL_MODE]->val_int();
 
-  DBUG_RETURN(0);
-error:
-  DBUG_RETURN(EVEX_GET_FIELD_FAILED);
+  DBUG_RETURN(FALSE);
 }
 
 
-/*
-  Loads an event from a row from mysql.event
+/**
+  Load an event's body from a row from mysql.event.
 
-  SYNOPSIS
-    Event_queue_element::load_from_row(THD *thd, TABLE *table)
+  @details This method is silent on errors and should behave like that.
+  Callers should handle throwing of error messages. The reason is that the
+  class should not know about how to deal with communication.
 
-  RETURN VALUE
-    0                      OK
-    EVEX_GET_FIELD_FAILED  Error
-
-  NOTES
-    This method is silent on errors and should behave like that. Callers
-    should handle throwing of error messages. The reason is that the class
-    should not know about how to deal with communication.
+  @return Operation status
+    @retval FALSE OK
+    @retval TRUE  Error
 */
 
-int
+bool
 Event_queue_element::load_from_row(THD *thd, TABLE *table)
 {
   char *ptr;
@@ -877,10 +838,10 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
   DBUG_ENTER("Event_queue_element::load_from_row");
 
   if (!table)
-    goto error;
+    DBUG_RETURN(TRUE);
 
   if (table->s->fields < ET_FIELD_COUNT)
-    goto error;
+    DBUG_RETURN(TRUE);
 
   if (load_string_fields(table->field,
                          ET_FIELD_DB, &dbname,
@@ -888,10 +849,10 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
                          ET_FIELD_DEFINER, &definer,
                          ET_FIELD_TIME_ZONE, &tz_name,
                          ET_FIELD_COUNT))
-    goto error;
+    DBUG_RETURN(TRUE);
 
   if (load_time_zone(thd, tz_name))
-    goto error;
+    DBUG_RETURN(TRUE);
 
   starts_null= table->field[ET_FIELD_STARTS]->is_null();
   if (!starts_null)
@@ -921,7 +882,7 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
   {
     if (table->field[ET_FIELD_EXECUTE_AT]->get_date(&time,
                                                     TIME_NO_ZERO_DATE))
-      goto error;
+      DBUG_RETURN(TRUE);
     execute_at= sec_since_epoch_TIME(&time);
   }
 
@@ -940,13 +901,13 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
 
     table->field[ET_FIELD_TRANSIENT_INTERVAL]->val_str(&str);
     if (!(tmp.length= str.length()))
-      goto error;
+      DBUG_RETURN(TRUE);
 
     tmp.str= str.c_ptr_safe();
 
     i= find_string_in_array(interval_type_to_name, &tmp, system_charset_info);
     if (i < 0)
-      goto error;
+      DBUG_RETURN(TRUE);
     interval= (interval_type) i;
   }
 
@@ -959,7 +920,7 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
   last_executed_changed= FALSE;
 
   if ((ptr= get_field(&mem_root, table->field[ET_FIELD_STATUS])) == NullS)
-    goto error;
+    DBUG_RETURN(TRUE);
 
   DBUG_PRINT("load_from_row", ("Event [%s] is [%s]", name.str, ptr));
 
@@ -978,40 +939,34 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
     break;
   }
   if ((ptr= get_field(&mem_root, table->field[ET_FIELD_ORIGINATOR])) == NullS)
-    goto error;
+    DBUG_RETURN(TRUE);
   originator = table->field[ET_FIELD_ORIGINATOR]->val_int(); 
 
   /* ToDo : Andrey . Find a way not to allocate ptr on event_mem_root */
   if ((ptr= get_field(&mem_root,
                       table->field[ET_FIELD_ON_COMPLETION])) == NullS)
-    goto error;
+    DBUG_RETURN(TRUE);
 
   on_completion= (ptr[0]=='D'? Event_queue_element::ON_COMPLETION_DROP:
                                Event_queue_element::ON_COMPLETION_PRESERVE);
 
-  DBUG_RETURN(0);
-error:
-  DBUG_RETURN(EVEX_GET_FIELD_FAILED);
+  DBUG_RETURN(FALSE);
 }
 
 
-/*
-  Loads an event from a row from mysql.event
+/**
+  Load an event's body from a row from mysql.event.
 
-  SYNOPSIS
-    Event_timed::load_from_row(THD *thd, TABLE *table)
+  @details This method is silent on errors and should behave like that.
+  Callers should handle throwing of error messages. The reason is that the
+  class should not know about how to deal with communication.
 
-  RETURN VALUE
-    0                      OK
-    EVEX_GET_FIELD_FAILED  Error
-
-  NOTES
-    This method is silent on errors and should behave like that. Callers
-    should handle throwing of error messages. The reason is that the class
-    should not know about how to deal with communication.
+  @return Operation status
+    @retval FALSE OK
+    @retval TRUE  Error
 */
 
-int
+bool
 Event_timed::load_from_row(THD *thd, TABLE *table)
 {
   char *ptr;
@@ -1020,12 +975,12 @@ Event_timed::load_from_row(THD *thd, TABLE *table)
   DBUG_ENTER("Event_timed::load_from_row");
 
   if (Event_queue_element::load_from_row(thd, table))
-    goto error;
+    DBUG_RETURN(TRUE);
 
   if (load_string_fields(table->field,
                          ET_FIELD_BODY, &body,
                          ET_FIELD_COUNT))
-    goto error;
+    DBUG_RETURN(TRUE);
 
 
   ptr= strchr(definer.str, '@');
@@ -1052,9 +1007,7 @@ Event_timed::load_from_row(THD *thd, TABLE *table)
 
   sql_mode= (ulong) table->field[ET_FIELD_SQL_MODE]->val_int();
 
-  DBUG_RETURN(0);
-error:
-  DBUG_RETURN(EVEX_GET_FIELD_FAILED);
+  DBUG_RETURN(FALSE);
 }
 
 
