@@ -18,6 +18,7 @@
 #include <Vector.hpp>
 #include <mgmapi.h>
 #include <util/BaseString.hpp>
+#include <ndbd_exit_codes.h>
 
 class MgmtSrvr;
 
@@ -719,6 +720,113 @@ CommandInterpreter::printError()
   }
 }
 
+/*
+ * print log event from mgmsrv to console screen
+ */
+static void
+printLogEvent(struct ndb_logevent* event)
+{
+  switch (event->type) {
+    /** 
+     * NDB_MGM_EVENT_CATEGORY_BACKUP
+     */
+    case NDB_LE_BackupStarted:
+      ndbout_c("Backup %d started from node %d", 
+               event->BackupStarted.backup_id, event->BackupStarted.starting_node);
+      break;
+    case NDB_LE_BackupFailedToStart:
+      ndbout_c("Backup request from %d failed to start. Error: %d", 
+               event->BackupFailedToStart.starting_node, event->BackupFailedToStart.error);
+      break;
+    case NDB_LE_BackupCompleted:
+      ndbout_c("Backup %u started from node %u completed\n" 
+               " StartGCP: %u StopGCP: %u\n" 
+               " #Records: %u #LogRecords: %u\n" 
+               " Data: %u bytes Log: %u bytes",
+               event->BackupCompleted.backup_id, event->BackupCompleted.starting_node,
+               event->BackupCompleted.start_gci, event->BackupCompleted.stop_gci,
+               event->BackupCompleted.n_records, event->BackupCompleted.n_log_records,
+               event->BackupCompleted.n_bytes, event->BackupCompleted.n_log_bytes);
+      break;
+    case NDB_LE_BackupAborted:
+      ndbout_c("Backup %d started from %d has been aborted. Error: %d",
+               event->BackupAborted.backup_id, event->BackupAborted.starting_node, 
+               event->BackupAborted.error);
+      break;
+    /** 
+     * NDB_MGM_EVENT_CATEGORY_STARTUP
+     */ 
+    case NDB_LE_NDBStartStarted:
+      ndbout_c("Start initiated (version %d.%d.%d)", 
+               getMajor(event->NDBStartStarted.version),
+               getMinor(event->NDBStartStarted.version),
+               getBuild(event->NDBStartStarted.version));
+      break;
+    case NDB_LE_NDBStartCompleted:
+      ndbout_c("Started (version %d.%d.%d)", 
+               getMajor(event->NDBStartCompleted.version),
+               getMinor(event->NDBStartCompleted.version),
+               getBuild(event->NDBStartCompleted.version));
+      break;
+    case NDB_LE_NDBStopStarted:
+      ndbout_c("%s shutdown initiated", 
+               (event->NDBStopStarted.stoptype == 1 ? "Cluster" : "Node"));
+      break;
+    case NDB_LE_NDBStopCompleted:
+      {
+        BaseString action_str("");
+        BaseString signum_str("");
+        getRestartAction(event->NDBStopCompleted.action, action_str);
+        if (event->NDBStopCompleted.signum)
+          signum_str.appfmt(" Initiated by signal %d.", 
+                            event->NDBStopCompleted.signum);
+        ndbout_c("Node shutdown completed%s.%s", 
+                 action_str.c_str(), 
+                 signum_str.c_str());
+      }
+      break;
+    case NDB_LE_NDBStopForced:
+      {
+        BaseString action_str("");
+        BaseString reason_str("");
+        BaseString sphase_str("");
+        int signum = event->NDBStopForced.signum;
+        int error = event->NDBStopForced.error; 
+        int sphase = event->NDBStopForced.sphase; 
+        int extra = event->NDBStopForced.extra; 
+        getRestartAction(event->NDBStopForced.action, action_str);
+        if (signum)
+          reason_str.appfmt(" Initiated by signal %d.", signum);
+        if (error)
+        {
+          ndbd_exit_classification cl;
+          ndbd_exit_status st;
+          const char *msg = ndbd_exit_message(error, &cl);
+          const char *cl_msg = ndbd_exit_classification_message(cl, &st);
+          const char *st_msg = ndbd_exit_status_message(st);
+          reason_str.appfmt(" Caused by error %d: \'%s(%s). %s\'.", 
+                            error, msg, cl_msg, st_msg);
+          if (extra != 0)
+            reason_str.appfmt(" (extra info %d)", extra);
+        }
+        if (sphase < 255)
+          sphase_str.appfmt(" Occured during startphase %u.", sphase);
+        ndbout_c("Forced node shutdown completed%s.%s%s", 
+                 action_str.c_str(), sphase_str.c_str(), 
+                 reason_str.c_str());
+      }
+      break;
+    case NDB_LE_NDBStopAborted:
+      ndbout_c("Node shutdown aborted");
+      break;
+    /** 
+     * default nothing to print
+     */ 
+    default:
+      break;
+  }
+}
+
 //*****************************************************************************
 //*****************************************************************************
 
@@ -735,30 +843,21 @@ event_thread_run(void* p)
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP,
 		   1, NDB_MGM_EVENT_CATEGORY_STARTUP,
 		   0 };
-  int fd = ndb_mgm_listen_event(handle, filter);
-  if (fd != NDB_INVALID_SOCKET)
+
+  NdbLogEventHandle log_handle= NULL;
+  struct ndb_logevent log_event;
+
+  log_handle= ndb_mgm_create_logevent_handle(handle, filter);
+  if (log_handle) 
   {
     do_event_thread= 1;
-    char *tmp= 0;
-    char buf[1024];
     do {
-      SocketInputStream in(fd,2000);
-      if((tmp = in.gets(buf, sizeof(buf))))
-      {
-	const char ping_token[]= "<PING>";
-	if (memcmp(ping_token,tmp,sizeof(ping_token)-1))
-	  if(tmp && strlen(tmp))
-          {
-            Guard g(printmutex);
-            ndbout << tmp;
-          }
-      }
-      else if(in.timedout() && ndb_mgm_check_connection(handle)<0)
-      {
-        break;
-      }
+      if (ndb_logevent_get_next(log_handle, &log_event, 2000) <= 0)
+        continue;
+      Guard g(printmutex);
+      printLogEvent(&log_event);
     } while(do_event_thread);
-    NDB_CLOSE_SOCKET(fd);
+    ndb_mgm_destroy_logevent_handle(&log_handle);
   }
   else
   {
@@ -1022,6 +1121,7 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
     DBUG_RETURN(true);
   }                
   else if(strcasecmp(firstToken, "ENTER") == 0 &&
+	  allAfterFirstToken != NULL &&
 	  allAfterFirstToken != NULL &&
 	  strncasecmp(allAfterFirstToken, "SINGLE USER MODE ", 
 		  sizeof("SINGLE USER MODE") - 1) == 0){
@@ -2578,8 +2678,7 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
 {
   struct ndb_mgm_reply reply;
   unsigned int backupId;
-  int fd = -1;
-  
+
   Vector<BaseString> args;
   {
     BaseString(parameters).split(args);
@@ -2596,8 +2695,6 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   if (sz == 2 && args[1] == "NOWAIT")
   {
     flags = 0;
-    result = ndb_mgm_start_backup(m_mgmsrv, 0, &backupId, &reply);
-    goto END_BACKUP;
   }
   else if (sz == 1 || (sz == 3 && args[1] == "WAIT" && args[2] == "COMPLETED"))
   {
@@ -2615,62 +2712,74 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
     return -1;
   }
 
-  /**
-   * If interactive...event listner is already running
-   */
+  NdbLogEventHandle log_handle= NULL;
+  struct ndb_logevent log_event;
   if (flags == 2 && !interactive)
   {
     int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0, 0 };
-    fd = ndb_mgm_listen_event(m_mgmsrv, filter);
-    if (fd < 0)
+    log_handle = ndb_mgm_create_logevent_handle(m_mgmsrv, filter);
+    if (!log_handle)
     {
       ndbout << "Initializing start of backup failed" << endl;
       printError();
-      return fd;
+      return -1;
     }
   }
   result = ndb_mgm_start_backup(m_mgmsrv, flags, &backupId, &reply);
 
-END_BACKUP:
   if (result != 0) {
     ndbout << "Backup failed" << endl;
     printError();
 
-    if (fd >= 0) 
-      close(fd);
+    if (log_handle) 
+      ndb_mgm_destroy_logevent_handle(&log_handle);
     return result;
   }
 
-  if (fd >= 0)
+  /**
+   * If interactive, event listner thread is already running
+   */
+  if (log_handle && !interactive)
   {
-    char *tmp;
-    char buf[1024];
-    {
-      SocketInputStream in(fd);
-      int count = 0;
-      do {
-	tmp = in.gets(buf, 1024);
-	if(tmp)
-	{
-	  ndbout << tmp;
-	  unsigned int id;
-	  if(sscanf(tmp, "%*[^:]: Backup %d ", &id) == 1 && id == backupId){
-	    count++;
-	  }
-	}
-      } while(count < 2);
-    }
-    
-    SocketInputStream in(fd, 10);
+    int count = 0;
+    int retry = 0;
     do {
-      tmp = in.gets(buf, 1024);
-      if(tmp && tmp[0] != 0)
+      if (ndb_logevent_get_next(log_handle, &log_event, 60000) > 0)
       {
-	ndbout << tmp;
+        int print = 0;
+        switch (log_event.type) {
+          case NDB_LE_BackupStarted:
+            if (log_event.BackupStarted.backup_id == backupId)
+              print = 1;
+            break;
+          case NDB_LE_BackupCompleted:
+            if (log_event.BackupCompleted.backup_id == backupId)
+              print = 1;
+            break;
+          case NDB_LE_BackupAborted:
+            if (log_event.BackupAborted.backup_id == backupId)
+              print = 1;
+            break;
+          default:
+            break;
+        }
+        if (print)
+        {
+          Guard g(m_print_mutex);
+          printLogEvent(&log_event);
+          count++;
+        }
       }
-    } while(tmp && tmp[0] != 0);
-    
-    close(fd);
+      else
+      {
+        retry++;
+      }
+    } while(count < 2 && retry < 3);
+
+    if (retry >= 3)
+      ndbout << "get backup event failed for " << retry << " times" << endl;
+
+    ndb_mgm_destroy_logevent_handle(&log_handle);
   }
 
   return 0;
