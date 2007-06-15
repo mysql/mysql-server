@@ -172,6 +172,7 @@ void mysql_client_binlog_statement(THD* thd)
         not used at all: the rli_fake instance is used only for error
         reporting.
        */
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
       if (IF_DBUG(int err= ) ev->apply_event(thd->rli_fake))
       {
         DBUG_PRINT("info", ("apply_event() returned: %d", err));
@@ -182,6 +183,7 @@ void mysql_client_binlog_statement(THD* thd)
         my_error(ER_UNKNOWN_ERROR, MYF(0), "Error executing BINLOG statement");
         goto end;
       }
+#endif
 
       delete ev;
       ev= 0;

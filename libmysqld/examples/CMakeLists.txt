@@ -15,12 +15,24 @@
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/libmysqld/include
+                    ${CMAKE_SOURCE_DIR}/libmysqld/release
+                    ${CMAKE_SOURCE_DIR}/regex
+                    ${CMAKE_SOURCE_DIR}/zlib                   
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include)
 
 # Currently does not work with DBUG, there are missing symbols reported.
 ADD_DEFINITIONS(-DDBUG_OFF)
+ADD_DEFINITIONS(-DUSE_TLS)
 ADD_EXECUTABLE(test_libmysqld ../../client/completion_hash.cc
                ../../client/mysql.cc ../../client/readline.cc
                ../../client/sql_string.cc)
-TARGET_LINK_LIBRARIES(test_libmysqld yassl taocrypt zlib wsock32)
+TARGET_LINK_LIBRARIES(test_libmysqld mysys yassl taocrypt zlib dbug regex strings wsock32)
 ADD_DEPENDENCIES(test_libmysqld libmysqld)
+
+ADD_EXECUTABLE(mysqltest_embedded ../../client/mysqltest.c)
+TARGET_LINK_LIBRARIES(mysqltest_embedded mysys yassl taocrypt zlib dbug regex strings wsock32)
+ADD_DEPENDENCIES(mysqltest_embedded libmysqld)
+
+ADD_EXECUTABLE(mysql_client_test_embedded ../../tests/mysql_client_test.c)
+TARGET_LINK_LIBRARIES(mysql_client_test_embedded dbug mysys yassl taocrypt zlib strings wsock32)
+ADD_DEPENDENCIES(mysql_client_test_embedded libmysqld)
