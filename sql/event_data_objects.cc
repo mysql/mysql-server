@@ -1900,6 +1900,9 @@ end:
   thd->lex->unit.cleanup();
   thd->end_statement();
   thd->cleanup_after_query();
+  /* Avoid races with SHOW PROCESSLIST */
+  thd->query_length= 0;
+  thd->query= NULL;
 
   DBUG_PRINT("info", ("EXECUTED %s.%s  ret: %d", dbname.str, name.str, ret));
 
