@@ -1883,9 +1883,11 @@ static void init_signals(void)
 
 static void start_signal_handler(void)
 {
+#ifndef EMBEDDED_LIBRARY
   // Save vm id of this process
   if (!opt_bootstrap)
     create_pid_file();
+#endif /* EMBEDDED_LIBRARY */
 }
 
 
