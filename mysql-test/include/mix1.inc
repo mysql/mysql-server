@@ -641,6 +641,37 @@ alter table t1 comment '123';
 show create table t1;
 drop table t1;
 
+#
+# Bug #25866: Getting "#HY000 Can't find record in..." on and INSERT
+#
+CREATE TABLE t1 (a CHAR(2), KEY (a)) ENGINE = InnoDB DEFAULT CHARSET=UTF8;
+INSERT INTO t1 VALUES ('uk'),('bg');
+SELECT * FROM t1 WHERE a = 'uk';
+DELETE FROM t1 WHERE a = 'uk';
+SELECT * FROM t1 WHERE a = 'uk';
+UPDATE t1 SET a = 'us' WHERE a = 'uk';
+SELECT * FROM t1 WHERE a = 'uk';
+
+CREATE TABLE t2 (a CHAR(2), KEY (a)) ENGINE = InnoDB;
+INSERT INTO t2 VALUES ('uk'),('bg');
+SELECT * FROM t2 WHERE a = 'uk';
+DELETE FROM t2 WHERE a = 'uk';
+SELECT * FROM t2 WHERE a = 'uk';
+INSERT INTO t2 VALUES ('uk');
+UPDATE t2 SET a = 'us' WHERE a = 'uk';
+SELECT * FROM t2 WHERE a = 'uk';
+
+CREATE TABLE t3 (a CHAR(2), KEY (a)) ENGINE = MyISAM;
+INSERT INTO t3 VALUES ('uk'),('bg');
+SELECT * FROM t3 WHERE a = 'uk';
+DELETE FROM t3 WHERE a = 'uk';
+SELECT * FROM t3 WHERE a = 'uk';
+INSERT INTO t3 VALUES ('uk');
+UPDATE t3 SET a = 'us' WHERE a = 'uk';
+SELECT * FROM t3 WHERE a = 'uk';
+
+DROP TABLE t1,t2,t3;
+
 --echo End of 5.0 tests
 
 #
