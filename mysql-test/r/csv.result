@@ -5009,3 +5009,24 @@ select * from bug15205;
 val
 drop table bug15205;
 drop table bug15205_2;
+set names latin1;
+create table t1 (
+c varchar(1),
+name varchar(64)
+) character set latin1 engine=csv;
+insert into t1 values (0xC0,'LATIN CAPITAL LETTER A WITH GRAVE');
+insert into t1 values (0xE0,'LATIN SMALL LETTER A WITH GRAVE');
+insert into t1 values (0xEE,'LATIN SMALL LETTER I WITH CIRCUMFLEX');
+insert into t1 values (0xFE,'LATIN SMALL LETTER THORN');
+insert into t1 values (0xF7,'DIVISION SIGN');
+insert into t1 values (0xFF,'LATIN SMALL LETTER Y WITH DIAERESIS');
+select hex(c), c, name from t1 order by 1;
+hex(c)	c	name
+C0	À	LATIN CAPITAL LETTER A WITH GRAVE
+E0	à	LATIN SMALL LETTER A WITH GRAVE
+EE	î	LATIN SMALL LETTER I WITH CIRCUMFLEX
+F7	÷	DIVISION SIGN
+FE	þ	LATIN SMALL LETTER THORN
+FF	ÿ	LATIN SMALL LETTER Y WITH DIAERESIS
+drop table t1;
+End of 5.0 tests
