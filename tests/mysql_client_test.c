@@ -15624,55 +15624,59 @@ static void test_bug27876()
 
 
 /*
-  Bug#27592 (stack overrun when storing datetime value using prepared statements)
+  Bug#28505: mysql_affected_rows() returns wrong value if CLIENT_FOUND_ROWS
+  flag is set.
 */
 
-static void test_bug27592()
+static void test_bug28505()
 {
-  const int NUM_ITERATIONS= 40;
-  int i;
-  int rc;
-  MYSQL_STMT *stmt= NULL;
-  MYSQL_BIND bind[1];
-  MYSQL_TIME time_val;
+  my_ulonglong res;
 
-  DBUG_ENTER("test_bug27592");
-  myheader("test_bug27592");
+  myquery(mysql_query(mysql, "drop table if exists t1"));
+  myquery(mysql_query(mysql, "create table t1(f1 int primary key)"));
+  myquery(mysql_query(mysql, "insert into t1 values(1)"));
+  myquery(mysql_query(mysql,
+                  "insert into t1 values(1) on duplicate key update f1=1"));
+  res= mysql_affected_rows(mysql);
+  DIE_UNLESS(!res);
+  myquery(mysql_query(mysql, "drop table t1"));
+}
 
-  mysql_query(mysql, "DROP TABLE IF EXISTS t1");
-  mysql_query(mysql, "CREATE TABLE t1(c2 DATETIME)");
 
-  stmt= mysql_simple_prepare(mysql, "INSERT INTO t1 VALUES (?)");
-  DIE_UNLESS(stmt);
+/*
+  Bug#28934: server crash when receiving malformed com_execute packets
+*/
 
-  memset(bind, 0, sizeof(bind));
+static void test_bug28934()
+{
+  my_bool error= 0;
+  MYSQL_BIND bind[5];
+  MYSQL_STMT *stmt;
+  int cnt;
 
-  bind[0].buffer_type= MYSQL_TYPE_DATETIME;
-  bind[0].buffer= (char *) &time_val;
-  bind[0].length= NULL;
+  myquery(mysql_query(mysql, "drop table if exists t1"));
+  myquery(mysql_query(mysql, "create table t1(id int)"));
 
-  for (i= 0; i < NUM_ITERATIONS; i++)
+  myquery(mysql_query(mysql, "insert into t1 values(1),(2),(3),(4),(5)"));
+  stmt= mysql_simple_prepare(mysql,"select * from t1 where id in(?,?,?,?,?)");
+  check_stmt(stmt);
+
+  memset (&bind, 0, sizeof (bind));
+  for (cnt= 0; cnt < 5; cnt++)
   {
-    time_val.year= 2007;
-    time_val.month= 6;
-    time_val.day= 7;
-    time_val.hour= 18;
-    time_val.minute= 41;
-    time_val.second= 3;
-
-    time_val.second_part=0;
-    time_val.neg=0;
-
-    rc= mysql_stmt_bind_param(stmt, bind);
-    check_execute(stmt, rc);
-
-    rc= mysql_stmt_execute(stmt);
-    check_execute(stmt, rc);
+    bind[cnt].buffer_type= MYSQL_TYPE_LONG;
+    bind[cnt].buffer= (char*)&cnt;
+    bind[cnt].buffer_length= 0;
   }
+  myquery(mysql_stmt_bind_param(stmt, bind));
 
+  stmt->param_count=2;
+  error= mysql_stmt_execute(stmt);
+  DIE_UNLESS(error != 0);
+  myerror(NULL);
   mysql_stmt_close(stmt);
 
-  DBUG_VOID_RETURN;
+  myquery(mysql_query(mysql, "drop table t1"));
 }
 
 
@@ -15957,7 +15961,8 @@ static struct my_tests_st my_tests[]= {
   { "test_bug21635", test_bug21635 },
   { "test_bug24179", test_bug24179 },
   { "test_bug27876", test_bug27876 },
-  { "test_bug27592", test_bug27592 },
+  { "test_bug28505", test_bug28505 },
+  { "test_bug28934", test_bug28934 },
   { 0, 0 }
 };
 
