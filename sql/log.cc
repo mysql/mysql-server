@@ -296,6 +296,8 @@ bool Log_to_csv_event_handler::open_log_table(uint log_table_type)
   table->db= log_thd->db;
   table->db_length= log_thd->db_length;
 
+  lex_start(log_thd);
+  log_thd->clear_error();
   if (simple_open_n_lock_tables(log_thd, table) ||
       table->table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
       table->table->file->ha_rnd_init(0))

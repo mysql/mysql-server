@@ -1763,6 +1763,9 @@ select * from t1;
 select * from t3;
 drop table t1, t2, t3;
 
+disconnect addconroot1;
+disconnect addconroot2;
+disconnect addconwithoutdb;
 #
 # Bug #26162: Trigger DML ignores low_priority_updates setting
 #
@@ -1776,19 +1779,23 @@ INSERT INTO t2 VALUES (1),(2);
 CREATE TRIGGER t1_test AFTER INSERT ON t1 FOR EACH ROW 
   INSERT INTO t2 VALUES (new.id);
 
+CONNECT (rl_holder,    localhost, root,,);
 CONNECT (rl_acquirer,  localhost, root,,);
 CONNECT (wl_acquirer,  localhost, root,,);
 CONNECT (rl_contender, localhost, root,,);
 
-SELECT GET_LOCK('B26162',20);
+CONNECTION rl_holder;
+SELECT GET_LOCK('B26162',120);
 
 CONNECTION rl_acquirer;
 --send
-SELECT 'rl_acquirer', GET_LOCK('B26162',5), id FROM t2 WHERE id = 1;
+SELECT 'rl_acquirer', GET_LOCK('B26162',120), id FROM t2 WHERE id = 1;
 
 CONNECTION wl_acquirer;
 SET SESSION LOW_PRIORITY_UPDATES=1;
 SET GLOBAL LOW_PRIORITY_UPDATES=1;
+#need to wait for rl_acquirer to lock on the B26162 lock 
+sleep 2;
 --send
 INSERT INTO t1 VALUES (5);
 
@@ -1798,12 +1805,15 @@ CONNECTION rl_contender;
 --send
 SELECT 'rl_contender', id FROM t2 WHERE id > 1;
 
-CONNECTION default;
+CONNECTION rl_holder;
+#need to wait for wl_acquirer and rl_contender to lock on t2 
+sleep 2;
 SELECT RELEASE_LOCK('B26162');
 
-CONNECTION wl_acquirer;
---reap
 CONNECTION rl_acquirer;
+--reap
+SELECT RELEASE_LOCK('B26162');
+CONNECTION wl_acquirer;
 --reap
 CONNECTION rl_contender;
 --reap
@@ -1812,6 +1822,7 @@ CONNECTION default;
 DISCONNECT rl_acquirer;
 DISCONNECT wl_acquirer;
 DISCONNECT rl_contender;
+DISCONNECT rl_holder;
 
 DROP TRIGGER t1_test;
 DROP TABLE t1,t2;
