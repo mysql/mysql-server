@@ -970,3 +970,8 @@ set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
+show global variables where Variable_name='table_definition_cache' or
+Variable_name='table_lock_wait_timeout';
+Variable_name	Value
+table_definition_cache	#
+table_lock_wait_timeout	#
