@@ -19,14 +19,51 @@ SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 
 # The old Windows build method used renamed (.cc -> .cpp) source files, fails
 # in #include in mysqlbinlog.cc. So disable that using the USING_CMAKE define.
-ADD_DEFINITIONS(-DUSING_CMAKE)
+ADD_DEFINITIONS(-DUSING_CMAKE -DYASSL_PREFIX)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
                     ${CMAKE_SOURCE_DIR}/zlib 
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include 
+                    ${CMAKE_SOURCE_DIR}/extra/yassl/include
+		    ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/include
+		    ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/mySTL
                     ${CMAKE_SOURCE_DIR}/libmysql
                     ${CMAKE_SOURCE_DIR}/regex
                     ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/strings)
+
+SET(YASSL_SOURCES ../extra/yassl/src/buffer.cpp
+                  ../extra/yassl/src/cert_wrapper.cpp
+                  ../extra/yassl/src/crypto_wrapper.cpp
+                  ../extra/yassl/src/handshake.cpp
+                  ../extra/yassl/src/lock.cpp 
+                  ../extra/yassl/src/log.cpp 
+                  ../extra/yassl/src/socket_wrapper.cpp
+                  ../extra/yassl/src/ssl.cpp
+                  ../extra/yassl/src/timer.cpp
+                  ../extra/yassl/src/yassl_error.cpp
+                  ../extra/yassl/src/yassl_imp.cpp
+                  ../extra/yassl/src/yassl_int.cpp)
+                                 
+SET(TAOCRYPT_SOURCES ../extra/yassl/taocrypt/src/aes.cpp
+                     ../extra/yassl/taocrypt/src/aestables.cpp
+                     ../extra/yassl/taocrypt/src/algebra.cpp
+                     ../extra/yassl/taocrypt/src/arc4.cpp
+                     ../extra/yassl/taocrypt/src/asn.cpp
+                     ../extra/yassl/taocrypt/src/coding.cpp
+                     ../extra/yassl/taocrypt/src/des.cpp
+                     ../extra/yassl/taocrypt/src/dh.cpp
+                     ../extra/yassl/taocrypt/src/dsa.cpp
+                     ../extra/yassl/taocrypt/src/file.cpp
+                     ../extra/yassl/taocrypt/src/hash.cpp
+                     ../extra/yassl/taocrypt/src/integer.cpp
+                     ../extra/yassl/taocrypt/src/md2.cpp
+                     ../extra/yassl/taocrypt/src/md4.cpp
+                     ../extra/yassl/taocrypt/src/md5.cpp
+                     ../extra/yassl/taocrypt/src/misc.cpp
+                     ../extra/yassl/taocrypt/src/random.cpp
+                     ../extra/yassl/taocrypt/src/ripemd.cpp
+                     ../extra/yassl/taocrypt/src/rsa.cpp
+                     ../extra/yassl/taocrypt/src/sha.cpp)
+
 
 ADD_LIBRARY(mysqlclient ../mysys/array.c ../strings/bchange.c ../strings/bmove.c 
                         ../strings/bmove_upp.c ../mysys/charset-def.c ../mysys/charset.c
@@ -62,43 +99,45 @@ ADD_LIBRARY(mysqlclient ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
                         ../strings/strmov.c ../strings/strnlen.c ../strings/strnmov.c ../strings/strtod.c
                         ../strings/strtoll.c ../strings/strtoull.c ../strings/strxmov.c ../strings/strxnmov.c 
                         ../mysys/thr_mutex.c ../mysys/typelib.c ../vio/vio.c ../vio/viosocket.c 
-                        ../vio/viossl.c ../vio/viosslfactories.c ../strings/xml.c)
+                        ../vio/viossl.c ../vio/viosslfactories.c ../strings/xml.c
+                        ${YASSL_SOURCES} ${TAOCRYPT_SOURCES}       
+                        )
 
 ADD_DEPENDENCIES(mysqlclient GenError)
 ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc)
 LINK_DIRECTORIES(${MYSQL_BINARY_DIR}/mysys ${MYSQL_BINARY_DIR}/zlib)
-TARGET_LINK_LIBRARIES(mysql mysqlclient mysys yassl taocrypt zlib dbug wsock32)
+TARGET_LINK_LIBRARIES(mysql mysqlclient mysys zlib dbug wsock32)
 
 ADD_EXECUTABLE(mysqltest mysqltest.c)
-TARGET_LINK_LIBRARIES(mysqltest mysqlclient mysys yassl taocrypt zlib dbug regex wsock32)
+TARGET_LINK_LIBRARIES(mysqltest mysqlclient mysys zlib dbug regex wsock32)
 
 ADD_EXECUTABLE(mysqlcheck mysqlcheck.c)
-TARGET_LINK_LIBRARIES(mysqlcheck mysqlclient dbug yassl taocrypt zlib wsock32)
+TARGET_LINK_LIBRARIES(mysqlcheck mysqlclient dbug zlib wsock32)
 
 ADD_EXECUTABLE(mysqldump mysqldump.c ../sql-common/my_user.c)
-TARGET_LINK_LIBRARIES(mysqldump mysqlclient mysys dbug yassl taocrypt zlib wsock32)
+TARGET_LINK_LIBRARIES(mysqldump mysqlclient mysys dbug zlib wsock32)
 
 ADD_EXECUTABLE(mysqlimport mysqlimport.c)
-TARGET_LINK_LIBRARIES(mysqlimport mysqlclient mysys dbug yassl taocrypt zlib wsock32)
+TARGET_LINK_LIBRARIES(mysqlimport mysqlclient mysys dbug zlib wsock32)
 
 ADD_EXECUTABLE(mysql_upgrade mysql_upgrade.c ../mysys/my_getpagesize.c)
-TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient dbug yassl taocrypt zlib wsock32)
+TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient dbug zlib wsock32)
 ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs)
 
 ADD_EXECUTABLE(mysqlshow mysqlshow.c)
-TARGET_LINK_LIBRARIES(mysqlshow mysqlclient mysys dbug yassl taocrypt zlib wsock32)
+TARGET_LINK_LIBRARIES(mysqlshow mysqlclient mysys dbug zlib wsock32)
 
 ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc ../mysys/mf_tempdir.c ../mysys/my_new.cc
                            ../mysys/my_bit.c ../mysys/my_bitmap.c ../mysys/my_vle.c
                            ../mysys/base64.c)
-TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient dbug yassl taocrypt zlib wsock32)
+TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient dbug zlib wsock32)
 
 ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
-TARGET_LINK_LIBRARIES(mysqladmin mysqlclient mysys dbug yassl taocrypt zlib wsock32)
+TARGET_LINK_LIBRARIES(mysqladmin mysqlclient mysys dbug zlib wsock32)
 
 ADD_EXECUTABLE(mysqlslap mysqlslap.c)
 SET_SOURCE_FILES_PROPERTIES(mysqlslap.c PROPERTIES COMPILE_FLAGS "-DTHREADS")
-TARGET_LINK_LIBRARIES(mysqlslap mysqlclient mysys yassl taocrypt zlib wsock32 dbug)
+TARGET_LINK_LIBRARIES(mysqlslap mysqlclient mysys zlib wsock32 dbug)
 
 ADD_EXECUTABLE(echo echo.c)
 
