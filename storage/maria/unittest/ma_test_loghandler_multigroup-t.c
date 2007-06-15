@@ -191,7 +191,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
   trn->short_id= 0;
   if (translog_write_record(&lsn, LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
-                            trn, NULL, NULL,
+                            trn, NULL,
                             6, TRANSLOG_INTERNAL_PARTS + 1, parts))
   {
     fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);

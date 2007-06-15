@@ -208,7 +208,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 
   for (i= 1; i < ITERATIONS; i++)
   {
-    trn->short_id= i % 0xFFFF;    
+    trn->short_id= i % 0xFFFF;
     if (i % 2)
     {
       lsn_store(lsn_buff, lsn_base);
@@ -218,8 +218,7 @@ int main(int argc __attribute__((unused)), char *argv[])
       parts[TRANSLOG_INTERNAL_PARTS + 1].str= NULL;
       parts[TRANSLOG_INTERNAL_PARTS + 1].length= 0;
       if (translog_write_record(&lsn, LOGREC_FIXED_RECORD_1LSN_EXAMPLE,
-                                trn, NULL,
-                                NULL, LSN_STORE_SIZE, 0, parts))
+                                trn, NULL, LSN_STORE_SIZE, 0, parts))
       {
         fprintf(stderr, "1 Can't write reference defore record #%lu\n",
                 (ulong) i);
