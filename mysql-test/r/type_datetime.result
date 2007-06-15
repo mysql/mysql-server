@@ -411,3 +411,19 @@ if(@bug28261 = f1, '', @bug28261:= f1)
 2001-01-01
 2002-02-02
 drop table t1;
+create table t1(f1 datetime);
+insert into t1 values('2001-01-01'),('2002-02-02');
+select * from t1 where f1 between 20020101 and 20070101000000;
+f1
+2002-02-02 00:00:00
+select * from t1 where f1 between 2002010 and 20070101000000;
+f1
+2001-01-01 00:00:00
+2002-02-02 00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '2002010' for column 'f1' at row 1
+select * from t1 where f1 between 20020101 and 2007010100000;
+f1
+Warnings:
+Warning	1292	Incorrect datetime value: '2007010100000' for column 'f1' at row 1
+drop table t1;
