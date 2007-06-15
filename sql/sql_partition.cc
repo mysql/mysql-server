@@ -5458,8 +5458,7 @@ static bool write_log_drop_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   char shadow_path[FN_LEN];
   DBUG_ENTER("write_log_drop_shadow_frm");
 
-  build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
-                       lpt->table_name, "#", 0);
+  build_table_shadow_filename(shadow_path, sizeof(shadow_path), lpt);
   pthread_mutex_lock(&LOCK_gdl);
   if (write_log_replace_delete_frm(lpt, 0UL, NULL,
                                   (const char*)shadow_path, FALSE))
@@ -5507,8 +5506,7 @@ static bool write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   part_info->first_log_entry= NULL;
   build_table_filename(path, sizeof(path), lpt->db,
                        lpt->table_name, "", 0);
-  build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
-                       lpt->table_name, "#", 0);
+  build_table_shadow_filename(shadow_path, sizeof(shadow_path), lpt);
   pthread_mutex_lock(&LOCK_gdl);
   if (write_log_replace_delete_frm(lpt, 0UL, shadow_path, path, TRUE))
     goto error;
@@ -5673,8 +5671,7 @@ static bool write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   part_info->first_log_entry= NULL;
   build_table_filename(path, sizeof(path), lpt->db,
                        lpt->table_name, "", 0);
-  build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
-                       lpt->table_name, "#", 0);
+  build_table_shadow_filename(shadow_path, sizeof(shadow_path), lpt);
   pthread_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                       lpt->alter_info->flags & ALTER_REORGANIZE_PARTITION))
