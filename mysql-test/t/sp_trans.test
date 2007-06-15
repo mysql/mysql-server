@@ -2,6 +2,7 @@
 # tests that require InnoDB...
 #
 
+-- source include/have_log_bin.inc
 -- source include/have_innodb.inc
 
 --disable_warnings

@@ -1,6 +1,6 @@
 TARGET = ndbapi_simple_index
-SRCS = $(TARGET).cpp
-OBJS = $(TARGET).o
+SRCS = main.cpp
+OBJS = main.o
 CXX = g++
 CFLAGS = -c -Wall -fno-rtti -fno-exceptions
 CXXFLAGS = 
@@ -17,7 +17,7 @@ SYS_LIB =
 $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r -lmysys -lmystrings -lz $(SYS_LIB) -o $(TARGET)
 
-$(TARGET).o: $(SRCS)
+$(OBJS): $(SRCS)
 	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/storage/ndb/include -I$(INCLUDE_DIR)/storage/ndb/include/ndbapi $(SRCS)
 
 clean:
