@@ -41,7 +41,9 @@ EXPORTS
 	mysql_commit
 	mysql_data_seek
 	mysql_debug
+	mysql_disable_rpl_parse
 	mysql_dump_debug_info
+	mysql_enable_rpl_parse
 	mysql_eof
 	mysql_errno
 	mysql_error
@@ -55,6 +57,7 @@ EXPORTS
 	mysql_field_seek
 	mysql_field_tell
 	mysql_free_result
+	mysql_get_character_set_info
 	mysql_get_client_info
 	mysql_get_host_info
 	mysql_get_proto_info
@@ -84,6 +87,8 @@ EXPORTS
 	mysql_rollback
 	mysql_row_seek
 	mysql_row_tell
+	mysql_rpl_parse_enabled
+	mysql_rpl_probe
 	mysql_select_db
 	mysql_send_query
 	mysql_shutdown
@@ -109,6 +114,7 @@ EXPORTS
 	get_tty_password
 	sql_protocol_typelib
 	mysql_get_server_version
+	mysql_set_character_set
 	mysql_sqlstate
 	charsets_dir
 	disabled_my_option
@@ -133,6 +139,8 @@ EXPORTS
 	my_read
 	llstr
 	mysql_get_parameters
+	mysql_thread_init
+	mysql_thread_end
 	mysql_stmt_bind_param
 	mysql_stmt_bind_result
 	mysql_stmt_execute
