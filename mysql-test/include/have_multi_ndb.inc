@@ -10,7 +10,7 @@ drop table if exists t1, t2;
 --enable_warnings
 flush tables;
 --require r/true.require
-select support = 'Enabled' as `TRUE` from information_schema.engines where engine = 'ndbcluster';
+select (support = 'YES' or support = 'DEFAULT') as `TRUE` from information_schema.engines where engine = 'ndbcluster';
 enable_query_log;
 
 # Check that server2 has NDB support
@@ -21,7 +21,7 @@ drop table if exists t1, t2;
 --enable_warnings
 flush tables;
 --require r/true.require
-select support = 'Enabled' as `TRUE` from information_schema.engines where engine = 'ndbcluster';
+select (support = 'YES' or support = 'DEFAULT') as `TRUE` from information_schema.engines where engine = 'ndbcluster';
 enable_query_log;
 
 # Check should be here as well...
