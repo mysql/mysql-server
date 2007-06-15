@@ -35,7 +35,8 @@ if (my_b_write((file),(byte*) (from),param->ref_length)) \
 
 	/* functions defined in this file */
 
-static char **make_char_array(register uint fields, uint length, myf my_flag);
+static char **make_char_array(char **old_pos, register uint fields,
+                              uint length, myf my_flag);
 static BUFFPEK *read_buffpek_from_file(IO_CACHE *buffer_file, uint count);
 static ha_rows find_all_keys(SORTPARAM *param,SQL_SELECT *select,
 			     uchar * *sort_keys, IO_CACHE *buffer_file,
@@ -202,9 +203,9 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     ulong old_memavl;
     ulong keys= memavl/(param.rec_length+sizeof(char*));
     param.keys=(uint) min(records+1, keys);
-    if (table_sort.sort_keys ||
-        (table_sort.sort_keys= (uchar **) make_char_array(param.keys, param.rec_length,
-                                               MYF(0))))
+    if ((table_sort.sort_keys=
+	 (uchar **) make_char_array((char **) table_sort.sort_keys,
+                                    param.keys, param.rec_length, MYF(0))))
       break;
     old_memavl=memavl;
     if ((memavl=memavl/4*3) < min_sort_memory && old_memavl > min_sort_memory)
@@ -346,14 +347,16 @@ void filesort_free_buffers(TABLE *table, bool full)
 
 	/* Make a array of string pointers */
 
-static char **make_char_array(register uint fields, uint length, myf my_flag)
+static char **make_char_array(char **old_pos, register uint fields,
+                              uint length, myf my_flag)
 {
   register char **pos;
-  char **old_pos,*char_pos;
+  char *char_pos;
   DBUG_ENTER("make_char_array");
 
-  if ((old_pos= (char**) my_malloc((uint) fields*(length+sizeof(char*)),
-				    my_flag)))
+  if (old_pos ||
+      (old_pos= (char**) my_malloc((uint) fields*(length+sizeof(char*)),
+				   my_flag)))
   {
     pos=old_pos; char_pos=((char*) (pos+fields)) -length;
     while (fields--) *(pos++) = (char_pos+= length);
