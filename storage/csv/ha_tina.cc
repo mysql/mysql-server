@@ -444,7 +444,7 @@ ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
   records_is_known(0)
 {
   /* Set our original buffers from pre-allocated memory */
-  buffer.set((char*)byte_buffer, IO_SIZE, system_charset_info);
+  buffer.set((char*)byte_buffer, IO_SIZE, &my_charset_bin);
   chain= chain_buffer;
   file_buff= new Transparent_file();
 }
@@ -679,7 +679,7 @@ int ha_tina::find_current_row(uchar *buf)
     }
 
     if (bitmap_is_set(table->read_set, (*field)->field_index))
-      (*field)->store(buffer.ptr(), buffer.length(), system_charset_info);
+      (*field)->store(buffer.ptr(), buffer.length(), buffer.charset());
   }
   next_position= end_offset + eoln_len;
   error= 0;

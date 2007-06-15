@@ -54,10 +54,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
                           HA_CREATE_INFO *create_info,
                           Alter_info *alter_info);
 
-#define MYSQL50_TABLE_NAME_PREFIX         "#mysql50#"
-#define MYSQL50_TABLE_NAME_PREFIX_LENGTH  9
-
-
 /*
   Translate a file name to a table name (WL #1324).
 
