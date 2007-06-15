@@ -23,6 +23,9 @@ c
 5
 6
 11
+select is_updatable from information_schema.views where table_name='v1';
+is_updatable
+NO
 create temporary table t1 (a int, b int);
 select * from t1;
 a	b
@@ -322,6 +325,12 @@ create table t1 (a int, b int, primary key(a));
 insert into t1 values (10,2), (20,3), (30,4), (40,5), (50,10);
 create view v1 (a,c) as select a, b+1 from t1;
 create algorithm=temptable view v2 (a,c) as select a, b+1 from t1;
+select is_updatable from information_schema.views where table_name='v2';
+is_updatable
+NO
+select is_updatable from information_schema.views where table_name='v1';
+is_updatable
+YES
 update v1 set c=a+c;
 ERROR HY000: Column 'c' is not updatable
 update v2 set a=a+c;
@@ -604,6 +613,10 @@ insert into t1 values(5,'Hello, world of views');
 create view v1 as select * from t1;
 create view v2 as select * from v1;
 update v2 set col2='Hello, view world';
+select is_updatable from information_schema.views;
+is_updatable
+YES
+YES
 select * from t1;
 col1	col2
 5	Hello, view world

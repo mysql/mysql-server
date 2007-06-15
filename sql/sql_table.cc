@@ -1157,6 +1157,31 @@ void release_ddl_log()
 */
 
 
+/**
+   @brief construct a temporary shadow file name.
+
+   @details Make a shadow file name used by ALTER TABLE to construct the
+   modified table (with keeping the original). The modified table is then
+   moved back as original table. The name must start with the temp file
+   prefix so it gets filtered out by table files listing routines. 
+    
+   @param[out] buff      buffer to receive the constructed name
+   @param      bufflen   size of buff
+   @param      lpt       alter table data structure
+
+   @retval     path length
+*/
+
+uint build_table_shadow_filename(char *buff, size_t bufflen, 
+                                 ALTER_PARTITION_PARAM_TYPE *lpt)
+{
+  char tmp_name[FN_REFLEN];
+  my_snprintf (tmp_name, sizeof (tmp_name), "%s-%s", tmp_file_prefix,
+               lpt->table_name);
+  return build_table_filename(buff, bufflen, lpt->db, tmp_name, "", FN_IS_TMP);
+}
+
+
 /*
   SYNOPSIS
     mysql_write_frm()
@@ -1197,8 +1222,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   /*
     Build shadow frm file name
   */
-  build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
-                       lpt->table_name, "#", 0);
+  build_table_shadow_filename(shadow_path, sizeof(shadow_path), lpt);
   strxmov(shadow_frm_name, shadow_path, reg_ext, NullS);
   if (flags & WFRM_WRITE_SHADOW)
   {
@@ -1221,6 +1245,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
 
       if (part_info)
       {
+        TABLE_SHARE *share= lpt->table->s;
         if (!(part_syntax_buf= generate_partition_syntax(part_info,
                                                          &syntax_len,
                                                          TRUE, TRUE)))
@@ -1228,7 +1253,16 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
           DBUG_RETURN(TRUE);
         }
         part_info->part_info_string= part_syntax_buf;
-        part_info->part_info_len= syntax_len;
+        share->partition_info_len= part_info->part_info_len= syntax_len;
+        if (share->partition_info_buffer_size < syntax_len + 1)
+        {
+          share->partition_info_buffer_size= syntax_len+1;
+          if (!(share->partition_info=
+                  (char*) alloc_root(&share->mem_root, syntax_len+1)))
+            DBUG_RETURN(TRUE);
+
+        }
+        memcpy((char*) share->partition_info, part_syntax_buf, syntax_len + 1);
       }
     }
 #endif
@@ -5712,21 +5746,31 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                    table_list->table_name_length,
                                    table_list->table_name, 0);
 
-    /* Disable alter of enabled log tables */
-    if (table_kind && logger.is_log_table_enabled(table_kind))
+    if (table_kind)
     {
-      my_error(ER_BAD_LOG_STATEMENT, MYF(0), "ALTER");
-      DBUG_RETURN(TRUE);
-    }
+      /* Disable alter of enabled log tables */
+      if (logger.is_log_table_enabled(table_kind))
+      {
+        my_error(ER_BAD_LOG_STATEMENT, MYF(0), "ALTER");
+        DBUG_RETURN(TRUE);
+      }
 
-    /* Disable alter of log tables to unsupported engine */
-    if (table_kind &&
-        (create_info->used_fields & HA_CREATE_USED_ENGINE) &&
-        (!create_info->db_type || /* unknown engine */
-        !(create_info->db_type->flags & HTON_SUPPORT_LOG_TABLES)))
-    {
-      my_error(ER_UNSUPORTED_LOG_ENGINE, MYF(0));
-      DBUG_RETURN(TRUE);
+      /* Disable alter of log tables to unsupported engine */
+      if ((create_info->used_fields & HA_CREATE_USED_ENGINE) &&
+          (!create_info->db_type || /* unknown engine */
+           !(create_info->db_type->flags & HTON_SUPPORT_LOG_TABLES)))
+      {
+        my_error(ER_UNSUPORTED_LOG_ENGINE, MYF(0));
+        DBUG_RETURN(TRUE);
+      }
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+      if (alter_info->flags & ALTER_PARTITION)
+      {
+	my_error(ER_WRONG_USAGE, MYF(0), "PARTITION", "log table");
+        DBUG_RETURN(TRUE);
+      }
+#endif
     }
   }
 
@@ -5755,8 +5799,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   strxnmov(new_name_buff, sizeof (new_name_buff) - 1, mysql_data_home, "/", db, 
            "/", table_name, reg_ext, NullS);
   (void) unpack_filename(new_name_buff, new_name_buff);
-  if (lower_case_table_names != 2)
-    my_casedn_str(files_charset_info, new_name_buff);
   /*
     If this is just a rename of a view, short cut to the
     following scenario: 1) lock LOCK_open 2) do a RENAME

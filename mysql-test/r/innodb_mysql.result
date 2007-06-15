@@ -629,6 +629,42 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='123'
 drop table t1;
+CREATE TABLE t1 (a CHAR(2), KEY (a)) ENGINE = InnoDB DEFAULT CHARSET=UTF8;
+INSERT INTO t1 VALUES ('uk'),('bg');
+SELECT * FROM t1 WHERE a = 'uk';
+a
+uk
+DELETE FROM t1 WHERE a = 'uk';
+SELECT * FROM t1 WHERE a = 'uk';
+a
+UPDATE t1 SET a = 'us' WHERE a = 'uk';
+SELECT * FROM t1 WHERE a = 'uk';
+a
+CREATE TABLE t2 (a CHAR(2), KEY (a)) ENGINE = InnoDB;
+INSERT INTO t2 VALUES ('uk'),('bg');
+SELECT * FROM t2 WHERE a = 'uk';
+a
+uk
+DELETE FROM t2 WHERE a = 'uk';
+SELECT * FROM t2 WHERE a = 'uk';
+a
+INSERT INTO t2 VALUES ('uk');
+UPDATE t2 SET a = 'us' WHERE a = 'uk';
+SELECT * FROM t2 WHERE a = 'uk';
+a
+CREATE TABLE t3 (a CHAR(2), KEY (a)) ENGINE = MyISAM;
+INSERT INTO t3 VALUES ('uk'),('bg');
+SELECT * FROM t3 WHERE a = 'uk';
+a
+uk
+DELETE FROM t3 WHERE a = 'uk';
+SELECT * FROM t3 WHERE a = 'uk';
+a
+INSERT INTO t3 VALUES ('uk');
+UPDATE t3 SET a = 'us' WHERE a = 'uk';
+SELECT * FROM t3 WHERE a = 'uk';
+a
+DROP TABLE t1,t2,t3;
 End of 5.0 tests
 CREATE TABLE t1 (a int, b int);
 insert into t1 values (1,1),(1,2);
