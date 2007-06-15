@@ -90,14 +90,26 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     Test if the user wants to delete all rows and deletion doesn't have
     any side-effects (because of triggers), so we can use optimized
     handler::delete_all_rows() method.
-    We implement fast TRUNCATE for InnoDB even if triggers are present. 
-    TRUNCATE ignores triggers.
+
+    We implement fast TRUNCATE for InnoDB even if triggers are
+    present.  TRUNCATE ignores triggers.
+
+    We can use delete_all_rows() if and only if:
+    - We allow new functions (not using option --skip-new), and are
+      not in safe mode (not using option --safe-mode)
+    - There is no limit clause
+    - The condition is constant
+    - If there is a condition, then it it produces a non-zero value
+    - If the current command is DELETE FROM with no where clause
+      (i.e., not TRUNCATE) then:
+      - We should not be binlogging this statement row-based, and
+      - there should be no delete triggers associated with the table.
   */
   if (!using_limit && const_cond && (!conds || conds->val_int()) &&
       !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
       (thd->lex->sql_command == SQLCOM_TRUNCATE ||
-       !(table->triggers && table->triggers->has_delete_triggers())) &&
-      !thd->current_stmt_binlog_row_based)
+       (!thd->current_stmt_binlog_row_based &&
+        !(table->triggers && table->triggers->has_delete_triggers()))))
   {
     /* Update the table->file->stats.records number */
     table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
