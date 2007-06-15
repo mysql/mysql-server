@@ -50,7 +50,7 @@
 #define MYSQL_CLIENT
 #endif
 
-#define CLI_MYSQL_REAL_CONNECT cli_mysql_real_connect
+#define CLI_MYSQL_REAL_CONNECT STDCALL cli_mysql_real_connect
 
 #undef net_flush
 my_bool	net_flush(NET *net);
