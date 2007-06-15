@@ -2507,7 +2507,6 @@ longlong Item_func_coercibility::val_int()
 
 void Item_func_locate::fix_length_and_dec()
 {
-  maybe_null= 0;
   max_length= MY_INT32_NUM_DECIMAL_DIGITS;
   agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV, 1);
 }
