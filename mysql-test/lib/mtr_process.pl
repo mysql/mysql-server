@@ -142,6 +142,7 @@ sub spawn_impl ($$$$$$$) {
 
     if ( $pid )
     {
+      select(STDOUT) if $::glob_win32_perl;
       return spawn_parent_impl($pid,$mode,$path);
     }
     else
@@ -163,9 +164,6 @@ sub spawn_impl ($$$$$$$) {
 	{
 	  # Don't redirect stdout on ActiveState perl since this is
           # just another thread in the same process.
-          # Should be fixed so that the thread that is created with fork
-          # executes the exe in another process and wait's for it to return.
-          # In the meanwhile, we get all the output from mysqld's to screen
 	}
         elsif ( ! open(STDOUT,$log_file_open_mode,$output) )
         {
@@ -175,7 +173,7 @@ sub spawn_impl ($$$$$$$) {
 
       if ( $error )
       {
-        if ( $output eq $error )
+        if ( !$::glob_win32_perl and $output eq $error )
         {
           if ( ! open(STDERR,">&STDOUT") )
           {
@@ -184,15 +182,7 @@ sub spawn_impl ($$$$$$$) {
         }
         else
         {
-	  if ( $::glob_win32_perl )
-	  {
-	    # Don't redirect stdout on ActiveState perl since this is
-	    # just another thread in the same process.
-	    # Should be fixed so that the thread that is created with fork
-	    # executes the exe in another process and wait's for it to return.
-	    # In the meanwhile, we get all the output from mysqld's to screen
-	  }
-          elsif ( ! open(STDERR,$log_file_open_mode,$error) )
+          if ( ! open(STDERR,$log_file_open_mode,$error) )
           {
             mtr_child_error("can't redirect STDERR to \"$error\": $!");
           }
