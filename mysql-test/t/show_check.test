@@ -596,7 +596,7 @@ set names latin1;
 #
 # Bug#26402 Server crashes with old-style named table
 #
---error ER_NO_SUCH_TABLE
+--error ER_NO_SUCH_TABLE,ER_FILE_NOT_FOUND
 show columns from `#mysql50#????????`;
 
 --echo End of 5.1 tests
