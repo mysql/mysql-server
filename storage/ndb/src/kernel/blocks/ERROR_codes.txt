@@ -1,5 +1,5 @@
 Next QMGR 1
-Next NDBCNTR 1001
+Next NDBCNTR 1002
 Next NDBFS 2000
 Next DBACC 3002
 Next DBTUP 4029
@@ -523,3 +523,4 @@ Dbtup:
 NDBCNTR:
 
 1000: Crash insertion on SystemError::CopyFragRef
+1001: Delay sending NODE_FAILREP (to own node), until error is cleared

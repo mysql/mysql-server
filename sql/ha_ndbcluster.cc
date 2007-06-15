@@ -278,11 +278,6 @@ inline
 int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans,
 		      bool force_release)
 {
-#ifdef NOT_USED
-  int m_batch_execute= 0;
-  if (m_batch_execute)
-    return 0;
-#endif
   h->release_completed_operations(trans, force_release);
   return h->m_ignore_no_key ?
     execute_no_commit_ignore_no_key(h,trans) :
@@ -294,11 +289,6 @@ int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans,
 inline
 int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
 {
-#ifdef NOT_USED
-  int m_batch_execute= 0;
-  if (m_batch_execute)
-    return 0;
-#endif
   return trans->execute(NdbTransaction::Commit,
                         NdbOperation::AbortOnError,
                         h->m_force_send);
@@ -307,11 +297,6 @@ int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
 inline
 int execute_commit(THD *thd, NdbTransaction *trans)
 {
-#ifdef NOT_USED
-  int m_batch_execute= 0;
-  if (m_batch_execute)
-    return 0;
-#endif
   return trans->execute(NdbTransaction::Commit,
                         NdbOperation::AbortOnError,
                         thd->variables.ndb_force_send);
@@ -321,11 +306,6 @@ inline
 int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans,
 			 bool force_release)
 {
-#ifdef NOT_USED
-  int m_batch_execute= 0;
-  if (m_batch_execute)
-    return 0;
-#endif
   h->release_completed_operations(trans, force_release);
   return trans->execute(NdbTransaction::NoCommit,
                         NdbOperation::AO_IgnoreError,
@@ -2925,7 +2905,8 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
    * If IGNORE the ignore constraint violations on primary and unique keys,
    * but check that it is not part of INSERT ... ON DUPLICATE KEY UPDATE
    */
-  if (m_ignore_dup_key && thd->lex->sql_command == SQLCOM_UPDATE)
+  if (m_ignore_dup_key && (thd->lex->sql_command == SQLCOM_UPDATE ||
+                           thd->lex->sql_command == SQLCOM_UPDATE_MULTI))
   {
     int peek_res= peek_indexed_rows(new_data, pk_update);
     
@@ -4267,8 +4248,6 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
 extern MASTER_INFO *active_mi;
 static int ndbcluster_update_apply_status(THD *thd, int do_update)
 {
-  return 0;
-
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
   NDBDICT *dict= ndb->getDictionary();
