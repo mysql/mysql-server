@@ -1024,6 +1024,21 @@ where t.table_schema = 'information_schema' and
           group by c2.column_type order by num limit 1)
 group by t.table_name order by num1, t.table_name;
 
+#
+# Bug#28266 IS_UPDATABLE field on VIEWS table in I_S database is wrong
+#
+create table t1(f1 int);
+create view v1 as select f1+1 as a from t1;
+create table t2 (f1 int, f2 int);                                                         
+create view v2 as select f1+1 as a, f2 as b from t2;                                      
+select table_name, is_updatable from information_schema.views;
+#
+# Note: we can perform 'delete' for non updatable view.
+#
+delete from v1;
+drop view v1,v2;
+drop table t1,t2;
+
 --echo End of 5.0 tests.
 #
 # Show engines
