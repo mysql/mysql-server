@@ -5258,7 +5258,17 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   Security_context *sctx= thd->security_ctx;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
-  bool  db_is_pattern= test(want_access & GRANT_ACL);
+  /*
+    GRANT command:
+    In case of database level grant the database name may be a pattern,
+    in case of table|column level grant the database name can not be a pattern.
+    We use 'dont_check_global_grants' as a flag to determine
+    if it's database level grant command 
+    (see SQLCOM_GRANT case, mysql_execute_command() function) and
+    set db_is_pattern according to 'dont_check_global_grants' value.
+  */
+  bool  db_is_pattern= (test(want_access & GRANT_ACL) &&
+                        dont_check_global_grants);
 #endif
   ulong dummy;
   DBUG_ENTER("check_access");
