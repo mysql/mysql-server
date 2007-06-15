@@ -760,3 +760,9 @@ set global slow_launch_time          =@my_slow_launch_time;
 set global storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
 
+#
+# Bug#28580 Repeatation of status variables
+#
+--replace_column 2 #
+show global variables where Variable_name='table_definition_cache' or
+Variable_name='table_lock_wait_timeout';
