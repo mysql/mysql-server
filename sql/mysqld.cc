@@ -30,6 +30,10 @@
 
 #include "rpl_injector.h"
 
+#ifdef HAVE_SYS_PRCTL_H
+#include <sys/prctl.h>
+#endif
+
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #if defined(NOT_ENOUGH_TESTED) \
   && defined(NDB_SHM_TRANSPORTER) && MYSQL_VERSION_ID >= 50000
@@ -1420,6 +1424,15 @@ static struct passwd *check_user(const char *user)
 err:
   sql_print_error("Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
   unireg_abort(1);
+
+#ifdef PR_SET_DUMPABLE
+  if (test_flags & TEST_CORE_ON_SIGNAL)
+  {
+    /* inform kernel that process is dumpable */
+    (void) prctl(PR_SET_DUMPABLE, 1);
+  }
+#endif
+
 #endif
   return NULL;
 }
