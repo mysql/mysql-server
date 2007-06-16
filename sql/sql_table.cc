@@ -54,10 +54,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
                           HA_CREATE_INFO *create_info,
                           Alter_info *alter_info);
 
-#define MYSQL50_TABLE_NAME_PREFIX         "#mysql50#"
-#define MYSQL50_TABLE_NAME_PREFIX_LENGTH  9
-
-
 /*
   Translate a file name to a table name (WL #1324).
 
@@ -4106,34 +4102,16 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     */
     if (!table->table)
     {
-      char buf[ERRMSGSIZE+ERRMSGSIZE+2];
-      const char *err_msg;
-      protocol->prepare_for_resend();
-      protocol->store(table_name, system_charset_info);
-      protocol->store(operator_name, system_charset_info);
-      protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-      if (!(err_msg=thd->net.last_error))
-	err_msg=ER(ER_CHECK_NO_SUCH_TABLE);
+      if (!thd->warn_list.elements)
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                     ER_CHECK_NO_SUCH_TABLE, ER(ER_CHECK_NO_SUCH_TABLE));
       /* if it was a view will check md5 sum */
       if (table->view &&
           view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
-      {
-        strxmov(buf, err_msg, "; ", ER(ER_VIEW_CHECKSUM), NullS);
-        err_msg= (const char *)buf;
-      }
-      protocol->store(err_msg, system_charset_info);
-      lex->cleanup_after_one_table_open();
-      thd->clear_error();
-      /*
-        View opening can be interrupted in the middle of process so some
-        tables can be left opening
-      */
-      ha_autocommit_or_rollback(thd, 1);
-      close_thread_tables(thd);
-      lex->reset_query_tables_list(FALSE);
-      if (protocol->write())
-	goto err;
-      continue;
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                     ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
+      result_code= HA_ADMIN_CORRUPT;
+      goto send_result;
     }
 
     if (table->view)
@@ -4219,6 +4197,23 @@ send_result:
 
     lex->cleanup_after_one_table_open();
     thd->clear_error();  // these errors shouldn't get client
+    {
+      List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
+      MYSQL_ERROR *err;
+      while ((err= it++))
+      {
+        protocol->prepare_for_resend();
+        protocol->store(table_name, system_charset_info);
+        protocol->store((char*) operator_name, system_charset_info);
+        protocol->store(warning_level_names[err->level].str,
+                        warning_level_names[err->level].length,
+                        system_charset_info);
+        protocol->store(err->msg, system_charset_info);
+        if (protocol->write())
+          goto err;
+      }
+      mysql_reset_errors(thd, true);
+    }
     protocol->prepare_for_resend();
     protocol->store(table_name, system_charset_info);
     protocol->store(operator_name, system_charset_info);
@@ -4424,6 +4419,8 @@ send_result_message:
 bool mysql_backup_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_backup_table");
+  WARN_DEPRECATED(thd, "5.2", "BACKUP TABLE",
+                  "MySQL Administrator (mysqldump, mysql)");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
 				"backup", TL_READ, 0, 0, 0, 0,
 				&handler::backup, 0));
@@ -4433,6 +4430,8 @@ bool mysql_backup_table(THD* thd, TABLE_LIST* table_list)
 bool mysql_restore_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_restore_table");
+  WARN_DEPRECATED(thd, "5.2", "RESTORE TABLE",
+                  "MySQL Administrator (mysqldump, mysql)");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
 				"restore", TL_WRITE, 1, 1, 0,
 				&prepare_for_restore,
@@ -4822,7 +4821,7 @@ bool mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
   DBUG_ENTER("mysql_check_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
 				"check", lock_type,
-				0, HA_OPEN_FOR_REPAIR, 0, 0,
+				0, 0, HA_OPEN_FOR_REPAIR, 0,
 				&handler::ha_check, &view_checksum));
 }
 
