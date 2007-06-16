@@ -29,4 +29,7 @@ extern pthread_mutex_t THR_LOCK_open;
 
 int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag);
 int _myrg_mi_read_record(MI_INFO *info, byte *buf);
-
+#ifdef __cplusplus
+extern "C" 
+#endif
+void myrg_print_wrong_table(const char *table_name);
