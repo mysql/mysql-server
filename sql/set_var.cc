@@ -1498,6 +1498,25 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     pthread_mutex_unlock(&LOCK_global_system_variables);
     return new Item_int(value,1);
   }
+  case SHOW_CHAR_PTR:
+  {
+    Item *tmp;
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    char *str= *(char**) value_ptr(thd, var_type, base);
+    if (str)
+    {
+      uint length= strlen(str);
+      tmp= new Item_string(thd->strmake(str, length), length,
+                           system_charset_info, DERIVATION_SYSCONST);
+    }
+    else
+    {
+      tmp= new Item_null();
+      tmp->collation.set(system_charset_info, DERIVATION_SYSCONST);
+    }
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+    return tmp;
+  }
   case SHOW_CHAR:
   {
     Item *tmp;

@@ -5751,8 +5751,6 @@ restore:
 	RESTORE_SYM table_or_tables
 	{
 	   Lex->sql_command = SQLCOM_RESTORE_TABLE;
-           WARN_DEPRECATED(yythd, "5.2", "RESTORE TABLE",
-                           "MySQL Administrator (mysqldump, mysql)");
 	}
 	table_list FROM TEXT_STRING_sys
         {
@@ -5763,8 +5761,6 @@ backup:
 	BACKUP_SYM table_or_tables
 	{
 	   Lex->sql_command = SQLCOM_BACKUP_TABLE;
-           WARN_DEPRECATED(yythd, "5.2", "BACKUP TABLE",
-                           "MySQL Administrator (mysqldump, mysql)");
 	}
 	table_list TO_SYM TEXT_STRING_sys
         {
