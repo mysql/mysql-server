@@ -19,7 +19,8 @@ SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 
 # The old Windows build method used renamed (.cc -> .cpp) source files, fails
 # in #include in mysqlbinlog.cc. So disable that using the USING_CMAKE define.
-ADD_DEFINITIONS(-DUSING_CMAKE -DYASSL_PREFIX)
+ADD_DEFINITIONS(-DUSING_CMAKE -DYASSL_PREFIX -DUSE_TLS)
+
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/zlib
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include
