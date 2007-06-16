@@ -2059,6 +2059,9 @@ public:
     Uint8 simpleRead;
     Uint8 seqNoReplica;
     Uint8 tcNodeFailrec;
+#ifdef VM_TRACE
+    Uint8 tupkeyref;
+#endif
   }; /* p2c: size = 280 bytes */
   
   typedef Ptr<TcConnectionrec> TcConnectionrecPtr;
@@ -2665,7 +2668,8 @@ private:
   UintR cfirstfreeLogFile;
   UintR clogFileFileSize;
 
-#define ZLFO_FILE_SIZE 256            /* MAX 256 OUTSTANDING FILE OPERATIONS */
+#define ZLFO_MIN_FILE_SIZE 256
+// RedoBuffer/32K minimum ZLFO_MIN_FILE_SIZE
   LogFileOperationRecord *logFileOperationRecord;
   LogFileOperationRecordPtr lfoPtr;
   UintR cfirstfreeLfo;
@@ -2682,7 +2686,7 @@ private:
   UintR cfirstfreePageRef;
   UintR cpageRefFileSize;
 
-#define ZSCANREC_FILE_SIZE 100
+// Configurable
   ArrayPool<ScanRecord> c_scanRecordPool;
   ScanRecordPtr scanptr;
   UintR cscanNoFreeRec;

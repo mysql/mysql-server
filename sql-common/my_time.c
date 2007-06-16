@@ -727,7 +727,39 @@ void init_time(void)
 }
 
 
-	/* Calculate nr of day since year 0 in new date-system (from 1615) */
+/*
+  Handle 2 digit year conversions
+
+  SYNOPSIS
+  year_2000_handling()
+  year     2 digit year
+
+  RETURN
+    Year between 1970-2069
+*/
+
+uint year_2000_handling(uint year)
+{
+  if ((year=year+1900) < 1900+YY_PART_YEAR)
+    year+=100;
+  return year;
+}
+
+
+/*
+  Calculate nr of day since year 0 in new date-system (from 1615)
+
+  SYNOPSIS
+    calc_daynr()
+    year		 Year (exact 4 digit year, no year conversions)
+    month		 Month
+    day			 Day
+
+  NOTES: 0000-00-00 is a valid date, and will return 0
+
+  RETURN
+    Days since 0000-00-00
+*/
 
 long calc_daynr(uint year,uint month,uint day)
 {
@@ -1120,6 +1152,7 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
  ok:
   part1=(long) (nr/LL(1000000));
   part2=(long) (nr - (longlong) part1*LL(1000000));
+  bzero((char*) time_res, sizeof(*time_res));
   time_res->year=  (int) (part1/10000L);  part1%=10000L;
   time_res->month= (int) part1 / 100;
   time_res->day=   (int) part1 % 100;

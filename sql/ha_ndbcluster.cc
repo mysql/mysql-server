@@ -234,11 +234,6 @@ inline
 int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans,
 		      bool force_release)
 {
-#ifdef NOT_USED
-  int m_batch_execute= 0;
-  if (m_batch_execute)
-    return 0;
-#endif
   h->release_completed_operations(trans, force_release);
   return trans->execute(NdbTransaction::NoCommit,
                         NdbTransaction::AbortOnError,
@@ -248,11 +243,6 @@ int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans,
 inline
 int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
 {
-#ifdef NOT_USED
-  int m_batch_execute= 0;
-  if (m_batch_execute)
-    return 0;
-#endif
   return trans->execute(NdbTransaction::Commit,
                         NdbTransaction::AbortOnError,
                         h->m_force_send);
@@ -261,11 +251,6 @@ int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
 inline
 int execute_commit(THD *thd, NdbTransaction *trans)
 {
-#ifdef NOT_USED
-  int m_batch_execute= 0;
-  if (m_batch_execute)
-    return 0;
-#endif
   return trans->execute(NdbTransaction::Commit,
                         NdbTransaction::AbortOnError,
                         thd->variables.ndb_force_send);
@@ -275,11 +260,6 @@ inline
 int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans,
 			 bool force_release)
 {
-#ifdef NOT_USED
-  int m_batch_execute= 0;
-  if (m_batch_execute)
-    return 0;
-#endif
   h->release_completed_operations(trans, force_release);
   return trans->execute(NdbTransaction::NoCommit,
                         NdbTransaction::AO_IgnoreError,
@@ -2264,12 +2244,10 @@ int ha_ndbcluster::write_row(byte *record)
     if (has_auto_increment) 
     {
       int error;
-      
+
       m_skip_auto_increment= FALSE;
       if ((error= update_auto_increment()))
         DBUG_RETURN(error);
-      /* Ensure that handler is always called for auto_increment values */
-      thd->next_insert_id= 0;
       m_skip_auto_increment= !auto_increment_column_changed;
     }
   }
@@ -2309,20 +2287,28 @@ int ha_ndbcluster::write_row(byte *record)
   {
     // Table has hidden primary key
     Ndb *ndb= get_ndb();
-    int ret;
     Uint64 auto_value;
     uint retries= NDB_AUTO_INCREMENT_RETRIES;
-    do {
-      ret= ndb->getAutoIncrementValue((const NDBTAB *) m_table, auto_value, 1);
-    } while (ret == -1 && 
-             --retries &&
-             ndb->getNdbError().status == NdbError::TemporaryError);
-    if (ret == -1)
-      ERR_RETURN(ndb->getNdbError());
+    int retry_sleep= 30; /* 30 milliseconds, transaction */
+    for (;;)
+    {
+      if (ndb->getAutoIncrementValue((const NDBTAB *) m_table,
+                                     auto_value, 1) == -1)
+      {
+        if (--retries &&
+            ndb->getNdbError().status == NdbError::TemporaryError);
+        {
+          my_sleep(retry_sleep);
+          continue;
+        }
+        ERR_RETURN(ndb->getNdbError());
+      }
+      break;
+    }
     if (set_hidden_key(op, table->s->fields, (const byte*)&auto_value))
       ERR_RETURN(op->getNdbError());
   } 
-  else 
+  else
   {
     if ((res= set_primary_key_from_record(op, record)))
       return res;  
@@ -2461,7 +2447,8 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
    * If IGNORE the ignore constraint violations on primary and unique keys,
    * but check that it is not part of INSERT ... ON DUPLICATE KEY UPDATE
    */
-  if (m_ignore_dup_key && thd->lex->sql_command == SQLCOM_UPDATE)
+  if (m_ignore_dup_key && (thd->lex->sql_command == SQLCOM_UPDATE ||
+                           thd->lex->sql_command == SQLCOM_UPDATE_MULTI))
   {
     int peek_res= peek_indexed_rows(new_data, pk_update);
     
@@ -4841,6 +4828,8 @@ ulonglong ha_ndbcluster::get_auto_increment()
 {  
   int cache_size;
   Uint64 auto_value;
+  Uint64 step= current_thd->variables.auto_increment_increment;
+  Uint64 start= current_thd->variables.auto_increment_offset;
   DBUG_ENTER("get_auto_increment");
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
   Ndb *ndb= get_ndb();
@@ -4855,22 +4844,27 @@ ulonglong ha_ndbcluster::get_auto_increment()
            m_rows_to_insert - m_rows_inserted :
            ((m_rows_to_insert > m_autoincrement_prefetch) ?
             m_rows_to_insert : m_autoincrement_prefetch));
-  int ret;
   uint retries= NDB_AUTO_INCREMENT_RETRIES;
-  do {
-    ret=
-      m_skip_auto_increment ? 
-      ndb->readAutoIncrementValue((const NDBTAB *) m_table, auto_value) :
-      ndb->getAutoIncrementValue((const NDBTAB *) m_table, auto_value, cache_size);
-  } while (ret == -1 && 
-           --retries &&
-           ndb->getNdbError().status == NdbError::TemporaryError);
-  if (ret == -1)
+  int retry_sleep= 30; /* 30 milliseconds, transaction */
+  for (;;)
   {
-    const NdbError err= ndb->getNdbError();
-    sql_print_error("Error %lu in ::get_auto_increment(): %s",
-                    (ulong) err.code, err.message);
-    DBUG_RETURN(~(ulonglong) 0);
+    if (m_skip_auto_increment &&
+        ndb->readAutoIncrementValue((const NDBTAB *) m_table, auto_value) ||
+        ndb->getAutoIncrementValue((const NDBTAB *) m_table,
+                                   auto_value, cache_size, step, start))
+    {
+      if (--retries &&
+          ndb->getNdbError().status == NdbError::TemporaryError);
+      {
+        my_sleep(retry_sleep);
+        continue;
+      }
+      const NdbError err= ndb->getNdbError();
+      sql_print_error("Error %lu in ::get_auto_increment(): %s",
+                      (ulong) err.code, err.message);
+      DBUG_RETURN(~(ulonglong) 0);
+    }
+    break;
   }
   DBUG_RETURN((longlong)auto_value);
 }
@@ -4894,7 +4888,8 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
                 HA_NEED_READ_RANGE_BUFFER |
                 HA_CAN_GEOMETRY |
                 HA_CAN_BIT_FIELD |
-                HA_PARTIAL_COLUMN_READ),
+                HA_PARTIAL_COLUMN_READ |
+                HA_EXTERNAL_AUTO_INCREMENT),
   m_share(0),
   m_use_write(FALSE),
   m_ignore_dup_key(FALSE),
@@ -5011,27 +5006,36 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   set_dbname(name);
   set_tabname(name);
   
-  if (check_ndb_connection()) {
-    free_share(m_share); m_share= 0;
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+  if ((res= check_ndb_connection()) || 
+      (res= get_metadata(name)))
+  {
+    free_share(m_share);
+    m_share= 0;
+    DBUG_RETURN(res);
   }
-  
-  res= get_metadata(name);
-  if (!res)
+  while (1)
   {
     Ndb *ndb= get_ndb();
     if (ndb->setDatabaseName(m_dbname))
     {
-      ERR_RETURN(ndb->getNdbError());
+      res= ndb_to_mysql_error(&ndb->getNdbError());
+      break;
     }
     struct Ndb_statistics stat;
     res= ndb_get_table_statistics(NULL, false, ndb, m_tabname, &stat);
     records= stat.row_count;
     if(!res)
       res= info(HA_STATUS_CONST);
+    break;
   }
-
-  DBUG_RETURN(res);
+  if (res)
+  {
+    free_share(m_share);
+    m_share= 0;
+    release_metadata();
+    DBUG_RETURN(res);
+  }
+  DBUG_RETURN(0);
 }
 
 

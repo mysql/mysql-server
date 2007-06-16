@@ -57,12 +57,15 @@ static const ErrStruct errArray[] =
     "error(s) on other node(s)"},
    {NDBD_EXIT_PARTITIONED_SHUTDOWN, XAE, "Partitioned cluster detected. "
     "Please check if cluster is already running"},
+   {NDBD_EXIT_NODE_DECLARED_DEAD, XAE,
+    "Node declared dead. See error log for details"},
    {NDBD_EXIT_POINTER_NOTINRANGE, XIE, "Pointer too large"},
    {NDBD_EXIT_SR_OTHERNODEFAILED, XRE, "Another node failed during system "
     "restart, please investigate error(s) on other node(s)"},
    {NDBD_EXIT_NODE_NOT_DEAD, XRE, "Internal node state conflict, "
     "most probably resolved by restarting node again"},
    {NDBD_EXIT_SR_REDOLOG, XFI, "Error while reading the REDO log"},
+   {NDBD_EXIT_SR_SCHEMAFILE, XFI, "Error while reading the schema file"},
    /* Currently unused? */
    {2311, XIE, "Conflict when selecting restart type"},
    {NDBD_EXIT_NO_MORE_UNDOLOG, XCR,

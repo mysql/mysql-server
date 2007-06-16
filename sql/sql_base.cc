@@ -94,6 +94,8 @@ static bool open_new_frm(THD *thd, const char *path, const char *alias,
                          uint db_stat, uint prgflag,
                          uint ha_open_flags, TABLE *outparam,
                          TABLE_LIST *table_desc, MEM_ROOT *mem_root);
+static void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
+                                 bool send_refresh);
 
 extern "C" byte *table_cache_key(const byte *record,uint *length,
 				 my_bool not_used __attribute__((unused)))
@@ -374,7 +376,21 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
       for (uint idx=0 ; idx < open_cache.records ; idx++)
       {
 	TABLE *table=(TABLE*) hash_element(&open_cache,idx);
-	if ((table->s->version) < refresh_version && table->db_stat)
+        /*
+          Note that we wait here only for tables which are actually open, and
+          not for placeholders with TABLE::open_placeholder set. Waiting for
+          latter will cause deadlock in the following scenario, for example:
+
+          conn1: lock table t1 write;
+          conn2: lock table t2 write;
+          conn1: flush tables;
+          conn2: flush tables;
+
+          It also does not make sense to wait for those of placeholders that
+          are employed by CREATE TABLE as in this case table simply does not
+          exist yet.
+        */
+	if (table->needs_reopen_or_name_lock() && table->db_stat)
 	{
 	  found=1;
           DBUG_PRINT("signal", ("Waiting for COND_refresh"));
@@ -616,10 +632,10 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   TABLE *table= *table_ptr;
   DBUG_ENTER("close_thread_table");
   DBUG_ASSERT(table->key_read == 0);
-  DBUG_ASSERT(table->file->inited == handler::NONE);
+  DBUG_ASSERT(!table->file || table->file->inited == handler::NONE);
 
   *table_ptr=table->next;
-  if (table->s->version != refresh_version ||
+  if (table->needs_reopen_or_name_lock() ||
       thd->version != refresh_version || !table->db_stat)
   {
     VOID(hash_delete(&open_cache,(byte*) table));
@@ -627,6 +643,12 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   }
   else
   {
+    /*
+      Open placeholders have TABLE::db_stat set to 0, so they should be
+      handled by the first alternative.
+    */
+    DBUG_ASSERT(!table->open_placeholder);
+
     if (table->s->flush_version != flush_version)
     {
       table->s->flush_version= flush_version;
@@ -1114,6 +1136,43 @@ TABLE *unlink_open_table(THD *thd, TABLE *list, TABLE *find)
 }
 
 
+/**
+    @brief Auxiliary routine which closes and drops open table.
+
+    @param  thd         Thread handle
+    @param  table       TABLE object for table to be dropped
+    @param  db_name     Name of database for this table
+    @param  table_name  Name of this table
+
+    @note This routine assumes that table to be closed is open only
+          by calling thread so we needn't wait until other threads
+          will close the table. Also unless called under implicit or
+          explicit LOCK TABLES mode it assumes that table to be
+          dropped is already unlocked. In the former case it will
+          also remove lock on the table. But one should not rely on
+          this behaviour as it may change in future.
+*/
+
+void drop_open_table(THD *thd, TABLE *table, const char *db_name,
+                     const char *table_name)
+{
+  if (table->s->tmp_table)
+    close_temporary_table(thd, db_name, table_name);
+  else
+  {
+    enum db_type table_type= table->s->db_type;
+    VOID(pthread_mutex_lock(&LOCK_open));
+    /*
+      unlink_open_table() also tells threads waiting for refresh or close
+      that something has happened.
+    */
+    thd->open_tables= unlink_open_table(thd, thd->open_tables, table);
+    quick_rm_table(table_type, db_name, table_name);
+    VOID(pthread_mutex_unlock(&LOCK_open));
+  }
+}
+
+
 /*
    When we call the following function we must have a lock on
    LOCK_open ; This lock will be unlocked on return.
@@ -1152,6 +1211,11 @@ void wait_for_refresh(THD *thd)
       table_list  TABLE_LIST object for table to be open, TABLE_LIST::table
                   member should point to TABLE object which was used for
                   name-locking.
+      link_in     TRUE  - if TABLE object for table to be opened should be
+                          linked into THD::open_tables list.
+                  FALSE - placeholder used for name-locking is already in
+                          this list so we only need to preserve TABLE::next
+                          pointer.
 
   NOTE
     This function assumes that its caller already acquired LOCK_open mutex.
@@ -1161,7 +1225,7 @@ void wait_for_refresh(THD *thd)
     TRUE  - Error
 */
 
-bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
+bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in)
 {
   TABLE *table= table_list->table;
   TABLE_SHARE *share;
@@ -1199,12 +1263,33 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   share= table->s;
   share->db= share->table_cache_key;
   share->key_length=key_length;
+  /*
+    We want to prevent other connections from opening this table until end
+    of statement as it is likely that modifications of table's metadata are
+    not yet finished (for example CREATE TRIGGER have to change .TRG file,
+    or we might want to drop table if CREATE TABLE ... SELECT fails).
+    This also allows us to assume that no other connection will sneak in
+    before we will get table-level lock on this table.
+  */
   share->version=0;
   share->flush_version=0;
   table->in_use = thd;
   check_unused();
-  table->next = thd->open_tables;
-  thd->open_tables = table;
+
+  if (link_in)
+  {
+    table->next= thd->open_tables;
+    thd->open_tables= table;
+  }
+  else
+  {
+    /*
+      TABLE object should be already in THD::open_tables list so we just
+      need to set TABLE::next correctly.
+    */
+    table->next= orig_table.next;
+  }
+
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
   table->const_table=0;
@@ -1213,6 +1298,167 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   table->keys_in_use_for_query= share->keys_in_use;
   table->used_keys= share->keys_for_keyread;
   DBUG_RETURN(FALSE);
+}
+
+
+/**
+    @brief Create and insert into table cache placeholder for table
+           which will prevent its opening (or creation) (a.k.a lock
+           table name).
+
+    @param  thd         Thread context
+    @param  key         Table cache key for name to be locked
+    @param  key_length  Table cache key length
+
+    @return Pointer to TABLE object used for name locking or 0 in
+            case of failure.
+*/
+
+TABLE *table_cache_insert_placeholder(THD *thd, const char *key,
+                                      uint key_length)
+{
+  TABLE *table;
+  char *key_buff;
+  DBUG_ENTER("table_cache_insert_placeholder");
+
+  safe_mutex_assert_owner(&LOCK_open);
+
+  /*
+    Create a table entry with the right key and with an old refresh version
+    Note that we must use my_multi_malloc() here as this is freed by the
+    table cache
+  */
+  if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
+                       &table, sizeof(*table),
+                       &key_buff, key_length,
+                       NULL))
+    DBUG_RETURN(NULL);
+
+  table->s= &table->share_not_to_be_used;
+  memcpy(key_buff, key, key_length);
+  table->s->table_cache_key= key_buff;
+  table->s->db= table->s->table_cache_key;
+  table->s->table_name= table->s->table_cache_key + strlen(table->s->db) + 1;
+  table->s->key_length= key_length;
+  table->in_use= thd;
+  table->locked_by_name= 1;
+
+  if (my_hash_insert(&open_cache, (byte*)table))
+  {
+    my_free((gptr) table, MYF(0));
+    DBUG_RETURN(NULL);
+  }
+
+  DBUG_RETURN(table);
+}
+
+
+/**
+    @brief Check if table cache contains an open placeholder for the
+           table and if this placeholder was created by another thread.
+
+    @param  thd         Thread context
+    @param  db          Name of database for table in question
+    @param  table_name  Table name
+
+    @note The presence of open placeholder indicates that either some
+          other thread is trying to create table in question and obtained
+          an exclusive name-lock on it or that this table already exists
+          and is being flushed at the moment.
+
+    @note One should acquire LOCK_open mutex before calling this function.
+
+    @note This function is a hack which was introduced in 5.0 only to
+          minimize code changes. It doesn't present in 5.1.
+
+    @retval  TRUE   Table cache contains open placeholder for the table
+                    which was created by some other thread.
+    @retval  FALSE  Otherwise.
+*/
+
+bool table_cache_has_open_placeholder(THD *thd, const char *db,
+                                      const char *table_name)
+{
+  char key[MAX_DBKEY_LENGTH];
+  uint key_length;
+  HASH_SEARCH_STATE state;
+  TABLE *search;
+  DBUG_ENTER("table_cache_has_open_placeholder");
+
+  safe_mutex_assert_owner(&LOCK_open);
+
+  key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
+  for (search= (TABLE*) hash_first(&open_cache, (byte*) key, key_length,
+                                   &state);
+      search ;
+      search= (TABLE*) hash_next(&open_cache, (byte*) key, key_length,
+                                 &state))
+  {
+    if (search->in_use == thd)
+      continue;
+    if (search->open_placeholder)
+        DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
+}
+
+
+/**
+    @brief Check that table exists on disk or in some storage engine.
+
+    @param  thd          Thread context
+    @param  table        Table list element
+    @param  exists[out]  Out parameter which is set to TRUE if table
+                         exists and to FALSE otherwise.
+
+    @note This function assumes that caller owns LOCK_open mutex.
+          It also assumes that the fact that there are no name-locks
+          on the table was checked beforehand.
+
+    @note If there is no .FRM file for the table but it exists in one
+          of engines (e.g. it was created on another node of NDB cluster)
+          this function will fetch and create proper .FRM file for it.
+
+    @retval  TRUE   Some error occured
+    @retval  FALSE  No error. 'exists' out parameter set accordingly.
+*/
+
+bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
+{
+  char path[FN_REFLEN];
+  int rc;
+  DBUG_ENTER("check_if_table_exists");
+
+  safe_mutex_assert_owner(&LOCK_open);
+
+  *exists= TRUE;
+
+  build_table_path(path, sizeof(path), table->db, table->table_name, reg_ext);
+
+  if (!access(path, F_OK))
+    DBUG_RETURN(FALSE);
+
+  /* .FRM file doesn't exist. Check if some engine can provide it. */
+
+  rc= ha_create_table_from_engine(thd, table->db, table->table_name);
+
+  if (rc < 0)
+  {
+    /* Table does not exists in engines as well. */
+    *exists= FALSE;
+    DBUG_RETURN(FALSE);
+  }
+  else if (!rc)
+  {
+    /* Table exists in some engine and .FRM for it was created. */
+    DBUG_RETURN(FALSE);
+  }
+  else /* (rc > 0) */
+  {
+    my_printf_error(ER_UNKNOWN_ERROR, "Failed to open '%-.64s', error while "
+                    "unpacking from engine", MYF(0), table->table_name);
+    DBUG_RETURN(TRUE);
+  }
 }
 
 
@@ -1231,11 +1477,16 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
                           MYSQL_LOCK_IGNORE_FLUSH - Open table even if
                           someone has done a flush or namelock on it.
                           No version number checking is done.
-                          MYSQL_OPEN_IGNORE_LOCKED_TABLES - Open table
-                          ignoring set of locked tables and prelocked mode.
+                          MYSQL_OPEN_TEMPORARY_ONLY - Open only temporary
+                          table not the base table or view.
 
   IMPLEMENTATION
     Uses a cache of open tables to find a table not in use.
+
+    If table list element for the table to be opened has "create" flag
+    set and table does not exist, this function will automatically insert
+    a placeholder for exclusive name lock into the open tables cache and
+    will return the TABLE instance that corresponds to this placeholder.
 
   RETURN
     NULL  Open failed.  If refresh is set then one should close
@@ -1305,6 +1556,12 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     }
   }
 
+  if (flags & MYSQL_OPEN_TEMPORARY_ONLY)
+  {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->table_name);
+    DBUG_RETURN(0);
+  }
+
   /*
     The table is not temporary - if we're in pre-locked or LOCK TABLES
     mode, let's try to find the requested table in the list of pre-opened
@@ -1312,8 +1569,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     open not pre-opened tables in pre-locked/LOCK TABLES mode.
     TODO: move this block into a separate function.
   */
-  if (!(flags & MYSQL_OPEN_IGNORE_LOCKED_TABLES) &&
-      (thd->locked_tables || thd->prelocked_mode))
+  if (thd->locked_tables || thd->prelocked_mode)
   {						// Using table locks
     TABLE *best_table= 0;
     int best_distance= INT_MIN;
@@ -1495,7 +1751,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       c1: name lock t2; -- blocks
       c2: open t1; -- blocks
     */
-    if (table->s->version != refresh_version)
+    if (table->needs_reopen_or_name_lock())
     {
       DBUG_PRINT("note",
                  ("Found table '%s.%s' with different refresh version",
@@ -1505,6 +1761,14 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         /* Force close at once after usage */
         thd->version= table->s->version;
         continue;
+      }
+
+      /* Avoid self-deadlocks by detecting self-dependencies. */
+      if (table->open_placeholder && table->in_use == thd)
+      {
+	VOID(pthread_mutex_unlock(&LOCK_open));
+        my_error(ER_UPDATE_TABLE_USED, MYF(0), table->s->table_name);
+        DBUG_RETURN(0);
       }
 
       /*
@@ -1523,6 +1787,14 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         and wait till the operation is complete: when any
         operation that juggles with table->s->version completes,
         it broadcasts COND_refresh condition variable.
+        If 'old' table we met is in use by current thread we return
+        without waiting since in this situation it's this thread
+        which is responsible for broadcasting on COND_refresh
+        (and this was done already in close_old_data_files()).
+        Good example of such situation is when we have statement
+        that needs two instances of table and FLUSH TABLES comes
+        after we open first instance but before we open second
+        instance.
       */
       if (table->in_use != thd)
       {
@@ -1563,6 +1835,40 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     /* Free cache if too big */
     while (open_cache.records > table_cache_size && unused_tables)
       VOID(hash_delete(&open_cache,(byte*) unused_tables)); /* purecov: tested */
+
+    if (table_list->create)
+    {
+      bool exists;
+
+      if (check_if_table_exists(thd, table_list, &exists))
+      {
+        VOID(pthread_mutex_unlock(&LOCK_open));
+        DBUG_RETURN(NULL);
+      }
+
+      if (!exists)
+      {
+        /*
+          Table to be created, so we need to create placeholder in table-cache.
+        */
+        if (!(table= table_cache_insert_placeholder(thd, key, key_length)))
+        {
+          VOID(pthread_mutex_unlock(&LOCK_open));
+          DBUG_RETURN(NULL);
+        }
+        /*
+          Link placeholder to the open tables list so it will be automatically
+          removed once tables are closed. Also mark it so it won't be ignored
+          by other trying to take name-lock.
+        */
+        table->open_placeholder= 1;
+        table->next= thd->open_tables;
+        thd->open_tables= table;
+        VOID(pthread_mutex_unlock(&LOCK_open));
+        DBUG_RETURN(table);
+      }
+      /* Table exists. Let us try to open it. */
+    }
 
     /* make a new table */
     if (!(table=(TABLE*) my_malloc(sizeof(*table),MYF(MY_WME))))
@@ -1794,9 +2100,24 @@ bool close_data_tables(THD *thd,const char *db, const char *table_name)
 }
 
 
-/*
-  Reopen all tables with closed data files
-  One should have lock on LOCK_open when calling this
+/**
+    @brief Reopen all tables with closed data files.
+
+    @param thd         Thread context
+    @param get_locks   Should we get locks after reopening tables ?
+    @param in_refresh  Are we in FLUSH TABLES ? TODO: It seems that
+                       we can remove this parameter.
+
+    @note Since this function can't properly handle prelocking and
+          create placeholders it should be used in very special
+          situations like FLUSH TABLES or ALTER TABLE. In general
+          case one should just repeat open_tables()/lock_tables()
+          combination when one needs tables to be reopened (for
+          example see open_and_lock_tables()).
+
+    @note One should have lock on LOCK_open when calling this.
+
+    @return FALSE in case of success, TRUE - otherwise.
 */
 
 bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
@@ -1841,7 +2162,7 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
       if (in_refresh)
       {
 	table->s->version=0;
-	table->locked_by_flush=0;
+	table->open_placeholder= 0;
       }
     }
   }
@@ -1867,34 +2188,70 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
   DBUG_RETURN(error);
 }
 
-/*
-  Close handlers for tables in list, but leave the TABLE structure
-  intact so that we can re-open these quickly
-  abort_locks is set if called from flush_tables.
+
+/**
+    @brief Close handlers for tables in list, but leave the TABLE structure
+           intact so that we can re-open these quickly.
+
+    @param thd           Thread context
+    @param table         Head of the list of TABLE objects
+    @param morph_locks   TRUE  - remove locks which we have on tables being closed
+                                 but ensure that no DML or DDL will sneak in before
+                                 we will re-open the table (i.e. temporarily morph
+                                 our table-level locks into name-locks).
+                         FALSE - otherwise
+    @param send_refresh  Should we awake waiters even if we didn't close any tables?
 */
 
-void close_old_data_files(THD *thd, TABLE *table, bool abort_locks,
+void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
 			  bool send_refresh)
 {
   DBUG_ENTER("close_old_data_files");
   bool found=send_refresh;
   for (; table ; table=table->next)
   {
-    if (table->s->version != refresh_version)
+    if (table->needs_reopen_or_name_lock())
     {
       found=1;
-      if (!abort_locks)				// If not from flush tables
+      /*
+        Note that it is safe to update version even for open placeholders
+        as later in this function we reset TABLE::open_placeholder and thus
+        effectively remove them from the table cache.
+      */
+      if (!morph_locks)                         // If not from flush tables
 	table->s->version= refresh_version;	// Let other threads use table
       if (table->db_stat)
       {
-	if (abort_locks)
-	{
-	  mysql_lock_abort(thd,table);		// Close waiting threads
-	  mysql_lock_remove(thd, thd->locked_tables,table);
-	  table->locked_by_flush=1;		// Will be reopened with locks
-	}
+        if (morph_locks)
+        {
+          /*
+            Wake up threads waiting for table-level lock on this table
+            so they won't sneak in when we will temporarily remove our
+            lock on it. This will also give them a chance to close their
+            instances of this table.
+          */
+          mysql_lock_abort(thd, table);
+          mysql_lock_remove(thd, thd->locked_tables, table);
+          /*
+            We want to protect the table from concurrent DDL operations
+            (like RENAME TABLE) until we will re-open and re-lock it.
+          */
+          table->open_placeholder= 1;
+        }
 	table->file->close();
 	table->db_stat=0;
+      }
+      else if (table->open_placeholder)
+      {
+        /*
+          We come here only in close-for-back-off scenario. So we have to
+          "close" create placeholder here to avoid deadlocks (for example,
+          in case of concurrent execution of CREATE TABLE t1 SELECT * FROM t2
+          and RENAME TABLE t2 TO t1). In close-for-re-open scenario we will
+          probably want to let it stay.
+        */
+        DBUG_ASSERT(!morph_locks);
+        table->open_placeholder= 0;
       }
     }
   }
@@ -1923,9 +2280,8 @@ bool table_is_used(TABLE *table, bool wait_for_name_lock)
          search= (TABLE*) hash_next(&open_cache, (byte*) key,
                                     key_length, &state))
     {
-      if (search->locked_by_flush ||
-	  search->locked_by_name && wait_for_name_lock ||
-	  search->db_stat && search->s->version < refresh_version)
+      if (search->locked_by_name && wait_for_name_lock ||
+	  search->is_name_opened() && search->needs_reopen_or_name_lock())
 	return 1;				// Table is used
     }
   } while ((table=table->next));
@@ -2277,7 +2633,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
   */
 
   if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
-      thd->lex->sroutines_list.elements)
+      thd->lex->uses_stored_routines())
   {
     bool first_no_prelocking, need_prelocking, tabs_changed;
     TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
@@ -2465,7 +2821,7 @@ process_view_routines:
     */
     if (tables->view && !thd->prelocked_mode &&
         !thd->lex->requires_prelocking() &&
-        tables->view->sroutines_list.elements)
+        tables->view->uses_stored_routines())
     {
       /* We have at least one table in TL here. */
       if (!query_tables_last_own)
@@ -5450,7 +5806,7 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
     table= field->table;
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
-    if (value->save_in_field(field, 0) == -1)
+    if (value->save_in_field(field, 0) < 0)
       goto err;
   }
   DBUG_RETURN(thd->net.report_error);
@@ -5661,7 +6017,7 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
       else if (in_use != thd)
       {
         in_use->some_tables_deleted=1;
-        if (table->db_stat)
+        if (table->is_name_opened())
         {
           DBUG_PRINT("info", ("Found another active instance of the table"));
   	  result=1;

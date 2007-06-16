@@ -28,6 +28,7 @@ try
            break;
       case "version":
            var app_version= parts[1];
+           app_version+= ".0";
            break;
       case "arch":
            var app_arch= parts[1];
