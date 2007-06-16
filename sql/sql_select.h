@@ -159,6 +159,13 @@ typedef struct st_join_table {
   Read_record_func read_first_record;
   Next_select_func next_select;
   READ_RECORD	read_record;
+  /* 
+    Currently the following two fields are used only for a [NOT] IN subquery
+    if it is executed by an alternative full table scan when the left operand of
+    the subquery predicate is evaluated to NULL.
+  */  
+  Read_record_func save_read_first_record;/* to save read_first_record */ 
+  int (*save_read_record) (READ_RECORD *);/* to save read_record.read_record */
   double	worst_seeks;
   key_map	const_keys;			/* Keys with constant part */
   key_map	checked_keys;			/* Keys checked in find_best */
@@ -434,6 +441,7 @@ public:
   void cleanup(bool full);
   void clear();
   bool save_join_tab();
+  bool init_save_join_tab();
   bool send_row_on_empty_set()
   {
     return (do_send_rows && tmp_table_param.sum_func_count != 0 &&

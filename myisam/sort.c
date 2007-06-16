@@ -151,7 +151,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
             keys < (uint) maxbuffer)
 	{
 	  mi_check_print_error(info->sort_info->param,
-			       "sort_buffer_size is to small");
+			       "myisam_sort_buffer_size is too small");
 	  goto err;
 	}
       }
@@ -175,7 +175,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
   }
   if (memavl < MIN_SORT_MEMORY)
   {
-    mi_check_print_error(info->sort_info->param,"Sort buffer to small"); /* purecov: tested */
+    mi_check_print_error(info->sort_info->param,"MyISAM sort buffer too small"); /* purecov: tested */
     goto err; /* purecov: tested */
   }
   (*info->lock_in_memory)(info->sort_info->param);/* Everything is allocated */
@@ -369,7 +369,7 @@ pthread_handler_t thr_find_all_keys(void *arg)
               keys < (uint) maxbuffer)
           {
             mi_check_print_error(sort_param->sort_info->param,
-                                 "sort_buffer_size is to small");
+                                 "myisam_sort_buffer_size is too small");
             goto err;
           }
         }
@@ -397,7 +397,7 @@ pthread_handler_t thr_find_all_keys(void *arg)
     if (memavl < MIN_SORT_MEMORY)
     {
       mi_check_print_error(sort_param->sort_info->param,
-                           "Sort buffer too small");
+                           "MyISAM sort buffer too small");
       goto err; /* purecov: tested */
     }
 
@@ -773,7 +773,7 @@ static int NEAR_F merge_many_buff(MI_SORT_PARAM *info, uint keys,
     {
       if (merge_buffers(info,keys,from_file,to_file,sort_keys,lastbuff++,
                         buffpek+i,buffpek+i+MERGEBUFF-1))
-        break; /* purecov: inspected */
+        goto cleanup;
     }
     if (merge_buffers(info,keys,from_file,to_file,sort_keys,lastbuff++,
                       buffpek+i,buffpek+ *maxbuffer))
@@ -783,6 +783,7 @@ static int NEAR_F merge_many_buff(MI_SORT_PARAM *info, uint keys,
     temp=from_file; from_file=to_file; to_file=temp;
     *maxbuffer= (int) (lastbuff-buffpek)-1;
   }
+cleanup:
   close_cached_file(to_file);                   /* This holds old result */
   if (to_file == t_file)
     *t_file=t_file2;                            /* Copy result file */

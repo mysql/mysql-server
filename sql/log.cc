@@ -1784,7 +1784,7 @@ void MYSQL_LOG::rotate_and_purge(uint flags)
 #ifdef HAVE_REPLICATION
     if (expire_logs_days)
     {
-      long purge_time= (long) (time(0) - expire_logs_days*24*60*60);
+      time_t purge_time= time(0) - expire_logs_days*24*60*60;
       if (purge_time >= 0)
         purge_logs_before_date(purge_time);
     }
