@@ -81,6 +81,7 @@ TODO:
 #define UPDATE_TYPE_REQUIRES_PREFIX 3
 #define CREATE_TABLE_TYPE 4
 #define SELECT_TYPE_REQUIRES_PREFIX 5
+#define DELETE_TYPE_REQUIRES_PREFIX 6
 
 #include "client_priv.h"
 #include <mysqld_error.h>
@@ -122,6 +123,8 @@ static char *host= NULL, *opt_password= NULL, *user= NULL,
             *user_supplied_pre_statements= NULL,
             *user_supplied_post_statements= NULL,
             *default_engine= NULL,
+            *pre_system= NULL,
+            *post_system= NULL,
             *opt_mysql_unix_port= NULL;
 
 const char *delimiter= "\n";
@@ -142,6 +145,8 @@ const char *auto_generate_sql_type= "mixed";
 static unsigned long connect_flags= CLIENT_MULTI_RESULTS;
 
 static int verbose, delimiter_length;
+static uint commit_rate;
+static uint detach_rate;
 const char *num_int_cols_opt;
 const char *num_char_cols_opt;
 /* Yes, we do set defaults here */
@@ -254,6 +259,8 @@ void statement_cleanup(statement *stmt);
 void option_cleanup(option_string *stmt);
 void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr);
 static int run_statements(MYSQL *mysql, statement *stmt);
+int slap_connect(MYSQL *mysql);
+static int run_query(MYSQL *mysql, const char *query, int len);
 
 static const char ALPHANUMERICS[]=
   "0123456789ABCDEFGHIJKLMNOPQRSTWXYZabcdefghijklmnopqrstuvwxyz";
@@ -451,6 +458,16 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
     if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
       generate_primary_key_list(mysql, eptr);
 
+    if (commit_rate)
+      run_query(mysql, "SET AUTOCOMMIT=0", strlen("SET AUTOCOMMIT=0"));
+
+    if (pre_system)
+      system(pre_system);
+
+    /* 
+      Pre statements are always run after all other logic so they can 
+      correct/adjust any item that they want. 
+    */
     if (pre_statements)
       run_statements(mysql, pre_statements);
 
@@ -458,6 +475,9 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
     
     if (post_statements)
       run_statements(mysql, post_statements);
+
+    if (post_system)
+      system(post_system);
 
     /* We are finished with this run */
     if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
@@ -527,6 +547,9 @@ static struct my_option my_long_options[] =
     "Number of rows to insert to used in read and write loads (default is 100).\n",
     (uchar**) &auto_generate_sql_number, (uchar**) &auto_generate_sql_number,
     0, GET_ULL, REQUIRED_ARG, 100, 0, 0, 0, 0, 0},
+  {"commit", OPT_SLAP_COMMIT, "Commit records after X number of statements.",
+    (uchar**) &commit_rate, (uchar**) &commit_rate, 0, GET_UINT, REQUIRED_ARG,
+    0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
     (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
     0, 0, 0},
@@ -549,6 +572,9 @@ static struct my_option my_long_options[] =
   {"delimiter", 'F',
     "Delimiter to use in SQL statements supplied in file or command line.",
     (uchar**) &delimiter, (uchar**) &delimiter, 0, GET_STR, REQUIRED_ARG,
+    0, 0, 0, 0, 0, 0},
+  {"detach", OPT_SLAP_DETACH, "Detach connections after X number of requests.",
+    (uchar**) &detach_rate, (uchar**) &detach_rate, 0, GET_UINT, REQUIRED_ARG, 
     0, 0, 0, 0, 0, 0},
   {"engine", 'e', "Storage engine to use for creating the table.",
     (uchar**) &default_engine, (uchar**) &default_engine, 0,
@@ -589,10 +615,20 @@ static struct my_option my_long_options[] =
     (uchar**) &user_supplied_post_statements, 
     (uchar**) &user_supplied_post_statements,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"post-system", OPT_SLAP_POST_SYSTEM,
+    "System() string to run after the load has completed.",
+    (uchar**) &post_system, 
+    (uchar**) &post_system,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"pre-query", OPT_SLAP_PRE_QUERY, 
     "Query to run or file containing query to run before executing.",
     (uchar**) &user_supplied_pre_statements, 
     (uchar**) &user_supplied_pre_statements,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"pre-system", OPT_SLAP_PRE_SYSTEM, 
+    "System() string to before load has completed.",
+    (uchar**) &pre_system, 
+    (uchar**) &pre_system,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"preserve-schema", OPT_MYSQL_PRESERVE_SCHEMA,
     "Preserve the schema from the mysqlslap run, this happens unless "
@@ -1715,6 +1751,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 pthread_handler_t run_task(void *p)
 {
   ulonglong counter= 0, queries;
+  ulonglong trans_counter;
   MYSQL *mysql;
   MYSQL_RES *result;
   MYSQL_ROW row;
@@ -1749,38 +1786,28 @@ pthread_handler_t run_task(void *p)
 
   if (!opt_only_print)
   {
-    /* Connect to server */
-    static ulong connection_retry_sleep= 100000; /* Microseconds */
-    int i, connect_error= 1;
-    for (i= 0; i < 10; i++)
-    {
-      if (mysql_real_connect(mysql, host, user, opt_password,
-                             create_schema_string,
-                             opt_mysql_port,
-                             opt_mysql_unix_port,
-                             connect_flags))
-      {
-        /* Connect suceeded */
-        connect_error= 0;
-        break;
-      }
-      my_sleep(connection_retry_sleep);
-    }
-    if (connect_error)
-    {
-      fprintf(stderr,"%s: Error when connecting to server: %d %s\n",
-              my_progname, mysql_errno(mysql), mysql_error(mysql));
+    if (slap_connect(mysql))
       goto end;
-    }
   }
+
   DBUG_PRINT("info", ("connected."));
   if (verbose >= 3)
     printf("connected!\n");
   queries= 0;
 
 limit_not_met:
-    for (ptr= con->stmt; ptr && ptr->length; ptr= ptr->next)
+    for (ptr= con->stmt, trans_counter= 0; 
+         ptr && ptr->length; 
+         ptr= ptr->next, trans_counter++)
     {
+      if (!opt_only_print && detach_rate && !(trans_counter % detach_rate))
+      {
+        mysql_close(mysql);
+
+        if (slap_connect(mysql))
+          goto end;
+      }
+
       /* 
         We have to execute differently based on query type. This should become a function.
       */
@@ -1837,6 +1864,9 @@ limit_not_met:
       }
       queries++;
 
+      if (commit_rate && commit_rate <= trans_counter)
+        run_query(mysql, "COMMIT", strlen("COMMIT"));
+
       if (con->limit && queries == con->limit)
         goto end;
     }
@@ -1845,6 +1875,8 @@ limit_not_met:
       goto limit_not_met;
 
 end:
+  if (commit_rate)
+    run_query(mysql, "COMMIT", strlen("COMMIT"));
 
   if (!opt_only_print) 
     mysql_close(mysql);
@@ -2103,4 +2135,35 @@ statement_cleanup(statement *stmt)
       my_free(ptr->string, MYF(0)); 
     my_free(ptr, MYF(0));
   }
+}
+
+
+int 
+slap_connect(MYSQL *mysql)
+{
+  /* Connect to server */
+  static ulong connection_retry_sleep= 100000; /* Microseconds */
+  int x, connect_error= 1;
+  for (x= 0; x < 10; x++)
+  {
+    if (mysql_real_connect(mysql, host, user, opt_password,
+                           create_schema_string,
+                           opt_mysql_port,
+                           opt_mysql_unix_port,
+                           connect_flags))
+    {
+      /* Connect suceeded */
+      connect_error= 0;
+      break;
+    }
+    my_sleep(connection_retry_sleep);
+  }
+  if (connect_error)
+  {
+    fprintf(stderr,"%s: Error when connecting to server: %d %s\n",
+            my_progname, mysql_errno(mysql), mysql_error(mysql));
+    return 1;
+  }
+
+  return 0;
 }
