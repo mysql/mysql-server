@@ -1598,6 +1598,8 @@ int handler::update_auto_increment()
   ulonglong nr;
   THD *thd= table->in_use;
   struct system_variables *variables= &thd->variables;
+  bool external_auto_increment= 
+       table->file->table_flags() & HA_EXTERNAL_AUTO_INCREMENT;
   DBUG_ENTER("handler::update_auto_increment");
 
   /*
@@ -1615,12 +1617,12 @@ int handler::update_auto_increment()
     adjust_next_insert_id_after_explicit_value(nr);
     DBUG_RETURN(0);
   }
-  if (!(nr= thd->next_insert_id))
+  if (external_auto_increment || !(nr= thd->next_insert_id))
   {
     if ((nr= get_auto_increment()) == ~(ulonglong) 0)
       DBUG_RETURN(HA_ERR_AUTOINC_READ_FAILED);  // Mark failure
 
-    if (variables->auto_increment_increment != 1)
+    if (!external_auto_increment && variables->auto_increment_increment != 1)
       nr= next_insert_id(nr-1, variables);
     /*
       Update next row based on the found value. This way we don't have to
@@ -1685,7 +1687,14 @@ void handler::restore_auto_increment()
 {
   THD *thd= table->in_use;
   if (thd->next_insert_id)
+  {
     thd->next_insert_id= thd->prev_insert_id;
+    if (thd->next_insert_id == 0)
+    {
+      /* we didn't generate a value, engine will be called again */
+      thd->clear_next_insert_id= 0;
+    }
+  }
 }
 
 

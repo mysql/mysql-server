@@ -607,6 +607,21 @@ select * from t1 order by counter;
 drop table t1;
 
 #
+# bug#27437
+connection con1;
+create table t1 (a int primary key auto_increment) engine = ndb;
+insert into t1() values (),(),(),(),(),(),(),(),(),(),(),();
+connection con2;
+insert into t1(a) values (20),(28);
+connection con1;
+insert into t1() values (),(),(),(),(),(),(),(),(),(),(),();
+connection con2;
+insert into t1() values (21), (22);
+connection con1;
+
+drop table t1;
+
+#
 # BUG#14514 Creating table with packed key fails silently
 #
 
@@ -724,6 +739,46 @@ INSERT INTO t1 VALUES
 ("a","ab","abc"),("b","abc","abcd"),("c","abc","ab"),("d","ab","ab"),("e","abc","abc");
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
+
+# delete
+create table t1 (a int not null primary key, b int not null) engine=ndb;
+create table t2 (a int not null primary key, b int not null) engine=ndb;
+insert into t1 values (1,10), (2,20), (3,30);
+insert into t2 values (1,10), (2,20), (3,30);
+select * from t1 order by a;
+delete from t1 where a > 0 order by a desc limit 1;
+select * from t1 order by a;
+delete from t1,t2 using t1,t2 where t1.a = t2.a;
+select * from t2 order by a;
+drop table t1,t2;
+
+# insert ignore
+create table t1 (a int not null primary key, b int not null) engine=ndb;
+insert into t1 values (1,10), (2,20), (3,30);
+--error ER_DUP_ENTRY
+insert into t1 set a=1, b=100;
+insert ignore into t1 set a=1, b=100;
+select * from t1 order by a;
+insert into t1 set a=1, b=1000 on duplicate key update b=b+1;
+select * from t1 order by a;
+drop table t1;
+
+# update
+create table t1 (a int not null primary key, b int not null) engine=ndb;
+create table t2 (c int not null primary key, d int not null) engine=ndb;
+insert into t1 values (1,10), (2,10), (3,30), (4, 30);
+insert into t2 values (1,10), (2,10), (3,30), (4, 30);
+--error ER_DUP_ENTRY
+update t1 set a = 1 where a = 3;
+select * from t1 order by a;
+update t1 set b = 1 where a > 1 order by a desc limit 1;
+select * from t1 order by a;
+--error ER_DUP_ENTRY
+update t1,t2 set a = 1, c = 1 where a = 3 and c = 3;
+select * from t1 order by a;
+update ignore t1,t2 set a = 1, c = 1 where a = 3 and c = 3;
+select * from t1 order by a;
+drop table t1,t2;
 
 # End of 5.0 tests
 --echo End of 5.0 tests

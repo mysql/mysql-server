@@ -690,12 +690,12 @@ END|
 CALL p1(NOW());
 Table	Create Table
 t1	CREATE TABLE "t1" (
-  "x" varbinary(19) default NULL
+  "x" datetime default NULL
 )
 CALL p1('test');
 Table	Create Table
 t1	CREATE TABLE "t1" (
-  "x" varbinary(19) default NULL
+  "x" datetime default NULL
 )
 Warnings:
 Warning	1264	Out of range value adjusted for column 'x' at row 1
@@ -1161,3 +1161,44 @@ CALL p1();
 v_text
 abc|def
 DROP PROCEDURE p1;
+DROP PROCEDURE IF EXISTS bug27415_text_test|
+DROP PROCEDURE IF EXISTS bug27415_text_test2|
+CREATE PROCEDURE bug27415_text_test(entity_id_str_in text)
+BEGIN
+DECLARE str_remainder text;
+SET str_remainder = entity_id_str_in;
+select 'before substr', str_remainder;
+SET str_remainder = SUBSTRING(str_remainder, 3);
+select 'after substr', str_remainder;
+END|
+CREATE PROCEDURE bug27415_text_test2(entity_id_str_in text)
+BEGIN
+DECLARE str_remainder text;
+DECLARE str_remainder2 text;
+SET str_remainder2 = entity_id_str_in;
+select 'before substr', str_remainder2;
+SET str_remainder = SUBSTRING(str_remainder2, 3);
+select 'after substr', str_remainder;
+END|
+CALL bug27415_text_test('a,b,c')|
+before substr	str_remainder
+before substr	a,b,c
+after substr	str_remainder
+after substr	b,c
+CALL bug27415_text_test('a,b,c')|
+before substr	str_remainder
+before substr	a,b,c
+after substr	str_remainder
+after substr	b,c
+CALL bug27415_text_test2('a,b,c')|
+before substr	str_remainder2
+before substr	a,b,c
+after substr	str_remainder
+after substr	b,c
+CALL bug27415_text_test('a,b,c')|
+before substr	str_remainder
+before substr	a,b,c
+after substr	str_remainder
+after substr	b,c
+DROP PROCEDURE bug27415_text_test|
+DROP PROCEDURE bug27415_text_test2|

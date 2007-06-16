@@ -20,7 +20,12 @@
 #include <TransporterCallback.hpp>
 #include <RefConvert.hpp>
 
+#ifdef ERROR_INSERT
+Uint32 MAX_RECEIVED_SIGNALS = 1024;
+#else
 #define MAX_RECEIVED_SIGNALS 1024
+#endif
+
 Uint32
 TransporterRegistry::unpack(Uint32 * readPtr,
 			    Uint32 sizeOfData,
