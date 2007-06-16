@@ -36,3 +36,5 @@
 --exec $MYSQL_SLAP --silent --concurrency=5 --iterations=1 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --auto-generate-sql-guid-primary --auto-generate-sql-load-type=key --auto-generate-sql-execute-number=5 --auto-generate-sql-secondary-indexes=3
 
 --exec $MYSQL_SLAP --only-print --delimiter=";" --query="select * from t1;select * from t2" --create="CREATE TABLE t1 (id int, name varchar(64)); create table t2(foo1 varchar(32), foo2 varchar(32)); INSERT INTO t1 VALUES (1, 'This is a test'); insert into t2 values ('test', 'test2')" --engine="heap,myisam" --post-query="SHOW TABLES" --pre-query="SHOW TABLES";
+
+ --exec $MYSQL_SLAP --only-print --delimiter=";" --query="select * from t1;select * from t2" --create="CREATE TABLE t1 (id int, name varchar(64)); create table t2(foo1 varchar(32), foo2 varchar(32)); INSERT INTO t1 VALUES (1, 'This is a test'); insert into t2 values ('test', 'test2')" --engine="heap,myisam" --post-query="SHOW TABLES" --pre-query="SHOW TABLES" --number-of-queries=6 --commit=1;
