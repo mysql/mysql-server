@@ -2244,12 +2244,10 @@ int ha_ndbcluster::write_row(byte *record)
     if (has_auto_increment) 
     {
       int error;
-      
+
       m_skip_auto_increment= FALSE;
       if ((error= update_auto_increment()))
         DBUG_RETURN(error);
-      /* Ensure that handler is always called for auto_increment values */
-      thd->next_insert_id= 0;
       m_skip_auto_increment= !auto_increment_column_changed;
     }
   }
@@ -2310,7 +2308,7 @@ int ha_ndbcluster::write_row(byte *record)
     if (set_hidden_key(op, table->s->fields, (const byte*)&auto_value))
       ERR_RETURN(op->getNdbError());
   } 
-  else 
+  else
   {
     if ((res= set_primary_key_from_record(op, record)))
       return res;  
@@ -4830,6 +4828,8 @@ ulonglong ha_ndbcluster::get_auto_increment()
 {  
   int cache_size;
   Uint64 auto_value;
+  Uint64 step= current_thd->variables.auto_increment_increment;
+  Uint64 start= current_thd->variables.auto_increment_offset;
   DBUG_ENTER("get_auto_increment");
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
   Ndb *ndb= get_ndb();
@@ -4851,7 +4851,7 @@ ulonglong ha_ndbcluster::get_auto_increment()
     if (m_skip_auto_increment &&
         ndb->readAutoIncrementValue((const NDBTAB *) m_table, auto_value) ||
         ndb->getAutoIncrementValue((const NDBTAB *) m_table,
-                                   auto_value, cache_size))
+                                   auto_value, cache_size, step, start))
     {
       if (--retries &&
           ndb->getNdbError().status == NdbError::TemporaryError);
@@ -4888,7 +4888,8 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
                 HA_NEED_READ_RANGE_BUFFER |
                 HA_CAN_GEOMETRY |
                 HA_CAN_BIT_FIELD |
-                HA_PARTIAL_COLUMN_READ),
+                HA_PARTIAL_COLUMN_READ |
+                HA_EXTERNAL_AUTO_INCREMENT),
   m_share(0),
   m_use_write(FALSE),
   m_ignore_dup_key(FALSE),
