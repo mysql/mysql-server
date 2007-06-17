@@ -14,31 +14,29 @@ source include/master-slave.inc;
 --replace_column 3 <Binlog_Ignore_DB>
 show master status;
 sync_slave_with_master;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 #
-show slave status;
+
 stop slave;
-change master to master_log_pos=75;
-start slave;
-sleep 5;
-stop slave;
+--source include/wait_for_slave_to_stop.inc
 
 change master to master_log_pos=75;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 23 # 33 #
-show slave status;
+query_vertical show slave status;
+
 start slave;
-sleep 5;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 #
-show slave status;
+let $slave_param= Slave_SQL_Running;
+let $slave_param_value= Yes;
+--source include/wait_for_slave_param.inc
+let $slave_param= Slave_IO_Running;
+let $slave_param_value= No;
+--source include/wait_for_slave_param.inc
 stop slave;
-change master to master_log_pos=178;
-start slave;
-sleep 2;
+--source include/wait_for_slave_to_stop.inc
+
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 11 # 23 # 33 #
-show slave status;
+query_vertical show slave status;
+
 connection master;
 --replace_column 3 <Binlog_Ignore_DB>
 show master status;
@@ -48,7 +46,6 @@ create table t1 (n int);
 insert into t1 values (1),(2),(3);
 save_master_pos;
 connection slave;
-stop slave;
 change master to master_log_pos=106;
 start slave;
 sync_with_master;
@@ -57,4 +54,4 @@ connection master;
 drop table t1;
 sync_slave_with_master;
 
-# End of 4.1 tests
+--echo End of 5.0 tests
