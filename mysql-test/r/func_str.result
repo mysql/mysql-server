@@ -2151,5 +2151,6 @@ INSERT INTO t1 VALUES ('bar', 2), ('foo', 0);
 SELECT SUBSTR(a,1,len) FROM t1;
 SUBSTR(a,1,len)
 ba
+
 DROP TABLE t1;
 End of 5.0 tests
