@@ -1658,6 +1658,11 @@ SimulatedBlock::sendFragmentedSignal(NodeReceiverGroup rg,
 }
 
 SimulatedBlock::Callback SimulatedBlock::TheEmptyCallback = {0, 0};
+void
+SimulatedBlock::TheNULLCallbackFunction(class Signal*, Uint32, Uint32)
+{ abort(); /* should never be called */ }
+SimulatedBlock::Callback SimulatedBlock::TheNULLCallback =
+{ &SimulatedBlock::TheNULLCallbackFunction, 0 };
 
 void
 SimulatedBlock::sendFragmentedSignal(BlockReference ref, 
