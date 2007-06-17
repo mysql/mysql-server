@@ -6,21 +6,29 @@ DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
 drop database if exists mysqltest;
 --enable_warnings
 
-## workaround for bug#16445
-## remove to reproduce bug and run tests from ndb start
-## and with ndb_autodiscover disabled. Fails on Linux 50 % of the times
-#CREATE TABLE t1 (
-#  pk1 INT NOT NULL PRIMARY KEY,
-#  attr1 INT NOT NULL,
-#  attr2 INT,
-#  attr3 VARCHAR(10)
-#) ENGINE=ndbcluster;
-#drop table t1;
+# workaround for bug#16445
+# remove to reproduce bug and run tests from ndb start
+# and with ndb_autodiscover disabled. Fails on Linux 50 % of the times
+CREATE TABLE t1 (
+  pk1 INT NOT NULL PRIMARY KEY,
+  attr1 INT NOT NULL,
+  attr2 INT,
+  attr3 VARCHAR(10)
+) ENGINE=ndbcluster;
+drop table t1;
 
 #
 # Basic test to show that the NDB 
 # table handler is working
 #
+
+#
+# Show status and variables
+#
+--replace_column 2 #
+SHOW GLOBAL STATUS LIKE 'ndb%';
+--replace_column 2 #
+SHOW GLOBAL VARIABLES LIKE 'ndb%';
 
 #
 # Create a normal table with primary key

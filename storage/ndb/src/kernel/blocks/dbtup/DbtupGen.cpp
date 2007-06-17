@@ -305,6 +305,12 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 noOfTriggers= 0;
   
   Uint32 tmp= 0;
+
+  if (ndb_mgm_get_int_parameter(p, CFG_DB_MAX_ALLOCATE, &tmp))
+    tmp = 32 * 1024 * 1024;
+  m_max_allocate_pages = (tmp + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE;
+
+  tmp = 0;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE_RANGE, &tmp));
   initPageRangeSize(tmp);
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_TABLE, &cnoOfTablerec));
@@ -337,6 +343,18 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 nScanBatch;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_BATCH_SIZE, &nScanBatch));
   c_scanLockPool.setSize(nScanOp * nScanBatch);
+
+
+  /* read ahead for disk scan can not be more that disk page buffer */
+  {
+    Uint64 tmp = 64*1024*1024;
+    ndb_mgm_get_int64_parameter(p, CFG_DB_DISK_PAGE_BUFFER_MEMORY, &tmp);
+    m_max_page_read_ahead = (tmp  + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE; // in pages
+    // never read ahead more than 32 pages
+    if (m_max_page_read_ahead > 32)
+      m_max_page_read_ahead = 32;
+  }
+
 
   ScanOpPtr lcp;
   ndbrequire(c_scanOpPool.seize(lcp));
