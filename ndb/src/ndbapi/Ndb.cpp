@@ -767,17 +767,27 @@ Ndb::getNodeId()
 }
 
 /****************************************************************************
-Uint64 getTupleIdFromNdb( Uint32 aTableId, Uint32 cacheSize );
+Uint64 getAutoIncrementValue( const char* aTableName,
+                              Uint64 & tupleId, 
+                              Uint32 cacheSize, 
+                              Uint64 step,
+                              Uint64 start);
 
-Parameters:     aTableId : The TableId.
-                cacheSize: Prefetch this many values
-Remark:		Returns a new TupleId to the application.
-                The TupleId comes from SYSTAB_0 where SYSKEY_0 = TableId.
-                It is initialized to (TableId << 48) + 1 in NdbcntrMain.cpp.
+Parameters:     aTableName (IN) : The table name.
+                autoValue (OUT) : Returns new autoincrement value
+                cacheSize  (IN) : Prefetch this many values
+                step       (IN) : Specifies the step between the 
+                                  autoincrement values.
+                start      (IN) : Start value for first value
+Remark:		Returns a new autoincrement value to the application.
+                The autoincrement values can be increased by steps
+                (default 1) and a number of values can be prefetched
+                by specifying cacheSize (default 10).
 ****************************************************************************/
 int
 Ndb::getAutoIncrementValue(const char* aTableName,
-                           Uint64 & tupleId, Uint32 cacheSize)
+                           Uint64 & autoValue, Uint32 cacheSize, 
+			   Uint64 step, Uint64 start)
 {
   DBUG_ENTER("Ndb::getAutoIncrementValue");
   BaseString internal_tabname(internalize_table_name(aTableName));
@@ -788,15 +798,17 @@ Ndb::getAutoIncrementValue(const char* aTableName,
     theError.code = theDictionary->getNdbError().code;
     DBUG_RETURN(-1);
   }
-  if (getTupleIdFromNdb(info, tupleId, cacheSize) == -1)
+  DBUG_PRINT("info", ("step %lu", (ulong) step));
+  if (getTupleIdFromNdb(info, autoValue, cacheSize, step, start) == -1)
     DBUG_RETURN(-1);
-  DBUG_PRINT("info", ("value %lu", (ulong) tupleId));
+  DBUG_PRINT("info", ("value %lu", (ulong) autoValue));
   DBUG_RETURN(0);
 }
 
 int
 Ndb::getAutoIncrementValue(const NdbDictionary::Table * aTable,
-                           Uint64 & tupleId, Uint32 cacheSize)
+                           Uint64 & autoValue, Uint32 cacheSize, 
+			   Uint64 step, Uint64 start)
 {
   DBUG_ENTER("Ndb::getAutoIncrementValue");
   assert(aTable != 0);
@@ -809,36 +821,73 @@ Ndb::getAutoIncrementValue(const NdbDictionary::Table * aTable,
     theError.code = theDictionary->getNdbError().code;
     DBUG_RETURN(-1);
   }
-  if (getTupleIdFromNdb(info, tupleId, cacheSize) == -1)
+  DBUG_PRINT("info", ("step %lu", (ulong) step));
+  if (getTupleIdFromNdb(info, autoValue, cacheSize, step, start) == -1)
     DBUG_RETURN(-1);
-  DBUG_PRINT("info", ("value %lu", (ulong)tupleId));
+  DBUG_PRINT("info", ("value %lu", (ulong) autoValue));
   DBUG_RETURN(0);
 }
 
 int
 Ndb::getTupleIdFromNdb(Ndb_local_table_info* info,
-                       Uint64 & tupleId, Uint32 cacheSize)
+                       Uint64 & tupleId, Uint32 cacheSize, 
+		       Uint64 step, Uint64 start)
 {
+/*
+  Returns a new TupleId to the application.
+  The TupleId comes from SYSTAB_0 where SYSKEY_0 = TableId.
+  It is initialized to (TableId << 48) + 1 in NdbcntrMain.cpp.
+  In most cases step= start= 1, in which case we get:
+  1,2,3,4,5,...
+  If step=10 and start=5 and first number is 1, we get:
+  5,15,25,35,...  
+*/
   DBUG_ENTER("Ndb::getTupleIdFromNdb");
-  if (info->m_first_tuple_id != info->m_last_tuple_id)
+  DBUG_PRINT("info", ("Step %lu (%lu,%lu)", (ulong) step, (ulong) info->m_first_tuple_id, (ulong) info->m_last_tuple_id));
+  /*
+   Check if the next value can be taken from the pre-fetched
+   sequence.
+  */
+  if (info->m_first_tuple_id != info->m_last_tuple_id &&
+      info->m_first_tuple_id + step <= info->m_last_tuple_id)
   {
     assert(info->m_first_tuple_id < info->m_last_tuple_id);
-    tupleId = ++info->m_first_tuple_id;
-    DBUG_PRINT("info", ("next cached value %lu", (ulong)tupleId));
+    info->m_first_tuple_id += step; 
+    tupleId = info->m_first_tuple_id;
+    DBUG_PRINT("info", ("Next cached value %lu", (ulong) tupleId));
   }
   else
   {
+     /*
+       If start value is greater than step it is ignored
+      */
+      Uint64 offset = (start > step) ? 1 : start;
+
+    /*
+      Pre-fetch a number of values depending on cacheSize
+     */
     if (cacheSize == 0)
       cacheSize = 1;
-    DBUG_PRINT("info", ("reading %u values from database", (uint)cacheSize));
+
+    DBUG_PRINT("info", ("Reading %u values from database", (uint)cacheSize));
     /*
      * reserve next cacheSize entries in db.  adds cacheSize to NEXTID
-     * and returns first tupleId in the new range.
+     * and returns first tupleId in the new range. If tupleId's are
+     * incremented in steps then multiply the cacheSize with step size.
      */
-    Uint64 opValue = cacheSize;
+    Uint64 opValue = cacheSize * step;
+
     if (opTupleIdOnNdb(info, opValue, 0) == -1)
       DBUG_RETURN(-1);
-    tupleId = opValue;
+    DBUG_PRINT("info", ("Next value fetched from database %lu", (ulong) opValue));
+    DBUG_PRINT("info", ("Increasing %lu by offset %lu, increment  is %lu", (ulong) (ulong) opValue, (ulong) offset, (ulong) step));
+    Uint64 current, next;
+    Uint64 div = ((Uint64) (opValue + step - offset)) / step;
+    next = div * step + offset;
+    current = (next < step) ? next : next - step;
+    tupleId = (opValue <= current) ? current : next;
+    DBUG_PRINT("info", ("Returning %lu", (ulong) tupleId));
+    info->m_first_tuple_id = tupleId;
   }
   DBUG_RETURN(0);
 }
@@ -1065,9 +1114,9 @@ Ndb::opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 & opValue, Uint32 op)
       }
       else
       {
-        DBUG_PRINT("info", 
-                   ("Setting next auto increment value (db) to %lu",
-                    (ulong)opValue));  
+	DBUG_PRINT("info", 
+		   ("Setting next auto increment value (db) to %lu",
+		    (ulong)opValue));  
         info->m_first_tuple_id = info->m_last_tuple_id = opValue - 1;
       }
       break;
