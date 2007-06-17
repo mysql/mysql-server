@@ -34,7 +34,7 @@ stop slave;
 --source include/wait_for_slave_to_stop.inc
 
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 11 # 23 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 #
 query_vertical show slave status;
 
 connection master;
