@@ -707,9 +707,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
     if (!table_ptr[i]-> file->
           check_if_locking_is_allowed(thd->lex->sql_command, thd->lex->type,
                                       table_ptr[i], count, i, &system_count,
-                                      (thd == logger.get_general_log_thd()) ||
-                                      (thd == logger.get_slow_log_thd()) ||
-                                      (thd == logger.get_privileged_thread())))
+                                      logger.is_privileged_thread(thd)))
       DBUG_RETURN(0);
   }
 
