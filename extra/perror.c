@@ -25,6 +25,7 @@
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "../storage/ndb/src/ndbapi/ndberror.c"
 #include "../storage/ndb/src/kernel/error/ndbd_exit_codes.c"
+#include "../storage/ndb/include/mgmapi/mgmapi_error.h"
 #endif
 
 static my_bool verbose, print_all_codes;
@@ -32,6 +33,20 @@ static my_bool verbose, print_all_codes;
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 static my_bool ndb_code;
 static char ndb_string[1024];
+int mgmapi_error_string(int err_no, char *str, int size)
+{
+  int i;
+  for (i= 0; i < ndb_mgm_noOfErrorMsgs; i++)
+  {
+    if ((int)ndb_mgm_error_msgs[i].code == err_no)
+    {
+      my_snprintf(str, size-1, "%s", ndb_mgm_error_msgs[i].msg);
+      str[size-1]= '\0';
+      return 0;
+    }
+  }
+  return -1;
+}
 #endif
 
 static struct my_option my_long_options[] =
@@ -238,8 +253,9 @@ int main(int argc,char *argv[])
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
       if (ndb_code)
       {
-	if ((ndb_error_string(code, ndb_string, sizeof(ndb_string)) < 0) &&
-	    (ndbd_exit_string(code, ndb_string, sizeof(ndb_string)) < 0))
+        if ((ndb_error_string(code, ndb_string, sizeof(ndb_string)) < 0) &&
+            (ndbd_exit_string(code, ndb_string, sizeof(ndb_string)) < 0) &&
+            (mgmapi_error_string(code, ndb_string, sizeof(ndb_string)) < 0))
 	{
           msg= 0;
 	}
