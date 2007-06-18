@@ -1951,6 +1951,7 @@ class select_insert :public select_result_interceptor {
   virtual void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
+  void abort();
   /* not implemented: select_insert is never re-used in prepared statements */
   void cleanup();
 };

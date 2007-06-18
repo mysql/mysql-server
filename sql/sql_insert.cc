@@ -2862,41 +2862,6 @@ void select_insert::send_error(uint errcode,const char *err)
 
   my_message(errcode, err, MYF(0));
 
-  if (!table)
-  {
-    /*
-      This can only happen when using CREATE ... SELECT and the table was not
-      created becasue of an syntax error
-    */
-    DBUG_VOID_RETURN;
-  }
-  if (!thd->prelocked_mode)
-    table->file->end_bulk_insert();
-  /*
-    If at least one row has been inserted/modified and will stay in the table
-    (the table doesn't have transactions) (example: we got a duplicate key
-    error while inserting into a MyISAM table) we must write to the binlog (and
-    the error code will make the slave stop).
-  */
-  if ((info.copied || info.deleted || info.updated) &&
-      !table->file->has_transactions())
-  {
-    if (last_insert_id)
-      thd->insert_id(last_insert_id);		// For binary log
-    if (mysql_bin_log.is_open())
-    {
-      Query_log_event qinfo(thd, thd->query, thd->query_length,
-                            table->file->has_transactions(), FALSE);
-      mysql_bin_log.write(&qinfo);
-    }
-    if (!table->s->tmp_table)
-      thd->no_trans_update.all= TRUE;
-  }
-  if (info.copied || info.deleted || info.updated)
-  {
-    query_cache_invalidate3(thd, table, 1);
-  }
-  ha_rollback_stmt(thd);
   DBUG_VOID_RETURN;
 }
 
@@ -2952,6 +2917,49 @@ bool select_insert::send_eof()
   DBUG_RETURN(0);
 }
 
+void select_insert::abort()
+{
+  DBUG_ENTER("select_insert::abort");
+
+  if (!table)
+  {
+    /*
+      This can only happen when using CREATE ... SELECT and the table was not
+      created becasue of an syntax error
+    */
+    DBUG_VOID_RETURN;
+  }
+  if (!thd->prelocked_mode)
+    table->file->end_bulk_insert();
+  /*
+    If at least one row has been inserted/modified and will stay in the table
+    (the table doesn't have transactions) (example: we got a duplicate key
+    error while inserting into a MyISAM table) we must write to the binlog (and
+    the error code will make the slave stop).
+  */
+  if ((info.copied || info.deleted || info.updated) &&
+      !table->file->has_transactions())
+  {
+    if (last_insert_id)
+      thd->insert_id(last_insert_id);		// For binary log
+    if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+                            table->file->has_transactions(), FALSE);
+      mysql_bin_log.write(&qinfo);
+    }
+    if (!table->s->tmp_table)
+      thd->no_trans_update.all= TRUE;
+  }
+  if (info.copied || info.deleted || info.updated)
+  {
+    query_cache_invalidate3(thd, table, 1);
+  }
+  ha_rollback_stmt(thd);
+
+  DBUG_VOID_RETURN;
+
+}
 
 /***************************************************************************
   CREATE TABLE (SELECT) ...
@@ -3209,13 +3217,7 @@ void select_create::store_values(List<Item> &values)
 
 void select_create::send_error(uint errcode,const char *err)
 {
-  /*
-   Disable binlog, because we "roll back" partial inserts in ::abort
-   by removing the table, even for non-transactional tables.
-  */
-  tmp_disable_binlog(thd);
   select_insert::send_error(errcode, err);
-  reenable_binlog(thd);
 }
 
 
@@ -3240,6 +3242,14 @@ bool select_create::send_eof()
 
 void select_create::abort()
 {
+  /*
+   Disable binlog, because we "roll back" partial inserts in ::abort
+   by removing the table, even for non-transactional tables.
+  */
+  tmp_disable_binlog(thd);
+  select_insert::abort();
+  reenable_binlog(thd);
+
   if (lock)
   {
     mysql_unlock_tables(thd, lock);
