@@ -35,6 +35,7 @@ class ha_myisammrg: public handler
   ulonglong table_flags() const
   {
     return (HA_REC_NOT_IN_SEQ | HA_AUTO_PART_KEY | HA_NO_TRANSACTIONS |
+            HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
 	    HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_FILE_BASED |
             HA_ANY_INDEX_MAY_BE_UNIQUE | HA_CAN_BIT_FIELD |
             HA_NO_COPY_ON_ALTER);
