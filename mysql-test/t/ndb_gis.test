@@ -1,4 +1,5 @@
 --source include/have_ndb.inc
+-- source include/have_binlog_format_row.inc
 SET storage_engine=ndbcluster;
 --source include/gis_generic.inc
 set engine_condition_pushdown = on;

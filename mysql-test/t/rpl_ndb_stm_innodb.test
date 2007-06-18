@@ -12,6 +12,14 @@ create table t2 (a int key, b int) engine innodb;
 alter table t1 engine ndb;
 alter table t2 engine ndb;
 
+# We need MIXED mode on the slave in the event that there are
+# statements coming in from the master.  In this case, NDB can only
+# handle row-based format, so it has to be possible to switch to
+# this.
+STOP SLAVE;
+SET GLOBAL BINLOG_FORMAT=MIXED;
+START SLAVE;
+
 # check binlog position without begin
 --connection master
 insert into t1 values (1,2);

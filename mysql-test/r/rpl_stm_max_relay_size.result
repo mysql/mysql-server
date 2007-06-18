@@ -21,7 +21,7 @@ select @@global.max_relay_log_size;
 @@global.max_relay_log_size
 4096
 start slave;
-show slave status;
+SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
@@ -56,6 +56,10 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
 #
 # Test 2
 #
@@ -65,7 +69,7 @@ set global max_relay_log_size=(5*4096);
 select @@global.max_relay_log_size;
 @@global.max_relay_log_size	20480
 start slave;
-show slave status;
+SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
@@ -100,6 +104,10 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
 #
 # Test 3: max_relay_log_size = 0
 #
@@ -109,7 +117,7 @@ set global max_relay_log_size=0;
 select @@global.max_relay_log_size;
 @@global.max_relay_log_size	0
 start slave;
-show slave status;
+SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
@@ -144,13 +152,17 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
 #
 # Test 4: Tests below are mainly to ensure that we have not coded with wrong assumptions
 #
 stop slave;
 reset slave;
 flush logs;
-show slave status;
+SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
@@ -185,6 +197,10 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
 #
 # Test 5
 #
@@ -192,7 +208,7 @@ reset slave;
 start slave;
 flush logs;
 create table t1 (a int);
-show slave status;
+SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
@@ -227,12 +243,16 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
 #
 # Test 6: one more rotation, to be sure Relay_Log_Space is correctly updated
 #
 flush logs;
 drop table t1;
-show slave status;
+SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
@@ -267,6 +287,10 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
 flush logs;
 show master status;
 File	master-bin.000002
