@@ -776,7 +776,7 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
                    " end_pos BIGINT UNSIGNED NOT NULL, "
                    " PRIMARY KEY USING HASH (server_id) ) ENGINE=NDB");
 
-  const int no_print_error[2]= {701, 4009, 0}; // do not print error 701 etc
+  const int no_print_error[3]= {701, 4009, 0}; // do not print error 701 etc
   run_query(thd, buf, end, no_print_error, TRUE);
 
   DBUG_RETURN(0);
@@ -833,7 +833,7 @@ static int ndbcluster_create_schema_table(THD *thd)
                    " type INT UNSIGNED NOT NULL,"
                    " PRIMARY KEY USING HASH (db,name) ) ENGINE=NDB");
 
-  const int no_print_error[2]= {701, 4009, 0}; // do not print error 701 etc
+  const int no_print_error[3]= {701, 4009, 0}; // do not print error 701 etc
   run_query(thd, buf, end, no_print_error, TRUE);
 
   DBUG_RETURN(0);
