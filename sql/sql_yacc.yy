@@ -4363,8 +4363,12 @@ select_option:
           }
 	| SQL_CACHE_SYM
 	  {
-            /* Honor this flag only if SQL_NO_CACHE wasn't specified. */
-            if (Lex->select_lex.sql_cache != SELECT_LEX::SQL_NO_CACHE)
+            /*
+             Honor this flag only if SQL_NO_CACHE wasn't specified AND
+             we are parsing the outermost SELECT in the query.
+            */
+            if (Lex->select_lex.sql_cache != SELECT_LEX::SQL_NO_CACHE &&
+                Lex->current_select == &Lex->select_lex)
             {
               Lex->safe_to_cache_query=1;
 	      Lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
