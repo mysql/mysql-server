@@ -8373,7 +8373,6 @@ error_handling:
 
 func_exit:
 	mem_heap_free_noninline(heap);
-	innobase_commit_low(trx);
 
 	/* There might be work for utility threads.*/
 	srv_active_wake_master_thread();
