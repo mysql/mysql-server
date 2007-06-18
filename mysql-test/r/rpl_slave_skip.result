@@ -1,0 +1,144 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+**** On Slave ****
+STOP SLAVE;
+**** On Master ****
+SET SESSION BINLOG_FORMAT=ROW;
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (c INT, d INT);
+INSERT INTO t1 VALUES (1,1),(2,4),(3,9);
+INSERT INTO t2 VALUES (1,1),(2,8),(3,27);
+UPDATE t1,t2 SET b = d, d = b * 2 WHERE a = c;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT, b INT)
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (c INT, d INT)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Update_rows	#	#	table_id: #
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+SELECT * FROM t1;
+a	b
+1	1
+2	8
+3	27
+SELECT * FROM t2;
+c	d
+1	2
+2	16
+3	54
+**** On Slave ****
+START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=484;
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_PORT
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	714
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	No
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	484
+Relay_Log_Space	#
+Until_Condition	Master
+Until_Log_File	master-bin.000001
+Until_Log_Pos	484
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+START SLAVE;
+SELECT * FROM t1;
+a	b
+1	1
+2	4
+3	9
+SELECT * FROM t2;
+c	d
+1	1
+2	8
+3	27
+STOP SLAVE;
+RESET SLAVE;
+RESET MASTER;
+SET SESSION BINLOG_FORMAT=STATEMENT;
+SET @foo = 12;
+INSERT INTO t1 VALUES(@foo, 2*@foo);
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	User var	#	#	@`foo`=12
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(@foo, 2*@foo)
+START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=106;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+START SLAVE;
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_PORT
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	248
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	Yes
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	248
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
+**** On Master ****
+DROP TABLE t1, t2;

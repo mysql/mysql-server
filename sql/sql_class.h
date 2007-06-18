@@ -1100,6 +1100,17 @@ public:
 
 private:
   uint binlog_table_maps; // Number of table maps currently in the binlog
+
+  enum enum_binlog_flag {
+    BINLOG_FLAG_UNSAFE_STMT_PRINTED,
+    BINLOG_FLAG_COUNT
+  };
+
+  /**
+     Flags with per-thread information regarding the status of the
+     binary log.
+   */
+  uint32 binlog_flags;
 public:
   uint get_binlog_table_maps() const {
     return binlog_table_maps;
@@ -1670,6 +1681,7 @@ public:
   void restore_sub_statement_state(Sub_statement_state *backup);
   void set_n_backup_active_arena(Query_arena *set, Query_arena *backup);
   void restore_active_arena(Query_arena *set, Query_arena *backup);
+
   inline void set_current_stmt_binlog_row_based_if_mixed()
   {
     /*
@@ -1980,20 +1992,22 @@ class select_insert :public select_result_interceptor {
 class select_create: public select_insert {
   ORDER *group;
   TABLE_LIST *create_table;
+  TABLE_LIST *select_tables;
   HA_CREATE_INFO *create_info;
   Alter_info *alter_info;
   Field **field;
 public:
-  select_create(TABLE_LIST *table_arg,
-                HA_CREATE_INFO *create_info_arg,
-                Alter_info *alter_info_arg,
-                List<Item> &select_fields,
-                enum_duplicates duplic, bool ignore)
-    :select_insert(NULL, NULL, &select_fields, 0, 0, duplic, ignore),
+  select_create (TABLE_LIST *table_arg,
+		 HA_CREATE_INFO *create_info_par,
+                 Alter_info *alter_info_arg,
+		 List<Item> &select_fields,enum_duplicates duplic, bool ignore,
+                 TABLE_LIST *select_tables_arg)
+    :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, ignore),
     create_table(table_arg),
-    create_info(create_info_arg),
+    create_info(create_info_par),
+    select_tables(select_tables_arg),
     alter_info(alter_info_arg)
-  {}
+    {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 
   void binlog_show_create_table(TABLE **tables, uint count);
