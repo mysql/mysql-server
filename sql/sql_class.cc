@@ -1221,6 +1221,11 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 }
 
 
+#define NEED_ESCAPING(x) ((int) (uchar) (x) == escape_char    || \
+                          (int) (uchar) (x) == field_sep_char || \
+                          (int) (uchar) (x) == line_sep_char  || \
+                          !(x))
+
 bool select_export::send_data(List<Item> &items)
 {
 
@@ -1280,14 +1285,20 @@ bool select_export::send_data(List<Item> &items)
 	used_length=res->length();
       if (result_type == STRING_RESULT && escape_char != -1)
       {
-	char *pos,*start,*end;
-
+        char *pos, *start, *end;
+        CHARSET_INFO *res_charset= res->charset();
+        CHARSET_INFO *character_set_client= thd->variables.
+                                            character_set_client;
+        bool check_second_byte= (res_charset == &my_charset_bin) &&
+                                 character_set_client->
+                                 escape_with_backslash_is_dangerous;
+        DBUG_ASSERT(character_set_client->mbmaxlen == 2 ||
+                    !character_set_client->escape_with_backslash_is_dangerous);
 	for (start=pos=(char*) res->ptr(),end=pos+used_length ;
 	     pos != end ;
 	     pos++)
 	{
 #ifdef USE_MB
-          CHARSET_INFO *res_charset=res->charset();
 	  if (use_mb(res_charset))
 	  {
 	    int l;
@@ -1298,9 +1309,45 @@ bool select_export::send_data(List<Item> &items)
 	    }
 	  }
 #endif
-	  if ((int) *pos == escape_char || (int) *pos == field_sep_char ||
-	      (int) *pos == line_sep_char || !*pos)
-	  {
+
+          /*
+            Special case when dumping BINARY/VARBINARY/BLOB values
+            for the clients with character sets big5, cp932, gbk and sjis,
+            which can have the escape character (0x5C "\" by default)
+            as the second byte of a multi-byte sequence.
+            
+            If
+            - pos[0] is a valid multi-byte head (e.g 0xEE) and
+            - pos[1] is 0x00, which will be escaped as "\0",
+            
+            then we'll get "0xEE + 0x5C + 0x30" in the output file.
+            
+            If this file is later loaded using this sequence of commands:
+            
+            mysql> create table t1 (a varchar(128)) character set big5;
+            mysql> LOAD DATA INFILE 'dump.txt' INTO TABLE t1;
+            
+            then 0x5C will be misinterpreted as the second byte
+            of a multi-byte character "0xEE + 0x5C", instead of
+            escape character for 0x00.
+            
+            To avoid this confusion, we'll escape the multi-byte
+            head character too, so the sequence "0xEE + 0x00" will be
+            dumped as "0x5C + 0xEE + 0x5C + 0x30".
+            
+            Note, in the condition below we only check if
+            mbcharlen is equal to 2, because there are no
+            character sets with mbmaxlen longer than 2
+            and with escape_with_backslash_is_dangerous set.
+            DBUG_ASSERT before the loop makes that sure.
+          */
+
+          if (NEED_ESCAPING(*pos) ||
+              (check_second_byte &&
+               my_mbcharlen(character_set_client, (uchar) *pos) == 2 &&
+               pos + 1 < end &&
+               NEED_ESCAPING(pos[1])))
+          {
 	    char tmp_buff[2];
 	    tmp_buff[0]= escape_char;
 	    tmp_buff[1]= *pos ? *pos : '0';
