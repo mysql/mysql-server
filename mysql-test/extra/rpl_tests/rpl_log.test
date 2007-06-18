@@ -1,5 +1,4 @@
 # Requires statement logging
--- source include/master-slave.inc
 
 # Clean up old slave's binlogs.
 # The slave is started with --log-slave-updates

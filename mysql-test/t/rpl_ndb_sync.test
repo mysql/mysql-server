@@ -2,7 +2,7 @@
 --source include/ndb_default_cluster.inc
 --source include/not_embedded.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/ndb_master-slave.inc
 
 #
 # Currently test only works with ndb since it retrieves "old"
