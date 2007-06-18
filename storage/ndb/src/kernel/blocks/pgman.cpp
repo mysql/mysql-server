@@ -1871,6 +1871,11 @@ Pgman::free_data_file(Uint32 file_no, Uint32 fd)
 int
 Pgman::drop_page(Ptr<Page_entry> ptr)
 {
+#ifdef VM_TRACE
+  debugOut << "PGMAN: drop_page" << endl;
+  debugOut << "PGMAN: " << ptr << endl;
+#endif
+
   Page_stack& pl_stack = m_page_stack;
   Page_queue& pl_queue = m_page_queue;
 
@@ -1883,8 +1888,14 @@ Pgman::drop_page(Ptr<Page_entry> ptr)
     if (state & Page_entry::ONSTACK)
     {
       jam();
+      bool at_bottom = ! pl_stack.hasPrev(ptr);
       pl_stack.remove(ptr);
       state &= ~ Page_entry::ONSTACK;
+      if (at_bottom && (state & Page_entry::HOT))
+      {
+        jam();
+        lirs_stack_prune();
+      }
     }
 
     if (state & Page_entry::ONQUEUE)
@@ -2298,6 +2309,13 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_entry> ptr)
   out << " lsn=" << dec << pe.m_lsn;
   out << " busy_count=" << dec << pe.m_busy_count;
 #ifdef VM_TRACE
+  {
+    Pgman::Page_stack& pl_stack = pe.m_this->m_page_stack;
+    if (! pl_stack.hasNext(ptr))
+      out << " top";
+    if (! pl_stack.hasPrev(ptr))
+      out << " bottom";
+  }
   {
     Pgman::Local_page_request_list 
       req_list(ptr.p->m_this->m_page_request_pool, ptr.p->m_requests);
