@@ -1,4 +1,5 @@
 -- source include/have_ndb.inc
+-- source include/have_binlog_format_row.inc
 #--disable_abort_on_error
 #
 # Simple test for the partition storage engine

@@ -5843,8 +5843,8 @@ ER_BINLOG_ROW_LOGGING_FAILED
         eng "Writing one row to the row-based binary log failed"
         ger "Schreiben einer Zeilen ins zeilenbasierte Binärlog fehlgeschlagen"
 ER_BINLOG_ROW_WRONG_TABLE_DEF
-        eng "Table definition on master and slave does not match"
-        ger "Tabellendefinition auf Master und Slave stimmt nicht überein"
+        eng "Table definition on master and slave does not match: %s"
+        ger "Tabellendefinition auf Master und Slave stimmt nicht überein: %s"
 ER_BINLOG_ROW_RBR_TO_SBR
         eng "Slave running with --log-slave-updates must use row-based binary logging to be able to replicate row-based binary log events"
         ger "Slave, die mit --log-slave-updates laufen, müssen zeilenbasiertes Loggen verwenden, um zeilenbasierte Binärlog-Ereignisse loggen zu können"
@@ -6059,3 +6059,18 @@ ER_SLAVE_INCIDENT
         eng "The incident %s occured on the master. Message: %-.64s"
 ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT
         eng "Table has no partition for some existing values"
+ER_BINLOG_UNSAFE_STATEMENT
+        eng "Statement is not safe to log in statement format."
+        swe "Detta är inte säkert att logga i statement-format."
+ER_SLAVE_FATAL_ERROR
+        eng "Fatal error: %s"
+ER_SLAVE_RELAY_LOG_READ_FAILURE
+        eng "Relay log read failure: %s"
+ER_SLAVE_RELAY_LOG_WRITE_FAILURE
+        eng "Relay log write failure: %s"
+ER_SLAVE_CREATE_EVENT_FAILURE
+        eng "Failed to create %s"
+ER_SLAVE_MASTER_COM_FAILURE
+        eng "Master command %s failed: %s"
+ER_BINLOG_LOGGING_IMPOSSIBLE
+        eng "Binary logging not possible. Message: %s"
