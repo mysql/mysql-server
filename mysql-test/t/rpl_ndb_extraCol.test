@@ -5,8 +5,8 @@
 #          Using NDB
 ########################################### 
 -- source include/have_binlog_format_row.inc
---source include/have_ndb.inc
--- source include/master-slave.inc
+-- source include/have_ndb.inc
+-- source include/ndb_master-slave.inc
 let $engine_type = 'NDB';
 -- source extra/rpl_tests/rpl_extraSlave_Col.test
 
