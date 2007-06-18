@@ -105,7 +105,7 @@ see http://dev.mysql.com/doc/mysql/en/installing-source-tree.html
 
 EOF
   bk changes -v -r+
-  bk cset -r+ -d
+  bk rset -r+ -ah | bk gnupatch -h -dup -T
  ) | head -n $LIMIT | /usr/sbin/sendmail -t
 
 #++
@@ -125,7 +125,7 @@ Subject: bk commit - $VERSION tree (Manual) ($CHANGESET)$BS
 
 EOF
   bk changes -v -r+
-  bk cset -r+ -d
+  bk rset -r+ -ah | bk gnupatch -h -dup -T
  ) | head -n $LIMIT | /usr/sbin/sendmail -t
  fi
 
