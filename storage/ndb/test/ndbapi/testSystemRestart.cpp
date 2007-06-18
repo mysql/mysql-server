@@ -1267,6 +1267,48 @@ runBug27434(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int
+runBug29167(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+  Ndb* pNdb = GETNDB(step);
+  const Uint32 nodeCount = restarter.getNumDbNodes();
+
+  if (nodeCount < 2)
+    return NDBT_OK;
+
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+  NdbLogEventHandle handle = 
+    ndb_mgm_create_logevent_handle(restarter.handle, filter);
+
+  struct ndb_logevent event;
+  int master = restarter.getMasterNodeId();
+  do {
+    int node1 = restarter.getRandomNodeOtherNodeGroup(master, rand());
+    int node2 = restarter.getRandomNodeSameNodeGroup(node1, rand());
+    
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };    
+    restarter.dumpStateAllNodes(val2, 2);
+    int dump[] = { DumpStateOrd::DihSetTimeBetweenGcp, 30000 };
+    restarter.dumpStateAllNodes(dump, 2);
+    
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_GlobalCheckpointCompleted);
+    
+    CHECK(restarter.insertErrorInAllNodes(932) == 0);
+    
+    CHECK(restarter.insertErrorInNode(node1, 7183) == 0);
+    CHECK(restarter.insertErrorInNode(node2, 7183) == 0);
+
+    CHECK(restarter.waitClusterNoStart() == 0);
+    restarter.startAll();
+    CHECK(restarter.waitClusterStarted() == 0);  
+  } while(false);
+  
+  return result;
+}
+
 NDBT_TESTSUITE(testSystemRestart);
 TESTCASE("SR1", 
 	 "Basic system restart test. Focus on testing restart from REDO log.\n"
@@ -1452,6 +1494,11 @@ TESTCASE("Bug27434",
 {
   INITIALIZER(runWaitStarted);
   STEP(runBug27434);
+}
+TESTCASE("Bug29167", "")
+{
+  INITIALIZER(runWaitStarted);
+  STEP(runBug29167);
 }
 NDBT_TESTSUITE_END(testSystemRestart);
 

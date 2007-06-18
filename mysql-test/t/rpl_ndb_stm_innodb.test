@@ -28,7 +28,7 @@
 --source include/have_ndb.inc
 --source include/have_innodb.inc
 --source include/have_binlog_format_statement.inc
---source include/master-slave.inc
+--source include/ndb_master-slave.inc
 --enable_query_log
 let $off_set = 6;
 let $rpl_format = 'SBR';

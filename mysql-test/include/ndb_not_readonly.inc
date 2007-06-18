@@ -1,31 +1,27 @@
 # Check that server has come out ot readonly mode
---disable_query_log
-let $counter= 100;
+#
+# wait for server to connect properly to cluster
+#
+--error 0,ER_NO_SUCH_TABLE,ER_OPEN_AS_READONLY,ER_GET_ERRMSG,ER_KEY_NOT_FOUND
+delete from mysql.ndb_apply_status where server_id=0;
 let $mysql_errno= 1;
+let $counter= 600;
 while ($mysql_errno)
 {
-  --error 0, 1005
-  create table check_read_only(a int) engine=NDB;
-  sleep 0.1;
-  if (!$counter)
+  # Table is readonly until the mysqld has connected properly
+  --error 0,ER_NO_SUCH_TABLE,ER_OPEN_AS_READONLY,ER_GET_ERRMSG
+  replace into mysql.ndb_apply_status values(0,0,"",0,0);
+  if ($mysql_errno)
   {
-    die("Failed while waiting for mysqld to come out of readonly mode");
+    if (!$counter)
+    {
+      die("Failed while waiting for mysqld to come out of readonly mode");
+    }
+    dec $counter;
+    --sleep 0.1
   }
-  dec $counter;
 }
-
-let $counter= 100;
-let $mysql_errno= 1;
-while ($mysql_errno)
-{
-  --error 0, 1036
-  insert into check_read_only values(1);
-  sleep 0.1;
-  if (!$counter)
-  {
-    die("Failed while waiting for mysqld to come out of readonly mode");
-  }
-  dec $counter;
-}
-drop table check_read_only;
---enable_query_log
+delete from mysql.ndb_apply_status where server_id=0;
+#
+# connected
+#
