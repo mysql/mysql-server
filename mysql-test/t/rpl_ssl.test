@@ -58,6 +58,7 @@ connection master;
 # the sync has something to do
 insert into t1 values (NULL);
 sync_slave_with_master;
+--source include/wait_for_slave_to_start.inc
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_MYPORT
 --replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
 query_vertical show slave status;
@@ -67,3 +68,4 @@ drop user replssl@localhost;
 drop table t1;
 sync_slave_with_master;
 
+--echo End of 5.0 tests
