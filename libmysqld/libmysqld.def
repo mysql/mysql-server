@@ -30,8 +30,8 @@ EXPORTS
 	my_print_variables
 	my_realloc
 	my_strdup
-	my_thread_end
-	my_thread_init
+	mysql_thread_end
+	mysql_thread_init
 	myodbc_remove_escape
 	mysql_affected_rows
 	mysql_autocommit
