@@ -113,7 +113,7 @@ Uint32 Dbtup::getRealpid(Fragrecord* regFragPtr, Uint32 logicalPageId)
   Uint32 loopLimit;
   Uint32 loopCount = 0;
   Uint32 pageRangeLimit = cnoOfPageRangeRec;
-  ndbassert(logicalPageId < getNoOfPages(regFragPtr));
+  ndbrequire(logicalPageId < getNoOfPages(regFragPtr));
   grpPageRangePtr.i = regFragPtr->rootPageRange;
   while (true) {
     ndbassert(loopCount++ < 100);
