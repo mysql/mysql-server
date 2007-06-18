@@ -8117,7 +8117,6 @@ ha_innobase::add_index(
 	merge_index_def_t* index_defs; /* Index definitions */
 	mem_heap_t*     heap;		/* Heap for index definitions */
 	trx_t*		trx;		/* Transaction */
-	trx_t*		parent_trx;
 	ulint		num_of_idx;
 	ulint		num_created;
 	ibool		dict_locked = FALSE;
@@ -8126,19 +8125,20 @@ ha_innobase::add_index(
 	ulint		error;
 
 	DBUG_ENTER("ha_innobase::add_index");
-	ut_a(table && key_info && num_of_keys);
+	ut_a(table);
+	ut_a(key_info);
+	ut_a(num_of_keys);
 
 	update_thd(ha_thd());
 
 	heap = mem_heap_create_noninline(1024);
 
-	parent_trx = check_trx_exists(user_thd);
-	trx_search_latch_release_if_reserved(parent_trx);
-
-	trx = parent_trx;
-	ut_a(trx);
+	trx = check_trx_exists(user_thd);
+	trx_search_latch_release_if_reserved(trx);
 
 	trx_start_if_not_started_noninline(trx);
+
+	innobase_register_stmt(ht, user_thd);
 
 	trx->mysql_thd = user_thd;
 	trx->mysql_query_str = thd_query(user_thd);
