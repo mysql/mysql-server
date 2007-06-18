@@ -1,7 +1,6 @@
---source include/have_ndb.inc
 --source include/have_multi_ndb.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/ndb_master-slave.inc
 
 # note: server2 is another "master" connected to the master cluster
 

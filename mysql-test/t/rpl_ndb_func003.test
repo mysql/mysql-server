@@ -7,6 +7,8 @@
 # reduce test case code           #
 ###################################
 -- source include/have_ndb.inc
+-- source include/have_binlog_format_row.inc
+-- source include/ndb_master-slave.inc
 let $engine_type=NDB;
 -- source extra/rpl_tests/rpl_row_func003.test
 -- source include/master-slave-end.inc
