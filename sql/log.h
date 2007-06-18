@@ -600,6 +600,12 @@ public:
     else
       return NULL;
   }
+  bool is_privileged_thread(THD *thd)
+  {
+    return thd == get_general_log_thd() ||
+           thd == get_slow_log_thd() ||
+           thd == get_privileged_thread();
+  }
 };
 
 enum enum_binlog_format {

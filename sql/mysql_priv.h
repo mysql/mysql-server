@@ -1765,6 +1765,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
 #define MYSQL_LOCK_IGNORE_FLUSH                 0x0002
 #define MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN        0x0004
 #define MYSQL_OPEN_TEMPORARY_ONLY               0x0008
+#define MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY      0x0010
 
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);

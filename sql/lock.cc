@@ -92,6 +92,7 @@ static void print_lock_error(int error, const char *);
     count                       The number of tables to lock.
     flags                       Options:
       MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK      Ignore a global read lock
+      MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY      Ignore SET GLOBAL READ_ONLY
       MYSQL_LOCK_IGNORE_FLUSH                 Ignore a flush tables.
       MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN        Instead of reopening altered
                                               or dropped tables by itself,
@@ -150,11 +151,11 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
       }
     }
 
-    if (   write_lock_used
-        && opt_readonly
-        && ! (thd->security_ctx->master_access & SUPER_ACL)
-        && ! thd->slave_thread
-       )
+    if (!(flags & MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY) &&
+        write_lock_used &&
+        opt_readonly &&
+        !(thd->security_ctx->master_access & SUPER_ACL) &&
+        !thd->slave_thread)
     {
       /*
 	Someone has issued SET GLOBAL READ_ONLY=1 and we want a write lock.
@@ -714,9 +715,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
     if (!table_ptr[i]-> file->
           check_if_locking_is_allowed(thd->lex->sql_command, thd->lex->type,
                                       table_ptr[i], count, i, &system_count,
-                                      (thd == logger.get_general_log_thd()) ||
-                                      (thd == logger.get_slow_log_thd()) ||
-                                      (thd == logger.get_privileged_thread())))
+                                      logger.is_privileged_thread(thd)))
       DBUG_RETURN(0);
   }
 
