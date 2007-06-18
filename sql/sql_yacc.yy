@@ -5150,8 +5150,8 @@ simple_expr:
                 $$= new Item_func_sp(Lex->current_context(), name, *$4);
               else
                 $$= new Item_func_sp(Lex->current_context(), name);
-	      lex->safe_to_cache_query=0;
-	    }
+            }          
+          lex->safe_to_cache_query=0;
           }
 	| UNIQUE_USERS '(' text_literal ',' NUM ',' NUM ',' expr_list ')'
 	  {
