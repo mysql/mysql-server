@@ -264,18 +264,6 @@ my_wc_mb_jisx0201(CHARSET_INFO *cs __attribute__((unused)),
     return 1;
   }
   
-  if (wc == 0x00A5)
-  {
-    *s = 0x5C;
-    return 1;
-  }
-  
-  if (wc == 0x203E)
-  {
-    *s =  0x7E;
-    return 1;
-  }
-  
   return MY_CS_ILUNI;
 }
 

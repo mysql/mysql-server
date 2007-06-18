@@ -28,7 +28,8 @@ int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
 			  const char *default_val);
 
 MASTER_INFO::MASTER_INFO()
-  :ssl(0), fd(-1),  io_thd(0), inited(0),
+  :Slave_reporting_capability("I/O"),
+   ssl(0), fd(-1),  io_thd(0), inited(0),
    abort_slave(0),slave_running(0),
    ssl_verify_server_cert(0), slave_run_id(0)
 {
