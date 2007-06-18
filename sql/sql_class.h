@@ -1972,6 +1972,7 @@ class select_insert :public select_result_interceptor {
   virtual bool can_rollback_data() { return 0; }
   void send_error(uint errcode,const char *err);
   bool send_eof();
+  void abort();
   /* not implemented: select_insert is never re-used in prepared statements */
   void cleanup();
 };
