@@ -8,7 +8,7 @@
 # test and to have control over the tests.
 ##############################################################
 -- source include/have_ndb.inc
--- source include/master-slave.inc
+-- source include/ndb_master-slave.inc
 connection slave;
 -- source include/have_innodb.inc
 connection master;

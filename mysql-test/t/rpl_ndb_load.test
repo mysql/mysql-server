@@ -7,7 +7,7 @@
 --source include/have_ndb.inc
 --source include/have_ndb_extra.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/ndb_master-slave.inc
 
 --disable_warnings
 # reset master

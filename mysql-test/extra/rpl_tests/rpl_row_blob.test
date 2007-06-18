@@ -5,10 +5,6 @@
 #           correctly.
 ################################################
 
-# Includes
--- source include/have_binlog_format_row.inc
--- source include/master-slave.inc
-
 # Pre test clean up section
 connection master;
 --disable_warnings
