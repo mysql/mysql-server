@@ -11,7 +11,7 @@
 --source include/not_embedded.inc
 #--source include/big_test.inc
 #--source include/have_ndb_extra.inc
---source include/master-slave.inc
+--source include/ndb_master-slave.inc
 
 #### Test start cleanup section #####
 --disable_warnings

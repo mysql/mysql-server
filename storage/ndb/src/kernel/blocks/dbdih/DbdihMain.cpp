@@ -749,6 +749,8 @@ done:
   }
   ndbrequire(ok);
   
+  CRASH_INSERTION(7183);
+  
   /* ----------------------------------------------------------------------- */
   /*     WE START BY TRYING TO OPEN THE FIRST RESTORABLE GCI FILE.           */
   /* ----------------------------------------------------------------------- */
@@ -1232,6 +1234,17 @@ void Dbdih::execDIH_RESTARTREQ(Signal* signal)
 	Uint32 ng = Sysfile::getNodeGroup(i, SYSFILE->nodeGroups);
 	ndbrequire(ng < MAX_NDB_NODES);
 	Uint32 gci = node_gcis[i];
+        if (gci < SYSFILE->lastCompletedGCI[i])
+        {
+          jam();
+          /**
+           * Handle case, where *I* know that node complete GCI
+           *   but node does not...bug#29167
+           *   i.e node died before it wrote own sysfile
+           */
+          gci = SYSFILE->lastCompletedGCI[i];
+        }
+
 	if (gci > node_group_gcis[ng])
 	{
 	  jam();
