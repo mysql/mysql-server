@@ -1,6 +1,3 @@
--- source include/master-slave.inc
--- source include/have_binlog_format_row.inc
-
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
 LOAD DATA INFILE '../std_data_ln/words.dat' INTO TABLE t1;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR

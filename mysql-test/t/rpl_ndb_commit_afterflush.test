@@ -5,5 +5,6 @@
 # By JBM 2004-02-15                 #
 #####################################
 -- source include/have_ndb.inc
+-- source include/ndb_master-slave.inc
 let $engine_type=NDB;
 -- source extra/rpl_tests/rpl_commit_after_flush.test
