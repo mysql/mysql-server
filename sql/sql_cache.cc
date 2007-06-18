@@ -1445,40 +1445,62 @@ void Query_cache::invalidate(THD *thd, const char *key, uint32  key_length,
   DBUG_VOID_RETURN;
 }
 
-/*
-  Remove all cached queries that uses the given database
+/**
+   @brief Remove all cached queries that uses the given database
 */
-
 void Query_cache::invalidate(char *db)
 {
+  bool restart= FALSE;
   DBUG_ENTER("Query_cache::invalidate (db)");
   STRUCT_LOCK(&structure_guard_mutex);
   if (query_cache_size > 0 && !flush_in_progress)
   {
-    DUMP(this);
-  restart_search:
     if (tables_blocks)
     {
-      Query_cache_block *curr= tables_blocks;
-      Query_cache_block *next;
-      do
-      {
-        next= curr->next;
-        if (strcmp(db, (char*)(curr->table()->db())) == 0)
-          invalidate_table(curr);
+      Query_cache_block *table_block = tables_blocks;
+      do {
+        restart= FALSE;
+        do
+        {
+          Query_cache_block *next= table_block->next;
+          Query_cache_table *table = table_block->table();
+          if (strcmp(table->db(),db) == 0)
+            invalidate_table(table_block);
+
+          table_block= next;
+
+          /*
+            If our root node to used tables became null then the last element
+            in the table list was removed when a query was invalidated;
+            Terminate the search.
+          */
+          if (tables_blocks == 0)
+          {
+            table_block= tables_blocks;
+          }
+          /*
+            If the iterated list has changed underlying structure;
+            we need to restart the search.
+          */
+          else if (table_block->type == Query_cache_block::FREE)
+          {
+            restart= TRUE;
+            table_block= tables_blocks;
+          }
+          /* 
+            The used tables are linked in a circular list;
+            loop until we return to the begining.
+          */
+        } while (table_block != tables_blocks);
         /*
-          invalidate_table can freed block on which point 'next' (if
-          table of this block used only in queries which was deleted
-          by invalidate_table). As far as we do not allocate new blocks
-          and mark all headers of freed blocks as 'FREE' (even if they are
-          merged with other blocks) we can just test type of block
-          to be sure that block is not deleted
+           Invalidating a table will also mean that all cached queries using
+           this table also will be invalidated. This will in turn change the
+           list of tables associated with these queries and the linked list of
+           used table will be changed. Because of this we might need to restart
+           the search when a table has been invalidated.
         */
-        if (next->type == Query_cache_block::FREE)
-          goto restart_search;
-        curr= next;
-      } while (curr != tables_blocks);
-    }
+      } while (restart);
+    } // end if( tables_blocks )
   }
   STRUCT_UNLOCK(&structure_guard_mutex);
 
@@ -2412,6 +2434,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
                   (ulong) tables_used->table,
                   tables_used->table->s->table_cache_key.length,
                   (ulong) tables_used->table->s->table_cache_key.str));
+
       if (!insert_table(tables_used->table->s->table_cache_key.length,
                         tables_used->table->s->table_cache_key.str,
                         block_table,
@@ -2478,9 +2501,8 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 
   n= register_tables_from_list(tables_used, 0, block_table);
 
-  if (n)
+  if (n==0)
   {
-    DBUG_PRINT("qcache", ("failed at table %d", (int) n));
     /* Unlink the tables we allocated above */
     for (Query_cache_block_table *tmp = block->table(0) ;
 	 tmp != block_table;
@@ -2970,8 +2992,11 @@ Query_cache::double_linked_list_exclude(Query_cache_block *point,
   {
     point->next->prev = point->prev;
     point->prev->next = point->next;
+    /*
+       If the root is removed; select a new root
+    */
     if (point == *list_pointer)
-      *list_pointer = point->next;
+      *list_pointer= point->next;
   }
   DBUG_VOID_RETURN;
 }
@@ -3769,7 +3794,7 @@ void Query_cache::tables_dump()
       Query_cache_table *table = table_block->table();
       DBUG_PRINT("qcache", ("'%s' '%s'", table->db(), table->table()));
       table_block = table_block->next;
-    } while ( table_block != tables_blocks);
+    } while (table_block != tables_blocks);
   }
   else
     DBUG_PRINT("qcache", ("no tables in list"));
