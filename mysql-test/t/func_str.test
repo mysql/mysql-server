@@ -1216,4 +1216,19 @@ SELECT id FROM t1 WHERE LOCATE(a,p) <=> NULL;
 
 DROP TABLE t1;
 
+#
+# Bug #27130: SUBSTR with UNSIGNED 0 as the last argument
+#
+
+SELECT SUBSTR('foo',1,0) FROM DUAL;
+SELECT SUBSTR('foo',1,CAST(0 AS SIGNED)) FROM DUAL;
+SELECT SUBSTR('foo',1,CAST(0 AS UNSIGNED)) FROM DUAL;
+
+CREATE TABLE t1 (a varchar(10), len int unsigned);
+INSERT INTO t1 VALUES ('bar', 2), ('foo', 0);
+
+SELECT SUBSTR(a,1,len) FROM t1;
+
+DROP TABLE t1; 
+
 --echo End of 5.0 tests
