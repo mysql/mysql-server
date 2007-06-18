@@ -30,7 +30,13 @@ INSERT INTO t1b VALUES (1,1), (1,2), (2,1), (2,2);
 INSERT INTO t1n VALUES (1,1), (1,2), (2,1), (2,2);
 
 UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c;
-UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
+
+# Not possible to test this since NDB writes its own binlog, which
+# might cause it to be out of sync with the results from MyISAM.
+# This will generate an error once BUG#28722 is fixed.
+
+#UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
+
 error ER_BINLOG_LOGGING_IMPOSSIBLE;
 UPDATE t1n, t1b SET e = 2, b = 3 WHERE f = c;
 
@@ -47,7 +53,13 @@ INSERT INTO t1n VALUES (1,1), (1,2), (2,1), (2,2);
 
 error ER_BINLOG_LOGGING_IMPOSSIBLE;
 UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c;
-UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
+
+# Not possible to test this since NDB writes its own binlog, which
+# might cause it to be out of sync with the results from MyISAM.
+# This will generate an error once BUG#28722 is fixed.
+
+#UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
+
 error ER_BINLOG_LOGGING_IMPOSSIBLE;
 UPDATE t1n, t1b SET e = 2, b = 3 WHERE f = c;
 
