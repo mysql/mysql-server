@@ -3639,7 +3639,15 @@ int handler::ha_external_lock(THD *thd, int lock_type)
     taken a table lock), ha_release_auto_increment() was too.
   */
   DBUG_ASSERT(next_insert_id == 0);
-  DBUG_RETURN(external_lock(thd, lock_type));
+
+  /*
+    We cache the table flags if the locking succeeded. Otherwise, we
+    keep them as they were when they were fetched in ha_open().
+  */
+  int error= external_lock(thd, lock_type);
+  if (error == 0)
+    cached_table_flags= table_flags();
+  DBUG_RETURN(error);
 }
 
 
