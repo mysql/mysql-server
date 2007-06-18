@@ -8,6 +8,6 @@
 # test and to have control over the tests.
 ##############################################################
 -- source include/have_ndb.inc
--- source include/master-slave.inc
+-- source include/ndb_master-slave.inc
 SET storage_engine=ndb;
 --source extra/rpl_tests/rpl_ndb_2multi_eng.test
