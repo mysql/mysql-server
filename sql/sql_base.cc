@@ -4020,9 +4020,10 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     TABLE **start,**ptr;
     uint lock_flag= MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN;
     
-    /* Don't honor the GLOBAL READ LOCK if called from a logger */
+    /* Ignore GLOBAL READ LOCK and GLOBAL READ_ONLY if called from a logger */
     if (logger.is_privileged_thread(thd))
-      lock_flag|= MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK;
+      lock_flag|= (MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |
+                   MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY);
 
     if (!(ptr=start=(TABLE**) thd->alloc(sizeof(TABLE*)*count)))
       DBUG_RETURN(-1);
