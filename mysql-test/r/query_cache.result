@@ -181,18 +181,63 @@ a
 1
 2
 3
+select * from t1 where a IN (select sql_cache a from t1);
+a
+1
+2
+3
+select * from t1 where a IN (select a from t1 union select sql_cache a from t1);
+a
+1
+2
+3
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	4
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	2
+Qcache_queries_in_cache	1
 set query_cache_type=on;
 reset query cache;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
 select sql_no_cache * from t1;
+a
+1
+2
+3
+select * from t1 union select sql_no_cache * from t1;
+a
+1
+2
+3
+select * from t1 where a IN (select sql_no_cache a from t1);
+a
+1
+2
+3
+select * from t1 where a IN (select a from t1 union select sql_no_cache a from t1);
+a
+1
+2
+3
+select sql_cache sql_no_cache * from t1;
+a
+1
+2
+3
+select sql_cache  * from t1 union select sql_no_cache * from t1;
+a
+1
+2
+3
+select sql_cache * from t1 where a IN (select sql_no_cache a from t1);
+a
+1
+2
+3
+select sql_cache * from t1 where a IN (select a from t1 union select sql_no_cache a from t1);
 a
 1
 2
@@ -1437,6 +1482,12 @@ drop table t1;
 set GLOBAL query_cache_type=default;
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
+set GLOBAL query_cache_size= default;
+set GLOBAL query_cache_size=1000000;
+create table t1 (a char);
+insert into t1 values ('c');
+a
+drop table t1;
 set GLOBAL query_cache_size= default;
 set GLOBAL query_cache_size=1000000;
 create table t1 (a char);
