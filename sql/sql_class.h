@@ -1096,7 +1096,6 @@ public:
   Rows_log_event* binlog_get_pending_rows_event() const;
   void            binlog_set_pending_rows_event(Rows_log_event* ev);
   int binlog_flush_pending_rows_event(bool stmt_end);
-  void binlog_delete_pending_rows_event();
 
 private:
   uint binlog_table_maps; // Number of table maps currently in the binlog

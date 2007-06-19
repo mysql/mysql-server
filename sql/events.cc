@@ -425,12 +425,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
         event_queue->create_event(thd, new_element, &created);
       /* Binlog the create event. */
       DBUG_ASSERT(thd->query && thd->query_length);
-      if (mysql_bin_log.is_open())
-      {
-        thd->clear_error();
-        thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                          thd->query, thd->query_length, FALSE, FALSE);
-      }
+      write_bin_log(thd, TRUE, thd->query, thd->query_length);
     }
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
@@ -551,12 +546,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
                                   new_element);
       /* Binlog the alter event. */
       DBUG_ASSERT(thd->query && thd->query_length);
-      if (mysql_bin_log.is_open())
-      {
-        thd->clear_error();
-        thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                          thd->query, thd->query_length, FALSE, FALSE);
-      }
+      write_bin_log(thd, TRUE, thd->query, thd->query_length);
     }
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
@@ -631,12 +621,7 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
       event_queue->drop_event(thd, dbname, name);
     /* Binlog the drop event. */
     DBUG_ASSERT(thd->query && thd->query_length);
-    if (mysql_bin_log.is_open())
-    {
-      thd->clear_error();
-      thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                        thd->query, thd->query_length, FALSE, FALSE);
-    }
+    write_bin_log(thd, TRUE, thd->query, thd->query_length);
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
   DBUG_RETURN(ret);
