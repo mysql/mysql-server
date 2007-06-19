@@ -6281,4 +6281,130 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 DROP VIEW v1;
 DROP FUNCTION metered;
 DROP TABLE t1;
-End of 5.0 tests
+drop procedure if exists proc_25411_a;
+drop procedure if exists proc_25411_b;
+drop procedure if exists proc_25411_c;
+create procedure proc_25411_a()
+begin
+/* real comment */
+select 1;
+/*! select 2; */
+select 3;
+/*!00000 select 4; */
+/*!99999 select 5; */
+end
+$$
+create procedure proc_25411_b(
+/* real comment */
+/*! p1 int, */
+/*!00000 p2 int */
+/*!99999 ,p3 int */
+)
+begin
+select p1, p2;
+end
+$$
+create procedure proc_25411_c()
+begin
+select 1/*!,2*//*!00000,3*//*!99999,4*/;
+select 1/*! ,2*//*!00000 ,3*//*!99999 ,4*/;
+select 1/*!,2 *//*!00000,3 *//*!99999,4 */;
+select 1/*! ,2 *//*!00000 ,3 *//*!99999 ,4 */;
+select 1 /*!,2*/ /*!00000,3*/ /*!99999,4*/ ;
+end
+$$
+show create procedure proc_25411_a;
+Procedure	sql_mode	Create Procedure
+proc_25411_a		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_25411_a`()
+begin
+/* real comment */
+select 1;
+ select 2; 
+select 3;
+ select 4; 
+
+end
+call proc_25411_a();
+1
+1
+2
+2
+3
+3
+4
+4
+show create procedure proc_25411_b;
+Procedure	sql_mode	Create Procedure
+proc_25411_b		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_25411_b`(
+/* real comment */
+ p1 int, 
+ p2 int 
+
+)
+begin
+select p1, p2;
+end
+select name, param_list, body from mysql.proc where name like "%25411%";
+name	param_list	body
+proc_25411_a		begin
+/* real comment */
+select 1;
+ select 2; 
+select 3;
+ select 4; 
+
+end
+proc_25411_b	
+/* real comment */
+ p1 int, 
+ p2 int 
+
+	begin
+select p1, p2;
+end
+proc_25411_c		begin
+select 1,2,3;
+select 1 ,2 ,3;
+select 1,2 ,3 ;
+select 1 ,2  ,3 ;
+select 1 ,2 ,3  ;
+end
+call proc_25411_b(10, 20);
+p1	p2
+10	20
+show create procedure proc_25411_c;
+Procedure	sql_mode	Create Procedure
+proc_25411_c		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_25411_c`()
+begin
+select 1,2,3;
+select 1 ,2 ,3;
+select 1,2 ,3 ;
+select 1 ,2  ,3 ;
+select 1 ,2 ,3  ;
+end
+call proc_25411_c();
+1	2	3
+1	2	3
+1	2	3
+1	2	3
+1	2	3
+1	2	3
+1	2	3
+1	2	3
+1	2	3
+1	2	3
+drop procedure proc_25411_a;
+drop procedure proc_25411_b;
+drop procedure proc_25411_c;
+drop procedure if exists proc_26302;
+create procedure proc_26302()
+select 1 /* testing */;
+show create procedure proc_26302;
+Procedure	sql_mode	Create Procedure
+proc_26302		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_26302`()
+select 1 /* testing */
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
+where ROUTINE_NAME = "proc_26302";
+ROUTINE_NAME	ROUTINE_DEFINITION
+proc_26302	select 1 /* testing */
+drop procedure proc_26302;

@@ -102,7 +102,7 @@ bool sp_rcontext::init(THD *thd)
 bool
 sp_rcontext::init_var_table(THD *thd)
 {
-  List<create_field> field_def_lst;
+  List<Create_field> field_def_lst;
 
   if (!m_root_parsing_ctx->max_var_index())
     return FALSE;
