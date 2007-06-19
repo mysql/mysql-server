@@ -120,6 +120,23 @@ mem_block_get_start(mem_block_t* block)
 }
 
 /*******************************************************************
+Allocates and zero-fills n bytes of memory from a memory heap. */
+UNIV_INLINE
+void*
+mem_heap_calloc(
+/*============*/
+				/* out: allocated storage, NULL if did not
+				succeed (only possible for
+				MEM_HEAP_BTR_SEARCH type heaps) */
+	mem_heap_t*	heap,	/* in: memory heap */
+	ulint		n)	/* in: number of bytes; if the heap is allowed
+				to grow into the buffer pool, this must be
+				<= MEM_MAX_ALLOC_IN_BUF */
+{
+	return(memset(mem_heap_alloc(heap, n), 0, n));
+}
+
+/*******************************************************************
 Allocates n bytes of memory from a memory heap. */
 UNIV_INLINE
 void*

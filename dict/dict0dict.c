@@ -1742,8 +1742,7 @@ dict_index_build_internal_clust(
 	}
 
 	/* Remember the table columns already contained in new_index */
-	indexed = mem_alloc(table->n_cols * sizeof *indexed);
-	memset(indexed, 0, table->n_cols * sizeof *indexed);
+	indexed = mem_calloc(table->n_cols * sizeof *indexed);
 
 	/* Mark with 0 the table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
@@ -1828,8 +1827,7 @@ dict_index_build_internal_non_clust(
 	dict_index_copy(new_index, index, table, 0, index->n_fields);
 
 	/* Remember the table columns already contained in new_index */
-	indexed = mem_alloc(table->n_cols * sizeof *indexed);
-	memset(indexed, 0, table->n_cols * sizeof *indexed);
+	indexed = mem_calloc(table->n_cols * sizeof *indexed);
 
 	/* Mark with 0 table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
@@ -4653,8 +4651,7 @@ dict_undo_create_element(
 
 	ut_a(trx->dict_undo_list);
 
-	dict_undo = mem_alloc(sizeof(*dict_undo));
-	memset(dict_undo, '\0', sizeof(*dict_undo));
+	dict_undo = mem_calloc(sizeof *dict_undo);
 
 	UT_LIST_ADD_LAST(node, *trx->dict_undo_list, dict_undo);
 
@@ -4716,8 +4713,7 @@ dict_redo_create_element(
 
 	ut_a(trx->dict_redo_list);
 
-	dict_redo = mem_alloc(sizeof(*dict_redo));
-	memset(dict_redo, '\0', sizeof(*dict_redo));
+	dict_redo = mem_calloc(sizeof *dict_redo);
 
 	UT_LIST_ADD_LAST(node, *trx->dict_redo_list, dict_redo);
 

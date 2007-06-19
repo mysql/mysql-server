@@ -1082,8 +1082,7 @@ page_zip_compress(
 			       + UNIV_PAGE_SIZE * 4
 			       + (512 << MAX_MEM_LEVEL));
 
-	recs = mem_heap_alloc(heap, n_dense * sizeof *recs);
-	memset(recs, 0, n_dense * sizeof *recs);
+	recs = mem_heap_calloc(heap, n_dense * sizeof *recs);
 
 	fields = mem_heap_alloc(heap, (n_fields + 1) * 2);
 

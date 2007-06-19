@@ -103,8 +103,7 @@ row_merge_buf_create_low(
 {
 	row_merge_buf_t*	buf;
 
-	buf = mem_heap_alloc(heap, buf_size);
-	memset(buf, 0, buf_size);
+	buf = mem_heap_calloc(heap, buf_size);
 	buf->heap = heap;
 	buf->index = index;
 	buf->max_tuples = max_tuples;

@@ -162,6 +162,19 @@ mem_heap_free_func_noninline(
 	const char*	file_name,	/* in: file name where freed */
 	ulint		line);		/* in: line where freed */
 /*******************************************************************
+Allocates and zero-fills n bytes of memory from a memory heap. */
+UNIV_INLINE
+void*
+mem_heap_calloc(
+/*============*/
+				/* out: allocated storage, NULL if did not
+				succeed (only possible for
+				MEM_HEAP_BTR_SEARCH type heaps) */
+	mem_heap_t*	heap,	/* in: memory heap */
+	ulint		n);	/* in: number of bytes; if the heap is allowed
+				to grow into the buffer pool, this must be
+				<= MEM_MAX_ALLOC_IN_BUF */
+/*******************************************************************
 Allocates n bytes of memory from a memory heap. */
 UNIV_INLINE
 void*
@@ -248,6 +261,8 @@ mem_heap_get_size(
 /******************************************************************
 Use this macro instead of the corresponding function!
 Macro for memory buffer allocation */
+
+#define mem_calloc(N)	memset(mem_alloc(N), 0, (N));
 
 #define mem_alloc(N)	mem_alloc_func((N), __FILE__, __LINE__)
 /******************************************************************

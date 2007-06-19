@@ -2259,8 +2259,7 @@ page_validate(
 	/* The following buffer is used to check that the
 	records in the page record heap do not overlap */
 
-	buf = mem_heap_alloc(heap, UNIV_PAGE_SIZE);
-	memset(buf, 0, UNIV_PAGE_SIZE);
+	buf = mem_heap_calloc(heap, UNIV_PAGE_SIZE);
 
 	/* Check first that the record heap and the directory do not
 	overlap. */
