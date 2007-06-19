@@ -2437,6 +2437,7 @@ Create_udf_func::create(THD *thd, udf_func *udf, List<Item> *item_list)
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "UDF return type");
   }
   }
+  thd->lex->safe_to_cache_query= 0;
   return func;
 }
 #endif
