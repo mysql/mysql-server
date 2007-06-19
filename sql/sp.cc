@@ -384,32 +384,32 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   if ((ret= sp_use_new_db(thd, name->m_db, &old_db, 1, &dbchanged)))
     goto end;
 
+  thd->spcont= NULL;
+
   {
     Lex_input_stream lip(thd, defstr.c_ptr(), defstr.length());
-    thd->m_lip= &lip;
     lex_start(thd);
-    ret= MYSQLparse(thd);
+
+    if (parse_sql(thd, &lip) || newlex.sphead == NULL)
+    {
+      sp_head *sp= newlex.sphead;
+
+      if (dbchanged && (ret= mysql_change_db(thd, &old_db, TRUE)))
+        goto end;
+      delete sp;
+      ret= SP_PARSE_ERROR;
+    }
+    else
+    {
+      if (dbchanged && (ret= mysql_change_db(thd, &old_db, TRUE)))
+        goto end;
+      *sphp= newlex.sphead;
+      (*sphp)->set_definer(&definer_user_name, &definer_host_name);
+      (*sphp)->set_info(created, modified, &chistics, sql_mode);
+      (*sphp)->optimize();
+    }
   }
 
-  thd->spcont= 0;
-  if (ret || thd->is_fatal_error || newlex.sphead == NULL)
-  {
-    sp_head *sp= newlex.sphead;
-
-    if (dbchanged && (ret= mysql_change_db(thd, &old_db, TRUE)))
-      goto end;
-    delete sp;
-    ret= SP_PARSE_ERROR;
-  }
-  else
-  {
-    if (dbchanged && (ret= mysql_change_db(thd, &old_db, TRUE)))
-      goto end;
-    *sphp= newlex.sphead;
-    (*sphp)->set_definer(&definer_user_name, &definer_host_name);
-    (*sphp)->set_info(created, modified, &chistics, sql_mode);
-    (*sphp)->optimize();
-  }
 end:
   lex_end(thd->lex);
   thd->spcont= old_spcont;
@@ -588,10 +588,14 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
       log_query.append(STRING_WITH_LEN("CREATE "));
       append_definer(thd, &log_query, &thd->lex->definer->user,
                      &thd->lex->definer->host);
-      log_query.append(thd->lex->stmt_definition_begin,
-                       (char *)sp->m_body_begin -
-                       thd->lex->stmt_definition_begin +
-                       sp->m_body.length);
+
+      LEX_STRING stmt_definition;
+      stmt_definition.str= (char*) thd->lex->stmt_definition_begin;
+      stmt_definition.length= thd->lex->stmt_definition_end
+        - thd->lex->stmt_definition_begin;
+      trim_whitespace(thd->charset(), & stmt_definition);
+
+      log_query.append(stmt_definition.str, stmt_definition.length);
 
       /* Such a statement can always go directly to binlog, no trans cache */
       thd->binlog_query(THD::MYSQL_QUERY_TYPE,

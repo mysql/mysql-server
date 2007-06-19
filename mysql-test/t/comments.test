@@ -19,3 +19,18 @@ select 1 # The rest of the row will be ignored
 /* line with only comment */;
 
 # End of 4.1 tests
+
+#
+# Bug#25411 (trigger code truncated)
+#
+
+--error ER_PARSE_ERROR
+select 1/*!2*/;
+
+--error ER_PARSE_ERROR
+select 1/*!000002*/;
+
+select 1/*!999992*/;
+
+select 1 + /*!00000 2 */ + 3 /*!99999 noise*/ + 4;
+
