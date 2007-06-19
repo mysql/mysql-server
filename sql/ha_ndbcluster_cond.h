@@ -270,16 +270,12 @@ class Ndb_cond : public Sql_alloc
       Note - doing it recursively causes stack issues for
       big IN clauses
     */
-    if (prev != NULL)
-    {
-      next= prev= NULL;
-      return;
-    }
     Ndb_cond *n= next;
     while (n)
     {
       Ndb_cond *tmp= n;
       n= n->next;
+      tmp->next= NULL;
       delete tmp;
     }
     next= prev= NULL; 
