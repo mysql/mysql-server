@@ -224,7 +224,7 @@ btr_cur_update_in_place(
 	btr_cur_t*	cursor,	/* in: cursor on the record to update;
 				cursor stays valid and positioned on the
 				same record */
-	upd_t*		update,	/* in: update vector */
+	const upd_t*	update,	/* in: update vector */
 	ulint		cmpl_info,/* in: compiler info on secondary index
 				updates */
 	que_thr_t*	thr,	/* in: query thread */
@@ -248,7 +248,7 @@ btr_cur_optimistic_update(
 	btr_cur_t*	cursor,	/* in: cursor on the record to update;
 				cursor stays valid and positioned on the
 				same record */
-	upd_t*		update,	/* in: update vector; this must also
+	const upd_t*	update,	/* in: update vector; this must also
 				contain trx id and roll ptr fields */
 	ulint		cmpl_info,/* in: compiler info on secondary index
 				updates */
@@ -461,7 +461,7 @@ btr_cur_mark_dtuple_inherited_extern(
 	const ulint*	ext_vec,	/* in: array of extern fields in the
 					original record */
 	ulint		n_ext_vec,	/* in: number of elements in ext_vec */
-	upd_t*		update);	/* in: update vector */
+	const upd_t*	update);	/* in: update vector */
 /***********************************************************************
 Marks all extern fields in a dtuple as owned by the record. */
 
@@ -573,8 +573,7 @@ btr_push_update_extern_fields(
 				to have twice the space for all fields
 				in rec */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	upd_t*		update);/* in: update vector or NULL */
-
+	const upd_t*	update);/* in: update vector or NULL */
 
 /*######################################################################*/
 

@@ -106,7 +106,7 @@ btr_rec_free_updated_extern_fields(
 	page_zip_des_t*	page_zip,/* in: compressed page whose uncompressed
 				part will be updated, or NULL */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	upd_t*		update,	/* in: update vector */
+	const upd_t*	update,	/* in: update vector */
 	mtr_t*		mtr);	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the tree */
 /***************************************************************
@@ -1468,7 +1468,7 @@ btr_cur_upd_lock_and_undo(
 				number */
 	ulint		flags,	/* in: undo logging and locking flags */
 	btr_cur_t*	cursor,	/* in: cursor on record to update */
-	upd_t*		update,	/* in: update vector */
+	const upd_t*	update,	/* in: update vector */
 	ulint		cmpl_info,/* in: compiler info on secondary index
 				updates */
 	que_thr_t*	thr,	/* in: query thread */
@@ -1531,7 +1531,7 @@ btr_cur_update_in_place_log(
 	ulint		flags,		/* in: flags */
 	rec_t*		rec,		/* in: record */
 	dict_index_t*	index,		/* in: index where cursor positioned */
-	upd_t*		update,		/* in: update vector */
+	const upd_t*	update,		/* in: update vector */
 	trx_t*		trx,		/* in: transaction */
 	dulint		roll_ptr,	/* in: roll ptr */
 	mtr_t*		mtr)		/* in: mtr */
@@ -1717,7 +1717,7 @@ btr_cur_update_in_place(
 	btr_cur_t*	cursor,	/* in: cursor on the record to update;
 				cursor stays valid and positioned on the
 				same record */
-	upd_t*		update,	/* in: update vector */
+	const upd_t*	update,	/* in: update vector */
 	ulint		cmpl_info,/* in: compiler info on secondary index
 				updates */
 	que_thr_t*	thr,	/* in: query thread */
@@ -1844,7 +1844,7 @@ btr_cur_optimistic_update(
 	btr_cur_t*	cursor,	/* in: cursor on the record to update;
 				cursor stays valid and positioned on the
 				same record */
-	upd_t*		update,	/* in: update vector; this must also
+	const upd_t*	update,	/* in: update vector; this must also
 				contain trx id and roll ptr fields */
 	ulint		cmpl_info,/* in: compiler info on secondary index
 				updates */
@@ -3513,7 +3513,7 @@ btr_cur_mark_dtuple_inherited_extern(
 	const ulint*	ext_vec,	/* in: array of extern fields in the
 					original record */
 	ulint		n_ext_vec,	/* in: number of elements in ext_vec */
-	upd_t*		update)		/* in: update vector */
+	const upd_t*	update)		/* in: update vector */
 {
 	dfield_t*	dfield;
 	ulint		byte_val;
@@ -3636,7 +3636,7 @@ btr_push_update_extern_fields(
 				to have twice the space for all fields
 				in rec */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	upd_t*		update)	/* in: update vector or NULL */
+	const upd_t*	update)	/* in: update vector or NULL */
 {
 	ulint	n_pushed	= 0;
 	ulint	n;
@@ -4340,13 +4340,12 @@ btr_rec_free_updated_extern_fields(
 	page_zip_des_t*	page_zip,/* in: compressed page whose uncompressed
 				part will be updated, or NULL */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	upd_t*		update,	/* in: update vector */
+	const upd_t*	update,	/* in: update vector */
 	mtr_t*		mtr)	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the tree */
 {
-	upd_field_t*	ufield;
-	ulint		n_fields;
-	ulint		i;
+	ulint	n_fields;
+	ulint	i;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX));
@@ -4356,7 +4355,7 @@ btr_rec_free_updated_extern_fields(
 	n_fields = upd_get_n_fields(update);
 
 	for (i = 0; i < n_fields; i++) {
-		ufield = upd_get_nth_field(update, i);
+		const upd_field_t* ufield = upd_get_nth_field(update, i);
 
 		if (rec_offs_nth_extern(offsets, ufield->field_no)) {
 			ulint	len;
