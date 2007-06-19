@@ -22,9 +22,9 @@ while ($run)
   }
   sleep 0.1;
   if (!$counter){
-   --echo "Failed while waiting for slave SQL thread to stop"
-   SHOW SLAVE STATUS;
-   exit;
+    --echo "Failed while waiting for slave SQL thread to stop"
+    query_vertical SHOW SLAVE STATUS;
+    exit;
   }
   dec $counter;
 }
