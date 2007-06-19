@@ -3454,7 +3454,8 @@ restart_bitmap_scan:
       for (data+= 6; data < info->scan.bitmap_end; data+= 6)
       {
         bits= uint6korr(data);
-        if (bits && ((bits & LL(04444444444444444)) != LL(04444444444444444)))
+        /* Skip not allocated pages and blob / full tail pages */
+        if (bits && bits != LL(07777777777777777))
           break;
       }
       bit_pos= 0;
