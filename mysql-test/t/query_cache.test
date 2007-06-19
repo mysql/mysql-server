@@ -93,7 +93,11 @@ show status like "Qcache_queries_in_cache";
 select sql_cache * from t1 union select * from t1;
 set query_cache_type=2;
 select sql_cache * from t1 union select * from t1;
+
+# all sql_cache statements, except for the first select, are ignored.
 select * from t1 union select sql_cache * from t1;
+select * from t1 where a IN (select sql_cache a from t1);
+select * from t1 where a IN (select a from t1 union select sql_cache a from t1);
 show status like "Qcache_hits";
 show status like "Qcache_queries_in_cache";
 set query_cache_type=on;
@@ -106,6 +110,15 @@ show status like "Qcache_queries_in_cache";
 # SELECT SQL_NO_CACHE
 #
 select sql_no_cache * from t1;
+# sql_no_cache can occur in any nested select to turn on cacheing for the whole
+# expression and it will always override a sql_cache statement.
+select * from t1 union select sql_no_cache * from t1;
+select * from t1 where a IN (select sql_no_cache a from t1);
+select * from t1 where a IN (select a from t1 union select sql_no_cache a from t1);
+select sql_cache sql_no_cache * from t1;
+select sql_cache  * from t1 union select sql_no_cache * from t1;
+select sql_cache * from t1 where a IN (select sql_no_cache a from t1);
+select sql_cache * from t1 where a IN (select a from t1 union select sql_no_cache a from t1);
 show status like "Qcache_queries_in_cache";
 drop table t1;
 #
@@ -1015,6 +1028,27 @@ let $q1= `select UUID(), a from t1`;
 let $q2= `select UUID(), a from t1`; 
 
 # disabling the logging of the query because the UUIDs are different each run.
+--disable_query_log
+eval select a  from t1 where "$q1" = "$q2";
+--enable_query_log
+
+drop table t1;
+
+set GLOBAL query_cache_size= default;
+
+#
+# Bug #29053 SQL_CACHE in UNION causes non-deterministic functions to be cached
+#
+
+set GLOBAL query_cache_size=1000000;
+
+create table t1 (a char);
+insert into t1 values ('c');
+
+let $q1= `select RAND() from t1 union select sql_cache 1 from t1;`;
+let $q2= `select RAND() from t1 union select sql_cache 1 from t1;`; 
+
+# disabling the logging of the query because the times are different each run.
 --disable_query_log
 eval select a  from t1 where "$q1" = "$q2";
 --enable_query_log
