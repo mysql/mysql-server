@@ -306,14 +306,7 @@ end:
 
   if (!result)
   {
-    if (mysql_bin_log.is_open())
-    {
-      thd->clear_error();
-
-      /* Such a statement can always go directly to binlog, no trans cache. */
-      thd->binlog_query(THD::STMT_QUERY_TYPE,
-                        stmt_query.ptr(), stmt_query.length(), FALSE, FALSE);
-    }
+    write_bin_log(thd, TRUE, stmt_query.ptr(), stmt_query.length());
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));

@@ -3028,15 +3028,6 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end)
 }
 
 
-void THD::binlog_delete_pending_rows_event()
-{
-  if (Rows_log_event *pending= binlog_get_pending_rows_event())
-  {
-    delete pending;
-    binlog_set_pending_rows_event(0);
-  }
-}
-
 /*
   Member function that will log query, either row-based or
   statement-based depending on the value of the 'current_stmt_binlog_row_based'
