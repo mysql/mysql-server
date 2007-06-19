@@ -191,8 +191,7 @@ dict_mem_table_add_col(
 		}
 		if (UNIV_LIKELY(i) && UNIV_UNLIKELY(!table->col_names)) {
 			/* All preceding column names are empty. */
-			char* s = mem_heap_alloc(heap, table->n_def);
-			memset(s, 0, table->n_def);
+			char* s = mem_heap_calloc(heap, table->n_def);
 			table->col_names = s;
 		}
 
