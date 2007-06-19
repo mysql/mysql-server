@@ -54,10 +54,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
                           HA_CREATE_INFO *create_info,
                           Alter_info *alter_info);
 
-#define MYSQL50_TABLE_NAME_PREFIX         "#mysql50#"
-#define MYSQL50_TABLE_NAME_PREFIX_LENGTH  9
-
-
 /*
   Translate a file name to a table name (WL #1324).
 
@@ -1161,6 +1157,31 @@ void release_ddl_log()
 */
 
 
+/**
+   @brief construct a temporary shadow file name.
+
+   @details Make a shadow file name used by ALTER TABLE to construct the
+   modified table (with keeping the original). The modified table is then
+   moved back as original table. The name must start with the temp file
+   prefix so it gets filtered out by table files listing routines. 
+    
+   @param[out] buff      buffer to receive the constructed name
+   @param      bufflen   size of buff
+   @param      lpt       alter table data structure
+
+   @retval     path length
+*/
+
+uint build_table_shadow_filename(char *buff, size_t bufflen, 
+                                 ALTER_PARTITION_PARAM_TYPE *lpt)
+{
+  char tmp_name[FN_REFLEN];
+  my_snprintf (tmp_name, sizeof (tmp_name), "%s-%s", tmp_file_prefix,
+               lpt->table_name);
+  return build_table_filename(buff, bufflen, lpt->db, tmp_name, "", FN_IS_TMP);
+}
+
+
 /*
   SYNOPSIS
     mysql_write_frm()
@@ -1201,8 +1222,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   /*
     Build shadow frm file name
   */
-  build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
-                       lpt->table_name, "#", 0);
+  build_table_shadow_filename(shadow_path, sizeof(shadow_path), lpt);
   strxmov(shadow_frm_name, shadow_path, reg_ext, NullS);
   if (flags & WFRM_WRITE_SHADOW)
   {
@@ -1225,6 +1245,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
 
       if (part_info)
       {
+        TABLE_SHARE *share= lpt->table->s;
         if (!(part_syntax_buf= generate_partition_syntax(part_info,
                                                          &syntax_len,
                                                          TRUE, TRUE)))
@@ -1232,7 +1253,16 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
           DBUG_RETURN(TRUE);
         }
         part_info->part_info_string= part_syntax_buf;
-        part_info->part_info_len= syntax_len;
+        share->partition_info_len= part_info->part_info_len= syntax_len;
+        if (share->partition_info_buffer_size < syntax_len + 1)
+        {
+          share->partition_info_buffer_size= syntax_len+1;
+          if (!(share->partition_info=
+                  (char*) alloc_root(&share->mem_root, syntax_len+1)))
+            DBUG_RETURN(TRUE);
+
+        }
+        memcpy((char*) share->partition_info, part_syntax_buf, syntax_len + 1);
       }
     }
 #endif
@@ -4072,34 +4102,16 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     */
     if (!table->table)
     {
-      char buf[ERRMSGSIZE+ERRMSGSIZE+2];
-      const char *err_msg;
-      protocol->prepare_for_resend();
-      protocol->store(table_name, system_charset_info);
-      protocol->store(operator_name, system_charset_info);
-      protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-      if (!(err_msg=thd->net.last_error))
-	err_msg=ER(ER_CHECK_NO_SUCH_TABLE);
+      if (!thd->warn_list.elements)
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                     ER_CHECK_NO_SUCH_TABLE, ER(ER_CHECK_NO_SUCH_TABLE));
       /* if it was a view will check md5 sum */
       if (table->view &&
           view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
-      {
-        strxmov(buf, err_msg, "; ", ER(ER_VIEW_CHECKSUM), NullS);
-        err_msg= (const char *)buf;
-      }
-      protocol->store(err_msg, system_charset_info);
-      lex->cleanup_after_one_table_open();
-      thd->clear_error();
-      /*
-        View opening can be interrupted in the middle of process so some
-        tables can be left opening
-      */
-      ha_autocommit_or_rollback(thd, 1);
-      close_thread_tables(thd);
-      lex->reset_query_tables_list(FALSE);
-      if (protocol->write())
-	goto err;
-      continue;
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                     ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
+      result_code= HA_ADMIN_CORRUPT;
+      goto send_result;
     }
 
     if (table->view)
@@ -4185,6 +4197,23 @@ send_result:
 
     lex->cleanup_after_one_table_open();
     thd->clear_error();  // these errors shouldn't get client
+    {
+      List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
+      MYSQL_ERROR *err;
+      while ((err= it++))
+      {
+        protocol->prepare_for_resend();
+        protocol->store(table_name, system_charset_info);
+        protocol->store((char*) operator_name, system_charset_info);
+        protocol->store(warning_level_names[err->level].str,
+                        warning_level_names[err->level].length,
+                        system_charset_info);
+        protocol->store(err->msg, system_charset_info);
+        if (protocol->write())
+          goto err;
+      }
+      mysql_reset_errors(thd, true);
+    }
     protocol->prepare_for_resend();
     protocol->store(table_name, system_charset_info);
     protocol->store(operator_name, system_charset_info);
@@ -4390,6 +4419,8 @@ send_result_message:
 bool mysql_backup_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_backup_table");
+  WARN_DEPRECATED(thd, "5.2", "BACKUP TABLE",
+                  "MySQL Administrator (mysqldump, mysql)");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
 				"backup", TL_READ, 0, 0, 0, 0,
 				&handler::backup, 0));
@@ -4399,6 +4430,8 @@ bool mysql_backup_table(THD* thd, TABLE_LIST* table_list)
 bool mysql_restore_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_restore_table");
+  WARN_DEPRECATED(thd, "5.2", "RESTORE TABLE",
+                  "MySQL Administrator (mysqldump, mysql)");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
 				"restore", TL_WRITE, 1, 1, 0,
 				&prepare_for_restore,
@@ -4788,7 +4821,7 @@ bool mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
   DBUG_ENTER("mysql_check_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
 				"check", lock_type,
-				0, HA_OPEN_FOR_REPAIR, 0, 0,
+				0, 0, HA_OPEN_FOR_REPAIR, 0,
 				&handler::ha_check, &view_checksum));
 }
 
@@ -5713,21 +5746,31 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                    table_list->table_name_length,
                                    table_list->table_name, 0);
 
-    /* Disable alter of enabled log tables */
-    if (table_kind && logger.is_log_table_enabled(table_kind))
+    if (table_kind)
     {
-      my_error(ER_BAD_LOG_STATEMENT, MYF(0), "ALTER");
-      DBUG_RETURN(TRUE);
-    }
+      /* Disable alter of enabled log tables */
+      if (logger.is_log_table_enabled(table_kind))
+      {
+        my_error(ER_BAD_LOG_STATEMENT, MYF(0), "ALTER");
+        DBUG_RETURN(TRUE);
+      }
 
-    /* Disable alter of log tables to unsupported engine */
-    if (table_kind &&
-        (create_info->used_fields & HA_CREATE_USED_ENGINE) &&
-        (!create_info->db_type || /* unknown engine */
-        !(create_info->db_type->flags & HTON_SUPPORT_LOG_TABLES)))
-    {
-      my_error(ER_UNSUPORTED_LOG_ENGINE, MYF(0));
-      DBUG_RETURN(TRUE);
+      /* Disable alter of log tables to unsupported engine */
+      if ((create_info->used_fields & HA_CREATE_USED_ENGINE) &&
+          (!create_info->db_type || /* unknown engine */
+           !(create_info->db_type->flags & HTON_SUPPORT_LOG_TABLES)))
+      {
+        my_error(ER_UNSUPORTED_LOG_ENGINE, MYF(0));
+        DBUG_RETURN(TRUE);
+      }
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+      if (alter_info->flags & ALTER_PARTITION)
+      {
+	my_error(ER_WRONG_USAGE, MYF(0), "PARTITION", "log table");
+        DBUG_RETURN(TRUE);
+      }
+#endif
     }
   }
 
@@ -5756,8 +5799,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   strxnmov(new_name_buff, sizeof (new_name_buff) - 1, mysql_data_home, "/", db, 
            "/", table_name, reg_ext, NullS);
   (void) unpack_filename(new_name_buff, new_name_buff);
-  if (lower_case_table_names != 2)
-    my_casedn_str(files_charset_info, new_name_buff);
   /*
     If this is just a rename of a view, short cut to the
     following scenario: 1) lock LOCK_open 2) do a RENAME

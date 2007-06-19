@@ -33,7 +33,7 @@ CREATE TABLE `t2_c` (
   PRIMARY KEY  (`capgotod`),
   KEY `i quadaddsvr` (`gotod`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
-INSERT INTO `t2_c` VALUES (500,4,'','q3.net','addavp:MK_CASELECTOR=1','postorod rattoaa'),(2,1,'4','','addavp:MK_BRANDTAD=345','REDS Brandtad'),(3,2,'4','q3.net','execorder','fixedRatediPO REDS'),(1,1,'3','','addavp:MK_BRANDTAD=123','TEST Brandtad'),(6,5,'','told.q3.net','addavp:MK_BRANDTAD=123','Brandtad Toldzone'),(4,3,'3','q3.net','addavp:MK_POOLHINT=2','ratedi PO TEST');
+INSERT INTO `t2_c` VALUES (500,4,'','q3.net','addavp:MK_CASELECTOR=1','postorod rattoaa'),(2,1,'4','','addavp:MK_BRANDTAD=345','REDS Brandtad'),(3,2,'4','q3.net','execorder','fixedRatediPO REDS'),(1,1,'3','','addavp:MK_BRANDTAD=123','TEST Brandtad'),(6,5,'','told.q3.net','addavp:MK_BRANDTAD=123','Brandtad Toldzone'),(4,3,'3','q3.net','addavp:MK_POOLHINT=2','ratedi PO TEST'),(5,0,'',NULL,NULL,'');
 
 # Added ROW_FORMAT=FIXED to use below to see that setting is preserved
 # by restore

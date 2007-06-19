@@ -1055,6 +1055,7 @@ class Ndb
   friend class NdbDictInterface;
   friend class NdbBlob;
   friend class NdbImpl;
+  friend class Ndb_internal;
 #endif
 
 public:
@@ -1488,12 +1489,15 @@ public:
   int initAutoIncrement();
 
   int getAutoIncrementValue(const char* aTableName, 
-                            Uint64 & tupleId, Uint32 cacheSize);
+                            Uint64 & tupleId, Uint32 cacheSize,
+                            Uint64 step = 1, Uint64 start = 1);
   int getAutoIncrementValue(const NdbDictionary::Table * aTable, 
-                            Uint64 & tupleId, Uint32 cacheSize);
+                            Uint64 & tupleId, Uint32 cacheSize,
+                            Uint64 step = 1, Uint64 start = 1);
   int getAutoIncrementValue(const NdbDictionary::Table * aTable, 
                             TupleIdRange & range, Uint64 & tupleId,
-                            Uint32 cacheSize);
+                            Uint32 cacheSize,
+                            Uint64 step = 1, Uint64 start = 1);
   int readAutoIncrementValue(const char* aTableName,
                              Uint64 & tupleId);
   int readAutoIncrementValue(const NdbDictionary::Table * aTable,
@@ -1510,7 +1514,7 @@ public:
 private:
   int getTupleIdFromNdb(const NdbTableImpl* table,
                         TupleIdRange & range, Uint64 & tupleId,
-                        Uint32 cacheSize);
+                        Uint32 cacheSize, Uint64 step = 1, Uint64 start = 1);
   int readTupleIdFromNdb(const NdbTableImpl* table,
                          TupleIdRange & range, Uint64 & tupleId);
   int setTupleIdInNdb(const NdbTableImpl* table,

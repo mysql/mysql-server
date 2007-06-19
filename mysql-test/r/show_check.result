@@ -752,4 +752,6 @@ Tables_in_test	Table_type
 été	BASE TABLE
 drop table `été`;
 set names latin1;
+show columns from `#mysql50#????????`;
+Got one of the listed errors
 End of 5.1 tests

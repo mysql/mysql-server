@@ -1629,6 +1629,85 @@ runBug28023(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
     }
   }
+
+  return NDBT_OK;
+}
+
+
+int
+runBug28717(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 4)
+  {
+    return NDBT_OK;
+  }
+
+  int master = res.getMasterNodeId();
+  int node0 = res.getRandomNodeOtherNodeGroup(master, rand());
+  int node1 = res.getRandomNodeSameNodeGroup(node0, rand());
+  
+  ndbout_c("master: %d node0: %d node1: %d", master, node0, node1);
+  
+  if (res.restartOneDbNode(node0, false, true, true))
+  {
+    return NDBT_FAILED;
+  }
+
+  {
+    int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+    NdbLogEventHandle handle = 
+      ndb_mgm_create_logevent_handle(res.handle, filter);
+    
+
+    int dump[] = { DumpStateOrd::DihStartLcpImmediately };
+    struct ndb_logevent event;
+    
+    for (Uint32 i = 0; i<3; i++)
+    {
+      res.dumpStateOneNode(master, dump, 1);
+      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+            event.type != NDB_LE_LocalCheckpointStarted);
+      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+            event.type != NDB_LE_LocalCheckpointCompleted);
+    } 
+  }
+  
+  if (res.waitNodesNoStart(&node0, 1))
+    return NDBT_FAILED;
+  
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  
+  if (res.dumpStateOneNode(node0, val2, 2))
+    return NDBT_FAILED;
+  
+  if (res.insertErrorInNode(node0, 5010))
+    return NDBT_FAILED;
+  
+  if (res.insertErrorInNode(node1, 1001))
+    return NDBT_FAILED;
+  
+  if (res.startNodes(&node0, 1))
+    return NDBT_FAILED;
+  
+  NdbSleep_SecSleep(3);
+
+  if (res.insertErrorInNode(node1, 0))
+    return NDBT_FAILED;
+
+  if (res.waitNodesNoStart(&node0, 1))
+    return NDBT_FAILED;
+
+  if (res.startNodes(&node0, 1))
+    return NDBT_FAILED;
+
+  if (res.waitClusterStarted())
+    return NDBT_FAILED;
   
   return NDBT_OK;
 }
@@ -1992,6 +2071,9 @@ TESTCASE("Bug27466", ""){
 }
 TESTCASE("Bug28023", ""){
   INITIALIZER(runBug28023);
+}
+TESTCASE("Bug28717", ""){
+  INITIALIZER(runBug28717);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 

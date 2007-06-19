@@ -81,6 +81,20 @@ static Ndb *injector_ndb= 0;
 static Ndb *schema_ndb= 0;
 
 static int ndbcluster_binlog_inited= 0;
+/*
+  Flag "ndbcluster_binlog_terminating" set when shutting down mysqld.
+  Server main loop should call handlerton function:
+
+  ndbcluster_hton->binlog_func ==
+  ndbcluster_binlog_func(...,BFN_BINLOG_END,...) ==
+  ndbcluster_binlog_end
+
+  at shutdown, which sets the flag. And then server needs to wait for it
+  to complete.  Otherwise binlog will not be complete.
+
+  ndbcluster_hton->panic == ndbcluster_end() will not return until
+  ndb binlog is completed
+*/
 static int ndbcluster_binlog_terminating= 0;
 
 /*
@@ -222,7 +236,7 @@ static void dbug_print_table(const char *info, TABLE *table)
   - creating the ndb_apply_status table
 */
 static void run_query(THD *thd, char *buf, char *end,
-                      my_bool print_error, my_bool disable_binlog)
+                      const int *no_print_error, my_bool disable_binlog)
 {
   ulong save_query_length= thd->query_length;
   char *save_query= thd->query;
@@ -242,11 +256,18 @@ static void run_query(THD *thd, char *buf, char *end,
   DBUG_PRINT("query", ("%s", thd->query));
   mysql_parse(thd, thd->query, thd->query_length, &found_semicolon);
 
-  if (print_error && thd->query_error)
+  if (no_print_error && thd->query_error)
   {
-    sql_print_error("NDB: %s: error %s %d %d %d",
-                    buf, thd->net.last_error, thd->net.last_errno,
-                    thd->net.report_error, thd->query_error);
+    int i;
+    Thd_ndb *thd_ndb= get_thd_ndb(thd);
+    for (i= 0; no_print_error[i]; i++)
+      if (thd_ndb->m_error == no_print_error[i])
+        break;
+    if (!no_print_error[i])
+      sql_print_error("NDB: %s: error %s %d(ndb: %d) %d %d",
+                      buf, thd->net.last_error, thd->net.last_errno,
+                      thd_ndb->m_error,
+                      thd->net.report_error, thd->query_error);
   }
 
   thd->options= save_thd_options;
@@ -488,7 +509,7 @@ static int ndbcluster_reset_logs(THD *thd)
   char buf[1024];
   char *end= strmov(buf, "DELETE FROM " NDB_REP_DB "." NDB_REP_TABLE);
 
-  run_query(thd, buf, end, FALSE, TRUE);
+  run_query(thd, buf, end, NULL, TRUE);
 
   DBUG_RETURN(0);
 }
@@ -513,7 +534,7 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
                                   NDB_REP_DB "." NDB_REP_TABLE
                                   " WHERE File='"), file), "'");
 
-  run_query(thd, buf, end, FALSE, TRUE);
+  run_query(thd, buf, end, NULL, TRUE);
 
   DBUG_RETURN(0);
 }
@@ -630,7 +651,7 @@ static void ndbcluster_reset_slave(THD *thd)
   DBUG_ENTER("ndbcluster_reset_slave");
   char buf[1024];
   char *end= strmov(buf, "DELETE FROM " NDB_REP_DB "." NDB_APPLY_TABLE);
-  run_query(thd, buf, end, FALSE, TRUE);
+  run_query(thd, buf, end, NULL, TRUE);
   DBUG_VOID_RETURN;
 }
 
@@ -755,7 +776,8 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
                    " end_pos BIGINT UNSIGNED NOT NULL, "
                    " PRIMARY KEY USING HASH (server_id) ) ENGINE=NDB");
 
-  run_query(thd, buf, end, TRUE, TRUE);
+  const int no_print_error[2]= {701, 0}; // do not print error 701
+  run_query(thd, buf, end, no_print_error, TRUE);
 
   DBUG_RETURN(0);
 }
@@ -811,7 +833,8 @@ static int ndbcluster_create_schema_table(THD *thd)
                    " type INT UNSIGNED NOT NULL,"
                    " PRIMARY KEY USING HASH (db,name) ) ENGINE=NDB");
 
-  run_query(thd, buf, end, TRUE, TRUE);
+  const int no_print_error[2]= {701, 0}; // do not print error 701
+  run_query(thd, buf, end, no_print_error, TRUE);
 
   DBUG_RETURN(0);
 }
@@ -1919,9 +1942,10 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           /* Drop the database locally if it only contains ndb tables */
           if (! ndbcluster_check_if_local_tables_in_db(thd, schema->db))
           {
+            const int no_print_error[1]= {0};
             run_query(thd, schema->query,
                       schema->query + schema->query_length,
-                      TRUE,    /* print error */
+                      no_print_error,    /* print error */
                       TRUE);   /* don't binlog the query */
             /* binlog dropping database after any table operations */
             post_epoch_log_list->push_back(schema, mem_root);
@@ -1941,12 +1965,15 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
         case SOT_CREATE_DB:
           /* fall through */
         case SOT_ALTER_DB:
+        {
+          const int no_print_error[1]= {0};
           run_query(thd, schema->query,
                     schema->query + schema->query_length,
-                    TRUE,    /* print error */
+                    no_print_error,    /* print error */
                     TRUE);   /* don't binlog the query */
           log_query= 1;
           break;
+        }
         case SOT_TABLESPACE:
         case SOT_LOGFILE_GROUP:
           log_query= 1;

@@ -84,6 +84,14 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
   }
   length=(uint) (strxmov(name, param->db_name,".",param->table_name,NullS) -
 		 name);
+  /*
+    TODO: switch from protocol to push_warning here. The main reason we didn't
+    it yet is parallel repair. Due to following trace:
+    mi_check_print_msg/push_warning/sql_alloc/my_pthread_getspecific_ptr.
+
+    Also we likely need to lock mutex here (in both cases with protocol and
+    push_warning).
+  */
   protocol->prepare_for_resend();
   protocol->store(name, length, system_charset_info);
   protocol->store(param->op_name, system_charset_info);
@@ -1216,11 +1224,7 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
   table->keys_in_use_for_query.clear_all();
 
   if (table_list->process_index_hints(table))
-  {
-    errmsg= thd->net.last_error;
-    error= HA_ADMIN_FAILED;
-    goto err;
-  }
+    DBUG_RETURN(HA_ADMIN_FAILED);
   map= ~(ulonglong) 0;
   if (!table->keys_in_use_for_query.is_clear_all())
     /* use all keys if there's no list specified by the user through hints */
@@ -1235,7 +1239,6 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
     error= HA_ADMIN_CORRUPT;
   }
 
- err:
   if (error != HA_ADMIN_OK)
   {
     /* Send error to user */
@@ -1270,11 +1273,7 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
   table->keys_in_use_for_query.clear_all();
 
   if (table_list->process_index_hints(table))
-  {
-    errmsg= thd->net.last_error;
-    error= HA_ADMIN_FAILED;
-    goto err;
-  }
+    DBUG_RETURN(HA_ADMIN_FAILED);
 
   map= ~(ulonglong) 0;
   /* Check validity of the index references */
@@ -1437,8 +1436,10 @@ int ha_myisam::enable_indexes(uint mode)
         might have been set by the first repair. They can still be seen
         with SHOW WARNINGS then.
       */
+#ifndef EMBEDDED_LIBRARY      
       if (! error)
         thd->clear_error();
+#endif /* EMBEDDED_LIBRARY */
     }
     info(HA_STATUS_CONST);
     thd->proc_info=save_proc_info;

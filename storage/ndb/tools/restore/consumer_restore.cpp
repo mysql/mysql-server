@@ -1159,19 +1159,22 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 	char * dataPtr = attr_data->string_value;
 	Uint32 length = 0;
        
-        const unsigned char * src = (const unsigned char *)dataPtr;
-        switch(attr_desc->m_column->getType()){
-        case NdbDictionary::Column::Varchar:
-        case NdbDictionary::Column::Varbinary:
-          length = src[0] + 1;
-          break;
-        case NdbDictionary::Column::Longvarchar:
-        case NdbDictionary::Column::Longvarbinary:
-          length = src[0] + (src[1] << 8) + 2;
-          break;
-        default:
-          length = attr_data->size;
-          break;
+        if (!attr_data->null)
+        {
+          const unsigned char * src = (const unsigned char *)dataPtr;
+          switch(attr_desc->m_column->getType()){
+          case NdbDictionary::Column::Varchar:
+          case NdbDictionary::Column::Varbinary:
+            length = src[0] + 1;
+            break;
+          case NdbDictionary::Column::Longvarchar:
+          case NdbDictionary::Column::Longvarbinary:
+            length = src[0] + (src[1] << 8) + 2;
+            break;
+          default:
+            length = attr_data->size;
+            break;
+          }
         }
 	if (j == 0 && tup.getTable()->have_auto_inc(i))
 	  tup.getTable()->update_max_auto_val(dataPtr,size*arraySize);
