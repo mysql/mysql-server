@@ -6126,6 +6126,11 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
   Constructor for the NDB Cluster table handler 
  */
 
+/*
+  Normal flags for binlogging is that ndb has HA_HAS_OWN_BINLOGGING
+  and preferes HA_BINLOG_ROW_CAPABLE
+  Other flags are set under certain circumstaces in table_flags()
+*/
 #define HA_NDBCLUSTER_TABLE_FLAGS \
                 HA_REC_NOT_IN_SEQ | \
                 HA_NULL_IN_KEY | \
@@ -7565,9 +7570,17 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
 
 ulonglong ha_ndbcluster::table_flags(void) const
 {
+  THD *thd= current_thd;
+  ulonglong f= m_table_flags;
   if (m_ha_not_exact_count)
-    return m_table_flags & ~HA_STATS_RECORDS_IS_EXACT;
-  return m_table_flags;
+    f= f & ~HA_STATS_RECORDS_IS_EXACT;
+  /*
+    To allow for logging of ndb tables during stmt based logging;
+    flag cabablity, but also turn off flag for OWN_BINLOGGING
+  */
+  if (thd->variables.binlog_format == BINLOG_FORMAT_STMT)
+    f= (f | HA_BINLOG_STMT_CAPABLE) & ~HA_HAS_OWN_BINLOGGING;
+  return f;
 }
 const char * ha_ndbcluster::table_type() const 
 {
