@@ -46,29 +46,31 @@ UNIV_INLINE
 ulint
 upd_get_n_fields(
 /*=============*/
-			/* out: number of fields */
-	upd_t*	update)	/* in: update vector */
+				/* out: number of fields */
+	const upd_t*	update)	/* in: update vector */
 {
 	ut_ad(update);
 
 	return(update->n_fields);
 }
 
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Returns the nth field of an update vector. */
 UNIV_INLINE
 upd_field_t*
 upd_get_nth_field(
 /*==============*/
-			/* out: update vector field */
-	upd_t*	update,	/* in: update vector */
-	ulint	n)	/* in: field position in update vector */
+				/* out: update vector field */
+	const upd_t*	update,	/* in: update vector */
+	ulint		n)	/* in: field position in update vector */
 {
 	ut_ad(update);
 	ut_ad(n < update->n_fields);
 
-	return(update->fields + n);
+	return((upd_field_t*) update->fields + n);
 }
+#endif /* UNIV_DEBUG */
 
 /*************************************************************************
 Sets an index field number to be updated by an update vector field. */

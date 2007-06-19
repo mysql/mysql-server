@@ -201,7 +201,7 @@ trx_undo_report_row_operation(
 	const dtuple_t*	clust_entry,	/* in: in the case of an insert,
 					index entry to insert into the
 					clustered index, otherwise NULL */
-	upd_t*		update,		/* in: in the case of an update,
+	const upd_t*	update,		/* in: in the case of an update,
 					the update vector, otherwise NULL */
 	ulint		cmpl_info,	/* in: compiler info on secondary
 					index updates */
