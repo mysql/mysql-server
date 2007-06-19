@@ -88,16 +88,14 @@ dict_create_sys_tables_tuple(
 	/* 6: MIX_ID (obsolete) ---------------------------*/
 	dfield = dtuple_get_nth_field(entry, 4);
 
-	ptr = mem_heap_alloc(heap, 8);
-	memset(ptr, 0, 8);
+	ptr = mem_heap_calloc(heap, 8);
 
 	dfield_set_data(dfield, ptr, 8);
 	/* 7: MIX_LEN (obsolete) --------------------------*/
 
 	dfield = dtuple_get_nth_field(entry, 5);
 
-	ptr = mem_heap_alloc(heap, 4);
-	memset(ptr, 0, 4);
+	ptr = mem_heap_calloc(heap, 4);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 8: CLUSTER_NAME ---------------------*/

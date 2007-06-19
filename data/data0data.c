@@ -727,8 +727,9 @@ skip_field:
 
 		/* Set the extern field reference in dfield to zero */
 		dfield->len = BTR_EXTERN_FIELD_REF_SIZE;
-		dfield->data = mem_heap_alloc(heap, BTR_EXTERN_FIELD_REF_SIZE);
-		memset(dfield->data, 0, BTR_EXTERN_FIELD_REF_SIZE);
+		dfield->data = mem_heap_calloc(heap,
+					       BTR_EXTERN_FIELD_REF_SIZE);
+		UNIV_MEM_ALLOC(dfield->data, BTR_EXTERN_FIELD_REF_SIZE);
 		n_fields++;
 		ut_ad(n_fields < dtuple_get_n_fields(entry));
 	}
