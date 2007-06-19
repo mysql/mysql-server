@@ -44,5 +44,76 @@ connection master;
 DROP TABLE t4;
 --enable_query_log
 sync_slave_with_master;
+connection master;
 
 # End of 4.1 tests
+
+#
+# Bug #26418: Slave out of sync after CREATE/DROP TEMPORARY TABLE + ROLLBACK
+# on master
+#
+#Note Matthias: to be merged to rpl_ddl.test
+
+--source include/not_ndb_default.inc
+
+FLUSH LOGS;
+sync_slave_with_master;
+FLUSH LOGS;
+connection master;
+let $engine_type= "InnoDB";
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+--enable_warnings
+
+CREATE DATABASE mysqltest1;
+CREATE TEMPORARY TABLE mysqltest1.tmp (f1 BIGINT);
+eval CREATE TABLE mysqltest1.t1 (f1 BIGINT) ENGINE=$engine_type;
+SET AUTOCOMMIT = 0;
+
+sync_slave_with_master;
+--echo -------- switch to slave --------
+connection slave;
+SHOW CREATE TABLE mysqltest1.t1;
+
+--echo -------- switch to master --------
+connection master;
+INSERT INTO mysqltest1.t1 SET f1= 1;
+DROP TEMPORARY TABLE mysqltest1.tmp;
+ROLLBACK;
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE mysqltest1.tmp;
+# Must return no rows here
+SELECT COUNT(*) FROM mysqltest1.t1;
+
+INSERT INTO mysqltest1.t1 SET f1= 2;
+CREATE TEMPORARY TABLE mysqltest1.tmp2(a INT);
+ROLLBACK;
+SHOW CREATE TABLE mysqltest1.tmp2;
+# Must return no rows here
+SELECT COUNT(*) FROM mysqltest1.t1;
+
+sync_slave_with_master;
+--echo -------- switch to slave --------
+connection slave;
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE mysqltest1.tmp;
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE mysqltest1.tmp2;
+# has two rows here : as the default is MyISAM and
+# it can't be rolled back by the master's ROLLBACK.
+SELECT COUNT(*) FROM mysqltest1.t1;
+FLUSH LOGS;
+--replace_column 1 x 2 x 3 x 4 x 5 x
+SHOW BINLOG EVENTS IN 'slave-bin.000002' LIMIT 1,8;
+
+--echo -------- switch to master --------
+connection master;
+FLUSH LOGS;
+--replace_column 1 x 2 x 3 x 4 x 5 x
+SHOW BINLOG EVENTS IN 'master-bin.000002' LIMIT 1,12;
+
+DROP DATABASE mysqltest1;
+-- source include/master-slave-end.inc
+
+--echo End of 5.1 tests
