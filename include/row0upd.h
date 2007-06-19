@@ -35,17 +35,21 @@ UNIV_INLINE
 ulint
 upd_get_n_fields(
 /*=============*/
-			/* out: number of fields */
-	upd_t*	update);	/* in: update vector */
+					/* out: number of fields */
+	const upd_t*	update);	/* in: update vector */
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Returns the nth field of an update vector. */
 UNIV_INLINE
 upd_field_t*
 upd_get_nth_field(
 /*==============*/
-			/* out: update vector field */
-	upd_t*	update,	/* in: update vector */
-	ulint	n);	/* in: field position in update vector */
+				/* out: update vector field */
+	const upd_t*	update,	/* in: update vector */
+	ulint		n);	/* in: field position in update vector */
+#else
+# define upd_get_nth_field(update, n) ((update)->fields + (n))
+#endif
 /*************************************************************************
 Sets an index field number to be updated by an update vector field. */
 UNIV_INLINE
@@ -112,11 +116,12 @@ Writes to the redo log the new values of the fields occurring in the index. */
 void
 row_upd_index_write_log(
 /*====================*/
-	upd_t*	update,	/* in: update vector */
-	byte*	log_ptr,/* in: pointer to mlog buffer: must contain at least
-			MLOG_BUF_MARGIN bytes of free space; the buffer is
-			closed within this function */
-	mtr_t*	mtr);	/* in: mtr into whose log to write */
+	const upd_t*	update,	/* in: update vector */
+	byte*		log_ptr,/* in: pointer to mlog buffer: must
+				contain at least MLOG_BUF_MARGIN bytes
+				of free space; the buffer is closed
+				within this function */
+	mtr_t*		mtr);	/* in: mtr into whose log to write */
 /***************************************************************
 Returns TRUE if row update changes size of some field in index or if some
 field to be updated is stored externally in rec or update. */
@@ -129,7 +134,7 @@ row_upd_changes_field_size_or_external(
 				in rec or update */
 	dict_index_t*	index,	/* in: index */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	upd_t*		update);/* in: update vector */
+	const upd_t*	update);/* in: update vector */
 /***************************************************************
 Replaces the new column values stored in the update vector to the record
 given. No field size changes are allowed. */
@@ -140,7 +145,7 @@ row_upd_rec_in_place(
 	rec_t*		rec,	/* in/out: record where replaced */
 	dict_index_t*	index,	/* in: the index the record belongs to */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	upd_t*		update,	/* in: update vector */
+	const upd_t*	update,	/* in: update vector */
 	page_zip_des_t*	page_zip);/* in: compressed page with enough space
 				available, or NULL */
 /*******************************************************************
@@ -173,7 +178,7 @@ row_upd_build_difference_binary(
 	const ulint*	ext_vec,/* in: array containing field numbers of
 				externally stored fields in entry, or NULL */
 	ulint		n_ext_vec,/* in: number of fields in ext_vec */
-	rec_t*		rec,	/* in: clustered index record */
+	const rec_t*	rec,	/* in: clustered index record */
 	trx_t*		trx,	/* in: transaction */
 	mem_heap_t*	heap);	/* in: memory heap from which allocated */
 /***************************************************************
@@ -186,7 +191,7 @@ row_upd_index_replace_new_col_vals_index_pos(
 	dtuple_t*	entry,	/* in/out: index entry where replaced */
 	dict_index_t*	index,	/* in: index; NOTE that this may also be a
 				non-clustered index */
-	upd_t*		update,	/* in: an update vector built for the index so
+	const upd_t*	update,	/* in: an update vector built for the index so
 				that the field number in an upd_field is the
 				index position */
 	ibool		order_only,
@@ -225,12 +230,12 @@ row_upd_changes_ord_field_binary(
 				an ordering field in the index record;
 				NOTE: the fields are compared as binary
 				strings */
-	dtuple_t*	row,	/* in: old value of row, or NULL if the
+	const dtuple_t*	row,	/* in: old value of row, or NULL if the
 				row and the data values in update are not
 				known when this function is called, e.g., at
 				compile time */
 	dict_index_t*	index,	/* in: index of the record */
-	upd_t*		update);/* in: update vector for the row; NOTE: the
+	const upd_t*	update);/* in: update vector for the row; NOTE: the
 				field numbers in this MUST be clustered index
 				positions! */
 /***************************************************************

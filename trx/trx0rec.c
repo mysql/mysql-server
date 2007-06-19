@@ -650,7 +650,7 @@ trx_undo_page_report_modify(
 	const rec_t*	rec,		/* in: clustered index record which
 					has NOT yet been modified */
 	const ulint*	offsets,	/* in: rec_get_offsets(rec, index) */
-	upd_t*		update,		/* in: update vector which tells the
+	const upd_t*	update,		/* in: update vector which tells the
 					columns to be updated; in the case of
 					a delete, this should be set to NULL */
 	ulint		cmpl_info,	/* in: compiler info on secondary
@@ -1223,7 +1223,7 @@ trx_undo_report_row_operation(
 	const dtuple_t*	clust_entry,	/* in: in the case of an insert,
 					index entry to insert into the
 					clustered index, otherwise NULL */
-	upd_t*		update,		/* in: in the case of an update,
+	const upd_t*	update,		/* in: in the case of an update,
 					the update vector, otherwise NULL */
 	ulint		cmpl_info,	/* in: compiler info on secondary
 					index updates */
