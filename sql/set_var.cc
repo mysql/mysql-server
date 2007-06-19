@@ -699,8 +699,6 @@ static SHOW_VAR fixed_vars[]= {
 #ifdef HAVE_SYS_UN_H
   {"socket",                  (char*) &mysqld_unix_port,            SHOW_CHAR_PTR},
 #endif
-  {"table_definition_cache",  (char*) &table_def_size,              SHOW_LONG},
-  {"table_lock_wait_timeout", (char*) &table_lock_wait_timeout,     SHOW_LONG },
 #ifdef HAVE_THR_SETCONCURRENCY
   {"thread_concurrency",      (char*) &concurrency,                 SHOW_LONG},
 #endif
@@ -1499,6 +1497,25 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     value= *(my_bool*) value_ptr(thd, var_type, base);
     pthread_mutex_unlock(&LOCK_global_system_variables);
     return new Item_int(value,1);
+  }
+  case SHOW_CHAR_PTR:
+  {
+    Item *tmp;
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    char *str= *(char**) value_ptr(thd, var_type, base);
+    if (str)
+    {
+      uint length= strlen(str);
+      tmp= new Item_string(thd->strmake(str, length), length,
+                           system_charset_info, DERIVATION_SYSCONST);
+    }
+    else
+    {
+      tmp= new Item_null();
+      tmp->collation.set(system_charset_info, DERIVATION_SYSCONST);
+    }
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+    return tmp;
   }
   case SHOW_CHAR:
   {

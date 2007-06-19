@@ -6,10 +6,12 @@
 #Details:
 #      1) Fill in and setup variables
 #      2) loop through looking for
-#         IO thread to stop
+#         sql threads to stop
 #      3) If loops too long die.
 ####################################################
 connection slave;
+let $my_show= SHOW SLAVE STATUS;
+let $sql_running= Slave_IO_Running;
 let $row_number= 1;
 let $run= 1;
 let $counter= 300;

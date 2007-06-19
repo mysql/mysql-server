@@ -157,3 +157,9 @@ test	slave_terminate	SLAVESIDE_DISABLED	2
 DROP EVENT test.slave_terminate;
 "in the master"
 DROP TABLE t1;
+CREATE EVENT event1 ON SCHEDULE EVERY 1 YEAR
+DO BEGIN
+select * from t1;
+END;|
+ALTER EVENT event1 RENAME TO event2;
+DROP EVENT event2;

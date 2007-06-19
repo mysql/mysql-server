@@ -30,6 +30,10 @@
 
 #include "rpl_injector.h"
 
+#ifdef HAVE_SYS_PRCTL_H
+#include <sys/prctl.h>
+#endif
+
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #if defined(NOT_ENOUGH_TESTED) \
   && defined(NDB_SHM_TRANSPORTER) && MYSQL_VERSION_ID >= 50000
@@ -489,6 +493,7 @@ key_map key_map_full(0);                        // Will be initialized later
 
 const char *opt_date_time_formats[3];
 
+uint mysql_data_home_len;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
@@ -1153,13 +1158,14 @@ void clean_up(bool print_message)
   if (cleanup_done++)
     return; /* purecov: inspected */
 
-  logger.cleanup_base();
-
   /*
     make sure that handlers finish up
     what they have that is dependent on the binlog
   */
   ha_binlog_end(current_thd);
+
+  logger.cleanup_base();
+
   injector::free_instance();
   mysql_bin_log.cleanup();
 
@@ -1419,6 +1425,15 @@ static struct passwd *check_user(const char *user)
 err:
   sql_print_error("Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
   unireg_abort(1);
+
+#ifdef PR_SET_DUMPABLE
+  if (test_flags & TEST_CORE_ON_SIGNAL)
+  {
+    /* inform kernel that process is dumpable */
+    (void) prctl(PR_SET_DUMPABLE, 1);
+  }
+#endif
+
 #endif
   return NULL;
 }
@@ -1883,9 +1898,11 @@ static void init_signals(void)
 
 static void start_signal_handler(void)
 {
+#ifndef EMBEDDED_LIBRARY
   // Save vm id of this process
   if (!opt_bootstrap)
     create_pid_file();
+#endif /* EMBEDDED_LIBRARY */
 }
 
 
@@ -3778,6 +3795,7 @@ int main(int argc, char **argv)
   mysql_data_home= mysql_data_home_buff;
   mysql_data_home[0]=FN_CURLIB;		// all paths are relative from here
   mysql_data_home[1]=0;
+  mysql_data_home_len= 2;
 
   if ((user_info= check_user(mysqld_user)))
   {
@@ -5931,7 +5949,7 @@ log and this option does nothing anymore.",
    (uchar**) &dflt_key_cache_var.param_block_size,
    (uchar**) 0,
    0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG,
-   KEY_CACHE_BLOCK_SIZE , 512, 1024*16, MALLOC_OVERHEAD, 512, 0},
+   KEY_CACHE_BLOCK_SIZE, 512, 1024 * 16, 0, 512, 0},
   {"key_cache_division_limit", OPT_KEY_CACHE_DIVISION_LIMIT,
    "The minimum percentage of warm blocks in key cache",
    (uchar**) &dflt_key_cache_var.param_division_limit,
@@ -6681,8 +6699,8 @@ SHOW_VAR status_vars[]= {
   {"Aborted_connects",         (char*) &aborted_connects,       SHOW_LONG},
   {"Binlog_cache_disk_use",    (char*) &binlog_cache_disk_use,  SHOW_LONG},
   {"Binlog_cache_use",         (char*) &binlog_cache_use,       SHOW_LONG},
-  {"Bytes_received",           (char*) offsetof(STATUS_VAR, bytes_received), SHOW_LONG_STATUS},
-  {"Bytes_sent",               (char*) offsetof(STATUS_VAR, bytes_sent), SHOW_LONG_STATUS},
+  {"Bytes_received",           (char*) offsetof(STATUS_VAR, bytes_received), SHOW_LONGLONG_STATUS},
+  {"Bytes_sent",               (char*) offsetof(STATUS_VAR, bytes_sent), SHOW_LONGLONG_STATUS},
   {"Com_admin_commands",       (char*) offsetof(STATUS_VAR, com_other), SHOW_LONG_STATUS},
   {"Com_alter_db",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_DB]), SHOW_LONG_STATUS},
   {"Com_alter_event",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_EVENT]), SHOW_LONG_STATUS},
@@ -7064,6 +7082,7 @@ static void mysql_init_variables(void)
 	  sizeof(mysql_real_data_home)-1);
   mysql_data_home_buff[0]=FN_CURLIB;	// all paths are relative from here
   mysql_data_home_buff[1]=0;
+  mysql_data_home_len= 2;
 
   /* Replication parameters */
   master_user= (char*) "test";
@@ -7225,6 +7244,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     strmake(mysql_real_data_home,argument, sizeof(mysql_real_data_home)-1);
     /* Correct pointer set by my_getopt (for embedded library) */
     mysql_data_home= mysql_real_data_home;
+    mysql_data_home_len= strlen(mysql_data_home);
     break;
   case 'u':
     if (!mysqld_user || !strcmp(mysqld_user, argument))

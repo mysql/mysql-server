@@ -1598,6 +1598,7 @@ extern int creating_table;    // How many mysql_create_table() are running
 */
 
 extern time_t server_start_time;
+extern uint mysql_data_home_len;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[],
             def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
@@ -1764,6 +1765,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
 #define MYSQL_LOCK_IGNORE_FLUSH                 0x0002
 #define MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN        0x0004
 #define MYSQL_OPEN_TEMPORARY_ONLY               0x0008
+#define MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY      0x0010
 
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
@@ -1920,6 +1922,12 @@ uint filename_to_tablename(const char *from, char *to, uint to_length);
 uint tablename_to_filename(const char *from, char *to, uint to_length);
 uint build_table_filename(char *buff, size_t bufflen, const char *db,
                           const char *table, const char *ext, uint flags);
+
+#define MYSQL50_TABLE_NAME_PREFIX         "#mysql50#"
+#define MYSQL50_TABLE_NAME_PREFIX_LENGTH  9
+
+uint build_table_shadow_filename(char *buff, size_t bufflen, 
+                                 ALTER_PARTITION_PARAM_TYPE *lpt);
 /* Flags for conversion functions. */
 #define FN_FROM_IS_TMP  (1 << 0)
 #define FN_TO_IS_TMP    (1 << 1)

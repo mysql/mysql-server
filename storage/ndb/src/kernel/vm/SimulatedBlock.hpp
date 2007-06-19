@@ -131,6 +131,8 @@ public:
   virtual const char* get_filename(Uint32 fd) const { return "";}
 protected:
   static Callback TheEmptyCallback;
+  void TheNULLCallbackFunction(class Signal*, Uint32, Uint32);
+  static Callback TheNULLCallback;
   void execute(Signal* signal, Callback & c, Uint32 returnCode);
   
   
@@ -334,7 +336,8 @@ protected:
    * Refresh Watch Dog in initialising code
    *
    */
-  void refresh_watch_dog();
+  void refresh_watch_dog(Uint32 place = 1);
+  void update_watch_dog_timer(Uint32 interval);
 
   /**
    * Prog error
@@ -377,6 +380,7 @@ protected:
    *
    */
   void* allocRecord(const char * type, size_t s, size_t n, bool clear = true, Uint32 paramId = 0);
+  void* allocRecordAligned(const char * type, size_t s, size_t n, void **unaligned_buffer, Uint32 align = NDB_O_DIRECT_WRITE_ALIGNMENT, bool clear = true, Uint32 paramId = 0);
   
   /**
    * Deallocate record
@@ -597,6 +601,8 @@ inline
 void
 SimulatedBlock::execute(Signal* signal, Callback & c, Uint32 returnCode){
   CallbackFunction fun = c.m_callbackFunction; 
+  if (fun == TheNULLCallback.m_callbackFunction)
+    return;
   ndbrequire(fun != 0);
   c.m_callbackFunction = NULL;
   (this->*fun)(signal, c.m_callbackData, returnCode);

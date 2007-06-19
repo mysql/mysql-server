@@ -524,7 +524,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
   NDB_SOCKET_TYPE sockfd= NDB_INVALID_SOCKET;
   Uint32 i;
   SocketClient s(0, 0);
-  s.set_connect_timeout(handle->timeout);
+  s.set_connect_timeout((handle->timeout+999)/1000);
   if (!s.init())
   {
     fprintf(handle->errstream, 

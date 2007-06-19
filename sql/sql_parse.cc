@@ -1569,7 +1569,7 @@ bool sp_process_definer(THD *thd)
     if (lex->definer == NULL)
       DBUG_RETURN(TRUE);
 
-    if (thd->slave_thread)
+    if (thd->slave_thread && lex->sphead)
       lex->sphead->m_chistics->suid= SP_IS_NOT_SUID;
   }
   else
@@ -1820,6 +1820,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_VARIABLES:
   case SQLCOM_SHOW_CHARSETS:
   case SQLCOM_SHOW_COLLATIONS:
+  case SQLCOM_SHOW_STORAGE_ENGINES:
   case SQLCOM_SELECT:
     thd->status_var.last_query_cost= 0.0;
     if (all_tables)
@@ -2921,9 +2922,6 @@ end_with_restore_list:
                            NullS :
                            thd->security_ctx->priv_user),
                           lex->verbose);
-    break;
-  case SQLCOM_SHOW_STORAGE_ENGINES:
-    res= mysqld_show_storage_engines(thd);
     break;
   case SQLCOM_SHOW_AUTHORS:
     res= mysqld_show_authors(thd);
@@ -4612,7 +4610,17 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   Security_context *sctx= thd->security_ctx;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
-  bool  db_is_pattern= test(want_access & GRANT_ACL);
+  /*
+    GRANT command:
+    In case of database level grant the database name may be a pattern,
+    in case of table|column level grant the database name can not be a pattern.
+    We use 'dont_check_global_grants' as a flag to determine
+    if it's database level grant command 
+    (see SQLCOM_GRANT case, mysql_execute_command() function) and
+    set db_is_pattern according to 'dont_check_global_grants' value.
+  */
+  bool  db_is_pattern= (test(want_access & GRANT_ACL) &&
+                        dont_check_global_grants);
 #endif
   ulong dummy;
   DBUG_ENTER("check_access");
@@ -5024,17 +5032,14 @@ bool check_merge_table_access(THD *thd, char *db,
 	Check stack size; Send error if there isn't enough stack to continue
 ****************************************************************************/
 
-#if STACK_DIRECTION < 0
-#define used_stack(A,B) (long) (A - B)
-#else
-#define used_stack(A,B) (long) (B - A)
-#endif
+#ifndef EMBEDDED_LIBRARY
+
+#define used_stack(A,B) (long)(A > B ? A - B : B - A)
 
 #ifndef DBUG_OFF
 long max_stack_used;
 #endif
 
-#ifndef EMBEDDED_LIBRARY
 /*
   Note: The 'buf' parameter is necessary, even if it is unused here.
   - fix_fields functions has a "dummy" buffer large enough for the

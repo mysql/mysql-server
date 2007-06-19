@@ -112,9 +112,6 @@ extern "C" {
 /* signal by closing the sockets */
 #define SIGNAL_WITH_VIO_CLOSE 1
 
-/* On NetWare, stack grows towards lower address*/
-#define STACK_DIRECTION -1
-
 /* On NetWare, we need to set stack size for threads, otherwise default 16K is used */
 #define NW_THD_STACKSIZE 65536
 

@@ -210,6 +210,11 @@ static void reap_plugins(void);
 /* declared in set_var.cc */
 extern sys_var *intern_find_sys_var(const char *str, uint length, bool no_error);
 
+#ifdef EMBEDDED_LIBRARY
+/* declared in sql_base.cc */
+extern bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists);
+#endif /* EMBEDDED_LIBRARY */
+
 
 /****************************************************************************
   Value type thunks, allows the C world to play in the C++ world
@@ -278,7 +283,7 @@ static struct st_plugin_dl *plugin_dl_find(const LEX_STRING *dl)
   DBUG_ENTER("plugin_dl_find");
   for (i= 0; i < plugin_dl_array.elements; i++)
   {
-    tmp= dynamic_element(&plugin_dl_array, i, struct st_plugin_dl *);
+    tmp= *dynamic_element(&plugin_dl_array, i, struct st_plugin_dl **);
     if (tmp->ref_count &&
         ! my_strnncoll(files_charset_info,
                        (const uchar *)dl->str, dl->length,
@@ -296,17 +301,20 @@ static st_plugin_dl *plugin_dl_insert_or_reuse(struct st_plugin_dl *plugin_dl)
   DBUG_ENTER("plugin_dl_insert_or_reuse");
   for (i= 0; i < plugin_dl_array.elements; i++)
   {
-    tmp= dynamic_element(&plugin_dl_array, i, struct st_plugin_dl *);
+    tmp= *dynamic_element(&plugin_dl_array, i, struct st_plugin_dl **);
     if (! tmp->ref_count)
     {
       memcpy(tmp, plugin_dl, sizeof(struct st_plugin_dl));
       DBUG_RETURN(tmp);
     }
   }
-  if (insert_dynamic(&plugin_dl_array, (uchar*)plugin_dl))
+  if (insert_dynamic(&plugin_dl_array, (uchar*)&plugin_dl))
     DBUG_RETURN(0);
-  DBUG_RETURN(dynamic_element(&plugin_dl_array, plugin_dl_array.elements - 1,
-                              struct st_plugin_dl *));
+  tmp= *dynamic_element(&plugin_dl_array, plugin_dl_array.elements - 1,
+                        struct st_plugin_dl **)=
+      (struct st_plugin_dl *) memdup_root(&plugin_mem_root, (uchar*)plugin_dl,
+                                           sizeof(struct st_plugin_dl));
+  DBUG_RETURN(tmp);
 }
 #endif /* HAVE_DLOPEN */
 
@@ -516,8 +524,8 @@ static void plugin_dl_del(const LEX_STRING *dl)
 
   for (i= 0; i < plugin_dl_array.elements; i++)
   {
-    struct st_plugin_dl *tmp= dynamic_element(&plugin_dl_array, i,
-                                              struct st_plugin_dl *);
+    struct st_plugin_dl *tmp= *dynamic_element(&plugin_dl_array, i,
+                                               struct st_plugin_dl **);
     if (tmp->ref_count &&
         ! my_strnncoll(files_charset_info,
                        (const uchar *)dl->str, dl->length,
@@ -665,21 +673,24 @@ plugin_ref plugin_lock_by_name(THD *thd, const LEX_STRING *name, int type
 static st_plugin_int *plugin_insert_or_reuse(struct st_plugin_int *plugin)
 {
   uint i;
+  struct st_plugin_int *tmp;
   DBUG_ENTER("plugin_insert_or_reuse");
   for (i= 0; i < plugin_array.elements; i++)
   {
-    struct st_plugin_int *tmp= dynamic_element(&plugin_array, i,
-                                               struct st_plugin_int *);
+    tmp= *dynamic_element(&plugin_array, i, struct st_plugin_int **);
     if (tmp->state == PLUGIN_IS_FREED)
     {
       memcpy(tmp, plugin, sizeof(struct st_plugin_int));
       DBUG_RETURN(tmp);
     }
   }
-  if (insert_dynamic(&plugin_array, (uchar*)plugin))
+  if (insert_dynamic(&plugin_array, (uchar*)&plugin))
     DBUG_RETURN(0);
-  DBUG_RETURN(dynamic_element(&plugin_array, plugin_array.elements - 1,
-                              struct st_plugin_int *));
+  tmp= *dynamic_element(&plugin_array, plugin_array.elements - 1,
+                        struct st_plugin_int **)=
+       (struct st_plugin_int *) memdup_root(&plugin_mem_root, (uchar*)plugin,
+                                            sizeof(struct st_plugin_int));
+  DBUG_RETURN(tmp);
 }
 
 
@@ -873,7 +884,7 @@ static void reap_plugins(void)
 
   for (idx= 0; idx < count; idx++)
   {
-    plugin= dynamic_element(&plugin_array, idx, struct st_plugin_int *);
+    plugin= *dynamic_element(&plugin_array, idx, struct st_plugin_int **);
     if (plugin->state == PLUGIN_IS_DELETED && !plugin->ref_count)
     {
       /* change the status flag to prevent reaping by another thread */
@@ -1096,9 +1107,9 @@ int plugin_init(int *argc, char **argv, int flags)
   pthread_mutex_init(&LOCK_plugin, MY_MUTEX_INIT_FAST);
 
   if (my_init_dynamic_array(&plugin_dl_array,
-                            sizeof(struct st_plugin_dl),16,16) ||
+                            sizeof(struct st_plugin_dl *),16,16) ||
       my_init_dynamic_array(&plugin_array,
-                            sizeof(struct st_plugin_int),16,16))
+                            sizeof(struct st_plugin_int *),16,16))
     goto err;
 
   for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
@@ -1185,7 +1196,7 @@ int plugin_init(int *argc, char **argv, int flags)
 
   for (i= 0; i < plugin_array.elements; i++)
   {
-    plugin_ptr= dynamic_element(&plugin_array, i, struct st_plugin_int *);
+    plugin_ptr= *dynamic_element(&plugin_array, i, struct st_plugin_int **);
     if (plugin_ptr->state == PLUGIN_IS_UNINITIALIZED)
     {
       if (plugin_initialize(plugin_ptr))
@@ -1233,11 +1244,13 @@ static bool register_builtin(struct st_mysql_plugin *plugin,
   tmp->ref_count= 0;
   tmp->plugin_dl= 0;
 
-  if (insert_dynamic(&plugin_array, (uchar*)tmp))
+  if (insert_dynamic(&plugin_array, (uchar*)&tmp))
     DBUG_RETURN(1);
 
-  *ptr= dynamic_element(&plugin_array, plugin_array.elements - 1,
-                        struct st_plugin_int *);
+  *ptr= *dynamic_element(&plugin_array, plugin_array.elements - 1,
+                         struct st_plugin_int **)=
+        (struct st_plugin_int *) memdup_root(&plugin_mem_root, (uchar*)tmp,
+                                             sizeof(struct st_plugin_int));
 
   if (my_hash_insert(&plugin_hash[plugin->type],(uchar*) *ptr))
     DBUG_RETURN(1);
@@ -1299,6 +1312,9 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   READ_RECORD read_record_info;
   int error;
   THD *new_thd;
+#ifdef EMBEDDED_LIBRARY
+  bool table_exists;
+#endif /* EMBEDDED_LIBRARY */
   DBUG_ENTER("plugin_load");
 
   if (!(new_thd= new THD))
@@ -1315,6 +1331,20 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   tables.alias= tables.table_name= (char*)"plugin";
   tables.lock_type= TL_READ;
   tables.db= new_thd->db;
+
+#ifdef EMBEDDED_LIBRARY
+  /*
+    When building an embedded library, if the mysql.plugin table
+    does not exist, we silently ignore the missing table
+  */
+  pthread_mutex_lock(&LOCK_open);
+  if (check_if_table_exists(new_thd, &tables, &table_exists))
+    table_exists= FALSE;
+  pthread_mutex_unlock(&LOCK_open);
+  if (!table_exists)
+    goto end;
+#endif /* EMBEDDED_LIBRARY */
+
   if (simple_open_n_lock_tables(new_thd, &tables))
   {
     DBUG_PRINT("error",("Can't open plugin table"));
@@ -1459,7 +1489,7 @@ void plugin_shutdown(void)
       reap_plugins();
       for (i= free_slots= 0; i < count; i++)
       {
-        plugin= dynamic_element(&plugin_array, i, struct st_plugin_int *);
+        plugin= *dynamic_element(&plugin_array, i, struct st_plugin_int **);
         switch (plugin->state) {
         case PLUGIN_IS_READY:
           plugin->state= PLUGIN_IS_DELETED;
@@ -1491,7 +1521,7 @@ void plugin_shutdown(void)
     */
     for (i= 0; i < count; i++)
     {
-      plugins[i]= dynamic_element(&plugin_array, i, struct st_plugin_int *);
+      plugins[i]= *dynamic_element(&plugin_array, i, struct st_plugin_int **);
       /* change the state to ensure no reaping races */
       if (plugins[i]->state == PLUGIN_IS_DELETED)
         plugins[i]->state= PLUGIN_IS_DYING;
@@ -1556,7 +1586,7 @@ void plugin_shutdown(void)
   count= plugin_dl_array.elements;
   dl= (struct st_plugin_dl **)my_alloca(sizeof(void*) * count);
   for (i= 0; i < count; i++)
-    dl[i]= dynamic_element(&plugin_dl_array, i, struct st_plugin_dl *);
+    dl[i]= *dynamic_element(&plugin_dl_array, i, struct st_plugin_dl **);
   for (i= 0; i < plugin_dl_array.elements; i++)
     free_plugin_mem(dl[i]);
   my_afree(dl);
@@ -1715,7 +1745,7 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
   {
     for (idx= 0; idx < total; idx++)
     {
-      plugin= dynamic_element(&plugin_array, idx, struct st_plugin_int *);
+      plugin= *dynamic_element(&plugin_array, idx, struct st_plugin_int **);
       plugins[idx]= !(plugin->state & state_mask) ? plugin : NULL;
     }
   }
@@ -3140,7 +3170,7 @@ void my_print_help_inc_plugins(my_option *main_options, uint size)
   if (initialized)
     for (uint idx= 0; idx < plugin_array.elements; idx++)
     {
-      p= dynamic_element(&plugin_array, idx, struct st_plugin_int *);
+      p= *dynamic_element(&plugin_array, idx, struct st_plugin_int **);
 
       if (!p->plugin->system_vars ||
           !(opt= construct_help_options(&mem_root, p)))

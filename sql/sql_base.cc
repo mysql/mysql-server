@@ -4018,6 +4018,12 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
   {
     DBUG_ASSERT(thd->lock == 0);	// You must lock everything at once
     TABLE **start,**ptr;
+    uint lock_flag= MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN;
+    
+    /* Ignore GLOBAL READ LOCK and GLOBAL READ_ONLY if called from a logger */
+    if (logger.is_privileged_thread(thd))
+      lock_flag|= (MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |
+                   MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY);
 
     if (!(ptr=start=(TABLE**) thd->alloc(sizeof(TABLE*)*count)))
       DBUG_RETURN(-1);
@@ -4046,8 +4052,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     }
 
     if (! (thd->lock= mysql_lock_tables(thd, start, (uint) (ptr - start),
-                                        MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN,
-                                        need_reopen)))
+                                        lock_flag, need_reopen)))
     {
       if (thd->lex->requires_prelocking())
       {
