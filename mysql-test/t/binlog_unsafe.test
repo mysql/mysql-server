@@ -1,6 +1,8 @@
 # Test to check that a warning is generated for unsafe statements
 # executed under statement mode logging.
 
+source include/have_log_bin.inc;
+
 SET BINLOG_FORMAT=STATEMENT;
 
 CREATE TABLE t1 (a CHAR(40));
