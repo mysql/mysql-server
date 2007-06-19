@@ -3014,57 +3014,8 @@ void select_insert::send_error(uint errcode,const char *err)
 {
   DBUG_ENTER("select_insert::send_error");
 
-  /* Avoid an extra 'unknown error' message if we already reported an error */
-  if (errcode != ER_UNKNOWN_ERROR && !thd->net.report_error)
-    my_message(errcode, err, MYF(0));
+  my_message(errcode, err, MYF(0));
 
-  /*
-    If the creation of the table failed (due to a syntax error, for
-    example), no table will have been opened and therefore 'table'
-    will be NULL. In that case, we still need to execute the rollback
-    and the end of the function.
-   */
-  if (table)
-  {
-    /*
-      If we are not in prelocked mode, we end the bulk insert started
-      before.
-    */
-    if (!thd->prelocked_mode)
-      table->file->ha_end_bulk_insert();
-
-    /*
-      If at least one row has been inserted/modified and will stay in
-      the table (the table doesn't have transactions) we must write to
-      the binlog (and the error code will make the slave stop).
-
-      For many errors (example: we got a duplicate key error while
-      inserting into a MyISAM table), no row will be added to the table,
-      so passing the error to the slave will not help since there will
-      be an error code mismatch (the inserts will succeed on the slave
-      with no error).
-
-      If table creation failed, the number of rows modified will also be
-      zero, so no check for that is made.
-    */
-    if (info.copied || info.deleted || info.updated)
-    {
-      DBUG_ASSERT(table != NULL);
-      if (!table->file->has_transactions())
-      {
-        if (mysql_bin_log.is_open())
-          thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query, thd->query_length,
-                            table->file->has_transactions(), FALSE);
-        if (!thd->current_stmt_binlog_row_based && !table->s->tmp_table &&
-            !can_rollback_data())
-          thd->no_trans_update.all= TRUE;
-        query_cache_invalidate3(thd, table, 1);
-      }
-    }
-    table->file->ha_release_auto_increment();
-  }
-
-  ha_rollback_stmt(thd);
   DBUG_VOID_RETURN;
 }
 
@@ -3152,6 +3103,59 @@ bool select_insert::send_eof()
      (info.copied ? autoinc_value_of_last_inserted_row : 0));
   ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
   DBUG_RETURN(0);
+}
+
+void select_insert::abort() {
+
+  DBUG_ENTER("select_insert::abort");
+  /*
+    If the creation of the table failed (due to a syntax error, for
+    example), no table will have been opened and therefore 'table'
+    will be NULL. In that case, we still need to execute the rollback
+    and the end of the function.
+   */
+  if (table)
+  {
+    /*
+      If we are not in prelocked mode, we end the bulk insert started
+      before.
+    */
+    if (!thd->prelocked_mode)
+      table->file->ha_end_bulk_insert();
+
+    /*
+      If at least one row has been inserted/modified and will stay in
+      the table (the table doesn't have transactions) we must write to
+      the binlog (and the error code will make the slave stop).
+
+      For many errors (example: we got a duplicate key error while
+      inserting into a MyISAM table), no row will be added to the table,
+      so passing the error to the slave will not help since there will
+      be an error code mismatch (the inserts will succeed on the slave
+      with no error).
+
+      If table creation failed, the number of rows modified will also be
+      zero, so no check for that is made.
+    */
+    if (info.copied || info.deleted || info.updated)
+    {
+      DBUG_ASSERT(table != NULL);
+      if (!table->file->has_transactions())
+      {
+        if (mysql_bin_log.is_open())
+          thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query, thd->query_length,
+                            table->file->has_transactions(), FALSE);
+        if (!thd->current_stmt_binlog_row_based && !table->s->tmp_table &&
+            !can_rollback_data())
+          thd->no_trans_update.all= TRUE;
+        query_cache_invalidate3(thd, table, 1);
+      }
+    }
+    table->file->ha_release_auto_increment();
+  }
+
+  ha_rollback_stmt(thd);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3571,6 +3575,14 @@ bool select_create::send_eof()
 void select_create::abort()
 {
   DBUG_ENTER("select_create::abort");
+
+  /*
+   Disable binlog, because we "roll back" partial inserts in ::abort
+   by removing the table, even for non-transactional tables.
+  */
+  tmp_disable_binlog(thd);
+  select_insert::abort();
+  reenable_binlog(thd);
 
   /*
     We roll back the statement, including truncating the transaction
