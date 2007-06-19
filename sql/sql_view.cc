@@ -1467,12 +1467,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     DBUG_RETURN(TRUE);
   }
 
-  if (mysql_bin_log.is_open())
-  {
-    thd->clear_error();
-    thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      thd->query, thd->query_length, FALSE, FALSE);
-  }
+  write_bin_log(thd, TRUE, thd->query, thd->query_length);
 
   send_ok(thd);
   VOID(pthread_mutex_unlock(&LOCK_open));
