@@ -359,6 +359,10 @@ sub mtr_report_stats ($) {
 		/skip-name-resolve mode/ or
 		/slave SQL thread aborted/ or
 		/Slave: .*Duplicate entry/ or
+		# Special case for Bug #26402 in show_check.test
+		# Question marks are not valid file name parts
+		# on Windows platforms. Ignore this error message. 
+		/\QCan't find file: '.\test\????????.frm'\E/ or
 		# Special case, made as specific as possible, for:
 		# Bug #28436: Incorrect position in SHOW BINLOG EVENTS causes
 		#             server coredump
