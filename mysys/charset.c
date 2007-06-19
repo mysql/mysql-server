@@ -573,6 +573,70 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
 }
 
 
+/**
+  Resolve character set by the character set name (utf8, latin1, ...).
+
+  The function tries to resolve character set by the specified name. If
+  there is character set with the given name, it is assigned to the "cs"
+  parameter and FALSE is returned. If there is no such character set,
+  "default_cs" is assigned to the "cs" and TRUE is returned.
+
+  @param[out] cs        Variable to store character set.
+  @param[in] cs_name    Character set name.
+  @param[in] default_cs Default character set.
+
+  @return FALSE if character set was resolved successfully; TRUE if there
+  is no character set with given name.
+*/
+
+bool resolve_charset(CHARSET_INFO **cs,
+                     const char *cs_name,
+                     CHARSET_INFO *default_cs)
+{
+  *cs= get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0));
+
+  if (*cs == NULL)
+  {
+    *cs= default_cs;
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+
+/**
+  Resolve collation by the collation name (utf8_general_ci, ...).
+
+  The function tries to resolve collation by the specified name. If there
+  is collation with the given name, it is assigned to the "cl" parameter
+  and FALSE is returned. If there is no such collation, "default_cl" is
+  assigned to the "cl" and TRUE is returned.
+
+  @param[out] cl        Variable to store collation.
+  @param[in] cl_name    Collation name.
+  @param[in] default_cl Default collation.
+
+  @return FALSE if collation was resolved successfully; TRUE if there is no
+  collation with given name.
+*/
+
+bool resolve_collation(CHARSET_INFO **cl,
+                       const char *cl_name,
+                       CHARSET_INFO *default_cl)
+{
+  *cl= get_charset_by_name(cl_name, MYF(0));
+
+  if (*cl == NULL)
+  {
+    *cl= default_cl;
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+
 /*
   Escape string with backslashes (\)
 
