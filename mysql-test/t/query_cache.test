@@ -1000,3 +1000,48 @@ set GLOBAL query_cache_min_res_unit=default;
 set GLOBAL query_cache_size= default;
 
 # End of 5.0 tests
+
+
+#
+# Bug #28211 RENAME DATABASE and query cache don't play nicely together
+#
+--disable_warnings
+drop database if exists db1;
+drop database if exists db2;
+--enable_warnings
+set GLOBAL query_cache_size=15*1024*1024;
+create database db1;
+use db1;
+create table t1(c1 int)engine=myisam;
+insert into t1(c1) values (1);
+select * from db1.t1 f;
+show status like 'Qcache_queries_in_cache';
+rename schema db1 to db2;
+show status like 'Qcache_queries_in_cache';
+drop database db2;
+set global query_cache_size=default;
+
+--disable_warnings
+drop database if exists db1;
+drop database if exists db3;
+--enable_wearnings
+set GLOBAL query_cache_size=15*1024*1024;
+create database db1;
+create database db3;
+use db1;
+create table t1(c1 int) engine=myisam;
+use db3;
+create table t1(c1 int) engine=myisam;
+use db1;
+insert into t1(c1) values (1);
+use mysql;
+select * from db1.t1;
+select c1+1 from db1.t1;
+select * from db3.t1;
+show status like 'Qcache_queries_in_cache';
+rename schema db1 to db2;
+show status like 'Qcache_queries_in_cache';
+drop database db2;
+drop database db3;
+
+# End of 5.1 tests
