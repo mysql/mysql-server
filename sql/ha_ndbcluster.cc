@@ -121,14 +121,14 @@ static uint ndbcluster_alter_table_flags(uint flags)
 #define ERR_RETURN(err)                  \
 {                                        \
   const NdbError& tmp= err;              \
-  ERR_PRINT(tmp);                        \
+  set_ndb_err(current_thd, tmp);         \
   DBUG_RETURN(ndb_to_mysql_error(&tmp)); \
 }
 
 #define ERR_BREAK(err, code)             \
 {                                        \
   const NdbError& tmp= err;              \
-  ERR_PRINT(tmp);                        \
+  set_ndb_err(current_thd, tmp);         \
   code= ndb_to_mysql_error(&tmp);        \
   break;                                 \
 }
@@ -278,11 +278,6 @@ inline
 int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans,
 		      bool force_release)
 {
-#ifdef NOT_USED
-  int m_batch_execute= 0;
-  if (m_batch_execute)
-    return 0;
-#endif
   h->release_completed_operations(trans, force_release);
   return h->m_ignore_no_key ?
     execute_no_commit_ignore_no_key(h,trans) :
@@ -294,11 +289,6 @@ int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans,
 inline
 int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
 {
-#ifdef NOT_USED
-  int m_batch_execute= 0;
-  if (m_batch_execute)
-    return 0;
-#endif
   return trans->execute(NdbTransaction::Commit,
                         NdbOperation::AbortOnError,
                         h->m_force_send);
@@ -307,11 +297,6 @@ int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
 inline
 int execute_commit(THD *thd, NdbTransaction *trans)
 {
-#ifdef NOT_USED
-  int m_batch_execute= 0;
-  if (m_batch_execute)
-    return 0;
-#endif
   return trans->execute(NdbTransaction::Commit,
                         NdbOperation::AbortOnError,
                         thd->variables.ndb_force_send);
@@ -321,11 +306,6 @@ inline
 int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans,
 			 bool force_release)
 {
-#ifdef NOT_USED
-  int m_batch_execute= 0;
-  if (m_batch_execute)
-    return 0;
-#endif
   h->release_completed_operations(trans, force_release);
   return trans->execute(NdbTransaction::NoCommit,
                         NdbOperation::AO_IgnoreError,
@@ -536,13 +516,51 @@ void ha_ndbcluster::no_uncommitted_rows_reset(THD *thd)
   DBUG_VOID_RETURN;
 }
 
+/*
+  Sets the latest ndb error code on the thd_ndb object such that it
+  can be retrieved later to know which ndb error caused the handler
+  error.
+*/
+static void set_ndb_err(THD *thd, const NdbError &err)
+{
+  DBUG_ENTER("set_ndb_err");
+  ERR_PRINT(err);
+
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  if (thd_ndb == NULL)
+    DBUG_VOID_RETURN;
+#ifdef NOT_YET
+  /*
+    Check if error code is overwritten, in this case the original
+    failure cause will be lost.  E.g. if 4350 error is given. So
+    push a warning so that it can be detected which is the root
+    error cause.
+  */
+  if (thd_ndb->m_query_id == thd->query_id &&
+      thd_ndb->m_error_code != 0 &&
+      thd_ndb->m_error_code != err.code)
+  {
+    char buf[FN_REFLEN];
+    ndb_error_string(thd_ndb->m_error_code, buf, sizeof(buf));
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+			ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+			thd_ndb->m_error_code, buf, "NDB");
+  }
+#endif
+  thd_ndb->m_query_id= thd->query_id;
+  thd_ndb->m_error_code= err.code;
+  DBUG_VOID_RETURN;
+}
+
 int ha_ndbcluster::ndb_err(NdbTransaction *trans)
 {
+  THD *thd= current_thd;
   int res;
   NdbError err= trans->getNdbError();
   DBUG_ENTER("ndb_err");
   
-  ERR_PRINT(err);
+  set_ndb_err(thd, err);
+
   switch (err.classification) {
   case NdbError::SchemaError:
   {
@@ -553,7 +571,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
     bzero((char*) &table_list,sizeof(table_list));
     table_list.db= m_dbname;
     table_list.alias= table_list.table_name= m_tabname;
-    close_cached_tables(current_thd, 0, &table_list);
+    close_cached_tables(thd, 0, &table_list);
     break;
   }
   default:
@@ -2925,7 +2943,8 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
    * If IGNORE the ignore constraint violations on primary and unique keys,
    * but check that it is not part of INSERT ... ON DUPLICATE KEY UPDATE
    */
-  if (m_ignore_dup_key && thd->lex->sql_command == SQLCOM_UPDATE)
+  if (m_ignore_dup_key && (thd->lex->sql_command == SQLCOM_UPDATE ||
+                           thd->lex->sql_command == SQLCOM_UPDATE_MULTI))
   {
     int peek_res= peek_indexed_rows(new_data, pk_update);
     
@@ -4267,8 +4286,6 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
 extern MASTER_INFO *active_mi;
 static int ndbcluster_update_apply_status(THD *thd, int do_update)
 {
-  return 0;
-
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
   NDBDICT *dict= ndb->getDictionary();
@@ -4597,7 +4614,7 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   {
     const NdbError err= trans->getNdbError();
     const NdbOperation *error_op= trans->getNdbErrorOperation();
-    ERR_PRINT(err);
+    set_ndb_err(thd, err);
     res= ndb_to_mysql_error(&err);
     if (res != -1)
       ndbcluster_print_error(res, error_op);
@@ -4648,7 +4665,7 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   {
     const NdbError err= trans->getNdbError();
     const NdbOperation *error_op= trans->getNdbErrorOperation();
-    ERR_PRINT(err);     
+    set_ndb_err(thd, err);
     res= ndb_to_mysql_error(&err);
     if (res != -1) 
       ndbcluster_print_error(res, error_op);
@@ -5233,7 +5250,7 @@ int ha_ndbcluster::create(const char *name,
   if (dict->createTable(tab) != 0) 
   {
     const NdbError err= dict->getNdbError();
-    ERR_PRINT(err);
+    set_ndb_err(thd, err);
     my_errno= ndb_to_mysql_error(&err);
     DBUG_RETURN(my_errno);
   }
@@ -5247,7 +5264,7 @@ int ha_ndbcluster::create(const char *name,
   {
     /* purecov: begin deadcode */
     const NdbError err= dict->getNdbError();
-    ERR_PRINT(err);
+    set_ndb_err(thd, err);
     my_errno= ndb_to_mysql_error(&err);
     DBUG_RETURN(my_errno);
     /* purecov: end */
@@ -5419,6 +5436,7 @@ int ha_ndbcluster::create_handler_files(const char *file,
     new_tab.setFrm(pack_data, pack_length);
     if (dict->alterTableGlobal(*tab, new_tab))
     {
+      set_ndb_err(current_thd, dict->getNdbError());
       error= ndb_to_mysql_error(&dict->getNdbError());
     }
     my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
@@ -5894,6 +5912,7 @@ retry_temporary_error1:
         default:
           break;
       }
+      set_ndb_err(thd, dict->getNdbError());
       res= ndb_to_mysql_error(&dict->getNdbError());
       DBUG_PRINT("info", ("error(1) %u", res));
     }
@@ -5933,6 +5952,7 @@ retry_temporary_error1:
           }
         }
       }
+      set_ndb_err(thd, dict->getNdbError());
       res= ndb_to_mysql_error(&dict->getNdbError());
       DBUG_PRINT("info", ("error(2) %u", res));
       break;
@@ -6057,7 +6077,7 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
                                        ulonglong nb_desired_values,
                                        ulonglong *first_value,
                                        ulonglong *nb_reserved_values)
-{  
+{
   int cache_size;
   Uint64 auto_value;
   DBUG_ENTER("get_auto_increment");
@@ -6081,7 +6101,7 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
     Ndb_tuple_id_range_guard g(m_share);
     if (m_skip_auto_increment &&
         ndb->readAutoIncrementValue(m_table, g.range, auto_value) ||
-        ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size))
+        ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size, increment, offset))
     {
       if (--retries &&
           ndb->getNdbError().status == NdbError::TemporaryError);
@@ -6292,6 +6312,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     Ndb *ndb= get_ndb();
     if (ndb->setDatabaseName(m_dbname))
     {
+      set_ndb_err(current_thd, ndb->getNdbError());
       res= ndb_to_mysql_error(&ndb->getNdbError());
       break;
     }
@@ -6652,7 +6673,7 @@ int ndbcluster_drop_database_impl(const char *path)
       const NdbError err= dict->getNdbError();
       if (err.code != 709 && err.code != 723)
       {
-        ERR_PRINT(err);
+        set_ndb_err(thd, err);
         ret= ndb_to_mysql_error(&err);
       }
     }
@@ -8373,6 +8394,7 @@ retry:
       my_sleep(retry_sleep);
       continue;
     }
+    set_ndb_err(current_thd, error);
     break;
   } while(1);
   DBUG_PRINT("exit", ("failed, reterr: %u, NdbError %u(%s)", reterr,
@@ -10013,7 +10035,7 @@ int ndbcluster_alter_tablespace(handlerton *hton,
 ndberror:
   err= dict->getNdbError();
 ndberror2:
-  ERR_PRINT(err);
+  set_ndb_err(thd, err);
   ndb_to_mysql_error(&err);
   
   my_error(error, MYF(0), errmsg);

@@ -5751,8 +5751,6 @@ restore:
 	RESTORE_SYM table_or_tables
 	{
 	   Lex->sql_command = SQLCOM_RESTORE_TABLE;
-           WARN_DEPRECATED(yythd, "5.2", "RESTORE TABLE",
-                           "MySQL Administrator (mysqldump, mysql)");
 	}
 	table_list FROM TEXT_STRING_sys
         {
@@ -5763,8 +5761,6 @@ backup:
 	BACKUP_SYM table_or_tables
 	{
 	   Lex->sql_command = SQLCOM_BACKUP_TABLE;
-           WARN_DEPRECATED(yythd, "5.2", "BACKUP TABLE",
-                           "MySQL Administrator (mysqldump, mysql)");
 	}
 	table_list TO_SYM TEXT_STRING_sys
         {
@@ -7509,7 +7505,8 @@ select_derived2:
         {
 	  LEX *lex= Lex;
 	  lex->derived_tables|= DERIVED_SUBQUERY;
-          if (!lex->expr_allows_subselect)
+          if (!lex->expr_allows_subselect ||
+              lex->sql_command == (int)SQLCOM_PURGE)
 	  {
             my_parse_error(ER(ER_SYNTAX_ERROR));
 	    MYSQL_YYABORT;
@@ -9049,6 +9046,7 @@ purge:
 	{
 	  LEX *lex=Lex;
 	  lex->type=0;
+          lex->sql_command = SQLCOM_PURGE;
 	} purge_options
 	{}
 	;
@@ -9060,7 +9058,6 @@ purge_options:
 purge_option:
         TO_SYM TEXT_STRING_sys
         {
-	   Lex->sql_command = SQLCOM_PURGE;
 	   Lex->to_log = $2.str;
         }
 	| BEFORE_SYM expr
@@ -11234,7 +11231,8 @@ subselect_init:
 subselect_start:
 	{
 	  LEX *lex=Lex;
-          if (!lex->expr_allows_subselect)
+          if (!lex->expr_allows_subselect ||
+              lex->sql_command == (int)SQLCOM_PURGE)
 	  {
             my_parse_error(ER(ER_SYNTAX_ERROR));
 	    MYSQL_YYABORT;

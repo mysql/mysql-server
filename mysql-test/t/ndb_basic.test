@@ -6,21 +6,29 @@ DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
 drop database if exists mysqltest;
 --enable_warnings
 
-## workaround for bug#16445
-## remove to reproduce bug and run tests from ndb start
-## and with ndb_autodiscover disabled. Fails on Linux 50 % of the times
-#CREATE TABLE t1 (
-#  pk1 INT NOT NULL PRIMARY KEY,
-#  attr1 INT NOT NULL,
-#  attr2 INT,
-#  attr3 VARCHAR(10)
-#) ENGINE=ndbcluster;
-#drop table t1;
+# workaround for bug#16445
+# remove to reproduce bug and run tests from ndb start
+# and with ndb_autodiscover disabled. Fails on Linux 50 % of the times
+CREATE TABLE t1 (
+  pk1 INT NOT NULL PRIMARY KEY,
+  attr1 INT NOT NULL,
+  attr2 INT,
+  attr3 VARCHAR(10)
+) ENGINE=ndbcluster;
+drop table t1;
 
 #
 # Basic test to show that the NDB 
 # table handler is working
 #
+
+#
+# Show status and variables
+#
+--replace_column 2 #
+SHOW GLOBAL STATUS LIKE 'ndb%';
+--replace_column 2 #
+SHOW GLOBAL VARIABLES LIKE 'ndb%';
 
 #
 # Create a normal table with primary key
@@ -752,46 +760,6 @@ INSERT INTO t1 VALUES
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
 
-# End of 5.0 tests
---echo End of 5.0 tests
-
-
-#
-# Bug #18483 Cannot create table with FK constraint
-# ndb does not support foreign key constraint, it is silently ignored
-# in line with other storage engines
-#
-CREATE TABLE t1 (a VARCHAR(255) NOT NULL,
-                 CONSTRAINT pk_a PRIMARY KEY (a))engine=ndb;
-CREATE TABLE t2(a VARCHAR(255) NOT NULL,
-                b VARCHAR(255) NOT NULL,
-                c VARCHAR(255) NOT NULL,
-                CONSTRAINT pk_b_c_id PRIMARY KEY (b,c),
-                CONSTRAINT fk_a FOREIGN KEY(a) REFERENCES t1(a))engine=ndb;
-drop table t1, t2;
-
-# bug#24301
-create table t1 (a int not null primary key, b int) engine=ndb;
-insert into t1 values(1,1),(2,2),(3,3);
-create table t2 like t1;
-insert into t2 select * from t1;
-select * from t1 order by a;
-select * from t2 order by a;
-drop table t1, t2;
-
-# create table if not exists
---disable_warnings
-create table t1 (a int not null primary key, b int not null default 0, c varchar(254)) engine=ndb;
-create table if not exists t1 (a int not null primary key, b int not null default 0, c varchar(254)) engine=ndb;
---enable_warnings
-
-# create like
-create table t2 like t1;
-
-# multi rename
-rename table t1 to t10, t2 to t20;
-drop table t10,t20;
-
 # delete
 create table t1 (a int not null primary key, b int not null) engine=ndb;
 create table t2 (a int not null primary key, b int not null) engine=ndb;
@@ -831,5 +799,45 @@ select * from t1 order by a;
 update ignore t1,t2 set a = 1, c = 1 where a = 3 and c = 3;
 select * from t1 order by a;
 drop table t1,t2;
+
+# End of 5.0 tests
+--echo End of 5.0 tests
+
+
+#
+# Bug #18483 Cannot create table with FK constraint
+# ndb does not support foreign key constraint, it is silently ignored
+# in line with other storage engines
+#
+CREATE TABLE t1 (a VARCHAR(255) NOT NULL,
+                 CONSTRAINT pk_a PRIMARY KEY (a))engine=ndb;
+CREATE TABLE t2(a VARCHAR(255) NOT NULL,
+                b VARCHAR(255) NOT NULL,
+                c VARCHAR(255) NOT NULL,
+                CONSTRAINT pk_b_c_id PRIMARY KEY (b,c),
+                CONSTRAINT fk_a FOREIGN KEY(a) REFERENCES t1(a))engine=ndb;
+drop table t1, t2;
+
+# bug#24301
+create table t1 (a int not null primary key, b int) engine=ndb;
+insert into t1 values(1,1),(2,2),(3,3);
+create table t2 like t1;
+insert into t2 select * from t1;
+select * from t1 order by a;
+select * from t2 order by a;
+drop table t1, t2;
+
+# create table if not exists
+--disable_warnings
+create table t1 (a int not null primary key, b int not null default 0, c varchar(254)) engine=ndb;
+create table if not exists t1 (a int not null primary key, b int not null default 0, c varchar(254)) engine=ndb;
+--enable_warnings
+
+# create like
+create table t2 like t1;
+
+# multi rename
+rename table t1 to t10, t2 to t20;
+drop table t10,t20;
 
 --echo End of 5.1 tests

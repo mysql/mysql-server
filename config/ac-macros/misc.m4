@@ -450,29 +450,6 @@ AC_DEFINE([HAVE_BOOL], [1], [bool is not defined by all C++ compilators])
 fi
 ])dnl
 
-AC_DEFUN([MYSQL_STACK_DIRECTION],
- [AC_CACHE_CHECK(stack direction for C alloca, ac_cv_c_stack_direction,
- [AC_TRY_RUN([#include <stdlib.h>
- int find_stack_direction ()
- {
-   static char *addr = 0;
-   auto char dummy;
-   if (addr == 0)
-     {
-       addr = &dummy;
-       return find_stack_direction ();
-     }
-   else
-     return (&dummy > addr) ? 1 : -1;
- }
- int main ()
- {
-   exit (find_stack_direction() < 0);
- }], ac_cv_c_stack_direction=1, ac_cv_c_stack_direction=-1,
-   ac_cv_c_stack_direction=0)])
- AC_DEFINE_UNQUOTED(STACK_DIRECTION, $ac_cv_c_stack_direction)
-])dnl
-
 AC_DEFUN([MYSQL_CHECK_LONGLONG_TO_FLOAT],
 [
 AC_MSG_CHECKING(if conversion of longlong to float works)
@@ -488,7 +465,9 @@ int main()
   fprintf(file,"%g\n",f);
   fclose(file);
   return (0);
-}], ac_cv_conv_longlong_to_float=`cat conftestval`, ac_cv_conv_longlong_to_float=0, ifelse([$2], , , ac_cv_conv_longlong_to_float=$2))])dnl
+}], ac_cv_conv_longlong_to_float=`cat conftestval`,
+    ac_cv_conv_longlong_to_float=0,
+    ac_cv_conv_longlong_to_float="yes")])dnl  # Cross compiling, assume can convert
 if test "$ac_cv_conv_longlong_to_float" = "1" -o "$ac_cv_conv_longlong_to_float" = "yes"
 then
   ac_cv_conv_longlong_to_float=yes

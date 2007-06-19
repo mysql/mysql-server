@@ -133,4 +133,28 @@ disconnect con3;
 connection default;
 drop table t1, t2;
 
-# End of 5.0 tests
+--echo End of 5.0 tests
+
+#
+# Bug #26380: LOCK TABLES + FLUSH LOGS causes deadlock
+#
+set @old_general_log= @@general_log;
+set @old_read_only= @@read_only;
+set global general_log= on;
+
+flush tables with read lock;
+flush logs;
+unlock tables;
+
+set global read_only=1;
+flush logs;
+unlock tables;
+
+flush tables with read lock;
+flush logs;
+unlock tables;
+
+set global general_log= @old_general_log;
+set global read_only= @old_read_only;
+
+--echo End of 5.1 tests

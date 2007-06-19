@@ -22,3 +22,26 @@ set binlog_format=statement;
 # Embedded server doesn't support binlogging
 --source include/rpl_events.inc
 
+#
+# Bug #28953  	Using events in a replication let the slave crash.
+#
+
+connection master;
+
+DELIMITER |;
+CREATE EVENT event1 ON SCHEDULE EVERY 1 YEAR
+DO BEGIN
+	select * from t1;
+END;|
+DELIMITER ;|
+
+ALTER EVENT event1 RENAME TO event2;
+
+sync_slave_with_master;
+
+connection master;
+
+DROP EVENT event2;
+
+sync_slave_with_master;
+

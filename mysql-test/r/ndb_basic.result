@@ -6,6 +6,34 @@ attr1 INT NOT NULL,
 attr2 INT,
 attr3 VARCHAR(10)
 ) ENGINE=ndbcluster;
+drop table t1;
+SHOW GLOBAL STATUS LIKE 'ndb%';
+Variable_name	Value
+Ndb_cluster_node_id	#
+Ndb_config_from_host	#
+Ndb_config_from_port	#
+Ndb_number_of_data_nodes	#
+SHOW GLOBAL VARIABLES LIKE 'ndb%';
+Variable_name	Value
+ndb_autoincrement_prefetch_sz	#
+ndb_cache_check_time	#
+ndb_connectstring	#
+ndb_extra_logging	#
+ndb_force_send	#
+ndb_index_stat_cache_entries	#
+ndb_index_stat_enable	#
+ndb_index_stat_update_freq	#
+ndb_report_thresh_binlog_epoch_slip	#
+ndb_report_thresh_binlog_mem_usage	#
+ndb_use_copying_alter_table	#
+ndb_use_exact_count	#
+ndb_use_transactions	#
+CREATE TABLE t1 (
+pk1 INT NOT NULL PRIMARY KEY,
+attr1 INT NOT NULL,
+attr2 INT,
+attr3 VARCHAR(10)
+) ENGINE=ndbcluster;
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	pk1	A	0	NULL	NULL		BTREE	
@@ -770,35 +798,6 @@ c	abc	ab
 d	ab	ab
 e	abc	abc
 DROP TABLE t1;
-End of 5.0 tests
-CREATE TABLE t1 (a VARCHAR(255) NOT NULL,
-CONSTRAINT pk_a PRIMARY KEY (a))engine=ndb;
-CREATE TABLE t2(a VARCHAR(255) NOT NULL,
-b VARCHAR(255) NOT NULL,
-c VARCHAR(255) NOT NULL,
-CONSTRAINT pk_b_c_id PRIMARY KEY (b,c),
-CONSTRAINT fk_a FOREIGN KEY(a) REFERENCES t1(a))engine=ndb;
-drop table t1, t2;
-create table t1 (a int not null primary key, b int) engine=ndb;
-insert into t1 values(1,1),(2,2),(3,3);
-create table t2 like t1;
-insert into t2 select * from t1;
-select * from t1 order by a;
-a	b
-1	1
-2	2
-3	3
-select * from t2 order by a;
-a	b
-1	1
-2	2
-3	3
-drop table t1, t2;
-create table t1 (a int not null primary key, b int not null default 0, c varchar(254)) engine=ndb;
-create table if not exists t1 (a int not null primary key, b int not null default 0, c varchar(254)) engine=ndb;
-create table t2 like t1;
-rename table t1 to t10, t2 to t20;
-drop table t10,t20;
 create table t1 (a int not null primary key, b int not null) engine=ndb;
 create table t2 (a int not null primary key, b int not null) engine=ndb;
 insert into t1 values (1,10), (2,20), (3,30);
@@ -867,7 +866,36 @@ select * from t1 order by a;
 a	b
 1	10
 2	10
-3	1
+3	30
 4	1
 drop table t1,t2;
+End of 5.0 tests
+CREATE TABLE t1 (a VARCHAR(255) NOT NULL,
+CONSTRAINT pk_a PRIMARY KEY (a))engine=ndb;
+CREATE TABLE t2(a VARCHAR(255) NOT NULL,
+b VARCHAR(255) NOT NULL,
+c VARCHAR(255) NOT NULL,
+CONSTRAINT pk_b_c_id PRIMARY KEY (b,c),
+CONSTRAINT fk_a FOREIGN KEY(a) REFERENCES t1(a))engine=ndb;
+drop table t1, t2;
+create table t1 (a int not null primary key, b int) engine=ndb;
+insert into t1 values(1,1),(2,2),(3,3);
+create table t2 like t1;
+insert into t2 select * from t1;
+select * from t1 order by a;
+a	b
+1	1
+2	2
+3	3
+select * from t2 order by a;
+a	b
+1	1
+2	2
+3	3
+drop table t1, t2;
+create table t1 (a int not null primary key, b int not null default 0, c varchar(254)) engine=ndb;
+create table if not exists t1 (a int not null primary key, b int not null default 0, c varchar(254)) engine=ndb;
+create table t2 like t1;
+rename table t1 to t10, t2 to t20;
+drop table t10,t20;
 End of 5.1 tests

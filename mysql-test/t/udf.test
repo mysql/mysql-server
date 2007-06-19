@@ -340,4 +340,28 @@ drop function metaphon;
 drop function myfunc_double;
 drop function myfunc_int;
 
+#
+# Bug #28921: Queries containing UDF functions are cached
+#
+
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+create table t1 (a char);
+
+set GLOBAL query_cache_size=1355776;
+reset query cache;
+
+select metaphon('MySQL') from t1;
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+
+select metaphon('MySQL') from t1;
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+
+drop table t1;
+drop function metaphon;
+set GLOBAL query_cache_size=default;
+
+
 --echo End of 5.0 tests.

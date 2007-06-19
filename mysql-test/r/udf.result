@@ -311,4 +311,27 @@ drop function f3;
 drop function metaphon;
 drop function myfunc_double;
 drop function myfunc_int;
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+create table t1 (a char);
+set GLOBAL query_cache_size=1355776;
+reset query cache;
+select metaphon('MySQL') from t1;
+metaphon('MySQL')
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+select metaphon('MySQL') from t1;
+metaphon('MySQL')
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+drop table t1;
+drop function metaphon;
+set GLOBAL query_cache_size=default;
 End of 5.0 tests.

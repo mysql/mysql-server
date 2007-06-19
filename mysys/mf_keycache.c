@@ -234,7 +234,7 @@ static void test_key_cache(KEY_CACHE *keycache,
 #endif
 
 #define KEYCACHE_HASH(f, pos)                                                 \
-(((ulong) ((pos) >> keycache->key_cache_shift)+                               \
+(((ulong) ((pos) / keycache->key_cache_block_size) +                          \
                                      (ulong) (f)) & (keycache->hash_entries-1))
 #define FILE_HASH(f)                 ((uint) (f) & (CHANGED_BLOCKS_HASH-1))
 
@@ -325,6 +325,9 @@ static int keycache_pthread_cond_signal(pthread_cond_t *cond);
 #endif /* defined(KEYCACHE_DEBUG) */
 
 #if !defined(DBUG_OFF)
+#if defined(inline)
+#undef inline
+#endif
 #define inline  /* disabled inline for easier debugging */
 static int fail_block(BLOCK_LINK *block);
 static int fail_hlink(HASH_LINK *hlink);
@@ -399,7 +402,6 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
 
   keycache->key_cache_mem_size= use_mem;
   keycache->key_cache_block_size= key_cache_block_size;
-  keycache->key_cache_shift= my_bit_log2(key_cache_block_size);
   DBUG_PRINT("info", ("key_cache_block_size: %u",
 		      key_cache_block_size));
 
@@ -422,7 +424,7 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
 		       ALIGN_SIZE(hash_links * sizeof(HASH_LINK)) +
 		       ALIGN_SIZE(sizeof(HASH_LINK*) *
                                   keycache->hash_entries))) +
-	     ((ulong) blocks << keycache->key_cache_shift) > use_mem)
+	     ((ulong) blocks * keycache->key_cache_block_size) > use_mem)
         blocks--;
       /* Allocate memory for cache page buffers */
       if ((keycache->block_mem=
@@ -2558,7 +2560,7 @@ uchar *key_cache_read(KEY_CACHE *keycache,
     inc_counter_for_resize_op(keycache);
     locked_and_incremented= TRUE;
     /* Requested data may not always be aligned to cache blocks. */
-    offset= (uint) (filepos & (keycache->key_cache_block_size-1));
+    offset= (uint) (filepos % keycache->key_cache_block_size);
     /* Read data in key_cache_block_size increments */
     do
     {
@@ -2756,7 +2758,7 @@ int key_cache_insert(KEY_CACHE *keycache,
     inc_counter_for_resize_op(keycache);
     locked_and_incremented= TRUE;
     /* Loaded data may not always be aligned to cache blocks. */
-    offset= (uint) (filepos & (keycache->key_cache_block_size-1));
+    offset= (uint) (filepos % keycache->key_cache_block_size);
     /* Load data in key_cache_block_size increments. */
     do
     {
@@ -3030,7 +3032,7 @@ int key_cache_write(KEY_CACHE *keycache,
     inc_counter_for_resize_op(keycache);
     locked_and_incremented= TRUE;
     /* Requested data may not always be aligned to cache blocks. */
-    offset= (uint) (filepos & (keycache->key_cache_block_size-1));
+    offset= (uint) (filepos % keycache->key_cache_block_size);
     /* Write data in key_cache_block_size increments. */
     do
     {

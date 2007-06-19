@@ -100,7 +100,9 @@ my_bool	vio_poll_read(Vio *vio,uint timeout);
 
 #define HEADER_DES_LOCL_H dummy_something
 #define YASSL_MYSQL_COMPATIBLE
+#ifndef YASSL_PREFIX
 #define YASSL_PREFIX
+#endif
 /* Set yaSSL to use same type as MySQL do for socket handles */
 typedef my_socket YASSL_SOCKET_T;
 #define YASSL_SOCKET_T_DEFINED
