@@ -5,9 +5,9 @@ CREATE TABLE t3 (b INT AUTO_INCREMENT PRIMARY KEY);
 CREATE VIEW v1(a,b) AS SELECT a,b FROM t2,t3;
 INSERT INTO t1 SELECT UUID();
 Warnings:
-Warning	1588	Statement is not safe to log in statement format.
+Warning	1589	Statement is not safe to log in statement format.
 SHOW WARNINGS;
 Level	Warning
-Code	1588
+Code	1589
 Message	Statement is not safe to log in statement format.
 DROP TABLE t1,t2,t3;
