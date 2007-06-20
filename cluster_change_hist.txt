@@ -2,7 +2,11 @@
 mysql-5.1.15-ndb-6.1.X
 ==================================================
 
-mysql-5.1.15-ndb-6.1.14 (2007-06-xx)
+mysql-5.1.15-ndb-6.1.15 (2007-06-20)
+
+  Bug #29229 memory corruption in dbtup
+
+mysql-5.1.15-ndb-6.1.14 (2007-06-19)
 
   Bug #29176 missing stack pruning in drop_page
   Bug #29167 Insufficient nodes for SR
