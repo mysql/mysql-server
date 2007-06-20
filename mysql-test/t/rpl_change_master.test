@@ -20,11 +20,11 @@ connection slave;
 stop slave;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 --replace_column 1 # 8 # 9 # 23 # 33 #
-show slave status;
+query_vertical show slave status;
 change master to master_user='root';
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 --replace_column 1 # 8 # 9 # 23 # 33 #
-show slave status;
+query_vertical show slave status;
 start slave;
 sync_with_master;
 select * from t1;
