@@ -68,8 +68,6 @@ ibool		srv_have_fullfsync = FALSE;
 
 ibool		srv_start_raw_disk_in_use = FALSE;
 
-ulint		srv_sizeof_trx_t_in_ha_innodb_cc;
-
 ibool		srv_startup_is_before_trx_rollback_phase = FALSE;
 ibool		srv_is_being_started = FALSE;
 #ifndef UNIV_HOTBACKUP
@@ -1044,18 +1042,6 @@ innobase_start_or_create_for_mysql(void)
 	fprintf(stderr,
 		"InnoDB: !!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!\n");
 #endif
-
-	if (srv_sizeof_trx_t_in_ha_innodb_cc != (ulint)sizeof(trx_t)) {
-		fprintf(stderr,
-			"InnoDB: Error: trx_t size is %lu in ha_innodb.cc"
-			" but %lu in srv0start.c\n"
-			"InnoDB: Check that pthread_mutex_t is defined"
-			" in the same way in these\n"
-			"InnoDB: compilation modules. Cannot continue.\n",
-			(ulong)  srv_sizeof_trx_t_in_ha_innodb_cc,
-			(ulong) sizeof(trx_t));
-		return(DB_ERROR);
-	}
 
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we

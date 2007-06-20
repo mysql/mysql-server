@@ -17,20 +17,6 @@ Created 11/26/1995 Heikki Tuuri
 #include "mtr0log.h"
 #include "log0log.h"
 
-/*******************************************************************
-Starts a mini-transaction and creates a mini-transaction handle
-and buffer in the memory buffer given by the caller. */
-
-mtr_t*
-mtr_start_noninline(
-/*================*/
-			/* out: mtr buffer which also acts as
-			the mtr handle */
-	mtr_t*	mtr)	/* in: memory buffer for the mtr buffer */
-{
-	return(mtr_start(mtr));
-}
-
 /*********************************************************************
 Releases the item in the slot given. */
 UNIV_INLINE

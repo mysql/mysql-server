@@ -43,17 +43,6 @@ the kernel mutex */
 ulint	trx_n_mysql_transactions = 0;
 
 /*****************************************************************
-Starts the transaction if it is not yet started. */
-
-void
-trx_start_if_not_started_noninline(
-/*===============================*/
-	trx_t*	trx) /* in: transaction */
-{
-	trx_start_if_not_started(trx);
-}
-
-/*****************************************************************
 Set detailed error message for the transaction. */
 
 void

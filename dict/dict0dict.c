@@ -320,55 +320,6 @@ dict_table_decrement_handle_count(
 	mutex_exit(&(dict_sys->mutex));
 }
 
-/*************************************************************************
-Gets the column data type. */
-
-void
-dict_col_copy_type_noninline(
-/*=========================*/
-	const dict_col_t*	col,	/* in: column */
-	dtype_t*		type)	/* out: data type */
-{
-	dict_col_copy_type(col, type);
-}
-
-/************************************************************************
-Gets the nth column of a table. */
-
-const dict_col_t*
-dict_table_get_nth_col_noninline(
-/*=============================*/
-					/* out: pointer to column object */
-	const dict_table_t*	table,	/* in: table */
-	ulint			pos)	/* in: position of column */
-{
-	return(dict_table_get_nth_col(table, pos));
-}
-
-/************************************************************************
-Gets the first index on the table (the clustered index). */
-
-dict_index_t*
-dict_table_get_first_index_noninline(
-/*=================================*/
-				/* out: index, NULL if none exists */
-	dict_table_t*	table)	/* in: table */
-{
-	return(dict_table_get_first_index(table));
-}
-
-/************************************************************************
-Gets the next index on the table. */
-
-dict_index_t*
-dict_table_get_next_index_noninline(
-/*================================*/
-				/* out: index, NULL if none left */
-	dict_index_t*	index)	/* in: index */
-{
-	return(dict_table_get_next_index(index));
-}
-
 /**************************************************************************
 Returns a column's name. */
 
@@ -728,19 +679,6 @@ dict_table_get_nth_col_pos(
 {
 	return(dict_index_get_nth_col_pos(dict_table_get_first_index(table),
 					  n));
-}
-
-/************************************************************************
-Check whether the table uses the compact page format. */
-
-ibool
-dict_table_is_comp_noninline(
-/*=========================*/
-					/* out: TRUE if table uses the
-					compact page format */
-	const dict_table_t*	table)	/* in: table */
-{
-	return(dict_table_is_comp(table));
 }
 
 /************************************************************************
@@ -1308,18 +1246,6 @@ dict_table_remove_from_cache(
 	dict_sys->size -= size;
 
 	dict_mem_table_free(table);
-}
-
-/*************************************************************************
-Gets the column position in the clustered index. */
-
-ulint
-dict_col_get_clust_pos_noninline(
-/*=============================*/
-	const dict_col_t*	col,		/* in: table column */
-	const dict_index_t*	clust_index)	/* in: clustered index */
-{
-	return(dict_col_get_clust_pos(col, clust_index));
 }
 
 /********************************************************************
@@ -4001,18 +3927,6 @@ dict_update_statistics(
 	dict_table_t*	table)	/* in: table */
 {
 	dict_update_statistics_low(table, FALSE);
-}
-
-/**************************************************************************
-A noninlined version of dict_table_get_low. */
-
-dict_table_t*
-dict_table_get_low_noninlined(
-/*==========================*/
-					/* out: table, NULL if not found */
-	const char*	table_name)	/* in: table name */
-{
-	return(dict_table_get_low(table_name));
 }
 
 /**************************************************************************

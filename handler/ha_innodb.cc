@@ -13,10 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307	 USA */
 
-/* This file defines the InnoDB handler: the interface between MySQL and InnoDB
-NOTE: You can only use noninlined InnoDB functions in this file, because we
-have disabled the InnoDB inlining in this file. */
-
 /* TODO list for the InnoDB handler in 5.0:
   - Remove the flag trx->active_trans and look at trx->conc_state
   - fix savepoint functions to use savepoint storage area
@@ -82,8 +78,6 @@ uses unsigned char; the header univ.i which we include next defines
 'byte' as a macro which expands to 'unsigned char' */
 
 typedef uchar mysql_byte;
-
-#define INSIDE_HA_INNOBASE_CC
 
 /* Include necessary InnoDB headers */
 extern "C" {
@@ -1163,9 +1157,9 @@ innobase_query_caching_of_table_permitted(
 				"search, latch though calling "
 				"innobase_query_caching_of_table_permitted.");
 
-		mutex_enter_noninline(&kernel_mutex);
+		mutex_enter(&kernel_mutex);
 		trx_print(stderr, trx, 1024);
-		mutex_exit_noninline(&kernel_mutex);
+		mutex_exit(&kernel_mutex);
 	}
 
 	innobase_release_stat_resources(trx);
@@ -1377,7 +1371,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
 	/* If the transaction is not started yet, start it */
 
-	trx_start_if_not_started_noninline(prebuilt->trx);
+	trx_start_if_not_started(prebuilt->trx);
 
 	/* Assign a read view if the transaction does not have it yet */
 
@@ -1662,8 +1656,6 @@ innobase_init(
 	modules, we check at run time that the size is the same in
 	these compilation modules. */
 
-	srv_sizeof_trx_t_in_ha_innodb_cc = sizeof(trx_t);
-
 	err = innobase_start_or_create_for_mysql();
 
 	if (err != DB_SUCCESS) {
@@ -1803,7 +1795,7 @@ innobase_start_trx_and_assign_read_view(
 
 	/* If the transaction is not started yet, start it */
 
-	trx_start_if_not_started_noninline(trx);
+	trx_start_if_not_started(trx);
 
 	/* Assign a read view if the transaction does not have it yet */
 
@@ -2003,7 +1995,7 @@ innobase_store_binlog_offset_and_flush_log(
 	assert(binlog_name != NULL);
 
 	/* Start a mini-transaction */
-	mtr_start_noninline(&mtr);
+	mtr_start(&mtr);
 
 	/* Update the latest MySQL binlog name and offset info
 	in trx sys header */
@@ -2303,7 +2295,7 @@ ha_innobase::get_row_type() const
 			/* out: ROW_TYPE_REDUNDANT or ROW_TYPE_COMPACT */
 {
 	if (prebuilt && prebuilt->table) {
-		if (dict_table_is_comp_noninline(prebuilt->table)) {
+		if (dict_table_is_comp(prebuilt->table)) {
 			return(ROW_TYPE_COMPACT);
 		} else {
 			return(ROW_TYPE_REDUNDANT);
@@ -3195,7 +3187,7 @@ build_template(
 		}
 	}
 
-	clust_index = dict_table_get_first_index_noninline(prebuilt->table);
+	clust_index = dict_table_get_first_index(prebuilt->table);
 
 	if (templ_type == ROW_MYSQL_REC_FIELDS) {
 		index = prebuilt->index;
@@ -3215,8 +3207,7 @@ build_template(
 
 	if (!prebuilt->mysql_template) {
 		prebuilt->mysql_template = (mysql_row_templ_t*)
-						mem_alloc_noninline(
-					n_fields * sizeof(mysql_row_templ_t));
+			mem_alloc(n_fields * sizeof(mysql_row_templ_t));
 	}
 
 	prebuilt->template_type = templ_type;
@@ -3274,7 +3265,7 @@ include_field:
 		templ->col_no = i;
 
 		if (index == clust_index) {
-			templ->rec_field_no = dict_col_get_clust_pos_noninline(
+			templ->rec_field_no = dict_col_get_clust_pos(
 				&index->table->cols[i], index);
 		} else {
 			templ->rec_field_no = dict_index_get_nth_col_pos(
@@ -3312,8 +3303,8 @@ include_field:
 				(((Field_varstring*)field)->length_bytes);
 		}
 
-		templ->charset = dtype_get_charset_coll_noninline(
-				index->table->cols[i].prtype);
+		templ->charset = dtype_get_charset_coll(
+			index->table->cols[i].prtype);
 		templ->mbminlen = index->table->cols[i].mbminlen;
 		templ->mbmaxlen = index->table->cols[i].mbmaxlen;
 		templ->is_unsigned = index->table->cols[i].prtype
@@ -3334,7 +3325,7 @@ skip_field:
 		for (i = 0; i < n_requested_fields; i++) {
 			templ = prebuilt->mysql_template + i;
 
-			templ->rec_field_no = dict_col_get_clust_pos_noninline(
+			templ->rec_field_no = dict_col_get_clust_pos(
 				&index->table->cols[templ->col_no],
 				clust_index);
 		}
@@ -3604,7 +3595,7 @@ calc_row_difference(
 	uint		i;
 
 	n_fields = table->s->fields;
-	clust_index = dict_table_get_first_index_noninline(prebuilt->table);
+	clust_index = dict_table_get_first_index(prebuilt->table);
 
 	/* We use upd_buff to convert changed fields */
 	buf = (byte*) upd_buff;
@@ -3683,8 +3674,8 @@ calc_row_difference(
 			/* Let us use a dummy dfield to make the conversion
 			from the MySQL column format to the InnoDB format */
 
-			dict_col_copy_type_noninline(prebuilt->table->cols + i,
-						     &dfield.type);
+			dict_col_copy_type(prebuilt->table->cols + i,
+					   &dfield.type);
 
 			if (n_len != UNIV_SQL_NULL) {
 				buf = row_mysql_store_col_in_innobase_format(
@@ -3693,8 +3684,7 @@ calc_row_difference(
 					TRUE,
 					new_mysql_row_col,
 					col_pack_len,
-					dict_table_is_comp_noninline(
-							prebuilt->table));
+					dict_table_is_comp(prebuilt->table));
 				ufield->new_val.data = dfield.data;
 				ufield->new_val.len = dfield.len;
 			} else {
@@ -3703,7 +3693,7 @@ calc_row_difference(
 			}
 
 			ufield->exp = NULL;
-			ufield->field_no = dict_col_get_clust_pos_noninline(
+			ufield->field_no = dict_col_get_clust_pos(
 				&prebuilt->table->cols[i], clust_index);
 			n_changed++;
 		}
@@ -4176,8 +4166,7 @@ ha_innobase::change_active_index(
 		prebuilt->index = dict_table_get_index_on_name(
 			prebuilt->table, key->name);
 	} else {
-		prebuilt->index = dict_table_get_first_index_noninline(
-			prebuilt->table);
+		prebuilt->index = dict_table_get_first_index(prebuilt->table);
 	}
 
 	if (!prebuilt->index) {
@@ -4567,7 +4556,7 @@ innodb_check_for_record_too_big_error(
 {
 	if (error == (int)DB_TOO_BIG_RECORD) {
 		ulint	max_row_size
-			= page_get_free_space_of_empty_noninline(comp) / 2;
+			= page_get_free_space_of_empty(comp) / 2;
 
 		my_error(ER_TOO_BIG_ROWSIZE, MYF(0), max_row_size);
 	}
@@ -5547,7 +5536,7 @@ ha_innobase::estimate_rows_upper_bound(void)
 
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 
-	index = dict_table_get_first_index_noninline(prebuilt->table);
+	index = dict_table_get_first_index(prebuilt->table);
 
 	ut_a(index->stat_n_leaf_pages > 0);
 
@@ -5741,10 +5730,10 @@ ha_innobase::info(
 	}
 
 	if (flag & HA_STATUS_CONST) {
-		index = dict_table_get_first_index_noninline(ib_table);
+		index = dict_table_get_first_index(ib_table);
 
 		if (prebuilt->clust_index_was_generated) {
-			index = dict_table_get_next_index_noninline(index);
+			index = dict_table_get_next_index(index);
 		}
 
 		for (i = 0; i < table->s->keys; i++) {
@@ -5802,7 +5791,7 @@ ha_innobase::info(
 				  rec_per_key;
 			}
 
-			index = dict_table_get_next_index_noninline(index);
+			index = dict_table_get_next_index(index);
 		}
 	}
 
@@ -5957,7 +5946,7 @@ ha_innobase::update_table_comment(
 
 	/* output the data to a temporary file */
 
-	mutex_enter_noninline(&srv_dict_tmpfile_mutex);
+	mutex_enter(&srv_dict_tmpfile_mutex);
 	rewind(srv_dict_tmpfile);
 
 	fprintf(srv_dict_tmpfile, "InnoDB free: %lu kB",
@@ -5990,7 +5979,7 @@ ha_innobase::update_table_comment(
 		pos[flen] = 0;
 	}
 
-	mutex_exit_noninline(&srv_dict_tmpfile_mutex);
+	mutex_exit(&srv_dict_tmpfile_mutex);
 
 	prebuilt->trx->op_info = (char*)"";
 
@@ -6026,7 +6015,7 @@ ha_innobase::get_foreign_key_create_info(void)
 
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 
-	mutex_enter_noninline(&srv_dict_tmpfile_mutex);
+	mutex_enter(&srv_dict_tmpfile_mutex);
 	rewind(srv_dict_tmpfile);
 
 	/* output the data to a temporary file */
@@ -6052,7 +6041,7 @@ ha_innobase::get_foreign_key_create_info(void)
 		str[flen] = 0;
 	}
 
-	mutex_exit_noninline(&srv_dict_tmpfile_mutex);
+	mutex_exit(&srv_dict_tmpfile_mutex);
 
 	return(str);
 }
@@ -6068,7 +6057,7 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
   update_thd(ha_thd());
   prebuilt->trx->op_info = (char*)"getting list of foreign keys";
   trx_search_latch_release_if_reserved(prebuilt->trx);
-  mutex_enter_noninline(&(dict_sys->mutex));
+  mutex_enter(&(dict_sys->mutex));
   foreign = UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
 
   while (foreign != NULL) {
@@ -6180,7 +6169,7 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
 	  f_key_list->push_back(pf_key_info);
 	  foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
   }
-  mutex_exit_noninline(&(dict_sys->mutex));
+  mutex_exit(&(dict_sys->mutex));
   prebuilt->trx->op_info = (char*)"";
 
   DBUG_RETURN(0);
@@ -6697,7 +6686,7 @@ innodb_show_status(
 	long	flen, usable_len;
 	char*	str;
 
-	mutex_enter_noninline(&srv_monitor_file_mutex);
+	mutex_enter(&srv_monitor_file_mutex);
 	rewind(srv_monitor_file);
 	srv_printf_innodb_monitor(srv_monitor_file,
 				&trx_list_start, &trx_list_end);
@@ -6718,7 +6707,7 @@ innodb_show_status(
 	read the contents of the temporary file */
 
 	if (!(str = (char*) my_malloc(usable_len + 1, MYF(0)))) {
-	  mutex_exit_noninline(&srv_monitor_file_mutex);
+	  mutex_exit(&srv_monitor_file_mutex);
 	  DBUG_RETURN(TRUE);
 	}
 
@@ -6743,7 +6732,7 @@ innodb_show_status(
 		flen = (long) fread(str, 1, MAX_STATUS_SIZE - 1, srv_monitor_file);
 	}
 
-	mutex_exit_noninline(&srv_monitor_file_mutex);
+	mutex_exit(&srv_monitor_file_mutex);
 
 	bool result = FALSE;
 
@@ -6780,7 +6769,7 @@ innodb_mutex_show_status(
 	uint	  hton_name_len= strlen(innobase_hton_name), buf1len, buf2len;
 	DBUG_ENTER("innodb_mutex_show_status");
 
-	mutex_enter_noninline(&mutex_list_mutex);
+	mutex_enter(&mutex_list_mutex);
 
 	mutex = UT_LIST_GET_FIRST(mutex_list);
 
@@ -6806,8 +6795,7 @@ innodb_mutex_show_status(
 				if (stat_print(thd, innobase_hton_name,
 						hton_name_len, buf1, buf1len,
 						buf2, buf2len)) {
-					mutex_exit_noninline(
-						&mutex_list_mutex);
+					mutex_exit(&mutex_list_mutex);
 					DBUG_RETURN(1);
 				}
 			}
@@ -6829,7 +6817,7 @@ innodb_mutex_show_status(
 		if (stat_print(thd, innobase_hton_name,
 			       hton_name_len, buf1, buf1len,
 			       buf2, buf2len)) {
-			mutex_exit_noninline(&mutex_list_mutex);
+			mutex_exit(&mutex_list_mutex);
 			DBUG_RETURN(1);
 		}
 #endif /* UNIV_DEBUG */
@@ -6837,7 +6825,7 @@ innodb_mutex_show_status(
 		mutex = UT_LIST_GET_NEXT(list, mutex);
 	}
 
-	mutex_exit_noninline(&mutex_list_mutex);
+	mutex_exit(&mutex_list_mutex);
 
 #ifdef UNIV_DEBUG
 	buf2len= my_snprintf(buf2, sizeof(buf2),
@@ -7889,13 +7877,13 @@ innobase_create_index_def(
 
 	DBUG_ENTER("innobase_create_index_def");
 
-	index->fields = (merge_index_field_t*) mem_heap_alloc_noninline(
+	index->fields = (merge_index_field_t*) mem_heap_alloc(
 		heap, n_fields * sizeof *index->fields);
 
 	index->ind_type = 0;
 	index->n_fields = n_fields;
 	len = strlen(key->name) + 2;
-	index->name = (char *)mem_heap_alloc_noninline(heap, len);
+	index->name = (char *)mem_heap_alloc(heap, len);
 
 	--len;
 
@@ -7969,7 +7957,7 @@ innobase_copy_index_def(
 		n_fields = index->n_fields;
 	}
 
-	new_index->fields = (merge_index_field_t*) mem_heap_alloc_noninline(
+	new_index->fields = (merge_index_field_t*) mem_heap_alloc(
 		heap, n_fields * sizeof *new_index->fields);
 
 	new_index->ind_type = index->type;
@@ -8024,7 +8012,7 @@ innobase_create_key_def(
 	const ulint n_indexes = n_keys + UT_LIST_GET_LEN(table->indexes) - 1;
 
 	indexdef = indexdefs = (merge_index_def_t*)
-		mem_heap_alloc_noninline(heap, sizeof *indexdef * n_indexes);
+		mem_heap_alloc(heap, sizeof *indexdef * n_indexes);
 
 	/* Primary key if defined is always the first index defined for
 	the table */
@@ -8043,8 +8031,8 @@ innobase_create_key_def(
 
 		/* Skip the clustered index */
 
-		index = dict_table_get_next_index_noninline(
-				dict_table_get_first_index_noninline(table));
+		index = dict_table_get_next_index(
+			dict_table_get_first_index(table));
 
 		/* Copy the definitions of old secondary indexes */
 
@@ -8053,7 +8041,7 @@ innobase_create_key_def(
 			ut_a(!dict_index_is_clust(index));
 
 			innobase_copy_index_def(index, indexdef++, heap);
-			index = dict_table_get_next_index_noninline(index);
+			index = dict_table_get_next_index(index);
 		}
 
 		row_mysql_unlock_data_dictionary(trx);
@@ -8090,7 +8078,7 @@ innobase_create_temporary_tablename(
 
 	len = strlen(table_name) + 3;
 
-	name = (char*) mem_heap_alloc_noninline(heap, len);
+	name = (char*) mem_heap_alloc(heap, len);
 	/* The prefix must be 2 bytes, and the second byte must not be 'd'.
 	See fil_make_ibd_name(). */
 	name[0] = TEMP_TABLE_PREFIX;
@@ -8131,12 +8119,12 @@ ha_innobase::add_index(
 
 	update_thd(ha_thd());
 
-	heap = mem_heap_create_noninline(1024);
+	heap = mem_heap_create(1024);
 
 	trx = check_trx_exists(user_thd);
 	trx_search_latch_release_if_reserved(trx);
 
-	trx_start_if_not_started_noninline(trx);
+	trx_start_if_not_started(trx);
 
 	innobase_register_stmt(ht, user_thd);
 
@@ -8161,7 +8149,7 @@ ha_innobase::add_index(
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 err_exit:
-		mem_heap_free_noninline(heap);
+		mem_heap_free(heap);
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 		DBUG_RETURN(convert_error_code_to_mysql(error, user_thd));
 	}
@@ -8207,7 +8195,7 @@ err_exit:
 
 	/* Allocate memory for dictionary index definitions */
 
-	index = (dict_index_t**) mem_heap_alloc_noninline(
+	index = (dict_index_t**) mem_heap_alloc(
 		heap, num_of_idx * sizeof *index);
 
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
@@ -8248,7 +8236,7 @@ err_exit:
 		row_mysql_unlock_data_dictionary(trx);
 		dict_locked = FALSE;
 
-		mem_heap_empty_noninline(heap);
+		mem_heap_empty(heap);
 
 		ut_a(trx->n_active_thrs == 0);
 		ut_a(UT_LIST_GET_LEN(trx->signals) == 0);
@@ -8327,7 +8315,7 @@ error_handling:
 		char*	tmp_table_name	= innobase_create_temporary_tablename(
 			heap, '2', innodb_table->name);
 
-		trx_start_if_not_started_noninline(trx);
+		trx_start_if_not_started(trx);
 
 		/* Write entry for UNDO */
 		error = row_undo_report_rename_table_dict_operation(
@@ -8372,7 +8360,7 @@ error_handling:
 	}
 
 func_exit:
-	mem_heap_free_noninline(heap);
+	mem_heap_free(heap);
 
 	/* There might be work for utility threads.*/
 	srv_active_wake_master_thread();
@@ -8519,7 +8507,7 @@ ha_innobase::prepare_drop_index(
 
 				error = DB_CANNOT_DROP_FOREIGN_INDEX;
 
-				mutex_enter_noninline(&dict_foreign_err_mutex);
+				mutex_enter(&dict_foreign_err_mutex);
 				rewind(ef);
 				ut_print_timestamp(ef);
 
@@ -8529,7 +8517,7 @@ ha_innobase::prepare_drop_index(
 				ut_print_name(ef, trx, TRUE,
 						foreign->foreign_table_name);
 				putc('\n', ef);
-				mutex_exit_noninline(&dict_foreign_err_mutex);
+				mutex_exit(&dict_foreign_err_mutex);
 
 				break;
 			}
@@ -8590,12 +8578,12 @@ ha_innobase::final_drop_index(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	index = dict_table_get_first_index_noninline(prebuilt->table);
+	index = dict_table_get_first_index(prebuilt->table);
 
 	while (index) {
 		dict_index_t*	next_index;
 
-		next_index = dict_table_get_next_index_noninline(index);
+		next_index = dict_table_get_next_index(index);
 
 		if (index->to_be_dropped) {
 
@@ -8748,7 +8736,7 @@ innobase_stat_zip_fill(
 	/* Determine log2(PAGE_ZIP_MIN_SIZE / 2 / BUF_BUDDY_LOW). */
 	for (uint r = PAGE_ZIP_MIN_SIZE / 2 / BUF_BUDDY_LOW; r >>= 1; y++);
 
-	mutex_enter_noninline(&buf_pool->mutex);
+	mutex_enter(&buf_pool->mutex);
 
 	for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
 		table->field[0]->store(BUF_BUDDY_LOW << x);
@@ -8787,7 +8775,7 @@ innobase_stat_zip_fill(
 		}
 	}
 
-	mutex_exit_noninline(&buf_pool->mutex);
+	mutex_exit(&buf_pool->mutex);
 	DBUG_RETURN(status);
 }
 
