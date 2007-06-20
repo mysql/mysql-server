@@ -67,7 +67,7 @@ public:
   ~Listener_thread();
   void run();
 private:
-  static const int LISTEN_BACK_LOG_SIZE= 5;     /* standard backlog size */
+  static const int LISTEN_BACK_LOG_SIZE;
   ulong total_connection_count;
   Thread_info thread_info;
 
@@ -79,6 +79,8 @@ private:
   int   create_tcp_socket();
   int   create_unix_socket(struct sockaddr_un &unix_socket_address);
 };
+
+const int Listener_thread::LISTEN_BACK_LOG_SIZE = 5; /* standard backlog size */
 
 
 Listener_thread::Listener_thread(const Listener_thread_args &args) :
