@@ -1048,7 +1048,7 @@ set global query_cache_size=default;
 --disable_warnings
 drop database if exists db1;
 drop database if exists db3;
---enable_wearnings
+--enable_warnings
 set GLOBAL query_cache_size=15*1024*1024;
 create database db1;
 create database db3;
