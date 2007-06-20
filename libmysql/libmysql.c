@@ -168,8 +168,23 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
 }
 
 
+/*
+  Free all memory and resources used by the client library
+
+  NOTES
+    When calling this there should not be any other threads using
+    the library.
+
+    To make things simpler when used with windows dll's (which calls this
+    function automaticly), it's safe to call this function multiple times.
+*/
+
+
 void STDCALL mysql_server_end()
 {
+  if (!mysql_client_init)
+    return;
+
 #ifdef EMBEDDED_LIBRARY
   end_embedded_server();
 #endif
