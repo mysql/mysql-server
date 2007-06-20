@@ -264,8 +264,20 @@ class Ndb_cond : public Sql_alloc
   ~Ndb_cond() 
   { 
     if (ndb_item) delete ndb_item; 
-    ndb_item= NULL; 
-    if (next) delete next;
+    ndb_item= NULL;
+    /*
+      First item in the linked list deletes all in a loop
+      Note - doing it recursively causes stack issues for
+      big IN clauses
+    */
+    Ndb_cond *n= next;
+    while (n)
+    {
+      Ndb_cond *tmp= n;
+      n= n->next;
+      tmp->next= NULL;
+      delete tmp;
+    }
     next= prev= NULL; 
   };
   Ndb_item *ndb_item;
