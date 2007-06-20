@@ -5501,6 +5501,21 @@ void Item_ref::make_field(Send_field *field)
 }
 
 
+Item *Item_ref::get_tmp_table_item(THD *thd)
+{
+  if (!result_field)
+    return (*ref)->get_tmp_table_item(thd);
+
+  Item_field *item= new Item_field(result_field);
+  if (item)
+  {
+    item->table_name= table_name;
+    item->db_name= db_name;
+  }
+  return item;
+}
+
+
 void Item_ref_null_helper::print(String *str)
 {
   str->append(STRING_WITH_LEN("<ref_null_helper>("));
