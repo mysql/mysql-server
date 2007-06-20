@@ -2,7 +2,25 @@
 mysql-5.1.15-ndb-6.1.X
 ==================================================
 
-mysql-5.1.15-ndb-6.1.11 (2007-05-06)
+mysql-5.1.15-ndb-6.1.15 (2007-06-20)
+
+  Bug #29229 memory corruption in dbtup
+
+mysql-5.1.15-ndb-6.1.14 (2007-06-19)
+
+  Bug #29176 missing stack pruning in drop_page
+  Bug #29167 Insufficient nodes for SR
+
+mysql-5.1.15-ndb-6.1.13 (2007-06-15)
+
+  Bug #29099 slow backup for disk data
+
+mysql-5.1.15-ndb-6.1.12 (2007-06-13)
+
+  Bug #29044 memory buddy allocator "unoptimal" memory handling
+  extend backup dump to give more info
+
+mysql-5.1.15-ndb-6.1.11 (2007-06-06)
 
   Bug #28751 Lots of memory locked in memory causes high kswapd
   Bug #28899 not possible to set separate watchdog timeout at startup
