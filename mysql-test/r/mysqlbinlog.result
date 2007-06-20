@@ -312,4 +312,10 @@ DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+CREATE TABLE t1 (c1 CHAR(10));
+flush logs;
+INSERT INTO t1 VALUES ('0123456789');
+flush logs;
+DROP TABLE t1;
+# 	Query	thread_id=REMOVED	exec_time=REMOVED	error_code=REMOVED
 End of 5.0 tests
