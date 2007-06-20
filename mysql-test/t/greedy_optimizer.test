@@ -145,11 +145,11 @@ select @@optimizer_prune_level;
 #
 # These are the values for the parameters that control the greedy optimizer
 # (total 6 combinations - 3 for optimizer_search_depth, 2 for optimizer_prune_level):
-#
+# 3:
 # set optimizer_search_depth=0;  - automatic
 # set optimizer_search_depth=1;  - min
 # set optimizer_search_depth=62; - max (default)
-#
+# 2:
 # set optimizer_prune_level=0 - exhaustive;
 # set optimizer_prune_level=1 - heuristic; # default
 

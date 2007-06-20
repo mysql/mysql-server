@@ -16079,7 +16079,8 @@ static void test_bug24179()
   Bug#28075 "COM_DEBUG crashes mysqld"
   Note: Test disabled because of failure in PushBuild.
 */
-#ifdef fix_bug_in_pb_first 
+#ifdef FIX_BUG_IN_PB_FIRST
+
 static void test_bug28075()
 {
   int rc;
@@ -16089,7 +16090,7 @@ static void test_bug28075()
 
   rc= mysql_dump_debug_info(mysql);
   DIE_UNLESS(rc == 0);
-  
+
   rc= mysql_ping(mysql);
   DIE_UNLESS(rc == 0);
 
@@ -16101,6 +16102,7 @@ static void test_bug28075()
 /*
   Bug#27876 (SF with cyrillic variable name fails during execution (regression))
 */
+
 static void test_bug27876()
 {
   int rc;
@@ -16165,6 +16167,7 @@ static void test_bug27876()
   Bug#28505: mysql_affected_rows() returns wrong value if CLIENT_FOUND_ROWS
   flag is set.
 */
+
 static void test_bug28505()
 {
   my_ulonglong res;
@@ -16554,7 +16557,7 @@ static struct my_tests_st my_tests[]= {
   { "test_status",   test_status   },
   { "test_bug24179", test_bug24179 },
   { "test_ps_query_cache", test_ps_query_cache },
-#ifdef fix_bug_in_pb_first 
+#ifdef FIX_BUG_IN_PB_FIRST
   { "test_bug28075", test_bug28075 },
 #endif
   { "test_bug27876", test_bug27876 },
