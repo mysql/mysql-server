@@ -8361,6 +8361,7 @@ error_handling:
 
 func_exit:
 	mem_heap_free(heap);
+	innobase_commit_low(trx);/* work around a bug in mysql_alter_table() */
 
 	/* There might be work for utility threads.*/
 	srv_active_wake_master_thread();
