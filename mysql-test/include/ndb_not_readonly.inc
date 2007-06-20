@@ -2,6 +2,8 @@
 #
 # wait for server to connect properly to cluster
 #
+set @saved_log = @@sql_log_bin;
+set sql_log_bin = 0;
 --error 0,ER_NO_SUCH_TABLE,ER_OPEN_AS_READONLY,ER_GET_ERRMSG,ER_KEY_NOT_FOUND
 delete from mysql.ndb_apply_status where server_id=0;
 let $mysql_errno= 1;
@@ -22,6 +24,7 @@ while ($mysql_errno)
   }
 }
 delete from mysql.ndb_apply_status where server_id=0;
+set sql_log_bin = @saved_log;
 #
 # connected
 #
