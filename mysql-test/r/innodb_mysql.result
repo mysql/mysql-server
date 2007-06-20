@@ -625,4 +625,12 @@ t1	CREATE TABLE `t1` (
   `a` int(11) default NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='123'
 drop table t1;
+create table t1 (a int) engine=innodb;
+select * from t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+drop table t1;
+drop table t2;
+ERROR 42S02: Unknown table 't2'
+create table t2 (a int);
+drop table t2;
 End of 5.0 tests
