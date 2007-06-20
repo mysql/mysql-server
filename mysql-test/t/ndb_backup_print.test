@@ -64,3 +64,5 @@ insert into t1 values
 
 #NO.2 test output of backup after some simple SQL operations
 --exec $NDB_MGM --no-defaults -e "start backup" |sed -e 's/[0-9]//g' |sed -e 's/localhost//g' |sed -e 's/\.\.\.*//g'
+
+drop table t1;
