@@ -3397,6 +3397,8 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
     memcpy(rli->group_master_log_name, new_log_ident, ident_len+1);
     rli->notify_group_master_log_name_update();
     rli->group_master_log_pos= pos;
+    strmake(rli->group_relay_log_name, rli->event_relay_log_name,
+            sizeof(rli->group_relay_log_name) - 1);
     rli->group_relay_log_pos= rli->event_relay_log_pos;
     DBUG_PRINT("info", ("group_master_log_name: '%s' group_master_log_pos:\
 %lu",
