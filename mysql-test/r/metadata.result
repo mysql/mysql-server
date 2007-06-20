@@ -140,4 +140,45 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def			a	v_small	v_small	3	9	9	N	32769	0	63
 v_small
 214748364
+CREATE TABLE t1 (c1 CHAR(1));
+CREATE TABLE t2 (c2 CHAR(1));
+CREATE VIEW v1 AS SELECT t1.c1 FROM t1;
+CREATE VIEW v2 AS SELECT t2.c2 FROM t2;
+INSERT INTO t1 VALUES ('1'), ('2'), ('3');
+INSERT INTO t2 VALUES ('1'), ('2'), ('3'), ('2');
+SELECT v1.c1 FROM v1 JOIN t2 ON c1=c2 ORDER BY 1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	v1	c1	c1	254	1	1	Y	0	0	8
+c1
+1
+2
+2
+3
+SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	v1	c1	c1	254	1	1	Y	0	0	8
+def	test	t2	v2	c2	c2	254	1	1	Y	0	0	8
+c1	c2
+1	1
+2	2
+3	3
+2	2
+SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2 GROUP BY v1.c1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	v1	c1	c1	254	1	1	Y	32768	0	8
+def	test	t2	v2	c2	c2	254	1	1	Y	0	0	8
+c1	c2
+1	1
+2	2
+3	3
+SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2 GROUP BY v1.c1 ORDER BY v2.c2;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	v1	c1	c1	254	1	1	Y	32768	0	8
+def	test	t2	v2	c2	c2	254	1	1	Y	0	0	8
+c1	c2
+1	1
+2	2
+3	3
+DROP VIEW v1;
+DROP TABLE t1,t2;
 End of 5.0 tests
