@@ -16079,7 +16079,6 @@ static void test_bug24179()
   Bug#28075 "COM_DEBUG crashes mysqld"
   Note: Test disabled because of failure in PushBuild.
 */
-#ifdef FIX_BUG_IN_PB_FIRST
 
 static void test_bug28075()
 {
@@ -16096,7 +16095,6 @@ static void test_bug28075()
 
   DBUG_VOID_RETURN;
 }
-#endif
 
 
 /*
@@ -16557,9 +16555,7 @@ static struct my_tests_st my_tests[]= {
   { "test_status",   test_status   },
   { "test_bug24179", test_bug24179 },
   { "test_ps_query_cache", test_ps_query_cache },
-#ifdef FIX_BUG_IN_PB_FIRST
   { "test_bug28075", test_bug28075 },
-#endif
   { "test_bug27876", test_bug27876 },
   { "test_bug28505", test_bug28505 },
   { "test_bug28934", test_bug28934 },
