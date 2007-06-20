@@ -4097,6 +4097,7 @@ sub stop_all_servers () {
 		       pidfile  => $mysqld->{'path_pid'},
 		       sockfile => $mysqld->{'path_sock'},
 		       port     => $mysqld->{'port'},
+		       errfile   => $mysqld->{'path_myerr'},
 		      });
 
       $mysqld->{'pid'}= 0; # Assume we are done with it
@@ -4303,6 +4304,7 @@ sub run_testcase_stop_servers($$$) {
 			 pidfile  => $mysqld->{'path_pid'},
 			 sockfile => $mysqld->{'path_sock'},
 			 port     => $mysqld->{'port'},
+			 errfile   => $mysqld->{'path_myerr'},
 			});
 
 	$mysqld->{'pid'}= 0; # Assume we are done with it
@@ -4353,6 +4355,7 @@ sub run_testcase_stop_servers($$$) {
 			 pidfile  => $mysqld->{'path_pid'},
 			 sockfile => $mysqld->{'path_sock'},
 			 port     => $mysqld->{'port'},
+			 errfile   => $mysqld->{'path_myerr'},
 			});
 
 
