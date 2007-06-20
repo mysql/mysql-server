@@ -661,4 +661,12 @@ UPDATE t3 SET a = 'us' WHERE a = 'uk';
 SELECT * FROM t3 WHERE a = 'uk';
 a
 DROP TABLE t1,t2,t3;
+create table t1 (a int) engine=innodb;
+select * from t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+drop table t1;
+drop table t2;
+ERROR 42S02: Unknown table 't2'
+create table t2 (a int);
+drop table t2;
 End of 5.0 tests
