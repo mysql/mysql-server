@@ -290,7 +290,7 @@ sub mtr_report_stats ($) {
             if ( /$pattern/ )
             {
               $found_problems= 1;
-              print WARN $_;
+              print WARN basename($errlog) . ": $_";
             }
           }
         }
