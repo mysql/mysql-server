@@ -636,4 +636,18 @@ SELECT * FROM t3 WHERE a = 'uk';
 
 DROP TABLE t1,t2,t3;
 
+#
+# Test bug when trying to drop data file which no InnoDB directory entry
+#
+
+create table t1 (a int) engine=innodb;
+copy_file $MYSQLTEST_VARDIR/master-data/test/t1.frm $MYSQLTEST_VARDIR/master-data/test/t2.frm;
+--error 1146
+select * from t2;
+drop table t1;
+--error 1051
+drop table t2;
+create table t2 (a int);
+drop table t2;
+
 --echo End of 5.0 tests
