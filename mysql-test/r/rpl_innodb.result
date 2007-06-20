@@ -77,31 +77,7 @@ SELECT COUNT(*) FROM mysqltest1.t1;
 COUNT(*)
 2
 FLUSH LOGS;
-SHOW BINLOG EVENTS IN 'slave-bin.000002' LIMIT 1,8;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-x	x	x	x	x	DROP DATABASE IF EXISTS mysqltest1
-x	x	x	x	x	CREATE DATABASE mysqltest1
-x	x	x	x	x	use `test`; CREATE TEMPORARY TABLE mysqltest1.tmp (f1 BIGINT)
-x	x	x	x	x	use `test`; CREATE TABLE mysqltest1.t1 (f1 BIGINT) ENGINE="InnoDB"
-x	x	x	x	x	use `test`; INSERT INTO mysqltest1.t1 SET f1= 1
-x	x	x	x	x	use `test`; DROP TEMPORARY TABLE mysqltest1.tmp
-x	x	x	x	x	use `test`; INSERT INTO mysqltest1.t1 SET f1= 2
-x	x	x	x	x	use `test`; CREATE TEMPORARY TABLE mysqltest1.tmp2(a INT)
 -------- switch to master --------
 FLUSH LOGS;
-SHOW BINLOG EVENTS IN 'master-bin.000002' LIMIT 1,12;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-x	x	x	x	x	DROP DATABASE IF EXISTS mysqltest1
-x	x	x	x	x	CREATE DATABASE mysqltest1
-x	x	x	x	x	use `test`; CREATE TEMPORARY TABLE mysqltest1.tmp (f1 BIGINT)
-x	x	x	x	x	use `test`; CREATE TABLE mysqltest1.t1 (f1 BIGINT) ENGINE="InnoDB"
-x	x	x	x	x	use `test`; BEGIN
-x	x	x	x	x	use `test`; INSERT INTO mysqltest1.t1 SET f1= 1
-x	x	x	x	x	use `test`; DROP TEMPORARY TABLE mysqltest1.tmp
-x	x	x	x	x	use `test`; ROLLBACK
-x	x	x	x	x	use `test`; BEGIN
-x	x	x	x	x	use `test`; INSERT INTO mysqltest1.t1 SET f1= 2
-x	x	x	x	x	use `test`; CREATE TEMPORARY TABLE mysqltest1.tmp2(a INT)
-x	x	x	x	x	use `test`; ROLLBACK
 DROP DATABASE mysqltest1;
 End of 5.1 tests
