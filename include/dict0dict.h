@@ -93,14 +93,6 @@ dict_col_copy_type(
 /*===============*/
 	const dict_col_t*	col,	/* in: column */
 	dtype_t*		type);	/* out: data type */
-/*************************************************************************
-Gets the column data type. */
-
-void
-dict_col_copy_type_noninline(
-/*=========================*/
-	const dict_col_t*	col,	/* in: column */
-	dtype_t*		type);	/* out: data type */
 #ifdef UNIV_DEBUG
 /*************************************************************************
 Assert that a column and a data type match. */
@@ -160,14 +152,6 @@ UNIV_INLINE
 ulint
 dict_col_get_clust_pos(
 /*===================*/
-	const dict_col_t*	col,		/* in: table column */
-	const dict_index_t*	clust_index);	/* in: clustered index */
-/*************************************************************************
-Gets the column position in the clustered index. */
-
-ulint
-dict_col_get_clust_pos_noninline(
-/*=============================*/
 	const dict_col_t*	col,		/* in: table column */
 	const dict_index_t*	clust_index);	/* in: clustered index */
 /********************************************************************
@@ -446,14 +430,6 @@ dict_table_get_on_id_low(
 				/* out: table, NULL if does not exist */
 	dulint	table_id);	/* in: table id */
 /**************************************************************************
-A noninlined version of dict_table_get_low. */
-
-dict_table_t*
-dict_table_get_low_noninlined(
-/*==========================*/
-					/* out: table, NULL if not found */
-	const char*	table_name);	/* in: table name */
-/**************************************************************************
 Returns an index object by matching on the name and column names and if
 more than index is found return the index with the higher id.*/
 
@@ -539,14 +515,6 @@ dict_table_get_first_index(
 				/* out: index, NULL if none exists */
 	dict_table_t*	table);	/* in: table */
 /************************************************************************
-Gets the first index on the table (the clustered index). */
-
-dict_index_t*
-dict_table_get_first_index_noninline(
-/*=================================*/
-				/* out: index, NULL if none exists */
-	dict_table_t*	table);	/* in: table */
-/************************************************************************
 Gets the next index on the table. */
 UNIV_INLINE
 dict_index_t*
@@ -554,15 +522,6 @@ dict_table_get_next_index(
 /*======================*/
 				/* out: index, NULL if none left */
 	dict_index_t*	index);	/* in: index */
-/************************************************************************
-Gets the next index on the table. */
-
-dict_index_t*
-dict_table_get_next_index_noninline(
-/*================================*/
-				/* out: index, NULL if none left */
-	dict_index_t*	index);	/* in: index */
-
 /************************************************************************
 Check whether the index is the clustered index. */
 UNIV_INLINE
@@ -638,15 +597,6 @@ dict_table_get_sys_col(
 ((table)->cols + (table)->n_cols + (sys) - DATA_N_SYS_COLS)
 #endif /* UNIV_DEBUG */
 /************************************************************************
-Gets the nth column of a table. */
-
-const dict_col_t*
-dict_table_get_nth_col_noninline(
-/*=============================*/
-					/* out: pointer to column object */
-	const dict_table_t*	table,	/* in: table */
-	ulint			pos);	/* in: position of column */
-/************************************************************************
 Gets the given system column number of a table. */
 UNIV_INLINE
 ulint
@@ -669,15 +619,6 @@ UNIV_INLINE
 ibool
 dict_table_is_comp(
 /*===============*/
-					/* out: TRUE if table uses the
-					compact page format */
-	const dict_table_t*	table);	/* in: table */
-/************************************************************************
-Check whether the table uses the compact page format. */
-
-ibool
-dict_table_is_comp_noninline(
-/*=========================*/
 					/* out: TRUE if table uses the
 					compact page format */
 	const dict_table_t*	table);	/* in: table */
@@ -1120,15 +1061,6 @@ dict_table_find_equivalent_index(
 /*=============================*/
 	dict_table_t*	table,  /* in/out: table */
 	dict_index_t*	index);	/* in: index to match */
-/**************************************************************************
-Find and return an index in the table that matches the index id.*/
-
-dict_index_t*
-dict_table_get_index_on_id_noninline(
-/*=================================*/
-				/* out: index, NULL if does not exist */
-	dict_table_t*	table,	/* in: table */
-	dulint		index_id);/* in: table id */
 /**************************************************************************
 In case there is more than one index with the same name return the index
 with the min(id). */

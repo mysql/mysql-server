@@ -18,26 +18,6 @@ Created 5/30/1994 Heikki Tuuri
 
 typedef struct big_rec_struct		big_rec_t;
 
-/* Some non-inlined functions used in the MySQL interface: */
-void
-dfield_set_data_noninline(
-	dfield_t*	field,	/* in: field */
-	void*		data,	/* in: data */
-	ulint		len);	/* in: length or UNIV_SQL_NULL */
-void*
-dfield_get_data_noninline(
-	dfield_t* field);	/* in: field */
-ulint
-dfield_get_len_noninline(
-	const dfield_t* field);	/* in: field */
-ulint
-dtuple_get_n_fields_noninline(
-	const dtuple_t*	tuple);	/* in: tuple */
-const dfield_t*
-dtuple_get_nth_field_noninline(
-	const dtuple_t*	tuple,	/* in: tuple */
-	ulint		n);	/* in: index of field */
-
 #ifdef UNIV_DEBUG
 /*************************************************************************
 Gets pointer to the type struct of SQL data field. */

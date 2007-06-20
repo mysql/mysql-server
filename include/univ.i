@@ -142,7 +142,7 @@ by one. */
 			/* the above option enables basic recovery debugging:
 			new allocated file pages are reset */
 
-#if (!defined(UNIV_DEBUG) && !defined(INSIDE_HA_INNOBASE_CC) && !defined(UNIV_MUST_NOT_INLINE))
+#if (!defined(UNIV_DEBUG) && !defined(UNIV_MUST_NOT_INLINE))
 /* Definition for inline version */
 
 #ifdef __WIN__

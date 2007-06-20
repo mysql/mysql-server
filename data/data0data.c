@@ -29,41 +29,6 @@ ulint	data_dummy;	/* this is used to fool the compiler in
 			dtuple_validate */
 #endif /* UNIV_DEBUG */
 
-/* Some non-inlined functions used in the MySQL interface: */
-void
-dfield_set_data_noninline(
-	dfield_t*	field,	/* in: field */
-	void*		data,	/* in: data */
-	ulint		len)	/* in: length or UNIV_SQL_NULL */
-{
-	dfield_set_data(field, data, len);
-}
-void*
-dfield_get_data_noninline(
-	dfield_t* field)	/* in: field */
-{
-	return(dfield_get_data(field));
-}
-ulint
-dfield_get_len_noninline(
-	const dfield_t* field)	/* in: field */
-{
-	return(dfield_get_len(field));
-}
-ulint
-dtuple_get_n_fields_noninline(
-	const dtuple_t*	tuple)	/* in: tuple */
-{
-	return(dtuple_get_n_fields(tuple));
-}
-const dfield_t*
-dtuple_get_nth_field_noninline(
-	const dtuple_t*	tuple,	/* in: tuple */
-	ulint		n)	/* in: index of field */
-{
-	return(dtuple_get_nth_field(tuple, n));
-}
-
 /*************************************************************************
 Tests if dfield data length and content is equal to the given. */
 
