@@ -1,0 +1,77 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+**** On Master ****
+CREATE USER dummy@localhost;
+CREATE USER dummy1@localhost, dummy2@localhost;
+SELECT user, host FROM mysql.user;
+user	host
+root	127.0.0.1
+dummy	localhost
+dummy1	localhost
+dummy2	localhost
+root	localhost
+root	romeo.kindahl.net
+**** On Slave ****
+SELECT user,host FROM mysql.user;
+user	host
+root	127.0.0.1
+dummy	localhost
+dummy1	localhost
+dummy2	localhost
+root	localhost
+root	romeo.kindahl.net
+**** On Master ****
+DROP USER nonexisting@localhost;
+ERROR HY000: Operation DROP USER failed for 'nonexisting'@'localhost'
+DROP USER nonexisting@localhost, dummy@localhost;
+ERROR HY000: Operation DROP USER failed for 'nonexisting'@'localhost'
+DROP USER dummy1@localhost, dummy2@localhost;
+SELECT user, host FROM mysql.user;
+user	host
+root	127.0.0.1
+root	localhost
+root	romeo.kindahl.net
+**** On Slave ****
+SELECT user,host FROM mysql.user;
+user	host
+root	127.0.0.1
+root	localhost
+root	romeo.kindahl.net
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_PORT
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	609
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	Yes
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	609
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
