@@ -140,7 +140,7 @@ RWPool::release(Ptr<void> ptr)
     Uint32 ff = page->m_first_free;
 
     * (record_ptr + m_record_info.m_offset_next_pool) = ff;
-    page->m_first_free = ptr.i;
+    page->m_first_free = ptr.i & POOL_RECORD_MASK;
     page->m_ref_count = ref_cnt - 1;
     
     if (ff == REC_NIL)
