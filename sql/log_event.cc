@@ -1001,11 +1001,15 @@ void Log_event::print_header(FILE* file, PRINT_EVENT_INFO* print_event_info)
     }
     *c= '\0';
 
-    /* Non-full last line */
     if (hex_string[0])
+    {
+      /* Non-full last line */
       fprintf(file, "# %8.8lx %-48.48s |%s|\n# ",
 	     (unsigned long) (hexdump_from + (i & 0xfffffff0)),
              hex_string, char_string);
+    }
+    else
+      fprintf(file, "# ");
   }
 }
 
