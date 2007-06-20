@@ -6267,6 +6267,7 @@ Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table,
   is 2.
 ****************************************************************************/
 
+const uint Field_varstring::MAX_SIZE= UINT_MAX16;
 
 int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
 {
