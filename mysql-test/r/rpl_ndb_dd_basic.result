@@ -35,20 +35,20 @@ pk1	b	c
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; DROP TABLE IF EXISTS t1
-master-bin.000001	#	Query	1	#	CREATE LOGFILE GROUP lg1
+master-bin.000001	#	Query	1	#	use `test`; CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 16M
 UNDO_BUFFER_SIZE = 1M
 ENGINE=NDB
-master-bin.000001	#	Query	1	#	alter logfile group lg1
+master-bin.000001	#	Query	1	#	use `test`; alter logfile group lg1
 add undofile 'undofile02.dat'
 initial_size 4M engine=ndb
-master-bin.000001	#	Query	1	#	CREATE TABLESPACE ts1
+master-bin.000001	#	Query	1	#	use `test`; CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M
 ENGINE NDB
-master-bin.000001	#	Query	1	#	alter tablespace ts1
+master-bin.000001	#	Query	1	#	use `test`; alter tablespace ts1
 add datafile 'datafile02.dat'
 initial_size 4M engine=ndb
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t1
