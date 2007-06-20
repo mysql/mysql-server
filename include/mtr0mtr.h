@@ -155,16 +155,6 @@ mtr_start(
 			the mtr handle */
 	mtr_t*	mtr);	/* in: memory buffer for the mtr buffer */
 /*******************************************************************
-Starts a mini-transaction and creates a mini-transaction handle
-and buffer in the memory buffer given by the caller. */
-
-mtr_t*
-mtr_start_noninline(
-/*================*/
-			/* out: mtr buffer which also acts as
-			the mtr handle */
-	mtr_t*	mtr);	/* in: memory buffer for the mtr buffer */
-/*******************************************************************
 Commits a mini-transaction. */
 
 void

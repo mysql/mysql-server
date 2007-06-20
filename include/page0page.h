@@ -604,15 +604,6 @@ page_get_free_space_of_empty(
 			/* out: free space */
 	ulint	comp)	/* in: nonzero=compact page format */
 		__attribute__((const));
-/*****************************************************************
-Calculates free space if a page is emptied. */
-
-ulint
-page_get_free_space_of_empty_noninline(
-/*===================================*/
-			/* out: free space */
-	ulint	comp)	/* in: nonzero=compact page format */
-		__attribute__((const));
 /**************************************************************
 Returns the base extra size of a physical record.  This is the
 size of the fixed header, independent of the record size. */
