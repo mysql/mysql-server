@@ -104,14 +104,10 @@ SHOW CREATE TABLE mysqltest1.tmp2;
 # it can't be rolled back by the master's ROLLBACK.
 SELECT COUNT(*) FROM mysqltest1.t1;
 FLUSH LOGS;
---replace_column 1 x 2 x 3 x 4 x 5 x
-SHOW BINLOG EVENTS IN 'slave-bin.000002' LIMIT 1,8;
 
 --echo -------- switch to master --------
 connection master;
 FLUSH LOGS;
---replace_column 1 x 2 x 3 x 4 x 5 x
-SHOW BINLOG EVENTS IN 'master-bin.000002' LIMIT 1,12;
 
 DROP DATABASE mysqltest1;
 -- source include/master-slave-end.inc
