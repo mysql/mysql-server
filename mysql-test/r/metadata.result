@@ -179,6 +179,6 @@ c1	c2
 1	1
 2	2
 3	3
-DROP VIEW v1;
+DROP VIEW v1,v2;
 DROP TABLE t1,t2;
 End of 5.0 tests
