@@ -31,6 +31,7 @@ sync_slave_with_master;
 #
 # #28839 Errors in strict mode silently stop SQL thread if --slave-skip-errors exists
 #
+connection master;
 create table t1(a int primary key);
 insert into t1 values (1),(2);
 delete from t1 where @@server_id=1;
