@@ -286,7 +286,7 @@ CREATE TABLE t2 (
        var1 int(2) NOT NULL,
        var2 int(2) NOT NULL,
        PRIMARY KEY  (var1)
-     ) ENGINE=MyISAM DEFAULT CHARSET=ascii CHECKSUM=1;
+     ) ENGINE=ndbcluster DEFAULT CHARSET=ascii CHECKSUM=1;
 
 
 DELIMITER |;

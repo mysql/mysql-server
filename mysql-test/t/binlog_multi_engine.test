@@ -54,7 +54,6 @@ UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
 
 #UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
 
->>>>>>>
 error ER_BINLOG_LOGGING_IMPOSSIBLE;
 UPDATE t1n, t1b SET e = 2, b = 3 WHERE f = c;
 
