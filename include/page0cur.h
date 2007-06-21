@@ -150,8 +150,7 @@ page_cur_tuple_insert(
 	page_cur_t*	cursor,	/* in/out: a page cursor */
 	const dtuple_t*	tuple,	/* in: pointer to a data tuple */
 	dict_index_t*	index,	/* in: record descriptor */
-	const ulint*	ext,	/* in: array of extern field numbers */
-	ulint		n_ext,	/* in: number of elements in ext */
+	ulint		n_ext,	/* in: number of externally stored columns */
 	mtr_t*		mtr);	/* in: mini-transaction handle, or NULL */
 /***************************************************************
 Inserts a record next to page cursor. Returns pointer to inserted record if

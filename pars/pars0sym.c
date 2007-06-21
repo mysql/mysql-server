@@ -263,7 +263,7 @@ sym_tab_add_null_lit(
 
 	node->common.val.type.mtype = DATA_ERROR;
 
-	dfield_set_data(&(node->common.val), NULL, UNIV_SQL_NULL);
+	dfield_set_null(&node->common.val);
 
 	node->common.val_buf_size = 0;
 	node->prefetch_buf = NULL;
@@ -301,7 +301,7 @@ sym_tab_add_id(
 
 	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
 
-	dfield_set_data(&(node->common.val), NULL, UNIV_SQL_NULL);
+	dfield_set_null(&node->common.val);
 
 	node->common.val_buf_size = 0;
 	node->prefetch_buf = NULL;
@@ -340,7 +340,7 @@ sym_tab_add_bound_id(
 
 	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
 
-	dfield_set_data(&(node->common.val), NULL, UNIV_SQL_NULL);
+	dfield_set_null(&node->common.val);
 
 	node->common.val_buf_size = 0;
 	node->prefetch_buf = NULL;

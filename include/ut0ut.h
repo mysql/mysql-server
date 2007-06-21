@@ -138,12 +138,6 @@ ut_2_power_up(
 store the given number of bits. */
 #define UT_BITS_IN_BYTES(b) (((b) + 7) / 8)
 
-/****************************************************************
-Sort function for ulint arrays. */
-
-void
-ut_ulint_sort(ulint* arr, ulint* aux_arr, ulint low, ulint high);
-/*============================================================*/
 /**************************************************************
 Returns system time. We do not specify the format of the time returned:
 the only way to manipulate it is to use the function ut_difftime. */

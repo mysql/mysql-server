@@ -87,7 +87,49 @@ dfield_set_len(
 {
 	ut_ad(field);
 
+	field->ext = 0;
 	field->len = len;
+}
+
+/*************************************************************************
+Determines if a field is SQL NULL */
+UNIV_INLINE
+ulint
+dfield_is_null(
+/*===========*/
+				/* out: nonzero if SQL null data */
+	const dfield_t* field)	/* in: field */
+{
+	ut_ad(field);
+
+	return(field->len == UNIV_SQL_NULL);
+}
+
+/*************************************************************************
+Determines if a field is externally stored */
+UNIV_INLINE
+ulint
+dfield_is_ext(
+/*==========*/
+				/* out: nonzero if externally stored */
+	const dfield_t* field)	/* in: field */
+{
+	ut_ad(field);
+
+	return(UNIV_UNLIKELY(field->ext));
+}
+
+/*************************************************************************
+Sets the "external storage" flag */
+UNIV_INLINE
+void
+dfield_set_ext(
+/*===========*/
+	dfield_t*	field)	/* in/out: field */
+{
+	ut_ad(field);
+
+	field->ext = 1;
 }
 
 /*************************************************************************
@@ -103,7 +145,19 @@ dfield_set_data(
 	ut_ad(field);
 
 	field->data = (void*) data;
+	field->ext = 0;
 	field->len = len;
+}
+
+/*************************************************************************
+Sets a data field to SQL NULL. */
+UNIV_INLINE
+void
+dfield_set_null(
+/*============*/
+	dfield_t*	field)	/* in/out: field */
+{
+	dfield_set_data(field, NULL, UNIV_SQL_NULL);
 }
 
 /*************************************************************************
@@ -112,13 +166,14 @@ UNIV_INLINE
 void
 dfield_copy_data(
 /*=============*/
-	dfield_t*	field1,	/* in: field to copy to */
-	dfield_t*	field2)	/* in: field to copy from */
+	dfield_t*	field1,	/* out: field to copy to */
+	const dfield_t*	field2)	/* in: field to copy from */
 {
 	ut_ad(field1 && field2);
 
 	field1->data = field2->data;
 	field1->len = field2->len;
+	field1->ext = field2->ext;
 }
 
 /*************************************************************************
@@ -127,7 +182,7 @@ UNIV_INLINE
 void
 dfield_copy(
 /*========*/
-	dfield_t*	field1,	/* in: field to copy to */
+	dfield_t*	field1,	/* out: field to copy to */
 	const dfield_t*	field2)	/* in: field to copy from */
 {
 	*field1 = *field2;
@@ -412,11 +467,7 @@ data_write_sql_null(
 	byte*	data,	/* in: pointer to a buffer of size len */
 	ulint	len)	/* in: SQL null size in bytes */
 {
-	ulint	j;
-
-	for (j = 0; j < len; j++) {
-		data[j] = '\0';
-	}
+	memset(data, 0, len);
 }
 
 /**************************************************************************
@@ -434,8 +485,7 @@ dtuple_contains_null(
 	n = dtuple_get_n_fields(tuple);
 
 	for (i = 0; i < n; i++) {
-		if (dfield_get_len(dtuple_get_nth_field(tuple, i))
-		    == UNIV_SQL_NULL) {
+		if (dfield_is_null(dtuple_get_nth_field(tuple, i))) {
 
 			return(TRUE);
 		}

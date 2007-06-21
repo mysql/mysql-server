@@ -792,7 +792,7 @@ eval_func(
 		/* The functions are not defined for SQL null argument
 		values, except for eval_cmp and notfound */
 
-		if ((dfield_get_len(que_node_get_val(arg)) == UNIV_SQL_NULL)
+		if (dfield_is_null(que_node_get_val(arg))
 		    && (class != PARS_FUNC_CMP)
 		    && (func != PARS_NOTFOUND_TOKEN)
 		    && (func != PARS_PRINTF_TOKEN)) {

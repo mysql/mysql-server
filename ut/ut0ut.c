@@ -16,7 +16,6 @@ Created 5/11/1994 Heikki Tuuri
 #include <string.h>
 #include <ctype.h>
 
-#include "ut0sort.h"
 #include "trx0trx.h"
 
 ibool	ut_always_false	= FALSE;
@@ -367,17 +366,6 @@ ut_print_buf(
 	}
 
 	putc(';', file);
-}
-
-/****************************************************************
-Sort function for ulint arrays. */
-
-void
-ut_ulint_sort(ulint* arr, ulint* aux_arr, ulint low, ulint high)
-/*============================================================*/
-{
-	UT_SORT_FUNCTION_BODY(ut_ulint_sort, arr, aux_arr, low, high,
-			      ut_ulint_cmp);
 }
 
 /*****************************************************************

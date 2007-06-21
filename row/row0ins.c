@@ -290,9 +290,6 @@ row_ins_clust_index_entry_by_modify(
 				which have to be stored externally by the
 				caller */
 	const dtuple_t*	entry,	/* in: index entry to insert */
-	const ulint*	ext_vec,/* in: array containing field numbers of
-				externally stored fields in entry, or NULL */
-	ulint		n_ext_vec,/* in: number of fields in ext_vec */
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr)	/* in: mtr; must be committed before
 				latching any further pages */
@@ -318,8 +315,7 @@ row_ins_clust_index_entry_by_modify(
 	NOTE that this vector may NOT contain system columns trx_id or
 	roll_ptr */
 
-	update = row_upd_build_difference_binary(cursor->index, entry, ext_vec,
-						 n_ext_vec, rec,
+	update = row_upd_build_difference_binary(cursor->index, entry, rec,
 						 thr_get_trx(thr), *heap);
 	if (mode == BTR_MODIFY_LEAF) {
 		/* Try optimistic updating of the record, keeping changes
@@ -494,11 +490,12 @@ row_ins_cascade_calc_update_vec(
 				ufield->exp = NULL;
 
 				ufield->new_val = parent_ufield->new_val;
+				ufield->new_val.ext = 0;
 
 				/* Do not allow a NOT NULL column to be
 				updated as NULL */
 
-				if (ufield->new_val.len == UNIV_SQL_NULL
+				if (dfield_is_null(&ufield->new_val)
 				    && (col->prtype & DATA_NOT_NULL)) {
 
 					return(ULINT_UNDEFINED);
@@ -507,7 +504,7 @@ row_ins_cascade_calc_update_vec(
 				/* If the new value would not fit in the
 				column, do not allow the update */
 
-				if (ufield->new_val.len != UNIV_SQL_NULL
+				if (!dfield_is_null(&ufield->new_val)
 				    && dtype_get_at_most_n_mbchars(
 					col->prtype,
 					col->mbminlen, col->mbmaxlen,
@@ -527,7 +524,7 @@ row_ins_cascade_calc_update_vec(
 				min_size = dict_col_get_min_size(col);
 
 				if (min_size
-				    && ufield->new_val.len != UNIV_SQL_NULL
+				    && !dfield_is_null(&ufield->new_val)
 				    && ufield->new_val.len < min_size) {
 
 					char*		pad_start;
@@ -574,8 +571,6 @@ row_ins_cascade_calc_update_vec(
 						break;
 					}
 				}
-
-				ufield->extern_storage = FALSE;
 
 				n_fields_updated++;
 			}
@@ -1005,9 +1000,7 @@ row_ins_foreign_check_on_constraint(
 					table,
 					dict_index_get_nth_col_no(index, i));
 			(update->fields + i)->exp = NULL;
-			(update->fields + i)->new_val.len = UNIV_SQL_NULL;
-			(update->fields + i)->new_val.data = NULL;
-			(update->fields + i)->extern_storage = FALSE;
+			dfield_set_null(&update->fields[i].new_val);
 		}
 	}
 
@@ -1994,9 +1987,7 @@ row_ins_index_entry_low(
 				pessimistic descent down the index tree */
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry,	/* in: index entry to insert */
-	ulint*		ext_vec,/* in: array containing field numbers of
-				externally stored fields in entry, or NULL */
-	ulint		n_ext_vec,/* in: number of fields in ext_vec */
+	ulint		n_ext,	/* in: number of externally stored columns */
 	que_thr_t*	thr)	/* in: query thread */
 {
 	btr_cur_t	cursor;
@@ -2105,9 +2096,9 @@ row_ins_index_entry_low(
 		if (dict_index_is_clust(index)) {
 			err = row_ins_clust_index_entry_by_modify(
 				mode, &cursor, &heap, &big_rec, entry,
-				ext_vec, n_ext_vec, thr, &mtr);
+				thr, &mtr);
 		} else {
-			ut_ad(!n_ext_vec);
+			ut_ad(!n_ext);
 			err = row_ins_sec_index_entry_by_modify(
 				mode, &cursor, entry, thr, &mtr);
 		}
@@ -2115,7 +2106,7 @@ row_ins_index_entry_low(
 		if (mode == BTR_MODIFY_LEAF) {
 			err = btr_cur_optimistic_insert(
 				0, &cursor, entry, &insert_rec, &big_rec,
-				ext_vec, n_ext_vec, thr, &mtr);
+				n_ext, thr, &mtr);
 		} else {
 			ut_a(mode == BTR_MODIFY_TREE);
 			if (buf_LRU_buf_pool_running_out()) {
@@ -2126,7 +2117,7 @@ row_ins_index_entry_low(
 			}
 			err = btr_cur_pessimistic_insert(
 				0, &cursor, entry, &insert_rec, &big_rec,
-				ext_vec, n_ext_vec, thr, &mtr);
+				n_ext, thr, &mtr);
 		}
 	}
 
@@ -2176,14 +2167,13 @@ row_ins_index_entry(
 				DB_DUPLICATE_KEY, or some other error code */
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry,	/* in: index entry to insert */
-	ulint*		ext_vec,/* in: array containing field numbers of
-				externally stored fields in entry, or NULL */
-	ulint		n_ext_vec,/* in: number of fields in ext_vec */
+	ulint		n_ext,	/* in: number of externally stored columns */
+	ibool		foreign,/* in: TRUE=check foreign key constraints */
 	que_thr_t*	thr)	/* in: query thread */
 {
 	ulint	err;
 
-	if (UT_LIST_GET_FIRST(index->table->foreign_list)) {
+	if (foreign && UT_LIST_GET_FIRST(index->table->foreign_list)) {
 		err = row_ins_check_foreign_constraints(index->table, index,
 							entry, thr);
 		if (err != DB_SUCCESS) {
@@ -2195,7 +2185,7 @@ row_ins_index_entry(
 	/* Try first optimistic descent to the B-tree */
 
 	err = row_ins_index_entry_low(BTR_MODIFY_LEAF, index, entry,
-				      ext_vec, n_ext_vec, thr);
+				      n_ext, thr);
 	if (err != DB_FAIL) {
 
 		return(err);
@@ -2204,7 +2194,7 @@ row_ins_index_entry(
 	/* Try then pessimistic descent to the B-tree */
 
 	err = row_ins_index_entry_low(BTR_MODIFY_TREE, index, entry,
-				      ext_vec, n_ext_vec, thr);
+				      n_ext, thr);
 	return(err);
 }
 
@@ -2219,21 +2209,23 @@ row_ins_index_entry_set_vals(
 	dtuple_t*	entry,	/* in: index entry to make */
 	const dtuple_t*	row)	/* in: row */
 {
-	dict_field_t*	ind_field;
-	dfield_t*	field;
-	const dfield_t*	row_field;
-	ulint		n_fields;
-	ulint		i;
+	ulint	n_fields;
+	ulint	i;
 
 	ut_ad(entry && row);
 
 	n_fields = dtuple_get_n_fields(entry);
 
 	for (i = 0; i < n_fields; i++) {
+		dict_field_t*	ind_field;
+		dfield_t*	field;
+		const dfield_t*	row_field;
+		ulint		len;
+
 		field = dtuple_get_nth_field(entry, i);
 		ind_field = dict_index_get_nth_field(index, i);
-
 		row_field = dtuple_get_nth_field(row, ind_field->col->ind);
+		len = dfield_get_len(row_field);
 
 		/* Check column prefix indexes */
 		if (ind_field->prefix_len > 0
@@ -2242,15 +2234,13 @@ row_ins_index_entry_set_vals(
 			const	dict_col_t*	col
 				= dict_field_get_col(ind_field);
 
-			field->len = dtype_get_at_most_n_mbchars(
+			len = dtype_get_at_most_n_mbchars(
 				col->prtype, col->mbminlen, col->mbmaxlen,
 				ind_field->prefix_len,
-				row_field->len, row_field->data);
-		} else {
-			field->len = row_field->len;
+				len, row_field->data);
 		}
 
-		field->data = row_field->data;
+		dfield_set_data(field, row_field->data, len);
 	}
 }
 
@@ -2273,7 +2263,7 @@ row_ins_index_entry_step(
 
 	ut_ad(dtuple_check_typed(node->entry));
 
-	err = row_ins_index_entry(node->index, node->entry, NULL, 0, thr);
+	err = row_ins_index_entry(node->index, node->entry, 0, TRUE, thr);
 
 	return(err);
 }
