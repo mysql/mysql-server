@@ -247,8 +247,6 @@ trx_roll_savepoints_free(
 					if this is NULL, free all savepoints
 					of trx */
 
-extern sess_t*		trx_dummy_sess;
-
 /* A cell in the array used during a rollback and a purge */
 struct	trx_undo_inf_struct{
 	dulint	trx_no;		/* transaction number: not defined during

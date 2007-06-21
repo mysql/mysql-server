@@ -483,8 +483,8 @@ err_exit:
 }
 
 /***************************************************************
- Currently we gather all the information that is required to do the 
- UNDO. The actual UNDO is done later in row_undo_dictionary().*/
+Currently we gather all the information that is required to do the
+UNDO.  The actual UNDO is done later in row_undo_dictionary(). */
 
 ulint
 row_undo_build_dict_undo_list(
@@ -601,14 +601,16 @@ func_exit:
 	return(err);
 }
 
-ulint
+/***************************************************************
+Undo or redo a dictionary change. */
+
+void
 row_undo_dictionary(
 /*================*/
-					/* out: DB_SUCCESS or error code */
 	trx_t*		trx,		/* in: transaction */
 	dict_undo_t*	dict_undo)	/* in: dict undo info */
 {
-	ulint		err = DB_SUCCESS;
+	ulint		err;
 
 	switch (dict_undo->op_type) {
 	case TRX_UNDO_INDEX_CREATE_REC:
@@ -625,6 +627,7 @@ row_undo_dictionary(
 			err = row_drop_table_for_mysql_no_commit(
 				dict_undo->data.table.old_table->name,
 				trx, FALSE);
+			ut_a(err == DB_SUCCESS);
 		}
 
 		break;
@@ -643,30 +646,33 @@ row_undo_dictionary(
 				dict_undo->data.table.new_table->name,
 				trx, FALSE);
 
-			if (err == DB_SUCCESS) {
-				err = row_rename_table_for_mysql(
-					dict_undo->data.table.tmp_table->name,
-					dict_undo->data.table.old_table->name,
-					trx, FALSE);
-			}
+			ut_a(err == DB_SUCCESS);
 
-			if (err == DB_SUCCESS) {
+			err = row_rename_table_for_mysql(
+				dict_undo->data.table.tmp_table->name,
+				dict_undo->data.table.old_table->name,
+				trx, FALSE);
 
-				err = row_drop_table_for_mysql_no_commit(
-					dict_undo->data.table.new_table->name,
-					trx, FALSE);
-			}
+			ut_a(err == DB_SUCCESS);
+
+			err = row_drop_table_for_mysql_no_commit(
+				dict_undo->data.table.new_table->name,
+				trx, FALSE);
+
+			ut_a(err == DB_SUCCESS);
 
 		} else if (dict_undo->data.table.old_table) {
 			/* Rename to tmp failed.*/
 
-			ut_ad(!dict_undo->data.table.tmp_table);
+			ut_a(!dict_undo->data.table.tmp_table);
 
 			if (dict_undo->data.table.new_table) {
 
 				err = row_drop_table_for_mysql_no_commit(
 					dict_undo->data.table.new_table->name,
 					trx, FALSE);
+
+				ut_a(err == DB_SUCCESS);
 			}
 
 		} else if (dict_undo->data.table.tmp_table) {
@@ -679,11 +685,15 @@ row_undo_dictionary(
 				dict_undo->data.table.old_table->name,
 				trx, FALSE);
 
+			ut_a(err == DB_SUCCESS);
+
 			if (dict_undo->data.table.new_table) {
 
 				err = row_drop_table_for_mysql_no_commit(
 					dict_undo->data.table.new_table->name,
 					trx, FALSE);
+
+				ut_a(err == DB_SUCCESS);
 			}
 
 		} else {
@@ -694,7 +704,5 @@ row_undo_dictionary(
 	default:
 		ut_error;
 	}
-
-	return(err);
 }
 
