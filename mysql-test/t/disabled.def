@@ -36,6 +36,9 @@ rpl_ndb_myisam2ndb       : Bug #19710  Cluster replication to partition table fa
 #rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
 rpl_ndb_ddl              : BUG#28798 2007-05-31  lars  Valgrind failure in NDB
 
+rpl_invoked_features     : BUG#29020 2007-06-21 Lars Non-deterministic test case
+ctype_big5               : BUG#26711 2007-06-21 Lars Test has never worked on Double Whopper
+
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 #ndb_binlog_ddl_multi     : BUG#18976 2006-04-10 kent    CRBR: multiple binlog, second binlog may miss schema log events
 #ndb_binlog_discover      : bug#21806 2006-08-24
