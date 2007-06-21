@@ -123,7 +123,7 @@ static struct my_cs_file_section_st * cs_file_sec(const char *attr, size_t len)
 }
 
 #define MY_CS_CSDESCR_SIZE	64
-#define MY_CS_TAILORING_SIZE	128
+#define MY_CS_TAILORING_SIZE	1024
 
 typedef struct my_cs_file_info
 {
