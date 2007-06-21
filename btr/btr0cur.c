@@ -4708,7 +4708,7 @@ byte*
 btr_rec_copy_externally_stored_field(
 /*=================================*/
 				/* out: the field copied to heap */
-	rec_t*		rec,	/* in: record */
+	const rec_t*	rec,	/* in: record */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		zip_size,/* in: nonzero=compressed BLOB page size,
 				zero for uncompressed BLOBs */
@@ -4717,9 +4717,8 @@ btr_rec_copy_externally_stored_field(
 	mem_heap_t*	heap)	/* in: mem heap */
 {
 	ulint		local_len;
-	byte*		data;
+	const byte*	data;
 
-	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	ut_a(rec_offs_nth_extern(offsets, no));
 
 	/* An externally stored field can contain some initial
