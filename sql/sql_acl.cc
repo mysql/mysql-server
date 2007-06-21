@@ -5539,6 +5539,12 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
 
+  if (result)
+    my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr_safe());
+
+  DBUG_PRINT("info", ("thd->net.last_errno: %d", thd->net.last_errno));
+  DBUG_PRINT("info", ("thd->net.last_error: %s", thd->net.last_error));
+
   if (mysql_bin_log.is_open())
   {
     thd->binlog_query(THD::MYSQL_QUERY_TYPE,
@@ -5547,8 +5553,6 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
-  if (result)
-    my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr_safe());
   DBUG_RETURN(result);
 }
 

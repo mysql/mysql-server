@@ -2276,35 +2276,11 @@ Get the table flags to use for the statement. */
 handler::Table_flags
 ha_innobase::table_flags() const
 {
-	THD *const thd= current_thd;
-        /* We are using thd->variables.tx_isolation here instead of
-           trx->isolation_level since store_lock() has not been called
-           yet.
-
-           The trx->isolation_level is set inside store_lock() (which
-           is called from mysql_lock_tables()) until after this
-           function has been called (which is called in lock_tables()
-           before that function calls mysql_lock_tables()). */
-        ulong const tx_isolation= thd_tx_isolation(thd);
+       /* Need to use tx_isolation here since table flags is (also)
+          called before prebuilt is inited. */
+        ulong const tx_isolation = thd_tx_isolation(current_thd);
         if (tx_isolation <= ISO_READ_COMMITTED)
-        {
-	        ulong const binlog_format= thd->variables.binlog_format;
-                /* Statement based binlogging does not work in these
-                   isolation levels since the necessary locks cannot
-                   be taken */
-        	if (binlog_format == BINLOG_FORMAT_STMT)
-          	{
-			char buf[256];
-	                my_snprintf(buf, sizeof(buf),
-                                    "Transaction level '%s' in InnoDB is"
-                                    " not safe for binlog mode '%s'",
-                                    tx_isolation_names[tx_isolation],
-                                    binlog_format_names[binlog_format]);
-                        my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), buf);
-                }
                 return int_table_flags;
-        }
-
         return int_table_flags | HA_BINLOG_STMT_CAPABLE;
 }
 
@@ -6283,6 +6259,31 @@ ha_innobase::external_lock(
 	DBUG_PRINT("enter",("lock_type: %d", lock_type));
 
 	update_thd(thd);
+
+        /* Statement based binlogging does not work in isolation level
+           READ UNCOMMITTED and READ COMMITTED since the necessary
+           locks cannot be taken. In this case, we print an
+           informative error message and return with an error. */
+        if (lock_type == F_WRLCK)
+        {
+                ulong const binlog_format= thd->variables.binlog_format;
+                ulong const tx_isolation = thd_tx_isolation(current_thd);
+                if (tx_isolation <= ISO_READ_COMMITTED &&
+                    binlog_format == BINLOG_FORMAT_STMT)
+                {
+                        char buf[256];
+                        bool const read_uncommitted =
+                          trx->isolation_level == TRX_ISO_READ_UNCOMMITTED;
+                        my_snprintf(buf, sizeof(buf),
+                                    "Transaction level '%s' in"
+                                    " InnoDB is not safe for binlog mode '%s'",
+                                    tx_isolation_names[tx_isolation],
+                                    binlog_format_names[binlog_format]);
+                        my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), buf);
+                        return HA_ERR_LOGGING_IMPOSSIBLE;
+                }
+        }
+
 
 	trx = prebuilt->trx;
 

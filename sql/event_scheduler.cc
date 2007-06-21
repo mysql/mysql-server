@@ -326,6 +326,8 @@ end:
 
   delete event;
   deinit_event_thread(thd);
+
+  DBUG_VOID_RETURN;
 }
 
 
