@@ -1632,30 +1632,6 @@ t2	CREATE TABLE `t2` (
   CONSTRAINT `t2_ibfk_2` FOREIGN KEY (`b`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t2, t1;
-flush status;
-show status like "binlog_cache_use";
-Variable_name	Value
-Binlog_cache_use	0
-show status like "binlog_cache_disk_use";
-Variable_name	Value
-Binlog_cache_disk_use	0
-create table t1 (a int) engine=innodb;
-show status like "binlog_cache_use";
-Variable_name	Value
-Binlog_cache_use	1
-show status like "binlog_cache_disk_use";
-Variable_name	Value
-Binlog_cache_disk_use	1
-begin;
-delete from t1;
-commit;
-show status like "binlog_cache_use";
-Variable_name	Value
-Binlog_cache_use	2
-show status like "binlog_cache_disk_use";
-Variable_name	Value
-Binlog_cache_disk_use	1
-drop table t1;
 create table t1 (c char(10), index (c,c)) engine=innodb;
 ERROR 42S21: Duplicate column name 'c'
 create table t1 (c1 char(10), c2 char(10), index (c1,c2,c1)) engine=innodb;
@@ -1775,10 +1751,10 @@ Variable_name	Value
 Innodb_page_size	16384
 show status like "Innodb_rows_deleted";
 Variable_name	Value
-Innodb_rows_deleted	2070
+Innodb_rows_deleted	70
 show status like "Innodb_rows_inserted";
 Variable_name	Value
-Innodb_rows_inserted	3083
+Innodb_rows_inserted	1083
 show status like "Innodb_rows_updated";
 Variable_name	Value
 Innodb_rows_updated	886
