@@ -106,7 +106,7 @@ void my_parse_error(const char *s)
   THD *thd= current_thd;
   Lex_input_stream *lip= thd->m_lip;
 
-  const char *yytext= lip->tok_start;
+  const char *yytext= lip->get_tok_start();
   /* Push an error into the error stack */
   my_printf_error(ER_PARSE_ERROR,  ER(ER_PARSE_ERROR), MYF(0), s,
                   (yytext ? yytext : ""),
@@ -456,7 +456,7 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
   List<Item> *item_list;
   List<String> *string_list;
   String *string;
-  key_part_spec *key_part;
+  Key_part_spec *key_part;
   TABLE_LIST *table_list;
   udf_func *udf;
   LEX_USER *lex_user;
@@ -1872,10 +1872,7 @@ ev_sql_stmt:
             bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
             lex->sphead->m_chistics= &lex->sp_chistics;
 
-            lex->sphead->m_body_begin= lip->ptr;
-            
-            lex->event_parse_data->body_begin= lip->ptr;
-
+            lex->sphead->set_body_begin_ptr(lip, lip->get_cpp_ptr());
           }
           ev_sql_stmt_inner
           {
@@ -1888,7 +1885,7 @@ ev_sql_stmt:
 
             lex->sp_chistics.suid= SP_IS_SUID;  //always the definer!
 
-            lex->event_parse_data->init_body(thd);
+            lex->event_parse_data->body_changed= TRUE;
           }
       ;
 
@@ -1986,6 +1983,7 @@ create_function_tail:
             LEX *lex= thd->lex;
             Lex_input_stream *lip= thd->m_lip;
 	    sp_head *sp;
+            const char* tmp_param_begin;
 
             /* 
               First check if AGGREGATE was used, in that case it's a
@@ -2017,7 +2015,10 @@ create_function_tail:
 	    */
             $<ulong_num>$= thd->client_capabilities & CLIENT_MULTI_QUERIES;
 	    thd->client_capabilities &= ~CLIENT_MULTI_QUERIES;
-	    lex->sphead->m_param_begin= lip->tok_start+1;
+
+            tmp_param_begin= lip->get_cpp_tok_start();
+            tmp_param_begin++;
+            lex->sphead->m_param_begin= tmp_param_begin;
 	  }
           sp_fdparam_list ')'
 	  {
@@ -2025,7 +2026,7 @@ create_function_tail:
             LEX *lex= thd->lex;
             Lex_input_stream *lip= thd->m_lip;
 
-	    lex->sphead->m_param_end= lip->tok_start;
+            lex->sphead->m_param_end= lip->get_cpp_tok_start();
 	  }
 	  RETURNS_SYM
 	  {
@@ -2065,7 +2066,7 @@ create_function_tail:
             Lex_input_stream *lip= thd->m_lip;
 
 	    lex->sphead->m_chistics= &lex->sp_chistics;
-	    lex->sphead->m_body_begin= lip->tok_start;
+            lex->sphead->set_body_begin_ptr(lip, lip->get_cpp_tok_start());
 	  }
 	  sp_proc_stmt
 	  {
@@ -2676,7 +2677,7 @@ sp_proc_stmt_statement:
             Lex_input_stream *lip= thd->m_lip;
 
 	    lex->sphead->reset_lex(thd);
-	    lex->sphead->m_tmp_query= lip->tok_start;
+            lex->sphead->m_tmp_query= lip->get_tok_start();
 	  }
 	  statement
 	  {
@@ -2709,9 +2710,9 @@ sp_proc_stmt_statement:
                 lex->tok_end otherwise.
               */
               if (yychar == YYEMPTY)
-                i->m_query.length= lip->ptr - sp->m_tmp_query;
+                i->m_query.length= lip->get_ptr() - sp->m_tmp_query;
               else
-                i->m_query.length= lip->tok_end - sp->m_tmp_query;
+                i->m_query.length= lip->get_tok_end() - sp->m_tmp_query;
               i->m_query.str= strmake_root(thd->mem_root,
                                            sp->m_tmp_query,
                                            i->m_query.length);
@@ -4498,7 +4499,7 @@ key_def:
 	  {
 	    LEX *lex=Lex;
             const char *key_name= $4 ? $4 : $1;
-            Key *key= new foreign_key(key_name, lex->col_list,
+            Key *key= new Foreign_key(key_name, lex->col_list,
                                       $8,
                                       lex->ref_list,
                                       lex->fk_delete_opt,
@@ -4925,8 +4926,8 @@ opt_ref_list:
 	| '(' ref_list ')' opt_on_delete {};
 
 ref_list:
-	ref_list ',' ident	{ Lex->ref_list.push_back(new key_part_spec($3.str)); }
-	| ident			{ Lex->ref_list.push_back(new key_part_spec($1.str)); };
+	ref_list ',' ident	{ Lex->ref_list.push_back(new Key_part_spec($3.str)); }
+	| ident			{ Lex->ref_list.push_back(new Key_part_spec($1.str)); };
 
 
 opt_on_delete:
@@ -4940,16 +4941,16 @@ opt_on_delete_list:
 opt_on_delete_item:
 	ON DELETE_SYM delete_option   { Lex->fk_delete_opt= $3; }
 	| ON UPDATE_SYM delete_option { Lex->fk_update_opt= $3; }
-	| MATCH FULL	{ Lex->fk_match_option= foreign_key::FK_MATCH_FULL; }
-	| MATCH PARTIAL { Lex->fk_match_option= foreign_key::FK_MATCH_PARTIAL; }
-	| MATCH SIMPLE_SYM { Lex->fk_match_option= foreign_key::FK_MATCH_SIMPLE; };
+	| MATCH FULL	{ Lex->fk_match_option= Foreign_key::FK_MATCH_FULL; }
+	| MATCH PARTIAL { Lex->fk_match_option= Foreign_key::FK_MATCH_PARTIAL; }
+	| MATCH SIMPLE_SYM { Lex->fk_match_option= Foreign_key::FK_MATCH_SIMPLE; };
 
 delete_option:
-	RESTRICT	 { $$= (int) foreign_key::FK_OPTION_RESTRICT; }
-	| CASCADE	 { $$= (int) foreign_key::FK_OPTION_CASCADE; }
-	| SET NULL_SYM   { $$= (int) foreign_key::FK_OPTION_SET_NULL; }
-	| NO_SYM ACTION  { $$= (int) foreign_key::FK_OPTION_NO_ACTION; }
-	| SET DEFAULT    { $$= (int) foreign_key::FK_OPTION_DEFAULT;  };
+	RESTRICT	 { $$= (int) Foreign_key::FK_OPTION_RESTRICT; }
+	| CASCADE	 { $$= (int) Foreign_key::FK_OPTION_CASCADE; }
+	| SET NULL_SYM   { $$= (int) Foreign_key::FK_OPTION_SET_NULL; }
+	| NO_SYM ACTION  { $$= (int) Foreign_key::FK_OPTION_NO_ACTION; }
+	| SET DEFAULT    { $$= (int) Foreign_key::FK_OPTION_DEFAULT;  };
 
 key_type:
 	key_or_index			    { $$= Key::MULTIPLE; }
@@ -5061,7 +5062,7 @@ key_list:
 	| key_part order_dir		{ Lex->col_list.push_back($1); };
 
 key_part:
-	ident			{ $$=new key_part_spec($1.str); }
+	ident			{ $$=new Key_part_spec($1.str); }
 	| ident '(' NUM ')'
         {
           int key_part_len= atoi($3.str);
@@ -5069,7 +5070,7 @@ key_part:
           {
             my_error(ER_KEY_PART_0, MYF(0), $1.str);
           }
-          $$=new key_part_spec($1.str,(uint) key_part_len);
+          $$=new Key_part_spec($1.str,(uint) key_part_len);
         };
 
 opt_ident:
@@ -6229,14 +6230,14 @@ remember_name:
         {
           THD *thd= YYTHD;
           Lex_input_stream *lip= thd->m_lip;
-          $$= (char*) lip->tok_start;
+          $$= (char*) lip->get_cpp_tok_start();
         };
 
 remember_end:
         {
           THD *thd= YYTHD;
           Lex_input_stream *lip= thd->m_lip;
-          $$=(char*) lip->tok_end;
+          $$= (char*) lip->get_cpp_tok_end();
         };
 
 select_item2:
@@ -8003,16 +8004,14 @@ procedure_list2:
 	| procedure_item;
 
 procedure_item:
-	  remember_name expr
+	  remember_name expr remember_end
 	  {
             THD *thd= YYTHD;
-            Lex_input_stream *lip= thd->m_lip;
 
 	    if (add_proc_to_list(thd, $2))
 	      MYSQL_YYABORT;
 	    if (!$2->name)
-	      $2->set_name($1,(uint) ((char*) lip->tok_end - $1),
-                           thd->charset());
+              $2->set_name($1, (uint) ($3 - $1), thd->charset());
 	  }
           ;
 
@@ -9112,7 +9111,7 @@ load:   LOAD DATA_SYM
 	    my_error(ER_SP_BADSTATEMENT, MYF(0), "LOAD DATA");
 	    MYSQL_YYABORT;
 	  }
-          lex->fname_start= lip->ptr;
+          lex->fname_start= lip->get_ptr();
         }
         load_data
         {}
@@ -9149,7 +9148,7 @@ load_data:
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
           Lex_input_stream *lip= thd->m_lip;
-	  lex->fname_end= lip->ptr;
+          lex->fname_end= lip->get_ptr();
 	}
         TABLE_SYM table_ident
         {
@@ -9338,7 +9337,7 @@ param_marker:
             my_error(ER_VIEW_SELECT_VARIABLE, MYF(0));
             MYSQL_YYABORT;
           }
-          item= new Item_param((uint) (lip->tok_start - thd->query));
+          item= new Item_param((uint) (lip->get_tok_start() - thd->query));
           if (!($$= item) || lex->param_list.push_back(item))
           {
             my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
@@ -9471,7 +9470,7 @@ simple_ident:
 
             Item_splocal *splocal;
             splocal= new Item_splocal($1, spv->offset, spv->type,
-                                      lip->tok_start_prev - 
+                                      lip->get_tok_start_prev() -
                                       lex->sphead->m_tmp_query);
 #ifndef DBUG_OFF
             if (splocal)
@@ -10147,7 +10146,7 @@ option_type_value:
 	    lex->option_type=OPT_SESSION;
 	    lex->var_list.empty();
             lex->one_shot_set= 0;
-	    lex->sphead->m_tmp_query= lip->tok_start;
+            lex->sphead->m_tmp_query= lip->get_tok_start();
           }
         }
 	ext_option_value
@@ -10180,9 +10179,9 @@ option_type_value:
                 lip->tok_end otherwise.
               */
               if (yychar == YYEMPTY)
-                qbuff.length= lip->ptr - sp->m_tmp_query;
+                qbuff.length= lip->get_ptr() - sp->m_tmp_query;
               else
-                qbuff.length= lip->tok_end - sp->m_tmp_query;
+                qbuff.length= lip->get_tok_end() - sp->m_tmp_query;
 
               if (!(qbuff.str= (char*) alloc_root(thd->mem_root,
                                                   qbuff.length + 5)))
@@ -11364,7 +11363,7 @@ view_tail:
 	  if (!lex->select_lex.add_table_to_list(thd, $3, NULL, TL_OPTION_UPDATING))
 	    MYSQL_YYABORT;
 	}
-	view_list_opt AS view_select view_check_option
+	view_list_opt AS view_select
 	{}
 	;
 
@@ -11389,40 +11388,32 @@ view_list:
 
 view_select:
         {
+          THD *thd= YYTHD;
           LEX *lex= Lex;
+          Lex_input_stream *lip= thd->m_lip;
           lex->parsing_options.allows_variable= FALSE;
           lex->parsing_options.allows_select_into= FALSE;
           lex->parsing_options.allows_select_procedure= FALSE;
           lex->parsing_options.allows_derived= FALSE;
-        }        
-        view_select_aux
+          lex->create_view_select_start= lip->get_cpp_ptr();
+        }
+        view_select_aux view_check_option
         {
+          THD *thd= YYTHD;
           LEX *lex= Lex;
+          Lex_input_stream *lip= thd->m_lip;
           lex->parsing_options.allows_variable= TRUE;
           lex->parsing_options.allows_select_into= TRUE;
           lex->parsing_options.allows_select_procedure= TRUE;
           lex->parsing_options.allows_derived= TRUE;
+          lex->create_view_select_end= lip->get_cpp_ptr();
         }
         ;
 
 view_select_aux:
-	SELECT_SYM remember_name select_init2
-	{
-          THD *thd= YYTHD;
-          LEX *lex= thd->lex;
-          const char *stmt_beg= (lex->sphead ?
-                                 lex->sphead->m_tmp_query : thd->query);
-	  lex->create_view_select_start= $2 - stmt_beg;
-	}
-	| '(' remember_name select_paren ')' union_opt
-	{
-          THD *thd= YYTHD;
-          LEX *lex= thd->lex;
-          const char *stmt_beg= (lex->sphead ?
-                                 lex->sphead->m_tmp_query : thd->query);
-	  lex->create_view_select_start= $2 - stmt_beg;
-	}
-	;
+        SELECT_SYM select_init2
+        | '(' select_paren ')' union_opt
+        ;
 
 view_check_option:
 	/* empty */
@@ -11442,9 +11433,31 @@ view_check_option:
 **************************************************************************/
 
 trigger_tail:
-	TRIGGER_SYM remember_name sp_name trg_action_time trg_event
-	ON remember_name table_ident FOR_SYM remember_name EACH_SYM ROW_SYM
-	{
+        TRIGGER_SYM
+        remember_name
+        sp_name
+        trg_action_time
+        trg_event
+        ON
+        remember_name /* $7 */
+        { /* $8 */
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
+          lex->raw_trg_on_table_name_begin= lip->get_tok_start();
+        }
+        table_ident /* $9 */
+        FOR_SYM
+        remember_name /* $11 */
+        { /* $12 */
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= thd->m_lip;
+          lex->raw_trg_on_table_name_end= lip->get_tok_start();
+        }
+        EACH_SYM
+        ROW_SYM
+        { /* $15 */
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
           Lex_input_stream *lip= thd->m_lip;
@@ -11463,7 +11476,7 @@ trigger_tail:
           sp->init_sp_name(thd, $3);
 	  lex->stmt_definition_begin= $2;
           lex->ident.str= $7;
-          lex->ident.length= $10 - $7;
+          lex->ident.length= $11 - $7;
 
 	  sp->m_type= TYPE_ENUM_TRIGGER;
 	  lex->sphead= sp;
@@ -11478,12 +11491,10 @@ trigger_tail:
 
 	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  lex->sphead->m_chistics= &lex->sp_chistics;
-	  lex->sphead->m_body_begin= lip->ptr;
-          while (my_isspace(system_charset_info, lex->sphead->m_body_begin[0]))
-            ++lex->sphead->m_body_begin;
+          lex->sphead->set_body_begin_ptr(lip, lip->get_cpp_ptr());
 	}
-	sp_proc_stmt
-	{
+        sp_proc_stmt /* $16 */
+        { /* $17 */
 	  LEX *lex= Lex;
 	  sp_head *sp= lex->sphead;
 
@@ -11491,7 +11502,7 @@ trigger_tail:
 	  sp->init_strings(YYTHD, lex);
 	  /* Restore flag if it was cleared above */
 
-	  YYTHD->client_capabilities |= $<ulong_num>13;
+	  YYTHD->client_capabilities |= $<ulong_num>15;
 	  sp->restore_thd_mem_root(YYTHD);
 
 	  if (sp->is_not_allowed_in_function("trigger"))
@@ -11502,7 +11513,7 @@ trigger_tail:
 	    sp_proc_stmt alternatives are not saving/restoring LEX, so
 	    lex->query_tables can be wiped out.
 	  */
-	  if (!lex->select_lex.add_table_to_list(YYTHD, $8,
+	  if (!lex->select_lex.add_table_to_list(YYTHD, $9,
 	                                         (LEX_STRING*) 0,
 	                                         TL_OPTION_UPDATING,
                                                  TL_IGNORE))
@@ -11560,8 +11571,11 @@ sp_tail:
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
           Lex_input_stream *lip= thd->m_lip;
+          const char* tmp_param_begin;
 
-	  lex->sphead->m_param_begin= lip->tok_start+1;
+          tmp_param_begin= lip->get_cpp_tok_start();
+          tmp_param_begin++;
+          lex->sphead->m_param_begin= tmp_param_begin;
 	}
 	sp_pdparam_list
 	')'
@@ -11570,7 +11584,7 @@ sp_tail:
           LEX *lex= thd->lex;
           Lex_input_stream *lip= thd->m_lip;
 
-	  lex->sphead->m_param_end= lip->tok_start;
+          lex->sphead->m_param_end= lip->get_cpp_tok_start();
 	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	}
 	sp_c_chistics
@@ -11580,7 +11594,7 @@ sp_tail:
           Lex_input_stream *lip= thd->m_lip;
 
 	  lex->sphead->m_chistics= &lex->sp_chistics;
-	  lex->sphead->m_body_begin= lip->tok_start;
+          lex->sphead->set_body_begin_ptr(lip, lip->get_cpp_tok_start());
 	}
 	sp_proc_stmt
 	{
