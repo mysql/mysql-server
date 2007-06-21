@@ -177,8 +177,7 @@ btr_cur_optimistic_insert(
 	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
 				be stored externally by the caller, or
 				NULL */
-	const ulint*	ext,	/* in: array of extern field numbers */
-	ulint		n_ext,	/* in: number of elements in vec */
+	ulint		n_ext,	/* in: number of externally stored columns */
 	que_thr_t*	thr,	/* in: query thread or NULL */
 	mtr_t*		mtr);	/* in: mtr; if this function returns
 				DB_SUCCESS on a leaf page of a secondary
@@ -209,8 +208,7 @@ btr_cur_pessimistic_insert(
 	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
 				be stored externally by the caller, or
 				NULL */
-	const ulint*	ext,	/* in: array of extern field numbers */
-	ulint		n_ext,	/* in: number of elements in vec */
+	ulint		n_ext,	/* in: number of externally stored columns */
 	que_thr_t*	thr,	/* in: query thread or NULL */
 	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************
@@ -458,9 +456,6 @@ btr_cur_mark_dtuple_inherited_extern(
 /*=================================*/
 	dtuple_t*	entry,		/* in/out: updated entry to be
 					inserted to clustered index */
-	const ulint*	ext_vec,	/* in: array of extern fields in the
-					original record */
-	ulint		n_ext_vec,	/* in: number of elements in ext_vec */
 	const upd_t*	update);	/* in: update vector */
 /***********************************************************************
 Marks all extern fields in a dtuple as owned by the record. */
@@ -468,10 +463,7 @@ Marks all extern fields in a dtuple as owned by the record. */
 void
 btr_cur_unmark_dtuple_extern_fields(
 /*================================*/
-	dtuple_t*	entry,		/* in/out: clustered index entry */
-	const ulint*	ext_vec,	/* in: array of numbers of fields
-					which have been stored externally */
-	ulint		n_ext_vec);	/* in: number of elements in ext_vec */
+	dtuple_t*	entry);		/* in/out: clustered index entry */
 /***********************************************************************
 Stores the fields in big_rec_vec to the tablespace and puts pointers to
 them in rec.  The extern flags in rec will have to be set beforehand.
@@ -568,10 +560,8 @@ update. */
 ulint
 btr_push_update_extern_fields(
 /*==========================*/
-				/* out: number of values stored in ext_vect */
-	ulint*		ext_vect,/* out: array of ulints, must be preallocated
-				to have twice the space for all fields
-				in rec */
+				/* out: number of externally stored columns */
+	dtuple_t*	tuple,	/* in/out: data tuple */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	const upd_t*	update);/* in: update vector or NULL */
 

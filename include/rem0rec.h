@@ -617,10 +617,7 @@ rec_convert_dtuple_to_rec_comp(
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint		status,	/* in: status bits of the record */
 	const dfield_t*	fields,	/* in: array of data fields */
-	ulint		n_fields,/* in: number of data fields */
-	const ulint*	ext,	/* in: array of extern field numbers,
-				in ascending order */
-	ulint		n_ext);	/* in: number of elements in ext */
+	ulint		n_fields);/* in: number of data fields */
 /*************************************************************
 Builds a physical record out of a data tuple and
 stores it into the given buffer. */
@@ -634,9 +631,7 @@ rec_convert_dtuple_to_rec(
 				physical record */
 	dict_index_t*	index,	/* in: record descriptor */
 	const dtuple_t*	dtuple,	/* in: data tuple */
-	const ulint*	ext,	/* in: array of extern field numbers,
-				in ascending order */
-	ulint		n_ext);	/* in: number of elements in ext */
+	ulint		n_ext);	/* in: number of externally stored columns */
 /**************************************************************
 Returns the extra size of an old-style physical record if we know its
 data size and number of fields. */
@@ -661,8 +656,6 @@ rec_get_converted_size_comp(
 	ulint		status,	/* in: status bits of the record */
 	const dfield_t*	fields,	/* in: array of data fields */
 	ulint		n_fields,/* in: number of data fields */
-	const ulint*	ext,	/* in: array of extern field numbers */
-	ulint		n_ext,	/* in: number of elements in ext */
 	ulint*		extra);	/* out: extra size */
 /**************************************************************
 The following function returns the size of a data tuple when converted to
@@ -674,8 +667,7 @@ rec_get_converted_size(
 				/* out: size */
 	dict_index_t*	index,	/* in: record descriptor */
 	const dtuple_t*	dtuple,	/* in: data tuple */
-	const ulint*	ext,	/* in: array of extern field numbers */
-	ulint		n_ext);	/* in: number of elements in ext */
+	ulint		n_ext);	/* in: number of externally stored columns */
 /******************************************************************
 Copies the first n fields of a physical record to a data tuple.
 The fields are copied to the memory heap. */

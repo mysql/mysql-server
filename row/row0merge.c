@@ -7,17 +7,6 @@ Created 12/4/2005 Jan Lindstrom
 Completed by Sunny Bains and Marko Makela
 *******************************************************/
 
-/******************************************************
-TODO:
-
-1. Run test with purify and valgrind and fix possible
-   errors found.
-
-2. Add more test cases and fix bugs founds.
-
-3. Run benchmarks.
-*******************************************************/
-
 #include "row0merge.h"
 #include "row0ext.h"
 #include "row0row.h"
@@ -185,9 +174,11 @@ row_merge_buf_add(
 					column prefixes, or NULL */
 {
 	ulint		i;
+	ulint		j;
 	ulint		n_fields;
 	ulint		data_size;
 	ulint		extra_size;
+	dict_index_t*	index;
 	dfield_t*	entry;
 	dfield_t*	field;
 
@@ -195,43 +186,51 @@ row_merge_buf_add(
 		return(FALSE);
 	}
 
-	n_fields = dict_index_get_n_fields(buf->index);
+	index = buf->index;
+
+	n_fields = dict_index_get_n_fields(index);
 
 	entry = mem_heap_alloc(buf->heap, n_fields * sizeof *entry);
 	buf->tuples[buf->n_tuples] = entry;
 	field = entry;
 
 	data_size = 0;
-	extra_size = UT_BITS_IN_BYTES(buf->index->n_nullable);
+	extra_size = UT_BITS_IN_BYTES(index->n_nullable);
 
-	for (i = 0; i < n_fields; i++, field++) {
+	for (i = j = 0; i < n_fields; i++, field++) {
 		dict_field_t*		ifield;
 		const dict_col_t*	col;
 		ulint			col_no;
 		const dfield_t*		row_field;
 
-		ifield = dict_index_get_nth_field(buf->index, i);
+		ifield = dict_index_get_nth_field(index, i);
 		col = ifield->col;
 		col_no = dict_col_get_no(col);
 		row_field = dtuple_get_nth_field(row, col_no);
 		dfield_copy(field, row_field);
 
-		if (UNIV_LIKELY_NULL(ext)
-		    && dfield_get_len(row_field) != UNIV_SQL_NULL) {
-			/* See if the column is stored externally. */
-			byte*	buf = row_ext_lookup(ext, col_no,
-						     row_field->data,
-						     row_field->len,
-						     &field->len);
-			if (UNIV_LIKELY_NULL(buf)) {
-				field->data = buf;
-			}
-		}
-
-		if (field->len == UNIV_SQL_NULL) {
+		if (dfield_is_null(field)) {
 			ut_ad(!(col->prtype & DATA_NOT_NULL));
 			field->data = NULL;
 			continue;
+		} else if (UNIV_LIKELY(!ext)) {
+		} else if (dict_index_is_clust(index)) {
+			/* Flag externally stored fields. */
+			if (j < ext->n_ext && col_no == ext->ext[j]) {
+				j++;
+
+				ut_a(field->len >= BTR_EXTERN_FIELD_REF_SIZE);
+				dfield_set_ext(field);
+			}
+		} else {
+			ulint	len = field->len;
+			byte*	buf = row_ext_lookup(ext, col_no,
+						     row_field->data,
+						     row_field->len,
+						     &len);
+			if (UNIV_LIKELY_NULL(buf)) {
+				dfield_set_data(field, buf, len);
+			}
 		}
 
 		/* If a column prefix index, take only the prefix */
@@ -248,6 +247,9 @@ row_merge_buf_add(
 
 		if (ifield->fixed_len) {
 			ut_ad(field->len == ifield->fixed_len);
+			ut_ad(!dfield_is_ext(field));
+		} else if (dfield_is_ext(field)) {
+			extra_size += 2;
 		} else if (field->len < 128
 			   || (col->len < 256 && col->mtype != DATA_BLOB)) {
 			extra_size++;
@@ -257,15 +259,16 @@ row_merge_buf_add(
 		data_size += field->len;
 	}
 
+	ut_ad(!ext || !dict_index_is_clust(index) || j == ext->n_ext);
+
 #ifdef UNIV_DEBUG
 	{
 		ulint	size;
 		ulint	extra;
 
-		size = rec_get_converted_size_comp(buf->index,
+		size = rec_get_converted_size_comp(index,
 						   REC_STATUS_ORDINARY,
-						   entry, n_fields, NULL, 0,
-						   &extra);
+						   entry, n_fields, &extra);
 
 		ut_ad(data_size + extra_size + REC_N_NEW_EXTRA_BYTES == size);
 		ut_ad(extra_size + REC_N_NEW_EXTRA_BYTES == extra);
@@ -290,7 +293,7 @@ row_merge_buf_add(
 
 	/* Copy the data fields. */
 	for (i = 0; i < n_fields; i++, field++) {
-		if (field->len != UNIV_SQL_NULL) {
+		if (!dfield_is_null(field)) {
 			field->data = mem_heap_dup(buf->heap,
 						   field->data, field->len);
 		}
@@ -360,7 +363,7 @@ row_merge_buf_sort(
 {
 	ulint	n_dup	= 0;
 
-	row_merge_tuple_sort(dict_index_get_n_fields(buf->index), &n_dup,
+	row_merge_tuple_sort(dict_index_get_n_unique(buf->index), &n_dup,
 			     buf->tuples, buf->tmp_tuples, 0, buf->n_tuples);
 
 	return(n_dup);
@@ -379,16 +382,16 @@ row_merge_buf_write(
 	ulint		n_fields= dict_index_get_n_fields(index);
 	byte*		b	= &(*block)[0];
 
-	ulint	i;
+	ulint		i;
 
 	for (i = 0; i < buf->n_tuples; i++) {
 		ulint		size;
 		ulint		extra_size;
-		const dfield_t*	entry	= buf->tuples[i];
+		const dfield_t*	entry		= buf->tuples[i];
 
 		size = rec_get_converted_size_comp(buf->index,
 						   REC_STATUS_ORDINARY,
-						   entry, n_fields, NULL, 0,
+						   entry, n_fields,
 						   &extra_size);
 		ut_ad(size > extra_size);
 		ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
@@ -408,7 +411,7 @@ row_merge_buf_write(
 
 		rec_convert_dtuple_to_rec_comp(b + extra_size, 0, index,
 					       REC_STATUS_ORDINARY,
-					       entry, n_fields, NULL, 0);
+					       entry, n_fields);
 
 		b += size;
 	}
@@ -1157,6 +1160,39 @@ row_merge_sort(
 	return(DB_SUCCESS);
 }
 
+/*****************************************************************
+Copy externally stored columns to the data tuple. */
+static
+void
+row_merge_copy_blobs(
+/*=================*/
+	const mrec_t*	mrec,	/* in: merge record */
+	const ulint*	offsets,/* in: offsets of mrec */
+	ulint		zip_size,/* in: compressed page size in bytes, or 0 */
+	dtuple_t*	tuple,	/* in/out: data tuple */
+	mem_heap_t*	heap)	/* in/out: memory heap */
+{
+	ulint	i;
+	ulint	n_fields = dtuple_get_n_fields(tuple);
+
+	for (i = 0; i < n_fields; i++) {
+		ulint		len;
+		const void*	data;
+		dfield_t*	field = dtuple_get_nth_field(tuple, i);
+
+		if (!dfield_is_ext(field)) {
+			continue;
+		}
+
+		ut_ad(!dfield_is_null(field));
+
+		data = btr_rec_copy_externally_stored_field(
+			mrec, offsets, zip_size, i, &len, heap);
+
+		dfield_set_data(field, data, len);
+	}
+}
+
 /************************************************************************
 Read sorted file containing index data tuples and insert these data
 tuples to the index */
@@ -1167,7 +1203,9 @@ row_merge_insert_index_tuples(
 					/* out: DB_SUCCESS or error number */
 	trx_t*			trx,	/* in: transaction */
 	dict_index_t*		index,	/* in: index */
-	dict_table_t*		table,	/* in: table */
+	dict_table_t*		table,	/* in: new table */
+	ulint			zip_size,/* in: compressed page size of
+					 the old table, or 0 if uncompressed */
 	int			fd,	/* in: file descriptor */
 	row_merge_block_t*	block)	/* in/out: file buffer */
 {
@@ -1215,6 +1253,7 @@ row_merge_insert_index_tuples(
 		for (;;) {
 			const mrec_t*	mrec;
 			dtuple_t*	dtuple;
+			ulint		n_ext;
 
 			b = row_merge_read_rec(block, &buf, b, index,
 					       fd, &foffs, &mrec, offsets);
@@ -1226,8 +1265,14 @@ row_merge_insert_index_tuples(
 				break;
 			}
 
+			n_ext = 0;
 			dtuple = row_rec_to_index_entry_low(
-				mrec, index, offsets, tuple_heap);
+				mrec, index, offsets, &n_ext, tuple_heap);
+
+			if (UNIV_UNLIKELY(n_ext)) {
+				row_merge_copy_blobs(mrec, offsets, zip_size,
+						     dtuple, tuple_heap);
+			}
 
 			node->row = dtuple;
 			node->table = table;
@@ -1239,10 +1284,11 @@ row_merge_insert_index_tuples(
 				thr->run_node = thr;
 				thr->prev_node = thr->common.parent;
 
-				error = row_ins_index_entry(
-					index, dtuple, NULL, 0, thr);
+				error = row_ins_index_entry(index, dtuple,
+							    0, FALSE, thr);
 
 				if (UNIV_LIKELY(error == DB_SUCCESS)) {
+
 					goto next_rec;
 				}
 
@@ -1707,6 +1753,7 @@ row_merge_build_indexes(
 		if (error == DB_SUCCESS) {
 			error = row_merge_insert_index_tuples(
 				trx, indexes[i], new_table,
+				dict_table_zip_size(old_table),
 				merge_files[i].fd, block);
 		}
 

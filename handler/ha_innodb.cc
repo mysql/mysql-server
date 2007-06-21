@@ -3685,11 +3685,9 @@ calc_row_difference(
 					new_mysql_row_col,
 					col_pack_len,
 					dict_table_is_comp(prebuilt->table));
-				ufield->new_val.data = dfield.data;
-				ufield->new_val.len = dfield.len;
+				dfield_copy_data(&ufield->new_val, &dfield);
 			} else {
-				ufield->new_val.data = NULL;
-				ufield->new_val.len = UNIV_SQL_NULL;
+				dfield_set_null(&ufield->new_val);
 			}
 
 			ufield->exp = NULL;

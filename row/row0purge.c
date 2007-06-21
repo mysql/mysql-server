@@ -363,7 +363,6 @@ row_purge_upd_exist_or_extern(
 	mem_heap_t*	heap;
 	dtuple_t*	entry;
 	dict_index_t*	index;
-	upd_field_t*	ufield;
 	ibool		is_insert;
 	ulint		rseg_id;
 	ulint		page_no;
@@ -401,9 +400,10 @@ skip_secondaries:
 	/* Free possible externally stored fields */
 	for (i = 0; i < upd_get_n_fields(node->update); i++) {
 
-		ufield = upd_get_nth_field(node->update, i);
+		const upd_field_t*	ufield
+			= upd_get_nth_field(node->update, i);
 
-		if (UNIV_UNLIKELY(ufield->extern_storage)) {
+		if (dfield_is_ext(&ufield->new_val)) {
 			buf_block_t*	block;
 			ulint		internal_offset;
 			byte*		data_field;
@@ -414,7 +414,7 @@ skip_secondaries:
 			can calculate from node->roll_ptr the file
 			address of the new_val data */
 
-			internal_offset = ((byte*)ufield->new_val.data)
+			internal_offset = ((const byte*)ufield->new_val.data)
 				- node->undo_rec;
 
 			ut_a(internal_offset < UNIV_PAGE_SIZE);

@@ -101,12 +101,15 @@ Converts an index record to a typed data tuple. */
 dtuple_t*
 row_rec_to_index_entry_low(
 /*=======================*/
-				/* out, index entry built; does not
+				/* out: index entry built; does not
 				set info_bits, and the data fields in
 				the entry will point directly to rec */
 	const rec_t*	rec,	/* in: record in the index */
 	dict_index_t*	index,	/* in: index */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
+	ulint*		n_ext,	/* out: number of externally stored columns;
+				if this is passed as NULL, such columns are
+				not flagged nor counted */
 	mem_heap_t*	heap);	/* in: memory heap from which the memory
 				needed is allocated */
 /***********************************************************************

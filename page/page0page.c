@@ -356,8 +356,7 @@ page_create_low(
 
 	heap_top = page + PAGE_DATA;
 
-	infimum_rec = rec_convert_dtuple_to_rec(heap_top, index,
-						tuple, NULL, 0);
+	infimum_rec = rec_convert_dtuple_to_rec(heap_top, index, tuple, 0);
 
 	if (UNIV_LIKELY(comp)) {
 		ut_a(infimum_rec == page + PAGE_NEW_INFIMUM);
@@ -386,8 +385,7 @@ page_create_low(
 	dtype_set(dfield_get_type(field),
 		  DATA_VARCHAR, DATA_ENGLISH | DATA_NOT_NULL, comp ? 8 : 9);
 
-	supremum_rec = rec_convert_dtuple_to_rec(heap_top, index,
-						 tuple, NULL, 0);
+	supremum_rec = rec_convert_dtuple_to_rec(heap_top, index, tuple, 0);
 
 	if (UNIV_LIKELY(comp)) {
 		ut_a(supremum_rec == page + PAGE_NEW_SUPREMUM);

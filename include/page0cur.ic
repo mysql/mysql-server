@@ -218,14 +218,13 @@ page_cur_tuple_insert(
 	page_cur_t*	cursor,	/* in/out: a page cursor */
 	const dtuple_t*	tuple,	/* in: pointer to a data tuple */
 	dict_index_t*	index,	/* in: record descriptor */
-	const ulint*	ext,	/* in: array of extern field numbers */
-	ulint		n_ext,	/* in: number of elements in ext */
+	ulint		n_ext,	/* in: number of externally stored columns */
 	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL */
 {
 	mem_heap_t*	heap;
 	ulint*		offsets;
 	ulint		size
-		= rec_get_converted_size(index, tuple, ext, n_ext);
+		= rec_get_converted_size(index, tuple, n_ext);
 	rec_t*		rec;
 
 	heap = mem_heap_create(size
@@ -233,7 +232,7 @@ page_cur_tuple_insert(
 				  + dtuple_get_n_fields(tuple))
 			       * sizeof *offsets);
 	rec = rec_convert_dtuple_to_rec(mem_heap_alloc(heap, size),
-					index, tuple, ext, n_ext);
+					index, tuple, n_ext);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
 
 	if (buf_block_get_page_zip(cursor->block)) {

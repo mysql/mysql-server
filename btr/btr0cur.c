@@ -861,8 +861,7 @@ btr_cur_insert_if_possible(
 				cursor stays valid */
 	const dtuple_t*	tuple,	/* in: tuple to insert; the size info need not
 				have been stored to tuple */
-	const ulint*	ext,	/* in: array of extern field numbers */
-	ulint		n_ext,	/* in: number of elements in ext */
+	ulint		n_ext,	/* in: number of externally stored columns */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	page_cur_t*	page_cursor;
@@ -878,7 +877,7 @@ btr_cur_insert_if_possible(
 
 	/* Now, try the insert */
 	rec = page_cur_tuple_insert(page_cursor, tuple,
-				    cursor->index, ext, n_ext, mtr);
+				    cursor->index, n_ext, mtr);
 
 	if (UNIV_UNLIKELY(!rec)) {
 		/* If record did not fit, reorganize */
@@ -889,8 +888,7 @@ btr_cur_insert_if_possible(
 					PAGE_CUR_LE, page_cursor);
 
 			rec = page_cur_tuple_insert(page_cursor, tuple,
-						    cursor->index,
-						    ext, n_ext, mtr);
+						    cursor->index, n_ext, mtr);
 		}
 	}
 
@@ -979,45 +977,6 @@ btr_cur_trx_report(
 #endif /* UNIV_DEBUG */
 
 /*****************************************************************
-Add the numbers of externally stored fields from big_rec to ext[]. */
-static
-const ulint*
-btr_cur_add_ext(
-/*============*/
-	const ulint*	ext,	/* in: numbers of externally stored fields
-				so far */
-	ulint*		n_ext,	/* in/out: number of externally stored fields
-				so far */
-	const big_rec_t*big_rec,/* in: additional externally stored fields */
-	mem_heap_t**	heap)	/* out: memory heap */
-{
-	ulint	n_old_ext = *n_ext;
-	ulint	n_more_ext = big_rec->n_fields;
-	ulint*	more_ext;
-	ulint	i;
-
-	ut_ad(n_more_ext);
-	*n_ext += n_more_ext;
-
-	if (!*heap) {
-		*heap = mem_heap_create(*n_ext * sizeof(ulint) * 2);
-	}
-	more_ext = mem_heap_alloc(*heap, *n_ext * sizeof(ulint) * 2);
-
-	if (n_old_ext) {
-		memcpy(more_ext, ext, n_old_ext * sizeof(ulint));
-	}
-
-	for (i = 0; i < n_more_ext; i++) {
-		more_ext[n_old_ext++] = big_rec->fields[i].field_no;
-	}
-
-	ut_ulint_sort(more_ext, more_ext + *n_ext, 0, *n_ext);
-
-	return(more_ext);
-}
-
-/*****************************************************************
 Tries to perform an insert to a page in an index tree, next to cursor.
 It is assumed that mtr holds an x-latch on the page. The operation does
 not succeed if there is too little space on the page. If there is just
@@ -1040,8 +999,7 @@ btr_cur_optimistic_insert(
 	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
 				be stored externally by the caller, or
 				NULL */
-	const ulint*	ext,	/* in: array of extern field numbers */
-	ulint		n_ext,	/* in: number of elements in vec */
+	ulint		n_ext,	/* in: number of externally stored columns */
 	que_thr_t*	thr,	/* in: query thread or NULL */
 	mtr_t*		mtr)	/* in: mtr; if this function returns
 				DB_SUCCESS on a leaf page of a secondary
@@ -1099,21 +1057,20 @@ btr_cur_optimistic_insert(
 	}
 
 	/* Calculate the record size when entry is converted to a record */
-	rec_size = rec_get_converted_size(index, entry, ext, n_ext);
+	rec_size = rec_get_converted_size(index, entry, n_ext);
 
 	if (page_zip_rec_needs_ext(rec_size, page_is_comp(page), zip_size)) {
 
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
-		big_rec_vec = dtuple_convert_big_rec(index, entry, ext, n_ext);
+		big_rec_vec = dtuple_convert_big_rec(index, entry, &n_ext);
 
 		if (UNIV_UNLIKELY(big_rec_vec == NULL)) {
 
 			return(DB_TOO_BIG_RECORD);
 		}
 
-		ext = btr_cur_add_ext(ext, &n_ext, big_rec_vec, &heap);
-		rec_size = rec_get_converted_size(index, entry, ext, n_ext);
+		rec_size = rec_get_converted_size(index, entry, n_ext);
 	}
 
 	/* If there have been many consecutive inserts, and we are on the leaf
@@ -1164,7 +1121,7 @@ fail_err:
 	{
 		const rec_t* page_cursor_rec = page_cur_get_rec(page_cursor);
 		*rec = page_cur_tuple_insert(page_cursor, entry, index,
-					     ext, n_ext, mtr);
+					     n_ext, mtr);
 		reorg = page_cursor_rec != page_cur_get_rec(page_cursor);
 
 		if (UNIV_UNLIKELY(reorg)) {
@@ -1189,7 +1146,7 @@ fail_err:
 		page_cur_search(block, index, entry, PAGE_CUR_LE, page_cursor);
 
 		*rec = page_cur_tuple_insert(page_cursor, entry, index,
-					     ext, n_ext, mtr);
+					     n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
 			if (UNIV_LIKELY(zip_size != 0)) {
@@ -1286,8 +1243,7 @@ btr_cur_pessimistic_insert(
 	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
 				be stored externally by the caller, or
 				NULL */
-	const ulint*	ext,	/* in: array of extern field numbers */
-	ulint		n_ext,	/* in: number of elements in vec */
+	ulint		n_ext,	/* in: number of externally stored columns */
 	que_thr_t*	thr,	/* in: query thread or NULL */
 	mtr_t*		mtr)	/* in: mtr */
 {
@@ -1317,7 +1273,7 @@ btr_cur_pessimistic_insert(
 	cursor->flag = BTR_CUR_BINARY;
 
 	err = btr_cur_optimistic_insert(flags, cursor, entry, rec,
-					&big_rec_vec, ext, n_ext, thr, mtr);
+					&big_rec_vec, n_ext, thr, mtr);
 	if (err != DB_FAIL) {
 
 		return(err);
@@ -1349,8 +1305,7 @@ btr_cur_pessimistic_insert(
 		}
 	}
 
-	if (page_zip_rec_needs_ext(rec_get_converted_size(index, entry,
-							  ext, n_ext),
+	if (page_zip_rec_needs_ext(rec_get_converted_size(index, entry, n_ext),
 				   dict_table_is_comp(index->table),
 				   zip_size)) {
 		/* The record is so big that we have to store some fields
@@ -1363,7 +1318,7 @@ btr_cur_pessimistic_insert(
 			dtuple_convert_back_big_rec(index, entry, big_rec_vec);
 		}
 
-		big_rec_vec = dtuple_convert_big_rec(index, entry, NULL, 0);
+		big_rec_vec = dtuple_convert_big_rec(index, entry, &n_ext);
 
 		if (big_rec_vec == NULL) {
 
@@ -1375,18 +1330,12 @@ btr_cur_pessimistic_insert(
 		}
 	}
 
-	/* Add externally stored records, if needed */
-	if (UNIV_LIKELY_NULL(big_rec_vec)) {
-		ext = btr_cur_add_ext(ext, &n_ext, big_rec_vec, &heap);
-	}
-
 	if (UNIV_UNLIKELY(zip_size)) {
 		/* Estimate the free space of an empty compressed page. */
 		ulint	free_space_zip = page_zip_empty_size(
 			cursor->index->n_fields, zip_size);
 
-		if (UNIV_UNLIKELY(rec_get_converted_size(index, entry,
-							 ext, n_ext)
+		if (UNIV_UNLIKELY(rec_get_converted_size(index, entry, n_ext)
 				  > free_space_zip)) {
 			/* Try to insert the record by itself on a new page.
 			If it fails, no amount of splitting will help. */
@@ -1402,7 +1351,7 @@ btr_cur_pessimistic_insert(
 
 			temp_rec = page_cur_tuple_insert(&temp_cursor,
 							 entry, index,
-							 ext, n_ext, NULL);
+							 n_ext, NULL);
 			buf_block_free(temp_block);
 
 			if (UNIV_UNLIKELY(!temp_rec)) {
@@ -1424,11 +1373,9 @@ btr_cur_pessimistic_insert(
 	    == buf_block_get_page_no(btr_cur_get_block(cursor))) {
 
 		/* The page is the root page */
-		*rec = btr_root_raise_and_insert(cursor, entry,
-						 ext, n_ext, mtr);
+		*rec = btr_root_raise_and_insert(cursor, entry, n_ext, mtr);
 	} else {
-		*rec = btr_page_split_and_insert(cursor, entry,
-						 ext, n_ext, mtr);
+		*rec = btr_page_split_and_insert(cursor, entry, n_ext, mtr);
 	}
 
 	if (UNIV_LIKELY_NULL(heap)) {
@@ -1909,7 +1856,7 @@ any_extern:
 	}
 
 	for (i = 0; i < upd_get_n_fields(update); i++) {
-		if (upd_get_nth_field(update, i)->extern_storage) {
+		if (dfield_is_ext(&upd_get_nth_field(update, i)->new_val)) {
 
 			goto any_extern;
 		}
@@ -1922,7 +1869,7 @@ any_extern:
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
 						     FALSE, NULL);
 	old_rec_size = rec_offs_size(offsets);
-	new_rec_size = rec_get_converted_size(index, new_entry, NULL, 0);
+	new_rec_size = rec_get_converted_size(index, new_entry, 0);
 
 	page_zip = buf_block_get_page_zip(block);
 #ifdef UNIV_ZIP_DEBUG
@@ -2000,7 +1947,7 @@ err_exit:
 	}
 
 	/* There are no externally stored columns in new_entry */
-	rec = btr_cur_insert_if_possible(cursor, new_entry, NULL, 0, mtr);
+	rec = btr_cur_insert_if_possible(cursor, new_entry, 0, mtr);
 	ut_a(rec); /* <- We calculated above the insert would fit */
 
 	if (page_zip && !dict_index_is_clust(index)
@@ -2121,8 +2068,7 @@ btr_cur_pessimistic_update(
 	ibool		was_first;
 	ulint		n_extents	= 0;
 	ulint		n_reserved;
-	ulint*		ext_vect;
-	ulint		n_ext_vect;
+	ulint		n_ext;
 	ulint*		offsets		= NULL;
 
 	*big_rec = NULL;
@@ -2216,27 +2162,20 @@ btr_cur_pessimistic_update(
 	/* We have to set appropriate extern storage bits in the new
 	record to be inserted: we have to remember which fields were such */
 
-	ext_vect = mem_heap_alloc(*heap, sizeof(ulint) * 2
-				  * dict_index_get_n_fields(index));
 	ut_ad(!page_is_comp(page) || !rec_get_node_ptr_flag(rec));
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, heap);
-	n_ext_vect = btr_push_update_extern_fields(ext_vect, offsets, update);
+	n_ext = btr_push_update_extern_fields(new_entry, offsets, update);
 
 	if (page_zip_rec_needs_ext(rec_get_converted_size(index, new_entry,
-							  ext_vect,
-							  n_ext_vect),
+							  n_ext),
 				   page_is_comp(page), page_zip
 				   ? page_zip_get_size(page_zip) : 0)) {
-		big_rec_vec = dtuple_convert_big_rec(index, new_entry,
-						     ext_vect, n_ext_vect);
+		big_rec_vec = dtuple_convert_big_rec(index, new_entry, &n_ext);
 		if (UNIV_UNLIKELY(big_rec_vec == NULL)) {
 
 			err = DB_TOO_BIG_RECORD;
 			goto return_after_reservations;
 		}
-
-		ext_vect = (ulint*) btr_cur_add_ext(ext_vect, &n_ext_vect,
-						    big_rec_vec, heap);
 	}
 
 	/* Store state of explicit locks on rec on the page infimum record,
@@ -2261,8 +2200,7 @@ btr_cur_pessimistic_update(
 
 	page_cur_move_to_prev(page_cursor);
 
-	rec = btr_cur_insert_if_possible(cursor, new_entry,
-					 ext_vect, n_ext_vect, mtr);
+	rec = btr_cur_insert_if_possible(cursor, new_entry, n_ext, mtr);
 
 	if (rec) {
 		lock_rec_restore_from_page_infimum(btr_cur_get_block(cursor),
@@ -2311,8 +2249,7 @@ btr_cur_pessimistic_update(
 					 | BTR_NO_LOCKING_FLAG
 					 | BTR_KEEP_SYS_FLAG,
 					 cursor, new_entry, &rec,
-					 &dummy_big_rec,
-					 ext_vect, n_ext_vect, NULL, mtr);
+					 &dummy_big_rec, n_ext, NULL, mtr);
 	ut_a(rec);
 	ut_a(err == DB_SUCCESS);
 	ut_a(dummy_big_rec == NULL);
@@ -3510,51 +3447,36 @@ btr_cur_mark_dtuple_inherited_extern(
 /*=================================*/
 	dtuple_t*	entry,		/* in/out: updated entry to be
 					inserted to clustered index */
-	const ulint*	ext_vec,	/* in: array of extern fields in the
-					original record */
-	ulint		n_ext_vec,	/* in: number of elements in ext_vec */
 	const upd_t*	update)		/* in: update vector */
 {
-	dfield_t*	dfield;
-	ulint		byte_val;
-	byte*		data;
-	ulint		len;
-	ibool		is_updated;
-	ulint		j;
 	ulint		i;
 
-	if (ext_vec == NULL) {
+	for (i = 0; dtuple_get_n_fields(entry); i++) {
 
-		return;
-	}
+		dfield_t*	dfield = dtuple_get_nth_field(entry, i);
+		byte*		data;
+		ulint		len;
+		ulint		j;
 
-	for (i = 0; i < n_ext_vec; i++) {
+		if (!dfield_is_ext(dfield)) {
+			continue;
+		}
 
-		/* Check ext_vec[i] is in updated fields */
-		is_updated = FALSE;
+		/* Check if it is in updated fields */
 
 		for (j = 0; j < upd_get_n_fields(update); j++) {
-			if (upd_get_nth_field(update, j)->field_no
-			    == ext_vec[i]) {
-				is_updated = TRUE;
+			if (upd_get_nth_field(update, j)->field_no == i) {
+
+				goto is_updated;
 			}
 		}
 
-		if (!is_updated) {
-			dfield = dtuple_get_nth_field(entry, ext_vec[i]);
+		data = dfield_get_data(dfield);
+		data[len - BTR_EXTERN_FIELD_REF_SIZE + BTR_EXTERN_LEN]
+			|= BTR_EXTERN_INHERITED_FLAG;
 
-			data = (byte*) dfield_get_data(dfield);
-			len = dfield_get_len(dfield);
-
-			len -= BTR_EXTERN_FIELD_REF_SIZE;
-
-			byte_val = mach_read_from_1(data + len
-						    + BTR_EXTERN_LEN);
-
-			byte_val = byte_val | BTR_EXTERN_INHERITED_FLAG;
-
-			mach_write_to_1(data + len + BTR_EXTERN_LEN, byte_val);
-		}
+is_updated:
+		;
 	}
 }
 
@@ -3599,25 +3521,20 @@ Marks all extern fields in a dtuple as owned by the record. */
 void
 btr_cur_unmark_dtuple_extern_fields(
 /*================================*/
-	dtuple_t*	entry,		/* in/out: clustered index entry */
-	const ulint*	ext_vec,	/* in: array of numbers of fields
-					which have been stored externally */
-	ulint		n_ext_vec)	/* in: number of elements in ext_vec */
+	dtuple_t*	entry)		/* in/out: clustered index entry */
 {
-	dfield_t* dfield;
-	byte*	data;
-	ulint	len;
 	ulint	i;
 
-	for (i = 0; i < n_ext_vec; i++) {
-		dfield = dtuple_get_nth_field(entry, ext_vec[i]);
+	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
+		dfield_t* dfield = dtuple_get_nth_field(entry, i);
 
-		data = (byte*) dfield_get_data(dfield);
-		len = dfield_get_len(dfield);
+		if (dfield_is_ext(dfield)) {
+			byte*	data = dfield_get_data(dfield);
+			ulint	len = dfield_get_len(dfield);
 
-		len -= BTR_EXTERN_FIELD_REF_SIZE;
-
-		data[len + BTR_EXTERN_LEN] &= ~BTR_EXTERN_OWNER_FLAG;
+			data[len - BTR_EXTERN_FIELD_REF_SIZE + BTR_EXTERN_LEN]
+				&= ~BTR_EXTERN_OWNER_FLAG;
+		}
 	}
 }
 
@@ -3631,10 +3548,8 @@ update. */
 ulint
 btr_push_update_extern_fields(
 /*==========================*/
-				/* out: number of values stored in ext_vect */
-	ulint*		ext_vect,/* out: array of ulints, must be preallocated
-				to have twice the space for all fields
-				in rec */
+				/* out: number of externally stored columns */
+	dtuple_t*	tuple,	/* in/out: data tuple */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	const upd_t*	update)	/* in: update vector or NULL */
 {
@@ -3642,49 +3557,48 @@ btr_push_update_extern_fields(
 	ulint	n;
 	ulint	i;
 
+	ut_ad(tuple);
+	ut_ad(offsets);
+	ut_ad(dtuple_get_n_fields(tuple) == rec_offs_n_fields(offsets));
+#ifdef UNIV_DEBUG
+	for (i = 0; i < dtuple_get_n_fields(tuple); i++) {
+		ut_ad(!dfield_is_ext(dtuple_get_nth_field(tuple, i)));
+	}
+#endif /* UNIV_DEBUG */
+
 	if (update) {
+		const upd_field_t* ufield;
+
+		ufield = update->fields;
 		n = upd_get_n_fields(update);
 
-		for (i = 0; i < n; i++) {
-
-			if (upd_get_nth_field(update, i)->extern_storage) {
-
-				ext_vect[n_pushed] = upd_get_nth_field(
-					update, i)->field_no;
-
+		for (; n--; ufield++) {
+			if (dfield_is_ext(&ufield->new_val)) {
+				dfield_set_ext(dtuple_get_nth_field(
+						       tuple,
+						       ufield->field_no));
 				n_pushed++;
 			}
 		}
+	}
+
+	if (!rec_offs_any_extern(offsets)) {
+		return(n_pushed);
 	}
 
 	n = rec_offs_n_fields(offsets);
 
 	for (i = 0; i < n; i++) {
 		if (rec_offs_nth_extern(offsets, i)) {
+			dfield_t*	dfield
+				= dtuple_get_nth_field(tuple, i);
 
-			/* Check it is not in updated fields */
-
-			if (update) {
-				ulint	j;
-
-				for (j = 0; j < upd_get_n_fields(update);
-				     j++) {
-					if (upd_get_nth_field(update, j)
-					    ->field_no == i) {
-						goto is_updated;
-					}
-				}
+			/* Check it is not flagged already */
+			if (!dfield_is_ext(dfield)) {
+				dfield_set_ext(dfield);
+				n_pushed++;
 			}
-
-			ext_vect[n_pushed] = i;
-			n_pushed++;
-is_updated:
-			;
 		}
-	}
-
-	if (n_pushed) {
-		ut_ulint_sort(ext_vect, ext_vect + n_pushed, 0, n_pushed);
 	}
 
 	return(n_pushed);
@@ -3852,7 +3766,7 @@ btr_store_big_rec_extern_fields(
 			int	err = deflateReset(&c_stream);
 			ut_a(err == Z_OK);
 
-			c_stream.next_in = big_rec_vec->fields[i].data;
+			c_stream.next_in = (void*) big_rec_vec->fields[i].data;
 			c_stream.avail_in = extern_len;
 		}
 

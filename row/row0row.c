@@ -113,21 +113,19 @@ row_build_index_entry(
 
 		dfield_copy(dfield, dfield2);
 
-		if (UNIV_LIKELY_NULL(ext)
-		    && dfield_get_len(dfield2) != UNIV_SQL_NULL) {
+		if (UNIV_LIKELY_NULL(ext) && !dfield_is_null(dfield)) {
 			/* See if the column is stored externally. */
+			ulint	len = dfield_get_len(dfield);
 			byte*	buf = row_ext_lookup(ext, col_no,
-						     dfield2->data,
-						     dfield2->len,
-						     &dfield->len);
+						     dfield->data,
+						     dfield->len, &len);
 			if (UNIV_LIKELY_NULL(buf)) {
-				dfield->data = buf;
+				dfield_set_data(dfield, buf, len);
 			}
 		}
 
 		/* If a column prefix index, take only the prefix */
-		if (ind_field->prefix_len > 0
-		    && dfield->len != UNIV_SQL_NULL) {
+		if (ind_field->prefix_len > 0 && !dfield_is_null(dfield)) {
 			dfield->len = dtype_get_at_most_n_mbchars(
 				col->prtype, col->mbminlen, col->mbmaxlen,
 				ind_field->prefix_len,
@@ -262,12 +260,15 @@ Converts an index record to a typed data tuple. */
 dtuple_t*
 row_rec_to_index_entry_low(
 /*=======================*/
-				/* out, index entry built; does not
+				/* out: index entry built; does not
 				set info_bits, and the data fields in
 				the entry will point directly to rec */
 	const rec_t*	rec,	/* in: record in the index */
 	dict_index_t*	index,	/* in: index */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
+	ulint*		n_ext,	/* out: number of externally stored columns;
+				if this is passed as NULL, such columns are
+				not flagged nor counted */
 	mem_heap_t*	heap)	/* in: memory heap from which the memory
 				needed is allocated */
 {
@@ -296,6 +297,11 @@ row_rec_to_index_entry_low(
 		field = rec_get_nth_field(rec, offsets, i, &len);
 
 		dfield_set_data(dfield, field, len);
+
+		if (n_ext && rec_offs_nth_extern(offsets, i)) {
+			dfield_set_ext(dfield);
+			(*n_ext)++;
+		}
 	}
 
 	ut_ad(dtuple_check_typed(entry));
@@ -347,7 +353,7 @@ row_rec_to_index_entry(
 		rec_offs_make_valid(rec, index, offsets);
 	}
 
-	entry = row_rec_to_index_entry_low(rec, index, offsets, heap);
+	entry = row_rec_to_index_entry_low(rec, index, offsets, NULL, heap);
 
 	dtuple_set_info_bits(entry,
 			     rec_get_info_bits(rec, rec_offs_comp(offsets)));
@@ -613,8 +619,7 @@ row_build_row_ref_from_row(
 
 		dfield_copy(dfield, dfield2);
 
-		if (field->prefix_len > 0
-		    && dfield->len != UNIV_SQL_NULL) {
+		if (field->prefix_len > 0 && !dfield_is_null(dfield)) {
 
 			dfield->len = dtype_get_at_most_n_mbchars(
 				col->prtype, col->mbminlen, col->mbmaxlen,

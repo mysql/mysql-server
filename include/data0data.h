@@ -65,6 +65,29 @@ dfield_set_len(
 	dfield_t*	field,	/* in: field */
 	ulint		len);	/* in: length or UNIV_SQL_NULL */
 /*************************************************************************
+Determines if a field is SQL NULL */
+UNIV_INLINE
+ulint
+dfield_is_null(
+/*===========*/
+				/* out: nonzero if SQL null data */
+	const dfield_t* field);	/* in: field */
+/*************************************************************************
+Determines if a field is externally stored */
+UNIV_INLINE
+ulint
+dfield_is_ext(
+/*==========*/
+				/* out: nonzero if externally stored */
+	const dfield_t* field);	/* in: field */
+/*************************************************************************
+Sets the "external storage" flag */
+UNIV_INLINE
+void
+dfield_set_ext(
+/*===========*/
+	dfield_t*	field);	/* in/out: field */
+/*************************************************************************
 Sets pointer to the data and length in a field. */
 UNIV_INLINE
 void
@@ -73,6 +96,13 @@ dfield_set_data(
 	dfield_t*	field,	/* in: field */
 	const void*	data,	/* in: data */
 	ulint		len);	/* in: length or UNIV_SQL_NULL */
+/*************************************************************************
+Sets a data field to SQL NULL. */
+UNIV_INLINE
+void
+dfield_set_null(
+/*============*/
+	dfield_t*	field);	/* in/out: field */
 /**************************************************************************
 Writes an SQL null field full of zeros. */
 UNIV_INLINE
@@ -87,15 +117,15 @@ UNIV_INLINE
 void
 dfield_copy_data(
 /*=============*/
-	dfield_t*	field1,	/* in: field to copy to */
-	dfield_t*	field2);/* in: field to copy from */
+	dfield_t*	field1,	/* out: field to copy to */
+	const dfield_t*	field2);/* in: field to copy from */
 /*************************************************************************
 Copies a data field to another. */
 UNIV_INLINE
 void
 dfield_copy(
 /*========*/
-	dfield_t*	field1,	/* in: field to copy to */
+	dfield_t*	field1,	/* out: field to copy to */
 	const dfield_t*	field2);/* in: field to copy from */
 /*************************************************************************
 Tests if data length and content is equal for two dfields. */
@@ -329,12 +359,9 @@ dtuple_convert_big_rec(
 				too many fixed-length or short fields
 				in entry or the index is clustered */
 	dict_index_t*	index,	/* in: index */
-	const dtuple_t*	entry,	/* in: index entry */
-	const ulint*	ext_vec,/* in: array of externally stored fields,
-				or NULL: if a field already is externally
-				stored, then we cannot move it to the vector
-				this function returns */
-	ulint		n_ext_vec);/* in: number of elements is ext_vec */
+	dtuple_t*	entry,	/* in/out: index entry */
+	ulint*		n_ext);	/* in/out: number of
+				externally stored columns */
 /******************************************************************
 Puts back to entry the data stored in vector. Note that to ensure the
 fields in entry can accommodate the data, vector must have been created
@@ -361,7 +388,8 @@ dtuple_big_rec_free(
 /* Structure for an SQL data field */
 struct dfield_struct{
 	void*		data;	/* pointer to data */
-	ulint		len;	/* data length; UNIV_SQL_NULL if SQL null; */
+	unsigned	ext:1;	/* TRUE=externally stored, FALSE=local */
+	unsigned	len:32;	/* data length; UNIV_SQL_NULL if SQL null */
 	dtype_t		type;	/* type of data */
 };
 
@@ -392,7 +420,7 @@ typedef struct big_rec_field_struct	big_rec_field_t;
 struct big_rec_field_struct {
 	ulint		field_no;	/* field number in record */
 	ulint		len;		/* stored data len */
-	byte*		data;		/* stored data */
+	const void*	data;		/* stored data */
 };
 
 /* Storage format for overflow data in a big record, that is, a record

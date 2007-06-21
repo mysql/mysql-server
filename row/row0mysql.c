@@ -421,7 +421,7 @@ row_mysql_convert_row_to_innobase(
 
 				/* It is SQL NULL */
 
-				dfield_set_data(dfield, NULL, UNIV_SQL_NULL);
+				dfield_set_null(dfield);
 
 				goto next_column;
 			}
@@ -890,7 +890,7 @@ row_get_prebuilt_insert_row(
 
 		for (i = 0; i < dtuple_get_n_fields(row); i++) {
 
-			dtuple_get_nth_field(row, i)->len = UNIV_SQL_NULL;
+			dfield_set_null(dtuple_get_nth_field(row, i));
 		}
 
 		ins_node_set_new_row(node, row);

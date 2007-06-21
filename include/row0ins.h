@@ -70,9 +70,8 @@ row_ins_index_entry(
 				DB_DUPLICATE_KEY, or some other error code */
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry,	/* in: index entry to insert */
-	ulint*		ext_vec,/* in: array containing field numbers of
-				externally stored fields in entry, or NULL */
-	ulint		n_ext_vec,/* in: number of fields in ext_vec */
+	ulint		n_ext,	/* in: number of externally stored columns */
+	ibool		foreign,/* in: TRUE=check foreign key constraints */
 	que_thr_t*	thr);	/* in: query thread */
 /***************************************************************
 Inserts a row to a table. */

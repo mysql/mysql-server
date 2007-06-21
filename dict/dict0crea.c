@@ -100,7 +100,7 @@ dict_create_sys_tables_tuple(
 	dfield_set_data(dfield, ptr, 4);
 	/* 8: CLUSTER_NAME ---------------------*/
 	dfield = dtuple_get_nth_field(entry, 6);
-	dfield_set_data(dfield, NULL, UNIV_SQL_NULL); /* not supported */
+	dfield_set_null(dfield); /* not supported */
 
 	/* 9: SPACE ----------------------------*/
 	dfield = dtuple_get_nth_field(entry, 7);

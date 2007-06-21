@@ -1350,8 +1350,7 @@ ibuf_rec_get_volume(
 			mem_heap_t*	heap = mem_heap_create(500);
 			dtuple_t*	entry = ibuf_build_entry_from_ibuf_rec(
 				ibuf_rec, heap, &dummy_index);
-			volume = rec_get_converted_size(dummy_index, entry,
-							NULL, 0);
+			volume = rec_get_converted_size(dummy_index, entry, 0);
 			ibuf_dummy_index_free(dummy_index);
 			mem_heap_free(heap);
 			return(volume + page_dir_calc_reserved_space(1));
@@ -2654,7 +2653,7 @@ ibuf_insert_low(
 		ibuf_enter();
 	}
 
-	entry_size = rec_get_converted_size(index, entry, NULL, 0);
+	entry_size = rec_get_converted_size(index, entry, 0);
 
 	heap = mem_heap_create(512);
 
@@ -2732,8 +2731,7 @@ ibuf_insert_low(
 	if (mode == BTR_MODIFY_PREV) {
 		err = btr_cur_optimistic_insert(BTR_NO_LOCKING_FLAG, cursor,
 						ibuf_entry, &ins_rec,
-						&dummy_big_rec, NULL, 0,
-						thr, &mtr);
+						&dummy_big_rec, 0, thr, &mtr);
 		if (err == DB_SUCCESS) {
 			/* Update the page max trx id field */
 			page_update_max_trx_id(btr_cur_get_block(cursor), NULL,
@@ -2753,8 +2751,7 @@ ibuf_insert_low(
 						 | BTR_NO_UNDO_LOG_FLAG,
 						 cursor,
 						 ibuf_entry, &ins_rec,
-						 &dummy_big_rec, NULL, 0,
-						 thr, &mtr);
+						 &dummy_big_rec, 0, thr, &mtr);
 		if (err == DB_SUCCESS) {
 			/* Update the page max trx id field */
 			page_update_max_trx_id(btr_cur_get_block(cursor), NULL,
@@ -2836,7 +2833,7 @@ ibuf_insert(
 
 	ut_a(!dict_index_is_clust(index));
 
-	if (rec_get_converted_size(index, entry, NULL, 0)
+	if (rec_get_converted_size(index, entry, 0)
 	    >= (page_get_free_space_of_empty(dict_table_is_comp(index->table))
 		/ 2)) {
 		return(FALSE);
@@ -2927,8 +2924,7 @@ dump:
 
 		btr_cur_del_unmark_for_ibuf(rec, mtr);
 	} else {
-		rec = page_cur_tuple_insert(&page_cur, entry, index,
-					    NULL, 0, mtr);
+		rec = page_cur_tuple_insert(&page_cur, entry, index, 0, mtr);
 
 		if (UNIV_LIKELY(rec != NULL)) {
 			return;
@@ -2942,7 +2938,7 @@ dump:
 		/* This time the record must fit */
 		if (UNIV_UNLIKELY
 		    (!page_cur_tuple_insert(&page_cur, entry, index,
-					    NULL, 0, mtr))) {
+					    0, mtr))) {
 			ulint	space;
 			ulint	page_no;
 			ulint	zip_size;
@@ -2956,7 +2952,7 @@ dump:
 				(ulong) page_get_max_insert_size(
 					page, 1),
 				(ulong) rec_get_converted_size(
-					index, entry, NULL, 0));
+					index, entry, 0));
 			fputs("InnoDB: Cannot insert index record ",
 			      stderr);
 			dtuple_print(stderr, entry);
@@ -3337,8 +3333,7 @@ loop:
 			entry = ibuf_build_entry_from_ibuf_rec(
 				ibuf_rec, heap, &dummy_index);
 #ifdef UNIV_IBUF_DEBUG
-			volume += rec_get_converted_size(dummy_index, entry,
-							 NULL, 0)
+			volume += rec_get_converted_size(dummy_index, entry, 0)
 				+ page_dir_calc_reserved_space(1);
 			ut_a(volume <= 4 * UNIV_PAGE_SIZE
 			     / IBUF_PAGE_SIZE_PER_FREE_SPACE);
