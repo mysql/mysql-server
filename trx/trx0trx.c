@@ -87,11 +87,12 @@ trx_t*
 trx_create(
 /*=======*/
 			/* out, own: the transaction */
-	sess_t*	sess)	/* in: session or NULL */
+	sess_t*	sess)	/* in: session */
 {
 	trx_t*	trx;
 
 	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(sess);
 
 	trx = mem_alloc(sizeof(trx_t));
 
@@ -206,12 +207,6 @@ trx_allocate_for_mysql(void)
 
 	mutex_enter(&kernel_mutex);
 
-	/* Open a dummy session */
-
-	if (!trx_dummy_sess) {
-		trx_dummy_sess = sess_open();
-	}
-
 	trx = trx_create(trx_dummy_sess);
 
 	trx_n_mysql_transactions++;
@@ -238,12 +233,6 @@ trx_allocate_for_background(void)
 	trx_t*	trx;
 
 	mutex_enter(&kernel_mutex);
-
-	/* Open a dummy session */
-
-	if (!trx_dummy_sess) {
-		trx_dummy_sess = sess_open();
-	}
 
 	trx = trx_create(trx_dummy_sess);
 
@@ -455,7 +444,7 @@ trx_lists_init_at_db_start(void)
 
 		while (undo != NULL) {
 
-			trx = trx_create(NULL);
+			trx = trx_create(trx_dummy_sess);
 
 			trx->id = undo->trx_id;
 			trx->xid = undo->xid;
@@ -533,7 +522,7 @@ trx_lists_init_at_db_start(void)
 			trx = trx_get_on_id(undo->trx_id);
 
 			if (NULL == trx) {
-				trx = trx_create(NULL);
+				trx = trx_create(trx_dummy_sess);
 
 				trx->id = undo->trx_id;
 				trx->xid = undo->xid;
@@ -1573,21 +1562,7 @@ trx_commit_for_mysql(
 
 	trx->op_info = "committing";
 
-	/* If we are doing the XA recovery of prepared transactions, then
-	the transaction object does not have an InnoDB session object, and we
-	set the dummy session that we use for all MySQL transactions. */
-
 	mutex_enter(&kernel_mutex);
-
-	if (trx->sess == NULL) {
-		/* Open a dummy session */
-
-		if (!trx_dummy_sess) {
-			trx_dummy_sess = sess_open();
-		}
-
-		trx->sess = trx_dummy_sess;
-	}
 
 	trx_commit_off_kernel(trx);
 

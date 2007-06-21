@@ -984,6 +984,8 @@ trx_sys_init_at_db_start(void)
 
 	trx_purge_sys_create();
 
+	trx_dummy_sess = sess_open();
+
 	mutex_exit(&kernel_mutex);
 
 	mtr_commit(&mtr);

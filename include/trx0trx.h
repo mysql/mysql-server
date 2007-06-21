@@ -19,6 +19,11 @@ Created 3/26/1996 Heikki Tuuri
 #include "dict0types.h"
 #include "trx0xa.h"
 
+/* Dummy session used currently in MySQL interface */
+extern sess_t*	trx_dummy_sess;
+
+/* Number of transactions currently allocated for MySQL: protected by
+the kernel mutex */
 extern ulint	trx_n_mysql_transactions;
 
 /*****************************************************************
@@ -87,7 +92,8 @@ trx_t*
 trx_create(
 /*=======*/
 			/* out, own: the transaction */
-	sess_t*	sess);	/* in: session or NULL */
+	sess_t*	sess)	/* in: session */
+	__attribute__((nonnull));
 /************************************************************************
 Creates a transaction object for MySQL. */
 
