@@ -1552,7 +1552,7 @@ Does the transaction commit for MySQL. */
 ulint
 trx_commit_for_mysql(
 /*=================*/
-			/* out: 0 or error number */
+			/* out: DB_SUCCESS or error number */
 	trx_t*	trx)	/* in: trx handle */
 {
 	/* Because we do not do the commit by sending an Innobase
@@ -1560,6 +1560,8 @@ trx_commit_for_mysql(
 	started. */
 
 	ut_a(trx);
+
+	trx_start_if_not_started(trx);
 
 	if (trx->sync_cb) {
 		ulint	err;
@@ -1587,19 +1589,13 @@ trx_commit_for_mysql(
 		trx->sess = trx_dummy_sess;
 	}
 
-	mutex_exit(&kernel_mutex);
-
-	trx_start_if_not_started(trx);
-
-	mutex_enter(&kernel_mutex);
-
 	trx_commit_off_kernel(trx);
 
 	mutex_exit(&kernel_mutex);
 
 	trx->op_info = "";
 
-	return(0);
+	return(DB_SUCCESS);
 }
 
 /**************************************************************************
