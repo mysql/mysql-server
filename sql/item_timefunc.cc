@@ -51,7 +51,7 @@ static bool make_datetime(date_time_format_types format, MYSQL_TIME *ltime,
 {
   char *buff;
   CHARSET_INFO *cs= &my_charset_bin;
-  uint length= 30;
+  uint length= MAX_DATE_STRING_REP_LENGTH;
 
   if (str->alloc(length))
     return 1;
@@ -1379,7 +1379,7 @@ String *Item_date::val_str(String *str)
   MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE))
     return (String *) 0;
-  if (str->alloc(11))
+  if (str->alloc(MAX_DATE_STRING_REP_LENGTH))
   {
     null_value= 1;
     return (String *) 0;
@@ -1428,7 +1428,7 @@ void Item_func_curdate::fix_length_and_dec()
 String *Item_func_curdate::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  if (str->alloc(11))
+  if (str->alloc(MAX_DATE_STRING_REP_LENGTH))
   {
     null_value= 1;
     return (String *) 0;
@@ -1657,7 +1657,8 @@ String *Item_func_sec_to_time::val_str(String *str)
   MYSQL_TIME ltime;
   longlong arg_val= args[0]->val_int(); 
 
-  if ((null_value=args[0]->null_value) || str->alloc(19))
+  if ((null_value=args[0]->null_value) ||
+      str->alloc(MAX_DATE_STRING_REP_LENGTH))
   {
     null_value= 1;
     return (String*) 0;
@@ -1842,6 +1843,10 @@ String *Item_func_date_format::val_str(String *str)
     size=max_length;
   else
     size=format_length(format);
+
+  if (size < MAX_DATE_STRING_REP_LENGTH)
+    size= MAX_DATE_STRING_REP_LENGTH;
+
   if (format == str)
     str= &value;				// Save result here
   if (str->alloc(size))
@@ -1885,13 +1890,14 @@ String *Item_func_from_unixtime::val_str(String *str)
   if (get_date(&time_tmp, 0))
     return 0;
 
-  if (str->alloc(20*MY_CHARSET_BIN_MB_MAXLEN))
+  if (str->alloc(MAX_DATE_STRING_REP_LENGTH))
   {
     null_value= 1;
     return 0;
   }
 
   make_datetime((DATE_TIME_FORMAT *) 0, &time_tmp, str);
+
   return str;
 }
 
@@ -1940,14 +1946,15 @@ String *Item_func_convert_tz::val_str(String *str)
 
   if (get_date(&time_tmp, 0))
     return 0;
-  
-  if (str->alloc(20*MY_CHARSET_BIN_MB_MAXLEN))
+
+  if (str->alloc(MAX_DATE_STRING_REP_LENGTH))
   {
     null_value= 1;
     return 0;
   }
-  
+
   make_datetime((DATE_TIME_FORMAT *) 0, &time_tmp, str);
+
   return str;
 }
 
@@ -2433,6 +2440,7 @@ String *Item_datetime_typecast::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
+
   if (!get_arg0_date(&ltime, TIME_FUZZY_DATE) &&
       !make_datetime(ltime.second_part ? DATE_TIME_MICROSECOND : DATE_TIME, 
 		     &ltime, str))
@@ -2511,7 +2519,8 @@ String *Item_date_typecast::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
 
-  if (!get_arg0_date(&ltime, TIME_FUZZY_DATE) && !str->alloc(11))
+  if (!get_arg0_date(&ltime, TIME_FUZZY_DATE) &&
+      !str->alloc(MAX_DATE_STRING_REP_LENGTH))
   {
     make_date((DATE_TIME_FORMAT *) 0, &ltime, str);
     return str;
@@ -2564,7 +2573,7 @@ String *Item_func_makedate::val_str(String *str)
   {
     null_value=0;
     get_date_from_daynr(days,&l_time.year,&l_time.month,&l_time.day);
-    if (str->alloc(11))
+    if (str->alloc(MAX_DATE_STRING_REP_LENGTH))
       goto err;
     make_date((DATE_TIME_FORMAT *) 0, &l_time, str);
     return str;
@@ -2700,6 +2709,7 @@ String *Item_func_add_time::val_str(String *str)
   days= (long)(seconds/86400L);
 
   calc_time_from_sec(&l_time3, (long)(seconds%86400L), microseconds);
+
   if (!is_time)
   {
     get_date_from_daynr(days,&l_time3.year,&l_time3.month,&l_time3.day);
@@ -2815,7 +2825,7 @@ String *Item_func_maketime::val_str(String *str)
                    args[2]->null_value ||
                    minute < 0 || minute > 59 ||
                    second < 0 || second > 59 ||
-                   str->alloc(19))))
+                   str->alloc(MAX_DATE_STRING_REP_LENGTH))))
     return 0;
 
   bzero((char *)&ltime, sizeof(ltime));

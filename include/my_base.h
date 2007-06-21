@@ -396,7 +396,9 @@ enum ha_base_keytype {
 #define HA_ERR_AUTOINC_READ_FAILED 166   /* Failed to get next autoinc value */
 #define HA_ERR_AUTOINC_ERANGE    167     /* Failed to set row autoinc value */
 #define HA_ERR_GENERIC           168     /* Generic error */
-#define HA_ERR_LAST              168 /*Copy last error nr.*/
+#define HA_ERR_LOGGING_IMPOSSIBLE 169 /* It is not possible to log this
+                                         statement */
+#define HA_ERR_LAST              169 /*Copy last error nr.*/
 /* Add error numbers before HA_ERR_LAST and change it accordingly. */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
 
