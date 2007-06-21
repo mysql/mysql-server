@@ -744,23 +744,19 @@ innobase_mysql_end_print_arbitrary_thd(void)
 }
 
 /*****************************************************************
-Prints info of a THD object (== user session thread) to the given file.
-NOTE that /mysql/innobase/trx/trx0trx.c must contain the prototype for
-this function! */
+Prints info of a THD object (== user session thread) to the given file. */
 extern "C"
 void
 innobase_mysql_print_thd(
 /*=====================*/
 	FILE*	f,		/* in: output stream */
-	void*	input_thd,	/* in: pointer to a MySQL THD object */
+	void*	thd,		/* in: pointer to a MySQL THD object */
 	uint	max_query_len)	/* in: max query length to print, or 0 to
 				   use the default max length */
 {
-	THD*	thd;
 	char	buffer[1024];
 
-	thd = (THD*) input_thd;
-	fputs(thd_security_context(thd, buffer, sizeof(buffer), 
+	fputs(thd_security_context((THD*) thd, buffer, sizeof buffer,
 				   max_query_len), f);
 	putc('\n', f);
 }
