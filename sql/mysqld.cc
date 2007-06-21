@@ -4420,7 +4420,7 @@ pthread_handler_t handle_connections_shared_memory(void *arg)
   HANDLE event_connect_answer= 0;
   ulong smem_buffer_length= shared_memory_buffer_length + 4;
   ulong connect_number= 1;
-  char tmp[63];
+  char *tmp= NULL;
   char *suffix_pos;
   char connect_number_char[22], *p;
   const char *errmsg= 0;
@@ -4428,6 +4428,12 @@ pthread_handler_t handle_connections_shared_memory(void *arg)
   my_thread_init();
   DBUG_ENTER("handle_connections_shared_memorys");
   DBUG_PRINT("general",("Waiting for allocated shared memory."));
+
+  /*
+     get enough space base-name + '_' + longest suffix we might ever send
+   */
+  if (!(tmp= (char *)my_malloc(strlen(shared_memory_base_name) + 32L, MYF(MY_FAE))))
+    goto error;
 
   if (my_security_attr_create(&sa_event, &errmsg,
                               GENERIC_ALL, SYNCHRONIZE | EVENT_MODIFY_STATE))
@@ -4616,6 +4622,9 @@ errorconn:
 
   /* End shared memory handling */
 error:
+  if (tmp)
+    my_free(tmp, MYF(0));
+
   if (errmsg)
   {
     char buff[180];
