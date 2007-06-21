@@ -329,7 +329,7 @@ THD::THD()
    Open_tables_state(refresh_version), rli_fake(0),
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
-   binlog_table_maps(0),
+   binlog_table_maps(0), binlog_flags(0UL),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
    first_successful_insert_id_in_prev_stmt_for_binlog(0),
@@ -3128,6 +3128,27 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query,
   if (this->prelocked_mode == NON_PRELOCKED)
     if (int error= binlog_flush_pending_rows_event(TRUE))
       DBUG_RETURN(error);
+
+  /*
+    If we are in statement mode and trying to log an unsafe statement,
+    we should print a warning.
+  */
+  if (lex->is_stmt_unsafe() &&
+      variables.binlog_format == BINLOG_FORMAT_STMT)
+  {
+    DBUG_ASSERT(this->query != NULL);
+    push_warning(this, MYSQL_ERROR::WARN_LEVEL_WARN,
+                 ER_BINLOG_UNSAFE_STATEMENT,
+                 ER(ER_BINLOG_UNSAFE_STATEMENT));
+    if (!(binlog_flags & BINLOG_FLAG_UNSAFE_STMT_PRINTED))
+    {
+      char warn_buf[MYSQL_ERRMSG_SIZE];
+      my_snprintf(warn_buf, MYSQL_ERRMSG_SIZE, "%s Statement: %s",
+                  ER(ER_BINLOG_UNSAFE_STATEMENT), this->query);
+      sql_print_warning(warn_buf);
+      binlog_flags|= BINLOG_FLAG_UNSAFE_STMT_PRINTED;
+    }
+  }
 
   switch (qtype) {
   case THD::ROW_QUERY_TYPE:

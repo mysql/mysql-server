@@ -1901,7 +1901,7 @@ sp_head::restore_lex(THD *thd)
     cannot switch from statement-based to row-based only for this
     substatement).
   */
-  if (sublex->binlog_row_based_if_mixed)
+  if (sublex->is_stmt_unsafe())
     m_flags|= BINLOG_ROW_BASED_IF_MIXED;
 
   /*

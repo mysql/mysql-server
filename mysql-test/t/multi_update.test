@@ -3,7 +3,8 @@
 #
 
 # Requires grants, so won't work with embedded server test
--- source include/not_embedded.inc
+source include/not_embedded.inc;
+source include/have_log_bin.inc;
 
 --disable_warnings
 drop table if exists t1,t2,t3;
@@ -574,7 +575,6 @@ drop table t1, t2;
 #
 # Bug#27716  	multi-update did partially and has not binlogged
 #
-
 CREATE TABLE `t1` (
   `a` int(11) NOT NULL auto_increment,
   `b` int(11) default NULL,
@@ -587,23 +587,28 @@ CREATE TABLE `t2` (
   PRIMARY KEY  (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
 
-# A. testing multi_update::send_eof() execution branch
+# as the test is about to see erroed queries in binlog
+set @@session.binlog_format= mixed;
+
+
+# A. testing multi_update::send_error() effective update
 insert into t1 values (1,1),(2,2);
 insert into t2 values (1,1),(4,4);
 reset master;
---error ER_DUP_ENTRY
+error ER_DUP_ENTRY;
 UPDATE t2,t1 SET t2.a=t1.a+2;
 # check
 select * from t2 /* must be (3,1), (4,4) */;
 show master status /* there must be the UPDATE query event */;
 
-# B. testing multi_update::send_error() execution branch
+# B. testing multi_update::send_error() ineffective update 
+# (as there is a policy described at mysql_update() still go to binlog) 
 delete from t1;
 delete from t2;
 insert into t1 values (1,2),(3,4),(4,4);
 insert into t2 values (1,2),(3,4),(4,4);
 reset master;
---error ER_DUP_ENTRY
+error ER_DUP_ENTRY;
 UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
 show master status /* there must be the UPDATE query event */;
 

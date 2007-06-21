@@ -19,6 +19,7 @@
 #ifdef HAVE_REPLICATION
 
 #include "rpl_rli.h"
+#include "rpl_reporting.h"
 
 
 /*****************************************************************************
@@ -54,7 +55,7 @@
 
 *****************************************************************************/
 
-class MASTER_INFO
+class MASTER_INFO : public Slave_reporting_capability
 {
  public:
   MASTER_INFO();

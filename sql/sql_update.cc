@@ -1644,9 +1644,9 @@ void multi_update::send_error(uint errcode,const char *err)
     */
     if (mysql_bin_log.is_open())
     {
-      Query_log_event qinfo(thd, thd->query, thd->query_length,
-                            transactional_tables, FALSE);
-      mysql_bin_log.write(&qinfo);
+      thd->binlog_query(THD::ROW_QUERY_TYPE,
+                        thd->query, thd->query_length,
+                        transactional_tables, FALSE);
     }
     if (!trans_safe)
       thd->no_trans_update.all= TRUE;
