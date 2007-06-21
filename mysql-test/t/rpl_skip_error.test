@@ -27,3 +27,23 @@ drop table t1;
 sync_slave_with_master;
 
 # End of 4.1 tests
+
+#
+# #28839 Errors in strict mode silently stop SQL thread if --slave-skip-errors exists
+#
+connection master;
+create table t1(a int primary key);
+insert into t1 values (1),(2);
+delete from t1 where @@server_id=1;
+set sql_mode=strict_trans_tables;
+select @@server_id;
+insert into t1 values (1),(2),(3);
+sync_slave_with_master;
+connection slave;
+select @@server_id;
+select * from t1;
+show slave status;
+connection master;
+drop table t1;
+sync_with_master;
+# End of 5.0 tests
