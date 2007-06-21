@@ -1,3 +1,8 @@
+# Test to test how logging is done depending on the capabilities of
+# the engines. Unfortunately, we don't have a good row-only logging
+# engine, and NDB does not really cut is since it is also
+# self-logging. I'm using it nevertheless.
+
 source include/have_blackhole.inc;
 source include/have_ndb.inc;
 source include/have_binlog_format_mixed_or_row.inc;
@@ -40,6 +45,8 @@ INSERT INTO t1b VALUES (1,1), (1,2), (2,1), (2,2);
 INSERT INTO t1n VALUES (1,1), (1,2), (2,1), (2,2);
 
 UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c;
+error ER_BINLOG_LOGGING_IMPOSSIBLE;
+UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
 
 # Not possible to test this since NDB writes its own binlog, which
 # might cause it to be out of sync with the results from MyISAM.
@@ -47,6 +54,7 @@ UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c;
 
 #UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
 
+>>>>>>>
 error ER_BINLOG_LOGGING_IMPOSSIBLE;
 UPDATE t1n, t1b SET e = 2, b = 3 WHERE f = c;
 
@@ -67,6 +75,8 @@ INSERT INTO t1n VALUES (1,1), (1,2), (2,1), (2,2);
 
 error ER_BINLOG_LOGGING_IMPOSSIBLE;
 UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c;
+error ER_BINLOG_LOGGING_IMPOSSIBLE;
+UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
 
 # Not possible to test this since NDB writes its own binlog, which
 # might cause it to be out of sync with the results from MyISAM.
