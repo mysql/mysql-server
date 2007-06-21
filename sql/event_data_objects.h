@@ -77,7 +77,7 @@ public:
   Event_basic();
   virtual ~Event_basic();
 
-  virtual int
+  virtual bool
   load_from_row(THD *thd, TABLE *table) = 0;
 
 protected:
@@ -119,7 +119,7 @@ public:
   Event_queue_element();
   virtual ~Event_queue_element();
 
-  virtual int
+  virtual bool
   load_from_row(THD *thd, TABLE *table);
 
   bool
@@ -157,7 +157,7 @@ public:
   void
   init();
 
-  virtual int
+  virtual bool
   load_from_row(THD *thd, TABLE *table);
 
   int
@@ -176,7 +176,7 @@ public:
 
   Event_job_data();
 
-  virtual int
+  virtual bool
   load_from_row(THD *thd, TABLE *table);
 
   bool
@@ -205,12 +205,11 @@ public:
   */
   bool do_not_create;
 
-  const char *body_begin;
+  bool body_changed;
 
   LEX_STRING dbname;
   LEX_STRING name;
   LEX_STRING definer;// combination of user and host
-  LEX_STRING body;
   LEX_STRING comment;
 
   Item* item_starts;
@@ -234,9 +233,6 @@ public:
 
   bool
   check_parse_data(THD *thd);
-
-  void
-  init_body(THD *thd);
 
 private:
 

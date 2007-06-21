@@ -3376,8 +3376,8 @@ TYPELIB *ha_known_exts(void)
     const char **ext, *old_ext;
 
     known_extensions_id= mysys_usage_id;
-    found_exts.push_back((char*) triggers_file_ext);
-    found_exts.push_back((char*) trigname_file_ext);
+    found_exts.push_back((char*) TRG_EXT);
+    found_exts.push_back((char*) TRN_EXT);
 
     plugin_foreach(NULL, exts_handlerton,
                    MYSQL_STORAGE_ENGINE_PLUGIN, &found_exts);
