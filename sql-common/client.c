@@ -402,12 +402,18 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
   HANDLE handle_file_map = NULL;
   ulong connect_number;
   char connect_number_char[22], *p;
-  char tmp[64];
+  char *tmp= NULL;
   char *suffix_pos;
   DWORD error_allow = 0;
   DWORD error_code = 0;
   DWORD event_access_rights= SYNCHRONIZE | EVENT_MODIFY_STATE;
   char *shared_memory_base_name = mysql->options.shared_memory_base_name;
+
+  /*
+     get enough space base-name + '_' + longest suffix we might ever send
+   */
+  if (!(tmp= (char *)my_malloc(strlen(shared_memory_base_name) + 32L, MYF(MY_FAE))))
+    goto err;
 
   /*
     The name of event and file-mapping events create agree next rule:
@@ -551,6 +557,8 @@ err2:
       CloseHandle(handle_file_map);
   }
 err:
+  if (tmp)
+    my_free(tmp, MYF(0));
   if (error_allow)
     error_code = GetLastError();
   if (event_connect_request)
