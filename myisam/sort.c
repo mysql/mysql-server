@@ -138,8 +138,9 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 
   while (memavl >= MIN_SORT_MEMORY)
   {
-    if ((my_off_t) (records+1)*(sort_length+sizeof(char*)) <=
-	(my_off_t) memavl)
+    if ((records < UINT_MAX32) && 
+       ((my_off_t) (records + 1) * 
+        (sort_length + sizeof(char*)) <= (my_off_t) memavl))
       keys= records+1;
     else
       do
