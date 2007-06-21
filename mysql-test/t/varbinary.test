@@ -85,3 +85,22 @@ alter table t1 modify a varchar(255);
 select length(a) from t1;
 drop table t1;
 
+
+#
+# Bug#28127 (Some valid identifiers names are not parsed correctly)
+#
+
+--disable_warnings
+drop table if exists table_28127_a;
+drop table if exists table_28127_b;
+--enable_warnings
+
+create table table_28127_a(0b02 int);
+show create table table_28127_a;
+
+create table table_28127_b(0b2 int);
+show create table table_28127_b;
+
+drop table table_28127_a;
+drop table table_28127_b;
+

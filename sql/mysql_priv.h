@@ -101,7 +101,7 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
                         ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX),    \
                         (Old), (Ver), (New));                                        \
     else                                                                             \
-      sql_print_warning("The syntax %s is deprecated and will be removed "           \
+      sql_print_warning("The syntax '%s' is deprecated and will be removed "         \
                         "in MySQL %s. Please use %s instead.", (Old), (Ver), (New)); \
   } while(0)
 
@@ -618,6 +618,8 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
                               uint max_char_length, CHARSET_INFO *cs,
                               bool no_error);
 
+bool parse_sql(THD *thd, class Lex_input_stream *lip);
+
 enum enum_mysql_completiontype {
   ROLLBACK_RELEASE=-2, ROLLBACK=1,  ROLLBACK_AND_CHAIN=7,
   COMMIT_RELEASE=-1,   COMMIT=0,    COMMIT_AND_CHAIN=6
@@ -908,7 +910,7 @@ bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* table_list,
 bool mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
 int reassign_keycache_tables(THD* thd, KEY_CACHE *src_cache,
                              KEY_CACHE *dst_cache);
-TABLE *create_virtual_tmp_table(THD *thd, List<create_field> &field_list);
+TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list);
 
 bool mysql_xa_recover(THD *thd);
 
@@ -952,8 +954,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			bool table_cant_handle_bit_fields,
                         bool make_copy_field,
                         uint convert_blob_length);
-void sp_prepare_create_field(THD *thd, create_field *sql_field);
-int prepare_create_field(create_field *sql_field, 
+void sp_prepare_create_field(THD *thd, Create_field *sql_field);
+int prepare_create_field(Create_field *sql_field, 
 			 uint *blob_columns, 
 			 int *timestamps, int *timestamps_with_niladic,
 			 longlong table_flags);
@@ -1178,7 +1180,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types t
 		       char *change, List<String> *interval_list,
 		       CHARSET_INFO *cs,
 		       uint uint_geom_type);
-create_field * new_create_field(THD *thd, char *field_name, enum_field_types type,
+Create_field * new_create_field(THD *thd, char *field_name, enum_field_types type,
 				char *length, char *decimals,
 				uint type_modifier, 
 				Item *default_value, Item *on_update_value,
@@ -1589,6 +1591,7 @@ bool check_db_dir_existence(const char *db_name);
 bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
 bool load_db_opt_by_name(THD *thd, const char *db_name,
                          HA_CREATE_INFO *db_create_info);
+CHARSET_INFO *get_default_db_collation(THD *thd, const char *db_name);
 bool my_dbopt_init(void);
 void my_dbopt_cleanup(void);
 extern int creating_database; // How many database locks are made
@@ -1610,8 +1613,8 @@ extern const char *first_keyword, *my_localhost, *delayed_user, *binary_keyword;
 extern const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
 extern const char *in_left_expr_name, *in_additional_cond, *in_having_cond;
-extern const char * const triggers_file_ext;
-extern const char * const trigname_file_ext;
+extern const char * const TRG_EXT;
+extern const char * const TRN_EXT;
 extern Eq_creator eq_creator;
 extern Ne_creator ne_creator;
 extern Gt_creator gt_creator;
@@ -1805,12 +1808,12 @@ void unireg_end(void) __attribute__((noreturn));
 bool mysql_create_frm(THD *thd, const char *file_name,
                       const char *db, const char *table,
 		      HA_CREATE_INFO *create_info,
-		      List<create_field> &create_field,
+		      List<Create_field> &create_field,
 		      uint key_count,KEY *key_info,handler *db_type);
 int rea_create_table(THD *thd, const char *path,
                      const char *db, const char *table_name,
                      HA_CREATE_INFO *create_info,
-  		     List<create_field> &create_field,
+  		     List<Create_field> &create_field,
                      uint key_count,KEY *key_info,
                      handler *file);
 int format_number(uint inputflag,uint max_length,char * pos,uint length,
@@ -1961,7 +1964,6 @@ void free_list(I_List <i_string_pair> *list);
 void free_list(I_List <i_string> *list);
 
 /* sql_yacc.cc */
-extern int MYSQLparse(void *thd);
 #ifndef DBUG_OFF
 extern void turn_parser_debug_on();
 #endif
@@ -2152,6 +2154,12 @@ bool schema_table_store_record(THD *thd, TABLE *table);
 /* sql/item_create.cc */
 int item_create_init();
 void item_create_cleanup();
+
+inline void lex_string_set(LEX_STRING *lex_str, const char *c_str)
+{
+  lex_str->str= (char *) c_str;
+  lex_str->length= strlen(c_str);
+}
 
 #endif /* MYSQL_SERVER */
 #endif /* MYSQL_CLIENT */

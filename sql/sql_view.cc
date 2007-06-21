@@ -690,7 +690,6 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   char md5[MD5_BUFF_LENGTH];
   bool can_be_merged;
   char dir_buff[FN_REFLEN], path_buff[FN_REFLEN];
-  const char *endp;
   LEX_STRING dir, file, path;
   int error= 0;
   DBUG_ENTER("mysql_register_view");
@@ -708,10 +707,12 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   /* fill structure */
   view->query.str= str.c_ptr_safe();
   view->query.length= str.length();
-  view->source.str= thd->query + thd->lex->create_view_select_start;
-  endp= view->source.str;
-  endp= skip_rear_comments(thd->charset(), endp, thd->query + thd->query_length);
-  view->source.length= endp - view->source.str;
+
+  view->source.str= (char*) thd->lex->create_view_select_start;
+  view->source.length= (thd->lex->create_view_select_end
+                        - thd->lex->create_view_select_start);
+  trim_whitespace(thd->charset(), & view->source);
+
   view->file_version= 1;
   view->calc_md5(md5);
   view->md5.str= md5;
@@ -892,7 +893,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   LEX *old_lex, *lex;
   Query_arena *arena, backup;
   TABLE_LIST *top_view= table->top_table();
-  int res;
+  bool res;
   bool result, view_is_mergeable;
   TABLE_LIST *view_main_select_tables;
   DBUG_ENTER("mysql_make_view");
@@ -1004,7 +1005,6 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 
   {
     Lex_input_stream lip(thd, table->query.str, table->query.length);
-    thd->m_lip= &lip;
     lex_start(thd);
     view_select= &lex->select_lex;
     view_select->select_number= ++thd->select_number;
@@ -1038,7 +1038,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
                                 MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
     CHARSET_INFO *save_cs= thd->variables.character_set_client;
     thd->variables.character_set_client= system_charset_info;
-    res= MYSQLparse((void *)thd);
+    res= parse_sql(thd, &lip);
 
     if ((old_lex->sql_command == SQLCOM_SHOW_FIELDS) ||
         (old_lex->sql_command == SQLCOM_SHOW_CREATE))
@@ -1047,7 +1047,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     thd->variables.character_set_client= save_cs;
     thd->variables.sql_mode= save_mode;
   }
-  if (!res && !thd->is_fatal_error)
+  if (!res)
   {
     TABLE_LIST *view_tables= lex->query_tables;
     TABLE_LIST *view_tables_tail= 0;
