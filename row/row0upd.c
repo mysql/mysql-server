@@ -1334,7 +1334,7 @@ row_upd_sec_index_entry(
 	row_upd_index_replace_new_col_vals(entry, index, node->update, NULL);
 
 	/* Insert new index entry */
-	err = row_ins_index_entry(index, entry, 0, FALSE, thr);
+	err = row_ins_index_entry(index, entry, 0, TRUE, thr);
 
 func_exit:
 	mem_heap_free(heap);
