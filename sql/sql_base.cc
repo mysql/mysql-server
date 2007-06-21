@@ -28,6 +28,8 @@
 #include <io.h>
 #endif
 
+#define FLAGSTR(S,F) ((S) & (F) ? #F " " : "")
+
 /**
   This internal handler is used to trap internally
   errors that can occur when executing open table
@@ -3996,36 +3998,47 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
 {
   if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
   {
-    handler::Table_flags binlog_flags= ~handler::Table_flags();
+    handler::Table_flags flags_some_set= handler::Table_flags();
+    handler::Table_flags flags_all_set= ~handler::Table_flags();
+    my_bool multi_engine= FALSE;
+    void* prev_ht= NULL;
     for (TABLE_LIST *table= tables; table; table= table->next_global)
+    {
       if (!table->placeholder() && table->lock_type >= TL_WRITE_ALLOW_WRITE)
       {
-#define FLAGSTR(S,F) ((S) & (F) ? #F " " : "")
-#ifndef DBUG_OFF
-        ulonglong flags= table->table->file->ha_table_flags();
+        ulonglong const flags= table->table->file->ha_table_flags();
         DBUG_PRINT("info", ("table: %s; ha_table_flags: %s%s",
                             table->table_name,
                             FLAGSTR(flags, HA_BINLOG_STMT_CAPABLE),
                             FLAGSTR(flags, HA_BINLOG_ROW_CAPABLE)));
-#endif
-        binlog_flags &= table->table->file->ha_table_flags();
+        if (prev_ht && prev_ht != table->table->file->ht)
+          multi_engine= TRUE;
+        prev_ht= table->table->file->ht;
+        flags_all_set &= flags;
+        flags_some_set |= flags;
       }
-    binlog_flags&= HA_BINLOG_FLAGS;
-    DBUG_PRINT("info", ("binlog_flags: %s%s",
-                        FLAGSTR(binlog_flags, HA_BINLOG_STMT_CAPABLE),
-                        FLAGSTR(binlog_flags, HA_BINLOG_ROW_CAPABLE)));
+    }
+
+    DBUG_PRINT("info", ("flags_all_set: %s%s",
+                        FLAGSTR(flags_all_set, HA_BINLOG_STMT_CAPABLE),
+                        FLAGSTR(flags_all_set, HA_BINLOG_ROW_CAPABLE)));
+    DBUG_PRINT("info", ("flags_some_set: %s%s",
+                        FLAGSTR(flags_some_set, HA_BINLOG_STMT_CAPABLE),
+                        FLAGSTR(flags_some_set, HA_BINLOG_ROW_CAPABLE)));
     DBUG_PRINT("info", ("thd->variables.binlog_format: %ld",
                         thd->variables.binlog_format));
+    DBUG_PRINT("info", ("multi_engine: %s",
+                        multi_engine ? "TRUE" : "FALSE"));
 
     int error= 0;
-    if (binlog_flags == 0)
+    if (flags_all_set == 0)
     {
       my_error((error= ER_BINLOG_LOGGING_IMPOSSIBLE), MYF(0),
                "Statement cannot be logged to the binary log in"
                " row-based nor statement-based format");
     }
     else if (thd->variables.binlog_format == BINLOG_FORMAT_STMT &&
-             (binlog_flags & HA_BINLOG_STMT_CAPABLE) == 0)
+             (flags_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
     {
       my_error((error= ER_BINLOG_LOGGING_IMPOSSIBLE), MYF(0),
                 "Statement-based format required for this statement,"
@@ -4033,11 +4046,27 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
     }
     else if ((thd->variables.binlog_format == BINLOG_FORMAT_ROW ||
               thd->lex->is_stmt_unsafe()) &&
-             (binlog_flags & HA_BINLOG_ROW_CAPABLE) == 0)
+             (flags_all_set & HA_BINLOG_ROW_CAPABLE) == 0)
     {
       my_error((error= ER_BINLOG_LOGGING_IMPOSSIBLE), MYF(0),
                 "Row-based format required for this statement,"
                 " but not allowed by this combination of engines");
+    }
+
+    /*
+      If more than one engine is involved in the statement and at
+      least one is doing it's own logging (is *self-logging*), the
+      statement cannot be logged atomically, so we generate an error
+      rather than allowing the binlog to become corrupt.
+     */
+    if (multi_engine &&
+        (flags_some_set & HA_HAS_OWN_BINLOGGING))
+    {
+      error= ER_BINLOG_LOGGING_IMPOSSIBLE;
+      my_error(error, MYF(0),
+               "Statement cannot be written atomically since more"
+               " than one engine involved and at least one engine"
+               " is self-logging");
     }
 
     DBUG_PRINT("info", ("error: %d", error));
@@ -4061,7 +4090,7 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
       here.
     */
     if (thd->lex->is_stmt_unsafe() ||
-        (binlog_flags & HA_BINLOG_STMT_CAPABLE) == 0)
+        (flags_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
     {
       thd->set_current_stmt_binlog_row_based_if_mixed();
     }
