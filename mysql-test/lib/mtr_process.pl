@@ -549,72 +549,87 @@ sub mtr_kill_leftovers () {
 }
 
 
-# Check that all processes in list are killed
-# The argument is a list of 'ports', 'pids', 'pidfiles' and 'socketfiles'
-# for which shutdown has been started. Make sure they all get killed
-# in one way or the other.
 #
-# FIXME On Cygwin, and maybe some other platforms, $srv->{'pid'} and
-# the pid in $srv->{'pidfile'} will not be the same PID. We need to try to kill
-# both I think.
-
+# Check that all processes in "spec" are shutdown gracefully
+# else kill them off hard
+#
 sub mtr_check_stop_servers ($) {
   my $spec=  shift;
 
   # Return if no processes are defined
   return if ! @$spec;
 
-  #mtr_report("mtr_check_stop_servers");
+  mtr_verbose("mtr_check_stop_servers");
 
+  # ----------------------------------------------------------------------
+  # Wait until servers in "spec" has stopped listening
+  # to their ports or timeout occurs
+  # ----------------------------------------------------------------------
   mtr_ping_with_timeout(\@$spec);
 
   # ----------------------------------------------------------------------
-  # We loop with waitpid() nonblocking to see how many of the ones we
-  # are to kill, actually got killed by mysqladmin or ndb_mgm
-  #
-  # Note that we don't rely on this, the mysqld server might have stopped
-  # listening to the port, but still be alive. But it is a start.
+  # Use waitpid() nonblocking for a little while, to see how
+  # many process's will exit sucessfully.
+  # This is the normal case.
   # ----------------------------------------------------------------------
-
+  my $wait_counter= 50; # Max number of times to redo the loop
   foreach my $srv ( @$spec )
   {
+    my $pid= $srv->{'pid'};
     my $ret_pid;
-    if ( $srv->{'pid'} )
+    if ( $pid )
     {
-      $ret_pid= waitpid($srv->{'pid'},&WNOHANG);
-      if ($ret_pid == $srv->{'pid'})
+      $ret_pid= waitpid($pid,&WNOHANG);
+      if ($ret_pid == $pid)
       {
 	mtr_verbose("Caught exit of process $ret_pid");
 	$srv->{'pid'}= 0;
       }
+      elsif ($ret_pid == 0)
+      {
+	mtr_verbose("Process $pid is still alive");
+	if ($wait_counter-- > 0)
+	{
+	  # Give the processes more time to exit
+	  select(undef, undef, undef, (0.1));
+	  redo;
+	}
+      }
       else
       {
-	# mtr_warning("caught exit of unknown child $ret_pid");
+	mtr_warning("caught exit of unknown child $ret_pid");
       }
     }
   }
 
   # ----------------------------------------------------------------------
-  # We know the process was started from this file, so there is a PID
-  # saved, or else we have nothing to do.
-  # Might be that is is recorded to be missing, but we failed to
-  # take away the PID file earlier, then we do it now.
+  # The processes that haven't yet exited need to
+  # be killed hard, put them in "kill_pids" hash
   # ----------------------------------------------------------------------
-
-  my %mysqld_pids;
-
+  my %kill_pids;
   foreach my $srv ( @$spec )
   {
-    if ( $srv->{'pid'} )
+    my $pid= $srv->{'pid'};
+    if ( $pid )
     {
-      $mysqld_pids{$srv->{'pid'}}= 1;
+      # Server is still alive, put it in list to be hard killed
+      $kill_pids{$pid}= 1;
+
+      # Write a message to the process's error log (if it has one)
+      # that it's being killed hard.
+      if ( defined $srv->{'errfile'} )
+      {
+	mtr_tofile($srv->{'errfile'}, "Note: Forcing kill of process $pid\n");
+      }
+      mtr_warning("Forcing kill of process $pid");
+
     }
     else
     {
-      # Server is dead, we remove the pidfile if any
-      # Race, could have been removed between I tested with -f
-      # and the unlink() below, so I better check again with -f
-
+      # Server is dead, remove the pidfile if it exists
+      #
+      # Race, could have been removed between test with -f
+      # and the unlink() below, so better check again with -f
       if ( -f $srv->{'pidfile'} and ! unlink($srv->{'pidfile'}) and
            -f $srv->{'pidfile'} )
       {
@@ -623,69 +638,35 @@ sub mtr_check_stop_servers ($) {
     }
   }
 
-  # ----------------------------------------------------------------------
-  # If all the processes in list already have been killed,
-  # then we don't have to do anything.
-  # ----------------------------------------------------------------------
-
-  if ( ! keys %mysqld_pids )
+  if ( ! keys %kill_pids )
   {
+    # All processes has exited gracefully
     return;
   }
 
-  # ----------------------------------------------------------------------
-  # In mtr_mysqladmin_shutdown() we only waited for the mysqld servers
-  # not to listen to the port. But we are not sure we got them all
-  # killed. If we suspect it lives, try nice kill with SIG_TERM. Note
-  # that for true Win32 processes, kill(0,$pid) will not return 1.
-  # ----------------------------------------------------------------------
-
-  start_reap_all();                     # Avoid zombies
-
-  my @mysqld_pids= keys %mysqld_pids;
-  mtr_kill_processes(\@mysqld_pids);
-
-  stop_reap_all();                      # Get into control again
+  mtr_kill_processes(\%kill_pids);
 
   # ----------------------------------------------------------------------
-  # Now, we check if all we can find using kill(0,$pid) are dead,
-  # and just assume the rest are. We cleanup socket and PID files.
+  # All processes are killed, cleanup leftover files
   # ----------------------------------------------------------------------
-
   {
     my $errors= 0;
     foreach my $srv ( @$spec )
     {
       if ( $srv->{'pid'} )
       {
-        if ( kill(0,$srv->{'pid'}) )
+	# Server has been hard killed, clean it's resources
+	foreach my $file ($srv->{'pidfile'}, $srv->{'sockfile'})
         {
-          # FIXME In Cygwin there seem to be some fast reuse
-          # of PIDs, so dying may not be the right thing to do.
-          $errors++;
-          mtr_warning("can't kill process $srv->{'pid'}");
-        }
-        else
-        {
-          # We managed to kill it at last
-          # FIXME In Cygwin, we will get here even if the process lives.
-
-          # Not needed as we know the process is dead, but to be safe
-          # we unlink and check success in two steps. We first unlink
-          # without checking the error code, and then check if the
-          # file still exists.
-
-          foreach my $file ($srv->{'pidfile'}, $srv->{'sockfile'})
+	  # Know it is dead so should be no race, careful anyway
+	  if ( defined $file and -f $file and ! unlink($file) and -f $file )
           {
-            # Know it is dead so should be no race, careful anyway
-            if ( defined $file and -f $file and ! unlink($file) and -f $file )
-            {
-              $errors++;
-              mtr_warning("couldn't delete $file");
-            }
-          }
-	  $srv->{'pid'}= 0;
-        }
+	    $errors++;
+	    mtr_warning("couldn't delete $file");
+	  }
+	}
+
+	$srv->{'pid'}= 0;
       }
     }
     if ( $errors )
@@ -703,11 +684,8 @@ sub mtr_check_stop_servers ($) {
       }
     }
   }
-
-  # FIXME We just assume they are all dead, for Cygwin we are not
-  # really sure
-
 }
+
 
 # Wait for all the process in the list to terminate
 sub mtr_wait_blocking($) {
@@ -1097,9 +1075,9 @@ sub sleep_until_file_created ($$$) {
 sub mtr_kill_processes ($) {
   my $pids = shift;
 
-  mtr_verbose("mtr_kill_processes " . join(" ", @$pids));
+  mtr_verbose("mtr_kill_processes (" . join(" ", keys %{$pids}) . ")");
 
-  foreach my $pid (@$pids)
+  foreach my $pid (keys %{$pids})
   {
 
     if ($pid <= 0)
@@ -1108,11 +1086,26 @@ sub mtr_kill_processes ($) {
       next;
     }
 
-    foreach my $sig (15, 9)
+    my $signaled_procs= kill(9, $pid);
+    if ($signaled_procs == 0)
     {
-      last if mtr_im_kill_process([ $pid ], $sig, 10, 1);
+      # No such process existed, assume it's killed
+      mtr_verbose("killed $pid(no such process)");
+    }
+    else
+    {
+      my $ret_pid= waitpid($pid,0);
+      if ($ret_pid == $pid)
+      {
+	mtr_verbose("killed $pid(got the pid)");
+      }
+      elsif ($ret_pid == -1)
+      {
+	mtr_verbose("killed $pid(got -1)");
+      }
     }
   }
+  mtr_verbose("done killing processes");
 }
 
 
