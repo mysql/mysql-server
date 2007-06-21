@@ -1,4 +1,5 @@
 -- source include/have_query_cache.inc
+-- source include/have_binlog_format_row.inc
 -- source include/have_ndb.inc
 -- source include/not_embedded.inc
 

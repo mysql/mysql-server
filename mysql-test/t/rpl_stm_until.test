@@ -29,26 +29,20 @@ start slave until master_log_file='master-bin.000001', master_log_pos=323;
 --source include/wait_for_slave_sql_to_stop.inc
 # here table should be still not deleted
 select * from t1;
---replace_result $MASTER_MYPORT MASTER_MYPORT
---replace_column 1 # 9 # 11 # 23 # 33 #
---query_vertical SHOW SLAVE STATUS
+source include/show_slave_status.inc;
 
 # this should fail right after start
 start slave until master_log_file='master-no-such-bin.000001', master_log_pos=291;
 --source include/wait_for_slave_sql_to_stop.inc
 # again this table should be still not deleted
 select * from t1;
---replace_result $MASTER_MYPORT MASTER_MYPORT
---replace_column 1 # 9 # 11 # 23 # 33 #
---query_vertical SHOW SLAVE STATUS
+source include/show_slave_status.inc;
 
 # try replicate all up to and not including the second insert to t2;
 start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=746;
 --source include/wait_for_slave_sql_to_stop.inc
 select * from t2;
---replace_result $MASTER_MYPORT MASTER_MYPORT
---replace_column 1 # 9 # 11 # 23 # 33 #
---query_vertical SHOW SLAVE STATUS
+source include/show_slave_status.inc;
 
 # clean up
 start slave;
@@ -62,9 +56,8 @@ stop slave;
 start slave until master_log_file='master-bin.000001', master_log_pos=776;
 --source include/wait_for_slave_sql_to_stop.inc
 # here the sql slave thread should be stopped
---replace_result $MASTER_MYPORT MASTER_MYPORT bin.000005 bin.000004 bin.000006 bin.000004 bin.000007 bin.000004
---replace_column 1 # 9 # 23 # 33 #
---query_vertical SHOW SLAVE STATUS
+--replace_result bin.000005 bin.000004 bin.000006 bin.000004 bin.000007 bin.000004
+source include/show_slave_status.inc;
 
 #testing various error conditions
 --error 1277
