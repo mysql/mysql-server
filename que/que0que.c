@@ -805,13 +805,11 @@ que_thr_dec_refer_count(
 {
 	que_fork_t*	fork;
 	trx_t*		trx;
-	sess_t*		sess;
 	ulint		fork_type;
 	ibool		stopped;
 
 	fork = thr->common.parent;
 	trx = thr_get_trx(thr);
-	sess = trx->sess;
 
 	mutex_enter(&kernel_mutex);
 
@@ -838,7 +836,7 @@ que_thr_dec_refer_count(
 
 				*next_thr = thr;
 			} else {
-				ut_a(0);
+				ut_error;
 				srv_que_task_enqueue_low(thr);
 			}
 
@@ -869,7 +867,8 @@ que_thr_dec_refer_count(
 
 	if (que_fork_all_thrs_in_state(fork, QUE_THR_COMPLETED)) {
 
-		if (fork_type == QUE_FORK_ROLLBACK) {
+		switch (fork_type) {
+		case QUE_FORK_ROLLBACK:
 			/* This is really the undo graph used in rollback,
 			no roll_node in this graph */
 
@@ -877,17 +876,16 @@ que_thr_dec_refer_count(
 			ut_ad(trx->handling_signals == TRUE);
 
 			trx_finish_rollback_off_kernel(fork, trx, next_thr);
+			break;
 
-		} else if (fork_type == QUE_FORK_PURGE) {
-
-			/* Do nothing */
-		} else if (fork_type == QUE_FORK_RECOVERY) {
-
-			/* Do nothing */
-		} else if (fork_type == QUE_FORK_MYSQL_INTERFACE) {
+		case QUE_FORK_PURGE:
+		case QUE_FORK_RECOVERY:
+		case QUE_FORK_MYSQL_INTERFACE:
 
 			/* Do nothing */
-		} else {
+			break;
+
+		default:
 			ut_error;	/* not used in MySQL */
 		}
 	}
