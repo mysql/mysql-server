@@ -92,3 +92,4 @@ Master_SSL_Cert	MYSQL_TEST_DIR/std_data/client-cert.pem
 Master_SSL_Cipher	
 Master_SSL_Key	MYSQL_TEST_DIR/std_data/client-key.pem
 Seconds_Behind_Master	#
+End of 5.0 tests
