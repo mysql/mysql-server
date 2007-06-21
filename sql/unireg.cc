@@ -29,21 +29,21 @@
 
 #define FCOMP			17		/* Bytes for a packed field */
 
-static uchar * pack_screens(List<create_field> &create_fields,
+static uchar * pack_screens(List<Create_field> &create_fields,
 			    uint *info_length, uint *screens, bool small_file);
 static uint pack_keys(uchar *keybuff,uint key_count, KEY *key_info,
                       ulong data_offset);
 static bool pack_header(uchar *forminfo,enum legacy_db_type table_type,
-			List<create_field> &create_fields,
+			List<Create_field> &create_fields,
 			uint info_length, uint screens, uint table_options,
 			ulong data_offset, handler *file);
-static uint get_interval_id(uint *int_count,List<create_field> &create_fields,
-			    create_field *last_field);
-static bool pack_fields(File file, List<create_field> &create_fields,
+static uint get_interval_id(uint *int_count,List<Create_field> &create_fields,
+			    Create_field *last_field);
+static bool pack_fields(File file, List<Create_field> &create_fields,
                         ulong data_offset);
 static bool make_empty_rec(THD *thd, int file, enum legacy_db_type table_type,
 			   uint table_options,
-			   List<create_field> &create_fields,
+			   List<Create_field> &create_fields,
 			   uint reclength, ulong data_offset,
                            handler *handler);
 
@@ -70,7 +70,7 @@ static bool make_empty_rec(THD *thd, int file, enum legacy_db_type table_type,
 bool mysql_create_frm(THD *thd, const char *file_name,
                       const char *db, const char *table,
 		      HA_CREATE_INFO *create_info,
-		      List<create_field> &create_fields,
+		      List<Create_field> &create_fields,
 		      uint keys, KEY *key_info,
 		      handler *db_file)
 {
@@ -294,8 +294,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
       Restore all UCS2 intervals.
       HEX representation of them is not needed anymore.
     */
-    List_iterator<create_field> it(create_fields);
-    create_field *field;
+    List_iterator<Create_field> it(create_fields);
+    Create_field *field;
     while ((field=it++))
     {
       if (field->save_interval)
@@ -341,7 +341,7 @@ err3:
 int rea_create_table(THD *thd, const char *path,
                      const char *db, const char *table_name,
                      HA_CREATE_INFO *create_info,
-                     List<create_field> &create_fields,
+                     List<Create_field> &create_fields,
                      uint keys, KEY *key_info, handler *file)
 {
   DBUG_ENTER("rea_create_table");
@@ -371,7 +371,7 @@ err_handler:
 
 	/* Pack screens to a screen for save in a form-file */
 
-static uchar *pack_screens(List<create_field> &create_fields,
+static uchar *pack_screens(List<Create_field> &create_fields,
                            uint *info_length, uint *screens,
                            bool small_file)
 {
@@ -380,7 +380,7 @@ static uchar *pack_screens(List<create_field> &create_fields,
   uint length,cols;
   uchar *info,*pos,*start_screen;
   uint fields=create_fields.elements;
-  List_iterator<create_field> it(create_fields);
+  List_iterator<Create_field> it(create_fields);
   DBUG_ENTER("pack_screens");
 
   start_row=4; end_row=22; cols=80; fields_on_screen=end_row+1-start_row;
@@ -388,7 +388,7 @@ static uchar *pack_screens(List<create_field> &create_fields,
   *screens=(fields-1)/fields_on_screen+1;
   length= (*screens) * (SC_INFO_LENGTH+ (cols>> 1)+4);
 
-  create_field *field;
+  Create_field *field;
   while ((field=it++))
     length+=(uint) strlen(field->field_name)+1+TE_INFO_LENGTH+cols/2;
 
@@ -401,7 +401,7 @@ static uchar *pack_screens(List<create_field> &create_fields,
   it.rewind();
   for (i=0 ; i < fields ; i++)
   {
-    create_field *cfield=it++;
+    Create_field *cfield=it++;
     if (row++ == end_row)
     {
       if (i)
@@ -521,7 +521,7 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
 	/* Make formheader */
 
 static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
-			List<create_field> &create_fields,
+			List<Create_field> &create_fields,
                         uint info_length, uint screens, uint table_options,
                         ulong data_offset, handler *file)
 {
@@ -544,8 +544,8 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
 
 	/* Check fields */
 
-  List_iterator<create_field> it(create_fields);
-  create_field *field;
+  List_iterator<Create_field> it(create_fields);
+  Create_field *field;
   while ((field=it++))
   {
     uint tmp_len= system_charset_info->cset->charpos(system_charset_info,
@@ -687,11 +687,11 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
 
 	/* get each unique interval each own id */
 
-static uint get_interval_id(uint *int_count,List<create_field> &create_fields,
-			    create_field *last_field)
+static uint get_interval_id(uint *int_count,List<Create_field> &create_fields,
+			    Create_field *last_field)
 {
-  List_iterator<create_field> it(create_fields);
-  create_field *field;
+  List_iterator<Create_field> it(create_fields);
+  Create_field *field;
   TYPELIB *interval=last_field->interval;
 
   while ((field=it++) != last_field)
@@ -715,18 +715,18 @@ static uint get_interval_id(uint *int_count,List<create_field> &create_fields,
 
 	/* Save fields, fieldnames and intervals */
 
-static bool pack_fields(File file, List<create_field> &create_fields,
+static bool pack_fields(File file, List<Create_field> &create_fields,
                         ulong data_offset)
 {
   reg2 uint i;
   uint int_count, comment_length=0;
   uchar buff[MAX_FIELD_WIDTH];
-  create_field *field;
+  Create_field *field;
   DBUG_ENTER("pack_fields");
 
 	/* Write field info */
 
-  List_iterator<create_field> it(create_fields);
+  List_iterator<Create_field> it(create_fields);
 
   int_count=0;
   while ((field=it++))
@@ -856,7 +856,7 @@ static bool pack_fields(File file, List<create_field> &create_fields,
 
 static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
 			   uint table_options,
-			   List<create_field> &create_fields,
+			   List<Create_field> &create_fields,
 			   uint reclength,
                            ulong data_offset,
                            handler *handler)
@@ -867,7 +867,7 @@ static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
   uchar *buff,*null_pos;
   TABLE table;
   TABLE_SHARE share;
-  create_field *field;
+  Create_field *field;
   enum_check_fields old_count_cuted_fields= thd->count_cuted_fields;
   DBUG_ENTER("make_empty_rec");
 
@@ -893,7 +893,7 @@ static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
   }
   null_pos= buff;
 
-  List_iterator<create_field> it(create_fields);
+  List_iterator<Create_field> it(create_fields);
   thd->count_cuted_fields= CHECK_FIELD_WARN;    // To find wrong default values
   while ((field=it++))
   {
