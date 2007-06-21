@@ -752,6 +752,7 @@ row_prebuilt_free(
 		ut_a(*prebuilt->table->name == TEMP_TABLE_PREFIX);
 
 		if (!row_add_table_to_background_drop_list(prebuilt->table)) {
+			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Error: failed trying to add ",
 			      stderr);
 			ut_print_name(stderr, NULL, TRUE,
@@ -2417,9 +2418,9 @@ already_dropped:
 	UT_LIST_REMOVE(row_mysql_drop_list, row_mysql_drop_list, drop);
 
 	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		"  InnoDB: Dropped table %s in background drop queue.\n",
-		drop->table_name);
+	fputs("  InnoDB: Dropped table ", stderr);
+	ut_print_name(stderr, NULL, TRUE, drop->table_name);
+	fputs(" in background drop queue.\n", stderr);
 
 	mem_free(drop->table_name);
 
