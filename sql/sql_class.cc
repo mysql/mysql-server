@@ -59,8 +59,8 @@ const char * const THD::DEFAULT_WHERE= "field list";
 /* Used templates */
 template class List<Key>;
 template class List_iterator<Key>;
-template class List<key_part_spec>;
-template class List_iterator<key_part_spec>;
+template class List<Key_part_spec>;
+template class List_iterator<Key_part_spec>;
 template class List<Alter_drop>;
 template class List_iterator<Alter_drop>;
 template class List<Alter_column>;
@@ -86,7 +86,7 @@ extern "C" void free_user_var(user_var_entry *entry)
   my_free((char*) entry,MYF(0));
 }
 
-bool key_part_spec::operator==(const key_part_spec& other) const
+bool Key_part_spec::operator==(const Key_part_spec& other) const
 {
   return length == other.length && !strcmp(field_name, other.field_name);
 }
@@ -115,7 +115,7 @@ Key::Key(const Key &rhs, MEM_ROOT *mem_root)
   in THD.
 */
 
-foreign_key::foreign_key(const foreign_key &rhs, MEM_ROOT *mem_root)
+Foreign_key::Foreign_key(const Foreign_key &rhs, MEM_ROOT *mem_root)
   :Key(rhs),
   ref_table(rhs.ref_table),
   ref_columns(rhs.ref_columns),
@@ -160,9 +160,9 @@ bool foreign_key_prefix(Key *a, Key *b)
   if (a->columns.elements > b->columns.elements)
     return TRUE;                                // Can't be prefix
 
-  List_iterator<key_part_spec> col_it1(a->columns);
-  List_iterator<key_part_spec> col_it2(b->columns);
-  const key_part_spec *col1, *col2;
+  List_iterator<Key_part_spec> col_it1(a->columns);
+  List_iterator<Key_part_spec> col_it2(b->columns);
+  const Key_part_spec *col1, *col2;
 
 #ifdef ENABLE_WHEN_INNODB_CAN_HANDLE_SWAPED_FOREIGN_KEY_COLUMNS
   while ((col1= col_it1++))
@@ -342,7 +342,8 @@ THD::THD()
    in_lock_tables(0),
    bootstrap(0),
    derived_tables_processing(FALSE),
-   spcont(NULL)
+   spcont(NULL),
+   m_lip(NULL)
 {
   ulong tmp;
 

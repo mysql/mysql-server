@@ -564,24 +564,23 @@ sp_head::init_strings(THD *thd, LEX *lex)
     m_params.str= strmake_root(root, m_param_begin, m_params.length);
   }
 
-  /* If ptr has overrun end_of_query then end_of_query is the end */
-  endp= (lip->ptr > lip->end_of_query ? lip->end_of_query : lip->ptr);
-  /*
-    Trim "garbage" at the end. This is sometimes needed with the
-    "/ * ! VERSION... * /" wrapper in dump files.
-  */
-  endp= skip_rear_comments(thd->charset(), m_body_begin, endp);
+  endp= lip->get_cpp_ptr();
+  lex->stmt_definition_end= endp;
 
   m_body.length= endp - m_body_begin;
   m_body.str= strmake_root(root, m_body_begin, m_body.length);
-  m_defstr.length= endp - lip->buf;
-  m_defstr.str= strmake_root(root, lip->buf, m_defstr.length);
+  trim_whitespace(thd->charset(), & m_body);
+
+  m_defstr.length= endp - lip->get_cpp_buf();
+  m_defstr.str= strmake_root(root, lip->get_cpp_buf(), m_defstr.length);
+  trim_whitespace(thd->charset(), & m_defstr);
+
   DBUG_VOID_RETURN;
 }
 
 
 static TYPELIB *
-create_typelib(MEM_ROOT *mem_root, create_field *field_def, List<String> *src)
+create_typelib(MEM_ROOT *mem_root, Create_field *field_def, List<String> *src)
 {
   TYPELIB *result= NULL;
   CHARSET_INFO *cs= field_def->charset;
@@ -1269,30 +1268,31 @@ set_routine_security_ctx(THD *thd, sp_head *sp, bool is_proc,
 #endif // ! NO_EMBEDDED_ACCESS_CHECKS
 
 
-/*
-  Execute a trigger:
-   - changes security context for triggers
-   - switch to new memroot
-   - call sp_head::execute
-   - restore old memroot
-   - restores security context
+/**
+  Execute trigger stored program.
 
-  SYNOPSIS
-    sp_head::execute_trigger()
-      thd               Thread handle
-      db                database name
-      table             table name
-      grant_info        GRANT_INFO structure to be filled with
-                        information about definer's privileges
-                        on subject table
-   
-  RETURN
-    FALSE  on success
-    TRUE   on error
+  Execute a trigger:
+   - changes security context for triggers;
+   - switch to new memroot;
+   - call sp_head::execute;
+   - restore old memroot;
+   - restores security context.
+
+  @param thd        Thread context.
+  @param db_name    Database name.
+  @param table_name Table name.
+  @param grant_info GRANT_INFO structure to be filled with information
+                    about definer's privileges on subject table.
+
+  @return Error status.
+    @retval FALSE on success.
+    @retval TRUE  on error.
 */
 
 bool
-sp_head::execute_trigger(THD *thd, const char *db, const char *table,
+sp_head::execute_trigger(THD *thd,
+                         const LEX_STRING *db_name,
+                         const LEX_STRING *table_name,
                          GRANT_INFO *grant_info)
 {
   sp_rcontext *octx = thd->spcont;
@@ -1304,6 +1304,46 @@ sp_head::execute_trigger(THD *thd, const char *db, const char *table,
 
   DBUG_ENTER("sp_head::execute_trigger");
   DBUG_PRINT("info", ("trigger %s", m_name.str));
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context *save_ctx= NULL;
+
+
+  if (m_chistics->suid != SP_IS_NOT_SUID &&
+      m_security_ctx.change_security_context(thd,
+                                             &m_definer_user,
+                                             &m_definer_host,
+                                             &m_db,
+                                             &save_ctx))
+    DBUG_RETURN(TRUE);
+
+  /*
+    Fetch information about table-level privileges for subject table into
+    GRANT_INFO instance. The access check itself will happen in
+    Item_trigger_field, where this information will be used along with
+    information about column-level privileges.
+  */
+
+  fill_effective_table_privileges(thd,
+                                  grant_info,
+                                  db_name->str,
+                                  table_name->str);
+
+  /* Check that the definer has TRIGGER privilege on the subject table. */
+
+  if (!(grant_info->privilege & TRIGGER_ACL))
+  {
+    char priv_desc[128];
+    get_privilege_desc(priv_desc, sizeof(priv_desc), TRIGGER_ACL);
+
+    my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), priv_desc,
+             thd->security_ctx->priv_user, thd->security_ctx->host_or_ip,
+             table_name->str);
+
+    m_security_ctx.restore_security_context(thd, save_ctx);
+    DBUG_RETURN(TRUE);
+  }
+#endif // NO_EMBEDDED_ACCESS_CHECKS
 
   /*
     Prepare arena and memroot for objects which lifetime is whole
@@ -1337,6 +1377,11 @@ sp_head::execute_trigger(THD *thd, const char *db, const char *table,
 
 err_with_cleanup:
   thd->restore_active_arena(&call_arena, &backup_arena);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  m_security_ctx.restore_security_context(thd, save_ctx);
+#endif // NO_EMBEDDED_ACCESS_CHECKS
+
   delete nctx;
   call_arena.free_items();
   free_root(&call_mem_root, MYF(0));
@@ -1827,8 +1872,6 @@ sp_head::reset_lex(THD *thd)
   sublex->trg_table_fields.empty();
   sublex->sp_lex_in_use= FALSE;
 
-  sublex->in_comment= oldlex->in_comment;
-
   /* Reset type info. */
 
   sublex->charset= NULL;
@@ -1908,7 +1951,7 @@ sp_head::backpatch(sp_label_t *lab)
 }
 
 /*
-  Prepare an instance of create_field for field creation (fill all necessary
+  Prepare an instance of Create_field for field creation (fill all necessary
   attributes).
 
   SYNOPSIS
@@ -1916,7 +1959,7 @@ sp_head::backpatch(sp_label_t *lab)
       thd         [IN] Thread handle
       lex         [IN] Yacc parsing context
       field_type  [IN] Field type
-      field_def   [OUT] An instance of create_field to be filled
+      field_def   [OUT] An instance of Create_field to be filled
 
   RETURN
     FALSE  on success
@@ -1926,7 +1969,7 @@ sp_head::backpatch(sp_label_t *lab)
 bool
 sp_head::fill_field_definition(THD *thd, LEX *lex,
                                enum enum_field_types field_type,
-                               create_field *field_def)
+                               Create_field *field_def)
 {
   HA_CREATE_INFO sp_db_info;
   LEX_STRING cmt = { 0, 0 };
@@ -2007,6 +2050,13 @@ sp_head::set_info(longlong created, longlong modified,
 					  m_chistics->comment.str,
 					  m_chistics->comment.length);
   m_sql_mode= sql_mode;
+}
+
+
+void
+sp_head::set_body_begin_ptr(Lex_input_stream *lip, const char *begin_ptr)
+{
+  m_body_begin= begin_ptr;
 }
 
 
