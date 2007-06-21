@@ -9,10 +9,12 @@ connection master;
 CREATE USER dummy@localhost;
 CREATE USER dummy1@localhost, dummy2@localhost;
 
-SELECT user, host FROM mysql.user;
+SELECT user, host FROM mysql.user WHERE user != 'root'; # root host non-determ
+SELECT COUNT(*) FROM mysql.user;
 sync_slave_with_master;
 --echo **** On Slave ****
-SELECT user,host FROM mysql.user;
+SELECT user,host FROM mysql.user WHERE user != 'root'; # root host non-determ
+SELECT COUNT(*) FROM mysql.user;
 
 --echo **** On Master ****
 connection master;
@@ -28,10 +30,12 @@ DROP USER nonexisting@localhost, dummy@localhost;
 # All users exist
 DROP USER dummy1@localhost, dummy2@localhost;
 
-SELECT user, host FROM mysql.user;
+SELECT user, host FROM mysql.user WHERE user != 'root'; # root host non-determ
+SELECT COUNT(*) FROM mysql.user;
 sync_slave_with_master;
 --echo **** On Slave ****
-SELECT user,host FROM mysql.user;
+SELECT user,host FROM mysql.user WHERE user != 'root'; # root host non-determ
+SELECT COUNT(*) FROM mysql.user;
 
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 23 # 33 #
