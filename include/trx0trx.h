@@ -193,7 +193,7 @@ Does the transaction commit for MySQL. */
 ulint
 trx_commit_for_mysql(
 /*=================*/
-			/* out: 0 or error number */
+			/* out: DB_SUCCESS or error number */
 	trx_t*	trx);	/* in: trx handle */
 /**************************************************************************
 Does the transaction prepare for MySQL. */
