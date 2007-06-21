@@ -31,6 +31,7 @@ sync_slave_with_master;
 connection slave;
 select @@server_id;
 select * from t1;
+--replace_result $MASTER_MYPORT MASTER_PORT
 show slave status;
 connection master;
 drop table t1;
