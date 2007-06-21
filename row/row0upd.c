@@ -280,7 +280,7 @@ upd_node_create(
 
 	node->row = NULL;
 	node->ext = NULL;
-	node->ext_vec = NULL;
+	node->n_ext = 0;
 	node->index = NULL;
 	node->update = NULL;
 
@@ -392,9 +392,9 @@ row_upd_changes_field_size_or_external(
 		upd_field = upd_get_nth_field(update, i);
 
 		new_val = &(upd_field->new_val);
-		new_len = new_val->len;
+		new_len = dfield_get_len(new_val);
 
-		if (new_len == UNIV_SQL_NULL && !rec_offs_comp(offsets)) {
+		if (dfield_is_null(new_val) && !rec_offs_comp(offsets)) {
 			/* A bug fixed on Dec 31st, 2004: we looked at the
 			SQL NULL size from the wrong field! We may backport
 			this fix also to 4.0. The merge to 5.0 will be made
@@ -420,17 +420,8 @@ row_upd_changes_field_size_or_external(
 			old_len = UNIV_SQL_NULL;
 		}
 
-		if (old_len != new_len) {
-
-			return(TRUE);
-		}
-
-		if (rec_offs_nth_extern(offsets, upd_field->field_no)) {
-
-			return(TRUE);
-		}
-
-		if (upd_field->extern_storage) {
+		if (dfield_is_ext(new_val) || old_len != new_len
+		    || rec_offs_nth_extern(offsets, upd_field->field_no)) {
 
 			return(TRUE);
 		}
@@ -471,6 +462,8 @@ row_upd_rec_in_place(
 	for (i = 0; i < n_fields; i++) {
 		upd_field = upd_get_nth_field(update, i);
 		new_val = &(upd_field->new_val);
+		ut_ad(!dfield_is_ext(new_val) ==
+		      !rec_offs_nth_extern(offsets, i));
 
 		rec_set_nth_field(rec, offsets, upd_field->field_no,
 				  dfield_get_data(new_val),
@@ -695,34 +688,6 @@ row_upd_index_parse(
 }
 
 /*******************************************************************
-Returns TRUE if ext_vec contains i. */
-static
-ibool
-upd_ext_vec_contains(
-/*=================*/
-					/* out: TRUE if i is in ext_vec */
-	const ulint*	ext_vec,	/* in: array of indexes or NULL */
-	ulint		n_ext_vec,	/* in: number of numbers in ext_vec */
-	ulint		i)		/* in: a number */
-{
-	ulint	j;
-
-	if (ext_vec == NULL) {
-
-		return(FALSE);
-	}
-
-	for (j = 0; j < n_ext_vec; j++) {
-		if (ext_vec[j] == i) {
-
-			return(TRUE);
-		}
-	}
-
-	return(FALSE);
-}
-
-/*******************************************************************
 Builds an update vector from those fields which in a secondary index entry
 differ from a record that has the equal ordering fields. NOTE: we compare
 the fields as binary strings! */
@@ -783,8 +748,6 @@ row_upd_build_sec_rec_difference_binary(
 
 			upd_field_set_field_no(upd_field, i, index, trx);
 
-			upd_field->extern_storage = FALSE;
-
 			n_diff++;
 		}
 	}
@@ -806,9 +769,6 @@ row_upd_build_difference_binary(
 				fields, excluding roll ptr and trx id */
 	dict_index_t*	index,	/* in: clustered index */
 	const dtuple_t*	entry,	/* in: entry to insert */
-	const ulint*	ext_vec,/* in: array containing field numbers of
-				externally stored fields in entry, or NULL */
-	ulint		n_ext_vec,/* in: number of fields in ext_vec */
 	const rec_t*	rec,	/* in: clustered index record */
 	trx_t*		trx,	/* in: transaction */
 	mem_heap_t*	heap)	/* in: memory heap from which allocated */
@@ -821,7 +781,6 @@ row_upd_build_difference_binary(
 	ulint		n_diff;
 	ulint		roll_ptr_pos;
 	ulint		trx_id_pos;
-	ibool		extern_bit;
 	ulint		i;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	const ulint*	offsets;
@@ -854,10 +813,8 @@ row_upd_build_difference_binary(
 			goto skip_compare;
 		}
 
-		extern_bit = upd_ext_vec_contains(ext_vec, n_ext_vec, i);
-
-		if (UNIV_UNLIKELY(extern_bit
-				  == (ibool)!rec_offs_nth_extern(offsets, i))
+		if (UNIV_UNLIKELY(!dfield_is_ext(dfield)
+				  != !rec_offs_nth_extern(offsets, i))
 		    || !dfield_data_is_binary_equal(dfield, len, data)) {
 
 			upd_field = upd_get_nth_field(update, n_diff);
@@ -865,8 +822,6 @@ row_upd_build_difference_binary(
 			dfield_copy(&(upd_field->new_val), dfield);
 
 			upd_field_set_field_no(upd_field, i, index, trx);
-
-			upd_field->extern_storage = extern_bit;
 
 			n_diff++;
 		}
@@ -903,7 +858,6 @@ row_upd_index_replace_new_col_vals_index_pos(
 	dict_field_t*	field;
 	upd_field_t*	upd_field;
 	dfield_t*	dfield;
-	dfield_t*	new_val;
 	ulint		j;
 	ulint		i;
 	ulint		n_fields;
@@ -930,19 +884,19 @@ row_upd_index_replace_new_col_vals_index_pos(
 
 				dfield = dtuple_get_nth_field(entry, j);
 
-				new_val = &(upd_field->new_val);
+				dfield_copy_data(dfield, &upd_field->new_val);
 
-				dfield_set_data(dfield, new_val->data,
-						new_val->len);
-				if (heap && new_val->len != UNIV_SQL_NULL) {
-					dfield->data = mem_heap_alloc(
-						heap, new_val->len);
-					ut_memcpy(dfield->data, new_val->data,
-						  new_val->len);
+				if (dfield_is_null(dfield)) {
+					continue;
 				}
 
-				if (field->prefix_len > 0
-				    && new_val->len != UNIV_SQL_NULL) {
+				if (heap) {
+					dfield->data = mem_heap_dup(
+						heap,
+						dfield->data, dfield->len);
+				}
+
+				if (field->prefix_len > 0) {
 
 					const dict_col_t*	col
 						= dict_field_get_col(field);
@@ -953,8 +907,8 @@ row_upd_index_replace_new_col_vals_index_pos(
 							col->mbminlen,
 							col->mbmaxlen,
 							field->prefix_len,
-							new_val->len,
-							new_val->data);
+							dfield->len,
+							dfield->data);
 				}
 			}
 		}
@@ -980,7 +934,6 @@ row_upd_index_replace_new_col_vals(
 {
 	upd_field_t*	upd_field;
 	dfield_t*	dfield;
-	dfield_t*	new_val;
 	ulint		j;
 	ulint		i;
 	dict_index_t*	clust_index;
@@ -1006,19 +959,19 @@ row_upd_index_replace_new_col_vals(
 
 				dfield = dtuple_get_nth_field(entry, j);
 
-				new_val = &(upd_field->new_val);
+				dfield_copy_data(dfield, &upd_field->new_val);
 
-				dfield_set_data(dfield, new_val->data,
-						new_val->len);
-				if (heap && new_val->len != UNIV_SQL_NULL) {
-					dfield->data = mem_heap_alloc(
-						heap, new_val->len);
-					ut_memcpy(dfield->data, new_val->data,
-						  new_val->len);
+				if (dfield_is_null(dfield)) {
+					continue;
 				}
 
-				if (field->prefix_len > 0
-				    && new_val->len != UNIV_SQL_NULL) {
+				if (heap) {
+					dfield->data = mem_heap_dup(
+						heap,
+						dfield->data, dfield->len);
+				}
+
+				if (field->prefix_len > 0) {
 
 					const dict_col_t*	col
 						= dict_field_get_col(field);
@@ -1029,8 +982,8 @@ row_upd_index_replace_new_col_vals(
 							col->mbminlen,
 							col->mbmaxlen,
 							field->prefix_len,
-							new_val->len,
-							new_val->data);
+							dfield->len,
+							dfield->data);
 				}
 			}
 		}
@@ -1213,6 +1166,9 @@ row_upd_copy_columns(
 		data = rec_get_nth_field(rec, offsets,
 					 column->field_nos[SYM_CLUST_FIELD_NO],
 					 &len);
+		if (len == UNIV_SQL_NULL) {
+			len = UNIV_SQL_NULL;
+		}
 		eval_node_copy_and_alloc_val(column, data, len);
 
 		column = UT_LIST_GET_NEXT(col_var_list, column);
@@ -1276,14 +1232,11 @@ row_upd_store_row(
 	node->row = row_build(ROW_COPY_DATA, clust_index, rec, offsets,
 			      &node->ext, node->heap);
 	if (UNIV_LIKELY_NULL(node->ext)) {
-		node->ext_vec = mem_heap_alloc(node->heap, sizeof(ulint)
-					       * 2 * node->ext->n_ext);
-		node->n_ext_vec = btr_push_update_extern_fields(
-			node->ext_vec, offsets,
+		node->n_ext = btr_push_update_extern_fields(
+			node->row, offsets,
 			node->is_delete ? NULL : node->update);
 	} else {
-		node->ext_vec = NULL;
-		node->n_ext_vec = 0;
+		node->n_ext = 0;
 	}
 
 	if (UNIV_LIKELY_NULL(heap)) {
@@ -1381,7 +1334,7 @@ row_upd_sec_index_entry(
 	row_upd_index_replace_new_col_vals(entry, index, node->update, NULL);
 
 	/* Insert new index entry */
-	err = row_ins_index_entry(index, entry, NULL, 0, thr);
+	err = row_ins_index_entry(index, entry, 0, FALSE, thr);
 
 func_exit:
 	mem_heap_free(heap);
@@ -1504,21 +1457,20 @@ row_upd_clust_rec_by_insert(
 
 	row_upd_index_entry_sys_field(entry, index, DATA_TRX_ID, trx->id);
 
-	/* If we return from a lock wait, for example, we may have
-	extern fields marked as not-owned in entry (marked in the
-	if-branch above). We must unmark them. */
+	if (node->n_ext) {
+		/* If we return from a lock wait, for example, we may have
+		extern fields marked as not-owned in entry (marked in the
+		if-branch above). We must unmark them. */
 
-	btr_cur_unmark_dtuple_extern_fields(entry, node->ext_vec,
-					    node->n_ext_vec);
-	/* We must mark non-updated extern fields in entry as inherited,
-	so that a possible rollback will not free them */
+		btr_cur_unmark_dtuple_extern_fields(entry);
 
-	btr_cur_mark_dtuple_inherited_extern(entry, node->ext_vec,
-					     node->n_ext_vec,
-					     node->update);
+		/* We must mark non-updated extern fields in entry as
+		inherited, so that a possible rollback will not free them. */
 
-	err = row_ins_index_entry(index, entry, node->ext_vec,
-				  node->n_ext_vec, thr);
+		btr_cur_mark_dtuple_inherited_extern(entry, node->update);
+	}
+
+	err = row_ins_index_entry(index, entry, node->n_ext, TRUE, thr);
 	mem_heap_free(heap);
 
 	return(err);
@@ -1916,8 +1868,7 @@ function_exit:
 		if (node->row != NULL) {
 			node->row = NULL;
 			node->ext = NULL;
-			node->ext_vec = NULL;
-			node->n_ext_vec = 0;
+			node->n_ext = 0;
 			mem_heap_empty(node->heap);
 		}
 

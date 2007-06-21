@@ -1522,8 +1522,7 @@ rec_get_converted_size(
 				/* out: size */
 	dict_index_t*	index,	/* in: record descriptor */
 	const dtuple_t*	dtuple,	/* in: data tuple */
-	const ulint*	ext,	/* in: array of extern field numbers */
-	ulint		n_ext)	/* in: number of elements in ext */
+	ulint		n_ext)	/* in: number of externally stored columns */
 {
 	ulint	data_size;
 	ulint	extra_size;
@@ -1544,8 +1543,7 @@ rec_get_converted_size(
 						   dtuple_get_info_bits(dtuple)
 						   & REC_NEW_STATUS_MASK,
 						   dtuple->fields,
-						   dtuple->n_fields,
-						   ext, n_ext, NULL));
+						   dtuple->n_fields, NULL));
 	}
 
 	data_size = dtuple_get_data_size(dtuple);

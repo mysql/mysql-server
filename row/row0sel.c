@@ -386,6 +386,10 @@ row_sel_fetch_columns(
 				data = rec_get_nth_field(rec, offsets,
 							 field_no, &len);
 
+				if (len == UNIV_SQL_NULL) {
+					len = UNIV_SQL_NULL;
+				}
+
 				needs_copy = column->copy_val;
 			}
 
@@ -2317,7 +2321,7 @@ row_sel_convert_mysql_key_to_innobase(
 			data_offset = 1;
 
 			if (*key_ptr != 0) {
-				dfield_set_data(dfield, NULL, UNIV_SQL_NULL);
+				dfield_set_null(dfield);
 
 				is_null = TRUE;
 			}

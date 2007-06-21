@@ -175,9 +175,6 @@ row_upd_build_difference_binary(
 				fields, excluding roll ptr and trx id */
 	dict_index_t*	index,	/* in: clustered index */
 	const dtuple_t*	entry,	/* in: entry to insert */
-	const ulint*	ext_vec,/* in: array containing field numbers of
-				externally stored fields in entry, or NULL */
-	ulint		n_ext_vec,/* in: number of fields in ext_vec */
 	const rec_t*	rec,	/* in: clustered index record */
 	trx_t*		trx,	/* in: transaction */
 	mem_heap_t*	heap);	/* in: memory heap from which allocated */
@@ -321,9 +318,6 @@ struct upd_field_struct{
 					constants in the symbol table of the
 					query graph */
 	dfield_t	new_val;	/* new value for the column */
-	ibool		extern_storage;	/* this is set to TRUE if dfield
-					actually contains a reference to
-					an externally stored field */
 };
 
 /* Update vector structure */
@@ -395,10 +389,7 @@ struct upd_node_struct{
 				to NULL after a successful update */
 	row_ext_t*	ext;	/* NULL, or prefixes of the externally
 				stored columns of the row */
-	ulint*		ext_vec;/* array describing which fields are stored
-				externally in the clustered index record of
-				row */
-	ulint		n_ext_vec;/* number of fields in ext_vec */
+	ulint		n_ext;	/* number of fields in ext_vec */
 	mem_heap_t*	heap;	/* memory heap used as auxiliary storage;
 				this must be emptied after a successful
 				update */
