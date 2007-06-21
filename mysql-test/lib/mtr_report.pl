@@ -278,6 +278,7 @@ sub mtr_report_stats ($) {
       {
         foreach my $errlog ( sort glob("$::opt_vardir/log/*.err") )
         {
+	  my $testname= "";
           unless ( open(ERR, $errlog) )
           {
             mtr_warning("can't read $errlog");
@@ -367,13 +368,17 @@ sub mtr_report_stats ($) {
             {
               next;                       # Skip these lines
             }
+	    if ( /CURRENT_TEST: (.*)/ )
+	    {
+	      $testname= $1;
+	    }
             if ( /$pattern/ )
             {
               if ($leak_reports_expected) {
                 next;
               }
               $found_problems= 1;
-              print WARN basename($errlog) . ": $_";
+              print WARN basename($errlog) . ": $testname: $_";
             }
           }
         }
