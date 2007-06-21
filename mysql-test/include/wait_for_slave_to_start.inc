@@ -26,7 +26,7 @@ while ($run)
   sleep 0.1;
   if (!$counter){
     --echo "Failed while waiting for slave to start"
-    SHOW SLAVE STATUS;
+    query_vertical SHOW SLAVE STATUS;
     exit;
   }
   dec $counter;
