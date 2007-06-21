@@ -45,7 +45,7 @@ select * from t1;
 
 #checking show slave status
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_MYPORT
---replace_column 1 # 6 # 7 # 8 # 9 # 10 # 11 # 16 # 22 # 23 # 33 #
+--replace_column 1 # 6 # 7 # 8 # 9 # 10 # 11 # 16 # 22 # 23 # 33 # 35 # 36 #
 query_vertical show slave status;
 
 #checking if replication works without ssl also performing clean up
@@ -59,7 +59,7 @@ save_master_pos;
 connection slave;
 sync_with_master;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_MYPORT
---replace_column 1 # 6 # 7 # 8 # 9 # 10 # 11 # 16 # 22 # 23 # 33 #
+--replace_column 1 # 6 # 7 # 8 # 9 # 10 # 11 # 16 # 22 # 23 # 33 # 35 # 36 #
 query_vertical show slave status;
 
 # End of 4.1 tests
@@ -89,7 +89,7 @@ select * from t1;
 
 #checking show slave status
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_MYPORT
---replace_column 1 # 6 # 7 # 8 # 9 # 10 # 11 # 16 # 22 # 23 # 33 #
+--replace_column 1 # 6 # 7 # 8 # 9 # 10 # 11 # 16 # 22 # 23 # 33 # 35 # 36 #
 query_vertical show slave status;
 
 connection master;

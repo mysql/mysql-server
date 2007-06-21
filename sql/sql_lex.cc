@@ -1873,7 +1873,7 @@ void Query_tables_list::reset_query_tables_list(bool init)
   sroutines_list.empty();
   sroutines_list_own_last= sroutines_list.next;
   sroutines_list_own_elements= 0;
-  binlog_row_based_if_mixed= FALSE;
+  binlog_stmt_flags= 0;
 }
 
 

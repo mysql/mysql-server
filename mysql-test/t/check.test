@@ -2,7 +2,8 @@ connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 connection con1;
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2;
+drop view if exists v1;
 --enable_warnings
 
 # Add a lot of keys to slow down check

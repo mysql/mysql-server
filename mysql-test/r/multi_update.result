@@ -614,27 +614,28 @@ CREATE TABLE `t2` (
 `b` int(11) default NULL,
 PRIMARY KEY  (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
+set @@session.binlog_format= mixed;
 insert into t1 values (1,1),(2,2);
 insert into t2 values (1,1),(4,4);
 reset master;
 UPDATE t2,t1 SET t2.a=t1.a+2;
-ERROR 23000: Duplicate entry '3' for key 1
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
 select * from t2 /* must be (3,1), (4,4) */;
 a	b
 3	1
 4	4
 show master status /* there must be the UPDATE query event */;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	189		
+master-bin.000001	197		
 delete from t1;
 delete from t2;
 insert into t1 values (1,2),(3,4),(4,4);
 insert into t2 values (1,2),(3,4),(4,4);
 reset master;
 UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
-ERROR 23000: Duplicate entry '4' for key 1
+ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
 show master status /* there must be the UPDATE query event */;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	204		
+master-bin.000001	212		
 drop table t1, t2;
 end of tests

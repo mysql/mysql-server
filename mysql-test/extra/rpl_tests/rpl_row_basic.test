@@ -1,6 +1,3 @@
---source include/have_binlog_format_row.inc
---source include/master-slave.inc
-
 #
 # Basic tests of row-level logging
 #

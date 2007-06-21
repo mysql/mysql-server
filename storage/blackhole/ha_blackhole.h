@@ -53,6 +53,7 @@ public:
   ulonglong table_flags() const
   {
     return(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
+           HA_BINLOG_STMT_CAPABLE |
            HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
            HA_FILE_BASED | HA_CAN_GEOMETRY | HA_CAN_INSERT_DELAYED);
   }

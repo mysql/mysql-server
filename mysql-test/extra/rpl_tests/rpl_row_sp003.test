@@ -3,11 +3,6 @@
 # Original Date: Aug/13/2005 Created from Bug 12335                         #
 #############################################################################
 
-# Includes
--- source include/have_binlog_format_row.inc
--- source include/master-slave.inc
-
-
 # Begin clean up test section
 connection master;
 --disable_warnings

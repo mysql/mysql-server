@@ -1,5 +1,4 @@
 # Requires statement logging
--- source include/master-slave.inc
 
 # Clean up old slave's binlogs.
 # The slave is started with --log-slave-updates
@@ -107,9 +106,7 @@ show binlog events in 'slave-bin.000001' from 4;
 --replace_column 2 # 5 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
 show binlog events in 'slave-bin.000002' from 4;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
-show slave status;
+source include/show_slave_status.inc;
 
 # Need to recode the following
 
