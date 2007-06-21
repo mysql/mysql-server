@@ -26,6 +26,13 @@ then
   exit
 fi
 
+IS_MERGE=`bk changes -r+ -k -m`
+if [ "$IS_MERGE" = "" ]
+then
+  echo Merge changeset, not sending mails
+  exit
+fi
+
 CHANGESET=`bk -R prs -r+ -h -d':P:::I:' ChangeSet`
 CSETKEY=`bk -R prs -r+ -h -d':KEY:' ChangeSet`
 #
@@ -41,42 +48,49 @@ WL=`bk -R prs -r+ -h -d':C:' ChangeSet | \
               s/.*\(WL#[0-9][0-9]*\)/ \1/p'`
 if [ "$BUG" = "" ]
 then
-  TO=dev-public@mysql.com
+#  TO=dev-public@mysql.com
   BS=""
   BH=""
 else
-  TO=dev-bugs@mysql.com
+#  TO=dev-bugs@mysql.com
   BS=" BUG#$BUG"
 # need newline here
   BH="X-Bug: $BUG
 "
 fi
-#++
-# dev-public@ / dev-bugs@
-#--
- echo "Commit successful, notifying developers at $TO"
- (
-   cat <<EOF
-List-ID: <bk.mysql-$VERSION>
-From: $FROM
-To: $TO
-Subject: bk commit - $VERSION tree ($CHANGESET)${BS}${WL}
-X-CSetKey: <$CSETKEY>
-$BH
-EOF
-  bk changes -v -r+
-  bk cset -r+ -d
- ) | head -n $LIMIT | /usr/sbin/sendmail -t
+##++
+## dev-public@ / dev-bugs@
+##--
+# echo "Commit successful, notifying developers at $TO"
+# (
+#   cat <<EOF
+#List-ID: <bk.mysql-$VERSION>
+#From: $FROM
+#To: $TO
+#Subject: bk commit - $VERSION tree ($CHANGESET)${BS}${WL}
+#X-CSetKey: <$CSETKEY>
+#$BH
+#EOF
+#  bk changes -v -r+
+#  bk cset -r+ -d
+# ) | head -n $LIMIT | /usr/sbin/sendmail -t
 
 #++
-# commits@ mail
+# commits@ or dev-private@ mail
 #--
- echo "Notifying commits list at $COMMITS"
+
+TO="commits"
+if [ -f .tree-is-private ]
+then
+  TO="dev-private"
+fi
+
+ echo "Notifying $TO list at $TO"
  (
    cat <<EOF
 List-ID: <bk.mysql-$VERSION>
 From: $FROM
-To: $COMMITS
+To: $TO@mysql.com
 Subject: bk commit into $VERSION tree ($CHANGESET)$BS
 X-CSetKey: <$CSETKEY>
 $BH
