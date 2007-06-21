@@ -50,7 +50,7 @@ update t1 set c = 13 where b <= 3;
 select * from t1 order by a;
 update t1 set b = b + 1 where b > 4 and b < 7;
 select * from t1 order by a;
--- Update primary key
+# Update primary key
 update t1 set a = a + 10 where b > 1 and b < 7;
 select * from t1 order by a;
 
