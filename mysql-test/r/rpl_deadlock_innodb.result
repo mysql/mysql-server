@@ -44,14 +44,14 @@ a
 select * from t2 /* must be 1 */;
 a
 0
-show slave status;
+SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_MYPORT
+Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
+Read_Master_Log_Pos	1709
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -66,7 +66,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	#
+Exec_Master_Log_Pos	1709
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -79,8 +79,8 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
+Last_IO_Errno	#
+Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 stop slave;
@@ -103,18 +103,18 @@ select * from t2;
 a
 0
 0
-show slave status;
+SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_MYPORT
+Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
+Read_Master_Log_Pos	1709
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	#
+Slave_IO_Running	Yes
 Slave_SQL_Running	Yes
 Replicate_Do_DB	
 Replicate_Ignore_DB	
@@ -125,7 +125,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	#
+Exec_Master_Log_Pos	1709
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -138,8 +138,8 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
+Last_IO_Errno	#
+Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 set @my_max_relay_log_size= @@global.max_relay_log_size;
@@ -167,18 +167,18 @@ a
 0
 0
 0
-show slave status;
+SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_MYPORT
+Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
+Read_Master_Log_Pos	1709
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	#
+Slave_IO_Running	Yes
 Slave_SQL_Running	Yes
 Replicate_Do_DB	
 Replicate_Ignore_DB	
@@ -189,7 +189,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	#
+Exec_Master_Log_Pos	1709
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -202,8 +202,8 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
+Last_IO_Errno	#
+Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 drop table t1,t2,t3,t4;
