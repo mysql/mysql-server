@@ -63,10 +63,9 @@ row_undo_build_dict_undo_list(
 /***************************************************************
 Undo or redo a dictionary change */
 
-ulint
+void
 row_undo_dictionary(
 /*================*/
-				/* out: DB_SUCCESS or error code */
 	trx_t*		trx,	/* in: the transaction */
 	dict_undo_t*	dict_undo); /* in: dict op to undo */
 

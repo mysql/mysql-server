@@ -1322,7 +1322,6 @@ Drop an index from the InnoDB system tables. */
 void
 row_merge_drop_index(
 /*=================*/
-				/* out: error code or DB_SUCCESS */
 	dict_index_t*	index,	/* in: index to be removed */
 	dict_table_t*	table,	/* in: table */
 	trx_t*		trx)	/* in: transaction handle */

@@ -135,22 +135,8 @@ trx_rollback_for_mysql(
 	the transaction object does not have an InnoDB session object, and we
 	set a dummy session that we use for all MySQL transactions. */
 
-	mutex_enter(&kernel_mutex);
-
-	if (trx->sess == NULL) {
-		/* Open a dummy session */
-
-		if (!trx_dummy_sess) {
-			trx_dummy_sess = sess_open();
-		}
-
-		trx->sess = trx_dummy_sess;
-	}
-
-	mutex_exit(&kernel_mutex);
-
 	err = trx_general_rollback_for_mysql(trx, FALSE, NULL);
-	
+
 	trx->op_info = "";
 
 	return(err);
@@ -404,93 +390,23 @@ trx_savept_take(
 }
 
 /***********************************************************************
-Rollback or clean up transactions which have no user session. If the
-transaction already was committed, then we clean up a possible insert
-undo log. If the transaction was not yet committed, then we roll it back.
-Note: this is done in a background thread. */
-
-os_thread_ret_t
-trx_rollback_or_clean_all_without_sess(
-/*===================================*/
-			/* out: a dummy parameter */
-	void*	arg __attribute__((unused)))
-			/* in: a dummy parameter required by
-			os_thread_create */
+Roll back an active transaction. */
+static
+void
+trx_rollback_active(
+/*================*/
+	trx_t*	trx)	/* in/out: transaction */
 {
 	mem_heap_t*	heap;
 	que_fork_t*	fork;
 	que_thr_t*	thr;
 	roll_node_t*	roll_node;
-	trx_t*		trx;
 	dict_table_t*	table;
 	ib_longlong	rows_to_undo;
 	const char*	unit		= "";
-	int		err = DB_SUCCESS;
 	ibool		dictionary_locked = FALSE;
 
-	mutex_enter(&kernel_mutex);
-
-	/* Open a dummy session */
-
-	if (!trx_dummy_sess) {
-		trx_dummy_sess = sess_open();
-	}
-
-	mutex_exit(&kernel_mutex);
-
-	if (UT_LIST_GET_FIRST(trx_sys->trx_list)) {
-
-		fprintf(stderr,
-			"InnoDB: Starting in background the rollback"
-			" of uncommitted transactions\n");
-	} else {
-		goto leave_function;
-	}
-loop:
 	heap = mem_heap_create(512);
-
-	mutex_enter(&kernel_mutex);
-
-	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
-
-	while (trx) {
-		if ((trx->sess || (trx->conc_state == TRX_NOT_STARTED))) {
-			trx = UT_LIST_GET_NEXT(trx_list, trx);
-		} else if (trx->conc_state == TRX_PREPARED) {
-
-			trx->sess = trx_dummy_sess;
-			trx = UT_LIST_GET_NEXT(trx_list, trx);
-		} else {
-			break;
-		}
-	}
-
-	mutex_exit(&kernel_mutex);
-
-	if (trx == NULL) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Rollback of non-prepared transactions"
-			" completed\n");
-
-		mem_heap_free(heap);
-
-		goto leave_function;
-	}
-
-	trx->sess = trx_dummy_sess;
-
-	if (trx->conc_state == TRX_COMMITTED_IN_MEMORY) {
-		fprintf(stderr, "InnoDB: Cleaning up trx with id %lu %lu\n",
-			(ulong) ut_dulint_get_high(trx->id),
-			(ulong) ut_dulint_get_low(trx->id));
-
-		trx_cleanup_at_db_startup(trx);
-
-		mem_heap_free(heap);
-
-		goto loop;
-	}
 
 	fork = que_fork_create(NULL, NULL, QUE_FORK_RECOVERY, heap);
 	fork->trx = trx;
@@ -569,6 +485,8 @@ loop:
 		table = dict_table_get_on_id_low(trx->table_id);
 
 		if (table) {
+			ulint	err;
+
 			fputs("InnoDB: Table found: dropping table ", stderr);
 			ut_print_name(stderr, trx, TRUE, table->name);
 			fputs(" in recovery\n", stderr);
@@ -583,20 +501,11 @@ loop:
 
 		ut_a(trx->dict_undo_list);
 
-		dict_undo = UT_LIST_GET_FIRST(*trx->dict_undo_list);
-
-		fputs("InnoDB: UNDO dict entries\n", stderr);
-
-		while (dict_undo && err == DB_SUCCESS) {
-
-			dict_undo = UT_LIST_GET_NEXT(node, dict_undo);
-
-			if (dict_undo) {
-				err = row_undo_dictionary(trx, dict_undo);
-			}
+		for (dict_undo = UT_LIST_GET_FIRST(*trx->dict_undo_list);
+		     dict_undo;
+		     dict_undo = UT_LIST_GET_NEXT(node, dict_undo)) {
+			row_undo_dictionary(trx, dict_undo);
 		}
-
-		ut_a(err == (int) DB_SUCCESS);
 
 		dict_undo_free_list(trx);
 
@@ -615,8 +524,63 @@ loop:
 	mem_heap_free(heap);
 
 	trx_roll_crash_recv_trx	= NULL;
+}
 
-	goto loop;
+/***********************************************************************
+Rollback or clean up transactions which have no user session. If the
+transaction already was committed, then we clean up a possible insert
+undo log. If the transaction was not yet committed, then we roll it back.
+Note: this is done in a background thread. */
+
+os_thread_ret_t
+trx_rollback_or_clean_all_without_sess(
+/*===================================*/
+			/* out: a dummy parameter */
+	void*	arg __attribute__((unused)))
+			/* in: a dummy parameter required by
+			os_thread_create */
+{
+	trx_t*	trx;
+
+	if (UT_LIST_GET_FIRST(trx_sys->trx_list)) {
+
+		fprintf(stderr,
+			"InnoDB: Starting in background the rollback"
+			" of uncommitted transactions\n");
+	} else {
+		goto leave_function;
+	}
+loop:
+	mutex_enter(&kernel_mutex);
+
+	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list); trx;
+	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+		switch (trx->conc_state) {
+		case TRX_NOT_STARTED:
+		case TRX_PREPARED:
+			continue;
+
+		case TRX_COMMITTED_IN_MEMORY:
+			mutex_exit(&kernel_mutex);
+			fprintf(stderr,
+				"InnoDB: Cleaning up trx with id %lu %lu\n",
+				(ulong) ut_dulint_get_high(trx->id),
+				(ulong) ut_dulint_get_low(trx->id));
+			trx_cleanup_at_db_startup(trx);
+			goto loop;
+
+		case TRX_ACTIVE:
+			mutex_exit(&kernel_mutex);
+			trx_rollback_active(trx);
+			goto loop;
+		}
+	}
+
+	mutex_exit(&kernel_mutex);
+
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		"  InnoDB: Rollback of non-prepared transactions completed\n");
 
 leave_function:
 	/* We count the number of threads in os_thread_exit(). A created
