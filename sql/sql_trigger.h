@@ -17,7 +17,7 @@
 /*
   This class holds all information about triggers of table.
 
-  QQ: Will it be merged into TABLE in future ?
+  QQ: Will it be merged into TABLE in the future ?
 */
 
 class Table_triggers_list: public Sql_alloc
@@ -143,6 +143,17 @@ private:
 extern const LEX_STRING trg_action_time_type_names[];
 extern const LEX_STRING trg_event_type_names[];
 
-int
-add_table_for_trigger(THD *thd, sp_name *trig, bool if_exists,
-                      TABLE_LIST **table);
+bool add_table_for_trigger(THD *thd,
+                           sp_name *trg_name,
+                           bool continue_if_not_exist,
+                           TABLE_LIST **table);
+
+void build_trn_path(THD *thd, const sp_name *trg_name, LEX_STRING *trn_path);
+
+bool check_trn_exists(const LEX_STRING *trn_path);
+
+bool load_table_name_for_trigger(THD *thd,
+                                 const sp_name *trg_name,
+                                 const LEX_STRING *trn_path,
+                                 LEX_STRING *tbl_name);
+

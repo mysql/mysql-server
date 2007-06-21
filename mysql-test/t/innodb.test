@@ -15,6 +15,10 @@
 -- source include/have_innodb.inc
 -- source include/have_log_bin.inc
 
+# Disabling it temporarily for statement-based logging since some
+# tests are not safe while binlog is on.
+-- source include/have_binlog_format_mixed_or_row.inc
+
 #
 # Small basic test with ignore
 #
@@ -775,7 +779,7 @@ CREATE TABLE `t2` (
 insert into t1 values (1,1),(2,2);
 insert into t2 values (1,1),(4,4);
 reset master;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 UPDATE t2,t1 SET t2.a=t1.a+2;
 # check
 select * from t2 /* must be (3,1), (4,4) */;
@@ -787,7 +791,7 @@ delete from t2;
 insert into t1 values (1,2),(3,4),(4,4);
 insert into t2 values (1,2),(3,4),(4,4);
 reset master;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
 show master status /* there must be no UPDATE query event */;
 

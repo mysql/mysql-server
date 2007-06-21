@@ -400,6 +400,76 @@ show tables like "%log%";
 drop table slow_log_new, general_log_new;
 use test;
 
+#
+# Bug#27857 (Log tables supplies the wrong value for generating
+#            AUTO_INCREMENT numbers)
+#
+
+SET GLOBAL LOG_OUTPUT = 'TABLE';
+
+## test the general log
+
+SET GLOBAL general_log = 0;
+FLUSH LOGS;
+
+TRUNCATE TABLE mysql.general_log;
+ALTER TABLE mysql.general_log ENGINE = MyISAM;
+ALTER TABLE mysql.general_log
+  ADD COLUMN seq BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY;
+
+SET GLOBAL general_log = 1;
+FLUSH LOGS;
+
+--replace_column 1 EVENT_TIME 2 USER_HOST 3 THREAD_ID 4 SERVER_ID
+SELECT * FROM mysql.general_log;
+--replace_column 1 EVENT_TIME 2 USER_HOST 3 THREAD_ID 4 SERVER_ID
+SELECT * FROM mysql.general_log;
+SELECT "My own query 1";
+SELECT "My own query 2";
+--replace_column 1 EVENT_TIME 2 USER_HOST 3 THREAD_ID 4 SERVER_ID
+SELECT * FROM mysql.general_log;
+
+SET GLOBAL general_log = 0;
+FLUSH LOGS;
+
+ALTER TABLE mysql.general_log DROP COLUMN seq;
+ALTER TABLE mysql.general_log ENGINE = CSV;
+
+## test the slow query log
+
+SET @old_long_query_time:=@@long_query_time;
+
+SET GLOBAL slow_query_log = 0;
+FLUSH LOGS;
+
+TRUNCATE TABLE mysql.slow_log;
+ALTER TABLE mysql.slow_log ENGINE = MyISAM;
+
+ALTER TABLE mysql.slow_log
+  ADD COLUMN seq BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY;
+
+SET SESSION long_query_time = 1;
+SET GLOBAL slow_query_log = 1;
+FLUSH LOGS;
+
+## FLUSH LOGS above might be slow, so the following is
+## logged as either seq 1-4 or seq 2-5
+SELECT "My own slow query", sleep(2);
+SELECT "My own slow query", sleep(2);
+SELECT "My own slow query", sleep(2);
+SELECT "My own slow query", sleep(2);
+
+## So we look for seq 2-4
+--replace_column 1 START_TIME 2 USER_HOST 3 QUERY_TIME
+SELECT * FROM mysql.slow_log WHERE seq >= 2 LIMIT 3;
+
+SET GLOBAL slow_query_log = 0;
+SET SESSION long_query_time =@old_long_query_time;
+FLUSH LOGS;
+
+ALTER TABLE mysql.slow_log DROP COLUMN seq;
+ALTER TABLE mysql.slow_log ENGINE = CSV;
+
 # kill all connections
 disconnect con1;
 disconnect con2;

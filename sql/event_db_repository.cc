@@ -15,6 +15,7 @@
 
 #include "mysql_priv.h"
 #include "event_db_repository.h"
+#include "sp_head.h"
 #include "event_data_objects.h"
 #include "events.h"
 #include "sql_show.h"
@@ -141,7 +142,10 @@ const TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] =
 */
 
 static bool
-mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
+mysql_event_fill_row(THD *thd,
+                     TABLE *table,
+                     Event_parse_data *et,
+                     sp_head *sp,
                      my_bool is_update)
 {
   CHARSET_INFO *scs= system_charset_info;
@@ -152,7 +156,6 @@ mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
 
   DBUG_PRINT("info", ("dbname=[%s]", et->dbname.str));
   DBUG_PRINT("info", ("name  =[%s]", et->name.str));
-  DBUG_PRINT("info", ("body  =[%s]", et->body.str));
 
   if (table->s->fields < ET_FIELD_COUNT)
   {
@@ -187,11 +190,18 @@ mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
     Change the SQL_MODE only if body was present in an ALTER EVENT and of course
     always during CREATE EVENT.
   */
-  if (et->body.str)
+  if (et->body_changed)
   {
+    DBUG_ASSERT(sp->m_body.str);
+
     fields[ET_FIELD_SQL_MODE]->store((longlong)thd->variables.sql_mode, TRUE);
-    if (fields[f_num= ET_FIELD_BODY]->store(et->body.str, et->body.length, scs))
+
+    if (fields[f_num= ET_FIELD_BODY]->store(sp->m_body.str,
+                                            sp->m_body.length,
+                                            scs))
+    {
       goto err_truncate;
+    }
   }
 
   if (et->expression)
@@ -513,10 +523,12 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
 {
   int ret= 1;
   TABLE *table= NULL;
+  sp_head *sp= thd->lex->sphead;
 
   DBUG_ENTER("Event_db_repository::create_event");
 
   DBUG_PRINT("info", ("open mysql.event for update"));
+  DBUG_ASSERT(sp);
 
   if (open_event_table(thd, TL_WRITE, &table))
     goto end;
@@ -561,7 +573,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     goto end;
   }
 
-  if (parse_data->body.length > table->field[ET_FIELD_BODY]->field_length)
+  if (sp->m_body.length > table->field[ET_FIELD_BODY]->field_length)
   {
     my_error(ER_TOO_LONG_BODY, MYF(0), parse_data->name.str);
     goto end;
@@ -573,7 +585,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     mysql_event_fill_row() calls my_error() in case of error so no need to
     handle it here
   */
-  if (mysql_event_fill_row(thd, table, parse_data, FALSE))
+  if (mysql_event_fill_row(thd, table, parse_data, sp, FALSE))
     goto end;
 
   table->field[ET_FIELD_STATUS]->store((longlong)parse_data->status, TRUE);
@@ -617,7 +629,9 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
 {
   CHARSET_INFO *scs= system_charset_info;
   TABLE *table= NULL;
+  sp_head *sp= thd->lex->sphead;
   int ret= 1;
+
   DBUG_ENTER("Event_db_repository::update_event");
 
   /* None or both must be set */
@@ -661,7 +675,7 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
     mysql_event_fill_row() calls my_error() in case of error so no need to
     handle it here
   */
-  if (mysql_event_fill_row(thd, table, parse_data, TRUE))
+  if (mysql_event_fill_row(thd, table, parse_data, sp, TRUE))
     goto end;
 
   if (new_dbname)

@@ -19,7 +19,6 @@ im_instance_conf         : Bug#20294 2007-05-30 alik      Instance manager tests
 im_life_cycle            : BUG#27851 Instance manager dies on ASSERT in ~Thread_registry() or from not being able to close a mysqld instance.
 im_instance_conf         : BUG#28743 Instance manager generates warnings in test suite
 im_utils                 : BUG#28743 Instance manager generates warnings in test suite
-innodb                   : Disabling test case awaiting reply from Innobase
 concurrent_innodb        : BUG#21579 2006-08-11 mleich innodb_concurrent random failures with varying differences
 ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
 ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
@@ -48,3 +47,6 @@ ndb_partition_error2	 : HF is not sure if the test can work as internded on all 
 im_options_set       : Bug#20294: Instance manager tests fail randomly
 im_options_unset     : Bug#20294: Instance manager tests fail randomly
 mysql_upgrade        : Bug#28560 test links to /usr/local/mysql/lib libraries, causes non-determinism and failures on ABI breakage
+rpl_udf              : Bug#28993 rpl_udf test causes server crash and valgrind warning in pushbuild
+rpl_ndb_circular     : Bug#29233 rpl_ndb_circular fails randomly
+ndb_dd_sql_features  : Bug#29102 ndb_dd_sql_features fails in pushbuild
