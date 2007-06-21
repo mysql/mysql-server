@@ -6267,16 +6267,17 @@ ha_innobase::external_lock(
         if (lock_type == F_WRLCK)
         {
                 ulong const binlog_format= thd->variables.binlog_format;
-                if (trx->isolation_level <= TRX_ISO_READ_COMMITTED &&
+                ulong const tx_isolation = thd_tx_isolation(current_thd);
+                if (tx_isolation <= ISO_READ_COMMITTED &&
                     binlog_format == BINLOG_FORMAT_STMT)
                 {
                         char buf[256];
                         bool const read_uncommitted =
                           trx->isolation_level == TRX_ISO_READ_UNCOMMITTED;
                         my_snprintf(buf, sizeof(buf),
-                                    "Transaction level 'READ %sCOMMITTED' in"
+                                    "Transaction level '%s' in"
                                     " InnoDB is not safe for binlog mode '%s'",
-                                    read_uncommitted ? "UN" : "",
+                                    tx_isolation_names[tx_isolation],
                                     binlog_format_names[binlog_format]);
                         my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), buf);
                         return HA_ERR_LOGGING_IMPOSSIBLE;
