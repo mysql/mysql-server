@@ -12,7 +12,6 @@
 #######################################################################
 
 -- source include/have_innodb.inc
--- source include/have_log_bin.inc
 
 #
 # Small basic test with ignore
@@ -1193,40 +1192,6 @@ create table t2 (a int auto_increment primary key, b int, foreign key (b) refere
 show create table t2;
 drop table t2, t1;
 
-
-#
-# Let us test binlog_cache_use and binlog_cache_disk_use status vars.
-# Actually this test has nothing to do with innodb per se, it just requires
-# transactional table. 
-#
-show status like "binlog_cache_use";
-show status like "binlog_cache_disk_use";
-
-create table t1 (a int) engine=innodb;
-
-# Now we are going to create transaction which is long enough so its 
-# transaction binlog will be flushed to disk...
-let $1=2000;
-disable_query_log;
-begin;
-while ($1)
-{
- eval insert into t1 values( $1 );
- dec $1;
-}
-commit;
-enable_query_log;
-show status like "binlog_cache_use";
-show status like "binlog_cache_disk_use";
-
-# Transaction which should not be flushed to disk and so should not
-# increase binlog_cache_disk_use.
-begin;
-delete from t1;
-commit;
-show status like "binlog_cache_use";
-show status like "binlog_cache_disk_use";
-drop table t1;
 
 #
 # Bug #6126: Duplicate columns in keys gives misleading error message

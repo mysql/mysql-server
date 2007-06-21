@@ -837,6 +837,10 @@ while ($num)
 }
 --enable_abort_on_error
 --enable_query_log
+
+# Test source $variable/<filename>
+--source $MYSQLTEST_VARDIR/tmp/sourced.inc
+
 --remove_file $MYSQLTEST_VARDIR/tmp/sourced.inc
 
 # ----------------------------------------------------------------------------

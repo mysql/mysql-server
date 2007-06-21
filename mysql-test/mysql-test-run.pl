@@ -3318,9 +3318,12 @@ sub find_testcase_skipped_reason($)
 {
   my ($tinfo)= @_;
 
-  # Open mysqltest-time
-  my $F= IO::File->new($path_timefile) or
-    mtr_error("can't open file \"$path_timefile\": $!");
+  # Set default message
+  $tinfo->{'comment'}= "Detected by testcase(no log file)";
+
+  # Open mysqltest-time(the mysqltest log file)
+  my $F= IO::File->new($path_timefile)
+    or return;
   my $reason;
 
   while ( my $line= <$F> )
@@ -3373,8 +3376,8 @@ sub analyze_testcase_failure($)
   my ($tinfo)= @_;
 
   # Open mysqltest.log
-  my $F= IO::File->new($path_timefile) or
-    mtr_error("can't open file \"$path_timefile\": $!");
+  my $F= IO::File->new($path_timefile)
+    or return;
 
   while ( my $line= <$F> )
   {
@@ -4093,6 +4096,7 @@ sub stop_all_servers () {
 		       pidfile  => $mysqld->{'path_pid'},
 		       sockfile => $mysqld->{'path_sock'},
 		       port     => $mysqld->{'port'},
+		       errfile   => $mysqld->{'path_myerr'},
 		      });
 
       $mysqld->{'pid'}= 0; # Assume we are done with it
@@ -4299,6 +4303,7 @@ sub run_testcase_stop_servers($$$) {
 			 pidfile  => $mysqld->{'path_pid'},
 			 sockfile => $mysqld->{'path_sock'},
 			 port     => $mysqld->{'port'},
+			 errfile   => $mysqld->{'path_myerr'},
 			});
 
 	$mysqld->{'pid'}= 0; # Assume we are done with it
@@ -4349,6 +4354,7 @@ sub run_testcase_stop_servers($$$) {
 			 pidfile  => $mysqld->{'path_pid'},
 			 sockfile => $mysqld->{'path_sock'},
 			 port     => $mysqld->{'port'},
+			 errfile   => $mysqld->{'path_myerr'},
 			});
 
 
