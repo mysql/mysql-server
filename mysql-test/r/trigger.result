@@ -1477,3 +1477,19 @@ DROP TABLE t1,t2;
 SET SESSION LOW_PRIORITY_UPDATES=DEFAULT;
 SET GLOBAL LOW_PRIORITY_UPDATES=DEFAULT;
 End of 5.0 tests
+drop table if exists table_25411_a;
+drop table if exists table_25411_b;
+create table table_25411_a(a int);
+create table table_25411_b(b int);
+create trigger trg_25411a_ai after insert on table_25411_a
+for each row
+insert into table_25411_b select new.*;
+select * from table_25411_a;
+a
+insert into table_25411_a values (1);
+ERROR 42S02: Unknown table 'new'
+select * from table_25411_a;
+a
+1
+drop table table_25411_a;
+drop table table_25411_b;
