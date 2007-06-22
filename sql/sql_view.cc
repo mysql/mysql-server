@@ -205,18 +205,17 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
 }
 
 
-/*
-  Creating/altering VIEW procedure
+/**
+  @brief Creating/altering VIEW procedure
 
-  SYNOPSIS
-    mysql_create_view()
-    thd		- thread handler
-    views	- views to create
-    mode	- VIEW_CREATE_NEW, VIEW_ALTER, VIEW_CREATE_OR_REPLACE
+  @param thd thread handler
+  @param views views to create
+  @param mode VIEW_CREATE_NEW, VIEW_ALTER, VIEW_CREATE_OR_REPLACE
 
-  RETURN VALUE
-     FALSE OK
-     TRUE  Error
+  @note This function handles both create and alter view commands.
+
+  @retval FALSE Operation was a success.
+  @retval TRUE An error occured.
 */
 
 bool mysql_create_view(THD *thd, TABLE_LIST *views, 
