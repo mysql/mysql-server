@@ -62,3 +62,4 @@ Node : Backup  started from node  completed
  StartGCP:  StopGCP: 
  #Records:  #LogRecords: 
  Data:  bytes Log:  bytes
+drop table t1;

@@ -7251,4 +7251,83 @@ DROP FUNCTION metered;
 DROP TABLE t1;
 
 
---echo End of 5.0 tests
+#
+# Bug#25411 (trigger code truncated)
+#
+
+--disable_warnings
+drop procedure if exists proc_25411_a;
+drop procedure if exists proc_25411_b;
+drop procedure if exists proc_25411_c;
+--enable_warnings
+
+delimiter $$;
+
+create procedure proc_25411_a()
+begin
+  /* real comment */
+  select 1;
+  /*! select 2; */
+  select 3;
+  /*!00000 select 4; */
+  /*!99999 select 5; */
+end
+$$
+
+create procedure proc_25411_b(
+/* real comment */
+/*! p1 int, */
+/*!00000 p2 int */
+/*!99999 ,p3 int */
+)
+begin
+  select p1, p2;
+end
+$$
+
+create procedure proc_25411_c()
+begin
+  select 1/*!,2*//*!00000,3*//*!99999,4*/;
+  select 1/*! ,2*//*!00000 ,3*//*!99999 ,4*/;
+  select 1/*!,2 *//*!00000,3 *//*!99999,4 */;
+  select 1/*! ,2 *//*!00000 ,3 *//*!99999 ,4 */;
+  select 1 /*!,2*/ /*!00000,3*/ /*!99999,4*/ ;
+end
+$$
+
+delimiter ;$$
+
+show create procedure proc_25411_a;
+call proc_25411_a();
+
+show create procedure proc_25411_b;
+select name, param_list, body from mysql.proc where name like "%25411%";
+call proc_25411_b(10, 20);
+
+show create procedure proc_25411_c;
+call proc_25411_c();
+
+drop procedure proc_25411_a;
+drop procedure proc_25411_b;
+drop procedure proc_25411_c;
+
+
+#
+# Bug#26302 (MySQL server cuts off trailing "*/" from comments in SP/func)
+#
+
+--disable_warnings
+drop procedure if exists proc_26302;
+--enable_warnings
+
+create procedure proc_26302()
+select 1 /* testing */;
+
+show create procedure proc_26302;
+
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
+where ROUTINE_NAME = "proc_26302";
+
+drop procedure proc_26302;
+
+

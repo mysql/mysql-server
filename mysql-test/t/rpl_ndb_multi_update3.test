@@ -4,5 +4,6 @@
 ############################################################
 -- source include/have_ndb.inc
 -- source include/have_binlog_format_row.inc
+-- source include/ndb_master-slave.inc
 let $engine_type=NDB;
 -- source extra/rpl_tests/rpl_multi_update3.test

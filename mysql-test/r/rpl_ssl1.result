@@ -53,6 +53,10 @@ Master_SSL_Cipher
 Master_SSL_Key	MYSQL_TEST_DIR/std_data/client-key.pem
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
 stop slave;
 change master to master_user='root',master_password='', master_ssl=0;
 start slave;
@@ -93,6 +97,10 @@ Master_SSL_Cipher
 Master_SSL_Key	MYSQL_TEST_DIR/std_data/client-key.pem
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
 stop slave;
 change master to
 master_host="localhost",
@@ -143,4 +151,8 @@ Master_SSL_Cipher
 Master_SSL_Key	MYSQL_TEST_DIR/std_data/client-key.pem
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	Yes
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
 drop table t1;

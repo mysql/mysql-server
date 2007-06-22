@@ -184,3 +184,42 @@ SELECT k, HEX(a),HEX(b) FROM t2_innodb;
 connection master;
 DROP TABLE IF EXISTS t1_myisam, t1_innodb, t2_myisam, t2_innodb;
 sync_slave_with_master;
+
+#
+# Bug#27716  	multi-update did partially and has not binlogged
+#
+
+connection master;
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+CREATE TABLE `t1` (
+  `a` int(11) NOT NULL auto_increment,
+  `b` int(11) default NULL,
+  PRIMARY KEY  (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
+
+CREATE TABLE `t2` (
+  `a` int(11) NOT NULL auto_increment,
+  `b` int(11) default NULL,
+  PRIMARY KEY  (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
+
+# testing multi_update::send_error() effective update
+insert into t1 values (1,1),(2,2);
+insert into t2 values (1,1),(4,4);
+
+connection master;
+error ER_DUP_ENTRY;
+UPDATE t2,t1 SET t2.a=t1.a+2;
+select * from t2 /* must be (3,1), (4,4) */;
+sync_slave_with_master;
+
+connection slave;
+select * from t2 /* must be (3,1), (4,4) */;
+
+connection master;
+drop table t1,t2;
+
+sync_slave_with_master;

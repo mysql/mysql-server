@@ -1674,6 +1674,7 @@ public:
       Statement-based replication of INSERT DELAYED has problems with RAND()
       and user vars, so in mixed mode we go to row-based.
     */
+    thd.lex->set_stmt_unsafe();
     thd.set_current_stmt_binlog_row_based_if_mixed();
 
     bzero((char*) &thd.net, sizeof(thd.net));		// Safety
@@ -3213,7 +3214,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                                       MYSQL_LOCK **lock,
                                       TABLEOP_HOOKS *hooks)
 {
-  TABLE tmp_table;		// Used during 'create_field()'
+  TABLE tmp_table;		// Used during 'Create_field()'
   TABLE_SHARE share;
   TABLE *table= 0;
   uint select_field_count= items->elements;
@@ -3257,7 +3258,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
   while ((item=it++))
   {
-    create_field *cr_field;
+    Create_field *cr_field;
     Field *field, *def_field;
     if (item->type() == Item::FUNC_ITEM)
       field= item->tmp_table_field(&tmp_table);
@@ -3266,7 +3267,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                               (Item ***) 0, &tmp_field, &def_field, 0, 0, 0, 0,
                               0);
     if (!field ||
-	!(cr_field=new create_field(field,(item->type() == Item::FIELD_ITEM ?
+	!(cr_field=new Create_field(field,(item->type() == Item::FIELD_ITEM ?
 					   ((Item_field *)item)->field :
 					   (Field*) 0))))
       DBUG_RETURN(0);
@@ -3352,8 +3353,15 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   table->reginfo.lock_type=TL_WRITE;
   hooks->prelock(&table, 1);                    // Call prelock hooks
   if (! ((*lock)= mysql_lock_tables(thd, &table, 1,
-                                    MYSQL_LOCK_IGNORE_FLUSH, &not_used)))
+                                    MYSQL_LOCK_IGNORE_FLUSH, &not_used)) ||
+        hooks->postlock(&table, 1))
   {
+    if (*lock)
+    {
+      mysql_unlock_tables(thd, *lock);
+      *lock= 0;
+    }
+
     if (!create_info->table_existed)
       drop_open_table(thd, table, create_table->db, create_table->table_name);
     DBUG_RETURN(0);
@@ -3388,24 +3396,35 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
    */
   class MY_HOOKS : public TABLEOP_HOOKS {
   public:
-    MY_HOOKS(select_create *x) : ptr(x) { }
+    MY_HOOKS(select_create *x, TABLE_LIST *create_table,
+             TABLE_LIST *select_tables)
+      : ptr(x), all_tables(*create_table)
+      {
+        all_tables.next_global= select_tables;
+      }
 
   private:
-    virtual void do_prelock(TABLE **tables, uint count)
+    virtual int do_postlock(TABLE **tables, uint count)
     {
+      THD *thd= const_cast<THD*>(ptr->get_thd());
+      if (int error= decide_logging_format(thd, &all_tables))
+        return error;
+
       TABLE const *const table = *tables;
-      if (ptr->get_thd()->current_stmt_binlog_row_based  &&
+      if (thd->current_stmt_binlog_row_based  &&
           !table->s->tmp_table &&
           !ptr->get_create_info()->table_existed)
       {
         ptr->binlog_show_create_table(tables, count);
       }
+      return 0;
     }
 
     select_create *ptr;
+    TABLE_LIST all_tables;
   };
 
-  MY_HOOKS hooks(this);
+  MY_HOOKS hooks(this, create_table, select_tables);
   hook_ptr= &hooks;
 
   unit= u;

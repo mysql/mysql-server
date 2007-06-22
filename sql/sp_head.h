@@ -126,7 +126,7 @@ public:
   int m_type;
   uint m_flags;                 // Boolean attributes of a stored routine
 
-  create_field m_return_field_def; /* This is used for FUNCTIONs only. */
+  Create_field m_return_field_def; /* This is used for FUNCTIONs only. */
 
   const char *m_tmp_query;	// Temporary pointer to sub query string
   st_sp_chistics *m_chistics;
@@ -178,8 +178,11 @@ public:
   // Pointers set during parsing
   const char *m_param_begin;
   const char *m_param_end;
+
+private:
   const char *m_body_begin;
 
+public:
   /*
     Security context for stored routine which should be run under
     definer privileges.
@@ -216,8 +219,10 @@ public:
   destroy();
 
   bool
-  execute_trigger(THD *thd, const char *db, const char *table,
-                  GRANT_INFO *grant_onfo);
+  execute_trigger(THD *thd,
+                  const LEX_STRING *db_name,
+                  const LEX_STRING *table_name,
+                  GRANT_INFO *grant_info);
 
   bool
   execute_function(THD *thd, Item **args, uint argcount, Field *return_fld);
@@ -290,10 +295,12 @@ public:
 
   bool fill_field_definition(THD *thd, LEX *lex,
                              enum enum_field_types field_type,
-                             create_field *field_def);
+                             Create_field *field_def);
 
   void set_info(longlong created, longlong modified,
 		st_sp_chistics *chistics, ulong sql_mode);
+
+  void set_body_begin_ptr(Lex_input_stream *lip, const char *begin_ptr);
 
   void set_definer(const char *definer, uint definerlen);
   void set_definer(const LEX_STRING *user_name, const LEX_STRING *host_name);
@@ -378,7 +385,7 @@ public:
       the substatements not).
     */
     if (m_flags & BINLOG_ROW_BASED_IF_MIXED)
-      lex->binlog_row_based_if_mixed= TRUE;
+      lex->set_stmt_unsafe();
   }
 
 
