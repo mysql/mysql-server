@@ -81,7 +81,9 @@ connection conn2;
 
 connection conn1;
 -- disable_result_log
-send select id from t1 where id in (select distinct id from t2);
+# This is a very long running query. If this test start failing, it may
+# be necessary to change to an even longer query.
+send select id from t1 where id in (select distinct a.id from t2 a, t2 b, t2 c, t2 d group by a.id, b.id, c.id, d.id having a.id between 10 and 20);
 -- enable_result_log
 
 connection conn2;
