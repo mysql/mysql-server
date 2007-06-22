@@ -7112,8 +7112,11 @@ opt_distinct:
     |DISTINCT   { $$ = 1; };
 
 opt_gconcat_separator:
-    /* empty */        { $$ = new (YYTHD->mem_root) String(",",1,default_charset_info); }
-    |SEPARATOR_SYM text_string  { $$ = $2; };
+    /* empty */
+      {
+        $$= new (YYTHD->mem_root) String(",", 1, &my_charset_latin1);
+      }
+    | SEPARATOR_SYM text_string { $$ = $2; };
 
 
 opt_gorder_clause:
