@@ -30,11 +30,12 @@ int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
 
 
 st_relay_log_info::st_relay_log_info()
-  :no_storage(FALSE), replicate_same_server_id(::replicate_same_server_id),
+  :Slave_reporting_capability("SQL"),
+   no_storage(FALSE), replicate_same_server_id(::replicate_same_server_id),
    info_fd(-1), cur_log_fd(-1), save_temporary_tables(0),
    cur_log_old_open_count(0), group_master_log_pos(0), log_space_total(0),
    ignore_log_space_limit(0), last_master_timestamp(0), slave_skip_counter(0),
-   abort_pos_wait(0), slave_run_id(0), sql_thd(0), last_slave_errno(0),
+   abort_pos_wait(0), slave_run_id(0), sql_thd(0),
    inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
    until_log_pos(0), retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
@@ -44,7 +45,7 @@ st_relay_log_info::st_relay_log_info()
 
   group_relay_log_name[0]= event_relay_log_name[0]=
     group_master_log_name[0]= 0;
-  last_slave_error[0]= until_log_name[0]= ign_master_log_name_end[0]= 0;
+  until_log_name[0]= ign_master_log_name_end[0]= 0;
   bzero((char*) &info_file, sizeof(info_file));
   bzero((char*) &cache_buf, sizeof(cache_buf));
   cached_charset_invalidate();
@@ -336,16 +337,6 @@ static int count_relay_log_space(RELAY_LOG_INFO* rli)
   DBUG_RETURN(0);
 }
 
-
-void st_relay_log_info::clear_slave_error()
-{
-  DBUG_ENTER("clear_slave_error");
-
-  /* Clear the errors displayed by SHOW SLAVE STATUS */
-  last_slave_error[0]= 0;
-  last_slave_errno= 0;
-  DBUG_VOID_RETURN;
-}
 
 /*
    Reset UNTIL condition for RELAY_LOG_INFO

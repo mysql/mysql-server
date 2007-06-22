@@ -1,5 +1,3 @@
--- source include/master-slave.inc
-
 ##############################################################################
 #
 # Let's verify that multi-update with a subselect does not cause the slave to crash

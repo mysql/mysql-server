@@ -3376,8 +3376,8 @@ TYPELIB *ha_known_exts(void)
     const char **ext, *old_ext;
 
     known_extensions_id= mysys_usage_id;
-    found_exts.push_back((char*) triggers_file_ext);
-    found_exts.push_back((char*) trigname_file_ext);
+    found_exts.push_back((char*) TRG_EXT);
+    found_exts.push_back((char*) TRN_EXT);
 
     plugin_foreach(NULL, exts_handlerton,
                    MYSQL_STORAGE_ENGINE_PLUGIN, &found_exts);
@@ -3639,7 +3639,15 @@ int handler::ha_external_lock(THD *thd, int lock_type)
     taken a table lock), ha_release_auto_increment() was too.
   */
   DBUG_ASSERT(next_insert_id == 0);
-  DBUG_RETURN(external_lock(thd, lock_type));
+
+  /*
+    We cache the table flags if the locking succeeded. Otherwise, we
+    keep them as they were when they were fetched in ha_open().
+  */
+  int error= external_lock(thd, lock_type);
+  if (error == 0)
+    cached_table_flags= table_flags();
+  DBUG_RETURN(error);
 }
 
 

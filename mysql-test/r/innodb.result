@@ -1086,6 +1086,39 @@ n	d
 1	30
 2	20
 drop table t1,t2;
+CREATE TABLE `t1` (
+`a` int(11) NOT NULL auto_increment,
+`b` int(11) default NULL,
+PRIMARY KEY  (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
+CREATE TABLE `t2` (
+`a` int(11) NOT NULL auto_increment,
+`b` int(11) default NULL,
+PRIMARY KEY  (`a`)
+) ENGINE=INNODB DEFAULT CHARSET=latin1 ;
+insert into t1 values (1,1),(2,2);
+insert into t2 values (1,1),(4,4);
+reset master;
+UPDATE t2,t1 SET t2.a=t1.a+2;
+ERROR 23000: Duplicate entry '3' for key 1
+select * from t2 /* must be (3,1), (4,4) */;
+a	b
+1	1
+4	4
+show master status /* there must no UPDATE in binlog */;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	98		
+delete from t1;
+delete from t2;
+insert into t1 values (1,2),(3,4),(4,4);
+insert into t2 values (1,2),(3,4),(4,4);
+reset master;
+UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
+ERROR 23000: Duplicate entry '4' for key 1
+show master status /* there must be no UPDATE query event */;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	98		
+drop table t1, t2;
 create table t1 (a int, b int) engine=innodb;
 insert into t1 values(20,null);
 select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
@@ -1751,13 +1784,13 @@ Variable_name	Value
 Innodb_page_size	16384
 show status like "Innodb_rows_deleted";
 Variable_name	Value
-Innodb_rows_deleted	70
+Innodb_rows_deleted	72
 show status like "Innodb_rows_inserted";
 Variable_name	Value
-Innodb_rows_inserted	1083
+Innodb_rows_inserted	1088
 show status like "Innodb_rows_updated";
 Variable_name	Value
-Innodb_rows_updated	886
+Innodb_rows_updated	888
 show status like "Innodb_row_lock_waits";
 Variable_name	Value
 Innodb_row_lock_waits	0

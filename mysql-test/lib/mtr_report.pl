@@ -363,7 +363,8 @@ sub mtr_report_stats ($) {
 		# Special case, made as specific as possible, for:
 		# Bug #28436: Incorrect position in SHOW BINLOG EVENTS causes
 		#             server coredump
-		/\QError in Log_event::read_log_event(): 'Sanity check failed', data_len: 258, event_type: 49\E/
+		/\QError in Log_event::read_log_event(): 'Sanity check failed', data_len: 258, event_type: 49\E/ or
+                /Statement is not safe to log in statement format/
 	       )
             {
               next;                       # Skip these lines

@@ -538,6 +538,37 @@ bool load_db_opt_by_name(THD *thd, const char *db_name,
 }
 
 
+/**
+  Return default database collation.
+
+  @param thd     Thread context.
+  @param db_name Database name.
+
+  @return CHARSET_INFO object. The operation always return valid character
+    set, even if the database does not exist.
+*/
+
+CHARSET_INFO *get_default_db_collation(THD *thd, const char *db_name)
+{
+  HA_CREATE_INFO db_info;
+
+  if (thd->db != NULL && strcmp(db_name, thd->db) == 0)
+    return thd->db_charset;
+
+  load_db_opt_by_name(thd, db_name, &db_info);
+
+  /*
+    NOTE: even if load_db_opt_by_name() fails,
+    db_info.default_table_charset contains valid character set
+    (collation_server). We should not fail if load_db_opt_by_name() fails,
+    because it is valid case. If a database has been created just by
+    "mkdir", it does not contain db.opt file, but it is valid database.
+  */
+
+  return db_info.default_table_charset;
+}
+
+
 /*
   Create a database
 
@@ -751,10 +782,8 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   if ((error=write_db_opt(thd, path, create_info)))
     goto exit;
 
-  /*
-     Change options if current database is being altered
-     TODO: Delete this code
-  */
+  /* Change options if current database is being altered. */
+
   if (thd->db && !strcmp(thd->db,db))
   {
     thd->db_charset= create_info->default_table_charset ?
@@ -1358,6 +1387,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
 
   Security_context *sctx= thd->security_ctx;
   ulong db_access= sctx->db_access;
+  CHARSET_INFO *db_default_cl;
 
   DBUG_ENTER("mysql_change_db");
   DBUG_PRINT("enter",("name: '%s'", new_db_name->str));
@@ -1487,16 +1517,9 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
     attributes and will be freed in THD::~THD().
   */
 
-  {
-    HA_CREATE_INFO db_options;
+  db_default_cl= get_default_db_collation(thd, new_db_file_name.str);
 
-    load_db_opt_by_name(thd, new_db_name->str, &db_options);
-
-    mysql_change_db_impl(thd, &new_db_file_name, db_access,
-                         db_options.default_table_charset ?
-                         db_options.default_table_charset :
-                         thd->variables.collation_server);
-  }
+  mysql_change_db_impl(thd, &new_db_file_name, db_access, db_default_cl);
 
   DBUG_RETURN(FALSE);
 }

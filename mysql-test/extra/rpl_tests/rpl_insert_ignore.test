@@ -5,8 +5,6 @@
 # Slave needs to be started with --innodb to store table in InnoDB.
 # Same test for MyISAM (which had no bug).
 
--- source include/master-slave.inc
-
 eval CREATE TABLE t1 (
  a int unsigned not null auto_increment primary key,
  b int unsigned,

@@ -1,7 +1,7 @@
 --source include/have_ndb.inc
 --source include/have_innodb.inc
 --source include/have_binlog_format_mixed_or_statement.inc
---source include/master-slave.inc
+--source include/ndb_master-slave.inc
 
 --connection master
 create table t1 (a int key, b int) engine innodb;
@@ -11,6 +11,14 @@ create table t2 (a int key, b int) engine innodb;
 --connection slave
 alter table t1 engine ndb;
 alter table t2 engine ndb;
+
+# We need MIXED mode on the slave in the event that there are
+# statements coming in from the master.  In this case, NDB can only
+# handle row-based format, so it has to be possible to switch to
+# this.
+STOP SLAVE;
+SET GLOBAL BINLOG_FORMAT=MIXED;
+START SLAVE;
 
 # check binlog position without begin
 --connection master

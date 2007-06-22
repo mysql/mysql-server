@@ -1,7 +1,7 @@
 -- source include/have_ndb.inc
 -- source include/have_binlog_format_row.inc
--- source include/master-slave.inc
 -- source include/have_ndbapi_examples.inc
+-- source include/ndb_master-slave.inc
 
 --exec echo Running ndbapi_simple_dual
 --exec $NDB_EXAMPLES_DIR/ndbapi_simple_dual/ndbapi_simple_dual $MASTER_MYSOCK "localhost:$NDBCLUSTER_PORT" $SLAVE_MYSOCK "localhost:$NDBCLUSTER_PORT_SLAVE" >> $NDB_EXAMPLES_OUTPUT

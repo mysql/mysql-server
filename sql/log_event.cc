@@ -146,12 +146,11 @@ static void pretty_print_str(IO_CACHE* cache, char* str, int len)
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 
-static void clear_all_errors(THD *thd, struct st_relay_log_info *rli)
+static void clear_all_errors(THD *thd, RELAY_LOG_INFO *rli)
 {
   thd->query_error = 0;
   thd->clear_error();
-  *rli->last_slave_error = 0;
-  rli->last_slave_errno = 0;
+  rli->clear_error();
 }
 
 
@@ -2090,7 +2089,7 @@ int Query_log_event::do_apply_event(RELAY_LOG_INFO const *rli,
         clear_all_errors(thd, const_cast<RELAY_LOG_INFO*>(rli)); /* Can ignore query */
       else
       {
-        slave_print_msg(ERROR_LEVEL, rli, expected_error, 
+        rli->report(ERROR_LEVEL, expected_error, 
                           "\
 Query partially completed on the master (error on master: %d) \
 and was aborted. There is a chance that your master is inconsistent at this \
@@ -2119,7 +2118,7 @@ compare_errors:
  	!ignored_error_code(actual_error) &&
  	!ignored_error_code(expected_error))
     {
-      slave_print_msg(ERROR_LEVEL, rli, 0,
+      rli->report(ERROR_LEVEL, 0,
                       "\
 Query caused different errors on master and slave.     \
 Error on master: '%s' (%d), Error on slave: '%s' (%d). \
@@ -2145,7 +2144,7 @@ Default database: '%s'. Query: '%s'",
     */
     else if (thd->query_error || thd->is_fatal_error)
     {
-      slave_print_msg(ERROR_LEVEL, rli, actual_error,
+      rli->report(ERROR_LEVEL, actual_error,
                       "Error '%s' on query. Default database: '%s'. Query: '%s'",
                       (actual_error ? thd->net.last_error :
                        "unexpected success or fatal error"),
@@ -2628,11 +2627,11 @@ int Format_description_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
   if (!artificial_event && created && thd->transaction.all.nht)
   {
     /* This is not an error (XA is safe), just an information */
-    slave_print_msg(INFORMATION_LEVEL, rli, 0,
-                    "Rolling back unfinished transaction (no COMMIT "
-                    "or ROLLBACK in relay log). A probable cause is that "
-                    "the master died while writing the transaction to "
-                    "its binary log, thus rolled back too."); 
+    rli->report(INFORMATION_LEVEL, 0,
+                "Rolling back unfinished transaction (no COMMIT "
+                "or ROLLBACK in relay log). A probable cause is that "
+                "the master died while writing the transaction to "
+                "its binary log, thus rolled back too."); 
     const_cast<RELAY_LOG_INFO*>(rli)->cleanup_context(thd, 1);
   }
 #endif
@@ -3450,6 +3449,10 @@ error:
   thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);
+
+  DBUG_EXECUTE_IF("LOAD_DATA_INFILE_has_fatal_error",
+                  thd->query_error= 0; thd->is_fatal_error= 1;);
+
   if (thd->query_error)
   {
     /* this err/sql_errno code is copy-paste from net_send_error() */
@@ -3462,19 +3465,25 @@ error:
       sql_errno=ER_UNKNOWN_ERROR;
       err=ER(sql_errno);       
     }
-    slave_print_msg(ERROR_LEVEL, rli, sql_errno,"\
+    rli->report(ERROR_LEVEL, sql_errno,"\
 Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
                     err, (char*)table_name, print_slave_db_safe(remember_db));
     free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
     return 1;
   }
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
-	    
+
   if (thd->is_fatal_error)
   {
-    slave_print_msg(ERROR_LEVEL, rli, ER_UNKNOWN_ERROR, "\
-Fatal error running LOAD DATA INFILE on table '%s'. Default database: '%s'",
-                    (char*)table_name, print_slave_db_safe(remember_db));
+    char buf[256];
+    my_snprintf(buf, sizeof(buf),
+                "Running LOAD DATA INFILE on table '%-.64s'."
+                " Default database: '%-.64s'",
+                (char*)table_name,
+                print_slave_db_safe(remember_db));
+
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                ER(ER_SLAVE_FATAL_ERROR), buf);
     return 1;
   }
 
@@ -4834,8 +4843,9 @@ int Create_file_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
       init_io_cache(&file, fd, IO_SIZE, WRITE_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
-    slave_print_msg(ERROR_LEVEL, rli, my_errno, "Error in Create_file event: "
-                    "could not open file '%s'", fname_buf);
+    rli->report(ERROR_LEVEL, my_errno,
+                "Error in Create_file event: could not open file '%s'",
+                fname_buf);
     goto err;
   }
   
@@ -4845,9 +4855,9 @@ int Create_file_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
   if (write_base(&file))
   {
     strmov(ext, ".info"); // to have it right in the error message
-    slave_print_msg(ERROR_LEVEL, rli, my_errno,
-                    "Error in Create_file event: could not write to file '%s'",
-                    fname_buf);
+    rli->report(ERROR_LEVEL, my_errno,
+                "Error in Create_file event: could not write to file '%s'",
+                fname_buf);
     goto err;
   }
   end_io_cache(&file);
@@ -4859,14 +4869,16 @@ int Create_file_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
 		     O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
 		     MYF(MY_WME))) < 0)
   {
-    slave_print_msg(ERROR_LEVEL, rli, my_errno, "Error in Create_file event: "
-                    "could not open file '%s'", fname_buf);
+    rli->report(ERROR_LEVEL, my_errno,
+                "Error in Create_file event: could not open file '%s'",
+                fname_buf);
     goto err;
   }
   if (my_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
-    slave_print_msg(ERROR_LEVEL, rli, my_errno, "Error in Create_file event: "
-                    "write to '%s' failed", fname_buf);
+    rli->report(ERROR_LEVEL, my_errno,
+                "Error in Create_file event: write to '%s' failed",
+                fname_buf);
     goto err;
   }
   error=0;					// Everything is ok
@@ -5005,25 +5017,25 @@ int Append_block_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
 		       O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
 		       MYF(MY_WME))) < 0)
     {
-      slave_print_msg(ERROR_LEVEL, rli, my_errno,
-                      "Error in %s event: could not create file '%s'",
-                      get_type_str(), fname);
+      rli->report(ERROR_LEVEL, my_errno,
+                  "Error in %s event: could not create file '%s'",
+                  get_type_str(), fname);
       goto err;
     }
   }
   else if ((fd = my_open(fname, O_WRONLY | O_APPEND | O_BINARY | O_NOFOLLOW,
                          MYF(MY_WME))) < 0)
   {
-    slave_print_msg(ERROR_LEVEL, rli, my_errno,
-                    "Error in %s event: could not open file '%s'",
-                    get_type_str(), fname);
+    rli->report(ERROR_LEVEL, my_errno,
+                "Error in %s event: could not open file '%s'",
+                get_type_str(), fname);
     goto err;
   }
   if (my_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
-    slave_print_msg(ERROR_LEVEL, rli, my_errno,
-                    "Error in %s event: write to '%s' failed",
-                    get_type_str(), fname);
+    rli->report(ERROR_LEVEL, my_errno,
+                "Error in %s event: write to '%s' failed",
+                get_type_str(), fname);
     goto err;
   }
   error=0;
@@ -5231,8 +5243,9 @@ int Execute_load_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
       init_io_cache(&file, fd, IO_SIZE, READ_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
-    slave_print_msg(ERROR_LEVEL, rli, my_errno, "Error in Exec_load event: "
-                    "could not open file '%s'", fname);
+    rli->report(ERROR_LEVEL, my_errno,
+                "Error in Exec_load event: could not open file '%s'",
+                fname);
     goto err;
   }
   if (!(lev = (Load_log_event*)Log_event::read_log_event(&file,
@@ -5240,7 +5253,7 @@ int Execute_load_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
                                                          rli->relay_log.description_event_for_exec)) ||
       lev->get_type_code() != NEW_LOAD_EVENT)
   {
-    slave_print_msg(ERROR_LEVEL, rli, 0, "Error in Exec_load event: "
+    rli->report(ERROR_LEVEL, 0, "Error in Exec_load event: "
                     "file '%s' appears corrupted", fname);
     goto err;
   }
@@ -5265,13 +5278,11 @@ int Execute_load_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
       don't want to overwrite it with the filename.
       What we want instead is add the filename to the current error message.
     */
-    char *tmp= my_strdup(rli->last_slave_error,MYF(MY_WME));
+    char *tmp= my_strdup(rli->last_error().message, MYF(MY_WME));
     if (tmp)
     {
-      slave_print_msg(ERROR_LEVEL, rli,
-                      rli->last_slave_errno, /* ok to re-use error code */
-                      "%s. Failed executing load from '%s'", 
-                      tmp, fname);
+      rli->report(ERROR_LEVEL, rli->last_error().number,
+                  "%s. Failed executing load from '%s'", tmp, fname);
       my_free(tmp,MYF(0));
     }
     goto err;
@@ -5474,11 +5485,16 @@ Execute_load_query_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
   char *fname_end;
   int error;
 
+  buf= (char*) my_malloc(q_len + 1 - (fn_pos_end - fn_pos_start) +
+                         (FN_REFLEN + 10) + 10 + 8 + 5, MYF(MY_WME));
+
+  DBUG_EXECUTE_IF("LOAD_DATA_INFILE_has_fatal_error", my_free(buf, MYF(0)); buf= NULL;);
+
   /* Replace filename and LOCAL keyword in query before executing it */
-  if (!(buf = (char*) my_malloc(q_len + 1 - (fn_pos_end - fn_pos_start) +
-                                (FN_REFLEN + 10) + 10 + 8 + 5, MYF(MY_WME))))
+  if (buf == NULL)
   {
-    slave_print_msg(ERROR_LEVEL, rli, my_errno, "Not enough memory");
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                ER(ER_SLAVE_FATAL_ERROR), "Not enough memory");
     return 1;
   }
 
@@ -5740,7 +5756,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
 
   size_t const data_size= event_len - (ptr_rows_data - (const uchar *) buf);
   DBUG_PRINT("info",("m_table_id: %lu  m_flags: %d  m_width: %lu  data_size: %lu",
-                     m_table_id, m_flags, m_width, data_size));
+                     m_table_id, m_flags, m_width, (ulong) data_size));
 
   m_rows_buf= (uchar*) my_malloc(data_size, MYF(MY_WME));
   if (likely((bool)m_rows_buf))
@@ -5908,18 +5924,18 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
             simplifications (we don't honour --slave-skip-errors)
           */
           uint actual_error= thd->net.last_errno;
-          slave_print_msg(ERROR_LEVEL, rli, actual_error,
-                          "Error '%s' in %s event: when locking tables",
-                          (actual_error ? thd->net.last_error :
-                           "unexpected success or fatal error"),
-                          get_type_str());
+          rli->report(ERROR_LEVEL, actual_error,
+                      "Error '%s' in %s event: when locking tables",
+                      (actual_error ? thd->net.last_error :
+                       "unexpected success or fatal error"),
+                      get_type_str());
           thd->is_fatal_error= 1;
         }
         else
         {
-          slave_print_msg(ERROR_LEVEL, rli, error,
-                         "Error in %s event: when locking tables",
-                         get_type_str());
+          rli->report(ERROR_LEVEL, error,
+                      "Error in %s event: when locking tables",
+                      get_type_str());
         }
         const_cast<RELAY_LOG_INFO*>(rli)->clear_tables_to_lock();
         DBUG_RETURN(error);
@@ -5952,10 +5968,10 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
             simplifications (we don't honour --slave-skip-errors)
           */
           uint actual_error= thd->net.last_errno;
-          slave_print_msg(ERROR_LEVEL, rli, actual_error,
-                          "Error '%s' on reopening tables",
-                          (actual_error ? thd->net.last_error :
-                           "unexpected success or fatal error"));
+          rli->report(ERROR_LEVEL, actual_error,
+                      "Error '%s' on reopening tables",
+                      (actual_error ? thd->net.last_error :
+                       "unexpected success or fatal error"));
           thd->query_error= 1;
         }
         const_cast<RELAY_LOG_INFO*>(rli)->clear_tables_to_lock();
@@ -6087,9 +6103,9 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
 	break;
 
       default:
-	slave_print_msg(ERROR_LEVEL, rli, thd->net.last_errno,
-                        "Error in %s event: row application failed",
-                        get_type_str());
+	rli->report(ERROR_LEVEL, thd->net.last_errno,
+                    "Error in %s event: row application failed",
+                    get_type_str());
 	thd->query_error= 1;
 	break;
       }
@@ -6108,13 +6124,13 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
 
   if (error)
   {                     /* error has occured during the transaction */
-    slave_print_msg(ERROR_LEVEL, rli, thd->net.last_errno,
-                    "Error in %s event: error during transaction execution "
-                    "on table %s.%s",
-                    get_type_str(), table->s->db.str, 
-                    table->s->table_name.str);
+    rli->report(ERROR_LEVEL, thd->net.last_errno,
+                "Error in %s event: error during transaction execution "
+                "on table %s.%s",
+                get_type_str(), table->s->db.str,
+                table->s->table_name.str);
 
-     /*
+    /*
       If one day we honour --skip-slave-errors in row-based replication, and
       the error should be skipped, then we would clear mappings, rollback,
       close tables, but the slave SQL thread would not stop and then may
@@ -6159,6 +6175,20 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
   }
 
   DBUG_RETURN(0);
+}
+
+Log_event::enum_skip_reason
+Rows_log_event::do_shall_skip(RELAY_LOG_INFO *rli)
+{
+  /*
+    If the slave skip counter is 1 and this event does not end a
+    statement, then we should not start executing on the next event.
+    Otherwise, we defer the decision to the normal skipping logic.
+  */
+  if (rli->slave_skip_counter == 1 && !get_flags(STMT_END_F))
+    return Log_event::EVENT_SKIP_IGNORE;
+  else
+    return Log_event::do_shall_skip(rli);
 }
 
 int
@@ -6232,9 +6262,11 @@ Rows_log_event::do_update_pos(RELAY_LOG_INFO *rli)
       thd->clear_error();
     }
     else
-      slave_print_msg(ERROR_LEVEL, rli, error,
-                      "Error in %s event: commit of row events failed",
-                      get_type_str());
+      rli->report(ERROR_LEVEL, error,
+                  "Error in %s event: commit of row events failed, "
+                  "table `%s`.`%s`",
+                  get_type_str(), m_table->s->db.str,
+                  m_table->s->table_name.str);
   }
   else
   {
@@ -6452,8 +6484,8 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   m_colcnt= net_field_length(&ptr_after_colcnt);
 
   DBUG_PRINT("info",("m_dblen: %lu  off: %ld  m_tbllen: %lu  off: %ld  m_colcnt: %lu  off: %ld",
-                     m_dblen, (long) (ptr_dblen-(const uchar*)vpart), 
-                     m_tbllen, (long) (ptr_tbllen-(const uchar*)vpart),
+                     (ulong) m_dblen, (long) (ptr_dblen-(const uchar*)vpart), 
+                     (ulong) m_tbllen, (long) (ptr_tbllen-(const uchar*)vpart),
                      m_colcnt, (long) (ptr_colcnt-(const uchar*)vpart)));
 
   /* Allocate mem for all fields in one go. If fails, catched in is_valid() */
@@ -6580,11 +6612,11 @@ int Table_map_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
           simplifications (we don't honour --slave-skip-errors)
         */
         uint actual_error= thd->net.last_errno;
-        slave_print_msg(ERROR_LEVEL, rli, actual_error,
-                        "Error '%s' on opening table `%s`.`%s`",
-                        (actual_error ? thd->net.last_error :
-                         "unexpected success or fatal error"),
-                        table_list->db, table_list->table_name);
+        rli->report(ERROR_LEVEL, actual_error,
+                    "Error '%s' on opening table `%s`.`%s`",
+                    (actual_error ? thd->net.last_error :
+                     "unexpected success or fatal error"),
+                    table_list->db, table_list->table_name);
         thd->query_error= 1;
       }
       goto err;
@@ -6625,6 +6657,19 @@ int Table_map_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
 err:
   my_free(memory, MYF(MY_WME));
   DBUG_RETURN(error);
+}
+
+Log_event::enum_skip_reason
+Table_map_log_event::do_shall_skip(RELAY_LOG_INFO *rli)
+{
+  /*
+    If the slave skip counter is 1, then we should not start executing
+    on the next event.
+  */
+  if (rli->slave_skip_counter == 1)
+    return Log_event::EVENT_SKIP_IGNORE;
+  else
+    return Log_event::do_shall_skip(rli);
 }
 
 int Table_map_log_event::do_update_pos(RELAY_LOG_INFO *rli)
@@ -6828,11 +6873,14 @@ int Write_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
   DBUG_ASSERT(table != NULL);
   DBUG_ASSERT(row_start && row_end);
 
-  int error;
-  error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
-                    &m_master_reclength, table->write_set, WRITE_ROWS_EVENT);
+  if (int error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
+                            &m_master_reclength, table->write_set, WRITE_ROWS_EVENT))
+  {
+    thd->net.last_errno= error;
+    return error;
+  }
   bitmap_copy(table->read_set, table->write_set);
-  return error;
+  return 0;
 }
 
 /*
@@ -7540,7 +7588,6 @@ int Delete_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
                                           uchar const *const row_start,
                                           uchar const **const row_end)
 {
-  int error;
   DBUG_ASSERT(row_start && row_end);
   /*
     This assertion actually checks that there is at least as many
@@ -7548,8 +7595,13 @@ int Delete_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
   */
   DBUG_ASSERT(table->s->fields >= m_width);
 
-  error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
-                    &m_master_reclength, table->read_set, DELETE_ROWS_EVENT);
+  if (int error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
+                            &m_master_reclength, table->read_set, DELETE_ROWS_EVENT))
+  {
+    thd->net.last_errno= error;
+    return error;
+  }
+
   /*
     If we will access rows using the random access method, m_key will
     be set to NULL, so we do not need to make a key copy in that case.
@@ -7561,7 +7613,7 @@ int Delete_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
     key_copy(m_key, table->record[0], key_info, 0);
   }
 
-  return error;
+  return 0;
 }
 
 int Delete_rows_log_event::do_exec_row(TABLE *table)
@@ -7730,13 +7782,23 @@ int Update_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
   */
 
   /* record[0] is the before image for the update */
-  error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
-                    &m_master_reclength, table->read_set, UPDATE_ROWS_EVENT);
+  if ((error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
+                         &m_master_reclength, table->read_set, UPDATE_ROWS_EVENT)))
+  {
+    thd->net.last_errno= error;
+    return error;
+  }
+
   store_record(table, record[1]);
   uchar const *next_start = *row_end;
   /* m_after_image is the after image for the update */
-  error= unpack_row(rli, table, m_width, next_start, &m_cols_ai, row_end,
-                    &m_master_reclength, table->write_set, UPDATE_ROWS_EVENT);
+  if ((error= unpack_row(rli, table, m_width, next_start, &m_cols_ai, row_end,
+                         &m_master_reclength, table->write_set, UPDATE_ROWS_EVENT)))
+  {
+    thd->net.last_errno= error;
+    return error;
+  }
+
   bmove_align(m_after_image, table->record[0], table->s->reclength);
   restore_record(table, record[1]);
 
@@ -7891,10 +7953,10 @@ int
 Incident_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
 {
   DBUG_ENTER("Incident_log_event::do_apply_event");
-  slave_print_msg(ERROR_LEVEL, rli, ER_SLAVE_INCIDENT,
-                  ER(ER_SLAVE_INCIDENT),
-                  description(),
-                  m_message.length > 0 ? m_message.str : "<none>");
+  rli->report(ERROR_LEVEL, ER_SLAVE_INCIDENT,
+              ER(ER_SLAVE_INCIDENT),
+              description(),
+              m_message.length > 0 ? m_message.str : "<none>");
   DBUG_RETURN(1);
 }
 #endif

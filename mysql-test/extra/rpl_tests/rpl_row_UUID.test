@@ -5,10 +5,6 @@
 # TEST: To test the UUID() in rbr                                           #
 #############################################################################
 
-# Includes
--- source include/have_binlog_format_row.inc
--- source include/master-slave.inc
-
 # Begin clean up test section
 connection master;
 

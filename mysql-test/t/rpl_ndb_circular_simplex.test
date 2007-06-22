@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/ndb_master-slave.inc
 
 connection master;
 CREATE TABLE t1 (a int key, b int) ENGINE=NDB;
