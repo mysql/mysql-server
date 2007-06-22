@@ -4876,6 +4876,10 @@ create_sp_error:
 #endif // ifndef DBUG_OFF
   case SQLCOM_CREATE_VIEW:
     {
+      /*
+        Note: SQLCOM_CREATE_VIEW also handles 'ALTER VIEW' commands
+        as specified through the thd->lex->create_view_mode flag.
+      */
       if (end_active_trans(thd))
         goto error;
 
