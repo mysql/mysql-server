@@ -6278,7 +6278,7 @@ ha_innobase::external_lock(
                                     tx_isolation_names[tx_isolation],
                                     binlog_format_names[binlog_format]);
                         my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), buf);
-                        return HA_ERR_LOGGING_IMPOSSIBLE;
+                        DBUG_RETURN(HA_ERR_LOGGING_IMPOSSIBLE);
                 }
         }
 
