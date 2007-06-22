@@ -113,26 +113,26 @@ master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 DROP TABLE t1;
 show status like "binlog_cache_use";
-Variable_name   Value
-Binlog_cache_use        0
+Variable_name	Value
+Binlog_cache_use	13
 show status like "binlog_cache_disk_use";
-Variable_name   Value
-Binlog_cache_disk_use   0
+Variable_name	Value
+Binlog_cache_disk_use	0
 create table t1 (a int) engine=innodb;
 show status like "binlog_cache_use";
-Variable_name   Value
-Binlog_cache_use        1
+Variable_name	Value
+Binlog_cache_use	14
 show status like "binlog_cache_disk_use";
-Variable_name   Value
-Binlog_cache_disk_use   1
+Variable_name	Value
+Binlog_cache_disk_use	1
 begin;
 delete from t1;
 commit;
 show status like "binlog_cache_use";
-Variable_name   Value
-Binlog_cache_use        2
+Variable_name	Value
+Binlog_cache_use	15
 show status like "binlog_cache_disk_use";
-Variable_name   Value
-Binlog_cache_disk_use   1
+Variable_name	Value
+Binlog_cache_disk_use	1
 drop table t1;
 End of tests
