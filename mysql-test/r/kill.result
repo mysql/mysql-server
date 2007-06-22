@@ -22,7 +22,7 @@ create table t2 (id int unsigned not null);
 insert into t2 select id from t1;
 create table t3 (kill_id int);
 insert into t3 values(connection_id());
-select id from t1 where id in (select distinct id from t2);
+select id from t1 where id in (select distinct a.id from t2 a, t2 b, t2 c, t2 d group by a.id, b.id, c.id, d.id having a.id between 10 and 20);
 select ((@id := kill_id) - kill_id) from t3;
 ((@id := kill_id) - kill_id)
 0
