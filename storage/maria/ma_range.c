@@ -29,24 +29,21 @@ static uint _ma_keynr(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *page,
 		      byte *keypos, uint *ret_max_key);
 
 
-/*
-  Estimate how many records there is in a given range
+/**
+   @brief Estimate how many records there is in a given range
 
-  SYNOPSIS
-    maria_records_in_range()
-    info		MARIA handler
-    inx			Index to use
-    min_key		Min key. Is = 0 if no min range
-    max_key		Max key. Is = 0 if no max range
+   @param  info            MARIA handler
+   @param  inx             Index to use
+   @param  min_key         Min key. Is = 0 if no min range
+   @param  max_key         Max key. Is = 0 if no max range
 
-  NOTES
-    We should ONLY return 0 if there is no rows in range
+   @note
+     We should ONLY return 0 if there is no rows in range
 
-  RETURN
-    HA_POS_ERROR  error (or we can't estimate number of rows)
-    number	  Estimated number of rows
+   @return Estimated number of rows or error
+     @retval HA_POS_ERROR  error (or we can't estimate number of rows)
+     @retval number        Estimated number of rows
 */
-
 
 ha_rows maria_records_in_range(MARIA_HA *info, int inx, key_range *min_key,
                             key_range *max_key)
@@ -114,6 +111,13 @@ ha_rows maria_records_in_range(MARIA_HA *info, int inx, key_range *min_key,
   if (info->s->concurrent_insert)
     rw_unlock(&info->s->key_root_lock[inx]);
   fast_ma_writeinfo(info);
+
+  /**
+     @todo LOCK
+     If res==0 (no rows), if we need to guarantee repeatability of the search,
+     we will need to set a next-key lock in this statement.
+     Also SELECT COUNT(*)...
+  */
 
   DBUG_PRINT("info",("records: %ld",(ulong) (res)));
   DBUG_RETURN(res);

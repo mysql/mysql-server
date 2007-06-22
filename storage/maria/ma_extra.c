@@ -21,21 +21,20 @@
 static void maria_extra_keyflag(MARIA_HA *info,
                                 enum ha_extra_function function);
 
+/**
+   @brief Set options and buffers to optimize table handling
 
-/*
-  Set options and buffers to optimize table handling
+   @param  name             table's name
+   @param  info             open table
+   @param  function         operation
+   @param  extra_arg        Pointer to extra argument (normally pointer to
+                            ulong); used when function is one of:
+                            HA_EXTRA_WRITE_CACHE
+                            HA_EXTRA_CACHE
 
-  SYNOPSIS
-    maria_extra()
-    info	open table
-    function	operation
-    extra_arg	Pointer to extra argument (normally pointer to ulong)
-    		Used when function is one of:
-		HA_EXTRA_WRITE_CACHE
-		HA_EXTRA_CACHE
-  RETURN VALUES
-    0  ok
-    #  error
+   @return Operation status
+     @retval 0      ok
+     @retval !=0    error
 */
 
 int maria_extra(MARIA_HA *info, enum ha_extra_function function,
@@ -265,14 +264,24 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     pthread_mutex_unlock(&THR_LOCK_maria);
     break;
   case HA_EXTRA_PREPARE_FOR_DELETE:
+    /*  QQ: suggest to rename it to "PREPARE_FOR_DROP" */
     pthread_mutex_lock(&THR_LOCK_maria);
     share->last_version= 0L;			/* Impossible version */
 #ifdef __WIN__
     /* Close the isam and data files as Win32 can't drop an open table */
     pthread_mutex_lock(&share->intern_lock);
+    /*
+      If this is Windows we remove blocks from pagecache. If not Windows we
+      don't do it, so these pages stay in the pagecache? So they may later be
+      flushed to a wrong file?
+      Or is it that this flush_pagecache_blocks() never finds any blocks? Then
+      why do we do it on Windows?
+      Don't we wait for all instances to be closed before dropping the table?
+      Do we ever do something useful here?
+      BUG?
+    */
     if (flush_pagecache_blocks(share->pagecache, &share->kfile,
-                               (function == HA_EXTRA_FORCE_REOPEN ?
-			  FLUSH_RELEASE : FLUSH_IGNORE_CHANGED)))
+                               FLUSH_IGNORE_CHANGED))
     {
       error=my_errno;
       share->changed=1;
@@ -292,9 +301,11 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
       info->lock_type = F_UNLCK;
     }
     if (share->kfile.file >= 0)
+    {
       _ma_decrement_open_count(info);
-    if (share->kfile.file >= 0 && my_close(share->kfile,MYF(0)))
-      error=my_errno;
+      if (my_close(share->kfile,MYF(0)))
+        error=my_errno;
+    }
     {
       LIST *list_element ;
       for (list_element=maria_open_list ;
@@ -304,6 +315,9 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 	MARIA_HA *tmpinfo=(MARIA_HA*) list_element->data;
 	if (tmpinfo->s == info->s)
 	{
+          /**
+             @todo RECOVERY BUG: flush of bitmap and sync of dfile are missing
+          */
 	  if (tmpinfo->dfile.file >= 0 &&
               my_close(tmpinfo->dfile.file, MYF(0)))
 	    error = my_errno;

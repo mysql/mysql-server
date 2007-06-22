@@ -39,6 +39,11 @@ class ha_maria :public handler
   char *data_file_name, *index_file_name;
   enum data_file_type data_file_type;
   bool can_enable_indexes;
+  /**
+     @brief for temporarily disabling table's transactionality
+     (if THD::transaction::on is false), remember the original value here
+  */
+  bool save_transactional;
   int repair(THD * thd, HA_CHECK &param, bool optimize);
 
 public:

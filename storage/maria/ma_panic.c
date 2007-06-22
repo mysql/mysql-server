@@ -52,7 +52,12 @@ int maria_panic(enum ha_panic_function flag)
     info=(MARIA_HA*) list_element->data;
     switch (flag) {
     case HA_PANIC_CLOSE:
-      pthread_mutex_unlock(&THR_LOCK_maria);	/* Not exactly right... */
+      /*
+        If bad luck (if some tables would be used now, which normally does not
+        happen in MySQL), as we release the mutex, the list may change and so
+        we may crash.
+      */
+      pthread_mutex_unlock(&THR_LOCK_maria);
       if (maria_close(info))
 	error=my_errno;
       pthread_mutex_lock(&THR_LOCK_maria);

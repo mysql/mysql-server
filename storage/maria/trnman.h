@@ -45,12 +45,13 @@ struct st_transaction
   LF_PINS             *pins;
   TrID                 trid, min_read_from, commit_trid;
   TRN                 *next, *prev;
-  LSN		       rec_lsn, undo_lsn, first_undo_lsn;
+  LSN		       rec_lsn, undo_lsn;
+  LSN_WITH_FLAGS       first_undo_lsn;
   uint                 locked_tables;
   /* Note! if locks.loid is 0, trn is NOT initialized */
 };
 
-TRN dummy_transaction_object;
+#define TRANSACTION_LOGGED_LONG_ID ULL(0x8000000000000000)
 
 C_MODE_END
 

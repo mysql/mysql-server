@@ -96,7 +96,7 @@ enum en_page_type { UNALLOCATED_PAGE, HEAD_PAGE, TAIL_PAGE, BLOB_PAGE, MAX_PAGE_
 /******* defines that affects allocation (density) of data *******/
 
 /*
-  If the tail part (from the main block or a blob) uses more than 75 % of
+  If the tail part (from the main block or a blob) would use more than 75 % of
   the size of page, store the tail on a full page instead of a shared
  tail page.
 */

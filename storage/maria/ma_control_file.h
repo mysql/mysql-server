@@ -43,6 +43,8 @@ extern LSN last_checkpoint_lsn;
 */
 extern uint32 last_logno;
 
+extern my_bool maria_multi_threaded;
+
 typedef enum enum_control_file_error {
   CONTROL_FILE_OK= 0,
   CONTROL_FILE_TOO_SMALL,

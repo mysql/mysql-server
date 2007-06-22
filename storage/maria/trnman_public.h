@@ -20,6 +20,8 @@
   to include my_atomic.h in C++ code.
 */
 
+#include "ma_loghandler_lsn.h"
+
 C_MODE_START
 typedef uint64 TrID; /* our TrID is 6 bytes */
 typedef struct st_transaction TRN;
@@ -27,6 +29,7 @@ typedef struct st_transaction TRN;
 #define SHORT_TRID_MAX 65535
 
 extern uint trnman_active_transactions, trnman_allocated_transactions;
+extern TRN dummy_transaction_object;
 
 int trnman_init(void);
 void trnman_destroy(void);
@@ -39,7 +42,9 @@ void trnman_free_trn(TRN *trn);
 int trnman_can_read_from(TRN *trn, TrID trid);
 void trnman_new_statement(TRN *trn);
 void trnman_rollback_statement(TRN *trn);
-my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com);
+my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,
+                                    LSN *min_rec_lsn,
+                                    LSN *min_first_undo_lsn);
 
 uint trnman_increment_locked_tables(TRN *trn);
 uint trnman_decrement_locked_tables(TRN *trn);

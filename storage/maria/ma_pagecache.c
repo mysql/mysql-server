@@ -114,6 +114,11 @@
 
 /* TODO: put it to my_static.c */
 my_bool my_disable_flush_pagecache_blocks= 0;
+/**
+   when flushing pages of a file, it can happen that we take some dirty blocks
+   out of changed_blocks[]; Checkpoint must not run at this moment.
+*/
+uint changed_blocks_is_incomplete= 0;
 
 #define STRUCT_PTR(TYPE, MEMBER, a)                                           \
           (TYPE *) ((char *) (a) - offsetof(TYPE, MEMBER))
@@ -308,7 +313,7 @@ struct st_pagecache_block_link
   enum pagecache_page_type type; /* type of the block                        */
   uint hits_left;         /* number of hits left until promotion             */
   ulonglong last_hit_time; /* timestamp of the last hit                      */
-  LSN rec_lsn;            /* LSN when first became dirty                    */
+  LSN rec_lsn;            /**< LSN when first became dirty                   */
   KEYCACHE_CONDVAR *condvar; /* condition variable for 'no readers' event    */
 };
 
@@ -2523,7 +2528,8 @@ void pagecache_unlock(PAGECACHE *pagecache,
   {
     DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK);
     DBUG_ASSERT(pin == PAGECACHE_UNPIN);
-    set_if_bigger(block->rec_lsn, first_REDO_LSN_for_page);
+    if (block->rec_lsn == 0)
+      block->rec_lsn= first_REDO_LSN_for_page;
   }
   if (lsn != 0)
   {
@@ -2685,7 +2691,8 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
     DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK || 
                 lock == PAGECACHE_LOCK_READ_UNLOCK);
     DBUG_ASSERT(pin == PAGECACHE_UNPIN);
-    set_if_bigger(block->rec_lsn, first_REDO_LSN_for_page);
+    if (block->rec_lsn == 0)
+      block->rec_lsn= first_REDO_LSN_for_page;
   }
   if (lsn != 0)
   {
@@ -3279,8 +3286,8 @@ restart:
     if (need_lock_change)
     {
       /*
-        RECOVERY TODO BUG We are doing an unlock here, so need to give the
-        page its rec_lsn
+        We don't set rec_lsn of the block; this is ok as for the
+        Maria-block-record's pages, we always keep pages pinned here.
       */
       if (make_lock_and_pin(pagecache, block,
                             write_lock_change_table[lock].unlock_lock,
@@ -3500,22 +3507,21 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
 }
 
 
-/*
-  flush all key blocks for a file to disk, but don't do any mutex locks
+/**
+   @brief flush all key blocks for a file to disk but don't do any mutex locks
 
-    flush_pagecache_blocks_int()
-      pagecache            pointer to a key cache data structure
-      file                handler for the file to flush to
-      flush_type          type of the flush
+   @param  pagecache       pointer to a pagecache data structure
+   @param  file            handler for the file to flush to
+   @param  flush_type      type of the flush
 
-  NOTES
-    This function doesn't do any mutex locks because it needs to be called
-    both from flush_pagecache_blocks and flush_all_key_blocks (the later one
-    does the mutex lock in the resize_pagecache() function).
+   @note
+     This function doesn't do any mutex locks because it needs to be called
+     both from flush_pagecache_blocks and flush_all_key_blocks (the later one
+     does the mutex lock in the resize_pagecache() function).
 
-  RETURN
-    0   ok
-    1  error
+   @return Operation status
+     @retval 0      OK
+     @retval 1      Error
 */
 
 static int flush_pagecache_blocks_int(PAGECACHE *pagecache,
@@ -3547,6 +3553,7 @@ static int flush_pagecache_blocks_int(PAGECACHE *pagecache,
 #if defined(PAGECACHE_DEBUG)
     uint cnt= 0;
 #endif
+    uint8 changed_blocks_is_incomplete_incremented= 0;
 
     if (type != FLUSH_IGNORE_CHANGED)
     {
@@ -3636,16 +3643,23 @@ restart:
         else
         {
 	  /* Link the block into a list of blocks 'in switch' */
-          /*
-            RECOVERY TODO BUG this unlink_changed() is a serious problem for
-            Maria's Checkpoint: it removes a page from the list of dirty
-            pages, while it's still dirty. A solution is to abandon
-            first_in_switch, just wait for this page to be
-            flushed by somebody else, and loop. TODO: check all places
-            where we remove a page from the list of dirty pages
-          */
           unlink_changed(block);
           link_changed(block, &first_in_switch);
+          /*
+            We have just removed a page from the list of dirty pages
+            ("changed_blocks") though it's still dirty (the flush by another
+            thread has not yet happened). Checkpoint will miss the page and so
+            must be blocked until that flush has happened.
+          */
+          /**
+             @todo RECOVERY: check all places where we remove a page from the
+             list of dirty pages
+          */
+          if (unlikely(!changed_blocks_is_incomplete_incremented))
+          {
+            changed_blocks_is_incomplete_incremented= 1;
+            changed_blocks_is_incomplete++;
+          }
         }
       }
     }
@@ -3683,6 +3697,8 @@ restart:
       KEYCACHE_DBUG_ASSERT(cnt <= pagecache->blocks_used);
 #endif
     }
+    changed_blocks_is_incomplete-=
+      changed_blocks_is_incomplete_incremented;
     /* The following happens very seldom */
     if (! (type == FLUSH_KEEP || type == FLUSH_FORCE_WRITE))
     {
@@ -3789,51 +3805,56 @@ int reset_pagecache_counters(const char *name, PAGECACHE *pagecache)
 }
 
 
-/*
-  Allocates a buffer and stores in it some information about all dirty pages
-  of type PAGECACHE_LSN_PAGE.
+/**
+   @brief Allocates a buffer and stores in it some info about all dirty pages
 
-  SYNOPSIS
-    pagecache_collect_changed_blocks_with_lsn()
-    pagecache  pointer to the page cache
-    str        (OUT) pointer to a LEX_STRING where the allocated buffer, and
-               its size, will be put
-    max_lsn    (OUT) pointer to a LSN where the maximum rec_lsn of all
-               relevant dirty pages will be put
+   Does the allocation because the caller cannot know the size itself.
+   Memory freeing is to be done by the caller (if the "str" member of the
+   LEX_STRING is not NULL).
+   Ignores all pages of another type than PAGECACHE_LSN_PAGE, because they
+   are not interesting for a checkpoint record.
+   The caller has the intention of doing checkpoints.
 
-  DESCRIPTION
-    Does the allocation because the caller cannot know the size itself.
-    Memory freeing is to be done by the caller (if the "str" member of the
-    LEX_STRING is not NULL).
-    Ignores all pages of another type than PAGECACHE_LSN_PAGE, because they
-    are not interesting for a checkpoint record.
-    The caller has the intention of doing checkpoints.
-
-  RETURN
-    0 on success
-    1 on error
+   @param       pagecache   pointer to the page cache
+   @param[out]  str         pointer to where the allocated buffer, and
+                            its size, will be put
+   @param[out]  min_rec_lsn pointer to where the minimum rec_lsn of all
+                            relevant dirty pages will be put
+   @param[out]  max_rec_lsn pointer to where the maximum rec_lsn of all
+                            relevant dirty pages will be put
+   @return Operation status
+     @retval 0      OK
+     @retval 1      Error
 */
+
 my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
                                                   LEX_STRING *str,
-                                                  LSN *max_lsn)
+                                                  LSN *min_rec_lsn,
+                                                  LSN *max_rec_lsn)
 {
   my_bool error= 0;
   ulong stored_list_size= 0;
   uint file_hash;
   char *ptr;
+  LSN minimum_rec_lsn= ULONGLONG_MAX, maximum_rec_lsn= 0;
   DBUG_ENTER("pagecache_collect_changed_blocks_with_LSN");
 
-  *max_lsn= 0;
   DBUG_ASSERT(NULL == str->str);
   /*
     We lock the entire cache but will be quick, just reading/writing a few MBs
     of memory at most.
-    When we enter here, we must be sure that no "first_in_switch" situation
-    is happening or will happen (either we have to get rid of
-    first_in_switch in the code or, first_in_switch has to increment a
-    "danger" counter for this function to know it has to wait). TODO.
   */
   pagecache_pthread_mutex_lock(&pagecache->cache_lock);
+  while (changed_blocks_is_incomplete > 0)
+  {
+    /*
+      Some pages are more recent in memory than on disk (=dirty) and are not
+      in "changed_blocks" so we cannot know them. Wait.
+    */
+    pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
+    sleep(1);
+    pagecache_pthread_mutex_lock(&pagecache->cache_lock);
+  }
 
   /* Count how many dirty pages are interesting */
   for (file_hash= 0; file_hash < PAGECACHE_CHANGED_BLOCKS_HASH; file_hash++)
@@ -3851,35 +3872,15 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
       DBUG_ASSERT(block->status & PCBLOCK_CHANGED);
       if (block->type != PAGECACHE_LSN_PAGE)
         continue; /* no need to store it */
-      /*
-        In the current pagecache, rec_lsn is not set correctly:
-        1) it is set on pagecache_unlock(), too late (a page is dirty
-        (PCBLOCK_CHANGED) since the first pagecache_write()). So in this
-        scenario:
-        thread1:                       thread2:
-        write_REDO
-        pagecache_write()              checkpoint : reclsn not known
-        pagecache_unlock(sets rec_lsn)
-        commit
-        crash,
-        at recovery we will wrongly skip the REDO. It also affects the
-        low-water mark's computation.
-        2) sometimes the unlocking can be an implicit action of
-        pagecache_write(), without any call to pagecache_unlock(), then
-        rec_lsn is not set.
-        1) and 2) are critical problems.
-        TODO: fix this when Monty has explained how he writes BLOB pages.
-      */
-      if (block->rec_lsn == 0)
-      {
-        DBUG_ASSERT(0);
-        goto err;
-      }
       stored_list_size++;
     }
   }
 
-  str->length= 8+(4+4+8)*stored_list_size;
+  str->length= 8 + /* number of dirty pages */
+    (4 + /* file */
+     4 + /* pageno */
+     LSN_STORE_SIZE /* rec_lsn */
+     ) * stored_list_size;
   if (NULL == (str->str= my_malloc(str->length, MYF(MY_WME))))
     goto err;
   ptr= str->str;
@@ -3896,19 +3897,27 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
     {
       if (block->type != PAGECACHE_LSN_PAGE)
         continue; /* no need to store it in the checkpoint record */
-      DBUG_ASSERT((4 == sizeof(block->hash_link->file.file)));
-      DBUG_ASSERT((4 == sizeof(block->hash_link->pageno)));
+      compile_time_assert((4 == sizeof(block->hash_link->file.file)));
+      compile_time_assert((4 == sizeof(block->hash_link->pageno)));
       int4store(ptr, block->hash_link->file.file);
       ptr+= 4;
       int4store(ptr, block->hash_link->pageno);
       ptr+= 4;
-      int8store(ptr, (ulonglong) block->rec_lsn);
-      ptr+= 8;
-      set_if_bigger(*max_lsn, block->rec_lsn);
+      lsn_store(ptr, block->rec_lsn);
+      ptr+= LSN_STORE_SIZE;
+      if (block->rec_lsn != 0)
+      {
+        if (cmp_translog_addr(block->rec_lsn, minimum_rec_lsn) < 0)
+          minimum_rec_lsn= block->rec_lsn;
+        if (cmp_translog_addr(block->rec_lsn, maximum_rec_lsn) > 0)
+          maximum_rec_lsn= block->rec_lsn;
+      } /* otherwise, some trn->rec_lsn should hold the info */
     }
   }
 end:
   pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
+  *min_rec_lsn= minimum_rec_lsn;
+  *max_rec_lsn= maximum_rec_lsn;
   DBUG_RETURN(error);
 
 err:

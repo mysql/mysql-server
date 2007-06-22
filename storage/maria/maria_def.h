@@ -93,6 +93,7 @@ typedef struct st_maria_state_info
   uint sortkey;				/* sorted by this key (not used) */
   uint open_count;
   uint8 changed;			/* Changed since mariachk */
+  LSN create_rename_lsn;    /**< LSN when table was last created/renamed */
 
   /* the following isn't saved on disk */
   uint state_diff_length;		/* Should be 0 */
@@ -101,7 +102,8 @@ typedef struct st_maria_state_info
 } MARIA_STATE_INFO;
 
 
-#define MARIA_STATE_INFO_SIZE	(24 + 4 + 11*8 + 4*4 + 8 + 3*4 + 5*8)
+#define MARIA_STATE_INFO_SIZE	\
+  (24 + LSN_STORE_SIZE + 4 + 11*8 + 4*4 + 8 + 3*4 + 5*8)
 #define MARIA_STATE_KEY_SIZE	8
 #define MARIA_STATE_KEYBLOCK_SIZE  8
 #define MARIA_STATE_KEYSEG_SIZE	4
@@ -229,6 +231,7 @@ typedef struct st_maria_share
   PAGECACHE *pagecache;			/* ref to the current key cache */
   MARIA_DECODE_TREE *decode_trees;
   uint16 *decode_tables;
+  uint16 id; /**< 2-byte id by which log records refer to the table */
   /* Called the first time the table instance is opened */
   my_bool (*once_init)(struct st_maria_share *, File);
   /* Called when the last instance of the table is closed */
@@ -889,6 +892,7 @@ volatile int *_ma_killed_ptr(HA_CHECK *param);
 void _ma_check_print_error _VARARGS((HA_CHECK *param, const char *fmt, ...));
 void _ma_check_print_warning _VARARGS((HA_CHECK *param, const char *fmt, ...));
 void _ma_check_print_info _VARARGS((HA_CHECK *param, const char *fmt, ...));
+int  _ma_repair_write_log_record(const HA_CHECK *param, MARIA_HA *info);
 C_MODE_END
 
 int _ma_flush_pending_blocks(MARIA_SORT_PARAM *param);

@@ -35,7 +35,7 @@ typedef TRANSLOG_ADDRESS LSN;
 /* checks LSN */
 #define LSN_VALID(L) DBUG_ASSERT((L) >= 0 && (L) < (uint64)0xFFFFFFFFFFFFFFLL)
 
-/* size of stored LSN on a disk */
+/* size of stored LSN on a disk, don't change it! */
 #define LSN_STORE_SIZE 7
 
 /* Puts LSN into buffer (dst) */
@@ -52,5 +52,13 @@ typedef TRANSLOG_ADDRESS LSN;
 #define LSN_ONE_FILE ((int64)0x100000000LL)
 
 #define LSN_REPLACE_OFFSET(L, S) (LSN_FINE_NO_PART(L) | (S))
+
+/*
+  an 8-byte type whose most significant byte is used for "flags"; 7
+  other bytes are a LSN.
+*/
+typedef LSN LSN_WITH_FLAGS;
+#define LSN_WITH_FLAGS_TO_LSN(x)   (x & ULL(0x00FFFFFFFFFFFFFF))
+#define LSN_WITH_FLAGS_TO_FLAGS(x) (x & ULL(0xFF00000000000000))
 
 #endif

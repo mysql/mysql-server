@@ -17,21 +17,38 @@
 /* This clears the status information and truncates files */
 
 #include "maria_def.h"
+#include "trnman_public.h"
+
+/**
+   @brief deletes all rows from a table
+
+   @param  info             Maria handler
+
+   @return Operation status
+     @retval 0      ok
+     @retval 1      error
+*/
 
 int maria_delete_all_rows(MARIA_HA *info)
 {
   uint i;
   MARIA_SHARE *share=info->s;
   MARIA_STATE_INFO *state=&share->state;
+  my_bool log_record;
   DBUG_ENTER("maria_delete_all_rows");
 
   if (share->options & HA_OPTION_READ_ONLY_DATA)
   {
     DBUG_RETURN(my_errno=EACCES);
   }
-  /* LOCK TODO take X-lock on table here */
+  /**
+     @todo LOCK take X-lock on table here.
+     When we have versioning, if some other thread is looking at this table,
+     we cannot shrink the file like this.
+  */
   if (_ma_readinfo(info,F_WRLCK,1))
     DBUG_RETURN(my_errno);
+  log_record= share->base.transactional && !share->temporary;
   if (_ma_mark_file_changed(info))
     goto err;
 
@@ -54,27 +71,13 @@ int maria_delete_all_rows(MARIA_HA *info)
   */
   flush_pagecache_blocks(share->pagecache, &share->kfile,
                          FLUSH_IGNORE_CHANGED);
-  /*
-    RECOVERY TODO Log the two chsize and header modifications and force the
-    log. So that if crash between the two chsize, we finish the work at
-    Recovery. For this scenario:
-    "TRUNCATE TABLE t1; DROP TABLE t1; RENAME TABLE t2 to t1; crash;"
-    Recovery mustn't truncate the new t1, so the log records of TRUNCATE
-    should be applied only if t1 exists and its ZeroDirtyPagesLSN is smaller
-    than the records'. See more comments below.
-  */
   if (my_chsize(info->dfile.file, 0, 0, MYF(MY_WME)) ||
       my_chsize(share->kfile.file, share->base.keystart, 0, MYF(MY_WME))  )
     goto err;
 
-  if (_ma_initialize_data_file(info->dfile.file, info->s))
+  if (_ma_initialize_data_file(info->dfile.file, share))
     goto err;
 
-  /*
-    RECOVERY TODO Consider updating ZeroDirtyPagesLSN here. It is
-    not a necessity (it is one only in RENAME commands) but an optional
-    optimization which will allow some REDO skipping at Recovery.
-  */
   VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
 #ifdef HAVE_MMAP
   /* Resize mmaped area */
@@ -82,24 +85,48 @@ int maria_delete_all_rows(MARIA_HA *info)
   _ma_remap_file(info, (my_off_t)0);
   rw_unlock(&info->s->mmap_lock);
 #endif
-  /*
-    RECOVERY TODO Until we have the TRUNCATE log record and take it into
-    account for log-low-water-mark calculation and use it in Recovery, we need
-    to sync.
-  */
-  if (_ma_sync_table_files(info))
-    goto err;
+  if (log_record)
+  {
+    /* For now this record is only informative */
+    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+    uchar log_data[LSN_STORE_SIZE];
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= FILEID_STORE_SIZE;
+    if (unlikely(translog_write_record(&share->state.create_rename_lsn,
+                                       LOGREC_REDO_DELETE_ALL,
+                                       info->trn, share, 0,
+                                       sizeof(log_array)/sizeof(log_array[0]),
+                                       log_array, log_data)))
+      goto err;
+    /*
+      store LSN into file. It is an optimization so that all old REDOs for
+      this table are ignored (scenario: checkpoint, INSERT1s, DELETE ALL;
+      INSERT2s, crash: then Recovery can skip INSERT1s). It also allows us to
+      ignore the present record at Recovery.
+      Note that storing the LSN could not be done by _ma_writeinfo() above as
+      the table is locked at this moment. So we need to do it by ourselves.
+    */
+    lsn_store(log_data, share->state.create_rename_lsn);
+    if (my_pwrite(share->kfile.file, log_data, sizeof(log_data),
+                  sizeof(share->state.header) + 2, MYF(MY_NABP)) ||
+        _ma_sync_table_files(info))
+      goto err;
+    /**
+       @todo RECOVERY Until we take into account the log record above
+       for log-low-water-mark calculation and use it in Recovery, we need
+       to sync above.
+    */
+  }
   allow_break();			/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(0);
 
 err:
   {
     int save_errno=my_errno;
-    /* RECOVERY TODO log the header modifications */
     VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
     info->update|=HA_STATE_WRITTEN;	/* Buffer changed */
-    /* RECOVERY TODO until we log above we have to sync */
-    if (_ma_sync_table_files(info) && !save_errno)
+    /** @todo RECOVERY until we use the log record above we have to sync */
+    if (log_record &&_ma_sync_table_files(info) && !save_errno)
       save_errno= my_errno;
     allow_break();			/* Allow SIGHUP & SIGINT */
     DBUG_RETURN(my_errno=save_errno);

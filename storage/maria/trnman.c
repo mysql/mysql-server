@@ -52,6 +52,7 @@ static my_atomic_rwlock_t LOCK_short_trid_to_trn, LOCK_pool;
 
 /*
   Simple interface functions
+  QQ: if they stay so simple, should we make them inline?
 */
 
 uint trnman_increment_locked_tables(TRN *trn)
@@ -343,6 +344,9 @@ int trnman_end_trn(TRN *trn, my_bool commit)
   LF_PINS *pins= trn->pins;
   DBUG_ENTER("trnman_end_trn");
 
+  DBUG_ASSERT(trn->rec_lsn == 0);
+  /* if a rollback, all UNDO records should have been executed */
+  DBUG_ASSERT(commit || trn->undo_lsn == 0);
   DBUG_PRINT("info", ("pthread_mutex_lock LOCK_trn_list"));
   pthread_mutex_lock(&LOCK_trn_list);
 
@@ -379,8 +383,6 @@ int trnman_end_trn(TRN *trn, my_bool commit)
   /*
     if transaction is committed and it was not the only active transaction -
     add it to the committed list (which is used for read-from relation)
-    TODO check in the condition below that a transaction have made some
-    changes, was not read-only. Something like '&& UndoLSN != 0'
   */
   if (commit && active_list_min.next != &active_list_max)
   {
@@ -390,6 +392,19 @@ int trnman_end_trn(TRN *trn, my_bool commit)
     trnman_committed_transactions++;
 
     res= lf_hash_insert(&trid_to_committed_trn, pins, &trn);
+    /*
+      By going on with life is res<0, we let other threads block on
+      our rows (because they will never see us committed in
+      trid_to_committed_trn) until they timeout. Though correct, this is not a
+      good situation:
+      - if connection reconnects and wants to check if its rows have been
+      committed, it will not be able to do that (it will just lock on them) so
+      connection stays permanently in doubt
+      - internal structures trid_to_committed_trn and committed_list are
+      desynchronized.
+      So we should take Maria down immediately, the two problems being
+      automatically solved at restart.
+    */
     DBUG_ASSERT(res <= 0);
   }
   if (res)
@@ -526,71 +541,133 @@ void trnman_rollback_statement(TRN *trn __attribute__ ((unused)))
 }
 
 
-/*
-  Allocates two buffers and stores in them some information about transactions
-  of the active list (into the first buffer) and of the committed list (into
-  the second buffer).
+/**
+   @brief Allocates buffers and stores in them some info about transactions
 
-  SYNOPSIS
-    trnman_collect_transactions()
-    str_act    (OUT) pointer to a LEX_STRING where the allocated buffer, and
-               its size, will be put
-    str_com    (OUT) pointer to a LEX_STRING where the allocated buffer, and
-               its size, will be put
+   Does the allocation because the caller cannot know the size itself.
+   Memory freeing is to be done by the caller (if the "str" member of the
+   LEX_STRING is not NULL).
+   The caller has the intention of doing checkpoints.
 
+   @param[out]  str_act    pointer to where the allocated buffer,
+                           and its size, will be put; buffer will be filled
+                           with info about active transactions
+   @param[out]  str_com    pointer to where the allocated buffer,
+                           and its size, will be put; buffer will be filled
+                           with info about committed transactions
+   @param[out]  min_first_undo_lsn pointer to where the minimum
+                           first_undo_lsn of all transactions will be put
 
-  DESCRIPTION
-    Does the allocation because the caller cannot know the size itself.
-    Memory freeing is to be done by the caller (if the "str" member of the
-    LEX_STRING is not NULL).
-    The caller has the intention of doing checkpoints.
-
-  RETURN
-    0 on success
-    1 on error
+   @return Operation status
+     @retval 0      OK
+     @retval 1      Error
 */
-my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com)
+
+my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,
+                                    LSN *min_rec_lsn, LSN *min_first_undo_lsn)
 {
   my_bool error;
   TRN *trn;
   char *ptr;
+  uint stored_transactions= 0;
+  LSN minimum_rec_lsn= ULONGLONG_MAX, minimum_first_undo_lsn= ULONGLONG_MAX;
   DBUG_ENTER("trnman_collect_transactions");
 
   DBUG_ASSERT((NULL == str_act->str) && (NULL == str_com->str));
 
+  /* validate the use of read_non_atomic() in general: */
+  compile_time_assert((sizeof(LSN) == 8) && (sizeof(LSN_WITH_FLAGS) == 8));
+
   DBUG_PRINT("info", ("pthread_mutex_lock LOCK_trn_list"));
   pthread_mutex_lock(&LOCK_trn_list);
-  str_act->length= 8+(6+2+7+7+7)*trnman_active_transactions;
-  str_com->length= 8+(6+7+7)*trnman_committed_transactions;
+  str_act->length= 2 + /* number of active transactions */
+    LSN_STORE_SIZE + /* minimum of their rec_lsn */
+    (6 + /* long id */
+     2 + /* short id */
+     LSN_STORE_SIZE + /* undo_lsn */
+#ifdef MARIA_VERSIONING /* not enabled yet */
+     LSN_STORE_SIZE + /* undo_purge_lsn */
+#endif
+     LSN_STORE_SIZE /* first_undo_lsn */
+     ) * trnman_active_transactions;
+  str_com->length= 8 + /* number of committed transactions */
+    (6 + /* long id */
+#ifdef MARIA_VERSIONING /* not enabled yet */
+     LSN_STORE_SIZE + /* undo_purge_lsn */
+#endif
+     LSN_STORE_SIZE /* first_undo_lsn */
+     ) * trnman_committed_transactions;
   if ((NULL == (str_act->str= my_malloc(str_act->length, MYF(MY_WME)))) ||
       (NULL == (str_com->str= my_malloc(str_com->length, MYF(MY_WME)))))
     goto err;
   /* First, the active transactions */
-  ptr= str_act->str;
-  int8store(ptr, (ulonglong)trnman_active_transactions);
-  ptr+= 8;
+  ptr= str_act->str + 2 + LSN_STORE_SIZE;
   for (trn= active_list_min.next; trn != &active_list_max; trn= trn->next)
   {
     /*
-      trns with a short trid of 0 are not initialized; Recovery will recognize
-      this and ignore them.
-      State is not needed for now (only when we supported prepared trns).
-      For LSNs, Sanja will soon push lsn7store.
+      trns with a short trid of 0 are not even initialized, we can ignore
+      them. trns with undo_lsn==0 have done no writes, we can ignore them
+      too. XID not needed now.
     */
+    uint sid;
+    LSN rec_lsn, undo_lsn, first_undo_lsn;
+    if ((sid= trn->short_id) == 0)
+    {
+      /*
+        Not even inited, has done nothing. Or it is the
+        dummy_transaction_object, which does only non-transactional
+        immediate-sync operations (CREATE/DROP/RENAME/REPAIR TABLE), and so
+        can be forgotten for Checkpoint.
+      */
+      continue;
+    }
+#ifndef MARIA_CHECKPOINT
+/*
+  in the checkpoint patch (not yet ready) we will have a real implementation
+  of lsn_read_non_atomic(); for now it's not needed
+*/
+#define lsn_read_non_atomic(A) (A)
+#endif
+      /* needed for low-water mark calculation */
+    if (((rec_lsn= lsn_read_non_atomic(trn->rec_lsn)) > 0) &&
+        (cmp_translog_addr(rec_lsn, minimum_rec_lsn) < 0))
+      minimum_rec_lsn= rec_lsn;
+    /*
+      trn may have logged REDOs but not yet UNDO, that's why we read rec_lsn
+      before deciding to ignore if undo_lsn==0.
+    */
+    if  ((undo_lsn= trn->undo_lsn) == 0) /* trn can be forgotten */
+      continue;
+    stored_transactions++;
     int6store(ptr, trn->trid);
     ptr+= 6;
-    int2store(ptr, trn->short_id);
+    int2store(ptr, sid);
     ptr+= 2;
-    /* needed for rollback */
-    /* lsn7store(ptr, trn->undo_lsn); */
-    ptr+= 7;
-    /* needed for purge */
-    /* lsn7store(ptr, trn->undo_purge_lsn); */
-    ptr+= 7;
+    lsn_store(ptr, undo_lsn); /* needed for rollback */
+    ptr+= LSN_STORE_SIZE;
+#ifdef MARIA_VERSIONING /* not enabled yet */
+    /* to know where purging should start (last delete of this trn) */
+    lsn_store(ptr, trn->undo_purge_lsn);
+    ptr+= LSN_STORE_SIZE;
+#endif
     /* needed for low-water mark calculation */
-    /* lsn7store(ptr, read_non_atomic(&trn->first_undo_lsn)); */
-    ptr+= 7;
+    if (((first_undo_lsn= lsn_read_non_atomic(trn->first_undo_lsn)) > 0) &&
+        (cmp_translog_addr(first_undo_lsn, minimum_first_undo_lsn) < 0))
+      minimum_first_undo_lsn= first_undo_lsn;
+    lsn_store(ptr, first_undo_lsn);
+    ptr+= LSN_STORE_SIZE;
+    /**
+       @todo RECOVERY: add a comment explaining why we can dirtily read some
+       vars, inspired by the text of "assumption 8" in WL#3072
+    */
   }
+  str_act->length= ptr - str_act->str; /* as we maybe over-estimated */
+  ptr= str_act->str;
+  int2store(ptr, stored_transactions);
+  ptr+= 2;
+  /* this LSN influences how REDOs for any page can be ignored by Recovery */
+  lsn_store(ptr, minimum_rec_lsn);
+  /* one day there will also be a list of prepared transactions */
   /* do the same for committed ones */
   ptr= str_com->str;
   int8store(ptr, (ulonglong)trnman_committed_transactions);
@@ -598,18 +675,26 @@ my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com)
   for (trn= committed_list_min.next; trn != &committed_list_max;
        trn= trn->next)
   {
+    LSN first_undo_lsn;
     int6store(ptr, trn->trid);
     ptr+= 6;
-    /* mi_int7store(ptr, trn->undo_purge_lsn); */
-    ptr+= 7;
-    /* mi_int7store(ptr, read_non_atomic(&trn->first_undo_lsn)); */
-    ptr+= 7;
+#ifdef MARIA_VERSIONING /* not enabled yet */
+    lsn_store(ptr, trn->undo_purge_lsn);
+    ptr+= LSN_STORE_SIZE;
+#endif
+    first_undo_lsn= LSN_WITH_FLAGS_TO_LSN(trn->first_undo_lsn);
+    if (cmp_translog_addr(first_undo_lsn, minimum_first_undo_lsn) < 0)
+      minimum_first_undo_lsn= first_undo_lsn;
+    lsn_store(ptr, first_undo_lsn);
+    ptr+= LSN_STORE_SIZE;
   }
   /*
     TODO: if we see there exists no transaction (active and committed) we can
     tell the lock-free structures to do some freeing (my_free()).
   */
   error= 0;
+  *min_rec_lsn= minimum_rec_lsn;
+  *min_first_undo_lsn= minimum_first_undo_lsn;
   goto end;
 err:
   error= 1;

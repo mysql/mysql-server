@@ -53,6 +53,7 @@
 #endif
 #include "ma_rt_index.h"
 #include "ma_blockrec.h"
+#include "trnman_public.h"
 
 /* Functions defined in this file */
 
@@ -2132,11 +2133,15 @@ err:
     /* Replace the actual file with the temporary file */
     if (new_file >= 0)
     {
+      myf sync_dir= (share->base.transactional && !share->temporary) ?
+        MY_SYNC_DIR : 0;
       my_close(new_file,MYF(0));
       info->dfile.file= new_file= -1;
       if (maria_change_to_newfile(share->data_file_name,MARIA_NAME_DEXT,
-			    DATA_TMP_EXT, (param->testflag & T_BACKUP_DATA ?
-			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
+                                  DATA_TMP_EXT,
+                                  MYF((param->testflag & T_BACKUP_DATA ?
+                                       MY_REDEL_MAKE_BACKUP : 0) |
+                                      sync_dir)) ||
 	  _ma_open_datafile(info,share,-1))
 	got_error=1;
     }
@@ -2328,6 +2333,8 @@ int maria_sort_index(HA_CHECK *param, register MARIA_HA *info, my_string name)
   int old_lock;
   MARIA_SHARE *share=info->s;
   MARIA_STATE_INFO old_state;
+  myf sync_dir= (share->base.transactional && !share->temporary) ?
+    MY_SYNC_DIR : 0;
   DBUG_ENTER("maria_sort_index");
 
   /* cannot sort index files with R-tree indexes */
@@ -2388,7 +2395,7 @@ int maria_sort_index(HA_CHECK *param, register MARIA_HA *info, my_string name)
   share->kfile.file = -1;
   VOID(my_close(new_file,MYF(MY_WME)));
   if (maria_change_to_newfile(share->index_file_name, MARIA_NAME_IEXT,
-                              INDEX_TMP_EXT, MYF(0)) ||
+                              INDEX_TMP_EXT, sync_dir) ||
       _ma_open_keyfile(share))
     goto err2;
   info->lock_type= F_UNLCK;			/* Force maria_readinfo to lock */
@@ -2604,6 +2611,8 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   char llbuff[22];
   MARIA_SORT_INFO sort_info;
   ulonglong key_map=share->state.key_map;
+  myf sync_dir= (share->base.transactional && !share->temporary) ?
+    MY_SYNC_DIR : 0;
   DBUG_ENTER("maria_repair_by_sort");
 
   start_records=info->state->records;
@@ -2922,8 +2931,9 @@ err:
       info->dfile.file= new_file= -1;
       if (maria_change_to_newfile(share->data_file_name,MARIA_NAME_DEXT,
                                   DATA_TMP_EXT,
-                                  (param->testflag & T_BACKUP_DATA ?
-                                   MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
+                                  MYF((param->testflag & T_BACKUP_DATA ?
+                                       MY_REDEL_MAKE_BACKUP : 0) |
+                                      sync_dir)) ||
 	  _ma_open_datafile(info,share,-1))
 	got_error=1;
     }
@@ -3022,6 +3032,8 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
   MARIA_SORT_INFO sort_info;
   ulonglong key_map=share->state.key_map;
   pthread_attr_t thr_attr;
+  myf sync_dir= (share->base.transactional && !share->temporary) ?
+    MY_SYNC_DIR : 0;
   DBUG_ENTER("maria_repair_parallel");
 
   start_records=info->state->records;
@@ -3445,8 +3457,9 @@ err:
       info->dfile.file= new_file= -1;
       if (maria_change_to_newfile(share->data_file_name,MARIA_NAME_DEXT,
                                   DATA_TMP_EXT,
-                                  (param->testflag & T_BACKUP_DATA ?
-                                   MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
+                                  MYF((param->testflag & T_BACKUP_DATA ?
+                                       MY_REDEL_MAKE_BACKUP : 0) |
+                                      sync_dir)) ||
 	  _ma_open_datafile(info,share,-1))
 	got_error=1;
     }
@@ -5134,4 +5147,65 @@ static void restore_data_file_type(MARIA_SHARE *share)
     share->state.header.org_data_file_type;
   share->data_file_type= share->state.header.data_file_type=
   share->pack.header_length= 0;
+}
+
+
+/**
+   @brief Writes a LOGREC_REPAIR_TABLE record and updates create_rename_lsn
+
+   REPAIR/OPTIMIZE have replaced the data/index file with a new file
+   and so, in this scenario:
+   @verbatim
+     CHECKPOINT - REDO_INSERT - COMMIT - ... - REPAIR - ... - crash
+   @endverbatim
+   we do not want Recovery to apply the REDO_INSERT to the table, as it would
+   then possibly wrongly extend the table. By updating create_rename_lsn at
+   the end of REPAIR, we know that REDO_INSERT will be skipped.
+
+   @param  param            description of the REPAIR operation
+   @param  info             table
+
+   @return Operation status
+     @retval 0      ok
+     @retval 1      error (disk problem)
+*/
+
+int _ma_repair_write_log_record(const HA_CHECK *param, MARIA_HA *info)
+{
+  MARIA_SHARE *share= info->s;
+  /* Only called from ha_maria.cc, not maria_check, so translog is inited */
+  if (share->base.transactional && !share->temporary)
+  {
+    /* For now this record is only informative */
+    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+    uchar log_data[LSN_STORE_SIZE];
+    compile_time_assert(LSN_STORE_SIZE >= (FILEID_STORE_SIZE + 4));
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= FILEID_STORE_SIZE + 4;
+    /*
+      testflag gives an idea of what REPAIR did (in particular T_QUICK
+      or not: did it touch the data file or not?).
+    */
+    int4store(log_data + FILEID_STORE_SIZE, param->testflag);
+    if (unlikely(translog_write_record(&share->state.create_rename_lsn,
+                                       LOGREC_REDO_REPAIR_TABLE,
+                                       &dummy_transaction_object, share,
+                                       log_array[TRANSLOG_INTERNAL_PARTS +
+                                                 0].length,
+                                       sizeof(log_array)/sizeof(log_array[0]),
+                                       log_array, log_data)))
+      return 1;
+    /*
+      But this piece is really needed, to have the new table's content durable
+      and to not apply old REDOs to the new table. The table's existence was
+      made durable earlier (MY_SYNC_DIR passed to maria_change_to_newfile()).
+    */
+    lsn_store(log_data, share->state.create_rename_lsn);
+    DBUG_ASSERT(info->dfile.file >= 0);
+    DBUG_ASSERT(share->kfile.file >= 0);
+    return (my_pwrite(share->kfile.file, log_data, sizeof(log_data),
+                      sizeof(share->state.header) + 2, MYF(MY_NABP)) ||
+            _ma_sync_table_files(info));
+  }
+  return 0;
 }

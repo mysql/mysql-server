@@ -192,7 +192,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   trn->short_id= 0;
   if (translog_write_record(&lsn, LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
                             trn, NULL,
-                            6, TRANSLOG_INTERNAL_PARTS + 1, parts))
+                            6, TRANSLOG_INTERNAL_PARTS + 1, parts, NULL))
   {
     fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);
     translog_destroy();
@@ -214,7 +214,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                                 LOGREC_FIXED_RECORD_1LSN_EXAMPLE,
                                 trn, NULL,
                                 LSN_STORE_SIZE,
-                                TRANSLOG_INTERNAL_PARTS + 1, parts))
+                                TRANSLOG_INTERNAL_PARTS + 1, parts, NULL))
       {
         fprintf(stderr, "1 Can't write reference before record #%lu\n",
                 (ulong) i);
@@ -234,7 +234,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                                 LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE,
                                 trn, NULL, LSN_STORE_SIZE + rec_len,
                                 TRANSLOG_INTERNAL_PARTS + 2,
-                                parts))
+                                parts, NULL))
       {
         fprintf(stderr, "1 Can't write var reference before record #%lu\n",
                 (ulong) i);
@@ -255,7 +255,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                                 LOGREC_FIXED_RECORD_2LSN_EXAMPLE,
                                 trn, NULL, 23,
                                 TRANSLOG_INTERNAL_PARTS + 1,
-                                parts))
+                                parts, NULL))
       {
         fprintf(stderr, "0 Can't write reference before record #%lu\n",
                 (ulong) i);
@@ -276,7 +276,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                                 LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE,
                                 trn, NULL, LSN_STORE_SIZE * 2 + rec_len,
                                 TRANSLOG_INTERNAL_PARTS + 2,
-                                parts))
+                                parts, NULL))
       {
         fprintf(stderr, "0 Can't write var reference before record #%lu\n",
                 (ulong) i);
@@ -293,7 +293,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     if (translog_write_record(&lsn,
                               LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
                               trn, NULL, 6,
-                              TRANSLOG_INTERNAL_PARTS + 1, parts))
+                              TRANSLOG_INTERNAL_PARTS + 1, parts, NULL))
     {
       fprintf(stderr, "Can't write record #%lu\n", (ulong) i);
       translog_destroy();
@@ -311,7 +311,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     if (translog_write_record(&lsn,
                               LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE,
                               trn, NULL, rec_len,
-                              TRANSLOG_INTERNAL_PARTS + 1, parts))
+                              TRANSLOG_INTERNAL_PARTS + 1, parts, NULL))
     {
       fprintf(stderr, "Can't write variable record #%lu\n", (ulong) i);
       translog_destroy();

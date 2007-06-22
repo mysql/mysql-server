@@ -86,13 +86,12 @@ enum translog_record_type
   LOGREC_PREPARE_WITH_UNDO_PURGE,
   LOGREC_COMMIT,
   LOGREC_COMMIT_WITH_UNDO_PURGE,
-  LOGREC_CHECKPOINT_PAGE,
-  LOGREC_CHECKPOINT_TRAN,
-  LOGREC_CHECKPOINT_TABL,
+  LOGREC_CHECKPOINT,
   LOGREC_REDO_CREATE_TABLE,
   LOGREC_REDO_RENAME_TABLE,
   LOGREC_REDO_DROP_TABLE,
-  LOGREC_REDO_TRUNCATE_TABLE,
+  LOGREC_REDO_DELETE_ALL,
+  LOGREC_REDO_REPAIR_TABLE,
   LOGREC_FILE_ID,
   LOGREC_LONG_TRANSACTION_ID,
   LOGREC_RESERVED_FUTURE_EXTENSION= 63
@@ -181,9 +180,7 @@ struct st_translog_reader_data
 };
 
 struct st_transaction;
-#ifdef	__cplusplus
-extern "C" {
-#endif
+C_MODE_START
 
 /* Records types for unittests */
 #define LOGREC_FIXED_RECORD_0LSN_EXAMPLE 1
@@ -199,13 +196,12 @@ extern my_bool translog_init(const char *directory, uint32 log_file_max_size,
 			     uint32 server_version, uint32 server_id,
 			     PAGECACHE *pagecache, uint flags);
 
-extern my_bool translog_write_record(LSN *lsn,
-                                     enum translog_record_type type,
-                                     struct st_transaction *trn,
-                                     struct st_maria_share *share,
-                                     translog_size_t rec_len,
-                                     uint part_no,
-                                     LEX_STRING *parts_data);
+extern my_bool
+translog_write_record(LSN *lsn, enum translog_record_type type,
+                      struct st_transaction *trn,
+                      struct st_maria_share *share,
+                      translog_size_t rec_len, uint part_no,
+                      LEX_STRING *parts_data, uchar *store_share_id);
 
 extern void translog_destroy();
 
@@ -232,7 +228,10 @@ extern translog_size_t translog_read_next_record_header(TRANSLOG_SCANNER_DATA
 							*scanner,
 							TRANSLOG_HEADER_BUFFER
 							*buff);
-#ifdef	__cplusplus
-}
-#endif
-
+extern void translog_lock_assert_owner();
+extern TRANSLOG_ADDRESS translog_get_horizon();
+extern int translog_assign_id_to_share(struct st_maria_share *share,
+                                       struct st_transaction *trn);
+extern void translog_deassign_id_from_share(struct st_maria_share *share);
+extern my_bool translog_inited;
+C_MODE_END

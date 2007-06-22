@@ -50,6 +50,13 @@
 LSN last_checkpoint_lsn;
 uint32 last_logno;
 
+/**
+   @brief If log's lock should be asserted when writing to control file.
+
+   Can be re-used by any function which needs to be thread-safe except when
+   it is called at startup.
+*/
+my_bool maria_multi_threaded= FALSE;
 
 /*
   Control file is less then  512 bytes (a disk sector),
@@ -203,6 +210,8 @@ err:
   the last_checkpoint_lsn and last_logno global variables.
   Called when we have created a new log (after syncing this log's creation)
   and when we have written a checkpoint (after syncing this log record).
+  Variables last_checkpoint_lsn and last_logno must be protected by caller
+  using log's lock, unless this function is called at startup.
 
   SYNOPSIS
     ma_control_file_write_and_force()
@@ -233,11 +242,13 @@ int ma_control_file_write_and_force(const LSN checkpoint_lsn, uint32 logno,
   DBUG_ENTER("ma_control_file_write_and_force");
 
   DBUG_ASSERT(control_file_fd >= 0); /* must be open */
+#ifndef DBUG_OFF
+  if (maria_multi_threaded)
+    translog_lock_assert_owner();
+#endif
 
   memcpy(buffer + CONTROL_FILE_MAGIC_STRING_OFFSET,
          CONTROL_FILE_MAGIC_STRING, CONTROL_FILE_MAGIC_STRING_SIZE);
-
-  /* TODO: you need some protection to be able to read last_* global vars */
 
   if (objs_to_write == CONTROL_FILE_UPDATE_ONLY_LSN)
     update_checkpoint_lsn= TRUE;
@@ -270,7 +281,6 @@ int ma_control_file_write_and_force(const LSN checkpoint_lsn, uint32 logno,
       my_sync(control_file_fd, MYF(MY_WME)))
     DBUG_RETURN(1);
 
-  /* TODO: you need some protection to be able to write last_* global vars */
   if (update_checkpoint_lsn)
     last_checkpoint_lsn= checkpoint_lsn;
   if (update_logno)

@@ -30,6 +30,7 @@
 #include "maria_def.h"
 #include "ma_rt_index.h"
 #include "ma_blockrec.h"
+#include "ma_commit.h"
 
 #define MARIA_CANNOT_ROLLBACK HA_NO_TRANSACTIONS
 #ifdef MARIA_CANNOT_ROLLBACK
@@ -690,7 +691,8 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
   if (!(test_if_locked & HA_OPEN_WAIT_IF_LOCKED))
     VOID(maria_extra(file, HA_EXTRA_WAIT_LOCK, 0));
-  if (file->s->data_file_type != STATIC_RECORD)
+  save_transactional= file->s->base.transactional;
+  if ((data_file_type= file->s->data_file_type) != STATIC_RECORD)
     int_table_flags |= HA_REC_NOT_IN_SEQ;
   if (file->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     int_table_flags |= HA_HAS_CHECKSUM;
@@ -1178,6 +1180,8 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
                               llstr(rows, llbuff),
                               llstr(file->state->records, llbuff2));
     }
+    if (!error)
+      error= _ma_repair_write_log_record(&param, file);
   }
   else
   {
@@ -1806,7 +1810,6 @@ int ha_maria::info(uint flag)
               MY_APPEND_EXT | MY_UNPACK_FILENAME);
     if (strcmp(name_buff, maria_info.index_file_name))
       index_file_name=maria_info.index_file_name;
-    data_file_type= maria_info.data_file_type;
   }
   if (flag & HA_STATUS_ERRKEY)
   {
@@ -1860,7 +1863,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
 {
   TRN *trn= THD_TRN;
   DBUG_ENTER("ha_maria::external_lock");
-  if (!file->s->base.transactional)
+  if (!save_transactional)
     goto skip_transaction;
   if (!trn && lock_type != F_UNLCK) /* no transaction yet - open it now */
   {
@@ -1884,6 +1887,19 @@ int ha_maria::external_lock(THD *thd, int lock_type)
       trans_register_ha(thd, FALSE, maria_hton);
       trnman_new_statement(trn);
     }
+    if (!thd->transaction.on)
+    {
+      /*
+        No need to log REDOs/UNDOs. If this is an internal temporary table
+        which will be renamed to a permanent table (like in ALTER TABLE),
+        the rename happens after unlocking so will be durable (and the table
+        will get its create_rename_lsn).
+        Note: if we wanted to enable users to have an old backup and apply
+        tons of archived logs to roll-forward, we could then not disable
+        REDOs/UNDOs in this case.
+      */
+      file->s->base.transactional= FALSE;
+    }
   }
   else
   {
@@ -1894,7 +1910,8 @@ int ha_maria::external_lock(THD *thd, int lock_type)
       {
         /* autocommit ? rollback a transaction */
 #ifdef MARIA_CANNOT_ROLLBACK
-        trnman_commit_trn(trn);
+        if (ma_commit(trn))
+          DBUG_RETURN(1);
         THD_TRN= 0;
 #else
         if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
@@ -1906,6 +1923,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
 #endif
       }
     }
+    file->s->base.transactional= save_transactional;
   }
 skip_transaction:
   DBUG_RETURN(maria_lock_database(file, !table->s->tmp_table ?
@@ -1916,7 +1934,7 @@ skip_transaction:
 int ha_maria::start_stmt(THD *thd, thr_lock_type lock_type)
 {
   TRN *trn= THD_TRN;
-  if (file->s->base.transactional)
+  if (save_transactional)
   {
     DBUG_ASSERT(trn); // this may be called only after external_lock()
     DBUG_ASSERT(trnman_has_locked_tables(trn));
@@ -2186,8 +2204,7 @@ static int maria_commit(handlerton *hton __attribute__ ((unused)),
     DBUG_RETURN(0); // end of statement
   DBUG_PRINT("info", ("THD_TRN set to 0x0"));
   THD_TRN= 0;
-  DBUG_RETURN(trnman_commit_trn(trn) ?
-              HA_ERR_OUT_OF_MEM : 0); // end of transaction
+  DBUG_RETURN(ma_commit(trn)); // end of transaction
 }
 
 
@@ -2212,6 +2229,7 @@ static int maria_rollback(handlerton *hton __attribute__ ((unused)),
 
 static int ha_maria_init(void *p)
 {
+  int res;
   maria_hton= (handlerton *)p;
   maria_hton->state= SHOW_OPTION_YES;
   maria_hton->db_type= DB_TYPE_MARIA;
@@ -2223,14 +2241,16 @@ static int ha_maria_init(void *p)
   maria_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
   bzero(maria_log_pagecache, sizeof(*maria_log_pagecache));
   maria_data_root= mysql_real_data_home;
-  return (test(maria_init() || ma_control_file_create_or_open() ||
-               (init_pagecache(maria_log_pagecache,
-                               TRANSLOG_PAGECACHE_SIZE, 0, 0,
-                               TRANSLOG_PAGE_SIZE) == 0) ||
-               translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
-                             MYSQL_VERSION_ID, server_id, maria_log_pagecache,
-                             TRANSLOG_DEFAULT_FLAGS) ||
-               trnman_init()));
+  res= maria_init() || ma_control_file_create_or_open() ||
+    (init_pagecache(maria_log_pagecache,
+                    TRANSLOG_PAGECACHE_SIZE, 0, 0,
+                    TRANSLOG_PAGE_SIZE) == 0) ||
+    translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
+                  MYSQL_VERSION_ID, server_id, maria_log_pagecache,
+                  TRANSLOG_DEFAULT_FLAGS) ||
+    trnman_init();
+  maria_multi_threaded= TRUE;
+  return res;
 }
 
 

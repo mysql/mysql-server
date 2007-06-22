@@ -17,6 +17,14 @@
 #include "ma_blockrec.h"
 #include "trnman.h"
 
+/**
+   @file
+   @brief Module which writes and reads to a transaction log
+
+   @todo LOG: in functions where the log's lock is required, a
+   translog_assert_owner() could be added.
+*/
+
 /* number of opened log files in the pagecache (should be at least 2) */
 #define OPENED_FILES_NUM 3
 
@@ -166,7 +174,7 @@ static struct st_translog_descriptor log_descriptor;
 /* Marker for end of log */
 static byte end_of_log= 0;
 
-static my_bool translog_inited;
+my_bool translog_inited= 0;
 
 /* record classes */
 enum record_class
@@ -218,7 +226,7 @@ struct st_log_record_type_descriptor
   uint16 read_header_len;
   /* HOOK for writing the record called before lock */
   prewrite_rec_hook prewrite_hook;
-  /* HOOK for writing the record called when LSN is known */
+  /* HOOK for writing the record called when LSN is known, inside lock */
   inwrite_rec_hook inwrite_hook;
   /* HOOK for reading headers */
   read_rec_hook read_hook;
@@ -229,6 +237,13 @@ struct st_log_record_type_descriptor
   int16 compressed_LSN;
 };
 
+
+#include <my_atomic.h>
+/* an array that maps id of a MARIA_SHARE to this MARIA_SHARE */
+static MARIA_SHARE **id_to_share= NULL;
+#define SHARE_ID_MAX 65535 /* array's size */
+/* lock for id_to_share */
+static my_atomic_rwlock_t LOCK_id_to_share;
 
 static my_bool write_hook_for_redo(enum translog_record_type type,
                                    TRN *trn, LSN *lsn,
@@ -291,7 +306,9 @@ static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_HEAD=
  write_hook_for_redo, NULL, 0};
 
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_TAIL=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 8, NULL, NULL, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0,
+ FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE, NULL,
+ write_hook_for_redo, NULL, 0};
 
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_BLOB=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 8, NULL, write_hook_for_redo, NULL, 0};
@@ -376,14 +393,8 @@ static LOG_DESC INIT_LOGREC_COMMIT=
 static LOG_DESC INIT_LOGREC_COMMIT_WITH_UNDO_PURGE=
 {LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, NULL, NULL, 1};
 
-static LOG_DESC INIT_LOGREC_CHECKPOINT_PAGE=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 6, NULL, NULL, NULL, 0};
-
-static LOG_DESC INIT_LOGREC_CHECKPOINT_TRAN=
+static LOG_DESC INIT_LOGREC_CHECKPOINT=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0};
-
-static LOG_DESC INIT_LOGREC_CHECKPOINT_TABL=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 8, NULL, NULL, NULL, 0};
 
 static LOG_DESC INIT_LOGREC_REDO_CREATE_TABLE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0};
@@ -394,8 +405,13 @@ static LOG_DESC INIT_LOGREC_REDO_RENAME_TABLE=
 static LOG_DESC INIT_LOGREC_REDO_DROP_TABLE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0};
 
-static LOG_DESC INIT_LOGREC_REDO_TRUNCATE_TABLE=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0};
+static LOG_DESC INIT_LOGREC_REDO_DELETE_ALL=
+{LOGRECTYPE_FIXEDLENGTH, FILEID_STORE_SIZE, FILEID_STORE_SIZE,
+ NULL, NULL, NULL, 0};
+
+static LOG_DESC INIT_LOGREC_REDO_REPAIR_TABLE=
+{LOGRECTYPE_FIXEDLENGTH, FILEID_STORE_SIZE + 4, FILEID_STORE_SIZE + 4,
+ NULL, NULL, NULL, 0};
 
 static LOG_DESC INIT_LOGREC_FILE_ID=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 4, NULL, NULL, NULL, 0};
@@ -403,6 +419,7 @@ static LOG_DESC INIT_LOGREC_FILE_ID=
 static LOG_DESC INIT_LOGREC_LONG_TRANSACTION_ID=
 {LOGRECTYPE_FIXEDLENGTH, 6, 6, NULL, NULL, NULL, 0};
 
+const myf log_write_flags= MY_WME | MY_NABP | MY_WAIT_IF_FULL;
 
 static void loghandler_init()
 {
@@ -454,20 +471,18 @@ static void loghandler_init()
     INIT_LOGREC_COMMIT;
   log_record_type_descriptor[LOGREC_COMMIT_WITH_UNDO_PURGE]=
     INIT_LOGREC_COMMIT_WITH_UNDO_PURGE;
-  log_record_type_descriptor[LOGREC_CHECKPOINT_PAGE]=
-    INIT_LOGREC_CHECKPOINT_PAGE;
-  log_record_type_descriptor[LOGREC_CHECKPOINT_TRAN]=
-    INIT_LOGREC_CHECKPOINT_TRAN;
-  log_record_type_descriptor[LOGREC_CHECKPOINT_TABL]=
-    INIT_LOGREC_CHECKPOINT_TABL;
+  log_record_type_descriptor[LOGREC_CHECKPOINT]=
+    INIT_LOGREC_CHECKPOINT;
   log_record_type_descriptor[LOGREC_REDO_CREATE_TABLE]=
     INIT_LOGREC_REDO_CREATE_TABLE;
   log_record_type_descriptor[LOGREC_REDO_RENAME_TABLE]=
     INIT_LOGREC_REDO_RENAME_TABLE;
   log_record_type_descriptor[LOGREC_REDO_DROP_TABLE]=
     INIT_LOGREC_REDO_DROP_TABLE;
-  log_record_type_descriptor[LOGREC_REDO_TRUNCATE_TABLE]=
-    INIT_LOGREC_REDO_TRUNCATE_TABLE;
+  log_record_type_descriptor[LOGREC_REDO_DELETE_ALL]=
+    INIT_LOGREC_REDO_DELETE_ALL;
+  log_record_type_descriptor[LOGREC_REDO_REPAIR_TABLE]=
+    INIT_LOGREC_REDO_REPAIR_TABLE;
   log_record_type_descriptor[LOGREC_FILE_ID]=
     INIT_LOGREC_FILE_ID;
   log_record_type_descriptor[LOGREC_LONG_TRANSACTION_ID]=
@@ -554,6 +569,7 @@ static File open_logfile_by_number_no_cache(uint32 file_no)
   DBUG_ENTER("open_logfile_by_number_no_cache");
 
   /* TODO: add O_DIRECT to open flags (when buffer is aligned) */
+  /* TODO: use my_create() */
   if ((file= my_open(translog_filename_by_fileno(file_no, path),
                      O_CREAT | O_BINARY | O_RDWR,
                      MYF(MY_WME))) < 0)
@@ -615,7 +631,7 @@ static my_bool translog_write_file_header()
   bzero(page, sizeof(page_buff) - (page- page_buff));
 
   DBUG_RETURN(my_pwrite(log_descriptor.log_file_num[0], page_buff,
-                        sizeof(page_buff), 0, MYF(MY_WME | MY_NABP)) != 0);
+                        sizeof(page_buff), 0, log_write_flags) != 0);
 }
 
 
@@ -1222,7 +1238,7 @@ static my_bool translog_buffer_next(TRANSLOG_ADDRESS *horizon,
 
 
 /*
-  Set max LSN send to file
+  Set max LSN sent to file
 
   SYNOPSIS
     translog_set_sent_to_file()
@@ -1512,7 +1528,7 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
   }
   if (my_pwrite(buffer->file, (char*) buffer->buffer,
                 buffer->size, LSN_OFFSET(buffer->offset),
-                MYF(MY_WME | MY_NABP)))
+                log_write_flags))
   {
     UNRECOVERABLE_ERROR(("Can't write buffer (%lu,0x%lx) size %lu "
                          "to the disk (%d)",
@@ -2230,7 +2246,16 @@ my_bool translog_init(const char *directory,
   */
   log_descriptor.flushed--; /* offset decreased */
   log_descriptor.sent_to_file--; /* offset decreased */
-
+  /*
+    Log records will refer to a MARIA_SHARE by a unique 2-byte id; set up
+    structures for generating 2-byte ids:
+  */
+  my_atomic_rwlock_init(&LOCK_id_to_share);
+  id_to_share= (MARIA_SHARE **) my_malloc(SHARE_ID_MAX*sizeof(MARIA_SHARE*),
+                                          MYF(MY_WME|MY_ZEROFILL));
+  if (unlikely(!id_to_share))
+    DBUG_RETURN(1);
+  id_to_share--; /* min id is 1 */
   translog_inited= 1;
   DBUG_RETURN(0);
 }
@@ -2303,6 +2328,8 @@ void translog_destroy()
     }
     pthread_mutex_destroy(&log_descriptor.sent_to_file_lock);
     my_close(log_descriptor.directory_fd, MYF(MY_WME));
+    my_atomic_rwlock_destroy(&LOCK_id_to_share);
+    my_free((gptr)(id_to_share + 1), MYF(MY_ALLOW_ZERO_PTR));
     translog_inited= 0;
   }
   DBUG_VOID_RETURN;
@@ -2359,6 +2386,14 @@ static inline my_bool translog_unlock()
   translog_buffer_unlock(log_descriptor.bc.buffer);
 
   DBUG_RETURN(0);
+}
+
+
+#define translog_buffer_lock_assert_owner(B) \
+  safe_mutex_assert_owner(&B->mutex);
+void translog_lock_assert_owner()
+{
+  translog_buffer_lock_assert_owner(log_descriptor.bc.buffer);
 }
 
 
@@ -4154,26 +4189,30 @@ err:
 }
 
 
-/*
-  Write the log record
+/**
+   @brief Writes the log record
 
-  SYNOPSIS
-    translog_write_record()
-    lsn                  LSN of the record will be written here
-    type                 the log record type
-    trn                  Transaction structure pointer for hooks by
-                         record log type, for short_id
-    share                MARIA_SHARE of table or NULL
-    rec_len              record length or 0 (count it)
-    part_no              number of parts or 0 (count it)
-    parts_data           zero ended (in case of number of parts is 0)
-                         array of LEX_STRINGs (parts), first
-                         TRANSLOG_INTERNAL_PARTS positions in the log
-                         should be unused (need for loghandler)
+   If share has no 2-byte-id yet, gives an id to the share and logs
+   LOGREC_FILE_ID. If transaction has not logged LOGREC_LONG_TRANSACTION_ID
+   yet, logs it.
 
-  RETURN
-    0  OK
-    1  Error
+   @param  lsn             LSN of the record will be written here
+   @param  type            the log record type
+   @param  trn             Transaction structure pointer for hooks by
+                           record log type, for short_id
+   @param  share           MARIA_SHARE of table or NULL
+   @param  rec_len         record length or 0 (count it)
+   @param  part_no         number of parts or 0 (count it)
+   @param  parts_data      zero ended (in case of number of parts is 0)
+                           array of LEX_STRINGs (parts), first
+                           TRANSLOG_INTERNAL_PARTS positions in the log
+                           should be unused (need for loghandler)
+   @param  store_share_id  if share!=NULL then share's id will automatically
+                           be stored in the two first bytes pointed (so
+                           pointer is assumed to be !=NULL)
+   @return Operation status
+     @retval 0      OK
+     @retval 1      Error
 */
 
 my_bool translog_write_record(LSN *lsn,
@@ -4181,7 +4220,8 @@ my_bool translog_write_record(LSN *lsn,
                               TRN *trn, struct st_maria_share *share,
                               translog_size_t rec_len,
                               uint part_no,
-                              LEX_STRING *parts_data)
+                              LEX_STRING *parts_data,
+                              uchar *store_share_id)
 {
   struct st_translog_parts parts;
   LEX_STRING *part;
@@ -4191,10 +4231,41 @@ my_bool translog_write_record(LSN *lsn,
   DBUG_PRINT("enter", ("type: %u  ShortTrID: %u",
                        (uint) type, (uint)short_trid));
 
-  if (share && !share->base.transactional)
+  if (share)
   {
-    DBUG_PRINT("info", ("It is not transactional table"));
-    DBUG_RETURN(0);
+    if (!share->base.transactional)
+    {
+      DBUG_PRINT("info", ("It is not transactional table"));
+      DBUG_RETURN(0);
+    }
+    if (unlikely(share->id == 0))
+    {
+      /*
+        First log write for this MARIA_SHARE; give it a short id.
+        When the lock manager is enabled and needs a short id, it should be
+        assigned in the lock manager (because row locks will be taken before
+        log records are written; for example SELECT FOR UPDATE takes locks but
+        writes no log record.
+      */
+      if (unlikely(translog_assign_id_to_share(share, trn)))
+        DBUG_RETURN(1);
+    }
+    fileid_store(store_share_id, share->id);
+  }
+  if (unlikely(!(trn->first_undo_lsn & TRANSACTION_LOGGED_LONG_ID)))
+  {
+    LSN lsn;
+    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+    uchar log_data[6];
+    int6store(log_data, trn->trid);
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
+    trn->first_undo_lsn|= TRANSACTION_LOGGED_LONG_ID; /* no recursion */
+    if (unlikely(translog_write_record(&lsn, LOGREC_LONG_TRANSACTION_ID,
+                                       trn, NULL, sizeof(log_data),
+                                       sizeof(log_array)/sizeof(log_array[0]),
+                                       log_array, NULL)))
+      DBUG_RETURN(1);
   }
 
   parts.parts= parts_data;
@@ -4375,20 +4446,19 @@ void translog_free_record_header(TRANSLOG_HEADER_BUFFER *buff)
 }
 
 
-/*
-  Set current horizon in the scanner data structure
+/**
+   @brief Returns the current horizon at the end of the current log
 
-  SYNOPSIS
-    translog_scanner_set_horizon()
-    scanner              Information about current chunk during scanning
+   @return Horizon
 */
 
-static void translog_scanner_set_horizon(struct st_translog_scanner_data
-                                         *scanner)
+TRANSLOG_ADDRESS translog_get_horizon()
 {
+  TRANSLOG_ADDRESS res;
   translog_lock();
-  scanner->horizon= log_descriptor.horizon;
+  res= log_descriptor.horizon;
   translog_unlock();
+  return res;
 }
 
 
@@ -4446,7 +4516,7 @@ my_bool translog_init_scanner(LSN lsn,
 
   scanner->fixed_horizon= fixed_horizon;
 
-  translog_scanner_set_horizon(scanner);
+  scanner->horizon= translog_get_horizon();
   DBUG_PRINT("info", ("horizon: (0x%lu,0x%lx)",
                       (ulong) LSN_FILE_NO(scanner->horizon),
                       (ulong) LSN_OFFSET(scanner->horizon)));
@@ -4499,7 +4569,7 @@ static my_bool translog_scanner_eol(TRANSLOG_SCANNER_DATA *scanner)
     DBUG_PRINT("info", ("Horizon is fixed and reached"));
     DBUG_RETURN(1);
   }
-  translog_scanner_set_horizon(scanner);
+  scanner->horizon= translog_get_horizon();
   DBUG_PRINT("info",
              ("Horizon is re-read, EOL: %d",
               scanner->horizon <= (scanner->page_addr +
@@ -5368,17 +5438,31 @@ static void translog_force_current_buffer_to_finish()
 }
 
 
-/*
-  Flush the log up to given LSN (included)
+/**
+   @brief Flush the log up to given LSN (included)
 
-  SYNOPSIS
-    translog_flush()
-    lsn                  log record serial number up to which (inclusive)
-                         the log have to be flushed
+   @param  lsn             log record serial number up to which (inclusive)
+                           the log has to be flushed
 
-  RETURN
-    0  OK
-    1  Error
+   @return Operation status
+     @retval 0      OK
+     @retval 1      Error
+
+  @todo LOG: when a log write fails, we should not write to this log anymore
+  (if we add more log records to this log they will be unreadable: we will hit
+  the broken log record): all translog_flush() should be made to fail (because
+  translog_flush() is when a a transaction wants something durable and we
+  cannot make anything durable as log is corrupted). For that, a "my_bool
+  st_translog_descriptor::write_error" could be set to 1 when a
+  translog_write_record() or translog_flush() fails, and translog_flush()
+  would test this var (and translog_write_record() could also test this var if
+  it wants, though it's not absolutely needed).
+  Then, either shut Maria down immediately, or switch to a new log (but if we
+  get write error after write error, that would create too many logs).
+  A popular open-source transactional engine intentionally crashes as soon as
+  a log flush fails (we however don't want to crash the entire mysqld, but
+  stopping all engine's operations immediately would make sense).
+  Same applies to translog_write_record().
 */
 
 my_bool translog_flush(LSN lsn)
@@ -5469,11 +5553,28 @@ my_bool translog_flush(LSN lsn)
     /* We sync file when we are closing it => do nothing if file closed */
   }
   log_descriptor.flushed= sent_to_file;
+  /** @todo LOG decide if syncing of directory is needed */
   rc|= my_sync(log_descriptor.directory_fd, MYF(MY_WME));
   translog_unlock();
   DBUG_RETURN(rc);
 }
 
+
+/**
+   @brief Sets transaction's rec_lsn if needed
+
+   A transaction sometimes writes a REDO even before the page is in the
+   pagecache (example: brand new head or tail pages; full pages). So, if
+   Checkpoint happens just after the REDO write, it needs to know that the
+   REDO phase must start before this REDO. Scanning the pagecache cannot
+   tell that as the page is not in the cache. So, transaction sets its rec_lsn
+   to the REDO's LSN or somewhere before, and Checkpoint reads the
+   transaction's rec_lsn.
+
+   @todo move it to a separate file
+
+   @return Operation status, always 0 (success)
+*/
 
 static my_bool write_hook_for_redo(enum translog_record_type type
                                    __attribute__ ((unused)),
@@ -5481,11 +5582,25 @@ static my_bool write_hook_for_redo(enum translog_record_type type
                                    struct st_translog_parts *parts
                                    __attribute__ ((unused)))
 {
+  /*
+    If the hook stays so simple, it would be faster to pass
+    !trn->rec_lsn ? trn->rec_lsn : some_dummy_lsn
+    to translog_write_record(), like Monty did in his original code, and not
+    have a hook. For now we keep it like this.
+  */
   if (trn->rec_lsn == 0)
     trn->rec_lsn= *lsn;
   return 0;
 }
 
+
+/**
+   @brief Sets transaction's undo_lsn, first_undo_lsn if needed
+
+   @todo move it to a separate file
+
+   @return Operation status, always 0 (success)
+*/
 
 static my_bool write_hook_for_undo(enum translog_record_type type
                                    __attribute__ ((unused)),
@@ -5494,11 +5609,109 @@ static my_bool write_hook_for_undo(enum translog_record_type type
                                    __attribute__ ((unused)))
 {
   trn->undo_lsn= *lsn;
-  if (trn->first_undo_lsn == 0)
-    trn->first_undo_lsn= *lsn;
+  if (unlikely(LSN_WITH_FLAGS_TO_LSN(trn->first_undo_lsn) == 0))
+    trn->first_undo_lsn=
+      trn->undo_lsn | LSN_WITH_FLAGS_TO_FLAGS(trn->first_undo_lsn);
   return 0;
   /*
     when we implement purging, we will specialize this hook: UNDO_PURGE
     records will additionally set trn->undo_purge_lsn
   */
+}
+
+
+/**
+   @brief Gives a 2-byte-id to MARIA_SHARE and logs this fact
+
+   If a MARIA_SHARE does not yet have a 2-byte-id (unique over all currently
+   open MARIA_SHAREs), give it one and record this assignment in the log
+   (LOGREC_FILE_ID log record).
+
+   @param  share           table
+   @param  trn             calling transaction
+
+   @return Operation status
+     @retval 0      OK
+     @retval 1      Error
+
+   @note Can be called even if share already has an id (then will do nothing)
+*/
+
+int translog_assign_id_to_share(MARIA_SHARE *share, TRN *trn)
+{
+  /*
+    If you give an id to a non-BLOCK_RECORD table, you also need to release
+    this id somewhere. Then you can change the assertion.
+  */
+  DBUG_ASSERT(share->data_file_type == BLOCK_RECORD);
+  /* re-check under mutex to avoid having 2 ids for the same share */
+  pthread_mutex_lock(&share->intern_lock);
+  if (likely(share->id == 0))
+  {
+    /* Inspired by set_short_trid() of trnman.c */
+    int i= share->kfile.file % SHARE_ID_MAX + 1;
+    my_atomic_rwlock_wrlock(&LOCK_id_to_share);
+    /**
+       @todo RECOVERY BUG: if all slots are used, and we're using rwlocks
+       above, we will never exit the loop. To be discussed with Serg.
+    */
+    for ( ; ; i= i % SHARE_ID_MAX + 1) /* the range is [1..SHARE_ID_MAX] */
+    {
+      void *tmp= NULL;
+      if (id_to_share[i] == NULL &&
+          my_atomic_casptr((void **)&id_to_share[i], &tmp, share))
+        break;
+    }
+    my_atomic_rwlock_wrunlock(&LOCK_id_to_share);
+    share->id= (uint16)i;
+    DBUG_PRINT("info", ("id_to_share: 0x%lx -> %u", (ulong)share, i));
+    LSN lsn;
+    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+    uchar log_data[FILEID_STORE_SIZE];
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
+    /*
+      open_file_name is an unresolved name (symlinks are not resolved, datadir
+      is not realpath-ed, etc) which is good: the log can be moved to another
+      directory and continue working.
+    */
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str= share->open_file_name;
+    /**
+       @todo if we had the name's length in MARIA_SHARE we could avoid this
+       strlen()
+    */
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].length=
+      strlen(share->open_file_name);
+    if (unlikely(translog_write_record(&lsn, LOGREC_FILE_ID, trn, share,
+                                       sizeof(log_data) +
+                                       log_array[TRANSLOG_INTERNAL_PARTS +
+                                                 1].length,
+                                       sizeof(log_array)/sizeof(log_array[0]),
+                                       log_array, log_data)))
+      return 1;
+  }
+  pthread_mutex_unlock(&share->intern_lock);
+  return 0;
+}
+
+
+/**
+   @brief Recycles a MARIA_SHARE's short id.
+
+   @param  share           table
+
+   @note Must be called only if share has an id (i.e. id != 0)
+*/
+
+void translog_deassign_id_from_share(MARIA_SHARE *share)
+{
+  DBUG_PRINT("info", ("id_to_share: 0x%lx id %u -> 0",
+                      (ulong)share, share->id));
+  /*
+    We don't need any mutex as we are called only when closing the last
+    instance of the table: no writes can be happening.
+  */
+  my_atomic_rwlock_rdlock(&LOCK_id_to_share);
+  my_atomic_storeptr((void **)&id_to_share[share->id], 0);
+  my_atomic_rwlock_rdunlock(&LOCK_id_to_share);
 }

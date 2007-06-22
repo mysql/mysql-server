@@ -53,7 +53,7 @@ void maria_end(void)
 {
   if (maria_inited)
   {
-    maria_inited= FALSE;
+    maria_inited= maria_multi_threaded= FALSE;
     ft_free_stopwords();
     trnman_destroy();
     translog_destroy();

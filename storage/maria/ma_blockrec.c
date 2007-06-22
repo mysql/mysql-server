@@ -171,11 +171,14 @@
   started and we can then delete TRANSID and VER_PTR from the row to
   gain more space.
 
-  If a row is deleted in Maria, we change TRANSID to current transid and
-  change VER_PTR to point to the undo record for the delete. The undo
-  record must contain the original TRANSID, so that another transaction
-  can use this to check if they should use the found row or go to the
-  previous row pointed to by the VER_PTR in the undo row.
+  If a row is deleted in Maria, we change TRANSID to the deleting
+  transaction's id, change VER_PTR to point to the undo record for the delete,
+  and add DELETE_TRANSID (the id of the transaction which last
+  inserted/updated the row before its deletion). DELETE_TRANSID allows an old
+  transaction to avoid reading the log to know if it can see the last version
+  before delete (in other words it reduces the probability of having to follow
+  VER_PTR). TODO: depending on a compilation option, evaluate the performance
+  impact of not storing DELETE_TRANSID (which would make the row smaller).
 
   Description of the different parts:
 
@@ -391,7 +394,12 @@ my_bool _ma_once_end_block_record(MARIA_SHARE *share)
                                share->temporary ? FLUSH_IGNORE_CHANGED :
                                FLUSH_RELEASE))
       res= 1;
-    if (my_close(share->bitmap.file.file, MYF(MY_WME)))
+    /*
+      File must be synced as it is going out of the maria_open_list and so
+      becoming unknown to Checkpoint.
+    */
+    if (my_sync(share->bitmap.file.file, MYF(MY_WME)) ||
+        my_close(share->bitmap.file.file, MYF(MY_WME)))
       res= 1;
     /*
       Trivial assignment to guard against multiple invocations
@@ -400,6 +408,8 @@ my_bool _ma_once_end_block_record(MARIA_SHARE *share)
     */
     share->bitmap.file.file= -1;
   }
+  if (share->id != 0)
+    translog_deassign_id_from_share(share);
   return res;
 }
 
@@ -573,7 +583,14 @@ void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn)
   DBUG_ASSERT(undo_lsn != 0 || !info->s->base.transactional);
 
   if (!info->s->base.transactional)
-    undo_lsn= 0;                       /* Avoid assert in key cache */
+  {
+    /*
+      If this is a transactional table but with transactionality temporarily
+      disabled (like in ALTER TABLE) we need to give a sensible LSN to pages
+      and not 0. If this is not a transactional table it will reduce to 0.
+    */
+    undo_lsn= info->s->state.create_rename_lsn;
+  }
 
   while (pinned_page-- != page_link)
     pagecache_unlock_by_link(info->s->pagecache, pinned_page->link,
@@ -1133,7 +1150,6 @@ static my_bool write_tail(MARIA_HA *info,
     LSN lsn;
 
     /* Log REDO changes of tail page */
-    fileid_store(log_data, info->dfile.file);
     page_store(log_data+ FILEID_STORE_SIZE, block->page);
     dirpos_store(log_data+ FILEID_STORE_SIZE + PAGE_STORE_SIZE,
                  row_pos.rownr);
@@ -1143,7 +1159,8 @@ static my_bool write_tail(MARIA_HA *info,
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= length;
     if (translog_write_record(&lsn, LOGREC_REDO_INSERT_ROW_TAIL,
                               info->trn, share, sizeof(log_data) + length,
-                              TRANSLOG_INTERNAL_PARTS + 2, log_array))
+                              TRANSLOG_INTERNAL_PARTS + 2, log_array,
+                              log_data))
       DBUG_RETURN(1);
   }
 
@@ -1388,7 +1405,6 @@ static my_bool free_full_pages(MARIA_HA *info, MARIA_ROW *row)
   size_t extents_length= row->extents_count * ROW_EXTENT_SIZE;
   DBUG_ENTER("free_full_pages");
 
-  fileid_store(log_data, info->dfile.file);
   pagerange_store(log_data + FILEID_STORE_SIZE,
                   row->extents_count);
   log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
@@ -1397,7 +1413,8 @@ static my_bool free_full_pages(MARIA_HA *info, MARIA_ROW *row)
   log_array[TRANSLOG_INTERNAL_PARTS + 1].length= extents_length;
   if (translog_write_record(&lsn, LOGREC_REDO_PURGE_BLOCKS, info->trn,
                             info->s, sizeof(log_data) + extents_length,
-                            TRANSLOG_INTERNAL_PARTS + 2, log_array))
+                            TRANSLOG_INTERNAL_PARTS + 2, log_array,
+                            log_data))
     DBUG_RETURN(1);
 
   DBUG_RETURN (_ma_bitmap_free_full_pages(info, row->extents,
@@ -1431,7 +1448,6 @@ static my_bool free_full_page_range(MARIA_HA *info, ulonglong page, uint count)
   {
     LSN lsn;
     DBUG_ASSERT(info->trn->rec_lsn);
-    fileid_store(log_data, info->dfile.file);
     pagerange_store(log_data + FILEID_STORE_SIZE, 1);
     int5store(log_data + FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE,
               page);
@@ -1442,7 +1458,8 @@ static my_bool free_full_page_range(MARIA_HA *info, ulonglong page, uint count)
 
     if (translog_write_record(&lsn, LOGREC_REDO_PURGE_BLOCKS,
                               info->trn, info->s, sizeof(log_data),
-                              TRANSLOG_INTERNAL_PARTS + 1, log_array))
+                              TRANSLOG_INTERNAL_PARTS + 1, log_array,
+                              log_data))
       res= 1;
 
   }
@@ -1455,24 +1472,25 @@ static my_bool free_full_page_range(MARIA_HA *info, ulonglong page, uint count)
 }
 
 
-/*
-  Write a record to a (set of) pages
+/**
+   @brief Write a record to a (set of) pages
 
-  SYNOPSIS
-    write_block_record()
-    info	Maria handler
-    old_record  Orignal record in case of update; NULL in case of insert
-    record	Record we should write
-    row		Statistics about record (calculated by calc_record_size())
-    map_blocks  On which pages the record should be stored
-    row_pos	Position on head page where to put head part of record
+   @param  info            Maria handler
+   @param  old_record      Original record in case of update; NULL in case of
+                           insert
+   @param  record          Record we should write
+   @param  row             Statistics about record (calculated by
+                           calc_record_size())
+   @param  map_blocks      On which pages the record should be stored
+   @param  row_pos         Position on head page where to put head part of
+                           record
 
-  NOTES
-    On return all pinned pages are released.
+   @note
+     On return all pinned pages are released.
 
-  RETURN
-    0 ok
-    1 error
+   @return Operation status
+     @retval 0      OK
+     @retval 1      Error
 */
 
 static my_bool write_block_record(MARIA_HA *info,
@@ -1940,7 +1958,6 @@ static my_bool write_block_record(MARIA_HA *info,
     size_t data_length= (size_t) (data - row_pos->data);
 
     /* Log REDO changes of head page */
-    fileid_store(log_data, info->dfile.file);
     page_store(log_data+ FILEID_STORE_SIZE, head_block->page);
     dirpos_store(log_data+ FILEID_STORE_SIZE + PAGE_STORE_SIZE,
                  row_pos->rownr);
@@ -1950,7 +1967,8 @@ static my_bool write_block_record(MARIA_HA *info,
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= data_length;
     if (translog_write_record(&lsn, LOGREC_REDO_INSERT_ROW_HEAD, info->trn,
                               share, sizeof(log_data) + data_length,
-                              TRANSLOG_INTERNAL_PARTS + 2, log_array))
+                              TRANSLOG_INTERNAL_PARTS + 2, log_array,
+                              log_data))
       goto disk_err;
   }
 
@@ -2010,7 +2028,6 @@ static my_bool write_block_record(MARIA_HA *info,
                           NullS))
         goto disk_err;
     }
-    fileid_store(log_data, info->dfile.file);
     log_pos= log_data + FILEID_STORE_SIZE;
     log_array_pos= log_array+ TRANSLOG_INTERNAL_PARTS+1;
 
@@ -2068,7 +2085,7 @@ static my_bool write_block_record(MARIA_HA *info,
     error= translog_write_record(&lsn, LOGREC_REDO_INSERT_ROW_BLOBS,
                                  info->trn, share, log_entry_length,
                                  (uint) (log_array_pos - log_array),
-                                 log_array);
+                                 log_array, log_data);
     if (log_array != tmp_log_array)
       my_free((gptr) log_array, MYF(0));
     if (error)
@@ -2084,7 +2101,6 @@ static my_bool write_block_record(MARIA_HA *info,
 
     /* LOGREC_UNDO_ROW_INSERT & LOGREC_UNDO_ROW_INSERT share same header */
     lsn_store(log_data, info->trn->undo_lsn);
-    fileid_store(log_data + LSN_STORE_SIZE, info->dfile.file);
     page_store(log_data+ LSN_STORE_SIZE + FILEID_STORE_SIZE,
                head_block->page);
     dirpos_store(log_data+ LSN_STORE_SIZE + FILEID_STORE_SIZE +
@@ -2099,7 +2115,8 @@ static my_bool write_block_record(MARIA_HA *info,
       /* Write UNDO log record for the INSERT */
       if (translog_write_record(&lsn, LOGREC_UNDO_ROW_INSERT,
                                 info->trn, share, sizeof(log_data),
-                                TRANSLOG_INTERNAL_PARTS + 1, log_array))
+                                TRANSLOG_INTERNAL_PARTS + 1, log_array,
+                                log_data + LSN_STORE_SIZE))
         goto disk_err;
     }
     else
@@ -2114,7 +2131,7 @@ static my_bool write_block_record(MARIA_HA *info,
       if (translog_write_record(&lsn, LOGREC_UNDO_ROW_UPDATE, info->trn,
                                 share, sizeof(log_data) + row_length,
                                 TRANSLOG_INTERNAL_PARTS + 1 + row_parts_count,
-                                log_array))
+                                log_array, log_data + LSN_STORE_SIZE))
       goto disk_err;
     }
   }
@@ -2164,6 +2181,15 @@ crashed:
   my_errno= HA_ERR_WRONG_IN_RECORD;
 
 disk_err:
+  /**
+     @todo RECOVERY we are going to let dirty pages go to disk while we have
+     logged UNDO, this violates WAL. If we have not written any full pages,
+     all dirty pages are pinned so we could just delete them from the
+     pagecache. Moreover, we have written some REDOs without a closing UNDO,
+     it's possible that a next operation by this transaction succeeds and then
+     Recovery would glue the "orphan REDOs" to the succeeded operation and
+     execute the failed REDOs.
+  */
   /* Unpin all pinned pages to not cause problems for disk cache */
   _ma_unpin_all_pages(info, 0);
 
@@ -2229,20 +2255,18 @@ my_bool _ma_write_block_record(MARIA_HA *info __attribute__ ((unused)),
 }
 
 
-/*
-  Remove row written by _ma_write_block_record
+/**
+   @brief Remove row written by _ma_write_block_record()
 
-  SYNOPSIS
-    _ma_abort_write_block_record()
-    info                Maria handler
+   @param  info            Maria handler
 
-  INFORMATION
-    This is called in case we got a duplicate unique key while
-    writing keys.
+   @note
+     This is called in case we got a duplicate unique key while
+     writing keys.
 
-  RETURN
-    0  ok
-    1  error
+   @return Operation status
+     @retval 0      OK
+     @retval 1      Error
 */
 
 my_bool _ma_write_abort_block_record(MARIA_HA *info)
@@ -2288,16 +2312,19 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
       really undo a failed insert. Note that this UNDO will cause recover
       to ignore the LOGREC_UNDO_ROW_INSERT that is the previous entry
       in the UNDO chain.
-      We will soon change that: we will here execute the UNDO records
-      generated while we were trying to write the row; this will log some CLRs
-      which will replace this LOGREC_UNDO_PURGE. RECOVERY TODO BUG.
+    */
+    /**
+       @todo RECOVERY BUG
+       We will soon change that: we will here execute the UNDO records
+       generated while we were trying to write the row; this will log some
+       CLRs which will replace this LOGREC_UNDO_PURGE.
     */
     lsn_store(log_data, info->trn->undo_lsn);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     if (translog_write_record(&lsn, LOGREC_UNDO_ROW_PURGE,
-                              info->trn, info->s, sizeof(log_data),
-                              TRANSLOG_INTERNAL_PARTS + 1, log_array))
+                              info->trn, NULL, sizeof(log_data),
+                              TRANSLOG_INTERNAL_PARTS + 1, log_array, NULL))
       res= 1;
   }
   _ma_unpin_all_pages(info, info->trn->undo_lsn);
@@ -2514,7 +2541,6 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
     DBUG_ASSERT(share->pagecache->block_size == block_size);
 
     /* Log REDO data */
-    fileid_store(log_data, info->dfile.file);
     page_store(log_data+ FILEID_STORE_SIZE, page);
     dirpos_store(log_data+ FILEID_STORE_SIZE + PAGE_STORE_SIZE,
                    record_number);
@@ -2524,7 +2550,8 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
     if (translog_write_record(&lsn, (head ? LOGREC_REDO_PURGE_ROW_HEAD :
                                      LOGREC_REDO_PURGE_ROW_TAIL),
                               info->trn, share, sizeof(log_data),
-                              TRANSLOG_INTERNAL_PARTS + 1, log_array))
+                              TRANSLOG_INTERNAL_PARTS + 1, log_array,
+                              log_data))
       DBUG_RETURN(1);
     if (pagecache_write(share->pagecache,
                         &info->dfile, page, 0,
@@ -2545,7 +2572,6 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                    PAGE_STORE_SIZE + PAGERANGE_STORE_SIZE];
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
 
-    fileid_store(log_data, info->dfile.file);
     pagerange_store(log_data + FILEID_STORE_SIZE, 1);
     page_store(log_data+ FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE, page);
     pagerange_store(log_data + FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
@@ -2554,7 +2580,8 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     if (translog_write_record(&lsn, LOGREC_REDO_PURGE_BLOCKS,
                               info->trn, share, sizeof(log_data),
-                              TRANSLOG_INTERNAL_PARTS + 1, log_array))
+                              TRANSLOG_INTERNAL_PARTS + 1, log_array,
+                              log_data))
       DBUG_RETURN(1);
     DBUG_ASSERT(empty_space >= info->s->bitmap.sizes[0]);
   }
@@ -2631,7 +2658,6 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const byte *record)
 
     /* Write UNDO record */
     lsn_store(log_data, info->trn->undo_lsn);
-    fileid_store(log_data+ LSN_STORE_SIZE, info->dfile.file);
     page_store(log_data+ LSN_STORE_SIZE + FILEID_STORE_SIZE, page);
     dirpos_store(log_data+ LSN_STORE_SIZE + FILEID_STORE_SIZE +
                  PAGE_STORE_SIZE, record_number);
@@ -2645,7 +2671,7 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const byte *record)
     if (translog_write_record(&lsn, LOGREC_UNDO_ROW_DELETE, info->trn,
                               info->s, sizeof(log_data) + row_length,
                               TRANSLOG_INTERNAL_PARTS + 1 + row_parts_count,
-                              info->log_row_parts))
+                              info->log_row_parts, log_data + LSN_STORE_SIZE))
       goto err;
 
   }

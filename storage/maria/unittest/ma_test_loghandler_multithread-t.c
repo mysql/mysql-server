@@ -137,7 +137,7 @@ void writer(int num)
     if (translog_write_record(&lsn,
                               LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
                               &trn, NULL, 6, TRANSLOG_INTERNAL_PARTS + 1,
-                              parts))
+                              parts, NULL))
     {
       fprintf(stderr, "Can't write LOGREC_FIXED_RECORD_0LSN_EXAMPLE record #%lu "
               "thread %i\n", (ulong) i, num);
@@ -154,7 +154,7 @@ void writer(int num)
                               LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE,
                               &trn, NULL,
                               len, TRANSLOG_INTERNAL_PARTS + 1,
-                              parts))
+                              parts, NULL))
     {
       fprintf(stderr, "Can't write variable record #%lu\n", (ulong) i);
       translog_destroy();
@@ -303,7 +303,7 @@ int main(int argc __attribute__((unused)),
                               LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
                               &dummy_transaction_object, NULL, 6,
                               TRANSLOG_INTERNAL_PARTS + 1,
-                              parts))
+                              parts, NULL))
     {
       fprintf(stderr, "Can't write the first record\n");
       translog_destroy();

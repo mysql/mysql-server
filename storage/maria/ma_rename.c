@@ -18,6 +18,18 @@
 */
 
 #include "ma_fulltext.h"
+#include "trnman_public.h"
+
+/**
+   @brief renames a table
+
+   @param  old_name        current name of table
+   @param  new_name        table should be renamed to this name
+
+   @return Operation status
+     @retval 0      OK
+     @retval !=0    Error
+*/
 
 int maria_rename(const char *old_name, const char *new_name)
 {
@@ -26,22 +38,73 @@ int maria_rename(const char *old_name, const char *new_name)
 #ifdef USE_RAID
   uint raid_type=0,raid_chunks=0;
 #endif
+  MARIA_HA *info;
+  MARIA_SHARE *share;
+  myf sync_dir;
   DBUG_ENTER("maria_rename");
 
 #ifdef EXTRA_DEBUG
   _ma_check_table_is_closed(old_name,"rename old_table");
   _ma_check_table_is_closed(new_name,"rename new table2");
 #endif
-  /* LOCK TODO take X-lock on table here */
+  /** @todo LOCK take X-lock on table */
+  if (!(info= maria_open(old_name, O_RDWR, HA_OPEN_FOR_REPAIR)))
+    DBUG_RETURN(my_errno);
+  share= info->s;
 #ifdef USE_RAID
+  raid_type =      share->base.raid_type;
+  raid_chunks =    share->base.raid_chunks;
+#endif
+
+  sync_dir= (share->base.transactional && !share->temporary) ?
+    MY_SYNC_DIR : 0;
+  if (sync_dir)
   {
-    MARIA_HA *info;
-    if (!(info=maria_open(old_name, O_RDONLY, 0)))
-      DBUG_RETURN(my_errno);
-    raid_type =      info->s->base.raid_type;
-    raid_chunks =    info->s->base.raid_chunks;
-    maria_close(info);
+    uchar log_data[LSN_STORE_SIZE];
+    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
+    uint old_name_len= strlen(old_name), new_name_len= strlen(new_name);
+    int2store(log_data, old_name_len);
+    int2store(log_data + 2, new_name_len);
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str= log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= 2 + 2;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str= (char *)old_name;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].length= old_name_len;
+    log_array[TRANSLOG_INTERNAL_PARTS + 2].str= (char *)new_name;
+    log_array[TRANSLOG_INTERNAL_PARTS + 2].length= new_name_len;
+    /*
+      For this record to be of any use for Recovery, we need the upper
+      MySQL layer to be crash-safe, which it is not now (that would require
+      work using the ddl_log of sql/sql_table.cc); when it is, we should
+      reconsider the moment of writing this log record (before or after op,
+      under THR_LOCK_maria or not...), how to use it in Recovery, and force
+      the log. For now this record is just informative.
+    */
+    if (unlikely(translog_write_record(&share->state.create_rename_lsn,
+                                       LOGREC_REDO_RENAME_TABLE,
+                                       &dummy_transaction_object, NULL,
+                                       2 + 2 + old_name_len + new_name_len,
+                                       sizeof(log_array)/sizeof(log_array[0]),
+                                       log_array, NULL)))
+    {
+      maria_close(info);
+      DBUG_RETURN(1);
+    }
+    /*
+      store LSN into file, needed for Recovery to not be confused if a
+      RENAME happened (applying REDOs to the wrong table).
+    */
+    lsn_store(log_data, share->state.create_rename_lsn);
+    if (my_pwrite(share->kfile.file, log_data, sizeof(log_data),
+                  sizeof(share->state.header) + 2, MYF(MY_NABP)) ||
+        my_sync(share->kfile.file, MYF(MY_WME)))
+    {
+      maria_close(info);
+      DBUG_RETURN(1);
+    }
   }
+
+  maria_close(info);
+#ifdef USE_RAID
 #ifdef EXTRA_DEBUG
   _ma_check_table_is_closed(old_name,"rename raidcheck");
 #endif
@@ -49,29 +112,18 @@ int maria_rename(const char *old_name, const char *new_name)
 
   fn_format(from,old_name,"",MARIA_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
   fn_format(to,new_name,"",MARIA_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-  /*
-    RECOVERY TODO log the two renames below. Update
-    ZeroDirtyPagesLSN of the table on disk (=> sync the files), this is
-    needed so that Recovery does not pick a wrong table.
-    Then do the file renames.
-    For this log record to be of any use for Recovery, we need the upper MySQL
-    layer to be crash-safe in DDLs; when it is we should reconsider the moment
-    of writing this log record, how to use it in Recovery, and force the log.
-    For now this record is only informative. But ZeroDirtyPagesLSN is
-    critically needed!
-  */
-  if (my_rename_with_symlink(from, to, MYF(MY_WME | MY_SYNC_DIR)))
+  if (my_rename_with_symlink(from, to, MYF(MY_WME | sync_dir)))
     DBUG_RETURN(my_errno);
   fn_format(from,old_name,"",MARIA_NAME_DEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
   fn_format(to,new_name,"",MARIA_NAME_DEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
 #ifdef USE_RAID
   if (raid_type)
     data_file_rename_error= my_raid_rename(from, to, raid_chunks,
-                                           MYF(MY_WME | MY_SYNC_DIR));
+                                           MYF(MY_WME | sync_dir));
   else
 #endif
     data_file_rename_error=
-      my_rename_with_symlink(from, to, MYF(MY_WME | MY_SYNC_DIR));
+      my_rename_with_symlink(from, to, MYF(MY_WME | sync_dir));
   if (data_file_rename_error)
   {
     /*
@@ -81,7 +133,7 @@ int maria_rename(const char *old_name, const char *new_name)
     data_file_rename_error= my_errno;
     fn_format(from, old_name, "", MARIA_NAME_IEXT, MYF(MY_UNPACK_FILENAME|MY_APPEND_EXT));
     fn_format(to, new_name, "", MARIA_NAME_IEXT, MYF(MY_UNPACK_FILENAME|MY_APPEND_EXT));
-    my_rename_with_symlink(to, from, MYF(MY_WME | MY_SYNC_DIR));
+    my_rename_with_symlink(to, from, MYF(MY_WME | sync_dir));
   }
   DBUG_RETURN(data_file_rename_error);
 

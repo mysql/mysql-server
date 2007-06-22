@@ -919,12 +919,23 @@ static void setup_key_functions(register MARIA_KEYDEF *keyinfo)
 }
 
 
-/*
-   Function to save and store the header in the index file (.MYI)
+/**
+   @brief Function to save and store the header in the index file (.MYI)
+
+   @param  file            descriptor of the index file to write
+   @param  state           state information to write to the file
+   @param  pWrite          bitmap (determines the amount of information to
+                           write, and if my_write() or my_pwrite() should be
+                           used)
+
+   @return Operation status
+     @retval 0      OK
+     @retval 1      Error
 */
 
 uint _ma_state_info_write(File file, MARIA_STATE_INFO *state, uint pWrite)
 {
+  /** @todo RECOVERY write it only at checkpoint time */
   uchar  buff[MARIA_STATE_INFO_SIZE + MARIA_STATE_EXTRA_SIZE];
   uchar *ptr=buff;
   uint	i, keys= (uint) state->header.keys;
@@ -935,6 +946,11 @@ uint _ma_state_info_write(File file, MARIA_STATE_INFO *state, uint pWrite)
 
   /* open_count must be first because of _ma_mark_file_changed ! */
   mi_int2store(ptr,state->open_count);			ptr+= 2;
+  /*
+    if you change the offset of this LSN inside the file, fix
+    ma_create + ma_rename + ma_delete_all + backward-compatibility.
+  */
+  lsn_store(ptr, state->create_rename_lsn);		ptr+= LSN_STORE_SIZE;
   *ptr++= (uchar)state->changed;
   *ptr++= state->sortkey;
   mi_rowstore(ptr,state->state.records);		ptr+= 8;
@@ -959,6 +975,7 @@ uint _ma_state_info_write(File file, MARIA_STATE_INFO *state, uint pWrite)
   {
     mi_sizestore(ptr,state->key_root[i]);		ptr+= 8;
   }
+  /** @todo RECOVERY key_del is a problem for recovery */
   mi_sizestore(ptr,state->key_del);	        	ptr+= 8;
   if (pWrite & 2)				/* From maria_chk */
   {
@@ -994,6 +1011,7 @@ byte *_ma_state_info_read(byte *ptr, MARIA_STATE_INFO *state)
   key_parts= mi_uint2korr(state->header.key_parts);
 
   state->open_count = mi_uint2korr(ptr);		ptr+= 2;
+  state->create_rename_lsn= lsn_korr(ptr);		ptr+= LSN_STORE_SIZE;
   state->changed= 					(my_bool) *ptr++;
   state->sortkey= 					(uint) *ptr++;
   state->state.records= mi_rowkorr(ptr);		ptr+= 8;

@@ -57,14 +57,6 @@ int maria_close(register MARIA_HA *info)
     info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   }
   flag= !--share->reopen;
-  /*
-    RECOVERY TODO:
-    If "flag" is TRUE, in the line below we are going to make the table
-    unknown to future checkpoints, so it needs to have fsync'ed itself
-    entirely (bitmap, pages, etc) at this point.
-    The flushing is currently done a few lines further (which is ok, as we
-    still hold THR_LOCK_maria), but syncing is missing.
-  */
   maria_open_list=list_delete(maria_open_list,&info->open_list);
   pthread_mutex_unlock(&share->intern_lock);
 
@@ -82,7 +74,12 @@ int maria_close(register MARIA_HA *info)
                                   FLUSH_IGNORE_CHANGED :
                                   FLUSH_RELEASE)))
         error= my_errno;
-
+      /*
+        File must be synced as it is going out of the maria_open_list and so
+        becoming unknown to Checkpoint.
+      */
+      if (my_sync(share->kfile.file, MYF(MY_WME)))
+        error= my_errno;
       /*
         If we are crashed, we can safely flush the current state as it will
         not change the crashed state.

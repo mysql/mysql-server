@@ -47,7 +47,13 @@ PAGECACHE *maria_pagecache= &maria_pagecache_var;
 PAGECACHE maria_log_pagecache_var;
 PAGECACHE *maria_log_pagecache= &maria_log_pagecache_var;
 
-/* For using maria externally */
+/**
+   @brief when transactionality does not matter we can use this transaction
+
+   Used in external programs like ma_test*, and also internally inside
+   libmaria when there is no transaction around and the operation isn't
+   transactional (CREATE/DROP/RENAME/OPTIMIZE/REPAIR).
+*/
 TRN dummy_transaction_object;
 
 /* Enough for comparing if number is zero */
