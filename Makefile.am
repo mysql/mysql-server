@@ -136,6 +136,14 @@ test-bt:
 	@PERL@ ./mysql-test-run.pl --force --comment=rpl --suite=rpl
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --force --comment=partitions --suite=parts
+	-if [ -d mysql-test/suite/nist ] ; then \
+	  cd mysql-test ; MTR_BUILD_THREAD=auto \
+	  @PERL@ ./mysql-test-run.pl --comment=NIST+normal --force --suite=nist ; \
+	fi
+	-if [ -d mysql-test/suite/nist ] ; then \
+	  cd mysql-test ; MTR_BUILD_THREAD=auto \
+	  @PERL@ ./mysql-test-run.pl --comment=NIST+ps --force --suite=nist --ps-protocol ; \
+	fi
 
 # Re-enable the "rowlock" suite when bug#28685 is fixed
 #	-cd mysql-test ; MTR_BUILD_THREAD=auto \
