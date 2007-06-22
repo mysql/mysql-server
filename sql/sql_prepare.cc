@@ -1716,6 +1716,13 @@ static bool check_prepared_statement(Prepared_statement *stmt,
     res= mysql_test_create_table(stmt);
     break;
 
+  case SQLCOM_CREATE_VIEW:
+    if (lex->create_view_mode == VIEW_ALTER)
+    {
+      my_message(ER_UNSUPPORTED_PS, ER(ER_UNSUPPORTED_PS), MYF(0));
+      goto error;
+    }
+    break;
   case SQLCOM_DO:
     res= mysql_test_do_fields(stmt, tables, lex->insert_list);
     break;
@@ -1769,7 +1776,6 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_ROLLBACK:
   case SQLCOM_TRUNCATE:
   case SQLCOM_CALL:
-  case SQLCOM_CREATE_VIEW:
   case SQLCOM_DROP_VIEW:
   case SQLCOM_REPAIR:
   case SQLCOM_ANALYZE:
