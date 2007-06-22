@@ -3671,6 +3671,11 @@ alter:
 	  {
 	    THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
+	    if (lex->sphead)
+            {
+              my_error(ER_SP_BADSTATEMENT, MYF(0), "ALTER VIEW");
+              MYSQL_YYABORT;
+            }
 	    lex->sql_command= SQLCOM_CREATE_VIEW;
 	    lex->create_view_mode= VIEW_ALTER;
 	    /* first table in list is target VIEW name */
