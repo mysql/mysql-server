@@ -6272,8 +6272,6 @@ ha_innobase::external_lock(
                     binlog_format == BINLOG_FORMAT_STMT)
                 {
                         char buf[256];
-                        bool const read_uncommitted =
-                          trx->isolation_level == TRX_ISO_READ_UNCOMMITTED;
                         my_snprintf(buf, sizeof(buf),
                                     "Transaction level '%s' in"
                                     " InnoDB is not safe for binlog mode '%s'",
