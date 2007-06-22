@@ -3663,33 +3663,38 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_FLOAT:
   {
     /*
-      We need to store data in the buffer before the truncation check to
+      We need to mark the local variable volatile to
       workaround Intel FPU executive precision feature.
       (See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=323 for details)
-      AFAIU it does not guarantee to work.
     */
-    float data;
+    volatile float data;
     if (is_unsigned)
+    {
       data= (float) ulonglong2double(value);
+      *param->error= ((ulonglong) value) != ((ulonglong) data);
+    }
     else
-      data= (float) value;
+    {
+      data= (float)value;
+      *param->error= value != ((longlong) data);
+    }
     floatstore(buffer, data);
-    *param->error= is_unsigned ?
-                   ((ulonglong) value) != ((ulonglong) (*(float*) buffer)) :
-                   ((longlong) value) != ((longlong) (*(float*) buffer));
     break;
   }
   case MYSQL_TYPE_DOUBLE:
   {
-    double data;
+    volatile double data;
     if (is_unsigned)
+    {
       data= ulonglong2double(value);
+      *param->error= ((ulonglong) value) != ((ulonglong) data);
+    }
     else
+    {
       data= (double)value;
+      *param->error= value != ((longlong) data);
+    }
     doublestore(buffer, data);
-    *param->error= is_unsigned ?
-                   ((ulonglong) value) != ((ulonglong) (*(double*) buffer)) :
-                   ((longlong) value) != ((longlong) (*(double*) buffer));
     break;
   }
   case MYSQL_TYPE_TIME:
